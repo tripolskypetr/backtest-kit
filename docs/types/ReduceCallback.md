@@ -6,7 +6,7 @@ group: docs
 # ReduceCallback
 
 ```ts
-type ReduceCallback<T> = (accumulator: T, currentResult: IStrategyTickResult, index: number, symbol: string, when: Date) => T | Promise<T>;
+type ReduceCallback<T> = (accumulator: T, index: number, when: Date, symbol: string) => T | Promise<T>;
 ```
 
 

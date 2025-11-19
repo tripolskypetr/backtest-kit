@@ -21,6 +21,14 @@ group: docs
 
 ## Functions
 
+- [addStrategy](functions/addStrategy.md)
+- [addCandle](functions/addCandle.md)
+- [runBacktest](functions/runBacktest.md)
+- [runBacktestGUI](functions/runBacktestGUI.md)
+- [reduce](functions/reduce.md)
+- [startRun](functions/startRun.md)
+- [stopRun](functions/stopRun.md)
+- [stopAll](functions/stopAll.md)
 
 ## Interfaces
 
@@ -41,8 +49,7 @@ group: docs
 - [IStrategyTickResultClosed](interfaces/IStrategyTickResultClosed.md)
 - [IStrategy](interfaces/IStrategy.md)
 - [IBacktestResult](interfaces/IBacktestResult.md)
-- [IBacktestGUIResult](interfaces/IBacktestGUIResult.md)
-- [IReduceBacktestResult](interfaces/IReduceBacktestResult.md)
+- [IReduceResult](interfaces/IReduceResult.md)
 - [IRunConfig](interfaces/IRunConfig.md)
 
 ## Types

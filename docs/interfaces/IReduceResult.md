@@ -1,9 +1,9 @@
 ---
-title: docs/api-reference/interface/IReduceBacktestResult
+title: docs/api-reference/interface/IReduceResult
 group: docs
 ---
 
-# IReduceBacktestResult
+# IReduceResult
 
 ## Properties
 
@@ -11,12 +11,6 @@ group: docs
 
 ```ts
 symbol: string
-```
-
-### results
-
-```ts
-results: IStrategyTickResult[]
 ```
 
 ### accumulator

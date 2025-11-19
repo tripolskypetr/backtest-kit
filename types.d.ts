@@ -118,20 +118,16 @@ interface IBacktestResult {
     symbol: string;
     results: IStrategyTickResult[];
 }
-interface IBacktestGUIResult extends IBacktestResult {
-    markdown: string;
-}
 declare function runBacktest(symbol: string, timeframes: Date[]): Promise<IBacktestResult>;
-declare function runBacktestGUI(symbol: string, timeframes: Date[]): Promise<IBacktestGUIResult>;
+declare function runBacktestGUI(symbol: string, timeframes: Date[]): Promise<void>;
 
-interface IReduceBacktestResult<T> {
+interface IReduceResult<T> {
     symbol: string;
-    results: IStrategyTickResult[];
     accumulator: T;
     totalTicks: number;
 }
-type ReduceCallback<T> = (accumulator: T, currentResult: IStrategyTickResult, index: number, symbol: string, when: Date) => T | Promise<T>;
-declare function reduce<T>(symbol: string, timeframes: Date[], callback: ReduceCallback<T>, initialValue?: T): Promise<IReduceBacktestResult<T>>;
+type ReduceCallback<T> = (accumulator: T, index: number, when: Date, symbol: string) => T | Promise<T>;
+declare function reduce<T>(symbol: string, timeframes: Date[], callback: ReduceCallback<T>, initialValue: T): Promise<IReduceResult<T>>;
 
 interface IRunConfig {
     symbol: string;
