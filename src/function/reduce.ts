@@ -16,7 +16,7 @@ export type ReduceCallback<T> = (
   when: Date
 ) => T | Promise<T>;
 
-export const reduceBacktest = async <T>(
+export const reduce = async <T>(
   symbol: string,
   timeframes: Date[],
   callback: ReduceCallback<T>,
@@ -47,4 +47,4 @@ export const reduceBacktest = async <T>(
   };
 };
 
-export default reduceBacktest;
+export default reduce;

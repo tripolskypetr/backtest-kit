@@ -39,8 +39,6 @@
   },
   "scripts": {
     "build": "rollup -c",
-    "test": "npm run build && node ./test/index.mjs",
-    "benchmark": "npm run build && node ./benchmark/index.mjs",
     "build:docs": "rimraf docs && mkdir docs && node ./scripts/dts-docs.cjs ./types.d.ts ./docs",
     "docs:gpt": "npm run build && node ./scripts/gpt-docs.mjs",
     "docs:uml": "npm run build && node ./scripts/uml.mjs",

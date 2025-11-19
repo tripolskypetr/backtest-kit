@@ -6,52 +6,60 @@ export interface IRunConfig {
   interval: number;
 }
 
-let currentConfig: IRunConfig | null = null;
-let tickCount = 0;
-let intervalId: NodeJS.Timeout | null = null;
+interface IRunInstance {
+  config: IRunConfig;
+  tickCount: number;
+  intervalId: NodeJS.Timeout;
+  doWork: ReturnType<typeof singlerun>;
+}
 
-const doWork = singlerun(async () => {
-  if (!currentConfig) {
-    return;
-  }
-
-  const { symbol, interval } = currentConfig;
-
-  const now = new Date();
-  const result = await backtest.strategyPublicService.tick(symbol, now, false);
-
-  tickCount++;
-
-  await sleep(interval);
-
-  return result;
-});
+const instances = new Map<string, IRunInstance>();
 
 export const startRun = (config: IRunConfig) => {
-  if (intervalId) {
-    clearInterval(intervalId);
+  const { symbol, interval } = config;
+
+  // Останавливаем предыдущий инстанс для этого символа
+  if (instances.has(symbol)) {
+    stopRun(symbol);
   }
 
-  currentConfig = config;
-  tickCount = 0;
+  const doWork = singlerun(async () => {
+    const now = new Date();
+    const result = await backtest.strategyPublicService.tick(symbol, now, false);
 
-  intervalId = setInterval(doWork, config.interval);
+    const instance = instances.get(symbol);
+    if (instance) {
+      instance.tickCount++;
+    }
+
+    await sleep(interval);
+
+    return result;
+  });
+
+  const intervalId = setInterval(doWork, interval);
+
+  instances.set(symbol, {
+    config,
+    tickCount: 0,
+    intervalId,
+    doWork,
+  });
 };
 
-export const stopRun = () => {
-  if (intervalId) {
-    clearInterval(intervalId);
-    intervalId = null;
+export const stopRun = (symbol: string) => {
+  const instance = instances.get(symbol);
+  if (instance) {
+    clearInterval(instance.intervalId);
+    instances.delete(symbol);
   }
 };
 
-export const getStatus = () => {
-  return {
-    status: doWork.getStatus(),
-    config: currentConfig,
-    tickCount,
-    isRunning: intervalId !== null,
-  };
+export const stopAll = () => {
+  instances.forEach((instance) => {
+    clearInterval(instance.intervalId);
+  });
+  instances.clear();
 };
 
-export default { startRun, stopRun, getStatus };
+export default { startRun, stopRun, stopAll };
