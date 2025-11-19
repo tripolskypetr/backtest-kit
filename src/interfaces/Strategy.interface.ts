@@ -5,6 +5,7 @@ import { ILogger } from "./Logger.interface";
 export interface ISignalData {
   id: string;
   position: "long" | "short";
+  note: string;
   priceOpen: number;
   priceTakeProfit: number;
   priceStopLoss: number;
@@ -13,6 +14,7 @@ export interface ISignalData {
 }
 
 export interface IStrategyParams extends IStrategySchema {
+  symbol: string;
   logger: ILogger;
   candle: ICandle;
   execution: TExecutionContextService;
@@ -29,7 +31,6 @@ export interface IStrategyCallbacks {
 }
 
 export interface IStrategySchema {
-  symbol: string;
   getSignal: (symbol: string) => Promise<ISignalData | null>;
   callbacks?: Partial<IStrategyCallbacks>;
 }
