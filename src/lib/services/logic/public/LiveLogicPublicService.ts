@@ -10,7 +10,7 @@ export class LiveLogicPublicService {
     TYPES.liveLogicPrivateService
   );
 
-  public run = async (
+  public run = (
     symbol: string,
     context: {
       strategyName: string;
@@ -21,10 +21,8 @@ export class LiveLogicPublicService {
       symbol,
       context,
     });
-    return await MethodContextService.runInContext(
-      async () => {
-        return await this.liveLogicPrivateService.run(symbol);
-      },
+    return MethodContextService.runAsyncIterator(
+      this.liveLogicPrivateService.run(symbol),
       {
         exchangeName: context.exchangeName,
         strategyName: context.strategyName,

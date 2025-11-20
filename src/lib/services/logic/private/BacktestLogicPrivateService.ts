@@ -18,10 +18,7 @@ export class BacktestLogicPrivateService {
     TYPES.frameGlobalService
   );
 
-  public async* run(
-    this: BacktestLogicPrivateService,
-    symbol: string
-  ) {
+  public async *run(symbol: string) {
     this.loggerService.log("backtestLogicPrivateService run", {
       symbol,
     });
@@ -92,7 +89,7 @@ export class BacktestLogicPrivateService {
 
       i++;
     }
-  };
+  }
 }
 
 export default BacktestLogicPrivateService;
