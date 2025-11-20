@@ -2,6 +2,7 @@ import LoggerService from "../services/base/LoggerService";
 import ExchangeConnectionService from "../services/connection/ExchangeConnectionService";
 import StrategyConnectionService from "../services/connection/StrategyConnectionService";
 import ExecutionContextService from "../services/context/ExecutionContextService";
+import MethodContextService from "../services/context/MethodContextService";
 import ExchangePublicService from "../services/public/ExchangePublicService";
 import StrategyPublicService from "../services/public/StrategyPublicService";
 import ExchangeSchemaService from "../services/schema/ExchangeSchemaService";
@@ -15,6 +16,7 @@ import TYPES from "./types";
 
 {
     provide(TYPES.executionContextService, () => new ExecutionContextService());
+    provide(TYPES.methodContextService, () => new MethodContextService());
 }
 
 {

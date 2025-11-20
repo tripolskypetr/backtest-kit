@@ -3,10 +3,15 @@ import { IStrategySchema } from "../interfaces/Strategy.interface";
 import { IExchangeSchema } from "../interfaces/Exchange.interface";
 
 export function addStrategy(strategySchema: IStrategySchema) {
-  backtest.strategySchemaService.addSchema(strategySchema);
-};
+  backtest.strategySchemaService.register(
+    strategySchema.strategyName,
+    strategySchema
+  );
+}
 
 export function addExchange(exchangeSchema: IExchangeSchema) {
-  backtest.exchangeSchemaService.addSchema(exchangeSchema);
-};
-
+  backtest.exchangeSchemaService.register(
+    exchangeSchema.exchangeName,
+    exchangeSchema
+  );
+}

@@ -1,17 +1,18 @@
 import * as di_scoped from 'di-scoped';
 import * as functools_kit from 'functools-kit';
 
-interface IExecutionContext {
+interface IExecutionContext$1 {
+    symbol: string;
     when: Date;
     backtest: boolean;
 }
 declare const ExecutionContextService: (new () => {
-    readonly context: IExecutionContext;
+    readonly context: IExecutionContext$1;
 }) & Omit<{
-    new (context: IExecutionContext): {
-        readonly context: IExecutionContext;
+    new (context: IExecutionContext$1): {
+        readonly context: IExecutionContext$1;
     };
-}, "prototype"> & di_scoped.IScopedClassRun<[context: IExecutionContext]>;
+}, "prototype"> & di_scoped.IScopedClassRun<[context: IExecutionContext$1]>;
 type TExecutionContextService = InstanceType<typeof ExecutionContextService>;
 
 /**
@@ -54,6 +55,7 @@ interface IExchangeCallbacks {
     onCandleData: (symbol: string, interval: CandleInterval, since: Date, limit: number, data: ICandleData[]) => void;
 }
 interface IExchangeSchema {
+    exchangeName: ExchangeName;
     getCandles: (symbol: string, interval: CandleInterval, since: Date, limit: number) => Promise<ICandleData[]>;
     formatQuantity: (symbol: string, quantity: number) => Promise<string>;
     formatPrice: (symbol: string, price: number) => Promise<string>;
@@ -65,6 +67,7 @@ interface IExchange {
     formatPrice: (symbol: string, price: number) => Promise<string>;
     getAveragePrice: (symbol: string) => Promise<number>;
 }
+type ExchangeName = string;
 
 interface ISignalData {
     id: string;
@@ -81,6 +84,8 @@ interface IStrategyCallbacks {
     onClose: (backtest: boolean, symbol: string, priceClose: number, data: ISignalData) => void;
 }
 interface IStrategySchema {
+    strategyName: StrategyName;
+    exchangeName: ExchangeName;
     getSignal: (symbol: string) => Promise<ISignalData | null>;
     callbacks?: Partial<IStrategyCallbacks>;
 }
@@ -114,6 +119,7 @@ type IStrategyTickResult = IStrategyTickResultIdle | IStrategyTickResultOpened |
 interface IStrategy {
     tick: (symbol: string) => Promise<IStrategyTickResult>;
 }
+type StrategyName = string;
 
 declare function addStrategy(strategySchema: IStrategySchema): void;
 declare function addExchange(exchangeSchema: IExchangeSchema): void;
@@ -146,6 +152,11 @@ declare function getAveragePrice(symbol: string): Promise<number>;
 declare function formatPrice(symbol: string, price: number): Promise<string>;
 declare function formatQuantity(symbol: string, quantity: number): Promise<string>;
 
+interface IExecutionContext {
+    exchangeName: ExchangeName;
+    strategyName: StrategyName;
+}
+
 declare class LoggerService implements ILogger {
     private _commonLogger;
     log: (topic: string, ...args: any[]) => Promise<void>;
@@ -167,7 +178,8 @@ declare class ExchangeConnectionService implements IExchange {
     private readonly loggerService;
     private readonly executionContextService;
     private readonly exchangeSchemaService;
-    getExchange: ((symbol: string) => ClientExchange) & functools_kit.IClearableMemoize<string> & functools_kit.IControlMemoize<string, ClientExchange>;
+    private readonly methodContextService;
+    getExchange: ((exchangeName: ExchangeName) => ClientExchange) & functools_kit.IClearableMemoize<string> & functools_kit.IControlMemoize<string, ClientExchange>;
     getCandles: (symbol: string, interval: CandleInterval, limit: number) => Promise<ICandleData[]>;
     getAveragePrice: (symbol: string) => Promise<number>;
     formatPrice: (symbol: string, price: number) => Promise<string>;
@@ -175,17 +187,19 @@ declare class ExchangeConnectionService implements IExchange {
 }
 
 declare class ExchangeSchemaService {
-    private readonly loggerService;
-    private _exchangeSchema;
-    getSchema: () => IExchangeSchema;
-    addSchema: (exchangeSchema: IExchangeSchema) => void;
+    readonly loggerService: LoggerService;
+    private _registry;
+    register: (key: ExchangeName, value: IExchangeSchema) => void;
+    override: (key: ExchangeName, value: Partial<IExchangeSchema>) => IExchangeSchema;
+    get: (key: ExchangeName) => IExchangeSchema;
 }
 
 declare class StrategySchemaService {
-    private readonly loggerService;
-    private _strategySchema;
-    getSchema: () => IStrategySchema;
-    addSchema: (strategySchema: IStrategySchema) => void;
+    readonly loggerService: LoggerService;
+    private _registry;
+    register: (key: StrategyName, value: IStrategySchema) => void;
+    override: (key: StrategyName, value: Partial<IStrategySchema>) => IStrategySchema;
+    get: (key: StrategyName) => IStrategySchema;
 }
 
 declare class StrategyConnectionService implements IStrategy {
@@ -193,8 +207,9 @@ declare class StrategyConnectionService implements IStrategy {
     private readonly executionContextService;
     private readonly strategySchemaService;
     private readonly exchangeConnectionService;
+    private readonly methodContextService;
     private getStrategy;
-    tick: (symbol: string) => Promise<IStrategyTickResult>;
+    tick: () => Promise<IStrategyTickResult>;
 }
 
 declare class ExchangePublicService {
@@ -220,6 +235,9 @@ declare const backtest: {
     exchangeConnectionService: ExchangeConnectionService;
     strategyConnectionService: StrategyConnectionService;
     executionContextService: {
+        readonly context: IExecutionContext$1;
+    };
+    methodContextService: {
         readonly context: IExecutionContext;
     };
     loggerService: LoggerService;

@@ -1,5 +1,5 @@
 import { TExecutionContextService } from "../lib/services/context/ExecutionContextService";
-import { IExchange } from "./Exchange.interface";
+import { ExchangeName, IExchange } from "./Exchange.interface";
 import { ILogger } from "./Logger.interface";
 
 export interface ISignalData {
@@ -14,7 +14,6 @@ export interface ISignalData {
 }
 
 export interface IStrategyParams extends IStrategySchema {
-  symbol: string;
   logger: ILogger;
   exchange: IExchange;
   execution: TExecutionContextService;
@@ -31,6 +30,8 @@ export interface IStrategyCallbacks {
 }
 
 export interface IStrategySchema {
+  strategyName: StrategyName;
+  exchangeName: ExchangeName;
   getSignal: (symbol: string) => Promise<ISignalData | null>;
   callbacks?: Partial<IStrategyCallbacks>;
 }
@@ -76,3 +77,5 @@ export type IStrategyTickResult =
 export interface IStrategy {
   tick: (symbol: string) => Promise<IStrategyTickResult>;
 }
+
+export type StrategyName = string;

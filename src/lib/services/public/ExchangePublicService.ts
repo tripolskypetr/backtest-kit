@@ -33,6 +33,7 @@ export class ExchangePublicService {
         );
       },
       {
+        symbol,
         when,
         backtest,
       }
@@ -54,6 +55,7 @@ export class ExchangePublicService {
         return await this.exchangeConnectionService.getAveragePrice(symbol);
       },
       {
+        symbol,
         when,
         backtest,
       }
@@ -77,6 +79,7 @@ export class ExchangePublicService {
         return await this.exchangeConnectionService.formatPrice(symbol, price);
       },
       {
+        symbol,
         when,
         backtest,
       }
@@ -103,6 +106,7 @@ export class ExchangePublicService {
         );
       },
       {
+        symbol,
         when,
         backtest,
       }

@@ -11,6 +11,9 @@ import StrategySchemaService from "./services/schema/StrategySchemaService";
 import StrategyConnectionService from "./services/connection/StrategyConnectionService";
 import ExchangePublicService from "./services/public/ExchangePublicService";
 import StrategyPublicService from "./services/public/StrategyPublicService";
+import MethodContextService, {
+  TMethodContextService,
+} from "./services/context/MethodContextService";
 
 const baseServices = {
   loggerService: inject<LoggerService>(TYPES.loggerService),
@@ -19,6 +22,9 @@ const baseServices = {
 const contextServices = {
   executionContextService: inject<TExecutionContextService>(
     TYPES.executionContextService
+  ),
+  methodContextService: inject<TMethodContextService>(
+    TYPES.methodContextService
   ),
 };
 
@@ -32,14 +38,18 @@ const connectionServices = {
 };
 
 const schemaServices = {
-  exchangeSchemaService: inject<ExchangeSchemaService>(TYPES.exchangeSchemaService),
+  exchangeSchemaService: inject<ExchangeSchemaService>(
+    TYPES.exchangeSchemaService
+  ),
   strategySchemaService: inject<StrategySchemaService>(
     TYPES.strategySchemaService
   ),
 };
 
 const publicServices = {
-  exchangePublicService: inject<ExchangePublicService>(TYPES.exchangePublicService),
+  exchangePublicService: inject<ExchangePublicService>(
+    TYPES.exchangePublicService
+  ),
   strategyPublicService: inject<StrategyPublicService>(
     TYPES.strategyPublicService
   ),
@@ -56,5 +66,6 @@ export const backtest = {
 init();
 
 export { ExecutionContextService };
+export { MethodContextService };
 
 export default backtest;

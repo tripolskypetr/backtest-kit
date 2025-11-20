@@ -60,19 +60,19 @@ export class ClientStrategy implements IStrategy {
 
   constructor(readonly params: IStrategyParams) {}
 
-  public tick = async (symbol: string): Promise<IStrategyTickResult> => {
-    this.params.logger.debug("ClientStrategy tick", {
-      symbol,
-    });
+  public tick = async (): Promise<IStrategyTickResult> => {
+    this.params.logger.debug("ClientStrategy tick");
 
     if (!this._pendingSignal) {
-      this._pendingSignal = await this.params.getSignal(this.params.symbol);
+      this._pendingSignal = await this.params.getSignal(
+        this.params.execution.context.symbol
+      );
 
       if (this._pendingSignal) {
         if (this.params.callbacks?.onOpen) {
           this.params.callbacks.onOpen(
             this.params.execution.context.backtest,
-            symbol,
+            this.params.execution.context.symbol,
             this._pendingSignal
           );
         }
@@ -93,10 +93,12 @@ export class ClientStrategy implements IStrategy {
     const signal = this._pendingSignal;
 
     // Получаем среднюю цену
-    const averagePrice = await this.params.exchange.getAveragePrice(symbol);
+    const averagePrice = await this.params.exchange.getAveragePrice(
+      this.params.execution.context.symbol
+    );
 
     this.params.logger.debug("ClientStrategy tick check", {
-      symbol,
+      symbol: this.params.execution.context.symbol,
       averagePrice,
       signalId: signal.id,
       position: signal.position,
@@ -140,7 +142,7 @@ export class ClientStrategy implements IStrategy {
       const pnl = GET_PNL_FN(signal, averagePrice);
 
       this.params.logger.debug("ClientStrategy closing", {
-        symbol,
+        symbol: this.params.execution.context.symbol,
         signalId: signal.id,
         reason: closeReason,
         priceClose: averagePrice,
@@ -150,7 +152,7 @@ export class ClientStrategy implements IStrategy {
       if (this.params.callbacks?.onClose) {
         this.params.callbacks.onClose(
           this.params.execution.context.backtest,
-          symbol,
+          this.params.execution.context.symbol,
           averagePrice,
           signal
         );

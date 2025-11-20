@@ -1,6 +1,7 @@
 import { scoped } from "di-scoped";
 
 export interface IExecutionContext {
+  symbol: string;
   when: Date;
   backtest: boolean;
 }

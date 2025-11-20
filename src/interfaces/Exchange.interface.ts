@@ -38,6 +38,7 @@ export interface IExchangeCallbacks {
 }
 
 export interface IExchangeSchema {
+  exchangeName: ExchangeName;
   getCandles: (
     symbol: string,
     interval: CandleInterval,
@@ -59,3 +60,5 @@ export interface IExchange {
   formatPrice: (symbol: string, price: number) => Promise<string>;
   getAveragePrice: (symbol: string) => Promise<number>;
 }
+
+export type ExchangeName = string;

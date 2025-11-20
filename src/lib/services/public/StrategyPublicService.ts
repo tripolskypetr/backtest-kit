@@ -2,9 +2,7 @@ import { inject } from "../../core/di";
 import LoggerService from "../base/LoggerService";
 import TYPES from "../../core/types";
 import ExecutionContextService from "../context/ExecutionContextService";
-import {
-  IStrategyTickResult,
-} from "../../../interfaces/Strategy.interface";
+import { IStrategyTickResult } from "../../../interfaces/Strategy.interface";
 import StrategyConnectionService from "../connection/StrategyConnectionService";
 
 export class StrategyPublicService {
@@ -15,7 +13,7 @@ export class StrategyPublicService {
   public tick = async (
     symbol: string,
     when: Date,
-    backtest: boolean,
+    backtest: boolean
   ): Promise<IStrategyTickResult> => {
     this.loggerService.log("strategyPublicService tick", {
       symbol,
@@ -24,9 +22,10 @@ export class StrategyPublicService {
     });
     return await ExecutionContextService.runInContext(
       async () => {
-        return await this.strategyConnectionService.tick(symbol);
+        return await this.strategyConnectionService.tick();
       },
       {
+        symbol,
         when,
         backtest,
       }

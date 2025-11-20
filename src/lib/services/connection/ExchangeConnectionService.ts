@@ -4,11 +4,13 @@ import TYPES from "../../core/types";
 import { TExecutionContextService } from "../context/ExecutionContextService";
 import {
   CandleInterval,
+  ExchangeName,
   IExchange,
 } from "../../../interfaces/Exchange.interface";
 import { memoize } from "functools-kit";
 import ClientExchange from "../../../client/ClientExchange";
 import ExchangeSchemaService from "../schema/ExchangeSchemaService";
+import { TMethodContextService } from "../context/MethodContextService";
 
 export class ExchangeConnectionService implements IExchange {
   private readonly loggerService = inject<LoggerService>(TYPES.loggerService);
@@ -18,15 +20,19 @@ export class ExchangeConnectionService implements IExchange {
   private readonly exchangeSchemaService = inject<ExchangeSchemaService>(
     TYPES.exchangeSchemaService
   );
+  private readonly methodContextService = inject<TMethodContextService>(
+    TYPES.methodContextService
+  );
 
-  public getExchange = memoize<(symbol: string) => ClientExchange>(
-    (symbol) => `${symbol}`,
-    () => {
+  public getExchange = memoize(
+    (exchangeName) => `${exchangeName}`,
+    (exchangeName: ExchangeName) => {
       const { getCandles, formatPrice, formatQuantity, callbacks } =
-        this.exchangeSchemaService.getSchema();
+        this.exchangeSchemaService.get(exchangeName);
       return new ClientExchange({
         execution: this.executionContextService,
         logger: this.loggerService,
+        exchangeName,
         getCandles,
         formatPrice,
         formatQuantity,
@@ -45,14 +51,18 @@ export class ExchangeConnectionService implements IExchange {
       interval,
       limit,
     });
-    return await this.getExchange(symbol).getCandles(symbol, interval, limit);
+    return await this.getExchange(
+      this.methodContextService.context.exchangeName
+    ).getCandles(symbol, interval, limit);
   };
 
   public getAveragePrice = async (symbol: string) => {
     this.loggerService.log("exchangeConnectionService getAveragePrice", {
       symbol,
     });
-    return await this.getExchange(symbol).getAveragePrice(symbol);
+    return await this.getExchange(
+      this.methodContextService.context.exchangeName
+    ).getAveragePrice(symbol);
   };
 
   public formatPrice = async (symbol: string, price: number) => {
@@ -60,7 +70,9 @@ export class ExchangeConnectionService implements IExchange {
       symbol,
       price,
     });
-    return await this.getExchange(symbol).formatPrice(symbol, price);
+    return await this.getExchange(
+      this.methodContextService.context.exchangeName
+    ).formatPrice(symbol, price);
   };
 
   public formatQuantity = async (symbol: string, quantity: number) => {
@@ -68,7 +80,9 @@ export class ExchangeConnectionService implements IExchange {
       symbol,
       quantity,
     });
-    return await this.getExchange(symbol).formatQuantity(symbol, quantity);
+    return await this.getExchange(
+      this.methodContextService.context.exchangeName
+    ).formatQuantity(symbol, quantity);
   };
 }
 
