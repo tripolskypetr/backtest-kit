@@ -4,7 +4,7 @@ import {
   IExchangeParams,
 } from "../interfaces/Exchange.interface";
 
-const INTERVAL_MINUTES = {
+const INTERVAL_MINUTES: Record<CandleInterval, number>  = {
   "1m": 1,
   "3m": 3,
   "5m": 5,
@@ -15,7 +15,7 @@ const INTERVAL_MINUTES = {
   "4h": 240,
   "6h": 360,
   "8h": 480,
-} as const;
+};
 
 export class ClientExchange implements IExchange {
   constructor(readonly params: IExchangeParams) {}
