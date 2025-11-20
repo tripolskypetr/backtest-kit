@@ -28,10 +28,12 @@ export class LiveLogicPrivateService {
       });
 
       if (result.action === "active") {
+        await sleep(TICK_TTL);
         continue;
       }
 
       if (result.action === "idle") {
+        await sleep(TICK_TTL);
         continue;
       }
 
