@@ -10,8 +10,8 @@ import FrameGlobalService from "../services/global/FrameGlobalService";
 import ExchangeSchemaService from "../services/schema/ExchangeSchemaService";
 import StrategySchemaService from "../services/schema/StrategySchemaService";
 import FrameSchemaService from "../services/schema/FrameSchemaService";
-import BacktestLogicService from "../services/logic/BacktestLogicService";
-import LiveLogicService from "../services/logic/LiveLogicService";
+import BacktestLogicPrivateService from "../services/logic/private/BacktestLogicPrivateService";
+import LiveLogicPrivateService from "../services/logic/private/LiveLogicPrivateService";
 import { provide } from "./di";
 import TYPES from "./types";
 
@@ -43,6 +43,6 @@ import TYPES from "./types";
 }
 
 {
-    provide(TYPES.backtestLogicService, () => new BacktestLogicService());
-    provide(TYPES.liveLogicService, () => new LiveLogicService());
+    provide(TYPES.backtestLogicPrivateService, () => new BacktestLogicPrivateService());
+    provide(TYPES.liveLogicPrivateService, () => new LiveLogicPrivateService());
 }

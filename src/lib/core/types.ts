@@ -25,9 +25,13 @@ const globalServices = {
     frameGlobalService: Symbol('frameGlobalService'),
 }
 
-const logicServices = {
-    backtestLogicService: Symbol('backtestLogicService'),
-    liveLogicService: Symbol('liveLogicService'),
+const logicPrivateServices = {
+    backtestLogicPrivateService: Symbol('backtestLogicPrivateService'),
+    liveLogicPrivateService: Symbol('liveLogicPrivateService'),
+}
+
+const logicPublicServices = {
+
 }
 
 export const TYPES = {
@@ -36,7 +40,8 @@ export const TYPES = {
     ...connectionServices,
     ...schemaServices,
     ...globalServices,
-    ...logicServices,
+    ...logicPrivateServices,
+    ...logicPublicServices,
 }
 
 export default TYPES;

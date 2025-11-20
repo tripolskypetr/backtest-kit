@@ -1,11 +1,11 @@
-import { inject } from "../../core/di";
-import LoggerService from "../base/LoggerService";
-import TYPES from "../../core/types";
-import { IStrategyTickResultClosed } from "../../../interfaces/Strategy.interface";
-import StrategyGlobalService from "../global/StrategyGlobalService";
-import ExchangeGlobalService from "../global/ExchangeGlobalService";
+import { inject } from "../../../core/di";
+import LoggerService from "../../base/LoggerService";
+import TYPES from "../../../core/types";
+import { IStrategyTickResultClosed } from "../../../../interfaces/Strategy.interface";
+import StrategyGlobalService from "../../global/StrategyGlobalService";
+import ExchangeGlobalService from "../../global/ExchangeGlobalService";
 
-export class BacktestLogicService {
+export class BacktestLogicPrivateService {
   private readonly loggerService = inject<LoggerService>(TYPES.loggerService);
   private readonly strategyGlobalService = inject<StrategyGlobalService>(
     TYPES.strategyGlobalService
@@ -18,7 +18,7 @@ export class BacktestLogicService {
     symbol: string,
     timeframes: Date[]
   ): Promise<IStrategyTickResultClosed[]> => {
-    this.loggerService.log("backtestLogicService run", {
+    this.loggerService.log("backtestLogicPrivateService run", {
       symbol,
       timeframesCount: timeframes.length,
     });
@@ -35,7 +35,7 @@ export class BacktestLogicService {
       if (result.action === "opened") {
         const signal = result.signal;
 
-        this.loggerService.log("backtestLogicService signal opened", {
+        this.loggerService.log("backtestLogicPrivateService signal opened", {
           symbol,
           signalId: signal.id,
           minuteEstimatedTime: signal.minuteEstimatedTime,
@@ -54,7 +54,7 @@ export class BacktestLogicService {
             return results;
         }
 
-        this.loggerService.log("backtestLogicService got candles", {
+        this.loggerService.log("backtestLogicPrivateService got candles", {
           symbol,
           signalId: signal.id,
           candlesCount: candles.length,
@@ -71,7 +71,7 @@ export class BacktestLogicService {
         // Сохраняем результат (всегда closed)
         results.push(backtestResult);
 
-        this.loggerService.log("backtestLogicService signal closed", {
+        this.loggerService.log("backtestLogicPrivateService signal closed", {
           symbol,
           signalId: backtestResult.signal.id,
           closeTimestamp: backtestResult.closeTimestamp,
@@ -100,4 +100,4 @@ export class BacktestLogicService {
   };
 }
 
-export default BacktestLogicService;
+export default BacktestLogicPrivateService;
