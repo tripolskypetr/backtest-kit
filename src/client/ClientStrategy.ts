@@ -1,10 +1,8 @@
-import { randomString, trycatch } from "functools-kit";
+import { randomString, singleshot, trycatch } from "functools-kit";
 import {
   IStrategy,
   ISignalRow,
-  ISignalDto,
   IStrategyParams,
-  IStrategyPnL,
   IStrategyTickResult,
   IStrategyBacktestResult,
   StrategyCloseReason,
@@ -12,6 +10,7 @@ import {
 } from "../interfaces/Strategy.interface";
 import toProfitLossDto from "../helpers/toProfitLossDto";
 import { ICandleData } from "../interfaces/Exchange.interface";
+import { PersistSignalAdaper } from "../classes/Persist";
 
 const INTERVAL_MINUTES: Record<SignalInterval, number> = {
   "1m": 1,
@@ -68,17 +67,46 @@ const GET_AVG_PRICE_FN = (candles: ICandleData[]): number => {
     : sumPriceVolume / totalVolume;
 };
 
+const WAIT_FOR_INIT_FN = async (self: ClientStrategy) => {
+  self.params.logger.debug("ClientStrategy waitForInit");
+  if (self.params.execution.context.backtest) {
+    return;
+  }
+  self._pendingSignal = await PersistSignalAdaper.readSignalData(
+    self.params.strategyName,
+    self.params.execution.context.symbol
+  );
+};
+
 export class ClientStrategy implements IStrategy {
   _pendingSignal: ISignalRow | null = null;
   _lastSignalTimestamp: number | null = null;
 
   constructor(readonly params: IStrategyParams) {}
 
+  public waitForInit = singleshot(async () => await WAIT_FOR_INIT_FN(this));
+
+  public async setPendingSignal(pendingSignal: ISignalRow | null) {
+    this.params.logger.debug("ClientStrategy setPendingSignal", {
+      pendingSignal,
+    });
+    this._pendingSignal = pendingSignal;
+    if (this.params.execution.context.backtest) {
+      return;
+    }
+    await PersistSignalAdaper.writeSignalData(
+      this._pendingSignal,
+      this.params.strategyName,
+      this.params.execution.context.symbol
+    );
+  }
+
   public async tick(): Promise<IStrategyTickResult> {
     this.params.logger.debug("ClientStrategy tick");
 
     if (!this._pendingSignal) {
-      this._pendingSignal = await GET_SIGNAL_FN(this);
+      const pendingSignal = await GET_SIGNAL_FN(this);
+      await this.setPendingSignal(pendingSignal);
 
       if (this._pendingSignal) {
         if (this.params.callbacks?.onOpen) {
@@ -172,7 +200,7 @@ export class ClientStrategy implements IStrategy {
         );
       }
 
-      this._pendingSignal = null;
+      await this.setPendingSignal(null);
 
       return {
         action: "closed",
@@ -193,7 +221,12 @@ export class ClientStrategy implements IStrategy {
 
   public async backtest(
     candles: ICandleData[]
-  ): Promise<IStrategyBacktestResult> {
+  ): Promise<IStrategyBacktestResult> {  
+    this.params.logger.debug("ClientStrategy backtest", {
+      symbol: this.params.execution.context.symbol,
+      candlesCount: candles.length,
+    });
+
     const signal = this._pendingSignal;
 
     if (!signal) {
@@ -203,12 +236,6 @@ export class ClientStrategy implements IStrategy {
     if (!this.params.execution.context.backtest) {
       throw new Error("ClientStrategy backtest: running in live context");
     }
-
-    this.params.logger.debug("ClientStrategy backtest", {
-      symbol: this.params.execution.context.symbol,
-      signalId: signal.id,
-      candlesCount: candles.length,
-    });
 
     // Проверяем каждую свечу на достижение TP/SL
     // Начинаем с индекса 4 (пятая свеча), чтобы было минимум 5 свечей для VWAP
@@ -266,7 +293,7 @@ export class ClientStrategy implements IStrategy {
           );
         }
 
-        this._pendingSignal = null;
+        await this.setPendingSignal(null);
 
         return {
           action: "closed",
@@ -304,7 +331,7 @@ export class ClientStrategy implements IStrategy {
       );
     }
 
-    this._pendingSignal = null;
+    await this.setPendingSignal(null);
 
     return {
       action: "closed",

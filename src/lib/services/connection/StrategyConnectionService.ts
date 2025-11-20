@@ -48,18 +48,22 @@ export class StrategyConnectionService implements IStrategy {
 
   public tick = async (): Promise<IStrategyTickResult> => {
     this.loggerService.log("strategyConnectionService tick");
-    return await this.getStrategy(
+    const strategy = await this.getStrategy(
       this.methodContextService.context.strategyName
-    ).tick();
+    );
+    await strategy.waitForInit();
+    return await strategy.tick();
   };
 
   public backtest = async (
     candles: ICandleData[]
   ): Promise<IStrategyBacktestResult> => {
     this.loggerService.log("strategyConnectionService backtest");
-    return await this.getStrategy(
+    const strategy = await this.getStrategy(
       this.methodContextService.context.strategyName
-    ).backtest(candles);
+    );
+    await strategy.waitForInit();
+    return await strategy.backtest(candles);
   };
 }
 

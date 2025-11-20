@@ -36,4 +36,12 @@ export { FrameInterval, IFrameSchema } from "./interfaces/Frame.interface";
 export { ExecutionContextService } from "./lib/services/context/ExecutionContextService";
 export { MethodContextService } from "./lib/services/context/MethodContextService";
 
+export {
+  PersistBase,
+  TPersistBase,
+  IPersistBase,
+  TPersistBaseCtor,
+  PersistSignalAdaper,
+} from "./classes/Persist";
+
 export { backtest } from "./lib";
