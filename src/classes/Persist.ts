@@ -37,21 +37,42 @@ const BASE_WAIT_FOR_INIT_FN_METHOD_NAME = "PersistBase.waitForInitFn";
 const BASE_UNLINK_RETRY_COUNT = 5;
 const BASE_UNLINK_RETRY_DELAY = 1_000;
 
+/**
+ * Signal data stored in persistence layer.
+ * Contains nullable signal for atomic updates.
+ */
 export interface ISignalData {
   signalRow: ISignalRow | null;
 }
 
+/**
+ * Type helper for PersistBase instance.
+ */
 export type TPersistBase = InstanceType<typeof PersistBase>;
 
+/**
+ * Constructor type for PersistBase.
+ * Used for custom persistence adapters.
+ */
 export type TPersistBaseCtor<
   EntityName extends string = string,
   Entity extends IEntity = IEntity
 > = new (entityName: EntityName, baseDir: string) => IPersistBase<Entity>;
 
+/**
+ * Entity identifier - string or number.
+ */
 export type EntityId = string | number;
 
+/**
+ * Base interface for persisted entities.
+ */
 export interface IEntity {}
 
+/**
+ * Persistence interface for CRUD operations.
+ * Implemented by PersistBase.
+ */
 export interface IPersistBase<Entity extends IEntity = IEntity> {
   waitForInit(initial: boolean): Promise<void>;
 
@@ -109,6 +130,23 @@ const BASE_WAIT_FOR_INIT_UNLINK_FN = async (filePath: string) =>
     }
   );
 
+/**
+ * Base class for file-based persistence with atomic writes.
+ *
+ * Features:
+ * - Atomic file writes using writeFileAtomic
+ * - Auto-validation and cleanup of corrupted files
+ * - Async generator support for iteration
+ * - Retry logic for file deletion
+ *
+ * @example
+ * ```typescript
+ * const persist = new PersistBase("my-entity", "./data");
+ * await persist.waitForInit(true);
+ * await persist.writeValue("key1", { data: "value" });
+ * const value = await persist.readValue("key1");
+ * ```
+ */
 export const PersistBase = makeExtendable(
   class<EntityName extends string = string> implements IPersistBase {
     _directory: string;
@@ -352,6 +390,17 @@ export const PersistBase = makeExtendable(
   }
 );
 
+/**
+ * Utility class for managing signal persistence.
+ *
+ * Features:
+ * - Memoized storage instances per strategy
+ * - Custom adapter support
+ * - Atomic read/write operations
+ * - Crash-safe signal state management
+ *
+ * Used by ClientStrategy for live mode persistence.
+ */
 export class PersistSignalUtils {
   private PersistSignalFactory: TPersistBaseCtor<StrategyName, ISignalData> =
     PersistBase;
@@ -365,6 +414,20 @@ export class PersistSignalUtils {
       ])
   );
 
+  /**
+   * Registers a custom persistence adapter.
+   *
+   * @param Ctor - Custom PersistBase constructor
+   *
+   * @example
+   * ```typescript
+   * class RedisPersist extends PersistBase {
+   *   async readValue(id) { return JSON.parse(await redis.get(id)); }
+   *   async writeValue(id, entity) { await redis.set(id, JSON.stringify(entity)); }
+   * }
+   * PersistSignalAdaper.usePersistSignalAdapter(RedisPersist);
+   * ```
+   */
   public usePersistSignalAdapter(
     Ctor: TPersistBaseCtor<StrategyName, ISignalData>
   ): void {
@@ -374,6 +437,16 @@ export class PersistSignalUtils {
     this.PersistSignalFactory = Ctor;
   }
 
+  /**
+   * Reads persisted signal data for a strategy and symbol.
+   *
+   * Called by ClientStrategy.waitForInit() to restore state.
+   * Returns null if no signal exists.
+   *
+   * @param strategyName - Strategy identifier
+   * @param symbol - Trading pair symbol
+   * @returns Promise resolving to signal or null
+   */
   public readSignalData = async (
     strategyName: StrategyName,
     symbol: string
@@ -392,6 +465,17 @@ export class PersistSignalUtils {
     return null;
   };
 
+  /**
+   * Writes signal data to disk with atomic file writes.
+   *
+   * Called by ClientStrategy.setPendingSignal() to persist state.
+   * Uses atomic writes to prevent corruption on crashes.
+   *
+   * @param signalRow - Signal data (null to clear)
+   * @param strategyName - Strategy identifier
+   * @param symbol - Trading pair symbol
+   * @returns Promise that resolves when write is complete
+   */
   public writeSignalData = async (
     signalRow: ISignalRow | null,
     strategyName: StrategyName,
@@ -407,4 +491,20 @@ export class PersistSignalUtils {
   };
 }
 
+/**
+ * Global singleton instance of PersistSignalUtils.
+ * Used by ClientStrategy for signal persistence.
+ *
+ * @example
+ * ```typescript
+ * // Custom adapter
+ * PersistSignalAdaper.usePersistSignalAdapter(RedisPersist);
+ *
+ * // Read signal
+ * const signal = await PersistSignalAdaper.readSignalData("my-strategy", "BTCUSDT");
+ *
+ * // Write signal
+ * await PersistSignalAdaper.writeSignalData(signal, "my-strategy", "BTCUSDT");
+ * ```
+ */
 export const PersistSignalAdaper = new PersistSignalUtils();

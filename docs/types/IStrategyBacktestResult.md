@@ -9,4 +9,4 @@ group: docs
 type IStrategyBacktestResult = IStrategyTickResultClosed;
 ```
 
-
+Backtest always returns closed result (TP/SL or time_expired).

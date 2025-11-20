@@ -13,8 +13,12 @@ group: docs
 symbol: string
 ```
 
+Trading pair symbol
+
 ### results
 
 ```ts
 results: IStrategyTickResult[]
 ```
+
+Array of closed tick results

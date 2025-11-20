@@ -144,14 +144,59 @@ const WAIT_FOR_INIT_FN = async (self: ClientStrategy) => {
   );
 };
 
+/**
+ * Client implementation for trading strategy lifecycle management.
+ *
+ * Features:
+ * - Signal generation with interval throttling
+ * - Automatic signal validation (prices, TP/SL logic, timestamps)
+ * - Crash-safe persistence in live mode
+ * - VWAP-based TP/SL monitoring
+ * - Fast backtest with candle array processing
+ *
+ * All methods use prototype functions for memory efficiency.
+ *
+ * @example
+ * ```typescript
+ * const strategy = new ClientStrategy({
+ *   strategyName: "my-strategy",
+ *   interval: "5m",
+ *   getSignal: async (symbol) => ({ ... }),
+ *   execution: executionService,
+ *   exchange: exchangeService,
+ *   logger: loggerService,
+ * });
+ *
+ * await strategy.waitForInit(); // Load persisted state
+ * const result = await strategy.tick(); // Monitor signal
+ * ```
+ */
 export class ClientStrategy implements IStrategy {
   _pendingSignal: ISignalRow | null = null;
   _lastSignalTimestamp: number | null = null;
 
   constructor(readonly params: IStrategyParams) {}
 
+  /**
+   * Initializes strategy state by loading persisted signal from disk.
+   *
+   * Uses singleshot pattern to ensure initialization happens exactly once.
+   * In backtest mode: skips persistence, no state to load
+   * In live mode: reads last signal state from disk
+   *
+   * @returns Promise that resolves when initialization is complete
+   */
   public waitForInit = singleshot(async () => await WAIT_FOR_INIT_FN(this));
 
+  /**
+   * Updates pending signal and persists to disk in live mode.
+   *
+   * Centralized method for all signal state changes.
+   * Uses atomic file writes to prevent corruption.
+   *
+   * @param pendingSignal - New signal state (null to clear)
+   * @returns Promise that resolves when update is complete
+   */
   public async setPendingSignal(pendingSignal: ISignalRow | null) {
     this.params.logger.debug("ClientStrategy setPendingSignal", {
       pendingSignal,
@@ -167,6 +212,29 @@ export class ClientStrategy implements IStrategy {
     );
   }
 
+  /**
+   * Performs a single tick of strategy execution.
+   *
+   * Flow:
+   * 1. If no pending signal: call getSignal with throttling and validation
+   * 2. If signal opened: trigger onOpen callback, persist state
+   * 3. If pending signal exists: check VWAP against TP/SL
+   * 4. If TP/SL/time reached: close signal, trigger onClose, persist state
+   *
+   * @returns Promise resolving to discriminated union result:
+   * - idle: No signal generated
+   * - opened: New signal just created
+   * - active: Signal monitoring in progress
+   * - closed: Signal completed with PNL
+   *
+   * @example
+   * ```typescript
+   * const result = await strategy.tick();
+   * if (result.action === "closed") {
+   *   console.log(`PNL: ${result.pnl.pnlPercentage}%`);
+   * }
+   * ```
+   */
   public async tick(): Promise<IStrategyTickResult> {
     this.params.logger.debug("ClientStrategy tick");
 
@@ -285,6 +353,25 @@ export class ClientStrategy implements IStrategy {
     };
   }
 
+  /**
+   * Fast backtests a pending signal using historical candle data.
+   *
+   * Iterates through candles checking VWAP against TP/SL on each timeframe.
+   * Starts from index 4 (needs 5 candles for VWAP calculation).
+   * Always returns closed result (either TP/SL or time_expired).
+   *
+   * @param candles - Array of candles covering signal's minuteEstimatedTime
+   * @returns Promise resolving to closed signal result with PNL
+   * @throws Error if no pending signal or not in backtest mode
+   *
+   * @example
+   * ```typescript
+   * // After signal opened in backtest
+   * const candles = await exchange.getNextCandles("BTCUSDT", "1m", signal.minuteEstimatedTime);
+   * const result = await strategy.backtest(candles);
+   * console.log(result.closeReason); // "take_profit" | "stop_loss" | "time_expired"
+   * ```
+   */
   public async backtest(
     candles: ICandleData[]
   ): Promise<IStrategyBacktestResult> {  

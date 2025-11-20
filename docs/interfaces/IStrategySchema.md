@@ -5,6 +5,9 @@ group: docs
 
 # IStrategySchema
 
+Strategy schema registered via addStrategy().
+Defines signal generation logic and configuration.
+
 ## Properties
 
 ### strategyName

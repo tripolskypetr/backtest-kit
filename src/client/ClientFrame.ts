@@ -5,6 +5,10 @@ import {
   FrameInterval,
 } from "../interfaces/Frame.interface";
 
+/**
+ * Maps FrameInterval to minutes for timestamp calculation.
+ * Used to generate timeframe arrays with proper spacing.
+ */
 const INTERVAL_MINUTES: Record<FrameInterval, number> = {
   "1m": 1,
   "3m": 3,
@@ -21,6 +25,15 @@ const INTERVAL_MINUTES: Record<FrameInterval, number> = {
   "3d": 4320,
 };
 
+/**
+ * Generates timeframe array from startDate to endDate with specified interval.
+ * Uses prototype function pattern for memory efficiency.
+ *
+ * @param symbol - Trading pair symbol (unused, for API consistency)
+ * @param self - ClientFrame instance reference
+ * @returns Array of Date objects representing tick timestamps
+ * @throws Error if interval is unknown
+ */
 const GET_TIMEFRAME_FN = async (symbol: string, self: ClientFrame) => {
   self.params.logger.debug("ClientFrame getTimeframe", {
     symbol,
@@ -48,9 +61,28 @@ const GET_TIMEFRAME_FN = async (symbol: string, self: ClientFrame) => {
   return timeframes;
 };
 
+/**
+ * Client implementation for backtest timeframe generation.
+ *
+ * Features:
+ * - Generates timestamp arrays for backtest iteration
+ * - Singleshot caching prevents redundant generation
+ * - Configurable interval spacing (1m to 3d)
+ * - Callback support for validation and logging
+ *
+ * Used by BacktestLogicPrivateService to iterate through historical periods.
+ */
 export class ClientFrame implements IFrame {
   constructor(readonly params: IFrameParams) {}
 
+  /**
+   * Generates timeframe array for backtest period.
+   * Results are cached via singleshot pattern.
+   *
+   * @param symbol - Trading pair symbol (unused, for API consistency)
+   * @returns Promise resolving to array of Date objects
+   * @throws Error if interval is invalid
+   */
   public getTimeframe = singleshot(
     async (symbol: string): Promise<Date[]> =>
       await GET_TIMEFRAME_FN(symbol, this)

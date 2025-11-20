@@ -5,6 +5,9 @@ group: docs
 
 # IFrame
 
+Frame interface for timeframe generation.
+Used internally by backtest orchestration.
+
 ## Properties
 
 ### getTimeframe
@@ -12,3 +15,6 @@ group: docs
 ```ts
 getTimeframe: (symbol: string) => Promise<Date[]>
 ```
+
+Generates array of timestamps for backtest iteration.
+Timestamps are spaced according to the configured interval.

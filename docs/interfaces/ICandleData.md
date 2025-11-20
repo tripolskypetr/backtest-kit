@@ -5,6 +5,9 @@ group: docs
 
 # ICandleData
 
+Single OHLCV candle data point.
+Used for VWAP calculation and backtesting.
+
 ## Properties
 
 ### timestamp

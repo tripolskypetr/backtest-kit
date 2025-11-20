@@ -5,6 +5,9 @@ group: docs
 
 # IExchangeSchema
 
+Exchange schema registered via addExchange().
+Defines candle data source and formatting logic.
+
 ## Properties
 
 ### exchangeName

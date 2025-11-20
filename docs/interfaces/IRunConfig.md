@@ -13,8 +13,12 @@ group: docs
 symbol: string
 ```
 
+Trading pair symbol
+
 ### interval
 
 ```ts
 interval: number
 ```
+
+Tick interval in milliseconds

@@ -4,3 +4,5 @@ group: docs
 ---
 
 # IEntity
+
+Base interface for persisted entities.

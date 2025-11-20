@@ -1,11 +1,21 @@
 import { singlerun, sleep } from "functools-kit";
 import backtest from "../lib/index";
 
+/**
+ * @deprecated Use liveLogicPublicService.run() instead.
+ * Configuration for legacy run API.
+ */
 export interface IRunConfig {
+  /** Trading pair symbol */
   symbol: string;
+  /** Tick interval in milliseconds */
   interval: number;
 }
 
+/**
+ * Internal run instance data.
+ * @internal
+ */
 interface IRunInstance {
   config: IRunConfig;
   tickCount: number;
@@ -15,6 +25,15 @@ interface IRunInstance {
 
 const instances = new Map<string, IRunInstance>();
 
+/**
+ * @deprecated Use liveLogicPublicService.run() instead.
+ * Starts live trading for a symbol using setInterval.
+ *
+ * Legacy API - replaced by async generator approach for better
+ * crash recovery and state management.
+ *
+ * @param config - Run configuration
+ */
 export function startRun(config: IRunConfig) {
   const { symbol, interval } = config;
 
@@ -47,6 +66,12 @@ export function startRun(config: IRunConfig) {
   });
 };
 
+/**
+ * @deprecated Use liveLogicPublicService.run() instead.
+ * Stops live trading for a symbol.
+ *
+ * @param symbol - Trading pair symbol to stop
+ */
 export function stopRun(symbol: string) {
   const instance = instances.get(symbol);
   if (instance) {
@@ -55,6 +80,10 @@ export function stopRun(symbol: string) {
   }
 };
 
+/**
+ * @deprecated Use liveLogicPublicService.run() instead.
+ * Stops all running live trading instances.
+ */
 export function stopAll() {
   instances.forEach((instance) => {
     clearInterval(instance.intervalId);

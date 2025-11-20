@@ -5,6 +5,9 @@ group: docs
 
 # IStrategyTickResultActive
 
+Tick result: signal is being monitored.
+Waiting for TP/SL or time expiration.
+
 ## Properties
 
 ### action

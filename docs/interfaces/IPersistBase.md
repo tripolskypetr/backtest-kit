@@ -5,6 +5,9 @@ group: docs
 
 # IPersistBase
 
+Persistence interface for CRUD operations.
+Implemented by PersistBase.
+
 ## Methods
 
 ### waitForInit

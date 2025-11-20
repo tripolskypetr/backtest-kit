@@ -17,9 +17,43 @@ const INTERVAL_MINUTES: Record<CandleInterval, number>  = {
   "8h": 480,
 };
 
+/**
+ * Client implementation for exchange data access.
+ *
+ * Features:
+ * - Historical candle fetching (backwards from execution context)
+ * - Future candle fetching (forwards for backtest)
+ * - VWAP calculation from last 5 1m candles
+ * - Price/quantity formatting for exchange
+ *
+ * All methods use prototype functions for memory efficiency.
+ *
+ * @example
+ * ```typescript
+ * const exchange = new ClientExchange({
+ *   exchangeName: "binance",
+ *   getCandles: async (symbol, interval, since, limit) => [...],
+ *   formatPrice: async (symbol, price) => price.toFixed(2),
+ *   formatQuantity: async (symbol, quantity) => quantity.toFixed(8),
+ *   execution: executionService,
+ *   logger: loggerService,
+ * });
+ *
+ * const candles = await exchange.getCandles("BTCUSDT", "1m", 100);
+ * const vwap = await exchange.getAveragePrice("BTCUSDT");
+ * ```
+ */
 export class ClientExchange implements IExchange {
   constructor(readonly params: IExchangeParams) {}
 
+  /**
+   * Fetches historical candles backwards from execution context time.
+   *
+   * @param symbol - Trading pair symbol
+   * @param interval - Candle interval
+   * @param limit - Number of candles to fetch
+   * @returns Promise resolving to array of candles
+   */
   public async getCandles(
     symbol: string,
     interval: CandleInterval,
@@ -53,6 +87,16 @@ export class ClientExchange implements IExchange {
     return data;
   }
 
+  /**
+   * Fetches future candles forwards from execution context time.
+   * Used in backtest mode to get candles for signal duration.
+   *
+   * @param symbol - Trading pair symbol
+   * @param interval - Candle interval
+   * @param limit - Number of candles to fetch
+   * @returns Promise resolving to array of candles
+   * @throws Error if trying to fetch future candles in live mode
+   */
   public async getNextCandles(
     symbol: string,
     interval: CandleInterval,
@@ -85,6 +129,19 @@ export class ClientExchange implements IExchange {
     return data;
   }
 
+  /**
+   * Calculates VWAP (Volume Weighted Average Price) from last 5 1m candles.
+   *
+   * Formula:
+   * - Typical Price = (high + low + close) / 3
+   * - VWAP = sum(typical_price * volume) / sum(volume)
+   *
+   * If volume is zero, returns simple average of close prices.
+   *
+   * @param symbol - Trading pair symbol
+   * @returns Promise resolving to VWAP price
+   * @throws Error if no candles available
+   */
   public async getAveragePrice(symbol: string): Promise<number> {
     this.params.logger.debug(`ClientExchange getAveragePrice`, {
       symbol,

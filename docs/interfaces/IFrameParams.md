@@ -5,6 +5,9 @@ group: docs
 
 # IFrameParams
 
+Frame parameters passed to ClientFrame constructor.
+Extends IFrameSchema with logger instance for internal logging.
+
 ## Properties
 
 ### logger

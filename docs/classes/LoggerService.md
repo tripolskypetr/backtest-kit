@@ -7,6 +7,16 @@ group: docs
 
 Implements `ILogger`
 
+Logger service with automatic context injection.
+
+Features:
+- Delegates to user-provided logger via setLogger()
+- Automatically appends method context (strategyName, exchangeName, frameName)
+- Automatically appends execution context (symbol, when, backtest)
+- Defaults to NOOP_LOGGER if no logger configured
+
+Used throughout the framework for consistent logging with context.
+
 ## Constructor
 
 ```ts
@@ -39,8 +49,7 @@ _commonLogger: any
 log: (topic: string, ...args: any[]) => Promise<void>
 ```
 
-Logs a general-purpose message.
-Used throughout the swarm system to record significant events or state changes, such as agent execution, session connections, or storage updates.
+Logs general-purpose message with automatic context injection.
 
 ### debug
 
@@ -48,8 +57,7 @@ Used throughout the swarm system to record significant events or state changes, 
 debug: (topic: string, ...args: any[]) => Promise<void>
 ```
 
-Logs a debug-level message.
-Employed for detailed diagnostic information, such as intermediate states during agent tool calls, swarm navigation changes, or embedding creation processes, typically enabled in development or troubleshooting scenarios.
+Logs debug-level message with automatic context injection.
 
 ### info
 
@@ -57,11 +65,12 @@ Employed for detailed diagnostic information, such as intermediate states during
 info: (topic: string, ...args: any[]) => Promise<void>
 ```
 
-Logs an info-level message.
-Used to record informational updates, such as successful completions, policy validations, or history commits, providing a high-level overview of system activity without excessive detail.
+Logs info-level message with automatic context injection.
 
 ### setLogger
 
 ```ts
 setLogger: (logger: ILogger) => void
 ```
+
+Sets custom logger implementation.

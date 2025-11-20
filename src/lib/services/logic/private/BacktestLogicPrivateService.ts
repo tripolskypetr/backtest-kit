@@ -6,6 +6,19 @@ import StrategyGlobalService from "../../global/StrategyGlobalService";
 import ExchangeGlobalService from "../../global/ExchangeGlobalService";
 import FrameGlobalService from "../../global/FrameGlobalService";
 
+/**
+ * Private service for backtest orchestration using async generators.
+ *
+ * Flow:
+ * 1. Get timeframes from frame service
+ * 2. Iterate through timeframes calling tick()
+ * 3. When signal opens: fetch candles and call backtest()
+ * 4. Skip timeframes until signal closes
+ * 5. Yield closed result and continue
+ *
+ * Memory efficient: streams results without array accumulation.
+ * Supports early termination via break in consumer.
+ */
 export class BacktestLogicPrivateService {
   private readonly loggerService = inject<LoggerService>(TYPES.loggerService);
   private readonly strategyGlobalService = inject<StrategyGlobalService>(
@@ -18,6 +31,20 @@ export class BacktestLogicPrivateService {
     TYPES.frameGlobalService
   );
 
+  /**
+   * Runs backtest for a symbol, streaming closed signals as async generator.
+   *
+   * @param symbol - Trading pair symbol (e.g., "BTCUSDT")
+   * @yields Closed signal results with PNL
+   *
+   * @example
+   * ```typescript
+   * for await (const result of backtestLogic.run("BTCUSDT")) {
+   *   console.log(result.closeReason, result.pnl.pnlPercentage);
+   *   if (result.pnl.pnlPercentage < -10) break; // Early termination
+   * }
+   * ```
+   */
   public async *run(symbol: string) {
     this.loggerService.log("backtestLogicPrivateService run", {
       symbol,

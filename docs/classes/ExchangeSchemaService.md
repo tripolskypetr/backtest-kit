@@ -5,6 +5,11 @@ group: docs
 
 # ExchangeSchemaService
 
+Service for managing exchange schema registry.
+
+Uses ToolRegistry from functools-kit for type-safe schema storage.
+Exchanges are registered via addExchange() and retrieved by name.
+
 ## Constructor
 
 ```ts
@@ -31,14 +36,20 @@ _registry: any
 register: (key: string, value: IExchangeSchema) => void
 ```
 
+Registers a new exchange schema.
+
 ### override
 
 ```ts
 override: (key: string, value: Partial<IExchangeSchema>) => IExchangeSchema
 ```
 
+Overrides an existing exchange schema with partial updates.
+
 ### get
 
 ```ts
 get: (key: string) => IExchangeSchema
 ```
+
+Retrieves an exchange schema by name.

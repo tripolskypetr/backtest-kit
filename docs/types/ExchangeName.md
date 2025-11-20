@@ -9,4 +9,4 @@ group: docs
 type ExchangeName = string;
 ```
 
-
+Unique exchange identifier.

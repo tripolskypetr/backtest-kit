@@ -9,4 +9,4 @@ group: docs
 type TPersistBase = InstanceType<typeof PersistBase>;
 ```
 
-
+Type helper for PersistBase instance.

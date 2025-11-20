@@ -9,4 +9,5 @@ group: docs
 type FrameName = string;
 ```
 
-
+Unique identifier for a frame schema.
+Used to retrieve frame instances via dependency injection.

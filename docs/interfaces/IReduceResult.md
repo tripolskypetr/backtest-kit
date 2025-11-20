@@ -13,14 +13,20 @@ group: docs
 symbol: string
 ```
 
+Trading pair symbol
+
 ### accumulator
 
 ```ts
 accumulator: T
 ```
 
+Final accumulated value
+
 ### totalTicks
 
 ```ts
 totalTicks: number
 ```
+
+Total number of ticks processed

@@ -13,5 +13,5 @@ declare function runBacktest(symbol: string, timeframes: Date[]): Promise<IBackt
 
 | Parameter | Description |
 |-----------|-------------|
-| `symbol` | |
-| `timeframes` | |
+| `symbol` | Trading pair symbol |
+| `timeframes` | Array of timestamps to iterate |

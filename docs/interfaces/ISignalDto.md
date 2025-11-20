@@ -5,6 +5,9 @@ group: docs
 
 # ISignalDto
 
+Signal data transfer object returned by getSignal.
+Will be validated and augmented with auto-generated id.
+
 ## Properties
 
 ### id

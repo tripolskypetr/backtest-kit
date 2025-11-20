@@ -2,11 +2,28 @@ import backtest from "../lib/index";
 import { IStrategyTickResult } from "../interfaces/Strategy.interface";
 import Table from "cli-table3";
 
+/**
+ * @deprecated Use backtestLogicPublicService.run() instead.
+ * Result of runBacktest operation.
+ */
 export interface IBacktestResult {
+  /** Trading pair symbol */
   symbol: string;
+  /** Array of closed tick results */
   results: IStrategyTickResult[];
 }
 
+/**
+ * @deprecated Use backtestLogicPublicService.run() instead.
+ * Runs backtest by iterating through timeframes and collecting closed results.
+ *
+ * Legacy API - replaced by async generator approach for better
+ * memory efficiency and streaming support.
+ *
+ * @param symbol - Trading pair symbol
+ * @param timeframes - Array of timestamps to iterate
+ * @returns Promise resolving to backtest result with all closed signals
+ */
 export async function runBacktest(
   symbol: string,
   timeframes: Date[]
@@ -32,6 +49,18 @@ export async function runBacktest(
   };
 }
 
+/**
+ * @deprecated Use backtestLogicPublicService.run() instead.
+ * Runs backtest and displays results in formatted terminal table.
+ *
+ * Shows trade-by-trade results with PNL, close reasons, and summary statistics
+ * including win rate and total PNL.
+ *
+ * Legacy API - replaced by async generator approach.
+ *
+ * @param symbol - Trading pair symbol
+ * @param timeframes - Array of timestamps to iterate
+ */
 export async function runBacktestGUI(
   symbol: string,
   timeframes: Date[]

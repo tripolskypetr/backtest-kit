@@ -9,4 +9,4 @@ group: docs
 type StrategyName = string;
 ```
 
-
+Unique strategy identifier.

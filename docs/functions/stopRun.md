@@ -13,4 +13,4 @@ declare function stopRun(symbol: string): void;
 
 | Parameter | Description |
 |-----------|-------------|
-| `symbol` | |
+| `symbol` | Trading pair symbol to stop |

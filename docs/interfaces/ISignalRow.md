@@ -5,6 +5,9 @@ group: docs
 
 # ISignalRow
 
+Complete signal with auto-generated id.
+Used throughout the system after validation.
+
 ## Properties
 
 ### id

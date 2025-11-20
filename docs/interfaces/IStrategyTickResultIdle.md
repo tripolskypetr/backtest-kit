@@ -5,6 +5,8 @@ group: docs
 
 # IStrategyTickResultIdle
 
+Tick result: no active signal, idle state.
+
 ## Properties
 
 ### action

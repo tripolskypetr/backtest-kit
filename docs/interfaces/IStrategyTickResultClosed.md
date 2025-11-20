@@ -5,6 +5,9 @@ group: docs
 
 # IStrategyTickResultClosed
 
+Tick result: signal closed with PNL.
+Final state with close reason and profit/loss calculation.
+
 ## Properties
 
 ### action

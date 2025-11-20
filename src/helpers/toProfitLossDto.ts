@@ -1,8 +1,46 @@
 import { ISignalRow, IStrategyPnL } from "../interfaces/Strategy.interface";
 
+/**
+ * Slippage percentage applied to entry and exit prices.
+ * Simulates market impact and order book depth.
+ */
 const PERCENT_SLIPPAGE = 0.1;
+
+/**
+ * Fee percentage charged per transaction.
+ * Applied twice (entry and exit) for total fee calculation.
+ */
 const PERCENT_FEE = 0.1;
 
+/**
+ * Calculates profit/loss for a closed signal with slippage and fees.
+ *
+ * Formula breakdown:
+ * 1. Apply slippage to open/close prices (worse execution)
+ *    - LONG: buy higher (+slippage), sell lower (-slippage)
+ *    - SHORT: sell lower (-slippage), buy higher (+slippage)
+ * 2. Calculate raw PNL percentage
+ *    - LONG: ((closePrice - openPrice) / openPrice) * 100
+ *    - SHORT: ((openPrice - closePrice) / openPrice) * 100
+ * 3. Subtract total fees (0.1% * 2 = 0.2%)
+ *
+ * @param signal - Closed signal with position details
+ * @param priceClose - Actual close price at exit
+ * @returns PNL data with percentage and prices
+ *
+ * @example
+ * ```typescript
+ * const pnl = toProfitLossDto(
+ *   {
+ *     position: "long",
+ *     priceOpen: 50000,
+ *     // ... other signal fields
+ *   },
+ *   51000 // close price
+ * );
+ * console.log(pnl.pnlPercentage); // e.g., 1.8% (after slippage and fees)
+ * ```
+ */
 export const toProfitLossDto = (
   signal: ISignalRow,
   priceClose: number

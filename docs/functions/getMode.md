@@ -8,3 +8,5 @@ group: docs
 ```ts
 declare function getMode(): Promise<"backtest" | "live">;
 ```
+
+Gets the current execution mode.

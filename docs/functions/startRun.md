@@ -13,4 +13,4 @@ declare function startRun(config: IRunConfig): void;
 
 | Parameter | Description |
 |-----------|-------------|
-| `config` | |
+| `config` | Run configuration |

@@ -5,6 +5,11 @@ group: docs
 
 # BacktestGlobalService
 
+Global service providing access to backtest functionality.
+
+Simple wrapper around BacktestLogicPublicService for dependency injection.
+Used by public API exports.
+
 ## Constructor
 
 ```ts
@@ -30,3 +35,5 @@ backtestLogicPublicService: any
 ```ts
 run: (symbol: string, context: { strategyName: string; exchangeName: string; frameName: string; }) => AsyncGenerator<IStrategyTickResultClosed, void, unknown>
 ```
+
+Runs backtest for a symbol with context propagation.

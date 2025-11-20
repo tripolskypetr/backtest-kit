@@ -13,7 +13,7 @@ declare function reduce<T>(symbol: string, timeframes: Date[], callback: ReduceC
 
 | Parameter | Description |
 |-----------|-------------|
-| `symbol` | |
-| `timeframes` | |
-| `callback` | |
-| `initialValue` | |
+| `symbol` | Trading pair symbol |
+| `timeframes` | Array of timestamps to iterate |
+| `callback` | Reducer callback |
+| `initialValue` | Initial accumulator value |

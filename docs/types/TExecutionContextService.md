@@ -9,4 +9,5 @@ group: docs
 type TExecutionContextService = InstanceType<typeof ExecutionContextService>;
 ```
 
-
+Type helper for ExecutionContextService instance.
+Used for dependency injection type annotations.

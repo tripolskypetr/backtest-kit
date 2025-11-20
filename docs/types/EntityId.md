@@ -9,4 +9,4 @@ group: docs
 type EntityId = string | number;
 ```
 
-
+Entity identifier - string or number.

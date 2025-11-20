@@ -13,5 +13,5 @@ declare function runBacktestGUI(symbol: string, timeframes: Date[]): Promise<voi
 
 | Parameter | Description |
 |-----------|-------------|
-| `symbol` | |
-| `timeframes` | |
+| `symbol` | Trading pair symbol |
+| `timeframes` | Array of timestamps to iterate |

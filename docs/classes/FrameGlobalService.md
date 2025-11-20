@@ -5,6 +5,11 @@ group: docs
 
 # FrameGlobalService
 
+Global service for frame operations.
+
+Wraps FrameConnectionService for timeframe generation.
+Used internally by BacktestLogicPrivateService.
+
 ## Constructor
 
 ```ts
@@ -30,3 +35,5 @@ frameConnectionService: any
 ```ts
 getTimeframe: (symbol: string) => Promise<Date[]>
 ```
+
+Generates timeframe array for backtest iteration.

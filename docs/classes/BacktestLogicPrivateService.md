@@ -5,6 +5,18 @@ group: docs
 
 # BacktestLogicPrivateService
 
+Private service for backtest orchestration using async generators.
+
+Flow:
+1. Get timeframes from frame service
+2. Iterate through timeframes calling tick()
+3. When signal opens: fetch candles and call backtest()
+4. Skip timeframes until signal closes
+5. Yield closed result and continue
+
+Memory efficient: streams results without array accumulation.
+Supports early termination via break in consumer.
+
 ## Constructor
 
 ```ts
@@ -44,3 +56,5 @@ frameGlobalService: any
 ```ts
 run(symbol: string): AsyncGenerator<IStrategyTickResultClosed, void, unknown>;
 ```
+
+Runs backtest for a symbol, streaming closed signals as async generator.
