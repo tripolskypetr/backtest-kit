@@ -21,6 +21,66 @@ const INTERVAL_MINUTES: Record<SignalInterval, number> = {
   "1h": 60,
 };
 
+const VALIDATE_SIGNAL_FN = (signal: ISignalRow): void => {
+  const errors: string[] = [];
+
+  // Валидация цен
+  if (signal.priceOpen <= 0) {
+    errors.push(`priceOpen must be positive, got ${signal.priceOpen}`);
+  }
+  if (signal.priceTakeProfit <= 0) {
+    errors.push(`priceTakeProfit must be positive, got ${signal.priceTakeProfit}`);
+  }
+  if (signal.priceStopLoss <= 0) {
+    errors.push(`priceStopLoss must be positive, got ${signal.priceStopLoss}`);
+  }
+
+  // Валидация для long позиции
+  if (signal.position === "long") {
+    if (signal.priceTakeProfit <= signal.priceOpen) {
+      errors.push(
+        `Long: priceTakeProfit (${signal.priceTakeProfit}) must be > priceOpen (${signal.priceOpen})`
+      );
+    }
+    if (signal.priceStopLoss >= signal.priceOpen) {
+      errors.push(
+        `Long: priceStopLoss (${signal.priceStopLoss}) must be < priceOpen (${signal.priceOpen})`
+      );
+    }
+  }
+
+  // Валидация для short позиции
+  if (signal.position === "short") {
+    if (signal.priceTakeProfit >= signal.priceOpen) {
+      errors.push(
+        `Short: priceTakeProfit (${signal.priceTakeProfit}) must be < priceOpen (${signal.priceOpen})`
+      );
+    }
+    if (signal.priceStopLoss <= signal.priceOpen) {
+      errors.push(
+        `Short: priceStopLoss (${signal.priceStopLoss}) must be > priceOpen (${signal.priceOpen})`
+      );
+    }
+  }
+
+  // Валидация временных параметров
+  if (signal.minuteEstimatedTime <= 0) {
+    errors.push(
+      `minuteEstimatedTime must be positive, got ${signal.minuteEstimatedTime}`
+    );
+  }
+  if (signal.timestamp <= 0) {
+    errors.push(`timestamp must be positive, got ${signal.timestamp}`);
+  }
+
+  // Кидаем ошибку если есть проблемы
+  if (errors.length > 0) {
+    throw new Error(
+      `Invalid signal for ${signal.position} position:\n${errors.join("\n")}`
+    );
+  }
+};
+
 const GET_SIGNAL_FN = trycatch(
   async (self: ClientStrategy): Promise<ISignalRow | null> => {
     const currentTime = self.params.execution.context.when.getTime();
@@ -44,10 +104,16 @@ const GET_SIGNAL_FN = trycatch(
     if (!signal) {
       return null;
     }
-    return {
+
+    const signalRow: ISignalRow = {
       id: randomString(),
       ...signal,
     };
+
+    // Валидируем сигнал перед возвратом
+    VALIDATE_SIGNAL_FN(signalRow);
+
+    return signalRow;
   },
   {
     defaultValue: null,
