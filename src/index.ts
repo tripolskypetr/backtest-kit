@@ -16,6 +16,7 @@ export {
 } from "./interfaces/Exchange.interface";
 
 export {
+  SignalInterval,
   ISignalDto,
   ISignalRow,
   IStrategySchema,

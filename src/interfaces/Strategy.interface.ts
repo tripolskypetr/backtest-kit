@@ -2,6 +2,14 @@ import { TExecutionContextService } from "../lib/services/context/ExecutionConte
 import { ExchangeName, IExchange, ICandleData } from "./Exchange.interface";
 import { ILogger } from "./Logger.interface";
 
+export type SignalInterval =
+  | "1m"
+  | "3m"
+  | "5m"
+  | "15m"
+  | "30m"
+  | "1h";
+
 export interface ISignalDto {
   id?: string;
   position: "long" | "short";
@@ -36,6 +44,7 @@ export interface IStrategyCallbacks {
 export interface IStrategySchema {
   strategyName: StrategyName;
   exchangeName: ExchangeName;
+  interval: SignalInterval;
   getSignal: (symbol: string) => Promise<ISignalDto | null>;
   callbacks?: Partial<IStrategyCallbacks>;
 }

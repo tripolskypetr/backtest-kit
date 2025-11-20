@@ -1,4 +1,4 @@
-import { randomString } from "functools-kit";
+import { randomString, trycatch } from "functools-kit";
 import {
   IStrategy,
   ISignalRow,
@@ -8,22 +8,53 @@ import {
   IStrategyTickResult,
   IStrategyBacktestResult,
   StrategyCloseReason,
+  SignalInterval,
 } from "../interfaces/Strategy.interface";
 import toProfitLossDto from "../helpers/toProfitLossDto";
 import { ICandleData } from "../interfaces/Exchange.interface";
 
-const GET_SIGNAL_FN = async (self: ClientStrategy) => {
-  const signal = await self.params.getSignal(
-    self.params.execution.context.symbol
-  );
-  if (!signal) {
-    return null;
-  }
-  return {
-    id: randomString(),
-    ...signal,
-  };
+const INTERVAL_MINUTES: Record<SignalInterval, number> = {
+  "1m": 1,
+  "3m": 3,
+  "5m": 5,
+  "15m": 15,
+  "30m": 30,
+  "1h": 60,
 };
+
+const GET_SIGNAL_FN = trycatch(
+  async (self: ClientStrategy) => {
+    {
+      const currentTime = self.params.execution.context.when.getTime();
+      const intervalMinutes = INTERVAL_MINUTES[self.params.interval];
+      const intervalMs = intervalMinutes * 60 * 1000;
+
+      // Проверяем что прошел нужный интервал с последнего getSignal
+      if (
+        self._lastSignalTimestamp !== null &&
+        currentTime - self._lastSignalTimestamp < intervalMs
+      ) {
+        return null;
+      }
+
+      self._lastSignalTimestamp = currentTime;
+    }
+
+    const signal = await self.params.getSignal(
+      self.params.execution.context.symbol
+    );
+    if (!signal) {
+      return null;
+    }
+    return {
+      id: randomString(),
+      ...signal,
+    };
+  },
+  {
+    defaultValue: null,
+  }
+);
 
 const GET_AVG_PRICE_FN = (candles: ICandleData[]): number => {
   const sumPriceVolume = candles.reduce((acc, c) => {
@@ -40,6 +71,7 @@ const GET_AVG_PRICE_FN = (candles: ICandleData[]): number => {
 
 export class ClientStrategy implements IStrategy {
   _pendingSignal: ISignalRow | null = null;
+  _lastSignalTimestamp: number | null = null;
 
   constructor(readonly params: IStrategyParams) {}
 
@@ -210,7 +242,8 @@ export class ClientStrategy implements IStrategy {
       // Если достигнут TP/SL, закрываем сигнал
       if (shouldClose) {
         const pnl = toProfitLossDto(signal, averagePrice);
-        const closeTimestamp = recentCandles[recentCandles.length - 1].timestamp;
+        const closeTimestamp =
+          recentCandles[recentCandles.length - 1].timestamp;
 
         this.params.logger.debug("ClientStrategy backtest closing", {
           symbol: this.params.execution.context.symbol,
@@ -246,7 +279,8 @@ export class ClientStrategy implements IStrategy {
     // Если TP/SL не достигнут за период, вычисляем VWAP из последних 5 свечей
     const lastFiveCandles = candles.slice(-5);
     const lastPrice = GET_AVG_PRICE_FN(lastFiveCandles);
-    const closeTimestamp = lastFiveCandles[lastFiveCandles.length - 1].timestamp;
+    const closeTimestamp =
+      lastFiveCandles[lastFiveCandles.length - 1].timestamp;
 
     const pnl = toProfitLossDto(signal, lastPrice);
 
