@@ -1,5 +1,5 @@
 import { TExecutionContextService } from "../lib/services/context/ExecutionContextService";
-import { ExchangeName, IExchange } from "./Exchange.interface";
+import { ExchangeName, IExchange, ICandleData } from "./Exchange.interface";
 import { ILogger } from "./Logger.interface";
 
 export interface ISignalDto {
@@ -77,8 +77,13 @@ export type IStrategyTickResult =
   | IStrategyTickResultActive
   | IStrategyTickResultClosed;
 
+export type IStrategyBacktestResult =
+  | IStrategyTickResultActive
+  | IStrategyTickResultClosed;
+
 export interface IStrategy {
   tick: (symbol: string) => Promise<IStrategyTickResult>;
+  backtest: (candles: ICandleData[]) => Promise<IStrategyBacktestResult>;
 }
 
 export type StrategyName = string;
