@@ -50,6 +50,10 @@ export class BacktestLogicService {
           true
         );
 
+        if (!candles.length) {
+            return results;
+        }
+
         this.loggerService.log("backtestLogicService got candles", {
           symbol,
           signalId: signal.id,

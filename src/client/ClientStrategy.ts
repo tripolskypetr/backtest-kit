@@ -24,8 +24,8 @@ const INTERVAL_MINUTES: Record<SignalInterval, number> = {
 
 const GET_SIGNAL_FN = trycatch(
   async (self: ClientStrategy) => {
+    const currentTime = self.params.execution.context.when.getTime();
     {
-      const currentTime = self.params.execution.context.when.getTime();
       const intervalMinutes = INTERVAL_MINUTES[self.params.interval];
       const intervalMs = intervalMinutes * 60 * 1000;
 
@@ -39,7 +39,6 @@ const GET_SIGNAL_FN = trycatch(
 
       self._lastSignalTimestamp = currentTime;
     }
-
     const signal = await self.params.getSignal(
       self.params.execution.context.symbol
     );

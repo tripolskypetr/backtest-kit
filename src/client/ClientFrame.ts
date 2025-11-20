@@ -1,3 +1,4 @@
+import { singleshot } from "functools-kit";
 import {
   IFrame,
   IFrameParams,
@@ -23,7 +24,7 @@ const INTERVAL_MINUTES: Record<FrameInterval, number> = {
 export class ClientFrame implements IFrame {
   constructor(readonly params: IFrameParams) {}
 
-  public getTimeframe = async (symbol: string): Promise<Date[]> => {
+  public getTimeframe = singleshot(async (symbol: string): Promise<Date[]> => {
     this.params.logger.debug("ClientFrame getTimeframe", {
       symbol,
     });
@@ -55,7 +56,7 @@ export class ClientFrame implements IFrame {
     }
 
     return timeframes;
-  };
+  });
 }
 
 export default ClientFrame;

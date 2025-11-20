@@ -65,6 +65,17 @@ export class ClientExchange implements IExchange {
     });
 
     const since = new Date(this.params.execution.context.when.getTime());
+    const now = Date.now();
+
+    // Вычисляем конечное время запроса
+    const step = INTERVAL_MINUTES[interval];
+    const endTime = since.getTime() + limit * step * 60 * 1000;
+
+    // Проверяем что запрошенный период не заходит за Date.now()
+    if (endTime > now) {
+      return [];
+    }
+
     const data = await this.params.getCandles(symbol, interval, since, limit);
 
     if (this.params.callbacks?.onCandleData) {
