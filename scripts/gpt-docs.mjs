@@ -19,70 +19,95 @@ const ollama = new Ollama({ host: "http://127.0.0.1:11434" });
 const DISALLOWED_TEXT = ["Summary:", "System:", "#"];
 
 const GPT_CLASS_PROMPT =
-  "Please write a summary for that Typescript API Reference of backtest-kit trading backtest framework with several sentences in more human way";
+  "Please write a summary for that Typescript API Reference of backtest-kit trading framework with several sentences in more human way";
 
 const GPT_INTERFACE_PROMPT =
-  "Please write a summary for that Typescript API Reference of backtest-kit trading backtest framework with several sentences in more human way";
+  "Please write a summary for that Typescript API Reference of backtest-kit trading framework with several sentences in more human way";
 
 const GPT_FUNCTION_PROMPT =
-  "Please write a summary for that Typescript API Reference of backtest-kit trading backtest framework with several sentences in more human way";
+  "Please write a summary for that Typescript API Reference of backtest-kit trading framework with several sentences in more human way";
 
 const HEADER_CONTENT =
-  "# agent-swarm-kit api reference\n" +
+  "# backtest-kit api reference\n" +
   "\n" +
-  "![schema](../assets/uml.svg)\n" +
+  "**Overview:**\n" +
   "\n" +
-  "**Overall Architecture:**\n" +
+  "Backtest-kit is a production-ready TypeScript framework for backtesting and live trading strategies with crash-safe state persistence, signal validation, and memory-optimized architecture. The framework follows clean architecture principles with dependency injection, separation of concerns, and type-safe discriminated unions.\n" +
   "\n" +
-  "This system built around a distributed, asynchronous architecture. Agents communicate via a message queue, and their interactions are orchestrated through a series of tools and processes. The core concept is to allow agents to perform tasks independently while still being part of a larger, coordinated system.\n" +
+  "**Production Readiness:** 8.5/10 - The system is well-designed for real-world usage with robust error recovery, signal validation, and memory optimizations.\n" +
   "\n" +
-  "**Core Concepts & Relationships**\n" +
+  "**Core Concepts:**\n" +
   "\n" +
-  "* **Swarm Orchestration:** The entire framework is built around orchestrating agents to perform tasks.\n" +
-  "* **Agent as the Central Unit:** The `IAgent` is the fundamental building block – the individual agent that executes tasks.\n" +
-  "* **Communication (Bus):** The `IAgentParams` interface highlights the importance of the `bus` (a messaging system) for agents to communicate and coordinate.\n" +
-  "* **History Management:** The `IAgent` and `IAgentParams` emphasize the agent's ability to operate without relying on conversation history (using the `run` method).\n" +
-  "* **Tool Execution:** The `IAgent`’s `call` and `execute` methods are central to running tools within the agent.\n" +
-  "* **Schema & Configuration:** The `IAgentSchema` defines the configuration for each agent, including its tools, prompt, and completion mechanism.\n" +
+  "* **Signal Lifecycle:** Type-safe state machine (idle → opened → active → closed) with discriminated unions\n" +
+  "* **Execution Modes:** Backtest mode (historical data) and Live mode (real-time with crash recovery)\n" +
+  "* **VWAP Pricing:** Volume Weighted Average Price from last 5 1-minute candles for all entry/exit decisions\n" +
+  "* **Signal Validation:** Comprehensive validation ensures TP/SL logic, positive prices, and valid timestamps\n" +
+  "* **Interval Throttling:** Prevents signal spam with configurable intervals (1m, 3m, 5m, 15m, 30m, 1h)\n" +
+  "* **Crash-Safe Persistence:** Atomic file writes with automatic state recovery for live trading\n" +
+  "* **Async Generators:** Memory-efficient streaming for backtest and live execution\n" +
+  "* **Accurate PNL:** Calculation with fees (0.1%) and slippage (0.1%) for realistic simulations\n" +
   "\n" +
-  "**Interface Breakdown & Key Responsibilities**\n" +
+  "**Architecture Layers:**\n" +
   "\n" +
-  "Here’s a summary of each interface and its role:\n" +
+  "* **Client Layer:** Pure business logic without DI (ClientStrategy, ClientExchange, ClientFrame) using prototype methods for memory efficiency\n" +
+  "* **Service Layer:** DI-based services organized by responsibility:\n" +
+  "  * **Schema Services:** Registry pattern for configuration (StrategySchemaService, ExchangeSchemaService, FrameSchemaService)\n" +
+  "  * **Connection Services:** Memoized client instance creators (StrategyConnectionService, ExchangeConnectionService, FrameConnectionService)\n" +
+  "  * **Global Services:** Context wrappers for public API (StrategyGlobalService, ExchangeGlobalService, FrameGlobalService)\n" +
+  "  * **Logic Services:** Async generator orchestration (BacktestLogicPrivateService, LiveLogicPrivateService)\n" +
+  "* **Persistence Layer:** Crash-safe atomic file writes with PersistSignalAdaper\n" +
   "\n" +
-  "* **`IAgent`:** The core runtime agent.  Handles independent execution, tool calls, message commitment, and lifecycle management.\n" +
-  "* **`IAgentParams`:**  Provides the agent with the necessary parameters for operation, including its ID, logging, communication channel, and history management.\n" +
-  "* **`IAgentSchema`:** Defines the configuration settings for an agent (tools, prompt, completion mechanism).\n" +
-  "* **`IAgentSchemaCallbacks`:**  Provides callbacks for managing different stages of an agent’s lifecycle (init, run, output, etc.).\n" +
-  "* **`IAgentConnectionService`:** A type definition for an `AgentConnectionService` – a service that manages connections between the agents.\n" +
+  "**Key Design Patterns:**\n" +
   "\n" +
-  "**Workflow Implications**\n" +
+  "* **Discriminated Unions:** Type-safe state machines without optional fields\n" +
+  "* **Async Generators:** Stream results without memory accumulation, enable early termination\n" +
+  "* **Dependency Injection:** Custom DI container with Symbol-based tokens\n" +
+  "* **Memoization:** Client instances cached by schema name using functools-kit\n" +
+  "* **Context Propagation:** Nested contexts using di-scoped (ExecutionContext + MethodContext)\n" +
+  "* **Registry Pattern:** Schema services use ToolRegistry for configuration management\n" +
+  "* **Singleshot Initialization:** One-time operations with cached promise results\n" +
+  "* **Persist-and-Restart:** Stateless process design with disk-based state recovery\n" +
   "\n" +
-  "Based on these interfaces, here’s a workflow:\n" +
+  "**Data Flow (Backtest):**\n" +
   "\n" +
-  "1. **Agent Configuration:** An `IAgentSchema` is created to define the agent’s settings.\n" +
-  "2. **Agent Instantiation:** An `IAgent` instance is created based on the schema.\n" +
-  "3. **Agent Execution:** The `IAgent`’s `execute` method is called to initiate independent operation.\n" +
-  "4. **Tool Calls:**  The `IAgent` uses `call` to execute tools.\n" +
-  "5. **Message Handling:** The `IAgent` uses `commitToolOutput`, `commitSystemMessage`, and `commitUserMessage` to manage messages.\n" +
-  "6. **Communication:** The `IAgent` uses the `bus` (via `IAgentParams`) to communicate with other agents.\n" +
+  "1. User calls BacktestLogicPrivateService.run(symbol)\n" +
+  "2. Async generator with yield streams results\n" +
+  "3. MethodContextService.runInContext sets strategyName, exchangeName, frameName\n" +
+  "4. Loop through timeframes, call StrategyGlobalService.tick()\n" +
+  "5. ExecutionContextService.runInContext sets symbol, when, backtest flag\n" +
+  "6. ClientStrategy.tick() checks VWAP against TP/SL conditions\n" +
+  "7. If opened: fetch candles and call ClientStrategy.backtest(candles)\n" +
+  "8. Yield closed result and skip timeframes until closeTimestamp\n" +
   "\n" +
-  "**Key Concepts & Implications:**\n" +
+  "**Data Flow (Live):**\n" +
   "\n" +
-  "* **State Management:** Agents maintain their own state (conversation history, tool outputs, etc.).\n" +
-  "* **Decoupling:** The interfaces are designed to decouple different components of the system. This allows for flexibility and easier maintenance.\n" +
-  "* **Event-Driven Architecture:** The use of callbacks suggests an event-driven architecture, where components communicate through events rather than direct calls.\n" +
-  "* **State Management:** The interfaces highlight the importance of managing the agent's state, including conversation history, tool output, and system messages.\n" +
-  "* **Tool Integration:** The `tools` property in `IAgentParams` indicates a system designed to integrate with external tools.\n" +
-  "* **Asynchronous Communication:** Agents communicate asynchronously via a bus, allowing them to operate independently.\n" +
-  "* **Flexibility:** The system is designed to be flexible, a\n" +
+  "1. User calls LiveLogicPrivateService.run(symbol)\n" +
+  "2. Infinite async generator with while(true) loop\n" +
+  "3. MethodContextService.runInContext sets schema names\n" +
+  "4. Loop: create when = new Date(), call StrategyGlobalService.tick()\n" +
+  "5. ClientStrategy.waitForInit() loads persisted signal state\n" +
+  "6. ClientStrategy.tick() with interval throttling and validation\n" +
+  "7. setPendingSignal() persists state to disk automatically\n" +
+  "8. Yield opened and closed results, sleep(TICK_TTL) between ticks\n" +
   "\n" +
-  "**Potential Use Cases:**\n" +
+  "**Performance Optimizations:**\n" +
   "\n" +
-  "This architecture could be used for a wide range of applications, including:\n" +
+  "* Memoization of client instances by schema name\n" +
+  "* Prototype methods (not arrow functions) for memory efficiency\n" +
+  "* Fast backtest method skips individual ticks\n" +
+  "* Timeframe skipping after signal closes\n" +
+  "* VWAP caching per tick/candle\n" +
+  "* Async generators stream without array accumulation\n" +
+  "* Interval throttling prevents excessive signal generation\n" +
+  "* Singleshot initialization runs exactly once per instance\n" +
   "\n" +
-  "* **Chatbots:**  Agents could be used to power conversational AI systems.\n" +
-  "* **Content Generation:** Agents could be used to generate text, images, or other content.\n" +
-  "* **Data Analysis:** Agents could be used to analyze data and generate insights.\n";
+  "**Use Cases:**\n" +
+  "\n" +
+  "* Algorithmic trading with backtest validation and live deployment\n" +
+  "* Strategy research and hypothesis testing on historical data\n" +
+  "* Signal generation with ML models or technical indicators\n" +
+  "* Portfolio management tracking multiple strategies across symbols\n" +
+  "* Educational projects for learning trading system architecture\n";
 
 console.log("Loading model");
 
