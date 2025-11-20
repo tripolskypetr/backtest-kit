@@ -5,6 +5,7 @@ import { TExecutionContextService } from "../context/ExecutionContextService";
 import {
   CandleInterval,
   ExchangeName,
+  ICandleData,
   IExchange,
 } from "../../../interfaces/Exchange.interface";
 import { memoize } from "functools-kit";
@@ -54,6 +55,21 @@ export class ExchangeConnectionService implements IExchange {
     return await this.getExchange(
       this.methodContextService.context.exchangeName
     ).getCandles(symbol, interval, limit);
+  };
+
+  public getNextCandles = async (
+    symbol: string,
+    interval: CandleInterval,
+    limit: number
+  ): Promise<ICandleData[]> => {
+    this.loggerService.log("exchangeConnectionService getNextCandles", {
+      symbol,
+      interval,
+      limit,
+    });
+    return await this.getExchange(
+      this.methodContextService.context.exchangeName
+    ).getNextCandles(symbol, interval, limit);
   };
 
   public getAveragePrice = async (symbol: string) => {

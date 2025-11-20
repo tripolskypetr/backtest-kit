@@ -56,6 +56,11 @@ export interface IExchange {
     interval: CandleInterval,
     limit: number
   ) => Promise<ICandleData[]>;
+  getNextCandles: (
+    symbol: string,
+    interval: CandleInterval,
+    limit: number
+  ) => Promise<ICandleData[]>;
   formatQuantity: (symbol: string, quantity: number) => Promise<string>;
   formatPrice: (symbol: string, price: number) => Promise<string>;
   getAveragePrice: (symbol: string) => Promise<number>;

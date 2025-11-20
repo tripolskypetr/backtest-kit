@@ -40,6 +40,36 @@ export class ExchangePublicService {
     );
   };
 
+  public getNextCandles = async (
+    symbol: string,
+    interval: CandleInterval,
+    limit: number,
+    when: Date,
+    backtest: boolean
+  ) => {
+    this.loggerService.log("exchangePublicService getNextCandles", {
+      symbol,
+      interval,
+      limit,
+      when,
+      backtest,
+    });
+    return await ExecutionContextService.runInContext(
+      async () => {
+        return await this.exchangeConnectionService.getNextCandles(
+          symbol,
+          interval,
+          limit
+        );
+      },
+      {
+        symbol,
+        when,
+        backtest,
+      }
+    );
+  };
+
   public getAveragePrice = async (
     symbol: string,
     when: Date,

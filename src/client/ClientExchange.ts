@@ -53,6 +53,27 @@ export class ClientExchange implements IExchange {
     return data;
   };
 
+  public getNextCandles = async (
+    symbol: string,
+    interval: CandleInterval,
+    limit: number
+  ) => {
+    this.params.logger.debug(`ClientExchange getNextCandles`, {
+      symbol,
+      interval,
+      limit,
+    });
+
+    const since = new Date(this.params.execution.context.when.getTime());
+    const data = await this.params.getCandles(symbol, interval, since, limit);
+
+    if (this.params.callbacks?.onCandleData) {
+      this.params.callbacks.onCandleData(symbol, interval, since, limit, data);
+    }
+
+    return data;
+  };
+
   public getAveragePrice = async (symbol: string): Promise<number> => {
     this.params.logger.debug(`ClientExchange getAveragePrice`, {
       symbol,
