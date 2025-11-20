@@ -20,11 +20,11 @@ const INTERVAL_MINUTES: Record<CandleInterval, number>  = {
 export class ClientExchange implements IExchange {
   constructor(readonly params: IExchangeParams) {}
 
-  public getCandles = async (
+  public async getCandles(
     symbol: string,
     interval: CandleInterval,
     limit: number
-  ) => {
+  ) {
     this.params.logger.debug(`ClientExchange getCandles`, {
       symbol,
       interval,
@@ -51,13 +51,13 @@ export class ClientExchange implements IExchange {
     }
 
     return data;
-  };
+  }
 
-  public getNextCandles = async (
+  public async getNextCandles(
     symbol: string,
     interval: CandleInterval,
     limit: number
-  ) => {
+  ) {
     this.params.logger.debug(`ClientExchange getNextCandles`, {
       symbol,
       interval,
@@ -83,9 +83,9 @@ export class ClientExchange implements IExchange {
     }
 
     return data;
-  };
+  }
 
-  public getAveragePrice = async (symbol: string): Promise<number> => {
+  public async getAveragePrice(symbol: string): Promise<number> {
     this.params.logger.debug(`ClientExchange getAveragePrice`, {
       symbol,
     });
@@ -116,23 +116,23 @@ export class ClientExchange implements IExchange {
     const vwap = sumPriceVolume / totalVolume;
 
     return vwap;
-  };
+  }
 
-  public formatQuantity = async (symbol: string, quantity: number) => {
+  public async formatQuantity(symbol: string, quantity: number) {
     this.params.logger.debug("binanceService formatQuantity", {
       symbol,
       quantity,
     });
     return await this.params.formatQuantity(symbol, quantity);
-  };
+  }
 
-  public formatPrice = async (symbol: string, price: number) => {
+  public async formatPrice(symbol: string, price: number) {
     this.params.logger.debug("binanceService formatPrice", {
       symbol,
       price,
     });
     return await this.params.formatPrice(symbol, price);
-  };
+  }
 }
 
 export default ClientExchange;

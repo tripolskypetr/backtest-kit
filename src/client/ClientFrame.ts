@@ -21,42 +21,40 @@ const INTERVAL_MINUTES: Record<FrameInterval, number> = {
   "3d": 4320,
 };
 
+const GET_TIMEFRAME_FN = async (symbol: string, self: ClientFrame) => {
+  self.params.logger.debug("ClientFrame getTimeframe", {
+    symbol,
+  });
+
+  const { interval, startDate, endDate } = self.params;
+
+  const intervalMinutes = INTERVAL_MINUTES[interval];
+  if (!intervalMinutes) {
+    throw new Error(`ClientFrame unknown interval: ${interval}`);
+  }
+
+  const timeframes: Date[] = [];
+  let currentDate = new Date(startDate);
+
+  while (currentDate <= endDate) {
+    timeframes.push(new Date(currentDate));
+    currentDate = new Date(currentDate.getTime() + intervalMinutes * 60 * 1000);
+  }
+
+  if (self.params.callbacks?.onTimeframe) {
+    self.params.callbacks.onTimeframe(timeframes, startDate, endDate, interval);
+  }
+
+  return timeframes;
+};
+
 export class ClientFrame implements IFrame {
   constructor(readonly params: IFrameParams) {}
 
-  public getTimeframe = singleshot(async (symbol: string): Promise<Date[]> => {
-    this.params.logger.debug("ClientFrame getTimeframe", {
-      symbol,
-    });
-
-    const { interval, startDate, endDate } = this.params;
-
-    const intervalMinutes = INTERVAL_MINUTES[interval];
-    if (!intervalMinutes) {
-      throw new Error(`ClientFrame unknown interval: ${interval}`);
-    }
-
-    const timeframes: Date[] = [];
-    let currentDate = new Date(startDate);
-
-    while (currentDate <= endDate) {
-      timeframes.push(new Date(currentDate));
-      currentDate = new Date(
-        currentDate.getTime() + intervalMinutes * 60 * 1000
-      );
-    }
-
-    if (this.params.callbacks?.onTimeframe) {
-      this.params.callbacks.onTimeframe(
-        timeframes,
-        startDate,
-        endDate,
-        interval
-      );
-    }
-
-    return timeframes;
-  });
+  public getTimeframe = singleshot(
+    async (symbol: string): Promise<Date[]> =>
+      await GET_TIMEFRAME_FN(symbol, this)
+  );
 }
 
 export default ClientFrame;

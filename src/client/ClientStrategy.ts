@@ -74,7 +74,7 @@ export class ClientStrategy implements IStrategy {
 
   constructor(readonly params: IStrategyParams) {}
 
-  public tick = async (): Promise<IStrategyTickResult> => {
+  public async tick(): Promise<IStrategyTickResult> {
     this.params.logger.debug("ClientStrategy tick");
 
     if (!this._pendingSignal) {
@@ -189,11 +189,11 @@ export class ClientStrategy implements IStrategy {
       signal: signal,
       currentPrice: averagePrice,
     };
-  };
+  }
 
-  public backtest = async (
+  public async backtest(
     candles: ICandleData[]
-  ): Promise<IStrategyBacktestResult> => {
+  ): Promise<IStrategyBacktestResult> {
     const signal = this._pendingSignal;
 
     if (!signal) {
@@ -314,7 +314,7 @@ export class ClientStrategy implements IStrategy {
       closeTimestamp: closeTimestamp,
       pnl: pnl,
     };
-  };
+  }
 }
 
 export default ClientStrategy;
