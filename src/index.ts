@@ -1,4 +1,5 @@
-export { addExchange, addStrategy } from "./function/add";
+export { setLogger } from "./function/setup";
+export { addExchange, addStrategy, addFrame } from "./function/add";
 export { runBacktest, runBacktestGUI } from "./function/backtest";
 export { reduce } from "./function/reduce";
 export { startRun, stopRun, stopAll } from "./function/run";
