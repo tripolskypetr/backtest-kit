@@ -10,11 +10,15 @@ group: docs
 - [LoggerService](classes/LoggerService.md)
 - [ClientExchange](classes/ClientExchange.md)
 - [ExchangeConnectionService](classes/ExchangeConnectionService.md)
-- [ExchangeSchemaService](classes/ExchangeSchemaService.md)
-- [StrategySchemaService](classes/StrategySchemaService.md)
 - [StrategyConnectionService](classes/StrategyConnectionService.md)
+- [ClientFrame](classes/ClientFrame.md)
+- [FrameConnectionService](classes/FrameConnectionService.md)
 - [ExchangePublicService](classes/ExchangePublicService.md)
 - [StrategyPublicService](classes/StrategyPublicService.md)
+- [FramePublicService](classes/FramePublicService.md)
+- [ExchangeSchemaService](classes/ExchangeSchemaService.md)
+- [StrategySchemaService](classes/StrategySchemaService.md)
+- [FrameSchemaService](classes/FrameSchemaService.md)
 
 ## Enums
 
@@ -36,14 +40,15 @@ group: docs
 
 ## Interfaces
 
-- [IExecutionContext](interfaces/IExecutionContext.md)
+- [IExecutionContext$1](interfaces/IExecutionContext$1.md)
 - [ILogger](interfaces/ILogger.md)
 - [ICandleData](interfaces/ICandleData.md)
 - [IExchangeParams](interfaces/IExchangeParams.md)
 - [IExchangeCallbacks](interfaces/IExchangeCallbacks.md)
 - [IExchangeSchema](interfaces/IExchangeSchema.md)
 - [IExchange](interfaces/IExchange.md)
-- [ISignalData](interfaces/ISignalData.md)
+- [ISignalDto](interfaces/ISignalDto.md)
+- [ISignalRow](interfaces/ISignalRow.md)
 - [IStrategyCallbacks](interfaces/IStrategyCallbacks.md)
 - [IStrategySchema](interfaces/IStrategySchema.md)
 - [IStrategyPnL](interfaces/IStrategyPnL.md)
@@ -52,14 +57,23 @@ group: docs
 - [IStrategyTickResultActive](interfaces/IStrategyTickResultActive.md)
 - [IStrategyTickResultClosed](interfaces/IStrategyTickResultClosed.md)
 - [IStrategy](interfaces/IStrategy.md)
+- [IFrameParams](interfaces/IFrameParams.md)
+- [IFrameCallbacks](interfaces/IFrameCallbacks.md)
+- [IFrameSchema](interfaces/IFrameSchema.md)
+- [IFrame](interfaces/IFrame.md)
 - [IBacktestResult](interfaces/IBacktestResult.md)
 - [IReduceResult](interfaces/IReduceResult.md)
 - [IRunConfig](interfaces/IRunConfig.md)
+- [IExecutionContext](interfaces/IExecutionContext.md)
 
 ## Types
 
 - [TExecutionContextService](types/TExecutionContextService.md)
 - [CandleInterval](types/CandleInterval.md)
+- [ExchangeName](types/ExchangeName.md)
 - [StrategyCloseReason](types/StrategyCloseReason.md)
 - [IStrategyTickResult](types/IStrategyTickResult.md)
+- [StrategyName](types/StrategyName.md)
+- [FrameInterval](types/FrameInterval.md)
+- [FrameName](types/FrameName.md)
 - [ReduceCallback](types/ReduceCallback.md)

@@ -10,11 +10,11 @@ group: docs
 ### onOpen
 
 ```ts
-onOpen: (backtest: boolean, symbol: string, data: ISignalData) => void
+onOpen: (backtest: boolean, symbol: string, data: ISignalRow) => void
 ```
 
 ### onClose
 
 ```ts
-onClose: (backtest: boolean, symbol: string, priceClose: number, data: ISignalData) => void
+onClose: (backtest: boolean, symbol: string, priceClose: number, data: ISignalRow) => void
 ```

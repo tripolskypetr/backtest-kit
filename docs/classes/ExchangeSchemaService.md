@@ -16,23 +16,29 @@ constructor();
 ### loggerService
 
 ```ts
-loggerService: any
+loggerService: LoggerService
 ```
 
-### _exchangeSchema
+### _registry
 
 ```ts
-_exchangeSchema: any
+_registry: any
 ```
 
-### getSchema
+### register
 
 ```ts
-getSchema: () => IExchangeSchema
+register: (key: string, value: IExchangeSchema) => void
 ```
 
-### addSchema
+### override
 
 ```ts
-addSchema: (exchangeSchema: IExchangeSchema) => void
+override: (key: string, value: Partial<IExchangeSchema>) => IExchangeSchema
+```
+
+### get
+
+```ts
+get: (key: string) => IExchangeSchema
 ```

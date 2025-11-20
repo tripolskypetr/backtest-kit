@@ -1,32 +1,70 @@
 @startyaml
 exchangePublicService:
 	• exchangePublicService: ""
-	loggerService: ""
+	loggerService:
+		• loggerService: ""
+		methodContextService: ""
+		executionContextService: ""
 	exchangeConnectionService:
 		• exchangeConnectionService: ""
-		loggerService: ""
+		loggerService:
+			• loggerService: ""
+			methodContextService: ""
+			executionContextService: ""
 		executionContextService: ""
 		exchangeSchemaService:
 			• exchangeSchemaService: ""
-			loggerService: ""
+			loggerService:
+				• loggerService: ""
+				methodContextService: ""
+				executionContextService: ""
 		methodContextService: ""
 strategyPublicService:
 	• strategyPublicService: ""
-	loggerService: ""
+	loggerService:
+		• loggerService: ""
+		methodContextService: ""
+		executionContextService: ""
 	strategyConnectionService:
 		• strategyConnectionService: ""
-		loggerService: ""
+		loggerService:
+			• loggerService: ""
+			methodContextService: ""
+			executionContextService: ""
 		executionContextService: ""
 		strategySchemaService:
 			• strategySchemaService: ""
-			loggerService: ""
+			loggerService:
+				• loggerService: ""
+				methodContextService: ""
+				executionContextService: ""
 		exchangeConnectionService:
 			• exchangeConnectionService: ""
-			loggerService: ""
+			loggerService:
+				• loggerService: ""
+				methodContextService: ""
+				executionContextService: ""
 			executionContextService: ""
 			exchangeSchemaService:
 				• exchangeSchemaService: ""
-				loggerService: ""
+				loggerService:
+					• loggerService: ""
+					methodContextService: ""
+					executionContextService: ""
 			methodContextService: ""
+		methodContextService: ""
+framePublicService:
+	• framePublicService: ""
+	loggerService:
+		• loggerService: ""
+		methodContextService: ""
+		executionContextService: ""
+	frameConnectionService:
+		• frameConnectionService: ""
+		loggerService:
+			• loggerService: ""
+			methodContextService: ""
+			executionContextService: ""
+		frameSchemaService: ""
 		methodContextService: ""
 @endyaml

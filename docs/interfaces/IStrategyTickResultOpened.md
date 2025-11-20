@@ -16,5 +16,5 @@ action: "opened"
 ### signal
 
 ```ts
-signal: ISignalData
+signal: ISignalRow
 ```

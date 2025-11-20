@@ -15,6 +15,18 @@ constructor();
 
 ## Properties
 
+### methodContextService
+
+```ts
+methodContextService: any
+```
+
+### executionContextService
+
+```ts
+executionContextService: any
+```
+
 ### _commonLogger
 
 ```ts

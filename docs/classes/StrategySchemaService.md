@@ -16,23 +16,29 @@ constructor();
 ### loggerService
 
 ```ts
-loggerService: any
+loggerService: LoggerService
 ```
 
-### _strategySchema
+### _registry
 
 ```ts
-_strategySchema: any
+_registry: any
 ```
 
-### getSchema
+### register
 
 ```ts
-getSchema: () => IStrategySchema
+register: (key: string, value: IStrategySchema) => void
 ```
 
-### addSchema
+### override
 
 ```ts
-addSchema: (strategySchema: IStrategySchema) => void
+override: (key: string, value: Partial<IStrategySchema>) => IStrategySchema
+```
+
+### get
+
+```ts
+get: (key: string) => IStrategySchema
 ```

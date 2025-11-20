@@ -33,10 +33,16 @@ executionContextService: any
 exchangeSchemaService: any
 ```
 
+### methodContextService
+
+```ts
+methodContextService: any
+```
+
 ### getExchange
 
 ```ts
-getExchange: ((symbol: string) => ClientExchange) & IClearableMemoize<string> & IControlMemoize<string, ClientExchange>
+getExchange: ((exchangeName: string) => ClientExchange) & IClearableMemoize<string> & IControlMemoize<string, ClientExchange>
 ```
 
 ### getCandles

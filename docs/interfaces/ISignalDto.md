@@ -1,17 +1,11 @@
 ---
-title: docs/api-reference/interface/ISignalData
+title: docs/api-reference/interface/ISignalDto
 group: docs
 ---
 
-# ISignalData
+# ISignalDto
 
 ## Properties
-
-### id
-
-```ts
-id: string
-```
 
 ### position
 

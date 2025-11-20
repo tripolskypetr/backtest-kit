@@ -16,7 +16,7 @@ action: "closed"
 ### signal
 
 ```ts
-signal: ISignalData
+signal: ISignalRow
 ```
 
 ### currentPrice

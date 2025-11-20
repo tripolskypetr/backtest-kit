@@ -7,10 +7,22 @@ group: docs
 
 ## Properties
 
+### strategyName
+
+```ts
+strategyName: string
+```
+
+### exchangeName
+
+```ts
+exchangeName: string
+```
+
 ### getSignal
 
 ```ts
-getSignal: (symbol: string) => Promise<ISignalData>
+getSignal: (symbol: string) => Promise<ISignalDto>
 ```
 
 ### callbacks

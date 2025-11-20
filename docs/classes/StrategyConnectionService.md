@@ -39,6 +39,12 @@ strategySchemaService: any
 exchangeConnectionService: any
 ```
 
+### methodContextService
+
+```ts
+methodContextService: any
+```
+
 ### getStrategy
 
 ```ts
@@ -48,5 +54,5 @@ getStrategy: any
 ### tick
 
 ```ts
-tick: (symbol: string) => Promise<IStrategyTickResult>
+tick: () => Promise<IStrategyTickResult>
 ```

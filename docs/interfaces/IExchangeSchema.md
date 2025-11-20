@@ -7,6 +7,12 @@ group: docs
 
 ## Properties
 
+### exchangeName
+
+```ts
+exchangeName: string
+```
+
 ### getCandles
 
 ```ts

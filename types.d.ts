@@ -287,7 +287,15 @@ declare class FrameSchemaService {
     get(key: FrameName): IFrameSchema;
 }
 
+declare class BacktestLogicService {
+}
+
+declare class LiveLogicService {
+}
+
 declare const backtest: {
+    backtestLogicService: BacktestLogicService;
+    liveLogicService: LiveLogicService;
     exchangePublicService: ExchangePublicService;
     strategyPublicService: StrategyPublicService;
     framePublicService: FramePublicService;

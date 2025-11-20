@@ -7,14 +7,20 @@ group: docs
 
 ## Properties
 
-### when
+### exchangeName
 
 ```ts
-when: Date
+exchangeName: string
 ```
 
-### backtest
+### strategyName
 
 ```ts
-backtest: boolean
+strategyName: string
+```
+
+### frameName
+
+```ts
+frameName: string
 ```

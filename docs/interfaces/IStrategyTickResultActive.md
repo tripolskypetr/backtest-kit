@@ -16,7 +16,7 @@ action: "active"
 ### signal
 
 ```ts
-signal: ISignalData
+signal: ISignalRow
 ```
 
 ### currentPrice
