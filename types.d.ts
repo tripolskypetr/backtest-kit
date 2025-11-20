@@ -242,6 +242,24 @@ declare class PersistSignalUtils {
 }
 declare const PersistSignalAdaper: PersistSignalUtils;
 
+declare class BacktestUtils {
+    run: (symbol: string, context: {
+        strategyName: string;
+        exchangeName: string;
+        frameName: string;
+    }) => AsyncGenerator<IStrategyTickResultClosed, void, unknown>;
+}
+declare const Backtest: BacktestUtils;
+
+declare class LiveUtils {
+    run: (symbol: string, context: {
+        strategyName: string;
+        exchangeName: string;
+        frameName: string;
+    }) => AsyncGenerator<IStrategyTickResultOpened | IStrategyTickResultClosed, void, unknown>;
+}
+declare const Live: LiveUtils;
+
 declare class LoggerService implements ILogger {
     private readonly methodContextService;
     private readonly executionContextService;
@@ -425,4 +443,4 @@ declare const backtest: {
     loggerService: LoggerService;
 };
 
-export { type CandleInterval, ExecutionContextService, type FrameInterval, type ICandleData, type IExchangeSchema, type IFrameSchema, type IPersistBase, type ISignalDto, type ISignalRow, type IStrategyPnL, type IStrategySchema, type IStrategyTickResult, type IStrategyTickResultActive, type IStrategyTickResultClosed, type IStrategyTickResultIdle, type IStrategyTickResultOpened, MethodContextService, PersistBase, PersistSignalAdaper, type SignalInterval, type TPersistBase, type TPersistBaseCtor, addExchange, addFrame, addStrategy, backtest, formatPrice, formatQuantity, getAveragePrice, getCandles, getDate, getMode, reduce, runBacktest, runBacktestGUI, setLogger, startRun, stopAll, stopRun };
+export { Backtest, type CandleInterval, ExecutionContextService, type FrameInterval, type ICandleData, type IExchangeSchema, type IFrameSchema, type IPersistBase, type ISignalDto, type ISignalRow, type IStrategyPnL, type IStrategySchema, type IStrategyTickResult, type IStrategyTickResultActive, type IStrategyTickResultClosed, type IStrategyTickResultIdle, type IStrategyTickResultOpened, Live, MethodContextService, PersistBase, PersistSignalAdaper, type SignalInterval, type TPersistBase, type TPersistBaseCtor, addExchange, addFrame, addStrategy, backtest, formatPrice, formatQuantity, getAveragePrice, getCandles, getDate, getMode, reduce, runBacktest, runBacktestGUI, setLogger, startRun, stopAll, stopRun };

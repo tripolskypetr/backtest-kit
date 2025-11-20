@@ -44,4 +44,7 @@ export {
   PersistSignalAdaper,
 } from "./classes/Persist";
 
+export { Backtest } from "./classes/Backtest";
+export { Live } from "./classes/Live";
+
 export { backtest } from "./lib";

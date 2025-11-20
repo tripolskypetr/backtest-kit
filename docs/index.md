@@ -8,6 +8,8 @@ group: docs
 ## Classes
 
 - [PersistSignalUtils](classes/PersistSignalUtils.md)
+- [BacktestUtils](classes/BacktestUtils.md)
+- [LiveUtils](classes/LiveUtils.md)
 - [LoggerService](classes/LoggerService.md)
 - [ClientExchange](classes/ClientExchange.md)
 - [ExchangeConnectionService](classes/ExchangeConnectionService.md)
