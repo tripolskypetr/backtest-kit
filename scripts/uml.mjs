@@ -36,8 +36,8 @@ const toUML = async () => {
     }
   };
   process(
-    backtest,
-    Object.keys(backtest).filter((key) => key.includes("Global"))
+    lib,
+    Object.keys(lib).filter((key) => key.includes("Global"))
   );
 
   const result = ["@startyaml", ...lines, "@endyaml"].join("\n");
@@ -47,6 +47,6 @@ const toUML = async () => {
 
 moduleData.MethodContextService.runInContext(() => {
   moduleData.ExecutionContextService.runInContext(() => {
-    toUML(backtest);
+    toUML(lib);
   }, {});
 }, {});
