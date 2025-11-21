@@ -12,7 +12,7 @@ setGlobalDispatcher(
   })
 );
 
-const MODULE_NAME = "agent-swarm-kit";
+const MODULE_NAME = "backtest-kit";
 
 const ollama = new Ollama({ host: "http://127.0.0.1:11434" });
 
@@ -30,11 +30,11 @@ const GPT_FUNCTION_PROMPT =
 const HEADER_CONTENT =
   "# backtest-kit api reference\n" +
   "\n" +
+  "![schema](../assets/uml.svg)\n" +
+  "\n" +
   "**Overview:**\n" +
   "\n" +
   "Backtest-kit is a production-ready TypeScript framework for backtesting and live trading strategies with crash-safe state persistence, signal validation, and memory-optimized architecture. The framework follows clean architecture principles with dependency injection, separation of concerns, and type-safe discriminated unions.\n" +
-  "\n" +
-  "**Production Readiness:** 8.5/10 - The system is well-designed for real-world usage with robust error recovery, signal validation, and memory optimizations.\n" +
   "\n" +
   "**Core Concepts:**\n" +
   "\n" +

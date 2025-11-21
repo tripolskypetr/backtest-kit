@@ -4,8 +4,6 @@
 
 Backtest-kit is a production-ready TypeScript framework for backtesting and live trading strategies. The architecture follows clean architecture principles with dependency injection, separation of concerns, crash-safe state persistence, and type-safe discriminated unions.
 
-**Production Readiness**: 8.5/10 - The system is well-designed for real-world usage with robust error recovery, signal validation, and memory optimizations.
-
 ## Core Concepts
 
 ### 1. Signal Lifecycle
@@ -469,8 +467,6 @@ src/
 8. **Singleshot initialization** - `waitForInit` runs exactly once per instance
 
 ## Production Readiness Assessment
-
-### Strengths (8.5/10)
 
 1. **Robust Error Recovery** - Persist-and-restart pattern with atomic file writes
 2. **Signal Validation** - Comprehensive validation prevents invalid trades
