@@ -22,7 +22,7 @@ A production-ready TypeScript framework for backtesting and live trading strateg
 ## Installation
 
 ```bash
-npm install
+npm install backtest-kit
 ```
 
 ## Quick Start
@@ -30,7 +30,7 @@ npm install
 ### 1. Register Exchange Data Source
 
 ```typescript
-import { addExchange } from "backtest-kit/function/add";
+import { addExchange } from "backtest-kit";
 
 addExchange({
   exchangeName: "binance",
@@ -55,7 +55,7 @@ addExchange({
 ### 2. Register Trading Strategy
 
 ```typescript
-import { addStrategy } from "backtest-kit/function/add";
+import { addStrategy } from "backtest-kit";
 
 addStrategy({
   strategyName: "my-strategy",
@@ -87,7 +87,7 @@ addStrategy({
 ### 3. Add Timeframe Generator
 
 ```typescript
-import { addFrame } from "backtest-kit/function/add";
+import { addFrame } from "backtest-kit";
 
 addFrame({
   frameName: "1d-backtest",
@@ -105,7 +105,7 @@ addFrame({
 ### 4. Run Backtest with Async Generator
 
 ```typescript
-import { Backtest } from "backtest-kit/classes/Backtest";
+import { Backtest } from "backtest-kit";
 
 // Stream backtest results without memory accumulation
 for await (const result of Backtest.run("BTCUSDT", {
@@ -139,7 +139,7 @@ await Backtest.dump("my-strategy"); // ./logs/backtest/my-strategy.md
 ### 5. Live Trading with Crash Recovery
 
 ```typescript
-import { Live } from "backtest-kit/classes/Live";
+import { Live } from "backtest-kit";
 
 // Infinite async generator - streams live results
 for await (const result of Live.run("BTCUSDT", {
@@ -171,7 +171,7 @@ for await (const result of Live.run("BTCUSDT", {
 **Crash Recovery Example:**
 
 ```typescript
-import { Live } from "backtest-kit/classes/Live";
+import { Live } from "backtest-kit";
 
 // First run
 for await (const result of Live.run("BTCUSDT", {
@@ -266,7 +266,7 @@ Generate detailed trading reports with statistics:
 ### Backtest Reports
 
 ```typescript
-import { Backtest } from "backtest-kit/classes/Backtest";
+import { Backtest } from "backtest-kit";
 
 // Run backtest
 await Backtest.background("BTCUSDT", {
@@ -298,7 +298,7 @@ await Backtest.clear();              // Clear all strategies
 ### Live Trading Reports
 
 ```typescript
-import { Live } from "backtest-kit/classes/Live";
+import { Live } from "backtest-kit";
 
 // Generate live trading report
 const markdown = await Live.getReport("my-strategy");
@@ -338,8 +338,7 @@ Subscribe to signal events with filtering support. Useful for running strategies
 ### Background Execution with Event Listeners
 
 ```typescript
-import { Backtest } from "backtest-kit/classes/Backtest";
-import { listenSignalBacktest } from "backtest-kit/function/event";
+import { Backtest, listenSignalBacktest } from "backtest-kit";
 
 // Run backtest in background (doesn't yield results)
 Backtest.background("BTCUSDT", {
@@ -365,8 +364,7 @@ const unsubscribe = listenSignalBacktest((event) => {
 ### Listen Once with Filter
 
 ```typescript
-import { Backtest } from "backtest-kit/classes/Backtest";
-import { listenSignalBacktestOnce } from "backtest-kit/function/event";
+import { Backtest, listenSignalBacktestOnce } from "backtest-kit";
 
 // Run backtest in background
 Backtest.background("BTCUSDT", {
@@ -388,8 +386,7 @@ listenSignalBacktestOnce(
 ### Live Trading with Event Listeners
 
 ```typescript
-import { Live } from "backtest-kit/classes/Live";
-import { listenSignalLive, listenSignalLiveOnce } from "backtest-kit/function/event";
+import { Live, listenSignalLive, listenSignalLiveOnce } from "backtest-kit";
 
 // Run live trading in background (infinite loop)
 const cancel = await Live.background("BTCUSDT", {
@@ -423,9 +420,7 @@ listenSignalLiveOnce(
 ### Listen to All Signals (Backtest + Live)
 
 ```typescript
-import { listenSignal, listenSignalOnce } from "backtest-kit/function/event";
-import { Backtest } from "backtest-kit/classes/Backtest";
-import { Live } from "backtest-kit/classes/Live";
+import { listenSignal, listenSignalOnce, Backtest, Live } from "backtest-kit";
 
 // Listen to both backtest and live events
 listenSignal((event) => {
@@ -506,7 +501,7 @@ formatQuantity(symbol: string, quantity: number): Promise<string>
 #### Backtest API
 
 ```typescript
-import { Backtest } from "backtest-kit/classes/Backtest";
+import { Backtest } from "backtest-kit";
 
 // Stream backtest results
 Backtest.run(
@@ -537,7 +532,7 @@ Backtest.clear(strategyName?: string): Promise<void>
 #### Live Trading API
 
 ```typescript
-import { Live } from "backtest-kit/classes/Live";
+import { Live } from "backtest-kit";
 
 // Stream live results (infinite)
 Live.run(
@@ -562,36 +557,6 @@ Live.dump(strategyName: string, path?: string): Promise<void>
 
 // Clear accumulated data
 Live.clear(strategyName?: string): Promise<void>
-```
-
-#### Advanced: Reduce Pattern
-
-```typescript
-import { reduce } from "backtest-kit/function/reduce";
-
-interface Context {
-  totalPnl: number;
-  trades: number;
-}
-
-const result = await reduce<Context>(
-  "BTCUSDT",
-  timeframes,
-  async (acc, index, when, symbol) => {
-    // Custom logic at each timeframe
-    const result = await backtest.strategyGlobalService.tick(symbol, when, true);
-
-    if (result.action === "closed") {
-      acc.totalPnl += result.pnl.pnlPercentage;
-      acc.trades++;
-    }
-
-    return acc;
-  },
-  { totalPnl: 0, trades: 0 }
-);
-
-console.log(result.accumulator); // { totalPnl: 15.3, trades: 42 }
 ```
 
 ## Type Definitions
@@ -682,9 +647,7 @@ src/
 │   └── Persist.ts              # Atomic file persistence
 ├── function/                   # High-level API
 │   ├── add.ts                  # addStrategy, addExchange, addFrame
-│   ├── backtest.ts             # Legacy backtest API
 │   ├── exchange.ts             # getCandles, getAveragePrice, getDate, getMode
-│   ├── reduce.ts               # Reduce pattern
 │   └── run.ts                  # DEPRECATED - use logic services instead
 ├── interfaces/                 # TypeScript interfaces
 │   ├── Strategy.interface.ts
@@ -712,7 +675,7 @@ src/
 ### Custom Persistence Adapter
 
 ```typescript
-import { PersistSignalAdaper, PersistBase } from "backtest-kit/classes/Persist";
+import { PersistSignalAdaper, PersistBase } from "backtest-kit";
 
 class RedisPersist extends PersistBase {
   async readValue(entityId) {
@@ -729,7 +692,7 @@ PersistSignalAdaper.usePersistSignalAdapter(RedisPersist);
 ### Multi-Symbol Live Trading
 
 ```typescript
-import { Live } from "backtest-kit/classes/Live";
+import { Live } from "backtest-kit";
 
 const symbols = ["BTCUSDT", "ETHUSDT", "SOLUSDT"];
 
@@ -753,8 +716,10 @@ await Promise.all(
 
 ### Early Termination
 
+**Using async generator with break:**
+
 ```typescript
-import { Backtest } from "backtest-kit/classes/Backtest";
+import { Backtest } from "backtest-kit";
 
 for await (const result of Backtest.run("BTCUSDT", {
   strategyName: "my-strategy",
@@ -769,6 +734,40 @@ for await (const result of Backtest.run("BTCUSDT", {
     break; // Generator stops immediately
   }
 }
+```
+
+**Using background mode with stop() function:**
+
+```typescript
+import { Backtest, Live, listenSignalLiveOnce } from "backtest-kit";
+
+// Backtest.background returns a stop function
+const stopBacktest = await Backtest.background("BTCUSDT", {
+  strategyName: "my-strategy",
+  exchangeName: "binance",
+  frameName: "1d-backtest"
+});
+
+// Stop backtest after some condition
+setTimeout(() => {
+  console.log("Stopping backtest...");
+  stopBacktest(); // Stops the background execution
+}, 5000);
+
+// Live.background also returns a stop function
+const stopLive = await Live.background("BTCUSDT", {
+  strategyName: "my-strategy",
+  exchangeName: "binance"
+});
+
+// Stop live trading after detecting stop loss
+listenSignalLiveOnce(
+  (event) => event.action === "closed" && event.closeReason === "stop_loss",
+  (event) => {
+    console.log("Stop loss detected - stopping live trading");
+    stopLive(); // Stops the infinite loop
+  }
+);
 ```
 
 ## Use Cases
