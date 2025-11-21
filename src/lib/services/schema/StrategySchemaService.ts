@@ -24,7 +24,43 @@ export class StrategySchemaService {
    */
   public register = (key: StrategyName, value: IStrategySchema) => {
     this.loggerService.info(`strategySchemaService register`, { key });
+    this.validateShallow(value);
     this._registry = this._registry.register(key, value);
+  };
+
+  /**
+   * Validates strategy schema structure for required properties.
+   *
+   * Performs shallow validation to ensure all required properties exist
+   * and have correct types before registration in the registry.
+   *
+   * @param strategySchema - Strategy schema to validate
+   * @throws Error if strategyName is missing or not a string
+   * @throws Error if interval is missing or not a valid SignalInterval
+   * @throws Error if getSignal is missing or not a function
+   */
+  private validateShallow = (strategySchema: IStrategySchema) => {
+    this.loggerService.info(`strategySchemaService validateShallow`, {
+      strategySchema,
+    });
+
+    if (typeof strategySchema.strategyName !== "string") {
+      throw new Error(
+        `strategy schema validation failed: missing strategyName`
+      );
+    }
+
+    if (typeof strategySchema.interval !== "string") {
+      throw new Error(
+        `strategy schema validation failed: missing interval for strategyName=${strategySchema.strategyName}`
+      );
+    }
+
+    if (typeof strategySchema.getSignal !== "function") {
+      throw new Error(
+        `strategy schema validation failed: missing getSignal for strategyName=${strategySchema.strategyName}`
+      );
+    }
   };
 
   /**
