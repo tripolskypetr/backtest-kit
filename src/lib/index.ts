@@ -25,6 +25,9 @@ import LiveGlobalService from "./services/global/LiveGlobalService";
 import BacktestGlobalService from "./services/global/BacktestGlobalService";
 import BacktestMarkdownService from "./services/markdown/BacktestMarkdownService";
 import LiveMarkdownService from "./services/markdown/LiveMarkdownService";
+import ExchangeValidationService from "./services/validation/ExchangeValidationService";
+import StrategyValidationService from "./services/validation/StrategyValidationService";
+import FrameValidationService from "./services/validation/FrameValidationService";
 
 const baseServices = {
   loggerService: inject<LoggerService>(TYPES.loggerService),
@@ -98,6 +101,12 @@ const markdownServices = {
   liveMarkdownService: inject<LiveMarkdownService>(TYPES.liveMarkdownService),
 }
 
+const validationServices = {
+  exchangeValidationService: inject<ExchangeValidationService>(TYPES.exchangeValidationService),
+  strategyValidationService: inject<StrategyValidationService>(TYPES.strategyValidationService),
+  frameValidationService: inject<FrameValidationService>(TYPES.frameValidationService),
+}
+
 export const backtest = {
   ...baseServices,
   ...contextServices,
@@ -107,6 +116,7 @@ export const backtest = {
   ...logicPrivateServices,
   ...logicPublicServices,
   ...markdownServices,
+  ...validationServices,
 };
 
 init();

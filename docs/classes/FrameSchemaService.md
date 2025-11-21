@@ -18,11 +18,28 @@ constructor();
 
 ## Properties
 
+### loggerService
+
+```ts
+loggerService: LoggerService
+```
+
 ### _registry
 
 ```ts
 _registry: any
 ```
+
+### validateShallow
+
+```ts
+validateShallow: any
+```
+
+Validates frame schema structure for required properties.
+
+Performs shallow validation to ensure all required properties exist
+and have correct types before registration in the registry.
 
 ## Methods
 

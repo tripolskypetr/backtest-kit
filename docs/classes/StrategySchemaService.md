@@ -38,6 +38,17 @@ register: (key: string, value: IStrategySchema) => void
 
 Registers a new strategy schema.
 
+### validateShallow
+
+```ts
+validateShallow: any
+```
+
+Validates strategy schema structure for required properties.
+
+Performs shallow validation to ensure all required properties exist
+and have correct types before registration in the registry.
+
 ### override
 
 ```ts

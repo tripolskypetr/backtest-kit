@@ -42,6 +42,12 @@ const markdownServices = {
     liveMarkdownService: Symbol('liveMarkdownService'),
 }
 
+const validationServices = {
+    exchangeValidationService: Symbol('exchangeValidationService'),
+    strategyValidationService: Symbol('strategyValidationService'),
+    frameValidationService: Symbol('frameValidationService'),
+}
+
 export const TYPES = {
     ...baseServices,
     ...contextServices,
@@ -51,6 +57,7 @@ export const TYPES = {
     ...logicPrivateServices,
     ...logicPublicServices,
     ...markdownServices,
+    ...validationServices,
 }
 
 export default TYPES;

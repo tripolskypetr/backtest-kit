@@ -23,7 +23,7 @@ export class ExchangeSchemaService {
    * @throws Error if exchange name already exists
    */
   public register = (key: ExchangeName, value: IExchangeSchema) => {
-    this.loggerService.info(`exchangeSchemaService register`, { key });
+    this.loggerService.log(`exchangeSchemaService register`, { key });
     this.validateShallow(value);
     this._registry = this._registry.register(key, value);
   };
@@ -41,7 +41,7 @@ export class ExchangeSchemaService {
    * @throws Error if formatQuantity is missing or not a function
    */
   private validateShallow = (exchangeSchema: IExchangeSchema) => {
-    this.loggerService.info(`exchangeSchemaService validateShallow`, {
+    this.loggerService.log(`exchangeSchemaService validateShallow`, {
       exchangeSchema,
     });
 
@@ -79,7 +79,7 @@ export class ExchangeSchemaService {
    * @throws Error if exchange name doesn't exist
    */
   public override = (key: ExchangeName, value: Partial<IExchangeSchema>) => {
-    this.loggerService.info(`exchangeSchemaService override`, { key });
+    this.loggerService.log(`exchangeSchemaService override`, { key });
     this._registry = this._registry.override(key, value);
     return this._registry.get(key);
   };
@@ -92,7 +92,7 @@ export class ExchangeSchemaService {
    * @throws Error if exchange name doesn't exist
    */
   public get = (key: ExchangeName): IExchangeSchema => {
-    this.loggerService.info(`exchangeSchemaService get`, { key });
+    this.loggerService.log(`exchangeSchemaService get`, { key });
     return this._registry.get(key);
   };
 }

@@ -23,7 +23,7 @@ export class StrategySchemaService {
    * @throws Error if strategy name already exists
    */
   public register = (key: StrategyName, value: IStrategySchema) => {
-    this.loggerService.info(`strategySchemaService register`, { key });
+    this.loggerService.log(`strategySchemaService register`, { key });
     this.validateShallow(value);
     this._registry = this._registry.register(key, value);
   };
@@ -40,7 +40,7 @@ export class StrategySchemaService {
    * @throws Error if getSignal is missing or not a function
    */
   private validateShallow = (strategySchema: IStrategySchema) => {
-    this.loggerService.info(`strategySchemaService validateShallow`, {
+    this.loggerService.log(`strategySchemaService validateShallow`, {
       strategySchema,
     });
 
@@ -72,7 +72,7 @@ export class StrategySchemaService {
    * @throws Error if strategy name doesn't exist
    */
   public override = (key: StrategyName, value: Partial<IStrategySchema>) => {
-    this.loggerService.info(`strategySchemaService override`, { key });
+    this.loggerService.log(`strategySchemaService override`, { key });
     this._registry = this._registry.override(key, value);
     return this._registry.get(key);
   };
@@ -85,7 +85,7 @@ export class StrategySchemaService {
    * @throws Error if strategy name doesn't exist
    */
   public get = (key: StrategyName): IStrategySchema => {
-    this.loggerService.info(`strategySchemaService get`, { key });
+    this.loggerService.log(`strategySchemaService get`, { key });
     return this._registry.get(key);
   };
 }

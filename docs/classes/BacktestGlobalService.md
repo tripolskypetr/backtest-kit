@@ -30,6 +30,24 @@ loggerService: any
 backtestLogicPublicService: any
 ```
 
+### strategyValidationService
+
+```ts
+strategyValidationService: any
+```
+
+### exchangeValidationService
+
+```ts
+exchangeValidationService: any
+```
+
+### frameValidationService
+
+```ts
+frameValidationService: any
+```
+
 ### run
 
 ```ts

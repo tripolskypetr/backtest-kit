@@ -2,6 +2,11 @@ import { inject } from "../../../lib/core/di";
 import LoggerService from "../base/LoggerService";
 import TYPES from "../../../lib/core/types";
 import BacktestLogicPublicService from "../logic/public/BacktestLogicPublicService";
+import StrategyValidationService from "../validation/StrategyValidationService";
+import ExchangeValidationService from "../validation/ExchangeValidationService";
+import FrameValidationService from "../validation/FrameValidationService";
+
+const METHOD_NAME_RUN = "backtestGlobalService run";
 
 /**
  * Global service providing access to backtest functionality.
@@ -13,6 +18,12 @@ export class BacktestGlobalService {
   private readonly loggerService = inject<LoggerService>(TYPES.loggerService);
   private readonly backtestLogicPublicService =
     inject<BacktestLogicPublicService>(TYPES.backtestLogicPublicService);
+  private readonly strategyValidationService =
+    inject<StrategyValidationService>(TYPES.strategyValidationService);
+  private readonly exchangeValidationService =
+    inject<ExchangeValidationService>(TYPES.exchangeValidationService);
+  private readonly frameValidationService =
+    inject<FrameValidationService>(TYPES.frameValidationService);
 
   /**
    * Runs backtest for a symbol with context propagation.
@@ -29,10 +40,13 @@ export class BacktestGlobalService {
       frameName: string;
     }
   ) => {
-    this.loggerService.log("backtestGlobalService run", {
+    this.loggerService.log(METHOD_NAME_RUN, {
       symbol,
       context,
     });
+    this.strategyValidationService.validate(context.strategyName, METHOD_NAME_RUN);
+    this.exchangeValidationService.validate(context.exchangeName, METHOD_NAME_RUN);
+    this.frameValidationService.validate(context.frameName, METHOD_NAME_RUN);
     return this.backtestLogicPublicService.run(symbol, context);
   };
 }

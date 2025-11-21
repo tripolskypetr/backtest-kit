@@ -25,7 +25,7 @@ export class FrameSchemaService {
    * @throws Error if frame name already exists
    */
   public register(key: FrameName, value: IFrameSchema) {
-    this.loggerService.info(`frameSchemaService register`, { key });
+    this.loggerService.log(`frameSchemaService register`, { key });
     this.validateShallow(value);
     this._registry.register(key, value);
   }
@@ -43,7 +43,7 @@ export class FrameSchemaService {
    * @throws Error if endDate is missing or not a Date
    */
   private validateShallow = (frameSchema: IFrameSchema) => {
-    this.loggerService.info(`frameSchemaService validateShallow`, {
+    this.loggerService.log(`frameSchemaService validateShallow`, {
       frameSchema,
     });
 
@@ -80,6 +80,7 @@ export class FrameSchemaService {
    * @throws Error if frame name doesn't exist
    */
   public override(key: FrameName, value: Partial<IFrameSchema>) {
+    this.loggerService.log(`frameSchemaService override`, { key });
     this._registry.override(key, value);
   }
 
@@ -91,6 +92,7 @@ export class FrameSchemaService {
    * @throws Error if frame name doesn't exist
    */
   public get(key: FrameName): IFrameSchema {
+    this.loggerService.log(`frameSchemaService get`, { key });
     return this._registry.get(key);
   }
 }

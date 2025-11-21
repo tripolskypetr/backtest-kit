@@ -65,7 +65,12 @@ frameGlobalService:
 			• loggerService: ""
 			methodContextService: ""
 			executionContextService: ""
-		frameSchemaService: ""
+		frameSchemaService:
+			• frameSchemaService: ""
+			loggerService:
+				• loggerService: ""
+				methodContextService: ""
+				executionContextService: ""
 		methodContextService: ""
 liveGlobalService:
 	• liveGlobalService: ""
@@ -119,6 +124,18 @@ liveGlobalService:
 								executionContextService: ""
 						methodContextService: ""
 					methodContextService: ""
+	strategyValidationService:
+		• strategyValidationService: ""
+		loggerService:
+			• loggerService: ""
+			methodContextService: ""
+			executionContextService: ""
+	exchangeValidationService:
+		• exchangeValidationService: ""
+		loggerService:
+			• loggerService: ""
+			methodContextService: ""
+			executionContextService: ""
 backtestGlobalService:
 	• backtestGlobalService: ""
 	loggerService:
@@ -203,6 +220,29 @@ backtestGlobalService:
 						• loggerService: ""
 						methodContextService: ""
 						executionContextService: ""
-					frameSchemaService: ""
+					frameSchemaService:
+						• frameSchemaService: ""
+						loggerService:
+							• loggerService: ""
+							methodContextService: ""
+							executionContextService: ""
 					methodContextService: ""
+	strategyValidationService:
+		• strategyValidationService: ""
+		loggerService:
+			• loggerService: ""
+			methodContextService: ""
+			executionContextService: ""
+	exchangeValidationService:
+		• exchangeValidationService: ""
+		loggerService:
+			• loggerService: ""
+			methodContextService: ""
+			executionContextService: ""
+	frameValidationService:
+		• frameValidationService: ""
+		loggerService:
+			• loggerService: ""
+			methodContextService: ""
+			executionContextService: ""
 @endyaml

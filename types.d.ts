@@ -1861,6 +1861,19 @@ declare class ExchangeSchemaService {
      */
     register: (key: ExchangeName, value: IExchangeSchema) => void;
     /**
+     * Validates exchange schema structure for required properties.
+     *
+     * Performs shallow validation to ensure all required properties exist
+     * and have correct types before registration in the registry.
+     *
+     * @param exchangeSchema - Exchange schema to validate
+     * @throws Error if exchangeName is missing or not a string
+     * @throws Error if getCandles is missing or not a function
+     * @throws Error if formatPrice is missing or not a function
+     * @throws Error if formatQuantity is missing or not a function
+     */
+    private validateShallow;
+    /**
      * Overrides an existing exchange schema with partial updates.
      *
      * @param key - Exchange name to override
@@ -1897,6 +1910,18 @@ declare class StrategySchemaService {
      */
     register: (key: StrategyName, value: IStrategySchema) => void;
     /**
+     * Validates strategy schema structure for required properties.
+     *
+     * Performs shallow validation to ensure all required properties exist
+     * and have correct types before registration in the registry.
+     *
+     * @param strategySchema - Strategy schema to validate
+     * @throws Error if strategyName is missing or not a string
+     * @throws Error if interval is missing or not a valid SignalInterval
+     * @throws Error if getSignal is missing or not a function
+     */
+    private validateShallow;
+    /**
      * Overrides an existing strategy schema with partial updates.
      *
      * @param key - Strategy name to override
@@ -1922,6 +1947,7 @@ declare class StrategySchemaService {
  * Frames are registered via addFrame() and retrieved by name.
  */
 declare class FrameSchemaService {
+    readonly loggerService: LoggerService;
     private _registry;
     /**
      * Registers a new frame schema.
@@ -1931,6 +1957,19 @@ declare class FrameSchemaService {
      * @throws Error if frame name already exists
      */
     register(key: FrameName, value: IFrameSchema): void;
+    /**
+     * Validates frame schema structure for required properties.
+     *
+     * Performs shallow validation to ensure all required properties exist
+     * and have correct types before registration in the registry.
+     *
+     * @param frameSchema - Frame schema to validate
+     * @throws Error if frameName is missing or not a string
+     * @throws Error if interval is missing or not a valid FrameInterval
+     * @throws Error if startDate is missing or not a Date
+     * @throws Error if endDate is missing or not a Date
+     */
+    private validateShallow;
     /**
      * Overrides an existing frame schema with partial updates.
      *
@@ -2132,6 +2171,8 @@ declare class LiveLogicPublicService {
 declare class LiveGlobalService {
     private readonly loggerService;
     private readonly liveLogicPublicService;
+    private readonly strategyValidationService;
+    private readonly exchangeValidationService;
     /**
      * Runs live trading for a symbol with context propagation.
      *
@@ -2156,6 +2197,9 @@ declare class LiveGlobalService {
 declare class BacktestGlobalService {
     private readonly loggerService;
     private readonly backtestLogicPublicService;
+    private readonly strategyValidationService;
+    private readonly exchangeValidationService;
+    private readonly frameValidationService;
     /**
      * Runs backtest for a symbol with context propagation.
      *
@@ -2421,7 +2465,103 @@ declare class LiveMarkdownService {
     protected init: (() => Promise<void>) & functools_kit.ISingleshotClearable;
 }
 
+/**
+ * @class ExchangeValidationService
+ * Service for managing and validating exchange configurations
+ */
+declare class ExchangeValidationService {
+    /**
+     * @private
+     * @readonly
+     * Injected logger service instance
+     */
+    private readonly loggerService;
+    /**
+     * @private
+     * Map storing exchange schemas by exchange name
+     */
+    private _exchangeMap;
+    /**
+     * Adds an exchange schema to the validation service
+     * @public
+     * @throws {Error} If exchangeName already exists
+     */
+    addExchange: (exchangeName: ExchangeName, exchangeSchema: IExchangeSchema) => void;
+    /**
+     * Validates the existence of an exchange
+     * @public
+     * @throws {Error} If exchangeName is not found
+     * Memoized function to cache validation results
+     */
+    validate: (exchangeName: ExchangeName, source: string) => void;
+}
+
+/**
+ * @class StrategyValidationService
+ * Service for managing and validating strategy configurations
+ */
+declare class StrategyValidationService {
+    /**
+     * @private
+     * @readonly
+     * Injected logger service instance
+     */
+    private readonly loggerService;
+    /**
+     * @private
+     * Map storing strategy schemas by strategy name
+     */
+    private _strategyMap;
+    /**
+     * Adds a strategy schema to the validation service
+     * @public
+     * @throws {Error} If strategyName already exists
+     */
+    addStrategy: (strategyName: StrategyName, strategySchema: IStrategySchema) => void;
+    /**
+     * Validates the existence of a strategy
+     * @public
+     * @throws {Error} If strategyName is not found
+     * Memoized function to cache validation results
+     */
+    validate: (strategyName: StrategyName, source: string) => void;
+}
+
+/**
+ * @class FrameValidationService
+ * Service for managing and validating frame configurations
+ */
+declare class FrameValidationService {
+    /**
+     * @private
+     * @readonly
+     * Injected logger service instance
+     */
+    private readonly loggerService;
+    /**
+     * @private
+     * Map storing frame schemas by frame name
+     */
+    private _frameMap;
+    /**
+     * Adds a frame schema to the validation service
+     * @public
+     * @throws {Error} If frameName already exists
+     */
+    addFrame: (frameName: FrameName, frameSchema: IFrameSchema) => void;
+    /**
+     * Validates the existence of a frame
+     * @public
+     * @throws {Error} If frameName is not found
+     * Memoized function to cache validation results
+     */
+    validate: (frameName: FrameName, source: string) => void;
+}
+
 declare const backtest: {
+    exchangeValidationService: ExchangeValidationService;
+    strategyValidationService: StrategyValidationService;
+    frameValidationService: FrameValidationService;
     backtestMarkdownService: BacktestMarkdownService;
     liveMarkdownService: LiveMarkdownService;
     backtestLogicPublicService: BacktestLogicPublicService;

@@ -2,6 +2,10 @@ import { inject } from "../../../lib/core/di";
 import LoggerService from "../base/LoggerService";
 import TYPES from "../../../lib/core/types";
 import LiveLogicPublicService from "../logic/public/LiveLogicPublicService";
+import StrategyValidationService from "../validation/StrategyValidationService";
+import ExchangeValidationService from "../validation/ExchangeValidationService";
+
+const METHOD_NAME_RUN = "liveGlobalService run";
 
 /**
  * Global service providing access to live trading functionality.
@@ -14,6 +18,10 @@ export class LiveGlobalService {
   private readonly liveLogicPublicService = inject<LiveLogicPublicService>(
     TYPES.liveLogicPublicService
   );
+  private readonly strategyValidationService =
+    inject<StrategyValidationService>(TYPES.strategyValidationService);
+  private readonly exchangeValidationService =
+    inject<ExchangeValidationService>(TYPES.exchangeValidationService);
 
   /**
    * Runs live trading for a symbol with context propagation.
@@ -31,10 +39,12 @@ export class LiveGlobalService {
       exchangeName: string;
     }
   ) => {
-    this.loggerService.log("liveGlobalService run", {
+    this.loggerService.log(METHOD_NAME_RUN, {
       symbol,
       context,
     });
+    this.strategyValidationService.validate(context.strategyName, METHOD_NAME_RUN);
+    this.exchangeValidationService.validate(context.exchangeName, METHOD_NAME_RUN);
     return this.liveLogicPublicService.run(symbol, context);
   };
 }

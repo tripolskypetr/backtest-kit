@@ -30,6 +30,18 @@ loggerService: any
 liveLogicPublicService: any
 ```
 
+### strategyValidationService
+
+```ts
+strategyValidationService: any
+```
+
+### exchangeValidationService
+
+```ts
+exchangeValidationService: any
+```
+
 ### run
 
 ```ts

@@ -30,6 +30,9 @@ group: docs
 - [BacktestGlobalService](classes/BacktestGlobalService.md)
 - [BacktestMarkdownService](classes/BacktestMarkdownService.md)
 - [LiveMarkdownService](classes/LiveMarkdownService.md)
+- [ExchangeValidationService](classes/ExchangeValidationService.md)
+- [StrategyValidationService](classes/StrategyValidationService.md)
+- [FrameValidationService](classes/FrameValidationService.md)
 
 ## Enums
 
