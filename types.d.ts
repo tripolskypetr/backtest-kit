@@ -566,105 +566,64 @@ declare function addExchange(exchangeSchema: IExchangeSchema): void;
 declare function addFrame(frameSchema: IFrameSchema): void;
 
 /**
- * @deprecated Use backtestLogicPublicService.run() instead.
- * Result of runBacktest operation.
+ * Subscribes to all signal events with queued async processing.
+ *
+ * Events are processed sequentially in order received, even if callback is async.
+ * Uses queued wrapper to prevent concurrent execution of the callback.
+ *
+ * @param fn - Callback function to handle signal events (idle, opened, active, closed)
+ * @returns Unsubscribe function to stop listening
+ *
+ * @example
+ * ```typescript
+ * import { listenSignal } from "./function/event";
+ *
+ * const unsubscribe = listenSignal((event) => {
+ *   if (event.action === "opened") {
+ *     console.log("New signal opened:", event.signal);
+ *   } else if (event.action === "closed") {
+ *     console.log("Signal closed with PNL:", event.pnl.pnlPercentage);
+ *   }
+ * });
+ *
+ * // Later: stop listening
+ * unsubscribe();
+ * ```
  */
-interface IBacktestResult {
-    /** Trading pair symbol */
-    symbol: string;
-    /** Array of closed tick results */
-    results: IStrategyTickResult[];
-}
+declare function listenSignal(fn: (event: IStrategyTickResult) => void): () => void;
 /**
- * @deprecated Use backtestLogicPublicService.run() instead.
- * Runs backtest by iterating through timeframes and collecting closed results.
+ * Subscribes to filtered signal events with one-time execution.
  *
- * Legacy API - replaced by async generator approach for better
- * memory efficiency and streaming support.
+ * Listens for events matching the filter predicate, then executes callback once
+ * and automatically unsubscribes. Useful for waiting for specific signal conditions.
  *
- * @param symbol - Trading pair symbol
- * @param timeframes - Array of timestamps to iterate
- * @returns Promise resolving to backtest result with all closed signals
+ * @param filterFn - Predicate to filter which events trigger the callback
+ * @param fn - Callback function to handle the filtered event (called only once)
+ * @returns Unsubscribe function to cancel the listener before it fires
+ *
+ * @example
+ * ```typescript
+ * import { listenSignalOnce } from "./function/event";
+ *
+ * // Wait for first take profit hit
+ * listenSignalOnce(
+ *   (event) => event.action === "closed" && event.closeReason === "take_profit",
+ *   (event) => {
+ *     console.log("Take profit hit! PNL:", event.pnl.pnlPercentage);
+ *   }
+ * );
+ *
+ * // Wait for any signal to close on BTCUSDT
+ * const cancel = listenSignalOnce(
+ *   (event) => event.action === "closed" && event.signal.symbol === "BTCUSDT",
+ *   (event) => console.log("BTCUSDT signal closed")
+ * );
+ *
+ * // Cancel if needed before event fires
+ * cancel();
+ * ```
  */
-declare function runBacktest(symbol: string, timeframes: Date[]): Promise<IBacktestResult>;
-/**
- * @deprecated Use backtestLogicPublicService.run() instead.
- * Runs backtest and displays results in formatted terminal table.
- *
- * Shows trade-by-trade results with PNL, close reasons, and summary statistics
- * including win rate and total PNL.
- *
- * Legacy API - replaced by async generator approach.
- *
- * @param symbol - Trading pair symbol
- * @param timeframes - Array of timestamps to iterate
- */
-declare function runBacktestGUI(symbol: string, timeframes: Date[]): Promise<void>;
-
-/**
- * @deprecated Use backtestLogicPublicService.run() instead.
- * Result of reduce operation over timeframes.
- */
-interface IReduceResult<T> {
-    /** Trading pair symbol */
-    symbol: string;
-    /** Final accumulated value */
-    accumulator: T;
-    /** Total number of ticks processed */
-    totalTicks: number;
-}
-/**
- * @deprecated Use backtestLogicPublicService.run() instead.
- * Callback for reduce operation.
- */
-type ReduceCallback<T> = (accumulator: T, index: number, when: Date, symbol: string) => T | Promise<T>;
-/**
- * @deprecated Use backtestLogicPublicService.run() instead.
- * Reduces timeframes to accumulated value.
- *
- * Legacy API - replaced by async generator approach for better
- * memory efficiency and streaming support.
- *
- * @param symbol - Trading pair symbol
- * @param timeframes - Array of timestamps to iterate
- * @param callback - Reducer callback
- * @param initialValue - Initial accumulator value
- * @returns Reduce result with final accumulator
- */
-declare function reduce<T>(symbol: string, timeframes: Date[], callback: ReduceCallback<T>, initialValue: T): Promise<IReduceResult<T>>;
-
-/**
- * @deprecated Use liveLogicPublicService.run() instead.
- * Configuration for legacy run API.
- */
-interface IRunConfig {
-    /** Trading pair symbol */
-    symbol: string;
-    /** Tick interval in milliseconds */
-    interval: number;
-}
-/**
- * @deprecated Use liveLogicPublicService.run() instead.
- * Starts live trading for a symbol using setInterval.
- *
- * Legacy API - replaced by async generator approach for better
- * crash recovery and state management.
- *
- * @param config - Run configuration
- */
-declare function startRun(config: IRunConfig): void;
-/**
- * @deprecated Use liveLogicPublicService.run() instead.
- * Stops live trading for a symbol.
- *
- * @param symbol - Trading pair symbol to stop
- */
-declare function stopRun(symbol: string): void;
-/**
- * @deprecated Use liveLogicPublicService.run() instead.
- * Stops all running live trading instances.
- */
-declare function stopAll(): void;
+declare function listenSignalOnce(filterFn: (event: IStrategyTickResult) => boolean, fn: (event: IStrategyTickResult) => void): () => void;
 
 /**
  * Fetches historical candle data from the registered exchange.
@@ -1073,6 +1032,32 @@ declare class BacktestUtils {
         exchangeName: string;
         frameName: string;
     }) => AsyncGenerator<IStrategyTickResultClosed, void, unknown>;
+    /**
+     * Runs backtest in background without yielding results.
+     *
+     * Consumes all backtest results internally without exposing them.
+     * Useful for running backtests for side effects only (callbacks, logging).
+     *
+     * @param symbol - Trading pair symbol (e.g., "BTCUSDT")
+     * @param context - Execution context with strategy, exchange, and frame names
+     * @returns Promise that resolves when backtest completes
+     *
+     * @example
+     * ```typescript
+     * // Run backtest silently, only callbacks will fire
+     * await Backtest.background("BTCUSDT", {
+     *   strategyName: "my-strategy",
+     *   exchangeName: "my-exchange",
+     *   frameName: "1d-backtest"
+     * });
+     * console.log("Backtest completed");
+     * ```
+     */
+    background: (symbol: string, context: {
+        strategyName: string;
+        exchangeName: string;
+        frameName: string;
+    }) => Promise<void>;
 }
 /**
  * Singleton instance of BacktestUtils for convenient backtest operations.
@@ -1137,8 +1122,32 @@ declare class LiveUtils {
     run: (symbol: string, context: {
         strategyName: string;
         exchangeName: string;
-        frameName: string;
     }) => AsyncGenerator<IStrategyTickResultOpened | IStrategyTickResultClosed, void, unknown>;
+    /**
+     * Runs live trading in background without yielding results.
+     *
+     * Consumes all live trading results internally without exposing them.
+     * Infinite loop - will run until process is stopped or crashes.
+     * Useful for running live trading for side effects only (callbacks, persistence).
+     *
+     * @param symbol - Trading pair symbol (e.g., "BTCUSDT")
+     * @param context - Execution context with strategy and exchange names
+     * @returns Promise that never resolves (infinite loop)
+     *
+     * @example
+     * ```typescript
+     * // Run live trading silently in background, only callbacks will fire
+     * // This will run forever until Ctrl+C
+     * await Live.background("BTCUSDT", {
+     *   strategyName: "my-strategy",
+     *   exchangeName: "my-exchange"
+     * });
+     * ```
+     */
+    background: (symbol: string, context: {
+        strategyName: string;
+        exchangeName: string;
+    }) => Promise<void>;
 }
 /**
  * Singleton instance of LiveUtils for convenient live trading operations.
@@ -1150,7 +1159,6 @@ declare class LiveUtils {
  * for await (const result of Live.run("BTCUSDT", {
  *   strategyName: "my-strategy",
  *   exchangeName: "my-exchange",
- *   frameName: ""
  * })) {
  *   console.log("Result:", result.action);
  * }
@@ -1974,4 +1982,4 @@ declare const backtest: {
     loggerService: LoggerService;
 };
 
-export { Backtest, type CandleInterval, ExecutionContextService, type FrameInterval, type ICandleData, type IExchangeSchema, type IFrameSchema, type IPersistBase, type ISignalDto, type ISignalRow, type IStrategyPnL, type IStrategySchema, type IStrategyTickResult, type IStrategyTickResultActive, type IStrategyTickResultClosed, type IStrategyTickResultIdle, type IStrategyTickResultOpened, Live, MethodContextService, PersistBase, PersistSignalAdaper, type SignalInterval, type TPersistBase, type TPersistBaseCtor, addExchange, addFrame, addStrategy, formatPrice, formatQuantity, getAveragePrice, getCandles, getDate, getMode, backtest as lib, reduce, runBacktest, runBacktestGUI, setLogger, startRun, stopAll, stopRun };
+export { Backtest, type CandleInterval, ExecutionContextService, type FrameInterval, type ICandleData, type IExchangeSchema, type IFrameSchema, type IPersistBase, type ISignalDto, type ISignalRow, type IStrategyPnL, type IStrategySchema, type IStrategyTickResult, type IStrategyTickResultActive, type IStrategyTickResultClosed, type IStrategyTickResultIdle, type IStrategyTickResultOpened, Live, MethodContextService, PersistBase, PersistSignalAdaper, type SignalInterval, type TPersistBase, type TPersistBaseCtor, addExchange, addFrame, addStrategy, formatPrice, formatQuantity, getAveragePrice, getCandles, getDate, getMode, backtest as lib, listenSignal, listenSignalOnce, setLogger };

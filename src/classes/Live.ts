@@ -1,6 +1,7 @@
 import backtest from "../lib";
 
 const LIVE_METHOD_NAME_RUN = "LiveUtils.run";
+const LIVE_METHOD_NAME_BACKGROUND = "LiveUtils.background";
 
 /**
  * Utility class for live trading operations.
@@ -47,7 +48,6 @@ export class LiveUtils {
     context: {
       strategyName: string;
       exchangeName: string;
-      frameName: string;
     }
   ) => {
     backtest.loggerService.info(LIVE_METHOD_NAME_RUN, {
@@ -55,6 +55,47 @@ export class LiveUtils {
       context,
     });
     return backtest.liveGlobalService.run(symbol, context);
+  };
+
+  /**
+   * Runs live trading in background without yielding results.
+   *
+   * Consumes all live trading results internally without exposing them.
+   * Infinite loop - will run until process is stopped or crashes.
+   * Useful for running live trading for side effects only (callbacks, persistence).
+   *
+   * @param symbol - Trading pair symbol (e.g., "BTCUSDT")
+   * @param context - Execution context with strategy and exchange names
+   * @returns Promise that never resolves (infinite loop)
+   *
+   * @example
+   * ```typescript
+   * // Run live trading silently in background, only callbacks will fire
+   * // This will run forever until Ctrl+C
+   * await Live.background("BTCUSDT", {
+   *   strategyName: "my-strategy",
+   *   exchangeName: "my-exchange"
+   * });
+   * ```
+   */
+  public background = async (
+    symbol: string,
+    context: {
+      strategyName: string;
+      exchangeName: string;
+    }
+  ) => {
+    backtest.loggerService.info(LIVE_METHOD_NAME_BACKGROUND, {
+      symbol,
+      context,
+    });
+    const iterator = this.run(symbol, context);
+    while (true) {
+      const { done } = await iterator.next();
+      if (done) {
+        break;
+      }
+    }
   };
 }
 
@@ -68,7 +109,6 @@ export class LiveUtils {
  * for await (const result of Live.run("BTCUSDT", {
  *   strategyName: "my-strategy",
  *   exchangeName: "my-exchange",
- *   frameName: ""
  * })) {
  *   console.log("Result:", result.action);
  * }

@@ -1,6 +1,7 @@
 import backtest from "../lib";
 
 const BACKTEST_METHOD_NAME_RUN = "BacktestUtils.run";
+const BACKTEST_METHOD_NAME_BACKGROUND = "BacktestUtils.background";
 
 /**
  * Utility class for backtest operations.
@@ -42,6 +43,48 @@ export class BacktestUtils {
       context,
     });
     return backtest.backtestGlobalService.run(symbol, context);
+  };
+
+  /**
+   * Runs backtest in background without yielding results.
+   *
+   * Consumes all backtest results internally without exposing them.
+   * Useful for running backtests for side effects only (callbacks, logging).
+   *
+   * @param symbol - Trading pair symbol (e.g., "BTCUSDT")
+   * @param context - Execution context with strategy, exchange, and frame names
+   * @returns Promise that resolves when backtest completes
+   *
+   * @example
+   * ```typescript
+   * // Run backtest silently, only callbacks will fire
+   * await Backtest.background("BTCUSDT", {
+   *   strategyName: "my-strategy",
+   *   exchangeName: "my-exchange",
+   *   frameName: "1d-backtest"
+   * });
+   * console.log("Backtest completed");
+   * ```
+   */
+  public background = async (
+    symbol: string,
+    context: {
+      strategyName: string;
+      exchangeName: string;
+      frameName: string;
+    }
+  ) => {
+    backtest.loggerService.info(BACKTEST_METHOD_NAME_BACKGROUND, {
+      symbol,
+      context,
+    });
+    const iterator = this.run(symbol, context);
+    while (true) {
+      const { done } = await iterator.next();
+      if (done) {
+        break;
+      }
+    }
   };
 }
 
