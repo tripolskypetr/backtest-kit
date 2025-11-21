@@ -36,7 +36,7 @@ The `LiveMarkdownService` calculates four primary performance metrics from close
 
 ### Win Rate Calculation
 
-![Mermaid Diagram](./diagrams\38_Performance_Metrics_0.svg)
+![Mermaid Diagram](./diagrams/38_Performance_Metrics_0.svg)
 
 
 ### Average PNL Calculation
@@ -61,7 +61,7 @@ The calculation:
 
 ## Metric Calculation Pipeline
 
-![Mermaid Diagram](./diagrams\38_Performance_Metrics_1.svg)
+![Mermaid Diagram](./diagrams/38_Performance_Metrics_1.svg)
 
 
 ---
@@ -70,7 +70,7 @@ The calculation:
 
 The `LiveMarkdownService` uses a unified `TickEvent` interface to store all event data:
 
-![Mermaid Diagram](./diagrams\38_Performance_Metrics_2.svg)
+![Mermaid Diagram](./diagrams/38_Performance_Metrics_2.svg)
 
 The transformation from `IStrategyTickResultClosed` to `TickEvent` extracts relevant fields:
 
@@ -151,7 +151,7 @@ public getReport(strategyName: StrategyName): string {
 
 Both services use a `Column` interface to define how to extract and format data from signals:
 
-![Mermaid Diagram](./diagrams\38_Performance_Metrics_3.svg)
+![Mermaid Diagram](./diagrams/38_Performance_Metrics_3.svg)
 
 **Example PNL Column:**
 
@@ -176,7 +176,7 @@ The column definitions for backtest [BacktestMarkdownService.ts:27-100]() and li
 
 Both markdown services use memoized storage instances per strategy:
 
-![Mermaid Diagram](./diagrams\38_Performance_Metrics_4.svg)
+![Mermaid Diagram](./diagrams/38_Performance_Metrics_4.svg)
 
 The memoization pattern ensures:
 - One storage instance per strategy name

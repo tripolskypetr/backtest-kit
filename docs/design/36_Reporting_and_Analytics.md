@@ -13,7 +13,7 @@ The reporting system consists of two specialized services that passively observe
 
 Both services operate independently from the main execution flow, subscribing to signal events via event emitters and maintaining isolated storage per strategy. Reports are generated on-demand and can be exported to markdown files.
 
-![Mermaid Diagram](./diagrams\36_Reporting_and_Analytics_0.svg)
+![Mermaid Diagram](./diagrams/36_Reporting_and_Analytics_0.svg)
 
 
 ## Service Architecture
@@ -55,7 +55,7 @@ The service uses a more sophisticated storage mechanism that replaces existing e
 
 Both services define their reports using a `Column` interface that specifies extraction and formatting logic:
 
-![Mermaid Diagram](./diagrams\36_Reporting_and_Analytics_1.svg)
+![Mermaid Diagram](./diagrams/36_Reporting_and_Analytics_1.svg)
 
 
 ### Backtest Report Columns
@@ -108,7 +108,7 @@ The nullable columns are only populated for relevant event types (e.g., `pnl` on
 
 Both services use an internal `ReportStorage` class to manage data accumulation:
 
-![Mermaid Diagram](./diagrams\36_Reporting_and_Analytics_2.svg)
+![Mermaid Diagram](./diagrams/36_Reporting_and_Analytics_2.svg)
 
 
 ### Backtest Event Processing
@@ -132,7 +132,7 @@ Each closed signal is appended to the `_signalList` array without modification.
 
 The live service implements an update-or-append model to handle signal state transitions:
 
-![Mermaid Diagram](./diagrams\36_Reporting_and_Analytics_3.svg)
+![Mermaid Diagram](./diagrams/36_Reporting_and_Analytics_3.svg)
 
 This design ensures that each signal appears only once in the final report, showing its most recent state.
 
@@ -183,7 +183,7 @@ The framework does not calculate win rates or average PNL for backtest reports, 
 
 Both services expose a `getReport()` method that returns a markdown-formatted string:
 
-![Mermaid Diagram](./diagrams\36_Reporting_and_Analytics_4.svg)
+![Mermaid Diagram](./diagrams/36_Reporting_and_Analytics_4.svg)
 
 Usage examples:
 
@@ -239,14 +239,14 @@ This method delegates to the memoized `getStorage` function's `clear()` method, 
 
 Both services use the `singleshot` decorator from `functools-kit` to ensure initialization happens exactly once:
 
-![Mermaid Diagram](./diagrams\36_Reporting_and_Analytics_5.svg)
+![Mermaid Diagram](./diagrams/36_Reporting_and_Analytics_5.svg)
 
 The `init()` method is protected and automatically invoked on first service use. It subscribes the service's `tick()` method to the appropriate signal emitter.
 
 
 ### Event Emitter Binding
 
-![Mermaid Diagram](./diagrams\36_Reporting_and_Analytics_6.svg)
+![Mermaid Diagram](./diagrams/36_Reporting_and_Analytics_6.svg)
 
 The emitters are defined in `src/config/emitters.ts` and use the event system to decouple signal generation from report accumulation.
 
@@ -275,6 +275,6 @@ The table generation process:
 
 The markdown services operate completely independently from the main execution loop:
 
-![Mermaid Diagram](./diagrams\36_Reporting_and_Analytics_7.svg)
+![Mermaid Diagram](./diagrams/36_Reporting_and_Analytics_7.svg)
 
 This architecture ensures that report generation never blocks strategy execution or impacts performance. The event-driven design allows reports to be generated incrementally as signals close, rather than requiring post-processing of execution results.

@@ -20,7 +20,7 @@ The persistence system provides durability guarantees for active trading signals
 
 ## Persistence Architecture
 
-![Mermaid Diagram](./diagrams\26_Signal_Persistence_0.svg)
+![Mermaid Diagram](./diagrams/26_Signal_Persistence_0.svg)
 
 
 The architecture uses a three-layer approach:
@@ -33,7 +33,7 @@ The architecture uses a three-layer approach:
 
 On initialization, `ClientStrategy.waitForInit()` attempts to load the last persisted signal state. This occurs once per strategy instance using the `singleshot` pattern from `functools-kit`.
 
-![Mermaid Diagram](./diagrams\26_Signal_Persistence_1.svg)
+![Mermaid Diagram](./diagrams/26_Signal_Persistence_1.svg)
 
 
 The recovery process validates that the persisted signal matches the current execution context:
@@ -53,7 +53,7 @@ if (pendingSignal.strategyName !== self.params.method.context.strategyName) {
 
 Every signal state change is persisted atomically through `ClientStrategy.setPendingSignal()`. The method writes to disk **before** the result is yielded to the user, ensuring durability.
 
-![Mermaid Diagram](./diagrams\26_Signal_Persistence_2.svg)
+![Mermaid Diagram](./diagrams/26_Signal_Persistence_2.svg)
 
 
 The atomic write pattern ensures crash safety:
@@ -131,7 +131,7 @@ This creates a unique identifier for each strategy-symbol pair. Multiple strateg
 
 Persistence behavior differs significantly between execution modes:
 
-![Mermaid Diagram](./diagrams\26_Signal_Persistence_3.svg)
+![Mermaid Diagram](./diagrams/26_Signal_Persistence_3.svg)
 
 
 **Comparison Table:**
@@ -155,7 +155,7 @@ if (this.params.execution.context.backtest) {
 
 ## Persistence Lifecycle
 
-![Mermaid Diagram](./diagrams\26_Signal_Persistence_4.svg)
+![Mermaid Diagram](./diagrams/26_Signal_Persistence_4.svg)
 
 
 ## Error Handling
@@ -207,7 +207,7 @@ For detailed information on implementing custom persistence backends, see [Custo
 
 Persistence is called at critical transition points in the signal lifecycle:
 
-![Mermaid Diagram](./diagrams\26_Signal_Persistence_5.svg)
+![Mermaid Diagram](./diagrams/26_Signal_Persistence_5.svg)
 
 
 The persistence calls occur at exactly two points:

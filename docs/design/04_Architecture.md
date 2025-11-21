@@ -10,7 +10,7 @@ For specific service implementations within each layer, see [Layer Responsibilit
 
 The framework implements a **four-layer clean architecture** with strict separation of concerns. Each layer has well-defined responsibilities and communicates through explicit interfaces, enabling testability, modularity, and configuration flexibility.
 
-![Mermaid Diagram](./diagrams\04_Architecture_0.svg)
+![Mermaid Diagram](./diagrams/04_Architecture_0.svg)
 
 
 ### Layer Responsibilities Summary
@@ -30,7 +30,7 @@ The framework uses a **symbol-based dependency injection** system built on `di-k
 
 ### DI Core Components
 
-![Mermaid Diagram](./diagrams\04_Architecture_1.svg)
+![Mermaid Diagram](./diagrams/04_Architecture_1.svg)
 
 
 ### Symbol Registration Pattern
@@ -109,7 +109,7 @@ This pattern enables:
 
 Services are organized into **six semantic categories** based on their architectural role. This taxonomy enables clear understanding of each service's purpose and dependencies.
 
-![Mermaid Diagram](./diagrams\04_Architecture_2.svg)
+![Mermaid Diagram](./diagrams/04_Architecture_2.svg)
 
 
 ### Service Category Definitions
@@ -133,21 +133,21 @@ Communication between layers follows strict patterns to maintain architectural b
 
 User configuration flows from Public API to Schema registries without executing business logic:
 
-![Mermaid Diagram](./diagrams\04_Architecture_3.svg)
+![Mermaid Diagram](./diagrams/04_Architecture_3.svg)
 
 
 ### Runtime Instance Creation Flow
 
 At execution time, Connection services create memoized client instances from registered schemas:
 
-![Mermaid Diagram](./diagrams\04_Architecture_4.svg)
+![Mermaid Diagram](./diagrams/04_Architecture_4.svg)
 
 
 ### Context Propagation Pattern
 
 ExecutionContextService and MethodContextService use `di-scoped` to propagate context implicitly without manual parameter passing:
 
-![Mermaid Diagram](./diagrams\04_Architecture_5.svg)
+![Mermaid Diagram](./diagrams/04_Architecture_5.svg)
 
 
 ---
@@ -186,7 +186,7 @@ Used by [src/lib/services/connection/]() services to retrieve correct client ins
 
 Context scope is established at the **Logic Public Service** layer and flows down through all dependent services:
 
-![Mermaid Diagram](./diagrams\04_Architecture_6.svg)
+![Mermaid Diagram](./diagrams/04_Architecture_6.svg)
 
 This pattern eliminates the need to pass `strategyName`, `exchangeName`, `symbol`, `when`, and `backtest` as parameters through every method call in the service chain.
 
@@ -211,7 +211,7 @@ Services follow a **lazy instantiation** pattern with memoization to optimize pe
 
 Connection services use **memoization** to cache client instances by schema name:
 
-![Mermaid Diagram](./diagrams\04_Architecture_7.svg)
+![Mermaid Diagram](./diagrams/04_Architecture_7.svg)
 
 This ensures:
 - **Single instance per schema name** across all operations
@@ -225,7 +225,7 @@ This ensures:
 
 The complete execution flow from user-facing API to business logic demonstrates all architectural layers working together:
 
-![Mermaid Diagram](./diagrams\04_Architecture_8.svg)
+![Mermaid Diagram](./diagrams/04_Architecture_8.svg)
 
 **Key Observations:**
 

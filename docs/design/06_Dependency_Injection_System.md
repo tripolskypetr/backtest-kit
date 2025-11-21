@@ -25,7 +25,7 @@ The system uses the `di-kit` and `di-scoped` libraries to provide inversion of c
 
 The `TYPES` constant in [src/lib/core/types.ts]() defines Symbol-based identifiers for every service in the system. Symbols ensure uniqueness and prevent naming collisions.
 
-![Mermaid Diagram](./diagrams\06_Dependency_Injection_System_0.svg)
+![Mermaid Diagram](./diagrams/06_Dependency_Injection_System_0.svg)
 
 The symbols are organized into logical groups matching the architectural layers. Each service category is defined as a separate object, then merged into the `TYPES` export at [src/lib/core/types.ts:45-54]().
 
@@ -36,7 +36,7 @@ The symbols are organized into logical groups matching the architectural layers.
 
 The [src/lib/core/provide.ts]() file registers factory functions for each service using the `provide()` function from `di-kit`. Each registration associates a Symbol identifier with a factory function that instantiates the service.
 
-![Mermaid Diagram](./diagrams\06_Dependency_Injection_System_1.svg)
+![Mermaid Diagram](./diagrams/06_Dependency_Injection_System_1.svg)
 
 Factory functions are executed lazily when a service is first requested. Services are singletons by default—once created, the same instance is returned for subsequent injections.
 
@@ -73,7 +73,7 @@ The framework organizes services into seven logical categories, each serving a d
 
 The `backtest` object in [src/lib/index.ts]() acts as a service locator, aggregating all services into a single importable object. This provides a convenient entry point for accessing services without manual dependency injection.
 
-![Mermaid Diagram](./diagrams\06_Dependency_Injection_System_2.svg)
+![Mermaid Diagram](./diagrams/06_Dependency_Injection_System_2.svg)
 
 The aggregation pattern uses object spread syntax at [src/lib/index.ts:101-110]() to merge all service groups into a single object:
 
@@ -109,7 +109,7 @@ After the `backtest` object is constructed, the container is initialized by call
 
 Services declare dependencies by calling `inject<T>()` within their constructors or property initializers. The DI container automatically resolves dependencies by looking up the factory function registered for each Symbol.
 
-![Mermaid Diagram](./diagrams\06_Dependency_Injection_System_3.svg)
+![Mermaid Diagram](./diagrams/06_Dependency_Injection_System_3.svg)
 
 The dependency graph shown in [docs/uml.puml]() illustrates the complete dependency tree. For example, `StrategyConnectionService` depends on five other services, which are automatically injected when the service is first created.
 
@@ -120,7 +120,7 @@ The dependency graph shown in [docs/uml.puml]() illustrates the complete depende
 
 Connection services use memoization to cache client instances by their configuration name. The `getStrategy` method in `StrategyConnectionService` demonstrates this pattern:
 
-![Mermaid Diagram](./diagrams\06_Dependency_Injection_System_4.svg)
+![Mermaid Diagram](./diagrams/06_Dependency_Injection_System_4.svg)
 
 The memoization ensures that each unique strategy name maps to exactly one `ClientStrategy` instance. This pattern is implemented in:
 - `StrategyConnectionService.getStrategy` - caches `ClientStrategy` instances
@@ -136,7 +136,7 @@ The cache key is the configuration name (`strategyName`, `exchangeName`, or `fra
 
 The DI system follows a predictable lifecycle:
 
-![Mermaid Diagram](./diagrams\06_Dependency_Injection_System_5.svg)
+![Mermaid Diagram](./diagrams/06_Dependency_Injection_System_5.svg)
 
 **Key Lifecycle Stages:**
 
@@ -153,7 +153,7 @@ The DI system follows a predictable lifecycle:
 
 The following diagram shows the full service dependency hierarchy, illustrating how services depend on each other:
 
-![Mermaid Diagram](./diagrams\06_Dependency_Injection_System_6.svg)
+![Mermaid Diagram](./diagrams/06_Dependency_Injection_System_6.svg)
 
 This graph shows that `LoggerService` is the most pervasive dependency, injected into nearly every service. Context services (`ExecutionContextService`, `MethodContextService`) are injected into connection services to enable routing and execution context management. The dependency flow moves upward from Schema → Connection → Global → Logic → Public services.
 

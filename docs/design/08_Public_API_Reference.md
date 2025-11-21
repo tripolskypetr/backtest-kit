@@ -8,7 +8,7 @@ For detailed implementation details of the underlying service architecture, see 
 
 The public API is organized into six functional groups, all exported from the main entry point:
 
-![Mermaid Diagram](./diagrams\08_Public_API_Reference_0.svg)
+![Mermaid Diagram](./diagrams/08_Public_API_Reference_0.svg)
 
 **Public API Groups:**
 
@@ -26,7 +26,7 @@ The public API is organized into six functional groups, all exported from the ma
 
 This diagram maps public API functions to their concrete implementations in the codebase:
 
-![Mermaid Diagram](./diagrams\08_Public_API_Reference_1.svg)
+![Mermaid Diagram](./diagrams/08_Public_API_Reference_1.svg)
 
 
 ## Configuration Functions

@@ -31,7 +31,7 @@ The framework implements four primary cross-cutting concerns:
 
 ### Diagram: Cross-Cutting Concerns Integration
 
-![Mermaid Diagram](./diagrams\39_Cross-Cutting_Concerns_0.svg)
+![Mermaid Diagram](./diagrams/39_Cross-Cutting_Concerns_0.svg)
 
 This diagram shows how cross-cutting concerns are injected (dashed lines) throughout the layered architecture, providing system-wide capabilities without creating tight coupling.
 
@@ -116,7 +116,7 @@ The framework expects loggers to implement the `ILogger` interface with four sev
 
 ### Diagram: Context Service Architecture
 
-![Mermaid Diagram](./diagrams\39_Cross-Cutting_Concerns_1.svg)
+![Mermaid Diagram](./diagrams/39_Cross-Cutting_Concerns_1.svg)
 
 
 ### MethodContextService
@@ -204,7 +204,7 @@ provide(TYPES.liveMarkdownService, () => new LiveMarkdownService());
 
 Markdown services observe signal events without affecting execution:
 
-![Mermaid Diagram](./diagrams\39_Cross-Cutting_Concerns_2.svg)
+![Mermaid Diagram](./diagrams/39_Cross-Cutting_Concerns_2.svg)
 
 
 ---
@@ -215,7 +215,7 @@ Markdown services observe signal events without affecting execution:
 
 All services receive cross-cutting dependencies via constructor injection:
 
-![Mermaid Diagram](./diagrams\39_Cross-Cutting_Concerns_3.svg)
+![Mermaid Diagram](./diagrams/39_Cross-Cutting_Concerns_3.svg)
 
 Example from any service constructor:
 ```typescript
@@ -267,7 +267,7 @@ Context services use `di-scoped` for automatic cleanup:
 
 ### Diagram: Cross-Cutting Services in DI Container
 
-![Mermaid Diagram](./diagrams\39_Cross-Cutting_Concerns_4.svg)
+![Mermaid Diagram](./diagrams/39_Cross-Cutting_Concerns_4.svg)
 
 **Registration Order:**
 1. Base services (logger)

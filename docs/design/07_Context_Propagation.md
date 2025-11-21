@@ -26,7 +26,7 @@ The framework maintains two distinct context scopes that serve different purpose
 
 `MethodContextService` uses the `di-scoped` library to create ambient context that flows through async operations without explicit parameters. The service contains an `IMethodContext` object with three schema names that determine which registered implementations to use.
 
-![Mermaid Diagram](./diagrams\07_Context_Propagation_0.svg)
+![Mermaid Diagram](./diagrams/07_Context_Propagation_0.svg)
 
 **Diagram: MethodContextService propagates schema names through async generator execution**
 
@@ -54,7 +54,7 @@ Each property corresponds to a schema registered via `addStrategy()`, `addExchan
 
 The following sequence shows how context flows from public API to connection services:
 
-![Mermaid Diagram](./diagrams\07_Context_Propagation_1.svg)
+![Mermaid Diagram](./diagrams/07_Context_Propagation_1.svg)
 
 **Diagram: Context propagation through service layers using di-scoped ambient context**
 
@@ -111,7 +111,7 @@ JavaScript async generators introduce complexity for context propagation because
 
 The `MethodContextService.runAsyncIterator()` method wraps async generators to maintain context across yields:
 
-![Mermaid Diagram](./diagrams\07_Context_Propagation_2.svg)
+![Mermaid Diagram](./diagrams/07_Context_Propagation_2.svg)
 
 **Diagram: runAsyncIterator maintains context across async generator yields**
 
@@ -150,7 +150,7 @@ The `runAsyncIterator` method:
 
 Connection services are the primary consumers of `MethodContext`. They use the context to determine which cached client instance to return:
 
-![Mermaid Diagram](./diagrams\07_Context_Propagation_3.svg)
+![Mermaid Diagram](./diagrams/07_Context_Propagation_3.svg)
 
 **Diagram: Connection services consume MethodContext to route to correct client instances**
 
@@ -198,7 +198,7 @@ Key features:
 
 ### Context Lifecycle
 
-![Mermaid Diagram](./diagrams\07_Context_Propagation_4.svg)
+![Mermaid Diagram](./diagrams/07_Context_Propagation_4.svg)
 
 **Diagram: Context lifecycle from creation through generator completion**
 
@@ -221,7 +221,7 @@ The DI system registers context services as singletons but their scoped instance
 
 The complete flow showing both context types in action:
 
-![Mermaid Diagram](./diagrams\07_Context_Propagation_5.svg)
+![Mermaid Diagram](./diagrams/07_Context_Propagation_5.svg)
 
 **Diagram: Interaction between MethodContext and ExecutionContext during execution**
 

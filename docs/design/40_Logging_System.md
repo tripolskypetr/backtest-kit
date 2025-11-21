@@ -10,7 +10,7 @@ The logging system consists of three primary components: the `ILogger` interface
 
 ### Component Architecture
 
-![Mermaid Diagram](./diagrams\40_Logging_System_0.svg)
+![Mermaid Diagram](./diagrams/40_Logging_System_0.svg)
 
 
 ## ILogger Interface
@@ -53,7 +53,7 @@ The interface is intentionally simple, allowing any logging library (Winston, Pi
 
 ### Internal Structure
 
-![Mermaid Diagram](./diagrams\40_Logging_System_1.svg)
+![Mermaid Diagram](./diagrams/40_Logging_System_1.svg)
 
 
 ### NOOP_LOGGER Default
@@ -77,7 +77,7 @@ const NOOP_LOGGER: ILogger = {
 
 ### Context Enrichment Flow
 
-![Mermaid Diagram](./diagrams\40_Logging_System_2.svg)
+![Mermaid Diagram](./diagrams/40_Logging_System_2.svg)
 
 
 ### Method Context
@@ -153,7 +153,7 @@ backtest.loggerService.setLogger({
 
 ### Registration Flow
 
-![Mermaid Diagram](./diagrams\40_Logging_System_3.svg)
+![Mermaid Diagram](./diagrams/40_Logging_System_3.svg)
 
 
 ### Service Registration

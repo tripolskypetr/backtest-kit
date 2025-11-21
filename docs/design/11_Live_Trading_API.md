@@ -42,7 +42,7 @@ The `run()` method initiates live trading execution for a trading pair. It retur
 
 ### Execution Characteristics
 
-![Mermaid Diagram](./diagrams\11_Live_Trading_API_0.svg)
+![Mermaid Diagram](./diagrams/11_Live_Trading_API_0.svg)
 
 **Diagram: Live.run Execution Path**
 
@@ -70,7 +70,7 @@ This filtering is implemented in [src/lib/services/logic/private/LiveLogicPrivat
 
 ### State Persistence and Recovery
 
-![Mermaid Diagram](./diagrams\11_Live_Trading_API_1.svg)
+![Mermaid Diagram](./diagrams/11_Live_Trading_API_1.svg)
 
 **Diagram: Crash Recovery Flow**
 
@@ -129,7 +129,7 @@ The method waits for the next `closed` event before honoring the cancellation fl
 
 ### Cancellation Behavior
 
-![Mermaid Diagram](./diagrams\11_Live_Trading_API_2.svg)
+![Mermaid Diagram](./diagrams/11_Live_Trading_API_2.svg)
 
 **Diagram: Background Cancellation State Machine**
 
@@ -183,7 +183,7 @@ Saves the markdown report to disk. Default path is `./logs/live/{strategyName}.m
 
 The generator yields a discriminated union `IStrategyTickResult` with the `action` field as the discriminator:
 
-![Mermaid Diagram](./diagrams\11_Live_Trading_API_3.svg)
+![Mermaid Diagram](./diagrams/11_Live_Trading_API_3.svg)
 
 **Diagram: Live Result Type Hierarchy**
 
@@ -301,7 +301,7 @@ Each symbol maintains independent state persistence in separate files: `./data/s
 
 ## Service Integration
 
-![Mermaid Diagram](./diagrams\11_Live_Trading_API_4.svg)
+![Mermaid Diagram](./diagrams/11_Live_Trading_API_4.svg)
 
 **Diagram: Live API Service Dependencies**
 

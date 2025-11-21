@@ -85,7 +85,7 @@ if (result.action === "closed") {
 
 The `tick()` method calls `GET_SIGNAL_FN` when no pending signal exists. The following diagram shows the complete generation pipeline:
 
-![Mermaid Diagram](./diagrams\23_Signal_Lifecycle_1.svg)
+![Mermaid Diagram](./diagrams/23_Signal_Lifecycle_1.svg)
 
 
 ### Throttling Intervals
@@ -179,7 +179,7 @@ The error is caught by the `trycatch` wrapper in `GET_SIGNAL_FN`, which returns 
 
 When a pending signal exists, the `tick()` method monitors it against three closure conditions. The following sequence diagram shows the complete monitoring flow:
 
-![Mermaid Diagram](./diagrams\23_Signal_Lifecycle_2.svg)
+![Mermaid Diagram](./diagrams/23_Signal_Lifecycle_2.svg)
 
 
 ### Close Condition Logic
@@ -249,7 +249,7 @@ The `backtest()` method provides fast-forward simulation by processing an array 
 
 ### Backtest Execution Flow
 
-![Mermaid Diagram](./diagrams\23_Signal_Lifecycle_3.svg)
+![Mermaid Diagram](./diagrams/23_Signal_Lifecycle_3.svg)
 
 
 ### VWAP Calculation for Backtest

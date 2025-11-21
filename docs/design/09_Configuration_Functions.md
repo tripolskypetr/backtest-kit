@@ -13,7 +13,7 @@ For information about running backtests and live trading with these configuratio
 
 The configuration system separates registration (startup phase) from instantiation (runtime phase). Users register schemas via three functions, which store configurations in singleton registry services. At execution time, Connection Services retrieve these schemas and create memoized client instances.
 
-![Mermaid Diagram](./diagrams\09_Configuration_Functions_0.svg)
+![Mermaid Diagram](./diagrams/09_Configuration_Functions_0.svg)
 
 **Figure 1: Configuration Registration and Runtime Retrieval Flow**
 
@@ -57,7 +57,7 @@ The `getSignal` function is called at most once per `interval` due to automatic 
 - `ISignalDto` object with required fields (validated by ClientStrategy)
 - `null` if no signal should be generated
 
-![Mermaid Diagram](./diagrams\09_Configuration_Functions_1.svg)
+![Mermaid Diagram](./diagrams/09_Configuration_Functions_1.svg)
 
 **Figure 2: Signal Generation Flow with Throttling and Validation**
 
@@ -164,7 +164,7 @@ These are typically implemented using exchange API metadata or hardcoded precisi
 
 ### Exchange Registration Flow
 
-![Mermaid Diagram](./diagrams\09_Configuration_Functions_2.svg)
+![Mermaid Diagram](./diagrams/09_Configuration_Functions_2.svg)
 
 **Figure 3: Exchange Schema Registration Sequence**
 
@@ -212,7 +212,7 @@ The frame generates an array of `Date` objects spaced by the specified interval 
 
 When a backtest runs, the frame generates timestamps:
 
-![Mermaid Diagram](./diagrams\09_Configuration_Functions_3.svg)
+![Mermaid Diagram](./diagrams/09_Configuration_Functions_3.svg)
 
 **Figure 4: Timeframe Array Generation**
 
@@ -315,7 +315,7 @@ addFrame({
 
 When backtest or live execution starts, Connection Services retrieve schemas by name:
 
-![Mermaid Diagram](./diagrams\09_Configuration_Functions_5.svg)
+![Mermaid Diagram](./diagrams/09_Configuration_Functions_5.svg)
 
 **Figure 6: Schema Retrieval and Client Instantiation with Memoization**
 

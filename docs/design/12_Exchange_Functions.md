@@ -24,7 +24,7 @@ Exchange functions are exported from [src/function/exchange.ts]() and provide a 
 
 ## Function Call Flow
 
-![Mermaid Diagram](./diagrams\12_Exchange_Functions_0.svg)
+![Mermaid Diagram](./diagrams/12_Exchange_Functions_0.svg)
 
 
 ---
@@ -112,7 +112,7 @@ function getAveragePrice(symbol: string): Promise<number>
 
 ### VWAP Calculation
 
-![Mermaid Diagram](./diagrams\12_Exchange_Functions_1.svg)
+![Mermaid Diagram](./diagrams/12_Exchange_Functions_1.svg)
 
 The formula implemented in `ClientExchange`:
 - **Typical Price** = `(high + low + close) / 3`
@@ -271,7 +271,7 @@ function getDate(): Promise<Date>
 
 ### Context Injection Flow
 
-![Mermaid Diagram](./diagrams\12_Exchange_Functions_2.svg)
+![Mermaid Diagram](./diagrams/12_Exchange_Functions_2.svg)
 
 ### Usage Example
 
@@ -352,7 +352,7 @@ These functions rely on implicit context propagation via `ExecutionContextServic
 
 ### Scoped Context Flow
 
-![Mermaid Diagram](./diagrams\12_Exchange_Functions_3.svg)
+![Mermaid Diagram](./diagrams/12_Exchange_Functions_3.svg)
 
 ### IExecutionContext Interface
 
@@ -480,7 +480,7 @@ Exchange functions propagate errors from the underlying service layer.
 
 ### Error Propagation Flow
 
-![Mermaid Diagram](./diagrams\12_Exchange_Functions_4.svg)
+![Mermaid Diagram](./diagrams/12_Exchange_Functions_4.svg)
 
 ### Handling Errors
 

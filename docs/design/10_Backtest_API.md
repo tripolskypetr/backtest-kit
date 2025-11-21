@@ -23,7 +23,7 @@ The class is defined in [src/classes/Backtest.ts:29-148]() and exported as a sin
 
 ## Method Overview
 
-![Mermaid Diagram](./diagrams\10_Backtest_API_0.svg)
+![Mermaid Diagram](./diagrams/10_Backtest_API_0.svg)
 
 **Method Overview**
 
@@ -74,7 +74,7 @@ Async generator yielding `IStrategyTickResultClosed` objects containing:
 
 ### Execution Flow
 
-![Mermaid Diagram](./diagrams\10_Backtest_API_1.svg)
+![Mermaid Diagram](./diagrams/10_Backtest_API_1.svg)
 
 
 ### Usage Example
@@ -136,7 +136,7 @@ Promise resolving to a cancellation function `() => void`. Invoking this functio
 
 The `background()` method creates an internal task that consumes the `run()` generator:
 
-![Mermaid Diagram](./diagrams\10_Backtest_API_2.svg)
+![Mermaid Diagram](./diagrams/10_Backtest_API_2.svg)
 
 Key behaviors:
 - The task runs asynchronously without blocking the caller
@@ -201,7 +201,7 @@ Promise resolving to markdown-formatted report string containing:
 
 ### Report Integration
 
-![Mermaid Diagram](./diagrams\10_Backtest_API_3.svg)
+![Mermaid Diagram](./diagrams/10_Backtest_API_3.svg)
 
 The `BacktestMarkdownService` passively accumulates closed signals as they are yielded during execution. It does not intercept or modify the backtest flow.
 
@@ -289,7 +289,7 @@ All Backtest methods use `MethodContextService` for implicit context propagation
 
 ### Context Flow Diagram
 
-![Mermaid Diagram](./diagrams\10_Backtest_API_4.svg)
+![Mermaid Diagram](./diagrams/10_Backtest_API_4.svg)
 
 The context object passed to `run()` or `background()` is automatically injected into the scoped execution environment, allowing downstream services to retrieve the correct strategy/exchange/frame instances without explicit parameter passing.
 
@@ -414,7 +414,7 @@ The `Backtest` class is a thin wrapper around the service orchestration layer. U
 
 ### Service Dependency Graph
 
-![Mermaid Diagram](./diagrams\10_Backtest_API_5.svg)
+![Mermaid Diagram](./diagrams/10_Backtest_API_5.svg)
 
 **Key service roles:**
 - `BacktestGlobalService` - Entry point for backtest execution, wraps `BacktestLogicPrivateService`

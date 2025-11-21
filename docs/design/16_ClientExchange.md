@@ -15,7 +15,7 @@ ClientExchange sits in the Business Logic Layer and is instantiated by `Exchange
 
 **Diagram: ClientExchange Position in Architecture**
 
-![Mermaid Diagram](./diagrams\16_ClientExchange_0.svg)
+![Mermaid Diagram](./diagrams/16_ClientExchange_0.svg)
 
 
 ---
@@ -26,7 +26,7 @@ ClientExchange implements the `IExchange` interface and receives all dependencie
 
 **Diagram: ClientExchange Class Structure**
 
-![Mermaid Diagram](./diagrams\16_ClientExchange_1.svg)
+![Mermaid Diagram](./diagrams/16_ClientExchange_1.svg)
 
 
 | Property | Type | Purpose |
@@ -48,7 +48,7 @@ The `getCandles()` method fetches historical candles **backwards** from the exec
 
 **Diagram: Historical Candle Fetching Flow**
 
-![Mermaid Diagram](./diagrams\16_ClientExchange_2.svg)
+![Mermaid Diagram](./diagrams/16_ClientExchange_2.svg)
 
 
 ### Time Calculation Logic
@@ -89,7 +89,7 @@ The `getNextCandles()` method fetches candles **forwards** from the execution co
 
 **Diagram: Future Candle Fetching with Safety Check**
 
-![Mermaid Diagram](./diagrams\16_ClientExchange_3.svg)
+![Mermaid Diagram](./diagrams/16_ClientExchange_3.svg)
 
 
 ### Safety Mechanism
@@ -115,7 +115,7 @@ The `getAveragePrice()` method calculates Volume Weighted Average Price (VWAP) f
 
 **Diagram: VWAP Calculation Flow**
 
-![Mermaid Diagram](./diagrams\16_ClientExchange_4.svg)
+![Mermaid Diagram](./diagrams/16_ClientExchange_4.svg)
 
 
 ### Formula Breakdown
@@ -213,7 +213,7 @@ ClientExchange is **stateless** and **context-aware**. All temporal logic uses `
 
 **Diagram: Context-Aware Time Handling**
 
-![Mermaid Diagram](./diagrams\16_ClientExchange_5.svg)
+![Mermaid Diagram](./diagrams/16_ClientExchange_5.svg)
 
 
 ### Key Context Usage Points
@@ -295,7 +295,7 @@ While ClientExchange provides price data, it does **not** calculate profit/loss.
 
 **Data Flow:**
 
-![Mermaid Diagram](./diagrams\16_ClientExchange_6.svg)
+![Mermaid Diagram](./diagrams/16_ClientExchange_6.svg)
 
 
 ClientExchange's responsibility ends at providing the raw VWAP; `ClientStrategy` owns signal lifecycle and PNL calculation.

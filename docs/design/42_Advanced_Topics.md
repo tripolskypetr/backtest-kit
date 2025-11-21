@@ -25,7 +25,7 @@ The `IExchangeSchema` interface defines the contract for custom exchange impleme
 
 ### Integration Architecture
 
-![Mermaid Diagram](./diagrams\42_Advanced_Topics_0.svg)
+![Mermaid Diagram](./diagrams/42_Advanced_Topics_0.svg)
 
 
 ### REST API Integration Example
@@ -144,7 +144,7 @@ The default persistence implementation uses atomic file writes to local disk. Cu
 
 ### Persistence Architecture
 
-![Mermaid Diagram](./diagrams\42_Advanced_Topics_1.svg)
+![Mermaid Diagram](./diagrams/42_Advanced_Topics_1.svg)
 
 
 ### PersistBase Interface
@@ -340,7 +340,7 @@ Multi-symbol strategies execute the same trading logic across multiple symbols s
 
 ### Execution Patterns
 
-![Mermaid Diagram](./diagrams\42_Advanced_Topics_2.svg)
+![Mermaid Diagram](./diagrams/42_Advanced_Topics_2.svg)
 
 
 ### Isolated State Pattern

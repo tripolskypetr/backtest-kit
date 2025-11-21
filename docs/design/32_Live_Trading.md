@@ -105,7 +105,7 @@ Default path for `dump()` is `./logs/live`.
 
 Live trading uses a three-layer architecture with context injection:
 
-![Mermaid Diagram](./diagrams\32_Live_Trading_0.svg)
+![Mermaid Diagram](./diagrams/32_Live_Trading_0.svg)
 
 **Layer Responsibilities**:
 
@@ -127,7 +127,7 @@ Live trading uses a three-layer architecture with context injection:
 
 ### Infinite Loop Pattern
 
-![Mermaid Diagram](./diagrams\32_Live_Trading_1.svg)
+![Mermaid Diagram](./diagrams/32_Live_Trading_1.svg)
 
 ### Key Constants
 
@@ -167,7 +167,7 @@ Live mode only yields `opened` and `closed` events to reduce noise. The `active`
 
 `LiveLogicPublicService` wraps `LiveLogicPrivateService` with `MethodContextService` to enable implicit context passing. This allows framework functions like `getCandles()` and `getSignal()` to work without explicit parameters.
 
-![Mermaid Diagram](./diagrams\32_Live_Trading_2.svg)
+![Mermaid Diagram](./diagrams/32_Live_Trading_2.svg)
 
 ### Context Structure
 
@@ -192,7 +192,7 @@ Live trading persists signal state to disk before every yield, enabling seamless
 
 ### Persistence Workflow
 
-![Mermaid Diagram](./diagrams\32_Live_Trading_3.svg)
+![Mermaid Diagram](./diagrams/32_Live_Trading_3.svg)
 
 ### Persistence Guarantees
 
@@ -219,7 +219,7 @@ Unlike backtesting which uses historical candle data, live trading fetches the c
 
 ### Price Source
 
-![Mermaid Diagram](./diagrams\32_Live_Trading_4.svg)
+![Mermaid Diagram](./diagrams/32_Live_Trading_4.svg)
 
 The `getAveragePrice()` function is called during every tick to:
 1. **Check take profit**: Compare current price to signal's `takeProfit` level
@@ -233,7 +233,7 @@ The `getAveragePrice()` function is called during every tick to:
 
 `LiveLogicPrivateService` orchestrates execution by delegating to global services:
 
-![Mermaid Diagram](./diagrams\32_Live_Trading_5.svg)
+![Mermaid Diagram](./diagrams/32_Live_Trading_5.svg)
 
 **Dependencies**:
 

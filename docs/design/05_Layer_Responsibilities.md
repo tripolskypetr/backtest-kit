@@ -12,7 +12,7 @@ The framework is organized into four distinct layers, each with clear boundaries
 
 **Layer Architecture with Code Entities**
 
-![Mermaid Diagram](./diagrams\05_Layer_Responsibilities_0.svg)
+![Mermaid Diagram](./diagrams/05_Layer_Responsibilities_0.svg)
 
 
 ---
@@ -51,7 +51,7 @@ The Public API Layer provides the only user-facing interface to the framework. I
 
 **Public API to Service Layer Flow**
 
-![Mermaid Diagram](./diagrams\05_Layer_Responsibilities_1.svg)
+![Mermaid Diagram](./diagrams/05_Layer_Responsibilities_1.svg)
 
 
 ---
@@ -141,7 +141,7 @@ Logic services are split into Public/Private pairs:
 
 **Backtest Logic Orchestration**
 
-![Mermaid Diagram](./diagrams\05_Layer_Responsibilities_3.svg)
+![Mermaid Diagram](./diagrams/05_Layer_Responsibilities_3.svg)
 
 
 ---

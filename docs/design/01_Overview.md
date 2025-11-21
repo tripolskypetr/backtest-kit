@@ -39,7 +39,7 @@ The framework enforces separation of concerns through dependency injection, enab
 
 The framework follows a clean architecture pattern with four distinct layers:
 
-![Mermaid Diagram](./diagrams\01_Overview_0.svg)
+![Mermaid Diagram](./diagrams/01_Overview_0.svg)
 
 ### Layer Responsibilities
 
@@ -58,7 +58,7 @@ For detailed layer responsibilities, see [Layer Responsibilities](05_Layer_Respo
 
 The framework supports two execution modes with different characteristics:
 
-![Mermaid Diagram](./diagrams\01_Overview_1.svg)
+![Mermaid Diagram](./diagrams/01_Overview_1.svg)
 
 ### Backtest Mode
 
@@ -96,7 +96,7 @@ The framework supports two execution modes with different characteristics:
 
 The client layer contains pure business logic without dependency injection:
 
-![Mermaid Diagram](./diagrams\01_Overview_2.svg)
+![Mermaid Diagram](./diagrams/01_Overview_2.svg)
 
 | Component | Responsibility | Key Methods |
 |-----------|----------------|-------------|
@@ -109,7 +109,7 @@ The client layer contains pure business logic without dependency injection:
 
 The service layer handles dependency injection and routing:
 
-![Mermaid Diagram](./diagrams\01_Overview_3.svg)
+![Mermaid Diagram](./diagrams/01_Overview_3.svg)
 
 **Service Types:**
 
@@ -137,7 +137,7 @@ For detailed service layer documentation, see [Service Layer](18_Service_Layer.m
 
 Signals transition through four states in a type-safe discriminated union:
 
-![Mermaid Diagram](./diagrams\01_Overview_4.svg)
+![Mermaid Diagram](./diagrams/01_Overview_4.svg)
 
 ### Signal Types
 
@@ -167,7 +167,7 @@ For complete signal lifecycle details, see [Signal Lifecycle](23_Signal_Lifecycl
 
 The framework uses a registration-then-execution pattern:
 
-![Mermaid Diagram](./diagrams\01_Overview_5.svg)
+![Mermaid Diagram](./diagrams/01_Overview_5.svg)
 
 ### Registration APIs
 
@@ -191,7 +191,7 @@ For configuration details, see [Configuration Functions](09_Configuration_Functi
 
 The framework uses symbol-based dependency injection with scoped context propagation:
 
-![Mermaid Diagram](./diagrams\01_Overview_6.svg)
+![Mermaid Diagram](./diagrams/01_Overview_6.svg)
 
 ### Context Propagation
 
@@ -236,12 +236,12 @@ For DI system details, see [Dependency Injection System](06_Dependency_Injection
 
 ### Backtest Execution Flow
 
-![Mermaid Diagram](./diagrams\01_Overview_7.svg)
+![Mermaid Diagram](./diagrams/01_Overview_7.svg)
 
 
 ### Live Execution Flow
 
-![Mermaid Diagram](./diagrams\01_Overview_8.svg)
+![Mermaid Diagram](./diagrams/01_Overview_8.svg)
 
 
 ---

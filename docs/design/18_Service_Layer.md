@@ -10,7 +10,7 @@ For details on the Public API that consumes these services, see [Public API Refe
 
 The Service Layer consists of 19 distinct services organized into four functional categories. Each category has a specific architectural responsibility in the framework's orchestration pipeline.
 
-![Mermaid Diagram](./diagrams\18_Service_Layer_0.svg)
+![Mermaid Diagram](./diagrams/18_Service_Layer_0.svg)
 
 **Service Category Responsibilities**
 
@@ -31,7 +31,7 @@ The Service Layer consists of 19 distinct services organized into four functiona
 
 All services are registered using the dependency injection system powered by `di-kit` and `di-scoped`. The `TYPES` constant defines Symbol identifiers for each service, and the `provide.ts` file registers factory functions that instantiate services.
 
-![Mermaid Diagram](./diagrams\18_Service_Layer_1.svg)
+![Mermaid Diagram](./diagrams/18_Service_Layer_1.svg)
 
 **Service Type Symbols**
 
@@ -57,7 +57,7 @@ Connection Services implement a routing pattern that directs method calls to the
 
 **StrategyConnectionService Architecture**
 
-![Mermaid Diagram](./diagrams\18_Service_Layer_2.svg)
+![Mermaid Diagram](./diagrams/18_Service_Layer_2.svg)
 
 **Memoization Cache Key Strategy**
 
@@ -96,7 +96,7 @@ The cache key is the `strategyName` string. On first access, the factory functio
 
 Connection Services implement the `IStrategy`, `IExchange`, and `IFrame` interfaces, delegating all method calls to the appropriate client instance. The routing is automatic based on `MethodContextService.context`, which is set by Global Services.
 
-![Mermaid Diagram](./diagrams\18_Service_Layer_3.svg)
+![Mermaid Diagram](./diagrams/18_Service_Layer_3.svg)
 
 **Key Routing Components**
 
@@ -158,7 +158,7 @@ Services follow a lazy initialization pattern. The DI container is initialized a
 
 **Initialization Order**
 
-![Mermaid Diagram](./diagrams\18_Service_Layer_4.svg)
+![Mermaid Diagram](./diagrams/18_Service_Layer_4.svg)
 
 **Service Instance Lifecycle**
 

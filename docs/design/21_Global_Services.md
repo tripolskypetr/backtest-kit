@@ -20,7 +20,7 @@ Global Services occupy the middle tier of the Service Orchestration layer, sitti
 - Expose simplified APIs for external consumers
 - Act as the primary entry point for execution flows
 
-![Mermaid Diagram](./diagrams\21_Global_Services_0.svg)
+![Mermaid Diagram](./diagrams/21_Global_Services_0.svg)
 
 
 ## Service Registration
@@ -52,7 +52,7 @@ Domain Global Services (`StrategyGlobalService`, `ExchangeGlobalService`, `Frame
 
 All domain Global Services follow this pattern:
 
-![Mermaid Diagram](./diagrams\21_Global_Services_1.svg)
+![Mermaid Diagram](./diagrams/21_Global_Services_1.svg)
 
 
 ### StrategyGlobalService
@@ -69,7 +69,7 @@ All domain Global Services follow this pattern:
 
 **Dependency Chain:**
 
-![Mermaid Diagram](./diagrams\21_Global_Services_2.svg)
+![Mermaid Diagram](./diagrams/21_Global_Services_2.svg)
 
 
 ### ExchangeGlobalService
@@ -107,7 +107,7 @@ Execution context is primarily used for logging and validation. The timeframe ge
 
 **Dependency Chain:**
 
-![Mermaid Diagram](./diagrams\21_Global_Services_3.svg)
+![Mermaid Diagram](./diagrams/21_Global_Services_3.svg)
 
 
 ## Mode Global Services
@@ -130,7 +130,7 @@ Mode Global Services (`LiveGlobalService`, `BacktestGlobalService`) provide high
 
 **Interaction Flow:**
 
-![Mermaid Diagram](./diagrams\21_Global_Services_4.svg)
+![Mermaid Diagram](./diagrams/21_Global_Services_4.svg)
 
 
 ### LiveGlobalService
@@ -149,7 +149,7 @@ Mode Global Services (`LiveGlobalService`, `BacktestGlobalService`) provide high
 
 **Execution Pattern:**
 
-![Mermaid Diagram](./diagrams\21_Global_Services_5.svg)
+![Mermaid Diagram](./diagrams/21_Global_Services_5.svg)
 
 
 ## Context Injection Mechanism
@@ -182,7 +182,7 @@ Connection Services use these routing keys to look up schemas and create memoize
 
 **Full Context Flow:**
 
-![Mermaid Diagram](./diagrams\21_Global_Services_6.svg)
+![Mermaid Diagram](./diagrams/21_Global_Services_6.svg)
 
 For detailed information on context propagation patterns, see [Context Propagation](07_Context_Propagation.md).
 
@@ -191,7 +191,7 @@ For detailed information on context propagation patterns, see [Context Propagati
 
 Global Services are instantiated through the standard DI container flow. The following diagram shows how dependencies are resolved at runtime:
 
-![Mermaid Diagram](./diagrams\21_Global_Services_7.svg)
+![Mermaid Diagram](./diagrams/21_Global_Services_7.svg)
 
 **Instance Lifecycle:**
 1. Application imports `backtest` object from `src/lib/index.ts`
@@ -207,7 +207,7 @@ Logic Services (both Public and Private) are the primary consumers of Domain Glo
 
 **Typical Usage Pattern:**
 
-![Mermaid Diagram](./diagrams\21_Global_Services_8.svg)
+![Mermaid Diagram](./diagrams/21_Global_Services_8.svg)
 
 **Backtest Example:**
 `BacktestLogicPrivateService` sets execution context for each timestamp in the historical range, then calls `StrategyGlobalService.tick()` and `ExchangeGlobalService.getCandles()` to evaluate strategy signals.

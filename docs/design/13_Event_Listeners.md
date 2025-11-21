@@ -21,7 +21,7 @@ Event listeners use queued async processing to ensure sequential execution, prev
 
 ## Event Listener Functions Overview
 
-![Mermaid Diagram](./diagrams\13_Event_Listeners_0.svg)
+![Mermaid Diagram](./diagrams/13_Event_Listeners_0.svg)
 
 **Diagram: Event Listener Architecture**
 
@@ -77,7 +77,7 @@ listenSignalBacktestOnce(
 
 All event listeners receive `IStrategyTickResult` discriminated union events. The discriminated union has four possible states based on the `action` field:
 
-![Mermaid Diagram](./diagrams\13_Event_Listeners_1.svg)
+![Mermaid Diagram](./diagrams/13_Event_Listeners_1.svg)
 
 **Diagram: IStrategyTickResult Discriminated Union**
 
@@ -99,7 +99,7 @@ Each event contains the full state information for type-safe handling:
 
 Event listeners are designed for use with `Backtest.background()` and `Live.background()`, which execute strategies without yielding results. This pattern decouples strategy execution from result consumption.
 
-![Mermaid Diagram](./diagrams\13_Event_Listeners_2.svg)
+![Mermaid Diagram](./diagrams/13_Event_Listeners_2.svg)
 
 **Diagram: Background Execution with Event Listener**
 

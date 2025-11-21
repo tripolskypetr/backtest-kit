@@ -20,7 +20,7 @@ Logic Services follow a two-tier pattern with distinct responsibilities:
 
 ### Service Hierarchy Diagram
 
-![Mermaid Diagram](./diagrams\22_Logic_Services_0.svg)
+![Mermaid Diagram](./diagrams/22_Logic_Services_0.svg)
 
 
 ---
@@ -45,7 +45,7 @@ Logic Services use a two-tier pattern to separate context management from execut
 
 ### Context Propagation Flow
 
-![Mermaid Diagram](./diagrams\22_Logic_Services_1.svg)
+![Mermaid Diagram](./diagrams/22_Logic_Services_1.svg)
 
 
 ---
@@ -65,7 +65,7 @@ Core orchestration service for backtest execution using memory-efficient async g
 
 ### Execution Flow
 
-![Mermaid Diagram](./diagrams\22_Logic_Services_2.svg)
+![Mermaid Diagram](./diagrams/22_Logic_Services_2.svg)
 
 ### Key Methods
 
@@ -241,7 +241,7 @@ Logic Services use async generators (`async function*`) for memory-efficient str
 
 ### Memory Efficiency Diagram
 
-![Mermaid Diagram](./diagrams\22_Logic_Services_4.svg)
+![Mermaid Diagram](./diagrams/22_Logic_Services_4.svg)
 
 ### Consumer Pattern Examples
 
@@ -277,7 +277,7 @@ Logic Services coordinate multiple service types through dependency injection.
 
 ### Dependency Injection Registration
 
-![Mermaid Diagram](./diagrams\22_Logic_Services_5.svg)
+![Mermaid Diagram](./diagrams/22_Logic_Services_5.svg)
 
 ### Injected Dependencies by Service
 
@@ -308,7 +308,7 @@ Logic Services use `MethodContextService.runAsyncIterator()` to inject context i
 
 ### MethodContextService Integration
 
-![Mermaid Diagram](./diagrams\22_Logic_Services_6.svg)
+![Mermaid Diagram](./diagrams/22_Logic_Services_6.svg)
 
 ### Context Lifecycle
 
@@ -351,7 +351,7 @@ Logic Services delegate business logic execution to Global Services that inject 
 
 ### Execution Context Injection
 
-![Mermaid Diagram](./diagrams\22_Logic_Services_7.svg)
+![Mermaid Diagram](./diagrams/22_Logic_Services_7.svg)
 
 
 ---
@@ -362,7 +362,7 @@ Logic Services are accessed through the `Backtest` and `Live` classes in the Pub
 
 ### Call Chain Diagram
 
-![Mermaid Diagram](./diagrams\22_Logic_Services_8.svg)
+![Mermaid Diagram](./diagrams/22_Logic_Services_8.svg)
 
 ### Type Signatures
 

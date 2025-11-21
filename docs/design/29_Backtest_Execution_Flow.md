@@ -14,7 +14,7 @@ The backtest execution follows a pipeline where `BacktestLogicPrivateService` or
 
 **High-Level Execution Sequence**
 
-![Mermaid Diagram](./diagrams\29_Backtest_Execution_Flow_0.svg)
+![Mermaid Diagram](./diagrams/29_Backtest_Execution_Flow_0.svg)
 
 
 ---
@@ -25,7 +25,7 @@ The backtest execution involves multiple service layers with clear separation of
 
 **Service Layer Interaction Diagram**
 
-![Mermaid Diagram](./diagrams\29_Backtest_Execution_Flow_1.svg)
+![Mermaid Diagram](./diagrams/29_Backtest_Execution_Flow_1.svg)
 
 
 ---
@@ -60,7 +60,7 @@ The timeframe generation is configured via `addFrame()` and handled by `ClientFr
 
 The service iterates through the timeframe array using a while loop with manual index management. This allows skipping timestamps when signals close.
 
-![Mermaid Diagram](./diagrams\29_Backtest_Execution_Flow_2.svg)
+![Mermaid Diagram](./diagrams/29_Backtest_Execution_Flow_2.svg)
 
 
 ### Step 4: Tick Execution
@@ -133,7 +133,7 @@ while (
 
 **Skipping Example Visualization**
 
-![Mermaid Diagram](./diagrams\29_Backtest_Execution_Flow_4.svg)
+![Mermaid Diagram](./diagrams/29_Backtest_Execution_Flow_4.svg)
 
 This skipping ensures:
 1. No duplicate signals during an active signal's lifetime
@@ -188,7 +188,7 @@ The following diagram traces a complete execution from the Public API through al
 
 **End-to-End Execution Trace**
 
-![Mermaid Diagram](./diagrams\29_Backtest_Execution_Flow_5.svg)
+![Mermaid Diagram](./diagrams/29_Backtest_Execution_Flow_5.svg)
 
 
 ---

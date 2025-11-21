@@ -38,7 +38,7 @@ This installs the framework along with its runtime dependencies:
 
 The distributed npm package contains three primary artifacts:
 
-![Mermaid Diagram](./diagrams\03_Installation_and_Setup_0.svg)
+![Mermaid Diagram](./diagrams/03_Installation_and_Setup_0.svg)
 
 **Package contents:**
 
@@ -88,7 +88,7 @@ Resolves to: `build/index.cjs`
 
 TypeScript automatically resolves types from `types.d.ts` for both import styles.
 
-![Mermaid Diagram](./diagrams\03_Installation_and_Setup_1.svg)
+![Mermaid Diagram](./diagrams/03_Installation_and_Setup_1.svg)
 
 
 ---
@@ -99,7 +99,7 @@ The package uses **Rollup** to compile TypeScript source into distributable Java
 
 ### Build Process Overview
 
-![Mermaid Diagram](./diagrams\03_Installation_and_Setup_2.svg)
+![Mermaid Diagram](./diagrams/03_Installation_and_Setup_2.svg)
 
 ### Build Scripts
 
@@ -127,7 +127,7 @@ The build system uses these plugins:
 
 The framework's runtime dependencies form a lightweight tree:
 
-![Mermaid Diagram](./diagrams\03_Installation_and_Setup_3.svg)
+![Mermaid Diagram](./diagrams/03_Installation_and_Setup_3.svg)
 
 **Key Dependencies:**
 
@@ -190,7 +190,7 @@ your-project@1.0.0
 
 Understanding how public API functions map to internal implementation:
 
-![Mermaid Diagram](./diagrams\03_Installation_and_Setup_4.svg)
+![Mermaid Diagram](./diagrams/03_Installation_and_Setup_4.svg)
 
 **Key Export Mappings:**
 

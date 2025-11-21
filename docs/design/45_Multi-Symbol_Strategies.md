@@ -17,7 +17,7 @@ The framework's architecture naturally supports multi-symbol strategies through 
 3. **Context propagation** - `ExecutionContextService` injects the current symbol into each operation
 4. **Per-symbol persistence** - Signal files are stored separately for each symbol
 
-![Mermaid Diagram](./diagrams\45_Multi-Symbol_Strategies_0.svg)
+![Mermaid Diagram](./diagrams/45_Multi-Symbol_Strategies_0.svg)
 
 
 ---
@@ -51,7 +51,7 @@ await Promise.all(
 
 ### Execution Flow Diagram
 
-![Mermaid Diagram](./diagrams\45_Multi-Symbol_Strategies_1.svg)
+![Mermaid Diagram](./diagrams/45_Multi-Symbol_Strategies_1.svg)
 
 
 ---
@@ -81,7 +81,7 @@ Each `(strategyName, symbol)` pair maintains completely isolated signal state. T
 
 ### State Isolation Flow
 
-![Mermaid Diagram](./diagrams\45_Multi-Symbol_Strategies_2.svg)
+![Mermaid Diagram](./diagrams/45_Multi-Symbol_Strategies_2.svg)
 
 
 ---
@@ -101,7 +101,7 @@ The framework achieves memory efficiency by sharing `ClientStrategy` instances a
 
 ### Memory Efficiency Analysis
 
-![Mermaid Diagram](./diagrams\45_Multi-Symbol_Strategies_3.svg)
+![Mermaid Diagram](./diagrams/45_Multi-Symbol_Strategies_3.svg)
 
 **Memory Usage:**
 - **Without memoization:** 3 symbols × 1 strategy = 3 `ClientStrategy` instances
@@ -157,7 +157,7 @@ process.on("SIGINT", () => {
 
 ### Event Listener Flow
 
-![Mermaid Diagram](./diagrams\45_Multi-Symbol_Strategies_4.svg)
+![Mermaid Diagram](./diagrams/45_Multi-Symbol_Strategies_4.svg)
 
 
 ---
@@ -185,7 +185,7 @@ Average PNL: +1.45%
 
 ### Report Accumulation Pattern
 
-![Mermaid Diagram](./diagrams\45_Multi-Symbol_Strategies_5.svg)
+![Mermaid Diagram](./diagrams/45_Multi-Symbol_Strategies_5.svg)
 
 ### Symbol Filtering in Reports
 
@@ -401,7 +401,7 @@ Each symbol's state is persisted independently. If the entire process crashes:
 
 On restart, all symbols resume from their last persisted state with no signal duplication.
 
-![Mermaid Diagram](./diagrams\45_Multi-Symbol_Strategies_6.svg)
+![Mermaid Diagram](./diagrams/45_Multi-Symbol_Strategies_6.svg)
 
 
 ---

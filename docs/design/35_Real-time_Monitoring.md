@@ -14,7 +14,7 @@ When a signal is opened, it enters an "active" monitoring phase where the system
 
 ### State Transition Overview
 
-![Mermaid Diagram](./diagrams\35_Real-time_Monitoring_0.svg)
+![Mermaid Diagram](./diagrams/35_Real-time_Monitoring_0.svg)
 
 **Monitoring Flow in ClientStrategy.tick()**
 
@@ -103,7 +103,7 @@ The framework uses Volume Weighted Average Price (VWAP) as the current market pr
 
 ### VWAP Calculation Flow
 
-![Mermaid Diagram](./diagrams\35_Real-time_Monitoring_1.svg)
+![Mermaid Diagram](./diagrams/35_Real-time_Monitoring_1.svg)
 
 ### VWAP Implementation
 
@@ -136,7 +136,7 @@ When a monitoring condition is met, the framework executes a multi-step closure 
 
 ### Closure Sequence Diagram
 
-![Mermaid Diagram](./diagrams\35_Real-time_Monitoring_2.svg)
+![Mermaid Diagram](./diagrams/35_Real-time_Monitoring_2.svg)
 
 ### Closure Implementation Steps
 
@@ -225,7 +225,7 @@ If no closing conditions are met, the `tick()` method returns an `IStrategyTickR
 
 ### Active State Flow
 
-![Mermaid Diagram](./diagrams\35_Real-time_Monitoring_3.svg)
+![Mermaid Diagram](./diagrams/35_Real-time_Monitoring_3.svg)
 
 ### Active Result Structure
 
@@ -276,7 +276,7 @@ Backtesting uses an optimized monitoring approach that processes historical cand
 
 ### Backtest Monitoring Flow
 
-![Mermaid Diagram](./diagrams\35_Real-time_Monitoring_4.svg)
+![Mermaid Diagram](./diagrams/35_Real-time_Monitoring_4.svg)
 
 ### Fast-Forward Implementation
 

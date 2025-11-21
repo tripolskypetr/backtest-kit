@@ -15,7 +15,7 @@ Connection Services act as intelligent routers that bridge the Service Orchestra
 
 ### Connection Layer Architecture
 
-![Mermaid Diagram](./diagrams\19_Connection_Services_0.svg)
+![Mermaid Diagram](./diagrams/19_Connection_Services_0.svg)
 
 
 ---
@@ -32,7 +32,7 @@ Connection Services use `MethodContextService` to determine which client instanc
 
 ### Context-Based Routing Flow
 
-![Mermaid Diagram](./diagrams\19_Connection_Services_1.svg)
+![Mermaid Diagram](./diagrams/19_Connection_Services_1.svg)
 
 **Example:** When `StrategyConnectionService.tick()` is called, it reads `methodContextService.context.strategyName` to determine which `ClientStrategy` instance to use.
 
@@ -57,7 +57,7 @@ All three Connection Services use the `memoize` function from `functools-kit` to
 
 ### Memoization Implementation Pattern
 
-![Mermaid Diagram](./diagrams\19_Connection_Services_2.svg)
+![Mermaid Diagram](./diagrams/19_Connection_Services_2.svg)
 
 **Example from StrategyConnectionService:**
 
@@ -79,7 +79,7 @@ The `getStrategy` method [src/lib/services/connection/StrategyConnectionService.
 
 The service injects five core dependencies:
 
-![Mermaid Diagram](./diagrams\19_Connection_Services_3.svg)
+![Mermaid Diagram](./diagrams/19_Connection_Services_3.svg)
 
 
 ### Methods
@@ -135,7 +135,7 @@ Routes backtest simulation to the appropriate `ClientStrategy` instance with pro
 
 ### Dependency Injection
 
-![Mermaid Diagram](./diagrams\19_Connection_Services_4.svg)
+![Mermaid Diagram](./diagrams/19_Connection_Services_4.svg)
 
 
 ### Methods
@@ -218,7 +218,7 @@ Formats quantity value according to exchange-specific precision rules.
 
 ### Dependency Injection
 
-![Mermaid Diagram](./diagrams\19_Connection_Services_5.svg)
+![Mermaid Diagram](./diagrams/19_Connection_Services_5.svg)
 
 
 ### Methods
@@ -250,7 +250,7 @@ Connection Services integrate with multiple layers of the architecture, serving 
 
 ### Service Dependencies
 
-![Mermaid Diagram](./diagrams\19_Connection_Services_6.svg)
+![Mermaid Diagram](./diagrams/19_Connection_Services_6.svg)
 
 ### Data Flow Through Connection Layer
 

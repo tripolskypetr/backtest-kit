@@ -18,7 +18,7 @@ Signals progress through four distinct states during their lifecycle. The framew
 
 ## State Discriminated Union Type System
 
-![Mermaid Diagram](./diagrams\24_Signal_States_0.svg)
+![Mermaid Diagram](./diagrams/24_Signal_States_0.svg)
 
 The `IStrategyTickResult` type is a discriminated union defined at [src/interfaces/Strategy.interface.ts:204-208](). TypeScript uses the `action` property to narrow types in conditional blocks:
 
@@ -41,7 +41,7 @@ if (result.action === "idle") {
 
 ## State Transition Flow
 
-![Mermaid Diagram](./diagrams\24_Signal_States_1.svg)
+![Mermaid Diagram](./diagrams/24_Signal_States_1.svg)
 
 The state machine is implemented in `ClientStrategy.tick()` at [src/client/ClientStrategy.ts:258-464](). The `_pendingSignal` field at [src/client/ClientStrategy.ts:195]() tracks the current signal state.
 
@@ -200,7 +200,7 @@ The `ClientStrategy.backtest()` method at [src/client/ClientStrategy.ts:485-656]
 
 ## Type-Safe State Handling
 
-![Mermaid Diagram](./diagrams\24_Signal_States_2.svg)
+![Mermaid Diagram](./diagrams/24_Signal_States_2.svg)
 
 ### Usage Example
 

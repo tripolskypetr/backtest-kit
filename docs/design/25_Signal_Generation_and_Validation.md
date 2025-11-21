@@ -10,7 +10,7 @@ Signal generation occurs during the `tick()` method when no pending signal exist
 
 ### Signal Generation Flow
 
-![Mermaid Diagram](./diagrams\25_Signal_Generation_and_Validation_0.svg)
+![Mermaid Diagram](./diagrams/25_Signal_Generation_and_Validation_0.svg)
 
 
 ## Signal DTO Transformation
@@ -53,7 +53,7 @@ To prevent signal spam, the framework enforces a minimum time interval between `
 
 ### Supported Intervals
 
-![Mermaid Diagram](./diagrams\25_Signal_Generation_and_Validation_1.svg)
+![Mermaid Diagram](./diagrams/25_Signal_Generation_and_Validation_1.svg)
 
 
 ### Throttling Implementation
@@ -89,7 +89,7 @@ All signals undergo comprehensive validation before execution. The `VALIDATE_SIG
 
 ### Validation Rule Diagram
 
-![Mermaid Diagram](./diagrams\25_Signal_Generation_and_Validation_2.svg)
+![Mermaid Diagram](./diagrams/25_Signal_Generation_and_Validation_2.svg)
 
 
 ### Price Validation
@@ -259,7 +259,7 @@ interface IStrategySchema {
 
 ### Schema to Execution Mapping
 
-![Mermaid Diagram](./diagrams\25_Signal_Generation_and_Validation_3.svg)
+![Mermaid Diagram](./diagrams/25_Signal_Generation_and_Validation_3.svg)
 
 The `getSignal` function from the schema becomes `params.getSignal` in the `ClientStrategy` instance, allowing the framework to control when and how it's called while applying throttling and validation.
 

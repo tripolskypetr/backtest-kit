@@ -15,7 +15,7 @@ The framework uses a schema-based registration pattern where users provide a con
 
 ## Exchange Integration Architecture
 
-![Mermaid Diagram](./diagrams\43_Custom_Exchange_Integration_0.svg)
+![Mermaid Diagram](./diagrams/43_Custom_Exchange_Integration_0.svg)
 
 **Diagram: Exchange integration flow from user schema to runtime instance**
 
@@ -89,7 +89,7 @@ Array of `ICandleData` objects, each containing:
 
 ## ClientExchange Candle Processing
 
-![Mermaid Diagram](./diagrams\43_Custom_Exchange_Integration_1.svg)
+![Mermaid Diagram](./diagrams/43_Custom_Exchange_Integration_1.svg)
 
 **Diagram: Candle fetching flow showing how ClientExchange wraps user schema**
 
@@ -343,7 +343,7 @@ addExchange({
 
 ## VWAP Calculation by ClientExchange
 
-![Mermaid Diagram](./diagrams\43_Custom_Exchange_Integration_2.svg)
+![Mermaid Diagram](./diagrams/43_Custom_Exchange_Integration_2.svg)
 
 **Diagram: VWAP calculation flow in ClientExchange.getAveragePrice()**
 
@@ -415,7 +415,7 @@ Logs warnings when fewer candles than requested are returned, indicating potenti
 
 ## Bidirectional Candle Fetching
 
-![Mermaid Diagram](./diagrams\43_Custom_Exchange_Integration_3.svg)
+![Mermaid Diagram](./diagrams/43_Custom_Exchange_Integration_3.svg)
 
 **Diagram: Bidirectional candle fetching in backtest mode**
 
@@ -429,7 +429,7 @@ Both methods call the same `schema.getCandles()` implementation but with differe
 
 ## Integration with Framework Services
 
-![Mermaid Diagram](./diagrams\43_Custom_Exchange_Integration_4.svg)
+![Mermaid Diagram](./diagrams/43_Custom_Exchange_Integration_4.svg)
 
 **Diagram: How user exchange schema integrates with framework service layers**
 

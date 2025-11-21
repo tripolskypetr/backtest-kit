@@ -30,7 +30,7 @@ Signal state is persisted at two critical moments to ensure crash safety:
 
 **Diagram: When Persistence Occurs**
 
-![Mermaid Diagram](./diagrams\34_Crash_Recovery_0.svg)
+![Mermaid Diagram](./diagrams/34_Crash_Recovery_0.svg)
 
 **Key Principle**: State is persisted **before** yielding the result to the user. This ensures the disk state is always consistent with what the user observes.
 
@@ -43,7 +43,7 @@ The `setPendingSignal()` method centralizes all state changes and ensures atomic
 
 **Diagram: setPendingSignal Flow**
 
-![Mermaid Diagram](./diagrams\34_Crash_Recovery_1.svg)
+![Mermaid Diagram](./diagrams/34_Crash_Recovery_1.svg)
 
 The atomic write prevents corruption even if the process crashes mid-write. The temp file + rename pattern ensures the final file is either complete or doesn't exist.
 
@@ -56,7 +56,7 @@ When a live trading process restarts, `waitForInit()` restores the signal state 
 
 **Diagram: State Recovery Flow**
 
-![Mermaid Diagram](./diagrams\34_Crash_Recovery_2.svg)
+![Mermaid Diagram](./diagrams/34_Crash_Recovery_2.svg)
 
 **Validation Guards**: The recovery logic validates that the persisted signal matches the current configuration. This prevents resuming with the wrong exchange or strategy after configuration changes.
 
@@ -129,13 +129,13 @@ The `PersistBase` class implements the low-level persistence operations:
 
 **Diagram: PersistBase.writeValue() Internals**
 
-![Mermaid Diagram](./diagrams\34_Crash_Recovery_3.svg)
+![Mermaid Diagram](./diagrams/34_Crash_Recovery_3.svg)
 
 The atomic rename operation (`fs.rename()`) is the critical step that ensures atomicity. On POSIX systems, rename is atomic at the filesystem level, meaning the file either appears complete or doesn't appear at all - no partial writes are visible.
 
 **Diagram: PersistBase.readValue() Internals**
 
-![Mermaid Diagram](./diagrams\34_Crash_Recovery_4.svg)
+![Mermaid Diagram](./diagrams/34_Crash_Recovery_4.svg)
 
 **Auto-Cleanup**: If a file becomes corrupted (invalid JSON), `PersistBase` automatically deletes it and throws an error. This prevents accumulating corrupted files and ensures clean restarts.
 
@@ -148,7 +148,7 @@ The framework allows replacing the default file-based persistence with custom im
 
 **Diagram: Custom Adapter Integration**
 
-![Mermaid Diagram](./diagrams\34_Crash_Recovery_5.svg)
+![Mermaid Diagram](./diagrams/34_Crash_Recovery_5.svg)
 
 **Example Implementation**:
 
@@ -216,7 +216,7 @@ PersistSignalAdapter.usePersistSignalAdapter(RedisPersist);
 
 **Recovery Sequence (After Restart)**:
 
-![Mermaid Diagram](./diagrams\34_Crash_Recovery_6.svg)
+![Mermaid Diagram](./diagrams/34_Crash_Recovery_6.svg)
 
 **Key Points**:
 - No duplicate signal is created because `_pendingSignal` is already set
@@ -354,7 +354,7 @@ The crash recovery system integrates seamlessly with the signal lifecycle state 
 
 **State Machine with Persistence Points**:
 
-![Mermaid Diagram](./diagrams\34_Crash_Recovery_7.svg)
+![Mermaid Diagram](./diagrams/34_Crash_Recovery_7.svg)
 
 **Recovery Behavior by State**:
 

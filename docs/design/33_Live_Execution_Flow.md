@@ -27,7 +27,7 @@ The following diagram shows how live execution flows through the service layers:
 
 **Live Execution Service Architecture**
 
-![Mermaid Diagram](./diagrams\33_Live_Execution_Flow_0.svg)
+![Mermaid Diagram](./diagrams/33_Live_Execution_Flow_0.svg)
 
 
 ---
@@ -38,7 +38,7 @@ The core of live execution is implemented in `LiveLogicPrivateService.run()` as 
 
 **Live Loop Structure**
 
-![Mermaid Diagram](./diagrams\33_Live_Execution_Flow_1.svg)
+![Mermaid Diagram](./diagrams/33_Live_Execution_Flow_1.svg)
 
 The implementation uses these key constructs:
 
@@ -59,7 +59,7 @@ Live execution uses `MethodContextService` to propagate schema names (`strategyN
 
 **Context Propagation Flow**
 
-![Mermaid Diagram](./diagrams\33_Live_Execution_Flow_2.svg)
+![Mermaid Diagram](./diagrams/33_Live_Execution_Flow_2.svg)
 
 The context object contains:
 
@@ -82,7 +82,7 @@ Live execution filters and streams results based on their action type:
 
 **Result Filtering Logic**
 
-![Mermaid Diagram](./diagrams\33_Live_Execution_Flow_3.svg)
+![Mermaid Diagram](./diagrams/33_Live_Execution_Flow_3.svg)
 
 The filtering logic prevents overwhelming the consumer with status updates:
 
@@ -110,7 +110,7 @@ The extra 1ms ensures operations complete before the next tick begins, preventin
 
 **Timing Diagram**
 
-![Mermaid Diagram](./diagrams\33_Live_Execution_Flow_4.svg)
+![Mermaid Diagram](./diagrams/33_Live_Execution_Flow_4.svg)
 
 Each iteration consists of:
 1. **Date creation** (~0ms): Capture current timestamp with `new Date()`
@@ -128,7 +128,7 @@ Each iteration consists of:
 
 **Service Interaction Diagram**
 
-![Mermaid Diagram](./diagrams\33_Live_Execution_Flow_5.svg)
+![Mermaid Diagram](./diagrams/33_Live_Execution_Flow_5.svg)
 
 Key interactions:
 
@@ -149,7 +149,7 @@ Before entering the infinite loop, `LiveLogicPrivateService` relies on `ClientSt
 
 **Initialization Sequence**
 
-![Mermaid Diagram](./diagrams\33_Live_Execution_Flow_6.svg)
+![Mermaid Diagram](./diagrams/33_Live_Execution_Flow_6.svg)
 
 This initialization ensures:
 - **Crash safety**: Process can restart without losing active signals

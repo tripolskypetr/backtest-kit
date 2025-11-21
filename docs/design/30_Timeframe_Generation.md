@@ -19,7 +19,7 @@ For information about how these timestamps are used during backtest execution, s
 
 ### Component Interaction
 
-![Mermaid Diagram](./diagrams\30_Timeframe_Generation_0.svg)
+![Mermaid Diagram](./diagrams/30_Timeframe_Generation_0.svg)
 
 
 ---
@@ -50,7 +50,7 @@ The `GET_TIMEFRAME_FN` function implements a simple iterative algorithm to produ
 
 ### Algorithm Flow
 
-![Mermaid Diagram](./diagrams\30_Timeframe_Generation_1.svg)
+![Mermaid Diagram](./diagrams/30_Timeframe_Generation_1.svg)
 
 
 ### Implementation Details
@@ -75,7 +75,7 @@ The `getTimeframe` method is wrapped with the `singleshot` decorator from `funct
 
 ### Caching Behavior
 
-![Mermaid Diagram](./diagrams\30_Timeframe_Generation_2.svg)
+![Mermaid Diagram](./diagrams/30_Timeframe_Generation_2.svg)
 
 This optimization prevents redundant timestamp generation when multiple components or iterations request the same timeframe. The cache is scoped to the `ClientFrame` instance, which is itself memoized per `frameName` by `FrameConnectionService`.
 
@@ -88,7 +88,7 @@ The generated timestamp array drives the backtest loop. `BacktestLogicPrivateSer
 
 ### Execution Flow
 
-![Mermaid Diagram](./diagrams\30_Timeframe_Generation_3.svg)
+![Mermaid Diagram](./diagrams/30_Timeframe_Generation_3.svg)
 
 The timestamp array length directly determines backtest duration. For example:
 - 30 days at 1-minute intervals: ~43,200 timestamps

@@ -33,7 +33,7 @@ The framework supports two distinct execution modes for signals:
 | **Result state** | Can be idle, opened, active, or closed | Always closed |
 | **Performance** | Slow (API calls per timestamp) | Fast (single array iteration) |
 
-![Mermaid Diagram](./diagrams\31_Fast-Forward_Simulation_0.svg)
+![Mermaid Diagram](./diagrams/31_Fast-Forward_Simulation_0.svg)
 
 **Diagram: Execution Mode Comparison**
 
@@ -82,7 +82,7 @@ VWAP = weightedSum / totalVolume
 
 **Fallback:** If `totalVolume === 0`, falls back to simple average of close prices.
 
-![Mermaid Diagram](./diagrams\31_Fast-Forward_Simulation_1.svg)
+![Mermaid Diagram](./diagrams/31_Fast-Forward_Simulation_1.svg)
 
 **Diagram: VWAP Calculation from 5-Candle Window**
 
@@ -137,7 +137,7 @@ Stop Loss:    averagePrice >= signal.priceStopLoss
 - `priceTakeProfit = 49000` (lower is profit for short)
 - `priceStopLoss = 51000` (higher is loss for short)
 
-![Mermaid Diagram](./diagrams\31_Fast-Forward_Simulation_3.svg)
+![Mermaid Diagram](./diagrams/31_Fast-Forward_Simulation_3.svg)
 
 **Diagram: Position-Specific TP/SL Decision Tree**
 
@@ -160,7 +160,7 @@ When all candles have been processed without triggering TP/SL:
 
 **Warning:** If PNL is negative on time expiration, a warning is logged.
 
-![Mermaid Diagram](./diagrams\31_Fast-Forward_Simulation_4.svg)
+![Mermaid Diagram](./diagrams/31_Fast-Forward_Simulation_4.svg)
 
 **Diagram: Time Expiration Flow**
 
@@ -214,7 +214,7 @@ The `backtest()` method is called by `BacktestLogicPrivateService` as part of th
 
 ### Orchestration Sequence
 
-![Mermaid Diagram](./diagrams\31_Fast-Forward_Simulation_5.svg)
+![Mermaid Diagram](./diagrams/31_Fast-Forward_Simulation_5.svg)
 
 **Diagram: Fast-Forward Simulation in Backtest Context**
 

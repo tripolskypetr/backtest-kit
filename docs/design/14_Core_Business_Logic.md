@@ -25,7 +25,7 @@ These classes are designed with **prototype function patterns** for memory effic
 
 ### Business Logic Architecture
 
-![Mermaid Diagram](./diagrams\14_Core_Business_Logic_0.svg)
+![Mermaid Diagram](./diagrams/14_Core_Business_Logic_0.svg)
 
 
 ---
@@ -36,7 +36,7 @@ These classes are designed with **prototype function patterns** for memory effic
 
 ### Class Structure
 
-![Mermaid Diagram](./diagrams\14_Core_Business_Logic_1.svg)
+![Mermaid Diagram](./diagrams/14_Core_Business_Logic_1.svg)
 
 
 ### Signal Interval Throttling
@@ -68,7 +68,7 @@ The `VALIDATE_SIGNAL_FN` performs comprehensive validation of signal parameters 
 3. **Short Position Logic** - `priceTakeProfit < priceOpen` and `priceStopLoss > priceOpen`
 4. **Time Parameters** - `minuteEstimatedTime > 0` and `timestamp > 0`
 
-![Mermaid Diagram](./diagrams\14_Core_Business_Logic_2.svg)
+![Mermaid Diagram](./diagrams/14_Core_Business_Logic_2.svg)
 
 
 ---
@@ -77,7 +77,7 @@ The `VALIDATE_SIGNAL_FN` performs comprehensive validation of signal parameters 
 
 The `tick()` method implements the main execution loop for signal monitoring. It returns a discriminated union type `IStrategyTickResult` with four possible states:
 
-![Mermaid Diagram](./diagrams\14_Core_Business_Logic_3.svg)
+![Mermaid Diagram](./diagrams/14_Core_Business_Logic_3.svg)
 
 **Implementation Details:**
 
@@ -93,7 +93,7 @@ The `tick()` method implements the main execution loop for signal monitoring. It
 
 The `backtest()` method simulates signal outcomes using historical candle data without iterating through every timestamp. This is a critical performance optimization for backtesting:
 
-![Mermaid Diagram](./diagrams\14_Core_Business_Logic_4.svg)
+![Mermaid Diagram](./diagrams/14_Core_Business_Logic_4.svg)
 
 **Key Implementation Details:**
 
@@ -128,7 +128,7 @@ The `backtest()` method simulates signal outcomes using historical candle data w
 
 ### Candle Interval Mapping
 
-![Mermaid Diagram](./diagrams\14_Core_Business_Logic_5.svg)
+![Mermaid Diagram](./diagrams/14_Core_Business_Logic_5.svg)
 
 
 ---
@@ -144,7 +144,7 @@ The `getCandles()` method fetches historical candles **backwards** from the exec
 4. Filter results to strict range: `sinceTimestamp <= candle.timestamp <= whenTimestamp`
 5. Warn if fewer than requested candles returned
 
-![Mermaid Diagram](./diagrams\14_Core_Business_Logic_6.svg)
+![Mermaid Diagram](./diagrams/14_Core_Business_Logic_6.svg)
 
 **Implementation:** [src/client/ClientExchange.ts:57-101]()
 
@@ -201,7 +201,7 @@ Simple Average = Σ(close) / count
 
 ### Timeframe Generation Algorithm
 
-![Mermaid Diagram](./diagrams\14_Core_Business_Logic_7.svg)
+![Mermaid Diagram](./diagrams/14_Core_Business_Logic_7.svg)
 
 **Example:**
 - `startDate`: `2024-01-01T00:00:00Z`
@@ -232,7 +232,7 @@ The `toProfitLossDto` helper calculates realistic profit/loss including market i
 
 ### Slippage Application Logic
 
-![Mermaid Diagram](./diagrams\14_Core_Business_Logic_8.svg)
+![Mermaid Diagram](./diagrams/14_Core_Business_Logic_8.svg)
 
 **Rationale:**
 - **Long positions**: Buy at higher price (slippage hurts entry), sell at lower price (slippage hurts exit)
