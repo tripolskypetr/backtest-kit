@@ -1,7 +1,11 @@
 import backtest from "../lib";
+import { StrategyName } from "../interfaces/Strategy.interface";
 
 const BACKTEST_METHOD_NAME_RUN = "BacktestUtils.run";
 const BACKTEST_METHOD_NAME_BACKGROUND = "BacktestUtils.background";
+const BACKTEST_METHOD_NAME_GET_REPORT = "BacktestUtils.getReport";
+const BACKTEST_METHOD_NAME_DUMP = "BacktestUtils.dump";
+const BACKTEST_METHOD_NAME_CLEAR = "BacktestUtils.clear";
 
 /**
  * Utility class for backtest operations.
@@ -95,6 +99,73 @@ export class BacktestUtils {
     return () => {
       isStopped = true;
     }
+  };
+
+  /**
+   * Generates markdown report with all closed signals for a strategy.
+   *
+   * @param strategyName - Strategy name to generate report for
+   * @returns Promise resolving to markdown formatted report string
+   *
+   * @example
+   * ```typescript
+   * const markdown = await Backtest.getReport("my-strategy");
+   * console.log(markdown);
+   * ```
+   */
+  public getReport = async (strategyName: StrategyName): Promise<string> => {
+    backtest.loggerService.info(BACKTEST_METHOD_NAME_GET_REPORT, {
+      strategyName,
+    });
+    return await backtest.backtestMarkdownService.getReport(strategyName);
+  };
+
+  /**
+   * Saves strategy report to disk.
+   *
+   * @param strategyName - Strategy name to save report for
+   * @param path - Optional directory path to save report (default: "./logs/backtest")
+   *
+   * @example
+   * ```typescript
+   * // Save to default path: ./logs/backtest/my-strategy.md
+   * await Backtest.dump("my-strategy");
+   *
+   * // Save to custom path: ./custom/path/my-strategy.md
+   * await Backtest.dump("my-strategy", "./custom/path");
+   * ```
+   */
+  public dump = async (
+    strategyName: StrategyName,
+    path?: string
+  ): Promise<void> => {
+    backtest.loggerService.info(BACKTEST_METHOD_NAME_DUMP, {
+      strategyName,
+      path,
+    });
+    await backtest.backtestMarkdownService.dump(strategyName, path);
+  };
+
+  /**
+   * Clears accumulated signal data from storage.
+   *
+   * @param strategyName - Optional strategy name to clear specific strategy data.
+   *                       If omitted, clears all strategies' data.
+   *
+   * @example
+   * ```typescript
+   * // Clear specific strategy data
+   * await Backtest.clear("my-strategy");
+   *
+   * // Clear all strategies' data
+   * await Backtest.clear();
+   * ```
+   */
+  public clear = async (strategyName?: StrategyName): Promise<void> => {
+    backtest.loggerService.info(BACKTEST_METHOD_NAME_CLEAR, {
+      strategyName,
+    });
+    await backtest.backtestMarkdownService.clear(strategyName);
   };
 }
 

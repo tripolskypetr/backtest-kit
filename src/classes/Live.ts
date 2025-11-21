@@ -1,8 +1,11 @@
-import { IStrategyTickResultClosed, IStrategyTickResultOpened } from "../interfaces/Strategy.interface";
+import { IStrategyTickResultClosed, IStrategyTickResultOpened, StrategyName } from "../interfaces/Strategy.interface";
 import backtest from "../lib";
 
 const LIVE_METHOD_NAME_RUN = "LiveUtils.run";
 const LIVE_METHOD_NAME_BACKGROUND = "LiveUtils.background";
+const LIVE_METHOD_NAME_GET_REPORT = "LiveUtils.getReport";
+const LIVE_METHOD_NAME_DUMP = "LiveUtils.dump";
+const LIVE_METHOD_NAME_CLEAR = "LiveUtils.clear";
 
 /**
  * Utility class for live trading operations.
@@ -111,6 +114,73 @@ export class LiveUtils {
     return () => {
       isStopped = true;
     };
+  };
+
+  /**
+   * Generates markdown report with all events for a strategy.
+   *
+   * @param strategyName - Strategy name to generate report for
+   * @returns Promise resolving to markdown formatted report string
+   *
+   * @example
+   * ```typescript
+   * const markdown = await Live.getReport("my-strategy");
+   * console.log(markdown);
+   * ```
+   */
+  public getReport = async (strategyName: StrategyName): Promise<string> => {
+    backtest.loggerService.info(LIVE_METHOD_NAME_GET_REPORT, {
+      strategyName,
+    });
+    return await backtest.liveMarkdownService.getReport(strategyName);
+  };
+
+  /**
+   * Saves strategy report to disk.
+   *
+   * @param strategyName - Strategy name to save report for
+   * @param path - Optional directory path to save report (default: "./logs/live")
+   *
+   * @example
+   * ```typescript
+   * // Save to default path: ./logs/live/my-strategy.md
+   * await Live.dump("my-strategy");
+   *
+   * // Save to custom path: ./custom/path/my-strategy.md
+   * await Live.dump("my-strategy", "./custom/path");
+   * ```
+   */
+  public dump = async (
+    strategyName: StrategyName,
+    path?: string
+  ): Promise<void> => {
+    backtest.loggerService.info(LIVE_METHOD_NAME_DUMP, {
+      strategyName,
+      path,
+    });
+    await backtest.liveMarkdownService.dump(strategyName, path);
+  };
+
+  /**
+   * Clears accumulated event data from storage.
+   *
+   * @param strategyName - Optional strategy name to clear specific strategy data.
+   *                       If omitted, clears all strategies' data.
+   *
+   * @example
+   * ```typescript
+   * // Clear specific strategy data
+   * await Live.clear("my-strategy");
+   *
+   * // Clear all strategies' data
+   * await Live.clear();
+   * ```
+   */
+  public clear = async (strategyName?: StrategyName): Promise<void> => {
+    backtest.loggerService.info(LIVE_METHOD_NAME_CLEAR, {
+      strategyName,
+    });
+    await backtest.liveMarkdownService.clear(strategyName);
   };
 }
 
