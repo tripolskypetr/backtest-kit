@@ -65,7 +65,7 @@ export class StrategyConnectionService implements IStrategy {
    * @returns Configured ClientStrategy instance
    */
   private getStrategy = memoize(
-    (strategyName) => `${strategyName}`,
+    ([strategyName]) => `${strategyName}`,
     (strategyName: StrategyName) => {
       const { getSignal, interval, callbacks } =
         this.strategySchemaService.get(strategyName);

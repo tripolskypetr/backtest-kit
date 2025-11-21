@@ -48,7 +48,7 @@ export class FrameConnectionService implements IFrame {
    * @returns Configured ClientFrame instance
    */
   public getFrame = memoize(
-    (frameName) => `${frameName}`,
+    ([frameName]) => `${frameName}`,
     (frameName: FrameName) => {
       const { endDate, interval, startDate, callbacks } =
         this.frameSchemaService.get(frameName);

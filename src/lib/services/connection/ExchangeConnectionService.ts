@@ -57,7 +57,7 @@ export class ExchangeConnectionService implements IExchange {
    * @returns Configured ClientExchange instance
    */
   public getExchange = memoize(
-    (exchangeName) => `${exchangeName}`,
+    ([exchangeName]) => `${exchangeName}`,
     (exchangeName: ExchangeName) => {
       const { getCandles, formatPrice, formatQuantity, callbacks } =
         this.exchangeSchemaService.get(exchangeName);
