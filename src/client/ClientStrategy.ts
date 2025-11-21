@@ -110,6 +110,7 @@ const GET_SIGNAL_FN = trycatch(
       ...signal,
       exchangeName: self.params.method.context.exchangeName,
       strategyName: self.params.method.context.strategyName,
+      timestamp: currentTime,
     };
 
     // Валидируем сигнал перед возвратом

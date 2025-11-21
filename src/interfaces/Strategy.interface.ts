@@ -25,7 +25,7 @@ export interface ISignalDto {
   /** Trade direction: "long" (buy) or "short" (sell) */
   position: "long" | "short";
   /** Human-readable description of signal reason */
-  note: string;
+  note?: string;
   /** Entry price for the position */
   priceOpen: number;
   /** Take profit target price (must be > priceOpen for long, < priceOpen for short) */
@@ -34,8 +34,6 @@ export interface ISignalDto {
   priceStopLoss: number;
   /** Expected duration in minutes before time_expired */
   minuteEstimatedTime: number;
-  /** Signal creation timestamp in milliseconds */
-  timestamp: number;
 }
 
 /**
@@ -49,6 +47,8 @@ export interface ISignalRow extends ISignalDto {
   exchangeName: ExchangeName;
   /** Unique strategy identifier for execution */
   strategyName: StrategyName;
+  /** Signal creation timestamp in milliseconds */
+  timestamp: number;
 }
 
 /**
