@@ -49,6 +49,8 @@ export interface ISignalRow extends ISignalDto {
   strategyName: StrategyName;
   /** Signal creation timestamp in milliseconds */
   timestamp: number;
+  /** Trading pair symbol (e.g., "BTCUSDT") */
+  symbol: string; 
 }
 
 /**

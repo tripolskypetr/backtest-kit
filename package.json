@@ -71,7 +71,6 @@
     "typescript": "^5.0.0"
   },
   "dependencies": {
-    "cli-table3": "^0.6.5",
     "di-kit": "^1.0.18",
     "di-scoped": "^1.0.20",
     "functools-kit": "^1.0.93",
