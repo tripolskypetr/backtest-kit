@@ -70,6 +70,22 @@ This guarantees that `getSignal` cannot be called more frequently than the strat
 
 ## Architecture Layers
 
+### Facade Layer (`src/classes/`)
+
+Simplified API wrappers for convenient usage:
+- **Backtest** - Singleton facade for backtest operations
+  - `run(symbol, context)` - Stream backtest results
+  - `background(symbol, context)` - Run without yielding, returns stop function
+  - `getReport(strategyName)` - Get markdown report
+  - `dump(strategyName, path?)` - Save report to disk
+  - `clear(strategyName?)` - Clear accumulated data
+- **Live** - Singleton facade for live trading
+  - `run(symbol, context)` - Stream live results (infinite)
+  - `background(symbol, context)` - Run without yielding, returns stop function
+  - `getReport(strategyName)` - Get markdown report
+  - `dump(strategyName, path?)` - Save report to disk
+  - `clear(strategyName?)` - Clear accumulated data
+
 ### Client Layer (`src/client/`)
 
 Client classes implement business logic without DI dependencies. All methods use **prototype functions** (not arrow functions) for memory efficiency - prototype methods are shared across all instances.
@@ -111,6 +127,20 @@ Registry pattern for configuration using `ToolRegistry`:
 - `FrameSchemaService` - Frame schemas (frameName → IFrameSchema)
 
 Methods: `register(key, value)`, `override(key, partial)`, `get(key)`
+
+#### Markdown Services (`markdown/`)
+Generate and persist trading reports:
+- `BacktestMarkdownService` - Backtest reports with closed signals
+  - Subscribes to `signalBacktestEmitter` via `init()` (singleshot)
+  - Accumulates only `closed` events per strategy
+  - Generates markdown tables with signal details
+- `LiveMarkdownService` - Live trading reports with all events
+  - Subscribes to `signalLiveEmitter` via `init()` (singleshot)
+  - Accumulates all events: `idle`, `opened`, `active`, `closed`
+  - Replaces events with same `signalId` (keeps one entry per signal)
+  - Calculates statistics: win rate, average PNL
+
+Methods: `getReport(strategyName)`, `dump(strategyName, path?)`, `clear(strategyName?)`
 
 #### Logic Services (`logic/private/`)
 High-level orchestration using **async generators** for streaming results:
@@ -259,6 +289,32 @@ User
       → Async generator never completes (infinite loop)
 ```
 
+## Event System
+
+### Event Emitters (`src/config/emitters.ts`)
+
+Three event emitters for signal lifecycle events:
+- `signalEmitter` - All signals (backtest + live)
+- `signalBacktestEmitter` - Backtest signals only
+- `signalLiveEmitter` - Live signals only
+
+**Usage**:
+```typescript
+signalLiveEmitter.subscribe(async (data: IStrategyTickResult) => {
+  // Process live events
+});
+```
+
+**Event Listeners** (`src/function/event.ts`):
+- `listenSignal(callback)` - Subscribe to all events
+- `listenSignalOnce(filter, callback)` - Subscribe once with filter
+- `listenSignalBacktest(callback)` - Backtest events only
+- `listenSignalBacktestOnce(filter, callback)` - Backtest once with filter
+- `listenSignalLive(callback)` - Live events only
+- `listenSignalLiveOnce(filter, callback)` - Live once with filter
+
+All callbacks are wrapped with `queued` for sequential async execution.
+
 ## Key Design Patterns
 
 ### 1. Discriminated Unions
@@ -405,7 +461,11 @@ src/
 │   ├── ClientExchange.ts    # Candle data access
 │   └── ClientFrame.ts        # Timeframe generation
 ├── classes/
+│   ├── Backtest.ts          # Backtest facade (singleton)
+│   ├── Live.ts              # Live facade (singleton)
 │   └── Persist.ts           # Atomic file persistence with PersistSignalAdaper
+├── config/
+│   └── emitters.ts          # Event emitters for signal events
 ├── lib/
 │   ├── core/        # DI container
 │   │   ├── di.ts
@@ -417,6 +477,9 @@ src/
 │   │   ├── connection/   # Client instance creators
 │   │   ├── global/       # Context wrappers
 │   │   ├── schema/       # Registry services
+│   │   ├── markdown/     # Report generation services
+│   │   │   ├── BacktestMarkdownService.ts
+│   │   │   └── LiveMarkdownService.ts
 │   │   └── logic/
 │   │       └── private/  # Async generator orchestration
 │   │           ├── BacktestLogicPrivateService.ts
@@ -431,6 +494,7 @@ src/
 │   ├── run.ts       # DEPRECATED API - use logic services directly
 │   ├── reduce.ts    # Accumulator pattern
 │   ├── add.ts       # addStrategy, addExchange, addFrame
+│   ├── event.ts     # Event listener utilities
 │   └── exchange.ts  # getCandles, getAveragePrice, getDate, getMode
 └── helpers/         # Utilities
     └── toProfitLossDto.ts
@@ -482,6 +546,8 @@ Users can extend the framework by:
 
 1. **Registering schemas**:
    ```typescript
+   import { addStrategy, addExchange, addFrame } from "backtest-kit";
+
    addStrategy(strategySchema);
    addExchange(exchangeSchema);
    addFrame(frameSchema);
@@ -491,21 +557,79 @@ Users can extend the framework by:
    ```typescript
    callbacks: {
      onOpen: (backtest, symbol, signal) => {},
-     onClose: (backtest, symbol, priceClose, signal) => {}
+     onClose: (backtest, symbol, priceClose, signal) => {},
+     onTick: (symbol, result, backtest) => {}
    }
    ```
 
 3. **Custom persistence adapter**:
    ```typescript
-   PersistSignalAdaper.usePersistSignalAdapter(CustomPersistBase);
+   import { PersistSignalAdaper, PersistBase } from "backtest-kit";
+
+   class CustomPersist extends PersistBase {
+     async readValue(entityId) { /* ... */ }
+     async writeValue(entityId, entity) { /* ... */ }
+   }
+
+   PersistSignalAdaper.usePersistSignalAdapter(CustomPersist);
    ```
 
 4. **Consuming async generators**:
    ```typescript
-   for await (const result of backtestLogic.run(symbol)) {
+   import { Backtest } from "backtest-kit";
+
+   for await (const result of Backtest.run("BTCUSDT", {
+     strategyName: "my-strategy",
+     exchangeName: "binance",
+     frameName: "1d-backtest"
+   })) {
      console.log(result.action, result.pnl);
      if (shouldStop) break; // Early termination
    }
+   ```
+
+5. **Event listeners**:
+   ```typescript
+   import { listenSignalLive, listenSignalLiveOnce } from "backtest-kit";
+
+   // Listen to all live events
+   const unsubscribe = listenSignalLive((event) => {
+     console.log("Event:", event.action);
+   });
+
+   // Listen once with filter
+   listenSignalLiveOnce(
+     (event) => event.action === "closed" && event.closeReason === "stop_loss",
+     (event) => console.log("Stop loss hit!")
+   );
+   ```
+
+6. **Background execution**:
+   ```typescript
+   import { Live } from "backtest-kit";
+
+   // Run in background, returns stop function
+   const stop = await Live.background("BTCUSDT", {
+     strategyName: "my-strategy",
+     exchangeName: "binance"
+   });
+
+   // Stop when needed
+   stop();
+   ```
+
+7. **Markdown reports**:
+   ```typescript
+   import { Live } from "backtest-kit";
+
+   // Generate report
+   const markdown = await Live.getReport("my-strategy");
+
+   // Save to disk
+   await Live.dump("my-strategy", "./reports");
+
+   // Clear data
+   await Live.clear("my-strategy");
    ```
 
 ## Testing Strategy
