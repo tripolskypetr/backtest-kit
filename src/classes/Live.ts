@@ -1,3 +1,4 @@
+import { IStrategyTickResultClosed, IStrategyTickResultOpened } from "../interfaces/Strategy.interface";
 import backtest from "../lib";
 
 const LIVE_METHOD_NAME_RUN = "LiveUtils.run";
@@ -66,7 +67,7 @@ export class LiveUtils {
    *
    * @param symbol - Trading pair symbol (e.g., "BTCUSDT")
    * @param context - Execution context with strategy and exchange names
-   * @returns Promise that never resolves (infinite loop)
+   * @returns Cancellation closure
    *
    * @example
    * ```typescript
@@ -90,12 +91,26 @@ export class LiveUtils {
       context,
     });
     const iterator = this.run(symbol, context);
-    while (true) {
-      const { done } = await iterator.next();
-      if (done) {
-        break;
+    let isStopped = false;
+    let lastValue: IStrategyTickResultOpened | IStrategyTickResultClosed | null = null;
+    const task = async () => {
+      while (true) {
+        const { value, done } = await iterator.next();
+        if (value) {
+          lastValue = value;
+        }
+        if (done) {
+          break;
+        }
+        if (lastValue?.action === "closed" && isStopped) {
+          break;
+        }
       }
     }
+    task();
+    return () => {
+      isStopped = true;
+    };
   };
 }
 

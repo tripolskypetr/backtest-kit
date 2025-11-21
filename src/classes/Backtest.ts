@@ -53,7 +53,7 @@ export class BacktestUtils {
    *
    * @param symbol - Trading pair symbol (e.g., "BTCUSDT")
    * @param context - Execution context with strategy, exchange, and frame names
-   * @returns Promise that resolves when backtest completes
+   * @returns Cancellation closure
    *
    * @example
    * ```typescript
@@ -79,11 +79,21 @@ export class BacktestUtils {
       context,
     });
     const iterator = this.run(symbol, context);
-    while (true) {
-      const { done } = await iterator.next();
-      if (done) {
-        break;
+    let isStopped = false;
+    const task = async () => {
+      while (true) {
+        const { done } = await iterator.next();
+        if (done) {
+          break;
+        }
+        if (isStopped) {
+          break;
+        }
       }
+    }
+    task();
+    return () => {
+      isStopped = true;
     }
   };
 }
