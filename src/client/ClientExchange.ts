@@ -135,11 +135,25 @@ export class ClientExchange implements IExchange {
 
     const data = await this.params.getCandles(symbol, interval, since, limit);
 
-    if (this.params.callbacks?.onCandleData) {
-      this.params.callbacks.onCandleData(symbol, interval, since, limit, data);
+    // Filter candles to strictly match the requested range
+    const sinceTimestamp = since.getTime();
+
+    const filteredData = data.filter(
+      (candle) =>
+        candle.timestamp >= sinceTimestamp && candle.timestamp <= endTime
+    );
+
+    if (filteredData.length < limit) {
+      this.params.logger.warn(
+        `ClientExchange getNextCandles: Expected ${limit} candles, got ${filteredData.length}`
+      );
     }
 
-    return data;
+    if (this.params.callbacks?.onCandleData) {
+      this.params.callbacks.onCandleData(symbol, interval, since, limit, filteredData);
+    }
+
+    return filteredData;
   }
 
   /**
