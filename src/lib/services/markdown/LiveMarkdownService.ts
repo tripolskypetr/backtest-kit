@@ -137,7 +137,7 @@ const columns: Column[] = [
 ];
 
 /** Maximum number of events to store in live trading reports */
-const MAX_EVENTS = 25;
+const MAX_EVENTS = 250;
 
 /**
  * Storage class for accumulating all tick events per strategy.
