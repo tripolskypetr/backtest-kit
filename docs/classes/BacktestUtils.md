@@ -29,7 +29,7 @@ Runs backtest for a symbol with context propagation.
 ### background
 
 ```ts
-background: (symbol: string, context: { strategyName: string; exchangeName: string; frameName: string; }) => Promise<() => void>
+background: (symbol: string, context: { strategyName: string; exchangeName: string; frameName: string; }) => () => void
 ```
 
 Runs backtest in background without yielding results.

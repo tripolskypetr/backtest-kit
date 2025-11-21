@@ -37,7 +37,7 @@ Process can crash and restart - state will be recovered from disk.
 ### background
 
 ```ts
-background: (symbol: string, context: { strategyName: string; exchangeName: string; }) => Promise<() => void>
+background: (symbol: string, context: { strategyName: string; exchangeName: string; }) => () => void
 ```
 
 Runs live trading in background without yielding results.
