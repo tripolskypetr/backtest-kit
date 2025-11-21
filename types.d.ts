@@ -225,6 +225,131 @@ interface IExchange {
 type ExchangeName = string;
 
 /**
+ * Timeframe interval for backtest period generation.
+ * Determines the granularity of timestamps in the generated timeframe array.
+ *
+ * Minutes: 1m, 3m, 5m, 15m, 30m
+ * Hours: 1h, 2h, 4h, 6h, 8h, 12h
+ * Days: 1d, 3d
+ */
+type FrameInterval = "1m" | "3m" | "5m" | "15m" | "30m" | "1h" | "2h" | "4h" | "6h" | "8h" | "12h" | "1d" | "3d";
+/**
+ * Frame parameters passed to ClientFrame constructor.
+ * Extends IFrameSchema with logger instance for internal logging.
+ */
+interface IFrameParams extends IFrameSchema {
+    /** Logger service for debug output */
+    logger: ILogger;
+}
+/**
+ * Callbacks for frame lifecycle events.
+ */
+interface IFrameCallbacks {
+    /**
+     * Called after timeframe array generation.
+     * Useful for logging or validating the generated timeframes.
+     *
+     * @param timeframe - Array of Date objects representing tick timestamps
+     * @param startDate - Start of the backtest period
+     * @param endDate - End of the backtest period
+     * @param interval - Interval used for generation
+     */
+    onTimeframe: (timeframe: Date[], startDate: Date, endDate: Date, interval: FrameInterval) => void;
+}
+/**
+ * Frame schema registered via addFrame().
+ * Defines backtest period and interval for timestamp generation.
+ *
+ * @example
+ * ```typescript
+ * addFrame({
+ *   frameName: "1d-backtest",
+ *   interval: "1m",
+ *   startDate: new Date("2024-01-01T00:00:00Z"),
+ *   endDate: new Date("2024-01-02T00:00:00Z"),
+ *   callbacks: {
+ *     onTimeframe: (timeframe, startDate, endDate, interval) => {
+ *       console.log(`Generated ${timeframe.length} timestamps`);
+ *     },
+ *   },
+ * });
+ * ```
+ */
+interface IFrameSchema {
+    /** Unique identifier for this frame */
+    frameName: FrameName;
+    /** Interval for timestamp generation */
+    interval: FrameInterval;
+    /** Start of backtest period (inclusive) */
+    startDate: Date;
+    /** End of backtest period (inclusive) */
+    endDate: Date;
+    /** Optional lifecycle callbacks */
+    callbacks?: Partial<IFrameCallbacks>;
+}
+/**
+ * Frame interface for timeframe generation.
+ * Used internally by backtest orchestration.
+ */
+interface IFrame {
+    /**
+     * Generates array of timestamps for backtest iteration.
+     * Timestamps are spaced according to the configured interval.
+     *
+     * @param symbol - Trading pair symbol (unused, for API consistency)
+     * @returns Promise resolving to array of Date objects
+     */
+    getTimeframe: (symbol: string) => Promise<Date[]>;
+}
+/**
+ * Unique identifier for a frame schema.
+ * Used to retrieve frame instances via dependency injection.
+ */
+type FrameName = string;
+
+/**
+ * Method context containing schema names for operation routing.
+ *
+ * Propagated through MethodContextService to provide implicit context
+ * for retrieving correct strategy/exchange/frame instances.
+ */
+interface IMethodContext {
+    /** Name of exchange schema to use */
+    exchangeName: ExchangeName;
+    /** Name of strategy schema to use */
+    strategyName: StrategyName;
+    /** Name of frame schema to use (empty string for live mode) */
+    frameName: FrameName;
+}
+/**
+ * Scoped service for method context propagation.
+ *
+ * Uses di-scoped for implicit context passing without explicit parameters.
+ * Context includes strategyName, exchangeName, and frameName.
+ *
+ * Used by PublicServices to inject schema names into ConnectionServices.
+ *
+ * @example
+ * ```typescript
+ * MethodContextService.runAsyncIterator(
+ *   backtestGenerator,
+ *   {
+ *     strategyName: "my-strategy",
+ *     exchangeName: "my-exchange",
+ *     frameName: "1d-backtest"
+ *   }
+ * );
+ * ```
+ */
+declare const MethodContextService: (new () => {
+    readonly context: IMethodContext;
+}) & Omit<{
+    new (context: IMethodContext): {
+        readonly context: IMethodContext;
+    };
+}, "prototype"> & di_scoped.IScopedClassRun<[context: IMethodContext]>;
+
+/**
  * Signal generation interval for throttling.
  * Enforces minimum time between getSignal calls.
  */
@@ -396,89 +521,6 @@ interface IStrategy {
  * Unique strategy identifier.
  */
 type StrategyName = string;
-
-/**
- * Timeframe interval for backtest period generation.
- * Determines the granularity of timestamps in the generated timeframe array.
- *
- * Minutes: 1m, 3m, 5m, 15m, 30m
- * Hours: 1h, 2h, 4h, 6h, 8h, 12h
- * Days: 1d, 3d
- */
-type FrameInterval = "1m" | "3m" | "5m" | "15m" | "30m" | "1h" | "2h" | "4h" | "6h" | "8h" | "12h" | "1d" | "3d";
-/**
- * Frame parameters passed to ClientFrame constructor.
- * Extends IFrameSchema with logger instance for internal logging.
- */
-interface IFrameParams extends IFrameSchema {
-    /** Logger service for debug output */
-    logger: ILogger;
-}
-/**
- * Callbacks for frame lifecycle events.
- */
-interface IFrameCallbacks {
-    /**
-     * Called after timeframe array generation.
-     * Useful for logging or validating the generated timeframes.
-     *
-     * @param timeframe - Array of Date objects representing tick timestamps
-     * @param startDate - Start of the backtest period
-     * @param endDate - End of the backtest period
-     * @param interval - Interval used for generation
-     */
-    onTimeframe: (timeframe: Date[], startDate: Date, endDate: Date, interval: FrameInterval) => void;
-}
-/**
- * Frame schema registered via addFrame().
- * Defines backtest period and interval for timestamp generation.
- *
- * @example
- * ```typescript
- * addFrame({
- *   frameName: "1d-backtest",
- *   interval: "1m",
- *   startDate: new Date("2024-01-01T00:00:00Z"),
- *   endDate: new Date("2024-01-02T00:00:00Z"),
- *   callbacks: {
- *     onTimeframe: (timeframe, startDate, endDate, interval) => {
- *       console.log(`Generated ${timeframe.length} timestamps`);
- *     },
- *   },
- * });
- * ```
- */
-interface IFrameSchema {
-    /** Unique identifier for this frame */
-    frameName: FrameName;
-    /** Interval for timestamp generation */
-    interval: FrameInterval;
-    /** Start of backtest period (inclusive) */
-    startDate: Date;
-    /** End of backtest period (inclusive) */
-    endDate: Date;
-    /** Optional lifecycle callbacks */
-    callbacks?: Partial<IFrameCallbacks>;
-}
-/**
- * Frame interface for timeframe generation.
- * Used internally by backtest orchestration.
- */
-interface IFrame {
-    /**
-     * Generates array of timestamps for backtest iteration.
-     * Timestamps are spaced according to the configured interval.
-     *
-     * @param symbol - Trading pair symbol (unused, for API consistency)
-     * @returns Promise resolving to array of Date objects
-     */
-    getTimeframe: (symbol: string) => Promise<Date[]>;
-}
-/**
- * Unique identifier for a frame schema.
- * Used to retrieve frame instances via dependency injection.
- */
-type FrameName = string;
 
 /**
  * Registers a trading strategy in the framework.
@@ -829,48 +871,6 @@ declare function getDate(): Promise<Date>;
  * ```
  */
 declare function getMode(): Promise<"backtest" | "live">;
-
-/**
- * Method context containing schema names for operation routing.
- *
- * Propagated through MethodContextService to provide implicit context
- * for retrieving correct strategy/exchange/frame instances.
- */
-interface IMethodContext {
-    /** Name of exchange schema to use */
-    exchangeName: ExchangeName;
-    /** Name of strategy schema to use */
-    strategyName: StrategyName;
-    /** Name of frame schema to use (empty string for live mode) */
-    frameName: FrameName;
-}
-/**
- * Scoped service for method context propagation.
- *
- * Uses di-scoped for implicit context passing without explicit parameters.
- * Context includes strategyName, exchangeName, and frameName.
- *
- * Used by PublicServices to inject schema names into ConnectionServices.
- *
- * @example
- * ```typescript
- * MethodContextService.runAsyncIterator(
- *   backtestGenerator,
- *   {
- *     strategyName: "my-strategy",
- *     exchangeName: "my-exchange",
- *     frameName: "1d-backtest"
- *   }
- * );
- * ```
- */
-declare const MethodContextService: (new () => {
-    readonly context: IMethodContext;
-}) & Omit<{
-    new (context: IMethodContext): {
-        readonly context: IMethodContext;
-    };
-}, "prototype"> & di_scoped.IScopedClassRun<[context: IMethodContext]>;
 
 declare const BASE_WAIT_FOR_INIT_SYMBOL: unique symbol;
 /**
@@ -2122,7 +2122,7 @@ declare class BacktestMarkdownService {
      * }
      * ```
      */
-    tick: (data: IStrategyTickResultOpened | IStrategyTickResultClosed) => Promise<void>;
+    tick: (data: IStrategyTickResult) => Promise<void>;
     /**
      * Generates markdown report with all closed signals for a strategy.
      * Delegates to ReportStorage.generateReport().

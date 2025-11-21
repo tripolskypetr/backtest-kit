@@ -41,7 +41,7 @@ Each strategy gets its own isolated storage instance.
 ### tick
 
 ```ts
-tick: (data: IStrategyTickResultOpened | IStrategyTickResultClosed) => Promise<void>
+tick: (data: IStrategyTickResult) => Promise<void>
 ```
 
 Processes tick events and accumulates closed signals.

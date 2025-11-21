@@ -1,13 +1,13 @@
 import { writeFile, mkdir } from "fs/promises";
 import { join } from "path";
 import {
+  IStrategyTickResult,
   IStrategyTickResultClosed,
-  IStrategyTickResultOpened,
   StrategyName,
 } from "../../../interfaces/Strategy.interface";
-import { inject } from "src/lib/core/di";
+import { inject } from "../../../lib/core/di";
 import LoggerService from "../base/LoggerService";
-import TYPES from "src/lib/core/types";
+import TYPES from "../../../lib/core/types";
 import { memoize, str } from "functools-kit";
 
 /**
@@ -156,7 +156,10 @@ class ReportStorage {
    * @param strategyName - Strategy name
    * @param path - Directory path to save report (default: "./logs/backtest")
    */
-  public async dump(strategyName: StrategyName, path = "./logs/backtest"): Promise<void> {
+  public async dump(
+    strategyName: StrategyName,
+    path = "./logs/backtest"
+  ): Promise<void> {
     const markdown = this.getReport(strategyName);
 
     try {
@@ -233,9 +236,7 @@ export class BacktestMarkdownService {
    * }
    * ```
    */
-  public tick = async (
-    data: IStrategyTickResultOpened | IStrategyTickResultClosed
-  ) => {
+  public tick = async (data: IStrategyTickResult) => {
     this.loggerService.log("backtestMarkdownService tick", {
       data,
     });
@@ -287,7 +288,10 @@ export class BacktestMarkdownService {
    * await service.dump("my-strategy", "./custom/path");
    * ```
    */
-  public dump = async (strategyName: StrategyName, path = "./logs/backtest"): Promise<void> => {
+  public dump = async (
+    strategyName: StrategyName,
+    path = "./logs/backtest"
+  ): Promise<void> => {
     const storage = this.getStorage(strategyName);
     await storage.dump(strategyName, path);
   };

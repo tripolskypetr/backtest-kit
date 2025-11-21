@@ -1,4 +1,4 @@
-import { TMethodContextService } from "src/lib/services/context/MethodContextService";
+import { TMethodContextService } from "../lib/services/context/MethodContextService";
 import { TExecutionContextService } from "../lib/services/context/ExecutionContextService";
 import { IExchange, ICandleData, ExchangeName } from "./Exchange.interface";
 import { ILogger } from "./Logger.interface";
