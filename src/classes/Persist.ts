@@ -124,11 +124,11 @@ const BASE_WAIT_FOR_INIT_FN = async (self: TPersistBase): Promise<void> => {
     } catch {
       const filePath = self._getFilePath(key);
       console.error(
-        `agent-swarm PersistBase found invalid document for filePath=${filePath} entityName=${self.entityName}`
+        `backtest-kit PersistBase found invalid document for filePath=${filePath} entityName=${self.entityName}`
       );
       if (await not(BASE_WAIT_FOR_INIT_UNLINK_FN(filePath))) {
         console.error(
-          `agent-swarm PersistBase failed to remove invalid document for filePath=${filePath} entityName=${self.entityName}`
+          `backtest-kit PersistBase failed to remove invalid document for filePath=${filePath} entityName=${self.entityName}`
         );
       }
     }
@@ -144,7 +144,7 @@ const BASE_WAIT_FOR_INIT_UNLINK_FN = async (filePath: string) =>
           return true;
         } catch (error) {
           console.error(
-            `agent-swarm PersistBase unlink failed for filePath=${filePath} error=${getErrorMessage(
+            `backtest-kit PersistBase unlink failed for filePath=${filePath} error=${getErrorMessage(
               error
             )}`
           );
