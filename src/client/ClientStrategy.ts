@@ -255,10 +255,20 @@ export class ClientStrategy implements IStrategy {
           );
         }
 
-        return {
+        const result: IStrategyTickResult = {
           action: "opened",
           signal: this._pendingSignal,
         };
+
+        if (this.params.callbacks?.onTick) {
+          this.params.callbacks.onTick(
+            this.params.execution.context.symbol,
+            result,
+            this.params.execution.context.backtest,
+          );
+        }
+
+        return result;
       }
 
       if (this.params.callbacks?.onIdle) {
@@ -272,10 +282,20 @@ export class ClientStrategy implements IStrategy {
         );
       }
 
-      return {
+      const result: IStrategyTickResult = {
         action: "idle",
         signal: null,
       };
+
+      if (this.params.callbacks?.onTick) {
+        this.params.callbacks.onTick(
+          this.params.execution.context.symbol,
+          result,
+          this.params.execution.context.backtest,
+        );
+      }
+
+      return result;
     }
 
     const when = this.params.execution.context.when;
@@ -365,7 +385,7 @@ export class ClientStrategy implements IStrategy {
 
       await this.setPendingSignal(null);
 
-      return {
+      const result: IStrategyTickResult = {
         action: "closed",
         signal: signal,
         currentPrice: averagePrice,
@@ -373,6 +393,16 @@ export class ClientStrategy implements IStrategy {
         closeTimestamp: closeTimestamp,
         pnl: pnl,
       };
+
+      if (this.params.callbacks?.onTick) {
+        this.params.callbacks.onTick(
+          this.params.execution.context.symbol,
+          result,
+          this.params.execution.context.backtest,
+        );
+      }
+
+      return result;
     }
 
     if (this.params.callbacks?.onActive) {
@@ -384,11 +414,21 @@ export class ClientStrategy implements IStrategy {
       );
     }
 
-    return {
+    const result: IStrategyTickResult = {
       action: "active",
       signal: signal,
       currentPrice: averagePrice,
     };
+
+    if (this.params.callbacks?.onTick) {
+      this.params.callbacks.onTick(
+        this.params.execution.context.symbol,
+        result,
+        this.params.execution.context.backtest,
+      );
+    }
+
+    return result;
   }
 
   /**
@@ -500,7 +540,7 @@ export class ClientStrategy implements IStrategy {
 
         await this.setPendingSignal(null);
 
-        return {
+        const result: IStrategyBacktestResult = {
           action: "closed",
           signal: signal,
           currentPrice: averagePrice,
@@ -508,6 +548,16 @@ export class ClientStrategy implements IStrategy {
           closeTimestamp: closeTimestamp,
           pnl: pnl,
         };
+
+        if (this.params.callbacks?.onTick) {
+          this.params.callbacks.onTick(
+            this.params.execution.context.symbol,
+            result,
+            this.params.execution.context.backtest,
+          );
+        }
+
+        return result;
       }
     }
 
@@ -545,7 +595,7 @@ export class ClientStrategy implements IStrategy {
 
     await this.setPendingSignal(null);
 
-    return {
+    const result: IStrategyBacktestResult = {
       action: "closed",
       signal: signal,
       currentPrice: lastPrice,
@@ -553,6 +603,16 @@ export class ClientStrategy implements IStrategy {
       closeTimestamp: closeTimestamp,
       pnl: pnl,
     };
+
+    if (this.params.callbacks?.onTick) {
+      this.params.callbacks.onTick(
+        this.params.execution.context.symbol,
+        result,
+        this.params.execution.context.backtest,
+      );
+    }
+
+    return result;
   }
 }
 

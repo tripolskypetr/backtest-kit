@@ -71,6 +71,8 @@ export interface IStrategyParams extends IStrategySchema {
  * Called when signals are opened, active, idle, or closed.
  */
 export interface IStrategyCallbacks {
+  /** Called on every tick with the result */
+  onTick: (symbol: string, result: IStrategyTickResult, backtest: boolean) => void;
   /** Called when new signal is opened (after validation) */
   onOpen: (symbol: string, data: ISignalRow, currentPrice: number, backtest: boolean) => void;
   /** Called when signal is being monitored (active state) */
