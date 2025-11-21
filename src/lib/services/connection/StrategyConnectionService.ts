@@ -14,6 +14,7 @@ import {
 import StrategySchemaService from "../schema/StrategySchemaService";
 import ExchangeConnectionService from "./ExchangeConnectionService";
 import { TMethodContextService } from "../context/MethodContextService";
+import { signalEmitter } from "../../../config/emitters";
 
 /**
  * Connection service routing strategy operations to correct ClientStrategy instance.
@@ -90,7 +91,11 @@ export class StrategyConnectionService implements IStrategy {
       this.methodContextService.context.strategyName
     );
     await strategy.waitForInit();
-    return await strategy.tick();
+    const tick = await strategy.tick();
+    if (!this.executionContextService.context.backtest) {
+      signalEmitter.next(tick);
+    }
+    return tick;
   };
 
   /**
@@ -110,7 +115,11 @@ export class StrategyConnectionService implements IStrategy {
       this.methodContextService.context.strategyName
     );
     await strategy.waitForInit();
-    return await strategy.backtest(candles);
+    const tick = await strategy.backtest(candles);
+    if (!this.executionContextService.context.backtest) {
+      signalEmitter.next(tick);
+    }
+    return tick;
   };
 }
 
