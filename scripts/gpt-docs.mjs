@@ -46,16 +46,22 @@ const HEADER_CONTENT =
   "* **Crash-Safe Persistence:** Atomic file writes with automatic state recovery for live trading\n" +
   "* **Async Generators:** Memory-efficient streaming for backtest and live execution\n" +
   "* **Accurate PNL:** Calculation with fees (0.1%) and slippage (0.1%) for realistic simulations\n" +
+  "* **Event System:** Signal emitters for backtest/live/global signals, errors, and completion events\n" +
+  "* **Graceful Shutdown:** Live.background() waits for open positions to close before stopping\n" +
+  "* **Pluggable Persistence:** Custom adapters for Redis, MongoDB, or any storage backend\n" +
   "\n" +
   "**Architecture Layers:**\n" +
   "\n" +
   "* **Client Layer:** Pure business logic without DI (ClientStrategy, ClientExchange, ClientFrame) using prototype methods for memory efficiency\n" +
   "* **Service Layer:** DI-based services organized by responsibility:\n" +
-  "  * **Schema Services:** Registry pattern for configuration (StrategySchemaService, ExchangeSchemaService, FrameSchemaService)\n" +
+  "  * **Schema Services:** Registry pattern for configuration with shallow validation (StrategySchemaService, ExchangeSchemaService, FrameSchemaService)\n" +
+  "  * **Validation Services:** Runtime existence validation with memoization (StrategyValidationService, ExchangeValidationService, FrameValidationService)\n" +
   "  * **Connection Services:** Memoized client instance creators (StrategyConnectionService, ExchangeConnectionService, FrameConnectionService)\n" +
   "  * **Global Services:** Context wrappers for public API (StrategyGlobalService, ExchangeGlobalService, FrameGlobalService)\n" +
   "  * **Logic Services:** Async generator orchestration (BacktestLogicPrivateService, LiveLogicPrivateService)\n" +
-  "* **Persistence Layer:** Crash-safe atomic file writes with PersistSignalAdaper\n" +
+  "  * **Markdown Services:** Auto-generated reports with tick-based event log (BacktestMarkdownService, LiveMarkdownService)\n" +
+  "* **Persistence Layer:** Crash-safe atomic file writes with PersistSignalAdaper, extensible via PersistBase\n" +
+  "* **Event Layer:** Subject-based emitters (signalEmitter, errorEmitter, doneEmitter) with queued async processing\n" +
   "\n" +
   "**Key Design Patterns:**\n" +
   "\n" +
@@ -67,28 +73,45 @@ const HEADER_CONTENT =
   "* **Registry Pattern:** Schema services use ToolRegistry for configuration management\n" +
   "* **Singleshot Initialization:** One-time operations with cached promise results\n" +
   "* **Persist-and-Restart:** Stateless process design with disk-based state recovery\n" +
+  "* **Pluggable Adapters:** PersistBase as base class for custom storage backends\n" +
+  "* **Queued Processing:** Sequential event handling with functools-kit queued wrapper\n" +
   "\n" +
   "**Data Flow (Backtest):**\n" +
   "\n" +
-  "1. User calls BacktestLogicPrivateService.run(symbol)\n" +
-  "2. Async generator with yield streams results\n" +
-  "3. MethodContextService.runInContext sets strategyName, exchangeName, frameName\n" +
-  "4. Loop through timeframes, call StrategyGlobalService.tick()\n" +
-  "5. ExecutionContextService.runInContext sets symbol, when, backtest flag\n" +
-  "6. ClientStrategy.tick() checks VWAP against TP/SL conditions\n" +
-  "7. If opened: fetch candles and call ClientStrategy.backtest(candles)\n" +
-  "8. Yield closed result and skip timeframes until closeTimestamp\n" +
+  "1. User calls Backtest.background(symbol, context) or Backtest.run(symbol, context)\n" +
+  "2. Validation services check strategyName, exchangeName, frameName existence\n" +
+  "3. BacktestLogicPrivateService.run(symbol) creates async generator with yield\n" +
+  "4. MethodContextService.runInContext sets strategyName, exchangeName, frameName\n" +
+  "5. Loop through timeframes, call StrategyGlobalService.tick()\n" +
+  "6. ExecutionContextService.runInContext sets symbol, when, backtest=true\n" +
+  "7. ClientStrategy.tick() checks VWAP against TP/SL conditions\n" +
+  "8. If opened: fetch candles and call ClientStrategy.backtest(candles)\n" +
+  "9. Yield closed result and skip timeframes until closeTimestamp\n" +
+  "10. Emit signals via signalEmitter, signalBacktestEmitter\n" +
+  "11. On completion emit doneEmitter with { backtest: true, symbol, strategyName, exchangeName }\n" +
   "\n" +
   "**Data Flow (Live):**\n" +
   "\n" +
-  "1. User calls LiveLogicPrivateService.run(symbol)\n" +
-  "2. Infinite async generator with while(true) loop\n" +
-  "3. MethodContextService.runInContext sets schema names\n" +
-  "4. Loop: create when = new Date(), call StrategyGlobalService.tick()\n" +
-  "5. ClientStrategy.waitForInit() loads persisted signal state\n" +
-  "6. ClientStrategy.tick() with interval throttling and validation\n" +
-  "7. setPendingSignal() persists state to disk automatically\n" +
-  "8. Yield opened and closed results, sleep(TICK_TTL) between ticks\n" +
+  "1. User calls Live.background(symbol, context) or Live.run(symbol, context)\n" +
+  "2. Validation services check strategyName, exchangeName existence\n" +
+  "3. LiveLogicPrivateService.run(symbol) creates infinite async generator with while(true)\n" +
+  "4. MethodContextService.runInContext sets schema names\n" +
+  "5. Loop: create when = new Date(), call StrategyGlobalService.tick()\n" +
+  "6. ClientStrategy.waitForInit() loads persisted signal state from PersistSignalAdaper\n" +
+  "7. ClientStrategy.tick() with interval throttling and validation\n" +
+  "8. setPendingSignal() persists state via PersistSignalAdaper.writeSignalData()\n" +
+  "9. Yield opened and closed results, sleep(TICK_TTL) between ticks\n" +
+  "10. Emit signals via signalEmitter, signalLiveEmitter\n" +
+  "11. On stop() call: wait for lastValue?.action === 'closed' before breaking loop (graceful shutdown)\n" +
+  "12. On completion emit doneEmitter with { backtest: false, symbol, strategyName, exchangeName }\n" +
+  "\n" +
+  "**Event System:**\n" +
+  "\n" +
+  "* **Signal Events:** listenSignal, listenSignalBacktest, listenSignalLive for tick results (idle/opened/active/closed)\n" +
+  "* **Error Events:** listenError for background execution errors (Live.background, Backtest.background)\n" +
+  "* **Completion Events:** listenDone, listenDoneOnce for background execution completion with DoneContract\n" +
+  "* **Queued Processing:** All listeners use queued wrapper from functools-kit for sequential async execution\n" +
+  "* **Filter Predicates:** Once listeners (listenSignalOnce, listenDoneOnce) accept filter function for conditional triggering\n" +
   "\n" +
   "**Performance Optimizations:**\n" +
   "\n" +
@@ -100,6 +123,8 @@ const HEADER_CONTENT =
   "* Async generators stream without array accumulation\n" +
   "* Interval throttling prevents excessive signal generation\n" +
   "* Singleshot initialization runs exactly once per instance\n" +
+  "* LiveMarkdownService bounded queue (MAX_EVENTS = 25) prevents memory leaks\n" +
+  "* Smart idle event replacement (only replaces if no open/active signals after last idle)\n" +
   "\n" +
   "**Use Cases:**\n" +
   "\n" +
@@ -107,7 +132,9 @@ const HEADER_CONTENT =
   "* Strategy research and hypothesis testing on historical data\n" +
   "* Signal generation with ML models or technical indicators\n" +
   "* Portfolio management tracking multiple strategies across symbols\n" +
-  "* Educational projects for learning trading system architecture\n";
+  "* Educational projects for learning trading system architecture\n" +
+  "* Event-driven trading bots with real-time notifications (Telegram, Discord, email)\n" +
+  "* Multi-exchange trading with pluggable exchange adapters\n";
 
 console.log("Loading model");
 
