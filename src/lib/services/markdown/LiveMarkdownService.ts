@@ -360,22 +360,22 @@ class ReportStorage {
       totalClosed > 0
         ? `**Win rate:** ${((winCount / totalClosed) * 100).toFixed(
             2
-          )}% (${winCount}W / ${lossCount}L)`
+          )}% (${winCount}W / ${lossCount}L) (higher is better)`
         : "",
       totalClosed > 0
-        ? `**Average PNL:** ${avgPnl > 0 ? "+" : ""}${avgPnl.toFixed(2)}%`
+        ? `**Average PNL:** ${avgPnl > 0 ? "+" : ""}${avgPnl.toFixed(2)}% (higher is better)`
         : "",
       totalClosed > 0
-        ? `**Total PNL:** ${totalPnl > 0 ? "+" : ""}${totalPnl.toFixed(2)}%`
+        ? `**Total PNL:** ${totalPnl > 0 ? "+" : ""}${totalPnl.toFixed(2)}% (higher is better)`
         : "",
       totalClosed > 0
-        ? `**Standard Deviation:** ${stdDev.toFixed(3)}%`
+        ? `**Standard Deviation:** ${stdDev.toFixed(3)}% (lower is better)`
         : "",
       totalClosed > 0
-        ? `**Sharpe Ratio:** ${sharpeRatio.toFixed(3)}`
+        ? `**Sharpe Ratio:** ${sharpeRatio.toFixed(3)} (higher is better)`
         : "",
       totalClosed > 0
-        ? `**Certainty Ratio:** ${certaintyRatio.toFixed(3)}`
+        ? `**Certainty Ratio:** ${certaintyRatio.toFixed(3)} (higher is better)`
         : "",
     );
   }

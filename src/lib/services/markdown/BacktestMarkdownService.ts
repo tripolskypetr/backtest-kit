@@ -173,12 +173,12 @@ class ReportStorage {
       "",
       `**Total signals:** ${totalSignals}`,
       `**Closed signals:** ${totalSignals}`,
-      `**Win rate:** ${((winCount / totalSignals) * 100).toFixed(2)}% (${winCount}W / ${lossCount}L)`,
-      `**Average PNL:** ${avgPnl > 0 ? "+" : ""}${avgPnl.toFixed(2)}%`,
-      `**Total PNL:** ${totalPnl > 0 ? "+" : ""}${totalPnl.toFixed(2)}%`,
-      `**Standard Deviation:** ${stdDev.toFixed(3)}%`,
-      `**Sharpe Ratio:** ${sharpeRatio.toFixed(3)}`,
-      `**Certainty Ratio:** ${certaintyRatio.toFixed(3)}`,
+      `**Win rate:** ${((winCount / totalSignals) * 100).toFixed(2)}% (${winCount}W / ${lossCount}L) (higher is better)`,
+      `**Average PNL:** ${avgPnl > 0 ? "+" : ""}${avgPnl.toFixed(2)}% (higher is better)`,
+      `**Total PNL:** ${totalPnl > 0 ? "+" : ""}${totalPnl.toFixed(2)}% (higher is better)`,
+      `**Standard Deviation:** ${stdDev.toFixed(3)}% (lower is better)`,
+      `**Sharpe Ratio:** ${sharpeRatio.toFixed(3)} (higher is better)`,
+      `**Certainty Ratio:** ${certaintyRatio.toFixed(3)} (higher is better)`,
     );
   }
 
