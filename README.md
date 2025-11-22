@@ -18,7 +18,7 @@
 - 🧠 **Interval Throttling** - Prevents signal spam at strategy level
 - ⚡ **Memory Optimized** - Prototype methods + memoization + streaming
 - 🔌 **Flexible Architecture** - Plug your own exchanges and strategies
-- 📝 **Markdown Reports** - Auto-generated trading reports with statistics (win rate, avg PNL, Sharpe Ratio, Standard Deviation, Certainty Ratio)
+- 📝 **Markdown Reports** - Auto-generated trading reports with statistics (win rate, avg PNL, Sharpe Ratio, Standard Deviation, Certainty Ratio, Expected Yearly Returns)
 - 🛑 **Graceful Shutdown** - Live.background() waits for open positions to close before stopping
 - 💉 **Strategy Dependency Injection** - addStrategy() enables DI pattern for trading strategies
 - 🔍 **Schema Reflection API** - listExchanges(), listStrategies(), listFrames() for runtime introspection

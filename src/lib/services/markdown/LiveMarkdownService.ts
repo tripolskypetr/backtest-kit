@@ -369,6 +369,19 @@ class ReportStorage {
       certaintyRatio = avgLoss < 0 ? avgWin / Math.abs(avgLoss) : 0;
     }
 
+    // Calculate Expected Yearly Returns
+    // Based on average trade duration and average PNL
+    let expectedYearlyReturns = 0;
+    if (totalClosed > 0) {
+      const avgDurationMin = closedEvents.reduce(
+        (sum, e) => sum + (e.duration || 0),
+        0
+      ) / totalClosed;
+      const avgDurationDays = avgDurationMin / (60 * 24);
+      const tradesPerYear = avgDurationDays > 0 ? 365 / avgDurationDays : 0;
+      expectedYearlyReturns = avgPnl * tradesPerYear;
+    }
+
     const winRate = (winCount / totalClosed) * 100;
 
     return str.newline(
@@ -384,6 +397,7 @@ class ReportStorage {
       `**Standard Deviation:** ${isUnsafe(stdDev) ? "N/A" : `${stdDev.toFixed(3)}% (lower is better)`}`,
       `**Sharpe Ratio:** ${isUnsafe(sharpeRatio) ? "N/A" : `${sharpeRatio.toFixed(3)} (higher is better)`}`,
       `**Certainty Ratio:** ${isUnsafe(certaintyRatio) ? "N/A" : `${certaintyRatio.toFixed(3)} (higher is better)`}`,
+      `**Expected Yearly Returns:** ${isUnsafe(expectedYearlyReturns) ? "N/A" : `${expectedYearlyReturns > 0 ? "+" : ""}${expectedYearlyReturns.toFixed(2)}% (higher is better)`}`,
     );
   }
 
