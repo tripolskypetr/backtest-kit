@@ -95,7 +95,7 @@ export class BacktestUtils {
           break;
         }
       }
-      doneEmitter.next({
+      await doneEmitter.next({
         exchangeName: context.exchangeName,
         strategyName: context.strategyName,
         backtest: true,

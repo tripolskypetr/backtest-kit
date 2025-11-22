@@ -117,7 +117,7 @@ export class LiveUtils {
           break;
         }
       }
-      doneEmitter.next({
+      await doneEmitter.next({
         exchangeName: context.exchangeName,
         strategyName: context.strategyName,
         backtest: false,
