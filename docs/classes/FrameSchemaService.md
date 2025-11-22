@@ -54,7 +54,7 @@ Registers a new frame schema.
 ### override
 
 ```ts
-override(key: FrameName, value: Partial<IFrameSchema>): void;
+override(key: FrameName, value: Partial<IFrameSchema>): IFrameSchema;
 ```
 
 Overrides an existing frame schema with partial updates.

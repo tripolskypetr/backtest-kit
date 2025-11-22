@@ -53,3 +53,25 @@ Runs fast backtest against candle array.
 
 Wraps strategy backtest() with execution context containing symbol,
 timestamp, and backtest mode flag.
+
+### stop
+
+```ts
+stop: (strategyName: string) => Promise<void>
+```
+
+Stops the strategy from generating new signals.
+
+Delegates to StrategyConnectionService.stop() to set internal flag.
+Does not require execution context.
+
+### clear
+
+```ts
+clear: (strategyName: string) => Promise<void>
+```
+
+Clears the memoized ClientStrategy instance from cache.
+
+Delegates to StrategyConnectionService.clear() to remove strategy from cache.
+Forces re-initialization of strategy on next operation.

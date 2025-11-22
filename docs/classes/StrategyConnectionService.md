@@ -90,3 +90,25 @@ Executes backtest for current strategy with provided candles.
 
 Waits for strategy initialization before processing candles.
 Evaluates strategy signals against historical data.
+
+### stop
+
+```ts
+stop: (strategyName: string) => Promise<void>
+```
+
+Stops the specified strategy from generating new signals.
+
+Delegates to ClientStrategy.stop() which sets internal flag to prevent
+getSignal from being called on subsequent ticks.
+
+### clear
+
+```ts
+clear: (strategyName: string) => Promise<void>
+```
+
+Clears the memoized ClientStrategy instance from cache.
+
+Forces re-initialization of strategy on next getStrategy call.
+Useful for resetting strategy state or releasing resources.

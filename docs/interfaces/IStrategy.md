@@ -27,3 +27,16 @@ backtest: (candles: ICandleData[]) => Promise<IStrategyTickResultClosed>
 
 Fast backtest using historical candles.
 Iterates through candles, calculates VWAP, checks TP/SL on each candle.
+
+### stop
+
+```ts
+stop: (symbol: string) => Promise<void>
+```
+
+Stops the strategy from generating new signals.
+
+Sets internal flag to prevent getSignal from being called on subsequent ticks.
+Does NOT force-close active pending signals - they continue monitoring until natural closure (TP/SL/time_expired).
+
+Use case: Graceful shutdown in live trading mode without abandoning open positions.

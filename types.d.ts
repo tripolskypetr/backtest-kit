@@ -536,6 +536,27 @@ interface IStrategy {
      * @returns Promise resolving to closed result (always completes signal)
      */
     backtest: (candles: ICandleData[]) => Promise<IStrategyBacktestResult>;
+    /**
+     * Stops the strategy from generating new signals.
+     *
+     * Sets internal flag to prevent getSignal from being called on subsequent ticks.
+     * Does NOT force-close active pending signals - they continue monitoring until natural closure (TP/SL/time_expired).
+     *
+     * Use case: Graceful shutdown in live trading mode without abandoning open positions.
+     *
+     * @param symbol - Trading pair symbol (e.g., "BTCUSDT")
+     * @returns Promise that resolves immediately when stop flag is set
+     *
+     * @example
+     * ```typescript
+     * // Graceful shutdown in Live.background() cancellation
+     * const cancel = await Live.background("BTCUSDT", { ... });
+     *
+     * // Later: stop new signals, let existing ones close naturally
+     * await cancel();
+     * ```
+     */
+    stop: (symbol: string) => Promise<void>;
 }
 /**
  * Unique strategy identifier.
@@ -1737,6 +1758,25 @@ declare class StrategyConnectionService implements IStrategy {
      * @returns Promise resolving to backtest result (signal or idle)
      */
     backtest: (candles: ICandleData[]) => Promise<IStrategyBacktestResult>;
+    /**
+     * Stops the specified strategy from generating new signals.
+     *
+     * Delegates to ClientStrategy.stop() which sets internal flag to prevent
+     * getSignal from being called on subsequent ticks.
+     *
+     * @param strategyName - Name of strategy to stop
+     * @returns Promise that resolves when stop flag is set
+     */
+    stop: (strategyName: StrategyName) => Promise<void>;
+    /**
+     * Clears the memoized ClientStrategy instance from cache.
+     *
+     * Forces re-initialization of strategy on next getStrategy call.
+     * Useful for resetting strategy state or releasing resources.
+     *
+     * @param strategyName - Name of strategy to clear from cache
+     */
+    clear: (strategyName: StrategyName) => Promise<void>;
 }
 
 /**
@@ -1912,6 +1952,25 @@ declare class StrategyGlobalService {
      * @returns Closed signal result with PNL
      */
     backtest: (symbol: string, candles: ICandleData[], when: Date, backtest: boolean) => Promise<IStrategyBacktestResult>;
+    /**
+     * Stops the strategy from generating new signals.
+     *
+     * Delegates to StrategyConnectionService.stop() to set internal flag.
+     * Does not require execution context.
+     *
+     * @param strategyName - Name of strategy to stop
+     * @returns Promise that resolves when stop flag is set
+     */
+    stop: (strategyName: StrategyName) => Promise<void>;
+    /**
+     * Clears the memoized ClientStrategy instance from cache.
+     *
+     * Delegates to StrategyConnectionService.clear() to remove strategy from cache.
+     * Forces re-initialization of strategy on next operation.
+     *
+     * @param strategyName - Name of strategy to clear from cache
+     */
+    clear: (strategyName: StrategyName) => Promise<void>;
 }
 
 /**
