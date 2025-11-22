@@ -27,7 +27,7 @@ export class FrameSchemaService {
   public register(key: FrameName, value: IFrameSchema) {
     this.loggerService.log(`frameSchemaService register`, { key });
     this.validateShallow(value);
-    this._registry.register(key, value);
+    this._registry = this._registry.register(key, value);
   }
 
   /**
@@ -81,7 +81,8 @@ export class FrameSchemaService {
    */
   public override(key: FrameName, value: Partial<IFrameSchema>) {
     this.loggerService.log(`frameSchemaService override`, { key });
-    this._registry.override(key, value);
+    this._registry = this._registry.override(key, value);
+    return this._registry.get(key);
   }
 
   /**
