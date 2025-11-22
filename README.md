@@ -306,7 +306,7 @@ import { PersistBase, PersistSignalAdaper, ISignalData, EntityId } from "backtes
 import Redis from "ioredis";
 
 // Create custom Redis adapter
-class RedisPersist extends PersistBase<string, ISignalData> {
+class RedisPersist extends PersistBase {
   private redis = new Redis({
     host: "localhost",
     port: 6379,

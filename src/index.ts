@@ -45,6 +45,8 @@ export { ExecutionContextService } from "./lib/services/context/ExecutionContext
 export { MethodContextService } from "./lib/services/context/MethodContextService";
 
 export {
+  ISignalData,
+  EntityId,
   PersistBase,
   TPersistBase,
   IPersistBase,
