@@ -14,7 +14,7 @@
 - 🔄 **Async Generators** - Memory-efficient streaming for backtest and live execution
 - 📊 **VWAP Pricing** - Volume-weighted average price from last 5 1m candles
 - 🎯 **Signal Lifecycle** - Type-safe state machine (idle → opened → active → closed)
-- 📉 **Accurate PNL** - Calculation with fees (0.1%) and slippage (0.1%)
+- 📈  **Accurate PNL** - Calculation with fees (0.1%) and slippage (0.1%)
 - 🧠 **Interval Throttling** - Prevents signal spam at strategy level
 - ⚡ **Memory Optimized** - Prototype methods + memoization + streaming
 - 🔌 **Flexible Architecture** - Plug your own exchanges and strategies
