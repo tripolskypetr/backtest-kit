@@ -830,23 +830,6 @@ src/
 
 ## Advanced Examples
 
-### Custom Persistence Adapter
-
-```typescript
-import { PersistSignalAdaper, PersistBase } from "backtest-kit";
-
-class RedisPersist extends PersistBase {
-  async readValue(entityId) {
-    return JSON.parse(await redis.get(entityId));
-  }
-  async writeValue(entityId, entity) {
-    await redis.set(entityId, JSON.stringify(entity));
-  }
-}
-
-PersistSignalAdaper.usePersistSignalAdapter(RedisPersist);
-```
-
 ### Multi-Symbol Live Trading
 
 ```typescript

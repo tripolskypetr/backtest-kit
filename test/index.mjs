@@ -1,15 +1,9 @@
+import "./config/setup.mjs"
+
 import { run } from 'worker-testbed';
 
-import { setLogger } from "../build/index.mjs";
-
 import "./spec/exchange.test.mjs";
-
-setLogger({
-    log(){},
-    debug(){},
-    info(){},
-    warn: console.log,
-})
+import "./spec/event.test.mjs";
 
 run(import.meta.url, () => {
     console.log("All tests are finished");
