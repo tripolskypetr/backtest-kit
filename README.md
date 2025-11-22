@@ -145,7 +145,7 @@ addFrame({
 ### 4. Run Backtest
 
 ```typescript
-import { Backtest, listenSignalBacktest, listenError } from "backtest-kit";
+import { Backtest, listenSignalBacktest, listenError, listenDone } from "backtest-kit";
 
 // Run backtest in background
 const stopBacktest = Backtest.background("BTCUSDT", {
@@ -166,15 +166,20 @@ listenError((error) => {
   console.error("Error:", error.message);
 });
 
-// Generate and save report
-const markdown = await Backtest.getReport("my-strategy");
-await Backtest.dump("my-strategy"); // ./logs/backtest/my-strategy.md
+// Listen to completion
+listenDone((event) => {
+  if (event.backtest) {
+    console.log("Backtest completed:", event.symbol);
+    // Generate and save report
+    Backtest.dump(event.strategyName); // ./logs/backtest/my-strategy.md
+  }
+});
 ```
 
 ### 5. Run Live Trading (Crash-Safe)
 
 ```typescript
-import { Live, listenSignalLive, listenError } from "backtest-kit";
+import { Live, listenSignalLive, listenError, listenDone } from "backtest-kit";
 
 // Run live trading in background (infinite loop, crash-safe)
 const stop = Live.background("BTCUSDT", {
@@ -202,6 +207,13 @@ listenSignalLive((event) => {
 // Listen to errors
 listenError((error) => {
   console.error("Error:", error.message);
+});
+
+// Listen to completion
+listenDone((event) => {
+  if (!event.backtest) {
+    console.log("Live trading stopped:", event.symbol);
+  }
 });
 
 // Stop when needed: stop();
@@ -493,8 +505,54 @@ Live.background("BTCUSDT", {
 - `listenSignalBacktestOnce(filter, callback)` - Subscribe to backtest signals once
 - `listenSignalLive(callback)` - Subscribe to live signals only
 - `listenSignalLiveOnce(filter, callback)` - Subscribe to live signals once
+- `listenError(callback)` - Subscribe to background execution errors
+- `listenDone(callback)` - Subscribe to background completion events
+- `listenDoneOnce(filter, callback)` - Subscribe to background completion once
 
 All listeners return an `unsubscribe` function. All callbacks are processed sequentially using queued async execution.
+
+### Listen to Background Completion
+
+```typescript
+import { listenDone, listenDoneOnce, Backtest, Live } from "backtest-kit";
+
+// Listen to all completion events
+listenDone((event) => {
+  console.log("Execution completed:", {
+    mode: event.backtest ? "backtest" : "live",
+    symbol: event.symbol,
+    strategy: event.strategyName,
+    exchange: event.exchangeName,
+  });
+
+  // Auto-generate report on completion
+  if (event.backtest) {
+    Backtest.dump(event.strategyName);
+  } else {
+    Live.dump(event.strategyName);
+  }
+});
+
+// Wait for specific backtest to complete
+listenDoneOnce(
+  (event) => event.backtest && event.symbol === "BTCUSDT",
+  (event) => {
+    console.log("BTCUSDT backtest finished");
+    // Start next backtest or live trading
+    Live.background(event.symbol, {
+      strategyName: event.strategyName,
+      exchangeName: event.exchangeName,
+    });
+  }
+);
+
+// Run backtests
+Backtest.background("BTCUSDT", {
+  strategyName: "my-strategy",
+  exchangeName: "binance",
+  frameName: "1d-backtest"
+});
+```
 
 ## API Reference
 
