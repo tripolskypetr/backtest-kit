@@ -63,6 +63,7 @@ export class LiveUtils {
       symbol,
       context,
     });
+    backtest.liveMarkdownService.clear(context.strategyName);
     return backtest.liveGlobalService.run(symbol, context);
   };
 

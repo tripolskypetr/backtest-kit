@@ -47,6 +47,7 @@ export class BacktestUtils {
       symbol,
       context,
     });
+    backtest.backtestMarkdownService.clear(context.strategyName);
     return backtest.backtestGlobalService.run(symbol, context);
   };
 
