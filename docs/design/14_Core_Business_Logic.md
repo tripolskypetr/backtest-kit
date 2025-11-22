@@ -82,10 +82,6 @@ The `VALIDATE_SIGNAL_FN` performs comprehensive validation of signal parameters 
 
 The `tick()` method implements the main execution loop for signal monitoring. It returns a discriminated union type `IStrategyTickResult` with four possible states:
 
-![Mermaid Diagram](./diagrams/14_Core_Business_Logic_3.svg)
-
-**Implementation Details:**
-
 - **Idle State** ([src/client/ClientStrategy.ts:294-322]()): No signal exists, returns current VWAP
 - **Opened State** ([src/client/ClientStrategy.ts:265-292]()): New signal validated and persisted
 - **Active State** ([src/client/ClientStrategy.ts:437-463]()): Signal being monitored, not yielded in live mode
