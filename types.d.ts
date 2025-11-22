@@ -646,6 +646,36 @@ declare function addExchange(exchangeSchema: IExchangeSchema): void;
 declare function addFrame(frameSchema: IFrameSchema): void;
 
 /**
+ * Contract for background execution completion events.
+ *
+ * Emitted when Live.background() or Backtest.background() completes execution.
+ * Contains metadata about the completed execution context.
+ *
+ * @example
+ * ```typescript
+ * import { listenDone } from "backtest-kit";
+ *
+ * listenDone((event) => {
+ *   if (event.backtest) {
+ *     console.log("Backtest completed:", event.symbol);
+ *   } else {
+ *     console.log("Live trading completed:", event.symbol);
+ *   }
+ * });
+ * ```
+ */
+interface DoneContract {
+    /** exchangeName - Name of the exchange used in execution */
+    exchangeName: string;
+    /** strategyName - Name of the strategy that completed */
+    strategyName: string;
+    /** backtest - True if backtest mode, false if live mode */
+    backtest: boolean;
+    /** symbol - Trading symbol (e.g., "BTCUSDT") */
+    symbol: string;
+}
+
+/**
  * Subscribes to all signal events with queued async processing.
  *
  * Events are processed sequentially in order received, even if callback is async.
@@ -814,6 +844,65 @@ declare function listenSignalBacktestOnce(filterFn: (event: IStrategyTickResult)
  * ```
  */
 declare function listenError(fn: (error: Error) => void): () => void;
+/**
+ * Subscribes to background execution completion events with queued async processing.
+ *
+ * Emits when Live.background() or Backtest.background() completes execution.
+ * Events are processed sequentially in order received, even if callback is async.
+ * Uses queued wrapper to prevent concurrent execution of the callback.
+ *
+ * @param fn - Callback function to handle completion events
+ * @returns Unsubscribe function to stop listening to events
+ *
+ * @example
+ * ```typescript
+ * import { listenDone, Live } from "backtest-kit";
+ *
+ * const unsubscribe = listenDone((event) => {
+ *   console.log("Completed:", event.strategyName, event.exchangeName, event.symbol);
+ *   if (event.backtest) {
+ *     console.log("Backtest mode completed");
+ *   }
+ * });
+ *
+ * Live.background("BTCUSDT", {
+ *   strategyName: "my-strategy",
+ *   exchangeName: "binance"
+ * });
+ *
+ * // Later: stop listening
+ * unsubscribe();
+ * ```
+ */
+declare function listenDone(fn: (event: DoneContract) => void): () => void;
+/**
+ * Subscribes to filtered background execution completion events with one-time execution.
+ *
+ * Emits when Live.background() or Backtest.background() completes execution.
+ * Executes callback once and automatically unsubscribes.
+ *
+ * @param filterFn - Predicate to filter which events trigger the callback
+ * @param fn - Callback function to handle the filtered event (called only once)
+ * @returns Unsubscribe function to cancel the listener before it fires
+ *
+ * @example
+ * ```typescript
+ * import { listenDoneOnce, Backtest } from "backtest-kit";
+ *
+ * // Wait for first backtest completion
+ * listenDoneOnce(
+ *   (event) => event.backtest && event.symbol === "BTCUSDT",
+ *   (event) => console.log("BTCUSDT backtest completed:", event.strategyName)
+ * );
+ *
+ * Backtest.background("BTCUSDT", {
+ *   strategyName: "my-strategy",
+ *   exchangeName: "binance",
+ *   frameName: "1d-backtest"
+ * });
+ * ```
+ */
+declare function listenDoneOnce(filterFn: (event: DoneContract) => boolean, fn: (event: DoneContract) => void): () => void;
 
 /**
  * Fetches historical candle data from the registered exchange.
@@ -2588,4 +2677,4 @@ declare const backtest: {
     loggerService: LoggerService;
 };
 
-export { Backtest, type CandleInterval, ExecutionContextService, type FrameInterval, type ICandleData, type IExchangeSchema, type IFrameSchema, type IPersistBase, type ISignalDto, type ISignalRow, type IStrategyPnL, type IStrategySchema, type IStrategyTickResult, type IStrategyTickResultActive, type IStrategyTickResultClosed, type IStrategyTickResultIdle, type IStrategyTickResultOpened, Live, MethodContextService, PersistBase, PersistSignalAdaper, type SignalInterval, type TPersistBase, type TPersistBaseCtor, addExchange, addFrame, addStrategy, formatPrice, formatQuantity, getAveragePrice, getCandles, getDate, getMode, backtest as lib, listenError, listenSignal, listenSignalBacktest, listenSignalBacktestOnce, listenSignalLive, listenSignalLiveOnce, listenSignalOnce, setLogger };
+export { Backtest, type CandleInterval, ExecutionContextService, type FrameInterval, type ICandleData, type IExchangeSchema, type IFrameSchema, type IPersistBase, type ISignalDto, type ISignalRow, type IStrategyPnL, type IStrategySchema, type IStrategyTickResult, type IStrategyTickResultActive, type IStrategyTickResultClosed, type IStrategyTickResultIdle, type IStrategyTickResultOpened, Live, MethodContextService, PersistBase, PersistSignalAdaper, type SignalInterval, type TPersistBase, type TPersistBaseCtor, addExchange, addFrame, addStrategy, formatPrice, formatQuantity, getAveragePrice, getCandles, getDate, getMode, backtest as lib, listenDone, listenDoneOnce, listenError, listenSignal, listenSignalBacktest, listenSignalBacktestOnce, listenSignalLive, listenSignalLiveOnce, listenSignalOnce, setLogger };

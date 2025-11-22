@@ -8,6 +8,8 @@ export {
   listenSignalLive,
   listenSignalLiveOnce,
   listenError,
+  listenDone,
+  listenDoneOnce,
 } from "./function/event";
 export {
   getCandles,
