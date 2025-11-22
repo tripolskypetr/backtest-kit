@@ -324,6 +324,17 @@ class ReportStorage {
         : 0;
     const totalPnl = closedEvents.reduce((sum, e) => sum + (e.pnl || 0), 0);
 
+    // Calculate Sharpe Ratio (risk-free rate = 0)
+    // Sharpe = Mean Return / Std Dev of Returns
+    let sharpeRatio = 0;
+    let stdDev = 0;
+    if (totalClosed > 0) {
+      const returns = closedEvents.map((e) => e.pnl || 0);
+      const variance = returns.reduce((sum, r) => sum + Math.pow(r - avgPnl, 2), 0) / totalClosed;
+      stdDev = Math.sqrt(variance);
+      sharpeRatio = stdDev > 0 ? avgPnl / stdDev : 0;
+    }
+
     return str.newline(
       `# Live Trading Report: ${strategyName}`,
       "",
@@ -341,6 +352,12 @@ class ReportStorage {
         : "",
       totalClosed > 0
         ? `**Total PNL:** ${totalPnl > 0 ? "+" : ""}${totalPnl.toFixed(2)}%`
+        : "",
+      totalClosed > 0
+        ? `**Standard Deviation:** ${stdDev.toFixed(3)}%`
+        : "",
+      totalClosed > 0
+        ? `**Sharpe Ratio:** ${sharpeRatio.toFixed(3)}`
         : "",
     );
   }

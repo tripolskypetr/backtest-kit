@@ -147,6 +147,13 @@ class ReportStorage {
     const avgPnl = this._signalList.reduce((sum, s) => sum + s.pnl.pnlPercentage, 0) / totalSignals;
     const totalPnl = this._signalList.reduce((sum, s) => sum + s.pnl.pnlPercentage, 0);
 
+    // Calculate Sharpe Ratio (risk-free rate = 0)
+    // Sharpe = Mean Return / Std Dev of Returns
+    const returns = this._signalList.map((s) => s.pnl.pnlPercentage);
+    const variance = returns.reduce((sum, r) => sum + Math.pow(r - avgPnl, 2), 0) / totalSignals;
+    const stdDev = Math.sqrt(variance);
+    const sharpeRatio = stdDev > 0 ? avgPnl / stdDev : 0;
+
     return str.newline(
       `# Backtest Report: ${strategyName}`,
       "",
@@ -157,6 +164,8 @@ class ReportStorage {
       `**Win rate:** ${((winCount / totalSignals) * 100).toFixed(2)}% (${winCount}W / ${lossCount}L)`,
       `**Average PNL:** ${avgPnl > 0 ? "+" : ""}${avgPnl.toFixed(2)}%`,
       `**Total PNL:** ${totalPnl > 0 ? "+" : ""}${totalPnl.toFixed(2)}%`,
+      `**Standard Deviation:** ${stdDev.toFixed(3)}%`,
+      `**Sharpe Ratio:** ${sharpeRatio.toFixed(3)}`,
     );
   }
 
