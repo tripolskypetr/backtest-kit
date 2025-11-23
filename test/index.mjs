@@ -10,6 +10,7 @@ import "./spec/pnl.test.mjs";
 import "./spec/report.test.mjs";
 import "./spec/callbacks.test.mjs";
 import "./spec/list.test.mjs";
+import "./spec/live.test.mjs";
 
 run(import.meta.url, () => {
     console.log("All tests are finished");

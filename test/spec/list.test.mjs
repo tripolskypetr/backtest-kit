@@ -327,3 +327,80 @@ test("listFrames includes note field when provided", async ({ pass, fail }) => {
   fail(`Frame note mismatch: expected "${testNote}", got "${testFrame.note}"`);
 
 });
+
+test("listStrategies includes callbacks when provided", async ({ pass, fail }) => {
+
+  addStrategy({
+    strategyName: "test-strategy-with-callbacks",
+    note: "Strategy with callbacks for testing",
+    interval: "1m",
+    getSignal: async () => {
+      return {
+        position: "long",
+        priceOpen: 42000,
+        priceTakeProfit: 43000,
+        priceStopLoss: 41000,
+        minuteEstimatedTime: 60,
+      };
+    },
+    callbacks: {
+      onOpen: () => {},
+      onClose: () => {},
+    },
+  });
+
+  const strategies = await listStrategies();
+  const testStrategy = strategies.find(s => s.strategyName === "test-strategy-with-callbacks");
+
+  if (!testStrategy) {
+    fail("Test strategy with callbacks not found in list");
+    return;
+  }
+
+  const hasCallbacks =
+    testStrategy.callbacks &&
+    typeof testStrategy.callbacks.onOpen === "function" &&
+    typeof testStrategy.callbacks.onClose === "function";
+
+  if (hasCallbacks) {
+    pass("Strategy callbacks correctly preserved in listStrategies");
+    return;
+  }
+
+  fail("Strategy callbacks missing or incorrect");
+
+});
+
+test("listFrames includes callbacks when provided", async ({ pass, fail }) => {
+
+  addFrame({
+    frameName: "1d-backtest-with-callbacks",
+    note: "Frame with callbacks for testing",
+    interval: "1d",
+    startDate: new Date("2024-04-01T00:00:00Z"),
+    endDate: new Date("2024-04-02T00:00:00Z"),
+    callbacks: {
+      onTimeframe: () => {},
+    },
+  });
+
+  const frames = await listFrames();
+  const testFrame = frames.find(f => f.frameName === "1d-backtest-with-callbacks");
+
+  if (!testFrame) {
+    fail("Test frame with callbacks not found in list");
+    return;
+  }
+
+  const hasCallbacks =
+    testFrame.callbacks &&
+    typeof testFrame.callbacks.onTimeframe === "function";
+
+  if (hasCallbacks) {
+    pass("Frame callbacks correctly preserved in listFrames");
+    return;
+  }
+
+  fail("Frame callbacks missing or incorrect");
+
+});
