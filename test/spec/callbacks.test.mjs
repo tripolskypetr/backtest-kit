@@ -335,3 +335,66 @@ test("callbacks receive correct signal object", async ({ pass, fail }) => {
   fail("Callbacks did not receive correct signal object");
 
 });
+
+test("onTick callback is called when signal closes in backtest", async ({ pass, fail }) => {
+
+  const [awaiter, { resolve }] = createAwaiter();
+
+  addExchange({
+    exchangeName: "binance-mock-ontick",
+    getCandles: async (_symbol, interval, since, limit) => {
+      return await getMockCandles(interval, since, limit);
+    },
+    formatPrice: async (symbol, price) => {
+      return price.toFixed(8);
+    },
+    formatQuantity: async (symbol, quantity) => {
+      return quantity.toFixed(8);
+    },
+  });
+
+  addStrategy({
+    strategyName: "test-strategy-ontick",
+    interval: "1m",
+    getSignal: async () => {
+      return {
+        position: "long",
+        note: "onTick callback test",
+        priceOpen: 42000,
+        priceTakeProfit: 43000,
+        priceStopLoss: 41000,
+        minuteEstimatedTime: 60,
+      };
+    },
+    callbacks: {
+      onTick: (symbol, result, backtest) => {
+        if (result.action === "closed") {
+          resolve({ symbol, action: result.action, backtest });
+        }
+      },
+    },
+  });
+
+  addFrame({
+    frameName: "1d-backtest-ontick",
+    interval: "1d",
+    startDate: new Date("2024-01-01T00:00:00Z"),
+    endDate: new Date("2024-01-02T00:00:00Z"),
+  });
+
+  Backtest.background("BTCUSDT", {
+    strategyName: "test-strategy-ontick",
+    exchangeName: "binance-mock-ontick",
+    frameName: "1d-backtest-ontick",
+  });
+
+  const callbackData = await awaiter;
+
+  if (callbackData && callbackData.action === "closed" && callbackData.backtest === true) {
+    pass("onTick callback called with closed action in backtest");
+    return;
+  }
+
+  fail("onTick callback not called correctly");
+
+});
