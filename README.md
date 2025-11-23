@@ -22,7 +22,8 @@
 - 🛑 **Graceful Shutdown** - Live.background() waits for open positions to close before stopping
 - 💉 **Strategy Dependency Injection** - addStrategy() enables DI pattern for trading strategies
 - 🔍 **Schema Reflection API** - listExchanges(), listStrategies(), listFrames() for runtime introspection
-- 🧪 **Comprehensive Test Coverage** - 45+ unit tests covering validation, PNL, callbacks, reports, and event system
+- 🧪 **Comprehensive Test Coverage** - 47+ unit tests covering validation, PNL, callbacks, reports, and event system
+- 💾 **Zero Data Download** - Unlike Freqtrade, no need to download gigabytes of historical data - plug any data source (CCXT, database, API)
 
 ## Installation
 
