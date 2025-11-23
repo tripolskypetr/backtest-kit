@@ -76,15 +76,22 @@ Simplified API wrappers for convenient usage:
 - **Backtest** - Singleton facade for backtest operations
   - `run(symbol, context)` - Stream backtest results
   - `background(symbol, context)` - Run without yielding, returns stop function
+  - `getData(strategyName)` - Get backtest statistics
   - `getReport(strategyName)` - Get markdown report
   - `dump(strategyName, path?)` - Save report to disk
   - `clear(strategyName?)` - Clear accumulated data
 - **Live** - Singleton facade for live trading
   - `run(symbol, context)` - Stream live results (infinite)
   - `background(symbol, context)` - Run without yielding, returns stop function
+  - `getData(strategyName)` - Get live statistics
   - `getReport(strategyName)` - Get markdown report
   - `dump(strategyName, path?)` - Save report to disk
   - `clear(strategyName?)` - Clear accumulated data
+- **Performance** - Singleton facade for performance profiling
+  - `getData(strategyName)` - Get performance statistics with aggregated metrics
+  - `getReport(strategyName)` - Get markdown report with bottleneck analysis
+  - `dump(strategyName, path?)` - Save report to disk (default: ./logs/performance)
+  - `clear(strategyName?)` - Clear accumulated performance data
 
 ### Client Layer (`src/client/`)
 
@@ -139,6 +146,12 @@ Generate and persist trading reports:
   - Accumulates all events: `idle`, `opened`, `active`, `closed`
   - Replaces events with same `signalId` (keeps one entry per signal)
   - Calculates statistics: win rate, average PNL
+- `PerformanceMarkdownService` - Performance tracking and profiling
+  - Subscribes to `performanceEmitter` via `init()` (singleshot)
+  - Accumulates performance metrics per strategy
+  - Tracks execution time for: backtest_total, backtest_timeframe, backtest_signal, live_tick
+  - Calculates statistics: count, avg, min, max, stdDev, median, P95, P99
+  - Generates markdown reports with bottleneck analysis
 
 Methods: `getReport(strategyName)`, `dump(strategyName, path?)`, `clear(strategyName?)`
 
@@ -152,6 +165,11 @@ High-level orchestration using **async generators** for streaming results:
   - When opened: fetches `minuteEstimatedTime` candles and calls `backtest()`
   - Skips timeframes until `closeTimestamp` after signal closes
   - Uses `yield` to stream results without memory accumulation
+  - **Built-in performance tracking**:
+    - Tracks `backtest_total` - total backtest duration
+    - Tracks `backtest_timeframe` - each timeframe processing
+    - Tracks `backtest_signal` - signal processing (tick + getNextCandles + backtest)
+    - Emits metrics via `performanceEmitter.next()`
 
 - **LiveLogicPrivateService** - Real-time execution
   - `async *run(symbol)` - Returns `AsyncIterableIterator<IStrategyTickResult>`
@@ -159,6 +177,9 @@ High-level orchestration using **async generators** for streaming results:
   - Uses `new Date()` for real-time progression
   - Yields all result types: `opened` and `closed` (skips `idle` and `active`)
   - Integrated with crash recovery through `ClientStrategy.waitForInit()`
+  - **Built-in performance tracking**:
+    - Tracks `live_tick` - each tick iteration duration
+    - Emits metrics via `performanceEmitter.next()`
 
 #### Context Services (`context/`)
 
@@ -293,25 +314,36 @@ User
 
 ### Event Emitters (`src/config/emitters.ts`)
 
-Three event emitters for signal lifecycle events:
+Event emitters for signal lifecycle and performance tracking:
 - `signalEmitter` - All signals (backtest + live)
 - `signalBacktestEmitter` - Backtest signals only
 - `signalLiveEmitter` - Live signals only
+- `performanceEmitter` - Performance metrics (backtest + live)
+- `progressEmitter` - Backtest progress tracking
+- `doneEmitter` - Backtest completion events
 
 **Usage**:
 ```typescript
 signalLiveEmitter.subscribe(async (data: IStrategyTickResult) => {
   // Process live events
 });
+
+performanceEmitter.subscribe(async (data: PerformanceContract) => {
+  console.log(`${data.metricType}: ${data.duration.toFixed(2)}ms`);
+});
 ```
 
 **Event Listeners** (`src/function/event.ts`):
-- `listenSignal(callback)` - Subscribe to all events
+- `listenSignal(callback)` - Subscribe to all signal events
 - `listenSignalOnce(filter, callback)` - Subscribe once with filter
-- `listenSignalBacktest(callback)` - Backtest events only
+- `listenSignalBacktest(callback)` - Backtest signals only
 - `listenSignalBacktestOnce(filter, callback)` - Backtest once with filter
-- `listenSignalLive(callback)` - Live events only
+- `listenSignalLive(callback)` - Live signals only
 - `listenSignalLiveOnce(filter, callback)` - Live once with filter
+- `listenPerformance(callback)` - Subscribe to performance metrics
+- `listenProgress(callback)` - Subscribe to backtest progress
+- `listenDone(callback)` - Subscribe to backtest completion
+- `listenDoneOnce(callback)` - Subscribe once to backtest completion
 
 All callbacks are wrapped with `queued` for sequential async execution.
 
@@ -620,9 +652,9 @@ Users can extend the framework by:
 
 7. **Markdown reports**:
    ```typescript
-   import { Live } from "backtest-kit";
+   import { Live, Performance } from "backtest-kit";
 
-   // Generate report
+   // Generate live trading report
    const markdown = await Live.getReport("my-strategy");
 
    // Save to disk
@@ -630,6 +662,18 @@ Users can extend the framework by:
 
    // Clear data
    await Live.clear("my-strategy");
+
+   // Performance profiling
+   const perfStats = await Performance.getData("my-strategy");
+   console.log("Total events:", perfStats.totalEvents);
+   console.log("Total duration:", perfStats.totalDuration);
+   console.log("Metrics:", Object.keys(perfStats.metricStats));
+
+   // Generate performance report
+   const perfMarkdown = await Performance.getReport("my-strategy");
+
+   // Save performance report
+   await Performance.dump("my-strategy", "./logs/performance");
    ```
 
 ## Testing Strategy

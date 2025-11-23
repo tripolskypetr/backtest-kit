@@ -40,6 +40,7 @@ const logicPublicServices = {
 const markdownServices = {
     backtestMarkdownService: Symbol('backtestMarkdownService'),
     liveMarkdownService: Symbol('liveMarkdownService'),
+    performanceMarkdownService: Symbol('performanceMarkdownService'),
 }
 
 const validationServices = {

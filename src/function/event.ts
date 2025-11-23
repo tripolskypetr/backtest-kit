@@ -1,8 +1,9 @@
 import backtest from "../lib";
-import { signalEmitter, signalLiveEmitter, signalBacktestEmitter, errorEmitter, doneEmitter, progressEmitter } from "../config/emitters";
+import { signalEmitter, signalLiveEmitter, signalBacktestEmitter, errorEmitter, doneEmitter, progressEmitter, performanceEmitter } from "../config/emitters";
 import { IStrategyTickResult } from "../interfaces/Strategy.interface";
 import { DoneContract } from "../contract/Done.contract";
 import { ProgressContract } from "../contract/Progress.contract";
+import { PerformanceContract } from "../contract/Performance.contract";
 import { queued } from "functools-kit";
 
 const LISTEN_SIGNAL_METHOD_NAME = "event.listenSignal";
@@ -15,6 +16,7 @@ const LISTEN_ERROR_METHOD_NAME = "event.listenError";
 const LISTEN_DONE_METHOD_NAME = "event.listenDone";
 const LISTEN_DONE_ONCE_METHOD_NAME = "event.listenDoneOnce";
 const LISTEN_PROGRESS_METHOD_NAME = "event.listenProgress";
+const LISTEN_PERFORMANCE_METHOD_NAME = "event.listenPerformance";
 
 /**
  * Subscribes to all signal events with queued async processing.
@@ -325,4 +327,41 @@ export function listenDoneOnce(
 export function listenProgress(fn: (event: ProgressContract) => void) {
   backtest.loggerService.log(LISTEN_PROGRESS_METHOD_NAME);
   return progressEmitter.subscribe(queued(async (event) => fn(event)));
+}
+
+/**
+ * Subscribes to performance metric events with queued async processing.
+ *
+ * Emits during strategy execution to track timing metrics for operations.
+ * Useful for profiling and identifying performance bottlenecks.
+ * Events are processed sequentially in order received, even if callback is async.
+ * Uses queued wrapper to prevent concurrent execution of the callback.
+ *
+ * @param fn - Callback function to handle performance events
+ * @returns Unsubscribe function to stop listening to events
+ *
+ * @example
+ * ```typescript
+ * import { listenPerformance, Backtest } from "backtest-kit";
+ *
+ * const unsubscribe = listenPerformance((event) => {
+ *   console.log(`${event.metricType}: ${event.duration.toFixed(2)}ms`);
+ *   if (event.duration > 100) {
+ *     console.warn("Slow operation detected:", event.metricType);
+ *   }
+ * });
+ *
+ * Backtest.background("BTCUSDT", {
+ *   strategyName: "my-strategy",
+ *   exchangeName: "binance",
+ *   frameName: "1d-backtest"
+ * });
+ *
+ * // Later: stop listening
+ * unsubscribe();
+ * ```
+ */
+export function listenPerformance(fn: (event: PerformanceContract) => void) {
+  backtest.loggerService.log(LISTEN_PERFORMANCE_METHOD_NAME);
+  return performanceEmitter.subscribe(queued(async (event) => fn(event)));
 }

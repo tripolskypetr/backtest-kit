@@ -19,10 +19,11 @@
 - ⚡ **Memory Optimized** - Prototype methods + memoization + streaming
 - 🔌 **Flexible Architecture** - Plug your own exchanges and strategies
 - 📝 **Markdown Reports** - Auto-generated trading reports with statistics (win rate, avg PNL, Sharpe Ratio, Standard Deviation, Certainty Ratio, Expected Yearly Returns, Risk-Adjusted Returns)
+- 📊 **Performance Profiling** - Built-in performance tracking with aggregated statistics (avg, min, max, stdDev, P95, P99) for bottleneck analysis
 - 🛑 **Graceful Shutdown** - Live.background() waits for open positions to close before stopping
 - 💉 **Strategy Dependency Injection** - addStrategy() enables DI pattern for trading strategies
 - 🔍 **Schema Reflection API** - listExchanges(), listStrategies(), listFrames() for runtime introspection
-- 🧪 **Comprehensive Test Coverage** - 50+ unit tests covering validation, PNL, callbacks, reports, and event system
+- 🧪 **Comprehensive Test Coverage** - 61 unit tests covering validation, PNL, callbacks, reports, performance tracking, and event system
 - 💾 **Zero Data Download** - Unlike Freqtrade, no need to download gigabytes of historical data - plug any data source (CCXT, database, API)
 - 🔒 **Safe Math & Robustness** - All metrics protected against NaN/Infinity with unsafe numeric checks, returns N/A for invalid calculations
 
@@ -710,6 +711,8 @@ Live.background("BTCUSDT", {
 - `listenSignalBacktestOnce(filter, callback)` - Subscribe to backtest signals once
 - `listenSignalLive(callback)` - Subscribe to live signals only
 - `listenSignalLiveOnce(filter, callback)` - Subscribe to live signals once
+- `listenPerformance(callback)` - Subscribe to performance metrics (backtest + live)
+- `listenProgress(callback)` - Subscribe to backtest progress events
 - `listenError(callback)` - Subscribe to background execution errors
 - `listenDone(callback)` - Subscribe to background completion events
 - `listenDoneOnce(filter, callback)` - Subscribe to background completion once
@@ -873,6 +876,31 @@ Live.getReport(strategyName: string): Promise<string>
 Live.dump(strategyName: string, path?: string): Promise<void>
 ```
 
+#### Performance Profiling API
+
+```typescript
+import { Performance, PerformanceStatistics, listenPerformance } from "backtest-kit";
+
+// Get raw performance statistics (Controller)
+Performance.getData(strategyName: string): Promise<PerformanceStatistics>
+
+// Generate markdown report with bottleneck analysis (View)
+Performance.getReport(strategyName: string): Promise<string>
+
+// Save performance report to disk (default: ./logs/performance)
+Performance.dump(strategyName: string, path?: string): Promise<void>
+
+// Clear accumulated performance data
+Performance.clear(strategyName?: string): Promise<void>
+
+// Listen to real-time performance events
+listenPerformance((event) => {
+  console.log(`${event.metricType}: ${event.duration.toFixed(2)}ms`);
+  console.log(`Strategy: ${event.strategyName} @ ${event.exchangeName}`);
+  console.log(`Symbol: ${event.symbol}, Backtest: ${event.backtest}`);
+});
+```
+
 ## Type Definitions
 
 ### Statistics Types
@@ -910,6 +938,44 @@ interface LiveStatistics {
   certaintyRatio: number | null;        // avgWin / |avgLoss| (higher is better)
   expectedYearlyReturns: number | null; // Estimated yearly trades (higher is better)
 }
+
+// Performance statistics (exported from "backtest-kit")
+interface PerformanceStatistics {
+  strategyName: string;                 // Strategy name
+  totalEvents: number;                  // Total number of performance events
+  totalDuration: number;                // Total execution time (ms)
+  metricStats: Record<string, {         // Statistics by metric type
+    metricType: PerformanceMetricType;  // backtest_total | backtest_timeframe | backtest_signal | live_tick
+    count: number;                      // Number of samples
+    totalDuration: number;              // Total duration (ms)
+    avgDuration: number;                // Average duration (ms)
+    minDuration: number;                // Minimum duration (ms)
+    maxDuration: number;                // Maximum duration (ms)
+    stdDev: number;                     // Standard deviation (ms)
+    median: number;                     // Median duration (ms)
+    p95: number;                        // 95th percentile (ms)
+    p99: number;                        // 99th percentile (ms)
+  }>;
+  events: PerformanceContract[];        // All raw performance events
+}
+
+// Performance event (exported from "backtest-kit")
+interface PerformanceContract {
+  timestamp: number;                    // When metric was recorded (epoch ms)
+  metricType: PerformanceMetricType;    // Type of operation measured
+  duration: number;                     // Operation duration (ms)
+  strategyName: string;                 // Strategy name
+  exchangeName: string;                 // Exchange name
+  symbol: string;                       // Trading symbol
+  backtest: boolean;                    // true = backtest, false = live
+}
+
+// Performance metric types (exported from "backtest-kit")
+type PerformanceMetricType =
+  | "backtest_total"      // Total backtest duration
+  | "backtest_timeframe"  // Single timeframe processing
+  | "backtest_signal"     // Signal processing (tick + getNextCandles + backtest)
+  | "live_tick";          // Single live tick duration
 ```
 
 ### Signal Data
@@ -1044,6 +1110,72 @@ Backtest.background("BTCUSDT", {
   exchangeName: "binance",
   frameName: "1d-backtest"
 });
+```
+
+### Performance Profiling
+
+```typescript
+import { Performance, listenPerformance, Backtest } from "backtest-kit";
+
+// Listen to real-time performance metrics
+listenPerformance((event) => {
+  console.log(`[${event.metricType}] ${event.duration.toFixed(2)}ms`);
+  console.log(`  Strategy: ${event.strategyName}`);
+  console.log(`  Symbol: ${event.symbol}, Backtest: ${event.backtest}`);
+});
+
+// Run backtest
+await Backtest.background("BTCUSDT", {
+  strategyName: "my-strategy",
+  exchangeName: "binance",
+  frameName: "1d-backtest"
+});
+
+// Get aggregated performance statistics
+const perfStats = await Performance.getData("my-strategy");
+console.log("Performance Statistics:");
+console.log(`  Total events: ${perfStats.totalEvents}`);
+console.log(`  Total duration: ${perfStats.totalDuration.toFixed(2)}ms`);
+console.log(`  Metrics tracked: ${Object.keys(perfStats.metricStats).join(", ")}`);
+
+// Analyze bottlenecks
+for (const [type, stats] of Object.entries(perfStats.metricStats)) {
+  console.log(`\n${type}:`);
+  console.log(`  Count: ${stats.count}`);
+  console.log(`  Average: ${stats.avgDuration.toFixed(2)}ms`);
+  console.log(`  Min/Max: ${stats.minDuration.toFixed(2)}ms / ${stats.maxDuration.toFixed(2)}ms`);
+  console.log(`  P95/P99: ${stats.p95.toFixed(2)}ms / ${stats.p99.toFixed(2)}ms`);
+  console.log(`  Std Dev: ${stats.stdDev.toFixed(2)}ms`);
+}
+
+// Generate and save performance report
+const markdown = await Performance.getReport("my-strategy");
+await Performance.dump("my-strategy"); // Saves to ./logs/performance/my-strategy.md
+```
+
+**Performance Report Example:**
+```markdown
+# Performance Report: my-strategy
+
+**Total events:** 1440
+**Total execution time:** 12345.67ms
+**Number of metric types:** 3
+
+## Time Distribution
+
+- **backtest_timeframe**: 65.4% (8074.32ms total)
+- **backtest_signal**: 28.3% (3493.85ms total)
+- **backtest_total**: 6.3% (777.50ms total)
+
+## Detailed Metrics
+
+| Metric Type | Count | Total (ms) | Avg (ms) | Min (ms) | Max (ms) | Std Dev (ms) | Median (ms) | P95 (ms) | P99 (ms) |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| backtest_timeframe | 1440 | 8074.32 | 5.61 | 2.10 | 12.45 | 1.85 | 5.20 | 8.90 | 10.50 |
+| backtest_signal | 45 | 3493.85 | 77.64 | 45.20 | 125.80 | 18.32 | 75.10 | 110.20 | 120.15 |
+| backtest_total | 1 | 777.50 | 777.50 | 777.50 | 777.50 | 0.00 | 777.50 | 777.50 | 777.50 |
+
+**Note:** All durations are in milliseconds. P95/P99 represent 95th and 99th percentile response times.
 ```
 
 ### Early Termination

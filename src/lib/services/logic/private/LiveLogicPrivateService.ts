@@ -3,6 +3,10 @@ import LoggerService from "../../base/LoggerService";
 import TYPES from "../../../core/types";
 import StrategyGlobalService from "../../global/StrategyGlobalService";
 import { sleep } from "functools-kit";
+import { performanceEmitter } from "../../../../config/emitters";
+import MethodContextService, {
+  TMethodContextService,
+} from "../../context/MethodContextService";
 
 const TICK_TTL = 1 * 60 * 1_000 + 1;
 
@@ -26,6 +30,9 @@ export class LiveLogicPrivateService {
   private readonly loggerService = inject<LoggerService>(TYPES.loggerService);
   private readonly strategyGlobalService = inject<StrategyGlobalService>(
     TYPES.strategyGlobalService
+  );
+  private readonly methodContextService = inject<TMethodContextService>(
+    TYPES.methodContextService
   );
 
   /**
@@ -56,6 +63,7 @@ export class LiveLogicPrivateService {
     });
 
     while (true) {
+      const tickStartTime = performance.now();
       const when = new Date();
 
       const result = await this.strategyGlobalService.tick(symbol, when, false);
@@ -63,6 +71,18 @@ export class LiveLogicPrivateService {
       this.loggerService.info("liveLogicPrivateService tick result", {
         symbol,
         action: result.action,
+      });
+
+      // Track tick duration
+      const tickEndTime = performance.now();
+      await performanceEmitter.next({
+        timestamp: Date.now(),
+        metricType: "live_tick",
+        duration: tickEndTime - tickStartTime,
+        strategyName: this.methodContextService.context.strategyName,
+        exchangeName: this.methodContextService.context.exchangeName,
+        symbol,
+        backtest: false,
       });
 
       if (result.action === "active") {

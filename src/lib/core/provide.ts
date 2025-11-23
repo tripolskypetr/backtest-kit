@@ -20,6 +20,7 @@ import LiveGlobalService from "../services/global/LiveGlobalService";
 import BacktestGlobalService from "../services/global/BacktestGlobalService";
 import BacktestMarkdownService from "../services/markdown/BacktestMarkdownService";
 import LiveMarkdownService from "../services/markdown/LiveMarkdownService";
+import PerformanceMarkdownService from "../services/markdown/PerformanceMarkdownService";
 import ExchangeValidationService from "../services/validation/ExchangeValidationService";
 import StrategyValidationService from "../services/validation/StrategyValidationService";
 import FrameValidationService from "../services/validation/FrameValidationService";
@@ -66,6 +67,7 @@ import FrameValidationService from "../services/validation/FrameValidationServic
 {
     provide(TYPES.backtestMarkdownService, () => new BacktestMarkdownService());
     provide(TYPES.liveMarkdownService, () => new LiveMarkdownService());
+    provide(TYPES.performanceMarkdownService, () => new PerformanceMarkdownService());
 }
 
 {

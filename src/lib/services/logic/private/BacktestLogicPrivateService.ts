@@ -8,7 +8,7 @@ import FrameGlobalService from "../../global/FrameGlobalService";
 import MethodContextService, {
   TMethodContextService,
 } from "../../context/MethodContextService";
-import { progressEmitter } from "../../../../config/emitters";
+import { progressEmitter, performanceEmitter } from "../../../../config/emitters";
 
 /**
  * Private service for backtest orchestration using async generators.
@@ -57,12 +57,15 @@ export class BacktestLogicPrivateService {
       symbol,
     });
 
+    const backtestStartTime = performance.now();
+
     const timeframes = await this.frameGlobalService.getTimeframe(symbol);
     const totalFrames = timeframes.length;
 
     let i = 0;
 
     while (i < timeframes.length) {
+      const timeframeStartTime = performance.now();
       const when = timeframes[i];
 
       // Emit progress event if context is available
@@ -81,6 +84,7 @@ export class BacktestLogicPrivateService {
 
       // Если сигнал открыт, вызываем backtest
       if (result.action === "opened") {
+        const signalStartTime = performance.now();
         const signal = result.signal;
 
         this.loggerService.info("backtestLogicPrivateService signal opened", {
@@ -123,6 +127,18 @@ export class BacktestLogicPrivateService {
           closeReason: backtestResult.closeReason,
         });
 
+        // Track signal processing duration
+        const signalEndTime = performance.now();
+        await performanceEmitter.next({
+          timestamp: Date.now(),
+          metricType: "backtest_signal",
+          duration: signalEndTime - signalStartTime,
+          strategyName: this.methodContextService.context.strategyName,
+          exchangeName: this.methodContextService.context.exchangeName,
+          symbol,
+          backtest: true,
+        });
+
         // Пропускаем timeframes до closeTimestamp
         while (
           i < timeframes.length &&
@@ -133,6 +149,18 @@ export class BacktestLogicPrivateService {
 
         yield backtestResult;
       }
+
+      // Track timeframe processing duration
+      const timeframeEndTime = performance.now();
+      await performanceEmitter.next({
+        timestamp: Date.now(),
+        metricType: "backtest_timeframe",
+        duration: timeframeEndTime - timeframeStartTime,
+        strategyName: this.methodContextService.context.strategyName,
+        exchangeName: this.methodContextService.context.exchangeName,
+        symbol,
+        backtest: true,
+      });
 
       i++;
     }
@@ -148,6 +176,18 @@ export class BacktestLogicPrivateService {
         progress: 1.0,
       });
     }
+
+    // Track total backtest duration
+    const backtestEndTime = performance.now();
+    await performanceEmitter.next({
+      timestamp: Date.now(),
+      metricType: "backtest_total",
+      duration: backtestEndTime - backtestStartTime,
+      strategyName: this.methodContextService.context.strategyName,
+      exchangeName: this.methodContextService.context.exchangeName,
+      symbol,
+      backtest: true,
+    });
   }
 }
 

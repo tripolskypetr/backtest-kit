@@ -820,6 +820,51 @@ interface ProgressContract {
 }
 
 /**
+ * Performance metric types tracked by the system.
+ *
+ * Backtest metrics:
+ * - backtest_total: Total backtest duration from start to finish
+ * - backtest_timeframe: Duration to process a single timeframe iteration
+ * - backtest_signal: Duration to process a signal (tick + getNextCandles + backtest)
+ *
+ * Live metrics:
+ * - live_tick: Duration of a single live tick iteration
+ */
+type PerformanceMetricType = "backtest_total" | "backtest_timeframe" | "backtest_signal" | "live_tick";
+/**
+ * Contract for performance tracking events.
+ *
+ * Emitted during execution to track performance metrics for various operations.
+ * Useful for profiling and identifying bottlenecks.
+ *
+ * @example
+ * ```typescript
+ * import { listenPerformance } from "backtest-kit";
+ *
+ * listenPerformance((event) => {
+ *   console.log(`${event.metricType}: ${event.duration.toFixed(2)}ms`);
+ *   console.log(`${event.strategyName} @ ${event.exchangeName}`);
+ * });
+ * ```
+ */
+interface PerformanceContract {
+    /** Timestamp when the metric was recorded (milliseconds since epoch) */
+    timestamp: number;
+    /** Type of operation being measured */
+    metricType: PerformanceMetricType;
+    /** Duration of the operation in milliseconds */
+    duration: number;
+    /** Strategy name associated with this metric */
+    strategyName: string;
+    /** Exchange name associated with this metric */
+    exchangeName: string;
+    /** Trading symbol associated with this metric */
+    symbol: string;
+    /** Whether this metric is from backtest mode (true) or live mode (false) */
+    backtest: boolean;
+}
+
+/**
  * Subscribes to all signal events with queued async processing.
  *
  * Events are processed sequentially in order received, even if callback is async.
@@ -1078,6 +1123,39 @@ declare function listenDoneOnce(filterFn: (event: DoneContract) => boolean, fn: 
  * ```
  */
 declare function listenProgress(fn: (event: ProgressContract) => void): () => void;
+/**
+ * Subscribes to performance metric events with queued async processing.
+ *
+ * Emits during strategy execution to track timing metrics for operations.
+ * Useful for profiling and identifying performance bottlenecks.
+ * Events are processed sequentially in order received, even if callback is async.
+ * Uses queued wrapper to prevent concurrent execution of the callback.
+ *
+ * @param fn - Callback function to handle performance events
+ * @returns Unsubscribe function to stop listening to events
+ *
+ * @example
+ * ```typescript
+ * import { listenPerformance, Backtest } from "backtest-kit";
+ *
+ * const unsubscribe = listenPerformance((event) => {
+ *   console.log(`${event.metricType}: ${event.duration.toFixed(2)}ms`);
+ *   if (event.duration > 100) {
+ *     console.warn("Slow operation detected:", event.metricType);
+ *   }
+ * });
+ *
+ * Backtest.background("BTCUSDT", {
+ *   strategyName: "my-strategy",
+ *   exchangeName: "binance",
+ *   frameName: "1d-backtest"
+ * });
+ *
+ * // Later: stop listening
+ * unsubscribe();
+ * ```
+ */
+declare function listenPerformance(fn: (event: PerformanceContract) => void): () => void;
 
 /**
  * Fetches historical candle data from the registered exchange.
@@ -1590,6 +1668,145 @@ declare class LiveMarkdownService {
     protected init: (() => Promise<void>) & functools_kit.ISingleshotClearable;
 }
 
+/**
+ * Aggregated statistics for a specific metric type.
+ */
+interface MetricStats {
+    /** Type of metric */
+    metricType: PerformanceMetricType;
+    /** Number of recorded samples */
+    count: number;
+    /** Total duration across all samples (ms) */
+    totalDuration: number;
+    /** Average duration (ms) */
+    avgDuration: number;
+    /** Minimum duration (ms) */
+    minDuration: number;
+    /** Maximum duration (ms) */
+    maxDuration: number;
+    /** Standard deviation of duration (ms) */
+    stdDev: number;
+    /** Median duration (ms) */
+    median: number;
+    /** 95th percentile duration (ms) */
+    p95: number;
+    /** 99th percentile duration (ms) */
+    p99: number;
+}
+/**
+ * Performance statistics aggregated by strategy.
+ */
+interface PerformanceStatistics {
+    /** Strategy name */
+    strategyName: string;
+    /** Total number of performance events recorded */
+    totalEvents: number;
+    /** Total execution time across all metrics (ms) */
+    totalDuration: number;
+    /** Statistics grouped by metric type */
+    metricStats: Record<string, MetricStats>;
+    /** All raw performance events */
+    events: PerformanceContract[];
+}
+/**
+ * Service for collecting and analyzing performance metrics.
+ *
+ * Features:
+ * - Listens to performance events via performanceEmitter
+ * - Accumulates metrics per strategy
+ * - Calculates aggregated statistics (avg, min, max, percentiles)
+ * - Generates markdown reports with bottleneck analysis
+ * - Saves reports to disk in logs/performance/{strategyName}.md
+ *
+ * @example
+ * ```typescript
+ * import { listenPerformance } from "backtest-kit";
+ *
+ * // Subscribe to performance events
+ * listenPerformance((event) => {
+ *   console.log(`${event.metricType}: ${event.duration.toFixed(2)}ms`);
+ * });
+ *
+ * // After execution, generate report
+ * const stats = await Performance.getData("my-strategy");
+ * console.log("Bottlenecks:", stats.metricStats);
+ *
+ * // Save report to disk
+ * await Performance.dump("my-strategy");
+ * ```
+ */
+declare class PerformanceMarkdownService {
+    /** Logger service for debug output */
+    private readonly loggerService;
+    /**
+     * Memoized function to get or create PerformanceStorage for a strategy.
+     * Each strategy gets its own isolated storage instance.
+     */
+    private getStorage;
+    /**
+     * Processes performance events and accumulates metrics.
+     * Should be called from performance tracking code.
+     *
+     * @param event - Performance event with timing data
+     */
+    private track;
+    /**
+     * Gets aggregated performance statistics for a strategy.
+     *
+     * @param strategyName - Strategy name to get data for
+     * @returns Performance statistics with aggregated metrics
+     *
+     * @example
+     * ```typescript
+     * const stats = await performanceService.getData("my-strategy");
+     * console.log("Total time:", stats.totalDuration);
+     * console.log("Slowest operation:", Object.values(stats.metricStats)
+     *   .sort((a, b) => b.avgDuration - a.avgDuration)[0]);
+     * ```
+     */
+    getData: (strategyName: string) => Promise<PerformanceStatistics>;
+    /**
+     * Generates markdown report with performance analysis.
+     *
+     * @param strategyName - Strategy name to generate report for
+     * @returns Markdown formatted report string
+     *
+     * @example
+     * ```typescript
+     * const markdown = await performanceService.getReport("my-strategy");
+     * console.log(markdown);
+     * ```
+     */
+    getReport: (strategyName: string) => Promise<string>;
+    /**
+     * Saves performance report to disk.
+     *
+     * @param strategyName - Strategy name to save report for
+     * @param path - Directory path to save report
+     *
+     * @example
+     * ```typescript
+     * // Save to default path: ./logs/performance/my-strategy.md
+     * await performanceService.dump("my-strategy");
+     *
+     * // Save to custom path
+     * await performanceService.dump("my-strategy", "./custom/path");
+     * ```
+     */
+    dump: (strategyName: string, path?: string) => Promise<void>;
+    /**
+     * Clears accumulated performance data from storage.
+     *
+     * @param strategyName - Optional strategy name to clear specific strategy data
+     */
+    clear: (strategyName?: string) => Promise<void>;
+    /**
+     * Initializes the service by subscribing to performance events.
+     * Uses singleshot to ensure initialization happens only once.
+     */
+    protected init: (() => Promise<void>) & functools_kit.ISingleshotClearable;
+}
+
 declare const BASE_WAIT_FOR_INIT_SYMBOL: unique symbol;
 /**
  * Signal data stored in persistence layer.
@@ -2068,6 +2285,125 @@ declare class LiveUtils {
  * ```
  */
 declare const Live: LiveUtils;
+
+/**
+ * Performance class provides static methods for performance metrics analysis.
+ *
+ * Features:
+ * - Get aggregated performance statistics by strategy
+ * - Generate markdown reports with bottleneck analysis
+ * - Save reports to disk
+ * - Clear accumulated metrics
+ *
+ * @example
+ * ```typescript
+ * import { Performance, listenPerformance } from "backtest-kit";
+ *
+ * // Subscribe to performance events
+ * listenPerformance((event) => {
+ *   console.log(`${event.metricType}: ${event.duration.toFixed(2)}ms`);
+ * });
+ *
+ * // Run backtest...
+ *
+ * // Get aggregated statistics
+ * const stats = await Performance.getData("my-strategy");
+ * console.log("Total time:", stats.totalDuration);
+ * console.log("Slowest operations:", Object.values(stats.metricStats)
+ *   .sort((a, b) => b.avgDuration - a.avgDuration)
+ *   .slice(0, 5));
+ *
+ * // Generate and save report
+ * await Performance.dump("my-strategy");
+ * ```
+ */
+declare class Performance {
+    /**
+     * Gets aggregated performance statistics for a strategy.
+     *
+     * Returns detailed metrics grouped by operation type:
+     * - Count, total duration, average, min, max
+     * - Standard deviation for volatility
+     * - Percentiles (median, P95, P99) for outlier detection
+     *
+     * @param strategyName - Strategy name to analyze
+     * @returns Performance statistics with aggregated metrics
+     *
+     * @example
+     * ```typescript
+     * const stats = await Performance.getData("my-strategy");
+     *
+     * // Find slowest operation type
+     * const slowest = Object.values(stats.metricStats)
+     *   .sort((a, b) => b.avgDuration - a.avgDuration)[0];
+     * console.log(`Slowest: ${slowest.metricType} (${slowest.avgDuration.toFixed(2)}ms avg)`);
+     *
+     * // Check for outliers
+     * for (const metric of Object.values(stats.metricStats)) {
+     *   if (metric.p99 > metric.avgDuration * 5) {
+     *     console.warn(`High variance in ${metric.metricType}: P99=${metric.p99}ms, Avg=${metric.avgDuration}ms`);
+     *   }
+     * }
+     * ```
+     */
+    static getData(strategyName: string): Promise<PerformanceStatistics>;
+    /**
+     * Generates markdown report with performance analysis.
+     *
+     * Report includes:
+     * - Time distribution across operation types
+     * - Detailed metrics table with statistics
+     * - Percentile analysis for bottleneck detection
+     *
+     * @param strategyName - Strategy name to generate report for
+     * @returns Markdown formatted report string
+     *
+     * @example
+     * ```typescript
+     * const markdown = await Performance.getReport("my-strategy");
+     * console.log(markdown);
+     *
+     * // Or save to file
+     * import fs from "fs/promises";
+     * await fs.writeFile("performance-report.md", markdown);
+     * ```
+     */
+    static getReport(strategyName: string): Promise<string>;
+    /**
+     * Saves performance report to disk.
+     *
+     * Creates directory if it doesn't exist.
+     * Default path: ./logs/performance/{strategyName}.md
+     *
+     * @param strategyName - Strategy name to save report for
+     * @param path - Optional custom directory path
+     *
+     * @example
+     * ```typescript
+     * // Save to default path: ./logs/performance/my-strategy.md
+     * await Performance.dump("my-strategy");
+     *
+     * // Save to custom path: ./reports/perf/my-strategy.md
+     * await Performance.dump("my-strategy", "./reports/perf");
+     * ```
+     */
+    static dump(strategyName: string, path?: string): Promise<void>;
+    /**
+     * Clears accumulated performance metrics from memory.
+     *
+     * @param strategyName - Optional strategy name to clear specific strategy's metrics
+     *
+     * @example
+     * ```typescript
+     * // Clear specific strategy metrics
+     * await Performance.clear("my-strategy");
+     *
+     * // Clear all metrics for all strategies
+     * await Performance.clear();
+     * ```
+     */
+    static clear(strategyName?: string): Promise<void>;
+}
 
 /**
  * Logger service with automatic context injection.
@@ -2778,6 +3114,7 @@ declare class BacktestLogicPrivateService {
 declare class LiveLogicPrivateService {
     private readonly loggerService;
     private readonly strategyGlobalService;
+    private readonly methodContextService;
     /**
      * Runs live trading for a symbol, streaming results as async generator.
      *
@@ -3067,6 +3404,7 @@ declare const backtest: {
     frameValidationService: FrameValidationService;
     backtestMarkdownService: BacktestMarkdownService;
     liveMarkdownService: LiveMarkdownService;
+    performanceMarkdownService: PerformanceMarkdownService;
     backtestLogicPublicService: BacktestLogicPublicService;
     liveLogicPublicService: LiveLogicPublicService;
     backtestLogicPrivateService: BacktestLogicPrivateService;
@@ -3091,4 +3429,4 @@ declare const backtest: {
     loggerService: LoggerService;
 };
 
-export { Backtest, type BacktestStatistics, type CandleInterval, type DoneContract, type EntityId, ExecutionContextService, type FrameInterval, type ICandleData, type IExchangeSchema, type IFrameSchema, type IPersistBase, type ISignalDto, type ISignalRow, type IStrategyPnL, type IStrategySchema, type IStrategyTickResult, type IStrategyTickResultActive, type IStrategyTickResultClosed, type IStrategyTickResultIdle, type IStrategyTickResultOpened, Live, type LiveStatistics, MethodContextService, PersistBase, PersistSignalAdaper, type ProgressContract, type SignalData, type SignalInterval, type TPersistBase, type TPersistBaseCtor, addExchange, addFrame, addStrategy, formatPrice, formatQuantity, getAveragePrice, getCandles, getDate, getMode, backtest as lib, listExchanges, listFrames, listStrategies, listenDone, listenDoneOnce, listenError, listenProgress, listenSignal, listenSignalBacktest, listenSignalBacktestOnce, listenSignalLive, listenSignalLiveOnce, listenSignalOnce, setLogger };
+export { Backtest, type BacktestStatistics, type CandleInterval, type DoneContract, type EntityId, ExecutionContextService, type FrameInterval, type ICandleData, type IExchangeSchema, type IFrameSchema, type IPersistBase, type ISignalDto, type ISignalRow, type IStrategyPnL, type IStrategySchema, type IStrategyTickResult, type IStrategyTickResultActive, type IStrategyTickResultClosed, type IStrategyTickResultIdle, type IStrategyTickResultOpened, Live, type LiveStatistics, MethodContextService, Performance, type PerformanceContract, type PerformanceMetricType, type PerformanceStatistics, PersistBase, PersistSignalAdaper, type ProgressContract, type SignalData, type SignalInterval, type TPersistBase, type TPersistBaseCtor, addExchange, addFrame, addStrategy, formatPrice, formatQuantity, getAveragePrice, getCandles, getDate, getMode, backtest as lib, listExchanges, listFrames, listStrategies, listenDone, listenDoneOnce, listenError, listenPerformance, listenProgress, listenSignal, listenSignalBacktest, listenSignalBacktestOnce, listenSignalLive, listenSignalLiveOnce, listenSignalOnce, setLogger };

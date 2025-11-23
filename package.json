@@ -66,7 +66,7 @@
     "rollup-plugin-peer-deps-external": "2.2.4",
     "tslib": "2.7.0",
     "typedoc": "0.27.9",
-    "worker-testbed": "1.0.10"
+    "worker-testbed": "1.0.11"
   },
   "peerDependencies": {
     "typescript": "^5.0.0"

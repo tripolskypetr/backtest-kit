@@ -25,6 +25,7 @@ import LiveGlobalService from "./services/global/LiveGlobalService";
 import BacktestGlobalService from "./services/global/BacktestGlobalService";
 import BacktestMarkdownService from "./services/markdown/BacktestMarkdownService";
 import LiveMarkdownService from "./services/markdown/LiveMarkdownService";
+import PerformanceMarkdownService from "./services/markdown/PerformanceMarkdownService";
 import ExchangeValidationService from "./services/validation/ExchangeValidationService";
 import StrategyValidationService from "./services/validation/StrategyValidationService";
 import FrameValidationService from "./services/validation/FrameValidationService";
@@ -99,6 +100,7 @@ const logicPublicServices = {
 const markdownServices = {
   backtestMarkdownService: inject<BacktestMarkdownService>(TYPES.backtestMarkdownService),
   liveMarkdownService: inject<LiveMarkdownService>(TYPES.liveMarkdownService),
+  performanceMarkdownService: inject<PerformanceMarkdownService>(TYPES.performanceMarkdownService),
 }
 
 const validationServices = {
