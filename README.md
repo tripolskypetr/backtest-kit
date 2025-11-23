@@ -108,7 +108,7 @@ addStrategy({
   interval: "5m", // Throttling: signals generated max once per 5 minutes
   getSignal: async (symbol) => {
     // Your signal generation logic
-    // Validation happens automatically (prices, TP/SL logic, timestamps)
+    // Validation happens automatically (prices, TP/SL logic)
     return {
       position: "long",
       note: "BTC breakout",
@@ -116,7 +116,6 @@ addStrategy({
       priceTakeProfit: 51000,  // Must be > priceOpen for long
       priceStopLoss: 49000,     // Must be < priceOpen for long
       minuteEstimatedTime: 60,  // Signal duration in minutes
-      timestamp: Date.now(),
     };
   },
   callbacks: {
@@ -350,7 +349,6 @@ All signals are validated automatically before execution:
   priceTakeProfit: 51000,  // ✅ 51000 > 50000
   priceStopLoss: 49000,     // ✅ 49000 < 50000
   minuteEstimatedTime: 60,  // ✅ positive
-  timestamp: Date.now(),    // ✅ positive
 }
 
 // ❌ Invalid long signal - throws error
@@ -918,14 +916,13 @@ interface LiveStatistics {
 
 ```typescript
 interface ISignalRow {
-  id: string;                    // Auto-generated
+  id?: string;                    // Auto-generated
   position: "long" | "short";
-  note: string;
+  note?: string;
   priceOpen: number;
   priceTakeProfit: number;
   priceStopLoss: number;
   minuteEstimatedTime: number;
-  timestamp: number;
 }
 ```
 

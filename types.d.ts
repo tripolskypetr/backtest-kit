@@ -370,7 +370,7 @@ interface ISignalDto {
     /** Human-readable description of signal reason */
     note?: string;
     /** Entry price for the position */
-    priceOpen: number;
+    priceOpen?: number;
     /** Take profit target price (must be > priceOpen for long, < priceOpen for short) */
     priceTakeProfit: number;
     /** Stop loss exit price (must be < priceOpen for long, > priceOpen for short) */
@@ -385,6 +385,8 @@ interface ISignalDto {
 interface ISignalRow extends ISignalDto {
     /** Unique signal identifier (UUID v4 auto-generated) */
     id: string;
+    /** Entry price for the position */
+    priceOpen: number;
     /** Unique exchange identifier for execution */
     exchangeName: ExchangeName;
     /** Unique strategy identifier for execution */

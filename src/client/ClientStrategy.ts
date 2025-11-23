@@ -123,6 +123,9 @@ const GET_SIGNAL_FN = trycatch(
     }
     const signalRow: ISignalRow = {
       id: randomString(),
+      priceOpen: await self.params.exchange.getAveragePrice(
+        self.params.execution.context.symbol,
+      ),
       ...signal,
       symbol: self.params.execution.context.symbol,
       exchangeName: self.params.method.context.exchangeName,
