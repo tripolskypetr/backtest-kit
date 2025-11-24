@@ -31,6 +31,7 @@ import BacktestMarkdownService from "./services/markdown/BacktestMarkdownService
 import LiveMarkdownService from "./services/markdown/LiveMarkdownService";
 import PerformanceMarkdownService from "./services/markdown/PerformanceMarkdownService";
 import WalkerMarkdownService from "./services/markdown/WalkerMarkdownService";
+import HeatMarkdownService from "./services/markdown/HeatMarkdownService";
 import ExchangeValidationService from "./services/validation/ExchangeValidationService";
 import StrategyValidationService from "./services/validation/StrategyValidationService";
 import FrameValidationService from "./services/validation/FrameValidationService";
@@ -116,6 +117,7 @@ const markdownServices = {
   liveMarkdownService: inject<LiveMarkdownService>(TYPES.liveMarkdownService),
   performanceMarkdownService: inject<PerformanceMarkdownService>(TYPES.performanceMarkdownService),
   walkerMarkdownService: inject<WalkerMarkdownService>(TYPES.walkerMarkdownService),
+  heatMarkdownService: inject<HeatMarkdownService>(TYPES.heatMarkdownService),
 }
 
 const validationServices = {

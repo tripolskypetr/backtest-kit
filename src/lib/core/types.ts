@@ -46,6 +46,7 @@ const markdownServices = {
     liveMarkdownService: Symbol('liveMarkdownService'),
     performanceMarkdownService: Symbol('performanceMarkdownService'),
     walkerMarkdownService: Symbol('walkerMarkdownService'),
+    heatMarkdownService: Symbol('heatMarkdownService'),
 }
 
 const validationServices = {

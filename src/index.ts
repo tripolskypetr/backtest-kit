@@ -58,6 +58,11 @@ export {
   IWalkerStrategyResult,
 } from "./interfaces/Walker.interface";
 
+export {
+  IHeatmapRow,
+  IHeatmapStatistics,
+} from "./interfaces/Heatmap.interface";
+
 export { DoneContract } from "./contract/Done.contract";
 export { ProgressContract } from "./contract/Progress.contract";
 export { PerformanceContract, PerformanceMetricType } from "./contract/Performance.contract";
@@ -84,6 +89,7 @@ export { Backtest } from "./classes/Backtest";
 export { Live } from "./classes/Live";
 export { Performance } from "./classes/Performance";
 export { Walker } from "./classes/Walker";
+export { Heat } from "./classes/Heat";
 
 export * as emitters from "./config/emitters";
 

@@ -26,6 +26,7 @@ import BacktestMarkdownService from "../services/markdown/BacktestMarkdownServic
 import LiveMarkdownService from "../services/markdown/LiveMarkdownService";
 import PerformanceMarkdownService from "../services/markdown/PerformanceMarkdownService";
 import WalkerMarkdownService from "../services/markdown/WalkerMarkdownService";
+import HeatMarkdownService from "../services/markdown/HeatMarkdownService";
 import ExchangeValidationService from "../services/validation/ExchangeValidationService";
 import StrategyValidationService from "../services/validation/StrategyValidationService";
 import FrameValidationService from "../services/validation/FrameValidationService";
@@ -79,6 +80,7 @@ import WalkerValidationService from "../services/validation/WalkerValidationServ
     provide(TYPES.liveMarkdownService, () => new LiveMarkdownService());
     provide(TYPES.performanceMarkdownService, () => new PerformanceMarkdownService());
     provide(TYPES.walkerMarkdownService, () => new WalkerMarkdownService());
+    provide(TYPES.heatMarkdownService, () => new HeatMarkdownService());
 }
 
 {

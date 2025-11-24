@@ -140,6 +140,8 @@ export interface IStrategyTickResultIdle {
   strategyName: StrategyName;
   /** Exchange name for tracking idle events */
   exchangeName: ExchangeName;
+  /** Trading pair symbol (e.g., "BTCUSDT") */
+  symbol: string;
   /** Current VWAP price during idle state */
   currentPrice: number;
 }
@@ -157,6 +159,8 @@ export interface IStrategyTickResultOpened {
   strategyName: StrategyName;
   /** Exchange name for tracking */
   exchangeName: ExchangeName;
+  /** Trading pair symbol (e.g., "BTCUSDT") */
+  symbol: string;
   /** Current VWAP price at signal open */
   currentPrice: number;
 }
@@ -176,6 +180,8 @@ export interface IStrategyTickResultActive {
   strategyName: StrategyName;
   /** Exchange name for tracking */
   exchangeName: ExchangeName;
+  /** Trading pair symbol (e.g., "BTCUSDT") */
+  symbol: string;
 }
 
 /**
@@ -199,6 +205,8 @@ export interface IStrategyTickResultClosed {
   strategyName: StrategyName;
   /** Exchange name for tracking */
   exchangeName: ExchangeName;
+  /** Trading pair symbol (e.g., "BTCUSDT") */
+  symbol: string;
 }
 
 /**

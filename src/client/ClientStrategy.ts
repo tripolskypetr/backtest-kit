@@ -298,6 +298,7 @@ export class ClientStrategy implements IStrategy {
           signal: this._pendingSignal,
           strategyName: this.params.method.context.strategyName,
           exchangeName: this.params.method.context.exchangeName,
+          symbol: this.params.execution.context.symbol,
           currentPrice: this._pendingSignal.priceOpen,
         };
 
@@ -329,6 +330,7 @@ export class ClientStrategy implements IStrategy {
         signal: null,
         strategyName: this.params.method.context.strategyName,
         exchangeName: this.params.method.context.exchangeName,
+        symbol: this.params.execution.context.symbol,
         currentPrice,
       };
 
@@ -443,6 +445,7 @@ export class ClientStrategy implements IStrategy {
         pnl: pnl,
         strategyName: this.params.method.context.strategyName,
         exchangeName: this.params.method.context.exchangeName,
+        symbol: this.params.execution.context.symbol,
       };
 
       if (this.params.callbacks?.onTick) {
@@ -471,6 +474,7 @@ export class ClientStrategy implements IStrategy {
       currentPrice: averagePrice,
       strategyName: this.params.method.context.strategyName,
       exchangeName: this.params.method.context.exchangeName,
+      symbol: this.params.execution.context.symbol,
     };
 
     if (this.params.callbacks?.onTick) {
@@ -604,6 +608,7 @@ export class ClientStrategy implements IStrategy {
           pnl: pnl,
           strategyName: this.params.method.context.strategyName,
           exchangeName: this.params.method.context.exchangeName,
+          symbol: this.params.execution.context.symbol,
         };
 
         if (this.params.callbacks?.onTick) {
@@ -663,6 +668,7 @@ export class ClientStrategy implements IStrategy {
       pnl: pnl,
       strategyName: this.params.method.context.strategyName,
       exchangeName: this.params.method.context.exchangeName,
+      symbol: this.params.execution.context.symbol,
     };
 
     if (this.params.callbacks?.onTick) {

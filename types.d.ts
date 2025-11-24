@@ -458,6 +458,8 @@ interface IStrategyTickResultIdle {
     strategyName: StrategyName;
     /** Exchange name for tracking idle events */
     exchangeName: ExchangeName;
+    /** Trading pair symbol (e.g., "BTCUSDT") */
+    symbol: string;
     /** Current VWAP price during idle state */
     currentPrice: number;
 }
@@ -474,6 +476,8 @@ interface IStrategyTickResultOpened {
     strategyName: StrategyName;
     /** Exchange name for tracking */
     exchangeName: ExchangeName;
+    /** Trading pair symbol (e.g., "BTCUSDT") */
+    symbol: string;
     /** Current VWAP price at signal open */
     currentPrice: number;
 }
@@ -492,6 +496,8 @@ interface IStrategyTickResultActive {
     strategyName: StrategyName;
     /** Exchange name for tracking */
     exchangeName: ExchangeName;
+    /** Trading pair symbol (e.g., "BTCUSDT") */
+    symbol: string;
 }
 /**
  * Tick result: signal closed with PNL.
@@ -514,6 +520,8 @@ interface IStrategyTickResultClosed {
     strategyName: StrategyName;
     /** Exchange name for tracking */
     exchangeName: ExchangeName;
+    /** Trading pair symbol (e.g., "BTCUSDT") */
+    symbol: string;
 }
 /**
  * Discriminated union of all tick results.
@@ -1829,6 +1837,49 @@ declare function getDate(): Promise<Date>;
 declare function getMode(): Promise<"backtest" | "live">;
 
 /**
+ * Portfolio heatmap statistics for a single symbol.
+ * Aggregated metrics across all strategies for one trading pair.
+ */
+interface IHeatmapRow {
+    /** Trading pair symbol (e.g., "BTCUSDT") */
+    symbol: string;
+    /** Total profit/loss percentage across all closed trades */
+    totalPnl: number | null;
+    /** Risk-adjusted return (Sharpe Ratio) */
+    sharpeRatio: number | null;
+    /** Maximum drawdown percentage (largest peak-to-trough decline) */
+    maxDrawdown: number | null;
+    /** Total number of closed trades */
+    totalTrades: number;
+    /** Number of winning trades */
+    winCount: number;
+    /** Number of losing trades */
+    lossCount: number;
+    /** Win rate percentage */
+    winRate: number | null;
+    /** Average PNL per trade */
+    avgPnl: number | null;
+    /** Standard deviation of PNL */
+    stdDev: number | null;
+}
+/**
+ * Portfolio heatmap statistics structure.
+ * Contains aggregated data for all symbols in the portfolio.
+ */
+interface IHeatmapStatistics {
+    /** Array of symbol statistics */
+    symbols: IHeatmapRow[];
+    /** Total number of symbols tracked */
+    totalSymbols: number;
+    /** Portfolio-wide total PNL */
+    portfolioTotalPnl: number | null;
+    /** Portfolio-wide Sharpe Ratio */
+    portfolioSharpeRatio: number | null;
+    /** Portfolio-wide total trades */
+    portfolioTotalTrades: number;
+}
+
+/**
  * Unified tick event data for report generation.
  * Contains all information about a tick event regardless of action type.
  */
@@ -3057,6 +3108,144 @@ declare class WalkerUtils {
 declare const Walker: WalkerUtils;
 
 /**
+ * Utility class for portfolio heatmap operations.
+ *
+ * Provides simplified access to heatMarkdownService with logging.
+ * Automatically aggregates statistics across all symbols per strategy.
+ * Exported as singleton instance for convenient usage.
+ *
+ * @example
+ * ```typescript
+ * import { Heat } from "backtest-kit";
+ *
+ * // Get raw heatmap data for a strategy
+ * const stats = await Heat.getData("my-strategy");
+ * console.log(`Portfolio PNL: ${stats.portfolioTotalPnl}%`);
+ *
+ * // Generate markdown report
+ * const markdown = await Heat.getReport("my-strategy");
+ * console.log(markdown);
+ *
+ * // Save to disk
+ * await Heat.dump("my-strategy", "./reports");
+ * ```
+ */
+declare class HeatUtils {
+    /**
+     * Gets aggregated portfolio heatmap statistics for a strategy.
+     *
+     * Returns per-symbol breakdown and portfolio-wide metrics.
+     * Data is automatically collected from all closed signals for the strategy.
+     *
+     * @param strategyName - Strategy name to get heatmap data for
+     * @returns Promise resolving to heatmap statistics object
+     *
+     * @example
+     * ```typescript
+     * const stats = await Heat.getData("my-strategy");
+     *
+     * console.log(`Total symbols: ${stats.totalSymbols}`);
+     * console.log(`Portfolio Total PNL: ${stats.portfolioTotalPnl}%`);
+     * console.log(`Portfolio Sharpe Ratio: ${stats.portfolioSharpeRatio}`);
+     *
+     * // Iterate through per-symbol statistics
+     * stats.symbols.forEach(row => {
+     *   console.log(`${row.symbol}: ${row.totalPnl}% (${row.totalTrades} trades)`);
+     * });
+     * ```
+     */
+    getData: (strategyName: StrategyName) => Promise<IHeatmapStatistics>;
+    /**
+     * Generates markdown report with portfolio heatmap table for a strategy.
+     *
+     * Table includes: Symbol, Total PNL, Sharpe Ratio, Max Drawdown, Trades.
+     * Symbols are sorted by Total PNL descending.
+     *
+     * @param strategyName - Strategy name to generate heatmap report for
+     * @returns Promise resolving to markdown formatted report string
+     *
+     * @example
+     * ```typescript
+     * const markdown = await Heat.getReport("my-strategy");
+     * console.log(markdown);
+     * // Output:
+     * // # Portfolio Heatmap: my-strategy
+     * //
+     * // **Total Symbols:** 5 | **Portfolio PNL:** +45.3% | **Portfolio Sharpe:** 1.85 | **Total Trades:** 120
+     * //
+     * // | Symbol | Total PNL | Sharpe | Max DD | Trades |
+     * // |--------|-----------|--------|--------|--------|
+     * // | BTCUSDT | +15.5% | 2.10 | -2.5% | 45 |
+     * // | ETHUSDT | +12.3% | 1.85 | -3.1% | 38 |
+     * // ...
+     * ```
+     */
+    getReport: (strategyName: StrategyName) => Promise<string>;
+    /**
+     * Saves heatmap report to disk for a strategy.
+     *
+     * Creates directory if it doesn't exist.
+     * Default filename: {strategyName}.md
+     *
+     * @param strategyName - Strategy name to save heatmap report for
+     * @param path - Optional directory path to save report (default: "./logs/heatmap")
+     *
+     * @example
+     * ```typescript
+     * // Save to default path: ./logs/heatmap/my-strategy.md
+     * await Heat.dump("my-strategy");
+     *
+     * // Save to custom path: ./reports/my-strategy.md
+     * await Heat.dump("my-strategy", "./reports");
+     * ```
+     */
+    dump: (strategyName: StrategyName, path?: string) => Promise<void>;
+    /**
+     * Clears accumulated heatmap data from storage.
+     * If strategyName is provided, clears only that strategy's data.
+     * If strategyName is omitted, clears all strategies' data.
+     *
+     * @param strategyName - Optional strategy name to clear specific strategy data
+     *
+     * @example
+     * ```typescript
+     * // Clear specific strategy data
+     * Heat.clear("my-strategy");
+     *
+     * // Clear all strategies' data
+     * Heat.clear();
+     * ```
+     */
+    clear: (strategyName?: StrategyName) => void;
+}
+/**
+ * Singleton instance of HeatUtils for convenient heatmap operations.
+ *
+ * @example
+ * ```typescript
+ * import { Heat } from "backtest-kit";
+ *
+ * // Strategy-specific heatmap
+ * const stats = await Heat.getData("my-strategy");
+ * console.log(`Portfolio PNL: ${stats.portfolioTotalPnl}%`);
+ * console.log(`Total Symbols: ${stats.totalSymbols}`);
+ *
+ * // Per-symbol breakdown
+ * stats.symbols.forEach(row => {
+ *   console.log(`${row.symbol}:`);
+ *   console.log(`  Total PNL: ${row.totalPnl}%`);
+ *   console.log(`  Sharpe Ratio: ${row.sharpeRatio}`);
+ *   console.log(`  Max Drawdown: ${row.maxDrawdown}%`);
+ *   console.log(`  Trades: ${row.totalTrades}`);
+ * });
+ *
+ * // Generate and save report
+ * await Heat.dump("my-strategy", "./reports");
+ * ```
+ */
+declare const Heat: HeatUtils;
+
+/**
  * Global signal emitter for all trading events (live + backtest).
  * Emits all signal events regardless of execution mode.
  */
@@ -4172,6 +4361,147 @@ declare class BacktestGlobalService {
 }
 
 /**
+ * Portfolio Heatmap Markdown Service.
+ *
+ * Subscribes to signalEmitter and aggregates statistics across all symbols per strategy.
+ * Provides portfolio-wide metrics and per-symbol breakdowns.
+ *
+ * Features:
+ * - Real-time aggregation of closed signals
+ * - Per-symbol statistics (Total PNL, Sharpe Ratio, Max Drawdown, Trades)
+ * - Portfolio-wide aggregated metrics per strategy
+ * - Markdown table report generation
+ * - Safe math (handles NaN/Infinity gracefully)
+ * - Strategy-based navigation using memoized storage
+ *
+ * @example
+ * ```typescript
+ * const service = new HeatMarkdownService();
+ *
+ * // Service automatically tracks all closed signals per strategy
+ * const stats = await service.getData("my-strategy");
+ * console.log(`Portfolio Total PNL: ${stats.portfolioTotalPnl}%`);
+ *
+ * // Generate and save report
+ * await service.dump("my-strategy", "./reports");
+ * ```
+ */
+declare class HeatMarkdownService {
+    /** Logger service for debug output */
+    private readonly loggerService;
+    /**
+     * Memoized function to get or create HeatmapStorage for a strategy.
+     * Each strategy gets its own isolated heatmap storage instance.
+     */
+    private getStorage;
+    /**
+     * Processes tick events and accumulates closed signals.
+     * Should be called from signal emitter subscription.
+     *
+     * Only processes closed signals - opened signals are ignored.
+     *
+     * @param data - Tick result from strategy execution (closed signals only)
+     */
+    private tick;
+    /**
+     * Gets aggregated portfolio heatmap statistics for a strategy.
+     *
+     * @param strategyName - Strategy name to get heatmap data for
+     * @returns Promise resolving to heatmap statistics with per-symbol and portfolio-wide metrics
+     *
+     * @example
+     * ```typescript
+     * const service = new HeatMarkdownService();
+     * const stats = await service.getData("my-strategy");
+     *
+     * console.log(`Total symbols: ${stats.totalSymbols}`);
+     * console.log(`Portfolio PNL: ${stats.portfolioTotalPnl}%`);
+     *
+     * stats.symbols.forEach(row => {
+     *   console.log(`${row.symbol}: ${row.totalPnl}% (${row.totalTrades} trades)`);
+     * });
+     * ```
+     */
+    getData: (strategyName: StrategyName) => Promise<IHeatmapStatistics>;
+    /**
+     * Generates markdown report with portfolio heatmap table for a strategy.
+     *
+     * @param strategyName - Strategy name to generate heatmap report for
+     * @returns Promise resolving to markdown formatted report string
+     *
+     * @example
+     * ```typescript
+     * const service = new HeatMarkdownService();
+     * const markdown = await service.getReport("my-strategy");
+     * console.log(markdown);
+     * // Output:
+     * // # Portfolio Heatmap: my-strategy
+     * //
+     * // **Total Symbols:** 5 | **Portfolio PNL:** +45.3% | **Portfolio Sharpe:** 1.85 | **Total Trades:** 120
+     * //
+     * // | Symbol | Total PNL | Sharpe | Max DD | Trades |
+     * // |--------|-----------|--------|--------|--------|
+     * // | BTCUSDT | +15.5% | 2.10 | -2.5% | 45 |
+     * // | ETHUSDT | +12.3% | 1.85 | -3.1% | 38 |
+     * // ...
+     * ```
+     */
+    getReport: (strategyName: StrategyName) => Promise<string>;
+    /**
+     * Saves heatmap report to disk for a strategy.
+     *
+     * Creates directory if it doesn't exist.
+     * Default filename: {strategyName}.md
+     *
+     * @param strategyName - Strategy name to save heatmap report for
+     * @param path - Optional directory path to save report (default: "./logs/heatmap")
+     *
+     * @example
+     * ```typescript
+     * const service = new HeatMarkdownService();
+     *
+     * // Save to default path: ./logs/heatmap/my-strategy.md
+     * await service.dump("my-strategy");
+     *
+     * // Save to custom path: ./reports/my-strategy.md
+     * await service.dump("my-strategy", "./reports");
+     * ```
+     */
+    dump: (strategyName: StrategyName, path?: string) => Promise<void>;
+    /**
+     * Clears accumulated heatmap data from storage.
+     * If strategyName is provided, clears only that strategy's data.
+     * If strategyName is omitted, clears all strategies' data.
+     *
+     * @param strategyName - Optional strategy name to clear specific strategy data
+     *
+     * @example
+     * ```typescript
+     * const service = new HeatMarkdownService();
+     *
+     * // Clear specific strategy data
+     * await service.clear("my-strategy");
+     *
+     * // Clear all strategies' data
+     * await service.clear();
+     * ```
+     */
+    clear: (strategyName?: StrategyName) => Promise<void>;
+    /**
+     * Initializes the service by subscribing to signal events.
+     * Uses singleshot to ensure initialization happens only once.
+     * Automatically called on first use.
+     *
+     * @example
+     * ```typescript
+     * const service = new HeatMarkdownService();
+     * await service.init(); // Subscribe to signal events
+     * ```
+     */
+    protected init: (() => Promise<void>) & functools_kit.ISingleshotClearable;
+}
+
+/**
  * @class ExchangeValidationService
  * Service for managing and validating exchange configurations
  */
@@ -4328,6 +4658,7 @@ declare const backtest: {
     liveMarkdownService: LiveMarkdownService;
     performanceMarkdownService: PerformanceMarkdownService;
     walkerMarkdownService: WalkerMarkdownService;
+    heatMarkdownService: HeatMarkdownService;
     backtestLogicPublicService: BacktestLogicPublicService;
     liveLogicPublicService: LiveLogicPublicService;
     walkerLogicPublicService: WalkerLogicPublicService;
@@ -4356,4 +4687,4 @@ declare const backtest: {
     loggerService: LoggerService;
 };
 
-export { Backtest, type BacktestStatistics, type CandleInterval, type DoneContract, type EntityId, ExecutionContextService, type FrameInterval, type ICandleData, type IExchangeSchema, type IFrameSchema, type IPersistBase, type ISignalDto, type ISignalRow, type IStrategyPnL, type IStrategySchema, type IStrategyTickResult, type IStrategyTickResultActive, type IStrategyTickResultClosed, type IStrategyTickResultIdle, type IStrategyTickResultOpened, type IWalkerResults, type IWalkerSchema, type IWalkerStrategyResult, Live, type LiveStatistics, MethodContextService, Performance, type PerformanceContract, type PerformanceMetricType, type PerformanceStatistics, PersistBase, PersistSignalAdaper, type ProgressContract, type SignalData, type SignalInterval, type TPersistBase, type TPersistBaseCtor, Walker, type WalkerMetric, type WalkerStatistics, addExchange, addFrame, addStrategy, addWalker, emitters, formatPrice, formatQuantity, getAveragePrice, getCandles, getDate, getMode, backtest as lib, listExchanges, listFrames, listStrategies, listWalkers, listenDoneBacktest, listenDoneBacktestOnce, listenDoneLive, listenDoneLiveOnce, listenDoneWalker, listenDoneWalkerOnce, listenError, listenPerformance, listenProgress, listenSignal, listenSignalBacktest, listenSignalBacktestOnce, listenSignalLive, listenSignalLiveOnce, listenSignalOnce, listenWalker, listenWalkerComplete, listenWalkerOnce, setLogger };
+export { Backtest, type BacktestStatistics, type CandleInterval, type DoneContract, type EntityId, ExecutionContextService, type FrameInterval, Heat, type ICandleData, type IExchangeSchema, type IFrameSchema, type IHeatmapRow, type IHeatmapStatistics, type IPersistBase, type ISignalDto, type ISignalRow, type IStrategyPnL, type IStrategySchema, type IStrategyTickResult, type IStrategyTickResultActive, type IStrategyTickResultClosed, type IStrategyTickResultIdle, type IStrategyTickResultOpened, type IWalkerResults, type IWalkerSchema, type IWalkerStrategyResult, Live, type LiveStatistics, MethodContextService, Performance, type PerformanceContract, type PerformanceMetricType, type PerformanceStatistics, PersistBase, PersistSignalAdaper, type ProgressContract, type SignalData, type SignalInterval, type TPersistBase, type TPersistBaseCtor, Walker, type WalkerMetric, type WalkerStatistics, addExchange, addFrame, addStrategy, addWalker, emitters, formatPrice, formatQuantity, getAveragePrice, getCandles, getDate, getMode, backtest as lib, listExchanges, listFrames, listStrategies, listWalkers, listenDoneBacktest, listenDoneBacktestOnce, listenDoneLive, listenDoneLiveOnce, listenDoneWalker, listenDoneWalkerOnce, listenError, listenPerformance, listenProgress, listenSignal, listenSignalBacktest, listenSignalBacktestOnce, listenSignalLive, listenSignalLiveOnce, listenSignalOnce, listenWalker, listenWalkerComplete, listenWalkerOnce, setLogger };
