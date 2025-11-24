@@ -14,18 +14,23 @@ import MethodContextService, {
 import ExchangeGlobalService from "./services/global/ExchangeGlobalService";
 import StrategyGlobalService from "./services/global/StrategyGlobalService";
 import FrameGlobalService from "./services/global/FrameGlobalService";
+import WalkerGlobalService from "./services/global/WalkerGlobalService";
 import ExchangeSchemaService from "./services/schema/ExchangeSchemaService";
 import StrategySchemaService from "./services/schema/StrategySchemaService";
 import FrameSchemaService from "./services/schema/FrameSchemaService";
+import WalkerSchemaService from "./services/schema/WalkerSchemaService";
 import BacktestLogicPrivateService from "./services/logic/private/BacktestLogicPrivateService";
 import LiveLogicPrivateService from "./services/logic/private/LiveLogicPrivateService";
+import WalkerLogicPrivateService from "./services/logic/private/WalkerLogicPrivateService";
 import BacktestLogicPublicService from "./services/logic/public/BacktestLogicPublicService";
 import LiveLogicPublicService from "./services/logic/public/LiveLogicPublicService";
+import WalkerLogicPublicService from "./services/logic/public/WalkerLogicPublicService";
 import LiveGlobalService from "./services/global/LiveGlobalService";
 import BacktestGlobalService from "./services/global/BacktestGlobalService";
 import BacktestMarkdownService from "./services/markdown/BacktestMarkdownService";
 import LiveMarkdownService from "./services/markdown/LiveMarkdownService";
 import PerformanceMarkdownService from "./services/markdown/PerformanceMarkdownService";
+import WalkerMarkdownService from "./services/markdown/WalkerMarkdownService";
 import ExchangeValidationService from "./services/validation/ExchangeValidationService";
 import StrategyValidationService from "./services/validation/StrategyValidationService";
 import FrameValidationService from "./services/validation/FrameValidationService";
@@ -63,6 +68,7 @@ const schemaServices = {
     TYPES.strategySchemaService
   ),
   frameSchemaService: inject<FrameSchemaService>(TYPES.frameSchemaService),
+  walkerSchemaService: inject<WalkerSchemaService>(TYPES.walkerSchemaService),
 };
 
 const globalServices = {
@@ -77,6 +83,7 @@ const globalServices = {
   backtestGlobalService: inject<BacktestGlobalService>(
     TYPES.backtestGlobalService
   ),
+  walkerGlobalService: inject<WalkerGlobalService>(TYPES.walkerGlobalService),
 };
 
 const logicPrivateServices = {
@@ -85,6 +92,9 @@ const logicPrivateServices = {
   ),
   liveLogicPrivateService: inject<LiveLogicPrivateService>(
     TYPES.liveLogicPrivateService
+  ),
+  walkerLogicPrivateService: inject<WalkerLogicPrivateService>(
+    TYPES.walkerLogicPrivateService
   ),
 };
 
@@ -95,12 +105,16 @@ const logicPublicServices = {
   liveLogicPublicService: inject<LiveLogicPublicService>(
     TYPES.liveLogicPublicService
   ),
+  walkerLogicPublicService: inject<WalkerLogicPublicService>(
+    TYPES.walkerLogicPublicService
+  ),
 };
 
 const markdownServices = {
   backtestMarkdownService: inject<BacktestMarkdownService>(TYPES.backtestMarkdownService),
   liveMarkdownService: inject<LiveMarkdownService>(TYPES.liveMarkdownService),
   performanceMarkdownService: inject<PerformanceMarkdownService>(TYPES.performanceMarkdownService),
+  walkerMarkdownService: inject<WalkerMarkdownService>(TYPES.walkerMarkdownService),
 }
 
 const validationServices = {

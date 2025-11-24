@@ -1,5 +1,5 @@
 export { setLogger } from "./function/setup";
-export { addExchange, addStrategy, addFrame } from "./function/add";
+export { addExchange, addStrategy, addFrame, addWalker } from "./function/add";
 export { listExchanges, listStrategies, listFrames } from "./function/list";
 export {
   listenSignal,
@@ -44,6 +44,13 @@ export {
 
 export { FrameInterval, IFrameSchema } from "./interfaces/Frame.interface";
 
+export {
+  WalkerMetric,
+  IWalkerSchema,
+  IWalkerResults,
+  IWalkerStrategyResult,
+} from "./interfaces/Walker.interface";
+
 export { DoneContract } from "./contract/Done.contract";
 export { ProgressContract } from "./contract/Progress.contract";
 export { PerformanceContract, PerformanceMetricType } from "./contract/Performance.contract";
@@ -68,5 +75,6 @@ export {
 export { Backtest } from "./classes/Backtest";
 export { Live } from "./classes/Live";
 export { Performance } from "./classes/Performance";
+export { Walker } from "./classes/Walker";
 
 export { backtest as lib } from "./lib";

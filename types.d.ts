@@ -572,6 +572,270 @@ interface IStrategy {
 type StrategyName = string;
 
 /**
+ * Statistical data calculated from backtest results.
+ *
+ * All numeric values are null if calculation is unsafe (NaN, Infinity, etc).
+ * Provides comprehensive metrics for strategy performance analysis.
+ *
+ * @example
+ * ```typescript
+ * const stats = await Backtest.getData("my-strategy");
+ *
+ * console.log(`Total signals: ${stats.totalSignals}`);
+ * console.log(`Win rate: ${stats.winRate}%`);
+ * console.log(`Sharpe Ratio: ${stats.sharpeRatio}`);
+ *
+ * // Access raw signal data
+ * stats.signalList.forEach(signal => {
+ *   console.log(`Signal ${signal.signal.id}: ${signal.pnl.pnlPercentage}%`);
+ * });
+ * ```
+ */
+interface BacktestStatistics {
+    /** Array of all closed signals with full details (price, PNL, timestamps, etc.) */
+    signalList: IStrategyTickResultClosed[];
+    /** Total number of closed signals */
+    totalSignals: number;
+    /** Number of winning signals (PNL > 0) */
+    winCount: number;
+    /** Number of losing signals (PNL < 0) */
+    lossCount: number;
+    /** Win rate as percentage (0-100), null if unsafe. Higher is better. */
+    winRate: number | null;
+    /** Average PNL per signal as percentage, null if unsafe. Higher is better. */
+    avgPnl: number | null;
+    /** Cumulative PNL across all signals as percentage, null if unsafe. Higher is better. */
+    totalPnl: number | null;
+    /** Standard deviation of returns (volatility metric), null if unsafe. Lower is better. */
+    stdDev: number | null;
+    /** Sharpe Ratio (risk-adjusted return = avgPnl / stdDev), null if unsafe. Higher is better. */
+    sharpeRatio: number | null;
+    /** Annualized Sharpe Ratio (sharpeRatio × √365), null if unsafe. Higher is better. */
+    annualizedSharpeRatio: number | null;
+    /** Certainty Ratio (avgWin / |avgLoss|), null if unsafe. Higher is better. */
+    certaintyRatio: number | null;
+    /** Expected yearly returns based on average trade duration and PNL, null if unsafe. Higher is better. */
+    expectedYearlyReturns: number | null;
+}
+/**
+ * Service for generating and saving backtest markdown reports.
+ *
+ * Features:
+ * - Listens to signal events via onTick callback
+ * - Accumulates closed signals per strategy using memoized storage
+ * - Generates markdown tables with detailed signal information
+ * - Saves reports to disk in logs/backtest/{strategyName}.md
+ *
+ * @example
+ * ```typescript
+ * const service = new BacktestMarkdownService();
+ *
+ * // Add to strategy callbacks
+ * addStrategy({
+ *   strategyName: "my-strategy",
+ *   callbacks: {
+ *     onTick: (symbol, result, backtest) => {
+ *       service.tick(result);
+ *     }
+ *   }
+ * });
+ *
+ * // After backtest, generate and save report
+ * await service.saveReport("my-strategy");
+ * ```
+ */
+declare class BacktestMarkdownService {
+    /** Logger service for debug output */
+    private readonly loggerService;
+    /**
+     * Memoized function to get or create ReportStorage for a strategy.
+     * Each strategy gets its own isolated storage instance.
+     */
+    private getStorage;
+    /**
+     * Processes tick events and accumulates closed signals.
+     * Should be called from IStrategyCallbacks.onTick.
+     *
+     * Only processes closed signals - opened signals are ignored.
+     *
+     * @param data - Tick result from strategy execution (opened or closed)
+     *
+     * @example
+     * ```typescript
+     * const service = new BacktestMarkdownService();
+     *
+     * callbacks: {
+     *   onTick: (symbol, result, backtest) => {
+     *     service.tick(result);
+     *   }
+     * }
+     * ```
+     */
+    private tick;
+    /**
+     * Gets statistical data from all closed signals for a strategy.
+     * Delegates to ReportStorage.getData().
+     *
+     * @param strategyName - Strategy name to get data for
+     * @returns Statistical data object with all metrics
+     *
+     * @example
+     * ```typescript
+     * const service = new BacktestMarkdownService();
+     * const stats = await service.getData("my-strategy");
+     * console.log(stats.sharpeRatio, stats.winRate);
+     * ```
+     */
+    getData: (strategyName: StrategyName) => Promise<BacktestStatistics>;
+    /**
+     * Generates markdown report with all closed signals for a strategy.
+     * Delegates to ReportStorage.generateReport().
+     *
+     * @param strategyName - Strategy name to generate report for
+     * @returns Markdown formatted report string with table of all closed signals
+     *
+     * @example
+     * ```typescript
+     * const service = new BacktestMarkdownService();
+     * const markdown = await service.getReport("my-strategy");
+     * console.log(markdown);
+     * ```
+     */
+    getReport: (strategyName: StrategyName) => Promise<string>;
+    /**
+     * Saves strategy report to disk.
+     * Creates directory if it doesn't exist.
+     * Delegates to ReportStorage.dump().
+     *
+     * @param strategyName - Strategy name to save report for
+     * @param path - Directory path to save report (default: "./logs/backtest")
+     *
+     * @example
+     * ```typescript
+     * const service = new BacktestMarkdownService();
+     *
+     * // Save to default path: ./logs/backtest/my-strategy.md
+     * await service.dump("my-strategy");
+     *
+     * // Save to custom path: ./custom/path/my-strategy.md
+     * await service.dump("my-strategy", "./custom/path");
+     * ```
+     */
+    dump: (strategyName: StrategyName, path?: string) => Promise<void>;
+    /**
+     * Clears accumulated signal data from storage.
+     * If strategyName is provided, clears only that strategy's data.
+     * If strategyName is omitted, clears all strategies' data.
+     *
+     * @param strategyName - Optional strategy name to clear specific strategy data
+     *
+     * @example
+     * ```typescript
+     * const service = new BacktestMarkdownService();
+     *
+     * // Clear specific strategy data
+     * await service.clear("my-strategy");
+     *
+     * // Clear all strategies' data
+     * await service.clear();
+     * ```
+     */
+    clear: (strategyName?: StrategyName) => Promise<void>;
+    /**
+     * Initializes the service by subscribing to backtest signal events.
+     * Uses singleshot to ensure initialization happens only once.
+     * Automatically called on first use.
+     *
+     * @example
+     * ```typescript
+     * const service = new BacktestMarkdownService();
+     * await service.init(); // Subscribe to backtest events
+     * ```
+     */
+    protected init: (() => Promise<void>) & functools_kit.ISingleshotClearable;
+}
+
+/**
+ * Optimization metric for comparing strategies.
+ * Higher values are always better (metric is maximized).
+ */
+type WalkerMetric = "sharpeRatio" | "annualizedSharpeRatio" | "winRate" | "totalPnl" | "certaintyRatio" | "avgPnl" | "expectedYearlyReturns";
+/**
+ * Walker schema registered via addWalker().
+ * Defines A/B testing configuration for multiple strategies.
+ */
+interface IWalkerSchema {
+    /** Unique walker identifier for registration */
+    walkerName: WalkerName;
+    /** Optional developer note for documentation */
+    note?: string;
+    /** Exchange to use for backtesting all strategies */
+    exchangeName: ExchangeName;
+    /** Timeframe generator to use for backtesting all strategies */
+    frameName: FrameName;
+    /** List of strategy names to compare (must be registered via addStrategy) */
+    strategies: StrategyName[];
+    /** Metric to optimize (default: "sharpeRatio") */
+    metric?: WalkerMetric;
+    /** Optional lifecycle event callbacks */
+    callbacks?: Partial<IWalkerCallbacks>;
+}
+/**
+ * Optional lifecycle callbacks for walker events.
+ * Called during strategy comparison process.
+ */
+interface IWalkerCallbacks {
+    /** Called when starting to test a specific strategy */
+    onStrategyStart: (strategyName: StrategyName, symbol: string) => void;
+    /** Called when a strategy backtest completes */
+    onStrategyComplete: (strategyName: StrategyName, symbol: string, stats: BacktestStatistics, metric: number | null) => void;
+    /** Called when all strategies have been tested */
+    onComplete: (results: IWalkerResults) => void;
+}
+/**
+ * Result for a single strategy in the comparison.
+ */
+interface IWalkerStrategyResult {
+    /** Strategy name */
+    strategyName: StrategyName;
+    /** Backtest statistics for this strategy */
+    stats: BacktestStatistics;
+    /** Metric value used for comparison (null if invalid) */
+    metric: number | null;
+    /** Rank position (1 = best, 2 = second best, etc.) */
+    rank: number;
+}
+/**
+ * Complete walker results after comparing all strategies.
+ */
+interface IWalkerResults {
+    /** Walker name */
+    walkerName: WalkerName;
+    /** Symbol tested */
+    symbol: string;
+    /** Exchange used */
+    exchangeName: ExchangeName;
+    /** Frame used */
+    frameName: FrameName;
+    /** Metric used for optimization */
+    metric: WalkerMetric;
+    /** Total number of strategies tested */
+    totalStrategies: number;
+    /** Best performing strategy name */
+    bestStrategy: StrategyName;
+    /** Best metric value achieved */
+    bestMetric: number | null;
+    /** Best strategy statistics */
+    bestStats: BacktestStatistics;
+    /** All strategy results sorted by rank (best first) */
+    allResults: IWalkerStrategyResult[];
+}
+/**
+ * Unique walker identifier.
+ */
+type WalkerName = string;
+
+/**
  * Registers a trading strategy in the framework.
  *
  * The strategy will be validated for:
@@ -673,6 +937,44 @@ declare function addExchange(exchangeSchema: IExchangeSchema): void;
  * ```
  */
 declare function addFrame(frameSchema: IFrameSchema): void;
+/**
+ * Registers a walker for strategy comparison.
+ *
+ * The walker executes backtests for multiple strategies on the same
+ * historical data and compares their performance using a specified metric.
+ *
+ * @param walkerSchema - Walker configuration object
+ * @param walkerSchema.walkerName - Unique walker identifier
+ * @param walkerSchema.exchangeName - Exchange to use for all strategies
+ * @param walkerSchema.frameName - Timeframe to use for all strategies
+ * @param walkerSchema.strategies - Array of strategy names to compare
+ * @param walkerSchema.metric - Metric to optimize (default: "sharpeRatio")
+ * @param walkerSchema.callbacks - Optional lifecycle callbacks
+ *
+ * @example
+ * ```typescript
+ * addWalker({
+ *   walkerName: "llm-prompt-optimizer",
+ *   exchangeName: "binance",
+ *   frameName: "1d-backtest",
+ *   strategies: [
+ *     "my-strategy-v1",
+ *     "my-strategy-v2",
+ *     "my-strategy-v3"
+ *   ],
+ *   metric: "sharpeRatio",
+ *   callbacks: {
+ *     onStrategyComplete: (strategyName, symbol, stats, metric) => {
+ *       console.log(`${strategyName}: ${metric}`);
+ *     },
+ *     onComplete: (results) => {
+ *       console.log(`Best strategy: ${results.bestStrategy}`);
+ *     }
+ *   }
+ * });
+ * ```
+ */
+declare function addWalker(walkerSchema: IWalkerSchema): void;
 
 /**
  * Returns a list of all registered exchange schemas.
@@ -1259,190 +1561,6 @@ declare function getDate(): Promise<Date>;
  * ```
  */
 declare function getMode(): Promise<"backtest" | "live">;
-
-/**
- * Statistical data calculated from backtest results.
- *
- * All numeric values are null if calculation is unsafe (NaN, Infinity, etc).
- * Provides comprehensive metrics for strategy performance analysis.
- *
- * @example
- * ```typescript
- * const stats = await Backtest.getData("my-strategy");
- *
- * console.log(`Total signals: ${stats.totalSignals}`);
- * console.log(`Win rate: ${stats.winRate}%`);
- * console.log(`Sharpe Ratio: ${stats.sharpeRatio}`);
- *
- * // Access raw signal data
- * stats.signalList.forEach(signal => {
- *   console.log(`Signal ${signal.signal.id}: ${signal.pnl.pnlPercentage}%`);
- * });
- * ```
- */
-interface BacktestStatistics {
-    /** Array of all closed signals with full details (price, PNL, timestamps, etc.) */
-    signalList: IStrategyTickResultClosed[];
-    /** Total number of closed signals */
-    totalSignals: number;
-    /** Number of winning signals (PNL > 0) */
-    winCount: number;
-    /** Number of losing signals (PNL < 0) */
-    lossCount: number;
-    /** Win rate as percentage (0-100), null if unsafe. Higher is better. */
-    winRate: number | null;
-    /** Average PNL per signal as percentage, null if unsafe. Higher is better. */
-    avgPnl: number | null;
-    /** Cumulative PNL across all signals as percentage, null if unsafe. Higher is better. */
-    totalPnl: number | null;
-    /** Standard deviation of returns (volatility metric), null if unsafe. Lower is better. */
-    stdDev: number | null;
-    /** Sharpe Ratio (risk-adjusted return = avgPnl / stdDev), null if unsafe. Higher is better. */
-    sharpeRatio: number | null;
-    /** Annualized Sharpe Ratio (sharpeRatio × √365), null if unsafe. Higher is better. */
-    annualizedSharpeRatio: number | null;
-    /** Certainty Ratio (avgWin / |avgLoss|), null if unsafe. Higher is better. */
-    certaintyRatio: number | null;
-    /** Expected yearly returns based on average trade duration and PNL, null if unsafe. Higher is better. */
-    expectedYearlyReturns: number | null;
-}
-/**
- * Service for generating and saving backtest markdown reports.
- *
- * Features:
- * - Listens to signal events via onTick callback
- * - Accumulates closed signals per strategy using memoized storage
- * - Generates markdown tables with detailed signal information
- * - Saves reports to disk in logs/backtest/{strategyName}.md
- *
- * @example
- * ```typescript
- * const service = new BacktestMarkdownService();
- *
- * // Add to strategy callbacks
- * addStrategy({
- *   strategyName: "my-strategy",
- *   callbacks: {
- *     onTick: (symbol, result, backtest) => {
- *       service.tick(result);
- *     }
- *   }
- * });
- *
- * // After backtest, generate and save report
- * await service.saveReport("my-strategy");
- * ```
- */
-declare class BacktestMarkdownService {
-    /** Logger service for debug output */
-    private readonly loggerService;
-    /**
-     * Memoized function to get or create ReportStorage for a strategy.
-     * Each strategy gets its own isolated storage instance.
-     */
-    private getStorage;
-    /**
-     * Processes tick events and accumulates closed signals.
-     * Should be called from IStrategyCallbacks.onTick.
-     *
-     * Only processes closed signals - opened signals are ignored.
-     *
-     * @param data - Tick result from strategy execution (opened or closed)
-     *
-     * @example
-     * ```typescript
-     * const service = new BacktestMarkdownService();
-     *
-     * callbacks: {
-     *   onTick: (symbol, result, backtest) => {
-     *     service.tick(result);
-     *   }
-     * }
-     * ```
-     */
-    private tick;
-    /**
-     * Gets statistical data from all closed signals for a strategy.
-     * Delegates to ReportStorage.getData().
-     *
-     * @param strategyName - Strategy name to get data for
-     * @returns Statistical data object with all metrics
-     *
-     * @example
-     * ```typescript
-     * const service = new BacktestMarkdownService();
-     * const stats = await service.getData("my-strategy");
-     * console.log(stats.sharpeRatio, stats.winRate);
-     * ```
-     */
-    getData: (strategyName: StrategyName) => Promise<BacktestStatistics>;
-    /**
-     * Generates markdown report with all closed signals for a strategy.
-     * Delegates to ReportStorage.generateReport().
-     *
-     * @param strategyName - Strategy name to generate report for
-     * @returns Markdown formatted report string with table of all closed signals
-     *
-     * @example
-     * ```typescript
-     * const service = new BacktestMarkdownService();
-     * const markdown = await service.getReport("my-strategy");
-     * console.log(markdown);
-     * ```
-     */
-    getReport: (strategyName: StrategyName) => Promise<string>;
-    /**
-     * Saves strategy report to disk.
-     * Creates directory if it doesn't exist.
-     * Delegates to ReportStorage.dump().
-     *
-     * @param strategyName - Strategy name to save report for
-     * @param path - Directory path to save report (default: "./logs/backtest")
-     *
-     * @example
-     * ```typescript
-     * const service = new BacktestMarkdownService();
-     *
-     * // Save to default path: ./logs/backtest/my-strategy.md
-     * await service.dump("my-strategy");
-     *
-     * // Save to custom path: ./custom/path/my-strategy.md
-     * await service.dump("my-strategy", "./custom/path");
-     * ```
-     */
-    dump: (strategyName: StrategyName, path?: string) => Promise<void>;
-    /**
-     * Clears accumulated signal data from storage.
-     * If strategyName is provided, clears only that strategy's data.
-     * If strategyName is omitted, clears all strategies' data.
-     *
-     * @param strategyName - Optional strategy name to clear specific strategy data
-     *
-     * @example
-     * ```typescript
-     * const service = new BacktestMarkdownService();
-     *
-     * // Clear specific strategy data
-     * await service.clear("my-strategy");
-     *
-     * // Clear all strategies' data
-     * await service.clear();
-     * ```
-     */
-    clear: (strategyName?: StrategyName) => Promise<void>;
-    /**
-     * Initializes the service by subscribing to backtest signal events.
-     * Uses singleshot to ensure initialization happens only once.
-     * Automatically called on first use.
-     *
-     * @example
-     * ```typescript
-     * const service = new BacktestMarkdownService();
-     * await service.init(); // Subscribe to backtest events
-     * ```
-     */
-    protected init: (() => Promise<void>) & functools_kit.ISingleshotClearable;
-}
 
 /**
  * Unified tick event data for report generation.
@@ -2414,6 +2532,87 @@ declare class Performance {
 }
 
 /**
+ * Utility class for walker operations (strategy comparison).
+ *
+ * Provides simplified access to walkerLogicPrivateService with logging.
+ * Exported as singleton instance for convenient usage.
+ *
+ * @example
+ * ```typescript
+ * import { Walker } from "./classes/Walker";
+ *
+ * const results = await Walker.run("BTCUSDT", {
+ *   walkerName: "my-optimizer",
+ *   exchangeName: "binance",
+ *   frameName: "1d-backtest"
+ * });
+ *
+ * console.log("Best strategy:", results.bestStrategy);
+ * console.log("Best metric:", results.bestMetric);
+ * ```
+ */
+declare class WalkerUtils {
+    /**
+     * Runs walker comparison for a symbol.
+     *
+     * Executes backtests for all strategies defined in the walker schema
+     * and returns comparison results with rankings.
+     *
+     * @param symbol - Trading pair symbol (e.g., "BTCUSDT")
+     * @param context - Walker context with walker name, exchange name, and frame name
+     * @returns Promise resolving to walker results with best strategy
+     *
+     * @example
+     * ```typescript
+     * const results = await Walker.run("BTCUSDT", {
+     *   walkerName: "my-optimizer",
+     *   exchangeName: "binance",
+     *   frameName: "1d-backtest"
+     * });
+     *
+     * console.log("Best strategy:", results.bestStrategy);
+     * console.log("All results:", results.allResults);
+     * ```
+     */
+    run: (symbol: string, context: {
+        walkerName: WalkerName;
+        exchangeName: string;
+        frameName: string;
+    }) => Promise<IWalkerResults>;
+    /**
+     * Generates markdown report from walker results.
+     *
+     * @param walkerName - Walker name to generate report for
+     * @returns Promise resolving to markdown string
+     *
+     * @example
+     * ```typescript
+     * const results = await Walker.run("BTCUSDT", { walkerName: "my-optimizer" });
+     * const markdown = await Walker.getReport(results);
+     * console.log(markdown);
+     * ```
+     */
+    getReport: (results: IWalkerResults) => Promise<string>;
+    /**
+     * Saves walker report to disk.
+     *
+     * @param results - Walker results to save
+     * @param path - Optional custom path (default: ./logs/walker)
+     *
+     * @example
+     * ```typescript
+     * const results = await Walker.run("BTCUSDT", { walkerName: "my-optimizer" });
+     * await Walker.dump(results); // Saves to ./logs/walker/my-optimizer.md
+     * ```
+     */
+    dump: (results: IWalkerResults, path?: string) => Promise<void>;
+}
+/**
+ * Singleton instance of WalkerUtils for convenient usage.
+ */
+declare const Walker: WalkerUtils;
+
+/**
  * Logger service with automatic context injection.
  *
  * Features:
@@ -2923,6 +3122,29 @@ declare class FrameGlobalService {
 }
 
 /**
+ * Global service providing access to walker functionality.
+ *
+ * Simple wrapper around WalkerLogicPublicService for dependency injection.
+ * Used by public API exports.
+ */
+declare class WalkerGlobalService {
+    private readonly loggerService;
+    private readonly walkerLogicPublicService;
+    /**
+     * Runs walker comparison for a symbol with context propagation.
+     *
+     * @param symbol - Trading pair symbol (e.g., "BTCUSDT")
+     * @param context - Walker context with strategies and metric
+     * @returns Promise resolving to walker results with rankings
+     */
+    run: (symbol: string, context: {
+        walkerName: string;
+        exchangeName: string;
+        frameName: string;
+    }) => Promise<IWalkerResults>;
+}
+
+/**
  * Service for managing exchange schema registry.
  *
  * Uses ToolRegistry from functools-kit for type-safe schema storage.
@@ -3068,6 +3290,56 @@ declare class FrameSchemaService {
 }
 
 /**
+ * Service for managing walker schema registry.
+ *
+ * Uses ToolRegistry from functools-kit for type-safe schema storage.
+ * Walkers are registered via addWalker() and retrieved by name.
+ */
+declare class WalkerSchemaService {
+    readonly loggerService: LoggerService;
+    private _registry;
+    /**
+     * Registers a new walker schema.
+     *
+     * @param key - Unique walker name
+     * @param value - Walker schema configuration
+     * @throws Error if walker name already exists
+     */
+    register: (key: WalkerName, value: IWalkerSchema) => void;
+    /**
+     * Validates walker schema structure for required properties.
+     *
+     * Performs shallow validation to ensure all required properties exist
+     * and have correct types before registration in the registry.
+     *
+     * @param walkerSchema - Walker schema to validate
+     * @throws Error if walkerName is missing or not a string
+     * @throws Error if exchangeName is missing or not a string
+     * @throws Error if frameName is missing or not a string
+     * @throws Error if strategies is missing or not an array
+     * @throws Error if strategies array is empty
+     */
+    private validateShallow;
+    /**
+     * Overrides an existing walker schema with partial updates.
+     *
+     * @param key - Walker name to override
+     * @param value - Partial schema updates
+     * @returns Updated walker schema
+     * @throws Error if walker name doesn't exist
+     */
+    override: (key: WalkerName, value: Partial<IWalkerSchema>) => IWalkerSchema;
+    /**
+     * Retrieves a walker schema by name.
+     *
+     * @param key - Walker name
+     * @returns Walker schema configuration
+     * @throws Error if walker name doesn't exist
+     */
+    get: (key: WalkerName) => IWalkerSchema;
+}
+
+/**
  * Private service for backtest orchestration using async generators.
  *
  * Flow:
@@ -3146,6 +3418,56 @@ declare class LiveLogicPrivateService {
      * ```
      */
     run(symbol: string): AsyncGenerator<IStrategyTickResultOpened | IStrategyTickResultClosed, void, unknown>;
+}
+
+/**
+ * Private service for walker orchestration (strategy comparison).
+ *
+ * Flow:
+ * 1. Get list of strategies to compare from walker schema
+ * 2. For each strategy: run full backtest and collect statistics
+ * 3. Extract metric value from each strategy's statistics
+ * 4. Sort strategies by metric value (descending)
+ * 5. Return comparison results with rankings
+ *
+ * Uses BacktestLogicPrivateService internally for each strategy.
+ */
+declare class WalkerLogicPrivateService {
+    private readonly loggerService;
+    private readonly backtestLogicPublicService;
+    private readonly backtestMarkdownService;
+    /**
+     * Runs walker comparison for a symbol.
+     *
+     * Executes backtest for each strategy sequentially and compares results.
+     *
+     * @param symbol - Trading pair symbol (e.g., "BTCUSDT")
+     * @param strategies - List of strategy names to compare
+     * @param metric - Metric to use for comparison
+     * @param context - Walker context with exchangeName, frameName, walkerName
+     * @returns Walker results with rankings
+     *
+     * @example
+     * ```typescript
+     * const results = await walkerLogic.run(
+     *   "BTCUSDT",
+     *   ["strategy-v1", "strategy-v2"],
+     *   "sharpeRatio",
+     *   {
+     *     exchangeName: "binance",
+     *     frameName: "1d-backtest",
+     *     walkerName: "my-optimizer"
+     *   }
+     * );
+     * console.log("Best strategy:", results.bestStrategy);
+     * console.log("Best Sharpe:", results.bestMetric);
+     * ```
+     */
+    run(symbol: string, strategies: StrategyName[], metric: WalkerMetric, context: {
+        exchangeName: string;
+        frameName: string;
+        walkerName: string;
+    }): Promise<IWalkerResults>;
 }
 
 /**
@@ -3244,6 +3566,48 @@ declare class LiveLogicPublicService {
 }
 
 /**
+ * Public service for walker orchestration with context management.
+ *
+ * Wraps WalkerLogicPrivateService with MethodContextService to provide
+ * implicit context propagation for strategyName, exchangeName, frameName, and walkerName.
+ *
+ * @example
+ * ```typescript
+ * const walkerLogicPublicService = inject(TYPES.walkerLogicPublicService);
+ *
+ * const results = await walkerLogicPublicService.run("BTCUSDT", {
+ *   walkerName: "my-optimizer",
+ *   exchangeName: "binance",
+ *   frameName: "1d-backtest",
+ *   strategies: ["strategy-v1", "strategy-v2"],
+ *   metric: "sharpeRatio",
+ * });
+ *
+ * console.log("Best strategy:", results.bestStrategy);
+ * ```
+ */
+declare class WalkerLogicPublicService {
+    private readonly loggerService;
+    private readonly walkerLogicPrivateService;
+    private readonly walkerSchemaService;
+    /**
+     * Runs walker comparison for a symbol with context propagation.
+     *
+     * Executes backtests for all strategies and returns comparison results.
+     * Context is automatically injected into all framework functions.
+     *
+     * @param symbol - Trading pair symbol (e.g., "BTCUSDT")
+     * @param context - Walker context with strategies and metric
+     * @returns Promise resolving to walker results with rankings
+     */
+    run: (symbol: string, context: {
+        walkerName: string;
+        exchangeName: string;
+        frameName: string;
+    }) => Promise<IWalkerResults>;
+}
+
+/**
  * Global service providing access to live trading functionality.
  *
  * Simple wrapper around LiveLogicPublicService for dependency injection.
@@ -3293,6 +3657,54 @@ declare class BacktestGlobalService {
         exchangeName: string;
         frameName: string;
     }) => AsyncGenerator<IStrategyTickResultClosed, void, unknown>;
+}
+
+/**
+ * Service for generating walker comparison reports.
+ *
+ * Features:
+ * - Generates markdown reports comparing strategies
+ * - Shows rankings, metrics, and detailed statistics
+ * - Saves reports to disk in logs/walker/{walkerName}.md
+ *
+ * @example
+ * ```typescript
+ * const markdown = await walkerMarkdownService.getReport(results);
+ * await walkerMarkdownService.dump(results);
+ * ```
+ */
+declare class WalkerMarkdownService {
+    /** Logger service for debug output */
+    private readonly loggerService;
+    /**
+     * Generates markdown report from walker results.
+     *
+     * @param results - Walker comparison results
+     * @returns Markdown formatted report string
+     *
+     * @example
+     * ```typescript
+     * const markdown = await walkerMarkdownService.getReport(results);
+     * console.log(markdown);
+     * ```
+     */
+    getReport(results: IWalkerResults): Promise<string>;
+    /**
+     * Saves walker report to disk.
+     *
+     * @param results - Walker comparison results
+     * @param path - Directory path to save report
+     *
+     * @example
+     * ```typescript
+     * // Save to default path: ./logs/walker/my-walker.md
+     * await walkerMarkdownService.dump(results);
+     *
+     * // Save to custom path
+     * await walkerMarkdownService.dump(results, "./custom/path");
+     * ```
+     */
+    dump(results: IWalkerResults, path?: string): Promise<void>;
 }
 
 /**
@@ -3413,18 +3825,23 @@ declare const backtest: {
     backtestMarkdownService: BacktestMarkdownService;
     liveMarkdownService: LiveMarkdownService;
     performanceMarkdownService: PerformanceMarkdownService;
+    walkerMarkdownService: WalkerMarkdownService;
     backtestLogicPublicService: BacktestLogicPublicService;
     liveLogicPublicService: LiveLogicPublicService;
+    walkerLogicPublicService: WalkerLogicPublicService;
     backtestLogicPrivateService: BacktestLogicPrivateService;
     liveLogicPrivateService: LiveLogicPrivateService;
+    walkerLogicPrivateService: WalkerLogicPrivateService;
     exchangeGlobalService: ExchangeGlobalService;
     strategyGlobalService: StrategyGlobalService;
     frameGlobalService: FrameGlobalService;
     liveGlobalService: LiveGlobalService;
     backtestGlobalService: BacktestGlobalService;
+    walkerGlobalService: WalkerGlobalService;
     exchangeSchemaService: ExchangeSchemaService;
     strategySchemaService: StrategySchemaService;
     frameSchemaService: FrameSchemaService;
+    walkerSchemaService: WalkerSchemaService;
     exchangeConnectionService: ExchangeConnectionService;
     strategyConnectionService: StrategyConnectionService;
     frameConnectionService: FrameConnectionService;
@@ -3437,4 +3854,4 @@ declare const backtest: {
     loggerService: LoggerService;
 };
 
-export { Backtest, type BacktestStatistics, type CandleInterval, type DoneContract, type EntityId, ExecutionContextService, type FrameInterval, type ICandleData, type IExchangeSchema, type IFrameSchema, type IPersistBase, type ISignalDto, type ISignalRow, type IStrategyPnL, type IStrategySchema, type IStrategyTickResult, type IStrategyTickResultActive, type IStrategyTickResultClosed, type IStrategyTickResultIdle, type IStrategyTickResultOpened, Live, type LiveStatistics, MethodContextService, Performance, type PerformanceContract, type PerformanceMetricType, type PerformanceStatistics, PersistBase, PersistSignalAdaper, type ProgressContract, type SignalData, type SignalInterval, type TPersistBase, type TPersistBaseCtor, addExchange, addFrame, addStrategy, formatPrice, formatQuantity, getAveragePrice, getCandles, getDate, getMode, backtest as lib, listExchanges, listFrames, listStrategies, listenDone, listenDoneOnce, listenError, listenPerformance, listenProgress, listenSignal, listenSignalBacktest, listenSignalBacktestOnce, listenSignalLive, listenSignalLiveOnce, listenSignalOnce, setLogger };
+export { Backtest, type BacktestStatistics, type CandleInterval, type DoneContract, type EntityId, ExecutionContextService, type FrameInterval, type ICandleData, type IExchangeSchema, type IFrameSchema, type IPersistBase, type ISignalDto, type ISignalRow, type IStrategyPnL, type IStrategySchema, type IStrategyTickResult, type IStrategyTickResultActive, type IStrategyTickResultClosed, type IStrategyTickResultIdle, type IStrategyTickResultOpened, type IWalkerResults, type IWalkerSchema, type IWalkerStrategyResult, Live, type LiveStatistics, MethodContextService, Performance, type PerformanceContract, type PerformanceMetricType, type PerformanceStatistics, PersistBase, PersistSignalAdaper, type ProgressContract, type SignalData, type SignalInterval, type TPersistBase, type TPersistBaseCtor, Walker, type WalkerMetric, addExchange, addFrame, addStrategy, addWalker, formatPrice, formatQuantity, getAveragePrice, getCandles, getDate, getMode, backtest as lib, listExchanges, listFrames, listStrategies, listenDone, listenDoneOnce, listenError, listenPerformance, listenProgress, listenSignal, listenSignalBacktest, listenSignalBacktestOnce, listenSignalLive, listenSignalLiveOnce, listenSignalOnce, setLogger };

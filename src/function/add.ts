@@ -2,10 +2,12 @@ import backtest from "../lib/index";
 import { IStrategySchema } from "../interfaces/Strategy.interface";
 import { IExchangeSchema } from "../interfaces/Exchange.interface";
 import { IFrameSchema } from "../interfaces/Frame.interface";
+import { IWalkerSchema } from "../interfaces/Walker.interface";
 
 const ADD_STRATEGY_METHOD_NAME = "add.addStrategy";
 const ADD_EXCHANGE_METHOD_NAME = "add.addExchange";
 const ADD_FRAME_METHOD_NAME = "add.addFrame";
+const ADD_WALKER_METHOD_NAME = "add.addWalker";
 
 /**
  * Registers a trading strategy in the framework.
@@ -140,4 +142,51 @@ export function addFrame(frameSchema: IFrameSchema) {
   });
   backtest.frameValidationService.addFrame(frameSchema.frameName, frameSchema);
   backtest.frameSchemaService.register(frameSchema.frameName, frameSchema);
+}
+
+/**
+ * Registers a walker for strategy comparison.
+ *
+ * The walker executes backtests for multiple strategies on the same
+ * historical data and compares their performance using a specified metric.
+ *
+ * @param walkerSchema - Walker configuration object
+ * @param walkerSchema.walkerName - Unique walker identifier
+ * @param walkerSchema.exchangeName - Exchange to use for all strategies
+ * @param walkerSchema.frameName - Timeframe to use for all strategies
+ * @param walkerSchema.strategies - Array of strategy names to compare
+ * @param walkerSchema.metric - Metric to optimize (default: "sharpeRatio")
+ * @param walkerSchema.callbacks - Optional lifecycle callbacks
+ *
+ * @example
+ * ```typescript
+ * addWalker({
+ *   walkerName: "llm-prompt-optimizer",
+ *   exchangeName: "binance",
+ *   frameName: "1d-backtest",
+ *   strategies: [
+ *     "my-strategy-v1",
+ *     "my-strategy-v2",
+ *     "my-strategy-v3"
+ *   ],
+ *   metric: "sharpeRatio",
+ *   callbacks: {
+ *     onStrategyComplete: (strategyName, symbol, stats, metric) => {
+ *       console.log(`${strategyName}: ${metric}`);
+ *     },
+ *     onComplete: (results) => {
+ *       console.log(`Best strategy: ${results.bestStrategy}`);
+ *     }
+ *   }
+ * });
+ * ```
+ */
+export function addWalker(walkerSchema: IWalkerSchema) {
+  backtest.loggerService.info(ADD_WALKER_METHOD_NAME, {
+    walkerSchema,
+  });
+  backtest.walkerSchemaService.register(
+    walkerSchema.walkerName,
+    walkerSchema
+  );
 }
