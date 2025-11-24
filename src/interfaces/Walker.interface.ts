@@ -110,9 +110,6 @@ export interface IWalkerResults {
 
   /** Best strategy statistics */
   bestStats: BacktestStatistics;
-
-  /** All strategy results sorted by rank (best first) */
-  allResults: IWalkerStrategyResult[];
 }
 
 /**

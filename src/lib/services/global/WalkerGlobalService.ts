@@ -2,7 +2,6 @@ import { inject } from "../../../lib/core/di";
 import LoggerService from "../base/LoggerService";
 import TYPES from "../../../lib/core/types";
 import WalkerLogicPublicService from "../logic/public/WalkerLogicPublicService";
-import { IWalkerResults } from "../../../interfaces/Walker.interface";
 
 const METHOD_NAME_RUN = "walkerGlobalService run";
 
@@ -22,16 +21,15 @@ export class WalkerGlobalService {
    *
    * @param symbol - Trading pair symbol (e.g., "BTCUSDT")
    * @param context - Walker context with strategies and metric
-   * @returns Promise resolving to walker results with rankings
    */
-  public run = async (
+  public run = (
     symbol: string,
     context: {
       walkerName: string;
       exchangeName: string;
       frameName: string;
     }
-  ): Promise<IWalkerResults> => {
+  ) => {
     this.loggerService.log(METHOD_NAME_RUN, {
       symbol,
       context,

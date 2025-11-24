@@ -1,9 +1,10 @@
 import backtest from "../lib";
-import { signalEmitter, signalLiveEmitter, signalBacktestEmitter, errorEmitter, doneEmitter, progressEmitter, performanceEmitter } from "../config/emitters";
+import { signalEmitter, signalLiveEmitter, signalBacktestEmitter, errorEmitter, doneEmitter, progressEmitter, performanceEmitter, walkerEmitter } from "../config/emitters";
 import { IStrategyTickResult } from "../interfaces/Strategy.interface";
 import { DoneContract } from "../contract/Done.contract";
 import { ProgressContract } from "../contract/Progress.contract";
 import { PerformanceContract } from "../contract/Performance.contract";
+import { WalkerContract } from "../contract/Walker.contract";
 import { queued } from "functools-kit";
 
 const LISTEN_SIGNAL_METHOD_NAME = "event.listenSignal";
@@ -17,6 +18,8 @@ const LISTEN_DONE_METHOD_NAME = "event.listenDone";
 const LISTEN_DONE_ONCE_METHOD_NAME = "event.listenDoneOnce";
 const LISTEN_PROGRESS_METHOD_NAME = "event.listenProgress";
 const LISTEN_PERFORMANCE_METHOD_NAME = "event.listenPerformance";
+const LISTEN_WALKER_METHOD_NAME = "event.listenWalker";
+const LISTEN_WALKER_ONCE_METHOD_NAME = "event.listenWalkerOnce";
 
 /**
  * Subscribes to all signal events with queued async processing.
@@ -364,4 +367,86 @@ export function listenProgress(fn: (event: ProgressContract) => void) {
 export function listenPerformance(fn: (event: PerformanceContract) => void) {
   backtest.loggerService.log(LISTEN_PERFORMANCE_METHOD_NAME);
   return performanceEmitter.subscribe(queued(async (event) => fn(event)));
+}
+
+/**
+ * Subscribes to walker progress events with queued async processing.
+ *
+ * Emits during Walker.run() execution after each strategy completes.
+ * Events are processed sequentially in order received, even if callback is async.
+ * Uses queued wrapper to prevent concurrent execution of the callback.
+ *
+ * @param fn - Callback function to handle walker progress events
+ * @returns Unsubscribe function to stop listening to events
+ *
+ * @example
+ * ```typescript
+ * import { listenWalker, Walker } from "backtest-kit";
+ *
+ * const unsubscribe = listenWalker((event) => {
+ *   console.log(`Progress: ${event.strategiesTested} / ${event.totalStrategies}`);
+ *   console.log(`Best strategy: ${event.bestStrategy} (${event.bestMetric})`);
+ *   console.log(`Current strategy: ${event.strategyName} (${event.metricValue})`);
+ * });
+ *
+ * Walker.run("BTCUSDT", {
+ *   walkerName: "my-walker",
+ *   exchangeName: "binance",
+ *   frameName: "1d-backtest"
+ * });
+ *
+ * // Later: stop listening
+ * unsubscribe();
+ * ```
+ */
+export function listenWalker(fn: (event: WalkerContract) => void) {
+  backtest.loggerService.log(LISTEN_WALKER_METHOD_NAME);
+  return walkerEmitter.subscribe(queued(async (event) => fn(event)));
+}
+
+/**
+ * Subscribes to filtered walker progress events with one-time execution.
+ *
+ * Listens for events matching the filter predicate, then executes callback once
+ * and automatically unsubscribes. Useful for waiting for specific walker conditions.
+ *
+ * @param filterFn - Predicate to filter which events trigger the callback
+ * @param fn - Callback function to handle the filtered event (called only once)
+ * @returns Unsubscribe function to cancel the listener before it fires
+ *
+ * @example
+ * ```typescript
+ * import { listenWalkerOnce, Walker } from "backtest-kit";
+ *
+ * // Wait for walker to complete all strategies
+ * listenWalkerOnce(
+ *   (event) => event.strategiesTested === event.totalStrategies,
+ *   (event) => {
+ *     console.log("Walker completed!");
+ *     console.log("Best strategy:", event.bestStrategy, event.bestMetric);
+ *   }
+ * );
+ *
+ * // Wait for specific strategy to be tested
+ * const cancel = listenWalkerOnce(
+ *   (event) => event.strategyName === "my-strategy-v2",
+ *   (event) => console.log("Strategy v2 tested:", event.metricValue)
+ * );
+ *
+ * Walker.run("BTCUSDT", {
+ *   walkerName: "my-walker",
+ *   exchangeName: "binance",
+ *   frameName: "1d-backtest"
+ * });
+ *
+ * // Cancel if needed before event fires
+ * cancel();
+ * ```
+ */
+export function listenWalkerOnce(
+  filterFn: (event: WalkerContract) => boolean,
+  fn: (event: WalkerContract) => void
+) {
+  backtest.loggerService.log(LISTEN_WALKER_ONCE_METHOD_NAME);
+  return walkerEmitter.filter(filterFn).once(fn);
 }

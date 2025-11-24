@@ -827,8 +827,6 @@ interface IWalkerResults {
     bestMetric: number | null;
     /** Best strategy statistics */
     bestStats: BacktestStatistics;
-    /** All strategy results sorted by rank (best first) */
-    allResults: IWalkerStrategyResult[];
 }
 /**
  * Unique walker identifier.
@@ -1059,6 +1057,33 @@ declare function listStrategies(): Promise<IStrategySchema[]>;
  * ```
  */
 declare function listFrames(): Promise<IFrameSchema[]>;
+/**
+ * Returns a list of all registered walker schemas.
+ *
+ * Retrieves all walkers that have been registered via addWalker().
+ * Useful for debugging, documentation, or building dynamic UIs.
+ *
+ * @returns Array of walker schemas with their configurations
+ *
+ * @example
+ * ```typescript
+ * import { listWalkers, addWalker } from "backtest-kit";
+ *
+ * addWalker({
+ *   walkerName: "llm-prompt-optimizer",
+ *   note: "Compare LLM-based trading strategies",
+ *   exchangeName: "binance",
+ *   frameName: "1d-backtest",
+ *   strategies: ["my-strategy-v1", "my-strategy-v2"],
+ *   metric: "sharpeRatio",
+ * });
+ *
+ * const walkers = listWalkers();
+ * console.log(walkers);
+ * // [{ walkerName: "llm-prompt-optimizer", note: "Compare LLM...", ... }]
+ * ```
+ */
+declare function listWalkers(): Promise<IWalkerSchema[]>;
 
 /**
  * Contract for background execution completion events.
@@ -1166,6 +1191,37 @@ interface PerformanceContract {
     symbol: string;
     /** Whether this metric is from backtest mode (true) or live mode (false) */
     backtest: boolean;
+}
+
+/**
+ * Contract for walker progress events during strategy comparison.
+ * Emitted each time a strategy completes testing with its current ranking.
+ */
+interface WalkerContract {
+    /** Walker name */
+    walkerName: WalkerName;
+    /** Exchange name */
+    exchangeName: ExchangeName;
+    /** Frame name */
+    frameName: string;
+    /** Symbol being tested */
+    symbol: string;
+    /** Strategy that just completed */
+    strategyName: StrategyName;
+    /** Backtest statistics for this strategy */
+    stats: BacktestStatistics;
+    /** Metric value for this strategy (null if invalid) */
+    metricValue: number | null;
+    /** Metric being optimized */
+    metric: WalkerMetric;
+    /** Current best metric value across all tested strategies so far */
+    bestMetric: number | null;
+    /** Current best strategy name */
+    bestStrategy: StrategyName | null;
+    /** Number of strategies tested so far */
+    strategiesTested: number;
+    /** Total number of strategies to test */
+    totalStrategies: number;
 }
 
 /**
@@ -2532,83 +2588,153 @@ declare class Performance {
 }
 
 /**
- * Utility class for walker operations (strategy comparison).
+ * Utility class for walker operations.
  *
- * Provides simplified access to walkerLogicPrivateService with logging.
+ * Provides simplified access to walkerGlobalService.run() with logging.
  * Exported as singleton instance for convenient usage.
  *
  * @example
  * ```typescript
  * import { Walker } from "./classes/Walker";
  *
- * const results = await Walker.run("BTCUSDT", {
- *   walkerName: "my-optimizer",
+ * for await (const result of Walker.run("BTCUSDT", {
+ *   walkerName: "my-walker",
  *   exchangeName: "binance",
  *   frameName: "1d-backtest"
- * });
- *
- * console.log("Best strategy:", results.bestStrategy);
- * console.log("Best metric:", results.bestMetric);
+ * })) {
+ *   console.log("Progress:", result.strategiesTested, "/", result.totalStrategies);
+ *   console.log("Best strategy:", result.bestStrategy, result.bestMetric);
+ * }
  * ```
  */
 declare class WalkerUtils {
     /**
-     * Runs walker comparison for a symbol.
-     *
-     * Executes backtests for all strategies defined in the walker schema
-     * and returns comparison results with rankings.
+     * Runs walker comparison for a symbol with context propagation.
      *
      * @param symbol - Trading pair symbol (e.g., "BTCUSDT")
-     * @param context - Walker context with walker name, exchange name, and frame name
-     * @returns Promise resolving to walker results with best strategy
+     * @param context - Execution context with walker, exchange, and frame names
+     * @returns Async generator yielding progress updates after each strategy
+     */
+    run: (symbol: string, context: {
+        walkerName: string;
+        exchangeName: string;
+        frameName: string;
+    }) => AsyncGenerator<WalkerContract, any, any>;
+    /**
+     * Runs walker comparison in background without yielding results.
+     *
+     * Consumes all walker progress updates internally without exposing them.
+     * Useful for running walker comparison for side effects only (callbacks, logging).
+     *
+     * @param symbol - Trading pair symbol (e.g., "BTCUSDT")
+     * @param context - Execution context with walker, exchange, and frame names
+     * @returns Cancellation closure
      *
      * @example
      * ```typescript
-     * const results = await Walker.run("BTCUSDT", {
-     *   walkerName: "my-optimizer",
+     * // Run walker silently, only callbacks will fire
+     * await Walker.background("BTCUSDT", {
+     *   walkerName: "my-walker",
      *   exchangeName: "binance",
      *   frameName: "1d-backtest"
      * });
-     *
-     * console.log("Best strategy:", results.bestStrategy);
-     * console.log("All results:", results.allResults);
+     * console.log("Walker comparison completed");
      * ```
      */
-    run: (symbol: string, context: {
-        walkerName: WalkerName;
+    background: (symbol: string, context: {
+        walkerName: string;
+        exchangeName: string;
+        frameName: string;
+    }) => () => void;
+    /**
+     * Gets walker results data from all strategy comparisons.
+     *
+     * @param walkerName - Walker name to get data for
+     * @param symbol - Trading symbol
+     * @param metric - Metric being optimized
+     * @param context - Context with exchangeName and frameName
+     * @returns Promise resolving to walker results data object
+     *
+     * @example
+     * ```typescript
+     * const results = await Walker.getData("my-walker", "BTCUSDT", "sharpeRatio", {
+     *   exchangeName: "binance",
+     *   frameName: "1d-backtest"
+     * });
+     * console.log(results.bestStrategy, results.bestMetric);
+     * ```
+     */
+    getData: (walkerName: WalkerName, symbol: string, metric: WalkerMetric, context: {
         exchangeName: string;
         frameName: string;
     }) => Promise<IWalkerResults>;
     /**
-     * Generates markdown report from walker results.
+     * Generates markdown report with all strategy comparisons for a walker.
      *
      * @param walkerName - Walker name to generate report for
-     * @returns Promise resolving to markdown string
+     * @param symbol - Trading symbol
+     * @param metric - Metric being optimized
+     * @param context - Context with exchangeName and frameName
+     * @returns Promise resolving to markdown formatted report string
      *
      * @example
      * ```typescript
-     * const results = await Walker.run("BTCUSDT", { walkerName: "my-optimizer" });
-     * const markdown = await Walker.getReport(results);
+     * const markdown = await Walker.getReport("my-walker", "BTCUSDT", "sharpeRatio", {
+     *   exchangeName: "binance",
+     *   frameName: "1d-backtest"
+     * });
      * console.log(markdown);
      * ```
      */
-    getReport: (results: IWalkerResults) => Promise<string>;
+    getReport: (walkerName: WalkerName, symbol: string, metric: WalkerMetric, context: {
+        exchangeName: string;
+        frameName: string;
+    }) => Promise<string>;
     /**
      * Saves walker report to disk.
      *
-     * @param results - Walker results to save
-     * @param path - Optional custom path (default: ./logs/walker)
+     * @param walkerName - Walker name to save report for
+     * @param symbol - Trading symbol
+     * @param metric - Metric being optimized
+     * @param context - Context with exchangeName and frameName
+     * @param path - Optional directory path to save report (default: "./logs/walker")
      *
      * @example
      * ```typescript
-     * const results = await Walker.run("BTCUSDT", { walkerName: "my-optimizer" });
-     * await Walker.dump(results); // Saves to ./logs/walker/my-optimizer.md
+     * // Save to default path: ./logs/walker/my-walker.md
+     * await Walker.dump("my-walker", "BTCUSDT", "sharpeRatio", {
+     *   exchangeName: "binance",
+     *   frameName: "1d-backtest"
+     * });
+     *
+     * // Save to custom path: ./custom/path/my-walker.md
+     * await Walker.dump("my-walker", "BTCUSDT", "sharpeRatio", {
+     *   exchangeName: "binance",
+     *   frameName: "1d-backtest"
+     * }, "./custom/path");
      * ```
      */
-    dump: (results: IWalkerResults, path?: string) => Promise<void>;
+    dump: (walkerName: WalkerName, symbol: string, metric: WalkerMetric, context: {
+        exchangeName: string;
+        frameName: string;
+    }, path?: string) => Promise<void>;
 }
 /**
- * Singleton instance of WalkerUtils for convenient usage.
+ * Singleton instance of WalkerUtils for convenient walker operations.
+ *
+ * @example
+ * ```typescript
+ * import { Walker } from "./classes/Walker";
+ *
+ * for await (const result of Walker.run("BTCUSDT", {
+ *   walkerName: "my-walker",
+ *   exchangeName: "binance",
+ *   frameName: "1d-backtest"
+ * })) {
+ *   console.log("Progress:", result.strategiesTested, "/", result.totalStrategies);
+ *   console.log("Best so far:", result.bestStrategy, result.bestMetric);
+ * }
+ * ```
  */
 declare const Walker: WalkerUtils;
 
@@ -3135,13 +3261,12 @@ declare class WalkerGlobalService {
      *
      * @param symbol - Trading pair symbol (e.g., "BTCUSDT")
      * @param context - Walker context with strategies and metric
-     * @returns Promise resolving to walker results with rankings
      */
     run: (symbol: string, context: {
         walkerName: string;
         exchangeName: string;
         frameName: string;
-    }) => Promise<IWalkerResults>;
+    }) => AsyncGenerator<WalkerContract, any, any>;
 }
 
 /**
@@ -3424,13 +3549,11 @@ declare class LiveLogicPrivateService {
  * Private service for walker orchestration (strategy comparison).
  *
  * Flow:
- * 1. Get list of strategies to compare from walker schema
- * 2. For each strategy: run full backtest and collect statistics
- * 3. Extract metric value from each strategy's statistics
- * 4. Sort strategies by metric value (descending)
- * 5. Return comparison results with rankings
+ * 1. Yields progress updates as each strategy completes
+ * 2. Tracks best metric in real-time
+ * 3. Returns final results with all strategies ranked
  *
- * Uses BacktestLogicPrivateService internally for each strategy.
+ * Uses BacktestLogicPublicService internally for each strategy.
  */
 declare class WalkerLogicPrivateService {
     private readonly loggerService;
@@ -3439,17 +3562,18 @@ declare class WalkerLogicPrivateService {
     /**
      * Runs walker comparison for a symbol.
      *
-     * Executes backtest for each strategy sequentially and compares results.
+     * Executes backtest for each strategy sequentially.
+     * Yields WalkerContract after each strategy completes.
      *
      * @param symbol - Trading pair symbol (e.g., "BTCUSDT")
      * @param strategies - List of strategy names to compare
      * @param metric - Metric to use for comparison
      * @param context - Walker context with exchangeName, frameName, walkerName
-     * @returns Walker results with rankings
+     * @yields WalkerContract with progress after each strategy
      *
      * @example
      * ```typescript
-     * const results = await walkerLogic.run(
+     * for await (const progress of walkerLogic.run(
      *   "BTCUSDT",
      *   ["strategy-v1", "strategy-v2"],
      *   "sharpeRatio",
@@ -3458,16 +3582,16 @@ declare class WalkerLogicPrivateService {
      *     frameName: "1d-backtest",
      *     walkerName: "my-optimizer"
      *   }
-     * );
-     * console.log("Best strategy:", results.bestStrategy);
-     * console.log("Best Sharpe:", results.bestMetric);
+     * )) {
+     *   console.log("Progress:", progress.strategiesTested, "/", progress.totalStrategies);
+     * }
      * ```
      */
     run(symbol: string, strategies: StrategyName[], metric: WalkerMetric, context: {
         exchangeName: string;
         frameName: string;
         walkerName: string;
-    }): Promise<IWalkerResults>;
+    }): AsyncGenerator<WalkerContract>;
 }
 
 /**
@@ -3593,18 +3717,16 @@ declare class WalkerLogicPublicService {
     /**
      * Runs walker comparison for a symbol with context propagation.
      *
-     * Executes backtests for all strategies and returns comparison results.
-     * Context is automatically injected into all framework functions.
+     * Executes backtests for all strategies.
      *
      * @param symbol - Trading pair symbol (e.g., "BTCUSDT")
      * @param context - Walker context with strategies and metric
-     * @returns Promise resolving to walker results with rankings
      */
     run: (symbol: string, context: {
         walkerName: string;
         exchangeName: string;
         frameName: string;
-    }) => Promise<IWalkerResults>;
+    }) => AsyncGenerator<WalkerContract, any, any>;
 }
 
 /**
@@ -3660,51 +3782,141 @@ declare class BacktestGlobalService {
 }
 
 /**
- * Service for generating walker comparison reports.
+ * Service for generating and saving walker markdown reports.
  *
  * Features:
- * - Generates markdown reports comparing strategies
- * - Shows rankings, metrics, and detailed statistics
+ * - Listens to walker events via tick callback
+ * - Accumulates strategy results per walker using memoized storage
+ * - Generates markdown tables with detailed strategy comparison
  * - Saves reports to disk in logs/walker/{walkerName}.md
  *
  * @example
  * ```typescript
- * const markdown = await walkerMarkdownService.getReport(results);
- * await walkerMarkdownService.dump(results);
+ * const service = new WalkerMarkdownService();
+ * const results = await service.getData("my-walker");
+ * await service.dump("my-walker");
  * ```
  */
 declare class WalkerMarkdownService {
     /** Logger service for debug output */
     private readonly loggerService;
     /**
-     * Generates markdown report from walker results.
+     * Memoized function to get or create ReportStorage for a walker.
+     * Each walker gets its own isolated storage instance.
+     */
+    private getStorage;
+    /**
+     * Processes walker progress events and accumulates strategy results.
+     * Should be called from walkerEmitter.
      *
-     * @param results - Walker comparison results
+     * @param data - Walker contract from walker execution
+     *
+     * @example
+     * ```typescript
+     * const service = new WalkerMarkdownService();
+     * walkerEmitter.subscribe((data) => service.tick(data));
+     * ```
+     */
+    private tick;
+    /**
+     * Gets walker results data from all strategy results.
+     * Delegates to ReportStorage.getData().
+     *
+     * @param walkerName - Walker name to get data for
+     * @param symbol - Trading symbol
+     * @param metric - Metric being optimized
+     * @param context - Context with exchangeName and frameName
+     * @returns Walker results data object with all metrics
+     *
+     * @example
+     * ```typescript
+     * const service = new WalkerMarkdownService();
+     * const results = await service.getData("my-walker", "BTCUSDT", "sharpeRatio", { exchangeName: "binance", frameName: "1d" });
+     * console.log(results.bestStrategy, results.bestMetric);
+     * ```
+     */
+    getData: (walkerName: WalkerName, symbol: string, metric: WalkerMetric, context: {
+        exchangeName: string;
+        frameName: string;
+    }) => Promise<IWalkerResults>;
+    /**
+     * Generates markdown report with all strategy results for a walker.
+     * Delegates to ReportStorage.getReport().
+     *
+     * @param walkerName - Walker name to generate report for
+     * @param symbol - Trading symbol
+     * @param metric - Metric being optimized
+     * @param context - Context with exchangeName and frameName
      * @returns Markdown formatted report string
      *
      * @example
      * ```typescript
-     * const markdown = await walkerMarkdownService.getReport(results);
+     * const service = new WalkerMarkdownService();
+     * const markdown = await service.getReport("my-walker", "BTCUSDT", "sharpeRatio", { exchangeName: "binance", frameName: "1d" });
      * console.log(markdown);
      * ```
      */
-    getReport(results: IWalkerResults): Promise<string>;
+    getReport: (walkerName: WalkerName, symbol: string, metric: WalkerMetric, context: {
+        exchangeName: string;
+        frameName: string;
+    }) => Promise<string>;
     /**
      * Saves walker report to disk.
+     * Creates directory if it doesn't exist.
+     * Delegates to ReportStorage.dump().
      *
-     * @param results - Walker comparison results
-     * @param path - Directory path to save report
+     * @param walkerName - Walker name to save report for
+     * @param symbol - Trading symbol
+     * @param metric - Metric being optimized
+     * @param context - Context with exchangeName and frameName
+     * @param path - Directory path to save report (default: "./logs/walker")
      *
      * @example
      * ```typescript
-     * // Save to default path: ./logs/walker/my-walker.md
-     * await walkerMarkdownService.dump(results);
+     * const service = new WalkerMarkdownService();
      *
-     * // Save to custom path
-     * await walkerMarkdownService.dump(results, "./custom/path");
+     * // Save to default path: ./logs/walker/my-walker.md
+     * await service.dump("my-walker", "BTCUSDT", "sharpeRatio", { exchangeName: "binance", frameName: "1d" });
+     *
+     * // Save to custom path: ./custom/path/my-walker.md
+     * await service.dump("my-walker", "BTCUSDT", "sharpeRatio", { exchangeName: "binance", frameName: "1d" }, "./custom/path");
      * ```
      */
-    dump(results: IWalkerResults, path?: string): Promise<void>;
+    dump: (walkerName: WalkerName, symbol: string, metric: WalkerMetric, context: {
+        exchangeName: string;
+        frameName: string;
+    }, path?: string) => Promise<void>;
+    /**
+     * Clears accumulated result data from storage.
+     * If walkerName is provided, clears only that walker's data.
+     * If walkerName is omitted, clears all walkers' data.
+     *
+     * @param walkerName - Optional walker name to clear specific walker data
+     *
+     * @example
+     * ```typescript
+     * const service = new WalkerMarkdownService();
+     *
+     * // Clear specific walker data
+     * await service.clear("my-walker");
+     *
+     * // Clear all walkers' data
+     * await service.clear();
+     * ```
+     */
+    clear: (walkerName?: WalkerName) => Promise<void>;
+    /**
+     * Initializes the service by subscribing to walker events.
+     * Uses singleshot to ensure initialization happens only once.
+     * Automatically called on first use.
+     *
+     * @example
+     * ```typescript
+     * const service = new WalkerMarkdownService();
+     * await service.init(); // Subscribe to walker events
+     * ```
+     */
+    protected init: (() => Promise<void>) & functools_kit.ISingleshotClearable;
 }
 
 /**
@@ -3818,10 +4030,48 @@ declare class FrameValidationService {
     list: () => Promise<IFrameSchema[]>;
 }
 
+/**
+ * @class WalkerValidationService
+ * Service for managing and validating walker configurations
+ */
+declare class WalkerValidationService {
+    /**
+     * @private
+     * @readonly
+     * Injected logger service instance
+     */
+    private readonly loggerService;
+    /**
+     * @private
+     * Map storing walker schemas by walker name
+     */
+    private _walkerMap;
+    /**
+     * Adds a walker schema to the validation service
+     * @public
+     * @throws {Error} If walkerName already exists
+     */
+    addWalker: (walkerName: WalkerName, walkerSchema: IWalkerSchema) => void;
+    /**
+     * Validates the existence of a walker
+     * @public
+     * @throws {Error} If walkerName is not found
+     * Memoized function to cache validation results
+     */
+    validate: (walkerName: WalkerName, source: string) => void;
+    /**
+     * Returns a list of all registered walker schemas
+     * @public
+     * @returns Array of walker schemas with their configurations
+     */
+    list: () => Promise<IWalkerSchema[]>;
+}
+
 declare const backtest: {
     exchangeValidationService: ExchangeValidationService;
     strategyValidationService: StrategyValidationService;
     frameValidationService: FrameValidationService;
+    walkerValidationService: WalkerValidationService;
     backtestMarkdownService: BacktestMarkdownService;
     liveMarkdownService: LiveMarkdownService;
     performanceMarkdownService: PerformanceMarkdownService;
@@ -3854,4 +4104,4 @@ declare const backtest: {
     loggerService: LoggerService;
 };
 
-export { Backtest, type BacktestStatistics, type CandleInterval, type DoneContract, type EntityId, ExecutionContextService, type FrameInterval, type ICandleData, type IExchangeSchema, type IFrameSchema, type IPersistBase, type ISignalDto, type ISignalRow, type IStrategyPnL, type IStrategySchema, type IStrategyTickResult, type IStrategyTickResultActive, type IStrategyTickResultClosed, type IStrategyTickResultIdle, type IStrategyTickResultOpened, type IWalkerResults, type IWalkerSchema, type IWalkerStrategyResult, Live, type LiveStatistics, MethodContextService, Performance, type PerformanceContract, type PerformanceMetricType, type PerformanceStatistics, PersistBase, PersistSignalAdaper, type ProgressContract, type SignalData, type SignalInterval, type TPersistBase, type TPersistBaseCtor, Walker, type WalkerMetric, addExchange, addFrame, addStrategy, addWalker, formatPrice, formatQuantity, getAveragePrice, getCandles, getDate, getMode, backtest as lib, listExchanges, listFrames, listStrategies, listenDone, listenDoneOnce, listenError, listenPerformance, listenProgress, listenSignal, listenSignalBacktest, listenSignalBacktestOnce, listenSignalLive, listenSignalLiveOnce, listenSignalOnce, setLogger };
+export { Backtest, type BacktestStatistics, type CandleInterval, type DoneContract, type EntityId, ExecutionContextService, type FrameInterval, type ICandleData, type IExchangeSchema, type IFrameSchema, type IPersistBase, type ISignalDto, type ISignalRow, type IStrategyPnL, type IStrategySchema, type IStrategyTickResult, type IStrategyTickResultActive, type IStrategyTickResultClosed, type IStrategyTickResultIdle, type IStrategyTickResultOpened, type IWalkerResults, type IWalkerSchema, type IWalkerStrategyResult, Live, type LiveStatistics, MethodContextService, Performance, type PerformanceContract, type PerformanceMetricType, type PerformanceStatistics, PersistBase, PersistSignalAdaper, type ProgressContract, type SignalData, type SignalInterval, type TPersistBase, type TPersistBaseCtor, Walker, type WalkerMetric, addExchange, addFrame, addStrategy, addWalker, formatPrice, formatQuantity, getAveragePrice, getCandles, getDate, getMode, backtest as lib, listExchanges, listFrames, listStrategies, listWalkers, listenDone, listenDoneOnce, listenError, listenPerformance, listenProgress, listenSignal, listenSignalBacktest, listenSignalBacktestOnce, listenSignalLive, listenSignalLiveOnce, listenSignalOnce, setLogger };

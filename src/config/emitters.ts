@@ -3,6 +3,7 @@ import { IStrategyTickResult } from "../interfaces/Strategy.interface";
 import { DoneContract } from "../contract/Done.contract";
 import { ProgressContract } from "../contract/Progress.contract";
 import { PerformanceContract } from "../contract/Performance.contract";
+import { WalkerContract } from "../contract/Walker.contract";
 
 /**
  * Global signal emitter for all trading events (live + backtest).
@@ -45,4 +46,10 @@ export const progressEmitter = new Subject<ProgressContract>();
  * Emits performance metrics for profiling and bottleneck detection.
  */
 export const performanceEmitter = new Subject<PerformanceContract>();
+
+/**
+ * Walker emitter for strategy comparison progress.
+ * Emits progress updates during walker execution (each strategy completion).
+ */
+export const walkerEmitter = new Subject<WalkerContract>();
 

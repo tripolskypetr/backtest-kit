@@ -2,8 +2,6 @@ import { inject } from "../../../core/di";
 import LoggerService from "../../base/LoggerService";
 import TYPES from "../../../core/types";
 import WalkerLogicPrivateService from "../private/WalkerLogicPrivateService";
-import MethodContextService from "../../context/MethodContextService";
-import { IWalkerResults } from "../../../../interfaces/Walker.interface";
 import WalkerSchemaService from "../../schema/WalkerSchemaService";
 
 /**
@@ -37,21 +35,19 @@ export class WalkerLogicPublicService {
   /**
    * Runs walker comparison for a symbol with context propagation.
    *
-   * Executes backtests for all strategies and returns comparison results.
-   * Context is automatically injected into all framework functions.
+   * Executes backtests for all strategies.
    *
    * @param symbol - Trading pair symbol (e.g., "BTCUSDT")
    * @param context - Walker context with strategies and metric
-   * @returns Promise resolving to walker results with rankings
    */
-  public run = async (
+  public run = (
     symbol: string,
     context: {
       walkerName: string;
       exchangeName: string;
       frameName: string;
     }
-  ): Promise<IWalkerResults> => {
+  ) => {
     this.loggerService.log("walkerLogicPublicService run", {
       symbol,
       context,
@@ -61,7 +57,7 @@ export class WalkerLogicPublicService {
     const walkerSchema = this.walkerSchemaService.get(context.walkerName);
 
     // Run walker private service with strategies and metric from schema
-    const results = await this.walkerLogicPrivateService.run(
+    return this.walkerLogicPrivateService.run(
       symbol,
       walkerSchema.strategies,
       walkerSchema.metric || "sharpeRatio",
@@ -71,8 +67,6 @@ export class WalkerLogicPublicService {
         walkerName: context.walkerName,
       }
     );
-
-    return results;
   };
 }
 
