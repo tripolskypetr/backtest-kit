@@ -1,5 +1,5 @@
 import backtest from "../lib";
-import { WalkerName, WalkerMetric } from "../interfaces/Walker.interface";
+import { WalkerName } from "../interfaces/Walker.interface";
 import { errorEmitter, doneEmitter } from "../config/emitters";
 import { getErrorMessage } from "functools-kit";
 
@@ -13,6 +13,7 @@ const WALKER_METHOD_NAME_DUMP = "WalkerUtils.dump";
  * Utility class for walker operations.
  *
  * Provides simplified access to walkerGlobalService.run() with logging.
+ * Automatically pulls exchangeName and frameName from walker schema.
  * Exported as singleton instance for convenient usage.
  *
  * @example
@@ -20,9 +21,7 @@ const WALKER_METHOD_NAME_DUMP = "WalkerUtils.dump";
  * import { Walker } from "./classes/Walker";
  *
  * for await (const result of Walker.run("BTCUSDT", {
- *   walkerName: "my-walker",
- *   exchangeName: "binance",
- *   frameName: "1d-backtest"
+ *   walkerName: "my-walker"
  * })) {
  *   console.log("Progress:", result.strategiesTested, "/", result.totalStrategies);
  *   console.log("Best strategy:", result.bestStrategy, result.bestMetric);
@@ -34,15 +33,13 @@ export class WalkerUtils {
    * Runs walker comparison for a symbol with context propagation.
    *
    * @param symbol - Trading pair symbol (e.g., "BTCUSDT")
-   * @param context - Execution context with walker, exchange, and frame names
+   * @param context - Execution context with walker name
    * @returns Async generator yielding progress updates after each strategy
    */
   public run = (
     symbol: string,
     context: {
       walkerName: string;
-      exchangeName: string;
-      frameName: string;
     }
   ) => {
     backtest.loggerService.info(WALKER_METHOD_NAME_RUN, {
@@ -50,18 +47,17 @@ export class WalkerUtils {
       context,
     });
 
-    {
-      backtest.walkerValidationService.validate(context.walkerName, WALKER_METHOD_NAME_RUN);
-      backtest.exchangeValidationService.validate(context.exchangeName, WALKER_METHOD_NAME_RUN);
-      backtest.frameValidationService.validate(context.frameName, WALKER_METHOD_NAME_RUN);
-    }
+    backtest.walkerValidationService.validate(context.walkerName, WALKER_METHOD_NAME_RUN);
 
     const walkerSchema = backtest.walkerSchemaService.get(context.walkerName);
+
+    backtest.exchangeValidationService.validate(walkerSchema.exchangeName, WALKER_METHOD_NAME_RUN);
+    backtest.frameValidationService.validate(walkerSchema.frameName, WALKER_METHOD_NAME_RUN);
 
     for (const strategyName of walkerSchema.strategies) {
       backtest.strategyValidationService.validate(strategyName, WALKER_METHOD_NAME_RUN);
     }
-    
+
     backtest.walkerMarkdownService.clear(context.walkerName);
 
     // Clear backtest data for all strategies
@@ -70,7 +66,11 @@ export class WalkerUtils {
       backtest.strategyGlobalService.clear(strategyName);
     }
 
-    return backtest.walkerGlobalService.run(symbol, context);
+    return backtest.walkerGlobalService.run(symbol, {
+      walkerName: context.walkerName,
+      exchangeName: walkerSchema.exchangeName,
+      frameName: walkerSchema.frameName,
+    });
   };
 
   /**
@@ -80,16 +80,14 @@ export class WalkerUtils {
    * Useful for running walker comparison for side effects only (callbacks, logging).
    *
    * @param symbol - Trading pair symbol (e.g., "BTCUSDT")
-   * @param context - Execution context with walker, exchange, and frame names
+   * @param context - Execution context with walker name
    * @returns Cancellation closure
    *
    * @example
    * ```typescript
    * // Run walker silently, only callbacks will fire
    * await Walker.background("BTCUSDT", {
-   *   walkerName: "my-walker",
-   *   exchangeName: "binance",
-   *   frameName: "1d-backtest"
+   *   walkerName: "my-walker"
    * });
    * console.log("Walker comparison completed");
    * ```
@@ -98,14 +96,15 @@ export class WalkerUtils {
     symbol: string,
     context: {
       walkerName: string;
-      exchangeName: string;
-      frameName: string;
     }
   ) => {
     backtest.loggerService.info(WALKER_METHOD_NAME_BACKGROUND, {
       symbol,
       context,
     });
+
+    const walkerSchema = backtest.walkerSchemaService.get(context.walkerName);
+
     let isStopped = false;
     const task = async () => {
       for await (const _ of this.run(symbol, context)) {
@@ -114,7 +113,7 @@ export class WalkerUtils {
         }
       }
       await doneEmitter.next({
-        exchangeName: context.exchangeName,
+        exchangeName: walkerSchema.exchangeName,
         strategyName: context.walkerName,
         backtest: true,
         symbol,
@@ -131,131 +130,110 @@ export class WalkerUtils {
   /**
    * Gets walker results data from all strategy comparisons.
    *
-   * @param walkerName - Walker name to get data for
    * @param symbol - Trading symbol
-   * @param metric - Metric being optimized
-   * @param context - Context with exchangeName and frameName
+   * @param walkerName - Walker name to get data for
    * @returns Promise resolving to walker results data object
    *
    * @example
    * ```typescript
-   * const results = await Walker.getData("my-walker", "BTCUSDT", "sharpeRatio", {
-   *   exchangeName: "binance",
-   *   frameName: "1d-backtest"
-   * });
+   * const results = await Walker.getData("BTCUSDT", "my-walker");
    * console.log(results.bestStrategy, results.bestMetric);
    * ```
    */
   public getData = async (
-    walkerName: WalkerName,
     symbol: string,
-    metric: WalkerMetric,
-    context: {
-      exchangeName: string;
-      frameName: string;
-    }
+    walkerName: WalkerName
   ) => {
     backtest.loggerService.info(WALKER_METHOD_NAME_GET_DATA, {
-      walkerName,
       symbol,
-      metric,
-      context,
+      walkerName,
     });
+
+    const walkerSchema = backtest.walkerSchemaService.get(walkerName);
+
     return await backtest.walkerMarkdownService.getData(
       walkerName,
       symbol,
-      metric,
-      context
+      walkerSchema.metric || "sharpeRatio",
+      {
+        exchangeName: walkerSchema.exchangeName,
+        frameName: walkerSchema.frameName,
+      }
     );
   };
 
   /**
    * Generates markdown report with all strategy comparisons for a walker.
    *
-   * @param walkerName - Walker name to generate report for
    * @param symbol - Trading symbol
-   * @param metric - Metric being optimized
-   * @param context - Context with exchangeName and frameName
+   * @param walkerName - Walker name to generate report for
    * @returns Promise resolving to markdown formatted report string
    *
    * @example
    * ```typescript
-   * const markdown = await Walker.getReport("my-walker", "BTCUSDT", "sharpeRatio", {
-   *   exchangeName: "binance",
-   *   frameName: "1d-backtest"
-   * });
+   * const markdown = await Walker.getReport("BTCUSDT", "my-walker");
    * console.log(markdown);
    * ```
    */
   public getReport = async (
-    walkerName: WalkerName,
     symbol: string,
-    metric: WalkerMetric,
-    context: {
-      exchangeName: string;
-      frameName: string;
-    }
+    walkerName: WalkerName
   ): Promise<string> => {
     backtest.loggerService.info(WALKER_METHOD_NAME_GET_REPORT, {
-      walkerName,
       symbol,
-      metric,
-      context,
+      walkerName,
     });
+
+    const walkerSchema = backtest.walkerSchemaService.get(walkerName);
+
     return await backtest.walkerMarkdownService.getReport(
       walkerName,
       symbol,
-      metric,
-      context
+      walkerSchema.metric || "sharpeRatio",
+      {
+        exchangeName: walkerSchema.exchangeName,
+        frameName: walkerSchema.frameName,
+      }
     );
   };
 
   /**
    * Saves walker report to disk.
    *
-   * @param walkerName - Walker name to save report for
    * @param symbol - Trading symbol
-   * @param metric - Metric being optimized
-   * @param context - Context with exchangeName and frameName
+   * @param walkerName - Walker name to save report for
    * @param path - Optional directory path to save report (default: "./logs/walker")
    *
    * @example
    * ```typescript
    * // Save to default path: ./logs/walker/my-walker.md
-   * await Walker.dump("my-walker", "BTCUSDT", "sharpeRatio", {
-   *   exchangeName: "binance",
-   *   frameName: "1d-backtest"
-   * });
+   * await Walker.dump("BTCUSDT", "my-walker");
    *
    * // Save to custom path: ./custom/path/my-walker.md
-   * await Walker.dump("my-walker", "BTCUSDT", "sharpeRatio", {
-   *   exchangeName: "binance",
-   *   frameName: "1d-backtest"
-   * }, "./custom/path");
+   * await Walker.dump("BTCUSDT", "my-walker", "./custom/path");
    * ```
    */
   public dump = async (
-    walkerName: WalkerName,
     symbol: string,
-    metric: WalkerMetric,
-    context: {
-      exchangeName: string;
-      frameName: string;
-    },
+    walkerName: WalkerName,
     path?: string
   ): Promise<void> => {
     backtest.loggerService.info(WALKER_METHOD_NAME_DUMP, {
-      walkerName,
       symbol,
-      metric,
-      context,
+      walkerName,
       path,
     });
+
+    const walkerSchema = backtest.walkerSchemaService.get(walkerName);
+
     await backtest.walkerMarkdownService.dump(
       walkerName,
       symbol,
-      metric,
-      context,
+      walkerSchema.metric || "sharpeRatio",
+      {
+        exchangeName: walkerSchema.exchangeName,
+        frameName: walkerSchema.frameName,
+      },
       path
     );
   };
@@ -269,9 +247,7 @@ export class WalkerUtils {
  * import { Walker } from "./classes/Walker";
  *
  * for await (const result of Walker.run("BTCUSDT", {
- *   walkerName: "my-walker",
- *   exchangeName: "binance",
- *   frameName: "1d-backtest"
+ *   walkerName: "my-walker"
  * })) {
  *   console.log("Progress:", result.strategiesTested, "/", result.totalStrategies);
  *   console.log("Best so far:", result.bestStrategy, result.bestMetric);

@@ -2695,6 +2695,7 @@ declare class Performance {
  * Utility class for walker operations.
  *
  * Provides simplified access to walkerGlobalService.run() with logging.
+ * Automatically pulls exchangeName and frameName from walker schema.
  * Exported as singleton instance for convenient usage.
  *
  * @example
@@ -2702,9 +2703,7 @@ declare class Performance {
  * import { Walker } from "./classes/Walker";
  *
  * for await (const result of Walker.run("BTCUSDT", {
- *   walkerName: "my-walker",
- *   exchangeName: "binance",
- *   frameName: "1d-backtest"
+ *   walkerName: "my-walker"
  * })) {
  *   console.log("Progress:", result.strategiesTested, "/", result.totalStrategies);
  *   console.log("Best strategy:", result.bestStrategy, result.bestMetric);
@@ -2716,13 +2715,11 @@ declare class WalkerUtils {
      * Runs walker comparison for a symbol with context propagation.
      *
      * @param symbol - Trading pair symbol (e.g., "BTCUSDT")
-     * @param context - Execution context with walker, exchange, and frame names
+     * @param context - Execution context with walker name
      * @returns Async generator yielding progress updates after each strategy
      */
     run: (symbol: string, context: {
         walkerName: string;
-        exchangeName: string;
-        frameName: string;
     }) => AsyncGenerator<WalkerContract, any, any>;
     /**
      * Runs walker comparison in background without yielding results.
@@ -2731,97 +2728,66 @@ declare class WalkerUtils {
      * Useful for running walker comparison for side effects only (callbacks, logging).
      *
      * @param symbol - Trading pair symbol (e.g., "BTCUSDT")
-     * @param context - Execution context with walker, exchange, and frame names
+     * @param context - Execution context with walker name
      * @returns Cancellation closure
      *
      * @example
      * ```typescript
      * // Run walker silently, only callbacks will fire
      * await Walker.background("BTCUSDT", {
-     *   walkerName: "my-walker",
-     *   exchangeName: "binance",
-     *   frameName: "1d-backtest"
+     *   walkerName: "my-walker"
      * });
      * console.log("Walker comparison completed");
      * ```
      */
     background: (symbol: string, context: {
         walkerName: string;
-        exchangeName: string;
-        frameName: string;
     }) => () => void;
     /**
      * Gets walker results data from all strategy comparisons.
      *
-     * @param walkerName - Walker name to get data for
      * @param symbol - Trading symbol
-     * @param metric - Metric being optimized
-     * @param context - Context with exchangeName and frameName
+     * @param walkerName - Walker name to get data for
      * @returns Promise resolving to walker results data object
      *
      * @example
      * ```typescript
-     * const results = await Walker.getData("my-walker", "BTCUSDT", "sharpeRatio", {
-     *   exchangeName: "binance",
-     *   frameName: "1d-backtest"
-     * });
+     * const results = await Walker.getData("BTCUSDT", "my-walker");
      * console.log(results.bestStrategy, results.bestMetric);
      * ```
      */
-    getData: (walkerName: WalkerName, symbol: string, metric: WalkerMetric, context: {
-        exchangeName: string;
-        frameName: string;
-    }) => Promise<IWalkerResults>;
+    getData: (symbol: string, walkerName: WalkerName) => Promise<IWalkerResults>;
     /**
      * Generates markdown report with all strategy comparisons for a walker.
      *
-     * @param walkerName - Walker name to generate report for
      * @param symbol - Trading symbol
-     * @param metric - Metric being optimized
-     * @param context - Context with exchangeName and frameName
+     * @param walkerName - Walker name to generate report for
      * @returns Promise resolving to markdown formatted report string
      *
      * @example
      * ```typescript
-     * const markdown = await Walker.getReport("my-walker", "BTCUSDT", "sharpeRatio", {
-     *   exchangeName: "binance",
-     *   frameName: "1d-backtest"
-     * });
+     * const markdown = await Walker.getReport("BTCUSDT", "my-walker");
      * console.log(markdown);
      * ```
      */
-    getReport: (walkerName: WalkerName, symbol: string, metric: WalkerMetric, context: {
-        exchangeName: string;
-        frameName: string;
-    }) => Promise<string>;
+    getReport: (symbol: string, walkerName: WalkerName) => Promise<string>;
     /**
      * Saves walker report to disk.
      *
-     * @param walkerName - Walker name to save report for
      * @param symbol - Trading symbol
-     * @param metric - Metric being optimized
-     * @param context - Context with exchangeName and frameName
+     * @param walkerName - Walker name to save report for
      * @param path - Optional directory path to save report (default: "./logs/walker")
      *
      * @example
      * ```typescript
      * // Save to default path: ./logs/walker/my-walker.md
-     * await Walker.dump("my-walker", "BTCUSDT", "sharpeRatio", {
-     *   exchangeName: "binance",
-     *   frameName: "1d-backtest"
-     * });
+     * await Walker.dump("BTCUSDT", "my-walker");
      *
      * // Save to custom path: ./custom/path/my-walker.md
-     * await Walker.dump("my-walker", "BTCUSDT", "sharpeRatio", {
-     *   exchangeName: "binance",
-     *   frameName: "1d-backtest"
-     * }, "./custom/path");
+     * await Walker.dump("BTCUSDT", "my-walker", "./custom/path");
      * ```
      */
-    dump: (walkerName: WalkerName, symbol: string, metric: WalkerMetric, context: {
-        exchangeName: string;
-        frameName: string;
-    }, path?: string) => Promise<void>;
+    dump: (symbol: string, walkerName: WalkerName, path?: string) => Promise<void>;
 }
 /**
  * Singleton instance of WalkerUtils for convenient walker operations.
@@ -2831,9 +2797,7 @@ declare class WalkerUtils {
  * import { Walker } from "./classes/Walker";
  *
  * for await (const result of Walker.run("BTCUSDT", {
- *   walkerName: "my-walker",
- *   exchangeName: "binance",
- *   frameName: "1d-backtest"
+ *   walkerName: "my-walker"
  * })) {
  *   console.log("Progress:", result.strategiesTested, "/", result.totalStrategies);
  *   console.log("Best so far:", result.bestStrategy, result.bestMetric);

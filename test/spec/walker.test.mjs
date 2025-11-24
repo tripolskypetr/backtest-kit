@@ -88,8 +88,6 @@ test("listenWalker receives progress events for each strategy", async ({ pass, f
 
   Walker.background("BTCUSDT", {
     walkerName: "test-walker-progress",
-    exchangeName: "binance-mock-walker-progress",
-    frameName: "1d-backtest-walker-progress",
   });
 
   const allEvents = await awaiter;
@@ -175,8 +173,6 @@ test("listenWalkerOnce triggers once with filter", async ({ pass, fail }) => {
 
   Walker.background("BTCUSDT", {
     walkerName: "test-walker-once",
-    exchangeName: "binance-mock-walker-once",
-    frameName: "1d-backtest-walker-once",
   });
 
   const event = await awaiter;
@@ -278,8 +274,6 @@ test("listenWalkerComplete receives final results", async ({ pass, fail }) => {
   // Run walker and consume results
   for await (const _ of Walker.run("BTCUSDT", {
     walkerName: "test-walker-complete",
-    exchangeName: "binance-mock-walker-complete",
-    frameName: "1d-backtest-walker-complete",
   })) {
     // Just consume
   }
@@ -360,8 +354,6 @@ test("Walker progress events include strategy stats", async ({ pass, fail }) => 
   // Run walker and consume results
   for await (const _ of Walker.run("BTCUSDT", {
     walkerName: "test-walker-stats",
-    exchangeName: "binance-mock-walker-stats",
-    frameName: "1d-backtest-walker-stats",
   })) {
     // Just consume
   }
@@ -462,8 +454,6 @@ test("Walker callbacks are called in correct order", async ({ pass, fail }) => {
   // Run walker and consume results
   for await (const _ of Walker.run("BTCUSDT", {
     walkerName: "test-walker-callbacks",
-    exchangeName: "binance-mock-walker-callbacks",
-    frameName: "1d-backtest-walker-callbacks",
   })) {
     // Just consume
   }
@@ -536,13 +526,8 @@ test("Walker.getData returns accumulated results", async ({ pass, fail }) => {
       onComplete: async (results) => {
         try {
           const data = await Walker.getData(
-            "test-walker-getdata",
             "BTCUSDT",
-            "avgPnl",
-            {
-              exchangeName: "binance-mock-walker-getdata",
-              frameName: "1d-backtest-walker-getdata",
-            }
+            "test-walker-getdata"
           );
           if (
             data &&
@@ -569,8 +554,6 @@ test("Walker.getData returns accumulated results", async ({ pass, fail }) => {
   // Run walker and consume results
   for await (const _ of Walker.run("BTCUSDT", {
     walkerName: "test-walker-getdata",
-    exchangeName: "binance-mock-walker-getdata",
-    frameName: "1d-backtest-walker-getdata",
   })) {
     // Just consume
   }
@@ -682,8 +665,6 @@ test("Walker tracks best strategy correctly", async ({ pass, fail }) => {
   // Run walker and consume results
   for await (const _ of Walker.run("BTCUSDT", {
     walkerName: "test-walker-best",
-    exchangeName: "binance-mock-walker-best",
-    frameName: "1d-backtest-walker-best",
   })) {
     // Just consume
   }
@@ -741,13 +722,8 @@ test("Walker.getReport generates markdown report", async ({ pass, fail }) => {
       onComplete: async (results) => {
         try {
           const report = await Walker.getReport(
-            "test-walker-report",
             "BTCUSDT",
-            "certaintyRatio",
-            {
-              exchangeName: "binance-mock-walker-report",
-              frameName: "1d-backtest-walker-report",
-            }
+            "test-walker-report"
           );
           if (
             report &&
@@ -773,8 +749,6 @@ test("Walker.getReport generates markdown report", async ({ pass, fail }) => {
   // Run walker and consume results
   for await (const _ of Walker.run("BTCUSDT", {
     walkerName: "test-walker-report",
-    exchangeName: "binance-mock-walker-report",
-    frameName: "1d-backtest-walker-report",
   })) {
     // Just consume
   }
