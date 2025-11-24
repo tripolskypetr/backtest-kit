@@ -88,3 +88,27 @@ p99: number
 ```
 
 99th percentile duration (ms)
+
+### avgWaitTime
+
+```ts
+avgWaitTime: number
+```
+
+Average wait time between events (ms)
+
+### minWaitTime
+
+```ts
+minWaitTime: number
+```
+
+Minimum wait time between events (ms)
+
+### maxWaitTime
+
+```ts
+maxWaitTime: number
+```
+
+Maximum wait time between events (ms)

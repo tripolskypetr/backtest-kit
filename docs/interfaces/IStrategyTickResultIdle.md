@@ -41,6 +41,14 @@ exchangeName: string
 
 Exchange name for tracking idle events
 
+### symbol
+
+```ts
+symbol: string
+```
+
+Trading pair symbol (e.g., "BTCUSDT")
+
 ### currentPrice
 
 ```ts

@@ -73,3 +73,11 @@ exchangeName: string
 ```
 
 Exchange name for tracking
+
+### symbol
+
+```ts
+symbol: string
+```
+
+Trading pair symbol (e.g., "BTCUSDT")

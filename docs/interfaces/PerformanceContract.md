@@ -20,6 +20,14 @@ timestamp: number
 
 Timestamp when the metric was recorded (milliseconds since epoch)
 
+### previousTimestamp
+
+```ts
+previousTimestamp: number
+```
+
+Timestamp of the previous event (milliseconds since epoch, null for first event)
+
 ### metricType
 
 ```ts
