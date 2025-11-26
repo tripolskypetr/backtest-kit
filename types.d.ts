@@ -2250,6 +2250,31 @@ declare function listenWalkerOnce(filterFn: (event: WalkerContract) => boolean, 
  * ```
  */
 declare function listenWalkerComplete(fn: (event: IWalkerResults) => void): () => void;
+/**
+ * Subscribes to risk validation errors with queued async processing.
+ *
+ * Emits when risk validation functions throw errors during signal checking.
+ * Useful for debugging and monitoring risk validation failures.
+ * Events are processed sequentially in order received, even if callback is async.
+ * Uses queued wrapper to prevent concurrent execution of the callback.
+ *
+ * @param fn - Callback function to handle validation errors
+ * @returns Unsubscribe function to stop listening to events
+ *
+ * @example
+ * ```typescript
+ * import { listenValidation } from "./function/event";
+ *
+ * const unsubscribe = listenValidation((error) => {
+ *   console.error("Risk validation error:", error.message);
+ *   // Log to monitoring service for debugging
+ * });
+ *
+ * // Later: stop listening
+ * unsubscribe();
+ * ```
+ */
+declare function listenValidation(fn: (error: Error) => void): () => void;
 
 /**
  * Fetches historical candle data from the registered exchange.
@@ -3897,6 +3922,11 @@ declare const walkerEmitter: Subject<WalkerContract>;
  * Emits when all strategies have been tested and final results are available.
  */
 declare const walkerCompleteSubject: Subject<IWalkerResults>;
+/**
+ * Validation emitter for risk validation errors.
+ * Emits when risk validation functions throw errors during signal checking.
+ */
+declare const validationSubject: Subject<Error>;
 
 declare const emitters_doneBacktestSubject: typeof doneBacktestSubject;
 declare const emitters_doneLiveSubject: typeof doneLiveSubject;
@@ -3907,10 +3937,11 @@ declare const emitters_progressEmitter: typeof progressEmitter;
 declare const emitters_signalBacktestEmitter: typeof signalBacktestEmitter;
 declare const emitters_signalEmitter: typeof signalEmitter;
 declare const emitters_signalLiveEmitter: typeof signalLiveEmitter;
+declare const emitters_validationSubject: typeof validationSubject;
 declare const emitters_walkerCompleteSubject: typeof walkerCompleteSubject;
 declare const emitters_walkerEmitter: typeof walkerEmitter;
 declare namespace emitters {
-  export { emitters_doneBacktestSubject as doneBacktestSubject, emitters_doneLiveSubject as doneLiveSubject, emitters_doneWalkerSubject as doneWalkerSubject, emitters_errorEmitter as errorEmitter, emitters_performanceEmitter as performanceEmitter, emitters_progressEmitter as progressEmitter, emitters_signalBacktestEmitter as signalBacktestEmitter, emitters_signalEmitter as signalEmitter, emitters_signalLiveEmitter as signalLiveEmitter, emitters_walkerCompleteSubject as walkerCompleteSubject, emitters_walkerEmitter as walkerEmitter };
+  export { emitters_doneBacktestSubject as doneBacktestSubject, emitters_doneLiveSubject as doneLiveSubject, emitters_doneWalkerSubject as doneWalkerSubject, emitters_errorEmitter as errorEmitter, emitters_performanceEmitter as performanceEmitter, emitters_progressEmitter as progressEmitter, emitters_signalBacktestEmitter as signalBacktestEmitter, emitters_signalEmitter as signalEmitter, emitters_signalLiveEmitter as signalLiveEmitter, emitters_validationSubject as validationSubject, emitters_walkerCompleteSubject as walkerCompleteSubject, emitters_walkerEmitter as walkerEmitter };
 }
 
 /**
@@ -5754,4 +5785,4 @@ declare const backtest: {
     loggerService: LoggerService;
 };
 
-export { Backtest, type BacktestStatistics, type CandleInterval, type DoneContract, type EntityId, ExecutionContextService, type FrameInterval, Heat, type ICandleData, type IExchangeSchema, type IFrameSchema, type IHeatmapRow, type IHeatmapStatistics, type IPersistBase, type IPositionSizeATRParams, type IPositionSizeFixedPercentageParams, type IPositionSizeKellyParams, type IRiskCheckArgs, type IRiskSchema, type IRiskValidation, type IRiskValidationFn, type ISignalDto, type ISignalRow, type ISizingCalculateParams, type ISizingCalculateParamsATR, type ISizingCalculateParamsFixedPercentage, type ISizingCalculateParamsKelly, type ISizingSchema, type ISizingSchemaATR, type ISizingSchemaFixedPercentage, type ISizingSchemaKelly, type IStrategyPnL, type IStrategySchema, type IStrategyTickResult, type IStrategyTickResultActive, type IStrategyTickResultClosed, type IStrategyTickResultIdle, type IStrategyTickResultOpened, type IWalkerResults, type IWalkerSchema, type IWalkerStrategyResult, Live, type LiveStatistics, MethodContextService, Performance, type PerformanceContract, type PerformanceMetricType, type PerformanceStatistics, PersistBase, PersistSignalAdaper, PositionSize, type ProgressContract, type SignalData, type SignalInterval, type TPersistBase, type TPersistBaseCtor, Walker, type WalkerMetric, type WalkerStatistics, addExchange, addFrame, addRisk, addSizing, addStrategy, addWalker, emitters, formatPrice, formatQuantity, getAveragePrice, getCandles, getDate, getMode, backtest as lib, listExchanges, listFrames, listRisks, listSizings, listStrategies, listWalkers, listenDoneBacktest, listenDoneBacktestOnce, listenDoneLive, listenDoneLiveOnce, listenDoneWalker, listenDoneWalkerOnce, listenError, listenPerformance, listenProgress, listenSignal, listenSignalBacktest, listenSignalBacktestOnce, listenSignalLive, listenSignalLiveOnce, listenSignalOnce, listenWalker, listenWalkerComplete, listenWalkerOnce, setLogger };
+export { Backtest, type BacktestStatistics, type CandleInterval, type DoneContract, type EntityId, ExecutionContextService, type FrameInterval, Heat, type ICandleData, type IExchangeSchema, type IFrameSchema, type IHeatmapRow, type IHeatmapStatistics, type IPersistBase, type IPositionSizeATRParams, type IPositionSizeFixedPercentageParams, type IPositionSizeKellyParams, type IRiskActivePosition, type IRiskCheckArgs, type IRiskSchema, type IRiskValidation, type IRiskValidationFn, type IRiskValidationPayload, type ISignalDto, type ISignalRow, type ISizingCalculateParams, type ISizingCalculateParamsATR, type ISizingCalculateParamsFixedPercentage, type ISizingCalculateParamsKelly, type ISizingSchema, type ISizingSchemaATR, type ISizingSchemaFixedPercentage, type ISizingSchemaKelly, type IStrategyPnL, type IStrategySchema, type IStrategyTickResult, type IStrategyTickResultActive, type IStrategyTickResultClosed, type IStrategyTickResultIdle, type IStrategyTickResultOpened, type IWalkerResults, type IWalkerSchema, type IWalkerStrategyResult, Live, type LiveStatistics, MethodContextService, Performance, type PerformanceContract, type PerformanceMetricType, type PerformanceStatistics, PersistBase, PersistSignalAdaper, PositionSize, type ProgressContract, type SignalData, type SignalInterval, type TPersistBase, type TPersistBaseCtor, Walker, type WalkerMetric, type WalkerStatistics, addExchange, addFrame, addRisk, addSizing, addStrategy, addWalker, emitters, formatPrice, formatQuantity, getAveragePrice, getCandles, getDate, getMode, backtest as lib, listExchanges, listFrames, listRisks, listSizings, listStrategies, listWalkers, listenDoneBacktest, listenDoneBacktestOnce, listenDoneLive, listenDoneLiveOnce, listenDoneWalker, listenDoneWalkerOnce, listenError, listenPerformance, listenProgress, listenSignal, listenSignalBacktest, listenSignalBacktestOnce, listenSignalLive, listenSignalLiveOnce, listenSignalOnce, listenValidation, listenWalker, listenWalkerComplete, listenWalkerOnce, setLogger };

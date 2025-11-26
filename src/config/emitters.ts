@@ -72,3 +72,9 @@ export const walkerEmitter = new Subject<WalkerContract>();
  */
 export const walkerCompleteSubject = new Subject<IWalkerResults>();
 
+/**
+ * Validation emitter for risk validation errors.
+ * Emits when risk validation functions throw errors during signal checking.
+ */
+export const validationSubject = new Subject<Error>();
+

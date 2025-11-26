@@ -309,3 +309,374 @@ test("Multiple strategies share same risk profile with concurrent positions", as
   fail(`Expected >=1 allowed and >0 rejected, got ${totalAllowed} allowed, ${totalRejected} rejected`);
 
 });
+
+test("Risk validation with activePositions array access", async ({ pass, fail }) => {
+
+  let validationCalledWithPositions = false;
+  let maxActivePositionsObserved = 0;
+
+  addExchange({
+    exchangeName: "binance-integration-active-positions",
+    getCandles: async (_symbol, interval, since, limit) => {
+      return await getMockCandles(interval, since, limit);
+    },
+    formatPrice: async (symbol, price) => price.toFixed(8),
+    formatQuantity: async (symbol, quantity) => quantity.toFixed(8),
+  });
+
+  addRisk({
+    riskName: "check-active-positions",
+    validations: [
+      ({ activePositions, activePositionCount }) => {
+        if (Array.isArray(activePositions) && activePositions.length === activePositionCount) {
+          validationCalledWithPositions = true;
+          maxActivePositionsObserved = Math.max(maxActivePositionsObserved, activePositionCount);
+        }
+      },
+    ],
+  });
+
+  addStrategy({
+    strategyName: "test-strategy-active-positions",
+    interval: "1m",
+    riskName: "check-active-positions",
+    getSignal: async () => {
+      return {
+        position: "long",
+        note: "active positions test",
+        priceTakeProfit: 43000,
+        priceStopLoss: 41000,
+        minuteEstimatedTime: 60,
+      };
+    },
+  });
+
+  addFrame({
+    frameName: "3d-active-positions",
+    interval: "1d",
+    startDate: new Date("2024-01-01T00:00:00Z"),
+    endDate: new Date("2024-01-04T00:00:00Z"),
+  });
+
+  const awaitSubject = new Subject();
+  listenDoneBacktest(() => awaitSubject.next());
+
+  Backtest.background("BTCUSDT", {
+    strategyName: "test-strategy-active-positions",
+    exchangeName: "binance-integration-active-positions",
+    frameName: "3d-active-positions",
+  });
+
+  await awaitSubject.toPromise();
+
+  if (validationCalledWithPositions && maxActivePositionsObserved >= 0) {
+    pass(`activePositions array accessible in validation, max observed: ${maxActivePositionsObserved}`);
+    return;
+  }
+
+  fail(`Validation not called with positions: ${validationCalledWithPositions}, max: ${maxActivePositionsObserved}`);
+
+});
+
+test("Risk validation with timestamp-based logic", async ({ pass, fail }) => {
+
+  let rejectedByTime = false;
+  let allowedSignals = 0;
+
+  addExchange({
+    exchangeName: "binance-integration-timestamp-filter",
+    getCandles: async (_symbol, interval, since, limit) => {
+      return await getMockCandles(interval, since, limit);
+    },
+    formatPrice: async (symbol, price) => price.toFixed(8),
+    formatQuantity: async (symbol, quantity) => quantity.toFixed(8),
+  });
+
+  // Only allow trading after January 2nd
+  const cutoffTime = new Date("2024-01-02T00:00:00Z").getTime();
+
+  addRisk({
+    riskName: "time-filter",
+    validations: [
+      ({ timestamp }) => {
+        if (timestamp < cutoffTime) {
+          throw new Error("Trading not allowed before cutoff time");
+        }
+      },
+    ],
+    callbacks: {
+      onRejected: () => {
+        rejectedByTime = true;
+      },
+      onAllowed: () => {
+        allowedSignals++;
+      },
+    },
+  });
+
+  addStrategy({
+    strategyName: "test-strategy-timestamp-filter",
+    interval: "1m",
+    riskName: "time-filter",
+    getSignal: async () => {
+      return {
+        position: "long",
+        note: "timestamp filter test",
+        priceTakeProfit: 43000,
+        priceStopLoss: 41000,
+        minuteEstimatedTime: 60,
+      };
+    },
+  });
+
+  addFrame({
+    frameName: "3d-timestamp-filter",
+    interval: "1d",
+    startDate: new Date("2024-01-01T00:00:00Z"),
+    endDate: new Date("2024-01-04T00:00:00Z"),
+  });
+
+  const awaitSubject = new Subject();
+  listenDoneBacktest(() => awaitSubject.next());
+
+  Backtest.background("BTCUSDT", {
+    strategyName: "test-strategy-timestamp-filter",
+    exchangeName: "binance-integration-timestamp-filter",
+    frameName: "3d-timestamp-filter",
+  });
+
+  await awaitSubject.toPromise();
+
+  if (rejectedByTime && allowedSignals > 0) {
+    pass(`Timestamp-based filtering works: ${allowedSignals} allowed after cutoff`);
+    return;
+  }
+
+  fail(`Rejected by time: ${rejectedByTime}, allowed: ${allowedSignals}`);
+
+});
+
+test("Risk rejects all signals with max positions set to 0", async ({ pass, fail }) => {
+
+  let rejectedCount = 0;
+  let allowedCount = 0;
+
+  addExchange({
+    exchangeName: "binance-integration-zero-positions",
+    getCandles: async (_symbol, interval, since, limit) => {
+      return await getMockCandles(interval, since, limit);
+    },
+    formatPrice: async (symbol, price) => price.toFixed(8),
+    formatQuantity: async (symbol, quantity) => quantity.toFixed(8),
+  });
+
+  addRisk({
+    riskName: "no-trading",
+    validations: [
+      () => {
+        throw new Error("No trading allowed");
+      },
+    ],
+    callbacks: {
+      onRejected: () => {
+        rejectedCount++;
+      },
+      onAllowed: () => {
+        allowedCount++;
+      },
+    },
+  });
+
+  addStrategy({
+    strategyName: "test-strategy-zero-positions",
+    interval: "1m",
+    riskName: "no-trading",
+    getSignal: async () => {
+      return {
+        position: "long",
+        note: "should be rejected",
+        priceTakeProfit: 43000,
+        priceStopLoss: 41000,
+        minuteEstimatedTime: 60,
+      };
+    },
+  });
+
+  addFrame({
+    frameName: "3d-zero-positions",
+    interval: "1d",
+    startDate: new Date("2024-01-01T00:00:00Z"),
+    endDate: new Date("2024-01-04T00:00:00Z"),
+  });
+
+  const awaitSubject = new Subject();
+  listenDoneBacktest(() => awaitSubject.next());
+
+  let openedCount = 0;
+  listenSignalBacktest((result) => {
+    if (result.action === "opened") {
+      openedCount++;
+    }
+  });
+
+  Backtest.background("BTCUSDT", {
+    strategyName: "test-strategy-zero-positions",
+    exchangeName: "binance-integration-zero-positions",
+    frameName: "3d-zero-positions",
+  });
+
+  await awaitSubject.toPromise();
+
+  if (rejectedCount > 0 && allowedCount === 0 && openedCount === 0) {
+    pass(`All signals rejected: ${rejectedCount} rejected, ${allowedCount} allowed, ${openedCount} opened`);
+    return;
+  }
+
+  fail(`Expected all rejections, got ${rejectedCount} rejected, ${allowedCount} allowed, ${openedCount} opened`);
+
+});
+
+test("Risk validation with strategyName and exchangeName checks", async ({ pass, fail }) => {
+
+  let correctStrategyName = false;
+  let correctExchangeName = false;
+
+  addExchange({
+    exchangeName: "binance-integration-metadata",
+    getCandles: async (_symbol, interval, since, limit) => {
+      return await getMockCandles(interval, since, limit);
+    },
+    formatPrice: async (symbol, price) => price.toFixed(8),
+    formatQuantity: async (symbol, quantity) => quantity.toFixed(8),
+  });
+
+  addRisk({
+    riskName: "metadata-check",
+    validations: [
+      ({ strategyName, exchangeName }) => {
+        if (strategyName === "test-strategy-metadata") {
+          correctStrategyName = true;
+        }
+        if (exchangeName === "binance-integration-metadata") {
+          correctExchangeName = true;
+        }
+      },
+    ],
+  });
+
+  addStrategy({
+    strategyName: "test-strategy-metadata",
+    interval: "1m",
+    riskName: "metadata-check",
+    getSignal: async () => {
+      return {
+        position: "long",
+        note: "metadata check test",
+        priceTakeProfit: 43000,
+        priceStopLoss: 41000,
+        minuteEstimatedTime: 60,
+      };
+    },
+  });
+
+  addFrame({
+    frameName: "1d-metadata",
+    interval: "1d",
+    startDate: new Date("2024-01-01T00:00:00Z"),
+    endDate: new Date("2024-01-02T00:00:00Z"),
+  });
+
+  const awaitSubject = new Subject();
+  listenDoneBacktest(() => awaitSubject.next());
+
+  Backtest.background("BTCUSDT", {
+    strategyName: "test-strategy-metadata",
+    exchangeName: "binance-integration-metadata",
+    frameName: "1d-metadata",
+  });
+
+  await awaitSubject.toPromise();
+
+  if (correctStrategyName && correctExchangeName) {
+    pass("Risk validation receives correct strategyName and exchangeName");
+    return;
+  }
+
+  fail(`Strategy name: ${correctStrategyName}, Exchange name: ${correctExchangeName}`);
+
+});
+
+test("Multiple validations execute in order and fail fast", async ({ pass, fail }) => {
+
+  let validation1Called = false;
+  let validation2Called = false;
+  let validation3Called = false;
+
+  addExchange({
+    exchangeName: "binance-integration-fail-fast",
+    getCandles: async (_symbol, interval, since, limit) => {
+      return await getMockCandles(interval, since, limit);
+    },
+    formatPrice: async (symbol, price) => price.toFixed(8),
+    formatQuantity: async (symbol, quantity) => quantity.toFixed(8),
+  });
+
+  addRisk({
+    riskName: "fail-fast-check",
+    validations: [
+      () => {
+        validation1Called = true;
+        // This passes
+      },
+      () => {
+        validation2Called = true;
+        throw new Error("Second validation fails");
+      },
+      () => {
+        validation3Called = true;
+        // This should not be called due to fail-fast
+      },
+    ],
+  });
+
+  addStrategy({
+    strategyName: "test-strategy-fail-fast",
+    interval: "1m",
+    riskName: "fail-fast-check",
+    getSignal: async () => {
+      return {
+        position: "long",
+        note: "fail fast test",
+        priceTakeProfit: 43000,
+        priceStopLoss: 41000,
+        minuteEstimatedTime: 60,
+      };
+    },
+  });
+
+  addFrame({
+    frameName: "1d-fail-fast",
+    interval: "1d",
+    startDate: new Date("2024-01-01T00:00:00Z"),
+    endDate: new Date("2024-01-02T00:00:00Z"),
+  });
+
+  const awaitSubject = new Subject();
+  listenDoneBacktest(() => awaitSubject.next());
+
+  Backtest.background("BTCUSDT", {
+    strategyName: "test-strategy-fail-fast",
+    exchangeName: "binance-integration-fail-fast",
+    frameName: "1d-fail-fast",
+  });
+
+  await awaitSubject.toPromise();
+
+  if (validation1Called && validation2Called && !validation3Called) {
+    pass("Validations execute in order with fail-fast behavior");
+    return;
+  }
+
+  fail(`V1: ${validation1Called}, V2: ${validation2Called}, V3: ${validation3Called}`);
+
+});

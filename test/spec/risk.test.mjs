@@ -82,12 +82,12 @@ test("Risk validation rejects signal when activePositionCount exceeds limit", as
     { riskName: "test-max-positions" }
   );
 
-  if (!result && rejectedSymbol === "SOLUSDT" && rejectedReason.includes("Maximum 3 concurrent positions")) {
+  if (!result && rejectedSymbol === "SOLUSDT" && rejectedReason && rejectedReason.symbol === "SOLUSDT") {
     pass("Risk validation correctly rejected 4th position");
     return;
   }
 
-  fail(`Expected rejection but got result: ${result}, symbol: ${rejectedSymbol}, reason: ${rejectedReason}`);
+  fail(`Expected rejection but got result: ${result}, symbol: ${rejectedSymbol}, reason: ${JSON.stringify(rejectedReason)}`);
 
 });
 

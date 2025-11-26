@@ -10,6 +10,7 @@ import {
 } from "../interfaces/Risk.interface";
 import { ISignalRow } from "../interfaces/Strategy.interface";
 import backtest from "src/lib";
+import { validationSubject } from "../config/emitters";
 
 /** Key generator for active position map */
 const GET_KEY_FN = (strategyName: string, symbol: string) =>
@@ -28,7 +29,7 @@ const DO_VALIDATION_FN = trycatch(
         error: errorData(error),
         message: getErrorMessage(error),
       });
-      //errorEmitter.next(error);
+      validationSubject.next(error);
     },
   }
 );
@@ -136,17 +137,19 @@ export class ClientRisk implements IRisk {
 
     // Execute custom validations
     let isValid = true;
-    for (const validation of this.params.validations) {
-      if (
-        not(
-          DO_VALIDATION_FN(
-            typeof validation === "function" ? validation : validation.validate,
-            payload
+    if (this.params.validations) {
+      for (const validation of this.params.validations) {
+        if (
+          not(
+            await DO_VALIDATION_FN(
+              typeof validation === "function" ? validation : validation.validate,
+              payload
+            )
           )
-        )
-      ) {
-        isValid = false;
-        break;
+        ) {
+          isValid = false;
+          break;
+        }
       }
     }
 

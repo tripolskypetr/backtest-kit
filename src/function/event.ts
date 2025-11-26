@@ -1,5 +1,5 @@
 import backtest from "../lib";
-import { signalEmitter, signalLiveEmitter, signalBacktestEmitter, errorEmitter, doneLiveSubject, doneBacktestSubject, doneWalkerSubject, progressEmitter, performanceEmitter, walkerEmitter, walkerCompleteSubject } from "../config/emitters";
+import { signalEmitter, signalLiveEmitter, signalBacktestEmitter, errorEmitter, doneLiveSubject, doneBacktestSubject, doneWalkerSubject, progressEmitter, performanceEmitter, walkerEmitter, walkerCompleteSubject, validationSubject } from "../config/emitters";
 import { IStrategyTickResult } from "../interfaces/Strategy.interface";
 import { DoneContract } from "../contract/Done.contract";
 import { ProgressContract } from "../contract/Progress.contract";
@@ -26,6 +26,7 @@ const LISTEN_PERFORMANCE_METHOD_NAME = "event.listenPerformance";
 const LISTEN_WALKER_METHOD_NAME = "event.listenWalker";
 const LISTEN_WALKER_ONCE_METHOD_NAME = "event.listenWalkerOnce";
 const LISTEN_WALKER_COMPLETE_METHOD_NAME = "event.listenWalkerComplete";
+const LISTEN_VALIDATION_METHOD_NAME = "event.listenValidation";
 
 /**
  * Subscribes to all signal events with queued async processing.
@@ -619,4 +620,33 @@ export function listenWalkerOnce(
 export function listenWalkerComplete(fn: (event: IWalkerResults) => void) {
   backtest.loggerService.log(LISTEN_WALKER_COMPLETE_METHOD_NAME);
   return walkerCompleteSubject.subscribe(queued(async (event) => fn(event)));
+}
+
+/**
+ * Subscribes to risk validation errors with queued async processing.
+ *
+ * Emits when risk validation functions throw errors during signal checking.
+ * Useful for debugging and monitoring risk validation failures.
+ * Events are processed sequentially in order received, even if callback is async.
+ * Uses queued wrapper to prevent concurrent execution of the callback.
+ *
+ * @param fn - Callback function to handle validation errors
+ * @returns Unsubscribe function to stop listening to events
+ *
+ * @example
+ * ```typescript
+ * import { listenValidation } from "./function/event";
+ *
+ * const unsubscribe = listenValidation((error) => {
+ *   console.error("Risk validation error:", error.message);
+ *   // Log to monitoring service for debugging
+ * });
+ *
+ * // Later: stop listening
+ * unsubscribe();
+ * ```
+ */
+export function listenValidation(fn: (error: Error) => void) {
+  backtest.loggerService.log(LISTEN_VALIDATION_METHOD_NAME);
+  return validationSubject.subscribe(queued(async (error) => fn(error)));
 }

@@ -20,6 +20,7 @@ export {
   listenWalker,
   listenWalkerOnce,
   listenWalkerComplete,
+  listenValidation,
 } from "./function/event";
 export {
   getCandles,
