@@ -70,6 +70,8 @@ export {
   IRiskCheckArgs,
   IRiskValidation,
   IRiskValidationFn,
+  IRiskActivePosition,
+  IRiskValidationPayload,
 } from "./interfaces/Risk.interface";
 
 export {

@@ -372,11 +372,24 @@ interface IRiskCheckArgs {
     timestamp: number;
 }
 /**
+ * Active position tracked by ClientRisk for cross-strategy analysis.
+ */
+interface IRiskActivePosition {
+    /** Signal details for the active position */
+    signal: ISignalRow;
+    /** Strategy name owning the position */
+    strategyName: string;
+    /** Exchange name */
+    exchangeName: string;
+    /** Timestamp when the position was opened */
+    openTimestamp: number;
+}
+/**
  * Optional callbacks for risk events.
  */
 interface IRiskCallbacks {
     /** Called when a signal is rejected due to risk limits */
-    onRejected: (symbol: string, reason: string, params: IRiskCheckArgs) => void;
+    onRejected: (symbol: string, params: IRiskCheckArgs) => void;
     /** Called when a signal passes risk checks */
     onAllowed: (symbol: string, params: IRiskCheckArgs) => void;
 }
@@ -387,6 +400,8 @@ interface IRiskCallbacks {
 interface IRiskValidationPayload extends IRiskCheckArgs {
     /** Number of currently active positions across all strategies */
     activePositionCount: number;
+    /** List of currently active positions across all strategies */
+    activePositions: IRiskActivePosition[];
 }
 /**
  * Risk validation function type.
@@ -421,8 +436,8 @@ interface IRiskSchema {
     note?: string;
     /** Optional lifecycle event callbacks (onRejected, onAllowed) */
     callbacks?: Partial<IRiskCallbacks>;
-    /** Optional custom validations array for risk logic */
-    validations?: (IRiskValidation | IRiskValidationFn)[];
+    /** Custom validations array for risk logic */
+    validations: (IRiskValidation | IRiskValidationFn)[];
 }
 /**
  * Risk parameters passed to ClientRisk constructor.
@@ -4351,19 +4366,6 @@ declare class SizingConnectionService {
 }
 
 /**
- * Active position tracked by ClientRisk for cross-strategy analysis.
- */
-interface IActivePosition {
-    /** Signal details for the active position */
-    signal: ISignalRow;
-    /** Strategy name owning the position */
-    strategyName: string;
-    /** Exchange name */
-    exchangeName: string;
-    /** Timestamp when the position was opened */
-    openTimestamp: number;
-}
-/**
  * ClientRisk implementation for portfolio-level risk management.
  *
  * Provides risk checking logic to prevent signals that violate configured limits:
@@ -4387,7 +4389,7 @@ declare class ClientRisk implements IRisk {
      * Returns all currently active positions across all strategies.
      * Used for cross-strategy risk analysis in custom validations.
      */
-    get activePositions(): ReadonlyMap<string, IActivePosition>;
+    get activePositions(): ReadonlyMap<string, IRiskActivePosition>;
     /**
      * Returns number of currently active positions.
      */
