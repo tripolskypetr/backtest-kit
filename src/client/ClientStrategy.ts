@@ -1,6 +1,7 @@
 import {
   errorData,
   getErrorMessage,
+  not,
   randomString,
   singleshot,
   trycatch,
@@ -115,6 +116,22 @@ const GET_SIGNAL_FN = trycatch(
 
       self._lastSignalTimestamp = currentTime;
     }
+    const currentPrice = await self.params.exchange.getAveragePrice(
+      self.params.execution.context.symbol
+    );
+    if (
+      await not(
+        self.params.risk.checkSignal({
+          symbol: self.params.execution.context.symbol,
+          strategyName: self.params.method.context.strategyName,
+          exchangeName: self.params.method.context.exchangeName,
+          currentPrice,
+          timestamp: currentTime,
+        })
+      )
+    ) {
+      return null;
+    }
     const signal = await self.params.getSignal(
       self.params.execution.context.symbol
     );
@@ -123,9 +140,7 @@ const GET_SIGNAL_FN = trycatch(
     }
     const signalRow: ISignalRow = {
       id: randomString(),
-      priceOpen: await self.params.exchange.getAveragePrice(
-        self.params.execution.context.symbol,
-      ),
+      priceOpen: currentPrice,
       ...signal,
       symbol: self.params.execution.context.symbol,
       exchangeName: self.params.method.context.exchangeName,

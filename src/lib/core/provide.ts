@@ -3,16 +3,19 @@ import ExchangeConnectionService from "../services/connection/ExchangeConnection
 import StrategyConnectionService from "../services/connection/StrategyConnectionService";
 import FrameConnectionService from "../services/connection/FrameConnectionService";
 import SizingConnectionService from "../services/connection/SizingConnectionService";
+import RiskConnectionService from "../services/connection/RiskConnectionService";
 import ExecutionContextService from "../services/context/ExecutionContextService";
 import MethodContextService from "../services/context/MethodContextService";
 import ExchangeGlobalService from "../services/global/ExchangeGlobalService";
 import StrategyGlobalService from "../services/global/StrategyGlobalService";
 import FrameGlobalService from "../services/global/FrameGlobalService";
 import SizingGlobalService from "../services/global/SizingGlobalService";
+import RiskGlobalService from "../services/global/RiskGlobalService";
 import ExchangeSchemaService from "../services/schema/ExchangeSchemaService";
 import StrategySchemaService from "../services/schema/StrategySchemaService";
 import FrameSchemaService from "../services/schema/FrameSchemaService";
 import SizingSchemaService from "../services/schema/SizingSchemaService";
+import RiskSchemaService from "../services/schema/RiskSchemaService";
 import WalkerSchemaService from "../services/schema/WalkerSchemaService";
 import BacktestLogicPrivateService from "../services/logic/private/BacktestLogicPrivateService";
 import LiveLogicPrivateService from "../services/logic/private/LiveLogicPrivateService";
@@ -35,6 +38,7 @@ import StrategyValidationService from "../services/validation/StrategyValidation
 import FrameValidationService from "../services/validation/FrameValidationService";
 import WalkerValidationService from "../services/validation/WalkerValidationService";
 import SizingValidationService from "../services/validation/SizingValidationService";
+import RiskValidationService from "../services/validation/RiskValidationService";
 
 {
     provide(TYPES.loggerService, () => new LoggerService());
@@ -50,6 +54,7 @@ import SizingValidationService from "../services/validation/SizingValidationServ
     provide(TYPES.strategyConnectionService, () => new StrategyConnectionService());
     provide(TYPES.frameConnectionService, () => new FrameConnectionService());
     provide(TYPES.sizingConnectionService, () => new SizingConnectionService());
+    provide(TYPES.riskConnectionService, () => new RiskConnectionService());
 }
 
 {
@@ -58,6 +63,7 @@ import SizingValidationService from "../services/validation/SizingValidationServ
     provide(TYPES.frameSchemaService, () => new FrameSchemaService());
     provide(TYPES.walkerSchemaService, () => new WalkerSchemaService());
     provide(TYPES.sizingSchemaService, () => new SizingSchemaService());
+    provide(TYPES.riskSchemaService, () => new RiskSchemaService());
 }
 
 {
@@ -68,6 +74,7 @@ import SizingValidationService from "../services/validation/SizingValidationServ
     provide(TYPES.backtestGlobalService, () => new BacktestGlobalService());
     provide(TYPES.walkerGlobalService, () => new WalkerGlobalService());
     provide(TYPES.sizingGlobalService, () => new SizingGlobalService());
+    provide(TYPES.riskGlobalService, () => new RiskGlobalService());
 }
 
 {
@@ -96,5 +103,6 @@ import SizingValidationService from "../services/validation/SizingValidationServ
     provide(TYPES.frameValidationService, () => new FrameValidationService());
     provide(TYPES.walkerValidationService, () => new WalkerValidationService());
     provide(TYPES.sizingValidationService, () => new SizingValidationService());
+    provide(TYPES.riskValidationService, () => new RiskValidationService());
 }
 

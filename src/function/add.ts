@@ -4,12 +4,14 @@ import { IExchangeSchema } from "../interfaces/Exchange.interface";
 import { IFrameSchema } from "../interfaces/Frame.interface";
 import { IWalkerSchema } from "../interfaces/Walker.interface";
 import { ISizingSchema } from "../interfaces/Sizing.interface";
+import { IRiskSchema } from "../interfaces/Risk.interface";
 
 const ADD_STRATEGY_METHOD_NAME = "add.addStrategy";
 const ADD_EXCHANGE_METHOD_NAME = "add.addExchange";
 const ADD_FRAME_METHOD_NAME = "add.addFrame";
 const ADD_WALKER_METHOD_NAME = "add.addWalker";
 const ADD_SIZING_METHOD_NAME = "add.addSizing";
+const ADD_RISK_METHOD_NAME = "add.addRisk";
 
 /**
  * Registers a trading strategy in the framework.
@@ -260,5 +262,80 @@ export function addSizing(sizingSchema: ISizingSchema) {
   backtest.sizingSchemaService.register(
     sizingSchema.sizingName,
     sizingSchema
+  );
+}
+
+/**
+ * Registers a risk management configuration in the framework.
+ *
+ * The risk configuration defines:
+ * - Maximum concurrent positions across all strategies
+ * - Custom validations for advanced risk logic (portfolio metrics, correlations, etc.)
+ * - Callbacks for rejected/allowed signals
+ *
+ * Multiple ClientStrategy instances share the same ClientRisk instance,
+ * enabling cross-strategy risk analysis. ClientRisk tracks all active positions
+ * and provides access to them via validation functions.
+ *
+ * @param riskSchema - Risk configuration object
+ * @param riskSchema.riskName - Unique risk profile identifier
+ * @param riskSchema.maxConcurrentPositions - Optional max number of open positions across all strategies
+ * @param riskSchema.validations - Optional custom validation functions with access to params and active positions
+ * @param riskSchema.callbacks - Optional lifecycle callbacks (onRejected, onAllowed)
+ *
+ * @example
+ * ```typescript
+ * // Basic risk limit
+ * addRisk({
+ *   riskName: "conservative",
+ *   maxConcurrentPositions: 5,
+ * });
+ *
+ * // With custom validations (access to signal data and portfolio state)
+ * addRisk({
+ *   riskName: "advanced",
+ *   maxConcurrentPositions: 10,
+ *   validations: [
+ *     {
+ *       validate: async ({ params }) => {
+ *         // params contains: symbol, strategyName, exchangeName, signal, currentPrice, timestamp
+ *         // Calculate portfolio metrics from external data source
+ *         const portfolio = await getPortfolioState();
+ *         if (portfolio.drawdown > 20) {
+ *           throw new Error("Portfolio drawdown exceeds 20%");
+ *         }
+ *       },
+ *       docDescription: "Prevents trading during high drawdown",
+ *     },
+ *     ({ params }) => {
+ *       // Access signal details
+ *       const positionValue = calculatePositionValue(params.signal, params.currentPrice);
+ *       if (positionValue > 10000) {
+ *         throw new Error("Position value exceeds $10,000 limit");
+ *       }
+ *     },
+ *   ],
+ *   callbacks: {
+ *     onRejected: (symbol, reason, limit, params) => {
+ *       console.log(`[RISK] Signal rejected for ${symbol}: ${reason}`);
+ *     },
+ *     onAllowed: (symbol, params) => {
+ *       console.log(`[RISK] Signal allowed for ${symbol}`);
+ *     },
+ *   },
+ * });
+ * ```
+ */
+export function addRisk(riskSchema: IRiskSchema) {
+  backtest.loggerService.info(ADD_RISK_METHOD_NAME, {
+    riskSchema,
+  });
+  backtest.riskValidationService.addRisk(
+    riskSchema.riskName,
+    riskSchema
+  );
+  backtest.riskSchemaService.register(
+    riskSchema.riskName,
+    riskSchema
   );
 }

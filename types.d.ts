@@ -355,6 +355,126 @@ declare const MethodContextService: (new () => {
 }, "prototype"> & di_scoped.IScopedClassRun<[context: IMethodContext]>;
 
 /**
+ * Risk check arguments for evaluating whether to allow opening a new position.
+ * Called BEFORE signal creation to validate if conditions allow new signals.
+ * Contains only passthrough arguments from ClientStrategy context.
+ */
+interface IRiskCheckArgs {
+    /** Trading pair symbol (e.g., "BTCUSDT") */
+    symbol: string;
+    /** Strategy name requesting to open a position */
+    strategyName: StrategyName;
+    /** Exchange name */
+    exchangeName: ExchangeName;
+    /** Current VWAP price */
+    currentPrice: number;
+    /** Current timestamp */
+    timestamp: number;
+}
+/**
+ * Optional callbacks for risk events.
+ */
+interface IRiskCallbacks {
+    /** Called when a signal is rejected due to risk limits */
+    onRejected: (symbol: string, reason: string, violatedLimit: string, params: IRiskCheckArgs) => void;
+    /** Called when a signal passes risk checks */
+    onAllowed: (symbol: string, params: IRiskCheckArgs) => void;
+}
+/**
+ * Payload passed to risk validation functions.
+ * Extends IRiskCheckArgs with portfolio state data.
+ */
+interface IRiskValidationPayload extends IRiskCheckArgs {
+    /** Number of currently active positions across all strategies */
+    activePositionCount: number;
+}
+/**
+ * Risk validation function type.
+ * Validates risk parameters and throws error if validation fails.
+ */
+interface IRiskValidationFn {
+    (payload: IRiskValidationPayload): void | Promise<void>;
+}
+/**
+ * Risk validation configuration.
+ * Defines validation logic with optional documentation.
+ */
+interface IRiskValidation {
+    /**
+     * The validation function to apply to the risk check parameters.
+     */
+    validate: IRiskValidationFn;
+    /**
+     * Optional description for documentation purposes.
+     * Aids in understanding the purpose or behavior of the validation.
+     */
+    docDescription?: string;
+}
+/**
+ * Risk schema registered via addRisk().
+ * Defines portfolio-level risk controls via custom validations.
+ */
+interface IRiskSchema {
+    /** Unique risk profile identifier */
+    riskName: RiskName;
+    /** Optional developer note for documentation */
+    note?: string;
+    /** Optional lifecycle event callbacks (onRejected, onAllowed) */
+    callbacks?: Partial<IRiskCallbacks>;
+    /** Optional custom validations array for risk logic */
+    validations?: (IRiskValidation | IRiskValidationFn)[];
+}
+/**
+ * Risk parameters passed to ClientRisk constructor.
+ * Combines schema with runtime dependencies.
+ */
+interface IRiskParams extends IRiskSchema {
+    /** Logger service for debug output */
+    logger: ILogger;
+}
+/**
+ * Risk interface implemented by ClientRisk.
+ * Provides risk checking for signals and position tracking.
+ */
+interface IRisk {
+    /**
+     * Returns number of currently active positions across all strategies.
+     */
+    readonly activePositionCount: number;
+    /**
+     * Check if a signal should be allowed based on risk limits.
+     *
+     * @param params - Risk check arguments (position size, portfolio state, etc.)
+     * @returns Promise resolving to risk check result
+     */
+    checkSignal: (params: IRiskCheckArgs) => Promise<boolean>;
+    /**
+     * Register a new opened signal/position.
+     *
+     * @param symbol - Trading pair symbol
+     * @param context - Context information (strategyName, riskName)
+     */
+    addSignal: (symbol: string, context: {
+        strategyName: string;
+        riskName: string;
+    }) => Promise<void>;
+    /**
+     * Remove a closed signal/position.
+     *
+     * @param symbol - Trading pair symbol
+     * @param context - Context information (strategyName, riskName)
+     */
+    removeSignal: (symbol: string, context: {
+        strategyName: string;
+        riskName: string;
+    }) => Promise<void>;
+}
+/**
+ * Unique risk profile identifier.
+ */
+type RiskName = string;
+
+/**
  * Signal generation interval for throttling.
  * Enforces minimum time between getSignal calls.
  */
@@ -428,6 +548,8 @@ interface IStrategySchema {
     getSignal: (symbol: string) => Promise<ISignalDto | null>;
     /** Optional lifecycle event callbacks (onOpen, onClose) */
     callbacks?: Partial<IStrategyCallbacks>;
+    /** Optional risk profile identifier for risk management */
+    riskName?: RiskName;
 }
 /**
  * Reason why signal was closed.
@@ -1234,6 +1356,68 @@ declare function addWalker(walkerSchema: IWalkerSchema): void;
  * ```
  */
 declare function addSizing(sizingSchema: ISizingSchema): void;
+/**
+ * Registers a risk management configuration in the framework.
+ *
+ * The risk configuration defines:
+ * - Maximum concurrent positions across all strategies
+ * - Custom validations for advanced risk logic (portfolio metrics, correlations, etc.)
+ * - Callbacks for rejected/allowed signals
+ *
+ * Multiple ClientStrategy instances share the same ClientRisk instance,
+ * enabling cross-strategy risk analysis. ClientRisk tracks all active positions
+ * and provides access to them via validation functions.
+ *
+ * @param riskSchema - Risk configuration object
+ * @param riskSchema.riskName - Unique risk profile identifier
+ * @param riskSchema.maxConcurrentPositions - Optional max number of open positions across all strategies
+ * @param riskSchema.validations - Optional custom validation functions with access to params and active positions
+ * @param riskSchema.callbacks - Optional lifecycle callbacks (onRejected, onAllowed)
+ *
+ * @example
+ * ```typescript
+ * // Basic risk limit
+ * addRisk({
+ *   riskName: "conservative",
+ *   maxConcurrentPositions: 5,
+ * });
+ *
+ * // With custom validations (access to signal data and portfolio state)
+ * addRisk({
+ *   riskName: "advanced",
+ *   maxConcurrentPositions: 10,
+ *   validations: [
+ *     {
+ *       validate: async ({ params }) => {
+ *         // params contains: symbol, strategyName, exchangeName, signal, currentPrice, timestamp
+ *         // Calculate portfolio metrics from external data source
+ *         const portfolio = await getPortfolioState();
+ *         if (portfolio.drawdown > 20) {
+ *           throw new Error("Portfolio drawdown exceeds 20%");
+ *         }
+ *       },
+ *       docDescription: "Prevents trading during high drawdown",
+ *     },
+ *     ({ params }) => {
+ *       // Access signal details
+ *       const positionValue = calculatePositionValue(params.signal, params.currentPrice);
+ *       if (positionValue > 10000) {
+ *         throw new Error("Position value exceeds $10,000 limit");
+ *       }
+ *     },
+ *   ],
+ *   callbacks: {
+ *     onRejected: (symbol, reason, limit, params) => {
+ *       console.log(`[RISK] Signal rejected for ${symbol}: ${reason}`);
+ *     },
+ *     onAllowed: (symbol, params) => {
+ *       console.log(`[RISK] Signal allowed for ${symbol}`);
+ *     },
+ *   },
+ * });
+ * ```
+ */
+declare function addRisk(riskSchema: IRiskSchema): void;
 
 /**
  * Returns a list of all registered exchange schemas.
@@ -1381,6 +1565,39 @@ declare function listWalkers(): Promise<IWalkerSchema[]>;
  * ```
  */
 declare function listSizings(): Promise<ISizingSchema[]>;
+/**
+ * Returns a list of all registered risk schemas.
+ *
+ * Retrieves all risk configurations that have been registered via addRisk().
+ * Useful for debugging, documentation, or building dynamic UIs.
+ *
+ * @returns Array of risk schemas with their configurations
+ *
+ * @example
+ * ```typescript
+ * import { listRisks, addRisk } from "backtest-kit";
+ *
+ * addRisk({
+ *   riskName: "conservative",
+ *   note: "Conservative risk management with tight position limits",
+ *   maxConcurrentPositions: 5,
+ * });
+ *
+ * addRisk({
+ *   riskName: "aggressive",
+ *   note: "Aggressive risk management with loose limits",
+ *   maxConcurrentPositions: 10,
+ * });
+ *
+ * const risks = listRisks();
+ * console.log(risks);
+ * // [
+ * //   { riskName: "conservative", maxConcurrentPositions: 5, ... },
+ * //   { riskName: "aggressive", maxConcurrentPositions: 10, ... }
+ * // ]
+ * ```
+ */
+declare function listRisks(): Promise<IRiskSchema[]>;
 
 /**
  * Contract for background execution completion events.
@@ -3930,6 +4147,7 @@ declare class StrategyConnectionService implements IStrategy {
     private readonly loggerService;
     private readonly executionContextService;
     private readonly strategySchemaService;
+    private readonly riskConnectionService;
     private readonly exchangeConnectionService;
     private readonly methodContextService;
     /**
@@ -4137,6 +4355,158 @@ declare class SizingConnectionService {
 }
 
 /**
+ * Active position tracked by ClientRisk for cross-strategy analysis.
+ */
+interface IActivePosition {
+    signal: ISignalRow;
+    strategyName: string;
+    exchangeName: string;
+    openTimestamp: number;
+}
+/**
+ * ClientRisk implementation for portfolio-level risk management.
+ *
+ * Provides risk checking logic to prevent signals that violate configured limits:
+ * - Maximum concurrent positions (tracks across all strategies)
+ * - Custom validations with access to all active positions
+ *
+ * Multiple ClientStrategy instances share the same ClientRisk instance,
+ * allowing cross-strategy risk analysis.
+ *
+ * Used internally by strategy execution to validate signals before opening positions.
+ */
+declare class ClientRisk implements IRisk {
+    private readonly params;
+    /**
+     * Map of active positions tracked across all strategies.
+     * Key: `${strategyName}:${exchangeName}:${symbol}`
+     */
+    private _activePositions;
+    constructor(params: IRiskParams);
+    /**
+     * Returns all currently active positions across all strategies.
+     * Used for cross-strategy risk analysis in custom validations.
+     */
+    get activePositions(): ReadonlyMap<string, IActivePosition>;
+    /**
+     * Returns number of currently active positions.
+     */
+    get activePositionCount(): number;
+    /**
+     * Registers a new opened signal.
+     * Called by StrategyConnectionService after signal is opened.
+     */
+    addSignal(symbol: string, context: {
+        strategyName: string;
+        riskName: string;
+    }): Promise<void>;
+    /**
+     * Removes a closed signal.
+     * Called by StrategyConnectionService when signal is closed.
+     */
+    removeSignal(symbol: string, context: {
+        strategyName: string;
+        riskName: string;
+    }): Promise<void>;
+    /**
+     * Checks if a signal should be allowed based on risk limits.
+     *
+     * Executes custom validations with access to:
+     * - Passthrough params from ClientStrategy (symbol, strategyName, exchangeName, currentPrice, timestamp)
+     * - Active positions via this.activePositions getter
+     *
+     * Returns false immediately if any validation throws error.
+     * Triggers callbacks (onRejected, onAllowed) based on result.
+     *
+     * @param params - Risk check arguments (passthrough from ClientStrategy)
+     * @returns Promise resolving to true if allowed, false if rejected
+     */
+    checkSignal: (params: IRiskCheckArgs) => Promise<boolean>;
+}
+
+/**
+ * Connection service routing risk operations to correct ClientRisk instance.
+ *
+ * Routes risk checking calls to the appropriate risk implementation
+ * based on the provided riskName parameter. Uses memoization to cache
+ * ClientRisk instances for performance.
+ *
+ * Key features:
+ * - Explicit risk routing via riskName parameter
+ * - Memoized ClientRisk instances by riskName
+ * - Risk limit validation for signals
+ *
+ * Note: riskName is empty string for strategies without risk configuration.
+ *
+ * @example
+ * ```typescript
+ * // Used internally by framework
+ * const result = await riskConnectionService.checkSignal(
+ *   {
+ *     symbol: "BTCUSDT",
+ *     positionSize: 0.5,
+ *     currentPrice: 50000,
+ *     portfolioBalance: 100000,
+ *     currentDrawdown: 5,
+ *     currentPositions: 3,
+ *     dailyPnl: -2,
+ *     currentSymbolExposure: 8
+ *   },
+ *   { riskName: "conservative" }
+ * );
+ * ```
+ */
+declare class RiskConnectionService {
+    private readonly loggerService;
+    private readonly riskSchemaService;
+    /**
+     * Retrieves memoized ClientRisk instance for given risk name.
+     *
+     * Creates ClientRisk on first call, returns cached instance on subsequent calls.
+     * Cache key is riskName string.
+     *
+     * @param riskName - Name of registered risk schema
+     * @returns Configured ClientRisk instance
+     */
+    getRisk: ((riskName: RiskName) => ClientRisk) & functools_kit.IClearableMemoize<string> & functools_kit.IControlMemoize<string, ClientRisk>;
+    /**
+     * Checks if a signal should be allowed based on risk limits.
+     *
+     * Routes to appropriate ClientRisk instance based on provided context.
+     * Validates portfolio drawdown, symbol exposure, position count, and daily loss limits.
+     *
+     * @param params - Risk check arguments (portfolio state, position details)
+     * @param context - Execution context with risk name
+     * @returns Promise resolving to risk check result
+     */
+    checkSignal: (params: IRiskCheckArgs, context: {
+        riskName: RiskName;
+    }) => Promise<boolean>;
+    /**
+     * Registers an opened signal with the risk management system.
+     * Routes to appropriate ClientRisk instance.
+     *
+     * @param symbol - Trading pair symbol
+     * @param context - Context information (strategyName, riskName)
+     */
+    addSignal: (symbol: string, context: {
+        strategyName: string;
+        riskName: RiskName;
+    }) => void;
+    /**
+     * Removes a closed signal from the risk management system.
+     * Routes to appropriate ClientRisk instance.
+     *
+     * @param symbol - Trading pair symbol
+     * @param context - Context information (strategyName, riskName)
+     */
+    removeSignal: (symbol: string, context: {
+        strategyName: string;
+        riskName: RiskName;
+    }) => void;
+}
+
+/**
  * Global service for exchange operations with execution context injection.
  *
  * Wraps ExchangeConnectionService with ExecutionContextService to inject
@@ -4294,6 +4664,47 @@ declare class SizingGlobalService {
     calculate: (params: ISizingCalculateParams, context: {
         sizingName: SizingName;
     }) => Promise<number>;
+}
+
+/**
+ * Global service for risk operations.
+ *
+ * Wraps RiskConnectionService for risk limit validation.
+ * Used internally by strategy execution and public API.
+ */
+declare class RiskGlobalService {
+    private readonly loggerService;
+    private readonly riskConnectionService;
+    /**
+     * Checks if a signal should be allowed based on risk limits.
+     *
+     * @param params - Risk check arguments (portfolio state, position details)
+     * @param context - Execution context with risk name
+     * @returns Promise resolving to risk check result
+     */
+    checkSignal: (params: IRiskCheckArgs, context: {
+        riskName: RiskName;
+    }) => Promise<boolean>;
+    /**
+     * Registers an opened signal with the risk management system.
+     *
+     * @param symbol - Trading pair symbol
+     * @param context - Context information (strategyName, riskName)
+     */
+    addSignal: (symbol: string, context: {
+        strategyName: string;
+        riskName: RiskName;
+    }) => void;
+    /**
+     * Removes a closed signal from the risk management system.
+     *
+     * @param symbol - Trading pair symbol
+     * @param context - Context information (strategyName, riskName)
+     */
+    removeSignal: (symbol: string, context: {
+        strategyName: string;
+        riskName: RiskName;
+    }) => void;
 }
 
 /**
@@ -4508,6 +4919,52 @@ declare class SizingSchemaService {
      * @throws Error if sizing name doesn't exist
      */
     get(key: SizingName): ISizingSchema;
+}
+
+/**
+ * Service for managing risk schema registry.
+ *
+ * Uses ToolRegistry from functools-kit for type-safe schema storage.
+ * Risk profiles are registered via addRisk() and retrieved by name.
+ */
+declare class RiskSchemaService {
+    readonly loggerService: LoggerService;
+    private _registry;
+    /**
+     * Registers a new risk schema.
+     *
+     * @param key - Unique risk profile name
+     * @param value - Risk schema configuration
+     * @throws Error if risk name already exists
+     */
+    register: (key: RiskName, value: IRiskSchema) => void;
+    /**
+     * Validates risk schema structure for required properties.
+     *
+     * Performs shallow validation to ensure all required properties exist
+     * and have correct types before registration in the registry.
+     *
+     * @param riskSchema - Risk schema to validate
+     * @throws Error if riskName is missing or not a string
+     */
+    private validateShallow;
+    /**
+     * Overrides an existing risk schema with partial updates.
+     *
+     * @param key - Risk name to override
+     * @param value - Partial schema updates
+     * @returns Updated risk schema
+     * @throws Error if risk name doesn't exist
+     */
+    override: (key: RiskName, value: Partial<IRiskSchema>) => IRiskSchema;
+    /**
+     * Retrieves a risk schema by name.
+     *
+     * @param key - Risk name
+     * @returns Risk schema configuration
+     * @throws Error if risk name doesn't exist
+     */
+    get: (key: RiskName) => IRiskSchema;
 }
 
 /**
@@ -5069,6 +5526,12 @@ declare class StrategyValidationService {
     private readonly loggerService;
     /**
      * @private
+     * @readonly
+     * Injected risk validation service instance
+     */
+    private readonly riskValidationService;
+    /**
+     * @private
      * Map storing strategy schemas by strategy name
      */
     private _strategyMap;
@@ -5079,9 +5542,10 @@ declare class StrategyValidationService {
      */
     addStrategy: (strategyName: StrategyName, strategySchema: IStrategySchema) => void;
     /**
-     * Validates the existence of a strategy
+     * Validates the existence of a strategy and its risk profile (if configured)
      * @public
      * @throws {Error} If strategyName is not found
+     * @throws {Error} If riskName is configured but not found
      * Memoized function to cache validation results
      */
     validate: (strategyName: StrategyName, source: string) => void;
@@ -5205,12 +5669,50 @@ declare class SizingValidationService {
     list: () => Promise<ISizingSchema[]>;
 }
 
+/**
+ * @class RiskValidationService
+ * Service for managing and validating risk configurations
+ */
+declare class RiskValidationService {
+    /**
+     * @private
+     * @readonly
+     * Injected logger service instance
+     */
+    private readonly loggerService;
+    /**
+     * @private
+     * Map storing risk schemas by risk name
+     */
+    private _riskMap;
+    /**
+     * Adds a risk schema to the validation service
+     * @public
+     * @throws {Error} If riskName already exists
+     */
+    addRisk: (riskName: RiskName, riskSchema: IRiskSchema) => void;
+    /**
+     * Validates the existence of a risk profile
+     * @public
+     * @throws {Error} If riskName is not found
+     * Memoized function to cache validation results
+     */
+    validate: (riskName: RiskName, source: string) => void;
+    /**
+     * Returns a list of all registered risk schemas
+     * @public
+     * @returns Array of risk schemas with their configurations
+     */
+    list: () => Promise<IRiskSchema[]>;
+}
+
 declare const backtest: {
     exchangeValidationService: ExchangeValidationService;
     strategyValidationService: StrategyValidationService;
     frameValidationService: FrameValidationService;
     walkerValidationService: WalkerValidationService;
     sizingValidationService: SizingValidationService;
+    riskValidationService: RiskValidationService;
     backtestMarkdownService: BacktestMarkdownService;
     liveMarkdownService: LiveMarkdownService;
     performanceMarkdownService: PerformanceMarkdownService;
@@ -5229,15 +5731,18 @@ declare const backtest: {
     backtestGlobalService: BacktestGlobalService;
     walkerGlobalService: WalkerGlobalService;
     sizingGlobalService: SizingGlobalService;
+    riskGlobalService: RiskGlobalService;
     exchangeSchemaService: ExchangeSchemaService;
     strategySchemaService: StrategySchemaService;
     frameSchemaService: FrameSchemaService;
     walkerSchemaService: WalkerSchemaService;
     sizingSchemaService: SizingSchemaService;
+    riskSchemaService: RiskSchemaService;
     exchangeConnectionService: ExchangeConnectionService;
     strategyConnectionService: StrategyConnectionService;
     frameConnectionService: FrameConnectionService;
     sizingConnectionService: SizingConnectionService;
+    riskConnectionService: RiskConnectionService;
     executionContextService: {
         readonly context: IExecutionContext;
     };
@@ -5247,4 +5752,4 @@ declare const backtest: {
     loggerService: LoggerService;
 };
 
-export { Backtest, type BacktestStatistics, type CandleInterval, type DoneContract, type EntityId, ExecutionContextService, type FrameInterval, Heat, type ICandleData, type IExchangeSchema, type IFrameSchema, type IHeatmapRow, type IHeatmapStatistics, type IPersistBase, type IPositionSizeATRParams, type IPositionSizeFixedPercentageParams, type IPositionSizeKellyParams, type ISignalDto, type ISignalRow, type ISizingCalculateParams, type ISizingCalculateParamsATR, type ISizingCalculateParamsFixedPercentage, type ISizingCalculateParamsKelly, type ISizingSchema, type ISizingSchemaATR, type ISizingSchemaFixedPercentage, type ISizingSchemaKelly, type IStrategyPnL, type IStrategySchema, type IStrategyTickResult, type IStrategyTickResultActive, type IStrategyTickResultClosed, type IStrategyTickResultIdle, type IStrategyTickResultOpened, type IWalkerResults, type IWalkerSchema, type IWalkerStrategyResult, Live, type LiveStatistics, MethodContextService, Performance, type PerformanceContract, type PerformanceMetricType, type PerformanceStatistics, PersistBase, PersistSignalAdaper, PositionSize, type ProgressContract, type SignalData, type SignalInterval, type TPersistBase, type TPersistBaseCtor, Walker, type WalkerMetric, type WalkerStatistics, addExchange, addFrame, addSizing, addStrategy, addWalker, emitters, formatPrice, formatQuantity, getAveragePrice, getCandles, getDate, getMode, backtest as lib, listExchanges, listFrames, listSizings, listStrategies, listWalkers, listenDoneBacktest, listenDoneBacktestOnce, listenDoneLive, listenDoneLiveOnce, listenDoneWalker, listenDoneWalkerOnce, listenError, listenPerformance, listenProgress, listenSignal, listenSignalBacktest, listenSignalBacktestOnce, listenSignalLive, listenSignalLiveOnce, listenSignalOnce, listenWalker, listenWalkerComplete, listenWalkerOnce, setLogger };
+export { Backtest, type BacktestStatistics, type CandleInterval, type DoneContract, type EntityId, ExecutionContextService, type FrameInterval, Heat, type ICandleData, type IExchangeSchema, type IFrameSchema, type IHeatmapRow, type IHeatmapStatistics, type IPersistBase, type IPositionSizeATRParams, type IPositionSizeFixedPercentageParams, type IPositionSizeKellyParams, type IRiskCheckArgs, type IRiskSchema, type IRiskValidation, type IRiskValidationFn, type ISignalDto, type ISignalRow, type ISizingCalculateParams, type ISizingCalculateParamsATR, type ISizingCalculateParamsFixedPercentage, type ISizingCalculateParamsKelly, type ISizingSchema, type ISizingSchemaATR, type ISizingSchemaFixedPercentage, type ISizingSchemaKelly, type IStrategyPnL, type IStrategySchema, type IStrategyTickResult, type IStrategyTickResultActive, type IStrategyTickResultClosed, type IStrategyTickResultIdle, type IStrategyTickResultOpened, type IWalkerResults, type IWalkerSchema, type IWalkerStrategyResult, Live, type LiveStatistics, MethodContextService, Performance, type PerformanceContract, type PerformanceMetricType, type PerformanceStatistics, PersistBase, PersistSignalAdaper, PositionSize, type ProgressContract, type SignalData, type SignalInterval, type TPersistBase, type TPersistBaseCtor, Walker, type WalkerMetric, type WalkerStatistics, addExchange, addFrame, addRisk, addSizing, addStrategy, addWalker, emitters, formatPrice, formatQuantity, getAveragePrice, getCandles, getDate, getMode, backtest as lib, listExchanges, listFrames, listRisks, listSizings, listStrategies, listWalkers, listenDoneBacktest, listenDoneBacktestOnce, listenDoneLive, listenDoneLiveOnce, listenDoneWalker, listenDoneWalkerOnce, listenError, listenPerformance, listenProgress, listenSignal, listenSignalBacktest, listenSignalBacktestOnce, listenSignalLive, listenSignalLiveOnce, listenSignalOnce, listenWalker, listenWalkerComplete, listenWalkerOnce, setLogger };

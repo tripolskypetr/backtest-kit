@@ -4,12 +4,14 @@ import { IExchangeSchema } from "../interfaces/Exchange.interface";
 import { IFrameSchema } from "../interfaces/Frame.interface";
 import { IWalkerSchema } from "../interfaces/Walker.interface";
 import { ISizingSchema } from "../interfaces/Sizing.interface";
+import { IRiskSchema } from "../interfaces/Risk.interface";
 
 const LIST_EXCHANGES_METHOD_NAME = "list.listExchanges";
 const LIST_STRATEGIES_METHOD_NAME = "list.listStrategies";
 const LIST_FRAMES_METHOD_NAME = "list.listFrames";
 const LIST_WALKERS_METHOD_NAME = "list.listWalkers";
 const LIST_SIZINGS_METHOD_NAME = "list.listSizings";
+const LIST_RISKS_METHOD_NAME = "list.listRisks";
 
 /**
  * Returns a list of all registered exchange schemas.
@@ -175,4 +177,41 @@ export async function listWalkers(): Promise<IWalkerSchema[]> {
 export async function listSizings(): Promise<ISizingSchema[]> {
   backtest.loggerService.log(LIST_SIZINGS_METHOD_NAME);
   return await backtest.sizingValidationService.list();
+}
+
+/**
+ * Returns a list of all registered risk schemas.
+ *
+ * Retrieves all risk configurations that have been registered via addRisk().
+ * Useful for debugging, documentation, or building dynamic UIs.
+ *
+ * @returns Array of risk schemas with their configurations
+ *
+ * @example
+ * ```typescript
+ * import { listRisks, addRisk } from "backtest-kit";
+ *
+ * addRisk({
+ *   riskName: "conservative",
+ *   note: "Conservative risk management with tight position limits",
+ *   maxConcurrentPositions: 5,
+ * });
+ *
+ * addRisk({
+ *   riskName: "aggressive",
+ *   note: "Aggressive risk management with loose limits",
+ *   maxConcurrentPositions: 10,
+ * });
+ *
+ * const risks = listRisks();
+ * console.log(risks);
+ * // [
+ * //   { riskName: "conservative", maxConcurrentPositions: 5, ... },
+ * //   { riskName: "aggressive", maxConcurrentPositions: 10, ... }
+ * // ]
+ * ```
+ */
+export async function listRisks(): Promise<IRiskSchema[]> {
+  backtest.loggerService.log(LIST_RISKS_METHOD_NAME);
+  return await backtest.riskValidationService.list();
 }

@@ -12,6 +12,7 @@ const connectionServices = {
     strategyConnectionService: Symbol('strategyConnectionService'),
     frameConnectionService: Symbol('frameConnectionService'),
     sizingConnectionService: Symbol('sizingConnectionService'),
+    riskConnectionService: Symbol('riskConnectionService'),
 };
 
 const schemaServices = {
@@ -20,6 +21,7 @@ const schemaServices = {
     frameSchemaService: Symbol('frameSchemaService'),
     walkerSchemaService: Symbol('walkerSchemaService'),
     sizingSchemaService: Symbol('sizingSchemaService'),
+    riskSchemaService: Symbol('riskSchemaService'),
 }
 
 const globalServices = {
@@ -30,6 +32,7 @@ const globalServices = {
     backtestGlobalService: Symbol('backtestGlobalService'),
     walkerGlobalService: Symbol('walkerGlobalService'),
     sizingGlobalService: Symbol('sizingGlobalService'),
+    riskGlobalService: Symbol('riskGlobalService'),
 }
 
 const logicPrivateServices = {
@@ -58,6 +61,7 @@ const validationServices = {
     frameValidationService: Symbol('frameValidationService'),
     walkerValidationService: Symbol('walkerValidationService'),
     sizingValidationService: Symbol('sizingValidationService'),
+    riskValidationService: Symbol('riskValidationService'),
 }
 
 export const TYPES = {

@@ -1,6 +1,6 @@
 export { setLogger } from "./function/setup";
-export { addExchange, addStrategy, addFrame, addWalker, addSizing } from "./function/add";
-export { listExchanges, listStrategies, listFrames, listWalkers, listSizings } from "./function/list";
+export { addExchange, addStrategy, addFrame, addWalker, addSizing, addRisk } from "./function/add";
+export { listExchanges, listStrategies, listFrames, listWalkers, listSizings, listRisks } from "./function/list";
 export {
   listenSignal,
   listenSignalOnce,
@@ -64,6 +64,13 @@ export {
   IPositionSizeKellyParams,
   IPositionSizeATRParams,
 } from "./interfaces/Sizing.interface";
+
+export {
+  IRiskSchema,
+  IRiskCheckArgs,
+  IRiskValidation,
+  IRiskValidationFn,
+} from "./interfaces/Risk.interface";
 
 export {
   WalkerMetric,

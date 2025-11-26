@@ -2,6 +2,7 @@ import { TMethodContextService } from "../lib/services/context/MethodContextServ
 import { TExecutionContextService } from "../lib/services/context/ExecutionContextService";
 import { IExchange, ICandleData, ExchangeName } from "./Exchange.interface";
 import { ILogger } from "./Logger.interface";
+import { IRisk, RiskName } from "./Risk.interface";
 
 /**
  * Signal generation interval for throttling.
@@ -64,6 +65,8 @@ export interface IStrategyParams extends IStrategySchema {
   logger: ILogger;
   /** Exchange service for candle data and VWAP */
   exchange: IExchange;
+  /** Risk profile for risk management */
+  risk: IRisk;
   /** Execution context service (symbol, when, backtest flag) */
   execution: TExecutionContextService;
   /** Method context service (strategyName, exchangeName, frameName) */
@@ -107,6 +110,8 @@ export interface IStrategySchema {
   getSignal: (symbol: string) => Promise<ISignalDto | null>;
   /** Optional lifecycle event callbacks (onOpen, onClose) */
   callbacks?: Partial<IStrategyCallbacks>;
+  /** Optional risk profile identifier for risk management */
+  riskName?: RiskName;
 }
 
 /**

@@ -6,6 +6,7 @@ import ExchangeConnectionService from "./services/connection/ExchangeConnectionS
 import StrategyConnectionService from "./services/connection/StrategyConnectionService";
 import FrameConnectionService from "./services/connection/FrameConnectionService";
 import SizingConnectionService from "./services/connection/SizingConnectionService";
+import RiskConnectionService from "./services/connection/RiskConnectionService";
 import ExecutionContextService, {
   TExecutionContextService,
 } from "./services/context/ExecutionContextService";
@@ -16,11 +17,13 @@ import ExchangeGlobalService from "./services/global/ExchangeGlobalService";
 import StrategyGlobalService from "./services/global/StrategyGlobalService";
 import FrameGlobalService from "./services/global/FrameGlobalService";
 import SizingGlobalService from "./services/global/SizingGlobalService";
+import RiskGlobalService from "./services/global/RiskGlobalService";
 import WalkerGlobalService from "./services/global/WalkerGlobalService";
 import ExchangeSchemaService from "./services/schema/ExchangeSchemaService";
 import StrategySchemaService from "./services/schema/StrategySchemaService";
 import FrameSchemaService from "./services/schema/FrameSchemaService";
 import SizingSchemaService from "./services/schema/SizingSchemaService";
+import RiskSchemaService from "./services/schema/RiskSchemaService";
 import WalkerSchemaService from "./services/schema/WalkerSchemaService";
 import BacktestLogicPrivateService from "./services/logic/private/BacktestLogicPrivateService";
 import LiveLogicPrivateService from "./services/logic/private/LiveLogicPrivateService";
@@ -40,6 +43,7 @@ import StrategyValidationService from "./services/validation/StrategyValidationS
 import FrameValidationService from "./services/validation/FrameValidationService";
 import WalkerValidationService from "./services/validation/WalkerValidationService";
 import SizingValidationService from "./services/validation/SizingValidationService";
+import RiskValidationService from "./services/validation/RiskValidationService";
 
 const baseServices = {
   loggerService: inject<LoggerService>(TYPES.loggerService),
@@ -67,6 +71,9 @@ const connectionServices = {
   sizingConnectionService: inject<SizingConnectionService>(
     TYPES.sizingConnectionService
   ),
+  riskConnectionService: inject<RiskConnectionService>(
+    TYPES.riskConnectionService
+  ),
 };
 
 const schemaServices = {
@@ -79,6 +86,7 @@ const schemaServices = {
   frameSchemaService: inject<FrameSchemaService>(TYPES.frameSchemaService),
   walkerSchemaService: inject<WalkerSchemaService>(TYPES.walkerSchemaService),
   sizingSchemaService: inject<SizingSchemaService>(TYPES.sizingSchemaService),
+  riskSchemaService: inject<RiskSchemaService>(TYPES.riskSchemaService),
 };
 
 const globalServices = {
@@ -95,6 +103,7 @@ const globalServices = {
   ),
   walkerGlobalService: inject<WalkerGlobalService>(TYPES.walkerGlobalService),
   sizingGlobalService: inject<SizingGlobalService>(TYPES.sizingGlobalService),
+  riskGlobalService: inject<RiskGlobalService>(TYPES.riskGlobalService),
 };
 
 const logicPrivateServices = {
@@ -135,6 +144,7 @@ const validationServices = {
   frameValidationService: inject<FrameValidationService>(TYPES.frameValidationService),
   walkerValidationService: inject<WalkerValidationService>(TYPES.walkerValidationService),
   sizingValidationService: inject<SizingValidationService>(TYPES.sizingValidationService),
+  riskValidationService: inject<RiskValidationService>(TYPES.riskValidationService),
 }
 
 export const backtest = {

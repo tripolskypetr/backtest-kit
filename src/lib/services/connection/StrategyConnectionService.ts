@@ -19,6 +19,15 @@ import {
   signalBacktestEmitter,
   signalLiveEmitter,
 } from "../../../config/emitters";
+import { IRisk } from "src/interfaces/Risk.interface";
+import RiskConnectionService from "./RiskConnectionService";
+
+const NOOP_RISK: IRisk = {
+  activePositionCount: 0,
+  checkSignal: () => Promise.resolve(true),
+  addSignal: () => Promise.resolve(),
+  removeSignal: () => Promise.resolve(),
+}
 
 /**
  * Connection service routing strategy operations to correct ClientStrategy instance.
@@ -49,6 +58,7 @@ export class StrategyConnectionService implements IStrategy {
   private readonly strategySchemaService = inject<StrategySchemaService>(
     TYPES.strategySchemaService
   );
+  private readonly riskConnectionService = inject<RiskConnectionService>(TYPES.riskConnectionService); 
   private readonly exchangeConnectionService =
     inject<ExchangeConnectionService>(TYPES.exchangeConnectionService);
   private readonly methodContextService = inject<TMethodContextService>(
@@ -67,7 +77,7 @@ export class StrategyConnectionService implements IStrategy {
   private getStrategy = memoize(
     ([strategyName]) => `${strategyName}`,
     (strategyName: StrategyName) => {
-      const { getSignal, interval, callbacks } =
+      const { riskName, getSignal, interval, callbacks } =
         this.strategySchemaService.get(strategyName);
       return new ClientStrategy({
         interval,
@@ -75,6 +85,7 @@ export class StrategyConnectionService implements IStrategy {
         method: this.methodContextService,
         logger: this.loggerService,
         exchange: this.exchangeConnectionService,
+        risk: riskName ? this.riskConnectionService.getRisk(riskName) : NOOP_RISK,
         strategyName,
         getSignal,
         callbacks,
