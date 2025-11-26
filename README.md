@@ -25,8 +25,9 @@
 - 🔍 **Schema Reflection API** - listExchanges(), listStrategies(), listFrames() for runtime introspection
 - 🏃 **Strategy Comparison (Walker)** - Compare multiple strategies in parallel with automatic ranking and statistical analysis
 - 🔥 **Portfolio Heatmap** - Multi-symbol performance analysis with extended metrics (Profit Factor, Expectancy, Win/Loss Streaks, Avg Win/Loss) sorted by Sharpe Ratio
-- 🧪 **Comprehensive Test Coverage** - 89 unit tests covering validation, PNL, callbacks, reports, performance tracking, walker, heatmap, position sizing, and event system
+- 🧪 **Comprehensive Test Coverage** - 109 unit and integration tests covering validation, PNL, callbacks, reports, performance tracking, walker, heatmap, position sizing, risk management, and event system
 - 💰 **Position Sizing Calculator** - Built-in position sizing methods (Fixed Percentage, Kelly Criterion, ATR-based) with risk management constraints
+- 🛡️ **Risk Management System** - Portfolio-level risk controls with custom validation logic, concurrent position limits, and cross-strategy coordination
 - 💾 **Zero Data Download** - Unlike Freqtrade, no need to download gigabytes of historical data - plug any data source (CCXT, database, API)
 - 🔒 **Safe Math & Robustness** - All metrics protected against NaN/Infinity with unsafe numeric checks, returns N/A for invalid calculations
 
@@ -789,7 +790,298 @@ const quantity = await PositionSize.fixedPercentage(
    - Best for: Swing trading, volatile markets
    - Risk: Position size scales with volatility
 
-### 10. Schema Reflection API (Optional)
+### 10. Risk Management (Optional)
+
+Risk Management provides portfolio-level risk controls across strategies with custom validation logic. Prevent overexposure by limiting concurrent positions, filtering symbols, implementing time-based rules, or any custom logic.
+
+#### Register Risk Profiles
+
+```typescript
+import { addRisk } from "backtest-kit";
+
+// Simple concurrent position limit
+addRisk({
+  riskName: "conservative",
+  note: "Conservative risk profile with max 3 concurrent positions",
+  validations: [
+    ({ activePositionCount }) => {
+      if (activePositionCount >= 3) {
+        throw new Error("Maximum 3 concurrent positions allowed");
+      }
+    },
+  ],
+  callbacks: {
+    onRejected: (symbol, params) => {
+      console.warn(`Signal rejected for ${symbol}:`, params);
+    },
+    onAllowed: (symbol, params) => {
+      console.log(`Signal allowed for ${symbol}`);
+    },
+  },
+});
+
+// Symbol-based filtering
+addRisk({
+  riskName: "no-meme-coins",
+  note: "Block meme coins from trading",
+  validations: [
+    ({ symbol }) => {
+      const memeCoins = ["DOGEUSDT", "SHIBUSDT", "PEPEUSDT"];
+      if (memeCoins.includes(symbol)) {
+        throw new Error(`Meme coin ${symbol} not allowed`);
+      }
+    },
+  ],
+});
+
+// Time-based trading windows
+addRisk({
+  riskName: "trading-hours",
+  note: "Only trade during market hours (9 AM - 5 PM UTC)",
+  validations: [
+    ({ timestamp }) => {
+      const date = new Date(timestamp);
+      const hour = date.getUTCHours();
+
+      if (hour < 9 || hour >= 17) {
+        throw new Error("Trading only allowed 9 AM - 5 PM UTC");
+      }
+    },
+  ],
+});
+
+// Price-based filtering
+addRisk({
+  riskName: "price-filter",
+  note: "Avoid trading during low liquidity (price < $100)",
+  validations: [
+    ({ currentPrice }) => {
+      if (currentPrice < 100) {
+        throw new Error("Price too low - liquidity risk");
+      }
+    },
+  ],
+});
+
+// Multi-strategy coordination with position inspection
+addRisk({
+  riskName: "strategy-coordinator",
+  note: "Limit exposure per strategy and inspect active positions",
+  validations: [
+    ({ activePositions, strategyName }) => {
+      // Count positions for this specific strategy
+      const strategyPositions = activePositions.filter(
+        (pos) => pos.strategyName === strategyName
+      );
+
+      if (strategyPositions.length >= 2) {
+        throw new Error(`Strategy ${strategyName} already has 2 positions`);
+      }
+
+      // Check if we already have a position on this symbol
+      const symbolPositions = activePositions.filter(
+        (pos) => pos.symbol === symbol
+      );
+
+      if (symbolPositions.length > 0) {
+        throw new Error(`Already have position on ${symbol}`);
+      }
+    },
+  ],
+});
+
+// Complex validation with multiple rules
+addRisk({
+  riskName: "advanced",
+  note: "Advanced risk profile with multiple validations",
+  validations: [
+    // Validation 1: Position limit
+    ({ activePositionCount }) => {
+      if (activePositionCount >= 5) {
+        throw new Error("Max 5 positions");
+      }
+    },
+    // Validation 2: Symbol filter
+    ({ symbol }) => {
+      if (symbol.endsWith("BUSD")) {
+        throw new Error("BUSD pairs not allowed");
+      }
+    },
+    // Validation 3: Time filter
+    ({ timestamp }) => {
+      const hour = new Date(timestamp).getUTCHours();
+      if (hour < 6 || hour >= 22) {
+        throw new Error("Trading hours: 6 AM - 10 PM UTC");
+      }
+    },
+  ],
+});
+```
+
+#### Attach Risk Profile to Strategy
+
+```typescript
+import { addStrategy } from "backtest-kit";
+
+addStrategy({
+  strategyName: "my-strategy",
+  interval: "5m",
+  riskName: "conservative", // Attach risk profile
+  getSignal: async (symbol) => {
+    return {
+      position: "long",
+      priceOpen: 50000,
+      priceTakeProfit: 51000,
+      priceStopLoss: 49000,
+      minuteEstimatedTime: 60,
+    };
+  },
+});
+```
+
+#### Multiple Strategies Sharing Risk Profile
+
+```typescript
+import { addStrategy, addRisk } from "backtest-kit";
+
+// Shared risk profile for all strategies
+addRisk({
+  riskName: "portfolio-risk",
+  note: "Portfolio-wide max 10 positions across all strategies",
+  validations: [
+    ({ activePositionCount }) => {
+      if (activePositionCount >= 10) {
+        throw new Error("Portfolio limit: 10 positions");
+      }
+    },
+  ],
+});
+
+// Strategy A
+addStrategy({
+  strategyName: "momentum",
+  interval: "5m",
+  riskName: "portfolio-risk", // Shared risk profile
+  getSignal: async (symbol) => ({...}),
+});
+
+// Strategy B
+addStrategy({
+  strategyName: "mean-reversion",
+  interval: "15m",
+  riskName: "portfolio-risk", // Same risk profile
+  getSignal: async (symbol) => ({...}),
+});
+
+// Both strategies share the same 10-position limit
+// If strategy A has 6 open positions, strategy B can only open 4 more
+```
+
+#### Risk Validation Context
+
+Each validation function receives the following context:
+
+```typescript
+interface IRiskValidationPayload {
+  symbol: string;                      // Trading symbol (e.g., "BTCUSDT")
+  strategyName: string;                // Strategy name attempting to open position
+  exchangeName: string;                // Exchange name
+  currentPrice: number;                // Current market price
+  timestamp: number;                   // Signal timestamp (epoch ms)
+  activePositionCount: number;         // Number of currently open positions
+  activePositions: Array<{             // Array of all active positions
+    strategyName: string;              // Strategy that opened this position
+    symbol: string;                    // Trading symbol
+  }>;
+}
+```
+
+#### Listen to Validation Errors
+
+```typescript
+import { listenValidation } from "backtest-kit";
+
+// Monitor risk validation errors in real-time
+const unsubscribe = listenValidation((error) => {
+  console.error("Risk validation error:", error.message);
+
+  // Log to monitoring service
+  // Send alerts
+  // Track rejection patterns
+});
+
+// Stop listening
+// unsubscribe();
+```
+
+#### List Registered Risk Profiles
+
+```typescript
+import { listRisks } from "backtest-kit";
+
+const risks = await listRisks();
+console.log("Available risk profiles:", risks.map(r => ({
+  name: r.riskName,
+  note: r.note,
+  validationCount: r.validations?.length || 0
+})));
+// Output:
+// [
+//   { name: "conservative", note: "Conservative risk...", validationCount: 1 },
+//   { name: "no-meme-coins", note: "Block meme coins...", validationCount: 1 },
+//   { name: "trading-hours", note: "Only trade during...", validationCount: 1 }
+// ]
+```
+
+#### Risk Validation Flow
+
+1. **Signal Generation** - Strategy generates a signal
+2. **Risk Check** - Before opening position, risk.checkSignal() is called
+3. **Validation Execution** - All validation functions execute sequentially
+4. **Fail-Fast** - First validation that throws an error stops execution
+5. **Callbacks** - `onRejected` or `onAllowed` callback is triggered
+6. **Result** - Signal is either allowed (position opens) or rejected (signal ignored)
+
+**Example validation flow:**
+
+```typescript
+// Strategy generates signal at 10 AM UTC
+const signal = {
+  position: "long",
+  priceOpen: 50000,
+  // ...
+};
+
+// Risk validation checks:
+// 1. activePositionCount < 3? ✅ Pass (currently 2 open)
+// 2. symbol not in meme coins? ✅ Pass (BTCUSDT is not a meme coin)
+// 3. hour between 9-17? ✅ Pass (10 AM is valid)
+// 4. price >= 100? ✅ Pass ($50,000 > $100)
+
+// All validations pass → onAllowed() callback → Position opens
+
+// If any validation fails → onRejected() callback → Signal ignored
+```
+
+#### Validation Rules Best Practices
+
+1. **Keep validations simple** - Each validation should check one thing
+2. **Throw descriptive errors** - Error messages help debug rejections
+3. **Use fail-fast** - Order validations by cheapest-to-check first
+4. **Avoid side effects** - Validations should be pure checks
+5. **Test thoroughly** - Use unit tests to verify validation logic
+
+#### Use Cases
+
+- **Position Limits** - Prevent overexposure by limiting concurrent positions
+- **Symbol Filtering** - Block specific coins or pairs from trading
+- **Time Windows** - Only trade during specific hours or days
+- **Price Filtering** - Avoid low-liquidity or extreme price ranges
+- **Cross-Strategy Coordination** - Share risk limits across multiple strategies
+- **Portfolio Limits** - Enforce portfolio-wide constraints
+- **Dynamic Rules** - Implement any custom logic based on market conditions
+
+### 11. Schema Reflection API (Optional)
 
 Retrieve registered schemas at runtime for debugging, documentation, or building dynamic UIs:
 
@@ -868,6 +1160,14 @@ console.log("Available sizings:", sizings.map(s => ({
   method: s.method
 })));
 // Output: [{ name: "conservative", note: "Conservative 2% risk...", method: "fixed-percentage" }]
+
+const risks = await listRisks();
+console.log("Available risks:", risks.map(r => ({
+  name: r.riskName,
+  note: r.note,
+  validationCount: r.validations?.length || 0
+})));
+// Output: [{ name: "conservative", note: "Conservative risk...", validationCount: 1 }]
 ```
 
 **Use cases:**
@@ -1275,6 +1575,7 @@ Live.background("BTCUSDT", {
 - `listenWalker(callback)` - Subscribe to walker progress events (each strategy completion)
 - `listenWalkerOnce(filter, callback)` - Subscribe to walker progress events once
 - `listenWalkerComplete(callback)` - Subscribe to final walker results (all strategies compared)
+- `listenValidation(callback)` - Subscribe to risk validation errors
 
 All listeners return an `unsubscribe` function. All callbacks are processed sequentially using queued async execution.
 
@@ -1355,6 +1656,9 @@ addWalker(walkerSchema: IWalkerSchema): void
 
 // Register position sizing configuration
 addSizing(sizingSchema: ISizingSchema): void
+
+// Register risk management profile
+addRisk(riskSchema: IRiskSchema): void
 ```
 
 #### Exchange Data
