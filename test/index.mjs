@@ -15,6 +15,8 @@ import "./spec/performance.test.mjs";
 import "./spec/walker.test.mjs";
 import "./spec/heat.test.mjs";
 import "./spec/sizing.test.mjs";
+import "./spec/risk.test.mjs";
+import "./spec/integration-risk-strategy.test.mjs";
 
 run(import.meta.url, () => {
     console.log("All tests are finished");

@@ -299,6 +299,15 @@ export class ClientStrategy implements IStrategy {
       await this.setPendingSignal(pendingSignal);
 
       if (this._pendingSignal) {
+        // Register signal with risk management
+        await this.params.risk.addSignal(
+          this.params.execution.context.symbol,
+          {
+            strategyName: this.params.method.context.strategyName,
+            riskName: this.params.riskName,
+          }
+        );
+
         if (this.params.callbacks?.onOpen) {
           this.params.callbacks.onOpen(
             this.params.execution.context.symbol,
@@ -448,6 +457,15 @@ export class ClientStrategy implements IStrategy {
           this.params.execution.context.backtest
         );
       }
+
+      // Remove signal from risk management
+      await this.params.risk.removeSignal(
+        this.params.execution.context.symbol,
+        {
+          strategyName: this.params.method.context.strategyName,
+          riskName: this.params.riskName,
+        }
+      );
 
       await this.setPendingSignal(null);
 
@@ -612,6 +630,15 @@ export class ClientStrategy implements IStrategy {
           );
         }
 
+        // Remove signal from risk management
+        await this.params.risk.removeSignal(
+          this.params.execution.context.symbol,
+          {
+            strategyName: this.params.method.context.strategyName,
+            riskName: this.params.riskName,
+          }
+        );
+
         await this.setPendingSignal(null);
 
         const result: IStrategyTickResultClosed = {
@@ -671,6 +698,15 @@ export class ClientStrategy implements IStrategy {
         this.params.execution.context.backtest
       );
     }
+
+    // Remove signal from risk management
+    await this.params.risk.removeSignal(
+      this.params.execution.context.symbol,
+      {
+        strategyName: this.params.method.context.strategyName,
+        riskName: this.params.riskName,
+      }
+    );
 
     await this.setPendingSignal(null);
 

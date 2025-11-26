@@ -376,7 +376,7 @@ interface IRiskCheckArgs {
  */
 interface IRiskCallbacks {
     /** Called when a signal is rejected due to risk limits */
-    onRejected: (symbol: string, reason: string, violatedLimit: string, params: IRiskCheckArgs) => void;
+    onRejected: (symbol: string, reason: string, params: IRiskCheckArgs) => void;
     /** Called when a signal passes risk checks */
     onAllowed: (symbol: string, params: IRiskCheckArgs) => void;
 }
@@ -408,7 +408,7 @@ interface IRiskValidation {
      * Optional description for documentation purposes.
      * Aids in understanding the purpose or behavior of the validation.
      */
-    docDescription?: string;
+    note?: string;
 }
 /**
  * Risk schema registered via addRisk().
@@ -437,10 +437,6 @@ interface IRiskParams extends IRiskSchema {
  * Provides risk checking for signals and position tracking.
  */
 interface IRisk {
-    /**
-     * Returns number of currently active positions across all strategies.
-     */
-    readonly activePositionCount: number;
     /**
      * Check if a signal should be allowed based on risk limits.
      *
@@ -4358,9 +4354,13 @@ declare class SizingConnectionService {
  * Active position tracked by ClientRisk for cross-strategy analysis.
  */
 interface IActivePosition {
+    /** Signal details for the active position */
     signal: ISignalRow;
+    /** Strategy name owning the position */
     strategyName: string;
+    /** Exchange name */
     exchangeName: string;
+    /** Timestamp when the position was opened */
     openTimestamp: number;
 }
 /**

@@ -7,13 +7,21 @@ import {
 } from "../interfaces/Risk.interface";
 import { ISignalRow } from "../interfaces/Strategy.interface";
 
+/** Key generator for active position map */
+const GET_KEY_FN = (strategyName: string, symbol: string) =>
+  `${strategyName}:${symbol}`;
+
 /**
  * Active position tracked by ClientRisk for cross-strategy analysis.
  */
 interface IActivePosition {
+  /** Signal details for the active position */
   signal: ISignalRow;
+  /** Strategy name owning the position */
   strategyName: string;
+  /** Exchange name */
   exchangeName: string;
+  /** Timestamp when the position was opened */
   openTimestamp: number;
 }
 
@@ -58,7 +66,7 @@ export class ClientRisk implements IRisk {
    * Called by StrategyConnectionService after signal is opened.
    */
   public async addSignal(symbol: string, context: { strategyName: string; riskName: string }){
-    const key = `${context.strategyName}:${symbol}`;
+    const key = GET_KEY_FN(context.strategyName, symbol);
     this._activePositions.set(key, {
       signal: null as any, // Signal details not needed for position tracking
       strategyName: context.strategyName,
@@ -73,7 +81,7 @@ export class ClientRisk implements IRisk {
    * Called by StrategyConnectionService when signal is closed.
    */
   public async removeSignal(symbol: string, context: { strategyName: string; riskName: string }) {
-    const key = `${context.strategyName}:${symbol}`;
+    const key = GET_KEY_FN(context.strategyName, symbol);
     this._activePositions.delete(key);
     this.params.logger.log("ClientRisk removeSignal", { symbol, context, key, count: this._activePositions.size });
   }
@@ -116,7 +124,6 @@ export class ClientRisk implements IRisk {
             this.params.callbacks.onRejected(
               params.symbol,
               errorMessage,
-              "customValidation",
               params
             );
           }

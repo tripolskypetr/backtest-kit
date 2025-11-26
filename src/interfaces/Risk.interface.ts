@@ -28,7 +28,6 @@ export interface IRiskCallbacks {
   onRejected: (
     symbol: string,
     reason: string,
-    violatedLimit: string,
     params: IRiskCheckArgs
   ) => void;
   /** Called when a signal passes risk checks */
@@ -98,11 +97,6 @@ export interface IRiskParams extends IRiskSchema {
  * Provides risk checking for signals and position tracking.
  */
 export interface IRisk {
-  /**
-   * Returns number of currently active positions across all strategies.
-   */
-  readonly activePositionCount: number;
-
   /**
    * Check if a signal should be allowed based on risk limits.
    *

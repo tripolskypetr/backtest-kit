@@ -23,7 +23,6 @@ import { IRisk } from "src/interfaces/Risk.interface";
 import RiskConnectionService from "./RiskConnectionService";
 
 const NOOP_RISK: IRisk = {
-  activePositionCount: 0,
   checkSignal: () => Promise.resolve(true),
   addSignal: () => Promise.resolve(),
   removeSignal: () => Promise.resolve(),
@@ -86,6 +85,7 @@ export class StrategyConnectionService implements IStrategy {
         logger: this.loggerService,
         exchange: this.exchangeConnectionService,
         risk: riskName ? this.riskConnectionService.getRisk(riskName) : NOOP_RISK,
+        riskName,
         strategyName,
         getSignal,
         callbacks,
