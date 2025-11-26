@@ -1,5 +1,5 @@
 import { ILogger } from "./Logger.interface";
-import { StrategyName } from "./Strategy.interface";
+import { ISignalRow, StrategyName } from "./Strategy.interface";
 import { ExchangeName } from "./Exchange.interface";
 
 /**
@@ -21,13 +21,27 @@ export interface IRiskCheckArgs {
 }
 
 /**
+ * Active position tracked by ClientRisk for cross-strategy analysis.
+ */
+export interface IRiskActivePosition {
+  /** Signal details for the active position */
+  signal: ISignalRow;
+  /** Strategy name owning the position */
+  strategyName: string;
+  /** Exchange name */
+  exchangeName: string;
+  /** Timestamp when the position was opened */
+  openTimestamp: number;
+}
+
+
+/**
  * Optional callbacks for risk events.
  */
 export interface IRiskCallbacks {
   /** Called when a signal is rejected due to risk limits */
   onRejected: (
     symbol: string,
-    reason: string,
     params: IRiskCheckArgs
   ) => void;
   /** Called when a signal passes risk checks */
@@ -41,6 +55,8 @@ export interface IRiskCallbacks {
 export interface IRiskValidationPayload extends IRiskCheckArgs {
   /** Number of currently active positions across all strategies */
   activePositionCount: number;
+  /** List of currently active positions across all strategies */
+  activePositions: IRiskActivePosition[];
 }
 
 /**
@@ -80,7 +96,7 @@ export interface IRiskSchema {
   /** Optional lifecycle event callbacks (onRejected, onAllowed) */
   callbacks?: Partial<IRiskCallbacks>;
   /** Optional custom validations array for risk logic */
-  validations?: (IRiskValidation | IRiskValidationFn)[];
+  validations: (IRiskValidation | IRiskValidationFn)[];
 }
 
 /**

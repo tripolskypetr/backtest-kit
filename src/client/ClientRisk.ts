@@ -1,29 +1,37 @@
+import { errorData, getErrorMessage, not, trycatch } from "functools-kit";
 import {
   IRisk,
   IRiskParams,
   IRiskCheckArgs,
   IRiskValidation,
   IRiskValidationFn,
+  IRiskValidationPayload,
+  IRiskActivePosition,
 } from "../interfaces/Risk.interface";
 import { ISignalRow } from "../interfaces/Strategy.interface";
+import backtest from "src/lib";
 
 /** Key generator for active position map */
 const GET_KEY_FN = (strategyName: string, symbol: string) =>
   `${strategyName}:${symbol}`;
 
-/**
- * Active position tracked by ClientRisk for cross-strategy analysis.
- */
-interface IActivePosition {
-  /** Signal details for the active position */
-  signal: ISignalRow;
-  /** Strategy name owning the position */
-  strategyName: string;
-  /** Exchange name */
-  exchangeName: string;
-  /** Timestamp when the position was opened */
-  openTimestamp: number;
-}
+/** Wrapper to execute risk validation function with error handling */
+const DO_VALIDATION_FN = trycatch(
+  async (validation: IRiskValidationFn, params: IRiskValidationPayload) => {
+    await validation(params);
+    return true;
+  },
+  {
+    defaultValue: false,
+    fallback: (error) => {
+      backtest.loggerService.warn("ClientRisk exception thrown", {
+        error: errorData(error),
+        message: getErrorMessage(error),
+      });
+      //errorEmitter.next(error);
+    },
+  }
+);
 
 /**
  * ClientRisk implementation for portfolio-level risk management.
@@ -42,7 +50,7 @@ export class ClientRisk implements IRisk {
    * Map of active positions tracked across all strategies.
    * Key: `${strategyName}:${exchangeName}:${symbol}`
    */
-  private _activePositions = new Map<string, IActivePosition>();
+  private _activePositions = new Map<string, IRiskActivePosition>();
 
   constructor(private readonly params: IRiskParams) {}
 
@@ -50,7 +58,7 @@ export class ClientRisk implements IRisk {
    * Returns all currently active positions across all strategies.
    * Used for cross-strategy risk analysis in custom validations.
    */
-  public get activePositions(): ReadonlyMap<string, IActivePosition> {
+  public get activePositions(): ReadonlyMap<string, IRiskActivePosition> {
     return this._activePositions;
   }
 
@@ -65,25 +73,39 @@ export class ClientRisk implements IRisk {
    * Registers a new opened signal.
    * Called by StrategyConnectionService after signal is opened.
    */
-  public async addSignal(symbol: string, context: { strategyName: string; riskName: string }){
+  public async addSignal(
+    symbol: string,
+    context: { strategyName: string; riskName: string }
+  ) {
+    this.params.logger.debug("ClientRisk addSignal", {
+      symbol,
+      context,
+      count: this._activePositions.size,
+    });
     const key = GET_KEY_FN(context.strategyName, symbol);
     this._activePositions.set(key, {
       signal: null as any, // Signal details not needed for position tracking
       strategyName: context.strategyName,
-      exchangeName: '',
+      exchangeName: "",
       openTimestamp: Date.now(),
     });
-    this.params.logger.log("ClientRisk addSignal", { symbol, context, key, count: this._activePositions.size });
   }
 
   /**
    * Removes a closed signal.
    * Called by StrategyConnectionService when signal is closed.
    */
-  public async removeSignal(symbol: string, context: { strategyName: string; riskName: string }) {
+  public async removeSignal(
+    symbol: string,
+    context: { strategyName: string; riskName: string }
+  ) {
+    this.params.logger.debug("ClientRisk removeSignal", {
+      symbol,
+      context,
+      count: this._activePositions.size,
+    });
     const key = GET_KEY_FN(context.strategyName, symbol);
     this._activePositions.delete(key);
-    this.params.logger.log("ClientRisk removeSignal", { symbol, context, key, count: this._activePositions.size });
   }
 
   /**
@@ -99,38 +121,41 @@ export class ClientRisk implements IRisk {
    * @param params - Risk check arguments (passthrough from ClientStrategy)
    * @returns Promise resolving to true if allowed, false if rejected
    */
-  public checkSignal = async (
-    params: IRiskCheckArgs
-  ): Promise<boolean> => {
-    this.params.logger.log("ClientRisk checkSignal", {
+  public checkSignal = async (params: IRiskCheckArgs): Promise<boolean> => {
+    this.params.logger.debug("ClientRisk checkSignal", {
       symbol: params.symbol,
       strategyName: params.strategyName,
       activePositions: this._activePositions.size,
     });
 
+    const payload: IRiskValidationPayload = {
+      ...params,
+      activePositionCount: this._activePositions.size,
+      activePositions: Array.from(this._activePositions.values()),
+    };
+
     // Execute custom validations
-    if (this.params.validations && this.params.validations.length > 0) {
-      for (const validation of this.params.validations) {
-        try {
-          if (typeof validation === "function") {
-            await validation({ ...params, activePositionCount: this.activePositionCount });
-          } else {
-            await validation.validate({ ...params, activePositionCount: this.activePositionCount });
-          }
-        } catch (error) {
-          const errorMessage = error instanceof Error ? error.message : String(error);
-
-          if (this.params.callbacks?.onRejected) {
-            this.params.callbacks.onRejected(
-              params.symbol,
-              errorMessage,
-              params
-            );
-          }
-
-          return false;
-        }
+    let isValid = true;
+    for (const validation of this.params.validations) {
+      if (
+        not(
+          DO_VALIDATION_FN(
+            typeof validation === "function" ? validation : validation.validate,
+            payload
+          )
+        )
+      ) {
+        isValid = false;
+        break;
       }
+    }
+
+    if (!isValid) {
+      if (this.params.callbacks?.onRejected) {
+        this.params.callbacks.onRejected(params.symbol, params);
+      }
+
+      return false;
     }
 
     // All checks passed
