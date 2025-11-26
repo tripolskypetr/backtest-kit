@@ -38,6 +38,18 @@ strategyGlobalService:
 				• loggerService: ""
 				methodContextService: ""
 				executionContextService: ""
+		riskConnectionService:
+			• riskConnectionService: ""
+			loggerService:
+				• loggerService: ""
+				methodContextService: ""
+				executionContextService: ""
+			riskSchemaService:
+				• riskSchemaService: ""
+				loggerService:
+					• loggerService: ""
+					methodContextService: ""
+					executionContextService: ""
 		exchangeConnectionService:
 			• exchangeConnectionService: ""
 			loggerService:
@@ -109,6 +121,18 @@ liveGlobalService:
 							• loggerService: ""
 							methodContextService: ""
 							executionContextService: ""
+					riskConnectionService:
+						• riskConnectionService: ""
+						loggerService:
+							• loggerService: ""
+							methodContextService: ""
+							executionContextService: ""
+						riskSchemaService:
+							• riskSchemaService: ""
+							loggerService:
+								• loggerService: ""
+								methodContextService: ""
+								executionContextService: ""
 					exchangeConnectionService:
 						• exchangeConnectionService: ""
 						loggerService:
@@ -124,12 +148,19 @@ liveGlobalService:
 								executionContextService: ""
 						methodContextService: ""
 					methodContextService: ""
+			methodContextService: ""
 	strategyValidationService:
 		• strategyValidationService: ""
 		loggerService:
 			• loggerService: ""
 			methodContextService: ""
 			executionContextService: ""
+		riskValidationService:
+			• riskValidationService: ""
+			loggerService:
+				• loggerService: ""
+				methodContextService: ""
+				executionContextService: ""
 	exchangeValidationService:
 		• exchangeValidationService: ""
 		loggerService:
@@ -173,6 +204,18 @@ backtestGlobalService:
 							• loggerService: ""
 							methodContextService: ""
 							executionContextService: ""
+					riskConnectionService:
+						• riskConnectionService: ""
+						loggerService:
+							• loggerService: ""
+							methodContextService: ""
+							executionContextService: ""
+						riskSchemaService:
+							• riskSchemaService: ""
+							loggerService:
+								• loggerService: ""
+								methodContextService: ""
+								executionContextService: ""
 					exchangeConnectionService:
 						• exchangeConnectionService: ""
 						loggerService:
@@ -234,6 +277,12 @@ backtestGlobalService:
 			• loggerService: ""
 			methodContextService: ""
 			executionContextService: ""
+		riskValidationService:
+			• riskValidationService: ""
+			loggerService:
+				• loggerService: ""
+				methodContextService: ""
+				executionContextService: ""
 	exchangeValidationService:
 		• exchangeValidationService: ""
 		loggerService:
@@ -246,4 +295,149 @@ backtestGlobalService:
 			• loggerService: ""
 			methodContextService: ""
 			executionContextService: ""
+walkerGlobalService:
+	• walkerGlobalService: ""
+	loggerService:
+		• loggerService: ""
+		methodContextService: ""
+		executionContextService: ""
+	walkerLogicPublicService:
+		• walkerLogicPublicService: ""
+		loggerService:
+			• loggerService: ""
+			methodContextService: ""
+			executionContextService: ""
+		walkerLogicPrivateService:
+			• walkerLogicPrivateService: ""
+			loggerService:
+				• loggerService: ""
+				methodContextService: ""
+				executionContextService: ""
+			backtestLogicPublicService:
+				• backtestLogicPublicService: ""
+				loggerService:
+					• loggerService: ""
+					methodContextService: ""
+					executionContextService: ""
+				backtestLogicPrivateService:
+					• backtestLogicPrivateService: ""
+					loggerService:
+						• loggerService: ""
+						methodContextService: ""
+						executionContextService: ""
+					strategyGlobalService:
+						• strategyGlobalService: ""
+						loggerService:
+							• loggerService: ""
+							methodContextService: ""
+							executionContextService: ""
+						strategyConnectionService:
+							• strategyConnectionService: ""
+							loggerService:
+								• loggerService: ""
+								methodContextService: ""
+								executionContextService: ""
+							executionContextService: ""
+							strategySchemaService:
+								• strategySchemaService: ""
+								loggerService: ""
+							riskConnectionService:
+								• riskConnectionService: ""
+								loggerService: ""
+								riskSchemaService: ""
+							exchangeConnectionService:
+								• exchangeConnectionService: ""
+								loggerService: ""
+								executionContextService: ""
+								exchangeSchemaService: ""
+								methodContextService: ""
+							methodContextService: ""
+					exchangeGlobalService:
+						• exchangeGlobalService: ""
+						loggerService:
+							• loggerService: ""
+							methodContextService: ""
+							executionContextService: ""
+						exchangeConnectionService:
+							• exchangeConnectionService: ""
+							loggerService:
+								• loggerService: ""
+								methodContextService: ""
+								executionContextService: ""
+							executionContextService: ""
+							exchangeSchemaService:
+								• exchangeSchemaService: ""
+								loggerService: ""
+							methodContextService: ""
+					frameGlobalService:
+						• frameGlobalService: ""
+						loggerService:
+							• loggerService: ""
+							methodContextService: ""
+							executionContextService: ""
+						frameConnectionService:
+							• frameConnectionService: ""
+							loggerService:
+								• loggerService: ""
+								methodContextService: ""
+								executionContextService: ""
+							frameSchemaService:
+								• frameSchemaService: ""
+								loggerService: ""
+							methodContextService: ""
+					methodContextService: ""
+			backtestMarkdownService:
+				• backtestMarkdownService: ""
+				loggerService:
+					• loggerService: ""
+					methodContextService: ""
+					executionContextService: ""
+			walkerSchemaService:
+				• walkerSchemaService: ""
+				loggerService:
+					• loggerService: ""
+					methodContextService: ""
+					executionContextService: ""
+		walkerSchemaService:
+			• walkerSchemaService: ""
+			loggerService:
+				• loggerService: ""
+				methodContextService: ""
+				executionContextService: ""
+sizingGlobalService:
+	• sizingGlobalService: ""
+	loggerService:
+		• loggerService: ""
+		methodContextService: ""
+		executionContextService: ""
+	sizingConnectionService:
+		• sizingConnectionService: ""
+		loggerService:
+			• loggerService: ""
+			methodContextService: ""
+			executionContextService: ""
+		sizingSchemaService:
+			• sizingSchemaService: ""
+			loggerService:
+				• loggerService: ""
+				methodContextService: ""
+				executionContextService: ""
+riskGlobalService:
+	• riskGlobalService: ""
+	loggerService:
+		• loggerService: ""
+		methodContextService: ""
+		executionContextService: ""
+	riskConnectionService:
+		• riskConnectionService: ""
+		loggerService:
+			• loggerService: ""
+			methodContextService: ""
+			executionContextService: ""
+		riskSchemaService:
+			• riskSchemaService: ""
+			loggerService:
+				• loggerService: ""
+				methodContextService: ""
+				executionContextService: ""
 @endyaml

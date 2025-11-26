@@ -19,6 +19,12 @@ constructor();
 loggerService: any
 ```
 
+### riskValidationService
+
+```ts
+riskValidationService: any
+```
+
 ### _strategyMap
 
 ```ts
@@ -39,7 +45,7 @@ Adds a strategy schema to the validation service
 validate: (strategyName: string, source: string) => void
 ```
 
-Validates the existence of a strategy
+Validates the existence of a strategy and its risk profile (if configured)
 
 ### list
 

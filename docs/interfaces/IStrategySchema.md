@@ -49,3 +49,11 @@ callbacks: Partial<IStrategyCallbacks>
 ```
 
 Optional lifecycle event callbacks (onOpen, onClose)
+
+### riskName
+
+```ts
+riskName: string
+```
+
+Optional risk profile identifier for risk management

@@ -46,6 +46,12 @@ executionContextService: any
 strategySchemaService: any
 ```
 
+### riskConnectionService
+
+```ts
+riskConnectionService: any
+```
+
 ### exchangeConnectionService
 
 ```ts
