@@ -107,6 +107,8 @@ export {
   IPersistBase,
   TPersistBaseCtor,
   PersistSignalAdaper,
+  RiskData,
+  PersistRiskAdapter,
 } from "./classes/Persist";
 
 export { Backtest } from "./classes/Backtest";

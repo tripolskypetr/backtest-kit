@@ -92,15 +92,15 @@ export class RiskConnectionService {
    * @param symbol - Trading pair symbol
    * @param context - Context information (strategyName, riskName)
    */
-  public addSignal = (
+  public addSignal = async (
     symbol: string,
     context: { strategyName: string; riskName: RiskName }
-  ): void => {
+  ) => {
     this.loggerService.log("riskConnectionService addSignal", {
       symbol,
       context,
     });
-    this.getRisk(context.riskName).addSignal(symbol, context);
+    await this.getRisk(context.riskName).addSignal(symbol, context);
   };
 
   /**
@@ -110,15 +110,15 @@ export class RiskConnectionService {
    * @param symbol - Trading pair symbol
    * @param context - Context information (strategyName, riskName)
    */
-  public removeSignal = (
+  public removeSignal = async (
     symbol: string,
     context: { strategyName: string; riskName: RiskName }
-  ): void => {
+  ) => {
     this.loggerService.log("riskConnectionService removeSignal", {
       symbol,
       context,
     });
-    this.getRisk(context.riskName).removeSignal(symbol, context);
+    await this.getRisk(context.riskName).removeSignal(symbol, context);
   };
 }
 

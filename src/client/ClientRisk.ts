@@ -1,16 +1,27 @@
-import { errorData, getErrorMessage, not, trycatch } from "functools-kit";
+import {
+  errorData,
+  getErrorMessage,
+  not,
+  singleshot,
+  trycatch,
+} from "functools-kit";
 import {
   IRisk,
   IRiskParams,
   IRiskCheckArgs,
-  IRiskValidation,
   IRiskValidationFn,
   IRiskValidationPayload,
   IRiskActivePosition,
 } from "../interfaces/Risk.interface";
-import { ISignalRow } from "../interfaces/Strategy.interface";
 import backtest from "src/lib";
 import { validationSubject } from "../config/emitters";
+import { PersistRiskAdapter } from "../classes/Persist";
+
+/** Type for active position map */
+type RiskMap = Map<string, IRiskActivePosition>;
+
+/** Symbol indicating that positions need to be fetched from persistence */
+const POSITION_NEED_FETCH = Symbol("risk-need-fetch");
 
 /** Key generator for active position map */
 const GET_KEY_FN = (strategyName: string, symbol: string) =>
@@ -35,6 +46,19 @@ const DO_VALIDATION_FN = trycatch(
 );
 
 /**
+ * Initializes active positions by reading from persistence.
+ * Uses singleshot pattern to ensure it only runs once.
+ * This function is exported for use in tests or other modules.
+ */
+export const WAIT_FOR_INIT_FN = async (self: ClientRisk): Promise<void> => {
+  self.params.logger.debug("ClientRisk waitForInit");
+  const persistedPositions = await PersistRiskAdapter.readPositionData(
+    self.params.riskName
+  );
+  self._activePositions = new Map(persistedPositions);
+};
+
+/**
  * ClientRisk implementation for portfolio-level risk management.
  *
  * Provides risk checking logic to prevent signals that violate configured limits:
@@ -50,24 +74,31 @@ export class ClientRisk implements IRisk {
   /**
    * Map of active positions tracked across all strategies.
    * Key: `${strategyName}:${exchangeName}:${symbol}`
+   * Starts as POSITION_NEED_FETCH symbol, gets initialized on first use.
    */
-  private _activePositions = new Map<string, IRiskActivePosition>();
+  _activePositions: RiskMap | typeof POSITION_NEED_FETCH = POSITION_NEED_FETCH;
 
-  constructor(private readonly params: IRiskParams) {}
-
-  /**
-   * Returns all currently active positions across all strategies.
-   * Used for cross-strategy risk analysis in custom validations.
-   */
-  public get activePositions(): ReadonlyMap<string, IRiskActivePosition> {
-    return this._activePositions;
-  }
+  constructor(readonly params: IRiskParams) {}
 
   /**
-   * Returns number of currently active positions.
+   * Initializes active positions by loading from persistence.
+   * Uses singleshot pattern to ensure initialization happens exactly once.
+   * Skips persistence in backtest mode.
    */
-  public get activePositionCount(): number {
-    return this._activePositions.size;
+  private waitForInit = singleshot(async () => await WAIT_FOR_INIT_FN(this));
+
+  /**
+   * Persists current active positions to disk.
+   * Only saves in live mode (skips if _activePositions is not initialized).
+   */
+  private async _updatePositions(): Promise<void> {
+    if (this._activePositions === POSITION_NEED_FETCH) {
+      await this.waitForInit();
+    }
+    await PersistRiskAdapter.writePositionData(
+      Array.from(<RiskMap>this._activePositions),
+      this.params.riskName
+    );
   }
 
   /**
@@ -81,15 +112,20 @@ export class ClientRisk implements IRisk {
     this.params.logger.debug("ClientRisk addSignal", {
       symbol,
       context,
-      count: this._activePositions.size,
     });
+    if (this._activePositions === POSITION_NEED_FETCH) {
+      await this.waitForInit();
+    }
     const key = GET_KEY_FN(context.strategyName, symbol);
-    this._activePositions.set(key, {
+    const riskMap = <RiskMap>this._activePositions;
+    riskMap.set(key, {
       signal: null as any, // Signal details not needed for position tracking
       strategyName: context.strategyName,
       exchangeName: "",
       openTimestamp: Date.now(),
     });
+
+    await this._updatePositions();
   }
 
   /**
@@ -103,10 +139,15 @@ export class ClientRisk implements IRisk {
     this.params.logger.debug("ClientRisk removeSignal", {
       symbol,
       context,
-      count: this._activePositions.size,
     });
+    if (this._activePositions === POSITION_NEED_FETCH) {
+      await this.waitForInit();
+    }
     const key = GET_KEY_FN(context.strategyName, symbol);
-    this._activePositions.delete(key);
+    const riskMap = <RiskMap>this._activePositions;
+    riskMap.delete(key);
+
+    await this._updatePositions();
   }
 
   /**
@@ -126,13 +167,18 @@ export class ClientRisk implements IRisk {
     this.params.logger.debug("ClientRisk checkSignal", {
       symbol: params.symbol,
       strategyName: params.strategyName,
-      activePositions: this._activePositions.size,
     });
+
+    if (this._activePositions === POSITION_NEED_FETCH) {
+      await this.waitForInit();
+    }
+
+    const riskMap = <RiskMap>this._activePositions;
 
     const payload: IRiskValidationPayload = {
       ...params,
-      activePositionCount: this._activePositions.size,
-      activePositions: Array.from(this._activePositions.values()),
+      activePositionCount: riskMap.size,
+      activePositions: Array.from(riskMap.values()),
     };
 
     // Execute custom validations
@@ -142,7 +188,9 @@ export class ClientRisk implements IRisk {
         if (
           not(
             await DO_VALIDATION_FN(
-              typeof validation === "function" ? validation : validation.validate,
+              typeof validation === "function"
+                ? validation
+                : validation.validate,
               payload
             )
           )

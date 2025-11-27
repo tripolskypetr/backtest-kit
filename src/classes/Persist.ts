@@ -12,6 +12,7 @@ import { join } from "path";
 import { writeFileAtomic } from "../utils/writeFileAtomic";
 import swarm from "../lib";
 import { ISignalRow, StrategyName } from "../interfaces/Strategy.interface";
+import { IRiskActivePosition, RiskName } from "../interfaces/Risk.interface";
 
 const BASE_WAIT_FOR_INIT_SYMBOL = Symbol("wait-for-init");
 
@@ -597,3 +598,134 @@ export class PersistSignalUtils {
  * ```
  */
 export const PersistSignalAdaper = new PersistSignalUtils();
+
+/**
+ * Type for persisted risk positions data.
+ * Stores Map entries as array of [key, value] tuples for JSON serialization.
+ */
+export type RiskData = Array<[string, IRiskActivePosition]>;
+
+const PERSIST_RISK_UTILS_METHOD_NAME_USE_PERSIST_RISK_ADAPTER =
+  "PersistRiskUtils.usePersistRiskAdapter";
+const PERSIST_RISK_UTILS_METHOD_NAME_READ_DATA =
+  "PersistRiskUtils.readPositionData";
+const PERSIST_RISK_UTILS_METHOD_NAME_WRITE_DATA =
+  "PersistRiskUtils.writePositionData";
+
+/**
+ * Utility class for managing risk active positions persistence.
+ *
+ * Features:
+ * - Memoized storage instances per risk profile
+ * - Custom adapter support
+ * - Atomic read/write operations for RiskData
+ * - Crash-safe position state management
+ *
+ * Used by ClientRisk for live mode persistence of active positions.
+ */
+export class PersistRiskUtils {
+  private PersistRiskFactory: TPersistBaseCtor<RiskName, RiskData> =
+    PersistBase;
+
+  private getRiskStorage = memoize(
+    ([riskName]: [RiskName]): string => `${riskName}`,
+    (riskName: RiskName): IPersistBase<RiskData> =>
+      Reflect.construct(this.PersistRiskFactory, [
+        riskName,
+        `./logs/data/risk/`,
+      ])
+  );
+
+  /**
+   * Registers a custom persistence adapter.
+   *
+   * @param Ctor - Custom PersistBase constructor
+   *
+   * @example
+   * ```typescript
+   * class RedisPersist extends PersistBase {
+   *   async readValue(id) { return JSON.parse(await redis.get(id)); }
+   *   async writeValue(id, entity) { await redis.set(id, JSON.stringify(entity)); }
+   * }
+   * PersistRiskAdapter.usePersistRiskAdapter(RedisPersist);
+   * ```
+   */
+  public usePersistRiskAdapter(
+    Ctor: TPersistBaseCtor<RiskName, RiskData>
+  ): void {
+    swarm.loggerService.info(
+      PERSIST_RISK_UTILS_METHOD_NAME_USE_PERSIST_RISK_ADAPTER
+    );
+    this.PersistRiskFactory = Ctor;
+  }
+
+  /**
+   * Reads persisted active positions for a risk profile.
+   *
+   * Called by ClientRisk.waitForInit() to restore state.
+   * Returns empty Map if no positions exist.
+   *
+   * @param riskName - Risk profile identifier
+   * @returns Promise resolving to Map of active positions
+   */
+  public readPositionData = async (
+    riskName: RiskName
+  ): Promise<RiskData> => {
+    swarm.loggerService.info(PERSIST_RISK_UTILS_METHOD_NAME_READ_DATA);
+
+    const isInitial = !this.getRiskStorage.has(riskName);
+    const stateStorage = this.getRiskStorage(riskName);
+    await stateStorage.waitForInit(isInitial);
+
+    const RISK_STORAGE_KEY = "positions";
+
+    if (await stateStorage.hasValue(RISK_STORAGE_KEY)) {
+      return await stateStorage.readValue(RISK_STORAGE_KEY);
+    }
+
+    return [];
+  };
+
+  /**
+   * Writes active positions to disk with atomic file writes.
+   *
+   * Called by ClientRisk after addSignal/removeSignal to persist state.
+   * Uses atomic writes to prevent corruption on crashes.
+   *
+   * @param positions - Map of active positions
+   * @param riskName - Risk profile identifier
+   * @returns Promise that resolves when write is complete
+   */
+  public writePositionData = async (
+    riskRow: RiskData,
+    riskName: RiskName
+  ): Promise<void> => {
+    swarm.loggerService.info(PERSIST_RISK_UTILS_METHOD_NAME_WRITE_DATA);
+
+    const isInitial = !this.getRiskStorage.has(riskName);
+    const stateStorage = this.getRiskStorage(riskName);
+    await stateStorage.waitForInit(isInitial);
+
+    const RISK_STORAGE_KEY = "positions";
+
+    await stateStorage.writeValue(RISK_STORAGE_KEY, riskRow);
+  };
+}
+
+/**
+ * Global singleton instance of PersistRiskUtils.
+ * Used by ClientRisk for active positions persistence.
+ *
+ * @example
+ * ```typescript
+ * // Custom adapter
+ * PersistRiskAdapter.usePersistRiskAdapter(RedisPersist);
+ *
+ * // Read positions
+ * const positions = await PersistRiskAdapter.readPositionData("my-risk");
+ *
+ * // Write positions
+ * await PersistRiskAdapter.writePositionData(positionsMap, "my-risk");
+ * ```
+ */
+export const PersistRiskAdapter = new PersistRiskUtils();

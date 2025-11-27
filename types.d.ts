@@ -3175,6 +3175,79 @@ declare class PersistSignalUtils {
  * ```
  */
 declare const PersistSignalAdaper: PersistSignalUtils;
+/**
+ * Type for persisted risk positions data.
+ * Stores Map entries as array of [key, value] tuples for JSON serialization.
+ */
+type RiskData = Array<[string, IRiskActivePosition]>;
+/**
+ * Utility class for managing risk active positions persistence.
+ *
+ * Features:
+ * - Memoized storage instances per risk profile
+ * - Custom adapter support
+ * - Atomic read/write operations for RiskData
+ * - Crash-safe position state management
+ *
+ * Used by ClientRisk for live mode persistence of active positions.
+ */
+declare class PersistRiskUtils {
+    private PersistRiskFactory;
+    private getRiskStorage;
+    /**
+     * Registers a custom persistence adapter.
+     *
+     * @param Ctor - Custom PersistBase constructor
+     *
+     * @example
+     * ```typescript
+     * class RedisPersist extends PersistBase {
+     *   async readValue(id) { return JSON.parse(await redis.get(id)); }
+     *   async writeValue(id, entity) { await redis.set(id, JSON.stringify(entity)); }
+     * }
+     * PersistRiskAdapter.usePersistRiskAdapter(RedisPersist);
+     * ```
+     */
+    usePersistRiskAdapter(Ctor: TPersistBaseCtor<RiskName, RiskData>): void;
+    /**
+     * Reads persisted active positions for a risk profile.
+     *
+     * Called by ClientRisk.waitForInit() to restore state.
+     * Returns empty Map if no positions exist.
+     *
+     * @param riskName - Risk profile identifier
+     * @returns Promise resolving to Map of active positions
+     */
+    readPositionData: (riskName: RiskName) => Promise<RiskData>;
+    /**
+     * Writes active positions to disk with atomic file writes.
+     *
+     * Called by ClientRisk after addSignal/removeSignal to persist state.
+     * Uses atomic writes to prevent corruption on crashes.
+     *
+     * @param positions - Map of active positions
+     * @param riskName - Risk profile identifier
+     * @returns Promise that resolves when write is complete
+     */
+    writePositionData: (riskRow: RiskData, riskName: RiskName) => Promise<void>;
+}
+/**
+ * Global singleton instance of PersistRiskUtils.
+ * Used by ClientRisk for active positions persistence.
+ *
+ * @example
+ * ```typescript
+ * // Custom adapter
+ * PersistRiskAdapter.usePersistRiskAdapter(RedisPersist);
+ *
+ * // Read positions
+ * const positions = await PersistRiskAdapter.readPositionData("my-risk");
+ *
+ * // Write positions
+ * await PersistRiskAdapter.writePositionData(positionsMap, "my-risk");
+ * ```
+ */
+declare const PersistRiskAdapter: PersistRiskUtils;
 
 /**
  * Utility class for backtest operations.
@@ -4396,6 +4469,10 @@ declare class SizingConnectionService {
     }) => Promise<number>;
 }
 
+/** Type for active position map */
+type RiskMap = Map<string, IRiskActivePosition>;
+/** Symbol indicating that positions need to be fetched from persistence */
+declare const POSITION_NEED_FETCH: unique symbol;
 /**
  * ClientRisk implementation for portfolio-level risk management.
  *
@@ -4409,22 +4486,25 @@ declare class SizingConnectionService {
  * Used internally by strategy execution to validate signals before opening positions.
  */
 declare class ClientRisk implements IRisk {
-    private readonly params;
+    readonly params: IRiskParams;
     /**
      * Map of active positions tracked across all strategies.
      * Key: `${strategyName}:${exchangeName}:${symbol}`
+     * Starts as POSITION_NEED_FETCH symbol, gets initialized on first use.
      */
-    private _activePositions;
+    _activePositions: RiskMap | typeof POSITION_NEED_FETCH;
     constructor(params: IRiskParams);
     /**
-     * Returns all currently active positions across all strategies.
-     * Used for cross-strategy risk analysis in custom validations.
+     * Initializes active positions by loading from persistence.
+     * Uses singleshot pattern to ensure initialization happens exactly once.
+     * Skips persistence in backtest mode.
      */
-    get activePositions(): ReadonlyMap<string, IRiskActivePosition>;
+    private waitForInit;
     /**
-     * Returns number of currently active positions.
+     * Persists current active positions to disk.
+     * Only saves in live mode (skips if _activePositions is not initialized).
      */
-    get activePositionCount(): number;
+    private _updatePositions;
     /**
      * Registers a new opened signal.
      * Called by StrategyConnectionService after signal is opened.
@@ -4525,7 +4605,7 @@ declare class RiskConnectionService {
     addSignal: (symbol: string, context: {
         strategyName: string;
         riskName: RiskName;
-    }) => void;
+    }) => Promise<void>;
     /**
      * Removes a closed signal from the risk management system.
      * Routes to appropriate ClientRisk instance.
@@ -4536,7 +4616,7 @@ declare class RiskConnectionService {
     removeSignal: (symbol: string, context: {
         strategyName: string;
         riskName: RiskName;
-    }) => void;
+    }) => Promise<void>;
 }
 
 /**
@@ -4727,7 +4807,7 @@ declare class RiskGlobalService {
     addSignal: (symbol: string, context: {
         strategyName: string;
         riskName: RiskName;
-    }) => void;
+    }) => Promise<void>;
     /**
      * Removes a closed signal from the risk management system.
      *
@@ -4737,7 +4817,7 @@ declare class RiskGlobalService {
     removeSignal: (symbol: string, context: {
         strategyName: string;
         riskName: RiskName;
-    }) => void;
+    }) => Promise<void>;
 }
 
 /**
@@ -5785,4 +5865,4 @@ declare const backtest: {
     loggerService: LoggerService;
 };
 
-export { Backtest, type BacktestStatistics, type CandleInterval, type DoneContract, type EntityId, ExecutionContextService, type FrameInterval, Heat, type ICandleData, type IExchangeSchema, type IFrameSchema, type IHeatmapRow, type IHeatmapStatistics, type IPersistBase, type IPositionSizeATRParams, type IPositionSizeFixedPercentageParams, type IPositionSizeKellyParams, type IRiskActivePosition, type IRiskCheckArgs, type IRiskSchema, type IRiskValidation, type IRiskValidationFn, type IRiskValidationPayload, type ISignalDto, type ISignalRow, type ISizingCalculateParams, type ISizingCalculateParamsATR, type ISizingCalculateParamsFixedPercentage, type ISizingCalculateParamsKelly, type ISizingSchema, type ISizingSchemaATR, type ISizingSchemaFixedPercentage, type ISizingSchemaKelly, type IStrategyPnL, type IStrategySchema, type IStrategyTickResult, type IStrategyTickResultActive, type IStrategyTickResultClosed, type IStrategyTickResultIdle, type IStrategyTickResultOpened, type IWalkerResults, type IWalkerSchema, type IWalkerStrategyResult, Live, type LiveStatistics, MethodContextService, Performance, type PerformanceContract, type PerformanceMetricType, type PerformanceStatistics, PersistBase, PersistSignalAdaper, PositionSize, type ProgressContract, type SignalData, type SignalInterval, type TPersistBase, type TPersistBaseCtor, Walker, type WalkerMetric, type WalkerStatistics, addExchange, addFrame, addRisk, addSizing, addStrategy, addWalker, emitters, formatPrice, formatQuantity, getAveragePrice, getCandles, getDate, getMode, backtest as lib, listExchanges, listFrames, listRisks, listSizings, listStrategies, listWalkers, listenDoneBacktest, listenDoneBacktestOnce, listenDoneLive, listenDoneLiveOnce, listenDoneWalker, listenDoneWalkerOnce, listenError, listenPerformance, listenProgress, listenSignal, listenSignalBacktest, listenSignalBacktestOnce, listenSignalLive, listenSignalLiveOnce, listenSignalOnce, listenValidation, listenWalker, listenWalkerComplete, listenWalkerOnce, setLogger };
+export { Backtest, type BacktestStatistics, type CandleInterval, type DoneContract, type EntityId, ExecutionContextService, type FrameInterval, Heat, type ICandleData, type IExchangeSchema, type IFrameSchema, type IHeatmapRow, type IHeatmapStatistics, type IPersistBase, type IPositionSizeATRParams, type IPositionSizeFixedPercentageParams, type IPositionSizeKellyParams, type IRiskActivePosition, type IRiskCheckArgs, type IRiskSchema, type IRiskValidation, type IRiskValidationFn, type IRiskValidationPayload, type ISignalDto, type ISignalRow, type ISizingCalculateParams, type ISizingCalculateParamsATR, type ISizingCalculateParamsFixedPercentage, type ISizingCalculateParamsKelly, type ISizingSchema, type ISizingSchemaATR, type ISizingSchemaFixedPercentage, type ISizingSchemaKelly, type IStrategyPnL, type IStrategySchema, type IStrategyTickResult, type IStrategyTickResultActive, type IStrategyTickResultClosed, type IStrategyTickResultIdle, type IStrategyTickResultOpened, type IWalkerResults, type IWalkerSchema, type IWalkerStrategyResult, Live, type LiveStatistics, MethodContextService, Performance, type PerformanceContract, type PerformanceMetricType, type PerformanceStatistics, PersistBase, PersistRiskAdapter, PersistSignalAdaper, PositionSize, type ProgressContract, type RiskData, type SignalData, type SignalInterval, type TPersistBase, type TPersistBaseCtor, Walker, type WalkerMetric, type WalkerStatistics, addExchange, addFrame, addRisk, addSizing, addStrategy, addWalker, emitters, formatPrice, formatQuantity, getAveragePrice, getCandles, getDate, getMode, backtest as lib, listExchanges, listFrames, listRisks, listSizings, listStrategies, listWalkers, listenDoneBacktest, listenDoneBacktestOnce, listenDoneLive, listenDoneLiveOnce, listenDoneWalker, listenDoneWalkerOnce, listenError, listenPerformance, listenProgress, listenSignal, listenSignalBacktest, listenSignalBacktestOnce, listenSignalLive, listenSignalLiveOnce, listenSignalOnce, listenValidation, listenWalker, listenWalkerComplete, listenWalkerOnce, setLogger };

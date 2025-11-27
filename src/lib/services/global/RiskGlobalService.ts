@@ -40,15 +40,15 @@ export class RiskGlobalService {
    * @param symbol - Trading pair symbol
    * @param context - Context information (strategyName, riskName)
    */
-  public addSignal = (
+  public addSignal = async (
     symbol: string,
     context: { strategyName: string; riskName: RiskName }
-  ): void => {
+  ) => {
     this.loggerService.log("riskGlobalService addSignal", {
       symbol,
       context,
     });
-    this.riskConnectionService.addSignal(symbol, context);
+    await this.riskConnectionService.addSignal(symbol, context);
   };
 
   /**
@@ -57,15 +57,15 @@ export class RiskGlobalService {
    * @param symbol - Trading pair symbol
    * @param context - Context information (strategyName, riskName)
    */
-  public removeSignal = (
+  public removeSignal = async (
     symbol: string,
     context: { strategyName: string; riskName: RiskName }
-  ): void => {
+  ) => {
     this.loggerService.log("riskGlobalService removeSignal", {
       symbol,
       context,
     });
-    this.riskConnectionService.removeSignal(symbol, context);
+    await this.riskConnectionService.removeSignal(symbol, context);
   };
 }
 
