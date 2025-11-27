@@ -18,6 +18,7 @@
 - 🧠 **Interval Throttling** - Prevents signal spam at strategy level
 - ⚡ **Memory Optimized** - Prototype methods + memoization + streaming
 - 🔌 **Flexible Architecture** - Plug your own exchanges and strategies
+- ⏰ **Time-Travel Context** - Async context propagation allows same strategy code to run in backtest (with historical time) and live (with real-time) without modifications
 - 📝 **Markdown Reports** - Auto-generated trading reports with statistics (win rate, avg PNL, Sharpe Ratio, Standard Deviation, Certainty Ratio, Expected Yearly Returns, Risk-Adjusted Returns)
 - 📊 **Revenue Profiling** - Built-in performance tracking with aggregated statistics (avg, min, max, stdDev, P95, P99) for bottleneck analysis
 - 🛑 **Graceful Shutdown** - Live.background() waits for open positions to close before stopping
@@ -1175,6 +1176,196 @@ console.log("Available risks:", risks.map(r => ({
 - Build admin dashboards showing available strategies and exchanges
 - Create CLI tools with auto-completion based on registered schemas
 - Validate configuration files against registered schemas
+
+## Time-Travel Context: Write Once, Run Anywhere
+
+One of the most powerful features of Backtest Kit is **transparent execution context switching**. You write your strategy code once, and it runs seamlessly in both backtest mode (with historical time) and live mode (with real-time) without any modifications.
+
+### How It Works
+
+The framework uses **async context propagation** (via `di-scoped` library) to inject execution context into all exchange functions. This context contains:
+
+1. **`symbol`** - Trading pair (e.g., "BTCUSDT")
+2. **`when`** - Current timestamp (historical for backtest, real-time for live)
+3. **`backtest`** - Mode flag (true/false)
+
+When you call functions like `getCandles()`, `getAveragePrice()`, or `getDate()`, they automatically receive this context without explicit parameters. The framework handles time-shifting transparently.
+
+### Example: Strategy Code That Works Everywhere
+
+```typescript
+import { addStrategy, getCandles, getDate, getAveragePrice } from "backtest-kit";
+
+addStrategy({
+  strategyName: "sma-crossover",
+  interval: "5m",
+  getSignal: async (symbol) => {
+    // ✨ These functions automatically work with context time
+    // In backtest: uses historical timeframe date
+    // In live: uses current real-time date
+    const currentDate = await getDate();
+    const currentPrice = await getAveragePrice(symbol);
+
+    // Fetch last 50 candles relative to context time
+    // In backtest: fetches 50 candles before timeframe date
+    // In live: fetches 50 most recent candles
+    const candles = await getCandles(symbol, "1h", 50);
+
+    // Calculate SMAs
+    const sma20 = candles.slice(-20).reduce((sum, c) => sum + c.close, 0) / 20;
+    const sma50 = candles.slice(-50).reduce((sum, c) => sum + c.close, 0) / 50;
+
+    // Generate signal when SMA20 crosses above SMA50
+    if (sma20 > sma50 && candles[candles.length - 2].close < sma50) {
+      return {
+        position: "long",
+        note: `SMA crossover at ${currentDate.toISOString()}`,
+        priceOpen: currentPrice,
+        priceTakeProfit: currentPrice * 1.02,
+        priceStopLoss: currentPrice * 0.98,
+        minuteEstimatedTime: 60,
+      };
+    }
+
+    return null; // No signal
+  },
+});
+
+// 🎯 Same strategy runs in backtest mode
+for await (const result of Backtest.run("BTCUSDT", {
+  strategyName: "sma-crossover",
+  exchangeName: "binance",
+  frameName: "january-2024"
+})) {
+  // getDate() returns historical dates (2024-01-01, 2024-01-02, ...)
+  // getCandles() fetches candles before each historical timestamp
+}
+
+// 🎯 Same strategy runs in live mode - no code changes!
+for await (const result of Live.run("BTCUSDT", {
+  strategyName: "sma-crossover",
+  exchangeName: "binance"
+})) {
+  // getDate() returns current real-time date
+  // getCandles() fetches most recent candles
+}
+```
+
+### Technical Implementation
+
+The context propagation works through these layers:
+
+1. **Logic Services** (`BacktestLogicPrivateService` / `LiveLogicPrivateService`) call `ExecutionContextService.runInContext()` with the appropriate context:
+
+```typescript
+// Backtest mode - iterates through historical timeframes
+for (const timeframe of timeframes) {
+  await ExecutionContextService.runInContext(
+    async () => {
+      // Strategy code runs here with historical context
+      const signal = await strategy.tick(symbol);
+    },
+    {
+      symbol: "BTCUSDT",
+      when: new Date("2024-01-01T10:00:00Z"), // Historical time
+      backtest: true
+    }
+  );
+}
+
+// Live mode - uses current time
+await ExecutionContextService.runInContext(
+  async () => {
+    // Same strategy code runs here with real-time context
+    const signal = await strategy.tick(symbol);
+  },
+  {
+    symbol: "BTCUSDT",
+    when: new Date(), // Current time
+    backtest: false
+  }
+);
+```
+
+2. **Exchange Functions** read context implicitly:
+
+```typescript
+// src/function/exchange.ts
+export async function getDate() {
+  // Reads context set by Logic Service
+  const { when } = backtest.executionContextService.context;
+  return new Date(when.getTime());
+}
+
+export async function getCandles(symbol: string, interval: string, limit: number) {
+  // Uses context.when to determine "current" time for fetching candles
+  const { when } = backtest.executionContextService.context;
+  return await exchange.getCandles(symbol, interval, since, limit);
+}
+```
+
+3. **Your Strategy** calls functions without knowing about context:
+
+```typescript
+// Your code doesn't care about backtest vs live!
+const date = await getDate();        // Works in both modes
+const candles = await getCandles(...); // Works in both modes
+const price = await getAveragePrice(...); // Works in both modes
+```
+
+### Benefits
+
+✅ **Write Once, Run Anywhere** - No separate code for backtest and live
+✅ **No Mode Checks** - No `if (backtest)` branches in strategy code
+✅ **Time Consistency** - All functions use the same "current" time automatically
+✅ **Testability** - Easy to test strategies with deterministic historical data
+✅ **Refactoring Safety** - Change backtest/live logic without touching strategies
+
+### Context-Aware Functions
+
+These functions automatically adapt to execution context:
+
+| Function | Backtest Behavior | Live Behavior |
+|----------|-------------------|---------------|
+| `getDate()` | Returns timeframe date | Returns current real-time date |
+| `getCandles(symbol, interval, limit)` | Fetches `limit` candles before timeframe date | Fetches `limit` most recent candles |
+| `getAveragePrice(symbol)` | Calculates VWAP from 5 1m candles before timeframe date | Calculates VWAP from 5 most recent 1m candles |
+| `getMode()` | Returns `"backtest"` | Returns `"live"` |
+
+### Advanced Pattern: Mode-Specific Callbacks
+
+If you need mode-specific behavior (e.g., placing real orders), use callbacks instead of polluting strategy logic:
+
+```typescript
+addStrategy({
+  strategyName: "my-strategy",
+  interval: "5m",
+  getSignal: async (symbol) => {
+    // ✅ Pure strategy logic - works in both modes
+    const candles = await getCandles(symbol, "1h", 50);
+    // ... calculate signal ...
+    return signal;
+  },
+  callbacks: {
+    onOpen: async (symbol, signal, currentPrice, backtest) => {
+      // ✅ Mode-specific logic in callbacks
+      if (backtest) {
+        console.log("[BACKTEST] Signal opened:", signal.id);
+      } else {
+        console.log("[LIVE] Placing market order...");
+        await exchange.createMarketOrder(symbol, "buy", quantity);
+      }
+    },
+    onClose: async (symbol, signal, priceClose, backtest) => {
+      if (!backtest) {
+        await exchange.createMarketOrder(symbol, "sell", quantity);
+      }
+    },
+  },
+});
+```
+
+This design keeps your strategy logic clean and testable while allowing mode-specific actions when needed.
 
 ## Architecture Overview
 
