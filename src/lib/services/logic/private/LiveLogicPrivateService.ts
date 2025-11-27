@@ -100,6 +100,12 @@ export class LiveLogicPrivateService {
         continue;
       }
 
+      if (result.action === "scheduled") {
+        await sleep(TICK_TTL);
+        continue;
+      }
+
+      // Yield opened, closed, cancelled results
       yield result;
 
       await sleep(TICK_TTL);
