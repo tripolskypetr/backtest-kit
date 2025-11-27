@@ -85,7 +85,7 @@ export interface IStrategyParams extends IStrategySchema {
 
 /**
  * Optional lifecycle callbacks for signal events.
- * Called when signals are opened, active, idle, or closed.
+ * Called when signals are opened, active, idle, closed, scheduled, or cancelled.
  */
 export interface IStrategyCallbacks {
   /** Called on every tick with the result */
@@ -103,6 +103,10 @@ export interface IStrategyCallbacks {
     priceClose: number,
     backtest: boolean,
   ) => void;
+  /** Called when scheduled signal is created (delayed entry) */
+  onSchedule: (symbol: string, data: IScheduledSignalRow, currentPrice: number, backtest: boolean) => void;
+  /** Called when scheduled signal is cancelled without opening position */
+  onCancel: (symbol: string, data: IScheduledSignalRow, currentPrice: number, backtest: boolean) => void;
 }
 
 /**

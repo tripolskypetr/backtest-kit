@@ -539,7 +539,7 @@ interface IScheduledSignalRow extends ISignalRow {
 }
 /**
  * Optional lifecycle callbacks for signal events.
- * Called when signals are opened, active, idle, or closed.
+ * Called when signals are opened, active, idle, closed, scheduled, or cancelled.
  */
 interface IStrategyCallbacks {
     /** Called on every tick with the result */
@@ -552,6 +552,10 @@ interface IStrategyCallbacks {
     onIdle: (symbol: string, currentPrice: number, backtest: boolean) => void;
     /** Called when signal is closed with final price */
     onClose: (symbol: string, data: ISignalRow, priceClose: number, backtest: boolean) => void;
+    /** Called when scheduled signal is created (delayed entry) */
+    onSchedule: (symbol: string, data: IScheduledSignalRow, currentPrice: number, backtest: boolean) => void;
+    /** Called when scheduled signal is cancelled without opening position */
+    onCancel: (symbol: string, data: IScheduledSignalRow, currentPrice: number, backtest: boolean) => void;
 }
 /**
  * Strategy schema registered via addStrategy().

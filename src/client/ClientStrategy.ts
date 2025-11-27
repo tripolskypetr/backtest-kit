@@ -256,6 +256,15 @@ const CHECK_SCHEDULED_SIGNAL_TIMEOUT_FN = async (
 
   self._scheduledSignal = null;
 
+  if (self.params.callbacks?.onCancel) {
+    self.params.callbacks.onCancel(
+      self.params.execution.context.symbol,
+      scheduled,
+      currentPrice,
+      self.params.execution.context.backtest
+    );
+  }
+
   const result: IStrategyTickResultCancelled = {
     action: "cancelled",
     signal: scheduled,
@@ -429,6 +438,15 @@ const OPEN_NEW_SCHEDULED_SIGNAL_FN = async (
     priceOpen: signal.priceOpen,
     currentPrice: currentPrice,
   });
+
+  if (self.params.callbacks?.onSchedule) {
+    self.params.callbacks.onSchedule(
+      self.params.execution.context.symbol,
+      signal,
+      currentPrice,
+      self.params.execution.context.backtest
+    );
+  }
 
   const result: IStrategyTickResultScheduled = {
     action: "scheduled",
@@ -676,6 +694,15 @@ const CANCEL_SCHEDULED_SIGNAL_IN_BACKTEST_FN = async (
   });
 
   self._scheduledSignal = null;
+
+  if (self.params.callbacks?.onCancel) {
+    self.params.callbacks.onCancel(
+      self.params.execution.context.symbol,
+      scheduled,
+      averagePrice,
+      self.params.execution.context.backtest
+    );
+  }
 
   const result: IStrategyTickResultCancelled = {
     action: "cancelled",
