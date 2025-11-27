@@ -10,6 +10,10 @@ Build sophisticated trading systems with confidence. Backtest Kit empowers you t
 
 📚 **[API Reference](https://github.com/tripolskypetr/backtest-kit)** | 🌟 **[Quick Start](#quick-start)**
 
+## 🎯 Supported Order Types
+
+Backtest Kit supports multiple execution styles to match real trading behavior:
+
 ## ✨ Why Choose Backtest Kit?
 
 - 🚀 **Production-Ready Architecture**: Seamlessly switch between backtest and live modes with robust error recovery and graceful shutdown mechanisms. Your strategy code remains identical across environments. ✅
@@ -47,6 +51,35 @@ Build sophisticated trading systems with confidence. Backtest Kit empowers you t
 - 🔒 **Safe Math & Robustness**: All metrics protected against NaN/Infinity with unsafe numeric checks. Returns N/A for invalid calculations. ✨
 
 - 🧪 **Comprehensive Test Coverage**: 109 unit and integration tests covering validation, PNL, callbacks, reports, performance tracking, walker, heatmap, position sizing, risk management, and event system. ✅
+
+---
+
+### ✅ Built-in Order Types
+
+-   **Market** — instant execution using current VWAP
+    
+-   **Limit** — entry at a specified `priceOpen`
+    
+-   **Take Profit (TP)** — automatic exit at the target price
+    
+-   **Stop Loss (SL)** — protective exit at the stop level
+    
+-   **OCO (TP + SL)** — linked exits; one cancels the other
+    
+-   **Time-Expired** — automatic closure after `minuteEstimatedTime` ⏱️
+    
+
+### ➕ Extendable Order Types
+
+Easy to add without modifying the core:
+
+-   **Stop / Stop-Limit** — entry triggered by `triggerPrice`
+    
+-   **Trailing Stop** — dynamic SL based on market movement
+    
+-   **Conditional Entry** — enter only if price breaks a level (`above` / `below`)
+    
+-   **Post-Only / Reduce-Only** — exchange-level execution flags
 
 ---
 
