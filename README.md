@@ -10,7 +10,7 @@ Build sophisticated trading systems with confidence. Backtest Kit empowers you t
 
 📚 **[API Reference](https://github.com/tripolskypetr/backtest-kit)** | 🌟 **[Quick Start](#quick-start)**
 
-## 🎯 Supported Order Types
+## 🎳 Supported Order Types
 
 Backtest Kit supports multiple execution styles to match real trading behavior:
 
