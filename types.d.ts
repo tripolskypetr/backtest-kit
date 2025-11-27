@@ -578,14 +578,12 @@ interface IStrategySchema {
     callbacks?: Partial<IStrategyCallbacks>;
     /** Optional risk profile identifier for risk management */
     riskName?: RiskName;
-    /** Whether this strategy generates scheduled signals (delayed entry) */
-    scheduled?: boolean;
 }
 /**
  * Reason why signal was closed.
  * Used in discriminated union for type-safe handling.
  */
-type StrategyCloseReason = "time_expired" | "take_profit" | "stop_loss" | "cancelled";
+type StrategyCloseReason = "time_expired" | "take_profit" | "stop_loss";
 /**
  * Profit and loss calculation result.
  * Includes adjusted prices with fees (0.1%) and slippage (0.1%).

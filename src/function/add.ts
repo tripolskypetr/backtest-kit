@@ -57,10 +57,7 @@ export function addStrategy(strategySchema: IStrategySchema) {
   );
   backtest.strategySchemaService.register(
     strategySchema.strategyName,
-    {
-      ...strategySchema,
-      scheduled: true,
-    }
+    strategySchema
   );
 }
 

@@ -26,7 +26,7 @@ Backtest Kit supports multiple execution styles to match real trading behavior:
 
 - 📊 **VWAP Pricing**: Volume-weighted average price from last 5 1-minute candles ensures realistic backtest results that match live execution. 📈
 
-- 🎯 **Type-Safe Signal Lifecycle**: State machine with compile-time guarantees (idle → opened → active → closed). No runtime state confusion. 🔒
+- 🎯 **Type-Safe Signal Lifecycle**: State machine with compile-time guarantees (idle → scheduled → opened → active → closed/cancelled). No runtime state confusion. 🔒
 
 - 📈 **Accurate PNL Calculation**: Realistic profit/loss with configurable fees (0.1%) and slippage (0.1%). Track gross and net returns separately. 💰
 
@@ -50,23 +50,25 @@ Backtest Kit supports multiple execution styles to match real trading behavior:
 
 - 🔒 **Safe Math & Robustness**: All metrics protected against NaN/Infinity with unsafe numeric checks. Returns N/A for invalid calculations. ✨
 
-- 🧪 **Comprehensive Test Coverage**: 109 unit and integration tests covering validation, PNL, callbacks, reports, performance tracking, walker, heatmap, position sizing, risk management, and event system. ✅
+- 🧪 **Comprehensive Test Coverage**: 119 unit and integration tests covering validation, PNL, callbacks, reports, performance tracking, walker, heatmap, position sizing, risk management, scheduled signals, and event system. ✅
 
 ---
 
 ### ✅ Built-in Order Types
 
 -   **Market** — instant execution using current VWAP
-    
+
 -   **Limit** — entry at a specified `priceOpen`
-    
+
 -   **Take Profit (TP)** — automatic exit at the target price
-    
+
 -   **Stop Loss (SL)** — protective exit at the stop level
-    
+
 -   **OCO (TP + SL)** — linked exits; one cancels the other
-    
--   **Time-Expired** — automatic closure after `minuteEstimatedTime` ⏱️
+
+-   **Time-Expired** — automatic closure after `minuteEstimatedTime`
+
+-   **Scheduled** — auto-cancel if price never reaches entry point or hits SL before activation
     
 
 ### ➕ Extendable Order Types
@@ -1176,7 +1178,7 @@ const stats = await Live.getData("my-strategy");
 console.log(stats);
 // Returns:
 // {
-//   eventList: [...],            // All events (idle, opened, active, closed)
+//   eventList: [...],            // All events (idle, scheduled, opened, active, closed, cancelled)
 //   totalEvents: 15,
 //   totalClosed: 5,
 //   winCount: 3,
