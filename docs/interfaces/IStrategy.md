@@ -22,11 +22,14 @@ Checks for signal generation (throttled) and TP/SL conditions.
 ### backtest
 
 ```ts
-backtest: (candles: ICandleData[]) => Promise<IStrategyTickResultClosed>
+backtest: (candles: ICandleData[]) => Promise<IStrategyBacktestResult>
 ```
 
 Fast backtest using historical candles.
 Iterates through candles, calculates VWAP, checks TP/SL on each candle.
+
+For scheduled signals: first monitors activation/cancellation,
+then if activated continues with TP/SL monitoring.
 
 ### stop
 

@@ -46,7 +46,7 @@ and backtest mode flag.
 ### backtest
 
 ```ts
-backtest: (symbol: string, candles: ICandleData[], when: Date, backtest: boolean) => Promise<IStrategyTickResultClosed>
+backtest: (symbol: string, candles: ICandleData[], when: Date, backtest: boolean) => Promise<IStrategyBacktestResult>
 ```
 
 Runs fast backtest against candle array.

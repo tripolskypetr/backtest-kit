@@ -6,7 +6,7 @@ group: docs
 # IStrategyBacktestResult
 
 ```ts
-type IStrategyBacktestResult = IStrategyTickResultClosed;
+type IStrategyBacktestResult = IStrategyTickResultClosed | IStrategyTickResultCancelled;
 ```
 
-Backtest always returns closed result (TP/SL or time_expired).
+Backtest returns closed result (TP/SL or time_expired) or cancelled result (scheduled signal never activated).
