@@ -120,22 +120,6 @@ const GET_SIGNAL_FN = trycatch(
 
       self._lastSignalTimestamp = currentTime;
     }
-    const currentPrice = await self.params.exchange.getAveragePrice(
-      self.params.execution.context.symbol
-    );
-    if (
-      await not(
-        self.params.risk.checkSignal({
-          symbol: self.params.execution.context.symbol,
-          strategyName: self.params.method.context.strategyName,
-          exchangeName: self.params.method.context.exchangeName,
-          currentPrice,
-          timestamp: currentTime,
-        })
-      )
-    ) {
-      return null;
-    }
     const signal = await self.params.getSignal(
       self.params.execution.context.symbol
     );
@@ -143,7 +127,7 @@ const GET_SIGNAL_FN = trycatch(
       return null;
     }
 
-    // Если priceOpen указан - создаем scheduled signal
+    // Если priceOpen указан - создаем scheduled signal (risk check при активации)
     if (signal.priceOpen !== undefined) {
       const scheduledSignalRow: IScheduledSignalRow = {
         id: randomString(),
@@ -169,6 +153,25 @@ const GET_SIGNAL_FN = trycatch(
     }
 
     // Если priceOpen не указан - создаем обычный signal с текущей ценой
+    const currentPrice = await self.params.exchange.getAveragePrice(
+      self.params.execution.context.symbol
+    );
+
+    // Check risk before creating pending signal
+    if (
+      await not(
+        self.params.risk.checkSignal({
+          symbol: self.params.execution.context.symbol,
+          strategyName: self.params.method.context.strategyName,
+          exchangeName: self.params.method.context.exchangeName,
+          currentPrice,
+          timestamp: currentTime,
+        })
+      )
+    ) {
+      return null;
+    }
+
     const signalRow: ISignalRow = {
       id: randomString(),
       priceOpen: currentPrice,
@@ -231,6 +234,19 @@ const WAIT_FOR_INIT_FN = async (self: ClientStrategy) => {
     return;
   }
   self._pendingSignal = pendingSignal;
+
+  // Call onActive callback for restored signal
+  if (self.params.callbacks?.onActive) {
+    const currentPrice = await self.params.exchange.getAveragePrice(
+      self.params.execution.context.symbol
+    );
+    self.params.callbacks.onActive(
+      self.params.execution.context.symbol,
+      pendingSignal,
+      currentPrice,
+      self.params.execution.context.backtest
+    );
+  }
 };
 
 const CHECK_SCHEDULED_SIGNAL_TIMEOUT_FN = async (
