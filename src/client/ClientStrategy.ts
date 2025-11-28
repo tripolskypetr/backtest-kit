@@ -65,6 +65,28 @@ const VALIDATE_SIGNAL_FN = (signal: ISignalRow): void => {
         `Long: priceStopLoss (${signal.priceStopLoss}) must be < priceOpen (${signal.priceOpen})`
       );
     }
+
+    // ЗАЩИТА ОТ МИКРО-ПРОФИТА: TakeProfit должен быть достаточно далеко, чтобы покрыть комиссии
+    const tpDistancePercent =
+      ((signal.priceTakeProfit - signal.priceOpen) / signal.priceOpen) * 100;
+    if (tpDistancePercent < GLOBAL_CONFIG.CC_MIN_TAKEPROFIT_DISTANCE_PERCENT) {
+      errors.push(
+        `Long: TakeProfit too close to priceOpen (${tpDistancePercent.toFixed(3)}%). ` +
+          `Minimum distance: ${GLOBAL_CONFIG.CC_MIN_TAKEPROFIT_DISTANCE_PERCENT}% to cover trading fees. ` +
+          `Current: TP=${signal.priceTakeProfit}, Open=${signal.priceOpen}`
+      );
+    }
+
+    // ЗАЩИТА ОТ ЭКСТРЕМАЛЬНОГО STOPLOSS: ограничиваем максимальный убыток
+    const slDistancePercent =
+      ((signal.priceOpen - signal.priceStopLoss) / signal.priceOpen) * 100;
+    if (slDistancePercent > GLOBAL_CONFIG.CC_MAX_STOPLOSS_DISTANCE_PERCENT) {
+      errors.push(
+        `Long: StopLoss too far from priceOpen (${slDistancePercent.toFixed(3)}%). ` +
+          `Maximum distance: ${GLOBAL_CONFIG.CC_MAX_STOPLOSS_DISTANCE_PERCENT}% to protect capital. ` +
+          `Current: SL=${signal.priceStopLoss}, Open=${signal.priceOpen}`
+      );
+    }
   }
 
   // Валидация для short позиции
@@ -77,6 +99,28 @@ const VALIDATE_SIGNAL_FN = (signal: ISignalRow): void => {
     if (signal.priceStopLoss <= signal.priceOpen) {
       errors.push(
         `Short: priceStopLoss (${signal.priceStopLoss}) must be > priceOpen (${signal.priceOpen})`
+      );
+    }
+
+    // ЗАЩИТА ОТ МИКРО-ПРОФИТА: TakeProfit должен быть достаточно далеко, чтобы покрыть комиссии
+    const tpDistancePercent =
+      ((signal.priceOpen - signal.priceTakeProfit) / signal.priceOpen) * 100;
+    if (tpDistancePercent < GLOBAL_CONFIG.CC_MIN_TAKEPROFIT_DISTANCE_PERCENT) {
+      errors.push(
+        `Short: TakeProfit too close to priceOpen (${tpDistancePercent.toFixed(3)}%). ` +
+          `Minimum distance: ${GLOBAL_CONFIG.CC_MIN_TAKEPROFIT_DISTANCE_PERCENT}% to cover trading fees. ` +
+          `Current: TP=${signal.priceTakeProfit}, Open=${signal.priceOpen}`
+      );
+    }
+
+    // ЗАЩИТА ОТ ЭКСТРЕМАЛЬНОГО STOPLOSS: ограничиваем максимальный убыток
+    const slDistancePercent =
+      ((signal.priceStopLoss - signal.priceOpen) / signal.priceOpen) * 100;
+    if (slDistancePercent > GLOBAL_CONFIG.CC_MAX_STOPLOSS_DISTANCE_PERCENT) {
+      errors.push(
+        `Short: StopLoss too far from priceOpen (${slDistancePercent.toFixed(3)}%). ` +
+          `Maximum distance: ${GLOBAL_CONFIG.CC_MAX_STOPLOSS_DISTANCE_PERCENT}% to protect capital. ` +
+          `Current: SL=${signal.priceStopLoss}, Open=${signal.priceOpen}`
       );
     }
   }

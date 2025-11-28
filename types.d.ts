@@ -13,6 +13,18 @@ declare const GLOBAL_CONFIG: {
      * Default: 5 candles (last 5 minutes when using 1m interval)
      */
     CC_AVG_PRICE_CANDLES_COUNT: number;
+    /**
+     * Minimum TakeProfit distance from priceOpen (percentage)
+     * Must be greater than trading fees to ensure profitable trades
+     * Default: 0.3% (covers 2×0.1% fees + minimum profit margin)
+     */
+    CC_MIN_TAKEPROFIT_DISTANCE_PERCENT: number;
+    /**
+     * Maximum StopLoss distance from priceOpen (percentage)
+     * Prevents catastrophic losses from extreme StopLoss values
+     * Default: 20% (one signal cannot lose more than 20% of position)
+     */
+    CC_MAX_STOPLOSS_DISTANCE_PERCENT: number;
 };
 /**
  * Type for global configuration object.
