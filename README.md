@@ -66,9 +66,7 @@ Backtest Kit supports multiple execution styles to match real trading behavior:
 
 -   **OCO (TP + SL)** — linked exits; one cancels the other
 
--   **Time-Expired** — automatic closure after `minuteEstimatedTime`
-
--   **Scheduled** — auto-cancel if price never reaches entry point or hits SL before activation
+-   **Grid** — auto-cancel if price never reaches entry point or hits SL before activation
     
 
 ### ➕ Extendable Order Types
