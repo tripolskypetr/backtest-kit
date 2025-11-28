@@ -133,6 +133,9 @@ export class WalkerUtils {
     );
     return () => {
       isStopped = true;
+      for (const strategyName of walkerSchema.strategies) {
+        backtest.strategyGlobalService.stop(strategyName);
+      }
     };
   };
 
