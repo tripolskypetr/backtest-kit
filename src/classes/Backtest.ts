@@ -53,10 +53,13 @@ export class BacktestUtils {
       backtest.scheduleMarkdownService.clear(context.strategyName);
     }
 
+    {
+      backtest.strategyGlobalService.clear(context.strategyName);
+    }
 
     {
-      backtest.riskGlobalService.clear(context.strategyName);
-      backtest.strategyGlobalService.clear(context.strategyName);
+      const { riskName } = backtest.strategySchemaService.get(context.strategyName);
+      riskName && backtest.riskGlobalService.clear(riskName);
     }
 
     return backtest.backtestGlobalService.run(symbol, context);

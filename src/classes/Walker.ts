@@ -69,8 +69,12 @@ export class WalkerUtils {
       }
 
       {
-        backtest.riskGlobalService.clear(strategyName);
         backtest.strategyGlobalService.clear(strategyName);
+      }
+
+      {
+        const { riskName } = backtest.strategySchemaService.get(strategyName);
+        riskName && backtest.riskGlobalService.clear(riskName);
       }
 
     }
