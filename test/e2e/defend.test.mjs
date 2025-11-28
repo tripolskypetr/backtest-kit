@@ -13,7 +13,271 @@ import {
 import { Subject, sleep } from "functools-kit";
 
 /**
- * КРИТИЧЕСКИЙ ТЕСТ #1: Scheduled signal активируется И СРАЗУ закрывается на той же свече
+ * КРИТИЧЕСКИЙ ТЕСТ #1: LONG limit order НЕВОЗМОЖНО отменить по StopLoss ДО активации
+ *
+ * Доказательство что для limit-ордеров отмена по SL до активации ФИЗИЧЕСКИ НЕВОЗМОЖНА:
+ * - Long: priceOpen=41000, StopLoss=40000 (SL < priceOpen)
+ * - Цена падает от 43000: сначала достигает priceOpen (41000), потом StopLoss (40000)
+ * - Сигнал АКТИВИРУЕТСЯ на priceOpen=41000 (не отменяется!)
+ * - Потом сразу закрывается по StopLoss=40000 (уже ПОСЛЕ активации)
+ * - КРИТИЧНО: Убыток фиксируется, но это правильное поведение limit-ордера
+ */
+test("DEFEND: LONG limit order activates BEFORE StopLoss (impossible to cancel pre-activation)", async ({ pass, fail }) => {
+
+  let scheduledResult = null;
+  let openedResult = null;
+  let closedResult = null;
+
+  addExchange({
+    exchangeName: "binance-defend-long-sl",
+    getCandles: async (_symbol, interval, since, limit) => {
+      // Цена падает резко: priceOpen достигается РАНЬШЕ StopLoss
+      const candles = [];
+      const intervalMs = 60000;
+
+      for (let i = 0; i < limit; i++) {
+        const timestamp = since.getTime() + i * intervalMs;
+        const basePrice = 43000 - i * 200; // Падение на 200 каждую минуту
+
+        candles.push({
+          timestamp,
+          open: basePrice,
+          high: basePrice + 50,
+          low: basePrice - 50,  // i=10: low=40950 (активация), i=15: low=39950 (SL)
+          close: basePrice - 25,
+          volume: 100,
+        });
+      }
+
+      return candles;
+    },
+    formatPrice: async (symbol, price) => price.toFixed(8),
+    formatQuantity: async (symbol, quantity) => quantity.toFixed(8),
+  });
+
+  let signalGenerated = false;
+
+  addStrategy({
+    strategyName: "test-defend-long-sl",
+    interval: "1m",
+    getSignal: async () => {
+      if (signalGenerated) return null;
+      signalGenerated = true;
+
+      return {
+        position: "long",
+        note: "DEFEND: LONG limit order - proves activation before SL",
+        priceOpen: 41000,      // Активация на i=10
+        priceTakeProfit: 42000,
+        priceStopLoss: 40000,   // SL достигается на i=15 (ПОСЛЕ активации)
+        minuteEstimatedTime: 60,
+      };
+    },
+    callbacks: {
+      onSchedule: (symbol, data, currentPrice, backtest) => {
+        scheduledResult = data;
+      },
+      onOpen: (symbol, data, currentPrice, backtest) => {
+        openedResult = data;
+      },
+      onClose: (symbol, data, priceClose, backtest) => {
+        closedResult = { signal: data, priceClose };
+      },
+    },
+  });
+
+  addFrame({
+    frameName: "30m-defend-long-sl",
+    interval: "1m",
+    startDate: new Date("2024-01-01T00:00:00Z"),
+    endDate: new Date("2024-01-01T00:30:00Z"),
+  });
+
+  const awaitSubject = new Subject();
+  listenDoneBacktest(() => awaitSubject.next());
+
+  let finalResult = null;
+  listenSignalBacktest((result) => {
+    if (result.action === "closed") {
+      finalResult = result;
+    }
+  });
+
+  Backtest.background("BTCUSDT", {
+    strategyName: "test-defend-long-sl",
+    exchangeName: "binance-defend-long-sl",
+    frameName: "30m-defend-long-sl",
+  });
+
+  await awaitSubject.toPromise();
+  await sleep(3000);
+
+  if (!scheduledResult) {
+    fail("CRITICAL: Scheduled signal was not created");
+    return;
+  }
+
+  // ДОКАЗАТЕЛЬСТВО: Сигнал ДОЛЖЕН быть открыт (не отменен)
+  if (!openedResult) {
+    fail("LOGIC BUG: Signal was NOT opened! This contradicts limit order physics - priceOpen is reached BEFORE StopLoss!");
+    return;
+  }
+
+  // Сигнал должен закрыться (по StopLoss после активации)
+  if (!closedResult || !finalResult || finalResult.action !== "closed") {
+    fail("CRITICAL: Signal was not closed after activation");
+    return;
+  }
+
+  // Должен закрыться по StopLoss (не по timeout или TP)
+  if (finalResult.closeReason !== "stop_loss") {
+    fail(`UNEXPECTED: Signal closed with reason "${finalResult.closeReason}", expected "stop_loss" (after activation)`);
+    return;
+  }
+
+  // PNL должен быть отрицательный (убыток от SL)
+  if (finalResult.pnl.pnlPercentage >= 0) {
+    fail(`LOGIC BUG: PNL should be NEGATIVE (loss from SL), got ${finalResult.pnl.pnlPercentage.toFixed(2)}%`);
+    return;
+  }
+
+  pass(`CORRECT BEHAVIOR: LONG limit order activated at priceOpen=41000 BEFORE hitting StopLoss=40000, then closed by SL. Loss=${finalResult.pnl.pnlPercentage.toFixed(2)}%. Pre-activation SL cancellation is IMPOSSIBLE for limit orders!`);
+});
+
+/**
+ * КРИТИЧЕСКИЙ ТЕСТ #2: SHORT limit order НЕВОЗМОЖНО отменить по StopLoss ДО активации
+ *
+ * Доказательство что для SHORT limit-ордеров отмена по SL до активации ФИЗИЧЕСКИ НЕВОЗМОЖНА:
+ * - Short: priceOpen=43000, StopLoss=44000 (SL > priceOpen)
+ * - Цена растет от 41000: сначала достигает priceOpen (43000), потом StopLoss (44000)
+ * - Сигнал АКТИВИРУЕТСЯ на priceOpen=43000 (не отменяется!)
+ * - Потом сразу закрывается по StopLoss=44000 (уже ПОСЛЕ активации)
+ * - КРИТИЧНО: Убыток фиксируется, но это правильное поведение limit-ордера
+ */
+test("DEFEND: SHORT limit order activates BEFORE StopLoss (impossible to cancel pre-activation)", async ({ pass, fail }) => {
+
+  let scheduledResult = null;
+  let openedResult = null;
+  let closedResult = null;
+
+  addExchange({
+    exchangeName: "binance-defend-short-sl",
+    getCandles: async (_symbol, interval, since, limit) => {
+      // Цена растет резко: priceOpen достигается РАНЬШЕ StopLoss
+      const candles = [];
+      const intervalMs = 60000;
+
+      for (let i = 0; i < limit; i++) {
+        const timestamp = since.getTime() + i * intervalMs;
+        const basePrice = 41000 + i * 200; // Рост на 200 каждую минуту
+
+        candles.push({
+          timestamp,
+          open: basePrice,
+          high: basePrice + 50,  // i=10: high=43050 (активация), i=15: high=44050 (SL)
+          low: basePrice - 50,
+          close: basePrice + 25,
+          volume: 100,
+        });
+      }
+
+      return candles;
+    },
+    formatPrice: async (symbol, price) => price.toFixed(8),
+    formatQuantity: async (symbol, quantity) => quantity.toFixed(8),
+  });
+
+  let signalGenerated = false;
+
+  addStrategy({
+    strategyName: "test-defend-short-sl",
+    interval: "1m",
+    getSignal: async () => {
+      if (signalGenerated) return null;
+      signalGenerated = true;
+
+      return {
+        position: "short",
+        note: "DEFEND: SHORT limit order - proves activation before SL",
+        priceOpen: 43000,      // Активация на i=10
+        priceTakeProfit: 42000,
+        priceStopLoss: 44000,   // SL достигается на i=15 (ПОСЛЕ активации)
+        minuteEstimatedTime: 60,
+      };
+    },
+    callbacks: {
+      onSchedule: (symbol, data, currentPrice, backtest) => {
+        scheduledResult = data;
+      },
+      onOpen: (symbol, data, currentPrice, backtest) => {
+        openedResult = data;
+      },
+      onClose: (symbol, data, priceClose, backtest) => {
+        closedResult = { signal: data, priceClose };
+      },
+    },
+  });
+
+  addFrame({
+    frameName: "30m-defend-short-sl",
+    interval: "1m",
+    startDate: new Date("2024-01-01T00:00:00Z"),
+    endDate: new Date("2024-01-01T00:30:00Z"),
+  });
+
+  const awaitSubject = new Subject();
+  listenDoneBacktest(() => awaitSubject.next());
+
+  let finalResult = null;
+  listenSignalBacktest((result) => {
+    if (result.action === "closed") {
+      finalResult = result;
+    }
+  });
+
+  Backtest.background("BTCUSDT", {
+    strategyName: "test-defend-short-sl",
+    exchangeName: "binance-defend-short-sl",
+    frameName: "30m-defend-short-sl",
+  });
+
+  await awaitSubject.toPromise();
+  await sleep(3000);
+
+  if (!scheduledResult) {
+    fail("CRITICAL: Scheduled signal was not created");
+    return;
+  }
+
+  // ДОКАЗАТЕЛЬСТВО: Сигнал ДОЛЖЕН быть открыт (не отменен)
+  if (!openedResult) {
+    fail("LOGIC BUG: SHORT signal was NOT opened! This contradicts limit order physics - priceOpen is reached BEFORE StopLoss!");
+    return;
+  }
+
+  // Сигнал должен закрыться (по StopLoss после активации)
+  if (!closedResult || !finalResult || finalResult.action !== "closed") {
+    fail("CRITICAL: Signal was not closed after activation");
+    return;
+  }
+
+  // Должен закрыться по StopLoss (не по timeout или TP)
+  if (finalResult.closeReason !== "stop_loss") {
+    fail(`UNEXPECTED: Signal closed with reason "${finalResult.closeReason}", expected "stop_loss" (after activation)`);
+    return;
+  }
+
+  // PNL должен быть отрицательный (убыток от SL)
+  if (finalResult.pnl.pnlPercentage >= 0) {
+    fail(`LOGIC BUG: PNL should be NEGATIVE (loss from SL), got ${finalResult.pnl.pnlPercentage.toFixed(2)}%`);
+    return;
+  }
+
+  pass(`CORRECT BEHAVIOR: SHORT limit order activated at priceOpen=43000 BEFORE hitting StopLoss=44000, then closed by SL. Loss=${finalResult.pnl.pnlPercentage.toFixed(2)}%. Pre-activation SL cancellation is IMPOSSIBLE for limit orders!`);
+});
+
+/**
+ * КРИТИЧЕСКИЙ ТЕСТ #3: Scheduled signal активируется И СРАЗУ закрывается на той же свече
  *
  * Сценарий:
  * - Long scheduled signal: priceOpen=41000, priceTakeProfit=42000
@@ -174,7 +438,7 @@ test("DEFEND: Scheduled signal activated and closed on same candle (instant TP)"
 });
 
 /**
- * КРИТИЧЕСКИЙ ТЕСТ #2: Timeout происходит ТОЧНО на 120-й минуте (граничное условие)
+ * КРИТИЧЕСКИЙ ТЕСТ #4: Timeout происходит ТОЧНО на 120-й минуте (граничное условие)
  *
  * Тестирует граничное условие elapsedTime === maxTimeToWait
  */
