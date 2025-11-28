@@ -5818,6 +5818,8 @@ declare class LiveGlobalService {
  */
 declare class BacktestGlobalService {
     private readonly loggerService;
+    private readonly strategySchemaService;
+    private readonly riskValidationService;
     private readonly backtestLogicPublicService;
     private readonly strategyValidationService;
     private readonly exchangeValidationService;
