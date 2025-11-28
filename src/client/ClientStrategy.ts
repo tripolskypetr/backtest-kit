@@ -928,9 +928,10 @@ const PROCESS_SCHEDULED_SIGNAL_CANDLES_FN = async (
   activationIndex: number;
   result: IStrategyTickResultCancelled | null;
 }> => {
+  const candlesCount = GLOBAL_CONFIG.CC_AVG_PRICE_CANDLES_COUNT;
   for (let i = 0; i < candles.length; i++) {
     const candle = candles[i];
-    const recentCandles = candles.slice(Math.max(0, i - 4), i + 1);
+    const recentCandles = candles.slice(Math.max(0, i - (candlesCount - 1)), i + 1);
     const averagePrice = GET_AVG_PRICE_FN(recentCandles);
 
     let shouldActivate = false;
@@ -988,8 +989,9 @@ const PROCESS_PENDING_SIGNAL_CANDLES_FN = async (
   signal: ISignalRow,
   candles: ICandleData[]
 ): Promise<IStrategyTickResultClosed | null> => {
-  for (let i = 4; i < candles.length; i++) {
-    const recentCandles = candles.slice(i - 4, i + 1);
+  const candlesCount = GLOBAL_CONFIG.CC_AVG_PRICE_CANDLES_COUNT;
+  for (let i = candlesCount - 1; i < candles.length; i++) {
+    const recentCandles = candles.slice(i - (candlesCount - 1), i + 1);
     const averagePrice = GET_AVG_PRICE_FN(recentCandles);
 
     let shouldClose = false;
@@ -1310,8 +1312,9 @@ export class ClientStrategy implements IStrategy {
         const remainingCandles = candles.slice(activationIndex + 1);
 
         if (remainingCandles.length === 0) {
+          const candlesCount = GLOBAL_CONFIG.CC_AVG_PRICE_CANDLES_COUNT;
           const recentCandles = candles.slice(
-            Math.max(0, activationIndex - 4),
+            Math.max(0, activationIndex - (candlesCount - 1)),
             activationIndex + 1
           );
           const lastPrice = GET_AVG_PRICE_FN(recentCandles);
@@ -1330,7 +1333,8 @@ export class ClientStrategy implements IStrategy {
       }
 
       if (this._scheduledSignal) {
-        const lastCandles = candles.slice(-5);
+        const candlesCount = GLOBAL_CONFIG.CC_AVG_PRICE_CANDLES_COUNT;
+        const lastCandles = candles.slice(-candlesCount);
         const lastPrice = GET_AVG_PRICE_FN(lastCandles);
         const closeTimestamp = candles[candles.length - 1].timestamp;
 
@@ -1362,9 +1366,10 @@ export class ClientStrategy implements IStrategy {
       );
     }
 
-    if (candles.length < 5) {
+    const candlesCount = GLOBAL_CONFIG.CC_AVG_PRICE_CANDLES_COUNT;
+    if (candles.length < candlesCount) {
       this.params.logger.warn(
-        `ClientStrategy backtest: Expected at least 5 candles for VWAP, got ${candles.length}`
+        `ClientStrategy backtest: Expected at least ${candlesCount} candles for VWAP, got ${candles.length}`
       );
     }
 
@@ -1378,10 +1383,10 @@ export class ClientStrategy implements IStrategy {
       return closedResult;
     }
 
-    const lastFiveCandles = candles.slice(-5);
-    const lastPrice = GET_AVG_PRICE_FN(lastFiveCandles);
+    const lastCandles = candles.slice(-GLOBAL_CONFIG.CC_AVG_PRICE_CANDLES_COUNT);
+    const lastPrice = GET_AVG_PRICE_FN(lastCandles);
     const closeTimestamp =
-      lastFiveCandles[lastFiveCandles.length - 1].timestamp;
+      lastCandles[lastCandles.length - 1].timestamp;
 
     return await CLOSE_PENDING_SIGNAL_IN_BACKTEST_FN(
       this,

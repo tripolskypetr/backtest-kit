@@ -125,4 +125,6 @@ export { PositionSize } from "./classes/PositionSize";
 
 export * as emitters from "./config/emitters";
 
+export { type GlobalConfig } from "./config/params";
+
 export { backtest as lib } from "./lib";

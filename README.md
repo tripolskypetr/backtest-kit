@@ -1318,6 +1318,115 @@ listenDoneWalker((event) => {
 
 ---
 
+## ⚙️ Global Configuration
+
+You can customize framework behavior using the `setConfig()` function. This allows you to adjust global parameters without modifying the source code.
+
+### Available Configuration Options
+
+```typescript
+import { setConfig } from "backtest-kit";
+
+// Configure global parameters
+await setConfig({
+  // Time to wait for scheduled signal activation (in minutes)
+  // If a scheduled signal doesn't activate within this time, it will be cancelled
+  // Default: 120 minutes
+  CC_SCHEDULE_AWAIT_MINUTES: 90,
+
+  // Number of candles to use for average price calculation (VWAP)
+  // Used in both backtest and live modes for price calculations
+  // Default: 5 candles (last 5 minutes when using 1m interval)
+  CC_AVG_PRICE_CANDLES_COUNT: 10,
+});
+```
+
+### Configuration Parameters
+
+#### `CC_SCHEDULE_AWAIT_MINUTES`
+
+Controls how long scheduled signals wait for activation before being cancelled.
+
+- **Default:** `120` minutes (2 hours)
+- **Use case:** Adjust based on market volatility and strategy timeframe
+- **Example:** Lower for scalping strategies (30-60 min), higher for swing trading (180-360 min)
+
+```typescript
+// For scalping strategies with tight entry windows
+await setConfig({
+  CC_SCHEDULE_AWAIT_MINUTES: 30,
+});
+
+// For swing trading with wider entry windows
+await setConfig({
+  CC_SCHEDULE_AWAIT_MINUTES: 240,
+});
+```
+
+#### `CC_AVG_PRICE_CANDLES_COUNT`
+
+Controls the number of 1-minute candles used for VWAP (Volume Weighted Average Price) calculations.
+
+- **Default:** `5` candles (5 minutes of data)
+- **Use case:** Adjust for more stable (higher) or responsive (lower) price calculations
+- **Impact:** Affects entry/exit prices in both backtest and live modes
+
+```typescript
+// More responsive to recent price changes (3 minutes)
+await setConfig({
+  CC_AVG_PRICE_CANDLES_COUNT: 3,
+});
+
+// More stable, less sensitive to spikes (10 minutes)
+await setConfig({
+  CC_AVG_PRICE_CANDLES_COUNT: 10,
+});
+```
+
+### When to Call `setConfig()`
+
+Always call `setConfig()` **before** running any strategies to ensure configuration is applied:
+
+```typescript
+import { setConfig, Backtest, Live } from "backtest-kit";
+
+// 1. Configure framework first
+await setConfig({
+  CC_SCHEDULE_AWAIT_MINUTES: 90,
+  CC_AVG_PRICE_CANDLES_COUNT: 7,
+});
+
+// 2. Then run strategies
+Backtest.background("BTCUSDT", {
+  strategyName: "my-strategy",
+  exchangeName: "binance",
+  frameName: "1d-backtest"
+});
+
+Live.background("ETHUSDT", {
+  strategyName: "my-strategy",
+  exchangeName: "binance"
+});
+```
+
+### Partial Configuration
+
+You can update individual parameters without specifying all of them:
+
+```typescript
+// Only change candle count, keep other defaults
+await setConfig({
+  CC_AVG_PRICE_CANDLES_COUNT: 8,
+});
+
+// Later, only change timeout
+await setConfig({
+  CC_SCHEDULE_AWAIT_MINUTES: 60,
+});
+```
+
+---
+
 ## ✅ Tested & Reliable
 
 `backtest-kit` comes with **123 unit and integration tests** covering:

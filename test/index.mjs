@@ -4,6 +4,7 @@ import { run } from 'worker-testbed';
 
 import "./e2e/risk.test.mjs";
 import "./e2e/scheduled.test.mjs";
+import "./e2e/config.test.mjs";
 
 import "./spec/live.test.mjs";
 import "./spec/scheduled.test.mjs";
