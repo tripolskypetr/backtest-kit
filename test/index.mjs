@@ -6,6 +6,7 @@ import "./e2e/risk.test.mjs";
 import "./e2e/scheduled.test.mjs";
 
 import "./spec/live.test.mjs";
+import "./spec/scheduled.test.mjs";
 import "./spec/exchange.test.mjs";
 import "./spec/risk.test.mjs";
 import "./spec/sizing.test.mjs";

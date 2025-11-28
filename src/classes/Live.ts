@@ -64,6 +64,7 @@ export class LiveUtils {
       context,
     });
     backtest.liveMarkdownService.clear(context.strategyName);
+    backtest.scheduleMarkdownService.clear(context.strategyName);
     backtest.strategyGlobalService.clear(context.strategyName);
     return backtest.liveGlobalService.run(symbol, context);
   };

@@ -2717,6 +2717,199 @@ declare class LiveMarkdownService {
 }
 
 /**
+ * Unified scheduled signal event data for report generation.
+ * Contains all information about scheduled and cancelled events.
+ */
+interface ScheduledEvent {
+    /** Event timestamp in milliseconds */
+    timestamp: number;
+    /** Event action type */
+    action: "scheduled" | "cancelled";
+    /** Trading pair symbol */
+    symbol: string;
+    /** Signal ID */
+    signalId: string;
+    /** Position type */
+    position: string;
+    /** Signal note */
+    note?: string;
+    /** Current market price */
+    currentPrice: number;
+    /** Scheduled entry price */
+    priceOpen: number;
+    /** Take profit price */
+    takeProfit: number;
+    /** Stop loss price */
+    stopLoss: number;
+    /** Close timestamp (only for cancelled) */
+    closeTimestamp?: number;
+    /** Duration in minutes (only for cancelled) */
+    duration?: number;
+}
+/**
+ * Statistical data calculated from scheduled signals.
+ *
+ * Provides metrics for scheduled signal tracking and cancellation analysis.
+ *
+ * @example
+ * ```typescript
+ * const stats = await Schedule.getData("my-strategy");
+ *
+ * console.log(`Total events: ${stats.totalEvents}`);
+ * console.log(`Scheduled signals: ${stats.totalScheduled}`);
+ * console.log(`Cancelled signals: ${stats.totalCancelled}`);
+ * console.log(`Cancellation rate: ${stats.cancellationRate}%`);
+ *
+ * // Access raw event data (includes scheduled, cancelled)
+ * stats.eventList.forEach(event => {
+ *   if (event.action === "cancelled") {
+ *     console.log(`Cancelled signal: ${event.signalId}`);
+ *   }
+ * });
+ * ```
+ */
+interface ScheduleStatistics {
+    /** Array of all scheduled/cancelled events with full details */
+    eventList: ScheduledEvent[];
+    /** Total number of all events (includes scheduled, cancelled) */
+    totalEvents: number;
+    /** Total number of scheduled signals */
+    totalScheduled: number;
+    /** Total number of cancelled signals */
+    totalCancelled: number;
+    /** Cancellation rate as percentage (0-100), null if no scheduled signals. Lower is better. */
+    cancellationRate: number | null;
+    /** Average waiting time for cancelled signals in minutes, null if no cancelled signals */
+    avgWaitTime: number | null;
+}
+/**
+ * Service for generating and saving scheduled signals markdown reports.
+ *
+ * Features:
+ * - Listens to scheduled and cancelled signal events via signalLiveEmitter
+ * - Accumulates all events (scheduled, cancelled) per strategy
+ * - Generates markdown tables with detailed event information
+ * - Provides statistics (cancellation rate, average wait time)
+ * - Saves reports to disk in logs/schedule/{strategyName}.md
+ *
+ * @example
+ * ```typescript
+ * const service = new ScheduleMarkdownService();
+ *
+ * // Service automatically subscribes to signalLiveEmitter on init
+ * // No manual callback setup needed
+ *
+ * // Later: generate and save report
+ * await service.dump("my-strategy");
+ * ```
+ */
+declare class ScheduleMarkdownService {
+    /** Logger service for debug output */
+    private readonly loggerService;
+    /**
+     * Memoized function to get or create ReportStorage for a strategy.
+     * Each strategy gets its own isolated storage instance.
+     */
+    private getStorage;
+    /**
+     * Processes tick events and accumulates scheduled/cancelled events.
+     * Should be called from signalLiveEmitter subscription.
+     *
+     * Processes only scheduled and cancelled event types.
+     *
+     * @param data - Tick result from strategy execution
+     *
+     * @example
+     * ```typescript
+     * const service = new ScheduleMarkdownService();
+     * // Service automatically subscribes in init()
+     * ```
+     */
+    private tick;
+    /**
+     * Gets statistical data from all scheduled signal events for a strategy.
+     * Delegates to ReportStorage.getData().
+     *
+     * @param strategyName - Strategy name to get data for
+     * @returns Statistical data object with all metrics
+     *
+     * @example
+     * ```typescript
+     * const service = new ScheduleMarkdownService();
+     * const stats = await service.getData("my-strategy");
+     * console.log(stats.cancellationRate, stats.avgWaitTime);
+     * ```
+     */
+    getData: (strategyName: StrategyName) => Promise<ScheduleStatistics>;
+    /**
+     * Generates markdown report with all scheduled events for a strategy.
+     * Delegates to ReportStorage.getReport().
+     *
+     * @param strategyName - Strategy name to generate report for
+     * @returns Markdown formatted report string with table of all events
+     *
+     * @example
+     * ```typescript
+     * const service = new ScheduleMarkdownService();
+     * const markdown = await service.getReport("my-strategy");
+     * console.log(markdown);
+     * ```
+     */
+    getReport: (strategyName: StrategyName) => Promise<string>;
+    /**
+     * Saves strategy report to disk.
+     * Creates directory if it doesn't exist.
+     * Delegates to ReportStorage.dump().
+     *
+     * @param strategyName - Strategy name to save report for
+     * @param path - Directory path to save report (default: "./logs/schedule")
+     *
+     * @example
+     * ```typescript
+     * const service = new ScheduleMarkdownService();
+     *
+     * // Save to default path: ./logs/schedule/my-strategy.md
+     * await service.dump("my-strategy");
+     *
+     * // Save to custom path: ./custom/path/my-strategy.md
+     * await service.dump("my-strategy", "./custom/path");
+     * ```
+     */
+    dump: (strategyName: StrategyName, path?: string) => Promise<void>;
+    /**
+     * Clears accumulated event data from storage.
+     * If strategyName is provided, clears only that strategy's data.
+     * If strategyName is omitted, clears all strategies' data.
+     *
+     * @param strategyName - Optional strategy name to clear specific strategy data
+     *
+     * @example
+     * ```typescript
+     * const service = new ScheduleMarkdownService();
+     *
+     * // Clear specific strategy data
+     * await service.clear("my-strategy");
+     *
+     * // Clear all strategies' data
+     * await service.clear();
+     * ```
+     */
+    clear: (strategyName?: StrategyName) => Promise<void>;
+    /**
+     * Initializes the service by subscribing to live signal events.
+     * Uses singleshot to ensure initialization happens only once.
+     * Automatically called on first use.
+     *
+     * @example
+     * ```typescript
+     * const service = new ScheduleMarkdownService();
+     * await service.init(); // Subscribe to live events
+     * ```
+     */
+    protected init: (() => Promise<void>) & functools_kit.ISingleshotClearable;
+}
+
+/**
  * Aggregated statistics for a specific metric type.
  */
 interface MetricStats {
@@ -3556,6 +3749,105 @@ declare class LiveUtils {
  * ```
  */
 declare const Live: LiveUtils;
+
+/**
+ * Utility class for scheduled signals reporting operations.
+ *
+ * Provides simplified access to scheduleMarkdownService with logging.
+ * Exported as singleton instance for convenient usage.
+ *
+ * Features:
+ * - Track scheduled signals in queue
+ * - Track cancelled signals
+ * - Calculate cancellation rate and average wait time
+ * - Generate markdown reports
+ *
+ * @example
+ * ```typescript
+ * import { Schedule } from "./classes/Schedule";
+ *
+ * // Get scheduled signals statistics
+ * const stats = await Schedule.getData("my-strategy");
+ * console.log(`Cancellation rate: ${stats.cancellationRate}%`);
+ * console.log(`Average wait time: ${stats.avgWaitTime} minutes`);
+ *
+ * // Generate and save report
+ * await Schedule.dump("my-strategy");
+ * ```
+ */
+declare class ScheduleUtils {
+    /**
+     * Gets statistical data from all scheduled signal events for a strategy.
+     *
+     * @param strategyName - Strategy name to get data for
+     * @returns Promise resolving to statistical data object
+     *
+     * @example
+     * ```typescript
+     * const stats = await Schedule.getData("my-strategy");
+     * console.log(stats.cancellationRate, stats.avgWaitTime);
+     * ```
+     */
+    getData: (strategyName: StrategyName) => Promise<ScheduleStatistics>;
+    /**
+     * Generates markdown report with all scheduled events for a strategy.
+     *
+     * @param strategyName - Strategy name to generate report for
+     * @returns Promise resolving to markdown formatted report string
+     *
+     * @example
+     * ```typescript
+     * const markdown = await Schedule.getReport("my-strategy");
+     * console.log(markdown);
+     * ```
+     */
+    getReport: (strategyName: StrategyName) => Promise<string>;
+    /**
+     * Saves strategy report to disk.
+     *
+     * @param strategyName - Strategy name to save report for
+     * @param path - Optional directory path to save report (default: "./logs/schedule")
+     *
+     * @example
+     * ```typescript
+     * // Save to default path: ./logs/schedule/my-strategy.md
+     * await Schedule.dump("my-strategy");
+     *
+     * // Save to custom path: ./custom/path/my-strategy.md
+     * await Schedule.dump("my-strategy", "./custom/path");
+     * ```
+     */
+    dump: (strategyName: StrategyName, path?: string) => Promise<void>;
+    /**
+     * Clears accumulated scheduled signal data from storage.
+     * If strategyName is provided, clears only that strategy's data.
+     * If strategyName is omitted, clears all strategies' data.
+     *
+     * @param strategyName - Optional strategy name to clear specific strategy data
+     *
+     * @example
+     * ```typescript
+     * // Clear specific strategy data
+     * await Schedule.clear("my-strategy");
+     *
+     * // Clear all strategies' data
+     * await Schedule.clear();
+     * ```
+     */
+    clear: (strategyName?: StrategyName) => Promise<void>;
+}
+/**
+ * Singleton instance of ScheduleUtils for convenient scheduled signals reporting.
+ *
+ * @example
+ * ```typescript
+ * import { Schedule } from "./classes/Schedule";
+ *
+ * const stats = await Schedule.getData("my-strategy");
+ * console.log("Cancellation rate:", stats.cancellationRate);
+ * ```
+ */
+declare const Schedule: ScheduleUtils;
 
 /**
  * Performance class provides static methods for performance metrics analysis.
@@ -5885,6 +6177,7 @@ declare const backtest: {
     riskValidationService: RiskValidationService;
     backtestMarkdownService: BacktestMarkdownService;
     liveMarkdownService: LiveMarkdownService;
+    scheduleMarkdownService: ScheduleMarkdownService;
     performanceMarkdownService: PerformanceMarkdownService;
     walkerMarkdownService: WalkerMarkdownService;
     heatMarkdownService: HeatMarkdownService;
@@ -5922,4 +6215,4 @@ declare const backtest: {
     loggerService: LoggerService;
 };
 
-export { Backtest, type BacktestStatistics, type CandleInterval, type DoneContract, type EntityId, ExecutionContextService, type FrameInterval, Heat, type ICandleData, type IExchangeSchema, type IFrameSchema, type IHeatmapRow, type IHeatmapStatistics, type IPersistBase, type IPositionSizeATRParams, type IPositionSizeFixedPercentageParams, type IPositionSizeKellyParams, type IRiskActivePosition, type IRiskCheckArgs, type IRiskSchema, type IRiskValidation, type IRiskValidationFn, type IRiskValidationPayload, type ISignalDto, type ISignalRow, type ISizingCalculateParams, type ISizingCalculateParamsATR, type ISizingCalculateParamsFixedPercentage, type ISizingCalculateParamsKelly, type ISizingSchema, type ISizingSchemaATR, type ISizingSchemaFixedPercentage, type ISizingSchemaKelly, type IStrategyPnL, type IStrategySchema, type IStrategyTickResult, type IStrategyTickResultActive, type IStrategyTickResultClosed, type IStrategyTickResultIdle, type IStrategyTickResultOpened, type IWalkerResults, type IWalkerSchema, type IWalkerStrategyResult, Live, type LiveStatistics, MethodContextService, Performance, type PerformanceContract, type PerformanceMetricType, type PerformanceStatistics, PersistBase, PersistRiskAdapter, PersistSignalAdaper, PositionSize, type ProgressContract, type RiskData, type SignalData, type SignalInterval, type TPersistBase, type TPersistBaseCtor, Walker, type WalkerMetric, type WalkerStatistics, addExchange, addFrame, addRisk, addSizing, addStrategy, addWalker, emitters, formatPrice, formatQuantity, getAveragePrice, getCandles, getDate, getMode, backtest as lib, listExchanges, listFrames, listRisks, listSizings, listStrategies, listWalkers, listenDoneBacktest, listenDoneBacktestOnce, listenDoneLive, listenDoneLiveOnce, listenDoneWalker, listenDoneWalkerOnce, listenError, listenPerformance, listenProgress, listenSignal, listenSignalBacktest, listenSignalBacktestOnce, listenSignalLive, listenSignalLiveOnce, listenSignalOnce, listenValidation, listenWalker, listenWalkerComplete, listenWalkerOnce, setLogger };
+export { Backtest, type BacktestStatistics, type CandleInterval, type DoneContract, type EntityId, ExecutionContextService, type FrameInterval, Heat, type ICandleData, type IExchangeSchema, type IFrameSchema, type IHeatmapRow, type IHeatmapStatistics, type IPersistBase, type IPositionSizeATRParams, type IPositionSizeFixedPercentageParams, type IPositionSizeKellyParams, type IRiskActivePosition, type IRiskCheckArgs, type IRiskSchema, type IRiskValidation, type IRiskValidationFn, type IRiskValidationPayload, type IScheduledSignalRow, type ISignalDto, type ISignalRow, type ISizingCalculateParams, type ISizingCalculateParamsATR, type ISizingCalculateParamsFixedPercentage, type ISizingCalculateParamsKelly, type ISizingSchema, type ISizingSchemaATR, type ISizingSchemaFixedPercentage, type ISizingSchemaKelly, type IStrategyPnL, type IStrategySchema, type IStrategyTickResult, type IStrategyTickResultActive, type IStrategyTickResultCancelled, type IStrategyTickResultClosed, type IStrategyTickResultIdle, type IStrategyTickResultOpened, type IStrategyTickResultScheduled, type IWalkerResults, type IWalkerSchema, type IWalkerStrategyResult, Live, type LiveStatistics, MethodContextService, Performance, type PerformanceContract, type PerformanceMetricType, type PerformanceStatistics, PersistBase, PersistRiskAdapter, PersistSignalAdaper, PositionSize, type ProgressContract, type RiskData, Schedule, type ScheduleStatistics, type SignalData, type SignalInterval, type TPersistBase, type TPersistBaseCtor, Walker, type WalkerMetric, type WalkerStatistics, addExchange, addFrame, addRisk, addSizing, addStrategy, addWalker, emitters, formatPrice, formatQuantity, getAveragePrice, getCandles, getDate, getMode, backtest as lib, listExchanges, listFrames, listRisks, listSizings, listStrategies, listWalkers, listenDoneBacktest, listenDoneBacktestOnce, listenDoneLive, listenDoneLiveOnce, listenDoneWalker, listenDoneWalkerOnce, listenError, listenPerformance, listenProgress, listenSignal, listenSignalBacktest, listenSignalBacktestOnce, listenSignalLive, listenSignalLiveOnce, listenSignalOnce, listenValidation, listenWalker, listenWalkerComplete, listenWalkerOnce, setLogger };

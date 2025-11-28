@@ -30,6 +30,7 @@ import BacktestGlobalService from "../services/global/BacktestGlobalService";
 import WalkerGlobalService from "../services/global/WalkerGlobalService";
 import BacktestMarkdownService from "../services/markdown/BacktestMarkdownService";
 import LiveMarkdownService from "../services/markdown/LiveMarkdownService";
+import ScheduleMarkdownService from "../services/markdown/ScheduleMarkdownService";
 import PerformanceMarkdownService from "../services/markdown/PerformanceMarkdownService";
 import WalkerMarkdownService from "../services/markdown/WalkerMarkdownService";
 import HeatMarkdownService from "../services/markdown/HeatMarkdownService";
@@ -92,6 +93,7 @@ import RiskValidationService from "../services/validation/RiskValidationService"
 {
     provide(TYPES.backtestMarkdownService, () => new BacktestMarkdownService());
     provide(TYPES.liveMarkdownService, () => new LiveMarkdownService());
+    provide(TYPES.scheduleMarkdownService, () => new ScheduleMarkdownService());
     provide(TYPES.performanceMarkdownService, () => new PerformanceMarkdownService());
     provide(TYPES.walkerMarkdownService, () => new WalkerMarkdownService());
     provide(TYPES.heatMarkdownService, () => new HeatMarkdownService());
