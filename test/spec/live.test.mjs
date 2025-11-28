@@ -15,6 +15,7 @@ test("Live.getData returns LiveStatistics structure", async ({ pass, fail }) => 
   const [awaiter, { resolve }] = createAwaiter();
 
   const price = 42150.5;
+  const now = Date.now();
   const mockSignal = {
     id: "mock-getdata-signal-id",
     position: "long",
@@ -25,8 +26,10 @@ test("Live.getData returns LiveStatistics structure", async ({ pass, fail }) => 
     minuteEstimatedTime: 120,
     exchangeName: "binance-mock-live-getdata",
     strategyName: "test-strategy-live-getdata",
-    timestamp: Date.now(),
+    scheduledAt: now,
+    pendingAt: now,
     symbol: "BTCUSDT",
+    _isScheduled: false,
   };
 
   PersistSignalAdaper.usePersistSignalAdapter(class {
@@ -94,6 +97,7 @@ test("Live.getData calculates all statistical metrics", async ({ pass, fail }) =
   const [awaiter, { resolve }] = createAwaiter();
 
   const price = 42150.5;
+  const now = Date.now() - 2 * 60 * 1000;
   const mockSignal = {
     id: "mock-metrics-signal-id",
     position: "long",
@@ -104,8 +108,10 @@ test("Live.getData calculates all statistical metrics", async ({ pass, fail }) =
     minuteEstimatedTime: 1,
     exchangeName: "binance-mock-live-metrics",
     strategyName: "test-strategy-live-metrics",
-    timestamp: Date.now() - 2 * 60 * 1000,
+    scheduledAt: now,
+    pendingAt: now,
     symbol: "BTCUSDT",
+    _isScheduled: false,
   };
 
   PersistSignalAdaper.usePersistSignalAdapter(class {

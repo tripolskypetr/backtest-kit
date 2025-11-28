@@ -87,8 +87,11 @@ const VALIDATE_SIGNAL_FN = (signal: ISignalRow): void => {
       `minuteEstimatedTime must be positive, got ${signal.minuteEstimatedTime}`
     );
   }
-  if (signal.timestamp <= 0) {
-    errors.push(`timestamp must be positive, got ${signal.timestamp}`);
+  if (signal.scheduledAt <= 0) {
+    errors.push(`scheduledAt must be positive, got ${signal.scheduledAt}`);
+  }
+  if (signal.pendingAt <= 0) {
+    errors.push(`pendingAt must be positive, got ${signal.pendingAt}`);
   }
 
   // Кидаем ошибку если есть проблемы
@@ -157,7 +160,8 @@ const GET_SIGNAL_FN = trycatch(
         symbol: self.params.execution.context.symbol,
         exchangeName: self.params.method.context.exchangeName,
         strategyName: self.params.method.context.strategyName,
-        timestamp: currentTime,
+        scheduledAt: currentTime,
+        pendingAt: currentTime, // Временно, обновится при активации
         _isScheduled: true,
       };
 
@@ -174,7 +178,8 @@ const GET_SIGNAL_FN = trycatch(
       symbol: self.params.execution.context.symbol,
       exchangeName: self.params.method.context.exchangeName,
       strategyName: self.params.method.context.strategyName,
-      timestamp: currentTime,
+      scheduledAt: currentTime,
+      pendingAt: currentTime, // Для immediate signal оба времени одинаковые
       _isScheduled: false,
     };
 
@@ -248,7 +253,7 @@ const CHECK_SCHEDULED_SIGNAL_TIMEOUT_FN = async (
   currentPrice: number
 ): Promise<IStrategyTickResultCancelled | null> => {
   const currentTime = self.params.execution.context.when.getTime();
-  const signalTime = scheduled.timestamp;
+  const signalTime = scheduled.scheduledAt; // Таймаут для scheduled signal считается от scheduledAt
   const maxTimeToWait = GLOBAL_CONFIG.CC_SCHEDULE_AWAIT_MINUTES * 60 * 1000;
   const elapsedTime = currentTime - signalTime;
 
@@ -375,12 +380,16 @@ const ACTIVATE_SCHEDULED_SIGNAL_FN = async (
     return null;
   }
 
+  const activationTime = self.params.execution.context.when.getTime();
+
   self.params.logger.info("ClientStrategy scheduled signal activation begin", {
     symbol: self.params.execution.context.symbol,
     signalId: scheduled.id,
     position: scheduled.position,
     averagePrice: scheduled.priceOpen,
     priceOpen: scheduled.priceOpen,
+    scheduledAt: scheduled.scheduledAt,
+    pendingAt: activationTime,
   });
   if (
     await not(
@@ -389,7 +398,7 @@ const ACTIVATE_SCHEDULED_SIGNAL_FN = async (
           strategyName: self.params.method.context.strategyName,
           exchangeName: self.params.method.context.exchangeName,
           currentPrice: scheduled.priceOpen,
-          timestamp: self.params.execution.context.when.getTime(),
+          timestamp: activationTime,
       })
     )
   ) {
@@ -402,7 +411,15 @@ const ACTIVATE_SCHEDULED_SIGNAL_FN = async (
   }
 
   self._scheduledSignal = null;
-  await self.setPendingSignal(scheduled);
+
+  // КРИТИЧЕСКИ ВАЖНО: обновляем pendingAt при активации
+  const activatedSignal: ISignalRow = {
+    ...scheduled,
+    pendingAt: activationTime,
+    _isScheduled: false,
+  };
+
+  await self.setPendingSignal(activatedSignal);
 
   await self.params.risk.addSignal(self.params.execution.context.symbol, {
     strategyName: self.params.method.context.strategyName,
@@ -567,7 +584,7 @@ const CHECK_PENDING_SIGNAL_COMPLETION_FN = async (
   averagePrice: number
 ): Promise<IStrategyTickResultClosed | null> => {
   const currentTime = self.params.execution.context.when.getTime();
-  const signalTime = signal.timestamp;
+  const signalTime = signal.pendingAt; // КРИТИЧНО: используем pendingAt, а не scheduledAt!
   const maxTimeToWait = signal.minuteEstimatedTime * 60 * 1000;
   const elapsedTime = currentTime - signalTime;
 
@@ -797,12 +814,16 @@ const ACTIVATE_SCHEDULED_SIGNAL_IN_BACKTEST_FN = async (
     return false;
   }
 
+  const activationTime = self.params.execution.context.when.getTime();
+
   self.params.logger.info(
     "ClientStrategy backtest scheduled signal activated",
     {
       symbol: self.params.execution.context.symbol,
       signalId: scheduled.id,
       priceOpen: scheduled.priceOpen,
+      scheduledAt: scheduled.scheduledAt,
+      pendingAt: activationTime,
     }
   );
 
@@ -813,7 +834,7 @@ const ACTIVATE_SCHEDULED_SIGNAL_IN_BACKTEST_FN = async (
         strategyName: self.params.method.context.strategyName,
         exchangeName: self.params.method.context.exchangeName,
         currentPrice: scheduled.priceOpen,
-        timestamp: self.params.execution.context.when.getTime(),
+        timestamp: activationTime,
       })
     )
   ) {
@@ -826,7 +847,15 @@ const ACTIVATE_SCHEDULED_SIGNAL_IN_BACKTEST_FN = async (
   }
 
   self._scheduledSignal = null;
-  await self.setPendingSignal(scheduled);
+
+  // КРИТИЧЕСКИ ВАЖНО: обновляем pendingAt при активации в backtest
+  const activatedSignal: ISignalRow = {
+    ...scheduled,
+    pendingAt: activationTime,
+    _isScheduled: false,
+  };
+
+  await self.setPendingSignal(activatedSignal);
 
   await self.params.risk.addSignal(self.params.execution.context.symbol, {
     strategyName: self.params.method.context.strategyName,

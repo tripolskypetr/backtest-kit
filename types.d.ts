@@ -552,8 +552,10 @@ interface ISignalRow extends ISignalDto {
     exchangeName: ExchangeName;
     /** Unique strategy identifier for execution */
     strategyName: StrategyName;
-    /** Signal creation timestamp in milliseconds */
-    timestamp: number;
+    /** Signal creation timestamp in milliseconds (when signal was first created/scheduled) */
+    scheduledAt: number;
+    /** Pending timestamp in milliseconds (when position became pending/active at priceOpen) */
+    pendingAt: number;
     /** Trading pair symbol (e.g., "BTCUSDT") */
     symbol: string;
     /** Internal runtime marker for scheduled signals */
@@ -563,6 +565,7 @@ interface ISignalRow extends ISignalDto {
  * Scheduled signal row for delayed entry at specific price.
  * Inherits from ISignalRow - represents a signal waiting for price to reach priceOpen.
  * Once price reaches priceOpen, will be converted to regular _pendingSignal.
+ * Note: pendingAt will be set to scheduledAt until activation, then updated to actual pending time.
  */
 interface IScheduledSignalRow extends ISignalRow {
     /** Entry price for the position */
@@ -2526,7 +2529,7 @@ interface IHeatmapStatistics {
  * Contains all information about a tick event regardless of action type.
  */
 interface TickEvent {
-    /** Event timestamp in milliseconds */
+    /** Event timestamp in milliseconds (pendingAt for opened/closed events) */
     timestamp: number;
     /** Event action type */
     action: "idle" | "opened" | "active" | "closed";
@@ -2752,7 +2755,7 @@ declare class LiveMarkdownService {
  * Contains all information about scheduled and cancelled events.
  */
 interface ScheduledEvent {
-    /** Event timestamp in milliseconds */
+    /** Event timestamp in milliseconds (scheduledAt for scheduled/cancelled events) */
     timestamp: number;
     /** Event action type */
     action: "scheduled" | "cancelled";

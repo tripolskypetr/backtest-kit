@@ -37,7 +37,7 @@ function isUnsafe(value: number | null): boolean {
  * Contains all information about a tick event regardless of action type.
  */
 interface TickEvent {
-  /** Event timestamp in milliseconds */
+  /** Event timestamp in milliseconds (pendingAt for opened/closed events) */
   timestamp: number;
   /** Event action type */
   action: "idle" | "opened" | "active" | "closed";
@@ -272,7 +272,7 @@ class ReportStorage {
    */
   public addOpenedEvent(data: IStrategyTickResultOpened) {
     this._eventList.push({
-      timestamp: data.signal.timestamp,
+      timestamp: data.signal.pendingAt,
       action: "opened",
       symbol: data.signal.symbol,
       signalId: data.signal.id,
@@ -335,7 +335,7 @@ class ReportStorage {
    * @param data - Closed tick result
    */
   public addClosedEvent(data: IStrategyTickResultClosed) {
-    const durationMs = data.closeTimestamp - data.signal.timestamp;
+    const durationMs = data.closeTimestamp - data.signal.pendingAt;
     const durationMin = Math.round(durationMs / 60000);
 
     // Find existing event with the same signalId

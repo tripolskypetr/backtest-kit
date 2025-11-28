@@ -17,7 +17,7 @@ import { signalEmitter, signalLiveEmitter } from "../../../config/emitters";
  * Contains all information about scheduled and cancelled events.
  */
 interface ScheduledEvent {
-  /** Event timestamp in milliseconds */
+  /** Event timestamp in milliseconds (scheduledAt for scheduled/cancelled events) */
   timestamp: number;
   /** Event action type */
   action: "scheduled" | "cancelled";
@@ -175,7 +175,7 @@ class ReportStorage {
    */
   public addScheduledEvent(data: IStrategyTickResultScheduled) {
     this._eventList.push({
-      timestamp: data.signal.timestamp,
+      timestamp: data.signal.scheduledAt,
       action: "scheduled",
       symbol: data.signal.symbol,
       signalId: data.signal.id,
@@ -200,7 +200,7 @@ class ReportStorage {
    * @param data - Cancelled tick result
    */
   public addCancelledEvent(data: IStrategyTickResultCancelled) {
-    const durationMs = data.closeTimestamp - data.signal.timestamp;
+    const durationMs = data.closeTimestamp - data.signal.scheduledAt;
     const durationMin = Math.round(durationMs / 60000);
 
     // Find existing event with the same signalId

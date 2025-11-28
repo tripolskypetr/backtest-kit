@@ -1,6 +1,6 @@
-import { inject } from "../../../lib/core/di";
+import { inject } from "../../core/di";
 import LoggerService from "../base/LoggerService";
-import TYPES from "../../../lib/core/types";
+import TYPES from "../../core/types";
 import WalkerLogicPublicService from "../logic/public/WalkerLogicPublicService";
 import StrategyValidationService from "../validation/StrategyValidationService";
 import ExchangeValidationService from "../validation/ExchangeValidationService";
