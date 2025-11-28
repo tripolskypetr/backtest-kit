@@ -8,7 +8,10 @@ import FrameGlobalService from "../../global/FrameGlobalService";
 import MethodContextService, {
   TMethodContextService,
 } from "../../context/MethodContextService";
-import { progressEmitter, performanceEmitter } from "../../../../config/emitters";
+import {
+  progressEmitter,
+  performanceEmitter,
+} from "../../../../config/emitters";
 import { GLOBAL_CONFIG } from "../../../../config/params";
 
 /**
@@ -60,7 +63,10 @@ export class BacktestLogicPrivateService {
 
     const backtestStartTime = performance.now();
 
-    const timeframes = await this.frameGlobalService.getTimeframe(symbol);
+    const timeframes = await this.frameGlobalService.getTimeframe(
+      symbol,
+      this.methodContextService.context.frameName
+    );
     const totalFrames = timeframes.length;
 
     let i = 0;
@@ -89,12 +95,15 @@ export class BacktestLogicPrivateService {
         const signalStartTime = performance.now();
         const signal = result.signal;
 
-        this.loggerService.info("backtestLogicPrivateService scheduled signal detected", {
-          symbol,
-          signalId: signal.id,
-          priceOpen: signal.priceOpen,
-          minuteEstimatedTime: signal.minuteEstimatedTime,
-        });
+        this.loggerService.info(
+          "backtestLogicPrivateService scheduled signal detected",
+          {
+            symbol,
+            signalId: signal.id,
+            priceOpen: signal.priceOpen,
+            minuteEstimatedTime: signal.minuteEstimatedTime,
+          }
+        );
 
         // Запрашиваем минутные свечи для мониторинга активации/отмены
         const candles = await this.exchangeGlobalService.getNextCandles(
@@ -110,11 +119,14 @@ export class BacktestLogicPrivateService {
           continue;
         }
 
-        this.loggerService.info("backtestLogicPrivateService candles fetched for scheduled", {
-          symbol,
-          signalId: signal.id,
-          candlesCount: candles.length,
-        });
+        this.loggerService.info(
+          "backtestLogicPrivateService candles fetched for scheduled",
+          {
+            symbol,
+            signalId: signal.id,
+            candlesCount: candles.length,
+          }
+        );
 
         // backtest() сам обработает scheduled signal: найдет активацию/отмену
         // и если активируется - продолжит с TP/SL мониторингом
@@ -125,13 +137,19 @@ export class BacktestLogicPrivateService {
           true
         );
 
-        this.loggerService.info("backtestLogicPrivateService scheduled signal closed", {
-          symbol,
-          signalId: backtestResult.signal.id,
-          closeTimestamp: backtestResult.closeTimestamp,
-          action: backtestResult.action,
-          closeReason: backtestResult.action === "closed" ? backtestResult.closeReason : undefined,
-        });
+        this.loggerService.info(
+          "backtestLogicPrivateService scheduled signal closed",
+          {
+            symbol,
+            signalId: backtestResult.signal.id,
+            closeTimestamp: backtestResult.closeTimestamp,
+            action: backtestResult.action,
+            closeReason:
+              backtestResult.action === "closed"
+                ? backtestResult.closeReason
+                : undefined,
+          }
+        );
 
         // Track signal processing duration
         const signalEndTime = performance.now();

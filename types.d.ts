@@ -328,7 +328,7 @@ interface IFrame {
      * @param symbol - Trading pair symbol (unused, for API consistency)
      * @returns Promise resolving to array of Date objects
      */
-    getTimeframe: (symbol: string) => Promise<Date[]>;
+    getTimeframe: (symbol: string, frameName: FrameName) => Promise<Date[]>;
 }
 /**
  * Unique identifier for a frame schema.
@@ -4761,7 +4761,7 @@ declare class FrameConnectionService implements IFrame {
      * @param symbol - Trading pair symbol (e.g., "BTCUSDT")
      * @returns Promise resolving to { startDate: Date, endDate: Date }
      */
-    getTimeframe: (symbol: string) => Promise<Date[]>;
+    getTimeframe: (symbol: string, frameName: string) => Promise<Date[]>;
 }
 
 /**
@@ -5011,16 +5011,6 @@ declare class RiskConnectionService {
 declare class ExchangeGlobalService {
     private readonly loggerService;
     private readonly exchangeConnectionService;
-    private readonly methodContextService;
-    private readonly exchangeValidationService;
-    /**
-     * Validates exchange configuration.
-     * Memoized to avoid redundant validations for the same exchange.
-     * Logs validation activity.
-     * @param exchangeName - Name of the exchange to validate
-     * @returns Promise that resolves when validation is complete
-     */
-    private validate;
     /**
      * Fetches historical candles with execution context.
      *
@@ -5085,19 +5075,6 @@ declare class ExchangeGlobalService {
 declare class StrategyGlobalService {
     private readonly loggerService;
     private readonly strategyConnectionService;
-    private readonly strategySchemaService;
-    private readonly riskValidationService;
-    private readonly strategyValidationService;
-    private readonly methodContextService;
-    /**
-     * Validates strategy and associated risk configuration.
-     *
-     * Memoized to avoid redundant validations for the same strategy.
-     * Logs validation activity.
-     * @param strategyName - Name of the strategy to validate
-     * @returns Promise that resolves when validation is complete
-     */
-    private validate;
     /**
      * Checks signal status at a specific timestamp.
      *
@@ -5141,7 +5118,7 @@ declare class StrategyGlobalService {
      *
      * @param strategyName - Name of strategy to clear from cache
      */
-    clear: (strategyName?: StrategyName) => Promise<void>;
+    clear: (strategyName: StrategyName) => Promise<void>;
 }
 
 /**
@@ -5157,10 +5134,10 @@ declare class FrameGlobalService {
     /**
      * Generates timeframe array for backtest iteration.
      *
-     * @param symbol - Trading pair symbol
+     * @param frameName - Target frame name (e.g., "1m", "1h")
      * @returns Promise resolving to array of Date objects
      */
-    getTimeframe: (symbol: string) => Promise<Date[]>;
+    getTimeframe: (symbol: string, frameName: string) => Promise<Date[]>;
 }
 
 /**
@@ -5172,7 +5149,6 @@ declare class FrameGlobalService {
 declare class SizingGlobalService {
     private readonly loggerService;
     private readonly sizingConnectionService;
-    private readonly sizingValidationService;
     /**
      * Calculates position size based on risk parameters.
      *
@@ -5194,15 +5170,6 @@ declare class SizingGlobalService {
 declare class RiskGlobalService {
     private readonly loggerService;
     private readonly riskConnectionService;
-    private readonly riskValidationService;
-    /**
-     * Validates risk configuration.
-     * Memoized to avoid redundant validations for the same risk instance.
-     * Logs validation activity.
-     * @param riskName - Name of the risk instance to validate
-     * @returns Promise that resolves when validation is complete
-     */
-    private validate;
     /**
      * Checks if a signal should be allowed based on risk limits.
      *
@@ -5251,13 +5218,6 @@ declare class RiskGlobalService {
 declare class WalkerGlobalService {
     private readonly loggerService;
     private readonly walkerLogicPublicService;
-    private readonly walkerSchemaService;
-    private readonly strategyValidationService;
-    private readonly exchangeValidationService;
-    private readonly frameValidationService;
-    private readonly walkerValidationService;
-    private readonly strategySchemaService;
-    private readonly riskValidationService;
     /**
      * Runs walker comparison for a symbol with context propagation.
      *
@@ -5836,8 +5796,6 @@ declare class LiveGlobalService {
     private readonly liveLogicPublicService;
     private readonly strategyValidationService;
     private readonly exchangeValidationService;
-    private readonly strategySchemaService;
-    private readonly riskValidationService;
     /**
      * Runs live trading for a symbol with context propagation.
      *

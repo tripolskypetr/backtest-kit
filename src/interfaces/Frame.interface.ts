@@ -99,7 +99,7 @@ export interface IFrame {
    * @param symbol - Trading pair symbol (unused, for API consistency)
    * @returns Promise resolving to array of Date objects
    */
-  getTimeframe: (symbol: string) => Promise<Date[]>;
+  getTimeframe: (symbol: string, frameName: FrameName) => Promise<Date[]>;
 }
 
 /**
