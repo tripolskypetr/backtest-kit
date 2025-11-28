@@ -24,6 +24,18 @@ constructor();
 loggerService: any
 ```
 
+### strategySchemaService
+
+```ts
+strategySchemaService: any
+```
+
+### riskValidationService
+
+```ts
+riskValidationService: any
+```
+
 ### backtestLogicPublicService
 
 ```ts

@@ -30,10 +30,16 @@ loggerService: any
 frameConnectionService: any
 ```
 
+### frameValidationService
+
+```ts
+frameValidationService: any
+```
+
 ### getTimeframe
 
 ```ts
-getTimeframe: (symbol: string) => Promise<Date[]>
+getTimeframe: (symbol: string, frameName: string) => Promise<Date[]>
 ```
 
 Generates timeframe array for backtest iteration.

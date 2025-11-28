@@ -32,6 +32,28 @@ loggerService: any
 exchangeConnectionService: any
 ```
 
+### methodContextService
+
+```ts
+methodContextService: any
+```
+
+### exchangeValidationService
+
+```ts
+exchangeValidationService: any
+```
+
+### validate
+
+```ts
+validate: any
+```
+
+Validates exchange configuration.
+Memoized to avoid redundant validations for the same exchange.
+Logs validation activity.
+
 ### getCandles
 
 ```ts

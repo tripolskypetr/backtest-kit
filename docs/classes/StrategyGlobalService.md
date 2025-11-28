@@ -32,6 +32,41 @@ loggerService: any
 strategyConnectionService: any
 ```
 
+### strategySchemaService
+
+```ts
+strategySchemaService: any
+```
+
+### riskValidationService
+
+```ts
+riskValidationService: any
+```
+
+### strategyValidationService
+
+```ts
+strategyValidationService: any
+```
+
+### methodContextService
+
+```ts
+methodContextService: any
+```
+
+### validate
+
+```ts
+validate: any
+```
+
+Validates strategy and associated risk configuration.
+
+Memoized to avoid redundant validations for the same strategy.
+Logs validation activity.
+
 ### tick
 
 ```ts
@@ -68,7 +103,7 @@ Does not require execution context.
 ### clear
 
 ```ts
-clear: (strategyName: string) => Promise<void>
+clear: (strategyName?: string) => Promise<void>
 ```
 
 Clears the memoized ClientStrategy instance from cache.

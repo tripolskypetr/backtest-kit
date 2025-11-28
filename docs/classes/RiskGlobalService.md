@@ -30,6 +30,22 @@ loggerService: any
 riskConnectionService: any
 ```
 
+### riskValidationService
+
+```ts
+riskValidationService: any
+```
+
+### validate
+
+```ts
+validate: any
+```
+
+Validates risk configuration.
+Memoized to avoid redundant validations for the same risk instance.
+Logs validation activity.
+
 ### checkSignal
 
 ```ts
@@ -53,3 +69,13 @@ removeSignal: (symbol: string, context: { strategyName: string; riskName: string
 ```
 
 Removes a closed signal from the risk management system.
+
+### clear
+
+```ts
+clear: (riskName?: string) => Promise<void>
+```
+
+Clears risk data.
+If riskName is provided, clears data for that specific risk instance.
+If no riskName is provided, clears all risk data.

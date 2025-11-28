@@ -42,6 +42,18 @@ strategyValidationService: any
 exchangeValidationService: any
 ```
 
+### strategySchemaService
+
+```ts
+strategySchemaService: any
+```
+
+### riskValidationService
+
+```ts
+riskValidationService: any
+```
+
 ### run
 
 ```ts
