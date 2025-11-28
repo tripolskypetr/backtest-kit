@@ -128,22 +128,31 @@ addStrategy({
   strategyName: "sma-crossover",
   interval: "5m", // Throttling: signals generated max once per 5 minutes
   getSignal: async (symbol) => {
-    // Your signal generation logic
+    const price = await getAveragePrice(symbol);
     return {
       position: "long",
       note: "BTC breakout",
-      priceOpen: 50000,
-      priceTakeProfit: 51000,  // Must be > priceOpen for long
-      priceStopLoss: 49000,     // Must be < priceOpen for long
-      minuteEstimatedTime: 60,  // Signal duration in minutes
+      priceOpen: price,
+      priceTakeProfit: price + 1_000,  // Must be > priceOpen for long
+      priceStopLoss: price - 1_000,     // Must be < priceOpen for long
+      minuteEstimatedTime: 60,
     };
   },
   callbacks: {
+    onSchedule: (symbol, signal, currentPrice, backtest) => {
+      console.log(`[${backtest ? "BT" : "LIVE"}] Scheduled signal created:`, signal.id);
+    },
     onOpen: (symbol, signal, currentPrice, backtest) => {
       console.log(`[${backtest ? "BT" : "LIVE"}] Signal opened:`, signal.id);
     },
+    onActive: (symbol, signal, currentPrice, backtest) => {
+      console.log(`[${backtest ? "BT" : "LIVE"}] Signal active:`, signal.id);
+    },
     onClose: (symbol, signal, priceClose, backtest) => {
       console.log(`[${backtest ? "BT" : "LIVE"}] Signal closed:`, priceClose);
+    },
+    onCancel: (symbol, signal, currentPrice, backtest) => {
+      console.log(`[${backtest ? "BT" : "LIVE"}] Scheduled signal cancelled:`, signal.id);
     },
   },
 });
@@ -304,14 +313,14 @@ addStrategy({
   strategyName: "my-strategy",
   interval: "5m", // Throttling: signals generated max once per 5 minutes
   getSignal: async (symbol) => {
-    // Your signal generation logic
+    const price = await getAveragePrice(symbol);
     return {
       position: "long",
       note: "BTC breakout",
-      priceOpen: 50000,
-      priceTakeProfit: 51000,  // Must be > priceOpen for long
-      priceStopLoss: 49000,     // Must be < priceOpen for long
-      minuteEstimatedTime: 60,  // Signal duration in minutes
+      priceOpen: price,
+      priceTakeProfit: price + 1_000,  // Must be > priceOpen for long
+      priceStopLoss: price - 1_000,     // Must be < priceOpen for long
+      minuteEstimatedTime: 60,
     };
   },
   callbacks: {
