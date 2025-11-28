@@ -108,7 +108,8 @@ export class BacktestLogicPrivateService {
         // Запрашиваем минутные свечи для мониторинга активации/отмены
         // КРИТИЧНО: запрашиваем CC_SCHEDULE_AWAIT_MINUTES для ожидания активации
         // + minuteEstimatedTime для работы сигнала ПОСЛЕ активации
-        const candlesNeeded = GLOBAL_CONFIG.CC_SCHEDULE_AWAIT_MINUTES + signal.minuteEstimatedTime;
+        // +1 потому что when включается как первая свеча (timestamp начинается с when, а не after when)
+        const candlesNeeded = GLOBAL_CONFIG.CC_SCHEDULE_AWAIT_MINUTES + signal.minuteEstimatedTime + 1;
         const candles = await this.exchangeGlobalService.getNextCandles(
           symbol,
           "1m",

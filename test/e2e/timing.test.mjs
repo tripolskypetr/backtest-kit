@@ -13,7 +13,7 @@ import {
 } from "../../build/index.mjs";
 
 import getMockCandles from "../mock/getMockCandles.mjs";
-import { Subject, createAwaiter } from "functools-kit";
+import { Subject, createAwaiter, sleep } from "functools-kit";
 
 /**
  * КРИТИЧЕСКАЯ ПРОБЛЕМА: Scheduled signal преждевременно закрывается по time_expired
@@ -64,20 +64,20 @@ test("Scheduled signal minuteEstimatedTime counts from pendingAt (activation tim
     callbacks: {
       onSchedule: (symbol, data, currentPrice, backtest) => {
         scheduledTimestamp = data.scheduledAt;
-        console.log(`[SCHEDULED] scheduledAt=${data.scheduledAt}, pendingAt=${data.pendingAt}`);
+        // console.log(`[SCHEDULED] scheduledAt=${data.scheduledAt}, pendingAt=${data.pendingAt}`);
       },
       onOpen: (symbol, data, currentPrice, backtest) => {
         activationTimestamp = data.pendingAt;
-        console.log(`[OPENED] scheduledAt=${data.scheduledAt}, pendingAt=${data.pendingAt}`);
-        console.log(`[OPENED] Delay between schedule and activation: ${activationTimestamp - scheduledTimestamp}ms`);
+        // console.log(`[OPENED] scheduledAt=${data.scheduledAt}, pendingAt=${data.pendingAt}`);
+        // console.log(`[OPENED] Delay between schedule and activation: ${activationTimestamp - scheduledTimestamp}ms`);
       },
       onClose: (symbol, data, priceClose, backtest) => {
         closeTimestamp = Date.now();
         closeReason = "time_expired"; // В этом тесте ждем именно time_expired
-        console.log(`[CLOSED] closeReason=${closeReason}`);
-        console.log(`[CLOSED] scheduledAt=${data.scheduledAt}, pendingAt=${data.pendingAt}`);
-        console.log(`[CLOSED] Signal duration from scheduledAt: ${closeTimestamp - data.scheduledAt}ms`);
-        console.log(`[CLOSED] Signal duration from pendingAt: ${closeTimestamp - data.pendingAt}ms`);
+        // console.log(`[CLOSED] closeReason=${closeReason}`);
+        // console.log(`[CLOSED] scheduledAt=${data.scheduledAt}, pendingAt=${data.pendingAt}`);
+        // console.log(`[CLOSED] Signal duration from scheduledAt: ${closeTimestamp - data.scheduledAt}ms`);
+        // console.log(`[CLOSED] Signal duration from pendingAt: ${closeTimestamp - data.pendingAt}ms`);
       },
     },
   });
@@ -128,11 +128,11 @@ test("Scheduled signal minuteEstimatedTime counts from pendingAt (activation tim
   const expectedDuration = 1440 * 60 * 1000; // 1440 минут (24 часа) в миллисекундах
   const tolerance = 60 * 60 * 1000; // Допуск ±60 минут
 
-  console.log(`\n=== TIMING ANALYSIS ===`);
-  console.log(`Expected duration (from pendingAt): ${expectedDuration}ms (1440 minutes / 24 hours)`);
-  console.log(`Actual duration (from pendingAt): ${actualDurationFromActivation}ms`);
-  console.log(`Difference: ${Math.abs(actualDurationFromActivation - expectedDuration)}ms`);
-  console.log(`Tolerance: ±${tolerance}ms (60 minutes)`);
+  // console.log(`\n=== TIMING ANALYSIS ===`);
+  // console.log(`Expected duration (from pendingAt): ${expectedDuration}ms (1440 minutes / 24 hours)`);
+  // console.log(`Actual duration (from pendingAt): ${actualDurationFromActivation}ms`);
+  // console.log(`Difference: ${Math.abs(actualDurationFromActivation - expectedDuration)}ms`);
+  // console.log(`Tolerance: ±${tolerance}ms (60 minutes)`);
 
   // Проверяем что сигнал работал примерно 1440 минут (24 часа) от момента активации
   const durationCorrect = Math.abs(actualDurationFromActivation - expectedDuration) <= tolerance;
@@ -186,8 +186,8 @@ test("Immediate signal (no priceOpen) has scheduledAt = pendingAt", async ({ pas
     callbacks: {
       onOpen: (symbol, data, currentPrice, backtest) => {
         signalData = data;
-        console.log(`[IMMEDIATE] scheduledAt=${data.scheduledAt}, pendingAt=${data.pendingAt}`);
-        console.log(`[IMMEDIATE] Are they equal? ${data.scheduledAt === data.pendingAt}`);
+        // console.log(`[IMMEDIATE] scheduledAt=${data.scheduledAt}, pendingAt=${data.pendingAt}`);
+        // console.log(`[IMMEDIATE] Are they equal? ${data.scheduledAt === data.pendingAt}`);
       },
     },
   });
@@ -363,13 +363,13 @@ test("Restored pending signal preserves 24h timing from pendingAt", async ({ pas
     getSignal: async () => null, // Не генерируем новые сигналы
     callbacks: {
       onActive: (symbol, data, currentPrice, backtest) => {
-        console.log(`[RESTORED PENDING] pendingAt=${data.pendingAt}, scheduledAt=${data.scheduledAt}`);
+        // console.log(`[RESTORED PENDING] pendingAt=${data.pendingAt}, scheduledAt=${data.scheduledAt}`);
 
         const elapsedTime = Date.now() - data.pendingAt;
         const expectedTime = 1440 * 60 * 1000; // 24 часа
         const remainingTime = expectedTime - elapsedTime;
 
-        console.log(`[RESTORED PENDING] Elapsed: ${(elapsedTime / 3600000).toFixed(1)}h, Remaining: ${(remainingTime / 3600000).toFixed(1)}h`);
+        // console.log(`[RESTORED PENDING] Elapsed: ${(elapsedTime / 3600000).toFixed(1)}h, Remaining: ${(remainingTime / 3600000).toFixed(1)}h`);
 
         // Проверяем что осталось примерно 12 часов
         const isCorrect = Math.abs(remainingTime - 12 * 60 * 60 * 1000) < 60 * 60 * 1000; // ±1 час
@@ -398,5 +398,144 @@ test("Restored pending signal preserves 24h timing from pendingAt", async ({ pas
   }
 
   fail(`Restored pending signal timing incorrect: ${(result.remainingTime / 3600000).toFixed(1)}h remaining instead of ~12h`);
+
+});
+
+/**
+ * КРИТИЧЕСКИЙ ТЕСТ: Scheduled signal должен закрываться по timeout
+ *
+ * Проблема:
+ * - Scheduled signal создается и ждет активации (достижения priceOpen)
+ * - Если цена НИКОГДА не достигает priceOpen, сигнал должен закрыться по timeout
+ * - Timeout = GLOBAL_CONFIG.CC_SCHEDULE_AWAIT_MINUTES (по умолчанию 120 минут)
+ * - Timeout считается от scheduledAt (времени создания scheduled сигнала)
+ *
+ * Этот тест проверяет:
+ * - Scheduled signal создается с priceOpen который НИКОГДА не будет достигнут
+ * - Через 120 минут (CC_SCHEDULE_AWAIT_MINUTES) сигнал должен закрыться с action="cancelled"
+ * - Если сигнал НЕ закрылся - это БАГ, деньги зависнут в несуществующем сигнале
+ */
+test("Scheduled signal closes by timeout when price never reaches priceOpen", async ({ pass, fail }) => {
+
+  let scheduledTimestamp = null;
+  let cancelledTimestamp = null;
+  let cancelledResult = null;
+  let signalGenerated = false; // Флаг чтобы сгенерировать сигнал только один раз
+
+  addExchange({
+    exchangeName: "binance-scheduled-timeout",
+    getCandles: async (_symbol, interval, since, limit) => {
+      return await getMockCandles(interval, since, limit);
+    },
+    formatPrice: async (symbol, price) => price.toFixed(8),
+    formatQuantity: async (symbol, quantity) => quantity.toFixed(8),
+  });
+
+  addStrategy({
+    strategyName: "test-strategy-scheduled-timeout",
+    interval: "1m",
+    getSignal: async () => {
+      // Генерируем сигнал ТОЛЬКО ОДИН РАЗ в начале
+      if (signalGenerated) {
+        return null;
+      }
+      signalGenerated = true;
+
+      const price = await getAveragePrice("BTCUSDT");
+      return {
+        position: "long",
+        note: "scheduled timeout test - price will NEVER reach priceOpen",
+        priceOpen: price - 5000, // Ниже текущей, но цена НИКОГДА не упадет так низко
+        priceTakeProfit: price - 4000,
+        priceStopLoss: price - 6000, // SL еще ниже
+        minuteEstimatedTime: 60,
+      };
+    },
+    callbacks: {
+      onSchedule: (symbol, data, currentPrice, backtest) => {
+        scheduledTimestamp = data.scheduledAt;
+        // console.log(`[SCHEDULED] scheduledAt=${data.scheduledAt}, priceOpen=${data.priceOpen}, currentPrice=${currentPrice}`);
+      },
+      onCancel: (symbol, data, currentPrice, backtest) => {
+        cancelledTimestamp = Date.now();
+        // console.log(`[CANCELLED] Scheduled signal cancelled by timeout`);
+        // console.log(`[CANCELLED] scheduledAt=${data.scheduledAt}, cancelledAt=${cancelledTimestamp}`);
+        // console.log(`[CANCELLED] Wait time: ${(cancelledTimestamp - data.scheduledAt) / 60000} minutes`);
+      },
+    },
+  });
+
+  // Frame: 3 часа (180 минут) - больше чем CC_SCHEDULE_AWAIT_MINUTES (120 минут)
+  addFrame({
+    frameName: "3h-scheduled-timeout",
+    interval: "1m",
+    startDate: new Date("2024-01-01T00:00:00Z"),
+    endDate: new Date("2024-01-01T03:00:00Z"), // 3 часа
+  });
+
+  const awaitSubject = new Subject();
+  listenDoneBacktest(() => awaitSubject.next());
+
+  listenSignalBacktest((result) => {
+    if (result.action === "cancelled") {
+      cancelledResult = result;
+      // console.log(`[TEST] Received cancelled result: closeTimestamp=${result.closeTimestamp}, scheduledAt=${result.signal.scheduledAt}`);
+      // console.log(`[TEST] Calculated wait time: ${result.closeTimestamp - result.signal.scheduledAt}ms (${((result.closeTimestamp - result.signal.scheduledAt) / 60000).toFixed(1)} minutes)`);
+    }
+  });
+
+  Backtest.background("BTCUSDT", {
+    strategyName: "test-strategy-scheduled-timeout",
+    exchangeName: "binance-scheduled-timeout",
+    frameName: "3h-scheduled-timeout",
+  });
+
+  await awaitSubject.toPromise();
+
+  if (!cancelledResult) {
+    fail("Scheduled signal was NOT cancelled by timeout - BUG! Signal will hang forever, blocking risk limits!");
+    return;
+  }
+
+  if (!scheduledTimestamp) {
+    fail("Missing scheduledAt timestamp");
+    return;
+  }
+
+  // КРИТИЧЕСКАЯ ПРОВЕРКА:
+  // Время от scheduledAt до closeTimestamp должно быть примерно 120 минут (CC_SCHEDULE_AWAIT_MINUTES)
+  const actualWaitTime = cancelledResult.closeTimestamp - cancelledResult.signal.scheduledAt;
+  const expectedWaitTime = 120 * 60 * 1000; // 120 минут в миллисекундах
+  const tolerance = 10 * 60 * 1000; // Допуск ±10 минут
+
+  // console.log(`\n=== SCHEDULED TIMEOUT ANALYSIS ===`);
+  // console.log(`Expected timeout (from scheduledAt): ${expectedWaitTime}ms (120 minutes)`);
+  // console.log(`Actual wait time (from scheduledAt): ${actualWaitTime}ms (${(actualWaitTime / 60000).toFixed(1)} minutes)`);
+  // console.log(`Difference: ${Math.abs(actualWaitTime - expectedWaitTime)}ms`);
+  // console.log(`Tolerance: ±${tolerance}ms (10 minutes)`);
+
+  // Проверяем что сигнал ждал примерно 120 минут
+  const timeoutCorrect = Math.abs(actualWaitTime - expectedWaitTime) <= tolerance;
+
+  // await sleep(3_000)
+
+  if (timeoutCorrect && cancelledResult.action === "cancelled") {
+    pass(`FIX VERIFIED: Scheduled signal cancelled by timeout after ~120 minutes. Actual: ${(actualWaitTime / 60000).toFixed(1)} minutes`);
+    return;
+  }
+
+  // Если закрылся слишком рано
+  if (actualWaitTime < expectedWaitTime - tolerance) {
+    fail(`BUG: Scheduled signal cancelled TOO EARLY! Waited only ${(actualWaitTime / 60000).toFixed(1)} minutes instead of ~120 minutes`);
+    return;
+  }
+
+  // Если закрылся слишком поздно
+  if (actualWaitTime > expectedWaitTime + tolerance) {
+    fail(`BUG: Scheduled signal cancelled TOO LATE! Waited ${(actualWaitTime / 60000).toFixed(1)} minutes instead of ~120 minutes`);
+    return;
+  }
+
+  fail(`Unexpected result: waitTime=${(actualWaitTime / 60000).toFixed(1)}min, action=${cancelledResult.action}`);
 
 });

@@ -311,18 +311,22 @@ const CHECK_SCHEDULED_SIGNAL_PRICE_ACTIVATION_FN = (
   let shouldCancel = false;
 
   if (scheduled.position === "long") {
+    // Long = покупаем дешевле, ждем падения цены ДО priceOpen
     if (currentPrice <= scheduled.priceOpen) {
       shouldActivate = true;
     }
+    // Отмена если цена упала СЛИШКОМ низко (ниже SL)
     if (currentPrice <= scheduled.priceStopLoss) {
       shouldCancel = true;
     }
   }
 
   if (scheduled.position === "short") {
+    // Short = продаем дороже, ждем роста цены ДО priceOpen
     if (currentPrice >= scheduled.priceOpen) {
       shouldActivate = true;
     }
+    // Отмена если цена выросла СЛИШКОМ высоко (выше SL)
     if (currentPrice >= scheduled.priceStopLoss) {
       shouldCancel = true;
     }
@@ -967,27 +971,45 @@ const PROCESS_SCHEDULED_SIGNAL_CANDLES_FN = async (
   result: IStrategyTickResultCancelled | null;
 }> => {
   const candlesCount = GLOBAL_CONFIG.CC_AVG_PRICE_CANDLES_COUNT;
+  const maxTimeToWait = GLOBAL_CONFIG.CC_SCHEDULE_AWAIT_MINUTES * 60 * 1000;
+
   for (let i = 0; i < candles.length; i++) {
     const candle = candles[i];
     const recentCandles = candles.slice(Math.max(0, i - (candlesCount - 1)), i + 1);
     const averagePrice = GET_AVG_PRICE_FN(recentCandles);
 
+    // КРИТИЧНО: Проверяем timeout ПЕРЕД проверкой цены
+    const elapsedTime = candle.timestamp - scheduled.scheduledAt;
+    if (elapsedTime >= maxTimeToWait) {
+      const result = await CANCEL_SCHEDULED_SIGNAL_IN_BACKTEST_FN(
+        self,
+        scheduled,
+        averagePrice,
+        candle.timestamp
+      );
+      return { activated: false, cancelled: true, activationIndex: i, result };
+    }
+
     let shouldActivate = false;
     let shouldCancel = false;
 
     if (scheduled.position === "long") {
+      // Long = покупаем дешевле, ждем падения цены ДО priceOpen
       if (candle.low <= scheduled.priceOpen) {
         shouldActivate = true;
       }
+      // Отмена если цена упала СЛИШКОМ низко (ниже SL)
       if (candle.low <= scheduled.priceStopLoss) {
         shouldCancel = true;
       }
     }
 
     if (scheduled.position === "short") {
+      // Short = продаем дороже, ждем роста цены ДО priceOpen
       if (candle.high >= scheduled.priceOpen) {
         shouldActivate = true;
       }
+      // Отмена если цена выросла СЛИШКОМ высоко (выше SL)
       if (candle.high >= scheduled.priceStopLoss) {
         shouldCancel = true;
       }
@@ -1383,18 +1405,57 @@ export class ClientStrategy implements IStrategy {
       }
 
       if (this._scheduledSignal) {
+        // Check if timeout reached (CC_SCHEDULE_AWAIT_MINUTES from scheduledAt)
+        const maxTimeToWait = GLOBAL_CONFIG.CC_SCHEDULE_AWAIT_MINUTES * 60 * 1000;
+        const lastCandleTimestamp = candles[candles.length - 1].timestamp;
+        const elapsedTime = lastCandleTimestamp - scheduled.scheduledAt;
+
+        if (elapsedTime < maxTimeToWait) {
+          // Timeout NOT reached yet - signal is still active (waiting for price)
+          // Return active result to continue monitoring in next backtest() call
+          const candlesCount = GLOBAL_CONFIG.CC_AVG_PRICE_CANDLES_COUNT;
+          const lastCandles = candles.slice(-candlesCount);
+          const lastPrice = GET_AVG_PRICE_FN(lastCandles);
+
+          this.params.logger.debug(
+            "ClientStrategy backtest scheduled signal still waiting (not expired)",
+            {
+              symbol: this.params.execution.context.symbol,
+              signalId: scheduled.id,
+              elapsedMinutes: Math.floor(elapsedTime / 60000),
+              maxMinutes: GLOBAL_CONFIG.CC_SCHEDULE_AWAIT_MINUTES,
+            }
+          );
+
+          // Don't cancel - just return last active state
+          // In real backtest flow this won't happen as we process all candles at once,
+          // but this is correct behavior if someone calls backtest() with partial data
+          const result: IStrategyTickResultActive = {
+            action: "active",
+            signal: scheduled,
+            currentPrice: lastPrice,
+            strategyName: this.params.method.context.strategyName,
+            exchangeName: this.params.method.context.exchangeName,
+            symbol: this.params.execution.context.symbol,
+          };
+
+          return result as any; // Cast to IStrategyBacktestResult (which includes Active)
+        }
+
+        // Timeout reached - cancel the scheduled signal
         const candlesCount = GLOBAL_CONFIG.CC_AVG_PRICE_CANDLES_COUNT;
         const lastCandles = candles.slice(-candlesCount);
         const lastPrice = GET_AVG_PRICE_FN(lastCandles);
-        const closeTimestamp = candles[candles.length - 1].timestamp;
 
         this.params.logger.info(
-          "ClientStrategy backtest scheduled signal not activated (cancelled)",
+          "ClientStrategy backtest scheduled signal cancelled by timeout",
           {
             symbol: this.params.execution.context.symbol,
             signalId: scheduled.id,
-            closeTimestamp,
-            reason: "price never reached priceOpen",
+            closeTimestamp: lastCandleTimestamp,
+            elapsedMinutes: Math.floor(elapsedTime / 60000),
+            maxMinutes: GLOBAL_CONFIG.CC_SCHEDULE_AWAIT_MINUTES,
+            reason: "timeout - price never reached priceOpen",
           }
         );
 
@@ -1402,7 +1463,7 @@ export class ClientStrategy implements IStrategy {
           this,
           scheduled,
           lastPrice,
-          closeTimestamp
+          lastCandleTimestamp
         );
       }
     }
