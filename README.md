@@ -50,7 +50,7 @@ Backtest Kit supports multiple execution styles to match real trading behavior:
 
 - 🔒 **Safe Math & Robustness**: All metrics protected against NaN/Infinity with unsafe numeric checks. Returns N/A for invalid calculations. ✨
 
-- 🧪 **Comprehensive Test Coverage**: 119 unit and integration tests covering validation, PNL, callbacks, reports, performance tracking, walker, heatmap, position sizing, risk management, scheduled signals, and event system. ✅
+- 🧪 **Comprehensive Test Coverage**: 123 unit and integration tests covering validation, PNL, callbacks, reports, performance tracking, walker, heatmap, position sizing, risk management, scheduled signals, and event system. ✅
 
 ---
 
@@ -238,6 +238,7 @@ Backtest.background("BTCUSDT", {
 - 🤖 **`addStrategy`**: Create trading strategies with custom signals and callbacks. 💡
 - 🌐 **`addFrame`**: Configure timeframes for backtesting. 📅
 - 🔄 **`Backtest` / `Live`**: Run strategies in backtest or live mode (generator or background). ⚡
+- 📅 **`Schedule`**: Track scheduled signals and cancellation rate for limit orders. 📊
 - 🏃 **`Walker`**: Compare multiple strategies in parallel with ranking. 🏆
 - 🔥 **`Heat`**: Portfolio-wide performance analysis across multiple symbols. 📊
 - 💰 **`PositionSize`**: Calculate position sizes with Fixed %, Kelly Criterion, or ATR-based methods. 💵
@@ -1198,6 +1199,50 @@ const markdown = await Live.getReport("my-strategy");
 await Live.dump("my-strategy");
 ```
 
+### Scheduled Signals Reports
+
+```typescript
+import { Schedule } from "backtest-kit";
+
+// Get raw scheduled signals data (Controller)
+const stats = await Schedule.getData("my-strategy");
+console.log(stats);
+// Returns:
+// {
+//   eventList: [...],            // All scheduled/cancelled events
+//   totalEvents: 8,
+//   totalScheduled: 6,           // Number of scheduled signals
+//   totalCancelled: 2,           // Number of cancelled signals
+//   cancellationRate: 33.33,     // Percentage (lower is better)
+//   avgWaitTime: 45.5,           // Average wait time for cancelled signals in minutes
+// }
+
+// Generate markdown report (View)
+const markdown = await Schedule.getReport("my-strategy");
+
+// Save to disk (default: ./logs/schedule/my-strategy.md)
+await Schedule.dump("my-strategy");
+
+// Clear accumulated data
+await Schedule.clear("my-strategy");
+```
+
+**Scheduled Signals Report Example:**
+```markdown
+# Scheduled Signals Report: my-strategy
+
+| Timestamp | Action | Symbol | Signal ID | Position | Note | Current Price | Entry Price | Take Profit | Stop Loss | Wait Time (min) |
+|-----------|--------|--------|-----------|----------|------|---------------|-------------|-------------|-----------|-----------------|
+| 2024-01-15T10:30:00Z | SCHEDULED | BTCUSDT | sig-001 | LONG | BTC breakout | 42150.50 USD | 42000.00 USD | 43000.00 USD | 41000.00 USD | N/A |
+| 2024-01-15T10:35:00Z | CANCELLED | BTCUSDT | sig-002 | LONG | BTC breakout | 42350.80 USD | 10000.00 USD | 11000.00 USD | 9000.00 USD | 60 |
+
+**Total events:** 8
+**Scheduled signals:** 6
+**Cancelled signals:** 2
+**Cancellation rate:** 33.33% (lower is better)
+**Average wait time (cancelled):** 45.50 minutes
+```
+
 ---
 
 ## 🎧 Event Listeners
@@ -1268,22 +1313,18 @@ listenDoneWalker((event) => {
 
 ## ✅ Tested & Reliable
 
-`backtest-kit` comes with a robust test suite covering:
-- 🛡️ **Validation**: Ensures all components (exchanges, strategies, frames, risk profiles) are properly configured. ✅
-- 🚑 **Recovery**: Handles edge cases like invalid signals or empty outputs. 🛠️
-- 🔄 **Navigation**: Smoothly switches between backtest and live modes without errors. 🌐
-- ⚡ **Performance**: Efficient memory usage and history management. 📈
+`backtest-kit` comes with **123 unit and integration tests** covering:
 
-**109 unit and integration tests** covering:
 - Signal validation and throttling
 - PNL calculation with fees and slippage
 - Crash recovery and state persistence
-- Callback execution order
-- Markdown report generation
+- Callback execution order (onSchedule, onOpen, onActive, onClose, onCancel)
+- Markdown report generation (backtest, live, scheduled signals)
 - Walker strategy comparison
 - Heatmap portfolio analysis
 - Position sizing calculations
 - Risk management validation
+- Scheduled signals lifecycle and cancellation tracking
 - Event system
 
 ---
