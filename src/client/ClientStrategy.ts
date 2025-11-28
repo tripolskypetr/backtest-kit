@@ -802,7 +802,8 @@ const CANCEL_SCHEDULED_SIGNAL_IN_BACKTEST_FN = async (
 
 const ACTIVATE_SCHEDULED_SIGNAL_IN_BACKTEST_FN = async (
   self: ClientStrategy,
-  scheduled: IScheduledSignalRow
+  scheduled: IScheduledSignalRow,
+  activationTimestamp: number
 ): Promise<boolean> => {
   // Check if strategy was stopped
   if (self._isStopped) {
@@ -814,7 +815,7 @@ const ACTIVATE_SCHEDULED_SIGNAL_IN_BACKTEST_FN = async (
     return false;
   }
 
-  const activationTime = self.params.execution.context.when.getTime();
+  const activationTime = activationTimestamp;
 
   self.params.logger.info(
     "ClientStrategy backtest scheduled signal activated",
@@ -865,8 +866,8 @@ const ACTIVATE_SCHEDULED_SIGNAL_IN_BACKTEST_FN = async (
   if (self.params.callbacks?.onOpen) {
     self.params.callbacks.onOpen(
       self.params.execution.context.symbol,
-      scheduled,
-      scheduled.priceOpen,
+      activatedSignal,
+      activatedSignal.priceOpen,
       self.params.execution.context.backtest
     );
   }
@@ -995,7 +996,7 @@ const PROCESS_SCHEDULED_SIGNAL_CANDLES_FN = async (
     }
 
     if (shouldActivate) {
-      await ACTIVATE_SCHEDULED_SIGNAL_IN_BACKTEST_FN(self, scheduled);
+      await ACTIVATE_SCHEDULED_SIGNAL_IN_BACKTEST_FN(self, scheduled, candle.timestamp);
       return {
         activated: true,
         cancelled: false,
@@ -1022,11 +1023,23 @@ const PROCESS_PENDING_SIGNAL_CANDLES_FN = async (
   for (let i = candlesCount - 1; i < candles.length; i++) {
     const recentCandles = candles.slice(i - (candlesCount - 1), i + 1);
     const averagePrice = GET_AVG_PRICE_FN(recentCandles);
+    const currentCandleTimestamp = recentCandles[recentCandles.length - 1].timestamp;
 
     let shouldClose = false;
     let closeReason: "time_expired" | "take_profit" | "stop_loss" | undefined;
 
-    if (signal.position === "long") {
+    // Check time expiration FIRST (КРИТИЧНО!)
+    const signalTime = signal.pendingAt;
+    const maxTimeToWait = signal.minuteEstimatedTime * 60 * 1000;
+    const elapsedTime = currentCandleTimestamp - signalTime;
+
+    if (elapsedTime >= maxTimeToWait) {
+      shouldClose = true;
+      closeReason = "time_expired";
+    }
+
+    // Check TP/SL only if not expired
+    if (!shouldClose && signal.position === "long") {
       if (averagePrice >= signal.priceTakeProfit) {
         shouldClose = true;
         closeReason = "take_profit";
@@ -1036,7 +1049,7 @@ const PROCESS_PENDING_SIGNAL_CANDLES_FN = async (
       }
     }
 
-    if (signal.position === "short") {
+    if (!shouldClose && signal.position === "short") {
       if (averagePrice <= signal.priceTakeProfit) {
         shouldClose = true;
         closeReason = "take_profit";
@@ -1047,13 +1060,12 @@ const PROCESS_PENDING_SIGNAL_CANDLES_FN = async (
     }
 
     if (shouldClose) {
-      const closeTimestamp = recentCandles[recentCandles.length - 1].timestamp;
       return await CLOSE_PENDING_SIGNAL_IN_BACKTEST_FN(
         self,
         signal,
         averagePrice,
         closeReason!,
-        closeTimestamp
+        currentCandleTimestamp
       );
     }
   }

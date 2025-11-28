@@ -106,10 +106,13 @@ export class BacktestLogicPrivateService {
         );
 
         // Запрашиваем минутные свечи для мониторинга активации/отмены
+        // КРИТИЧНО: запрашиваем CC_SCHEDULE_AWAIT_MINUTES для ожидания активации
+        // + minuteEstimatedTime для работы сигнала ПОСЛЕ активации
+        const candlesNeeded = GLOBAL_CONFIG.CC_SCHEDULE_AWAIT_MINUTES + signal.minuteEstimatedTime;
         const candles = await this.exchangeGlobalService.getNextCandles(
           symbol,
           "1m",
-          GLOBAL_CONFIG.CC_SCHEDULE_AWAIT_MINUTES,
+          candlesNeeded,
           when,
           true
         );
@@ -125,6 +128,7 @@ export class BacktestLogicPrivateService {
             symbol,
             signalId: signal.id,
             candlesCount: candles.length,
+            candlesNeeded,
           }
         );
 
