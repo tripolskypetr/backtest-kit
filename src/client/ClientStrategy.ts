@@ -697,7 +697,7 @@ const CHECK_PENDING_SIGNAL_COMPLETION_FN = async (
     return await CLOSE_PENDING_SIGNAL_FN(
       self,
       signal,
-      averagePrice,
+      signal.priceTakeProfit, // КРИТИЧНО: используем точную цену TP
       "take_profit"
     );
   }
@@ -706,7 +706,7 @@ const CHECK_PENDING_SIGNAL_COMPLETION_FN = async (
     return await CLOSE_PENDING_SIGNAL_FN(
       self,
       signal,
-      averagePrice,
+      signal.priceTakeProfit, // КРИТИЧНО: используем точную цену TP
       "take_profit"
     );
   }
@@ -716,7 +716,7 @@ const CHECK_PENDING_SIGNAL_COMPLETION_FN = async (
     return await CLOSE_PENDING_SIGNAL_FN(
       self,
       signal,
-      averagePrice,
+      signal.priceStopLoss, // КРИТИЧНО: используем точную цену SL
       "stop_loss"
     );
   }
@@ -725,7 +725,7 @@ const CHECK_PENDING_SIGNAL_COMPLETION_FN = async (
     return await CLOSE_PENDING_SIGNAL_FN(
       self,
       signal,
-      averagePrice,
+      signal.priceStopLoss, // КРИТИЧНО: используем точную цену SL
       "stop_loss"
     );
   }
