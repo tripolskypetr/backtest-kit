@@ -2,6 +2,7 @@ import "./config/setup.mjs"
 
 import { run } from 'worker-testbed';
 
+import "./e2e/timing.test.mjs";
 import "./e2e/risk.test.mjs";
 import "./e2e/scheduled.test.mjs";
 import "./e2e/config.test.mjs";
@@ -21,6 +22,7 @@ import "./spec/event.test.mjs";
 import "./spec/validation.test.mjs";
 import "./spec/backtest.test.mjs";
 import "./spec/pnl.test.mjs";
+
 
 run(import.meta.url, () => {
     console.log("All tests are finished");

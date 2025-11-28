@@ -1244,9 +1244,7 @@ export class ClientStrategy implements IStrategy {
     if (!this._pendingSignal && !this._scheduledSignal) {
       const signal = await GET_SIGNAL_FN(this);
 
-      if (!signal) {
-        await this.setPendingSignal(null);
-      } else {
+      if (signal) {
         if (signal._isScheduled === true) {
           this._scheduledSignal = signal as IScheduledSignalRow;
           return await OPEN_NEW_SCHEDULED_SIGNAL_FN(

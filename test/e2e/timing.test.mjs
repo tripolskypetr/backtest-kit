@@ -8,10 +8,12 @@ import {
   listenSignalBacktest,
   listenDoneBacktest,
   getAveragePrice,
+  PersistSignalAdaper,
+  Live,
 } from "../../build/index.mjs";
 
 import getMockCandles from "../mock/getMockCandles.mjs";
-import { Subject } from "functools-kit";
+import { Subject, createAwaiter } from "functools-kit";
 
 /**
  * КРИТИЧЕСКАЯ ПРОБЛЕМА: Scheduled signal преждевременно закрывается по time_expired
@@ -136,13 +138,13 @@ test("Scheduled signal minuteEstimatedTime counts from pendingAt (activation tim
   const durationCorrect = Math.abs(actualDurationFromActivation - expectedDuration) <= tolerance;
 
   if (durationCorrect && closedResult.closeReason === "time_expired") {
-    pass(`✅ FIX VERIFIED: Signal ran for ~24 hours from activation (pendingAt). Actual: ${(actualDurationFromActivation / 3600000).toFixed(1)} hours`);
+    pass(`FIX VERIFIED: Signal ran for ~24 hours from activation (pendingAt). Actual: ${(actualDurationFromActivation / 3600000).toFixed(1)} hours`);
     return;
   }
 
   // Если длительность намного меньше ожидаемой - это БАГ
   if (actualDurationFromActivation < expectedDuration - tolerance) {
-    fail(`❌ BUG REPRODUCED: Signal closed prematurely! Ran only ${(actualDurationFromActivation / 3600000).toFixed(1)} hours instead of 24 hours from activation. This causes financial losses on fees!`);
+    fail(`BUG REPRODUCED: Signal closed prematurely! Ran only ${(actualDurationFromActivation / 3600000).toFixed(1)} hours instead of 24 hours from activation. This causes financial losses on fees!`);
     return;
   }
 
@@ -215,11 +217,11 @@ test("Immediate signal (no priceOpen) has scheduledAt = pendingAt", async ({ pas
 
   // Для immediate signal scheduledAt должен равняться pendingAt
   if (signalData.scheduledAt === signalData.pendingAt) {
-    pass(`✅ Immediate signal correct: scheduledAt = pendingAt = ${signalData.pendingAt}`);
+    pass(`Immediate signal correct: scheduledAt = pendingAt = ${signalData.pendingAt}`);
     return;
   }
 
-  fail(`❌ Immediate signal broken: scheduledAt=${signalData.scheduledAt} !== pendingAt=${signalData.pendingAt}`);
+  fail(`Immediate signal broken: scheduledAt=${signalData.scheduledAt} !== pendingAt=${signalData.pendingAt}`);
 
 });
 
@@ -296,10 +298,105 @@ test("Signal has both scheduledAt and pendingAt fields", async ({ pass, fail }) 
     typeof openedSignalData.pendingAt === "number";
 
   if (hasFieldsScheduled && hasFieldsOpened) {
-    pass(`✅ Both scheduledAt and pendingAt fields present in scheduled and opened signals`);
+    pass(`Both scheduledAt and pendingAt fields present in scheduled and opened signals`);
     return;
   }
 
-  fail(`❌ Missing fields: scheduled=${hasFieldsScheduled}, opened=${hasFieldsOpened}`);
+  fail(`Missing fields: scheduled=${hasFieldsScheduled}, opened=${hasFieldsOpened}`);
+
+});
+
+/**
+ * Тест восстановления PENDING сигнала из персистентного хранилища
+ * с сохранением корректного pendingAt для расчёта minuteEstimatedTime
+ */
+test("Restored pending signal preserves 24h timing from pendingAt", async ({ pass, fail }) => {
+
+  const [awaiter, { resolve }] = createAwaiter();
+
+  // Создаём сигнал который был активирован 12 часов назад
+  // Должен закрыться через 12 часов (total 24h from pendingAt)
+  const now = Date.now();
+  const twelveHoursAgo = now - 12 * 60 * 60 * 1000;
+  const twentyFourHoursAgo = now - 24 * 60 * 60 * 1000;
+
+  PersistSignalAdaper.usePersistSignalAdapter(class {
+    async waitForInit() {
+    }
+    async readValue() {
+      const price = await getAveragePrice("BTCUSDT");
+      return {
+        id: "restored-pending-signal-id",
+        position: "long",
+        note: "restored pending signal - 24h timing test",
+        priceOpen: price,
+        priceTakeProfit: price * 1000, // Никогда не достигнется
+        priceStopLoss: price / 1000, // Никогда не достигнется
+        minuteEstimatedTime: 1440, // 24 часа
+        exchangeName: "binance-restore-pending",
+        strategyName: "test-strategy-restore-pending",
+        scheduledAt: twentyFourHoursAgo, // Был создан 24 часа назад
+        pendingAt: twelveHoursAgo, // Активирован 12 часов назад
+        symbol: "BTCUSDT",
+        _isScheduled: false,
+      };
+    }
+    async hasValue() {
+      return true;
+    }
+    async writeValue() {
+    }
+  });
+
+  addExchange({
+    exchangeName: "binance-restore-pending",
+    getCandles: async (_symbol, interval, since, limit) => {
+      return await getMockCandles(interval, since, limit);
+    },
+    formatPrice: async (symbol, price) => price.toFixed(8),
+    formatQuantity: async (symbol, quantity) => quantity.toFixed(8),
+  });
+
+  addStrategy({
+    strategyName: "test-strategy-restore-pending",
+    interval: "1m",
+    getSignal: async () => null, // Не генерируем новые сигналы
+    callbacks: {
+      onActive: (symbol, data, currentPrice, backtest) => {
+        console.log(`[RESTORED PENDING] pendingAt=${data.pendingAt}, scheduledAt=${data.scheduledAt}`);
+
+        const elapsedTime = Date.now() - data.pendingAt;
+        const expectedTime = 1440 * 60 * 1000; // 24 часа
+        const remainingTime = expectedTime - elapsedTime;
+
+        console.log(`[RESTORED PENDING] Elapsed: ${(elapsedTime / 3600000).toFixed(1)}h, Remaining: ${(remainingTime / 3600000).toFixed(1)}h`);
+
+        // Проверяем что осталось примерно 12 часов
+        const isCorrect = Math.abs(remainingTime - 12 * 60 * 60 * 1000) < 60 * 60 * 1000; // ±1 час
+
+        if (isCorrect) {
+          resolve({ success: true, remainingTime });
+        } else {
+          resolve({ success: false, remainingTime });
+        }
+      },
+    },
+  });
+
+  const cancel = await Live.background("BTCUSDT", {
+    strategyName: "test-strategy-restore-pending",
+    exchangeName: "binance-restore-pending",
+  });
+
+  const result = await awaiter;
+
+  await cancel();
+
+  if (result.success) {
+    pass(`Restored pending signal has correct timing: ~12h remaining (${(result.remainingTime / 3600000).toFixed(1)}h)`);
+    return;
+  }
+
+  fail(`Restored pending signal timing incorrect: ${(result.remainingTime / 3600000).toFixed(1)}h remaining instead of ~12h`);
 
 });
