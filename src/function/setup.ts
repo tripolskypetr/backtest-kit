@@ -1,3 +1,4 @@
+import { GLOBAL_CONFIG, GlobalConfig } from "../config/params";
 import { ILogger } from "../interfaces/Logger.interface";
 import backtest from "../lib";
 
@@ -21,3 +22,19 @@ import backtest from "../lib";
 export async function setLogger(logger: ILogger) {
     backtest.loggerService.setLogger(logger);
 }
+
+/**
+ * Sets global configuration parameters for the framework.
+ * @param config - Partial configuration object to override default settings
+ *
+ * @example
+ * ```typescript
+ * setConfig({
+ *   CC_SCHEDULE_AWAIT_MINUTES: 90,
+ * });
+ * ```
+ */
+export async function setConfig(config: Partial<GlobalConfig>) {
+    Object.assign(GLOBAL_CONFIG, config);
+}
+

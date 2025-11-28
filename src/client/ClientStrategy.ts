@@ -19,7 +19,6 @@ import {
   IStrategyTickResultClosed,
   IStrategyTickResultCancelled,
   IStrategyBacktestResult,
-  StrategyCloseReason,
   SignalInterval,
 } from "../interfaces/Strategy.interface";
 import toProfitLossDto from "../helpers/toProfitLossDto";
@@ -27,7 +26,7 @@ import { ICandleData } from "../interfaces/Exchange.interface";
 import { PersistSignalAdaper } from "../classes/Persist";
 import backtest from "../lib";
 import { errorEmitter } from "../config/emitters";
-import { CC_SCHEDULE_AWAIT_MINUTES } from "../config/params";
+import { GLOBAL_CONFIG } from "../config/params";
 
 const INTERVAL_MINUTES: Record<SignalInterval, number> = {
   "1m": 1,
@@ -250,7 +249,7 @@ const CHECK_SCHEDULED_SIGNAL_TIMEOUT_FN = async (
 ): Promise<IStrategyTickResultCancelled | null> => {
   const currentTime = self.params.execution.context.when.getTime();
   const signalTime = scheduled.timestamp;
-  const maxTimeToWait = CC_SCHEDULE_AWAIT_MINUTES * 60 * 1000;
+  const maxTimeToWait = GLOBAL_CONFIG.CC_SCHEDULE_AWAIT_MINUTES * 60 * 1000;
   const elapsedTime = currentTime - signalTime;
 
   if (elapsedTime < maxTimeToWait) {
@@ -263,7 +262,7 @@ const CHECK_SCHEDULED_SIGNAL_TIMEOUT_FN = async (
       symbol: self.params.execution.context.symbol,
       signalId: scheduled.id,
       elapsedMinutes: Math.floor(elapsedTime / 60000),
-      maxMinutes: CC_SCHEDULE_AWAIT_MINUTES,
+      maxMinutes: GLOBAL_CONFIG.CC_SCHEDULE_AWAIT_MINUTES,
     }
   );
 

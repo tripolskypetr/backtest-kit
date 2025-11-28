@@ -9,7 +9,7 @@ import MethodContextService, {
   TMethodContextService,
 } from "../../context/MethodContextService";
 import { progressEmitter, performanceEmitter } from "../../../../config/emitters";
-import { CC_SCHEDULE_AWAIT_MINUTES } from "../../../../config/params";
+import { GLOBAL_CONFIG } from "../../../../config/params";
 
 /**
  * Private service for backtest orchestration using async generators.
@@ -100,7 +100,7 @@ export class BacktestLogicPrivateService {
         const candles = await this.exchangeGlobalService.getNextCandles(
           symbol,
           "1m",
-          CC_SCHEDULE_AWAIT_MINUTES,
+          GLOBAL_CONFIG.CC_SCHEDULE_AWAIT_MINUTES,
           when,
           true
         );

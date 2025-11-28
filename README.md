@@ -10,10 +10,6 @@ Build sophisticated trading systems with confidence. Backtest Kit empowers you t
 
 📚 **[API Reference](https://github.com/tripolskypetr/backtest-kit)** | 🌟 **[Quick Start](#quick-start)**
 
-## 🎳 Supported Order Types
-
-Backtest Kit supports multiple execution styles to match real trading behavior:
-
 ## ✨ Why Choose Backtest Kit?
 
 - 🚀 **Production-Ready Architecture**: Seamlessly switch between backtest and live modes with robust error recovery and graceful shutdown mechanisms. Your strategy code remains identical across environments. ✅
@@ -54,7 +50,9 @@ Backtest Kit supports multiple execution styles to match real trading behavior:
 
 ---
 
-### ✅ Built-in Order Types
+### 🎳 Supported Order Types
+
+Backtest Kit supports multiple execution styles to match real trading behavior:
 
 -   **Market** — instant execution using current VWAP
 
@@ -69,7 +67,7 @@ Backtest Kit supports multiple execution styles to match real trading behavior:
 -   **Grid** — auto-cancel if price never reaches entry point or hits SL before activation
     
 
-### ➕ Extendable Order Types
+### 🆕 Extendable Order Types
 
 Easy to add without modifying the core:
 
