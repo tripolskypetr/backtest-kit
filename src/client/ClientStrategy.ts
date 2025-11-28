@@ -635,7 +635,6 @@ const OPEN_NEW_PENDING_SIGNAL_FN = async (
       })
     )
   ) {
-    console.log(`[${self.params.method.context.strategyName}] OPEN_NEW_PENDING_SIGNAL_FN: risk.checkSignal() returned FALSE`);
     return null;
   }
 
@@ -1140,10 +1139,12 @@ const PROCESS_PENDING_SIGNAL_CANDLES_FN = async (
   candles: ICandleData[]
 ): Promise<IStrategyTickResultClosed | null> => {
   const candlesCount = GLOBAL_CONFIG.CC_AVG_PRICE_CANDLES_COUNT;
+
   for (let i = candlesCount - 1; i < candles.length; i++) {
     const recentCandles = candles.slice(i - (candlesCount - 1), i + 1);
     const averagePrice = GET_AVG_PRICE_FN(recentCandles);
     const currentCandleTimestamp = recentCandles[recentCandles.length - 1].timestamp;
+    const currentCandle = recentCandles[recentCandles.length - 1];
 
     let shouldClose = false;
     let closeReason: "time_expired" | "take_profit" | "stop_loss" | undefined;
@@ -1159,31 +1160,42 @@ const PROCESS_PENDING_SIGNAL_CANDLES_FN = async (
     }
 
     // Check TP/SL only if not expired
+    // КРИТИЧНО: используем candle.high/low для точной проверки достижения TP/SL
     if (!shouldClose && signal.position === "long") {
-      if (averagePrice >= signal.priceTakeProfit) {
+      // Для LONG: TP срабатывает если high >= TP, SL если low <= SL
+      if (currentCandle.high >= signal.priceTakeProfit) {
         shouldClose = true;
         closeReason = "take_profit";
-      } else if (averagePrice <= signal.priceStopLoss) {
+      } else if (currentCandle.low <= signal.priceStopLoss) {
         shouldClose = true;
         closeReason = "stop_loss";
       }
     }
 
     if (!shouldClose && signal.position === "short") {
-      if (averagePrice <= signal.priceTakeProfit) {
+      // Для SHORT: TP срабатывает если low <= TP, SL если high >= SL
+      if (currentCandle.low <= signal.priceTakeProfit) {
         shouldClose = true;
         closeReason = "take_profit";
-      } else if (averagePrice >= signal.priceStopLoss) {
+      } else if (currentCandle.high >= signal.priceStopLoss) {
         shouldClose = true;
         closeReason = "stop_loss";
       }
     }
 
     if (shouldClose) {
+      // КРИТИЧНО: при закрытии по TP/SL используем точную цену, а не averagePrice
+      let closePrice = averagePrice;
+      if (closeReason === "take_profit") {
+        closePrice = signal.priceTakeProfit;
+      } else if (closeReason === "stop_loss") {
+        closePrice = signal.priceStopLoss;
+      }
+
       return await CLOSE_PENDING_SIGNAL_IN_BACKTEST_FN(
         self,
         signal,
-        averagePrice,
+        closePrice,
         closeReason!,
         currentCandleTimestamp
       );
