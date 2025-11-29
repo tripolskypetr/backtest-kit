@@ -19,7 +19,7 @@ import {
   signalBacktestEmitter,
   signalLiveEmitter,
 } from "../../../config/emitters";
-import { IRisk } from "src/interfaces/Risk.interface";
+import { IRisk } from "../../../interfaces/Risk.interface";
 import RiskConnectionService from "./RiskConnectionService";
 
 const NOOP_RISK: IRisk = {

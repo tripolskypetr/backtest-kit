@@ -13,7 +13,7 @@ import {
   IRiskValidationPayload,
   IRiskActivePosition,
 } from "../interfaces/Risk.interface";
-import backtest from "src/lib";
+import backtest from "../lib";
 import { validationSubject } from "../config/emitters";
 import { PersistRiskAdapter } from "../classes/Persist";
 
