@@ -79,7 +79,7 @@ Connection Services provide memoized client instance management. They resolve sc
 | `RiskConnectionService` | `ClientRisk` | `riskName` |
 | `SizingConnectionService` | `ClientSizing` | `sizingName` |
 
-**Memoization Pattern:** Connection Services use `functools-kit`'s `singlerun` to cache instances: `this.getClient = singlerun((name) => new ClientStrategy(params))`
+**Memoization Pattern:** Connection Services use `functools-kit`'s `memoize` to cache instances: `this.getClient = memoize((name) => new ClientStrategy(params))`
 
 
 ### Layer 5: Schema & Validation Services
@@ -369,4 +369,4 @@ The following table maps service categories to their file locations:
 | Markdown Services | `*MarkdownService` | `src/lib/services/markdown/` | 6 |
 
 **Total Services:** 40+ injectable services
-
+

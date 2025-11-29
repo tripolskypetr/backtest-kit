@@ -586,7 +586,7 @@ if (!isValid) {
 }
 ```
 
-**Memoization**: Validation results are cached using `singlerun` from `functools-kit` to avoid repeated schema lookups during execution.
+**Memoization**: Validation results are cached using `memoize` from `functools-kit` to avoid repeated schema lookups during execution.
 
 
 ---
@@ -622,4 +622,4 @@ This design allows:
 - **Flexible registration order**: Can register strategies before risks, exchanges before strategies, etc.
 - **Deferred validation**: Schema existence checked only when needed
 - **Clear error messages**: Runtime errors indicate exactly which component is missing
-
+
