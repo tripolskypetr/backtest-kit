@@ -430,3 +430,206 @@ test("EDGE: Very large profit (>100%) passes validation and yields huge profit",
   const expectedPnl = ((90000 - 42000) / 42000) * 100; // ~114%
   pass(`HUGE PROFIT WORKS: >100% profit signal passed validation. PNL: ${finalResult.pnl.pnlPercentage.toFixed(2)}% (expected ~${expectedPnl.toFixed(2)}%). Moon landing successful!`);
 });
+
+
+/**
+ * EDGE CASE ТЕСТ #4: Multiple signals with different results (TP, SL, time_expired)
+ *
+ * Сценарий:
+ * - Создаем 3 последовательных сигнала на ОДНОМ ценовом уровне
+ * - Все сигналы используют одинаковые цены (priceOpen, TP, SL)
+ * - Сигнал #1: Закрывается по TakeProfit (цена идет вверх)
+ * - Сигнал #2: Закрывается по StopLoss (цена идет вниз)
+ * - Сигнал #3: Закрывается по time_expired (короткое время жизни, цена стабильна)
+ * - КРИТИЧНО: Все 3 сигнала должны обработаться последовательно
+ */
+test("EDGE: Multiple signals with different results (TP, SL, time_expired) - queue processing works", async ({ pass, fail }) => {
+  const signalsResults = {
+    scheduled: [],
+    opened: [],
+    closed: [],
+    cancelled: [],
+  };
+
+  const startTime = new Date("2024-01-01T00:00:00Z").getTime();
+  const intervalMs = 60000;
+  const basePrice = 95000;  // Базовая цена для теста
+
+  let allCandles = [];  // Будет заполнено в getSignal
+
+  // Создаем начальные свечи для getAveragePrice (минимум 5 свечей)
+  for (let i = 0; i < 5; i++) {
+    allCandles.push({
+      timestamp: startTime + i * intervalMs,
+      open: basePrice,
+      high: basePrice + 100,
+      low: basePrice - 100,
+      close: basePrice,
+      volume: 100,
+    });
+  }
+
+  addExchange({
+    exchangeName: "binance-edge-multiple-signals",
+    getCandles: async (_symbol, _interval, since, limit) => {
+      const sinceIndex = Math.floor((since.getTime() - startTime) / intervalMs);
+      const result = allCandles.slice(sinceIndex, sinceIndex + limit);
+      return result.length > 0 ? result : allCandles.slice(0, Math.min(limit, allCandles.length));
+    },
+    formatPrice: async (_symbol, p) => p.toFixed(8),
+    formatQuantity: async (_symbol, quantity) => quantity.toFixed(8),
+  });
+
+  let signalCount = 0;
+
+  addStrategy({
+    strategyName: "test-edge-multiple-signals",
+    interval: "1m",
+    getSignal: async () => {
+      signalCount++;
+      if (signalCount > 3) return null;
+
+      // КРИТИЧНО: Генерируем свечи только в первый раз
+      if (signalCount === 1) {
+        // Очищаем начальные свечи и создаем полный набор на 90 минут
+        allCandles = [];
+
+        for (let i = 0; i < 90; i++) {
+          const timestamp = startTime + i * intervalMs;
+
+          // Сигнал #1: Минуты 0-9: выше priceOpen, 10-14: активация, 15-19: TP
+          if (i < 10) {
+            allCandles.push({ timestamp, open: basePrice + 500, high: basePrice + 600, low: basePrice + 400, close: basePrice + 500, volume: 100 });
+          } else if (i >= 10 && i < 15) {
+            allCandles.push({ timestamp, open: basePrice, high: basePrice + 100, low: basePrice - 100, close: basePrice, volume: 100 });
+          } else if (i >= 15 && i < 20) {
+            allCandles.push({ timestamp, open: basePrice + 1000, high: basePrice + 1100, low: basePrice + 900, close: basePrice + 1000, volume: 100 });
+          }
+
+          // Сигнал #2: Минуты 20-29: выше priceOpen, 30-34: активация, 35-39: SL
+          else if (i >= 20 && i < 30) {
+            allCandles.push({ timestamp, open: basePrice + 500, high: basePrice + 600, low: basePrice + 400, close: basePrice + 500, volume: 100 });
+          } else if (i >= 30 && i < 35) {
+            allCandles.push({ timestamp, open: basePrice, high: basePrice + 100, low: basePrice - 100, close: basePrice, volume: 100 });
+          } else if (i >= 35 && i < 40) {
+            allCandles.push({ timestamp, open: basePrice - 1000, high: basePrice - 900, low: basePrice - 1100, close: basePrice - 1000, volume: 100 });
+          }
+
+          // Сигнал #3: Минуты 40-49: выше priceOpen, 50-54: активация, 55+: стабильная цена (time_expired)
+          else if (i >= 40 && i < 50) {
+            allCandles.push({ timestamp, open: basePrice + 500, high: basePrice + 600, low: basePrice + 400, close: basePrice + 500, volume: 100 });
+          } else if (i >= 50 && i < 55) {
+            allCandles.push({ timestamp, open: basePrice, high: basePrice + 100, low: basePrice - 100, close: basePrice, volume: 100 });
+          } else {
+            allCandles.push({ timestamp, open: basePrice + 500, high: basePrice + 600, low: basePrice + 400, close: basePrice + 500, volume: 100 });
+          }
+        }
+      }
+
+      // Все сигналы на одном ценовом уровне
+      return {
+        position: "long",
+        note: `EDGE: multiple signals test #${signalCount}`,
+        priceOpen: basePrice,
+        priceTakeProfit: basePrice + 1000,
+        priceStopLoss: basePrice - 1000,
+        minuteEstimatedTime: signalCount === 3 ? 10 : 60,  // #3 истекает быстрее
+      };
+    },
+    callbacks: {
+      onSchedule: (_symbol, data) => {
+        signalsResults.scheduled.push(data);
+      },
+      onOpen: (_symbol, data) => {
+        signalsResults.opened.push(data);
+      },
+      onClose: (_symbol, data, priceClose) => {
+        signalsResults.closed.push({ signal: data, priceClose });
+      },
+      onCancel: (_symbol, data) => {
+        signalsResults.cancelled.push(data);
+      },
+    },
+  });
+
+  addFrame({
+    frameName: "90m-edge-multiple-signals",
+    interval: "1m",
+    startDate: new Date("2024-01-01T00:00:00Z"),
+    endDate: new Date("2024-01-01T01:30:00Z"),  // 90 минут
+  });
+
+  const awaitSubject = new Subject();
+  listenDoneBacktest(() => awaitSubject.next());
+
+  const allSignalEvents = [];
+  listenSignalBacktest((result) => {
+    allSignalEvents.push(result);
+  });
+
+  Backtest.background("BTCUSDT", {
+    strategyName: "test-edge-multiple-signals",
+    exchangeName: "binance-edge-multiple-signals",
+    frameName: "90m-edge-multiple-signals",
+  });
+
+  await awaitSubject.toPromise();
+  await sleep(1000);
+
+  if (signalsResults.scheduled.length !== 3) {
+    fail(`Expected 3 scheduled signals, got ${signalsResults.scheduled.length}`);
+    return;
+  }
+
+  // Проверяем что первые 2 сигнала открылись
+  if (signalsResults.opened.length !== 2) {
+    fail(`Expected 2 opened signals, got ${signalsResults.opened.length}`);
+    return;
+  }
+
+  // Проверяем что первые 2 сигнала закрылись
+  if (signalsResults.closed.length !== 2) {
+    fail(`Expected 2 closed signals, got ${signalsResults.closed.length}`);
+    return;
+  }
+
+  // Проверяем что третий сигнал был отменен
+  if (signalsResults.cancelled.length !== 1) {
+    fail(`Expected 1 cancelled signal (signal #3), got ${signalsResults.cancelled.length}`);
+    return;
+  }
+
+  const closedEvents = allSignalEvents.filter(e => e.action === "closed");
+
+  if (closedEvents.length !== 2) {
+    fail(`Expected 2 closed events, got ${closedEvents.length}`);
+    return;
+  }
+
+  const closeReasons = closedEvents.map(e => e.closeReason);
+
+  if (closeReasons[0] !== "take_profit") {
+    fail(`Signal #1: Expected "take_profit", got "${closeReasons[0]}"`);
+    return;
+  }
+
+  if (closeReasons[1] !== "stop_loss") {
+    fail(`Signal #2: Expected "stop_loss", got "${closeReasons[1]}"`);
+    return;
+  }
+
+  const pnl1 = closedEvents[0].pnl.pnlPercentage;
+  const pnl2 = closedEvents[1].pnl.pnlPercentage;
+
+  if (pnl1 <= 0) {
+    fail(`Signal #1 PNL: Expected positive (TP), got ${pnl1.toFixed(2)}%`);
+    return;
+  }
+
+  if (pnl2 >= 0) {
+    fail(`Signal #2 PNL: Expected negative (SL), got ${pnl2.toFixed(2)}%`);
+    return;
+  }
+
+  pass(`QUEUE WORKS: 3 signals processed sequentially. #1: TP (PNL=${pnl1.toFixed(2)}%), #2: SL (PNL=${pnl2.toFixed(2)}%), #3: cancelled. Multiple signal queue processing works!`);
+});
