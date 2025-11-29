@@ -5,7 +5,7 @@
 
 Fast-forward simulation is an optimization technique used during backtesting to efficiently process historical data without iterating tick-by-tick through every timestamp in the timeframe. Instead of calling `strategy.tick()` repeatedly, the framework invokes `strategy.backtest()` once per signal, passing an array of candle data covering the signal's entire lifetime.
 
-This page documents the fast-forward mechanism implemented in `ClientStrategy.backtest()` and its integration with the backtest execution flow. For the overall backtest orchestration, see [Backtest Execution Flow](#9.1). For timeframe generation, see [Timeframe Generation](#9.2).
+This page documents the fast-forward mechanism implemented in `ClientStrategy.backtest()` and its integration with the backtest execution flow. For the overall backtest orchestration, see [Backtest Execution Flow](./51_Backtest_Execution_Flow.md). For timeframe generation, see [Timeframe Generation](./52_Timeframe_Generation.md).
 
 **Key Benefits:**
 - **Performance**: Processes signals 100-1000x faster than tick-by-tick simulation

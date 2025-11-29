@@ -3,7 +3,7 @@
 
 Global Services form Layer 1 of the service architecture, serving as public API entry points that orchestrate validation and delegate operations to lower-level services. These services provide a consistent interface for component registration, validation, and execution across the framework.
 
-For information about the overall service layer organization, see [Service Architecture Overview](#7.1). For details on the services that Global Services delegate to, see [Connection Services](#7.2), [Schema Services](#7.3), [Validation Services](#7.4), and [Logic Services](#7.6).
+For information about the overall service layer organization, see [Service Architecture Overview](./37_Service_Architecture_Overview.md). For details on the services that Global Services delegate to, see [Connection Services](./38_Connection_Services.md), [Schema Services](./39_Schema_Services.md), [Validation Services](./40_Validation_Services.md), and [Logic Services](./42_Logic_Services.md).
 
 ---
 

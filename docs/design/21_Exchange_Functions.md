@@ -5,7 +5,7 @@
 
 This page documents the public utility functions for interacting with exchange data sources: `getCandles`, `getAveragePrice`, `formatPrice`, `formatQuantity`, `getDate`, and `getMode`. These functions provide a simplified API for accessing market data and exchange-specific formatting without requiring explicit context parameters.
 
-For information about registering exchange schemas, see [Component Registration Functions](#4.2). For details about the underlying exchange client implementation, see [ClientExchange](#6.2). For defining custom exchange integrations, see [Exchange Schemas](#5.2).
+For information about registering exchange schemas, see [Component Registration Functions](./16_Component_Registration_Functions.md). For details about the underlying exchange client implementation, see [ClientExchange](./32_ClientExchange.md). For defining custom exchange integrations, see [Exchange Schemas](./25_Exchange_Schemas.md).
 
 **Sources:** [src/index.ts:26-32](), [types.d.ts:148-275]()
 

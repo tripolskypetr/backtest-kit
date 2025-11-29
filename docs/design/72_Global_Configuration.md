@@ -4,8 +4,8 @@
 This page documents the global configuration system for backtest-kit, including the `GLOBAL_CONFIG` object, the `setConfig()` function, and all runtime configuration parameters that control validation rules and timing constraints across the framework.
 
 For detailed information about specific parameter categories, see:
-- Validation parameters (TP/SL distance constraints): [14.2](#14.2)
-- Timing parameters (signal lifetime and scheduling): [14.3](#14.3)
+- Validation parameters (TP/SL distance constraints): [14.2](./73_Validation_Parameters.md)
+- Timing parameters (signal lifetime and scheduling): [14.3](./74_Timing_Parameters.md)
 
 ---
 

@@ -5,7 +5,7 @@
 
 This document explains **scheduled signals** in backtest-kit: signals that wait for a specific entry price (`priceOpen`) to be reached before activating. Scheduled signals implement limit order behavior, allowing strategies to enter positions at predetermined prices rather than immediately at market price.
 
-For general signal lifecycle information, see [Signal Lifecycle Overview](#8.2). For signal persistence mechanics, see [Signal Persistence](#8.4). For PNL calculation after closure, see [PnL Calculation](#8.5).
+For general signal lifecycle information, see [Signal Lifecycle Overview](./07_Signal_Lifecycle_Overview.md). For signal persistence mechanics, see [Signal Persistence](./48_Signal_Persistence.md). For PNL calculation after closure, see [PnL Calculation](./49_PnL_Calculation.md).
 
 ---
 

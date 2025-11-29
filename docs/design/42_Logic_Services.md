@@ -5,7 +5,7 @@
 
 Logic Services orchestrate the execution of backtest and live trading operations using async generators. They coordinate between Strategy, Exchange, and Frame services while managing execution context propagation. Logic Services form the top layer of the Service Orchestration hierarchy and are the primary entry point for execution flows initiated by the Public API.
 
-For configuration and registration of strategies, exchanges, and frames, see [Configuration Functions](#3.1). For the business logic implementations that Logic Services orchestrate, see [Core Business Logic](#4).
+For configuration and registration of strategies, exchanges, and frames, see [Configuration Functions](./15_Configuration_Functions.md). For the business logic implementations that Logic Services orchestrate, see [Core Business Logic](./30_Core_Business_Logic.md).
 
 **Sources:** [src/lib/services/logic/private/BacktestLogicPrivateService.ts:1-123](), [src/lib/services/logic/private/LiveLogicPrivateService.ts:1-86](), [Diagram 1: Four-Layer Architecture Overview]()
 

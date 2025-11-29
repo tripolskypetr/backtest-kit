@@ -5,7 +5,7 @@
 
 This page documents the two primary configuration functions exposed by the framework: `setLogger` and `setConfig`. These functions allow users to customize logging behavior and tune global runtime parameters that affect signal validation, timing constraints, and price monitoring.
 
-For information about component registration functions (`addStrategy`, `addExchange`, etc.), see [Component Registration Functions](#4.2). For execution mode APIs, see [Backtest API](#4.3), [Live Trading API](#4.4), and [Walker API](#4.5).
+For information about component registration functions (`addStrategy`, `addExchange`, etc.), see [Component Registration Functions](./16_Component_Registration_Functions.md). For execution mode APIs, see [Backtest API](./17_Backtest_API.md), [Live Trading API](./18_Live_Trading_API.md), and [Walker API](./19_Walker_API.md).
 
 ---
 

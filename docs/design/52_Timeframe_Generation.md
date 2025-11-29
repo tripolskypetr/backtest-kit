@@ -3,7 +3,7 @@
 
 This document explains how `ClientFrame` generates timestamp arrays for backtest iteration. The timeframe generation system produces evenly-spaced `Date` objects representing execution points throughout a historical period, configured by interval, start date, and end date.
 
-For information about how these timestamps are used during backtest execution, see [Backtest Execution Flow](#7.1). For details on fast-forward simulation that occurs after signals open, see [Fast-Forward Simulation](#7.3).
+For information about how these timestamps are used during backtest execution, see [Backtest Execution Flow](./51_Backtest_Execution_Flow.md). For details on fast-forward simulation that occurs after signals open, see [Fast-Forward Simulation](./53_Fast-Forward_Simulation.md).
 
 ---
 

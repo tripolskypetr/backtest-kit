@@ -1,7 +1,7 @@
 # Strategy Comparison
 
 
-This page explains how Walker mode compares multiple trading strategies and selects the best performer based on configurable metrics. For information about running individual backtests, see [Backtest Execution Flow](#9.1). For details about the Walker API methods, see [Walker API](#4.5).
+This page explains how Walker mode compares multiple trading strategies and selects the best performer based on configurable metrics. For information about running individual backtests, see [Backtest Execution Flow](./51_Backtest_Execution_Flow.md). For details about the Walker API methods, see [Walker API](./19_Walker_API.md).
 
 ---
 

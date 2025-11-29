@@ -3,8 +3,8 @@
 
 This page documents infrastructure components that span multiple layers of the architecture: logging, error handling, persistence, and global configuration. These concerns are injected throughout the system via dependency injection and provide foundational services for observability, reliability, and customization.
 
-For component-specific context propagation (ExecutionContext, MethodContext), see [Context Propagation](#3.3).
-For event-driven signal flow, see [Event System](#3.4).
+For component-specific context propagation (ExecutionContext, MethodContext), see [Context Propagation](./12_Context_Propagation.md).
+For event-driven signal flow, see [Event System](./13_Event_System.md).
 
 ---
 
@@ -451,7 +451,7 @@ The DI container provides singletons for cross-cutting concerns that are injecte
 
 ### Context Injection Flow
 
-Logging context is automatically injected via the context propagation system (see [Context Propagation](#3.3)):
+Logging context is automatically injected via the context propagation system (see [Context Propagation](./12_Context_Propagation.md)):
 
 1. **MethodContextService** provides `strategyName`, `exchangeName`, `frameName`
 2. **ExecutionContextService** provides `symbol`, `when`, `backtest` flag

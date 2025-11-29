@@ -5,7 +5,7 @@
 
 The Persistence Layer provides crash-safe storage for signal state and risk management data in the backtest-kit framework. This layer implements atomic file writes to ensure no data loss during crashes, automatic recovery from corrupted files, and support for custom storage backends (Redis, MongoDB, PostgreSQL).
 
-For signal lifecycle management, see [Signal Lifecycle](#8). For risk management data structures, see [Risk Management](#12). For logging infrastructure, see [Logging System](#15.1).
+For signal lifecycle management, see [Signal Lifecycle](./44_Signal_Lifecycle.md). For risk management data structures, see [Risk Management](./63_Risk_Management.md). For logging infrastructure, see [Logging System](./76_Logging_System.md).
 
 **Sources:** [README.md:17](), [src/classes/Persist.ts:1-60]()
 
@@ -51,7 +51,7 @@ The constructor accepts an `entityName` (e.g., "signal", "risk") and optional `b
 
 #### Write Operations
 
-Write operations use `writeFileAtomic` to ensure crash safety (see [Atomic File Writes](#atomic-file-writes)):
+Write operations use `writeFileAtomic` to ensure crash safety (see [Atomic File Writes](./78_Persistence_Layer.md)):
 
 ![Mermaid Diagram](./diagrams/78_Persistence_Layer_3.svg)
 

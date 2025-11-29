@@ -3,7 +3,7 @@
 
 This page documents the public API functions for registering and retrieving component schemas in the framework. These functions enable users to define strategies, exchanges, frames, risk profiles, sizing methods, and walkers that the framework uses during execution.
 
-For conceptual information about component registration, see [Component Registration](#2.3). For detailed schema interfaces and their properties, see [Component Types](#5).
+For conceptual information about component registration, see [Component Registration](./08_Component_Registration.md). For detailed schema interfaces and their properties, see [Component Types](./23_Component_Types.md).
 
 ---
 
@@ -69,7 +69,7 @@ function addStrategy(strategySchema: IStrategySchema): void
 - `strategySchema.callbacks` (object, optional): Lifecycle callbacks (onOpen, onClose, onTick, etc.)
 - `strategySchema.note` (string, optional): Developer documentation
 
-For detailed `IStrategySchema` documentation, see [Strategy Schemas](#5.1).
+For detailed `IStrategySchema` documentation, see [Strategy Schemas](./24_Strategy_Schemas.md).
 
 **Example**:
 ```typescript
@@ -145,7 +145,7 @@ function addExchange(exchangeSchema: IExchangeSchema): void
 - `exchangeSchema.callbacks` (object, optional): Lifecycle callbacks (onCandleData)
 - `exchangeSchema.note` (string, optional): Developer documentation
 
-For detailed `IExchangeSchema` documentation, see [Exchange Schemas](#5.2).
+For detailed `IExchangeSchema` documentation, see [Exchange Schemas](./25_Exchange_Schemas.md).
 
 **Example**:
 ```typescript
@@ -221,7 +221,7 @@ function addFrame(frameSchema: IFrameSchema): void
 - `frameSchema.callbacks` (object, optional): Lifecycle callbacks (onTimeframe)
 - `frameSchema.note` (string, optional): Developer documentation
 
-For detailed `IFrameSchema` documentation, see [Frame Schemas](#5.3).
+For detailed `IFrameSchema` documentation, see [Frame Schemas](./26_Frame_Schemas.md).
 
 **Example**:
 ```typescript
@@ -287,7 +287,7 @@ function addRisk(riskSchema: IRiskSchema): void
 - `riskSchema.callbacks` (object, optional): Lifecycle callbacks (onRejected, onAllowed)
 - `riskSchema.note` (string, optional): Developer documentation
 
-For detailed `IRiskSchema` documentation and validation patterns, see [Risk Schemas](#5.4).
+For detailed `IRiskSchema` documentation and validation patterns, see [Risk Schemas](./27_Risk_Schemas.md).
 
 **Example**:
 ```typescript
@@ -380,7 +380,7 @@ function addSizing(sizingSchema: ISizingSchema): void
 - `sizingSchema.callbacks` (object, optional): Lifecycle callbacks (onCalculate)
 - `sizingSchema.note` (string, optional): Developer documentation
 
-For detailed `ISizingSchema` documentation, see [Sizing Schemas](#5.5).
+For detailed `ISizingSchema` documentation, see [Sizing Schemas](./28_Sizing_Schemas.md).
 
 **Example**:
 ```typescript
@@ -469,7 +469,7 @@ function addWalker(walkerSchema: IWalkerSchema): void
 - `walkerSchema.callbacks` (object, optional): Lifecycle callbacks (onStrategyComplete, onComplete)
 - `walkerSchema.note` (string, optional): Developer documentation
 
-For detailed `IWalkerSchema` documentation, see [Walker Schemas](#5.6).
+For detailed `IWalkerSchema` documentation, see [Walker Schemas](./29_Walker_Schemas.md).
 
 **Example**:
 ```typescript

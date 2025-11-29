@@ -5,7 +5,7 @@
 
 This document explains the step-by-step orchestration of backtesting execution through historical timeframes, focusing on the `BacktestLogicPrivateService` and its coordination with frame generation, signal processing, and candle data retrieval. The backtest execution uses an async generator pattern for memory-efficient streaming of results.
 
-For information about configuring backtests and the Public API, see [Backtest API](#3.2). For details on timeframe generation itself, see [Timeframe Generation](#7.2). For the fast-forward simulation algorithm that processes opened signals, see [Fast-Forward Simulation](#7.3).
+For information about configuring backtests and the Public API, see [Backtest API](./17_Backtest_API.md). For details on timeframe generation itself, see [Timeframe Generation](./52_Timeframe_Generation.md). For the fast-forward simulation algorithm that processes opened signals, see [Fast-Forward Simulation](./53_Fast-Forward_Simulation.md).
 
 ---
 
@@ -231,7 +231,7 @@ While the execution flow itself doesn't directly interact with reporting service
 
 The reporting integration happens at the consumer level, where the Public API's `Backtest.run()` or `Backtest.background()` methods pass results to the markdown service for accumulation.
 
-For details on report generation, see [Markdown Report Generation](#9.1).
+For details on report generation, see [Markdown Report Generation](./68_Markdown_Report_Generation.md).
 
 **Sources:** [src/lib/services/logic/private/BacktestLogicPrivateService.ts:114]()
 

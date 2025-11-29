@@ -5,7 +5,7 @@
 
 This page describes the signal state machine and lifecycle management in the backtest-kit framework. A signal represents a single trading position from creation through closure, transitioning through well-defined states. This document covers signal generation, validation, state transitions, persistence, and closure conditions.
 
-For information about how signals are executed in different modes (backtest vs live), see [Execution Modes](#2.1). For details on component registration and schema definitions, see [Component Registration](#2.3). For deep implementation details of the `ClientStrategy` class that manages signals, see [ClientStrategy](#6.1).
+For information about how signals are executed in different modes (backtest vs live), see [Execution Modes](./06_Execution_Modes.md). For details on component registration and schema definitions, see [Component Registration](./08_Component_Registration.md). For deep implementation details of the `ClientStrategy` class that manages signals, see [ClientStrategy](./31_ClientStrategy.md).
 
 ---
 
@@ -301,4 +301,4 @@ const restored = await PersistSignalAdapter.readSignalData(
 
 The signal lifecycle follows a deterministic state machine with six states: idle, scheduled, opened, active, closed, and cancelled. Signals are generated via user-defined `getSignal()` functions, validated by framework rules, and monitored through VWAP-based price checks. State transitions trigger lifecycle callbacks for observability. Timestamps (`scheduledAt` vs `pendingAt`) enable precise timeout and expiration calculations. In live mode, signals persist atomically to disk for crash recovery.
 
-For implementation details of signal processing within specific execution modes, see [Backtest Execution Flow](#9.1) and [Live Execution Flow](#10.1).
+For implementation details of signal processing within specific execution modes, see [Backtest Execution Flow](./51_Backtest_Execution_Flow.md) and [Live Execution Flow](./55_Live_Execution_Flow.md).

@@ -5,7 +5,7 @@
 
 This page documents the `IStrategySchema` interface, which defines the configuration structure for trading strategies in backtest-kit. Strategy schemas specify signal generation logic, throttling intervals, lifecycle callbacks, and optional risk management integration.
 
-For information about risk management configuration, see [Risk Schemas](#5.4). For exchange data source configuration, see [Exchange Schemas](#5.2). For strategy execution patterns, see [ClientStrategy](#6.1).
+For information about risk management configuration, see [Risk Schemas](./27_Risk_Schemas.md). For exchange data source configuration, see [Exchange Schemas](./25_Exchange_Schemas.md). For strategy execution patterns, see [ClientStrategy](./31_ClientStrategy.md).
 
 **Sources:** [types.d.ts:536-633](), [src/function/add.ts:9-62]()
 
@@ -235,7 +235,7 @@ addStrategy({
 });
 ```
 
-For detailed risk management configuration, see [Risk Schemas](#5.4).
+For detailed risk management configuration, see [Risk Schemas](./27_Risk_Schemas.md).
 
 **Sources:** [types.d.ts:632](), [types.d.ts:476-533](), [src/function/add.ts:50-62]()
 

@@ -3,7 +3,7 @@
 
 ## Purpose and Scope
 
-This page explains how the framework monitors active positions and scheduled signals in real-time during live trading. It covers VWAP (Volume Weighted Average Price) calculation using recent candles, Take Profit and Stop Loss detection logic, time-based expiration monitoring, and scheduled signal activation checks. For information about the overall live execution loop, see [10.1](#10.1). For crash recovery and state restoration, see [10.2](#10.2).
+This page explains how the framework monitors active positions and scheduled signals in real-time during live trading. It covers VWAP (Volume Weighted Average Price) calculation using recent candles, Take Profit and Stop Loss detection logic, time-based expiration monitoring, and scheduled signal activation checks. For information about the overall live execution loop, see [10.1](./55_Live_Execution_Flow.md). For crash recovery and state restoration, see [10.2](./56_Crash_Recovery.md).
 
 ---
 
@@ -47,7 +47,7 @@ The number of recent candles used for VWAP calculation is controlled by `GLOBAL_
 |-----------|---------|-------------|
 | `CC_AVG_PRICE_CANDLES_COUNT` | `5` | Number of recent candles for VWAP (e.g., last 5 minutes with 1m interval) |
 
-**Usage in live mode**: `ClientExchange.getAveragePrice()` fetches the last N candles and computes VWAP. See [4.7](#4.7) for the public API.
+**Usage in live mode**: `ClientExchange.getAveragePrice()` fetches the last N candles and computes VWAP. See [4.7](./21_Exchange_Functions.md) for the public API.
 
 Sources: [src/client/ClientStrategy.ts:285-296](), [src/config/params.ts:11]()
 
@@ -317,7 +317,7 @@ In live mode, `ClientExchange.getAveragePrice()` [src/lib/services/connection/Ex
 **Implications**:
 - **Latency**: Each tick requires API call to fetch candles
 - **Consistency**: VWAP based on most recent market data
-- **Throttling**: Interval-based signal generation prevents excessive API calls (see [10.4](#10.4))
+- **Throttling**: Interval-based signal generation prevents excessive API calls (see [10.4](./58_Interval_Throttling.md))
 
 ### Backtest Mode Candle Processing
 
@@ -381,7 +381,7 @@ Sources: [src/client/ClientStrategy.ts:675-846](), [src/client/ClientStrategy.ts
 | `CC_MIN_TAKEPROFIT_DISTANCE_PERCENT` | [src/config/params.ts:17]() | `0.1%` | Minimum TP distance to cover fees |
 | `CC_MAX_STOPLOSS_DISTANCE_PERCENT` | [src/config/params.ts:23]() | `20%` | Maximum SL distance to protect capital |
 
-All parameters can be modified via `setConfig()` [4.1](#4.1) before starting live trading.
+All parameters can be modified via `setConfig()` [4.1](./15_Configuration_Functions.md) before starting live trading.
 
 Sources: [src/config/params.ts:1-36]()
 

@@ -3,7 +3,7 @@
 
 This page documents the public API for running backtests via the `Backtest` utility class. The Backtest API provides methods for executing historical strategy simulations and retrieving performance statistics.
 
-For live trading operations, see [Live Trading API](#4.4). For multi-strategy comparison, see [Walker API](#4.5). For event subscription patterns, see [Event Listeners](#4.8).
+For live trading operations, see [Live Trading API](./18_Live_Trading_API.md). For multi-strategy comparison, see [Walker API](./19_Walker_API.md). For event subscription patterns, see [Event Listeners](./22_Event_Listeners.md).
 
 ## Overview
 
@@ -45,9 +45,9 @@ public run = (
 ```
 
 **Execution Context**: The method requires three context parameters:
-- `strategyName` - Must reference a strategy registered via `addStrategy()` (see [Component Registration](#2.3))
-- `exchangeName` - Must reference an exchange registered via `addExchange()` (see [Exchange Schemas](#5.2))
-- `frameName` - Must reference a frame registered via `addFrame()` (see [Frame Schemas](#5.3))
+- `strategyName` - Must reference a strategy registered via `addStrategy()` (see [Component Registration](./08_Component_Registration.md))
+- `exchangeName` - Must reference an exchange registered via `addExchange()` (see [Exchange Schemas](./25_Exchange_Schemas.md))
+- `frameName` - Must reference a frame registered via `addFrame()` (see [Frame Schemas](./26_Frame_Schemas.md))
 
 **State Clearing**: Before execution, `run()` clears accumulated state for the strategy:
 1. Clears `BacktestMarkdownService` accumulated signals for the strategy [src/classes/Backtest.ts:52]()
@@ -356,10 +356,10 @@ console.log("Portfolio metrics:", {
 
 ## Related APIs
 
-For scheduled signals tracking, use the `Schedule` utility class documented in [Schedule API](#4.6). The Schedule API tracks `priceOpen` scheduled signals that may be cancelled before activation.
+For scheduled signals tracking, use the `Schedule` utility class documented in [Schedule API](./20_Schedule_API.md). The Schedule API tracks `priceOpen` scheduled signals that may be cancelled before activation.
 
-For live trading execution, see [Live Trading API](#4.4). The Live API provides crash-safe persistence and real-time monitoring with a similar interface pattern.
+For live trading execution, see [Live Trading API](./18_Live_Trading_API.md). The Live API provides crash-safe persistence and real-time monitoring with a similar interface pattern.
 
-For comparing multiple strategies in parallel, see [Walker API](#4.5). The Walker API internally uses `Backtest.run()` to execute each strategy and rank results by selected metrics.
+For comparing multiple strategies in parallel, see [Walker API](./19_Walker_API.md). The Walker API internally uses `Backtest.run()` to execute each strategy and rank results by selected metrics.
 
 **Sources**: [src/classes/Schedule.ts:1-135](), [src/classes/Live.ts:1-220](), [src/classes/Walker.ts:1-274]()

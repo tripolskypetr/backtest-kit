@@ -3,9 +3,9 @@
 
 ## Purpose
 
-This document describes the performance metrics system in backtest-kit, which tracks execution timing and duration analysis for strategy operations. Performance metrics provide timing data for identifying bottlenecks, analyzing execution patterns, and optimizing strategy performance. These metrics are distinct from trading statistics (see [13.3](#13.3) for PNL calculations and trading performance).
+This document describes the performance metrics system in backtest-kit, which tracks execution timing and duration analysis for strategy operations. Performance metrics provide timing data for identifying bottlenecks, analyzing execution patterns, and optimizing strategy performance. These metrics are distinct from trading statistics (see [13.3](./49_PnL_Calculation.md) for PNL calculations and trading performance).
 
-For general reporting capabilities, see [13.1](#13.1). For event system architecture, see [3.4](#3.4).
+For general reporting capabilities, see [13.1](./67_Reporting_and_Analytics.md). For event system architecture, see [3.4](./13_Event_System.md).
 
 ---
 

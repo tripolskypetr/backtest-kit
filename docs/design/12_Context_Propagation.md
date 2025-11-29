@@ -5,7 +5,7 @@
 
 Context propagation in backtest-kit enables implicit passing of runtime parameters through the service call stack without explicit function arguments. The system uses two context types: **MethodContext** for schema routing (which strategy/exchange/frame to use) and **ExecutionContext** for runtime state (backtest mode, current date). This eliminates manual parameter threading across dozens of function calls while maintaining type safety.
 
-For dependency injection mechanics, see [Dependency Injection System](#2.2). For how services use context to route to specific implementations, see [Connection Services](#5.1).
+For dependency injection mechanics, see [Dependency Injection System](./11_Dependency_Injection_System.md). For how services use context to route to specific implementations, see [Connection Services](./38_Connection_Services.md).
 
 ---
 
@@ -267,7 +267,7 @@ The complete flow showing both context types in action:
 ## Related Patterns
 
 For information about:
-- Service instantiation and caching: See [Connection Services](#5.1)
-- Schema registration: See [Schema Services](#5.2)
-- DI container configuration: See [Dependency Injection System](#2.2)
-- How global services inject context into clients: See [Global Services](#5.3)
+- Service instantiation and caching: See [Connection Services](./38_Connection_Services.md)
+- Schema registration: See [Schema Services](./39_Schema_Services.md)
+- DI container configuration: See [Dependency Injection System](./11_Dependency_Injection_System.md)
+- How global services inject context into clients: See [Global Services](./41_Global_Services.md)

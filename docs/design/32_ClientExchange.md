@@ -3,7 +3,7 @@
 
 `ClientExchange` is a client class that implements market data fetching, VWAP calculation, and price/quantity formatting logic for exchange operations. It provides context-aware access to historical and real-time candle data, abstracting the underlying data source (API, database, etc.) defined in `IExchangeSchema`.
 
-For strategy-level market data access, see [Exchange Functions](#4.7). For schema registration, see [Exchange Schemas](#5.2). For the connection service that instantiates ClientExchange, see [Connection Services](#7.2).
+For strategy-level market data access, see [Exchange Functions](./21_Exchange_Functions.md). For schema registration, see [Exchange Schemas](./25_Exchange_Schemas.md). For the connection service that instantiates ClientExchange, see [Connection Services](./38_Connection_Services.md).
 
 ---
 
@@ -454,9 +454,9 @@ Sources: [types.d.ts:148]()
 5. **Pure Business Logic:** No DI dependencies, all via constructor injection
 
 **Related Components:**
-- [ClientStrategy](#6.1): Consumes exchange data for signal generation
-- [ExchangeConnectionService](#7.2): Instantiates and manages ClientExchange instances
-- [Exchange Functions](#4.7): Public API wrappers for exchange operations
-- [Exchange Schemas](#5.2): Schema registration and validation
+- [ClientStrategy](./31_ClientStrategy.md): Consumes exchange data for signal generation
+- [ExchangeConnectionService](./38_Connection_Services.md): Instantiates and manages ClientExchange instances
+- [Exchange Functions](./21_Exchange_Functions.md): Public API wrappers for exchange operations
+- [Exchange Schemas](./25_Exchange_Schemas.md): Schema registration and validation
 
 Sources: [types.d.ts:168-271]()

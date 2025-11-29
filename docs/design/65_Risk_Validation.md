@@ -3,7 +3,7 @@
 
 This page documents the risk validation flow in `backtest-kit`, specifically how custom validation functions are executed to approve or reject trading signals before they are opened. Risk validation occurs after signal generation but before position opening, providing portfolio-level risk controls.
 
-For information about defining risk profiles and their structure, see [Risk Profiles](#12.1). For details on how active positions are tracked across strategies, see [Position Tracking](#12.3).
+For information about defining risk profiles and their structure, see [Risk Profiles](./64_Risk_Profiles.md). For details on how active positions are tracked across strategies, see [Position Tracking](./66_Position_Tracking.md).
 
 ---
 
@@ -212,7 +212,7 @@ if (this._activePositions === POSITION_NEED_FETCH) {
 }
 ```
 
-Lazy initialization loads persisted positions from disk on first use. See [Position Tracking](#12.3) for details.
+Lazy initialization loads persisted positions from disk on first use. See [Position Tracking](./66_Position_Tracking.md) for details.
 
 **Sources**: [src/client/ClientRisk.ts:171-173]()
 

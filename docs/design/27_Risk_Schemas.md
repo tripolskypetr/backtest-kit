@@ -3,7 +3,7 @@
 
 This document describes the risk management schema system in backtest-kit. Risk schemas define portfolio-level risk controls that prevent signals from violating configured limits. Multiple strategies can share the same risk profile, enabling cross-strategy risk analysis.
 
-For information about strategy schemas (which reference risk schemas), see [Strategy Schemas](#5.1). For information about the ClientRisk implementation that executes risk logic, see [ClientRisk](#6.4).
+For information about strategy schemas (which reference risk schemas), see [Strategy Schemas](./24_Strategy_Schemas.md). For information about the ClientRisk implementation that executes risk logic, see [ClientRisk](./34_ClientRisk.md).
 
 ---
 

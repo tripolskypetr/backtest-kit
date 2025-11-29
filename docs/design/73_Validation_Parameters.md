@@ -3,7 +3,7 @@
 
 This document describes the global validation parameters that control financial safety constraints in signal generation. These parameters enforce minimum take profit distances, maximum stop loss distances, and signal lifetime limits to protect capital from unprofitable trades, catastrophic losses, and strategy deadlock.
 
-For information about other configuration parameters like timeout and timing constraints, see [Timing Parameters](#14.3). For an overview of the configuration system, see [Global Configuration](#14.1). For details on how signals are validated during generation, see [Signal Generation and Validation](#8.2).
+For information about other configuration parameters like timeout and timing constraints, see [Timing Parameters](./74_Timing_Parameters.md). For an overview of the configuration system, see [Global Configuration](./72_Global_Configuration.md). For details on how signals are validated during generation, see [Signal Generation and Validation](./46_Signal_Generation_and_Validation.md).
 
 ---
 
@@ -298,7 +298,7 @@ The table below summarizes default values, their safety guarantees, and when to 
 
 ### Interaction with Risk Management
 
-These validation parameters work in conjunction with risk profile limits (see [Risk Profiles](#12.1)):
+These validation parameters work in conjunction with risk profile limits (see [Risk Profiles](./64_Risk_Profiles.md)):
 
 ![Mermaid Diagram](./diagrams/73_Validation_Parameters_4.svg)
 

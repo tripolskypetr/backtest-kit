@@ -3,7 +3,7 @@
 
 ## Purpose and Scope
 
-This page describes the three execution modes available in backtest-kit: **Backtest**, **Live**, and **Walker**. Each mode orchestrates strategy execution differently to serve distinct use cases. For details on how to register strategies and exchanges, see [Component Registration](#2.3). For information about signal state transitions within these modes, see [Signal Lifecycle Overview](#2.2).
+This page describes the three execution modes available in backtest-kit: **Backtest**, **Live**, and **Walker**. Each mode orchestrates strategy execution differently to serve distinct use cases. For details on how to register strategies and exchanges, see [Component Registration](./08_Component_Registration.md). For information about signal state transitions within these modes, see [Signal Lifecycle Overview](./07_Signal_Lifecycle_Overview.md).
 
 The framework provides three execution classes:
 - `Backtest` - Historical simulation with deterministic results

@@ -1,7 +1,7 @@
 # Dependency Injection System
 
 
-This document describes the dependency injection (DI) container architecture used throughout backtest-kit. The DI system provides type-safe service resolution, singleton lifecycle management, and context propagation for all framework services. For information about the context propagation mechanism itself, see [Context Propagation](#3.3). For details on specific service layers, see [Layer Responsibilities](#3.1).
+This document describes the dependency injection (DI) container architecture used throughout backtest-kit. The DI system provides type-safe service resolution, singleton lifecycle management, and context propagation for all framework services. For information about the context propagation mechanism itself, see [Context Propagation](./12_Context_Propagation.md). For details on specific service layers, see [Layer Responsibilities](./10_Layer_Responsibilities.md).
 
 ## Overview
 
@@ -128,7 +128,7 @@ The DI system integrates with `di-scoped` to provide context propagation through
 - Internal services automatically resolve correct components
 - Context scoped to async execution flow via `di-scoped`
 
-For detailed information on context propagation mechanics, see [Context Propagation](#3.3).
+For detailed information on context propagation mechanics, see [Context Propagation](./12_Context_Propagation.md).
 
 **Sources:** [docs/internals.md:70-77](), [src/lib/index.ts:10-15]()
 

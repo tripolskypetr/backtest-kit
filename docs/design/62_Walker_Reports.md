@@ -3,7 +3,7 @@
 
 This page documents the reporting and data retrieval functionality for Walker mode, which provides multi-strategy comparison results and performance rankings. Walker reports aggregate backtest statistics from multiple strategies and present them in a unified format for analysis.
 
-For information about Walker execution flow and strategy iteration, see [Walker Execution Flow](#11.1). For details on how strategies are compared and ranked, see [Strategy Comparison](#11.2).
+For information about Walker execution flow and strategy iteration, see [Walker Execution Flow](./60_Walker_Execution_Flow.md). For details on how strategies are compared and ranked, see [Strategy Comparison](./61_Strategy_Comparison.md).
 
 ---
 
@@ -59,7 +59,7 @@ The method returns an `IWalkerResults` object containing:
 - **`bestMetric`** - The highest metric value achieved
 - **`strategies`** - Array of strategy comparison results, each containing:
   - `strategyName` - Strategy identifier
-  - `stats` - Full `BacktestStatistics` object (see [Backtest Reports](#9))
+  - `stats` - Full `BacktestStatistics` object (see [Backtest Reports](./68_Markdown_Report_Generation.md))
   - `metric` - The specific metric value used for comparison
 
 ### Implementation Details

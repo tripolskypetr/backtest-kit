@@ -3,7 +3,7 @@
 
 ## Purpose and Scope
 
-This document explains the service layer architecture in backtest-kit, which sits between the Public API and Client classes. The service layer provides dependency injection, context management, validation, and orchestration logic. This page covers the six service type categories and their relationships. For implementation details of specific service types, see [Connection Services](#7.2), [Schema Services](#7.3), [Validation Services](#7.4), [Global Services](#7.5), [Logic Services](#7.6), and [Markdown Services](#7.7).
+This document explains the service layer architecture in backtest-kit, which sits between the Public API and Client classes. The service layer provides dependency injection, context management, validation, and orchestration logic. This page covers the six service type categories and their relationships. For implementation details of specific service types, see [Connection Services](./38_Connection_Services.md), [Schema Services](./39_Schema_Services.md), [Validation Services](./40_Validation_Services.md), [Global Services](./41_Global_Services.md), [Logic Services](./42_Logic_Services.md), and [Markdown Services](./43_Markdown_Services.md).
 
 ## Service Layer Pattern
 

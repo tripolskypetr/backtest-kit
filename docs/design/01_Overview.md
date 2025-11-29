@@ -125,7 +125,7 @@ The service layer handles dependency injection and routing:
 
 **Sources:** [types.d.ts:310-351](), [types.d.ts:84-96]()
 
-For detailed service layer documentation, see [Service Layer](#5).
+For detailed service layer documentation, see [Service Layer](./36_Service_Layer.md).
 
 ---
 
@@ -195,7 +195,7 @@ The framework uses a registration-then-execution pattern:
 
 **Sources:** [types.d.ts:546-646](), [src/index.ts:1-11]()
 
-For configuration details, see [Configuration Functions](#3.1).
+For configuration details, see [Configuration Functions](./15_Configuration_Functions.md).
 
 ---
 
@@ -219,7 +219,7 @@ The framework uses **di-scoped** for implicit context passing:
 
 **Sources:** [types.d.ts:57-96](), [types.d.ts:310-351]()
 
-For DI system details, see [Dependency Injection System](#2.2).
+For DI system details, see [Dependency Injection System](./11_Dependency_Injection_System.md).
 
 ---
 
@@ -311,7 +311,7 @@ Signals are validated automatically in `ClientStrategy`:
 
 **Sources:** [types.d.ts:361-392](), [README.md:210-242]()
 
-For error handling patterns, see [Error Handling](#10.2).
+For error handling patterns, see [Error Handling](./77_Error_Handling.md).
 
 ---
 
@@ -319,10 +319,10 @@ For error handling patterns, see [Error Handling](#10.2).
 
 To use the framework:
 
-1. **Installation:** `npm install backtest-kit` - see [Installation and Setup](#1.2)
-2. **Configuration:** Register schemas with `addStrategy()`, `addExchange()`, `addFrame()` - see [Configuration Functions](#3.1)
-3. **Backtesting:** Use `Backtest.run()` for historical testing - see [Backtest API](#3.2)
-4. **Live Trading:** Use `Live.run()` for production deployment - see [Live Trading API](#3.3)
-5. **Reporting:** Generate markdown reports with `getReport()` and `dump()` - see [Reporting and Analytics](#9)
+1. **Installation:** `npm install backtest-kit` - see [Installation and Setup](./03_Installation_and_Setup.md)
+2. **Configuration:** Register schemas with `addStrategy()`, `addExchange()`, `addFrame()` - see [Configuration Functions](./15_Configuration_Functions.md)
+3. **Backtesting:** Use `Backtest.run()` for historical testing - see [Backtest API](./17_Backtest_API.md)
+4. **Live Trading:** Use `Live.run()` for production deployment - see [Live Trading API](./18_Live_Trading_API.md)
+5. **Reporting:** Generate markdown reports with `getReport()` and `dump()` - see [Reporting and Analytics](./67_Reporting_and_Analytics.md)
 
 **Sources:** [README.md:22-169](), [src/index.ts:1-56]()

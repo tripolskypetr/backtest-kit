@@ -5,7 +5,7 @@
 
 This page provides a comprehensive overview of the six component types that can be registered in backtest-kit. Each component type serves a distinct role in the trading system architecture: **Strategy** (signal generation logic), **Exchange** (market data access), **Frame** (backtest timeframe generation), **Risk** (portfolio-level risk management), **Sizing** (position size calculation), and **Walker** (multi-strategy comparison).
 
-For detailed implementation guidance on individual component types, see their respective subsections: [Strategy Schemas](#5.1), [Exchange Schemas](#5.2), [Frame Schemas](#5.3), [Risk Schemas](#5.4), [Sizing Schemas](#5.5), and [Walker Schemas](#5.6). For information about registering components via the public API, see [Component Registration Functions](#4.2). For information about the service layer that manages these components, see [Schema Services](#7.3).
+For detailed implementation guidance on individual component types, see their respective subsections: [Strategy Schemas](./24_Strategy_Schemas.md), [Exchange Schemas](./25_Exchange_Schemas.md), [Frame Schemas](./26_Frame_Schemas.md), [Risk Schemas](./27_Risk_Schemas.md), [Sizing Schemas](./28_Sizing_Schemas.md), and [Walker Schemas](./29_Walker_Schemas.md). For information about registering components via the public API, see [Component Registration Functions](./16_Component_Registration_Functions.md). For information about the service layer that manages these components, see [Schema Services](./39_Schema_Services.md).
 
 ---
 

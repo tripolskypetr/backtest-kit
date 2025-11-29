@@ -3,7 +3,7 @@
 
 The Schedule API provides statistical tracking and reporting for **scheduled signals** (limit orders) in the backtest-kit framework. This API specifically monitors signals that specify a `priceOpen` entry point and tracks whether they activate or get cancelled before execution.
 
-For tracking standard opened/closed signals, see [4.3 Backtest API](#4.3) and [4.4 Live Trading API](#4.4). For comprehensive signal lifecycle concepts, see [2.2 Signal Lifecycle Overview](#2.2) and [8.3 Scheduled Signals](#8.3).
+For tracking standard opened/closed signals, see [4.3 Backtest API](./17_Backtest_API.md) and [4.4 Live Trading API](./18_Live_Trading_API.md). For comprehensive signal lifecycle concepts, see [2.2 Signal Lifecycle Overview](./07_Signal_Lifecycle_Overview.md) and [8.3 Scheduled Signals](./47_Scheduled_Signals.md).
 
 ---
 

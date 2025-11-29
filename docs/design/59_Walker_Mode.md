@@ -3,7 +3,7 @@
 
 Walker Mode provides multi-strategy comparison and optimization by running multiple backtests in sequence and ranking results by a chosen performance metric. This execution mode automates the process of testing different strategy configurations against the same market data and selecting the best performer.
 
-For information about running individual backtests, see [Backtesting](#9). For live trading execution, see [Live Trading](#10). For details about the component registration system, see [Component Registration](#2.3).
+For information about running individual backtests, see [Backtesting](./50_Backtesting.md). For live trading execution, see [Live Trading](./54_Live_Trading.md). For details about the component registration system, see [Component Registration](./08_Component_Registration.md).
 
 ---
 

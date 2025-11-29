@@ -5,7 +5,7 @@
 
 `ClientFrame` is responsible for generating timeframe arrays used in backtesting operations. It produces an ordered sequence of timestamps from a start date to an end date at specified intervals (e.g., 1m, 1h, 1d). These timestamps serve as the iteration points for the backtesting engine, allowing strategies to be evaluated at each discrete time step.
 
-This document covers the implementation details of `ClientFrame`, its integration with the service orchestration layer, and the timeframe generation algorithm. For information about how timeframes are consumed during backtest execution, see [Backtest Execution Flow](#7.1). For frame configuration and registration, see [Configuration Functions](#3.1).
+This document covers the implementation details of `ClientFrame`, its integration with the service orchestration layer, and the timeframe generation algorithm. For information about how timeframes are consumed during backtest execution, see [Backtest Execution Flow](./51_Backtest_Execution_Flow.md). For frame configuration and registration, see [Configuration Functions](./15_Configuration_Functions.md).
 
 **Sources:** [src/client/ClientFrame.ts:1-93]()
 

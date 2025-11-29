@@ -3,7 +3,7 @@
 
 This page describes the live trading execution mode, which runs trading strategies in real-time against live market data. Live trading operates as an infinite async generator that continuously monitors positions and generates signals based on the current market state.
 
-**Scope**: This page covers the core execution flow, API, and architectural patterns for live trading. For crash recovery mechanisms, see [Crash Recovery](#10.2). For real-time price monitoring with VWAP, see [Real-time Monitoring](#10.3). For signal validation and lifecycle management, see [Signal Lifecycle](#8). For backtesting execution, see [Backtesting](#9).
+**Scope**: This page covers the core execution flow, API, and architectural patterns for live trading. For crash recovery mechanisms, see [Crash Recovery](./56_Crash_Recovery.md). For real-time price monitoring with VWAP, see [Real-time Monitoring](./57_Real-time_Monitoring.md). For signal validation and lifecycle management, see [Signal Lifecycle](./44_Signal_Lifecycle.md). For backtesting execution, see [Backtesting](./50_Backtesting.md).
 
 ## Overview
 
@@ -324,6 +324,6 @@ When `backtest: false` is passed to `tick()`, the `ClientStrategy` knows to:
 3. Check real-time clock (`Date.now()`) for timeouts instead of simulated time
 4. Monitor scheduled signal activation using VWAP instead of candle high/low
 
-For details on these behaviors, see [Signal Lifecycle](#8) and [Real-time Monitoring](#10.3).
+For details on these behaviors, see [Signal Lifecycle](./44_Signal_Lifecycle.md) and [Real-time Monitoring](./57_Real-time_Monitoring.md).
 
 Sources: [src/lib/services/logic/private/LiveLogicPrivateService.ts:71]()

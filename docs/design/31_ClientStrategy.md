@@ -5,7 +5,7 @@
 
 `ClientStrategy` is the core business logic component responsible for managing the complete lifecycle of trading signals. It implements signal generation, validation, state transitions, TP/SL monitoring, crash-safe persistence, and PNL calculation. This class operates in both backtest and live trading modes without dependency injection, making it a pure, testable implementation.
 
-For information about how `ClientStrategy` is orchestrated within the execution flow, see [Backtest Execution Flow](#7.1) and [Live Execution Flow](#8.1). For details on the persistence mechanism, see [Signal Persistence](#6.3). For PNL calculation specifics, see [PnL Calculation](#6.4).
+For information about how `ClientStrategy` is orchestrated within the execution flow, see [Backtest Execution Flow](./51_Backtest_Execution_Flow.md) and [Live Execution Flow](./55_Live_Execution_Flow.md). For details on the persistence mechanism, see [Signal Persistence](./48_Signal_Persistence.md). For PNL calculation specifics, see [PnL Calculation](./49_PnL_Calculation.md).
 
 **Sources:** [src/client/ClientStrategy.ts:167-193]()
 

@@ -3,7 +3,7 @@
 
 The logging system provides consistent, context-aware logging throughout the backtest-kit framework. It automatically enriches log messages with execution context (symbol, timestamp, mode) and method context (strategy name, exchange name, frame name) without requiring explicit parameter passing. The system uses a pluggable architecture that defaults to silent operation and allows users to configure custom logger implementations.
 
-For information about the broader dependency injection architecture, see [Dependency Injection System](#2.2). For context propagation mechanisms, see [Context Propagation](#2.3).
+For information about the broader dependency injection architecture, see [Dependency Injection System](./11_Dependency_Injection_System.md). For context propagation mechanisms, see [Context Propagation](./12_Context_Propagation.md).
 
 ## Architecture Overview
 

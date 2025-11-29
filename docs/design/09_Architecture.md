@@ -3,7 +3,7 @@
 
 ## Purpose and Scope
 
-This document provides a comprehensive overview of backtest-kit's layered architecture, including the service layer organization, dependency injection system, context propagation patterns, and event-driven infrastructure. For details on individual component types (strategies, exchanges, frames), see [Component Types](#5). For execution flow specifics, see [Backtesting](#9), [Live Trading](#10), and [Walker Mode](#11).
+This document provides a comprehensive overview of backtest-kit's layered architecture, including the service layer organization, dependency injection system, context propagation patterns, and event-driven infrastructure. For details on individual component types (strategies, exchanges, frames), see [Component Types](./23_Component_Types.md). For execution flow specifics, see [Backtesting](./50_Backtesting.md), [Live Trading](./54_Live_Trading.md), and [Walker Mode](./59_Walker_Mode.md).
 
 ## Architectural Overview
 

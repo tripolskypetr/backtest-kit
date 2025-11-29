@@ -3,7 +3,7 @@
 
 This page documents the four signal states in the backtest-kit framework and their corresponding TypeScript interfaces. Each state is represented by a distinct interface in a discriminated union, enabling type-safe signal lifecycle management.
 
-For information about how signals are generated and validated, see [Signal Generation and Validation](#6.2). For details on state persistence between crashes, see [Signal Persistence](#6.3). For PnL calculation logic in the closed state, see [PnL Calculation](#6.4).
+For information about how signals are generated and validated, see [Signal Generation and Validation](./46_Signal_Generation_and_Validation.md). For details on state persistence between crashes, see [Signal Persistence](./48_Signal_Persistence.md). For PnL calculation logic in the closed state, see [PnL Calculation](./49_PnL_Calculation.md).
 
 ## Overview
 

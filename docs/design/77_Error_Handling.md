@@ -5,7 +5,7 @@ This document describes the framework's error handling infrastructure, including
 
 Error handling in backtest-kit is built on a pub-sub event system using `Subject` emitters from `functools-kit`. Errors are caught at execution boundaries and propagated to subscribers via two dedicated error channels: `errorEmitter` for general background execution failures and `validationSubject` for risk validation failures.
 
-For information about the general event system architecture, see [Event System](#3.4). For risk validation logic, see [Risk Validation](#12.2). For logging configuration, see [Logging System](#15.1).
+For information about the general event system architecture, see [Event System](./13_Event_System.md). For risk validation logic, see [Risk Validation](./65_Risk_Validation.md). For logging configuration, see [Logging System](./76_Logging_System.md).
 
 ---
 

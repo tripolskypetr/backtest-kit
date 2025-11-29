@@ -5,7 +5,7 @@
 
 This document details the production-ready features of the `backtest-kit` framework that enable reliable algorithmic trading strategy development and deployment. Each feature is explained with its corresponding code implementation and architectural role.
 
-For information about the overall architecture and layer separation, see [Architecture](#2). For implementation details of specific components, see [Core Business Logic](#4) and [Service Layer](#5).
+For information about the overall architecture and layer separation, see [Architecture](./09_Architecture.md). For implementation details of specific components, see [Core Business Logic](./30_Core_Business_Logic.md) and [Service Layer](./36_Service_Layer.md).
 
 ---
 

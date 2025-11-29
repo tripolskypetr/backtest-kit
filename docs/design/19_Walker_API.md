@@ -3,7 +3,7 @@
 
 This page documents the Walker API for multi-strategy comparison. Walker orchestrates multiple backtest runs across different strategies and ranks them by performance metrics.
 
-For information about running individual backtests, see [Backtest API](#4.3). For information about walker schemas and registration, see [Walker Schemas](#5.6).
+For information about running individual backtests, see [Backtest API](./17_Backtest_API.md). For information about walker schemas and registration, see [Walker Schemas](./29_Walker_Schemas.md).
 
 ---
 

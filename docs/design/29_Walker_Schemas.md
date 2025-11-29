@@ -3,7 +3,7 @@
 
 Walker schemas define multi-strategy comparison configurations for A/B testing and optimization workflows. A walker executes backtests for multiple strategies on the same historical data and compares their performance using a specified metric.
 
-For information about individual strategy configuration, see [Strategy Schemas](#5.1). For information about frame (timeframe) configuration used by walkers, see [Frame Schemas](#5.3). For information about executing walkers, see [Walker API](#4.5).
+For information about individual strategy configuration, see [Strategy Schemas](./24_Strategy_Schemas.md). For information about frame (timeframe) configuration used by walkers, see [Frame Schemas](./26_Frame_Schemas.md). For information about executing walkers, see [Walker API](./19_Walker_API.md).
 
 ## Schema Structure
 

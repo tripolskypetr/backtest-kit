@@ -5,7 +5,7 @@
 
 This guide explains how to write custom risk validation functions for portfolio-level risk management in backtest-kit. Custom validations allow you to implement complex risk logic that evaluates signals before they are opened, providing fine-grained control over position acceptance based on portfolio state, market conditions, and custom business rules.
 
-For information about risk schema structure and registration, see [Risk Schemas](#5.4). For the overall risk validation flow and position tracking, see [Risk Validation](#12.2) and [Position Tracking](#12.3).
+For information about risk schema structure and registration, see [Risk Schemas](./27_Risk_Schemas.md). For the overall risk validation flow and position tracking, see [Risk Validation](./65_Risk_Validation.md) and [Position Tracking](./66_Position_Tracking.md).
 
 **Sources:** [src/interfaces/Risk.interface.ts:62-85]()
 

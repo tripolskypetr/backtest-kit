@@ -5,7 +5,7 @@
 
 This page explains how to register components in backtest-kit using the `add*` family of functions. Component registration is the first step in using the framework—you define strategies, exchanges, frames, risk profiles, sizing configurations, and walkers before running backtests or live trading.
 
-For information about the structure and properties of each component type, see [Component Types](#5). For details on how registered components are instantiated during execution, see [Connection Services](#7.2).
+For information about the structure and properties of each component type, see [Component Types](./23_Component_Types.md). For details on how registered components are instantiated during execution, see [Connection Services](./38_Connection_Services.md).
 
 ---
 
@@ -159,7 +159,7 @@ Registers a position sizing configuration (fixed-percentage, kelly-criterion, or
 **Parameters:**
 - `sizingName`: Unique identifier (string)
 - `method`: Sizing method discriminator
-- Method-specific parameters (see [Sizing Schemas](#5.5))
+- Method-specific parameters (see [Sizing Schemas](./28_Sizing_Schemas.md))
 
 **Example:**
 ```typescript
@@ -350,7 +350,7 @@ Key points:
 2. **Ready phase**: No client instances created, schemas in memory
 3. **Execution phase** (user calls `Backtest.run` or `Live.run`): Connection services retrieve schemas and create memoized client instances
 
-For details on client instantiation, see [Connection Services](#7.2). For execution orchestration, see [Execution Modes](#2.1).
+For details on client instantiation, see [Connection Services](./38_Connection_Services.md). For execution orchestration, see [Execution Modes](./06_Execution_Modes.md).
 
 **Sources:** [src/function/add.ts:1-342](), [types.d.ts:186-633]()
 

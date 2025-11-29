@@ -3,7 +3,7 @@
 
 This page documents the public-facing Live Trading API provided by the `Live` class. This API enables production-ready live trading execution with infinite async generators, crash-safe state persistence, and real-time signal monitoring. The API is designed for production use with automatic state recovery after process crashes.
 
-For backtesting operations, see [Backtest API](#3.2). For detailed implementation of crash recovery mechanisms, see [Crash Recovery](#8.2). For signal persistence internals, see [Signal Persistence](#6.3). For the complete live execution flow including service orchestration, see [Live Execution Flow](#8.1).
+For backtesting operations, see [Backtest API](./17_Backtest_API.md). For detailed implementation of crash recovery mechanisms, see [Crash Recovery](./56_Crash_Recovery.md). For signal persistence internals, see [Signal Persistence](./48_Signal_Persistence.md). For the complete live execution flow including service orchestration, see [Live Execution Flow](./55_Live_Execution_Flow.md).
 
 **Sources:** [src/classes/Live.ts:1-181](), [types.d.ts:534-561](), [README.md:139-194]()
 

@@ -3,7 +3,7 @@
 
 Frame schemas define backtesting periods by specifying start dates, end dates, and intervals for timestamp generation. They control the temporal boundaries and granularity of historical simulation, enabling strategies to iterate through specific time windows with configurable step sizes.
 
-For information about backtesting execution flow using frames, see [Backtest Execution Flow](#9.1). For frame timeframe generation implementation details, see [Timeframe Generation](#9.2).
+For information about backtesting execution flow using frames, see [Backtest Execution Flow](./51_Backtest_Execution_Flow.md). For frame timeframe generation implementation details, see [Timeframe Generation](./52_Timeframe_Generation.md).
 
 ---
 

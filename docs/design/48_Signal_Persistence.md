@@ -3,7 +3,7 @@
 
 Signal persistence ensures crash-safe operation during live trading by atomically writing signal state to disk before yielding results. This prevents duplicate signals and enables seamless recovery after process restarts. In backtest mode, persistence is disabled for performance.
 
-For information about signal states and transitions, see [Signal States](#6.1). For custom storage backends (Redis, PostgreSQL), see [Custom Persistence Backends](#11.2).
+For information about signal states and transitions, see [Signal States](./45_Signal_States.md). For custom storage backends (Redis, PostgreSQL), see [Custom Persistence Backends](./81_Custom_Persistence_Backends.md).
 
 ## Overview
 
@@ -213,7 +213,7 @@ class RedisPersistAdapter {
 usePersistSignalAdapter(new RedisPersistAdapter());
 ```
 
-For detailed information on implementing custom persistence backends, see [Custom Persistence Backends](#11.2).
+For detailed information on implementing custom persistence backends, see [Custom Persistence Backends](./81_Custom_Persistence_Backends.md).
 
 **Sources:** [types.d.ts:895-976]()
 

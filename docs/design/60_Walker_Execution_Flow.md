@@ -5,7 +5,7 @@
 
 This page documents the execution flow of Walker mode, which orchestrates multiple backtest runs to compare strategies and select the best performer. Walker iterates through a list of strategies, runs each through the same backtest configuration, collects performance metrics, and ranks results.
 
-For information about individual backtest execution, see [Backtest Execution Flow](#9.1). For details on how strategies are compared and metrics calculated, see [Strategy Comparison](#11.2). For report generation, see [Walker Reports](#11.3).
+For information about individual backtest execution, see [Backtest Execution Flow](./51_Backtest_Execution_Flow.md). For details on how strategies are compared and metrics calculated, see [Strategy Comparison](./61_Strategy_Comparison.md). For report generation, see [Walker Reports](./62_Walker_Reports.md).
 
 ---
 

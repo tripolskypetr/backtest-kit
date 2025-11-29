@@ -3,7 +3,7 @@
 
 **Purpose**: This guide provides a minimal working example to get you started with backtest-kit. You will learn how to register components (exchange, strategy, frame), run a backtest, and listen to events. After completing this guide, you will have a functioning backtest that generates trading signals and calculates performance metrics.
 
-**Scope**: This guide covers only the essential steps to run your first backtest. For detailed explanations of execution modes, see [Execution Modes](#2.1). For signal lifecycle details, see [Signal Lifecycle Overview](#2.2). For component registration details, see [Component Registration](#2.3).
+**Scope**: This guide covers only the essential steps to run your first backtest. For detailed explanations of execution modes, see [Execution Modes](./06_Execution_Modes.md). For signal lifecycle details, see [Signal Lifecycle Overview](./07_Signal_Lifecycle_Overview.md). For component registration details, see [Component Registration](./08_Component_Registration.md).
 
 ## Minimal Working Example
 
@@ -397,7 +397,7 @@ const price = await getAveragePrice(symbol);  // No context params needed!
 - Time-travel: Same code works for backtest (historical) and live (real-time)
 - Automatic routing: Framework resolves correct component instances
 
-For details, see [Context Propagation](#3.3).
+For details, see [Context Propagation](./12_Context_Propagation.md).
 
 **Sources**: [types.d.ts:100-143](), [types.d.ts:362-403](), [README.md:29-30]()
 
@@ -405,12 +405,12 @@ For details, see [Context Propagation](#3.3).
 
 Now that you have a working backtest, explore these topics:
 
-1. **Execution Modes**: Learn about [Backtest](#2.1), [Live Trading](#2.1), and [Walker](#2.1) modes
-2. **Signal Lifecycle**: Deep dive into [signal states and transitions](#2.2)
-3. **Risk Management**: Add portfolio-level controls with [Risk Schemas](#5.4)
-4. **Position Sizing**: Calculate optimal position sizes with [Sizing Schemas](#5.5)
-5. **Live Trading**: Deploy strategies with [Live Trading API](#4.4) and crash-safe persistence
-6. **Strategy Comparison**: Compare multiple strategies with [Walker API](#4.5)
+1. **Execution Modes**: Learn about [Backtest](./50_Backtesting.md), [Live Trading](./54_Live_Trading.md), and [Walker](./59_Walker_Mode.md) modes
+2. **Signal Lifecycle**: Deep dive into [signal states and transitions](./44_Signal_Lifecycle.md)
+3. **Risk Management**: Add portfolio-level controls with [Risk Schemas](./27_Risk_Schemas.md)
+4. **Position Sizing**: Calculate optimal position sizes with [Sizing Schemas](./28_Sizing_Schemas.md)
+5. **Live Trading**: Deploy strategies with [Live Trading API](./18_Live_Trading_API.md) and crash-safe persistence
+6. **Strategy Comparison**: Compare multiple strategies with [Walker API](./19_Walker_API.md)
 
 **Complete Example Projects**: See [README.md:84-257]() for full working examples including CCXT integration, database sources, and advanced features.
 
