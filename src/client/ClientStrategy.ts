@@ -23,7 +23,7 @@ import {
 } from "../interfaces/Strategy.interface";
 import toProfitLossDto from "../helpers/toProfitLossDto";
 import { ICandleData } from "../interfaces/Exchange.interface";
-import { PersistSignalAdaper } from "../classes/Persist";
+import { PersistSignalAdapter } from "../classes/Persist";
 import backtest from "../lib";
 import { errorEmitter } from "../config/emitters";
 import { GLOBAL_CONFIG } from "../config/params";
@@ -300,7 +300,7 @@ const WAIT_FOR_INIT_FN = async (self: ClientStrategy) => {
   if (self.params.execution.context.backtest) {
     return;
   }
-  const pendingSignal = await PersistSignalAdaper.readSignalData(
+  const pendingSignal = await PersistSignalAdapter.readSignalData(
     self.params.strategyName,
     self.params.execution.context.symbol
   );
@@ -1268,7 +1268,7 @@ export class ClientStrategy implements IStrategy {
     if (this.params.execution.context.backtest) {
       return;
     }
-    await PersistSignalAdaper.writeSignalData(
+    await PersistSignalAdapter.writeSignalData(
       this._pendingSignal,
       this.params.strategyName,
       this.params.execution.context.symbol

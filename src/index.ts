@@ -110,7 +110,7 @@ export {
   TPersistBase,
   IPersistBase,
   TPersistBaseCtor,
-  PersistSignalAdaper,
+  PersistSignalAdapter,
   RiskData,
   PersistRiskAdapter,
 } from "./classes/Persist";

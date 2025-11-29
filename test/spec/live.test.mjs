@@ -4,7 +4,7 @@ import {
   addExchange,
   addStrategy,
   Live,
-  PersistSignalAdaper,
+  PersistSignalAdapter,
 } from "../../build/index.mjs";
 
 import getMockCandles from "../mock/getMockCandles.mjs";
@@ -32,7 +32,7 @@ test("Live.getData returns LiveStatistics structure", async ({ pass, fail }) => 
     _isScheduled: false,
   };
 
-  PersistSignalAdaper.usePersistSignalAdapter(class {
+  PersistSignalAdapter.usePersistSignalAdapter(class {
     async waitForInit() {}
     async readValue() {
       return mockSignal;
@@ -114,7 +114,7 @@ test("Live.getData calculates all statistical metrics", async ({ pass, fail }) =
     _isScheduled: false,
   };
 
-  PersistSignalAdaper.usePersistSignalAdapter(class {
+  PersistSignalAdapter.usePersistSignalAdapter(class {
     async waitForInit() {}
     async readValue() {
       return mockSignal;

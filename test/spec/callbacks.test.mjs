@@ -6,7 +6,7 @@ import {
   addStrategy,
   Backtest,
   Live,
-  PersistSignalAdaper,
+  PersistSignalAdapter,
   getAveragePrice,
 } from "../../build/index.mjs";
 
@@ -412,7 +412,7 @@ test("onActive callback is called in live mode when signal is active", async ({ 
 
   const [awaiter, { resolve }] = createAwaiter();
 
-  PersistSignalAdaper.usePersistSignalAdapter(class {
+  PersistSignalAdapter.usePersistSignalAdapter(class {
     async waitForInit() {
     }
     async readValue() {

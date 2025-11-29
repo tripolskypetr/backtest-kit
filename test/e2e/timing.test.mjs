@@ -8,7 +8,7 @@ import {
   listenSignalBacktest,
   listenDoneBacktest,
   getAveragePrice,
-  PersistSignalAdaper,
+  PersistSignalAdapter,
   Live,
 } from "../../build/index.mjs";
 
@@ -320,7 +320,7 @@ test("Restored pending signal preserves 24h timing from pendingAt", async ({ pas
   const twelveHoursAgo = now - 12 * 60 * 60 * 1000;
   const twentyFourHoursAgo = now - 24 * 60 * 60 * 1000;
 
-  PersistSignalAdaper.usePersistSignalAdapter(class {
+  PersistSignalAdapter.usePersistSignalAdapter(class {
     async waitForInit() {
     }
     async readValue() {

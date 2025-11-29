@@ -1,9 +1,9 @@
 import { sleep } from "functools-kit";
-import { setLogger, setConfig, PersistSignalAdaper, PersistRiskAdapter } from "../../build/index.mjs";
+import { setLogger, setConfig, PersistSignalAdapter, PersistRiskAdapter } from "../../build/index.mjs";
 
 // setLogger(console)
 
-PersistSignalAdaper.usePersistSignalAdapter(class {
+PersistSignalAdapter.usePersistSignalAdapter(class {
   async waitForInit() {
     void 0;
   }

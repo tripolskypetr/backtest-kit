@@ -516,7 +516,7 @@ export class PersistSignalUtils {
    *   async readValue(id) { return JSON.parse(await redis.get(id)); }
    *   async writeValue(id, entity) { await redis.set(id, JSON.stringify(entity)); }
    * }
-   * PersistSignalAdaper.usePersistSignalAdapter(RedisPersist);
+   * PersistSignalAdapter.usePersistSignalAdapter(RedisPersist);
    * ```
    */
   public usePersistSignalAdapter(
@@ -588,16 +588,16 @@ export class PersistSignalUtils {
  * @example
  * ```typescript
  * // Custom adapter
- * PersistSignalAdaper.usePersistSignalAdapter(RedisPersist);
+ * PersistSignalAdapter.usePersistSignalAdapter(RedisPersist);
  *
  * // Read signal
- * const signal = await PersistSignalAdaper.readSignalData("my-strategy", "BTCUSDT");
+ * const signal = await PersistSignalAdapter.readSignalData("my-strategy", "BTCUSDT");
  *
  * // Write signal
- * await PersistSignalAdaper.writeSignalData(signal, "my-strategy", "BTCUSDT");
+ * await PersistSignalAdapter.writeSignalData(signal, "my-strategy", "BTCUSDT");
  * ```
  */
-export const PersistSignalAdaper = new PersistSignalUtils();
+export const PersistSignalAdapter = new PersistSignalUtils();
 
 /**
  * Type for persisted risk positions data.
