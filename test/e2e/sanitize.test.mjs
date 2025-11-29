@@ -7,6 +7,7 @@ import {
   Backtest,
   listenSignalBacktest,
   listenDoneBacktest,
+  listenError,
   getAveragePrice,
   setConfig,
 } from "../../build/index.mjs";
@@ -657,4 +658,137 @@ test("SANITIZE: Infinity prices rejected - prevents overflow", async ({ pass, fa
       fail(`Unexpected error: ${errMsg}`);
     }
   }
+});
+
+/**
+ * КРИТИЧЕСКИЙ ТЕСТ #7: Incomplete candles from Binance rejected (anomalous prices)
+ *
+ * Проблема:
+ * - Binance API иногда возвращает незавершенные свечи с аномально низкими ценами
+ * - Например: вместо open=42000 приходит open=0.1 (в 420,000 раз меньше!)
+ * - Или volume=0 когда должен быть volume=100
+ * - Такие свечи приводят к ложным сигналам и неправильным расчетам
+ *
+ * Защита: VALIDATE_NO_INCOMPLETE_CANDLES_FN проверяет аномальные цены
+ * - Вычисляет referencePrice (медиана или среднее)
+ * - Отклоняет свечи с ценами < referencePrice / 1000
+ */
+test("SANITIZE: Incomplete Binance candles rejected (anomalous prices) - prevents fake signals", async ({ pass, fail }) => {
+
+  let errorCaught = null;
+
+  addExchange({
+    exchangeName: "binance-sanitize-incomplete-candles",
+    getCandles: async (_symbol, _interval, since, limit) => {
+      const candles = [];
+      const intervalMs = 60000;
+
+      for (let i = 0; i < limit; i++) {
+        const timestamp = since.getTime() + i * intervalMs;
+
+        if (i === 3) {
+          // 4-я свеча: НЕЗАВЕРШЕННАЯ (incomplete) - аномально низкая цена
+          // Нормальная цена: 42000
+          // Незавершенная: 0.1 (в 420,000 раз меньше!)
+          // Это реальный баг Binance API
+          candles.push({
+            timestamp,
+            open: 0.1,      // АНОМАЛИЯ! Должно быть ~42000
+            high: 0.12,     // АНОМАЛИЯ!
+            low: 0.08,      // АНОМАЛИЯ!
+            close: 0.1,     // АНОМАЛИЯ!
+            volume: 0,      // Возможно нулевой объем
+          });
+        } else {
+          // Остальные свечи: нормальные цены
+          candles.push({
+            timestamp,
+            open: 42000,
+            high: 42100,
+            low: 41900,
+            close: 42000,
+            volume: 100,
+          });
+        }
+      }
+
+      return candles;
+    },
+    formatPrice: async (_symbol, price) => price.toFixed(8),
+    formatQuantity: async (_symbol, quantity) => quantity.toFixed(8),
+  });
+
+  let signalGenerated = false;
+
+  addStrategy({
+    strategyName: "test-sanitize-incomplete-candles",
+    interval: "1m",
+    getSignal: async () => {
+      if (signalGenerated) return null;
+      signalGenerated = true;
+
+      const price = await getAveragePrice("BTCUSDT");
+
+      return {
+        position: "long",
+        note: "SANITIZE: incomplete candles test",
+        priceOpen: price,
+        priceTakeProfit: price + 1000,
+        priceStopLoss: price - 1000,
+        minuteEstimatedTime: 60,
+      };
+    },
+  });
+
+  addFrame({
+    frameName: "10m-sanitize-incomplete-candles",
+    interval: "1m",
+    startDate: new Date("2024-01-01T00:00:00Z"),
+    endDate: new Date("2024-01-01T00:10:00Z"),
+  });
+
+  const awaitSubject = new Subject();
+
+  const unsubscribeError = listenError((error) => {
+    errorCaught = error;
+    awaitSubject.next();
+  });
+
+  listenDoneBacktest(() => {
+    awaitSubject.next();
+  });
+
+  Backtest.background("BTCUSDT", {
+    strategyName: "test-sanitize-incomplete-candles",
+    exchangeName: "binance-sanitize-incomplete-candles",
+    frameName: "10m-sanitize-incomplete-candles",
+  });
+
+  await awaitSubject.toPromise();
+  await sleep(1000);
+  unsubscribeError();
+
+  if (!errorCaught) {
+    fail("VALIDATION BUG: Incomplete candles were NOT rejected! VALIDATE_NO_INCOMPLETE_CANDLES_FN should have thrown error!");
+    return;
+  }
+
+  const errMsg = errorCaught.message || String(errorCaught);
+
+  // Ожидаем ошибку от VALIDATE_NO_INCOMPLETE_CANDLES_FN
+  if (errMsg.includes("VALIDATE_NO_INCOMPLETE_CANDLES_FN") ||
+      errMsg.includes("anomalously low price") ||
+      errMsg.includes("reference") ||
+      errMsg.includes("threshold")) {
+    pass(`DATA SAFE: Incomplete Binance candles rejected! Error: "${errMsg.substring(0, 120)}"`);
+    return;
+  }
+
+  // Любая другая ошибка связанная с валидацией свечей тоже приемлема
+  if (errMsg.includes("candle") || errMsg.includes("price") || errMsg.includes("invalid")) {
+    pass(`DATA SAFE: Incomplete candles rejected: ${errMsg.substring(0, 100)}`);
+    return;
+  }
+
+  fail(`Unexpected error (expected incomplete candle validation error): ${errMsg}`);
 });
