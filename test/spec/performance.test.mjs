@@ -7,6 +7,7 @@ import {
   Backtest,
   Performance,
   listenPerformance,
+  getAveragePrice,
 } from "../../build/index.mjs";
 
 import getMockCandles from "../mock/getMockCandles.mjs";
@@ -32,12 +33,13 @@ test("listenPerformance receives performance events", async ({ pass, fail }) => 
     strategyName: "test-strategy-perf-events",
     interval: "1m",
     getSignal: async () => {
+      const price = await getAveragePrice("BTCUSDT");
       return {
         position: "long",
         note: "performance test",
-        priceOpen: 42000,
-        priceTakeProfit: 43000,
-        priceStopLoss: 41000,
+        priceOpen: price,
+        priceTakeProfit: price + 1_000,
+        priceStopLoss: price - 1_000,
         minuteEstimatedTime: 60,
       };
     },
@@ -102,12 +104,13 @@ test("Performance events have required fields", async ({ pass, fail }) => {
     strategyName: "test-strategy-perf-fields",
     interval: "1m",
     getSignal: async () => {
+      const price = await getAveragePrice("BTCUSDT");
       return {
         position: "long",
         note: "performance fields test",
-        priceOpen: 42000,
-        priceTakeProfit: 43000,
-        priceStopLoss: 41000,
+        priceOpen: price,
+        priceTakeProfit: price + 1_000,
+        priceStopLoss: price - 1_000,
         minuteEstimatedTime: 60,
       };
     },
@@ -180,12 +183,13 @@ test("Performance.getData returns statistics", async ({ pass, fail }) => {
     strategyName: "test-strategy-perf-data",
     interval: "1m",
     getSignal: async () => {
+      const price = await getAveragePrice("BTCUSDT");
       return {
         position: "long",
         note: "performance data test",
-        priceOpen: 42000,
-        priceTakeProfit: 43000,
-        priceStopLoss: 41000,
+        priceOpen: price,
+        priceTakeProfit: price + 1_000,
+        priceStopLoss: price - 1_000,
         minuteEstimatedTime: 60,
       };
     },
@@ -243,12 +247,13 @@ test("Performance statistics include metric types", async ({ pass, fail }) => {
     strategyName: "test-strategy-perf-metrics",
     interval: "1m",
     getSignal: async () => {
+      const price = await getAveragePrice("BTCUSDT");
       return {
         position: "long",
         note: "performance metrics test",
-        priceOpen: 42000,
-        priceTakeProfit: 43000,
-        priceStopLoss: 41000,
+        priceOpen: price,
+        priceTakeProfit: price + 1_000,
+        priceStopLoss: price - 1_000,
         minuteEstimatedTime: 60,
       };
     },
@@ -313,12 +318,13 @@ test("Performance.getReport returns markdown string", async ({ pass, fail }) => 
     strategyName: "test-strategy-perf-report",
     interval: "1m",
     getSignal: async () => {
+      const price = await getAveragePrice("BTCUSDT");
       return {
         position: "long",
         note: "performance report test",
-        priceOpen: 42000,
-        priceTakeProfit: 43000,
-        priceStopLoss: 41000,
+        priceOpen: price,
+        priceTakeProfit: price + 1_000,
+        priceStopLoss: price - 1_000,
         minuteEstimatedTime: 60,
       };
     },
@@ -373,12 +379,13 @@ test("Performance.clear clears statistics", async ({ pass, fail }) => {
     strategyName: "test-strategy-perf-clear",
     interval: "1m",
     getSignal: async () => {
+      const price = await getAveragePrice("BTCUSDT");
       return {
         position: "long",
         note: "performance clear test",
-        priceOpen: 42000,
-        priceTakeProfit: 43000,
-        priceStopLoss: 41000,
+        priceOpen: price,
+        priceTakeProfit: price + 1_000,
+        priceStopLoss: price - 1_000,
         minuteEstimatedTime: 60,
       };
     },

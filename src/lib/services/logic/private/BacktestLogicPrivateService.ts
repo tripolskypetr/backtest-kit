@@ -8,7 +8,11 @@ import FrameGlobalService from "../../global/FrameGlobalService";
 import MethodContextService, {
   TMethodContextService,
 } from "../../context/MethodContextService";
-import { progressEmitter, performanceEmitter } from "../../../../config/emitters";
+import {
+  progressEmitter,
+  performanceEmitter,
+} from "../../../../config/emitters";
+import { GLOBAL_CONFIG } from "../../../../config/params";
 
 /**
  * Private service for backtest orchestration using async generators.
@@ -59,7 +63,10 @@ export class BacktestLogicPrivateService {
 
     const backtestStartTime = performance.now();
 
-    const timeframes = await this.frameGlobalService.getTimeframe(symbol);
+    const timeframes = await this.frameGlobalService.getTimeframe(
+      symbol,
+      this.methodContextService.context.frameName
+    );
     const totalFrames = timeframes.length;
 
     let i = 0;
@@ -83,7 +90,99 @@ export class BacktestLogicPrivateService {
 
       const result = await this.strategyGlobalService.tick(symbol, when, true);
 
-      // Если сигнал открыт, вызываем backtest
+      // Если scheduled signal создан - обрабатываем через backtest()
+      if (result.action === "scheduled") {
+        const signalStartTime = performance.now();
+        const signal = result.signal;
+
+        this.loggerService.info(
+          "backtestLogicPrivateService scheduled signal detected",
+          {
+            symbol,
+            signalId: signal.id,
+            priceOpen: signal.priceOpen,
+            minuteEstimatedTime: signal.minuteEstimatedTime,
+          }
+        );
+
+        // Запрашиваем минутные свечи для мониторинга активации/отмены
+        // КРИТИЧНО: запрашиваем CC_SCHEDULE_AWAIT_MINUTES для ожидания активации
+        // + minuteEstimatedTime для работы сигнала ПОСЛЕ активации
+        // +1 потому что when включается как первая свеча (timestamp начинается с when, а не after when)
+        const candlesNeeded = GLOBAL_CONFIG.CC_SCHEDULE_AWAIT_MINUTES + signal.minuteEstimatedTime + 1;
+        const candles = await this.exchangeGlobalService.getNextCandles(
+          symbol,
+          "1m",
+          candlesNeeded,
+          when,
+          true
+        );
+
+        if (!candles.length) {
+          i++;
+          continue;
+        }
+
+        this.loggerService.info(
+          "backtestLogicPrivateService candles fetched for scheduled",
+          {
+            symbol,
+            signalId: signal.id,
+            candlesCount: candles.length,
+            candlesNeeded,
+          }
+        );
+
+        // backtest() сам обработает scheduled signal: найдет активацию/отмену
+        // и если активируется - продолжит с TP/SL мониторингом
+        const backtestResult = await this.strategyGlobalService.backtest(
+          symbol,
+          candles,
+          when,
+          true
+        );
+
+        this.loggerService.info(
+          "backtestLogicPrivateService scheduled signal closed",
+          {
+            symbol,
+            signalId: backtestResult.signal.id,
+            closeTimestamp: backtestResult.closeTimestamp,
+            action: backtestResult.action,
+            closeReason:
+              backtestResult.action === "closed"
+                ? backtestResult.closeReason
+                : undefined,
+          }
+        );
+
+        // Track signal processing duration
+        const signalEndTime = performance.now();
+        const currentTimestamp = Date.now();
+        await performanceEmitter.next({
+          timestamp: currentTimestamp,
+          previousTimestamp: previousEventTimestamp,
+          metricType: "backtest_signal",
+          duration: signalEndTime - signalStartTime,
+          strategyName: this.methodContextService.context.strategyName,
+          exchangeName: this.methodContextService.context.exchangeName,
+          symbol,
+          backtest: true,
+        });
+        previousEventTimestamp = currentTimestamp;
+
+        // Пропускаем timeframes до closeTimestamp
+        while (
+          i < timeframes.length &&
+          timeframes[i].getTime() < backtestResult.closeTimestamp
+        ) {
+          i++;
+        }
+
+        yield backtestResult;
+      }
+
+      // Если обычный сигнал открыт, вызываем backtest
       if (result.action === "opened") {
         const signalStartTime = performance.now();
         const signal = result.signal;
@@ -125,7 +224,6 @@ export class BacktestLogicPrivateService {
           symbol,
           signalId: backtestResult.signal.id,
           closeTimestamp: backtestResult.closeTimestamp,
-          closeReason: backtestResult.closeReason,
         });
 
         // Track signal processing duration

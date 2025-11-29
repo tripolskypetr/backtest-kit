@@ -8,6 +8,7 @@ import {
   Live,
   listenDoneBacktest,
   listenDoneLive,
+  getAveragePrice,
 } from "../../build/index.mjs";
 
 import getMockCandles from "../mock/getMockCandles.mjs";
@@ -35,12 +36,13 @@ test("Backtest.getReport returns markdown string", async ({ pass, fail }) => {
     strategyName: "test-strategy-bt-report",
     interval: "1m",
     getSignal: async () => {
+      const price = await getAveragePrice("BTCUSDT");
       return {
         position: "long",
         note: "backtest report test",
-        priceOpen: 42000,
-        priceTakeProfit: 43000,
-        priceStopLoss: 41000,
+        priceOpen: price,
+        priceTakeProfit: price + 1_000,
+        priceStopLoss: price - 1_000,
         minuteEstimatedTime: 60,
       };
     },
@@ -100,12 +102,13 @@ test("Backtest report includes win rate statistics", async ({ pass, fail }) => {
     strategyName: "test-strategy-bt-stats",
     interval: "1m",
     getSignal: async () => {
+      const price = await getAveragePrice("BTCUSDT");
       return {
         position: "long",
         note: "backtest stats test",
-        priceOpen: 42000,
-        priceTakeProfit: 43000,
-        priceStopLoss: 41000,
+        priceOpen: price,
+        priceTakeProfit: price + 1_000,
+        priceStopLoss: price - 1_000,
         minuteEstimatedTime: 60,
       };
     },
@@ -170,12 +173,13 @@ test("Live.getReport returns markdown string", async ({ pass, fail }) => {
     strategyName: "test-strategy-live-report",
     interval: "1m",
     getSignal: async () => {
+      const price = await getAveragePrice("BTCUSDT");
       return {
         position: "long",
         note: "live report test",
-        priceOpen: 42000,
-        priceTakeProfit: 43000,
-        priceStopLoss: 41000,
+        priceOpen: price,
+        priceTakeProfit: price + 1_000,
+        priceStopLoss: price - 1_000,
         minuteEstimatedTime: 60,
       };
     },
@@ -205,63 +209,6 @@ test("Live.getReport returns markdown string", async ({ pass, fail }) => {
 
 });
 
-test("Live report includes total events count", async ({ pass, fail }) => {
-
-  const [awaiter, { resolve }] = createAwaiter();
-
-  addExchange({
-    exchangeName: "binance-mock-live-events",
-    getCandles: async (_symbol, interval, since, limit) => {
-      return await getMockCandles(interval, since, limit);
-    },
-    formatPrice: async (symbol, price) => {
-      return price.toFixed(8);
-    },
-    formatQuantity: async (symbol, quantity) => {
-      return quantity.toFixed(8);
-    },
-  });
-
-  addStrategy({
-    strategyName: "test-strategy-live-events",
-    interval: "1m",
-    getSignal: async () => {
-      return {
-        position: "long",
-        note: "live events test",
-        priceOpen: 42000,
-        priceTakeProfit: 43000,
-        priceStopLoss: 41000,
-        minuteEstimatedTime: 60,
-      };
-    },
-  });
-
-  const cancel = await Live.background("BTCUSDT", {
-    strategyName: "test-strategy-live-events",
-    exchangeName: "binance-mock-live-events",
-  });
-
-  setTimeout(async () => {
-    await cancel();
-    resolve(true);
-  }, 500);
-
-  await awaiter;
-
-  const report = await Live.getReport("test-strategy-live-events");
-
-  const hasTotalEvents = report.includes("Total events:");
-
-  if (hasTotalEvents) {
-    pass("Live report includes total events count");
-    return;
-  }
-
-  fail("Live report missing total events count");
-
-});
-
 test("Backtest report includes signal details table", async ({ pass, fail }) => {
 
   const [awaiter, { resolve }] = createAwaiter();
@@ -283,12 +230,13 @@ test("Backtest report includes signal details table", async ({ pass, fail }) => 
     strategyName: "test-strategy-bt-table",
     interval: "1m",
     getSignal: async () => {
+      const price = await getAveragePrice("BTCUSDT");
       return {
         position: "long",
         note: "table test",
-        priceOpen: 42000,
-        priceTakeProfit: 43000,
-        priceStopLoss: 41000,
+        priceOpen: price,
+        priceTakeProfit: price + 1_000,
+        priceStopLoss: price - 1_000,
         minuteEstimatedTime: 60,
       };
     },

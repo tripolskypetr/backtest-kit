@@ -7,6 +7,7 @@ import {
   Backtest,
   Live,
   PersistSignalAdaper,
+  getAveragePrice,
 } from "../../build/index.mjs";
 
 import getMockCandles from "../mock/getMockCandles.mjs";
@@ -33,12 +34,13 @@ test("onOpen callback is called when signal opens", async ({ pass, fail }) => {
     strategyName: "test-strategy-onopen",
     interval: "1m",
     getSignal: async () => {
+      const price = await getAveragePrice("BTCUSDT");
       return {
         position: "long",
         note: "onOpen callback test",
-        priceOpen: 42000,
-        priceTakeProfit: 43000,
-        priceStopLoss: 41000,
+        priceOpen: price,
+        priceTakeProfit: price + 1_000,
+        priceStopLoss: price - 1_000,
         minuteEstimatedTime: 60,
       };
     },
@@ -99,12 +101,13 @@ test("onClose callback is called when signal closes", async ({ pass, fail }) => 
     strategyName: "test-strategy-onclose",
     interval: "1m",
     getSignal: async () => {
+      const price = await getAveragePrice("BTCUSDT");
       return {
         position: "long",
         note: "onClose callback test",
-        priceOpen: 42000,
-        priceTakeProfit: 43000,
-        priceStopLoss: 41000,
+        priceOpen: price,
+        priceTakeProfit: price + 1_000,
+        priceStopLoss: price - 1_000,
         minuteEstimatedTime: 60,
       };
     },
@@ -228,12 +231,13 @@ test("callbacks receive backtest=true in backtest mode", async ({ pass, fail }) 
     strategyName: "test-strategy-backtest-mode",
     interval: "1m",
     getSignal: async () => {
+      const price = await getAveragePrice("BTCUSDT");
       return {
         position: "long",
         note: "backtest mode test",
-        priceOpen: 42000,
-        priceTakeProfit: 43000,
-        priceStopLoss: 41000,
+        priceOpen: price,
+        priceTakeProfit: price + 1_000,
+        priceStopLoss: price - 1_000,
         minuteEstimatedTime: 60,
       };
     },
@@ -272,15 +276,6 @@ test("callbacks receive correct signal object", async ({ pass, fail }) => {
 
   const [awaiter, { resolve }] = createAwaiter();
 
-  const testSignal = {
-    position: "long",
-    note: "signal object test",
-    priceOpen: 42000,
-    priceTakeProfit: 43000,
-    priceStopLoss: 41000,
-    minuteEstimatedTime: 60,
-  };
-
   addExchange({
     exchangeName: "binance-mock-signal-obj",
     getCandles: async (_symbol, interval, since, limit) => {
@@ -294,10 +289,21 @@ test("callbacks receive correct signal object", async ({ pass, fail }) => {
     },
   });
 
+  let testSignal;
+
   addStrategy({
     strategyName: "test-strategy-signal-obj",
     interval: "1m",
     getSignal: async () => {
+      const price = await getAveragePrice("BTCUSDT");
+      testSignal = {
+        position: "long",
+        note: "signal object test",
+        priceOpen: price,
+        priceTakeProfit: price + 1_000,
+        priceStopLoss: price - 1_000,
+        minuteEstimatedTime: 60,
+      };
       return testSignal;
     },
     callbacks: {
@@ -359,12 +365,13 @@ test("onTick callback is called when signal closes in backtest", async ({ pass, 
     strategyName: "test-strategy-ontick",
     interval: "1m",
     getSignal: async () => {
+      const price = await getAveragePrice("BTCUSDT");
       return {
         position: "long",
         note: "onTick callback test",
-        priceOpen: 42000,
-        priceTakeProfit: 43000,
-        priceStopLoss: 41000,
+        priceOpen: price,
+        priceTakeProfit: price + 1_000,
+        priceStopLoss: price - 1_000,
         minuteEstimatedTime: 60,
       };
     },
@@ -405,25 +412,24 @@ test("onActive callback is called in live mode when signal is active", async ({ 
 
   const [awaiter, { resolve }] = createAwaiter();
 
-  const mockSignal = {
-    id: "mock-active-signal-id",
-    position: "long",
-    note: "onActive live test",
-    priceOpen: 42000,
-    priceTakeProfit: 50000,
-    priceStopLoss: 41000,
-    minuteEstimatedTime: 120,
-    exchangeName: "binance-mock-live-active",
-    strategyName: "test-strategy-live-active",
-    timestamp: Date.now(),
-    symbol: "BTCUSDT",
-  };
-
   PersistSignalAdaper.usePersistSignalAdapter(class {
     async waitForInit() {
     }
     async readValue() {
-      return mockSignal;
+      const price = 42150.5;
+      return {
+        id: "mock-active-signal-id",
+        position: "long",
+        note: "onActive live test",
+        priceOpen: price,
+        priceTakeProfit: price + 8_000,
+        priceStopLoss: price - 1_000,
+        minuteEstimatedTime: 120,
+        exchangeName: "binance-mock-live-active",
+        strategyName: "test-strategy-live-active",
+        timestamp: Date.now(),
+        symbol: "BTCUSDT",
+      };
     }
     async hasValue() {
       return true;

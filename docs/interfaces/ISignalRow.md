@@ -42,13 +42,21 @@ strategyName: string
 
 Unique strategy identifier for execution
 
-### timestamp
+### scheduledAt
 
 ```ts
-timestamp: number
+scheduledAt: number
 ```
 
-Signal creation timestamp in milliseconds
+Signal creation timestamp in milliseconds (when signal was first created/scheduled)
+
+### pendingAt
+
+```ts
+pendingAt: number
+```
+
+Pending timestamp in milliseconds (when position became pending/active at priceOpen)
 
 ### symbol
 
@@ -57,3 +65,11 @@ symbol: string
 ```
 
 Trading pair symbol (e.g., "BTCUSDT")
+
+### _isScheduled
+
+```ts
+_isScheduled: boolean
+```
+
+Internal runtime marker for scheduled signals

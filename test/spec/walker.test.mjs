@@ -10,6 +10,7 @@ import {
   listenWalkerOnce,
   listenWalkerComplete,
   emitters,
+  getAveragePrice,
 } from "../../build/index.mjs";
 
 import getMockCandles from "../mock/getMockCandles.mjs";
@@ -36,12 +37,13 @@ test("listenWalker receives progress events for each strategy", async ({ pass, f
     strategyName: "test-strategy-walker-1",
     interval: "1m",
     getSignal: async () => {
+      const price = await getAveragePrice("BTCUSDT");
       return {
         position: "long",
         note: "walker test 1",
-        priceOpen: 42000,
-        priceTakeProfit: 43000,
-        priceStopLoss: 41000,
+        priceOpen: price,
+        priceTakeProfit: price + 1_000,
+        priceStopLoss: price - 1_000,
         minuteEstimatedTime: 60,
       };
     },
@@ -51,12 +53,13 @@ test("listenWalker receives progress events for each strategy", async ({ pass, f
     strategyName: "test-strategy-walker-2",
     interval: "1m",
     getSignal: async () => {
+      const price = await getAveragePrice("BTCUSDT");
       return {
         position: "long",
         note: "walker test 2",
-        priceOpen: 42000,
-        priceTakeProfit: 44000,
-        priceStopLoss: 41000,
+        priceOpen: price,
+        priceTakeProfit: price + 2_000,
+        priceStopLoss: price - 1_000,
         minuteEstimatedTime: 60,
       };
     },
@@ -123,12 +126,13 @@ test("listenWalkerOnce triggers once with filter", async ({ pass, fail }) => {
     strategyName: "test-strategy-walker-once-1",
     interval: "1m",
     getSignal: async () => {
+      const price = await getAveragePrice("BTCUSDT");
       return {
         position: "long",
         note: "walker once test 1",
-        priceOpen: 42000,
-        priceTakeProfit: 43000,
-        priceStopLoss: 41000,
+        priceOpen: price,
+        priceTakeProfit: price + 1_000,
+        priceStopLoss: price - 1_000,
         minuteEstimatedTime: 60,
       };
     },
@@ -138,12 +142,13 @@ test("listenWalkerOnce triggers once with filter", async ({ pass, fail }) => {
     strategyName: "test-strategy-walker-once-2",
     interval: "1m",
     getSignal: async () => {
+      const price = await getAveragePrice("BTCUSDT");
       return {
         position: "long",
         note: "walker once test 2",
-        priceOpen: 42000,
-        priceTakeProfit: 44000,
-        priceStopLoss: 41000,
+        priceOpen: price,
+        priceTakeProfit: price + 2_000,
+        priceStopLoss: price - 1_000,
         minuteEstimatedTime: 60,
       };
     },
@@ -208,12 +213,13 @@ test("listenWalkerComplete receives final results", async ({ pass, fail }) => {
     strategyName: "test-strategy-walker-complete-1",
     interval: "1m",
     getSignal: async () => {
+      const price = await getAveragePrice("BTCUSDT");
       return {
         position: "long",
         note: "walker complete test 1",
-        priceOpen: 42000,
-        priceTakeProfit: 43000,
-        priceStopLoss: 41000,
+        priceOpen: price,
+        priceTakeProfit: price + 1_000,
+        priceStopLoss: price - 1_000,
         minuteEstimatedTime: 60,
       };
     },
@@ -223,12 +229,13 @@ test("listenWalkerComplete receives final results", async ({ pass, fail }) => {
     strategyName: "test-strategy-walker-complete-2",
     interval: "1m",
     getSignal: async () => {
+      const price = await getAveragePrice("BTCUSDT");
       return {
         position: "long",
         note: "walker complete test 2",
-        priceOpen: 42000,
-        priceTakeProfit: 44000,
-        priceStopLoss: 41000,
+        priceOpen: price,
+        priceTakeProfit: price + 2_000,
+        priceStopLoss: price - 1_000,
         minuteEstimatedTime: 60,
       };
     },
@@ -304,12 +311,13 @@ test("Walker progress events include strategy stats", async ({ pass, fail }) => 
     strategyName: "test-strategy-walker-stats-1",
     interval: "1m",
     getSignal: async () => {
+      const price = await getAveragePrice("BTCUSDT");
       return {
         position: "long",
         note: "walker stats test",
-        priceOpen: 42000,
-        priceTakeProfit: 43000,
-        priceStopLoss: 41000,
+        priceOpen: price,
+        priceTakeProfit: price + 1_000,
+        priceStopLoss: price - 1_000,
         minuteEstimatedTime: 60,
       };
     },
@@ -384,12 +392,13 @@ test("Walker callbacks are called in correct order", async ({ pass, fail }) => {
     strategyName: "test-strategy-walker-cb-1",
     interval: "1m",
     getSignal: async () => {
+      const price = await getAveragePrice("BTCUSDT");
       return {
         position: "long",
         note: "walker callback test 1",
-        priceOpen: 42000,
-        priceTakeProfit: 43000,
-        priceStopLoss: 41000,
+        priceOpen: price,
+        priceTakeProfit: price + 1_000,
+        priceStopLoss: price - 1_000,
         minuteEstimatedTime: 60,
       };
     },
@@ -399,12 +408,13 @@ test("Walker callbacks are called in correct order", async ({ pass, fail }) => {
     strategyName: "test-strategy-walker-cb-2",
     interval: "1m",
     getSignal: async () => {
+      const price = await getAveragePrice("BTCUSDT");
       return {
         position: "long",
         note: "walker callback test 2",
-        priceOpen: 42000,
-        priceTakeProfit: 44000,
-        priceStopLoss: 41000,
+        priceOpen: price,
+        priceTakeProfit: price + 2_000,
+        priceStopLoss: price - 1_000,
         minuteEstimatedTime: 60,
       };
     },
@@ -484,12 +494,13 @@ test("Walker.getData returns accumulated results", async ({ pass, fail }) => {
     strategyName: "test-strategy-walker-getdata-1",
     interval: "1m",
     getSignal: async () => {
+      const price = await getAveragePrice("BTCUSDT");
       return {
         position: "long",
         note: "walker getData test 1",
-        priceOpen: 42000,
-        priceTakeProfit: 43000,
-        priceStopLoss: 41000,
+        priceOpen: price,
+        priceTakeProfit: price + 1_000,
+        priceStopLoss: price - 1_000,
         minuteEstimatedTime: 60,
       };
     },
@@ -499,12 +510,13 @@ test("Walker.getData returns accumulated results", async ({ pass, fail }) => {
     strategyName: "test-strategy-walker-getdata-2",
     interval: "1m",
     getSignal: async () => {
+      const price = await getAveragePrice("BTCUSDT");
       return {
         position: "long",
         note: "walker getData test 2",
-        priceOpen: 42000,
-        priceTakeProfit: 44000,
-        priceStopLoss: 41000,
+        priceOpen: price,
+        priceTakeProfit: price + 2_000,
+        priceStopLoss: price - 1_000,
         minuteEstimatedTime: 60,
       };
     },
@@ -584,12 +596,13 @@ test("Walker tracks best strategy correctly", async ({ pass, fail }) => {
     strategyName: "test-strategy-walker-best-1",
     interval: "1m",
     getSignal: async () => {
+      const price = await getAveragePrice("BTCUSDT");
       return {
         position: "long",
         note: "walker best test 1",
-        priceOpen: 42000,
-        priceTakeProfit: 43000,
-        priceStopLoss: 41000,
+        priceOpen: price,
+        priceTakeProfit: price + 1_000,
+        priceStopLoss: price - 1_000,
         minuteEstimatedTime: 60,
       };
     },
@@ -599,12 +612,13 @@ test("Walker tracks best strategy correctly", async ({ pass, fail }) => {
     strategyName: "test-strategy-walker-best-2",
     interval: "1m",
     getSignal: async () => {
+      const price = await getAveragePrice("BTCUSDT");
       return {
         position: "long",
         note: "walker best test 2",
-        priceOpen: 42000,
-        priceTakeProfit: 44000,
-        priceStopLoss: 41000,
+        priceOpen: price,
+        priceTakeProfit: price + 2_000,
+        priceStopLoss: price - 1_000,
         minuteEstimatedTime: 60,
       };
     },
@@ -695,12 +709,13 @@ test("Walker.getReport generates markdown report", async ({ pass, fail }) => {
     strategyName: "test-strategy-walker-report-1",
     interval: "1m",
     getSignal: async () => {
+      const price = await getAveragePrice("BTCUSDT");
       return {
         position: "long",
         note: "walker report test",
-        priceOpen: 42000,
-        priceTakeProfit: 43000,
-        priceStopLoss: 41000,
+        priceOpen: price,
+        priceTakeProfit: price + 1_000,
+        priceStopLoss: price - 1_000,
         minuteEstimatedTime: 60,
       };
     },
@@ -777,12 +792,13 @@ test("doneWalkerSubject.toPromise() resolves after Walker.background", async ({ 
     strategyName: "test-strategy-walker-done-promise-1",
     interval: "1m",
     getSignal: async () => {
+      const price = await getAveragePrice("BTCUSDT");
       return {
         position: "long",
         note: "walker done promise test",
-        priceOpen: 42000,
-        priceTakeProfit: 43000,
-        priceStopLoss: 41000,
+        priceOpen: price,
+        priceTakeProfit: price + 1_000,
+        priceStopLoss: price - 1_000,
         minuteEstimatedTime: 60,
       };
     },

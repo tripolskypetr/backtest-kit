@@ -1,4 +1,4 @@
-export { setLogger } from "./function/setup";
+export { setLogger, setConfig } from "./function/setup";
 export { addExchange, addStrategy, addFrame, addWalker, addSizing, addRisk } from "./function/add";
 export { listExchanges, listStrategies, listFrames, listWalkers, listSizings, listRisks } from "./function/list";
 export {
@@ -41,12 +41,15 @@ export {
   SignalInterval,
   ISignalDto,
   ISignalRow,
+  IScheduledSignalRow,
   IStrategySchema,
   IStrategyTickResult,
   IStrategyTickResultActive,
   IStrategyTickResultClosed,
   IStrategyTickResultIdle,
   IStrategyTickResultOpened,
+  IStrategyTickResultScheduled,
+  IStrategyTickResultCancelled,
   IStrategyPnL,
 } from "./interfaces/Strategy.interface";
 
@@ -93,6 +96,7 @@ export { PerformanceContract, PerformanceMetricType } from "./contract/Performan
 
 export type { BacktestStatistics } from "./lib/services/markdown/BacktestMarkdownService";
 export type { LiveStatistics } from "./lib/services/markdown/LiveMarkdownService";
+export type { ScheduleStatistics } from "./lib/services/markdown/ScheduleMarkdownService";
 export type { PerformanceStatistics } from "./lib/services/markdown/PerformanceMarkdownService";
 export type { WalkerStatistics } from "./lib/services/markdown/WalkerMarkdownService";
 
@@ -113,11 +117,14 @@ export {
 
 export { Backtest } from "./classes/Backtest";
 export { Live } from "./classes/Live";
+export { Schedule } from "./classes/Schedule";
 export { Performance } from "./classes/Performance";
 export { Walker } from "./classes/Walker";
 export { Heat } from "./classes/Heat";
 export { PositionSize } from "./classes/PositionSize";
 
 export * as emitters from "./config/emitters";
+
+export { type GlobalConfig } from "./config/params";
 
 export { backtest as lib } from "./lib";

@@ -2,9 +2,20 @@ import { inject } from "../../core/di";
 import LoggerService from "../base/LoggerService";
 import TYPES from "../../core/types";
 import ExecutionContextService from "../context/ExecutionContextService";
-import { IStrategyBacktestResult, IStrategyTickResult, StrategyName } from "../../../interfaces/Strategy.interface";
+import {
+  IStrategyBacktestResult,
+  IStrategyTickResult,
+  StrategyName,
+} from "../../../interfaces/Strategy.interface";
 import StrategyConnectionService from "../connection/StrategyConnectionService";
 import { ICandleData } from "../../../interfaces/Exchange.interface";
+import { memoize, singleshot } from "functools-kit";
+import StrategySchemaService from "../schema/StrategySchemaService";
+import RiskValidationService from "../validation/RiskValidationService";
+import StrategyValidationService from "../validation/StrategyValidationService";
+import { TMethodContextService } from "../context/MethodContextService";
+
+const METHOD_NAME_VALIDATE = "strategyGlobalService validate";
 
 /**
  * Global service for strategy operations with execution context injection.
@@ -18,6 +29,42 @@ export class StrategyGlobalService {
   private readonly loggerService = inject<LoggerService>(TYPES.loggerService);
   private readonly strategyConnectionService =
     inject<StrategyConnectionService>(TYPES.strategyConnectionService);
+  private readonly strategySchemaService = inject<StrategySchemaService>(
+    TYPES.strategySchemaService
+  );
+  private readonly riskValidationService = inject<RiskValidationService>(
+    TYPES.riskValidationService
+  );
+  private readonly strategyValidationService =
+    inject<StrategyValidationService>(TYPES.strategyValidationService);
+  private readonly methodContextService = inject<TMethodContextService>(
+    TYPES.methodContextService
+  );
+
+  /**
+   * Validates strategy and associated risk configuration.
+   *
+   * Memoized to avoid redundant validations for the same strategy.
+   * Logs validation activity.
+   * @param strategyName - Name of the strategy to validate
+   * @returns Promise that resolves when validation is complete
+   */
+  private validate = memoize(
+    ([strategyName]) => `${strategyName}`,
+    async (strategyName: string) => {
+      this.loggerService.log(METHOD_NAME_VALIDATE, {
+        strategyName,
+      });
+      const strategySchema = this.strategySchemaService.get(strategyName);
+      this.strategyValidationService.validate(
+        strategyName,
+        METHOD_NAME_VALIDATE
+      );
+      const riskName = strategySchema.riskName;
+      riskName &&
+        this.riskValidationService.validate(riskName, METHOD_NAME_VALIDATE);
+    }
+  );
 
   /**
    * Checks signal status at a specific timestamp.
@@ -40,6 +87,7 @@ export class StrategyGlobalService {
       when,
       backtest,
     });
+    await this.validate(this.methodContextService.context.strategyName);
     return await ExecutionContextService.runInContext(
       async () => {
         return await this.strategyConnectionService.tick();
@@ -76,6 +124,7 @@ export class StrategyGlobalService {
       when,
       backtest,
     });
+    await this.validate(this.methodContextService.context.strategyName);
     return await ExecutionContextService.runInContext(
       async () => {
         return await this.strategyConnectionService.backtest(candles);
@@ -101,6 +150,7 @@ export class StrategyGlobalService {
     this.loggerService.log("strategyGlobalService stop", {
       strategyName,
     });
+    await this.validate(strategyName);
     return await this.strategyConnectionService.stop(strategyName);
   };
 
@@ -112,10 +162,13 @@ export class StrategyGlobalService {
    *
    * @param strategyName - Name of strategy to clear from cache
    */
-  public clear = async (strategyName: StrategyName): Promise<void> => {
+  public clear = async (strategyName?: StrategyName): Promise<void> => {
     this.loggerService.log("strategyGlobalService clear", {
       strategyName,
     });
+    if (strategyName) {
+      await this.validate(strategyName);
+    }
     return await this.strategyConnectionService.clear(strategyName);
   };
 }

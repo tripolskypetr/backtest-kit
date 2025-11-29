@@ -40,7 +40,9 @@ Minimum interval between getSignal calls (throttling)
 getSignal: (symbol: string) => Promise<ISignalDto>
 ```
 
-Signal generation function (returns null if no signal, validated DTO if signal)
+Signal generation function (returns null if no signal, validated DTO if signal).
+If priceOpen is provided - becomes scheduled signal waiting for price to reach entry point.
+If priceOpen is omitted - opens immediately at current price.
 
 ### callbacks
 

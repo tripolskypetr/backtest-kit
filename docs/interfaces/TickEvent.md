@@ -16,7 +16,7 @@ Contains all information about a tick event regardless of action type.
 timestamp: number
 ```
 
-Event timestamp in milliseconds
+Event timestamp in milliseconds (pendingAt for opened/closed events)
 
 ### action
 

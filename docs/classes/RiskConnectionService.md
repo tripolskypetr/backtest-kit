@@ -77,3 +77,11 @@ removeSignal: (symbol: string, context: { strategyName: string; riskName: string
 
 Removes a closed signal from the risk management system.
 Routes to appropriate ClientRisk instance.
+
+### clear
+
+```ts
+clear: (riskName?: string) => Promise<void>
+```
+
+Clears the cached ClientRisk instance for the given risk name.

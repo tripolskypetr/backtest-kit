@@ -1,5 +1,5 @@
 import { sleep } from "functools-kit";
-import { setLogger, PersistSignalAdaper, PersistRiskAdapter } from "../../build/index.mjs";
+import { setLogger, setConfig, PersistSignalAdaper, PersistRiskAdapter } from "../../build/index.mjs";
 
 // setLogger(console)
 
@@ -31,5 +31,12 @@ PersistRiskAdapter.usePersistRiskAdapter(class {
   async writeValue() {
     void 0;
   }
+})
+
+setConfig({
+  // Отключаем новые валидации для старых тестов (система ведет себя как раньше)
+  CC_MIN_TAKEPROFIT_DISTANCE_PERCENT: 0, // Не проверяем минимальную дистанцию TP
+  CC_MAX_STOPLOSS_DISTANCE_PERCENT: 100, // Разрешаем любой SL (до 100%)
+  CC_MAX_SIGNAL_LIFETIME_MINUTES: 999999, // Разрешаем любое время жизни сигнала
 })
 

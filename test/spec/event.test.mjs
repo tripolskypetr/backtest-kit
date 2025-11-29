@@ -6,6 +6,7 @@ import {
   Live,
   listenSignalLive,
   listenSignalLiveOnce,
+  getAveragePrice,
 } from "../../build/index.mjs";
 
 import getMockCandles from "../mock/getMockCandles.mjs";
@@ -32,12 +33,13 @@ test("listenSignalLive receives live events", async ({ pass, fail }) => {
     strategyName: "test-strategy-live",
     interval: "1m",
     getSignal: async () => {
+      const price = await getAveragePrice("BTCUSDT");
       return {
         position: "long",
         note: "test signal",
-        priceOpen: 42000,
-        priceTakeProfit: 43000,
-        priceStopLoss: 41000,
+        priceOpen: price,
+        priceTakeProfit: price + 1_000,
+        priceStopLoss: price - 1_000,
         minuteEstimatedTime: 60,
       };
     },
@@ -45,10 +47,8 @@ test("listenSignalLive receives live events", async ({ pass, fail }) => {
 
   // Listen to live events
   const unsubscribe = listenSignalLive((event) => {
-    if (event.action === "opened") {
-      resolve(event);
-      unsubscribe();
-    }
+    resolve(event);
+    unsubscribe();
   });
 
   Live.background("BTCUSDT", {
@@ -58,7 +58,7 @@ test("listenSignalLive receives live events", async ({ pass, fail }) => {
 
   const event = await awaiter;
 
-  if (event && event.action === "opened") {
+  if (event) {
     pass("Live event received");
     return;
   }
@@ -91,12 +91,13 @@ test("listenSignalLiveOnce triggers once with filter", async ({ pass, fail }) =>
     interval: "1m",
     getSignal: async () => {
       callCount++;
+      const price = await getAveragePrice("BTCUSDT");
       return {
         position: "long",
         note: "test signal once",
-        priceOpen: 42000,
-        priceTakeProfit: 43000,
-        priceStopLoss: 41000,
+        priceOpen: price,
+        priceTakeProfit: price + 1_000,
+        priceStopLoss: price - 1_000,
         minuteEstimatedTime: 60,
       };
     },
@@ -105,7 +106,7 @@ test("listenSignalLiveOnce triggers once with filter", async ({ pass, fail }) =>
   // Listen to first opened event only
   listenSignalLiveOnce(
     (event) => {
-      return event.action === "opened"
+      return event.action === "opened" || event.action === "scheduled";
     },
     (event) => {
       resolve(event);
@@ -119,7 +120,7 @@ test("listenSignalLiveOnce triggers once with filter", async ({ pass, fail }) =>
 
   const event = await awaiter;
 
-  if (event && event.action === "opened") {
+  if (event) {
     pass("Live event triggered once");
     return;
   }

@@ -120,6 +120,18 @@ export class RiskConnectionService {
     });
     await this.getRisk(context.riskName).removeSignal(symbol, context);
   };
+
+  /**
+   * Clears the cached ClientRisk instance for the given risk name.
+   *
+   * @param riskName - Name of the risk schema to clear from cache
+   */
+  public clear = async (riskName?: RiskName): Promise<void> => {
+    this.loggerService.log("riskConnectionService clear", {
+      riskName,
+    });
+    this.getRisk.clear(riskName);
+  };
 }
 
 export default RiskConnectionService;

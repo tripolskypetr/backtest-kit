@@ -9,12 +9,14 @@ group: docs
 
 - [BacktestMarkdownService](classes/BacktestMarkdownService.md)
 - [LiveMarkdownService](classes/LiveMarkdownService.md)
+- [ScheduleMarkdownService](classes/ScheduleMarkdownService.md)
 - [PerformanceMarkdownService](classes/PerformanceMarkdownService.md)
 - [WalkerMarkdownService](classes/WalkerMarkdownService.md)
 - [PersistSignalUtils](classes/PersistSignalUtils.md)
 - [PersistRiskUtils](classes/PersistRiskUtils.md)
 - [BacktestUtils](classes/BacktestUtils.md)
 - [LiveUtils](classes/LiveUtils.md)
+- [ScheduleUtils](classes/ScheduleUtils.md)
 - [Performance](classes/Performance.md)
 - [WalkerUtils](classes/WalkerUtils.md)
 - [HeatUtils](classes/HeatUtils.md)
@@ -63,6 +65,7 @@ group: docs
 ## Functions
 
 - [setLogger](functions/setLogger.md)
+- [setConfig](functions/setConfig.md)
 - [addStrategy](functions/addStrategy.md)
 - [addExchange](functions/addExchange.md)
 - [addFrame](functions/addFrame.md)
@@ -126,13 +129,16 @@ group: docs
 - [IRisk](interfaces/IRisk.md)
 - [ISignalDto](interfaces/ISignalDto.md)
 - [ISignalRow](interfaces/ISignalRow.md)
+- [IScheduledSignalRow](interfaces/IScheduledSignalRow.md)
 - [IStrategyCallbacks](interfaces/IStrategyCallbacks.md)
 - [IStrategySchema](interfaces/IStrategySchema.md)
 - [IStrategyPnL](interfaces/IStrategyPnL.md)
 - [IStrategyTickResultIdle](interfaces/IStrategyTickResultIdle.md)
+- [IStrategyTickResultScheduled](interfaces/IStrategyTickResultScheduled.md)
 - [IStrategyTickResultOpened](interfaces/IStrategyTickResultOpened.md)
 - [IStrategyTickResultActive](interfaces/IStrategyTickResultActive.md)
 - [IStrategyTickResultClosed](interfaces/IStrategyTickResultClosed.md)
+- [IStrategyTickResultCancelled](interfaces/IStrategyTickResultCancelled.md)
 - [IStrategy](interfaces/IStrategy.md)
 - [BacktestStatistics](interfaces/BacktestStatistics.md)
 - [IWalkerSchema](interfaces/IWalkerSchema.md)
@@ -163,6 +169,8 @@ group: docs
 - [IHeatmapStatistics](interfaces/IHeatmapStatistics.md)
 - [TickEvent](interfaces/TickEvent.md)
 - [LiveStatistics](interfaces/LiveStatistics.md)
+- [ScheduledEvent](interfaces/ScheduledEvent.md)
+- [ScheduleStatistics](interfaces/ScheduleStatistics.md)
 - [MetricStats](interfaces/MetricStats.md)
 - [PerformanceStatistics](interfaces/PerformanceStatistics.md)
 - [IEntity](interfaces/IEntity.md)
@@ -170,6 +178,7 @@ group: docs
 
 ## Types
 
+- [GlobalConfig](types/GlobalConfig.md)
 - [TExecutionContextService](types/TExecutionContextService.md)
 - [CandleInterval](types/CandleInterval.md)
 - [ExchangeName](types/ExchangeName.md)

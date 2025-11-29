@@ -6,10 +6,11 @@ import {
   addStrategy,
   Backtest,
   listenSignalBacktest,
+  getAveragePrice,
 } from "../../build/index.mjs";
 
 import getMockCandles from "../mock/getMockCandles.mjs";
-import { createAwaiter } from "functools-kit";
+import { createAwaiter, sleep } from "functools-kit";
 
 test("PNL is being calculated", async ({ pass, fail }) => {
 
@@ -32,12 +33,12 @@ test("PNL is being calculated", async ({ pass, fail }) => {
     strategyName: "test-strategy-costs",
     interval: "1m",
     getSignal: async () => {
+      const price = await getAveragePrice("BTCUSDT");
       return {
         position: "long",
-        note: "costs verification",
-        priceOpen: 10000,
-        priceTakeProfit: 10100,
-        priceStopLoss: 9900,
+        note: "calculation verification",
+        priceTakeProfit: price + 100,
+        priceStopLoss: price - 10_000,
         minuteEstimatedTime: 60,
       };
     },
@@ -95,12 +96,12 @@ test("getData returns BacktestStatistics structure", async ({ pass, fail }) => {
     strategyName: "test-strategy-stats",
     interval: "1m",
     getSignal: async () => {
+      const price = await getAveragePrice("BTCUSDT");
       return {
         position: "long",
-        note: "stats verification",
-        priceOpen: 10000,
-        priceTakeProfit: 10100,
-        priceStopLoss: 9900,
+        note: "calculation verification",
+        priceTakeProfit: price + 100,
+        priceStopLoss: price - 10_000,
         minuteEstimatedTime: 60,
       };
     },
@@ -154,6 +155,7 @@ test("getData returns BacktestStatistics structure", async ({ pass, fail }) => {
 
 });
 
+
 test("getData calculates all statistical metrics", async ({ pass, fail }) => {
 
   const [awaiter, { resolve }] = createAwaiter();
@@ -175,12 +177,12 @@ test("getData calculates all statistical metrics", async ({ pass, fail }) => {
     strategyName: "test-strategy-metrics",
     interval: "1m",
     getSignal: async () => {
+      const price = await getAveragePrice("BTCUSDT");
       return {
         position: "long",
-        note: "metrics verification",
-        priceOpen: 10000,
-        priceTakeProfit: 10100,
-        priceStopLoss: 9900,
+        note: "calculation verification",
+        priceTakeProfit: price + 100,
+        priceStopLoss: price - 10_000,
         minuteEstimatedTime: 60,
       };
     },
@@ -235,6 +237,7 @@ test("getData calculates all statistical metrics", async ({ pass, fail }) => {
   pass(`All statistical metrics are present: ${requiredFields.join(", ")}`);
 
 });
+
 
 test("getData returns null for invalid metrics with safe math", async ({ pass, fail }) => {
 
@@ -295,6 +298,8 @@ test("getData returns null for invalid metrics with safe math", async ({ pass, f
 
 });
 
+
+
 test("getData includes signalList with all closed trades", async ({ pass, fail }) => {
 
   const [awaiter, { resolve }] = createAwaiter();
@@ -317,12 +322,12 @@ test("getData includes signalList with all closed trades", async ({ pass, fail }
     strategyName: "test-strategy-signallist",
     interval: "1m",
     getSignal: async () => {
+      const price = await getAveragePrice("BTCUSDT");
       return {
         position: "long",
-        note: "signalList verification",
-        priceOpen: 10000,
-        priceTakeProfit: 10100,
-        priceStopLoss: 9900,
+        note: "calculation verification",
+        priceTakeProfit: price + 100,
+        priceStopLoss: price - 10_000,
         minuteEstimatedTime: 60,
       };
     },
@@ -400,12 +405,12 @@ test("Statistical metrics are calculated correctly", async ({ pass, fail }) => {
     strategyName: "test-strategy-calculation",
     interval: "1m",
     getSignal: async () => {
+      const price = await getAveragePrice("BTCUSDT");
       return {
         position: "long",
         note: "calculation verification",
-        priceOpen: 10000,
-        priceTakeProfit: 10100,
-        priceStopLoss: 9900,
+        priceTakeProfit: price + 100,
+        priceStopLoss: price - 10_000,
         minuteEstimatedTime: 60,
       };
     },

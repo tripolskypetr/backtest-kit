@@ -30,6 +30,12 @@ loggerService: any
 sizingConnectionService: any
 ```
 
+### sizingValidationService
+
+```ts
+sizingValidationService: any
+```
+
 ### calculate
 
 ```ts

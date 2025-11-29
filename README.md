@@ -10,10 +10,6 @@ Build sophisticated trading systems with confidence. Backtest Kit empowers you t
 
 📚 **[API Reference](https://github.com/tripolskypetr/backtest-kit)** | 🌟 **[Quick Start](#quick-start)**
 
-## 🎳 Supported Order Types
-
-Backtest Kit supports multiple execution styles to match real trading behavior:
-
 ## ✨ Why Choose Backtest Kit?
 
 - 🚀 **Production-Ready Architecture**: Seamlessly switch between backtest and live modes with robust error recovery and graceful shutdown mechanisms. Your strategy code remains identical across environments. ✅
@@ -26,7 +22,7 @@ Backtest Kit supports multiple execution styles to match real trading behavior:
 
 - 📊 **VWAP Pricing**: Volume-weighted average price from last 5 1-minute candles ensures realistic backtest results that match live execution. 📈
 
-- 🎯 **Type-Safe Signal Lifecycle**: State machine with compile-time guarantees (idle → opened → active → closed). No runtime state confusion. 🔒
+- 🎯 **Type-Safe Signal Lifecycle**: State machine with compile-time guarantees (idle → scheduled → opened → active → closed/cancelled). No runtime state confusion. 🔒
 
 - 📈 **Accurate PNL Calculation**: Realistic profit/loss with configurable fees (0.1%) and slippage (0.1%). Track gross and net returns separately. 💰
 
@@ -50,26 +46,28 @@ Backtest Kit supports multiple execution styles to match real trading behavior:
 
 - 🔒 **Safe Math & Robustness**: All metrics protected against NaN/Infinity with unsafe numeric checks. Returns N/A for invalid calculations. ✨
 
-- 🧪 **Comprehensive Test Coverage**: 109 unit and integration tests covering validation, PNL, callbacks, reports, performance tracking, walker, heatmap, position sizing, risk management, and event system. ✅
+- 🧪 **Comprehensive Test Coverage**: 123 unit and integration tests covering validation, PNL, callbacks, reports, performance tracking, walker, heatmap, position sizing, risk management, scheduled signals, and event system. ✅
 
 ---
 
-### ✅ Built-in Order Types
+### 🎳 Supported Order Types
+
+Backtest Kit supports multiple execution styles to match real trading behavior:
 
 -   **Market** — instant execution using current VWAP
-    
+
 -   **Limit** — entry at a specified `priceOpen`
-    
+
 -   **Take Profit (TP)** — automatic exit at the target price
-    
+
 -   **Stop Loss (SL)** — protective exit at the stop level
-    
+
 -   **OCO (TP + SL)** — linked exits; one cancels the other
-    
--   **Time-Expired** — automatic closure after `minuteEstimatedTime` ⏱️
+
+-   **Grid** — auto-cancel if price never reaches entry point or hits SL before activation
     
 
-### ➕ Extendable Order Types
+### 🆕 Extendable Order Types
 
 Easy to add without modifying the core:
 
@@ -128,22 +126,31 @@ addStrategy({
   strategyName: "sma-crossover",
   interval: "5m", // Throttling: signals generated max once per 5 minutes
   getSignal: async (symbol) => {
-    // Your signal generation logic
+    const price = await getAveragePrice(symbol);
     return {
       position: "long",
       note: "BTC breakout",
-      priceOpen: 50000,
-      priceTakeProfit: 51000,  // Must be > priceOpen for long
-      priceStopLoss: 49000,     // Must be < priceOpen for long
-      minuteEstimatedTime: 60,  // Signal duration in minutes
+      priceOpen: price,
+      priceTakeProfit: price + 1_000,  // Must be > priceOpen for long
+      priceStopLoss: price - 1_000,     // Must be < priceOpen for long
+      minuteEstimatedTime: 60,
     };
   },
   callbacks: {
+    onSchedule: (symbol, signal, currentPrice, backtest) => {
+      console.log(`[${backtest ? "BT" : "LIVE"}] Scheduled signal created:`, signal.id);
+    },
     onOpen: (symbol, signal, currentPrice, backtest) => {
       console.log(`[${backtest ? "BT" : "LIVE"}] Signal opened:`, signal.id);
     },
+    onActive: (symbol, signal, currentPrice, backtest) => {
+      console.log(`[${backtest ? "BT" : "LIVE"}] Signal active:`, signal.id);
+    },
     onClose: (symbol, signal, priceClose, backtest) => {
       console.log(`[${backtest ? "BT" : "LIVE"}] Signal closed:`, priceClose);
+    },
+    onCancel: (symbol, signal, currentPrice, backtest) => {
+      console.log(`[${backtest ? "BT" : "LIVE"}] Scheduled signal cancelled:`, signal.id);
     },
   },
 });
@@ -238,6 +245,7 @@ Backtest.background("BTCUSDT", {
 - 🤖 **`addStrategy`**: Create trading strategies with custom signals and callbacks. 💡
 - 🌐 **`addFrame`**: Configure timeframes for backtesting. 📅
 - 🔄 **`Backtest` / `Live`**: Run strategies in backtest or live mode (generator or background). ⚡
+- 📅 **`Schedule`**: Track scheduled signals and cancellation rate for limit orders. 📊
 - 🏃 **`Walker`**: Compare multiple strategies in parallel with ranking. 🏆
 - 🔥 **`Heat`**: Portfolio-wide performance analysis across multiple symbols. 📊
 - 💰 **`PositionSize`**: Calculate position sizes with Fixed %, Kelly Criterion, or ATR-based methods. 💵
@@ -303,14 +311,14 @@ addStrategy({
   strategyName: "my-strategy",
   interval: "5m", // Throttling: signals generated max once per 5 minutes
   getSignal: async (symbol) => {
-    // Your signal generation logic
+    const price = await getAveragePrice(symbol);
     return {
       position: "long",
       note: "BTC breakout",
-      priceOpen: 50000,
-      priceTakeProfit: 51000,  // Must be > priceOpen for long
-      priceStopLoss: 49000,     // Must be < priceOpen for long
-      minuteEstimatedTime: 60,  // Signal duration in minutes
+      priceOpen: price,
+      priceTakeProfit: price + 1_000,  // Must be > priceOpen for long
+      priceStopLoss: price - 1_000,     // Must be < priceOpen for long
+      minuteEstimatedTime: 60,
     };
   },
   callbacks: {
@@ -1176,7 +1184,7 @@ const stats = await Live.getData("my-strategy");
 console.log(stats);
 // Returns:
 // {
-//   eventList: [...],            // All events (idle, opened, active, closed)
+//   eventList: [...],            // All events (idle, scheduled, opened, active, closed, cancelled)
 //   totalEvents: 15,
 //   totalClosed: 5,
 //   winCount: 3,
@@ -1196,6 +1204,50 @@ const markdown = await Live.getReport("my-strategy");
 
 // Save to disk (default: ./logs/live/my-strategy.md)
 await Live.dump("my-strategy");
+```
+
+### Scheduled Signals Reports
+
+```typescript
+import { Schedule } from "backtest-kit";
+
+// Get raw scheduled signals data (Controller)
+const stats = await Schedule.getData("my-strategy");
+console.log(stats);
+// Returns:
+// {
+//   eventList: [...],            // All scheduled/cancelled events
+//   totalEvents: 8,
+//   totalScheduled: 6,           // Number of scheduled signals
+//   totalCancelled: 2,           // Number of cancelled signals
+//   cancellationRate: 33.33,     // Percentage (lower is better)
+//   avgWaitTime: 45.5,           // Average wait time for cancelled signals in minutes
+// }
+
+// Generate markdown report (View)
+const markdown = await Schedule.getReport("my-strategy");
+
+// Save to disk (default: ./logs/schedule/my-strategy.md)
+await Schedule.dump("my-strategy");
+
+// Clear accumulated data
+await Schedule.clear("my-strategy");
+```
+
+**Scheduled Signals Report Example:**
+```markdown
+# Scheduled Signals Report: my-strategy
+
+| Timestamp | Action | Symbol | Signal ID | Position | Note | Current Price | Entry Price | Take Profit | Stop Loss | Wait Time (min) |
+|-----------|--------|--------|-----------|----------|------|---------------|-------------|-------------|-----------|-----------------|
+| 2024-01-15T10:30:00Z | SCHEDULED | BTCUSDT | sig-001 | LONG | BTC breakout | 42150.50 USD | 42000.00 USD | 43000.00 USD | 41000.00 USD | N/A |
+| 2024-01-15T10:35:00Z | CANCELLED | BTCUSDT | sig-002 | LONG | BTC breakout | 42350.80 USD | 10000.00 USD | 11000.00 USD | 9000.00 USD | 60 |
+
+**Total events:** 8
+**Scheduled signals:** 6
+**Cancelled signals:** 2
+**Cancellation rate:** 33.33% (lower is better)
+**Average wait time (cancelled):** 45.50 minutes
 ```
 
 ---
@@ -1266,24 +1318,129 @@ listenDoneWalker((event) => {
 
 ---
 
+## ⚙️ Global Configuration
+
+You can customize framework behavior using the `setConfig()` function. This allows you to adjust global parameters without modifying the source code.
+
+### Available Configuration Options
+
+```typescript
+import { setConfig } from "backtest-kit";
+
+// Configure global parameters
+await setConfig({
+  // Time to wait for scheduled signal activation (in minutes)
+  // If a scheduled signal doesn't activate within this time, it will be cancelled
+  // Default: 120 minutes
+  CC_SCHEDULE_AWAIT_MINUTES: 90,
+
+  // Number of candles to use for average price calculation (VWAP)
+  // Used in both backtest and live modes for price calculations
+  // Default: 5 candles (last 5 minutes when using 1m interval)
+  CC_AVG_PRICE_CANDLES_COUNT: 10,
+});
+```
+
+### Configuration Parameters
+
+#### `CC_SCHEDULE_AWAIT_MINUTES`
+
+Controls how long scheduled signals wait for activation before being cancelled.
+
+- **Default:** `120` minutes (2 hours)
+- **Use case:** Adjust based on market volatility and strategy timeframe
+- **Example:** Lower for scalping strategies (30-60 min), higher for swing trading (180-360 min)
+
+```typescript
+// For scalping strategies with tight entry windows
+await setConfig({
+  CC_SCHEDULE_AWAIT_MINUTES: 30,
+});
+
+// For swing trading with wider entry windows
+await setConfig({
+  CC_SCHEDULE_AWAIT_MINUTES: 240,
+});
+```
+
+#### `CC_AVG_PRICE_CANDLES_COUNT`
+
+Controls the number of 1-minute candles used for VWAP (Volume Weighted Average Price) calculations.
+
+- **Default:** `5` candles (5 minutes of data)
+- **Use case:** Adjust for more stable (higher) or responsive (lower) price calculations
+- **Impact:** Affects entry/exit prices in both backtest and live modes
+
+```typescript
+// More responsive to recent price changes (3 minutes)
+await setConfig({
+  CC_AVG_PRICE_CANDLES_COUNT: 3,
+});
+
+// More stable, less sensitive to spikes (10 minutes)
+await setConfig({
+  CC_AVG_PRICE_CANDLES_COUNT: 10,
+});
+```
+
+### When to Call `setConfig()`
+
+Always call `setConfig()` **before** running any strategies to ensure configuration is applied:
+
+```typescript
+import { setConfig, Backtest, Live } from "backtest-kit";
+
+// 1. Configure framework first
+await setConfig({
+  CC_SCHEDULE_AWAIT_MINUTES: 90,
+  CC_AVG_PRICE_CANDLES_COUNT: 7,
+});
+
+// 2. Then run strategies
+Backtest.background("BTCUSDT", {
+  strategyName: "my-strategy",
+  exchangeName: "binance",
+  frameName: "1d-backtest"
+});
+
+Live.background("ETHUSDT", {
+  strategyName: "my-strategy",
+  exchangeName: "binance"
+});
+```
+
+### Partial Configuration
+
+You can update individual parameters without specifying all of them:
+
+```typescript
+// Only change candle count, keep other defaults
+await setConfig({
+  CC_AVG_PRICE_CANDLES_COUNT: 8,
+});
+
+// Later, only change timeout
+await setConfig({
+  CC_SCHEDULE_AWAIT_MINUTES: 60,
+});
+```
+
+---
+
 ## ✅ Tested & Reliable
 
-`backtest-kit` comes with a robust test suite covering:
-- 🛡️ **Validation**: Ensures all components (exchanges, strategies, frames, risk profiles) are properly configured. ✅
-- 🚑 **Recovery**: Handles edge cases like invalid signals or empty outputs. 🛠️
-- 🔄 **Navigation**: Smoothly switches between backtest and live modes without errors. 🌐
-- ⚡ **Performance**: Efficient memory usage and history management. 📈
+`backtest-kit` comes with **123 unit and integration tests** covering:
 
-**109 unit and integration tests** covering:
 - Signal validation and throttling
 - PNL calculation with fees and slippage
 - Crash recovery and state persistence
-- Callback execution order
-- Markdown report generation
+- Callback execution order (onSchedule, onOpen, onActive, onClose, onCancel)
+- Markdown report generation (backtest, live, scheduled signals)
 - Walker strategy comparison
 - Heatmap portfolio analysis
 - Position sizing calculations
 - Risk management validation
+- Scheduled signals lifecycle and cancellation tracking
 - Event system
 
 ---

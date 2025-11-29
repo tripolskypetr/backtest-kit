@@ -61,7 +61,7 @@ Cache key is frameName string.
 ### getTimeframe
 
 ```ts
-getTimeframe: (symbol: string) => Promise<Date[]>
+getTimeframe: (symbol: string, frameName: string) => Promise<Date[]>
 ```
 
 Retrieves backtest timeframe boundaries for symbol.

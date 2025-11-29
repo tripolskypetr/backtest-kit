@@ -2,6 +2,41 @@ import * as di_scoped from 'di-scoped';
 import * as functools_kit from 'functools-kit';
 import { Subject } from 'functools-kit';
 
+declare const GLOBAL_CONFIG: {
+    /**
+     * Time to wait for scheduled signal to activate (in minutes)
+     * If signal does not activate within this time, it will be cancelled.
+     */
+    CC_SCHEDULE_AWAIT_MINUTES: number;
+    /**
+     * Number of candles to use for average price calculation (VWAP)
+     * Default: 5 candles (last 5 minutes when using 1m interval)
+     */
+    CC_AVG_PRICE_CANDLES_COUNT: number;
+    /**
+     * Minimum TakeProfit distance from priceOpen (percentage)
+     * Must be greater than trading fees to ensure profitable trades
+     * Default: 0.3% (covers 2×0.1% fees + minimum profit margin)
+     */
+    CC_MIN_TAKEPROFIT_DISTANCE_PERCENT: number;
+    /**
+     * Maximum StopLoss distance from priceOpen (percentage)
+     * Prevents catastrophic losses from extreme StopLoss values
+     * Default: 20% (one signal cannot lose more than 20% of position)
+     */
+    CC_MAX_STOPLOSS_DISTANCE_PERCENT: number;
+    /**
+     * Maximum signal lifetime in minutes
+     * Prevents eternal signals that block risk limits for weeks/months
+     * Default: 1440 minutes (1 day)
+     */
+    CC_MAX_SIGNAL_LIFETIME_MINUTES: number;
+};
+/**
+ * Type for global configuration object.
+ */
+type GlobalConfig = typeof GLOBAL_CONFIG;
+
 /**
  * Interface representing a logging mechanism for the swarm system.
  * Provides methods to record messages at different severity levels, used across components like agents, sessions, states, storage, swarms, history, embeddings, completions, and policies.
@@ -48,6 +83,18 @@ interface ILogger {
  * ```
  */
 declare function setLogger(logger: ILogger): Promise<void>;
+/**
+ * Sets global configuration parameters for the framework.
+ * @param config - Partial configuration object to override default settings
+ *
+ * @example
+ * ```typescript
+ * setConfig({
+ *   CC_SCHEDULE_AWAIT_MINUTES: 90,
+ * });
+ * ```
+ */
+declare function setConfig(config: Partial<GlobalConfig>): Promise<void>;
 
 /**
  * Execution context containing runtime parameters for strategy/exchange operations.
@@ -304,7 +351,7 @@ interface IFrame {
      * @param symbol - Trading pair symbol (unused, for API consistency)
      * @returns Promise resolving to array of Date objects
      */
-    getTimeframe: (symbol: string) => Promise<Date[]>;
+    getTimeframe: (symbol: string, frameName: FrameName) => Promise<Date[]>;
 }
 /**
  * Unique identifier for a frame schema.
@@ -523,14 +570,28 @@ interface ISignalRow extends ISignalDto {
     exchangeName: ExchangeName;
     /** Unique strategy identifier for execution */
     strategyName: StrategyName;
-    /** Signal creation timestamp in milliseconds */
-    timestamp: number;
+    /** Signal creation timestamp in milliseconds (when signal was first created/scheduled) */
+    scheduledAt: number;
+    /** Pending timestamp in milliseconds (when position became pending/active at priceOpen) */
+    pendingAt: number;
     /** Trading pair symbol (e.g., "BTCUSDT") */
     symbol: string;
+    /** Internal runtime marker for scheduled signals */
+    _isScheduled: boolean;
+}
+/**
+ * Scheduled signal row for delayed entry at specific price.
+ * Inherits from ISignalRow - represents a signal waiting for price to reach priceOpen.
+ * Once price reaches priceOpen, will be converted to regular _pendingSignal.
+ * Note: pendingAt will be set to scheduledAt until activation, then updated to actual pending time.
+ */
+interface IScheduledSignalRow extends ISignalRow {
+    /** Entry price for the position */
+    priceOpen: number;
 }
 /**
  * Optional lifecycle callbacks for signal events.
- * Called when signals are opened, active, idle, or closed.
+ * Called when signals are opened, active, idle, closed, scheduled, or cancelled.
  */
 interface IStrategyCallbacks {
     /** Called on every tick with the result */
@@ -543,6 +604,10 @@ interface IStrategyCallbacks {
     onIdle: (symbol: string, currentPrice: number, backtest: boolean) => void;
     /** Called when signal is closed with final price */
     onClose: (symbol: string, data: ISignalRow, priceClose: number, backtest: boolean) => void;
+    /** Called when scheduled signal is created (delayed entry) */
+    onSchedule: (symbol: string, data: IScheduledSignalRow, currentPrice: number, backtest: boolean) => void;
+    /** Called when scheduled signal is cancelled without opening position */
+    onCancel: (symbol: string, data: IScheduledSignalRow, currentPrice: number, backtest: boolean) => void;
 }
 /**
  * Strategy schema registered via addStrategy().
@@ -555,7 +620,11 @@ interface IStrategySchema {
     note?: string;
     /** Minimum interval between getSignal calls (throttling) */
     interval: SignalInterval;
-    /** Signal generation function (returns null if no signal, validated DTO if signal) */
+    /**
+     * Signal generation function (returns null if no signal, validated DTO if signal).
+     * If priceOpen is provided - becomes scheduled signal waiting for price to reach entry point.
+     * If priceOpen is omitted - opens immediately at current price.
+     */
     getSignal: (symbol: string) => Promise<ISignalDto | null>;
     /** Optional lifecycle event callbacks (onOpen, onClose) */
     callbacks?: Partial<IStrategyCallbacks>;
@@ -594,6 +663,24 @@ interface IStrategyTickResultIdle {
     /** Trading pair symbol (e.g., "BTCUSDT") */
     symbol: string;
     /** Current VWAP price during idle state */
+    currentPrice: number;
+}
+/**
+ * Tick result: scheduled signal created, waiting for price to reach entry point.
+ * Triggered when getSignal returns signal with priceOpen specified.
+ */
+interface IStrategyTickResultScheduled {
+    /** Discriminator for type-safe union */
+    action: "scheduled";
+    /** Scheduled signal waiting for activation */
+    signal: IScheduledSignalRow;
+    /** Strategy name for tracking */
+    strategyName: StrategyName;
+    /** Exchange name for tracking */
+    exchangeName: ExchangeName;
+    /** Trading pair symbol (e.g., "BTCUSDT") */
+    symbol: string;
+    /** Current VWAP price when scheduled signal created */
     currentPrice: number;
 }
 /**
@@ -657,14 +744,34 @@ interface IStrategyTickResultClosed {
     symbol: string;
 }
 /**
+ * Tick result: scheduled signal cancelled without opening position.
+ * Occurs when scheduled signal doesn't activate or hits stop loss before entry.
+ */
+interface IStrategyTickResultCancelled {
+    /** Discriminator for type-safe union */
+    action: "cancelled";
+    /** Cancelled scheduled signal */
+    signal: IScheduledSignalRow;
+    /** Final VWAP price at cancellation */
+    currentPrice: number;
+    /** Unix timestamp in milliseconds when signal cancelled */
+    closeTimestamp: number;
+    /** Strategy name for tracking */
+    strategyName: StrategyName;
+    /** Exchange name for tracking */
+    exchangeName: ExchangeName;
+    /** Trading pair symbol (e.g., "BTCUSDT") */
+    symbol: string;
+}
+/**
  * Discriminated union of all tick results.
  * Use type guards: `result.action === "closed"` for type safety.
  */
-type IStrategyTickResult = IStrategyTickResultIdle | IStrategyTickResultOpened | IStrategyTickResultActive | IStrategyTickResultClosed;
+type IStrategyTickResult = IStrategyTickResultIdle | IStrategyTickResultScheduled | IStrategyTickResultOpened | IStrategyTickResultActive | IStrategyTickResultClosed | IStrategyTickResultCancelled;
 /**
- * Backtest always returns closed result (TP/SL or time_expired).
+ * Backtest returns closed result (TP/SL or time_expired) or cancelled result (scheduled signal never activated).
  */
-type IStrategyBacktestResult = IStrategyTickResultClosed;
+type IStrategyBacktestResult = IStrategyTickResultClosed | IStrategyTickResultCancelled;
 /**
  * Strategy interface implemented by ClientStrategy.
  * Defines core strategy execution methods.
@@ -681,6 +788,9 @@ interface IStrategy {
     /**
      * Fast backtest using historical candles.
      * Iterates through candles, calculates VWAP, checks TP/SL on each candle.
+     *
+     * For scheduled signals: first monitors activation/cancellation,
+     * then if activated continues with TP/SL monitoring.
      *
      * @param candles - Array of historical candle data
      * @returns Promise resolving to closed result (always completes signal)
@@ -2437,7 +2547,7 @@ interface IHeatmapStatistics {
  * Contains all information about a tick event regardless of action type.
  */
 interface TickEvent {
-    /** Event timestamp in milliseconds */
+    /** Event timestamp in milliseconds (pendingAt for opened/closed events) */
     timestamp: number;
     /** Event action type */
     action: "idle" | "opened" | "active" | "closed";
@@ -2652,6 +2762,199 @@ declare class LiveMarkdownService {
      * @example
      * ```typescript
      * const service = new LiveMarkdownService();
+     * await service.init(); // Subscribe to live events
+     * ```
+     */
+    protected init: (() => Promise<void>) & functools_kit.ISingleshotClearable;
+}
+
+/**
+ * Unified scheduled signal event data for report generation.
+ * Contains all information about scheduled and cancelled events.
+ */
+interface ScheduledEvent {
+    /** Event timestamp in milliseconds (scheduledAt for scheduled/cancelled events) */
+    timestamp: number;
+    /** Event action type */
+    action: "scheduled" | "cancelled";
+    /** Trading pair symbol */
+    symbol: string;
+    /** Signal ID */
+    signalId: string;
+    /** Position type */
+    position: string;
+    /** Signal note */
+    note?: string;
+    /** Current market price */
+    currentPrice: number;
+    /** Scheduled entry price */
+    priceOpen: number;
+    /** Take profit price */
+    takeProfit: number;
+    /** Stop loss price */
+    stopLoss: number;
+    /** Close timestamp (only for cancelled) */
+    closeTimestamp?: number;
+    /** Duration in minutes (only for cancelled) */
+    duration?: number;
+}
+/**
+ * Statistical data calculated from scheduled signals.
+ *
+ * Provides metrics for scheduled signal tracking and cancellation analysis.
+ *
+ * @example
+ * ```typescript
+ * const stats = await Schedule.getData("my-strategy");
+ *
+ * console.log(`Total events: ${stats.totalEvents}`);
+ * console.log(`Scheduled signals: ${stats.totalScheduled}`);
+ * console.log(`Cancelled signals: ${stats.totalCancelled}`);
+ * console.log(`Cancellation rate: ${stats.cancellationRate}%`);
+ *
+ * // Access raw event data (includes scheduled, cancelled)
+ * stats.eventList.forEach(event => {
+ *   if (event.action === "cancelled") {
+ *     console.log(`Cancelled signal: ${event.signalId}`);
+ *   }
+ * });
+ * ```
+ */
+interface ScheduleStatistics {
+    /** Array of all scheduled/cancelled events with full details */
+    eventList: ScheduledEvent[];
+    /** Total number of all events (includes scheduled, cancelled) */
+    totalEvents: number;
+    /** Total number of scheduled signals */
+    totalScheduled: number;
+    /** Total number of cancelled signals */
+    totalCancelled: number;
+    /** Cancellation rate as percentage (0-100), null if no scheduled signals. Lower is better. */
+    cancellationRate: number | null;
+    /** Average waiting time for cancelled signals in minutes, null if no cancelled signals */
+    avgWaitTime: number | null;
+}
+/**
+ * Service for generating and saving scheduled signals markdown reports.
+ *
+ * Features:
+ * - Listens to scheduled and cancelled signal events via signalLiveEmitter
+ * - Accumulates all events (scheduled, cancelled) per strategy
+ * - Generates markdown tables with detailed event information
+ * - Provides statistics (cancellation rate, average wait time)
+ * - Saves reports to disk in logs/schedule/{strategyName}.md
+ *
+ * @example
+ * ```typescript
+ * const service = new ScheduleMarkdownService();
+ *
+ * // Service automatically subscribes to signalLiveEmitter on init
+ * // No manual callback setup needed
+ *
+ * // Later: generate and save report
+ * await service.dump("my-strategy");
+ * ```
+ */
+declare class ScheduleMarkdownService {
+    /** Logger service for debug output */
+    private readonly loggerService;
+    /**
+     * Memoized function to get or create ReportStorage for a strategy.
+     * Each strategy gets its own isolated storage instance.
+     */
+    private getStorage;
+    /**
+     * Processes tick events and accumulates scheduled/cancelled events.
+     * Should be called from signalLiveEmitter subscription.
+     *
+     * Processes only scheduled and cancelled event types.
+     *
+     * @param data - Tick result from strategy execution
+     *
+     * @example
+     * ```typescript
+     * const service = new ScheduleMarkdownService();
+     * // Service automatically subscribes in init()
+     * ```
+     */
+    private tick;
+    /**
+     * Gets statistical data from all scheduled signal events for a strategy.
+     * Delegates to ReportStorage.getData().
+     *
+     * @param strategyName - Strategy name to get data for
+     * @returns Statistical data object with all metrics
+     *
+     * @example
+     * ```typescript
+     * const service = new ScheduleMarkdownService();
+     * const stats = await service.getData("my-strategy");
+     * console.log(stats.cancellationRate, stats.avgWaitTime);
+     * ```
+     */
+    getData: (strategyName: StrategyName) => Promise<ScheduleStatistics>;
+    /**
+     * Generates markdown report with all scheduled events for a strategy.
+     * Delegates to ReportStorage.getReport().
+     *
+     * @param strategyName - Strategy name to generate report for
+     * @returns Markdown formatted report string with table of all events
+     *
+     * @example
+     * ```typescript
+     * const service = new ScheduleMarkdownService();
+     * const markdown = await service.getReport("my-strategy");
+     * console.log(markdown);
+     * ```
+     */
+    getReport: (strategyName: StrategyName) => Promise<string>;
+    /**
+     * Saves strategy report to disk.
+     * Creates directory if it doesn't exist.
+     * Delegates to ReportStorage.dump().
+     *
+     * @param strategyName - Strategy name to save report for
+     * @param path - Directory path to save report (default: "./logs/schedule")
+     *
+     * @example
+     * ```typescript
+     * const service = new ScheduleMarkdownService();
+     *
+     * // Save to default path: ./logs/schedule/my-strategy.md
+     * await service.dump("my-strategy");
+     *
+     * // Save to custom path: ./custom/path/my-strategy.md
+     * await service.dump("my-strategy", "./custom/path");
+     * ```
+     */
+    dump: (strategyName: StrategyName, path?: string) => Promise<void>;
+    /**
+     * Clears accumulated event data from storage.
+     * If strategyName is provided, clears only that strategy's data.
+     * If strategyName is omitted, clears all strategies' data.
+     *
+     * @param strategyName - Optional strategy name to clear specific strategy data
+     *
+     * @example
+     * ```typescript
+     * const service = new ScheduleMarkdownService();
+     *
+     * // Clear specific strategy data
+     * await service.clear("my-strategy");
+     *
+     * // Clear all strategies' data
+     * await service.clear();
+     * ```
+     */
+    clear: (strategyName?: StrategyName) => Promise<void>;
+    /**
+     * Initializes the service by subscribing to live signal events.
+     * Uses singleshot to ensure initialization happens only once.
+     * Automatically called on first use.
+     *
+     * @example
+     * ```typescript
+     * const service = new ScheduleMarkdownService();
      * await service.init(); // Subscribe to live events
      * ```
      */
@@ -3280,7 +3583,7 @@ declare class BacktestUtils {
         strategyName: string;
         exchangeName: string;
         frameName: string;
-    }) => AsyncGenerator<IStrategyTickResultClosed, void, unknown>;
+    }) => AsyncGenerator<IStrategyBacktestResult, void, unknown>;
     /**
      * Runs backtest in background without yielding results.
      *
@@ -3413,7 +3716,7 @@ declare class LiveUtils {
     run: (symbol: string, context: {
         strategyName: string;
         exchangeName: string;
-    }) => AsyncGenerator<IStrategyTickResultOpened | IStrategyTickResultClosed, void, unknown>;
+    }) => AsyncGenerator<IStrategyTickResultOpened | IStrategyTickResultClosed | IStrategyTickResultCancelled, void, unknown>;
     /**
      * Runs live trading in background without yielding results.
      *
@@ -3498,6 +3801,105 @@ declare class LiveUtils {
  * ```
  */
 declare const Live: LiveUtils;
+
+/**
+ * Utility class for scheduled signals reporting operations.
+ *
+ * Provides simplified access to scheduleMarkdownService with logging.
+ * Exported as singleton instance for convenient usage.
+ *
+ * Features:
+ * - Track scheduled signals in queue
+ * - Track cancelled signals
+ * - Calculate cancellation rate and average wait time
+ * - Generate markdown reports
+ *
+ * @example
+ * ```typescript
+ * import { Schedule } from "./classes/Schedule";
+ *
+ * // Get scheduled signals statistics
+ * const stats = await Schedule.getData("my-strategy");
+ * console.log(`Cancellation rate: ${stats.cancellationRate}%`);
+ * console.log(`Average wait time: ${stats.avgWaitTime} minutes`);
+ *
+ * // Generate and save report
+ * await Schedule.dump("my-strategy");
+ * ```
+ */
+declare class ScheduleUtils {
+    /**
+     * Gets statistical data from all scheduled signal events for a strategy.
+     *
+     * @param strategyName - Strategy name to get data for
+     * @returns Promise resolving to statistical data object
+     *
+     * @example
+     * ```typescript
+     * const stats = await Schedule.getData("my-strategy");
+     * console.log(stats.cancellationRate, stats.avgWaitTime);
+     * ```
+     */
+    getData: (strategyName: StrategyName) => Promise<ScheduleStatistics>;
+    /**
+     * Generates markdown report with all scheduled events for a strategy.
+     *
+     * @param strategyName - Strategy name to generate report for
+     * @returns Promise resolving to markdown formatted report string
+     *
+     * @example
+     * ```typescript
+     * const markdown = await Schedule.getReport("my-strategy");
+     * console.log(markdown);
+     * ```
+     */
+    getReport: (strategyName: StrategyName) => Promise<string>;
+    /**
+     * Saves strategy report to disk.
+     *
+     * @param strategyName - Strategy name to save report for
+     * @param path - Optional directory path to save report (default: "./logs/schedule")
+     *
+     * @example
+     * ```typescript
+     * // Save to default path: ./logs/schedule/my-strategy.md
+     * await Schedule.dump("my-strategy");
+     *
+     * // Save to custom path: ./custom/path/my-strategy.md
+     * await Schedule.dump("my-strategy", "./custom/path");
+     * ```
+     */
+    dump: (strategyName: StrategyName, path?: string) => Promise<void>;
+    /**
+     * Clears accumulated scheduled signal data from storage.
+     * If strategyName is provided, clears only that strategy's data.
+     * If strategyName is omitted, clears all strategies' data.
+     *
+     * @param strategyName - Optional strategy name to clear specific strategy data
+     *
+     * @example
+     * ```typescript
+     * // Clear specific strategy data
+     * await Schedule.clear("my-strategy");
+     *
+     * // Clear all strategies' data
+     * await Schedule.clear();
+     * ```
+     */
+    clear: (strategyName?: StrategyName) => Promise<void>;
+}
+/**
+ * Singleton instance of ScheduleUtils for convenient scheduled signals reporting.
+ *
+ * @example
+ * ```typescript
+ * import { Schedule } from "./classes/Schedule";
+ *
+ * const stats = await Schedule.getData("my-strategy");
+ * console.log("Cancellation rate:", stats.cancellationRate);
+ * ```
+ */
+declare const Schedule: ScheduleUtils;
 
 /**
  * Performance class provides static methods for performance metrics analysis.
@@ -4128,7 +4530,8 @@ declare class ClientExchange implements IExchange {
      */
     getNextCandles(symbol: string, interval: CandleInterval, limit: number): Promise<ICandleData[]>;
     /**
-     * Calculates VWAP (Volume Weighted Average Price) from last 5 1m candles.
+     * Calculates VWAP (Volume Weighted Average Price) from last N 1m candles.
+     * The number of candles is configurable via GLOBAL_CONFIG.CC_AVG_PRICE_CANDLES_COUNT.
      *
      * Formula:
      * - Typical Price = (high + low + close) / 3
@@ -4385,7 +4788,7 @@ declare class FrameConnectionService implements IFrame {
      * @param symbol - Trading pair symbol (e.g., "BTCUSDT")
      * @returns Promise resolving to { startDate: Date, endDate: Date }
      */
-    getTimeframe: (symbol: string) => Promise<Date[]>;
+    getTimeframe: (symbol: string, frameName: string) => Promise<Date[]>;
 }
 
 /**
@@ -4616,6 +5019,12 @@ declare class RiskConnectionService {
         strategyName: string;
         riskName: RiskName;
     }) => Promise<void>;
+    /**
+     * Clears the cached ClientRisk instance for the given risk name.
+     *
+     * @param riskName - Name of the risk schema to clear from cache
+     */
+    clear: (riskName?: RiskName) => Promise<void>;
 }
 
 /**
@@ -4629,6 +5038,16 @@ declare class RiskConnectionService {
 declare class ExchangeGlobalService {
     private readonly loggerService;
     private readonly exchangeConnectionService;
+    private readonly methodContextService;
+    private readonly exchangeValidationService;
+    /**
+     * Validates exchange configuration.
+     * Memoized to avoid redundant validations for the same exchange.
+     * Logs validation activity.
+     * @param exchangeName - Name of the exchange to validate
+     * @returns Promise that resolves when validation is complete
+     */
+    private validate;
     /**
      * Fetches historical candles with execution context.
      *
@@ -4693,6 +5112,19 @@ declare class ExchangeGlobalService {
 declare class StrategyGlobalService {
     private readonly loggerService;
     private readonly strategyConnectionService;
+    private readonly strategySchemaService;
+    private readonly riskValidationService;
+    private readonly strategyValidationService;
+    private readonly methodContextService;
+    /**
+     * Validates strategy and associated risk configuration.
+     *
+     * Memoized to avoid redundant validations for the same strategy.
+     * Logs validation activity.
+     * @param strategyName - Name of the strategy to validate
+     * @returns Promise that resolves when validation is complete
+     */
+    private validate;
     /**
      * Checks signal status at a specific timestamp.
      *
@@ -4736,7 +5168,7 @@ declare class StrategyGlobalService {
      *
      * @param strategyName - Name of strategy to clear from cache
      */
-    clear: (strategyName: StrategyName) => Promise<void>;
+    clear: (strategyName?: StrategyName) => Promise<void>;
 }
 
 /**
@@ -4748,13 +5180,14 @@ declare class StrategyGlobalService {
 declare class FrameGlobalService {
     private readonly loggerService;
     private readonly frameConnectionService;
+    private readonly frameValidationService;
     /**
      * Generates timeframe array for backtest iteration.
      *
-     * @param symbol - Trading pair symbol
+     * @param frameName - Target frame name (e.g., "1m", "1h")
      * @returns Promise resolving to array of Date objects
      */
-    getTimeframe: (symbol: string) => Promise<Date[]>;
+    getTimeframe: (symbol: string, frameName: string) => Promise<Date[]>;
 }
 
 /**
@@ -4766,6 +5199,7 @@ declare class FrameGlobalService {
 declare class SizingGlobalService {
     private readonly loggerService;
     private readonly sizingConnectionService;
+    private readonly sizingValidationService;
     /**
      * Calculates position size based on risk parameters.
      *
@@ -4787,6 +5221,15 @@ declare class SizingGlobalService {
 declare class RiskGlobalService {
     private readonly loggerService;
     private readonly riskConnectionService;
+    private readonly riskValidationService;
+    /**
+     * Validates risk configuration.
+     * Memoized to avoid redundant validations for the same risk instance.
+     * Logs validation activity.
+     * @param riskName - Name of the risk instance to validate
+     * @returns Promise that resolves when validation is complete
+     */
+    private validate;
     /**
      * Checks if a signal should be allowed based on risk limits.
      *
@@ -4817,6 +5260,13 @@ declare class RiskGlobalService {
         strategyName: string;
         riskName: RiskName;
     }) => Promise<void>;
+    /**
+     * Clears risk data.
+     * If riskName is provided, clears data for that specific risk instance.
+     * If no riskName is provided, clears all risk data.
+     * @param riskName - Optional name of the risk instance to clear
+     */
+    clear: (riskName?: RiskName) => Promise<void>;
 }
 
 /**
@@ -4828,6 +5278,13 @@ declare class RiskGlobalService {
 declare class WalkerGlobalService {
     private readonly loggerService;
     private readonly walkerLogicPublicService;
+    private readonly walkerSchemaService;
+    private readonly strategyValidationService;
+    private readonly exchangeValidationService;
+    private readonly frameValidationService;
+    private readonly walkerValidationService;
+    private readonly strategySchemaService;
+    private readonly riskValidationService;
     /**
      * Runs walker comparison for a symbol with context propagation.
      *
@@ -5162,7 +5619,7 @@ declare class BacktestLogicPrivateService {
      * }
      * ```
      */
-    run(symbol: string): AsyncGenerator<IStrategyTickResultClosed, void, unknown>;
+    run(symbol: string): AsyncGenerator<IStrategyBacktestResult, void, unknown>;
 }
 
 /**
@@ -5207,7 +5664,7 @@ declare class LiveLogicPrivateService {
      * }
      * ```
      */
-    run(symbol: string): AsyncGenerator<IStrategyTickResultOpened | IStrategyTickResultClosed, void, unknown>;
+    run(symbol: string): AsyncGenerator<IStrategyTickResultOpened | IStrategyTickResultClosed | IStrategyTickResultCancelled, void, unknown>;
 }
 
 /**
@@ -5301,7 +5758,7 @@ declare class BacktestLogicPublicService {
         strategyName: string;
         exchangeName: string;
         frameName: string;
-    }) => AsyncGenerator<IStrategyTickResultClosed, void, unknown>;
+    }) => AsyncGenerator<IStrategyBacktestResult, void, unknown>;
 }
 
 /**
@@ -5352,7 +5809,7 @@ declare class LiveLogicPublicService {
     run: (symbol: string, context: {
         strategyName: string;
         exchangeName: string;
-    }) => AsyncGenerator<IStrategyTickResultOpened | IStrategyTickResultClosed, void, unknown>;
+    }) => AsyncGenerator<IStrategyTickResultOpened | IStrategyTickResultClosed | IStrategyTickResultCancelled, void, unknown>;
 }
 
 /**
@@ -5406,6 +5863,8 @@ declare class LiveGlobalService {
     private readonly liveLogicPublicService;
     private readonly strategyValidationService;
     private readonly exchangeValidationService;
+    private readonly strategySchemaService;
+    private readonly riskValidationService;
     /**
      * Runs live trading for a symbol with context propagation.
      *
@@ -5418,7 +5877,7 @@ declare class LiveGlobalService {
     run: (symbol: string, context: {
         strategyName: string;
         exchangeName: string;
-    }) => AsyncGenerator<IStrategyTickResultOpened | IStrategyTickResultClosed, void, unknown>;
+    }) => AsyncGenerator<IStrategyTickResultOpened | IStrategyTickResultClosed | IStrategyTickResultCancelled, void, unknown>;
 }
 
 /**
@@ -5429,6 +5888,8 @@ declare class LiveGlobalService {
  */
 declare class BacktestGlobalService {
     private readonly loggerService;
+    private readonly strategySchemaService;
+    private readonly riskValidationService;
     private readonly backtestLogicPublicService;
     private readonly strategyValidationService;
     private readonly exchangeValidationService;
@@ -5444,7 +5905,7 @@ declare class BacktestGlobalService {
         strategyName: string;
         exchangeName: string;
         frameName: string;
-    }) => AsyncGenerator<IStrategyTickResultClosed, void, unknown>;
+    }) => AsyncGenerator<IStrategyBacktestResult, void, unknown>;
 }
 
 /**
@@ -5827,6 +6288,7 @@ declare const backtest: {
     riskValidationService: RiskValidationService;
     backtestMarkdownService: BacktestMarkdownService;
     liveMarkdownService: LiveMarkdownService;
+    scheduleMarkdownService: ScheduleMarkdownService;
     performanceMarkdownService: PerformanceMarkdownService;
     walkerMarkdownService: WalkerMarkdownService;
     heatMarkdownService: HeatMarkdownService;
@@ -5864,4 +6326,4 @@ declare const backtest: {
     loggerService: LoggerService;
 };
 
-export { Backtest, type BacktestStatistics, type CandleInterval, type DoneContract, type EntityId, ExecutionContextService, type FrameInterval, Heat, type ICandleData, type IExchangeSchema, type IFrameSchema, type IHeatmapRow, type IHeatmapStatistics, type IPersistBase, type IPositionSizeATRParams, type IPositionSizeFixedPercentageParams, type IPositionSizeKellyParams, type IRiskActivePosition, type IRiskCheckArgs, type IRiskSchema, type IRiskValidation, type IRiskValidationFn, type IRiskValidationPayload, type ISignalDto, type ISignalRow, type ISizingCalculateParams, type ISizingCalculateParamsATR, type ISizingCalculateParamsFixedPercentage, type ISizingCalculateParamsKelly, type ISizingSchema, type ISizingSchemaATR, type ISizingSchemaFixedPercentage, type ISizingSchemaKelly, type IStrategyPnL, type IStrategySchema, type IStrategyTickResult, type IStrategyTickResultActive, type IStrategyTickResultClosed, type IStrategyTickResultIdle, type IStrategyTickResultOpened, type IWalkerResults, type IWalkerSchema, type IWalkerStrategyResult, Live, type LiveStatistics, MethodContextService, Performance, type PerformanceContract, type PerformanceMetricType, type PerformanceStatistics, PersistBase, PersistRiskAdapter, PersistSignalAdaper, PositionSize, type ProgressContract, type RiskData, type SignalData, type SignalInterval, type TPersistBase, type TPersistBaseCtor, Walker, type WalkerMetric, type WalkerStatistics, addExchange, addFrame, addRisk, addSizing, addStrategy, addWalker, emitters, formatPrice, formatQuantity, getAveragePrice, getCandles, getDate, getMode, backtest as lib, listExchanges, listFrames, listRisks, listSizings, listStrategies, listWalkers, listenDoneBacktest, listenDoneBacktestOnce, listenDoneLive, listenDoneLiveOnce, listenDoneWalker, listenDoneWalkerOnce, listenError, listenPerformance, listenProgress, listenSignal, listenSignalBacktest, listenSignalBacktestOnce, listenSignalLive, listenSignalLiveOnce, listenSignalOnce, listenValidation, listenWalker, listenWalkerComplete, listenWalkerOnce, setLogger };
+export { Backtest, type BacktestStatistics, type CandleInterval, type DoneContract, type EntityId, ExecutionContextService, type FrameInterval, type GlobalConfig, Heat, type ICandleData, type IExchangeSchema, type IFrameSchema, type IHeatmapRow, type IHeatmapStatistics, type IPersistBase, type IPositionSizeATRParams, type IPositionSizeFixedPercentageParams, type IPositionSizeKellyParams, type IRiskActivePosition, type IRiskCheckArgs, type IRiskSchema, type IRiskValidation, type IRiskValidationFn, type IRiskValidationPayload, type IScheduledSignalRow, type ISignalDto, type ISignalRow, type ISizingCalculateParams, type ISizingCalculateParamsATR, type ISizingCalculateParamsFixedPercentage, type ISizingCalculateParamsKelly, type ISizingSchema, type ISizingSchemaATR, type ISizingSchemaFixedPercentage, type ISizingSchemaKelly, type IStrategyPnL, type IStrategySchema, type IStrategyTickResult, type IStrategyTickResultActive, type IStrategyTickResultCancelled, type IStrategyTickResultClosed, type IStrategyTickResultIdle, type IStrategyTickResultOpened, type IStrategyTickResultScheduled, type IWalkerResults, type IWalkerSchema, type IWalkerStrategyResult, Live, type LiveStatistics, MethodContextService, Performance, type PerformanceContract, type PerformanceMetricType, type PerformanceStatistics, PersistBase, PersistRiskAdapter, PersistSignalAdaper, PositionSize, type ProgressContract, type RiskData, Schedule, type ScheduleStatistics, type SignalData, type SignalInterval, type TPersistBase, type TPersistBaseCtor, Walker, type WalkerMetric, type WalkerStatistics, addExchange, addFrame, addRisk, addSizing, addStrategy, addWalker, emitters, formatPrice, formatQuantity, getAveragePrice, getCandles, getDate, getMode, backtest as lib, listExchanges, listFrames, listRisks, listSizings, listStrategies, listWalkers, listenDoneBacktest, listenDoneBacktestOnce, listenDoneLive, listenDoneLiveOnce, listenDoneWalker, listenDoneWalkerOnce, listenError, listenPerformance, listenProgress, listenSignal, listenSignalBacktest, listenSignalBacktestOnce, listenSignalLive, listenSignalLiveOnce, listenSignalOnce, listenValidation, listenWalker, listenWalkerComplete, listenWalkerOnce, setConfig, setLogger };

@@ -3,6 +3,7 @@ import {
   IExchange,
   IExchangeParams,
 } from "../interfaces/Exchange.interface";
+import { GLOBAL_CONFIG } from "../config/params";
 
 const INTERVAL_MINUTES: Record<CandleInterval, number>  = {
   "1m": 1,
@@ -157,7 +158,8 @@ export class ClientExchange implements IExchange {
   }
 
   /**
-   * Calculates VWAP (Volume Weighted Average Price) from last 5 1m candles.
+   * Calculates VWAP (Volume Weighted Average Price) from last N 1m candles.
+   * The number of candles is configurable via GLOBAL_CONFIG.CC_AVG_PRICE_CANDLES_COUNT.
    *
    * Formula:
    * - Typical Price = (high + low + close) / 3
@@ -174,7 +176,7 @@ export class ClientExchange implements IExchange {
       symbol,
     });
 
-    const candles = await this.getCandles(symbol, "1m", 5);
+    const candles = await this.getCandles(symbol, "1m", GLOBAL_CONFIG.CC_AVG_PRICE_CANDLES_COUNT);
 
     if (candles.length === 0) {
       throw new Error(

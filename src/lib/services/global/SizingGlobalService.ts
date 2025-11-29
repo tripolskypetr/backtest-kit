@@ -3,6 +3,9 @@ import LoggerService from "../base/LoggerService";
 import TYPES from "../../core/types";
 import SizingConnectionService from "../connection/SizingConnectionService";
 import { ISizingCalculateParams, SizingName } from "../../../interfaces/Sizing.interface";
+import SizingValidationService from "../validation/SizingValidationService";
+
+const METHOD_NAME_CALCULATE = "sizingGlobalService calculate";
 
 /**
  * Global service for sizing operations.
@@ -15,6 +18,7 @@ export class SizingGlobalService {
   private readonly sizingConnectionService = inject<SizingConnectionService>(
     TYPES.sizingConnectionService
   );
+  private readonly sizingValidationService = inject<SizingValidationService>(TYPES.sizingValidationService);
 
   /**
    * Calculates position size based on risk parameters.
@@ -27,11 +31,12 @@ export class SizingGlobalService {
     params: ISizingCalculateParams,
     context: { sizingName: SizingName }
   ) => {
-    this.loggerService.log("sizingGlobalService calculate", {
+    this.loggerService.log(METHOD_NAME_CALCULATE, {
       symbol: params.symbol,
       method: params.method,
       context,
     });
+    this.sizingValidationService.validate(context.sizingName, METHOD_NAME_CALCULATE);
     return await this.sizingConnectionService.calculate(params, context);
   };
 }

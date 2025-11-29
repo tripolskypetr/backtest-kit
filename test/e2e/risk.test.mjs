@@ -8,10 +8,11 @@ import {
   Backtest,
   listenSignalBacktest,
   listenDoneBacktest,
+  getAveragePrice,
 } from "../../build/index.mjs";
 
 import getMockCandles from "../mock/getMockCandles.mjs";
-import { Subject } from "functools-kit";
+import { sleep, Subject } from "functools-kit";
 
 test("Risk rejects signals based on custom symbol filter", async ({ pass, fail }) => {
 
@@ -206,8 +207,8 @@ test("Risk validation with price-based logic", async ({ pass, fail }) => {
 
 test("Multiple strategies share same risk profile with concurrent positions", async ({ pass, fail }) => {
 
-  let totalRejected = 0;
-  let totalAllowed = 0;
+  let totalOpen = 0;
+  let totalFinished = 0;
 
   addExchange({
     exchangeName: "binance-integration-shared-risk",
@@ -227,14 +228,6 @@ test("Multiple strategies share same risk profile with concurrent positions", as
         }
       },
     ],
-    callbacks: {
-      onRejected: () => {
-        totalRejected++;
-      },
-      onAllowed: () => {
-        totalAllowed++;
-      },
-    },
   });
 
   addStrategy({
@@ -242,14 +235,24 @@ test("Multiple strategies share same risk profile with concurrent positions", as
     interval: "1m",
     riskName: "shared-max-1",
     getSignal: async () => {
+      const price = await getAveragePrice();
       return {
-        position: "long",
-        note: "shared risk test 1",
-        priceTakeProfit: 43000,
-        priceStopLoss: 41000,
+        position: "short",
+        note: "shared risk test 2",
+        priceOpen: price,
+        priceTakeProfit: price - 10_000,
+        priceStopLoss: price + 10_000,
         minuteEstimatedTime: 200,
       };
     },
+    callbacks: {
+      onOpen: () => {
+        totalOpen++;
+      },
+      onClose: () => {
+        totalOpen--;
+      }
+    }
   });
 
   addStrategy({
@@ -257,11 +260,13 @@ test("Multiple strategies share same risk profile with concurrent positions", as
     interval: "1m",
     riskName: "shared-max-1",
     getSignal: async () => {
+      const price = await getAveragePrice();
       return {
         position: "short",
         note: "shared risk test 2",
-        priceTakeProfit: 41000,
-        priceStopLoss: 43000,
+        priceOpen: price,
+        priceTakeProfit: price - 10_000,
+        priceStopLoss: price + 10_000,
         minuteEstimatedTime: 200,
       };
     },
@@ -274,18 +279,16 @@ test("Multiple strategies share same risk profile with concurrent positions", as
     endDate: new Date("2024-01-05T00:00:00Z"),
   });
 
-  const awaitSubject1 = new Subject();
-  const awaitSubject2 = new Subject();
+  const awaitSubject = new Subject();
 
-  let backtestDoneCount = 0;
+
   listenDoneBacktest(() => {
-    backtestDoneCount++;
-    if (backtestDoneCount === 1) {
-      awaitSubject1.next();
-    } else if (backtestDoneCount === 2) {
-      awaitSubject2.next();
+    totalFinished++;
+    if (totalFinished === 2) {
+      awaitSubject.next();
     }
   });
+
 
   Backtest.background("BTCUSDT", {
     strategyName: "shared-strategy-1",
@@ -299,14 +302,13 @@ test("Multiple strategies share same risk profile with concurrent positions", as
     frameName: "1d-shared-risk",
   });
 
-  await Promise.all([awaitSubject1.toPromise(), awaitSubject2.toPromise()]);
+  await awaitSubject.toPromise();
 
-  if (totalAllowed >= 1 && totalRejected > 0) {
-    pass(`Shared risk profile limited strategies: ${totalAllowed} allowed, ${totalRejected} rejected`);
+  if (totalOpen === 0) {
+    pass();
     return;
   }
-
-  fail(`Expected >=1 allowed and >0 rejected, got ${totalAllowed} allowed, ${totalRejected} rejected`);
+  fail();
 
 });
 

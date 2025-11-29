@@ -56,7 +56,8 @@ Used in backtest mode to get candles for signal duration.
 getAveragePrice(symbol: string): Promise<number>;
 ```
 
-Calculates VWAP (Volume Weighted Average Price) from last 5 1m candles.
+Calculates VWAP (Volume Weighted Average Price) from last N 1m candles.
+The number of candles is configurable via GLOBAL_CONFIG.CC_AVG_PRICE_CANDLES_COUNT.
 
 Formula:
 - Typical Price = (high + low + close) / 3

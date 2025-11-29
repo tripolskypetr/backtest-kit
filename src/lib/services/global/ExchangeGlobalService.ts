@@ -2,8 +2,16 @@ import { inject } from "../../core/di";
 import LoggerService from "../base/LoggerService";
 import TYPES from "../../core/types";
 import ExecutionContextService from "../context/ExecutionContextService";
-import { CandleInterval } from "../../../interfaces/Exchange.interface";
+import {
+  CandleInterval,
+  ExchangeName,
+} from "../../../interfaces/Exchange.interface";
 import ExchangeConnectionService from "../connection/ExchangeConnectionService";
+import { TMethodContextService } from "../context/MethodContextService";
+import ExchangeValidationService from "../validation/ExchangeValidationService";
+import { memoize, singleshot } from "functools-kit";
+
+const METHOD_NAME_VALIDATE = "exchangeGlobalService validate";
 
 /**
  * Global service for exchange operations with execution context injection.
@@ -17,6 +25,31 @@ export class ExchangeGlobalService {
   private readonly loggerService = inject<LoggerService>(TYPES.loggerService);
   private readonly exchangeConnectionService =
     inject<ExchangeConnectionService>(TYPES.exchangeConnectionService);
+  private readonly methodContextService = inject<TMethodContextService>(
+    TYPES.methodContextService
+  );
+  private readonly exchangeValidationService =
+    inject<ExchangeValidationService>(TYPES.exchangeValidationService);
+
+  /**
+   * Validates exchange configuration.
+   * Memoized to avoid redundant validations for the same exchange.
+   * Logs validation activity.
+   * @param exchangeName - Name of the exchange to validate
+   * @returns Promise that resolves when validation is complete
+   */
+  private validate = memoize(
+    ([exchangeName]) => `${exchangeName}`,
+    async (exchangeName: ExchangeName) => {
+      this.loggerService.log(METHOD_NAME_VALIDATE, {
+        exchangeName,
+      });
+      this.exchangeValidationService.validate(
+        exchangeName,
+        METHOD_NAME_VALIDATE
+      );
+    }
+  );
 
   /**
    * Fetches historical candles with execution context.
@@ -42,6 +75,7 @@ export class ExchangeGlobalService {
       when,
       backtest,
     });
+    await this.validate(this.methodContextService.context.exchangeName);
     return await ExecutionContextService.runInContext(
       async () => {
         return await this.exchangeConnectionService.getCandles(
@@ -82,6 +116,7 @@ export class ExchangeGlobalService {
       when,
       backtest,
     });
+    await this.validate(this.methodContextService.context.exchangeName);
     return await ExecutionContextService.runInContext(
       async () => {
         return await this.exchangeConnectionService.getNextCandles(
@@ -116,6 +151,7 @@ export class ExchangeGlobalService {
       when,
       backtest,
     });
+    await this.validate(this.methodContextService.context.exchangeName);
     return await ExecutionContextService.runInContext(
       async () => {
         return await this.exchangeConnectionService.getAveragePrice(symbol);
@@ -149,6 +185,7 @@ export class ExchangeGlobalService {
       when,
       backtest,
     });
+    await this.validate(this.methodContextService.context.exchangeName);
     return await ExecutionContextService.runInContext(
       async () => {
         return await this.exchangeConnectionService.formatPrice(symbol, price);
@@ -182,6 +219,7 @@ export class ExchangeGlobalService {
       when,
       backtest,
     });
+    await this.validate(this.methodContextService.context.exchangeName);
     return await ExecutionContextService.runInContext(
       async () => {
         return await this.exchangeConnectionService.formatQuantity(

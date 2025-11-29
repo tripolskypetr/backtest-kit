@@ -4,6 +4,8 @@ import TYPES from "../../../lib/core/types";
 import LiveLogicPublicService from "../logic/public/LiveLogicPublicService";
 import StrategyValidationService from "../validation/StrategyValidationService";
 import ExchangeValidationService from "../validation/ExchangeValidationService";
+import StrategySchemaService from "../schema/StrategySchemaService";
+import RiskValidationService from "../validation/RiskValidationService";
 
 const METHOD_NAME_RUN = "liveGlobalService run";
 
@@ -22,6 +24,12 @@ export class LiveGlobalService {
     inject<StrategyValidationService>(TYPES.strategyValidationService);
   private readonly exchangeValidationService =
     inject<ExchangeValidationService>(TYPES.exchangeValidationService);
+  private readonly strategySchemaService = inject<StrategySchemaService>(
+    TYPES.strategySchemaService
+  );  
+  private readonly riskValidationService = inject<RiskValidationService>(
+    TYPES.riskValidationService
+  );
 
   /**
    * Runs live trading for a symbol with context propagation.
@@ -43,8 +51,24 @@ export class LiveGlobalService {
       symbol,
       context,
     });
-    this.strategyValidationService.validate(context.strategyName, METHOD_NAME_RUN);
-    this.exchangeValidationService.validate(context.exchangeName, METHOD_NAME_RUN);
+    {
+      this.strategyValidationService.validate(
+        context.strategyName,
+        METHOD_NAME_RUN
+      );
+      this.exchangeValidationService.validate(
+        context.exchangeName,
+        METHOD_NAME_RUN
+      );
+    }
+    {
+      const strategySchema = this.strategySchemaService.get(
+        context.strategyName
+      );
+      const riskName = strategySchema.riskName;
+      riskName &&
+        this.riskValidationService.validate(riskName, METHOD_NAME_RUN);
+    }
     return this.liveLogicPublicService.run(symbol, context);
   };
 }

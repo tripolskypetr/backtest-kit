@@ -35,6 +35,7 @@ import LiveGlobalService from "./services/global/LiveGlobalService";
 import BacktestGlobalService from "./services/global/BacktestGlobalService";
 import BacktestMarkdownService from "./services/markdown/BacktestMarkdownService";
 import LiveMarkdownService from "./services/markdown/LiveMarkdownService";
+import ScheduleMarkdownService from "./services/markdown/ScheduleMarkdownService";
 import PerformanceMarkdownService from "./services/markdown/PerformanceMarkdownService";
 import WalkerMarkdownService from "./services/markdown/WalkerMarkdownService";
 import HeatMarkdownService from "./services/markdown/HeatMarkdownService";
@@ -133,6 +134,7 @@ const logicPublicServices = {
 const markdownServices = {
   backtestMarkdownService: inject<BacktestMarkdownService>(TYPES.backtestMarkdownService),
   liveMarkdownService: inject<LiveMarkdownService>(TYPES.liveMarkdownService),
+  scheduleMarkdownService: inject<ScheduleMarkdownService>(TYPES.scheduleMarkdownService),
   performanceMarkdownService: inject<PerformanceMarkdownService>(TYPES.performanceMarkdownService),
   walkerMarkdownService: inject<WalkerMarkdownService>(TYPES.walkerMarkdownService),
   heatMarkdownService: inject<HeatMarkdownService>(TYPES.heatMarkdownService),

@@ -1,7 +1,14 @@
-import { inject } from "../../../lib/core/di";
+import { inject } from "../../core/di";
 import LoggerService from "../base/LoggerService";
-import TYPES from "../../../lib/core/types";
+import TYPES from "../../core/types";
 import WalkerLogicPublicService from "../logic/public/WalkerLogicPublicService";
+import StrategyValidationService from "../validation/StrategyValidationService";
+import ExchangeValidationService from "../validation/ExchangeValidationService";
+import FrameValidationService from "../validation/FrameValidationService";
+import WalkerSchemaService from "../schema/WalkerSchemaService";
+import WalkerValidationService from "../validation/WalkerValidationService";
+import StrategySchemaService from "../schema/StrategySchemaService";
+import RiskValidationService from "../validation/RiskValidationService";
 
 const METHOD_NAME_RUN = "walkerGlobalService run";
 
@@ -13,8 +20,28 @@ const METHOD_NAME_RUN = "walkerGlobalService run";
  */
 export class WalkerGlobalService {
   private readonly loggerService = inject<LoggerService>(TYPES.loggerService);
-  private readonly walkerLogicPublicService =
-    inject<WalkerLogicPublicService>(TYPES.walkerLogicPublicService);
+  private readonly walkerLogicPublicService = inject<WalkerLogicPublicService>(
+    TYPES.walkerLogicPublicService
+  );
+  private readonly walkerSchemaService = inject<WalkerSchemaService>(
+    TYPES.walkerSchemaService
+  );
+  private readonly strategyValidationService =
+    inject<StrategyValidationService>(TYPES.strategyValidationService);
+  private readonly exchangeValidationService =
+    inject<ExchangeValidationService>(TYPES.exchangeValidationService);
+  private readonly frameValidationService = inject<FrameValidationService>(
+    TYPES.frameValidationService
+  );
+  private readonly walkerValidationService = inject<WalkerValidationService>(
+    TYPES.walkerValidationService
+  );
+  private readonly strategySchemaService = inject<StrategySchemaService>(
+    TYPES.strategySchemaService
+  );  
+  private readonly riskValidationService = inject<RiskValidationService>(
+    TYPES.riskValidationService
+  );
 
   /**
    * Runs walker comparison for a symbol with context propagation.
@@ -34,6 +61,27 @@ export class WalkerGlobalService {
       symbol,
       context,
     });
+    {
+      this.exchangeValidationService.validate(
+        context.exchangeName,
+        METHOD_NAME_RUN
+      );
+      this.frameValidationService.validate(context.frameName, METHOD_NAME_RUN);
+      this.walkerValidationService.validate(
+        context.walkerName,
+        METHOD_NAME_RUN
+      );
+    }
+    {
+      const walkerSchema = this.walkerSchemaService.get(context.walkerName);
+      for (const strategyName of walkerSchema.strategies) {
+        const strategySchema = this.strategySchemaService.get(strategyName);
+        this.strategyValidationService.validate(strategyName, METHOD_NAME_RUN);
+        const riskName = strategySchema.riskName;
+        riskName &&
+          this.riskValidationService.validate(riskName, METHOD_NAME_RUN);
+      }
+    }
     return this.walkerLogicPublicService.run(symbol, context);
   };
 }

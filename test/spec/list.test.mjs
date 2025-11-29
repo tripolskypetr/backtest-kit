@@ -9,6 +9,7 @@ import {
   listFrames,
   listStrategies,
   listSizings,
+  getAveragePrice,
 } from "../../build/index.mjs";
 
 import getMockCandles from "../mock/getMockCandles.mjs";
@@ -78,12 +79,13 @@ test("listStrategies returns all registered strategies", async ({ pass, fail }) 
     note: "First test strategy for list",
     interval: "1m",
     getSignal: async () => {
+      const price = await getAveragePrice("BTCUSDT");
       return {
         position: "long",
         note: "test signal",
-        priceOpen: 42000,
-        priceTakeProfit: 43000,
-        priceStopLoss: 41000,
+        priceOpen: price,
+        priceTakeProfit: price + 1_000,
+        priceStopLoss: price - 1_000,
         minuteEstimatedTime: 60,
       };
     },
@@ -94,12 +96,13 @@ test("listStrategies returns all registered strategies", async ({ pass, fail }) 
     note: "Second test strategy for list",
     interval: "5m",
     getSignal: async () => {
+      const price = await getAveragePrice("BTCUSDT");
       return {
         position: "short",
         note: "test signal",
-        priceOpen: 42000,
-        priceTakeProfit: 41000,
-        priceStopLoss: 43000,
+        priceOpen: price,
+        priceTakeProfit: price - 1_000,
+        priceStopLoss: price + 1_000,
         minuteEstimatedTime: 120,
       };
     },
@@ -274,11 +277,12 @@ test("listStrategies includes note field when provided", async ({ pass, fail }) 
     note: testNote,
     interval: "1m",
     getSignal: async () => {
+      const price = await getAveragePrice("BTCUSDT");
       return {
         position: "long",
-        priceOpen: 42000,
-        priceTakeProfit: 43000,
-        priceStopLoss: 41000,
+        priceOpen: price,
+        priceTakeProfit: price + 1_000,
+        priceStopLoss: price - 1_000,
         minuteEstimatedTime: 60,
       };
     },
@@ -337,11 +341,12 @@ test("listStrategies includes callbacks when provided", async ({ pass, fail }) =
     note: "Strategy with callbacks for testing",
     interval: "1m",
     getSignal: async () => {
+      const price = await getAveragePrice("BTCUSDT");
       return {
         position: "long",
-        priceOpen: 42000,
-        priceTakeProfit: 43000,
-        priceStopLoss: 41000,
+        priceOpen: price,
+        priceTakeProfit: price + 1_000,
+        priceStopLoss: price - 1_000,
         minuteEstimatedTime: 60,
       };
     },

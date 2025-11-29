@@ -30,6 +30,48 @@ loggerService: any
 walkerLogicPublicService: any
 ```
 
+### walkerSchemaService
+
+```ts
+walkerSchemaService: any
+```
+
+### strategyValidationService
+
+```ts
+strategyValidationService: any
+```
+
+### exchangeValidationService
+
+```ts
+exchangeValidationService: any
+```
+
+### frameValidationService
+
+```ts
+frameValidationService: any
+```
+
+### walkerValidationService
+
+```ts
+walkerValidationService: any
+```
+
+### strategySchemaService
+
+```ts
+strategySchemaService: any
+```
+
+### riskValidationService
+
+```ts
+riskValidationService: any
+```
+
 ### run
 
 ```ts

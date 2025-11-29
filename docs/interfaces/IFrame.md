@@ -13,7 +13,7 @@ Used internally by backtest orchestration.
 ### getTimeframe
 
 ```ts
-getTimeframe: (symbol: string) => Promise<Date[]>
+getTimeframe: (symbol: string, frameName: string) => Promise<Date[]>
 ```
 
 Generates array of timestamps for backtest iteration.

@@ -159,7 +159,7 @@ const columns: Column[] = [
     key: "duration",
     label: "Duration (min)",
     format: (data) => {
-      const durationMs = data.closeTimestamp - data.signal.timestamp;
+      const durationMs = data.closeTimestamp - data.signal.pendingAt;
       const durationMin = Math.round(durationMs / 60000);
       return `${durationMin}`;
     },
@@ -167,7 +167,7 @@ const columns: Column[] = [
   {
     key: "openTimestamp",
     label: "Open Time",
-    format: (data) => new Date(data.signal.timestamp).toISOString(),
+    format: (data) => new Date(data.signal.pendingAt).toISOString(),
   },
   {
     key: "closeTimestamp",
@@ -246,7 +246,7 @@ class ReportStorage {
 
     // Calculate Expected Yearly Returns
     const avgDurationMs = this._signalList.reduce(
-      (sum, s) => sum + (s.closeTimestamp - s.signal.timestamp),
+      (sum, s) => sum + (s.closeTimestamp - s.signal.pendingAt),
       0
     ) / totalSignals;
     const avgDurationDays = avgDurationMs / (1000 * 60 * 60 * 24);

@@ -32,6 +32,41 @@ loggerService: any
 strategyConnectionService: any
 ```
 
+### strategySchemaService
+
+```ts
+strategySchemaService: any
+```
+
+### riskValidationService
+
+```ts
+riskValidationService: any
+```
+
+### strategyValidationService
+
+```ts
+strategyValidationService: any
+```
+
+### methodContextService
+
+```ts
+methodContextService: any
+```
+
+### validate
+
+```ts
+validate: any
+```
+
+Validates strategy and associated risk configuration.
+
+Memoized to avoid redundant validations for the same strategy.
+Logs validation activity.
+
 ### tick
 
 ```ts
@@ -46,7 +81,7 @@ and backtest mode flag.
 ### backtest
 
 ```ts
-backtest: (symbol: string, candles: ICandleData[], when: Date, backtest: boolean) => Promise<IStrategyTickResultClosed>
+backtest: (symbol: string, candles: ICandleData[], when: Date, backtest: boolean) => Promise<IStrategyBacktestResult>
 ```
 
 Runs fast backtest against candle array.
@@ -68,7 +103,7 @@ Does not require execution context.
 ### clear
 
 ```ts
-clear: (strategyName: string) => Promise<void>
+clear: (strategyName?: string) => Promise<void>
 ```
 
 Clears the memoized ClientStrategy instance from cache.

@@ -15,7 +15,7 @@ const INTERVAL_MINUTES = {
 
 export const getMockCandles = async (interval, since, limit) => {
 
-  await sleep(50);
+  // await sleep(50);
 
   const candles = [];
   const intervalMs = INTERVAL_MINUTES[interval] * 60000;

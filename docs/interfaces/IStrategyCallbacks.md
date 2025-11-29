@@ -6,7 +6,7 @@ group: docs
 # IStrategyCallbacks
 
 Optional lifecycle callbacks for signal events.
-Called when signals are opened, active, idle, or closed.
+Called when signals are opened, active, idle, closed, scheduled, or cancelled.
 
 ## Properties
 
@@ -49,3 +49,19 @@ onClose: (symbol: string, data: ISignalRow, priceClose: number, backtest: boolea
 ```
 
 Called when signal is closed with final price
+
+### onSchedule
+
+```ts
+onSchedule: (symbol: string, data: IScheduledSignalRow, currentPrice: number, backtest: boolean) => void
+```
+
+Called when scheduled signal is created (delayed entry)
+
+### onCancel
+
+```ts
+onCancel: (symbol: string, data: IScheduledSignalRow, currentPrice: number, backtest: boolean) => void
+```
+
+Called when scheduled signal is cancelled without opening position
