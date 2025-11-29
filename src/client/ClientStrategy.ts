@@ -1265,9 +1265,21 @@ export class ClientStrategy implements IStrategy {
       pendingSignal,
     });
     this._pendingSignal = pendingSignal;
+
+    // КРИТИЧНО: Всегда вызываем коллбек onWrite для тестирования persist storage
+    // даже в backtest режиме, чтобы тесты могли перехватывать вызовы через mock adapter
+    if (this.params.callbacks?.onWrite) {
+      this.params.callbacks.onWrite(
+        this.params.execution.context.symbol,
+        this._pendingSignal,
+        this.params.execution.context.backtest
+      );
+    }
+
     if (this.params.execution.context.backtest) {
       return;
     }
+
     await PersistSignalAdapter.writeSignalData(
       this._pendingSignal,
       this.params.strategyName,
