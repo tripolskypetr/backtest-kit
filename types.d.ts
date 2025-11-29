@@ -41,6 +41,34 @@ declare const GLOBAL_CONFIG: {
      * Default: 5000 ms (5 seconds)
      */
     CC_GET_CANDLES_RETRY_DELAY_MS: number;
+    /**
+     * Maximum allowed deviation factor for price anomaly detection.
+     * Price should not be more than this factor lower than reference price.
+     *
+     * Reasoning:
+     * - Incomplete candles from Binance API typically have prices near 0 (e.g., $0.01-1)
+     * - Normal BTC price ranges: $20,000-100,000
+     * - Factor 1000 catches prices below $20-100 when median is $20,000-100,000
+     * - Factor 100 would be too permissive (allows $200 when median is $20,000)
+     * - Factor 10000 might be too strict for low-cap altcoins
+     *
+     * Example: BTC at $50,000 median → threshold $50 (catches $0.01-1 anomalies)
+     */
+    CC_GET_CANDLES_PRICE_ANOMALY_THRESHOLD_FACTOR: number;
+    /**
+     * Minimum number of candles required for reliable median calculation.
+     * Below this threshold, use simple average instead of median.
+     *
+     * Reasoning:
+     * - Each candle provides 4 price points (OHLC)
+     * - 5 candles = 20 price points, sufficient for robust median calculation
+     * - Below 5 candles, single anomaly can heavily skew median
+     * - Statistical rule of thumb: minimum 7-10 data points for median stability
+     * - Average is more stable than median for small datasets (n < 20)
+     *
+     * Example: 3 candles = 12 points (use average), 5 candles = 20 points (use median)
+     */
+    CC_GET_CANDLES_MIN_CANDLES_FOR_MEDIAN: number;
 };
 /**
  * Type for global configuration object.

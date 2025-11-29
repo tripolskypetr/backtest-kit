@@ -227,6 +227,7 @@ Backtest.background("BTCUSDT", {
 - 🛡️ **Signal Lifecycle**: Type-safe state machine prevents invalid state transitions. 🚑
 - 📦 **Dependency Inversion**: Lazy-load components at runtime for modular, scalable designs. 🧩
 - 🔍 **Schema Reflection**: Runtime introspection with `listExchanges()`, `listStrategies()`, `listFrames()`. 📊
+- 🔬 **Data Validation**: Automatic detection and rejection of incomplete candles from Binance API with anomaly checks. 
 
 ---
 

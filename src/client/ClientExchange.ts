@@ -5,7 +5,7 @@ import {
   IExchangeParams,
 } from "../interfaces/Exchange.interface";
 import { GLOBAL_CONFIG } from "../config/params";
-import { retry, sleep } from "functools-kit";
+import { errorData, getErrorMessage, sleep } from "functools-kit";
 
 const INTERVAL_MINUTES: Record<CandleInterval, number> = {
   "1m": 1,
@@ -18,6 +18,90 @@ const INTERVAL_MINUTES: Record<CandleInterval, number> = {
   "4h": 240,
   "6h": 360,
   "8h": 480,
+};
+
+/**
+ * Validates that all candles have valid OHLCV data without anomalies.
+ * Detects incomplete candles from Binance API by checking for abnormally low prices or volumes.
+ * Incomplete candles often have prices like 0.1 instead of normal 100,000 or zero volume.
+ *
+ * @param candles - Array of candle data to validate
+ * @throws Error if any candles have anomalous OHLCV values
+ */
+const VALIDATE_NO_INCOMPLETE_CANDLES_FN = (
+  candles: ICandleData[]
+): void => {
+  if (candles.length === 0) {
+    return;
+  }
+
+  // Calculate reference price (median or average depending on candle count)
+  const allPrices = candles.flatMap((c) => [c.open, c.high, c.low, c.close]);
+  const validPrices = allPrices.filter(p => p > 0);
+
+  let referencePrice: number;
+  if (candles.length >= GLOBAL_CONFIG.CC_GET_CANDLES_MIN_CANDLES_FOR_MEDIAN) {
+    // Use median for reliable statistics with enough data
+    const sortedPrices = [...validPrices].sort((a, b) => a - b);
+    referencePrice = sortedPrices[Math.floor(sortedPrices.length / 2)] || 0;
+  } else {
+    // Use average for small datasets (more stable than median)
+    const sum = validPrices.reduce((acc, p) => acc + p, 0);
+    referencePrice = validPrices.length > 0 ? sum / validPrices.length : 0;
+  }
+
+  if (referencePrice === 0) {
+    throw new Error(
+      `VALIDATE_NO_INCOMPLETE_CANDLES_FN: cannot calculate reference price (all prices are zero)`
+    );
+  }
+
+  const minValidPrice = referencePrice / GLOBAL_CONFIG.CC_GET_CANDLES_PRICE_ANOMALY_THRESHOLD_FACTOR;
+
+  for (let i = 0; i < candles.length; i++) {
+    const candle = candles[i];
+
+    // Check for invalid numeric values
+    if (
+      !Number.isFinite(candle.open) ||
+      !Number.isFinite(candle.high) ||
+      !Number.isFinite(candle.low) ||
+      !Number.isFinite(candle.close) ||
+      !Number.isFinite(candle.volume) ||
+      !Number.isFinite(candle.timestamp)
+    ) {
+      throw new Error(
+        `VALIDATE_NO_INCOMPLETE_CANDLES_FN: candle[${i}] has invalid numeric values (NaN or Infinity)`
+      );
+    }
+
+    // Check for negative values
+    if (
+      candle.open <= 0 ||
+      candle.high <= 0 ||
+      candle.low <= 0 ||
+      candle.close <= 0 ||
+      candle.volume < 0
+    ) {
+      throw new Error(
+        `VALIDATE_NO_INCOMPLETE_CANDLES_FN: candle[${i}] has zero or negative values`
+      );
+    }
+
+    // Check for anomalously low prices (incomplete candle indicator)
+    if (
+      candle.open < minValidPrice ||
+      candle.high < minValidPrice ||
+      candle.low < minValidPrice ||
+      candle.close < minValidPrice
+    ) {
+      throw new Error(
+        `VALIDATE_NO_INCOMPLETE_CANDLES_FN: candle[${i}] has anomalously low price. ` +
+        `OHLC: [${candle.open}, ${candle.high}, ${candle.low}, ${candle.close}], ` +
+        `reference: ${referencePrice}, threshold: ${minValidPrice}`
+      );
+    }
+  }
 };
 
 /**
@@ -39,15 +123,23 @@ const GET_CANDLES_FN = async (
   let lastError: Error;
   for (let i = 0; i !== GLOBAL_CONFIG.CC_GET_CANDLES_RETRY_COUNT; i++) {
     try {
-      return await self.params.getCandles(
+      const result = await self.params.getCandles(
         dto.symbol,
         dto.interval,
         since,
         dto.limit
       );
+
+      VALIDATE_NO_INCOMPLETE_CANDLES_FN(result);
+
+      return result;
     } catch (err) {
       self.params.logger.warn(
-        `ClientExchange GET_CANDLES_FN: attempt ${i + 1} failed for symbol=${dto.symbol}, interval=${dto.interval}, since=${since.toISOString()}, limit=${dto.limit}: ${err}`
+        `ClientExchange GET_CANDLES_FN: attempt ${i + 1} failed for symbol=${dto.symbol}, interval=${dto.interval}, since=${since.toISOString()}, limit=${dto.limit}}`,
+        {
+          error: errorData(err),
+          message: getErrorMessage(err),
+        }
       );
       lastError = err;
       await sleep(GLOBAL_CONFIG.CC_GET_CANDLES_RETRY_DELAY_MS);
