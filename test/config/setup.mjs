@@ -38,5 +38,7 @@ setConfig({
   CC_MIN_TAKEPROFIT_DISTANCE_PERCENT: 0, // Не проверяем минимальную дистанцию TP
   CC_MAX_STOPLOSS_DISTANCE_PERCENT: 100, // Разрешаем любой SL (до 100%)
   CC_MAX_SIGNAL_LIFETIME_MINUTES: 999999, // Разрешаем любое время жизни сигнала
+  CC_GET_CANDLES_RETRY_COUNT: 1, // Отключаем ретраи в тестах для ускорения
+  CC_GET_CANDLES_RETRY_DELAY_MS: 100, // Минимальная задержка между ретраями
 })
 

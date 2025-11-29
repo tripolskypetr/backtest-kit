@@ -31,6 +31,16 @@ declare const GLOBAL_CONFIG: {
      * Default: 1440 minutes (1 day)
      */
     CC_MAX_SIGNAL_LIFETIME_MINUTES: number;
+    /**
+     * Number of retries for getCandles function
+     * Default: 3 retries
+     */
+    CC_GET_CANDLES_RETRY_COUNT: number;
+    /**
+     * Delay between retries for getCandles function (in milliseconds)
+     * Default: 5000 ms (5 seconds)
+     */
+    CC_GET_CANDLES_RETRY_DELAY_MS: number;
 };
 /**
  * Type for global configuration object.
@@ -3433,7 +3443,7 @@ declare class PersistSignalUtils {
      *   async readValue(id) { return JSON.parse(await redis.get(id)); }
      *   async writeValue(id, entity) { await redis.set(id, JSON.stringify(entity)); }
      * }
-     * PersistSignalAdaper.usePersistSignalAdapter(RedisPersist);
+     * PersistSignalAdapter.usePersistSignalAdapter(RedisPersist);
      * ```
      */
     usePersistSignalAdapter(Ctor: TPersistBaseCtor<StrategyName, SignalData>): void;
@@ -3468,16 +3478,16 @@ declare class PersistSignalUtils {
  * @example
  * ```typescript
  * // Custom adapter
- * PersistSignalAdaper.usePersistSignalAdapter(RedisPersist);
+ * PersistSignalAdapter.usePersistSignalAdapter(RedisPersist);
  *
  * // Read signal
- * const signal = await PersistSignalAdaper.readSignalData("my-strategy", "BTCUSDT");
+ * const signal = await PersistSignalAdapter.readSignalData("my-strategy", "BTCUSDT");
  *
  * // Write signal
- * await PersistSignalAdaper.writeSignalData(signal, "my-strategy", "BTCUSDT");
+ * await PersistSignalAdapter.writeSignalData(signal, "my-strategy", "BTCUSDT");
  * ```
  */
-declare const PersistSignalAdaper: PersistSignalUtils;
+declare const PersistSignalAdapter: PersistSignalUtils;
 /**
  * Type for persisted risk positions data.
  * Stores Map entries as array of [key, value] tuples for JSON serialization.
@@ -6326,4 +6336,4 @@ declare const backtest: {
     loggerService: LoggerService;
 };
 
-export { Backtest, type BacktestStatistics, type CandleInterval, type DoneContract, type EntityId, ExecutionContextService, type FrameInterval, type GlobalConfig, Heat, type ICandleData, type IExchangeSchema, type IFrameSchema, type IHeatmapRow, type IHeatmapStatistics, type IPersistBase, type IPositionSizeATRParams, type IPositionSizeFixedPercentageParams, type IPositionSizeKellyParams, type IRiskActivePosition, type IRiskCheckArgs, type IRiskSchema, type IRiskValidation, type IRiskValidationFn, type IRiskValidationPayload, type IScheduledSignalRow, type ISignalDto, type ISignalRow, type ISizingCalculateParams, type ISizingCalculateParamsATR, type ISizingCalculateParamsFixedPercentage, type ISizingCalculateParamsKelly, type ISizingSchema, type ISizingSchemaATR, type ISizingSchemaFixedPercentage, type ISizingSchemaKelly, type IStrategyPnL, type IStrategySchema, type IStrategyTickResult, type IStrategyTickResultActive, type IStrategyTickResultCancelled, type IStrategyTickResultClosed, type IStrategyTickResultIdle, type IStrategyTickResultOpened, type IStrategyTickResultScheduled, type IWalkerResults, type IWalkerSchema, type IWalkerStrategyResult, Live, type LiveStatistics, MethodContextService, Performance, type PerformanceContract, type PerformanceMetricType, type PerformanceStatistics, PersistBase, PersistRiskAdapter, PersistSignalAdaper, PositionSize, type ProgressContract, type RiskData, Schedule, type ScheduleStatistics, type SignalData, type SignalInterval, type TPersistBase, type TPersistBaseCtor, Walker, type WalkerMetric, type WalkerStatistics, addExchange, addFrame, addRisk, addSizing, addStrategy, addWalker, emitters, formatPrice, formatQuantity, getAveragePrice, getCandles, getDate, getMode, backtest as lib, listExchanges, listFrames, listRisks, listSizings, listStrategies, listWalkers, listenDoneBacktest, listenDoneBacktestOnce, listenDoneLive, listenDoneLiveOnce, listenDoneWalker, listenDoneWalkerOnce, listenError, listenPerformance, listenProgress, listenSignal, listenSignalBacktest, listenSignalBacktestOnce, listenSignalLive, listenSignalLiveOnce, listenSignalOnce, listenValidation, listenWalker, listenWalkerComplete, listenWalkerOnce, setConfig, setLogger };
+export { Backtest, type BacktestStatistics, type CandleInterval, type DoneContract, type EntityId, ExecutionContextService, type FrameInterval, type GlobalConfig, Heat, type ICandleData, type IExchangeSchema, type IFrameSchema, type IHeatmapRow, type IHeatmapStatistics, type IPersistBase, type IPositionSizeATRParams, type IPositionSizeFixedPercentageParams, type IPositionSizeKellyParams, type IRiskActivePosition, type IRiskCheckArgs, type IRiskSchema, type IRiskValidation, type IRiskValidationFn, type IRiskValidationPayload, type IScheduledSignalRow, type ISignalDto, type ISignalRow, type ISizingCalculateParams, type ISizingCalculateParamsATR, type ISizingCalculateParamsFixedPercentage, type ISizingCalculateParamsKelly, type ISizingSchema, type ISizingSchemaATR, type ISizingSchemaFixedPercentage, type ISizingSchemaKelly, type IStrategyPnL, type IStrategySchema, type IStrategyTickResult, type IStrategyTickResultActive, type IStrategyTickResultCancelled, type IStrategyTickResultClosed, type IStrategyTickResultIdle, type IStrategyTickResultOpened, type IStrategyTickResultScheduled, type IWalkerResults, type IWalkerSchema, type IWalkerStrategyResult, Live, type LiveStatistics, MethodContextService, Performance, type PerformanceContract, type PerformanceMetricType, type PerformanceStatistics, PersistBase, PersistRiskAdapter, PersistSignalAdapter, PositionSize, type ProgressContract, type RiskData, Schedule, type ScheduleStatistics, type SignalData, type SignalInterval, type TPersistBase, type TPersistBaseCtor, Walker, type WalkerMetric, type WalkerStatistics, addExchange, addFrame, addRisk, addSizing, addStrategy, addWalker, emitters, formatPrice, formatQuantity, getAveragePrice, getCandles, getDate, getMode, backtest as lib, listExchanges, listFrames, listRisks, listSizings, listStrategies, listWalkers, listenDoneBacktest, listenDoneBacktestOnce, listenDoneLive, listenDoneLiveOnce, listenDoneWalker, listenDoneWalkerOnce, listenError, listenPerformance, listenProgress, listenSignal, listenSignalBacktest, listenSignalBacktestOnce, listenSignalLive, listenSignalLiveOnce, listenSignalOnce, listenValidation, listenWalker, listenWalkerComplete, listenWalkerOnce, setConfig, setLogger };

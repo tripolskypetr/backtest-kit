@@ -1,11 +1,13 @@
 import {
   CandleInterval,
+  ICandleData,
   IExchange,
   IExchangeParams,
 } from "../interfaces/Exchange.interface";
 import { GLOBAL_CONFIG } from "../config/params";
+import { retry, sleep } from "functools-kit";
 
-const INTERVAL_MINUTES: Record<CandleInterval, number>  = {
+const INTERVAL_MINUTES: Record<CandleInterval, number> = {
   "1m": 1,
   "3m": 3,
   "5m": 5,
@@ -16,6 +18,42 @@ const INTERVAL_MINUTES: Record<CandleInterval, number>  = {
   "4h": 240,
   "6h": 360,
   "8h": 480,
+};
+
+/**
+ * Retries the getCandles function with specified retry count and delay.
+ * @param dto - Data transfer object containing symbol, interval, and limit
+ * @param since - Date object representing the start time for fetching candles
+ * @param self - Instance of ClientExchange
+ * @returns Promise resolving to array of candle data
+ */
+const GET_CANDLES_FN = async (
+  dto: {
+    symbol: string;
+    interval: CandleInterval;
+    limit: number;
+  },
+  since: Date,
+  self: ClientExchange
+) => {
+  let lastError: Error;
+  for (let i = 0; i !== GLOBAL_CONFIG.CC_GET_CANDLES_RETRY_COUNT; i++) {
+    try {
+      return await self.params.getCandles(
+        dto.symbol,
+        dto.interval,
+        since,
+        dto.limit
+      );
+    } catch (err) {
+      self.params.logger.warn(
+        `ClientExchange GET_CANDLES_FN: attempt ${i + 1} failed for symbol=${dto.symbol}, interval=${dto.interval}, since=${since.toISOString()}, limit=${dto.limit}: ${err}`
+      );
+      lastError = err;
+      await sleep(GLOBAL_CONFIG.CC_GET_CANDLES_RETRY_DELAY_MS);
+    }
+  }
+  throw lastError;
 };
 
 /**
@@ -79,7 +117,7 @@ export class ClientExchange implements IExchange {
       this.params.execution.context.when.getTime() - adjust * 60 * 1_000
     );
 
-    const data = await this.params.getCandles(symbol, interval, since, limit);
+    const data = await GET_CANDLES_FN({ symbol, interval, limit }, since, this);
 
     // Filter candles to strictly match the requested range
     const whenTimestamp = this.params.execution.context.when.getTime();
@@ -91,11 +129,19 @@ export class ClientExchange implements IExchange {
     );
 
     if (filteredData.length < limit) {
-      this.params.logger.warn(`ClientExchange Expected ${limit} candles, got ${filteredData.length}`);
+      this.params.logger.warn(
+        `ClientExchange Expected ${limit} candles, got ${filteredData.length}`
+      );
     }
 
     if (this.params.callbacks?.onCandleData) {
-      this.params.callbacks.onCandleData(symbol, interval, since, limit, filteredData);
+      this.params.callbacks.onCandleData(
+        symbol,
+        interval,
+        since,
+        limit,
+        filteredData
+      );
     }
 
     return filteredData;
@@ -134,7 +180,7 @@ export class ClientExchange implements IExchange {
       return [];
     }
 
-    const data = await this.params.getCandles(symbol, interval, since, limit);
+    const data = await GET_CANDLES_FN({ symbol, interval, limit }, since, this);
 
     // Filter candles to strictly match the requested range
     const sinceTimestamp = since.getTime();
@@ -151,7 +197,13 @@ export class ClientExchange implements IExchange {
     }
 
     if (this.params.callbacks?.onCandleData) {
-      this.params.callbacks.onCandleData(symbol, interval, since, limit, filteredData);
+      this.params.callbacks.onCandleData(
+        symbol,
+        interval,
+        since,
+        limit,
+        filteredData
+      );
     }
 
     return filteredData;
@@ -176,7 +228,11 @@ export class ClientExchange implements IExchange {
       symbol,
     });
 
-    const candles = await this.getCandles(symbol, "1m", GLOBAL_CONFIG.CC_AVG_PRICE_CANDLES_COUNT);
+    const candles = await this.getCandles(
+      symbol,
+      "1m",
+      GLOBAL_CONFIG.CC_AVG_PRICE_CANDLES_COUNT
+    );
 
     if (candles.length === 0) {
       throw new Error(

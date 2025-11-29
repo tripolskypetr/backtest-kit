@@ -27,6 +27,16 @@ export const GLOBAL_CONFIG = {
      * Default: 1440 minutes (1 day)
      */
     CC_MAX_SIGNAL_LIFETIME_MINUTES: 1440,
+    /**
+     * Number of retries for getCandles function
+     * Default: 3 retries
+     */
+    CC_GET_CANDLES_RETRY_COUNT: 3,
+    /**
+     * Delay between retries for getCandles function (in milliseconds)
+     * Default: 5000 ms (5 seconds)
+     */
+    CC_GET_CANDLES_RETRY_DELAY_MS: 5000,
 }
 
 /**
