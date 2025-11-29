@@ -5,9 +5,11 @@ import {
   addFrame,
   addStrategy,
   Backtest,
+  Live,
   listenSignalBacktest,
   listenDoneBacktest,
   listenError,
+  PersistSignalAdapter,
 } from "../../build/index.mjs";
 
 import { Subject, sleep } from "functools-kit";
@@ -1357,4 +1359,210 @@ test("SEQUENCE: 2 quick SHORT signals - fast TP, fast SL", async ({ pass, fail }
   const totalPnl = closedEvents.reduce((sum, e) => sum + e.pnl.pnlPercentage, 0);
 
   pass(`QUICK SHORT SEQUENCE: ${closedEvents.length} quick SHORT signals processed. ${pnlSummary}. Total PNL: ${totalPnl.toFixed(2)}%`);
+});
+
+/**
+ * SEQUENCE ТЕСТ #9: Персистентный LONG сигнал - onClose после перезапуска (TP)
+ *
+ * Сценарий:
+ * - Система была выключена с активным LONG сигналом
+ * - После перезапуска система восстанавливает сигнал из PersistSignalAdapter
+ * - Сигнал закрывается по Take Profit
+ * - Проверяет: onClose callback вызывается даже после перезапуска системы
+ */
+test("PERSIST: LONG signal closes by TP after system restart - onClose called", async ({ pass, fail }) => {
+  let onCloseCalled = false;
+
+  const basePrice = 43000;
+  const priceOpen = basePrice;
+  const priceTakeProfit = basePrice + 1000;
+  const priceStopLoss = basePrice - 1000;
+
+  // Мокируем персистентный адаптер с уже активным сигналом
+  PersistSignalAdapter.usePersistSignalAdapter(class {
+    async waitForInit() {}
+
+    async readValue() {
+      // Возвращаем уже открытый сигнал (как будто система перезапустилась)
+      return {
+        id: "persist-long-tp-test",
+        position: "long",
+        note: "Persisted LONG signal - TP after restart",
+        priceOpen,
+        priceTakeProfit,
+        priceStopLoss,
+        minuteEstimatedTime: 60,
+        exchangeName: "binance-persist-long-tp",
+        strategyName: "persist-strategy-long-tp",
+        timestamp: Date.now(),
+        symbol: "BTCUSDT",
+      };
+    }
+
+    async hasValue() {
+      return true; // Сигнал существует в хранилище
+    }
+
+    async writeValue() {}
+    async deleteValue() {}
+  });
+
+  addExchange({
+    exchangeName: "binance-persist-long-tp",
+    getCandles: async (_symbol, _interval, since, limit) => {
+      const candles = [];
+      const intervalMs = 60000;
+
+      for (let i = 0; i < limit; i++) {
+        const timestamp = since.getTime() + i * intervalMs;
+
+        // Все свечи на уровне TP - позиция немедленно закроется
+        candles.push({
+          timestamp,
+          open: priceTakeProfit,
+          high: priceTakeProfit + 100,
+          low: priceTakeProfit - 100,
+          close: priceTakeProfit,
+          volume: 100,
+        });
+      }
+
+      return candles;
+    },
+    formatPrice: async (_symbol, price) => price.toFixed(8),
+    formatQuantity: async (_symbol, quantity) => quantity.toFixed(8),
+  });
+
+  addStrategy({
+    strategyName: "persist-strategy-long-tp",
+    interval: "1m",
+    getSignal: async () => {
+      // НЕ возвращаем новые сигналы - работаем только с персистентным
+      return null;
+    },
+    callbacks: {
+      onClose: (_symbol, _data, _priceClose) => {
+        onCloseCalled = true;
+      },
+    },
+  });
+
+  // Запускаем в Live режиме с персистентным сигналом
+  Live.background("BTCUSDT", {
+    strategyName: "persist-strategy-long-tp",
+    exchangeName: "binance-persist-long-tp",
+  });
+
+  // Ждем закрытия сигнала
+  await sleep(3000);
+
+  if (!onCloseCalled) {
+    fail("onClose callback was NOT called after system restart");
+    return;
+  }
+
+  pass(`PERSIST LONG TP: onClose called after restart`);
+});
+
+/**
+ * SEQUENCE ТЕСТ #10: Персистентный SHORT сигнал - onClose после перезапуска (SL)
+ *
+ * Сценарий:
+ * - Система была выключена с активным SHORT сигналом
+ * - После перезапуска система восстанавливает сигнал из PersistSignalAdapter
+ * - Сигнал закрывается по Stop Loss
+ * - Проверяет: onClose callback вызывается даже после перезапуска системы
+ */
+test("PERSIST: SHORT signal closes by SL after system restart - onClose called", async ({ pass, fail }) => {
+  let onCloseCalled = false;
+
+  const basePrice = 42000;
+  const priceOpen = basePrice;
+  const priceTakeProfit = basePrice - 1000; // SHORT: TP ниже priceOpen
+  const priceStopLoss = basePrice + 1000;   // SHORT: SL выше priceOpen
+
+  // Мокируем персистентный адаптер с уже активным сигналом
+  PersistSignalAdapter.usePersistSignalAdapter(class {
+    async waitForInit() {}
+
+    async readValue() {
+      // Возвращаем уже открытый SHORT сигнал
+      return {
+        id: "persist-short-sl-test",
+        position: "short",
+        note: "Persisted SHORT signal - SL after restart",
+        priceOpen,
+        priceTakeProfit,
+        priceStopLoss,
+        minuteEstimatedTime: 60,
+        exchangeName: "binance-persist-short-sl",
+        strategyName: "persist-strategy-short-sl",
+        timestamp: Date.now(),
+        symbol: "BTCUSDT",
+      };
+    }
+
+    async hasValue() {
+      return true; // Сигнал существует в хранилище
+    }
+
+    async writeValue() {}
+    async deleteValue() {}
+  });
+
+  addExchange({
+    exchangeName: "binance-persist-short-sl",
+    getCandles: async (_symbol, _interval, since, limit) => {
+      const candles = [];
+      const intervalMs = 60000;
+
+      for (let i = 0; i < limit; i++) {
+        const timestamp = since.getTime() + i * intervalMs;
+
+        // Все свечи на уровне SL - позиция немедленно закроется по SL
+        candles.push({
+          timestamp,
+          open: priceStopLoss,
+          high: priceStopLoss + 100,
+          low: priceStopLoss - 100,
+          close: priceStopLoss,
+          volume: 100,
+        });
+      }
+
+      return candles;
+    },
+    formatPrice: async (_symbol, price) => price.toFixed(8),
+    formatQuantity: async (_symbol, quantity) => quantity.toFixed(8),
+  });
+
+  addStrategy({
+    strategyName: "persist-strategy-short-sl",
+    interval: "1m",
+    getSignal: async () => {
+      // НЕ возвращаем новые сигналы - работаем только с персистентным
+      return null;
+    },
+    callbacks: {
+      onClose: (_symbol, _data, _priceClose) => {
+        onCloseCalled = true;
+      },
+    },
+  });
+
+  // Запускаем в Live режиме с персистентным сигналом
+  Live.background("BTCUSDT", {
+    strategyName: "persist-strategy-short-sl",
+    exchangeName: "binance-persist-short-sl",
+  });
+
+  // Ждем закрытия сигнала
+  await sleep(3000);
+
+  if (!onCloseCalled) {
+    fail("onClose callback was NOT called after system restart");
+    return;
+  }
+
+  pass(`PERSIST SHORT SL: onClose called after restart`);
 });
