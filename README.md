@@ -12,7 +12,7 @@ Build sophisticated trading systems with confidence. Backtest Kit empowers you t
 
 ## ✨ Why Choose Backtest Kit?
 
-- 🚀 **Production-Ready Architecture**: Seamlessly switch between backtest and live modes with robust error recovery and graceful shutdown mechanisms. Your strategy code remains identical across environments. ✅
+- 🚀 **Production-Ready Architecture**: Seamlessly switch between backtest and live modes with robust error recovery and graceful shutdown mechanisms. Your strategy code remains identical across environments. 
 
 - 💾 **Crash-Safe Persistence**: Atomic file writes with automatic state recovery ensure no duplicate signals or lost data—even after crashes. Resume execution exactly where you left off. 🔄
 
@@ -46,7 +46,7 @@ Build sophisticated trading systems with confidence. Backtest Kit empowers you t
 
 - 🔒 **Safe Math & Robustness**: All metrics protected against NaN/Infinity with unsafe numeric checks. Returns N/A for invalid calculations. ✨
 
-- 🧪 **Comprehensive Test Coverage**: 123 unit and integration tests covering validation, PNL, callbacks, reports, performance tracking, walker, heatmap, position sizing, risk management, scheduled signals, and event system. ✅
+- 🧪 **Comprehensive Test Coverage**: 123 unit and integration tests covering validation, PNL, callbacks, reports, performance tracking, walker, heatmap, position sizing, risk management, scheduled signals, and event system. 
 
 ---
 
