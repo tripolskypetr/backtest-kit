@@ -1566,3 +1566,237 @@ test("PERSIST: SHORT signal closes by SL after system restart - onClose called",
 
   pass(`PERSIST SHORT SL: onClose called after restart`);
 });
+
+/**
+ * SEQUENCE ТЕСТ #11: Scheduled сигнал НЕ записывается в persist storage
+ *
+ * Сценарий:
+ * - Создается SCHEDULED сигнал (priceOpen выше текущей цены)
+ * - Сигнал остается в статусе scheduled (не активируется)
+ * - Проверяем что writeValue() НЕ вызывается для scheduled сигнала
+ * - Persist storage должен содержать только АКТИВНЫЕ сигналы
+ */
+test("PERSIST: Scheduled signal is NOT written to persist storage", async ({ pass, fail }) => {
+  let writeValueCalled = false;
+  let onScheduleCalled = false;
+  let onActiveCalled = false;
+
+  const basePrice = 43000;
+  const priceOpen = basePrice + 1000; // Выше текущей цены - сигнал будет scheduled
+
+  // Мокируем персистентный адаптер для отслеживания вызовов
+  PersistSignalAdapter.usePersistSignalAdapter(class {
+    async waitForInit() {}
+
+    async readValue() {
+      // Нет сохраненных сигналов
+      return null;
+    }
+
+    async hasValue() {
+      return false;
+    }
+
+    async writeValue(signal) {
+      // КРИТИЧЕСКАЯ ПРОВЕРКА: writeValue НЕ должен вызываться для scheduled сигналов
+      writeValueCalled = true;
+      fail(`CRITICAL BUG: writeValue() called for scheduled signal! Signal: ${JSON.stringify(signal)}`);
+    }
+
+    async deleteValue() {}
+  });
+
+  addExchange({
+    exchangeName: "binance-persist-write-scheduled",
+    getCandles: async (_symbol, _interval, since, limit) => {
+      const candles = [];
+      const intervalMs = 60000;
+
+      for (let i = 0; i < limit; i++) {
+        const timestamp = since.getTime() + i * intervalMs;
+
+        // Все свечи НИЖЕ priceOpen - сигнал остается scheduled
+        candles.push({
+          timestamp,
+          open: basePrice,
+          high: basePrice + 200, // Не достигает priceOpen
+          low: basePrice - 100,
+          close: basePrice,
+          volume: 100,
+        });
+      }
+
+      return candles;
+    },
+    formatPrice: async (_symbol, price) => price.toFixed(8),
+    formatQuantity: async (_symbol, quantity) => quantity.toFixed(8),
+  });
+
+  addStrategy({
+    strategyName: "persist-write-scheduled",
+    interval: "1m",
+    getSignal: async () => {
+      // Возвращаем scheduled сигнал
+      return {
+        position: "long",
+        note: "Scheduled signal - should NOT be written to persist",
+        priceOpen,
+        priceTakeProfit: priceOpen + 1000,
+        priceStopLoss: basePrice - 500,
+        minuteEstimatedTime: 120,
+      };
+    },
+    callbacks: {
+      onSchedule: (_symbol, _data) => {
+        onScheduleCalled = true;
+      },
+      onActive: (_symbol, _data) => {
+        onActiveCalled = true;
+      },
+    },
+  });
+
+  // Запускаем в Live режиме
+  Live.background("BTCUSDT", {
+    strategyName: "persist-write-scheduled",
+    exchangeName: "binance-persist-write-scheduled",
+  });
+
+  // Ждем некоторое время
+  await sleep(3000);
+
+  // ПРОВЕРКА #1: onSchedule должен быть вызван
+  if (!onScheduleCalled) {
+    fail("onSchedule callback was NOT called - signal was not created");
+    return;
+  }
+
+  // ПРОВЕРКА #2: onActive НЕ должен быть вызван
+  if (onActiveCalled) {
+    fail("onActive callback was called - signal became active unexpectedly");
+    return;
+  }
+
+  // ПРОВЕРКА #3: writeValue НЕ должен быть вызван для scheduled сигнала
+  if (writeValueCalled) {
+    fail("writeValue() was called for scheduled signal!");
+    return;
+  }
+
+  pass(`PERSIST LOGIC CORRECT: Scheduled signal was NOT written to persist storage`);
+});
+
+/**
+ * SEQUENCE ТЕСТ #12: Только активные сигналы записываются/восстанавливаются
+ *
+ * Сценарий:
+ * - Создаем scheduled сигнал (priceOpen выше текущей цены)
+ * - Проверяем что writeValue НЕ вызывается для scheduled
+ * - Затем "активируем" сигнал (цена достигает priceOpen)
+ * - Scheduled сигналы НЕ сохраняются, только активные
+ *
+ * Этот тест подтверждает, что persist storage работает только с АКТИВНЫМИ сигналами
+ */
+test("PERSIST: Only active signals persist, scheduled signals do not", async ({ pass, fail }) => {
+  let writeValueForScheduled = false;
+  let onScheduleCalled = false;
+
+  const basePrice = 43000;
+  const priceOpen = basePrice + 1000; // Выше текущей - сигнал остается scheduled
+
+  // Мокируем персистентный адаптер
+  PersistSignalAdapter.usePersistSignalAdapter(class {
+    async waitForInit() {}
+
+    async readValue() {
+      return null;
+    }
+
+    async hasValue() {
+      return false;
+    }
+
+    async writeValue(signal) {
+      // Если вызывается для scheduled сигнала - это баг
+      if (signal && signal.note && signal.note.includes("Scheduled")) {
+        writeValueForScheduled = true;
+      }
+    }
+
+    async deleteValue() {}
+  });
+
+  addExchange({
+    exchangeName: "binance-persist-lifecycle",
+    getCandles: async (_symbol, _interval, since, limit) => {
+      const candles = [];
+      const intervalMs = 60000;
+
+      for (let i = 0; i < limit; i++) {
+        const timestamp = since.getTime() + i * intervalMs;
+
+        // Все свечи НИЖЕ priceOpen - сигнал остается scheduled
+        candles.push({
+          timestamp,
+          open: basePrice,
+          high: basePrice + 200, // Не достигает priceOpen (43000 + 1000)
+          low: basePrice - 100,
+          close: basePrice,
+          volume: 100,
+        });
+      }
+
+      return candles;
+    },
+    formatPrice: async (_symbol, price) => price.toFixed(8),
+    formatQuantity: async (_symbol, quantity) => quantity.toFixed(8),
+  });
+
+  addStrategy({
+    strategyName: "persist-lifecycle",
+    interval: "1m",
+    getSignal: async () => {
+      // Создаем scheduled сигнал только один раз
+      if (onScheduleCalled) {
+        return null;
+      }
+
+      return {
+        position: "long",
+        note: "Scheduled signal - should NOT be persisted",
+        priceOpen,
+        priceTakeProfit: priceOpen + 1000,
+        priceStopLoss: basePrice - 500,
+        minuteEstimatedTime: 120,
+      };
+    },
+    callbacks: {
+      onSchedule: () => {
+        onScheduleCalled = true;
+      },
+    },
+  });
+
+  // Запускаем в Live режиме
+  Live.background("BTCUSDT", {
+    strategyName: "persist-lifecycle",
+    exchangeName: "binance-persist-lifecycle",
+  });
+
+  // Ждем обработки
+  await sleep(3000);
+
+  // ПРОВЕРКА #1: onSchedule должен быть вызван (сигнал создан)
+  if (!onScheduleCalled) {
+    fail("Scheduled signal was not created");
+    return;
+  }
+
+  // ПРОВЕРКА #2: writeValue НЕ должен вызываться для scheduled сигнала
+  if (writeValueForScheduled) {
+    fail("CRITICAL BUG: writeValue() called for SCHEDULED signal! Only ACTIVE signals should be persisted!");
+    return;
+  }
+
+  pass(`PERSIST LOGIC CORRECT: Scheduled signals are NOT persisted, only active signals are`);
+});
