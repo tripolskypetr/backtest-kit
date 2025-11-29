@@ -1079,27 +1079,35 @@ const PROCESS_SCHEDULED_SIGNAL_CANDLES_FN = async (
     let shouldCancel = false;
 
     if (scheduled.position === "long") {
-      // КРИТИЧНО: Сначала проверяем StopLoss (отмена приоритетнее активации)
-      // Отмена если цена упала СЛИШКОМ низко (ниже SL)
+      // КРИТИЧНО для LONG:
+      // - priceOpen > priceStopLoss (по валидации)
+      // - Активация: low <= priceOpen (цена упала до входа)
+      // - Отмена: low <= priceStopLoss (цена пробила SL)
+      //
+      // EDGE CASE: если low <= priceStopLoss И low <= priceOpen на ОДНОЙ свече:
+      // => Отмена имеет ПРИОРИТЕТ! (SL пробит ДО или ВМЕСТЕ с активацией)
+      // Сигнал НЕ открывается, сразу отменяется
+
       if (candle.low <= scheduled.priceStopLoss) {
         shouldCancel = true;
-      }
-      // Long = покупаем дешевле, ждем падения цены ДО priceOpen
-      // Активируем только если НЕ пробит StopLoss
-      else if (candle.low <= scheduled.priceOpen) {
+      } else if (candle.low <= scheduled.priceOpen) {
         shouldActivate = true;
       }
     }
 
     if (scheduled.position === "short") {
-      // КРИТИЧНО: Сначала проверяем StopLoss (отмена приоритетнее активации)
-      // Отмена если цена выросла СЛИШКОМ высоко (выше SL)
+      // КРИТИЧНО для SHORT:
+      // - priceOpen < priceStopLoss (по валидации)
+      // - Активация: high >= priceOpen (цена выросла до входа)
+      // - Отмена: high >= priceStopLoss (цена пробила SL)
+      //
+      // EDGE CASE: если high >= priceStopLoss И high >= priceOpen на ОДНОЙ свече:
+      // => Отмена имеет ПРИОРИТЕТ! (SL пробит ДО или ВМЕСТЕ с активацией)
+      // Сигнал НЕ открывается, сразу отменяется
+
       if (candle.high >= scheduled.priceStopLoss) {
         shouldCancel = true;
-      }
-      // Short = продаем дороже, ждем роста цены ДО priceOpen
-      // Активируем только если НЕ пробит StopLoss
-      else if (candle.high >= scheduled.priceOpen) {
+      } else if (candle.high >= scheduled.priceOpen) {
         shouldActivate = true;
       }
     }

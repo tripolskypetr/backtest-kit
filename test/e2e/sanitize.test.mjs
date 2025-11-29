@@ -18,7 +18,6 @@ import { Subject, sleep } from "functools-kit";
  * КРИТИЧЕСКИЙ ТЕСТ #1: Микро-профит съедается комиссиями (TP слишком близко к priceOpen)
  *
  * Проблема:
- * - TP слишком близко к priceOpen: профит меньше комиссий
  * - Например: priceOpen=42000, TP=42010 (0.024% profit)
  * - С комиссиями 2×0.1% = 0.2% → чистый PNL = УБЫТОК -0.176%
  * - Такие сигналы ДОЛЖНЫ быть отклонены на этапе валидации
@@ -68,15 +67,13 @@ test("SANITIZE: Micro-profit eaten by fees - TP too close to priceOpen rejected"
       if (signalGenerated) return null;
       signalGenerated = true;
 
-      // ОПАСНЫЙ СИГНАЛ: TP слишком близко к priceOpen
-      // Profit = (42010 - 42000) / 42000 = 0.024%
-      // Fees = 2 × 0.1% = 0.2%
-      // Net PNL = 0.024% - 0.2% = -0.176% (УБЫТОК!)
+      // ОПАСНЫЙ СИГНАЛ: TP=42010 слишком близко к priceOpen=42000 (0.024%)
+      // После комиссий (2×0.1% = 0.2%) получим убыток -0.176%
       return {
         position: "long",
-        note: "SANITIZE: micro-profit test - TP too close",
+        note: "SANITIZE: micro-profit test",
         priceOpen: 42000,
-        priceTakeProfit: 42010, // Всего +10$ на 42000$ = 0.024%
+        priceTakeProfit: 42010, // Всего 0.024% profit - комиссии съедят!
         priceStopLoss: 41000,
         minuteEstimatedTime: 60,
       };
@@ -100,13 +97,6 @@ test("SANITIZE: Micro-profit eaten by fees - TP too close to priceOpen rejected"
 
   const awaitSubject = new Subject();
   listenDoneBacktest(() => awaitSubject.next());
-
-  let finalResult = null;
-  listenSignalBacktest((result) => {
-    if (result.action === "closed") {
-      finalResult = result;
-    }
-  });
 
   try {
     Backtest.background("BTCUSDT", {
@@ -184,14 +174,14 @@ test("SANITIZE: Extreme StopLoss rejected (>20% loss) - protects capital", async
       if (signalGenerated) return null;
       signalGenerated = true;
 
-      // ОПАСНЫЙ СИГНАЛ: SL слишком далеко
-      // Loss = (42000 - 20000) / 42000 = -52.4% на одном сигнале!
+      // ОПАСНЫЙ СИГНАЛ: SL=20000 слишком далеко от priceOpen=42000 (-52% риск!)
+      // Один сигнал может уничтожить половину депозита
       return {
         position: "long",
-        note: "SANITIZE: extreme SL test - catastrophic risk",
+        note: "SANITIZE: extreme SL test",
         priceOpen: 42000,
         priceTakeProfit: 43000,
-        priceStopLoss: 20000, // -52% убыток - КАТАСТРОФА!
+        priceStopLoss: 20000, // -52% риск - КАТАСТРОФА!
         minuteEstimatedTime: 60,
       };
     },
@@ -1126,4 +1116,997 @@ test("SANITIZE: Basic SHORT trading works - system can open and close SHORT posi
   }
 
   pass(`SYSTEM WORKS: SHORT trading successful! Signal: scheduled → opened → closed by TP. PNL: ${finalResult.pnl.pnlPercentage.toFixed(2)}% (expected ~${expectedPnl.toFixed(2)}%)`);
+});
+
+/**
+ * PERSIST TEST #10: onWrite called EXACTLY ONCE per signal open
+ *
+ * Проблема:
+ * - Множественные вызовы onWrite для одного сигнала
+ * - Может быть race condition
+ *
+ * Проверка:
+ * - При открытии сигнала onWrite(signal) вызывается ровно 1 раз
+ * - Не должно быть дублирования записей в persist storage
+ */
+test("PERSIST: onWrite called EXACTLY ONCE per signal open", async ({ pass, fail }) => {
+  let onWriteCallsWithSignal = 0;
+  let onOpenCalled = false;
+
+  const startTime = new Date("2024-01-01T00:00:00Z").getTime();
+  const intervalMs = 60000;
+  const basePrice = 42000;
+
+  let allCandles = [];
+
+  // Предзаполняем начальные свечи для getAveragePrice (минимум 5)
+  for (let i = 0; i < 5; i++) {
+    allCandles.push({
+      timestamp: startTime + i * intervalMs,
+      open: basePrice,
+      high: basePrice + 100,
+      low: basePrice - 100,
+      close: basePrice,
+      volume: 100,
+    });
+  }
+
+  for (let i = 5; i < 20; i++) {
+    const timestamp = startTime + i * intervalMs;
+    if (i < 10) {
+      // Ожидание активации (цена выше priceOpen)
+      allCandles.push({
+        timestamp,
+        open: basePrice + 500,
+        high: basePrice + 600,
+        low: basePrice + 400,
+        close: basePrice + 500,
+        volume: 100,
+      });
+    } else {
+      // Активация и работа сигнала
+      allCandles.push({
+        timestamp,
+        open: basePrice,
+        high: basePrice + 100,
+        low: basePrice - 100,
+        close: basePrice,
+        volume: 100,
+      });
+    }
+  }
+
+  addExchange({
+    exchangeName: "binance-persist-write-once",
+    getCandles: async (_symbol, _interval, since, limit) => {
+      const sinceIndex = Math.floor((since.getTime() - startTime) / intervalMs);
+      const result = allCandles.slice(sinceIndex, sinceIndex + limit);
+      return result.length > 0 ? result : allCandles.slice(0, Math.min(limit, allCandles.length));
+    },
+    formatPrice: async (_symbol, price) => price.toFixed(8),
+    formatQuantity: async (_symbol, quantity) => quantity.toFixed(8),
+  });
+
+  let signalGenerated = false;
+
+  addStrategy({
+    strategyName: "persist-write-once-strategy",
+    interval: "1m",
+    getSignal: async () => {
+      if (signalGenerated) return null;
+      signalGenerated = true;
+
+      return {
+        position: "long",
+        note: "PERSIST: write once test",
+        priceOpen: basePrice,
+        priceTakeProfit: basePrice + 1000,
+        priceStopLoss: basePrice - 1000,
+        minuteEstimatedTime: 60,
+      };
+    },
+    callbacks: {
+      onOpen: () => {
+        onOpenCalled = true;
+      },
+      onWrite: (_symbol, signal) => {
+        if (signal !== null) {
+          onWriteCallsWithSignal++;
+        }
+      },
+    },
+  });
+
+  addFrame({
+    frameName: "20m-persist-write-once",
+    interval: "1m",
+    startDate: new Date("2024-01-01T00:00:00Z"),
+    endDate: new Date("2024-01-01T00:20:00Z"),
+  });
+
+  const awaitSubject = new Subject();
+
+  let errorCaught = null;
+  const unsubscribeError = listenError((error) => {
+    console.log("[TEST #10] Error caught:", error);
+    errorCaught = error;
+    awaitSubject.next();
+  });
+
+  listenDoneBacktest(() => awaitSubject.next());
+
+  Backtest.background("BTCUSDT", {
+    strategyName: "persist-write-once-strategy",
+    exchangeName: "binance-persist-write-once",
+    frameName: "20m-persist-write-once",
+  });
+
+  await awaitSubject.toPromise();
+  await sleep(10);
+  unsubscribeError();
+
+  if (errorCaught) {
+    console.log("[TEST #10] Failing test due to error:", errorCaught.message || errorCaught);
+    fail(`Error during backtest: ${errorCaught.message || errorCaught}`);
+    return;
+  }
+
+  if (!onOpenCalled) {
+    fail("Signal was NOT opened");
+    return;
+  }
+
+  if (onWriteCallsWithSignal !== 1) {
+    fail(`CONCURRENCY BUG: onWrite(signal) called ${onWriteCallsWithSignal} times, expected EXACTLY 1. Possible race condition or duplicate persist writes!`);
+    return;
+  }
+
+  pass(`PERSIST INTEGRITY: onWrite(signal) called exactly once per signal open. No duplicates, no race conditions.`);
+});
+
+/**
+ * PERSIST TEST #11: onWrite(null) called EXACTLY ONCE per signal close
+ *
+ * Проблема:
+ * - onWrite(null) вызывается многократно при закрытии
+ * - Может быть race condition при удалении из persist storage
+ *
+ * Проверка:
+ * - При закрытии сигнала onWrite(null) вызывается ровно 1 раз
+ * - Не должно быть дублирования удалений
+ */
+test("PERSIST: onWrite(null) called EXACTLY ONCE per signal close", async ({ pass, fail }) => {
+  let onWriteCallsWithNull = 0;
+  let onCloseCalled = false;
+
+  const startTime = new Date("2024-01-01T00:00:00Z").getTime();
+  const intervalMs = 60000;
+  const basePrice = 42000;
+
+  let allCandles = [];
+
+  // Предзаполняем начальные свечи для getAveragePrice (минимум 5)
+  for (let i = 0; i < 5; i++) {
+    allCandles.push({
+      timestamp: startTime + i * intervalMs,
+      open: basePrice,
+      high: basePrice + 100,
+      low: basePrice - 100,
+      close: basePrice,
+      volume: 100,
+    });
+  }
+
+  for (let i = 5; i < 20; i++) {
+    const timestamp = startTime + i * intervalMs;
+    if (i < 10) {
+      // Ожидание активации
+      allCandles.push({
+        timestamp,
+        open: basePrice + 500,
+        high: basePrice + 600,
+        low: basePrice + 400,
+        close: basePrice + 500,
+        volume: 100,
+      });
+    } else if (i >= 10 && i < 15) {
+      // Активация
+      allCandles.push({
+        timestamp,
+        open: basePrice,
+        high: basePrice + 100,
+        low: basePrice - 100,
+        close: basePrice,
+        volume: 100,
+      });
+    } else {
+      // TP достигнут - сигнал закрывается
+      allCandles.push({
+        timestamp,
+        open: basePrice + 1000,
+        high: basePrice + 1100,
+        low: basePrice + 900,
+        close: basePrice + 1000,
+        volume: 100,
+      });
+    }
+  }
+
+  addExchange({
+    exchangeName: "binance-persist-delete-once",
+    getCandles: async (_symbol, _interval, since, limit) => {
+      const sinceIndex = Math.floor((since.getTime() - startTime) / intervalMs);
+      const result = allCandles.slice(sinceIndex, sinceIndex + limit);
+      return result.length > 0 ? result : allCandles.slice(0, Math.min(limit, allCandles.length));
+    },
+    formatPrice: async (_symbol, price) => price.toFixed(8),
+    formatQuantity: async (_symbol, quantity) => quantity.toFixed(8),
+  });
+
+  let signalGenerated = false;
+
+  addStrategy({
+    strategyName: "persist-delete-once-strategy",
+    interval: "1m",
+    getSignal: async () => {
+      if (signalGenerated) return null;
+      signalGenerated = true;
+
+      return {
+        position: "long",
+        note: "PERSIST: delete once test",
+        priceOpen: basePrice,
+        priceTakeProfit: basePrice + 1000,
+        priceStopLoss: basePrice - 1000,
+        minuteEstimatedTime: 60,
+      };
+    },
+    callbacks: {
+      onClose: () => {
+        onCloseCalled = true;
+      },
+      onWrite: (_symbol, signal) => {
+        if (signal === null) {
+          onWriteCallsWithNull++;
+        }
+      },
+    },
+  });
+
+  addFrame({
+    frameName: "20m-persist-delete-once",
+    interval: "1m",
+    startDate: new Date("2024-01-01T00:00:00Z"),
+    endDate: new Date("2024-01-01T00:20:00Z"),
+  });
+
+  const awaitSubject = new Subject();
+
+  let errorCaught = null;
+  const unsubscribeError = listenError((error) => {
+    console.log("[TEST #11] Error caught:", error);
+    errorCaught = error;
+    awaitSubject.next();
+  });
+
+  listenDoneBacktest(() => awaitSubject.next());
+
+  Backtest.background("BTCUSDT", {
+    strategyName: "persist-delete-once-strategy",
+    exchangeName: "binance-persist-delete-once",
+    frameName: "20m-persist-delete-once",
+  });
+
+  await awaitSubject.toPromise();
+  await sleep(10);
+  unsubscribeError();
+
+  if (errorCaught) {
+    console.log("[TEST #11] Failing test due to error:", errorCaught.message || errorCaught);
+    fail(`Error during backtest: ${errorCaught.message || errorCaught}`);
+    return;
+  }
+
+  if (!onCloseCalled) {
+    fail("Signal was NOT closed");
+    return;
+  }
+
+  if (onWriteCallsWithNull !== 1) {
+    fail(`CONCURRENCY BUG: onWrite(null) called ${onWriteCallsWithNull} times, expected EXACTLY 1. Possible race condition or duplicate persist deletes!`);
+    return;
+  }
+
+  pass(`PERSIST INTEGRITY: onWrite(null) called exactly once per signal close. No duplicate deletions, no race conditions.`);
+});
+
+/**
+ * EDGE CASE TEST #12: SL hit on activation candle - signal cancelled BEFORE open
+ *
+ * Сценарий:
+ * - Scheduled LONG: priceOpen=42000, SL=41000
+ * - Candle: low=40500 (пробит SL до активации)
+ * - Проверка: onCancel вызывается, onOpen НЕ вызывается
+ *
+ * Критично: Сигнал должен отменяться ДО открытия, если SL пробит раньше priceOpen
+ */
+test("EDGE CASE: SL hit on activation candle - signal cancelled BEFORE open", async ({ pass, fail }) => {
+  let onScheduleCalled = false;
+  let onCancelCalled = false;
+  let onOpenCalled = false;
+
+  const startTime = new Date("2024-01-01T00:00:00Z").getTime();
+  const intervalMs = 60000;
+  const basePrice = 42000;
+  const priceOpen = basePrice;
+  const priceStopLoss = basePrice - 1000; // SL=41000
+
+  let allCandles = [];
+
+  // Предзаполняем начальные свечи для getAveragePrice (минимум 5)
+  // ВАЖНО: low/high НЕ должны активировать сигнал (low > priceOpen для LONG)
+  for (let i = 0; i < 5; i++) {
+    allCandles.push({
+      timestamp: startTime + i * intervalMs,
+      open: basePrice + 500,  // Выше priceOpen
+      high: basePrice + 600,
+      low: basePrice + 400,   // > priceOpen, НЕ активирует сигнал
+      close: basePrice + 500,
+      volume: 100,
+    });
+  }
+
+  for (let i = 5; i < 20; i++) {
+    const timestamp = startTime + i * intervalMs;
+    if (i < 10) {
+      // Ожидание (цена выше priceOpen)
+      allCandles.push({
+        timestamp,
+        open: basePrice + 500,
+        high: basePrice + 600,
+        low: basePrice + 400,
+        close: basePrice + 500,
+        volume: 100,
+      });
+    } else if (i === 10) {
+      // КРИТИЧЕСКАЯ СВЕЧА: low=40500 пробивает SL=41000 ДО достижения priceOpen=42000
+      // Сигнал должен отмениться БЕЗ активации
+      allCandles.push({
+        timestamp,
+        open: basePrice + 200,
+        high: basePrice + 300,
+        low: 40500, // ПРОБИЛИ SL! (40500 < 41000)
+        close: 40600,
+        volume: 100,
+      });
+    } else {
+      // Остальные свечи
+      allCandles.push({
+        timestamp,
+        open: basePrice,
+        high: basePrice + 100,
+        low: basePrice - 100,
+        close: basePrice,
+        volume: 100,
+      });
+    }
+  }
+
+  addExchange({
+    exchangeName: "binance-edge-sl-before-open",
+    getCandles: async (_symbol, _interval, since, limit) => {
+      const sinceIndex = Math.floor((since.getTime() - startTime) / intervalMs);
+      const result = allCandles.slice(sinceIndex, sinceIndex + limit);
+      return result.length > 0 ? result : allCandles.slice(0, Math.min(limit, allCandles.length));
+    },
+    formatPrice: async (_symbol, price) => price.toFixed(8),
+    formatQuantity: async (_symbol, quantity) => quantity.toFixed(8),
+  });
+
+  let signalGenerated = false;
+
+  addStrategy({
+    strategyName: "edge-sl-before-open-strategy",
+    interval: "1m",
+    getSignal: async () => {
+      if (signalGenerated) return null;
+      signalGenerated = true;
+
+      return {
+        position: "long",
+        note: "EDGE CASE: SL hit before activation",
+        priceOpen,
+        priceTakeProfit: basePrice + 1000,
+        priceStopLoss,
+        minuteEstimatedTime: 60,
+      };
+    },
+    callbacks: {
+      onSchedule: () => {
+        onScheduleCalled = true;
+      },
+      onCancel: () => {
+        onCancelCalled = true;
+      },
+      onOpen: () => {
+        onOpenCalled = true;
+      },
+    },
+  });
+
+  addFrame({
+    frameName: "20m-edge-sl-before-open",
+    interval: "1m",
+    startDate: new Date("2024-01-01T00:00:00Z"),
+    endDate: new Date("2024-01-01T00:20:00Z"),
+  });
+
+  const awaitSubject = new Subject();
+
+  let errorCaught = null;
+  const unsubscribeError = listenError((error) => {
+    console.log("[TEST #12] Error caught:", error);
+    errorCaught = error;
+    awaitSubject.next();
+  });
+
+  listenDoneBacktest(() => awaitSubject.next());
+
+  Backtest.background("BTCUSDT", {
+    strategyName: "edge-sl-before-open-strategy",
+    exchangeName: "binance-edge-sl-before-open",
+    frameName: "20m-edge-sl-before-open",
+  });
+
+  await awaitSubject.toPromise();
+  await sleep(10);
+  unsubscribeError();
+
+  if (errorCaught) {
+    console.log("[TEST #12] Failing test due to error:", errorCaught.message || errorCaught);
+    fail(`Error during backtest: ${errorCaught.message || errorCaught}`);
+    return;
+  }
+
+  if (!onScheduleCalled) {
+    fail("Signal was NOT scheduled");
+    return;
+  }
+
+  if (onOpenCalled) {
+    fail("LOGIC BUG: onOpen was called! Signal should be CANCELLED when SL hit before priceOpen reached. SL=41000 was hit at low=40500 BEFORE priceOpen=42000 activation!");
+    return;
+  }
+
+  if (!onCancelCalled) {
+    fail("LOGIC BUG: onCancel was NOT called! When SL is hit BEFORE activation (low=40500 < SL=41000 < priceOpen=42000), signal must be cancelled.");
+    return;
+  }
+
+  pass("EDGE CASE HANDLED: SL hit before activation correctly cancelled signal. onCancel called, onOpen NOT called. System prevented opening doomed position!");
+});
+
+/**
+ * SEQUENCE TEST #13: LONG → TIME_EXPIRED → LONG → TP
+ *
+ * Сценарий:
+ * - Сигнал #1: LONG → TIME_EXPIRED (закрытие по таймауту)
+ * - Сигнал #2: LONG → TP (прибыль)
+ *
+ * Проверка: Различные closeReason работают корректно
+ */
+test("SEQUENCE: LONG→TIME_EXPIRED, LONG→TP - mixed closeReasons", async ({ pass, fail }) => {
+  const results = [];
+
+  const startTime = new Date("2024-01-01T00:00:00Z").getTime();
+  const intervalMs = 60000;
+  const basePrice = 42000;
+
+  let allCandles = [];
+
+  // КРИТИЧНО: добавляем буферные свечи ПЕРЕД startTime для getAveragePrice
+  // getAveragePrice запрашивает 5 свечей, которые могут быть ДО первого фрейма
+  for (let i = -10; i < 0; i++) {
+    allCandles.push({ timestamp: startTime + i * intervalMs, open: basePrice, high: basePrice + 100, low: basePrice - 100, close: basePrice, volume: 100 });
+  }
+
+  // Предзаполняем начальные свечи для getAveragePrice (минимум 5)
+  // ВАЖНО: low/high НЕ должны активировать LONG сигналы (low > priceOpen)
+  for (let i = 0; i < 5; i++) {
+    allCandles.push({ timestamp: startTime + i * intervalMs, open: basePrice + 500, high: basePrice + 600, low: basePrice + 400, close: basePrice + 500, volume: 100 });
+  }
+
+  // Сигнал #1: LONG → TP (5-9 минут)
+  // Ожидание активации (i=5-6): low > priceOpen, НЕ активируем
+  for (let i = 5; i < 7; i++) {
+    allCandles.push({ timestamp: startTime + i * intervalMs, open: basePrice + 500, high: basePrice + 600, low: basePrice + 400, close: basePrice + 500, volume: 100 });
+  }
+  // Активация (i=7): low <= priceOpen, активируем LONG
+  allCandles.push({ timestamp: startTime + 7 * intervalMs, open: basePrice, high: basePrice + 100, low: basePrice - 100, close: basePrice, volume: 100 });
+
+  // HIT TakeProfit (i=8-9): high >= priceTakeProfit=43000, Signal #1 закрывается
+  for (let i = 8; i < 10; i++) {
+    allCandles.push({ timestamp: startTime + i * intervalMs, open: basePrice + 1000, high: basePrice + 1100, low: basePrice + 900, close: basePrice + 1000, volume: 100 });
+  }
+
+  // Промежуточные свечи i=10-14 (между Signal #1 и Signal #2)
+  for (let i = 10; i < 15; i++) {
+    allCandles.push({ timestamp: startTime + i * intervalMs, open: basePrice + 200, high: basePrice + 300, low: basePrice + 100, close: basePrice + 200, volume: 100 });
+  }
+
+  // Сигнал #2: LONG → TIME_EXPIRED (15-80 минут, 60 минут жизни, не достигает TP/SL)
+  // ВАЖНО: свечи НЕ должны пробивать TP=43000 или SL=41000 в течение 60 минут
+  for (let i = 15; i < 20; i++) {
+    allCandles.push({ timestamp: startTime + i * intervalMs, open: basePrice + 500, high: basePrice + 600, low: basePrice + 400, close: basePrice + 500, volume: 100 });
+  }
+  for (let i = 20; i < 80; i++) {
+    allCandles.push({ timestamp: startTime + i * intervalMs, open: basePrice + 200, high: basePrice + 300, low: basePrice + 100, close: basePrice + 200, volume: 100 });
+  }
+  // Промежуточные свечи i=80-89 (после Signal #2 закрылся, до Signal #3 создастся)
+  for (let i = 80; i < 90; i++) {
+    allCandles.push({ timestamp: startTime + i * intervalMs, open: basePrice, high: basePrice + 50, low: basePrice - 50, close: basePrice, volume: 100 });
+  }
+
+  // Сигнал #3: SHORT → SL (90-119 минут)
+  // Активация немедленно (i=90-94): high >= priceOpen=42000, активируем SHORT
+  for (let i = 90; i < 95; i++) {
+    allCandles.push({ timestamp: startTime + i * intervalMs, open: basePrice, high: basePrice + 50, low: basePrice - 50, close: basePrice, volume: 100 });
+  }
+  // После активации (i=95-104): монитoring начался, ждем SL
+  for (let i = 95; i < 105; i++) {
+    allCandles.push({ timestamp: startTime + i * intervalMs, open: basePrice + 200, high: basePrice + 300, low: basePrice + 100, close: basePrice + 200, volume: 100 });
+  }
+  // HIT StopLoss (i=105-119): HIGH ПРОБИВАЕТ SL=43000 для SHORT!
+  // ВАЖНО: для SHORT priceStopLoss=basePrice+1000=43000, high ДОЛЖЕН быть >= 43000 чтобы hit SL
+  for (let i = 105; i < 120; i++) {
+    allCandles.push({ timestamp: startTime + i * intervalMs, open: basePrice + 1100, high: basePrice + 1200, low: basePrice + 1000, close: basePrice + 1100, volume: 100 });
+  }
+  // Дополнительные свечи i=120-300 для всех сигналов
+  // Добавляем запас свечей для завершения всех сигналов
+  for (let i = 120; i < 300; i++) {
+    allCandles.push({ timestamp: startTime + i * intervalMs, open: basePrice, high: basePrice + 100, low: basePrice - 100, close: basePrice, volume: 100 });
+  }
+
+  addExchange({
+    exchangeName: "binance-sequence-mixed-close",
+    getCandles: async (_symbol, _interval, since, limit) => {
+      const timeIndex = Math.floor((since.getTime() - startTime) / intervalMs);
+      // КРИТИЧНО: allCandles начинается с i=-10, поэтому arrayIndex = timeIndex + 10
+      const arrayIndex = timeIndex + 10;
+      const result = allCandles.slice(arrayIndex, arrayIndex + limit);
+      // ВАЖНО: если недостаточно свечей, возвращаем что есть от arrayIndex, а НЕ с начала!
+      return result.length > 0 ? result : [];
+    },
+    formatPrice: async (_symbol, price) => price.toFixed(8),
+    formatQuantity: async (_symbol, quantity) => quantity.toFixed(8),
+  });
+
+  let signalCount = 0;
+
+  addStrategy({
+    strategyName: "sequence-mixed-close-strategy",
+    interval: "1m",
+    getSignal: async () => {
+      if (signalCount >= 2) return null;
+
+      signalCount++;
+
+      return {
+        position: "long",
+        note: `SEQUENCE signal #${signalCount}`,
+        priceOpen: basePrice,
+        priceTakeProfit: basePrice + 1000,
+        priceStopLoss: basePrice - 1000,
+        minuteEstimatedTime: 60,
+      };
+    },
+  });
+
+  addFrame({
+    frameName: "270m-sequence-mixed-close",
+    interval: "1m",
+    startDate: new Date("2024-01-01T00:00:00Z"),
+    endDate: new Date("2024-01-01T05:00:00Z"),  // 300 минут с запасом для всех сигналов
+  });
+
+  const awaitSubject = new Subject();
+
+  let errorCaught = null;
+  const unsubscribeError = listenError((error) => {
+    console.log("[TEST #13] Error caught:", error);
+    errorCaught = error;
+    awaitSubject.next();
+  });
+
+  listenDoneBacktest(() => awaitSubject.next());
+
+  listenSignalBacktest((result) => {
+    if (result.action === "closed") {
+      results.push(result);
+    }
+  });
+
+  Backtest.background("BTCUSDT", {
+    strategyName: "sequence-mixed-close-strategy",
+    exchangeName: "binance-sequence-mixed-close",
+    frameName: "270m-sequence-mixed-close",
+  });
+
+  await awaitSubject.toPromise();
+  await sleep(10);
+  unsubscribeError();
+
+  if (errorCaught) {
+    console.log("[TEST #13] Failing test due to error:", errorCaught.message || errorCaught);
+    fail(`Error during backtest: ${errorCaught.message || errorCaught}`);
+    return;
+  }
+
+  if (results.length !== 2) {
+    fail(`Expected 2 closed signals, got ${results.length}`);
+    return;
+  }
+
+  // Проверка #1: LONG → TIME_EXPIRED
+  if (results[0].closeReason !== "time_expired") {
+    fail(`Signal #1: Expected "time_expired", got "${results[0].closeReason}"`);
+    return;
+  }
+  if (results[0].signal.position !== "long") {
+    fail(`Signal #1: Expected LONG, got ${results[0].signal.position}`);
+    return;
+  }
+
+  // Проверка #2: LONG → TP
+  if (results[1].closeReason !== "take_profit") {
+    fail(`Signal #2: Expected "take_profit", got "${results[1].closeReason}"`);
+    return;
+  }
+  if (results[1].signal.position !== "long") {
+    fail(`Signal #2: Expected LONG, got ${results[1].signal.position}`);
+    return;
+  }
+
+  pass(`SEQUENCE: 2 signals closed correctly. #1: LONG→TIME_EXPIRED, #2: LONG→TP. All closeReasons verified!`);
+});
+
+/**
+ * SEQUENCE TEST #14: Rapid signals - 2 LONG signals
+ *
+ * Сценарий:
+ * - 2 LONG сигнала подряд
+ * - Проверка: Система корректно обрабатывает быструю последовательность сигналов
+ */
+test("SEQUENCE: 2 rapid LONG signals", async ({ pass, fail }) => {
+  const results = [];
+
+  const startTime = new Date("2024-01-01T00:00:00Z").getTime();
+  const intervalMs = 60000;
+  const basePrice = 42000;
+
+  let allCandles = [];
+
+  // КРИТИЧНО: добавляем буферные свечи ПЕРЕД startTime для getAveragePrice
+  // getAveragePrice запрашивает 5 свечей, которые могут быть ДО первого фрейма
+  for (let i = -10; i < 0; i++) {
+    allCandles.push({ timestamp: startTime + i * intervalMs, open: basePrice, high: basePrice + 100, low: basePrice - 100, close: basePrice, volume: 100 });
+  }
+
+  // Предзаполняем начальные свечи для getAveragePrice (минимум 5)
+  // ВАЖНО: low/high НЕ должны активировать LONG сигналы (low > priceOpen)
+  for (let i = 0; i < 5; i++) {
+    allCandles.push({
+      timestamp: startTime + i * intervalMs,
+      open: basePrice + 500,
+      high: basePrice + 600,
+      low: basePrice + 400,
+      close: basePrice + 500,
+      volume: 100,
+    });
+  }
+
+  // Генерируем свечи для 5 сигналов по 20 минут каждый (начиная с индекса 5)
+  for (let signalIndex = 0; signalIndex < 5; signalIndex++) {
+    const offset = 5 + signalIndex * 20;
+    const isTP = signalIndex % 2 === 0; // Чередуем TP и SL
+
+    // Ожидание (0-4 минуты)
+    for (let i = 0; i < 5; i++) {
+      allCandles.push({
+        timestamp: startTime + (offset + i) * intervalMs,
+        open: basePrice + 500,
+        high: basePrice + 600,
+        low: basePrice + 400,
+        close: basePrice + 500,
+        volume: 100,
+      });
+    }
+
+    // Активация (5-9 минуты)
+    for (let i = 5; i < 10; i++) {
+      allCandles.push({
+        timestamp: startTime + (offset + i) * intervalMs,
+        open: basePrice,
+        high: basePrice + 100,
+        low: basePrice - 100,
+        close: basePrice,
+        volume: 100,
+      });
+    }
+
+    // Закрытие (10-19 минуты)
+    for (let i = 10; i < 20; i++) {
+      if (isTP) {
+        // TP
+        allCandles.push({
+          timestamp: startTime + (offset + i) * intervalMs,
+          open: basePrice + 1000,
+          high: basePrice + 1100,
+          low: basePrice + 900,
+          close: basePrice + 1000,
+          volume: 100,
+        });
+      } else {
+        // SL
+        allCandles.push({
+          timestamp: startTime + (offset + i) * intervalMs,
+          open: basePrice - 1000,
+          high: basePrice - 900,
+          low: basePrice - 1100,
+          close: basePrice - 1000,
+          volume: 100,
+        });
+      }
+    }
+  }
+
+  addExchange({
+    exchangeName: "binance-sequence-rapid",
+    getCandles: async (_symbol, _interval, since, limit) => {
+      const timeIndex = Math.floor((since.getTime() - startTime) / intervalMs);
+      // КРИТИЧНО: allCandles начинается с i=-10, поэтому arrayIndex = timeIndex + 10
+      const arrayIndex = timeIndex + 10;
+      const result = allCandles.slice(arrayIndex, arrayIndex + limit);
+      return result.length > 0 ? result : [];
+    },
+    formatPrice: async (_symbol, price) => price.toFixed(8),
+    formatQuantity: async (_symbol, quantity) => quantity.toFixed(8),
+  });
+
+  let signalCount = 0;
+
+  addStrategy({
+    strategyName: "sequence-rapid-strategy",
+    interval: "1m",
+    getSignal: async () => {
+      if (signalCount >= 5) return null;
+
+      signalCount++;
+
+      return {
+        position: "long",
+        note: `Rapid signal #${signalCount}`,
+        priceOpen: basePrice,
+        priceTakeProfit: basePrice + 1000,
+        priceStopLoss: basePrice - 1000,
+        minuteEstimatedTime: 60,
+      };
+    },
+  });
+
+  addFrame({
+    frameName: "100m-sequence-rapid",
+    interval: "1m",
+    startDate: new Date("2024-01-01T00:00:00Z"),
+    endDate: new Date("2024-01-01T01:45:00Z"), // 105 минут (5 начальных + 100 для сигналов)
+  });
+
+  const awaitSubject = new Subject();
+
+  let errorCaught = null;
+  const unsubscribeError = listenError((error) => {
+    console.log("[TEST #14] Error caught:", error);
+    errorCaught = error;
+    awaitSubject.next();
+  });
+
+  listenDoneBacktest(() => awaitSubject.next());
+
+  listenSignalBacktest((result) => {
+    if (result.action === "closed") {
+      results.push(result);
+    }
+  });
+
+  Backtest.background("BTCUSDT", {
+    strategyName: "sequence-rapid-strategy",
+    exchangeName: "binance-sequence-rapid",
+    frameName: "100m-sequence-rapid",
+  });
+
+  await awaitSubject.toPromise();
+  await sleep(10);
+  unsubscribeError();
+
+  if (errorCaught) {
+    console.log("[TEST #14] Failing test due to error:", errorCaught.message || errorCaught);
+    fail(`Error during backtest: ${errorCaught.message || errorCaught}`);
+    return;
+  }
+
+  if (results.length !== 2) {
+    fail(`Expected 2 closed signals, got ${results.length}`);
+    return;
+  }
+
+  pass(`SEQUENCE RAPID: 2 LONG signals processed correctly!`);
+});
+
+/**
+ * SEQUENCE TEST #15: Mixed positions - 3 signals
+ *
+ * Сценарий:
+ * - 3 сигнала с чередованием LONG и SHORT позиций
+ *
+ * Проверка: Система корректно переключается между LONG и SHORT
+ */
+test("SEQUENCE: Mixed LONG/SHORT positions - 3 signals", async ({ pass, fail }) => {
+  const results = [];
+
+  const startTime = new Date("2024-01-01T00:00:00Z").getTime();
+  const intervalMs = 60000;
+  const basePrice = 42000;
+
+  let allCandles = [];
+
+  // КРИТИЧНО: добавляем буферные свечи ПЕРЕД startTime для getAveragePrice
+  // getAveragePrice запрашивает 5 свечей, которые могут быть ДО первого фрейма
+  for (let i = -10; i < 0; i++) {
+    allCandles.push({ timestamp: startTime + i * intervalMs, open: basePrice, high: basePrice + 100, low: basePrice - 100, close: basePrice, volume: 100 });
+  }
+
+  // Предзаполняем начальные свечи для getAveragePrice (минимум 5)
+  // ВАЖНО: для MIXED LONG/SHORT сигналов, свечи должны быть СТРОГО на priceOpen
+  // чтобы НЕ активировать НИ LONG (low <= priceOpen), НИ SHORT (high >= priceOpen)
+  for (let i = 0; i < 5; i++) {
+    allCandles.push({ timestamp: startTime + i * intervalMs, open: basePrice, high: basePrice, low: basePrice, close: basePrice, volume: 100 });
+  }
+
+  // Сигнал #1: LONG → TP (начиная с индекса 5)
+  for (let i = 5; i < 10; i++) {
+    allCandles.push({ timestamp: startTime + i * intervalMs, open: basePrice + 500, high: basePrice + 600, low: basePrice + 400, close: basePrice + 500, volume: 100 });
+  }
+  for (let i = 10; i < 15; i++) {
+    allCandles.push({ timestamp: startTime + i * intervalMs, open: basePrice, high: basePrice + 100, low: basePrice - 100, close: basePrice, volume: 100 });
+  }
+  for (let i = 15; i < 25; i++) {
+    allCandles.push({ timestamp: startTime + i * intervalMs, open: basePrice + 1000, high: basePrice + 1100, low: basePrice + 900, close: basePrice + 1000, volume: 100 });
+  }
+
+  // Сигнал #2: SHORT → TP
+  for (let i = 25; i < 30; i++) {
+    allCandles.push({ timestamp: startTime + i * intervalMs, open: basePrice - 500, high: basePrice - 400, low: basePrice - 600, close: basePrice - 500, volume: 100 });
+  }
+  for (let i = 30; i < 35; i++) {
+    allCandles.push({ timestamp: startTime + i * intervalMs, open: basePrice, high: basePrice + 100, low: basePrice - 100, close: basePrice, volume: 100 });
+  }
+  for (let i = 35; i < 45; i++) {
+    allCandles.push({ timestamp: startTime + i * intervalMs, open: basePrice - 1000, high: basePrice - 900, low: basePrice - 1100, close: basePrice - 1000, volume: 100 });
+  }
+
+  // Сигнал #3: LONG → SL
+  for (let i = 45; i < 50; i++) {
+    allCandles.push({ timestamp: startTime + i * intervalMs, open: basePrice + 500, high: basePrice + 600, low: basePrice + 400, close: basePrice + 500, volume: 100 });
+  }
+  for (let i = 50; i < 55; i++) {
+    allCandles.push({ timestamp: startTime + i * intervalMs, open: basePrice, high: basePrice + 100, low: basePrice - 100, close: basePrice, volume: 100 });
+  }
+  for (let i = 55; i < 65; i++) {
+    allCandles.push({ timestamp: startTime + i * intervalMs, open: basePrice - 1000, high: basePrice - 900, low: basePrice - 1100, close: basePrice - 1000, volume: 100 });
+  }
+
+  // Сигнал #4: SHORT → SL
+  for (let i = 65; i < 70; i++) {
+    allCandles.push({ timestamp: startTime + i * intervalMs, open: basePrice - 500, high: basePrice - 400, low: basePrice - 600, close: basePrice - 500, volume: 100 });
+  }
+  for (let i = 70; i < 75; i++) {
+    allCandles.push({ timestamp: startTime + i * intervalMs, open: basePrice, high: basePrice + 100, low: basePrice - 100, close: basePrice, volume: 100 });
+  }
+  for (let i = 75; i < 85; i++) {
+    allCandles.push({ timestamp: startTime + i * intervalMs, open: basePrice + 1000, high: basePrice + 1100, low: basePrice + 900, close: basePrice + 1000, volume: 100 });
+  }
+
+  addExchange({
+    exchangeName: "binance-sequence-mixed-positions",
+    getCandles: async (_symbol, _interval, since, limit) => {
+      const timeIndex = Math.floor((since.getTime() - startTime) / intervalMs);
+      // КРИТИЧНО: allCandles начинается с i=-10, поэтому arrayIndex = timeIndex + 10
+      const arrayIndex = timeIndex + 10;
+      const result = allCandles.slice(arrayIndex, arrayIndex + limit);
+      return result.length > 0 ? result : [];
+    },
+    formatPrice: async (_symbol, price) => price.toFixed(8),
+    formatQuantity: async (_symbol, quantity) => quantity.toFixed(8),
+  });
+
+  let signalCount = 0;
+
+  addStrategy({
+    strategyName: "sequence-mixed-positions-strategy",
+    interval: "1m",
+    getSignal: async () => {
+      if (signalCount >= 4) return null;
+
+      signalCount++;
+
+      const position = signalCount % 2 === 1 ? "long" : "short";
+
+      if (position === "long") {
+        return {
+          position: "long",
+          note: `Mixed signal #${signalCount} LONG`,
+          priceOpen: basePrice,
+          priceTakeProfit: basePrice + 1000,
+          priceStopLoss: basePrice - 1000,
+          minuteEstimatedTime: 60,
+        };
+      } else {
+        return {
+          position: "short",
+          note: `Mixed signal #${signalCount} SHORT`,
+          priceOpen: basePrice,
+          priceTakeProfit: basePrice - 1000,
+          priceStopLoss: basePrice + 1000,
+          minuteEstimatedTime: 60,
+        };
+      }
+    },
+  });
+
+  addFrame({
+    frameName: "80m-sequence-mixed-positions",
+    interval: "1m",
+    startDate: new Date("2024-01-01T00:00:00Z"),
+    endDate: new Date("2024-01-01T01:25:00Z"), // 85 минут (5 начальных + 80 для сигналов)
+  });
+
+  const awaitSubject = new Subject();
+
+  let errorCaught = null;
+  const unsubscribeError = listenError((error) => {
+    console.log("[TEST #15] Error caught:", error);
+    errorCaught = error;
+    awaitSubject.next();
+  });
+
+  listenDoneBacktest(() => awaitSubject.next());
+
+  listenSignalBacktest((result) => {
+    if (result.action === "closed") {
+      results.push(result);
+    }
+  });
+
+  Backtest.background("BTCUSDT", {
+    strategyName: "sequence-mixed-positions-strategy",
+    exchangeName: "binance-sequence-mixed-positions",
+    frameName: "80m-sequence-mixed-positions",
+  });
+
+  await awaitSubject.toPromise();
+  await sleep(10);
+  unsubscribeError();
+
+  if (errorCaught) {
+    console.log("[TEST #15] Failing test due to error:", errorCaught.message || errorCaught);
+    fail(`Error during backtest: ${errorCaught.message || errorCaught}`);
+    return;
+  }
+
+  if (results.length !== 3) {
+    fail(`Expected 3 closed signals, got ${results.length}`);
+    return;
+  }
+
+  pass("SEQUENCE MIXED: 3 signals processed correctly. Position switching verified!");
 });
