@@ -361,9 +361,7 @@ Sources: [src/client/ClientStrategy.ts:1136-1190](), [src/client/ClientStrategy.
 
 ## Monitoring State Transitions
 
-![Mermaid Diagram](./diagrams/57_Real-time_Monitoring_1.svg)
-
-**Key monitoring loops**:
+Key monitoring loops:
 1. **idle → scheduled → opened → active → closed**: Full lifecycle with scheduled entry
 2. **idle → opened → active → closed**: Immediate entry lifecycle
 3. **scheduled → cancelled**: Timeout or SL hit before activation

@@ -256,11 +256,7 @@ Sources: [test/spec/performance.test.mjs]()
 
 ## Performance Data Accumulation
 
-The `PerformanceMarkdownService` subscribes to performance events and accumulates metrics for later analysis:
-
-![Mermaid Diagram](./diagrams/69_Performance_Metrics_6.svg)
-
-The service maintains a separate storage instance per strategy, allowing isolated performance tracking across multiple concurrent executions.
+The `PerformanceMarkdownService` subscribes to performance events and accumulates metrics for later analysis. The service maintains a separate storage instance per strategy, allowing isolated performance tracking across multiple concurrent executions.
 
 Sources: [types.d.ts:899-1008](), [src/lib/services/markdown/PerformanceMarkdownService.ts]()
 

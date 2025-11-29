@@ -141,11 +141,7 @@ Occurs when `getSignal()` returns a signal without `priceOpen`. Position opens i
 
 ### Scheduled → Opened (Activation)
 
-Occurs when market price reaches `priceOpen` for a scheduled signal. Triggers risk check at activation time.
-
-![Mermaid Diagram](./diagrams/07_Signal_Lifecycle_Overview_5.svg)
-
-**Critical:** `pendingAt` timestamp is updated during activation. Time-based expiration calculates from `pendingAt`, not `scheduledAt`.
+Occurs when market price reaches `priceOpen` for a scheduled signal. Triggers risk check at activation time. The `pendingAt` timestamp is updated during activation. Time-based expiration calculates from `pendingAt`, not `scheduledAt`.
 
 **Sources:** [src/client/ClientStrategy.ts:459-551](), [src/client/ClientStrategy.ts:388-422]()
 

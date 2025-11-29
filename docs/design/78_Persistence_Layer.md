@@ -172,11 +172,7 @@ return JSON.parse(fileContent) as T;
 
 ### File Validation and Cleanup
 
-During `waitForInit`, the system validates all existing files and removes corrupted ones:
-
-![Mermaid Diagram](./diagrams/78_Persistence_Layer_7.svg)
-
-The cleanup uses retry logic with configurable parameters:
+During `waitForInit`, the system validates all existing files and removes corrupted ones. The cleanup uses retry logic with configurable parameters:
 
 | Constant | Value | Purpose |
 |----------|-------|---------|
@@ -243,8 +239,6 @@ The `singleshot` decorator ensures initialization happens only once, even if cal
 **Sources:** [src/classes/Persist.ts:209-219](), [src/classes/Persist.ts:113-134]()
 
 ### Validation Logic
-
-![Mermaid Diagram](./diagrams/78_Persistence_Layer_11.svg)
 
 Error messages logged:
 

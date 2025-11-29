@@ -45,10 +45,6 @@ Sources: [src/lib/services/logic/private/LiveLogicPrivateService.ts:60-113]()
 
 ### Tick Execution Flow
 
-![Mermaid Diagram](./diagrams/54_Live_Trading_2.svg)
-
-**Live Tick Execution Sequence**
-
 Each tick iteration creates a fresh `Date` object representing the current time. Unlike backtesting, there is no timeframe array - the loop simply continues forever with real-time progression.
 
 Sources: [src/lib/services/logic/private/LiveLogicPrivateService.ts:60-113]()

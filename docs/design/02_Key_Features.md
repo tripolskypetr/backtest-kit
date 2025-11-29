@@ -73,10 +73,6 @@ The `PersistSignalAdapter` ensures atomicity through temporary file writes:
 | 3 | Rename `.tmp` to final | Atomic filesystem operation (all-or-nothing) |
 | 4 | Sync directory | Ensure directory entry is persisted |
 
-**State Transitions with Persistence:**
-
-![Mermaid Diagram](./diagrams/02_Key_Features_3.svg)
-
 **Key Code Locations:**
 
 - **Atomic Write Logic**: [src/classes/Persist.ts]() (`FilePersist.writeValue`)
@@ -185,10 +181,6 @@ Both backtest and live execution use async generators (`AsyncIterableIterator`) 
 ## Signal Lifecycle State Machine
 
 Signals follow a deterministic state machine with discriminated union types for type-safe handling. The framework supports both market orders (immediate execution) and limit orders (scheduled execution).
-
-### Complete Signal Lifecycle
-
-![Mermaid Diagram](./diagrams/02_Key_Features_7.svg)
 
 ### Type-Safe State Handling
 

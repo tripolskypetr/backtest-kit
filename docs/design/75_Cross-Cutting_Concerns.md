@@ -10,9 +10,7 @@ For event-driven signal flow, see [Event System](#3.4).
 
 ## System Overview
 
-Cross-cutting concerns provide infrastructure services that are consumed by all layers:
-
-![Mermaid Diagram](./diagrams/75_Cross-Cutting_Concerns_0.svg)
+Cross-cutting concerns provide infrastructure services that are consumed by all layers.
 
 **Sources:** [types.d.ts:40-130](), [src/config/params.ts:1-35](), [src/classes/Persist.ts:1-732]()
 

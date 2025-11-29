@@ -249,10 +249,6 @@ await setConfig({
 
 **Purpose:** Maximum distance between `priceOpen` and `priceStopLoss` as a percentage. Prevents catastrophic losses from extreme StopLoss values.
 
-### Risk Protection Mechanism
-
-![Mermaid Diagram](./diagrams/15_Configuration_Functions_5.svg)
-
 ### Portfolio Impact
 
 If using 10% position sizing and `CC_MAX_STOPLOSS_DISTANCE_PERCENT = 20`:
@@ -287,10 +283,6 @@ await setConfig({
 **Default:** `1440` minutes (1 day)
 
 **Purpose:** Maximum duration a signal can remain active before forced closure via `time_expired` reason. Prevents "eternal signals" that block risk limits indefinitely.
-
-### Lifetime Tracking and Enforcement
-
-![Mermaid Diagram](./diagrams/15_Configuration_Functions_6.svg)
 
 ### Risk Slot Deadlock Prevention
 
