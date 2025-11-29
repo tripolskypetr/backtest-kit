@@ -14,7 +14,6 @@ The backtest-kit framework requires **TypeScript 5.0 or higher** as a peer depen
 
 **Supported Node.js versions:** Node.js 14.18.0 or higher (inferred from build tool requirements)
 
-Sources: [package.json:70-72]()
 
 ---
 
@@ -32,7 +31,6 @@ This installs the framework along with its runtime dependencies:
 - `functools-kit` (^1.0.93) - Functional programming utilities
 - `get-moment-stamp` (^1.1.1) - Timestamp utilities
 
-Sources: [README.md:22-26](), [package.json:73-78]()
 
 ---
 
@@ -51,7 +49,6 @@ The distributed npm package contains three primary artifacts:
 | `types.d.ts` | TypeScript type definitions | `types`, `exports.types` |
 | `README.md` | Documentation | Package metadata |
 
-Sources: [package.json:27-31](), [package.json:48-57]()
 
 ---
 
@@ -93,7 +90,6 @@ TypeScript automatically resolves types from `types.d.ts` for both import styles
 
 ![Mermaid Diagram](./diagrams/03_Installation_and_Setup_1.svg)
 
-Sources: [package.json:52-57](), [README.md:32-34]()
 
 ---
 
@@ -115,7 +111,6 @@ The following npm scripts manage the build process:
 | `build:docs` | `rimraf docs && mkdir docs && node ./scripts/dts-docs.cjs ./types.d.ts ./docs` | Generate documentation from types |
 | `docs:www` | `rimraf docs/wwwroot && typedoc` | Generate TypeDoc HTML documentation |
 
-Sources: [package.json:41-46](), [package.json:58-66]()
 
 ### Rollup Plugins Configuration
 
@@ -125,7 +120,6 @@ The build system uses these plugins:
 2. **rollup-plugin-dts** - Bundles TypeScript declarations into single `types.d.ts`
 3. **rollup-plugin-peer-deps-external** - Externalizes peer dependencies
 
-Sources: [package.json:58-67]()
 
 ---
 
@@ -142,7 +136,6 @@ The framework's runtime dependencies form a lightweight tree:
 - **functools-kit**: Functional programming utilities for memoization and queuing
 - **get-moment-stamp**: Timestamp calculation and interval utilities
 
-Sources: [package.json:73-78](), [package-lock.json:650-668]()
 
 ---
 
@@ -190,7 +183,6 @@ your-project@1.0.0
 └── backtest-kit@1.0.4
 ```
 
-Sources: [README.md:28-103]()
 
 ---
 
@@ -212,7 +204,6 @@ Understanding how public API functions map to internal implementation:
 | `getCandles` | `src/function/exchange.ts` | Proxies to `ExchangeGlobalService.getCandles` |
 | `getAveragePrice` | `src/function/exchange.ts` | Proxies to `ExchangeGlobalService.getAveragePrice` |
 
-Sources: [README.md:640-671](), Package structure inferred from file organization
 
 ---
 
@@ -271,7 +262,6 @@ If missing, reinstall:
 npm install backtest-kit --force
 ```
 
-Sources: [package.json:70-72](), [package.json:51]()
 
 ---
 
@@ -307,7 +297,6 @@ This generates:
 | `npm run docs:www` | Generate TypeDoc HTML documentation |
 | `npm run repl` | Start interactive REPL for testing |
 
-Sources: [package.json:32-36](), [package.json:41-46]()
 
 ---
 
@@ -320,5 +309,4 @@ After successful installation:
 3. **Set up timeframe generators** - See [Configuration Functions](./15_Configuration_Functions.md) for `addFrame`
 4. **Run your first backtest** - See [Backtest API](./17_Backtest_API.md)
 5. **Deploy to live trading** - See [Live Trading API](./18_Live_Trading_API.md)
-
-Sources: [README.md:28-137]()
+

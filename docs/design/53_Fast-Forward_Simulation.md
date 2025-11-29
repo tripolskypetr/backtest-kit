@@ -13,7 +13,6 @@ This page documents the fast-forward mechanism implemented in `ClientStrategy.ba
 - **Memory Efficiency**: Streams results without accumulating intermediate states
 - **Accuracy**: Accounts for intra-candle price movements via VWAP
 
-Sources: [src/client/ClientStrategy.ts:1188-1318](), [src/lib/services/logic/private/BacktestLogicPrivateService.ts:186-253]()
 
 ---
 

@@ -19,7 +19,6 @@ Walker Mode solves the strategy selection problem by:
 
 Walker Mode wraps the Backtest execution mode and orchestrates multiple runs, collecting and comparing results automatically.
 
-Sources: [README.md:404-466](), [src/classes/Walker.ts:1-273]()
 
 ---
 
@@ -59,7 +58,6 @@ addWalker({
 });
 ```
 
-Sources: [README.md:407-429](), [src/classes/Walker.ts:52-60]()
 
 ---
 
@@ -77,7 +75,6 @@ Sources: [README.md:407-429](), [src/classes/Walker.ts:52-60]()
 - `WalkerLogicPrivateService` - Core orchestration loop (not shown in files but referenced)
 - `WalkerMarkdownService` - Aggregates results and generates comparison reports
 
-Sources: [src/classes/Walker.ts:31-87](), [src/lib/services/global/WalkerGlobalService.ts:1-90]()
 
 ---
 
@@ -103,7 +100,6 @@ Walker Mode executes strategies sequentially, not in parallel. This ensures dete
 5. **Completion** - Emit final results via `walkerCompleteSubject`
 6. **Reporting** - Generate comparison report via `WalkerMarkdownService`
 
-Sources: [src/classes/Walker.ts:39-87](), [src/classes/Walker.ts:64-80]()
 
 ---
 
@@ -137,7 +133,6 @@ for (const strategyName of walkerSchema.strategies) {
 
 This ensures each strategy starts fresh with no accumulated signals or state from previous runs.
 
-Sources: [src/classes/Walker.ts:64-80]()
 
 ---
 
@@ -190,7 +185,6 @@ listenWalkerComplete((results) => {
 });
 ```
 
-Sources: [src/function/event.ts:507-543](), [src/config/emitters.ts:64-73]()
 
 ---
 
@@ -233,7 +227,6 @@ The `WalkerMarkdownService.getData()` method extracts the chosen metric from eac
 
 All metrics return `null` if unsafe (NaN, Infinity), which are handled appropriately during comparison.
 
-Sources: [README.md:461-467](), [src/classes/Walker.ts:159-179]()
 
 ---
 
@@ -299,7 +292,6 @@ The markdown report includes:
 | strategy-c | 0.98 | 55.2% | +0.55% | +18.20% | 28 |
 ```
 
-Sources: [README.md:457-459](), [src/classes/Walker.ts:159-214]()
 
 ---
 
@@ -379,7 +371,6 @@ Walker.dump(
 
 Default path: `./logs/walker/{walkerName}.md`
 
-Sources: [src/classes/Walker.ts:31-256]()
 
 ---
 
@@ -451,7 +442,6 @@ console.log("Strategies with Sharpe > 1.5:", goodStrategies.length);
 console.log("Best win rate:", bestWinRate.strategyName, bestWinRate.stats.winRate);
 ```
 
-Sources: [README.md:407-459](), [src/classes/Walker.ts:95-143]()
 
 ---
 
@@ -498,7 +488,6 @@ addWalker({
 });
 ```
 
-Sources: [README.md:417-428]()
 
 ---
 
@@ -531,7 +520,6 @@ riskName && backtest.riskGlobalService.clear(riskName);
 
 This ensures proper isolation of active positions between strategy runs.
 
-Sources: [src/classes/Walker.ts:64-80](), [src/classes/Backtest.ts:38-66]()
 
 ---
 
@@ -555,7 +543,6 @@ Walker performs comprehensive validation before execution:
 
 Any validation failure throws an error before execution begins, preventing partial runs.
 
-Sources: [src/lib/services/global/WalkerGlobalService.ts:64-84](), [src/classes/Walker.ts:50-60]()
 
 ---
 
@@ -584,7 +571,6 @@ This prevents memory accumulation across multiple strategy runs.
 
 Progress events are emitted after each strategy completes, not after each signal. This reduces event volume and provides meaningful checkpoints for long-running comparisons.
 
-Sources: [src/classes/Walker.ts:64-80]()
 
 ---
 
@@ -623,7 +609,6 @@ cancel();
 
 This calls `strategyGlobalService.stop()` for each strategy in the walker's strategy list.
 
-Sources: [src/classes/Walker.ts:108-143]()
 
 ---
 
@@ -647,5 +632,4 @@ Custom path can be specified:
 ```typescript
 await Walker.dump("BTCUSDT", "btc-walker", "./custom/path");
 ```
-
-Sources: [src/classes/Walker.ts:232-255]()
+

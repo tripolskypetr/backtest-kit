@@ -20,7 +20,6 @@ The framework tracks four types of performance metrics, defined by the `Performa
 | `backtest_signal` | Single signal | Duration to process signal lifecycle (from open to close via backtest method) | Backtest only |
 | `live_tick` | Single tick | Duration to execute one tick cycle in live trading | Live only |
 
-Sources: [types.d.ts:95](), [src/index.ts:95]()
 
 ---
 
@@ -32,7 +31,6 @@ Sources: [types.d.ts:95](), [src/index.ts:95]()
 
 The framework instruments critical operations by recording `performance.now()` timestamps at operation boundaries, calculating duration, and emitting structured events via `performanceEmitter`.
 
-Sources: [src/lib/services/logic/private/BacktestLogicPrivateService.ts:1-303](), [src/lib/services/logic/private/LiveLogicPrivateService.ts:1-117]()
 
 ---
 
@@ -44,7 +42,6 @@ Tracks the complete execution time from the first timeframe to the last:
 
 ![Mermaid Diagram](./diagrams/69_Performance_Metrics_1.svg)
 
-Sources: [src/lib/services/logic/private/BacktestLogicPrivateService.ts:64-65](), [src/lib/services/logic/private/BacktestLogicPrivateService.ts:285-298]()
 
 ### Timeframe Processing Duration
 
@@ -52,7 +49,6 @@ Tracks the time to process a single timestamp, including tick execution and pote
 
 ![Mermaid Diagram](./diagrams/69_Performance_Metrics_2.svg)
 
-Sources: [src/lib/services/logic/private/BacktestLogicPrivateService.ts:76](), [src/lib/services/logic/private/BacktestLogicPrivateService.ts:255-269]()
 
 ### Signal Processing Duration
 
@@ -62,7 +58,6 @@ Tracks the time to execute the fast-forward backtest simulation for a single sig
 
 This metric captures the duration of the optimized backtest path, including candle fetching and TP/SL detection via high/low analysis.
 
-Sources: [src/lib/services/logic/private/BacktestLogicPrivateService.ts:95-172](), [src/lib/services/logic/private/BacktestLogicPrivateService.ts:186-242]()
 
 ---
 
@@ -74,7 +69,6 @@ Tracks the time to execute a complete tick cycle in live trading, including sign
 
 ![Mermaid Diagram](./diagrams/69_Performance_Metrics_4.svg)
 
-Sources: [src/lib/services/logic/private/LiveLogicPrivateService.ts:68-91]()
 
 ---
 
@@ -113,7 +107,6 @@ await performanceEmitter.next({
 previousEventTimestamp = currentTimestamp;
 ```
 
-Sources: [src/lib/services/logic/private/BacktestLogicPrivateService.ts:73](), [src/lib/services/logic/private/BacktestLogicPrivateService.ts:257-269](), [src/lib/services/logic/private/LiveLogicPrivateService.ts:65](), [src/lib/services/logic/private/LiveLogicPrivateService.ts:80-91]()
 
 ---
 
@@ -140,7 +133,6 @@ listenPerformance((event) => {
 
 ![Mermaid Diagram](./diagrams/69_Performance_Metrics_5.svg)
 
-Sources: [src/index.ts:19](), [src/config/emitters.ts]()
 
 ---
 
@@ -250,7 +242,6 @@ listenPerformance((event) => {
 });
 ```
 
-Sources: [test/spec/performance.test.mjs]()
 
 ---
 
@@ -258,7 +249,6 @@ Sources: [test/spec/performance.test.mjs]()
 
 The `PerformanceMarkdownService` subscribes to performance events and accumulates metrics for later analysis. The service maintains a separate storage instance per strategy, allowing isolated performance tracking across multiple concurrent executions.
 
-Sources: [types.d.ts:899-1008](), [src/lib/services/markdown/PerformanceMarkdownService.ts]()
 
 ---
 
@@ -293,7 +283,6 @@ await performanceEmitter.next({
 });
 ```
 
-Sources: [src/lib/services/logic/private/BacktestLogicPrivateService.ts:64-298]()
 
 ---
 
@@ -307,5 +296,4 @@ Performance metrics integrate with the broader framework architecture:
 | Reporting | `PerformanceMarkdownService` | Accumulate and format performance reports |
 | Context Propagation | `MethodContextService` | Inject strategy/exchange names into metrics |
 | Execution Modes | `BacktestLogicPrivateService`, `LiveLogicPrivateService` | Instrument operations with timing |
-
-Sources: [src/lib/services/logic/private/BacktestLogicPrivateService.ts:1-303](), [src/lib/services/logic/private/LiveLogicPrivateService.ts:1-117]()
+

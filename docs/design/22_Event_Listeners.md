@@ -19,7 +19,6 @@ The framework provides 19 event listener functions organized into five categorie
 
 All listener functions return an unsubscribe function that can be called to stop receiving events. Events are processed sequentially using a queued wrapper to prevent concurrent callback execution.
 
-Sources: [src/function/event.ts:1-653](), [src/config/emitters.ts:1-81]()
 
 ## Event Emitter Architecture
 
@@ -27,7 +26,6 @@ Sources: [src/function/event.ts:1-653](), [src/config/emitters.ts:1-81]()
 
 **Event Flow**: Event producers (ClientStrategy, logic services, ClientRisk) emit events to Subject instances. Listener functions subscribe to these Subjects and forward events to user callbacks wrapped in `queued()` for sequential processing.
 
-Sources: [src/config/emitters.ts:1-81](), [src/function/event.ts:1-653]()
 
 ## Signal Event Listeners
 
@@ -63,7 +61,6 @@ const unsubscribe = listenSignal((event) => {
 unsubscribe();
 ```
 
-Sources: [src/function/event.ts:56-59]()
 
 ### listenSignalOnce
 
@@ -96,7 +93,6 @@ listenSignalOnce(
 );
 ```
 
-Sources: [src/function/event.ts:93-99]()
 
 ### listenSignalLive
 
@@ -109,7 +105,6 @@ function listenSignalLive(fn: (event: IStrategyTickResult) => void): () => void
 
 **Event Source**: [src/config/emitters.ts:19]() `signalLiveEmitter`
 
-Sources: [src/function/event.ts:121-124]()
 
 ### listenSignalLiveOnce
 
@@ -125,7 +120,6 @@ function listenSignalLiveOnce(
 
 **Event Source**: [src/config/emitters.ts:19]() `signalLiveEmitter`
 
-Sources: [src/function/event.ts:147-153]()
 
 ### listenSignalBacktest
 
@@ -138,7 +132,6 @@ function listenSignalBacktest(fn: (event: IStrategyTickResult) => void): () => v
 
 **Event Source**: [src/config/emitters.ts:25]() `signalBacktestEmitter`
 
-Sources: [src/function/event.ts:175-178]()
 
 ### listenSignalBacktestOnce
 
@@ -154,7 +147,6 @@ function listenSignalBacktestOnce(
 
 **Event Source**: [src/config/emitters.ts:25]() `signalBacktestEmitter`
 
-Sources: [src/function/event.ts:201-207]()
 
 ## Signal Event Types
 
@@ -162,7 +154,6 @@ Sources: [src/function/event.ts:201-207]()
 
 **Discriminated Union**: Use `event.action` for type-safe handling. Each action type has different properties available.
 
-Sources: [types.d.ts:654-774]()
 
 ## Completion Event Listeners
 
@@ -191,7 +182,6 @@ function listenDoneLive(fn: (event: DoneContract) => void): () => void
 
 **Emission Point**: [src/classes/Live.ts:123-128]() after `Live.background()` completes.
 
-Sources: [src/function/event.ts:264-267]()
 
 ### listenDoneLiveOnce
 
@@ -207,7 +197,6 @@ function listenDoneLiveOnce(
 
 **Event Source**: [src/config/emitters.ts:37]() `doneLiveSubject`
 
-Sources: [src/function/event.ts:295-301]()
 
 ### listenDoneBacktest
 
@@ -232,7 +221,6 @@ function listenDoneBacktest(fn: (event: DoneContract) => void): () => void
 
 **Emission Point**: [src/classes/Backtest.ts:108-113]() after `Backtest.background()` completes.
 
-Sources: [src/function/event.ts:331-334]()
 
 ### listenDoneBacktestOnce
 
@@ -248,7 +236,6 @@ function listenDoneBacktestOnce(
 
 **Event Source**: [src/config/emitters.ts:43]() `doneBacktestSubject`
 
-Sources: [src/function/event.ts:363-369]()
 
 ### listenDoneWalker
 
@@ -273,7 +260,6 @@ function listenDoneWalker(fn: (event: DoneContract) => void): () => void
 
 **Emission Point**: [src/classes/Walker.ts:128-133]() after `Walker.background()` completes all strategy comparisons.
 
-Sources: [src/function/event.ts:397-400]()
 
 ### listenDoneWalkerOnce
 
@@ -289,7 +275,6 @@ function listenDoneWalkerOnce(
 
 **Event Source**: [src/config/emitters.ts:49]() `doneWalkerSubject`
 
-Sources: [src/function/event.ts:427-433]()
 
 ## Progress Event Listeners
 
@@ -326,7 +311,6 @@ const unsubscribe = listenProgress((event) => {
 });
 ```
 
-Sources: [src/function/event.ts:465-468]()
 
 ### listenWalker
 
@@ -364,7 +348,6 @@ const unsubscribe = listenWalker((event) => {
 });
 ```
 
-Sources: [src/function/event.ts:537-540]()
 
 ### listenWalkerOnce
 
@@ -392,7 +375,6 @@ listenWalkerOnce(
 );
 ```
 
-Sources: [src/function/event.ts:581-587]()
 
 ### listenWalkerComplete
 
@@ -427,7 +409,6 @@ const unsubscribe = listenWalkerComplete((results) => {
 });
 ```
 
-Sources: [src/function/event.ts:620-623]()
 
 ## Performance Event Listeners
 
@@ -466,7 +447,6 @@ const unsubscribe = listenPerformance((event) => {
 });
 ```
 
-Sources: [src/function/event.ts:502-505]()
 
 ## Error Event Listeners
 
@@ -494,7 +474,6 @@ const unsubscribe = listenError((error) => {
 });
 ```
 
-Sources: [src/function/event.ts:232-235]()
 
 ### listenValidation
 
@@ -515,7 +494,6 @@ const unsubscribe = listenValidation((error) => {
 });
 ```
 
-Sources: [src/function/event.ts:649-652]()
 
 ## Queued Processing Pattern
 
@@ -532,7 +510,6 @@ All event listener functions wrap user callbacks with `queued()` from `functools
 
 **Implementation**: [src/function/event.ts:9]() imports `queued` from `functools-kit`. All subscription calls use pattern: `emitter.subscribe(queued(async (event) => fn(event)))`.
 
-Sources: [src/function/event.ts:9](), [src/function/event.ts:58]()
 
 ## Event Listener Summary Table
 
@@ -557,5 +534,4 @@ Sources: [src/function/event.ts:9](), [src/function/event.ts:58]()
 | `listenWalkerOnce` | `WalkerContract` | `walkerEmitter` | Walker | Yes | Yes |
 | `listenWalkerComplete` | `IWalkerResults` | `walkerCompleteSubject` | Walker | No | No |
 | `listenValidation` | `Error` | `validationSubject` | All | No | No |
-
-Sources: [src/function/event.ts:1-653](), [src/config/emitters.ts:1-81]()
+

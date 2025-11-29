@@ -7,7 +7,6 @@ This page documents the `ClientRisk` class, which implements portfolio-level ris
 
 `ClientRisk` is a client class that provides portfolio-level risk management without dependency injection. It tracks active positions across multiple strategies sharing the same risk profile, executes custom validation functions, and provides crash-safe persistence of position state. The class is instantiated once per `riskName` and used by multiple `ClientStrategy` instances to ensure consistent risk limits across the portfolio.
 
-Sources: [src/client/ClientRisk.ts:48-73]()
 
 ## Core Responsibilities
 
@@ -21,7 +20,6 @@ Sources: [src/client/ClientRisk.ts:48-73]()
 
 All operations are asynchronous and support persistence for crash recovery in live trading mode.
 
-Sources: [src/client/ClientRisk.ts:152-217](), [src/interfaces/Risk.interface.ts:115-139]()
 
 ## Architecture Overview
 
@@ -34,7 +32,6 @@ Sources: [src/client/ClientRisk.ts:152-217](), [src/interfaces/Risk.interface.ts
 - `PersistRiskAdapter` provides crash-safe persistence for live mode
 - Multiple strategies can share the same `ClientRisk` instance for cross-strategy limits
 
-Sources: [src/client/ClientRisk.ts:1-89](), [src/lib/services/connection/RiskConnectionService.ts:41-65](), [src/lib/services/global/RiskGlobalService.ts:15-42]()
 
 ## Position Tracking Mechanism
 
@@ -58,7 +55,6 @@ interface IRiskActivePosition {
 }
 ```
 
-Sources: [src/client/ClientRisk.ts:20-28](), [src/interfaces/Risk.interface.ts:23-35]()
 
 ### Lazy Initialization Pattern
 
@@ -79,7 +75,6 @@ The `waitForInit` method uses `singleshot` pattern to ensure initialization happ
 private waitForInit = singleshot(async () => await WAIT_FOR_INIT_FN(this));
 ```
 
-Sources: [src/client/ClientRisk.ts:79-88](), [src/client/ClientRisk.ts:53-59]()
 
 ## Risk Validation Flow
 
@@ -87,7 +82,6 @@ Sources: [src/client/ClientRisk.ts:79-88](), [src/client/ClientRisk.ts:53-59]()
 
 ![Mermaid Diagram](./diagrams/34_ClientRisk_2.svg)
 
-Sources: [src/client/ClientRisk.ts:165-217]()
 
 ### Validation Execution
 
@@ -122,7 +116,6 @@ const DO_VALIDATION_FN = trycatch(
 );
 ```
 
-Sources: [src/client/ClientRisk.ts:30-46](), [src/interfaces/Risk.interface.ts:52-60]()
 
 ## Position Management
 
@@ -136,13 +129,11 @@ Sources: [src/client/ClientRisk.ts:30-46](), [src/interfaces/Risk.interface.ts:5
 - Different strategies can have positions in the same symbol
 - Example: `"strategy1:BTCUSDT"` and `"strategy2:BTCUSDT"` are separate positions
 
-Sources: [src/client/ClientRisk.ts:107-128]()
 
 ### Removing Positions
 
 ![Mermaid Diagram](./diagrams/34_ClientRisk_4.svg)
 
-Sources: [src/client/ClientRisk.ts:134-150]()
 
 ## Persistence and Crash Recovery
 
@@ -166,7 +157,6 @@ const persistedPositions = await PersistRiskAdapter.readPositionData(riskName);
 this._activePositions = new Map(persistedPositions);
 ```
 
-Sources: [src/client/ClientRisk.ts:93-101](), [src/client/ClientRisk.ts:53-59]()
 
 ### Crash Recovery Process
 
@@ -182,7 +172,6 @@ Each `riskName` has isolated persistence:
 | `"aggressive"` | `risk-aggressive.json` | Separate Map |
 | `"moderate"` | `risk-moderate.json` | Separate Map |
 
-Sources: [src/client/ClientRisk.ts:53-59](), [test/spec/risk.test.mjs:756-841]()
 
 ## Data Flow Diagram
 
@@ -195,7 +184,6 @@ The `checkSignal` method constructs the validation payload by combining:
 1. **Passthrough arguments** from `IRiskCheckArgs` (symbol, strategyName, exchangeName, currentPrice, timestamp)
 2. **Portfolio state** from `_activePositions` Map (activePositionCount, activePositions array)
 
-Sources: [src/client/ClientRisk.ts:165-181]()
 
 ## Key Implementation Details
 
@@ -222,7 +210,6 @@ public getRisk = memoize(
 - Position tracking is shared across all strategies with the same risk profile
 - Validation state is consistent for all strategies in the risk group
 
-Sources: [src/lib/services/connection/RiskConnectionService.ts:56-65]()
 
 ### Validation Function Types
 
@@ -264,7 +251,6 @@ for (const validation of this.params.validations) {
 }
 ```
 
-Sources: [src/client/ClientRisk.ts:186-200](), [src/interfaces/Risk.interface.ts:64-85]()
 
 ### Error Handling Strategy
 
@@ -280,7 +266,6 @@ Sources: [src/client/ClientRisk.ts:186-200](), [src/interfaces/Risk.interface.ts
 - Read failures during initialization return empty array (no crash)
 - Write failures propagate to caller (operation fails, state remains consistent)
 
-Sources: [src/client/ClientRisk.ts:30-46](), [test/spec/risk.test.mjs:498-520]()
 
 ### Position Key Uniqueness
 
@@ -304,5 +289,4 @@ This allows:
 - `momentum-1m` and `mean-reversion` to both hold `BTCUSDT` positions
 - Each strategy-symbol combination counted separately
 - Risk limits applied to total across all keys
-
-Sources: [src/client/ClientRisk.ts:27-28](), [test/spec/risk.test.mjs:439-496]()
+

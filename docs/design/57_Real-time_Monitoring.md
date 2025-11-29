@@ -49,7 +49,6 @@ The number of recent candles used for VWAP calculation is controlled by `GLOBAL_
 
 **Usage in live mode**: `ClientExchange.getAveragePrice()` fetches the last N candles and computes VWAP. See [4.7](./21_Exchange_Functions.md) for the public API.
 
-Sources: [src/client/ClientStrategy.ts:285-296](), [src/config/params.ts:11]()
 
 ---
 
@@ -62,7 +61,6 @@ Sources: [src/client/ClientStrategy.ts:285-296](), [src/config/params.ts:11]()
 2. If `_scheduledSignal` exists → monitor timeout/activation/cancellation
 3. If neither exists → attempt to generate new signal
 
-Sources: [src/client/ClientStrategy.ts:675-846](), [src/client/ClientStrategy.ts:332-457]()
 
 ---
 
@@ -103,7 +101,6 @@ Using exact TP price ensures:
 - **Conservative calculation**: Assumes you got filled exactly at TP, not at a better price
 - **No slippage assumptions**: Framework applies fees and slippage in `toProfitLossDto`, not in monitoring logic
 
-Sources: [src/client/ClientStrategy.ts:675-734](), [src/client/ClientStrategy.ts:695-712](), [src/client/ClientStrategy.ts:736-789]()
 
 ---
 
@@ -157,7 +154,6 @@ if (signal.priceStopLoss <= signal.priceOpen) {
 
 Additionally, `CC_MAX_STOPLOSS_DISTANCE_PERCENT` limits maximum loss [src/client/ClientStrategy.ts:100-110](), [src/config/params.ts:23]().
 
-Sources: [src/client/ClientStrategy.ts:714-731](), [src/client/ClientStrategy.ts:40-185](), [src/config/params.ts:19-23]()
 
 ---
 
@@ -213,7 +209,6 @@ if (signal.minuteEstimatedTime > GLOBAL_CONFIG.CC_MAX_SIGNAL_LIFETIME_MINUTES) {
 }
 ```
 
-Sources: [src/client/ClientStrategy.ts:680-693](), [src/client/ClientStrategy.ts:510-516](), [src/config/params.ts:25-29]()
 
 ---
 
@@ -290,7 +285,6 @@ When activation conditions are met, `ACTIVATE_SCHEDULED_SIGNAL_FN` is called [sr
 7. **Call `onOpen` callback** [src/client/ClientStrategy.ts:524-531]()
 8. **Return `IStrategyTickResultOpened`** [src/client/ClientStrategy.ts:533-550]()
 
-Sources: [src/client/ClientStrategy.ts:388-422](), [src/client/ClientStrategy.ts:332-386](), [src/client/ClientStrategy.ts:459-551](), [src/config/params.ts:6]()
 
 ---
 
@@ -355,7 +349,6 @@ for (let i = candlesCount - 1; i < candles.length; i++) {
 
 This discrepancy is intentional — live mode prioritizes realistic fills (VWAP) over perfect detection.
 
-Sources: [src/client/ClientStrategy.ts:1136-1190](), [src/client/ClientStrategy.ts:285-296]()
 
 ---
 
@@ -367,7 +360,6 @@ Key monitoring loops:
 3. **scheduled → cancelled**: Timeout or SL hit before activation
 4. **scheduled → idle**: SL hit before activation (cancellation variant)
 
-Sources: [src/client/ClientStrategy.ts:675-846](), [src/client/ClientStrategy.ts:332-551]()
 
 ---
 
@@ -383,7 +375,6 @@ Sources: [src/client/ClientStrategy.ts:675-846](), [src/client/ClientStrategy.ts
 
 All parameters can be modified via `setConfig()` [4.1](./15_Configuration_Functions.md) before starting live trading.
 
-Sources: [src/config/params.ts:1-36]()
 
 ---
 
@@ -398,5 +389,4 @@ Sources: [src/config/params.ts:1-36]()
 | `CLOSE_PENDING_SIGNAL_FN` | [src/client/ClientStrategy.ts:736-789]() | Close active signal with PnL calculation |
 | `ACTIVATE_SCHEDULED_SIGNAL_FN` | [src/client/ClientStrategy.ts:459-551]() | Convert scheduled signal to active |
 | `CANCEL_SCHEDULED_SIGNAL_BY_STOPLOSS_FN` | [src/client/ClientStrategy.ts:424-457]() | Cancel scheduled signal due to SL |
-
-Sources: [src/client/ClientStrategy.ts:285-846]()
+

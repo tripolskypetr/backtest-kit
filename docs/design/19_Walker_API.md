@@ -18,7 +18,6 @@ The Walker API provides functionality to compare multiple trading strategies in 
 - Generate comparison reports with performance metrics for all strategies
 - Support both manual iteration and background execution modes
 
-Sources: [src/classes/Walker.ts:1-274](), [README.md:405-459]()
 
 ---
 
@@ -66,7 +65,6 @@ interface WalkerContract {
 }
 ```
 
-Sources: [src/classes/Walker.ts:39-87]()
 
 ---
 
@@ -97,7 +95,6 @@ Walker.background(
 4. Catches and emits errors to `errorEmitter`
 5. Returns closure that stops all running strategies when called
 
-Sources: [src/classes/Walker.ts:108-144]()
 
 ---
 
@@ -137,7 +134,6 @@ interface IWalkerResults {
 2. Delegates to `WalkerMarkdownService.getData()` with symbol, walkerName, metric, and context
 3. Returns aggregated results with all strategies sorted by metric
 
-Sources: [src/classes/Walker.ts:159-179]()
 
 ---
 
@@ -165,7 +161,6 @@ Walker.getReport(
 - Comparison table with all strategies and their metrics
 - Individual strategy statistics (win rate, PNL, Sharpe Ratio, etc.)
 
-Sources: [src/classes/Walker.ts:194-214]()
 
 ---
 
@@ -193,7 +188,6 @@ Walker.dump(
 3. Writes report to `{path}/{walkerName}.md`
 4. Logs success message or error
 
-Sources: [src/classes/Walker.ts:232-255]()
 
 ---
 
@@ -211,7 +205,6 @@ The following diagram shows how Walker orchestrates multiple backtest runs and a
 - Tracks best strategy as it progresses through the list
 - Yields progress after each strategy completes
 
-Sources: [src/classes/Walker.ts:39-87](), [src/lib/services/global/WalkerGlobalService.ts:52-86]()
 
 ---
 
@@ -242,7 +235,6 @@ interface WalkerContract {
 
 **Returns:** Unsubscribe function
 
-Sources: [src/function/event.ts:537-536]()
 
 ---
 
@@ -264,7 +256,6 @@ listenWalkerOnce(
 
 **Returns:** Unsubscribe function to cancel before it fires
 
-Sources: [src/function/event.ts:552-569]()
 
 ---
 
@@ -292,7 +283,6 @@ interface IWalkerResults {
 
 **Returns:** Unsubscribe function
 
-Sources: [src/function/event.ts:584-601]()
 
 ---
 
@@ -317,7 +307,6 @@ interface DoneContract {
 
 **Returns:** Unsubscribe function
 
-Sources: [src/function/event.ts:397-400]()
 
 ---
 
@@ -339,7 +328,6 @@ listenDoneWalkerOnce(
 
 **Returns:** Unsubscribe function
 
-Sources: [src/function/event.ts:427-433]()
 
 ---
 
@@ -354,7 +342,6 @@ The following diagram shows the event emission sequence during walker execution.
 2. `walkerCompleteSubject` - Emits once when all strategies complete
 3. `doneWalkerSubject` - Emits only for `Walker.background()` after completion
 
-Sources: [src/config/emitters.ts:64-73](), [src/classes/Walker.ts:108-144]()
 
 ---
 
@@ -413,7 +400,6 @@ console.log(markdown);
 await Walker.dump("BTCUSDT", "btc-walker"); // ./logs/walker/btc-walker.md
 ```
 
-Sources: [README.md:407-459](), [src/classes/Walker.ts:39-87]()
 
 ---
 
@@ -451,7 +437,6 @@ const cancel = Walker.background("BTCUSDT", {
 // cancel();
 ```
 
-Sources: [src/classes/Walker.ts:108-144](), [src/function/event.ts:584-601]()
 
 ---
 
@@ -514,7 +499,6 @@ console.log("Best by Total PNL:", pnlBest.bestStrategy);
 console.log("Best by Certainty:", certaintyBest.bestStrategy);
 ```
 
-Sources: [README.md:461-467]()
 
 ---
 
@@ -550,7 +534,6 @@ listenWalkerOnce(
 );
 ```
 
-Sources: [src/classes/Walker.ts:138-143]()
 
 ---
 
@@ -607,7 +590,6 @@ interface BacktestStatistics {
 - `totalPnl` - Cumulative PNL percentage
 - `certaintyRatio` - avgWin / |avgLoss|
 
-Sources: [src/lib/services/markdown/BacktestMarkdownService.ts:46-102]()
 
 ---
 
@@ -625,7 +607,6 @@ The following diagram shows how Walker integrates with the service layer.
 - `BacktestMarkdownService` - Collect results per strategy
 - `WalkerMarkdownService` - Aggregate results and compute best strategy
 
-Sources: [src/classes/Walker.ts:1-274](), [src/lib/services/global/WalkerGlobalService.ts:1-90]()
 
 ---
 
@@ -654,7 +635,6 @@ Sources: [src/classes/Walker.ts:1-274](), [src/lib/services/global/WalkerGlobalS
 - Different timeframes per strategy
 - Custom comparison logic required
 
-Sources: [src/classes/Walker.ts:39-87](), [src/classes/Backtest.ts:38-66]()
 
 ---
 
@@ -685,7 +665,6 @@ Walker.background("BTCUSDT", {
 });
 ```
 
-Sources: [src/classes/Walker.ts:50-59](), [src/classes/Walker.ts:130-137]()
 
 ---
 
@@ -713,5 +692,4 @@ This ensures:
 - No cross-contamination between strategies
 - Fresh risk tracking for each strategy
 - Accurate comparison metrics
-
-Sources: [src/classes/Walker.ts:61-79]()
+

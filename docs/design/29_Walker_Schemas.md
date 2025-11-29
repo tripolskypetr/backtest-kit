@@ -13,7 +13,6 @@ Walker schemas are defined by the `IWalkerSchema` interface and registered via t
 
 ![Mermaid Diagram](./diagrams/29_Walker_Schemas_0.svg)
 
-Sources: [types.d.ts:1014-1028]()
 
 ### Required Properties
 
@@ -32,7 +31,6 @@ Sources: [types.d.ts:1014-1028]()
 | `note` | `string` | `undefined` | Developer documentation note |
 | `callbacks` | `Partial<IWalkerCallbacks>` | `undefined` | Lifecycle event callbacks |
 
-Sources: [types.d.ts:1014-1028]()
 
 ## Optimization Metrics
 
@@ -49,7 +47,6 @@ type WalkerMetric =
   | "expectedYearlyReturns"    // Projected yearly returns
 ```
 
-Sources: [types.d.ts:1010-1014]()
 
 ### Metric Selection Guidelines
 
@@ -65,7 +62,6 @@ Sources: [types.d.ts:1010-1014]()
 **Reliability Metrics**
 - `winRate`: Best for strategies requiring high win consistency
 
-Sources: [types.d.ts:1010-1014]()
 
 ## Registration and Validation
 
@@ -75,7 +71,6 @@ Walker schemas are registered through the `addWalker()` function, which performs
 
 ![Mermaid Diagram](./diagrams/29_Walker_Schemas_1.svg)
 
-Sources: [src/function/add.ts:188-200](), [src/lib/index.ts:88-91]()
 
 ### Example Registration
 
@@ -102,7 +97,6 @@ addWalker({
 });
 ```
 
-Sources: [src/function/add.ts:151-200]()
 
 ## Lifecycle Callbacks
 
@@ -110,7 +104,6 @@ Walker schemas support lifecycle callbacks for monitoring comparison progress.
 
 ![Mermaid Diagram](./diagrams/29_Walker_Schemas_2.svg)
 
-Sources: [types.d.ts:1014-1028]()
 
 ### Callback Interfaces
 
@@ -146,7 +139,6 @@ onComplete: (
 Parameters:
 - `results`: Complete walker results including best strategy selection
 
-Sources: [types.d.ts:1014-1028]()
 
 ## Component Integration
 
@@ -156,7 +148,6 @@ Walker schemas orchestrate multiple components to perform strategy comparison.
 
 ![Mermaid Diagram](./diagrams/29_Walker_Schemas_3.svg)
 
-Sources: [src/classes/Walker.ts:31-87](), [src/lib/index.ts:1-170]()
 
 ### Validation Chain
 
@@ -164,7 +155,6 @@ When `Walker.run()` is called, validation occurs for all referenced components:
 
 ![Mermaid Diagram](./diagrams/29_Walker_Schemas_4.svg)
 
-Sources: [src/classes/Walker.ts:50-59]()
 
 ## Walker Execution
 
@@ -174,7 +164,6 @@ The `Walker.run()` method executes backtests sequentially for all strategies and
 
 ![Mermaid Diagram](./diagrams/29_Walker_Schemas_5.svg)
 
-Sources: [src/classes/Walker.ts:39-87](), [src/lib/services/logic/private/WalkerLogicPrivateService.ts]()
 
 ### State Management
 
@@ -186,7 +175,6 @@ Walker execution clears accumulated data for all strategies before starting:
 
 This ensures clean state for each walker run and prevents data contamination between executions.
 
-Sources: [src/classes/Walker.ts:61-79]()
 
 ## Results and Reporting
 
@@ -212,13 +200,11 @@ interface IWalkerStrategyResult {
 }
 ```
 
-Sources: [types.d.ts:1030-1050]()
 
 ### Data Retrieval Methods
 
 ![Mermaid Diagram](./diagrams/29_Walker_Schemas_6.svg)
 
-Sources: [src/classes/Walker.ts:146-255]()
 
 ### Example Usage
 
@@ -245,7 +231,6 @@ await Walker.dump("BTCUSDT", "prompt-optimizer");
 // Writes to: ./logs/walker/prompt-optimizer.md
 ```
 
-Sources: [src/classes/Walker.ts:1-274]()
 
 ## Event System Integration
 
@@ -255,7 +240,6 @@ Walker execution emits progress and completion events through the global event s
 
 ![Mermaid Diagram](./diagrams/29_Walker_Schemas_7.svg)
 
-Sources: [src/config/emitters.ts:63-73](), [src/function/event.ts:507-623]()
 
 ### Progress Events
 
@@ -285,7 +269,6 @@ listenWalker((event) => {
 });
 ```
 
-Sources: [src/contract/Walker.contract.ts](), [src/function/event.ts:537-540]()
 
 ### Completion Events
 
@@ -304,7 +287,6 @@ listenWalkerComplete((results) => {
 });
 ```
 
-Sources: [src/function/event.ts:620-623]()
 
 ## Schema Retrieval
 
@@ -318,7 +300,6 @@ console.log(walkerSchema.strategies);  // ["v1", "v2", "v3"]
 console.log(walkerSchema.metric);      // "sharpeRatio"
 ```
 
-Sources: [src/lib/services/schema/WalkerSchemaService.ts]()
 
 ### List All Walkers
 
@@ -329,7 +310,6 @@ allWalkers.forEach(walker => {
 });
 ```
 
-Sources: [src/function/list.ts:137-140]()
 
 ## Common Patterns
 
@@ -367,7 +347,6 @@ addWalker({
 });
 ```
 
-Sources: [src/function/add.ts:151-200]()
 
 ### Parameter Grid Search
 
@@ -404,7 +383,6 @@ addWalker({
 });
 ```
 
-Sources: [src/function/add.ts:151-200]()
 
 ### A/B Testing Production Strategies
 
@@ -432,5 +410,4 @@ addWalker({
   }
 });
 ```
-
-Sources: [src/function/add.ts:151-200]()
+

@@ -22,7 +22,6 @@ For strategy-level market data access, see [Exchange Functions](./21_Exchange_Fu
 | Quantity formatting | `formatQuantity()` | Apply exchange-specific quantity precision rules |
 | Lifecycle events | Callbacks | Trigger `onCandleData` when data is fetched |
 
-Sources: [types.d.ts:168-271]()
 
 ---
 
@@ -53,7 +52,6 @@ interface IExchangeParams extends IExchangeSchema {
 
 The `execution` parameter provides implicit context propagation using `di-scoped`, allowing `ClientExchange` to access the current timestamp (`when`) and backtest flag without explicit parameters.
 
-Sources: [types.d.ts:168-176](), [types.d.ts:185-221]()
 
 ---
 
@@ -63,7 +61,6 @@ Sources: [types.d.ts:168-176](), [types.d.ts:185-221]()
 
 **Diagram: ClientExchange Position in Architecture**
 
-Sources: [types.d.ts:168-271]()
 
 ---
 
@@ -94,7 +91,6 @@ getCandles(symbol: string, interval: CandleInterval, limit: number): Promise<ICa
 | 2024-01-15 12:00:00 | 1h | 24 | 2024-01-14 12:00:00 |
 | 2024-01-15 12:00:00 | 1d | 30 | 2023-12-16 12:00:00 |
 
-Sources: [types.d.ts:234-235](), [types.d.ts:196-202]()
 
 ### getNextCandles() - Future Data (Backtest Only)
 
@@ -118,7 +114,6 @@ getNextCandles(symbol: string, interval: CandleInterval, limit: number): Promise
 - **Backtest mode**: Fetches future candles to simulate position monitoring
 - **Live mode**: Never called (live trading uses real-time progression)
 
-Sources: [types.d.ts:237-244]()
 
 ---
 
@@ -128,7 +123,6 @@ Sources: [types.d.ts:237-244]()
 
 **Diagram: Market Data Fetching Flow**
 
-Sources: [types.d.ts:196-202](), [types.d.ts:234-244]()
 
 ---
 
@@ -167,7 +161,6 @@ setConfig({
 });
 ```
 
-Sources: [types.d.ts:262-270](), [types.d.ts:12-15]()
 
 ---
 
@@ -196,7 +189,6 @@ formatPrice(symbol: string, price: number): Promise<string>
 | Forex | 1.23456789 | "1.23456" | 5 decimals |
 | Stocks | 123.456789 | "123.46" | 2 decimals |
 
-Sources: [types.d.ts:252-260](), [types.d.ts:211-218]()
 
 ### formatQuantity()
 
@@ -219,7 +211,6 @@ formatQuantity(symbol: string, quantity: number): Promise<string>
 | Stocks | 123.456 | "123" | 1 share |
 | Forex | 1000.567 | "1000" | 1 unit |
 
-Sources: [types.d.ts:246-251](), [types.d.ts:204-210]()
 
 ---
 
@@ -255,7 +246,6 @@ Sources: [types.d.ts:246-251](), [types.d.ts:204-210]()
 - `getNextCandles()` never called (live progression uses real-time monitoring)
 - VWAP calculation uses most recent candles from exchange
 
-Sources: [types.d.ts:105-112](), [types.d.ts:132-138]()
 
 ---
 
@@ -313,7 +303,6 @@ addExchange({
 });
 ```
 
-Sources: [types.d.ts:179-183]()
 
 ---
 
@@ -341,7 +330,6 @@ Sources: [types.d.ts:179-183]()
    - Cache instance by `exchangeName`
 4. Return instance
 
-Sources: Related to architecture described in high-level diagrams
 
 ### Strategy Integration
 
@@ -373,7 +361,6 @@ Both `BacktestLogicPrivateService` and `LiveLogicPrivateService` establish execu
 3. Inside context, `ClientStrategy.tick()` calls `ClientExchange.getAveragePrice()`
 4. `ClientExchange` uses `execution.when` (current time) to calculate real-time VWAP
 
-Sources: Related to architecture described in high-level diagrams
 
 ---
 
@@ -408,7 +395,6 @@ interface ICandleData {
 - Arrays returned by `getCandles()` are sorted by `timestamp` ascending (oldest first)
 - Arrays returned by `getNextCandles()` are sorted by `timestamp` ascending (earliest future first)
 
-Sources: [types.d.ts:150-166]()
 
 ---
 
@@ -435,7 +421,6 @@ Sources: [types.d.ts:150-166]()
 
 The framework includes interval-to-milliseconds conversion logic internally for timestamp calculations. User-defined `getCandles()` implementations must support these intervals or throw errors for unsupported ones.
 
-Sources: [types.d.ts:148]()
 
 ---
 
@@ -458,5 +443,4 @@ Sources: [types.d.ts:148]()
 - [ExchangeConnectionService](./38_Connection_Services.md): Instantiates and manages ClientExchange instances
 - [Exchange Functions](./21_Exchange_Functions.md): Public API wrappers for exchange operations
 - [Exchange Schemas](./25_Exchange_Schemas.md): Schema registration and validation
-
-Sources: [types.d.ts:168-271]()
+

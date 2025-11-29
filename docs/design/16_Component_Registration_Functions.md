@@ -24,7 +24,6 @@ All registration functions perform two operations:
 1. **Validation**: Store schema in `*ValidationService` for runtime validation checks
 2. **Storage**: Store schema in `*SchemaService` for retrieval by name
 
-Sources: [src/function/add.ts:1-342](), [src/function/list.ts:1-218](), [src/index.ts:2-3]()
 
 ---
 
@@ -40,7 +39,6 @@ Sources: [src/function/add.ts:1-342](), [src/function/list.ts:1-218](), [src/ind
 5. During execution, `*ConnectionService` retrieves schema from `*SchemaService`
 6. `Client*` class instantiated with retrieved schema
 
-Sources: [src/function/add.ts:50-62](), [src/lib/core/provide.ts:102-109](), [src/lib/core/types.ts:59-66]()
 
 ---
 
@@ -48,7 +46,6 @@ Sources: [src/function/add.ts:50-62](), [src/lib/core/provide.ts:102-109](), [sr
 
 ![Mermaid Diagram](./diagrams/16_Component_Registration_Functions_1.svg)
 
-Sources: [src/lib/core/types.ts:18-66](), [src/lib/index.ts:22-27](), [src/lib/index.ts:80-91]()
 
 ---
 
@@ -100,7 +97,6 @@ addStrategy({
 2. Store in `StrategyValidationService` via `addStrategy(name, schema)`
 3. Store in `StrategySchemaService` via `register(name, schema)`
 
-Sources: [src/function/add.ts:16-62](), [types.d.ts:616-633]()
 
 ---
 
@@ -124,7 +120,6 @@ console.log(strategies.map(s => s.strategyName));
 
 **Internal Flow**: Delegates to `backtest.strategyValidationService.list()` which returns all registered schemas.
 
-Sources: [src/function/list.ts:76-79](), [types.d.ts:616-633]()
 
 ---
 
@@ -176,7 +171,6 @@ addExchange({
 2. Store in `ExchangeValidationService` via `addExchange(name, schema)`
 3. Store in `ExchangeSchemaService` via `register(name, schema)`
 
-Sources: [src/function/add.ts:64-111](), [types.d.ts:188-221]()
 
 ---
 
@@ -200,7 +194,6 @@ exchanges.forEach(ex => {
 });
 ```
 
-Sources: [src/function/list.ts:41-44](), [types.d.ts:188-221]()
 
 ---
 
@@ -243,7 +236,6 @@ addFrame({
 2. Store in `FrameValidationService` via `addFrame(name, schema)`
 3. Store in `FrameSchemaService` via `register(name, schema)`
 
-Sources: [src/function/add.ts:113-149](), [types.d.ts:309-341]()
 
 ---
 
@@ -268,7 +260,6 @@ frames.forEach(frame => {
 });
 ```
 
-Sources: [src/function/list.ts:106-109](), [types.d.ts:309-341]()
 
 ---
 
@@ -331,7 +322,6 @@ addRisk({
 
 **Cross-Strategy Risk Sharing**: Multiple strategies can reference the same `riskName`. The framework creates a single `ClientRisk` instance per `riskName`, enabling portfolio-level risk management across strategies.
 
-Sources: [src/function/add.ts:268-341](), [types.d.ts:478-488]()
 
 ---
 
@@ -355,7 +345,6 @@ risks.forEach(risk => {
 });
 ```
 
-Sources: [src/function/list.ts:214-217](), [types.d.ts:478-488]()
 
 ---
 
@@ -421,7 +410,6 @@ addSizing({
 2. Store in `SizingValidationService` via `addSizing(name, schema)`
 3. Store in `SizingSchemaService` via `register(name, schema)`
 
-Sources: [src/function/add.ts:202-266](), [types.d.ts:59-70]()
 
 ---
 
@@ -447,7 +435,6 @@ sizings.forEach(sizing => {
 });
 ```
 
-Sources: [src/function/list.ts:177-180](), [types.d.ts:59-70]()
 
 ---
 
@@ -499,7 +486,6 @@ addWalker({
 2. Store in `WalkerValidationService` via `addWalker(name, schema)`
 3. Store in `WalkerSchemaService` via `register(name, schema)`
 
-Sources: [src/function/add.ts:151-200](), [types.d.ts:1019-1030]()
 
 ---
 
@@ -524,7 +510,6 @@ walkers.forEach(walker => {
 });
 ```
 
-Sources: [src/function/list.ts:137-140](), [types.d.ts:1019-1030]()
 
 ---
 
@@ -545,7 +530,6 @@ All `*ValidationService` classes follow the same pattern for schema validation a
 - `list(): Promise<I*Schema[]>` - Return all registered schemas
 - `validate*(name: string): boolean` - Runtime check if schema exists (memoized)
 
-Sources: [src/lib/core/types.ts:59-66](), [src/function/add.ts:54-57](), [src/function/list.ts:42-44]()
 
 ---
 
@@ -567,7 +551,6 @@ All `*SchemaService` classes follow the ToolRegistry pattern for schema storage 
 
 **ToolRegistry Pattern**: Each `SchemaService` extends a base `ToolRegistry` class that provides generic `Map<name, schema>` storage with get/has/register methods.
 
-Sources: [src/lib/core/types.ts:18-25](), [src/function/add.ts:58-61](), [src/lib/index.ts:22-27]()
 
 ---
 
@@ -600,7 +583,6 @@ if (!isValid) {
 
 **Memoization**: Validation results are cached using `singlerun` from `functools-kit` to avoid repeated schema lookups during execution.
 
-Sources: [src/function/add.ts:50-62](), [src/lib/core/provide.ts:102-109]()
 
 ---
 
@@ -635,5 +617,4 @@ This design allows:
 - **Flexible registration order**: Can register strategies before risks, exchanges before strategies, etc.
 - **Deferred validation**: Schema existence checked only when needed
 - **Clear error messages**: Runtime errors indicate exactly which component is missing
-
-Sources: [src/function/add.ts:50-62]()
+

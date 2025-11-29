@@ -17,7 +17,6 @@ Walker reports provide structured access to multi-strategy comparison results th
 
 These APIs are thin wrappers around `WalkerMarkdownService`, which accumulates strategy results during walker execution and formats them for consumption.
 
-Sources: [src/classes/Walker.ts:1-273]()
 
 ---
 
@@ -27,7 +26,6 @@ The following diagram shows how walker reports are generated from strategy execu
 
 ![Mermaid Diagram](./diagrams/62_Walker_Reports_0.svg)
 
-Sources: [src/classes/Walker.ts:1-273](), [src/lib/services/global/WalkerGlobalService.ts:1-90](), [src/config/emitters.ts:62-73]()
 
 ---
 
@@ -74,7 +72,6 @@ The method performs the following steps:
 4. Delegates to `walkerMarkdownService.getData()` with symbol, walker name, metric, and context
 5. Returns structured results object
 
-Sources: [src/classes/Walker.ts:159-179]()
 
 ### Usage Example
 
@@ -96,7 +93,6 @@ console.log(results);
 // }
 ```
 
-Sources: [README.md:441-454]()
 
 ---
 
@@ -135,7 +131,6 @@ The method follows this delegation chain:
 3. Delegates to `walkerMarkdownService.getReport()` with full context
 4. Returns formatted markdown string
 
-Sources: [src/classes/Walker.ts:194-214]()
 
 ---
 
@@ -184,7 +179,6 @@ The method performs atomic file writes to prevent corruption:
 3. Writes to disk with `writeFile()` in UTF-8 encoding
 4. Logs success or error messages to console
 
-Sources: [src/classes/Walker.ts:232-255]()
 
 ### Usage Example
 
@@ -196,7 +190,6 @@ await Walker.dump("BTCUSDT", "my-walker");
 await Walker.dump("BTCUSDT", "my-walker", "./custom/path");
 ```
 
-Sources: [README.md:224-230]()
 
 ---
 
@@ -224,7 +217,6 @@ If no metric is specified in the walker schema, `"sharpeRatio"` is used as the d
 const metric = walkerSchema.metric || "sharpeRatio";
 ```
 
-Sources: [README.md:461-466](), [src/classes/Walker.ts:173]()
 
 ### Metric Selection Example
 
@@ -246,7 +238,6 @@ addWalker({
 });
 ```
 
-Sources: [README.md:411-429]()
 
 ---
 
@@ -281,7 +272,6 @@ From the README documentation:
 **Frame:** 1d-backtest
 ```
 
-Sources: [README.md:407-459]()
 
 ---
 
@@ -301,7 +291,6 @@ Walker reports integrate with the event system to provide real-time updates and 
 | Walker Complete | `walkerCompleteSubject` | Emitted when all strategies finish | `IWalkerResults` with rankings |
 | Background Done | `doneWalkerSubject` | Emitted when `Walker.background()` finishes | `DoneContract` with context |
 
-Sources: [src/config/emitters.ts:62-73](), [src/function/event.ts:507-557]()
 
 ### Event Listener Example
 
@@ -320,7 +309,6 @@ Walker.background("BTCUSDT", {
 });
 ```
 
-Sources: [README.md:436-440](), [src/function/event.ts:528-557]()
 
 ---
 
@@ -330,7 +318,6 @@ The following diagram illustrates the complete lifecycle of walker report data f
 
 ![Mermaid Diagram](./diagrams/62_Walker_Reports_6.svg)
 
-Sources: [src/classes/Walker.ts:1-273](), [src/lib/services/global/WalkerGlobalService.ts:1-90]()
 
 ---
 
@@ -358,7 +345,6 @@ All walker report methods follow this delegation pattern:
 5. `WalkerMarkdownService` queries `BacktestMarkdownService` for each strategy
 6. Results are aggregated and formatted
 
-Sources: [src/classes/Walker.ts:1-273]()
 
 ---
 
@@ -378,5 +364,4 @@ The `Walker.run()` method automatically clears walker markdown data before execu
 ```typescript
 backtest.walkerMarkdownService.clear(context.walkerName);
 ```
-
-Sources: [src/classes/Walker.ts:61]()
+

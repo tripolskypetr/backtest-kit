@@ -20,7 +20,6 @@ This API accumulates two event types per strategy:
 
 The primary metric provided is the **cancellation rate**—the percentage of scheduled signals that never activate. A high cancellation rate indicates aggressive entry prices that rarely execute.
 
-Sources: [src/classes/Schedule.ts:1-135](), [src/lib/services/markdown/ScheduleMarkdownService.ts:1-535]()
 
 ---
 
@@ -41,7 +40,6 @@ The `ScheduleStatistics` interface returned by `Schedule.getData()` provides com
 
 **Safe Math**: All calculated metrics return `null` when calculation would produce invalid results (e.g., division by zero).
 
-Sources: [types.d.ts:7267-7305](), [src/lib/services/markdown/ScheduleMarkdownService.ts:68-86]()
 
 ### ScheduledEvent Interface
 
@@ -64,7 +62,6 @@ interface ScheduledEvent {
 }
 ```
 
-Sources: [src/lib/services/markdown/ScheduleMarkdownService.ts:15-44]()
 
 ---
 
@@ -93,7 +90,6 @@ console.log(`Cancellation rate: ${stats.cancellationRate}%`);
 console.log(`Avg wait time: ${stats.avgWaitTime} minutes`);
 ```
 
-Sources: [src/classes/Schedule.ts:47-52](), [types.d.ts:7308-7332]()
 
 ### Schedule.getReport()
 
@@ -115,7 +111,6 @@ const markdown = await Schedule.getReport("limit-order-strategy");
 console.log(markdown);
 ```
 
-Sources: [src/classes/Schedule.ts:66-71](), [types.d.ts:7334-7358]()
 
 ### Schedule.dump()
 
@@ -144,7 +139,6 @@ await Schedule.dump("limit-order-strategy");
 await Schedule.dump("limit-order-strategy", "./reports/schedule");
 ```
 
-Sources: [src/classes/Schedule.ts:88-97](), [types.d.ts:7360-7391]()
 
 ### Schedule.clear()
 
@@ -171,7 +165,6 @@ await Schedule.clear("limit-order-strategy");
 await Schedule.clear();
 ```
 
-Sources: [src/classes/Schedule.ts:115-120](), [types.d.ts:7393-7425]()
 
 ---
 
@@ -193,7 +186,6 @@ The Schedule API follows the framework's layered service architecture with speci
 - **Singleshot initialization**: Event subscription happens once ([src/lib/services/markdown/ScheduleMarkdownService.ts:528-531]())
 - **Event-driven accumulation**: No polling, pure reactive data collection
 
-Sources: [src/classes/Schedule.ts:1-135](), [src/lib/services/markdown/ScheduleMarkdownService.ts:1-535]()
 
 ---
 
@@ -219,7 +211,6 @@ The following diagram shows how scheduled signal events flow from strategy execu
 - FIFO removal: oldest events dropped when limit exceeded
 - Separate storage per strategy via memoization key
 
-Sources: [src/lib/services/markdown/ScheduleMarkdownService.ts:176-237](), [src/lib/services/markdown/ScheduleMarkdownService.ts:401-413]()
 
 ---
 
@@ -255,7 +246,6 @@ When no events exist, `getData()` returns:
 }
 ```
 
-Sources: [src/lib/services/markdown/ScheduleMarkdownService.ts:244-285]()
 
 ---
 
@@ -295,7 +285,6 @@ The markdown table includes 11 columns defined in the `columns` array ([src/lib/
 **Average wait time (cancelled):** 38.50 minutes
 ```
 
-Sources: [src/lib/services/markdown/ScheduleMarkdownService.ts:293-324](), [src/lib/services/markdown/ScheduleMarkdownService.ts:101-158]()
 
 ---
 
@@ -327,7 +316,6 @@ The `init()` method is called automatically when:
 
 No manual initialization required by users.
 
-Sources: [src/lib/services/markdown/ScheduleMarkdownService.ts:528-531](), [src/lib/services/markdown/ScheduleMarkdownService.ts:401-413]()
 
 ---
 
@@ -370,7 +358,6 @@ if (stats.cancellationRate > 80) {
 }
 ```
 
-Sources: [test/spec/scheduled.test.mjs:84-154]()
 
 ### Advanced Usage: Multi-Symbol Analysis
 
@@ -399,7 +386,6 @@ console.log("Cancellations by symbol:", cancelledBySymbol);
 await Schedule.dump(strategyName);
 ```
 
-Sources: [src/lib/services/markdown/ScheduleMarkdownService.ts:429-438]()
 
 ### Continuous Monitoring in Live Trading
 
@@ -428,7 +414,6 @@ setInterval(async () => {
 }, 5 * 60 * 1000);
 ```
 
-Sources: [src/classes/Schedule.ts:1-135]()
 
 ---
 
@@ -443,7 +428,6 @@ The Schedule API fits into the broader signal lifecycle as follows:
 - **Backtest/Live APIs**: Track post-activation events (`opened`, `active`, `closed`)
 - **Complete picture**: Use both APIs together for full lifecycle visibility
 
-Sources: [types.d.ts:3829-3986](), [src/lib/services/markdown/ScheduleMarkdownService.ts:408-412]()
 
 ---
 
@@ -465,7 +449,6 @@ private getStorage = memoize<(strategyName: string) => ReportStorage>(
 - Multiple strategies can run concurrently without interference
 - Clearing one strategy's data doesn't affect others
 
-Sources: [src/lib/services/markdown/ScheduleMarkdownService.ts:382-385]()
 
 ### Event List Size Limits
 
@@ -489,7 +472,6 @@ if (this._eventList.length > MAX_EVENTS) {
 **Consideration for Live Trading:**
 In production live trading with high signal frequency, 250 events may represent only recent history. Periodic dumps preserve complete historical data.
 
-Sources: [src/lib/services/markdown/ScheduleMarkdownService.ts:161](), [src/lib/services/markdown/ScheduleMarkdownService.ts:191-194]()
 
 ---
 
@@ -512,7 +494,6 @@ The test suite validates all Schedule API functionality:
 - Events accumulate correctly in `eventList`
 - Callbacks (`onSchedule`, `onCancel`) fire appropriately
 
-Sources: [test/spec/scheduled.test.mjs:1-289]()
 
 ---
 
@@ -542,7 +523,6 @@ console.log(`
 `);
 ```
 
-Sources: [src/classes/Schedule.ts:1-135](), [src/lib/services/markdown/BacktestMarkdownService.ts:1-533]()
 
 ### Works in Both Execution Modes
 
@@ -554,5 +534,4 @@ The Schedule API functions identically in backtest and live modes:
 | Live | VWAP monitoring detects priceOpen activation | Timeout or SL hit during real-time monitoring |
 
 **Event emission** uses the same emitters in both modes, so Schedule API receives identical event structures.
-
-Sources: [src/lib/services/markdown/ScheduleMarkdownService.ts:528-531]()
+

@@ -26,7 +26,6 @@ Frame schemas are registered via the `addFrame()` function and conform to the `I
 | `endDate` | `Date` | Yes | Inclusive end boundary for the backtesting period |
 | `callbacks` | `Partial<IFrameCallbacks>` | No | Optional lifecycle event handlers |
 
-Sources: [types.d.ts:309-341]()
 
 ---
 
@@ -47,7 +46,6 @@ The `FrameInterval` type defines the step size for timeframe generation. Each in
 
 Smaller intervals generate more timestamps and require more computation. A 1-day backtest with 1-minute intervals produces 1,440 timestamps, while 1-hour intervals produce only 24 timestamps.
 
-Sources: [types.d.ts:278-285]()
 
 ---
 
@@ -95,7 +93,6 @@ for await (const result of Backtest.run("BTCUSDT", {
 }
 ```
 
-Sources: [src/function/add.ts:113-149](), [types.d.ts:309-341]()
 
 ---
 
@@ -127,7 +124,6 @@ Generated timeframe:
 // 6 timestamps total (inclusive of boundaries)
 ```
 
-Sources: [types.d.ts:343-355]()
 
 ---
 
@@ -169,7 +165,6 @@ addFrame({
 });
 ```
 
-Sources: [types.d.ts:295-308]()
 
 ---
 
@@ -207,7 +202,6 @@ Frame functionality is implemented through a layered service architecture with s
 | `FrameConnectionService` | [src/lib/index.ts:7]() | Connection service DI binding |
 | `ClientFrame` | N/A (internal) | Timeframe generation implementation |
 
-Sources: [src/function/add.ts:113-149](), [src/lib/index.ts:1-170](), [src/lib/core/types.ts:1-81](), [src/lib/core/provide.ts:1-110]()
 
 ---
 
@@ -230,7 +224,6 @@ When `ClientFrame` is instantiated via `FrameConnectionService`, the schema is a
 | `callbacks` | Schema | Optional lifecycle callbacks |
 | `logger` | DI | Logger service for debug output |
 
-Sources: [types.d.ts:287-293]()
 
 ---
 
@@ -244,7 +237,6 @@ Frames are consumed by `BacktestLogicPrivateService` to generate the iteration a
 
 The `frameName` from `MethodContext` determines which frame to use. The generated timeframe array drives the iteration loop, with each timestamp representing a simulated "now" moment for strategy execution.
 
-Sources: [types.d.ts:363-375]()
 
 ---
 
@@ -312,7 +304,6 @@ for (const frameName of ["1h-scalping", "1d-intraday", "7d-swing", "30d-position
 }
 ```
 
-Sources: [src/function/add.ts:113-149]()
 
 ---
 
@@ -356,5 +347,4 @@ addFrame({
   endDate: new Date("2024-01-01T00:00:00Z"), // Before start
 }); // ✗ Throws validation error
 ```
-
-Sources: [src/function/add.ts:143-149](), [src/lib/index.ts:44]()
+

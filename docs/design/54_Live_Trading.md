@@ -18,7 +18,6 @@ Live trading differs fundamentally from backtesting in its execution model:
 | Price monitoring | Fast-forward via candle high/low | VWAP calculation using recent candles |
 | Recovery | Not applicable | Automatic on restart via `waitForInit()` |
 
-Sources: [src/classes/Live.ts:1-220](), [src/lib/services/logic/private/LiveLogicPrivateService.ts:1-117]()
 
 ## Architecture
 
@@ -31,7 +30,6 @@ The live trading system uses a three-layer architecture:
 2. **Service Layer** - Context management and infinite loop orchestration
 3. **Client Layer** - Business logic for signal lifecycle and market data
 
-Sources: [src/classes/Live.ts:44-219](), [src/lib/services/logic/public/LiveLogicPublicService.ts:38-75](), [src/lib/services/logic/private/LiveLogicPrivateService.ts:29-114]()
 
 ## Infinite Loop Execution
 
@@ -41,13 +39,11 @@ Sources: [src/classes/Live.ts:44-219](), [src/lib/services/logic/public/LiveLogi
 
 The `LiveLogicPrivateService.run()` method implements an infinite `while(true)` loop that never terminates. Each iteration performs a tick check and sleeps for `TICK_TTL` (61 seconds).
 
-Sources: [src/lib/services/logic/private/LiveLogicPrivateService.ts:60-113]()
 
 ### Tick Execution Flow
 
 Each tick iteration creates a fresh `Date` object representing the current time. Unlike backtesting, there is no timeframe array - the loop simply continues forever with real-time progression.
 
-Sources: [src/lib/services/logic/private/LiveLogicPrivateService.ts:60-113]()
 
 ## Public API
 
@@ -91,7 +87,6 @@ for await (const result of Live.run("BTCUSDT", {
 }
 ```
 
-Sources: [src/classes/Live.ts:55-82]()
 
 ### Live.background()
 
@@ -139,7 +134,6 @@ setTimeout(() => {
 }, 60000); // Cancel after 60 seconds
 ```
 
-Sources: [src/classes/Live.ts:105-137]()
 
 ### Live.getData()
 
@@ -149,7 +143,6 @@ public getData = async (strategyName: StrategyName) => Promise<ILiveStatistics>
 
 Retrieves accumulated statistics for a strategy from `LiveMarkdownService`. Returns PNL aggregation, win rate, average duration, Sharpe ratio, drawdown, and other performance metrics.
 
-Sources: [src/classes/Live.ts:151-156]()
 
 ### Live.getReport()
 
@@ -159,7 +152,6 @@ public getReport = async (strategyName: StrategyName) => Promise<string>
 
 Generates a markdown-formatted report for a strategy. Includes all signal events, statistics tables, and performance summary.
 
-Sources: [src/classes/Live.ts:170-175]()
 
 ### Live.dump()
 
@@ -172,7 +164,6 @@ public dump = async (
 
 Writes the markdown report to disk. Default path is `./logs/live/{strategyName}.md`.
 
-Sources: [src/classes/Live.ts:192-201]()
 
 ## Context Propagation
 
@@ -184,7 +175,6 @@ The `LiveLogicPublicService` wraps the infinite loop with `MethodContextService.
 
 Inside each tick iteration, `ExecutionContextService.runInContext()` creates a nested scope with `{symbol, when: Date.now(), backtest: false}`. The `backtest: false` flag signals that VWAP-based price monitoring should be used instead of fast-forward simulation.
 
-Sources: [src/lib/services/logic/public/LiveLogicPublicService.ts:55-74](), [src/lib/services/logic/private/LiveLogicPrivateService.ts:60-113]()
 
 ## Signal Yielding Behavior
 
@@ -221,7 +211,6 @@ if (result.action === "scheduled") {
 yield result;
 ```
 
-Sources: [src/lib/services/logic/private/LiveLogicPrivateService.ts:93-111]()
 
 ## Performance Metrics
 
@@ -242,7 +231,6 @@ await performanceEmitter.next({
 
 The `metricType: "live_tick"` identifies this as a live trading metric. The `duration` field measures how long the tick operation took, useful for detecting slow exchange API calls or expensive strategy logic.
 
-Sources: [src/lib/services/logic/private/LiveLogicPrivateService.ts:78-91]()
 
 ## Event Emitters
 
@@ -289,7 +277,6 @@ listenError((error) => {
 });
 ```
 
-Sources: [src/config/emitters.ts:1-81](), [src/function/event.ts:121-235]()
 
 ## Comparison with Backtest Execution
 
@@ -304,7 +291,6 @@ Key differences:
 - **State Persistence**: Backtest has none, Live persists after each state change
 - **Crash Recovery**: Backtest not applicable, Live recovers via `waitForInit()`
 
-Sources: [src/lib/services/logic/private/BacktestLogicPrivateService.ts:59-300](), [src/lib/services/logic/private/LiveLogicPrivateService.ts:60-113]()
 
 ## Integration with ClientStrategy
 
@@ -325,5 +311,4 @@ When `backtest: false` is passed to `tick()`, the `ClientStrategy` knows to:
 4. Monitor scheduled signal activation using VWAP instead of candle high/low
 
 For details on these behaviors, see [Signal Lifecycle](./44_Signal_Lifecycle.md) and [Real-time Monitoring](./57_Real-time_Monitoring.md).
-
-Sources: [src/lib/services/logic/private/LiveLogicPrivateService.ts:71]()
+

@@ -15,7 +15,6 @@ An exchange schema registered via `addExchange()` must implement the `IExchangeS
 
 The framework uses these methods internally for backtesting (historical data iteration) and live trading (VWAP calculation, TP/SL monitoring). The exchange schema does not contain business logic—it is a pure data access interface. Runtime logic is handled by `ClientExchange`.
 
-Sources: [types.d.ts:188-221](), [src/function/add.ts:64-111]()
 
 ## Exchange Schema Structure
 
@@ -33,7 +32,6 @@ Sources: [types.d.ts:188-221](), [src/function/add.ts:64-111]()
 - **note** - Developer documentation string
 - **callbacks** - Lifecycle event callbacks for candle data events
 
-Sources: [types.d.ts:188-221](), [types.d.ts:153-166](), [types.d.ts:180-183]()
 
 ## Registration Flow
 
@@ -48,7 +46,6 @@ The registration process follows this sequence:
 
 Once registered, the schema becomes available for use in backtest and live execution modes. The framework uses `ExchangeConnectionService` to lazily instantiate `ClientExchange` instances from the stored schema.
 
-Sources: [src/function/add.ts:99-111](), [src/lib/core/types.ts:10-16](), [src/lib/core/provide.ts:54-59]()
 
 ## Required Methods
 
@@ -91,7 +88,6 @@ Array of `ICandleData` objects with fields:
 - **Live Mode** - Called for VWAP calculation (last 5 1-minute candles) and TP/SL monitoring
 - **Fast-Forward Backtest** - Called once to fetch large candle array for `strategy.backtest()`
 
-Sources: [types.d.ts:148-166](), [types.d.ts:196-202]()
 
 ### formatPrice Method
 
@@ -122,7 +118,6 @@ Formatted price string respecting exchange precision (e.g., `"50123.45"` for BTC
 - Displaying prices in callbacks
 - Logging formatted price values
 
-Sources: [types.d.ts:211-218]()
 
 ### formatQuantity Method
 
@@ -153,7 +148,6 @@ Formatted quantity string respecting exchange precision (e.g., `"0.00123456"` fo
 - Displaying quantities in callbacks
 - Logging formatted quantity values
 
-Sources: [types.d.ts:204-210]()
 
 ## Optional Callbacks
 
@@ -199,7 +193,6 @@ addExchange({
 });
 ```
 
-Sources: [types.d.ts:180-183](), [types.d.ts:220]()
 
 ## Runtime Integration
 
@@ -219,7 +212,6 @@ Sources: [types.d.ts:180-183](), [types.d.ts:220]()
 
 The `ClientExchange` class wraps the schema methods and adds framework-specific functionality like VWAP calculation and context-aware candle fetching. It uses `executionContext.when` to determine the current timestamp for fetching candles backward (past data) or forward (future data for backtesting).
 
-Sources: [types.d.ts:171-176](), [types.d.ts:226-271](), [src/lib/core/types.ts:10-16]()
 
 ## Context Propagation
 
@@ -235,7 +227,6 @@ The exchange schema methods do not receive explicit context parameters. Instead,
 
 The schema implementation does not need to be aware of this context—it simply receives parameters and returns data. The framework handles all context-aware logic in `ClientExchange`.
 
-Sources: [types.d.ts:105-112](), [types.d.ts:132-138]()
 
 ## Common Integration Patterns
 
@@ -322,7 +313,6 @@ addExchange({
 });
 ```
 
-Sources: [src/function/add.ts:64-111]()
 
 ## Validation Rules
 
@@ -336,7 +326,6 @@ The `ExchangeValidationService` enforces these validation rules during registrat
 
 Validation errors are thrown synchronously from `addExchange()` to provide immediate feedback.
 
-Sources: [src/lib/core/types.ts:59-66](), [src/lib/core/provide.ts:103-109]()
 
 ## Listing Registered Exchanges
 
@@ -356,7 +345,6 @@ This is useful for:
 - Generating documentation from registered schemas
 - Validating that required exchanges are registered before execution
 
-Sources: [src/function/list.ts:41-44](), [src/index.ts:1-32]()
 
 ## Best Practices
 
@@ -387,5 +375,4 @@ callbacks: {
 ```
 
 **5. Keep schemas stateless** - Exchange schemas should not maintain state. Store state in external services (databases, caches) and keep the schema as a pure interface.
-
-Sources: [types.d.ts:180-183](), [src/function/add.ts:99-111]()
+
