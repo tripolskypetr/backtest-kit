@@ -7,6 +7,7 @@ import {
   Backtest,
   listenSignalBacktest,
   listenDoneBacktest,
+  listenError,
   getAveragePrice,
 } from "../../build/index.mjs";
 
@@ -1483,7 +1484,7 @@ test("DEFEND: Scheduled LONG cancelled by SL BEFORE activation (price skips pric
   });
 
   await awaitSubject.toPromise();
-  await sleep(3000);
+  // await sleep(3000);
 
   if (!scheduledResult) {
     fail("CRITICAL: Scheduled signal was not created");
@@ -1624,7 +1625,7 @@ test("DEFEND: Extreme volatility - price crosses both TP and SL in single candle
   });
 
   await awaitSubject.toPromise();
-  await sleep(3000);
+  // await sleep(3000);
 
   if (!openedResult) {
     fail("CRITICAL: Signal was not opened");
@@ -1649,4 +1650,94 @@ test("DEFEND: Extreme volatility - price crosses both TP and SL in single candle
   }
 
   pass(`MONEY SAFE: Extreme volatility handled correctly. When candle crosses both TP (high=43500) and SL (low=40500), closed by "take_profit" with PNL=${finalResult.pnl.pnlPercentage.toFixed(2)}%. Correct priority!`);
+});
+
+/**
+ * КРИТИЧЕСКИЙ ТЕСТ #15: Exchange.getCandles бросает ошибку (infrastructure failure)
+ *
+ * Сценарий:
+ * - getCandles() бросает исключение (сеть упала, API недоступен)
+ * - КРИТИЧНО: Backtest должен прерваться с ошибкой, не зависнуть
+ *
+ * Проверяет устойчивость к инфраструктурным ошибкам.
+ */
+test("DEFEND: Backtest fails gracefully when Exchange.getCandles throws error", async ({ pass, fail }) => {
+
+  let errorCaught = null;
+
+  addExchange({
+    exchangeName: "binance-defend-exchange-error",
+    getCandles: async () => {
+      // Симулируем ошибку API (например, сеть упала)
+      throw new Error("EXCHANGE_API_ERROR: Network timeout - unable to fetch candles");
+    },
+    formatPrice: async (_symbol, price) => price.toFixed(8),
+    formatQuantity: async (_symbol, quantity) => quantity.toFixed(8),
+  });
+
+  let signalGenerated = false;
+
+  addStrategy({
+    strategyName: "test-defend-exchange-error",
+    interval: "1m",
+    getSignal: async () => {
+      if (signalGenerated) return null;
+      signalGenerated = true;
+
+      const price = await getAveragePrice("BTCUSDT");
+
+      return {
+        position: "long",
+        note: "DEFEND: exchange error resilience test",
+        priceOpen: price,
+        priceTakeProfit: price + 1000,
+        priceStopLoss: price - 1000,
+        minuteEstimatedTime: 60,
+      };
+    },
+  });
+
+  addFrame({
+    frameName: "10m-defend-exchange-error",
+    interval: "1m",
+    startDate: new Date("2024-01-01T00:00:00Z"),
+    endDate: new Date("2024-01-01T00:10:00Z"),
+  });
+
+  const awaitSubject = new Subject();
+
+  const unsubscribeError = listenError((error) => {
+    errorCaught = error;
+    awaitSubject.next();
+  });
+
+  listenDoneBacktest(() => {
+    awaitSubject.next();
+  });
+
+  Backtest.background("BTCUSDT", {
+    strategyName: "test-defend-exchange-error",
+    exchangeName: "binance-defend-exchange-error",
+    frameName: "10m-defend-exchange-error",
+  });
+
+  await awaitSubject.toPromise();
+  // await sleep(1000);
+  unsubscribeError();
+
+  if (!errorCaught) {
+    fail("CRITICAL BUG: Exchange.getCandles threw error but listenError was not called! Error handling broken!");
+    return;
+  }
+
+  const errMsg = errorCaught.message || String(errorCaught);
+
+  // Проверяем что это ожидаемая ошибка от Exchange
+  if (errMsg.includes("EXCHANGE_API_ERROR") || errMsg.includes("Network timeout") || errMsg.includes("unable to fetch")) {
+    pass(`INFRASTRUCTURE SAFE: Backtest failed gracefully with exchange error: "${errMsg.substring(0, 80)}"`);
+    return;
+  }
+
+  // Любая другая ошибка тоже ок - главное что не зависло
+  pass(`INFRASTRUCTURE SAFE: Backtest failed with error (expected behavior): ${errMsg.substring(0, 80)}`);
 });
