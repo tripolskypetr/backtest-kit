@@ -229,8 +229,41 @@ const GET_SIGNAL_FN = trycatch(
       return null;
     }
 
-    // Если priceOpen указан - создаем scheduled signal (risk check при активации)
+    // Если priceOpen указан - проверяем нужно ли ждать активации или открыть сразу
     if (signal.priceOpen !== undefined) {
+      // КРИТИЧЕСКАЯ ПРОВЕРКА: достигнут ли priceOpen?
+      // LONG: если currentPrice <= priceOpen - цена уже упала достаточно, открываем сразу
+      // SHORT: если currentPrice >= priceOpen - цена уже выросла достаточно, открываем сразу
+      const shouldActivateImmediately =
+        (signal.position === "long" && currentPrice <= signal.priceOpen) ||
+        (signal.position === "short" && currentPrice >= signal.priceOpen);
+
+      if (shouldActivateImmediately) {
+        // НЕМЕДЛЕННАЯ АКТИВАЦИЯ: priceOpen уже достигнут
+        // Создаем активный сигнал напрямую (БЕЗ scheduled фазы)
+        const signalRow: ISignalRow = {
+          id: randomString(),
+          priceOpen: signal.priceOpen, // Используем priceOpen из сигнала
+          position: signal.position,
+          note: signal.note,
+          priceTakeProfit: signal.priceTakeProfit,
+          priceStopLoss: signal.priceStopLoss,
+          minuteEstimatedTime: signal.minuteEstimatedTime,
+          symbol: self.params.execution.context.symbol,
+          exchangeName: self.params.method.context.exchangeName,
+          strategyName: self.params.method.context.strategyName,
+          scheduledAt: currentTime,
+          pendingAt: currentTime, // Для immediate signal оба времени одинаковые
+          _isScheduled: false,
+        };
+
+        // Валидируем сигнал перед возвратом
+        VALIDATE_SIGNAL_FN(signalRow);
+
+        return signalRow;
+      }
+
+      // ОЖИДАНИЕ АКТИВАЦИИ: создаем scheduled signal (risk check при активации)
       const scheduledSignalRow: IScheduledSignalRow = {
         id: randomString(),
         priceOpen: signal.priceOpen,
