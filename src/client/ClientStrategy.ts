@@ -37,8 +37,18 @@ const INTERVAL_MINUTES: Record<SignalInterval, number> = {
   "1h": 60,
 };
 
-const VALIDATE_SIGNAL_FN = (signal: ISignalRow): void => {
+const VALIDATE_SIGNAL_FN = (signal: ISignalRow, currentPrice: number, isScheduled: boolean): void => {
   const errors: string[] = [];
+
+  // ЗАЩИТА ОТ NaN/Infinity: currentPrice должна быть конечным числом
+  if (!isFinite(currentPrice)) {
+    errors.push(
+      `currentPrice must be a finite number, got ${currentPrice} (${typeof currentPrice})`
+    );
+  }
+  if (isFinite(currentPrice) && currentPrice <= 0) {
+    errors.push(`currentPrice must be positive, got ${currentPrice}`);
+  }
 
   // ЗАЩИТА ОТ NaN/Infinity: все цены должны быть конечными числами
   if (!isFinite(signal.priceOpen)) {
@@ -83,6 +93,26 @@ const VALIDATE_SIGNAL_FN = (signal: ISignalRow): void => {
       );
     }
 
+    // ЗАЩИТА ОТ EDGE CASE: для immediate сигналов проверяем что текущая цена не пробила SL/TP
+    // Для scheduled сигналов эта проверка избыточна т.к. priceOpen уже проверен выше
+    if (!isScheduled) {
+      // Текущая цена уже пробила StopLoss - позиция откроется и сразу закроется по SL
+      if (isFinite(currentPrice) && currentPrice < signal.priceStopLoss) {
+        errors.push(
+          `Long: currentPrice (${currentPrice}) < priceStopLoss (${signal.priceStopLoss}). ` +
+            `Signal would be immediately cancelled. This signal is invalid.`
+        );
+      }
+
+      // Текущая цена уже достигла TakeProfit - профит упущен
+      if (isFinite(currentPrice) && currentPrice > signal.priceTakeProfit) {
+        errors.push(
+          `Long: currentPrice (${currentPrice}) > priceTakeProfit (${signal.priceTakeProfit}). ` +
+            `Signal is invalid - the profit opportunity has already passed.`
+        );
+      }
+    }
+
     // ЗАЩИТА ОТ МИКРО-ПРОФИТА: TakeProfit должен быть достаточно далеко, чтобы покрыть комиссии
     if (GLOBAL_CONFIG.CC_MIN_TAKEPROFIT_DISTANCE_PERCENT) {
       const tpDistancePercent =
@@ -121,6 +151,26 @@ const VALIDATE_SIGNAL_FN = (signal: ISignalRow): void => {
       errors.push(
         `Short: priceStopLoss (${signal.priceStopLoss}) must be > priceOpen (${signal.priceOpen})`
       );
+    }
+
+    // ЗАЩИТА ОТ EDGE CASE: для immediate сигналов проверяем что текущая цена не пробила SL/TP
+    // Для scheduled сигналов эта проверка избыточна т.к. priceOpen уже проверен выше
+    if (!isScheduled) {
+      // Текущая цена уже пробила StopLoss - позиция откроется и сразу закроется по SL
+      if (isFinite(currentPrice) && currentPrice > signal.priceStopLoss) {
+        errors.push(
+          `Short: currentPrice (${currentPrice}) > priceStopLoss (${signal.priceStopLoss}). ` +
+            `Signal would be immediately cancelled. This signal is invalid.`
+        );
+      }
+
+      // Текущая цена уже достигла TakeProfit - профит упущен
+      if (isFinite(currentPrice) && currentPrice < signal.priceTakeProfit) {
+        errors.push(
+          `Short: currentPrice (${currentPrice}) < priceTakeProfit (${signal.priceTakeProfit}). ` +
+            `Signal is invalid - the profit opportunity has already passed.`
+        );
+      }
     }
 
     // ЗАЩИТА ОТ МИКРО-ПРОФИТА: TakeProfit должен быть достаточно далеко, чтобы покрыть комиссии
@@ -229,8 +279,41 @@ const GET_SIGNAL_FN = trycatch(
       return null;
     }
 
-    // Если priceOpen указан - создаем scheduled signal (risk check при активации)
+    // Если priceOpen указан - проверяем нужно ли ждать активации или открыть сразу
     if (signal.priceOpen !== undefined) {
+      // КРИТИЧЕСКАЯ ПРОВЕРКА: достигнут ли priceOpen?
+      // LONG: если currentPrice <= priceOpen - цена уже упала достаточно, открываем сразу
+      // SHORT: если currentPrice >= priceOpen - цена уже выросла достаточно, открываем сразу
+      const shouldActivateImmediately =
+        (signal.position === "long" && currentPrice <= signal.priceOpen) ||
+        (signal.position === "short" && currentPrice >= signal.priceOpen);
+
+      if (shouldActivateImmediately) {
+        // НЕМЕДЛЕННАЯ АКТИВАЦИЯ: priceOpen уже достигнут
+        // Создаем активный сигнал напрямую (БЕЗ scheduled фазы)
+        const signalRow: ISignalRow = {
+          id: randomString(),
+          priceOpen: signal.priceOpen, // Используем priceOpen из сигнала
+          position: signal.position,
+          note: signal.note,
+          priceTakeProfit: signal.priceTakeProfit,
+          priceStopLoss: signal.priceStopLoss,
+          minuteEstimatedTime: signal.minuteEstimatedTime,
+          symbol: self.params.execution.context.symbol,
+          exchangeName: self.params.method.context.exchangeName,
+          strategyName: self.params.method.context.strategyName,
+          scheduledAt: currentTime,
+          pendingAt: currentTime, // Для immediate signal оба времени одинаковые
+          _isScheduled: false,
+        };
+
+        // Валидируем сигнал перед возвратом
+        VALIDATE_SIGNAL_FN(signalRow, currentPrice, false);
+
+        return signalRow;
+      }
+
+      // ОЖИДАНИЕ АКТИВАЦИИ: создаем scheduled signal (risk check при активации)
       const scheduledSignalRow: IScheduledSignalRow = {
         id: randomString(),
         priceOpen: signal.priceOpen,
@@ -248,7 +331,7 @@ const GET_SIGNAL_FN = trycatch(
       };
 
       // Валидируем сигнал перед возвратом
-      VALIDATE_SIGNAL_FN(scheduledSignalRow);
+      VALIDATE_SIGNAL_FN(scheduledSignalRow, currentPrice, true);
 
       return scheduledSignalRow;
     }
@@ -266,7 +349,7 @@ const GET_SIGNAL_FN = trycatch(
     };
 
     // Валидируем сигнал перед возвратом
-    VALIDATE_SIGNAL_FN(signalRow);
+    VALIDATE_SIGNAL_FN(signalRow, currentPrice, false);
 
     return signalRow;
   },

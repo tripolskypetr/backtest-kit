@@ -471,13 +471,13 @@ test("OTHER: Flash crash extreme volatility - StopLoss triggers correctly", asyn
  * ТЕСТ #8: Gap up/down scenarios (market gaps handling)
  *
  * Проблема:
- * - Gap up: цена скачет с 42000 до 45000 (пропускает TP=43000)
- * - Scheduled signal с priceOpen=43000 должен активироваться НЕСМОТРЯ на gap
+ * - Gap down: цена падает с 45000 до 42000 (пропускает priceOpen=43000)
+ * - Scheduled LONG signal с priceOpen=43000 должен активироваться НЕСМОТРЯ на gap
  * - Проверяем что gap не ломает логику активации
  *
- * Тест: Signal должен активироваться когда цена проходит priceOpen
+ * Тест: Signal должен активироваться когда цена проходит priceOpen через gap
  */
-test("OTHER: Gap up scenario - scheduled signal activation through gap", async ({ pass, fail }) => {
+test("OTHER: Gap down scenario - scheduled LONG signal activation through gap", async ({ pass, fail }) => {
 
   let scheduledResult = null;
   let openedResult = null;
@@ -493,31 +493,32 @@ test("OTHER: Gap up scenario - scheduled signal activation through gap", async (
         const timestamp = since.getTime() + i * intervalMs;
 
         if (i === 5) {
-          // Gap up: цена скачет с 42000 до 45000
+          // Gap down: цена падает с 45000 до 42000
           candles.push({
             timestamp,
-            open: 45000, // Gap! Пропускаем priceOpen=43000
-            high: 45500,
-            low: 44500,
-            close: 45000,
+            open: 42000, // Gap! Пропускаем priceOpen=43000
+            high: 42500,
+            low: 41500,
+            close: 42000,
             volume: 5000,
           });
         } else if (i < 5) {
-          candles.push({
-            timestamp,
-            open: 42000,
-            high: 42100,
-            low: 41900,
-            close: 42000,
-            volume: 100,
-          });
-        } else {
+          // Начальная цена ВЫШЕ priceOpen - сигнал будет scheduled
           candles.push({
             timestamp,
             open: 45000,
             high: 45100,
             low: 44900,
             close: 45000,
+            volume: 100,
+          });
+        } else {
+          candles.push({
+            timestamp,
+            open: 42000,
+            high: 42100,
+            low: 41900,
+            close: 42000,
             volume: 100,
           });
         }
@@ -538,10 +539,10 @@ test("OTHER: Gap up scenario - scheduled signal activation through gap", async (
 
       return {
         position: "long",
-        note: "gap up test - priceOpen in gap",
-        priceOpen: 43000, // В зоне gap (42000 → 45000)
+        note: "gap down test - LONG priceOpen in gap",
+        priceOpen: 43000, // В зоне gap (45000 → 42000)
         priceTakeProfit: 46000,
-        priceStopLoss: 41000,
+        priceStopLoss: 40000,
         minuteEstimatedTime: 30,
       };
     },
@@ -580,9 +581,228 @@ test("OTHER: Gap up scenario - scheduled signal activation through gap", async (
   }
 
   if (openedResult) {
-    pass(`CORRECT: Scheduled signal activated despite gap (priceOpen=43000 in gap 42000→45000)`);
+    pass(`CORRECT: Scheduled LONG signal activated despite gap down (priceOpen=43000 in gap 45000→42000)`);
     return;
   }
 
-  fail("GAP BUG: Scheduled signal was NOT activated when price gapped through priceOpen");
+  fail("GAP BUG: Scheduled LONG signal was NOT activated when price gapped down through priceOpen");
+});
+
+/**
+ * ТЕСТ #9: Immediate activation - priceOpen already in activation range
+ *
+ * Проблема:
+ * - getSignal возвращает сигнал с priceOpen, который УЖЕ соответствует критериям активации
+ * - LONG: текущая цена >= priceOpen (цена уже достаточно низкая для входа)
+ * - SHORT: текущая цена <= priceOpen (цена уже достаточно высокая для входа)
+ * - Сигнал НЕ должен переходить в scheduled состояние
+ * - Позиция должна открыться НЕМЕДЛЕННО без ожидания
+ *
+ * Проверка: Сигнал переходит сразу из getSignal → opened (БЕЗ scheduled фазы)
+ */
+test("OTHER: Immediate activation - LONG position opens instantly when priceOpen already reached", async ({ pass, fail }) => {
+
+  let scheduledCalled = false;
+  let openedCalled = false;
+  let signalGenerated = false;
+
+  const currentPrice = 42000; // Текущая цена на рынке
+  const priceOpen = 43000;    // Вход ВЫШЕ текущей цены - для LONG это означает НЕМЕДЛЕННУЮ активацию
+
+  addExchange({
+    exchangeName: "binance-other-immediate",
+    getCandles: async (_symbol, interval, since, limit) => {
+      const candles = [];
+      const intervalMs = 60000;
+
+      for (let i = 0; i < limit; i++) {
+        const timestamp = since.getTime() + i * intervalMs;
+
+        // Все свечи на уровне currentPrice (НИЖЕ priceOpen для LONG)
+        // Это означает что позиция должна активироваться СРАЗУ
+        candles.push({
+          timestamp,
+          open: currentPrice,
+          high: currentPrice + 100,
+          low: currentPrice - 100,
+          close: currentPrice,
+          volume: 100,
+        });
+      }
+
+      return candles;
+    },
+    formatPrice: async (symbol, price) => price.toFixed(8),
+    formatQuantity: async (symbol, quantity) => quantity.toFixed(8),
+  });
+
+  addStrategy({
+    strategyName: "test-other-immediate",
+    interval: "1m",
+    getSignal: async () => {
+      if (signalGenerated) return null;
+      signalGenerated = true;
+
+      // LONG: priceOpen=43000 ВЫШЕ currentPrice=42000
+      // Это означает "купить если цена упадет до 43000"
+      // НО цена УЖЕ на 42000 (ниже 43000) - критерий выполнен!
+      // Позиция должна открыться СРАЗУ
+      return {
+        position: "long",
+        note: "immediate activation test - priceOpen already reached",
+        priceOpen: priceOpen,
+        priceTakeProfit: priceOpen + 1000,
+        priceStopLoss: priceOpen - 2000,
+        minuteEstimatedTime: 30,
+      };
+    },
+    callbacks: {
+      onSchedule: () => {
+        scheduledCalled = true;
+      },
+      onOpen: () => {
+        openedCalled = true;
+      },
+    },
+  });
+
+  addFrame({
+    frameName: "20m-other-immediate",
+    interval: "1m",
+    startDate: new Date("2024-01-01T00:00:00Z"),
+    endDate: new Date("2024-01-01T00:20:00Z"),
+  });
+
+  const awaitSubject = new Subject();
+  listenDoneBacktest(() => awaitSubject.next());
+
+  Backtest.background("BTCUSDT", {
+    strategyName: "test-other-immediate",
+    exchangeName: "binance-other-immediate",
+    frameName: "20m-other-immediate",
+  });
+
+  await awaitSubject.toPromise();
+  // await sleep(3000);
+
+  if (!openedCalled) {
+    fail("Signal was NOT opened immediately despite priceOpen being in activation range");
+    return;
+  }
+
+  if (scheduledCalled) {
+    fail("INEFFICIENCY: Signal went through 'scheduled' phase when it should have opened immediately");
+    return;
+  }
+
+  pass(`IMMEDIATE ACTIVATION WORKS: LONG signal opened instantly (priceOpen=${priceOpen} > currentPrice=${currentPrice})`);
+});
+
+/**
+ * ТЕСТ #10: Immediate activation for SHORT position
+ *
+ * Проблема:
+ * - SHORT позиция с priceOpen НИЖЕ текущей цены
+ * - SHORT: продаем если цена вырастет до priceOpen
+ * - НО цена УЖЕ выше priceOpen - критерий выполнен!
+ * - Позиция должна открыться СРАЗУ без scheduled фазы
+ *
+ * Проверка: SHORT сигнал открывается немедленно
+ */
+test("OTHER: Immediate activation - SHORT position opens instantly when priceOpen already reached", async ({ pass, fail }) => {
+
+  let scheduledCalled = false;
+  let openedCalled = false;
+  let signalGenerated = false;
+
+  const currentPrice = 43000; // Текущая цена на рынке
+  const priceOpen = 42000;    // Вход НИЖЕ текущей цены - для SHORT это означает НЕМЕДЛЕННУЮ активацию
+
+  addExchange({
+    exchangeName: "binance-other-immediate-short",
+    getCandles: async (_symbol, interval, since, limit) => {
+      const candles = [];
+      const intervalMs = 60000;
+
+      for (let i = 0; i < limit; i++) {
+        const timestamp = since.getTime() + i * intervalMs;
+
+        // Все свечи на уровне currentPrice (ВЫШЕ priceOpen для SHORT)
+        // Это означает что позиция должна активироваться СРАЗУ
+        candles.push({
+          timestamp,
+          open: currentPrice,
+          high: currentPrice + 100,
+          low: currentPrice - 100,
+          close: currentPrice,
+          volume: 100,
+        });
+      }
+
+      return candles;
+    },
+    formatPrice: async (symbol, price) => price.toFixed(8),
+    formatQuantity: async (symbol, quantity) => quantity.toFixed(8),
+  });
+
+  addStrategy({
+    strategyName: "test-other-immediate-short",
+    interval: "1m",
+    getSignal: async () => {
+      if (signalGenerated) return null;
+      signalGenerated = true;
+
+      // SHORT: priceOpen=42000 НИЖЕ currentPrice=43000
+      // Это означает "продать если цена вырастет до 42000"
+      // НО цена УЖЕ на 43000 (выше 42000) - критерий выполнен!
+      // Позиция должна открыться СРАЗУ
+      return {
+        position: "short",
+        note: "immediate activation test SHORT - priceOpen already reached",
+        priceOpen: priceOpen,
+        priceTakeProfit: priceOpen - 1000,  // SHORT: TP ниже priceOpen
+        priceStopLoss: priceOpen + 2000,    // SHORT: SL выше priceOpen
+        minuteEstimatedTime: 30,
+      };
+    },
+    callbacks: {
+      onSchedule: () => {
+        scheduledCalled = true;
+      },
+      onOpen: () => {
+        openedCalled = true;
+      },
+    },
+  });
+
+  addFrame({
+    frameName: "20m-other-immediate-short",
+    interval: "1m",
+    startDate: new Date("2024-01-01T00:00:00Z"),
+    endDate: new Date("2024-01-01T00:20:00Z"),
+  });
+
+  const awaitSubject = new Subject();
+  listenDoneBacktest(() => awaitSubject.next());
+
+  Backtest.background("BTCUSDT", {
+    strategyName: "test-other-immediate-short",
+    exchangeName: "binance-other-immediate-short",
+    frameName: "20m-other-immediate-short",
+  });
+
+  await awaitSubject.toPromise();
+  // await sleep(3000);
+
+  if (!openedCalled) {
+    fail("SHORT signal was NOT opened immediately despite priceOpen being in activation range");
+    return;
+  }
+
+  if (scheduledCalled) {
+    fail("INEFFICIENCY: SHORT signal went through 'scheduled' phase when it should have opened immediately");
+    return;
+  }
+
+  pass(`IMMEDIATE ACTIVATION WORKS: SHORT signal opened instantly (priceOpen=${priceOpen} < currentPrice=${currentPrice})`);
 });

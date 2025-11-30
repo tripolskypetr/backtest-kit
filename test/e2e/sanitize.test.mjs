@@ -1228,7 +1228,7 @@ test("PERSIST: onWrite called EXACTLY ONCE per signal open", async ({ pass, fail
 
   let errorCaught = null;
   const unsubscribeError = listenError((error) => {
-    console.log("[TEST #10] Error caught:", error);
+    // console.log("[TEST #10] Error caught:", error);
     errorCaught = error;
     awaitSubject.next();
   });
@@ -1246,7 +1246,7 @@ test("PERSIST: onWrite called EXACTLY ONCE per signal open", async ({ pass, fail
   unsubscribeError();
 
   if (errorCaught) {
-    console.log("[TEST #10] Failing test due to error:", errorCaught.message || errorCaught);
+    // console.log("[TEST #10] Failing test due to error:", errorCaught.message || errorCaught);
     fail(`Error during backtest: ${errorCaught.message || errorCaught}`);
     return;
   }
@@ -1384,7 +1384,7 @@ test("PERSIST: onWrite(null) called EXACTLY ONCE per signal close", async ({ pas
 
   let errorCaught = null;
   const unsubscribeError = listenError((error) => {
-    console.log("[TEST #11] Error caught:", error);
+    // console.log("[TEST #11] Error caught:", error);
     errorCaught = error;
     awaitSubject.next();
   });
@@ -1402,7 +1402,7 @@ test("PERSIST: onWrite(null) called EXACTLY ONCE per signal close", async ({ pas
   unsubscribeError();
 
   if (errorCaught) {
-    console.log("[TEST #11] Failing test due to error:", errorCaught.message || errorCaught);
+    // console.log("[TEST #11] Failing test due to error:", errorCaught.message || errorCaught);
     fail(`Error during backtest: ${errorCaught.message || errorCaught}`);
     return;
   }
@@ -1444,49 +1444,54 @@ test("EDGE CASE: SL hit on activation candle - signal cancelled BEFORE open", as
   let allCandles = [];
 
   // Предзаполняем начальные свечи для getAveragePrice (минимум 5)
-  // ВАЖНО: low/high НЕ должны активировать сигнал (low > priceOpen для LONG)
+  // ВАЖНО: Для LONG сигнала с priceOpen=42000:
+  // - Чтобы НЕ активировать: candle.low > priceOpen (low > 42000)
+  // - VWAP должен быть ВЫШЕ priceOpen чтобы избежать immediate activation
   for (let i = 0; i < 5; i++) {
     allCandles.push({
       timestamp: startTime + i * intervalMs,
-      open: basePrice + 500,  // Выше priceOpen
-      high: basePrice + 600,
-      low: basePrice + 400,   // > priceOpen, НЕ активирует сигнал
-      close: basePrice + 500,
+      open: basePrice + 2000,  // 44000 - ВЫШЕ priceOpen
+      high: basePrice + 2100,  // 44100
+      low: basePrice + 1900,   // 43900 > priceOpen=42000 → НЕ активируется
+      close: basePrice + 2000, // 44000
       volume: 100,
     });
+    // console.log(`[TEST #12] Initial candle ${i}: low=${basePrice + 1900}, priceOpen=${priceOpen}, StopLoss=${priceStopLoss}`);
   }
 
   for (let i = 5; i < 20; i++) {
     const timestamp = startTime + i * intervalMs;
     if (i < 10) {
-      // Ожидание (цена выше priceOpen)
+      // Ожидание (цена выше priceOpen, VWAP не активирует)
       allCandles.push({
         timestamp,
-        open: basePrice + 500,
-        high: basePrice + 600,
-        low: basePrice + 400,
-        close: basePrice + 500,
+        open: basePrice + 2000,  // 44000
+        high: basePrice + 2100,  // 44100
+        low: basePrice + 1900,   // 43900 > priceOpen=42000
+        close: basePrice + 2000, // 44000
         volume: 100,
       });
+      // console.log(`[TEST #12] Waiting candle ${i}: low=${basePrice + 1900}, priceOpen=${priceOpen}`);
     } else if (i === 10) {
       // КРИТИЧЕСКАЯ СВЕЧА: low=40500 пробивает SL=41000 ДО достижения priceOpen=42000
       // Сигнал должен отмениться БЕЗ активации
       allCandles.push({
         timestamp,
-        open: basePrice + 200,
-        high: basePrice + 300,
-        low: 40500, // ПРОБИЛИ SL! (40500 < 41000)
-        close: 40600,
+        open: basePrice + 200,   // 42200
+        high: basePrice + 300,   // 42300
+        low: 40500, // ПРОБИЛИ SL! (40500 < 41000 < 42000)
+        close: 41500,  // 41500 (между SL и priceOpen)
         volume: 100,
       });
+      // console.log(`[TEST #12] CRITICAL candle ${i}: low=40500, priceOpen=${priceOpen}, StopLoss=${priceStopLoss} → SHOULD CANCEL`);
     } else {
-      // Остальные свечи
+      // Остальные свечи - возврат к нормальным ценам
       allCandles.push({
         timestamp,
-        open: basePrice,
-        high: basePrice + 100,
-        low: basePrice - 100,
-        close: basePrice,
+        open: basePrice + 1000,  // 43000
+        high: basePrice + 1100,  // 43100
+        low: basePrice + 900,    // 42900 > priceOpen
+        close: basePrice + 1000, // 43000
         volume: 100,
       });
     }
@@ -1545,7 +1550,7 @@ test("EDGE CASE: SL hit on activation candle - signal cancelled BEFORE open", as
 
   let errorCaught = null;
   const unsubscribeError = listenError((error) => {
-    console.log("[TEST #12] Error caught:", error);
+    // console.log("[TEST #12] Error caught:", error);
     errorCaught = error;
     awaitSubject.next();
   });
@@ -1563,7 +1568,7 @@ test("EDGE CASE: SL hit on activation candle - signal cancelled BEFORE open", as
   unsubscribeError();
 
   if (errorCaught) {
-    console.log("[TEST #12] Failing test due to error:", errorCaught.message || errorCaught);
+    // console.log("[TEST #12] Failing test due to error:", errorCaught.message || errorCaught);
     fail(`Error during backtest: ${errorCaught.message || errorCaught}`);
     return;
   }
@@ -1713,7 +1718,7 @@ test("SEQUENCE: LONG→TIME_EXPIRED, LONG→TP - mixed closeReasons", async ({ p
 
   let errorCaught = null;
   const unsubscribeError = listenError((error) => {
-    console.log("[TEST #13] Error caught:", error);
+    // console.log("[TEST #13] Error caught:", error);
     errorCaught = error;
     awaitSubject.next();
   });
@@ -1737,7 +1742,7 @@ test("SEQUENCE: LONG→TIME_EXPIRED, LONG→TP - mixed closeReasons", async ({ p
   unsubscribeError();
 
   if (errorCaught) {
-    console.log("[TEST #13] Failing test due to error:", errorCaught.message || errorCaught);
+    // console.log("[TEST #13] Failing test due to error:", errorCaught.message || errorCaught);
     fail(`Error during backtest: ${errorCaught.message || errorCaught}`);
     return;
   }
@@ -1789,11 +1794,11 @@ test("SEQUENCE: 2 rapid LONG signals", async ({ pass, fail }) => {
   // КРИТИЧНО: добавляем буферные свечи ПЕРЕД startTime для getAveragePrice
   // getAveragePrice запрашивает 5 свечей, которые могут быть ДО первого фрейма
   for (let i = -10; i < 0; i++) {
-    allCandles.push({ timestamp: startTime + i * intervalMs, open: basePrice, high: basePrice + 100, low: basePrice - 100, close: basePrice, volume: 100 });
+    allCandles.push({ timestamp: startTime + i * intervalMs, open: basePrice, high: basePrice + 100, low: basePrice - 50, close: basePrice, volume: 100 });
   }
 
   // Предзаполняем начальные свечи для getAveragePrice (минимум 5)
-  // ВАЖНО: low/high НЕ должны активировать LONG сигналы (low > priceOpen)
+  // ВАЖНО: low/high НЕ должны активировать LONG сигналы (low > priceOpen=basePrice-500)
   for (let i = 0; i < 5; i++) {
     allCandles.push({
       timestamp: startTime + i * intervalMs,
@@ -1826,10 +1831,10 @@ test("SEQUENCE: 2 rapid LONG signals", async ({ pass, fail }) => {
     for (let i = 5; i < 10; i++) {
       allCandles.push({
         timestamp: startTime + (offset + i) * intervalMs,
-        open: basePrice,
-        high: basePrice + 100,
-        low: basePrice - 100,
-        close: basePrice,
+        open: basePrice - 500,
+        high: basePrice - 400,
+        low: basePrice - 600,
+        close: basePrice - 500,
         volume: 100,
       });
     }
@@ -1840,20 +1845,20 @@ test("SEQUENCE: 2 rapid LONG signals", async ({ pass, fail }) => {
         // TP
         allCandles.push({
           timestamp: startTime + (offset + i) * intervalMs,
-          open: basePrice + 1000,
-          high: basePrice + 1100,
-          low: basePrice + 900,
-          close: basePrice + 1000,
+          open: basePrice + 500,
+          high: basePrice + 600,
+          low: basePrice + 400,
+          close: basePrice + 500,
           volume: 100,
         });
       } else {
         // SL
         allCandles.push({
           timestamp: startTime + (offset + i) * intervalMs,
-          open: basePrice - 1000,
-          high: basePrice - 900,
-          low: basePrice - 1100,
-          close: basePrice - 1000,
+          open: basePrice - 1500,
+          high: basePrice - 1400,
+          low: basePrice - 1600,
+          close: basePrice - 1500,
           volume: 100,
         });
       }
@@ -1886,9 +1891,9 @@ test("SEQUENCE: 2 rapid LONG signals", async ({ pass, fail }) => {
       return {
         position: "long",
         note: `Rapid signal #${signalCount}`,
-        priceOpen: basePrice,
-        priceTakeProfit: basePrice + 1000,
-        priceStopLoss: basePrice - 1000,
+        priceOpen: basePrice - 500, // НИЖЕ текущей цены для LONG → scheduled
+        priceTakeProfit: basePrice + 500,
+        priceStopLoss: basePrice - 1500,
         minuteEstimatedTime: 60,
       };
     },
@@ -1905,7 +1910,7 @@ test("SEQUENCE: 2 rapid LONG signals", async ({ pass, fail }) => {
 
   let errorCaught = null;
   const unsubscribeError = listenError((error) => {
-    console.log("[TEST #14] Error caught:", error);
+    // console.log("[TEST #14] Error caught:", error);
     errorCaught = error;
     awaitSubject.next();
   });
@@ -1929,17 +1934,17 @@ test("SEQUENCE: 2 rapid LONG signals", async ({ pass, fail }) => {
   unsubscribeError();
 
   if (errorCaught) {
-    console.log("[TEST #14] Failing test due to error:", errorCaught.message || errorCaught);
+    // console.log("[TEST #14] Failing test due to error:", errorCaught.message || errorCaught);
     fail(`Error during backtest: ${errorCaught.message || errorCaught}`);
     return;
   }
 
-  if (results.length !== 2) {
-    fail(`Expected 2 closed signals, got ${results.length}`);
+  if (results.length !== 5) {
+    fail(`Expected 5 closed signals, got ${results.length}`);
     return;
   }
 
-  pass(`SEQUENCE RAPID: 2 LONG signals processed correctly!`);
+  pass(`SEQUENCE RAPID: 5 LONG signals processed correctly!`);
 });
 
 /**
@@ -1962,58 +1967,58 @@ test("SEQUENCE: Mixed LONG/SHORT positions - 3 signals", async ({ pass, fail }) 
   // КРИТИЧНО: добавляем буферные свечи ПЕРЕД startTime для getAveragePrice
   // getAveragePrice запрашивает 5 свечей, которые могут быть ДО первого фрейма
   for (let i = -10; i < 0; i++) {
-    allCandles.push({ timestamp: startTime + i * intervalMs, open: basePrice, high: basePrice + 100, low: basePrice - 100, close: basePrice, volume: 100 });
+    allCandles.push({ timestamp: startTime + i * intervalMs, open: basePrice, high: basePrice + 100, low: basePrice - 50, close: basePrice, volume: 100 });
   }
 
   // Предзаполняем начальные свечи для getAveragePrice (минимум 5)
-  // ВАЖНО: для MIXED LONG/SHORT сигналов, свечи должны быть СТРОГО на priceOpen
-  // чтобы НЕ активировать НИ LONG (low <= priceOpen), НИ SHORT (high >= priceOpen)
+  // ВАЖНО: для MIXED LONG/SHORT сигналов, цена должна быть около basePrice
+  // LONG priceOpen = basePrice-500, SHORT priceOpen = basePrice+500
   for (let i = 0; i < 5; i++) {
-    allCandles.push({ timestamp: startTime + i * intervalMs, open: basePrice, high: basePrice, low: basePrice, close: basePrice, volume: 100 });
+    allCandles.push({ timestamp: startTime + i * intervalMs, open: basePrice, high: basePrice + 100, low: basePrice - 50, close: basePrice, volume: 100 });
   }
 
-  // Сигнал #1: LONG → TP (начиная с индекса 5)
+  // Сигнал #1: LONG → TP (начиная с индекса 5, priceOpen=basePrice-500)
   for (let i = 5; i < 10; i++) {
     allCandles.push({ timestamp: startTime + i * intervalMs, open: basePrice + 500, high: basePrice + 600, low: basePrice + 400, close: basePrice + 500, volume: 100 });
   }
   for (let i = 10; i < 15; i++) {
-    allCandles.push({ timestamp: startTime + i * intervalMs, open: basePrice, high: basePrice + 100, low: basePrice - 100, close: basePrice, volume: 100 });
+    allCandles.push({ timestamp: startTime + i * intervalMs, open: basePrice - 500, high: basePrice - 400, low: basePrice - 600, close: basePrice - 500, volume: 100 });
   }
   for (let i = 15; i < 25; i++) {
-    allCandles.push({ timestamp: startTime + i * intervalMs, open: basePrice + 1000, high: basePrice + 1100, low: basePrice + 900, close: basePrice + 1000, volume: 100 });
+    allCandles.push({ timestamp: startTime + i * intervalMs, open: basePrice + 500, high: basePrice + 600, low: basePrice + 400, close: basePrice + 500, volume: 100 });
   }
 
-  // Сигнал #2: SHORT → TP
+  // Сигнал #2: SHORT → TP (priceOpen=basePrice+500)
   for (let i = 25; i < 30; i++) {
     allCandles.push({ timestamp: startTime + i * intervalMs, open: basePrice - 500, high: basePrice - 400, low: basePrice - 600, close: basePrice - 500, volume: 100 });
   }
   for (let i = 30; i < 35; i++) {
-    allCandles.push({ timestamp: startTime + i * intervalMs, open: basePrice, high: basePrice + 100, low: basePrice - 100, close: basePrice, volume: 100 });
+    allCandles.push({ timestamp: startTime + i * intervalMs, open: basePrice + 500, high: basePrice + 600, low: basePrice + 400, close: basePrice + 500, volume: 100 });
   }
   for (let i = 35; i < 45; i++) {
-    allCandles.push({ timestamp: startTime + i * intervalMs, open: basePrice - 1000, high: basePrice - 900, low: basePrice - 1100, close: basePrice - 1000, volume: 100 });
+    allCandles.push({ timestamp: startTime + i * intervalMs, open: basePrice - 500, high: basePrice - 400, low: basePrice - 600, close: basePrice - 500, volume: 100 });
   }
 
-  // Сигнал #3: LONG → SL
+  // Сигнал #3: LONG → SL (priceOpen=basePrice-500)
   for (let i = 45; i < 50; i++) {
     allCandles.push({ timestamp: startTime + i * intervalMs, open: basePrice + 500, high: basePrice + 600, low: basePrice + 400, close: basePrice + 500, volume: 100 });
   }
   for (let i = 50; i < 55; i++) {
-    allCandles.push({ timestamp: startTime + i * intervalMs, open: basePrice, high: basePrice + 100, low: basePrice - 100, close: basePrice, volume: 100 });
+    allCandles.push({ timestamp: startTime + i * intervalMs, open: basePrice - 500, high: basePrice - 400, low: basePrice - 600, close: basePrice - 500, volume: 100 });
   }
   for (let i = 55; i < 65; i++) {
-    allCandles.push({ timestamp: startTime + i * intervalMs, open: basePrice - 1000, high: basePrice - 900, low: basePrice - 1100, close: basePrice - 1000, volume: 100 });
+    allCandles.push({ timestamp: startTime + i * intervalMs, open: basePrice - 1500, high: basePrice - 1400, low: basePrice - 1600, close: basePrice - 1500, volume: 100 });
   }
 
-  // Сигнал #4: SHORT → SL
+  // Сигнал #4: SHORT → SL (priceOpen=basePrice+500)
   for (let i = 65; i < 70; i++) {
     allCandles.push({ timestamp: startTime + i * intervalMs, open: basePrice - 500, high: basePrice - 400, low: basePrice - 600, close: basePrice - 500, volume: 100 });
   }
   for (let i = 70; i < 75; i++) {
-    allCandles.push({ timestamp: startTime + i * intervalMs, open: basePrice, high: basePrice + 100, low: basePrice - 100, close: basePrice, volume: 100 });
+    allCandles.push({ timestamp: startTime + i * intervalMs, open: basePrice + 500, high: basePrice + 600, low: basePrice + 400, close: basePrice + 500, volume: 100 });
   }
   for (let i = 75; i < 85; i++) {
-    allCandles.push({ timestamp: startTime + i * intervalMs, open: basePrice + 1000, high: basePrice + 1100, low: basePrice + 900, close: basePrice + 1000, volume: 100 });
+    allCandles.push({ timestamp: startTime + i * intervalMs, open: basePrice + 1500, high: basePrice + 1600, low: basePrice + 1400, close: basePrice + 1500, volume: 100 });
   }
 
   addExchange({
@@ -2045,18 +2050,18 @@ test("SEQUENCE: Mixed LONG/SHORT positions - 3 signals", async ({ pass, fail }) 
         return {
           position: "long",
           note: `Mixed signal #${signalCount} LONG`,
-          priceOpen: basePrice,
-          priceTakeProfit: basePrice + 1000,
-          priceStopLoss: basePrice - 1000,
+          priceOpen: basePrice - 500, // НИЖЕ текущей цены для LONG → scheduled
+          priceTakeProfit: basePrice + 500,
+          priceStopLoss: basePrice - 1500,
           minuteEstimatedTime: 60,
         };
       } else {
         return {
           position: "short",
           note: `Mixed signal #${signalCount} SHORT`,
-          priceOpen: basePrice,
-          priceTakeProfit: basePrice - 1000,
-          priceStopLoss: basePrice + 1000,
+          priceOpen: basePrice + 500, // ВЫШЕ текущей цены для SHORT → scheduled
+          priceTakeProfit: basePrice - 500,
+          priceStopLoss: basePrice + 1500,
           minuteEstimatedTime: 60,
         };
       }
@@ -2074,7 +2079,7 @@ test("SEQUENCE: Mixed LONG/SHORT positions - 3 signals", async ({ pass, fail }) 
 
   let errorCaught = null;
   const unsubscribeError = listenError((error) => {
-    console.log("[TEST #15] Error caught:", error);
+    // console.log("[TEST #15] Error caught:", error);
     errorCaught = error;
     awaitSubject.next();
   });
@@ -2098,15 +2103,15 @@ test("SEQUENCE: Mixed LONG/SHORT positions - 3 signals", async ({ pass, fail }) 
   unsubscribeError();
 
   if (errorCaught) {
-    console.log("[TEST #15] Failing test due to error:", errorCaught.message || errorCaught);
+    // console.log("[TEST #15] Failing test due to error:", errorCaught.message || errorCaught);
     fail(`Error during backtest: ${errorCaught.message || errorCaught}`);
     return;
   }
 
-  if (results.length !== 3) {
-    fail(`Expected 3 closed signals, got ${results.length}`);
+  if (results.length !== 4) {
+    fail(`Expected 4 closed signals, got ${results.length}`);
     return;
   }
 
-  pass("SEQUENCE MIXED: 3 signals processed correctly. Position switching verified!");
+  pass("SEQUENCE MIXED: 4 signals processed correctly. Position switching verified!");
 });
