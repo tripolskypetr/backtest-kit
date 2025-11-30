@@ -1,3 +1,48 @@
+# Immediate Activation (v1.3.0, 01/12/2025)
+
+> Github [release link](https://github.com/tripolskypetr/backtest-kit/releases/tag/1.3.0)
+
+**Smart Signal Activation** 🚀⚡
+
+Now signals activate **immediately** when `priceOpen` is already in the activation zone — no more waiting for scheduled state when the price has already moved! LONG positions open instantly when current price (VWAP) is below `priceOpen`, and SHORT positions trigger immediately when price is above `priceOpen`. Enhanced validation prevents invalid signals from being created: immediate signals are rejected if current price has already breached StopLoss or TakeProfit levels. Strict boundary checks (`<`/`>` instead of `<=`/`>=`) allow signals when price exactly equals SL/TP boundaries. 🎯✨
+
+```ts
+// Example: Immediate LONG activation
+{
+  position: "long",
+  priceOpen: 43000,      // Target entry price
+  priceStopLoss: 41000,
+  priceTakeProfit: 44000
+}
+
+// Current market conditions:
+currentPrice (VWAP) = 42000  // Already below priceOpen!
+
+// Before v1.3.0:
+→ scheduled → waiting for price to fall to 43000
+
+// After v1.3.0:
+→ opened IMMEDIATELY (price already at desired level!)
+```
+
+**Validation Enhancements** 🛡️
+
+- **Mandatory `isScheduled` parameter**: Validation now distinguishes between scheduled and immediate signals
+- **Immediate signal protection**: Rejects signals if `currentPrice < priceStopLoss` for LONG or `currentPrice > priceStopLoss` for SHORT
+- **Boundary-safe validation**: Changed from `<=`/`>=` to `<`/`>` to allow signals when price exactly equals SL/TP
+- **No false rejections**: Signals can now be created when current price equals stop-loss or take-profit boundaries
+
+**Breaking Changes** ⚠️
+
+- `VALIDATE_SIGNAL_FN` now requires explicit `isScheduled: boolean` parameter (no default value)
+- Test expectations updated to account for immediate activation behavior
+- Scheduled signal counts may differ due to immediate activation in certain price conditions
+
+See [test/README.md](./test/README.md) for comprehensive documentation on immediate activation patterns and updated test writing guidelines.
+
+
+
+
 # Scheduled (Limit) Orders (v1.2.1, 29/11/2025)
 
 > Github [release link](https://github.com/tripolskypetr/backtest-kit/releases/tag/1.2.1)
