@@ -3,6 +3,7 @@ import LoggerService from "../base/LoggerService";
 import TYPES from "../../core/types";
 import ExecutionContextService from "../context/ExecutionContextService";
 import {
+  ISignalRow,
   IStrategyBacktestResult,
   IStrategyTickResult,
   StrategyName,
@@ -65,6 +66,40 @@ export class StrategyGlobalService {
         this.riskValidationService.validate(riskName, METHOD_NAME_VALIDATE);
     }
   );
+
+  /**
+   * Retrieves the currently active pending signal for the symbol.
+   * If no active signal exists, returns null.
+   * Used internally for monitoring TP/SL and time expiration.
+   * 
+   * @param symbol - Trading pair symbol
+   * @param when - Timestamp for tick evaluation
+   * @param backtest - Whether running in backtest mode
+   * @returns Promise resolving to pending signal or null
+   */
+  public getPendingSignal = async (
+    symbol: string,
+    when: Date,
+    backtest: boolean
+  ): Promise<ISignalRow | null> => {
+    this.loggerService.log("strategyGlobalService getPendingSignal", {
+      symbol,
+      when,
+      backtest,
+    });
+    await this.validate(this.methodContextService.context.strategyName);
+    return await ExecutionContextService.runInContext(
+      async () => {
+        return await this.strategyConnectionService.getPendingSignal();
+      },
+      {
+        symbol,
+        when,
+        backtest,
+      }
+    );
+  };
+
 
   /**
    * Checks signal status at a specific timestamp.

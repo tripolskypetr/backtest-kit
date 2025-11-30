@@ -6,6 +6,7 @@ import { ICandleData } from "../../../interfaces/Exchange.interface";
 import { memoize } from "functools-kit";
 import ClientStrategy from "../../../client/ClientStrategy";
 import {
+  ISignalRow,
   IStrategy,
   IStrategyBacktestResult,
   IStrategyTickResult,
@@ -92,6 +93,20 @@ export class StrategyConnectionService implements IStrategy {
       });
     }
   );
+
+  /**
+   * Retrieves the currently active pending signal for the strategy.
+   * If no active signal exists, returns null.
+   * Used internally for monitoring TP/SL and time expiration.
+   * @returns Promise resolving to pending signal or null
+   */
+  public getPendingSignal = async (): Promise<ISignalRow | null> => {
+    this.loggerService.log("strategyConnectionService getPendingSignal");
+    const strategy = await this.getStrategy(
+      this.methodContextService.context.strategyName
+    );
+    return await strategy.getPendingSignal();
+  };
 
   /**
    * Executes live trading tick for current strategy.

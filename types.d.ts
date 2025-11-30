@@ -826,6 +826,15 @@ interface IStrategy {
      */
     tick: (symbol: string) => Promise<IStrategyTickResult>;
     /**
+     * Retrieves the currently active pending signal for the symbol.
+     * If no active signal exists, returns null.
+     * Used internally for monitoring TP/SL and time expiration.
+     *
+     * @param symbol
+     * @returns
+     */
+    getPendingSignal: (symbol: string) => Promise<ISignalRow | null>;
+    /**
      * Fast backtest using historical candles.
      * Iterates through candles, calculates VWAP, checks TP/SL on each candle.
      *
@@ -4719,6 +4728,13 @@ declare class StrategyConnectionService implements IStrategy {
      */
     private getStrategy;
     /**
+     * Retrieves the currently active pending signal for the strategy.
+     * If no active signal exists, returns null.
+     * Used internally for monitoring TP/SL and time expiration.
+     * @returns Promise resolving to pending signal or null
+     */
+    getPendingSignal: () => Promise<ISignalRow | null>;
+    /**
      * Executes live trading tick for current strategy.
      *
      * Waits for strategy initialization before processing tick.
@@ -5165,6 +5181,17 @@ declare class StrategyGlobalService {
      * @returns Promise that resolves when validation is complete
      */
     private validate;
+    /**
+     * Retrieves the currently active pending signal for the symbol.
+     * If no active signal exists, returns null.
+     * Used internally for monitoring TP/SL and time expiration.
+     *
+     * @param symbol - Trading pair symbol
+     * @param when - Timestamp for tick evaluation
+     * @param backtest - Whether running in backtest mode
+     * @returns Promise resolving to pending signal or null
+     */
+    getPendingSignal: (symbol: string, when: Date, backtest: boolean) => Promise<ISignalRow | null>;
     /**
      * Checks signal status at a specific timestamp.
      *

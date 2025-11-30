@@ -74,10 +74,12 @@ export class LiveUtils {
     }
 
     {
-      const { riskName } = backtest.strategySchemaService.get(context.strategyName);
+      const { riskName } = backtest.strategySchemaService.get(
+        context.strategyName
+      );
       riskName && backtest.riskGlobalService.clear(riskName);
     }
-    
+
     return backtest.liveCommandService.run(symbol, context);
   };
 
@@ -114,24 +116,41 @@ export class LiveUtils {
       context,
     });
     let isStopped = false;
+    let isDone = false;
     const task = async () => {
       for await (const signal of this.run(symbol, context)) {
         if (signal?.action === "closed" && isStopped) {
           break;
         }
       }
-      await doneLiveSubject.next({
-        exchangeName: context.exchangeName,
-        strategyName: context.strategyName,
-        backtest: false,
-        symbol,
-      });
+      if (!isDone) {
+        await doneLiveSubject.next({
+          exchangeName: context.exchangeName,
+          strategyName: context.strategyName,
+          backtest: false,
+          symbol,
+        });
+      }
+      isDone = true;
     };
     task().catch((error) =>
       errorEmitter.next(new Error(getErrorMessage(error)))
     );
     return () => {
       backtest.strategyGlobalService.stop(context.strategyName);
+      backtest.strategyGlobalService
+        .getPendingSignal(symbol, new Date(), false)
+        .then(async () => {
+          if (!isDone) {
+            await doneLiveSubject.next({
+              exchangeName: context.exchangeName,
+              strategyName: context.strategyName,
+              backtest: false,
+              symbol,
+            });
+          }
+          isDone = true;
+        });
       isStopped = true;
     };
   };

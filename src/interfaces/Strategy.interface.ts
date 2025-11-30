@@ -311,6 +311,16 @@ export interface IStrategy {
   tick: (symbol: string) => Promise<IStrategyTickResult>;
 
   /**
+   * Retrieves the currently active pending signal for the symbol.
+   * If no active signal exists, returns null.
+   * Used internally for monitoring TP/SL and time expiration.
+   * 
+   * @param symbol 
+   * @returns 
+   */
+  getPendingSignal: (symbol: string) => Promise<ISignalRow | null>;
+
+  /**
    * Fast backtest using historical candles.
    * Iterates through candles, calculates VWAP, checks TP/SL on each candle.
    *

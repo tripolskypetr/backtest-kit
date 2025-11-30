@@ -278,6 +278,9 @@ const GET_SIGNAL_FN = trycatch(
     if (!signal) {
       return null;
     }
+    if (self._isStopped) {
+      return null;
+    }
 
     // Если priceOpen указан - проверяем нужно ли ждать активации или открыть сразу
     if (signal.priceOpen !== undefined) {
@@ -1376,6 +1379,15 @@ export class ClientStrategy implements IStrategy {
       this.params.strategyName,
       this.params.execution.context.symbol
     );
+  }
+
+  /**
+   * Retrieves the current pending signal.
+   * If no signal is pending, returns null. 
+   * @returns Promise resolving to the pending signal or null.
+   */
+  public async getPendingSignal(): Promise<ISignalRow | null> {
+    return this._pendingSignal;
   }
 
   /**
