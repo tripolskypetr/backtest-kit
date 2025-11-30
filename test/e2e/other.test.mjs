@@ -806,3 +806,213 @@ test("OTHER: Immediate activation - SHORT position opens instantly when priceOpe
 
   pass(`IMMEDIATE ACTIVATION WORKS: SHORT signal opened instantly (priceOpen=${priceOpen} < currentPrice=${currentPrice})`);
 });
+
+// ============================================================================
+// TEST #11: LONG - Immediate activation REJECTED when currentPrice below StopLoss
+// ============================================================================
+test("OTHER: Immediate activation REJECTED - LONG when currentPrice below StopLoss", async ({ pass, fail }) => {
+  const symbol = "BTCUSDT";
+  const currentPrice = 40000;  // Ниже StopLoss
+  const priceStopLoss = 41000;
+  const priceOpen = 43000;     // Выше currentPrice → immediate activation
+  const priceTakeProfit = 45000;
+
+  let scheduledCount = 0;
+  let openedCount = 0;
+  let signalGenerated = false;
+
+  addExchange({
+    exchangeName: "test-exchange-11",
+    getCandles: async (_symbol, interval, since, limit) => {
+      const candles = [];
+      const intervalMs = 60000;
+
+      // 10 свечей с ценой около 40000 (ниже StopLoss)
+      for (let i = 0; i < limit; i++) {
+        const timestamp = since.getTime() + i * intervalMs;
+        candles.push({
+          timestamp,
+          open: currentPrice,
+          high: currentPrice + 100,
+          low: currentPrice - 100,
+          close: currentPrice,
+          volume: 100,
+        });
+      }
+
+      return candles;
+    },
+    formatPrice: async (_, price) => price.toFixed(8),
+    formatQuantity: async (_, qty) => qty.toFixed(8),
+  });
+
+  addStrategy({
+    strategyName: "test-strategy-11",
+    interval: "1m",
+    getSignal: async () => {
+      if (signalGenerated) return null;
+      signalGenerated = true;
+
+      // НЕВАЛИДНЫЙ СИГНАЛ: LONG с currentPrice ниже StopLoss
+      // Immediate activation активирует позицию, но она сразу закроется по SL
+      return {
+        position: "long",
+        note: "Should be rejected - currentPrice below StopLoss",
+        priceOpen,
+        priceTakeProfit,
+        priceStopLoss,
+        minuteEstimatedTime: 60,
+      };
+    },
+    callbacks: {
+      onSchedule: () => {
+        scheduledCount++;
+      },
+      onOpen: () => {
+        openedCount++;
+      },
+    },
+  });
+
+  addFrame({
+    frameName: "test-frame-11",
+    interval: "1m",
+    startDate: new Date("2024-01-01T00:00:00Z"),
+    endDate: new Date("2024-01-01T00:10:00Z"),
+  });
+
+  const awaitSubject = new Subject();
+  listenDoneBacktest(() => awaitSubject.next());
+
+  try {
+    Backtest.background(symbol, {
+      strategyName: "test-strategy-11",
+      exchangeName: "test-exchange-11",
+      frameName: "test-frame-11",
+    });
+
+    await awaitSubject.toPromise();
+
+    // Проверяем что сигнал НЕ был создан
+    if (scheduledCount === 0 && openedCount === 0) {
+      pass(`VALIDATION WORKS: LONG signal correctly rejected when currentPrice (${currentPrice}) < priceStopLoss (${priceStopLoss})`);
+      return;
+    }
+
+    fail(`CRITICAL BUG: Invalid signal was NOT rejected! scheduledCount=${scheduledCount}, openedCount=${openedCount}. Signal would open at a loss!`);
+
+  } catch (error) {
+    // Проверяем что ошибка связана с валидацией currentPrice и priceStopLoss
+    const errMsg = error.message || String(error);
+    if (errMsg.includes("currentPrice") && errMsg.includes("priceStopLoss")) {
+      pass(`VALIDATION WORKS: LONG signal rejected with error: ${errMsg.substring(0, 100)}`);
+    } else {
+      fail(`Unexpected error (not validation-related): ${errMsg}`);
+    }
+  }
+});
+
+// ============================================================================
+// TEST #12: SHORT - Immediate activation REJECTED when currentPrice above StopLoss
+// ============================================================================
+test("OTHER: Immediate activation REJECTED - SHORT when currentPrice above StopLoss", async ({ pass, fail }) => {
+  const symbol = "BTCUSDT";
+  const currentPrice = 45000;  // Выше StopLoss
+  const priceStopLoss = 44000;
+  const priceOpen = 42000;     // Ниже currentPrice → immediate activation
+  const priceTakeProfit = 40000;
+
+  let scheduledCount = 0;
+  let openedCount = 0;
+  let signalGenerated = false;
+
+  addExchange({
+    exchangeName: "test-exchange-12",
+    getCandles: async (_symbol, interval, since, limit) => {
+      const candles = [];
+      const intervalMs = 60000;
+
+      // 10 свечей с ценой около 45000 (выше StopLoss)
+      for (let i = 0; i < limit; i++) {
+        const timestamp = since.getTime() + i * intervalMs;
+        candles.push({
+          timestamp,
+          open: currentPrice,
+          high: currentPrice + 100,
+          low: currentPrice - 100,
+          close: currentPrice,
+          volume: 100,
+        });
+      }
+
+      return candles;
+    },
+    formatPrice: async (_, price) => price.toFixed(8),
+    formatQuantity: async (_, qty) => qty.toFixed(8),
+  });
+
+  addStrategy({
+    strategyName: "test-strategy-12",
+    interval: "1m",
+    getSignal: async () => {
+      if (signalGenerated) return null;
+      signalGenerated = true;
+
+      // НЕВАЛИДНЫЙ СИГНАЛ: SHORT с currentPrice выше StopLoss
+      // Immediate activation активирует позицию, но она сразу закроется по SL
+      return {
+        position: "short",
+        note: "Should be rejected - currentPrice above StopLoss",
+        priceOpen,
+        priceTakeProfit,
+        priceStopLoss,
+        minuteEstimatedTime: 60,
+      };
+    },
+    callbacks: {
+      onSchedule: () => {
+        scheduledCount++;
+      },
+      onOpen: () => {
+        openedCount++;
+      },
+    },
+  });
+
+  addFrame({
+    frameName: "test-frame-12",
+    interval: "1m",
+    startDate: new Date("2024-01-01T00:00:00Z"),
+    endDate: new Date("2024-01-01T00:10:00Z"),
+  });
+
+  const awaitSubject = new Subject();
+  listenDoneBacktest(() => awaitSubject.next());
+
+  try {
+    Backtest.background(symbol, {
+      strategyName: "test-strategy-12",
+      exchangeName: "test-exchange-12",
+      frameName: "test-frame-12",
+    });
+
+    await awaitSubject.toPromise();
+
+    // Проверяем что сигнал НЕ был создан
+    if (scheduledCount === 0 && openedCount === 0) {
+      pass(`VALIDATION WORKS: SHORT signal correctly rejected when currentPrice (${currentPrice}) > priceStopLoss (${priceStopLoss})`);
+      return;
+    }
+
+    fail(`CRITICAL BUG: Invalid signal was NOT rejected! scheduledCount=${scheduledCount}, openedCount=${openedCount}. Signal would open at a loss!`);
+
+  } catch (error) {
+    // Проверяем что ошибка связана с валидацией currentPrice и priceStopLoss
+    const errMsg = error.message || String(error);
+    if (errMsg.includes("currentPrice") && errMsg.includes("priceStopLoss")) {
+      pass(`VALIDATION WORKS: SHORT signal rejected with error: ${errMsg.substring(0, 100)}`);
+    } else {
+      fail(`Unexpected error (not validation-related): ${errMsg}`);
+    }
+  }
+});
