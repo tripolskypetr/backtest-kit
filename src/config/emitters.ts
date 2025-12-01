@@ -52,7 +52,7 @@ export const doneWalkerSubject = new Subject<DoneContract>();
  * Progress emitter for backtest execution progress.
  * Emits progress updates during backtest execution.
  */
-export const progressEmitter = new Subject<ProgressContract>();
+export const progressBacktestEmitter = new Subject<ProgressContract>();
 
 /**
  * Performance emitter for execution metrics.

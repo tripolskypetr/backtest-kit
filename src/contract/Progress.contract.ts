@@ -6,9 +6,9 @@
  *
  * @example
  * ```typescript
- * import { listenProgress } from "backtest-kit";
+ * import { listenBacktestProgress } from "backtest-kit";
  *
- * listenProgress((event) => {
+ * listenBacktestProgress((event) => {
  *   console.log(`Progress: ${(event.progress * 100).toFixed(2)}%`);
  *   console.log(`Processed: ${event.processedFrames} / ${event.totalFrames}`);
  * });

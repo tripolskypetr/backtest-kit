@@ -1,5 +1,5 @@
 import backtest from "../lib";
-import { signalEmitter, signalLiveEmitter, signalBacktestEmitter, errorEmitter, doneLiveSubject, doneBacktestSubject, doneWalkerSubject, progressEmitter, performanceEmitter, walkerEmitter, walkerCompleteSubject, validationSubject } from "../config/emitters";
+import { signalEmitter, signalLiveEmitter, signalBacktestEmitter, errorEmitter, doneLiveSubject, doneBacktestSubject, doneWalkerSubject, progressBacktestEmitter, performanceEmitter, walkerEmitter, walkerCompleteSubject, validationSubject } from "../config/emitters";
 import { IStrategyTickResult } from "../interfaces/Strategy.interface";
 import { DoneContract } from "../contract/Done.contract";
 import { ProgressContract } from "../contract/Progress.contract";
@@ -21,7 +21,7 @@ const LISTEN_DONE_BACKTEST_METHOD_NAME = "event.listenDoneBacktest";
 const LISTEN_DONE_BACKTEST_ONCE_METHOD_NAME = "event.listenDoneBacktestOnce";
 const LISTEN_DONE_WALKER_METHOD_NAME = "event.listenDoneWalker";
 const LISTEN_DONE_WALKER_ONCE_METHOD_NAME = "event.listenDoneWalkerOnce";
-const LISTEN_PROGRESS_METHOD_NAME = "event.listenProgress";
+const LISTEN_PROGRESS_METHOD_NAME = "event.listenBacktestProgress";
 const LISTEN_PERFORMANCE_METHOD_NAME = "event.listenPerformance";
 const LISTEN_WALKER_METHOD_NAME = "event.listenWalker";
 const LISTEN_WALKER_ONCE_METHOD_NAME = "event.listenWalkerOnce";
@@ -444,9 +444,9 @@ export function listenDoneWalkerOnce(
  *
  * @example
  * ```typescript
- * import { listenProgress, Backtest } from "backtest-kit";
+ * import { listenBacktestProgress, Backtest } from "backtest-kit";
  *
- * const unsubscribe = listenProgress((event) => {
+ * const unsubscribe = listenBacktestProgress((event) => {
  *   console.log(`Progress: ${(event.progress * 100).toFixed(2)}%`);
  *   console.log(`${event.processedFrames} / ${event.totalFrames} frames`);
  *   console.log(`Strategy: ${event.strategyName}, Symbol: ${event.symbol}`);
@@ -462,9 +462,9 @@ export function listenDoneWalkerOnce(
  * unsubscribe();
  * ```
  */
-export function listenProgress(fn: (event: ProgressContract) => void) {
+export function listenBacktestProgress(fn: (event: ProgressContract) => void) {
   backtest.loggerService.log(LISTEN_PROGRESS_METHOD_NAME);
-  return progressEmitter.subscribe(queued(async (event) => fn(event)));
+  return progressBacktestEmitter.subscribe(queued(async (event) => fn(event)));
 }
 
 /**

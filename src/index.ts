@@ -15,7 +15,7 @@ export {
   listenDoneBacktestOnce,
   listenDoneWalker,
   listenDoneWalkerOnce,
-  listenProgress,
+  listenBacktestProgress,
   listenPerformance,
   listenWalker,
   listenWalkerOnce,

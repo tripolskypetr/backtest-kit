@@ -9,7 +9,7 @@ import MethodContextService, {
   TMethodContextService,
 } from "../../context/MethodContextService";
 import {
-  progressEmitter,
+  progressBacktestEmitter,
   performanceEmitter,
 } from "../../../../config/emitters";
 import { GLOBAL_CONFIG } from "../../../../config/params";
@@ -78,7 +78,7 @@ export class BacktestLogicPrivateService {
 
       // Emit progress event if context is available
       {
-        await progressEmitter.next({
+        await progressBacktestEmitter.next({
           exchangeName: this.methodContextService.context.exchangeName,
           strategyName: this.methodContextService.context.strategyName,
           symbol,
@@ -272,7 +272,7 @@ export class BacktestLogicPrivateService {
 
     // Emit final progress event (100%)
     {
-      await progressEmitter.next({
+      await progressBacktestEmitter.next({
         exchangeName: this.methodContextService.context.exchangeName,
         strategyName: this.methodContextService.context.strategyName,
         symbol,

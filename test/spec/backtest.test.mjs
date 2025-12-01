@@ -8,7 +8,7 @@ import {
   listenSignalBacktest,
   listenDoneBacktest,
   listenDoneBacktestOnce,
-  listenProgress,
+  listenBacktestProgress,
   getAveragePrice,
 } from "../../build/index.mjs";
 
@@ -466,7 +466,7 @@ test("early termination with break stops backtest", async ({ pass, fail }) => {
 
 });
 
-test("listenProgress tracks backtest progress", async ({ pass, fail }) => {
+test("listenBacktestProgress tracks backtest progress", async ({ pass, fail }) => {
 
   const [awaiter, { resolve }] = createAwaiter();
 
@@ -509,7 +509,7 @@ test("listenProgress tracks backtest progress", async ({ pass, fail }) => {
   const progressEvents = [];
   let finalProgress = null;
 
-  const unsubscribe = listenProgress((event) => {
+  const unsubscribe = listenBacktestProgress((event) => {
     if (event.strategyName === "test-strategy-progress") {
       progressEvents.push({
         processedFrames: event.processedFrames,
@@ -555,7 +555,7 @@ test("listenProgress tracks backtest progress", async ({ pass, fail }) => {
   );
 
   if (hasProgressEvents && hasFinalProgress && progressIncreasing && hasCorrectMetadata) {
-    pass(`listenProgress tracked ${progressEvents.length} progress events, final: ${(finalProgress.progress * 100).toFixed(0)}%`);
+    pass(`listenBacktestProgress tracked ${progressEvents.length} progress events, final: ${(finalProgress.progress * 100).toFixed(0)}%`);
     return;
   }
 
