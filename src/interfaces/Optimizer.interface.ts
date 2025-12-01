@@ -67,6 +67,7 @@ export interface IOptimizerTemplate {
     data: Data[],
     name: string
   ): Promise<string>;
+  getTextTemplate(): Promise<string>;
 }
 
 export interface IOptimizerValidationFn {
@@ -96,7 +97,8 @@ export interface IOptimizerParams extends IOptimizerSchema {
 }
 
 export interface IOptimizer {
-  getStrategyData(symbol: string): Promise<IOptimizerStrategy[]>;
+  getData(symbol: string): Promise<IOptimizerStrategy[]>;
+  getReport(symbol: string): Promise<string>;
 }
 
 export type OptimizerName = string;

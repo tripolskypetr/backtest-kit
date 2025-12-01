@@ -15,7 +15,6 @@ import {
 import { MessageModel } from "../model/Message.model";
 
 const ITERATION_LIMIT = 25;
-
 const DEFAULT_SOURCE_NAME = "unknown";
 
 const DEFAULT_USER_FN = async <Data extends IOptimizerData = any>(
@@ -127,12 +126,22 @@ const GET_STRATEGY_DATA_FN = async (symbol: string, self: ClientOptimizer) => {
 export class ClientOptimizer implements IOptimizer {
   constructor(readonly params: IOptimizerParams) {}
 
-  public getStrategyData = async (symbol: string) => {
+  public getData = async (symbol: string) => {
     this.params.logger.debug("ClientOptimizer getData", {
       symbol,
     });
     return await GET_STRATEGY_DATA_FN(symbol, this);
   };
+
+  public getReport = async (symbol: string): Promise<string> => {
+    this.params.logger.debug("ClientOptimizer getReport", {
+      symbol,
+    });
+    const strategyData = await this.getData(symbol);
+
+    return "";
+  }
+
 }
 
 export default ClientOptimizer;
