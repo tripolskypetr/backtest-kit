@@ -98,8 +98,8 @@ const GET_STRATEGY_DATA_FN = async (symbol: string, self: ClientOptimizer) => {
         endDate,
       });
       const [userContent, assistantContent] = await Promise.all([
-        user(symbol, data, name, this),
-        assistant(symbol, data, name, this),
+        user(symbol, data, name, self),
+        assistant(symbol, data, name, self),
       ]);
       messageList.push(
         {
