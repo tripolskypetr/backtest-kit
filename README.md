@@ -16,7 +16,7 @@ Build sophisticated trading systems with confidence. Backtest Kit empowers you t
 
 - 🚀 **Production-Ready Architecture**: Seamlessly switch between backtest and live modes with robust error recovery and graceful shutdown mechanisms. Your strategy code remains identical across environments. 
 
-- 💾 **Crash-Safe Persistence**: Atomic file writes with automatic state recovery ensure no duplicate signals or lost data—even after crashes. Resume execution exactly where you left off. 🔄
+- 💾 **Crash-Safe Persistence**: Atomic file writes with automatic state recovery ensure no duplicate signals or lost data—even after crashes. Resume execution exactly where you left off.
 
 - ✅ **Signal Validation**: Comprehensive validation prevents invalid trades before execution. Catches price logic errors (TP/SL), throttles signal spam, and ensures data integrity. 🛡️
 
