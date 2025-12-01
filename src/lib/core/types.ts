@@ -13,6 +13,7 @@ const connectionServices = {
     frameConnectionService: Symbol('frameConnectionService'),
     sizingConnectionService: Symbol('sizingConnectionService'),
     riskConnectionService: Symbol('riskConnectionService'),
+    optimizerConnectionService: Symbol('optimizerConnectionService'),
 };
 
 const schemaServices = {
@@ -31,6 +32,7 @@ const globalServices = {
     frameGlobalService: Symbol('frameGlobalService'),
     sizingGlobalService: Symbol('sizingGlobalService'),
     riskGlobalService: Symbol('riskGlobalService'),
+    optimizerGlobalService: Symbol('optimizerGlobalService'),
 }
 
 const commandServices = {

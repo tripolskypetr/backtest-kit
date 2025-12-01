@@ -43,6 +43,8 @@ import RiskValidationService from "../services/validation/RiskValidationService"
 import OptimizerTemplateService from "../services/template/OptimizerTemplateService";
 import OptimizerSchemaService from "../services/schema/OptimizerSchemaService";
 import OptimizerValidationService from "../services/validation/OptimizerValidationService";
+import OptimizerGlobalService from "../services/global/OptimizerGlobalService";
+import OptimizerConnectionService from "../services/connection/OptimizerConnectionService";
 
 {
     provide(TYPES.loggerService, () => new LoggerService());
@@ -59,6 +61,7 @@ import OptimizerValidationService from "../services/validation/OptimizerValidati
     provide(TYPES.frameConnectionService, () => new FrameConnectionService());
     provide(TYPES.sizingConnectionService, () => new SizingConnectionService());
     provide(TYPES.riskConnectionService, () => new RiskConnectionService());
+    provide(TYPES.optimizerConnectionService, () => new OptimizerConnectionService());
 }
 
 {
@@ -77,6 +80,7 @@ import OptimizerValidationService from "../services/validation/OptimizerValidati
     provide(TYPES.frameGlobalService, () => new FrameGlobalService());
     provide(TYPES.sizingGlobalService, () => new SizingGlobalService());
     provide(TYPES.riskGlobalService, () => new RiskGlobalService());
+    provide(TYPES.optimizerGlobalService, () => new OptimizerGlobalService());
 }
 
 {

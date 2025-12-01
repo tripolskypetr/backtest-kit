@@ -1,4 +1,3 @@
-import { TMethodContextService } from "../lib/services/context/MethodContextService";
 import { CandleInterval } from "./Exchange.interface";
 import { ILogger } from "./Logger.interface";
 import { MessageModel } from "src/model/Message.model";
@@ -126,7 +125,6 @@ export interface IOptimizerSchema {
 
 export interface IOptimizerParams extends IOptimizerSchema {
   logger: ILogger;
-  method: TMethodContextService;
   template: IOptimizerTemplate;
 }
 

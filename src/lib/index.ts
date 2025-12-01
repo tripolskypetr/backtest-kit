@@ -48,6 +48,8 @@ import RiskValidationService from "./services/validation/RiskValidationService";
 import OptimizerTemplateService from "./services/template/OptimizerTemplateService";
 import OptimizerSchemaService from "./services/schema/OptimizerSchemaService";
 import OptimizerValidationService from "./services/validation/OptimizerValidationService";
+import OptimizerConnectionService from "./services/connection/OptimizerConnectionService";
+import OptimizerGlobalService from "./services/global/OptimizerGlobalService";
 
 const baseServices = {
   loggerService: inject<LoggerService>(TYPES.loggerService),
@@ -78,6 +80,9 @@ const connectionServices = {
   riskConnectionService: inject<RiskConnectionService>(
     TYPES.riskConnectionService
   ),
+  optimizerConnectionService: inject<OptimizerConnectionService>(
+    TYPES.optimizerConnectionService
+  ),
 };
 
 const schemaServices = {
@@ -91,7 +96,9 @@ const schemaServices = {
   walkerSchemaService: inject<WalkerSchemaService>(TYPES.walkerSchemaService),
   sizingSchemaService: inject<SizingSchemaService>(TYPES.sizingSchemaService),
   riskSchemaService: inject<RiskSchemaService>(TYPES.riskSchemaService),
-  optimizerSchemaService: inject<OptimizerSchemaService>(TYPES.optimizerSchemaService),
+  optimizerSchemaService: inject<OptimizerSchemaService>(
+    TYPES.optimizerSchemaService
+  ),
 };
 
 const globalServices = {
@@ -104,6 +111,9 @@ const globalServices = {
   frameGlobalService: inject<FrameGlobalService>(TYPES.frameGlobalService),
   sizingGlobalService: inject<SizingGlobalService>(TYPES.sizingGlobalService),
   riskGlobalService: inject<RiskGlobalService>(TYPES.riskGlobalService),
+  optimizerGlobalService: inject<OptimizerGlobalService>(
+    TYPES.optimizerGlobalService
+  ),
 };
 
 const commandServices = {
@@ -111,7 +121,9 @@ const commandServices = {
   backtestCommandService: inject<BacktestCommandService>(
     TYPES.backtestCommandService
   ),
-  walkerCommandService: inject<WalkerCommandService>(TYPES.walkerCommandService),
+  walkerCommandService: inject<WalkerCommandService>(
+    TYPES.walkerCommandService
+  ),
 };
 
 const logicPrivateServices = {
@@ -139,27 +151,51 @@ const logicPublicServices = {
 };
 
 const markdownServices = {
-  backtestMarkdownService: inject<BacktestMarkdownService>(TYPES.backtestMarkdownService),
+  backtestMarkdownService: inject<BacktestMarkdownService>(
+    TYPES.backtestMarkdownService
+  ),
   liveMarkdownService: inject<LiveMarkdownService>(TYPES.liveMarkdownService),
-  scheduleMarkdownService: inject<ScheduleMarkdownService>(TYPES.scheduleMarkdownService),
-  performanceMarkdownService: inject<PerformanceMarkdownService>(TYPES.performanceMarkdownService),
-  walkerMarkdownService: inject<WalkerMarkdownService>(TYPES.walkerMarkdownService),
+  scheduleMarkdownService: inject<ScheduleMarkdownService>(
+    TYPES.scheduleMarkdownService
+  ),
+  performanceMarkdownService: inject<PerformanceMarkdownService>(
+    TYPES.performanceMarkdownService
+  ),
+  walkerMarkdownService: inject<WalkerMarkdownService>(
+    TYPES.walkerMarkdownService
+  ),
   heatMarkdownService: inject<HeatMarkdownService>(TYPES.heatMarkdownService),
-}
+};
 
 const validationServices = {
-  exchangeValidationService: inject<ExchangeValidationService>(TYPES.exchangeValidationService),
-  strategyValidationService: inject<StrategyValidationService>(TYPES.strategyValidationService),
-  frameValidationService: inject<FrameValidationService>(TYPES.frameValidationService),
-  walkerValidationService: inject<WalkerValidationService>(TYPES.walkerValidationService),
-  sizingValidationService: inject<SizingValidationService>(TYPES.sizingValidationService),
-  riskValidationService: inject<RiskValidationService>(TYPES.riskValidationService),
-  optimizerValidationService: inject<OptimizerValidationService>(TYPES.optimizerValidationService),
-}
+  exchangeValidationService: inject<ExchangeValidationService>(
+    TYPES.exchangeValidationService
+  ),
+  strategyValidationService: inject<StrategyValidationService>(
+    TYPES.strategyValidationService
+  ),
+  frameValidationService: inject<FrameValidationService>(
+    TYPES.frameValidationService
+  ),
+  walkerValidationService: inject<WalkerValidationService>(
+    TYPES.walkerValidationService
+  ),
+  sizingValidationService: inject<SizingValidationService>(
+    TYPES.sizingValidationService
+  ),
+  riskValidationService: inject<RiskValidationService>(
+    TYPES.riskValidationService
+  ),
+  optimizerValidationService: inject<OptimizerValidationService>(
+    TYPES.optimizerValidationService
+  ),
+};
 
 const templateServices = {
-  optimizerTemplateService: inject<OptimizerTemplateService>(TYPES.optimizerTemplateService),
-}
+  optimizerTemplateService: inject<OptimizerTemplateService>(
+    TYPES.optimizerTemplateService
+  ),
+};
 
 export const backtest = {
   ...baseServices,

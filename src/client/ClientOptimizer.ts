@@ -127,9 +127,9 @@ const GET_STRATEGY_CODE_FN = async (
 ) => {
   const strategyData = await self.getData(symbol);
 
-  const sections: string[] = [];
-  const exchangeName = self.params.optimizerName; // or extract from params
   const prefix = CREATE_PREFIX_FN();
+  const sections: string[] = [];
+  const exchangeName = `${prefix}_exchange`;
 
   // 1. Top banner with imports
   {

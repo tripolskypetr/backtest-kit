@@ -5299,7 +5299,7 @@ declare class StrategyGlobalService {
  * Wraps FrameConnectionService for timeframe generation.
  * Used internally by BacktestLogicPrivateService.
  */
-declare class FrameGlobalService {
+declare class FrameGlobalService$1 {
     private readonly loggerService;
     private readonly frameConnectionService;
     private readonly frameValidationService;
@@ -6422,6 +6422,11 @@ interface IOptimizerFetchArgs extends IOptimizerFilterArgs {
 interface IOptimizerSourceFn<Data extends IOptimizerData = any> {
     (args: IOptimizerFetchArgs): Data[] | Promise<Data[]>;
 }
+interface IOptimizerStrategy {
+    symbol: string;
+    messages: MessageModel$1[];
+    strategy: string;
+}
 interface IOptimizerSource<Data extends IOptimizerData = any> {
     note?: string;
     name: string;
@@ -6454,6 +6459,15 @@ interface IOptimizerSchema {
     getPrompt: (symbol: string, messages: MessageModel$1[]) => string | Promise<string>;
     template?: Partial<IOptimizerTemplate>;
     callbacks?: Partial<IOptimizerCallbacks>;
+}
+interface IOptimizerParams extends IOptimizerSchema {
+    logger: ILogger;
+    template: IOptimizerTemplate;
+}
+interface IOptimizer {
+    getData(symbol: string): Promise<IOptimizerStrategy[]>;
+    getCode(symbol: string): Promise<string>;
+    dump(symbol: string, path?: string): Promise<void>;
 }
 type OptimizerName = string;
 
@@ -6489,6 +6503,34 @@ declare class OptimizerValidationService {
     list: () => Promise<IOptimizerSchema[]>;
 }
 
+declare class ClientOptimizer implements IOptimizer {
+    readonly params: IOptimizerParams;
+    constructor(params: IOptimizerParams);
+    getData: (symbol: string) => Promise<IOptimizerStrategy[]>;
+    getCode: (symbol: string) => Promise<string>;
+    dump: (symbol: string, path?: string) => Promise<void>;
+}
+
+type TOptimizer = {
+    [key in keyof IOptimizer]: any;
+};
+declare class OptimizerConnectionService implements TOptimizer {
+    private readonly loggerService;
+    private readonly optimizerSchemaService;
+    private readonly optimizerTemplateService;
+    getOptimizer: ((optimizerName: OptimizerName) => ClientOptimizer) & functools_kit.IClearableMemoize<string> & functools_kit.IControlMemoize<string, ClientOptimizer>;
+    getData: (symbol: string, optimizerName: string) => Promise<IOptimizerStrategy[]>;
+    getCode: (symbol: string, optimizerName: string) => Promise<string>;
+    dump: (symbol: string, optimizerName: string, path?: string) => Promise<void>;
+}
+
+declare class FrameGlobalService {
+    private readonly loggerService;
+    private readonly frameConnectionService;
+    private readonly frameValidationService;
+    getTimeframe: (symbol: string, frameName: string) => Promise<Date[]>;
+}
+
 declare const backtest: {
     optimizerTemplateService: OptimizerTemplateService;
     exchangeValidationService: ExchangeValidationService;
@@ -6515,9 +6557,10 @@ declare const backtest: {
     walkerCommandService: WalkerCommandService;
     exchangeGlobalService: ExchangeGlobalService;
     strategyGlobalService: StrategyGlobalService;
-    frameGlobalService: FrameGlobalService;
+    frameGlobalService: FrameGlobalService$1;
     sizingGlobalService: SizingGlobalService;
     riskGlobalService: RiskGlobalService;
+    optimizerGlobalService: FrameGlobalService;
     exchangeSchemaService: ExchangeSchemaService;
     strategySchemaService: StrategySchemaService;
     frameSchemaService: FrameSchemaService;
@@ -6530,6 +6573,7 @@ declare const backtest: {
     frameConnectionService: FrameConnectionService;
     sizingConnectionService: SizingConnectionService;
     riskConnectionService: RiskConnectionService;
+    optimizerConnectionService: OptimizerConnectionService;
     executionContextService: {
         readonly context: IExecutionContext;
     };
