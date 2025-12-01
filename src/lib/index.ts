@@ -45,6 +45,9 @@ import FrameValidationService from "./services/validation/FrameValidationService
 import WalkerValidationService from "./services/validation/WalkerValidationService";
 import SizingValidationService from "./services/validation/SizingValidationService";
 import RiskValidationService from "./services/validation/RiskValidationService";
+import OptimizerTemplateService from "./services/template/OptimizerTemplateService";
+import OptimizerSchemaService from "./services/schema/OptimizerSchemaService";
+import OptimizerValidationService from "./services/validation/OptimizerValidationService";
 
 const baseServices = {
   loggerService: inject<LoggerService>(TYPES.loggerService),
@@ -88,6 +91,7 @@ const schemaServices = {
   walkerSchemaService: inject<WalkerSchemaService>(TYPES.walkerSchemaService),
   sizingSchemaService: inject<SizingSchemaService>(TYPES.sizingSchemaService),
   riskSchemaService: inject<RiskSchemaService>(TYPES.riskSchemaService),
+  optimizerSchemaService: inject<OptimizerSchemaService>(TYPES.optimizerSchemaService),
 };
 
 const globalServices = {
@@ -150,6 +154,11 @@ const validationServices = {
   walkerValidationService: inject<WalkerValidationService>(TYPES.walkerValidationService),
   sizingValidationService: inject<SizingValidationService>(TYPES.sizingValidationService),
   riskValidationService: inject<RiskValidationService>(TYPES.riskValidationService),
+  optimizerValidationService: inject<OptimizerValidationService>(TYPES.optimizerValidationService),
+}
+
+const templateServices = {
+  optimizerTemplateService: inject<OptimizerTemplateService>(TYPES.optimizerTemplateService),
 }
 
 export const backtest = {
@@ -163,6 +172,7 @@ export const backtest = {
   ...logicPublicServices,
   ...markdownServices,
   ...validationServices,
+  ...templateServices,
 };
 
 init();

@@ -90,6 +90,11 @@ export {
   IHeatmapStatistics,
 } from "./interfaces/Heatmap.interface";
 
+export {
+  MessageModel,
+  MessageRole,
+} from "./model/Message.model"
+
 export { DoneContract } from "./contract/Done.contract";
 export { ProgressContract } from "./contract/Progress.contract";
 export { PerformanceContract, PerformanceMetricType } from "./contract/Performance.contract";

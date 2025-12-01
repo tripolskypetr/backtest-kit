@@ -22,6 +22,7 @@ const schemaServices = {
     walkerSchemaService: Symbol('walkerSchemaService'),
     sizingSchemaService: Symbol('sizingSchemaService'),
     riskSchemaService: Symbol('riskSchemaService'),
+    optimizerSchemaService: Symbol('optimizerSchemaService'),
 }
 
 const globalServices = {
@@ -66,6 +67,11 @@ const validationServices = {
     walkerValidationService: Symbol('walkerValidationService'),
     sizingValidationService: Symbol('sizingValidationService'),
     riskValidationService: Symbol('riskValidationService'),
+    optimizerValidationService: Symbol('optimizerValidationService'),
+}
+
+const templateServices = {
+    optimizerTemplateService: Symbol('optimizerTemplateService'),
 }
 
 export const TYPES = {
@@ -79,6 +85,7 @@ export const TYPES = {
     ...logicPublicServices,
     ...markdownServices,
     ...validationServices,
+    ...templateServices,
 }
 
 export default TYPES;

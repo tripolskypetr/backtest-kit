@@ -40,6 +40,9 @@ import FrameValidationService from "../services/validation/FrameValidationServic
 import WalkerValidationService from "../services/validation/WalkerValidationService";
 import SizingValidationService from "../services/validation/SizingValidationService";
 import RiskValidationService from "../services/validation/RiskValidationService";
+import OptimizerTemplateService from "../services/template/OptimizerTemplateService";
+import OptimizerSchemaService from "../services/schema/OptimizerSchemaService";
+import OptimizerValidationService from "../services/validation/OptimizerValidationService";
 
 {
     provide(TYPES.loggerService, () => new LoggerService());
@@ -65,6 +68,7 @@ import RiskValidationService from "../services/validation/RiskValidationService"
     provide(TYPES.walkerSchemaService, () => new WalkerSchemaService());
     provide(TYPES.sizingSchemaService, () => new SizingSchemaService());
     provide(TYPES.riskSchemaService, () => new RiskSchemaService());
+    provide(TYPES.optimizerSchemaService, () => new OptimizerSchemaService());
 }
 
 {
@@ -109,5 +113,9 @@ import RiskValidationService from "../services/validation/RiskValidationService"
     provide(TYPES.walkerValidationService, () => new WalkerValidationService());
     provide(TYPES.sizingValidationService, () => new SizingValidationService());
     provide(TYPES.riskValidationService, () => new RiskValidationService());
+    provide(TYPES.optimizerValidationService, () => new OptimizerValidationService());
 }
 
+{
+    provide(TYPES.optimizerTemplateService, () => new OptimizerTemplateService());
+}
