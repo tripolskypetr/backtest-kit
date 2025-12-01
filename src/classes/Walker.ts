@@ -153,6 +153,7 @@ export class WalkerUtils {
         });
       }
       isDone = true;
+      isStopped = true;
     };
   };
 
