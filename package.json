@@ -75,6 +75,7 @@
     "di-kit": "^1.0.18",
     "di-scoped": "^1.0.20",
     "functools-kit": "^1.0.93",
-    "get-moment-stamp": "^1.1.1"
+    "get-moment-stamp": "^1.1.1",
+    "ollama": "^0.6.3"
   }
 }

@@ -81,6 +81,11 @@ export interface IOptimizerTemplate {
     data: Data[],
     name: string
   ): string | Promise<string>;
+  getStrategyTemplate(
+    strategyName: string,
+    interval: string,
+    prompt: string
+  ): Promise<string>;
   getTextTemplate(symbol: string): string | Promise<string>;
   getJsonTemplate(symbol: string): string | Promise<string>;
 }
