@@ -5,7 +5,6 @@ import {
 } from "../../../interfaces/Optimizer.interface";
 import LoggerService from "../base/LoggerService";
 import TYPES from "../../../lib/core/types";
-import { str } from "functools-kit";
 import {
   CandleInterval,
   ExchangeName,
@@ -37,7 +36,7 @@ export class OptimizerTemplateService implements IOptimizerTemplate {
     this.loggerService.log("optimizerTemplateService getTopBanner", {
       symbol,
     });
-    return str.newline(
+    return [
       "#!/usr/bin/env node",
       "",
       `import { Ollama } from "ollama";`,
@@ -62,7 +61,7 @@ export class OptimizerTemplateService implements IOptimizerTemplate {
       `import path from "path";`,
       ``,
       `const WARN_KB = 100;`
-    );
+    ].join("\n");
   };
 
   /**
@@ -84,7 +83,7 @@ export class OptimizerTemplateService implements IOptimizerTemplate {
       data,
       name,
     });
-    return str.newline("Прочитай данные и скажи ОК", "", JSON.stringify(data));
+    return ["Прочитай данные и скажи ОК", "", JSON.stringify(data)].join("\n");
   };
 
   /**
@@ -131,14 +130,14 @@ export class OptimizerTemplateService implements IOptimizerTemplate {
       frameName,
       strategies,
     });
-    return str.newline(
+    return [
       `addWalker({`,
       `    walkerName: "${walkerName}",`,
       `    exchangeName: "${exchangeName}",`,
       `    frameName: "${frameName}",`,
       `    strategies: [${strategies.map((s) => `"${s}"`).join(", ")}],`,
       `});`
-    );
+    ].join("\n");
   };
 
   /**
@@ -160,7 +159,7 @@ export class OptimizerTemplateService implements IOptimizerTemplate {
       interval,
       prompt,
     });
-    return str.newline(
+    return [
       `addStrategy({`,
       `    strategyName: "${strategyName}",`,
       `    interval: "${interval}",`,
@@ -251,7 +250,7 @@ export class OptimizerTemplateService implements IOptimizerTemplate {
       `                content: [`,
       `                    "Проанализируй все таймфреймы и сгенерируй торговый сигнал согласно этой стратегии. Открывай позицию ТОЛЬКО при четком сигнале.",`,
       `                    "",`,
-      `                    ${prompt},`,
+      `                    \`${prompt}\`,`,
       `                    "",`,
       `                    "Если сигналы противоречивы или тренд слабый то position: wait"`,
       `                ].join("\\n"),`,
@@ -267,7 +266,7 @@ export class OptimizerTemplateService implements IOptimizerTemplate {
       `        return result;`,
       `    },`,
       `});`
-    );
+    ].join("\n");
   };
 
   /**
@@ -286,7 +285,7 @@ export class OptimizerTemplateService implements IOptimizerTemplate {
       exchangeName,
       symbol,
     });
-    return str.newline(
+    return [
       `addExchange({`,
       `    exchangeName: "${exchangeName}",`,
       `    getCandles: async (symbol, interval, since, limit) => {`,
@@ -299,7 +298,7 @@ export class OptimizerTemplateService implements IOptimizerTemplate {
       `    formatPrice: async (symbol, price) => price.toFixed(2),`,
       `    formatQuantity: async (symbol, quantity) => quantity.toFixed(8),`,
       `});`
-    );
+    ].join("\n");
   };
 
   /**
@@ -326,14 +325,14 @@ export class OptimizerTemplateService implements IOptimizerTemplate {
       startDate,
       endDate,
     });
-    return str.newline(
+    return [
       `addFrame({`,
       `    frameName: "${frameName}",`,
       `    interval: "${interval}",`,
       `    startDate: new Date("${startDate.toISOString()}"),`,
       `    endDate: new Date("${endDate.toISOString()}"),`,
       `});`
-    );
+    ].join("\n");
   };
 
   /**
@@ -349,7 +348,7 @@ export class OptimizerTemplateService implements IOptimizerTemplate {
       symbol,
       walkerName,
     });
-    return str.newline(
+    return [
       `Walker.background("${symbol}", {`,
       `    walkerName: "${walkerName}"`,
       `});`,
@@ -382,7 +381,7 @@ export class OptimizerTemplateService implements IOptimizerTemplate {
       `listenError((error) => {`,
       `    console.error("Error occurred:", error);`,
       `});`
-    );
+    ].join("\n");
   };
 
   /**
@@ -396,7 +395,7 @@ export class OptimizerTemplateService implements IOptimizerTemplate {
     this.loggerService.log("optimizerTemplateService getJsonDumpTemplate", {
       symbol,
     });
-    return str.newline(
+    return [
       `const dumpJson = async (resultId, history, result, outputDir = "./dump/strategy") => {`,
       `    // Extract system messages and system reminders from existing data`,
       `    const systemMessages = history.filter((m) => m.role === "system");`,
@@ -485,7 +484,7 @@ export class OptimizerTemplateService implements IOptimizerTemplate {
       `        await fs.writeFile(contentFilePath, content, "utf8");`,
       `    }`,
       `};`
-    );
+    ].join("\n");
   };
 
   /**
@@ -499,7 +498,15 @@ export class OptimizerTemplateService implements IOptimizerTemplate {
     this.loggerService.log("optimizerTemplateService getTextTemplate", {
       symbol,
     });
-    return str.newline(
+
+    // Escape special characters in symbol to prevent code injection
+    const escapedSymbol = String(symbol)
+      .replace(/\\/g, '\\\\')
+      .replace(/`/g, '\\`')
+      .replace(/\$/g, '\\$')
+      .toUpperCase();
+
+    return [
       `async function text(messages) {`,
       `    const ollama = new Ollama({`,
       `        host: "https://ollama.com",`,
@@ -524,20 +531,20 @@ export class OptimizerTemplateService implements IOptimizerTemplate {
       `            {`,
       `                role: "user",`,
       `                content: [`,
-      `                    "На каких условиях мне купить ${String(symbol).toUpperCase()}?",`,
+      `                    "На каких условиях мне купить ${escapedSymbol}?",`,
       `                    "Дай анализ рынка на основе поддержки/сопротивления, точек входа в LONG/SHORT позиции.",`,
       `                    "Какой RR ставить для позиций?",`,
       `                    "Предпочтительны LONG или SHORT позиции?",`,
       `                    "",`,
       `                    "Сделай не сухой технический, а фундаментальный анализ, содержащий стратигическую рекомендацию, например, покупать на низу боковика"`,
-      `                ].join("\\n"),`,
-      `            },`,
-      `        ],`,
+      `                ].join("\\n")`,
+      `            }`,
+      `        ]`,
       `    });`,
       ``,
       `    return response.message.content.trim();`,
       `}`
-    );
+    ].join("\n");
   };
 
   /**
@@ -559,7 +566,7 @@ export class OptimizerTemplateService implements IOptimizerTemplate {
     this.loggerService.log("optimizerTemplateService getJsonTemplate", {
       symbol,
     });
-    return str.newline(
+    return [
       `async function json(messages) {`,
       `    const ollama = new Ollama({`,
       `        host: "https://ollama.com",`,
@@ -637,7 +644,7 @@ export class OptimizerTemplateService implements IOptimizerTemplate {
       `    const jsonResponse = JSON.parse(response.message.content.trim());`,
       `    return jsonResponse;`,
       `}`
-    );
+    ].join("\n");
   };
 }
 
