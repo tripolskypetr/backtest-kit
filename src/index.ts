@@ -1,5 +1,3 @@
-import { listenSignalBacktest } from "./function/event";
-
 export { setLogger, setConfig } from "./function/setup";
 export { addExchange, addStrategy, addFrame, addWalker, addSizing, addRisk } from "./function/add";
 export { listExchanges, listStrategies, listFrames, listWalkers, listSizings, listRisks } from "./function/list";
