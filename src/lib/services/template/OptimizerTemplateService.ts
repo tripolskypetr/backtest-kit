@@ -130,12 +130,27 @@ export class OptimizerTemplateService implements IOptimizerTemplate {
       frameName,
       strategies,
     });
+
+    // Escape special characters to prevent code injection
+    const escapedWalkerName = String(walkerName)
+      .replace(/\\/g, '\\\\')
+      .replace(/"/g, '\\"');
+    const escapedExchangeName = String(exchangeName)
+      .replace(/\\/g, '\\\\')
+      .replace(/"/g, '\\"');
+    const escapedFrameName = String(frameName)
+      .replace(/\\/g, '\\\\')
+      .replace(/"/g, '\\"');
+    const escapedStrategies = strategies.map((s) =>
+      String(s).replace(/\\/g, '\\\\').replace(/"/g, '\\"')
+    );
+
     return [
       `addWalker({`,
-      `    walkerName: "${walkerName}",`,
-      `    exchangeName: "${exchangeName}",`,
-      `    frameName: "${frameName}",`,
-      `    strategies: [${strategies.map((s) => `"${s}"`).join(", ")}],`,
+      `    walkerName: "${escapedWalkerName}",`,
+      `    exchangeName: "${escapedExchangeName}",`,
+      `    frameName: "${escapedFrameName}",`,
+      `    strategies: [${escapedStrategies.map((s) => `"${s}"`).join(", ")}],`,
       `});`
     ].join("\n");
   };
@@ -159,10 +174,23 @@ export class OptimizerTemplateService implements IOptimizerTemplate {
       interval,
       prompt,
     });
+
+    // Escape special characters to prevent code injection
+    const escapedStrategyName = String(strategyName)
+      .replace(/\\/g, '\\\\')
+      .replace(/"/g, '\\"');
+    const escapedInterval = String(interval)
+      .replace(/\\/g, '\\\\')
+      .replace(/"/g, '\\"');
+    const escapedPrompt = String(prompt)
+      .replace(/\\/g, '\\\\')
+      .replace(/`/g, '\\`')
+      .replace(/\$/g, '\\$');
+
     return [
       `addStrategy({`,
-      `    strategyName: "${strategyName}",`,
-      `    interval: "${interval}",`,
+      `    strategyName: "${escapedStrategyName}",`,
+      `    interval: "${escapedInterval}",`,
       `    getSignal: async (symbol) => {`,
       `        const messages = [];`,
       ``,
@@ -250,7 +278,7 @@ export class OptimizerTemplateService implements IOptimizerTemplate {
       `                content: [`,
       `                    "Проанализируй все таймфреймы и сгенерируй торговый сигнал согласно этой стратегии. Открывай позицию ТОЛЬКО при четком сигнале.",`,
       `                    "",`,
-      `                    \`${prompt}\`,`,
+      `                    \`${escapedPrompt}\`,`,
       `                    "",`,
       `                    "Если сигналы противоречивы или тренд слабый то position: wait"`,
       `                ].join("\\n"),`,
@@ -285,9 +313,15 @@ export class OptimizerTemplateService implements IOptimizerTemplate {
       exchangeName,
       symbol,
     });
+
+    // Escape special characters to prevent code injection
+    const escapedExchangeName = String(exchangeName)
+      .replace(/\\/g, '\\\\')
+      .replace(/"/g, '\\"');
+
     return [
       `addExchange({`,
-      `    exchangeName: "${exchangeName}",`,
+      `    exchangeName: "${escapedExchangeName}",`,
       `    getCandles: async (symbol, interval, since, limit) => {`,
       `        const exchange = new ccxt.binance();`,
       `        const ohlcv = await exchange.fetchOHLCV(symbol, interval, since.getTime(), limit);`,
@@ -325,10 +359,19 @@ export class OptimizerTemplateService implements IOptimizerTemplate {
       startDate,
       endDate,
     });
+
+    // Escape special characters to prevent code injection
+    const escapedFrameName = String(frameName)
+      .replace(/\\/g, '\\\\')
+      .replace(/"/g, '\\"');
+    const escapedInterval = String(interval)
+      .replace(/\\/g, '\\\\')
+      .replace(/"/g, '\\"');
+
     return [
       `addFrame({`,
-      `    frameName: "${frameName}",`,
-      `    interval: "${interval}",`,
+      `    frameName: "${escapedFrameName}",`,
+      `    interval: "${escapedInterval}",`,
       `    startDate: new Date("${startDate.toISOString()}"),`,
       `    endDate: new Date("${endDate.toISOString()}"),`,
       `});`
@@ -348,9 +391,18 @@ export class OptimizerTemplateService implements IOptimizerTemplate {
       symbol,
       walkerName,
     });
+
+    // Escape special characters to prevent code injection
+    const escapedSymbol = String(symbol)
+      .replace(/\\/g, '\\\\')
+      .replace(/"/g, '\\"');
+    const escapedWalkerName = String(walkerName)
+      .replace(/\\/g, '\\\\')
+      .replace(/"/g, '\\"');
+
     return [
-      `Walker.background("${symbol}", {`,
-      `    walkerName: "${walkerName}"`,
+      `Walker.background("${escapedSymbol}", {`,
+      `    walkerName: "${escapedWalkerName}"`,
       `});`,
       ``,
       `listenSignalBacktest((event) => {`,
@@ -370,7 +422,7 @@ export class OptimizerTemplateService implements IOptimizerTemplate {
       ``,
       `listenWalkerComplete((results) => {`,
       `    console.log("Walker completed:", results.bestStrategy);`,
-      `    Walker.dump("${symbol}", results.walkerName);`,
+      `    Walker.dump("${escapedSymbol}", results.walkerName);`,
       `});`,
       ``,
       `listenDoneBacktest((event) => {`,
@@ -542,7 +594,13 @@ export class OptimizerTemplateService implements IOptimizerTemplate {
       `        ]`,
       `    });`,
       ``,
-      `    return response.message.content.trim();`,
+      `    const content = response.message.content.trim();`,
+      `    return content`,
+      `        .replace(/\\\\/g, '\\\\\\\\')`,
+      `        .replace(/\`/g, '\\\\\`')`,
+      `        .replace(/\\$/g, '\\\\$')`,
+      `        .replace(/"/g, '\\\\"')`,
+      `        .replace(/'/g, "\\\\'");`,
       `}`
     ].join("\n");
   };

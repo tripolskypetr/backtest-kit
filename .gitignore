@@ -5,3 +5,4 @@ node_modules
 wwwroot
 logs
 tmp
+generated
