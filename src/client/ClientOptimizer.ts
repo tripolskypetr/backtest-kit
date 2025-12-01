@@ -137,7 +137,13 @@ const GET_STRATEGY_CODE_FN = async (
     sections.push("");
   }
 
-  // 2. Helper functions (text and json)
+  // 2. JSON dump helper function
+  {
+    sections.push(await self.params.template.getJsonDumpTemplate(symbol));
+    sections.push("");
+  }
+
+  // 3. Helper functions (text and json)
   {
     sections.push(await self.params.template.getTextTemplate(symbol));
     sections.push("");
@@ -148,7 +154,7 @@ const GET_STRATEGY_CODE_FN = async (
     sections.push("");
   }
 
-  // 3. Exchange template (assuming first strategy has exchange info)
+  // 4. Exchange template (assuming first strategy has exchange info)
   {
     sections.push(
       await self.params.template.getExchangeTemplate(
@@ -159,7 +165,7 @@ const GET_STRATEGY_CODE_FN = async (
     sections.push("");
   }
 
-  // 4. Train frame templates
+  // 5. Train frame templates
   {
     for (let i = 0; i < self.params.rangeTrain.length; i++) {
       const range = self.params.rangeTrain[i];
@@ -177,7 +183,7 @@ const GET_STRATEGY_CODE_FN = async (
     }
   }
 
-  // 5. Test frame template
+  // 6. Test frame template
   {
     const testFrameName = `${prefix}_test_frame`;
     sections.push(
@@ -192,7 +198,7 @@ const GET_STRATEGY_CODE_FN = async (
     sections.push("");
   }
 
-  // 6. Strategy templates for each generated strategy
+  // 7. Strategy templates for each generated strategy
   {
     for (let i = 0; i < strategyData.length; i++) {
       const strategy = strategyData[i];
@@ -209,7 +215,7 @@ const GET_STRATEGY_CODE_FN = async (
     }
   }
 
-  // 7. Walker template (uses test frame for validation)
+  // 8. Walker template (uses test frame for validation)
   {
     const walkerName = `${prefix}_walker`;
     const testFrameName = `${prefix}_test_frame`;
@@ -227,7 +233,7 @@ const GET_STRATEGY_CODE_FN = async (
     sections.push("");
   }
 
-  // 8. Launcher template
+  // 9. Launcher template
   {
     const walkerName = `${prefix}_walker`;
     sections.push(
