@@ -3,7 +3,7 @@ import LoggerService from "../base/LoggerService";
 import TYPES from "../../core/types";
 import OptimizerConnectionService from "../connection/OptimizerConnectionService";
 import OptimizerValidationService from "../validation/OptimizerValidationService";
-import { IOptimizerStrategy } from "src/interfaces/Optimizer.interface";
+import { IOptimizerStrategy } from "../../../interfaces/Optimizer.interface";
 
 const METHOD_NAME_GET_DATA = "optimizerGlobalService getData";
 const METHOD_NAME_GET_CODE = "optimizerGlobalService getCode";

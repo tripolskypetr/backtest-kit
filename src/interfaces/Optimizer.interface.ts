@@ -1,6 +1,6 @@
 import { CandleInterval } from "./Exchange.interface";
 import { ILogger } from "./Logger.interface";
-import { MessageModel } from "src/model/Message.model";
+import { MessageModel } from "../model/Message.model";
 
 type RowId = string | number;
 
