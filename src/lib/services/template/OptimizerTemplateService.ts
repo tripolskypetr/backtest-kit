@@ -29,9 +29,11 @@ export class OptimizerTemplateService implements IOptimizerTemplate {
       `    addFrame,`,
       `    addWalker,`,
       `    Walker,`,
+      `    Backtest,`,
       `    getCandles,`,
       `    listenSignalBacktest,`,
       `    listenWalkerComplete,`,
+      `    listenDoneBacktest,`,
       `} from "backtest-kit";`
     );
   };
@@ -262,7 +264,12 @@ export class OptimizerTemplateService implements IOptimizerTemplate {
       ``,
       `listenWalkerComplete((results) => {`,
       `    console.log("Walker completed:", results.bestStrategy);`,
-      `    Walker.dump("${symbol}", results.walkerName); // Save report`,
+      `    Walker.dump("${symbol}", results.walkerName);`,
+      `});`,
+      ``,
+      `listenDoneBacktest((event) => {`,
+      `    console.log("Backtest completed:", event.symbol);`,
+      `    Backtest.dump(event.strategyName);`,
       `});`
     );
   };
@@ -361,7 +368,7 @@ export class OptimizerTemplateService implements IOptimizerTemplate {
       `                },`,
       `                priceOpen: {`,
       `                    type: "number",`,
-      `                    description: "Entry price (current market price or pending order price)",`,
+      `                    description: "Entry price (current market price or limit order price)",`,
       `                },`,
       `                priceTakeProfit: {`,
       `                    type: "number",`,
