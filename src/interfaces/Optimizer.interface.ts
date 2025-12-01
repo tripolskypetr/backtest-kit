@@ -69,6 +69,7 @@ export interface IOptimizerTemplate {
     name: string
   ): string | Promise<string>;
   getTextTemplate(symbol: string): string | Promise<string>;
+  getJsonTemplate(symbol: string): string | Promise<string>;
 }
 
 export interface IOptimizerValidationFn {
