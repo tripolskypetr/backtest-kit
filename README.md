@@ -48,7 +48,9 @@ Build sophisticated trading systems with confidence. Backtest Kit empowers you t
 
 - 🔒 **Safe Math & Robustness**: All metrics protected against NaN/Infinity with unsafe numeric checks. Returns N/A for invalid calculations. ✨
 
-- 🧪 **Comprehensive Test Coverage**: 123 unit and integration tests covering validation, PNL, callbacks, reports, performance tracking, walker, heatmap, position sizing, risk management, scheduled signals, and event system. 
+- 🤖 **AI Strategy Optimizer**: LLM-powered strategy generation from historical data. Train multiple strategy variants, compare performance, and auto-generate executable code. Supports Ollama integration with multi-timeframe analysis. 🧠
+
+- 🧪 **Comprehensive Test Coverage**: Unit and integration tests covering validation, PNL, callbacks, reports, performance tracking, walker, heatmap, position sizing, risk management, scheduled signals, optimizer, and event system. 
 
 ---
 
@@ -255,6 +257,7 @@ Backtest.background("BTCUSDT", {
 - 🛡️ **`addRisk`**: Portfolio-level risk management with custom validation logic. 🔐
 - 💾 **`PersistBase`**: Base class for custom persistence adapters (Redis, MongoDB, PostgreSQL). 🗄️
 - 🔌 **`PersistSignalAdapter` / `PersistRiskAdapter`**: Register custom adapters for signal and risk persistence. 🔄
+- 🤖 **`Optimizer`**: AI-powered strategy generation with LLM integration. Auto-generate strategies from historical data and export executable code. 🧠
 
 Check out the sections below for detailed examples! 📚
 
@@ -1070,6 +1073,261 @@ test("Custom Redis adapter works correctly", async ({ pass, fail }) => {
   await persist.removeValue("key1");
 });
 ```
+
+---
+
+## 🤖 AI Strategy Optimizer
+
+The Optimizer uses LLM (Large Language Models) to generate trading strategies from historical data. It automates the process of analyzing backtest results, generating strategy logic, and creating executable code.
+
+### How It Works
+
+1. **Data Collection**: Fetch historical data from multiple sources (backtest results, market data, indicators)
+2. **LLM Training**: Build conversation context with data for each training period
+3. **Strategy Generation**: LLM analyzes patterns and generates strategy logic
+4. **Code Export**: Auto-generate complete executable code with Walker for testing
+
+### Basic Example
+
+```typescript
+import { addOptimizer, Optimizer } from "backtest-kit";
+
+// Register optimizer configuration
+addOptimizer({
+  optimizerName: "btc-optimizer",
+
+  // Training periods (multiple strategies generated)
+  rangeTrain: [
+    {
+      note: "Bull market Q1 2024",
+      startDate: new Date("2024-01-01T00:00:00Z"),
+      endDate: new Date("2024-03-31T23:59:59Z"),
+    },
+    {
+      note: "Consolidation Q2 2024",
+      startDate: new Date("2024-04-01T00:00:00Z"),
+      endDate: new Date("2024-06-30T23:59:59Z"),
+    },
+  ],
+
+  // Testing period (Walker validates strategies)
+  rangeTest: {
+    note: "Validation Q3 2024",
+    startDate: new Date("2024-07-01T00:00:00Z"),
+    endDate: new Date("2024-09-30T23:59:59Z"),
+  },
+
+  // Data sources for strategy generation
+  source: [
+    {
+      name: "backtest-results",
+      fetch: async ({ symbol, startDate, endDate, limit, offset }) => {
+        // Fetch closed signals from your backtest database
+        return await db.getBacktestResults({
+          symbol,
+          startDate,
+          endDate,
+          limit,
+          offset,
+        });
+      },
+    },
+    {
+      name: "market-indicators",
+      fetch: async ({ symbol, startDate, endDate, limit, offset }) => {
+        // Fetch RSI, MACD, volume data, etc.
+        return await db.getIndicators({
+          symbol,
+          startDate,
+          endDate,
+          limit,
+          offset,
+        });
+      },
+    },
+  ],
+
+  // LLM prompt generation from conversation history
+  getPrompt: async (symbol, messages) => {
+    // Analyze messages and create strategy prompt
+    return `
+      Based on the historical data, create a strategy that:
+      - Uses multi-timeframe analysis (1h, 15m, 5m, 1m)
+      - Identifies high-probability entry points
+      - Uses proper risk/reward ratios (min 1.5:1)
+      - Adapts to market conditions
+    `;
+  },
+});
+
+// Generate strategies and export code
+await Optimizer.dump("BTCUSDT", {
+  optimizerName: "btc-optimizer"
+}, "./generated");
+
+// Output: ./generated/btc-optimizer_BTCUSDT.mjs
+```
+
+### Generated Code Structure
+
+The Optimizer auto-generates a complete executable file with:
+
+1. **Imports** - All necessary dependencies (backtest-kit, ollama, ccxt)
+2. **Helper Functions**:
+   - `text()` - LLM text generation for analysis
+   - `json()` - Structured signal generation with schema validation
+   - `dumpJson()` - Debug logging to ./dump/strategy
+3. **Exchange Configuration** - CCXT Binance integration
+4. **Frame Definitions** - Training and testing timeframes
+5. **Strategy Implementations** - One per training range with multi-timeframe analysis
+6. **Walker Setup** - Automatic strategy comparison on test period
+7. **Event Listeners** - Progress tracking and result collection
+
+### Advanced Configuration
+
+#### Custom Message Templates
+
+Override default LLM message formatting:
+
+```typescript
+addOptimizer({
+  optimizerName: "custom-optimizer",
+  rangeTrain: [...],
+  rangeTest: {...},
+  source: [...],
+  getPrompt: async (symbol, messages) => "...",
+
+  // Custom templates
+  template: {
+    getUserMessage: async (symbol, data, sourceName) => {
+      return `Analyze ${sourceName} data for ${symbol}:\n${JSON.stringify(data, null, 2)}`;
+    },
+    getAssistantMessage: async (symbol, data, sourceName) => {
+      return `Data from ${sourceName} analyzed successfully`;
+    },
+  },
+});
+```
+
+#### Lifecycle Callbacks
+
+Monitor optimizer operations:
+
+```typescript
+addOptimizer({
+  optimizerName: "monitored-optimizer",
+  rangeTrain: [...],
+  rangeTest: {...},
+  source: [...],
+  getPrompt: async (symbol, messages) => "...",
+
+  callbacks: {
+    onSourceData: async (symbol, sourceName, data, startDate, endDate) => {
+      console.log(`Fetched ${data.length} rows from ${sourceName}`);
+    },
+    onData: async (symbol, strategyData) => {
+      console.log(`Generated ${strategyData.length} strategies for ${symbol}`);
+    },
+    onCode: async (symbol, code) => {
+      console.log(`Generated ${code.length} bytes of code`);
+    },
+    onDump: async (symbol, filepath) => {
+      console.log(`Saved strategy to ${filepath}`);
+    },
+  },
+});
+```
+
+#### Multiple Data Sources
+
+Combine different data types for comprehensive analysis:
+
+```typescript
+addOptimizer({
+  optimizerName: "multi-source-optimizer",
+  rangeTrain: [...],
+  rangeTest: {...},
+
+  source: [
+    // Source 1: Backtest results
+    {
+      name: "backtest-signals",
+      fetch: async (args) => await getBacktestSignals(args),
+    },
+
+    // Source 2: Market indicators
+    {
+      name: "technical-indicators",
+      fetch: async (args) => await getTechnicalIndicators(args),
+    },
+
+    // Source 3: Volume profile
+    {
+      name: "volume-analysis",
+      fetch: async (args) => await getVolumeProfile(args),
+    },
+
+    // Source 4: Order book depth
+    {
+      name: "order-book",
+      fetch: async (args) => await getOrderBookData(args),
+    },
+  ],
+
+  getPrompt: async (symbol, messages) => {
+    // LLM has full context from all sources
+    return `Create strategy using all available data sources`;
+  },
+});
+```
+
+### API Methods
+
+```typescript
+// Get strategy metadata (no code generation)
+const strategies = await Optimizer.getData("BTCUSDT", {
+  optimizerName: "my-optimizer"
+});
+
+// strategies[0].messages - LLM conversation history
+// strategies[0].strategy - Generated strategy prompt
+
+// Generate executable code
+const code = await Optimizer.getCode("BTCUSDT", {
+  optimizerName: "my-optimizer"
+});
+
+// Save to file
+await Optimizer.dump("BTCUSDT", {
+  optimizerName: "my-optimizer"
+}, "./output"); // Default: "./"
+```
+
+### LLM Integration
+
+The Optimizer uses Ollama for LLM inference:
+
+```bash
+# Set up Ollama API
+export OLLAMA_API_KEY=your-api-key
+
+# Run generated strategy
+node generated/btc-optimizer_BTCUSDT.mjs
+```
+
+Generated strategies use:
+- **Model**: `gpt-oss:20b` (configurable in templates)
+- **Multi-timeframe analysis**: 1h, 15m, 5m, 1m candles
+- **Structured output**: JSON schema with signal validation
+- **Debug logging**: Saves conversations to ./dump/strategy
+
+### Best Practices
+
+1. **Training Periods**: Use 2-4 diverse market conditions (bull, bear, sideways)
+2. **Data Quality**: Ensure data sources have unique IDs for deduplication
+3. **Pagination**: Sources automatically paginated (25 records per request)
+4. **Testing**: Always validate generated strategies on unseen data (rangeTest)
+5. **Monitoring**: Use callbacks to track data fetching and code generation
 
 ---
 
