@@ -521,8 +521,8 @@ test("LIVE MARKDOWN: LiveMarkdownService works with persist storage", async ({ p
   class BtcPersistAdapter {
     async waitForInit() {}
 
-    async readValue(symbol, strategyName) {
-      if (symbol === "BTCUSDT" && strategyName === "test-live-markdown" && !btcPersistCalled.read) {
+    async readValue(symbol) {
+      if (symbol === "BTCUSDT" && !btcPersistCalled.read) {
         btcPersistCalled.read = true;
         return {
           id: "persist-btc-live-markdown",
@@ -540,8 +540,8 @@ test("LIVE MARKDOWN: LiveMarkdownService works with persist storage", async ({ p
       return null;
     }
 
-    async hasValue(symbol, strategyName) {
-      return symbol === "BTCUSDT" && strategyName === "test-live-markdown" && !btcPersistCalled.read;
+    async hasValue(symbol) {
+      return symbol === "BTCUSDT" && !btcPersistCalled.read;
     }
 
     async writeValue() {}
@@ -553,8 +553,8 @@ test("LIVE MARKDOWN: LiveMarkdownService works with persist storage", async ({ p
   class EthPersistAdapter {
     async waitForInit() {}
 
-    async readValue(symbol, strategyName) {
-      if (symbol === "ETHUSDT" && strategyName === "test-live-markdown" && !ethPersistCalled.read) {
+    async readValue(symbol) {
+      if (symbol === "ETHUSDT" && !ethPersistCalled.read) {
         ethPersistCalled.read = true;
         return {
           id: "persist-eth-live-markdown",
@@ -572,8 +572,8 @@ test("LIVE MARKDOWN: LiveMarkdownService works with persist storage", async ({ p
       return null;
     }
 
-    async hasValue(symbol, strategyName) {
-      return symbol === "ETHUSDT" && strategyName === "test-live-markdown" && !ethPersistCalled.read;
+    async hasValue(symbol) {
+      return symbol === "ETHUSDT" && !ethPersistCalled.read;
     }
 
     async writeValue() {}
@@ -590,22 +590,22 @@ test("LIVE MARKDOWN: LiveMarkdownService works with persist storage", async ({ p
       await this.ethAdapter.waitForInit();
     }
 
-    async readValue(symbol, strategyName) {
+    async readValue(symbol) {
       if (symbol === "BTCUSDT") {
-        return await this.btcAdapter.readValue(symbol, strategyName);
+        return await this.btcAdapter.readValue(symbol);
       }
       if (symbol === "ETHUSDT") {
-        return await this.ethAdapter.readValue(symbol, strategyName);
+        return await this.ethAdapter.readValue(symbol);
       }
       return null;
     }
 
-    async hasValue(symbol, strategyName) {
+    async hasValue(symbol) {
       if (symbol === "BTCUSDT") {
-        return await this.btcAdapter.hasValue(symbol, strategyName);
+        return await this.btcAdapter.hasValue(symbol);
       }
       if (symbol === "ETHUSDT") {
-        return await this.ethAdapter.hasValue(symbol, strategyName);
+        return await this.ethAdapter.hasValue(symbol);
       }
       return false;
     }
@@ -616,15 +616,16 @@ test("LIVE MARKDOWN: LiveMarkdownService works with persist storage", async ({ p
 
   addExchange({
     exchangeName: "binance-live-markdown",
-    getCandles: async (symbol, _interval, _since, limit) => {
+    getCandles: async (symbol, _interval, since, limit) => {
       const candles = [];
       const intervalMs = 60000;
+      const sinceTime = since.getTime();
 
       for (let i = 0; i < limit; i++) {
-        const timestamp = Date.now() + i * intervalMs;
+        const timestamp = sinceTime + i * intervalMs;
 
         if (symbol === "BTCUSDT") {
-          // BTCUSDT: свечи сразу закрывают по TP
+          // BTCUSDT LONG: свечи на уровне TP для закрытия
           candles.push({
             timestamp,
             open: btcPriceTakeProfit,
@@ -634,12 +635,12 @@ test("LIVE MARKDOWN: LiveMarkdownService works with persist storage", async ({ p
             volume: 100,
           });
         } else if (symbol === "ETHUSDT") {
-          // ETHUSDT SHORT: свечи сразу закрывают по SL (цена идет вверх)
+          // ETHUSDT SHORT: свечи на уровне SL для закрытия
           candles.push({
             timestamp,
             open: ethPriceStopLoss,
-            high: ethPriceStopLoss + 100,
-            low: ethPriceStopLoss - 100,
+            high: ethPriceStopLoss + 50,
+            low: ethPriceStopLoss - 50,
             close: ethPriceStopLoss,
             volume: 100,
           });
@@ -656,19 +657,20 @@ test("LIVE MARKDOWN: LiveMarkdownService works with persist storage", async ({ p
     strategyName: "test-live-markdown",
     interval: "1m",
     getSignal: async () => null,
-    onClose: async (result) => {
-      if (result.symbol === "BTCUSDT") {
-        btcClosedCount++;
-        if (btcClosedCount >= 1 && ethClosedCount >= 1) {
-          awaitSubject.next();
+    callbacks: {
+      onTick: (symbol, result) => {
+        if (result.action === "closed") {
+          if (symbol === "BTCUSDT") {
+            btcClosedCount++;
+          }
+          if (symbol === "ETHUSDT") {
+            ethClosedCount++;
+          }
+          if (btcClosedCount >= 1 && ethClosedCount >= 1) {
+            awaitSubject.next();
+          }
         }
-      }
-      if (result.symbol === "ETHUSDT") {
-        ethClosedCount++;
-        if (btcClosedCount >= 1 && ethClosedCount >= 1) {
-          awaitSubject.next();
-        }
-      }
+      },
     },
   });
 

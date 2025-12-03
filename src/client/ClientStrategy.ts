@@ -1557,8 +1557,8 @@ export class ClientStrategy implements IStrategy {
 
     await PersistSignalAdapter.writeSignalData(
       this._pendingSignal,
+      this.params.execution.context.symbol,
       this.params.strategyName,
-      this.params.execution.context.symbol
     );
   }
 
@@ -1583,8 +1583,8 @@ export class ClientStrategy implements IStrategy {
 
     await PersistScheduleAdapter.writeScheduleData(
       this._scheduledSignal,
+      this.params.execution.context.symbol,
       this.params.strategyName,
-      this.params.execution.context.symbol
     );
   }
 
