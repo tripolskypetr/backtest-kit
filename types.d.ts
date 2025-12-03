@@ -576,8 +576,8 @@ interface IPartialData {
     lossLevels: PartialLevel[];
 }
 interface IPartial {
-    profit(symbol: string, data: ISignalRow, currentPrice: number, revenuePercent: number, backtest: boolean): Promise<void>;
-    loss(symbol: string, data: ISignalRow, currentPrice: number, lossPercent: number, backtest: boolean): Promise<void>;
+    profit(symbol: string, data: ISignalRow, currentPrice: number, revenuePercent: number, backtest: boolean, when: Date): Promise<void>;
+    loss(symbol: string, data: ISignalRow, currentPrice: number, lossPercent: number, backtest: boolean, when: Date): Promise<void>;
     clear(symbol: string, data: ISignalRow, priceClose: number): Promise<void>;
 }
 
@@ -2519,6 +2519,8 @@ interface PartialProfitContract {
     level: PartialLevel;
     /** backtest - True if backtest mode, false if live mode */
     backtest: boolean;
+    /** timestamp - Event timestamp in milliseconds (current time for live, candle time for backtest) */
+    timestamp: number;
 }
 
 /**
@@ -2547,6 +2549,8 @@ interface PartialLossContract {
     level: PartialLevel;
     /** backtest - True if backtest mode, false if live mode */
     backtest: boolean;
+    /** timestamp - Event timestamp in milliseconds (current time for live, candle time for backtest) */
+    timestamp: number;
 }
 
 /**
@@ -7909,8 +7913,8 @@ declare class OptimizerGlobalService {
 declare class PartialConnectionService implements IPartial {
     private readonly loggerService;
     private getPartial;
-    profit: (symbol: string, data: ISignalRow, currentPrice: number, revenuePercent: number, backtest: boolean) => Promise<void>;
-    loss: (symbol: string, data: ISignalRow, currentPrice: number, lossPercent: number, backtest: boolean) => Promise<void>;
+    profit: (symbol: string, data: ISignalRow, currentPrice: number, revenuePercent: number, backtest: boolean, when: Date) => Promise<void>;
+    loss: (symbol: string, data: ISignalRow, currentPrice: number, lossPercent: number, backtest: boolean, when: Date) => Promise<void>;
     clear: (symbol: string, data: ISignalRow, priceClose: number) => Promise<void>;
 }
 

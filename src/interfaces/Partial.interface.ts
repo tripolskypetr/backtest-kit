@@ -19,15 +19,17 @@ export interface IPartialParams {
     symbol: string,
     data: ISignalRow,
     currentPrice: number,
-    revenuePercent: number,
-    backtest: boolean
+    level: PartialLevel,
+    backtest: boolean,
+    timestamp: number
   ) => void;
   onLoss: (
     symbol: string,
     data: ISignalRow,
     currentPrice: number,
-    lossPercent: number,
-    backtest: boolean
+    level: PartialLevel,
+    backtest: boolean,
+    timestamp: number
   ) => void;
 }
 
@@ -37,14 +39,16 @@ export interface IPartial {
     data: ISignalRow,
     currentPrice: number,
     revenuePercent: number,
-    backtest: boolean
+    backtest: boolean,
+    when: Date
   ): Promise<void>;
   loss(
     symbol: string,
     data: ISignalRow,
     currentPrice: number,
     lossPercent: number,
-    backtest: boolean
+    backtest: boolean,
+    when: Date
   ): Promise<void>;
   clear(symbol: string, data: ISignalRow, priceClose: number): Promise<void>;
 }

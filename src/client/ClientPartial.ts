@@ -18,6 +18,7 @@ const HANDLE_PROFIT_FN = async (
   currentPrice: number,
   revenuePercent: number,
   backtest: boolean,
+  when: Date,
   self: ClientPartial
 ) => {
   if (self._states === NEED_FETCH) {
@@ -50,7 +51,7 @@ const HANDLE_PROFIT_FN = async (
         backtest,
       });
 
-      await self.params.onProfit(symbol, data, currentPrice, level, backtest);
+      await self.params.onProfit(symbol, data, currentPrice, level, backtest, when.getTime());
     }
   }
 
@@ -65,6 +66,7 @@ const HANDLE_LOSS_FN = async (
   currentPrice: number,
   lossPercent: number,
   backtest: boolean,
+  when: Date,
   self: ClientPartial
 ) => {
   if (self._states === NEED_FETCH) {
@@ -98,7 +100,7 @@ const HANDLE_LOSS_FN = async (
         backtest,
       });
 
-      await self.params.onLoss(symbol, data, currentPrice, level, backtest);
+      await self.params.onLoss(symbol, data, currentPrice, level, backtest, when.getTime());
     }
   }
 
@@ -177,7 +179,8 @@ export class ClientPartial {
     data: ISignalRow,
     currentPrice: number,
     revenuePercent: number,
-    backtest: boolean
+    backtest: boolean,
+    when: Date
   ) {
     this.params.logger.debug("ClientPartial profit", {
       symbol,
@@ -185,6 +188,7 @@ export class ClientPartial {
       currentPrice,
       revenuePercent,
       backtest,
+      when,
     });
     return await HANDLE_PROFIT_FN(
       symbol,
@@ -192,6 +196,7 @@ export class ClientPartial {
       currentPrice,
       revenuePercent,
       backtest,
+      when,
       this
     );
   }
@@ -201,7 +206,8 @@ export class ClientPartial {
     data: ISignalRow,
     currentPrice: number,
     lossPercent: number,
-    backtest: boolean
+    backtest: boolean,
+    when: Date
   ) {
     this.params.logger.debug("ClientPartial loss", {
       symbol,
@@ -209,8 +215,9 @@ export class ClientPartial {
       currentPrice,
       lossPercent,
       backtest,
+      when,
     });
-    return await HANDLE_LOSS_FN(symbol, data, currentPrice, lossPercent, backtest, this);
+    return await HANDLE_LOSS_FN(symbol, data, currentPrice, lossPercent, backtest, when, this);
   }
 
   public async clear(symbol: string, data: ISignalRow, priceClose: number) {

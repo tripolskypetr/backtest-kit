@@ -955,7 +955,8 @@ const RETURN_PENDING_SIGNAL_ACTIVE_FN = async (
         signal,
         currentPrice,
         revenuePercent,
-        self.params.execution.context.backtest
+        self.params.execution.context.backtest,
+        self.params.execution.context.when
       );
 
       if (self.params.callbacks?.onPartialProfit) {
@@ -977,7 +978,8 @@ const RETURN_PENDING_SIGNAL_ACTIVE_FN = async (
         signal,
         currentPrice,
         revenuePercent,
-        self.params.execution.context.backtest
+        self.params.execution.context.backtest,
+        self.params.execution.context.when
       );
 
       if (self.params.callbacks?.onPartialLoss) {
@@ -1433,7 +1435,8 @@ const PROCESS_PENDING_SIGNAL_CANDLES_FN = async (
           signal,
           averagePrice,
           revenuePercent,
-          self.params.execution.context.backtest
+          self.params.execution.context.backtest,
+          self.params.execution.context.when
         );
 
         if (self.params.callbacks?.onPartialProfit) {
@@ -1455,7 +1458,8 @@ const PROCESS_PENDING_SIGNAL_CANDLES_FN = async (
           signal,
           averagePrice,
           revenuePercent,
-          self.params.execution.context.backtest
+          self.params.execution.context.backtest,
+          self.params.execution.context.when
         );
 
         if (self.params.callbacks?.onPartialLoss) {

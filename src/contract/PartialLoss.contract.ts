@@ -27,6 +27,8 @@ export interface PartialLossContract {
   level: PartialLevel;
   /** backtest - True if backtest mode, false if live mode */
   backtest: boolean;
+  /** timestamp - Event timestamp in milliseconds (current time for live, candle time for backtest) */
+  timestamp: number;
 }
 
 export default PartialLossContract;

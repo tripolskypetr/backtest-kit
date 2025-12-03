@@ -77,11 +77,6 @@ interface Column {
 
 const columns: Column[] = [
   {
-    key: "timestamp",
-    label: "Timestamp",
-    format: (data) => new Date(data.timestamp).toISOString(),
-  },
-  {
     key: "action",
     label: "Action",
     format: (data) => data.action.toUpperCase(),
@@ -111,6 +106,11 @@ const columns: Column[] = [
     key: "currentPrice",
     label: "Current Price",
     format: (data) => `${data.currentPrice.toFixed(8)} USD`,
+  },
+  {
+    key: "timestamp",
+    label: "Timestamp",
+    format: (data) => new Date(data.timestamp).toISOString(),
   },
   {
     key: "mode",
@@ -144,10 +144,11 @@ class ReportStorage {
     data: ISignalRow,
     currentPrice: number,
     level: PartialLevel,
-    backtest: boolean
+    backtest: boolean,
+    timestamp: number
   ) {
     this._eventList.push({
-      timestamp: Date.now(),
+      timestamp,
       action: "profit",
       symbol,
       signalId: data.id,
@@ -177,10 +178,11 @@ class ReportStorage {
     data: ISignalRow,
     currentPrice: number,
     level: PartialLevel,
-    backtest: boolean
+    backtest: boolean,
+    timestamp: number
   ) {
     this._eventList.push({
-      timestamp: Date.now(),
+      timestamp,
       action: "loss",
       symbol,
       signalId: data.id,
@@ -335,6 +337,7 @@ export class PartialMarkdownService {
     currentPrice: number;
     level: PartialLevel;
     backtest: boolean;
+    timestamp: number;
   }) => {
     this.loggerService.log("partialMarkdownService tickProfit", {
       data,
@@ -346,7 +349,8 @@ export class PartialMarkdownService {
       data.data,
       data.currentPrice,
       data.level,
-      data.backtest
+      data.backtest,
+      data.timestamp
     );
   };
 
@@ -368,6 +372,7 @@ export class PartialMarkdownService {
     currentPrice: number;
     level: PartialLevel;
     backtest: boolean;
+    timestamp: number;
   }) => {
     this.loggerService.log("partialMarkdownService tickLoss", {
       data,
@@ -379,7 +384,8 @@ export class PartialMarkdownService {
       data.data,
       data.currentPrice,
       data.level,
-      data.backtest
+      data.backtest,
+      data.timestamp
     );
   };
 

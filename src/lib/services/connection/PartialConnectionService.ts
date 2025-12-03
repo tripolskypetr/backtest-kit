@@ -23,7 +23,8 @@ export class PartialConnectionService implements IPartial {
           data: ISignalRow,
           currentPrice: number,
           level: PartialLevel,
-          backtest: boolean
+          backtest: boolean,
+          timestamp: number
         ) =>
           await partialProfitSubject.next({
             symbol,
@@ -31,13 +32,15 @@ export class PartialConnectionService implements IPartial {
             currentPrice,
             level,
             backtest,
+            timestamp,
           }),
         onLoss: async (
           symbol: string,
           data: ISignalRow,
           currentPrice: number,
           level: PartialLevel,
-          backtest: boolean
+          backtest: boolean,
+          timestamp: number
         ) =>
           await partialLossSubject.next({
             symbol,
@@ -45,6 +48,7 @@ export class PartialConnectionService implements IPartial {
             currentPrice,
             level,
             backtest,
+            timestamp,
           }),
       });
     }
@@ -55,7 +59,8 @@ export class PartialConnectionService implements IPartial {
     data: ISignalRow,
     currentPrice: number,
     revenuePercent: number,
-    backtest: boolean
+    backtest: boolean,
+    when: Date
   ) => {
     this.loggerService.log("partialConnectionService profit", {
       symbol,
@@ -63,6 +68,7 @@ export class PartialConnectionService implements IPartial {
       currentPrice,
       revenuePercent,
       backtest,
+      when,
     });
     const partial = this.getPartial(data.id);
     await partial.waitForInit(symbol);
@@ -71,7 +77,8 @@ export class PartialConnectionService implements IPartial {
       data,
       currentPrice,
       revenuePercent,
-      backtest
+      backtest,
+      when
     );
   };
 
@@ -80,7 +87,8 @@ export class PartialConnectionService implements IPartial {
     data: ISignalRow,
     currentPrice: number,
     lossPercent: number,
-    backtest: boolean
+    backtest: boolean,
+    when: Date
   ) => {
     this.loggerService.log("partialConnectionService loss", {
       symbol,
@@ -88,6 +96,7 @@ export class PartialConnectionService implements IPartial {
       currentPrice,
       lossPercent,
       backtest,
+      when,
     });
     const partial = this.getPartial(data.id);
     await partial.waitForInit(symbol);
@@ -96,7 +105,8 @@ export class PartialConnectionService implements IPartial {
       data,
       currentPrice,
       lossPercent,
-      backtest
+      backtest,
+      when
     );
   };
 
