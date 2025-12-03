@@ -47,6 +47,7 @@ import OptimizerGlobalService from "../services/global/OptimizerGlobalService";
 import OptimizerConnectionService from "../services/connection/OptimizerConnectionService";
 import { PartialConnectionService } from "../services/connection/PartialConnectionService";
 import PartialMarkdownService from "../services/markdown/PartialMarkdownService";
+import PartialGlobalService from "../services/global/PartialGlobalService";
 
 {
     provide(TYPES.loggerService, () => new LoggerService());
@@ -84,6 +85,7 @@ import PartialMarkdownService from "../services/markdown/PartialMarkdownService"
     provide(TYPES.sizingGlobalService, () => new SizingGlobalService());
     provide(TYPES.riskGlobalService, () => new RiskGlobalService());
     provide(TYPES.optimizerGlobalService, () => new OptimizerGlobalService());
+    provide(TYPES.partialGlobalService, () => new PartialGlobalService());
 }
 
 {

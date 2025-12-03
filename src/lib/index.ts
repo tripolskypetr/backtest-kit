@@ -52,6 +52,7 @@ import OptimizerConnectionService from "./services/connection/OptimizerConnectio
 import OptimizerGlobalService from "./services/global/OptimizerGlobalService";
 import { PartialConnectionService } from "./services/connection/PartialConnectionService";
 import PartialMarkdownService from "./services/markdown/PartialMarkdownService";
+import PartialGlobalService from "./services/global/PartialGlobalService";
 
 const baseServices = {
   loggerService: inject<LoggerService>(TYPES.loggerService),
@@ -85,7 +86,9 @@ const connectionServices = {
   optimizerConnectionService: inject<OptimizerConnectionService>(
     TYPES.optimizerConnectionService
   ),
-  partialConnectionService: inject<PartialConnectionService>(TYPES.partialConnectionService),
+  partialConnectionService: inject<PartialConnectionService>(
+    TYPES.partialConnectionService
+  ),
 };
 
 const schemaServices = {
@@ -116,6 +119,9 @@ const globalServices = {
   riskGlobalService: inject<RiskGlobalService>(TYPES.riskGlobalService),
   optimizerGlobalService: inject<OptimizerGlobalService>(
     TYPES.optimizerGlobalService
+  ),
+  partialGlobalService: inject<PartialGlobalService>(
+    TYPES.partialGlobalService
   ),
 };
 
@@ -168,7 +174,9 @@ const markdownServices = {
     TYPES.walkerMarkdownService
   ),
   heatMarkdownService: inject<HeatMarkdownService>(TYPES.heatMarkdownService),
-  partialMarkdownService: inject<PartialMarkdownService>(TYPES.partialMarkdownService),
+  partialMarkdownService: inject<PartialMarkdownService>(
+    TYPES.partialMarkdownService
+  ),
 };
 
 const validationServices = {

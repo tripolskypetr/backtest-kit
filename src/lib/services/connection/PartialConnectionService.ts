@@ -3,12 +3,46 @@ import LoggerService from "../base/LoggerService";
 import TYPES from "../../../lib/core/types";
 import { ISignalRow } from "../../../interfaces/Strategy.interface";
 import { IPartial, PartialLevel } from "../../../interfaces/Partial.interface";
-import ClientPartial from "src/client/ClientPartial";
+import ClientPartial from "../../../client/ClientPartial";
 import { memoize } from "functools-kit";
 import {
   partialProfitSubject,
   partialLossSubject,
 } from "../../../config/emitters";
+
+const COMMIT_PROFIT_FN = async (
+  symbol: string,
+  data: ISignalRow,
+  currentPrice: number,
+  level: PartialLevel,
+  backtest: boolean,
+  timestamp: number
+) =>
+  await partialProfitSubject.next({
+    symbol,
+    data,
+    currentPrice,
+    level,
+    backtest,
+    timestamp,
+  });
+
+const COMMIT_LOSS_FN = async (
+  symbol: string,
+  data: ISignalRow,
+  currentPrice: number,
+  level: PartialLevel,
+  backtest: boolean,
+  timestamp: number
+) =>
+  await partialLossSubject.next({
+    symbol,
+    data,
+    currentPrice,
+    level,
+    backtest,
+    timestamp,
+  });
 
 export class PartialConnectionService implements IPartial {
   private readonly loggerService = inject<LoggerService>(TYPES.loggerService);
@@ -18,38 +52,8 @@ export class PartialConnectionService implements IPartial {
     () => {
       return new ClientPartial({
         logger: this.loggerService,
-        onProfit: async (
-          symbol: string,
-          data: ISignalRow,
-          currentPrice: number,
-          level: PartialLevel,
-          backtest: boolean,
-          timestamp: number
-        ) =>
-          await partialProfitSubject.next({
-            symbol,
-            data,
-            currentPrice,
-            level,
-            backtest,
-            timestamp,
-          }),
-        onLoss: async (
-          symbol: string,
-          data: ISignalRow,
-          currentPrice: number,
-          level: PartialLevel,
-          backtest: boolean,
-          timestamp: number
-        ) =>
-          await partialLossSubject.next({
-            symbol,
-            data,
-            currentPrice,
-            level,
-            backtest,
-            timestamp,
-          }),
+        onProfit: COMMIT_PROFIT_FN,
+        onLoss: COMMIT_LOSS_FN,
       });
     }
   );

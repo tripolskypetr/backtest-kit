@@ -7918,6 +7918,14 @@ declare class PartialConnectionService implements IPartial {
     clear: (symbol: string, data: ISignalRow, priceClose: number) => Promise<void>;
 }
 
+declare class PartialGlobalService {
+    private readonly loggerService;
+    private readonly partialConnectionService;
+    profit: (symbol: string, data: ISignalRow, currentPrice: number, revenuePercent: number, backtest: boolean, when: Date) => Promise<void>;
+    loss: (symbol: string, data: ISignalRow, currentPrice: number, lossPercent: number, backtest: boolean, when: Date) => Promise<void>;
+    clear: (symbol: string, data: ISignalRow, priceClose: number) => Promise<void>;
+}
+
 declare const backtest: {
     optimizerTemplateService: OptimizerTemplateService;
     exchangeValidationService: ExchangeValidationService;
@@ -7949,6 +7957,7 @@ declare const backtest: {
     sizingGlobalService: SizingGlobalService;
     riskGlobalService: RiskGlobalService;
     optimizerGlobalService: OptimizerGlobalService;
+    partialGlobalService: PartialGlobalService;
     exchangeSchemaService: ExchangeSchemaService;
     strategySchemaService: StrategySchemaService;
     frameSchemaService: FrameSchemaService;

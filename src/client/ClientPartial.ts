@@ -3,7 +3,7 @@ import {
   PartialLevel,
   IPartialParams,
   IPartialData,
-} from "src/interfaces/Partial.interface";
+} from "../interfaces/Partial.interface";
 import { ISignalRow } from "../interfaces/Strategy.interface";
 import { PersistPartialAdapter } from "../classes/Persist";
 import { singleshot } from "functools-kit";

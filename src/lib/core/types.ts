@@ -34,6 +34,7 @@ const globalServices = {
     sizingGlobalService: Symbol('sizingGlobalService'),
     riskGlobalService: Symbol('riskGlobalService'),
     optimizerGlobalService: Symbol('optimizerGlobalService'),
+    partialGlobalService: Symbol('partialGlobalService'),
 }
 
 const commandServices = {
