@@ -3,11 +3,14 @@
   "version": "1.0.0",
   "type": "module",
   "scripts": {
-    "start": "node ./src/index.mjs"
+    "start": "dotenv -e .env -- node ./src/index.mjs"
   },
   "dependencies": {
     "backtest-kit": "1.4.3",
     "functools-kit": "1.0.93",
     "ollama": "0.6.3"
+  },
+  "devDependencies": {
+    "dotenv-cli": "11.0.0"
   }
 }

@@ -53,7 +53,7 @@ const SOURCE_LIST = [
   {
     name: "long-term-range",
     fetch: async ({ symbol, startDate, endDate, limit, offset }) => {
-      const url = new URL("http://82.215.85.187:30050/view/long-term-range");
+      const url = new URL(`${process.env.CCXT_DUMPER_URL}/view/long-term-range`);
       {
         url.searchParams.set("symbol", symbol);
         url.searchParams.set("startDate", startDate.getTime());
@@ -112,7 +112,7 @@ const SOURCE_LIST = [
   {
     name: "swing-term-range",
     fetch: async ({ symbol, startDate, endDate, limit, offset }) => {
-      const url = new URL("http://82.215.85.187:30050/view/swing-term-range");
+      const url = new URL(`${process.env.CCXT_DUMPER_URL}/view/swing-term-range`);
       {
         url.searchParams.set("symbol", symbol);
         url.searchParams.set("startDate", startDate.getTime());
@@ -170,7 +170,7 @@ const SOURCE_LIST = [
   {
     name: "short-term-range",
     fetch: async ({ symbol, startDate, endDate, limit, offset }) => {
-      const url = new URL("http://82.215.85.187:30050/view/short-term-range");
+      const url = new URL(`${process.env.CCXT_DUMPER_URL}/view/short-term-range`);
       {
         url.searchParams.set("symbol", symbol);
         url.searchParams.set("startDate", startDate.getTime());
@@ -226,7 +226,7 @@ const SOURCE_LIST = [
   {
     name: "micro-term-range",
     fetch: async ({ symbol, startDate, endDate, limit, offset }) => {
-      const url = new URL("http://82.215.85.187:30050/view/micro-term-range");
+      const url = new URL(`${process.env.CCXT_DUMPER_URL}/view/micro-term-range`);
       {
         url.searchParams.set("symbol", symbol);
         url.searchParams.set("startDate", startDate.getTime());
@@ -309,6 +309,7 @@ async function text(symbol, messages) {
 
   const response = await ollama.chat({
     model: "gpt-oss:20b",
+    think: true,
     messages: [
       {
         role: "system",
