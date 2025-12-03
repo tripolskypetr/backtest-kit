@@ -44,7 +44,7 @@ Build sophisticated trading systems with confidence. Backtest Kit empowers you t
 
 - 💾 **Zero Data Download**: Unlike Freqtrade, no need to download gigabytes of historical data—plug any data source (CCXT, database, API). 🚀
 
-- 🔌 **Pluggable Persistence**: Replace default file-based persistence with custom adapters (Redis, MongoDB, PostgreSQL) for distributed systems and high-performance scenarios. 💾
+- 🔌 **Pluggable Persistence**: Replace default file-based persistence with custom adapters (Redis, MongoDB, PostgreSQL) for distributed systems and high-performance scenarios.
 
 - 🔒 **Safe Math & Robustness**: All metrics protected against NaN/Infinity with unsafe numeric checks. Returns N/A for invalid calculations. ✨
 
