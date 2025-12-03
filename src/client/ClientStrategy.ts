@@ -293,7 +293,8 @@ const GET_SIGNAL_FN = trycatch(
       return null;
     }
     const signal = await self.params.getSignal(
-      self.params.execution.context.symbol
+      self.params.execution.context.symbol,
+      self.params.execution.context.when,
     );
     if (!signal) {
       return null;

@@ -139,7 +139,7 @@ export interface IStrategySchema {
    * If priceOpen is provided - becomes scheduled signal waiting for price to reach entry point.
    * If priceOpen is omitted - opens immediately at current price.
    */
-  getSignal: (symbol: string) => Promise<ISignalDto | null>;
+  getSignal: (symbol: string, when: Date) => Promise<ISignalDto | null>;
   /** Optional lifecycle event callbacks (onOpen, onClose) */
   callbacks?: Partial<IStrategyCallbacks>;
   /** Optional risk profile identifier for risk management */
