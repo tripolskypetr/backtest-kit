@@ -1,5 +1,5 @@
 import { sleep } from "functools-kit";
-import { setLogger, setConfig, PersistSignalAdapter, PersistRiskAdapter } from "../../build/index.mjs";
+import { setLogger, setConfig, PersistSignalAdapter, PersistRiskAdapter, PersistScheduleAdapter } from "../../build/index.mjs";
 
 // setLogger(console)
 
@@ -19,11 +19,26 @@ PersistSignalAdapter.usePersistSignalAdapter(class {
 });
 
 PersistRiskAdapter.usePersistRiskAdapter(class {
-    async waitForInit() {
+  async waitForInit() {
     void 0;
   }
   async readValue() {
     throw new Error("usePersistRiskAdapter readValue should not be called in testbed");
+  }
+  async hasValue() {
+    return false;
+  }
+  async writeValue() {
+    void 0;
+  }
+})
+
+PersistScheduleAdapter.usePersistScheduleAdapter(class {
+  async waitForInit() {
+    void 0;
+  }
+  async readValue() {
+    throw new Error("usePersistScheduleAdapter readValue should not be called in testbed");
   }
   async hasValue() {
     return false;
