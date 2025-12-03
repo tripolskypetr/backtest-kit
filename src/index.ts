@@ -125,6 +125,10 @@ export {
 
 export { MessageModel, MessageRole } from "./model/Message.model";
 
+export { PartialLossContract } from "./contract/PartialLoss.contract";
+export { PartialProfitContract } from "./contract/PartialProfit.contract";
+export { WalkerContract } from "./contract/Walker.contract";
+export { ProgressWalkerContract } from "./contract/ProgressWalker.contract";
 export { DoneContract } from "./contract/Done.contract";
 export { ProgressBacktestContract } from "./contract/ProgressBacktest.contract";
 export {
@@ -137,6 +141,7 @@ export type { LiveStatistics } from "./lib/services/markdown/LiveMarkdownService
 export type { ScheduleStatistics } from "./lib/services/markdown/ScheduleMarkdownService";
 export type { PerformanceStatistics } from "./lib/services/markdown/PerformanceMarkdownService";
 export type { WalkerStatistics } from "./lib/services/markdown/WalkerMarkdownService";
+export type { PartialStatistics } from "./lib/services/markdown/PartialMarkdownService";
 
 export { ExecutionContextService } from "./lib/services/context/ExecutionContextService";
 export { MethodContextService } from "./lib/services/context/MethodContextService";
@@ -165,6 +170,7 @@ export { Walker } from "./classes/Walker";
 export { Heat } from "./classes/Heat";
 export { PositionSize } from "./classes/PositionSize";
 export { Optimizer } from "./classes/Optimizer";
+export { Partial } from "./classes/Partial";
 
 export * as emitters from "./config/emitters";
 

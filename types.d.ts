@@ -4083,6 +4083,190 @@ declare class WalkerMarkdownService {
     protected init: (() => Promise<void>) & functools_kit.ISingleshotClearable;
 }
 
+/**
+ * Unified partial profit/loss event data for report generation.
+ * Contains all information about profit and loss level milestones.
+ */
+interface PartialEvent {
+    /** Event timestamp in milliseconds */
+    timestamp: number;
+    /** Event action type (profit or loss) */
+    action: "profit" | "loss";
+    /** Trading pair symbol */
+    symbol: string;
+    /** Signal ID */
+    signalId: string;
+    /** Position type */
+    position: string;
+    /** Current market price */
+    currentPrice: number;
+    /** Profit/loss level reached (10, 20, 30, etc) */
+    level: PartialLevel;
+    /** True if backtest mode, false if live mode */
+    backtest: boolean;
+}
+/**
+ * Statistical data calculated from partial profit/loss events.
+ *
+ * Provides metrics for partial profit/loss milestone tracking.
+ *
+ * @example
+ * ```typescript
+ * const stats = await Partial.getData("my-strategy");
+ *
+ * console.log(`Total events: ${stats.totalEvents}`);
+ * console.log(`Profit events: ${stats.totalProfit}`);
+ * console.log(`Loss events: ${stats.totalLoss}`);
+ * ```
+ */
+interface PartialStatistics {
+    /** Array of all profit/loss events with full details */
+    eventList: PartialEvent[];
+    /** Total number of all events (includes profit, loss) */
+    totalEvents: number;
+    /** Total number of profit events */
+    totalProfit: number;
+    /** Total number of loss events */
+    totalLoss: number;
+}
+/**
+ * Service for generating and saving partial profit/loss markdown reports.
+ *
+ * Features:
+ * - Listens to partial profit and loss events via partialProfitSubject/partialLossSubject
+ * - Accumulates all events (profit, loss) per symbol
+ * - Generates markdown tables with detailed event information
+ * - Provides statistics (total profit/loss events)
+ * - Saves reports to disk in dump/partial/{symbol}.md
+ *
+ * @example
+ * ```typescript
+ * const service = new PartialMarkdownService();
+ *
+ * // Service automatically subscribes to subjects on init
+ * // No manual callback setup needed
+ *
+ * // Later: generate and save report
+ * await service.dump("BTCUSDT");
+ * ```
+ */
+declare class PartialMarkdownService {
+    /** Logger service for debug output */
+    private readonly loggerService;
+    /**
+     * Memoized function to get or create ReportStorage for a symbol.
+     * Each symbol gets its own isolated storage instance.
+     */
+    private getStorage;
+    /**
+     * Processes profit events and accumulates them.
+     * Should be called from partialProfitSubject subscription.
+     *
+     * @param data - Profit event data
+     *
+     * @example
+     * ```typescript
+     * const service = new PartialMarkdownService();
+     * // Service automatically subscribes in init()
+     * ```
+     */
+    private tickProfit;
+    /**
+     * Processes loss events and accumulates them.
+     * Should be called from partialLossSubject subscription.
+     *
+     * @param data - Loss event data
+     *
+     * @example
+     * ```typescript
+     * const service = new PartialMarkdownService();
+     * // Service automatically subscribes in init()
+     * ```
+     */
+    private tickLoss;
+    /**
+     * Gets statistical data from all partial profit/loss events for a symbol.
+     * Delegates to ReportStorage.getData().
+     *
+     * @param symbol - Trading pair symbol to get data for
+     * @returns Statistical data object with all metrics
+     *
+     * @example
+     * ```typescript
+     * const service = new PartialMarkdownService();
+     * const stats = await service.getData("BTCUSDT");
+     * console.log(stats.totalProfit, stats.totalLoss);
+     * ```
+     */
+    getData: (symbol: string) => Promise<PartialStatistics>;
+    /**
+     * Generates markdown report with all partial events for a symbol.
+     * Delegates to ReportStorage.getReport().
+     *
+     * @param symbol - Trading pair symbol to generate report for
+     * @returns Markdown formatted report string with table of all events
+     *
+     * @example
+     * ```typescript
+     * const service = new PartialMarkdownService();
+     * const markdown = await service.getReport("BTCUSDT");
+     * console.log(markdown);
+     * ```
+     */
+    getReport: (symbol: string) => Promise<string>;
+    /**
+     * Saves symbol report to disk.
+     * Creates directory if it doesn't exist.
+     * Delegates to ReportStorage.dump().
+     *
+     * @param symbol - Trading pair symbol to save report for
+     * @param path - Directory path to save report (default: "./dump/partial")
+     *
+     * @example
+     * ```typescript
+     * const service = new PartialMarkdownService();
+     *
+     * // Save to default path: ./dump/partial/BTCUSDT.md
+     * await service.dump("BTCUSDT");
+     *
+     * // Save to custom path: ./custom/path/BTCUSDT.md
+     * await service.dump("BTCUSDT", "./custom/path");
+     * ```
+     */
+    dump: (symbol: string, path?: string) => Promise<void>;
+    /**
+     * Clears accumulated event data from storage.
+     * If symbol is provided, clears only that symbol's data.
+     * If symbol is omitted, clears all symbols' data.
+     *
+     * @param symbol - Optional symbol to clear specific symbol data
+     *
+     * @example
+     * ```typescript
+     * const service = new PartialMarkdownService();
+     *
+     * // Clear specific symbol data
+     * await service.clear("BTCUSDT");
+     *
+     * // Clear all symbols' data
+     * await service.clear();
+     * ```
+     */
+    clear: (symbol?: string) => Promise<void>;
+    /**
+     * Initializes the service by subscribing to partial profit/loss events.
+     * Uses singleshot to ensure initialization happens only once.
+     * Automatically called on first use.
+     *
+     * @example
+     * ```typescript
+     * const service = new PartialMarkdownService();
+     * await service.init(); // Subscribe to profit/loss events
+     * ```
+     */
+    protected init: (() => Promise<void>) & functools_kit.ISingleshotClearable;
+}
+
 declare const BASE_WAIT_FOR_INIT_SYMBOL: unique symbol;
 /**
  * Signal data stored in persistence layer.
@@ -5382,6 +5566,13 @@ declare class OptimizerUtils {
  * ```
  */
 declare const Optimizer: OptimizerUtils;
+
+declare class PartialUtils {
+    getData: (symbol: string) => Promise<PartialStatistics>;
+    getReport: (symbol: string) => Promise<string>;
+    dump: (symbol: string, path?: string) => Promise<void>;
+}
+declare const Partial$1: PartialUtils;
 
 /**
  * Global signal emitter for all trading events (live + backtest).
@@ -7738,6 +7929,7 @@ declare const backtest: {
     performanceMarkdownService: PerformanceMarkdownService;
     walkerMarkdownService: WalkerMarkdownService;
     heatMarkdownService: HeatMarkdownService;
+    partialMarkdownService: PartialMarkdownService;
     backtestLogicPublicService: BacktestLogicPublicService;
     liveLogicPublicService: LiveLogicPublicService;
     walkerLogicPublicService: WalkerLogicPublicService;
@@ -7776,4 +7968,4 @@ declare const backtest: {
     loggerService: LoggerService;
 };
 
-export { Backtest, type BacktestStatistics, type CandleInterval, type DoneContract, type EntityId, ExecutionContextService, type FrameInterval, type GlobalConfig, Heat, type ICandleData, type IExchangeSchema, type IFrameSchema, type IHeatmapRow, type IHeatmapStatistics, type IOptimizerCallbacks, type IOptimizerData, type IOptimizerFetchArgs, type IOptimizerFilterArgs, type IOptimizerRange, type IOptimizerSchema, type IOptimizerSource, type IOptimizerStrategy, type IOptimizerTemplate, type IPersistBase, type IPositionSizeATRParams, type IPositionSizeFixedPercentageParams, type IPositionSizeKellyParams, type IRiskActivePosition, type IRiskCheckArgs, type IRiskSchema, type IRiskValidation, type IRiskValidationFn, type IRiskValidationPayload, type IScheduledSignalRow, type ISignalDto, type ISignalRow, type ISizingCalculateParams, type ISizingCalculateParamsATR, type ISizingCalculateParamsFixedPercentage, type ISizingCalculateParamsKelly, type ISizingSchema, type ISizingSchemaATR, type ISizingSchemaFixedPercentage, type ISizingSchemaKelly, type IStrategyPnL, type IStrategySchema, type IStrategyTickResult, type IStrategyTickResultActive, type IStrategyTickResultCancelled, type IStrategyTickResultClosed, type IStrategyTickResultIdle, type IStrategyTickResultOpened, type IStrategyTickResultScheduled, type IWalkerResults, type IWalkerSchema, type IWalkerStrategyResult, Live, type LiveStatistics, type MessageModel, type MessageRole, MethodContextService, Optimizer, type PartialData, Performance, type PerformanceContract, type PerformanceMetricType, type PerformanceStatistics, PersistBase, PersistPartialAdapter, PersistRiskAdapter, PersistScheduleAdapter, PersistSignalAdapter, PositionSize, type ProgressBacktestContract, type RiskData, Schedule, type ScheduleData, type ScheduleStatistics, type SignalData, type SignalInterval, type TPersistBase, type TPersistBaseCtor, Walker, type WalkerMetric, type WalkerStatistics, addExchange, addFrame, addOptimizer, addRisk, addSizing, addStrategy, addWalker, emitters, formatPrice, formatQuantity, getAveragePrice, getCandles, getDate, getMode, backtest as lib, listExchanges, listFrames, listOptimizers, listRisks, listSizings, listStrategies, listWalkers, listenBacktestProgress, listenDoneBacktest, listenDoneBacktestOnce, listenDoneLive, listenDoneLiveOnce, listenDoneWalker, listenDoneWalkerOnce, listenError, listenPartialLoss, listenPartialLossOnce, listenPartialProfit, listenPartialProfitOnce, listenPerformance, listenSignal, listenSignalBacktest, listenSignalBacktestOnce, listenSignalLive, listenSignalLiveOnce, listenSignalOnce, listenValidation, listenWalker, listenWalkerComplete, listenWalkerOnce, listenWalkerProgress, setConfig, setLogger };
+export { Backtest, type BacktestStatistics, type CandleInterval, type DoneContract, type EntityId, ExecutionContextService, type FrameInterval, type GlobalConfig, Heat, type ICandleData, type IExchangeSchema, type IFrameSchema, type IHeatmapRow, type IHeatmapStatistics, type IOptimizerCallbacks, type IOptimizerData, type IOptimizerFetchArgs, type IOptimizerFilterArgs, type IOptimizerRange, type IOptimizerSchema, type IOptimizerSource, type IOptimizerStrategy, type IOptimizerTemplate, type IPersistBase, type IPositionSizeATRParams, type IPositionSizeFixedPercentageParams, type IPositionSizeKellyParams, type IRiskActivePosition, type IRiskCheckArgs, type IRiskSchema, type IRiskValidation, type IRiskValidationFn, type IRiskValidationPayload, type IScheduledSignalRow, type ISignalDto, type ISignalRow, type ISizingCalculateParams, type ISizingCalculateParamsATR, type ISizingCalculateParamsFixedPercentage, type ISizingCalculateParamsKelly, type ISizingSchema, type ISizingSchemaATR, type ISizingSchemaFixedPercentage, type ISizingSchemaKelly, type IStrategyPnL, type IStrategySchema, type IStrategyTickResult, type IStrategyTickResultActive, type IStrategyTickResultCancelled, type IStrategyTickResultClosed, type IStrategyTickResultIdle, type IStrategyTickResultOpened, type IStrategyTickResultScheduled, type IWalkerResults, type IWalkerSchema, type IWalkerStrategyResult, Live, type LiveStatistics, type MessageModel, type MessageRole, MethodContextService, Optimizer, Partial$1 as Partial, type PartialData, type PartialLossContract, type PartialProfitContract, type PartialStatistics, Performance, type PerformanceContract, type PerformanceMetricType, type PerformanceStatistics, PersistBase, PersistPartialAdapter, PersistRiskAdapter, PersistScheduleAdapter, PersistSignalAdapter, PositionSize, type ProgressBacktestContract, type ProgressWalkerContract, type RiskData, Schedule, type ScheduleData, type ScheduleStatistics, type SignalData, type SignalInterval, type TPersistBase, type TPersistBaseCtor, Walker, type WalkerContract, type WalkerMetric, type WalkerStatistics, addExchange, addFrame, addOptimizer, addRisk, addSizing, addStrategy, addWalker, emitters, formatPrice, formatQuantity, getAveragePrice, getCandles, getDate, getMode, backtest as lib, listExchanges, listFrames, listOptimizers, listRisks, listSizings, listStrategies, listWalkers, listenBacktestProgress, listenDoneBacktest, listenDoneBacktestOnce, listenDoneLive, listenDoneLiveOnce, listenDoneWalker, listenDoneWalkerOnce, listenError, listenPartialLoss, listenPartialLossOnce, listenPartialProfit, listenPartialProfitOnce, listenPerformance, listenSignal, listenSignalBacktest, listenSignalBacktestOnce, listenSignalLive, listenSignalLiveOnce, listenSignalOnce, listenValidation, listenWalker, listenWalkerComplete, listenWalkerOnce, listenWalkerProgress, setConfig, setLogger };

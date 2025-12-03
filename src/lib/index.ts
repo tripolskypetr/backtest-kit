@@ -51,6 +51,7 @@ import OptimizerValidationService from "./services/validation/OptimizerValidatio
 import OptimizerConnectionService from "./services/connection/OptimizerConnectionService";
 import OptimizerGlobalService from "./services/global/OptimizerGlobalService";
 import { PartialConnectionService } from "./services/connection/PartialConnectionService";
+import PartialMarkdownService from "./services/markdown/PartialMarkdownService";
 
 const baseServices = {
   loggerService: inject<LoggerService>(TYPES.loggerService),
@@ -167,6 +168,7 @@ const markdownServices = {
     TYPES.walkerMarkdownService
   ),
   heatMarkdownService: inject<HeatMarkdownService>(TYPES.heatMarkdownService),
+  partialMarkdownService: inject<PartialMarkdownService>(TYPES.partialMarkdownService),
 };
 
 const validationServices = {
