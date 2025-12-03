@@ -496,39 +496,29 @@ export class BacktestMarkdownService {
 
   /**
    * Clears accumulated signal data from storage.
-   * If symbol and strategyName are provided, clears only that specific pair's data.
-   * If only symbol is provided, clears all data for that symbol (all strategies).
+   * If ctx is provided, clears only that specific symbol-strategy pair's data.
    * If nothing is provided, clears all data.
    *
-   * @param symbol - Optional trading pair symbol
-   * @param strategyName - Optional strategy name
+   * @param ctx - Optional context with symbol and strategyName
    *
    * @example
    * ```typescript
    * const service = new BacktestMarkdownService();
    *
    * // Clear specific symbol-strategy pair
-   * await service.clear("BTCUSDT", "my-strategy");
-   *
-   * // Clear all strategies for a symbol
-   * await service.clear("BTCUSDT");
+   * await service.clear({ symbol: "BTCUSDT", strategyName: "my-strategy" });
    *
    * // Clear all data
    * await service.clear();
    * ```
    */
-  public clear = async (symbol?: string, strategyName?: StrategyName) => {
+  public clear = async (ctx?: { symbol: string; strategyName: StrategyName }) => {
     this.loggerService.log("backtestMarkdownService clear", {
-      symbol,
-      strategyName,
+      ctx,
     });
-    if (symbol && strategyName) {
-      const key = `${symbol}:${strategyName}`;
+    if (ctx) {
+      const key = `${ctx.symbol}:${ctx.strategyName}`;
       this.getStorage.clear(key);
-    } else if (symbol) {
-      // Clear all strategies for this symbol - need to iterate
-      // For simplicity, just clear the specific key pattern
-      this.getStorage.clear(symbol);
     } else {
       this.getStorage.clear();
     }

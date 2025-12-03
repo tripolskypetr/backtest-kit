@@ -49,12 +49,12 @@ export class BacktestUtils {
     });
 
     {
-      backtest.backtestMarkdownService.clear(symbol, context.strategyName);
-      backtest.scheduleMarkdownService.clear(symbol, context.strategyName);
+      backtest.backtestMarkdownService.clear({ symbol, strategyName: context.strategyName });
+      backtest.scheduleMarkdownService.clear({ symbol, strategyName: context.strategyName });
     }
 
     {
-      backtest.strategyGlobalService.clear(symbol, context.strategyName);
+      backtest.strategyGlobalService.clear({ symbol, strategyName: context.strategyName });
     }
 
     {

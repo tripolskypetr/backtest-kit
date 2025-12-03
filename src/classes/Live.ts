@@ -65,12 +65,12 @@ export class LiveUtils {
     });
 
     {
-      backtest.liveMarkdownService.clear(context.strategyName);
-      backtest.scheduleMarkdownService.clear(context.strategyName);
+      backtest.liveMarkdownService.clear({ symbol, strategyName: context.strategyName });
+      backtest.scheduleMarkdownService.clear({ symbol, strategyName: context.strategyName });
     }
 
     {
-      backtest.strategyGlobalService.clear(context.strategyName);
+      backtest.strategyGlobalService.clear({ symbol, strategyName: context.strategyName });
     }
 
     {

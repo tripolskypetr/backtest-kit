@@ -203,19 +203,15 @@ export class StrategyConnectionService {
    * Forces re-initialization of strategy on next getStrategy call.
    * Useful for resetting strategy state or releasing resources.
    *
-   * @param symbol - Trading pair symbol (optional, clears all if not provided)
-   * @param strategyName - Name of strategy to clear from cache (optional, clears all for symbol if not provided)
+   * @param ctx - Optional context with symbol and strategyName (clears all if not provided)
    */
-  public clear = async (symbol?: string, strategyName?: StrategyName): Promise<void> => {
+  public clear = async (ctx?: { symbol: string; strategyName: StrategyName }): Promise<void> => {
     this.loggerService.log("strategyConnectionService clear", {
-      symbol,
-      strategyName,
+      ctx,
     });
-    if (symbol && strategyName) {
-      const key = `${symbol}:${strategyName}`;
+    if (ctx) {
+      const key = `${ctx.symbol}:${ctx.strategyName}`;
       this.getStrategy.clear(key);
-    } else if (symbol) {
-      this.getStrategy.clear(symbol);
     } else {
       this.getStrategy.clear();
     }

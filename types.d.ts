@@ -1133,28 +1133,26 @@ declare class BacktestMarkdownService {
     dump: (symbol: string, strategyName: StrategyName, path?: string) => Promise<void>;
     /**
      * Clears accumulated signal data from storage.
-     * If symbol and strategyName are provided, clears only that specific pair's data.
-     * If only symbol is provided, clears all data for that symbol (all strategies).
+     * If ctx is provided, clears only that specific symbol-strategy pair's data.
      * If nothing is provided, clears all data.
      *
-     * @param symbol - Optional trading pair symbol
-     * @param strategyName - Optional strategy name
+     * @param ctx - Optional context with symbol and strategyName
      *
      * @example
      * ```typescript
      * const service = new BacktestMarkdownService();
      *
      * // Clear specific symbol-strategy pair
-     * await service.clear("BTCUSDT", "my-strategy");
-     *
-     * // Clear all strategies for a symbol
-     * await service.clear("BTCUSDT");
+     * await service.clear({ symbol: "BTCUSDT", strategyName: "my-strategy" });
      *
      * // Clear all data
      * await service.clear();
      * ```
      */
-    clear: (symbol?: string, strategyName?: StrategyName) => Promise<void>;
+    clear: (ctx?: {
+        symbol: string;
+        strategyName: StrategyName;
+    }) => Promise<void>;
     /**
      * Initializes the service by subscribing to backtest signal events.
      * Uses singleshot to ensure initialization happens only once.
@@ -3843,28 +3841,26 @@ declare class LiveMarkdownService {
     dump: (symbol: string, strategyName: StrategyName, path?: string) => Promise<void>;
     /**
      * Clears accumulated event data from storage.
-     * If symbol and strategyName are provided, clears only that specific pair's data.
-     * If only symbol is provided, clears all data for that symbol (all strategies).
+     * If ctx is provided, clears only that specific symbol-strategy pair's data.
      * If nothing is provided, clears all data.
      *
-     * @param symbol - Optional trading pair symbol
-     * @param strategyName - Optional strategy name
+     * @param ctx - Optional context with symbol and strategyName
      *
      * @example
      * ```typescript
      * const service = new LiveMarkdownService();
      *
      * // Clear specific symbol-strategy pair
-     * await service.clear("BTCUSDT", "my-strategy");
-     *
-     * // Clear all strategies for a symbol
-     * await service.clear("BTCUSDT");
+     * await service.clear({ symbol: "BTCUSDT", strategyName: "my-strategy" });
      *
      * // Clear all data
      * await service.clear();
      * ```
      */
-    clear: (symbol?: string, strategyName?: StrategyName) => Promise<void>;
+    clear: (ctx?: {
+        symbol: string;
+        strategyName: StrategyName;
+    }) => Promise<void>;
     /**
      * Initializes the service by subscribing to live signal events.
      * Uses singleshot to ensure initialization happens only once.
@@ -4044,28 +4040,26 @@ declare class ScheduleMarkdownService {
     dump: (symbol: string, strategyName: StrategyName, path?: string) => Promise<void>;
     /**
      * Clears accumulated event data from storage.
-     * If symbol and strategyName are provided, clears only that specific pair's data.
-     * If only symbol is provided, clears all data for that symbol (all strategies).
+     * If ctx is provided, clears only that specific symbol-strategy pair's data.
      * If nothing is provided, clears all data.
      *
-     * @param symbol - Optional trading pair symbol
-     * @param strategyName - Optional strategy name
+     * @param ctx - Optional context with symbol and strategyName
      *
      * @example
      * ```typescript
      * const service = new ScheduleMarkdownService();
      *
      * // Clear specific symbol-strategy pair
-     * await service.clear("BTCUSDT", "my-strategy");
-     *
-     * // Clear all strategies for a symbol
-     * await service.clear("BTCUSDT");
+     * await service.clear({ symbol: "BTCUSDT", strategyName: "my-strategy" });
      *
      * // Clear all data
      * await service.clear();
      * ```
      */
-    clear: (symbol?: string, strategyName?: StrategyName) => Promise<void>;
+    clear: (ctx?: {
+        symbol: string;
+        strategyName: StrategyName;
+    }) => Promise<void>;
     /**
      * Initializes the service by subscribing to live signal events.
      * Uses singleshot to ensure initialization happens only once.
@@ -6510,10 +6504,12 @@ declare class StrategyConnectionService {
      * Forces re-initialization of strategy on next getStrategy call.
      * Useful for resetting strategy state or releasing resources.
      *
-     * @param symbol - Trading pair symbol (optional, clears all if not provided)
-     * @param strategyName - Name of strategy to clear from cache (optional, clears all for symbol if not provided)
+     * @param ctx - Optional context with symbol and strategyName (clears all if not provided)
      */
-    clear: (symbol?: string, strategyName?: StrategyName) => Promise<void>;
+    clear: (ctx?: {
+        symbol: string;
+        strategyName: StrategyName;
+    }) => Promise<void>;
 }
 
 /**
@@ -6976,10 +6972,12 @@ declare class StrategyGlobalService {
      * Delegates to StrategyConnectionService.clear() to remove strategy from cache.
      * Forces re-initialization of strategy on next operation.
      *
-     * @param symbol - Trading pair symbol (optional, clears all if not provided)
-     * @param strategyName - Name of strategy to clear from cache (optional, clears all for symbol if not provided)
+     * @param ctx - Optional context with symbol and strategyName (clears all if not provided)
      */
-    clear: (symbol?: string, strategyName?: StrategyName) => Promise<void>;
+    clear: (ctx?: {
+        symbol: string;
+        strategyName: StrategyName;
+    }) => Promise<void>;
 }
 
 /**

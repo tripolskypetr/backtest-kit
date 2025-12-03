@@ -188,18 +188,16 @@ export class StrategyGlobalService {
    * Delegates to StrategyConnectionService.clear() to remove strategy from cache.
    * Forces re-initialization of strategy on next operation.
    *
-   * @param symbol - Trading pair symbol (optional, clears all if not provided)
-   * @param strategyName - Name of strategy to clear from cache (optional, clears all for symbol if not provided)
+   * @param ctx - Optional context with symbol and strategyName (clears all if not provided)
    */
-  public clear = async (symbol?: string, strategyName?: StrategyName): Promise<void> => {
+  public clear = async (ctx?: { symbol: string; strategyName: StrategyName }): Promise<void> => {
     this.loggerService.log("strategyGlobalService clear", {
-      symbol,
-      strategyName,
+      ctx,
     });
-    if (symbol && strategyName) {
-      await this.validate(symbol, strategyName);
+    if (ctx) {
+      await this.validate(ctx.symbol, ctx.strategyName);
     }
-    return await this.strategyConnectionService.clear(symbol, strategyName);
+    return await this.strategyConnectionService.clear(ctx);
   };
 }
 
