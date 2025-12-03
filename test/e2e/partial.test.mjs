@@ -9,7 +9,7 @@ import {
   listenError,
 } from "../../build/index.mjs";
 
-import { Subject } from "functools-kit";
+import { Subject, sleep } from "functools-kit";
 
 /**
  * PARTIAL ТЕСТ #1: onPartialProfit вызывается в BACKTEST для LONG позиции
@@ -555,4 +555,264 @@ test("PARTIAL BACKTEST: onPartialLoss for SHORT with price rising", async ({ pas
 
   const maxLoss = Math.min(...partialLossEvents.map(e => e.revenuePercent));
   pass(`onPartialLoss SHORT WORKS: ${partialLossEvents.length} calls, max loss ${maxLoss.toFixed(2)}%`);
+});
+
+
+/**
+ * PARTIAL FACADE TEST #1: Partial.getData returns statistics
+ */
+test("Partial.getData returns partial profit/loss statistics for symbol", async ({ pass, fail }) => {
+  const { Partial } = await import("../../build/index.mjs");
+
+  const startTime = new Date("2024-01-01T00:00:00Z").getTime();
+  const intervalMs = 60000;
+  const basePrice = 95000;
+
+  let allCandles = [];
+  let signalGenerated = false;
+
+  for (let i = 0; i < 5; i++) {
+    allCandles.push({
+      timestamp: startTime + i * intervalMs,
+      open: basePrice,
+      high: basePrice + 100,
+      low: basePrice - 50,
+      close: basePrice,
+      volume: 100,
+    });
+  }
+
+  addExchange({
+    exchangeName: "binance-partial-facade-1",
+    getCandles: async (_symbol, _interval, since, limit) => {
+      const sinceIndex = Math.floor((since.getTime() - startTime) / intervalMs);
+      const result = allCandles.slice(sinceIndex, sinceIndex + limit);
+      return result.length > 0 ? result : allCandles.slice(0, Math.min(limit, allCandles.length));
+    },
+    formatPrice: async (_symbol, p) => p.toFixed(8),
+    formatQuantity: async (_symbol, quantity) => quantity.toFixed(8),
+  });
+
+  addStrategy({
+    strategyName: "test-partial-facade-1",
+    interval: "1m",
+    getSignal: async () => {
+      if (signalGenerated) return null;
+      signalGenerated = true;
+
+      allCandles = [];
+      for (let i = 0; i < 25; i++) {
+        const timestamp = startTime + i * intervalMs;
+
+        if (i < 5) {
+          allCandles.push({ timestamp, open: basePrice, high: basePrice + 50, low: basePrice - 50, close: basePrice, volume: 100 });
+        } else if (i >= 5 && i < 20) {
+          const increment = (i - 4) * 1000;
+          const price = basePrice + increment;
+          allCandles.push({ timestamp, open: price, high: price + 100, low: price - 100, close: price, volume: 100 });
+        } else {
+          const tpPrice = basePrice + 20000;
+          allCandles.push({ timestamp, open: tpPrice, high: tpPrice + 100, low: tpPrice - 100, close: tpPrice, volume: 100 });
+        }
+      }
+
+      return {
+        position: "long",
+        priceOpen: basePrice,
+        priceTakeProfit: basePrice + 20000,
+        priceStopLoss: basePrice - 20000,
+        minuteEstimatedTime: 60,
+      };
+    },
+  });
+
+  addFrame({
+    frameName: "25m-partial-facade-1",
+    interval: "1m",
+    startDate: new Date("2024-01-01T00:00:00Z"),
+    endDate: new Date("2024-01-01T00:25:00Z"),
+  });
+
+  const awaitSubject = new Subject();
+  listenDoneBacktest(() => awaitSubject.next());
+
+  let errorCaught = null;
+  const unsubscribeError = listenError((error) => {
+    errorCaught = error;
+    awaitSubject.next();
+  });
+
+  Backtest.background("BTCUSDT", {
+    strategyName: "test-partial-facade-1",
+    exchangeName: "binance-partial-facade-1",
+    frameName: "25m-partial-facade-1",
+  });
+
+  await awaitSubject.toPromise();
+  // await sleep(1_000);
+  unsubscribeError();
+
+  if (errorCaught) {
+    fail(`Error: ${errorCaught.message || errorCaught}`);
+    return;
+  }
+
+  const stats = await Partial.getData("BTCUSDT");
+
+  if (
+    stats &&
+    typeof stats.totalEvents === "number" &&
+    typeof stats.totalProfit === "number" &&
+    typeof stats.totalLoss === "number" &&
+    Array.isArray(stats.eventList) &&
+    stats.totalProfit > 0 &&
+    stats.totalLoss === 0
+  ) {
+    pass(`Partial.getData WORKS: ${stats.totalEvents} events, ${stats.totalProfit} profit, ${stats.totalLoss} loss`);
+    return;
+  }
+
+  fail(`Partial.getData did not return valid statistics: profit=${stats.totalProfit}, loss=${stats.totalLoss}, events=${stats.totalEvents}`);
+});
+
+
+/**
+ * PARTIAL FACADE TEST #2: Partial.getReport generates markdown
+ */
+test("Partial.getReport generates markdown report with table", async ({ pass, fail }) => {
+  const { Partial } = await import("../../build/index.mjs");
+
+  const startTime = new Date("2024-01-01T00:00:00Z").getTime();
+  const intervalMs = 60000;
+  const basePrice = 95000;
+
+  let allCandles = [];
+  let signalGenerated = false;
+
+  for (let i = 0; i < 5; i++) {
+    allCandles.push({
+      timestamp: startTime + i * intervalMs,
+      open: basePrice,
+      high: basePrice + 100,
+      low: basePrice - 50,
+      close: basePrice,
+      volume: 100,
+    });
+  }
+
+  addExchange({
+    exchangeName: "binance-partial-facade-2",
+    getCandles: async (_symbol, _interval, since, limit) => {
+      const sinceIndex = Math.floor((since.getTime() - startTime) / intervalMs);
+      const result = allCandles.slice(sinceIndex, sinceIndex + limit);
+      return result.length > 0 ? result : allCandles.slice(0, Math.min(limit, allCandles.length));
+    },
+    formatPrice: async (_symbol, p) => p.toFixed(8),
+    formatQuantity: async (_symbol, quantity) => quantity.toFixed(8),
+  });
+
+  addStrategy({
+    strategyName: "test-partial-facade-2",
+    interval: "1m",
+    getSignal: async () => {
+      if (signalGenerated) return null;
+      signalGenerated = true;
+
+      allCandles = [];
+      for (let i = 0; i < 25; i++) {
+        const timestamp = startTime + i * intervalMs;
+
+        if (i < 5) {
+          allCandles.push({ timestamp, open: basePrice, high: basePrice + 50, low: basePrice - 50, close: basePrice, volume: 100 });
+        } else if (i >= 5 && i < 20) {
+          const decrement = (i - 4) * 1000;
+          const price = basePrice - decrement;
+          allCandles.push({ timestamp, open: price, high: price + 100, low: price - 100, close: price, volume: 100 });
+        } else {
+          const slPrice = basePrice - 20000;
+          allCandles.push({ timestamp, open: slPrice, high: slPrice + 100, low: slPrice - 100, close: slPrice, volume: 100 });
+        }
+      }
+
+      return {
+        position: "long",
+        priceOpen: basePrice,
+        priceTakeProfit: basePrice + 20000,
+        priceStopLoss: basePrice - 20000,
+        minuteEstimatedTime: 60,
+      };
+    },
+  });
+
+  addFrame({
+    frameName: "25m-partial-facade-2",
+    interval: "1m",
+    startDate: new Date("2024-01-01T00:00:00Z"),
+    endDate: new Date("2024-01-01T00:25:00Z"),
+  });
+
+  const awaitSubject = new Subject();
+  listenDoneBacktest(() => awaitSubject.next());
+
+  let errorCaught = null;
+  const unsubscribeError = listenError((error) => {
+    errorCaught = error;
+    awaitSubject.next();
+  });
+
+  Backtest.background("ETHUSDT", {
+    strategyName: "test-partial-facade-2",
+    exchangeName: "binance-partial-facade-2",
+    frameName: "25m-partial-facade-2",
+  });
+
+  await awaitSubject.toPromise();
+  // await sleep(1_000);
+  unsubscribeError();
+
+  if (errorCaught) {
+    fail(`Error: ${errorCaught.message || errorCaught}`);
+    return;
+  }
+
+  const markdown = await Partial.getReport("ETHUSDT");
+
+  if (
+    markdown &&
+    markdown.includes("# Partial Profit/Loss Report: ETHUSDT") &&
+    markdown.includes("| Action |") &&
+    markdown.includes("| Symbol |") &&
+    markdown.includes("| Level % |") &&
+    markdown.includes("| Current Price |") &&
+    markdown.includes("| Timestamp |") &&
+    markdown.includes("| Mode |")
+  ) {
+    pass("Partial.getReport generated markdown with table");
+    return;
+  }
+
+  fail("Partial.getReport did not generate valid markdown");
+});
+
+
+/**
+ * PARTIAL FACADE TEST #3: Empty statistics for nonexistent symbol
+ */
+test("Partial.getData returns empty statistics for nonexistent symbol", async ({ pass, fail }) => {
+  const { Partial } = await import("../../build/index.mjs");
+
+  const stats = await Partial.getData("NONEXISTENT_SYMBOL_12345");
+
+  if (
+    stats &&
+    stats.totalEvents === 0 &&
+    stats.totalProfit === 0 &&
+    stats.totalLoss === 0 &&
+    stats.eventList.length === 0
+  ) {
+    pass("Partial.getData returns empty statistics for nonexistent symbol");
+    return;
+  }
+
+  fail("Partial.getData did not return empty statistics correctly");
 });
