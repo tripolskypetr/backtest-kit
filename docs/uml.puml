@@ -63,6 +63,12 @@ liveCommandService:
 								executionContextService: ""
 						methodContextService: ""
 					methodContextService: ""
+					partialConnectionService:
+						• partialConnectionService: ""
+						loggerService:
+							• loggerService: ""
+							methodContextService: ""
+							executionContextService: ""
 				strategySchemaService:
 					• strategySchemaService: ""
 					loggerService:
@@ -195,6 +201,12 @@ backtestCommandService:
 								executionContextService: ""
 						methodContextService: ""
 					methodContextService: ""
+					partialConnectionService:
+						• partialConnectionService: ""
+						loggerService:
+							• loggerService: ""
+							methodContextService: ""
+							executionContextService: ""
 				strategySchemaService:
 					• strategySchemaService: ""
 					loggerService:
@@ -354,6 +366,9 @@ walkerCommandService:
 								exchangeSchemaService: ""
 								methodContextService: ""
 							methodContextService: ""
+							partialConnectionService:
+								• partialConnectionService: ""
+								loggerService: ""
 						strategySchemaService:
 							• strategySchemaService: ""
 							loggerService:
