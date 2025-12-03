@@ -1,0 +1,12 @@
+{
+  "name": "optimization",
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "start": "echo \"Error: no test specified\" && exit 1"
+  },
+  "dependencies": {
+    "backtest-kit": "^1.4.2",
+    "ollama": "^0.6.3"
+  }
+}

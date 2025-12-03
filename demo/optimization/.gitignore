@@ -1,0 +1,8 @@
+build/*
+!build/.gitkeep
+node_modules
+.DS_Store
+wwwroot
+logs
+tmp
+generated
