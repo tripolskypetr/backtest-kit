@@ -319,6 +319,10 @@ async function text(symbol, messages) {
           "**ВАЖНО**: Не здоровайся, не говори что делаешь - только отчёт!",
         ].join("\n"),
       },
+      {
+        role: "system",
+        content: "Reasoning: high",
+      },
       ...messages,
       {
         role: "user",
