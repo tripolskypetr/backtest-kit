@@ -114,6 +114,10 @@ export interface IStrategyCallbacks {
   onCancel: (symbol: string, data: IScheduledSignalRow, currentPrice: number, backtest: boolean) => void;
   /** Called when signal is written to persist storage (for testing) */
   onWrite: (symbol: string, data: ISignalRow | null, backtest: boolean) => void;
+  /** Called when signal is in partial profit state (price moved favorably but not reached TP yet) */
+  onPartialProfit: (symbol: string, data: ISignalRow, currentPrice: number, revenuePercent: number, backtest: boolean) => void;
+  /** Called when signal is in partial loss state (price moved against position but not hit SL yet) */
+  onPartialLoss: (symbol: string, data: ISignalRow, currentPrice: number, revenuePercent: number, backtest: boolean) => void;
 }
 
 /**

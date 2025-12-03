@@ -928,6 +928,41 @@ const RETURN_PENDING_SIGNAL_ACTIVE_FN = async (
   signal: ISignalRow,
   currentPrice: number
 ): Promise<IStrategyTickResultActive> => {
+  // Calculate revenue percentage for partial fill/loss callbacks
+  {
+    let revenuePercent = 0;
+
+    if (signal.position === "long") {
+      // For long: positive if current > open, negative if current < open
+      revenuePercent = ((currentPrice - signal.priceOpen) / signal.priceOpen) * 100;
+    } else if (signal.position === "short") {
+      // For short: positive if current < open, negative if current > open
+      revenuePercent = ((signal.priceOpen - currentPrice) / signal.priceOpen) * 100;
+    }
+
+    // Call onPartialProfit if revenue is positive (but not reached TP yet)
+    if (revenuePercent > 0 && self.params.callbacks?.onPartialProfit) {
+      self.params.callbacks.onPartialProfit(
+        self.params.execution.context.symbol,
+        signal,
+        currentPrice,
+        revenuePercent,
+        self.params.execution.context.backtest
+      );
+    }
+
+    // Call onPartialLoss if revenue is negative (but not hit SL yet)
+    if (revenuePercent < 0 && self.params.callbacks?.onPartialLoss) {
+      self.params.callbacks.onPartialLoss(
+        self.params.execution.context.symbol,
+        signal,
+        currentPrice,
+        revenuePercent,
+        self.params.execution.context.backtest
+      );
+    }
+  }
+
   const result: IStrategyTickResultActive = {
     action: "active",
     signal: signal,
@@ -1342,6 +1377,39 @@ const PROCESS_PENDING_SIGNAL_CANDLES_FN = async (
         closeReason!,
         currentCandleTimestamp
       );
+    }
+
+    // Call onPartialProfit/onPartialLoss callbacks during backtest candle processing
+    // Calculate revenue percentage
+    {
+      let revenuePercent = 0;
+      if (signal.position === "long") {
+        revenuePercent = ((averagePrice - signal.priceOpen) / signal.priceOpen) * 100;
+      } else if (signal.position === "short") {
+        revenuePercent = ((signal.priceOpen - averagePrice) / signal.priceOpen) * 100;
+      }
+
+      // Call onPartialProfit if revenue is positive (but not reached TP yet)
+      if (revenuePercent > 0 && self.params.callbacks?.onPartialProfit) {
+        self.params.callbacks.onPartialProfit(
+          self.params.execution.context.symbol,
+          signal,
+          averagePrice,
+          revenuePercent,
+          self.params.execution.context.backtest
+        );
+      }
+
+      // Call onPartialLoss if revenue is negative (but not hit SL yet)
+      if (revenuePercent < 0 && self.params.callbacks?.onPartialLoss) {
+        self.params.callbacks.onPartialLoss(
+          self.params.execution.context.symbol,
+          signal,
+          averagePrice,
+          revenuePercent,
+          self.params.execution.context.backtest
+        );
+      }
     }
   }
 
