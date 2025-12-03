@@ -227,6 +227,11 @@ const VALIDATE_SIGNAL_FN = (signal: ISignalRow, currentPrice: number, isSchedule
       `minuteEstimatedTime must be positive, got ${signal.minuteEstimatedTime}`
     );
   }
+  if (!Number.isInteger(signal.minuteEstimatedTime)) {
+    errors.push(
+      `minuteEstimatedTime must be an integer (whole number), got ${signal.minuteEstimatedTime}`
+    );
+  }
 
   // ЗАЩИТА ОТ ВЕЧНЫХ СИГНАЛОВ: ограничиваем максимальное время жизни сигнала
   if (GLOBAL_CONFIG.CC_MAX_SIGNAL_LIFETIME_MINUTES && GLOBAL_CONFIG.CC_MAX_SIGNAL_LIFETIME_MINUTES) {
