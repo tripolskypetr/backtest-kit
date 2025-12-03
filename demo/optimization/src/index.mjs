@@ -180,7 +180,7 @@ const SOURCE_LIST = [
         "- **Volume**: trading volume at row timestamp (Min: 0, Max: +∞)",
         "- **Volatility**: volatility percentage at row timestamp (Min: 0%, Max: +∞)"
       ),
-    assistant: () => "Исторические данные 15-минутных свечей получены",
+    assistant: () => "Исторические данные 30-минутных свечей получены",
   },
   {
     name: "short-term-range",
@@ -236,7 +236,7 @@ const SOURCE_LIST = [
         "- **Body Size**: candle body size at row timestamp (Min: 0 USD, Max: +∞ USD)",
         "- **Close Price**: close price at row timestamp (Min: 0 USD, Max: +∞ USD)"
       ),
-    assistant: () => "Исторические данные 5-минутных свечей получены",
+    assistant: () => "Исторические данные 15-минутных свечей получены",
   },
   {
     name: "micro-term-range",
@@ -310,7 +310,7 @@ const SOURCE_LIST = [
         "- **Squeeze Momentum**: squeeze momentum indicator at row timestamp (Min: 0, Max: +∞)",
         "- **Pressure Index**: buying/selling pressure percentage at row timestamp (Min: -100%, Max: +100%)"
       ),
-    assistant: () => "Исторические данные 2-минутных свечей получены",
+    assistant: () => "Исторические данные 1-минутных свечей получены",
   },
 ];
 
