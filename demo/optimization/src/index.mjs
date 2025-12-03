@@ -1,6 +1,6 @@
 import { addOptimizer, Optimizer, listenOptimizerProgress } from "backtest-kit";
 import { fetchApi, str } from "functools-kit";
-import Ollama from "ollama";
+import { Ollama } from "ollama";
 
 const TRAIN_RANGE = [
   {
@@ -69,7 +69,7 @@ const SOURCE_LIST = [
     },
     user: (symbol, data) =>
       str.newline(
-        "=== ИСТОРИЧЕСКИЕ ИНДИКАТОРЫ 1-ЧАСОВЫХ СВЕЧЕЙ ===",
+        `# 1-Hour Candles Trading Analysis for ${symbol} (Historical Data)\n\n`,
         "",
         JSON.stringify(data),
         "",
@@ -128,7 +128,7 @@ const SOURCE_LIST = [
     },
     user: (symbol, data) =>
       str.newline(
-        "=== ИСТОРИЧЕСКИЕ ИНДИКАТОРЫ 15-МИНУТНЫХ СВЕЧЕЙ ===",
+        `# 30-Min Candles Analysis for ${symbol} (Historical Data)\n\n`,
         "",
         JSON.stringify(data),
         "",
@@ -186,7 +186,7 @@ const SOURCE_LIST = [
     },
     user: (symbol, data) =>
       str.newline(
-        "=== ИСТОРИЧЕСКИЕ ИНДИКАТОРЫ 5-МИНУТНЫХ СВЕЧЕЙ ===",
+        `# 15-Minute Candles Trading Analysis for ${symbol} (Historical Data)\n\n`,
         "",
         JSON.stringify(data),
         "",
@@ -242,7 +242,7 @@ const SOURCE_LIST = [
     },
     user: (symbol, data) =>
       str.newline(
-        "=== ИСТОРИЧЕСКИЕ ИНДИКАТОРЫ 2-МИНУТНЫХ СВЕЧЕЙ (micro-term-range) ===",
+        `# 1-Minute Candles Analysis for ${symbol} (Historical Data)\n\n`,
         "",
         JSON.stringify(data),
         "",
