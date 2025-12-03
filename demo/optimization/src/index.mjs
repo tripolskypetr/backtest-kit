@@ -1,6 +1,7 @@
 import { addOptimizer, Optimizer, listenOptimizerProgress } from "backtest-kit";
 import { fetchApi, str } from "functools-kit";
 import { Ollama } from "ollama";
+import fs from "fs/promises";
 
 function arrayToMarkdownTable(data) {
   if (!data.length) return "";
@@ -10,9 +11,7 @@ function arrayToMarkdownTable(data) {
   const header = `| ${cols.join(" | ")} |`;
   const separator = `| ${cols.map(() => "---").join(" | ")} |`;
 
-  const rows = data.map(row =>
-    `| ${cols.map(c => row[c]).join(" | ")} |`
-  );
+  const rows = data.map((row) => `| ${cols.map((c) => row[c]).join(" | ")} |`);
 
   return [header, separator, ...rows].join("\n");
 }
@@ -68,7 +67,9 @@ const SOURCE_LIST = [
   {
     name: "long-term-range",
     fetch: async ({ symbol, startDate, endDate, limit, offset }) => {
-      const url = new URL(`${process.env.CCXT_DUMPER_URL}/view/long-term-range`);
+      const url = new URL(
+        `${process.env.CCXT_DUMPER_URL}/view/long-term-range`
+      );
       {
         url.searchParams.set("symbol", symbol);
         url.searchParams.set("startDate", startDate.getTime());
@@ -127,7 +128,9 @@ const SOURCE_LIST = [
   {
     name: "swing-term-range",
     fetch: async ({ symbol, startDate, endDate, limit, offset }) => {
-      const url = new URL(`${process.env.CCXT_DUMPER_URL}/view/swing-term-range`);
+      const url = new URL(
+        `${process.env.CCXT_DUMPER_URL}/view/swing-term-range`
+      );
       {
         url.searchParams.set("symbol", symbol);
         url.searchParams.set("startDate", startDate.getTime());
@@ -185,7 +188,9 @@ const SOURCE_LIST = [
   {
     name: "short-term-range",
     fetch: async ({ symbol, startDate, endDate, limit, offset }) => {
-      const url = new URL(`${process.env.CCXT_DUMPER_URL}/view/short-term-range`);
+      const url = new URL(
+        `${process.env.CCXT_DUMPER_URL}/view/short-term-range`
+      );
       {
         url.searchParams.set("symbol", symbol);
         url.searchParams.set("startDate", startDate.getTime());
@@ -241,7 +246,9 @@ const SOURCE_LIST = [
   {
     name: "micro-term-range",
     fetch: async ({ symbol, startDate, endDate, limit, offset }) => {
-      const url = new URL(`${process.env.CCXT_DUMPER_URL}/view/micro-term-range`);
+      const url = new URL(
+        `${process.env.CCXT_DUMPER_URL}/view/micro-term-range`
+      );
       {
         url.searchParams.set("symbol", symbol);
         url.searchParams.set("startDate", startDate.getTime());
@@ -385,4 +392,17 @@ await Optimizer.dump(
     optimizerName: "btc-optimizer",
   },
   "./generated"
+);
+
+await Optimizer.getData("BTCUSDT", {
+  optimizerName: "btc-optimizer",
+}).then((list) =>
+  fs.writeFile(
+    "./strategy_list.json",
+    JSON.stringify(
+      list.map(({ strategy }) => strategy),
+      null,
+      2
+    )
+  )
 );
