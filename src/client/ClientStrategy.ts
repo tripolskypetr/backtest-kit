@@ -23,7 +23,7 @@ import {
 } from "../interfaces/Strategy.interface";
 import toProfitLossDto from "../helpers/toProfitLossDto";
 import { ICandleData } from "../interfaces/Exchange.interface";
-import { PersistSignalAdapter } from "../classes/Persist";
+import { PersistSignalAdapter, PersistScheduleAdapter } from "../classes/Persist";
 import backtest from "../lib";
 import { errorEmitter } from "../config/emitters";
 import { GLOBAL_CONFIG } from "../config/params";
@@ -406,32 +406,61 @@ const WAIT_FOR_INIT_FN = async (self: ClientStrategy) => {
   if (self.params.execution.context.backtest) {
     return;
   }
+
+  // Restore pending signal
   const pendingSignal = await PersistSignalAdapter.readSignalData(
     self.params.strategyName,
     self.params.execution.context.symbol
   );
-  if (!pendingSignal) {
-    return;
-  }
-  if (pendingSignal.exchangeName !== self.params.method.context.exchangeName) {
-    return;
-  }
-  if (pendingSignal.strategyName !== self.params.method.context.strategyName) {
-    return;
-  }
-  self._pendingSignal = pendingSignal;
+  if (pendingSignal) {
+    if (pendingSignal.exchangeName !== self.params.method.context.exchangeName) {
+      return;
+    }
+    if (pendingSignal.strategyName !== self.params.method.context.strategyName) {
+      return;
+    }
+    self._pendingSignal = pendingSignal;
 
-  // Call onActive callback for restored signal
-  if (self.params.callbacks?.onActive) {
-    const currentPrice = await self.params.exchange.getAveragePrice(
-      self.params.execution.context.symbol
-    );
-    self.params.callbacks.onActive(
-      self.params.execution.context.symbol,
-      pendingSignal,
-      currentPrice,
-      self.params.execution.context.backtest
-    );
+    // Call onActive callback for restored signal
+    if (self.params.callbacks?.onActive) {
+      const currentPrice = await self.params.exchange.getAveragePrice(
+        self.params.execution.context.symbol
+      );
+      self.params.callbacks.onActive(
+        self.params.execution.context.symbol,
+        pendingSignal,
+        currentPrice,
+        self.params.execution.context.backtest
+      );
+    }
+  }
+
+  // Restore scheduled signal
+  const scheduledSignal = await PersistScheduleAdapter.readScheduleData(
+    self.params.strategyName,
+    self.params.execution.context.symbol
+  );
+  if (scheduledSignal) {
+    if (scheduledSignal.exchangeName !== self.params.method.context.exchangeName) {
+      return;
+    }
+    if (scheduledSignal.strategyName !== self.params.method.context.strategyName) {
+      return;
+    }
+    self._scheduledSignal = scheduledSignal;
+
+    // Call onSchedule callback for restored scheduled signal
+    if (self.params.callbacks?.onSchedule) {
+      const currentPrice = await self.params.exchange.getAveragePrice(
+        self.params.execution.context.symbol
+      );
+      self.params.callbacks.onSchedule(
+        self.params.execution.context.symbol,
+        scheduledSignal,
+        currentPrice,
+        self.params.execution.context.backtest
+      );
+    }
   }
 };
 
@@ -459,7 +488,7 @@ const CHECK_SCHEDULED_SIGNAL_TIMEOUT_FN = async (
     }
   );
 
-  self._scheduledSignal = null;
+  await self.setScheduledSignal(null);
 
   if (self.params.callbacks?.onCancel) {
     self.params.callbacks.onCancel(
@@ -540,7 +569,7 @@ const CANCEL_SCHEDULED_SIGNAL_BY_STOPLOSS_FN = async (
     priceStopLoss: scheduled.priceStopLoss,
   });
 
-  self._scheduledSignal = null;
+  await self.setScheduledSignal(null);
 
   const result: IStrategyTickResultIdle = {
     action: "idle",
@@ -573,7 +602,7 @@ const ACTIVATE_SCHEDULED_SIGNAL_FN = async (
       symbol: self.params.execution.context.symbol,
       signalId: scheduled.id,
     });
-    self._scheduledSignal = null;
+    await self.setScheduledSignal(null);
     return null;
   }
 
@@ -607,11 +636,11 @@ const ACTIVATE_SCHEDULED_SIGNAL_FN = async (
       symbol: self.params.execution.context.symbol,
       signalId: scheduled.id,
     });
-    self._scheduledSignal = null;
+    await self.setScheduledSignal(null);
     return null;
   }
 
-  self._scheduledSignal = null;
+  await self.setScheduledSignal(null);
 
   // КРИТИЧЕСКИ ВАЖНО: обновляем pendingAt при активации
   const activatedSignal: ISignalRow = {
@@ -968,7 +997,7 @@ const CANCEL_SCHEDULED_SIGNAL_IN_BACKTEST_FN = async (
     }
   );
 
-  self._scheduledSignal = null;
+  await self.setScheduledSignal(null);
 
   if (self.params.callbacks?.onCancel) {
     self.params.callbacks.onCancel(
@@ -1011,7 +1040,7 @@ const ACTIVATE_SCHEDULED_SIGNAL_IN_BACKTEST_FN = async (
       symbol: self.params.execution.context.symbol,
       signalId: scheduled.id,
     });
-    self._scheduledSignal = null;
+    await self.setScheduledSignal(null);
     return false;
   }
 
@@ -1046,11 +1075,11 @@ const ACTIVATE_SCHEDULED_SIGNAL_IN_BACKTEST_FN = async (
       symbol: self.params.execution.context.symbol,
       signalId: scheduled.id,
     });
-    self._scheduledSignal = null;
+    await self.setScheduledSignal(null);
     return false;
   }
 
-  self._scheduledSignal = null;
+  await self.setScheduledSignal(null);
 
   // КРИТИЧЕСКИ ВАЖНО: обновляем pendingAt при активации в backtest
   const activatedSignal: ISignalRow = {
@@ -1402,6 +1431,32 @@ export class ClientStrategy implements IStrategy {
   }
 
   /**
+   * Updates scheduled signal and persists to disk in live mode.
+   *
+   * Centralized method for all scheduled signal state changes.
+   * Uses atomic file writes to prevent corruption.
+   *
+   * @param scheduledSignal - New scheduled signal state (null to clear)
+   * @returns Promise that resolves when update is complete
+   */
+  public async setScheduledSignal(scheduledSignal: IScheduledSignalRow | null) {
+    this.params.logger.debug("ClientStrategy setScheduledSignal", {
+      scheduledSignal,
+    });
+    this._scheduledSignal = scheduledSignal;
+
+    if (this.params.execution.context.backtest) {
+      return;
+    }
+
+    await PersistScheduleAdapter.writeScheduleData(
+      this._scheduledSignal,
+      this.params.strategyName,
+      this.params.execution.context.symbol
+    );
+  }
+
+  /**
    * Retrieves the current pending signal.
    * If no signal is pending, returns null. 
    * @returns Promise resolving to the pending signal or null.
@@ -1505,10 +1560,10 @@ export class ClientStrategy implements IStrategy {
 
       if (signal) {
         if (signal._isScheduled === true) {
-          this._scheduledSignal = signal as IScheduledSignalRow;
+          await this.setScheduledSignal(signal as IScheduledSignalRow);
           return await OPEN_NEW_SCHEDULED_SIGNAL_FN(
             this,
-            this._scheduledSignal
+            this._scheduledSignal!
           );
         }
 
@@ -1773,7 +1828,7 @@ export class ClientStrategy implements IStrategy {
 
     // Clear scheduled signal if exists
     if (this._scheduledSignal) {
-      this._scheduledSignal = null;
+      await this.setScheduledSignal(null);
     }
   }
 }

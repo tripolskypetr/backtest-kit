@@ -11,7 +11,7 @@ import {
 import { join } from "path";
 import { writeFileAtomic } from "../utils/writeFileAtomic";
 import swarm from "../lib";
-import { ISignalRow, StrategyName } from "../interfaces/Strategy.interface";
+import { ISignalRow, IScheduledSignalRow, StrategyName } from "../interfaces/Strategy.interface";
 import { IRiskActivePosition, RiskName } from "../interfaces/Risk.interface";
 
 const BASE_WAIT_FOR_INIT_SYMBOL = Symbol("wait-for-init");
@@ -22,6 +22,13 @@ const PERSIST_SIGNAL_UTILS_METHOD_NAME_READ_DATA =
   "PersistSignalUtils.readSignalData";
 const PERSIST_SIGNAL_UTILS_METHOD_NAME_WRITE_DATA =
   "PersistSignalUtils.writeSignalData";
+
+const PERSIST_SCHEDULE_UTILS_METHOD_NAME_USE_PERSIST_SCHEDULE_ADAPTER =
+  "PersistScheduleUtils.usePersistScheduleAdapter";
+const PERSIST_SCHEDULE_UTILS_METHOD_NAME_READ_DATA =
+  "PersistScheduleUtils.readScheduleData";
+const PERSIST_SCHEDULE_UTILS_METHOD_NAME_WRITE_DATA =
+  "PersistScheduleUtils.writeScheduleData";
 
 const PERSIST_BASE_METHOD_NAME_CTOR = "PersistBase.CTOR";
 const PERSIST_BASE_METHOD_NAME_WAIT_FOR_INIT = "PersistBase.waitForInit";
@@ -729,3 +736,127 @@ export class PersistRiskUtils {
  * ```
  */
 export const PersistRiskAdapter = new PersistRiskUtils();
+
+/**
+ * Type for persisted scheduled signal data.
+ * Contains nullable scheduled signal for atomic updates.
+ */
+export type ScheduleData = IScheduledSignalRow | null;
+
+/**
+ * Utility class for managing scheduled signal persistence.
+ *
+ * Features:
+ * - Memoized storage instances per strategy
+ * - Custom adapter support
+ * - Atomic read/write operations for scheduled signals
+ * - Crash-safe scheduled signal state management
+ *
+ * Used by ClientStrategy for live mode persistence of scheduled signals (_scheduledSignal).
+ */
+export class PersistScheduleUtils {
+  private PersistScheduleFactory: TPersistBaseCtor<StrategyName, ScheduleData> =
+    PersistBase;
+
+  private getScheduleStorage = memoize(
+    ([strategyName]: [StrategyName]): string => `${strategyName}`,
+    (strategyName: StrategyName): IPersistBase<ScheduleData> =>
+      Reflect.construct(this.PersistScheduleFactory, [
+        strategyName,
+        `./dump/data/schedule/`,
+      ])
+  );
+
+  /**
+   * Registers a custom persistence adapter.
+   *
+   * @param Ctor - Custom PersistBase constructor
+   *
+   * @example
+   * ```typescript
+   * class RedisPersist extends PersistBase {
+   *   async readValue(id) { return JSON.parse(await redis.get(id)); }
+   *   async writeValue(id, entity) { await redis.set(id, JSON.stringify(entity)); }
+   * }
+   * PersistScheduleAdapter.usePersistScheduleAdapter(RedisPersist);
+   * ```
+   */
+  public usePersistScheduleAdapter(
+    Ctor: TPersistBaseCtor<StrategyName, ScheduleData>
+  ): void {
+    swarm.loggerService.info(
+      PERSIST_SCHEDULE_UTILS_METHOD_NAME_USE_PERSIST_SCHEDULE_ADAPTER
+    );
+    this.PersistScheduleFactory = Ctor;
+  }
+
+  /**
+   * Reads persisted scheduled signal data for a strategy and symbol.
+   *
+   * Called by ClientStrategy.waitForInit() to restore scheduled signal state.
+   * Returns null if no scheduled signal exists.
+   *
+   * @param strategyName - Strategy identifier
+   * @param symbol - Trading pair symbol
+   * @returns Promise resolving to scheduled signal or null
+   */
+  public readScheduleData = async (
+    strategyName: StrategyName,
+    symbol: string
+  ): Promise<IScheduledSignalRow | null> => {
+    swarm.loggerService.info(PERSIST_SCHEDULE_UTILS_METHOD_NAME_READ_DATA);
+
+    const isInitial = !this.getScheduleStorage.has(strategyName);
+    const stateStorage = this.getScheduleStorage(strategyName);
+    await stateStorage.waitForInit(isInitial);
+
+    if (await stateStorage.hasValue(symbol)) {
+      return await stateStorage.readValue(symbol);
+    }
+
+    return null;
+  };
+
+  /**
+   * Writes scheduled signal data to disk with atomic file writes.
+   *
+   * Called by ClientStrategy.setScheduledSignal() to persist state.
+   * Uses atomic writes to prevent corruption on crashes.
+   *
+   * @param scheduledSignalRow - Scheduled signal data (null to clear)
+   * @param strategyName - Strategy identifier
+   * @param symbol - Trading pair symbol
+   * @returns Promise that resolves when write is complete
+   */
+  public writeScheduleData = async (
+    scheduledSignalRow: IScheduledSignalRow | null,
+    strategyName: StrategyName,
+    symbol: string
+  ): Promise<void> => {
+    swarm.loggerService.info(PERSIST_SCHEDULE_UTILS_METHOD_NAME_WRITE_DATA);
+
+    const isInitial = !this.getScheduleStorage.has(strategyName);
+    const stateStorage = this.getScheduleStorage(strategyName);
+    await stateStorage.waitForInit(isInitial);
+
+    await stateStorage.writeValue(symbol, scheduledSignalRow);
+  };
+}
+
+/**
+ * Global singleton instance of PersistScheduleUtils.
+ * Used by ClientStrategy for scheduled signal persistence.
+ *
+ * @example
+ * ```typescript
+ * // Custom adapter
+ * PersistScheduleAdapter.usePersistScheduleAdapter(RedisPersist);
+ *
+ * // Read scheduled signal
+ * const scheduled = await PersistScheduleAdapter.readScheduleData("my-strategy", "BTCUSDT");
+ *
+ * // Write scheduled signal
+ * await PersistScheduleAdapter.writeScheduleData(scheduled, "my-strategy", "BTCUSDT");
+ * ```
+ */
+export const PersistScheduleAdapter = new PersistScheduleUtils();
