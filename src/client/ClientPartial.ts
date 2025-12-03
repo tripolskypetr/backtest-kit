@@ -314,38 +314,6 @@ export class ClientPartial {
   }
 
   /**
-   * Replaces entire state map with new one and persists changes.
-   *
-   * Used for testing or bulk state updates.
-   * Overwrites all existing signal states.
-   *
-   * @param symbol - Trading pair symbol
-   * @param states - New state map to set
-   * @returns Promise that resolves when state is set and persisted
-   *
-   * @example
-   * ```typescript
-   * const newStates = new Map<string, IPartialState>();
-   * newStates.set("signal-1", {
-   *   profitLevels: new Set([10, 20]),
-   *   lossLevels: new Set([10])
-   * });
-   * await partial.setStateMap("BTCUSDT", newStates);
-   * ```
-   */
-  public async setStateMap(
-    symbol: string,
-    states: Map<string, IPartialState>
-  ): Promise<void> {
-    this.params.logger.info("ClientPartial setStateMap", {
-      symbol,
-      stateCount: states.size,
-    });
-    this._states = states;
-    await this._persistState(symbol);
-  }
-
-  /**
    * Processes profit state and emits events for newly reached profit levels.
    *
    * Called by ClientStrategy during signal monitoring when revenuePercent > 0.
