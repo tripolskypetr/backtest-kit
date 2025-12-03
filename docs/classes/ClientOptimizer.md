@@ -20,7 +20,7 @@ Used by OptimizerConnectionService to create optimizer instances.
 ## Constructor
 
 ```ts
-constructor(params: IOptimizerParams);
+constructor(params: IOptimizerParams, onProgress: (progress: ProgressOptimizerContract) => void);
 ```
 
 ## Properties
@@ -29,6 +29,12 @@ constructor(params: IOptimizerParams);
 
 ```ts
 params: IOptimizerParams
+```
+
+### onProgress
+
+```ts
+onProgress: (progress: ProgressOptimizerContract) => void
 ```
 
 ### getData
