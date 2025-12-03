@@ -76,6 +76,7 @@ Create a `.env` file or set environment variables:
 
 ```env
 OLLAMA_API_KEY=your_ollama_api_key
+CCXT_DUMPER_URL=node-ccxt-dumper-instance
 ```
 
 ### Training Configuration
