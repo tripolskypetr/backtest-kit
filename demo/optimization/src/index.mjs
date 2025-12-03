@@ -2,6 +2,21 @@ import { addOptimizer, Optimizer, listenOptimizerProgress } from "backtest-kit";
 import { fetchApi, str } from "functools-kit";
 import { Ollama } from "ollama";
 
+function arrayToMarkdownTable(data) {
+  if (!data.length) return "";
+
+  const cols = Object.keys(data[0]);
+
+  const header = `| ${cols.join(" | ")} |`;
+  const separator = `| ${cols.map(() => "---").join(" | ")} |`;
+
+  const rows = data.map(row =>
+    `| ${cols.map(c => row[c]).join(" | ")} |`
+  );
+
+  return [header, separator, ...rows].join("\n");
+}
+
 const TRAIN_RANGE = [
   {
     note: "24 ноября 2025",
@@ -71,7 +86,7 @@ const SOURCE_LIST = [
       str.newline(
         `# 1-Hour Candles Trading Analysis for ${symbol} (Historical Data)\n\n`,
         "",
-        JSON.stringify(data),
+        arrayToMarkdownTable(data),
         "",
         "## Data Sources",
         "- **Timeframe**: 1-hour candles",
@@ -130,7 +145,7 @@ const SOURCE_LIST = [
       str.newline(
         `# 30-Min Candles Analysis for ${symbol} (Historical Data)\n\n`,
         "",
-        JSON.stringify(data),
+        arrayToMarkdownTable(data),
         "",
         "## Data Sources",
         "- **Timeframe**: 30-minute candles",
@@ -188,7 +203,7 @@ const SOURCE_LIST = [
       str.newline(
         `# 15-Minute Candles Trading Analysis for ${symbol} (Historical Data)\n\n`,
         "",
-        JSON.stringify(data),
+        arrayToMarkdownTable(data),
         "",
         "## Data Sources",
         "- **Timeframe**: 15-minute candles",
@@ -244,7 +259,7 @@ const SOURCE_LIST = [
       str.newline(
         `# 1-Minute Candles Analysis for ${symbol} (Historical Data)\n\n`,
         "",
-        JSON.stringify(data),
+        arrayToMarkdownTable(data),
         "",
         "## Data Sources",
         "- **Timeframe**: 1-minute candles",

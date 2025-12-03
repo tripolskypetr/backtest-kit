@@ -6,3 +6,4 @@ wwwroot
 logs
 tmp
 generated
+.env
