@@ -323,7 +323,7 @@ async function text(symbol, messages) {
   });
 
   const response = await ollama.chat({
-    model: "gpt-oss:20b",
+    model: "deepseek-v3.1:671b",
     think: true,
     messages: [
       {
