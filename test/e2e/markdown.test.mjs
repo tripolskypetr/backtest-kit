@@ -301,7 +301,7 @@ test("MARKDOWN PARALLEL: All markdown services work with multi-symbol isolation"
   });
 
   await awaitSubject.toPromise();
-  // await sleep(1000);
+  // // await sleep(1000);
   unsubscribeError();
   unsubscribeDone();
 
@@ -686,7 +686,7 @@ test("LIVE MARKDOWN: LiveMarkdownService works with persist storage", async ({ p
   });
 
   await awaitSubject.toPromise();
-  await sleep(2000); // Ждем чтобы данные записались в LiveMarkdownService
+  // await sleep(2000); // Ждем чтобы данные записались в LiveMarkdownService
   unsubscribeError();
   stopBtc();
   stopEth();
