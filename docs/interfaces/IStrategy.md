@@ -1,4 +1,3 @@
-@ -1,55 +0,0 @@
 ---
 title: docs/api-reference/interface/IStrategy
 group: docs
