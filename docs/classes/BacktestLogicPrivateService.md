@@ -60,7 +60,7 @@ methodContextService: any
 ### run
 
 ```ts
-run(symbol: string): AsyncGenerator<any, void, unknown>;
+run(symbol: string): AsyncGenerator<IStrategyBacktestResult, void, unknown>;
 ```
 
 Runs backtest for a symbol, streaming closed signals as async generator.

@@ -7,7 +7,7 @@ import { performanceEmitter, errorEmitter } from "../../../../config/emitters";
 import MethodContextService, {
   TMethodContextService,
 } from "../../context/MethodContextService";
-import { IStrategyTickResult } from "../../../../interfaces/Strategy.interface";
+import { IStrategyTickResult, IStrategyTickResultClosed, IStrategyTickResultOpened } from "../../../../interfaces/Strategy.interface";
 
 const TICK_TTL = 1 * 60 * 1_000 + 1;
 
@@ -122,8 +122,8 @@ export class LiveLogicPrivateService {
         continue;
       }
 
-      // Yield opened, closed, cancelled results
-      yield result;
+      // Yield opened, closed results
+      yield result as IStrategyTickResultClosed | IStrategyTickResultOpened;
 
       await sleep(TICK_TTL);
     }

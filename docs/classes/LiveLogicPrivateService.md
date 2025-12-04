@@ -51,7 +51,7 @@ methodContextService: any
 ### run
 
 ```ts
-run(symbol: string): AsyncGenerator<any, void, unknown>;
+run(symbol: string): AsyncGenerator<IStrategyTickResultOpened | IStrategyTickResultClosed, void, unknown>;
 ```
 
 Runs live trading for a symbol, streaming results as async generator.

@@ -36,7 +36,7 @@ backtestLogicPrivateService: any
 ### run
 
 ```ts
-run: (symbol: string, context: { strategyName: string; exchangeName: string; frameName: string; }) => AsyncGenerator<any, void, unknown>
+run: (symbol: string, context: { strategyName: string; exchangeName: string; frameName: string; }) => AsyncGenerator<IStrategyBacktestResult, void, unknown>
 ```
 
 Runs backtest for a symbol with context propagation.
