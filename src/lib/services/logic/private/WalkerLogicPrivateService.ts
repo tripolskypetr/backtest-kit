@@ -121,10 +121,28 @@ export class WalkerLogicPrivateService {
 
       pendingStrategy = strategyName;
 
-      const result = await Promise.race([
-        await resolveDocuments(iterator),
-        listenStop,
-      ]);
+      let result;
+      try {
+        result = await Promise.race([
+          await resolveDocuments(iterator),
+          listenStop,
+        ]);
+      } catch (error) {
+        console.warn(`walkerLogicPrivateService backtest failed symbol=${symbol} strategyName=${strategyName} exchangeName=${context.exchangeName}`, error);
+        this.loggerService.warn(
+          "walkerLogicPrivateService backtest failed for strategy, skipping",
+          {
+            strategyName,
+            symbol,
+            error: error instanceof Error ? error.message : String(error),
+          }
+        );
+        // Call onStrategyError callback if provided
+        if (walkerSchema.callbacks?.onStrategyError) {
+          walkerSchema.callbacks.onStrategyError(strategyName, symbol, error);
+        }
+        continue;
+      }
 
       if (result === CANCEL_SYMBOL) {
         this.loggerService.info(

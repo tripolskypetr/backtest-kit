@@ -88,7 +88,22 @@ export class BacktestLogicPrivateService {
         });
       }
 
-      const result = await this.strategyGlobalService.tick(symbol, when, true);
+      let result;
+      try {
+        result = await this.strategyGlobalService.tick(symbol, when, true);
+      } catch (error) {
+        console.warn(`backtestLogicPrivateService tick failed, skipping timeframe when=${when.toISOString()} symbol=${symbol} strategyName=${this.methodContextService.context.strategyName} exchangeName=${this.methodContextService.context.exchangeName}`, error);
+        this.loggerService.warn(
+          "backtestLogicPrivateService tick failed, skipping timeframe",
+          {
+            symbol,
+            when: when.toISOString(),
+            error: error instanceof Error ? error.message : String(error),
+          }
+        );
+        i++;
+        continue;
+      }
 
       // Если scheduled signal создан - обрабатываем через backtest()
       if (result.action === "scheduled") {
@@ -110,13 +125,29 @@ export class BacktestLogicPrivateService {
         // + minuteEstimatedTime для работы сигнала ПОСЛЕ активации
         // +1 потому что when включается как первая свеча (timestamp начинается с when, а не after when)
         const candlesNeeded = GLOBAL_CONFIG.CC_SCHEDULE_AWAIT_MINUTES + signal.minuteEstimatedTime + 1;
-        const candles = await this.exchangeGlobalService.getNextCandles(
-          symbol,
-          "1m",
-          candlesNeeded,
-          when,
-          true
-        );
+        let candles;
+        try {
+          candles = await this.exchangeGlobalService.getNextCandles(
+            symbol,
+            "1m",
+            candlesNeeded,
+            when,
+            true
+          );
+        } catch (error) {
+          console.warn(`backtestLogicPrivateService getNextCandles failed for scheduled signal when=${when.toISOString()} symbol=${symbol} strategyName=${this.methodContextService.context.strategyName} exchangeName=${this.methodContextService.context.exchangeName}`, error);
+          this.loggerService.warn(
+            "backtestLogicPrivateService getNextCandles failed for scheduled signal",
+            {
+              symbol,
+              signalId: signal.id,
+              candlesNeeded,
+              error: error instanceof Error ? error.message : String(error),
+            }
+          );
+          i++;
+          continue;
+        }
 
         if (!candles.length) {
           i++;
@@ -135,12 +166,27 @@ export class BacktestLogicPrivateService {
 
         // backtest() сам обработает scheduled signal: найдет активацию/отмену
         // и если активируется - продолжит с TP/SL мониторингом
-        const backtestResult = await this.strategyGlobalService.backtest(
-          symbol,
-          candles,
-          when,
-          true
-        );
+        let backtestResult;
+        try {
+          backtestResult = await this.strategyGlobalService.backtest(
+            symbol,
+            candles,
+            when,
+            true
+          );
+        } catch (error) {
+          console.warn(`backtestLogicPrivateService backtest failed for scheduled signal when=${when.toISOString()} symbol=${symbol} strategyName=${this.methodContextService.context.strategyName} exchangeName=${this.methodContextService.context.exchangeName}`, error);
+          this.loggerService.warn(
+            "backtestLogicPrivateService backtest failed for scheduled signal",
+            {
+              symbol,
+              signalId: signal.id,
+              error: error instanceof Error ? error.message : String(error),
+            }
+          );
+          i++;
+          continue;
+        }
 
         this.loggerService.info(
           "backtestLogicPrivateService scheduled signal closed",
@@ -194,16 +240,32 @@ export class BacktestLogicPrivateService {
         });
 
         // Получаем свечи для бектеста
-        const candles = await this.exchangeGlobalService.getNextCandles(
-          symbol,
-          "1m",
-          signal.minuteEstimatedTime,
-          when,
-          true
-        );
+        let candles;
+        try {
+          candles = await this.exchangeGlobalService.getNextCandles(
+            symbol,
+            "1m",
+            signal.minuteEstimatedTime,
+            when,
+            true
+          );
+        } catch (error) {
+          console.warn(`backtestLogicPrivateService getNextCandles failed for opened signal when=${when.toISOString()} symbol=${symbol} strategyName=${this.methodContextService.context.strategyName} exchangeName=${this.methodContextService.context.exchangeName}`, error);
+          this.loggerService.warn(
+            "backtestLogicPrivateService getNextCandles failed for opened signal",
+            {
+              symbol,
+              signalId: signal.id,
+              error: error instanceof Error ? error.message : String(error),
+            }
+          );
+          i++;
+          continue;
+        }
 
         if (!candles.length) {
-          return;
+          i++;
+          continue;
         }
 
         this.loggerService.info("backtestLogicPrivateService candles fetched", {
@@ -213,12 +275,27 @@ export class BacktestLogicPrivateService {
         });
 
         // Вызываем backtest - всегда возвращает closed
-        const backtestResult = await this.strategyGlobalService.backtest(
-          symbol,
-          candles,
-          when,
-          true
-        );
+        let backtestResult;
+        try {
+          backtestResult = await this.strategyGlobalService.backtest(
+            symbol,
+            candles,
+            when,
+            true
+          );
+        } catch (error) {
+          console.warn(`backtestLogicPrivateService backtest failed for opened signal when=${when.toISOString()} symbol=${symbol} strategyName=${this.methodContextService.context.strategyName} exchangeName=${this.methodContextService.context.exchangeName}`, error);
+          this.loggerService.warn(
+            "backtestLogicPrivateService backtest failed for opened signal",
+            {
+              symbol,
+              signalId: signal.id,
+              error: error instanceof Error ? error.message : String(error),
+            }
+          );
+          i++;
+          continue;
+        }
 
         this.loggerService.info("backtestLogicPrivateService signal closed", {
           symbol,

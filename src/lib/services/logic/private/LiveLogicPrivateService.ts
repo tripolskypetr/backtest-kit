@@ -68,7 +68,22 @@ export class LiveLogicPrivateService {
       const tickStartTime = performance.now();
       const when = new Date();
 
-      const result = await this.strategyGlobalService.tick(symbol, when, false);
+      let result;
+      try {
+        result = await this.strategyGlobalService.tick(symbol, when, false);
+      } catch (error) {
+        console.warn(`backtestLogicPrivateService tick failed when=${when.toISOString()} symbol=${symbol} strategyName=${this.methodContextService.context.strategyName} exchangeName=${this.methodContextService.context.exchangeName}`, error);
+        this.loggerService.warn(
+          "liveLogicPrivateService tick failed, retrying after sleep",
+          {
+            symbol,
+            when: when.toISOString(),
+            error: error instanceof Error ? error.message : String(error),
+          }
+        );
+        await sleep(TICK_TTL);
+        continue;
+      }
 
       this.loggerService.info("liveLogicPrivateService tick result", {
         symbol,

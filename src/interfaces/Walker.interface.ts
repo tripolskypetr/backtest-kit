@@ -59,6 +59,13 @@ export interface IWalkerCallbacks {
     metric: number | null
   ) => void;
 
+  /** Called when a strategy backtest fails with an error */
+  onStrategyError: (
+    strategyName: StrategyName,
+    symbol: string,
+    error: Error | unknown
+  ) => void;
+
   /** Called when all strategies have been tested */
   onComplete: (results: IWalkerResults) => void;
 }
