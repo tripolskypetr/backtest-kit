@@ -14,6 +14,7 @@ import {
   errorEmitter,
 } from "../../../../config/emitters";
 import { GLOBAL_CONFIG } from "../../../../config/params";
+import { errorData, getErrorMessage } from "functools-kit";
 
 /**
  * Private service for backtest orchestration using async generators.
@@ -99,10 +100,10 @@ export class BacktestLogicPrivateService {
           {
             symbol,
             when: when.toISOString(),
-            error: error instanceof Error ? error.message : String(error),
+            error: errorData(error), message: getErrorMessage(error),
           }
         );
-        await errorEmitter.next(error instanceof Error ? error : new Error(String(error)));
+        await errorEmitter.next(error);
         i++;
         continue;
       }
@@ -144,10 +145,10 @@ export class BacktestLogicPrivateService {
               symbol,
               signalId: signal.id,
               candlesNeeded,
-              error: error instanceof Error ? error.message : String(error),
+              error: errorData(error), message: getErrorMessage(error),
             }
           );
-          await errorEmitter.next(error instanceof Error ? error : new Error(String(error)));
+          await errorEmitter.next(error);
           i++;
           continue;
         }
@@ -184,10 +185,10 @@ export class BacktestLogicPrivateService {
             {
               symbol,
               signalId: signal.id,
-              error: error instanceof Error ? error.message : String(error),
+              error: errorData(error), message: getErrorMessage(error),
             }
           );
-          await errorEmitter.next(error instanceof Error ? error : new Error(String(error)));
+          await errorEmitter.next(error);
           i++;
           continue;
         }
@@ -260,10 +261,10 @@ export class BacktestLogicPrivateService {
             {
               symbol,
               signalId: signal.id,
-              error: error instanceof Error ? error.message : String(error),
+              error: errorData(error), message: getErrorMessage(error),
             }
           );
-          await errorEmitter.next(error instanceof Error ? error : new Error(String(error)));
+          await errorEmitter.next(error);
           i++;
           continue;
         }
@@ -295,10 +296,10 @@ export class BacktestLogicPrivateService {
             {
               symbol,
               signalId: signal.id,
-              error: error instanceof Error ? error.message : String(error),
+              error: errorData(error), message: getErrorMessage(error),
             }
           );
-          await errorEmitter.next(error instanceof Error ? error : new Error(String(error)));
+          await errorEmitter.next(error);
           i++;
           continue;
         }

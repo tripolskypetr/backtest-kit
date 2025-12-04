@@ -35,6 +35,13 @@ export const signalBacktestEmitter = new Subject<IStrategyTickResult>();
 export const errorEmitter = new Subject<Error>();
 
 /**
+ * Exit emitter for critical errors that require process termination.
+ * Emits errors that should terminate the current execution (Backtest, Live, Walker).
+ * Unlike errorEmitter (for recoverable errors), exitEmitter signals fatal errors.
+ */
+export const exitEmitter = new Subject<Error>();
+
+/**
  * Done emitter for live background execution completion.
  * Emits when live background tasks complete (Live.background).
  */

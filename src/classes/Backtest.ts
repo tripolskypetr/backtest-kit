@@ -1,6 +1,6 @@
 import backtest from "../lib";
 import { StrategyName } from "../interfaces/Strategy.interface";
-import { errorEmitter, doneBacktestSubject } from "../config/emitters";
+import { exitEmitter, doneBacktestSubject } from "../config/emitters";
 import { getErrorMessage } from "functools-kit";
 
 const BACKTEST_METHOD_NAME_RUN = "BacktestUtils.run";
@@ -117,7 +117,7 @@ export class BacktestUtils {
       isDone = true;
     };
     task().catch((error) =>
-      errorEmitter.next(new Error(getErrorMessage(error)))
+      exitEmitter.next(new Error(getErrorMessage(error)))
     );
     return () => {
       backtest.strategyGlobalService.stop(symbol, context.strategyName);

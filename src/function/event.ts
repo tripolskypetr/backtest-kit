@@ -1,5 +1,5 @@
 import backtest from "../lib";
-import { signalEmitter, signalLiveEmitter, signalBacktestEmitter, errorEmitter, doneLiveSubject, doneBacktestSubject, doneWalkerSubject, progressBacktestEmitter, progressWalkerEmitter, progressOptimizerEmitter, performanceEmitter, walkerEmitter, walkerCompleteSubject, validationSubject, partialProfitSubject, partialLossSubject } from "../config/emitters";
+import { signalEmitter, signalLiveEmitter, signalBacktestEmitter, errorEmitter, exitEmitter, doneLiveSubject, doneBacktestSubject, doneWalkerSubject, progressBacktestEmitter, progressWalkerEmitter, progressOptimizerEmitter, performanceEmitter, walkerEmitter, walkerCompleteSubject, validationSubject, partialProfitSubject, partialLossSubject } from "../config/emitters";
 import { IStrategyTickResult } from "../interfaces/Strategy.interface";
 import { DoneContract } from "../contract/Done.contract";
 import { ProgressBacktestContract } from "../contract/ProgressBacktest.contract";
@@ -19,6 +19,7 @@ const LISTEN_SIGNAL_LIVE_ONCE_METHOD_NAME = "event.listenSignalLiveOnce";
 const LISTEN_SIGNAL_BACKTEST_METHOD_NAME = "event.listenSignalBacktest";
 const LISTEN_SIGNAL_BACKTEST_ONCE_METHOD_NAME = "event.listenSignalBacktestOnce";
 const LISTEN_ERROR_METHOD_NAME = "event.listenError";
+const LISTEN_EXIT_METHOD_NAME = "event.listenExit";
 const LISTEN_DONE_LIVE_METHOD_NAME = "event.listenDoneLive";
 const LISTEN_DONE_LIVE_ONCE_METHOD_NAME = "event.listenDoneLiveOnce";
 const LISTEN_DONE_BACKTEST_METHOD_NAME = "event.listenDoneBacktest";
@@ -217,9 +218,10 @@ export function listenSignalBacktestOnce(
 }
 
 /**
- * Subscribes to background execution errors with queued async processing.
+ * Subscribes to recoverable execution errors with queued async processing.
  *
- * Listens to errors caught in Live.background() and Backtest.background() execution.
+ * Listens to recoverable errors during strategy execution (e.g., failed API calls).
+ * These errors are caught and handled gracefully - execution continues.
  * Events are processed sequentially in order received, even if callback is async.
  * Uses queued wrapper to prevent concurrent execution of the callback.
  *
@@ -231,7 +233,7 @@ export function listenSignalBacktestOnce(
  * import { listenError } from "./function/event";
  *
  * const unsubscribe = listenError((error) => {
- *   console.error("Background execution error:", error.message);
+ *   console.error("Recoverable error (execution continues):", error.message);
  *   // Log to monitoring service, send alerts, etc.
  * });
  *
@@ -242,6 +244,35 @@ export function listenSignalBacktestOnce(
 export function listenError(fn: (error: Error) => void) {
   backtest.loggerService.log(LISTEN_ERROR_METHOD_NAME);
   return errorEmitter.subscribe(queued(async (error) => fn(error)));
+}
+
+/**
+ * Subscribes to fatal execution errors with queued async processing.
+ *
+ * Listens to critical errors that terminate execution (Live.background, Backtest.background, Walker.background).
+ * Unlike listenError (recoverable errors), these errors stop the current process.
+ * Events are processed sequentially in order received, even if callback is async.
+ * Uses queued wrapper to prevent concurrent execution of the callback.
+ *
+ * @param fn - Callback function to handle fatal error events
+ * @returns Unsubscribe function to stop listening
+ *
+ * @example
+ * ```typescript
+ * import { listenExit } from "./function/event";
+ *
+ * const unsubscribe = listenExit((error) => {
+ *   console.error("Fatal error (execution terminated):", error.message);
+ *   // Log to monitoring, send alerts, restart process, etc.
+ * });
+ *
+ * // Later: stop listening
+ * unsubscribe();
+ * ```
+ */
+export function listenExit(fn: (error: Error) => void) {
+  backtest.loggerService.log(LISTEN_EXIT_METHOD_NAME);
+  return exitEmitter.subscribe(queued(async (error) => fn(error)));
 }
 
 /**

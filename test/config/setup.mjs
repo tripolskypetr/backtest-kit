@@ -72,3 +72,4 @@ setConfig({
   CC_GET_CANDLES_RETRY_DELAY_MS: 100, // Минимальная задержка между ретраями
 })
 
+console.warn = () => void 0;

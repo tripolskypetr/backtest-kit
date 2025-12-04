@@ -14,7 +14,7 @@ import {
   progressWalkerEmitter,
   errorEmitter,
 } from "../../../../config/emitters";
-import { resolveDocuments } from "functools-kit";
+import { errorData, getErrorMessage, resolveDocuments } from "functools-kit";
 
 const CANCEL_SYMBOL = Symbol("CANCEL_SYMBOL");
 
@@ -135,10 +135,10 @@ export class WalkerLogicPrivateService {
           {
             strategyName,
             symbol,
-            error: error instanceof Error ? error.message : String(error),
+            error: errorData(error), message: getErrorMessage(error),
           }
         );
-        await errorEmitter.next(error instanceof Error ? error : new Error(String(error)));
+        await errorEmitter.next(error);
         // Call onStrategyError callback if provided
         if (walkerSchema.callbacks?.onStrategyError) {
           walkerSchema.callbacks.onStrategyError(strategyName, symbol, error);

@@ -1,6 +1,6 @@
 import backtest from "../lib";
 import { WalkerName } from "../interfaces/Walker.interface";
-import { errorEmitter, doneWalkerSubject, walkerStopSubject } from "../config/emitters";
+import { exitEmitter, doneWalkerSubject, walkerStopSubject } from "../config/emitters";
 import { getErrorMessage } from "functools-kit";
 
 const WALKER_METHOD_NAME_RUN = "WalkerUtils.run";
@@ -137,7 +137,7 @@ export class WalkerUtils {
       isDone = true;
     };
     task().catch((error) =>
-      errorEmitter.next(new Error(getErrorMessage(error)))
+      exitEmitter.next(new Error(getErrorMessage(error)))
     );
     return () => {
       for (const strategyName of walkerSchema.strategies) {

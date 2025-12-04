@@ -4,7 +4,7 @@ import {
   StrategyName,
 } from "../interfaces/Strategy.interface";
 import backtest from "../lib";
-import { errorEmitter, doneLiveSubject } from "../config/emitters";
+import { exitEmitter, doneLiveSubject } from "../config/emitters";
 import { getErrorMessage } from "functools-kit";
 
 const LIVE_METHOD_NAME_RUN = "LiveUtils.run";
@@ -134,7 +134,7 @@ export class LiveUtils {
       isDone = true;
     };
     task().catch((error) =>
-      errorEmitter.next(new Error(getErrorMessage(error)))
+      exitEmitter.next(new Error(getErrorMessage(error)))
     );
     return () => {
       backtest.strategyGlobalService.stop(symbol, context.strategyName);

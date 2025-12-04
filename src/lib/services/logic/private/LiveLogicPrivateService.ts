@@ -2,7 +2,7 @@ import { inject } from "../../../core/di";
 import LoggerService from "../../base/LoggerService";
 import TYPES from "../../../core/types";
 import StrategyGlobalService from "../../global/StrategyGlobalService";
-import { sleep } from "functools-kit";
+import { errorData, getErrorMessage, sleep } from "functools-kit";
 import { performanceEmitter, errorEmitter } from "../../../../config/emitters";
 import MethodContextService, {
   TMethodContextService,
@@ -78,10 +78,10 @@ export class LiveLogicPrivateService {
           {
             symbol,
             when: when.toISOString(),
-            error: error instanceof Error ? error.message : String(error),
+            error: errorData(error), message: getErrorMessage(error),
           }
         );
-        await errorEmitter.next(error instanceof Error ? error : new Error(String(error)));
+        await errorEmitter.next(error);
         await sleep(TICK_TTL);
         continue;
       }

@@ -25,6 +25,7 @@ export {
   listenSignalLive,
   listenSignalLiveOnce,
   listenError,
+  listenExit,
   listenDoneLive,
   listenDoneLiveOnce,
   listenDoneBacktest,

@@ -2940,9 +2940,10 @@ declare function listenSignalBacktest(fn: (event: IStrategyTickResult) => void):
  */
 declare function listenSignalBacktestOnce(filterFn: (event: IStrategyTickResult) => boolean, fn: (event: IStrategyTickResult) => void): () => void;
 /**
- * Subscribes to background execution errors with queued async processing.
+ * Subscribes to recoverable execution errors with queued async processing.
  *
- * Listens to errors caught in Live.background() and Backtest.background() execution.
+ * Listens to recoverable errors during strategy execution (e.g., failed API calls).
+ * These errors are caught and handled gracefully - execution continues.
  * Events are processed sequentially in order received, even if callback is async.
  * Uses queued wrapper to prevent concurrent execution of the callback.
  *
@@ -2954,7 +2955,7 @@ declare function listenSignalBacktestOnce(filterFn: (event: IStrategyTickResult)
  * import { listenError } from "./function/event";
  *
  * const unsubscribe = listenError((error) => {
- *   console.error("Background execution error:", error.message);
+ *   console.error("Recoverable error (execution continues):", error.message);
  *   // Log to monitoring service, send alerts, etc.
  * });
  *
@@ -2963,6 +2964,31 @@ declare function listenSignalBacktestOnce(filterFn: (event: IStrategyTickResult)
  * ```
  */
 declare function listenError(fn: (error: Error) => void): () => void;
+/**
+ * Subscribes to fatal execution errors with queued async processing.
+ *
+ * Listens to critical errors that terminate execution (Live.background, Backtest.background, Walker.background).
+ * Unlike listenError (recoverable errors), these errors stop the current process.
+ * Events are processed sequentially in order received, even if callback is async.
+ * Uses queued wrapper to prevent concurrent execution of the callback.
+ *
+ * @param fn - Callback function to handle fatal error events
+ * @returns Unsubscribe function to stop listening
+ *
+ * @example
+ * ```typescript
+ * import { listenExit } from "./function/event";
+ *
+ * const unsubscribe = listenExit((error) => {
+ *   console.error("Fatal error (execution terminated):", error.message);
+ *   // Log to monitoring, send alerts, restart process, etc.
+ * });
+ *
+ * // Later: stop listening
+ * unsubscribe();
+ * ```
+ */
+declare function listenExit(fn: (error: Error) => void): () => void;
 /**
  * Subscribes to live background execution completion events with queued async processing.
  *
@@ -6094,6 +6120,12 @@ declare const signalBacktestEmitter: Subject<IStrategyTickResult>;
  */
 declare const errorEmitter: Subject<Error>;
 /**
+ * Exit emitter for critical errors that require process termination.
+ * Emits errors that should terminate the current execution (Backtest, Live, Walker).
+ * Unlike errorEmitter (for recoverable errors), exitEmitter signals fatal errors.
+ */
+declare const exitEmitter: Subject<Error>;
+/**
  * Done emitter for live background execution completion.
  * Emits when live background tasks complete (Live.background).
  */
@@ -6166,6 +6198,7 @@ declare const emitters_doneBacktestSubject: typeof doneBacktestSubject;
 declare const emitters_doneLiveSubject: typeof doneLiveSubject;
 declare const emitters_doneWalkerSubject: typeof doneWalkerSubject;
 declare const emitters_errorEmitter: typeof errorEmitter;
+declare const emitters_exitEmitter: typeof exitEmitter;
 declare const emitters_partialLossSubject: typeof partialLossSubject;
 declare const emitters_partialProfitSubject: typeof partialProfitSubject;
 declare const emitters_performanceEmitter: typeof performanceEmitter;
@@ -6180,7 +6213,7 @@ declare const emitters_walkerCompleteSubject: typeof walkerCompleteSubject;
 declare const emitters_walkerEmitter: typeof walkerEmitter;
 declare const emitters_walkerStopSubject: typeof walkerStopSubject;
 declare namespace emitters {
-  export { emitters_doneBacktestSubject as doneBacktestSubject, emitters_doneLiveSubject as doneLiveSubject, emitters_doneWalkerSubject as doneWalkerSubject, emitters_errorEmitter as errorEmitter, emitters_partialLossSubject as partialLossSubject, emitters_partialProfitSubject as partialProfitSubject, emitters_performanceEmitter as performanceEmitter, emitters_progressBacktestEmitter as progressBacktestEmitter, emitters_progressOptimizerEmitter as progressOptimizerEmitter, emitters_progressWalkerEmitter as progressWalkerEmitter, emitters_signalBacktestEmitter as signalBacktestEmitter, emitters_signalEmitter as signalEmitter, emitters_signalLiveEmitter as signalLiveEmitter, emitters_validationSubject as validationSubject, emitters_walkerCompleteSubject as walkerCompleteSubject, emitters_walkerEmitter as walkerEmitter, emitters_walkerStopSubject as walkerStopSubject };
+  export { emitters_doneBacktestSubject as doneBacktestSubject, emitters_doneLiveSubject as doneLiveSubject, emitters_doneWalkerSubject as doneWalkerSubject, emitters_errorEmitter as errorEmitter, emitters_exitEmitter as exitEmitter, emitters_partialLossSubject as partialLossSubject, emitters_partialProfitSubject as partialProfitSubject, emitters_performanceEmitter as performanceEmitter, emitters_progressBacktestEmitter as progressBacktestEmitter, emitters_progressOptimizerEmitter as progressOptimizerEmitter, emitters_progressWalkerEmitter as progressWalkerEmitter, emitters_signalBacktestEmitter as signalBacktestEmitter, emitters_signalEmitter as signalEmitter, emitters_signalLiveEmitter as signalLiveEmitter, emitters_validationSubject as validationSubject, emitters_walkerCompleteSubject as walkerCompleteSubject, emitters_walkerEmitter as walkerEmitter, emitters_walkerStopSubject as walkerStopSubject };
 }
 
 /**
@@ -8661,4 +8694,4 @@ declare const backtest: {
     loggerService: LoggerService;
 };
 
-export { Backtest, type BacktestStatistics, type CandleInterval, Constant, type DoneContract, type EntityId, ExecutionContextService, type FrameInterval, type GlobalConfig, Heat, type ICandleData, type IExchangeSchema, type IFrameSchema, type IHeatmapRow, type IHeatmapStatistics, type IOptimizerCallbacks, type IOptimizerData, type IOptimizerFetchArgs, type IOptimizerFilterArgs, type IOptimizerRange, type IOptimizerSchema, type IOptimizerSource, type IOptimizerStrategy, type IOptimizerTemplate, type IPersistBase, type IPositionSizeATRParams, type IPositionSizeFixedPercentageParams, type IPositionSizeKellyParams, type IRiskActivePosition, type IRiskCheckArgs, type IRiskSchema, type IRiskValidation, type IRiskValidationFn, type IRiskValidationPayload, type IScheduledSignalRow, type ISignalDto, type ISignalRow, type ISizingCalculateParams, type ISizingCalculateParamsATR, type ISizingCalculateParamsFixedPercentage, type ISizingCalculateParamsKelly, type ISizingSchema, type ISizingSchemaATR, type ISizingSchemaFixedPercentage, type ISizingSchemaKelly, type IStrategyPnL, type IStrategySchema, type IStrategyTickResult, type IStrategyTickResultActive, type IStrategyTickResultCancelled, type IStrategyTickResultClosed, type IStrategyTickResultIdle, type IStrategyTickResultOpened, type IStrategyTickResultScheduled, type IWalkerResults, type IWalkerSchema, type IWalkerStrategyResult, Live, type LiveStatistics, type MessageModel, type MessageRole, MethodContextService, Optimizer, Partial$1 as Partial, type PartialData, type PartialLossContract, type PartialProfitContract, type PartialStatistics, Performance, type PerformanceContract, type PerformanceMetricType, type PerformanceStatistics, PersistBase, PersistPartialAdapter, PersistRiskAdapter, PersistScheduleAdapter, PersistSignalAdapter, PositionSize, type ProgressBacktestContract, type ProgressOptimizerContract, type ProgressWalkerContract, type RiskData, Schedule, type ScheduleData, type ScheduleStatistics, type SignalData, type SignalInterval, type TPersistBase, type TPersistBaseCtor, Walker, type WalkerContract, type WalkerMetric, type WalkerStatistics, addExchange, addFrame, addOptimizer, addRisk, addSizing, addStrategy, addWalker, emitters, formatPrice, formatQuantity, getAveragePrice, getCandles, getDate, getMode, backtest as lib, listExchanges, listFrames, listOptimizers, listRisks, listSizings, listStrategies, listWalkers, listenBacktestProgress, listenDoneBacktest, listenDoneBacktestOnce, listenDoneLive, listenDoneLiveOnce, listenDoneWalker, listenDoneWalkerOnce, listenError, listenOptimizerProgress, listenPartialLoss, listenPartialLossOnce, listenPartialProfit, listenPartialProfitOnce, listenPerformance, listenSignal, listenSignalBacktest, listenSignalBacktestOnce, listenSignalLive, listenSignalLiveOnce, listenSignalOnce, listenValidation, listenWalker, listenWalkerComplete, listenWalkerOnce, listenWalkerProgress, setConfig, setLogger };
+export { Backtest, type BacktestStatistics, type CandleInterval, Constant, type DoneContract, type EntityId, ExecutionContextService, type FrameInterval, type GlobalConfig, Heat, type ICandleData, type IExchangeSchema, type IFrameSchema, type IHeatmapRow, type IHeatmapStatistics, type IOptimizerCallbacks, type IOptimizerData, type IOptimizerFetchArgs, type IOptimizerFilterArgs, type IOptimizerRange, type IOptimizerSchema, type IOptimizerSource, type IOptimizerStrategy, type IOptimizerTemplate, type IPersistBase, type IPositionSizeATRParams, type IPositionSizeFixedPercentageParams, type IPositionSizeKellyParams, type IRiskActivePosition, type IRiskCheckArgs, type IRiskSchema, type IRiskValidation, type IRiskValidationFn, type IRiskValidationPayload, type IScheduledSignalRow, type ISignalDto, type ISignalRow, type ISizingCalculateParams, type ISizingCalculateParamsATR, type ISizingCalculateParamsFixedPercentage, type ISizingCalculateParamsKelly, type ISizingSchema, type ISizingSchemaATR, type ISizingSchemaFixedPercentage, type ISizingSchemaKelly, type IStrategyPnL, type IStrategySchema, type IStrategyTickResult, type IStrategyTickResultActive, type IStrategyTickResultCancelled, type IStrategyTickResultClosed, type IStrategyTickResultIdle, type IStrategyTickResultOpened, type IStrategyTickResultScheduled, type IWalkerResults, type IWalkerSchema, type IWalkerStrategyResult, Live, type LiveStatistics, type MessageModel, type MessageRole, MethodContextService, Optimizer, Partial$1 as Partial, type PartialData, type PartialLossContract, type PartialProfitContract, type PartialStatistics, Performance, type PerformanceContract, type PerformanceMetricType, type PerformanceStatistics, PersistBase, PersistPartialAdapter, PersistRiskAdapter, PersistScheduleAdapter, PersistSignalAdapter, PositionSize, type ProgressBacktestContract, type ProgressOptimizerContract, type ProgressWalkerContract, type RiskData, Schedule, type ScheduleData, type ScheduleStatistics, type SignalData, type SignalInterval, type TPersistBase, type TPersistBaseCtor, Walker, type WalkerContract, type WalkerMetric, type WalkerStatistics, addExchange, addFrame, addOptimizer, addRisk, addSizing, addStrategy, addWalker, emitters, formatPrice, formatQuantity, getAveragePrice, getCandles, getDate, getMode, backtest as lib, listExchanges, listFrames, listOptimizers, listRisks, listSizings, listStrategies, listWalkers, listenBacktestProgress, listenDoneBacktest, listenDoneBacktestOnce, listenDoneLive, listenDoneLiveOnce, listenDoneWalker, listenDoneWalkerOnce, listenError, listenExit, listenOptimizerProgress, listenPartialLoss, listenPartialLossOnce, listenPartialProfit, listenPartialProfitOnce, listenPerformance, listenSignal, listenSignalBacktest, listenSignalBacktestOnce, listenSignalLive, listenSignalLiveOnce, listenSignalOnce, listenValidation, listenWalker, listenWalkerComplete, listenWalkerOnce, listenWalkerProgress, setConfig, setLogger };
