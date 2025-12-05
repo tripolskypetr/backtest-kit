@@ -4258,8 +4258,24 @@ declare class PerformanceMarkdownService {
  * Alias for walker statistics result interface.
  * Used for clarity in markdown service context.
  *
+ * Extends IWalkerResults with additional strategy comparison data.
  */
-type WalkerStatistics = IWalkerResults;
+interface WalkerStatistics extends IWalkerResults {
+    /** Array of all strategy results for comparison and analysis */
+    strategyResults: IStrategyResult[];
+}
+/**
+ * Strategy result entry for comparison table.
+ * Contains strategy name, full statistics, and metric value for ranking.
+ */
+interface IStrategyResult {
+    /** Strategy name */
+    strategyName: StrategyName;
+    /** Complete backtest statistics for this strategy */
+    stats: BacktestStatistics;
+    /** Value of the optimization metric (null if invalid) */
+    metricValue: number | null;
+}
 /**
  * Service for generating and saving walker markdown reports.
  *

@@ -18,8 +18,12 @@ import { BacktestStatistics } from "./BacktestMarkdownService";
  * Alias for walker statistics result interface.
  * Used for clarity in markdown service context.
  *
+ * Extends IWalkerResults with additional strategy comparison data.
  */
-export type WalkerStatistics = IWalkerResults;
+export interface WalkerStatistics extends IWalkerResults {
+  /** Array of all strategy results for comparison and analysis */
+  strategyResults: IStrategyResult[];
+};
 
 /**
  * Checks if a value is unsafe for display (not a number, NaN, or Infinity).
@@ -52,6 +56,187 @@ function formatMetric(value: number | null): string {
 }
 
 /**
+ * Strategy result entry for comparison table.
+ * Contains strategy name, full statistics, and metric value for ranking.
+ */
+interface IStrategyResult {
+  /** Strategy name */
+  strategyName: StrategyName;
+  /** Complete backtest statistics for this strategy */
+  stats: BacktestStatistics;
+  /** Value of the optimization metric (null if invalid) */
+  metricValue: number | null;
+}
+
+/**
+ * Signal data for PNL table.
+ * Represents a single closed signal with essential trading information.
+ */
+interface SignalData {
+  /** Strategy that generated this signal */
+  strategyName: StrategyName;
+  /** Unique signal identifier */
+  signalId: string;
+  /** Trading pair symbol */
+  symbol: string;
+  /** Position type (long/short) */
+  position: string;
+  /** PNL as percentage */
+  pnl: number;
+  /** Reason why signal was closed */
+  closeReason: string;
+  /** Timestamp when signal opened */
+  openTime: number;
+  /** Timestamp when signal closed */
+  closeTime: number;
+}
+
+/**
+ * Column configuration for strategy comparison table generation.
+ * Defines how to extract and format data from strategy results.
+ */
+interface StrategyColumn {
+  /** Unique column identifier */
+  key: string;
+  /** Display label for column header */
+  label: string;
+  /** Formatting function to convert strategy result data to string */
+  format: (data: IStrategyResult, index: number) => string;
+}
+
+/**
+ * Column configuration for PNL table generation.
+ * Defines how to extract and format data from signal data.
+ */
+interface SignalColumn {
+  /** Unique column identifier */
+  key: string;
+  /** Display label for column header */
+  label: string;
+  /** Formatting function to convert signal data to string */
+  format: (data: SignalData) => string;
+}
+
+/**
+ * Creates strategy comparison columns based on metric name.
+ * Dynamically builds column configuration with metric-specific header.
+ *
+ * @param metric - Metric being optimized
+ * @returns Array of column configurations for strategy comparison table
+ */
+function createStrategyColumns(metric: WalkerMetric): StrategyColumn[] {
+  return [
+    {
+      key: "rank",
+      label: "Rank",
+      format: (data, index) => `${index + 1}`,
+    },
+    {
+      key: "strategy",
+      label: "Strategy",
+      format: (data) => data.strategyName,
+    },
+    {
+      key: "metric",
+      label: metric,
+      format: (data) => formatMetric(data.metricValue),
+    },
+    {
+      key: "totalSignals",
+      label: "Total Signals",
+      format: (data) => `${data.stats.totalSignals}`,
+    },
+    {
+      key: "winRate",
+      label: "Win Rate",
+      format: (data) =>
+        data.stats.winRate !== null
+          ? `${data.stats.winRate.toFixed(2)}%`
+          : "N/A",
+    },
+    {
+      key: "avgPnl",
+      label: "Avg PNL",
+      format: (data) =>
+        data.stats.avgPnl !== null
+          ? `${data.stats.avgPnl > 0 ? "+" : ""}${data.stats.avgPnl.toFixed(2)}%`
+          : "N/A",
+    },
+    {
+      key: "totalPnl",
+      label: "Total PNL",
+      format: (data) =>
+        data.stats.totalPnl !== null
+          ? `${data.stats.totalPnl > 0 ? "+" : ""}${data.stats.totalPnl.toFixed(2)}%`
+          : "N/A",
+    },
+    {
+      key: "sharpeRatio",
+      label: "Sharpe Ratio",
+      format: (data) =>
+        data.stats.sharpeRatio !== null
+          ? `${data.stats.sharpeRatio.toFixed(3)}`
+          : "N/A",
+    },
+    {
+      key: "stdDev",
+      label: "Std Dev",
+      format: (data) =>
+        data.stats.stdDev !== null
+          ? `${data.stats.stdDev.toFixed(3)}%`
+          : "N/A",
+    },
+  ];
+}
+
+/**
+ * Column configuration for PNL table.
+ * Defines all columns for displaying closed signals across strategies.
+ */
+const pnlColumns: SignalColumn[] = [
+  {
+    key: "strategy",
+    label: "Strategy",
+    format: (data) => data.strategyName,
+  },
+  {
+    key: "signalId",
+    label: "Signal ID",
+    format: (data) => data.signalId,
+  },
+  {
+    key: "symbol",
+    label: "Symbol",
+    format: (data) => data.symbol,
+  },
+  {
+    key: "position",
+    label: "Position",
+    format: (data) => data.position.toUpperCase(),
+  },
+  {
+    key: "pnl",
+    label: "PNL (net)",
+    format: (data) => `${data.pnl > 0 ? "+" : ""}${data.pnl.toFixed(2)}%`,
+  },
+  {
+    key: "closeReason",
+    label: "Close Reason",
+    format: (data) => data.closeReason,
+  },
+  {
+    key: "openTime",
+    label: "Open Time",
+    format: (data) => new Date(data.openTime).toISOString(),
+  },
+  {
+    key: "closeTime",
+    label: "Close Time",
+    format: (data) => new Date(data.closeTime).toISOString(),
+  },
+];
+
+/**
  * Storage class for accumulating walker results.
  * Maintains a list of all strategy results and provides methods to generate reports.
  */
@@ -63,11 +248,15 @@ class ReportStorage {
   private _bestMetric: number | null = null;
   private _bestStrategy: StrategyName | null = null;
 
+  /** All strategy results for comparison table */
+  private _strategyResults: IStrategyResult[] = [];
+
   constructor(readonly walkerName: WalkerName) {
   }
 
   /**
    * Adds a strategy result to the storage.
+   * Updates best strategy tracking and accumulates result for comparison table.
    *
    * @param data - Walker contract with strategy result
    */
@@ -83,6 +272,13 @@ class ReportStorage {
     if (data.strategyName === data.bestStrategy) {
       this._bestStats = data.stats;
     }
+
+    // Add strategy result to comparison list
+    this._strategyResults.push({
+      strategyName: data.strategyName,
+      stats: data.stats,
+      metricValue: data.metricValue,
+    });
   }
 
   /**
@@ -101,7 +297,7 @@ class ReportStorage {
       exchangeName: string;
       frameName: string;
     }
-  ): Promise<IWalkerResults> {
+  ): Promise<WalkerStatistics> {
     if (this._totalStrategies === null) {
       throw new Error("No walker data available - no results added yet");
     }
@@ -115,11 +311,98 @@ class ReportStorage {
       bestStrategy: this._bestStrategy,
       bestMetric: this._bestMetric,
       bestStats: this._bestStats,
+      strategyResults: this._strategyResults,
     };
   }
 
   /**
+   * Generates comparison table for top N strategies (View).
+   * Sorts strategies by metric value and formats as markdown table.
+   *
+   * @param metric - Metric being optimized
+   * @param topN - Number of top strategies to include (default: 10)
+   * @returns Markdown formatted comparison table
+   */
+  private getComparisonTable(metric: WalkerMetric, topN: number = 10): string {
+    if (this._strategyResults.length === 0) {
+      return "No strategy results available.";
+    }
+
+    // Sort strategies by metric value (descending)
+    const sortedResults = [...this._strategyResults].sort((a, b) => {
+      const aValue = a.metricValue ?? -Infinity;
+      const bValue = b.metricValue ?? -Infinity;
+      return bValue - aValue;
+    });
+
+    // Take top N strategies
+    const topStrategies = sortedResults.slice(0, topN);
+
+    // Get columns configuration
+    const columns = createStrategyColumns(metric);
+
+    // Build table header
+    const header = columns.map((col) => col.label);
+    const separator = columns.map(() => "---");
+
+    // Build table rows
+    const rows = topStrategies.map((result, index) =>
+      columns.map((col) => col.format(result, index))
+    );
+
+    const tableData = [header, separator, ...rows];
+    return str.newline(tableData.map((row) => `| ${row.join(" | ")} |`));
+  }
+
+  /**
+   * Generates PNL table showing all closed signals across all strategies (View).
+   * Collects all signals from all strategies and formats as markdown table.
+   *
+   * @returns Markdown formatted PNL table
+   */
+  private getPnlTable(): string {
+    if (this._strategyResults.length === 0) {
+      return "No strategy results available.";
+    }
+
+    // Collect all closed signals from all strategies
+    const allSignals: SignalData[] = [];
+
+    for (const result of this._strategyResults) {
+      for (const signal of result.stats.signalList) {
+        allSignals.push({
+          strategyName: result.strategyName,
+          signalId: signal.signal.id,
+          symbol: signal.signal.symbol,
+          position: signal.signal.position,
+          pnl: signal.pnl.pnlPercentage,
+          closeReason: signal.closeReason,
+          openTime: signal.signal.pendingAt,
+          closeTime: signal.closeTimestamp,
+        });
+      }
+    }
+
+    if (allSignals.length === 0) {
+      return "No closed signals available.";
+    }
+
+    // Build table header
+    const header = pnlColumns.map((col) => col.label);
+    const separator = pnlColumns.map(() => "---");
+
+    // Build table rows
+    const rows = allSignals.map((signal) =>
+      pnlColumns.map((col) => col.format(signal))
+    );
+
+    const tableData = [header, separator, ...rows];
+    return str.newline(tableData.map((row) => `| ${row.join(" | ")} |`));
+  }
+
+  /**
    * Generates markdown report with all strategy results (View).
+   * Includes best strategy summary, comparison table, and PNL table.
    *
    * @param symbol - Trading symbol
    * @param metric - Metric being optimized
@@ -135,6 +418,10 @@ class ReportStorage {
     }
   ): Promise<string> {
     const results = await this.getData(symbol, metric, context);
+
+    // Get total signals for best strategy
+    const bestStrategySignals = results.bestStats?.totalSignals ?? 0;
+
     return str.newline(
       `# Walker Comparison Report: ${results.walkerName}`,
       "",
@@ -147,6 +434,16 @@ class ReportStorage {
       `## Best Strategy: ${results.bestStrategy}`,
       "",
       `**Best ${results.metric}:** ${formatMetric(results.bestMetric)}`,
+      `**Total Signals:** ${bestStrategySignals}`,
+      "",
+      "## Top Strategies Comparison",
+      "",
+      this.getComparisonTable(metric, 10),
+      "",
+      "## All Signals (PNL Table)",
+      "",
+      this.getPnlTable(),
+      "",
       "**Note:** Higher values are better for all metrics except Standard Deviation (lower is better)."
     );
   }
