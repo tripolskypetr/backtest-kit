@@ -29,7 +29,7 @@ import { PerformanceStatistics } from "../lib/services/markdown/PerformanceMarkd
  *   .slice(0, 5));
  *
  * // Generate and save report
- * await Performance.dump("my-strategy");
+ * await Performance.dump("BTCUSDT", "my-strategy");
  * ```
  */
 export class Performance {
@@ -101,23 +101,25 @@ export class Performance {
    * Creates directory if it doesn't exist.
    * Default path: ./dump/performance/{strategyName}.md
    *
+   * @param symbol - Trading pair symbol
    * @param strategyName - Strategy name to save report for
    * @param path - Optional custom directory path
    *
    * @example
    * ```typescript
    * // Save to default path: ./dump/performance/my-strategy.md
-   * await Performance.dump("my-strategy");
+   * await Performance.dump("BTCUSDT", "my-strategy");
    *
    * // Save to custom path: ./reports/perf/my-strategy.md
-   * await Performance.dump("my-strategy", "./reports/perf");
+   * await Performance.dump("BTCUSDT", "my-strategy", "./reports/perf");
    * ```
    */
   public static async dump(
+    symbol: string,
     strategyName: string,
     path = "./dump/performance"
   ): Promise<void> {
-    return backtest.performanceMarkdownService.dump(strategyName, path);
+    return backtest.performanceMarkdownService.dump(symbol, strategyName, path);
   }
 }
 

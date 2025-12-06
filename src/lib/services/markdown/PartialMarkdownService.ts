@@ -322,7 +322,7 @@ export class PartialMarkdownService {
    * Each symbol-strategy combination gets its own isolated storage instance.
    */
   private getStorage = memoize<(symbol: string, strategyName: string) => ReportStorage>(
-    ([symbol, strategyName]) => JSON.stringify([symbol, strategyName]),
+    ([symbol, strategyName]) => `${symbol}:${strategyName}`,
     () => new ReportStorage()
   );
 
@@ -499,7 +499,7 @@ export class PartialMarkdownService {
       ctx,
     });
     if (ctx) {
-      const key = JSON.stringify([ctx.symbol, ctx.strategyName]);
+      const key = `${ctx.symbol}:${ctx.strategyName}`;
       this.getStorage.clear(key);
     } else {
       this.getStorage.clear();

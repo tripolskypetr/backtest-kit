@@ -68,7 +68,7 @@ listenBacktestProgress((event) => {
 
 listenDoneBacktest(async (event) => {
     console.log("Backtest completed:", event.symbol);
-    await Backtest.dump(event.strategyName);
+    await Backtest.dump(event.symbol, event.strategyName);
     await Partial.dump(event.symbol, event.strategyName);
 });
 

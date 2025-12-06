@@ -4240,7 +4240,7 @@ interface PerformanceStatistics {
  * console.log("Bottlenecks:", stats.metricStats);
  *
  * // Save report to disk
- * await Performance.dump("my-strategy");
+ * await Performance.dump("BTCUSDT", "my-strategy");
  * ```
  */
 declare class PerformanceMarkdownService {
@@ -5213,19 +5213,20 @@ declare class BacktestUtils {
     /**
      * Saves strategy report to disk.
      *
+     * @param symbol - Trading pair symbol
      * @param strategyName - Strategy name to save report for
      * @param path - Optional directory path to save report (default: "./dump/backtest")
      *
      * @example
      * ```typescript
      * // Save to default path: ./dump/backtest/my-strategy.md
-     * await Backtest.dump("my-strategy");
+     * await Backtest.dump("BTCUSDT", "my-strategy");
      *
      * // Save to custom path: ./custom/path/my-strategy.md
-     * await Backtest.dump("my-strategy", "./custom/path");
+     * await Backtest.dump("BTCUSDT", "my-strategy", "./custom/path");
      * ```
      */
-    dump: (strategyName: StrategyName, path?: string) => Promise<void>;
+    dump: (symbol: string, strategyName: StrategyName, path?: string) => Promise<void>;
 }
 /**
  * Singleton instance of BacktestUtils for convenient backtest operations.
@@ -5347,19 +5348,20 @@ declare class LiveUtils {
     /**
      * Saves strategy report to disk.
      *
+     * @param symbol - Trading pair symbol
      * @param strategyName - Strategy name to save report for
      * @param path - Optional directory path to save report (default: "./dump/live")
      *
      * @example
      * ```typescript
      * // Save to default path: ./dump/live/my-strategy.md
-     * await Live.dump("my-strategy");
+     * await Live.dump("BTCUSDT", "my-strategy");
      *
      * // Save to custom path: ./custom/path/my-strategy.md
-     * await Live.dump("my-strategy", "./custom/path");
+     * await Live.dump("BTCUSDT", "my-strategy", "./custom/path");
      * ```
      */
-    dump: (strategyName: StrategyName, path?: string) => Promise<void>;
+    dump: (symbol: string, strategyName: StrategyName, path?: string) => Promise<void>;
 }
 /**
  * Singleton instance of LiveUtils for convenient live trading operations.
@@ -5400,7 +5402,7 @@ declare const Live: LiveUtils;
  * console.log(`Average wait time: ${stats.avgWaitTime} minutes`);
  *
  * // Generate and save report
- * await Schedule.dump("my-strategy");
+ * await Schedule.dump("BTCUSDT", "my-strategy");
  * ```
  */
 declare class ScheduleUtils {
@@ -5435,19 +5437,20 @@ declare class ScheduleUtils {
     /**
      * Saves strategy report to disk.
      *
+     * @param symbol - Trading pair symbol
      * @param strategyName - Strategy name to save report for
      * @param path - Optional directory path to save report (default: "./dump/schedule")
      *
      * @example
      * ```typescript
      * // Save to default path: ./dump/schedule/my-strategy.md
-     * await Schedule.dump("my-strategy");
+     * await Schedule.dump("BTCUSDT", "my-strategy");
      *
      * // Save to custom path: ./custom/path/my-strategy.md
-     * await Schedule.dump("my-strategy", "./custom/path");
+     * await Schedule.dump("BTCUSDT", "my-strategy", "./custom/path");
      * ```
      */
-    dump: (strategyName: StrategyName, path?: string) => Promise<void>;
+    dump: (symbol: string, strategyName: StrategyName, path?: string) => Promise<void>;
 }
 /**
  * Singleton instance of ScheduleUtils for convenient scheduled signals reporting.
@@ -5490,7 +5493,7 @@ declare const Schedule: ScheduleUtils;
  *   .slice(0, 5));
  *
  * // Generate and save report
- * await Performance.dump("my-strategy");
+ * await Performance.dump("BTCUSDT", "my-strategy");
  * ```
  */
 declare class Performance {
@@ -5553,19 +5556,20 @@ declare class Performance {
      * Creates directory if it doesn't exist.
      * Default path: ./dump/performance/{strategyName}.md
      *
+     * @param symbol - Trading pair symbol
      * @param strategyName - Strategy name to save report for
      * @param path - Optional custom directory path
      *
      * @example
      * ```typescript
      * // Save to default path: ./dump/performance/my-strategy.md
-     * await Performance.dump("my-strategy");
+     * await Performance.dump("BTCUSDT", "my-strategy");
      *
      * // Save to custom path: ./reports/perf/my-strategy.md
-     * await Performance.dump("my-strategy", "./reports/perf");
+     * await Performance.dump("BTCUSDT", "my-strategy", "./reports/perf");
      * ```
      */
-    static dump(strategyName: string, path?: string): Promise<void>;
+    static dump(symbol: string, strategyName: string, path?: string): Promise<void>;
 }
 
 /**

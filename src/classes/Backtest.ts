@@ -186,27 +186,30 @@ export class BacktestUtils {
   /**
    * Saves strategy report to disk.
    *
+   * @param symbol - Trading pair symbol
    * @param strategyName - Strategy name to save report for
    * @param path - Optional directory path to save report (default: "./dump/backtest")
    *
    * @example
    * ```typescript
    * // Save to default path: ./dump/backtest/my-strategy.md
-   * await Backtest.dump("my-strategy");
+   * await Backtest.dump("BTCUSDT", "my-strategy");
    *
    * // Save to custom path: ./custom/path/my-strategy.md
-   * await Backtest.dump("my-strategy", "./custom/path");
+   * await Backtest.dump("BTCUSDT", "my-strategy", "./custom/path");
    * ```
    */
   public dump = async (
+    symbol: string,
     strategyName: StrategyName,
     path?: string
   ): Promise<void> => {
     backtest.loggerService.info(BACKTEST_METHOD_NAME_DUMP, {
+      symbol,
       strategyName,
       path,
     });
-    await backtest.backtestMarkdownService.dump(strategyName, path);
+    await backtest.backtestMarkdownService.dump(symbol, strategyName, path);
   };
 }
 

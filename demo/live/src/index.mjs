@@ -67,14 +67,14 @@ listenSignalLive(async (event) => {
         console.log("Close position");
     }
     if (event.action === "closed") {
-        await Live.dump(event.strategyName);
+        await Live.dump(event.symbol, event.strategyName);
         await Partial.dump(event.symbol, event.strategyName);
     }
     if (event.action === "scheduled") {
-        await Schedule.dump(event.strategyName);
+        await Schedule.dump(event.symbol, event.strategyName);
     }
     if (event.action === "cancelled") {
-        await Schedule.dump(event.strategyName);
+        await Schedule.dump(event.symbol, event.strategyName);
     }
     console.log(event);
 });

@@ -27,7 +27,7 @@ const SCHEDULE_METHOD_NAME_DUMP = "ScheduleUtils.dump";
  * console.log(`Average wait time: ${stats.avgWaitTime} minutes`);
  *
  * // Generate and save report
- * await Schedule.dump("my-strategy");
+ * await Schedule.dump("BTCUSDT", "my-strategy");
  * ```
  */
 export class ScheduleUtils {
@@ -76,27 +76,30 @@ export class ScheduleUtils {
   /**
    * Saves strategy report to disk.
    *
+   * @param symbol - Trading pair symbol
    * @param strategyName - Strategy name to save report for
    * @param path - Optional directory path to save report (default: "./dump/schedule")
    *
    * @example
    * ```typescript
    * // Save to default path: ./dump/schedule/my-strategy.md
-   * await Schedule.dump("my-strategy");
+   * await Schedule.dump("BTCUSDT", "my-strategy");
    *
    * // Save to custom path: ./custom/path/my-strategy.md
-   * await Schedule.dump("my-strategy", "./custom/path");
+   * await Schedule.dump("BTCUSDT", "my-strategy", "./custom/path");
    * ```
    */
   public dump = async (
+    symbol: string,
     strategyName: StrategyName,
     path?: string
   ): Promise<void> => {
     backtest.loggerService.info(SCHEDULE_METHOD_NAME_DUMP, {
+      symbol,
       strategyName,
       path,
     });
-    await backtest.scheduleMarkdownService.dump(strategyName, path);
+    await backtest.scheduleMarkdownService.dump(symbol, strategyName, path);
   };
 }
 
