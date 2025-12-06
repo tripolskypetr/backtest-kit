@@ -9,10 +9,10 @@ Service for generating and saving partial profit/loss markdown reports.
 
 Features:
 - Listens to partial profit and loss events via partialProfitSubject/partialLossSubject
-- Accumulates all events (profit, loss) per symbol
+- Accumulates all events (profit, loss) per symbol-strategy pair
 - Generates markdown tables with detailed event information
 - Provides statistics (total profit/loss events)
-- Saves reports to disk in dump/partial/{symbol}.md
+- Saves reports to disk in dump/partial/{symbol}_{strategyName}.md
 
 ## Constructor
 
@@ -36,8 +36,8 @@ Logger service for debug output
 getStorage: any
 ```
 
-Memoized function to get or create ReportStorage for a symbol.
-Each symbol gets its own isolated storage instance.
+Memoized function to get or create ReportStorage for a symbol-strategy pair.
+Each symbol-strategy combination gets its own isolated storage instance.
 
 ### tickProfit
 
@@ -60,40 +60,40 @@ Should be called from partialLossSubject subscription.
 ### getData
 
 ```ts
-getData: (symbol: string) => Promise<PartialStatistics>
+getData: (symbol: string, strategyName: string) => Promise<PartialStatistics>
 ```
 
-Gets statistical data from all partial profit/loss events for a symbol.
+Gets statistical data from all partial profit/loss events for a symbol-strategy pair.
 Delegates to ReportStorage.getData().
 
 ### getReport
 
 ```ts
-getReport: (symbol: string) => Promise<string>
+getReport: (symbol: string, strategyName: string) => Promise<string>
 ```
 
-Generates markdown report with all partial events for a symbol.
+Generates markdown report with all partial events for a symbol-strategy pair.
 Delegates to ReportStorage.getReport().
 
 ### dump
 
 ```ts
-dump: (symbol: string, path?: string) => Promise<void>
+dump: (symbol: string, strategyName: string, path?: string) => Promise<void>
 ```
 
-Saves symbol report to disk.
+Saves symbol-strategy report to disk.
 Creates directory if it doesn't exist.
 Delegates to ReportStorage.dump().
 
 ### clear
 
 ```ts
-clear: (symbol?: string) => Promise<void>
+clear: (ctx?: { symbol: string; strategyName: string; }) => Promise<void>
 ```
 
 Clears accumulated event data from storage.
-If symbol is provided, clears only that symbol's data.
-If symbol is omitted, clears all symbols' data.
+If ctx is provided, clears only that specific symbol-strategy pair's data.
+If nothing is provided, clears all data.
 
 ### init
 

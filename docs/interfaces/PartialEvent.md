@@ -34,6 +34,14 @@ symbol: string
 
 Trading pair symbol
 
+### strategyName
+
+```ts
+strategyName: string
+```
+
+Strategy name
+
 ### signalId
 
 ```ts

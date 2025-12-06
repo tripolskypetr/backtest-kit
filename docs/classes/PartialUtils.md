@@ -17,8 +17,8 @@ Features:
 
 Data source:
 - PartialMarkdownService listens to partialProfitSubject/partialLossSubject
-- Accumulates events in ReportStorage (max 250 events per symbol)
-- Events include: timestamp, action, symbol, signalId, position, level, price, mode
+- Accumulates events in ReportStorage (max 250 events per symbol-strategy pair)
+- Events include: timestamp, action, symbol, strategyName, signalId, position, level, price, mode
 
 ## Constructor
 
@@ -31,7 +31,7 @@ constructor();
 ### getData
 
 ```ts
-getData: (symbol: string) => Promise<PartialStatistics>
+getData: (symbol: string, strategyName: string) => Promise<PartialStatistics>
 ```
 
 Retrieves statistical data from accumulated partial profit/loss events.
@@ -42,14 +42,15 @@ Returns aggregated metrics calculated from all profit and loss events.
 ### getReport
 
 ```ts
-getReport: (symbol: string) => Promise<string>
+getReport: (symbol: string, strategyName: string) => Promise<string>
 ```
 
-Generates markdown report with all partial profit/loss events for a symbol.
+Generates markdown report with all partial profit/loss events for a symbol-strategy pair.
 
 Creates formatted table containing:
 - Action (PROFIT/LOSS)
 - Symbol
+- Strategy
 - Signal ID
 - Position (LONG/SHORT)
 - Level % (+10%, -20%, etc)
@@ -62,13 +63,13 @@ Also includes summary statistics at the end.
 ### dump
 
 ```ts
-dump: (symbol: string, path?: string) => Promise<void>
+dump: (symbol: string, strategyName: string, path?: string) => Promise<void>
 ```
 
 Generates and saves markdown report to file.
 
 Creates directory if it doesn't exist.
-Filename format: {symbol}.md (e.g., "BTCUSDT.md")
+Filename format: {symbol}_{strategyName}.md (e.g., "BTCUSDT_my-strategy.md")
 
 Delegates to PartialMarkdownService.dump() which:
 1. Generates markdown report via getReport()
