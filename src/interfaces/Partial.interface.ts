@@ -245,5 +245,5 @@ export interface IPartial {
    * // Memoized instance cleared from getPartial cache
    * ```
    */
-  clear(symbol: string, data: ISignalRow, priceClose: number): Promise<void>;
+  clear(symbol: string, data: ISignalRow, priceClose: number, backtest: boolean): Promise<void>;
 }

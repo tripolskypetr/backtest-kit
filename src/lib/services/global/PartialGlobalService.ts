@@ -139,14 +139,16 @@ export class PartialGlobalService {
   public clear = async (
     symbol: string,
     data: ISignalRow,
-    priceClose: number
+    priceClose: number,
+    backtest: boolean,
   ) => {
     this.loggerService.log("partialGlobalService profit", {
       symbol,
       data,
       priceClose,
+      backtest,
     });
-    return await this.partialConnectionService.clear(symbol, data, priceClose);
+    return await this.partialConnectionService.clear(symbol, data, priceClose, backtest);
   };
 }
 
