@@ -60,6 +60,12 @@ Live.background("BTCUSDT", {
 })
 
 listenSignalLive(async (event) => {
+    if (event.action === "opened") {
+        console.log("Open position");
+    }
+    if (event.action === "closed") {
+        console.log("Close position");
+    }
     if (event.action === "closed") {
         await Live.dump(event.strategyName);
         await Partial.dump(event.symbol, event.strategyName);
