@@ -3617,6 +3617,74 @@ declare function getDate(): Promise<Date>;
 declare function getMode(): Promise<"backtest" | "live">;
 
 /**
+ * Dumps signal data and LLM conversation history to markdown files.
+ * Used by AI-powered strategies to save debug logs for analysis.
+ *
+ * Creates a directory structure with:
+ * - 00_system_prompt.md - System messages and output summary
+ * - XX_user_message.md - Each user message in separate file (numbered)
+ * - XX_llm_output.md - Final LLM output with signal data
+ *
+ * Skips if directory already exists to avoid overwriting previous results.
+ *
+ * @param signalId - Unique identifier for the result (used as directory name, e.g., UUID)
+ * @param history - Array of message models from LLM conversation
+ * @param signal - Signal DTO returned by LLM (position, priceOpen, TP, SL, etc.)
+ * @param outputDir - Output directory path (default: "./dump/strategy")
+ * @returns Promise that resolves when all files are written
+ *
+ * @example
+ * ```typescript
+ * import { dumpSignal, getCandles } from "backtest-kit";
+ * import { v4 as uuid } from "uuid";
+ *
+ * addStrategy({
+ *   strategyName: "llm-strategy",
+ *   interval: "5m",
+ *   getSignal: async (symbol) => {
+ *     const messages = [];
+ *
+ *     // Build multi-timeframe analysis conversation
+ *     const candles1h = await getCandles(symbol, "1h", 24);
+ *     messages.push(
+ *       { role: "user", content: `Analyze 1h trend:\n${formatCandles(candles1h)}` },
+ *       { role: "assistant", content: "Trend analyzed" }
+ *     );
+ *
+ *     const candles5m = await getCandles(symbol, "5m", 24);
+ *     messages.push(
+ *       { role: "user", content: `Analyze 5m structure:\n${formatCandles(candles5m)}` },
+ *       { role: "assistant", content: "Structure analyzed" }
+ *     );
+ *
+ *     // Request signal
+ *     messages.push({
+ *       role: "user",
+ *       content: "Generate trading signal. Use position: 'wait' if uncertain."
+ *     });
+ *
+ *     const resultId = uuid();
+ *     const signal = await llmRequest(messages);
+ *
+ *     // Save conversation and result for debugging
+ *     await dumpSignal(resultId, messages, signal);
+ *
+ *     return signal;
+ *   }
+ * });
+ *
+ * // Creates: ./dump/strategy/{uuid}/00_system_prompt.md
+ * //          ./dump/strategy/{uuid}/01_user_message.md (1h analysis)
+ * //          ./dump/strategy/{uuid}/02_assistant_message.md
+ * //          ./dump/strategy/{uuid}/03_user_message.md (5m analysis)
+ * //          ./dump/strategy/{uuid}/04_assistant_message.md
+ * //          ./dump/strategy/{uuid}/05_user_message.md (signal request)
+ * //          ./dump/strategy/{uuid}/06_llm_output.md (final signal)
+ * ```
+ */
+declare function dumpSignal(signalId: string | number, history: MessageModel[], signal: ISignalDto, outputDir?: string): Promise<void>;
+
+/**
  * Portfolio heatmap statistics for a single symbol.
  * Aggregated metrics across all strategies for one trading pair.
  */
@@ -8661,6 +8729,54 @@ declare class PartialGlobalService {
     clear: (symbol: string, data: ISignalRow, priceClose: number) => Promise<void>;
 }
 
+/**
+ * Unique identifier for outline result.
+ * Can be string or number for flexible ID formats.
+ */
+type ResultId = string | number;
+/**
+ * Service for generating markdown documentation from LLM outline results.
+ * Used by AI Strategy Optimizer to save debug logs and conversation history.
+ *
+ * Creates directory structure:
+ * - ./dump/strategy/{signalId}/00_system_prompt.md - System messages and output data
+ * - ./dump/strategy/{signalId}/01_user_message.md - First user input
+ * - ./dump/strategy/{signalId}/02_user_message.md - Second user input
+ * - ./dump/strategy/{signalId}/XX_llm_output.md - Final LLM output
+ */
+declare class OutlineMarkdownService {
+    /** Logger service injected via DI */
+    private readonly loggerService;
+    /**
+     * Dumps signal data and conversation history to markdown files.
+     * Skips if directory already exists to avoid overwriting previous results.
+     *
+     * Generated files:
+     * - 00_system_prompt.md - System messages and output summary
+     * - XX_user_message.md - Each user message in separate file (numbered)
+     * - XX_llm_output.md - Final LLM output with signal data
+     *
+     * @param signalId - Unique identifier for the result (used as directory name)
+     * @param history - Array of message models from LLM conversation
+     * @param signal - Signal DTO with trade parameters (priceOpen, TP, SL, etc.)
+     * @param outputDir - Output directory path (default: "./dump/strategy")
+     * @returns Promise that resolves when all files are written
+     *
+     * @example
+     * ```typescript
+     * await outlineService.dumpSignal(
+     *   "strategy-1",
+     *   conversationHistory,
+     *   { position: "long", priceTakeProfit: 51000, priceStopLoss: 49000, minuteEstimatedTime: 60 }
+     * );
+     * // Creates: ./dump/strategy/strategy-1/00_system_prompt.md
+     * //          ./dump/strategy/strategy-1/01_user_message.md
+     * //          ./dump/strategy/strategy-1/02_llm_output.md
+     * ```
+     */
+    dumpSignal: (signalId: ResultId, history: MessageModel[], signal: ISignalDto, outputDir?: string) => Promise<void>;
+}
+
 declare const backtest: {
     optimizerTemplateService: OptimizerTemplateService;
     exchangeValidationService: ExchangeValidationService;
@@ -8677,6 +8793,7 @@ declare const backtest: {
     walkerMarkdownService: WalkerMarkdownService;
     heatMarkdownService: HeatMarkdownService;
     partialMarkdownService: PartialMarkdownService;
+    outlineMarkdownService: OutlineMarkdownService;
     backtestLogicPublicService: BacktestLogicPublicService;
     liveLogicPublicService: LiveLogicPublicService;
     walkerLogicPublicService: WalkerLogicPublicService;
@@ -8716,4 +8833,4 @@ declare const backtest: {
     loggerService: LoggerService;
 };
 
-export { Backtest, type BacktestStatistics, type CandleInterval, Constant, type DoneContract, type EntityId, ExecutionContextService, type FrameInterval, type GlobalConfig, Heat, type ICandleData, type IExchangeSchema, type IFrameSchema, type IHeatmapRow, type IHeatmapStatistics, type IOptimizerCallbacks, type IOptimizerData, type IOptimizerFetchArgs, type IOptimizerFilterArgs, type IOptimizerRange, type IOptimizerSchema, type IOptimizerSource, type IOptimizerStrategy, type IOptimizerTemplate, type IPersistBase, type IPositionSizeATRParams, type IPositionSizeFixedPercentageParams, type IPositionSizeKellyParams, type IRiskActivePosition, type IRiskCheckArgs, type IRiskSchema, type IRiskValidation, type IRiskValidationFn, type IRiskValidationPayload, type IScheduledSignalRow, type ISignalDto, type ISignalRow, type ISizingCalculateParams, type ISizingCalculateParamsATR, type ISizingCalculateParamsFixedPercentage, type ISizingCalculateParamsKelly, type ISizingSchema, type ISizingSchemaATR, type ISizingSchemaFixedPercentage, type ISizingSchemaKelly, type IStrategyPnL, type IStrategySchema, type IStrategyTickResult, type IStrategyTickResultActive, type IStrategyTickResultCancelled, type IStrategyTickResultClosed, type IStrategyTickResultIdle, type IStrategyTickResultOpened, type IStrategyTickResultScheduled, type IWalkerResults, type IWalkerSchema, type IWalkerStrategyResult, Live, type LiveStatistics, type MessageModel, type MessageRole, MethodContextService, Optimizer, Partial$1 as Partial, type PartialData, type PartialLossContract, type PartialProfitContract, type PartialStatistics, Performance, type PerformanceContract, type PerformanceMetricType, type PerformanceStatistics, PersistBase, PersistPartialAdapter, PersistRiskAdapter, PersistScheduleAdapter, PersistSignalAdapter, PositionSize, type ProgressBacktestContract, type ProgressOptimizerContract, type ProgressWalkerContract, type RiskData, Schedule, type ScheduleData, type ScheduleStatistics, type SignalData, type SignalInterval, type TPersistBase, type TPersistBaseCtor, Walker, type WalkerContract, type WalkerMetric, type WalkerStatistics, addExchange, addFrame, addOptimizer, addRisk, addSizing, addStrategy, addWalker, emitters, formatPrice, formatQuantity, getAveragePrice, getCandles, getDate, getMode, backtest as lib, listExchanges, listFrames, listOptimizers, listRisks, listSizings, listStrategies, listWalkers, listenBacktestProgress, listenDoneBacktest, listenDoneBacktestOnce, listenDoneLive, listenDoneLiveOnce, listenDoneWalker, listenDoneWalkerOnce, listenError, listenExit, listenOptimizerProgress, listenPartialLoss, listenPartialLossOnce, listenPartialProfit, listenPartialProfitOnce, listenPerformance, listenSignal, listenSignalBacktest, listenSignalBacktestOnce, listenSignalLive, listenSignalLiveOnce, listenSignalOnce, listenValidation, listenWalker, listenWalkerComplete, listenWalkerOnce, listenWalkerProgress, setConfig, setLogger };
+export { Backtest, type BacktestStatistics, type CandleInterval, Constant, type DoneContract, type EntityId, ExecutionContextService, type FrameInterval, type GlobalConfig, Heat, type ICandleData, type IExchangeSchema, type IFrameSchema, type IHeatmapRow, type IHeatmapStatistics, type IOptimizerCallbacks, type IOptimizerData, type IOptimizerFetchArgs, type IOptimizerFilterArgs, type IOptimizerRange, type IOptimizerSchema, type IOptimizerSource, type IOptimizerStrategy, type IOptimizerTemplate, type IPersistBase, type IPositionSizeATRParams, type IPositionSizeFixedPercentageParams, type IPositionSizeKellyParams, type IRiskActivePosition, type IRiskCheckArgs, type IRiskSchema, type IRiskValidation, type IRiskValidationFn, type IRiskValidationPayload, type IScheduledSignalRow, type ISignalDto, type ISignalRow, type ISizingCalculateParams, type ISizingCalculateParamsATR, type ISizingCalculateParamsFixedPercentage, type ISizingCalculateParamsKelly, type ISizingSchema, type ISizingSchemaATR, type ISizingSchemaFixedPercentage, type ISizingSchemaKelly, type IStrategyPnL, type IStrategySchema, type IStrategyTickResult, type IStrategyTickResultActive, type IStrategyTickResultCancelled, type IStrategyTickResultClosed, type IStrategyTickResultIdle, type IStrategyTickResultOpened, type IStrategyTickResultScheduled, type IWalkerResults, type IWalkerSchema, type IWalkerStrategyResult, Live, type LiveStatistics, type MessageModel, type MessageRole, MethodContextService, Optimizer, Partial$1 as Partial, type PartialData, type PartialLossContract, type PartialProfitContract, type PartialStatistics, Performance, type PerformanceContract, type PerformanceMetricType, type PerformanceStatistics, PersistBase, PersistPartialAdapter, PersistRiskAdapter, PersistScheduleAdapter, PersistSignalAdapter, PositionSize, type ProgressBacktestContract, type ProgressOptimizerContract, type ProgressWalkerContract, type RiskData, Schedule, type ScheduleData, type ScheduleStatistics, type SignalData, type SignalInterval, type TPersistBase, type TPersistBaseCtor, Walker, type WalkerContract, type WalkerMetric, type WalkerStatistics, addExchange, addFrame, addOptimizer, addRisk, addSizing, addStrategy, addWalker, dumpSignal, emitters, formatPrice, formatQuantity, getAveragePrice, getCandles, getDate, getMode, backtest as lib, listExchanges, listFrames, listOptimizers, listRisks, listSizings, listStrategies, listWalkers, listenBacktestProgress, listenDoneBacktest, listenDoneBacktestOnce, listenDoneLive, listenDoneLiveOnce, listenDoneWalker, listenDoneWalkerOnce, listenError, listenExit, listenOptimizerProgress, listenPartialLoss, listenPartialLossOnce, listenPartialProfit, listenPartialProfitOnce, listenPerformance, listenSignal, listenSignalBacktest, listenSignalBacktestOnce, listenSignalLive, listenSignalLiveOnce, listenSignalOnce, listenValidation, listenWalker, listenWalkerComplete, listenWalkerOnce, listenWalkerProgress, setConfig, setLogger };

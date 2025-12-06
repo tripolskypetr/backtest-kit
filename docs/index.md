@@ -72,6 +72,7 @@ group: docs
 - [OptimizerGlobalService](classes/OptimizerGlobalService.md)
 - [PartialConnectionService](classes/PartialConnectionService.md)
 - [PartialGlobalService](classes/PartialGlobalService.md)
+- [OutlineMarkdownService](classes/OutlineMarkdownService.md)
 
 ## Enums
 
@@ -126,6 +127,7 @@ group: docs
 - [formatQuantity](functions/formatQuantity.md)
 - [getDate](functions/getDate.md)
 - [getMode](functions/getMode.md)
+- [dumpSignal](functions/dumpSignal.md)
 
 ## Interfaces
 
@@ -256,3 +258,4 @@ group: docs
 - [PartialData](types/PartialData.md)
 - [RiskMap](types/RiskMap.md)
 - [TOptimizer](types/TOptimizer.md)
+- [ResultId](types/ResultId.md)
