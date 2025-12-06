@@ -947,63 +947,109 @@ const RETURN_PENDING_SIGNAL_ACTIVE_FN = async (
 ): Promise<IStrategyTickResultActive> => {
   // Calculate percentage of path to TP/SL for partial fill/loss callbacks
   {
-    let progressPercent = 0;
-
     if (signal.position === "long") {
-      // For long: calculate progress towards TP (positive) or SL (negative)
-      const tpDistance = signal.priceTakeProfit - signal.priceOpen;
+      // For long: calculate progress towards TP or SL
       const currentDistance = currentPrice - signal.priceOpen;
-      progressPercent = (currentDistance / tpDistance) * 100;
-    } else if (signal.position === "short") {
-      // For short: calculate progress towards TP (positive) or SL (negative)
-      const tpDistance = signal.priceOpen - signal.priceTakeProfit;
-      const currentDistance = signal.priceOpen - currentPrice;
-      progressPercent = (currentDistance / tpDistance) * 100;
-    }
 
-    // Call onPartialProfit if progress is positive (moving towards TP, but not past it)
-    if (progressPercent > 0) {
-      // КРИТИЧНО: Вызываем ClientPartial для отслеживания уровней
-      await self.params.partial.profit(
-        self.params.execution.context.symbol,
-        signal,
-        currentPrice,
-        Math.min(progressPercent, 100),
-        self.params.execution.context.backtest,
-        self.params.execution.context.when
-      );
+      if (currentDistance > 0) {
+        // Moving towards TP
+        const tpDistance = signal.priceTakeProfit - signal.priceOpen;
+        const progressPercent = (currentDistance / tpDistance) * 100;
 
-      if (self.params.callbacks?.onPartialProfit) {
-        self.params.callbacks.onPartialProfit(
+        await self.params.partial.profit(
           self.params.execution.context.symbol,
           signal,
           currentPrice,
           Math.min(progressPercent, 100),
-          self.params.execution.context.backtest
+          self.params.execution.context.backtest,
+          self.params.execution.context.when
         );
-      }
-    }
 
-    // Call onPartialLoss if progress is negative (moving towards SL)
-    if (progressPercent < 0) {
-      // КРИТИЧНО: Вызываем ClientPartial для отслеживания уровней
-      await self.params.partial.loss(
-        self.params.execution.context.symbol,
-        signal,
-        currentPrice,
-        Math.abs(progressPercent),
-        self.params.execution.context.backtest,
-        self.params.execution.context.when
-      );
+        if (self.params.callbacks?.onPartialProfit) {
+          self.params.callbacks.onPartialProfit(
+            self.params.execution.context.symbol,
+            signal,
+            currentPrice,
+            Math.min(progressPercent, 100),
+            self.params.execution.context.backtest
+          );
+        }
+      } else if (currentDistance < 0) {
+        // Moving towards SL
+        const slDistance = signal.priceOpen - signal.priceStopLoss;
+        const progressPercent = (Math.abs(currentDistance) / slDistance) * 100;
 
-      if (self.params.callbacks?.onPartialLoss) {
-        self.params.callbacks.onPartialLoss(
+        await self.params.partial.loss(
           self.params.execution.context.symbol,
           signal,
           currentPrice,
-          Math.abs(progressPercent),
-          self.params.execution.context.backtest
+          progressPercent,
+          self.params.execution.context.backtest,
+          self.params.execution.context.when
         );
+
+        if (self.params.callbacks?.onPartialLoss) {
+          self.params.callbacks.onPartialLoss(
+            self.params.execution.context.symbol,
+            signal,
+            currentPrice,
+            progressPercent,
+            self.params.execution.context.backtest
+          );
+        }
+      }
+    } else if (signal.position === "short") {
+      // For short: calculate progress towards TP or SL
+      const currentDistance = signal.priceOpen - currentPrice;
+
+      if (currentDistance > 0) {
+        // Moving towards TP
+        const tpDistance = signal.priceOpen - signal.priceTakeProfit;
+        const progressPercent = (currentDistance / tpDistance) * 100;
+
+        await self.params.partial.profit(
+          self.params.execution.context.symbol,
+          signal,
+          currentPrice,
+          Math.min(progressPercent, 100),
+          self.params.execution.context.backtest,
+          self.params.execution.context.when
+        );
+
+        if (self.params.callbacks?.onPartialProfit) {
+          self.params.callbacks.onPartialProfit(
+            self.params.execution.context.symbol,
+            signal,
+            currentPrice,
+            Math.min(progressPercent, 100),
+            self.params.execution.context.backtest
+          );
+        }
+      }
+      
+      if (currentDistance < 0) {
+        // Moving towards SL
+        const slDistance = signal.priceStopLoss - signal.priceOpen;
+        const progressPercent = (Math.abs(currentDistance) / slDistance) * 100;
+
+        await self.params.partial.loss(
+          self.params.execution.context.symbol,
+          signal,
+          currentPrice,
+          progressPercent,
+          self.params.execution.context.backtest,
+          self.params.execution.context.when
+        );
+
+        if (self.params.callbacks?.onPartialLoss) {
+          self.params.callbacks.onPartialLoss(
+            self.params.execution.context.symbol,
+            signal,
+            currentPrice,
+            progressPercent,
+            self.params.execution.context.backtest
+          );
+        }
       }
     }
   }
@@ -1435,60 +1481,109 @@ const PROCESS_PENDING_SIGNAL_CANDLES_FN = async (
     // Call onPartialProfit/onPartialLoss callbacks during backtest candle processing
     // Calculate percentage of path to TP/SL
     {
-      let progressPercent = 0;
       if (signal.position === "long") {
-        const tpDistance = signal.priceTakeProfit - signal.priceOpen;
+        // For long: calculate progress towards TP or SL
         const currentDistance = averagePrice - signal.priceOpen;
-        progressPercent = (currentDistance / tpDistance) * 100;
-      } else if (signal.position === "short") {
-        const tpDistance = signal.priceOpen - signal.priceTakeProfit;
-        const currentDistance = signal.priceOpen - averagePrice;
-        progressPercent = (currentDistance / tpDistance) * 100;
-      }
 
-      // Call onPartialProfit if progress is positive (moving towards TP, but not past it)
-      if (progressPercent > 0) {
-        // КРИТИЧНО: Вызываем ClientPartial для отслеживания уровней
-        await self.params.partial.profit(
-          self.params.execution.context.symbol,
-          signal,
-          averagePrice,
-          Math.min(progressPercent, 100),
-          self.params.execution.context.backtest,
-          self.params.execution.context.when
-        );
+        if (currentDistance > 0) {
+          // Moving towards TP
+          const tpDistance = signal.priceTakeProfit - signal.priceOpen;
+          const progressPercent = (currentDistance / tpDistance) * 100;
 
-        if (self.params.callbacks?.onPartialProfit) {
-          self.params.callbacks.onPartialProfit(
+          await self.params.partial.profit(
             self.params.execution.context.symbol,
             signal,
             averagePrice,
             Math.min(progressPercent, 100),
-            self.params.execution.context.backtest
+            self.params.execution.context.backtest,
+            self.params.execution.context.when
           );
-        }
-      }
 
-      // Call onPartialLoss if progress is negative (moving towards SL)
-      if (progressPercent < 0) {
-        // КРИТИЧНО: Вызываем ClientPartial для отслеживания уровней
-        await self.params.partial.loss(
-          self.params.execution.context.symbol,
-          signal,
-          averagePrice,
-          Math.abs(progressPercent),
-          self.params.execution.context.backtest,
-          self.params.execution.context.when
-        );
+          if (self.params.callbacks?.onPartialProfit) {
+            self.params.callbacks.onPartialProfit(
+              self.params.execution.context.symbol,
+              signal,
+              averagePrice,
+              Math.min(progressPercent, 100),
+              self.params.execution.context.backtest
+            );
+          }
+        } else if (currentDistance < 0) {
+          // Moving towards SL
+          const slDistance = signal.priceOpen - signal.priceStopLoss;
+          const progressPercent = (Math.abs(currentDistance) / slDistance) * 100;
 
-        if (self.params.callbacks?.onPartialLoss) {
-          self.params.callbacks.onPartialLoss(
+          await self.params.partial.loss(
             self.params.execution.context.symbol,
             signal,
             averagePrice,
-            Math.abs(progressPercent),
-            self.params.execution.context.backtest
+            progressPercent,
+            self.params.execution.context.backtest,
+            self.params.execution.context.when
           );
+
+          if (self.params.callbacks?.onPartialLoss) {
+            self.params.callbacks.onPartialLoss(
+              self.params.execution.context.symbol,
+              signal,
+              averagePrice,
+              progressPercent,
+              self.params.execution.context.backtest
+            );
+          }
+        }
+      } else if (signal.position === "short") {
+        // For short: calculate progress towards TP or SL
+        const currentDistance = signal.priceOpen - averagePrice;
+
+        if (currentDistance > 0) {
+          // Moving towards TP
+          const tpDistance = signal.priceOpen - signal.priceTakeProfit;
+          const progressPercent = (currentDistance / tpDistance) * 100;
+
+          await self.params.partial.profit(
+            self.params.execution.context.symbol,
+            signal,
+            averagePrice,
+            Math.min(progressPercent, 100),
+            self.params.execution.context.backtest,
+            self.params.execution.context.when
+          );
+
+          if (self.params.callbacks?.onPartialProfit) {
+            self.params.callbacks.onPartialProfit(
+              self.params.execution.context.symbol,
+              signal,
+              averagePrice,
+              Math.min(progressPercent, 100),
+              self.params.execution.context.backtest
+            );
+          }
+        }
+        
+        if (currentDistance < 0) {
+          // Moving towards SL
+          const slDistance = signal.priceStopLoss - signal.priceOpen;
+          const progressPercent = (Math.abs(currentDistance) / slDistance) * 100;
+
+          await self.params.partial.loss(
+            self.params.execution.context.symbol,
+            signal,
+            averagePrice,
+            progressPercent,
+            self.params.execution.context.backtest,
+            self.params.execution.context.when
+          );
+
+          if (self.params.callbacks?.onPartialLoss) {
+            self.params.callbacks.onPartialLoss(
+              self.params.execution.context.symbol,
+              signal,
+              averagePrice,
+              progressPercent,
+              self.params.execution.context.backtest
+            );
+          }
         }
       }
     }
