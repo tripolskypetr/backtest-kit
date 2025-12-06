@@ -1,14 +1,25 @@
----
-title: design/25_exchange_schemas
-group: design
----
-
 # Exchange Schemas
+
+<details>
+<summary>Relevant source files</summary>
+
+The following files were used as context for generating this wiki page:
+
+- [src/client/ClientExchange.ts](src/client/ClientExchange.ts)
+- [src/client/ClientStrategy.ts](src/client/ClientStrategy.ts)
+- [src/interfaces/Strategy.interface.ts](src/interfaces/Strategy.interface.ts)
+- [src/lib/services/logic/private/BacktestLogicPrivateService.ts](src/lib/services/logic/private/BacktestLogicPrivateService.ts)
+- [src/lib/services/logic/private/LiveLogicPrivateService.ts](src/lib/services/logic/private/LiveLogicPrivateService.ts)
+- [src/lib/services/logic/private/WalkerLogicPrivateService.ts](src/lib/services/logic/private/WalkerLogicPrivateService.ts)
+- [types.d.ts](types.d.ts)
+
+</details>
+
 
 
 Exchange schemas define data source interfaces for fetching historical market data and formatting prices/quantities according to exchange-specific precision rules. They provide the abstraction layer between the framework's signal processing logic and external data sources (APIs, databases, CSV files, etc.).
 
-This page covers the structure and registration of exchange schemas. For information about the runtime exchange client implementation, see [ClientExchange](./32_ClientExchange.md). For utility functions that use registered exchanges, see [Exchange Functions](./21_Exchange_Functions.md).
+This page covers the structure and registration of exchange schemas. For information about the runtime exchange client implementation, see [ClientExchange](#6.2). For utility functions that use registered exchanges, see [Exchange Functions](#4.7).
 
 ## Overview
 
@@ -20,10 +31,42 @@ An exchange schema registered via `addExchange()` must implement the `IExchangeS
 
 The framework uses these methods internally for backtesting (historical data iteration) and live trading (VWAP calculation, TP/SL monitoring). The exchange schema does not contain business logic—it is a pure data access interface. Runtime logic is handled by `ClientExchange`.
 
+Sources: [types.d.ts:188-221](), [src/function/add.ts:64-111]()
 
 ## Exchange Schema Structure
 
-![Mermaid Diagram](./diagrams/25_Exchange_Schemas_0.svg)
+```mermaid
+graph TB
+    subgraph "IExchangeSchema Interface"
+        exchangeName["exchangeName: ExchangeName<br/>(Required unique identifier)"]
+        note["note?: string<br/>(Optional documentation)"]
+        getCandles["getCandles(symbol, interval, since, limit)<br/>→ Promise&lt;ICandleData[]&gt;<br/>(Required: Fetch OHLCV data)"]
+        formatPrice["formatPrice(symbol, price)<br/>→ Promise&lt;string&gt;<br/>(Required: Format to exchange precision)"]
+        formatQuantity["formatQuantity(symbol, quantity)<br/>→ Promise&lt;string&gt;<br/>(Required: Format to exchange precision)"]
+        callbacks["callbacks?: Partial&lt;IExchangeCallbacks&gt;<br/>(Optional: onCandleData)"]
+    end
+    
+    subgraph "ICandleData Structure"
+        timestamp["timestamp: number<br/>(Unix milliseconds)"]
+        open["open: number"]
+        high["high: number"]
+        low["low: number"]
+        close["close: number"]
+        volume["volume: number"]
+    end
+    
+    subgraph "IExchangeCallbacks"
+        onCandleData["onCandleData(symbol, interval,<br/>since, limit, data)<br/>(Called after getCandles)"]
+    end
+    
+    getCandles --> ICandleData
+    callbacks --> onCandleData
+    
+    style exchangeName fill:#f9f9f9
+    style getCandles fill:#f9f9f9
+    style formatPrice fill:#f9f9f9
+    style formatQuantity fill:#f9f9f9
+```
 
 **Required Fields:**
 
@@ -37,10 +80,28 @@ The framework uses these methods internally for backtesting (historical data ite
 - **note** - Developer documentation string
 - **callbacks** - Lifecycle event callbacks for candle data events
 
+Sources: [types.d.ts:188-221](), [types.d.ts:153-166](), [types.d.ts:180-183]()
 
 ## Registration Flow
 
-![Mermaid Diagram](./diagrams/25_Exchange_Schemas_1.svg)
+```mermaid
+graph LR
+    User["User Code<br/>addExchange()"]
+    AddFunction["add.addExchange<br/>[src/function/add.ts:99-111]"]
+    ValidationService["ExchangeValidationService<br/>addExchange()<br/>[TYPES.exchangeValidationService]"]
+    SchemaService["ExchangeSchemaService<br/>register()<br/>[TYPES.exchangeSchemaService]"]
+    ToolRegistry["ToolRegistry&lt;IExchangeSchema&gt;<br/>In-memory storage"]
+    
+    User --> AddFunction
+    AddFunction --> ValidationService
+    AddFunction --> SchemaService
+    ValidationService --> |"Validates schema structure"| ValidationService
+    SchemaService --> |"Stores via register()"| ToolRegistry
+    
+    style AddFunction fill:#f9f9f9
+    style ValidationService fill:#f9f9f9
+    style SchemaService fill:#f9f9f9
+```
 
 The registration process follows this sequence:
 
@@ -51,6 +112,7 @@ The registration process follows this sequence:
 
 Once registered, the schema becomes available for use in backtest and live execution modes. The framework uses `ExchangeConnectionService` to lazily instantiate `ClientExchange` instances from the stored schema.
 
+Sources: [src/function/add.ts:99-111](), [src/lib/core/types.ts:10-16](), [src/lib/core/provide.ts:54-59]()
 
 ## Required Methods
 
@@ -93,6 +155,7 @@ Array of `ICandleData` objects with fields:
 - **Live Mode** - Called for VWAP calculation (last 5 1-minute candles) and TP/SL monitoring
 - **Fast-Forward Backtest** - Called once to fetch large candle array for `strategy.backtest()`
 
+Sources: [types.d.ts:148-166](), [types.d.ts:196-202]()
 
 ### formatPrice Method
 
@@ -123,6 +186,7 @@ Formatted price string respecting exchange precision (e.g., `"50123.45"` for BTC
 - Displaying prices in callbacks
 - Logging formatted price values
 
+Sources: [types.d.ts:211-218]()
 
 ### formatQuantity Method
 
@@ -153,6 +217,7 @@ Formatted quantity string respecting exchange precision (e.g., `"0.00123456"` fo
 - Displaying quantities in callbacks
 - Logging formatted quantity values
 
+Sources: [types.d.ts:204-210]()
 
 ## Optional Callbacks
 
@@ -198,10 +263,63 @@ addExchange({
 });
 ```
 
+Sources: [types.d.ts:180-183](), [types.d.ts:220]()
 
 ## Runtime Integration
 
-![Mermaid Diagram](./diagrams/25_Exchange_Schemas_2.svg)
+```mermaid
+graph TB
+    subgraph "Schema Layer (User Definition)"
+        IExchangeSchema["IExchangeSchema<br/>(Registered via addExchange)"]
+        exchangeName1["exchangeName: string"]
+        getCandles1["getCandles()"]
+        formatPrice1["formatPrice()"]
+        formatQuantity1["formatQuantity()"]
+        callbacks1["callbacks?"]
+    end
+    
+    subgraph "Service Layer (Framework)"
+        ExchangeSchemaService["ExchangeSchemaService<br/>[TYPES.exchangeSchemaService]<br/>ToolRegistry storage"]
+        ExchangeConnectionService["ExchangeConnectionService<br/>[TYPES.exchangeConnectionService]<br/>Memoized instance mgmt"]
+        ExchangeGlobalService["ExchangeGlobalService<br/>[TYPES.exchangeGlobalService]<br/>Public API entry point"]
+    end
+    
+    subgraph "Client Layer (Business Logic)"
+        IExchangeParams["IExchangeParams<br/>(Schema + Dependencies)"]
+        ClientExchange["ClientExchange<br/>[src/lib/classes/ClientExchange.ts]"]
+        
+        getCandles2["getCandles()<br/>(Backward from context.when)"]
+        getNextCandles["getNextCandles()<br/>(Forward for backtest)"]
+        getAveragePrice["getAveragePrice()<br/>(VWAP from 5 1m candles)"]
+        formatPrice2["formatPrice()"]
+        formatQuantity2["formatQuantity()"]
+    end
+    
+    subgraph "Dependencies Injected"
+        LoggerService["LoggerService"]
+        ExecutionContextService["ExecutionContextService<br/>(symbol, when, backtest)"]
+    end
+    
+    IExchangeSchema --> ExchangeSchemaService
+    ExchangeSchemaService --> ExchangeConnectionService
+    ExchangeConnectionService --> |"Creates ClientExchange"| IExchangeParams
+    IExchangeParams --> ClientExchange
+    
+    LoggerService --> IExchangeParams
+    ExecutionContextService --> IExchangeParams
+    
+    ClientExchange --> getCandles2
+    ClientExchange --> getNextCandles
+    ClientExchange --> getAveragePrice
+    ClientExchange --> formatPrice2
+    ClientExchange --> formatQuantity2
+    
+    ExchangeGlobalService --> ExchangeConnectionService
+    
+    style IExchangeSchema fill:#f9f9f9
+    style ClientExchange fill:#f9f9f9
+    style ExchangeConnectionService fill:#f9f9f9
+```
 
 **Flow:**
 
@@ -217,12 +335,26 @@ addExchange({
 
 The `ClientExchange` class wraps the schema methods and adds framework-specific functionality like VWAP calculation and context-aware candle fetching. It uses `executionContext.when` to determine the current timestamp for fetching candles backward (past data) or forward (future data for backtesting).
 
+Sources: [types.d.ts:171-176](), [types.d.ts:226-271](), [src/lib/core/types.ts:10-16]()
 
 ## Context Propagation
 
 The exchange schema methods do not receive explicit context parameters. Instead, context flows implicitly through `ExecutionContextService`:
 
-![Mermaid Diagram](./diagrams/25_Exchange_Schemas_3.svg)
+```mermaid
+graph LR
+    BacktestRun["Backtest.run() or<br/>Live.run()"]
+    ExecutionContext["ExecutionContextService<br/>.runInContext()<br/>{symbol, when, backtest}"]
+    ClientExchange["ClientExchange<br/>.getCandles()"]
+    SchemaMethod["exchangeSchema<br/>.getCandles(symbol,<br/>interval, since, limit)"]
+    
+    BacktestRun --> |"Sets context"| ExecutionContext
+    ExecutionContext --> |"Injects via DI"| ClientExchange
+    ClientExchange --> |"Calls with context.when"| SchemaMethod
+    
+    style ExecutionContext fill:#f9f9f9
+    style ClientExchange fill:#f9f9f9
+```
 
 **Context Fields Used:**
 
@@ -232,6 +364,7 @@ The exchange schema methods do not receive explicit context parameters. Instead,
 
 The schema implementation does not need to be aware of this context—it simply receives parameters and returns data. The framework handles all context-aware logic in `ClientExchange`.
 
+Sources: [types.d.ts:105-112](), [types.d.ts:132-138]()
 
 ## Common Integration Patterns
 
@@ -318,6 +451,7 @@ addExchange({
 });
 ```
 
+Sources: [src/function/add.ts:64-111]()
 
 ## Validation Rules
 
@@ -331,6 +465,7 @@ The `ExchangeValidationService` enforces these validation rules during registrat
 
 Validation errors are thrown synchronously from `addExchange()` to provide immediate feedback.
 
+Sources: [src/lib/core/types.ts:59-66](), [src/lib/core/provide.ts:103-109]()
 
 ## Listing Registered Exchanges
 
@@ -350,6 +485,7 @@ This is useful for:
 - Generating documentation from registered schemas
 - Validating that required exchanges are registered before execution
 
+Sources: [src/function/list.ts:41-44](), [src/index.ts:1-32]()
 
 ## Best Practices
 
@@ -380,4 +516,5 @@ callbacks: {
 ```
 
 **5. Keep schemas stateless** - Exchange schemas should not maintain state. Store state in external services (databases, caches) and keep the schema as a pure interface.
-
+
+Sources: [types.d.ts:180-183](), [src/function/add.ts:99-111]()

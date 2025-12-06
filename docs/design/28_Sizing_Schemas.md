@@ -1,15 +1,27 @@
----
-title: design/28_sizing_schemas
-group: design
----
-
 # Sizing Schemas
+
+<details>
+<summary>Relevant source files</summary>
+
+The following files were used as context for generating this wiki page:
+
+- [README.md](README.md)
+- [src/client/ClientStrategy.ts](src/client/ClientStrategy.ts)
+- [src/interfaces/Strategy.interface.ts](src/interfaces/Strategy.interface.ts)
+- [src/lib/services/markdown/BacktestMarkdownService.ts](src/lib/services/markdown/BacktestMarkdownService.ts)
+- [src/lib/services/markdown/LiveMarkdownService.ts](src/lib/services/markdown/LiveMarkdownService.ts)
+- [src/lib/services/markdown/ScheduleMarkdownService.ts](src/lib/services/markdown/ScheduleMarkdownService.ts)
+- [types.d.ts](types.d.ts)
+
+</details>
+
 
 
 Sizing schemas define position sizing methods for calculating trade quantities based on account balance, risk parameters, and market conditions. The framework provides three built-in sizing methods via a discriminated union: fixed-percentage, Kelly Criterion, and ATR-based. Strategies reference sizing schemas by name via the `sizingName` field in `IStrategySchema`.
 
-For information about how strategies reference sizing, see [Strategy Schemas](./24_Strategy_Schemas.md). For risk management that controls whether positions are allowed, see [Risk Schemas](./27_Risk_Schemas.md).
+For information about how strategies reference sizing, see [Strategy Schemas](#5.1). For risk management that controls whether positions are allowed, see [Risk Schemas](#5.4).
 
+**Sources:** [types.d.ts:202-267](), [src/function/add.ts:202-266]()
 
 ---
 
@@ -17,8 +29,30 @@ For information about how strategies reference sizing, see [Strategy Schemas](./
 
 The `ISizingSchema` type is a discriminated union using the `method` field as the discriminator. Each method has specific required and optional parameters suited to its calculation algorithm.
 
-![Mermaid Diagram](./diagrams/28_Sizing_Schemas_0.svg)
+```mermaid
+graph TB
+    ISizingSchema["ISizingSchema<br/>(Discriminated Union)"]
+    
+    Fixed["ISizingSchemaFixedPercentage<br/>method: 'fixed-percentage'"]
+    Kelly["ISizingSchemaKelly<br/>method: 'kelly-criterion'"]
+    ATR["ISizingSchemaATR<br/>method: 'atr-based'"]
+    
+    ISizingSchema --> Fixed
+    ISizingSchema --> Kelly
+    ISizingSchema --> ATR
+    
+    FixedParams["riskPercentage: number<br/>maxPositionPercentage?: number<br/>minPositionSize?: number<br/>maxPositionSize?: number"]
+    
+    KellyParams["kellyMultiplier?: number<br/>maxPositionPercentage?: number<br/>minPositionSize?: number<br/>maxPositionSize?: number"]
+    
+    ATRParams["riskPercentage: number<br/>atrMultiplier?: number<br/>maxPositionPercentage?: number<br/>minPositionSize?: number<br/>maxPositionSize?: number"]
+    
+    Fixed --> FixedParams
+    Kelly --> KellyParams
+    ATR --> ATRParams
+```
 
+**Sources:** [types.d.ts:59-70](), [src/index.ts:58-70]()
 
 ---
 
@@ -26,8 +60,34 @@ The `ISizingSchema` type is a discriminated union using the `method` field as th
 
 Sizing schemas are registered via `addSizing()`, which stores them in `SizingSchemaService` and validates them through `SizingValidationService`. Strategies reference sizing configurations by name, triggering lazy instantiation of `ClientSizing` via `SizingConnectionService`.
 
-![Mermaid Diagram](./diagrams/28_Sizing_Schemas_1.svg)
+```mermaid
+sequenceDiagram
+    participant User
+    participant addSizing
+    participant SizingValidationService
+    participant SizingSchemaService
+    participant StrategySchema
+    participant SizingConnectionService
+    participant ClientSizing
+    
+    User->>addSizing: "addSizing(schema)"
+    addSizing->>SizingValidationService: "addSizing(sizingName, schema)"
+    Note over SizingValidationService: "Validate schema structure"
+    addSizing->>SizingSchemaService: "register(sizingName, schema)"
+    Note over SizingSchemaService: "Store in ToolRegistry"
+    
+    Note over StrategySchema: "Later: strategy references<br/>sizingName in schema"
+    
+    StrategySchema->>SizingConnectionService: "get(sizingName)"
+    SizingConnectionService->>SizingSchemaService: "getSchema(sizingName)"
+    SizingSchemaService-->>SizingConnectionService: "schema"
+    SizingConnectionService->>ClientSizing: "new ClientSizing(params)"
+    Note over ClientSizing: "Memoized per sizingName"
+    ClientSizing-->>SizingConnectionService: "instance"
+    SizingConnectionService-->>StrategySchema: "instance"
+```
 
+**Sources:** [src/function/add.ts:254-266](), [src/lib/index.ts:72-77]()
 
 ---
 
@@ -69,6 +129,7 @@ addSizing({
 });
 ```
 
+**Sources:** [src/function/add.ts:223-231](), [types.d.ts:202-266]()
 
 ---
 
@@ -112,6 +173,7 @@ addSizing({
 });
 ```
 
+**Sources:** [src/function/add.ts:233-238](), [types.d.ts:202-266]()
 
 ---
 
@@ -156,6 +218,7 @@ addSizing({
 });
 ```
 
+**Sources:** [src/function/add.ts:240-252](), [types.d.ts:202-266]()
 
 ---
 
@@ -163,7 +226,34 @@ addSizing({
 
 All sizing methods support optional position size constraints to enforce portfolio-level limits:
 
-![Mermaid Diagram](./diagrams/28_Sizing_Schemas_2.svg)
+```mermaid
+graph TD
+    Calculate["Calculate Raw<br/>Position Size"]
+    
+    MaxPercent{"maxPositionPercentage<br/>specified?"}
+    ApplyMaxPercent["Cap at Account Balance<br/>× maxPositionPercentage / 100"]
+    
+    MinSize{"minPositionSize<br/>specified?"}
+    ApplyMinSize["Enforce minimum:<br/>max(size, minPositionSize)"]
+    
+    MaxSize{"maxPositionSize<br/>specified?"}
+    ApplyMaxSize["Enforce maximum:<br/>min(size, maxPositionSize)"]
+    
+    Return["Return Final<br/>Position Size"]
+    
+    Calculate --> MaxPercent
+    MaxPercent -->|Yes| ApplyMaxPercent
+    MaxPercent -->|No| MinSize
+    ApplyMaxPercent --> MinSize
+    
+    MinSize -->|Yes| ApplyMinSize
+    MinSize -->|No| MaxSize
+    ApplyMinSize --> MaxSize
+    
+    MaxSize -->|Yes| ApplyMaxSize
+    MaxSize -->|No| Return
+    ApplyMaxSize --> Return
+```
 
 ### Constraint Parameters
 
@@ -173,6 +263,7 @@ All sizing methods support optional position size constraints to enforce portfol
 | `minPositionSize` | `number` | Minimum position size in base asset (prevents dust trades) |
 | `maxPositionSize` | `number` | Maximum position size in base asset (absolute limit) |
 
+**Sources:** [types.d.ts:202-266]()
 
 ---
 
@@ -180,8 +271,28 @@ All sizing methods support optional position size constraints to enforce portfol
 
 When calculating position size, `ClientSizing` receives method-specific parameters through the discriminated union `ISizingCalculateParams`:
 
-![Mermaid Diagram](./diagrams/28_Sizing_Schemas_3.svg)
+```mermaid
+graph LR
+    subgraph "Fixed Percentage"
+        FP_Params["ISizingCalculateParamsFixedPercentage"]
+        FP_Fields["accountBalance: number<br/>riskPercentage: number<br/>stopLossDistance: number<br/>currentPrice: number"]
+        FP_Params --> FP_Fields
+    end
+    
+    subgraph "Kelly Criterion"
+        K_Params["ISizingCalculateParamsKelly"]
+        K_Fields["accountBalance: number<br/>winRate: number<br/>avgWin: number<br/>avgLoss: number<br/>kellyMultiplier: number<br/>currentPrice: number"]
+        K_Params --> K_Fields
+    end
+    
+    subgraph "ATR-Based"
+        ATR_Params["ISizingCalculateParamsATR"]
+        ATR_Fields["accountBalance: number<br/>riskPercentage: number<br/>atr: number<br/>atrMultiplier: number<br/>currentPrice: number"]
+        ATR_Params --> ATR_Fields
+    end
+```
 
+**Sources:** [types.d.ts:59-70]()
 
 ---
 
@@ -200,8 +311,21 @@ interface ISizingCallbacks {
 
 ### Callback Invocation
 
-![Mermaid Diagram](./diagrams/28_Sizing_Schemas_4.svg)
+```mermaid
+sequenceDiagram
+    participant Strategy as "ClientStrategy"
+    participant Sizing as "ClientSizing"
+    participant Callback as "callbacks.onCalculate"
+    
+    Strategy->>Sizing: "calculate(params)"
+    Note over Sizing: "Execute sizing algorithm<br/>(fixed/kelly/atr)"
+    Note over Sizing: "Apply constraints<br/>(min/max/percentage)"
+    Sizing->>Callback: "onCalculate(quantity, params)"
+    Note over Callback: "Log, monitor, alert"
+    Sizing-->>Strategy: "return quantity"
+```
 
+**Sources:** [types.d.ts:202-266]()
 
 ---
 
@@ -228,8 +352,28 @@ addStrategy({
 
 ### Service Interaction
 
-![Mermaid Diagram](./diagrams/28_Sizing_Schemas_5.svg)
+```mermaid
+graph TB
+    StrategySchema["IStrategySchema<br/>sizingName: 'conservative'"]
+    
+    StrategyConnection["StrategyConnectionService"]
+    SizingConnection["SizingConnectionService"]
+    
+    ClientStrategy["ClientStrategy<br/>Uses sizing for calculations"]
+    ClientSizing["ClientSizing<br/>Executes sizing method"]
+    
+    SizingSchema["ISizingSchemaFixedPercentage<br/>method: 'fixed-percentage'<br/>riskPercentage: 1"]
+    
+    StrategySchema --> StrategyConnection
+    StrategyConnection --> ClientStrategy
+    
+    ClientStrategy -->|"get(sizingName)"| SizingConnection
+    SizingConnection -->|"retrieve schema"| SizingSchema
+    SizingConnection --> ClientSizing
+    ClientSizing -->|"calculate(params)"| ClientStrategy
+```
 
+**Sources:** [types.d.ts:616-633](), [src/lib/index.ts:1-170]()
 
 ---
 
@@ -248,8 +392,27 @@ The sizing system follows the standard service layer pattern with Schema, Valida
 
 `SizingConnectionService` memoizes `ClientSizing` instances to ensure singleton behavior per sizing name:
 
-![Mermaid Diagram](./diagrams/28_Sizing_Schemas_6.svg)
+```mermaid
+graph LR
+    Get1["get('conservative')"]
+    Get2["get('conservative')"]
+    Get3["get('kelly')"]
+    
+    Connection["SizingConnectionService<br/>Memoized instances Map"]
+    
+    Instance1["ClientSizing<br/>sizingName: 'conservative'"]
+    Instance2["ClientSizing<br/>sizingName: 'kelly'"]
+    
+    Get1 --> Connection
+    Get2 --> Connection
+    Get3 --> Connection
+    
+    Connection -->|"First call: create"| Instance1
+    Connection -->|"Cached: reuse"| Instance1
+    Connection -->|"First call: create"| Instance2
+```
 
+**Sources:** [src/lib/index.ts:72-77](), [src/lib/core/types.ts:14-16](), [src/lib/core/provide.ts:57-58]()
 
 ---
 
@@ -275,6 +438,7 @@ sizings.forEach(schema => {
 });
 ```
 
+**Sources:** [src/function/list.ts:177-180]()
 
 ---
 
@@ -333,4 +497,5 @@ addSizing({
   },
 });
 ```
-
+
+**Sources:** [src/function/add.ts:202-266]()

@@ -1,16 +1,27 @@
----
-title: design/15_configuration_functions
-group: design
----
-
 # Configuration Functions
+
+<details>
+<summary>Relevant source files</summary>
+
+The following files were used as context for generating this wiki page:
+
+- [src/client/ClientStrategy.ts](src/client/ClientStrategy.ts)
+- [src/config/emitters.ts](src/config/emitters.ts)
+- [src/function/event.ts](src/function/event.ts)
+- [src/index.ts](src/index.ts)
+- [src/interfaces/Strategy.interface.ts](src/interfaces/Strategy.interface.ts)
+- [test/config/setup.mjs](test/config/setup.mjs)
+- [types.d.ts](types.d.ts)
+
+</details>
+
 
 
 ## Purpose and Scope
 
 This page documents the two primary configuration functions exposed by the framework: `setLogger` and `setConfig`. These functions allow users to customize logging behavior and tune global runtime parameters that affect signal validation, timing constraints, and price monitoring.
 
-For information about component registration functions (`addStrategy`, `addExchange`, etc.), see [Component Registration Functions](./16_Component_Registration_Functions.md). For execution mode APIs, see [Backtest API](./17_Backtest_API.md), [Live Trading API](./18_Live_Trading_API.md), and [Walker API](./19_Walker_API.md).
+For information about component registration functions (`addStrategy`, `addExchange`, etc.), see [Component Registration Functions](#4.2). For execution mode APIs, see [Backtest API](#4.3), [Live Trading API](#4.4), and [Walker API](#4.5).
 
 ---
 
@@ -18,8 +29,45 @@ For information about component registration functions (`addStrategy`, `addExcha
 
 The framework provides two distinct configuration mechanisms that operate independently:
 
-![Mermaid Diagram](./diagrams/15_Configuration_Functions_0.svg)
+```mermaid
+graph TB
+    User["User Code"]
+    
+    subgraph "Configuration Layer"
+        SetLogger["setLogger(logger: ILogger)"]
+        SetConfig["setConfig(config: Partial<GlobalConfig>)"]
+    end
+    
+    subgraph "Global State"
+        LoggerService["LoggerService<br/>(DI Container)"]
+        GLOBAL_CONFIG["GLOBAL_CONFIG<br/>(Runtime Object)"]
+    end
+    
+    subgraph "Consuming Services"
+        ClientStrategy["ClientStrategy"]
+        ClientExchange["ClientExchange"]
+        ValidationService["ValidationService"]
+        BacktestLogic["BacktestLogicPrivateService"]
+        LiveLogic["LiveLogicPrivateService"]
+    end
+    
+    User --> SetLogger
+    User --> SetConfig
+    
+    SetLogger --> LoggerService
+    SetConfig --> GLOBAL_CONFIG
+    
+    LoggerService -.-> ClientStrategy
+    LoggerService -.-> ClientExchange
+    LoggerService -.-> ValidationService
+    
+    GLOBAL_CONFIG -.-> ValidationService
+    GLOBAL_CONFIG -.-> ClientStrategy
+    GLOBAL_CONFIG -.-> BacktestLogic
+    GLOBAL_CONFIG -.-> LiveLogic
+```
 
+**Sources:** [src/config/params.ts:1-35](), [types.d.ts:5-97](), [src/index.ts:1]()
 
 ---
 
@@ -42,13 +90,39 @@ The `ILogger` interface defines four logging severity levels. All methods accept
 | `info(topic, ...args)` | Informational updates | Successful operations, completions |
 | `warn(topic, ...args)` | Potentially problematic situations | Missing data, unexpected conditions |
 
+**Sources:** [types.d.ts:45-66]()
 
 ### Automatic Context Injection
 
 When a logger is registered, the framework automatically injects contextual metadata into all log calls:
 
-![Mermaid Diagram](./diagrams/15_Configuration_Functions_1.svg)
+```mermaid
+graph LR
+    UserLogger["User's ILogger Implementation"]
+    LoggerService["LoggerService<br/>(DI Token)"]
+    
+    subgraph "Context Sources"
+        MethodContext["MethodContextService<br/>strategyName<br/>exchangeName<br/>frameName"]
+        ExecutionContext["ExecutionContextService<br/>symbol<br/>when<br/>backtest"]
+    end
+    
+    subgraph "Logging Call Sites"
+        ClientStrategy["ClientStrategy.tick()"]
+        ClientExchange["ClientExchange.getCandles()"]
+        ValidationService["ValidationService.validateSignal()"]
+    end
+    
+    UserLogger --> LoggerService
+    
+    MethodContext -.->|"Injects context"| LoggerService
+    ExecutionContext -.->|"Injects context"| LoggerService
+    
+    ClientStrategy --> LoggerService
+    ClientExchange --> LoggerService
+    ValidationService --> LoggerService
+```
 
+**Sources:** [types.d.ts:69-84](), [src/lib/services/context/ExecutionContextService.ts](), [src/lib/services/context/MethodContextService.ts]()
 
 ### Usage Example
 
@@ -75,6 +149,7 @@ await setLogger({
 });
 ```
 
+**Sources:** [types.d.ts:76-83](), [test/config/setup.mjs:1-5]()
 
 ---
 
@@ -113,11 +188,13 @@ await setConfig({
 });
 ```
 
+**Sources:** [types.d.ts:86-97](), [src/config/params.ts:1-35]()
 
 ### Runtime Modification Warning
 
 Configuration changes apply immediately to all subsequent operations. Modifying parameters mid-execution (e.g., during a backtest) may cause inconsistent behavior. **Best practice:** Call `setConfig` once during application initialization, before any component registration or execution.
 
+**Sources:** [test/config/setup.mjs:36-41]()
 
 ---
 
@@ -133,6 +210,7 @@ Configuration changes apply immediately to all subsequent operations. Modifying 
 | `CC_MAX_STOPLOSS_DISTANCE_PERCENT` | `20` | `number` | Validation | `VALIDATE_SIGNAL_FN` |
 | `CC_MAX_SIGNAL_LIFETIME_MINUTES` | `1440` | `number` | Validation | `VALIDATE_SIGNAL_FN` |
 
+**Sources:** [src/config/params.ts:1-30](), [types.d.ts:5-34]()
 
 ---
 
@@ -144,7 +222,28 @@ Configuration changes apply immediately to all subsequent operations. Modifying 
 
 ### Behavior Flow
 
-![Mermaid Diagram](./diagrams/15_Configuration_Functions_2.svg)
+```mermaid
+stateDiagram-v2
+    [*] --> Scheduled: "getSignal() returns<br/>signal with priceOpen"
+    
+    Scheduled --> Activated: "Price reaches priceOpen<br/>(within CC_SCHEDULE_AWAIT_MINUTES)"
+    Scheduled --> Cancelled: "Timeout exceeded<br/>(elapsedTime ≥ CC_SCHEDULE_AWAIT_MINUTES)"
+    
+    Activated --> Active: "Position opened"
+    Cancelled --> [*]: "Risk limits released"
+    
+    note right of Scheduled
+        Timeout calculation:
+        elapsedTime = (currentTime - scheduledAt) / 60000
+        if (elapsedTime ≥ CC_SCHEDULE_AWAIT_MINUTES) → cancel
+    end note
+    
+    note right of Cancelled
+        onCancel callback invoked
+        action: "cancelled"
+        Risk slot freed for new signals
+    end note
+```
 
 ### Impact on Risk Management
 
@@ -164,6 +263,7 @@ await setConfig({
 });
 ```
 
+**Sources:** [src/config/params.ts:2-6](), [types.d.ts:5-10](), [test/e2e/defend.test.mjs:445-536]()
 
 ---
 
@@ -175,7 +275,30 @@ await setConfig({
 
 ### VWAP Calculation Flow
 
-![Mermaid Diagram](./diagrams/15_Configuration_Functions_3.svg)
+```mermaid
+graph LR
+    GetAveragePrice["ClientExchange.getAveragePrice(symbol)"]
+    
+    subgraph "Data Retrieval"
+        GetCandles["exchange.getCandles(symbol, '1m', since, limit)"]
+        Config["GLOBAL_CONFIG.CC_AVG_PRICE_CANDLES_COUNT"]
+    end
+    
+    subgraph "VWAP Formula"
+        TypicalPrice["Typical Price = (High + Low + Close) / 3"]
+        WeightedSum["Σ(Typical Price × Volume)"]
+        TotalVolume["Σ(Volume)"]
+        VWAP["VWAP = WeightedSum / TotalVolume"]
+    end
+    
+    GetAveragePrice --> GetCandles
+    GetCandles --> Config
+    GetCandles --> TypicalPrice
+    TypicalPrice --> WeightedSum
+    TypicalPrice --> TotalVolume
+    WeightedSum --> VWAP
+    TotalVolume --> VWAP
+```
 
 ### Trade-offs
 
@@ -199,6 +322,7 @@ await setConfig({
 });
 ```
 
+**Sources:** [src/config/params.ts:7-10](), [types.d.ts:11-15](), [types.d.ts:262-270]()
 
 ---
 
@@ -214,7 +338,28 @@ The framework applies **0.1% fee** + **0.1% slippage** = **0.2% total cost** on 
 
 ### Validation Logic
 
-![Mermaid Diagram](./diagrams/15_Configuration_Functions_4.svg)
+```mermaid
+graph TB
+    Signal["Signal DTO<br/>from getSignal()"]
+    
+    ValidateSignal["VALIDATE_SIGNAL_FN"]
+    
+    subgraph "TP Distance Check"
+        CalcDistance["Calculate distance:<br/>LONG: (TP - priceOpen) / priceOpen × 100<br/>SHORT: (priceOpen - TP) / priceOpen × 100"]
+        
+        CompareMin{"distance ≥<br/>CC_MIN_TAKEPROFIT_DISTANCE_PERCENT?"}
+    end
+    
+    Accept["Signal accepted<br/>Proceeds to risk check"]
+    Reject["Throw validation error<br/>Signal rejected"]
+    
+    Signal --> ValidateSignal
+    ValidateSignal --> CalcDistance
+    CalcDistance --> CompareMin
+    
+    CompareMin -->|"Yes"| Accept
+    CompareMin -->|"No"| Reject
+```
 
 ### Recommended Settings
 
@@ -235,6 +380,7 @@ await setConfig({
 });
 ```
 
+**Sources:** [src/config/params.ts:11-17](), [types.d.ts:16-21](), [test/e2e/sanitize.test.mjs:17-131]()
 
 ---
 
@@ -243,6 +389,37 @@ await setConfig({
 **Default:** `20%`
 
 **Purpose:** Maximum distance between `priceOpen` and `priceStopLoss` as a percentage. Prevents catastrophic losses from extreme StopLoss values.
+
+### Risk Protection Mechanism
+
+```mermaid
+graph TB
+    Signal["Signal DTO<br/>from getSignal()"]
+    
+    ValidateSignal["VALIDATE_SIGNAL_FN"]
+    
+    subgraph "SL Distance Check"
+        CalcDistance["Calculate distance:<br/>LONG: (priceOpen - SL) / priceOpen × 100<br/>SHORT: (SL - priceOpen) / priceOpen × 100"]
+        
+        CompareMax{"distance ≤<br/>CC_MAX_STOPLOSS_DISTANCE_PERCENT?"}
+    end
+    
+    Accept["Signal accepted<br/>Maximum 20% loss per signal"]
+    Reject["Throw validation error<br/>Signal rejected<br/>(risk too high)"]
+    
+    Signal --> ValidateSignal
+    ValidateSignal --> CalcDistance
+    CalcDistance --> CompareMax
+    
+    CompareMax -->|"Yes"| Accept
+    CompareMax -->|"No"| Reject
+    
+    note right of Reject
+        Prevents scenarios like:
+        priceOpen=42000, SL=20000
+        = 52% loss on single signal
+    end note
+```
 
 ### Portfolio Impact
 
@@ -269,6 +446,7 @@ await setConfig({
 });
 ```
 
+**Sources:** [src/config/params.ts:18-23](), [types.d.ts:22-27](), [test/e2e/sanitize.test.mjs:133-238]()
 
 ---
 
@@ -277,6 +455,31 @@ await setConfig({
 **Default:** `1440` minutes (1 day)
 
 **Purpose:** Maximum duration a signal can remain active before forced closure via `time_expired` reason. Prevents "eternal signals" that block risk limits indefinitely.
+
+### Lifetime Tracking and Enforcement
+
+```mermaid
+stateDiagram-v2
+    [*] --> Opened: "Signal created<br/>pendingAt = timestamp"
+    
+    Opened --> Active: "Monitoring TP/SL"
+    
+    Active --> ClosedTP: "Take profit hit"
+    Active --> ClosedSL: "Stop loss hit"
+    Active --> ClosedTime: "elapsedTime ≥<br/>CC_MAX_SIGNAL_LIFETIME_MINUTES"
+    
+    ClosedTP --> [*]: "closeReason: 'take_profit'"
+    ClosedSL --> [*]: "closeReason: 'stop_loss'"
+    ClosedTime --> [*]: "closeReason: 'time_expired'"
+    
+    note right of Active
+        Lifetime check:
+        elapsedMinutes = (now - pendingAt) / 60000
+        if (elapsedMinutes ≥ CC_MAX_SIGNAL_LIFETIME_MINUTES) {
+            closeReason = "time_expired"
+        }
+    end note
+```
 
 ### Risk Slot Deadlock Prevention
 
@@ -301,6 +504,7 @@ await setConfig({
 });
 ```
 
+**Sources:** [src/config/params.ts:24-30](), [types.d.ts:28-34](), [test/e2e/sanitize.test.mjs:240-348]()
 
 ---
 
@@ -308,8 +512,41 @@ await setConfig({
 
 The following diagram shows which framework components consume each configuration parameter:
 
-![Mermaid Diagram](./diagrams/15_Configuration_Functions_7.svg)
+```mermaid
+graph TB
+    subgraph "GLOBAL_CONFIG Parameters"
+        P1["CC_SCHEDULE_AWAIT_MINUTES"]
+        P2["CC_AVG_PRICE_CANDLES_COUNT"]
+        P3["CC_MIN_TAKEPROFIT_DISTANCE_PERCENT"]
+        P4["CC_MAX_STOPLOSS_DISTANCE_PERCENT"]
+        P5["CC_MAX_SIGNAL_LIFETIME_MINUTES"]
+    end
+    
+    subgraph "Validation Layer"
+        ValidateSignal["VALIDATE_SIGNAL_FN<br/>(src/lib/validation/validateSignal.ts)"]
+    end
+    
+    subgraph "Strategy Execution"
+        ClientStrategyTick["ClientStrategy.tick()"]
+        ClientStrategyBacktest["ClientStrategy.backtest()"]
+    end
+    
+    subgraph "Exchange Services"
+        ClientExchangeVWAP["ClientExchange.getAveragePrice()"]
+    end
+    
+    P1 --> ClientStrategyBacktest
+    P2 --> ClientExchangeVWAP
+    P3 --> ValidateSignal
+    P4 --> ValidateSignal
+    P5 --> ValidateSignal
+    
+    ValidateSignal --> ClientStrategyTick
+    ValidateSignal --> ClientStrategyBacktest
+    ClientExchangeVWAP --> ClientStrategyTick
+```
 
+**Sources:** [src/config/params.ts:1-35](), [types.d.ts:5-34]()
 
 ---
 
@@ -324,6 +561,7 @@ Configuration parameters are thoroughly tested in the test suite:
 | `test/e2e/defend.test.mjs` | `CC_SCHEDULE_AWAIT_MINUTES` | Scheduled signal timeout behavior |
 | `test/config/setup.mjs` | Global setup | Test environment configuration |
 
+**Sources:** [test/e2e/config.test.mjs:1](), [test/e2e/sanitize.test.mjs:1-660](), [test/e2e/defend.test.mjs:1-950](), [test/config/setup.mjs:36-41]()
 
 ---
 
@@ -386,4 +624,5 @@ if (process.env.NODE_ENV === 'test') {
   });
 }
 ```
-
+
+**Sources:** [test/config/setup.mjs:36-41](), [test/e2e/sanitize.test.mjs:17-131]()

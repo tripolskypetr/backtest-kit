@@ -1,14 +1,22 @@
----
-title: design/22_event_listeners
-group: design
----
-
 # Event Listeners
+
+<details>
+<summary>Relevant source files</summary>
+
+The following files were used as context for generating this wiki page:
+
+- [src/config/emitters.ts](src/config/emitters.ts)
+- [src/function/event.ts](src/function/event.ts)
+- [src/index.ts](src/index.ts)
+- [test/config/setup.mjs](test/config/setup.mjs)
+
+</details>
+
 
 
 This page documents all event listener functions available in the public API for subscribing to framework events. Event listeners enable real-time monitoring of signal lifecycle, execution progress, completion events, performance metrics, and errors.
 
-For information about the underlying event system architecture and Subject-based pub-sub pattern, see [3.4](./13_Event_System.md). For details on signal lifecycle states that trigger events, see [8.1](./45_Signal_States.md). For execution mode differences in event emission, see [2.1](./06_Execution_Modes.md).
+For information about the underlying event system architecture and Subject-based pub-sub pattern, see [3.4](#3.4). For details on signal lifecycle states that trigger events, see [8.1](#8.1). For execution mode differences in event emission, see [2.1](#2.1).
 
 ## Overview
 
@@ -24,13 +32,85 @@ The framework provides 19 event listener functions organized into five categorie
 
 All listener functions return an unsubscribe function that can be called to stop receiving events. Events are processed sequentially using a queued wrapper to prevent concurrent callback execution.
 
+Sources: [src/function/event.ts:1-653](), [src/config/emitters.ts:1-81]()
 
 ## Event Emitter Architecture
 
-![Mermaid Diagram](./diagrams/22_Event_Listeners_0.svg)
+```mermaid
+graph TB
+    subgraph "Subject Instances (emitters.ts)"
+        signalEmitter["signalEmitter<br/>Subject&lt;IStrategyTickResult&gt;"]
+        signalLiveEmitter["signalLiveEmitter<br/>Subject&lt;IStrategyTickResult&gt;"]
+        signalBacktestEmitter["signalBacktestEmitter<br/>Subject&lt;IStrategyTickResult&gt;"]
+        errorEmitter["errorEmitter<br/>Subject&lt;Error&gt;"]
+        doneLiveSubject["doneLiveSubject<br/>Subject&lt;DoneContract&gt;"]
+        doneBacktestSubject["doneBacktestSubject<br/>Subject&lt;DoneContract&gt;"]
+        doneWalkerSubject["doneWalkerSubject<br/>Subject&lt;DoneContract&gt;"]
+        progressEmitter["progressEmitter<br/>Subject&lt;ProgressContract&gt;"]
+        performanceEmitter["performanceEmitter<br/>Subject&lt;PerformanceContract&gt;"]
+        walkerEmitter["walkerEmitter<br/>Subject&lt;WalkerContract&gt;"]
+        walkerCompleteSubject["walkerCompleteSubject<br/>Subject&lt;IWalkerResults&gt;"]
+        validationSubject["validationSubject<br/>Subject&lt;Error&gt;"]
+    end
+    
+    subgraph "Listener Functions (event.ts)"
+        listenSignal["listenSignal()"]
+        listenSignalLive["listenSignalLive()"]
+        listenSignalBacktest["listenSignalBacktest()"]
+        listenError["listenError()"]
+        listenDoneLive["listenDoneLive()"]
+        listenDoneBacktest["listenDoneBacktest()"]
+        listenDoneWalker["listenDoneWalker()"]
+        listenProgress["listenProgress()"]
+        listenPerformance["listenPerformance()"]
+        listenWalker["listenWalker()"]
+        listenWalkerComplete["listenWalkerComplete()"]
+        listenValidation["listenValidation()"]
+    end
+    
+    subgraph "Event Producers"
+        ClientStrategy["ClientStrategy<br/>tick() / backtest()"]
+        LiveLogic["LiveLogicPrivateService"]
+        BacktestLogic["BacktestLogicPrivateService"]
+        WalkerLogic["WalkerLogicPrivateService"]
+        ClientRisk["ClientRisk<br/>checkSignal()"]
+    end
+    
+    ClientStrategy --> signalEmitter
+    ClientStrategy --> signalLiveEmitter
+    ClientStrategy --> signalBacktestEmitter
+    
+    LiveLogic --> doneLiveSubject
+    BacktestLogic --> doneBacktestSubject
+    BacktestLogic --> progressEmitter
+    BacktestLogic --> performanceEmitter
+    WalkerLogic --> doneWalkerSubject
+    WalkerLogic --> walkerEmitter
+    WalkerLogic --> walkerCompleteSubject
+    
+    ClientRisk --> validationSubject
+    
+    LiveLogic --> errorEmitter
+    BacktestLogic --> errorEmitter
+    WalkerLogic --> errorEmitter
+    
+    signalEmitter --> listenSignal
+    signalLiveEmitter --> listenSignalLive
+    signalBacktestEmitter --> listenSignalBacktest
+    errorEmitter --> listenError
+    doneLiveSubject --> listenDoneLive
+    doneBacktestSubject --> listenDoneBacktest
+    doneWalkerSubject --> listenDoneWalker
+    progressEmitter --> listenProgress
+    performanceEmitter --> listenPerformance
+    walkerEmitter --> listenWalker
+    walkerCompleteSubject --> listenWalkerComplete
+    validationSubject --> listenValidation
+```
 
 **Event Flow**: Event producers (ClientStrategy, logic services, ClientRisk) emit events to Subject instances. Listener functions subscribe to these Subjects and forward events to user callbacks wrapped in `queued()` for sequential processing.
 
+Sources: [src/config/emitters.ts:1-81](), [src/function/event.ts:1-653]()
 
 ## Signal Event Listeners
 
@@ -66,6 +146,7 @@ const unsubscribe = listenSignal((event) => {
 unsubscribe();
 ```
 
+Sources: [src/function/event.ts:56-59]()
 
 ### listenSignalOnce
 
@@ -98,6 +179,7 @@ listenSignalOnce(
 );
 ```
 
+Sources: [src/function/event.ts:93-99]()
 
 ### listenSignalLive
 
@@ -110,6 +192,7 @@ function listenSignalLive(fn: (event: IStrategyTickResult) => void): () => void
 
 **Event Source**: [src/config/emitters.ts:19]() `signalLiveEmitter`
 
+Sources: [src/function/event.ts:121-124]()
 
 ### listenSignalLiveOnce
 
@@ -125,6 +208,7 @@ function listenSignalLiveOnce(
 
 **Event Source**: [src/config/emitters.ts:19]() `signalLiveEmitter`
 
+Sources: [src/function/event.ts:147-153]()
 
 ### listenSignalBacktest
 
@@ -137,6 +221,7 @@ function listenSignalBacktest(fn: (event: IStrategyTickResult) => void): () => v
 
 **Event Source**: [src/config/emitters.ts:25]() `signalBacktestEmitter`
 
+Sources: [src/function/event.ts:175-178]()
 
 ### listenSignalBacktestOnce
 
@@ -152,13 +237,33 @@ function listenSignalBacktestOnce(
 
 **Event Source**: [src/config/emitters.ts:25]() `signalBacktestEmitter`
 
+Sources: [src/function/event.ts:201-207]()
 
 ## Signal Event Types
 
-![Mermaid Diagram](./diagrams/22_Event_Listeners_1.svg)
+```mermaid
+graph LR
+    subgraph "IStrategyTickResult Union"
+        Idle["IStrategyTickResultIdle<br/>action: 'idle'<br/>signal: null"]
+        Scheduled["IStrategyTickResultScheduled<br/>action: 'scheduled'<br/>signal: IScheduledSignalRow"]
+        Opened["IStrategyTickResultOpened<br/>action: 'opened'<br/>signal: ISignalRow"]
+        Active["IStrategyTickResultActive<br/>action: 'active'<br/>signal: ISignalRow"]
+        Closed["IStrategyTickResultClosed<br/>action: 'closed'<br/>signal: ISignalRow<br/>pnl: IStrategyPnL"]
+        Cancelled["IStrategyTickResultCancelled<br/>action: 'cancelled'<br/>signal: IScheduledSignalRow"]
+    end
+    
+    Idle -->|"getSignal returns null"| Idle
+    Idle -->|"priceOpen specified"| Scheduled
+    Idle -->|"priceOpen omitted"| Opened
+    Scheduled -->|"price activates"| Opened
+    Scheduled -->|"timeout / SL hit"| Cancelled
+    Opened -->|"monitoring started"| Active
+    Active -->|"TP/SL/time_expired"| Closed
+```
 
 **Discriminated Union**: Use `event.action` for type-safe handling. Each action type has different properties available.
 
+Sources: [types.d.ts:654-774]()
 
 ## Completion Event Listeners
 
@@ -187,6 +292,7 @@ function listenDoneLive(fn: (event: DoneContract) => void): () => void
 
 **Emission Point**: [src/classes/Live.ts:123-128]() after `Live.background()` completes.
 
+Sources: [src/function/event.ts:264-267]()
 
 ### listenDoneLiveOnce
 
@@ -202,6 +308,7 @@ function listenDoneLiveOnce(
 
 **Event Source**: [src/config/emitters.ts:37]() `doneLiveSubject`
 
+Sources: [src/function/event.ts:295-301]()
 
 ### listenDoneBacktest
 
@@ -226,6 +333,7 @@ function listenDoneBacktest(fn: (event: DoneContract) => void): () => void
 
 **Emission Point**: [src/classes/Backtest.ts:108-113]() after `Backtest.background()` completes.
 
+Sources: [src/function/event.ts:331-334]()
 
 ### listenDoneBacktestOnce
 
@@ -241,6 +349,7 @@ function listenDoneBacktestOnce(
 
 **Event Source**: [src/config/emitters.ts:43]() `doneBacktestSubject`
 
+Sources: [src/function/event.ts:363-369]()
 
 ### listenDoneWalker
 
@@ -265,6 +374,7 @@ function listenDoneWalker(fn: (event: DoneContract) => void): () => void
 
 **Emission Point**: [src/classes/Walker.ts:128-133]() after `Walker.background()` completes all strategy comparisons.
 
+Sources: [src/function/event.ts:397-400]()
 
 ### listenDoneWalkerOnce
 
@@ -280,6 +390,7 @@ function listenDoneWalkerOnce(
 
 **Event Source**: [src/config/emitters.ts:49]() `doneWalkerSubject`
 
+Sources: [src/function/event.ts:427-433]()
 
 ## Progress Event Listeners
 
@@ -316,6 +427,7 @@ const unsubscribe = listenProgress((event) => {
 });
 ```
 
+Sources: [src/function/event.ts:465-468]()
 
 ### listenWalker
 
@@ -353,6 +465,7 @@ const unsubscribe = listenWalker((event) => {
 });
 ```
 
+Sources: [src/function/event.ts:537-540]()
 
 ### listenWalkerOnce
 
@@ -380,6 +493,7 @@ listenWalkerOnce(
 );
 ```
 
+Sources: [src/function/event.ts:581-587]()
 
 ### listenWalkerComplete
 
@@ -414,6 +528,7 @@ const unsubscribe = listenWalkerComplete((results) => {
 });
 ```
 
+Sources: [src/function/event.ts:620-623]()
 
 ## Performance Event Listeners
 
@@ -452,6 +567,7 @@ const unsubscribe = listenPerformance((event) => {
 });
 ```
 
+Sources: [src/function/event.ts:502-505]()
 
 ## Error Event Listeners
 
@@ -479,6 +595,7 @@ const unsubscribe = listenError((error) => {
 });
 ```
 
+Sources: [src/function/event.ts:232-235]()
 
 ### listenValidation
 
@@ -499,12 +616,41 @@ const unsubscribe = listenValidation((error) => {
 });
 ```
 
+Sources: [src/function/event.ts:649-652]()
 
 ## Queued Processing Pattern
 
 All event listener functions wrap user callbacks with `queued()` from `functools-kit` to ensure sequential async processing. This prevents concurrent execution of callbacks even if they are async functions.
 
-![Mermaid Diagram](./diagrams/22_Event_Listeners_2.svg)
+```mermaid
+graph TB
+    subgraph "Event Emission (Producer)"
+        Emit1["Event 1 emitted"]
+        Emit2["Event 2 emitted"]
+        Emit3["Event 3 emitted"]
+    end
+    
+    subgraph "Subject Subscription"
+        Subject["Subject.subscribe(<br/>queued(callback))"]
+    end
+    
+    subgraph "Queued Processing (Consumer)"
+        Queue["Internal Queue"]
+        Process1["Process Event 1"]
+        Process2["Process Event 2"]
+        Process3["Process Event 3"]
+    end
+    
+    Emit1 --> Subject
+    Emit2 --> Subject
+    Emit3 --> Subject
+    
+    Subject --> Queue
+    
+    Queue -->|"Sequential"| Process1
+    Process1 -->|"await complete"| Process2
+    Process2 -->|"await complete"| Process3
+```
 
 **Key Behavior**:
 - Events arrive in order at Subject
@@ -515,6 +661,7 @@ All event listener functions wrap user callbacks with `queued()` from `functools
 
 **Implementation**: [src/function/event.ts:9]() imports `queued` from `functools-kit`. All subscription calls use pattern: `emitter.subscribe(queued(async (event) => fn(event)))`.
 
+Sources: [src/function/event.ts:9](), [src/function/event.ts:58]()
 
 ## Event Listener Summary Table
 
@@ -539,4 +686,5 @@ All event listener functions wrap user callbacks with `queued()` from `functools
 | `listenWalkerOnce` | `WalkerContract` | `walkerEmitter` | Walker | Yes | Yes |
 | `listenWalkerComplete` | `IWalkerResults` | `walkerCompleteSubject` | Walker | No | No |
 | `listenValidation` | `Error` | `validationSubject` | All | No | No |
-
+
+Sources: [src/function/event.ts:1-653](), [src/config/emitters.ts:1-81]()

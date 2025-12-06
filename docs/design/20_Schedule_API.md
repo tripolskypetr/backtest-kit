@@ -1,542 +1,670 @@
----
-title: design/20_schedule_api
-group: design
----
-
 # Schedule API
 
+<details>
+<summary>Relevant source files</summary>
 
-The Schedule API provides statistical tracking and reporting for **scheduled signals** (limit orders) in the backtest-kit framework. This API specifically monitors signals that specify a `priceOpen` entry point and tracks whether they activate or get cancelled before execution.
+The following files were used as context for generating this wiki page:
 
-For tracking standard opened/closed signals, see [4.3 Backtest API](./17_Backtest_API.md) and [4.4 Live Trading API](./18_Live_Trading_API.md). For comprehensive signal lifecycle concepts, see [2.2 Signal Lifecycle Overview](./07_Signal_Lifecycle_Overview.md) and [8.3 Scheduled Signals](./47_Scheduled_Signals.md).
+- [README.md](README.md)
+- [src/client/ClientStrategy.ts](src/client/ClientStrategy.ts)
+- [src/interfaces/Strategy.interface.ts](src/interfaces/Strategy.interface.ts)
+- [src/lib/services/markdown/BacktestMarkdownService.ts](src/lib/services/markdown/BacktestMarkdownService.ts)
+- [src/lib/services/markdown/LiveMarkdownService.ts](src/lib/services/markdown/LiveMarkdownService.ts)
+- [src/lib/services/markdown/ScheduleMarkdownService.ts](src/lib/services/markdown/ScheduleMarkdownService.ts)
+- [types.d.ts](types.d.ts)
 
----
-
-## Overview
-
-The Schedule API monitors the lifecycle of **scheduled signals**—signals that wait for market price to reach a specific entry point (`priceOpen`) before activating. Unlike regular signals that execute immediately at current market price, scheduled signals remain in a pending state until either:
-
-1. **Activation**: Price reaches `priceOpen`, signal transitions to opened state
-2. **Cancellation**: Timeout expires or stop loss hit before activation
-
-This API accumulates two event types per strategy:
-- **Scheduled events**: When a new scheduled signal is created
-- **Cancelled events**: When a scheduled signal fails to activate
-
-The primary metric provided is the **cancellation rate**—the percentage of scheduled signals that never activate. A high cancellation rate indicates aggressive entry prices that rarely execute.
+</details>
 
 
----
 
-## Data Structures
+## Purpose and Scope
 
-### ScheduleStatistics Interface
+The Schedule API provides analysis and reporting for scheduled signals (limit orders) in the backtest-kit framework. Scheduled signals are signals that specify a `priceOpen` entry price different from the current market price, requiring the strategy to wait for price activation. This API tracks scheduled signal creation, cancellation events, and provides metrics like cancellation rate and average wait time.
 
-The `ScheduleStatistics` interface returned by `Schedule.getData()` provides comprehensive metrics about scheduled signal behavior:
+For information about the signal lifecycle including scheduled state transitions, see [Signal Lifecycle](#8). For general strategy execution methods, see [Backtest API](#4.3) and [Live Trading API](#4.4).
 
-| Property | Type | Description |
-|----------|------|-------------|
-| `eventList` | `ScheduledEvent[]` | Array of all scheduled/cancelled events with full details |
-| `totalEvents` | `number` | Total count of all events (scheduled + cancelled) |
-| `totalScheduled` | `number` | Count of scheduled signal creation events |
-| `totalCancelled` | `number` | Count of cancelled signal events |
-| `cancellationRate` | `number \| null` | Percentage of scheduled signals that cancelled (0-100), null if no scheduled signals |
-| `avgWaitTime` | `number \| null` | Average minutes between scheduled and cancelled timestamps, null if no cancelled signals |
-
-**Safe Math**: All calculated metrics return `null` when calculation would produce invalid results (e.g., division by zero).
-
-
-### ScheduledEvent Interface
-
-Each event in `eventList` represents a point-in-time snapshot of a scheduled signal:
-
-```typescript
-interface ScheduledEvent {
-  timestamp: number;           // scheduledAt for scheduled, closeTimestamp for cancelled
-  action: "scheduled" | "cancelled";
-  symbol: string;              // e.g., "BTCUSDT"
-  signalId: string;            // UUID v4
-  position: "long" | "short";
-  note?: string;               // Optional user description
-  currentPrice: number;        // VWAP at event time
-  priceOpen: number;           // Entry price signal is waiting for
-  takeProfit: number;          // TP target
-  stopLoss: number;            // SL exit
-  closeTimestamp?: number;     // Only for cancelled events
-  duration?: number;           // Minutes waited (only for cancelled)
-}
-```
-
+**Sources:** [src/lib/services/markdown/ScheduleMarkdownService.ts:1-548](), [types.d.ts:64-73]()
 
 ---
 
-## Public API Methods
+## Scheduled Signal Lifecycle
 
-The `Schedule` singleton provides four methods for interacting with scheduled signal data. All methods are asynchronous and work with per-strategy storage.
+Scheduled signals represent limit orders that wait for price to reach a specific entry point before activation. Unlike immediate signals that open at current market price, scheduled signals remain in a pending state until activation conditions are met or cancellation occurs.
 
-### Schedule.getData()
+### Lifecycle State Machine
 
-Retrieves statistical data for a strategy's scheduled signals.
-
-**Signature:**
-```typescript
-Schedule.getData(strategyName: StrategyName): Promise<ScheduleStatistics>
+```mermaid
+stateDiagram-v2
+    [*] --> Scheduled: "getSignal() returns priceOpen != currentPrice"
+    
+    Scheduled --> Activated: "Price reaches priceOpen"
+    Scheduled --> CancelledTimeout: "Timeout (CC_SCHEDULE_AWAIT_MINUTES)"
+    Scheduled --> CancelledSL: "SL hit before activation"
+    Scheduled --> CancelledRisk: "Risk check fails at activation"
+    
+    Activated --> [*]: "Becomes regular active signal"
+    CancelledTimeout --> [*]: "Logged via onCancel callback"
+    CancelledSL --> [*]: "Logged via onCancel callback"
+    CancelledRisk --> [*]: "Logged via onCancel callback"
+    
+    note right of Scheduled
+        IScheduledSignalRow state
+        _isScheduled: true
+        scheduledAt: creation timestamp
+        pendingAt: scheduledAt (temporary)
+    end note
+    
+    note right of CancelledTimeout
+        Default: 120 minutes
+        Configurable via GLOBAL_CONFIG
+    end note
 ```
 
-**Parameters:**
-- `strategyName` - Unique strategy identifier
-
-**Returns:** `Promise<ScheduleStatistics>` with all metrics and event list
-
-**Example:**
-```typescript
-const stats = await Schedule.getData("limit-order-strategy");
-console.log(`Cancellation rate: ${stats.cancellationRate}%`);
-console.log(`Avg wait time: ${stats.avgWaitTime} minutes`);
-```
-
-
-### Schedule.getReport()
-
-Generates a markdown-formatted report with tabular event data and summary statistics.
-
-**Signature:**
-```typescript
-Schedule.getReport(strategyName: StrategyName): Promise<string>
-```
-
-**Parameters:**
-- `strategyName` - Unique strategy identifier
-
-**Returns:** `Promise<string>` containing markdown table and statistics footer
-
-**Example:**
-```typescript
-const markdown = await Schedule.getReport("limit-order-strategy");
-console.log(markdown);
-```
-
-
-### Schedule.dump()
-
-Saves the markdown report to disk.
-
-**Signature:**
-```typescript
-Schedule.dump(strategyName: StrategyName, path?: string): Promise<void>
-```
-
-**Parameters:**
-- `strategyName` - Unique strategy identifier
-- `path` - Optional directory path (default: `"./logs/schedule"`)
-
-**Behavior:**
-- Creates directory if it doesn't exist
-- Writes file as `{strategyName}.md`
-- Logs success/failure to console
-
-**Example:**
-```typescript
-// Default path: ./logs/schedule/limit-order-strategy.md
-await Schedule.dump("limit-order-strategy");
-
-// Custom path: ./reports/schedule/limit-order-strategy.md
-await Schedule.dump("limit-order-strategy", "./reports/schedule");
-```
-
-
-### Schedule.clear()
-
-Clears accumulated event data from memory.
-
-**Signature:**
-```typescript
-Schedule.clear(strategyName?: StrategyName): Promise<void>
-```
-
-**Parameters:**
-- `strategyName` - Optional strategy name to clear specific strategy data
-
-**Behavior:**
-- If `strategyName` provided: Clears only that strategy's data
-- If omitted: Clears all strategies' data
-
-**Example:**
-```typescript
-// Clear specific strategy
-await Schedule.clear("limit-order-strategy");
-
-// Clear all strategies
-await Schedule.clear();
-```
-
+**Sources:** [src/client/ClientStrategy.ts:41-261](), [src/interfaces/Strategy.interface.ts:64-73](), [types.d.ts:5-72]()
 
 ---
 
-## Service Architecture
+## Core Methods
 
-The Schedule API follows the framework's layered service architecture with specialized markdown reporting components.
+The Schedule API is exposed through a service interface with three primary methods for data access, report generation, and file persistence.
 
-![Mermaid Diagram](./diagrams/20_Schedule_API_0.svg)
+### Method Signatures
 
-**Architecture Layers:**
+```mermaid
+classDiagram
+    class ScheduleAPI {
+        +getData(symbol, strategyName) Promise~ScheduleStatistics~
+        +getReport(symbol, strategyName) Promise~string~
+        +dump(symbol, strategyName, path?) Promise~void~
+    }
+    
+    class ScheduleStatistics {
+        +eventList: ScheduledEvent[]
+        +totalEvents: number
+        +totalScheduled: number
+        +totalCancelled: number
+        +cancellationRate: number | null
+        +avgWaitTime: number | null
+    }
+    
+    class ScheduledEvent {
+        +timestamp: number
+        +action: "scheduled" | "cancelled"
+        +symbol: string
+        +signalId: string
+        +position: string
+        +currentPrice: number
+        +priceOpen: number
+        +duration?: number
+    }
+    
+    ScheduleAPI --> ScheduleStatistics: returns
+    ScheduleStatistics --> ScheduledEvent: contains array
+```
 
-1. **Public API Layer** ([src/classes/Schedule.ts]()): Singleton wrapper providing simplified method names and logging
-2. **Service Layer** ([src/lib/services/markdown/ScheduleMarkdownService.ts]()): Event subscription, storage management, statistics calculation
-3. **Storage Layer**: Per-strategy `ReportStorage` instances created via memoization
-4. **Event System**: Subject-based pub-sub for signal event propagation
-
-**Key Design Patterns:**
-- **Memoization**: One `ReportStorage` instance per strategy name ([src/lib/services/markdown/ScheduleMarkdownService.ts:382-385]())
-- **Singleshot initialization**: Event subscription happens once ([src/lib/services/markdown/ScheduleMarkdownService.ts:528-531]())
-- **Event-driven accumulation**: No polling, pure reactive data collection
-
-
----
-
-## Event Flow and Data Accumulation
-
-The following diagram shows how scheduled signal events flow from strategy execution through the event system to the Schedule API's storage.
-
-![Mermaid Diagram](./diagrams/20_Schedule_API_1.svg)
-
-**Event Processing Rules:**
-
-1. **Scheduled Events** ([src/lib/services/markdown/ScheduleMarkdownService.ts:176-194]()):
-   - Appended to `_eventList`
-   - Trimmed if exceeds `MAX_EVENTS = 250`
-
-2. **Cancelled Events** ([src/lib/services/markdown/ScheduleMarkdownService.ts:202-237]()):
-   - **Replace** existing event with same `signalId` if found
-   - Otherwise append as new event
-   - Includes `duration` (minutes between scheduled and cancelled)
-
-**Memory Management:**
-- Fixed maximum of 250 events per strategy ([src/lib/services/markdown/ScheduleMarkdownService.ts:161]())
-- FIFO removal: oldest events dropped when limit exceeded
-- Separate storage per strategy via memoization key
-
+**Sources:** [src/lib/services/markdown/ScheduleMarkdownService.ts:374-545](), [types.d.ts:1000-1500]()
 
 ---
 
-## Statistics Calculation
+## getData Method
 
-The `ReportStorage.getData()` method computes all metrics from the accumulated event list using safe mathematical operations.
+Retrieves statistical data for scheduled signals, including cancellation rate and average wait time for cancelled signals.
 
-**Calculation Logic:**
+### Signature
 
 ```typescript
-// Cancellation Rate
-cancellationRate = (totalCancelled / totalScheduled) * 100
-// Returns null if totalScheduled === 0
-
-// Average Wait Time (for cancelled signals only)
-avgWaitTime = sum(cancelledEvents.duration) / totalCancelled
-// Returns null if totalCancelled === 0
+getData(symbol: string, strategyName: StrategyName): Promise<ScheduleStatistics>
 ```
 
-**Safe Math Implementation:**
-All calculated values return `null` when the denominator would be zero, preventing `NaN` or `Infinity` results in reports.
+### Parameters
 
-**Empty Data Handling:**
-When no events exist, `getData()` returns:
-```typescript
-{
-  eventList: [],
-  totalEvents: 0,
-  totalScheduled: 0,
-  totalCancelled: 0,
-  cancellationRate: null,
-  avgWaitTime: null
-}
-```
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `symbol` | `string` | Trading pair symbol (e.g., "BTCUSDT") |
+| `strategyName` | `StrategyName` | Strategy name registered via `addStrategy` |
 
+### Return Value
 
----
+Returns `ScheduleStatistics` interface with the following fields:
 
-## Report Generation
+| Field | Type | Description |
+|-------|------|-------------|
+| `eventList` | `ScheduledEvent[]` | Array of all scheduled/cancelled events |
+| `totalEvents` | `number` | Total number of events (scheduled + cancelled) |
+| `totalScheduled` | `number` | Count of scheduled signals created |
+| `totalCancelled` | `number` | Count of cancelled signals |
+| `cancellationRate` | `number \| null` | Percentage of scheduled signals that were cancelled (0-100), null if no scheduled signals |
+| `avgWaitTime` | `number \| null` | Average waiting time for cancelled signals in minutes, null if no cancelled signals |
 
-The markdown report contains a table of all events followed by summary statistics.
-
-### Report Structure
-
-![Mermaid Diagram](./diagrams/20_Schedule_API_2.svg)
-
-**Table Columns:**
-
-The markdown table includes 11 columns defined in the `columns` array ([src/lib/services/markdown/ScheduleMarkdownService.ts:101-158]()):
-
-| Column | Description | Example |
-|--------|-------------|---------|
-| Timestamp | ISO 8601 timestamp | `2024-01-01T12:00:00.000Z` |
-| Action | Event type | `SCHEDULED` or `CANCELLED` |
-| Symbol | Trading pair | `BTCUSDT` |
-| Signal ID | UUID v4 identifier | `a1b2c3d4-...` |
-| Position | Trade direction | `LONG` or `SHORT` |
-| Note | User description | `Breakout entry` |
-| Current Price | VWAP at event time | `50000.12345678 USD` |
-| Entry Price | Scheduled priceOpen | `49500.00000000 USD` |
-| Take Profit | TP target | `52000.00000000 USD` |
-| Stop Loss | SL exit | `48000.00000000 USD` |
-| Wait Time (min) | Minutes waited (cancelled only) | `45` or `N/A` |
-
-**Statistics Footer:**
-
-```markdown
-**Total events:** 10
-**Scheduled signals:** 7
-**Cancelled signals:** 3
-**Cancellation rate:** 42.86% (lower is better)
-**Average wait time (cancelled):** 38.50 minutes
-```
-
-
----
-
-## Initialization and Event Subscription
-
-The `ScheduleMarkdownService` automatically subscribes to signal events when first accessed using the singleshot pattern.
-
-**Initialization Flow:**
-
-```typescript
-// ScheduleMarkdownService.init() - singleshot pattern
-protected init = singleshot(async () => {
-  this.loggerService.log("scheduleMarkdownService init");
-  signalEmitter.subscribe(this.tick);
-});
-```
-
-**Subscription Details:**
-- Subscribes to `signalEmitter` (general event stream)
-- Filters for `action === "scheduled"` and `action === "cancelled"` ([src/lib/services/markdown/ScheduleMarkdownService.ts:408-412]())
-- Ignores `opened`, `active`, `closed`, and `idle` events
-- Subscription persists for application lifetime
-
-**Automatic Invocation:**
-The `init()` method is called automatically when:
-1. `Schedule.getData()` is invoked
-2. `Schedule.getReport()` is invoked
-3. `Schedule.dump()` is invoked
-
-No manual initialization required by users.
-
-
----
-
-## Usage Patterns
-
-### Basic Usage: Track Cancellation Rate
-
-```typescript
-import { addStrategy, Backtest, Schedule } from "backtest-kit";
-
-// Strategy with aggressive entry prices
-addStrategy({
-  strategyName: "limit-scalper",
-  interval: "5m",
-  getSignal: async (symbol) => {
-    const price = await getAveragePrice(symbol);
-    return {
-      position: "long",
-      priceOpen: price - 100,  // Entry 100 below current
-      priceTakeProfit: price + 500,
-      priceStopLoss: price - 200,
-      minuteEstimatedTime: 60
-    };
-  }
-});
-
-// Run backtest
-for await (const _ of Backtest.run("BTCUSDT", {
-  strategyName: "limit-scalper",
-  exchangeName: "binance",
-  frameName: "1week-test"
-})) {}
-
-// Check cancellation rate
-const stats = await Schedule.getData("limit-scalper");
-console.log(`Cancellation rate: ${stats.cancellationRate}%`);
-
-if (stats.cancellationRate > 80) {
-  console.warn("Entry prices too aggressive - 80% never activate");
-}
-```
-
-
-### Advanced Usage: Multi-Symbol Analysis
+### Usage Example
 
 ```typescript
 import { Schedule } from "backtest-kit";
 
-const symbols = ["BTCUSDT", "ETHUSDT", "SOLUSDT"];
-const strategyName = "limit-scalper";
+// After running backtest or live trading with scheduled signals
+const stats = await Schedule.getData("BTCUSDT", "my-strategy");
 
-// Run backtests for all symbols...
-// (Schedule automatically tracks all scheduled signals)
+console.log(`Total scheduled: ${stats.totalScheduled}`);
+console.log(`Total cancelled: ${stats.totalCancelled}`);
+console.log(`Cancellation rate: ${stats.cancellationRate}%`);
+console.log(`Average wait time: ${stats.avgWaitTime} minutes`);
 
-// Analyze cancellation patterns
-const stats = await Schedule.getData(strategyName);
-
-const cancelledBySymbol = stats.eventList
-  .filter(e => e.action === "cancelled")
-  .reduce((acc, event) => {
-    acc[event.symbol] = (acc[event.symbol] || 0) + 1;
-    return acc;
-  }, {});
-
-console.log("Cancellations by symbol:", cancelledBySymbol);
-
-// Generate report
-await Schedule.dump(strategyName);
+// Access raw event data
+stats.eventList.forEach(event => {
+  if (event.action === "cancelled") {
+    console.log(`Cancelled signal ${event.signalId} after ${event.duration} minutes`);
+  }
+});
 ```
 
+**Sources:** [src/lib/services/markdown/ScheduleMarkdownService.ts:416-440](), [src/lib/services/markdown/ScheduleMarkdownService.ts:68-86](), [src/lib/services/markdown/ScheduleMarkdownService.ts:239-285]()
 
-### Continuous Monitoring in Live Trading
+---
+
+## getReport Method
+
+Generates a human-readable markdown report with detailed event tables and summary statistics.
+
+### Signature
 
 ```typescript
-import { Live, Schedule, listenSignalLive } from "backtest-kit";
+getReport(symbol: string, strategyName: StrategyName): Promise<string>
+```
 
-// Start live trading with scheduled signals
-Live.background("BTCUSDT", {
-  strategyName: "limit-scalper",
-  exchangeName: "binance"
+### Parameters
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `symbol` | `string` | Trading pair symbol |
+| `strategyName` | `StrategyName` | Strategy name |
+
+### Return Value
+
+Returns a markdown-formatted string containing:
+- Header with strategy name
+- Table of all scheduled/cancelled events
+- Summary statistics (total events, cancellation rate, average wait time)
+
+### Report Format
+
+The markdown report includes the following columns:
+
+| Column | Description |
+|--------|-------------|
+| Timestamp | Event creation timestamp (ISO 8601) |
+| Action | `SCHEDULED` or `CANCELLED` |
+| Symbol | Trading pair |
+| Signal ID | Unique signal identifier |
+| Position | `LONG` or `SHORT` |
+| Note | Optional signal description |
+| Current Price | Market price at event time |
+| Entry Price | Scheduled `priceOpen` |
+| Take Profit | TP level |
+| Stop Loss | SL level |
+| Wait Time (min) | Duration before cancellation (cancelled events only) |
+
+### Usage Example
+
+```typescript
+import { Schedule } from "backtest-kit";
+
+const markdown = await Schedule.getReport("BTCUSDT", "my-strategy");
+console.log(markdown);
+
+// Example output:
+// # Scheduled Signals Report: my-strategy
+//
+// | Timestamp | Action | Symbol | ... |
+// | --- | --- | --- | ... |
+// | 2024-01-01T00:00:00Z | SCHEDULED | BTCUSDT | ... |
+// | 2024-01-01T01:30:00Z | CANCELLED | BTCUSDT | ... |
+//
+// **Total events:** 45
+// **Scheduled signals:** 30
+// **Cancelled signals:** 15
+// **Cancellation rate:** 50.00% (lower is better)
+// **Average wait time (cancelled):** 65.33 minutes
+```
+
+**Sources:** [src/lib/services/markdown/ScheduleMarkdownService.ts:442-464](), [src/lib/services/markdown/ScheduleMarkdownService.ts:287-324](), [src/lib/services/markdown/ScheduleMarkdownService.ts:91-158]()
+
+---
+
+## dump Method
+
+Saves the markdown report to disk at a specified path.
+
+### Signature
+
+```typescript
+dump(symbol: string, strategyName: StrategyName, path?: string): Promise<void>
+```
+
+### Parameters
+
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `symbol` | `string` | - | Trading pair symbol |
+| `strategyName` | `StrategyName` | - | Strategy name |
+| `path` | `string` | `"./dump/schedule"` | Directory path for report file |
+
+### File Output
+
+- Creates directory if it doesn't exist
+- Saves report as `{strategyName}.md` in specified directory
+- Example: `./dump/schedule/my-strategy.md`
+
+### Usage Example
+
+```typescript
+import { Schedule } from "backtest-kit";
+
+// Save to default path: ./dump/schedule/my-strategy.md
+await Schedule.dump("BTCUSDT", "my-strategy");
+
+// Save to custom path: ./reports/schedule/my-strategy.md
+await Schedule.dump("BTCUSDT", "my-strategy", "./reports/schedule");
+```
+
+**Sources:** [src/lib/services/markdown/ScheduleMarkdownService.ts:466-498](), [src/lib/services/markdown/ScheduleMarkdownService.ts:326-350]()
+
+---
+
+## Event Data Structure
+
+The Schedule API tracks two types of events: scheduled signal creation and scheduled signal cancellation.
+
+### ScheduledEvent Interface
+
+```mermaid
+classDiagram
+    class ScheduledEvent {
+        +timestamp: number
+        +action: "scheduled" | "cancelled"
+        +symbol: string
+        +signalId: string
+        +position: "long" | "short"
+        +note?: string
+        +currentPrice: number
+        +priceOpen: number
+        +takeProfit: number
+        +stopLoss: number
+        +closeTimestamp?: number
+        +duration?: number
+    }
+    
+    class ScheduledEventData["Scheduled Action"] {
+        +timestamp: scheduledAt
+        +action: "scheduled"
+        +duration: undefined
+    }
+    
+    class CancelledEventData["Cancelled Action"] {
+        +timestamp: closeTimestamp
+        +action: "cancelled"
+        +duration: number
+    }
+    
+    ScheduledEvent <|-- ScheduledEventData
+    ScheduledEvent <|-- CancelledEventData
+```
+
+**Sources:** [src/lib/services/markdown/ScheduleMarkdownService.ts:15-44]()
+
+---
+
+## Event Tracking and Persistence
+
+The Schedule API uses internal storage per symbol-strategy pair to accumulate events during execution.
+
+### Storage Architecture
+
+```mermaid
+graph TB
+    subgraph "Event Sources"
+        SignalEmitter["signalEmitter<br/>Universal events"]
+        SignalLiveEmitter["signalLiveEmitter<br/>Live mode only"]
+    end
+    
+    subgraph "ScheduleMarkdownService"
+        Init["init()<br/>singleshot initialization"]
+        Tick["tick(data: IStrategyTickResult)<br/>Event processor"]
+        GetStorage["getStorage(symbol, strategyName)<br/>memoized factory"]
+    end
+    
+    subgraph "ReportStorage"
+        EventList["_eventList: ScheduledEvent[]<br/>MAX_EVENTS = 250"]
+        AddScheduled["addScheduledEvent(data)"]
+        AddCancelled["addCancelledEvent(data)<br/>Replaces by signalId"]
+        GetData["getData(): ScheduleStatistics"]
+        GetReport["getReport(): string"]
+        Dump["dump(): void"]
+    end
+    
+    subgraph "Public API"
+        APIGetData["Schedule.getData()"]
+        APIGetReport["Schedule.getReport()"]
+        APIDump["Schedule.dump()"]
+    end
+    
+    SignalEmitter -->|subscribe| Init
+    Init --> Tick
+    Tick -->|"action='scheduled'"| AddScheduled
+    Tick -->|"action='cancelled'"| AddCancelled
+    Tick --> GetStorage
+    GetStorage --> EventList
+    AddScheduled --> EventList
+    AddCancelled --> EventList
+    
+    APIGetData --> GetStorage
+    APIGetReport --> GetStorage
+    APIDump --> GetStorage
+    GetStorage --> GetData
+    GetStorage --> GetReport
+    GetStorage --> Dump
+```
+
+**Sources:** [src/lib/services/markdown/ScheduleMarkdownService.ts:374-545](), [src/lib/services/markdown/ScheduleMarkdownService.ts:163-237](), [src/lib/services/markdown/ScheduleMarkdownService.ts:382-413]()
+
+---
+
+## Event Queue Management
+
+The Schedule API maintains a bounded queue of events to prevent unbounded memory growth during long-running live trading sessions.
+
+### Queue Behavior
+
+| Aspect | Implementation |
+|--------|----------------|
+| **Max Size** | 250 events (`MAX_EVENTS` constant) |
+| **Overflow** | FIFO eviction (oldest events removed first) |
+| **Deduplication** | Cancelled events replace scheduled events by `signalId` |
+| **Memory Safety** | Bounded memory regardless of execution duration |
+
+### Event Replacement Logic
+
+```mermaid
+sequenceDiagram
+    participant Strategy as ClientStrategy
+    participant Service as ScheduleMarkdownService
+    participant Storage as ReportStorage
+    participant Queue as EventList[MAX_EVENTS]
+    
+    Strategy->>Service: scheduled event (signalId: "abc123")
+    Service->>Storage: addScheduledEvent()
+    Storage->>Queue: push scheduled event
+    
+    Note over Queue: EventList = [scheduled-abc123, ...]
+    
+    Strategy->>Service: cancelled event (signalId: "abc123")
+    Service->>Storage: addCancelledEvent()
+    Storage->>Storage: findIndex(signalId == "abc123")
+    Storage->>Queue: replace at index
+    
+    Note over Queue: EventList = [cancelled-abc123, ...]<br/>Duration calculated from<br/>closeTimestamp - scheduledAt
+```
+
+**Sources:** [src/lib/services/markdown/ScheduleMarkdownService.ts:160-162](), [src/lib/services/markdown/ScheduleMarkdownService.ts:176-194](), [src/lib/services/markdown/ScheduleMarkdownService.ts:196-237]()
+
+---
+
+## Cancellation Reasons
+
+Scheduled signals can be cancelled for multiple reasons before activation. The Schedule API tracks all cancellations but does not distinguish between cancellation reasons in statistics.
+
+### Cancellation Triggers
+
+```mermaid
+graph TB
+    Scheduled["Scheduled Signal<br/>IScheduledSignalRow"]
+    
+    Scheduled -->|"elapsedTime >= CC_SCHEDULE_AWAIT_MINUTES"| Timeout["Timeout Cancellation<br/>Default: 120 minutes"]
+    Scheduled -->|"Long: currentPrice <= priceStopLoss<br/>Short: currentPrice >= priceStopLoss"| SLHit["Stop Loss Hit<br/>Before Activation"]
+    Scheduled -->|"risk.checkSignal() === false<br/>at activation time"| RiskFail["Risk Check Failed<br/>At Activation"]
+    
+    Timeout --> Cancelled["IStrategyTickResultCancelled<br/>action: 'cancelled'"]
+    SLHit --> Cancelled
+    RiskFail --> Cancelled
+    
+    Cancelled --> Callback["onCancel callback<br/>fired"]
+    Cancelled --> Persist["PersistScheduleAdapter<br/>removed"]
+    Cancelled --> Event["signalEmitter.next()<br/>event emitted"]
+```
+
+**Sources:** [src/client/ClientStrategy.ts:474-528](), [src/client/ClientStrategy.ts:530-564](), [src/client/ClientStrategy.ts:601-693]()
+
+---
+
+## Configuration Parameters
+
+The Schedule API behavior is influenced by global configuration parameters that control timeout durations and price validation.
+
+### Relevant Configuration
+
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `CC_SCHEDULE_AWAIT_MINUTES` | `number` | `120` | Maximum wait time for scheduled signal activation before timeout cancellation |
+| `CC_MIN_TAKEPROFIT_DISTANCE_PERCENT` | `number` | `0.3` | Minimum TP distance to cover fees (validated at signal creation) |
+| `CC_MAX_STOPLOSS_DISTANCE_PERCENT` | `number` | `20` | Maximum SL distance to prevent catastrophic losses (validated at signal creation) |
+
+### Configuration Example
+
+```typescript
+import { setConfig } from "backtest-kit";
+
+// Reduce scheduled signal timeout to 60 minutes
+setConfig({
+  CC_SCHEDULE_AWAIT_MINUTES: 60,
+});
+```
+
+**Sources:** [types.d.ts:5-72](), [src/client/ClientStrategy.ts:474-528]()
+
+---
+
+## Integration with Strategy Callbacks
+
+The Schedule API automatically subscribes to signal events emitted by strategy execution. No manual integration is required.
+
+### Event Flow
+
+```mermaid
+sequenceDiagram
+    participant Strategy as ClientStrategy.tick()
+    participant Emit as signalEmitter
+    participant Service as ScheduleMarkdownService
+    participant Storage as ReportStorage
+    
+    Note over Strategy: getSignal() returns<br/>priceOpen != currentPrice
+    
+    Strategy->>Strategy: Create IScheduledSignalRow
+    Strategy->>Strategy: onSchedule callback (optional)
+    Strategy->>Emit: signalEmitter.next(scheduled)
+    Emit->>Service: tick(scheduled)
+    Service->>Storage: addScheduledEvent()
+    
+    Note over Strategy: Later: cancellation<br/>detected
+    
+    Strategy->>Strategy: onCancel callback (optional)
+    Strategy->>Emit: signalEmitter.next(cancelled)
+    Emit->>Service: tick(cancelled)
+    Service->>Storage: addCancelledEvent()
+```
+
+**Sources:** [src/lib/services/markdown/ScheduleMarkdownService.ts:541-544](), [src/client/ClientStrategy.ts:720-763]()
+
+---
+
+## Use Cases and Examples
+
+### Example 1: Monitoring Cancellation Rate
+
+Track the percentage of scheduled signals that never activate to identify issues with entry price selection.
+
+```typescript
+import { Schedule, Backtest, addStrategy, addExchange, addFrame } from "backtest-kit";
+
+addStrategy({
+  strategyName: "limit-order-strategy",
+  interval: "5m",
+  getSignal: async (symbol) => {
+    const currentPrice = 50000;
+    return {
+      position: "long",
+      priceOpen: 48000,  // Wait for 4% pullback
+      priceTakeProfit: 51000,
+      priceStopLoss: 47000,
+      minuteEstimatedTime: 180,
+    };
+  },
 });
 
-// Monitor cancellation rate every 5 minutes
-setInterval(async () => {
-  const stats = await Schedule.getData("limit-scalper");
-  
-  console.log(`Live stats:
-    Scheduled: ${stats.totalScheduled}
-    Cancelled: ${stats.totalCancelled}
-    Rate: ${stats.cancellationRate}%
-    Avg wait: ${stats.avgWaitTime} min
-  `);
-  
-  // Auto-save report
-  await Schedule.dump("limit-scalper");
-}, 5 * 60 * 1000);
-```
+// Run backtest
+for await (const _ of Backtest.run("BTCUSDT", {
+  strategyName: "limit-order-strategy",
+  exchangeName: "binance",
+  frameName: "1month-backtest"
+})) {}
 
+// Check cancellation rate
+const stats = await Schedule.getData("BTCUSDT", "limit-order-strategy");
+console.log(`Cancellation rate: ${stats.cancellationRate}%`);
 
----
-
-## Relationship to Signal Lifecycle
-
-The Schedule API fits into the broader signal lifecycle as follows:
-
-![Mermaid Diagram](./diagrams/20_Schedule_API_3.svg)
-
-**API Specialization:**
-- **Schedule API**: Tracks pre-activation events (`scheduled`, `cancelled`)
-- **Backtest/Live APIs**: Track post-activation events (`opened`, `active`, `closed`)
-- **Complete picture**: Use both APIs together for full lifecycle visibility
-
-
----
-
-## Storage and Memory Considerations
-
-### Per-Strategy Isolation
-
-Each strategy maintains its own isolated `ReportStorage` instance via memoization:
-
-```typescript
-private getStorage = memoize<(strategyName: string) => ReportStorage>(
-  ([strategyName]) => `${strategyName}`,
-  () => new ReportStorage()
-);
-```
-
-**Implications:**
-- No data cross-contamination between strategies
-- Multiple strategies can run concurrently without interference
-- Clearing one strategy's data doesn't affect others
-
-
-### Event List Size Limits
-
-The `_eventList` array has a fixed maximum size:
-
-```typescript
-const MAX_EVENTS = 250;
-
-// In addScheduledEvent/addCancelledEvent
-if (this._eventList.length > MAX_EVENTS) {
-  this._eventList.shift();  // Remove oldest event
+if (stats.cancellationRate > 50) {
+  console.warn("High cancellation rate - consider adjusting priceOpen logic");
 }
 ```
 
-**Behavior:**
-- Maximum 250 events stored per strategy
-- FIFO eviction when limit exceeded
-- Prevents unbounded memory growth in long-running processes
-- Lost events don't affect statistics calculation (windowed view)
+### Example 2: Analyzing Wait Times
 
-**Consideration for Live Trading:**
-In production live trading with high signal frequency, 250 events may represent only recent history. Periodic dumps preserve complete historical data.
-
-
----
-
-## Testing and Validation
-
-The test suite validates all Schedule API functionality:
-
-### Test Coverage
-
-| Test Case | Purpose | File Reference |
-|-----------|---------|----------------|
-| `Schedule.getData returns ScheduleStatistics structure` | Validates interface contract | [test/spec/scheduled.test.mjs:15-82]() |
-| `Schedule.getData calculates cancellation rate` | Verifies metric calculation | [test/spec/scheduled.test.mjs:84-154]() |
-| `Schedule.getData returns null for unsafe math` | Tests safe math with empty data | [test/spec/scheduled.test.mjs:156-209]() |
-| `Schedule.getData tracks lifecycle` | Validates event accumulation | [test/spec/scheduled.test.mjs:211-289]() |
-
-**Key Assertions:**
-- `ScheduleStatistics` structure has all required fields
-- Metrics return `null` for invalid calculations
-- Events accumulate correctly in `eventList`
-- Callbacks (`onSchedule`, `onCancel`) fire appropriately
-
-
----
-
-## Integration with Other APIs
-
-### Complementary to Backtest/Live APIs
+Understand how long scheduled signals wait before cancellation to optimize timeout configuration.
 
 ```typescript
-// Track both scheduled AND opened/closed signals
-for await (const result of Backtest.run("BTCUSDT", context)) {
-  if (result.action === "closed") {
-    // Backtest API tracks this
-    console.log("Position closed:", result.pnl.pnlPercentage);
-  }
-}
+import { Schedule } from "backtest-kit";
 
-// After backtest completes
-const backtestStats = await Backtest.getData("my-strategy");
-const scheduleStats = await Schedule.getData("my-strategy");
+// After live trading session
+const stats = await Schedule.getData("ETHUSDT", "my-strategy");
 
-console.log(`
-  Opened signals: ${backtestStats.totalSignals}
-  Scheduled signals: ${scheduleStats.totalScheduled}
-  Cancelled signals: ${scheduleStats.totalCancelled}
-  
-  Entry success rate: ${(1 - scheduleStats.cancellationRate/100) * 100}%
-`);
+console.log(`Average wait time: ${stats.avgWaitTime} minutes`);
+console.log(`Timeout setting: ${GLOBAL_CONFIG.CC_SCHEDULE_AWAIT_MINUTES} minutes`);
+
+// Analyze individual events
+stats.eventList
+  .filter(e => e.action === "cancelled")
+  .forEach(event => {
+    console.log(`Signal ${event.signalId}: waited ${event.duration} minutes`);
+  });
 ```
 
+### Example 3: Comparing Strategies
 
-### Works in Both Execution Modes
+Use Schedule API with Walker to compare scheduled signal effectiveness across multiple strategies.
 
-The Schedule API functions identically in backtest and live modes:
+```typescript
+import { Schedule, Walker, addWalker } from "backtest-kit";
 
-| Execution Mode | Signal Detection | Cancellation Detection |
-|----------------|------------------|------------------------|
-| Backtest | Fast-forward candle iteration detects priceOpen activation | Timeout or SL hit during candle processing |
-| Live | VWAP monitoring detects priceOpen activation | Timeout or SL hit during real-time monitoring |
+addWalker({
+  walkerName: "schedule-comparison",
+  exchangeName: "binance",
+  frameName: "1week-backtest",
+  strategies: ["aggressive-limits", "conservative-limits", "market-orders"],
+  metric: "sharpeRatio",
+});
 
-**Event emission** uses the same emitters in both modes, so Schedule API receives identical event structures.
-
+Walker.background("BTCUSDT", { walkerName: "schedule-comparison" });
+
+// After completion, analyze scheduled signal usage
+for (const strategyName of ["aggressive-limits", "conservative-limits", "market-orders"]) {
+  const stats = await Schedule.getData("BTCUSDT", strategyName);
+  console.log(`${strategyName}: ${stats.totalScheduled} scheduled, ${stats.cancellationRate}% cancelled`);
+}
+```
+
+**Sources:** [src/lib/services/markdown/ScheduleMarkdownService.ts:430-440](), [README.md:448-467]()
+
+---
+
+## Relationship to Other APIs
+
+The Schedule API complements other reporting APIs in the backtest-kit framework.
+
+| API | Purpose | Related To Schedule API |
+|-----|---------|------------------------|
+| [Backtest API](#4.3) | Historical simulation statistics | Schedule API tracks subset of signals (scheduled only) |
+| [Live Trading API](#4.4) | Real-time execution statistics | Schedule API works in both backtest and live modes |
+| [Partial API](#4.6) | Profit/loss milestone tracking | Both track signal progress, different metrics |
+| [Walker API](#4.5) | Strategy comparison | Schedule API provides per-strategy scheduled signal metrics |
+
+**Sources:** [src/lib/services/markdown/ScheduleMarkdownService.ts:1-548](), [src/lib/services/markdown/BacktestMarkdownService.ts:1-545](), [src/lib/services/markdown/LiveMarkdownService.ts:1-749]()
+
+---
+
+## Implementation Details
+
+### Service Class Hierarchy
+
+```mermaid
+classDiagram
+    class ScheduleMarkdownService {
+        -loggerService: LoggerService
+        -getStorage: memoize~ReportStorage~
+        -tick(data: IStrategyTickResult): Promise~void~
+        +getData(symbol, strategyName): Promise~ScheduleStatistics~
+        +getReport(symbol, strategyName): Promise~string~
+        +dump(symbol, strategyName, path): Promise~void~
+        +clear(ctx?): Promise~void~
+        #init(): singleshot
+    }
+    
+    class ReportStorage {
+        -_eventList: ScheduledEvent[]
+        +addScheduledEvent(data): void
+        +addCancelledEvent(data): void
+        +getData(): Promise~ScheduleStatistics~
+        +getReport(strategyName): Promise~string~
+        +dump(strategyName, path): Promise~void~
+    }
+    
+    class Memoization {
+        key: "symbol:strategyName"
+        factory: () => new ReportStorage()
+    }
+    
+    ScheduleMarkdownService --> ReportStorage: creates via memoize
+    ScheduleMarkdownService --> Memoization: uses
+    Memoization --> ReportStorage: returns cached
+```
+
+**Sources:** [src/lib/services/markdown/ScheduleMarkdownService.ts:374-545](), [src/lib/services/markdown/ScheduleMarkdownService.ts:163-350](), [src/lib/services/markdown/ScheduleMarkdownService.ts:382-385]()
+
+---
+
+## Memory Management
+
+The Schedule API implements bounded memory usage through queue size limits and instance memoization.
+
+### Memory Safety Features
+
+1. **Bounded Event Queue**: Maximum 250 events per symbol-strategy pair
+2. **FIFO Eviction**: Oldest events removed when queue is full
+3. **Memoized Instances**: One `ReportStorage` per unique `symbol:strategyName` pair
+4. **Explicit Clearing**: `clear()` method for manual memory release
+
+### Memory Growth Pattern
+
+```mermaid
+graph LR
+    Start["0 events"] --> Growth["Linear growth<br/>1 event per scheduled signal"]
+    Growth --> Limit["250 events reached"]
+    Limit --> Steady["Steady state<br/>FIFO eviction"]
+    
+    Steady --> Steady
+    
+    Note1["Memory: O(250 * event_size)"]
+    Note2["Per symbol-strategy pair"]
+    
+    Limit -.-> Note1
+    Limit -.-> Note2
+```
+
+**Sources:** [src/lib/services/markdown/ScheduleMarkdownService.ts:160-162](), [src/lib/services/markdown/ScheduleMarkdownService.ts:382-385](), [src/lib/services/markdown/ScheduleMarkdownService.ts:500-528]()

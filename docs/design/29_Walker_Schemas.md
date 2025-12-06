@@ -1,418 +1,570 @@
----
-title: design/29_walker_schemas
-group: design
----
-
 # Walker Schemas
 
+<details>
+<summary>Relevant source files</summary>
 
-Walker schemas define multi-strategy comparison configurations for A/B testing and optimization workflows. A walker executes backtests for multiple strategies on the same historical data and compares their performance using a specified metric.
+The following files were used as context for generating this wiki page:
 
-For information about individual strategy configuration, see [Strategy Schemas](./24_Strategy_Schemas.md). For information about frame (timeframe) configuration used by walkers, see [Frame Schemas](./26_Frame_Schemas.md). For information about executing walkers, see [Walker API](./19_Walker_API.md).
+- [docs/classes/BacktestCommandService.md](docs/classes/BacktestCommandService.md)
+- [docs/classes/BacktestUtils.md](docs/classes/BacktestUtils.md)
+- [docs/classes/LiveCommandService.md](docs/classes/LiveCommandService.md)
+- [docs/classes/LiveUtils.md](docs/classes/LiveUtils.md)
+- [docs/index.md](docs/index.md)
+- [src/client/ClientStrategy.ts](src/client/ClientStrategy.ts)
+- [src/interfaces/Strategy.interface.ts](src/interfaces/Strategy.interface.ts)
+- [types.d.ts](types.d.ts)
 
-## Schema Structure
-
-Walker schemas are defined by the `IWalkerSchema` interface and registered via the `addWalker()` function.
-
-**Schema Definition**
-
-![Mermaid Diagram](./diagrams/29_Walker_Schemas_0.svg)
-
-
-### Required Properties
-
-| Property | Type | Description |
-|----------|------|-------------|
-| `walkerName` | `WalkerName` (string) | Unique identifier for the walker configuration |
-| `exchangeName` | `ExchangeName` (string) | Exchange schema to use for all strategy backtests |
-| `frameName` | `FrameName` (string) | Frame schema defining the backtest timeframe |
-| `strategies` | `StrategyName[]` | Array of strategy names to compare |
-
-### Optional Properties
-
-| Property | Type | Default | Description |
-|----------|------|---------|-------------|
-| `metric` | `WalkerMetric` | `"sharpeRatio"` | Optimization metric for comparison |
-| `note` | `string` | `undefined` | Developer documentation note |
-| `callbacks` | `Partial<IWalkerCallbacks>` | `undefined` | Lifecycle event callbacks |
+</details>
 
 
-## Optimization Metrics
 
-The `WalkerMetric` type defines which statistical measure is used to rank and select the best strategy. Higher values are always better (metrics are maximized).
+This document defines the `IWalkerSchema` interface for registering Walker components via `addWalker()`. Walker schemas configure strategy comparison operations that run multiple strategies sequentially and rank them by a chosen performance metric.
 
-```typescript
-type WalkerMetric = 
-  | "sharpeRatio"              // Risk-adjusted return (avgPnl / stdDev)
-  | "annualizedSharpeRatio"    // Annualized Sharpe (sharpeRatio × √365)
-  | "winRate"                  // Percentage of winning trades (0-100)
-  | "totalPnl"                 // Cumulative PNL across all signals
-  | "certaintyRatio"           // avgWin / |avgLoss|
-  | "avgPnl"                   // Average PNL per signal
-  | "expectedYearlyReturns"    // Projected yearly returns
-```
+For information about executing Walker operations, see [Walker API](#4.5). For details about Walker execution flow and implementation, see [Walker Mode](#11).
 
+## Schema Interface
 
-### Metric Selection Guidelines
+Walker schemas are registered using the `IWalkerSchema` interface, which specifies a collection of strategies to compare, a metric for ranking, and the execution environment.
 
-**Risk-Adjusted Metrics**
-- `sharpeRatio` / `annualizedSharpeRatio`: Best for strategies with consistent returns and controlled drawdowns
-- `certaintyRatio`: Best for strategies with asymmetric risk/reward profiles
-
-**Return Metrics**
-- `totalPnl`: Best for maximizing absolute profit without regard to risk
-- `avgPnl`: Best for strategies with varying trade frequencies
-- `expectedYearlyReturns`: Best for long-term performance projection
-
-**Reliability Metrics**
-- `winRate`: Best for strategies requiring high win consistency
-
-
-## Registration and Validation
-
-Walker schemas are registered through the `addWalker()` function, which performs validation and stores the configuration.
-
-**Registration Flow**
-
-![Mermaid Diagram](./diagrams/29_Walker_Schemas_1.svg)
-
-
-### Example Registration
-
-```typescript
-addWalker({
-  walkerName: "llm-prompt-optimizer",
-  note: "Compare GPT-4 prompts for trading signal generation",
-  exchangeName: "binance",
-  frameName: "1month-backtest",
-  strategies: [
-    "gpt4-prompt-v1",
-    "gpt4-prompt-v2",
-    "gpt4-prompt-v3"
-  ],
-  metric: "sharpeRatio",
-  callbacks: {
-    onStrategyComplete: (strategyName, symbol, stats, metricValue) => {
-      console.log(`${strategyName}: Sharpe=${metricValue}`);
-    },
-    onComplete: (results) => {
-      console.log(`Best: ${results.bestStrategy} (${results.bestMetric})`);
+```mermaid
+classDiagram
+    class IWalkerSchema {
+        +WalkerName walkerName
+        +string? note
+        +StrategyName[] strategies
+        +WalkerMetric metric
+        +ExchangeName exchangeName
+        +FrameName frameName
+        +Partial~IWalkerCallbacks~? callbacks
     }
-  }
-});
+    
+    class IWalkerCallbacks {
+        +onStrategy(walkerName, strategyName, results, statistics)
+        +onComplete(walkerName, results)
+    }
+    
+    class IWalkerResults {
+        +StrategyName bestStrategy
+        +number bestMetric
+        +IWalkerStrategyResult[] strategies
+    }
+    
+    class IWalkerStrategyResult {
+        +StrategyName strategyName
+        +BacktestStatistics statistics
+    }
+    
+    IWalkerSchema --> IWalkerCallbacks : callbacks
+    IWalkerCallbacks --> IWalkerResults : onComplete
+    IWalkerResults --> IWalkerStrategyResult : strategies
 ```
 
+**Sources:** [types.d.ts:1486-1530]()
 
-## Lifecycle Callbacks
+## Required Fields
 
-Walker schemas support lifecycle callbacks for monitoring comparison progress.
+### walkerName
 
-![Mermaid Diagram](./diagrams/29_Walker_Schemas_2.svg)
-
-
-### Callback Interfaces
-
-**onStrategyComplete**
-
-Called after each strategy backtest completes with its results.
+Unique identifier for the Walker configuration. Used to retrieve Walker instances via dependency injection and for logging/reporting.
 
 ```typescript
-onStrategyComplete: (
-  strategyName: StrategyName,
-  symbol: string,
-  stats: BacktestStatistics,
-  metricValue: number | null
-) => void
+walkerName: WalkerName; // string type alias
 ```
 
-Parameters:
-- `strategyName`: Name of the completed strategy
-- `symbol`: Trading pair symbol
-- `stats`: Full backtest statistics for the strategy
-- `metricValue`: Computed value of the walker's metric (null if calculation unsafe)
+**Example:**
+```typescript
+walkerName: "btc-strategy-comparison"
+```
 
-**onComplete**
+### strategies
 
-Called after all strategies complete with final comparison results.
+Array of strategy names to compare. Each strategy must be registered via `addStrategy()` before Walker execution. Strategies are executed sequentially in array order.
+
+```typescript
+strategies: StrategyName[]; // StrategyName[] = string[]
+```
+
+**Example:**
+```typescript
+strategies: [
+  "rsi-strategy",
+  "macd-strategy",
+  "bollinger-strategy"
+]
+```
+
+Walker executes each strategy using the same `exchangeName` and `frameName`, ensuring fair comparison under identical market conditions.
+
+**Sources:** [types.d.ts:1493-1495]()
+
+### metric
+
+Performance metric used to rank strategies and determine the best performer. The metric value is extracted from `BacktestStatistics` after each strategy completes.
+
+```typescript
+metric: WalkerMetric;
+
+type WalkerMetric = 
+  | "sharpeRatio"
+  | "annualizedSharpeRatio"
+  | "winRate"
+  | "avgPnl"
+  | "totalPnl"
+  | "certaintyRatio"
+  | "expectedYearlyReturns";
+```
+
+**Sources:** [types.d.ts:1496](), [types.d.ts:1509-1517]()
+
+### exchangeName
+
+Exchange configuration to use for all strategy backtests. Must be registered via `addExchange()` before Walker execution. All strategies in the comparison use this same exchange.
+
+```typescript
+exchangeName: ExchangeName; // string type alias
+```
+
+**Example:**
+```typescript
+exchangeName: "binance"
+```
+
+### frameName
+
+Frame (timeframe) configuration to use for all strategy backtests. Must be registered via `addFrame()` before Walker execution. All strategies are tested against this same historical period.
+
+```typescript
+frameName: FrameName; // string type alias
+```
+
+**Example:**
+```typescript
+frameName: "2024-q1"
+```
+
+**Sources:** [types.d.ts:1497-1499]()
+
+## Metric Selection
+
+The `metric` field determines how strategies are ranked. Higher metric values indicate better performance (except for negative PnL scenarios).
+
+| Metric | Description | Formula / Source | Typical Range |
+|--------|-------------|------------------|---------------|
+| `sharpeRatio` | Risk-adjusted returns (daily) | `avgPnl / stdDevPnl` | -∞ to +∞ (>1 is good) |
+| `annualizedSharpeRatio` | Sharpe ratio scaled to annual basis | `sharpeRatio * sqrt(252)` | -∞ to +∞ (>2 is excellent) |
+| `winRate` | Percentage of profitable trades | `(winCount / totalSignals) * 100` | 0% to 100% |
+| `avgPnl` | Average profit/loss per trade | `totalPnl / totalSignals` | -∞ to +∞ |
+| `totalPnl` | Cumulative profit/loss (all trades) | `sum(pnlPercentage)` | -∞ to +∞ |
+| `certaintyRatio` | Consistency of returns | `(avgPnl * winRate) / stdDevPnl` | -∞ to +∞ |
+| `expectedYearlyReturns` | Annualized expected return | `avgPnl * tradesPerYear` | -∞ to +∞ |
+
+**Default metric:** `sharpeRatio` is commonly used as the default metric for strategy comparison because it accounts for both returns and risk.
+
+**Metric selection guidance:**
+- Use `sharpeRatio` or `annualizedSharpeRatio` for risk-adjusted comparison
+- Use `winRate` if consistency is more important than magnitude
+- Use `totalPnl` or `avgPnl` for absolute return comparison
+- Use `certaintyRatio` for strategies with varying volatility
+- Use `expectedYearlyReturns` for long-term performance projection
+
+**Sources:** [types.d.ts:1509-1517]()
+
+## Optional Fields
+
+### note
+
+Human-readable description for documentation purposes. Not used by the system, but helpful for understanding Walker configuration intent.
+
+```typescript
+note?: string;
+```
+
+**Example:**
+```typescript
+note: "Compare momentum strategies during Q1 2024 bull market"
+```
+
+### callbacks
+
+Lifecycle event callbacks triggered during Walker execution. Provides hooks for monitoring progress and results.
+
+```typescript
+callbacks?: Partial<IWalkerCallbacks>;
+```
+
+**Sources:** [types.d.ts:1492](), [types.d.ts:1500]()
+
+## Callback Lifecycle
+
+Walker execution emits events at key lifecycle points via the `IWalkerCallbacks` interface.
+
+```mermaid
+sequenceDiagram
+    participant Walker as WalkerLogicPrivateService
+    participant Callback as IWalkerCallbacks
+    participant Emitter as Event Emitters
+    
+    Note over Walker: For each strategy in strategies[]
+    
+    Walker->>Walker: Run BacktestLogicPublicService
+    Walker->>Walker: Calculate BacktestStatistics
+    
+    Walker->>Callback: onStrategy(walkerName, strategyName, results, statistics)
+    Note over Callback: Access individual strategy performance
+    
+    Walker->>Emitter: progressWalkerEmitter.next(progress)
+    Note over Emitter: Progress tracking (N/M strategies)
+    
+    Note over Walker: After all strategies complete
+    
+    Walker->>Walker: Compare metrics, select best
+    Walker->>Walker: Build IWalkerResults
+    
+    Walker->>Callback: onComplete(walkerName, results)
+    Note over Callback: Access comparative results
+    
+    Walker->>Emitter: walkerCompleteSubject.next(results)
+    Walker->>Emitter: doneWalkerSubject.next()
+```
+
+### onStrategy Callback
+
+Invoked after each strategy completes its backtest. Receives full backtest results and statistics for the strategy.
+
+```typescript
+onStrategy: (
+  walkerName: WalkerName,
+  strategyName: StrategyName,
+  results: IStrategyBacktestResult[],
+  statistics: BacktestStatistics
+) => void;
+```
+
+**Parameters:**
+- `walkerName`: Identifier of the Walker configuration
+- `strategyName`: Name of the strategy that just completed
+- `results`: Array of all closed signals from the backtest
+- `statistics`: Calculated performance metrics (`BacktestStatistics`)
+
+**Use cases:**
+- Log intermediate progress
+- Store per-strategy results to database
+- Emit custom events for monitoring dashboards
+
+### onComplete Callback
+
+Invoked after all strategies complete and comparative ranking is determined. Receives aggregated results with best strategy identification.
 
 ```typescript
 onComplete: (
+  walkerName: WalkerName,
   results: IWalkerResults
-) => void
+) => void;
 ```
 
-Parameters:
-- `results`: Complete walker results including best strategy selection
+**Parameters:**
+- `walkerName`: Identifier of the Walker configuration
+- `results`: Complete Walker results including ranking
 
+**Use cases:**
+- Generate comparison reports
+- Trigger downstream automation (e.g., deploy best strategy)
+- Archive results for historical tracking
 
-## Component Integration
+**Sources:** [types.d.ts:1502-1507]()
 
-Walker schemas orchestrate multiple components to perform strategy comparison.
+## Walker Results Structure
 
-**Component Dependencies**
-
-![Mermaid Diagram](./diagrams/29_Walker_Schemas_3.svg)
-
-
-### Validation Chain
-
-When `Walker.run()` is called, validation occurs for all referenced components:
-
-![Mermaid Diagram](./diagrams/29_Walker_Schemas_4.svg)
-
-
-## Walker Execution
-
-The `Walker.run()` method executes backtests sequentially for all strategies and emits progress events.
-
-**Execution Architecture**
-
-![Mermaid Diagram](./diagrams/29_Walker_Schemas_5.svg)
-
-
-### State Management
-
-Walker execution clears accumulated data for all strategies before starting:
-
-1. **Markdown Services**: `backtestMarkdownService.clear()` and `scheduleMarkdownService.clear()` for each strategy
-2. **Strategy Instances**: `strategyGlobalService.clear()` to reset internal state
-3. **Risk Instances**: `riskGlobalService.clear()` if strategies use risk profiles
-
-This ensures clean state for each walker run and prevents data contamination between executions.
-
-
-## Results and Reporting
-
-Walker results are accumulated in `WalkerMarkdownService` and exposed through `Walker.getData()`, `Walker.getReport()`, and `Walker.dump()`.
-
-**Results Structure**
+Walker execution produces `IWalkerResults` containing the best strategy, its metric value, and full statistics for all strategies.
 
 ```typescript
 interface IWalkerResults {
-  walkerName: WalkerName;
-  symbol: string;
-  metric: WalkerMetric;
+  /** Name of the highest-performing strategy */
   bestStrategy: StrategyName;
+  
+  /** Metric value of the best strategy */
   bestMetric: number;
-  totalStrategies: number;
-  results: IWalkerStrategyResult[];
+  
+  /** Complete results for all strategies (ordered by execution) */
+  strategies: IWalkerStrategyResult[];
 }
 
 interface IWalkerStrategyResult {
+  /** Strategy identifier */
   strategyName: StrategyName;
-  metricValue: number | null;
-  stats: BacktestStatistics;
-}
-```
-
-
-### Data Retrieval Methods
-
-![Mermaid Diagram](./diagrams/29_Walker_Schemas_6.svg)
-
-
-### Example Usage
-
-```typescript
-// Execute walker comparison
-for await (const progress of Walker.run("BTCUSDT", {
-  walkerName: "prompt-optimizer"
-})) {
-  console.log(`${progress.strategiesTested}/${progress.totalStrategies}`);
-  console.log(`Best: ${progress.bestStrategy} (${progress.bestMetric})`);
-}
-
-// Retrieve results
-const results = await Walker.getData("BTCUSDT", "prompt-optimizer");
-console.log(`Winner: ${results.bestStrategy}`);
-console.log(`Sharpe Ratio: ${results.bestMetric}`);
-
-// Generate markdown report
-const markdown = await Walker.getReport("BTCUSDT", "prompt-optimizer");
-console.log(markdown);
-
-// Save report to disk
-await Walker.dump("BTCUSDT", "prompt-optimizer");
-// Writes to: ./logs/walker/prompt-optimizer.md
-```
-
-
-## Event System Integration
-
-Walker execution emits progress and completion events through the global event system.
-
-**Event Flow**
-
-![Mermaid Diagram](./diagrams/29_Walker_Schemas_7.svg)
-
-
-### Progress Events
-
-Progress events (`WalkerContract`) are emitted after each strategy completes:
-
-```typescript
-interface WalkerContract {
-  walkerName: WalkerName;
-  strategyName: StrategyName;  // Current strategy
-  symbol: string;
-  metric: WalkerMetric;
-  metricValue: number | null;   // Current strategy's metric
-  bestStrategy: StrategyName;   // Best so far
-  bestMetric: number;           // Best metric so far
-  strategiesTested: number;
-  totalStrategies: number;
-}
-```
-
-Listen to progress:
-
-```typescript
-listenWalker((event) => {
-  console.log(`Progress: ${event.strategiesTested}/${event.totalStrategies}`);
-  console.log(`Current: ${event.strategyName} = ${event.metricValue}`);
-  console.log(`Leader: ${event.bestStrategy} = ${event.bestMetric}`);
-});
-```
-
-
-### Completion Events
-
-Completion events (`IWalkerResults`) are emitted when all strategies finish:
-
-```typescript
-listenWalkerComplete((results) => {
-  console.log(`Winner: ${results.bestStrategy}`);
-  console.log(`Metric: ${results.bestMetric}`);
-  console.log(`Tested: ${results.totalStrategies} strategies`);
   
-  // Access all results
-  results.results.forEach(r => {
-    console.log(`${r.strategyName}: ${r.metricValue}`);
-  });
+  /** Full performance statistics from backtest */
+  statistics: BacktestStatistics;
+}
+```
+
+**Best strategy selection:** The strategy with the highest value for the specified `metric` is chosen. All metrics are maximization targets (higher is better).
+
+**Result ordering:** The `strategies` array maintains the execution order (same as input `strategies` array), not sorted by performance. To find ranking, compare `statistics[metric]` values.
+
+**Accessing results:**
+```typescript
+// Via Walker.getData()
+const results = await Walker.getData("btc-strategy-comparison");
+console.log(`Best: ${results.bestStrategy} (${results.bestMetric})`);
+
+// Via listenWalkerComplete()
+listenWalkerComplete((walkerName, results) => {
+  const winner = results.strategies.find(
+    s => s.strategyName === results.bestStrategy
+  );
+  console.log(winner.statistics);
 });
 ```
 
+**Sources:** [types.d.ts:1519-1530]()
 
-## Schema Retrieval
+## Registration
 
-Walker schemas can be retrieved and listed for inspection or dynamic UI generation.
+Walker schemas are registered using the `addWalker()` function, which validates the configuration and stores it in the `WalkerSchemaService` registry.
 
-### Get Specific Schema
-
-```typescript
-const walkerSchema = backtest.walkerSchemaService.get("prompt-optimizer");
-console.log(walkerSchema.strategies);  // ["v1", "v2", "v3"]
-console.log(walkerSchema.metric);      // "sharpeRatio"
+```mermaid
+flowchart LR
+    User["User Code"]
+    addWalker["addWalker(schema)"]
+    WalkerValidation["WalkerValidationService"]
+    WalkerSchema["WalkerSchemaService"]
+    StrategySchema["StrategySchemaService"]
+    ExchangeSchema["ExchangeSchemaService"]
+    FrameSchema["FrameSchemaService"]
+    
+    User --> addWalker
+    addWalker --> WalkerValidation
+    WalkerValidation --> StrategySchema
+    WalkerValidation --> ExchangeSchema
+    WalkerValidation --> FrameSchema
+    addWalker --> WalkerSchema
+    
+    WalkerSchema -.->|"getWalker(walkerName)"| WalkerConnectionService
+    WalkerConnectionService -.->|"used by"| WalkerLogicPrivateService
 ```
 
-
-### List All Walkers
-
+**Basic registration:**
 ```typescript
-const allWalkers = await listWalkers();
-allWalkers.forEach(walker => {
-  console.log(`${walker.walkerName}: ${walker.strategies.length} strategies`);
-});
-```
+import { addWalker } from 'backtest-kit';
 
-
-## Common Patterns
-
-### Multi-Prompt LLM Optimization
-
-Walker schemas are ideal for comparing different LLM prompts for signal generation:
-
-```typescript
-// Register strategy variants with different prompts
-addStrategy({
-  strategyName: "gpt4-aggressive",
-  interval: "5m",
-  getSignal: async (symbol) => {
-    const prompt = "Generate aggressive trading signals...";
-    return await callGPT4(symbol, prompt);
-  }
-});
-
-addStrategy({
-  strategyName: "gpt4-conservative",
-  interval: "5m",
-  getSignal: async (symbol) => {
-    const prompt = "Generate conservative trading signals...";
-    return await callGPT4(symbol, prompt);
-  }
-});
-
-// Compare with walker
-addWalker({
-  walkerName: "prompt-optimizer",
-  exchangeName: "binance",
-  frameName: "1month-backtest",
-  strategies: ["gpt4-aggressive", "gpt4-conservative"],
-  metric: "sharpeRatio"
-});
-```
-
-
-### Parameter Grid Search
-
-Walker can perform grid search over strategy parameters:
-
-```typescript
-// Register strategies with different parameter combinations
-const periods = [10, 20, 50];
-const thresholds = [0.01, 0.02, 0.03];
-
-periods.forEach(period => {
-  thresholds.forEach(threshold => {
-    addStrategy({
-      strategyName: `sma-${period}-${threshold}`,
-      interval: "5m",
-      getSignal: async (symbol) => {
-        return await smaStrategy(symbol, period, threshold);
-      }
-    });
-  });
-});
-
-// Walker tests all combinations
-addWalker({
-  walkerName: "sma-grid-search",
-  exchangeName: "binance",
-  frameName: "1year-backtest",
-  strategies: [
-    "sma-10-0.01", "sma-10-0.02", "sma-10-0.03",
-    "sma-20-0.01", "sma-20-0.02", "sma-20-0.03",
-    "sma-50-0.01", "sma-50-0.02", "sma-50-0.03"
-  ],
-  metric: "annualizedSharpeRatio"
-});
-```
-
-
-### A/B Testing Production Strategies
-
-Walker enables safe A/B testing of strategy modifications:
-
-```typescript
-addWalker({
-  walkerName: "production-ab-test",
-  exchangeName: "binance",
-  frameName: "3month-backtest",
-  strategies: [
-    "production-v1",      // Current production
-    "production-v2-beta"  // New candidate
-  ],
+await addWalker({
+  walkerName: "momentum-comparison",
+  strategies: ["rsi-strategy", "macd-strategy"],
   metric: "sharpeRatio",
+  exchangeName: "binance",
+  frameName: "2024-q1"
+});
+```
+
+**With callbacks:**
+```typescript
+await addWalker({
+  walkerName: "momentum-comparison",
+  note: "Compare RSI vs MACD during bull market",
+  strategies: ["rsi-strategy", "macd-strategy"],
+  metric: "annualizedSharpeRatio",
+  exchangeName: "binance",
+  frameName: "2024-q1",
   callbacks: {
-    onComplete: (results) => {
-      if (results.bestStrategy === "production-v2-beta") {
-        console.log("✓ v2-beta outperforms production");
-        console.log(`Improvement: ${results.bestMetric}`);
-      } else {
-        console.log("✗ Keep current production version");
-      }
+    onStrategy: (walkerName, strategyName, results, stats) => {
+      console.log(`${strategyName}: Sharpe = ${stats.sharpeRatio}`);
+    },
+    onComplete: (walkerName, results) => {
+      console.log(`Winner: ${results.bestStrategy}`);
     }
   }
 });
 ```
-
+
+**Sources:** [src/lib/add.ts]() (addWalker implementation)
+
+## Validation Rules
+
+Walker schemas undergo validation before registration to ensure configuration integrity.
+
+| Validation | Rule | Error Example |
+|------------|------|---------------|
+| **walkerName uniqueness** | Must not already be registered | `Walker "test" already exists` |
+| **walkerName presence** | Must be non-empty string | `walkerName is required` |
+| **strategies presence** | Array must not be empty | `strategies array cannot be empty` |
+| **strategies existence** | All strategies must be registered | `Strategy "unknown" not found` |
+| **metric validity** | Must be valid WalkerMetric value | `Invalid metric "invalid"` |
+| **exchangeName existence** | Exchange must be registered | `Exchange "unknown" not found` |
+| **frameName existence** | Frame must be registered | `Frame "unknown" not found` |
+
+**Validation timing:** All validation occurs synchronously during `addWalker()` call, before the schema is stored. Registration either succeeds completely or throws an error.
+
+**Validation implementation:** [src/lib/services/validation/WalkerValidationService.ts]()
+
+**Sources:** [src/lib/services/validation/WalkerValidationService.ts]()
+
+## Strategy Order Considerations
+
+The `strategies` array order determines execution sequence, which affects:
+
+1. **Progress reporting:** `progressWalkerEmitter` emits after each strategy completes, showing index-based progress
+2. **Callback ordering:** `onStrategy` fires in array order
+3. **Early termination:** If Walker execution is cancelled, earlier strategies complete while later ones are skipped
+
+**Execution diagram:**
+
+```mermaid
+flowchart TB
+    Start["Walker Execution Start"]
+    S1["Execute strategies[0]"]
+    S2["Execute strategies[1]"]
+    S3["Execute strategies[N]"]
+    Compare["Compare Metrics"]
+    Results["Determine Best Strategy"]
+    
+    Start --> S1
+    S1 -->|"onStrategy callback"| S2
+    S2 -->|"onStrategy callback"| S3
+    S3 -->|"onStrategy callback"| Compare
+    Compare --> Results
+    Results -->|"onComplete callback"| End["Walker Complete"]
+    
+    S1 -.->|"progressWalkerEmitter<br/>1/N"| Monitor
+    S2 -.->|"progressWalkerEmitter<br/>2/N"| Monitor
+    S3 -.->|"progressWalkerEmitter<br/>N/N"| Monitor
+    Monitor["Progress Monitoring"]
+```
+
+**Best practice:** Place high-priority or baseline strategies first in the array for earlier feedback during long-running comparisons.
+
+**Sources:** [src/lib/services/logic/WalkerLogicPrivateService.ts]()
+
+## Integration with Walker Execution
+
+Walker schemas are consumed by the Walker execution pipeline during `Walker.run()` or `Walker.background()` operations.
+
+```mermaid
+flowchart TB
+    subgraph "Registration Phase"
+        addWalker["addWalker(schema)"]
+        WalkerSchemaService["WalkerSchemaService<br/>Registry Storage"]
+    end
+    
+    subgraph "Execution Phase"
+        WalkerRun["Walker.run(walkerName)"]
+        WalkerCommand["WalkerCommandService"]
+        WalkerLogic["WalkerLogicPrivateService"]
+        WalkerConnection["WalkerConnectionService"]
+    end
+    
+    subgraph "Per-Strategy Execution"
+        BacktestPublic["BacktestLogicPublicService"]
+        StrategyConnection["StrategyConnectionService"]
+        ClientStrategy["ClientStrategy"]
+    end
+    
+    addWalker --> WalkerSchemaService
+    WalkerRun --> WalkerCommand
+    WalkerCommand --> WalkerLogic
+    WalkerLogic --> WalkerConnection
+    WalkerConnection --> WalkerSchemaService
+    WalkerLogic --> BacktestPublic
+    BacktestPublic --> StrategyConnection
+    StrategyConnection --> ClientStrategy
+```
+
+**Execution flow:**
+1. User calls `Walker.run(walkerName)`
+2. `WalkerCommandService` validates Walker exists
+3. `WalkerLogicPrivateService` retrieves schema from `WalkerSchemaService`
+4. For each strategy in schema:
+   - Run full backtest via `BacktestLogicPublicService`
+   - Extract metric value from `BacktestStatistics`
+   - Emit progress and fire `onStrategy` callback
+5. Compare all metric values, identify best strategy
+6. Build `IWalkerResults` and fire `onComplete` callback
+7. Return results via `Walker.getData()`
+
+**Sources:** [src/lib/services/logic/WalkerLogicPrivateService.ts](), [src/lib/services/command/WalkerCommandService.ts]()
+
+## Complete Example
+
+```typescript
+import { addStrategy, addExchange, addFrame, addWalker } from 'backtest-kit';
+
+// Register dependencies
+await addExchange({
+  exchangeName: "binance",
+  getCandles: async (symbol, interval, since, limit) => {
+    // CCXT implementation
+  },
+  formatPrice: async (symbol, price) => price.toFixed(2),
+  formatQuantity: async (symbol, qty) => qty.toFixed(8)
+});
+
+await addFrame({
+  frameName: "2024-q1",
+  interval: "1h",
+  startDate: new Date("2024-01-01"),
+  endDate: new Date("2024-03-31")
+});
+
+await addStrategy({
+  strategyName: "rsi-oversold",
+  interval: "1h",
+  getSignal: async (symbol, when) => {
+    // RSI calculation and signal logic
+    return { position: "long", priceTakeProfit: 50000, priceStopLoss: 48000, minuteEstimatedTime: 1440 };
+  }
+});
+
+await addStrategy({
+  strategyName: "macd-crossover",
+  interval: "1h",
+  getSignal: async (symbol, when) => {
+    // MACD calculation and signal logic
+    return { position: "long", priceTakeProfit: 51000, priceStopLoss: 47000, minuteEstimatedTime: 2880 };
+  }
+});
+
+// Register Walker
+await addWalker({
+  walkerName: "momentum-strategies",
+  note: "Compare RSI vs MACD momentum strategies in Q1 2024",
+  strategies: [
+    "rsi-oversold",
+    "macd-crossover"
+  ],
+  metric: "annualizedSharpeRatio",
+  exchangeName: "binance",
+  frameName: "2024-q1",
+  callbacks: {
+    onStrategy: (walkerName, strategyName, results, statistics) => {
+      console.log(`Completed ${strategyName}:`);
+      console.log(`  Signals: ${statistics.totalSignals}`);
+      console.log(`  Win Rate: ${statistics.winRate}%`);
+      console.log(`  Sharpe: ${statistics.sharpeRatio}`);
+    },
+    onComplete: (walkerName, results) => {
+      console.log(`\nBest strategy: ${results.bestStrategy}`);
+      console.log(`Best metric: ${results.bestMetric.toFixed(2)}`);
+      
+      // Generate comparison table
+      results.strategies.forEach(s => {
+        console.log(`${s.strategyName}: ${s.statistics.annualizedSharpeRatio}`);
+      });
+    }
+  }
+});
+
+// Execute Walker
+import { Walker } from 'backtest-kit';
+
+for await (const progress of Walker.run("BTCUSDT", {
+  walkerName: "momentum-strategies"
+})) {
+  console.log(`Progress: ${progress.completed}/${progress.total}`);
+}
+
+// Access results
+const results = await Walker.getData("momentum-strategies");
+console.log(`Winner: ${results.bestStrategy}`);
+```
+
+**Sources:** [types.d.ts:1486-1530](), [src/lib/add.ts]()

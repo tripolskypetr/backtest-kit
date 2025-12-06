@@ -1,20 +1,60 @@
----
-title: design/14_public_api_reference
-group: design
----
-
 # Public API Reference
+
+<details>
+<summary>Relevant source files</summary>
+
+The following files were used as context for generating this wiki page:
+
+- [docs/classes/BacktestCommandService.md](docs/classes/BacktestCommandService.md)
+- [docs/classes/BacktestUtils.md](docs/classes/BacktestUtils.md)
+- [docs/classes/LiveCommandService.md](docs/classes/LiveCommandService.md)
+- [docs/classes/LiveUtils.md](docs/classes/LiveUtils.md)
+- [docs/index.md](docs/index.md)
+- [src/client/ClientStrategy.ts](src/client/ClientStrategy.ts)
+- [src/config/emitters.ts](src/config/emitters.ts)
+- [src/function/event.ts](src/function/event.ts)
+- [src/index.ts](src/index.ts)
+- [src/interfaces/Strategy.interface.ts](src/interfaces/Strategy.interface.ts)
+- [test/config/setup.mjs](test/config/setup.mjs)
+- [types.d.ts](types.d.ts)
+
+</details>
+
 
 
 This page provides a comprehensive reference for all public-facing functions and utilities exposed by the backtest-kit framework. These are the functions users directly interact with to configure strategies, execute backtests/live trading, and monitor results.
 
-For detailed implementation details of the underlying service architecture, see [Architecture](./09_Architecture.md). For specific execution patterns, see [Backtest API](./17_Backtest_API.md) and [Live Trading API](./18_Live_Trading_API.md).
+For detailed implementation details of the underlying service architecture, see [Architecture](#2). For specific execution patterns, see [Backtest API](#3.2) and [Live Trading API](#3.3).
 
 ## Public API Structure
 
 The public API is organized into six functional groups, all exported from the main entry point:
 
-![Mermaid Diagram](./diagrams/14_Public_API_Reference_0.svg)
+```mermaid
+graph TB
+    subgraph "Public API (src/index.ts)"
+        Config["Configuration Functions<br/>addStrategy, addExchange, addFrame"]
+        BacktestAPI["Backtest Execution<br/>Backtest.run, background, getReport, dump"]
+        LiveAPI["Live Trading<br/>Live.run, background, getReport, dump"]
+        Exchange["Exchange Utilities<br/>getCandles, getAveragePrice, formatPrice, etc"]
+        Events["Event Listeners<br/>listenSignal, listenSignalBacktest, listenSignalLive"]
+        Setup["Setup Functions<br/>setLogger, PersistSignalAdaper"]
+    end
+    
+    subgraph "Type Exports"
+        Types["Interfaces & Types<br/>IStrategySchema, IExchangeSchema, IFrameSchema<br/>ISignalRow, IStrategyTickResult, ICandleData"]
+    end
+    
+    subgraph "Context Services (Advanced)"
+        Context["ExecutionContextService<br/>MethodContextService"]
+    end
+    
+    Config --> Types
+    BacktestAPI --> Types
+    LiveAPI --> Types
+    Exchange --> Types
+    Events --> Types
+```
 
 **Public API Groups:**
 
@@ -27,17 +67,48 @@ The public API is organized into six functional groups, all exported from the ma
 | **Event Listeners** | Subscribe to signal lifecycle events | `listenSignal()`, `listenSignalBacktest()`, `listenSignalLive()`, and `Once` variants |
 | **Setup Functions** | Configure framework behavior | `setLogger()`, `PersistSignalAdaper.usePersistSignalAdapter()` |
 
+**Sources:** [src/index.ts:1-56](), [types.d.ts:1-1410]()
 
 ## API Function Mapping
 
 This diagram maps public API functions to their concrete implementations in the codebase:
 
-![Mermaid Diagram](./diagrams/14_Public_API_Reference_1.svg)
+```mermaid
+graph LR
+    subgraph "Public API Functions"
+        addStrategy["addStrategy()"]
+        addExchange["addExchange()"]
+        addFrame["addFrame()"]
+        BacktestRun["Backtest.run()"]
+        LiveRun["Live.run()"]
+        getCandles["getCandles()"]
+        listenSignal["listenSignal()"]
+    end
+    
+    subgraph "Implementation Classes"
+        StrategySchemaService["StrategySchemaService<br/>src/lib/services/schema"]
+        ExchangeSchemaService["ExchangeSchemaService<br/>src/lib/services/schema"]
+        FrameSchemaService["FrameSchemaService<br/>src/lib/services/schema"]
+        BacktestUtils["BacktestUtils class<br/>src/classes/Backtest.ts"]
+        LiveUtils["LiveUtils class<br/>src/classes/Live.ts"]
+        ExchangeGlobalService["ExchangeGlobalService<br/>src/lib/services/global"]
+        EventEmitter["EventEmitter<br/>src/function/event.ts"]
+    end
+    
+    addStrategy --> StrategySchemaService
+    addExchange --> ExchangeSchemaService
+    addFrame --> FrameSchemaService
+    BacktestRun --> BacktestUtils
+    LiveRun --> LiveUtils
+    getCandles --> ExchangeGlobalService
+    listenSignal --> EventEmitter
+```
 
+**Sources:** [src/index.ts:1-56](), [src/function/add.ts](), [src/classes/Backtest.ts](), [src/classes/Live.ts](), [src/function/exchange.ts](), [src/function/event.ts]()
 
 ## Configuration Functions
 
-Functions for registering strategies, exchanges, and timeframes. These must be called before execution begins. See [Configuration Functions](./15_Configuration_Functions.md) for detailed documentation.
+Functions for registering strategies, exchanges, and timeframes. These must be called before execution begins. See [Configuration Functions](#3.1) for detailed documentation.
 
 ### addStrategy()
 
@@ -83,6 +154,7 @@ addStrategy({
 });
 ```
 
+**Sources:** [types.d.ts:409-422](), [types.d.ts:546-579](), [src/function/add.ts]()
 
 ### addExchange()
 
@@ -126,6 +198,7 @@ addExchange({
 });
 ```
 
+**Sources:** [types.d.ts:137-171](), [types.d.ts:580-615](), [src/function/add.ts]()
 
 ### addFrame()
 
@@ -164,10 +237,11 @@ addFrame({
 });
 ```
 
+**Sources:** [types.d.ts:259-289](), [types.d.ts:617-646](), [src/function/add.ts]()
 
 ## Backtest Execution API
 
-The `Backtest` singleton provides methods for running backtests and generating reports. See [Backtest API](./17_Backtest_API.md) for detailed documentation.
+The `Backtest` singleton provides methods for running backtests and generating reports. See [Backtest API](#3.2) for detailed documentation.
 
 ### Backtest.run()
 
@@ -214,6 +288,7 @@ for await (const result of Backtest.run("BTCUSDT", {
 }
 ```
 
+**Sources:** [types.d.ts:1127-1233](), [src/classes/Backtest.ts]()
 
 ### Backtest.background()
 
@@ -247,6 +322,7 @@ const cancel = await Backtest.background("BTCUSDT", {
 setTimeout(() => cancel(), 10000);
 ```
 
+**Sources:** [types.d.ts:1165-1185](), [src/classes/Backtest.ts]()
 
 ### Backtest.getReport()
 
@@ -271,6 +347,7 @@ const markdown = await Backtest.getReport("momentum-strategy");
 console.log(markdown);
 ```
 
+**Sources:** [types.d.ts:1186-1197](), [src/classes/Backtest.ts]()
 
 ### Backtest.dump()
 
@@ -299,10 +376,11 @@ await Backtest.dump("momentum-strategy");
 await Backtest.dump("momentum-strategy", "./reports");
 ```
 
+**Sources:** [types.d.ts:1198-1214](), [src/classes/Backtest.ts]()
 
 ## Live Trading API
 
-The `Live` singleton provides methods for live trading execution with crash recovery. See [Live Trading API](./18_Live_Trading_API.md) for detailed documentation.
+The `Live` singleton provides methods for live trading execution with crash recovery. See [Live Trading API](#3.3) for detailed documentation.
 
 ### Live.run()
 
@@ -345,6 +423,7 @@ for await (const result of Live.run("BTCUSDT", {
 }
 ```
 
+**Sources:** [types.d.ts:1236-1349](), [src/classes/Live.ts]()
 
 ### Live.background()
 
@@ -376,6 +455,7 @@ const cancel = await Live.background("BTCUSDT", {
 process.on('SIGTERM', () => cancel());
 ```
 
+**Sources:** [types.d.ts:1280-1303](), [src/classes/Live.ts]()
 
 ### Live.getReport()
 
@@ -400,6 +480,7 @@ const markdown = await Live.getReport("momentum-strategy");
 console.log(markdown);
 ```
 
+**Sources:** [types.d.ts:1304-1316](), [src/classes/Live.ts]()
 
 ### Live.dump()
 
@@ -428,10 +509,11 @@ await Live.dump("momentum-strategy");
 await Live.dump("momentum-strategy", "./live-reports");
 ```
 
+**Sources:** [types.d.ts:1317-1333](), [src/classes/Live.ts]()
 
 ## Exchange Utility Functions
 
-Utility functions for accessing market data and execution context. These functions use the current `ExecutionContextService` and `MethodContextService` for implicit context propagation. See [Exchange Functions](./21_Exchange_Functions.md) for detailed documentation.
+Utility functions for accessing market data and execution context. These functions use the current `ExecutionContextService` and `MethodContextService` for implicit context propagation. See [Exchange Functions](#3.4) for detailed documentation.
 
 ### getCandles()
 
@@ -468,6 +550,7 @@ candles.forEach(candle => {
 });
 ```
 
+**Sources:** [types.d.ts:794-811](), [src/function/exchange.ts]()
 
 ### getAveragePrice()
 
@@ -496,6 +579,7 @@ const vwap = await getAveragePrice("BTCUSDT");
 console.log("Current VWAP:", vwap);
 ```
 
+**Sources:** [types.d.ts:812-830](), [src/function/exchange.ts]()
 
 ### formatPrice()
 
@@ -521,6 +605,7 @@ const formatted = await formatPrice("BTCUSDT", 50000.123456);
 console.log(formatted); // "50000.12"
 ```
 
+**Sources:** [types.d.ts:831-846](), [src/function/exchange.ts]()
 
 ### formatQuantity()
 
@@ -546,6 +631,7 @@ const formatted = await formatQuantity("BTCUSDT", 0.123456789);
 console.log(formatted); // "0.12345678"
 ```
 
+**Sources:** [types.d.ts:847-862](), [src/function/exchange.ts]()
 
 ### getDate()
 
@@ -564,6 +650,7 @@ const date = await getDate();
 console.log("Execution date:", date.toISOString());
 ```
 
+**Sources:** [types.d.ts:863-877](), [src/function/exchange.ts]()
 
 ### getMode()
 
@@ -586,10 +673,11 @@ if (mode === "backtest") {
 }
 ```
 
+**Sources:** [types.d.ts:878-893](), [src/function/exchange.ts]()
 
 ## Event Listeners
 
-Functions for subscribing to signal lifecycle events. All callbacks are processed sequentially using queued async execution. See [Event Listeners](./22_Event_Listeners.md) for detailed documentation.
+Functions for subscribing to signal lifecycle events. All callbacks are processed sequentially using queued async execution. See [Event Listeners](#3.5) for detailed documentation.
 
 ### Event Listener Functions
 
@@ -636,6 +724,7 @@ const unsubscribe = listenSignal((event) => {
 unsubscribe();
 ```
 
+**Sources:** [types.d.ts:648-673](), [src/function/event.ts]()
 
 ### listenSignalOnce()
 
@@ -669,6 +758,7 @@ listenSignalOnce(
 );
 ```
 
+**Sources:** [types.d.ts:674-706](), [src/function/event.ts]()
 
 ### listenSignalBacktest()
 
@@ -690,6 +780,7 @@ const unsubscribe = listenSignalBacktest((event) => {
 });
 ```
 
+**Sources:** [types.d.ts:750-770](), [src/function/event.ts]()
 
 ### listenSignalBacktestOnce()
 
@@ -712,6 +803,7 @@ listenSignalBacktestOnce(
 );
 ```
 
+**Sources:** [types.d.ts:771-792](), [src/function/event.ts]()
 
 ### listenSignalLive()
 
@@ -733,6 +825,7 @@ const unsubscribe = listenSignalLive((event) => {
 });
 ```
 
+**Sources:** [types.d.ts:707-727](), [src/function/event.ts]()
 
 ### listenSignalLiveOnce()
 
@@ -755,6 +848,7 @@ listenSignalLiveOnce(
 );
 ```
 
+**Sources:** [types.d.ts:728-749](), [src/function/event.ts]()
 
 ## Setup Functions
 
@@ -798,6 +892,7 @@ setLogger({
 });
 ```
 
+**Sources:** [types.d.ts:32-49](), [src/function/setup.ts]()
 
 ### PersistSignalAdaper.usePersistSignalAdapter()
 
@@ -832,6 +927,7 @@ class RedisPersist extends PersistBase {
 PersistSignalAdaper.usePersistSignalAdapter(RedisPersist);
 ```
 
+**Sources:** [types.d.ts:1057-1125](), [src/classes/Persist.ts]()
 
 ## Type Exports
 
@@ -841,14 +937,14 @@ All TypeScript interfaces and types are exported for type-safe usage. See indivi
 
 | Interface | Purpose | Documentation |
 |-----------|---------|---------------|
-| `IStrategySchema` | Strategy configuration schema | [Configuration Functions](./15_Configuration_Functions.md) |
-| `IExchangeSchema` | Exchange configuration schema | [Configuration Functions](./15_Configuration_Functions.md) |
-| `IFrameSchema` | Frame configuration schema | [Configuration Functions](./15_Configuration_Functions.md) |
-| `ISignalDto` | Signal data transfer object | [Signal Generation and Validation](./46_Signal_Generation_and_Validation.md) |
-| `ISignalRow` | Complete signal with auto-generated ID | [Signal States](./45_Signal_States.md) |
-| `IStrategyTickResult` | Discriminated union of all tick results | [Signal States](./45_Signal_States.md) |
-| `IStrategyPnL` | Profit/loss calculation with fees and slippage | [PnL Calculation](./49_PnL_Calculation.md) |
-| `ICandleData` | OHLCV candle data point | [Exchange Functions](./21_Exchange_Functions.md) |
+| `IStrategySchema` | Strategy configuration schema | [Configuration Functions](#3.1) |
+| `IExchangeSchema` | Exchange configuration schema | [Configuration Functions](#3.1) |
+| `IFrameSchema` | Frame configuration schema | [Configuration Functions](#3.1) |
+| `ISignalDto` | Signal data transfer object | [Signal Generation and Validation](#6.2) |
+| `ISignalRow` | Complete signal with auto-generated ID | [Signal States](#6.1) |
+| `IStrategyTickResult` | Discriminated union of all tick results | [Signal States](#6.1) |
+| `IStrategyPnL` | Profit/loss calculation with fees and slippage | [PnL Calculation](#6.4) |
+| `ICandleData` | OHLCV candle data point | [Exchange Functions](#3.4) |
 
 ### Type Aliases
 
@@ -859,6 +955,7 @@ All TypeScript interfaces and types are exported for type-safe usage. See indivi
 | `FrameInterval` | `"1m"` \| `"3m"` \| `"5m"` \| `"15m"` \| `"30m"` \| `"1h"` \| `"2h"` \| `"4h"` \| `"6h"` \| `"8h"` \| `"12h"` \| `"1d"` \| `"3d"` | Timeframe generation intervals |
 | `StrategyCloseReason` | `"time_expired"` \| `"take_profit"` \| `"stop_loss"` | Signal close reasons |
 
+**Sources:** [types.d.ts:1-1410](), [src/index.ts:20-39]()
 
 ## Complete API Usage Example
 
@@ -951,4 +1048,5 @@ for await (const result of Live.run("BTCUSDT", {
   }
 }
 ```
-
+
+**Sources:** [src/index.ts:1-56](), [README.md:22-194]()

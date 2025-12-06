@@ -1,14 +1,24 @@
----
-title: design/27_risk_schemas
-group: design
----
-
 # Risk Schemas
+
+<details>
+<summary>Relevant source files</summary>
+
+The following files were used as context for generating this wiki page:
+
+- [src/client/ClientStrategy.ts](src/client/ClientStrategy.ts)
+- [src/interfaces/Strategy.interface.ts](src/interfaces/Strategy.interface.ts)
+- [test/e2e/defend.test.mjs](test/e2e/defend.test.mjs)
+- [test/e2e/partial.test.mjs](test/e2e/partial.test.mjs)
+- [test/index.mjs](test/index.mjs)
+- [types.d.ts](types.d.ts)
+
+</details>
+
 
 
 This document describes the risk management schema system in backtest-kit. Risk schemas define portfolio-level risk controls that prevent signals from violating configured limits. Multiple strategies can share the same risk profile, enabling cross-strategy risk analysis.
 
-For information about strategy schemas (which reference risk schemas), see [Strategy Schemas](./24_Strategy_Schemas.md). For information about the ClientRisk implementation that executes risk logic, see [ClientRisk](./34_ClientRisk.md).
+For information about strategy schemas (which reference risk schemas), see [Strategy Schemas](#5.1). For information about the ClientRisk implementation that executes risk logic, see [ClientRisk](#6.4).
 
 ---
 
@@ -23,12 +33,63 @@ Risk schemas provide portfolio-level risk management by:
 
 Risk schemas are registered via `addRisk()` and referenced by strategies via the `riskName` field in `IStrategySchema`.
 
+**Sources**: [src/interfaces/Risk.interface.ts:1-145](), [src/function/add.ts:268-341]()
 
 ---
 
 ## Schema Structure
 
 ### IRiskSchema Interface
+
+```mermaid
+classDiagram
+    class IRiskSchema {
+        +string riskName
+        +string? note
+        +IRiskValidation[] validations
+        +Partial~IRiskCallbacks~? callbacks
+    }
+    
+    class IRiskValidation {
+        +IRiskValidationFn validate
+        +string? note
+    }
+    
+    class IRiskValidationFn {
+        <<interface>>
+        (payload: IRiskValidationPayload): void|Promise~void~
+    }
+    
+    class IRiskCallbacks {
+        +onRejected(symbol, params)
+        +onAllowed(symbol, params)
+    }
+    
+    class IRiskValidationPayload {
+        +string symbol
+        +string strategyName
+        +string exchangeName
+        +number currentPrice
+        +number timestamp
+        +number activePositionCount
+        +IRiskActivePosition[] activePositions
+    }
+    
+    class IRiskActivePosition {
+        +ISignalRow signal
+        +string strategyName
+        +string exchangeName
+        +number openTimestamp
+    }
+    
+    IRiskSchema --> IRiskValidation
+    IRiskSchema --> IRiskCallbacks
+    IRiskValidation --> IRiskValidationFn
+    IRiskValidationFn --> IRiskValidationPayload
+    IRiskValidationPayload --> IRiskActivePosition
+```
+
+**Diagram: Risk Schema Type Hierarchy**
 
 The schema consists of:
 
@@ -39,6 +100,7 @@ The schema consists of:
 | `validations` | `(IRiskValidation \| IRiskValidationFn)[]` | Yes | Array of validation functions or objects |
 | `callbacks` | `Partial<IRiskCallbacks>` | No | Lifecycle event hooks |
 
+**Sources**: [src/interfaces/Risk.interface.ts:87-100](), [types.d.ts:479-488]()
 
 ---
 
@@ -79,6 +141,7 @@ addRisk({
 });
 ```
 
+**Sources**: [src/interfaces/Risk.interface.ts:62-85](), [test/spec/risk.test.mjs:209-247]()
 
 ### IRiskValidationPayload
 
@@ -96,10 +159,56 @@ Validation functions receive a payload with all risk check context:
 
 The `activePositions` array provides access to all currently open positions across all strategies sharing this risk profile. Each entry includes the signal details, strategy name, exchange name, and open timestamp.
 
+**Sources**: [src/interfaces/Risk.interface.ts:52-60](), [types.d.ts:446-452]()
 
 ### Validation Execution Flow
 
-![Mermaid Diagram](./diagrams/27_Risk_Schemas_1.svg)
+```mermaid
+flowchart TB
+    Start["ClientStrategy.tick()"]
+    CheckRisk["riskGlobalService.checkSignal()"]
+    GetClient["RiskConnectionService.getRisk()"]
+    InitPos["Initialize _activePositions<br/>(if POSITION_NEED_FETCH)"]
+    BuildPayload["Build IRiskValidationPayload<br/>(params + activePositionCount + activePositions)"]
+    
+    LoopStart{"More<br/>validations?"}
+    GetValidation["Get next validation<br/>(function or object.validate)"]
+    WrapValidation["DO_VALIDATION_FN wrapper"]
+    Execute["Execute validation function"]
+    
+    ThrowError{"Throws<br/>error?"}
+    MarkInvalid["isValid = false"]
+    Continue["Continue to next"]
+    
+    AllValid{"isValid<br/>true?"}
+    CallRejected["callbacks.onRejected()"]
+    ReturnFalse["return false"]
+    CallAllowed["callbacks.onAllowed()"]
+    ReturnTrue["return true"]
+    
+    Start --> CheckRisk
+    CheckRisk --> GetClient
+    GetClient --> InitPos
+    InitPos --> BuildPayload
+    BuildPayload --> LoopStart
+    
+    LoopStart -->|Yes| GetValidation
+    GetValidation --> WrapValidation
+    WrapValidation --> Execute
+    
+    Execute --> ThrowError
+    ThrowError -->|Yes| MarkInvalid
+    ThrowError -->|No| Continue
+    
+    MarkInvalid --> AllValid
+    Continue --> LoopStart
+    
+    LoopStart -->|No| AllValid
+    AllValid -->|No| CallRejected
+    CallRejected --> ReturnFalse
+    AllValid -->|Yes| CallAllowed
+    CallAllowed --> ReturnTrue
+```
 
 **Diagram: Risk Validation Execution Flow**
 
@@ -112,6 +221,7 @@ Validation execution follows this pattern:
 5. **Early Exit**: Stop on first validation failure
 6. **Callback Invocation**: Trigger `onRejected` or `onAllowed` based on result
 
+**Sources**: [src/client/ClientRisk.ts:165-217](), [src/lib/services/global/RiskGlobalService.ts:51-61]()
 
 ---
 
@@ -138,10 +248,33 @@ interface IRiskActivePosition {
 }
 ```
 
+**Sources**: [src/client/ClientRisk.ts:20-28](), [src/interfaces/Risk.interface.ts:23-35]()
 
 ### Position Lifecycle
 
-![Mermaid Diagram](./diagrams/27_Risk_Schemas_2.svg)
+```mermaid
+stateDiagram-v2
+    [*] --> Idle: ClientRisk created
+    
+    Idle --> Initialized: waitForInit() called<br/>Load from persistence
+    
+    Initialized --> CheckingSignal: checkSignal() called
+    CheckingSignal --> ValidationRunning: Build payload with<br/>activePositionCount
+    ValidationRunning --> Rejected: Validation throws error
+    ValidationRunning --> Allowed: All validations pass
+    
+    Rejected --> CheckingSignal: New signal check
+    Allowed --> PositionAdded: addSignal() called<br/>by StrategyConnectionService
+    
+    PositionAdded --> Persisted: _updatePositions()<br/>atomic write to disk
+    Persisted --> Active: Position monitored
+    
+    Active --> CheckingSignal: New signal check<br/>(position visible in payload)
+    Active --> PositionRemoved: removeSignal() called<br/>by StrategyConnectionService
+    
+    PositionRemoved --> Persisted2: _updatePositions()<br/>atomic write to disk
+    Persisted2 --> CheckingSignal: Ready for new signals
+```
 
 **Diagram: Position Tracking Lifecycle**
 
@@ -161,17 +294,39 @@ Position tracking operations:
    - Provides `activePositionCount = riskMap.size`
    - Provides `activePositions = Array.from(riskMap.values())`
 
+**Sources**: [src/client/ClientRisk.ts:73-150](), [src/lib/services/connection/StrategyConnectionService.ts:1-300]()
 
 ### Risk Isolation
 
 Each `riskName` maintains independent position tracking:
 
-![Mermaid Diagram](./diagrams/27_Risk_Schemas_3.svg)
+```mermaid
+graph TB
+    subgraph "Risk Profile: conservative"
+        ConservativeMap["Map&lt;string, IRiskActivePosition&gt;<br/>_activePositions"]
+        ConservativePos1["'strategy1:BTCUSDT'"]
+        ConservativePos2["'strategy2:ETHUSDT'"]
+        ConservativeMap --> ConservativePos1
+        ConservativeMap --> ConservativePos2
+    end
+    
+    subgraph "Risk Profile: aggressive"
+        AggressiveMap["Map&lt;string, IRiskActivePosition&gt;<br/>_activePositions"]
+        AggressivePos1["'strategy3:BTCUSDT'"]
+        AggressiveMap --> AggressivePos1
+    end
+    
+    RiskConnectionService["RiskConnectionService.getRisk()"]
+    
+    RiskConnectionService -->|"memoize('conservative')"| ConservativeMap
+    RiskConnectionService -->|"memoize('aggressive')"| AggressiveMap
+```
 
 **Diagram: Risk Profile Isolation via Memoization**
 
 Each risk profile gets its own `ClientRisk` instance via memoization in `RiskConnectionService.getRisk()`. The memoization key is the `riskName`, ensuring complete isolation between risk profiles.
 
+**Sources**: [src/lib/services/connection/RiskConnectionService.ts:56-65](), [test/spec/risk.test.mjs:374-437]()
 
 ---
 
@@ -218,6 +373,7 @@ addRisk({
 });
 ```
 
+**Sources**: [src/interfaces/Risk.interface.ts:39-49](), [test/spec/risk.test.mjs:41-93]()
 
 ---
 
@@ -225,7 +381,22 @@ addRisk({
 
 ### Registration via addRisk()
 
-![Mermaid Diagram](./diagrams/27_Risk_Schemas_4.svg)
+```mermaid
+sequenceDiagram
+    participant User
+    participant addRisk
+    participant RiskValidationService
+    participant RiskSchemaService
+    
+    User->>addRisk: addRisk(schema)
+    addRisk->>RiskValidationService: addRisk(riskName, schema)
+    RiskValidationService->>RiskValidationService: Check for duplicate riskName
+    RiskValidationService-->>addRisk: Validation complete
+    addRisk->>RiskSchemaService: register(riskName, schema)
+    RiskSchemaService->>RiskSchemaService: Store in ToolRegistry
+    RiskSchemaService-->>addRisk: Registration complete
+    addRisk-->>User: Risk profile registered
+```
 
 **Diagram: Risk Schema Registration Flow**
 
@@ -267,6 +438,7 @@ addRisk({
 });
 ```
 
+**Sources**: [src/function/add.ts:268-341](), [test/spec/risk.test.mjs:9-18]()
 
 ### Referencing from Strategies
 
@@ -306,6 +478,7 @@ addStrategy({
 
 Multiple strategies can share the same risk profile, enabling cross-strategy position limits.
 
+**Sources**: [src/interfaces/Strategy.interface.ts:613-633](), [test/e2e/risk.test.mjs:1-500]()
 
 ---
 
@@ -315,7 +488,22 @@ Multiple strategies can share the same risk profile, enabling cross-strategy pos
 
 Risk position data is persisted to disk in live mode to enable crash recovery:
 
-![Mermaid Diagram](./diagrams/27_Risk_Schemas_5.svg)
+```mermaid
+flowchart LR
+    ClientRisk["ClientRisk"]
+    UpdatePos["_updatePositions()"]
+    PersistRiskAdapter["PersistRiskAdapter"]
+    FileSystem["risk-{riskName}.json"]
+    
+    ClientRisk -->|"addSignal()"| UpdatePos
+    ClientRisk -->|"removeSignal()"| UpdatePos
+    UpdatePos -->|"writePositionData()"| PersistRiskAdapter
+    PersistRiskAdapter -->|"Atomic write"| FileSystem
+    
+    FileSystem -.->|"On restart"| PersistRiskAdapter
+    PersistRiskAdapter -.->|"readPositionData()"| ClientRisk
+    ClientRisk -.->|"waitForInit()"| ClientRisk
+```
 
 **Diagram: Risk Position Persistence Flow**
 
@@ -357,12 +545,42 @@ type PersistedPositions = Array<[
 
 This format allows direct conversion to/from the internal `Map<string, IRiskActivePosition>` structure.
 
+**Sources**: [src/client/ClientRisk.ts:53-101](), [src/classes/Persist.ts:1-400](), [test/spec/risk.test.mjs:498-841]()
 
 ---
 
 ## Service Architecture
 
-![Mermaid Diagram](./diagrams/27_Risk_Schemas_6.svg)
+```mermaid
+graph TB
+    addRisk["addRisk()<br/>(Public API)"]
+    
+    RiskValidationService["RiskValidationService<br/>addRisk(), validate()"]
+    RiskSchemaService["RiskSchemaService<br/>ToolRegistry storage"]
+    
+    RiskGlobalService["RiskGlobalService<br/>checkSignal(), addSignal(),<br/>removeSignal()"]
+    
+    RiskConnectionService["RiskConnectionService<br/>getRisk() memoization"]
+    
+    ClientRisk["ClientRisk<br/>_activePositions Map<br/>checkSignal() logic"]
+    
+    PersistRiskAdapter["PersistRiskAdapter<br/>Atomic file writes"]
+    
+    addRisk --> RiskValidationService
+    addRisk --> RiskSchemaService
+    
+    RiskGlobalService --> RiskValidationService
+    RiskGlobalService --> RiskConnectionService
+    
+    RiskConnectionService --> RiskSchemaService
+    RiskConnectionService --> ClientRisk
+    
+    ClientRisk --> PersistRiskAdapter
+    
+    style addRisk fill:#e1f5ff
+    style ClientRisk fill:#f0e1ff
+    style PersistRiskAdapter fill:#e1ffe1
+```
 
 **Diagram: Risk Management Service Architecture**
 
@@ -378,6 +596,7 @@ The risk system follows the standard service layer pattern:
 | **Client** | `ClientRisk` | Business logic: position tracking, validation execution |
 | **Persistence** | `PersistRiskAdapter` | Crash-safe file writes for live mode |
 
+**Sources**: [src/function/add.ts:329-341](), [src/lib/services/global/RiskGlobalService.ts:1-117](), [src/lib/services/connection/RiskConnectionService.ts:1-138](), [src/client/ClientRisk.ts:1-221]()
 
 ---
 
@@ -449,4 +668,5 @@ addRisk({
   ]
 });
 ```
-
+
+**Sources**: [test/spec/risk.test.mjs:41-373](), [src/function/add.ts:268-328]()

@@ -1,263 +1,447 @@
----
-title: design/12_context_propagation
-group: design
----
-
 # Context Propagation
 
+<details>
+<summary>Relevant source files</summary>
 
-## Purpose and Scope
+The following files were used as context for generating this wiki page:
 
-Context propagation in backtest-kit enables implicit passing of runtime parameters through the service call stack without explicit function arguments. The system uses two context types: **MethodContext** for schema routing (which strategy/exchange/frame to use) and **ExecutionContext** for runtime state (backtest mode, current date). This eliminates manual parameter threading across dozens of function calls while maintaining type safety.
+- [src/client/ClientStrategy.ts](src/client/ClientStrategy.ts)
+- [src/function/add.ts](src/function/add.ts)
+- [src/interfaces/Strategy.interface.ts](src/interfaces/Strategy.interface.ts)
+- [src/lib/core/provide.ts](src/lib/core/provide.ts)
+- [src/lib/core/types.ts](src/lib/core/types.ts)
+- [src/lib/index.ts](src/lib/index.ts)
+- [types.d.ts](types.d.ts)
 
-For dependency injection mechanics, see [Dependency Injection System](./11_Dependency_Injection_System.md). For how services use context to route to specific implementations, see [Connection Services](./38_Connection_Services.md).
-
----
-
-## Context Types Overview
-
-The framework maintains two distinct context scopes that serve different purposes in the execution pipeline:
-
-| Context Type | Scope | Purpose | Key Properties |
-|-------------|-------|---------|----------------|
-| **MethodContext** | Per-operation | Routes to correct schema instances | `strategyName`, `exchangeName`, `frameName` |
-| **ExecutionContext** | Per-tick | Provides runtime execution state | `date`, `backtestMode`, `symbol` |
+</details>
 
 
----
 
-## MethodContextService: Schema Routing
+This page explains how runtime context (symbol, timestamp, execution mode, component names) is propagated through the system without explicit parameter passing. Context propagation enables operations to access execution parameters implicitly, reducing coupling and simplifying function signatures.
 
-### Architecture
+For information about dependency injection of services, see [3.2](#3.2). For information about how Global services orchestrate operations, see [7.5](#7.5).
 
-`MethodContextService` uses the `di-scoped` library to create ambient context that flows through async operations without explicit parameters. The service contains an `IMethodContext` object with three schema names that determine which registered implementations to use.
+## Overview
 
-![Mermaid Diagram](./diagrams/12_Context_Propagation_0.svg)
+The framework uses two scoped context services to propagate runtime parameters throughout the execution stack:
 
-**Diagram: MethodContextService propagates schema names through async generator execution**
+1. **ExecutionContextService** - Runtime execution parameters (symbol, timestamp, mode)
+2. **MethodContextService** - Component routing parameters (schema names)
 
+Both services leverage the `di-scoped` library to provide implicit context access without passing parameters through every function call. Context is established at operation boundaries (Logic services) and consumed by leaf components (Client classes).
 
----
+**Sources:** [types.d.ts:138-181](), [types.d.ts:401-440]()
 
-### IMethodContext Interface
+## Context Services
 
-The `IMethodContext` interface defines the schema routing parameters:
+### ExecutionContextService
+
+The `ExecutionContextService` provides runtime execution parameters that change on every operation:
+
+| Property | Type | Purpose |
+|----------|------|---------|
+| `symbol` | `string` | Trading pair symbol (e.g., "BTCUSDT") |
+| `when` | `Date` | Current timestamp for the operation |
+| `backtest` | `boolean` | True for backtest mode, false for live mode |
 
 ```typescript
-interface IMethodContext {
-  exchangeName: ExchangeName;  // Which exchange schema to use
-  strategyName: StrategyName;  // Which strategy schema to use
-  frameName: FrameName;        // Which frame schema to use (empty for live)
+interface IExecutionContext {
+    symbol: string;
+    when: Date;
+    backtest: boolean;
 }
 ```
 
-Each property corresponds to a schema registered via `addStrategy()`, `addExchange()`, or `addFrame()`. Connection services retrieve this context to determine which cached client instance to return.
+This context determines which data to fetch (symbol), what time to query (when), and whether to use persistence (backtest flag).
 
+**Sources:** [types.d.ts:138-150](), [types.d.ts:170-181]()
 
----
+### MethodContextService
 
-### Context Propagation Flow
+The `MethodContextService` provides component routing parameters that determine which registered schemas to use:
 
-The following sequence shows how context flows from public API to connection services:
+| Property | Type | Purpose |
+|----------|------|---------|
+| `strategyName` | `StrategyName` | Which strategy schema to execute |
+| `exchangeName` | `ExchangeName` | Which exchange schema to use for data |
+| `frameName` | `FrameName` | Which frame schema to use (empty for live) |
 
-![Mermaid Diagram](./diagrams/12_Context_Propagation_1.svg)
-
-**Diagram: Context propagation through service layers using di-scoped ambient context**
-
-
----
-
-## ExecutionContextService: Runtime State
-
-### Purpose
-
-`ExecutionContextService` provides execution-specific state such as the current timestamp (for backtest simulation or live trading) and the execution mode (backtest vs. live). Unlike `MethodContext`, which remains constant for an entire run, `ExecutionContext` can change per tick.
-
-### Context Properties
-
-| Property | Type | Purpose | Set By |
-|----------|------|---------|--------|
-| `date` | `Date` | Current execution timestamp | `BacktestLogicPrivateService` or `LiveLogicPrivateService` |
-| `backtestMode` | `boolean` | Whether running in backtest mode | Logic services |
-| `symbol` | `string` | Current trading pair | Logic services |
-
-
----
-
-### Usage in Logic Services
-
-The private logic services set execution context before each tick operation:
-
-**Backtest Mode:**
 ```typescript
-// BacktestLogicPrivateService iterates through historical timeframes
-const when = timeframes[i];  // Historical timestamp
-const result = await this.strategyGlobalService.tick(symbol, when, true);
+interface IMethodContext {
+    exchangeName: ExchangeName;
+    strategyName: StrategyName;
+    frameName: FrameName;
+}
 ```
 
-**Live Mode:**
-```typescript
-// LiveLogicPrivateService uses real-time dates
-const when = new Date();  // Current timestamp
-const result = await this.strategyGlobalService.tick(symbol, when, false);
+This context routes operations to the correct registered components via ConnectionServices.
+
+**Sources:** [types.d.ts:401-413](), [types.d.ts:434-440]()
+
+## Context Scope Mechanism
+
+### di-scoped Integration
+
+Both context services extend the `di-scoped` library's scoped class pattern, providing two key methods:
+
+1. **`runInContext(callback, context)`** - Executes synchronous or async callback with context
+2. **`runAsyncIterator(generator, context)`** - Wraps async generator with context
+
+The context is stored in async local storage, making it accessible to all code within the callback/generator without explicit passing.
+
+```mermaid
+graph LR
+    Caller["Caller Code"] -->|"runInContext(callback, context)"| Scope["Scoped Context"]
+    Scope -->|"Executes"| Callback["callback()"]
+    Callback -->|"Accesses"| Instance["service.context"]
+    Instance -->|"Returns"| Context["{ symbol, when, backtest }"]
 ```
 
-Global services inject this context into client instances, allowing functions like `getCandles()` to fetch data for the correct timestamp without receiving explicit date parameters.
+**Diagram: di-scoped Context Establishment**
 
+**Sources:** [types.d.ts:159-176]()
 
----
+### Context Registration
 
-## Context Propagation in Async Generators
-
-### Challenge
-
-JavaScript async generators introduce complexity for context propagation because each `yield` pauses execution and resumes later. Standard dependency injection would lose context across these boundaries.
-
-### Solution: runAsyncIterator
-
-The `MethodContextService.runAsyncIterator()` method wraps async generators to maintain context across yields:
-
-![Mermaid Diagram](./diagrams/12_Context_Propagation_2.svg)
-
-**Diagram: runAsyncIterator maintains context across async generator yields**
-
-
----
-
-### Implementation Pattern
-
-Both public logic services follow the same pattern:
+The context services are registered in the dependency injection container as singleton services:
 
 ```typescript
-public run = (symbol: string, context: { strategyName, exchangeName, frameName }) => {
-  return MethodContextService.runAsyncIterator(
-    this.privateLogicService.run(symbol),  // Async generator
-    {
-      exchangeName: context.exchangeName,
-      strategyName: context.strategyName,
-      frameName: context.frameName,
-    }
-  );
-};
+// Service registration
+provide(TYPES.executionContextService, () => new ExecutionContextService());
+provide(TYPES.methodContextService, () => new MethodContextService());
+
+// Service injection
+inject<TExecutionContextService>(TYPES.executionContextService);
+inject<TMethodContextService>(TYPES.methodContextService);
 ```
 
-The `runAsyncIterator` method:
-1. Captures the provided context object
-2. Wraps the async generator
-3. Re-injects context on each iteration
-4. Returns a new async generator with transparent context propagation
+**Sources:** [src/lib/core/provide.ts:57-58](), [src/lib/index.ts:62-67](), [src/lib/core/types.ts:6-7]()
 
+## Context Flow Architecture
 
----
+### Layer-by-Layer Propagation
 
-## Service Context Consumption
+Context flows through the architecture layers in a cascade pattern:
 
-### Connection Services Pattern
+```mermaid
+graph TB
+    Logic["Logic Services<br/>(BacktestLogicPrivateService,<br/>LiveLogicPrivateService)"]
+    Global["Global Services<br/>(StrategyGlobalService,<br/>ExchangeGlobalService)"]
+    Connection["Connection Services<br/>(StrategyConnectionService,<br/>ExchangeConnectionService)"]
+    Client["Client Classes<br/>(ClientStrategy,<br/>ClientExchange)"]
+    
+    Logic -->|"1. runInContext()<br/>runAsyncIterator()"| Global
+    Global -->|"2. Accesses context<br/>via dependency injection"| Connection
+    Connection -->|"3. Passes context<br/>to constructor"| Client
+    Client -->|"4. Reads context properties<br/>(symbol, when, backtest)"| Operations["Operations<br/>(getCandles, tick, etc)"]
+    
+    style Logic fill:#f9f9f9
+    style Global fill:#f9f9f9
+    style Connection fill:#f9f9f9
+    style Client fill:#f9f9f9
+```
 
-Connection services are the primary consumers of `MethodContext`. They use the context to determine which cached client instance to return:
+**Diagram: Context Propagation Through Layers**
 
-![Mermaid Diagram](./diagrams/12_Context_Propagation_3.svg)
+**Sources:** [src/client/ClientStrategy.ts:270-286](), [src/client/ClientStrategy.ts:423-426]()
 
-**Diagram: Connection services consume MethodContext to route to correct client instances**
+### Establishing Context
 
+Logic services establish context at the beginning of operations:
 
----
+1. **BacktestLogicPrivateService** - Sets context for each timeframe iteration
+2. **LiveLogicPrivateService** - Sets context on each tick with current timestamp
+3. **WalkerLogicPrivateService** - Sets context for each strategy iteration
 
-### Context-Free Client Layer
+The context wraps the entire operation, ensuring all downstream code has access.
 
-A key architectural principle: **client classes never access context services**. This keeps business logic pure and testable:
-
-| Layer | Context Access | Reason |
-|-------|---------------|---------|
-| **Public Logic Services** | Sets context via `runAsyncIterator()` | Provides user-facing API with explicit parameters |
-| **Private Logic Services** | No context access | Pure orchestration logic |
-| **Global Services** | Injects `ExecutionContext` | Bridges context to clients |
-| **Connection Services** | Reads `MethodContext` | Routes to correct schema |
-| **Client Classes** | **No context access** | Pure business logic, fully testable |
-
-This separation enables unit testing clients without mocking the DI system.
-
-
----
-
-## Implementation Details
-
-### di-scoped Library
-
-The framework uses the `di-scoped` library for ambient context management. The `scoped()` function creates context-aware service classes:
+**Example Context Establishment (Conceptual):**
 
 ```typescript
-export const MethodContextService = scoped(
-  class {
-    constructor(readonly context: IMethodContext) {}
-  }
+// BacktestLogicPrivateService establishes ExecutionContext
+ExecutionContextService.runInContext(
+  async () => {
+    // All code here can access context
+    await strategyGlobalService.tick(symbol, strategyName);
+  },
+  { symbol: "BTCUSDT", when: timeframe, backtest: true }
+);
+
+// Also establishes MethodContext
+MethodContextService.runAsyncIterator(
+  backtestGenerator,
+  { strategyName, exchangeName, frameName }
 );
 ```
 
-Key features:
-- **Static methods**: `MethodContextService.run()`, `MethodContextService.runAsyncIterator()`
-- **Instance retrieval**: `MethodContextService.get()` returns current instance
-- **Type safety**: `TMethodContextService` type helper for injection
+**Sources:** [types.d.ts:159-168](), [types.d.ts:422-432]()
 
+## Context Injection Points
 
----
+### Global Services as Wrappers
 
-### Context Lifecycle
+Global services inject context into operations by accessing the context services via dependency injection and calling operations within the context scope:
 
-![Mermaid Diagram](./diagrams/12_Context_Propagation_4.svg)
+```mermaid
+graph TB
+    subgraph "StrategyGlobalService"
+        SG_Inject["Injected:<br/>ExecutionContextService<br/>MethodContextService"]
+        SG_Context["Read context properties"]
+        SG_Call["Call ConnectionService"]
+    end
+    
+    subgraph "StrategyConnectionService"
+        SC_Get["getStrategy()<br/>uses MethodContext"]
+        SC_Instance["Returns<br/>ClientStrategy instance"]
+    end
+    
+    subgraph "ClientStrategy"
+        CS_Params["Constructor receives:<br/>execution: ExecutionContextService<br/>method: MethodContextService"]
+        CS_Access["Accesses context:<br/>execution.context.symbol<br/>execution.context.when<br/>method.context.strategyName"]
+    end
+    
+    SG_Inject --> SG_Context
+    SG_Context --> SG_Call
+    SG_Call --> SC_Get
+    SC_Get --> SC_Instance
+    SC_Instance --> CS_Params
+    CS_Params --> CS_Access
+```
 
-**Diagram: Context lifecycle from creation through generator completion**
+**Diagram: Context Injection Through Global Services**
 
+**Sources:** [src/interfaces/Strategy.interface.ts:79-94](), [src/client/ClientStrategy.ts:270](), [src/client/ClientStrategy.ts:423-426]()
 
----
+### Constructor Parameters
 
-## Service Registration and Context
+Client classes receive context services through their constructor parameters:
 
-The DI system registers context services as singletons but their scoped instances vary per operation:
+| Client Class | Context Parameters |
+|--------------|-------------------|
+| `ClientStrategy` | `execution: TExecutionContextService`<br/>`method: TMethodContextService` |
+| `ClientExchange` | `execution: TExecutionContextService` |
+| `ClientFrame` | (No context - uses parameters directly) |
+| `ClientRisk` | (No context - uses parameters directly) |
 
-| Service | Registration Type | Instance Scope | Purpose |
-|---------|------------------|----------------|---------|
-| `ExecutionContextService` | Singleton | Global | Stores current execution state |
-| `MethodContextService` | Scoped constructor | Per-operation | Provides schema routing |
+The `IStrategyParams` interface defines the complete parameter structure:
 
+```typescript
+interface IStrategyParams extends IStrategySchema {
+  symbol: string;
+  partial: IPartial;
+  logger: ILogger;
+  exchange: IExchange;
+  risk: IRisk;
+  execution: TExecutionContextService;  // ExecutionContext
+  method: TMethodContextService;        // MethodContext
+}
+```
 
----
+**Sources:** [src/interfaces/Strategy.interface.ts:79-94](), [types.d.ts:206-214]()
 
-## Context in Logic Flow
+## Context Consumption
 
-The complete flow showing both context types in action:
+### Accessing Context Properties
 
-![Mermaid Diagram](./diagrams/12_Context_Propagation_5.svg)
+Client classes access context through the injected services:
 
-**Diagram: Interaction between MethodContext and ExecutionContext during execution**
+**ExecutionContext Access Pattern:**
 
+```typescript
+// In ClientStrategy methods
+const symbol = this.params.execution.context.symbol;
+const when = this.params.execution.context.when;
+const backtest = this.params.execution.context.backtest;
+const currentTime = this.params.execution.context.when.getTime();
+```
 
----
+**MethodContext Access Pattern:**
 
-## Benefits and Trade-offs
+```typescript
+// In ClientStrategy methods
+const strategyName = this.params.method.context.strategyName;
+const exchangeName = this.params.method.context.exchangeName;
+const frameName = this.params.method.context.frameName;
+```
 
-### Benefits
+**Sources:** [src/client/ClientStrategy.ts:270](), [src/client/ClientStrategy.ts:286-287](), [src/client/ClientStrategy.ts:292-293](), [src/client/ClientStrategy.ts:334-335]()
 
-1. **Reduced Parameter Pollution**: Functions don't need 3-5 extra parameters threaded through every call
-2. **Type Safety**: `MethodContextService.get()` returns typed context with IDE autocomplete
-3. **Async-Safe**: Works correctly with async generators and Promises
-4. **Testability**: Client layer remains pure without DI dependencies
-5. **Flexibility**: Context can be changed per-operation without modifying signatures
+### Context Usage Examples
 
-### Trade-offs
+The following table shows common context usage patterns in ClientStrategy:
 
-1. **Implicit Dependencies**: Context access is not visible in function signatures
-2. **Debugging Complexity**: Stack traces don't show context propagation
-3. **Learning Curve**: Developers must understand ambient context patterns
-4. **Runtime Dependency**: Requires `di-scoped` library for scoped context
+| Operation | Context Property | Usage |
+|-----------|------------------|-------|
+| Signal generation throttling | `execution.context.when.getTime()` | Check elapsed time since last signal |
+| VWAP calculation | `execution.context.symbol` | Fetch candles for the correct symbol |
+| Risk validation | `execution.context.symbol`<br/>`method.context.strategyName`<br/>`method.context.exchangeName` | Route risk check to correct risk instance |
+| Persistence | `execution.context.backtest`<br/>`execution.context.symbol`<br/>`method.context.strategyName` | Skip persistence in backtest mode, use symbol+strategy for file path |
+| Signal metadata | `method.context.exchangeName`<br/>`method.context.strategyName` | Populate signal row fields |
+| Callbacks | `execution.context.symbol`<br/>`execution.context.backtest` | Pass context to user callbacks |
 
+**Sources:** [src/client/ClientStrategy.ts:270-284](), [src/client/ClientStrategy.ts:285-309](), [src/client/ClientStrategy.ts:332-337](), [src/client/ClientStrategy.ts:423-426]()
 
----
+## Context Lifecycle
 
-## Related Patterns
+### Context Boundaries
 
-For information about:
-- Service instantiation and caching: See [Connection Services](./38_Connection_Services.md)
-- Schema registration: See [Schema Services](./39_Schema_Services.md)
-- DI container configuration: See [Dependency Injection System](./11_Dependency_Injection_System.md)
-- How global services inject context into clients: See [Global Services](./41_Global_Services.md)
+Context is established and torn down at specific architectural boundaries:
+
+```mermaid
+sequenceDiagram
+    participant Logic as "BacktestLogicPrivateService"
+    participant ExecCtx as "ExecutionContextService"
+    participant MethCtx as "MethodContextService"
+    participant Global as "StrategyGlobalService"
+    participant Client as "ClientStrategy"
+    
+    Logic->>ExecCtx: "runInContext({ symbol, when, backtest })"
+    activate ExecCtx
+    
+    Logic->>MethCtx: "runAsyncIterator({ strategyName, exchangeName, frameName })"
+    activate MethCtx
+    
+    ExecCtx->>Global: "Context available in async local storage"
+    MethCtx->>Global: "Context available in async local storage"
+    
+    Global->>Client: "tick(symbol, strategyName)"
+    Note over Client: "Accesses context via:<br/>this.params.execution.context<br/>this.params.method.context"
+    
+    Client-->>Global: "Returns IStrategyTickResult"
+    Global-->>Logic: "Result propagated"
+    
+    deactivate MethCtx
+    deactivate ExecCtx
+    Note over ExecCtx,MethCtx: "Context destroyed after operation"
+```
+
+**Diagram: Context Lifecycle in Single Operation**
+
+**Sources:** [types.d.ts:159-168](), [types.d.ts:422-432]()
+
+### Multiple Context Scopes
+
+The framework supports nested context scopes:
+
+1. **Outer Scope (MethodContext)** - Set once per operation mode (backtest/live/walker)
+   - Remains constant throughout the entire execution
+   - Determines which strategy/exchange/frame schemas to use
+
+2. **Inner Scope (ExecutionContext)** - Set for each operation (tick, backtest)
+   - Changes with each timeframe iteration or live tick
+   - Updates `when` timestamp and potentially `symbol`
+
+This nesting allows logic services to maintain stable routing while updating temporal parameters.
+
+**Sources:** [types.d.ts:422-432]()
+
+## Code Entity Mapping
+
+### Context Service to Code Entities
+
+```mermaid
+graph TB
+    subgraph "Context Services (Singleton)"
+        EC["ExecutionContextService<br/>TYPES.executionContextService"]
+        MC["MethodContextService<br/>TYPES.methodContextService"]
+    end
+    
+    subgraph "Interface Definitions"
+        IEC["IExecutionContext<br/>(symbol, when, backtest)"]
+        IMC["IMethodContext<br/>(strategyName, exchangeName, frameName)"]
+    end
+    
+    subgraph "Type Aliases"
+        TEC["TExecutionContextService"]
+        TMC["TMethodContextService"]
+    end
+    
+    subgraph "Client Params Interfaces"
+        ISP["IStrategyParams<br/>.execution<br/>.method"]
+        IEP["IExchangeParams<br/>.execution"]
+    end
+    
+    subgraph "Injected Into"
+        CS["ClientStrategy<br/>src/client/ClientStrategy.ts"]
+        CE["ClientExchange<br/>src/client/ClientExchange.ts"]
+    end
+    
+    EC --> IEC
+    MC --> IMC
+    
+    EC --> TEC
+    MC --> TMC
+    
+    TEC --> ISP
+    TMC --> ISP
+    TEC --> IEP
+    
+    ISP --> CS
+    IEP --> CE
+    
+    style EC fill:#f9f9f9
+    style MC fill:#f9f9f9
+```
+
+**Diagram: Context Service Code Entity Relationships**
+
+**Sources:** [types.d.ts:138-181](), [types.d.ts:401-440](), [src/interfaces/Strategy.interface.ts:79-94](), [types.d.ts:206-214]()
+
+### Context Access Points in ClientStrategy
+
+The following diagram maps natural language concepts to actual code access patterns in `ClientStrategy`:
+
+```mermaid
+graph LR
+    subgraph "Natural Language Concepts"
+        NL_Symbol["Trading Symbol"]
+        NL_Time["Current Time"]
+        NL_Mode["Execution Mode"]
+        NL_StratName["Strategy Name"]
+        NL_ExchName["Exchange Name"]
+    end
+    
+    subgraph "Code Access Patterns"
+        CA_Symbol["this.params.execution<br/>.context.symbol"]
+        CA_Time["this.params.execution<br/>.context.when.getTime()"]
+        CA_Mode["this.params.execution<br/>.context.backtest"]
+        CA_StratName["this.params.method<br/>.context.strategyName"]
+        CA_ExchName["this.params.method<br/>.context.exchangeName"]
+    end
+    
+    subgraph "Usage Examples"
+        UE_Symbol["await exchange.getCandles(<br/>this.params.execution.context.symbol,<br/>...)"]
+        UE_Time["const currentTime = <br/>this.params.execution.context.when.getTime()"]
+        UE_Mode["if (this.params.execution.context.backtest) {<br/>  // skip persistence<br/>}"]
+        UE_StratName["strategyName: <br/>this.params.method.context.strategyName"]
+        UE_ExchName["exchangeName: <br/>this.params.method.context.exchangeName"]
+    end
+    
+    NL_Symbol --> CA_Symbol --> UE_Symbol
+    NL_Time --> CA_Time --> UE_Time
+    NL_Mode --> CA_Mode --> UE_Mode
+    NL_StratName --> CA_StratName --> UE_StratName
+    NL_ExchName --> CA_ExchName --> UE_ExchName
+```
+
+**Diagram: Context Access in ClientStrategy (Natural Language to Code)**
+
+**Sources:** [src/client/ClientStrategy.ts:270](), [src/client/ClientStrategy.ts:285-287](), [src/client/ClientStrategy.ts:292-293](), [src/client/ClientStrategy.ts:332-337](), [src/client/ClientStrategy.ts:411-442]()
+
+## Benefits and Tradeoffs
+
+### Benefits of Context Propagation
+
+1. **Reduced Parameter Passing** - Operations don't need to pass symbol/timestamp through every function call
+2. **Simplified Function Signatures** - Client methods like `tick()` take minimal parameters
+3. **Centralized Context Management** - Logic services control when and how context is established
+4. **Type Safety** - TypeScript interfaces ensure correct context structure
+5. **Testability** - Context can be mocked by wrapping test code in `runInContext()`
+
+### Tradeoffs
+
+1. **Implicit Dependencies** - Code depends on context being established by caller
+2. **Debugging Complexity** - Context access failures may be unclear without understanding scoping
+3. **Library Dependency** - Requires `di-scoped` for async local storage implementation
+
+**Sources:** [types.d.ts:138-181](), [types.d.ts:401-440]()

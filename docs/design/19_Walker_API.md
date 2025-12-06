@@ -1,28 +1,50 @@
----
-title: design/19_walker_api
-group: design
----
-
 # Walker API
+
+<details>
+<summary>Relevant source files</summary>
+
+The following files were used as context for generating this wiki page:
+
+- [docs/classes/BacktestCommandService.md](docs/classes/BacktestCommandService.md)
+- [docs/classes/BacktestUtils.md](docs/classes/BacktestUtils.md)
+- [docs/classes/LiveCommandService.md](docs/classes/LiveCommandService.md)
+- [docs/classes/LiveUtils.md](docs/classes/LiveUtils.md)
+- [docs/index.md](docs/index.md)
+- [src/client/ClientExchange.ts](src/client/ClientExchange.ts)
+- [src/lib/services/logic/private/BacktestLogicPrivateService.ts](src/lib/services/logic/private/BacktestLogicPrivateService.ts)
+- [src/lib/services/logic/private/LiveLogicPrivateService.ts](src/lib/services/logic/private/LiveLogicPrivateService.ts)
+- [src/lib/services/logic/private/WalkerLogicPrivateService.ts](src/lib/services/logic/private/WalkerLogicPrivateService.ts)
+
+</details>
+
 
 
 This page documents the Walker API for multi-strategy comparison. Walker orchestrates multiple backtest runs across different strategies and ranks them by performance metrics.
 
-For information about running individual backtests, see [Backtest API](./17_Backtest_API.md). For information about walker schemas and registration, see [Walker Schemas](./29_Walker_Schemas.md).
+For information about running individual backtests, see [Backtest API](#4.3). For information about walker schemas and registration, see [Walker Schemas](#5.6).
 
 ---
 
 ## Overview
 
-The Walker API provides functionality to compare multiple trading strategies in parallel by running backtests for each strategy and ranking them by a selected metric (e.g., Sharpe Ratio, win rate, total PNL). Walker is implemented as a singleton utility class that wraps `WalkerGlobalService` with simplified method signatures.
+The Walker API provides functionality to compare multiple trading strategies by running backtests sequentially for each strategy and ranking them by a configurable performance metric. Walker is implemented as the `WalkerUtils` singleton class that delegates to `WalkerCommandService`, which orchestrates validation and execution through the service layer.
+
+**Architecture:**
+- `WalkerUtils` - Public API singleton exported as `Walker` [src/classes/Walker.ts:1-274]()
+- `WalkerCommandService` - Validation and delegation [src/lib/services/command/WalkerCommandService.ts]()
+- `WalkerLogicPublicService` - Context propagation wrapper
+- `WalkerLogicPrivateService` - Core strategy iteration loop [src/lib/services/logic/private/WalkerLogicPrivateService.ts:31-254]()
+- `BacktestLogicPublicService` - Individual backtest execution
+- `WalkerMarkdownService` - Result aggregation and reporting
 
 **Key Capabilities:**
-- Run multiple strategy backtests sequentially for comparison
-- Rank strategies by configurable metrics (sharpeRatio, winRate, avgPnl, totalPnl, certaintyRatio)
-- Emit progress events after each strategy completes
-- Generate comparison reports with performance metrics for all strategies
-- Support both manual iteration and background execution modes
+- Sequential backtest execution for multiple strategies (not parallel)
+- Automatic ranking by metric: `sharpeRatio`, `winRate`, `avgPnl`, `totalPnl`, `certaintyRatio`
+- Progress event emission after each strategy completion via `walkerEmitter`
+- Comparative performance report generation with unified statistics
+- AsyncGenerator streaming for manual iteration or background execution
 
+Sources: [src/classes/Walker.ts:1-274](), [src/lib/services/logic/private/WalkerLogicPrivateService.ts:31-254]()
 
 ---
 
@@ -32,7 +54,7 @@ The `Walker` singleton provides five main methods for strategy comparison operat
 
 ### Walker.run()
 
-Runs walker comparison for a symbol with async generator iteration. Yields progress updates after each strategy completes.
+Runs walker comparison for a symbol, yielding `WalkerContract` progress updates after each strategy completes.
 
 **Signature:**
 ```typescript
@@ -48,34 +70,51 @@ Walker.run(
 - `symbol` - Trading pair symbol (e.g., "BTCUSDT")
 - `context.walkerName` - Walker schema name registered via `addWalker()`
 
-**Returns:** Async generator yielding progress updates after each strategy completion
+**Returns:** AsyncGenerator yielding `WalkerContract` after each strategy backtest completes
 
-**Behavior:**
-1. Validates walker schema exists
-2. Validates exchange and frame schemas exist
-3. Validates all strategy schemas in walker.strategies array
-4. Clears previous walker markdown data
-5. Clears backtest data for all strategies
-6. Delegates to `WalkerGlobalService.run()` which calls `WalkerLogicPublicService.run()`
+**Execution Flow:**
+1. **Schema Validation** [src/classes/Walker.ts:50-59]():
+   - `walkerValidationService.validate(walkerName)` - Walker schema exists
+   - `exchangeValidationService.validate(exchangeName)` - Exchange schema exists
+   - `frameValidationService.validate(frameName)` - Frame schema exists
+   - `strategyValidationService.validate(strategyName)` - All strategies exist
 
-**Progress Event Structure:**
+2. **Data Clearing** [src/classes/Walker.ts:61-79]():
+   - `walkerMarkdownService.clear(walkerName)` - Clear previous walker results
+   - `backtestMarkdownService.clear(strategyName)` - Clear each strategy's backtest data
+   - `scheduleMarkdownService.clear(strategyName)` - Clear scheduled signal data
+   - `riskGlobalService.clear(riskName)` - Clear risk tracking state
+
+3. **Execution Delegation** [src/classes/Walker.ts:81-86]():
+   - Calls `walkerCommandService.run(symbol, context)` 
+   - Streams `WalkerContract` events as they are emitted
+   - Each iteration contains current strategy results and running best
+
+**WalkerContract Structure:**
 ```typescript
 interface WalkerContract {
-  strategiesTested: number;
-  totalStrategies: number;
-  bestStrategy: string;
-  bestMetric: number;
-  strategyName: string;
-  metricValue: number;
+  walkerName: string;
+  exchangeName: string;
+  frameName: string;
+  symbol: string;
+  strategyName: string;           // Current strategy being reported
+  stats: BacktestStatistics;      // Full backtest stats for current strategy
+  metricValue: number | null;     // Extracted metric value for current strategy
+  metric: WalkerMetric;           // Metric used for comparison
+  bestMetric: number | null;      // Best metric value so far
+  bestStrategy: string | null;    // Best strategy name so far
+  strategiesTested: number;       // Number completed
+  totalStrategies: number;        // Total to test
 }
 ```
 
+Sources: [src/classes/Walker.ts:39-87](), [src/lib/services/logic/private/WalkerLogicPrivateService.ts:70-228]()
 
 ---
 
 ### Walker.background()
 
-Runs walker comparison in background without yielding results. Consumes all progress updates internally. Returns cancellation function.
+Runs walker comparison in background, consuming all `WalkerContract` events internally. Returns cancellation function.
 
 **Signature:**
 ```typescript
@@ -91,60 +130,98 @@ Walker.background(
 - `symbol` - Trading pair symbol (e.g., "BTCUSDT")
 - `context.walkerName` - Walker schema name
 
-**Returns:** Cancellation function that stops all strategy backtests
+**Returns:** Cancellation function to stop execution
 
-**Behavior:**
-1. Runs walker comparison using `Walker.run()`
-2. Consumes all progress events internally
-3. Emits to `doneWalkerSubject` when all strategies complete
-4. Catches and emits errors to `errorEmitter`
-5. Returns closure that stops all running strategies when called
+**Implementation Details** [src/classes/Walker.ts:108-144]():
 
+1. **Async Generator Consumption:**
+   - Calls `Walker.run(symbol, context)` to get AsyncGenerator
+   - Iterates through all `WalkerContract` events with `for await`
+   - Discards each progress update (no yielding to caller)
+
+2. **Completion Handling:**
+   - Emits to `doneWalkerSubject.next()` when iteration completes
+   - `DoneContract` structure: `{ exchangeName, strategyName, backtest: true, symbol }`
+
+3. **Error Handling:**
+   - Catches all errors in try-catch block
+   - Emits to `errorEmitter.next(error)` for recoverable errors
+   - Does not throw (silently handles failures)
+
+4. **Cancellation:**
+   - Returns `() => void` function stored in closure
+   - Calling cancellation function breaks the `for await` loop
+   - Stops backtest execution for remaining strategies
+
+**Cancellation Mechanism:**
+- Uses `walkerStopSubject.next()` to signal stop [src/lib/services/logic/private/WalkerLogicPrivateService.ts:96-104]()
+- `WalkerLogicPrivateService` listens to stop signal with filter on symbol + strategyName
+- Breaks iteration loop when `CANCEL_SYMBOL` is received
+
+Sources: [src/classes/Walker.ts:108-144](), [src/lib/services/logic/private/WalkerLogicPrivateService.ts:96-156]()
 
 ---
 
 ### Walker.getData()
 
-Gets walker results data with all strategy comparison metrics.
+Retrieves aggregated walker results with all strategy comparisons and best strategy selection.
 
 **Signature:**
 ```typescript
 Walker.getData(
   symbol: string,
   walkerName: WalkerName
-): Promise<IWalkerResults>
+): Promise<WalkerStatistics>
 ```
 
 **Parameters:**
 - `symbol` - Trading symbol used in comparison
 - `walkerName` - Walker schema name
 
-**Returns:** Promise resolving to walker results data structure
+**Returns:** Promise resolving to `WalkerStatistics` with complete comparison data
 
-**Result Structure:**
-```typescript
-interface IWalkerResults {
-  bestStrategy: string;
-  bestMetric: number;
-  strategies: Array<{
-    strategyName: string;
-    stats: BacktestStatistics;
-    metric: number;
-  }>;
-}
-```
+**Implementation** [src/classes/Walker.ts:159-179]():
 
-**Behavior:**
-1. Retrieves walker schema to get configured metric
-2. Delegates to `WalkerMarkdownService.getData()` with symbol, walkerName, metric, and context
-3. Returns aggregated results with all strategies sorted by metric
+1. **Schema Retrieval:**
+   - Calls `walkerSchemaService.get(walkerName)` to get walker configuration
+   - Extracts `exchangeName`, `frameName`, `metric` from schema
 
+2. **Data Retrieval:**
+   - Delegates to `walkerMarkdownService.getData(symbol, walkerName, metric, context)`
+   - Context contains: `{ walkerName, exchangeName, frameName }`
+
+3. **Result Structure:**
+   ```typescript
+   interface WalkerStatistics {
+     walkerName: string;
+     symbol: string;
+     exchangeName: string;
+     frameName: string;
+     metric: WalkerMetric;
+     totalStrategies: number;
+     bestStrategy: string | null;
+     bestMetric: number | null;
+     bestStats: BacktestStatistics | null;  // Full stats for best strategy
+     results: Array<{
+       strategyName: string;
+       stats: BacktestStatistics;          // Complete backtest statistics
+       metricValue: number | null;          // Extracted metric for comparison
+     }>;
+   }
+   ```
+
+**Data Source:**
+- `WalkerMarkdownService` accumulates events from `walkerEmitter`
+- Each emitted `WalkerContract` is stored in internal array
+- `getData()` processes array to compute best strategy and aggregate results
+
+Sources: [src/classes/Walker.ts:159-179](), [src/lib/services/markdown/WalkerMarkdownService.ts]()
 
 ---
 
 ### Walker.getReport()
 
-Generates markdown report with all strategy comparisons.
+Generates markdown formatted report with comparative strategy analysis.
 
 **Signature:**
 ```typescript
@@ -158,20 +235,54 @@ Walker.getReport(
 - `symbol` - Trading symbol
 - `walkerName` - Walker schema name
 
-**Returns:** Promise resolving to markdown formatted report string
+**Returns:** Promise resolving to markdown string with complete comparison report
 
-**Report Format:**
-- Title with walker name and symbol
-- Summary with best strategy and metric value
-- Comparison table with all strategies and their metrics
-- Individual strategy statistics (win rate, PNL, Sharpe Ratio, etc.)
+**Implementation** [src/classes/Walker.ts:194-214]():
 
+1. **Schema Retrieval:**
+   - Gets `exchangeName`, `frameName`, `metric` from `walkerSchemaService.get(walkerName)`
+
+2. **Report Generation:**
+   - Delegates to `walkerMarkdownService.getReport(symbol, walkerName, metric, context)`
+   - Context: `{ walkerName, exchangeName, frameName }`
+
+**Report Structure:**
+```markdown
+# Walker Results: {walkerName} ({symbol})
+
+## Summary
+- **Best Strategy:** {bestStrategy}
+- **Best {metric}:** {bestMetric}
+- **Total Strategies Tested:** {totalStrategies}
+
+## Strategy Comparison
+
+| Strategy | Metric Value | Win Rate | Total PNL | Sharpe Ratio |
+|----------|--------------|----------|-----------|--------------|
+| ...      | ...          | ...      | ...       | ...          |
+
+## Individual Strategy Details
+
+### {strategyName}
+- Win Rate: {winRate}%
+- Total Signals: {totalSignals}
+- Average PNL: {avgPnl}%
+- Sharpe Ratio: {sharpeRatio}
+...
+```
+
+**Markdown Generation:**
+- Uses `WalkerMarkdownService.getReport()` to format accumulated data
+- Includes comparison table sorted by metric value (descending)
+- Detailed statistics for each strategy from `BacktestStatistics`
+
+Sources: [src/classes/Walker.ts:194-214](), [src/lib/services/markdown/WalkerMarkdownService.ts]()
 
 ---
 
 ### Walker.dump()
 
-Saves walker report to disk as markdown file.
+Saves walker report to disk as markdown file with automatic directory creation.
 
 **Signature:**
 ```typescript
@@ -185,31 +296,118 @@ Walker.dump(
 **Parameters:**
 - `symbol` - Trading symbol
 - `walkerName` - Walker schema name
-- `path` - Optional directory path (default: "./logs/walker")
+- `path` - Optional directory path (default: `"./logs/walker"`)
 
-**Behavior:**
-1. Generates markdown report via `Walker.getReport()`
-2. Creates directory if it doesn't exist
-3. Writes report to `{path}/{walkerName}.md`
-4. Logs success message or error
+**Implementation** [src/classes/Walker.ts:232-255]():
 
+1. **Schema Retrieval:**
+   - Gets `exchangeName`, `frameName`, `metric` from walker schema
+
+2. **Report Generation:**
+   - Delegates to `walkerMarkdownService.dump(symbol, walkerName, metric, context, path)`
+   - Uses default path `"./logs/walker"` if not specified
+
+3. **File System Operations:**
+   - Creates directory with `mkdirSync(path, { recursive: true })`
+   - Writes to `{path}/{walkerName}.md`
+   - Uses `writeFileSync()` for synchronous write
+
+4. **Logging:**
+   - Success: `console.log("Walker report dumped to: {filePath}")`
+   - Error: `console.error("Failed to dump walker report:", error)`
+
+**File Naming:**
+- Filename is always `{walkerName}.md`
+- Example: `Walker.dump("BTCUSDT", "btc-optimizer")` creates `./logs/walker/btc-optimizer.md`
+
+Sources: [src/classes/Walker.ts:232-255](), [src/lib/services/markdown/WalkerMarkdownService.ts]()
 
 ---
 
 ## Walker Execution Flow
 
-The following diagram shows how Walker orchestrates multiple backtest runs and aggregates results.
+The following diagram shows the complete execution path from `Walker.run()` through the service layer to backtest orchestration.
 
-![Mermaid Diagram](./diagrams/19_Walker_API_0.svg)
+```mermaid
+graph TB
+    User["User Code:<br/>Walker.run(symbol, context)"]
+    WalkerUtils["WalkerUtils.run()<br/>[Walker.ts:39-87]"]
+    
+    subgraph "Validation Phase"
+        ValidateWalker["walkerValidationService.validate()<br/>Check walker schema exists"]
+        ValidateExchange["exchangeValidationService.validate()<br/>Check exchange schema exists"]
+        ValidateFrame["frameValidationService.validate()<br/>Check frame schema exists"]
+        ValidateStrategies["strategyValidationService.validate()<br/>Check all strategy schemas exist"]
+    end
+    
+    subgraph "Cleanup Phase"
+        GetSchema["walkerSchemaService.get(walkerName)<br/>Extract strategies array and metric"]
+        ClearWalker["walkerMarkdownService.clear(walkerName)"]
+        ClearBacktests["For each strategy:<br/>backtestMarkdownService.clear()<br/>scheduleMarkdownService.clear()<br/>riskGlobalService.clear()"]
+    end
+    
+    CommandService["walkerCommandService.run(symbol, context)<br/>[WalkerCommandService.ts]"]
+    GlobalService["walkerGlobalService.run(symbol, walkerName)<br/>Inject context"]
+    LogicPublic["walkerLogicPublicService.run()<br/>MethodContextService wrapper"]
+    LogicPrivate["WalkerLogicPrivateService.run()<br/>[WalkerLogicPrivateService.ts:70-251]"]
+    
+    subgraph "Strategy Loop [WalkerLogicPrivateService:107-228]"
+        LoopStart["for (const strategyName of strategies)"]
+        CallbackStart["walkerSchema.callbacks?.onStrategyStart()"]
+        BacktestPublic["backtestLogicPublicService.run()<br/>[BacktestLogicPublicService.ts]"]
+        ResolveDocuments["await resolveDocuments(iterator)<br/>Collect all IStrategyBacktestResult[]"]
+        GetStats["backtestMarkdownService.getData()<br/>Returns BacktestStatistics"]
+        ExtractMetric["Extract metric value from stats<br/>e.g., stats.sharpeRatio"]
+        CompareBest["if (metricValue > bestMetric)<br/>Update bestStrategy, bestMetric"]
+        BuildContract["Create WalkerContract:<br/>{ strategyName, stats, metricValue,<br/>bestStrategy, bestMetric, ... }"]
+        EmitProgress["progressWalkerEmitter.next()<br/>walkerEmitter.next()<br/>yield walkerContract"]
+        CallbackComplete["walkerSchema.callbacks?.onStrategyComplete()"]
+    end
+    
+    FinalResults["Build final results:<br/>{ bestStrategy, bestMetric, bestStats }"]
+    EmitComplete["walkerCompleteSubject.next(finalResults)"]
+    CallbackDone["walkerSchema.callbacks?.onComplete()"]
+    
+    User --> WalkerUtils
+    WalkerUtils --> ValidateWalker
+    ValidateWalker --> ValidateExchange
+    ValidateExchange --> ValidateFrame
+    ValidateFrame --> ValidateStrategies
+    ValidateStrategies --> GetSchema
+    GetSchema --> ClearWalker
+    ClearWalker --> ClearBacktests
+    ClearBacktests --> CommandService
+    CommandService --> GlobalService
+    GlobalService --> LogicPublic
+    LogicPublic --> LogicPrivate
+    
+    LogicPrivate --> LoopStart
+    LoopStart --> CallbackStart
+    CallbackStart --> BacktestPublic
+    BacktestPublic --> ResolveDocuments
+    ResolveDocuments --> GetStats
+    GetStats --> ExtractMetric
+    ExtractMetric --> CompareBest
+    CompareBest --> BuildContract
+    BuildContract --> EmitProgress
+    EmitProgress --> CallbackComplete
+    CallbackComplete --> |Next strategy| LoopStart
+    CallbackComplete --> |All complete| FinalResults
+    
+    FinalResults --> EmitComplete
+    EmitComplete --> CallbackDone
+    CallbackDone --> User
+```
 
-**Key Points:**
-- Walker validates all schemas before starting (walker, exchange, frame, all strategies)
-- Clears previous data for walker and all strategies to ensure fresh comparison
-- Uses `MethodContextService.runAsyncIterator` for context propagation
-- Runs backtests sequentially, not in parallel
-- Tracks best strategy as it progresses through the list
-- Yields progress after each strategy completes
+**Execution Characteristics:**
+- **Sequential Execution:** Strategies are tested one at a time (lines 107-228)
+- **Context Propagation:** `MethodContextService.runAsyncIterator` sets `walkerName`, `exchangeName`, `frameName` in context
+- **Backtest Delegation:** Each strategy uses full `BacktestLogicPublicService.run()` flow
+- **Metric Extraction:** `metricValue = stats[metric]` with null safety checks (lines 168-176)
+- **Best Tracking:** Compares after each strategy completion (lines 179-186)
+- **Progress Streaming:** Yields after each strategy, not at end (line 227)
 
+Sources: [src/classes/Walker.ts:39-87](), [src/lib/services/logic/private/WalkerLogicPrivateService.ts:70-251](), [src/lib/services/command/WalkerCommandService.ts]()
 
 ---
 
@@ -240,6 +438,7 @@ interface WalkerContract {
 
 **Returns:** Unsubscribe function
 
+Sources: [src/function/event.ts:537-536]()
 
 ---
 
@@ -261,6 +460,7 @@ listenWalkerOnce(
 
 **Returns:** Unsubscribe function to cancel before it fires
 
+Sources: [src/function/event.ts:552-569]()
 
 ---
 
@@ -288,6 +488,7 @@ interface IWalkerResults {
 
 **Returns:** Unsubscribe function
 
+Sources: [src/function/event.ts:584-601]()
 
 ---
 
@@ -312,6 +513,7 @@ interface DoneContract {
 
 **Returns:** Unsubscribe function
 
+Sources: [src/function/event.ts:397-400]()
 
 ---
 
@@ -333,6 +535,7 @@ listenDoneWalkerOnce(
 
 **Returns:** Unsubscribe function
 
+Sources: [src/function/event.ts:427-433]()
 
 ---
 
@@ -340,13 +543,51 @@ listenDoneWalkerOnce(
 
 The following diagram shows the event emission sequence during walker execution.
 
-![Mermaid Diagram](./diagrams/19_Walker_API_1.svg)
+```mermaid
+graph TB
+    Start["Walker.run() starts"]
+    Loop["Iterate strategies array"]
+    
+    subgraph "Per Strategy"
+        RunBacktest["Run Backtest.run()"]
+        GetData["Get Backtest.getData()"]
+        Extract["Extract metric value"]
+        Compare["Update bestStrategy<br/>if metric better"]
+        EmitWalker["walkerEmitter.next()<br/>WalkerContract"]
+    end
+    
+    Complete["All strategies done"]
+    EmitComplete["walkerCompleteSubject.next()<br/>IWalkerResults"]
+    EmitDone["doneWalkerSubject.next()<br/>DoneContract<br/>(only for background)"]
+    
+    Start --> Loop
+    Loop --> RunBacktest
+    RunBacktest --> GetData
+    GetData --> Extract
+    Extract --> Compare
+    Compare --> EmitWalker
+    
+    EmitWalker --> |Next strategy| RunBacktest
+    EmitWalker --> |All done| Complete
+    
+    Complete --> EmitComplete
+    Complete --> |If background| EmitDone
+    
+    ListenWalker["listenWalker()<br/>subscribes"]
+    ListenComplete["listenWalkerComplete()<br/>subscribes"]
+    ListenDone["listenDoneWalker()<br/>subscribes"]
+    
+    EmitWalker -.-> ListenWalker
+    EmitComplete -.-> ListenComplete
+    EmitDone -.-> ListenDone
+```
 
 **Event Timing:**
 1. `walkerEmitter` - Emits after each strategy completes (N times for N strategies)
 2. `walkerCompleteSubject` - Emits once when all strategies complete
 3. `doneWalkerSubject` - Emits only for `Walker.background()` after completion
 
+Sources: [src/config/emitters.ts:64-73](), [src/classes/Walker.ts:108-144]()
 
 ---
 
@@ -405,6 +646,7 @@ console.log(markdown);
 await Walker.dump("BTCUSDT", "btc-walker"); // ./logs/walker/btc-walker.md
 ```
 
+Sources: [README.md:407-459](), [src/classes/Walker.ts:39-87]()
 
 ---
 
@@ -442,6 +684,7 @@ const cancel = Walker.background("BTCUSDT", {
 // cancel();
 ```
 
+Sources: [src/classes/Walker.ts:108-144](), [src/function/event.ts:584-601]()
 
 ---
 
@@ -504,6 +747,7 @@ console.log("Best by Total PNL:", pnlBest.bestStrategy);
 console.log("Best by Certainty:", certaintyBest.bestStrategy);
 ```
 
+Sources: [README.md:461-467]()
 
 ---
 
@@ -539,6 +783,7 @@ listenWalkerOnce(
 );
 ```
 
+Sources: [src/classes/Walker.ts:138-143]()
 
 ---
 
@@ -595,51 +840,160 @@ interface BacktestStatistics {
 - `totalPnl` - Cumulative PNL percentage
 - `certaintyRatio` - avgWin / |avgLoss|
 
+Sources: [src/lib/services/markdown/BacktestMarkdownService.ts:46-102]()
 
 ---
 
-## Integration with Services
+## Service Layer Architecture
 
-The following diagram shows how Walker integrates with the service layer.
+The following diagram shows the complete service dependency graph for Walker execution.
 
-![Mermaid Diagram](./diagrams/19_Walker_API_2.svg)
+```mermaid
+graph TB
+    subgraph "Public API Layer"
+        WalkerUtils["WalkerUtils (exported as Walker)<br/>[Walker.ts:1-274]"]
+    end
+    
+    subgraph "Command Layer"
+        WalkerCommand["WalkerCommandService<br/>[WalkerCommandService.ts]<br/>Validation + delegation"]
+    end
+    
+    subgraph "Validation Services"
+        WalkerValidation["WalkerValidationService<br/>Validate walker schema"]
+        StrategyValidation["StrategyValidationService<br/>Validate strategy schemas"]
+        ExchangeValidation["ExchangeValidationService<br/>Validate exchange schema"]
+        FrameValidation["FrameValidationService<br/>Validate frame schema"]
+        RiskValidation["RiskValidationService<br/>Validate risk schemas"]
+    end
+    
+    subgraph "Schema Services"
+        WalkerSchema["WalkerSchemaService<br/>Get walker.strategies, walker.metric"]
+        StrategySchema["StrategySchemaService<br/>Get strategy configs"]
+        ExchangeSchema["ExchangeSchemaService<br/>Get exchange config"]
+        FrameSchema["FrameSchemaService<br/>Get frame config"]
+        RiskSchema["RiskSchemaService<br/>Get risk config"]
+    end
+    
+    subgraph "Global Services"
+        WalkerGlobal["WalkerGlobalService<br/>Context injection wrapper"]
+        BacktestGlobal["BacktestGlobalService<br/>Strategy-level wrapper"]
+        RiskGlobal["RiskGlobalService<br/>Risk state management"]
+    end
+    
+    subgraph "Logic Services"
+        WalkerLogicPublic["WalkerLogicPublicService<br/>MethodContextService.runAsyncIterator"]
+        WalkerLogicPrivate["WalkerLogicPrivateService<br/>[WalkerLogicPrivateService.ts:31-254]<br/>for-loop through strategies"]
+        BacktestLogicPublic["BacktestLogicPublicService<br/>Per-strategy backtest wrapper"]
+        BacktestLogicPrivate["BacktestLogicPrivateService<br/>[BacktestLogicPrivateService.ts:33-387]<br/>Timeframe iteration"]
+    end
+    
+    subgraph "Context Services"
+        MethodContext["MethodContextService<br/>Store: walkerName, exchangeName,<br/>frameName, strategyName"]
+        ExecContext["ExecutionContextService<br/>Store: symbol, when, backtest flag"]
+    end
+    
+    subgraph "Markdown Services"
+        WalkerMarkdown["WalkerMarkdownService<br/>Accumulate walkerEmitter events<br/>Compute best strategy"]
+        BacktestMarkdown["BacktestMarkdownService<br/>Accumulate signalBacktestEmitter<br/>Calculate BacktestStatistics"]
+        ScheduleMarkdown["ScheduleMarkdownService<br/>Track scheduled signal events"]
+    end
+    
+    subgraph "Business Logic"
+        StrategyGlobal["StrategyGlobalService<br/>tick(), backtest() delegation"]
+        ExchangeGlobal["ExchangeGlobalService<br/>getCandles(), getNextCandles()"]
+        FrameGlobal["FrameGlobalService<br/>getTimeframe() generation"]
+    end
+    
+    WalkerUtils --> WalkerCommand
+    WalkerCommand --> WalkerValidation
+    WalkerCommand --> StrategyValidation
+    WalkerCommand --> ExchangeValidation
+    WalkerCommand --> FrameValidation
+    WalkerCommand --> RiskValidation
+    
+    WalkerCommand --> WalkerSchema
+    WalkerCommand --> StrategySchema
+    
+    WalkerCommand --> WalkerGlobal
+    WalkerGlobal --> WalkerLogicPublic
+    WalkerLogicPublic --> MethodContext
+    MethodContext --> WalkerLogicPrivate
+    
+    WalkerLogicPrivate --> BacktestGlobal
+    BacktestGlobal --> BacktestLogicPublic
+    BacktestLogicPublic --> MethodContext
+    BacktestLogicPublic --> BacktestLogicPrivate
+    
+    BacktestLogicPrivate --> ExecContext
+    BacktestLogicPrivate --> StrategyGlobal
+    BacktestLogicPrivate --> ExchangeGlobal
+    BacktestLogicPrivate --> FrameGlobal
+    
+    WalkerLogicPrivate --> BacktestMarkdown
+    WalkerLogicPrivate --> WalkerMarkdown
+    
+    WalkerUtils -.->|getData()| WalkerMarkdown
+    WalkerUtils -.->|getReport()| WalkerMarkdown
+    WalkerUtils -.->|dump()| WalkerMarkdown
+    
+    BacktestMarkdown -.->|Per strategy stats| WalkerLogicPrivate
+```
 
-**Service Responsibilities:**
-- `WalkerGlobalService` - Validation orchestration and delegation
-- `WalkerLogicPublicService` - Context wrapper (MethodContext)
-- `WalkerLogicPrivateService` - Core loop through strategies array
-- `BacktestLogicPrivateService` - Run each strategy's backtest
-- `BacktestMarkdownService` - Collect results per strategy
-- `WalkerMarkdownService` - Aggregate results and compute best strategy
+**Key Service Interactions:**
 
+| Service | Primary Responsibility | Key Methods |
+|---------|----------------------|-------------|
+| `WalkerCommandService` | Validation orchestration | `run(symbol, context)` |
+| `WalkerLogicPrivateService` | Strategy iteration loop | `run(symbol, strategies, metric, context)` [line 70]() |
+| `BacktestLogicPrivateService` | Single strategy backtest | `run(symbol)` [line 62]() - yields closed signals |
+| `BacktestMarkdownService` | Per-strategy statistics | `getData(symbol, strategyName)` - returns `BacktestStatistics` |
+| `WalkerMarkdownService` | Comparative aggregation | `getData(symbol, walkerName, metric, context)` - returns `WalkerStatistics` |
+| `MethodContextService` | Context propagation | `runAsyncIterator(contextObj, asyncGenFn)` |
+
+**Context Flow:**
+1. `WalkerLogicPublicService` sets: `{ walkerName, exchangeName, frameName }`
+2. `BacktestLogicPublicService` adds: `{ strategyName }`
+3. `BacktestLogicPrivateService` uses: All context fields + symbol + when
+
+Sources: [src/classes/Walker.ts:1-274](), [src/lib/services/logic/private/WalkerLogicPrivateService.ts:31-254](), [src/lib/services/logic/private/BacktestLogicPrivateService.ts:33-387](), [src/lib/services/command/WalkerCommandService.ts]()
 
 ---
 
-## Comparison: Walker vs Multiple Backtest Calls
+## Comparison: Walker vs Manual Backtest Iteration
 
-| Aspect | Walker.run() | Multiple Backtest.run() |
-|--------|--------------|-------------------------|
-| **Orchestration** | Automatic sequential execution | Manual iteration required |
-| **Progress Tracking** | Built-in progress events | Must implement manually |
-| **Best Strategy Selection** | Automatic based on metric | Must compare manually |
-| **Report Generation** | Unified comparison report | Individual reports only |
-| **Context Propagation** | Single walker context | Separate context per strategy |
-| **Data Clearing** | Automatic clear before run | Must clear manually |
-| **Metric Extraction** | Automatic based on metric config | Must extract manually |
-| **Event Emission** | Walker-specific events | Backtest-specific events |
+| Aspect | Walker.run() | Manual Backtest.run() Calls |
+|--------|--------------|----------------------------|
+| **Orchestration** | Automatic sequential execution via `WalkerLogicPrivateService` | Manual `for` loop or `Promise.all()` |
+| **Progress Tracking** | Built-in `walkerEmitter` and `progressWalkerEmitter` | Must subscribe to `signalBacktestEmitter` manually |
+| **Best Strategy Selection** | Automatic metric comparison [line 179-186]() | Must implement comparison logic |
+| **Report Generation** | Unified `WalkerMarkdownService` report | Must aggregate `BacktestMarkdownService` reports |
+| **Context Propagation** | Single `{ walkerName, exchangeName, frameName }` | Must set context per backtest |
+| **Data Clearing** | Automatic `clear()` for all strategies [lines 61-79]() | Must call `clear()` per strategy manually |
+| **Metric Extraction** | Automatic `stats[metric]` extraction [lines 168-176]() | Must access `stats` object manually |
+| **Event Emission** | `walkerEmitter`, `walkerCompleteSubject`, `progressWalkerEmitter` | `signalBacktestEmitter`, `doneBacktestSubject` |
+| **Error Handling** | Catches errors per strategy, continues execution [lines 127-146]() | Must implement try-catch per backtest |
+| **Callbacks** | Walker-level callbacks: `onStrategyStart`, `onStrategyComplete`, `onComplete` | Strategy-level callbacks: `onOpen`, `onClose`, etc. |
 
 **When to Use Walker:**
-- Comparing multiple strategies on the same timeframe
-- Need automatic ranking by performance metric
-- Want unified comparison report
-- Need progress tracking for UI/logging
+- Comparing 2+ strategies on same exchange/frame
+- Need automatic ranking by `sharpeRatio`, `winRate`, `avgPnl`, `totalPnl`, or `certaintyRatio`
+- Want comparative markdown report with all strategies
+- Need real-time progress updates during comparison
+- Want automatic error recovery (skip failed strategies)
 
-**When to Use Individual Backtests:**
+**When to Use Manual Backtest Calls:**
 - Testing single strategy
-- Need fine-grained control over execution
-- Different timeframes per strategy
-- Custom comparison logic required
+- Need fine-grained control over execution order
+- Different timeframes per strategy (different `frameName`)
+- Custom comparison logic beyond supported metrics
+- Need parallel execution (Walker is sequential)
 
+**Parallelization Note:**
+- Walker executes backtests **sequentially** (one at a time) [src/lib/services/logic/private/WalkerLogicPrivateService.ts:107-228]()
+- For parallel execution, use manual `Promise.all(backtests)` with multiple `Backtest.run()` calls
+- Sequential execution simplifies state management and reduces memory pressure
+
+Sources: [src/classes/Walker.ts:39-87](), [src/lib/services/logic/private/WalkerLogicPrivateService.ts:70-251]()
 
 ---
 
@@ -670,6 +1024,7 @@ Walker.background("BTCUSDT", {
 });
 ```
 
+Sources: [src/classes/Walker.ts:50-59](), [src/classes/Walker.ts:130-137]()
 
 ---
 
@@ -697,4 +1052,5 @@ This ensures:
 - No cross-contamination between strategies
 - Fresh risk tracking for each strategy
 - Accurate comparison metrics
-
+
+Sources: [src/classes/Walker.ts:61-79]()

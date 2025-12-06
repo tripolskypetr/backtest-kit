@@ -1,16 +1,24 @@
----
-title: design/13_event_system
-group: design
----
-
 # Event System
+
+<details>
+<summary>Relevant source files</summary>
+
+The following files were used as context for generating this wiki page:
+
+- [src/config/emitters.ts](src/config/emitters.ts)
+- [src/function/event.ts](src/function/event.ts)
+- [src/index.ts](src/index.ts)
+- [test/config/setup.mjs](test/config/setup.mjs)
+
+</details>
+
 
 
 ## Purpose and Scope
 
 The Event System provides observability and monitoring capabilities for backtest-kit through a publish-subscribe architecture. It enables external code to react to strategy execution events, errors, and progress updates without coupling to internal execution logic.
 
-This document covers event emitters, listener functions, queued processing, and event flow patterns. For signal lifecycle states, see [Signal Lifecycle](./44_Signal_Lifecycle.md). For execution mode details, see [Execution Modes](./06_Execution_Modes.md). For callback configuration, see [Strategy Schemas](./24_Strategy_Schemas.md).
+This document covers event emitters, listener functions, queued processing, and event flow patterns. For signal lifecycle states, see [Signal Lifecycle](#8). For execution mode details, see [Execution Modes](#2.1). For callback configuration, see [Strategy Schemas](#5.1).
 
 ---
 
@@ -25,8 +33,75 @@ Event Source → Subject.next() → Queued Listener → User Callback
 
 **Event Emitter Diagram**
 
-![Mermaid Diagram](./diagrams/13_Event_System_0.svg)
+```mermaid
+graph TB
+    subgraph "Event Sources"
+        BT[BacktestLogicPrivateService]
+        LV[LiveLogicPrivateService]
+        WK[WalkerLogicPrivateService]
+        ST[ClientStrategy]
+        RS[ClientRisk]
+    end
+    
+    subgraph "Emitters (src/config/emitters.ts)"
+        SE["signalEmitter"]
+        SBE["signalBacktestEmitter"]
+        SLE["signalLiveEmitter"]
+        EE["errorEmitter"]
+        DBE["doneBacktestSubject"]
+        DLE["doneLiveSubject"]
+        DWE["doneWalkerSubject"]
+        PE["progressEmitter"]
+        PFE["performanceEmitter"]
+        WE["walkerEmitter"]
+        WCE["walkerCompleteSubject"]
+        VE["validationSubject"]
+    end
+    
+    subgraph "Listener Functions (src/function/event.ts)"
+        LS["listenSignal()"]
+        LSB["listenSignalBacktest()"]
+        LSL["listenSignalLive()"]
+        LE["listenError()"]
+        LDB["listenDoneBacktest()"]
+        LDL["listenDoneLive()"]
+        LDW["listenDoneWalker()"]
+        LP["listenProgress()"]
+        LPF["listenPerformance()"]
+        LW["listenWalker()"]
+        LWC["listenWalkerComplete()"]
+        LV2["listenValidation()"]
+    end
+    
+    BT --> SE
+    BT --> SBE
+    BT --> DBE
+    BT --> PE
+    BT --> PFE
+    LV --> SE
+    LV --> SLE
+    LV --> DLE
+    WK --> WE
+    WK --> WCE
+    WK --> DWE
+    ST --> EE
+    RS --> VE
+    
+    SE --> LS
+    SBE --> LSB
+    SLE --> LSL
+    EE --> LE
+    DBE --> LDB
+    DLE --> LDL
+    DWE --> LDW
+    PE --> LP
+    PFE --> LPF
+    WE --> LW
+    WCE --> LWC
+    VE --> LV2
+```
 
+**Sources:** [src/config/emitters.ts:1-81](), [src/function/event.ts:1-647]()
 
 ---
 
@@ -50,6 +125,7 @@ The `IStrategyTickResult` discriminated union includes:
 - `IStrategyTickResultClosed` - Position closed with PnL
 - `IStrategyTickResultCancelled` - Scheduled signal cancelled
 
+**Sources:** [src/config/emitters.ts:9-25](), [types.d.ts:653-770]()
 
 ### Completion Events
 
@@ -61,6 +137,7 @@ Completion events signal when background execution finishes:
 | `doneLiveSubject` | Live trading completion | `DoneContract` | `Live.background()` ends |
 | `doneWalkerSubject` | Walker completion | `DoneContract` | `Walker.background()` ends |
 
+**Sources:** [src/config/emitters.ts:33-49]()
 
 ### Progress Events
 
@@ -72,6 +149,7 @@ Progress events track execution advancement:
 | `walkerEmitter` | Walker strategy progress | `WalkerContract` | Per strategy completion |
 | `walkerCompleteSubject` | Walker final results | `IWalkerResults` | Once at end |
 
+**Sources:** [src/config/emitters.ts:51-73]()
 
 ### Error and Validation Events
 
@@ -80,6 +158,7 @@ Progress events track execution advancement:
 | `errorEmitter` | Background execution errors | `Error` | Caught exceptions in `.background()` |
 | `validationSubject` | Risk validation failures | `Error` | Risk validation function throws |
 
+**Sources:** [src/config/emitters.ts:28-31](), [src/config/emitters.ts:76-79]()
 
 ### Performance Events
 
@@ -87,6 +166,7 @@ Progress events track execution advancement:
 |---------|---------|------------|-------|
 | `performanceEmitter` | Timing metrics | `PerformanceContract` | Profiling and bottleneck detection |
 
+**Sources:** [src/config/emitters.ts:57-61]()
 
 ---
 
@@ -117,6 +197,7 @@ Returns an unsubscribe function to stop listening.
 | `listenWalkerComplete()` | `walkerCompleteSubject` | Yes | Walker final results |
 | `listenValidation()` | `validationSubject` | Yes | Risk validation errors |
 
+**Sources:** [src/function/event.ts:56-623]()
 
 ### Once Listeners
 
@@ -139,6 +220,7 @@ function listen*Once(
 | `listenDoneWalkerOnce()` | `doneWalkerSubject` | Filter + auto-unsubscribe |
 | `listenWalkerOnce()` | `walkerEmitter` | Filter + auto-unsubscribe |
 
+**Sources:** [src/function/event.ts:93-587]()
 
 ---
 
@@ -161,8 +243,23 @@ export function listenSignal(fn: (event: IStrategyTickResult) => void) {
 
 **Queued Processing Flow**
 
-![Mermaid Diagram](./diagrams/13_Event_System_1.svg)
+```mermaid
+sequenceDiagram
+    participant Emitter as signalEmitter
+    participant Queue as Queued Wrapper
+    participant CB1 as Callback 1
+    participant CB2 as Callback 2
+    
+    Emitter->>Queue: Event A
+    Queue->>CB1: Process Event A
+    Emitter->>Queue: Event B (queued)
+    Note over Queue: Wait for CB1
+    CB1-->>Queue: Complete
+    Queue->>CB2: Process Event B
+    CB2-->>Queue: Complete
+```
 
+**Sources:** [src/function/event.ts:58](), [src/function/event.ts:9]()
 
 ---
 
@@ -172,7 +269,47 @@ export function listenSignal(fn: (event: IStrategyTickResult) => void) {
 
 **Backtest Signal Event Flow**
 
-![Mermaid Diagram](./diagrams/13_Event_System_2.svg)
+```mermaid
+graph LR
+    subgraph "Execution Layer"
+        BTLS["BacktestLogicPrivateService.run()"]
+        SGS["StrategyGlobalService.tick()"]
+        CS["ClientStrategy.tick/backtest()"]
+    end
+    
+    subgraph "Emission Points"
+        E1["signalEmitter.next()"]
+        E2["signalBacktestEmitter.next()"]
+        E3["progressEmitter.next()"]
+        E4["doneBacktestSubject.next()"]
+    end
+    
+    subgraph "Markdown Services"
+        BMS["BacktestMarkdownService.tick()"]
+        SMS["ScheduleMarkdownService.tick()"]
+    end
+    
+    subgraph "User Code"
+        UL1["listenSignalBacktest()"]
+        UL2["listenProgress()"]
+        UL3["listenDoneBacktest()"]
+    end
+    
+    BTLS --> SGS
+    SGS --> CS
+    CS --> E1
+    CS --> E2
+    BTLS --> E3
+    BTLS --> E4
+    
+    E1 --> BMS
+    E2 --> BMS
+    E1 --> SMS
+    
+    E2 --> UL1
+    E3 --> UL2
+    E4 --> UL3
+```
 
 **Key Emission Points:**
 
@@ -180,12 +317,54 @@ export function listenSignal(fn: (event: IStrategyTickResult) => void) {
 2. **Progress Events**: Emitted periodically during timeframe iteration
 3. **Completion Events**: Emitted when `Backtest.background()` finishes
 
+**Sources:** [src/classes/Backtest.ts:102-114]()
 
 ### Live Event Flow
 
 **Live Signal Event Flow**
 
-![Mermaid Diagram](./diagrams/13_Event_System_3.svg)
+```mermaid
+graph LR
+    subgraph "Execution Layer"
+        LVLS["LiveLogicPrivateService.run()"]
+        SGS2["StrategyGlobalService.tick()"]
+        CS2["ClientStrategy.tick()"]
+    end
+    
+    subgraph "Persistence"
+        PSA["PersistSignalAdapter.writeSignalData()"]
+    end
+    
+    subgraph "Emission Points"
+        E1L["signalEmitter.next()"]
+        E2L["signalLiveEmitter.next()"]
+        E4L["doneLiveSubject.next()"]
+    end
+    
+    subgraph "Markdown Services"
+        LMS["LiveMarkdownService.tick()"]
+        SMS2["ScheduleMarkdownService.tick()"]
+    end
+    
+    subgraph "User Code"
+        UL1L["listenSignalLive()"]
+        UL3L["listenDoneLive()"]
+    end
+    
+    LVLS --> SGS2
+    SGS2 --> CS2
+    CS2 --> PSA
+    CS2 --> E1L
+    CS2 --> E2L
+    LVLS --> E4L
+    
+    E1L --> LMS
+    E2L --> LMS
+    E1L --> SMS2
+    
+    E2L --> UL1L
+    E4L --> UL3L
+```
 
 **Key Emission Points:**
 
@@ -193,12 +372,47 @@ export function listenSignal(fn: (event: IStrategyTickResult) => void) {
 2. **Persistence**: State saved before events emitted
 3. **Completion Events**: Emitted when `Live.background()` stops and last position closes
 
+**Sources:** [src/classes/Live.ts:117-129]()
 
 ### Walker Event Flow
 
 **Walker Progress Event Flow**
 
-![Mermaid Diagram](./diagrams/13_Event_System_4.svg)
+```mermaid
+graph LR
+    subgraph "Execution Layer"
+        WKLS["WalkerLogicPrivateService.run()"]
+        BTLS2["BacktestLogicPublicService.run()"]
+    end
+    
+    subgraph "Emission Points"
+        E1W["walkerEmitter.next()"]
+        E2W["walkerCompleteSubject.next()"]
+        E3W["doneWalkerSubject.next()"]
+    end
+    
+    subgraph "Markdown Services"
+        WMS["WalkerMarkdownService.tick()"]
+    end
+    
+    subgraph "User Code"
+        UL1W["listenWalker()"]
+        UL2W["listenWalkerComplete()"]
+        UL3W["listenDoneWalker()"]
+    end
+    
+    WKLS --> BTLS2
+    BTLS2 --> E1W
+    WKLS --> E2W
+    WKLS --> E3W
+    
+    E1W --> WMS
+    E2W --> WMS
+    
+    E1W --> UL1W
+    E2W --> UL2W
+    E3W --> UL3W
+```
 
 **Key Emission Points:**
 
@@ -206,6 +420,7 @@ export function listenSignal(fn: (event: IStrategyTickResult) => void) {
 2. **Completion Events**: Emitted when all strategies tested
 3. **Final Results**: Emitted with best strategy selection
 
+**Sources:** [src/classes/Walker.ts:122-134]()
 
 ---
 
@@ -226,6 +441,7 @@ interface DoneContract {
 
 Emitted by completion subjects (`doneBacktestSubject`, `doneLiveSubject`, `doneWalkerSubject`).
 
+**Sources:** [src/contract/Done.contract.ts]()
 
 ### ProgressContract
 
@@ -243,6 +459,7 @@ interface ProgressContract {
 
 Emitted by `progressEmitter` during backtest execution.
 
+**Sources:** [src/contract/Progress.contract.ts]()
 
 ### PerformanceContract
 
@@ -258,6 +475,7 @@ interface PerformanceContract {
 
 Emitted by `performanceEmitter` for profiling.
 
+**Sources:** [src/contract/Performance.contract.ts]()
 
 ### WalkerContract
 
@@ -278,6 +496,7 @@ interface WalkerContract {
 
 Emitted by `walkerEmitter` after each strategy completes.
 
+**Sources:** [src/contract/Walker.contract.ts]()
 
 ---
 
@@ -308,6 +527,7 @@ await doneBacktestSubject.next({
 });
 ```
 
+**Sources:** [src/classes/Backtest.ts:108-113]()
 
 ### Using Listeners in Application Code
 
@@ -347,6 +567,7 @@ listenError((error) => {
 });
 ```
 
+**Sources:** [src/function/event.ts:40-91](), [src/function/event.ts:93-99](), [src/function/event.ts:232-235]()
 
 ---
 
@@ -368,6 +589,7 @@ Markdown services automatically subscribe to event emitters to accumulate data f
 - Subscribes to `walkerEmitter` and `walkerCompleteSubject`
 - Tracks strategy comparison results
 
+**Sources:** [types.d.ts:899-1008](), [src/index.ts:126]()
 
 ---
 
@@ -387,4 +609,5 @@ Markdown services automatically subscribe to event emitters to accumulate data f
 | Walker complete | `walkerCompleteSubject` | `listenWalkerComplete()` | `IWalkerResults` | Yes | No |
 | Errors | `errorEmitter` | `listenError()` | `Error` | Yes | No |
 | Validation | `validationSubject` | `listenValidation()` | `Error` | Yes | No |
-
+
+**Sources:** [src/config/emitters.ts:1-81](), [src/function/event.ts:1-647]()
