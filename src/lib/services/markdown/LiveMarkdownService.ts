@@ -58,6 +58,10 @@ interface TickEvent {
   takeProfit?: number;
   /** Stop loss price (only for opened/active/closed) */
   stopLoss?: number;
+  /** Percentage progress towards take profit (only for active) */
+  percentTp?: number;
+  /** Percentage progress towards stop loss (only for active) */
+  percentSl?: number;
   /** PNL percentage (only for closed) */
   pnl?: number;
   /** Close reason (only for closed) */
@@ -200,6 +204,18 @@ const columns: Column[] = [
       data.stopLoss !== undefined ? `${data.stopLoss.toFixed(8)} USD` : "N/A",
   },
   {
+    key: "percentTp",
+    label: "% to TP",
+    format: (data) =>
+      data.percentTp !== undefined ? `${data.percentTp.toFixed(2)}%` : "N/A",
+  },
+  {
+    key: "percentSl",
+    label: "% to SL",
+    format: (data) =>
+      data.percentSl !== undefined ? `${data.percentSl.toFixed(2)}%` : "N/A",
+  },
+  {
     key: "pnl",
     label: "PNL (net)",
     format: (data) => {
@@ -314,6 +330,8 @@ class ReportStorage {
       openPrice: data.signal.priceOpen,
       takeProfit: data.signal.priceTakeProfit,
       stopLoss: data.signal.priceStopLoss,
+      percentTp: data.percentTp,
+      percentSl: data.percentSl,
     };
 
     // Replace existing event or add new one
