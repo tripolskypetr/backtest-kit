@@ -1,3 +1,8 @@
+---
+title: design/17_backtest_api
+group: design
+---
+
 # Backtest API
 
 This document describes the public API for historical backtesting operations provided by the `Backtest` singleton. The Backtest API enables testing trading strategies against historical market data with statistical analysis and markdown report generation.

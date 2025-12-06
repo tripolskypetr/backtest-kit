@@ -1,3 +1,8 @@
+---
+title: design/73_partial_profit_loss_tracking
+group: design
+---
+
 # Partial Profit/Loss Tracking
 
 ## Purpose and Scope

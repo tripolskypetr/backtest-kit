@@ -1,3 +1,8 @@
+---
+title: design/62_walker_execution_flow
+group: design
+---
+
 # Walker Execution Flow
 
 ## Purpose and Scope

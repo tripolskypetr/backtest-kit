@@ -1,3 +1,8 @@
+---
+title: design/40_connection_services
+group: design
+---
+
 # Connection Services
 
 ## Purpose and Scope

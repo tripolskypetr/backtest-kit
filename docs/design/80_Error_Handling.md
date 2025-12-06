@@ -1,3 +1,8 @@
+---
+title: design/80_error_handling
+group: design
+---
+
 # Error Handling
 
 This page documents the error handling infrastructure in backtest-kit, including error categorization, emission, propagation, and recovery patterns. The system implements a multi-tier error handling architecture that distinguishes between recoverable errors, fatal errors, and validation failures.

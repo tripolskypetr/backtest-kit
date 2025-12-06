@@ -1,3 +1,8 @@
+---
+title: design/28_sizing_schemas
+group: design
+---
+
 # Sizing Schemas
 
 Sizing schemas define position sizing methods for calculating trade quantities based on account balance, risk parameters, and market conditions. The framework provides three built-in sizing methods via a discriminated union: fixed-percentage, Kelly Criterion, and ATR-based. Strategies reference sizing schemas by name via the `sizingName` field in `IStrategySchema`.

@@ -1,3 +1,8 @@
+---
+title: design/21_exchange_functions
+group: design
+---
+
 # Exchange Functions
 
 This page documents the exchange helper functions available in the public API. These functions provide standardized access to market data (candles, prices) with built-in retry logic, validation, and VWAP calculation. Exchange functions are defined in user-provided exchange schemas and accessed through the `ClientExchange` implementation.

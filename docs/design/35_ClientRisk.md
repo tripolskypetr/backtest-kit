@@ -1,3 +1,8 @@
+---
+title: design/35_clientrisk
+group: design
+---
+
 # ClientRisk
 
 This page documents the `ClientRisk` class, which implements portfolio-level risk management by tracking active positions across strategies and executing custom validation logic. For information about the risk schema registration and validation services, see [Risk Schemas](./27_Risk_Schemas.md) and [Risk Management](./65_Risk_Management.md). For information about risk validation services in the service layer, see [Validation Services](./42_Validation_Services.md).

@@ -1,3 +1,8 @@
+---
+title: design/37_clientoptimizer
+group: design
+---
+
 # ClientOptimizer
 
 ## Purpose and Scope

@@ -1,3 +1,8 @@
+---
+title: design/14_public_api_reference
+group: design
+---
+
 # Public API Reference
 
 This page provides a comprehensive reference for all public-facing functions and utilities exposed by the backtest-kit framework. These are the functions users directly interact with to configure strategies, execute backtests/live trading, and monitor results.

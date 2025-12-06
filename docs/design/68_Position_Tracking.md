@@ -1,3 +1,8 @@
+---
+title: design/68_position_tracking
+group: design
+---
+
 # Position Tracking
 
 ## Purpose and Scope

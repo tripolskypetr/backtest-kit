@@ -1,3 +1,8 @@
+---
+title: design/20_schedule_api
+group: design
+---
+
 # Schedule API
 
 ## Purpose and Scope

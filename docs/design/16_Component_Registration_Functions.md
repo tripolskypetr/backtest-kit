@@ -1,3 +1,8 @@
+---
+title: design/16_component_registration_functions
+group: design
+---
+
 # Component Registration Functions
 
 ## Purpose and Scope

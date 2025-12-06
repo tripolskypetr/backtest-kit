@@ -1,3 +1,8 @@
+---
+title: design/24_strategy_schemas
+group: design
+---
+
 # Strategy Schemas
 
 ## Purpose and Scope

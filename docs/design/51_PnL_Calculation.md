@@ -1,3 +1,8 @@
+---
+title: design/51_pnl_calculation
+group: design
+---
+
 # PnL Calculation
 
 This page documents the profit and loss (PnL) calculation system used to determine trading performance. PnL is calculated when a signal closes, incorporating realistic trading costs including slippage and fees. This ensures backtest results accurately reflect real-world trading conditions.

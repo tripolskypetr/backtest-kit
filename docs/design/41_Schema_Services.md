@@ -1,3 +1,8 @@
+---
+title: design/41_schema_services
+group: design
+---
+
 # Schema Services
 
 Schema Services implement the registry pattern for storing configuration schemas in the backtest-kit framework. These services act as in-memory storage for strategy, exchange, and frame configurations registered at application startup via `addStrategy()`, `addExchange()`, and `addFrame()` functions. They provide lookup capabilities for Connection Services (see [5.1](./24_Strategy_Schemas.md)) which create runtime instances based on registered schemas.

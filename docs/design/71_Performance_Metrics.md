@@ -1,3 +1,8 @@
+---
+title: design/71_performance_metrics
+group: design
+---
+
 # Performance Metrics
 
 This page details the mathematical formulas and calculation methods for all performance metrics used in strategy analysis. These metrics quantify trading performance across risk, return, consistency, and frequency dimensions.

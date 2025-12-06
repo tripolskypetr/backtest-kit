@@ -1,3 +1,8 @@
+---
+title: design/23_component_types
+group: design
+---
+
 # Component Types
 
 Component types define the schema interfaces for all registerable components in the backtest-kit framework. Each component type represents a distinct architectural concern: strategies define signal generation logic, exchanges provide market data, frames specify backtesting periods, risk profiles enforce portfolio constraints, sizing algorithms calculate position quantities, walkers orchestrate strategy comparisons, and optimizers generate AI-powered strategies. All components are registered via `add*` functions that validate schemas and store them in corresponding schema services for dependency injection.

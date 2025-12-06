@@ -1,3 +1,8 @@
+---
+title: design/30_optimizer_schemas
+group: design
+---
+
 # Optimizer Schemas
 
 ## Purpose and Scope

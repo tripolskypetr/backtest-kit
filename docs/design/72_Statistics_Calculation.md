@@ -1,3 +1,8 @@
+---
+title: design/72_statistics_calculation
+group: design
+---
+
 # Statistics Calculation
 
 This page documents the statistical calculation system in backtest-kit, which computes performance metrics from signal data. For report generation and markdown formatting, see [Markdown Report Generation](./70_Markdown_Report_Generation.md). For performance timing metrics, see [Performance Metrics](./71_Performance_Metrics.md).

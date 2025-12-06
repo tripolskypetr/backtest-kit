@@ -1,3 +1,8 @@
+---
+title: design/27_risk_schemas
+group: design
+---
+
 # Risk Schemas
 
 This document describes the risk management schema system in backtest-kit. Risk schemas define portfolio-level risk controls that prevent signals from violating configured limits. Multiple strategies can share the same risk profile, enabling cross-strategy risk analysis.

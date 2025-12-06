@@ -1,3 +1,8 @@
+---
+title: design/06_execution_modes
+group: design
+---
+
 # Execution Modes
 
 ## Purpose and Scope

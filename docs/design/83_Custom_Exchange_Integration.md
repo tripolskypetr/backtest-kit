@@ -1,3 +1,8 @@
+---
+title: design/83_custom_exchange_integration
+group: design
+---
+
 # Custom Exchange Integration
 
 This page explains how to implement custom exchange data sources by creating `IExchangeSchema` implementations. The framework supports any data source: CCXT exchanges, REST APIs, databases, CSV files, or WebSocket streams. The same exchange implementation works for both backtest and live trading modes.

@@ -1,3 +1,8 @@
+---
+title: design/88_optimizer_architecture
+group: design
+---
+
 # Optimizer Architecture
 
 ## Purpose and Scope

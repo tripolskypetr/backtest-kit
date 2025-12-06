@@ -1,3 +1,8 @@
+---
+title: design/04_quick_start_guide
+group: design
+---
+
 # Quick Start Guide
 
 This guide demonstrates a minimal working example of the backtest-kit framework. You'll learn how to register a strategy, configure an exchange data source, set up a timeframe, and execute a backtest. For installation instructions, see [Installation and Setup](./03_Installation_and_Setup.md). For deeper understanding of execution modes and lifecycle concepts, see [Core Concepts](./05_Core_Concepts.md) and [Component Registration](./08_Component_Registration.md).

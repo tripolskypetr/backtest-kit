@@ -1,3 +1,8 @@
+---
+title: design/91_strategy_code_generation
+group: design
+---
+
 # Strategy Code Generation
 
 This page documents the code generation system used by the Optimizer to produce executable trading strategy scripts. The generation process transforms collected data and LLM conversation histories into standalone Node.js files that implement multi-timeframe trading strategies with Walker-based comparison.

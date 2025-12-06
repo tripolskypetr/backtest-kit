@@ -1,3 +1,8 @@
+---
+title: design/87_ai-powered_strategy_optimization
+group: design
+---
+
 # AI-Powered Strategy Optimization
 
 This document describes the AI-powered strategy optimization system that uses Large Language Models (LLMs) to automatically generate and evaluate trading strategies based on historical market data. For detailed information about the template system, see [Optimizer Architecture](./88_Optimizer_Architecture.md). For data collection specifics, see [Data Collection Pipeline](./89_Data_Collection_Pipeline.md). For LLM integration details, see [LLM Integration](./90_LLM_Integration.md).

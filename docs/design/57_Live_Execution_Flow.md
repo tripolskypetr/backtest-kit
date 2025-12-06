@@ -1,3 +1,8 @@
+---
+title: design/57_live_execution_flow
+group: design
+---
+
 # Live Execution Flow
 
 This page documents the live trading execution flow implemented by `LiveLogicPrivateService` and `LiveLogicPublicService`. The focus is on the infinite `while(true)` loop mechanics, real-time `Date()` progression, `TICK_TTL` sleep intervals, and async generator result streaming.

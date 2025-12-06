@@ -1,3 +1,8 @@
+---
+title: design/77_timing_parameters
+group: design
+---
+
 # Timing Parameters
 
 ## Purpose and Scope

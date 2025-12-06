@@ -1,3 +1,8 @@
+---
+title: design/12_context_propagation
+group: design
+---
+
 # Context Propagation
 
 This page explains how runtime context (symbol, timestamp, execution mode, component names) is propagated through the system without explicit parameter passing. Context propagation enables operations to access execution parameters implicitly, reducing coupling and simplifying function signatures.

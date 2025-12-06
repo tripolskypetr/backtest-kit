@@ -1,3 +1,8 @@
+---
+title: design/52_backtesting
+group: design
+---
+
 # Backtesting
 
 ## Purpose and Scope

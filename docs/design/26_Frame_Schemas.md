@@ -1,3 +1,8 @@
+---
+title: design/26_frame_schemas
+group: design
+---
+
 # Frame Schemas
 
 Frame schemas define backtesting time periods for historical simulation. Registered via `addFrame()`, each schema specifies the temporal boundaries (`startDate`, `endDate`) and iteration granularity (`interval`) for generating timestamp arrays that drive backtest execution.

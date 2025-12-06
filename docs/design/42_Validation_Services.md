@@ -1,3 +1,8 @@
+---
+title: design/42_validation_services
+group: design
+---
+
 # Validation Services
 
 ## Purpose and Scope

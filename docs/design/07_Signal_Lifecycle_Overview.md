@@ -1,3 +1,8 @@
+---
+title: design/07_signal_lifecycle_overview
+group: design
+---
+
 # Signal Lifecycle Overview
 
 This page describes the complete lifecycle of trading signals within the backtest-kit framework, from generation through validation, execution, and termination. A signal represents a trading position with entry price, take-profit, stop-loss, and time expiration parameters. Understanding the signal lifecycle is essential for implementing strategies and debugging execution behavior.

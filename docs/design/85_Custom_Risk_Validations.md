@@ -1,3 +1,8 @@
+---
+title: design/85_custom_risk_validations
+group: design
+---
+
 # Custom Risk Validations
 
 ## Purpose and Scope

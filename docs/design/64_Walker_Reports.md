@@ -1,3 +1,8 @@
+---
+title: design/64_walker_reports
+group: design
+---
+
 # Walker Reports
 
 This page documents the reporting and data retrieval functionality for Walker mode, which provides multi-strategy comparison results and performance rankings. Walker reports aggregate backtest statistics from multiple strategies and present them in a unified format for analysis.

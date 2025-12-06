@@ -1,3 +1,8 @@
+---
+title: design/67_risk_validation
+group: design
+---
+
 # Risk Validation
 
 This page documents the risk validation flow in `backtest-kit`, specifically how custom validation functions are executed to approve or reject trading signals before they are opened. Risk validation occurs after signal generation but before position opening, providing portfolio-level risk controls.

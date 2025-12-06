@@ -1,3 +1,8 @@
+---
+title: design/13_event_system
+group: design
+---
+
 # Event System
 
 ## Purpose and Scope

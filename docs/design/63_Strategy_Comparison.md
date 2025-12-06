@@ -1,3 +1,8 @@
+---
+title: design/63_strategy_comparison
+group: design
+---
+
 # Strategy Comparison
 
 This page details the technical implementation of strategy comparison in Walker mode, including metric extraction, sequential backtest orchestration, and best strategy selection. For Walker API reference, see page 4.5. For individual backtest mechanics, see page 9.1.

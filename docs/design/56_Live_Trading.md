@@ -1,3 +1,8 @@
+---
+title: design/56_live_trading
+group: design
+---
+
 # Live Trading
 
 ## Purpose and Scope

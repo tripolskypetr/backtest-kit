@@ -1,3 +1,8 @@
+---
+title: design/49_scheduled_signals
+group: design
+---
+
 # Scheduled Signals
 
 ## Purpose

@@ -1,3 +1,8 @@
+---
+title: design/10_layer_responsibilities
+group: design
+---
+
 # Layer Responsibilities
 
 This document describes the service architecture of backtest-kit and the responsibilities of each layer. The framework follows a clean architecture pattern with strict separation of concerns, dependency injection, and unidirectional data flow from public API down to business logic.

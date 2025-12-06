@@ -1,3 +1,8 @@
+---
+title: design/48_signal_generation_and_validation
+group: design
+---
+
 # Signal Generation and Validation
 
 ## Purpose and Scope

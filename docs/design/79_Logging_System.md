@@ -1,3 +1,8 @@
+---
+title: design/79_logging_system
+group: design
+---
+
 # Logging System
 
 The logging system provides consistent, context-aware logging throughout the backtest-kit framework. It automatically enriches log messages with execution context (symbol, timestamp, mode) and method context (strategy name, exchange name, frame name) without requiring explicit parameter passing. The system uses a pluggable architecture that defaults to silent operation and allows users to configure custom logger implementations.

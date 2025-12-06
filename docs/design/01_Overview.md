@@ -1,3 +1,8 @@
+---
+title: design/01_overview
+group: design
+---
+
 # Overview
 
 **backtest-kit** is a production-ready TypeScript framework for developing, backtesting, and deploying algorithmic trading strategies with enterprise-grade reliability. The framework provides three execution modes (historical simulation, live trading, crash-safe state recovery), comprehensive signal validation, and event-driven observability. This document introduces the framework's purpose, architecture, and core concepts at a high level.
@@ -237,4 +242,4 @@ Metrics return `null` instead of invalid numbers, preventing downstream errors f
 - **Annualized Sharpe**: `sharpeRatio × √365`
 - **Certainty Ratio**: `avgWin / |avgLoss|` (win quality metric)
 - **Expected Yearly Returns**: `avgPnl × (365 / avgDurationDays)` (annualized return)
-
+

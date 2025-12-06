@@ -1,3 +1,8 @@
+---
+title: design/78_cross-cutting_concerns
+group: design
+---
+
 # Cross-Cutting Concerns
 
 This page documents infrastructure components that span multiple layers of the architecture: logging, error handling, and persistence. These concerns are injected throughout the system via dependency injection and provide foundational services for observability, reliability, and crash-safe state management.

@@ -1,3 +1,8 @@
+---
+title: design/22_event_listeners
+group: design
+---
+
 # Event Listeners
 
 This page documents all event listener functions available in the public API for subscribing to framework events. Event listeners enable real-time monitoring of signal lifecycle, execution progress, completion events, performance metrics, and errors.

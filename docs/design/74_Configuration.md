@@ -1,3 +1,8 @@
+---
+title: design/74_configuration
+group: design
+---
+
 # Configuration
 
 This document describes the global configuration system for `backtest-kit`, including runtime parameter modification, validation constraints, and timing controls. The framework uses a mutable `GLOBAL_CONFIG` object that can be customized via `setConfig()` and `setLogger()` functions to control signal validation, monitoring behavior, and execution timing.

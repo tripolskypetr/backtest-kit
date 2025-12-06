@@ -1,3 +1,8 @@
+---
+title: design/19_walker_api
+group: design
+---
+
 # Walker API
 
 This page documents the Walker API for multi-strategy comparison. Walker orchestrates multiple backtest runs across different strategies and ranks them by performance metrics.

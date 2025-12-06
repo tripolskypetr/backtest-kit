@@ -1,3 +1,8 @@
+---
+title: design/69_reporting_and_analytics
+group: design
+---
+
 # Reporting and Analytics
 
 This document describes the reporting and analytics capabilities of the backtest-kit framework. The system provides markdown-based reports for both backtest and live trading modes, accumulating signal events and calculating performance statistics.

@@ -1,3 +1,8 @@
+---
+title: design/60_interval_throttling
+group: design
+---
+
 # Interval Throttling
 
 ## Purpose and Scope

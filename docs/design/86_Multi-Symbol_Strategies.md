@@ -1,3 +1,8 @@
+---
+title: design/86_multi-symbol_strategies
+group: design
+---
+
 # Multi-Symbol Strategies
 
 ## Purpose and Scope

@@ -1,3 +1,8 @@
+---
+title: design/02_key_features
+group: design
+---
+
 # Key Features
 
 This page provides an overview of the core features that make backtest-kit a production-ready framework for algorithmic trading. Each feature is explained with its implementation details and integration points.

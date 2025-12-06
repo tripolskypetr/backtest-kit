@@ -1,3 +1,8 @@
+---
+title: design/90_llm_integration
+group: design
+---
+
 # LLM Integration
 
 This document describes the integration of Large Language Model (LLM) services into the backtest-kit optimization pipeline. It covers the Ollama API integration, prompt engineering patterns, conversation history management, and response processing mechanisms that enable AI-driven strategy generation.

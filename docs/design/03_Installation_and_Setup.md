@@ -1,3 +1,8 @@
+---
+title: design/03_installation_and_setup
+group: design
+---
+
 # Installation and Setup
 
 **Purpose and Scope:** This page covers the installation process, package structure, module entry points, and build system configuration for the backtest-kit framework. For information about configuring strategies, exchanges, and frames after installation, see [Configuration Functions](./15_Configuration_Functions.md). For architecture details and service layer setup, see [Architecture](./05_Core_Concepts.md) and [Dependency Injection System](./07_Signal_Lifecycle_Overview.md).

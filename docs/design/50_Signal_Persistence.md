@@ -1,3 +1,8 @@
+---
+title: design/50_signal_persistence
+group: design
+---
+
 # Signal Persistence
 
 **Purpose:** This page explains the persistence layer that enables crash-safe state management in live trading mode. Signal persistence ensures that active positions, scheduled signals, and risk state survive process crashes and can be restored exactly on restart, preventing duplicate signals and maintaining portfolio integrity.

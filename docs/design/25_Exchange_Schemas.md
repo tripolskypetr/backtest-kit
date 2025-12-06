@@ -1,3 +1,8 @@
+---
+title: design/25_exchange_schemas
+group: design
+---
+
 # Exchange Schemas
 
 Exchange schemas define data source interfaces for fetching historical market data and formatting prices/quantities according to exchange-specific precision rules. They provide the abstraction layer between the framework's signal processing logic and external data sources (APIs, databases, CSV files, etc.).

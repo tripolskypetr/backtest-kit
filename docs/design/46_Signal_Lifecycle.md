@@ -1,3 +1,8 @@
+---
+title: design/46_signal_lifecycle
+group: design
+---
+
 # Signal Lifecycle
 
 This document provides a comprehensive guide to the signal lifecycle in backtest-kit. It covers signal states, generation, validation, state transitions, and persistence. The signal lifecycle is the core mechanism through which trading positions are created, monitored, and closed by the framework.

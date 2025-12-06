@@ -1,3 +1,8 @@
+---
+title: design/54_timeframe_generation
+group: design
+---
+
 # Timeframe Generation
 
 ## Purpose and Scope

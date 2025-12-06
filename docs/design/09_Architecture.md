@@ -1,3 +1,8 @@
+---
+title: design/09_architecture
+group: design
+---
+
 # Architecture
 
 ## Purpose and Scope

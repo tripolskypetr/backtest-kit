@@ -1,3 +1,8 @@
+---
+title: design/43_global_services
+group: design
+---
+
 # Global Services
 
 Global Services form Layer 1 of the service architecture, serving as public API entry points that orchestrate validation and delegate operations to lower-level services. These services provide a consistent interface for component registration, validation, and execution across the framework.

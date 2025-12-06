@@ -1,3 +1,8 @@
+---
+title: design/08_component_registration
+group: design
+---
+
 # Component Registration
 
 Component registration is the configuration phase where users define the building blocks of their trading system: strategies, exchanges, timeframes, risk rules, position sizing algorithms, strategy comparisons, and AI optimizers. All components are registered before execution begins, creating an immutable registry that the framework queries during backtest, live trading, or walker execution.

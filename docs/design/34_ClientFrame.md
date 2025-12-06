@@ -1,3 +1,8 @@
+---
+title: design/34_clientframe
+group: design
+---
+
 # ClientFrame
 
 ## Purpose and Scope

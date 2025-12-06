@@ -1,3 +1,8 @@
+---
+title: design/70_markdown_report_generation
+group: design
+---
+
 # Markdown Report Generation
 
 This page documents the markdown report generation system that transforms trading execution events into human-readable reports with statistical analysis. The system provides three report types: backtest reports (historical simulation), live trading reports (real-time execution), and schedule reports (limit order tracking).

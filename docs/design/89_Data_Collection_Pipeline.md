@@ -1,3 +1,8 @@
+---
+title: design/89_data_collection_pipeline
+group: design
+---
+
 # Data Collection Pipeline
 
 ## Purpose and Scope

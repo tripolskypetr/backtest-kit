@@ -1,3 +1,8 @@
+---
+title: design/47_signal_states
+group: design
+---
+
 # Signal States
 
 This page defines the six distinct states a trading signal can occupy during its lifecycle: **idle**, **scheduled**, **opened**, **active**, **closed**, and **cancelled**. Each state represents a specific phase of signal execution with well-defined entry conditions, exit conditions, and behaviors. Understanding these states is critical for implementing strategies, monitoring execution, and debugging signal lifecycle issues.

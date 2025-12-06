@@ -1,3 +1,8 @@
+---
+title: design/75_global_configuration
+group: design
+---
+
 # Global Configuration
 
 This page documents the global configuration system for backtest-kit, including the `GLOBAL_CONFIG` object, the `setConfig()` function, and all runtime configuration parameters that control validation rules and timing constraints across the framework.

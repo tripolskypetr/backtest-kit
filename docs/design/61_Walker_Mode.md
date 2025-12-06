@@ -1,3 +1,8 @@
+---
+title: design/61_walker_mode
+group: design
+---
+
 # Walker Mode
 
 Walker Mode is a strategy comparison and optimization system that executes multiple backtest runs sequentially and ranks strategies by a configurable performance metric. This mode enables automated strategy selection by comparing historical performance across different strategy implementations for the same market conditions. For information about individual backtest execution, see [Backtesting](./52_Backtesting.md). For live trading execution, see [Live Trading](./56_Live_Trading.md).

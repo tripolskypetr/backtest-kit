@@ -1,3 +1,8 @@
+---
+title: design/92_training_vs_testing_ranges
+group: design
+---
+
 # Training vs Testing Ranges
 
 This page documents the `rangeTrain` and `rangeTest` configuration parameters in the Optimizer system, which implement walk-forward validation and temporal data splitting for AI-powered strategy generation. These parameters prevent overfitting by segregating historical data into training periods (where the LLM learns market patterns) and testing periods (where generated strategies are validated on unseen data).

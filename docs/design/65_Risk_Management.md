@@ -1,3 +1,8 @@
+---
+title: design/65_risk_management
+group: design
+---
+
 # Risk Management
 
 This document covers the risk management system in backtest-kit, which provides portfolio-level controls to prevent signals that violate configured limits. The system tracks active positions across strategies, executes custom validation logic, and persists state for crash recovery.

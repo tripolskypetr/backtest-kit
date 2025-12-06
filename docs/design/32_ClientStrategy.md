@@ -1,3 +1,8 @@
+---
+title: design/32_clientstrategy
+group: design
+---
+
 # ClientStrategy
 
 ## Purpose and Scope

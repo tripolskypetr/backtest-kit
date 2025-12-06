@@ -1,3 +1,8 @@
+---
+title: design/39_service_architecture_overview
+group: design
+---
+
 # Service Architecture Overview
 
 ## Purpose and Scope

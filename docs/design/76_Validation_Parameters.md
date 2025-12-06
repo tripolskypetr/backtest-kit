@@ -1,3 +1,8 @@
+---
+title: design/76_validation_parameters
+group: design
+---
+
 # Validation Parameters
 
 This document describes the global validation parameters that control financial safety constraints in signal generation. These parameters enforce minimum take profit distances, maximum stop loss distances, and signal lifetime limits to protect capital from unprofitable trades, catastrophic losses, and strategy deadlock.

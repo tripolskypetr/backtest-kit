@@ -1,3 +1,8 @@
+---
+title: design/82_advanced_topics
+group: design
+---
+
 # Advanced Topics
 
 This document covers advanced integration patterns and customization techniques for the backtest-kit framework. It explains how to implement custom exchange data sources, integrate alternative persistence backends, and design multi-symbol trading strategies with shared state management.

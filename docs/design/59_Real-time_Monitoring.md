@@ -1,3 +1,8 @@
+---
+title: design/59_real-time_monitoring
+group: design
+---
+
 # Real-time Monitoring
 
 ## Purpose and Scope

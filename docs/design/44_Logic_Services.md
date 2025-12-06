@@ -1,3 +1,8 @@
+---
+title: design/44_logic_services
+group: design
+---
+
 # Logic Services
 
 Logic Services implement the core execution orchestration layer for the three operational modes: Backtest, Live, and Walker. These services manage the temporal progression, signal lifecycle coordination, and result streaming for each execution mode.
