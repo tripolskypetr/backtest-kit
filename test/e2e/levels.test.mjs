@@ -203,8 +203,8 @@ test("PARTIAL LEVELS: listenPartialProfit fires only on 10%, 20%, 30% levels", a
   console.log(`[TEST] Profit events:`, profitEvents);
   console.log(`[TEST] Profit events (JSON):`, JSON.stringify(profitEvents));
 
-  // ПРОВЕРКА #1: Должны быть вызовы для уровней 10, 20, 30, 40, 50
-  const expectedLevels = [10, 20, 30, 40, 50];
+  // ПРОВЕРКА #1: Должны быть вызовы для уровней 10, 20, 30, 40, 50, 60, 70, 80, 90
+  const expectedLevels = [10, 20, 30, 40, 50, 60, 70, 80, 90];
   if (profitEvents.length < 4) {
     fail(`Expected at least 4 profit events, got ${profitEvents.length}`);
     return;
@@ -405,7 +405,7 @@ test("PARTIAL LEVELS: listenPartialLoss fires only on 10%, 20%, 30% levels", asy
   console.log(`[TEST] Loss events:`, lossEvents);
 
   // Проверки аналогичны profit тесту
-  const expectedLevels = [10, 20, 30];
+  const expectedLevels = [10, 20, 30, 40, 50, 60, 70];
   if (lossEvents.length < expectedLevels.length) {
     fail(`Expected at least ${expectedLevels.length} loss events, got ${lossEvents.length}`);
     return;
