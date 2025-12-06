@@ -1,24 +1,5 @@
 # Execution Modes
 
-<details>
-<summary>Relevant source files</summary>
-
-The following files were used as context for generating this wiki page:
-
-- [docs/classes/BacktestCommandService.md](docs/classes/BacktestCommandService.md)
-- [docs/classes/BacktestUtils.md](docs/classes/BacktestUtils.md)
-- [docs/classes/LiveCommandService.md](docs/classes/LiveCommandService.md)
-- [docs/classes/LiveUtils.md](docs/classes/LiveUtils.md)
-- [docs/index.md](docs/index.md)
-- [src/client/ClientExchange.ts](src/client/ClientExchange.ts)
-- [src/lib/services/logic/private/BacktestLogicPrivateService.ts](src/lib/services/logic/private/BacktestLogicPrivateService.ts)
-- [src/lib/services/logic/private/LiveLogicPrivateService.ts](src/lib/services/logic/private/LiveLogicPrivateService.ts)
-- [src/lib/services/logic/private/WalkerLogicPrivateService.ts](src/lib/services/logic/private/WalkerLogicPrivateService.ts)
-
-</details>
-
-
-
 ## Purpose and Scope
 
 This document describes the three execution modes available in backtest-kit: **Backtest** (historical simulation), **Live** (real-time trading), and **Walker** (strategy comparison). Each mode implements a distinct temporal progression model and completion semantic while sharing the same core strategy execution framework.

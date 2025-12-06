@@ -1,25 +1,5 @@
 # Quick Start Guide
 
-<details>
-<summary>Relevant source files</summary>
-
-The following files were used as context for generating this wiki page:
-
-- [src/client/ClientStrategy.ts](src/client/ClientStrategy.ts)
-- [src/config/emitters.ts](src/config/emitters.ts)
-- [src/function/event.ts](src/function/event.ts)
-- [src/index.ts](src/index.ts)
-- [src/interfaces/Strategy.interface.ts](src/interfaces/Strategy.interface.ts)
-- [test/config/setup.mjs](test/config/setup.mjs)
-- [test/e2e/defend.test.mjs](test/e2e/defend.test.mjs)
-- [test/e2e/partial.test.mjs](test/e2e/partial.test.mjs)
-- [test/index.mjs](test/index.mjs)
-- [types.d.ts](types.d.ts)
-
-</details>
-
-
-
 This guide demonstrates a minimal working example of the backtest-kit framework. You'll learn how to register a strategy, configure an exchange data source, set up a timeframe, and execute a backtest. For installation instructions, see [Installation and Setup](#1.2). For deeper understanding of execution modes and lifecycle concepts, see [Core Concepts](#2) and [Component Registration](#2.3).
 
 ## Overview: The Basic Flow

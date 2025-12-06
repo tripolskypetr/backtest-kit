@@ -1,22 +1,5 @@
 # Component Registration Functions
 
-<details>
-<summary>Relevant source files</summary>
-
-The following files were used as context for generating this wiki page:
-
-- [src/client/ClientStrategy.ts](src/client/ClientStrategy.ts)
-- [src/function/add.ts](src/function/add.ts)
-- [src/interfaces/Strategy.interface.ts](src/interfaces/Strategy.interface.ts)
-- [src/lib/core/provide.ts](src/lib/core/provide.ts)
-- [src/lib/core/types.ts](src/lib/core/types.ts)
-- [src/lib/index.ts](src/lib/index.ts)
-- [types.d.ts](types.d.ts)
-
-</details>
-
-
-
 ## Purpose and Scope
 
 This page documents the seven component registration functions that configure the backtest-kit framework. These functions (`addStrategy`, `addExchange`, `addFrame`, `addWalker`, `addSizing`, `addRisk`, `addOptimizer`) provide the primary user-facing API for defining trading strategies, data sources, backtesting parameters, comparison logic, position sizing, risk management, and AI-driven optimization.

@@ -1,21 +1,5 @@
 # Signal Generation and Validation
 
-<details>
-<summary>Relevant source files</summary>
-
-The following files were used as context for generating this wiki page:
-
-- [src/client/ClientStrategy.ts](src/client/ClientStrategy.ts)
-- [src/interfaces/Strategy.interface.ts](src/interfaces/Strategy.interface.ts)
-- [test/e2e/defend.test.mjs](test/e2e/defend.test.mjs)
-- [test/e2e/partial.test.mjs](test/e2e/partial.test.mjs)
-- [test/index.mjs](test/index.mjs)
-- [types.d.ts](types.d.ts)
-
-</details>
-
-
-
 ## Purpose and Scope
 
 This page documents the signal generation and validation pipeline in `ClientStrategy`, which implements a three-layer validation architecture to ensure trading safety: interval throttling, risk management gates, and structural validation. This system processes user-provided `getSignal()` functions and transforms raw signal DTOs into validated `ISignalRow` objects ready for execution.

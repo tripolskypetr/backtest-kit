@@ -1,22 +1,5 @@
 # Configuration Functions
 
-<details>
-<summary>Relevant source files</summary>
-
-The following files were used as context for generating this wiki page:
-
-- [src/client/ClientStrategy.ts](src/client/ClientStrategy.ts)
-- [src/config/emitters.ts](src/config/emitters.ts)
-- [src/function/event.ts](src/function/event.ts)
-- [src/index.ts](src/index.ts)
-- [src/interfaces/Strategy.interface.ts](src/interfaces/Strategy.interface.ts)
-- [test/config/setup.mjs](test/config/setup.mjs)
-- [types.d.ts](types.d.ts)
-
-</details>
-
-
-
 ## Purpose and Scope
 
 This page documents the two primary configuration functions exposed by the framework: `setLogger` and `setConfig`. These functions allow users to customize logging behavior and tune global runtime parameters that affect signal validation, timing constraints, and price monitoring.

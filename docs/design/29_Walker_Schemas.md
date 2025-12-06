@@ -1,23 +1,5 @@
 # Walker Schemas
 
-<details>
-<summary>Relevant source files</summary>
-
-The following files were used as context for generating this wiki page:
-
-- [docs/classes/BacktestCommandService.md](docs/classes/BacktestCommandService.md)
-- [docs/classes/BacktestUtils.md](docs/classes/BacktestUtils.md)
-- [docs/classes/LiveCommandService.md](docs/classes/LiveCommandService.md)
-- [docs/classes/LiveUtils.md](docs/classes/LiveUtils.md)
-- [docs/index.md](docs/index.md)
-- [src/client/ClientStrategy.ts](src/client/ClientStrategy.ts)
-- [src/interfaces/Strategy.interface.ts](src/interfaces/Strategy.interface.ts)
-- [types.d.ts](types.d.ts)
-
-</details>
-
-
-
 This document defines the `IWalkerSchema` interface for registering Walker components via `addWalker()`. Walker schemas configure strategy comparison operations that run multiple strategies sequentially and rank them by a chosen performance metric.
 
 For information about executing Walker operations, see [Walker API](#4.5). For details about Walker execution flow and implementation, see [Walker Mode](#11).

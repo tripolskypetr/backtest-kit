@@ -1,19 +1,5 @@
 # Custom Persistence Backends
 
-<details>
-<summary>Relevant source files</summary>
-
-The following files were used as context for generating this wiki page:
-
-- [README.md](README.md)
-- [src/lib/services/markdown/BacktestMarkdownService.ts](src/lib/services/markdown/BacktestMarkdownService.ts)
-- [src/lib/services/markdown/LiveMarkdownService.ts](src/lib/services/markdown/LiveMarkdownService.ts)
-- [src/lib/services/markdown/ScheduleMarkdownService.ts](src/lib/services/markdown/ScheduleMarkdownService.ts)
-
-</details>
-
-
-
 ## Purpose and Scope
 
 This document describes the pluggable persistence system in backtest-kit and how to implement custom storage backends. The framework uses a file-based persistence layer by default but provides a base class (`PersistBase`) and adapter registration pattern that allows replacement with alternative storage systems such as Redis, MongoDB, PostgreSQL, or other databases.

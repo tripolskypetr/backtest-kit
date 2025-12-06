@@ -1,19 +1,5 @@
 # Event System
 
-<details>
-<summary>Relevant source files</summary>
-
-The following files were used as context for generating this wiki page:
-
-- [src/config/emitters.ts](src/config/emitters.ts)
-- [src/function/event.ts](src/function/event.ts)
-- [src/index.ts](src/index.ts)
-- [test/config/setup.mjs](test/config/setup.mjs)
-
-</details>
-
-
-
 ## Purpose and Scope
 
 The Event System provides observability and monitoring capabilities for backtest-kit through a publish-subscribe architecture. It enables external code to react to strategy execution events, errors, and progress updates without coupling to internal execution logic.

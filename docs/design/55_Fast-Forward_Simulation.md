@@ -1,18 +1,5 @@
 # Fast-Forward Simulation
 
-<details>
-<summary>Relevant source files</summary>
-
-The following files were used as context for generating this wiki page:
-
-- [src/client/ClientStrategy.ts](src/client/ClientStrategy.ts)
-- [src/interfaces/Strategy.interface.ts](src/interfaces/Strategy.interface.ts)
-- [types.d.ts](types.d.ts)
-
-</details>
-
-
-
 ## Purpose and Scope
 
 Fast-forward simulation is the core optimization that enables efficient backtesting. Instead of calling `ClientStrategy.tick()` at every timeframe timestamp, the framework calls `ClientStrategy.backtest()` once per signal with a pre-fetched array of future candles. This method processes the entire signal lifecycle in a single pass through the candle array.

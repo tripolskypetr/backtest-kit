@@ -1,22 +1,5 @@
 # Context Propagation
 
-<details>
-<summary>Relevant source files</summary>
-
-The following files were used as context for generating this wiki page:
-
-- [src/client/ClientStrategy.ts](src/client/ClientStrategy.ts)
-- [src/function/add.ts](src/function/add.ts)
-- [src/interfaces/Strategy.interface.ts](src/interfaces/Strategy.interface.ts)
-- [src/lib/core/provide.ts](src/lib/core/provide.ts)
-- [src/lib/core/types.ts](src/lib/core/types.ts)
-- [src/lib/index.ts](src/lib/index.ts)
-- [types.d.ts](types.d.ts)
-
-</details>
-
-
-
 This page explains how runtime context (symbol, timestamp, execution mode, component names) is propagated through the system without explicit parameter passing. Context propagation enables operations to access execution parameters implicitly, reducing coupling and simplifying function signatures.
 
 For information about dependency injection of services, see [3.2](#3.2). For information about how Global services orchestrate operations, see [7.5](#7.5).

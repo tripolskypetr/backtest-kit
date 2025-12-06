@@ -1,18 +1,5 @@
 # ClientFrame
 
-<details>
-<summary>Relevant source files</summary>
-
-The following files were used as context for generating this wiki page:
-
-- [src/client/ClientStrategy.ts](src/client/ClientStrategy.ts)
-- [src/interfaces/Strategy.interface.ts](src/interfaces/Strategy.interface.ts)
-- [types.d.ts](types.d.ts)
-
-</details>
-
-
-
 ## Purpose and Scope
 
 This document describes `ClientFrame`, the timeframe generator component responsible for creating arrays of `Date` objects for backtest execution. ClientFrame converts a date range (`startDate`, `endDate`) and a time interval (e.g., `"1m"`, `"1h"`) into a chronologically ordered sequence of timestamps that the backtest engine uses to simulate historical trading.

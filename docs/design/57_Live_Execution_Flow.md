@@ -1,23 +1,5 @@
 # Live Execution Flow
 
-<details>
-<summary>Relevant source files</summary>
-
-The following files were used as context for generating this wiki page:
-
-- [docs/classes/BacktestLogicPrivateService.md](docs/classes/BacktestLogicPrivateService.md)
-- [docs/classes/BacktestLogicPublicService.md](docs/classes/BacktestLogicPublicService.md)
-- [docs/classes/LiveLogicPrivateService.md](docs/classes/LiveLogicPrivateService.md)
-- [docs/classes/LiveLogicPublicService.md](docs/classes/LiveLogicPublicService.md)
-- [src/client/ClientExchange.ts](src/client/ClientExchange.ts)
-- [src/lib/services/logic/private/BacktestLogicPrivateService.ts](src/lib/services/logic/private/BacktestLogicPrivateService.ts)
-- [src/lib/services/logic/private/LiveLogicPrivateService.ts](src/lib/services/logic/private/LiveLogicPrivateService.ts)
-- [src/lib/services/logic/private/WalkerLogicPrivateService.ts](src/lib/services/logic/private/WalkerLogicPrivateService.ts)
-
-</details>
-
-
-
 This page documents the live trading execution flow implemented by `LiveLogicPrivateService` and `LiveLogicPublicService`. The focus is on the infinite `while(true)` loop mechanics, real-time `Date()` progression, `TICK_TTL` sleep intervals, and async generator result streaming.
 
 Related pages: [Crash Recovery (10.2)]() for persistence layer, [Real-time Monitoring (10.3)]() for signal lifecycle callbacks, [Backtest Execution Flow (9.1)]() for comparison with historical mode.

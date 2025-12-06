@@ -1,23 +1,5 @@
 # Training vs Testing Ranges
 
-<details>
-<summary>Relevant source files</summary>
-
-The following files were used as context for generating this wiki page:
-
-- [.claude/settings.local.json](.claude/settings.local.json)
-- [demo/optimization/.env.example](demo/optimization/.env.example)
-- [demo/optimization/.gitignore](demo/optimization/.gitignore)
-- [demo/optimization/package-lock.json](demo/optimization/package-lock.json)
-- [demo/optimization/package.json](demo/optimization/package.json)
-- [demo/optimization/src/index.mjs](demo/optimization/src/index.mjs)
-- [demo/trade/.gitkeep](demo/trade/.gitkeep)
-- [src/contract/ProgressOptimizer.contract.ts](src/contract/ProgressOptimizer.contract.ts)
-
-</details>
-
-
-
 This page documents the `rangeTrain` and `rangeTest` configuration parameters in the Optimizer system, which implement walk-forward validation and temporal data splitting for AI-powered strategy generation. These parameters prevent overfitting by segregating historical data into training periods (where the LLM learns market patterns) and testing periods (where generated strategies are validated on unseen data).
 
 For information about the complete AI optimization pipeline, see [AI-Powered Strategy Optimization](#16.5). For details about LLM integration and prompt engineering, see [LLM Integration](#16.5.3). For strategy code generation, see [Strategy Code Generation](#16.5.4).

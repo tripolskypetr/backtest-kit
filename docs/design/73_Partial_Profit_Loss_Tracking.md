@@ -1,22 +1,5 @@
 # Partial Profit/Loss Tracking
 
-<details>
-<summary>Relevant source files</summary>
-
-The following files were used as context for generating this wiki page:
-
-- [README.md](README.md)
-- [src/lib/services/markdown/BacktestMarkdownService.ts](src/lib/services/markdown/BacktestMarkdownService.ts)
-- [src/lib/services/markdown/LiveMarkdownService.ts](src/lib/services/markdown/LiveMarkdownService.ts)
-- [src/lib/services/markdown/ScheduleMarkdownService.ts](src/lib/services/markdown/ScheduleMarkdownService.ts)
-- [test/e2e/defend.test.mjs](test/e2e/defend.test.mjs)
-- [test/e2e/partial.test.mjs](test/e2e/partial.test.mjs)
-- [test/index.mjs](test/index.mjs)
-
-</details>
-
-
-
 ## Purpose and Scope
 
 This document explains the **Partial Profit/Loss Tracking** system, which monitors unrealized profit and loss milestones during active signal execution. The system tracks when positions reach fixed percentage levels (10%, 20%, 30%, etc.) and emits events for risk management, position scaling strategies, and performance monitoring.

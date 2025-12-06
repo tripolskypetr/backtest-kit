@@ -1,21 +1,5 @@
 # Strategy Code Generation
 
-<details>
-<summary>Relevant source files</summary>
-
-The following files were used as context for generating this wiki page:
-
-- [package-lock.json](package-lock.json)
-- [package.json](package.json)
-- [src/client/ClientOptimizer.ts](src/client/ClientOptimizer.ts)
-- [src/interfaces/Optimizer.interface.ts](src/interfaces/Optimizer.interface.ts)
-- [src/lib/services/connection/OptimizerConnectionService.ts](src/lib/services/connection/OptimizerConnectionService.ts)
-- [src/lib/services/template/OptimizerTemplateService.ts](src/lib/services/template/OptimizerTemplateService.ts)
-
-</details>
-
-
-
 This page documents the code generation system used by the Optimizer to produce executable trading strategy scripts. The generation process transforms collected data and LLM conversation histories into standalone Node.js files that implement multi-timeframe trading strategies with Walker-based comparison.
 
 For information about data collection and LLM integration, see [AI-Powered Strategy Optimization](#16.5). For details on prompt engineering and conversation building, see [LLM Integration](#16.5.3). For information about walk-forward validation, see [Training vs Testing Ranges](#16.5.5).

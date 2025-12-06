@@ -1,18 +1,5 @@
 # Frame Schemas
 
-<details>
-<summary>Relevant source files</summary>
-
-The following files were used as context for generating this wiki page:
-
-- [src/client/ClientStrategy.ts](src/client/ClientStrategy.ts)
-- [src/interfaces/Strategy.interface.ts](src/interfaces/Strategy.interface.ts)
-- [types.d.ts](types.d.ts)
-
-</details>
-
-
-
 Frame schemas define backtesting time periods for historical simulation. Registered via `addFrame()`, each schema specifies the temporal boundaries (`startDate`, `endDate`) and iteration granularity (`interval`) for generating timestamp arrays that drive backtest execution.
 
 Related pages: [Backtest Execution Flow (9.1)](#9.1), [Timeframe Generation (9.2)](#9.2), [Component Registration (2.3)](#2.3)

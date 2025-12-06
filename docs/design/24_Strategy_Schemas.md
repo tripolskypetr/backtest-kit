@@ -1,21 +1,5 @@
 # Strategy Schemas
 
-<details>
-<summary>Relevant source files</summary>
-
-The following files were used as context for generating this wiki page:
-
-- [src/client/ClientStrategy.ts](src/client/ClientStrategy.ts)
-- [src/interfaces/Strategy.interface.ts](src/interfaces/Strategy.interface.ts)
-- [test/e2e/defend.test.mjs](test/e2e/defend.test.mjs)
-- [test/e2e/partial.test.mjs](test/e2e/partial.test.mjs)
-- [test/index.mjs](test/index.mjs)
-- [types.d.ts](types.d.ts)
-
-</details>
-
-
-
 ## Purpose and Scope
 
 This page documents the `IStrategySchema` interface, which defines the configuration structure for trading strategies in backtest-kit. Strategy schemas specify signal generation logic, throttling intervals, lifecycle callbacks, and optional risk management integration.

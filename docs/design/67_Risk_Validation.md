@@ -1,21 +1,5 @@
 # Risk Validation
 
-<details>
-<summary>Relevant source files</summary>
-
-The following files were used as context for generating this wiki page:
-
-- [src/client/ClientStrategy.ts](src/client/ClientStrategy.ts)
-- [src/interfaces/Strategy.interface.ts](src/interfaces/Strategy.interface.ts)
-- [test/e2e/defend.test.mjs](test/e2e/defend.test.mjs)
-- [test/e2e/partial.test.mjs](test/e2e/partial.test.mjs)
-- [test/index.mjs](test/index.mjs)
-- [types.d.ts](types.d.ts)
-
-</details>
-
-
-
 This page documents the risk validation flow in `backtest-kit`, specifically how custom validation functions are executed to approve or reject trading signals before they are opened. Risk validation occurs after signal generation but before position opening, providing portfolio-level risk controls.
 
 For information about defining risk profiles and their structure, see [Risk Profiles](#12.1). For details on how active positions are tracked across strategies, see [Position Tracking](#12.3).

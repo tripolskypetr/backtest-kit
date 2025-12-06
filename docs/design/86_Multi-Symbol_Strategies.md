@@ -1,23 +1,5 @@
 # Multi-Symbol Strategies
 
-<details>
-<summary>Relevant source files</summary>
-
-The following files were used as context for generating this wiki page:
-
-- [src/classes/Backtest.ts](src/classes/Backtest.ts)
-- [src/classes/Live.ts](src/classes/Live.ts)
-- [src/classes/Walker.ts](src/classes/Walker.ts)
-- [src/client/ClientStrategy.ts](src/client/ClientStrategy.ts)
-- [src/interfaces/Strategy.interface.ts](src/interfaces/Strategy.interface.ts)
-- [src/lib/services/connection/StrategyConnectionService.ts](src/lib/services/connection/StrategyConnectionService.ts)
-- [src/lib/services/global/StrategyGlobalService.ts](src/lib/services/global/StrategyGlobalService.ts)
-- [types.d.ts](types.d.ts)
-
-</details>
-
-
-
 ## Purpose and Scope
 
 This document describes patterns for running trading strategies across multiple symbols (trading pairs) simultaneously. The framework is designed to support multi-symbol execution with automatic state isolation per symbol, shared strategy logic, and efficient memory usage through instance memoization.

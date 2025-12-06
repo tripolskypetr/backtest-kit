@@ -1,24 +1,5 @@
 # Reporting and Analytics
 
-<details>
-<summary>Relevant source files</summary>
-
-The following files were used as context for generating this wiki page:
-
-- [README.md](README.md)
-- [docs/classes/BacktestCommandService.md](docs/classes/BacktestCommandService.md)
-- [docs/classes/BacktestUtils.md](docs/classes/BacktestUtils.md)
-- [docs/classes/LiveCommandService.md](docs/classes/LiveCommandService.md)
-- [docs/classes/LiveUtils.md](docs/classes/LiveUtils.md)
-- [docs/index.md](docs/index.md)
-- [src/lib/services/markdown/BacktestMarkdownService.ts](src/lib/services/markdown/BacktestMarkdownService.ts)
-- [src/lib/services/markdown/LiveMarkdownService.ts](src/lib/services/markdown/LiveMarkdownService.ts)
-- [src/lib/services/markdown/ScheduleMarkdownService.ts](src/lib/services/markdown/ScheduleMarkdownService.ts)
-
-</details>
-
-
-
 This document describes the reporting and analytics capabilities of the backtest-kit framework. The system provides markdown-based reports for both backtest and live trading modes, accumulating signal events and calculating performance statistics.
 
 For information about signal lifecycle and PnL calculations that feed into reports, see [Signal Lifecycle](#6). For details on the public API methods to retrieve reports, see [Backtest API](#3.2) and [Live Trading API](#3.3).

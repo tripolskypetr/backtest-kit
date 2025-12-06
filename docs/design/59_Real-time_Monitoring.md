@@ -1,23 +1,5 @@
 # Real-time Monitoring
 
-<details>
-<summary>Relevant source files</summary>
-
-The following files were used as context for generating this wiki page:
-
-- [README.md](README.md)
-- [src/config/emitters.ts](src/config/emitters.ts)
-- [src/function/event.ts](src/function/event.ts)
-- [src/index.ts](src/index.ts)
-- [src/lib/services/markdown/BacktestMarkdownService.ts](src/lib/services/markdown/BacktestMarkdownService.ts)
-- [src/lib/services/markdown/LiveMarkdownService.ts](src/lib/services/markdown/LiveMarkdownService.ts)
-- [src/lib/services/markdown/ScheduleMarkdownService.ts](src/lib/services/markdown/ScheduleMarkdownService.ts)
-- [test/config/setup.mjs](test/config/setup.mjs)
-
-</details>
-
-
-
 ## Purpose and Scope
 
 This page explains how to monitor live trading execution in real-time using event listeners, strategy callbacks, and reporting services. It covers `listenSignalLive()`, `listenDoneLive()`, lifecycle callbacks (`onOpen`, `onClose`, `onActive`, `onSchedule`, `onCancel`), `LiveMarkdownService` for report generation, and state tracking patterns. For the overall live execution loop, see [10.1](#10.1). For crash recovery and persistence, see [10.2](#10.2).

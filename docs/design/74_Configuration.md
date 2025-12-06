@@ -1,18 +1,5 @@
 # Configuration
 
-<details>
-<summary>Relevant source files</summary>
-
-The following files were used as context for generating this wiki page:
-
-- [src/client/ClientStrategy.ts](src/client/ClientStrategy.ts)
-- [src/interfaces/Strategy.interface.ts](src/interfaces/Strategy.interface.ts)
-- [types.d.ts](types.d.ts)
-
-</details>
-
-
-
 This document describes the global configuration system for `backtest-kit`, including runtime parameter modification, validation constraints, and timing controls. The framework uses a mutable `GLOBAL_CONFIG` object that can be customized via `setConfig()` and `setLogger()` functions to control signal validation, monitoring behavior, and execution timing.
 
 For component-specific schemas, see [Component Types](#5). For execution mode differences, see [Execution Modes](#2.1).

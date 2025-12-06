@@ -1,21 +1,5 @@
 # Custom Risk Validations
 
-<details>
-<summary>Relevant source files</summary>
-
-The following files were used as context for generating this wiki page:
-
-- [src/client/ClientStrategy.ts](src/client/ClientStrategy.ts)
-- [src/interfaces/Strategy.interface.ts](src/interfaces/Strategy.interface.ts)
-- [test/e2e/defend.test.mjs](test/e2e/defend.test.mjs)
-- [test/e2e/partial.test.mjs](test/e2e/partial.test.mjs)
-- [test/index.mjs](test/index.mjs)
-- [types.d.ts](types.d.ts)
-
-</details>
-
-
-
 ## Purpose and Scope
 
 This guide explains how to write custom risk validation functions for portfolio-level risk management in backtest-kit. Custom validations allow you to implement complex risk logic that evaluates signals before they are opened, providing fine-grained control over position acceptance based on portfolio state, market conditions, and custom business rules.

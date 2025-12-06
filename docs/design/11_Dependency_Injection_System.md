@@ -1,19 +1,5 @@
 # Dependency Injection System
 
-<details>
-<summary>Relevant source files</summary>
-
-The following files were used as context for generating this wiki page:
-
-- [src/function/add.ts](src/function/add.ts)
-- [src/lib/core/provide.ts](src/lib/core/provide.ts)
-- [src/lib/core/types.ts](src/lib/core/types.ts)
-- [src/lib/index.ts](src/lib/index.ts)
-
-</details>
-
-
-
 This document describes the dependency injection (DI) container architecture used throughout backtest-kit. The DI system provides type-safe service resolution, singleton lifecycle management, and context propagation for all framework services. For information about the context propagation mechanism itself, see [Context Propagation](#3.3). For details on specific service layers, see [Layer Responsibilities](#3.1).
 
 ## Overview

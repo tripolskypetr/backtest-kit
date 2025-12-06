@@ -1,22 +1,5 @@
 # Exchange Functions
 
-<details>
-<summary>Relevant source files</summary>
-
-The following files were used as context for generating this wiki page:
-
-- [src/client/ClientExchange.ts](src/client/ClientExchange.ts)
-- [src/client/ClientStrategy.ts](src/client/ClientStrategy.ts)
-- [src/interfaces/Strategy.interface.ts](src/interfaces/Strategy.interface.ts)
-- [src/lib/services/logic/private/BacktestLogicPrivateService.ts](src/lib/services/logic/private/BacktestLogicPrivateService.ts)
-- [src/lib/services/logic/private/LiveLogicPrivateService.ts](src/lib/services/logic/private/LiveLogicPrivateService.ts)
-- [src/lib/services/logic/private/WalkerLogicPrivateService.ts](src/lib/services/logic/private/WalkerLogicPrivateService.ts)
-- [types.d.ts](types.d.ts)
-
-</details>
-
-
-
 This page documents the exchange helper functions available in the public API. These functions provide standardized access to market data (candles, prices) with built-in retry logic, validation, and VWAP calculation. Exchange functions are defined in user-provided exchange schemas and accessed through the `ClientExchange` implementation.
 
 For information about registering exchange schemas, see [Component Registration Functions](#4.2). For details on implementing custom exchange integrations, see [Custom Exchange Integration](#16.1).

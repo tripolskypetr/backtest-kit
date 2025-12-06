@@ -1,24 +1,5 @@
 # Strategy Comparison
 
-<details>
-<summary>Relevant source files</summary>
-
-The following files were used as context for generating this wiki page:
-
-- [docs/classes/BacktestCommandService.md](docs/classes/BacktestCommandService.md)
-- [docs/classes/BacktestUtils.md](docs/classes/BacktestUtils.md)
-- [docs/classes/LiveCommandService.md](docs/classes/LiveCommandService.md)
-- [docs/classes/LiveUtils.md](docs/classes/LiveUtils.md)
-- [docs/index.md](docs/index.md)
-- [src/client/ClientExchange.ts](src/client/ClientExchange.ts)
-- [src/lib/services/logic/private/BacktestLogicPrivateService.ts](src/lib/services/logic/private/BacktestLogicPrivateService.ts)
-- [src/lib/services/logic/private/LiveLogicPrivateService.ts](src/lib/services/logic/private/LiveLogicPrivateService.ts)
-- [src/lib/services/logic/private/WalkerLogicPrivateService.ts](src/lib/services/logic/private/WalkerLogicPrivateService.ts)
-
-</details>
-
-
-
 This page details the technical implementation of strategy comparison in Walker mode, including metric extraction, sequential backtest orchestration, and best strategy selection. For Walker API reference, see page 4.5. For individual backtest mechanics, see page 9.1.
 
 ---

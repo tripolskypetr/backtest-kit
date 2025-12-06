@@ -1,21 +1,5 @@
 # Validation Services
 
-<details>
-<summary>Relevant source files</summary>
-
-The following files were used as context for generating this wiki page:
-
-- [src/client/ClientStrategy.ts](src/client/ClientStrategy.ts)
-- [src/interfaces/Strategy.interface.ts](src/interfaces/Strategy.interface.ts)
-- [test/e2e/defend.test.mjs](test/e2e/defend.test.mjs)
-- [test/e2e/partial.test.mjs](test/e2e/partial.test.mjs)
-- [test/index.mjs](test/index.mjs)
-- [types.d.ts](types.d.ts)
-
-</details>
-
-
-
 ## Purpose and Scope
 
 Validation Services provide schema validation and runtime checks for all component types in the framework. These services ensure that components are correctly configured at registration time and that runtime data (signals, prices, risk parameters) meets safety constraints before execution. Validation Services act as gatekeepers between the public API and the execution engine, preventing invalid configurations from causing runtime errors or financial losses.

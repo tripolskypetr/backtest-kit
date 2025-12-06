@@ -1,18 +1,5 @@
 # Timeframe Generation
 
-<details>
-<summary>Relevant source files</summary>
-
-The following files were used as context for generating this wiki page:
-
-- [src/client/ClientStrategy.ts](src/client/ClientStrategy.ts)
-- [src/interfaces/Strategy.interface.ts](src/interfaces/Strategy.interface.ts)
-- [types.d.ts](types.d.ts)
-
-</details>
-
-
-
 ## Purpose and Scope
 
 This page documents the timeframe generation system in backtest-kit, which converts date ranges and intervals into arrays of discrete timestamps for historical backtesting. Timeframe generation is the foundation of **Backtest Mode**, providing the chronological sequence of timestamps that drive strategy evaluation.

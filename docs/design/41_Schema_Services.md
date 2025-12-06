@@ -1,19 +1,5 @@
 # Schema Services
 
-<details>
-<summary>Relevant source files</summary>
-
-The following files were used as context for generating this wiki page:
-
-- [src/function/add.ts](src/function/add.ts)
-- [src/lib/core/provide.ts](src/lib/core/provide.ts)
-- [src/lib/core/types.ts](src/lib/core/types.ts)
-- [src/lib/index.ts](src/lib/index.ts)
-
-</details>
-
-
-
 Schema Services implement the registry pattern for storing configuration schemas in the backtest-kit framework. These services act as in-memory storage for strategy, exchange, and frame configurations registered at application startup via `addStrategy()`, `addExchange()`, and `addFrame()` functions. They provide lookup capabilities for Connection Services (see [5.1](#5.1)) which create runtime instances based on registered schemas.
 
 For information about how registered schemas are instantiated into client objects, see [Connection Services](#5.1). For details on schema interfaces and registration functions, see [Configuration Functions](#3.1).

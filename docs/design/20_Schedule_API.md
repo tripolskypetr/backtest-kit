@@ -1,22 +1,5 @@
 # Schedule API
 
-<details>
-<summary>Relevant source files</summary>
-
-The following files were used as context for generating this wiki page:
-
-- [README.md](README.md)
-- [src/client/ClientStrategy.ts](src/client/ClientStrategy.ts)
-- [src/interfaces/Strategy.interface.ts](src/interfaces/Strategy.interface.ts)
-- [src/lib/services/markdown/BacktestMarkdownService.ts](src/lib/services/markdown/BacktestMarkdownService.ts)
-- [src/lib/services/markdown/LiveMarkdownService.ts](src/lib/services/markdown/LiveMarkdownService.ts)
-- [src/lib/services/markdown/ScheduleMarkdownService.ts](src/lib/services/markdown/ScheduleMarkdownService.ts)
-- [types.d.ts](types.d.ts)
-
-</details>
-
-
-
 ## Purpose and Scope
 
 The Schedule API provides analysis and reporting for scheduled signals (limit orders) in the backtest-kit framework. Scheduled signals are signals that specify a `priceOpen` entry price different from the current market price, requiring the strategy to wait for price activation. This API tracks scheduled signal creation, cancellation events, and provides metrics like cancellation rate and average wait time.

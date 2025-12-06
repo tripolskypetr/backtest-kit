@@ -1,23 +1,5 @@
 # Core Concepts
 
-<details>
-<summary>Relevant source files</summary>
-
-The following files were used as context for generating this wiki page:
-
-- [src/classes/Backtest.ts](src/classes/Backtest.ts)
-- [src/classes/Live.ts](src/classes/Live.ts)
-- [src/classes/Walker.ts](src/classes/Walker.ts)
-- [src/client/ClientStrategy.ts](src/client/ClientStrategy.ts)
-- [src/interfaces/Strategy.interface.ts](src/interfaces/Strategy.interface.ts)
-- [src/lib/services/connection/StrategyConnectionService.ts](src/lib/services/connection/StrategyConnectionService.ts)
-- [src/lib/services/global/StrategyGlobalService.ts](src/lib/services/global/StrategyGlobalService.ts)
-- [types.d.ts](types.d.ts)
-
-</details>
-
-
-
 This page introduces the fundamental architectural patterns and execution models of backtest-kit. It covers the three execution modes (Backtest, Live, Walker), the signal lifecycle state machine, and the component-based registration system. For detailed API documentation, see [Public API Reference](#4). For implementation details of specific components, see [Component Types](#5).
 
 ## Execution Modes

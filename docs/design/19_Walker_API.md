@@ -1,24 +1,5 @@
 # Walker API
 
-<details>
-<summary>Relevant source files</summary>
-
-The following files were used as context for generating this wiki page:
-
-- [docs/classes/BacktestCommandService.md](docs/classes/BacktestCommandService.md)
-- [docs/classes/BacktestUtils.md](docs/classes/BacktestUtils.md)
-- [docs/classes/LiveCommandService.md](docs/classes/LiveCommandService.md)
-- [docs/classes/LiveUtils.md](docs/classes/LiveUtils.md)
-- [docs/index.md](docs/index.md)
-- [src/client/ClientExchange.ts](src/client/ClientExchange.ts)
-- [src/lib/services/logic/private/BacktestLogicPrivateService.ts](src/lib/services/logic/private/BacktestLogicPrivateService.ts)
-- [src/lib/services/logic/private/LiveLogicPrivateService.ts](src/lib/services/logic/private/LiveLogicPrivateService.ts)
-- [src/lib/services/logic/private/WalkerLogicPrivateService.ts](src/lib/services/logic/private/WalkerLogicPrivateService.ts)
-
-</details>
-
-
-
 This page documents the Walker API for multi-strategy comparison. Walker orchestrates multiple backtest runs across different strategies and ranks them by performance metrics.
 
 For information about running individual backtests, see [Backtest API](#4.3). For information about walker schemas and registration, see [Walker Schemas](#5.6).

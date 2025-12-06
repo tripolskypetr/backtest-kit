@@ -1,22 +1,5 @@
 # Signal Persistence
 
-<details>
-<summary>Relevant source files</summary>
-
-The following files were used as context for generating this wiki page:
-
-- [README.md](README.md)
-- [src/client/ClientStrategy.ts](src/client/ClientStrategy.ts)
-- [src/interfaces/Strategy.interface.ts](src/interfaces/Strategy.interface.ts)
-- [src/lib/services/markdown/BacktestMarkdownService.ts](src/lib/services/markdown/BacktestMarkdownService.ts)
-- [src/lib/services/markdown/LiveMarkdownService.ts](src/lib/services/markdown/LiveMarkdownService.ts)
-- [src/lib/services/markdown/ScheduleMarkdownService.ts](src/lib/services/markdown/ScheduleMarkdownService.ts)
-- [types.d.ts](types.d.ts)
-
-</details>
-
-
-
 **Purpose:** This page explains the persistence layer that enables crash-safe state management in live trading mode. Signal persistence ensures that active positions, scheduled signals, and risk state survive process crashes and can be restored exactly on restart, preventing duplicate signals and maintaining portfolio integrity.
 
 **Scope:** Covers `PersistSignalAdapter`, `PersistScheduleAdapter`, `PersistRiskAdapter`, and `PersistPartialAdapter` implementations, atomic write operations, the `waitForInit()` initialization pattern, and state restoration mechanisms. For signal lifecycle states, see [Signal States](#8.1). For live execution flow, see [Live Execution Flow](#10.1).

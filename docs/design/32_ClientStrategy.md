@@ -1,18 +1,5 @@
 # ClientStrategy
 
-<details>
-<summary>Relevant source files</summary>
-
-The following files were used as context for generating this wiki page:
-
-- [src/client/ClientStrategy.ts](src/client/ClientStrategy.ts)
-- [src/interfaces/Strategy.interface.ts](src/interfaces/Strategy.interface.ts)
-- [types.d.ts](types.d.ts)
-
-</details>
-
-
-
 ## Purpose and Scope
 
 `ClientStrategy` is the core implementation class for trading strategy lifecycle management. It orchestrates signal generation, validation, monitoring, and closure across both live trading and backtesting execution modes. This class implements the `IStrategy` interface and manages the complete signal state machine from idle through scheduled/opened/active to closed/cancelled states.

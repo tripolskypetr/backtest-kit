@@ -1,19 +1,5 @@
 # Statistics Calculation
 
-<details>
-<summary>Relevant source files</summary>
-
-The following files were used as context for generating this wiki page:
-
-- [README.md](README.md)
-- [src/lib/services/markdown/BacktestMarkdownService.ts](src/lib/services/markdown/BacktestMarkdownService.ts)
-- [src/lib/services/markdown/LiveMarkdownService.ts](src/lib/services/markdown/LiveMarkdownService.ts)
-- [src/lib/services/markdown/ScheduleMarkdownService.ts](src/lib/services/markdown/ScheduleMarkdownService.ts)
-
-</details>
-
-
-
 This page documents the statistical calculation system in backtest-kit, which computes performance metrics from signal data. For report generation and markdown formatting, see [Markdown Report Generation](#13.1). For performance timing metrics, see [Performance Metrics](#13.2).
 
 ## Overview

@@ -1,18 +1,5 @@
 # Timing Parameters
 
-<details>
-<summary>Relevant source files</summary>
-
-The following files were used as context for generating this wiki page:
-
-- [src/client/ClientStrategy.ts](src/client/ClientStrategy.ts)
-- [src/interfaces/Strategy.interface.ts](src/interfaces/Strategy.interface.ts)
-- [types.d.ts](types.d.ts)
-
-</details>
-
-
-
 ## Purpose and Scope
 
 This page documents the three timing configuration parameters that control signal lifecycle timing constraints and price monitoring behavior in the backtest-kit framework. These parameters define temporal boundaries for scheduled signal activation (`CC_SCHEDULE_AWAIT_MINUTES`), maximum signal duration (`CC_MAX_SIGNAL_LIFETIME_MINUTES`), and the window for VWAP price calculation (`CC_AVG_PRICE_CANDLES_COUNT`).

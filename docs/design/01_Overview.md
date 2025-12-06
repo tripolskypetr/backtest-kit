@@ -1,26 +1,5 @@
 # Overview
 
-<details>
-<summary>Relevant source files</summary>
-
-The following files were used as context for generating this wiki page:
-
-- [README.md](README.md)
-- [src/client/ClientStrategy.ts](src/client/ClientStrategy.ts)
-- [src/config/emitters.ts](src/config/emitters.ts)
-- [src/function/event.ts](src/function/event.ts)
-- [src/index.ts](src/index.ts)
-- [src/interfaces/Strategy.interface.ts](src/interfaces/Strategy.interface.ts)
-- [src/lib/services/markdown/BacktestMarkdownService.ts](src/lib/services/markdown/BacktestMarkdownService.ts)
-- [src/lib/services/markdown/LiveMarkdownService.ts](src/lib/services/markdown/LiveMarkdownService.ts)
-- [src/lib/services/markdown/ScheduleMarkdownService.ts](src/lib/services/markdown/ScheduleMarkdownService.ts)
-- [test/config/setup.mjs](test/config/setup.mjs)
-- [types.d.ts](types.d.ts)
-
-</details>
-
-
-
 **backtest-kit** is a production-ready TypeScript framework for developing, backtesting, and deploying algorithmic trading strategies with enterprise-grade reliability. The framework provides three execution modes (historical simulation, live trading, crash-safe state recovery), comprehensive signal validation, and event-driven observability. This document introduces the framework's purpose, architecture, and core concepts at a high level.
 
 For detailed information about specific subsystems, see:

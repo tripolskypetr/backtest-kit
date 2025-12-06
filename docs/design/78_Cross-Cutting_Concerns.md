@@ -1,23 +1,5 @@
 # Cross-Cutting Concerns
 
-<details>
-<summary>Relevant source files</summary>
-
-The following files were used as context for generating this wiki page:
-
-- [src/config/emitters.ts](src/config/emitters.ts)
-- [src/function/add.ts](src/function/add.ts)
-- [src/function/event.ts](src/function/event.ts)
-- [src/index.ts](src/index.ts)
-- [src/lib/core/provide.ts](src/lib/core/provide.ts)
-- [src/lib/core/types.ts](src/lib/core/types.ts)
-- [src/lib/index.ts](src/lib/index.ts)
-- [test/config/setup.mjs](test/config/setup.mjs)
-
-</details>
-
-
-
 This page documents infrastructure components that span multiple layers of the architecture: logging, error handling, and persistence. These concerns are injected throughout the system via dependency injection and provide foundational services for observability, reliability, and crash-safe state management.
 
 For component-specific context propagation (ExecutionContext, MethodContext), see [Context Propagation](#3.3).

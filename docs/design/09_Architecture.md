@@ -1,23 +1,5 @@
 # Architecture
 
-<details>
-<summary>Relevant source files</summary>
-
-The following files were used as context for generating this wiki page:
-
-- [src/config/emitters.ts](src/config/emitters.ts)
-- [src/function/add.ts](src/function/add.ts)
-- [src/function/event.ts](src/function/event.ts)
-- [src/index.ts](src/index.ts)
-- [src/lib/core/provide.ts](src/lib/core/provide.ts)
-- [src/lib/core/types.ts](src/lib/core/types.ts)
-- [src/lib/index.ts](src/lib/index.ts)
-- [test/config/setup.mjs](test/config/setup.mjs)
-
-</details>
-
-
-
 ## Purpose and Scope
 
 This document provides a comprehensive overview of backtest-kit's system architecture, focusing on its layered design, dependency injection infrastructure, and cross-cutting concerns. The architecture implements a modular service-oriented design where approximately 60 services are organized into 10 functional categories and wired together through constructor injection.

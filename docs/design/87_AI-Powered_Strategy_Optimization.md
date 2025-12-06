@@ -1,29 +1,5 @@
 # AI-Powered Strategy Optimization
 
-<details>
-<summary>Relevant source files</summary>
-
-The following files were used as context for generating this wiki page:
-
-- [.claude/settings.local.json](.claude/settings.local.json)
-- [demo/optimization/.env.example](demo/optimization/.env.example)
-- [demo/optimization/.gitignore](demo/optimization/.gitignore)
-- [demo/optimization/package-lock.json](demo/optimization/package-lock.json)
-- [demo/optimization/package.json](demo/optimization/package.json)
-- [demo/optimization/src/index.mjs](demo/optimization/src/index.mjs)
-- [demo/trade/.gitkeep](demo/trade/.gitkeep)
-- [package-lock.json](package-lock.json)
-- [package.json](package.json)
-- [src/client/ClientOptimizer.ts](src/client/ClientOptimizer.ts)
-- [src/contract/ProgressOptimizer.contract.ts](src/contract/ProgressOptimizer.contract.ts)
-- [src/interfaces/Optimizer.interface.ts](src/interfaces/Optimizer.interface.ts)
-- [src/lib/services/connection/OptimizerConnectionService.ts](src/lib/services/connection/OptimizerConnectionService.ts)
-- [src/lib/services/template/OptimizerTemplateService.ts](src/lib/services/template/OptimizerTemplateService.ts)
-
-</details>
-
-
-
 This document describes the AI-powered strategy optimization system that uses Large Language Models (LLMs) to automatically generate and evaluate trading strategies based on historical market data. For detailed information about the template system, see [Optimizer Architecture](#16.5.1). For data collection specifics, see [Data Collection Pipeline](#16.5.2). For LLM integration details, see [LLM Integration](#16.5.3).
 
 The optimization system enables:

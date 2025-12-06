@@ -1,21 +1,5 @@
 # ClientOptimizer
 
-<details>
-<summary>Relevant source files</summary>
-
-The following files were used as context for generating this wiki page:
-
-- [package-lock.json](package-lock.json)
-- [package.json](package.json)
-- [src/client/ClientOptimizer.ts](src/client/ClientOptimizer.ts)
-- [src/interfaces/Optimizer.interface.ts](src/interfaces/Optimizer.interface.ts)
-- [src/lib/services/connection/OptimizerConnectionService.ts](src/lib/services/connection/OptimizerConnectionService.ts)
-- [src/lib/services/template/OptimizerTemplateService.ts](src/lib/services/template/OptimizerTemplateService.ts)
-
-</details>
-
-
-
 ## Purpose and Scope
 
 `ClientOptimizer` is the core business logic class that implements AI-powered trading strategy generation through LLM integration. This class orchestrates data collection from multiple sources, builds conversation histories for language models, generates executable strategy code, and exports the results to files.

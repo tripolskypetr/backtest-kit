@@ -1,18 +1,5 @@
 # Validation Parameters
 
-<details>
-<summary>Relevant source files</summary>
-
-The following files were used as context for generating this wiki page:
-
-- [src/client/ClientStrategy.ts](src/client/ClientStrategy.ts)
-- [src/interfaces/Strategy.interface.ts](src/interfaces/Strategy.interface.ts)
-- [types.d.ts](types.d.ts)
-
-</details>
-
-
-
 This document describes the global validation parameters that control financial safety constraints in signal generation. These parameters enforce minimum take profit distances, maximum stop loss distances, and signal lifetime limits to protect capital from unprofitable trades, catastrophic losses, and strategy deadlock.
 
 For information about other configuration parameters like timeout and timing constraints, see [Timing Parameters](#14.3). For an overview of the configuration system, see [Global Configuration](#14.1). For details on how signals are validated during generation, see [Signal Generation and Validation](#8.2).

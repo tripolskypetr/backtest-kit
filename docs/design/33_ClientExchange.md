@@ -1,19 +1,5 @@
 # ClientExchange
 
-<details>
-<summary>Relevant source files</summary>
-
-The following files were used as context for generating this wiki page:
-
-- [src/client/ClientExchange.ts](src/client/ClientExchange.ts)
-- [src/lib/services/logic/private/BacktestLogicPrivateService.ts](src/lib/services/logic/private/BacktestLogicPrivateService.ts)
-- [src/lib/services/logic/private/LiveLogicPrivateService.ts](src/lib/services/logic/private/LiveLogicPrivateService.ts)
-- [src/lib/services/logic/private/WalkerLogicPrivateService.ts](src/lib/services/logic/private/WalkerLogicPrivateService.ts)
-
-</details>
-
-
-
 ## Purpose and Scope
 
 `ClientExchange` is the core data access class that provides market data to trading strategies through a unified interface. It wraps external exchange data providers (CCXT libraries, custom APIs, or database sources) and handles candle fetching, price formatting, and VWAP calculation. The class implements time-aware data fetching by using `ExecutionContextService` to determine the temporal boundary for historical vs. future data requests.

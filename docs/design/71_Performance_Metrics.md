@@ -1,19 +1,5 @@
 # Performance Metrics
 
-<details>
-<summary>Relevant source files</summary>
-
-The following files were used as context for generating this wiki page:
-
-- [README.md](README.md)
-- [src/lib/services/markdown/BacktestMarkdownService.ts](src/lib/services/markdown/BacktestMarkdownService.ts)
-- [src/lib/services/markdown/LiveMarkdownService.ts](src/lib/services/markdown/LiveMarkdownService.ts)
-- [src/lib/services/markdown/ScheduleMarkdownService.ts](src/lib/services/markdown/ScheduleMarkdownService.ts)
-
-</details>
-
-
-
 This page details the mathematical formulas and calculation methods for all performance metrics used in strategy analysis. These metrics quantify trading performance across risk, return, consistency, and frequency dimensions.
 
 For information about the report generation infrastructure that displays these metrics, see [Markdown Report Generation](#13.1). For details about the safe math layer that protects against NaN/Infinity values, see [Statistics Calculation](#13.3).

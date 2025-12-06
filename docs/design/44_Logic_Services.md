@@ -1,23 +1,5 @@
 # Logic Services
 
-<details>
-<summary>Relevant source files</summary>
-
-The following files were used as context for generating this wiki page:
-
-- [docs/classes/BacktestLogicPrivateService.md](docs/classes/BacktestLogicPrivateService.md)
-- [docs/classes/BacktestLogicPublicService.md](docs/classes/BacktestLogicPublicService.md)
-- [docs/classes/LiveLogicPrivateService.md](docs/classes/LiveLogicPrivateService.md)
-- [docs/classes/LiveLogicPublicService.md](docs/classes/LiveLogicPublicService.md)
-- [src/client/ClientExchange.ts](src/client/ClientExchange.ts)
-- [src/lib/services/logic/private/BacktestLogicPrivateService.ts](src/lib/services/logic/private/BacktestLogicPrivateService.ts)
-- [src/lib/services/logic/private/LiveLogicPrivateService.ts](src/lib/services/logic/private/LiveLogicPrivateService.ts)
-- [src/lib/services/logic/private/WalkerLogicPrivateService.ts](src/lib/services/logic/private/WalkerLogicPrivateService.ts)
-
-</details>
-
-
-
 Logic Services implement the core execution orchestration layer for the three operational modes: Backtest, Live, and Walker. These services manage the temporal progression, signal lifecycle coordination, and result streaming for each execution mode.
 
 This page documents the Logic Service architecture, the Private/Public service separation pattern, and the AsyncGenerator streaming model. For information about Strategy execution logic, see [ClientStrategy](#6.1). For command validation and delegation, see [Service Architecture Overview](#7.1).

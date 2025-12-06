@@ -1,18 +1,5 @@
 # Global Configuration
 
-<details>
-<summary>Relevant source files</summary>
-
-The following files were used as context for generating this wiki page:
-
-- [src/client/ClientStrategy.ts](src/client/ClientStrategy.ts)
-- [src/interfaces/Strategy.interface.ts](src/interfaces/Strategy.interface.ts)
-- [types.d.ts](types.d.ts)
-
-</details>
-
-
-
 This page documents the global configuration system for backtest-kit, including the `GLOBAL_CONFIG` object, the `setConfig()` function, and all runtime configuration parameters that control validation rules and timing constraints across the framework.
 
 For detailed information about specific parameter categories, see:

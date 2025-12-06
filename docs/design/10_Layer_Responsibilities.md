@@ -1,25 +1,5 @@
 # Layer Responsibilities
 
-<details>
-<summary>Relevant source files</summary>
-
-The following files were used as context for generating this wiki page:
-
-- [docs/classes/BacktestCommandService.md](docs/classes/BacktestCommandService.md)
-- [docs/classes/BacktestUtils.md](docs/classes/BacktestUtils.md)
-- [docs/classes/LiveCommandService.md](docs/classes/LiveCommandService.md)
-- [docs/classes/LiveUtils.md](docs/classes/LiveUtils.md)
-- [docs/index.md](docs/index.md)
-- [src/classes/Backtest.ts](src/classes/Backtest.ts)
-- [src/classes/Live.ts](src/classes/Live.ts)
-- [src/classes/Walker.ts](src/classes/Walker.ts)
-- [src/lib/services/connection/StrategyConnectionService.ts](src/lib/services/connection/StrategyConnectionService.ts)
-- [src/lib/services/global/StrategyGlobalService.ts](src/lib/services/global/StrategyGlobalService.ts)
-
-</details>
-
-
-
 This document describes the service architecture of backtest-kit and the responsibilities of each layer. The framework follows a clean architecture pattern with strict separation of concerns, dependency injection, and unidirectional data flow from public API down to business logic.
 
 For information about how dependency injection works across these layers, see [Dependency Injection System](#3.2). For details on how context flows through the layers, see [Context Propagation](#3.3).

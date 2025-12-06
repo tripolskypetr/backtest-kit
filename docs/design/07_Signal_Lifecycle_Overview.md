@@ -1,21 +1,5 @@
 # Signal Lifecycle Overview
 
-<details>
-<summary>Relevant source files</summary>
-
-The following files were used as context for generating this wiki page:
-
-- [src/client/ClientStrategy.ts](src/client/ClientStrategy.ts)
-- [src/interfaces/Strategy.interface.ts](src/interfaces/Strategy.interface.ts)
-- [test/e2e/defend.test.mjs](test/e2e/defend.test.mjs)
-- [test/e2e/partial.test.mjs](test/e2e/partial.test.mjs)
-- [test/index.mjs](test/index.mjs)
-- [types.d.ts](types.d.ts)
-
-</details>
-
-
-
 This page describes the complete lifecycle of trading signals within the backtest-kit framework, from generation through validation, execution, and termination. A signal represents a trading position with entry price, take-profit, stop-loss, and time expiration parameters. Understanding the signal lifecycle is essential for implementing strategies and debugging execution behavior.
 
 For details on strategy registration and configuration, see [Component Registration](#2.3). For implementation details of the `ClientStrategy` class that manages this lifecycle, see [ClientStrategy](#6.1). For validation rules and error handling, see [Signal Generation and Validation](#8.2).

@@ -1,20 +1,5 @@
 # Connection Services
 
-<details>
-<summary>Relevant source files</summary>
-
-The following files were used as context for generating this wiki page:
-
-- [src/classes/Backtest.ts](src/classes/Backtest.ts)
-- [src/classes/Live.ts](src/classes/Live.ts)
-- [src/classes/Walker.ts](src/classes/Walker.ts)
-- [src/lib/services/connection/StrategyConnectionService.ts](src/lib/services/connection/StrategyConnectionService.ts)
-- [src/lib/services/global/StrategyGlobalService.ts](src/lib/services/global/StrategyGlobalService.ts)
-
-</details>
-
-
-
 ## Purpose and Scope
 
 Connection Services implement memoized client instance management within the service layer architecture. Each Connection Service is responsible for creating and caching client instances (ClientStrategy, ClientExchange, ClientFrame, ClientRisk, ClientSizing) based on their respective schema names. These services inject required dependencies into client constructors and ensure one instance exists per registered schema name.

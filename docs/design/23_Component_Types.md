@@ -1,22 +1,5 @@
 # Component Types
 
-<details>
-<summary>Relevant source files</summary>
-
-The following files were used as context for generating this wiki page:
-
-- [src/client/ClientStrategy.ts](src/client/ClientStrategy.ts)
-- [src/function/add.ts](src/function/add.ts)
-- [src/interfaces/Strategy.interface.ts](src/interfaces/Strategy.interface.ts)
-- [src/lib/core/provide.ts](src/lib/core/provide.ts)
-- [src/lib/core/types.ts](src/lib/core/types.ts)
-- [src/lib/index.ts](src/lib/index.ts)
-- [types.d.ts](types.d.ts)
-
-</details>
-
-
-
 Component types define the schema interfaces for all registerable components in the backtest-kit framework. Each component type represents a distinct architectural concern: strategies define signal generation logic, exchanges provide market data, frames specify backtesting periods, risk profiles enforce portfolio constraints, sizing algorithms calculate position quantities, walkers orchestrate strategy comparisons, and optimizers generate AI-powered strategies. All components are registered via `add*` functions that validate schemas and store them in corresponding schema services for dependency injection.
 
 For information about how these components are instantiated and connected at runtime, see [Service Layer](#7). For details on the registration and validation process, see [Component Registration](#2.3). For the public API signatures of registration functions, see [Component Registration Functions](#4.2).

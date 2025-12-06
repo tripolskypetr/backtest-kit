@@ -1,29 +1,5 @@
 # Data Collection Pipeline
 
-<details>
-<summary>Relevant source files</summary>
-
-The following files were used as context for generating this wiki page:
-
-- [.claude/settings.local.json](.claude/settings.local.json)
-- [demo/optimization/.env.example](demo/optimization/.env.example)
-- [demo/optimization/.gitignore](demo/optimization/.gitignore)
-- [demo/optimization/package-lock.json](demo/optimization/package-lock.json)
-- [demo/optimization/package.json](demo/optimization/package.json)
-- [demo/optimization/src/index.mjs](demo/optimization/src/index.mjs)
-- [demo/trade/.gitkeep](demo/trade/.gitkeep)
-- [package-lock.json](package-lock.json)
-- [package.json](package.json)
-- [src/client/ClientOptimizer.ts](src/client/ClientOptimizer.ts)
-- [src/contract/ProgressOptimizer.contract.ts](src/contract/ProgressOptimizer.contract.ts)
-- [src/interfaces/Optimizer.interface.ts](src/interfaces/Optimizer.interface.ts)
-- [src/lib/services/connection/OptimizerConnectionService.ts](src/lib/services/connection/OptimizerConnectionService.ts)
-- [src/lib/services/template/OptimizerTemplateService.ts](src/lib/services/template/OptimizerTemplateService.ts)
-
-</details>
-
-
-
 ## Purpose and Scope
 
 This document describes the data collection phase of the AI-powered optimizer, where historical trading data is fetched from external sources, paginated, formatted into LLM conversation messages, and accumulated across multiple training ranges. For information about the overall optimizer architecture and how components connect, see [Optimizer Architecture](#16.5.1). For details on how the collected data is sent to the LLM after collection, see [LLM Integration](#16.5.3).

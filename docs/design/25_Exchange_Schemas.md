@@ -1,22 +1,5 @@
 # Exchange Schemas
 
-<details>
-<summary>Relevant source files</summary>
-
-The following files were used as context for generating this wiki page:
-
-- [src/client/ClientExchange.ts](src/client/ClientExchange.ts)
-- [src/client/ClientStrategy.ts](src/client/ClientStrategy.ts)
-- [src/interfaces/Strategy.interface.ts](src/interfaces/Strategy.interface.ts)
-- [src/lib/services/logic/private/BacktestLogicPrivateService.ts](src/lib/services/logic/private/BacktestLogicPrivateService.ts)
-- [src/lib/services/logic/private/LiveLogicPrivateService.ts](src/lib/services/logic/private/LiveLogicPrivateService.ts)
-- [src/lib/services/logic/private/WalkerLogicPrivateService.ts](src/lib/services/logic/private/WalkerLogicPrivateService.ts)
-- [types.d.ts](types.d.ts)
-
-</details>
-
-
-
 Exchange schemas define data source interfaces for fetching historical market data and formatting prices/quantities according to exchange-specific precision rules. They provide the abstraction layer between the framework's signal processing logic and external data sources (APIs, databases, CSV files, etc.).
 
 This page covers the structure and registration of exchange schemas. For information about the runtime exchange client implementation, see [ClientExchange](#6.2). For utility functions that use registered exchanges, see [Exchange Functions](#4.7).

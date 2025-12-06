@@ -1,23 +1,5 @@
 # LLM Integration
 
-<details>
-<summary>Relevant source files</summary>
-
-The following files were used as context for generating this wiki page:
-
-- [.claude/settings.local.json](.claude/settings.local.json)
-- [demo/optimization/.env.example](demo/optimization/.env.example)
-- [demo/optimization/.gitignore](demo/optimization/.gitignore)
-- [demo/optimization/package-lock.json](demo/optimization/package-lock.json)
-- [demo/optimization/package.json](demo/optimization/package.json)
-- [demo/optimization/src/index.mjs](demo/optimization/src/index.mjs)
-- [demo/trade/.gitkeep](demo/trade/.gitkeep)
-- [src/contract/ProgressOptimizer.contract.ts](src/contract/ProgressOptimizer.contract.ts)
-
-</details>
-
-
-
 This document describes the integration of Large Language Model (LLM) services into the backtest-kit optimization pipeline. It covers the Ollama API integration, prompt engineering patterns, conversation history management, and response processing mechanisms that enable AI-driven strategy generation.
 
 For information about the overall optimizer architecture and data collection, see [Optimizer Architecture](#16.5.1) and [Data Collection Pipeline](#16.5.2). For details on how LLM responses are transformed into executable strategy code, see [Strategy Code Generation](#16.5.4).

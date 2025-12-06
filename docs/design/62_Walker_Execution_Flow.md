@@ -1,19 +1,5 @@
 # Walker Execution Flow
 
-<details>
-<summary>Relevant source files</summary>
-
-The following files were used as context for generating this wiki page:
-
-- [src/client/ClientExchange.ts](src/client/ClientExchange.ts)
-- [src/lib/services/logic/private/BacktestLogicPrivateService.ts](src/lib/services/logic/private/BacktestLogicPrivateService.ts)
-- [src/lib/services/logic/private/LiveLogicPrivateService.ts](src/lib/services/logic/private/LiveLogicPrivateService.ts)
-- [src/lib/services/logic/private/WalkerLogicPrivateService.ts](src/lib/services/logic/private/WalkerLogicPrivateService.ts)
-
-</details>
-
-
-
 ## Purpose and Scope
 
 This document describes the execution flow of Walker mode, which orchestrates sequential strategy comparison for metric-based optimization. It focuses on the `WalkerLogicPrivateService` implementation that iterates through strategies, extracts performance metrics, and tracks the best-performing strategy. For details on metric selection and comparison logic, see [Strategy Comparison](#11.2). For report generation and output formats, see [Walker Reports](#11.3). For the Walker API entry points, see [Walker API](#4.5).

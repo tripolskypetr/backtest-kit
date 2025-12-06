@@ -1,22 +1,5 @@
 # Error Handling
 
-<details>
-<summary>Relevant source files</summary>
-
-The following files were used as context for generating this wiki page:
-
-- [src/config/emitters.ts](src/config/emitters.ts)
-- [src/function/event.ts](src/function/event.ts)
-- [src/index.ts](src/index.ts)
-- [test/config/setup.mjs](test/config/setup.mjs)
-- [test/e2e/defend.test.mjs](test/e2e/defend.test.mjs)
-- [test/e2e/partial.test.mjs](test/e2e/partial.test.mjs)
-- [test/index.mjs](test/index.mjs)
-
-</details>
-
-
-
 This page documents the error handling infrastructure in backtest-kit, including error categorization, emission, propagation, and recovery patterns. The system implements a multi-tier error handling architecture that distinguishes between recoverable errors, fatal errors, and validation failures.
 
 For logging system configuration, see [Logging System](#15.1). For persistence error handling, see [Persistence Layer](#15.3).

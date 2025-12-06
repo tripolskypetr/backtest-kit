@@ -1,23 +1,5 @@
 # Component Registration
 
-<details>
-<summary>Relevant source files</summary>
-
-The following files were used as context for generating this wiki page:
-
-- [src/config/emitters.ts](src/config/emitters.ts)
-- [src/function/add.ts](src/function/add.ts)
-- [src/function/event.ts](src/function/event.ts)
-- [src/index.ts](src/index.ts)
-- [src/lib/core/provide.ts](src/lib/core/provide.ts)
-- [src/lib/core/types.ts](src/lib/core/types.ts)
-- [src/lib/index.ts](src/lib/index.ts)
-- [test/config/setup.mjs](test/config/setup.mjs)
-
-</details>
-
-
-
 Component registration is the configuration phase where users define the building blocks of their trading system: strategies, exchanges, timeframes, risk rules, position sizing algorithms, strategy comparisons, and AI optimizers. All components are registered before execution begins, creating an immutable registry that the framework queries during backtest, live trading, or walker execution.
 
 This page explains the registration pattern and architecture. For detailed API signatures and parameters, see [Component Registration Functions](#4.2). For the schema interfaces that define component structure, see [Component Types](#5).

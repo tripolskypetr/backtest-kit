@@ -1,19 +1,5 @@
 # Markdown Report Generation
 
-<details>
-<summary>Relevant source files</summary>
-
-The following files were used as context for generating this wiki page:
-
-- [README.md](README.md)
-- [src/lib/services/markdown/BacktestMarkdownService.ts](src/lib/services/markdown/BacktestMarkdownService.ts)
-- [src/lib/services/markdown/LiveMarkdownService.ts](src/lib/services/markdown/LiveMarkdownService.ts)
-- [src/lib/services/markdown/ScheduleMarkdownService.ts](src/lib/services/markdown/ScheduleMarkdownService.ts)
-
-</details>
-
-
-
 This page documents the markdown report generation system that transforms trading execution events into human-readable reports with statistical analysis. The system provides three report types: backtest reports (historical simulation), live trading reports (real-time execution), and schedule reports (limit order tracking).
 
 For statistical metric calculations (Sharpe Ratio, Certainty Ratio, etc.), see [Performance Metrics](#13.2). For partial profit/loss milestone tracking, see [Partial Profit/Loss Tracking](#13.4). For walker strategy comparison reports, see [Walker Reports](#11.3).

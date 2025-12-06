@@ -1,29 +1,5 @@
 # Optimizer Schemas
 
-<details>
-<summary>Relevant source files</summary>
-
-The following files were used as context for generating this wiki page:
-
-- [.claude/settings.local.json](.claude/settings.local.json)
-- [demo/optimization/.env.example](demo/optimization/.env.example)
-- [demo/optimization/.gitignore](demo/optimization/.gitignore)
-- [demo/optimization/package-lock.json](demo/optimization/package-lock.json)
-- [demo/optimization/package.json](demo/optimization/package.json)
-- [demo/optimization/src/index.mjs](demo/optimization/src/index.mjs)
-- [demo/trade/.gitkeep](demo/trade/.gitkeep)
-- [package-lock.json](package-lock.json)
-- [package.json](package.json)
-- [src/client/ClientOptimizer.ts](src/client/ClientOptimizer.ts)
-- [src/contract/ProgressOptimizer.contract.ts](src/contract/ProgressOptimizer.contract.ts)
-- [src/interfaces/Optimizer.interface.ts](src/interfaces/Optimizer.interface.ts)
-- [src/lib/services/connection/OptimizerConnectionService.ts](src/lib/services/connection/OptimizerConnectionService.ts)
-- [src/lib/services/template/OptimizerTemplateService.ts](src/lib/services/template/OptimizerTemplateService.ts)
-
-</details>
-
-
-
 ## Purpose and Scope
 
 This page documents the `IOptimizerSchema` interface that defines the contract for registering AI-powered strategy optimizers via `addOptimizer()`. Optimizer schemas configure data collection pipelines, LLM-driven strategy generation, and code export functionality. 

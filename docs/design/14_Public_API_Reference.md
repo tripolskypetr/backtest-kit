@@ -1,27 +1,5 @@
 # Public API Reference
 
-<details>
-<summary>Relevant source files</summary>
-
-The following files were used as context for generating this wiki page:
-
-- [docs/classes/BacktestCommandService.md](docs/classes/BacktestCommandService.md)
-- [docs/classes/BacktestUtils.md](docs/classes/BacktestUtils.md)
-- [docs/classes/LiveCommandService.md](docs/classes/LiveCommandService.md)
-- [docs/classes/LiveUtils.md](docs/classes/LiveUtils.md)
-- [docs/index.md](docs/index.md)
-- [src/client/ClientStrategy.ts](src/client/ClientStrategy.ts)
-- [src/config/emitters.ts](src/config/emitters.ts)
-- [src/function/event.ts](src/function/event.ts)
-- [src/index.ts](src/index.ts)
-- [src/interfaces/Strategy.interface.ts](src/interfaces/Strategy.interface.ts)
-- [test/config/setup.mjs](test/config/setup.mjs)
-- [types.d.ts](types.d.ts)
-
-</details>
-
-
-
 This page provides a comprehensive reference for all public-facing functions and utilities exposed by the backtest-kit framework. These are the functions users directly interact with to configure strategies, execute backtests/live trading, and monitor results.
 
 For detailed implementation details of the underlying service architecture, see [Architecture](#2). For specific execution patterns, see [Backtest API](#3.2) and [Live Trading API](#3.3).

@@ -1,21 +1,5 @@
 # Scheduled Signals
 
-<details>
-<summary>Relevant source files</summary>
-
-The following files were used as context for generating this wiki page:
-
-- [src/client/ClientStrategy.ts](src/client/ClientStrategy.ts)
-- [src/interfaces/Strategy.interface.ts](src/interfaces/Strategy.interface.ts)
-- [test/e2e/defend.test.mjs](test/e2e/defend.test.mjs)
-- [test/e2e/partial.test.mjs](test/e2e/partial.test.mjs)
-- [test/index.mjs](test/index.mjs)
-- [types.d.ts](types.d.ts)
-
-</details>
-
-
-
 ## Purpose
 
 This page documents the **scheduled signal** feature, which enables delayed entry at specific price levels. Scheduled signals implement limit order behavior by waiting for the market price to reach a target entry point (`priceOpen`) before activating the position. This differs from immediate signals that open at the current market price.

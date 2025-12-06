@@ -1,20 +1,5 @@
 # Global Services
 
-<details>
-<summary>Relevant source files</summary>
-
-The following files were used as context for generating this wiki page:
-
-- [src/classes/Backtest.ts](src/classes/Backtest.ts)
-- [src/classes/Live.ts](src/classes/Live.ts)
-- [src/classes/Walker.ts](src/classes/Walker.ts)
-- [src/lib/services/connection/StrategyConnectionService.ts](src/lib/services/connection/StrategyConnectionService.ts)
-- [src/lib/services/global/StrategyGlobalService.ts](src/lib/services/global/StrategyGlobalService.ts)
-
-</details>
-
-
-
 Global Services form Layer 1 of the service architecture, serving as public API entry points that orchestrate validation and delegate operations to lower-level services. These services provide a consistent interface for component registration, validation, and execution across the framework.
 
 For information about the overall service layer organization, see [Service Architecture Overview](#7.1). For details on the services that Global Services delegate to, see [Connection Services](#7.2), [Schema Services](#7.3), [Validation Services](#7.4), and [Logic Services](#7.6).

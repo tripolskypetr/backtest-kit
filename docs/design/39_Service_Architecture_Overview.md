@@ -1,19 +1,5 @@
 # Service Architecture Overview
 
-<details>
-<summary>Relevant source files</summary>
-
-The following files were used as context for generating this wiki page:
-
-- [src/function/add.ts](src/function/add.ts)
-- [src/lib/core/provide.ts](src/lib/core/provide.ts)
-- [src/lib/core/types.ts](src/lib/core/types.ts)
-- [src/lib/index.ts](src/lib/index.ts)
-
-</details>
-
-
-
 ## Purpose and Scope
 
 This document explains the service layer architecture in backtest-kit, which sits between the Public API and Client classes. The service layer implements a matrix-based organization pattern where services are categorized by both functional role (Connection, Schema, Validation, Global, Logic, Markdown, Template, Command) and component type (Strategy, Exchange, Frame, Risk, Sizing, Walker, Optimizer, Partial). This page covers the service matrix structure and dependency injection system. For implementation details of specific service categories, see pages 7.2-7.7.

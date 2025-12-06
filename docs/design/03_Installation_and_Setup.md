@@ -1,26 +1,5 @@
 # Installation and Setup
 
-<details>
-<summary>Relevant source files</summary>
-
-The following files were used as context for generating this wiki page:
-
-- [.claude/settings.local.json](.claude/settings.local.json)
-- [demo/optimization/.env.example](demo/optimization/.env.example)
-- [demo/optimization/.gitignore](demo/optimization/.gitignore)
-- [demo/optimization/package-lock.json](demo/optimization/package-lock.json)
-- [demo/optimization/package.json](demo/optimization/package.json)
-- [demo/optimization/src/index.mjs](demo/optimization/src/index.mjs)
-- [demo/trade/.gitkeep](demo/trade/.gitkeep)
-- [src/contract/ProgressOptimizer.contract.ts](src/contract/ProgressOptimizer.contract.ts)
-- [test/e2e/defend.test.mjs](test/e2e/defend.test.mjs)
-- [test/e2e/partial.test.mjs](test/e2e/partial.test.mjs)
-- [test/index.mjs](test/index.mjs)
-
-</details>
-
-
-
 **Purpose and Scope:** This page covers the installation process, package structure, module entry points, and build system configuration for the backtest-kit framework. For information about configuring strategies, exchanges, and frames after installation, see [Configuration Functions](#3.1). For architecture details and service layer setup, see [Architecture](#2) and [Dependency Injection System](#2.2).
 
 ---

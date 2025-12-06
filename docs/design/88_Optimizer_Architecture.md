@@ -1,21 +1,5 @@
 # Optimizer Architecture
 
-<details>
-<summary>Relevant source files</summary>
-
-The following files were used as context for generating this wiki page:
-
-- [package-lock.json](package-lock.json)
-- [package.json](package.json)
-- [src/client/ClientOptimizer.ts](src/client/ClientOptimizer.ts)
-- [src/interfaces/Optimizer.interface.ts](src/interfaces/Optimizer.interface.ts)
-- [src/lib/services/connection/OptimizerConnectionService.ts](src/lib/services/connection/OptimizerConnectionService.ts)
-- [src/lib/services/template/OptimizerTemplateService.ts](src/lib/services/template/OptimizerTemplateService.ts)
-
-</details>
-
-
-
 ## Purpose and Scope
 
 This page documents the architecture of the Optimizer system, which generates AI-powered trading strategies through LLM integration. It covers the core components (`ClientOptimizer`, `OptimizerConnectionService`, `OptimizerTemplateService`), their relationships, the template merging pattern, and the execution flow of the three main operations: `getData`, `getCode`, and `dump`.

@@ -1,22 +1,5 @@
 # Custom Exchange Integration
 
-<details>
-<summary>Relevant source files</summary>
-
-The following files were used as context for generating this wiki page:
-
-- [src/client/ClientExchange.ts](src/client/ClientExchange.ts)
-- [src/client/ClientStrategy.ts](src/client/ClientStrategy.ts)
-- [src/interfaces/Strategy.interface.ts](src/interfaces/Strategy.interface.ts)
-- [src/lib/services/logic/private/BacktestLogicPrivateService.ts](src/lib/services/logic/private/BacktestLogicPrivateService.ts)
-- [src/lib/services/logic/private/LiveLogicPrivateService.ts](src/lib/services/logic/private/LiveLogicPrivateService.ts)
-- [src/lib/services/logic/private/WalkerLogicPrivateService.ts](src/lib/services/logic/private/WalkerLogicPrivateService.ts)
-- [types.d.ts](types.d.ts)
-
-</details>
-
-
-
 This page explains how to implement custom exchange data sources by creating `IExchangeSchema` implementations. The framework supports any data source: CCXT exchanges, REST APIs, databases, CSV files, or WebSocket streams. The same exchange implementation works for both backtest and live trading modes.
 
 ## Overview

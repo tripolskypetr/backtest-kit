@@ -1,18 +1,5 @@
 # Interval Throttling
 
-<details>
-<summary>Relevant source files</summary>
-
-The following files were used as context for generating this wiki page:
-
-- [src/client/ClientStrategy.ts](src/client/ClientStrategy.ts)
-- [src/interfaces/Strategy.interface.ts](src/interfaces/Strategy.interface.ts)
-- [types.d.ts](types.d.ts)
-
-</details>
-
-
-
 ## Purpose and Scope
 
 This document explains the interval throttling mechanism that prevents signal spam by enforcing minimum time gaps between `getSignal` calls. The throttling system uses `INTERVAL_MINUTES` mapping and `_lastSignalTimestamp` tracking to ensure strategies respect their configured signal generation intervals.

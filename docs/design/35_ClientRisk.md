@@ -1,21 +1,5 @@
 # ClientRisk
 
-<details>
-<summary>Relevant source files</summary>
-
-The following files were used as context for generating this wiki page:
-
-- [src/client/ClientStrategy.ts](src/client/ClientStrategy.ts)
-- [src/interfaces/Strategy.interface.ts](src/interfaces/Strategy.interface.ts)
-- [test/e2e/defend.test.mjs](test/e2e/defend.test.mjs)
-- [test/e2e/partial.test.mjs](test/e2e/partial.test.mjs)
-- [test/index.mjs](test/index.mjs)
-- [types.d.ts](types.d.ts)
-
-</details>
-
-
-
 This page documents the `ClientRisk` class, which implements portfolio-level risk management by tracking active positions across strategies and executing custom validation logic. For information about the risk schema registration and validation services, see [Risk Schemas](#5.4) and [Risk Management](#12). For information about risk validation services in the service layer, see [Validation Services](#7.4).
 
 ## Purpose and Scope

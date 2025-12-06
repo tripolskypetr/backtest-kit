@@ -1,22 +1,5 @@
 # ClientSizing
 
-<details>
-<summary>Relevant source files</summary>
-
-The following files were used as context for generating this wiki page:
-
-- [README.md](README.md)
-- [src/client/ClientStrategy.ts](src/client/ClientStrategy.ts)
-- [src/interfaces/Strategy.interface.ts](src/interfaces/Strategy.interface.ts)
-- [src/lib/services/markdown/BacktestMarkdownService.ts](src/lib/services/markdown/BacktestMarkdownService.ts)
-- [src/lib/services/markdown/LiveMarkdownService.ts](src/lib/services/markdown/LiveMarkdownService.ts)
-- [src/lib/services/markdown/ScheduleMarkdownService.ts](src/lib/services/markdown/ScheduleMarkdownService.ts)
-- [types.d.ts](types.d.ts)
-
-</details>
-
-
-
 ClientSizing implements position size calculation logic for trading signals. It provides three distinct sizing methods: fixed percentage allocation, Kelly criterion optimization, and ATR-based volatility scaling. This class belongs to the Client Classes layer (Layer 4) and operates without dependency injection, accepting all dependencies through constructor parameters.
 
 For information about risk validation and portfolio limits, see [ClientRisk](#6.4). For strategy-level signal generation, see [ClientStrategy](#6.1).
