@@ -4493,6 +4493,8 @@ interface PartialEvent {
     action: "profit" | "loss";
     /** Trading pair symbol */
     symbol: string;
+    /** Strategy name */
+    strategyName: string;
     /** Signal ID */
     signalId: string;
     /** Position type */
@@ -4511,7 +4513,7 @@ interface PartialEvent {
  *
  * @example
  * ```typescript
- * const stats = await Partial.getData("my-strategy");
+ * const stats = await Partial.getData("BTCUSDT", "my-strategy");
  *
  * console.log(`Total events: ${stats.totalEvents}`);
  * console.log(`Profit events: ${stats.totalProfit}`);
@@ -4533,10 +4535,10 @@ interface PartialStatistics {
  *
  * Features:
  * - Listens to partial profit and loss events via partialProfitSubject/partialLossSubject
- * - Accumulates all events (profit, loss) per symbol
+ * - Accumulates all events (profit, loss) per symbol-strategy pair
  * - Generates markdown tables with detailed event information
  * - Provides statistics (total profit/loss events)
- * - Saves reports to disk in dump/partial/{symbol}.md
+ * - Saves reports to disk in dump/partial/{symbol}_{strategyName}.md
  *
  * @example
  * ```typescript
@@ -4546,15 +4548,15 @@ interface PartialStatistics {
  * // No manual callback setup needed
  *
  * // Later: generate and save report
- * await service.dump("BTCUSDT");
+ * await service.dump("BTCUSDT", "my-strategy");
  * ```
  */
 declare class PartialMarkdownService {
     /** Logger service for debug output */
     private readonly loggerService;
     /**
-     * Memoized function to get or create ReportStorage for a symbol.
-     * Each symbol gets its own isolated storage instance.
+     * Memoized function to get or create ReportStorage for a symbol-strategy pair.
+     * Each symbol-strategy combination gets its own isolated storage instance.
      */
     private getStorage;
     /**
@@ -4584,74 +4586,80 @@ declare class PartialMarkdownService {
      */
     private tickLoss;
     /**
-     * Gets statistical data from all partial profit/loss events for a symbol.
+     * Gets statistical data from all partial profit/loss events for a symbol-strategy pair.
      * Delegates to ReportStorage.getData().
      *
      * @param symbol - Trading pair symbol to get data for
+     * @param strategyName - Strategy name to get data for
      * @returns Statistical data object with all metrics
      *
      * @example
      * ```typescript
      * const service = new PartialMarkdownService();
-     * const stats = await service.getData("BTCUSDT");
+     * const stats = await service.getData("BTCUSDT", "my-strategy");
      * console.log(stats.totalProfit, stats.totalLoss);
      * ```
      */
-    getData: (symbol: string) => Promise<PartialStatistics>;
+    getData: (symbol: string, strategyName: string) => Promise<PartialStatistics>;
     /**
-     * Generates markdown report with all partial events for a symbol.
+     * Generates markdown report with all partial events for a symbol-strategy pair.
      * Delegates to ReportStorage.getReport().
      *
      * @param symbol - Trading pair symbol to generate report for
+     * @param strategyName - Strategy name to generate report for
      * @returns Markdown formatted report string with table of all events
      *
      * @example
      * ```typescript
      * const service = new PartialMarkdownService();
-     * const markdown = await service.getReport("BTCUSDT");
+     * const markdown = await service.getReport("BTCUSDT", "my-strategy");
      * console.log(markdown);
      * ```
      */
-    getReport: (symbol: string) => Promise<string>;
+    getReport: (symbol: string, strategyName: string) => Promise<string>;
     /**
-     * Saves symbol report to disk.
+     * Saves symbol-strategy report to disk.
      * Creates directory if it doesn't exist.
      * Delegates to ReportStorage.dump().
      *
      * @param symbol - Trading pair symbol to save report for
+     * @param strategyName - Strategy name to save report for
      * @param path - Directory path to save report (default: "./dump/partial")
      *
      * @example
      * ```typescript
      * const service = new PartialMarkdownService();
      *
-     * // Save to default path: ./dump/partial/BTCUSDT.md
-     * await service.dump("BTCUSDT");
+     * // Save to default path: ./dump/partial/BTCUSDT_my-strategy.md
+     * await service.dump("BTCUSDT", "my-strategy");
      *
-     * // Save to custom path: ./custom/path/BTCUSDT.md
-     * await service.dump("BTCUSDT", "./custom/path");
+     * // Save to custom path: ./custom/path/BTCUSDT_my-strategy.md
+     * await service.dump("BTCUSDT", "my-strategy", "./custom/path");
      * ```
      */
-    dump: (symbol: string, path?: string) => Promise<void>;
+    dump: (symbol: string, strategyName: string, path?: string) => Promise<void>;
     /**
      * Clears accumulated event data from storage.
-     * If symbol is provided, clears only that symbol's data.
-     * If symbol is omitted, clears all symbols' data.
+     * If ctx is provided, clears only that specific symbol-strategy pair's data.
+     * If nothing is provided, clears all data.
      *
-     * @param symbol - Optional symbol to clear specific symbol data
+     * @param ctx - Optional context with symbol and strategyName
      *
      * @example
      * ```typescript
      * const service = new PartialMarkdownService();
      *
-     * // Clear specific symbol data
-     * await service.clear("BTCUSDT");
+     * // Clear specific symbol-strategy pair
+     * await service.clear({ symbol: "BTCUSDT", strategyName: "my-strategy" });
      *
-     * // Clear all symbols' data
+     * // Clear all data
      * await service.clear();
      * ```
      */
-    clear: (symbol?: string) => Promise<void>;
+    clear: (ctx?: {
+        symbol: string;
+        strategyName: string;
+    }) => Promise<void>;
     /**
      * Initializes the service by subscribing to partial profit/loss events.
      * Uses singleshot to ensure initialization happens only once.
@@ -5972,26 +5980,26 @@ declare const Optimizer: OptimizerUtils;
  *
  * Data source:
  * - PartialMarkdownService listens to partialProfitSubject/partialLossSubject
- * - Accumulates events in ReportStorage (max 250 events per symbol)
- * - Events include: timestamp, action, symbol, signalId, position, level, price, mode
+ * - Accumulates events in ReportStorage (max 250 events per symbol-strategy pair)
+ * - Events include: timestamp, action, symbol, strategyName, signalId, position, level, price, mode
  *
  * @example
  * ```typescript
  * import { Partial } from "./classes/Partial";
  *
- * // Get statistical data for BTCUSDT
- * const stats = await Partial.getData("BTCUSDT");
+ * // Get statistical data for BTCUSDT:my-strategy
+ * const stats = await Partial.getData("BTCUSDT", "my-strategy");
  * console.log(`Total events: ${stats.totalEvents}`);
  * console.log(`Profit events: ${stats.totalProfit}`);
  * console.log(`Loss events: ${stats.totalLoss}`);
  *
  * // Generate markdown report
- * const markdown = await Partial.getReport("BTCUSDT");
+ * const markdown = await Partial.getReport("BTCUSDT", "my-strategy");
  * console.log(markdown); // Formatted table with all events
  *
  * // Export report to file
- * await Partial.dump("BTCUSDT"); // Saves to ./dump/partial/BTCUSDT.md
- * await Partial.dump("BTCUSDT", "./custom/path"); // Custom directory
+ * await Partial.dump("BTCUSDT", "my-strategy"); // Saves to ./dump/partial/BTCUSDT_my-strategy.md
+ * await Partial.dump("BTCUSDT", "my-strategy", "./custom/path"); // Custom directory
  * ```
  */
 declare class PartialUtils {
@@ -6002,11 +6010,12 @@ declare class PartialUtils {
      * Returns aggregated metrics calculated from all profit and loss events.
      *
      * @param symbol - Trading pair symbol (e.g., "BTCUSDT")
+     * @param strategyName - Strategy name (e.g., "my-strategy")
      * @returns Promise resolving to PartialStatistics object with counts and event list
      *
      * @example
      * ```typescript
-     * const stats = await Partial.getData("BTCUSDT");
+     * const stats = await Partial.getData("BTCUSDT", "my-strategy");
      *
      * console.log(`Total events: ${stats.totalEvents}`);
      * console.log(`Profit events: ${stats.totalProfit} (${(stats.totalProfit / stats.totalEvents * 100).toFixed(1)}%)`);
@@ -6018,13 +6027,14 @@ declare class PartialUtils {
      * }
      * ```
      */
-    getData: (symbol: string) => Promise<PartialStatistics>;
+    getData: (symbol: string, strategyName: string) => Promise<PartialStatistics>;
     /**
-     * Generates markdown report with all partial profit/loss events for a symbol.
+     * Generates markdown report with all partial profit/loss events for a symbol-strategy pair.
      *
      * Creates formatted table containing:
      * - Action (PROFIT/LOSS)
      * - Symbol
+     * - Strategy
      * - Signal ID
      * - Position (LONG/SHORT)
      * - Level % (+10%, -20%, etc)
@@ -6035,32 +6045,33 @@ declare class PartialUtils {
      * Also includes summary statistics at the end.
      *
      * @param symbol - Trading pair symbol (e.g., "BTCUSDT")
+     * @param strategyName - Strategy name (e.g., "my-strategy")
      * @returns Promise resolving to markdown formatted report string
      *
      * @example
      * ```typescript
-     * const markdown = await Partial.getReport("BTCUSDT");
+     * const markdown = await Partial.getReport("BTCUSDT", "my-strategy");
      * console.log(markdown);
      *
      * // Output:
-     * // # Partial Profit/Loss Report: BTCUSDT
+     * // # Partial Profit/Loss Report: BTCUSDT:my-strategy
      * //
-     * // | Action | Symbol | Signal ID | Position | Level % | Current Price | Timestamp | Mode |
-     * // | --- | --- | --- | --- | --- | --- | --- | --- |
-     * // | PROFIT | BTCUSDT | abc123 | LONG | +10% | 51500.00000000 USD | 2024-01-15T10:30:00.000Z | Backtest |
-     * // | LOSS | BTCUSDT | abc123 | LONG | -10% | 49000.00000000 USD | 2024-01-15T11:00:00.000Z | Backtest |
+     * // | Action | Symbol | Strategy | Signal ID | Position | Level % | Current Price | Timestamp | Mode |
+     * // | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+     * // | PROFIT | BTCUSDT | my-strategy | abc123 | LONG | +10% | 51500.00000000 USD | 2024-01-15T10:30:00.000Z | Backtest |
+     * // | LOSS | BTCUSDT | my-strategy | abc123 | LONG | -10% | 49000.00000000 USD | 2024-01-15T11:00:00.000Z | Backtest |
      * //
      * // **Total events:** 2
      * // **Profit events:** 1
      * // **Loss events:** 1
      * ```
      */
-    getReport: (symbol: string) => Promise<string>;
+    getReport: (symbol: string, strategyName: string) => Promise<string>;
     /**
      * Generates and saves markdown report to file.
      *
      * Creates directory if it doesn't exist.
-     * Filename format: {symbol}.md (e.g., "BTCUSDT.md")
+     * Filename format: {symbol}_{strategyName}.md (e.g., "BTCUSDT_my-strategy.md")
      *
      * Delegates to PartialMarkdownService.dump() which:
      * 1. Generates markdown report via getReport()
@@ -6069,24 +6080,25 @@ declare class PartialUtils {
      * 4. Logs success/failure to console
      *
      * @param symbol - Trading pair symbol (e.g., "BTCUSDT")
+     * @param strategyName - Strategy name (e.g., "my-strategy")
      * @param path - Output directory path (default: "./dump/partial")
      * @returns Promise that resolves when file is written
      *
      * @example
      * ```typescript
-     * // Save to default path: ./dump/partial/BTCUSDT.md
-     * await Partial.dump("BTCUSDT");
+     * // Save to default path: ./dump/partial/BTCUSDT_my-strategy.md
+     * await Partial.dump("BTCUSDT", "my-strategy");
      *
-     * // Save to custom path: ./reports/partial/BTCUSDT.md
-     * await Partial.dump("BTCUSDT", "./reports/partial");
+     * // Save to custom path: ./reports/partial/BTCUSDT_my-strategy.md
+     * await Partial.dump("BTCUSDT", "my-strategy", "./reports/partial");
      *
      * // After multiple symbols backtested, export all reports
      * for (const symbol of ["BTCUSDT", "ETHUSDT", "BNBUSDT"]) {
-     *   await Partial.dump(symbol, "./backtest-results");
+     *   await Partial.dump(symbol, "my-strategy", "./backtest-results");
      * }
      * ```
      */
-    dump: (symbol: string, path?: string) => Promise<void>;
+    dump: (symbol: string, strategyName: string, path?: string) => Promise<void>;
 }
 /**
  * Global singleton instance of PartialUtils.
@@ -6097,9 +6109,9 @@ declare class PartialUtils {
  * import { Partial } from "backtest-kit";
  *
  * // Usage same as PartialUtils methods
- * const stats = await Partial.getData("BTCUSDT");
- * const report = await Partial.getReport("BTCUSDT");
- * await Partial.dump("BTCUSDT");
+ * const stats = await Partial.getData("BTCUSDT", "my-strategy");
+ * const report = await Partial.getReport("BTCUSDT", "my-strategy");
+ * await Partial.dump("BTCUSDT", "my-strategy");
  * ```
  */
 declare const Partial$1: PartialUtils;

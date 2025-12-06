@@ -22,6 +22,8 @@ interface PartialEvent {
   action: "profit" | "loss";
   /** Trading pair symbol */
   symbol: string;
+  /** Strategy name */
+  strategyName: string;
   /** Signal ID */
   signalId: string;
   /** Position type */
@@ -41,7 +43,7 @@ interface PartialEvent {
  *
  * @example
  * ```typescript
- * const stats = await Partial.getData("my-strategy");
+ * const stats = await Partial.getData("BTCUSDT", "my-strategy");
  *
  * console.log(`Total events: ${stats.totalEvents}`);
  * console.log(`Profit events: ${stats.totalProfit}`);
@@ -87,6 +89,11 @@ const columns: Column[] = [
     format: (data) => data.symbol,
   },
   {
+    key: "strategyName",
+    label: "Strategy",
+    format: (data) => data.strategyName,
+  },
+  {
     key: "signalId",
     label: "Signal ID",
     format: (data) => data.signalId,
@@ -123,7 +130,7 @@ const columns: Column[] = [
 const MAX_EVENTS = 250;
 
 /**
- * Storage class for accumulating partial profit/loss events per symbol.
+ * Storage class for accumulating partial profit/loss events per symbol-strategy pair.
  * Maintains a chronological list of profit and loss level events.
  */
 class ReportStorage {
@@ -133,14 +140,12 @@ class ReportStorage {
   /**
    * Adds a profit event to the storage.
    *
-   * @param symbol - Trading pair symbol
    * @param data - Signal row data
    * @param currentPrice - Current market price
    * @param level - Profit level reached
    * @param backtest - True if backtest mode
    */
   public addProfitEvent(
-    symbol: string,
     data: ISignalRow,
     currentPrice: number,
     level: PartialLevel,
@@ -150,7 +155,8 @@ class ReportStorage {
     this._eventList.push({
       timestamp,
       action: "profit",
-      symbol,
+      symbol: data.symbol,
+      strategyName: data.strategyName,
       signalId: data.id,
       position: data.position,
       currentPrice,
@@ -167,14 +173,12 @@ class ReportStorage {
   /**
    * Adds a loss event to the storage.
    *
-   * @param symbol - Trading pair symbol
    * @param data - Signal row data
    * @param currentPrice - Current market price
    * @param level - Loss level reached
    * @param backtest - True if backtest mode
    */
   public addLossEvent(
-    symbol: string,
     data: ISignalRow,
     currentPrice: number,
     level: PartialLevel,
@@ -184,7 +188,8 @@ class ReportStorage {
     this._eventList.push({
       timestamp,
       action: "loss",
-      symbol,
+      symbol: data.symbol,
+      strategyName: data.strategyName,
       signalId: data.id,
       position: data.position,
       currentPrice,
@@ -225,17 +230,18 @@ class ReportStorage {
   }
 
   /**
-   * Generates markdown report with all partial events for a symbol (View).
+   * Generates markdown report with all partial events for a symbol-strategy pair (View).
    *
    * @param symbol - Trading pair symbol
+   * @param strategyName - Strategy name
    * @returns Markdown formatted report with all events
    */
-  public async getReport(symbol: string): Promise<string> {
+  public async getReport(symbol: string, strategyName: string): Promise<string> {
     const stats = await this.getData();
 
     if (stats.totalEvents === 0) {
       return str.newline(
-        `# Partial Profit/Loss Report: ${symbol}`,
+        `# Partial Profit/Loss Report: ${symbol}:${strategyName}`,
         "",
         "No partial profit/loss events recorded yet."
       );
@@ -251,7 +257,7 @@ class ReportStorage {
     const table = str.newline(tableData.map((row) => `| ${row.join(" | ")} |`));
 
     return str.newline(
-      `# Partial Profit/Loss Report: ${symbol}`,
+      `# Partial Profit/Loss Report: ${symbol}:${strategyName}`,
       "",
       table,
       "",
@@ -262,19 +268,20 @@ class ReportStorage {
   }
 
   /**
-   * Saves symbol report to disk.
+   * Saves symbol-strategy report to disk.
    *
    * @param symbol - Trading pair symbol
+   * @param strategyName - Strategy name
    * @param path - Directory path to save report (default: "./dump/partial")
    */
-  public async dump(symbol: string, path = "./dump/partial"): Promise<void> {
-    const markdown = await this.getReport(symbol);
+  public async dump(symbol: string, strategyName: string, path = "./dump/partial"): Promise<void> {
+    const markdown = await this.getReport(symbol, strategyName);
 
     try {
       const dir = join(process.cwd(), path);
       await mkdir(dir, { recursive: true });
 
-      const filename = `${symbol}.md`;
+      const filename = `${symbol}_${strategyName}.md`;
       const filepath = join(dir, filename);
 
       await writeFile(filepath, markdown, "utf-8");
@@ -290,10 +297,10 @@ class ReportStorage {
  *
  * Features:
  * - Listens to partial profit and loss events via partialProfitSubject/partialLossSubject
- * - Accumulates all events (profit, loss) per symbol
+ * - Accumulates all events (profit, loss) per symbol-strategy pair
  * - Generates markdown tables with detailed event information
  * - Provides statistics (total profit/loss events)
- * - Saves reports to disk in dump/partial/{symbol}.md
+ * - Saves reports to disk in dump/partial/{symbol}_{strategyName}.md
  *
  * @example
  * ```typescript
@@ -303,7 +310,7 @@ class ReportStorage {
  * // No manual callback setup needed
  *
  * // Later: generate and save report
- * await service.dump("BTCUSDT");
+ * await service.dump("BTCUSDT", "my-strategy");
  * ```
  */
 export class PartialMarkdownService {
@@ -311,11 +318,11 @@ export class PartialMarkdownService {
   private readonly loggerService = inject<LoggerService>(TYPES.loggerService);
 
   /**
-   * Memoized function to get or create ReportStorage for a symbol.
-   * Each symbol gets its own isolated storage instance.
+   * Memoized function to get or create ReportStorage for a symbol-strategy pair.
+   * Each symbol-strategy combination gets its own isolated storage instance.
    */
-  private getStorage = memoize<(symbol: string) => ReportStorage>(
-    ([symbol]) => `${symbol}`,
+  private getStorage = memoize<(symbol: string, strategyName: string) => ReportStorage>(
+    ([symbol, strategyName]) => JSON.stringify([symbol, strategyName]),
     () => new ReportStorage()
   );
 
@@ -343,9 +350,8 @@ export class PartialMarkdownService {
       data,
     });
 
-    const storage = this.getStorage(data.symbol);
+    const storage = this.getStorage(data.symbol, data.data.strategyName);
     storage.addProfitEvent(
-      data.symbol,
       data.data,
       data.currentPrice,
       data.level,
@@ -378,9 +384,8 @@ export class PartialMarkdownService {
       data,
     });
 
-    const storage = this.getStorage(data.symbol);
+    const storage = this.getStorage(data.symbol, data.data.strategyName);
     storage.addLossEvent(
-      data.symbol,
       data.data,
       data.currentPrice,
       data.level,
@@ -390,103 +395,115 @@ export class PartialMarkdownService {
   };
 
   /**
-   * Gets statistical data from all partial profit/loss events for a symbol.
+   * Gets statistical data from all partial profit/loss events for a symbol-strategy pair.
    * Delegates to ReportStorage.getData().
    *
    * @param symbol - Trading pair symbol to get data for
+   * @param strategyName - Strategy name to get data for
    * @returns Statistical data object with all metrics
    *
    * @example
    * ```typescript
    * const service = new PartialMarkdownService();
-   * const stats = await service.getData("BTCUSDT");
+   * const stats = await service.getData("BTCUSDT", "my-strategy");
    * console.log(stats.totalProfit, stats.totalLoss);
    * ```
    */
-  public getData = async (symbol: string): Promise<PartialStatistics> => {
+  public getData = async (symbol: string, strategyName: string): Promise<PartialStatistics> => {
     this.loggerService.log("partialMarkdownService getData", {
       symbol,
+      strategyName,
     });
-    const storage = this.getStorage(symbol);
+    const storage = this.getStorage(symbol, strategyName);
     return storage.getData();
   };
 
   /**
-   * Generates markdown report with all partial events for a symbol.
+   * Generates markdown report with all partial events for a symbol-strategy pair.
    * Delegates to ReportStorage.getReport().
    *
    * @param symbol - Trading pair symbol to generate report for
+   * @param strategyName - Strategy name to generate report for
    * @returns Markdown formatted report string with table of all events
    *
    * @example
    * ```typescript
    * const service = new PartialMarkdownService();
-   * const markdown = await service.getReport("BTCUSDT");
+   * const markdown = await service.getReport("BTCUSDT", "my-strategy");
    * console.log(markdown);
    * ```
    */
-  public getReport = async (symbol: string): Promise<string> => {
+  public getReport = async (symbol: string, strategyName: string): Promise<string> => {
     this.loggerService.log("partialMarkdownService getReport", {
       symbol,
+      strategyName,
     });
-    const storage = this.getStorage(symbol);
-    return storage.getReport(symbol);
+    const storage = this.getStorage(symbol, strategyName);
+    return storage.getReport(symbol, strategyName);
   };
 
   /**
-   * Saves symbol report to disk.
+   * Saves symbol-strategy report to disk.
    * Creates directory if it doesn't exist.
    * Delegates to ReportStorage.dump().
    *
    * @param symbol - Trading pair symbol to save report for
+   * @param strategyName - Strategy name to save report for
    * @param path - Directory path to save report (default: "./dump/partial")
    *
    * @example
    * ```typescript
    * const service = new PartialMarkdownService();
    *
-   * // Save to default path: ./dump/partial/BTCUSDT.md
-   * await service.dump("BTCUSDT");
+   * // Save to default path: ./dump/partial/BTCUSDT_my-strategy.md
+   * await service.dump("BTCUSDT", "my-strategy");
    *
-   * // Save to custom path: ./custom/path/BTCUSDT.md
-   * await service.dump("BTCUSDT", "./custom/path");
+   * // Save to custom path: ./custom/path/BTCUSDT_my-strategy.md
+   * await service.dump("BTCUSDT", "my-strategy", "./custom/path");
    * ```
    */
   public dump = async (
     symbol: string,
+    strategyName: string,
     path = "./dump/partial"
   ): Promise<void> => {
     this.loggerService.log("partialMarkdownService dump", {
       symbol,
+      strategyName,
       path,
     });
-    const storage = this.getStorage(symbol);
-    await storage.dump(symbol, path);
+    const storage = this.getStorage(symbol, strategyName);
+    await storage.dump(symbol, strategyName, path);
   };
 
   /**
    * Clears accumulated event data from storage.
-   * If symbol is provided, clears only that symbol's data.
-   * If symbol is omitted, clears all symbols' data.
+   * If ctx is provided, clears only that specific symbol-strategy pair's data.
+   * If nothing is provided, clears all data.
    *
-   * @param symbol - Optional symbol to clear specific symbol data
+   * @param ctx - Optional context with symbol and strategyName
    *
    * @example
    * ```typescript
    * const service = new PartialMarkdownService();
    *
-   * // Clear specific symbol data
-   * await service.clear("BTCUSDT");
+   * // Clear specific symbol-strategy pair
+   * await service.clear({ symbol: "BTCUSDT", strategyName: "my-strategy" });
    *
-   * // Clear all symbols' data
+   * // Clear all data
    * await service.clear();
    * ```
    */
-  public clear = async (symbol?: string) => {
+  public clear = async (ctx?: { symbol: string; strategyName: string }) => {
     this.loggerService.log("partialMarkdownService clear", {
-      symbol,
+      ctx,
     });
-    this.getStorage.clear(symbol);
+    if (ctx) {
+      const key = JSON.stringify([ctx.symbol, ctx.strategyName]);
+      this.getStorage.clear(key);
+    } else {
+      this.getStorage.clear();
+    }
   };
 
   /**

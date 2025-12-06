@@ -4,6 +4,7 @@ import {
     addStrategy,
     addFrame,
     Backtest,
+    Partial,
     listenSignalBacktest,
     listenDoneBacktest,
     listenBacktestProgress,
@@ -68,6 +69,7 @@ listenBacktestProgress((event) => {
 listenDoneBacktest(async (event) => {
     console.log("Backtest completed:", event.symbol);
     await Backtest.dump(event.strategyName);
+    await Partial.dump(event.symbol, event.strategyName);
 });
 
 listenError((error) => {
