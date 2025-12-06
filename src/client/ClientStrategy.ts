@@ -904,7 +904,8 @@ const CLOSE_PENDING_SIGNAL_FN = async (
   await self.params.partial.clear(
     self.params.execution.context.symbol,
     signal,
-    currentPrice
+    currentPrice,
+    self.params.execution.context.backtest,
   );
 
   await self.params.risk.removeSignal(self.params.execution.context.symbol, {
@@ -1227,7 +1228,8 @@ const CLOSE_PENDING_SIGNAL_IN_BACKTEST_FN = async (
   await self.params.partial.clear(
     self.params.execution.context.symbol,
     signal,
-    averagePrice
+    averagePrice,
+    self.params.execution.context.backtest
   );
 
   await self.params.risk.removeSignal(self.params.execution.context.symbol, {

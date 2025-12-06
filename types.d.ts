@@ -723,7 +723,7 @@ interface IPartial {
      * // Memoized instance cleared from getPartial cache
      * ```
      */
-    clear(symbol: string, data: ISignalRow, priceClose: number): Promise<void>;
+    clear(symbol: string, data: ISignalRow, priceClose: number, backtest: boolean): Promise<void>;
 }
 
 /**
@@ -8661,7 +8661,7 @@ declare class PartialConnectionService implements IPartial {
      * @param priceClose - Final closing price
      * @returns Promise that resolves when clear is complete
      */
-    clear: (symbol: string, data: ISignalRow, priceClose: number) => Promise<void>;
+    clear: (symbol: string, data: ISignalRow, priceClose: number, backtest: boolean) => Promise<void>;
 }
 
 /**
@@ -8742,7 +8742,7 @@ declare class PartialGlobalService {
      * @param priceClose - Final closing price
      * @returns Promise that resolves when clear is complete
      */
-    clear: (symbol: string, data: ISignalRow, priceClose: number) => Promise<void>;
+    clear: (symbol: string, data: ISignalRow, priceClose: number, backtest: boolean) => Promise<void>;
 }
 
 /**

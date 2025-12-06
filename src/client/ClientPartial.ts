@@ -3,6 +3,7 @@ import {
   PartialLevel,
   IPartialParams,
   IPartialData,
+  IPartial,
 } from "../interfaces/Partial.interface";
 import { ISignalRow } from "../interfaces/Strategy.interface";
 import { PersistPartialAdapter } from "../classes/Persist";
@@ -84,7 +85,7 @@ const HANDLE_PROFIT_FN = async (
   }
 
   if (shouldPersist) {
-    await self._persistState(symbol);
+    await self._persistState(symbol, backtest);
   }
 };
 
@@ -148,7 +149,7 @@ const HANDLE_LOSS_FN = async (
   }
 
   if (shouldPersist) {
-    await self._persistState(symbol);
+    await self._persistState(symbol, backtest);
   }
 };
 
@@ -241,7 +242,7 @@ const WAIT_FOR_INIT_FN = async (symbol: string, self: ClientPartial) => {
  * // State removed, changes persisted
  * ```
  */
-export class ClientPartial {
+export class ClientPartial implements IPartial {
   /**
    * Map of signal IDs to partial profit/loss state.
    * Uses NEED_FETCH sentinel before initialization.
@@ -296,7 +297,10 @@ export class ClientPartial {
    * @param symbol - Trading pair symbol
    * @returns Promise that resolves when persistence is complete
    */
-  public async _persistState(symbol: string): Promise<void> {
+  public async _persistState(symbol: string, backtest: boolean): Promise<void> {
+    if (backtest) {
+      return;
+    }
     this.params.logger.debug("ClientPartial persistState", { symbol });
     if (this._states === NEED_FETCH) {
       throw new Error(
@@ -446,7 +450,7 @@ export class ClientPartial {
    * // Cleanup: PartialConnectionService.getPartial.clear(signal.id)
    * ```
    */
-  public async clear(symbol: string, data: ISignalRow, priceClose: number) {
+  public async clear(symbol: string, data: ISignalRow, priceClose: number, backtest: boolean) {
     this.params.logger.log("ClientPartial clear", {
       symbol,
       data,
@@ -458,7 +462,7 @@ export class ClientPartial {
       );
     }
     this._states.delete(data.id);
-    await this._persistState(symbol);
+    await this._persistState(symbol, backtest);
   }
 }
 

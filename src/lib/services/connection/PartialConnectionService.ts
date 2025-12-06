@@ -232,7 +232,8 @@ export class PartialConnectionService implements IPartial {
   public clear = async (
     symbol: string,
     data: ISignalRow,
-    priceClose: number
+    priceClose: number,
+    backtest: boolean,
   ) => {
     this.loggerService.log("partialConnectionService profit", {
       symbol,
@@ -241,7 +242,7 @@ export class PartialConnectionService implements IPartial {
     });
     const partial = this.getPartial(data.id);
     await partial.waitForInit(symbol);
-    await partial.clear(symbol, data, priceClose);
+    await partial.clear(symbol, data, priceClose, backtest);
     this.getPartial.clear(data.id);
   };
 }
