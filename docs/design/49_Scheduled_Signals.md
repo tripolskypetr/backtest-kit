@@ -17,7 +17,6 @@ Signals are created with two different execution modes based on whether `priceOp
 | **Immediate** | `undefined` or equals current price | Current market price (VWAP) | Execute immediately at market |
 | **Scheduled** | Specified and differs from current price | Specified `priceOpen` price | Wait for better entry price (limit order) |
 
-**Sources:** [types.d.ts:24-39](), [src/interfaces/Strategy.interface.ts:24-39]()
 
 ---
 
@@ -44,7 +43,6 @@ The framework checks if the specified `priceOpen` has already been reached by th
 
 If activation conditions are met, the signal skips the scheduled phase and opens directly as a regular `ISignalRow` with `_isScheduled: false`.
 
-**Sources:** [src/client/ClientStrategy.ts:312-344](), [src/client/ClientStrategy.ts:313-319]()
 
 ---
 
@@ -59,7 +57,6 @@ If activation conditions are met, the signal skips the scheduled phase and opens
 3. **Activation**: When price reaches `priceOpen` (and SL not hit), performs risk re-check
 4. **Cancellation**: Signal cancelled if timeout (120min), SL hit, or risk check fails at activation
 
-**Sources:** [src/client/ClientStrategy.ts:346-367](), [src/client/ClientStrategy.ts:474-693](), [types.d.ts:777-785]()
 
 ---
 
@@ -78,7 +75,6 @@ StopLoss checks occur **before** `priceOpen` checks. This prevents activating po
 
 This logic ensures scheduled signals only activate when market conditions are favorable.
 
-**Sources:** [src/client/ClientStrategy.ts:530-564](), [src/client/ClientStrategy.ts:537-547](), [src/client/ClientStrategy.ts:550-561]()
 
 ---
 
@@ -135,7 +131,6 @@ if (await not(risk.checkSignal({ ... }))) {
 | StopLoss Hit | `IStrategyTickResultIdle` | Not set | None (immediate return to idle) |
 | Risk Rejected | No result (returns `null`) | N/A | None (silently cancelled) |
 
-**Sources:** [src/client/ClientStrategy.ts:474-528](), [src/client/ClientStrategy.ts:566-599](), [src/client/ClientStrategy.ts:601-648]()
 
 ---
 
@@ -155,7 +150,6 @@ Between creation and activation, portfolio state may change:
 
 The second check prevents opening positions that would violate updated risk constraints.
 
-**Sources:** [src/client/ClientStrategy.ts:289-300](), [src/client/ClientStrategy.ts:631-648](), [src/client/ClientStrategy.ts:661-664]()
 
 ---
 
@@ -216,7 +210,6 @@ T=105min: Position monitoring
           Signal timeout check: 105 - 45 = 60min (continue if minuteEstimatedTime=120)
 ```
 
-**Sources:** [src/client/ClientStrategy.ts:347-361](), [src/client/ClientStrategy.ts:653-657](), [src/client/ClientStrategy.ts:479-482](), [src/client/ClientStrategy.ts:822-825]()
 
 ---
 
@@ -245,7 +238,6 @@ In live mode, scheduled signals are persisted and monitored asynchronously:
 4. **Risk Re-check**: Performed at activation to validate current portfolio state
 5. **Recovery**: Restored from disk after crash via `waitForInit()`
 
-**Sources:** [src/client/ClientStrategy.ts:411-472](), [src/client/ClientStrategy.ts:945-1066](), [test/e2e/defend.test.mjs:26-146](), [test/e2e/defend.test.mjs:291-439]()
 
 ---
 
@@ -286,7 +278,6 @@ if (elapsedTime >= maxTimeToWait) {
 }
 ```
 
-**Sources:** [types.d.ts:5-10](), [src/client/ClientStrategy.ts:481](), [test/e2e/defend.test.mjs:446-537]()
 
 ---
 
@@ -361,7 +352,6 @@ callbacks: {
 }
 ```
 
-**Sources:** [types.d.ts:801-804](), [src/interfaces/Strategy.interface.ts:117-119](), [test/e2e/defend.test.mjs:1458-1467]()
 
 ---
 
@@ -453,7 +443,6 @@ getSignal: async (symbol, when) => {
 
 **Result:** Signal opens **immediately** as `ISignalRow` (not scheduled) because `currentPrice <= priceOpen` for LONG. The scheduled phase is skipped entirely.
 
-**Sources:** [test/e2e/defend.test.mjs:64-88](), [test/e2e/defend.test.mjs:196-220](), [src/client/ClientStrategy.ts:313-344]()
 
 ---
 
@@ -470,7 +459,6 @@ If price reaches both `priceOpen` and TP/SL on the same candle (extreme volatili
 
 The framework ensures `pendingAt` is updated correctly to distinguish between scheduled time and activation time.
 
-**Sources:** [test/e2e/defend.test.mjs:291-439]()
 
 ### 2. Pre-Activation SL Priority
 
@@ -488,7 +476,6 @@ This prevents the following bad scenario:
 - Immediately close at `SL=40000`
 - Lock in guaranteed loss
 
-**Sources:** [src/client/ClientStrategy.ts:537-563](), [test/e2e/defend.test.mjs:1393-1507]()
 
 ### 3. Risk Check Failure at Activation
 
@@ -502,7 +489,6 @@ Even if price reaches `priceOpen`, activation can still be rejected if risk limi
 // Result: Scheduled signal cancelled, never opens
 ```
 
-**Sources:** [src/client/ClientStrategy.ts:631-648]()
 
 ### 4. Crash Recovery in Live Mode
 
@@ -516,7 +502,6 @@ Scheduled signals persist across process restarts:
 
 The `onSchedule` callback is re-triggered on restoration to notify external systems.
 
-**Sources:** [src/client/ClientStrategy.ts:446-471]()
 
 ---
 
@@ -534,5 +519,4 @@ The `onSchedule` callback is re-triggered on restoration to notify external syst
 - **Polling Frequency**: Every 61 seconds (`TICK_TTL`)
 - **Timeout Check Cost**: Simple timestamp comparison (< 1ms)
 - **Risk Re-check**: Full portfolio scan at activation (depends on risk implementation)
-
-**Sources:** [src/client/ClientStrategy.ts:945-1066](), [types.d.ts:5-10]()
+

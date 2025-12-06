@@ -10,7 +10,6 @@ backtest-kit provides three execution modes that share the same strategy and exc
 
 ![Mermaid Diagram](./diagrams/05_Core_Concepts_0.svg)
 
-**Sources:** [src/classes/Backtest.ts:1-208](), [src/classes/Live.ts:1-220](), [src/classes/Walker.ts:1-274](), Diagram 3 from high-level architecture
 
 | Mode | Time Progression | Data Source | Use Case | Completion |
 |------|-----------------|-------------|----------|------------|
@@ -28,7 +27,6 @@ The execution modes are accessed through singleton utility classes:
 
 Each mode implements a similar async generator pattern but with different orchestration logic. Backtest and Live both call `strategy.tick()` or `strategy.backtest()`, while Walker iterates through multiple strategies and compares their results by a configurable metric (`WalkerMetric`).
 
-**Sources:** [src/classes/Backtest.ts:30-66](), [src/classes/Live.ts:44-82](), [src/classes/Walker.ts:31-87](), [types.d.ts:1014-1014]()
 
 ## Signal Lifecycle
 
@@ -38,7 +36,6 @@ Signals progress through a state machine implemented as a discriminated union of
 
 ![Mermaid Diagram](./diagrams/05_Core_Concepts_1.svg)
 
-**Sources:** [src/interfaces/Strategy.interface.ts:159-296](), [src/client/ClientStrategy.ts:40-895](), Diagram 5 from high-level architecture
 
 ### Signal State Types
 
@@ -72,7 +69,6 @@ Signals track two critical timestamps for accurate duration calculation:
 
 The `minuteEstimatedTime` countdown uses `pendingAt`, not `scheduledAt`, ensuring scheduled signals don't count waiting time toward expiration - [src/client/ClientStrategy.ts:681-683]().
 
-**Sources:** [src/interfaces/Strategy.interface.ts:284-295](), [src/client/ClientStrategy.ts:186-283](), [src/client/ClientStrategy.ts:681-683]()
 
 ## Component-Based Architecture
 
@@ -82,7 +78,6 @@ backtest-kit uses a registration-based architecture where components are defined
 
 ![Mermaid Diagram](./diagrams/05_Core_Concepts_2.svg)
 
-**Sources:** [src/index.ts:1-131](), [src/lib/services/connection/StrategyConnectionService.ts:76-94](), Diagram 2 from high-level architecture
 
 ### Component Types
 
@@ -105,7 +100,6 @@ The framework uses memoized Connection Services to lazily instantiate Client cla
 
 ![Mermaid Diagram](./diagrams/05_Core_Concepts_3.svg)
 
-**Sources:** [src/lib/services/connection/StrategyConnectionService.ts:76-94](), [src/client/ClientStrategy.ts:1-1092]()
 
 This two-tier architecture (Schema Services + Connection Services) enables:
 
@@ -114,7 +108,6 @@ This two-tier architecture (Schema Services + Connection Services) enables:
 3. **Instance reuse**: Memoization ensures one Client per schema name, preventing state duplication
 4. **Crash recovery**: Live mode can restore persisted state via `waitForInit()` before first operation - [src/client/ClientStrategy.ts:298-330]()
 
-**Sources:** [src/function/add.ts](), [src/lib/services/schema/StrategySchemaService.ts](), [src/lib/services/connection/StrategyConnectionService.ts:52-94](), [src/lib/services/validation/StrategyValidationService.ts]()
 
 ## Context Propagation
 
@@ -132,13 +125,11 @@ The framework uses `di-scoped` to propagate execution context without explicit p
 - `exchangeName`: Which exchange schema to use
 - `frameName`: Which frame schema to use (empty string for live mode)
 
-**Sources:** [types.d.ts:100-138](), [types.d.ts:363-403]()
 
 ### Context Flow Example
 
 ![Mermaid Diagram](./diagrams/05_Core_Concepts_4.svg)
 
-**Sources:** [src/lib/services/context/ExecutionContextService.ts](), [src/lib/services/context/MethodContextService.ts](), Diagram 6 from high-level architecture
 
 This pattern enables clean strategy code without framework boilerplate:
 
@@ -153,5 +144,4 @@ const candles = await getCandles(symbol, interval, limit);
 ```
 
 For detailed context propagation mechanics, see [Context Propagation](./12_Context_Propagation.md).
-
-**Sources:** [src/lib/services/context/ExecutionContextService.ts:1-50](), [src/lib/services/context/MethodContextService.ts:1-50](), [src/function/exchange.ts]()
+

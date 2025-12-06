@@ -6,7 +6,6 @@ Connection Services implement memoized client instance management within the ser
 
 This document covers all five Connection Services: `StrategyConnectionService`, `ExchangeConnectionService`, `FrameConnectionService`, `RiskConnectionService`, and `SizingConnectionService`. For schema registration, see page 7.3 Schema Services. For client implementations, see page 6 Core Business Logic. For routing context, see page 3.3 Context Propagation.
 
-**Sources:** [src/lib/services/connection/StrategyConnectionService.ts:1-186](), [src/lib/services/connection/RiskConnectionService.ts:1-138](), [src/lib/core/types.ts:10-16]()
 
 ---
 
@@ -28,7 +27,6 @@ Connection Services implement the factory pattern with memoization to manage cli
 
 ![Mermaid Diagram](./diagrams/40_Connection_Services_0.svg)
 
-**Sources:** [src/lib/services/connection/StrategyConnectionService.ts:76-94](), [src/lib/services/connection/RiskConnectionService.ts:56-65](), [src/lib/core/types.ts:10-16]()
 
 ---
 
@@ -81,7 +79,6 @@ public getRisk = memoize(
 );
 ```
 
-**Sources:** [src/lib/services/connection/StrategyConnectionService.ts:76-94](), [src/lib/services/connection/RiskConnectionService.ts:56-65]()
 
 ---
 
@@ -117,7 +114,6 @@ Connection Services inject dependencies into client constructors, combining sche
 
 ![Mermaid Diagram](./diagrams/40_Connection_Services_2.svg)
 
-**Sources:** [src/lib/services/connection/StrategyConnectionService.ts:76-94](), [src/lib/services/connection/RiskConnectionService.ts:56-65](), [src/client/ClientStrategy.ts:1-30](), [src/client/ClientRisk.ts:1-30]()
 
 ---
 
@@ -129,7 +125,6 @@ Manages `ClientStrategy` instances by strategyName. Implements the `IStrategy` i
 
 ![Mermaid Diagram](./diagrams/40_Connection_Services_3.svg)
 
-**Sources:** [src/lib/services/connection/StrategyConnectionService.ts:53-65](), [src/lib/core/types.ts:1-81]()
 
 ### Public Methods
 
@@ -162,7 +157,6 @@ Calls `ClientStrategy.stop()` to prevent new signal generation. Active signals c
 
 **Parameters:** `strategyName: StrategyName`
 
-**Sources:** [src/lib/services/connection/StrategyConnectionService.ts:104-183]()
 
 ### NOOP_RISK Fallback
 
@@ -175,7 +169,6 @@ const NOOP_RISK: IRisk = {
 }
 ```
 
-**Sources:** [src/lib/services/connection/StrategyConnectionService.ts:1-186]()
 
 ---
 
@@ -187,7 +180,6 @@ Manages `ClientRisk` instances by riskName. Implements `IRisk` interface methods
 
 ![Mermaid Diagram](./diagrams/40_Connection_Services_4.svg)
 
-**Sources:** [src/lib/services/connection/RiskConnectionService.ts:42-45]()
 
 ### Instance Creation Pattern
 
@@ -218,7 +210,6 @@ Validates if a signal should be allowed based on risk limits. Delegates to `Clie
 
 **Returns:** `Promise<boolean>` - true if allowed, false if rejected
 
-**Sources:** [src/lib/services/connection/RiskConnectionService.ts:77-86](), [src/interfaces/Risk.interface.ts:10-21]()
 
 #### addSignal(symbol, context)
 
@@ -228,7 +219,6 @@ Registers an opened position in the risk tracker. Called after signal is opened.
 - `symbol: string`
 - `context: { strategyName: string; riskName: RiskName }`
 
-**Sources:** [src/lib/services/connection/RiskConnectionService.ts:95-104]()
 
 #### removeSignal(symbol, context)
 
@@ -238,7 +228,6 @@ Removes a closed position from the risk tracker. Called after signal is closed.
 - `symbol: string`
 - `context: { strategyName: string; riskName: RiskName }`
 
-**Sources:** [src/lib/services/connection/RiskConnectionService.ts:113-122]()
 
 ### Shared Risk Instance Pattern
 
@@ -246,7 +235,6 @@ Multiple strategies with the same `riskName` share one ClientRisk instance [src/
 
 ![Mermaid Diagram](./diagrams/40_Connection_Services_5.svg)
 
-**Sources:** [src/lib/services/connection/RiskConnectionService.ts:1-138](), [src/client/ClientRisk.ts:1-221]()
 
 ---
 
@@ -266,7 +254,6 @@ Manages `ClientExchange` instances by exchangeName. Routes market data operation
 
 **Memoized Method:** `getExchange(exchangeName)` creates ClientExchange instances
 
-**Sources:** [src/lib/services/connection/ExchangeConnectionService.ts:1-185]()
 
 ### FrameConnectionService
 
@@ -281,7 +268,6 @@ Manages `ClientFrame` instances by frameName. Routes timeframe generation for ba
 
 **Note:** Not used in live mode where frameName is empty string.
 
-**Sources:** [src/lib/services/connection/FrameConnectionService.ts:1-86]()
 
 ### SizingConnectionService
 
@@ -293,7 +279,6 @@ Manages `ClientSizing` instances by sizingName. Routes position size calculation
 
 **Memoized Method:** `getSizing(sizingName)` creates ClientSizing instances
 
-**Sources:** [src/lib/core/types.ts:14](), [src/lib/core/provide.ts:57]()
 
 ---
 
@@ -321,5 +306,4 @@ All Connection Services inject `LoggerService` and log operations with context-e
 - `StrategyConnectionService`: Logs tick and backtest operations with candle counts
 - `ExchangeConnectionService`: Logs all data fetching with symbol, interval, and limits
 - `FrameConnectionService`: Logs timeframe retrieval with symbol
-
-**Sources:** [src/lib/services/connection/StrategyConnectionService.ts:1-143](), [src/lib/services/connection/ExchangeConnectionService.ts:1-185](), [src/lib/services/connection/FrameConnectionService.ts:1-86]()
+

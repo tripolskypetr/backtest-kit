@@ -12,7 +12,6 @@ Client classes form Layer 4 in the framework's six-layer architecture. They impl
 
 ![Mermaid Diagram](./diagrams/31_Core_Business_Logic_0.svg)
 
-**Sources:** [src/client/ClientStrategy.ts:1-1300](), [src/lib/services/connection/StrategyConnectionService.ts:76-94](), [docs/internals.md:28-39]()
 
 ## Client Classes Overview
 
@@ -26,7 +25,6 @@ The framework provides five client classes, each responsible for a specific doma
 | `ClientFrame` | [src/client/ClientFrame.ts]() | Timeframe generation for backtesting, interval-based timestamp arrays | `getTimeframe()` |
 | `ClientSizing` | [src/client/ClientSizing.ts]() | Position size calculation using fixed, Kelly, or ATR methods | `calculateSize()` |
 
-**Sources:** [src/client/ClientStrategy.ts:1-1300](), [docs/internals.md:30-31]()
 
 ## Design Principles
 
@@ -38,7 +36,6 @@ Client classes receive all dependencies through constructor parameters, avoiding
 
 This design allows client classes to be instantiated and tested independently without the DI container. Constructor parameters are plain objects conforming to interfaces like `IStrategyParams`.
 
-**Sources:** [src/interfaces/Strategy.interface.ts:74-89](), [src/lib/services/connection/StrategyConnectionService.ts:76-94]()
 
 ### Prototype Methods for Memory Efficiency
 
@@ -62,7 +59,6 @@ class ClientStrategy {
 
 All Client classes follow the prototype method pattern, ensuring that multiple instances share the same method implementations in memory.
 
-**Sources:** [docs/internals.md:94-95](), [src/client/ClientStrategy.ts:1-50]()
 
 ### Private Helper Functions
 
@@ -79,7 +75,6 @@ Client classes extensively use module-level private functions prefixed with uppe
 
 [src/client/ClientStrategy.ts:40-185]() defines `VALIDATE_SIGNAL_FN` as a module-level constant function that validates signal prices, TP/SL relationships, and time parameters. This function is called by `GET_SIGNAL_FN` at [src/client/ClientStrategy.ts:251]() and [src/client/ClientStrategy.ts:269]().
 
-**Sources:** [src/client/ClientStrategy.ts:40-896]()
 
 ## Connection Service Instantiation
 
@@ -89,7 +84,6 @@ Connection Services act as factories that create and memoize Client class instan
 
 The memoization key is the schema name string (e.g., `strategyName`, `exchangeName`), ensuring that multiple calls with the same name reuse the same client instance.
 
-**Sources:** [src/lib/services/connection/StrategyConnectionService.ts:76-94](), [docs/internals.md:94]()
 
 ## Instance Lifecycle Management
 
@@ -111,7 +105,6 @@ Client instances persist for the duration of the application process and maintai
 - `_lastSignalTimestamp`: Interval throttling timestamp
 - `_isStopped`: Graceful shutdown flag
 
-**Sources:** [src/client/ClientStrategy.ts:1247-1300](), [src/lib/services/connection/StrategyConnectionService.ts:177-182]()
 
 ## Client Dependencies and Collaboration
 
@@ -127,7 +120,6 @@ Client classes collaborate through dependency references passed in constructor p
 
 3. **Context Services**: All clients access `execution.context.symbol`, `execution.context.when`, `execution.context.backtest`, and `method.context.strategyName` to determine runtime behavior
 
-**Sources:** [src/interfaces/Strategy.interface.ts:74-89](), [src/client/ClientStrategy.ts:209-224](), [src/client/ClientStrategy.ts:519-523]()
 
 ## Summary
 
@@ -139,5 +131,4 @@ For detailed implementation documentation of individual client classes, see:
 - [ClientFrame](./34_ClientFrame.md) - Timeframe generation
 - [ClientRisk](./35_ClientRisk.md) - Portfolio risk management
 - [ClientSizing](./36_ClientSizing.md) - Position sizing algorithms
-
-**Sources:** [docs/internals.md:28-39](), [src/client/ClientStrategy.ts:1-1300](), [src/lib/services/connection/StrategyConnectionService.ts:1-186]()
+

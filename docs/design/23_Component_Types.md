@@ -12,7 +12,6 @@ The framework organizes components into seven distinct types, each registered th
 
 ![Mermaid Diagram](./diagrams/23_Component_Types_0.svg)
 
-**Sources:** [src/function/add.ts:1-444](), [src/lib/core/types.ts:1-97](), [src/lib/core/provide.ts:1-132](), [types.d.ts:226-833]()
 
 ---
 
@@ -27,7 +26,6 @@ All component schemas share a common structural pattern with three tiers of fiel
 | **Configuration** | Component behavior | Varies by type | Required, type-specific validation |
 | **Lifecycle Hooks** | Event callbacks | `callbacks?: Partial<I*Callbacks>` | Optional, type-specific events |
 
-**Sources:** [types.d.ts:816-833](), [types.d.ts:226-259](), [types.d.ts:366-379](), [types.d.ts:517-526]()
 
 ---
 
@@ -37,7 +35,6 @@ Component registration follows a three-phase pipeline: user code calls an `add*`
 
 ![Mermaid Diagram](./diagrams/23_Component_Types_1.svg)
 
-**Sources:** [src/function/add.ts:52-64](), [src/function/add.ts:101-113](), [src/lib/services/validation/StrategyValidationService.ts](), [src/lib/services/schema/StrategySchemaService.ts](), [src/lib/services/connection/StrategyConnectionService.ts]()
 
 ---
 
@@ -69,7 +66,6 @@ type StrategyName = string;
 - **`riskName`**: Optional reference to `IRiskSchema` for portfolio-level risk management. If provided, `ClientRisk.checkSignal()` is called before signal creation and activation.
 - **`callbacks`**: Optional hooks for signal lifecycle events (see callback diagram below).
 
-**Sources:** [types.d.ts:816-833](), [src/interfaces/Strategy.interface.ts:132-149](), [src/client/ClientStrategy.ts:32-39]()
 
 ### Signal DTO Structure
 
@@ -110,7 +106,6 @@ interface ISignalRow extends ISignalDto {
 8. **Extreme SL protection:** SL distance must not exceed `CC_MAX_STOPLOSS_DISTANCE_PERCENT` (default 20%)
 9. **Time limits:** `minuteEstimatedTime` must not exceed `CC_MAX_SIGNAL_LIFETIME_MINUTES` (default 1440 = 1 day)
 
-**Sources:** [types.d.ts:738-775](), [src/client/ClientStrategy.ts:41-261](), [src/interfaces/Strategy.interface.ts:24-73]()
 
 ### Strategy Lifecycle Callbacks
 
@@ -148,7 +143,6 @@ interface IStrategyCallbacks {
 - **`onCancel`**: Fires when scheduled signal is cancelled without opening (timeout or pre-activation SL breach).
 - **`onWrite`**: Low-level hook called whenever signal state is persisted (open) or cleared (close/cancel). Used for testing persistence layer.
 
-**Sources:** [types.d.ts:789-811](), [src/interfaces/Strategy.interface.ts:100-126](), [src/client/ClientStrategy.ts:432-470]()
 
 ### Registration Example
 
@@ -190,7 +184,6 @@ addStrategy({
 });
 ```
 
-**Sources:** [src/function/add.ts:52-64](), [types.d.ts:816-833]()
 
 ---
 
@@ -231,7 +224,6 @@ interface ICandleData {
 - **`formatQuantity`**: Lot size formatting based on exchange rules (e.g., minimum quantity = 0.001 BTC). Used for position sizing display.
 - **`callbacks.onCandleData`**: Optional hook called after successful candle fetch. Receives `symbol`, `interval`, `since`, `limit`, and fetched `data` array.
 
-**Sources:** [types.d.ts:226-259](), [src/interfaces/Exchange.interface.ts]()
 
 ### Candle Data Flow
 
@@ -243,7 +235,6 @@ interface ICandleData {
 
 The framework applies price anomaly detection to filter incomplete candles from Binance API responses. Candles with prices below `median / CC_GET_CANDLES_PRICE_ANOMALY_THRESHOLD_FACTOR` (default 1000x deviation) are rejected. This catches incomplete candles with $0.01-$1 prices when median is $20k-$100k.
 
-**Sources:** [src/client/ClientExchange.ts](), [types.d.ts:44-72](), [src/interfaces/Exchange.interface.ts]()
 
 ### Exchange Callbacks
 
@@ -255,7 +246,6 @@ interface IExchangeCallbacks {
 
 **`onCandleData`**: Called after successful candle fetch but before anomaly detection. Receives all parameters passed to `getCandles` plus the returned data array. Useful for logging, caching, or monitoring data source health.
 
-**Sources:** [types.d.ts:217-221]()
 
 ### Registration Example
 
@@ -301,7 +291,6 @@ addExchange({
 });
 ```
 
-**Sources:** [src/function/add.ts:101-113](), [types.d.ts:226-259]()
 
 ---
 
@@ -333,7 +322,6 @@ type FrameName = string;
 - **`endDate`**: Inclusive end of backtest period. Last generated timestamp (may be truncated to align with interval).
 - **`callbacks.onTimeframe`**: Optional hook called after timeframe array generation. Receives the complete array, start/end dates, and interval.
 
-**Sources:** [types.d.ts:366-379](), [src/interfaces/Frame.interface.ts]()
 
 ### Timeframe Generation Logic
 
@@ -351,7 +339,6 @@ type FrameName = string;
 | `"1h"` | 3,600,000 | 1 hour |
 | `"1d"` | 86,400,000 | 1 day |
 
-**Sources:** [src/client/ClientFrame.ts](), [types.d.ts:323]()
 
 ### Frame Callbacks
 
@@ -363,7 +350,6 @@ interface IFrameCallbacks {
 
 **`onTimeframe`**: Called once after timeframe array generation. Receives the complete array of timestamps, the original start/end dates, and the interval. Useful for logging timeframe size or validating date ranges before backtest execution.
 
-**Sources:** [types.d.ts:333-346]()
 
 ### Registration Example
 
@@ -387,7 +373,6 @@ addFrame({
 });
 ```
 
-**Sources:** [src/function/add.ts:145-151](), [types.d.ts:366-379]()
 
 ---
 
@@ -444,7 +429,6 @@ interface IRiskActivePosition {
 - **`callbacks.onRejected`**: Optional hook called when a signal fails risk validation. Receives symbol and risk check parameters.
 - **`callbacks.onAllowed`**: Optional hook called when a signal passes all risk validations.
 
-**Sources:** [types.d.ts:517-526](), [src/interfaces/Risk.interface.ts]()
 
 ### Validation Execution Flow
 
@@ -452,7 +436,6 @@ interface IRiskActivePosition {
 
 ![Mermaid Diagram](./diagrams/23_Component_Types_5.svg)
 
-**Sources:** [src/client/ClientRisk.ts](), [types.d.ts:443-526]()
 
 ### Active Position Tracking
 
@@ -473,7 +456,6 @@ interface IRiskActivePosition {
 2. **Validate:** Custom validations access `payload.activePositions` during `checkSignal()`
 3. **Remove:** `ClientStrategy.CLOSE_PENDING_SIGNAL_FN()` calls `risk.removeSignal()` after signal closes
 
-**Sources:** [types.d.ts:462-471](), [src/client/ClientRisk.ts]()
 
 ### Risk Callbacks
 
@@ -489,7 +471,6 @@ interface IRiskCallbacks {
 - **`onRejected`**: Fired when any validation throws an error. Receives symbol and original check parameters (includes currentPrice, timestamp).
 - **`onAllowed`**: Fired when all validations pass. Receives symbol and check parameters.
 
-**Sources:** [types.d.ts:473-480]()
 
 ### Registration Example
 
@@ -536,7 +517,6 @@ addRisk({
 });
 ```
 
-**Sources:** [src/function/add.ts:331-343](), [types.d.ts:517-526]()
 
 ---
 
@@ -602,7 +582,6 @@ type SizingName = string;
 - **`maxPositionPercentage`**: Optional cap on position size as percentage of account balance.
 - **`minPositionSize`/`maxPositionSize`**: Optional absolute quantity limits.
 
-**Sources:** [types.d.ts]() (sizing interfaces not in provided snippet), [src/interfaces/Sizing.interface.ts]()
 
 ### Position Sizing Algorithms
 
@@ -629,7 +608,6 @@ The three sizing methods optimize for different objectives: fixed-percentage mai
    - Position = `(accountBalance × riskPercentage) / stopDistance`
    - Adapts to volatility: smaller positions in volatile markets
 
-**Sources:** [src/client/ClientSizing.ts](), [src/interfaces/Sizing.interface.ts]()
 
 ### Sizing Callbacks
 
@@ -648,7 +626,6 @@ interface ISizingCalculateParams {
 
 **`onCalculate`**: Called after position quantity calculation but before formatting. Receives the raw quantity and calculation parameters. Useful for logging, monitoring, or external position tracking.
 
-**Sources:** [src/interfaces/Sizing.interface.ts]()
 
 ### Registration Example
 
@@ -687,7 +664,6 @@ addSizing({
 });
 ```
 
-**Sources:** [src/function/add.ts:256-268]()
 
 ---
 
@@ -727,7 +703,6 @@ type WalkerMetric =
 - **`metric`**: Performance metric for ranking. Default is `"sharpeRatio"`. Extracted from `BacktestStatistics` after each strategy completes.
 - **`callbacks`**: Optional hooks for progress tracking and results.
 
-**Sources:** [types.d.ts]() (walker interfaces not in provided snippet), [src/interfaces/Walker.interface.ts]()
 
 ### Walker Execution Flow
 
@@ -735,7 +710,6 @@ type WalkerMetric =
 
 ![Mermaid Diagram](./diagrams/23_Component_Types_7.svg)
 
-**Sources:** [src/lib/services/logic/private/WalkerLogicPrivateService.ts](), [src/interfaces/Walker.interface.ts]()
 
 ### Performance Metrics
 
@@ -752,7 +726,6 @@ Walker compares strategies using one of six performance metrics extracted from `
 
 **Default Metric:** `"sharpeRatio"` is used if no metric is specified in the schema. Sharpe ratio balances returns against volatility, making it suitable for most strategy comparisons.
 
-**Sources:** [src/lib/services/markdown/BacktestMarkdownService.ts](), [src/interfaces/Walker.interface.ts]()
 
 ### Walker Callbacks
 
@@ -779,7 +752,6 @@ interface WalkerStatistics {
 - **`onStrategyComplete`**: Fired after each strategy backtest completes. Receives strategy name, symbol, full statistics object, and extracted metric value. Useful for progress tracking.
 - **`onComplete`**: Fired once after all strategies complete. Receives complete results including best strategy identification and all strategy metrics.
 
-**Sources:** [src/interfaces/Walker.interface.ts]()
 
 ### Registration Example
 
@@ -818,7 +790,6 @@ addWalker({
 });
 ```
 
-**Sources:** [src/function/add.ts:190-202](), [types.d.ts]()
 
 ---
 
@@ -883,7 +854,6 @@ interface IOptimizerMessage {
 - **`template`**: Optional template overrides. Allows customizing the generated code (imports, helpers, strategy logic, walker configuration). Merges with default templates from `OptimizerTemplateService`.
 - **`callbacks`**: Optional hooks for monitoring data collection, code generation, and file export.
 
-**Sources:** [types.d.ts]() (optimizer interfaces not in provided snippet), [src/interfaces/Optimizer.interface.ts]()
 
 ### Data Collection Pipeline
 
@@ -895,7 +865,6 @@ The optimizer iterates through training ranges and sources in nested loops: for 
 
 Sources are fetched with pagination to handle large datasets. The optimizer starts with `offset = 0`, `limit = 1000`, and repeatedly calls the source function until the returned data length is less than `limit`, indicating no more data. All fetched pages are concatenated and passed to message formatters.
 
-**Sources:** [src/client/ClientOptimizer.ts](), [src/interfaces/Optimizer.interface.ts]()
 
 ### Code Generation Pipeline
 
@@ -955,7 +924,6 @@ addWalker({
 Walker.background(symbol, { walkerName: "llm-comparison" });
 ```
 
-**Sources:** [src/client/ClientOptimizer.ts](), [src/lib/services/template/OptimizerTemplateService.ts]()
 
 ### Optimizer Template Customization
 
@@ -1000,7 +968,6 @@ addOptimizer({
 });
 ```
 
-**Sources:** [src/interfaces/Optimizer.interface.ts](), [src/lib/services/template/OptimizerTemplateService.ts]()
 
 ### Optimizer Callbacks
 
@@ -1020,7 +987,6 @@ interface IOptimizerCallbacks {
 - **`onDump`**: Called after file write completes. Receives symbol and output file path.
 - **`onSourceData`**: Called after each source fetch completes. Receives symbol, source name, fetched data array, and date range. Useful for monitoring data collection progress.
 
-**Sources:** [src/interfaces/Optimizer.interface.ts]()
 
 ### Registration Example
 
@@ -1105,7 +1071,6 @@ addOptimizer({
 });
 ```
 
-**Sources:** [src/function/add.ts:432-444](), [src/interfaces/Optimizer.interface.ts]()
 
 ---
 
@@ -1128,5 +1093,4 @@ Component types form a dependency graph where strategies reference exchanges and
 - **Registration**: Component name uniqueness is validated by schema services (throws if duplicate name).
 - **Execution**: Referential integrity is validated by connection services (throws if referenced component doesn't exist).
 - **Walker**: Strategy/exchange/frame existence is validated by `WalkerValidationService` before execution.
-
-**Sources:** [src/lib/services/validation/WalkerValidationService.ts](), [src/lib/services/schema](), [src/function/add.ts:1-444]()
+

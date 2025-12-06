@@ -18,7 +18,6 @@ Interval throttling is a critical mechanism that prevents strategies from genera
 - **Enforces consistent strategy behavior** between backtest and live modes
 - **Protects against bugs** in user-defined `getSignal` functions
 
-Sources: [src/client/ClientStrategy.ts:31-38](), [src/interfaces/Strategy.interface.ts:7-17]()
 
 ---
 
@@ -51,7 +50,6 @@ addStrategy({
 });
 ```
 
-Sources: [src/interfaces/Strategy.interface.ts:7-17](), [src/interfaces/Strategy.interface.ts:121-138]()
 
 ---
 
@@ -85,7 +83,6 @@ const intervalMs = intervalMinutes * 60 * 1000;
 
 This conversion happens during every throttling check within `GET_SIGNAL_FN`.
 
-Sources: [src/client/ClientStrategy.ts:31-38]()
 
 ---
 
@@ -111,7 +108,6 @@ self._lastSignalTimestamp = currentTime;
 
 This assignment occurs immediately before calling the user's `getSignal` function, ensuring that the timestamp reflects the most recent signal generation attempt.
 
-Sources: [src/client/ClientStrategy.ts:194-208]()
 
 ---
 
@@ -148,7 +144,6 @@ const currentTime = self.params.execution.context.when.getTime();
 3. **Timestamp update**: Always update before calling `getSignal` to prevent race conditions
 4. **Execution context time**: Uses `execution.context.when` which is either `Date.now()` (live) or historical timestamp (backtest)
 
-Sources: [src/client/ClientStrategy.ts:187-283]()
 
 ---
 
@@ -165,7 +160,6 @@ The throttling check is the first gate in the signal generation pipeline:
 3. **Downstream Gates**: VWAP fetch → Risk check → User `getSignal` → Validation
 4. **Result**: Returns `IStrategyTickResult` (idle if throttled)
 
-Sources: [src/client/ClientStrategy.ts:187-283]()
 
 ---
 
@@ -183,7 +177,6 @@ while (true) {
 }
 ```
 
-Sources: [src/client/ClientStrategy.ts:194-208]()
 
 ---
 
@@ -201,7 +194,6 @@ In backtesting, throttling operates on historical timestamp progression. The bac
 | 2024-01-01 00:05 | 5 min >= 5 min | **Allow** → getSignal() |
 | 2024-01-01 00:06 | 1 min < 5 min | Block → return idle |
 
-Sources: [src/client/ClientStrategy.ts:194-208]()
 
 ---
 
@@ -227,7 +219,6 @@ When a scheduled signal is waiting for activation (`self._scheduledSignal !== nu
 
 The scheduled signal check happens in `ClientStrategy.tick()` before calling `GET_SIGNAL_FN`. See [Signal Lifecycle Overview](./07_Signal_Lifecycle_Overview.md) for details on scheduled signal behavior.
 
-Sources: [src/client/ClientStrategy.ts:191-193]()
 
 ---
 
@@ -274,7 +265,6 @@ addRisk({
 3. **00:01:00**: Throttle allows → Risk blocks (5 positions active) → Signal rejected
 4. **00:02:00**: Throttle allows → Risk allows (4 positions now) → Signal generated
 
-Sources: [src/client/ClientStrategy.ts:194-283]()
 
 ---
 
@@ -288,5 +278,4 @@ Sources: [src/client/ClientStrategy.ts:194-283]()
 | `GET_SIGNAL_FN` | Function | [src/client/ClientStrategy.ts:187-283]() | Implements throttling logic |
 | `IStrategySchema.interval` | Property | [src/interfaces/Strategy.interface.ts:126]() | Strategy's configured throttle interval |
 | `ExecutionContextService.context.when` | Property | [src/lib/services/context/ExecutionContextService.ts]() | Current timestamp (live or backtest) |
-
-Sources: [src/client/ClientStrategy.ts:31-38](), [src/interfaces/Strategy.interface.ts:7-17]()
+

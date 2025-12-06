@@ -6,7 +6,6 @@ This page documents the `IOptimizerSchema` interface that defines the contract f
 
 For implementation details of the optimizer system, see [AI-Powered Strategy Optimization](./87_AI-Powered_Strategy_Optimization.md). For other component registration interfaces, see [Strategy Schemas](./24_Strategy_Schemas.md), [Exchange Schemas](./25_Exchange_Schemas.md), and [Walker Schemas](./29_Walker_Schemas.md).
 
-Sources: [src/interfaces/Optimizer.interface.ts:380-433]()
 
 ---
 
@@ -18,7 +17,6 @@ Sources: [src/interfaces/Optimizer.interface.ts:380-433]()
 
 The schema separates required configuration (training/test ranges, data sources, prompt generation) from optional customization (template overrides, lifecycle hooks). All fields are validated during registration.
 
-Sources: [src/interfaces/Optimizer.interface.ts:380-433](), [src/lib/services/connection/OptimizerConnectionService.ts:59-113]()
 
 ---
 
@@ -36,7 +34,6 @@ optimizerName: "my-optimizer"
 
 The optimizer name is used as the memoization key in `OptimizerConnectionService.getOptimizer()` and becomes part of generated file names (`{optimizerName}_{symbol}.mjs`). Names should be filesystem-safe and descriptive.
 
-Sources: [src/interfaces/Optimizer.interface.ts:390](), [src/client/ClientOptimizer.ts:371]()
 
 ---
 
@@ -79,7 +76,6 @@ Each range produces one strategy by:
 
 The generated strategies are later compared via Walker on the test range.
 
-Sources: [src/interfaces/Optimizer.interface.ts:16-32](), [src/interfaces/Optimizer.interface.ts:396](), [src/client/ClientOptimizer.ts:104-198]()
 
 ---
 
@@ -99,7 +95,6 @@ rangeTest: {
 
 The test range should be chronologically after training ranges to prevent look-ahead bias. The generated code creates a Frame for this range and uses it in Walker configuration.
 
-Sources: [src/interfaces/Optimizer.interface.ts:402](), [src/client/ClientOptimizer.ts:286-296]()
 
 ---
 
@@ -162,7 +157,6 @@ interface IOptimizerData {
 
 Sources are automatically paginated using `iterateDocuments()` with a limit of 25 records per request. The `fetch` function receives `limit` and `offset` parameters and should return an array. Empty arrays signal end of pagination.
 
-Sources: [src/interfaces/Optimizer.interface.ts:129-186](), [src/interfaces/Optimizer.interface.ts:408](), [src/client/ClientOptimizer.ts:70-88](), [src/client/ClientOptimizer.ts:104-198](), [demo/optimization/src/index.mjs:66-127]()
 
 ---
 
@@ -217,7 +211,6 @@ For each source, two messages are added:
 
 The returned strategy prompt is embedded into generated code via `getStrategyTemplate()` and used by the strategy's runtime LLM calls for signal generation.
 
-Sources: [src/interfaces/Optimizer.interface.ts:418-421](), [src/model/Message.model.ts:1-5](), [src/client/ClientOptimizer.ts:196](), [src/lib/services/template/OptimizerTemplateService.ts:166-298]()
 
 ---
 
@@ -287,7 +280,6 @@ addStrategy({
 
 Template merging happens in `OptimizerConnectionService.getOptimizer()` where custom methods override defaults while preserving unspecified methods.
 
-Sources: [src/interfaces/Optimizer.interface.ts:242-374](), [src/interfaces/Optimizer.interface.ts:427](), [src/lib/services/template/OptimizerTemplateService.ts:26-710](), [src/lib/services/connection/OptimizerConnectionService.ts:70-97]()
 
 ---
 
@@ -349,7 +341,6 @@ callbacks: {
 
 Callbacks execute sequentially and block further processing if they return promises. They cannot modify data but can perform side effects like logging, metrics collection, or validation.
 
-Sources: [src/interfaces/Optimizer.interface.ts:191-236](), [src/interfaces/Optimizer.interface.ts:432](), [src/client/ClientOptimizer.ts:122-130](), [src/client/ClientOptimizer.ts:161-168](), [src/client/ClientOptimizer.ts:210-212](), [src/client/ClientOptimizer.ts:345-347](), [src/client/ClientOptimizer.ts:377-379]()
 
 ---
 
@@ -406,7 +397,6 @@ while (true) {
 const uniqueData = distinctDocuments(allData, (data) => data.id);
 ```
 
-Sources: [src/interfaces/Optimizer.interface.ts:71-94](), [src/interfaces/Optimizer.interface.ts:129-177](), [src/client/ClientOptimizer.ts:70-88](), [demo/optimization/src/index.mjs:69-84]()
 
 ---
 
@@ -487,7 +477,6 @@ addOptimizer({
 });
 ```
 
-Sources: [demo/optimization/src/index.mjs:1-320]()
 
 ---
 
@@ -541,7 +530,6 @@ chmod +x ./output/trend-analyzer_BTCUSDT.mjs
 ./output/trend-analyzer_BTCUSDT.mjs
 ```
 
-Sources: [src/client/ClientOptimizer.ts:225-350](), [src/lib/services/connection/OptimizerConnectionService.ts:122-171]()
 
 ---
 
@@ -561,7 +549,6 @@ Optimizer schemas are validated during registration by `OptimizerValidationServi
 
 Validation failures throw descriptive errors at registration time, preventing runtime failures.
 
-Sources: [src/lib/services/validation/OptimizerValidationService.ts]() (not shown but inferred from pattern), [src/lib/services/schema/OptimizerSchemaService.ts]() (not shown but inferred from pattern)
 
 ---
 
@@ -581,7 +568,6 @@ Sources: [src/lib/services/validation/OptimizerValidationService.ts]() (not show
 8. **Memoization:** Instance cached for repeated calls
 9. **Execution:** Methods execute with injected dependencies
 
-Sources: [src/lib/services/connection/OptimizerConnectionService.ts:59-113]()
 
 ---
 
@@ -799,5 +785,4 @@ await Optimizer.dump("BTCUSDT", "multi-timeframe-optimizer", "./output");
 // Generated file can be executed:
 // ./output/multi-timeframe-optimizer_BTCUSDT.mjs
 ```
-
-Sources: [demo/optimization/src/index.mjs:1-320]()
+

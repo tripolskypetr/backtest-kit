@@ -32,7 +32,6 @@ The template system is defined by the `IOptimizerTemplate` interface, which spec
 
 ![Mermaid Diagram](./diagrams/91_Strategy_Code_Generation_0.svg)
 
-Sources: [src/interfaces/Optimizer.interface.ts:238-374](), [src/lib/services/template/OptimizerTemplateService.ts:14-26](), [src/lib/services/connection/OptimizerConnectionService.ts:59-112]()
 
 ## Template Method Reference
 
@@ -279,7 +278,6 @@ The assembly pipeline consists of 9 sequential phases:
 
 Each section is separated by empty lines for readability. The `CREATE_PREFIX_FN()` generates a random 7-character identifier that prefixes all component names to ensure uniqueness.
 
-Sources: [src/client/ClientOptimizer.ts:225-350]()
 
 ## Template Customization
 
@@ -331,7 +329,6 @@ const {
 
 This pattern allows selective override of any template method while maintaining defaults for others.
 
-Sources: [src/lib/services/connection/OptimizerConnectionService.ts:62-97](), [src/interfaces/Optimizer.interface.ts:426-427]()
 
 ## Generated Code Structure
 
@@ -391,7 +388,6 @@ listenError((error) => { /* ... */ });
 
 The prefix ensures that multiple generated files can coexist in the same codebase without naming conflicts.
 
-Sources: [src/client/ClientOptimizer.ts:225-350]()
 
 ## Security and Escaping
 
@@ -419,7 +415,6 @@ const escapedPrompt = String(prompt)
 
 The prompt escaping is particularly important since it contains LLM-generated content that will be embedded in a template literal. Without proper escaping, malicious content could break out of the string context.
 
-Sources: [src/lib/services/template/OptimizerTemplateService.ts:135-146](), [src/lib/services/template/OptimizerTemplateService.ts:179-188](), [src/lib/services/template/OptimizerTemplateService.ts:318-320](), [src/lib/services/template/OptimizerTemplateService.ts:364-369](), [src/lib/services/template/OptimizerTemplateService.ts:396-401](), [src/lib/services/template/OptimizerTemplateService.ts:554-559]()
 
 ## Integration with Execution Pipeline
 
@@ -430,5 +425,4 @@ The generated code integrates seamlessly with backtest-kit's execution modes. Th
 ![Mermaid Diagram](./diagrams/91_Strategy_Code_Generation_3.svg)
 
 The generated strategies use environment-based authentication (`process.env.OLLAMA_API_KEY`) for Ollama API access, allowing the same code to run in different environments without modification.
-
-Sources: [src/lib/services/template/OptimizerTemplateService.ts:389-437](), [src/lib/services/template/OptimizerTemplateService.ts:562-567](), [src/lib/services/template/OptimizerTemplateService.ts:629-634]()
+

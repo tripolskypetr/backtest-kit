@@ -14,7 +14,6 @@ The framework provides three execution modes that share core business logic but 
 
 ![Mermaid Diagram](./diagrams/02_Key_Features_0.svg)
 
-**Sources:**
 - [src/lib/services/logic/private/BacktestLogicPrivateService.ts]()
 - [src/lib/services/logic/private/LiveLogicPrivateService.ts]()
 - [src/lib/services/logic/private/WalkerLogicPrivateService.ts]()
@@ -53,7 +52,6 @@ Real-time trading operates an infinite loop with crash recovery:
 | **Interval Control** | `sleep(TICK_TTL)` ensures 61-second tick rate |
 | **Filtered Output** | Only `opened` and `closed` yielded, `active` filtered |
 
-**Sources:**
 - [src/lib/services/logic/private/LiveLogicPrivateService.ts]()
 - [src/client/ClientStrategy.ts:411-472]() (waitForInit)
 - [src/classes/Persist.ts]() (PersistSignalAdapter)
@@ -75,7 +73,6 @@ Strategy comparison mode runs multiple backtests sequentially and ranks results 
 | **Best Strategy Tracking** | Maintains `bestStrategy` and `bestMetric` state |
 | **Shared Timeframe** | All strategies use same `frameName` for fair comparison |
 
-**Sources:**
 - [src/lib/services/logic/private/WalkerLogicPrivateService.ts]()
 - [src/lib/services/schema/WalkerSchemaService.ts]()
 - [src/contract/Walker.contract.ts]()
@@ -109,7 +106,6 @@ The `PersistSignalAdapter` ensures atomicity through temporary file writes:
 - **State Recovery**: [src/client/ClientStrategy.ts:146-165]() (`waitForInit`)
 - **File Naming**: `{strategyName}_{symbol}.json` convention in `PersistSignalAdapter.getEntityId()`
 
-**Sources:**
 - [src/classes/Persist.ts]()
 - [src/client/ClientStrategy.ts:220-233]()
 - [src/client/ClientStrategy.ts:146-165]()
@@ -126,7 +122,6 @@ Every signal from `getSignal()` passes through 30+ validation rules before execu
 
 ![Mermaid Diagram](./diagrams/02_Key_Features_6.svg)
 
-**Sources:**
 - [src/client/ClientStrategy.ts:41-261]() (VALIDATE_SIGNAL_FN)
 - [src/client/ClientStrategy.ts:263-396]() (GET_SIGNAL_FN)
 
@@ -165,7 +160,6 @@ Configurable via `setConfig()` from [src/config/params.ts:1-35]():
 
 ![Mermaid Diagram](./diagrams/02_Key_Features_8.svg)
 
-**Sources:**
 - [src/client/ClientStrategy.ts:41-261]() (VALIDATE_SIGNAL_FN)
 - [src/client/ClientStrategy.ts:263-396]() (GET_SIGNAL_FN)
 - [src/interfaces/Strategy.interface.ts:24-39]() (ISignalDto)
@@ -182,7 +176,6 @@ Signals follow a deterministic state machine supporting both market orders (imme
 
 ![Mermaid Diagram](./diagrams/02_Key_Features_9.svg)
 
-**Sources:**
 - [src/client/ClientStrategy.ts:474-596]() (scheduled signal logic)
 - [src/client/ClientStrategy.ts:598-718]() (scheduled signal activation)
 - [src/interfaces/Strategy.interface.ts:45-306]() (ISignalRow, state types)
@@ -197,7 +190,6 @@ Scheduled signals wait for price activation with timeout and pre-activation canc
 | Pre-Activation SL Check | Enabled | Cancel if SL hit before entry (prevents bad entries) |
 | Risk Re-Validation | Required | Re-check risk limits at activation time |
 
-**Sources:**
 - [src/client/ClientStrategy.ts:474-528]() (timeout check)
 - [src/client/ClientStrategy.ts:530-564]() (price activation check)
 - [src/client/ClientStrategy.ts:601-693]() (activation with risk re-check)
@@ -225,7 +217,6 @@ if (result.action === "closed") {
 }
 ```
 
-**Sources:**
 - [src/interfaces/Strategy.interface.ts:173-289]() (discriminated union types)
 
 ---
@@ -238,7 +229,6 @@ Portfolio-level risk controls with custom validation logic, concurrent position 
 
 ![Mermaid Diagram](./diagrams/02_Key_Features_11.svg)
 
-**Sources:**
 - [src/client/ClientRisk.ts]()
 - [src/client/ClientStrategy.ts:288-300]() (pre-check)
 - [src/client/ClientStrategy.ts:769-781]() (post-check and addSignal)
@@ -300,7 +290,6 @@ validations: [
 ]
 ```
 
-**Sources:**
 - [src/interfaces/Risk.interface.ts:443-526]() (IRiskSchema, IRiskValidation)
 - [src/client/ClientRisk.ts]() (ClientRisk implementation)
 - [README.md:646-695]() (risk management examples)
@@ -315,7 +304,6 @@ Walker mode executes multiple strategies on the same timeframe and ranks them by
 
 ![Mermaid Diagram](./diagrams/02_Key_Features_12.svg)
 
-**Sources:**
 - [src/lib/services/logic/private/WalkerLogicPrivateService.ts]()
 - [src/lib/services/markdown/WalkerMarkdownService.ts]()
 
@@ -355,7 +343,6 @@ Walker mode executes multiple strategies on the same timeframe and ranks them by
 }
 ```
 
-**Sources:**
 - [src/interfaces/Walker.interface.ts]() (IWalkerSchema)
 - [src/contract/Walker.contract.ts]() (WalkerContract)
 - [src/classes/Walker.ts]() (public API)
@@ -371,7 +358,6 @@ LLM-driven strategy generation from historical data with multi-timeframe analysi
 
 ![Mermaid Diagram](./diagrams/02_Key_Features_13.svg)
 
-**Sources:**
 - [src/client/ClientOptimizer.ts]()
 - [src/lib/services/template/OptimizerTemplateService.ts]()
 - [src/interfaces/Optimizer.interface.ts]()
@@ -428,7 +414,6 @@ The `OptimizerTemplateService` provides 11 template methods:
 | `getUserMessage` | Default user message format |
 | `getAssistantMessage` | Default assistant message format |
 
-**Sources:**
 - [src/lib/services/template/OptimizerTemplateService.ts:26-583]() (template methods)
 - [src/client/ClientOptimizer.ts:99-215]() (data collection)
 - [src/client/ClientOptimizer.ts:224-350]() (code assembly)
@@ -444,7 +429,6 @@ Position size calculation with multiple methods: fixed percentage, Kelly Criteri
 
 ![Mermaid Diagram](./diagrams/02_Key_Features_14.svg)
 
-**Sources:**
 - [src/client/ClientSizing.ts]()
 - [src/interfaces/Sizing.interface.ts]()
 
@@ -498,7 +482,6 @@ const qty3 = await PositionSize.atrBased(
 );
 ```
 
-**Sources:**
 - [src/classes/PositionSize.ts]() (public API)
 - [src/client/ClientSizing.ts]() (calculation logic)
 - [README.md:560-643]() (sizing examples)
@@ -541,7 +524,6 @@ All execution modes use async generators (`AsyncIterableIterator`) to stream res
 4. **Lazy Initialization**: Services created only when needed
    - **Pattern**: DI container resolves dependencies on first access
 
-**Sources:**
 - [src/lib/services/logic/private/BacktestLogicPrivateService.ts]()
 - [src/lib/services/logic/private/LiveLogicPrivateService.ts]()
 - [src/client/ClientStrategy.ts:194-464]() (prototype methods)
@@ -606,7 +588,6 @@ if (result.action === "closed") {
 | **active** | [src/client/ClientStrategy.ts:447-463]() | TP/SL/time condition met | Position monitoring |
 | **closed** | [src/client/ClientStrategy.ts:416-435]() | `setPendingSignal(null)` | Final state with PNL |
 
-**Sources:**
 - [src/lib/services/logic/private/BacktestLogicPrivateService.ts]()
 - [src/lib/services/logic/private/LiveLogicPrivateService.ts]()
 
@@ -656,7 +637,6 @@ pnl% = (priceOpenWithCosts - priceCloseWithCosts) / priceOpenWithCosts × 100
 
 Without costs, this would be +2.0%. The 0.41% difference represents realistic trading costs.
 
-**Sources:**
 - [src/helpers/toProfitLossDto.ts]() (PNL calculation)
 - [src/client/ClientStrategy.ts:883]() (usage in CLOSE_PENDING_SIGNAL_FN)
 
@@ -670,7 +650,6 @@ Comprehensive performance analysis with markdown reports, statistics calculation
 
 ![Mermaid Diagram](./diagrams/02_Key_Features_18.svg)
 
-**Sources:**
 - [src/lib/services/markdown/BacktestMarkdownService.ts]()
 - [src/lib/services/markdown/LiveMarkdownService.ts]()
 - [src/lib/services/markdown/WalkerMarkdownService.ts]()
@@ -693,7 +672,6 @@ All markdown services calculate comprehensive statistics:
 | **Certainty Ratio** | `avgWin / |avgLoss|` | Win/loss magnitude ratio |
 | **Expected Yearly Returns** | `avgPnl × (365 / avgDurationDays)` | Projected annual return |
 
-**Sources:**
 - [src/lib/services/markdown/BacktestMarkdownService.ts:202-269]() (statistics calculation)
 
 ### Partial Profit/Loss Tracking
@@ -718,7 +696,6 @@ listenPartialLoss((event) => {
 });
 ```
 
-**Sources:**
 - [src/client/ClientPartial.ts]()
 - [src/interfaces/Partial.interface.ts:585-727]() (IPartial interface)
 
@@ -755,7 +732,6 @@ const report = await Heat.getReport("my-strategy");
 await Heat.dump("my-strategy"); // Save to ./logs/heatmap/
 ```
 
-**Sources:**
 - [src/lib/services/markdown/HeatMarkdownService.ts]()
 - [src/classes/Heat.ts]() (public API)
 - [README.md:476-558]() (heatmap examples)
@@ -800,7 +776,6 @@ if (lastSignalTimestamp !== null &&
 lastSignalTimestamp = currentTime; // Update for next check
 ```
 
-**Sources:**
 - [src/client/ClientStrategy.ts:19-26]() (INTERVAL_MINUTES mapping)
 - [src/client/ClientStrategy.ts:90-131]() (GET_SIGNAL_FN with throttling)
 - [src/interfaces/Strategy.interface.ts:10-16]() (SignalInterval type)
@@ -836,7 +811,6 @@ if (totalVolume === 0) {
 }
 ```
 
-**Sources:**
 - [src/client/ClientStrategy.ts:398-409]() (GET_AVG_PRICE_FN)
 - [src/client/ClientExchange.ts]() (getAveragePrice implementation)
 - [src/config/params.ts:14-15]() (CC_AVG_PRICE_CANDLES_COUNT)
@@ -853,7 +827,6 @@ Signal generation throttling prevents spam:
 | `"30m"` | 30 | Low-frequency strategies |
 | `"1h"` | 60 | Hourly signals |
 
-**Sources:**
 - [src/client/ClientStrategy.ts:32-39]() (INTERVAL_MINUTES mapping)
 - [src/client/ClientStrategy.ts:263-396]() (throttling in GET_SIGNAL_FN)
 
@@ -904,7 +877,6 @@ addExchange({
 });
 ```
 
-**Sources:**
 - [src/function/add.ts]() (addStrategy, addExchange, addFrame)
 - [src/lib/services/schema/]() (registry services)
 - [src/lib/services/connection/]() (memoized factories)

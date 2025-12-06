@@ -15,7 +15,6 @@ ClientSizing calculates the quantity of an asset to trade based on portfolio sta
 
 ClientSizing does not validate signals, track positions, or interact with exchanges. These responsibilities belong to ClientStrategy, ClientRisk, and ClientExchange respectively.
 
-**Sources:** [types.d.ts:535-632]()
 
 ## Architecture Context
 
@@ -23,7 +22,6 @@ ClientSizing sits in the Client Classes layer and is instantiated by SizingConne
 
 ![Mermaid Diagram](./diagrams/36_ClientSizing_0.svg)
 
-**Sources:** [types.d.ts:535-632](), High-Level Architecture Diagrams (Diagram 4)
 
 ## Sizing Schema Types
 
@@ -37,7 +35,6 @@ ClientSizing supports three sizing methods, each defined by a discriminated unio
 | Kelly Criterion | `"kelly-criterion"` | `winRate`, `avgWinPnl`, `avgLossPnl` | Optimal allocation based on edge |
 | ATR-Based | `"atr-based"` | `atrMultiplier`, `atrPeriod` | Volatility-adjusted sizing |
 
-**Sources:** [types.d.ts:548-632]()
 
 ## Fixed Percentage Method
 
@@ -85,7 +82,6 @@ positionSize = (portfolioBalance × percentage) / entryPrice
 - Entry price: $50,000 (BTC)
 - Position size: (10,000 × 0.02) / 50,000 = 0.004 BTC
 
-**Sources:** [types.d.ts:548-566](), [types.d.ts:577-583]()
 
 ## Kelly Criterion Method
 
@@ -137,7 +133,6 @@ positionSize = (portfolioBalance × kellyPercentage) / entryPrice
 
 **Note:** ClientSizing may apply a fractional Kelly (e.g., half-Kelly) to reduce risk.
 
-**Sources:** [types.d.ts:567-576](), [types.d.ts:584-590]()
 
 ## ATR-Based Method
 
@@ -191,7 +186,6 @@ The ATR-based formula:
 - Risk per unit: 2.0 × $500 = $1,000
 - Position size: (10,000 × 0.02) / 1,000 = 0.2 BTC
 
-**Sources:** [types.d.ts:591-608](), [types.d.ts:609-617]()
 
 ## Calculation Flow
 
@@ -199,7 +193,6 @@ The diagram below shows how ClientSizing integrates into the signal generation f
 
 ![Mermaid Diagram](./diagrams/36_ClientSizing_1.svg)
 
-**Sources:** [types.d.ts:609-632]()
 
 ## ISizing Interface
 
@@ -236,7 +229,6 @@ The `calculatePositionSize()` method returns a `Promise<string>` containing the 
 - Calculated size: 0.004 BTC
 - Formatted output: `"0.004"` (8 decimal places for BTC)
 
-**Sources:** [types.d.ts:609-632]()
 
 ## Schema Registration and Retrieval
 
@@ -253,7 +245,6 @@ SizingConnectionService memoizes ClientSizing instances:
 - Lazy instantiation on first use
 - Shared across all strategies using the same `sizingName`
 
-**Sources:** [types.d.ts:535-632](), [src/index.ts:58-70]()
 
 ## Integration with Strategy Schema
 
@@ -279,7 +270,6 @@ When ClientStrategy needs to calculate position size:
 4. Call `calculatePositionSize()` with constructed parameters
 5. Use returned formatted quantity in signal
 
-**Sources:** [types.d.ts:616-633]()
 
 ## Callbacks and Lifecycle Events
 
@@ -310,7 +300,6 @@ addSizing({
 });
 ```
 
-**Sources:** [types.d.ts:618-626]()
 
 ## Dependencies and Parameters
 
@@ -334,7 +323,6 @@ The parameters combine:
 
 **Note:** Unlike other client classes, ClientSizing requires `IExchange` because it must format the calculated quantity according to exchange-specific precision rules.
 
-**Sources:** [types.d.ts:535-632]()
 
 ## Usage in Execution Modes
 
@@ -354,5 +342,4 @@ ClientSizing operates identically in all execution modes (Backtest, Live, Walker
 - Each strategy backtest uses its own sizing calculation
 - Results are comparable if strategies use the same sizing method
 - Enables comparison of strategy edge independent of sizing
-
-**Sources:** High-Level Architecture Diagrams (Diagram 3)
+

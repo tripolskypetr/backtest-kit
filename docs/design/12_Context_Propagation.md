@@ -13,7 +13,6 @@ The framework uses two scoped context services to propagate runtime parameters t
 
 Both services leverage the `di-scoped` library to provide implicit context access without passing parameters through every function call. Context is established at operation boundaries (Logic services) and consumed by leaf components (Client classes).
 
-**Sources:** [types.d.ts:138-181](), [types.d.ts:401-440]()
 
 ## Context Services
 
@@ -37,7 +36,6 @@ interface IExecutionContext {
 
 This context determines which data to fetch (symbol), what time to query (when), and whether to use persistence (backtest flag).
 
-**Sources:** [types.d.ts:138-150](), [types.d.ts:170-181]()
 
 ### MethodContextService
 
@@ -59,7 +57,6 @@ interface IMethodContext {
 
 This context routes operations to the correct registered components via ConnectionServices.
 
-**Sources:** [types.d.ts:401-413](), [types.d.ts:434-440]()
 
 ## Context Scope Mechanism
 
@@ -76,7 +73,6 @@ The context is stored in async local storage, making it accessible to all code w
 
 **Diagram: di-scoped Context Establishment**
 
-**Sources:** [types.d.ts:159-176]()
 
 ### Context Registration
 
@@ -92,7 +88,6 @@ inject<TExecutionContextService>(TYPES.executionContextService);
 inject<TMethodContextService>(TYPES.methodContextService);
 ```
 
-**Sources:** [src/lib/core/provide.ts:57-58](), [src/lib/index.ts:62-67](), [src/lib/core/types.ts:6-7]()
 
 ## Context Flow Architecture
 
@@ -104,7 +99,6 @@ Context flows through the architecture layers in a cascade pattern:
 
 **Diagram: Context Propagation Through Layers**
 
-**Sources:** [src/client/ClientStrategy.ts:270-286](), [src/client/ClientStrategy.ts:423-426]()
 
 ### Establishing Context
 
@@ -135,7 +129,6 @@ MethodContextService.runAsyncIterator(
 );
 ```
 
-**Sources:** [types.d.ts:159-168](), [types.d.ts:422-432]()
 
 ## Context Injection Points
 
@@ -147,7 +140,6 @@ Global services inject context into operations by accessing the context services
 
 **Diagram: Context Injection Through Global Services**
 
-**Sources:** [src/interfaces/Strategy.interface.ts:79-94](), [src/client/ClientStrategy.ts:270](), [src/client/ClientStrategy.ts:423-426]()
 
 ### Constructor Parameters
 
@@ -174,7 +166,6 @@ interface IStrategyParams extends IStrategySchema {
 }
 ```
 
-**Sources:** [src/interfaces/Strategy.interface.ts:79-94](), [types.d.ts:206-214]()
 
 ## Context Consumption
 
@@ -201,7 +192,6 @@ const exchangeName = this.params.method.context.exchangeName;
 const frameName = this.params.method.context.frameName;
 ```
 
-**Sources:** [src/client/ClientStrategy.ts:270](), [src/client/ClientStrategy.ts:286-287](), [src/client/ClientStrategy.ts:292-293](), [src/client/ClientStrategy.ts:334-335]()
 
 ### Context Usage Examples
 
@@ -216,7 +206,6 @@ The following table shows common context usage patterns in ClientStrategy:
 | Signal metadata | `method.context.exchangeName`<br/>`method.context.strategyName` | Populate signal row fields |
 | Callbacks | `execution.context.symbol`<br/>`execution.context.backtest` | Pass context to user callbacks |
 
-**Sources:** [src/client/ClientStrategy.ts:270-284](), [src/client/ClientStrategy.ts:285-309](), [src/client/ClientStrategy.ts:332-337](), [src/client/ClientStrategy.ts:423-426]()
 
 ## Context Lifecycle
 
@@ -228,7 +217,6 @@ Context is established and torn down at specific architectural boundaries:
 
 **Diagram: Context Lifecycle in Single Operation**
 
-**Sources:** [types.d.ts:159-168](), [types.d.ts:422-432]()
 
 ### Multiple Context Scopes
 
@@ -244,7 +232,6 @@ The framework supports nested context scopes:
 
 This nesting allows logic services to maintain stable routing while updating temporal parameters.
 
-**Sources:** [types.d.ts:422-432]()
 
 ## Code Entity Mapping
 
@@ -254,7 +241,6 @@ This nesting allows logic services to maintain stable routing while updating tem
 
 **Diagram: Context Service Code Entity Relationships**
 
-**Sources:** [types.d.ts:138-181](), [types.d.ts:401-440](), [src/interfaces/Strategy.interface.ts:79-94](), [types.d.ts:206-214]()
 
 ### Context Access Points in ClientStrategy
 
@@ -264,7 +250,6 @@ The following diagram maps natural language concepts to actual code access patte
 
 **Diagram: Context Access in ClientStrategy (Natural Language to Code)**
 
-**Sources:** [src/client/ClientStrategy.ts:270](), [src/client/ClientStrategy.ts:285-287](), [src/client/ClientStrategy.ts:292-293](), [src/client/ClientStrategy.ts:332-337](), [src/client/ClientStrategy.ts:411-442]()
 
 ## Benefits and Tradeoffs
 
@@ -281,5 +266,4 @@ The following diagram maps natural language concepts to actual code access patte
 1. **Implicit Dependencies** - Code depends on context being established by caller
 2. **Debugging Complexity** - Context access failures may be unclear without understanding scoping
 3. **Library Dependency** - Requires `di-scoped` for async local storage implementation
-
-**Sources:** [types.d.ts:138-181](), [types.d.ts:401-440]()
+

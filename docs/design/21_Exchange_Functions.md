@@ -20,7 +20,6 @@ Exchange functions provide four categories of functionality:
 
 All functions operate within the current `ExecutionContext` (symbol, when, backtest flag) and automatically handle retries, validation, and error logging.
 
-**Sources:** [types.d.ts:263-309](), [src/client/ClientExchange.ts:179-374]()
 
 ---
 
@@ -32,7 +31,6 @@ All functions operate within the current `ExecutionContext` (symbol, when, backt
 
 This diagram shows how exchange functions are accessed through multiple service layers. User-provided implementations are wrapped with retry logic, validation, and context injection. The `ExchangeGlobalService` provides the entry point for strategy code, while `ClientExchange` implements the core logic.
 
-**Sources:** [src/client/ClientExchange.ts:179-181](), [types.d.ts:206-259]()
 
 ---
 
@@ -98,7 +96,6 @@ const filteredData = data.filter(
 - Retry delay: `CC_GET_CANDLES_RETRY_DELAY_MS` (default: 5000ms)
 - Validates candles after each attempt using `VALIDATE_NO_INCOMPLETE_CANDLES_FN`
 
-**Sources:** [src/client/ClientExchange.ts:190-242](), [src/client/ClientExchange.ts:114-151]()
 
 ---
 
@@ -138,7 +135,6 @@ The function is primarily used by backtest execution to fetch candles for signal
 2. **Scheduled Signal**: For scheduled signals, fetches `CC_SCHEDULE_AWAIT_MINUTES + minuteEstimatedTime + 1` candles
 3. **Fast-forward**: Allows backtest to skip timeframes during active signal monitoring
 
-**Sources:** [src/client/ClientExchange.ts:254-304](), [src/lib/services/logic/private/BacktestLogicPrivateService.ts:134-140]()
 
 ---
 
@@ -178,7 +174,6 @@ if (totalVolume === 0) {
 - **Signal Monitoring**: Active signals are monitored using VWAP for TP/SL detection
 - **Callbacks**: VWAP is passed to strategy callbacks as `currentPrice` parameter
 
-**Sources:** [src/client/ClientExchange.ts:320-355](), [src/client/ClientStrategy.ts:285-287]()
 
 ---
 
@@ -218,7 +213,6 @@ public async formatPrice(symbol: string, price: number) {
 
 The actual formatting logic is defined in the `IExchangeSchema` registered via `addExchange()`.
 
-**Sources:** [src/client/ClientExchange.ts:357-371](), [types.d.ts:241-257]()
 
 ---
 
@@ -250,7 +244,6 @@ console.warn(message);
 
 After exhausting all retries, the function throws the last error encountered.
 
-**Sources:** [src/client/ClientExchange.ts:114-151]()
 
 ---
 
@@ -300,7 +293,6 @@ The function throws detailed errors for three types of anomalies:
 2. **Non-positive values**: Zero or negative prices, negative volume
 3. **Anomalous prices**: Prices below threshold (likely incomplete candles)
 
-**Sources:** [src/client/ClientExchange.ts:23-105](), [types.d.ts:45-72]()
 
 ---
 
@@ -330,7 +322,6 @@ await setConfig({
 
 For complete configuration documentation, see [Global Configuration](./75_Global_Configuration.md).
 
-**Sources:** [types.d.ts:5-72](), [src/client/ClientExchange.ts:325-329]()
 
 ---
 
@@ -396,7 +387,6 @@ ExecutionContextService.runInContext(
 );
 ```
 
-**Sources:** [src/lib/services/logic/private/BacktestLogicPrivateService.ts:62-384](), [src/lib/services/logic/private/LiveLogicPrivateService.ts:61-130]()
 
 ---
 
@@ -408,7 +398,6 @@ ExecutionContextService.runInContext(
 
 This sequence diagram shows how exchange functions are invoked during a typical signal lifecycle. The `getAveragePrice` function (which internally calls `getCandles`) is the most frequently called function, used for both signal generation and monitoring.
 
-**Sources:** [src/client/ClientStrategy.ts:263-396](), [src/client/ClientExchange.ts:190-355]()
 
 ---
 
@@ -443,5 +432,4 @@ if (this.params.callbacks?.onCandleData) {
 ```
 
 This enables users to implement custom logging, caching, or data persistence for fetched candles.
-
-**Sources:** [types.d.ts:216-221](), [src/client/ClientExchange.ts:231-239]()
+

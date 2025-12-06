@@ -25,7 +25,6 @@ The Walker API provides functionality to compare multiple trading strategies by 
 - Comparative performance report generation with unified statistics
 - AsyncGenerator streaming for manual iteration or background execution
 
-Sources: [src/classes/Walker.ts:1-274](), [src/lib/services/logic/private/WalkerLogicPrivateService.ts:31-254]()
 
 ---
 
@@ -89,7 +88,6 @@ interface WalkerContract {
 }
 ```
 
-Sources: [src/classes/Walker.ts:39-87](), [src/lib/services/logic/private/WalkerLogicPrivateService.ts:70-228]()
 
 ---
 
@@ -139,7 +137,6 @@ Walker.background(
 - `WalkerLogicPrivateService` listens to stop signal with filter on symbol + strategyName
 - Breaks iteration loop when `CANCEL_SYMBOL` is received
 
-Sources: [src/classes/Walker.ts:108-144](), [src/lib/services/logic/private/WalkerLogicPrivateService.ts:96-156]()
 
 ---
 
@@ -196,7 +193,6 @@ Walker.getData(
 - Each emitted `WalkerContract` is stored in internal array
 - `getData()` processes array to compute best strategy and aggregate results
 
-Sources: [src/classes/Walker.ts:159-179](), [src/lib/services/markdown/WalkerMarkdownService.ts]()
 
 ---
 
@@ -257,7 +253,6 @@ Walker.getReport(
 - Includes comparison table sorted by metric value (descending)
 - Detailed statistics for each strategy from `BacktestStatistics`
 
-Sources: [src/classes/Walker.ts:194-214](), [src/lib/services/markdown/WalkerMarkdownService.ts]()
 
 ---
 
@@ -301,7 +296,6 @@ Walker.dump(
 - Filename is always `{walkerName}.md`
 - Example: `Walker.dump("BTCUSDT", "btc-optimizer")` creates `./logs/walker/btc-optimizer.md`
 
-Sources: [src/classes/Walker.ts:232-255](), [src/lib/services/markdown/WalkerMarkdownService.ts]()
 
 ---
 
@@ -319,7 +313,6 @@ The following diagram shows the complete execution path from `Walker.run()` thro
 - **Best Tracking:** Compares after each strategy completion (lines 179-186)
 - **Progress Streaming:** Yields after each strategy, not at end (line 227)
 
-Sources: [src/classes/Walker.ts:39-87](), [src/lib/services/logic/private/WalkerLogicPrivateService.ts:70-251](), [src/lib/services/command/WalkerCommandService.ts]()
 
 ---
 
@@ -350,7 +343,6 @@ interface WalkerContract {
 
 **Returns:** Unsubscribe function
 
-Sources: [src/function/event.ts:537-536]()
 
 ---
 
@@ -372,7 +364,6 @@ listenWalkerOnce(
 
 **Returns:** Unsubscribe function to cancel before it fires
 
-Sources: [src/function/event.ts:552-569]()
 
 ---
 
@@ -400,7 +391,6 @@ interface IWalkerResults {
 
 **Returns:** Unsubscribe function
 
-Sources: [src/function/event.ts:584-601]()
 
 ---
 
@@ -425,7 +415,6 @@ interface DoneContract {
 
 **Returns:** Unsubscribe function
 
-Sources: [src/function/event.ts:397-400]()
 
 ---
 
@@ -447,7 +436,6 @@ listenDoneWalkerOnce(
 
 **Returns:** Unsubscribe function
 
-Sources: [src/function/event.ts:427-433]()
 
 ---
 
@@ -462,7 +450,6 @@ The following diagram shows the event emission sequence during walker execution.
 2. `walkerCompleteSubject` - Emits once when all strategies complete
 3. `doneWalkerSubject` - Emits only for `Walker.background()` after completion
 
-Sources: [src/config/emitters.ts:64-73](), [src/classes/Walker.ts:108-144]()
 
 ---
 
@@ -521,7 +508,6 @@ console.log(markdown);
 await Walker.dump("BTCUSDT", "btc-walker"); // ./logs/walker/btc-walker.md
 ```
 
-Sources: [README.md:407-459](), [src/classes/Walker.ts:39-87]()
 
 ---
 
@@ -559,7 +545,6 @@ const cancel = Walker.background("BTCUSDT", {
 // cancel();
 ```
 
-Sources: [src/classes/Walker.ts:108-144](), [src/function/event.ts:584-601]()
 
 ---
 
@@ -622,7 +607,6 @@ console.log("Best by Total PNL:", pnlBest.bestStrategy);
 console.log("Best by Certainty:", certaintyBest.bestStrategy);
 ```
 
-Sources: [README.md:461-467]()
 
 ---
 
@@ -658,7 +642,6 @@ listenWalkerOnce(
 );
 ```
 
-Sources: [src/classes/Walker.ts:138-143]()
 
 ---
 
@@ -715,7 +698,6 @@ interface BacktestStatistics {
 - `totalPnl` - Cumulative PNL percentage
 - `certaintyRatio` - avgWin / |avgLoss|
 
-Sources: [src/lib/services/markdown/BacktestMarkdownService.ts:46-102]()
 
 ---
 
@@ -737,7 +719,6 @@ Sources: [src/lib/services/markdown/BacktestMarkdownService.ts:46-102]()
 2. `BacktestLogicPublicService` adds: `{ strategyName }`
 3. `BacktestLogicPrivateService` uses: All context fields + symbol + when
 
-Sources: [src/classes/Walker.ts:1-274](), [src/lib/services/logic/private/WalkerLogicPrivateService.ts:31-254](), [src/lib/services/logic/private/BacktestLogicPrivateService.ts:33-387](), [src/lib/services/command/WalkerCommandService.ts]()
 
 ---
 
@@ -775,7 +756,6 @@ Sources: [src/classes/Walker.ts:1-274](), [src/lib/services/logic/private/Walker
 - For parallel execution, use manual `Promise.all(backtests)` with multiple `Backtest.run()` calls
 - Sequential execution simplifies state management and reduces memory pressure
 
-Sources: [src/classes/Walker.ts:39-87](), [src/lib/services/logic/private/WalkerLogicPrivateService.ts:70-251]()
 
 ---
 
@@ -806,7 +786,6 @@ Walker.background("BTCUSDT", {
 });
 ```
 
-Sources: [src/classes/Walker.ts:50-59](), [src/classes/Walker.ts:130-137]()
 
 ---
 
@@ -834,5 +813,4 @@ This ensures:
 - No cross-contamination between strategies
 - Fresh risk tracking for each strategy
 - Accurate comparison metrics
-
-Sources: [src/classes/Walker.ts:61-79]()
+

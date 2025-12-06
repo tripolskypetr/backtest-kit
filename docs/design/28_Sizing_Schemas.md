@@ -4,7 +4,6 @@ Sizing schemas define position sizing methods for calculating trade quantities b
 
 For information about how strategies reference sizing, see [Strategy Schemas](./24_Strategy_Schemas.md). For risk management that controls whether positions are allowed, see [Risk Schemas](./27_Risk_Schemas.md).
 
-**Sources:** [types.d.ts:202-267](), [src/function/add.ts:202-266]()
 
 ---
 
@@ -14,7 +13,6 @@ The `ISizingSchema` type is a discriminated union using the `method` field as th
 
 ![Mermaid Diagram](./diagrams/28_Sizing_Schemas_0.svg)
 
-**Sources:** [types.d.ts:59-70](), [src/index.ts:58-70]()
 
 ---
 
@@ -24,7 +22,6 @@ Sizing schemas are registered via `addSizing()`, which stores them in `SizingSch
 
 ![Mermaid Diagram](./diagrams/28_Sizing_Schemas_1.svg)
 
-**Sources:** [src/function/add.ts:254-266](), [src/lib/index.ts:72-77]()
 
 ---
 
@@ -66,7 +63,6 @@ addSizing({
 });
 ```
 
-**Sources:** [src/function/add.ts:223-231](), [types.d.ts:202-266]()
 
 ---
 
@@ -110,7 +106,6 @@ addSizing({
 });
 ```
 
-**Sources:** [src/function/add.ts:233-238](), [types.d.ts:202-266]()
 
 ---
 
@@ -155,7 +150,6 @@ addSizing({
 });
 ```
 
-**Sources:** [src/function/add.ts:240-252](), [types.d.ts:202-266]()
 
 ---
 
@@ -173,7 +167,6 @@ All sizing methods support optional position size constraints to enforce portfol
 | `minPositionSize` | `number` | Minimum position size in base asset (prevents dust trades) |
 | `maxPositionSize` | `number` | Maximum position size in base asset (absolute limit) |
 
-**Sources:** [types.d.ts:202-266]()
 
 ---
 
@@ -183,7 +176,6 @@ When calculating position size, `ClientSizing` receives method-specific paramete
 
 ![Mermaid Diagram](./diagrams/28_Sizing_Schemas_3.svg)
 
-**Sources:** [types.d.ts:59-70]()
 
 ---
 
@@ -204,7 +196,6 @@ interface ISizingCallbacks {
 
 ![Mermaid Diagram](./diagrams/28_Sizing_Schemas_4.svg)
 
-**Sources:** [types.d.ts:202-266]()
 
 ---
 
@@ -233,7 +224,6 @@ addStrategy({
 
 ![Mermaid Diagram](./diagrams/28_Sizing_Schemas_5.svg)
 
-**Sources:** [types.d.ts:616-633](), [src/lib/index.ts:1-170]()
 
 ---
 
@@ -254,7 +244,6 @@ The sizing system follows the standard service layer pattern with Schema, Valida
 
 ![Mermaid Diagram](./diagrams/28_Sizing_Schemas_6.svg)
 
-**Sources:** [src/lib/index.ts:72-77](), [src/lib/core/types.ts:14-16](), [src/lib/core/provide.ts:57-58]()
 
 ---
 
@@ -280,7 +269,6 @@ sizings.forEach(schema => {
 });
 ```
 
-**Sources:** [src/function/list.ts:177-180]()
 
 ---
 
@@ -339,5 +327,4 @@ addSizing({
   },
 });
 ```
-
-**Sources:** [src/function/add.ts:202-266]()
+

@@ -23,7 +23,6 @@ The framework provides three orthogonal execution modes that differ in temporal 
 | **Crash Recovery** | Not applicable | Yes (via persistence layer) | Not applicable |
 | **Progress Tracking** | `progressBacktestEmitter` | Not applicable | `progressWalkerEmitter` |
 
-**Sources:** [src/lib/services/logic/private/BacktestLogicPrivateService.ts:1-387](), [src/lib/services/logic/private/LiveLogicPrivateService.ts:1-133](), [src/lib/services/logic/private/WalkerLogicPrivateService.ts:1-254]()
 
 ---
 
@@ -40,7 +39,6 @@ Each mode implements a four-tier architecture separating user-facing utilities, 
 3. **Public Layer**: Context setup and AsyncGenerator type contracts for external consumption
 4. **Private Layer**: Core execution logic implementing temporal progression and result streaming
 
-**Sources:** [docs/classes/BacktestUtils.md:1-62](), [docs/classes/LiveUtils.md:1-72](), [docs/classes/BacktestCommandService.md:1-70](), [docs/classes/LiveCommandService.md:1-66]()
 
 ---
 
@@ -84,7 +82,6 @@ while (
 }
 ```
 
-**Sources:** [src/lib/services/logic/private/BacktestLogicPrivateService.ts:62-384](), [src/lib/services/logic/private/BacktestLogicPrivateService.ts:227-235](), [src/lib/services/logic/private/BacktestLogicPrivateService.ts:329-335]()
 
 ### Key Service Classes
 
@@ -97,7 +94,6 @@ while (
 | `StrategyGlobalService` | Strategy method invocation with context injection | `tick()`, `backtest()` |
 | `ExchangeGlobalService` | Data fetching with execution context | `getNextCandles()` |
 
-**Sources:** [src/lib/services/logic/private/BacktestLogicPrivateService.ts:33-47]()
 
 ---
 
@@ -135,7 +131,6 @@ The `TICK_TTL` constant (61 seconds) controls the polling interval between strat
 const TICK_TTL = 1 * 60 * 1_000 + 1; // 61 seconds
 ```
 
-**Sources:** [src/lib/services/logic/private/LiveLogicPrivateService.ts:12](), [src/lib/services/logic/private/LiveLogicPrivateService.ts:61-130]()
 
 ### Crash Recovery Architecture
 
@@ -148,7 +143,6 @@ const TICK_TTL = 1 * 60 * 1_000 + 1; // 61 seconds
 3. Strategy reconstructs internal state including signal, scheduled signals, and risk positions
 4. Execution resumes from the restored state as if no crash occurred
 
-**Sources:** [src/lib/services/logic/private/LiveLogicPrivateService.ts:1-133]()
 
 ### Key Service Classes
 
@@ -160,7 +154,6 @@ const TICK_TTL = 1 * 60 * 1_000 + 1; // 61 seconds
 | `StrategyGlobalService` | Strategy method invocation with context injection | `tick()` |
 | `PersistSignalAdapter` | Signal state persistence | `readValue()`, `writeValue()`, `hasValue()`, `removeValue()` |
 
-**Sources:** [src/lib/services/logic/private/LiveLogicPrivateService.ts:30-37]()
 
 ---
 
@@ -212,7 +205,6 @@ const isBetter =
   (metricValue !== null && metricValue > bestMetric);
 ```
 
-**Sources:** [src/lib/services/logic/private/WalkerLogicPrivateService.ts:168-186]()
 
 ### Key Service Classes
 
@@ -225,7 +217,6 @@ const isBetter =
 | `BacktestMarkdownService` | Statistics calculation and retrieval | `getData(symbol, strategyName)` |
 | `WalkerSchemaService` | Walker schema storage and retrieval | `get(walkerName)` |
 
-**Sources:** [src/lib/services/logic/private/WalkerLogicPrivateService.ts:31-40]()
 
 ---
 
@@ -245,7 +236,6 @@ The framework implements a polymorphic architecture where execution mode is orth
 
 The `backtest` boolean parameter in execution context distinguishes between backtest simulation and live execution, enabling mode-specific behaviors like persistence and progress tracking.
 
-**Sources:** [src/lib/services/logic/private/BacktestLogicPrivateService.ts:96](), [src/lib/services/logic/private/LiveLogicPrivateService.ts:74]()
 
 ---
 
@@ -264,7 +254,6 @@ The `ClientExchange` class provides two distinct methods for candle retrieval wi
 
 The `getNextCandles()` method validates that requested data does not exceed `Date.now()`, returning empty array if future data is requested. This prevents time-travel paradoxes in live mode.
 
-**Sources:** [src/client/ClientExchange.ts:190-242](), [src/client/ClientExchange.ts:254-304]()
 
 ---
 
@@ -287,5 +276,4 @@ All modes track execution timing via `performanceEmitter` with mode-specific met
 - Backtest: `backtest_timeframe`, `backtest_signal`, `backtest_total`
 - Live: `live_tick`
 - Walker: Inherits backtest metrics for each strategy run
-
-**Sources:** [src/lib/services/logic/private/BacktestLogicPrivateService.ts:83-92](), [src/lib/services/logic/private/LiveLogicPrivateService.ts:96-108](), [src/lib/services/logic/private/WalkerLogicPrivateService.ts:206-214]()
+

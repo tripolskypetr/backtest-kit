@@ -21,7 +21,6 @@ The framework addresses this through:
 3. **Validation Guards** - Ensures loaded state matches current strategy/exchange configuration
 4. **Single Source of Truth** - File system serves as the authoritative source for signal state
 
-Sources: [src/client/ClientStrategy.ts:146-165](), [src/client/ClientStrategy.ts:220-233](), [README.md:170-194]()
 
 ---
 
@@ -35,7 +34,6 @@ Signal state is persisted at two critical moments to ensure crash safety:
 
 **Key Principle**: State is persisted **before** yielding the result to the user. This ensures the disk state is always consistent with what the user observes.
 
-Sources: [src/client/ClientStrategy.ts:220-233](), [src/client/ClientStrategy.ts:258-323](), [src/client/ClientStrategy.ts:374-435]()
 
 ---
 
@@ -49,7 +47,6 @@ The `setPendingSignal()` method centralizes all state changes and ensures atomic
 
 The atomic write prevents corruption even if the process crashes mid-write. The temp file + rename pattern ensures the final file is either complete or doesn't exist.
 
-Sources: [src/client/ClientStrategy.ts:220-233](), [types.d.ts:1095-1108](), [types.d.ts:951-958]()
 
 ---
 
@@ -63,7 +60,6 @@ When a live trading process restarts, `waitForInit()` restores the signal state 
 
 **Validation Guards**: The recovery logic validates that the persisted signal matches the current configuration. This prevents resuming with the wrong exchange or strategy after configuration changes.
 
-Sources: [src/client/ClientStrategy.ts:146-165](), [src/client/ClientStrategy.ts:209](), [types.d.ts:1084-1095]()
 
 ---
 
@@ -124,7 +120,6 @@ When a signal closes, the file is updated with `signalRow: null`:
 | `PersistBase` | Base class for file-based CRUD with atomic writes | [src/classes/Persist.ts]() |
 | `PersistSignalUtils` | Utility class with memoized storage instances | [types.d.ts:1067-1108]() |
 
-Sources: [types.d.ts:899-903](), [types.d.ts:976-1055](), [types.d.ts:1067-1125]()
 
 ---
 
@@ -144,7 +139,6 @@ The atomic rename operation (`fs.rename()`) is the critical step that ensures at
 
 **Auto-Cleanup**: If a file becomes corrupted (invalid JSON), `PersistBase` automatically deletes it and throws an error. This prevents accumulating corrupted files and ensures clean restarts.
 
-Sources: [types.d.ts:976-1055](), [types.d.ts:942-958]()
 
 ---
 
@@ -190,7 +184,6 @@ PersistSignalAdapter.usePersistSignalAdapter(RedisPersist);
 
 **Requirements**: Custom adapters must extend `PersistBase` and implement the `IPersistBase<ISignalData>` interface. The adapter must handle atomicity and error recovery according to the backing store's capabilities.
 
-Sources: [README.md:676-690](), [types.d.ts:1067-1084](), [types.d.ts:922-959]()
 
 ---
 
@@ -231,7 +224,6 @@ Sources: [README.md:676-690](), [types.d.ts:1067-1084](), [types.d.ts:922-959]()
 - If TP/SL was hit during downtime, it will be detected on the first tick
 - The user sees `action: "active"` instead of `action: "opened"`, indicating recovery
 
-Sources: [README.md:170-194](), [src/client/ClientStrategy.ts:146-165](), [src/client/ClientStrategy.ts:258-323]()
 
 ---
 
@@ -280,7 +272,6 @@ public async setPendingSignal(pendingSignal: ISignalRow | null) {
 }
 ```
 
-Sources: [src/client/ClientStrategy.ts:220-233](), [src/client/ClientStrategy.ts:146-165]()
 
 ---
 
@@ -354,7 +345,6 @@ await Promise.all([
 ]);
 ```
 
-Sources: [src/client/ClientStrategy.ts:146-165](), [types.d.ts:1095-1108]()
 
 ---
 
@@ -374,7 +364,6 @@ The crash recovery system integrates seamlessly with the signal lifecycle state 
 | `signalRow: ISignalRow` | Resumes monitoring | `action: "active"` |
 | `signalRow: null` | Starts fresh | `action: "idle"` or `action: "opened"` |
 
-Sources: [src/client/ClientStrategy.ts:258-464](), [src/client/ClientStrategy.ts:220-233]()
 
 ---
 
@@ -438,5 +427,4 @@ cat ./storage/signals/my-strategy/BTCUSDT.json | jq
 # Check for corrupted files
 find ./storage/signals -name "*.json" -exec sh -c 'jq empty "$1" 2>/dev/null || echo "Corrupted: $1"' _ {} \;
 ```
-
-Sources: [src/client/ClientStrategy.ts:221-223](), [src/client/ClientStrategy.ts:147](), [types.d.ts:48-49]()
+

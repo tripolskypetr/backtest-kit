@@ -14,7 +14,6 @@ This document covers the internal implementation of the `ClientOptimizer` class,
 
 ![Mermaid Diagram](./diagrams/37_ClientOptimizer_0.svg)
 
-**Sources:** [src/client/ClientOptimizer.ts:1-448](), [src/interfaces/Optimizer.interface.ts:454-484]()
 
 ## Constructor and Parameters
 
@@ -35,7 +34,6 @@ The `ClientOptimizer` constructor accepts two arguments: `params` of type `IOpti
 
 The `params` object is constructed by `OptimizerConnectionService`, which merges custom templates from the optimizer schema with defaults from `OptimizerTemplateService`.
 
-**Sources:** [src/client/ClientOptimizer.ts:397-401](), [src/interfaces/Optimizer.interface.ts:436-451]()
 
 ## Data Collection Flow
 
@@ -45,7 +43,6 @@ The `getData` method orchestrates the entire data collection and strategy genera
 
 ![Mermaid Diagram](./diagrams/37_ClientOptimizer_1.svg)
 
-**Sources:** [src/client/ClientOptimizer.ts:99-215](), [src/client/ClientOptimizer.ts:410-415]()
 
 ### Pagination Handling
 
@@ -55,7 +52,6 @@ The `RESOLVE_PAGINATION_FN` helper uses `functools-kit` utilities to handle pagi
 
 The pagination loop uses `ITERATION_LIMIT = 25` records per request. Data is deduplicated using the `id` field from `IOptimizerData`.
 
-**Sources:** [src/client/ClientOptimizer.ts:70-88](), [src/client/ClientOptimizer.ts:19-20]()
 
 ### Progress Event Emission
 
@@ -69,7 +65,6 @@ Progress events are emitted twice for each source: at the start of processing an
 | `processedSources` | `number` | Completed sources |
 | `progress` | `number` | Decimal 0-1 completion ratio |
 
-**Sources:** [src/client/ClientOptimizer.ts:101-114](), [src/client/ClientOptimizer.ts:201-208]()
 
 ## Code Generation Flow
 
@@ -79,7 +74,6 @@ The `getCode` method assembles a complete executable Node.js script by calling t
 
 ![Mermaid Diagram](./diagrams/37_ClientOptimizer_3.svg)
 
-**Sources:** [src/client/ClientOptimizer.ts:225-350](), [src/client/ClientOptimizer.ts:424-429]()
 
 ### Template Method Call Order
 
@@ -99,7 +93,6 @@ The code assembly follows this precise 11-step sequence:
 
 Each section is separated by an empty line for readability.
 
-**Sources:** [src/client/ClientOptimizer.ts:232-341]()
 
 ### Naming Convention
 
@@ -109,7 +102,6 @@ All generated component names use a random prefix to avoid collisions:
 
 The prefix is generated using: `(Math.random() + 1).toString(36).substring(7)`, producing strings like `"x8k2p9f"`.
 
-**Sources:** [src/client/ClientOptimizer.ts:22](), [src/client/ClientOptimizer.ts:228-230]()
 
 ## File Export
 
@@ -127,7 +119,6 @@ The `dump` method writes the generated code to a `.mjs` file in the specified di
 
 ![Mermaid Diagram](./diagrams/37_ClientOptimizer_5.svg)
 
-**Sources:** [src/client/ClientOptimizer.ts:360-384](), [src/client/ClientOptimizer.ts:438-444]()
 
 ## Helper Functions
 
@@ -150,7 +141,6 @@ The user and assistant formatters allow customization per source while providing
 
 ![Mermaid Diagram](./diagrams/37_ClientOptimizer_6.svg)
 
-**Sources:** [src/client/ClientOptimizer.ts:34-60](), [src/client/ClientOptimizer.ts:148-176]()
 
 ## Integration with Services
 
@@ -160,7 +150,6 @@ The user and assistant formatters allow customization per source while providing
 
 ![Mermaid Diagram](./diagrams/37_ClientOptimizer_7.svg)
 
-**Sources:** [src/lib/services/connection/OptimizerConnectionService.ts:1-175]()
 
 ### Template Merging Logic
 
@@ -170,13 +159,11 @@ The user and assistant formatters allow customization per source while providing
 
 All 11 template methods are resolved using this pattern, ensuring `ClientOptimizer` always receives a complete `IOptimizerTemplate` implementation.
 
-**Sources:** [src/lib/services/connection/OptimizerConnectionService.ts:59-113]()
 
 ### Memoization
 
 The `getOptimizer` method is memoized by `optimizerName`, creating only one `ClientOptimizer` instance per registered optimizer. This ensures template merging and dependency injection occur only once per optimizer configuration.
 
-**Sources:** [src/lib/services/connection/OptimizerConnectionService.ts:59-113]()
 
 ## Data Structures
 
@@ -191,7 +178,6 @@ The `getData` method returns an array of `IOptimizerStrategy` objects, one per t
 | `messages` | `MessageModel[]` | Complete conversation history |
 | `strategy` | `string` | Generated strategy prompt from `getPrompt()` |
 
-**Sources:** [src/interfaces/Optimizer.interface.ts:100-123]()
 
 ### Source Type Union
 
@@ -206,7 +192,6 @@ The `source` array accepts two types:
 
 When using a plain function, the source name defaults to `"unknown"`.
 
-**Sources:** [src/interfaces/Optimizer.interface.ts:129-186](), [src/client/ClientOptimizer.ts:20]()
 
 ### MessageModel
 
@@ -217,7 +202,6 @@ Conversation history uses `MessageModel` from the shared model layer:
 | `role` | `string` | `"user"`, `"assistant"`, `"system"` |
 | `content` | `string` | Message text content |
 
-**Sources:** [src/client/ClientOptimizer.ts:14]()
 
 ## Error Handling
 
@@ -226,5 +210,4 @@ The `dump` method includes try-catch error handling:
 ![Mermaid Diagram](./diagrams/37_ClientOptimizer_9.svg)
 
 Errors during file operations are logged and re-thrown to the caller.
-
-**Sources:** [src/client/ClientOptimizer.ts:367-383]()
+

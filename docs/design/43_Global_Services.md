@@ -33,7 +33,6 @@ Execution Mode Global Services provide entry points for running backtests and li
 | `LiveGlobalService` | Real-time trading | Delegates to LiveLogicPublicService |
 | `WalkerGlobalService` | Strategy comparison | Also serves as execution mode service |
 
-**Sources:** [src/lib/index.ts:93-108](), [src/lib/core/types.ts:27-36](), [src/lib/core/provide.ts:70-79]()
 
 ---
 
@@ -43,7 +42,6 @@ Execution Mode Global Services provide entry points for running backtests and li
 
 **Purpose**: This diagram illustrates how Global Services act as an intermediary layer between public APIs and lower-level services. Component Global Services orchestrate validation and delegate to Connection Services, while Execution Global Services delegate to Logic Services.
 
-**Sources:** [src/lib/index.ts:49-162](), [src/function/add.ts:50-62](), [src/lib/services/global/RiskGlobalService.ts:15-114]()
 
 ---
 
@@ -57,7 +55,6 @@ Component Global Services follow a consistent implementation pattern with three 
 
 **Purpose**: This diagram shows the standard implementation pattern for Component Global Services using RiskGlobalService as an example. All public methods follow the log-validate-delegate sequence.
 
-**Sources:** [src/lib/services/global/RiskGlobalService.ts:15-114]()
 
 ### Dependency Injection Pattern
 
@@ -80,7 +77,6 @@ private readonly riskValidationService = inject<RiskValidationService>(
 | `*ConnectionService` | Client instance management | Delegate actual operations after validation |
 | `*ValidationService` | Schema validation | Called by memoized `validate()` method |
 
-**Sources:** [src/lib/services/global/RiskGlobalService.ts:16-22]()
 
 ### Validation Orchestration
 
@@ -90,7 +86,6 @@ The validation pattern uses memoization to avoid redundant schema checks:
 
 **Purpose**: This sequence diagram demonstrates the validation orchestration pattern. The first call to `validate()` for a given component name performs validation and caches the result. Subsequent calls return immediately from cache.
 
-**Sources:** [src/lib/services/global/RiskGlobalService.ts:31-42](), [src/lib/services/global/RiskGlobalService.ts:51-61]()
 
 ### Implementation Example: RiskGlobalService
 
@@ -116,7 +111,6 @@ The `RiskGlobalService` exemplifies the Component Global Service pattern:
 5. Subsequent calls: returns immediately (no-op)
 6. After validation: delegates operation to Connection Service
 
-**Sources:** [src/lib/services/global/RiskGlobalService.ts:31-61]()
 
 ---
 
@@ -130,7 +124,6 @@ Global Services are used internally by the framework but can also be accessed di
 
 **Purpose**: This diagram shows how Global Services fit into the public API. The `add*` and `list*` functions bypass Global Services and access Validation/Schema services directly, while test code and advanced users can access Global Services through the `lib` export.
 
-**Sources:** [src/function/add.ts:329-341](), [src/function/list.ts:214-217](), [test/spec/risk.test.mjs:67-92](), [src/lib/index.ts:152-162]()
 
 ### Test Usage Example
 
@@ -167,7 +160,6 @@ This pattern is useful for:
 - Debugging component behavior
 - Implementing advanced workflows
 
-**Sources:** [test/spec/risk.test.mjs:41-93]()
 
 ---
 
@@ -183,7 +175,6 @@ These services provide the entry points for `Backtest.run()` and `Live.run()` op
 
 **Purpose**: This diagram illustrates the delegation chain from Execution Mode Global Services through Logic Services. Unlike Component Global Services that delegate to Connection Services, these delegate to Logic Services which manage context propagation and execution orchestration.
 
-**Sources:** [src/lib/index.ts:101-103](), [src/lib/core/types.ts:32-33]()
 
 ### WalkerGlobalService Dual Role
 
@@ -194,7 +185,6 @@ These services provide the entry points for `Backtest.run()` and `Live.run()` op
 | Component Service | `validate()` | `WalkerValidationService` |
 | Execution Service | `run()` | `WalkerLogicPublicService` |
 
-**Sources:** [src/lib/services/global/WalkerGlobalService.ts]() (not directly visible in provided files but inferred from pattern)
 
 ---
 
@@ -254,7 +244,6 @@ const globalServices = {
 
 All services are included in the `backtest` export object [src/lib/index.ts:152-162](), making them accessible as `backtest.riskGlobalService`, `backtest.strategyGlobalService`, etc.
 
-**Sources:** [src/lib/core/provide.ts:70-79](), [src/lib/core/types.ts:27-36](), [src/lib/index.ts:93-162]()
 
 ---
 
@@ -291,7 +280,6 @@ private validate = memoize(
 
 The cache key is the component name string. First invocation performs validation, subsequent calls return immediately.
 
-**Sources:** [src/lib/services/global/RiskGlobalService.ts:31-42]()
 
 ### Consistent Logging
 
@@ -316,7 +304,6 @@ Log entries include:
 - Operation-specific context (symbol, component names)
 - Structured data for debugging
 
-**Sources:** [src/lib/services/global/RiskGlobalService.ts:51-61]()
 
 ### Single Responsibility
 
@@ -326,7 +313,6 @@ Each Global Service manages exactly one component type or execution mode:
 - `BacktestGlobalService` → Backtest execution only
 - `WalkerGlobalService` → Both walker components AND walker execution (special case)
 
-**Sources:** [src/lib/index.ts:93-108]()
 
 ---
 
@@ -335,5 +321,4 @@ Each Global Service manages exactly one component type or execution mode:
 ![Mermaid Diagram](./diagrams/43_Global_Services_5.svg)
 
 **Purpose**: This diagram summarizes the complete delegation flow for both Component and Execution Global Services. Both types perform validation first, but Component services delegate to Connection Services while Execution services delegate to Logic Services.
-
-**Sources:** [src/lib/services/global/RiskGlobalService.ts:15-114](), [src/lib/index.ts:93-132]()
+

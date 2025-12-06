@@ -12,7 +12,6 @@ Signals in backtest-kit follow a discriminated union pattern with six possible s
 
 ![Mermaid Diagram](./diagrams/46_Signal_Lifecycle_0.svg)
 
-**Sources:** [types.d.ts:653-770](), [src/interfaces/Strategy.interface.ts:159-295]()
 
 ---
 
@@ -30,7 +29,6 @@ The framework defines a hierarchy of signal types with increasing levels of comp
 
 ![Mermaid Diagram](./diagrams/46_Signal_Lifecycle_1.svg)
 
-**Sources:** [types.d.ts:543-592](), [src/interfaces/Strategy.interface.ts:19-72](), [src/client/ClientStrategy.ts:187-283]()
 
 ---
 
@@ -40,7 +38,6 @@ Signal generation occurs within `ClientStrategy` and involves throttling, risk c
 
 ![Mermaid Diagram](./diagrams/46_Signal_Lifecycle_2.svg)
 
-**Sources:** [src/client/ClientStrategy.ts:187-283](), [src/client/ClientStrategy.ts:31-38]()
 
 ---
 
@@ -98,7 +95,6 @@ slDistancePercent <= CC_MAX_STOPLOSS_DISTANCE_PERCENT
 minuteEstimatedTime <= CC_MAX_SIGNAL_LIFETIME_MINUTES
 ```
 
-**Sources:** [src/client/ClientStrategy.ts:40-185](), [types.d.ts:5-34]()
 
 ---
 
@@ -110,7 +106,6 @@ When no active signal exists, `ClientStrategy.tick()` attempts to generate a new
 
 **Key Difference:** Immediate signals undergo risk check and call `risk.addSignal()` immediately. Scheduled signals defer risk check until price activation.
 
-**Sources:** [src/client/ClientStrategy.ts:578-621](), [src/client/ClientStrategy.ts:623-673]()
 
 ---
 
@@ -122,7 +117,6 @@ Scheduled signals represent delayed entry positions that wait for price to reach
 
 ![Mermaid Diagram](./diagrams/46_Signal_Lifecycle_4.svg)
 
-**Sources:** [src/client/ClientStrategy.ts:332-386](), [src/client/ClientStrategy.ts:388-422](), [src/client/ClientStrategy.ts:459-551]()
 
 ### Activation vs Cancellation Priority
 
@@ -142,7 +136,6 @@ if (scheduled.position === "long") {
 }
 ```
 
-**Sources:** [src/client/ClientStrategy.ts:388-422]()
 
 ---
 
@@ -154,7 +147,6 @@ Once a signal is opened (stored in `_pendingSignal`), it enters active monitorin
 
 **Critical Detail:** Time expiration uses `pendingAt` timestamp, not `scheduledAt`. For scheduled signals, this ensures `minuteEstimatedTime` counts from activation, not from creation.
 
-**Sources:** [src/client/ClientStrategy.ts:675-734](), [src/client/ClientStrategy.ts:736-789]()
 
 ---
 
@@ -175,7 +167,6 @@ Signals maintain two critical timestamps with distinct semantics:
 
 ![Mermaid Diagram](./diagrams/46_Signal_Lifecycle_7.svg)
 
-**Sources:** [src/client/ClientStrategy.ts:243-266](), [src/client/ClientStrategy.ts:510-515](), [src/client/ClientStrategy.ts:949-954](), [src/client/ClientStrategy.ts:675-683]()
 
 ---
 
@@ -236,7 +227,6 @@ async waitForInit() {
 
 **Note:** Scheduled signals (`_scheduledSignal`) are NOT persisted. Only active positions (`_pendingSignal`) survive crashes.
 
-**Sources:** [src/client/ClientStrategy.ts:1068-1081](), [src/client/ClientStrategy.ts:298-330](), [src/classes/Persist.ts:1-300]()
 
 ---
 
@@ -290,7 +280,6 @@ pnlPercentage = ((99.7999 - 99.198001) / 99.7999) * 100 = 0.603%
 
 **Note:** The `CC_MIN_TAKEPROFIT_DISTANCE_PERCENT` default of 0.3% accounts for the 0.2% total fees (entry + exit), ensuring profitable trades after costs.
 
-**Sources:** [src/helpers/toProfitLossDto.ts:1-50](), [types.d.ts:16-20]()
 
 ---
 
@@ -315,7 +304,6 @@ The signal lifecycle behaves differently in backtest and live modes due to timin
 
 **Key Optimization:** The backtest method processes all candles in a single pass without yielding control, making it significantly faster than tick-by-tick iteration.
 
-**Sources:** [src/client/ClientStrategy.ts:1008-1177](), [src/client/ClientStrategy.ts:897-973](), [src/client/ClientStrategy.ts:975-1006]()
 
 ---
 
@@ -327,7 +315,6 @@ Every state transition emits events through Subject-based emitters, enabling obs
 
 **Event Flow:** Each state transition calls the specific lifecycle callback (e.g., `onOpen`), then always calls `onTick` with the full result. The result is then emitted to all registered listeners via the Subject pattern.
 
-**Sources:** [src/config/emitters.ts:1-100](), [src/lib/services/connection/StrategyConnectionService.ts:104-121](), [types.d.ts:595-611]()
 
 ---
 
@@ -347,5 +334,4 @@ Every state transition emits events through Subject-based emitters, enabling obs
 | `CLOSE_PENDING_SIGNAL_FN` | [ClientStrategy.ts:736-789]() | Close signal and calculate PnL (live) | `IStrategyTickResultClosed` |
 | `CLOSE_PENDING_SIGNAL_IN_BACKTEST_FN` | [ClientStrategy.ts:975-1006]() | Close signal and calculate PnL (backtest) | `IStrategyTickResultClosed` |
 | `toProfitLossDto` | [toProfitLossDto.ts:1-50]() | Calculate PnL with fees/slippage | `IStrategyPnL` |
-
-**Sources:** [src/client/ClientStrategy.ts:1-1300](), [src/helpers/toProfitLossDto.ts:1-50]()
+

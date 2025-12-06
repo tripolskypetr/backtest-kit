@@ -29,7 +29,6 @@ Additional service categories exist for execution modes:
 - **Context Services**: ExecutionContextService, MethodContextService
 - **Template Services**: OptimizerTemplateService
 
-**Sources:** [src/lib/index.ts:57-224](), [src/lib/core/types.ts:1-96]()
 
 ## Service Categories
 
@@ -47,7 +46,6 @@ Connection Services manage memoized instances of Client* business logic classes.
 
 These services ensure consistent instance routing - multiple calls with the same parameters return the same cached instance, preserving internal state like signal history and initialization promises.
 
-**Sources:** [src/lib/services/connection/StrategyConnectionService.ts:1-222](), [src/lib/index.ts:70-92]()
 
 ### Schema Services
 
@@ -71,7 +69,6 @@ const schema = strategySchemaService.get("my-strategy")
 
 These services are queried by Connection Services during instance creation to retrieve configuration data.
 
-**Sources:** [src/lib/index.ts:94-108](), [src/function/add.ts:52-64]()
 
 ### Global Services
 
@@ -87,7 +84,6 @@ StrategyGlobalService.tick(symbol, when, backtest)
 
 Global Services also call Validation Services to verify component registration before operations.
 
-**Sources:** [src/lib/services/global/StrategyGlobalService.ts:1-204](), [src/lib/index.ts:110-126]()
 
 ### Validation Services
 
@@ -103,7 +99,6 @@ Validation Services implement two validation layers:
 - Timestamp validity
 - Position type validation
 
-**Sources:** [src/lib/index.ts:182-204](), [src/function/add.ts:52-64]()
 
 ### Command Services
 
@@ -115,7 +110,6 @@ Command Services provide the top-level entry points for execution modes. They pe
 - Delegate to LogicPublicService
 - Return AsyncGenerator for result streaming
 
-**Sources:** [src/lib/index.ts:128-136]()
 
 ### Logic Services
 
@@ -133,7 +127,6 @@ This separation enables Private Services to call other Private Services without 
 
 For detailed execution flows, see [Logic Services](./44_Logic_Services.md).
 
-**Sources:** [src/lib/index.ts:138-160]()
 
 ### Markdown Services
 
@@ -152,7 +145,6 @@ Markdown Services accumulate events from execution and generate reports with sta
 
 For detailed metrics, see [Performance Metrics](./71_Performance_Metrics.md).
 
-**Sources:** [src/lib/index.ts:162-180](), [src/classes/Backtest.ts:144-163]()
 
 ### Template Services
 
@@ -166,7 +158,6 @@ Template Services provide code generation templates for AI optimization. `Optimi
 
 For details on AI optimization, see [AI-Powered Strategy Optimization](./87_AI-Powered_Strategy_Optimization.md).
 
-**Sources:** [src/lib/index.ts:206-210]()
 
 ## Service Registration and Injection
 
@@ -180,7 +171,6 @@ The registration process follows three phases:
 
 **Phase 3: Aggregation** - [src/lib/index.ts:212-224]() imports all services via `inject()` and aggregates them into the `backtest` object, creating a single-namespace API.
 
-**Sources:** [src/lib/core/types.ts:1-96](), [src/lib/core/provide.ts:1-132](), [src/lib/index.ts:1-232]()
 
 ## The Backtest Aggregation Object
 
@@ -233,7 +223,6 @@ backtest.backtestCommandService.run(symbol, context)
 
 The Backtest, Live, and Walker utility classes ([src/classes/Backtest.ts](), [src/classes/Live.ts](), [src/classes/Walker.ts]()) use this object internally to access services.
 
-**Sources:** [src/lib/index.ts:57-232]()
 
 ## Service Interaction Patterns
 
@@ -279,7 +268,6 @@ Each layer adds value:
 - **Connection**: Instance routing
 - **Client**: Business logic
 
-**Sources:** [src/lib/services/global/StrategyGlobalService.ts:1-204](), [src/lib/services/connection/StrategyConnectionService.ts:1-222]()
 
 ## Service Category Deep Dives
 

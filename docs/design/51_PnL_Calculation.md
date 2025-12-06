@@ -17,7 +17,6 @@ The PnL calculation system provides realistic profit/loss metrics by simulating 
 
 PnL is calculated in the `toProfitLossDto` helper function and invoked by `ClientStrategy` when a signal closes for any reason (take profit, stop loss, or time expiration).
 
-**Sources**: [src/helpers/toProfitLossDto.ts:1-93](), [README.md:600-616]()
 
 ---
 
@@ -41,7 +40,6 @@ These constants ensure that:
 - Live trading expectations align with backtest performance
 - Signal validation includes realistic entry/exit conditions
 
-**Sources**: [src/helpers/toProfitLossDto.ts:7-13](), [README.md:604-606]()
 
 ---
 
@@ -69,7 +67,6 @@ interface IStrategyPnL {
 }
 ```
 
-**Sources**: [src/helpers/toProfitLossDto.ts:44-47](), [src/interfaces/Strategy.interface.ts]()
 
 ---
 
@@ -79,7 +76,6 @@ The following diagram shows how `toProfitLossDto` processes a closed signal:
 
 ![Mermaid Diagram](./diagrams/51_PnL_Calculation_0.svg)
 
-**Sources**: [src/helpers/toProfitLossDto.ts:44-90]()
 
 ---
 
@@ -111,7 +107,6 @@ pnlPercentage -= totalFee
 // Example: 1.796% - 0.2% = 1.596%
 ```
 
-**Sources**: [src/helpers/toProfitLossDto.ts:53-73](), [README.md:608-610]()
 
 ---
 
@@ -143,7 +138,6 @@ pnlPercentage -= totalFee
 // Example: 1.804% - 0.2% = 1.604%
 ```
 
-**Sources**: [src/helpers/toProfitLossDto.ts:58-80](), [README.md:612-615]()
 
 ---
 
@@ -167,7 +161,6 @@ Slippage simulates the reality that orders don't execute at ideal prices. The fr
 
 This bi-directional slippage ensures both entry and exit are penalized, providing conservative estimates that better match real trading outcomes.
 
-**Sources**: [src/helpers/toProfitLossDto.ts:50-61]()
 
 ---
 
@@ -187,7 +180,6 @@ This models the reality that:
 
 The fee is subtracted **after** slippage-adjusted PnL calculation, ensuring both cost factors are accounted for independently.
 
-**Sources**: [src/helpers/toProfitLossDto.ts:63-83]()
 
 ---
 
@@ -205,7 +197,6 @@ The `toProfitLossDto` function is called by `ClientStrategy` when a signal trans
 5. `PersistSignalAdapter` clears signal from disk
 6. Markdown services accumulate statistics
 
-**Sources**: [src/client/ClientStrategy.ts](), [src/helpers/toProfitLossDto.ts:44-90](), [src/client/ClientExchange.ts:172-203]()
 
 ---
 
@@ -286,7 +277,6 @@ netPnL = -0.0002% - 0.2% = -0.2002%
 
 This demonstrates why the framework's realistic cost modeling is important—strategies that appear profitable without costs may actually lose money in practice.
 
-**Sources**: [src/helpers/toProfitLossDto.ts:44-90](), [README.md:117-122]()
 
 ---
 
@@ -314,7 +304,6 @@ Average PNL: +1.23%
 
 The average PNL statistic is calculated from all closed signal PnL percentages, providing a performance summary across all trades.
 
-**Sources**: [src/lib/services/markdown/BacktestMarkdownService.ts](), [src/lib/services/markdown/LiveMarkdownService.ts](), [README.md:320-332]()
 
 ---
 
@@ -328,5 +317,4 @@ The PnL calculation system ensures realistic trading performance metrics through
 - **Type-safe output**: Structured `IStrategyPnL` interface
 
 This conservative approach ensures backtest results translate more accurately to live trading, preventing over-optimistic strategy validation.
-
-**Sources**: [src/helpers/toProfitLossDto.ts:1-93](), [README.md:600-616]()
+

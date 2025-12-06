@@ -17,7 +17,6 @@ The optimizer system consists of four primary components that orchestrate data c
 
 ![Mermaid Diagram](./diagrams/87_AI-Powered_Strategy_Optimization_0.svg)
 
-**Sources:** [src/client/ClientOptimizer.ts:1-448](), [src/lib/services/connection/OptimizerConnectionService.ts:1-175](), [src/lib/services/template/OptimizerTemplateService.ts:1-710](), [src/interfaces/Optimizer.interface.ts:1-490]()
 
 ---
 
@@ -27,7 +26,6 @@ The optimizer follows a three-phase pipeline: data collection, LLM interaction, 
 
 ![Mermaid Diagram](./diagrams/87_AI-Powered_Strategy_Optimization_1.svg)
 
-**Sources:** [src/client/ClientOptimizer.ts:90-215](), [src/client/ClientOptimizer.ts:217-350](), [src/client/ClientOptimizer.ts:352-384]()
 
 ---
 
@@ -76,7 +74,6 @@ const configSource: IOptimizerSource = {
 };
 ```
 
-**Sources:** [src/interfaces/Optimizer.interface.ts:129-177](), [src/interfaces/Optimizer.interface.ts:377-433]()
 
 ---
 
@@ -109,7 +106,6 @@ const RESOLVE_PAGINATION_FN = async (fetch, filterData) => {
 };
 ```
 
-**Sources:** [src/client/ClientOptimizer.ts:69-88](), [src/client/ClientOptimizer.ts:99-215](), [demo/optimization/src/index.mjs:66-296]()
 
 ---
 
@@ -145,7 +141,6 @@ The `GET_STRATEGY_CODE_FN` assembles code sections in this order:
 8. Walker configuration (`getWalkerTemplate`)
 9. Launcher code (`getLauncherTemplate`)
 
-**Sources:** [src/lib/services/template/OptimizerTemplateService.ts:26-710](), [src/client/ClientOptimizer.ts:217-350]()
 
 ---
 
@@ -181,7 +176,6 @@ format: {
 }
 ```
 
-**Sources:** [src/lib/services/template/OptimizerTemplateService.ts:166-298](), [src/lib/services/template/OptimizerTemplateService.ts:549-606](), [src/lib/services/template/OptimizerTemplateService.ts:608-706]()
 
 ---
 
@@ -335,7 +329,6 @@ The generated `.mjs` file contains:
 6. Walker configuration for comparison
 7. Launcher code with event listeners
 
-**Sources:** [demo/optimization/src/index.mjs:1-329](), [src/client/ClientOptimizer.ts:217-350]()
 
 ---
 
@@ -368,7 +361,6 @@ Events are emitted:
 - Before processing each source (shows current progress)
 - After all sources complete (progress = 1.0)
 
-**Sources:** [src/interfaces/Optimizer.interface.ts:188-236](), [src/contract/ProgressOptimizer.contract.ts:1-31](), [src/client/ClientOptimizer.ts:99-215]()
 
 ---
 
@@ -413,7 +405,6 @@ public getOptimizer = memoize(
 
 Memoization ensures only one `ClientOptimizer` instance exists per `optimizerName`, reducing memory overhead and maintaining consistent state.
 
-**Sources:** [src/lib/services/connection/OptimizerConnectionService.ts:1-175](), [src/lib/services/connection/OptimizerConnectionService.ts:59-113]()
 
 ---
 
@@ -529,5 +520,4 @@ source: [
   }
 ]
 ```
-
-**Sources:** [src/interfaces/Optimizer.interface.ts:129-177](), [src/interfaces/Optimizer.interface.ts:239-374](), [demo/optimization/src/index.mjs:66-296]()
+

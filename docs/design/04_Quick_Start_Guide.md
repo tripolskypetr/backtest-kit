@@ -8,7 +8,6 @@ A minimal backtest workflow consists of four registration steps followed by exec
 
 ![Mermaid Diagram](./diagrams/04_Quick_Start_Guide_0.svg)
 
-**Sources:** [src/index.ts:1-10](), [types.d.ts:1-100]()
 
 ## Step 1: Exchange Configuration
 
@@ -66,7 +65,6 @@ addExchange({
 - The framework uses `getCandles` to fetch data backwards from execution time
 - `ICandleData` requires: `timestamp`, `open`, `high`, `low`, `close`, `volume`
 
-**Sources:** [types.d.ts:205-260](), [src/interfaces/Exchange.interface.ts:1-50](), [test/e2e/defend.test.mjs:32-55]()
 
 ## Step 2: Frame Configuration
 
@@ -87,7 +85,6 @@ addFrame({
 
 The framework generates timestamps at the specified interval between `startDate` and `endDate`. Each timestamp triggers a `tick()` call on your strategy.
 
-**Sources:** [types.d.ts:323-379](), [src/interfaces/Frame.interface.ts:1-50](), [test/e2e/defend.test.mjs:90-95]()
 
 ## Step 3: Strategy Definition
 
@@ -134,7 +131,6 @@ addStrategy({
 - All prices must be positive and finite
 - `minuteEstimatedTime` must be positive integer
 
-**Sources:** [types.d.ts:729-833](), [src/interfaces/Strategy.interface.ts:1-150](), [src/client/ClientStrategy.ts:41-261]()
 
 ## Step 4: Running the Backtest
 
@@ -173,7 +169,6 @@ Each iteration yields a tick result with discriminated union type:
 | `"closed"` | Position closed | `signal`, `pnl`, `closeReason`, `currentPrice` |
 | `"cancelled"` | Scheduled signal expired | `signal: IScheduledSignalRow`, `currentPrice` |
 
-**Sources:** [types.d.ts:853-975](), [src/client/ClientStrategy.ts:312-376]()
 
 ## Step 5: Listening to Events
 
@@ -214,7 +209,6 @@ Backtest.background("BTCUSDT", {
 - `listenError`: Recoverable errors
 - `listenExit`: Fatal errors
 
-**Sources:** [src/function/event.ts:1-250](), [src/config/emitters.ts:1-122](), [test/e2e/defend.test.mjs:96-113]()
 
 ## Step 6: Getting Results
 
@@ -252,7 +246,6 @@ await Backtest.dump("BTCUSDT", "./results/backtest-report.md");
 | `certaintyRatio` | `number \| null` | Win probability metric |
 | `signalList` | `IStrategyTickResultClosed[]` | All closed signal details |
 
-**Sources:** [types.d.ts:980-1050](), [src/lib/services/markdown/BacktestMarkdownService.ts:1-100]()
 
 ## Complete Example
 
@@ -348,13 +341,11 @@ Backtest.background("BTCUSDT", {
 });
 ```
 
-**Sources:** [test/e2e/defend.test.mjs:26-146](), [test/e2e/partial.test.mjs:1-151]()
 
 ## Execution Flow Diagram
 
 ![Mermaid Diagram](./diagrams/04_Quick_Start_Guide_1.svg)
 
-**Sources:** [src/lib/services/logic/BacktestLogicPrivateService.ts:1-200](), [src/client/ClientStrategy.ts:1-100]()
 
 ## Next Steps
 
@@ -373,5 +364,4 @@ Backtest.background("BTCUSDT", {
 - [Backtest API](./17_Backtest_API.md) - Full method reference
 - [Event Listeners](./22_Event_Listeners.md) - Complete event API
 - [Reporting and Analytics](./69_Reporting_and_Analytics.md) - Performance metrics and statistics
-
-**Sources:** [types.d.ts:1-100](), [src/index.ts:1-184]()
+

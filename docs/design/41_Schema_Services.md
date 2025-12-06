@@ -21,7 +21,6 @@ The framework provides six schema services, each managing a specific domain's co
 
 All schema services follow identical patterns: singleton registration, `ToolRegistry`-based storage (from `functools-kit`), and name-based lookup. They are instantiated once during framework initialization and shared across all execution contexts.
 
-**Sources:** [src/lib/core/types.ts:18-25](), [src/lib/core/provide.ts:62-67](), [src/function/add.ts:50-341]()
 
 ---
 
@@ -35,7 +34,6 @@ The following diagram illustrates the relationship between registration function
 
 This architecture separates registration (startup time) from instantiation (runtime). Users register schemas once during application initialization using `add*()` functions. Connection Services query these registries on-demand using `get()` methods to create memoized client instances. All schema services use `ToolRegistry` from `functools-kit` for type-safe storage and retrieval.
 
-**Sources:** [src/lib/index.ts:80-90](), [src/lib/core/types.ts:18-25](), [src/lib/core/provide.ts:62-67](), [src/function/add.ts:50-341]()
 
 ---
 
@@ -79,7 +77,6 @@ The `addStrategy()` function registers a strategy schema into `StrategySchemaSer
 
 The registration process validates that `strategyName` is unique and stores the schema for later retrieval by `StrategyConnectionService`.
 
-**Sources:** [types.d.ts:413-422](), [types.d.ts:579-578](), [src/lib/services/schema/StrategySchemaService.ts]()
 
 ---
 
@@ -126,7 +123,6 @@ The `addExchange()` function registers an exchange schema into `ExchangeSchemaSe
 
 The registration process validates that `exchangeName` is unique and stores the schema for later retrieval by `ExchangeConnectionService`.
 
-**Sources:** [types.d.ts:137-171](), [types.d.ts:615-614](), [src/lib/services/schema/ExchangeSchemaService.ts]()
 
 ---
 
@@ -172,7 +168,6 @@ The `addFrame()` function registers a frame schema into `FrameSchemaService`:
 
 The registration process validates that `frameName` is unique and stores the schema for later retrieval by `FrameConnectionService`.
 
-**Sources:** [src/function/add.ts:143-149]()
 
 ---
 
@@ -231,7 +226,6 @@ export function addWalker(walkerSchema: IWalkerSchema) {
 
 The registration process validates that `walkerName` is unique and stores the schema for later retrieval by `WalkerLogicPrivateService`.
 
-**Sources:** [src/function/add.ts:188-200]()
 
 ---
 
@@ -301,7 +295,6 @@ export function addSizing(sizingSchema: ISizingSchema) {
 }
 ```
 
-**Sources:** [src/function/add.ts:254-266]()
 
 ---
 
@@ -361,7 +354,6 @@ export function addRisk(riskSchema: IRiskSchema) {
 
 Risk schemas enable portfolio-level risk management where multiple strategies can share the same risk limits. The `ClientRisk` class tracks active positions across all strategies using the same `riskName`.
 
-**Sources:** [src/function/add.ts:329-341]()
 
 ---
 
@@ -396,7 +388,6 @@ The `ToolRegistry` pattern from `functools-kit` provides type-safe storage with 
 
 **Error Handling:** If `get()` is called with an unregistered name, `ToolRegistry` throws an error indicating the missing configuration. This fail-fast behavior ensures configuration errors are detected early in the application lifecycle.
 
-**Sources:** [src/function/add.ts:50-341](), [docs/internals.md:32-33](), [docs/internals.md:48]()
 
 ---
 
@@ -463,7 +454,6 @@ export const backtest = {
 
 This makes all schema services accessible via `backtest.*SchemaService` for advanced use cases requiring direct registry access.
 
-**Sources:** [src/lib/core/provide.ts:62-67](), [src/lib/core/types.ts:18-25](), [src/lib/index.ts:80-90]()
 
 ---
 
@@ -477,7 +467,6 @@ The following diagram shows the complete lifecycle from user registration to cli
 
 The registration phase occurs at application startup, storing schemas in the registry. The instantiation phase occurs at runtime when Logic Services require client instances. Connection Services query Schema Services, create clients, and memoize them for reuse.
 
-**Sources:** [src/lib/services/schema/StrategySchemaService.ts](), [src/lib/services/connection/StrategyConnectionService.ts](), [src/lib/services/logic/private/BacktestLogicPrivateService.ts]()
 
 ---
 
@@ -511,7 +500,6 @@ The `Map<string, ISchema>` data structure is chosen because:
 3. **Iteration Support**: `getAllSchemas()` can iterate over values
 4. **Uniqueness Guarantee**: Map keys enforce unique schema names
 
-**Sources:** [src/lib/core/provide.ts:39-43](), [src/lib/services/connection/StrategyConnectionService.ts]()
 
 ---
 
@@ -667,7 +655,6 @@ addStrategy({
 });
 ```
 
-**Sources:** [src/function/add.ts:254-341]()
 
 ---
 
@@ -720,7 +707,6 @@ Each schema service's `validateShallow()` method validates required fields durin
 
 The `validateShallow()` method performs type checking and ensures required fields exist before allowing registration. Deeper validation (e.g., verifying referenced strategies exist) is performed by Validation Services (see [7.4](./42_Validation_Services.md)).
 
-**Sources:** [src/function/add.ts:54-57](), [src/function/add.ts:103-106](), [src/function/add.ts:147](), [src/function/add.ts:192-195](), [src/function/add.ts:258-261](), [src/function/add.ts:333-336]()
 
 ---
 
@@ -741,5 +727,4 @@ For more information:
 - Connection Services usage: [Connection Services](./24_Strategy_Schemas.md)
 - Registration API details: [Configuration Functions](./15_Configuration_Functions.md)
 - Runtime orchestration: [Logic Services](./27_Risk_Schemas.md)
-
-**Sources:** [src/lib/index.ts:42-62](), [src/lib/services/connection/StrategyConnectionService.ts]()
+

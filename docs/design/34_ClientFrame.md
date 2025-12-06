@@ -6,7 +6,6 @@ This document describes `ClientFrame`, the timeframe generator component respons
 
 For configuration schemas and registration patterns, see [Frame Schemas](./26_Frame_Schemas.md). For how the generated timeframes are consumed during backtest execution, see [Backtesting](./52_Backtesting.md).
 
-**Sources:** [types.d.ts:323-398]()
 
 ---
 
@@ -23,7 +22,6 @@ The component is instantiated by `FrameConnectionService` with memoization, ensu
 - Invoke `onTimeframe` callback with generated timestamps
 - Validate configuration parameters (interval, date range)
 
-**Sources:** [types.d.ts:366-398]()
 
 ---
 
@@ -42,7 +40,6 @@ The frame schema defines the complete configuration for timeframe generation:
 | `note` | `string` | No | Optional documentation string |
 | `callbacks` | `Partial<IFrameCallbacks>` | No | Optional lifecycle event handlers |
 
-**Sources:** [types.d.ts:366-379]()
 
 ### FrameInterval Types
 
@@ -59,7 +56,6 @@ Each interval string is internally converted to milliseconds for date arithmetic
 - `"1h"` → 3,600,000 ms
 - `"1d"` → 86,400,000 ms
 
-**Sources:** [types.d.ts:323]()
 
 ### IFrameParams
 
@@ -73,7 +69,6 @@ interface IFrameParams extends IFrameSchema {
 
 The `logger` instance is provided by the dependency injection container and used for debugging timeframe generation operations.
 
-**Sources:** [types.d.ts:328-331]()
 
 ---
 
@@ -97,7 +92,6 @@ The `logger` instance is provided by the dependency injection container and used
 - Non-standard intervals: Logs warning and uses default interval
 - Invalid dates: Throws validation error during schema registration
 
-**Sources:** [types.d.ts:384-393]()
 
 ---
 
@@ -114,7 +108,6 @@ The `logger` instance is provided by the dependency injection container and used
 3. **Sequential Iteration:** BacktestLogicPrivateService iterates through the timeframe array, setting `ExecutionContext.when` for each timestamp
 4. **Skip-Ahead Optimization:** When a signal opens, the backtest engine skips intermediate timeframes until signal closure, then resumes iteration
 
-**Sources:** [types.d.ts:384-393]()
 
 ---
 
@@ -164,7 +157,6 @@ addFrame({
 });
 ```
 
-**Sources:** [types.d.ts:335-346]()
 
 ---
 
@@ -183,7 +175,6 @@ addFrame({
 - **ClientFrame:** Implements the actual timeframe generation algorithm
 - **BacktestLogicPrivateService:** Consumes generated timeframes for backtest orchestration
 
-**Sources:** [types.d.ts:323-398]()
 
 ---
 
@@ -209,7 +200,6 @@ addFrame({
 
 **Expected Output:** 1440 timestamps (24 hours × 60 minutes)
 
-**Sources:** [types.d.ts:366-379]()
 
 ### Multi-Week Hourly Backtest
 
@@ -225,7 +215,6 @@ addFrame({
 
 **Expected Output:** 744 timestamps (31 days × 24 hours)
 
-**Sources:** [types.d.ts:366-379]()
 
 ### Daily Aggregation
 
@@ -241,7 +230,6 @@ addFrame({
 
 **Expected Output:** 365 timestamps (1 per day)
 
-**Sources:** [types.d.ts:366-379]()
 
 ---
 
@@ -258,7 +246,6 @@ ClientFrame does **not** directly interact with ClientStrategy. The integration 
 
 This separation ensures that ClientFrame remains a pure timeframe generator without strategy execution concerns.
 
-**Sources:** [types.d.ts:384-393]()
 
 ### ClientExchange Integration
 
@@ -272,7 +259,6 @@ For example:
 - Frame interval: `"1h"` (tick every hour)
 - Candle interval: `"1m"` (fetch 1-minute candles for VWAP calculation)
 
-**Sources:** [types.d.ts:323](), [types.d.ts:186]()
 
 ---
 
@@ -286,7 +272,6 @@ type FrameName = string;
 
 Unique identifier for a registered frame schema. Used as the key in FrameSchemaService registry and for memoization in FrameConnectionService.
 
-**Sources:** [types.d.ts:398]()
 
 ### IFrame Interface
 
@@ -298,7 +283,6 @@ interface IFrame {
 
 The core interface implemented by ClientFrame. The `symbol` parameter is included for API consistency but typically unused in timeframe generation (timeframes are symbol-agnostic).
 
-**Sources:** [types.d.ts:384-393]()
 
 ---
 
@@ -312,5 +296,4 @@ ClientFrame is a focused utility component that converts date ranges and time in
 - **Testability:** Pure function behavior (same inputs → same outputs)
 
 The generated timeframes form the temporal backbone of the backtest engine, enabling precise historical simulation at configurable granularities from 1-minute to 3-day intervals.
-
-**Sources:** [types.d.ts:323-398]()
+

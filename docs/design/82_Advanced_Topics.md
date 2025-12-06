@@ -22,13 +22,11 @@ The `IExchangeSchema` interface defines the contract for custom exchange impleme
 | `formatQuantity(symbol, quantity)` | Format quantity with exchange precision | Yes |
 | `callbacks` | Optional lifecycle event callbacks | No |
 
-**Sources:** [types.d.ts:137-171]()
 
 ### Integration Architecture
 
 ![Mermaid Diagram](./diagrams/82_Advanced_Topics_0.svg)
 
-**Sources:** [types.d.ts:137-171](), [src/index.ts:1-56]()
 
 ### REST API Integration Example
 
@@ -49,7 +47,6 @@ To integrate with a REST API exchange, implement the `IExchangeSchema` interface
 
 The `ClientExchange` class will delegate all `getCandles()` calls to your implementation, as shown in [types.d.ts:1438-1477]().
 
-**Sources:** [README.md:32-52](), [types.d.ts:137-171](), [types.d.ts:1438-1477]()
 
 ### Database Integration Example
 
@@ -71,7 +68,6 @@ Database-backed exchanges query historical candle data from local storage:
 - Cache precision rules in memory after first query
 - Use database functions for rounding if available
 
-**Sources:** [types.d.ts:137-171](), [types.d.ts:104-118]()
 
 ### CSV File Integration Example
 
@@ -93,7 +89,6 @@ File-based exchanges read historical data from disk:
 - Hardcode precision rules or read from separate config file
 - No API calls needed for static historical data
 
-**Sources:** [types.d.ts:137-171](), [types.d.ts:104-118]()
 
 ### Candle Data Transformation
 
@@ -120,7 +115,6 @@ All exchange implementations must return data in the `ICandleData` format:
 - `low <= open, high, close` (low is minimum)
 - `volume >= 0` (can be zero for illiquid pairs)
 
-**Sources:** [types.d.ts:104-118]()
 
 ### Exchange Callbacks
 
@@ -141,7 +135,6 @@ Optional callbacks provide observability into exchange operations:
 
 The callback is invoked by `ClientExchange.getCandles()` after successful data fetch, as shown in [types.d.ts:1448-1449]().
 
-**Sources:** [types.d.ts:131-135](), [types.d.ts:1438-1477]()
 
 ---
 
@@ -153,7 +146,6 @@ The default persistence implementation uses atomic file writes to local disk. Cu
 
 ![Mermaid Diagram](./diagrams/82_Advanced_Topics_1.svg)
 
-**Sources:** [types.d.ts:895-1125](), [README.md:676-690]()
 
 ### PersistBase Interface
 
@@ -168,7 +160,6 @@ Custom persistence adapters must implement the `IPersistBase` interface:
 
 **Critical requirement:** The `writeValue()` method **must be atomic** to prevent signal duplication during crashes. If the write operation cannot complete atomically, implement two-phase commit or use database transactions.
 
-**Sources:** [types.d.ts:926-959]()
 
 ### Redis Integration Example
 
@@ -197,7 +188,6 @@ Redis provides in-memory persistence with optional disk durability:
 - Handle connection errors in `waitForInit()`
 - Implement reconnection logic for production
 
-**Sources:** [types.d.ts:977-1054](), [README.md:676-690]()
 
 ### PostgreSQL Integration Example
 
@@ -230,7 +220,6 @@ PostgreSQL provides ACID-compliant persistence with strong consistency:
 - Batch reads/writes when possible
 - Consider partitioning by strategy_name for large deployments
 
-**Sources:** [types.d.ts:977-1054](), [types.d.ts:896-903]()
 
 ### MongoDB Integration Example
 
@@ -259,7 +248,6 @@ MongoDB provides document-based persistence with flexible schema:
 - Handle connection timeouts
 - Implement retry logic for transient failures
 
-**Sources:** [types.d.ts:977-1054]()
 
 ### AWS S3 Integration Example
 
@@ -292,7 +280,6 @@ S3 provides object storage with eventual consistency:
 - Implement lifecycle policies to archive old signals
 - Batch operations when possible
 
-**Sources:** [types.d.ts:977-1054]()
 
 ### Registration and Usage
 
@@ -316,7 +303,6 @@ Custom persistence adapters are registered globally before running strategies:
 - Cannot mix persistence backends per strategy
 - Re-registration is allowed but affects all future operations
 
-**Sources:** [types.d.ts:1067-1125](), [README.md:676-690]()
 
 ### Persistence Data Format
 
@@ -345,7 +331,6 @@ All persistence implementations must store and retrieve `ISignalData` objects:
 - If signal is null, start fresh with no active signal
 - This prevents duplicate signal generation after crashes
 
-**Sources:** [types.d.ts:896-903](), [types.d.ts:1095-1107]()
 
 ---
 
@@ -357,7 +342,6 @@ Multi-symbol strategies execute the same trading logic across multiple symbols s
 
 ![Mermaid Diagram](./diagrams/82_Advanced_Topics_2.svg)
 
-**Sources:** [README.md:693-715]()
 
 ### Isolated State Pattern
 
@@ -391,7 +375,6 @@ The isolated state pattern runs independent strategy instances per symbol with s
 - Running different parameter sets per symbol
 - Simple portfolio diversification without correlation
 
-**Sources:** [README.md:693-715]()
 
 ### Shared State Pattern
 
@@ -427,7 +410,6 @@ The shared state pattern maintains global state across all symbols for portfolio
 - Race condition prevention between symbols
 - Consider message queue for distributed systems
 
-**Sources:** [README.md:693-715]()
 
 ### Position Limit Enforcement
 
@@ -455,7 +437,6 @@ Portfolio-level position limits prevent over-exposure:
 - Maximum 50% capital allocated to any single position
 - Maximum 3 signals per 15-minute window globally
 
-**Sources:** [types.d.ts:410-422]()
 
 ### Risk Management Strategies
 
@@ -481,7 +462,6 @@ Multi-symbol strategies require portfolio-level risk management:
 - Maximum percentage per asset class (e.g., 50% altcoins)
 - Geographic/regulatory exposure limits
 
-**Sources:** [types.d.ts:410-422](), [types.d.ts:427-508]()
 
 ### Event Listeners for Multi-Symbol
 
@@ -504,7 +484,6 @@ Event listeners aggregate signals across all symbols:
 - Use `listenSignalOnce()` for one-time alerts
 - Example: Alert when any symbol hits stop-loss
 
-**Sources:** [README.md:336-461](), [types.d.ts:649-792]()
 
 ### Background Execution
 
@@ -531,7 +510,6 @@ Background execution runs strategies silently with event-driven reactions:
 // stops.forEach(stop => stop())
 ```
 
-**Sources:** [README.md:341-362](), [types.d.ts:1169-1184](), [types.d.ts:1289-1303]()
 
 ### Performance Considerations
 
@@ -563,7 +541,6 @@ Multi-symbol execution impacts system resources:
 - Implement connection pooling for API clients
 - Monitor memory usage in production
 
-**Sources:** [README.md:693-715](), [types.d.ts:1127-1233](), [types.d.ts:1237-1349]()
 
 ---
 
@@ -592,7 +569,6 @@ Custom loggers integrate with framework internals:
 - Filter logs by strategy or symbol
 - Debug production issues with rich context
 
-**Sources:** [types.d.ts:32-49](), [types.d.ts:1352-1410]()
 
 ### Context Services
 
@@ -620,7 +596,6 @@ Context services enable implicit parameter passing through the call stack:
 - Automatic cleanup after async operations
 - Testable with mock contexts
 
-**Sources:** [types.d.ts:84-95](), [types.d.ts:344-350]()
 
 ### Service Extension
 
@@ -642,5 +617,4 @@ Extend framework services to add custom functionality:
 - Connection services route to appropriate client instances
 - Global services wrap connection services with context injection
 - Logic services orchestrate async generator execution
-
-**Sources:** [src/index.ts:1-56]()
+

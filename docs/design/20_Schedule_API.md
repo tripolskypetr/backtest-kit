@@ -6,7 +6,6 @@ The Schedule API provides analysis and reporting for scheduled signals (limit or
 
 For information about the signal lifecycle including scheduled state transitions, see [Signal Lifecycle](./46_Signal_Lifecycle.md). For general strategy execution methods, see [Backtest API](./17_Backtest_API.md) and [Live Trading API](./18_Live_Trading_API.md).
 
-**Sources:** [src/lib/services/markdown/ScheduleMarkdownService.ts:1-548](), [types.d.ts:64-73]()
 
 ---
 
@@ -18,7 +17,6 @@ Scheduled signals represent limit orders that wait for price to reach a specific
 
 ![Mermaid Diagram](./diagrams/20_Schedule_API_0.svg)
 
-**Sources:** [src/client/ClientStrategy.ts:41-261](), [src/interfaces/Strategy.interface.ts:64-73](), [types.d.ts:5-72]()
 
 ---
 
@@ -30,7 +28,6 @@ The Schedule API is exposed through a service interface with three primary metho
 
 ![Mermaid Diagram](./diagrams/20_Schedule_API_1.svg)
 
-**Sources:** [src/lib/services/markdown/ScheduleMarkdownService.ts:374-545](), [types.d.ts:1000-1500]()
 
 ---
 
@@ -85,7 +82,6 @@ stats.eventList.forEach(event => {
 });
 ```
 
-**Sources:** [src/lib/services/markdown/ScheduleMarkdownService.ts:416-440](), [src/lib/services/markdown/ScheduleMarkdownService.ts:68-86](), [src/lib/services/markdown/ScheduleMarkdownService.ts:239-285]()
 
 ---
 
@@ -154,7 +150,6 @@ console.log(markdown);
 // **Average wait time (cancelled):** 65.33 minutes
 ```
 
-**Sources:** [src/lib/services/markdown/ScheduleMarkdownService.ts:442-464](), [src/lib/services/markdown/ScheduleMarkdownService.ts:287-324](), [src/lib/services/markdown/ScheduleMarkdownService.ts:91-158]()
 
 ---
 
@@ -194,7 +189,6 @@ await Schedule.dump("BTCUSDT", "my-strategy");
 await Schedule.dump("BTCUSDT", "my-strategy", "./reports/schedule");
 ```
 
-**Sources:** [src/lib/services/markdown/ScheduleMarkdownService.ts:466-498](), [src/lib/services/markdown/ScheduleMarkdownService.ts:326-350]()
 
 ---
 
@@ -206,7 +200,6 @@ The Schedule API tracks two types of events: scheduled signal creation and sched
 
 ![Mermaid Diagram](./diagrams/20_Schedule_API_2.svg)
 
-**Sources:** [src/lib/services/markdown/ScheduleMarkdownService.ts:15-44]()
 
 ---
 
@@ -218,7 +211,6 @@ The Schedule API uses internal storage per symbol-strategy pair to accumulate ev
 
 ![Mermaid Diagram](./diagrams/20_Schedule_API_3.svg)
 
-**Sources:** [src/lib/services/markdown/ScheduleMarkdownService.ts:374-545](), [src/lib/services/markdown/ScheduleMarkdownService.ts:163-237](), [src/lib/services/markdown/ScheduleMarkdownService.ts:382-413]()
 
 ---
 
@@ -239,7 +231,6 @@ The Schedule API maintains a bounded queue of events to prevent unbounded memory
 
 ![Mermaid Diagram](./diagrams/20_Schedule_API_4.svg)
 
-**Sources:** [src/lib/services/markdown/ScheduleMarkdownService.ts:160-162](), [src/lib/services/markdown/ScheduleMarkdownService.ts:176-194](), [src/lib/services/markdown/ScheduleMarkdownService.ts:196-237]()
 
 ---
 
@@ -251,7 +242,6 @@ Scheduled signals can be cancelled for multiple reasons before activation. The S
 
 ![Mermaid Diagram](./diagrams/20_Schedule_API_5.svg)
 
-**Sources:** [src/client/ClientStrategy.ts:474-528](), [src/client/ClientStrategy.ts:530-564](), [src/client/ClientStrategy.ts:601-693]()
 
 ---
 
@@ -278,7 +268,6 @@ setConfig({
 });
 ```
 
-**Sources:** [types.d.ts:5-72](), [src/client/ClientStrategy.ts:474-528]()
 
 ---
 
@@ -290,7 +279,6 @@ The Schedule API automatically subscribes to signal events emitted by strategy e
 
 ![Mermaid Diagram](./diagrams/20_Schedule_API_6.svg)
 
-**Sources:** [src/lib/services/markdown/ScheduleMarkdownService.ts:541-544](), [src/client/ClientStrategy.ts:720-763]()
 
 ---
 
@@ -379,7 +367,6 @@ for (const strategyName of ["aggressive-limits", "conservative-limits", "market-
 }
 ```
 
-**Sources:** [src/lib/services/markdown/ScheduleMarkdownService.ts:430-440](), [README.md:448-467]()
 
 ---
 
@@ -394,7 +381,6 @@ The Schedule API complements other reporting APIs in the backtest-kit framework.
 | [Partial API](./20_Schedule_API.md) | Profit/loss milestone tracking | Both track signal progress, different metrics |
 | [Walker API](./19_Walker_API.md) | Strategy comparison | Schedule API provides per-strategy scheduled signal metrics |
 
-**Sources:** [src/lib/services/markdown/ScheduleMarkdownService.ts:1-548](), [src/lib/services/markdown/BacktestMarkdownService.ts:1-545](), [src/lib/services/markdown/LiveMarkdownService.ts:1-749]()
 
 ---
 
@@ -404,7 +390,6 @@ The Schedule API complements other reporting APIs in the backtest-kit framework.
 
 ![Mermaid Diagram](./diagrams/20_Schedule_API_7.svg)
 
-**Sources:** [src/lib/services/markdown/ScheduleMarkdownService.ts:374-545](), [src/lib/services/markdown/ScheduleMarkdownService.ts:163-350](), [src/lib/services/markdown/ScheduleMarkdownService.ts:382-385]()
 
 ---
 
@@ -422,5 +407,4 @@ The Schedule API implements bounded memory usage through queue size limits and i
 ### Memory Growth Pattern
 
 ![Mermaid Diagram](./diagrams/20_Schedule_API_8.svg)
-
-**Sources:** [src/lib/services/markdown/ScheduleMarkdownService.ts:160-162](), [src/lib/services/markdown/ScheduleMarkdownService.ts:382-385](), [src/lib/services/markdown/ScheduleMarkdownService.ts:500-528]()
+

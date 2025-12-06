@@ -20,7 +20,6 @@ The risk management system prevents signal generation when portfolio conditions 
 
 ![Mermaid Diagram](./diagrams/65_Risk_Management_0.svg)
 
-Sources: [src/client/ClientRisk.ts:165-217](), [src/interfaces/Risk.interface.ts:1-145]()
 
 ---
 
@@ -69,7 +68,6 @@ Validations can be provided as:
 
 Both throw errors to reject signals. The object form allows documentation via `note` field.
 
-Sources: [src/interfaces/Risk.interface.ts:87-100](), [test/spec/risk.test.mjs:9-18]()
 
 ---
 
@@ -81,7 +79,6 @@ Risk validation occurs before signal creation. The process executes all custom v
 
 ![Mermaid Diagram](./diagrams/65_Risk_Management_1.svg)
 
-Sources: [src/interfaces/Risk.interface.ts:10-60]()
 
 **Validation Execution Process**
 
@@ -101,7 +98,6 @@ Validations wrapped by `DO_VALIDATION_FN` [src/client/ClientRisk.ts:31-46]():
 - Logs error details via `LoggerService`
 - Emits error to `validationSubject` for monitoring
 
-Sources: [src/client/ClientRisk.ts:165-217](), [src/client/ClientRisk.ts:31-46]()
 
 ---
 
@@ -113,7 +109,6 @@ Sources: [src/client/ClientRisk.ts:165-217](), [src/client/ClientRisk.ts:31-46](
 
 ![Mermaid Diagram](./diagrams/65_Risk_Management_2.svg)
 
-Sources: [src/client/ClientRisk.ts:73-150]()
 
 **Active Position Map**
 
@@ -138,7 +133,6 @@ interface IRiskActivePosition {
 }
 ```
 
-Sources: [src/interfaces/Risk.interface.ts:23-35](), [src/client/ClientRisk.ts:27-28]()
 
 ---
 
@@ -168,7 +162,6 @@ Sources: [src/interfaces/Risk.interface.ts:23-35](), [src/client/ClientRisk.ts:2
 
 Each `ClientRisk` instance has its own `_activePositions` Map. Multiple strategies can share a risk profile to enable cross-strategy position limits.
 
-Sources: [src/client/ClientRisk.ts:107-150](), [test/spec/risk.test.mjs:374-437]()
 
 ---
 
@@ -180,7 +173,6 @@ Risk positions are persisted via `PersistRiskAdapter` for crash recovery in live
 
 ![Mermaid Diagram](./diagrams/65_Risk_Management_4.svg)
 
-Sources: [src/client/ClientRisk.ts:88-101](), [src/client/ClientRisk.ts:53-59]()
 
 **Persistence Operations**
 
@@ -206,7 +198,6 @@ export const WAIT_FOR_INIT_FN = async (self: ClientRisk): Promise<void> => {
 
 Wrapped with `singleshot` [src/client/ClientRisk.ts:88]() to ensure initialization happens exactly once.
 
-Sources: [src/client/ClientRisk.ts:53-59](), [src/client/ClientRisk.ts:88](), [src/client/ClientRisk.ts:93-101]()
 
 ---
 
@@ -218,7 +209,6 @@ Risk management operates through a three-layer service architecture with explici
 
 ![Mermaid Diagram](./diagrams/65_Risk_Management_5.svg)
 
-Sources: [src/lib/services/global/RiskGlobalService.ts:1-117](), [src/lib/services/connection/RiskConnectionService.ts:1-138](), [src/client/ClientRisk.ts:1-221]()
 
 **Layer Responsibilities**
 
@@ -249,7 +239,6 @@ public getRisk = memoize(
 
 Ensures one `ClientRisk` instance per risk profile, enabling shared position tracking across strategies.
 
-Sources: [src/lib/services/connection/RiskConnectionService.ts:56-65](), [src/lib/services/global/RiskGlobalService.ts:15-42]()
 
 ---
 
@@ -319,7 +308,6 @@ addRisk({
 });
 ```
 
-Sources: [test/spec/risk.test.mjs:41-93](), [test/spec/risk.test.mjs:291-344]()
 
 ---
 
@@ -374,7 +362,6 @@ addRisk({
 });
 ```
 
-Sources: [src/interfaces/Risk.interface.ts:38-49](), [test/spec/risk.test.mjs:9-93]()
 
 ---
 
@@ -403,7 +390,6 @@ The `IRiskValidationPayload` interface provides complete portfolio state to vali
 | `exchangeName` | `string` | Exchange name |
 | `openTimestamp` | `number` | Unix timestamp when opened |
 
-Sources: [src/interfaces/Risk.interface.ts:52-60](), [src/interfaces/Risk.interface.ts:23-35]()
 
 ---
 
@@ -430,5 +416,4 @@ From [test/spec/risk.test.mjs:374-437]():
 - Register multiple risk profiles
 - Add positions to different profiles
 - Verify position counts are isolated
-
-Sources: [test/spec/risk.test.mjs:1-842]()
+

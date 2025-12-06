@@ -10,7 +10,6 @@ The service layer implements a dependency injection architecture using Symbol-ba
 
 The service layer isolates business logic (Client classes) from framework concerns (validation, context propagation, persistence, reporting). Client classes (`ClientStrategy`, `ClientExchange`, `ClientFrame`, `ClientRisk`, `ClientSizing`, `ClientOptimizer`) have no DI dependencies and receive all parameters explicitly through constructor injection, while services handle cross-cutting concerns through the DI container.
 
-**Sources:** [src/lib/index.ts:1-232](), [src/lib/core/provide.ts:1-132]()
 
 ## Service Category Matrix
 
@@ -20,7 +19,6 @@ The framework organizes services into 11 functional categories, with most catego
 
 ![Mermaid Diagram](./diagrams/39_Service_Architecture_Overview_0.svg)
 
-**Sources:** [src/lib/core/types.ts:1-97](), [src/lib/index.ts:57-224]()
 
 ## Service Organization in Code
 
@@ -48,7 +46,6 @@ The dependency injection container is initialized through three core files:
 2. **[src/lib/core/provide.ts:52-131]()**: Binds service implementations to tokens using `provide()` function with factory callbacks
 3. **[src/lib/index.ts:57-224]()**: Injects services using `inject<T>()` and aggregates them into the unified `backtest` export object at lines 212-224
 
-**Sources:** [src/lib/index.ts:57-224](), [src/lib/core/types.ts:1-97](), [src/lib/core/provide.ts:52-131]()
 
 ## Dependency Injection System
 
@@ -60,7 +57,6 @@ Services use Symbol-based dependency injection for type-safe resolution. Each se
 
 The DI container resolves the dependency graph at initialization time via `init()` called in [src/lib/index.ts:226](). Services receive dependencies through constructor injection, with the `di-scoped` package handling singleton lifecycle and lazy initialization.
 
-**Sources:** [src/lib/core/types.ts:1-97](), [src/lib/core/provide.ts:1-132](), [src/lib/index.ts:1-232]()
 
 ## Service Category Responsibilities
 
@@ -148,7 +144,6 @@ Subscribe to event emitters and generate performance reports. Markdown services 
 
 **File Location:** [src/lib/services/template/OptimizerTemplateService.ts]()
 
-**Sources:** [src/lib/services/base/](), [src/lib/services/context/](), [src/lib/services/schema/](), [src/lib/services/validation/](), [src/lib/services/connection/](), [src/lib/services/global/](), [src/lib/services/command/](), [src/lib/services/logic/](), [src/lib/services/markdown/](), [src/lib/services/template/]()
 
 ## Service Dependency Chain
 
@@ -160,7 +155,6 @@ Services form a dependency chain from user-facing API functions to Client classe
 
 The pattern is identical for Live and Walker modes, with `LiveCommandService`/`WalkerCommandService`, `LiveLogicPublicService`/`WalkerLogicPublicService`, and `LiveLogicPrivateService`/`WalkerLogicPrivateService` replacing the Backtest equivalents.
 
-**Sources:** [src/function/add.ts:1-444](), [src/lib/services/command/](), [src/lib/services/logic/](), [src/lib/services/global/](), [src/lib/services/connection/]()
 
 ## Component Service Matrix
 
@@ -183,7 +177,6 @@ Services are organized around eight component types (Strategy, Exchange, Frame, 
 
 Walker is a special case that uses Logic services instead of Global/Connection services, as it orchestrates multiple backtest runs rather than managing a single Client instance.
 
-**Sources:** [src/lib/core/types.ts:10-38](), [src/lib/services/global/](), [src/lib/services/connection/](), [src/lib/services/schema/](), [src/lib/services/validation/]()
 
 ## Context Propagation Through Services
 
@@ -192,5 +185,4 @@ Services use `MethodContextService` and `ExecutionContextService` from `di-scope
 ![Mermaid Diagram](./diagrams/39_Service_Architecture_Overview_4.svg)
 
 Services at any depth can resolve `MethodContextService` or `ExecutionContextService` via DI to access context without it being passed as parameters. This enables clean APIs where strategy authors call `getCandles(symbol, interval, limit)` instead of `getCandles(symbol, interval, limit, context)`.
-
-**Sources:** [src/lib/services/context/ExecutionContextService.ts](), [src/lib/services/context/MethodContextService.ts](), [src/lib/services/logic/public/]()
+

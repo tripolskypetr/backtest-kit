@@ -19,7 +19,6 @@ The framework calculates eight core performance metrics from closed signals:
 
 All metrics are calculated identically for both backtest and live modes, with implementations in `ReportStorage.getData()` methods that process arrays of closed signals.
 
-**Sources:** [src/lib/services/markdown/BacktestMarkdownService.ts:66-102](), [src/lib/services/markdown/LiveMarkdownService.ts:91-130]()
 
 ## Metric Calculation Architecture
 
@@ -27,7 +26,6 @@ All metrics are calculated identically for both backtest and live modes, with im
 
 The calculation pipeline follows a three-stage process: basic statistics compute foundational metrics (counts, sums, averages), risk metrics compute volatility measures (variance, standard deviation, Sharpe ratio), and scaled metrics compute time-adjusted projections (annualized Sharpe, yearly returns).
 
-**Sources:** [src/lib/services/markdown/BacktestMarkdownService.ts:183-270](), [src/lib/services/markdown/LiveMarkdownService.ts:229-464]()
 
 ## Metric Formulas and Implementation
 
@@ -52,7 +50,6 @@ const winRate = (winCount / totalSignals) * 100;
 
 **Interpretation:** Higher is better. Values above 50% indicate more winning trades than losing trades. A strategy with 70% win rate has 7 winning trades for every 3 losing trades.
 
-**Sources:** [src/lib/services/markdown/BacktestMarkdownService.ts:220-227](), [src/lib/services/markdown/LiveMarkdownService.ts:401-410]()
 
 ### Average PNL
 
@@ -72,7 +69,6 @@ const avgPnl = totalClosed > 0
 
 **Interpretation:** Higher is better. Represents the expected return per trade. A value of +2.5% means each trade gains 2.5% on average.
 
-**Sources:** [src/lib/services/markdown/BacktestMarkdownService.ts:225](), [src/lib/services/markdown/LiveMarkdownService.ts:406-408]()
 
 ### Total PNL
 
@@ -90,7 +86,6 @@ const totalPnl = closedEvents.reduce((sum, e) => sum + (e.pnl || 0), 0);
 
 **Interpretation:** Higher is better. Represents the cumulative return if each trade used equal capital. A value of +45.3% means the strategy gained 45.3% total across all trades.
 
-**Sources:** [src/lib/services/markdown/BacktestMarkdownService.ts:226](), [src/lib/services/markdown/LiveMarkdownService.ts:409]()
 
 ### Standard Deviation
 
@@ -114,7 +109,6 @@ const stdDev = Math.sqrt(variance);
 
 **Interpretation:** Lower is better. Represents the typical deviation from average return. A standard deviation of 1.5% means trades typically deviate ±1.5% from the mean.
 
-**Sources:** [src/lib/services/markdown/BacktestMarkdownService.ts:230-232](), [src/lib/services/markdown/LiveMarkdownService.ts:416-418]()
 
 ### Sharpe Ratio
 
@@ -138,7 +132,6 @@ const sharpeRatio = stdDev > 0 ? avgPnl / stdDev : 0;
 
 A Sharpe ratio of 2.0 means the strategy generates 2 units of return for every unit of risk.
 
-**Sources:** [src/lib/services/markdown/BacktestMarkdownService.ts:233](), [src/lib/services/markdown/LiveMarkdownService.ts:419]()
 
 ### Annualized Sharpe Ratio
 
@@ -156,7 +149,6 @@ const annualizedSharpeRatio = sharpeRatio * Math.sqrt(365);
 
 **Interpretation:** Higher is better. Allows comparison with annual return benchmarks. The √365 scaling factor assumes independent daily returns (reasonable for intraday strategies).
 
-**Sources:** [src/lib/services/markdown/BacktestMarkdownService.ts:234](), [src/lib/services/markdown/LiveMarkdownService.ts:421]()
 
 ### Certainty Ratio
 
@@ -189,7 +181,6 @@ const certaintyRatio = avgLoss < 0 ? avgWin / Math.abs(avgLoss) : 0;
 
 **Interpretation:** Higher is better. Values > 1.0 indicate winning trades are larger than losing trades. A certainty ratio of 2.5 means the average win is 2.5× the size of the average loss.
 
-**Sources:** [src/lib/services/markdown/BacktestMarkdownService.ts:237-245](), [src/lib/services/markdown/LiveMarkdownService.ts:424-435]()
 
 ### Expected Yearly Returns
 
@@ -224,7 +215,6 @@ const expectedYearlyReturns = avgPnl * tradesPerYear;
 - No capital constraints
 - Past performance repeats
 
-**Sources:** [src/lib/services/markdown/BacktestMarkdownService.ts:247-254](), [src/lib/services/markdown/LiveMarkdownService.ts:438-447]()
 
 ## Calculation Flow Diagram
 
@@ -232,7 +222,6 @@ const expectedYearlyReturns = avgPnl * tradesPerYear;
 
 The calculation follows a dependency chain where basic metrics must be computed before risk metrics, and risk metrics before scaled metrics. All calculations are protected by `isUnsafe()` checks that set metrics to `null` if they contain NaN or Infinity values.
 
-**Sources:** [src/lib/services/markdown/BacktestMarkdownService.ts:202-270](), [src/lib/services/markdown/LiveMarkdownService.ts:381-464]()
 
 ## Statistics Interface Definitions
 
@@ -257,7 +246,6 @@ export interface BacktestStatistics {
 
 Returned by `BacktestMarkdownService.getData()` for backtest mode execution.
 
-**Sources:** [src/lib/services/markdown/BacktestMarkdownService.ts:66-102]()
 
 ### LiveStatistics Interface
 
@@ -281,7 +269,6 @@ export interface LiveStatistics {
 
 Returned by `LiveMarkdownService.getData()` for live mode execution. Includes all events (idle, opened, active, closed), not just closed signals.
 
-**Sources:** [src/lib/services/markdown/LiveMarkdownService.ts:91-130]()
 
 ## Metrics Summary Table
 
@@ -296,7 +283,6 @@ Returned by `LiveMarkdownService.getData()` for live mode execution. Includes al
 | **Certainty Ratio** | `avgWin / \|avgLoss\|` | Win-to-loss size ratio | 0 to +∞ | Higher |
 | **Expected Yearly Returns** | `avgPnl × (365 / avgDurationDays)` | Projected annual return | -∞ to +∞ | Higher |
 
-**Sources:** [src/lib/services/markdown/BacktestMarkdownService.ts:224-254](), [src/lib/services/markdown/LiveMarkdownService.ts:406-447]()
 
 ## Safe Math Protection
 
@@ -324,7 +310,6 @@ When `isUnsafe()` returns `true`, the metric is set to `null` instead of display
 
 In markdown reports, `null` values are displayed as `"N/A"`.
 
-**Sources:** [src/lib/services/markdown/BacktestMarkdownService.ts:22-44](), [src/lib/services/markdown/LiveMarkdownService.ts:22-33]()
 
 ## Report Generation Integration
 
@@ -352,7 +337,6 @@ public async getReport(strategyName: StrategyName): Promise<string> {
 
 Each metric includes an interpretation hint ("higher is better" or "lower is better") to guide users in understanding performance.
 
-**Sources:** [src/lib/services/markdown/BacktestMarkdownService.ts:278-313](), [src/lib/services/markdown/LiveMarkdownService.ts:472-507]()
 
 ## Usage Examples
 
@@ -407,5 +391,4 @@ const results = await Walker.getData("BTCUSDT", "btc-walker");
 console.log(`Best strategy: ${results.bestStrategy}`);
 console.log(`Best Sharpe: ${results.bestMetric}`);
 ```
-
-**Sources:** [README.md:414-475]()
+

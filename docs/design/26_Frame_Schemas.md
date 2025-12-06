@@ -25,7 +25,6 @@ The `IFrameSchema` interface defines the contract for frame registration. All fr
 | `endDate` | `Date` | Yes | Inclusive end boundary for timeframe generation |
 | `callbacks` | `Partial<IFrameCallbacks>` | No | Optional `onTimeframe` callback invoked after generation |
 
-Sources: [types.d.ts:366-379]()
 </thinking>
 
 ---
@@ -54,7 +53,6 @@ The `FrameInterval` type defines the supported timestamp spacing options. Smalle
 // Total BacktestLogicPrivateService iterations = timestamp_count
 ```
 
-Sources: [types.d.ts:323]()
 
 ---
 
@@ -75,7 +73,6 @@ The `FrameInterval` type defines the step size for timeframe generation. Each in
 
 Smaller intervals generate more timestamps and require more computation. A 1-day backtest with 1-minute intervals produces 1,440 timestamps, while 1-hour intervals produce only 24 timestamps.
 
-Sources: [types.d.ts:278-285]()
 
 ---
 
@@ -123,7 +120,6 @@ for await (const result of Backtest.run("BTCUSDT", {
 }
 ```
 
-Sources: [src/function/add.ts:113-149](), [types.d.ts:309-341]()
 
 ---
 
@@ -155,7 +151,6 @@ Generated timeframe:
 // 6 timestamps total (inclusive of boundaries)
 ```
 
-Sources: [types.d.ts:343-355]()
 
 ---
 
@@ -201,7 +196,6 @@ addFrame({
 });
 ```
 
-Sources: [types.d.ts:333-346]()
 
 ---
 
@@ -229,7 +223,6 @@ Frame schemas are managed through a layered service architecture following the f
 | `FrameGlobalService` | Service | DI container | Context propagation wrapper |
 | `ClientFrame` | Class | Internal | Timeframe generation implementation |
 
-Sources: [types.d.ts:323-393](), [src/function/add.ts:143-149]()
 
 ---
 
@@ -253,7 +246,6 @@ The `IFrameParams` interface extends `IFrameSchema` with injected dependencies f
 | `note` | Schema | `string` | Optional documentation |
 | `logger` | DI | `ILogger` | Logger service for debug output |
 
-Sources: [types.d.ts:328-331]()
 
 ---
 
@@ -267,7 +259,6 @@ Frames are consumed by `BacktestLogicPrivateService` to generate the iteration a
 
 The `frameName` from `MethodContext` determines which frame to use. The generated timeframe array drives the iteration loop, with each timestamp representing a simulated "now" moment for strategy execution.
 
-Sources: [types.d.ts:363-375]()
 
 ---
 
@@ -335,7 +326,6 @@ for (const frameName of ["1h-scalping", "1d-intraday", "7d-swing", "30d-position
 }
 ```
 
-Sources: [src/function/add.ts:113-149]()
 
 ---
 
@@ -379,5 +369,4 @@ addFrame({
   endDate: new Date("2024-01-01T00:00:00Z"), // Before start
 }); // ✗ Throws validation error
 ```
-
-Sources: [src/function/add.ts:143-149](), [src/lib/index.ts:44]()
+

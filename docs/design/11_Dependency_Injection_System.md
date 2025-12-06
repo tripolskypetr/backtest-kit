@@ -6,7 +6,6 @@ This document describes the dependency injection (DI) container architecture use
 
 The DI system in backtest-kit is based on Symbol-based service tokens, factory-based service registration, and lazy singleton initialization. All services are registered at module load time and resolved on first access. The system enables clean separation of concerns, testability, and predictable service lifecycle management.
 
-**Sources:** [docs/internals.md:66-77](), [src/lib/index.ts:1-170]()
 
 ## Service Token System
 
@@ -29,7 +28,6 @@ The token registry groups related services by their architectural layer. Each to
 | `markdownServices` | Report generation | `backtestMarkdownService`, `liveMarkdownService` |
 | `validationServices` | Runtime validation | `strategyValidationService`, `exchangeValidationService` |
 
-**Sources:** [src/lib/core/types.ts:1-81]()
 
 ## Service Registration
 
@@ -45,7 +43,6 @@ The registration pattern follows a consistent structure:
 
 All services are registered as singletons - the factory is only called once per token, and the same instance is returned on all subsequent resolutions.
 
-**Sources:** [src/lib/core/provide.ts:1-111]()
 
 ## Service Resolution and Aggregation
 
@@ -55,7 +52,6 @@ Services are resolved from the DI container using the `inject()` function and ag
 
 The `inject()` function performs lazy resolution - services are only instantiated when first accessed. The aggregated `backtest` object serves as the central service locator used throughout the framework.
 
-**Sources:** [src/lib/index.ts:1-170]()
 
 ## Service Lifecycle and Initialization
 
@@ -72,7 +68,6 @@ Key lifecycle characteristics:
 | First Access | Factory executes, dependencies resolved | `backtest.loggerService` triggers creation |
 | Subsequent Access | Cached instance returned | Same `LoggerService` instance every time |
 
-**Sources:** [src/lib/index.ts:164](), [src/lib/core/provide.ts:44-111]()
 
 ## Dependency Injection in Service Constructors
 
@@ -86,7 +81,6 @@ This pattern enables:
 - **Testability**: Services can be replaced with mocks by rebinding tokens
 - **Decoupling**: Services depend on abstractions (tokens) not concrete implementations
 
-**Sources:** [docs/uml.puml:29-99]()
 
 ## Memoization Pattern in Connection Services
 
@@ -106,7 +100,6 @@ Connection services use the memoization pattern to ensure that only one client i
 
 The memoization is implemented using the `singleshot` decorator from `functools-kit`, which ensures the factory function only executes once per unique key combination.
 
-**Sources:** [docs/internals.md:46-47](), [src/lib/core/provide.ts:54-59]()
 
 ## Context Propagation via DI-Scoped
 
@@ -129,7 +122,6 @@ The DI system integrates with `di-scoped` to provide context propagation through
 
 For detailed information on context propagation mechanics, see [Context Propagation](./12_Context_Propagation.md).
 
-**Sources:** [docs/internals.md:70-77](), [src/lib/index.ts:10-15]()
 
 ## DI Flow Through Service Layers
 
@@ -150,5 +142,4 @@ The dependency injection system enables clean separation of the six architectura
 | Client Classes | Nothing (DI-free) | All service layers |
 
 The DI system enforces this layering through constructor injection - each layer only has access to the tokens it needs, preventing architectural violations.
-
-**Sources:** [docs/internals.md:28-40](), [src/lib/index.ts:49-162](), [src/function/add.ts:1-342]()
+

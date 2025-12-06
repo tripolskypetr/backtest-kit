@@ -19,7 +19,6 @@ The framework's architecture naturally supports multi-symbol strategies through 
 
 ![Mermaid Diagram](./diagrams/86_Multi-Symbol_Strategies_0.svg)
 
-**Sources:** [types.d.ts:57-64](), [types.d.ts:315-323](), [types.d.ts:1069-1107]()
 
 ---
 
@@ -54,7 +53,6 @@ await Promise.all(
 
 ![Mermaid Diagram](./diagrams/86_Multi-Symbol_Strategies_1.svg)
 
-**Sources:** [README.md:692-715](), [types.d.ts:1264-1333]()
 
 ---
 
@@ -85,7 +83,6 @@ Each `(strategyName, symbol)` pair maintains completely isolated signal state. T
 
 ![Mermaid Diagram](./diagrams/86_Multi-Symbol_Strategies_2.svg)
 
-**Sources:** [types.d.ts:1086-1107](), [types.d.ts:57-64]()
 
 ---
 
@@ -113,7 +110,6 @@ The framework uses memoization to cache `ClientStrategy` instances per `(symbol,
 
 The memoization key `${symbol}:${strategyName}` ensures each symbol-strategy combination maintains its own `ClientStrategy` instance, preventing state contamination while allowing `_pendingSignal` and `_scheduledSignal` to be instance properties.
 
-**Sources:** [src/lib/services/connection/StrategyConnectionService.ts:78-98](), [src/client/ClientStrategy.ts:1-40]()
 
 ---
 
@@ -165,7 +161,6 @@ process.on("SIGINT", () => {
 
 ![Mermaid Diagram](./diagrams/86_Multi-Symbol_Strategies_4.svg)
 
-**Sources:** [types.d.ts:1264-1333](), [types.d.ts:707-749]()
 
 ---
 
@@ -214,7 +209,6 @@ const btcWinRate = btcResults.filter(r => r.pnl.pnlPercentage > 0).length / btcR
 console.log(`BTCUSDT Win Rate: ${(btcWinRate * 100).toFixed(2)}%`);
 ```
 
-**Sources:** [types.d.ts:1304-1332](), [README.md:299-332]()
 
 ---
 
@@ -263,7 +257,6 @@ console.log("All symbols processed sequentially");
 | **Sequential** (for loop) | Lower (one generator active) | Slower (serial) | Debugging, resource-constrained environments |
 | **Background** (`.background()`) | Medium (generators in background) | Fast (fire-and-forget) | Event-driven architectures |
 
-**Sources:** [types.d.ts:1264-1333]()
 
 ---
 
@@ -362,7 +355,6 @@ addStrategy({
 });
 ```
 
-**Sources:** [types.d.ts:57-64](), [types.d.ts:410-422]()
 
 ---
 
@@ -413,7 +405,6 @@ On restart, all symbols resume from their last persisted state with no signal du
 
 ![Mermaid Diagram](./diagrams/86_Multi-Symbol_Strategies_6.svg)
 
-**Sources:** [types.d.ts:1069-1125](), [README.md:170-194]()
 
 ---
 
@@ -482,7 +473,6 @@ setInterval(() => {
 }, 60000); // Check every minute
 ```
 
-**Sources:** [types.d.ts:1299-1303](), [types.d.ts:707-727]()
 
 ---
 
@@ -538,7 +528,6 @@ await Backtest.dump("my-strategy");
 | ETHUSDT | 52 | 57.7% | +0.89% | +4.20% | -1.80% |
 | SOLUSDT | 38 | 68.4% | +1.67% | +6.50% | -1.50% |
 
-**Sources:** [types.d.ts:1127-1233](), [README.md:104-138]()
 
 ---
 
@@ -620,5 +609,4 @@ await Promise.all(
   symbols.map(s => Live.background(s, { strategyName: "one-size-fits-all", ... }))
 );
 ```
-
-**Sources:** [README.md:692-715](), [types.d.ts:1299-1303]()
+

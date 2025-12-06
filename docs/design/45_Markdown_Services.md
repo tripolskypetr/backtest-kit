@@ -14,7 +14,6 @@ The Markdown Services subsystem consists of three specialized service classes, e
 
 ![Mermaid Diagram](./diagrams/45_Markdown_Services_0.svg)
 
-**Sources:** [src/lib/services/markdown/BacktestMarkdownService.ts:370-532](), [src/lib/services/markdown/LiveMarkdownService.ts:567-736](), [src/lib/services/markdown/ScheduleMarkdownService.ts:374-493]()
 
 | Service | Event Source | Data Stored | Primary Purpose |
 |---------|-------------|-------------|-----------------|
@@ -22,7 +21,6 @@ The Markdown Services subsystem consists of three specialized service classes, e
 | `LiveMarkdownService` | `signalLiveEmitter` | All events (idle, opened, active, closed) | Real-time trading activity monitoring |
 | `ScheduleMarkdownService` | `signalEmitter`, `signalLiveEmitter` | Scheduled and cancelled signals | Limit order execution tracking |
 
-**Sources:** [docs/internals.md:62]()
 
 ---
 
@@ -32,7 +30,6 @@ The following diagram illustrates how trading events flow from execution context
 
 ![Mermaid Diagram](./diagrams/45_Markdown_Services_1.svg)
 
-**Sources:** [src/lib/services/markdown/BacktestMarkdownService.ts:402-413](), [src/lib/services/markdown/LiveMarkdownService.ts:601-617](), [src/lib/services/markdown/ScheduleMarkdownService.ts:401-413]()
 
 ---
 
@@ -42,7 +39,6 @@ The following diagram illustrates how trading events flow from execution context
 
 `BacktestMarkdownService` generates performance reports for historical backtesting by accumulating closed signals and calculating trading statistics. It only processes `closed` action events, ignoring intermediate states.
 
-**Sources:** [src/lib/services/markdown/BacktestMarkdownService.ts:343-370]()
 
 ### Event Subscription
 
@@ -50,7 +46,6 @@ The service subscribes to `signalBacktestEmitter` during initialization using th
 
 ![Mermaid Diagram](./diagrams/45_Markdown_Services_2.svg)
 
-**Sources:** [src/lib/services/markdown/BacktestMarkdownService.ts:526-529](), [src/lib/services/markdown/BacktestMarkdownService.ts:402-413]()
 
 ### Internal Storage Structure
 
@@ -58,7 +53,6 @@ Each strategy gets an isolated `ReportStorage` instance via memoization:
 
 ![Mermaid Diagram](./diagrams/45_Markdown_Services_3.svg)
 
-**Sources:** [src/lib/services/markdown/BacktestMarkdownService.ts:378-381](), [src/lib/services/markdown/BacktestMarkdownService.ts:179-194]()
 
 ### Statistics Interface
 
@@ -79,13 +73,11 @@ interface BacktestStatistics {
 }
 ```
 
-**Sources:** [src/lib/services/markdown/BacktestMarkdownService.ts:46-102]()
 
 ### Safe Math Pattern
 
 All numeric metrics use the `isUnsafe()` function to guard against `NaN`, `Infinity`, and invalid calculations:
 
-**Sources:** [src/lib/services/markdown/BacktestMarkdownService.ts:33-44](), [src/lib/services/markdown/BacktestMarkdownService.ts:261-268]()
 
 ---
 
@@ -95,7 +87,6 @@ All numeric metrics use the `isUnsafe()` function to guard against `NaN`, `Infin
 
 `LiveMarkdownService` tracks real-time trading activity by accumulating all tick events (idle, opened, active, closed) and provides comprehensive live trading analytics.
 
-**Sources:** [src/lib/services/markdown/LiveMarkdownService.ts:538-566]()
 
 ### Event Types Tracked
 
@@ -106,19 +97,16 @@ All numeric metrics use the `isUnsafe()` function to guard against `NaN`, `Infin
 | `active` | `TickEvent` | Replaces existing event with same `signalId` |
 | `closed` | `TickEvent` | Replaces existing event with same `signalId` |
 
-**Sources:** [src/lib/services/markdown/LiveMarkdownService.ts:38-66](), [src/lib/services/markdown/LiveMarkdownService.ts:239-373]()
 
 ### Event Accumulation Logic
 
 ![Mermaid Diagram](./diagrams/45_Markdown_Services_4.svg)
 
-**Sources:** [src/lib/services/markdown/LiveMarkdownService.ts:239-373](), [src/lib/services/markdown/LiveMarkdownService.ts:222-224]()
 
 ### MAX_EVENTS Limit
 
 The service maintains a bounded queue of 250 events to prevent memory leaks in long-running live trading sessions:
 
-**Sources:** [src/lib/services/markdown/LiveMarkdownService.ts:223]()
 
 ---
 
@@ -128,13 +116,11 @@ The service maintains a bounded queue of 250 events to prevent memory leaks in l
 
 `ScheduleMarkdownService` tracks scheduled limit orders and their lifecycle outcomes (activated vs. cancelled), providing cancellation rate analytics.
 
-**Sources:** [src/lib/services/markdown/ScheduleMarkdownService.ts:354-373]()
 
 ### Event Subscription Strategy
 
 Unlike the other services, `ScheduleMarkdownService` subscribes to both `signalLiveEmitter` and the global `signalEmitter` to capture scheduled signals from live trading:
 
-**Sources:** [src/lib/services/markdown/ScheduleMarkdownService.ts:471-474](), [docs/internals.md:62]()
 
 ### Statistics Interface
 
@@ -149,7 +135,6 @@ interface ScheduleStatistics {
 }
 ```
 
-**Sources:** [src/lib/services/markdown/ScheduleMarkdownService.ts:47-86]()
 
 ### Cancellation Rate Calculation
 
@@ -159,7 +144,6 @@ The cancellation rate metric indicates what percentage of scheduled limit orders
 cancellationRate = (totalCancelled / totalScheduled) × 100
 ```
 
-**Sources:** [src/lib/services/markdown/ScheduleMarkdownService.ts:267-268]()
 
 ---
 
@@ -171,13 +155,11 @@ Each markdown service contains an internal `ReportStorage` class that implements
 
 ![Mermaid Diagram](./diagrams/45_Markdown_Services_5.svg)
 
-**Sources:** [src/lib/services/markdown/BacktestMarkdownService.ts:179-341](), [src/lib/services/markdown/LiveMarkdownService.ts:229-535]()
 
 ### Memoization Pattern
 
 Services use `functools-kit` memoization to create one `ReportStorage` instance per strategy:
 
-**Sources:** [src/lib/services/markdown/BacktestMarkdownService.ts:378-381](), [src/lib/services/markdown/LiveMarkdownService.ts:575-578](), [src/lib/services/markdown/ScheduleMarkdownService.ts:382-385]()
 
 ---
 
@@ -187,7 +169,6 @@ Services use `functools-kit` memoization to create one `ReportStorage` instance 
 
 ![Mermaid Diagram](./diagrams/45_Markdown_Services_6.svg)
 
-**Sources:** [src/lib/services/markdown/BacktestMarkdownService.ts:202-269](), [src/lib/services/markdown/LiveMarkdownService.ts:381-464]()
 
 ### Metric Definitions
 
@@ -199,7 +180,6 @@ Services use `functools-kit` memoization to create one `ReportStorage` instance 
 | Certainty Ratio | `avgWin / |avgLoss|` | Average win vs. average loss ratio |
 | Expected Yearly Returns | `avgPnl × (365 / avgDurationDays)` | Projected annual profit % |
 
-**Sources:** [src/lib/services/markdown/BacktestMarkdownService.ts:224-254](), [src/lib/services/markdown/LiveMarkdownService.ts:405-447]()
 
 ---
 
@@ -211,13 +191,11 @@ All services generate markdown reports with column-based tables for event data:
 
 ![Mermaid Diagram](./diagrams/45_Markdown_Services_7.svg)
 
-**Sources:** [src/lib/services/markdown/BacktestMarkdownService.ts:104-177](), [src/lib/services/markdown/LiveMarkdownService.ts:145-220]()
 
 ### Column Configuration
 
 Columns are defined as arrays of objects with `key`, `label`, and `format` properties:
 
-**Sources:** [src/lib/services/markdown/BacktestMarkdownService.ts:104-177](), [src/lib/services/markdown/LiveMarkdownService.ts:145-220]()
 
 ### File Output
 
@@ -233,7 +211,6 @@ The `dump()` method writes reports to disk with the following structure:
     {strategyName}.md
 ```
 
-**Sources:** [src/lib/services/markdown/BacktestMarkdownService.ts:322-340](), [src/lib/services/markdown/LiveMarkdownService.ts:516-534](), [src/lib/services/markdown/ScheduleMarkdownService.ts:332-350]()
 
 ---
 
@@ -245,7 +222,6 @@ Public API classes (`Backtest`, `Live`, `Schedule`) delegate to markdown service
 
 ![Mermaid Diagram](./diagrams/45_Markdown_Services_8.svg)
 
-**Sources:** [src/classes/Backtest.ts:1-134](), [src/classes/Live.ts:1-134](), [src/classes/Schedule.ts:1-135]()
 
 ### Method Mapping
 
@@ -261,7 +237,6 @@ Public API classes (`Backtest`, `Live`, `Schedule`) delegate to markdown service
 | `Schedule.getReport(strategyName)` | `scheduleMarkdownService.getReport(strategyName)` | `string` |
 | `Schedule.dump(strategyName, path?)` | `scheduleMarkdownService.dump(strategyName, path)` | `void` |
 
-**Sources:** [src/classes/Backtest.ts:47-109](), [src/classes/Live.ts:47-109](), [src/classes/Schedule.ts:47-120]()
 
 ---
 
@@ -271,7 +246,6 @@ Public API classes (`Backtest`, `Live`, `Schedule`) delegate to markdown service
 
 ![Mermaid Diagram](./diagrams/45_Markdown_Services_9.svg)
 
-**Sources:** [src/lib/services/markdown/BacktestMarkdownService.ts:526-529](), [src/lib/services/markdown/LiveMarkdownService.ts:730-733](), [src/lib/services/markdown/ScheduleMarkdownService.ts:465-474]()
 
 ---
 
@@ -280,5 +254,4 @@ Public API classes (`Backtest`, `Live`, `Schedule`) delegate to markdown service
 All markdown services implement a `clear()` method to reset accumulated data:
 
 ![Mermaid Diagram](./diagrams/45_Markdown_Services_10.svg)
-
-**Sources:** [src/lib/services/markdown/BacktestMarkdownService.ts:508-513](), [src/lib/services/markdown/LiveMarkdownService.ts:712-717](), [src/lib/services/markdown/ScheduleMarkdownService.ts:465-470]()
+

@@ -6,7 +6,6 @@ This document explains how the framework tracks active positions for portfolio-l
 
 For information about risk profile configuration, see [Risk Profiles](./66_Risk_Profiles.md). For information about risk validation logic, see [Risk Validation](./67_Risk_Validation.md).
 
-**Sources:** [src/client/ClientRisk.ts:1-221]()
 
 ---
 
@@ -24,7 +23,6 @@ The tracking system provides:
 
 **Diagram: Position Sharing Across Strategies**
 
-**Sources:** [src/client/ClientRisk.ts:62-73](), [src/interfaces/Risk.interface.ts:23-35]()
 
 ---
 
@@ -64,7 +62,6 @@ This pattern ensures:
 - Deterministic lookup for `removeSignal` operations
 - Collision-free keys across strategies
 
-**Sources:** [src/client/ClientRisk.ts:20-28](), [src/interfaces/Risk.interface.ts:23-35]()
 
 ---
 
@@ -97,7 +94,6 @@ public async addSignal(
 )
 ```
 
-**Sources:** [src/client/ClientRisk.ts:107-128]()
 
 ### removeSignal Method
 
@@ -117,7 +113,6 @@ public async removeSignal(
 )
 ```
 
-**Sources:** [src/client/ClientRisk.ts:134-150]()
 
 ---
 
@@ -151,7 +146,6 @@ export const WAIT_FOR_INIT_FN = async (self: ClientRisk): Promise<void> => {
 - Converts array format to Map for efficient lookup
 - Wrapped in `singleshot` at line 88 to prevent duplicate initialization
 
-**Sources:** [src/client/ClientRisk.ts:53-59](), [src/client/ClientRisk.ts:88-88]()
 
 ---
 
@@ -175,7 +169,6 @@ The `_updatePositions` method coordinates persistence after state changes:
 3. Call `PersistRiskAdapter.writePositionData(array, riskName)`
 4. Atomic write ensures data integrity
 
-**Sources:** [src/client/ClientRisk.ts:93-101]()
 
 ### Data Format
 
@@ -206,7 +199,6 @@ This format:
 - Serializes to JSON without data loss
 - Reconstructs via `new Map(array)`
 
-**Sources:** [test/spec/risk.test.mjs:540-575]()
 
 ---
 
@@ -250,7 +242,6 @@ The `checkSignal` method builds the validation payload:
 }
 ```
 
-**Sources:** [src/client/ClientRisk.ts:165-217](), [src/interfaces/Risk.interface.ts:52-60]()
 
 ---
 
@@ -286,7 +277,6 @@ Test case demonstrating isolation:
 - Profile 2 reports `activePositionCount: 1`
 - No cross-contamination occurs
 
-**Sources:** [test/spec/risk.test.mjs:374-437](), [src/lib/services/connection/RiskConnectionService.ts:56-65]()
 
 ---
 
@@ -319,7 +309,6 @@ Position tracking integrates with the service layer through `RiskGlobalService` 
 - Shared position state across strategies
 - Efficient instance reuse
 
-**Sources:** [src/lib/services/connection/RiskConnectionService.ts:56-65](), [src/lib/services/global/RiskGlobalService.ts:69-97]()
 
 ---
 
@@ -341,7 +330,6 @@ strategy2:BTCUSDT  → Different position (same symbol, different strategy)
 strategy1:ETHUSDT  → Different position (same strategy, different symbol)
 ```
 
-**Sources:** [src/client/ClientRisk.ts:26-28]()
 
 ### Simplified Position Data
 
@@ -358,7 +346,6 @@ This simplification:
 - Avoids circular references
 - Focuses on count-based validation
 
-**Sources:** [src/client/ClientRisk.ts:118-125]()
 
 ### Synchronous State Updates
 
@@ -377,5 +364,4 @@ await this._updatePositions();
 - Immediate availability for subsequent validations
 - Non-blocking for other operations
 - Crash-safe through atomic writes
-
-**Sources:** [src/client/ClientRisk.ts:120-127](), [src/client/ClientRisk.ts:147-149]()
+

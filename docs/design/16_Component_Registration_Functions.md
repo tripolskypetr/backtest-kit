@@ -16,13 +16,11 @@ The component registration system implements a three-stage pipeline that transfo
 
 ![Mermaid Diagram](./diagrams/16_Component_Registration_Functions_0.svg)
 
-**Sources:** [src/function/add.ts:1-444]()
 
 ### Component Lifecycle
 
 ![Mermaid Diagram](./diagrams/16_Component_Registration_Functions_1.svg)
 
-**Sources:** [src/function/add.ts:52-444](), [src/lib/services/schema/*](), [src/lib/services/validation/*](), [src/lib/services/connection/*]()
 
 ---
 
@@ -40,7 +38,6 @@ The component registration system implements a three-stage pipeline that transfo
 | `addRisk` | `IRiskSchema` | `RiskValidationService` | `RiskSchemaService` | Register risk management rules |
 | `addOptimizer` | `IOptimizerSchema` | `OptimizerValidationService` | `OptimizerSchemaService` | Register AI strategy generator |
 
-**Sources:** [src/function/add.ts:10-16]()
 
 ---
 
@@ -67,7 +64,6 @@ interface IStrategySchema {
 }
 ```
 
-**Sources:** [types.d.ts:816-833](), [src/interfaces/Strategy.interface.ts:129-149]()
 
 ### Signal Intervals
 
@@ -82,7 +78,6 @@ Valid throttling intervals that enforce minimum time between `getSignal` calls:
 | `"30m"` | 30 minutes | Position trading |
 | `"1h"` | 1 hour | Long-term strategies |
 
-**Sources:** [src/client/ClientStrategy.ts:32-39]()
 
 ### Lifecycle Callbacks
 
@@ -101,13 +96,11 @@ Optional callbacks invoked during signal lifecycle transitions:
 | `onCancel` | Scheduled signal cancelled | `symbol`, `data`, `currentPrice`, `backtest` |
 | `onWrite` | Signal persisted | `symbol`, `data`, `backtest` |
 
-**Sources:** [types.d.ts:789-811](), [src/interfaces/Strategy.interface.ts:100-126]()
 
 ### Registration Process
 
 ![Mermaid Diagram](./diagrams/16_Component_Registration_Functions_2.svg)
 
-**Sources:** [src/function/add.ts:52-64]()
 
 ### Example Usage
 
@@ -145,7 +138,6 @@ addStrategy({
 });
 ```
 
-**Sources:** [src/function/add.ts:32-50]()
 
 ---
 
@@ -177,7 +169,6 @@ interface IExchangeSchema {
 }
 ```
 
-**Sources:** [types.d.ts:223-259](), [src/interfaces/Exchange.interface.ts:223-259]()
 
 ### Candle Data Structure
 
@@ -192,7 +183,6 @@ interface ICandleData {
 }
 ```
 
-**Sources:** [types.d.ts:191-204]()
 
 ### Candle Intervals
 
@@ -211,7 +201,6 @@ Valid intervals for candle data fetching:
 | `"6h"` | 6 hours | Daily cycle analysis |
 | `"8h"` | 8 hours | Three-shift patterns |
 
-**Sources:** [types.d.ts:186]()
 
 ### Registration Process
 
@@ -221,7 +210,6 @@ The `addExchange` function follows the same three-stage pipeline as other regist
 2. **Validation**: ExchangeValidationService checks required methods and data structure
 3. **Registration**: ExchangeSchemaService stores schema in Map
 
-**Sources:** [src/function/add.ts:101-113]()
 
 ### Example Usage
 
@@ -288,7 +276,6 @@ addExchange({
 });
 ```
 
-**Sources:** [src/function/add.ts:83-99]()
 
 ---
 
@@ -315,7 +302,6 @@ interface IFrameSchema {
 }
 ```
 
-**Sources:** [types.d.ts:366-379](), [src/interfaces/Frame.interface.ts:347-379]()
 
 ### Frame Intervals
 
@@ -337,13 +323,11 @@ Valid intervals for timeframe generation:
 | `"1d"` | 1 day | Daily at midnight UTC |
 | `"3d"` | 3 days | Every 3rd day |
 
-**Sources:** [types.d.ts:323]()
 
 ### Timeframe Generation Process
 
 ![Mermaid Diagram](./diagrams/16_Component_Registration_Functions_3.svg)
 
-**Sources:** [src/function/add.ts:145-151]()
 
 ### Example Usage
 
@@ -383,7 +367,6 @@ addFrame({
 });
 ```
 
-**Sources:** [src/function/add.ts:130-143]()
 
 ---
 
@@ -411,7 +394,6 @@ interface IWalkerSchema {
 }
 ```
 
-**Sources:** [types.d.ts (Walker section)]()
 
 ### Walker Metrics
 
@@ -426,13 +408,11 @@ Metrics available for strategy comparison:
 | `totalPnl` | Total PnL | Cumulative profit/loss | `sum(all_pnl)` |
 | `certaintyRatio` | Certainty Ratio | Win rate weighted by magnitude | `(wins - losses) / total_signals` |
 
-**Sources:** [types.d.ts (statistics section)]()
 
 ### Walker Execution Flow
 
 ![Mermaid Diagram](./diagrams/16_Component_Registration_Functions_4.svg)
 
-**Sources:** [src/function/add.ts:190-202]()
 
 ### Example Usage
 
@@ -476,7 +456,6 @@ addWalker({
 });
 ```
 
-**Sources:** [src/function/add.ts:168-188]()
 
 ---
 
@@ -533,13 +512,11 @@ interface ISizingSchemaATRBased {
 }
 ```
 
-**Sources:** [types.d.ts (Sizing section)]()
 
 ### Sizing Method Comparison
 
 ![Mermaid Diagram](./diagrams/16_Component_Registration_Functions_5.svg)
 
-**Sources:** [src/function/add.ts:256-268]()
 
 ### Example Usage
 
@@ -579,7 +556,6 @@ addSizing({
 });
 ```
 
-**Sources:** [src/function/add.ts:223-254]()
 
 ---
 
@@ -623,13 +599,11 @@ interface IRiskValidationPayload {
 }
 ```
 
-**Sources:** [types.d.ts:443-526](), [src/interfaces/Risk.interface.ts:443-526]()
 
 ### Risk Validation Flow
 
 ![Mermaid Diagram](./diagrams/16_Component_Registration_Functions_6.svg)
 
-**Sources:** [src/function/add.ts:331-343]()
 
 ### Example Usage
 
@@ -708,7 +682,6 @@ addRisk({
 });
 ```
 
-**Sources:** [src/function/add.ts:288-329]()
 
 ---
 
@@ -759,13 +732,11 @@ type IOptimizerSourceFn = (
 ) => Promise<IOptimizerMessage[]>;
 ```
 
-**Sources:** [types.d.ts (Optimizer section)]()
 
 ### Optimizer Data Collection Pipeline
 
 ![Mermaid Diagram](./diagrams/16_Component_Registration_Functions_7.svg)
 
-**Sources:** [src/function/add.ts:432-444]()
 
 ### Example Usage
 
@@ -876,7 +847,6 @@ addOptimizer({
 });
 ```
 
-**Sources:** [src/function/add.ts:364-430]()
 
 ---
 
@@ -888,7 +858,6 @@ The registration functions depend on two service categories that are injected vi
 
 ![Mermaid Diagram](./diagrams/16_Component_Registration_Functions_8.svg)
 
-**Sources:** [src/function/add.ts:1-444](), [src/lib/index.ts:1-232](), [src/lib/core/provide.ts:1-132](), [src/lib/core/types.ts:1-97]()
 
 ### Dependency Injection Registration
 
@@ -900,7 +869,6 @@ All services used by registration functions are registered in the DI container a
 | Schema Services | [src/lib/core/provide.ts:71-79]() | 7 services |
 | Logger Service | [src/lib/core/provide.ts:53]() | 1 service |
 
-**Sources:** [src/lib/core/provide.ts:1-132](), [src/lib/core/types.ts:1-97]()
 
 ---
 
@@ -928,7 +896,6 @@ class ExchangeValidationService {
 // Similar pattern for Frame, Walker, Sizing, Risk, Optimizer
 ```
 
-**Sources:** [src/lib/services/validation/*]()
 
 ### Common Validation Checks
 
@@ -941,7 +908,6 @@ class ExchangeValidationService {
 | Logic Validation | TP/SL relationships, time ranges | `"startDate must be before endDate"` |
 | Duplicate Prevention | No duplicate names | `"strategyName 'my-strategy' already registered"` |
 
-**Sources:** [src/lib/services/validation/*]()
 
 ---
 
@@ -975,13 +941,11 @@ class SchemaService<T> {
 }
 ```
 
-**Sources:** [src/lib/services/schema/*]()
 
 ### Registry Access Pattern
 
 ![Mermaid Diagram](./diagrams/16_Component_Registration_Functions_9.svg)
 
-**Sources:** [src/lib/services/schema/*](), [src/lib/services/connection/*]()
 
 ### Registration Summary Table
 
@@ -994,5 +958,4 @@ class SchemaService<T> {
 | Sizing | `addSizing()` | `SizingSchemaService` | `SizingConnectionService` | `ClientSizing` |
 | Risk | `addRisk()` | `RiskSchemaService` | `RiskConnectionService` | `ClientRisk` |
 | Optimizer | `addOptimizer()` | `OptimizerSchemaService` | `OptimizerConnectionService` | `ClientOptimizer` |
-
-**Sources:** [src/function/add.ts:1-444](), [src/lib/services/schema/*](), [src/lib/services/connection/*](), [src/client/*]()
+

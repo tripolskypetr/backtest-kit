@@ -18,7 +18,6 @@ The Backtest API is implemented as a singleton instance of `BacktestUtils` expor
 
 The Backtest API operates on historical data defined by Frame schemas (see [Frame Schemas](./26_Frame_Schemas.md)) and evaluates Strategy schemas (see [Strategy Schemas](./24_Strategy_Schemas.md)) sequentially through each timeframe.
 
-Sources: [src/classes/Backtest.ts:1-232](), [docs/classes/BacktestUtils.md:1-63]()
 
 ## Architecture and Data Flow
 
@@ -34,7 +33,6 @@ The Backtest API serves as the entry point to a multi-layer execution pipeline:
 4. **AsyncGenerator Streaming**: Results yield progressively as signals close
 5. **Event Accumulation**: `BacktestMarkdownService` accumulates signals via `signalBacktestEmitter`
 
-Sources: [src/classes/Backtest.ts:30-142](), [docs/classes/BacktestCommandService.md:1-70](), [src/lib/services/global/StrategyGlobalService.ts:1-204]()
 
 ## Method Reference
 
@@ -104,7 +102,6 @@ for await (const result of Backtest.run("BTCUSDT", {
 - Clears risk instance cache if strategy has `riskName` [src/classes/Backtest.ts:60-63]()
 - Delegates to `backtestCommandService.run()` [src/classes/Backtest.ts:65]()
 
-Sources: [src/classes/Backtest.ts:38-66](), [docs/classes/BacktestUtils.md:20-25]()
 
 ### Backtest.background()
 
@@ -169,7 +166,6 @@ setTimeout(() => {
 - Uses `isStopped` flag to break iteration [src/classes/Backtest.ts:101,105-107]()
 - Checks for pending signals before emitting done [src/classes/Backtest.ts:124-138]()
 
-Sources: [src/classes/Backtest.ts:89-142](), [docs/classes/BacktestUtils.md:29-38]()
 
 ### Backtest.getData()
 
@@ -256,7 +252,6 @@ console.log(`Certainty Ratio: ${stats.certaintyRatio}`);
 - Safe math checks prevent NaN/Infinity propagation
 - Returns `null` for metrics when insufficient data
 
-Sources: [src/classes/Backtest.ts:144-163](), [docs/classes/BacktestUtils.md:40-46]()
 
 ### Backtest.getReport()
 
@@ -350,7 +345,6 @@ await fs.writeFile("./backtest-report.md", markdown);
 - Markdown formatting uses consistent table syntax
 - Handles null values gracefully with "N/A" placeholders
 
-Sources: [src/classes/Backtest.ts:165-184](), [docs/classes/BacktestUtils.md:48-54]()
 
 ### Backtest.dump()
 
@@ -410,7 +404,6 @@ await Backtest.dump("rsi-strategy", "./reports/2024");
 - Overwrites existing file without warning
 - Uses UTF-8 encoding for markdown files
 
-Sources: [src/classes/Backtest.ts:186-210](), [docs/classes/BacktestUtils.md:56-62]()
 
 ## Integration with Event System
 
@@ -462,7 +455,6 @@ await Backtest.background("BTCUSDT", {
 });
 ```
 
-Sources: [src/lib/services/connection/StrategyConnectionService.ts:138-146](), [src/classes/Backtest.ts:103-118]()
 
 ## Execution Constraints
 
@@ -532,7 +524,6 @@ The frame `interval` must be compatible with the strategy `interval`:
 
 Misalignment will cause validation errors at runtime [src/classes/Backtest.ts:60-63]().
 
-Sources: [src/classes/Backtest.ts:38-66](), [src/lib/services/connection/StrategyConnectionService.ts:78-98]()
 
 ## Performance Considerations
 
@@ -578,7 +569,6 @@ await backtest.strategyGlobalService.clear();
 
 The `BacktestMarkdownService` has a configurable maximum event count (default: no limit). For very long backtests with thousands of signals, memory usage can grow. Consider using `background()` without collecting statistics for memory-constrained environments.
 
-Sources: [src/lib/services/connection/StrategyConnectionService.ts:78-98](), [src/lib/services/global/StrategyGlobalService.ts:192-200]()
 
 ## Complete Usage Example
 
@@ -661,5 +651,4 @@ console.log(markdown);
 // 6. Save to disk
 await Backtest.dump("rsi-strategy", "./reports");
 ```
-
-Sources: [src/classes/Backtest.ts:1-232](), [docs/classes/BacktestUtils.md:1-63]()
+

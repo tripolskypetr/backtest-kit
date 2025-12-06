@@ -12,7 +12,6 @@ This page covers:
 
 For information about the actual backtest execution flow that consumes these timeframes, see [Backtest Execution Flow](./53_Backtest_Execution_Flow.md). For details on fast-forward simulation using candle data, see [Fast-Forward Simulation](./55_Fast-Forward_Simulation.md).
 
-**Sources:** [types.d.ts:316-398]()
 
 ---
 
@@ -43,7 +42,6 @@ The interval directly controls:
 - **Backtest speed**: Coarser intervals reduce iteration count and improve performance
 - **Strategy execution frequency**: `ClientStrategy.tick()` is called once per timestamp
 
-**Sources:** [types.d.ts:323]()
 
 ---
 
@@ -55,7 +53,6 @@ Frame schemas are registered via `addFrame()` and define the date range and inte
 
 ![Mermaid Diagram](./diagrams/54_Timeframe_Generation_0.svg)
 
-**Sources:** [types.d.ts:332-379]()
 
 ### Configuration Fields
 
@@ -86,7 +83,6 @@ addFrame({
 });
 ```
 
-**Sources:** [types.d.ts:366-379]()
 
 ---
 
@@ -98,7 +94,6 @@ The `IFrame.getTimeframe()` method transforms a date range and interval into a c
 
 ![Mermaid Diagram](./diagrams/54_Timeframe_Generation_1.svg)
 
-**Sources:** [types.d.ts:380-393]()
 
 ### Interval Millisecond Conversion
 
@@ -126,7 +121,6 @@ Timestamps generated:
 Total: 5 timestamps (61-minute range ÷ 15-minute interval = 5)
 ```
 
-**Sources:** [types.d.ts:323-324]()
 
 ---
 
@@ -138,7 +132,6 @@ Frame schemas are managed by `FrameSchemaService`, which provides name-based loo
 
 ![Mermaid Diagram](./diagrams/54_Timeframe_Generation_2.svg)
 
-**Sources:** [types.d.ts:366-393]()
 
 ### FrameGlobalService Responsibilities
 
@@ -149,7 +142,6 @@ Frame schemas are managed by `FrameSchemaService`, which provides name-based loo
 3. **Instance Management**: Creates `ClientFrame` instances with merged parameters
 4. **Timeframe Generation**: Delegates to `ClientFrame.getTimeframe()` method
 
-**Sources:** Based on architecture patterns in [types.d.ts:328-331]() and service composition model from system diagrams
 
 ---
 
@@ -161,7 +153,6 @@ Timeframe generation is the first step in backtest execution. `BacktestLogicPriv
 
 ![Mermaid Diagram](./diagrams/54_Timeframe_Generation_3.svg)
 
-**Sources:** [types.d.ts:380-393](), architecture Diagram 3 from system overview
 
 ### Key Integration Points
 
@@ -174,7 +165,6 @@ Timeframe generation is the first step in backtest execution. `BacktestLogicPriv
 
 **Critical Detail:** The timeframe timestamp is set in `ExecutionContextService.context.when` before each `tick()` call. This allows `ClientStrategy.getSignal()` and `ClientExchange.getCandles()` to operate on the correct historical timestamp without explicit parameter passing.
 
-**Sources:** [types.d.ts:142-150](), [types.d.ts:404-413]()
 
 ---
 
@@ -210,7 +200,6 @@ Generated timeframe (ascending):
 ]
 ```
 
-**Sources:** Algorithm flow described in [types.d.ts:380-393]()
 
 ---
 
@@ -248,7 +237,6 @@ Timeframe density directly impacts backtest execution time. Denser timeframes (s
    addFrame({ frameName: "test", interval: "5m", startDate: ..., endDate: ... });
    ```
 
-**Sources:** Performance characteristics inferred from algorithm in [types.d.ts:380-393]()
 
 ---
 
@@ -302,7 +290,6 @@ addFrame({
 });
 ```
 
-**Sources:** [types.d.ts:333-346]()
 
 ---
 
@@ -317,7 +304,6 @@ Frames are retrieved by `frameName` string identifier. This name is used in:
 
 ![Mermaid Diagram](./diagrams/54_Timeframe_Generation_4.svg)
 
-**Sources:** [types.d.ts:395-398](), [types.d.ts:404-413]()
 
 ---
 
@@ -332,5 +318,4 @@ Timeframe generation is the foundation of backtest execution, transforming date 
 - **Performance optimization** through interval selection and skip-ahead
 
 The generated timeframe array drives the backtest loop in `BacktestLogicPrivateService`, with each timestamp becoming the `when` parameter in `ExecutionContextService.context` for that iteration.
-
-**Sources:** [types.d.ts:316-398](), system architecture diagrams
+

@@ -22,7 +22,6 @@ The framework provides seven registration functions, each accepting a schema obj
 
 All registration functions follow the same pattern: validate schema structure, then store in the appropriate schema service registry. The framework uses a name-based lookup system where each component type has a unique identifier (`strategyName`, `exchangeName`, etc.).
 
-**Sources:** [src/function/add.ts:1-444](), [src/index.ts:1-10]()
 
 ---
 
@@ -34,7 +33,6 @@ All registration functions follow the same pattern: validate schema structure, t
 
 This diagram shows the complete registration pipeline from user code to runtime execution. Each registration function performs a two-step process: validation then storage. The schema registries are immutable after registration and act as configuration databases queried by execution services.
 
-**Sources:** [src/function/add.ts:52-444](), [src/lib/index.ts:94-108](), [src/lib/core/provide.ts:72-79]()
 
 ---
 
@@ -48,7 +46,6 @@ All seven registration functions follow an identical implementation pattern:
 
 Each `add*` function executes the same three-step pattern: logging, validation, and registration. Validation errors throw immediately, preventing invalid schemas from entering the registry. The registration phase is synchronous and completes before the function returns.
 
-**Sources:** [src/function/add.ts:52-64](), [src/function/add.ts:101-113](), [src/function/add.ts:145-151]()
 
 ---
 
@@ -62,7 +59,6 @@ Schema services implement a simple name-to-schema registry using `Map` data stru
 
 All schema services follow the same pattern but are specialized for their respective component types. The `register()` method is called by `add*` functions, while `get()` and `has()` are called by Connection and Global services during execution.
 
-**Sources:** [src/lib/index.ts:94-108](), [src/lib/core/provide.ts:72-79]()
 
 ---
 
@@ -117,7 +113,6 @@ Validation occurs synchronously during registration, ensuring only valid schemas
 - **Source validation:** Each source must have `name` and `fetch` function
 - **Template validation:** Optional template overrides must be functions
 
-**Sources:** [src/function/add.ts:52-444]()
 
 ---
 
@@ -129,7 +124,6 @@ Validation occurs synchronously during registration, ensuring only valid schemas
 
 Components transition from registration (configuration) to execution (runtime) through a series of services. The schema acts as an immutable blueprint that Connection services use to create memoized instances. This separation enables multiple executions with different symbols to share the same schema but maintain separate runtime state.
 
-**Sources:** [src/lib/index.ts:212-224](), [src/function/add.ts:1-444]()
 
 ---
 
@@ -143,7 +137,6 @@ Component registration integrates with the dependency injection system through s
 
 The `TYPES` registry defines symbol keys for all services. The `provide.ts` file instantiates all services and registers them in the DI container. The `init()` function resolves dependencies and creates the `backtest` aggregation object. Registration functions (`add*`) import this object to access validation and schema services.
 
-**Sources:** [src/lib/core/types.ts:1-97](), [src/lib/core/provide.ts:1-132](), [src/lib/index.ts:1-232]()
 
 ---
 
@@ -183,7 +176,6 @@ const exists = backtest.exchangeSchemaService.has("binance");
 
 The `list*` functions are convenience wrappers that query schema services and return arrays of registered names. These are useful for validation, debugging, and dynamic configuration.
 
-**Sources:** [src/index.ts:11-19](), [src/lib/index.ts:94-108]()
 
 ---
 
@@ -217,7 +209,6 @@ Risk, sizing, and optimizer components are optional:
 
 Calling `add*` with the same name twice overwrites the previous registration. The latest schema wins. This enables dynamic reconfiguration during development but should be avoided in production.
 
-**Sources:** [src/function/add.ts:190-202]()
 
 ---
 
@@ -238,7 +229,6 @@ Common validation errors include:
 - Invalid date ranges (endDate before startDate)
 - Missing dependencies (walker references non-existent strategy)
 
-**Sources:** [src/function/add.ts:52-444]()
 
 ---
 
@@ -309,7 +299,6 @@ addWalker({
 // Now ready for: Walker.run("BTCUSDT", { walkerName })
 ```
 
-**Sources:** [src/function/add.ts:1-444]()
 
 ---
 
@@ -346,7 +335,6 @@ const key3 = "BTCUSDT_rsi-strategy";  // Returns first instance (cached)
 
 This enables parallel execution of the same strategy across multiple symbols without state interference. Each symbol maintains independent signal state, but all share the same underlying schema and `getSignal` function.
 
-**Sources:** [src/lib/index.ts:70-92]()
 
 ---
 

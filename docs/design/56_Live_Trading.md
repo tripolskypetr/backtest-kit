@@ -20,13 +20,11 @@ Live trading mode differs from backtest mode in several fundamental ways:
 | **Sleep Duration** | 61 seconds between ticks | No sleep (sequential) |
 | **Result Streaming** | Yields `opened`, `closed` | Yields `closed` only |
 
-Sources: [src/lib/services/logic/private/LiveLogicPrivateService.ts:1-134](), [src/lib/services/logic/private/BacktestLogicPrivateService.ts:1-388]()
 
 ## Live Execution Architecture
 
 The live trading architecture consists of six layers. The **User Space** provides the entry point via `Live.run()` or `Live.background()` and event listeners. The **Public API Layer** contains `LiveLogicPublicService` which manages method context. The **Private Execution Layer** implements the infinite loop in `LiveLogicPrivateService`, creating real-time timestamps with `new Date()` and sleeping 61 seconds between iterations. The **Strategy Execution** layer contains `ClientStrategy` which manages the signal state machine. The **Persistence Layer** ensures crash recovery through three adapters that perform atomic writes to JSON files. The **Event System** broadcasts all state transitions to subscribers, and the **Reporting** layer accumulates events for analysis.
 
-Sources: [src/lib/services/logic/private/LiveLogicPrivateService.ts:1-134](), [src/lib/services/markdown/LiveMarkdownService.ts:1-749]()
 
 ## Infinite Loop Execution
 
@@ -34,7 +32,6 @@ Sources: [src/lib/services/logic/private/LiveLogicPrivateService.ts:1-134](), [s
 
 The core of live trading is an infinite async generator in `LiveLogicPrivateService`.
 
-Sources: [src/lib/services/logic/private/LiveLogicPrivateService.ts:61-130]()
 
 ### Code Flow
 
@@ -51,7 +48,6 @@ The `run()` method in `LiveLogicPrivateService` implements the infinite loop:
 | 7. Yield Results | [line 126]() | Yield `opened` or `closed` results |
 | 8. Sleep | [line 128]() | `await sleep(TICK_TTL)` - 61 seconds |
 
-Sources: [src/lib/services/logic/private/LiveLogicPrivateService.ts:61-130]()
 
 ### TICK_TTL Constant
 
@@ -67,13 +63,11 @@ This value:
 - **Provides time for signal processing** before next iteration
 - **Avoids duplicate signal generation** via interval throttling
 
-Sources: [src/lib/services/logic/private/LiveLogicPrivateService.ts:12]()
 
 ## Crash Recovery System
 
 ### Persistence Architecture
 
-Sources: [src/lib/services/markdown/LiveMarkdownService.ts:1-749](), [README.md:755-766]()
 
 ### State Restoration Process
 
@@ -87,7 +81,6 @@ When live trading restarts after a crash:
 
 The `waitForInit()` method ensures all persistence adapters are ready before execution begins. This prevents the system from generating new signals before recovering existing ones, which would create duplicates.
 
-Sources: [README.md:19-20](), [README.md:409-410]()
 
 ### Atomic Writes
 
@@ -102,7 +95,6 @@ This ensures that:
 - **No corrupted state files** are created
 - **Recovery always works** from last complete state
 
-Sources: [README.md:19-20]()
 
 ## Real-time Monitoring
 
@@ -114,7 +106,6 @@ Live mode emits events through multiple channels:
 
 **Event Flow: Live Trading Monitoring**
 
-Sources: [src/lib/services/markdown/LiveMarkdownService.ts:38-66](), [src/lib/services/markdown/LiveMarkdownService.ts:600-617]()
 
 ### LiveMarkdownService
 
@@ -128,7 +119,6 @@ The `LiveMarkdownService` accumulates all events for reporting:
 | `dump(symbol, strategyName, path?)` | Saves report to disk | `Promise<void>` |
 | `clear(ctx?)` | Clears accumulated data | `Promise<void>` |
 
-Sources: [src/lib/services/markdown/LiveMarkdownService.ts:567-745]()
 
 ### LiveStatistics Interface
 
@@ -154,7 +144,6 @@ interface LiveStatistics {
 
 All numeric metrics return `null` if calculation is unsafe (NaN, Infinity). This ensures safe math operations in all environments.
 
-Sources: [src/lib/services/markdown/LiveMarkdownService.ts:91-130]()
 
 ### Event Storage Optimization
 
@@ -172,7 +161,6 @@ Else:
   Append new idle event and trim to MAX_EVENTS
 ```
 
-Sources: [src/lib/services/markdown/LiveMarkdownService.ts:223-266]()
 
 ## Interval Throttling
 
@@ -199,7 +187,6 @@ The `interval` field accepts:
 - `"1h"` - 1 hour
 - Other standard candle intervals
 
-Sources: [README.md:130-143]()
 
 ### Throttling Implementation
 
@@ -209,7 +196,6 @@ The throttling prevents:
 - **Rate limit violations** from exchanges
 - **Duplicate signals** on same price movement
 
-Sources: [README.md:131](), [README.md:409-410]()
 
 ### Interaction with TICK_TTL
 
@@ -223,7 +209,6 @@ The relationship between `interval` and `TICK_TTL`:
 
 The `interval` provides strategy-level throttling, while `TICK_TTL` provides system-level rate limiting. Both work together to prevent over-trading.
 
-Sources: [src/lib/services/logic/private/LiveLogicPrivateService.ts:12]()
 
 ## Public API Usage
 
@@ -262,7 +247,6 @@ The `run()` method returns an async generator that:
 - **Skips idle/active states** (internal monitoring)
 - **Runs forever** unless manually broken
 
-Sources: [README.md:383-407]()
 
 ### Live.background() - Fire and Forget
 
@@ -297,7 +281,6 @@ The `background()` method:
 - **Requires event listeners** for monitoring
 - **Runs in separate async context** (non-blocking)
 
-Sources: [README.md:383-407]()
 
 ### Report Generation
 
@@ -319,7 +302,6 @@ await Live.dump("BTCUSDT", "my-strategy");
 // Saves to: ./dump/live/my-strategy.md
 ```
 
-Sources: [README.md:383-407]()
 
 ## Comparison with Backtest Mode
 
@@ -329,7 +311,6 @@ Sources: [README.md:383-407]()
 
 **Comparison: Backtest vs Live Execution Flow**
 
-Sources: [src/lib/services/logic/private/BacktestLogicPrivateService.ts:62-384](), [src/lib/services/logic/private/LiveLogicPrivateService.ts:61-130]()
 
 ### Key Differences Table
 
@@ -346,7 +327,6 @@ Sources: [src/lib/services/logic/private/BacktestLogicPrivateService.ts:62-384](
 | **Events** | `signalBacktestEmitter` | `signalLiveEmitter` |
 | **Report** | `BacktestMarkdownService` | `LiveMarkdownService` |
 
-Sources: [src/lib/services/logic/private/BacktestLogicPrivateService.ts:1-388](), [src/lib/services/logic/private/LiveLogicPrivateService.ts:1-134]()
 
 ## Production Deployment Considerations
 
@@ -378,7 +358,6 @@ listenSignalLive((event) => {
 // Should NOT see: [opened] signal-id-123 (duplicate)
 ```
 
-Sources: [README.md:409-410]()
 
 ### Graceful Shutdown
 
@@ -411,7 +390,6 @@ The `stop()` function:
 - **Does NOT** immediately kill the process
 - **Allows cleanup** via await after calling stop
 
-Sources: [README.md:406]()
 
 ### Error Handling
 
@@ -425,7 +403,6 @@ Live mode implements automatic error recovery:
 
 This ensures temporary network issues or exchange API failures don't crash the system.
 
-Sources: [src/lib/services/logic/private/LiveLogicPrivateService.ts:75-88]()
 
 ### Performance Monitoring
 
@@ -450,7 +427,6 @@ This enables monitoring of:
 - **Bottleneck detection** - Slow operations
 - **System health** - Overall performance
 
-Sources: [src/lib/services/logic/private/LiveLogicPrivateService.ts:95-108]()
 
 ### Resource Usage
 
@@ -467,5 +443,4 @@ The `MAX_EVENTS = 250` limit in `LiveMarkdownService` prevents unbounded memory 
 - Stores last 250 events per symbol-strategy pair
 - Oldest events are trimmed automatically
 - FIFO queue with efficient shift operations
-
-Sources: [src/lib/services/markdown/LiveMarkdownService.ts:223]()
+

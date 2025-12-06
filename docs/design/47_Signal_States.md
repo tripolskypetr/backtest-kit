@@ -19,7 +19,6 @@ The framework models signal lifecycle as a deterministic state machine with six 
 | **closed** | Position closed with realized PnL | `_pendingSignal === null` (after TP/SL/timeout) | Yes |
 | **cancelled** | Scheduled signal cancelled without opening | `_scheduledSignal === null` (after timeout/SL) | Yes |
 
-**Sources:**
 - [src/interfaces/Strategy.interface.ts:173-289]()
 - [src/client/ClientStrategy.ts:1-100]()
 - [types.d.ts:853-965]()
@@ -60,7 +59,6 @@ interface IStrategyTickResultIdle {
 }
 ```
 
-**Sources:**
 - [src/interfaces/Strategy.interface.ts:173-186]()
 - [src/client/ClientStrategy.ts:263-310]()
 - [types.d.ts:853-867]()
@@ -107,7 +105,6 @@ interface IStrategyTickResultScheduled {
 }
 ```
 
-**Sources:**
 - [src/interfaces/Strategy.interface.ts:192-205]()
 - [src/client/ClientStrategy.ts:312-367]()
 - [src/client/ClientStrategy.ts:530-564]()
@@ -144,7 +141,6 @@ interface IStrategyTickResultOpened {
 }
 ```
 
-**Sources:**
 - [src/interfaces/Strategy.interface.ts:211-224]()
 - [src/client/ClientStrategy.ts:765-815]()
 - [src/client/ClientStrategy.ts:601-693]()
@@ -202,7 +198,6 @@ interface IStrategyTickResultActive {
 }
 ```
 
-**Sources:**
 - [src/interfaces/Strategy.interface.ts:230-243]()
 - [src/client/ClientStrategy.ts:817-876]()
 - [src/client/ClientStrategy.ts:917-959]()
@@ -251,7 +246,6 @@ interface IStrategyTickResultClosed {
 }
 ```
 
-**Sources:**
 - [src/interfaces/Strategy.interface.ts:249-268]()
 - [src/client/ClientStrategy.ts:878-959]()
 - [src/helpers/toProfitLossDto.ts:1-50]()
@@ -303,7 +297,6 @@ interface IStrategyTickResultCancelled {
 }
 ```
 
-**Sources:**
 - [src/interfaces/Strategy.interface.ts:274-289]()
 - [src/client/ClientStrategy.ts:474-528]()
 - [src/client/ClientStrategy.ts:566-599]()
@@ -328,7 +321,6 @@ interface IStrategyTickResultCancelled {
 | closed → idle | Next tick after closure |
 | cancelled → idle | Next tick after cancellation |
 
-**Sources:**
 - [src/client/ClientStrategy.ts:960-1100]()
 - Diagram 2 from high-level architecture
 
@@ -354,7 +346,6 @@ Stores the currently active position being monitored. Non-null during **opened**
 **Persistence:**
 In live mode (non-backtest), state is persisted via `PersistSignalAdapter.writeSignalData()` for crash recovery.
 
-**Sources:**
 - [src/client/ClientStrategy.ts:133-145]()
 - [src/client/ClientStrategy.ts:147-167]()
 
@@ -374,7 +365,6 @@ Stores the pending limit order awaiting activation. Non-null only during **sched
 **Persistence:**
 In live mode, state is persisted via `PersistScheduleAdapter.writeScheduleData()` for crash recovery.
 
-**Sources:**
 - [src/client/ClientStrategy.ts:169-181]()
 - [src/client/ClientStrategy.ts:183-203]()
 
@@ -423,7 +413,6 @@ type IStrategyBacktestResult =
 
 This is because backtesting fast-forwards through the entire signal lifecycle and always returns a terminal state (either closed with PnL or cancelled without execution).
 
-**Sources:**
 - [src/interfaces/Strategy.interface.ts:295-306]()
 - [types.d.ts:966-975]()
 
@@ -455,7 +444,6 @@ if (signal.priceOpen !== undefined) {
 }
 ```
 
-**Sources:**
 - [src/client/ClientStrategy.ts:312-367]()
 
 ### Idle → Opened
@@ -482,7 +470,6 @@ if (shouldActivateImmediately) {
 }
 ```
 
-**Sources:**
 - [src/client/ClientStrategy.ts:323-344]()
 - [src/client/ClientStrategy.ts:369-384]()
 
@@ -508,7 +495,6 @@ if (shouldActivate && !shouldCancel) {
 }
 ```
 
-**Sources:**
 - [src/client/ClientStrategy.ts:530-564]()
 - [src/client/ClientStrategy.ts:601-693]()
 
@@ -541,7 +527,6 @@ if (scheduled.position === "short" && currentPrice >= scheduled.priceStopLoss) {
 }
 ```
 
-**Sources:**
 - [src/client/ClientStrategy.ts:474-528]()
 - [src/client/ClientStrategy.ts:530-564]()
 - [test/e2e/defend.test.mjs:446-537]()
@@ -550,7 +535,6 @@ if (scheduled.position === "short" && currentPrice >= scheduled.priceStopLoss) {
 
 **Condition:** Automatic transition on next tick after signal opening. No explicit condition checked.
 
-**Sources:**
 - [src/client/ClientStrategy.ts:960-1020]()
 
 ### Active → Closed
@@ -590,7 +574,6 @@ if (signal.position === "short" && averagePrice >= signal.priceStopLoss) {
 }
 ```
 
-**Sources:**
 - [src/client/ClientStrategy.ts:817-876]()
 - [src/client/ClientStrategy.ts:878-915]()
 
@@ -598,14 +581,12 @@ if (signal.position === "short" && averagePrice >= signal.priceStopLoss) {
 
 **Condition:** Automatic transition on next tick after signal closure. `_pendingSignal` cleared to `null`.
 
-**Sources:**
 - [src/client/ClientStrategy.ts:960-1020]()
 
 ### Cancelled → Idle
 
 **Condition:** Automatic transition on next tick after cancellation. `_scheduledSignal` cleared to `null`.
 
-**Sources:**
 - [src/client/ClientStrategy.ts:960-1020]()
 
 ---
@@ -614,7 +595,6 @@ if (signal.position === "short" && averagePrice >= signal.priceStopLoss) {
 
 ![Mermaid Diagram](./diagrams/47_Signal_States_1.svg)
 
-**Sources:**
 - [src/client/ClientStrategy.ts:960-1100]()
 - [test/e2e/defend.test.mjs:291-439]()
 
@@ -629,7 +609,6 @@ if (signal.position === "short" && averagePrice >= signal.priceStopLoss) {
 - No `pnl` object (no trade executed, no fees paid)
 - Action is `"cancelled"` not `"closed"`
 
-**Sources:**
 - [src/client/ClientStrategy.ts:530-564]()
 - [src/client/ClientStrategy.ts:566-599]()
 - [test/e2e/defend.test.mjs:1393-1507]()

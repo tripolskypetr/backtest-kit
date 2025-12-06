@@ -12,7 +12,6 @@ The signal generation process is orchestrated by `GET_SIGNAL_FN` in [src/client/
 
 ![Mermaid Diagram](./diagrams/48_Signal_Generation_and_Validation_0.svg)
 
-**Sources:** [src/client/ClientStrategy.ts:263-396](), [src/interfaces/Strategy.interface.ts:132-149]()
 
 ## Three-Layer Validation Architecture
 
@@ -26,7 +25,6 @@ The validation pipeline implements defense-in-depth with three independent valid
 
 The first two layers fail silently (return `null`) to prevent log spam during normal operation. The structure validation layer throws errors because invalid signals indicate programming errors that should halt execution.
 
-**Sources:** [src/client/ClientStrategy.ts:263-396]()
 
 ## Interval Throttling
 
@@ -54,7 +52,6 @@ The throttling mechanism [src/client/ClientStrategy.ts:272-284]() checks if suff
 
 **Example:** A strategy with `interval: "5m"` can generate at most one signal every 5 minutes, regardless of how frequently `tick()` is called.
 
-**Sources:** [src/client/ClientStrategy.ts:32-39](), [src/client/ClientStrategy.ts:272-284](), [src/interfaces/Strategy.interface.ts:12-18]()
 
 ## Risk Gates
 
@@ -80,7 +77,6 @@ interface IRiskCheckArgs {
 
 If any validation in the risk profile throws an error or `checkSignal()` returns `false`, signal generation is aborted and `tick()` returns `null`. This prevents violating portfolio limits like maximum concurrent positions or leverage constraints.
 
-**Sources:** [src/client/ClientStrategy.ts:288-300](), [types.d.ts:443-512](), [src/interfaces/Risk.interface.ts]()
 
 ## Signal Structure Validation
 
@@ -120,7 +116,6 @@ Structure validation is implemented by `VALIDATE_SIGNAL_FN` [src/client/ClientSt
 | | scheduledAt positive | `scheduledAt > 0` | Must be > 0 |
 | | pendingAt positive | `pendingAt > 0` | Must be > 0 |
 
-**Sources:** [src/client/ClientStrategy.ts:41-261](), [types.d.ts:5-72]()
 
 ## Validation Categories Detail
 
@@ -151,7 +146,6 @@ if (isFinite(signal.priceOpen) && signal.priceOpen <= 0) {
 }
 ```
 
-**Sources:** [src/client/ClientStrategy.ts:64-103](), [types.d.ts:45-71]()
 
 ### LONG Position Price Logic
 
@@ -178,7 +172,6 @@ For immediate (non-scheduled) signals [src/client/ClientStrategy.ts:118-135](), 
 // Error: "currentPrice (39000) < priceStopLoss (40000). Signal would be immediately cancelled."
 ```
 
-**Sources:** [src/client/ClientStrategy.ts:105-162]()
 
 ### SHORT Position Price Logic
 
@@ -188,7 +181,6 @@ SHORT position validation [src/client/ClientStrategy.ts:165-222]() enforces the 
 
 SHORT logic is inverted from LONG: profits occur when price falls (toward TP), losses occur when price rises (toward SL).
 
-**Sources:** [src/client/ClientStrategy.ts:165-222]()
 
 ### Minimum Profit Distance Validation
 
@@ -212,7 +204,6 @@ Minimum profit distance [src/client/ClientStrategy.ts:138-148]() prevents micro-
 // Error: "TakeProfit too close to priceOpen (0.150%). Minimum distance: 0.3% to cover trading fees."
 ```
 
-**Sources:** [src/client/ClientStrategy.ts:138-148](), [src/client/ClientStrategy.ts:198-208](), [types.d.ts:16-20]()
 
 ### Maximum Loss Distance Validation
 
@@ -236,7 +227,6 @@ Maximum loss distance [src/client/ClientStrategy.ts:151-161]() prevents catastro
 // Error: "StopLoss too far from priceOpen (35.000%). Maximum distance: 20% to protect capital."
 ```
 
-**Sources:** [src/client/ClientStrategy.ts:151-161](), [src/client/ClientStrategy.ts:211-221](), [types.d.ts:24-27]()
 
 ### Time Parameter Validation
 
@@ -249,7 +239,6 @@ Time validation [src/client/ClientStrategy.ts:225-254]() ensures signal lifetime
 
 **Rationale for maximum lifetime:** Eternal signals (e.g., `minuteEstimatedTime: 100000`) block risk limits indefinitely, preventing new signals from opening. The 1-day maximum prevents strategy deadlock.
 
-**Sources:** [src/client/ClientStrategy.ts:225-254](), [types.d.ts:29-33]()
 
 ## Scheduled vs Immediate Signal Determination
 
@@ -300,7 +289,6 @@ if (signal.priceOpen !== undefined) {
 }
 ```
 
-**Sources:** [src/client/ClientStrategy.ts:313-367](), [src/interfaces/Strategy.interface.ts:64-73]()
 
 ## Error Handling and Recovery
 
@@ -356,7 +344,6 @@ priceTakeProfit (41500) must be > priceOpen (42000)
 minuteEstimatedTime must be positive, got -10
 ```
 
-**Sources:** [src/client/ClientStrategy.ts:263-396](), [src/client/ClientStrategy.ts:41-261]()
 
 ## Validation Test Coverage
 
@@ -408,7 +395,6 @@ test("DEFEND: Invalid LONG signal rejected (TP below priceOpen)", async ({ pass,
 });
 ```
 
-**Sources:** [test/e2e/defend.test.mjs:545-1744]()
 
 ## Global Configuration Parameters
 
@@ -429,5 +415,4 @@ setConfig({
 - `CC_MAX_STOPLOSS_DISTANCE_PERCENT`: Maximum SL distance (default: 20%)
 - `CC_MAX_SIGNAL_LIFETIME_MINUTES`: Maximum signal lifetime (default: 1440 minutes)
 - `CC_SCHEDULE_AWAIT_MINUTES`: Scheduled signal timeout (default: 120 minutes)
-
-**Sources:** [types.d.ts:5-72](), [types.d.ts:123-135]()
+

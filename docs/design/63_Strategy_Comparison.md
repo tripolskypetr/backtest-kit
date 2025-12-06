@@ -56,7 +56,6 @@ The extraction performs five safety checks to prevent invalid comparisons. If an
 
 All metrics assume higher values indicate better performance. No metrics use ascending comparison order.
 
-**Sources:** [src/lib/services/logic/private/WalkerLogicPrivateService.ts:168-176]()
 
 ---
 
@@ -86,7 +85,6 @@ Four optional callbacks are invoked during execution:
 3. `onStrategyComplete(strategyName, symbol, stats, metricValue)` - After backtest succeeds
 4. `onComplete(finalResults)` - After all strategies finish
 
-**Sources:** [src/lib/services/logic/private/WalkerLogicPrivateService.ts:70-252]()
 
 ## Best Strategy Selection Logic
 
@@ -117,7 +115,6 @@ if (isBetter && metricValue !== null) {
 
 All supported metrics use **descending** comparison (higher is better). There are no metrics where lower values are preferable. This simplifies the comparison logic to a single `>` operator.
 
-**Sources:** [src/lib/services/logic/private/WalkerLogicPrivateService.ts:179-186]()
 
 ---
 
@@ -174,7 +171,6 @@ Three emissions occur per strategy:
 2. **walkerEmitter** - Full contract for external listeners
 3. **yield** - Contract to the async generator consumer
 
-**Sources:** [src/lib/services/logic/private/WalkerLogicPrivateService.ts:190-227]()
 
 ---
 
@@ -226,7 +222,6 @@ await walkerCompleteSubject.next(finalResults);
 
 The final results are constructed at [src/lib/services/logic/private/WalkerLogicPrivateService.ts:230-250](). Unlike `WalkerContract`, the final results include `bestStats` which contains the full `BacktestStatistics` for the winning strategy.
 
-**Sources:** [src/lib/services/logic/private/WalkerLogicPrivateService.ts:230-251]()
 
 ---
 
@@ -308,7 +303,6 @@ Subscribes to `walkerCompleteSubject`. Receives `IWalkerResults` once at complet
 
 All three listeners support filtering by `symbol`, `walkerName`, `exchangeName`, or `frameName` properties.
 
-**Sources:** [src/lib/services/logic/private/WalkerLogicPrivateService.ts:206-227](), [src/lib/services/logic/private/WalkerLogicPrivateService.ts:245-250]()
 
 ---
 
@@ -344,7 +338,6 @@ interface BacktestStatistics {
 
 Each metric field may be `null` if calculation is unsafe (e.g., NaN, Infinity, insufficient data). Walker's metric extraction checks for null values before comparison.
 
-**Sources:** [src/lib/services/logic/private/WalkerLogicPrivateService.ts:165](), [src/lib/services/markdown/BacktestMarkdownService.ts]()
 
 ---
 
@@ -385,7 +378,6 @@ for (const strategyName of walkerSchema.strategies) {
 
 This ensures each strategy starts with clean state and no leftover data from previous runs.
 
-**Sources:** [src/classes/Walker.ts:64-79]()
 
 ---
 
@@ -447,7 +439,6 @@ await Walker.dump("BTCUSDT", "my-walker");
 await Walker.dump("BTCUSDT", "my-walker", "./custom/reports");
 ```
 
-**Sources:** [src/classes/Walker.ts:159-254](), [README.md:456-459]()
 
 ---
 
@@ -486,7 +477,6 @@ stop();
 
 The cancellation function calls `strategyGlobalService.stop()` for each strategy to gracefully terminate any ongoing backtests.
 
-**Sources:** [src/classes/Walker.ts:108-143]()
 
 ---
 
@@ -535,7 +525,6 @@ const consensusWinner = Array.from(rankings.entries())
   .sort((a, b) => a[1] - b[1])[0][0];
 ```
 
-**Sources:** [README.md:461-466]()
 
 ---
 
@@ -593,5 +582,4 @@ const results = await Walker.getData("BTCUSDT", "my-walker");
 3. **Report generation** - Automatic markdown reports
 4. **Data isolation** - Automatic clearing between runs
 5. **Validation** - Upfront validation of all dependencies
-
-**Sources:** [README.md:407-459]()
+

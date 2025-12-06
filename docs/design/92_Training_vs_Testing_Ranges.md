@@ -10,7 +10,6 @@ For information about the complete AI optimization pipeline, see [AI-Powered Str
 
 The Optimizer system uses temporal data splitting to generate robust trading strategies through supervised learning. The `rangeTrain` array defines multiple historical date ranges that the LLM analyzes to identify market patterns, while `rangeTest` defines a separate chronologically-later period for out-of-sample validation. This approach mirrors the train-test split methodology in machine learning, adapted for time-series financial data where temporal ordering must be preserved.
 
-**Sources:** [demo/optimization/src/index.mjs:19-61]()
 
 ---
 
@@ -28,7 +27,6 @@ The `rangeTrain` parameter is an array of date range objects, each representing 
 
 ![Mermaid Diagram](./diagrams/92_Training_vs_Testing_Ranges_0.svg)
 
-**Sources:** [demo/optimization/src/index.mjs:19-55]()
 
 ---
 
@@ -46,7 +44,6 @@ const TEST_RANGE = {
 
 This test range must chronologically follow all training ranges to prevent temporal leakage where future information influences strategy generation.
 
-**Sources:** [demo/optimization/src/index.mjs:57-61]()
 
 ---
 
@@ -63,7 +60,6 @@ The Optimizer implements walk-forward validation where:
 
 ![Mermaid Diagram](./diagrams/92_Training_vs_Testing_Ranges_1.svg)
 
-**Sources:** [demo/optimization/src/index.mjs:19-61]()
 
 ---
 
@@ -77,7 +73,6 @@ For each element in the `rangeTrain` array, the Optimizer performs:
 
 Each training range generates one strategy recommendation through multi-timeframe analysis. The LLM receives 4 datasets per training range (1h, 30m, 15m, 1m candles), creating a comprehensive market view before producing strategy logic.
 
-**Sources:** [demo/optimization/src/index.mjs:66-322](), [demo/optimization/src/index.mjs:373-383]()
 
 ---
 
@@ -89,7 +84,6 @@ After code generation via `OptimizerTemplateService`, the generated strategies a
 
 The Walker compares all generated strategies exclusively on the `rangeTest` period, ensuring performance metrics reflect out-of-sample results. Training frames are included in the generated code but not used during Walker execution.
 
-**Sources:** [demo/optimization/src/index.mjs:376-377]()
 
 ---
 
@@ -108,7 +102,6 @@ The separation of `rangeTrain` and `rangeTest` prevents several forms of overfit
 
 ![Mermaid Diagram](./diagrams/92_Training_vs_Testing_Ranges_4.svg)
 
-**Sources:** [demo/optimization/src/index.mjs:19-61]()
 
 ---
 
@@ -153,7 +146,6 @@ addOptimizer({
 
 This configuration trains on November 24-30, 2025 and validates on December 1, 2025, ensuring temporal integrity.
 
-**Sources:** [demo/optimization/src/index.mjs:373-383]()
 
 ---
 
@@ -167,7 +159,6 @@ Each training range triggers data collection across all configured sources:
 
 The `startDate` and `endDate` from each training range are passed directly to `source.fetch()` methods, ensuring data alignment with the temporal split.
 
-**Sources:** [demo/optimization/src/index.mjs:66-322]()
 
 ---
 
@@ -190,7 +181,6 @@ The `startDate` and `endDate` from each training range are passed directly to `s
 3. **Insufficient Training Data**: Use at least 5 training ranges for robust learning
 4. **Test Period Too Long**: Extended test ranges increase overfitting risk through multiple market regimes
 
-**Sources:** [demo/optimization/src/index.mjs:19-61]()
 
 ---
 
@@ -227,7 +217,6 @@ addWalker({
 
 The Walker's `frameName` parameter links to `rangeTest.note`, ensuring backtesting occurs only on the validation period.
 
-**Sources:** [demo/optimization/src/index.mjs:376-377]()
 
 ---
 
@@ -243,5 +232,4 @@ The `rangeTrain` and `rangeTest` configuration implements walk-forward validatio
 - **Integration**: Walker compares strategies exclusively on `rangeTest` data
 
 This architecture ensures generated strategies demonstrate robust performance on future unseen data rather than memorizing historical patterns.
-
-**Sources:** [demo/optimization/src/index.mjs:19-61](), [demo/optimization/src/index.mjs:373-383]()
+

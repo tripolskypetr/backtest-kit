@@ -14,7 +14,6 @@ The Partial system operates as an event-driven subsystem that monitors active si
 
 ![Mermaid Diagram](./diagrams/73_Partial_Profit_Loss_Tracking_0.svg)
 
-**Sources:** [README.md:1079-1217](), [test/e2e/partial.test.mjs:1-819]()
 
 ---
 
@@ -46,7 +45,6 @@ unrealizedPnlPercent = ((priceOpen - currentPrice) / priceOpen) × 100
 
 **Negative values** indicate losses and trigger `onPartialLoss` callbacks.
 
-**Sources:** [README.md:1082-1120](), [test/e2e/partial.test.mjs:17-151]()
 
 ---
 
@@ -124,7 +122,6 @@ addStrategy({
 });
 ```
 
-**Sources:** [test/e2e/partial.test.mjs:88-94](), [test/e2e/partial.test.mjs:227-233]()
 
 ---
 
@@ -197,7 +194,6 @@ unsubscribeProfit();
 unsubscribeLoss();
 ```
 
-**Sources:** [README.md:1087-1123]()
 
 ---
 
@@ -219,7 +215,6 @@ The service maintains a **per-symbol** event queue with a maximum of **250 event
 - **Queue management**: Automatic trimming when exceeding `MAX_EVENTS`
 - **Statistics**: Real-time calculation without blocking event processing
 
-**Sources:** Similar pattern to [src/lib/services/markdown/LiveMarkdownService.ts:223-265](), [src/lib/services/markdown/BacktestMarkdownService.ts:183-195]()
 
 ---
 
@@ -275,7 +270,6 @@ function isUnsafe(value: number | null): boolean {
 
 **All numeric values return `null` if calculation is unsafe**, ensuring reports never display invalid numbers.
 
-**Sources:** Similar pattern to [src/lib/services/markdown/BacktestMarkdownService.ts:33-44](), [src/lib/services/markdown/LiveMarkdownService.ts:22-33]()
 
 ---
 
@@ -352,7 +346,6 @@ await Partial.dump("BTCUSDT");
 await Partial.dump("BTCUSDT", "./reports/partial");
 ```
 
-**Sources:** [test/e2e/partial.test.mjs:564-676](), [test/e2e/partial.test.mjs:679-795]()
 
 ---
 
@@ -392,7 +385,6 @@ The Partial report follows a consistent table format with detailed event informa
 | Revenue % | Unrealized PnL percentage |
 | Mode | "BACKTEST" or "LIVE" |
 
-**Sources:** Similar format to [src/lib/services/markdown/ScheduleMarkdownService.ts:293-323]()
 
 ---
 
@@ -440,7 +432,6 @@ addStrategy({
 });
 ```
 
-**Sources:** [README.md:1082-1120]()
 
 ---
 
@@ -465,7 +456,6 @@ In **live mode**, partial profit/loss events are persisted to disk through `Pers
 - Enables crash recovery and historical analysis
 - Custom adapters supported (Redis, MongoDB, PostgreSQL)
 
-**Sources:** Similar persistence pattern to [README.md:741-876](), [README.md:261]()
 
 ---
 
@@ -553,7 +543,6 @@ if (stats.avgProfitLevel < 20) {
 }
 ```
 
-**Sources:** [README.md:1082-1156](), [test/e2e/partial.test.mjs:17-558]()
 
 ---
 
@@ -585,7 +574,6 @@ Partial profit/loss tracking behaves differently for LONG and SHORT positions du
 | **10% Loss Price** | `priceOpen × 0.90` | `priceOpen × 1.10` |
 | **PnL Calculation** | `(current - open) / open × 100` | `(open - current) / open × 100` |
 
-**Sources:** [test/e2e/partial.test.mjs:17-151](), [test/e2e/partial.test.mjs:303-424](), [test/e2e/partial.test.mjs:430-558]()
 
 ---
 
@@ -615,7 +603,6 @@ interface SignalMilestoneState {
 4. Price reaches $120,000 → Emit 20% profit → `lastMilestoneLevel = 20`
 5. Price reaches $125,000 → No emission (still in 20-30% range)
 
-**Sources:** [test/e2e/partial.test.mjs:142-147]()
 
 ---
 
@@ -644,5 +631,4 @@ All tests verify:
 - **Monotonicity**: Revenue percentages increase monotonically for profit/loss sequences
 - **Backtest flag**: All events have `backtest=true` in backtest mode
 - **Mutual exclusivity**: Profit and loss callbacks never both called for same signal
-
-**Sources:** [test/e2e/partial.test.mjs:1-819]()
+

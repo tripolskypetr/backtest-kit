@@ -16,7 +16,6 @@ The backtest-kit persistence layer is organized into four independent adapter sy
 
 ![Mermaid Diagram](./diagrams/84_Custom_Persistence_Backends_0.svg)
 
-**Sources:** [README.md:741-1077]()
 
 ### Data Storage Organization
 
@@ -29,13 +28,11 @@ Each adapter manages a specific entity type with its own directory structure:
 | `PersistRiskAdapter` | active positions | `./dump/data/risk/{riskName}/positions.json` | Portfolio-level position tracking | Live & Backtest |
 | `PersistPartialAdapter` | partial levels | `./dump/data/partial/{symbol}/levels.json` | Profit/loss milestone tracking | Live & Backtest |
 
-**Sources:** [README.md:754-766]()
 
 ### Persistence Points in Signal Lifecycle
 
 ![Mermaid Diagram](./diagrams/84_Custom_Persistence_Backends_1.svg)
 
-**Sources:** [README.md:741-766](), [README.md:1331-1386]()
 
 ---
 
@@ -47,7 +44,6 @@ The `PersistBase` abstract class defines the contract for all persistence operat
 
 ![Mermaid Diagram](./diagrams/84_Custom_Persistence_Backends_2.svg)
 
-**Sources:** [README.md:777-869]()
 
 ### Method Reference
 
@@ -64,7 +60,6 @@ The `PersistBase` abstract class defines the contract for all persistence operat
 | `filter<T>` | `predicate: (value: T) => boolean` | `AsyncGenerator<T>` | Iterate filtered values | No (default) |
 | `take<T>` | `count: number` | `AsyncGenerator<T>` | Iterate first N values | No (default) |
 
-**Sources:** [README.md:777-869](), [README.md:979-1028]()
 
 ### Constructor Parameters
 
@@ -77,7 +72,6 @@ constructor(entityName: string, baseDir: string)
 
 The constructor is called automatically by adapter registration. Custom implementations must accept both parameters and pass them to the superclass.
 
-**Sources:** [README.md:777-869]()
 
 ---
 
@@ -89,7 +83,6 @@ Custom adapters must extend `PersistBase` and implement all abstract methods. Th
 
 ![Mermaid Diagram](./diagrams/84_Custom_Persistence_Backends_3.svg)
 
-**Sources:** [README.md:777-869]()
 
 ### Redis Adapter Example
 
@@ -200,7 +193,6 @@ class RedisPersist extends PersistBase {
 }
 ```
 
-**Sources:** [README.md:769-876]()
 
 ### MongoDB Adapter Example
 
@@ -284,7 +276,6 @@ class MongoPersist extends PersistBase {
 }
 ```
 
-**Sources:** [README.md:894-973]()
 
 ### PostgreSQL Adapter Example
 
@@ -399,7 +390,6 @@ class PostgresPersist extends PersistBase {
 }
 ```
 
-**Sources:** Derived from patterns in [README.md:769-973]()
 
 ---
 
@@ -411,7 +401,6 @@ Custom adapters must be registered before any trading operations begin. The fram
 
 ![Mermaid Diagram](./diagrams/84_Custom_Persistence_Backends_4.svg)
 
-**Sources:** [README.md:879-892]()
 
 ### Registration Example
 
@@ -442,7 +431,6 @@ Live.background("BTCUSDT", {
 - `Backtest.run()` or `Backtest.background()` (for risk/partial only)
 - `ClientStrategy` instantiation
 
-**Sources:** [README.md:879-892]()
 
 ### Partial Adapter Registration
 
@@ -459,7 +447,6 @@ PersistRiskAdapter.usePersistRiskAdapter(MongoPersist);
 // (no registration needed - defaults are used)
 ```
 
-**Sources:** Derived from [README.md:879-892]()
 
 ---
 
@@ -476,13 +463,11 @@ Different storage backends offer trade-offs in performance, complexity, and oper
 | **MongoDB** | High | Low | Strong (w:majority) | Horizontal (sharding) | Medium | Analytics, complex queries, audit trails |
 | **PostgreSQL** | Medium | Medium | ACID | Vertical (read replicas) | High | Regulatory compliance, relational analysis |
 
-**Sources:** [README.md:1030-1051]()
 
 ### When to Use Each Backend
 
 ![Mermaid Diagram](./diagrams/84_Custom_Persistence_Backends_5.svg)
 
-**Sources:** [README.md:1030-1051]()
 
 ### Performance Characteristics
 
@@ -510,7 +495,6 @@ Different storage backends offer trade-offs in performance, complexity, and oper
 - Concurrency: High (MVCC)
 - Best for: Transactional integrity, compliance, relational queries
 
-**Sources:** Derived from [README.md:1030-1051]()
 
 ---
 
@@ -625,7 +609,6 @@ test("Custom adapter implements PersistBase correctly", async ({ pass, fail }) =
 });
 ```
 
-**Sources:** [README.md:1053-1077]()
 
 ### Integration Test with Live Mode
 
@@ -705,7 +688,6 @@ test("Custom adapter works with live mode", async ({ pass, fail }) => {
 });
 ```
 
-**Sources:** Derived from [README.md:1053-1077](), [README.md:379-409]()
 
 ---
 
@@ -763,7 +745,6 @@ await tradingLogs.removeValue("log-1");
 await tradingLogs.removeAll();
 ```
 
-**Sources:** [README.md:976-1028]()
 
 ### Use Cases for Direct API
 
@@ -774,5 +755,4 @@ await tradingLogs.removeAll();
 | Market Data Cache | `"market-cache"` | `./cache/market-cache/` | Temporary storage of fetched candles |
 | Configuration Snapshots | `"config-snapshot"` | `./logs/config/config-snapshot/` | Versioned strategy configurations |
 | Order History | `"order-history"` | `./logs/orders/order-history/` | Complete order execution log |
-
-**Sources:** Derived from [README.md:976-1028]()
+

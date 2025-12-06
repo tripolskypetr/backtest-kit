@@ -10,7 +10,6 @@ The LLM integration serves as the intelligence layer that analyzes multi-timefra
 
 ![Mermaid Diagram](./diagrams/90_LLM_Integration_0.svg)
 
-**Sources:** [demo/optimization/src/index.mjs:324-383](), [demo/optimization/package.json:8-14]()
 
 ## Ollama API Configuration
 
@@ -28,7 +27,6 @@ The system integrates with Ollama through the official `ollama` npm package. The
 | `think` | boolean | Enable reasoning mode for deeper analysis |
 | `messages` | array | Conversation history with role-based messages |
 
-**Sources:** [demo/optimization/src/index.mjs:325-330](), [demo/optimization/.env.example:1-2]()
 
 ## Prompt Engineering System
 
@@ -51,7 +49,6 @@ System prompts establish the operational context and output format requirements.
    - Sets reasoning intensity to "high"
    - Enables deeper analytical processing
 
-**Sources:** [demo/optimization/src/index.mjs:332-348]()
 
 ### User Query Construction
 
@@ -70,7 +67,6 @@ The final user message requests specific trading analysis components:
 | Directional bias | Preference for LONG vs SHORT positions |
 | Fundamental analysis | Non-technical strategic recommendations |
 
-**Sources:** [demo/optimization/src/index.mjs:351-359]()
 
 ## Message Structure and Conversation History
 
@@ -103,7 +99,6 @@ Each assistant message provides acknowledgment in Russian:
 - 15m: "Исторические данные 15-минутных свечей получены"
 - 1m: "Исторические данные 1-минутных свечей получены"
 
-**Sources:** [demo/optimization/src/index.mjs:86-126](), [demo/optimization/src/index.mjs:147-186](), [demo/optimization/src/index.mjs:207-244](), [demo/optimization/src/index.mjs:265-320]()
 
 ## Response Processing
 
@@ -128,7 +123,6 @@ The escape sequence follows a specific order to prevent double-escaping:
 2. Template literal characters (backticks, dollar signs)
 3. Quote characters (double and single quotes)
 
-**Sources:** [demo/optimization/src/index.mjs:364-370]()
 
 ## Helper Functions
 
@@ -149,13 +143,11 @@ The `text()` function performs synchronous LLM calls with conversation history:
 
 **Returns:** Escaped string containing LLM-generated trading strategy
 
-**Sources:** [demo/optimization/src/index.mjs:324-371]()
 
 ### json() Helper
 
 The `json()` function is similar to `text()` but parses the response as JSON. This helper is available for custom template implementations but not used in the default optimizer flow.
 
-**Sources:** Reference implementation pattern from [src/client/ClientOptimizer.ts]() (not shown in provided files)
 
 ## Integration Points
 
@@ -188,7 +180,6 @@ interface IOptimizerSchema {
 4. **Strategy Collection:** Stores returned strategy text in internal array
 5. **Code Generation:** Embeds strategy text in generated code via template system
 
-**Sources:** [demo/optimization/src/index.mjs:373-383](), [demo/optimization/src/index.mjs:389-395]()
 
 ## Progress Monitoring
 
@@ -213,5 +204,4 @@ listenOptimizerProgress(({ progress }) => {
   console.log(`Progress: ${progress * 100}%`);
 });
 ```
-
-**Sources:** [demo/optimization/src/index.mjs:385-387](), [src/contract/ProgressOptimizer.contract.ts:1-31]()
+

@@ -12,7 +12,6 @@ The Optimizer system consists of four primary components organized in a layered 
 
 ![Mermaid Diagram](./diagrams/88_Optimizer_Architecture_0.svg)
 
-**Sources:** [src/client/ClientOptimizer.ts:1-448](), [src/lib/services/connection/OptimizerConnectionService.ts:1-175](), [src/lib/services/template/OptimizerTemplateService.ts:1-710]()
 
 ## Core Components
 
@@ -39,7 +38,6 @@ The class delegates to three internal functions for its operations:
 - `GET_STRATEGY_CODE_FN` - Handles code assembly from templates [src/client/ClientOptimizer.ts:225-350]()
 - `GET_STRATEGY_DUMP_FN` - Handles file system operations [src/client/ClientOptimizer.ts:360-384]()
 
-**Sources:** [src/client/ClientOptimizer.ts:397-447](), [src/interfaces/Optimizer.interface.ts:436-451]()
 
 ### OptimizerConnectionService
 
@@ -79,7 +77,6 @@ The service exposes three methods that delegate to the cached `ClientOptimizer` 
 | `getCode(symbol, optimizerName)` | `optimizer.getCode(symbol)` | Returns generated code |
 | `dump(symbol, optimizerName, path?)` | `optimizer.dump(symbol, path)` | Saves code to file |
 
-**Sources:** [src/lib/services/connection/OptimizerConnectionService.ts:41-174]()
 
 ### OptimizerTemplateService
 
@@ -103,7 +100,6 @@ The service exposes three methods that delegate to the cached `ClientOptimizer` 
 
 All methods accept relevant parameters (symbol, name, dates, etc.) and return generated code as strings. The service uses escape functions to prevent code injection from user-provided values.
 
-**Sources:** [src/lib/services/template/OptimizerTemplateService.ts:26-709](), [src/interfaces/Optimizer.interface.ts:242-374]()
 
 ### OptimizerSchemaService
 
@@ -151,7 +147,6 @@ This pattern ensures:
 3. Type safety is maintained through `IOptimizerTemplate` interface
 4. No runtime errors from missing template methods
 
-**Sources:** [src/lib/services/connection/OptimizerConnectionService.ts:59-113](), [src/interfaces/Optimizer.interface.ts:426-427]()
 
 ## Execution Flow
 
@@ -171,7 +166,6 @@ The `getData` method collects data from all configured sources and builds LLM co
 6. **Strategy Generation**: Call `getPrompt()` with complete message history [src/client/ClientOptimizer.ts:196]()
 7. **Callback Execution**: Invoke `onData` callback if provided [src/client/ClientOptimizer.ts:210-212]()
 
-**Sources:** [src/client/ClientOptimizer.ts:99-215](), [src/client/ClientOptimizer.ts:410-415]()
 
 ### getCode Method Flow
 
@@ -208,7 +202,6 @@ Generated code uses a random prefix to avoid naming collisions:
 
 The prefix is generated via `CREATE_PREFIX_FN()` using base36 encoding [src/client/ClientOptimizer.ts:22]().
 
-**Sources:** [src/client/ClientOptimizer.ts:225-350](), [src/client/ClientOptimizer.ts:424-429]()
 
 ### dump Method Flow
 
@@ -255,7 +248,6 @@ This enables custom post-processing such as:
 - Git commit automation
 - Remote file upload
 
-**Sources:** [src/client/ClientOptimizer.ts:360-384](), [src/client/ClientOptimizer.ts:438-444]()
 
 ## Dependency Injection and Service Registration
 
@@ -273,5 +265,4 @@ The following symbols identify Optimizer-related services in the dependency inje
 ![Mermaid Diagram](./diagrams/88_Optimizer_Architecture_5.svg)
 
 The Optimizer services follow the same dependency injection pattern as other framework components. For comprehensive coverage of the DI system, see [Dependency Injection System](./11_Dependency_Injection_System.md).
-
-**Sources:** [src/lib/services/connection/OptimizerConnectionService.ts:42-48](), [src/lib/services/template/OptimizerTemplateService.ts:27]()
+

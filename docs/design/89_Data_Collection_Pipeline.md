@@ -37,7 +37,6 @@ interface IOptimizerSource {
 
 This form allows customization of how data is presented to the LLM.
 
-Sources: [src/interfaces/Optimizer.interface.ts:129-177](), [src/interfaces/Optimizer.interface.ts:92-94]()
 
 ### Data Source Interface Requirements
 
@@ -55,7 +54,6 @@ The `id` field enables deduplication when paginating through large datasets. Wit
 
 **Diagram: Source Type Configuration Options**
 
-Sources: [src/interfaces/Optimizer.interface.ts:38-44](), [src/interfaces/Optimizer.interface.ts:129-177](), [src/interfaces/Optimizer.interface.ts:183-185]()
 
 ## Pagination Architecture
 
@@ -73,7 +71,6 @@ The pagination process consists of three stages:
 2. **Deduplication**: `distinctDocuments` removes duplicate records by comparing `data.id` values
 3. **Resolution**: `resolveDocuments` consumes the async generator and returns a complete array
 
-Sources: [src/client/ClientOptimizer.ts:70-88](), [src/client/ClientOptimizer.ts:19]()
 
 ### Fetch Arguments Structure
 
@@ -87,7 +84,6 @@ When the pagination system calls the user's fetch function, it provides:
 | `limit` | `number` | Maximum records per page (25) |
 | `offset` | `number` | Number of records to skip |
 
-Sources: [src/interfaces/Optimizer.interface.ts:68-83]()
 
 ## Data Collection Execution Flow
 
@@ -99,7 +95,6 @@ The `GET_STRATEGY_DATA_FN` function implements the complete data collection pipe
 
 **Diagram: Data Collection Sequence Flow**
 
-Sources: [src/client/ClientOptimizer.ts:99-215](), [src/client/ClientOptimizer.ts:410-415]()
 
 ### Progress Tracking
 
@@ -117,7 +112,6 @@ progress = processedSources / totalSources
 
 The progress events are emitted via `progressOptimizerEmitter` which can be observed using `listenOptimizerProgress()`.
 
-Sources: [src/client/ClientOptimizer.ts:101-114](), [src/client/ClientOptimizer.ts:202-208](), [src/contract/ProgressOptimizer.contract.ts:1-31]()
 
 ## Message Formatting System
 
@@ -143,7 +137,6 @@ Calls `template.getAssistantMessage(symbol, data, name)` which by default return
 
 These simple defaults acknowledge data receipt without processing, allowing the LLM to focus on later strategy generation prompts.
 
-Sources: [src/client/ClientOptimizer.ts:34-60](), [src/lib/services/template/OptimizerTemplateService.ts:76-109]()
 
 ### Custom Message Formatters
 
@@ -160,7 +153,6 @@ Custom formatters receive:
 
 And must return a string or Promise<string> containing the message content.
 
-Sources: [src/client/ClientOptimizer.ts:132-145](), [src/client/ClientOptimizer.ts:170-184]()
 
 ### Message List Structure
 
@@ -178,7 +170,6 @@ messageList: MessageModel[] = [
 
 This conversation history provides the LLM with sequential context across multiple timeframes or data types before requesting a strategy recommendation.
 
-Sources: [src/client/ClientOptimizer.ts:105](), [src/client/ClientOptimizer.ts:136-145](), [src/interfaces/Optimizer.interface.ts:100-123]()
 
 ## Multi-Timeframe Data Collection Example
 
@@ -190,7 +181,6 @@ The demo implementation shows a real-world pattern for collecting multi-timefram
 
 **Diagram: Multi-Timeframe Data Source Architecture**
 
-Sources: [demo/optimization/src/index.mjs:66-324]()
 
 ### Source Configuration Pattern
 
@@ -211,7 +201,6 @@ The `user()` formatter typically includes:
 
 This provides the LLM with both numerical data and interpretive context.
 
-Sources: [demo/optimization/src/index.mjs:66-127](), [demo/optimization/src/index.mjs:128-187](), [demo/optimization/src/index.mjs:188-245](), [demo/optimization/src/index.mjs:246-324]()
 
 ### Pagination Implementation
 
@@ -228,7 +217,6 @@ url.searchParams.set("offset", offset || 0);
 
 The CCXT Dumper service returns paginated results matching the limit/offset semantics expected by `RESOLVE_PAGINATION_FN`.
 
-Sources: [demo/optimization/src/index.mjs:69-84]()
 
 ### Training Range Configuration
 
@@ -250,7 +238,6 @@ const TEST_RANGE = {
 
 For each training day, the optimizer collects all 4 timeframes, generating 7 separate strategy variants (one per day) that will later be compared via Walker on the test range.
 
-Sources: [demo/optimization/src/index.mjs:19-61]()
 
 ## Callbacks and Lifecycle Hooks
 
@@ -271,7 +258,6 @@ The `onSourceData` callback executes during collection and receives the raw dedu
 - Custom persistence
 - Analytics
 
-Sources: [src/client/ClientOptimizer.ts:122-130](), [src/client/ClientOptimizer.ts:161-169](), [src/client/ClientOptimizer.ts:210-213](), [src/interfaces/Optimizer.interface.ts:191-236]()
 
 ### Integration with OptimizerConnectionService
 
@@ -287,7 +273,6 @@ The connection service is responsible for:
 3. Merging with defaults from `OptimizerTemplateService`
 4. Passing complete configuration to `ClientOptimizer` constructor
 
-Sources: [src/lib/services/connection/OptimizerConnectionService.ts:59-113](), [src/client/ClientOptimizer.ts:397-401]()
 
 ## Error Handling and Edge Cases
 
@@ -302,13 +287,11 @@ When using the simple function source type (`IOptimizerSourceFn` without configu
 - Callback parameters
 - Generated strategy metadata
 
-Sources: [src/client/ClientOptimizer.ts:20](), [src/client/ClientOptimizer.ts:188-191]()
 
 ### Duplicate ID Handling
 
 The `distinctDocuments` function compares records by their `id` field. If multiple records share the same ID across different pages, only the first occurrence is kept. This prevents double-counting but requires that source IDs are stable and unique.
 
-Sources: [src/client/ClientOptimizer.ts:86]()
 
 ### Async Formatter Execution
 
@@ -326,7 +309,6 @@ This enables formatters to perform async operations like:
 - Database lookups
 - File I/O for templates
 
-Sources: [src/client/ClientOptimizer.ts:132-135](), [src/client/ClientOptimizer.ts:171-174]()
 
 ## Performance Considerations
 
@@ -349,7 +331,6 @@ The complete `messageList` for each training range is held in memory until `getP
 
 The `ITERATION_LIMIT = 25` controls page size for pagination. Smaller values mean more API calls but less memory per request. Larger values reduce API overhead but require more memory per page.
 
-Sources: [src/client/ClientOptimizer.ts:19]()
 
 ## Summary
 
@@ -363,5 +344,4 @@ The data collection pipeline transforms external data sources into structured LL
 6. **Callback hooks** for monitoring and validation
 
 The collected data (represented as `IOptimizerStrategy[]`) serves as input to the LLM integration phase described in [LLM Integration](./90_LLM_Integration.md), where it is combined with system prompts to generate trading strategy recommendations.
-
-Sources: [src/client/ClientOptimizer.ts:99-215](), [src/interfaces/Optimizer.interface.ts:100-123]()
+

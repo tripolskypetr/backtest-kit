@@ -12,7 +12,6 @@ The signal lifecycle follows a deterministic state machine with distinct states 
 
 ![Mermaid Diagram](./diagrams/07_Signal_Lifecycle_Overview_0.svg)
 
-**Sources:** [src/interfaces/Strategy.interface.ts:170-306](), [src/client/ClientStrategy.ts:1-1000](), [types.d.ts:853-974]()
 
 ---
 
@@ -28,7 +27,6 @@ Signals progress through three type representations during their lifecycle, each
 | `ISignalRow` | Validated signal with auto-generated ID | After validation passes | Required `priceOpen`, UUID `id`, complete metadata |
 | `IScheduledSignalRow` | Scheduled signal awaiting activation | When `priceOpen != currentPrice` | `_isScheduled: true`, waits for price to reach `priceOpen` |
 
-**Sources:** [src/interfaces/Strategy.interface.ts:21-73](), [types.d.ts:738-785]()
 
 ---
 
@@ -46,7 +44,6 @@ The transition from `Idle` state occurs when `getSignal()` returns a non-null si
 - **Immediate Activation**: LONG activates if `currentPrice <= priceOpen`, SHORT activates if `currentPrice >= priceOpen` [src/client/ClientStrategy.ts:314-344]()
 - **Validation**: 30+ rules in `VALIDATE_SIGNAL_FN` [src/client/ClientStrategy.ts:41-261]()
 
-**Sources:** [src/client/ClientStrategy.ts:263-396](), [src/client/ClientStrategy.ts:720-815]()
 
 ---
 
@@ -65,7 +62,6 @@ Scheduled signals require continuous monitoring for three conditions: activation
 
 **Pre-Activation Cancellation**: Scheduled signals can be cancelled by StopLoss **before** activation when price moves against the position too far without reaching `priceOpen`. This prevents entering positions that have already deteriorated. See test cases [test/e2e/defend.test.mjs:1393-1507]() for validation.
 
-**Sources:** [src/client/ClientStrategy.ts:474-693](), [src/client/ClientStrategy.ts:530-564]()
 
 ---
 
@@ -83,7 +79,6 @@ Active signals are monitored on every tick for three terminal conditions:
 | Take Profit | `currentPrice >= priceTakeProfit` | `currentPrice <= priceTakeProfit` | `"take_profit"` |
 | Stop Loss | `currentPrice <= priceStopLoss` | `currentPrice >= priceStopLoss` | `"stop_loss"` |
 
-**Sources:** [src/client/ClientStrategy.ts:817-876](), [src/client/ClientStrategy.ts:878-960]()
 
 ---
 
@@ -102,7 +97,6 @@ All signals pass through a comprehensive validation pipeline with 30+ rules befo
 | Signal Lifetime | Maximum duration | `CC_MAX_SIGNAL_LIFETIME_MINUTES` (1440 min) | Prevent eternal signals blocking risk limits |
 | Immediate Activation | currentPrice not past TP/SL | N/A | Prevent invalid immediate signals |
 
-**Sources:** [src/client/ClientStrategy.ts:41-261](), [src/config/params.ts:5-72](), [types.d.ts:5-72]()
 
 ---
 
@@ -135,7 +129,6 @@ if (elapsedSincePending >= maxPositionTime) {
 }
 ```
 
-**Sources:** [src/client/ClientStrategy.ts:474-528](), [src/client/ClientStrategy.ts:817-835](), [src/interfaces/Strategy.interface.ts:54-57]()
 
 ---
 
@@ -163,7 +156,6 @@ if (result.action === "closed") {
 }
 ```
 
-**Sources:** [src/interfaces/Strategy.interface.ts:170-306](), [types.d.ts:853-974]()
 
 ---
 
@@ -189,7 +181,6 @@ All persistence operations are atomic to prevent corruption:
 2. Call `fsSync()` to flush to disk
 3. Rename to final path (atomic operation)
 
-**Sources:** [src/client/ClientStrategy.ts:411-472](), [src/classes/Persist.ts:1-200](), [src/client/ClientStrategy.ts:946-972]()
 
 ---
 
@@ -205,7 +196,6 @@ Strategies can register callbacks for every lifecycle event, enabling custom log
 2. **Generic callback** (`onTick` with `IStrategyTickResult`)
 3. **Persistence callback** (`onWrite` if state changed)
 
-**Sources:** [src/interfaces/Strategy.interface.ts:98-126](), [types.d.ts:789-811]()
 
 ---
 
@@ -220,5 +210,4 @@ The signal lifecycle behaves identically across all three execution modes (Backt
 | `tick()` Frequency | Every frame timestamp | Every 61 seconds (`TICK_TTL`) | Every frame timestamp per strategy |
 | Signal Activation | Immediate via `backtest()` fast-forward | Real-time monitoring via `tick()` | Immediate via `backtest()` fast-forward |
 | Crash Recovery | Not needed (deterministic replay) | Full recovery via `waitForInit()` | Not needed (deterministic replay) |
-
-**Sources:** [src/lib/logic/backtest/BacktestLogicPrivateService.ts:1-300](), [src/lib/logic/live/LiveLogicPrivateService.ts:1-200](), [src/lib/logic/walker/WalkerLogicPrivateService.ts:1-200]()
+

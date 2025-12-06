@@ -19,11 +19,9 @@ The framework enforces three critical validation parameters that act as financia
 
 These validations occur in the `VALIDATE_SIGNAL_FN` function within `ClientStrategy`, which is called before every signal is created. Signals that fail validation are rejected immediately with descriptive error messages.
 
-**Sources:** [src/config/params.ts:5-72](), [src/client/ClientStrategy.ts:41-261]()
 
 These validations occur in the `VALIDATE_SIGNAL_FN` function within `ClientStrategy`, which is called before every signal is created. Signals that fail validation are rejected immediately with descriptive error messages.
 
-**Sources:** [src/config/params.ts:1-36](), [src/client/ClientStrategy.ts:40-185]()
 
 ---
 
@@ -80,7 +78,6 @@ The default value of `0.3%` provides a safety margin above trading fees:
 - Can be decreased to 0.2% for zero-fee accounts (not recommended for typical exchanges)
 - Can be set to `0` to disable validation (only for testing environments)
 
-**Sources:** [types.d.ts:18-20](), [src/client/ClientStrategy.ts:138-148](), [src/client/ClientStrategy.ts:198-208]()
 
 ---
 
@@ -134,7 +131,6 @@ The default value of `20%` represents a reasonable maximum loss per signal:
 - Can be tightened to `5-10%` for conservative strategies
 - Should not be disabled (set to `100+%`) in production
 
-**Sources:** [types.d.ts:23-27](), [src/client/ClientStrategy.ts:151-161](), [src/client/ClientStrategy.ts:211-221]()
 
 ---
 
@@ -180,7 +176,6 @@ The default value of `1440 minutes` (1 day):
 - Can be increased for longer-term strategies (e.g., 10080 minutes = 1 week)
 - Should not be disabled (set to `999999`) in production
 
-**Sources:** [types.d.ts:29-33](), [src/client/ClientStrategy.ts:236-246]()
 
 ---
 
@@ -206,7 +201,6 @@ The validation occurs in `VALIDATE_SIGNAL_FN` at [src/client/ClientStrategy.ts:4
 | **Time Parameter Validation** | 224-253 | Validates `minuteEstimatedTime`, `scheduledAt`, `pendingAt` are positive integers | `CC_MAX_SIGNAL_LIFETIME_MINUTES` |
 | **Error Aggregation** | 255-260 | Throws single error with newline-separated list of all failures | N/A |
 
-**Sources:** [src/client/ClientStrategy.ts:41-261]()
 
 ---
 
@@ -323,7 +317,6 @@ minuteEstimatedTime too large (50000 minutes = 34.7 days). Maximum: 1440 minutes
 
 This comprehensive error output allows developers to fix all validation issues in a single iteration, reducing trial-and-error debugging cycles.
 
-**Sources:** [src/client/ClientStrategy.ts:255-260]()
 
 ---
 
@@ -346,5 +339,4 @@ These validation parameters work in conjunction with risk profile limits (see [R
 **Diagram: Validation Parameters as First Line of Defense**
 
 Validation parameters act as the first line of defense, rejecting signals before they reach the risk management layer. This prevents invalid signals from consuming risk limit slots or triggering custom validations.
-
-**Sources:** [src/config/params.ts:1-36](), [src/client/ClientStrategy.ts:40-185](), [test/e2e/sanitize.test.mjs:1-660](), [test/e2e/defend.test.mjs:1-1100]()
+

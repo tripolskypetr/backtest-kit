@@ -20,7 +20,6 @@ The framework solves a critical problem in algorithmic trading: **bridging the g
 
 The framework is structured as a **dependency injection container** that orchestrates ~60 services across 8 major subsystems, with a public API layer that hides internal complexity behind intuitive registration functions.
 
-**Sources**: [README.md:1-55](), [types.d.ts:1-100](), Diagram 1 from high-level architecture
 
 ## Core Architecture Layers
 
@@ -40,7 +39,6 @@ The system implements a **layered architecture** with clear separation of concer
 
 Each layer depends only on layers below it, creating a **unidirectional dependency graph** that simplifies testing and maintenance. The Command layer validates inputs and delegates to Logic services, which orchestrate Business Logic components through dependency injection.
 
-**Sources**: [src/index.ts:1-184](), [src/function/add.ts](), [src/classes/Backtest.ts](), [src/classes/Live.ts](), [src/client/ClientStrategy.ts:1-50](), Diagram 1 and 4 from high-level architecture
 
 ## Component Registration Pattern
 
@@ -57,7 +55,6 @@ This pattern enables **dependency inversion**: strategies reference exchanges by
 4. Schema is instantiated into `ClientStrategy` instance with dependencies injected
 5. Instance is memoized by `(symbol, strategyName)` key for reuse
 
-**Sources**: [src/function/add.ts](), [src/lib/services/schema/StrategySchemaService.ts](), [src/lib/services/connection/StrategyConnectionService.ts](), [types.d.ts:816-833](), Diagram 4 from high-level architecture
 
 ## Execution Modes
 
@@ -75,7 +72,6 @@ The framework provides three execution modes with distinct temporal semantics an
 
 All three modes use the same `ClientStrategy.tick()` method for signal generation and monitoring, ensuring consistent behavior across environments. The key difference is **temporal context**: Backtest iterates through fixed dates, Live uses current time, and Walker orchestrates multiple Backtest runs.
 
-**Sources**: [src/classes/Backtest.ts](), [src/classes/Live.ts](), [src/classes/Walker.ts](), [src/lib/services/logic/BacktestLogicPrivateService.ts](), [src/lib/services/logic/LiveLogicPrivateService.ts](), [src/lib/services/logic/WalkerLogicPrivateService.ts](), Diagram 3 from high-level architecture
 
 ## Signal Lifecycle
 
@@ -101,7 +97,6 @@ The **scheduled state** is unique: it represents a limit order waiting for `pric
 2. **Risk gates**: `ClientRisk.checkSignal()` validates portfolio-level constraints
 3. **Signal validation**: 30+ rules check TP/SL logic, price sanity, time limits, etc.
 
-**Sources**: [src/client/ClientStrategy.ts:41-261](), [src/interfaces/Strategy.interface.ts:1-376](), [types.d.ts:738-966](), Diagram 2 from high-level architecture
 
 ## Event System
 
@@ -119,7 +114,6 @@ The framework implements a **pub-sub event architecture** with 16 emitters organ
 
 All listeners use the `queued()` wrapper from `functools-kit` to serialize async callback execution. This prevents race conditions when multiple events arrive rapidly and callbacks perform stateful operations.
 
-**Sources**: [src/config/emitters.ts:1-122](), [src/function/event.ts:1-500](), [types.d.ts:16-28](), Diagram 6 from high-level architecture
 
 ## Context Propagation
 
@@ -157,7 +151,6 @@ Backtest.run(symbol, { strategyName, exchangeName, frameName })
 
 This architecture eliminates the need to pass `symbol`, `when`, `strategyName`, etc. as function parameters through every layer of the call stack. Strategy code can call `getAveragePrice(symbol)` and it automatically uses the correct timestamp from context.
 
-**Sources**: [types.d.ts:138-182](), [types.d.ts:400-441](), [src/lib/services/context/ExecutionContextService.ts](), [src/lib/services/context/MethodContextService.ts](), Diagram 4 from high-level architecture
 
 ## Dependency Injection
 
@@ -181,7 +174,6 @@ Example for Strategy component:
 
 The `backtest` aggregation object (exported as `lib`) provides a flat namespace for accessing all services, used internally by public API functions.
 
-**Sources**: [src/lib/core/types.ts](), [src/lib/core/provide.ts](), [src/lib/index.ts](), [types.d.ts:5-20](), Diagram 4 from high-level architecture
 
 ## Crash Recovery and Persistence
 
@@ -211,7 +203,6 @@ PersistRiskAdapter.usePersistRiskAdapter(MongoAdapter);
 
 The atomic write pattern (write to `.tmp`, then rename) ensures that crashes during write operations leave either the old valid state or the new valid state, never corrupted partial data.
 
-**Sources**: [src/classes/Persist.ts](), [src/client/ClientStrategy.ts:411-472](), [types.d.ts:155-178](), [README.md:19-20](), Diagram 2 from high-level architecture
 
 ## Reporting and Analytics
 
@@ -246,5 +237,4 @@ Metrics return `null` instead of invalid numbers, preventing downstream errors f
 - **Annualized Sharpe**: `sharpeRatio × √365`
 - **Certainty Ratio**: `avgWin / |avgLoss|` (win quality metric)
 - **Expected Yearly Returns**: `avgPnl × (365 / avgDurationDays)` (annualized return)
-
-**Sources**: [src/lib/services/markdown/BacktestMarkdownService.ts:1-100](), [src/lib/services/markdown/LiveMarkdownService.ts:1-100](), [src/lib/services/markdown/WalkerMarkdownService.ts](), [types.d.ts:999-1102](), [src/classes/Backtest.ts]()
+

@@ -34,7 +34,6 @@ The system implements a seven-layer architecture where each layer has distinct r
 
 **Layer 7: Schema & Validation** stores registered component configurations and validates them against framework rules. Schema Services provide name-based lookup, while Validation Services enforce 30+ validation rules per component type.
 
-Sources: [src/index.ts:1-184](), [src/function/add.ts:1-445](), [src/function/event.ts:1-892](), [src/lib/index.ts:1-232]()
 
 ---
 
@@ -63,7 +62,6 @@ Services are organized into 10 functional categories following a matrix pattern 
 
 The matrix pattern creates consistency across component types: if a new component type is added (e.g., `Filter`), it follows the same pattern with `FilterConnectionService`, `FilterSchemaService`, `FilterGlobalService`, and `FilterValidationService`.
 
-Sources: [src/lib/core/types.ts:1-97](), [src/lib/index.ts:57-224]()
 
 ---
 
@@ -122,7 +120,6 @@ export const backtest = {
 
 This flattened structure enables easy access: `backtest.strategyConnectionService.getStrategy(...)` instead of navigating nested categories. The object is exported as `lib` in [src/index.ts:183]() for external use.
 
-Sources: [src/lib/core/types.ts:1-97](), [src/lib/core/provide.ts:1-132](), [src/lib/index.ts:1-232]()
 
 ---
 
@@ -171,7 +168,6 @@ Context follows a request-scoped lifecycle:
 
 The system is single-threaded (Node.js event loop), so context state is safe without synchronization primitives.
 
-Sources: [src/lib/services/context/ExecutionContextService.ts](), [src/lib/services/context/MethodContextService.ts]()
 
 ---
 
@@ -252,7 +248,6 @@ if (result.action === "opened") {
 }
 ```
 
-Sources: [src/config/emitters.ts:1-122](), [src/function/event.ts:1-892]()
 
 ---
 
@@ -290,7 +285,6 @@ The system maintains clear module boundaries with well-defined interaction patte
 - DI container resolves all dependencies at startup
 - No circular dependencies between modules
 
-Sources: [src/index.ts:1-184](), [src/lib/index.ts:1-232](), [src/lib/core/provide.ts:1-132]()
 
 ---
 
@@ -345,5 +339,4 @@ setConfig({
 ```
 
 These injection points enable customization without forking the codebase or modifying core services.
-
-Sources: [src/function/setup.ts](), [test/config/setup.mjs:1-76](), [src/classes/Persist.ts]()
+

@@ -25,7 +25,6 @@ The system categorizes errors into three distinct types, each with different han
 
 **Validation Errors** are emitted to `validationSubject` when risk validation functions throw exceptions. These are logged for debugging but do not interrupt execution, allowing the signal to be rejected gracefully.
 
-**Sources:**
 - [src/config/emitters.ts:32-42]()
 - [src/function/event.ts:220-276]()
 - [test/e2e/defend.test.mjs:1664-1743]()
@@ -78,7 +77,6 @@ export const validationSubject = new Subject<Error>();
 - Risk validation function exceptions (`IRiskSchema.validation`)
 - Signal validation rule violations (30+ validation rules)
 
-**Sources:**
 - [src/config/emitters.ts:32-108]()
 - [src/function/event.ts:15-40]()
 
@@ -88,7 +86,6 @@ export const validationSubject = new Subject<Error>();
 
 ![Mermaid Diagram](./diagrams/80_Error_Handling_0.svg)
 
-**Sources:**
 - [src/config/emitters.ts:32-108]()
 - [src/function/event.ts:220-757]()
 - [test/e2e/defend.test.mjs:1664-1859]()
@@ -193,7 +190,6 @@ function listenValidation(fn: (error: Error) => void): () => void
 
 **Use Cases:** Validation debugging, risk management monitoring, signal rejection tracking
 
-**Sources:**
 - [src/function/event.ts:220-276]()
 - [src/function/event.ts:730-757]()
 - [src/config/emitters.ts:32-108]()
@@ -204,7 +200,6 @@ function listenValidation(fn: (error: Error) => void): () => void
 
 ![Mermaid Diagram](./diagrams/80_Error_Handling_1.svg)
 
-**Sources:**
 - [test/e2e/defend.test.mjs:1664-1743]()
 - [test/e2e/defend.test.mjs:1754-1859]()
 - [src/function/event.ts:220-276]()
@@ -253,7 +248,6 @@ errorEmitter.subscribe(queued(async (error) => {
 - **Resource Protection**: Prevents concurrent access to shared resources
 - **Debugging**: Easier to trace error sequences
 
-**Sources:**
 - [src/function/event.ts:244-246]()
 - [src/function/event.ts:273-275]()
 - [src/function/event.ts:754-756]()
@@ -357,7 +351,6 @@ listenSignal((result) => {
 });
 ```
 
-**Sources:**
 - [test/e2e/defend.test.mjs:1664-1743]()
 - [test/e2e/defend.test.mjs:1754-1859]()
 - [src/function/event.ts:220-276]()
@@ -419,7 +412,6 @@ if (!errorCaught || !errorCaught.message.includes("LISTENER_ERROR")) {
 | Invalid signal validation | `test/e2e/defend.test.mjs` | 545-642 | Signal rejected, no emission |
 | Risk validation failure | `test/spec/risk.test.mjs` | N/A | `validationSubject` receives error |
 
-**Sources:**
 - [test/e2e/defend.test.mjs:1664-1743]()
 - [test/e2e/defend.test.mjs:1754-1859]()
 - [test/e2e/defend.test.mjs:545-642]()
@@ -440,7 +432,6 @@ Background execution methods (`Backtest.background()`, `Live.background()`, `Wal
 - Fatal errors emit to `exitEmitter`, background task terminates
 - User callbacks wrapped in try-catch to prevent cascade failures
 
-**Sources:**
 - [src/function/event.ts:220-276]()
 - [test/e2e/defend.test.mjs:1664-1859]()
 
@@ -547,6 +538,5 @@ listenExit(async (error) => {
 });
 ```
 
-**Sources:**
 - [src/function/event.ts:220-276]()
 - [test/e2e/defend.test.mjs:1664-1859]()

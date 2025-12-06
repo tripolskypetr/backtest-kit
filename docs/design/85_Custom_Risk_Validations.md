@@ -6,7 +6,6 @@ This guide explains how to write custom risk validation functions for portfolio-
 
 For information about risk schema structure and registration, see [Risk Schemas](./27_Risk_Schemas.md). For the overall risk validation flow and position tracking, see [Risk Validation](./67_Risk_Validation.md) and [Position Tracking](./68_Position_Tracking.md).
 
-**Sources:** [src/interfaces/Risk.interface.ts:62-85]()
 
 ## Validation Function Types
 
@@ -45,7 +44,6 @@ addRisk({
 
 Both formats are functionally equivalent. The object format allows you to attach documentation via the `note` field, which aids in understanding the validation's purpose during code review and maintenance.
 
-**Sources:** [src/interfaces/Risk.interface.ts:62-85](), [src/interfaces/Risk.interface.ts:87-100]()
 
 ## Validation Function Signature
 
@@ -66,7 +64,6 @@ interface IRiskValidationFn {
 - **Rejection:** Throw an `Error` to reject the signal
 - Both synchronous and asynchronous functions are supported
 
-**Sources:** [src/interfaces/Risk.interface.ts:62-68](), [src/client/ClientRisk.ts:30-46]()
 
 ## The IRiskValidationPayload Interface
 
@@ -94,7 +91,6 @@ Each element in `activePositions` contains:
 - `exchangeName`: Exchange name
 - `openTimestamp`: When the position was opened (milliseconds)
 
-**Sources:** [src/interfaces/Risk.interface.ts:6-21](), [src/interfaces/Risk.interface.ts:23-35](), [src/interfaces/Risk.interface.ts:52-60](), [src/client/ClientRisk.ts:177-181]()
 
 ## Error Throwing Patterns
 
@@ -122,7 +118,6 @@ throw new Error(`Symbol ${symbol} not allowed for trading`);
 throw new Error(`Position count ${activePositionCount} exceeds limit of 5`);
 ```
 
-**Sources:** [src/client/ClientRisk.ts:30-46](), [src/client/ClientRisk.ts:183-201]()
 
 ## Common Validation Patterns
 
@@ -141,7 +136,6 @@ addRisk({
 });
 ```
 
-**Sources:** [test/spec/risk.test.mjs:41-93]()
 
 ### Symbol Filtering
 
@@ -159,7 +153,6 @@ addRisk({
 });
 ```
 
-**Sources:** [test/spec/risk.test.mjs:291-344]()
 
 ### Position Per Symbol Limit
 
@@ -233,7 +226,6 @@ addRisk({
 });
 ```
 
-**Sources:** [test/spec/risk.test.mjs:249-289]()
 
 ### Position Age Limit
 
@@ -258,7 +250,6 @@ addRisk({
 });
 ```
 
-**Sources:** [src/interfaces/Risk.interface.ts:23-35]()
 
 ## Multiple Validation Composition
 
@@ -313,7 +304,6 @@ addRisk({
 });
 ```
 
-**Sources:** [src/client/ClientRisk.ts:183-201](), [src/client/ClientRisk.ts:203-217]()
 
 ## Asynchronous Validations
 
@@ -363,7 +353,6 @@ addRisk({
 });
 ```
 
-**Sources:** [src/interfaces/Risk.interface.ts:62-68](), [src/client/ClientRisk.ts:30-46]()
 
 ## Validation Context and Callbacks
 
@@ -398,7 +387,6 @@ These callbacks receive:
 - `symbol`: The trading pair symbol
 - `params`: The full `IRiskCheckArgs` object (but NOT the portfolio state data)
 
-**Sources:** [src/interfaces/Risk.interface.ts:38-49](), [src/client/ClientRisk.ts:203-217]()
 
 ## Validation Isolation by Risk Profile
 
@@ -456,7 +444,6 @@ addStrategy({
 });
 ```
 
-**Sources:** [src/lib/services/connection/RiskConnectionService.ts:56-65](), [test/spec/risk.test.mjs:374-437]()
 
 ## Error Monitoring
 
@@ -497,7 +484,6 @@ listenValidation(error => {
 });
 ```
 
-**Sources:** [src/client/ClientRisk.ts:30-46](), [src/config/emitters.ts]()
 
 ## Best Practices
 
@@ -612,5 +598,4 @@ test('validateMaxPositions rejects when limit exceeded', () => {
   expect(() => validateMaxPositions(6, 5)).toThrow('Maximum 5 positions exceeded');
 });
 ```
-
-**Sources:** [test/spec/risk.test.mjs:1-842](), [src/client/ClientRisk.ts:183-201]()
+

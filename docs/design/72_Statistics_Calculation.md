@@ -12,7 +12,6 @@ The statistics calculation system transforms raw signal events into actionable p
 
 All metrics include safe math checks to handle edge cases (NaN, Infinity) and return `null` for unsafe calculations.
 
-**Sources:** [types.d.ts:846-871](), [src/lib/services/markdown/BacktestMarkdownService.ts:66-102](), [src/lib/services/markdown/LiveMarkdownService.ts:91-130](), [src/lib/services/markdown/ScheduleMarkdownService.ts:68-86]()
 
 ## Statistics Calculation Architecture
 
@@ -26,7 +25,6 @@ All metrics include safe math checks to handle edge cases (NaN, Infinity) and re
 4. **Statistics Calculation** - `getData()` computes metrics from accumulated data
 5. **Safe Math Validation** - `isUnsafe()` checks prevent NaN/Infinity in results
 
-**Sources:** [src/lib/services/markdown/BacktestMarkdownService.ts:343-369](), [src/lib/services/markdown/LiveMarkdownService.ts:567-618](), [src/lib/services/markdown/ScheduleMarkdownService.ts:374-413]()
 
 ## BacktestStatistics Structure
 
@@ -69,7 +67,6 @@ public async getData(): Promise<BacktestStatistics> {
 }
 ```
 
-**Sources:** [types.d.ts:846-871](), [src/lib/services/markdown/BacktestMarkdownService.ts:66-102](), [src/lib/services/markdown/BacktestMarkdownService.ts:183-270]()
 
 ## LiveStatistics Structure
 
@@ -102,7 +99,6 @@ interface LiveStatistics {
 3. **Event Replacement** - Active events replace previous with same signalId ([LiveMarkdownService.ts:299-329]())
 4. **Max Queue Size** - Limited to 250 events ([LiveMarkdownService.ts:223]())
 
-**Sources:** [src/lib/services/markdown/LiveMarkdownService.ts:91-130](), [src/lib/services/markdown/LiveMarkdownService.ts:229-373](), [src/lib/services/markdown/LiveMarkdownService.ts:381-464]()
 
 ## ScheduleStatistics Structure
 
@@ -128,7 +124,6 @@ interface ScheduleStatistics {
 | `cancellationRate` | `(totalCancelled / totalScheduled) × 100` | Measures limit order fill rate |
 | `avgWaitTime` | `Σ(duration) / totalCancelled` | Average time before cancellation |
 
-**Sources:** [src/lib/services/markdown/ScheduleMarkdownService.ts:68-86](), [src/lib/services/markdown/ScheduleMarkdownService.ts:244-285]()
 
 ## Safe Math Implementation
 
@@ -172,7 +167,6 @@ return {
 - Square root of negative variance (returns `null`)
 - Infinite trade duration (returns `null`)
 
-**Sources:** [src/lib/services/markdown/BacktestMarkdownService.ts:28-44](), [src/lib/services/markdown/LiveMarkdownService.ts:22-33](), [src/lib/services/markdown/BacktestMarkdownService.ts:261-268]()
 
 ## Basic Metrics Calculation
 
@@ -220,7 +214,6 @@ const totalPnl = this._signalList.reduce(
 
 **Interpretation:** Cumulative profit/loss across all trades. Higher is better.
 
-**Sources:** [src/lib/services/markdown/BacktestMarkdownService.ts:220-227](), [src/lib/services/markdown/LiveMarkdownService.ts:402-410]()
 
 ## Risk-Adjusted Metrics
 
@@ -282,7 +275,6 @@ const annualizedSharpeRatio = sharpeRatio * Math.sqrt(365);
 
 **Interpretation:** Higher is better. Accounts for trade frequency.
 
-**Sources:** [src/lib/services/markdown/BacktestMarkdownService.ts:229-235](), [src/lib/services/markdown/LiveMarkdownService.ts:413-421]()
 
 ## Advanced Metrics
 
@@ -345,7 +337,6 @@ const expectedYearlyReturns = avgPnl * tradesPerYear;
 
 **Interpretation:** Projected annual return percentage. Higher is better.
 
-**Sources:** [src/lib/services/markdown/BacktestMarkdownService.ts:236-254](), [src/lib/services/markdown/LiveMarkdownService.ts:424-447]()
 
 ## Schedule-Specific Metrics
 
@@ -384,13 +375,11 @@ const avgWaitTime = totalCancelled > 0
 
 **Interpretation:** Average minutes before scheduled signal cancels. Indicates patience threshold.
 
-**Sources:** [src/lib/services/markdown/ScheduleMarkdownService.ts:244-285]()
 
 ## Metrics Calculation Flow
 
 ![Mermaid Diagram](./diagrams/72_Statistics_Calculation_2.svg)
 
-**Sources:** [src/lib/services/markdown/BacktestMarkdownService.ts:202-270](), [src/lib/services/markdown/LiveMarkdownService.ts:381-464]()
 
 ## Usage Examples
 
@@ -447,7 +436,6 @@ console.log(`Cancellation Rate: ${stats.cancellationRate?.toFixed(2)}%`);
 console.log(`Avg Wait Time: ${stats.avgWaitTime?.toFixed(2)} minutes`);
 ```
 
-**Sources:** [types.d.ts:846-871](), [src/index.ts:97-99]()
 
 ## Metrics Interpretation Guide
 
@@ -465,5 +453,4 @@ console.log(`Avg Wait Time: ${stats.avgWaitTime?.toFixed(2)} minutes`);
 - `sharpeRatio < 0.5` - High risk relative to returns
 - `certaintyRatio < 1.0` - Average losses exceed average wins
 - `cancellationRate > 70%` - Poor entry price selection
-
-**Sources:** [README.md:489-509](), [src/lib/services/markdown/BacktestMarkdownService.ts:66-102]()
+

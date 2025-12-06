@@ -6,7 +6,6 @@
 
 For strategy schema definitions and configuration, see [Strategy Schemas](./24_Strategy_Schemas.md). For high-level signal lifecycle concepts, see [Signal Lifecycle Overview](./07_Signal_Lifecycle_Overview.md). For detailed signal state transitions and validation pipeline, see [Signal Lifecycle](./46_Signal_Lifecycle.md). For persistence adapters and crash recovery, see [Signal Persistence](./50_Signal_Persistence.md).
 
-**Sources**: [src/client/ClientStrategy.ts:1488-1514]()
 
 ---
 
@@ -22,7 +21,6 @@ For strategy schema definitions and configuration, see [Strategy Schemas](./24_S
 - `_scheduledSignal`: Signal waiting for price to reach `priceOpen` for activation
 - `_lastSignalTimestamp`: Timestamp of last `getSignal()` call for interval throttling
 
-**Sources**: [src/client/ClientStrategy.ts:1515-1521](), [src/interfaces/Strategy.interface.ts:76-94]()
 
 ---
 
@@ -32,7 +30,6 @@ The strategy manages signals through a state machine with two parallel tracks: s
 
 ![Mermaid Diagram](./diagrams/32_ClientStrategy_1.svg)
 
-**Sources**: [src/client/ClientStrategy.ts:1516-1519](), [src/client/ClientStrategy.ts:263-396](), [src/client/ClientStrategy.ts:474-528](), [src/client/ClientStrategy.ts:817-876]()
 
 ---
 
@@ -53,7 +50,6 @@ The strategy manages signals through a state machine with two parallel tracks: s
 
 ![Mermaid Diagram](./diagrams/32_ClientStrategy_2.svg)
 
-**Sources**: [src/client/ClientStrategy.ts:32-39](), [src/client/ClientStrategy.ts:271-284](), [src/interfaces/Strategy.interface.ts:12-18]()
 
 ---
 
@@ -79,7 +75,6 @@ await strategy.waitForInit();
 
 ![Mermaid Diagram](./diagrams/32_ClientStrategy_3.svg)
 
-**Sources**: [src/client/ClientStrategy.ts:411-472](), [src/client/ClientStrategy.ts:1532]()
 
 ---
 
@@ -97,7 +92,6 @@ Performs a single iteration of strategy execution, handling signal generation, v
 3. **Signal generation**: Call `getSignal()` with throttling if no active signal
 4. **Pending signal monitoring**: Check VWAP against TP/SL and time expiration
 
-**Sources**: [src/client/ClientStrategy.ts:1639-1753]()
 
 ---
 
@@ -128,7 +122,6 @@ Candle Index:  0    1    2    3    4    5    6    7
                                    (i=4)          Uses candles 3-7
 ```
 
-**Sources**: [src/client/ClientStrategy.ts:1781-1949](), [src/client/ClientStrategy.ts:1263-1357](), [src/client/ClientStrategy.ts:1359-1486]()
 
 ---
 
@@ -143,7 +136,6 @@ Gracefully stops new signal generation while allowing active positions to close 
 
 ![Mermaid Diagram](./diagrams/32_ClientStrategy_7.svg)
 
-**Sources**: [src/client/ClientStrategy.ts:1969-1983]()
 
 ---
 
@@ -163,7 +155,6 @@ The `GET_SIGNAL_FN` helper orchestrates multi-stage validation before creating s
 | 4. Signal Generation | `getSignal()` returns null | Return null |
 | 5. Signal Validation | `VALIDATE_SIGNAL_FN()` throws | Error logged, return null |
 
-**Sources**: [src/client/ClientStrategy.ts:263-396]()
 
 ---
 
@@ -208,7 +199,6 @@ For immediate (non-scheduled) signals:
 - **SHORT**: `currentPrice > priceStopLoss` → Error (would immediately trigger SL)
 - **SHORT**: `currentPrice < priceTakeProfit` → Error (profit opportunity already passed)
 
-**Sources**: [src/client/ClientStrategy.ts:41-261](), [types.d.ts:5-72]()
 
 ---
 
@@ -248,7 +238,6 @@ if (candle.high >= priceStopLoss) {
 
 **Rationale**: If price moves past StopLoss before or simultaneously with reaching priceOpen, the market conditions have invalidated the trade setup. Signal should be cancelled rather than opening a position that will immediately hit StopLoss.
 
-**Sources**: [src/client/ClientStrategy.ts:530-564](), [src/client/ClientStrategy.ts:1263-1357](), [src/client/ClientStrategy.ts:1296-1327]()
 
 ---
 
@@ -266,7 +255,6 @@ When a signal closes, multiple cleanup operations execute:
 
 ![Mermaid Diagram](./diagrams/32_ClientStrategy_12.svg)
 
-**Sources**: [src/client/ClientStrategy.ts:817-876](), [src/client/ClientStrategy.ts:878-938](), [src/client/ClientStrategy.ts:940-1022]()
 
 ---
 
@@ -308,7 +296,6 @@ if (pendingSignal.strategyName !== self.params.method.context.strategyName) {
 - `onActive` for restored `_pendingSignal`
 - `onSchedule` for restored `_scheduledSignal`
 
-**Sources**: [src/client/ClientStrategy.ts:1543-1568](), [src/client/ClientStrategy.ts:1579-1594](), [src/client/ClientStrategy.ts:411-472]()
 
 ---
 
@@ -360,7 +347,6 @@ for (const when of timeframes) {
 }
 ```
 
-**Sources**: [src/client/ClientStrategy.ts:413-415](), [src/client/ClientStrategy.ts:1559-1561](), [src/client/ClientStrategy.ts:1795-1797]()
 
 ---
 
@@ -393,7 +379,6 @@ for (const when of timeframes) {
 
 **Function Naming Convention**: All helper functions use `SCREAMING_SNAKE_CASE_FN` suffix for visual distinction and grep-ability.
 
-**Sources**: [src/client/ClientStrategy.ts:41-1486]()
 
 ---
 
@@ -433,7 +418,6 @@ const GET_SIGNAL_FN = trycatch(
 | `info` | Signal lifecycle events | `"ClientStrategy signal take_profit"` |
 | `warn` | Recoverable errors | `"ClientStrategy exception thrown"` |
 
-**Sources**: [src/client/ClientStrategy.ts:263-396](), [src/client/ClientStrategy.ts:386-395]()
 
 ---
 
@@ -471,7 +455,6 @@ if (result.action === "opened") {
 public waitForInit = singleshot(async () => await WAIT_FOR_INIT_FN(this));
 ```
 
-**Sources**: [src/client/ClientStrategy.ts:1532](), [src/client/ClientStrategy.ts:398-409]()
 
 ---
 
@@ -563,7 +546,6 @@ for await (const result of Live.run("BTCUSDT", {
 }
 ```
 
-**Sources**: [src/interfaces/Strategy.interface.ts:132-149](), [types.d.ts:813-831]()
 
 ---
 
@@ -578,5 +560,4 @@ for await (const result of Live.run("BTCUSDT", {
 4. **Execution**: Logic services call `tick()` or `backtest()` through global service wrapper
 5. **Event Emission**: Strategy emits to `signalEmitter` / `signalBacktestEmitter` / `signalLiveEmitter`
 6. **Persistence**: Automatic state writes to disk adapters in live mode
-
-**Sources**: [src/client/ClientStrategy.ts:1-30](), [src/interfaces/Strategy.interface.ts:76-94]()
+

@@ -12,7 +12,6 @@ For global configuration parameters, see [Configuration](./74_Configuration.md).
 
 Cross-cutting concerns provide infrastructure services that are consumed by all layers.
 
-**Sources:** [src/index.ts:1-184](), [src/config/emitters.ts:1-122](), [src/classes/Persist.ts:1-732]()
 
 ---
 
@@ -29,7 +28,6 @@ The framework accepts any logger implementing the `ILogger` interface, which def
 | `info()` | Informational updates | Successful completions, validations |
 | `warn()` | Potentially problematic situations | Missing data, deprecated usage |
 
-**Sources:** [types.d.ts:45-66]()
 
 ### Logger Registration
 
@@ -44,7 +42,6 @@ setLogger({
 });
 ```
 
-**Sources:** [types.d.ts:68-85](), [test/config/setup.mjs:1-4]()
 
 ### Automatic Context Injection
 
@@ -58,7 +55,6 @@ The framework automatically injects contextual information into log messages. Se
 [PersistBase] entityName=my-strategy - Writing signal state
 ```
 
-**Sources:** [types.d.ts:68-85](), [src/classes/Persist.ts:192-196]()
 
 ### LoggerService Integration
 
@@ -77,7 +73,6 @@ constructor(
 }
 ```
 
-**Sources:** [src/classes/Persist.ts:192-196](), [src/classes/Persist.ts:234-238]()
 
 ---
 
@@ -89,7 +84,6 @@ The framework distinguishes between recoverable errors (`errorEmitter`) and fata
 
 ![Mermaid Diagram](./diagrams/78_Cross-Cutting_Concerns_2.svg)
 
-**Sources:** [src/config/emitters.ts:32-42](), [src/function/event.ts:1-892](), [src/index.ts:21-47]()
 
 ### Error Listener Registration
 
@@ -102,7 +96,6 @@ listenError((error) => {
 });
 ```
 
-**Sources:** [src/index.ts:11](), [test/e2e/defend.test.mjs:615-640]()
 
 ### Recoverable vs Fatal Error Handling
 
@@ -148,7 +141,6 @@ try {
 }
 ```
 
-**Sources:** [test/e2e/defend.test.mjs:615-641](), [src/config/emitters.ts:32-42](), [src/function/event.ts:244-276]()
 
 ### exitEmitter Usage
 
@@ -166,7 +158,6 @@ listenExit((error) => {
 
 The `exitEmitter` is distinct from `errorEmitter` because it signals that execution cannot safely continue. Background tasks that catch an `exitEmitter` event should gracefully shut down.
 
-**Sources:** [src/config/emitters.ts:37-42](), [src/function/event.ts:249-276]()
 
 ### Validation Error Emission
 
@@ -178,7 +169,6 @@ Signal validation errors are thrown from `VALIDATE_SIGNAL_FN` and caught by logi
 - Negative or NaN prices
 - Inverted long/short logic (e.g., long with TP < priceOpen)
 
-**Sources:** [test/e2e/sanitize.test.mjs:27-131](), [test/e2e/defend.test.mjs:544-641]()
 
 ---
 
@@ -190,7 +180,6 @@ The persistence layer provides crash-safe state management for live trading via 
 
 ![Mermaid Diagram](./diagrams/78_Cross-Cutting_Concerns_3.svg)
 
-**Sources:** [src/classes/Persist.ts:40-482](), [src/utils/writeFileAtomic.ts:1-141]()
 
 ### PersistBase Abstract Class
 
@@ -225,7 +214,6 @@ The `IPersistBase<Entity>` interface defines the contract that custom adapters m
     └── partial.json
 ```
 
-**Sources:** [src/classes/Persist.ts:160-482](), [src/index.ts:152-166]()
 
 ### PersistSignalAdapter
 
@@ -255,7 +243,6 @@ await PersistSignalAdapter.writeSignalData(
 );
 ```
 
-**Sources:** [src/classes/Persist.ts:484-600](), [types.d.ts:40-46]()
 
 ### PersistRiskAdapter
 
@@ -287,7 +274,6 @@ const positions = await PersistRiskAdapter.readPositionData("my-risk");
 await PersistRiskAdapter.writePositionData(positionsArray, "my-risk");
 ```
 
-**Sources:** [src/classes/Persist.ts:602-731](), [src/index.ts:152-166]()
 
 ### PersistScheduleAdapter
 
@@ -301,7 +287,6 @@ await PersistRiskAdapter.writePositionData(positionsArray, "my-risk");
 
 This adapter enables crash recovery for scheduled signals that have not yet opened, tracking their timeout countdown and pre-activation state.
 
-**Sources:** [src/classes/Persist.ts:1-732](), [src/index.ts:152-166]()
 
 ### PersistPartialAdapter
 
@@ -315,7 +300,6 @@ This adapter enables crash recovery for scheduled signals that have not yet open
 
 This adapter tracks which profit/loss levels (10%, 20%, 30%, etc.) have been reached for each active signal, preventing duplicate emissions of partial milestone events.
 
-**Sources:** [src/classes/Persist.ts:1-732](), [src/index.ts:152-166]()
 
 ### Atomic File Writes
 
@@ -338,7 +322,6 @@ This adapter tracks which profit/loss levels (10%, 20%, 30%, etc.) have been rea
 - **Durability (both):** `sync()` ensures data is flushed to disk before rename/close
 - **Isolation:** Temp filename uses crypto-random bytes to prevent collisions
 
-**Sources:** [src/utils/writeFileAtomic.ts:1-141]()
 
 ### Custom Persistence Adapters
 
@@ -375,7 +358,6 @@ PersistSignalAdapter.usePersistSignalAdapter(RedisPersist);
 PersistRiskAdapter.usePersistRiskAdapter(RedisPersist);
 ```
 
-**Sources:** [src/classes/Persist.ts:514-529](), [src/classes/Persist.ts:640-660](), [test/config/setup.mjs:6-34]()
 
 ### Crash Recovery Pattern
 
@@ -402,7 +384,6 @@ const BASE_WAIT_FOR_INIT_FN = async (self: TPersistBase): Promise<void> => {
 
 **Retry logic for file deletion:** [src/classes/Persist.ts:136-158]()
 
-**Sources:** [src/classes/Persist.ts:113-158](), [src/classes/Persist.ts:37-39]()
 
 
 ---
@@ -415,7 +396,6 @@ The DI container provides singletons for cross-cutting concerns that are injecte
 
 ![Mermaid Diagram](./diagrams/78_Cross-Cutting_Concerns_4.svg)
 
-**Sources:** [src/classes/Persist.ts:192-196](), [types.d.ts:171-176]()
 
 ### Context Injection Flow
 
@@ -426,7 +406,6 @@ Logging context is automatically injected via the context propagation system (se
 3. Services access these via DI-scoped tokens
 4. Logger calls include context parameters automatically
 
-**Sources:** [types.d.ts:100-143](), [types.d.ts:362-402]()
 
 ---
 
@@ -449,7 +428,6 @@ Logging context is automatically injected via the context propagation system (se
    });
    ```
 
-**Sources:** [types.d.ts:45-66]()
 
 ### Error Handling Guidelines
 
@@ -471,7 +449,6 @@ Logging context is automatically injected via the context propagation system (se
    - Check `CC_MIN_TAKEPROFIT_DISTANCE_PERCENT` and related parameters
    - Review signal generation logic for price calculation bugs
 
-**Sources:** [test/e2e/defend.test.mjs:615-641](), [src/index.ts:11]()
 
 ### Persistence Guidelines
 
@@ -491,7 +468,6 @@ Logging context is automatically injected via the context propagation system (se
    - Monitor disk space usage (especially for high-frequency strategies)
    - Alert on repeated write failures
 
-**Sources:** [src/classes/Persist.ts:113-158](), [test/config/setup.mjs:6-34]()
 
 ### Configuration Guidelines
 
@@ -513,5 +489,4 @@ Logging context is automatically injected via the context propagation system (se
    - Include comments explaining why specific values are chosen
    - Reference trading fees and slippage assumptions
    - Note asset-specific considerations (e.g., crypto vs stocks)
-
-**Sources:** [test/config/setup.mjs:36-41](), [test/e2e/sanitize.test.mjs:30-32]()
+

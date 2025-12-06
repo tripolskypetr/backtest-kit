@@ -35,7 +35,6 @@ return signalLiveEmitter.subscribe(queued(async (event) => fn(event)));
 - Prevents race conditions in async monitoring code
 - No concurrent execution of the same callback
 
-Sources: [src/config/emitters.ts:13-121](), [src/function/event.ts:1-892]()
 
 ---
 
@@ -143,7 +142,6 @@ listenSignalLive((event) => {
 });
 ```
 
-Sources: [src/function/event.ts:132-164](), [README.md:392-407]()
 
 ---
 
@@ -243,7 +241,6 @@ listenDoneLive((event) => {
 });
 ```
 
-Sources: [src/function/event.ts:305-342](), [README.md:405-407]()
 
 ---
 
@@ -422,7 +419,6 @@ callbacks: {
 
 **Best practice**: Use callbacks for strategy-specific actions, event listeners for system-wide monitoring.
 
-Sources: [README.md:144-158](), [src/function/event.ts:132-164]()
 
 ---
 
@@ -553,7 +549,6 @@ await Live.clear({ symbol: "BTCUSDT", strategyName: "my-strategy" });
 await Live.clear();
 ```
 
-Sources: [src/lib/services/markdown/LiveMarkdownService.ts:1-749](), [src/index.ts:169]()
 
 ---
 
@@ -682,7 +677,6 @@ listenSignalLive((event) => {
 });
 ```
 
-Sources: [README.md:392-407](), [src/lib/services/markdown/LiveMarkdownService.ts:381-464]()
 
 ---
 
@@ -897,7 +891,6 @@ app.listen(3000, () => {
 });
 ```
 
-Sources: [README.md:100-189](), [src/function/event.ts:132-164](), [src/lib/services/markdown/LiveMarkdownService.ts:634-699]()
 
 ---
 
@@ -909,7 +902,6 @@ Sources: [README.md:100-189](), [src/function/event.ts:132-164](), [src/lib/serv
 3. **scheduled → cancelled**: Timeout or SL hit before activation
 4. **scheduled → idle**: SL hit before activation (cancellation variant)
 
-Sources: [src/client/ClientStrategy.ts:675-846](), [src/client/ClientStrategy.ts:332-551]()
 
 ---
 
@@ -925,7 +917,6 @@ Sources: [src/client/ClientStrategy.ts:675-846](), [src/client/ClientStrategy.ts
 
 All parameters can be modified via `setConfig()` [4.1](./15_Configuration_Functions.md) before starting live trading.
 
-Sources: [src/config/params.ts:1-36]()
 
 ---
 
@@ -940,5 +931,4 @@ Sources: [src/config/params.ts:1-36]()
 | `CLOSE_PENDING_SIGNAL_FN` | [src/client/ClientStrategy.ts:736-789]() | Close active signal with PnL calculation |
 | `ACTIVATE_SCHEDULED_SIGNAL_FN` | [src/client/ClientStrategy.ts:459-551]() | Convert scheduled signal to active |
 | `CANCEL_SCHEDULED_SIGNAL_BY_STOPLOSS_FN` | [src/client/ClientStrategy.ts:424-457]() | Cancel scheduled signal due to SL |
-
-Sources: [src/client/ClientStrategy.ts:285-846]()
+

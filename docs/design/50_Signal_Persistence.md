@@ -12,7 +12,6 @@ Signal persistence operates exclusively in **live mode** (not backtest mode) to 
 
 ![Mermaid Diagram](./diagrams/50_Signal_Persistence_0.svg)
 
-**Sources:** [src/client/ClientStrategy.ts:411-472](), [types.d.ts:1-1000]()
 
 ---
 
@@ -44,7 +43,6 @@ await self.setPendingSignal(signalRow); // Writes to disk
 await self.setPendingSignal(null);      // Clears from disk
 ```
 
-**Sources:** [src/client/ClientStrategy.ts:418-429](), [src/classes/Persist.ts]()
 
 ---
 
@@ -74,7 +72,6 @@ await self.setScheduledSignal(scheduledSignalRow); // Writes to disk
 await self.setScheduledSignal(null);               // Clears from disk
 ```
 
-**Sources:** [src/client/ClientStrategy.ts:446-471](), [src/classes/Persist.ts]()
 
 ---
 
@@ -98,7 +95,6 @@ interface IRiskActivePosition {
 }
 ```
 
-**Sources:** [types.d.ts:460-471](), [src/client/ClientRisk.ts]()
 
 ---
 
@@ -120,7 +116,6 @@ interface IPartialData {
 }
 ```
 
-**Sources:** [types.d.ts:585-604](), [src/client/ClientPartial.ts]()
 
 ---
 
@@ -138,7 +133,6 @@ All persistence adapters implement **atomic writes** to prevent data corruption 
 
 **Key Property:** No intermediate states are visible - either old data or new data exists, never corrupted data.
 
-**Sources:** [src/classes/Persist.ts](), POSIX atomic rename semantics
 
 ---
 
@@ -148,7 +142,6 @@ The `waitForInit()` method is called at the start of every live trading session 
 
 ![Mermaid Diagram](./diagrams/50_Signal_Persistence_2.svg)
 
-**Sources:** [src/client/ClientStrategy.ts:411-472]()
 
 ### Implementation: WAIT_FOR_INIT_FN
 
@@ -233,7 +226,6 @@ const WAIT_FOR_INIT_FN = async (self: ClientStrategy) => {
 3. **State Assignment:** Directly sets `_pendingSignal` and `_scheduledSignal` private fields
 4. **Callback Invocation:** Triggers `onActive`/`onSchedule` callbacks to notify user code of restored state
 
-**Sources:** [src/client/ClientStrategy.ts:411-472]()
 
 ---
 
@@ -256,7 +248,6 @@ The following table shows when persistence operations occur during the signal li
 | Partial loss milestone reached | `partial.loss()` | `partial/{symbol}.json` |
 | Signal closes completely | `partial.clear()` | `partial/{symbol}.json` |
 
-**Sources:** [src/client/ClientStrategy.ts:1-1000](), [src/client/ClientRisk.ts](), [src/client/ClientPartial.ts]()
 
 ---
 
@@ -272,7 +263,6 @@ The following table shows when persistence operations occur during the signal li
 3. **Atomic Integrity:** Either full signal data or nothing (never corrupted)
 4. **Callback Notification:** User code informed via `onActive` callback
 
-**Sources:** [src/client/ClientStrategy.ts:411-472]()
 
 ---
 
@@ -299,7 +289,6 @@ if (self.params.execution.context.backtest) {
 
 **Rationale:** Backtest mode processes historical data sequentially with no risk of crashes interrupting real positions. Persistence would add unnecessary I/O overhead without benefit.
 
-**Sources:** [src/client/ClientStrategy.ts:411-415]()
 
 ---
 
@@ -361,7 +350,6 @@ PersistSignalAdapter.registerAdapter(new RedisPersistAdapter(redis));
 - MongoDB - Document updates with write concerns
 - PostgreSQL - Transactional writes with `SERIALIZABLE` isolation
 
-**Sources:** [types.d.ts](), [src/classes/Persist.ts]()
 
 ---
 
@@ -399,7 +387,6 @@ addStrategy({
 - Debugging state serialization issues
 - Monitoring persistence latency in production
 
-**Sources:** [types.d.ts:120-121](), [src/interfaces/Strategy.interface.ts:120-121]()
 
 ---
 
@@ -418,7 +405,6 @@ ClientStrategy maintains both in-memory and on-disk representations of signal st
 
 **Race Condition Prevention:** All persistence operations use synchronous file I/O (not async) to ensure signal processing cannot continue until write completes.
 
-**Sources:** [src/client/ClientStrategy.ts]()
 
 ---
 
@@ -442,7 +428,6 @@ ClientStrategy maintains both in-memory and on-disk representations of signal st
 
 **Live Mode Tick Rate:** Default `TICK_TTL = 61 seconds` means persistence happens at most once per minute, making overhead negligible relative to network latency for VWAP calculation.
 
-**Sources:** [src/config/params.ts](), [src/classes/Persist.ts]()
 
 ---
 
@@ -479,7 +464,6 @@ const strategyName = "my-strategy-v2"; // Forces new persist file
 // Default file adapter is atomic via POSIX rename
 ```
 
-**Sources:** [src/client/ClientStrategy.ts:411-472](), [src/classes/Persist.ts]()
 
 ---
 
@@ -501,5 +485,4 @@ The persistence layer ensures that live trading can safely survive crashes, rest
 - [Signal States](./47_Signal_States.md) - State machine that persistence maintains
 - [Live Execution Flow](./57_Live_Execution_Flow.md) - How persistence integrates with live loop
 - [Crash Recovery](./58_Crash_Recovery.md) - Full crash recovery architecture
-
-**Sources:** [src/client/ClientStrategy.ts](), [src/classes/Persist.ts](), [types.d.ts]()
+
