@@ -63,6 +63,7 @@ const markdownServices = {
     walkerMarkdownService: Symbol('walkerMarkdownService'),
     heatMarkdownService: Symbol('heatMarkdownService'),
     partialMarkdownService: Symbol('partialMarkdownService'),
+    outlineMarkdownService: Symbol('outlineMarkdownService'),
 }
 
 const validationServices = {

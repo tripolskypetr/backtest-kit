@@ -48,6 +48,7 @@ import OptimizerConnectionService from "../services/connection/OptimizerConnecti
 import { PartialConnectionService } from "../services/connection/PartialConnectionService";
 import PartialMarkdownService from "../services/markdown/PartialMarkdownService";
 import PartialGlobalService from "../services/global/PartialGlobalService";
+import OutlineMarkdownService from "../services/markdown/OutlineMarkdownService";
 
 {
     provide(TYPES.loggerService, () => new LoggerService());
@@ -114,6 +115,7 @@ import PartialGlobalService from "../services/global/PartialGlobalService";
     provide(TYPES.walkerMarkdownService, () => new WalkerMarkdownService());
     provide(TYPES.heatMarkdownService, () => new HeatMarkdownService());
     provide(TYPES.partialMarkdownService, () => new PartialMarkdownService());
+    provide(TYPES.outlineMarkdownService, () => new OutlineMarkdownService());
 }
 
 {

@@ -53,6 +53,7 @@ export {
   formatPrice,
   formatQuantity,
 } from "./function/exchange";
+export { dumpSignal } from "./function/dump";
 
 export {
   CandleInterval,
