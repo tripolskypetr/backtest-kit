@@ -1,8 +1,8 @@
 # Schema Services
 
-Schema Services implement the registry pattern for storing configuration schemas in the backtest-kit framework. These services act as in-memory storage for strategy, exchange, and frame configurations registered at application startup via `addStrategy()`, `addExchange()`, and `addFrame()` functions. They provide lookup capabilities for Connection Services (see [5.1](#5.1)) which create runtime instances based on registered schemas.
+Schema Services implement the registry pattern for storing configuration schemas in the backtest-kit framework. These services act as in-memory storage for strategy, exchange, and frame configurations registered at application startup via `addStrategy()`, `addExchange()`, and `addFrame()` functions. They provide lookup capabilities for Connection Services (see [5.1](./24_Strategy_Schemas.md)) which create runtime instances based on registered schemas.
 
-For information about how registered schemas are instantiated into client objects, see [Connection Services](#5.1). For details on schema interfaces and registration functions, see [Configuration Functions](#3.1).
+For information about how registered schemas are instantiated into client objects, see [Connection Services](./24_Strategy_Schemas.md). For details on schema interfaces and registration functions, see [Configuration Functions](./15_Configuration_Functions.md).
 
 ---
 
@@ -375,7 +375,7 @@ Schema Services provide lookup methods that Connection Services call to retrieve
 
 **Diagram: Schema Lookup Flow**
 
-The `MethodContextService` (see [2.3](#2.3)) provides the schema name as a routing key. Connection Services query Schema Services by name, retrieve the schema, and pass it to client constructors for instantiation.
+The `MethodContextService` (see [2.3](./08_Component_Registration.md)) provides the schema name as a routing key. Connection Services query Schema Services by name, retrieve the schema, and pass it to client constructors for instantiation.
 
 ### Common Schema Service Methods
 
@@ -718,7 +718,7 @@ Each schema service's `validateShallow()` method validates required fields durin
 - `SizingSchemaService`: Validates `sizingName`, `method`, and method-specific parameters are present
 - `RiskSchemaService`: Validates `riskName` is present and custom validations are functions
 
-The `validateShallow()` method performs type checking and ensures required fields exist before allowing registration. Deeper validation (e.g., verifying referenced strategies exist) is performed by Validation Services (see [7.4](#7.4)).
+The `validateShallow()` method performs type checking and ensures required fields exist before allowing registration. Deeper validation (e.g., verifying referenced strategies exist) is performed by Validation Services (see [7.4](./42_Validation_Services.md)).
 
 **Sources:** [src/function/add.ts:54-57](), [src/function/add.ts:103-106](), [src/function/add.ts:147](), [src/function/add.ts:192-195](), [src/function/add.ts:258-261](), [src/function/add.ts:333-336]()
 
@@ -738,8 +738,8 @@ Schema Services interact with multiple layers of the architecture:
 Schema Services have no dependencies on other services—they are pure registries with no outbound calls to other components. This makes them the foundational layer of the service architecture.
 
 For more information:
-- Connection Services usage: [Connection Services](#5.1)
-- Registration API details: [Configuration Functions](#3.1)
-- Runtime orchestration: [Logic Services](#5.4)
+- Connection Services usage: [Connection Services](./24_Strategy_Schemas.md)
+- Registration API details: [Configuration Functions](./15_Configuration_Functions.md)
+- Runtime orchestration: [Logic Services](./27_Risk_Schemas.md)
 
 **Sources:** [src/lib/index.ts:42-62](), [src/lib/services/connection/StrategyConnectionService.ts]()

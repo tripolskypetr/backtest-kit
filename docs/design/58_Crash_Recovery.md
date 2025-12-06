@@ -4,7 +4,7 @@
 
 This document explains the crash-safe persistence mechanism in the backtest-kit framework that ensures live trading strategies can recover gracefully from process crashes, restarts, or unexpected failures. The crash recovery system prevents duplicate signals and ensures no active trades are lost when the process terminates unexpectedly.
 
-**Scope**: This page covers signal state persistence, atomic file writes, state recovery on restart, and custom persistence adapters. For information about signal lifecycle states, see [Signal States](#6.1). For live trading execution flow, see [Live Execution Flow](#8.1). For backtest mode (which does not use persistence), see [Backtest Execution Flow](#7.1).
+**Scope**: This page covers signal state persistence, atomic file writes, state recovery on restart, and custom persistence adapters. For information about signal lifecycle states, see [Signal States](./47_Signal_States.md). For live trading execution flow, see [Live Execution Flow](./47_Signal_States.md). For backtest mode (which does not use persistence), see [Backtest Execution Flow](./39_Service_Architecture_Overview.md).
 
 **Note**: Crash recovery only applies to live trading mode. Backtest mode skips all persistence operations since historical data can be re-executed deterministically.
 

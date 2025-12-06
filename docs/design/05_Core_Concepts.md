@@ -1,6 +1,6 @@
 # Core Concepts
 
-This page introduces the fundamental architectural patterns and execution models of backtest-kit. It covers the three execution modes (Backtest, Live, Walker), the signal lifecycle state machine, and the component-based registration system. For detailed API documentation, see [Public API Reference](#4). For implementation details of specific components, see [Component Types](#5).
+This page introduces the fundamental architectural patterns and execution models of backtest-kit. It covers the three execution modes (Backtest, Live, Walker), the signal lifecycle state machine, and the component-based registration system. For detailed API documentation, see [Public API Reference](./14_Public_API_Reference.md). For implementation details of specific components, see [Component Types](./23_Component_Types.md).
 
 ## Execution Modes
 
@@ -152,6 +152,6 @@ const candles = await getCandles(symbol, interval, limit);
 // - executionContext.backtest (historical vs real-time data)
 ```
 
-For detailed context propagation mechanics, see [Context Propagation](#3.3).
+For detailed context propagation mechanics, see [Context Propagation](./12_Context_Propagation.md).
 
 **Sources:** [src/lib/services/context/ExecutionContextService.ts:1-50](), [src/lib/services/context/MethodContextService.ts:1-50](), [src/function/exchange.ts]()

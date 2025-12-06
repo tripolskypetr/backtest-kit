@@ -4,7 +4,7 @@
 
 This document describes `ClientFrame`, the timeframe generator component responsible for creating arrays of `Date` objects for backtest execution. ClientFrame converts a date range (`startDate`, `endDate`) and a time interval (e.g., `"1m"`, `"1h"`) into a chronologically ordered sequence of timestamps that the backtest engine uses to simulate historical trading.
 
-For configuration schemas and registration patterns, see [Frame Schemas](#5.3). For how the generated timeframes are consumed during backtest execution, see [Backtesting](#9).
+For configuration schemas and registration patterns, see [Frame Schemas](./26_Frame_Schemas.md). For how the generated timeframes are consumed during backtest execution, see [Backtesting](./52_Backtesting.md).
 
 **Sources:** [types.d.ts:323-398]()
 

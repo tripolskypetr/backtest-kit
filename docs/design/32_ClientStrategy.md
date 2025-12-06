@@ -4,7 +4,7 @@
 
 `ClientStrategy` is the core implementation class for trading strategy lifecycle management. It orchestrates signal generation, validation, monitoring, and closure across both live trading and backtesting execution modes. This class implements the `IStrategy` interface and manages the complete signal state machine from idle through scheduled/opened/active to closed/cancelled states.
 
-For strategy schema definitions and configuration, see [Strategy Schemas](#5.1). For high-level signal lifecycle concepts, see [Signal Lifecycle Overview](#2.2). For detailed signal state transitions and validation pipeline, see [Signal Lifecycle](#8). For persistence adapters and crash recovery, see [Signal Persistence](#8.4).
+For strategy schema definitions and configuration, see [Strategy Schemas](./24_Strategy_Schemas.md). For high-level signal lifecycle concepts, see [Signal Lifecycle Overview](./07_Signal_Lifecycle_Overview.md). For detailed signal state transitions and validation pipeline, see [Signal Lifecycle](./46_Signal_Lifecycle.md). For persistence adapters and crash recovery, see [Signal Persistence](./50_Signal_Persistence.md).
 
 **Sources**: [src/client/ClientStrategy.ts:1488-1514]()
 

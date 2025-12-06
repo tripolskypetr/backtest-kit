@@ -4,7 +4,7 @@
 
 Validation Services provide schema validation and runtime checks for all component types in the framework. These services ensure that components are correctly configured at registration time and that runtime data (signals, prices, risk parameters) meets safety constraints before execution. Validation Services act as gatekeepers between the public API and the execution engine, preventing invalid configurations from causing runtime errors or financial losses.
 
-For information about how validated schemas are stored and retrieved, see [Schema Services](#7.3). For details on how validation results flow into execution, see [Global Services](#7.5).
+For information about how validated schemas are stored and retrieved, see [Schema Services](./55_Fast-Forward_Simulation.md). For details on how validation results flow into execution, see [Global Services](./43_Global_Services.md).
 
 ---
 
@@ -550,8 +550,8 @@ Schema validation errors, in contrast, throw immediately at registration time an
 ![Mermaid Diagram](./diagrams/42_Validation_Services_4.svg)
 
 After a schema passes validation:
-1. It's stored in the corresponding `*SchemaService` (see [Schema Services](#7.3))
-2. During execution, `*ConnectionService` retrieves it (see [Connection Services](#7.2))
+1. It's stored in the corresponding `*SchemaService` (see [Schema Services](./55_Fast-Forward_Simulation.md))
+2. During execution, `*ConnectionService` retrieves it (see [Connection Services](./54_Timeframe_Generation.md))
 3. `*ConnectionService` creates a memoized `Client*` instance
 4. The `Client*` instance uses the validated schema for all operations
 

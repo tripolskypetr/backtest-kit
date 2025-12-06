@@ -2,7 +2,7 @@
 
 This document describes the reporting and analytics capabilities of the backtest-kit framework. The system provides markdown-based reports for both backtest and live trading modes, accumulating signal events and calculating performance statistics.
 
-For information about signal lifecycle and PnL calculations that feed into reports, see [Signal Lifecycle](#6). For details on the public API methods to retrieve reports, see [Backtest API](#3.2) and [Live Trading API](#3.3).
+For information about signal lifecycle and PnL calculations that feed into reports, see [Signal Lifecycle](./46_Signal_Lifecycle.md). For details on the public API methods to retrieve reports, see [Backtest API](./11_Dependency_Injection_System.md) and [Live Trading API](./12_Context_Propagation.md).
 
 ## Overview
 

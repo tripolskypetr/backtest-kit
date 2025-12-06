@@ -2,7 +2,7 @@
 
 ## Purpose and Scope
 
-This document describes the data collection phase of the AI-powered optimizer, where historical trading data is fetched from external sources, paginated, formatted into LLM conversation messages, and accumulated across multiple training ranges. For information about the overall optimizer architecture and how components connect, see [Optimizer Architecture](#16.5.1). For details on how the collected data is sent to the LLM after collection, see [LLM Integration](#16.5.3).
+This document describes the data collection phase of the AI-powered optimizer, where historical trading data is fetched from external sources, paginated, formatted into LLM conversation messages, and accumulated across multiple training ranges. For information about the overall optimizer architecture and how components connect, see [Optimizer Architecture](./88_Optimizer_Architecture.md). For details on how the collected data is sent to the LLM after collection, see [LLM Integration](./90_LLM_Integration.md).
 
 The data collection pipeline is implemented primarily in `ClientOptimizer.getData()` and processes sources sequentially for each training date range, building up a conversation history that provides market context for strategy generation.
 
@@ -362,6 +362,6 @@ The data collection pipeline transforms external data sources into structured LL
 5. **Progress tracking** with `ProgressOptimizerContract` events
 6. **Callback hooks** for monitoring and validation
 
-The collected data (represented as `IOptimizerStrategy[]`) serves as input to the LLM integration phase described in [LLM Integration](#16.5.3), where it is combined with system prompts to generate trading strategy recommendations.
+The collected data (represented as `IOptimizerStrategy[]`) serves as input to the LLM integration phase described in [LLM Integration](./90_LLM_Integration.md), where it is combined with system prompts to generate trading strategy recommendations.
 
 Sources: [src/client/ClientOptimizer.ts:99-215](), [src/interfaces/Optimizer.interface.ts:100-123]()

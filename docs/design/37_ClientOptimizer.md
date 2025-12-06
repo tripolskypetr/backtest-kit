@@ -4,7 +4,7 @@
 
 `ClientOptimizer` is the core business logic class that implements AI-powered trading strategy generation through LLM integration. This class orchestrates data collection from multiple sources, builds conversation histories for language models, generates executable strategy code, and exports the results to files.
 
-This document covers the internal implementation of the `ClientOptimizer` class, including its methods, helper functions, and data flow. For configuration of optimizer schemas, see [Optimizer Schemas](#5.7). For higher-level concepts about AI optimization architecture and workflow, see [AI-Powered Strategy Optimization](#16.5).
+This document covers the internal implementation of the `ClientOptimizer` class, including its methods, helper functions, and data flow. For configuration of optimizer schemas, see [Optimizer Schemas](./30_Optimizer_Schemas.md). For higher-level concepts about AI optimization architecture and workflow, see [AI-Powered Strategy Optimization](./87_AI-Powered_Strategy_Optimization.md).
 
 ## Class Structure
 

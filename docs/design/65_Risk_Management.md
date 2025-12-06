@@ -2,7 +2,7 @@
 
 This document covers the risk management system in backtest-kit, which provides portfolio-level controls to prevent signals that violate configured limits. The system tracks active positions across strategies, executes custom validation logic, and persists state for crash recovery.
 
-For information about risk profiles in strategy schemas, see [Component Types](#5). For risk validation callback configuration, see [Strategy Schemas](#5.1).
+For information about risk profiles in strategy schemas, see [Component Types](./23_Component_Types.md). For risk validation callback configuration, see [Strategy Schemas](./24_Strategy_Schemas.md).
 
 ---
 

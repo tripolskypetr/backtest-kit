@@ -2,7 +2,7 @@
 
 This document provides a comprehensive guide to the signal lifecycle in backtest-kit. It covers signal states, generation, validation, state transitions, and persistence. The signal lifecycle is the core mechanism through which trading positions are created, monitored, and closed by the framework.
 
-For information about risk management checks that occur during signal generation, see [Risk Management](#12). For details on execution modes (Backtest vs Live) that affect lifecycle behavior, see [Execution Modes](#2.1).
+For information about risk management checks that occur during signal generation, see [Risk Management](./65_Risk_Management.md). For details on execution modes (Backtest vs Live) that affect lifecycle behavior, see [Execution Modes](./06_Execution_Modes.md).
 
 ---
 

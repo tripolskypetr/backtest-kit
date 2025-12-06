@@ -4,7 +4,7 @@
 
 This document explains how the framework tracks active positions for portfolio-level risk management. Position tracking is implemented by `ClientRisk` and maintains a real-time registry of all open positions across strategies sharing the same risk profile.
 
-For information about risk profile configuration, see [Risk Profiles](#12.1). For information about risk validation logic, see [Risk Validation](#12.2).
+For information about risk profile configuration, see [Risk Profiles](./66_Risk_Profiles.md). For information about risk validation logic, see [Risk Validation](./67_Risk_Validation.md).
 
 **Sources:** [src/client/ClientRisk.ts:1-221]()
 

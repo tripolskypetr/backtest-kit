@@ -2,7 +2,7 @@
 
 This page documents the exchange helper functions available in the public API. These functions provide standardized access to market data (candles, prices) with built-in retry logic, validation, and VWAP calculation. Exchange functions are defined in user-provided exchange schemas and accessed through the `ClientExchange` implementation.
 
-For information about registering exchange schemas, see [Component Registration Functions](#4.2). For details on implementing custom exchange integrations, see [Custom Exchange Integration](#16.1).
+For information about registering exchange schemas, see [Component Registration Functions](./16_Component_Registration_Functions.md). For details on implementing custom exchange integrations, see [Custom Exchange Integration](./83_Custom_Exchange_Integration.md).
 
 ---
 
@@ -328,7 +328,7 @@ await setConfig({
 });
 ```
 
-For complete configuration documentation, see [Global Configuration](#14.1).
+For complete configuration documentation, see [Global Configuration](./75_Global_Configuration.md).
 
 **Sources:** [types.d.ts:5-72](), [src/client/ClientExchange.ts:325-329]()
 

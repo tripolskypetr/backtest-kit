@@ -1,6 +1,6 @@
 # Risk Profiles
 
-This page documents the risk profile system in backtest-kit, explaining how `IRiskSchema` structures define portfolio-level risk controls, how risk profiles are isolated by `riskName`, and how multiple strategies share risk limits through custom validation functions. For risk validation execution flow, see [Risk Validation](#12.2). For position tracking implementation details, see [Position Tracking](#12.3). For risk schema registration API, see [Risk Schemas](#5.4).
+This page documents the risk profile system in backtest-kit, explaining how `IRiskSchema` structures define portfolio-level risk controls, how risk profiles are isolated by `riskName`, and how multiple strategies share risk limits through custom validation functions. For risk validation execution flow, see [Risk Validation](./67_Risk_Validation.md). For position tracking implementation details, see [Position Tracking](./68_Position_Tracking.md). For risk schema registration API, see [Risk Schemas](./27_Risk_Schemas.md).
 
 ---
 

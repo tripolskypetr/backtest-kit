@@ -2,7 +2,7 @@
 
 This page describes the complete lifecycle of trading signals within the backtest-kit framework, from generation through validation, execution, and termination. A signal represents a trading position with entry price, take-profit, stop-loss, and time expiration parameters. Understanding the signal lifecycle is essential for implementing strategies and debugging execution behavior.
 
-For details on strategy registration and configuration, see [Component Registration](#2.3). For implementation details of the `ClientStrategy` class that manages this lifecycle, see [ClientStrategy](#6.1). For validation rules and error handling, see [Signal Generation and Validation](#8.2).
+For details on strategy registration and configuration, see [Component Registration](./08_Component_Registration.md). For implementation details of the `ClientStrategy` class that manages this lifecycle, see [ClientStrategy](./47_Signal_States.md). For validation rules and error handling, see [Signal Generation and Validation](./48_Signal_Generation_and_Validation.md).
 
 ---
 

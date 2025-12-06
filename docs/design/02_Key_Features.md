@@ -2,7 +2,7 @@
 
 This page provides an overview of the core features that make backtest-kit a production-ready framework for algorithmic trading. Each feature is explained with its implementation details and integration points.
 
-Related pages: [Core Concepts (2)](#2), [Architecture (3)](#3), [Public API Reference (4)](#4)
+Related pages: [Core Concepts (2)](./05_Core_Concepts.md), [Architecture (3)](./09_Architecture.md), [Public API Reference (4)](./14_Public_API_Reference.md)
 
 ---
 

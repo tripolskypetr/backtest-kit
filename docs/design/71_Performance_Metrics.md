@@ -2,7 +2,7 @@
 
 This page details the mathematical formulas and calculation methods for all performance metrics used in strategy analysis. These metrics quantify trading performance across risk, return, consistency, and frequency dimensions.
 
-For information about the report generation infrastructure that displays these metrics, see [Markdown Report Generation](#13.1). For details about the safe math layer that protects against NaN/Infinity values, see [Statistics Calculation](#13.3).
+For information about the report generation infrastructure that displays these metrics, see [Markdown Report Generation](./70_Markdown_Report_Generation.md). For details about the safe math layer that protects against NaN/Infinity values, see [Statistics Calculation](./72_Statistics_Calculation.md).
 
 ## Overview
 

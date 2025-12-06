@@ -1,6 +1,6 @@
 # Live Trading API
 
-This page documents the `Live` utility class and its methods for executing real-time trading operations. The Live Trading API provides an infinite async generator that continuously monitors market conditions and executes strategy signals in real-time, with built-in crash recovery capabilities through state persistence. For historical simulation, see [Backtest API](#4.3). For strategy comparison, see [Walker API](#4.5). For event monitoring, see [Event Listeners](#4.8).
+This page documents the `Live` utility class and its methods for executing real-time trading operations. The Live Trading API provides an infinite async generator that continuously monitors market conditions and executes strategy signals in real-time, with built-in crash recovery capabilities through state persistence. For historical simulation, see [Backtest API](./17_Backtest_API.md). For strategy comparison, see [Walker API](./19_Walker_API.md). For event monitoring, see [Event Listeners](./22_Event_Listeners.md).
 
 ## LiveUtils Class
 

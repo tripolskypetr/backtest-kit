@@ -2,7 +2,7 @@
 
 This document describes the global configuration system for `backtest-kit`, including runtime parameter modification, validation constraints, and timing controls. The framework uses a mutable `GLOBAL_CONFIG` object that can be customized via `setConfig()` and `setLogger()` functions to control signal validation, monitoring behavior, and execution timing.
 
-For component-specific schemas, see [Component Types](#5). For execution mode differences, see [Execution Modes](#2.1).
+For component-specific schemas, see [Component Types](./23_Component_Types.md). For execution mode differences, see [Execution Modes](./06_Execution_Modes.md).
 
 ---
 

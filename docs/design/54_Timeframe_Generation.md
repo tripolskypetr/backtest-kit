@@ -10,7 +10,7 @@ This page covers:
 - The `IFrame.getTimeframe()` method that produces timestamp arrays
 - Integration with `BacktestLogicPrivateService` for iterative execution
 
-For information about the actual backtest execution flow that consumes these timeframes, see [Backtest Execution Flow](#9.1). For details on fast-forward simulation using candle data, see [Fast-Forward Simulation](#9.3).
+For information about the actual backtest execution flow that consumes these timeframes, see [Backtest Execution Flow](./53_Backtest_Execution_Flow.md). For details on fast-forward simulation using candle data, see [Fast-Forward Simulation](./55_Fast-Forward_Simulation.md).
 
 **Sources:** [types.d.ts:316-398]()
 

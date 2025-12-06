@@ -2,7 +2,7 @@
 
 This page documents the profit and loss (PnL) calculation system used to determine trading performance. PnL is calculated when a signal closes, incorporating realistic trading costs including slippage and fees. This ensures backtest results accurately reflect real-world trading conditions.
 
-For information about signal states and transitions, see [Signal States](#6.1). For details on when PnL is calculated during signal closure, see [Signal Lifecycle](#6).
+For information about signal states and transitions, see [Signal States](./47_Signal_States.md). For details on when PnL is calculated during signal closure, see [Signal Lifecycle](./46_Signal_Lifecycle.md).
 
 ---
 

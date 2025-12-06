@@ -4,7 +4,7 @@
 
 The Schedule API provides analysis and reporting for scheduled signals (limit orders) in the backtest-kit framework. Scheduled signals are signals that specify a `priceOpen` entry price different from the current market price, requiring the strategy to wait for price activation. This API tracks scheduled signal creation, cancellation events, and provides metrics like cancellation rate and average wait time.
 
-For information about the signal lifecycle including scheduled state transitions, see [Signal Lifecycle](#8). For general strategy execution methods, see [Backtest API](#4.3) and [Live Trading API](#4.4).
+For information about the signal lifecycle including scheduled state transitions, see [Signal Lifecycle](./46_Signal_Lifecycle.md). For general strategy execution methods, see [Backtest API](./17_Backtest_API.md) and [Live Trading API](./18_Live_Trading_API.md).
 
 **Sources:** [src/lib/services/markdown/ScheduleMarkdownService.ts:1-548](), [types.d.ts:64-73]()
 
@@ -389,10 +389,10 @@ The Schedule API complements other reporting APIs in the backtest-kit framework.
 
 | API | Purpose | Related To Schedule API |
 |-----|---------|------------------------|
-| [Backtest API](#4.3) | Historical simulation statistics | Schedule API tracks subset of signals (scheduled only) |
-| [Live Trading API](#4.4) | Real-time execution statistics | Schedule API works in both backtest and live modes |
-| [Partial API](#4.6) | Profit/loss milestone tracking | Both track signal progress, different metrics |
-| [Walker API](#4.5) | Strategy comparison | Schedule API provides per-strategy scheduled signal metrics |
+| [Backtest API](./17_Backtest_API.md) | Historical simulation statistics | Schedule API tracks subset of signals (scheduled only) |
+| [Live Trading API](./18_Live_Trading_API.md) | Real-time execution statistics | Schedule API works in both backtest and live modes |
+| [Partial API](./20_Schedule_API.md) | Profit/loss milestone tracking | Both track signal progress, different metrics |
+| [Walker API](./19_Walker_API.md) | Strategy comparison | Schedule API provides per-strategy scheduled signal metrics |
 
 **Sources:** [src/lib/services/markdown/ScheduleMarkdownService.ts:1-548](), [src/lib/services/markdown/BacktestMarkdownService.ts:1-545](), [src/lib/services/markdown/LiveMarkdownService.ts:1-749]()
 

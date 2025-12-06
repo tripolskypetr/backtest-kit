@@ -2,7 +2,7 @@
 
 This page documents the `rangeTrain` and `rangeTest` configuration parameters in the Optimizer system, which implement walk-forward validation and temporal data splitting for AI-powered strategy generation. These parameters prevent overfitting by segregating historical data into training periods (where the LLM learns market patterns) and testing periods (where generated strategies are validated on unseen data).
 
-For information about the complete AI optimization pipeline, see [AI-Powered Strategy Optimization](#16.5). For details about LLM integration and prompt engineering, see [LLM Integration](#16.5.3). For strategy code generation, see [Strategy Code Generation](#16.5.4).
+For information about the complete AI optimization pipeline, see [AI-Powered Strategy Optimization](./87_AI-Powered_Strategy_Optimization.md). For details about LLM integration and prompt engineering, see [LLM Integration](./90_LLM_Integration.md). For strategy code generation, see [Strategy Code Generation](./91_Strategy_Code_Generation.md).
 
 ---
 

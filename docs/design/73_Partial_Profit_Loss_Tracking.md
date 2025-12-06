@@ -4,7 +4,7 @@
 
 This document explains the **Partial Profit/Loss Tracking** system, which monitors unrealized profit and loss milestones during active signal execution. The system tracks when positions reach fixed percentage levels (10%, 20%, 30%, etc.) and emits events for risk management, position scaling strategies, and performance monitoring.
 
-For general signal lifecycle information, see [Signal Lifecycle Overview](#2.2). For PnL calculation details, see [PnL Calculation](#8.5). For reporting systems, see [Reporting and Analytics](#13).
+For general signal lifecycle information, see [Signal Lifecycle Overview](./07_Signal_Lifecycle_Overview.md). For PnL calculation details, see [PnL Calculation](./51_PnL_Calculation.md). For reporting systems, see [Reporting and Analytics](./69_Reporting_and_Analytics.md).
 
 ---
 

@@ -4,7 +4,7 @@
 
 This page documents the `IOptimizerSchema` interface that defines the contract for registering AI-powered strategy optimizers via `addOptimizer()`. Optimizer schemas configure data collection pipelines, LLM-driven strategy generation, and code export functionality. 
 
-For implementation details of the optimizer system, see [AI-Powered Strategy Optimization](#16.5). For other component registration interfaces, see [Strategy Schemas](#5.1), [Exchange Schemas](#5.2), and [Walker Schemas](#5.6).
+For implementation details of the optimizer system, see [AI-Powered Strategy Optimization](./87_AI-Powered_Strategy_Optimization.md). For other component registration interfaces, see [Strategy Schemas](./24_Strategy_Schemas.md), [Exchange Schemas](./25_Exchange_Schemas.md), and [Walker Schemas](./29_Walker_Schemas.md).
 
 Sources: [src/interfaces/Optimizer.interface.ts:380-433]()
 

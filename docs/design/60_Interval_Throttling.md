@@ -4,7 +4,7 @@
 
 This document explains the interval throttling mechanism that prevents signal spam by enforcing minimum time gaps between `getSignal` calls. The throttling system uses `INTERVAL_MINUTES` mapping and `_lastSignalTimestamp` tracking to ensure strategies respect their configured signal generation intervals.
 
-For information about the broader live trading execution loop, see [Live Execution Flow](#10.1). For details on signal generation and validation, see [Signal Generation and Validation](#8.2).
+For information about the broader live trading execution loop, see [Live Execution Flow](./57_Live_Execution_Flow.md). For details on signal generation and validation, see [Signal Generation and Validation](./48_Signal_Generation_and_Validation.md).
 
 ---
 
@@ -225,7 +225,7 @@ When a scheduled signal is waiting for activation (`self._scheduledSignal !== nu
 
 **Check Location:**
 
-The scheduled signal check happens in `ClientStrategy.tick()` before calling `GET_SIGNAL_FN`. See [Signal Lifecycle Overview](#2.2) for details on scheduled signal behavior.
+The scheduled signal check happens in `ClientStrategy.tick()` before calling `GET_SIGNAL_FN`. See [Signal Lifecycle Overview](./07_Signal_Lifecycle_Overview.md) for details on scheduled signal behavior.
 
 Sources: [src/client/ClientStrategy.ts:191-193]()
 

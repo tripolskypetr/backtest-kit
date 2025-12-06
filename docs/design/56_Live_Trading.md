@@ -4,7 +4,7 @@
 
 This document describes the live trading execution mode in backtest-kit, which enables real-time strategy execution with crash recovery guarantees. Live mode runs strategies in an infinite loop against current market data, persisting state atomically to disk after each state transition. This ensures that the system can recover from crashes without losing signals or creating duplicates.
 
-For historical simulation of strategies, see [Backtesting](#9). For strategy comparison, see [Walker Mode](#11). For persistence implementation details, see [Persistence Layer](#15.3).
+For historical simulation of strategies, see [Backtesting](./52_Backtesting.md). For strategy comparison, see [Walker Mode](./61_Walker_Mode.md). For persistence implementation details, see [Persistence Layer](./81_Persistence_Layer.md).
 
 ## Live Trading Overview
 

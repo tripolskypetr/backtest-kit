@@ -2,7 +2,7 @@
 
 This document describes the integration of Large Language Model (LLM) services into the backtest-kit optimization pipeline. It covers the Ollama API integration, prompt engineering patterns, conversation history management, and response processing mechanisms that enable AI-driven strategy generation.
 
-For information about the overall optimizer architecture and data collection, see [Optimizer Architecture](#16.5.1) and [Data Collection Pipeline](#16.5.2). For details on how LLM responses are transformed into executable strategy code, see [Strategy Code Generation](#16.5.4).
+For information about the overall optimizer architecture and data collection, see [Optimizer Architecture](./88_Optimizer_Architecture.md) and [Data Collection Pipeline](./89_Data_Collection_Pipeline.md). For details on how LLM responses are transformed into executable strategy code, see [Strategy Code Generation](./91_Strategy_Code_Generation.md).
 
 ## Integration Architecture
 

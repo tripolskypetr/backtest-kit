@@ -4,7 +4,7 @@
 
 This page documents the architecture of the Optimizer system, which generates AI-powered trading strategies through LLM integration. It covers the core components (`ClientOptimizer`, `OptimizerConnectionService`, `OptimizerTemplateService`), their relationships, the template merging pattern, and the execution flow of the three main operations: `getData`, `getCode`, and `dump`.
 
-For details on data collection and pagination, see [Data Collection Pipeline](#16.5.2). For LLM integration specifics, see [LLM Integration](#16.5.3). For code generation details, see [Strategy Code Generation](#16.5.4). For training/testing range configuration, see [Training vs Testing Ranges](#16.5.5).
+For details on data collection and pagination, see [Data Collection Pipeline](./89_Data_Collection_Pipeline.md). For LLM integration specifics, see [LLM Integration](./90_LLM_Integration.md). For code generation details, see [Strategy Code Generation](./91_Strategy_Code_Generation.md). For training/testing range configuration, see [Training vs Testing Ranges](./92_Training_vs_Testing_Ranges.md).
 
 ## Component Overview
 
@@ -109,7 +109,7 @@ All methods accept relevant parameters (symbol, name, dates, etc.) and return ge
 
 `OptimizerSchemaService` is a standard schema service that maintains a registry mapping `optimizerName` to `IOptimizerSchema`. It follows the same pattern as other schema services in the codebase (`StrategySchemaService`, `ExchangeSchemaService`, etc.).
 
-For schema service architecture details, see [Schema Services](#7.3).
+For schema service architecture details, see [Schema Services](./55_Fast-Forward_Simulation.md).
 
 ## Template Merging Pattern
 
@@ -272,6 +272,6 @@ The following symbols identify Optimizer-related services in the dependency inje
 
 ![Mermaid Diagram](./diagrams/88_Optimizer_Architecture_5.svg)
 
-The Optimizer services follow the same dependency injection pattern as other framework components. For comprehensive coverage of the DI system, see [Dependency Injection System](#3.2).
+The Optimizer services follow the same dependency injection pattern as other framework components. For comprehensive coverage of the DI system, see [Dependency Injection System](./11_Dependency_Injection_System.md).
 
 **Sources:** [src/lib/services/connection/OptimizerConnectionService.ts:42-48](), [src/lib/services/template/OptimizerTemplateService.ts:27]()

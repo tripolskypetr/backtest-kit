@@ -4,7 +4,7 @@
 
 This document describes the three execution modes available in backtest-kit: **Backtest** (historical simulation), **Live** (real-time trading), and **Walker** (strategy comparison). Each mode implements a distinct temporal progression model and completion semantic while sharing the same core strategy execution framework.
 
-For information about strategy lifecycle within these modes, see [Signal Lifecycle Overview](#2.2). For component registration patterns used across all modes, see [Component Registration](#2.3). For detailed API documentation of each mode's methods, see sections [4.3](#4.3), [4.4](#4.4), and [4.5](#4.5).
+For information about strategy lifecycle within these modes, see [Signal Lifecycle Overview](./07_Signal_Lifecycle_Overview.md). For component registration patterns used across all modes, see [Component Registration](./08_Component_Registration.md). For detailed API documentation of each mode's methods, see sections [4.3](./17_Backtest_API.md), [4.4](./18_Live_Trading_API.md), and [4.5](./19_Walker_API.md).
 
 ---
 

@@ -4,7 +4,7 @@
 
 This page documents the signal generation and validation pipeline in `ClientStrategy`, which implements a three-layer validation architecture to ensure trading safety: interval throttling, risk management gates, and structural validation. This system processes user-provided `getSignal()` functions and transforms raw signal DTOs into validated `ISignalRow` objects ready for execution.
 
-For information about signal states and lifecycle transitions, see [Signal States](#8.1). For scheduled signal activation logic, see [Scheduled Signals](#8.3). For signal persistence and crash recovery, see [Signal Persistence](#8.4).
+For information about signal states and lifecycle transitions, see [Signal States](./47_Signal_States.md). For scheduled signal activation logic, see [Scheduled Signals](./49_Scheduled_Signals.md). For signal persistence and crash recovery, see [Signal Persistence](./50_Signal_Persistence.md).
 
 ## Signal Generation Pipeline
 

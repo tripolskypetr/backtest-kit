@@ -5,10 +5,10 @@
 This document provides a comprehensive overview of backtest-kit's system architecture, focusing on its layered design, dependency injection infrastructure, and cross-cutting concerns. The architecture implements a modular service-oriented design where approximately 60 services are organized into 10 functional categories and wired together through constructor injection.
 
 This page covers the high-level architectural patterns and structural organization. For detailed information about specific subsystems:
-- Component registration patterns: see [Component Registration](#2.3)
-- Execution mode implementations: see [Execution Modes](#2.1)
-- Service layer details: see [Service Layer](#7)
-- Event system implementation: see [Event System](#3.4)
+- Component registration patterns: see [Component Registration](./08_Component_Registration.md)
+- Execution mode implementations: see [Execution Modes](./06_Execution_Modes.md)
+- Service layer details: see [Service Layer](./38_Service_Layer.md)
+- Event system implementation: see [Event System](./13_Event_System.md)
 
 ---
 

@@ -4,7 +4,7 @@
 
 This page documents the **scheduled signal** feature, which enables delayed entry at specific price levels. Scheduled signals implement limit order behavior by waiting for the market price to reach a target entry point (`priceOpen`) before activating the position. This differs from immediate signals that open at the current market price.
 
-For general signal lifecycle concepts, see [Signal Lifecycle Overview](#8). For signal validation rules, see [Signal Generation and Validation](#8.2). For persistence behavior in live mode, see [Signal Persistence](#8.4).
+For general signal lifecycle concepts, see [Signal Lifecycle Overview](./46_Signal_Lifecycle.md). For signal validation rules, see [Signal Generation and Validation](./48_Signal_Generation_and_Validation.md). For persistence behavior in live mode, see [Signal Persistence](./50_Signal_Persistence.md).
 
 ---
 

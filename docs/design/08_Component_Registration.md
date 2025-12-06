@@ -2,7 +2,7 @@
 
 Component registration is the configuration phase where users define the building blocks of their trading system: strategies, exchanges, timeframes, risk rules, position sizing algorithms, strategy comparisons, and AI optimizers. All components are registered before execution begins, creating an immutable registry that the framework queries during backtest, live trading, or walker execution.
 
-This page explains the registration pattern and architecture. For detailed API signatures and parameters, see [Component Registration Functions](#4.2). For the schema interfaces that define component structure, see [Component Types](#5).
+This page explains the registration pattern and architecture. For detailed API signatures and parameters, see [Component Registration Functions](./16_Component_Registration_Functions.md). For the schema interfaces that define component structure, see [Component Types](./23_Component_Types.md).
 
 ---
 

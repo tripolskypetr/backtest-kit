@@ -4,7 +4,7 @@
 
 This page documents the three timing configuration parameters that control signal lifecycle timing constraints and price monitoring behavior in the backtest-kit framework. These parameters define temporal boundaries for scheduled signal activation (`CC_SCHEDULE_AWAIT_MINUTES`), maximum signal duration (`CC_MAX_SIGNAL_LIFETIME_MINUTES`), and the window for VWAP price calculation (`CC_AVG_PRICE_CANDLES_COUNT`).
 
-For general configuration management and the `setConfig` function, see [Global Configuration](#14.1). For price distance validation parameters (take profit and stop loss constraints), see [Validation Parameters](#14.2). For signal state transitions and lifecycle management, see [Signal Lifecycle Overview](#2.2).
+For general configuration management and the `setConfig` function, see [Global Configuration](./75_Global_Configuration.md). For price distance validation parameters (take profit and stop loss constraints), see [Validation Parameters](./76_Validation_Parameters.md). For signal state transitions and lifecycle management, see [Signal Lifecycle Overview](./07_Signal_Lifecycle_Overview.md).
 
 ---
 

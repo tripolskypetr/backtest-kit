@@ -4,7 +4,7 @@
 
 This document describes the backtesting functionality in the backtest-kit framework, which simulates trading strategies against historical market data. Backtesting executes a strategy across a predefined timeframe, generating signals and calculating their profit/loss (PnL) without executing real trades.
 
-This page covers the high-level backtest orchestration, execution flow, and memory-efficient streaming architecture. For detailed API reference, see [Backtest API](#3.2). For signal state management, see [Signal Lifecycle](#6). For timeframe generation specifics, see [Timeframe Generation](#7.2). For fast-forward simulation mechanics, see [Fast-Forward Simulation](#7.3).
+This page covers the high-level backtest orchestration, execution flow, and memory-efficient streaming architecture. For detailed API reference, see [Backtest API](./11_Dependency_Injection_System.md). For signal state management, see [Signal Lifecycle](./46_Signal_Lifecycle.md). For timeframe generation specifics, see [Timeframe Generation](./54_Timeframe_Generation.md). For fast-forward simulation mechanics, see [Fast-Forward Simulation](./55_Fast-Forward_Simulation.md).
 
 **Sources:** [src/classes/Backtest.ts:1-169](), [src/lib/services/logic/private/BacktestLogicPrivateService.ts:1-123]()
 
@@ -231,7 +231,7 @@ await Backtest.dump("my-strategy", "./custom/path");
 | `getReport(strategyName)` | [src/classes/Backtest.ts:116-121]() | Returns markdown string with all closed signals |
 | `dump(strategyName, path?)` | [src/classes/Backtest.ts:138-147]() | Saves markdown report to filesystem |
 
-For detailed report structure and metrics, see [Markdown Report Generation](#9.1) and [Performance Metrics](#9.2).
+For detailed report structure and metrics, see [Markdown Report Generation](./53_Backtest_Execution_Flow.md) and [Performance Metrics](./54_Timeframe_Generation.md).
 
 **Sources:** [src/classes/Backtest.ts:104-147]()
 
@@ -287,7 +287,7 @@ public background = async (symbol: string, context: {...}) => {
 
 ## Integration with Signal Lifecycle
 
-Backtesting integrates with the signal lifecycle state machine. For complete signal state details, see [Signal Lifecycle](#6).
+Backtesting integrates with the signal lifecycle state machine. For complete signal state details, see [Signal Lifecycle](./46_Signal_Lifecycle.md).
 
 ### State Transitions in Backtest
 
@@ -327,7 +327,7 @@ Instead of iterating every minute during a signal's lifetime, `backtest()` simul
 - **Accuracy**: Uses actual historical OHLCV data for simulation
 - **Simplicity**: Signal lifecycle managed in one method
 
-For fast-forward simulation details, see [Fast-Forward Simulation](#7.3).
+For fast-forward simulation details, see [Fast-Forward Simulation](./55_Fast-Forward_Simulation.md).
 
 **Sources:** [src/lib/services/logic/private/BacktestLogicPrivateService.ts:9-21]()
 

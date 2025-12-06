@@ -4,7 +4,7 @@
 
 The Persistence Layer provides crash-safe storage for signal state, scheduled signals, risk positions, and partial profit/loss tracking in the backtest-kit framework. This layer implements atomic file writes to ensure no data loss during crashes, automatic recovery from corrupted files, and support for custom storage backends (Redis, MongoDB, PostgreSQL).
 
-For signal lifecycle management, see [Signal Lifecycle](#8). For risk management data structures, see [Risk Management](#12). For partial profit/loss tracking, see [Partial Profit/Loss Tracking](#13.4). For logging infrastructure, see [Logging System](#15.1).
+For signal lifecycle management, see [Signal Lifecycle](./46_Signal_Lifecycle.md). For risk management data structures, see [Risk Management](./65_Risk_Management.md). For partial profit/loss tracking, see [Partial Profit/Loss Tracking](./73_Partial_Profit_Loss_Tracking.md). For logging infrastructure, see [Logging System](./79_Logging_System.md).
 
 **Sources:** [README.md:17](), [README.md:260-261](), [src/client/ClientStrategy.ts:27]()
 

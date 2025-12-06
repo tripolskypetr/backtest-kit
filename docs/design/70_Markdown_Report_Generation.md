@@ -2,7 +2,7 @@
 
 This page documents the markdown report generation system that transforms trading execution events into human-readable reports with statistical analysis. The system provides three report types: backtest reports (historical simulation), live trading reports (real-time execution), and schedule reports (limit order tracking).
 
-For statistical metric calculations (Sharpe Ratio, Certainty Ratio, etc.), see [Performance Metrics](#13.2). For partial profit/loss milestone tracking, see [Partial Profit/Loss Tracking](#13.4). For walker strategy comparison reports, see [Walker Reports](#11.3).
+For statistical metric calculations (Sharpe Ratio, Certainty Ratio, etc.), see [Performance Metrics](./71_Performance_Metrics.md). For partial profit/loss milestone tracking, see [Partial Profit/Loss Tracking](./73_Partial_Profit_Loss_Tracking.md). For walker strategy comparison reports, see [Walker Reports](./64_Walker_Reports.md).
 
 ---
 

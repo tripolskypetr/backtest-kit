@@ -4,7 +4,7 @@
 
 This document describes patterns for running trading strategies across multiple symbols (trading pairs) simultaneously. The framework is designed to support multi-symbol execution with automatic state isolation per symbol, shared strategy logic, and efficient memory usage through instance memoization.
 
-For information about strategy implementation, see [Strategy Configuration](#3.1). For crash-safe persistence mechanics, see [Signal Persistence](#6.3). For report generation from multi-symbol execution, see [Markdown Report Generation](#9.1).
+For information about strategy implementation, see [Strategy Configuration](./15_Configuration_Functions.md). For crash-safe persistence mechanics, see [Signal Persistence](./34_ClientFrame.md). For report generation from multi-symbol execution, see [Markdown Report Generation](./53_Backtest_Execution_Flow.md).
 
 ---
 

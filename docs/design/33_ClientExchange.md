@@ -4,7 +4,7 @@
 
 `ClientExchange` is the core data access class that provides market data to trading strategies through a unified interface. It wraps external exchange data providers (CCXT libraries, custom APIs, or database sources) and handles candle fetching, price formatting, and VWAP calculation. The class implements time-aware data fetching by using `ExecutionContextService` to determine the temporal boundary for historical vs. future data requests.
 
-This document covers the implementation details of `ClientExchange` including its constructor parameters, core methods, retry logic, and integration with the execution context system. For exchange schema registration, see [Exchange Schemas](#5.2). For how `ClientExchange` instances are managed and memoized, see [Connection Services](#7.2).
+This document covers the implementation details of `ClientExchange` including its constructor parameters, core methods, retry logic, and integration with the execution context system. For exchange schema registration, see [Exchange Schemas](./25_Exchange_Schemas.md). For how `ClientExchange` instances are managed and memoized, see [Connection Services](./54_Timeframe_Generation.md).
 
 **Sources:** [src/client/ClientExchange.ts:1-375]()
 

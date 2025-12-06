@@ -2,7 +2,7 @@
 
 This page explains how runtime context (symbol, timestamp, execution mode, component names) is propagated through the system without explicit parameter passing. Context propagation enables operations to access execution parameters implicitly, reducing coupling and simplifying function signatures.
 
-For information about dependency injection of services, see [3.2](#3.2). For information about how Global services orchestrate operations, see [7.5](#7.5).
+For information about dependency injection of services, see [3.2](./11_Dependency_Injection_System.md). For information about how Global services orchestrate operations, see [7.5](./43_Global_Services.md).
 
 ## Overview
 

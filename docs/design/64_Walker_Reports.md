@@ -2,7 +2,7 @@
 
 This page documents the reporting and data retrieval functionality for Walker mode, which provides multi-strategy comparison results and performance rankings. Walker reports aggregate backtest statistics from multiple strategies and present them in a unified format for analysis.
 
-For information about Walker execution flow and strategy iteration, see [Walker Execution Flow](#11.1). For details on how strategies are compared and ranked, see [Strategy Comparison](#11.2).
+For information about Walker execution flow and strategy iteration, see [Walker Execution Flow](./62_Walker_Execution_Flow.md). For details on how strategies are compared and ranked, see [Strategy Comparison](./63_Strategy_Comparison.md).
 
 ---
 

@@ -4,7 +4,7 @@
 
 This document describes the pluggable persistence system in backtest-kit and how to implement custom storage backends. The framework uses a file-based persistence layer by default but provides a base class (`PersistBase`) and adapter registration pattern that allows replacement with alternative storage systems such as Redis, MongoDB, PostgreSQL, or other databases.
 
-For information about the default persistence behavior and crash recovery in live trading, see [Live Trading](#10). For details on signal state lifecycle and persistence points, see [Signal Persistence](#8.4). For risk management state tracking, see [Risk Management](#12).
+For information about the default persistence behavior and crash recovery in live trading, see [Live Trading](./56_Live_Trading.md). For details on signal state lifecycle and persistence points, see [Signal Persistence](./50_Signal_Persistence.md). For risk management state tracking, see [Risk Management](./65_Risk_Management.md).
 
 ---
 

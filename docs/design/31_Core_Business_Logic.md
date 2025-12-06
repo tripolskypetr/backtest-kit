@@ -4,7 +4,7 @@
 
 This document describes the Client classes layer, which implements core business logic for signal management, market data, risk validation, and timeframe generation. Client classes are pure TypeScript classes without dependency injection, designed for memory efficiency and testability. They represent the innermost layer of the framework's architecture, containing algorithmic logic isolated from infrastructure concerns.
 
-For information about the service layer that wraps these client classes, see [Service Layer](#7). For details on dependency injection and context propagation, see [Architecture](#3).
+For information about the service layer that wraps these client classes, see [Service Layer](./38_Service_Layer.md). For details on dependency injection and context propagation, see [Architecture](./09_Architecture.md).
 
 ## Client Layer Architecture
 
@@ -134,10 +134,10 @@ Client classes collaborate through dependency references passed in constructor p
 Client classes form the core algorithmic layer of the framework, implementing business logic without dependency injection for testability and memory efficiency. The five client classes (Strategy, Exchange, Risk, Frame, Sizing) are instantiated and memoized by Connection Services, maintaining state across operations while collaborating through interface references. This architectural separation enables the framework to keep business rules isolated from infrastructure concerns.
 
 For detailed implementation documentation of individual client classes, see:
-- [ClientStrategy](#6.1) - Signal lifecycle and monitoring
-- [ClientExchange](#6.2) - Market data and formatting
-- [ClientFrame](#6.3) - Timeframe generation
-- [ClientRisk](#6.4) - Portfolio risk management
-- [ClientSizing](#6.5) - Position sizing algorithms
+- [ClientStrategy](./47_Signal_States.md) - Signal lifecycle and monitoring
+- [ClientExchange](./33_ClientExchange.md) - Market data and formatting
+- [ClientFrame](./34_ClientFrame.md) - Timeframe generation
+- [ClientRisk](./35_ClientRisk.md) - Portfolio risk management
+- [ClientSizing](./36_ClientSizing.md) - Position sizing algorithms
 
 **Sources:** [docs/internals.md:28-39](), [src/client/ClientStrategy.ts:1-1300](), [src/lib/services/connection/StrategyConnectionService.ts:1-186]()

@@ -4,7 +4,7 @@
 
 This page documents the seven component registration functions that configure the backtest-kit framework. These functions (`addStrategy`, `addExchange`, `addFrame`, `addWalker`, `addSizing`, `addRisk`, `addOptimizer`) provide the primary user-facing API for defining trading strategies, data sources, backtesting parameters, comparison logic, position sizing, risk management, and AI-driven optimization.
 
-Each registration function validates its input schema, stores it in a schema service, and makes it available for retrieval during execution. For details on the schema interfaces themselves, see [Component Types](#5). For information on how registered components are instantiated during execution, see [Service Layer](#7).
+Each registration function validates its input schema, stores it in a schema service, and makes it available for retrieval during execution. For details on the schema interfaces themselves, see [Component Types](./23_Component_Types.md). For information on how registered components are instantiated during execution, see [Service Layer](./38_Service_Layer.md).
 
 ---
 

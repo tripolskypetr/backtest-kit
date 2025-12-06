@@ -3,10 +3,10 @@
 **backtest-kit** is a production-ready TypeScript framework for developing, backtesting, and deploying algorithmic trading strategies with enterprise-grade reliability. The framework provides three execution modes (historical simulation, live trading, crash-safe state recovery), comprehensive signal validation, and event-driven observability. This document introduces the framework's purpose, architecture, and core concepts at a high level.
 
 For detailed information about specific subsystems, see:
-- Execution modes: [Backtest Mode](#9), [Live Trading](#10), [Walker Comparison](#11)
-- Strategy development: [Strategy Schemas](#5.1), [Signal Lifecycle](#8)
-- System architecture: [Architecture](#3), [Service Layer](#7)
-- Advanced features: [Risk Management](#12), [AI Optimization](#16.5)
+- Execution modes: [Backtest Mode](./52_Backtesting.md), [Live Trading](./56_Live_Trading.md), [Walker Comparison](./61_Walker_Mode.md)
+- Strategy development: [Strategy Schemas](./24_Strategy_Schemas.md), [Signal Lifecycle](./46_Signal_Lifecycle.md)
+- System architecture: [Architecture](./09_Architecture.md), [Service Layer](./38_Service_Layer.md)
+- Advanced features: [Risk Management](./65_Risk_Management.md), [AI Optimization](./87_AI-Powered_Strategy_Optimization.md)
 
 ## Purpose and Design Goals
 

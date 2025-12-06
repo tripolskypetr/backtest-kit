@@ -4,7 +4,7 @@
 
 This document describes the Markdown Services subsystem, which provides automated report generation and performance analytics for backtesting and live trading operations. These services subscribe to execution events, accumulate statistical data, and generate markdown-formatted reports with comprehensive trading metrics.
 
-For information about the event system that feeds these services, see [Event System](#3.4). For details on the execution modes that generate events, see [Execution Modes](#2.1).
+For information about the event system that feeds these services, see [Event System](./13_Event_System.md). For details on the execution modes that generate events, see [Execution Modes](./06_Execution_Modes.md).
 
 ---
 

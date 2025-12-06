@@ -2,7 +2,7 @@
 
 ## Purpose and Scope
 
-This page explains how to monitor live trading execution in real-time using event listeners, strategy callbacks, and reporting services. It covers `listenSignalLive()`, `listenDoneLive()`, lifecycle callbacks (`onOpen`, `onClose`, `onActive`, `onSchedule`, `onCancel`), `LiveMarkdownService` for report generation, and state tracking patterns. For the overall live execution loop, see [10.1](#10.1). For crash recovery and persistence, see [10.2](#10.2).
+This page explains how to monitor live trading execution in real-time using event listeners, strategy callbacks, and reporting services. It covers `listenSignalLive()`, `listenDoneLive()`, lifecycle callbacks (`onOpen`, `onClose`, `onActive`, `onSchedule`, `onCancel`), `LiveMarkdownService` for report generation, and state tracking patterns. For the overall live execution loop, see [10.1](./57_Live_Execution_Flow.md). For crash recovery and persistence, see [10.2](./58_Crash_Recovery.md).
 </thinking>
 
 Real-time monitoring enables production-ready observability for live trading systems through event-driven architecture and comprehensive reporting.
@@ -407,7 +407,7 @@ callbacks: {
 ```
 
 **When invoked:**
-- Scheduled timeout (default 120 minutes) - see [10.4](#10.4)
+- Scheduled timeout (default 120 minutes) - see [10.4](./60_Interval_Throttling.md)
 - Stop loss hit before `priceOpen` reached
 
 ### Callback vs Event Listener Comparison
@@ -923,7 +923,7 @@ Sources: [src/client/ClientStrategy.ts:675-846](), [src/client/ClientStrategy.ts
 | `CC_MIN_TAKEPROFIT_DISTANCE_PERCENT` | [src/config/params.ts:17]() | `0.1%` | Minimum TP distance to cover fees |
 | `CC_MAX_STOPLOSS_DISTANCE_PERCENT` | [src/config/params.ts:23]() | `20%` | Maximum SL distance to protect capital |
 
-All parameters can be modified via `setConfig()` [4.1](#4.1) before starting live trading.
+All parameters can be modified via `setConfig()` [4.1](./15_Configuration_Functions.md) before starting live trading.
 
 Sources: [src/config/params.ts:1-36]()
 
