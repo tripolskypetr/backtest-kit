@@ -10,9 +10,7 @@ For global configuration parameters, see [Configuration](#14).
 
 ## System Overview
 
-Cross-cutting concerns provide infrastructure services that are consumed by all layers:
-
-![Mermaid Diagram](./diagrams/78_Cross-Cutting_Concerns_0.svg)
+Cross-cutting concerns provide infrastructure services that are consumed by all layers.
 
 **Sources:** [src/index.ts:1-184](), [src/config/emitters.ts:1-122](), [src/classes/Persist.ts:1-732]()
 

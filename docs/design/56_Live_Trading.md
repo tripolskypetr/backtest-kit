@@ -24,10 +24,6 @@ Sources: [src/lib/services/logic/private/LiveLogicPrivateService.ts:1-134](), [s
 
 ## Live Execution Architecture
 
-![Mermaid Diagram](./diagrams/56_Live_Trading_0.svg)
-
-**Architecture Diagram: Live Trading Execution Flow**
-
 The live trading architecture consists of six layers. The **User Space** provides the entry point via `Live.run()` or `Live.background()` and event listeners. The **Public API Layer** contains `LiveLogicPublicService` which manages method context. The **Private Execution Layer** implements the infinite loop in `LiveLogicPrivateService`, creating real-time timestamps with `new Date()` and sleeping 61 seconds between iterations. The **Strategy Execution** layer contains `ClientStrategy` which manages the signal state machine. The **Persistence Layer** ensures crash recovery through three adapters that perform atomic writes to JSON files. The **Event System** broadcasts all state transitions to subscribers, and the **Reporting** layer accumulates events for analysis.
 
 Sources: [src/lib/services/logic/private/LiveLogicPrivateService.ts:1-134](), [src/lib/services/markdown/LiveMarkdownService.ts:1-749]()
@@ -36,11 +32,7 @@ Sources: [src/lib/services/logic/private/LiveLogicPrivateService.ts:1-134](), [s
 
 ### LiveLogicPrivateService.run()
 
-The core of live trading is an infinite async generator in `LiveLogicPrivateService`:
-
-![Mermaid Diagram](./diagrams/56_Live_Trading_1.svg)
-
-**State Machine: Live Trading Loop Iteration**
+The core of live trading is an infinite async generator in `LiveLogicPrivateService`.
 
 Sources: [src/lib/services/logic/private/LiveLogicPrivateService.ts:61-130]()
 
@@ -80,10 +72,6 @@ Sources: [src/lib/services/logic/private/LiveLogicPrivateService.ts:12]()
 ## Crash Recovery System
 
 ### Persistence Architecture
-
-![Mermaid Diagram](./diagrams/56_Live_Trading_2.svg)
-
-**Crash Recovery Architecture: Persistence Flow**
 
 Sources: [src/lib/services/markdown/LiveMarkdownService.ts:1-749](), [README.md:755-766]()
 
@@ -214,10 +202,6 @@ The `interval` field accepts:
 Sources: [README.md:130-143]()
 
 ### Throttling Implementation
-
-![Mermaid Diagram](./diagrams/56_Live_Trading_4.svg)
-
-**Sequence: Interval Throttling Logic**
 
 The throttling prevents:
 - **Signal spam** during volatile markets

@@ -164,10 +164,6 @@ yield result;
 await sleep(TICK_TTL);
 ```
 
-**Timing Sequence:**
-
-![Mermaid Diagram](./diagrams/57_Live_Execution_Flow_4.svg)
-
 **Sources**: [src/lib/services/logic/private/LiveLogicPrivateService.ts:12](), [src/lib/services/logic/private/LiveLogicPrivateService.ts:86-128]()
 
 ---

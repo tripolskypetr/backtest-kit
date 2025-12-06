@@ -88,10 +88,6 @@ For each timestamp, the service calls `StrategyGlobalService.tick()` with `backt
 
 When a signal opens (`result.action === "opened"`), the backtest flow transitions to fast-forward simulation mode rather than iterating through every timestamp manually.
 
-**Fast-Forward Execution Flow**
-
-![Mermaid Diagram](./diagrams/53_Backtest_Execution_Flow_3.svg)
-
 **Sources:** [src/lib/services/logic/private/BacktestLogicPrivateService.ts:62-114](), [src/client/ClientStrategy.ts:485-656]()
 
 ### Candle Fetching

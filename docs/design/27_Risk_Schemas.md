@@ -25,10 +25,6 @@ Risk schemas are registered via `addRisk()` and referenced by strategies via the
 
 ### IRiskSchema Interface
 
-![Mermaid Diagram](./diagrams/27_Risk_Schemas_0.svg)
-
-**Diagram: Risk Schema Type Hierarchy**
-
 The schema consists of:
 
 | Field | Type | Required | Description |

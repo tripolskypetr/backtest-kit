@@ -171,13 +171,7 @@ Sources: [src/client/ClientStrategy.ts:187-283]()
 
 ## Integration with Live Trading Mode
 
-In live trading, throttling operates on real-time clock progression:
-
-![Mermaid Diagram](./diagrams/60_Interval_Throttling_4.svg)
-
-**Live Loop Context at [src/lib/services/logic/private/LiveLogicPrivateService.ts]():**
-
-The live execution loop repeatedly calls `tick()` with `Date.now()` as the context timestamp. Throttling prevents excessive `getSignal` calls during this infinite loop:
+In live trading, throttling operates on real-time clock progression. The live execution loop repeatedly calls `tick()` with `Date.now()` as the context timestamp. Throttling prevents excessive `getSignal` calls during this infinite loop:
 
 ```typescript
 while (true) {
@@ -195,13 +189,7 @@ Sources: [src/client/ClientStrategy.ts:194-208]()
 
 ## Integration with Backtesting Mode
 
-In backtesting, throttling operates on historical timestamp progression:
-
-![Mermaid Diagram](./diagrams/60_Interval_Throttling_5.svg)
-
-**Backtest Timeframe Iteration:**
-
-The backtest loop iterates through discrete timestamps from `Frame.getTimeframe()`. Throttling ensures that even if the frame interval is "1m" (one tick per minute), a strategy with interval "5m" only evaluates `getSignal` every 5 minutes:
+In backtesting, throttling operates on historical timestamp progression. The backtest loop iterates through discrete timestamps from `Frame.getTimeframe()`. Throttling ensures that even if the frame interval is "1m" (one tick per minute), a strategy with interval "5m" only evaluates `getSignal` every 5 minutes:
 
 | Frame Timestamp | Throttle Check | Result |
 |----------------|----------------|--------|

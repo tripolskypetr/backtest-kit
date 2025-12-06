@@ -102,10 +102,6 @@ The `PersistSignalAdapter` ensures atomicity through temporary file writes:
 | 3 | Rename `.tmp` to final | Atomic filesystem operation (all-or-nothing) |
 | 4 | Sync directory | Ensure directory entry is persisted |
 
-**State Transitions with Persistence:**
-
-![Mermaid Diagram](./diagrams/02_Key_Features_5.svg)
-
 **Key Code Locations:**
 
 - **Atomic Write Logic**: [src/classes/Persist.ts]() (`FilePersist.writeValue`)
@@ -200,10 +196,6 @@ Scheduled signals wait for price activation with timeout and pre-activation canc
 | `CC_SCHEDULE_AWAIT_MINUTES` | 120 | Maximum wait time before timeout cancellation |
 | Pre-Activation SL Check | Enabled | Cancel if SL hit before entry (prevents bad entries) |
 | Risk Re-Validation | Required | Re-check risk limits at activation time |
-
-**Scheduled Signal Flow:**
-
-![Mermaid Diagram](./diagrams/02_Key_Features_10.svg)
 
 **Sources:**
 - [src/client/ClientStrategy.ts:474-528]() (timeout check)
@@ -559,10 +551,6 @@ All execution modes use async generators (`AsyncIterableIterator`) to stream res
 ## Signal Lifecycle State Machine
 
 Signals follow a deterministic state machine with discriminated union types for type-safe handling. The framework supports both market orders (immediate execution) and limit orders (scheduled execution).
-
-### Complete Signal Lifecycle
-
-![Mermaid Diagram](./diagrams/02_Key_Features_16.svg)
 
 ### Type-Safe State Handling
 

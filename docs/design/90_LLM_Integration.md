@@ -155,8 +155,6 @@ The `text()` function performs synchronous LLM calls with conversation history:
 
 The `json()` function is similar to `text()` but parses the response as JSON. This helper is available for custom template implementations but not used in the default optimizer flow.
 
-![Mermaid Diagram](./diagrams/90_LLM_Integration_7.svg)
-
 **Sources:** Reference implementation pattern from [src/client/ClientOptimizer.ts]() (not shown in provided files)
 
 ## Integration Points

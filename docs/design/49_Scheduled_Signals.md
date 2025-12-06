@@ -141,9 +141,7 @@ if (await not(risk.checkSignal({ ... }))) {
 
 ## Risk Re-validation at Activation
 
-Scheduled signals implement **two-phase risk validation** to ensure risk limits are still valid when the position actually opens:
-
-![Mermaid Diagram](./diagrams/49_Scheduled_Signals_2.svg)
+Scheduled signals implement **two-phase risk validation** to ensure risk limits are still valid when the position actually opens.
 
 **Why Two Checks Are Necessary:**
 

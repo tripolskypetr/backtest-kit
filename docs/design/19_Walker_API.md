@@ -721,10 +721,6 @@ Sources: [src/lib/services/markdown/BacktestMarkdownService.ts:46-102]()
 
 ## Service Layer Architecture
 
-The following diagram shows the complete service dependency graph for Walker execution.
-
-![Mermaid Diagram](./diagrams/19_Walker_API_2.svg)
-
 **Key Service Interactions:**
 
 | Service | Primary Responsibility | Key Methods |
