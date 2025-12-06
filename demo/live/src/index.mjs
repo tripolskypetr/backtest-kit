@@ -3,11 +3,13 @@ import {
     addExchange,
     addStrategy,
     addFrame,
-    Backtest,
+    Live,
     Partial,
-    listenSignalBacktest,
-    listenDoneBacktest,
-    listenBacktestProgress,
+    Schedule,
+    Constant,
+    listenSignalLive,
+    listenPartialProfit,
+    listenPartialLoss,
     listenError,
     dumpSignal,
 } from "backtest-kit";
@@ -51,28 +53,51 @@ addStrategy({
     },
 });
 
-Backtest.background("BTCUSDT", {
+Live.background("BTCUSDT", {
     strategyName: "test_strategy",
     exchangeName: "test_exchange",
     frameName: "test_frame",
 })
 
-listenSignalBacktest((event) => {
+listenSignalLive(async (event) => {
+    if (event.action === "closed") {
+        await Live.dump(event.strategyName);
+        await Partial.dump(event.symbol, event.strategyName);
+    }
+    if (event.action === "scheduled") {
+        await Schedule.dump(event.strategyName);
+    }
+    if (event.action === "cancelled") {
+        await Schedule.dump(event.strategyName);
+    }
     console.log(event);
-});
-
-listenBacktestProgress((event) => {
-    console.log(`Progress: ${(event.progress * 100).toFixed(2)}%`);
-    console.log(`Processed: ${event.processedFrames} / ${event.totalFrames}`);
-});
-
-listenDoneBacktest(async (event) => {
-    console.log("Backtest completed:", event.symbol);
-    await Backtest.dump(event.strategyName);
-    await Partial.dump(event.symbol, event.strategyName);
 });
 
 listenError((error) => {
     console.error("Error occurred:", error);
 });
 
+listenPartialProfit(({ symbol, price, level }) => {
+  console.log(`${symbol} reached ${level}% profit at ${price}`);
+  if (level === Constant.TP_LEVEL3) {
+    console.log("Close 33% at 25% profit");
+  }
+  if (level === Constant.TP_LEVEL2) {
+    console.log("Close 33% at 50% profit");
+  }
+  if (level === Constant.TP_LEVEL1) {
+    console.log("Close 34% at 100% profit");
+  }
+});
+
+listenPartialLoss(({ symbol, price, level }) => {
+  console.log(`${symbol} reached -${level}% loss at ${price}`);
+
+  // Scale out at stop levels
+  if (level === Constant.SL_LEVEL2) {
+    console.log("Close 50% at -50% loss");
+  }
+  if (level === Constant.SL_LEVEL1) {
+    console.log("Close 50% at -100% loss");
+  }
+});
