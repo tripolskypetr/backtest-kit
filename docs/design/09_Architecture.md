@@ -5,368 +5,343 @@ group: design
 
 # Architecture
 
-
 ## Purpose and Scope
 
-This document provides a comprehensive overview of backtest-kit's layered architecture, including the service layer organization, dependency injection system, context propagation patterns, and event-driven infrastructure. For details on individual component types (strategies, exchanges, frames), see [Component Types](./23_Component_Types.md). For execution flow specifics, see [Backtesting](./50_Backtesting.md), [Live Trading](./54_Live_Trading.md), and [Walker Mode](./59_Walker_Mode.md).
+This document provides a comprehensive overview of backtest-kit's system architecture, focusing on its layered design, dependency injection infrastructure, and cross-cutting concerns. The architecture implements a modular service-oriented design where approximately 60 services are organized into 10 functional categories and wired together through constructor injection.
 
-## Architectural Overview
+This page covers the high-level architectural patterns and structural organization. For detailed information about specific subsystems:
+- Component registration patterns: see [Component Registration](./08_Component_Registration.md)
+- Execution mode implementations: see [Execution Modes](./06_Execution_Modes.md)
+- Service layer details: see [Service Layer](./38_Service_Layer.md)
+- Event system implementation: see [Event System](./13_Event_System.md)
 
-The framework follows clean architecture principles with six distinct layers, separated by dependency injection boundaries. Each layer has a specific responsibility, with dependencies flowing inward toward business logic.
+---
+
+## Layered Architecture Overview
+
+The system implements a seven-layer architecture where each layer has distinct responsibilities and clear boundaries. Layers communicate through well-defined interfaces and dependency injection, preventing tight coupling between implementation details.
+
+### System Layers Diagram
 
 ![Mermaid Diagram](./diagrams/09_Architecture_0.svg)
 
+**Layer 1: Public API** provides user-facing functions exported from [src/index.ts:1-184](). The `add.ts` functions register components ([src/function/add.ts:1-445]()), while `event.ts` functions subscribe to system events ([src/function/event.ts:1-892]()). Utility classes like `Backtest`, `Live`, and `Walker` provide high-level execution control.
 
-## Layer Responsibilities
+**Layer 2: Command Services** implement validation and delegation for execution modes. They validate parameters, set up execution context, and delegate to Logic Services.
 
-### Layer 1: Public API
+**Layer 3: Logic Services** come in two variants: Private services implement core execution logic with AsyncGenerator streaming, while Public services wrap Private services with external-facing contracts.
 
-The public API layer consists of exported functions and classes that users interact with directly. These provide a clean, stable interface while delegating implementation to lower layers.
+**Layer 4: Global Services** inject execution context (symbol, timestamp, backtest flag) into lower-layer services, enabling implicit parameter passing without polluting method signatures.
 
-| Function Category | Exports | Purpose |
-|------------------|---------|---------|
-| Registration | `addStrategy`, `addExchange`, `addFrame`, `addRisk`, `addSizing`, `addWalker` | Register component schemas |
-| Configuration | `setLogger`, `setConfig` | Configure global settings |
-| Introspection | `listStrategies`, `listExchanges`, etc. | Query registered components |
-| Execution | `Backtest`, `Live`, `Walker`, `Schedule`, `Performance` | Run backtests and live trading |
-| Event Listeners | `listenSignal`, `listenError`, `listenDone`, etc. | Subscribe to system events |
-| Utilities | `getCandles`, `getAveragePrice`, `formatPrice`, `formatQuantity` | Exchange helpers |
+**Layer 5: Connection Services** manage lifecycle and memoization of Client class instances. They create instances on-demand and cache them by unique keys (symbol, strategyName, exchangeName combinations).
+
+**Layer 6: Business Logic** contains the core trading logic implemented in Client classes like `ClientStrategy`, `ClientExchange`, `ClientRisk`. These classes are framework-agnostic and focus purely on trading domain logic.
+
+**Layer 7: Schema & Validation** stores registered component configurations and validates them against framework rules. Schema Services provide name-based lookup, while Validation Services enforce 30+ validation rules per component type.
 
 
-### Layer 2: Global Services
+---
 
-Global Services act as context-aware entry points that wrap lower layers with `MethodContextService` and `ExecutionContextService` scope management. They coordinate validation and delegate to Logic Services.
+## Service Organization and Categories
+
+Services are organized into 10 functional categories following a matrix pattern where most component types (Strategy, Exchange, Frame, Risk, Sizing) have corresponding Connection, Schema, Global, and Validation services.
+
+### Service Category Matrix
 
 ![Mermaid Diagram](./diagrams/09_Architecture_1.svg)
 
-**Key Global Services:**
+### Service Category Responsibilities
 
-- `StrategyGlobalService` - Strategy execution with validation
-- `ExchangeGlobalService` - Exchange data access with context injection
-- `LiveGlobalService` - Live trading orchestration
-- `BacktestGlobalService` - Backtest orchestration
-- `WalkerGlobalService` - Multi-strategy comparison
-- `RiskGlobalService` - Risk management coordination
+| Category | Responsibility | Example Services |
+|----------|---------------|------------------|
+| **Base Services** | Cross-cutting infrastructure like logging | `LoggerService` |
+| **Context Services** | Store execution context (symbol, timestamp, mode) for implicit parameter passing | `ExecutionContextService`, `MethodContextService` |
+| **Connection Services** | Create and memoize Client class instances by unique keys | `StrategyConnectionService`, `ExchangeConnectionService` |
+| **Schema Services** | Store and retrieve registered component configurations | `StrategySchemaService`, `ExchangeSchemaService` |
+| **Global Services** | Inject context into Connection Services and orchestrate component interactions | `StrategyGlobalService`, `ExchangeGlobalService` |
+| **Command Services** | Validate parameters and delegate to Logic Services for execution modes | `BacktestCommandService`, `LiveCommandService` |
+| **Logic Services** | Implement core execution logic with Private/Public separation | `BacktestLogicPrivateService`, `LiveLogicPrivateService` |
+| **Markdown Services** | Accumulate events and generate reports with statistical calculations | `BacktestMarkdownService`, `LiveMarkdownService` |
+| **Validation Services** | Enforce 30+ validation rules per component type during registration | `StrategyValidationService`, `ExchangeValidationService` |
+| **Template Services** | Generate code templates for AI-powered optimizer | `OptimizerTemplateService` |
 
-
-### Layer 3: Logic Services
-
-Logic Services implement core orchestration logic using async generators for backtest/live execution. They are split into Public (context management) and Private (core logic) services to separate concerns.
-
-**Logic Service Pattern:**
-
-![Mermaid Diagram](./diagrams/09_Architecture_2.svg)
-
-**Public vs Private Split:**
-
-- **Public Services** (`BacktestLogicPublicService`, `LiveLogicPublicService`) - Wrap generators with `MethodContextService.runAsyncIterator()` to propagate `strategyName`, `exchangeName`, `frameName`
-- **Private Services** (`BacktestLogicPrivateService`, `LiveLogicPrivateService`) - Implement async generator logic with `ExecutionContextService.runInContext()` calls
+The matrix pattern creates consistency across component types: if a new component type is added (e.g., `Filter`), it follows the same pattern with `FilterConnectionService`, `FilterSchemaService`, `FilterGlobalService`, and `FilterValidationService`.
 
 
-### Layer 4: Connection Services
-
-Connection Services provide memoized client instance management. They resolve schema configurations, inject dependencies, and return cached client instances to avoid repeated instantiation.
-
-![Mermaid Diagram](./diagrams/09_Architecture_3.svg)
-
-**Key Connection Services:**
-
-| Service | Creates | Memoization Key |
-|---------|---------|----------------|
-| `StrategyConnectionService` | `ClientStrategy` | `strategyName` |
-| `ExchangeConnectionService` | `ClientExchange` | `exchangeName` |
-| `FrameConnectionService` | `ClientFrame` | `frameName` |
-| `RiskConnectionService` | `ClientRisk` | `riskName` |
-| `SizingConnectionService` | `ClientSizing` | `sizingName` |
-
-**Memoization Pattern:** Connection Services use `functools-kit`'s `memoize` to cache instances: `this.getClient = memoize((name) => new ClientStrategy(params))`
-
-
-### Layer 5: Schema & Validation Services
-
-Schema Services use the `ToolRegistry` pattern to store and retrieve component configurations. Validation Services perform runtime checks using memoization to cache validation results.
-
-**Schema Service Pattern:**
-
-```typescript
-// StrategySchemaService
-private readonly _registry = new ToolRegistry<StrategyName, IStrategySchema>();
-
-register(name: StrategyName, schema: IStrategySchema): void {
-  this._registry.add(name, schema);
-}
-
-get(name: StrategyName): IStrategySchema {
-  return this._registry.get(name);
-}
-```
-
-**Validation Service Pattern:**
-
-```typescript
-// StrategyValidationService
-private readonly _validate = singleshot(async (name: StrategyName) => {
-  if (!this.schemaService.has(name)) {
-    throw new Error(`Strategy ${name} not registered`);
-  }
-  // Additional validation logic
-});
-
-async validate(name: StrategyName): Promise<void> {
-  await this._validate(name);
-}
-```
-
-
-### Layer 6: Client Classes
-
-Client Classes contain pure business logic without dependency injection. They receive dependencies through constructor parameters and implement prototype methods for memory efficiency.
-
-**Key Client Classes:**
-
-| Client | Purpose | Key Methods |
-|--------|---------|-------------|
-| `ClientStrategy` | Signal lifecycle management | `tick()`, `backtest()`, `stop()` |
-| `ClientExchange` | Market data & VWAP calculation | `getCandles()`, `getAveragePrice()` |
-| `ClientFrame` | Timeframe generation | `getTimeframe()` |
-| `ClientRisk` | Portfolio risk tracking | `checkSignal()`, `addSignal()`, `removeSignal()` |
-| `ClientSizing` | Position size calculation | `calculate()` |
-
-**Memory Efficiency Pattern:** All methods are defined on the prototype, not as arrow functions:
-
-```typescript
-class ClientStrategy {
-  // Prototype method (shared across instances)
-  async tick(symbol: string): Promise<IStrategyTickResult> {
-    // Implementation
-  }
-}
-```
-
+---
 
 ## Dependency Injection System
 
-The framework uses a custom DI container with Symbol-based tokens for type-safe service resolution.
+The system implements a lightweight dependency injection container that wires approximately 60 services together at startup. The DI system uses three core primitives: `TYPES` symbol registry, `provide()` registration, and `inject()` retrieval.
+
+### DI System Flow Diagram
+
+![Mermaid Diagram](./diagrams/09_Architecture_2.svg)
+
+### Service Registration Example
+
+The registration flow in [src/lib/core/provide.ts:52-131]() follows a consistent pattern:
+
+```typescript
+// Base services
+provide(TYPES.loggerService, () => new LoggerService());
+
+// Context services
+provide(TYPES.executionContextService, () => new ExecutionContextService());
+provide(TYPES.methodContextService, () => new MethodContextService());
+
+// Connection services (7 total)
+provide(TYPES.strategyConnectionService, () => new StrategyConnectionService());
+provide(TYPES.exchangeConnectionService, () => new ExchangeConnectionService());
+// ... 5 more
+
+// Schema services (7 total)
+provide(TYPES.strategySchemaService, () => new StrategySchemaService());
+provide(TYPES.exchangeSchemaService, () => new ExchangeSchemaService());
+// ... 5 more
+```
+
+Each service's constructor declares its dependencies, which are automatically resolved by the DI container. For example, `StrategyConnectionService` receives `LoggerService`, `ExecutionContextService`, and `StrategySchemaService` through constructor injection.
+
+### The Backtest Aggregation Object
+
+All services are aggregated into a single `backtest` object in [src/lib/index.ts:212-224]() for discoverability:
+
+```typescript
+export const backtest = {
+  ...baseServices,           // loggerService
+  ...contextServices,        // executionContextService, methodContextService
+  ...connectionServices,     // 7 Connection Services
+  ...schemaServices,         // 7 Schema Services
+  ...globalServices,         // 7 Global Services
+  ...commandServices,        // 3 Command Services
+  ...logicPrivateServices,   // 3 Logic Private Services
+  ...logicPublicServices,    // 3 Logic Public Services
+  ...markdownServices,       // 7 Markdown Services
+  ...validationServices,     // 7 Validation Services
+  ...templateServices,       // 1 Template Service
+};
+```
+
+This flattened structure enables easy access: `backtest.strategyConnectionService.getStrategy(...)` instead of navigating nested categories. The object is exported as `lib` in [src/index.ts:183]() for external use.
+
+
+---
+
+## Context Propagation Architecture
+
+The system uses two context services to propagate execution state through service layers without explicit parameter passing. This pattern reduces method signature pollution and enables consistent context access across the service graph.
+
+### Context Services
+
+**ExecutionContextService** ([src/lib/services/context/ExecutionContextService.ts]()) stores three execution-level parameters:
+
+| Property | Type | Purpose |
+|----------|------|---------|
+| `symbol` | `string` | Trading symbol (e.g., "BTCUSDT") for current execution |
+| `when` | `Date` | Current timestamp (backtest: historical, live: real-time) |
+| `backtest` | `boolean` | Execution mode flag (true: backtest, false: live) |
+
+**MethodContextService** ([src/lib/services/context/MethodContextService.ts]()) stores component-level parameters:
+
+| Property | Type | Purpose |
+|----------|------|---------|
+| `strategyName` | `string` | Active strategy identifier |
+| `exchangeName` | `string` | Active exchange identifier |
+| `frameName` | `string` | Active frame identifier (backtest only) |
+
+### Context Injection Flow
+
+![Mermaid Diagram](./diagrams/09_Architecture_3.svg)
+
+**Flow Description:**
+
+1. **Context Initialization**: Logic Services set execution context before each operation
+2. **Context Propagation**: Global Services read context and pass to Connection Services
+3. **Instance Creation**: Connection Services inject context into Client class constructors
+4. **Context Cleanup**: Logic Services clear context after operation completes
+
+This pattern ensures that methods like `getStrategy(symbol, strategyName, exchangeName)` don't need to pass `when` and `backtest` parameters explicitly - they're available through context services.
+
+### Context Scoping
+
+Context follows a request-scoped lifecycle:
+
+1. Set at operation start in Logic Services
+2. Accessed during service chain execution
+3. Cleared at operation end to prevent leakage
+
+The system is single-threaded (Node.js event loop), so context state is safe without synchronization primitives.
+
+
+---
+
+## Event System Architecture
+
+The event system implements a comprehensive publish-subscribe pattern with 16 distinct event channels. Events are emitted by Logic Services and Client classes during execution, enabling observability without coupling core logic to monitoring concerns.
+
+### Event Emitter Registry
+
+All event emitters are defined in [src/config/emitters.ts:1-122]() using the `Subject` pattern from `functools-kit`:
 
 ![Mermaid Diagram](./diagrams/09_Architecture_4.svg)
 
-### Symbol-Based Tokens
+### Event Emitter Types and Purposes
 
-All service dependencies use unique Symbol tokens to avoid naming collisions and enable type-safe resolution:
+| Emitter | Type | Purpose | Emitted By |
+|---------|------|---------|------------|
+| `signalEmitter` | Universal | All signal lifecycle events (idle, opened, active, closed, cancelled) | `ClientStrategy` |
+| `signalLiveEmitter` | Live-only | Signal events during live trading | `LiveLogicPrivateService` |
+| `signalBacktestEmitter` | Backtest-only | Signal events during backtesting | `BacktestLogicPrivateService` |
+| `progressBacktestEmitter` | Progress | Frame processing progress (frames/total) | `BacktestLogicPrivateService` |
+| `progressWalkerEmitter` | Progress | Strategy testing progress (strategies/total) | `WalkerLogicPrivateService` |
+| `progressOptimizerEmitter` | Progress | Data source processing progress (sources/total) | `ClientOptimizer` |
+| `doneLiveSubject` | Completion | Live execution finished | `LiveLogicPrivateService` |
+| `doneBacktestSubject` | Completion | Backtest execution finished | `BacktestLogicPrivateService` |
+| `doneWalkerSubject` | Completion | Walker execution finished | `WalkerLogicPrivateService` |
+| `walkerCompleteSubject` | Completion | Walker results with best strategy | `WalkerLogicPrivateService` |
+| `performanceEmitter` | Monitoring | Operation timing metrics for profiling | All Logic Services |
+| `errorEmitter` | Monitoring | Recoverable errors (execution continues) | All Logic Services |
+| `exitEmitter` | Monitoring | Fatal errors (execution terminates) | Background execution methods |
+| `walkerEmitter` | Analysis | Current best strategy during walker | `WalkerLogicPrivateService` |
+| `partialProfitSubject` | Analysis | Profit milestone reached (10%, 20%, 30%) | `ClientStrategy` |
+| `partialLossSubject` | Analysis | Loss milestone reached (10%, 20%, 30%) | `ClientStrategy` |
 
-```typescript
-// src/lib/core/types.ts
-const TYPES = {
-  loggerService: Symbol('loggerService'),
-  strategyGlobalService: Symbol('strategyGlobalService'),
-  exchangeConnectionService: Symbol('exchangeConnectionService'),
-  // ... 30+ more tokens
-};
-```
+### Listener API Pattern
 
-### Service Binding
-
-Services are bound to tokens using factory functions in `provide.ts`:
-
-```typescript
-// src/lib/core/provide.ts
-provide(TYPES.strategyGlobalService, () => new StrategyGlobalService());
-provide(TYPES.exchangeConnectionService, () => new ExchangeConnectionService());
-provide(TYPES.loggerService, () => new LoggerService());
-```
-
-### Service Resolution
-
-Services resolve dependencies by injecting tokens:
-
-```typescript
-// src/lib/index.ts
-const backtest = {
-  loggerService: inject<LoggerService>(TYPES.loggerService),
-  strategyGlobalService: inject<StrategyGlobalService>(TYPES.strategyGlobalService),
-  exchangeConnectionService: inject<ExchangeConnectionService>(TYPES.exchangeConnectionService),
-  // ... all services
-};
-```
-
-### Dependency Graph
-
-The following diagram maps the actual dependency relationships between services:
+Event consumers use listener functions from [src/function/event.ts:1-892]() that implement a consistent API pattern:
 
 ![Mermaid Diagram](./diagrams/09_Architecture_5.svg)
 
+### Queued Callback Processing
 
-## Context Propagation
+All listener functions use the `queued()` wrapper from `functools-kit` ([src/function/event.ts:69]()) to ensure sequential processing of async callbacks:
 
-Context propagation uses `di-scoped` to implicitly pass execution parameters through nested async operations without explicit parameter drilling.
-
-### Context Types
-
-Two context types flow through the system:
-
-**IMethodContext** - Component selection:
 ```typescript
-interface IMethodContext {
-  exchangeName: ExchangeName;
-  strategyName: StrategyName;
-  frameName: FrameName;
+export function listenSignal(fn: (event: IStrategyTickResult) => void) {
+  backtest.loggerService.log(LISTEN_SIGNAL_METHOD_NAME);
+  return signalEmitter.subscribe(queued(async (event) => fn(event)));
 }
 ```
 
-**IExecutionContext** - Runtime parameters:
+The `queued()` wrapper guarantees:
+1. Callbacks execute in order of event emission
+2. Each callback completes before the next starts
+3. Async callbacks are awaited properly
+4. No concurrent execution of the same callback
+
+This prevents race conditions when callbacks have side effects (e.g., writing to database, updating UI state).
+
+### Event Emission Example
+
+Logic Services emit events at key lifecycle points:
+
 ```typescript
-interface IExecutionContext {
-  symbol: string;
-  when: Date;
-  backtest: boolean;
+// In BacktestLogicPrivateService
+const result = await this.strategyGlobalService.tick(
+  strategyName,
+  exchangeName
+);
+
+// Emit to all three signal channels
+signalEmitter.next(result);
+signalBacktestEmitter.next(result);
+
+if (result.action === "opened") {
+  // Also emit to markdown service for report accumulation
+  this.backtestMarkdownService.addSignal(result);
 }
 ```
 
-### Context Flow Architecture
+
+---
+
+## Module Boundaries and Interactions
+
+The system maintains clear module boundaries with well-defined interaction patterns. Modules communicate through interfaces and abstractions rather than concrete implementations.
+
+### Primary Module Boundaries
 
 ![Mermaid Diagram](./diagrams/09_Architecture_6.svg)
 
-### MethodContextService Pattern
+### Interaction Patterns by Layer
 
-`MethodContextService` wraps async generators to propagate `strategyName`, `exchangeName`, `frameName`:
+**API Layer → Service Layer**:
+- Validates user input through Validation Services
+- Registers configurations through Schema Services
+- Delegates execution through Command Services
+- Never directly instantiates service classes (uses DI)
 
-```typescript
-// BacktestLogicPublicService
-async *run(symbol: string, context: IBacktestContext) {
-  yield* MethodContextService.runAsyncIterator(
-    this.logicPrivateService.run(symbol),
-    {
-      strategyName: context.strategyName,
-      exchangeName: context.exchangeName,
-      frameName: context.frameName
-    }
-  );
-}
-```
+**Service Layer → Business Logic Layer**:
+- Global Services orchestrate Connection Services
+- Connection Services create and cache Client instances
+- Services inject context and dependencies via constructors
+- No direct instantiation - uses factory pattern
 
-### ExecutionContextService Pattern
+**Business Logic Layer → Infrastructure Layer**:
+- Client classes emit events to Subject instances
+- Client classes write state to Persistence Adapters
+- Client classes read context from Context Services
+- No infrastructure knowledge in business logic
 
-`ExecutionContextService` wraps individual operations with runtime parameters:
-
-```typescript
-// BacktestLogicPrivateService
-for (const when of timeframe) {
-  const result = await ExecutionContextService.runInContext(
-    async () => await this.strategyGlobalService.tick(symbol),
-    { symbol, when, backtest: true }
-  );
-  yield result;
-}
-```
-
-### Context Resolution
-
-Services access context via dependency injection:
-
-```typescript
-class ExchangeConnectionService {
-  private readonly methodContextService: TMethodContextService;
-  
-  async getClient(symbol: string): Promise<ClientExchange> {
-    // Implicitly access context
-    const exchangeName = this.methodContextService.context.exchangeName;
-    return this.getCachedClient(exchangeName);
-  }
-}
-```
-
-**Benefits:**
-- No parameter drilling through 6+ layers
-- Type-safe context access via DI
-- Automatic propagation through async boundaries
-- Isolated execution contexts prevent cross-contamination
+**Cross-Layer Communication**:
+- All layers use event emitters for loose coupling
+- Context services provide implicit parameter passing
+- DI container resolves all dependencies at startup
+- No circular dependencies between modules
 
 
-## Event System
+---
 
-The framework uses `functools-kit`'s `Subject` for pub-sub event handling with queued processing to ensure sequential execution.
+## Testing and Extensibility Patterns
 
-### Event Emitters
+The architecture supports testing and customization through strategic injection points.
 
-All events are emitted through global Subject instances:
+### Persistence Adapter Customization
 
-![Mermaid Diagram](./diagrams/09_Architecture_7.svg)
-
-### Event Types
-
-| Emitter | Type | Usage |
-|---------|------|-------|
-| `signalEmitter` | `IStrategyTickResult` | All tick results (idle/opened/active/closed) |
-| `signalBacktestEmitter` | `IStrategyTickResult` | Backtest signals only |
-| `signalLiveEmitter` | `IStrategyTickResult` | Live signals only |
-| `errorEmitter` | `Error` | Background execution errors |
-| `doneEmitter` | `DoneContract` | Execution completion events |
-| `progressEmitter` | `ProgressContract` | Walker/backtest progress |
-| `performanceEmitter` | `PerformanceContract` | Timing metrics |
-| `walkerEmitter` | `IWalkerStrategyResult` | Walker strategy results |
-| `validationEmitter` | `Error` | Risk validation errors |
-
-### Queued Processing
-
-All event listeners use `functools-kit`'s `queued()` wrapper to ensure sequential processing:
+The system provides four persistence adapters that can be replaced with custom implementations ([test/config/setup.mjs:6-64]()):
 
 ```typescript
-export const listenSignal = (fn: (data: IStrategyTickResult) => void | Promise<void>) => {
-  return signalEmitter.subscribe(queued(fn));
-};
+PersistSignalAdapter.usePersistSignalAdapter(class {
+  async waitForInit() { /* Initialize connection */ }
+  async readValue(id) { /* Read from Redis/MongoDB */ }
+  async hasValue(id) { /* Check existence */ }
+  async writeValue(id, value) { /* Atomic write */ }
+});
+
+PersistRiskAdapter.usePersistRiskAdapter(class { /* ... */ });
+PersistScheduleAdapter.usePersistScheduleAdapter(class { /* ... */ });
+PersistPartialAdapter.usePersistPartialAdapter(class { /* ... */ });
 ```
 
-**Why Queued Processing?**
-- Prevents race conditions in async event handlers
-- Guarantees FIFO ordering even with slow handlers
-- Avoids event handler interleaving
+This enables testing with mock adapters (as shown in test setup) or production deployment with Redis/PostgreSQL backends without modifying core logic.
 
-### Event Emission Flow
+### Logger Customization
 
-![Mermaid Diagram](./diagrams/09_Architecture_8.svg)
-
-### Emission Points
-
-Events are emitted from Logic Services after yielding results:
+The `setLogger()` function ([src/function/setup.ts]()) replaces the default logger with custom implementations:
 
 ```typescript
-// BacktestLogicPrivateService
-async *run(symbol: string) {
-  for (const when of timeframe) {
-    const result = await this.strategyGlobalService.tick(symbol);
-    
-    // Emit to event system
-    signalEmitter.next(result);
-    signalBacktestEmitter.next(result);
-    
-    yield result;
-  }
-  
-  // Emit completion
-  doneEmitter.next({
-    backtest: true,
-    symbol,
-    strategyName: context.strategyName,
-    exchangeName: context.exchangeName
-  });
-}
+setLogger({
+  log: (message, ...args) => { /* Custom logging */ },
+  info: (message, ...args) => { /* Custom info */ },
+  warn: (message, ...args) => { /* Custom warnings */ },
+  error: (message, ...args) => { /* Custom errors */ },
+});
 ```
 
+### Configuration Override
 
-## Service Organization Summary
+The `setConfig()` function ([test/config/setup.mjs:66-73]()) modifies validation parameters and execution settings:
 
-The following table maps service categories to their file locations:
+```typescript
+setConfig({
+  CC_MIN_TAKEPROFIT_DISTANCE_PERCENT: 0.5,
+  CC_MAX_STOPLOSS_DISTANCE_PERCENT: 15,
+  CC_MAX_SIGNAL_LIFETIME_MINUTES: 1440,
+  CC_GET_CANDLES_RETRY_COUNT: 3,
+  CC_GET_CANDLES_RETRY_DELAY_MS: 1000,
+});
+```
 
-| Category | Pattern | Location | Count |
-|----------|---------|----------|-------|
-| Base Services | `LoggerService` | `src/lib/services/base/` | 1 |
-| Context Services | `ExecutionContextService`, `MethodContextService` | `src/lib/services/context/` | 2 |
-| Connection Services | `*ConnectionService` | `src/lib/services/connection/` | 5 |
-| Schema Services | `*SchemaService` | `src/lib/services/schema/` | 6 |
-| Validation Services | `*ValidationService` | `src/lib/services/validation/` | 6 |
-| Global Services | `*GlobalService` | `src/lib/services/global/` | 8 |
-| Logic Services | `*LogicPublicService`, `*LogicPrivateService` | `src/lib/services/logic/` | 6 |
-| Markdown Services | `*MarkdownService` | `src/lib/services/markdown/` | 6 |
-
-**Total Services:** 40+ injectable services
-
+These injection points enable customization without forking the codebase or modifying core services.
+

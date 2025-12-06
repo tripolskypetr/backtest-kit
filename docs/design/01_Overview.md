@@ -5,314 +5,241 @@ group: design
 
 # Overview
 
+**backtest-kit** is a production-ready TypeScript framework for developing, backtesting, and deploying algorithmic trading strategies with enterprise-grade reliability. The framework provides three execution modes (historical simulation, live trading, crash-safe state recovery), comprehensive signal validation, and event-driven observability. This document introduces the framework's purpose, architecture, and core concepts at a high level.
 
-**backtest-kit** is a production-ready TypeScript framework for backtesting and live trading algorithmic strategies. It provides crash-safe state persistence, comprehensive signal validation, memory-optimized async generators, and enterprise-grade reporting capabilities.
+For detailed information about specific subsystems, see:
+- Execution modes: [Backtest Mode](./52_Backtesting.md), [Live Trading](./56_Live_Trading.md), [Walker Comparison](./61_Walker_Mode.md)
+- Strategy development: [Strategy Schemas](./24_Strategy_Schemas.md), [Signal Lifecycle](./46_Signal_Lifecycle.md)
+- System architecture: [Architecture](./09_Architecture.md), [Service Layer](./38_Service_Layer.md)
+- Advanced features: [Risk Management](./65_Risk_Management.md), [AI Optimization](./87_AI-Powered_Strategy_Optimization.md)
 
-## Core Capabilities
+## Purpose and Design Goals
 
-The framework enables:
+The framework solves a critical problem in algorithmic trading: **bridging the gap between backtesting and production deployment**. Traditional backtesting tools often fail when strategies move to live trading due to state management issues, unrealistic execution assumptions, or missing crash recovery. backtest-kit addresses these challenges through:
 
-1. **Historical Backtesting** - Memory-efficient streaming execution against historical candle data via `Backtest.run()` and `Backtest.background()`
-2. **Live Trading** - Real-time strategy execution with atomic persistence and crash recovery via `Live.run()` and `Live.background()`
-3. **Signal Validation** - Automatic validation of TP/SL logic, price relationships, and timestamp constraints in [src/client/ClientStrategy.ts]()
-4. **Strategy Comparison** - Multi-strategy A/B testing with metric-based ranking via `Walker.run()` and `Walker.background()`
-5. **Portfolio Analytics** - Multi-symbol performance tracking with extended metrics via `Heat.getData()`
-6. **Risk Management** - Portfolio-level risk controls with custom validation logic via `addRisk()`
-7. **Position Sizing** - Built-in sizing methods (Fixed %, Kelly Criterion, ATR-based) via `PositionSize` class
-8. **Scheduled Signals** - Limit order tracking with cancellation rate analytics via `Schedule.getData()`
-9. **Pluggable Integration** - Custom exchange data sources and persistence backends via schema registration
+1. **Unified Strategy Code**: Identical strategy logic runs in backtest and live modes without modifications
+2. **Crash-Safe Persistence**: Atomic file writes ensure state recovery after process crashes with no duplicate signals
+3. **Realistic Execution Simulation**: VWAP pricing, fee/slippage modeling, and time-aware context propagation
+4. **Portfolio-Level Risk Controls**: Cross-strategy validation and position tracking
+5. **Memory-Efficient Streaming**: AsyncGenerator-based execution processes years of historical data without loading everything into memory
+
+The framework is structured as a **dependency injection container** that orchestrates ~60 services across 8 major subsystems, with a public API layer that hides internal complexity behind intuitive registration functions.
 
 
----
+## Core Architecture Layers
 
-## System Architecture
-
-The framework implements a six-layer clean architecture with dependency injection:
-
-### High-Level System Diagram
+The system implements a **layered architecture** with clear separation of concerns across five tiers, from user-facing API to persistence layer.
 
 ![Mermaid Diagram](./diagrams/01_Overview_0.svg)
 
-### Layer Responsibilities
+**Layer Responsibilities**:
 
-| Layer | Purpose | Key Components | Location |
-|-------|---------|----------------|----------|
-| **User Interface** | Public API exports and utility classes | `Backtest`, `Live`, `Walker`, `Heat`, `Schedule`, `PositionSize` | [src/classes/](), [src/function/]() |
-| **Registry & Validation** | Schema storage and validation logic | `*SchemaService`, `*ValidationService` | [src/lib/services/schema/](), [src/lib/services/validation/]() |
-| **Execution Engine** | Core orchestration and business logic | `*LogicPrivateService`, `*GlobalService`, `*ConnectionService`, `Client*` classes | [src/lib/services/logic/](), [src/lib/services/global/](), [src/lib/services/connection/](), [src/client/]() |
-| **State Management** | Crash-safe persistence and configuration | `PersistSignalAdapter`, `PersistRiskAdapter`, `GLOBAL_CONFIG` | [src/classes/Persist.ts](), [src/config/params.ts]() |
-| **Event System** | Pub-sub for observability | `signalEmitter`, `doneEmitter`, `errorEmitter`, `progressEmitter` | [src/config/emitters.ts]() |
-| **Reporting & Analytics** | Performance metrics and markdown generation | `BacktestMarkdownService`, `LiveMarkdownService`, etc. | [src/lib/services/markdown/]() |
+| Layer | Purpose | Key Components |
+|-------|---------|----------------|
+| **Public API** | User-facing functions for registration and execution | `addStrategy()`, `Backtest`, `Live`, `Walker`, event listeners |
+| **Command** | Validation and orchestration entry points | `BacktestCommandService`, `LiveCommandService`, `WalkerCommandService` |
+| **Logic** | Execution orchestration and AsyncGenerator streaming | `BacktestLogicPrivateService`, `LiveLogicPrivateService`, `WalkerLogicPrivateService` |
+| **Business Logic** | Core trading logic and state management | `ClientStrategy`, `ClientExchange`, `ClientRisk`, `ClientFrame` |
+| **Persistence** | Crash-safe state storage with atomic writes | `PersistSignalAdapter`, `PersistScheduleAdapter`, `PersistRiskAdapter` |
+
+Each layer depends only on layers below it, creating a **unidirectional dependency graph** that simplifies testing and maintenance. The Command layer validates inputs and delegates to Logic services, which orchestrate Business Logic components through dependency injection.
 
 
----
+## Component Registration Pattern
 
-## Execution Modes
-
-The framework provides three primary execution modes with distinct characteristics:
-
-### Execution Mode Comparison
+The framework uses a **registry-based dependency injection pattern** where components are registered by name before execution. Registration functions (`addStrategy`, `addExchange`, `addFrame`, etc.) store schemas in registry services, which are later instantiated by Connection services during execution.
 
 ![Mermaid Diagram](./diagrams/01_Overview_1.svg)
 
-| Mode | Entry Point | Execution Pattern | Output | Use Case |
-|------|-------------|-------------------|--------|----------|
-| **Backtest** | `Backtest.run(symbol, {strategyName, exchangeName, frameName})` | Finite loop over historical timeframes | `IStrategyTickResultClosed` only | Strategy validation with historical data |
-| **Live** | `Live.run(symbol, {strategyName, exchangeName})` | Infinite loop with 1-minute intervals | `IStrategyTickResult` (idle/opened/active/closed) | Real-time trading with crash recovery |
-| **Walker** | `Walker.run(symbol, {walkerName})` | Iterates strategies, runs Backtest for each | `IWalkerResults` with ranked strategies | A/B testing and strategy selection |
+This pattern enables **dependency inversion**: strategies reference exchanges by name (`exchangeName: "binance"`), not by direct import. Components can be registered in separate modules and assembled at runtime through string identifiers. The memoization layer in Connection services ensures each symbol-strategy-exchange combination gets exactly one instance, preventing duplicate state.
 
-### Key Differences
-
-**Backtest Mode:**
-- Uses `ClientStrategy.backtest(candles)` for fast-forward simulation
-- Generates timeframes via `ClientFrame.getTimeframe()` based on `IFrameSchema`
-- No persistence required (stateless)
-- Memory-efficient streaming via async generators
-
-**Live Mode:**
-- Uses only `ClientStrategy.tick()` with real-time VWAP from `ClientExchange.getAveragePrice()`
-- Atomic persistence via `PersistSignalAdapter.writeValue()` at state transitions
-- Crash recovery via `waitForInit()` pattern in [src/client/ClientStrategy.ts]()
-- Interval throttling via `_lastSignalTimestamp` checks
-
-**Walker Mode:**
-- Orchestrates multiple `Backtest.run()` executions
-- Compares strategies using configurable metrics: `sharpeRatio`, `winRate`, `avgPnl`, `totalPnl`, `certaintyRatio`, `expectedYearlyReturns`
-- Emits progress events via `progressEmitter` in [src/config/emitters.ts]()
-- Generates comparison reports via `WalkerMarkdownService`
+**Registration Flow**:
+1. User calls `addStrategy({ strategyName: "my-strategy", ... })`
+2. Function stores schema in `StrategySchemaService.schemas` Map
+3. During execution, `StrategyConnectionService.getStrategy("my-strategy")` retrieves schema
+4. Schema is instantiated into `ClientStrategy` instance with dependencies injected
+5. Instance is memoized by `(symbol, strategyName)` key for reuse
 
 
----
+## Execution Modes
 
-## Core Components
-
-### Client Layer (Business Logic)
-
-The client layer contains pure business logic without dependency injection:
+The framework provides three execution modes with distinct temporal semantics and completion behavior, but all share the same strategy logic and signal lifecycle.
 
 ![Mermaid Diagram](./diagrams/01_Overview_2.svg)
 
-| Component | Responsibility | Key Methods |
-|-----------|----------------|-------------|
-| `ClientStrategy` | Signal lifecycle, validation, TP/SL monitoring | `tick()`, `backtest()`, `getSignal()` |
-| `ClientExchange` | Candle data fetching, VWAP calculation | `getCandles()`, `getAveragePrice()` |
-| `ClientFrame` | Timeframe generation for backtesting | `getTimeframe()` |
-| `PersistSignalAdapter` | Crash-safe signal persistence | `write()`, `read()` |
+**Mode Characteristics**:
 
+| Mode | Temporal Progression | Completion | State Persistence | Use Case |
+|------|---------------------|------------|-------------------|----------|
+| **Backtest** | Historical, sequential through timeframes | Finite, when all frames processed | Optional, for testing only | Historical strategy validation |
+| **Live** | Real-time, `new Date()` | Infinite, manual stop required | Required, crash-safe | Production trading |
+| **Walker** | Historical, parallel strategy iteration | Finite, when all strategies tested | Optional | Strategy comparison and optimization |
 
-### Service Orchestration Layer
+All three modes use the same `ClientStrategy.tick()` method for signal generation and monitoring, ensuring consistent behavior across environments. The key difference is **temporal context**: Backtest iterates through fixed dates, Live uses current time, and Walker orchestrates multiple Backtest runs.
 
-The service layer handles dependency injection and routing:
-
-![Mermaid Diagram](./diagrams/01_Overview_3.svg)
-
-**Service Types:**
-
-1. **Schema Services** - Registry for user configurations
-   - `StrategySchemaService`, `ExchangeSchemaService`, `FrameSchemaService`
-   - Store schemas registered via `addStrategy()`, `addExchange()`, `addFrame()`
-
-2. **Connection Services** - Memoized client instance creators
-   - `StrategyConnectionService`, `ExchangeConnectionService`, `FrameConnectionService`
-   - Create and cache client instances
-
-3. **Global Services** - Context-aware wrappers
-   - `StrategyGlobalService`, `ExchangeGlobalService`, `FrameGlobalService`
-   - Inject `ExecutionContextService` into operations
-
-4. **Logic Services** - Execution orchestration
-   - `BacktestLogicPrivateService`, `LiveLogicPrivateService`
-   - Implement async generator loops
-
-
-For detailed service layer documentation, see [Service Layer](./36_Service_Layer.md).
-
----
 
 ## Signal Lifecycle
 
-Signals transition through six states in a type-safe discriminated union:
+Signals (trading positions) progress through a **state machine** with six possible states and multiple terminal outcomes. The lifecycle is identical in backtest and live modes, with different timing mechanisms.
 
-### Signal State Machine
+![Mermaid Diagram](./diagrams/01_Overview_3.svg)
+
+**State Descriptions**:
+
+| State | Description | Persistence | Validation |
+|-------|-------------|-------------|------------|
+| **idle** | No active signal, waiting for entry conditions | None | N/A |
+| **scheduled** | Limit order waiting for price to reach `priceOpen` | `PersistScheduleAdapter` (live mode) | Risk check on activation |
+| **opened** | Signal just created, position about to activate | `PersistSignalAdapter` (live mode) | Already validated |
+| **active** | Position monitoring TP/SL/time expiration | `PersistSignalAdapter` (live mode) | N/A |
+| **closed** | Position closed via TP/SL/timeout | Removed from persistence | N/A |
+| **cancelled** | Scheduled signal cancelled before activation | Removed from persistence | N/A |
+
+The **scheduled state** is unique: it represents a limit order waiting for `priceOpen` to be reached. If the price moves against the position and hits the stop loss before activation, the signal is cancelled without ever opening a position. This prevents entering positions after conditions have deteriorated.
+
+**Validation Pipeline** (during `getSignal()`):
+1. **Interval throttling**: Enforce minimum time between signal generation (e.g., "5m" = max one signal per 5 minutes)
+2. **Risk gates**: `ClientRisk.checkSignal()` validates portfolio-level constraints
+3. **Signal validation**: 30+ rules check TP/SL logic, price sanity, time limits, etc.
+
+
+## Event System
+
+The framework implements a **pub-sub event architecture** with 16 emitters organized into 5 functional categories. All event callbacks use queued processing to ensure sequential execution even with async handlers.
 
 ![Mermaid Diagram](./diagrams/01_Overview_4.svg)
 
-### Signal Type Hierarchy
+**Event Categories**:
 
-The framework defines signal states as a discriminated union in [types.d.ts:654-770]():
+1. **Signal Events**: `signalEmitter`, `signalLiveEmitter`, `signalBacktestEmitter` - Emit `IStrategyTickResult` with action discriminator
+2. **Progress Events**: `progressBacktestEmitter`, `progressWalkerEmitter`, `progressOptimizerEmitter` - Emit completion percentages
+3. **Completion Events**: `doneLiveSubject`, `doneBacktestSubject`, `doneWalkerSubject` - Emit `DoneContract` with metadata
+4. **Error Events**: `errorEmitter`, `exitEmitter` - Emit `Error` objects (recoverable vs fatal)
+5. **Analysis Events**: `partialProfitSubject`, `partialLossSubject` - Emit profit/loss milestone data
 
+All listeners use the `queued()` wrapper from `functools-kit` to serialize async callback execution. This prevents race conditions when multiple events arrive rapidly and callbacks perform stateful operations.
+
+
+## Context Propagation
+
+The framework uses **async context propagation** via `di-scoped` to implicitly pass runtime parameters through the call stack without explicit function arguments. This enables the same strategy code to work in both backtest (historical time) and live (real-time) modes.
+
+Two context services provide implicit parameters:
+
+**1. ExecutionContextService** - Runtime execution parameters:
 ```typescript
-type IStrategyTickResult = 
-  | IStrategyTickResultIdle         // action: "idle"
-  | IStrategyTickResultScheduled    // action: "scheduled" (new in v1.x)
-  | IStrategyTickResultOpened       // action: "opened"
-  | IStrategyTickResultActive       // action: "active"
-  | IStrategyTickResultClosed       // action: "closed"
-  | IStrategyTickResultCancelled    // action: "cancelled" (new in v1.x)
+interface IExecutionContext {
+  symbol: string;      // Trading pair (e.g., "BTCUSDT")
+  when: Date;          // Current timestamp (historical or real-time)
+  backtest: boolean;   // Execution mode flag
+}
 ```
 
-| State | When Yielded | Key Properties | Lifecycle Callbacks |
-|-------|--------------|----------------|---------------------|
-| `idle` | Live: always when no signal, Backtest: never | `signal: null`, `currentPrice` | `onIdle()` |
-| `scheduled` | Both: when `priceOpen` specified in `ISignalDto` | `signal: IScheduledSignalRow`, `currentPrice` | `onSchedule()` |
-| `opened` | Both: when position activated | `signal: ISignalRow`, `currentPrice` | `onOpen()` |
-| `active` | Live: every tick while monitoring, Backtest: never | `signal: ISignalRow`, `currentPrice` | `onActive()` |
-| `closed` | Both: when TP/SL/time triggered | `pnl: IStrategyPnL`, `closeReason`, `closeTimestamp` | `onClose()` |
-| `cancelled` | Both: when scheduled signal times out or SL hit before entry | `signal: IScheduledSignalRow`, `closeTimestamp` | `onCancel()` |
+**2. MethodContextService** - Component routing parameters:
+```typescript
+interface IMethodContext {
+  strategyName: string;   // Which strategy to use
+  exchangeName: string;   // Which exchange to use
+  frameName: string;      // Which frame to use (empty in live mode)
+}
+```
 
-### Scheduled Signal Behavior
+These contexts are injected at the execution entry point and automatically propagated through all service calls:
 
-When `getSignal()` returns `ISignalDto` with `priceOpen` specified:
-1. Signal enters `scheduled` state with `_isScheduled: true` flag
-2. Framework monitors `currentPrice` against `priceOpen` each tick
-3. **Activation:** If price reaches `priceOpen`, signal transitions to `opened`
-4. **Cancellation:** If timeout (`CC_SCHEDULE_AWAIT_MINUTES`) or `priceStopLoss` hit first, signal transitions to `cancelled`
-5. **Tracking:** Schedule statistics available via `Schedule.getData()` in [src/classes/Schedule.ts]()
+```
+Backtest.run(symbol, { strategyName, exchangeName, frameName })
+  → BacktestLogicPrivateService.execute() [sets contexts]
+    → StrategyGlobalService.tick() [reads contexts]
+      → ClientStrategy.tick() [uses execution.context.when]
+        → ClientExchange.getCandles() [uses execution.context.when, execution.context.symbol]
+```
+
+This architecture eliminates the need to pass `symbol`, `when`, `strategyName`, etc. as function parameters through every layer of the call stack. Strategy code can call `getAveragePrice(symbol)` and it automatically uses the correct timestamp from context.
 
 
----
+## Dependency Injection
 
-## Configuration System
-
-The framework uses a registration-then-execution pattern:
+The framework uses a **symbol-based dependency injection container** with ~60 services registered at startup. Services are organized into a matrix pattern by component type (Strategy, Exchange, Frame, etc.) and function category (Connection, Schema, Global, Validation, etc.).
 
 ![Mermaid Diagram](./diagrams/01_Overview_5.svg)
 
-### Registration APIs
+**Service Organization Pattern**:
 
-| Function | Purpose | Interface |
-|----------|---------|-----------|
-| `addStrategy()` | Register trading strategy | [IStrategySchema]() |
-| `addExchange()` | Register data source | [IExchangeSchema]() |
-| `addFrame()` | Register timeframe generator | [IFrameSchema]() |
+Each component type (Strategy, Exchange, Frame, Risk, Sizing) has four service types:
+1. **Schema Service**: Registry of user-registered schemas (`Map<name, schema>`)
+2. **Connection Service**: Instantiation and memoization of client instances
+3. **Global Service**: Context injection wrapper around connection service
+4. **Validation Service**: Schema validation logic
 
-**Key Characteristics:**
-- **Separation:** Registration at startup, instantiation at runtime
-- **Memoization:** One instance per schema name
-- **Routing:** `MethodContextService` provides schema names for lookup
-- **Flexibility:** Multiple strategies/exchanges can coexist
+Example for Strategy component:
+- `StrategySchemaService` - Stores `IStrategySchema` objects in Map
+- `StrategyConnectionService` - Creates and memoizes `ClientStrategy` instances
+- `StrategyGlobalService` - Wraps connection service with `ExecutionContextService.runInContext()`
+- `StrategyValidationService` - Validates strategy schemas on registration
+
+The `backtest` aggregation object (exported as `lib`) provides a flat namespace for accessing all services, used internally by public API functions.
 
 
-For configuration details, see [Configuration Functions](./15_Configuration_Functions.md).
+## Crash Recovery and Persistence
 
----
+In live mode, the framework uses **atomic file-based persistence** to enable crash recovery with exactly-once execution guarantees. Four persistence adapters manage different state types:
 
-## Dependency Injection Architecture
+| Adapter | State Type | File Location | Purpose |
+|---------|-----------|---------------|---------|
+| `PersistSignalAdapter` | Active signals | `.backtest-kit/signals/{symbol}/{strategyName}.json` | Resume monitoring after crash |
+| `PersistScheduleAdapter` | Scheduled signals | `.backtest-kit/schedule/{symbol}/{strategyName}.json` | Resume waiting for activation |
+| `PersistRiskAdapter` | Active positions | `.backtest-kit/risk/{symbol}.json` | Track portfolio-level risk |
+| `PersistPartialAdapter` | Partial P&L | `.backtest-kit/partial/{symbol}/{strategyName}.json` | Track milestone progress |
 
-The framework uses symbol-based dependency injection with scoped context propagation:
+**Persistence Flow**:
+1. Signal state changes (opened → active → closed)
+2. `ClientStrategy.setPendingSignal()` calls `PersistSignalAdapter.writeValue()`
+3. Adapter writes JSON to temporary file: `{path}.tmp`
+4. Atomic rename: `{path}.tmp` → `{path}`
+5. On crash and restart, `waitForInit()` reads persisted state
+6. Strategy resumes from last persisted state
+
+**Custom Persistence Backends**: Users can replace the default file-based adapters with custom implementations (Redis, MongoDB, PostgreSQL) by implementing `PersistBase` interface and registering via `use*Adapter()` methods:
+
+```typescript
+PersistSignalAdapter.usePersistSignalAdapter(RedisAdapter);
+PersistRiskAdapter.usePersistRiskAdapter(MongoAdapter);
+```
+
+The atomic write pattern (write to `.tmp`, then rename) ensures that crashes during write operations leave either the old valid state or the new valid state, never corrupted partial data.
+
+
+## Reporting and Analytics
+
+The framework generates **markdown reports** with statistical analysis for each execution mode. Reports are accumulated via event subscription and calculated on-demand or saved to disk.
 
 ![Mermaid Diagram](./diagrams/01_Overview_6.svg)
 
-### Context Propagation
+**Report Types**:
 
-The framework uses **di-scoped** for implicit context passing:
+| Report | Service | Tracked Data | Key Metrics |
+|--------|---------|--------------|-------------|
+| **Backtest** | `BacktestMarkdownService` | Closed signals only | Sharpe Ratio, Win Rate, Total PNL, Expected Yearly Returns |
+| **Live** | `LiveMarkdownService` | All events (idle, opened, active, closed) | Same as Backtest, plus event counts |
+| **Schedule** | `ScheduleMarkdownService` | Scheduled/cancelled signals | Cancellation rate, Average wait time |
+| **Walker** | `WalkerMarkdownService` | Strategy comparison results | Best strategy, Best metric value |
+| **Partial** | `PartialMarkdownService` | Profit/loss milestones | Milestone distribution (10%, 20%, 30%...) |
+| **Performance** | `PerformanceMarkdownService` | Execution timing metrics | P95/P99 latencies, Bottleneck detection |
 
-1. **ExecutionContextService** - Provides `{symbol, when, backtest}` to operations
-2. **MethodContextService** - Provides `{strategyName, exchangeName, frameName}` for routing
+**Statistics Calculation** (Safe Math):
 
-**Benefits:**
-- No manual parameter threading
-- Type-safe context access
-- Scoped to async execution boundaries
+All numeric calculations use `isUnsafe()` checks to detect NaN/Infinity:
+```typescript
+function isUnsafe(value: number | null): boolean {
+  return typeof value !== "number" || isNaN(value) || !isFinite(value);
+}
+```
 
+Metrics return `null` instead of invalid numbers, preventing downstream errors from propagating. Report generation uses null-safe formatting to display "N/A" for invalid values.
 
-For DI system details, see [Dependency Injection System](./11_Dependency_Injection_System.md).
-
----
-
-## Technology Stack
-
-### Core Dependencies
-
-| Package | Version | Purpose |
-|---------|---------|---------|
-| `di-kit` | ^1.0.18 | Symbol-based dependency injection container |
-| `di-scoped` | ^1.0.20 | Scoped context propagation for async operations |
-| `functools-kit` | ^1.0.93 | Functional utilities (singleshot, queued, memoize) |
-| `get-moment-stamp` | ^1.1.1 | Timestamp utilities for candle intervals |
-
-
-### Build System
-
-- **Bundler:** Rollup with TypeScript plugin
-- **Output:** CommonJS (`build/index.cjs`) and ESM (`build/index.mjs`)
-- **Types:** Single declaration file (`types.d.ts`)
-- **Target:** Node.js with TypeScript 5.0+
-
-
----
-
-## Data Flow Overview
-
-### Backtest Execution Flow
-
-![Mermaid Diagram](./diagrams/01_Overview_7.svg)
-
-
-### Live Execution Flow
-
-![Mermaid Diagram](./diagrams/01_Overview_8.svg)
-
-
----
-
-## Memory and Performance
-
-The framework is optimized for production use:
-
-### Memory Efficiency
-
-1. **Async Generators** - Stream results without accumulation
-2. **Prototype Methods** - Shared methods across instances
-3. **Memoization** - Cache client instances per schema name
-4. **No State Accumulation** - Logic services are stateless
-
-### Performance Characteristics
-
-| Feature | Technique | Benefit |
-|---------|-----------|---------|
-| Client instances | Memoization via `ConnectionServices` | One instance per schema name |
-| Backtest streaming | Async generator | Early termination possible |
-| Context propagation | `di-scoped` | No parameter threading overhead |
-| Persistence | Atomic file writes | Crash safety without performance penalty |
-
-
----
-
-## Error Handling
-
-The framework provides comprehensive validation and error handling:
-
-### Signal Validation
-
-Signals are validated automatically in `ClientStrategy`:
-- Price validation (positive values)
-- TP/SL logic validation (correct relative positions)
-- Timestamp validation (positive values)
-- Position type validation ("long" or "short")
-
-**Validation Location:** [ClientStrategy.ts]() signal validation logic
-
-### Persistence Errors
-
-- Atomic file writes prevent partial writes
-- Automatic retry logic for file operations
-- Corrupted file detection and cleanup
-
-**Persistence Location:** [src/classes/Persist.ts]()
-
-
-For error handling patterns, see [Error Handling](./77_Error_Handling.md).
-
----
-
-## Next Steps
-
-To use the framework:
-
-1. **Installation:** `npm install backtest-kit` - see [Installation and Setup](./03_Installation_and_Setup.md)
-2. **Configuration:** Register schemas with `addStrategy()`, `addExchange()`, `addFrame()` - see [Configuration Functions](./15_Configuration_Functions.md)
-3. **Backtesting:** Use `Backtest.run()` for historical testing - see [Backtest API](./17_Backtest_API.md)
-4. **Live Trading:** Use `Live.run()` for production deployment - see [Live Trading API](./18_Live_Trading_API.md)
-5. **Reporting:** Generate markdown reports with `getReport()` and `dump()` - see [Reporting and Analytics](./67_Reporting_and_Analytics.md)
+**Key Metrics**:
+- **Sharpe Ratio**: `avgPnl / stdDev` (risk-adjusted return)
+- **Annualized Sharpe**: `sharpeRatio × √365`
+- **Certainty Ratio**: `avgWin / |avgLoss|` (win quality metric)
+- **Expected Yearly Returns**: `avgPnl × (365 / avgDurationDays)` (annualized return)
 

@@ -5,31 +5,58 @@ group: design
 
 # Frame Schemas
 
+Frame schemas define backtesting time periods for historical simulation. Registered via `addFrame()`, each schema specifies the temporal boundaries (`startDate`, `endDate`) and iteration granularity (`interval`) for generating timestamp arrays that drive backtest execution.
 
-Frame schemas define backtesting periods by specifying start dates, end dates, and intervals for timestamp generation. They control the temporal boundaries and granularity of historical simulation, enabling strategies to iterate through specific time windows with configurable step sizes.
-
-For information about backtesting execution flow using frames, see [Backtest Execution Flow](./51_Backtest_Execution_Flow.md). For frame timeframe generation implementation details, see [Timeframe Generation](./52_Timeframe_Generation.md).
+Related pages: [Backtest Execution Flow (9.1)](./53_Backtest_Execution_Flow.md), [Timeframe Generation (9.2)](./54_Timeframe_Generation.md), [Component Registration (2.3)](./08_Component_Registration.md)
 
 ---
 
-## Schema Structure
+## IFrameSchema Interface
 
-Frame schemas are registered via the `addFrame()` function and conform to the `IFrameSchema` interface. Each schema defines a named backtesting period with temporal boundaries and iteration granularity.
+The `IFrameSchema` interface defines the contract for frame registration. All frames must provide a unique name, temporal boundaries, and an interval for timestamp generation.
 
-**Core Schema Definition**
+**Interface Structure**
 
 ![Mermaid Diagram](./diagrams/26_Frame_Schemas_0.svg)
 
-**Schema Fields**
+**Field Definitions**
 
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
-| `frameName` | `FrameName` (string) | Yes | Unique identifier for frame registration and retrieval |
+| `frameName` | `FrameName` (string) | Yes | Unique identifier for frame lookup in `FrameSchemaService` registry |
 | `note` | `string` | No | Developer documentation for the frame's purpose |
-| `interval` | `FrameInterval` | Yes | Granularity for timestamp generation (minutes, hours, days) |
-| `startDate` | `Date` | Yes | Inclusive start boundary for the backtesting period |
-| `endDate` | `Date` | Yes | Inclusive end boundary for the backtesting period |
-| `callbacks` | `Partial<IFrameCallbacks>` | No | Optional lifecycle event handlers |
+| `interval` | `FrameInterval` | Yes | Timestamp spacing: minutes (1m-30m), hours (1h-12h), days (1d-3d) |
+| `startDate` | `Date` | Yes | Inclusive start boundary for timeframe generation |
+| `endDate` | `Date` | Yes | Inclusive end boundary for timeframe generation |
+| `callbacks` | `Partial<IFrameCallbacks>` | No | Optional `onTimeframe` callback invoked after generation |
+
+</thinking>
+
+---
+
+## FrameInterval Type
+
+The `FrameInterval` type defines the supported timestamp spacing options. Smaller intervals generate more granular backtests with higher computational cost.
+
+**Available Intervals**
+
+| Category | Values | Use Cases |
+|----------|--------|-----------|
+| Minutes | `1m`, `3m`, `5m`, `15m`, `30m` | High-frequency strategies, scalping, minute-level tick simulation |
+| Hours | `1h`, `2h`, `4h`, `6h`, `8h`, `12h` | Intraday and swing trading, reduced computation for multi-day backtests |
+| Days | `1d`, `3d` | Position trading, long-term strategy validation, monthly/yearly backtests |
+
+**Computational Impact**
+
+```typescript
+// Example: 24-hour backtest timestamp counts
+// 1m interval: 1,440 timestamps (24 * 60)
+// 15m interval: 96 timestamps (24 * 4)
+// 1h interval: 24 timestamps
+// 1d interval: 1 timestamp
+
+// Total BacktestLogicPrivateService iterations = timestamp_count
+```
 
 
 ---
@@ -136,22 +163,28 @@ Generated timeframe:
 
 Frame schemas support an optional `onTimeframe` callback invoked after timeframe array generation. This enables logging, validation, or external integrations during backtest initialization.
 
-**Callback Interface**
+**IFrameCallbacks Interface**
+
+The `onTimeframe` callback is invoked by `ClientFrame` after timestamp array generation, before backtest iteration begins. Useful for logging, validation, or external integrations.
 
 ![Mermaid Diagram](./diagrams/26_Frame_Schemas_4.svg)
 
-**Callback Parameters**
-
-| Parameter | Type | Description |
-|-----------|------|-------------|
-| `timeframe` | `Date[]` | Complete array of generated timestamps |
-| `startDate` | `Date` | Start boundary from schema |
-| `endDate` | `Date` | End boundary from schema |
-| `interval` | `FrameInterval` | Interval used for generation |
-
-**Usage Example**
+**Callback Signature**
 
 ```typescript
+type onTimeframe = (
+  timeframe: Date[],    // Generated timestamp array
+  startDate: Date,      // Schema start boundary
+  endDate: Date,        // Schema end boundary
+  interval: FrameInterval // Spacing used for generation
+) => void;
+```
+
+**Implementation Example**
+
+```typescript
+import { addFrame } from "backtest-kit";
+
 addFrame({
   frameName: "1d-backtest",
   interval: "1m",
@@ -159,12 +192,10 @@ addFrame({
   endDate: new Date("2024-01-02T00:00:00Z"),
   callbacks: {
     onTimeframe: (timeframe, startDate, endDate, interval) => {
-      const duration = (endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60);
-      console.log(`[FRAME] Timeframe generated`);
-      console.log(`  Period: ${startDate.toISOString()} → ${endDate.toISOString()}`);
-      console.log(`  Duration: ${duration} hours`);
-      console.log(`  Interval: ${interval}`);
-      console.log(`  Timestamps: ${timeframe.length}`);
+      console.log(`Generated ${timeframe.length} timestamps`);
+      console.log(`Period: ${startDate.toISOString()} → ${endDate.toISOString()}`);
+      console.log(`First: ${timeframe[0].toISOString()}`);
+      console.log(`Last: ${timeframe[timeframe.length - 1].toISOString()}`);
     },
   },
 });
@@ -173,61 +204,52 @@ addFrame({
 
 ---
 
-## Implementation Architecture
+## Service Architecture
 
-Frame functionality is implemented through a layered service architecture with schema storage, validation, lazy instantiation, and client execution.
+Frame schemas are managed through a layered service architecture following the framework's standard pattern: Schema → Validation → Connection → Global.
 
-**Service Layer Mapping**
+**Service Layer Flow**
 
 ![Mermaid Diagram](./diagrams/26_Frame_Schemas_5.svg)
 
-**Layer Responsibilities**
-
-| Layer | Service | Responsibility |
-|-------|---------|----------------|
-| Public API | `addFrame()` | User-facing registration function |
-| Public API | `listFrames()` | Returns all registered frame schemas |
-| Validation | `FrameValidationService` | Schema structure validation, registry checks |
-| Schema | `FrameSchemaService` | Storage via `ToolRegistry` pattern |
-| Connection | `FrameConnectionService` | Memoized `ClientFrame` instance management |
-| Client | `ClientFrame` | Timeframe generation business logic |
-| Global | `FrameGlobalService` | API orchestration, context management |
-
 **Key Code Entities**
 
-| Entity | File Path | Description |
-|--------|-----------|-------------|
-| `IFrameSchema` | [types.d.ts:328-341]() | Schema interface definition |
-| `FrameInterval` | [types.d.ts:285]() | Interval enum type |
-| `IFrameCallbacks` | [types.d.ts:296-308]() | Callback interface |
-| `addFrame()` | [src/function/add.ts:143-149]() | Registration function |
-| `listFrames()` | [src/function/list.ts:106-109]() | List function |
-| `FrameValidationService` | [src/lib/index.ts:44]() | Validation service DI binding |
-| `FrameSchemaService` | [src/lib/index.ts:24]() | Schema service DI binding |
-| `FrameConnectionService` | [src/lib/index.ts:7]() | Connection service DI binding |
-| `ClientFrame` | N/A (internal) | Timeframe generation implementation |
+| Entity | Type | File Path | Responsibility |
+|--------|------|-----------|----------------|
+| `IFrameSchema` | Interface | [types.d.ts:366-379]() | Schema contract definition |
+| `IFrameCallbacks` | Interface | [types.d.ts:333-346]() | Callback type definitions |
+| `FrameInterval` | Type | [types.d.ts:323]() | Interval enum (1m-3d) |
+| `IFrameParams` | Interface | [types.d.ts:328-331]() | `ClientFrame` constructor params (schema + logger) |
+| `IFrame` | Interface | [types.d.ts:384-393]() | `ClientFrame` public API contract |
+| `addFrame()` | Function | [src/function/add.ts:143-149]() | Public registration API |
+| `FrameValidationService` | Service | DI container | Schema validation logic |
+| `FrameSchemaService` | Service | DI container | `ToolRegistry` storage wrapper |
+| `FrameConnectionService` | Service | DI container | Memoized `ClientFrame` factory |
+| `FrameGlobalService` | Service | DI container | Context propagation wrapper |
+| `ClientFrame` | Class | Internal | Timeframe generation implementation |
 
 
 ---
 
-## Frame Parameters
+## IFrameParams Interface
 
-When `ClientFrame` is instantiated via `FrameConnectionService`, the schema is augmented with runtime dependencies to form `IFrameParams`.
+The `IFrameParams` interface extends `IFrameSchema` with injected dependencies for `ClientFrame` instantiation. The `FrameConnectionService` constructs `ClientFrame` instances using schema data plus runtime services.
 
-**Parameter Augmentation**
+**Parameter Composition**
 
 ![Mermaid Diagram](./diagrams/26_Frame_Schemas_6.svg)
 
-**IFrameParams Structure**
+**Field Sources**
 
-| Field | Source | Description |
-|-------|--------|-------------|
-| `frameName` | Schema | Unique frame identifier |
-| `interval` | Schema | Timeframe interval |
-| `startDate` | Schema | Period start boundary |
-| `endDate` | Schema | Period end boundary |
-| `callbacks` | Schema | Optional lifecycle callbacks |
-| `logger` | DI | Logger service for debug output |
+| Field | Source | Type | Description |
+|-------|--------|------|-------------|
+| `frameName` | Schema | `FrameName` | Unique identifier from registration |
+| `interval` | Schema | `FrameInterval` | Timestamp spacing (1m-3d) |
+| `startDate` | Schema | `Date` | Inclusive start boundary |
+| `endDate` | Schema | `Date` | Inclusive end boundary |
+| `callbacks` | Schema | `Partial<IFrameCallbacks>` | Optional `onTimeframe` callback |
+| `note` | Schema | `string` | Optional documentation |
+| `logger` | DI | `ILogger` | Logger service for debug output |
 
 
 ---

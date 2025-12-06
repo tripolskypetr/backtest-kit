@@ -5,7 +5,6 @@ group: design
 
 # Configuration Functions
 
-
 ## Purpose and Scope
 
 This page documents the two primary configuration functions exposed by the framework: `setLogger` and `setConfig`. These functions allow users to customize logging behavior and tune global runtime parameters that affect signal validation, timing constraints, and price monitoring.

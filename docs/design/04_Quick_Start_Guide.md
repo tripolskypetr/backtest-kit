@@ -5,406 +5,368 @@ group: design
 
 # Quick Start Guide
 
+This guide demonstrates a minimal working example of the backtest-kit framework. You'll learn how to register a strategy, configure an exchange data source, set up a timeframe, and execute a backtest. For installation instructions, see [Installation and Setup](./03_Installation_and_Setup.md). For deeper understanding of execution modes and lifecycle concepts, see [Core Concepts](./05_Core_Concepts.md) and [Component Registration](./08_Component_Registration.md).
 
-**Purpose**: This guide provides a minimal working example to get you started with backtest-kit. You will learn how to register components (exchange, strategy, frame), run a backtest, and listen to events. After completing this guide, you will have a functioning backtest that generates trading signals and calculates performance metrics.
+## Overview: The Basic Flow
 
-**Scope**: This guide covers only the essential steps to run your first backtest. For detailed explanations of execution modes, see [Execution Modes](./06_Execution_Modes.md). For signal lifecycle details, see [Signal Lifecycle Overview](./07_Signal_Lifecycle_Overview.md). For component registration details, see [Component Registration](./08_Component_Registration.md).
+A minimal backtest workflow consists of four registration steps followed by execution:
 
-## Minimal Working Example
+![Mermaid Diagram](./diagrams/04_Quick_Start_Guide_0.svg)
 
-Here's a complete working example that demonstrates the core workflow:
+
+## Step 1: Exchange Configuration
+
+The exchange provides historical candle data for backtesting. You must implement the `IExchangeSchema` interface with three required methods:
+
+- `getCandles`: Fetch OHLCV data
+- `formatPrice`: Format price to exchange precision
+- `formatQuantity`: Format quantity to exchange precision
+
+```typescript
+import { addExchange, ICandleData, CandleInterval } from 'backtest-kit';
+
+addExchange({
+  exchangeName: "binance",
+  
+  async getCandles(
+    symbol: string,
+    interval: CandleInterval,
+    since: Date,
+    limit: number
+  ): Promise<ICandleData[]> {
+    // Return historical candles from your data source
+    // This example returns mock data
+    const candles: ICandleData[] = [];
+    const intervalMs = 60000; // 1 minute
+    
+    for (let i = 0; i < limit; i++) {
+      const timestamp = since.getTime() + i * intervalMs;
+      candles.push({
+        timestamp,
+        open: 50000 + Math.random() * 100,
+        high: 50100 + Math.random() * 100,
+        low: 49900 + Math.random() * 100,
+        close: 50000 + Math.random() * 100,
+        volume: 100
+      });
+    }
+    
+    return candles;
+  },
+  
+  async formatPrice(symbol: string, price: number): Promise<string> {
+    return price.toFixed(2); // 2 decimal places for BTC
+  },
+  
+  async formatQuantity(symbol: string, quantity: number): Promise<string> {
+    return quantity.toFixed(8); // 8 decimal places
+  }
+});
+```
+
+**Key Points:**
+- `exchangeName` must be unique across all registered exchanges
+- `getCandles` is called automatically during backtest execution
+- The framework uses `getCandles` to fetch data backwards from execution time
+- `ICandleData` requires: `timestamp`, `open`, `high`, `low`, `close`, `volume`
+
+
+## Step 2: Frame Configuration
+
+The frame defines the backtest period and iteration interval:
+
+```typescript
+import { addFrame, FrameInterval } from 'backtest-kit';
+
+addFrame({
+  frameName: "1d-test",
+  interval: "1m",  // Tick every 1 minute
+  startDate: new Date("2024-01-01T00:00:00Z"),
+  endDate: new Date("2024-01-02T00:00:00Z") // 1 day backtest
+});
+```
+
+**Available Intervals:** `"1m"`, `"3m"`, `"5m"`, `"15m"`, `"30m"`, `"1h"`, `"2h"`, `"4h"`, `"6h"`, `"8h"`, `"12h"`, `"1d"`, `"3d"`
+
+The framework generates timestamps at the specified interval between `startDate` and `endDate`. Each timestamp triggers a `tick()` call on your strategy.
+
+
+## Step 3: Strategy Definition
+
+The strategy implements your trading logic. At minimum, you must provide:
+
+- `strategyName`: Unique identifier
+- `interval`: Signal generation throttle (minimum time between `getSignal` calls)
+- `getSignal`: Function that returns trading signals or `null`
+
+```typescript
+import { addStrategy, ISignalDto, SignalInterval } from 'backtest-kit';
+
+addStrategy({
+  strategyName: "simple-long",
+  interval: "5m" as SignalInterval, // Check for signals every 5 minutes
+  
+  async getSignal(symbol: string, when: Date): Promise<ISignalDto | null> {
+    // Your strategy logic here
+    // Return null when no signal, or return a signal object
+    
+    // Example: Always long when price is available
+    return {
+      position: "long",
+      note: "Simple long strategy",
+      // priceOpen: undefined means open immediately at current price
+      priceTakeProfit: 51000,  // Exit at +2% profit
+      priceStopLoss: 49000,     // Exit at -2% loss
+      minuteEstimatedTime: 60   // Close after 60 minutes if not hit
+    };
+  }
+});
+```
+
+**Signal Fields:**
+- `position`: `"long"` (buy) or `"short"` (sell)
+- `priceOpen` (optional): Entry price for scheduled signals (limit orders). If omitted, opens immediately at current VWAP
+- `priceTakeProfit`: Target profit exit price
+- `priceStopLoss`: Risk management exit price
+- `minuteEstimatedTime`: Maximum signal lifetime in minutes
+
+**Validation Rules:**
+- **LONG**: `priceStopLoss < priceOpen < priceTakeProfit`
+- **SHORT**: `priceTakeProfit < priceOpen < priceStopLoss`
+- All prices must be positive and finite
+- `minuteEstimatedTime` must be positive integer
+
+
+## Step 4: Running the Backtest
+
+Execute the backtest with `Backtest.run()`:
+
+```typescript
+import { Backtest } from 'backtest-kit';
+
+// Synchronous execution - waits for completion
+for await (const result of Backtest.run("BTCUSDT", {
+  strategyName: "simple-long",
+  exchangeName: "binance",
+  frameName: "1d-test"
+})) {
+  console.log(`Action: ${result.action}`);
+  
+  if (result.action === "closed") {
+    console.log(`PNL: ${result.pnl.pnlPercentage.toFixed(2)}%`);
+    console.log(`Reason: ${result.closeReason}`);
+  }
+}
+
+console.log("Backtest completed!");
+```
+
+**Return Type:** `AsyncGenerator<IStrategyTickResult>`
+
+Each iteration yields a tick result with discriminated union type:
+
+| Action | Description | Available Fields |
+|--------|-------------|------------------|
+| `"idle"` | No active signal | `currentPrice`, `signal: null` |
+| `"scheduled"` | Limit order created | `signal: IScheduledSignalRow`, `currentPrice` |
+| `"opened"` | Position opened | `signal: ISignalRow`, `currentPrice` |
+| `"active"` | Monitoring TP/SL | `signal: ISignalRow`, `currentPrice` |
+| `"closed"` | Position closed | `signal`, `pnl`, `closeReason`, `currentPrice` |
+| `"cancelled"` | Scheduled signal expired | `signal: IScheduledSignalRow`, `currentPrice` |
+
+
+## Step 5: Listening to Events
+
+Instead of iterating results, you can listen to events asynchronously:
+
+```typescript
+import { listenSignalBacktest, listenDoneBacktest, Backtest } from 'backtest-kit';
+
+// Subscribe to signal events
+const unsubscribe = listenSignalBacktest((result) => {
+  if (result.action === "closed") {
+    console.log(`Signal closed: ${result.signal.id}`);
+    console.log(`PNL: ${result.pnl.pnlPercentage.toFixed(2)}%`);
+    console.log(`Close reason: ${result.closeReason}`);
+  }
+});
+
+// Subscribe to completion
+listenDoneBacktest((event) => {
+  console.log(`Backtest done: ${event.symbol} ${event.strategyName}`);
+  unsubscribe(); // Stop listening
+});
+
+// Run in background (non-blocking)
+Backtest.background("BTCUSDT", {
+  strategyName: "simple-long",
+  exchangeName: "binance",
+  frameName: "1d-test"
+});
+```
+
+**Available Listeners:**
+- `listenSignalBacktest`: All backtest signal events
+- `listenSignalLive`: Live trading signal events only
+- `listenSignal`: All signal events (both modes)
+- `listenDoneBacktest`: Backtest completion
+- `listenBacktestProgress`: Progress updates during execution
+- `listenError`: Recoverable errors
+- `listenExit`: Fatal errors
+
+
+## Step 6: Getting Results
+
+After execution completes, retrieve statistics:
+
+```typescript
+import { Backtest } from 'backtest-kit';
+
+// Get structured data
+const stats = await Backtest.getData("BTCUSDT");
+
+console.log(`Total Signals: ${stats.totalSignals}`);
+console.log(`Win Rate: ${stats.winRate}%`);
+console.log(`Sharpe Ratio: ${stats.sharpeRatio}`);
+console.log(`Average PNL: ${stats.avgPnl}%`);
+console.log(`Total PNL: ${stats.totalPnl}%`);
+
+// Generate markdown report
+const markdown = await Backtest.getReport("BTCUSDT");
+console.log(markdown);
+
+// Export to file
+await Backtest.dump("BTCUSDT", "./results/backtest-report.md");
+```
+
+**Statistics Structure (`BacktestStatistics`):**
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `totalSignals` | `number` | Count of closed signals |
+| `winRate` | `number \| null` | Percentage of profitable trades |
+| `avgPnl` | `number \| null` | Average profit/loss per trade |
+| `totalPnl` | `number \| null` | Cumulative profit/loss |
+| `sharpeRatio` | `number \| null` | Risk-adjusted return metric |
+| `certaintyRatio` | `number \| null` | Win probability metric |
+| `signalList` | `IStrategyTickResultClosed[]` | All closed signal details |
+
+
+## Complete Example
 
 ```typescript
 import {
   addExchange,
-  addStrategy,
   addFrame,
+  addStrategy,
   Backtest,
   listenSignalBacktest,
   listenDoneBacktest,
-  getAveragePrice,
-} from "backtest-kit";
-import ccxt from "ccxt";
+  ICandleData,
+  ISignalDto
+} from 'backtest-kit';
 
-// 1. Register exchange data source
+// 1. Register exchange
 addExchange({
   exchangeName: "binance",
-  getCandles: async (symbol, interval, since, limit) => {
-    const exchange = new ccxt.binance();
-    const ohlcv = await exchange.fetchOHLCV(symbol, interval, since.getTime(), limit);
-    return ohlcv.map(([timestamp, open, high, low, close, volume]) => ({
-      timestamp, open, high, low, close, volume
-    }));
+  async getCandles(symbol, interval, since, limit): Promise<ICandleData[]> {
+    const candles: ICandleData[] = [];
+    const intervalMs = 60000;
+    
+    for (let i = 0; i < limit; i++) {
+      const timestamp = since.getTime() + i * intervalMs;
+      candles.push({
+        timestamp,
+        open: 50000 + Math.random() * 1000,
+        high: 50500 + Math.random() * 1000,
+        low: 49500 + Math.random() * 1000,
+        close: 50000 + Math.random() * 1000,
+        volume: 100
+      });
+    }
+    return candles;
   },
-  formatPrice: async (symbol, price) => price.toFixed(2),
-  formatQuantity: async (symbol, quantity) => quantity.toFixed(8),
+  async formatPrice(symbol, price) { return price.toFixed(2); },
+  async formatQuantity(symbol, quantity) { return quantity.toFixed(8); }
 });
 
-// 2. Register trading strategy
-addStrategy({
-  strategyName: "simple-breakout",
-  interval: "5m",
-  getSignal: async (symbol) => {
-    const price = await getAveragePrice(symbol);
-    return {
-      position: "long",
-      note: "Breakout signal",
-      priceTakeProfit: price * 1.02,  // 2% profit target
-      priceStopLoss: price * 0.98,    // 2% stop loss
-      minuteEstimatedTime: 60,
-    };
-  },
-});
-
-// 3. Register timeframe for backtesting
+// 2. Configure backtest period
 addFrame({
-  frameName: "1d-backtest",
+  frameName: "1d-test",
   interval: "1m",
   startDate: new Date("2024-01-01T00:00:00Z"),
-  endDate: new Date("2024-01-02T00:00:00Z"),
+  endDate: new Date("2024-01-02T00:00:00Z")
+});
+
+// 3. Define strategy
+let signalGenerated = false;
+
+addStrategy({
+  strategyName: "simple-long",
+  interval: "5m",
+  async getSignal(symbol, when): Promise<ISignalDto | null> {
+    if (signalGenerated) return null;
+    signalGenerated = true;
+    
+    return {
+      position: "long",
+      note: "Test signal",
+      priceTakeProfit: 51000,
+      priceStopLoss: 49000,
+      minuteEstimatedTime: 60
+    };
+  }
 });
 
 // 4. Listen to events
-listenSignalBacktest((event) => {
-  if (event.action === "closed") {
-    console.log(`Signal closed: ${event.pnl.pnlPercentage}%`);
+listenSignalBacktest((result) => {
+  console.log(`[${result.action}] ${result.symbol}`);
+  if (result.action === "closed") {
+    console.log(`  PNL: ${result.pnl.pnlPercentage.toFixed(2)}%`);
   }
 });
 
-listenDoneBacktest((event) => {
-  console.log("Backtest completed:", event.symbol);
-  Backtest.dump(event.strategyName);
-});
-
-// 5. Run backtest in background
-Backtest.background("BTCUSDT", {
-  strategyName: "simple-breakout",
-  exchangeName: "binance",
-  frameName: "1d-backtest",
-});
-```
-
-
-## Component Registration Flow
-
-The framework uses a registration-first architecture. You must register all components before execution using the `add*` functions:
-
-![Mermaid Diagram](./diagrams/04_Quick_Start_Guide_0.svg)
-
-### Registration Functions
-
-| Function | Purpose | Key Parameters | File Reference |
-|----------|---------|----------------|----------------|
-| `addExchange()` | Register data source (CCXT, database, API) | `exchangeName`, `getCandles`, `formatPrice`, `formatQuantity` | [src/function/add.ts:99-111]() |
-| `addStrategy()` | Register trading logic | `strategyName`, `interval`, `getSignal`, `callbacks` | [src/function/add.ts:50-62]() |
-| `addFrame()` | Register backtest timeframe | `frameName`, `interval`, `startDate`, `endDate` | [src/function/add.ts:143-149]() |
-| `addRisk()` | Register risk management rules | `riskName`, `validations`, `callbacks` | [src/function/add.ts:329-341]() |
-| `addWalker()` | Register strategy comparison | `walkerName`, `strategies`, `metric` | [src/function/add.ts:188-200]() |
-
-
-## Exchange Registration
-
-The exchange provides candle data and price/quantity formatting. You can use CCXT for live data or a database for faster backtesting:
-
-```typescript
-// Option 1: CCXT (live or historical)
-import ccxt from "ccxt";
-
-addExchange({
-  exchangeName: "binance",
-  getCandles: async (symbol, interval, since, limit) => {
-    const exchange = new ccxt.binance();
-    const ohlcv = await exchange.fetchOHLCV(symbol, interval, since.getTime(), limit);
-    return ohlcv.map(([timestamp, open, high, low, close, volume]) => ({
-      timestamp, open, high, low, close, volume
-    }));
-  },
-  formatPrice: async (symbol, price) => price.toFixed(2),
-  formatQuantity: async (symbol, quantity) => quantity.toFixed(8),
-});
-
-// Option 2: Database (faster backtesting)
-addExchange({
-  exchangeName: "binance-db",
-  getCandles: async (symbol, interval, since, limit) => {
-    return await db.query(`
-      SELECT timestamp, open, high, low, close, volume
-      FROM candles
-      WHERE symbol = $1 AND interval = $2 AND timestamp >= $3
-      ORDER BY timestamp ASC LIMIT $4
-    `, [symbol, interval, since, limit]);
-  },
-  formatPrice: async (symbol, price) => price.toFixed(2),
-  formatQuantity: async (symbol, quantity) => quantity.toFixed(8),
-});
-```
-
-**Key Concepts**:
-- `getCandles()` must return array of `ICandleData` objects with `timestamp`, `open`, `high`, `low`, `close`, `volume`
-- `formatPrice()` and `formatQuantity()` apply exchange-specific precision rules
-- Exchange instances are memoized per `exchangeName` by `ExchangeConnectionService`
-
-
-## Strategy Registration
-
-The strategy defines signal generation logic. The `getSignal()` function returns trade parameters or `null`:
-
-```typescript
-addStrategy({
-  strategyName: "my-strategy",
-  interval: "5m",  // Minimum time between getSignal() calls
-  getSignal: async (symbol) => {
-    const price = await getAveragePrice(symbol);
-    
-    // Return null for no signal
-    if (someCondition) return null;
-    
-    // Return signal for immediate entry (market order)
-    return {
-      position: "long",
-      note: "Breakout signal",
-      priceTakeProfit: price * 1.02,
-      priceStopLoss: price * 0.98,
-      minuteEstimatedTime: 60,
-    };
-    
-    // Or return signal with priceOpen for delayed entry (limit order)
-    return {
-      position: "long",
-      note: "Limit order",
-      priceOpen: price * 0.99,  // Wait for 1% pullback
-      priceTakeProfit: price * 1.02,
-      priceStopLoss: price * 0.98,
-      minuteEstimatedTime: 60,
-    };
-  },
-  callbacks: {
-    onOpen: (symbol, signal, currentPrice, backtest) => {
-      console.log(`Signal opened: ${signal.id}`);
-    },
-    onClose: (symbol, signal, priceClose, backtest) => {
-      console.log(`Signal closed: ${priceClose}`);
-    },
-  },
-});
-```
-
-**Signal Validation Rules** (automatic):
-- Take Profit must be > priceOpen for long positions, < priceOpen for short
-- Stop Loss must be < priceOpen for long positions, > priceOpen for short
-- TP/SL distance constraints: `CC_MIN_TAKEPROFIT_DISTANCE_PERCENT`, `CC_MAX_STOPLOSS_DISTANCE_PERCENT`
-- Maximum lifetime: `CC_MAX_SIGNAL_LIFETIME_MINUTES`
-
-
-## Frame Registration
-
-The frame defines the backtest period and timestamp generation interval:
-
-```typescript
-addFrame({
-  frameName: "1d-backtest",
-  interval: "1m",  // Generate timestamps every 1 minute
-  startDate: new Date("2024-01-01T00:00:00Z"),
-  endDate: new Date("2024-01-02T00:00:00Z"),
-  callbacks: {
-    onTimeframe: (timeframe, startDate, endDate, interval) => {
-      console.log(`Generated ${timeframe.length} timestamps`);
-    },
-  },
-});
-```
-
-**Supported Intervals**: `"1m"`, `"3m"`, `"5m"`, `"15m"`, `"30m"`, `"1h"`, `"2h"`, `"4h"`, `"6h"`, `"8h"`, `"12h"`, `"1d"`, `"3d"`
-
-
-## Running Backtest
-
-The framework provides two execution modes:
-
-### Option 1: Background Mode (Recommended)
-
-Runs backtest asynchronously with event-based output:
-
-```typescript
-// Start backtest in background
-Backtest.background("BTCUSDT", {
-  strategyName: "my-strategy",
-  exchangeName: "binance",
-  frameName: "1d-backtest",
-});
-
-// Listen to signals
-listenSignalBacktest((event) => {
-  if (event.action === "closed") {
-    console.log(`PNL: ${event.pnl.pnlPercentage}%`);
-  }
-});
-
-// Listen to completion
-listenDoneBacktest((event) => {
-  console.log("Backtest completed:", event.symbol);
-  Backtest.dump(event.strategyName);  // Save markdown report
-});
-```
-
-
-### Option 2: Generator Mode (Manual Control)
-
-Use async generator for manual iteration and early termination:
-
-```typescript
-for await (const result of Backtest.run("BTCUSDT", {
-  strategyName: "my-strategy",
-  exchangeName: "binance",
-  frameName: "1d-backtest",
-})) {
-  console.log(`PNL: ${result.pnl.pnlPercentage}%`);
+listenDoneBacktest(async (event) => {
+  console.log("Backtest completed!");
   
-  // Early termination example
-  if (result.pnl.pnlPercentage < -5) {
-    console.log("Stop loss threshold reached");
-    break;
-  }
-}
+  // 5. Get results
+  const stats = await Backtest.getData("BTCUSDT");
+  console.log(`Win Rate: ${stats.winRate}%`);
+  console.log(`Sharpe Ratio: ${stats.sharpeRatio}`);
+  
+  // Export report
+  await Backtest.dump("BTCUSDT", "./backtest-report.md");
+});
+
+// 6. Execute
+Backtest.background("BTCUSDT", {
+  strategyName: "simple-long",
+  exchangeName: "binance",
+  frameName: "1d-test"
+});
 ```
 
 
-## Signal Lifecycle
-
-Signals transition through states during execution:
+## Execution Flow Diagram
 
 ![Mermaid Diagram](./diagrams/04_Quick_Start_Guide_1.svg)
-
-**State Transitions**:
-
-| From State | To State | Trigger | Event Emitted |
-|------------|----------|---------|---------------|
-| `idle` | `scheduled` | `getSignal()` returns signal with `priceOpen` | `onSchedule()` |
-| `idle` | `opened` | `getSignal()` returns signal without `priceOpen` | `onOpen()` |
-| `scheduled` | `opened` | Price reaches `priceOpen` | `onOpen()` |
-| `scheduled` | `cancelled` | Timeout or stop loss hit before entry | `onCancel()` |
-| `opened` | `active` | Position being monitored | `onActive()` |
-| `active` | `closed` | TP/SL hit or time expired | `onClose()` |
-
-
-## Event Listening
-
-The framework emits events through RxJS-style `Subject` emitters:
-
-```typescript
-import { 
-  listenSignalBacktest,
-  listenDoneBacktest,
-  listenError,
-} from "backtest-kit";
-
-// Listen to all backtest signals
-listenSignalBacktest((event) => {
-  switch (event.action) {
-    case "opened":
-      console.log(`Signal opened: ${event.signal.id}`);
-      break;
-    case "active":
-      console.log(`Signal active: ${event.signal.id}`);
-      break;
-    case "closed":
-      console.log(`Signal closed: ${event.closeReason}, PNL: ${event.pnl.pnlPercentage}%`);
-      break;
-  }
-});
-
-// Listen to backtest completion
-listenDoneBacktest((event) => {
-  console.log("Backtest completed:", {
-    symbol: event.symbol,
-    strategyName: event.strategyName,
-    timestamp: event.timestamp,
-  });
-});
-
-// Listen to errors
-listenError((error) => {
-  console.error("Error:", error);
-});
-```
-
-**Available Event Listeners**:
-
-| Function | Purpose | Event Type |
-|----------|---------|------------|
-| `listenSignal()` | All signals (backtest + live) | `IStrategyTickResult` |
-| `listenSignalBacktest()` | Backtest signals only | `IStrategyTickResult` |
-| `listenSignalLive()` | Live signals only | `IStrategyTickResult` |
-| `listenDoneBacktest()` | Backtest completion | `DoneContract` |
-| `listenDoneLive()` | Live completion | `DoneContract` |
-| `listenError()` | All errors | `Error` |
-
-
-## Generating Reports
-
-After backtest completion, generate and save markdown reports:
-
-```typescript
-// Get statistics
-const stats = await Backtest.getData("my-strategy");
-console.log("Win rate:", stats.winRate);
-console.log("Sharpe ratio:", stats.sharpeRatio);
-console.log("Total PNL:", stats.totalPnl);
-
-// Generate markdown report
-const markdown = await Backtest.getReport("my-strategy");
-console.log(markdown);
-
-// Save to disk (default: ./logs/backtest/my-strategy.md)
-await Backtest.dump("my-strategy");
-
-// Save to custom path
-await Backtest.dump("my-strategy", "./custom/path");
-```
-
-**Report Contents**:
-- Table of all closed signals with prices, PNL, duration
-- Win rate, average PNL, total PNL
-- Standard deviation, Sharpe ratio, annualized Sharpe ratio
-- Certainty ratio (avgWin / |avgLoss|)
-- Expected yearly returns
-
-
-## Context Propagation (Advanced)
-
-The framework uses `di-scoped` for implicit context propagation. You don't need to pass context parameters explicitly:
-
-```typescript
-// Inside strategy.getSignal()
-const price = await getAveragePrice(symbol);  // No context params needed!
-
-// Framework automatically provides:
-// - executionContext: { symbol, when: timestamp, backtest: true/false }
-// - methodContext: { strategyName, exchangeName, frameName }
-```
-
-**How It Works**:
-
-![Mermaid Diagram](./diagrams/04_Quick_Start_Guide_2.svg)
-
-**Benefits**:
-- Clean API: No parameter drilling through layers
-- Time-travel: Same code works for backtest (historical) and live (real-time)
-- Automatic routing: Framework resolves correct component instances
-
-For details, see [Context Propagation](./12_Context_Propagation.md).
 
 
 ## Next Steps
 
-Now that you have a working backtest, explore these topics:
+**Essential Reading:**
+- [Core Concepts](./05_Core_Concepts.md) - Understanding execution modes and signal lifecycle
+- [Component Registration](./08_Component_Registration.md) - Deep dive into registration patterns
+- [Signal Lifecycle Overview](./07_Signal_Lifecycle_Overview.md) - State transitions and validation
 
-1. **Execution Modes**: Learn about [Backtest](./50_Backtesting.md), [Live Trading](./54_Live_Trading.md), and [Walker](./59_Walker_Mode.md) modes
-2. **Signal Lifecycle**: Deep dive into [signal states and transitions](./44_Signal_Lifecycle.md)
-3. **Risk Management**: Add portfolio-level controls with [Risk Schemas](./27_Risk_Schemas.md)
-4. **Position Sizing**: Calculate optimal position sizes with [Sizing Schemas](./28_Sizing_Schemas.md)
-5. **Live Trading**: Deploy strategies with [Live Trading API](./18_Live_Trading_API.md) and crash-safe persistence
-6. **Strategy Comparison**: Compare multiple strategies with [Walker API](./19_Walker_API.md)
+**Advanced Topics:**
+- [Live Trading API](./18_Live_Trading_API.md) - Real-time execution with crash recovery
+- [Walker API](./19_Walker_API.md) - Strategy comparison and optimization
+- [Risk Management](./65_Risk_Management.md) - Portfolio-level risk controls
+- [Custom Exchange Integration](./83_Custom_Exchange_Integration.md) - Implement CCXT or database sources
 
-**Complete Example Projects**: See [README.md:84-257]() for full working examples including CCXT integration, database sources, and advanced features.
+**Additional Examples:**
+- [Backtest API](./17_Backtest_API.md) - Full method reference
+- [Event Listeners](./22_Event_Listeners.md) - Complete event API
+- [Reporting and Analytics](./69_Reporting_and_Analytics.md) - Performance metrics and statistics
 

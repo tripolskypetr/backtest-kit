@@ -5,12 +5,11 @@ group: design
 
 # Strategy Schemas
 
-
 ## Purpose and Scope
 
 This page documents the `IStrategySchema` interface, which defines the configuration structure for trading strategies in backtest-kit. Strategy schemas specify signal generation logic, throttling intervals, lifecycle callbacks, and optional risk management integration.
 
-For information about risk management configuration, see [Risk Schemas](./27_Risk_Schemas.md). For exchange data source configuration, see [Exchange Schemas](./25_Exchange_Schemas.md). For strategy execution patterns, see [ClientStrategy](./31_ClientStrategy.md).
+For information about risk management configuration, see [Risk Schemas](./27_Risk_Schemas.md). For exchange data source configuration, see [Exchange Schemas](./25_Exchange_Schemas.md). For strategy execution patterns, see [ClientStrategy](./47_Signal_States.md).
 
 
 ---

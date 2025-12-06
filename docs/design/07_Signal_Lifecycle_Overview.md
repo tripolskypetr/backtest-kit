@@ -5,289 +5,214 @@ group: design
 
 # Signal Lifecycle Overview
 
+This page describes the complete lifecycle of trading signals within the backtest-kit framework, from generation through validation, execution, and termination. A signal represents a trading position with entry price, take-profit, stop-loss, and time expiration parameters. Understanding the signal lifecycle is essential for implementing strategies and debugging execution behavior.
 
-## Purpose and Scope
-
-This page describes the signal state machine and lifecycle management in the backtest-kit framework. A signal represents a single trading position from creation through closure, transitioning through well-defined states. This document covers signal generation, validation, state transitions, persistence, and closure conditions.
-
-For information about how signals are executed in different modes (backtest vs live), see [Execution Modes](./06_Execution_Modes.md). For details on component registration and schema definitions, see [Component Registration](./08_Component_Registration.md). For deep implementation details of the `ClientStrategy` class that manages signals, see [ClientStrategy](./31_ClientStrategy.md).
+For details on strategy registration and configuration, see [Component Registration](./08_Component_Registration.md). For implementation details of the `ClientStrategy` class that manages this lifecycle, see [ClientStrategy](./47_Signal_States.md). For validation rules and error handling, see [Signal Generation and Validation](./48_Signal_Generation_and_Validation.md).
 
 ---
 
 ## Signal State Machine
 
-The signal lifecycle is modeled as a finite state machine with six distinct states. Signals transition between states based on market conditions, time constraints, and risk parameters.
-
-### State Transition Diagram
+The signal lifecycle follows a deterministic state machine with distinct states and transition conditions. All states are represented by discriminated union types in `IStrategyTickResult`, enabling type-safe state handling in callbacks and event listeners.
 
 ![Mermaid Diagram](./diagrams/07_Signal_Lifecycle_Overview_0.svg)
 
 
-### State Descriptions
-
-| State | Discriminator | Signal Type | Description |
-|-------|--------------|-------------|-------------|
-| **idle** | `action: "idle"` | `null` | No active signal exists. Strategy can generate new signal on next `getSignal()` call. |
-| **scheduled** | `action: "scheduled"` | `IScheduledSignalRow` | Signal created with delayed entry. Waiting for market price to reach `priceOpen`. |
-| **opened** | `action: "opened"` | `ISignalRow` | Signal just created (immediate) or activated (from scheduled). Position tracking begins. |
-| **active** | `action: "active"` | `ISignalRow` | Signal being monitored for TP/SL/time expiration. Continues until close condition met. |
-| **closed** | `action: "closed"` | `ISignalRow` | Final state with PnL calculation. Includes `closeReason` and `closeTimestamp`. |
-| **cancelled** | `action: "cancelled"` | `IScheduledSignalRow` | Scheduled signal cancelled before activation. Timeout or StopLoss hit. |
-
-
 ---
 
-## Signal Data Structures
+## Signal Type Hierarchy
 
-The framework uses a discriminated union pattern for type-safe signal handling. Three core interfaces represent signals at different lifecycle stages.
-
-### Core Signal Interfaces
+Signals progress through three type representations during their lifecycle, each with increasing specificity:
 
 ![Mermaid Diagram](./diagrams/07_Signal_Lifecycle_Overview_1.svg)
 
-
-### Tick Result Discriminated Union
-
-Each state transition yields a specific tick result type, enabling type-safe handling with TypeScript discriminators:
-
-| Result Type | Discriminator | Contains | Use Case |
-|-------------|--------------|----------|----------|
-| `IStrategyTickResultIdle` | `action: "idle"` | `signal: null` | No signal exists, strategy idle |
-| `IStrategyTickResultScheduled` | `action: "scheduled"` | `signal: IScheduledSignalRow` | Scheduled signal created |
-| `IStrategyTickResultOpened` | `action: "opened"` | `signal: ISignalRow` | Signal opened/activated |
-| `IStrategyTickResultActive` | `action: "active"` | `signal: ISignalRow` | Signal monitoring continues |
-| `IStrategyTickResultClosed` | `action: "closed"` | `signal: ISignalRow`, `pnl`, `closeReason` | Signal closed with result |
-| `IStrategyTickResultCancelled` | `action: "cancelled"` | `signal: IScheduledSignalRow` | Scheduled signal cancelled |
+| Type | Purpose | When Created | Key Characteristics |
+|------|---------|--------------|---------------------|
+| `ISignalDto` | User-defined signal from `getSignal()` | Strategy logic returns this | Optional `priceOpen`, optional `id`, minimal fields |
+| `ISignalRow` | Validated signal with auto-generated ID | After validation passes | Required `priceOpen`, UUID `id`, complete metadata |
+| `IScheduledSignalRow` | Scheduled signal awaiting activation | When `priceOpen != currentPrice` | `_isScheduled: true`, waits for price to reach `priceOpen` |
 
 
 ---
 
-## Signal Generation and Validation
+## State Transition Details
 
-Signal generation occurs via the user-defined `getSignal()` function, followed by framework-level validation and augmentation.
+### Idle → Scheduled/Opened
 
-### Signal Generation Flow
+The transition from `Idle` state occurs when `getSignal()` returns a non-null signal that passes validation and risk checks:
 
 ![Mermaid Diagram](./diagrams/07_Signal_Lifecycle_Overview_2.svg)
 
-
-### Validation Rules
-
-The `VALIDATE_SIGNAL_FN` enforces financial safety constraints to prevent invalid signals:
-
-| Validation Category | Rule | Configuration |
-|---------------------|------|---------------|
-| **Price Finiteness** | All prices must be finite numbers (no NaN/Infinity) | Hard-coded |
-| **Price Positivity** | All prices must be > 0 | Hard-coded |
-| **Long Position Logic** | `priceTakeProfit > priceOpen > priceStopLoss` | Hard-coded |
-| **Short Position Logic** | `priceStopLoss > priceOpen > priceTakeProfit` | Hard-coded |
-| **Minimum TP Distance** | TP must cover fees + minimum profit | `CC_MIN_TAKEPROFIT_DISTANCE_PERCENT` (default: 0.3%) |
-| **Maximum SL Distance** | SL cannot exceed maximum loss threshold | `CC_MAX_STOPLOSS_DISTANCE_PERCENT` (default: 20%) |
-| **Time Constraints** | `minuteEstimatedTime > 0` | Hard-coded |
-| **Maximum Lifetime** | Signal cannot block risk limits indefinitely | `CC_MAX_SIGNAL_LIFETIME_MINUTES` (default: 1440 min = 1 day) |
-
-
-### Signal Augmentation
-
-User-provided `ISignalDto` is augmented with framework metadata:
-
-```typescript
-// User provides (from getSignal):
-{
-  position: "long",
-  priceTakeProfit: 45000,
-  priceStopLoss: 43000,
-  minuteEstimatedTime: 60
-}
-
-// Framework augments to ISignalRow:
-{
-  id: "uuid-v4-generated",           // Auto-generated
-  priceOpen: 44000,                  // currentPrice or user-specified
-  exchangeName: "binance",           // From method context
-  strategyName: "momentum-strategy", // From method context
-  scheduledAt: 1640000000000,       // Current timestamp
-  pendingAt: 1640000000000,         // Same as scheduledAt initially
-  symbol: "BTCUSDT",                // From execution context
-  _isScheduled: false,              // true if priceOpen specified
-  // ... original fields
-}
-```
+**Key Logic:**
+- **Throttling**: Enforced by `INTERVAL_MINUTES` mapping [src/client/ClientStrategy.ts:32-39]()
+- **Risk Check**: Pre-validation gate via `risk.checkSignal()` [src/client/ClientStrategy.ts:289-299]()
+- **Immediate Activation**: LONG activates if `currentPrice <= priceOpen`, SHORT activates if `currentPrice >= priceOpen` [src/client/ClientStrategy.ts:314-344]()
+- **Validation**: 30+ rules in `VALIDATE_SIGNAL_FN` [src/client/ClientStrategy.ts:41-261]()
 
 
 ---
 
-## State Transitions
+### Scheduled → Opened/Cancelled/Idle
 
-### Idle → Scheduled
-
-Occurs when `getSignal()` returns a signal with `priceOpen` specified. Signal waits for market price to reach entry point.
+Scheduled signals require continuous monitoring for three conditions: activation, cancellation, or timeout.
 
 ![Mermaid Diagram](./diagrams/07_Signal_Lifecycle_Overview_3.svg)
 
-**Key Implementation:** Scheduled signals do NOT perform risk check at creation time. Risk validation occurs during activation when position opens.
+**Critical Conditions:**
 
+| Position | Activation Condition | Cancellation Condition |
+|----------|---------------------|------------------------|
+| LONG | `currentPrice <= priceOpen` | `currentPrice <= priceStopLoss` |
+| SHORT | `currentPrice >= priceOpen` | `currentPrice >= priceStopLoss` |
 
-### Idle → Opened (Immediate)
-
-Occurs when `getSignal()` returns a signal without `priceOpen`. Position opens immediately at current VWAP.
-
-![Mermaid Diagram](./diagrams/07_Signal_Lifecycle_Overview_4.svg)
-
-
-### Scheduled → Opened (Activation)
-
-Occurs when market price reaches `priceOpen` for a scheduled signal. Triggers risk check at activation time. The `pendingAt` timestamp is updated during activation. Time-based expiration calculates from `pendingAt`, not `scheduledAt`.
-
-
-### Scheduled → Cancelled
-
-Occurs when scheduled signal times out or StopLoss is hit before activation.
-
-**Timeout Condition:**
-```typescript
-const elapsedTime = currentTime - scheduled.scheduledAt;
-const maxTimeToWait = CC_SCHEDULE_AWAIT_MINUTES * 60 * 1000;
-if (elapsedTime >= maxTimeToWait) {
-  // Cancel signal
-}
-```
-
-**StopLoss Condition (Priority over activation):**
-- Long: `currentPrice <= priceStopLoss` → cancel
-- Short: `currentPrice >= priceStopLoss` → cancel
-
-
-### Opened/Active → Closed
-
-Occurs when signal meets closure condition: TakeProfit hit, StopLoss hit, or time expired.
-
-![Mermaid Diagram](./diagrams/07_Signal_Lifecycle_Overview_6.svg)
-
-**Critical:** When TakeProfit or StopLoss triggers, the framework uses the **exact TP/SL price** for PnL calculation, not the current VWAP. This ensures deterministic results.
+**Pre-Activation Cancellation**: Scheduled signals can be cancelled by StopLoss **before** activation when price moves against the position too far without reaching `priceOpen`. This prevents entering positions that have already deteriorated. See test cases [test/e2e/defend.test.mjs:1393-1507]() for validation.
 
 
 ---
 
-## Timestamp Management
+### Active → Closed
 
-Signals track two distinct timestamps for lifecycle management:
+Active signals are monitored on every tick for three terminal conditions:
 
-### Timestamp Definitions
+![Mermaid Diagram](./diagrams/07_Signal_Lifecycle_Overview_4.svg)
 
-| Timestamp | Set During | Purpose | Usage |
-|-----------|-----------|---------|-------|
-| `scheduledAt` | Signal creation | Records when signal was first generated | Timeout calculation for scheduled signals |
-| `pendingAt` | Position activation | Records when position opened at `priceOpen` | Time expiration calculation for active signals |
+**Terminal Conditions:**
 
-### Timestamp Behavior
+| Condition | LONG Check | SHORT Check | CloseReason Value |
+|-----------|-----------|-------------|-------------------|
+| Time Expired | `elapsedTime >= maxTimeToWait` | `elapsedTime >= maxTimeToWait` | `"time_expired"` |
+| Take Profit | `currentPrice >= priceTakeProfit` | `currentPrice <= priceTakeProfit` | `"take_profit"` |
+| Stop Loss | `currentPrice <= priceStopLoss` | `currentPrice >= priceStopLoss` | `"stop_loss"` |
 
-**Immediate Signals (no `priceOpen`):**
+
+---
+
+## Validation Pipeline
+
+All signals pass through a comprehensive validation pipeline with 30+ rules before activation. Validation occurs twice for scheduled signals: once at creation, and again at activation.
+
+![Mermaid Diagram](./diagrams/07_Signal_Lifecycle_Overview_5.svg)
+
+**Key Validation Rules:**
+
+| Category | Rule | Configuration Parameter | Purpose |
+|----------|------|-------------------------|---------|
+| Minimum Profit | TP distance from priceOpen | `CC_MIN_TAKEPROFIT_DISTANCE_PERCENT` (0.3%) | Ensure profit covers trading fees (2×0.1%) |
+| Maximum Loss | SL distance from priceOpen | `CC_MAX_STOPLOSS_DISTANCE_PERCENT` (20%) | Prevent catastrophic single-position losses |
+| Signal Lifetime | Maximum duration | `CC_MAX_SIGNAL_LIFETIME_MINUTES` (1440 min) | Prevent eternal signals blocking risk limits |
+| Immediate Activation | currentPrice not past TP/SL | N/A | Prevent invalid immediate signals |
+
+
+---
+
+## Timestamp Semantics
+
+Signals track two distinct timestamps that serve different purposes:
+
+![Mermaid Diagram](./diagrams/07_Signal_Lifecycle_Overview_6.svg)
+
+| Timestamp | Purpose | When Set | Used For |
+|-----------|---------|----------|----------|
+| `scheduledAt` | Signal creation time | When `getSignal()` returns signal | Timeout calculation for scheduled signals (120 min) |
+| `pendingAt` | Position activation time | When signal becomes active (priceOpen reached or immediate) | Time expiration calculation (`minuteEstimatedTime`) |
+
+**Critical Distinction**: For scheduled signals, `scheduledAt` tracks when the signal was created, while `pendingAt` tracks when the position actually opened. The timeout for scheduled signal activation is calculated from `scheduledAt`, but the timeout for position closure is calculated from `pendingAt`.
+
 ```typescript
-scheduledAt: currentTime,  // Set at creation
-pendingAt: currentTime     // Same as scheduledAt
+// Scheduled signal timeout (activation wait)
+const maxActivationWait = CC_SCHEDULE_AWAIT_MINUTES * 60 * 1000; // 120 min
+const elapsedSinceSchedule = currentTime - signal.scheduledAt;
+if (elapsedSinceSchedule >= maxActivationWait) {
+  // Cancel scheduled signal
+}
+
+// Active signal timeout (position lifetime)
+const maxPositionTime = signal.minuteEstimatedTime * 60 * 1000;
+const elapsedSincePending = currentTime - signal.pendingAt;
+if (elapsedSincePending >= maxPositionTime) {
+  // Close position by timeout
+}
 ```
 
-**Scheduled Signals (with `priceOpen`):**
-```typescript
-// At creation:
-scheduledAt: currentTime,  // Set at creation
-pendingAt: currentTime     // Temporarily equals scheduledAt
 
-// At activation:
-scheduledAt: unchanged,    // Original creation time
-pendingAt: activationTime  // Updated to activation timestamp
+---
+
+## Tick Result Contract
+
+All state transitions return a discriminated union type `IStrategyTickResult` with an `action` discriminator field:
+
+![Mermaid Diagram](./diagrams/07_Signal_Lifecycle_Overview_7.svg)
+
+**Type-Safe Pattern Matching:**
+
+```typescript
+const result = await strategy.tick(symbol, strategyName);
+
+if (result.action === "closed") {
+  // TypeScript knows result.pnl exists
+  console.log(`PNL: ${result.pnl.pnlPercentage}%`);
+  console.log(`Reason: ${result.closeReason}`);
+} else if (result.action === "scheduled") {
+  // TypeScript knows result.signal._isScheduled is true
+  console.log(`Waiting for price: ${result.signal.priceOpen}`);
+} else if (result.action === "idle") {
+  // TypeScript knows result.signal is null
+  console.log("No active position");
+}
 ```
 
-**Timeout Calculation:**
-- **Scheduled signal timeout:** `currentTime - scheduledAt >= CC_SCHEDULE_AWAIT_MINUTES * 60 * 1000`
-- **Active signal expiration:** `currentTime - pendingAt >= minuteEstimatedTime * 60 * 1000`
+
+---
+
+## Persistence and Crash Recovery
+
+Signals are persisted to disk in live mode only, enabling crash recovery without data loss. Three adapters handle different persistence concerns:
+
+![Mermaid Diagram](./diagrams/07_Signal_Lifecycle_Overview_8.svg)
+
+**Persistence Adapters:**
+
+| Adapter | File Location | Contents | Purpose |
+|---------|---------------|----------|---------|
+| `PersistSignalAdapter` | `.backtest/{symbol}/{strategyName}.signal.json` | Active `ISignalRow` | Restore active positions after crash |
+| `PersistScheduleAdapter` | `.backtest/{symbol}/{strategyName}.schedule.json` | Scheduled `IScheduledSignalRow` | Restore scheduled signals after crash |
+| `PersistRiskAdapter` | `.backtest/{symbol}/risk.{riskName}.json` | Active position count and list | Restore risk limits after crash |
+
+**Atomic Write Pattern:**
+
+All persistence operations are atomic to prevent corruption:
+
+1. Write to temporary file: `{path}.tmp`
+2. Call `fsSync()` to flush to disk
+3. Rename to final path (atomic operation)
 
 
 ---
 
 ## Lifecycle Callbacks
 
-Strategies can register callbacks to observe signal state transitions. All callbacks are optional.
+Strategies can register callbacks for every lifecycle event, enabling custom logging, metrics collection, and state tracking:
 
-### Callback Inventory
+![Mermaid Diagram](./diagrams/07_Signal_Lifecycle_Overview_9.svg)
 
-![Mermaid Diagram](./diagrams/07_Signal_Lifecycle_Overview_7.svg)
+**Callback Invocation Order:**
 
-### Callback Execution Order
-
-For each state transition, callbacks execute in this order:
-
-1. **State-specific callback** (e.g., `onOpen`, `onClose`)
-2. **`onTick` callback** with tick result
-
-Example for signal opening:
-```typescript
-// 1. State-specific callback
-if (callbacks.onOpen) {
-  callbacks.onOpen(symbol, signal, currentPrice, backtest);
-}
-
-// 2. onTick callback
-if (callbacks.onTick) {
-  const result: IStrategyTickResultOpened = { action: "opened", ... };
-  callbacks.onTick(symbol, result, backtest);
-}
-```
+1. **Specialized callback** (`onSchedule`, `onOpen`, `onActive`, `onClose`, `onCancel`, `onIdle`)
+2. **Generic callback** (`onTick` with `IStrategyTickResult`)
+3. **Persistence callback** (`onWrite` if state changed)
 
 
 ---
 
-## Internal State Management
+## Integration with Execution Modes
 
-The `ClientStrategy` class maintains internal state for signal tracking:
+The signal lifecycle behaves identically across all three execution modes (Backtest, Live, Walker), with minor differences in timing and persistence:
 
-### State Variables
-
-| Variable | Type | Purpose |
-|----------|------|---------|
-| `_pendingSignal` | `ISignalRow \| null` | Currently active signal being monitored |
-| `_scheduledSignal` | `IScheduledSignalRow \| null` | Scheduled signal awaiting activation |
-| `_lastSignalTimestamp` | `number \| null` | Timestamp of last `getSignal()` call (for throttling) |
-| `_isStopped` | `boolean` | Flag to prevent new signal generation |
-
-### Mutual Exclusion
-
-Only one signal can exist per symbol at a time. The framework enforces mutual exclusion:
-
-- `_pendingSignal` and `_scheduledSignal` are **never both non-null**
-- Scheduled signal transitions to pending signal on activation
-- New signals rejected if active signal exists (via risk check)
-
-
-### Persistence (Live Mode Only)
-
-In live mode, signals persist to disk atomically for crash recovery:
-
-```typescript
-// Persist after every state change
-await PersistSignalAdapter.writeSignalData(
-  strategyName,
-  symbol,
-  pendingSignal
-);
-
-// Restore on initialization
-const restored = await PersistSignalAdapter.readSignalData(
-  strategyName,
-  symbol
-);
-```
-
-**File Location:** `signal-{strategyName}-{symbol}.json`
-
-**Atomic Write Pattern:** Write to temp file, then rename for crash-safe persistence.
-
-
----
-
-## Summary
-
-The signal lifecycle follows a deterministic state machine with six states: idle, scheduled, opened, active, closed, and cancelled. Signals are generated via user-defined `getSignal()` functions, validated by framework rules, and monitored through VWAP-based price checks. State transitions trigger lifecycle callbacks for observability. Timestamps (`scheduledAt` vs `pendingAt`) enable precise timeout and expiration calculations. In live mode, signals persist atomically to disk for crash recovery.
-
-For implementation details of signal processing within specific execution modes, see [Backtest Execution Flow](./51_Backtest_Execution_Flow.md) and [Live Execution Flow](./55_Live_Execution_Flow.md).
+| Aspect | Backtest Mode | Live Mode | Walker Mode |
+|--------|---------------|-----------|-------------|
+| Time Source | Candle timestamps from frames | `new Date()` real-time | Candle timestamps (delegates to Backtest) |
+| Persistence | Disabled (`backtest: true`) | Enabled via `PersistSignalAdapter` | Disabled (`backtest: true`) |
+| `tick()` Frequency | Every frame timestamp | Every 61 seconds (`TICK_TTL`) | Every frame timestamp per strategy |
+| Signal Activation | Immediate via `backtest()` fast-forward | Real-time monitoring via `tick()` | Immediate via `backtest()` fast-forward |
+| Crash Recovery | Not needed (deterministic replay) | Full recovery via `waitForInit()` | Not needed (deterministic replay) |
+

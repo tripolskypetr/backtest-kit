@@ -5,12 +5,11 @@ group: design
 
 # Event System
 
-
 ## Purpose and Scope
 
 The Event System provides observability and monitoring capabilities for backtest-kit through a publish-subscribe architecture. It enables external code to react to strategy execution events, errors, and progress updates without coupling to internal execution logic.
 
-This document covers event emitters, listener functions, queued processing, and event flow patterns. For signal lifecycle states, see [Signal Lifecycle](./44_Signal_Lifecycle.md). For execution mode details, see [Execution Modes](./06_Execution_Modes.md). For callback configuration, see [Strategy Schemas](./24_Strategy_Schemas.md).
+This document covers event emitters, listener functions, queued processing, and event flow patterns. For signal lifecycle states, see [Signal Lifecycle](./46_Signal_Lifecycle.md). For execution mode details, see [Execution Modes](./06_Execution_Modes.md). For callback configuration, see [Strategy Schemas](./24_Strategy_Schemas.md).
 
 ---
 

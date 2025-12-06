@@ -5,7 +5,6 @@ group: design
 
 # Core Concepts
 
-
 This page introduces the fundamental architectural patterns and execution models of backtest-kit. It covers the three execution modes (Backtest, Live, Walker), the signal lifecycle state machine, and the component-based registration system. For detailed API documentation, see [Public API Reference](./14_Public_API_Reference.md). For implementation details of specific components, see [Component Types](./23_Component_Types.md).
 
 ## Execution Modes

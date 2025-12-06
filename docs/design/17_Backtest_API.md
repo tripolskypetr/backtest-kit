@@ -5,352 +5,655 @@ group: design
 
 # Backtest API
 
+This document describes the public API for historical backtesting operations provided by the `Backtest` singleton. The Backtest API enables testing trading strategies against historical market data with statistical analysis and markdown report generation.
 
-This page documents the public API for running backtests via the `Backtest` utility class. The Backtest API provides methods for executing historical strategy simulations and retrieving performance statistics.
-
-For live trading operations, see [Live Trading API](./18_Live_Trading_API.md). For multi-strategy comparison, see [Walker API](./19_Walker_API.md). For event subscription patterns, see [Event Listeners](./22_Event_Listeners.md).
+For live trading operations, see [Live Trading API](./18_Live_Trading_API.md). For strategy comparison across multiple configurations, see [Walker API](./19_Walker_API.md). For component registration, see [Component Registration Functions](./16_Component_Registration_Functions.md).
 
 ## Overview
 
-The `Backtest` class is a singleton utility that provides simplified access to backtest execution and report generation. It delegates to `BacktestGlobalService` for execution and `BacktestMarkdownService` for statistics and reporting.
+The Backtest API is implemented as a singleton instance of `BacktestUtils` exported from [src/classes/Backtest.ts:231](). It provides a simplified interface to the underlying backtest execution engine, with five primary methods:
 
-**Backtest API Service Architecture**
+| Method | Purpose | Execution Mode |
+|--------|---------|----------------|
+| `run()` | Execute backtest and yield results | Foreground AsyncGenerator |
+| `background()` | Execute backtest silently | Background with cancellation |
+| `getData()` | Retrieve statistics for completed backtest | Post-execution analysis |
+| `getReport()` | Generate markdown report | Post-execution analysis |
+| `dump()` | Save report to filesystem | Post-execution persistence |
+
+The Backtest API operates on historical data defined by Frame schemas (see [Frame Schemas](./26_Frame_Schemas.md)) and evaluates Strategy schemas (see [Strategy Schemas](./24_Strategy_Schemas.md)) sequentially through each timeframe.
+
+
+## Architecture and Data Flow
+
+The Backtest API serves as the entry point to a multi-layer execution pipeline:
 
 ![Mermaid Diagram](./diagrams/17_Backtest_API_0.svg)
 
+**Key Flow Characteristics:**
 
-## Backtest Class Methods
+1. **Validation Layer**: [src/classes/Backtest.ts:46-63]() validates components before execution
+2. **State Clearing**: Markdown services and strategy instances are cleared to ensure clean runs
+3. **Context Propagation**: `symbol`, `strategyName`, `exchangeName`, `frameName` propagate through all layers
+4. **AsyncGenerator Streaming**: Results yield progressively as signals close
+5. **Event Accumulation**: `BacktestMarkdownService` accumulates signals via `signalBacktestEmitter`
 
-The `Backtest` class exposes five public methods organized into two categories: execution methods and reporting methods.
 
-| Method | Return Type | Purpose |
-|--------|-------------|---------|
-| `run(symbol, context)` | `AsyncGenerator<IStrategyBacktestResult>` | Execute backtest with manual iteration control |
-| `background(symbol, context)` | `() => void` | Execute backtest in background, return cancel function |
-| `getData(strategyName)` | `Promise<BacktestStatistics>` | Retrieve statistical data for completed backtest |
-| `getReport(strategyName)` | `Promise<string>` | Generate markdown report with all signals |
-| `dump(strategyName, path?)` | `Promise<void>` | Save markdown report to disk |
-
+## Method Reference
 
 ### Backtest.run()
 
-The `run()` method executes a backtest for a symbol and returns an async generator that yields closed signals. This provides fine-grained control over iteration and allows early termination.
+Executes historical backtest and yields closed signals as an AsyncGenerator.
 
+**Signature:**
 ```typescript
-public run = (
+run(
   symbol: string,
   context: {
     strategyName: string;
     exchangeName: string;
     frameName: string;
   }
-) => AsyncGenerator<IStrategyBacktestResult>
+): AsyncGenerator<IStrategyBacktestResult, void, unknown>
 ```
 
-**Execution Context**: The method requires three context parameters:
-- `strategyName` - Must reference a strategy registered via `addStrategy()` (see [Component Registration](./08_Component_Registration.md))
-- `exchangeName` - Must reference an exchange registered via `addExchange()` (see [Exchange Schemas](./25_Exchange_Schemas.md))
-- `frameName` - Must reference a frame registered via `addFrame()` (see [Frame Schemas](./26_Frame_Schemas.md))
+**Parameters:**
 
-**State Clearing**: Before execution, `run()` clears accumulated state for the strategy:
-1. Clears `BacktestMarkdownService` accumulated signals for the strategy [src/classes/Backtest.ts:52]()
-2. Clears `ScheduleMarkdownService` accumulated scheduled signals [src/classes/Backtest.ts:53]()
-3. Clears `StrategyGlobalService` internal strategy state [src/classes/Backtest.ts:57]()
-4. Clears `RiskGlobalService` active positions if strategy has a `riskName` [src/classes/Backtest.ts:61-63]()
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `symbol` | `string` | Trading pair symbol (e.g., `"BTCUSDT"`) |
+| `context.strategyName` | `string` | Registered strategy name from `addStrategy()` |
+| `context.exchangeName` | `string` | Registered exchange name from `addExchange()` |
+| `context.frameName` | `string` | Registered frame name from `addFrame()` |
 
-**Yielded Results**: Each iteration yields a closed signal of type `IStrategyTickResultClosed`:
+**Return Type:** `AsyncGenerator<IStrategyBacktestResult>`
+
+The generator yields `IStrategyBacktestResult` objects for each closed signal. The result is a discriminated union with `action: "closed"` and includes:
 
 ```typescript
-interface IStrategyTickResultClosed {
+interface IStrategyBacktestResult {
   action: "closed";
-  strategyName: string;
   signal: ISignalRow;
-  currentPrice: number;
-  closeTimestamp: number;
-  closeReason: "take_profit" | "stop_loss" | "max_lifetime";
   pnl: IStrategyPnL;
+  backtest: true;
 }
 ```
 
-
-### Backtest.background()
-
-The `background()` method executes a backtest in the background without yielding results. It consumes all results internally and emits completion events via `doneBacktestSubject`.
-
-```typescript
-public background = (
-  symbol: string,
-  context: {
-    strategyName: string;
-    exchangeName: string;
-    frameName: string;
-  }
-) => () => void
-```
-
-**Cancellation Pattern**: The method returns a cancellation function that can be called to stop execution. The cancellation function:
-1. Calls `strategyGlobalService.stop(strategyName)` [src/classes/Backtest.ts:119]()
-2. Sets `isStopped` flag to break iteration loop [src/classes/Backtest.ts:101-106]()
-
-**Completion Event**: When iteration completes (normally or via cancellation), the method emits a completion event to `doneBacktestSubject` [src/classes/Backtest.ts:108-113]():
-
-```typescript
-await doneBacktestSubject.next({
-  exchangeName: context.exchangeName,
-  strategyName: context.strategyName,
-  backtest: true,
-  symbol,
-});
-```
-
-**Error Handling**: Errors during background execution are caught and emitted to `errorEmitter` [src/classes/Backtest.ts:115-117]().
-
-
-### Backtest.getData()
-
-The `getData()` method retrieves statistical data for a strategy after backtest execution. It delegates to `BacktestMarkdownService.getData()`.
-
-```typescript
-public getData = async (strategyName: StrategyName) => Promise<BacktestStatistics>
-```
-
-**BacktestStatistics Interface**: Returns an object with comprehensive performance metrics:
-
-```typescript
-interface BacktestStatistics {
-  signalList: IStrategyTickResultClosed[];
-  totalSignals: number;
-  winCount: number;
-  lossCount: number;
-  winRate: number | null;           // Percentage (0-100), higher is better
-  avgPnl: number | null;             // Percentage, higher is better
-  totalPnl: number | null;           // Cumulative percentage, higher is better
-  stdDev: number | null;             // Volatility metric, lower is better
-  sharpeRatio: number | null;        // Risk-adjusted return, higher is better
-  annualizedSharpeRatio: number | null;  // Sharpe × √365, higher is better
-  certaintyRatio: number | null;     // avgWin / |avgLoss|, higher is better
-  expectedYearlyReturns: number | null;  // Projected annual return, higher is better
-}
-```
-
-**Safe Math**: All numeric metrics return `null` if calculation produces `NaN` or `Infinity` [src/lib/services/markdown/BacktestMarkdownService.ts:33-44]().
-
-
-### Backtest.getReport()
-
-The `getReport()` method generates a markdown-formatted report with all closed signals and statistics.
-
-```typescript
-public getReport = async (strategyName: StrategyName) => Promise<string>
-```
-
-**Report Structure**: The generated markdown includes:
-1. Report title with strategy name [src/lib/services/markdown/BacktestMarkdownService.ts:299]()
-2. Markdown table with columns defined in `columns` array [src/lib/services/markdown/BacktestMarkdownService.ts:104-177]():
-   - Signal ID, Symbol, Position, Note
-   - Open Price, Close Price, Take Profit, Stop Loss
-   - PNL (net), Close Reason, Duration (minutes)
-   - Open Time, Close Time
-3. Statistical summary with all metrics [src/lib/services/markdown/BacktestMarkdownService.ts:303-312]()
-
-**Empty State**: Returns message "No signals closed yet" if no data [src/lib/services/markdown/BacktestMarkdownService.ts:282-286]().
-
-
-### Backtest.dump()
-
-The `dump()` method saves the markdown report to disk in the specified directory.
-
-```typescript
-public dump = async (
-  strategyName: StrategyName,
-  path?: string  // Default: "./logs/backtest"
-) => Promise<void>
-```
-
-**File Structure**: The method:
-1. Creates directory recursively if it doesn't exist [src/lib/services/markdown/BacktestMarkdownService.ts:330]()
-2. Generates filename as `{strategyName}.md` [src/lib/services/markdown/BacktestMarkdownService.ts:332]()
-3. Writes markdown content to file [src/lib/services/markdown/BacktestMarkdownService.ts:335]()
-
-**Default Path**: If `path` parameter is omitted, reports are saved to `./logs/backtest/` directory [src/lib/services/markdown/BacktestMarkdownService.ts:324]().
-
-
-## Statistics Calculation Details
-
-The `BacktestMarkdownService` calculates statistics using the `ReportStorage` class which accumulates closed signals.
-
-**Statistics Calculation Flow**
+**Execution Flow:**
 
 ![Mermaid Diagram](./diagrams/17_Backtest_API_1.svg)
 
-
-### Metric Calculations
-
-The following formulas are used for statistical calculations:
-
-**Basic Metrics**:
-- `winRate = (winCount / totalSignals) × 100`
-- `avgPnl = sum(pnl) / totalSignals`
-- `totalPnl = sum(pnl)`
-
-**Risk Metrics**:
-- `variance = sum((pnl - avgPnl)²) / totalSignals`
-- `stdDev = sqrt(variance)`
-- `sharpeRatio = avgPnl / stdDev` (assuming risk-free rate = 0)
-- `annualizedSharpeRatio = sharpeRatio × sqrt(365)`
-
-**Win/Loss Analysis**:
-- `avgWin = sum(wins) / winCount`
-- `avgLoss = sum(losses) / lossCount`
-- `certaintyRatio = avgWin / |avgLoss|`
-
-**Projected Returns**:
-- `avgDurationDays = avgDurationMs / (1000 × 60 × 60 × 24)`
-- `tradesPerYear = 365 / avgDurationDays`
-- `expectedYearlyReturns = avgPnl × tradesPerYear`
-
-
-## Execution Flow Comparison
-
-The following diagram contrasts the execution patterns of `run()` and `background()` methods:
-
-**run() vs background() Execution Flow**
-
-![Mermaid Diagram](./diagrams/17_Backtest_API_2.svg)
-
-
-## State Management
-
-The Backtest API clears multiple service states before execution to ensure clean runs:
-
-| Service | Cleared Data | Purpose |
-|---------|--------------|---------|
-| `BacktestMarkdownService` | `_signalList[]` per strategy | Remove accumulated closed signals |
-| `ScheduleMarkdownService` | `_eventList[]` per strategy | Remove accumulated scheduled/cancelled events |
-| `StrategyGlobalService` | Strategy internal state | Reset `_lastSignalTimestamp`, signal cache |
-| `RiskGlobalService` | `_activePositions` Map | Clear portfolio position tracking |
-
-**Clearing Implementation**: The clearing sequence is executed in `Backtest.run()`:
-
-```typescript
-// Clear markdown services
-backtest.backtestMarkdownService.clear(context.strategyName);
-backtest.scheduleMarkdownService.clear(context.strategyName);
-
-// Clear strategy state
-backtest.strategyGlobalService.clear(context.strategyName);
-
-// Clear risk state if strategy has risk profile
-const { riskName } = backtest.strategySchemaService.get(context.strategyName);
-riskName && backtest.riskGlobalService.clear(riskName);
-```
-
-
-## Event Integration
-
-The Backtest API integrates with the event system through multiple emitters:
-
-**Backtest Event Emission Flow**
-
-![Mermaid Diagram](./diagrams/17_Backtest_API_3.svg)
-
-**Emitter Initialization**: Event emitters are initialized in [src/config/emitters.ts:1-80]():
-- `signalEmitter` - All signal events (live + backtest)
-- `signalBacktestEmitter` - Backtest-only signal events
-- `doneBacktestSubject` - Backtest completion events
-- `progressEmitter` - Progress updates during execution
-
-
-## Usage Examples
-
-### Example 1: Manual Iteration with Early Termination
+**Example Usage:**
 
 ```typescript
 import { Backtest } from "backtest-kit";
 
 for await (const result of Backtest.run("BTCUSDT", {
-  strategyName: "my-strategy",
+  strategyName: "rsi-strategy",
   exchangeName: "binance",
-  frameName: "1d-backtest"
+  frameName: "2024-backtest"
 })) {
-  console.log("Signal closed:", result.signal.id);
-  console.log("PNL:", result.pnl.pnlPercentage);
-  
-  // Early termination on large loss
-  if (result.pnl.pnlPercentage < -5) {
-    console.log("Stopping due to large loss");
-    break;
-  }
+  console.log(`Signal ID: ${result.signal.id}`);
+  console.log(`PNL: ${result.pnl.pnlPercentage}%`);
+  console.log(`Close Reason: ${result.signal.closeReason}`);
 }
-
-// Get final statistics
-const stats = await Backtest.getData("my-strategy");
-console.log("Final Sharpe Ratio:", stats.sharpeRatio);
 ```
 
-### Example 2: Background Execution with Event Listeners
+**Implementation Details:**
+
+- [src/classes/Backtest.ts:38-66]() implements the method
+- Clears `backtestMarkdownService` and `scheduleMarkdownService` for the strategy [src/classes/Backtest.ts:52-54]()
+- Clears strategy instance cache via `strategyGlobalService.clear()` [src/classes/Backtest.ts:57-58]()
+- Clears risk instance cache if strategy has `riskName` [src/classes/Backtest.ts:60-63]()
+- Delegates to `backtestCommandService.run()` [src/classes/Backtest.ts:65]()
+
+
+### Backtest.background()
+
+Executes backtest silently in the background, consuming all results internally. Returns a cancellation function.
+
+**Signature:**
+```typescript
+background(
+  symbol: string,
+  context: {
+    strategyName: string;
+    exchangeName: string;
+    frameName: string;
+  }
+): () => void
+```
+
+**Parameters:** Same as `run()` method.
+
+**Return Type:** `() => void` - Cancellation closure
+
+The returned function can be called to stop the backtest early. When cancelled, the backtest will:
+1. Set `isStopped` flag to break the iteration loop
+2. Wait for any pending signal to complete
+3. Emit `doneBacktestSubject` event
+4. Call `strategyGlobalService.stop()` to prevent new signals
+
+**Cancellation Flow:**
+
+![Mermaid Diagram](./diagrams/17_Backtest_API_2.svg)
+
+**Example Usage:**
 
 ```typescript
-import { Backtest, listenSignalBacktest, listenDoneBacktest } from "backtest-kit";
+import { Backtest, listenDoneBacktest } from "backtest-kit";
 
-// Subscribe to events before starting
-listenSignalBacktest((event) => {
-  if (event.action === "closed") {
-    console.log("PNL:", event.pnl.pnlPercentage);
-  }
-});
-
-listenDoneBacktest((event) => {
-  console.log("Backtest completed for:", event.symbol);
-  Backtest.dump(event.strategyName);  // Auto-save report
-});
-
-// Run in background
-const stop = Backtest.background("BTCUSDT", {
-  strategyName: "my-strategy",
+// Start backtest in background
+const cancel = Backtest.background("BTCUSDT", {
+  strategyName: "rsi-strategy",
   exchangeName: "binance",
-  frameName: "1d-backtest"
+  frameName: "2024-backtest"
 });
 
-// Can cancel anytime
-// stop();
+// Listen for completion
+listenDoneBacktest((event) => {
+  console.log(`Backtest completed for ${event.strategyName}`);
+});
+
+// Cancel after 30 seconds
+setTimeout(() => {
+  console.log("Cancelling backtest...");
+  cancel();
+}, 30000);
 ```
 
-### Example 3: Multi-Symbol Portfolio Analysis
+**Implementation Details:**
+
+- [src/classes/Backtest.ts:89-142]() implements the method
+- Creates async task that consumes `run()` generator [src/classes/Backtest.ts:103-118]()
+- Catches errors and emits to `exitEmitter` [src/classes/Backtest.ts:119-121]()
+- Cancellation function stops strategy and emits done event [src/classes/Backtest.ts:122-141]()
+- Uses `isStopped` flag to break iteration [src/classes/Backtest.ts:101,105-107]()
+- Checks for pending signals before emitting done [src/classes/Backtest.ts:124-138]()
+
+
+### Backtest.getData()
+
+Retrieves statistical analysis data from completed backtest signals for a symbol-strategy pair.
+
+**Signature:**
+```typescript
+getData(
+  symbol: string,
+  strategyName: StrategyName
+): Promise<BacktestStatistics>
+```
+
+**Parameters:**
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `symbol` | `string` | Trading pair symbol |
+| `strategyName` | `StrategyName` | Strategy name (branded string type) |
+
+**Return Type:** `Promise<BacktestStatistics>`
+
+The `BacktestStatistics` interface contains comprehensive performance metrics:
+
+```typescript
+interface BacktestStatistics {
+  // Core Metrics
+  sharpeRatio: number | null;
+  avgPnl: number | null;
+  totalPnl: number | null;
+  winRate: number | null;
+  
+  // Risk-Adjusted Metrics
+  certaintyRatio: number | null;
+  annualizedSharpeRatio: number | null;
+  expectedYearlyReturns: number | null;
+  
+  // Trade Counts
+  totalTrades: number;
+  winningTrades: number;
+  losingTrades: number;
+  
+  // Signal List
+  events: IStrategyBacktestResult[];
+  
+  // Safety Flags
+  isUnsafe: boolean; // true if any metric is NaN/Infinity
+}
+```
+
+**Calculation Flow:**
+
+![Mermaid Diagram](./diagrams/17_Backtest_API_3.svg)
+
+**Example Usage:**
 
 ```typescript
 import { Backtest } from "backtest-kit";
 
-const symbols = ["BTCUSDT", "ETHUSDT", "SOLUSDT"];
-
-for (const symbol of symbols) {
-  for await (const _ of Backtest.run(symbol, {
-    strategyName: "my-strategy",
-    exchangeName: "binance",
-    frameName: "2024-backtest"
-  })) {
-    // Consume results
-  }
-  
-  // Generate report per symbol
-  await Backtest.dump("my-strategy", `./logs/backtest/${symbol}`);
+// Run backtest first
+for await (const result of Backtest.run("BTCUSDT", {
+  strategyName: "rsi-strategy",
+  exchangeName: "binance",
+  frameName: "2024-backtest"
+})) {
+  // Consume results...
 }
 
-// Get aggregated statistics
-const stats = await Backtest.getData("my-strategy");
-console.log("Portfolio metrics:", {
-  totalSignals: stats.totalSignals,
-  winRate: stats.winRate,
-  sharpeRatio: stats.sharpeRatio
+// Get statistics
+const stats = await Backtest.getData("BTCUSDT", "rsi-strategy");
+
+console.log(`Sharpe Ratio: ${stats.sharpeRatio}`);
+console.log(`Win Rate: ${stats.winRate}%`);
+console.log(`Total PNL: ${stats.totalPnl}`);
+console.log(`Total Trades: ${stats.totalTrades}`);
+console.log(`Certainty Ratio: ${stats.certaintyRatio}`);
+```
+
+**Implementation Details:**
+
+- [src/classes/Backtest.ts:157-163]() implements the method
+- Delegates to `backtestMarkdownService.getData()` [src/classes/Backtest.ts:162]()
+- Statistics calculated from accumulated `signalBacktestEmitter` events
+- Safe math checks prevent NaN/Infinity propagation
+- Returns `null` for metrics when insufficient data
+
+
+### Backtest.getReport()
+
+Generates human-readable markdown report from completed backtest signals.
+
+**Signature:**
+```typescript
+getReport(
+  symbol: string,
+  strategyName: StrategyName
+): Promise<string>
+```
+
+**Parameters:** Same as `getData()` method.
+
+**Return Type:** `Promise<string>` - Markdown formatted report
+
+**Report Structure:**
+
+The generated markdown report includes the following sections:
+
+1. **Header**: Strategy name, symbol, and timestamp
+2. **Summary Statistics**: Sharpe ratio, win rate, PNL metrics
+3. **Signal Table**: All closed signals with columns:
+   - Signal ID
+   - Open timestamp
+   - Close timestamp
+   - Side (LONG/SHORT)
+   - Entry price
+   - Exit price
+   - PNL percentage
+   - Close reason (TP/SL/timeout)
+4. **Risk Metrics**: If risk management was used
+5. **Partial Profit/Loss Events**: If milestone tracking was enabled
+
+**Example Output Structure:**
+
+```markdown
+# Backtest Report: rsi-strategy (BTCUSDT)
+
+Generated: 2024-01-15 10:30:00
+
+## Summary Statistics
+
+| Metric | Value |
+|--------|-------|
+| Total Trades | 42 |
+| Win Rate | 65.5% |
+| Sharpe Ratio | 1.85 |
+| Total PNL | 12.3% |
+| Average PNL | 0.29% |
+| Certainty Ratio | 11.98 |
+
+## Closed Signals
+
+| ID | Open Time | Close Time | Side | Entry | Exit | PNL | Reason |
+|----|-----------|------------|------|-------|------|-----|--------|
+| sig_001 | 2024-01-01 00:00 | 2024-01-01 06:00 | LONG | 42000 | 42800 | +1.9% | TP |
+| sig_002 | 2024-01-02 00:00 | 2024-01-02 04:00 | SHORT | 42500 | 42200 | +0.7% | TP |
+...
+```
+
+**Example Usage:**
+
+```typescript
+import { Backtest } from "backtest-kit";
+import fs from "fs/promises";
+
+// Run backtest
+for await (const result of Backtest.run("BTCUSDT", {
+  strategyName: "rsi-strategy",
+  exchangeName: "binance",
+  frameName: "2024-backtest"
+})) {
+  // Consume results...
+}
+
+// Generate and save report
+const markdown = await Backtest.getReport("BTCUSDT", "rsi-strategy");
+console.log(markdown);
+
+// Or save to file
+await fs.writeFile("./backtest-report.md", markdown);
+```
+
+**Implementation Details:**
+
+- [src/classes/Backtest.ts:178-184]() implements the method
+- Delegates to `backtestMarkdownService.getReport()` [src/classes/Backtest.ts:183]()
+- Report generation is synchronous once data is accumulated
+- Markdown formatting uses consistent table syntax
+- Handles null values gracefully with "N/A" placeholders
+
+
+### Backtest.dump()
+
+Saves backtest report to filesystem with automatic path resolution.
+
+**Signature:**
+```typescript
+dump(
+  strategyName: StrategyName,
+  path?: string
+): Promise<void>
+```
+
+**Parameters:**
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `strategyName` | `StrategyName` | Strategy name for filename generation |
+| `path` | `string` (optional) | Directory path (default: `"./dump/backtest"`) |
+
+**File Naming Convention:**
+
+```
+{path}/{strategyName}.md
+```
+
+**Default Path Resolution:**
+
+![Mermaid Diagram](./diagrams/17_Backtest_API_4.svg)
+
+**Example Usage:**
+
+```typescript
+import { Backtest } from "backtest-kit";
+
+// Run backtest
+for await (const result of Backtest.run("BTCUSDT", {
+  strategyName: "rsi-strategy",
+  exchangeName: "binance",
+  frameName: "2024-backtest"
+})) {
+  // Consume results...
+}
+
+// Save to default path: ./dump/backtest/rsi-strategy.md
+await Backtest.dump("rsi-strategy");
+
+// Save to custom path: ./reports/2024/rsi-strategy.md
+await Backtest.dump("rsi-strategy", "./reports/2024");
+```
+
+**Implementation Details:**
+
+- [src/classes/Backtest.ts:201-210]() implements the method
+- Delegates to `backtestMarkdownService.dump()` [src/classes/Backtest.ts:209]()
+- Creates directory structure if it doesn't exist
+- Overwrites existing file without warning
+- Uses UTF-8 encoding for markdown files
+
+
+## Integration with Event System
+
+The Backtest API emits events throughout execution for monitoring and callbacks:
+
+![Mermaid Diagram](./diagrams/17_Backtest_API_5.svg)
+
+**Available Event Listeners:**
+
+| Listener Function | Event Type | Description |
+|-------------------|------------|-------------|
+| `listenSignalBacktest()` | Signal closed | All closed backtest signals |
+| `listenBacktestProgress()` | Progress update | Timeframe completion percentage |
+| `listenDoneBacktest()` | Completion | Backtest execution finished |
+| `listenPerformance()` | Performance metrics | Timing and bottleneck data |
+
+**Example with Event Listeners:**
+
+```typescript
+import { 
+  Backtest, 
+  listenSignalBacktest, 
+  listenBacktestProgress,
+  listenDoneBacktest 
+} from "backtest-kit";
+
+// Monitor progress
+listenBacktestProgress((progress) => {
+  console.log(`Progress: ${progress.current}/${progress.total} timeframes`);
+  console.log(`Percentage: ${progress.percentage}%`);
+});
+
+// Monitor closed signals
+listenSignalBacktest((result) => {
+  console.log(`Signal closed: ${result.signal.id}`);
+  console.log(`PNL: ${result.pnl.pnlPercentage}%`);
+});
+
+// Monitor completion
+listenDoneBacktest((event) => {
+  console.log(`Backtest completed: ${event.strategyName}`);
+});
+
+// Run backtest
+await Backtest.background("BTCUSDT", {
+  strategyName: "rsi-strategy",
+  exchangeName: "binance",
+  frameName: "2024-backtest"
 });
 ```
 
 
-## Related APIs
+## Execution Constraints
 
-For scheduled signals tracking, use the `Schedule` utility class documented in [Schedule API](./20_Schedule_API.md). The Schedule API tracks `priceOpen` scheduled signals that may be cancelled before activation.
+The Backtest API operates under several constraints inherited from the underlying execution engine:
 
-For live trading execution, see [Live Trading API](./18_Live_Trading_API.md). The Live API provides crash-safe persistence and real-time monitoring with a similar interface pattern.
+### Required Pre-Registration
 
-For comparing multiple strategies in parallel, see [Walker API](./19_Walker_API.md). The Walker API internally uses `Backtest.run()` to execute each strategy and rank results by selected metrics.
+All components must be registered before calling `run()` or `background()`:
+
+```typescript
+import { addStrategy, addExchange, addFrame, Backtest } from "backtest-kit";
+
+// 1. Register strategy
+addStrategy({
+  strategyName: "rsi-strategy",
+  interval: "1h",
+  getSignal: async (context) => {
+    // Strategy logic...
+  }
+});
+
+// 2. Register exchange
+addExchange({
+  exchangeName: "binance",
+  getCandles: async (params) => {
+    // Fetch candles...
+  }
+});
+
+// 3. Register frame
+addFrame({
+  frameName: "2024-backtest",
+  interval: "1h",
+  startDate: new Date("2024-01-01"),
+  endDate: new Date("2024-12-31")
+});
+
+// 4. Now run backtest
+for await (const result of Backtest.run("BTCUSDT", {
+  strategyName: "rsi-strategy",
+  exchangeName: "binance",
+  frameName: "2024-backtest"
+})) {
+  // Process results...
+}
+```
+
+### Symbol-Strategy Isolation
+
+Each backtest execution is isolated by symbol-strategy pair. The memoization key used internally is `${symbol}:${strategyName}` [src/lib/services/connection/StrategyConnectionService.ts:79](). This means:
+
+- Multiple symbols can run concurrently with the same strategy
+- Same symbol cannot run multiple strategies concurrently (requires separate processes)
+- State is isolated per symbol-strategy pair
+
+### Frame Interval Alignment
+
+The frame `interval` must be compatible with the strategy `interval`:
+
+| Strategy Interval | Compatible Frame Intervals |
+|-------------------|----------------------------|
+| `1m` | `1m` |
+| `5m` | `1m`, `5m` |
+| `15m` | `1m`, `5m`, `15m` |
+| `1h` | `1m`, `5m`, `15m`, `1h` |
+| `1d` | Any interval |
+
+Misalignment will cause validation errors at runtime [src/classes/Backtest.ts:60-63]().
+
+
+## Performance Considerations
+
+The Backtest API includes several optimizations for efficient historical simulation:
+
+### Skip-Ahead Optimization
+
+When a signal opens, the backtest engine skips all intermediate timeframes until the signal closes. This is implemented in `BacktestLogicPrivateService` and dramatically reduces computation time:
+
+```
+Without skip-ahead: Process every timeframe
+Timeframes: T1 T2 T3 T4 T5 T6 T7 T8 T9 T10
+Processing:  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓  ✓
+
+With skip-ahead: Skip during active signal
+Timeframes: T1 T2 T3 T4 T5 T6 T7 T8 T9 T10
+Processing:  ✓  ✓  ⊗  ⊗  ⊗  ⊗  ⊗  ✓  ✓  ✓
+                    ^-Signal Opens    ^-Signal Closes
+```
+
+This optimization is transparent to the user and does not affect result accuracy.
+
+### ClientStrategy Memoization
+
+Strategy instances are memoized by `${symbol}:${strategyName}` to avoid redundant instantiation [src/lib/services/connection/StrategyConnectionService.ts:78-98](). The cache persists across multiple `run()` calls unless explicitly cleared.
+
+To clear the cache:
+
+```typescript
+import backtest from "backtest-kit/lib";
+
+// Clear specific strategy
+await backtest.strategyGlobalService.clear({
+  symbol: "BTCUSDT",
+  strategyName: "rsi-strategy"
+});
+
+// Or clear all strategies
+await backtest.strategyGlobalService.clear();
+```
+
+### Event Accumulation Limit
+
+The `BacktestMarkdownService` has a configurable maximum event count (default: no limit). For very long backtests with thousands of signals, memory usage can grow. Consider using `background()` without collecting statistics for memory-constrained environments.
+
+
+## Complete Usage Example
+
+```typescript
+import {
+  addStrategy,
+  addExchange,
+  addFrame,
+  Backtest,
+  listenSignalBacktest,
+  listenBacktestProgress,
+  listenDoneBacktest,
+} from "backtest-kit";
+
+// 1. Register components
+addStrategy({
+  strategyName: "rsi-strategy",
+  interval: "1h",
+  getSignal: async (context) => {
+    const rsi = await context.getRSI(14);
+    if (rsi < 30) {
+      return {
+        side: "LONG",
+        priceOpen: context.currentPrice,
+        takeProfit: context.currentPrice * 1.02,
+        stopLoss: context.currentPrice * 0.98,
+      };
+    }
+    return null;
+  },
+});
+
+addExchange({
+  exchangeName: "binance",
+  getCandles: async (params) => {
+    // Fetch from database or API
+    return candles;
+  },
+});
+
+addFrame({
+  frameName: "2024-q1-backtest",
+  interval: "1h",
+  startDate: new Date("2024-01-01"),
+  endDate: new Date("2024-03-31"),
+});
+
+// 2. Setup event listeners
+listenBacktestProgress((progress) => {
+  console.log(`${progress.percentage}% complete`);
+});
+
+listenSignalBacktest((result) => {
+  console.log(`Signal: ${result.signal.side} | PNL: ${result.pnl.pnlPercentage}%`);
+});
+
+listenDoneBacktest((event) => {
+  console.log(`Backtest completed: ${event.strategyName}`);
+});
+
+// 3. Run backtest and consume results
+for await (const result of Backtest.run("BTCUSDT", {
+  strategyName: "rsi-strategy",
+  exchangeName: "binance",
+  frameName: "2024-q1-backtest",
+})) {
+  console.log(`Closed at ${result.signal.closeTimestamp}`);
+}
+
+// 4. Get statistics
+const stats = await Backtest.getData("BTCUSDT", "rsi-strategy");
+console.log(`Sharpe Ratio: ${stats.sharpeRatio}`);
+console.log(`Win Rate: ${stats.winRate}%`);
+console.log(`Total Trades: ${stats.totalTrades}`);
+
+// 5. Generate report
+const markdown = await Backtest.getReport("BTCUSDT", "rsi-strategy");
+console.log(markdown);
+
+// 6. Save to disk
+await Backtest.dump("rsi-strategy", "./reports");
+```
 

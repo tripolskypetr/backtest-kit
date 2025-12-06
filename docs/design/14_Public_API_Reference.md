@@ -5,10 +5,9 @@ group: design
 
 # Public API Reference
 
-
 This page provides a comprehensive reference for all public-facing functions and utilities exposed by the backtest-kit framework. These are the functions users directly interact with to configure strategies, execute backtests/live trading, and monitor results.
 
-For detailed implementation details of the underlying service architecture, see [Architecture](./09_Architecture.md). For specific execution patterns, see [Backtest API](./17_Backtest_API.md) and [Live Trading API](./18_Live_Trading_API.md).
+For detailed implementation details of the underlying service architecture, see [Architecture](./05_Core_Concepts.md). For specific execution patterns, see [Backtest API](./11_Dependency_Injection_System.md) and [Live Trading API](./12_Context_Propagation.md).
 
 ## Public API Structure
 
@@ -167,7 +166,7 @@ addFrame({
 
 ## Backtest Execution API
 
-The `Backtest` singleton provides methods for running backtests and generating reports. See [Backtest API](./17_Backtest_API.md) for detailed documentation.
+The `Backtest` singleton provides methods for running backtests and generating reports. See [Backtest API](./11_Dependency_Injection_System.md) for detailed documentation.
 
 ### Backtest.run()
 
@@ -302,7 +301,7 @@ await Backtest.dump("momentum-strategy", "./reports");
 
 ## Live Trading API
 
-The `Live` singleton provides methods for live trading execution with crash recovery. See [Live Trading API](./18_Live_Trading_API.md) for detailed documentation.
+The `Live` singleton provides methods for live trading execution with crash recovery. See [Live Trading API](./12_Context_Propagation.md) for detailed documentation.
 
 ### Live.run()
 
@@ -431,7 +430,7 @@ await Live.dump("momentum-strategy", "./live-reports");
 
 ## Exchange Utility Functions
 
-Utility functions for accessing market data and execution context. These functions use the current `ExecutionContextService` and `MethodContextService` for implicit context propagation. See [Exchange Functions](./21_Exchange_Functions.md) for detailed documentation.
+Utility functions for accessing market data and execution context. These functions use the current `ExecutionContextService` and `MethodContextService` for implicit context propagation. See [Exchange Functions](./13_Event_System.md) for detailed documentation.
 
 ### getCandles()
 
@@ -844,11 +843,11 @@ All TypeScript interfaces and types are exported for type-safe usage. See indivi
 | `IStrategySchema` | Strategy configuration schema | [Configuration Functions](./15_Configuration_Functions.md) |
 | `IExchangeSchema` | Exchange configuration schema | [Configuration Functions](./15_Configuration_Functions.md) |
 | `IFrameSchema` | Frame configuration schema | [Configuration Functions](./15_Configuration_Functions.md) |
-| `ISignalDto` | Signal data transfer object | [Signal Generation and Validation](./46_Signal_Generation_and_Validation.md) |
-| `ISignalRow` | Complete signal with auto-generated ID | [Signal States](./45_Signal_States.md) |
-| `IStrategyTickResult` | Discriminated union of all tick results | [Signal States](./45_Signal_States.md) |
-| `IStrategyPnL` | Profit/loss calculation with fees and slippage | [PnL Calculation](./49_PnL_Calculation.md) |
-| `ICandleData` | OHLCV candle data point | [Exchange Functions](./21_Exchange_Functions.md) |
+| `ISignalDto` | Signal data transfer object | [Signal Generation and Validation](./33_ClientExchange.md) |
+| `ISignalRow` | Complete signal with auto-generated ID | [Signal States](./47_Signal_States.md) |
+| `IStrategyTickResult` | Discriminated union of all tick results | [Signal States](./47_Signal_States.md) |
+| `IStrategyPnL` | Profit/loss calculation with fees and slippage | [PnL Calculation](./35_ClientRisk.md) |
+| `ICandleData` | OHLCV candle data point | [Exchange Functions](./13_Event_System.md) |
 
 ### Type Aliases
 

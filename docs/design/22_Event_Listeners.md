@@ -5,10 +5,9 @@ group: design
 
 # Event Listeners
 
-
 This page documents all event listener functions available in the public API for subscribing to framework events. Event listeners enable real-time monitoring of signal lifecycle, execution progress, completion events, performance metrics, and errors.
 
-For information about the underlying event system architecture and Subject-based pub-sub pattern, see [3.4](./13_Event_System.md). For details on signal lifecycle states that trigger events, see [8.1](./45_Signal_States.md). For execution mode differences in event emission, see [2.1](./06_Execution_Modes.md).
+For information about the underlying event system architecture and Subject-based pub-sub pattern, see [3.4](./13_Event_System.md). For details on signal lifecycle states that trigger events, see [8.1](./47_Signal_States.md). For execution mode differences in event emission, see [2.1](./06_Execution_Modes.md).
 
 ## Overview
 

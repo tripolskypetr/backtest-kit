@@ -5,8 +5,7 @@ group: design
 
 # Layer Responsibilities
 
-
-This document describes the six-layer service architecture of backtest-kit and the responsibilities of each layer. The framework follows a clean architecture pattern with strict separation of concerns, dependency injection, and unidirectional data flow from public API down to infrastructure.
+This document describes the service architecture of backtest-kit and the responsibilities of each layer. The framework follows a clean architecture pattern with strict separation of concerns, dependency injection, and unidirectional data flow from public API down to business logic.
 
 For information about how dependency injection works across these layers, see [Dependency Injection System](./11_Dependency_Injection_System.md). For details on how context flows through the layers, see [Context Propagation](./12_Context_Propagation.md).
 
@@ -14,12 +13,183 @@ For information about how dependency injection works across these layers, see [D
 
 ## Architecture Overview
 
-The backtest-kit framework organizes services into six distinct layers, each with specific responsibilities. Services are bound via dependency injection using Symbol-based tokens defined in [src/lib/core/types.ts:1-81]().
+The backtest-kit framework organizes services into distinct functional layers. Services are bound via dependency injection using Symbol-based tokens defined in [src/lib/core/types.ts:1-81]().
 
-**Layer Organization Diagram**
+**Complete Layer Architecture**
 
 ![Mermaid Diagram](./diagrams/10_Layer_Responsibilities_0.svg)
 
+</thinking>
+
+## Layer 1: API Layer
+
+The API Layer provides user-facing classes and functions that serve as entry points to the framework. This layer has no business logic and delegates immediately to Command Services.
+
+### Execution Classes
+
+Execution classes in [src/classes/Backtest.ts](), [src/classes/Live.ts](), and [src/classes/Walker.ts]() provide the primary user interface:
+
+| Class | Key Methods | Delegates To |
+|-------|-------------|--------------|
+| `Backtest` | `run()`, `background()`, `getData()`, `getReport()`, `dump()` | `BacktestCommandService` |
+| `Live` | `run()`, `background()`, `getData()`, `getReport()`, `dump()` | `LiveCommandService` |
+| `Walker` | `run()`, `background()`, `getData()`, `getReport()`, `dump()` | `WalkerCommandService` |
+
+**API Layer Delegation Pattern**
+
+![Mermaid Diagram](./diagrams/10_Layer_Responsibilities_1.svg)
+
+Each execution class:
+1. Logs the operation via `backtest.loggerService`
+2. Clears relevant markdown services and strategy caches
+3. Delegates to the corresponding Command Service
+
+
+### Registration Functions
+
+Component registration functions in [src/function/add.ts]() provide schema registration:
+
+| Function | Purpose | Delegates To |
+|----------|---------|--------------|
+| `addStrategy()` | Register strategy schema | `StrategyValidationService`, `StrategySchemaService` |
+| `addExchange()` | Register exchange schema | `ExchangeValidationService`, `ExchangeSchemaService` |
+| `addFrame()` | Register frame schema | `FrameValidationService`, `FrameSchemaService` |
+| `addRisk()` | Register risk profile | `RiskValidationService`, `RiskSchemaService` |
+| `addSizing()` | Register sizing method | `SizingValidationService`, `SizingSchemaService` |
+| `addWalker()` | Register walker comparison | `WalkerValidationService`, `WalkerSchemaService` |
+| `addOptimizer()` | Register optimizer configuration | `OptimizerValidationService`, `OptimizerSchemaService` |
+
+
+---
+
+## Layer 2: Command Services
+
+Command Services validate component configurations and delegate to Logic Services. They act as validation gateways before execution.
+
+### Command Service Responsibilities
+
+**Command Service Architecture**
+
+![Mermaid Diagram](./diagrams/10_Layer_Responsibilities_2.svg)
+
+| Service | Validates | Delegates To |
+|---------|-----------|--------------|
+| `BacktestCommandService` | strategyName, exchangeName, frameName, riskName | `BacktestLogicPublicService` |
+| `LiveCommandService` | strategyName, exchangeName, riskName | `LiveLogicPublicService` |
+| `WalkerCommandService` | walkerName, exchangeName, frameName, all strategy names | `WalkerLogicPublicService` |
+
+### Command Service Pattern
+
+Each Command Service follows a consistent pattern:
+
+1. **Log operation** - Record method call with parameters
+2. **Validate components** - Check that all referenced components are registered
+3. **Validate dependencies** - If strategy has `riskName`, validate risk profile exists
+4. **Delegate execution** - Pass validated parameters to Logic Service
+
+**Example from BacktestCommandService**:
+
+The service validates all components before delegating:
+
+```
+run(symbol, context) {
+  // Validate strategy exists
+  strategyValidationService.validate(context.strategyName)
+  
+  // Validate exchange exists  
+  exchangeValidationService.validate(context.exchangeName)
+  
+  // Validate frame exists
+  frameValidationService.validate(context.frameName)
+  
+  // Get strategy schema and validate risk if present
+  const schema = strategySchemaService.get(context.strategyName)
+  if (schema.riskName) {
+    riskValidationService.validate(schema.riskName)
+  }
+  
+  // Delegate to logic service
+  return backtestLogicPublicService.run(symbol, context)
+}
+```
+
+
+---
+
+## Layer 3: Logic Services
+
+Logic Services orchestrate execution flow. They are split into Public and Private services to separate context management from execution logic.
+
+### Public Logic Services
+
+Public Logic Services wrap Private Logic Services with `MethodContextService` to inject component names into execution context:
+
+**Logic Service Context Injection**
+
+![Mermaid Diagram](./diagrams/10_Layer_Responsibilities_3.svg)
+
+Each Public Logic Service:
+
+1. Receives context parameters (strategyName, exchangeName, frameName)
+2. Wraps Private Logic Service call with `MethodContextService.runAsyncIterator()`
+3. Returns AsyncGenerator from Private Logic Service
+
+The `MethodContextService` uses scoped dependency injection to make context available to downstream services without explicit parameter passing.
+
+
+### Private Logic Services
+
+Private Logic Services implement the core execution algorithms:
+
+| Service | Responsibility | Key Operations |
+|---------|---------------|----------------|
+| `BacktestLogicPrivateService` | Sequential timeframe iteration | Load frames, iterate dates, call `strategyGlobalService.tick()`, fetch future candles, call `strategyGlobalService.backtest()`, skip timeframes, emit to `signalBacktestEmitter` |
+| `LiveLogicPrivateService` | Infinite real-time loop | Enter `while(true)` loop, call `strategyGlobalService.tick()` with `new Date()`, sleep for `TICK_TTL` (61s), emit to `signalLiveEmitter` |
+| `WalkerLogicPrivateService` | Strategy comparison | Iterate walker strategies, run `BacktestLogicPublicService` for each, collect statistics, compare metrics, track best strategy, emit to `walkerEmitter` |
+
+**BacktestLogicPrivateService Execution Flow**
+
+![Mermaid Diagram](./diagrams/10_Layer_Responsibilities_4.svg)
+
+**LiveLogicPrivateService Execution Flow**
+
+![Mermaid Diagram](./diagrams/10_Layer_Responsibilities_5.svg)
+
+
+---
+
+## Layer 4: Global Services
+
+Global Services wrap Connection Services with `ExecutionContextService` to inject runtime parameters (symbol, when, backtest flag) into execution scope.
+
+### Global Service Pattern
+
+**Global Service Wrapper Architecture**
+
+![Mermaid Diagram](./diagrams/10_Layer_Responsibilities_6.svg)
+
+| Service | Wraps | Injects Context For |
+|---------|-------|---------------------|
+| `StrategyGlobalService` | `StrategyConnectionService` | Strategy operations |
+| `ExchangeGlobalService` | `ExchangeConnectionService` | Market data fetching |
+| `FrameGlobalService` | `FrameConnectionService` | Timeframe generation |
+| `RiskGlobalService` | `RiskConnectionService` | Risk validation |
+| `SizingGlobalService` | `SizingConnectionService` | Position sizing |
+
+Each Global Service:
+
+1. **Validates component** - Memoized validation check
+2. **Wraps in ExecutionContext** - Calls `ExecutionContextService.runInContext()`
+3. **Delegates to Connection Service** - Passes call to underlying connection service
+
+The `ExecutionContextService` makes `symbol`, `when`, and `backtest` flag available to Client Classes without parameter drilling.
+
+
+---
+
+## Layer 5: Connection Services
+
+Connection Services manage memoized client instances, ensuring a single instance exists per component-symbol pair.
 
 ---
 
@@ -76,7 +246,7 @@ Public logic services wrap execution in context and provide the public interface
 
 **Logic Service Responsibilities**
 
-![Mermaid Diagram](./diagrams/10_Layer_Responsibilities_1.svg)
+![Mermaid Diagram](./diagrams/10_Layer_Responsibilities_7.svg)
 
 Each public service:
 
@@ -124,37 +294,110 @@ Connection Services manage memoized client instances. Each service creates and c
 
 Connection services are defined in [src/lib/core/types.ts:10-16]():
 
-```typescript
-const connectionServices = {
-    exchangeConnectionService: Symbol('exchangeConnectionService'),
-    strategyConnectionService: Symbol('strategyConnectionService'),
-    frameConnectionService: Symbol('frameConnectionService'),
-    sizingConnectionService: Symbol('sizingConnectionService'),
-    riskConnectionService: Symbol('riskConnectionService'),
-}
-```
+| Service | Manages Instances Of | Cache Key |
+|---------|---------------------|-----------|
+| `StrategyConnectionService` | `ClientStrategy` | `${symbol}:${strategyName}` |
+| `ExchangeConnectionService` | `ClientExchange` | `${symbol}:${exchangeName}` |
+| `RiskConnectionService` | `ClientRisk` | `${riskName}` |
+| `FrameConnectionService` | `ClientFrame` | `${symbol}:${exchangeName}:${frameName}` |
+| `SizingConnectionService` | `ClientSizing` | `${sizingName}` |
 
 ### Memoization Pattern
 
-**Connection Service Architecture**
+**StrategyConnectionService Architecture**
 
-![Mermaid Diagram](./diagrams/10_Layer_Responsibilities_2.svg)
+![Mermaid Diagram](./diagrams/10_Layer_Responsibilities_8.svg)
 
-Each Connection Service:
+The `getStrategy` method in [src/lib/services/connection/StrategyConnectionService.ts:78-98]() uses `memoize` from `functools-kit` to cache instances:
 
-1. **Retrieves schema** from corresponding Schema Service
-2. **Checks memoization cache** by component name
-3. **Creates client instance** if not cached, injecting dependencies
-4. **Returns memoized instance** for subsequent calls
+```
+private getStrategy = memoize(
+  ([symbol, strategyName]) => `${symbol}:${strategyName}`,
+  (symbol, strategyName) => {
+    const { riskName, getSignal, interval, callbacks } = 
+      this.strategySchemaService.get(strategyName);
+    return new ClientStrategy({
+      symbol,
+      interval,
+      execution: this.executionContextService,
+      method: this.methodContextService,
+      logger: this.loggerService,
+      partial: this.partialConnectionService,
+      exchange: this.exchangeConnectionService,
+      risk: riskName ? this.riskConnectionService.getRisk(riskName) : NOOP_RISK,
+      riskName,
+      strategyName,
+      getSignal,
+      callbacks,
+    });
+  }
+);
+```
 
-Connection services inject their dependencies into client constructors:
+### Connection Service Operations
 
-- `StrategyConnectionService` injects `RiskConnectionService` and `ExchangeConnectionService`
-- `ExchangeConnectionService` injects `ExecutionContextService`
-- `RiskConnectionService` injects `RiskSchemaService`
-- `FrameConnectionService` injects `FrameSchemaService`
-- `SizingConnectionService` injects `SizingSchemaService`
+Each Connection Service provides operation methods that delegate to cached client instances:
 
+**StrategyConnectionService Operations**
+
+| Method | Purpose | Delegates To |
+|--------|---------|--------------|
+| `tick(symbol, strategyName)` | Execute live trading tick | `ClientStrategy.tick()` |
+| `backtest(symbol, strategyName, candles)` | Execute fast backtest | `ClientStrategy.backtest()` |
+| `getPendingSignal(symbol, strategyName)` | Retrieve active signal | `ClientStrategy.getPendingSignal()` |
+| `stop({symbol, strategyName})` | Stop signal generation | `ClientStrategy.stop()` |
+| `clear(ctx?)` | Clear memoized instances | Memoization cache |
+
+Connection Services also emit to appropriate event emitters after operations complete. For example, [src/lib/services/connection/StrategyConnectionService.ts:129-147]() emits signals to three channels:
+
+```
+const tick = await strategy.tick(symbol, strategyName);
+{
+  if (this.executionContextService.context.backtest) {
+    await signalBacktestEmitter.next(tick);
+  }
+  if (!this.executionContextService.context.backtest) {
+    await signalLiveEmitter.next(tick);
+  }
+  await signalEmitter.next(tick);
+}
+```
+
+
+---
+
+## Layer 6: Client Classes
+
+Client Classes contain pure business logic without dependency injection. They receive dependencies via constructor parameters and implement core algorithms.
+
+### Client Responsibilities
+
+| Client Class | Primary Responsibility | Key Methods |
+|--------------|----------------------|-------------|
+| `ClientStrategy` | Signal lifecycle management | `tick()`, `backtest()`, `stop()`, `getPendingSignal()`, `waitForInit()` |
+| `ClientExchange` | Market data and VWAP calculation | `getCandles()`, `getNextCandles()`, `getAveragePrice()`, `formatPrice()` |
+| `ClientRisk` | Position tracking and validation | `checkSignal()`, `addSignal()`, `removeSignal()` |
+| `ClientFrame` | Timeframe generation | `getTimeframe()` |
+| `ClientSizing` | Position size calculation | `calculateQuantity()` |
+
+**ClientStrategy State Management**
+
+![Mermaid Diagram](./diagrams/10_Layer_Responsibilities_9.svg)
+
+Client Classes have no knowledge of:
+- Dependency injection framework
+- Service layer architecture
+- Memoization caching
+- Event emission (handled by Connection Services)
+
+They receive all dependencies as constructor parameters and expose simple method interfaces.
+
+
+---
+
+## Layer 7: Schema Services
+
+Schema Services store component configurations using the `ToolRegistry` pattern and provide runtime schema retrieval.
 
 ---
 
@@ -166,7 +409,7 @@ Client Classes contain pure business logic without dependency injection dependen
 
 **Client Class Hierarchy**
 
-![Mermaid Diagram](./diagrams/10_Layer_Responsibilities_3.svg)
+![Mermaid Diagram](./diagrams/10_Layer_Responsibilities_10.svg)
 
 | Client Class | Primary Responsibility | Key State |
 |--------------|----------------------|-----------|
@@ -199,7 +442,7 @@ Schema Services store component configurations using the `ToolRegistry` pattern:
 
 **Schema Service Pattern**
 
-![Mermaid Diagram](./diagrams/10_Layer_Responsibilities_4.svg)
+![Mermaid Diagram](./diagrams/10_Layer_Responsibilities_11.svg)
 
 Each Schema Service provides:
 
@@ -229,7 +472,7 @@ Validation Services perform runtime existence checks with memoization:
 
 **Validation Service Pattern**
 
-![Mermaid Diagram](./diagrams/10_Layer_Responsibilities_5.svg)
+![Mermaid Diagram](./diagrams/10_Layer_Responsibilities_12.svg)
 
 Each Validation Service provides:
 
@@ -286,7 +529,7 @@ const markdownServices = {
 
 **Markdown Service Data Flow**
 
-![Mermaid Diagram](./diagrams/10_Layer_Responsibilities_6.svg)
+![Mermaid Diagram](./diagrams/10_Layer_Responsibilities_13.svg)
 
 Each Markdown Service:
 
@@ -315,7 +558,7 @@ Three services span all layers and provide infrastructure concerns.
 
 The `LoggerService` provides logging infrastructure with automatic context injection:
 
-![Mermaid Diagram](./diagrams/10_Layer_Responsibilities_7.svg)
+![Mermaid Diagram](./diagrams/10_Layer_Responsibilities_14.svg)
 
 Injected into nearly every service via [src/lib/core/types.ts:1-3]():
 
@@ -358,7 +601,7 @@ Used by Connection Services to resolve which component instance to return.
 
 **Component Registration Pattern**
 
-![Mermaid Diagram](./diagrams/10_Layer_Responsibilities_8.svg)
+![Mermaid Diagram](./diagrams/10_Layer_Responsibilities_15.svg)
 
 1. Public API function receives schema
 2. Validation Service stores for runtime checks
@@ -368,7 +611,7 @@ Used by Connection Services to resolve which component instance to return.
 
 **Backtest Execution Pattern**
 
-![Mermaid Diagram](./diagrams/10_Layer_Responsibilities_9.svg)
+![Mermaid Diagram](./diagrams/10_Layer_Responsibilities_16.svg)
 
 1. Public service wraps with MethodContext
 2. Private service gets client from Connection Service

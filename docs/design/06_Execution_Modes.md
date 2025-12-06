@@ -5,73 +5,80 @@ group: design
 
 # Execution Modes
 
-
 ## Purpose and Scope
 
-This page describes the three execution modes available in backtest-kit: **Backtest**, **Live**, and **Walker**. Each mode orchestrates strategy execution differently to serve distinct use cases. For details on how to register strategies and exchanges, see [Component Registration](./08_Component_Registration.md). For information about signal state transitions within these modes, see [Signal Lifecycle Overview](./07_Signal_Lifecycle_Overview.md).
+This document describes the three execution modes available in backtest-kit: **Backtest** (historical simulation), **Live** (real-time trading), and **Walker** (strategy comparison). Each mode implements a distinct temporal progression model and completion semantic while sharing the same core strategy execution framework.
 
-The framework provides three execution classes:
-- `Backtest` - Historical simulation with deterministic results
-- `Live` - Real-time trading with crash recovery
-- `Walker` - Multi-strategy comparison for optimization
+For information about strategy lifecycle within these modes, see [Signal Lifecycle Overview](./07_Signal_Lifecycle_Overview.md). For component registration patterns used across all modes, see [Component Registration](./08_Component_Registration.md). For detailed API documentation of each mode's methods, see sections [4.3](./17_Backtest_API.md), [4.4](./18_Live_Trading_API.md), and [4.5](./19_Walker_API.md).
 
-All three modes share the same strategy code but execute it in different contexts with different time progression models.
+---
 
-## Mode Comparison
+## Mode Overview
 
-| Feature | Backtest | Live | Walker |
-|---------|----------|------|--------|
-| **Execution Pattern** | Finite iteration over timeframe | Infinite loop | Sequential backtest runs |
-| **Time Progression** | Historical timestamps from `Frame.getTimeframe()` | Real-time `Date.now()` | Historical per strategy |
-| **Context Flag** | `backtest=true` | `backtest=false` | `backtest=true` |
-| **Yielded Results** | Closed signals only | Opened, closed, cancelled | Progress updates |
-| **Entry Point** | `Backtest.run()` / `Backtest.background()` | `Live.run()` / `Live.background()` | `Walker.run()` / `Walker.background()` |
-| **Orchestration Service** | `BacktestLogicPrivateService` | `LiveLogicPrivateService` | `WalkerLogicPrivateService` |
-| **Persistence** | None (in-memory only) | Atomic file writes via `PersistSignalAdapter` | None (per backtest run) |
-| **Completion** | When timeframe exhausted | Never (infinite) | When all strategies tested |
-| **Fast-Forward** | Yes via `strategy.backtest()` | No | Yes (per strategy) |
-| **Primary Use Case** | Strategy validation | Production trading | Strategy optimization |
+The framework provides three orthogonal execution modes that differ in temporal progression, completion semantics, and result aggregation patterns:
+
+| Aspect | Backtest Mode | Live Mode | Walker Mode |
+|--------|---------------|-----------|-------------|
+| **Purpose** | Historical simulation | Real-time trading | Strategy comparison |
+| **Temporal Model** | Sequential timeframe iteration | Real-time Date.now() | Multiple sequential backtests |
+| **Completion** | Finite (when timeframes exhausted) | Infinite (never completes) | Finite (when all strategies tested) |
+| **Primary Service** | `BacktestLogicPrivateService` | `LiveLogicPrivateService` | `WalkerLogicPrivateService` |
+| **Result Type** | `IStrategyBacktestResult` | `IStrategyTickResultOpened \| IStrategyTickResultClosed` | `WalkerContract` |
+| **Data Source** | Historical via `getNextCandles()` | Current via `getCandles()` | Historical via backtest delegation |
+| **Crash Recovery** | Not applicable | Yes (via persistence layer) | Not applicable |
+| **Progress Tracking** | `progressBacktestEmitter` | Not applicable | `progressWalkerEmitter` |
 
 
-## Backtest Execution Flow
+---
+
+## Mode Selection and Entry Points
 
 ![Mermaid Diagram](./diagrams/06_Execution_Modes_0.svg)
 
-**Backtest Execution Flow Diagram** - Shows how `BacktestLogicPrivateService` iterates through historical timeframes and fast-forwards through signal lifetimes using the `backtest()` method.
+**Service Layering Pattern**
+
+Each mode implements a four-tier architecture separating user-facing utilities, command validation, public contracts, and private implementation:
+
+1. **Utils Layer**: User-facing singleton exports (`Backtest`, `Live`, `Walker`) providing simplified method access with logging
+2. **Command Layer**: Validation services ensuring schema registration and parameter correctness before execution
+3. **Public Layer**: Context setup and AsyncGenerator type contracts for external consumption
+4. **Private Layer**: Core execution logic implementing temporal progression and result streaming
 
 
-### Key Characteristics
+---
 
-**Timeframe Iteration**: Backtest mode gets a discrete array of timestamps from `Frame.getTimeframe()` and iterates through them sequentially. Each timestamp represents when `strategy.tick()` should be called.
+## Backtest Mode
+
+### Characteristics
+
+Backtest mode performs historical simulation by iterating through predefined timeframes and evaluating strategy signals against past market data. The execution model implements an optimized skip-ahead pattern where timeframes are bypassed during active signal periods to minimize redundant tick() calls.
+
+**Temporal Progression:**
+- Iterates through `Date[]` array generated by `FrameGlobalService`
+- Each timeframe represents a specific historical moment
+- Progression is deterministic and repeatable
+- No real-time constraints or timing dependencies
+
+**Completion Semantics:**
+- Finite execution: completes when all timeframes are processed
+- AsyncGenerator yields each closed signal result
+- Consumer can terminate early via `break` in for-await loop
+
+**Data Requirements:**
+- Historical candles fetched via `ClientExchange.getNextCandles()`
+- Requires future data relative to signal open time
+- Candle availability validated before backtest proceeds
+
+### Execution Flow
+
+![Mermaid Diagram](./diagrams/06_Execution_Modes_1.svg)
+
+**Skip-Ahead Optimization**
+
+When a signal opens, the execution loop skips all timeframes until the signal closes. This optimization eliminates redundant tick() calls during the signal's active period since the strategy's state is deterministic once a position is opened.
 
 ```typescript
-const timeframes = await this.frameGlobalService.getTimeframe(
-  symbol,
-  this.methodContextService.context.frameName
-);
-```
-
-**Fast-Forward Optimization**: When a signal opens, backtest mode fetches the next N candles (where N = `minuteEstimatedTime`) and passes them to `strategy.backtest()`. This method scans through candles to detect take profit or stop loss hits without calling `tick()` for every timestamp.
-
-```typescript
-const candles = await this.exchangeGlobalService.getNextCandles(
-  symbol,
-  "1m",
-  signal.minuteEstimatedTime,
-  when,
-  true
-);
-const backtestResult = await this.strategyGlobalService.backtest(
-  symbol,
-  candles,
-  when,
-  true
-);
-```
-
-**Timeframe Skipping**: After a signal closes, backtest mode skips all intermediate timeframes until `closeTimestamp`, avoiding redundant processing:
-
-```typescript
+// Skip timeframes until closeTimestamp
 while (
   i < timeframes.length &&
   timeframes[i].getTime() < backtestResult.closeTimestamp
@@ -80,293 +87,198 @@ while (
 }
 ```
 
-**Scheduled Signal Handling**: For scheduled signals (limit orders), backtest mode requests additional candles to monitor activation: `CC_SCHEDULE_AWAIT_MINUTES + minuteEstimatedTime + 1`. The `backtest()` method first checks if `priceOpen` is reached within the timeout window, then monitors TP/SL if activated.
 
-
-### Memory Efficiency
-
-Backtest mode uses async generators to stream results, avoiding array accumulation:
-
-```typescript
-public async *run(symbol: string) {
-  // Yields results one at a time
-  while (i < timeframes.length) {
-    // ... process signal
-    yield backtestResult;
-  }
-}
-```
-
-This allows processing years of data without exhausting memory. Consumers can break early for conditional termination:
-
-```typescript
-for await (const result of Backtest.run("BTCUSDT", context)) {
-  if (result.pnl.pnlPercentage < -10) break; // Early exit
-}
-```
-
-
-## Live Execution Flow
-
-![Mermaid Diagram](./diagrams/06_Execution_Modes_1.svg)
-
-**Live Execution Flow Diagram** - Shows how `LiveLogicPrivateService` runs an infinite loop with real-time clock progression and crash-safe persistence.
-
-
-### Key Characteristics
-
-**Infinite Loop Pattern**: Live mode never completes. It runs `while (true)` with sleep intervals between ticks:
-
-```typescript
-const TICK_TTL = 1 * 60 * 1_000 + 1; // 60 seconds + 1ms
-
-public async *run(symbol: string) {
-  while (true) {
-    const when = new Date(); // Real-time progression
-    const result = await this.strategyGlobalService.tick(symbol, when, false);
-    
-    // Yield opened/closed/cancelled, skip idle/active
-    if (result.action === "opened" || result.action === "closed" || result.action === "cancelled") {
-      yield result;
-    }
-    
-    await sleep(TICK_TTL);
-  }
-}
-```
-
-**Crash Recovery**: On startup, `ClientStrategy.waitForInit()` reads persisted signal state from disk. If a pending signal exists, it's restored and continues monitoring:
-
-```typescript
-async waitForInit(initial: boolean): Promise<void> {
-  if (await this.persistSignalAdapter.hasValue(this.entityId)) {
-    this._signal = await this.persistSignalAdapter.readValue(this.entityId);
-    // Signal restored, continue from last state
-  }
-}
-```
-
-**Atomic Persistence**: Every state transition writes to disk atomically via `PersistSignalAdapter.writeValue()`. This ensures no signal is duplicated or lost on crash. The persistence layer uses temporary files with atomic rename for crash-safety.
-
-**Real-Time Monitoring**: Unlike backtest mode which uses historical candles for fast-forward, live mode calls `getAveragePrice()` on every tick to check if take profit or stop loss is hit. This uses VWAP from the last 5 1-minute candles.
-
-
-### Scheduled Signal Timing
-
-For scheduled signals in live mode, `minuteEstimatedTime` is counted from `pendingAt` (activation time), not `scheduledAt` (creation time). This ensures the signal runs for the full duration after activation:
-
-```typescript
-// Scheduled signal lifecycle
-scheduledAt: 1704067200000  // Signal created
-pendingAt:   1704070800000  // Activated 1 hour later
-closeAt:     1704157200000  // Closes minuteEstimatedTime after pendingAt
-```
-
-This was a critical bug fix to prevent premature closure causing financial losses on fees. The test suite verifies this behavior in [test/e2e/timing.test.mjs:34-153]().
-
-
-## Walker Execution Flow
-
-![Mermaid Diagram](./diagrams/06_Execution_Modes_2.svg)
-
-**Walker Execution Flow Diagram** - Shows how `WalkerLogicPrivateService` orchestrates multiple backtests sequentially and selects the best strategy by comparing metrics.
-
-
-### Key Characteristics
-
-**Sequential Backtest Execution**: Walker mode runs `Backtest.run()` for each strategy in the list, consuming all results before moving to the next:
-
-```typescript
-for (const strategyName of walkerSchema.strategies) {
-  // Run full backtest for this strategy
-  for await (const _ of Backtest.run(symbol, {
-    strategyName,
-    exchangeName: walkerSchema.exchangeName,
-    frameName: walkerSchema.frameName
-  })) {
-    // Consume all results
-  }
-  
-  // Get statistics after completion
-  const stats = await backtestMarkdownService.getData(strategyName);
-  // Compare metrics...
-}
-```
-
-**Metric-Based Comparison**: The walker schema specifies which metric to use for comparison (default: `sharpeRatio`). Available metrics include:
-- `sharpeRatio` - Risk-adjusted return (avgPnl / stdDev)
-- `annualizedSharpeRatio` - Sharpe × √365
-- `winRate` - Percentage of winning trades
-- `avgPnl` - Average PNL per trade
-- `totalPnl` - Cumulative PNL
-- `certaintyRatio` - avgWin / |avgLoss|
-
-**Progress Events**: Walker emits progress events after each strategy completes, enabling real-time progress tracking:
-
-```typescript
-walkerEmitter.next({
-  walkerName,
-  symbol,
-  strategyName: currentStrategy,
-  strategiesTested: i + 1,
-  totalStrategies,
-  progress: (i + 1) / totalStrategies,
-  bestStrategy: currentBest,
-  bestMetric: currentBestValue
-});
-```
-
-**State Isolation**: Each backtest run in walker mode starts with cleared state for markdown services, strategy, and risk profiles. This ensures strategies don't interfere with each other.
-
-
-### Walker Result Structure
-
-Walker returns comparison data with all tested strategies sorted by metric:
-
-```typescript
-interface IWalkerResults {
-  walkerName: string;
-  symbol: string;
-  metric: string;
-  bestStrategy: string;
-  bestMetric: number;
-  strategies: Array<{
-    strategyName: string;
-    stats: BacktestStatistics;
-    metric: number;
-  }>;
-}
-```
-
-The markdown report includes a comparison table showing all metrics side-by-side for strategy selection.
-
-
-## Context Propagation Patterns
-
-All three execution modes use the same context propagation architecture but with different parameters:
-
-![Mermaid Diagram](./diagrams/06_Execution_Modes_3.svg)
-
-**Context Propagation Across Modes** - Shows how both `MethodContext` and `ExecutionContext` wrap execution in all three modes.
-
-
-### Context Types
-
-**MethodContext** - Identifies which components to use:
-- `strategyName` - Which strategy to execute
-- `exchangeName` - Which exchange to use for data
-- `frameName` - Which timeframe to use (backtest only)
-
-**ExecutionContext** - Provides runtime parameters:
-- `symbol` - Trading pair being processed
-- `when` - Current timestamp (historical or real-time)
-- `backtest` - Boolean flag for mode identification
-
-The key difference between modes is the value of `when` and `backtest`:
-
-| Mode | when | backtest |
-|------|------|----------|
-| Backtest | `timeframes[i]` from Frame | `true` |
-| Live | `new Date()` | `false` |
-| Walker | `timeframes[i]` per strategy | `true` |
-
-
-## Event Emission Differences
-
-Each mode emits events to different subjects for filtered consumption:
-
-![Mermaid Diagram](./diagrams/06_Execution_Modes_4.svg)
-
-**Event Emission Architecture** - Shows how signals route through global and mode-specific emitters for filtered consumption.
-
-
-### Subscription Patterns
-
-Users can subscribe to all events or mode-specific events:
-
-```typescript
-// All modes
-listenSignal((event) => {
-  console.log(event.action, event.strategyName);
-});
-
-// Backtest only
-listenSignalBacktest((event) => {
-  if (event.action === "closed") {
-    console.log("Backtest PNL:", event.pnl.pnlPercentage);
-  }
-});
-
-// Live only
-listenSignalLive((event) => {
-  if (event.action === "opened") {
-    console.log("Live signal opened:", event.signal.id);
-  }
-});
-```
-
-All listeners use queued processing to ensure sequential execution even with async callbacks, preventing race conditions.
-
-
-## Choosing the Right Mode
-
-| Use Case | Recommended Mode | Rationale |
-|----------|------------------|-----------|
-| Strategy development | Backtest | Fast iteration with deterministic results |
-| Parameter optimization | Walker | Automated comparison of multiple configurations |
-| Strategy validation | Backtest | Verify logic against historical data |
-| Paper trading | Live | Test real-time execution without risk |
-| Production trading | Live | Execute actual trades with crash recovery |
-| Performance comparison | Walker | Identify best strategy from candidates |
-| Backtesting multiple symbols | Backtest (sequential runs) | Run same strategy across different symbols |
-| Multi-timeframe analysis | Backtest (multiple Frame schemas) | Compare performance across timeframes |
-
-### Hybrid Workflows
-
-Common patterns combine multiple modes:
-
-1. **Development → Validation → Optimization**
-   - Develop strategy logic
-   - Run `Backtest.run()` for initial validation
-   - Use `Walker.run()` to optimize parameters
-   - Deploy best strategy with `Live.run()`
-
-2. **Paper Trading → Production**
-   - Run `Live.run()` with test credentials
-   - Verify crash recovery by stopping/starting process
-   - Monitor `Schedule.getData()` for cancellation rate
-   - Switch to production credentials when validated
-
-3. **Multi-Symbol Scanning**
-   - Run `Backtest.run()` for each symbol
-   - Use `Heat.getData()` to compare portfolio-wide performance
-   - Select best-performing symbols for live trading
-
-
-## Performance Metrics
-
-All modes emit performance events for profiling:
-
-```typescript
-performanceEmitter.next({
-  timestamp: Date.now(),
-  previousTimestamp: lastEventTime,
-  metricType: "backtest_signal" | "backtest_timeframe" | "backtest_total" | "live_tick",
-  duration: performance.now() - startTime,
-  strategyName,
-  exchangeName,
-  symbol,
-  backtest: boolean
-});
-```
-
-Available metric types:
-- `backtest_signal` - Time to process one signal (tick + backtest)
-- `backtest_timeframe` - Time to process one timeframe iteration
-- `backtest_total` - Total backtest duration
-- `live_tick` - Time to process one live tick
-
-These metrics enable bottleneck detection and optimization of strategy logic or data fetching.
+### Key Service Classes
+
+| Class | Responsibility | Key Methods |
+|-------|---------------|-------------|
+| `BacktestLogicPrivateService` | Core execution loop with timeframe iteration | `run(symbol): AsyncGenerator<IStrategyBacktestResult>` |
+| `BacktestLogicPublicService` | Context setup and validation | `run(symbol, context)` |
+| `BacktestCommandService` | Schema validation and delegation | `run(symbol, context)` |
+| `FrameGlobalService` | Timeframe generation from frame schema | `getTimeframe(symbol, frameName): Promise<Date[]>` |
+| `StrategyGlobalService` | Strategy method invocation with context injection | `tick()`, `backtest()` |
+| `ExchangeGlobalService` | Data fetching with execution context | `getNextCandles()` |
 
 
 ---
+
+## Live Mode
+
+### Characteristics
+
+Live mode performs real-time trading by continuously polling the strategy with current timestamps in an infinite loop. The execution model implements crash recovery through persistent storage, allowing processes to restart and resume active positions without data loss.
+
+**Temporal Progression:**
+- Infinite `while(true)` loop creating new `Date()` each iteration
+- Each tick represents the current real-time moment
+- Progression is non-deterministic and time-dependent
+- Sleep interval (`TICK_TTL = 61 seconds`) controls polling frequency
+
+**Completion Semantics:**
+- Infinite execution: never completes naturally
+- AsyncGenerator continues yielding results indefinitely
+- Process termination via external signal (SIGTERM, SIGINT) or error
+
+**Crash Recovery:**
+- State persisted via `PersistSignalAdapter`, `PersistScheduleAdapter`, `PersistRiskAdapter`
+- Strategy initialization calls `waitForInit()` to restore state
+- Active positions and scheduled signals recovered from disk on restart
+
+### Execution Flow
+
+![Mermaid Diagram](./diagrams/06_Execution_Modes_2.svg)
+
+**Tick Throttling and Sleep Pattern**
+
+The `TICK_TTL` constant (61 seconds) controls the polling interval between strategy evaluations. This value exceeds one minute to ensure each tick represents a new 1-minute candle boundary when fetching data.
+
+```typescript
+const TICK_TTL = 1 * 60 * 1_000 + 1; // 61 seconds
+```
+
+
+### Crash Recovery Architecture
+
+![Mermaid Diagram](./diagrams/06_Execution_Modes_3.svg)
+
+**State Restoration Process**
+
+1. On process start, `ClientStrategy` checks for persisted state via `PersistSignalAdapter.hasValue()`
+2. If state exists, `readValue()` loads the serialized signal object
+3. Strategy reconstructs internal state including signal, scheduled signals, and risk positions
+4. Execution resumes from the restored state as if no crash occurred
+
+
+### Key Service Classes
+
+| Class | Responsibility | Key Methods |
+|-------|---------------|-------------|
+| `LiveLogicPrivateService` | Core execution loop with infinite polling | `run(symbol): AsyncGenerator<IStrategyTickResultOpened \| IStrategyTickResultClosed>` |
+| `LiveLogicPublicService` | Context setup and validation | `run(symbol, context)` |
+| `LiveCommandService` | Schema validation and delegation | `run(symbol, context)` |
+| `StrategyGlobalService` | Strategy method invocation with context injection | `tick()` |
+| `PersistSignalAdapter` | Signal state persistence | `readValue()`, `writeValue()`, `hasValue()`, `removeValue()` |
+
+
+---
+
+## Walker Mode
+
+### Characteristics
+
+Walker mode performs strategy comparison by executing multiple backtests sequentially and ranking results by a configurable performance metric. The execution model implements real-time progress tracking, allowing consumers to monitor strategy evaluation as it progresses.
+
+**Temporal Progression:**
+- Sequential iteration through strategy array
+- Each iteration runs a complete backtest via `BacktestLogicPublicService`
+- Progression depends on backtest execution time per strategy
+- No parallel execution (strategies tested serially)
+
+**Completion Semantics:**
+- Finite execution: completes when all strategies tested
+- AsyncGenerator yields `WalkerContract` after each strategy
+- Final result includes best strategy and comparative statistics
+
+**Metric Selection:**
+- Default: `sharpeRatio`
+- Alternatives: `winRate`, `avgPnl`, `totalPnl`, `certaintyRatio`, `annualizedSharpe`
+- Higher values considered better for all metrics
+
+### Execution Flow
+
+![Mermaid Diagram](./diagrams/06_Execution_Modes_4.svg)
+
+**Metric Extraction and Comparison**
+
+Walker extracts the specified metric from `BacktestMarkdownService.getData()` results, which provides comprehensive statistics including Sharpe ratio, win rate, PNL, and other performance measures. The comparison logic treats higher values as better for all metrics.
+
+```typescript
+// Extract metric value
+const value = stats[metric];
+const metricValue =
+  value !== null &&
+  value !== undefined &&
+  typeof value === "number" &&
+  !isNaN(value) &&
+  isFinite(value)
+    ? value
+    : null;
+
+// Update best strategy if needed
+const isBetter =
+  bestMetric === null ||
+  (metricValue !== null && metricValue > bestMetric);
+```
+
+
+### Key Service Classes
+
+| Class | Responsibility | Key Methods |
+|-------|---------------|-------------|
+| `WalkerLogicPrivateService` | Core execution loop iterating strategies | `run(symbol, strategies, metric, context): AsyncGenerator<WalkerContract>` |
+| `WalkerLogicPublicService` | Context setup and validation | `run(symbol, context)` |
+| `WalkerCommandService` | Schema validation and delegation | `run(symbol, context)` |
+| `BacktestLogicPublicService` | Backtest execution for each strategy | `run(symbol, context)` |
+| `BacktestMarkdownService` | Statistics calculation and retrieval | `getData(symbol, strategyName)` |
+| `WalkerSchemaService` | Walker schema storage and retrieval | `get(walkerName)` |
+
+
+---
+
+## Mode Comparison: Shared Components
+
+All three execution modes share the same core strategy execution framework, differing only in temporal progression and result aggregation:
+
+![Mermaid Diagram](./diagrams/06_Execution_Modes_5.svg)
+
+**Polymorphic Design Pattern**
+
+The framework implements a polymorphic architecture where execution mode is orthogonal to strategy logic. All three modes invoke the same `ClientStrategy.tick()` method with different temporal contexts:
+
+- **Backtest**: Historical `Date` from timeframe array
+- **Live**: Real-time `Date` from `new Date()`
+- **Walker**: Historical `Date` from timeframe array (via Backtest delegation)
+
+The `backtest` boolean parameter in execution context distinguishes between backtest simulation and live execution, enabling mode-specific behaviors like persistence and progress tracking.
+
+
+---
+
+## Data Access Patterns by Mode
+
+![Mermaid Diagram](./diagrams/06_Execution_Modes_6.svg)
+
+**getCandles() vs getNextCandles()**
+
+The `ClientExchange` class provides two distinct methods for candle retrieval with different temporal semantics:
+
+| Method | Direction | Use Case | Mode |
+|--------|-----------|----------|------|
+| `getCandles()` | Backwards from `ExecutionContext.when` | Fetch historical data for indicator calculation | Both Backtest and Live |
+| `getNextCandles()` | Forwards from `ExecutionContext.when` | Fetch future data for signal simulation | Backtest only |
+
+The `getNextCandles()` method validates that requested data does not exceed `Date.now()`, returning empty array if future data is requested. This prevents time-travel paradoxes in live mode.
+
+
+---
+
+## Performance and Event Emission
+
+Each mode emits distinct performance metrics and progress events through the event system:
+
+| Event Type | Backtest | Live | Walker |
+|------------|----------|------|--------|
+| **Progress** | `progressBacktestEmitter` (frames processed) | Not applicable | `progressWalkerEmitter` (strategies tested) |
+| **Performance** | `performanceEmitter` (timeframe duration, signal duration) | `performanceEmitter` (tick duration) | Not applicable (delegates to Backtest) |
+| **Signal** | `signalBacktestEmitter` | `signalLiveEmitter` | `signalBacktestEmitter` (via delegation) |
+| **Completion** | `doneBacktestSubject` | `doneLiveSubject` (never fires) | `doneWalkerSubject` |
+| **Error** | `errorEmitter` (recoverable errors) | `errorEmitter` (recoverable errors) | `errorEmitter` (recoverable errors) |
+
+**Performance Monitoring**
+
+All modes track execution timing via `performanceEmitter` with mode-specific metric types:
+
+- Backtest: `backtest_timeframe`, `backtest_signal`, `backtest_total`
+- Live: `live_tick`
+- Walker: Inherits backtest metrics for each strategy run
+

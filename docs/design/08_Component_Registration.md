@@ -5,360 +5,344 @@ group: design
 
 # Component Registration
 
+Component registration is the configuration phase where users define the building blocks of their trading system: strategies, exchanges, timeframes, risk rules, position sizing algorithms, strategy comparisons, and AI optimizers. All components are registered before execution begins, creating an immutable registry that the framework queries during backtest, live trading, or walker execution.
 
-## Purpose and Scope
-
-This page explains how to register components in backtest-kit using the `add*` family of functions. Component registration is the first step in using the framework—you define strategies, exchanges, frames, risk profiles, sizing configurations, and walkers before running backtests or live trading.
-
-For information about the structure and properties of each component type, see [Component Types](./23_Component_Types.md). For details on how registered components are instantiated during execution, see [Connection Services](./38_Connection_Services.md).
-
----
-
-## Component Types Overview
-
-The framework supports six types of components that can be registered:
-
-| Component Type | Add Function | Purpose | Required For |
-|---|---|---|---|
-| **Strategy** | `addStrategy()` | Signal generation logic and lifecycle callbacks | Backtest, Live |
-| **Exchange** | `addExchange()` | Market data source and price/quantity formatting | Backtest, Live, Walker |
-| **Frame** | `addFrame()` | Backtest timeframe generation (start/end dates, interval) | Backtest, Walker |
-| **Risk** | `addRisk()` | Portfolio-level risk management and custom validations | Optional (strategy-level) |
-| **Sizing** | `addSizing()` | Position size calculation methods | Optional (strategy-level) |
-| **Walker** | `addWalker()` | Multi-strategy comparison configuration | Walker mode only |
-
-Each component is identified by a unique name (`strategyName`, `exchangeName`, etc.) and stored in a corresponding schema service.
-
+This page explains the registration pattern and architecture. For detailed API signatures and parameters, see [Component Registration Functions](./16_Component_Registration_Functions.md). For the schema interfaces that define component structure, see [Component Types](./23_Component_Types.md).
 
 ---
 
 ## Registration Functions
 
-### Function Signatures
+The framework provides seven registration functions, each accepting a schema object that defines component behavior:
 
-All registration functions follow the same pattern: accept a schema object and store it in the framework's internal registry.
+| Function | Schema Type | Purpose | Validation Service | Schema Service |
+|----------|-------------|---------|-------------------|----------------|
+| `addStrategy` | `IStrategySchema` | Register trading signal logic | `StrategyValidationService` | `StrategySchemaService` |
+| `addExchange` | `IExchangeSchema` | Register market data source | `ExchangeValidationService` | `ExchangeSchemaService` |
+| `addFrame` | `IFrameSchema` | Register backtest timeframe | `FrameValidationService` | `FrameSchemaService` |
+| `addRisk` | `IRiskSchema` | Register risk management rules | `RiskValidationService` | `RiskSchemaService` |
+| `addSizing` | `ISizingSchema` | Register position sizing algorithm | `SizingValidationService` | `SizingSchemaService` |
+| `addWalker` | `IWalkerSchema` | Register strategy comparison | `WalkerValidationService` | `WalkerSchemaService` |
+| `addOptimizer` | `IOptimizerSchema` | Register AI strategy generator | `OptimizerValidationService` | `OptimizerSchemaService` |
+
+All registration functions follow the same pattern: validate schema structure, then store in the appropriate schema service registry. The framework uses a name-based lookup system where each component type has a unique identifier (`strategyName`, `exchangeName`, etc.).
+
+
+---
+
+## Registration Architecture
 
 ![Mermaid Diagram](./diagrams/08_Component_Registration_0.svg)
 
-**Diagram: Registration Function Flow**
+**Component Registration Flow**
 
-
-### addStrategy
-
-Registers a trading strategy with signal generation logic and lifecycle callbacks.
-
-**Parameters:**
-- `strategyName`: Unique identifier (string)
-- `interval`: Signal generation throttle interval (`SignalInterval`)
-- `getSignal`: Async function returning `ISignalDto | null`
-- `callbacks`: Optional lifecycle hooks (`onTick`, `onOpen`, `onClose`, `onSchedule`, `onCancel`)
-- `riskName`: Optional risk profile name to use
-- `sizingName`: Optional sizing configuration name to use
-
-**Example:**
-```typescript
-addStrategy({
-  strategyName: "momentum-breakout",
-  interval: "5m",
-  getSignal: async (symbol) => ({
-    position: "long",
-    priceOpen: 50000,
-    priceTakeProfit: 51000,
-    priceStopLoss: 49000,
-    minuteEstimatedTime: 60,
-  }),
-  riskName: "conservative",
-  callbacks: {
-    onOpen: (symbol, signal, price, backtest) => {
-      console.log(`[${symbol}] Signal opened at ${price}`);
-    },
-  },
-});
-```
-
-
-### addExchange
-
-Registers a market data source with candle fetching and formatting functions.
-
-**Parameters:**
-- `exchangeName`: Unique identifier (string)
-- `getCandles`: Async function fetching `ICandleData[]`
-- `formatPrice`: Async function formatting prices for exchange precision
-- `formatQuantity`: Async function formatting quantities for exchange precision
-- `callbacks`: Optional `onCandleData` callback
-
-**Example:**
-```typescript
-addExchange({
-  exchangeName: "binance",
-  getCandles: async (symbol, interval, since, limit) => {
-    // Fetch from API or database
-    return [...];
-  },
-  formatPrice: async (symbol, price) => price.toFixed(2),
-  formatQuantity: async (symbol, quantity) => quantity.toFixed(8),
-});
-```
-
-
-### addFrame
-
-Registers a backtest timeframe with start/end dates and interval.
-
-**Parameters:**
-- `frameName`: Unique identifier (string)
-- `interval`: Timeframe granularity (`FrameInterval`)
-- `startDate`: Backtest period start (Date)
-- `endDate`: Backtest period end (Date)
-- `callbacks`: Optional `onTimeframe` callback
-
-**Example:**
-```typescript
-addFrame({
-  frameName: "2024-q1",
-  interval: "1m",
-  startDate: new Date("2024-01-01T00:00:00Z"),
-  endDate: new Date("2024-03-31T23:59:59Z"),
-});
-```
-
-
-### addRisk
-
-Registers a risk management profile with custom validations.
-
-**Parameters:**
-- `riskName`: Unique identifier (string)
-- `validations`: Array of `IRiskValidation` or `IRiskValidationFn`
-- `callbacks`: Optional `onRejected` and `onAllowed` callbacks
-
-**Example:**
-```typescript
-addRisk({
-  riskName: "conservative",
-  validations: [
-    {
-      validate: async ({ activePositionCount }) => {
-        if (activePositionCount >= 5) {
-          throw new Error("Max 5 concurrent positions");
-        }
-      },
-      note: "Portfolio-level position limit",
-    },
-  ],
-});
-```
-
-
-### addSizing
-
-Registers a position sizing configuration (fixed-percentage, kelly-criterion, or atr-based).
-
-**Parameters:**
-- `sizingName`: Unique identifier (string)
-- `method`: Sizing method discriminator
-- Method-specific parameters (see [Sizing Schemas](./28_Sizing_Schemas.md))
-
-**Example:**
-```typescript
-addSizing({
-  sizingName: "fixed-1pct",
-  method: "fixed-percentage",
-  riskPercentage: 1,
-  maxPositionPercentage: 10,
-});
-```
-
-
-### addWalker
-
-Registers a walker for multi-strategy comparison.
-
-**Parameters:**
-- `walkerName`: Unique identifier (string)
-- `exchangeName`: Exchange to use for all backtests
-- `frameName`: Frame to use for all backtests
-- `strategies`: Array of strategy names to compare
-- `metric`: Optimization metric (`WalkerMetric`)
-
-**Example:**
-```typescript
-addWalker({
-  walkerName: "strategy-optimizer",
-  exchangeName: "binance",
-  frameName: "2024-q1",
-  strategies: ["momentum-v1", "momentum-v2", "momentum-v3"],
-  metric: "sharpeRatio",
-});
-```
+This diagram shows the complete registration pipeline from user code to runtime execution. Each registration function performs a two-step process: validation then storage. The schema registries are immutable after registration and act as configuration databases queried by execution services.
 
 
 ---
 
-## Registration Flow
+## Registration Implementation Pattern
 
-### Internal Mechanics
-
-When a component is registered via an `add*` function, the framework performs two operations:
-
-1. **Validation**: Schema is validated and stored in a validation service
-2. **Registration**: Schema is stored in a schema service for later retrieval
+All seven registration functions follow an identical implementation pattern:
 
 ![Mermaid Diagram](./diagrams/08_Component_Registration_1.svg)
 
-**Diagram: Registration Sequence**
+**Registration Sequence**
 
-Each `add*` function follows this pattern in [src/function/add.ts:50-341]():
-
-```typescript
-export function addStrategy(strategySchema: IStrategySchema) {
-  // 1. Log registration
-  backtest.loggerService.info(ADD_STRATEGY_METHOD_NAME, {
-    strategySchema,
-  });
-  
-  // 2. Validate schema
-  backtest.strategyValidationService.addStrategy(
-    strategySchema.strategyName,
-    strategySchema
-  );
-  
-  // 3. Store in registry
-  backtest.strategySchemaService.register(
-    strategySchema.strategyName,
-    strategySchema
-  );
-}
-```
+Each `add*` function executes the same three-step pattern: logging, validation, and registration. Validation errors throw immediately, preventing invalid schemas from entering the registry. The registration phase is synchronous and completes before the function returns.
 
 
 ---
 
-## Schema Storage Architecture
+## Schema Service Architecture
 
-### Service Layer Organization
-
-Registered schemas are stored in schema services that follow the ToolRegistry pattern. Each component type has a dedicated schema service:
+Schema services implement a simple name-to-schema registry using `Map` data structures. Each service provides three core methods:
 
 ![Mermaid Diagram](./diagrams/08_Component_Registration_2.svg)
 
-**Diagram: Schema Service Architecture**
+**Schema Service Class Hierarchy**
 
-The dependency injection configuration is defined in:
-- Symbol definitions: [src/lib/core/types.ts:18-25]()
-- Service binding: [src/lib/core/provide.ts:62-68]()
-- Service injection: [src/lib/index.ts:80-91]()
-
-
-### ToolRegistry Pattern
-
-Schema services use the ToolRegistry pattern for name-based storage and retrieval:
-
-| Method | Purpose |
-|---|---|
-| `register(name, schema)` | Store schema by unique name |
-| `get(name)` | Retrieve schema by name (throws if not found) |
-| `has(name)` | Check if schema exists |
-| `list()` | Get all registered schemas |
-
-This pattern enables:
-- **Name-based lookup**: Components retrieved by string identifier during execution
-- **Duplicate prevention**: Registration fails if name already exists
-- **Runtime introspection**: All schemas can be listed for debugging
+All schema services follow the same pattern but are specialized for their respective component types. The `register()` method is called by `add*` functions, while `get()` and `has()` are called by Connection and Global services during execution.
 
 
 ---
 
-## Validation Layer
+## Validation at Registration
 
-### Validation Services
+Validation occurs synchronously during registration, ensuring only valid schemas enter the registry. Each component type has specific validation rules:
 
-Each component type has a corresponding validation service that performs schema validation during registration:
+### Strategy Validation
+
+- **Required fields:** `strategyName`, `interval`, `getSignal`
+- **Interval validation:** Must be valid `SignalInterval` enum value
+- **Callback validation:** Optional callbacks must be functions if provided
+- **Business rules:** Enforced during signal generation, not registration
+
+### Exchange Validation
+
+- **Required fields:** `exchangeName`, `getCandles`, `formatPrice`, `formatQuantity`
+- **Function validation:** All methods must be async functions
+- **Candle structure:** Validated at runtime, not registration
+
+### Frame Validation
+
+- **Required fields:** `frameName`, `interval`, `startDate`, `endDate`
+- **Date validation:** `startDate` must precede `endDate`
+- **Interval validation:** Must be valid `FrameInterval` enum value
+
+### Walker Validation
+
+- **Required fields:** `walkerName`, `strategies`, `exchangeName`, `frameName`
+- **Strategies array:** Must be non-empty array of strings
+- **Metric validation:** Must be valid `WalkerMetric` enum value (defaults to `"sharpeRatio"`)
+- **Reference validation:** `exchangeName` and `frameName` must exist in respective registries
+
+### Risk Validation
+
+- **Required fields:** `riskName`
+- **Optional fields:** `maxConcurrentPositions`, `validations`, `callbacks`
+- **Validations array:** Each validation must be function or object with `validate` function
+- **Callback validation:** Callbacks must be functions if provided
+
+### Sizing Validation
+
+- **Required fields:** `sizingName`, `method`
+- **Method validation:** Must be `"fixed-percentage"`, `"kelly-criterion"`, or `"atr-based"`
+- **Discriminated union:** Fields validated based on `method` value
+- **Percentage validation:** Risk/position percentages must be positive numbers
+
+### Optimizer Validation
+
+- **Required fields:** `optimizerName`, `rangeTrain`, `rangeTest`, `source`, `getPrompt`
+- **Range validation:** Train and test ranges must have valid date pairs
+- **Source validation:** Each source must have `name` and `fetch` function
+- **Template validation:** Optional template overrides must be functions
+
+
+---
+
+## Component Lifecycle: Registration to Execution
 
 ![Mermaid Diagram](./diagrams/08_Component_Registration_3.svg)
 
-**Diagram: Validation Layer**
+**Component State Transitions**
 
-Validation services are bound in the DI container:
-- Symbol definitions: [src/lib/core/types.ts:59-66]()
-- Service binding: [src/lib/core/provide.ts:103-109]()
-- Service injection: [src/lib/index.ts:143-150]()
-
-### Memoization
-
-Validation services use memoization to cache validation results per component name. This ensures validation only runs once per component, even if the schema is retrieved multiple times during execution.
+Components transition from registration (configuration) to execution (runtime) through a series of services. The schema acts as an immutable blueprint that Connection services use to create memoized instances. This separation enables multiple executions with different symbols to share the same schema but maintain separate runtime state.
 
 
 ---
 
-## Component Introspection
+## Dependency Injection Integration
 
-### List Functions
-
-The framework provides `list*` functions for runtime introspection of registered components:
-
-| Function | Returns | Purpose |
-|---|---|---|
-| `listStrategies()` | `Promise<IStrategySchema[]>` | All registered strategies |
-| `listExchanges()` | `Promise<IExchangeSchema[]>` | All registered exchanges |
-| `listFrames()` | `Promise<IFrameSchema[]>` | All registered frames |
-| `listRisks()` | `Promise<IRiskSchema[]>` | All registered risk profiles |
-| `listSizings()` | `Promise<ISizingSchema[]>` | All registered sizing configs |
-| `listWalkers()` | `Promise<IWalkerSchema[]>` | All registered walkers |
-
-**Example:**
-```typescript
-import { addStrategy, listStrategies } from "backtest-kit";
-
-addStrategy({
-  strategyName: "momentum",
-  interval: "5m",
-  getSignal: async (symbol) => ({ /* ... */ }),
-});
-
-const strategies = await listStrategies();
-console.log(strategies);
-// [{ strategyName: "momentum", interval: "5m", ... }]
-```
-
-These functions delegate to the validation services' `list()` method, which returns all schemas stored in the registry.
-
-
----
-
-## Registration and Execution Lifecycle
-
-### Timeline Overview
-
-The relationship between registration and execution follows this sequence:
+Component registration integrates with the dependency injection system through service instantiation at application startup:
 
 ![Mermaid Diagram](./diagrams/08_Component_Registration_4.svg)
 
-**Diagram: Registration to Execution Lifecycle**
+**Service Instantiation Flow**
 
-Key points:
-1. **Registration phase** (user calls `add*`): Schemas validated and stored
-2. **Ready phase**: No client instances created, schemas in memory
-3. **Execution phase** (user calls `Backtest.run` or `Live.run`): Connection services retrieve schemas and create memoized client instances
-
-For details on client instantiation, see [Connection Services](./38_Connection_Services.md). For execution orchestration, see [Execution Modes](./06_Execution_Modes.md).
+The `TYPES` registry defines symbol keys for all services. The `provide.ts` file instantiates all services and registers them in the DI container. The `init()` function resolves dependencies and creates the `backtest` aggregation object. Registration functions (`add*`) import this object to access validation and schema services.
 
 
 ---
 
-## Symbol-Based Dependency Injection
+## Registration Access Patterns
 
-### DI Token System
+The framework provides multiple ways to interact with the component registry:
 
-All schema services and validation services are bound using Symbol-based tokens in the DI container. This prevents naming collisions and provides type safety:
+### Direct Registration
+
+```typescript
+// Primary pattern used in all examples
+addStrategy({ strategyName: "rsi-strategy", ... });
+addExchange({ exchangeName: "binance", ... });
+addFrame({ frameName: "1d-backtest", ... });
+```
+
+### List Functions
+
+```typescript
+// Query registered components
+import { listStrategies, listExchanges, listFrames } from "backtest-kit";
+
+const strategies = listStrategies();  // string[]
+const exchanges = listExchanges();    // string[]
+const frames = listFrames();          // string[]
+```
+
+### Internal Service Access
+
+```typescript
+// Low-level access (advanced use cases)
+import { backtest } from "backtest-kit";
+
+const schema = backtest.strategySchemaService.get("rsi-strategy");
+const exists = backtest.exchangeSchemaService.has("binance");
+```
+
+The `list*` functions are convenience wrappers that query schema services and return arrays of registered names. These are useful for validation, debugging, and dynamic configuration.
+
+
+---
+
+## Registration Timing and Order
+
+Component registration must complete before execution begins. The framework does not enforce registration order for most components, but some have implicit dependencies:
+
+### Required Before Execution
+
+All execution methods (`Backtest.run`, `Live.run`, `Walker.run`) require:
+- At least one strategy registered
+- At least one exchange registered
+- For backtest/walker: at least one frame registered
+
+### Walker Dependencies
+
+`addWalker` requires:
+- All referenced strategies must be registered via `addStrategy`
+- Referenced `exchangeName` must be registered via `addExchange`
+- Referenced `frameName` must be registered via `addFrame`
+
+Walker validation checks these references at registration time and throws if any are missing.
+
+### Optional Components
+
+Risk, sizing, and optimizer components are optional:
+- Strategies execute without explicit risk/sizing if not specified
+- Optimizer is only needed when using `Optimizer.dump()` for code generation
+
+### Re-registration
+
+Calling `add*` with the same name twice overwrites the previous registration. The latest schema wins. This enables dynamic reconfiguration during development but should be avoided in production.
+
+
+---
+
+## Registration Error Handling
+
+Registration functions throw synchronously when validation fails:
 
 ![Mermaid Diagram](./diagrams/08_Component_Registration_5.svg)
 
-**Diagram: Symbol-Based DI Token Flow**
+**Error Propagation**
 
-The complete DI setup is defined across three files:
-1. Token symbols: [src/lib/core/types.ts:1-81]()
-2. Service binding: [src/lib/core/provide.ts:1-111]()
-3. Service injection: [src/lib/index.ts:1-170]()
-
+Validation errors propagate immediately to the caller. There is no error recovery mechanism within the registration pipeline. The user must catch errors if they want to handle invalid schemas gracefully.
+
+Common validation errors include:
+- Missing required fields
+- Invalid enum values (interval, metric)
+- Type mismatches (function expected, string provided)
+- Invalid date ranges (endDate before startDate)
+- Missing dependencies (walker references non-existent strategy)
+
+
+---
+
+## Cross-Component Registration Examples
+
+### Minimal Backtest Configuration
+
+```typescript
+// Three components required: strategy, exchange, frame
+addExchange({ 
+  exchangeName: "binance", 
+  getCandles: async (...) => [...],
+  formatPrice: async (symbol, price) => price.toFixed(2),
+  formatQuantity: async (symbol, qty) => qty.toFixed(8),
+});
+
+addFrame({
+  frameName: "1d-backtest",
+  interval: "1m",
+  startDate: new Date("2024-01-01"),
+  endDate: new Date("2024-01-02"),
+});
+
+addStrategy({
+  strategyName: "rsi-strategy",
+  interval: "5m",
+  getSignal: async (symbol) => ({ ... }),
+});
+
+// Now ready for: Backtest.run("BTCUSDT", { strategyName, exchangeName, frameName })
+```
+
+### Live Trading Configuration
+
+```typescript
+// Live mode requires strategy + exchange (no frame needed)
+addExchange({ exchangeName: "binance", ... });
+addStrategy({ strategyName: "rsi-strategy", ... });
+
+// Optional: add risk management
+addRisk({
+  riskName: "conservative",
+  maxConcurrentPositions: 3,
+});
+
+// Now ready for: Live.run("BTCUSDT", { strategyName, exchangeName, riskName })
+```
+
+### Walker Configuration
+
+```typescript
+// Walker requires: strategies, exchange, frame, walker
+addExchange({ exchangeName: "binance", ... });
+addFrame({ frameName: "1d-backtest", ... });
+
+addStrategy({ strategyName: "rsi-v1", ... });
+addStrategy({ strategyName: "rsi-v2", ... });
+addStrategy({ strategyName: "macd-v1", ... });
+
+addWalker({
+  walkerName: "compare-rsi-macd",
+  strategies: ["rsi-v1", "rsi-v2", "macd-v1"],
+  exchangeName: "binance",
+  frameName: "1d-backtest",
+  metric: "sharpeRatio",
+});
+
+// Now ready for: Walker.run("BTCUSDT", { walkerName })
+```
+
+
+---
+
+## Registration and Memoization
+
+Component registration creates schemas (immutable configuration), while Connection services create runtime instances (memoized by key). This separation enables:
+
+### Schema Reuse Across Symbols
+
+```typescript
+// Register once
+addStrategy({ strategyName: "rsi-strategy", ... });
+addExchange({ exchangeName: "binance", ... });
+
+// Execute multiple times with different symbols
+await Backtest.run("BTCUSDT", { strategyName: "rsi-strategy", ... });
+await Backtest.run("ETHUSDT", { strategyName: "rsi-strategy", ... });
+await Backtest.run("ADAUSDT", { strategyName: "rsi-strategy", ... });
+
+// Each execution creates separate ClientStrategy instances
+// but shares the same IStrategySchema
+```
+
+### Instance Memoization by (Symbol, Name)
+
+Connection services cache instances using a composite key:
+
+```typescript
+// Key: `${symbol}_${strategyName}`
+const key1 = "BTCUSDT_rsi-strategy";  // First instance
+const key2 = "ETHUSDT_rsi-strategy";  // Second instance
+const key3 = "BTCUSDT_rsi-strategy";  // Returns first instance (cached)
+```
+
+This enables parallel execution of the same strategy across multiple symbols without state interference. Each symbol maintains independent signal state, but all share the same underlying schema and `getSignal` function.
+
+
+---
+
+## Summary
+
+Component registration is a synchronous, validate-then-store operation that populates schema registries. The seven `add*` functions provide a uniform interface for configuring strategies, exchanges, frames, walkers, risk rules, sizing algorithms, and optimizers. Validation occurs immediately at registration time, preventing invalid configurations from entering the system. The schema registries act as immutable configuration databases that Connection and Global services query during execution. This separation between configuration (registration) and instantiation (runtime) enables schema reuse across multiple executions while maintaining independent state per symbol.

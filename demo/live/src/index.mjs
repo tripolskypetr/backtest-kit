@@ -49,6 +49,8 @@ addStrategy({
         const result = await json(messages);
         await dumpSignal(resultId, messages, result);
 
+        result.id = resultId;
+
         return result;
     },
 });

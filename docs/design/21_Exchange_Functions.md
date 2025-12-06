@@ -5,590 +5,436 @@ group: design
 
 # Exchange Functions
 
+This page documents the exchange helper functions available in the public API. These functions provide standardized access to market data (candles, prices) with built-in retry logic, validation, and VWAP calculation. Exchange functions are defined in user-provided exchange schemas and accessed through the `ClientExchange` implementation.
 
-## Purpose and Scope
+For information about registering exchange schemas, see [Component Registration Functions](./16_Component_Registration_Functions.md). For details on implementing custom exchange integrations, see [Custom Exchange Integration](./83_Custom_Exchange_Integration.md).
 
-This page documents the public utility functions for interacting with exchange data sources: `getCandles`, `getAveragePrice`, `formatPrice`, `formatQuantity`, `getDate`, and `getMode`. These functions provide a simplified API for accessing market data and exchange-specific formatting without requiring explicit context parameters.
+---
 
-For information about registering exchange schemas, see [Component Registration Functions](./16_Component_Registration_Functions.md). For details about the underlying exchange client implementation, see [ClientExchange](./32_ClientExchange.md). For defining custom exchange integrations, see [Exchange Schemas](./25_Exchange_Schemas.md).
+## Function Overview
 
+Exchange functions provide four categories of functionality:
 
-## Context Propagation Mechanism
+| Function | Purpose | Mode Support | Configuration |
+|----------|---------|--------------|---------------|
+| `getCandles` | Fetch historical candles backwards from execution context time | Backtest, Live | `CC_AVG_PRICE_CANDLES_COUNT`, retry params |
+| `getNextCandles` | Fetch future candles forward from execution context time | Backtest only | Retry params, anomaly detection |
+| `getAveragePrice` | Calculate VWAP from last N 1-minute candles | Backtest, Live | `CC_AVG_PRICE_CANDLES_COUNT` |
+| `formatPrice` | Format price according to exchange precision rules | Backtest, Live | User-defined in schema |
+| `formatQuantity` | Format quantity according to exchange precision rules | Backtest, Live | User-defined in schema |
 
-Exchange functions leverage the framework's context propagation system to operate without explicit context parameters. When called from within a strategy's `getSignal()` function or during execution, these functions automatically resolve:
-
-- **MethodContext**: Determines which exchange schema to use via `exchangeName`
-- **ExecutionContext**: Provides runtime parameters (`symbol`, `when` timestamp, `backtest` flag)
-
-This allows strategy authors to write clean code like `getCandles(symbol, interval, limit)` instead of passing context objects through every function call.
-
-![Mermaid Diagram](./diagrams/21_Exchange_Functions_0.svg)
+All functions operate within the current `ExecutionContext` (symbol, when, backtest flag) and automatically handle retries, validation, and error logging.
 
 
 ---
 
-## Function Reference
+## Exchange Function Access Patterns
 
-### getCandles
+![Mermaid Diagram](./diagrams/21_Exchange_Functions_0.svg)
 
-Fetches historical OHLCV candles from the registered exchange, looking backward from the current execution context timestamp.
+**Diagram: Exchange Function Call Flow and Service Layers**
 
-**Signature:**
+This diagram shows how exchange functions are accessed through multiple service layers. User-provided implementations are wrapped with retry logic, validation, and context injection. The `ExchangeGlobalService` provides the entry point for strategy code, while `ClientExchange` implements the core logic.
+
+
+---
+
+## getCandles Function
+
+The `getCandles` function fetches historical candles backwards from the current execution context time (`ExecutionContext.when`). It automatically calculates the correct `since` timestamp based on the requested interval and limit.
+
+### Function Signature
+
 ```typescript
-function getCandles(
+getCandles(
   symbol: string,
   interval: CandleInterval,
   limit: number
 ): Promise<ICandleData[]>
 ```
 
-**Parameters:**
+### Parameters
 
-| Parameter | Type | Description |
-|-----------|------|-------------|
-| `symbol` | `string` | Trading pair symbol (e.g., `"BTCUSDT"`) |
-| `interval` | `CandleInterval` | Candle time interval: `"1m"`, `"3m"`, `"5m"`, `"15m"`, `"30m"`, `"1h"`, `"2h"`, `"4h"`, `"6h"`, `"8h"` |
-| `limit` | `number` | Maximum number of candles to fetch (fetched backward from execution time) |
+- **symbol**: Trading pair symbol (e.g., `"BTCUSDT"`)
+- **interval**: Candle time interval - `"1m"` | `"3m"` | `"5m"` | `"15m"` | `"30m"` | `"1h"` | `"2h"` | `"4h"` | `"6h"` | `"8h"`
+- **limit**: Maximum number of candles to fetch
 
-**Returns:** `Promise<ICandleData[]>` - Array of candle data with `timestamp`, `open`, `high`, `low`, `close`, `volume`
+### Return Type
 
-**Context Requirements:**
-- Must be called within a context established by `ExecutionContextService.runInContext`
-- Requires valid `MethodContext` with `exchangeName`
-
-**Example:**
 ```typescript
-addStrategy({
-  strategyName: "ema-crossover",
-  interval: "1m",
-  getSignal: async (symbol) => {
-    // Fetch last 20 candles at 1-minute interval
-    const candles = await getCandles(symbol, "1m", 20);
-    
-    // Calculate EMA from candles
-    const closes = candles.map(c => c.close);
-    const ema = calculateEMA(closes, 20);
-    
-    // Generate signal based on indicator
-    if (ema > threshold) {
-      return {
-        position: "long",
-        priceTakeProfit: candles[0].close * 1.02,
-        priceStopLoss: candles[0].close * 0.98,
-        minuteEstimatedTime: 60,
-      };
-    }
-    return null;
-  }
-});
+interface ICandleData {
+  timestamp: number;  // Unix timestamp in milliseconds
+  open: number;       // Opening price
+  high: number;       // Highest price
+  low: number;        // Lowest price
+  close: number;      // Closing price
+  volume: number;     // Trading volume
+}
 ```
+
+### Implementation Details
+
+The function calculates the `since` timestamp by subtracting `(interval * limit - interval)` minutes from `ExecutionContext.when`:
+
+```typescript
+const step = INTERVAL_MINUTES[interval];
+const adjust = step * limit - step;
+const since = new Date(
+  this.params.execution.context.when.getTime() - adjust * 60 * 1_000
+);
+```
+
+After fetching candles, the function filters results to match the exact requested range:
+
+```typescript
+const filteredData = data.filter(
+  (candle) =>
+    candle.timestamp >= sinceTimestamp && candle.timestamp <= whenTimestamp
+);
+```
+
+### Retry Logic
+
+`getCandles` automatically retries failed requests using the `GET_CANDLES_FN` wrapper:
+
+- Retry count: `CC_GET_CANDLES_RETRY_COUNT` (default: 3)
+- Retry delay: `CC_GET_CANDLES_RETRY_DELAY_MS` (default: 5000ms)
+- Validates candles after each attempt using `VALIDATE_NO_INCOMPLETE_CANDLES_FN`
 
 
 ---
 
-### getAveragePrice
+## getNextCandles Function
 
-Calculates the Volume-Weighted Average Price (VWAP) from the most recent 1-minute candles. Uses `CC_AVG_PRICE_CANDLES_COUNT` candles (default: 5) for calculation.
+The `getNextCandles` function fetches future candles forward from the current execution context time. This function is **only valid in backtest mode** and returns empty array if the requested period extends beyond `Date.now()`.
 
-**Formula:** 
-```
-VWAP = Σ(Typical Price × Volume) / Σ(Volume)
-where Typical Price = (High + Low + Close) / 3
-```
+### Function Signature
 
-**Signature:**
 ```typescript
-function getAveragePrice(symbol: string): Promise<number>
+getNextCandles(
+  symbol: string,
+  interval: CandleInterval,
+  limit: number
+): Promise<ICandleData[]>
 ```
 
-**Parameters:**
+### Backtest-Only Guard
 
-| Parameter | Type | Description |
-|-----------|------|-------------|
-| `symbol` | `string` | Trading pair symbol (e.g., `"BTCUSDT"`) |
-
-**Returns:** `Promise<number>` - Volume-weighted average price
-
-**Context Requirements:**
-- Must be called within execution context
-- Automatically fetches last `CC_AVG_PRICE_CANDLES_COUNT` 1-minute candles
-
-**Example:**
 ```typescript
-addStrategy({
-  strategyName: "vwap-strategy",
-  interval: "1m",
-  getSignal: async (symbol) => {
-    const vwap = await getAveragePrice(symbol);
-    const lastCandle = (await getCandles(symbol, "1m", 1))[0];
-    
-    // Entry if price is below VWAP (potential reversion)
-    if (lastCandle.close < vwap * 0.995) {
-      return {
-        position: "long",
-        priceTakeProfit: vwap * 1.01,
-        priceStopLoss: vwap * 0.98,
-        minuteEstimatedTime: 30,
-      };
-    }
-    return null;
-  }
-});
+const step = INTERVAL_MINUTES[interval];
+const endTime = since.getTime() + limit * step * 60 * 1000;
+
+// Returns empty array if requesting future data beyond now
+if (endTime > now) {
+  return [];
+}
 ```
+
+This guard ensures that backtest simulations cannot "peek into the future" beyond the current timestamp. The function starts fetching from `ExecutionContext.when` and extends forward by `limit` intervals.
+
+### Use Cases
+
+The function is primarily used by backtest execution to fetch candles for signal duration:
+
+1. **Signal Open**: When a signal opens, `BacktestLogicPrivateService` fetches `minuteEstimatedTime` candles forward
+2. **Scheduled Signal**: For scheduled signals, fetches `CC_SCHEDULE_AWAIT_MINUTES + minuteEstimatedTime + 1` candles
+3. **Fast-forward**: Allows backtest to skip timeframes during active signal monitoring
 
 
 ---
 
-### formatPrice
+## getAveragePrice Function (VWAP Calculation)
 
-Formats a price value according to the exchange's precision rules for a specific symbol.
+The `getAveragePrice` function calculates the Volume-Weighted Average Price (VWAP) from the last N 1-minute candles. The number of candles is configurable via `GLOBAL_CONFIG.CC_AVG_PRICE_CANDLES_COUNT` (default: 5).
 
-**Signature:**
-```typescript
-function formatPrice(symbol: string, price: number): Promise<string>
-```
-
-**Parameters:**
-
-| Parameter | Type | Description |
-|-----------|------|-------------|
-| `symbol` | `string` | Trading pair symbol (e.g., `"BTCUSDT"`) |
-| `price` | `number` | Raw price value to format |
-
-**Returns:** `Promise<string>` - Formatted price string with correct precision
-
-**Context Requirements:**
-- Requires valid `MethodContext` with `exchangeName`
-- Delegates to exchange schema's `formatPrice` implementation
-
-**Example:**
-```typescript
-addExchange({
-  exchangeName: "binance",
-  formatPrice: async (symbol, price) => {
-    // BTCUSDT: 2 decimal places
-    // ETHUSDT: 2 decimal places
-    // DOGEUSDT: 5 decimal places
-    const precisionMap = {
-      "BTCUSDT": 2,
-      "ETHUSDT": 2,
-      "DOGEUSDT": 5,
-    };
-    const precision = precisionMap[symbol] ?? 2;
-    return price.toFixed(precision);
-  },
-  // ... other methods
-});
-
-// Usage in strategy or reporting
-const formattedPrice = await formatPrice("BTCUSDT", 45123.456789);
-// Returns: "45123.46"
-```
-
-
----
-
-### formatQuantity
-
-Formats a quantity value according to the exchange's precision rules for a specific symbol.
-
-**Signature:**
-```typescript
-function formatQuantity(symbol: string, quantity: number): Promise<string>
-```
-
-**Parameters:**
-
-| Parameter | Type | Description |
-|-----------|------|-------------|
-| `symbol` | `string` | Trading pair symbol (e.g., `"BTCUSDT"`) |
-| `quantity` | `number` | Raw quantity value to format |
-
-**Returns:** `Promise<string>` - Formatted quantity string with correct precision
-
-**Context Requirements:**
-- Requires valid `MethodContext` with `exchangeName`
-- Delegates to exchange schema's `formatQuantity` implementation
-
-**Example:**
-```typescript
-addExchange({
-  exchangeName: "binance",
-  formatQuantity: async (symbol, quantity) => {
-    // BTC: 6 decimal places (min 0.000001)
-    // ETH: 5 decimal places (min 0.00001)
-    // DOGE: 0 decimal places (whole numbers)
-    const precisionMap = {
-      "BTCUSDT": 6,
-      "ETHUSDT": 5,
-      "DOGEUSDT": 0,
-    };
-    const precision = precisionMap[symbol] ?? 8;
-    return quantity.toFixed(precision);
-  },
-  // ... other methods
-});
-
-// Usage with position sizing
-const quantity = 0.00123456789;
-const formatted = await formatQuantity("BTCUSDT", quantity);
-// Returns: "0.001235"
-```
-
-
----
-
-### getDate
-
-Retrieves the current execution context timestamp. Returns the historical timestamp during backtest or `Date.now()` during live trading.
-
-**Signature:**
-```typescript
-function getDate(): Date
-```
-
-**Returns:** `Date` - Current execution context timestamp
-
-**Context Requirements:**
-- Must be called within `ExecutionContextService.runInContext`
-- Returns `executionContext.when`
-
-**Example:**
-```typescript
-addStrategy({
-  strategyName: "time-based",
-  interval: "1m",
-  getSignal: async (symbol) => {
-    const now = getDate();
-    const hour = now.getHours();
-    
-    // Only trade during specific hours
-    if (hour >= 9 && hour <= 16) {
-      const candles = await getCandles(symbol, "1m", 1);
-      return {
-        position: "long",
-        priceTakeProfit: candles[0].close * 1.01,
-        priceStopLoss: candles[0].close * 0.99,
-        minuteEstimatedTime: 30,
-      };
-    }
-    return null;
-  }
-});
-```
-
-
----
-
-### getMode
-
-Returns whether the current execution is in backtest mode or live trading mode.
-
-**Signature:**
-```typescript
-function getMode(): boolean
-```
-
-**Returns:** `boolean` - `true` if in backtest mode, `false` if in live mode
-
-**Context Requirements:**
-- Must be called within `ExecutionContextService.runInContext`
-- Returns `executionContext.backtest`
-
-**Example:**
-```typescript
-addStrategy({
-  strategyName: "mode-aware",
-  interval: "1m",
-  getSignal: async (symbol) => {
-    const isBacktest = getMode();
-    
-    if (isBacktest) {
-      // Use conservative parameters for backtest
-      const multiplier = 1.01;
-    } else {
-      // Use aggressive parameters for live trading
-      const multiplier = 1.015;
-    }
-    
-    const candles = await getCandles(symbol, "1m", 1);
-    return {
-      position: "long",
-      priceTakeProfit: candles[0].close * multiplier,
-      priceStopLoss: candles[0].close * 0.99,
-      minuteEstimatedTime: 30,
-    };
-  }
-});
-```
-
-
----
-
-## Architecture Integration
-
-### Data Flow Diagram
+### VWAP Calculation Flow
 
 ![Mermaid Diagram](./diagrams/21_Exchange_Functions_1.svg)
 
+**Diagram: VWAP Calculation Algorithm**
+
+### Formula
+
+**VWAP** = Σ(Typical Price × Volume) / Σ(Volume)
+
+Where **Typical Price** = (High + Low + Close) / 3
+
+### Fallback Behavior
+
+If total volume is zero (rare edge case), the function returns a simple average of close prices:
+
+```typescript
+if (totalVolume === 0) {
+  const sum = candles.reduce((acc, candle) => acc + candle.close, 0);
+  return sum / candles.length;
+}
+```
+
+### Usage Context
+
+`getAveragePrice` is called extensively throughout the system:
+
+- **Signal Generation**: `ClientStrategy` uses VWAP as `currentPrice` for risk checks
+- **Signal Validation**: VWAP is compared against `priceOpen`, `priceTakeProfit`, `priceStopLoss`
+- **Signal Monitoring**: Active signals are monitored using VWAP for TP/SL detection
+- **Callbacks**: VWAP is passed to strategy callbacks as `currentPrice` parameter
+
 
 ---
 
-### Candle Data Structure
+## Format Functions
 
-The `ICandleData` interface defines the structure returned by `getCandles`:
+The `formatPrice` and `formatQuantity` functions delegate to user-provided implementations in the exchange schema. These functions apply exchange-specific precision rules to ensure valid order placement.
+
+### formatPrice
+
+```typescript
+formatPrice(symbol: string, price: number): Promise<string>
+```
+
+Formats a price value according to exchange precision rules. For example, Binance might require 2 decimal places for BTCUSDT but 8 decimals for smaller altcoins.
+
+### formatQuantity
+
+```typescript
+formatQuantity(symbol: string, quantity: number): Promise<string>
+```
+
+Formats a quantity value according to exchange lot size and step size rules. Ensures the quantity meets minimum order size requirements.
+
+### Implementation Pattern
+
+Both functions are thin wrappers around user-provided implementations:
+
+```typescript
+public async formatPrice(symbol: string, price: number) {
+  this.params.logger.debug("binanceService formatPrice", {
+    symbol,
+    price,
+  });
+  return await this.params.formatPrice(symbol, price);
+}
+```
+
+The actual formatting logic is defined in the `IExchangeSchema` registered via `addExchange()`.
+
+
+---
+
+## Retry Logic and Error Handling
 
 ![Mermaid Diagram](./diagrams/21_Exchange_Functions_2.svg)
 
-| Field | Type | Description |
-|-------|------|-------------|
-| `timestamp` | `number` | Unix timestamp in milliseconds when candle opened |
-| `open` | `number` | Opening price at candle start |
-| `high` | `number` | Highest price during candle period |
-| `low` | `number` | Lowest price during candle period |
-| `close` | `number` | Closing price at candle end |
-| `volume` | `number` | Trading volume during candle period |
+**Diagram: GET_CANDLES_FN Retry Logic Flow**
+
+### Retry Configuration
+
+| Parameter | Default | Purpose |
+|-----------|---------|---------|
+| `CC_GET_CANDLES_RETRY_COUNT` | 3 | Number of retry attempts before throwing error |
+| `CC_GET_CANDLES_RETRY_DELAY_MS` | 5000 | Delay in milliseconds between retry attempts |
+
+### Error Logging
+
+Each retry attempt logs a warning with detailed context:
+
+```typescript
+const message = `ClientExchange GET_CANDLES_FN: attempt ${i + 1} failed for symbol=${dto.symbol}, interval=${dto.interval}, since=${since.toISOString()}, limit=${dto.limit}}`;
+self.params.logger.warn(message, {
+  error: errorData(err),
+  message: getErrorMessage(err),
+});
+console.warn(message);
+```
+
+After exhausting all retries, the function throws the last error encountered.
 
 
 ---
 
-## Integration with Exchange Schema
+## Data Validation and Price Anomaly Detection
 
-Exchange functions delegate to the user-defined `IExchangeSchema` implementation registered via `addExchange()`. The schema must implement three required methods:
+All fetched candles are validated using `VALIDATE_NO_INCOMPLETE_CANDLES_FN` to detect incomplete or anomalous data from exchange APIs (particularly common with Binance).
+
+### Validation Checks
 
 ![Mermaid Diagram](./diagrams/21_Exchange_Functions_3.svg)
 
+**Diagram: Candle Validation and Anomaly Detection Flow**
+
+### Reference Price Calculation
+
+The validation uses different statistical methods based on data size:
+
+- **Large dataset** (≥ `CC_GET_CANDLES_MIN_CANDLES_FOR_MEDIAN`): Uses **median** for robust statistics
+- **Small dataset** (< threshold): Uses **average** for more stable calculation
+
+```typescript
+if (candles.length >= GLOBAL_CONFIG.CC_GET_CANDLES_MIN_CANDLES_FOR_MEDIAN) {
+  const sortedPrices = [...validPrices].sort((a, b) => a - b);
+  referencePrice = sortedPrices[Math.floor(sortedPrices.length / 2)] || 0;
+} else {
+  const sum = validPrices.reduce((acc, p) => acc + p, 0);
+  referencePrice = validPrices.length > 0 ? sum / validPrices.length : 0;
+}
+```
+
+### Anomaly Detection
+
+The function detects anomalously low prices (common indicator of incomplete candles):
+
+```typescript
+const minValidPrice = referencePrice / GLOBAL_CONFIG.CC_GET_CANDLES_PRICE_ANOMALY_THRESHOLD_FACTOR;
+
+// Example with BTC at $50,000 median and factor 1000:
+// minValidPrice = $50 (catches prices like $0.01-1)
+```
+
+### Validation Errors
+
+The function throws detailed errors for three types of anomalies:
+
+1. **Invalid numeric values**: NaN or Infinity in OHLCV fields
+2. **Non-positive values**: Zero or negative prices, negative volume
+3. **Anomalous prices**: Prices below threshold (likely incomplete candles)
+
 
 ---
 
-## Usage Patterns
+## Configuration Parameters
 
-### Pattern 1: Technical Indicator Calculation
+The following global configuration parameters control exchange function behavior:
+
+| Parameter | Default | Type | Purpose |
+|-----------|---------|------|---------|
+| `CC_AVG_PRICE_CANDLES_COUNT` | 5 | number | Number of 1m candles for VWAP calculation |
+| `CC_GET_CANDLES_RETRY_COUNT` | 3 | number | Maximum retry attempts for failed candle fetches |
+| `CC_GET_CANDLES_RETRY_DELAY_MS` | 5000 | number | Delay in milliseconds between retry attempts |
+| `CC_GET_CANDLES_PRICE_ANOMALY_THRESHOLD_FACTOR` | 1000 | number | Divisor for anomaly detection threshold |
+| `CC_GET_CANDLES_MIN_CANDLES_FOR_MEDIAN` | 5 | number | Minimum candles to use median vs average for reference price |
+
+### Configuration Example
 
 ```typescript
-addStrategy({
-  strategyName: "sma-crossover",
-  interval: "1m",
-  getSignal: async (symbol) => {
-    // Fetch enough candles for both SMAs
-    const candles = await getCandles(symbol, "1m", 50);
-    
-    // Calculate SMAs
-    const closes = candles.map(c => c.close);
-    const sma20 = closes.slice(0, 20).reduce((a, b) => a + b) / 20;
-    const sma50 = closes.reduce((a, b) => a + b) / 50;
-    
-    // Crossover signal
-    if (sma20 > sma50) {
-      return {
-        position: "long",
-        priceTakeProfit: closes[0] * 1.02,
-        priceStopLoss: closes[0] * 0.98,
-        minuteEstimatedTime: 120,
-      };
-    }
-    return null;
-  }
+import { setConfig } from 'backtest-kit';
+
+await setConfig({
+  CC_AVG_PRICE_CANDLES_COUNT: 10,      // Use 10 candles for VWAP
+  CC_GET_CANDLES_RETRY_COUNT: 5,       // Retry 5 times
+  CC_GET_CANDLES_RETRY_DELAY_MS: 3000, // Wait 3 seconds between retries
 });
 ```
 
+For complete configuration documentation, see [Global Configuration](./75_Global_Configuration.md).
+
 
 ---
 
-### Pattern 2: VWAP-Based Entry
+## Usage in Different Execution Modes
+
+### Backtest Mode
+
+In backtest mode, exchange functions operate on historical data:
 
 ```typescript
-addStrategy({
-  strategyName: "vwap-reversal",
-  interval: "5m",
-  getSignal: async (symbol) => {
-    const vwap = await getAveragePrice(symbol);
-    const recentCandles = await getCandles(symbol, "1m", 5);
-    
-    // Entry when price deviates from VWAP
-    const currentPrice = recentCandles[0].close;
-    const deviation = (currentPrice - vwap) / vwap;
-    
-    if (deviation < -0.01) { // 1% below VWAP
-      return {
-        position: "long",
-        priceTakeProfit: vwap, // Target: return to VWAP
-        priceStopLoss: currentPrice * 0.98,
-        minuteEstimatedTime: 60,
-      };
-    }
-    return null;
+// BacktestLogicPrivateService iterates through timeframes
+for (const when of timeframes) {
+  // tick() uses getCandles (backwards) and getAveragePrice (VWAP)
+  const result = await strategyGlobalService.tick(symbol, when, true);
+  
+  if (result.action === "opened") {
+    // backtest() uses getNextCandles (forward) for signal duration
+    const candles = await exchangeGlobalService.getNextCandles(
+      symbol,
+      "1m",
+      signal.minuteEstimatedTime,
+      when,
+      true
+    );
+    const backtestResult = await strategyGlobalService.backtest(symbol, candles, when, true);
   }
-});
+}
 ```
 
+### Live Mode
 
----
-
-### Pattern 3: Multi-Timeframe Analysis
+In live mode, exchange functions operate on real-time data:
 
 ```typescript
-addStrategy({
-  strategyName: "multi-timeframe",
-  interval: "1m",
-  getSignal: async (symbol) => {
-    // Short-term trend (5-minute candles)
-    const candles5m = await getCandles(symbol, "5m", 12); // 1 hour
-    const trend5m = candles5m[0].close > candles5m[11].close;
-    
-    // Long-term trend (1-hour candles)
-    const candles1h = await getCandles(symbol, "1h", 24); // 1 day
-    const trend1h = candles1h[0].close > candles1h[23].close;
-    
-    // Entry only if both timeframes agree
-    if (trend5m && trend1h) {
-      const entryPrice = candles5m[0].close;
-      return {
-        position: "long",
-        priceTakeProfit: entryPrice * 1.03,
-        priceStopLoss: entryPrice * 0.97,
-        minuteEstimatedTime: 180,
-      };
-    }
-    return null;
-  }
-});
+// LiveLogicPrivateService uses current time
+while (true) {
+  const when = new Date(); // Real-time timestamp
+  
+  // getCandles fetches most recent historical data
+  const result = await strategyGlobalService.tick(symbol, when, false);
+  
+  // getNextCandles would return empty array (future data unavailable)
+  
+  await sleep(TICK_TTL); // 61 seconds
+}
 ```
 
+### Context Injection
 
----
-
-### Pattern 4: Mode-Aware Precision Formatting
+All exchange functions receive context implicitly through `ExecutionContextService`:
 
 ```typescript
-addStrategy({
-  strategyName: "reporting-strategy",
-  interval: "1m",
-  callbacks: {
-    onClose: async (symbol, signal, priceClose, backtest) => {
-      // Format prices for logging or external reporting
-      const formattedOpen = await formatPrice(symbol, signal.priceOpen);
-      const formattedClose = await formatPrice(symbol, priceClose);
-      const formattedTP = await formatPrice(symbol, signal.priceTakeProfit);
-      
-      console.log(`Signal closed:`);
-      console.log(`  Entry: ${formattedOpen}`);
-      console.log(`  Exit: ${formattedClose}`);
-      console.log(`  Target: ${formattedTP}`);
-    }
+// Context is injected automatically
+ExecutionContextService.runInContext(
+  async () => {
+    // Inside this callback, exchange functions know:
+    // - symbol: "BTCUSDT"
+    // - when: new Date("2024-01-15T10:30:00Z")
+    // - backtest: true
+    const candles = await exchange.getCandles("BTCUSDT", "1m", 100);
   },
-  getSignal: async (symbol) => {
-    // ... signal logic
-  }
-});
+  { symbol: "BTCUSDT", when: new Date("2024-01-15T10:30:00Z"), backtest: true }
+);
 ```
 
 
 ---
 
-## Best Practices
+## Exchange Function Integration in Signal Lifecycle
 
-### Candle Limit Optimization
+![Mermaid Diagram](./diagrams/21_Exchange_Functions_4.svg)
 
-Fetch only the minimum required candles to reduce memory usage and improve performance:
+**Diagram: Exchange Function Calls During Signal Lifecycle**
 
-```typescript
-// ❌ Bad: Fetching excessive data
-const candles = await getCandles(symbol, "1m", 1000); // 1000 candles
-
-// ✅ Good: Fetch only what's needed
-const candles = await getCandles(symbol, "1m", 20); // 20 candles for EMA
-```
-
-### VWAP Usage for Entry Prices
-
-Use `getAveragePrice()` instead of last candle close for more accurate market pricing:
-
-```typescript
-// ❌ Acceptable: Using last candle close
-const candles = await getCandles(symbol, "1m", 1);
-const entryPrice = candles[0].close;
-
-// ✅ Better: Using VWAP (5-candle average)
-const entryPrice = await getAveragePrice(symbol);
-```
-
-### Format Validation
-
-Always format prices and quantities before external API calls or logging:
-
-```typescript
-// ❌ Bad: Raw float values
-console.log(`Price: ${signal.priceOpen}`); // 45123.456789123
-
-// ✅ Good: Exchange-formatted values
-const formatted = await formatPrice(symbol, signal.priceOpen);
-console.log(`Price: ${formatted}`); // 45123.46
-```
-
-### Context Awareness
-
-Use `getMode()` to adjust behavior between backtest and live:
-
-```typescript
-const isBacktest = getMode();
-const limit = isBacktest ? 100 : 20; // More data in backtest
-
-const candles = await getCandles(symbol, "1m", limit);
-```
+This sequence diagram shows how exchange functions are invoked during a typical signal lifecycle. The `getAveragePrice` function (which internally calls `getCandles`) is the most frequently called function, used for both signal generation and monitoring.
 
 
 ---
 
-## Error Handling
+## Callback Integration
 
-Exchange functions may throw errors in the following scenarios:
-
-| Error Condition | Cause | Resolution |
-|----------------|-------|------------|
-| **Context not established** | Functions called outside `ExecutionContextService.runInContext` | Ensure functions are called within strategy execution context |
-| **Exchange not registered** | `exchangeName` in `MethodContext` does not exist | Register exchange via `addExchange()` before execution |
-| **Invalid interval** | Unsupported `CandleInterval` value | Use one of the supported intervals: `1m`, `3m`, `5m`, `15m`, `30m`, `1h`, `2h`, `4h`, `6h`, `8h` |
-| **Data source failure** | Exchange schema's implementation throws error | Implement error handling in exchange schema's methods |
-| **Network timeout** | External API call exceeds timeout | Implement retry logic or timeout handling in schema |
-
-
----
-
-## Performance Considerations
-
-### Candle Caching
-
-The framework does not cache candle data by default. For strategies that repeatedly access the same candles, consider implementing your own caching layer:
+Exchange schemas can define an optional `onCandleData` callback that is invoked after every successful candle fetch:
 
 ```typescript
-const candleCache = new Map<string, ICandleData[]>();
-
-async function getCachedCandles(symbol: string, interval: CandleInterval, limit: number) {
-  const key = `${symbol}:${interval}:${limit}`;
-  if (!candleCache.has(key)) {
-    candleCache.set(key, await getCandles(symbol, interval, limit));
-  }
-  return candleCache.get(key)!;
+interface IExchangeCallbacks {
+  onCandleData: (
+    symbol: string,
+    interval: CandleInterval,
+    since: Date,
+    limit: number,
+    data: ICandleData[]
+  ) => void;
 }
 ```
 
-### VWAP Calculation Cost
-
-`getAveragePrice()` fetches `CC_AVG_PRICE_CANDLES_COUNT` candles and calculates VWAP on every call. For high-frequency strategies, cache the result:
+The callback is invoked with the filtered candle data after validation:
 
 ```typescript
-let cachedVWAP: { timestamp: number, value: number } | null = null;
-
-async function getCachedVWAP(symbol: string): Promise<number> {
-  const now = getDate().getTime();
-  if (!cachedVWAP || now - cachedVWAP.timestamp > 60000) { // 1 minute cache
-    cachedVWAP = {
-      timestamp: now,
-      value: await getAveragePrice(symbol)
-    };
-  }
-  return cachedVWAP.value;
+if (this.params.callbacks?.onCandleData) {
+  this.params.callbacks.onCandleData(
+    symbol,
+    interval,
+    since,
+    limit,
+    filteredData
+  );
 }
 ```
+
+This enables users to implement custom logging, caching, or data persistence for fetched candles.
 
