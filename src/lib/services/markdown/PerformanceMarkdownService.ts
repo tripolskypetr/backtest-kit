@@ -348,7 +348,7 @@ class PerformanceStorage {
  * console.log("Bottlenecks:", stats.metricStats);
  *
  * // Save report to disk
- * await Performance.dump("my-strategy");
+ * await Performance.dump("BTCUSDT", "my-strategy");
  * ```
  */
 export class PerformanceMarkdownService {

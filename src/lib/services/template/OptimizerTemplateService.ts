@@ -427,7 +427,7 @@ export class OptimizerTemplateService implements IOptimizerTemplate {
       ``,
       `listenDoneBacktest((event) => {`,
       `    console.log("Backtest completed:", event.symbol);`,
-      `    Backtest.dump(event.strategyName);`,
+      `    Backtest.dump(event.symbol, event.strategyName);`,
       `});`,
       ``,
       `listenError((error) => {`,

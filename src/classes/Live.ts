@@ -203,27 +203,30 @@ export class LiveUtils {
   /**
    * Saves strategy report to disk.
    *
+   * @param symbol - Trading pair symbol
    * @param strategyName - Strategy name to save report for
    * @param path - Optional directory path to save report (default: "./dump/live")
    *
    * @example
    * ```typescript
    * // Save to default path: ./dump/live/my-strategy.md
-   * await Live.dump("my-strategy");
+   * await Live.dump("BTCUSDT", "my-strategy");
    *
    * // Save to custom path: ./custom/path/my-strategy.md
-   * await Live.dump("my-strategy", "./custom/path");
+   * await Live.dump("BTCUSDT", "my-strategy", "./custom/path");
    * ```
    */
   public dump = async (
+    symbol: string,
     strategyName: StrategyName,
     path?: string
   ): Promise<void> => {
     backtest.loggerService.info(LIVE_METHOD_NAME_DUMP, {
+      symbol,
       strategyName,
       path,
     });
-    await backtest.liveMarkdownService.dump(strategyName, path);
+    await backtest.liveMarkdownService.dump(symbol, strategyName, path);
   };
 }
 
