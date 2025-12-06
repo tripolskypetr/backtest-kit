@@ -983,7 +983,7 @@ const RETURN_PENDING_SIGNAL_ACTIVE_FN = async (
           self.params.execution.context.symbol,
           signal,
           currentPrice,
-          progressPercent,
+          Math.min(progressPercent, 100),
           self.params.execution.context.backtest,
           self.params.execution.context.when
         );
@@ -993,7 +993,7 @@ const RETURN_PENDING_SIGNAL_ACTIVE_FN = async (
             self.params.execution.context.symbol,
             signal,
             currentPrice,
-            progressPercent,
+            Math.min(progressPercent, 100),
             self.params.execution.context.backtest
           );
         }
@@ -1036,7 +1036,7 @@ const RETURN_PENDING_SIGNAL_ACTIVE_FN = async (
           self.params.execution.context.symbol,
           signal,
           currentPrice,
-          progressPercent,
+          Math.min(progressPercent, 100),
           self.params.execution.context.backtest,
           self.params.execution.context.when
         );
@@ -1046,7 +1046,7 @@ const RETURN_PENDING_SIGNAL_ACTIVE_FN = async (
             self.params.execution.context.symbol,
             signal,
             currentPrice,
-            progressPercent,
+            Math.min(progressPercent, 100),
             self.params.execution.context.backtest
           );
         }
@@ -1517,7 +1517,7 @@ const PROCESS_PENDING_SIGNAL_CANDLES_FN = async (
             self.params.execution.context.symbol,
             signal,
             averagePrice,
-            progressPercent,
+            Math.min(progressPercent, 100),
             self.params.execution.context.backtest,
             self.params.execution.context.when
           );
@@ -1527,7 +1527,7 @@ const PROCESS_PENDING_SIGNAL_CANDLES_FN = async (
               self.params.execution.context.symbol,
               signal,
               averagePrice,
-              progressPercent,
+              Math.min(progressPercent, 100),
               self.params.execution.context.backtest
             );
           }
@@ -1570,7 +1570,7 @@ const PROCESS_PENDING_SIGNAL_CANDLES_FN = async (
             self.params.execution.context.symbol,
             signal,
             averagePrice,
-            progressPercent,
+            Math.min(progressPercent, 100),
             self.params.execution.context.backtest,
             self.params.execution.context.when
           );
@@ -1580,7 +1580,7 @@ const PROCESS_PENDING_SIGNAL_CANDLES_FN = async (
               self.params.execution.context.symbol,
               signal,
               averagePrice,
-              progressPercent,
+              Math.min(progressPercent, 100),
               self.params.execution.context.backtest
             );
           }
