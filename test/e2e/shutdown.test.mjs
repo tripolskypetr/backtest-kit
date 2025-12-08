@@ -1147,8 +1147,8 @@ test("SHUTDOWN: Walker with getSignal always null - stops early", async ({ pass,
     });
   }
 
-  // Frame candles (30 minutes)
-  for (let i = 0; i < 30; i++) {
+  // Frame candles (10 minutes - shorter to speed up test)
+  for (let i = 0; i < 10; i++) {
     const timestamp = startTime + i * intervalMs;
     allCandles.push({
       timestamp,
@@ -1191,14 +1191,13 @@ test("SHUTDOWN: Walker with getSignal always null - stops early", async ({ pass,
   }
 
   addFrame({
-    frameName: "30m-shutdown-9",
+    frameName: "10m-shutdown-9",
     interval: "1m",
     startDate: new Date("2024-01-01T00:00:00Z"),
-    endDate: new Date("2024-01-01T00:30:00Z"),
+    endDate: new Date("2024-01-01T00:10:00Z"),
   });
 
   const awaitSubject = new Subject();
-  let stopCalled = false;
 
   const walkerCompletePromise = new Promise((resolve) => {
     listenWalkerComplete(() => {
@@ -1210,18 +1209,8 @@ test("SHUTDOWN: Walker with getSignal always null - stops early", async ({ pass,
   addWalker({
     walkerName: "test-walker-shutdown-null",
     exchangeName: "binance-shutdown-9",
-    frameName: "30m-shutdown-9",
+    frameName: "10m-shutdown-9",
     strategies: ["test-shutdown-walker-null-1", "test-shutdown-walker-null-2", "test-shutdown-walker-null-3"],
-    callbacks: {
-      onStrategyComplete: async (strategyName) => {
-        if (!stopCalled) {
-          stopCalled = true;
-          console.log(`[TEST #9] First strategy ${strategyName} completed, calling Walker.stop()`);
-          await Walker.stop("BTCUSDT", "test-walker-shutdown-null");
-          console.log("[TEST #9] Walker.stop() completed");
-        }
-      }
-    }
   });
 
   let errorCaught = null;
@@ -1232,20 +1221,22 @@ test("SHUTDOWN: Walker with getSignal always null - stops early", async ({ pass,
 
   const testStartTime = Date.now();
 
-  console.log("[TEST #9] Starting Walker.background");
   const cancelFn = Walker.background("BTCUSDT", {
     walkerName: "test-walker-shutdown-null",
   });
 
-  // Race: listenWalkerComplete should fire before 90 seconds timeout (3 strategies * 30 frames * 1 sec)
+  // Stop walker after 2 seconds (before first strategy completes all 10 frames)
+  await sleep(2_000);
+  await Walker.stop("BTCUSDT", "test-walker-shutdown-null");
+
+  // Race: listenWalkerComplete should fire before 5 seconds timeout
   const raceResult = await Promise.race([
     walkerCompletePromise.then(() => "done"),
-    sleep(90_000).then(() => "timeout"),
+    sleep(5_000).then(() => "timeout"),
   ]);
 
   const elapsedTime = Date.now() - testStartTime;
 
-  console.log("[TEST #9] Calling cancelFn()");
   cancelFn();
   unsubscribeError();
 
@@ -1282,7 +1273,7 @@ test("SHUTDOWN: Walker with getSignal always null - stops early", async ({ pass,
     return;
   }
 
-  console.log("[TEST #9] getSignalCounts:", getSignalCounts);
+  // console.log("[TEST #9] getSignalCounts:", getSignalCounts);
 
   pass(`SHUTDOWN WALKER NULL SIGNAL: Walker stopped after first strategy. Strategies started: ${strategiesStartedArray.length}/3. Total getSignal calls: ${totalCalls}/90 in ${elapsedTime}ms`);
 });
