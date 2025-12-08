@@ -227,6 +227,7 @@ Backtest.background("BTCUSDT", {
 
 - 🤝 **Mode Switching**: Seamlessly switch between backtest and live modes with identical strategy code. 🔄
 - 📜 **Crash Recovery**: Atomic persistence ensures state recovery after crashes—no duplicate signals. 🗂️
+- 🛑 **Graceful Shutdown**: Stop backtests, live trading, and walkers programmatically with `Backtest.stop()`, `Live.stop()`, and `Walker.stop()`. Current signals complete normally, no forced closures. ⏹️
 - 🛠️ **Custom Validators**: Define validation rules with strategy-level throttling and price logic checks. 🔧
 - 🛡️ **Signal Lifecycle**: Type-safe state machine prevents invalid state transitions. 🚑
 - 📦 **Dependency Inversion**: Lazy-load components at runtime for modular, scalable designs. 🧩
@@ -250,6 +251,7 @@ Backtest.background("BTCUSDT", {
 - 🤖 **`addStrategy`**: Create trading strategies with custom signals and callbacks. 💡
 - 🌐 **`addFrame`**: Configure timeframes for backtesting. 📅
 - 🔄 **`Backtest` / `Live`**: Run strategies in backtest or live mode (generator or background). ⚡
+- 🛑 **`Backtest.stop()` / `Live.stop()` / `Walker.stop()`**: Gracefully stop running strategies—current signals complete, no forced exits. ⏹️
 - 📅 **`Schedule`**: Track scheduled signals and cancellation rate for limit orders. 📊
 - 📊 **`Partial`**: Access partial profit/loss statistics and reports for risk management. Track signals reaching milestone levels (10%, 20%, 30%, etc.). 💹
 - 🎯 **`Constant`**: Kelly Criterion-based constants for optimal take profit (TP_LEVEL1-3) and stop loss (SL_LEVEL1-2) levels. 📐
@@ -365,6 +367,12 @@ listenDoneBacktest((event) => {
   Backtest.dump(event.strategyName); // ./logs/backtest/my-strategy.md
 });
 
+// Graceful shutdown - stop backtest programmatically
+await Backtest.stop("BTCUSDT", "my-strategy");
+// - Current signal completes execution (onClose callback fires)
+// - No new signals are generated after stop
+// - listenDoneBacktest event fires when complete
+
 // Option 2: Manual iteration (for custom control)
 for await (const result of Backtest.run("BTCUSDT", {
   strategyName: "my-strategy",
@@ -384,7 +392,7 @@ Live mode automatically persists state to disk with atomic writes:
 import { Live, listenSignalLive } from "backtest-kit";
 
 // Run live trading in background (infinite loop, crash-safe)
-const stop = Live.background("BTCUSDT", {
+const cancelFn = Live.background("BTCUSDT", {
   strategyName: "my-strategy",
   exchangeName: "binance"
 });
@@ -403,7 +411,14 @@ listenSignalLive((event) => {
   }
 });
 
-// Stop when needed: stop();
+// Graceful shutdown - stop live trading programmatically
+await Live.stop("BTCUSDT", "my-strategy");
+// - Active signal completes normally (no forced close)
+// - No new signals are generated after stop
+// - State remains persisted for resume on restart
+
+// Or use cancelFn() for immediate cancellation
+cancelFn();
 ```
 
 **Crash Recovery:** If process crashes, restart with same code—state automatically recovered from disk (no duplicate signals).
@@ -426,8 +441,11 @@ addWalker({
     onStrategyStart: (strategyName, symbol) => {
       console.log(`Starting strategy: ${strategyName}`);
     },
-    onStrategyComplete: (strategyName, symbol, stats) => {
+    onStrategyComplete: async (strategyName, symbol, stats) => {
       console.log(`${strategyName} completed:`, stats.sharpeRatio);
+
+      // Optional: Stop walker early after first strategy completes
+      // await Walker.stop("BTCUSDT", "btc-walker");
     },
     onComplete: (results) => {
       console.log("Best strategy:", results.bestStrategy);
@@ -437,7 +455,7 @@ addWalker({
 });
 
 // Run walker in background
-Walker.background("BTCUSDT", {
+const cancelFn = Walker.background("BTCUSDT", {
   walkerName: "btc-walker"
 });
 
@@ -446,6 +464,16 @@ listenWalkerComplete((results) => {
   console.log("Walker completed:", results.bestStrategy);
   Walker.dump("BTCUSDT", results.walkerName); // Save report
 });
+
+// Graceful shutdown - stop walker programmatically
+await Walker.stop("BTCUSDT", "btc-walker");
+// - Current strategy completes execution
+// - Remaining strategies in queue won't run
+// - listenWalkerComplete event fires with partial results
+// - Use case: Early termination when first strategy is good enough
+
+// Or use cancelFn() for immediate cancellation
+cancelFn();
 
 // Get raw comparison data
 const results = await Walker.getData("BTCUSDT", "btc-walker");
@@ -1328,7 +1356,148 @@ listenPartialProfit(({ symbol, signal, price, level, backtest }) => {
 
 ---
 
-### 11. Scheduled Signal Persistence
+### 11. Graceful Shutdown
+
+The framework provides graceful shutdown mechanisms for all execution modes: backtests, live trading, and walkers. This ensures clean termination without forced signal closures.
+
+#### How Graceful Shutdown Works
+
+When you call `Backtest.stop()`, `Live.stop()`, or `Walker.stop()`:
+
+1. **Current Signal Completes** - Active signals finish normally (reach TP/SL or expire)
+2. **No New Signals** - Strategy stops generating new signals after stop is called
+3. **Callbacks Fire** - All lifecycle callbacks (`onClose`, etc.) execute as expected
+4. **Events Emitted** - Completion events (`listenDoneBacktest`, `listenDoneLive`, `listenWalkerComplete`) fire
+5. **State Persisted** - In live mode, final state is saved to disk
+
+#### Backtest Shutdown
+
+```typescript
+import { Backtest, listenDoneBacktest } from "backtest-kit";
+
+Backtest.background("BTCUSDT", {
+  strategyName: "my-strategy",
+  exchangeName: "binance",
+  frameName: "1d-backtest"
+});
+
+// Stop backtest gracefully
+await Backtest.stop("BTCUSDT", "my-strategy");
+// - Current active signal completes (TP/SL reached)
+// - No new signals generated after stop
+// - listenDoneBacktest event fires
+
+listenDoneBacktest((event) => {
+  console.log("Backtest stopped:", event.strategyName);
+});
+```
+
+#### Live Trading Shutdown
+
+```typescript
+import { Live, listenDoneLive } from "backtest-kit";
+
+Live.background("BTCUSDT", {
+  strategyName: "my-strategy",
+  exchangeName: "binance"
+});
+
+// Stop live trading gracefully
+await Live.stop("BTCUSDT", "my-strategy");
+// - Active signal completes normally (no forced close)
+// - No new signals generated after stop
+// - State persisted to disk for resume on restart
+
+listenDoneLive((event) => {
+  console.log("Live trading stopped:", event.strategyName);
+});
+```
+
+#### Walker Shutdown (Early Termination)
+
+Walker shutdown is particularly useful for early termination when comparing strategies:
+
+```typescript
+import { addWalker, Walker, listenWalkerComplete } from "backtest-kit";
+
+addWalker({
+  walkerName: "btc-walker",
+  exchangeName: "binance",
+  frameName: "1d-backtest",
+  strategies: ["strategy-a", "strategy-b", "strategy-c"],
+  callbacks: {
+    onStrategyComplete: async (strategyName, symbol, stats) => {
+      console.log(`${strategyName} completed with Sharpe: ${stats.sharpeRatio}`);
+
+      // Early termination: Stop walker if first strategy is good enough
+      if (stats.sharpeRatio > 2.0) {
+        console.log("Found excellent strategy, stopping walker early");
+        await Walker.stop("BTCUSDT", "btc-walker");
+      }
+    },
+  },
+});
+
+Walker.background("BTCUSDT", {
+  walkerName: "btc-walker"
+});
+
+// Or stop walker manually after some condition
+await Walker.stop("BTCUSDT", "btc-walker");
+// - Current strategy completes execution
+// - Remaining strategies (not yet started) won't run
+// - listenWalkerComplete fires with partial results
+
+listenWalkerComplete((results) => {
+  console.log("Walker stopped early:", results.bestStrategy);
+  console.log(`Tested ${results.strategies.length}/3 strategies`);
+});
+```
+
+#### Multiple Walkers on Same Symbol
+
+Walker shutdown only affects the specified walker, not others running on the same symbol:
+
+```typescript
+// Start two independent walkers on same symbol
+Walker.background("BTCUSDT", { walkerName: "walker-A" });
+Walker.background("BTCUSDT", { walkerName: "walker-B" });
+
+// Stop walker-A only
+await Walker.stop("BTCUSDT", "walker-A");
+// - walker-A stops gracefully
+// - walker-B continues unaffected
+```
+
+#### Use Cases
+
+1. **Backtest Early Exit** - Stop backtest when strategy performs poorly (e.g., drawdown > 10%)
+2. **Live Trading Maintenance** - Gracefully stop live trading for system updates
+3. **Walker Optimization** - Skip remaining strategies when first one is excellent
+4. **Resource Management** - Stop long-running backtests to free up resources
+5. **Conditional Termination** - Stop based on external events (API limits, market conditions)
+
+#### Best Practices
+
+1. **Always await stop()** - Ensure graceful shutdown completes before exiting process
+2. **Use listenDone events** - Track completion with `listenDoneBacktest`, `listenDoneLive`, `listenWalkerComplete`
+3. **Don't force-kill** - Let signals complete naturally instead of process.exit()
+4. **Save reports** - Call `dump()` methods before stopping to preserve results
+5. **Test shutdown paths** - Write tests that verify graceful shutdown behavior
+
+```typescript
+// GOOD - Graceful shutdown with cleanup
+await Backtest.stop("BTCUSDT", "my-strategy");
+await Backtest.dump("my-strategy"); // Save report
+console.log("Shutdown complete");
+
+// BAD - Forced exit without cleanup
+process.exit(0); // Signals may not complete, callbacks may not fire
+```
+
+---
+
+### 12. Scheduled Signal Persistence
 
 The framework includes a separate persistence system for scheduled signals (`PersistScheduleAdapter`) that works independently from pending/active signal persistence (`PersistSignalAdapter`). This separation ensures crash-safe recovery of both signal types.
 
@@ -2265,16 +2434,17 @@ await setConfig({
 
 ## ✅ Tested & Reliable
 
-`backtest-kit` comes with **217 unit and integration tests** covering:
+`backtest-kit` comes with **244 unit and integration tests** covering:
 
 - Signal validation and throttling
 - PNL calculation with fees and slippage
 - Crash recovery and state persistence
 - Dual-layer persistence (pending signals and scheduled signals)
 - Crash recovery validation (exchange/strategy name mismatch protection)
+- Graceful shutdown (Backtest.stop, Live.stop, Walker.stop) with signal completion
 - Callback execution order (onSchedule, onOpen, onActive, onClose, onCancel)
 - Markdown report generation (backtest, live, scheduled signals)
-- Walker strategy comparison
+- Walker strategy comparison and early termination
 - Heatmap portfolio analysis
 - Position sizing calculations
 - Risk management validation
