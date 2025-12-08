@@ -5148,6 +5148,130 @@ declare class PersistPartialUtils {
 declare const PersistPartialAdapter: PersistPartialUtils;
 
 /**
+ * Instance class for backtest operations on a specific symbol-strategy pair.
+ *
+ * Provides isolated backtest execution and reporting for a single symbol-strategy combination.
+ * Each instance maintains its own state and context.
+ *
+ * @example
+ * ```typescript
+ * const instance = new BacktestInstance("BTCUSDT", "my-strategy");
+ *
+ * for await (const result of instance.run("BTCUSDT", {
+ *   strategyName: "my-strategy",
+ *   exchangeName: "my-exchange",
+ *   frameName: "1d-backtest"
+ * })) {
+ *   console.log("Closed signal PNL:", result.pnl.pnlPercentage);
+ * }
+ * ```
+ */
+declare class BacktestInstance {
+    /**
+     * Runs backtest for a symbol with context propagation.
+     *
+     * @param symbol - Trading pair symbol (e.g., "BTCUSDT")
+     * @param context - Execution context with strategy, exchange, and frame names
+     * @returns Async generator yielding closed signals with PNL
+     */
+    run: (symbol: string, context: {
+        strategyName: string;
+        exchangeName: string;
+        frameName: string;
+    }) => AsyncGenerator<IStrategyBacktestResult, void, unknown>;
+    /**
+     * Runs backtest in background without yielding results.
+     *
+     * Consumes all backtest results internally without exposing them.
+     * Useful for running backtests for side effects only (callbacks, logging).
+     *
+     * @param symbol - Trading pair symbol (e.g., "BTCUSDT")
+     * @param context - Execution context with strategy, exchange, and frame names
+     * @returns Cancellation closure
+     *
+     * @example
+     * ```typescript
+     * const instance = new BacktestInstance();
+     * const cancel = instance.background("BTCUSDT", {
+     *   strategyName: "my-strategy",
+     *   exchangeName: "my-exchange",
+     *   frameName: "1d-backtest"
+     * });
+     * ```
+     */
+    background: (symbol: string, context: {
+        strategyName: string;
+        exchangeName: string;
+        frameName: string;
+    }) => () => void;
+    /**
+     * Stops the strategy from generating new signals.
+     *
+     * Sets internal flag to prevent strategy from opening new signals.
+     * Current active signal (if any) will complete normally.
+     * Backtest will stop at the next safe point (idle state or after signal closes).
+     *
+     * @param symbol - Trading pair symbol
+     * @param strategyName - Strategy name to stop
+     * @returns Promise that resolves when stop flag is set
+     *
+     * @example
+     * ```typescript
+     * const instance = new BacktestInstance();
+     * await instance.stop("BTCUSDT", "my-strategy");
+     * ```
+     */
+    stop: (symbol: string, strategyName: StrategyName) => Promise<void>;
+    /**
+     * Gets statistical data from all closed signals for a symbol-strategy pair.
+     *
+     * @param symbol - Trading pair symbol
+     * @param strategyName - Strategy name to get data for
+     * @returns Promise resolving to statistical data object
+     *
+     * @example
+     * ```typescript
+     * const instance = new BacktestInstance();
+     * const stats = await instance.getData("BTCUSDT", "my-strategy");
+     * console.log(stats.sharpeRatio, stats.winRate);
+     * ```
+     */
+    getData: (symbol: string, strategyName: StrategyName) => Promise<BacktestStatistics>;
+    /**
+     * Generates markdown report with all closed signals for a symbol-strategy pair.
+     *
+     * @param symbol - Trading pair symbol
+     * @param strategyName - Strategy name to generate report for
+     * @returns Promise resolving to markdown formatted report string
+     *
+     * @example
+     * ```typescript
+     * const instance = new BacktestInstance();
+     * const markdown = await instance.getReport("BTCUSDT", "my-strategy");
+     * console.log(markdown);
+     * ```
+     */
+    getReport: (symbol: string, strategyName: StrategyName) => Promise<string>;
+    /**
+     * Saves strategy report to disk.
+     *
+     * @param symbol - Trading pair symbol
+     * @param strategyName - Strategy name to save report for
+     * @param path - Optional directory path to save report (default: "./dump/backtest")
+     *
+     * @example
+     * ```typescript
+     * const instance = new BacktestInstance();
+     * // Save to default path: ./dump/backtest/my-strategy.md
+     * await instance.dump("BTCUSDT", "my-strategy");
+     *
+     * // Save to custom path: ./custom/path/my-strategy.md
+     * await instance.dump("BTCUSDT", "my-strategy", "./custom/path");
+     * ```
+     */
+    dump: (symbol: string, strategyName: StrategyName, path?: string) => Promise<void>;
+}
+/**
  * Utility class for backtest operations.
  *
  * Provides simplified access to backtestCommandService.run() with logging.
@@ -5167,6 +5291,11 @@ declare const PersistPartialAdapter: PersistPartialUtils;
  * ```
  */
 declare class BacktestUtils {
+    /**
+     * Memoized function to get or create BacktestInstance for a symbol-strategy pair.
+     * Each symbol-strategy combination gets its own isolated instance.
+     */
+    getInstance: ((symbol: string, strategyName: StrategyName) => BacktestInstance) & functools_kit.IClearableMemoize<string> & functools_kit.IControlMemoize<string, BacktestInstance>;
     /**
      * Runs backtest for a symbol with context propagation.
      *
