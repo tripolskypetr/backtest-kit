@@ -1443,9 +1443,27 @@ test("EDGE CASE: SL hit on activation candle - signal cancelled BEFORE open", as
 
   let allCandles = [];
 
-  // Предзаполняем начальные свечи для getAveragePrice (минимум 5)
+  // КРИТИЧНО: BacktestLogicPrivateService запрашивает свечи начиная с (when - 4 минуты)
+  // Поэтому создаем свечи начиная с (startTime - 4 минуты) чтобы покрыть буфер
+  const bufferMinutes = 4;
+  const bufferStartTime = startTime - bufferMinutes * intervalMs;
+
+  // Буферные свечи (минуты -4, -3, -2, -1)
+  // Для LONG сигнала: держим цены ВЫСОКИМИ чтобы избежать immediate activation
+  for (let i = 0; i < bufferMinutes; i++) {
+    allCandles.push({
+      timestamp: bufferStartTime + i * intervalMs,
+      open: basePrice + 2000,  // 44000 - ВЫШЕ priceOpen
+      high: basePrice + 2100,  // 44100
+      low: basePrice + 1900,   // 43900 > priceOpen=42000
+      close: basePrice + 2000, // 44000
+      volume: 100,
+    });
+  }
+
+  // Начальная свеча на момент when (минута 0) и далее
   // ВАЖНО: Для LONG сигнала с priceOpen=42000:
-  // - Чтобы НЕ активировать: candle.low > priceOpen (low > 42000)
+  // - Чтобы НЕ активировать сразу: candle.low > priceOpen (low > 42000)
   // - VWAP должен быть ВЫШЕ priceOpen чтобы избежать immediate activation
   for (let i = 0; i < 5; i++) {
     allCandles.push({
@@ -1500,7 +1518,8 @@ test("EDGE CASE: SL hit on activation candle - signal cancelled BEFORE open", as
   addExchange({
     exchangeName: "binance-edge-sl-before-open",
     getCandles: async (_symbol, _interval, since, limit) => {
-      const sinceIndex = Math.floor((since.getTime() - startTime) / intervalMs);
+      // КРИТИЧНО: используем bufferStartTime для расчета индекса, так как allCandles начинается с буфера
+      const sinceIndex = Math.floor((since.getTime() - bufferStartTime) / intervalMs);
       const result = allCandles.slice(sinceIndex, sinceIndex + limit);
       return result.length > 0 ? result : allCandles.slice(0, Math.min(limit, allCandles.length));
     },
