@@ -2,6 +2,7 @@ import "./config/setup.mjs"
 
 import { run } from 'worker-testbed';
 
+import "./e2e/shutdown.test.mjs";
 import "./e2e/markdown.test.mjs";
 import "./e2e/facades.test.mjs";
 import "./e2e/partial.test.mjs"

@@ -1277,3 +1277,166 @@ test("SHUTDOWN: Walker with getSignal always null - stops early", async ({ pass,
 
   pass(`SHUTDOWN WALKER NULL SIGNAL: Walker stopped after first strategy. Strategies started: ${strategiesStartedArray.length}/3. Total getSignal calls: ${totalCalls}/90 in ${elapsedTime}ms`);
 });
+
+
+/**
+ * SHUTDOWN TEST #10: Walker with getSignal always returning null
+ *
+ * Scenario:
+ * - Walker with 3 strategies, each getSignal returns null after 500ms delay (faster)
+ * - Walker should complete without hanging
+ * - Call Walker.stop() after first strategy completes
+ * - Check: Walker stops early, remaining strategies don't run
+ */
+test("SHUTDOWN: Walker with getSignal always null - stops next strategy", async ({ pass, fail }) => {
+  const strategiesStarted = new Set();
+  const getSignalCounts = {};
+
+  const startTime = new Date("2024-01-01T00:00:00Z").getTime();
+  const intervalMs = 60000;
+  const basePrice = 95000;
+  const bufferMinutes = 4;
+  const bufferStartTime = startTime - bufferMinutes * intervalMs;
+
+  let allCandles = [];
+
+  // Buffer candles before frame start
+  for (let i = 0; i < bufferMinutes; i++) {
+    allCandles.push({
+      timestamp: bufferStartTime + i * intervalMs,
+      open: basePrice,
+      high: basePrice + 100,
+      low: basePrice - 100,
+      close: basePrice,
+      volume: 100,
+    });
+  }
+
+  // Frame candles (5 minutes - even shorter for faster test)
+  for (let i = 0; i < 5; i++) {
+    const timestamp = startTime + i * intervalMs;
+    allCandles.push({
+      timestamp,
+      open: basePrice,
+      high: basePrice + 100,
+      low: basePrice - 100,
+      close: basePrice,
+      volume: 100,
+    });
+  }
+
+  addExchange({
+    exchangeName: "binance-shutdown-10",
+    getCandles: async (_symbol, _interval, since, limit) => {
+      const sinceIndex = Math.floor((since.getTime() - startTime) / intervalMs);
+      const result = allCandles.slice(sinceIndex, sinceIndex + limit);
+      return result.length > 0 ? result : allCandles.slice(0, Math.min(limit, allCandles.length));
+    },
+    formatPrice: async (_symbol, p) => p.toFixed(8),
+    formatQuantity: async (_symbol, quantity) => quantity.toFixed(8),
+  });
+
+  // Add 3 strategies with faster getSignal returning null
+  for (let s = 1; s <= 3; s++) {
+    const strategyName = `test-shutdown-walker-null-10-${s}`;
+    getSignalCounts[strategyName] = 0;
+
+    addStrategy({
+      strategyName,
+      interval: "1m",
+      getSignal: async () => {
+        strategiesStarted.add(strategyName);
+        getSignalCounts[strategyName]++;
+        // Faster delay for quicker test completion
+        await sleep(500);
+        // Always return null - no signals
+        return null;
+      },
+    });
+  }
+
+  addFrame({
+    frameName: "5m-shutdown-10",
+    interval: "1m",
+    startDate: new Date("2024-01-01T00:00:00Z"),
+    endDate: new Date("2024-01-01T00:05:00Z"),
+  });
+
+  const awaitSubject = new Subject();
+
+  const walkerCompletePromise = new Promise((resolve) => {
+    listenWalkerComplete(() => {
+      awaitSubject.next();
+      resolve();
+    });
+  });
+
+  addWalker({
+    walkerName: "test-walker-shutdown-null-10",
+    exchangeName: "binance-shutdown-10",
+    frameName: "5m-shutdown-10",
+    strategies: ["test-shutdown-walker-null-10-1", "test-shutdown-walker-null-10-2", "test-shutdown-walker-null-10-3"],
+  });
+
+  let errorCaught = null;
+  const unsubscribeError = listenError((error) => {
+    errorCaught = error;
+    awaitSubject.next();
+  });
+
+  const testStartTime = Date.now();
+
+  const cancelFn = Walker.background("BTCUSDT", {
+    walkerName: "test-walker-shutdown-null-10",
+  });
+
+  // Stop walker after 1 second (before first strategy completes all 5 frames)
+  await sleep(1_000);
+  await Walker.stop("BTCUSDT", "test-walker-shutdown-null-10");
+
+  // Race: listenWalkerComplete should fire before 3 seconds timeout
+  const raceResult = await Promise.race([
+    walkerCompletePromise.then(() => "done"),
+    sleep(3_000).then(() => "timeout"),
+  ]);
+
+  const elapsedTime = Date.now() - testStartTime;
+
+  cancelFn();
+  unsubscribeError();
+
+  if (raceResult === "timeout") {
+    fail(`Walker did not complete within 3 seconds (elapsed: ${elapsedTime}ms)`);
+    return;
+  }
+
+  if (errorCaught) {
+    fail(`Error during walker: ${errorCaught.message || errorCaught}`);
+    return;
+  }
+
+  const strategiesStartedArray = Array.from(strategiesStarted);
+
+  // Walker should stop early, so only 1 strategy should start
+  if (strategiesStartedArray.length >= 3) {
+    fail(`Expected less than 3 strategies started (stopped early), got ${strategiesStartedArray.length}: ${strategiesStartedArray.join(", ")}`);
+    return;
+  }
+
+  // Calculate total getSignal calls
+  const totalCalls = Object.values(getSignalCounts).reduce((sum, count) => sum + count, 0);
+
+  // First strategy should have some calls (but not all 15), others should have 0 or very few
+  if (totalCalls === 0) {
+    fail(`getSignal should be called at least once, got ${totalCalls} total calls`);
+    return;
+  }
+
+  // Should stop early, so total calls should be much less than 3 * 5 = 15
+  if (totalCalls >= 15) {
+    fail(`Walker should stop early, but getSignal was called ${totalCalls}/15 times`);
+    return;
+  }
+
+  pass(`SHUTDOWN WALKER NULL SIGNAL (FAST): Walker stopped early. Strategies started: ${strategiesStartedArray.length}/3. Total getSignal calls: ${totalCalls}/15 in ${elapsedTime}ms`);
+});

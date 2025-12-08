@@ -6746,7 +6746,7 @@ declare class StrategyConnectionService {
     stop: (ctx: {
         symbol: string;
         strategyName: StrategyName;
-    }) => Promise<void>;
+    }, backtest: boolean) => Promise<void>;
     /**
      * Clears the memoized ClientStrategy instance from cache.
      *
@@ -7228,7 +7228,7 @@ declare class StrategyGlobalService {
     stop: (ctx: {
         symbol: string;
         strategyName: StrategyName;
-    }) => Promise<void>;
+    }, backtest: boolean) => Promise<void>;
     /**
      * Clears the memoized ClientStrategy instance from cache.
      *
