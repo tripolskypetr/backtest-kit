@@ -7,11 +7,12 @@ import {
   Backtest,
   listenSignalBacktest,
   listenDoneBacktest,
+  listenError,
   getAveragePrice,
 } from "../../build/index.mjs";
 
 import getMockCandles from "../mock/getMockCandles.mjs";
-import { Subject } from "functools-kit";
+import { Subject, sleep } from "functools-kit";
 
 test("Scheduled signal is created and activated when price is reached", async ({ pass, fail }) => {
 
@@ -21,10 +22,33 @@ test("Scheduled signal is created and activated when price is reached", async ({
   let closedCount = 0;
   let index = 0;
 
+  const startTime = new Date("2024-01-01T00:00:00Z").getTime();
+  const intervalMs = 60 * 1000; // 1 minute
+  const basePrice = 42000;
+
+  // КРИТИЧНО: создаем свечи с учетом буфера (4 свечи ДО startTime)
+  const bufferMinutes = 4;
+  const bufferStartTime = startTime - bufferMinutes * intervalMs;
+  let allCandles = [];
+
+  // Предзаполняем минимум 5 свечей ДО первого вызова getSignal (для getAveragePrice)
+  for (let i = 0; i < 5; i++) {
+    allCandles.push({
+      timestamp: bufferStartTime + i * intervalMs,
+      open: basePrice,
+      high: basePrice + 100,
+      low: basePrice - 100,
+      close: basePrice,
+      volume: 100,
+    });
+  }
+
   addExchange({
     exchangeName: "binance-scheduled-activate",
-    getCandles: async (_symbol, interval, since, limit) => {
-      return await getMockCandles(interval, since, limit);
+    getCandles: async (_symbol, _interval, since, limit) => {
+      const sinceIndex = Math.floor((since.getTime() - bufferStartTime) / intervalMs);
+      const result = allCandles.slice(sinceIndex, sinceIndex + limit);
+      return result.length > 0 ? result : allCandles.slice(0, Math.min(limit, allCandles.length));
     },
     formatPrice: async (symbol, price) => price.toFixed(8),
     formatQuantity: async (symbol, quantity) => quantity.toFixed(8),
@@ -34,12 +58,63 @@ test("Scheduled signal is created and activated when price is reached", async ({
     strategyName: "test-strategy-scheduled-activate",
     interval: "1m",
     getSignal: async () => {
-      const price = await getAveragePrice("BTCUSDT");
       index++;
+
+      // КРИТИЧНО: Генерируем ВСЕ свечи только в первый раз (паттерн #2)
+      if (index === 1) {
+        allCandles = [];
+
+        // Буферные свечи (4 минуты)
+        for (let i = 0; i < bufferMinutes; i++) {
+          allCandles.push({
+            timestamp: bufferStartTime + i * intervalMs,
+            open: basePrice,
+            high: basePrice + 100,
+            low: basePrice - 100,
+            close: basePrice,
+            volume: 100,
+          });
+        }
+
+        // Генерируем свечи на frame duration + extra for signal processing
+        // Frame: 10 minutes, Signal estimated: 120 minutes, Await: 120 minutes
+        // Total: 10 + 120 + 120 = 250 minutes
+        for (let minuteIndex = 0; minuteIndex < 250; minuteIndex++) {
+          const timestamp = startTime + minuteIndex * intervalMs;
+
+          if (minuteIndex < 5) {
+            // First 5 minutes: falling price for activation
+            allCandles.push({
+              timestamp,
+              open: basePrice - 200,  // Падение для активации LONG
+              high: basePrice + 200,  // Рост для TP
+              low: basePrice - 200,   // Активирует priceOpen
+              close: basePrice + 150,
+              volume: 100,
+            });
+          } else {
+            // Remaining minutes: normal price movement
+            allCandles.push({
+              timestamp,
+              open: basePrice,
+              high: basePrice + 100,
+              low: basePrice - 100,
+              close: basePrice,
+              volume: 100,
+            });
+          }
+        }
+      }
+
+      const price = await getAveragePrice("BTCUSDT");
+
+      // console.log(`[TEST scheduled] index=${index}, VWAP price=${price}`);
+      // await sleep(1000);
+
       // Alternate between reachable TP and time expiration
       if (index % 2 === 1) {
         // Odd: Will hit TP (price grows, TP is reachable)
-        return {
+        const signal = {
           position: "long",
           note: "scheduled activation test",
           priceOpen: price - 100,
@@ -47,16 +122,22 @@ test("Scheduled signal is created and activated when price is reached", async ({
           priceStopLoss: price - 10000,
           minuteEstimatedTime: 120,
         };
+        // console.log(`[TEST scheduled] Creating LONG signal: priceOpen=${signal.priceOpen}, TP=${signal.priceTakeProfit}, SL=${signal.priceStopLoss}`);
+        // await sleep(1000);
+        return signal;
       } else {
         // Even: Will expire by time (TP unreachable, SL very low)
-        return {
+        const signal = {
           position: "long",
           note: "scheduled activation test",
           priceOpen: price - 100,
           priceTakeProfit: price + 10000,
-          priceStopLoss: price - 100,
+          priceStopLoss: price - 10000,
           minuteEstimatedTime: 120,
         };
+        // console.log(`[TEST scheduled] Creating LONG signal (time_expired): priceOpen=${signal.priceOpen}, TP=${signal.priceTakeProfit}, SL=${signal.priceStopLoss}`);
+        // await sleep(1000);
+        return signal;
       }
     },
     callbacks: {
@@ -76,13 +157,21 @@ test("Scheduled signal is created and activated when price is reached", async ({
   });
 
   addFrame({
-    frameName: "5d-scheduled-activate",
-    interval: "1d",
+    frameName: "10m-scheduled-activate",
+    interval: "1m",
     startDate: new Date("2024-01-01T00:00:00Z"),
-    endDate: new Date("2024-01-06T00:00:00Z"),
+    endDate: new Date("2024-01-01T00:10:00Z"),
   });
 
   const awaitSubject = new Subject();
+
+  let errorCaught = null;
+  const unsubscribeError = listenError((error) => {
+    errorCaught = error;
+    console.log("[TEST ERROR]", error);
+    awaitSubject.next();
+  });
+
   listenDoneBacktest(() => awaitSubject.next());
 
   let scheduledEvents = 0;
@@ -108,10 +197,17 @@ test("Scheduled signal is created and activated when price is reached", async ({
   Backtest.background("BTCUSDT", {
     strategyName: "test-strategy-scheduled-activate",
     exchangeName: "binance-scheduled-activate",
-    frameName: "5d-scheduled-activate",
+    frameName: "10m-scheduled-activate",
   });
 
   await awaitSubject.toPromise();
+  await sleep(100);
+  unsubscribeError();
+
+  if (errorCaught) {
+    fail(`Error during backtest: ${errorCaught.message || errorCaught}`);
+    return;
+  }
 
   if (scheduledCount > 0 && openedCount > 0 && closedCount > 0) {
     pass(`Scheduled signal lifecycle works: ${scheduledCount} scheduled, ${openedCount} opened, ${closedCount} closed`);
@@ -214,10 +310,31 @@ test("Multiple scheduled signals queue and activate sequentially", async ({ pass
   let closedCount = 0;
   let index = 0;
 
+  const startTime = new Date("2024-01-01T00:00:00Z").getTime();
+  const intervalMs = 60 * 1000; // 1 minute
+  const basePrice = 42000;
+  const bufferMinutes = 4;
+  const bufferStartTime = startTime - bufferMinutes * intervalMs;
+  let allCandles = [];
+
+  // Предзаполняем минимум 5 свечей
+  for (let i = 0; i < 5; i++) {
+    allCandles.push({
+      timestamp: bufferStartTime + i * intervalMs,
+      open: basePrice,
+      high: basePrice + 100,
+      low: basePrice - 100,
+      close: basePrice,
+      volume: 100,
+    });
+  }
+
   addExchange({
     exchangeName: "binance-scheduled-queue",
-    getCandles: async (_symbol, interval, since, limit) => {
-      return await getMockCandles(interval, since, limit);
+    getCandles: async (_symbol, _interval, since, limit) => {
+      const sinceIndex = Math.floor((since.getTime() - bufferStartTime) / intervalMs);
+      const result = allCandles.slice(sinceIndex, sinceIndex + limit);
+      return result.length > 0 ? result : allCandles.slice(0, Math.min(limit, allCandles.length));
     },
     formatPrice: async (symbol, price) => price.toFixed(8),
     formatQuantity: async (symbol, quantity) => quantity.toFixed(8),
@@ -227,8 +344,42 @@ test("Multiple scheduled signals queue and activate sequentially", async ({ pass
     strategyName: "test-strategy-scheduled-queue",
     interval: "1m",
     getSignal: async () => {
-      const price = await getAveragePrice("BTCUSDT");
       index++;
+
+      // Генерируем свечи в первый раз
+      if (index === 1) {
+        allCandles = [];
+
+        // Буферные свечи
+        for (let i = 0; i < bufferMinutes; i++) {
+          allCandles.push({
+            timestamp: bufferStartTime + i * intervalMs,
+            open: basePrice,
+            high: basePrice + 100,
+            low: basePrice - 100,
+            close: basePrice,
+            volume: 100,
+          });
+        }
+
+        // Генерируем достаточно свечей: frame (20m) + await (120m) + estimated (60m) = 200m
+        for (let minuteIndex = 0; minuteIndex < 200; minuteIndex++) {
+          const timestamp = startTime + minuteIndex * intervalMs;
+
+          // Падающая цена для активации LONG
+          allCandles.push({
+            timestamp,
+            open: basePrice - 200,
+            high: basePrice + 200,
+            low: basePrice - 200,
+            close: basePrice + 100,
+            volume: 100,
+          });
+        }
+      }
+
+      const price = await getAveragePrice("BTCUSDT");
+
       // Alternate between TP and time expiration
       if (index % 2 === 1) {
         return {
@@ -245,7 +396,7 @@ test("Multiple scheduled signals queue and activate sequentially", async ({ pass
           note: "scheduled queue test",
           priceOpen: price - 100,
           priceTakeProfit: price + 10000,
-          priceStopLoss: price - 100,
+          priceStopLoss: price - 10000,
           minuteEstimatedTime: 60,
         };
       }
@@ -264,10 +415,10 @@ test("Multiple scheduled signals queue and activate sequentially", async ({ pass
   });
 
   addFrame({
-    frameName: "10d-scheduled-queue",
-    interval: "1d",
+    frameName: "20m-scheduled-queue",
+    interval: "1m",
     startDate: new Date("2024-01-01T00:00:00Z"),
-    endDate: new Date("2024-01-11T00:00:00Z"),
+    endDate: new Date("2024-01-01T00:20:00Z"),
   });
 
   const awaitSubject = new Subject();
@@ -288,7 +439,7 @@ test("Multiple scheduled signals queue and activate sequentially", async ({ pass
   Backtest.background("BTCUSDT", {
     strategyName: "test-strategy-scheduled-queue",
     exchangeName: "binance-scheduled-queue",
-    frameName: "10d-scheduled-queue",
+    frameName: "20m-scheduled-queue",
   });
 
   await awaitSubject.toPromise();

@@ -20,6 +20,12 @@ declare const GLOBAL_CONFIG: {
      */
     CC_MIN_TAKEPROFIT_DISTANCE_PERCENT: number;
     /**
+     * Minimum StopLoss distance from priceOpen (percentage)
+     * Prevents signals from being immediately stopped out due to price volatility
+     * Default: 0.5% (buffer to avoid instant stop loss on normal market fluctuations)
+     */
+    CC_MIN_STOPLOSS_DISTANCE_PERCENT: number;
+    /**
      * Maximum StopLoss distance from priceOpen (percentage)
      * Prevents catastrophic losses from extreme StopLoss values
      * Default: 20% (one signal cannot lose more than 20% of position)

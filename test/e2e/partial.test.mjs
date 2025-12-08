@@ -23,14 +23,16 @@ test("PARTIAL BACKTEST: onPartialProfit for LONG with gradual profit", async ({ 
   const startTime = new Date("2024-01-01T00:00:00Z").getTime();
   const intervalMs = 60000;
   const basePrice = 95000;
+  const bufferMinutes = 4;
+  const bufferStartTime = startTime - bufferMinutes * intervalMs;
 
   let allCandles = [];
   let signalGenerated = false;
 
-  // Создаем начальные свечи
+  // Предзаполняем минимум 5 свечей с учетом буфера
   for (let i = 0; i < 5; i++) {
     allCandles.push({
-      timestamp: startTime + i * intervalMs,
+      timestamp: bufferStartTime + i * intervalMs,
       open: basePrice,
       high: basePrice + 100,
       low: basePrice - 50,
@@ -42,7 +44,7 @@ test("PARTIAL BACKTEST: onPartialProfit for LONG with gradual profit", async ({ 
   addExchange({
     exchangeName: "binance-partial-fill",
     getCandles: async (_symbol, _interval, since, limit) => {
-      const sinceIndex = Math.floor((since.getTime() - startTime) / intervalMs);
+      const sinceIndex = Math.floor((since.getTime() - bufferStartTime) / intervalMs);
       const result = allCandles.slice(sinceIndex, sinceIndex + limit);
       return result.length > 0 ? result : allCandles.slice(0, Math.min(limit, allCandles.length));
     },
@@ -58,6 +60,20 @@ test("PARTIAL BACKTEST: onPartialProfit for LONG with gradual profit", async ({ 
       signalGenerated = true;
 
       allCandles = [];
+
+      // Буферные свечи (4 минуты ДО startTime)
+      for (let i = 0; i < bufferMinutes; i++) {
+        allCandles.push({
+          timestamp: bufferStartTime + i * intervalMs,
+          open: basePrice,
+          high: basePrice + 50,
+          low: basePrice - 50,
+          close: basePrice,
+          volume: 100,
+        });
+      }
+
+      // Основные свечи (от startTime)
       for (let i = 0; i < 25; i++) {
         const timestamp = startTime + i * intervalMs;
 
@@ -172,13 +188,15 @@ test("PARTIAL BACKTEST: onPartialLoss for LONG with gradual loss", async ({ pass
   const startTime = new Date("2024-01-01T00:00:00Z").getTime();
   const intervalMs = 60000;
   const basePrice = 95000;
+  const bufferMinutes = 4;
+  const bufferStartTime = startTime - bufferMinutes * intervalMs;
 
   let allCandles = [];
   let signalGenerated = false;
 
   for (let i = 0; i < 5; i++) {
     allCandles.push({
-      timestamp: startTime + i * intervalMs,
+      timestamp: bufferStartTime + i * intervalMs,
       open: basePrice,
       high: basePrice + 100,
       low: basePrice - 50,
@@ -190,7 +208,7 @@ test("PARTIAL BACKTEST: onPartialLoss for LONG with gradual loss", async ({ pass
   addExchange({
     exchangeName: "binance-partial-loss",
     getCandles: async (_symbol, _interval, since, limit) => {
-      const sinceIndex = Math.floor((since.getTime() - startTime) / intervalMs);
+      const sinceIndex = Math.floor((since.getTime() - bufferStartTime) / intervalMs);
       const result = allCandles.slice(sinceIndex, sinceIndex + limit);
       return result.length > 0 ? result : allCandles.slice(0, Math.min(limit, allCandles.length));
     },
@@ -206,6 +224,20 @@ test("PARTIAL BACKTEST: onPartialLoss for LONG with gradual loss", async ({ pass
       signalGenerated = true;
 
       allCandles = [];
+
+      // Буферные свечи (4 минуты ДО startTime)
+      for (let i = 0; i < bufferMinutes; i++) {
+        allCandles.push({
+          timestamp: bufferStartTime + i * intervalMs,
+          open: basePrice,
+          high: basePrice + 50,
+          low: basePrice - 50,
+          close: basePrice,
+          volume: 100,
+        });
+      }
+
+      // Основные свечи (от startTime)
       for (let i = 0; i < 25; i++) {
         const timestamp = startTime + i * intervalMs;
 
@@ -320,13 +352,15 @@ test("PARTIAL BACKTEST: onPartialProfit for SHORT with price falling", async ({ 
   const startTime = new Date("2024-01-01T00:00:00Z").getTime();
   const intervalMs = 60000;
   const basePrice = 95000;
+  const bufferMinutes = 4;
+  const bufferStartTime = startTime - bufferMinutes * intervalMs;
 
   let allCandles = [];
   let signalGenerated = false;
 
   for (let i = 0; i < 5; i++) {
     allCandles.push({
-      timestamp: startTime + i * intervalMs,
+      timestamp: bufferStartTime + i * intervalMs,
       open: basePrice,
       high: basePrice + 100,
       low: basePrice - 50,
@@ -338,7 +372,7 @@ test("PARTIAL BACKTEST: onPartialProfit for SHORT with price falling", async ({ 
   addExchange({
     exchangeName: "binance-partial-short-fill",
     getCandles: async (_symbol, _interval, since, limit) => {
-      const sinceIndex = Math.floor((since.getTime() - startTime) / intervalMs);
+      const sinceIndex = Math.floor((since.getTime() - bufferStartTime) / intervalMs);
       const result = allCandles.slice(sinceIndex, sinceIndex + limit);
       return result.length > 0 ? result : allCandles.slice(0, Math.min(limit, allCandles.length));
     },
@@ -354,6 +388,20 @@ test("PARTIAL BACKTEST: onPartialProfit for SHORT with price falling", async ({ 
       signalGenerated = true;
 
       allCandles = [];
+
+      // Буферные свечи (4 минуты ДО startTime)
+      for (let i = 0; i < bufferMinutes; i++) {
+        allCandles.push({
+          timestamp: bufferStartTime + i * intervalMs,
+          open: basePrice,
+          high: basePrice + 50,
+          low: basePrice - 50,
+          close: basePrice,
+          volume: 100,
+        });
+      }
+
+      // Основные свечи (от startTime)
       for (let i = 0; i < 25; i++) {
         const timestamp = startTime + i * intervalMs;
 
@@ -463,13 +511,15 @@ test("PARTIAL BACKTEST: onPartialLoss for SHORT with price rising", async ({ pas
   const startTime = new Date("2024-01-01T00:00:00Z").getTime();
   const intervalMs = 60000;
   const basePrice = 95000;
+  const bufferMinutes = 4;
+  const bufferStartTime = startTime - bufferMinutes * intervalMs;
 
   let allCandles = [];
   let signalGenerated = false;
 
   for (let i = 0; i < 5; i++) {
     allCandles.push({
-      timestamp: startTime + i * intervalMs,
+      timestamp: bufferStartTime + i * intervalMs,
       open: basePrice,
       high: basePrice + 100,
       low: basePrice - 50,
@@ -481,7 +531,7 @@ test("PARTIAL BACKTEST: onPartialLoss for SHORT with price rising", async ({ pas
   addExchange({
     exchangeName: "binance-partial-short-loss",
     getCandles: async (_symbol, _interval, since, limit) => {
-      const sinceIndex = Math.floor((since.getTime() - startTime) / intervalMs);
+      const sinceIndex = Math.floor((since.getTime() - bufferStartTime) / intervalMs);
       const result = allCandles.slice(sinceIndex, sinceIndex + limit);
       return result.length > 0 ? result : allCandles.slice(0, Math.min(limit, allCandles.length));
     },
@@ -497,6 +547,20 @@ test("PARTIAL BACKTEST: onPartialLoss for SHORT with price rising", async ({ pas
       signalGenerated = true;
 
       allCandles = [];
+
+      // Буферные свечи (4 минуты ДО startTime)
+      for (let i = 0; i < bufferMinutes; i++) {
+        allCandles.push({
+          timestamp: bufferStartTime + i * intervalMs,
+          open: basePrice,
+          high: basePrice + 50,
+          low: basePrice - 50,
+          close: basePrice,
+          volume: 100,
+        });
+      }
+
+      // Основные свечи (от startTime)
       for (let i = 0; i < 25; i++) {
         const timestamp = startTime + i * intervalMs;
 
@@ -605,13 +669,15 @@ test("Partial.getData returns partial profit/loss statistics for symbol", async 
   const startTime = new Date("2024-01-01T00:00:00Z").getTime();
   const intervalMs = 60000;
   const basePrice = 95000;
+  const bufferMinutes = 4;
+  const bufferStartTime = startTime - bufferMinutes * intervalMs;
 
   let allCandles = [];
   let signalGenerated = false;
 
   for (let i = 0; i < 5; i++) {
     allCandles.push({
-      timestamp: startTime + i * intervalMs,
+      timestamp: bufferStartTime + i * intervalMs,
       open: basePrice,
       high: basePrice + 100,
       low: basePrice - 50,
@@ -623,7 +689,7 @@ test("Partial.getData returns partial profit/loss statistics for symbol", async 
   addExchange({
     exchangeName: "binance-partial-facade-1",
     getCandles: async (_symbol, _interval, since, limit) => {
-      const sinceIndex = Math.floor((since.getTime() - startTime) / intervalMs);
+      const sinceIndex = Math.floor((since.getTime() - bufferStartTime) / intervalMs);
       const result = allCandles.slice(sinceIndex, sinceIndex + limit);
       return result.length > 0 ? result : allCandles.slice(0, Math.min(limit, allCandles.length));
     },
@@ -639,6 +705,20 @@ test("Partial.getData returns partial profit/loss statistics for symbol", async 
       signalGenerated = true;
 
       allCandles = [];
+
+      // Буферные свечи (4 минуты ДО startTime)
+      for (let i = 0; i < bufferMinutes; i++) {
+        allCandles.push({
+          timestamp: bufferStartTime + i * intervalMs,
+          open: basePrice,
+          high: basePrice + 50,
+          low: basePrice - 50,
+          close: basePrice,
+          volume: 100,
+        });
+      }
+
+      // Основные свечи (от startTime)
       for (let i = 0; i < 25; i++) {
         const timestamp = startTime + i * intervalMs;
 
@@ -723,13 +803,15 @@ test("Partial.getReport generates markdown report with table", async ({ pass, fa
   const startTime = new Date("2024-01-01T00:00:00Z").getTime();
   const intervalMs = 60000;
   const basePrice = 95000;
+  const bufferMinutes = 4;
+  const bufferStartTime = startTime - bufferMinutes * intervalMs;
 
   let allCandles = [];
   let signalGenerated = false;
 
   for (let i = 0; i < 5; i++) {
     allCandles.push({
-      timestamp: startTime + i * intervalMs,
+      timestamp: bufferStartTime + i * intervalMs,
       open: basePrice,
       high: basePrice + 100,
       low: basePrice - 50,
@@ -741,7 +823,7 @@ test("Partial.getReport generates markdown report with table", async ({ pass, fa
   addExchange({
     exchangeName: "binance-partial-facade-2",
     getCandles: async (_symbol, _interval, since, limit) => {
-      const sinceIndex = Math.floor((since.getTime() - startTime) / intervalMs);
+      const sinceIndex = Math.floor((since.getTime() - bufferStartTime) / intervalMs);
       const result = allCandles.slice(sinceIndex, sinceIndex + limit);
       return result.length > 0 ? result : allCandles.slice(0, Math.min(limit, allCandles.length));
     },
@@ -757,6 +839,20 @@ test("Partial.getReport generates markdown report with table", async ({ pass, fa
       signalGenerated = true;
 
       allCandles = [];
+
+      // Буферные свечи (4 минуты ДО startTime)
+      for (let i = 0; i < bufferMinutes; i++) {
+        allCandles.push({
+          timestamp: bufferStartTime + i * intervalMs,
+          open: basePrice,
+          high: basePrice + 50,
+          low: basePrice - 50,
+          close: basePrice,
+          volume: 100,
+        });
+      }
+
+      // Основные свечи (от startTime)
       for (let i = 0; i < 25; i++) {
         const timestamp = startTime + i * intervalMs;
 
@@ -878,6 +974,8 @@ test("PARTIAL PROGRESS: Percentage calculation during TP achievement", async ({ 
   const priceTakeProfit = priceOpen + 1000; // 100500
   const priceStopLoss = priceOpen - 1000; // 98500
   const tpDistance = priceTakeProfit - priceOpen; // 1000
+  const bufferMinutes = 4;
+  const bufferStartTime = startTime - bufferMinutes * intervalMs;
 
   let allCandles = [];
   let signalGenerated = false;
@@ -886,7 +984,7 @@ test("PARTIAL PROGRESS: Percentage calculation during TP achievement", async ({ 
   // Candles must be ABOVE priceOpen to ensure scheduled state (not immediate activation)
   for (let i = 0; i < 5; i++) {
     allCandles.push({
-      timestamp: startTime + i * intervalMs,
+      timestamp: bufferStartTime + i * intervalMs,
       open: basePrice,
       high: basePrice + 100,
       low: basePrice - 50, // 99950 > priceOpen (99500) ✓
@@ -898,7 +996,7 @@ test("PARTIAL PROGRESS: Percentage calculation during TP achievement", async ({ 
   addExchange({
     exchangeName: "binance-partial-progress",
     getCandles: async (_symbol, _interval, since, limit) => {
-      const sinceIndex = Math.floor((since.getTime() - startTime) / intervalMs);
+      const sinceIndex = Math.floor((since.getTime() - bufferStartTime) / intervalMs);
       const result = allCandles.slice(sinceIndex, sinceIndex + limit);
       return result.length > 0 ? result : allCandles.slice(0, Math.min(limit, allCandles.length));
     },
@@ -915,6 +1013,18 @@ test("PARTIAL PROGRESS: Percentage calculation during TP achievement", async ({ 
 
       // CRITICAL: Regenerate ALL candles in first getSignal call
       allCandles = [];
+
+      // Буферные свечи (4 минуты ДО startTime)
+      for (let i = 0; i < bufferMinutes; i++) {
+        allCandles.push({
+          timestamp: bufferStartTime + i * intervalMs,
+          open: basePrice,
+          high: basePrice + 100,
+          low: basePrice - 50,
+          close: basePrice,
+          volume: 100,
+        });
+      }
 
       let candleIndex = 0;
 
@@ -1111,6 +1221,8 @@ test("PARTIAL LISTENERS: listenPartialProfit and listenPartialLoss capture event
   const priceTakeProfit = priceOpen + 1000; // 100500
   const priceStopLoss = priceOpen - 1000; // 98500
   const tpDistance = priceTakeProfit - priceOpen; // 1000
+  const bufferMinutes = 4;
+  const bufferStartTime = startTime - bufferMinutes * intervalMs;
 
   let allCandles = [];
   let signalGenerated = false;
@@ -1119,7 +1231,7 @@ test("PARTIAL LISTENERS: listenPartialProfit and listenPartialLoss capture event
   // Candles must be ABOVE priceOpen to ensure scheduled state (not immediate activation)
   for (let i = 0; i < 5; i++) {
     allCandles.push({
-      timestamp: startTime + i * intervalMs,
+      timestamp: bufferStartTime + i * intervalMs,
       open: basePrice,
       high: basePrice + 100,
       low: basePrice - 50, // 99950 > priceOpen (99500) ✓
@@ -1131,7 +1243,7 @@ test("PARTIAL LISTENERS: listenPartialProfit and listenPartialLoss capture event
   addExchange({
     exchangeName: "binance-partial-listeners",
     getCandles: async (_symbol, _interval, since, limit) => {
-      const sinceIndex = Math.floor((since.getTime() - startTime) / intervalMs);
+      const sinceIndex = Math.floor((since.getTime() - bufferStartTime) / intervalMs);
       const result = allCandles.slice(sinceIndex, sinceIndex + limit);
       return result.length > 0 ? result : allCandles.slice(0, Math.min(limit, allCandles.length));
     },
@@ -1148,6 +1260,18 @@ test("PARTIAL LISTENERS: listenPartialProfit and listenPartialLoss capture event
 
       // Regenerate ALL candles in first getSignal call
       allCandles = [];
+
+      // Буферные свечи (4 минуты ДО startTime)
+      for (let i = 0; i < bufferMinutes; i++) {
+        allCandles.push({
+          timestamp: bufferStartTime + i * intervalMs,
+          open: basePrice,
+          high: basePrice + 100,
+          low: basePrice - 50,
+          close: basePrice,
+          volume: 100,
+        });
+      }
 
       let candleIndex = 0;
 
@@ -1359,6 +1483,8 @@ test("PARTIAL DEDUPE: Events NOT emitted twice for same level", async ({ pass, f
   const priceTakeProfit = priceOpen + 1000; // 100500
   const priceStopLoss = priceOpen - 1000; // 98500
   const tpDistance = priceTakeProfit - priceOpen; // 1000
+  const bufferMinutes = 4;
+  const bufferStartTime = startTime - bufferMinutes * intervalMs;
 
   let allCandles = [];
   let signalGenerated = false;
@@ -1366,7 +1492,7 @@ test("PARTIAL DEDUPE: Events NOT emitted twice for same level", async ({ pass, f
   // Pre-fill initial candles for getAveragePrice (min 5 candles)
   for (let i = 0; i < 5; i++) {
     allCandles.push({
-      timestamp: startTime + i * intervalMs,
+      timestamp: bufferStartTime + i * intervalMs,
       open: basePrice,
       high: basePrice + 100,
       low: basePrice - 50,
@@ -1378,7 +1504,7 @@ test("PARTIAL DEDUPE: Events NOT emitted twice for same level", async ({ pass, f
   addExchange({
     exchangeName: "binance-partial-dedupe",
     getCandles: async (_symbol, _interval, since, limit) => {
-      const sinceIndex = Math.floor((since.getTime() - startTime) / intervalMs);
+      const sinceIndex = Math.floor((since.getTime() - bufferStartTime) / intervalMs);
       const result = allCandles.slice(sinceIndex, sinceIndex + limit);
       return result.length > 0 ? result : allCandles.slice(0, Math.min(limit, allCandles.length));
     },
@@ -1395,6 +1521,18 @@ test("PARTIAL DEDUPE: Events NOT emitted twice for same level", async ({ pass, f
 
       // Regenerate ALL candles in first getSignal call
       allCandles = [];
+
+      // Буферные свечи (4 минуты ДО startTime)
+      for (let i = 0; i < bufferMinutes; i++) {
+        allCandles.push({
+          timestamp: bufferStartTime + i * intervalMs,
+          open: basePrice,
+          high: basePrice + 100,
+          low: basePrice - 50,
+          close: basePrice,
+          volume: 100,
+        });
+      }
 
       let candleIndex = 0;
 

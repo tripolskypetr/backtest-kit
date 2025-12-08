@@ -29,14 +29,16 @@ test("PARTIAL LEVELS: listenPartialProfit fires only on 10%, 20%, 30% levels", a
   const startTime = new Date("2024-01-01T00:00:00Z").getTime();
   const intervalMs = 60000;
   const basePrice = 100000; // Используем 100k для удобства расчёта процентов
+  const bufferMinutes = 4;
+  const bufferStartTime = startTime - bufferMinutes * intervalMs;
 
   let allCandles = [];
   let signalGenerated = false;
 
-  // Создаем начальные свечи
+  // Создаем начальные свечи с учетом буфера
   for (let i = 0; i < 5; i++) {
     allCandles.push({
-      timestamp: startTime + i * intervalMs,
+      timestamp: bufferStartTime + i * intervalMs,
       open: basePrice,
       high: basePrice + 100,
       low: basePrice - 50,
@@ -48,7 +50,7 @@ test("PARTIAL LEVELS: listenPartialProfit fires only on 10%, 20%, 30% levels", a
   addExchange({
     exchangeName: "binance-partial-levels-profit",
     getCandles: async (_symbol, _interval, since, limit) => {
-      const sinceIndex = Math.floor((since.getTime() - startTime) / intervalMs);
+      const sinceIndex = Math.floor((since.getTime() - bufferStartTime) / intervalMs);
       const result = allCandles.slice(sinceIndex, sinceIndex + limit);
       return result.length > 0 ? result : allCandles.slice(0, Math.min(limit, allCandles.length));
     },
@@ -65,6 +67,19 @@ test("PARTIAL LEVELS: listenPartialProfit fires only on 10%, 20%, 30% levels", a
 
       // Генерируем свечи с точными уровнями прибыли
       allCandles = [];
+
+      // Буферные свечи (4 минуты ДО startTime)
+      for (let i = 0; i < bufferMinutes; i++) {
+        allCandles.push({
+          timestamp: bufferStartTime + i * intervalMs,
+          open: basePrice,
+          high: basePrice + 50,
+          low: basePrice - 50,
+          close: basePrice,
+          volume: 100,
+        });
+      }
+
       for (let i = 0; i < 50; i++) {
         const timestamp = startTime + i * intervalMs;
 
@@ -246,13 +261,15 @@ test("PARTIAL LEVELS: listenPartialLoss fires only on 10%, 20%, 30% levels", asy
   const startTime = new Date("2024-01-01T00:00:00Z").getTime();
   const intervalMs = 60000;
   const basePrice = 100000;
+  const bufferMinutes = 4;
+  const bufferStartTime = startTime - bufferMinutes * intervalMs;
 
   let allCandles = [];
   let signalGenerated = false;
 
   for (let i = 0; i < 5; i++) {
     allCandles.push({
-      timestamp: startTime + i * intervalMs,
+      timestamp: bufferStartTime + i * intervalMs,
       open: basePrice,
       high: basePrice + 100,
       low: basePrice - 50,
@@ -264,7 +281,7 @@ test("PARTIAL LEVELS: listenPartialLoss fires only on 10%, 20%, 30% levels", asy
   addExchange({
     exchangeName: "binance-partial-levels-loss",
     getCandles: async (_symbol, _interval, since, limit) => {
-      const sinceIndex = Math.floor((since.getTime() - startTime) / intervalMs);
+      const sinceIndex = Math.floor((since.getTime() - bufferStartTime) / intervalMs);
       const result = allCandles.slice(sinceIndex, sinceIndex + limit);
       return result.length > 0 ? result : allCandles.slice(0, Math.min(limit, allCandles.length));
     },
@@ -280,6 +297,19 @@ test("PARTIAL LEVELS: listenPartialLoss fires only on 10%, 20%, 30% levels", asy
       signalGenerated = true;
 
       allCandles = [];
+
+      // Буферные свечи (4 минуты ДО startTime)
+      for (let i = 0; i < bufferMinutes; i++) {
+        allCandles.push({
+          timestamp: bufferStartTime + i * intervalMs,
+          open: basePrice,
+          high: basePrice + 50,
+          low: basePrice - 50,
+          close: basePrice,
+          volume: 100,
+        });
+      }
+
       for (let i = 0; i < 50; i++) {
         const timestamp = startTime + i * intervalMs;
 
@@ -447,13 +477,15 @@ test("PARTIAL LEVELS: listenPartialProfitOnce fires only once", async ({ pass, f
   const startTime = new Date("2024-01-01T00:00:00Z").getTime();
   const intervalMs = 60000;
   const basePrice = 100000;
+  const bufferMinutes = 4;
+  const bufferStartTime = startTime - bufferMinutes * intervalMs;
 
   let allCandles = [];
   let signalGenerated = false;
 
   for (let i = 0; i < 5; i++) {
     allCandles.push({
-      timestamp: startTime + i * intervalMs,
+      timestamp: bufferStartTime + i * intervalMs,
       open: basePrice,
       high: basePrice + 100,
       low: basePrice - 50,
@@ -465,7 +497,7 @@ test("PARTIAL LEVELS: listenPartialProfitOnce fires only once", async ({ pass, f
   addExchange({
     exchangeName: "binance-partial-once-profit",
     getCandles: async (_symbol, _interval, since, limit) => {
-      const sinceIndex = Math.floor((since.getTime() - startTime) / intervalMs);
+      const sinceIndex = Math.floor((since.getTime() - bufferStartTime) / intervalMs);
       const result = allCandles.slice(sinceIndex, sinceIndex + limit);
       return result.length > 0 ? result : allCandles.slice(0, Math.min(limit, allCandles.length));
     },
@@ -481,6 +513,19 @@ test("PARTIAL LEVELS: listenPartialProfitOnce fires only once", async ({ pass, f
       signalGenerated = true;
 
       allCandles = [];
+
+      // Буферные свечи (4 минуты ДО startTime)
+      for (let i = 0; i < bufferMinutes; i++) {
+        allCandles.push({
+          timestamp: bufferStartTime + i * intervalMs,
+          open: basePrice,
+          high: basePrice + 50,
+          low: basePrice - 50,
+          close: basePrice,
+          volume: 100,
+        });
+      }
+
       for (let i = 0; i < 40; i++) {
         const timestamp = startTime + i * intervalMs;
 
@@ -576,13 +621,15 @@ test("PARTIAL LEVELS: listenPartialLossOnce fires only once", async ({ pass, fai
   const startTime = new Date("2024-01-01T00:00:00Z").getTime();
   const intervalMs = 60000;
   const basePrice = 100000;
+  const bufferMinutes = 4;
+  const bufferStartTime = startTime - bufferMinutes * intervalMs;
 
   let allCandles = [];
   let signalGenerated = false;
 
   for (let i = 0; i < 5; i++) {
     allCandles.push({
-      timestamp: startTime + i * intervalMs,
+      timestamp: bufferStartTime + i * intervalMs,
       open: basePrice,
       high: basePrice + 100,
       low: basePrice - 50,
@@ -594,7 +641,7 @@ test("PARTIAL LEVELS: listenPartialLossOnce fires only once", async ({ pass, fai
   addExchange({
     exchangeName: "binance-partial-once-loss",
     getCandles: async (_symbol, _interval, since, limit) => {
-      const sinceIndex = Math.floor((since.getTime() - startTime) / intervalMs);
+      const sinceIndex = Math.floor((since.getTime() - bufferStartTime) / intervalMs);
       const result = allCandles.slice(sinceIndex, sinceIndex + limit);
       return result.length > 0 ? result : allCandles.slice(0, Math.min(limit, allCandles.length));
     },
@@ -610,6 +657,19 @@ test("PARTIAL LEVELS: listenPartialLossOnce fires only once", async ({ pass, fai
       signalGenerated = true;
 
       allCandles = [];
+
+      // Буферные свечи (4 минуты ДО startTime)
+      for (let i = 0; i < bufferMinutes; i++) {
+        allCandles.push({
+          timestamp: bufferStartTime + i * intervalMs,
+          open: basePrice,
+          high: basePrice + 50,
+          low: basePrice - 50,
+          close: basePrice,
+          volume: 100,
+        });
+      }
+
       for (let i = 0; i < 40; i++) {
         const timestamp = startTime + i * intervalMs;
 

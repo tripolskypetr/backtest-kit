@@ -876,6 +876,462 @@ if (errorCaught) {
 }
 ```
 
+## Buffer Candles для VWAP расчета
+
+**КРИТИЧНО**: ClientStrategy.ts требует 4 буферные свечи ПЕРЕД startTime для корректного расчета VWAP.
+
+### Почему нужны буферные свечи
+
+**Проблема**: VWAP (Volume Weighted Average Price) рассчитывается по последним 4 свечам. Если тест генерирует свечи начиная с `startTime`, первые 4 свечи будут пропущены буферной логикой.
+
+```typescript
+// Из ClientStrategy.ts (строки 1355-1359, 1456-1460)
+const bufferCandlesCount = 4;
+
+for (let i = 0; i < candles.length; i++) {
+  if (i < bufferCandlesCount) {
+    continue;  // Пропускаем первые 4 свечи
+  }
+  // Обработка свечи...
+}
+```
+
+**Последствия**:
+1. Система пропускает первые 4 свечи после `startTime`
+2. VWAP рассчитывается неправильно, если нет предшествующих свечей
+3. Immediate сигналы (`priceOpen = basePrice`) становятся scheduled
+4. Partial profit/loss события не срабатывают (работают только для opened сигналов)
+
+### Решение: Буферный паттерн
+
+**Шаг 1**: Добавьте `bufferStartTime` ДО `startTime`:
+
+```javascript
+const startTime = new Date("2024-01-01T00:00:00Z").getTime();
+const intervalMs = 60000; // 1 минута
+const bufferMinutes = 4;
+const bufferStartTime = startTime - bufferMinutes * intervalMs;
+
+// bufferStartTime = startTime - 4 минуты
+// Буферные свечи: [bufferStartTime, bufferStartTime+1m, bufferStartTime+2m, bufferStartTime+3m]
+// Основные свечи: [startTime, startTime+1m, ...]
+```
+
+**Шаг 2**: Обновите `getCandles` для использования `bufferStartTime`:
+
+```javascript
+addExchange({
+  exchangeName: "test-exchange",
+  getCandles: async (_symbol, _interval, since, limit) => {
+    // КРИТИЧНО: Считаем индекс от bufferStartTime, не от startTime!
+    const sinceIndex = Math.floor((since.getTime() - bufferStartTime) / intervalMs);
+    const result = allCandles.slice(sinceIndex, sinceIndex + limit);
+    return result.length > 0 ? result : allCandles.slice(0, Math.min(limit, allCandles.length));
+  }
+});
+```
+
+**Шаг 3**: Предзаполните минимум 5 свечей ДО `addExchange`:
+
+```javascript
+let allCandles = [];
+
+// Предзаполняем минимум 5 свечей для getAveragePrice
+for (let i = 0; i < 5; i++) {
+  allCandles.push({
+    timestamp: bufferStartTime + i * intervalMs,
+    open: basePrice,
+    high: basePrice + 100,
+    low: basePrice - 50,
+    close: basePrice,
+    volume: 100,
+  });
+}
+```
+
+**Шаг 4**: Генерируйте буферные свечи в `getSignal`:
+
+```javascript
+addStrategy({
+  strategyName: "test-strategy",
+  interval: "1m",
+  getSignal: async () => {
+    if (index === 1) {
+      allCandles = [];
+
+      // КРИТИЧНО: Буферные свечи (4 минуты ДО startTime)
+      for (let i = 0; i < bufferMinutes; i++) {
+        allCandles.push({
+          timestamp: bufferStartTime + i * intervalMs,
+          open: basePrice,
+          high: basePrice + 50,
+          low: basePrice - 50,
+          close: basePrice,
+          volume: 100,
+        });
+      }
+
+      // Генерируем основные свечи (начиная с startTime)
+      for (let i = 0; i < candlesCount; i++) {
+        const timestamp = startTime + i * intervalMs;
+        allCandles.push({
+          timestamp,
+          open: basePrice,
+          high: basePrice + 100,
+          low: basePrice - 100,
+          close: basePrice,
+          volume: 100,
+        });
+      }
+    }
+
+    return {
+      position: "long",
+      priceOpen: basePrice,  // VWAP = basePrice → immediate activation
+      priceTakeProfit: basePrice + 1000,
+      priceStopLoss: basePrice - 1000,
+      minuteEstimatedTime: 120,
+    };
+  }
+});
+```
+
+### Полный пример теста с буферными свечами
+
+```javascript
+import { test } from "worker-testbed";
+import {
+  addExchange,
+  addFrame,
+  addStrategy,
+  Backtest,
+  listenDoneBacktest,
+  listenPartialProfit,
+} from "../../build/index.mjs";
+import { Subject } from "functools-kit";
+
+test("Partial profit with buffer candles", async ({ pass, fail }) => {
+  const profitEvents = [];
+
+  const startTime = new Date("2024-01-01T00:00:00Z").getTime();
+  const intervalMs = 60000;
+  const basePrice = 100000;
+  const bufferMinutes = 4;
+  const bufferStartTime = startTime - bufferMinutes * intervalMs;
+
+  let allCandles = [];
+  let signalGenerated = false;
+
+  // Предзаполняем минимум 5 свечей
+  for (let i = 0; i < 5; i++) {
+    allCandles.push({
+      timestamp: bufferStartTime + i * intervalMs,
+      open: basePrice,
+      high: basePrice + 100,
+      low: basePrice - 50,
+      close: basePrice,
+      volume: 100,
+    });
+  }
+
+  addExchange({
+    exchangeName: "test-exchange",
+    getCandles: async (_symbol, _interval, since, limit) => {
+      const sinceIndex = Math.floor((since.getTime() - bufferStartTime) / intervalMs);
+      const result = allCandles.slice(sinceIndex, sinceIndex + limit);
+      return result.length > 0 ? result : allCandles.slice(0, Math.min(limit, allCandles.length));
+    },
+    formatPrice: async (_symbol, p) => p.toFixed(8),
+    formatQuantity: async (_symbol, q) => q.toFixed(8),
+  });
+
+  addStrategy({
+    strategyName: "test-strategy",
+    interval: "1m",
+    getSignal: async () => {
+      if (signalGenerated) return null;
+      signalGenerated = true;
+
+      allCandles = [];
+
+      // Буферные свечи (4 минуты ДО startTime)
+      for (let i = 0; i < bufferMinutes; i++) {
+        allCandles.push({
+          timestamp: bufferStartTime + i * intervalMs,
+          open: basePrice,
+          high: basePrice + 50,
+          low: basePrice - 50,
+          close: basePrice,
+          volume: 100,
+        });
+      }
+
+      // Основные свечи (начиная с startTime)
+      for (let i = 0; i < 50; i++) {
+        const timestamp = startTime + i * intervalMs;
+
+        if (i < 5) {
+          // Активация: цена = basePrice (VWAP = basePrice → immediate)
+          allCandles.push({
+            timestamp,
+            open: basePrice,
+            high: basePrice + 100,
+            low: basePrice - 100,
+            close: basePrice,
+            volume: 100,
+          });
+        } else if (i >= 5 && i < 15) {
+          // Рост до +12% (вызовет partial 10%)
+          const price = basePrice + 12000;
+          allCandles.push({
+            timestamp,
+            open: price,
+            high: price + 100,
+            low: price - 100,
+            close: price,
+            volume: 100,
+          });
+        } else {
+          // Достигаем TP
+          const price = basePrice + 60000;
+          allCandles.push({
+            timestamp,
+            open: price,
+            high: price + 100,
+            low: price - 100,
+            close: price,
+            volume: 100,
+          });
+        }
+      }
+
+      return {
+        position: "long",
+        priceOpen: basePrice,  // VWAP = basePrice → immediate activation
+        priceTakeProfit: basePrice + 60000,
+        priceStopLoss: basePrice - 50000,
+        minuteEstimatedTime: 120,
+      };
+    },
+  });
+
+  addFrame({
+    frameName: "50m-test",
+    interval: "1m",
+    startDate: new Date("2024-01-01T00:00:00Z"),
+    endDate: new Date("2024-01-01T00:50:00Z"),
+  });
+
+  const unsubscribeProfit = listenPartialProfit(({ level }) => {
+    profitEvents.push(level);
+  });
+
+  const awaitSubject = new Subject();
+  listenDoneBacktest(() => awaitSubject.next());
+
+  Backtest.background("BTCUSDT", {
+    strategyName: "test-strategy",
+    exchangeName: "test-exchange",
+    frameName: "50m-test",
+  });
+
+  await awaitSubject.toPromise();
+  unsubscribeProfit();
+
+  if (profitEvents.length < 1) {
+    fail(`Expected at least 1 partial profit event, got ${profitEvents.length}`);
+    return;
+  }
+
+  pass(`Partial profit WORKS: [${profitEvents.join('%, ')}%] with buffer candles`);
+});
+```
+
+### Когда НЕ нужны буферные свечи
+
+Буферные свечи НЕ требуются если:
+
+1. **Вы используете scheduled сигналы** (не immediate):
+   ```javascript
+   // priceOpen ниже текущей цены → scheduled (не immediate)
+   const currentPrice = basePrice; // 100000
+   return {
+     position: "long",
+     priceOpen: currentPrice - 500,  // 99500 < 100000 → scheduled
+     priceTakeProfit: currentPrice + 1000,
+     priceStopLoss: currentPrice - 1500,
+   };
+   ```
+
+2. **Тест НЕ проверяет partial profit/loss**:
+   - Partial события работают только для opened сигналов
+   - Scheduled сигналы не генерируют partial события
+
+3. **Вы НЕ используете `getAveragePrice()`**:
+   ```javascript
+   const basePrice = 100000;  // Константа
+
+   return {
+     priceOpen: basePrice,  // Не вызываем getAveragePrice
+     priceTakeProfit: basePrice + 1000,
+     priceStopLoss: basePrice - 1000,
+   };
+   ```
+
+### Типичные ошибки без буферных свечей
+
+**Ошибка #1**: "Expected at least N partial events, got 0"
+
+```javascript
+// ❌ НЕПРАВИЛЬНО: нет буферных свечей
+const startTime = new Date("2024-01-01T00:00:00Z").getTime();
+const intervalMs = 60000;
+const basePrice = 100000;
+
+let allCandles = [];
+
+addExchange({
+  getCandles: async (_symbol, _interval, since, limit) => {
+    const sinceIndex = Math.floor((since.getTime() - startTime) / intervalMs);
+    return allCandles.slice(sinceIndex, sinceIndex + limit);
+  }
+});
+
+addStrategy({
+  getSignal: async () => {
+    allCandles = [];
+
+    // Генерируем свечи с startTime (БЕЗ буфера)
+    for (let i = 0; i < 50; i++) {
+      allCandles.push({
+        timestamp: startTime + i * intervalMs,
+        open: basePrice,
+        high: basePrice + 100,
+        low: basePrice - 100,
+        close: basePrice,
+        volume: 100,
+      });
+    }
+
+    return {
+      position: "long",
+      priceOpen: basePrice,  // Ожидаем immediate, но VWAP отличается!
+      priceTakeProfit: basePrice + 60000,
+      priceStopLoss: basePrice - 50000,
+    };
+  }
+});
+
+// Результат: VWAP ≠ basePrice → сигнал становится scheduled → partial не срабатывает
+```
+
+**Причина**: Без буферных свечей VWAP рассчитывается по свечам начиная с `startTime`. Первые 4 свечи пропускаются, VWAP отличается от `basePrice`, сигнал становится scheduled вместо immediate.
+
+**Решение**: Добавьте 4 буферные свечи ДО `startTime`:
+
+```javascript
+// ✅ ПРАВИЛЬНО: добавляем буферные свечи
+const bufferMinutes = 4;
+const bufferStartTime = startTime - bufferMinutes * intervalMs;
+
+addExchange({
+  getCandles: async (_symbol, _interval, since, limit) => {
+    const sinceIndex = Math.floor((since.getTime() - bufferStartTime) / intervalMs);
+    return allCandles.slice(sinceIndex, sinceIndex + limit);
+  }
+});
+
+addStrategy({
+  getSignal: async () => {
+    allCandles = [];
+
+    // Буферные свечи
+    for (let i = 0; i < bufferMinutes; i++) {
+      allCandles.push({
+        timestamp: bufferStartTime + i * intervalMs,
+        open: basePrice,
+        high: basePrice + 50,
+        low: basePrice - 50,
+        close: basePrice,
+        volume: 100,
+      });
+    }
+
+    // Основные свечи
+    for (let i = 0; i < 50; i++) {
+      allCandles.push({
+        timestamp: startTime + i * intervalMs,
+        open: basePrice,
+        high: basePrice + 100,
+        low: basePrice - 100,
+        close: basePrice,
+        volume: 100,
+      });
+    }
+
+    return {
+      position: "long",
+      priceOpen: basePrice,  // VWAP = basePrice → immediate activation ✓
+      priceTakeProfit: basePrice + 60000,
+      priceStopLoss: basePrice - 50000,
+    };
+  }
+});
+
+// Результат: VWAP = basePrice → immediate activation → partial события срабатывают ✓
+```
+
+**Ошибка #2**: "no candles data for symbol=BTCUSDT"
+
+```javascript
+// ❌ НЕПРАВИЛЬНО: allCandles пуст при первом вызове getAveragePrice
+let allCandles = [];
+
+addExchange({
+  getCandles: async () => allCandles  // Пустой массив!
+});
+
+addStrategy({
+  getSignal: async () => {
+    const price = await getAveragePrice("BTCUSDT");  // ❌ Ошибка!
+    return { priceOpen: price, ... };
+  }
+});
+```
+
+**Решение**: Предзаполните минимум 5 свечей ДО `addExchange`:
+
+```javascript
+// ✅ ПРАВИЛЬНО: предзаполняем свечи
+const bufferMinutes = 4;
+const bufferStartTime = startTime - bufferMinutes * intervalMs;
+let allCandles = [];
+
+for (let i = 0; i < 5; i++) {
+  allCandles.push({
+    timestamp: bufferStartTime + i * intervalMs,
+    open: basePrice,
+    high: basePrice + 100,
+    low: basePrice - 50,
+    close: basePrice,
+    volume: 100,
+  });
+}
+
+addExchange({
+  getCandles: async () => allCandles  // Уже есть 5 свечей ✓
+});
+```
+
+### См. также
+
+- [test/e2e/partial.test.mjs](./e2e/partial.test.mjs) - Все 10 тестов используют буферный паттерн
+- [test/e2e/levels.test.mjs](./e2e/levels.test.mjs) - Все 4 теста используют буферный паттерн
+- [test/e2e/scheduled.test.mjs](./e2e/scheduled.test.mjs) - Тесты #1 и #3 с буферными свечами
+- [test/e2e/timing.test.mjs](./e2e/timing.test.mjs) - Тесты #46 и #48 с буферными свечами
+
+---
+
 ## Immediate Activation Feature
 
 **НОВАЯ ФУНКЦИОНАЛЬНОСТЬ**: С версии, включающей immediate activation, система автоматически открывает позиции когда priceOpen уже находится в зоне активации.

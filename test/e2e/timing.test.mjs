@@ -38,10 +38,32 @@ test("Scheduled signal minuteEstimatedTime counts from pendingAt (activation tim
   let closeTimestamp = null;
   let closeReason = null;
 
+  const startTime = new Date("2024-01-01T00:00:00Z").getTime();
+  const intervalMs = 60 * 1000;
+  const basePrice = 42000;
+  const bufferMinutes = 4;
+  const bufferStartTime = startTime - bufferMinutes * intervalMs;
+  let allCandles = [];
+  let index = 0;
+
+  // Предзаполняем 5 свечей
+  for (let i = 0; i < 5; i++) {
+    allCandles.push({
+      timestamp: bufferStartTime + i * intervalMs,
+      open: basePrice,
+      high: basePrice + 100,
+      low: basePrice - 100,
+      close: basePrice,
+      volume: 100,
+    });
+  }
+
   addExchange({
     exchangeName: "binance-scheduled-timing-bug",
-    getCandles: async (_symbol, interval, since, limit) => {
-      return await getMockCandles(interval, since, limit);
+    getCandles: async (_symbol, _interval, since, limit) => {
+      const sinceIndex = Math.floor((since.getTime() - bufferStartTime) / intervalMs);
+      const result = allCandles.slice(sinceIndex, sinceIndex + limit);
+      return result.length > 0 ? result : allCandles.slice(0, Math.min(limit, allCandles.length));
     },
     formatPrice: async (symbol, price) => price.toFixed(8),
     formatQuantity: async (symbol, quantity) => quantity.toFixed(8),
@@ -51,33 +73,59 @@ test("Scheduled signal minuteEstimatedTime counts from pendingAt (activation tim
     strategyName: "test-strategy-scheduled-timing-bug",
     interval: "1m",
     getSignal: async () => {
+      index++;
+
+      if (index === 1) {
+        allCandles = [];
+
+        // Буферные свечи
+        for (let i = 0; i < bufferMinutes; i++) {
+          allCandles.push({
+            timestamp: bufferStartTime + i * intervalMs,
+            open: basePrice,
+            high: basePrice + 100,
+            low: basePrice - 100,
+            close: basePrice,
+            volume: 100,
+          });
+        }
+
+        // Генерируем достаточно свечей: frame (4 дня) + await (120m) + estimated (1440m) = ~7200m
+        for (let minuteIndex = 0; minuteIndex < 7200; minuteIndex++) {
+          const timestamp = startTime + minuteIndex * intervalMs;
+
+          // Падающая цена для активации LONG
+          allCandles.push({
+            timestamp,
+            open: basePrice - 200,
+            high: basePrice + 200,
+            low: basePrice - 200,
+            close: basePrice,
+            volume: 100,
+          });
+        }
+      }
+
       const price = await getAveragePrice("BTCUSDT");
       return {
         position: "long",
         note: "scheduled timing bug test",
-        priceOpen: price - 150, // Между VWAP и low, станет scheduled и активируется
-        priceTakeProfit: price * 1000, // Нереально высокая цена, никогда не достигнется
-        priceStopLoss: price / 1000, // Нереально низкая цена, никогда не достигнется
+        priceOpen: price - 150,
+        priceTakeProfit: price * 1000,
+        priceStopLoss: price / 1000,
         minuteEstimatedTime: 1440,
       };
     },
     callbacks: {
       onSchedule: (symbol, data, currentPrice, backtest) => {
         scheduledTimestamp = data.scheduledAt;
-        // console.log(`[SCHEDULED] scheduledAt=${data.scheduledAt}, pendingAt=${data.pendingAt}`);
       },
       onOpen: (symbol, data, currentPrice, backtest) => {
         activationTimestamp = data.pendingAt;
-        // console.log(`[OPENED] scheduledAt=${data.scheduledAt}, pendingAt=${data.pendingAt}`);
-        // console.log(`[OPENED] Delay between schedule and activation: ${activationTimestamp - scheduledTimestamp}ms`);
       },
       onClose: (symbol, data, priceClose, backtest) => {
         closeTimestamp = Date.now();
-        closeReason = "time_expired"; // В этом тесте ждем именно time_expired
-        // console.log(`[CLOSED] closeReason=${closeReason}`);
-        // console.log(`[CLOSED] scheduledAt=${data.scheduledAt}, pendingAt=${data.pendingAt}`);
-        // console.log(`[CLOSED] Signal duration from scheduledAt: ${closeTimestamp - data.scheduledAt}ms`);
-        // console.log(`[CLOSED] Signal duration from pendingAt: ${closeTimestamp - data.pendingAt}ms`);
+        closeReason = "time_expired";
       },
     },
   });
@@ -233,10 +281,32 @@ test("Signal has both scheduledAt and pendingAt fields", async ({ pass, fail }) 
   let scheduledSignalData = null;
   let openedSignalData = null;
 
+  const startTime = new Date("2024-01-01T00:00:00Z").getTime();
+  const intervalMs = 60 * 1000;
+  const basePrice = 42000;
+  const bufferMinutes = 4;
+  const bufferStartTime = startTime - bufferMinutes * intervalMs;
+  let allCandles = [];
+  let index = 0;
+
+  // Предзаполняем 5 свечей
+  for (let i = 0; i < 5; i++) {
+    allCandles.push({
+      timestamp: bufferStartTime + i * intervalMs,
+      open: basePrice,
+      high: basePrice + 100,
+      low: basePrice - 100,
+      close: basePrice,
+      volume: 100,
+    });
+  }
+
   addExchange({
     exchangeName: "binance-fields-check",
-    getCandles: async (_symbol, interval, since, limit) => {
-      return await getMockCandles(interval, since, limit);
+    getCandles: async (_symbol, _interval, since, limit) => {
+      const sinceIndex = Math.floor((since.getTime() - bufferStartTime) / intervalMs);
+      const result = allCandles.slice(sinceIndex, sinceIndex + limit);
+      return result.length > 0 ? result : allCandles.slice(0, Math.min(limit, allCandles.length));
     },
     formatPrice: async (symbol, price) => price.toFixed(8),
     formatQuantity: async (symbol, quantity) => quantity.toFixed(8),
@@ -246,6 +316,39 @@ test("Signal has both scheduledAt and pendingAt fields", async ({ pass, fail }) 
     strategyName: "test-strategy-fields-check",
     interval: "1m",
     getSignal: async () => {
+      index++;
+
+      if (index === 1) {
+        allCandles = [];
+
+        // Буферные свечи
+        for (let i = 0; i < bufferMinutes; i++) {
+          allCandles.push({
+            timestamp: bufferStartTime + i * intervalMs,
+            open: basePrice,
+            high: basePrice + 100,
+            low: basePrice - 100,
+            close: basePrice,
+            volume: 100,
+          });
+        }
+
+        // Генерируем достаточно свечей для 2 дней
+        for (let minuteIndex = 0; minuteIndex < 3000; minuteIndex++) {
+          const timestamp = startTime + minuteIndex * intervalMs;
+
+          // Падающая цена для активации LONG
+          allCandles.push({
+            timestamp,
+            open: basePrice - 200,
+            high: basePrice + 200,
+            low: basePrice - 250,
+            close: basePrice,
+            volume: 100,
+          });
+        }
+      }
+
       const price = await getAveragePrice("BTCUSDT");
       return {
         position: "long",

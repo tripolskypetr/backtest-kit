@@ -125,17 +125,22 @@ export class BacktestLogicPrivateService {
         );
 
         // Запрашиваем минутные свечи для мониторинга активации/отмены
-        // КРИТИЧНО: запрашиваем CC_SCHEDULE_AWAIT_MINUTES для ожидания активации
-        // + minuteEstimatedTime для работы сигнала ПОСЛЕ активации
-        // +1 потому что when включается как первая свеча (timestamp начинается с when, а не after when)
-        const candlesNeeded = GLOBAL_CONFIG.CC_SCHEDULE_AWAIT_MINUTES + signal.minuteEstimatedTime + 1;
+        // КРИТИЧНО: запрашиваем:
+        // - CC_AVG_PRICE_CANDLES_COUNT-1 для буфера VWAP (ДО when)
+        // - CC_SCHEDULE_AWAIT_MINUTES для ожидания активации
+        // - minuteEstimatedTime для работы сигнала ПОСЛЕ активации
+        // - +1 потому что when включается как первая свеча
+        const bufferMinutes = GLOBAL_CONFIG.CC_AVG_PRICE_CANDLES_COUNT - 1;
+        const bufferStartTime = new Date(when.getTime() - bufferMinutes * 60 * 1000);
+        const candlesNeeded = bufferMinutes + GLOBAL_CONFIG.CC_SCHEDULE_AWAIT_MINUTES + signal.minuteEstimatedTime + 1;
+
         let candles: ICandleData[];
         try {
           candles = await this.exchangeGlobalService.getNextCandles(
             symbol,
             "1m",
             candlesNeeded,
-            when,
+            bufferStartTime,
             true
           );
         } catch (error) {
@@ -146,6 +151,7 @@ export class BacktestLogicPrivateService {
               symbol,
               signalId: signal.id,
               candlesNeeded,
+              bufferMinutes,
               error: errorData(error), message: getErrorMessage(error),
             }
           );
@@ -245,14 +251,20 @@ export class BacktestLogicPrivateService {
           minuteEstimatedTime: signal.minuteEstimatedTime,
         });
 
-        // Получаем свечи для бектеста
+        // КРИТИЧНО: Получаем свечи включая буфер для VWAP
+        // Сдвигаем начало назад на CC_AVG_PRICE_CANDLES_COUNT-1 минут для буфера VWAP
+        // Запрашиваем minuteEstimatedTime + буфер свечей одним запросом
+        const bufferMinutes = GLOBAL_CONFIG.CC_AVG_PRICE_CANDLES_COUNT - 1;
+        const bufferStartTime = new Date(when.getTime() - bufferMinutes * 60 * 1000);
+        const totalCandles = signal.minuteEstimatedTime + bufferMinutes;
+
         let candles: ICandleData[];
         try {
           candles = await this.exchangeGlobalService.getNextCandles(
             symbol,
             "1m",
-            signal.minuteEstimatedTime,
-            when,
+            totalCandles,
+            bufferStartTime,
             true
           );
         } catch (error) {
@@ -262,6 +274,8 @@ export class BacktestLogicPrivateService {
             {
               symbol,
               signalId: signal.id,
+              totalCandles,
+              bufferMinutes,
               error: errorData(error), message: getErrorMessage(error),
             }
           );

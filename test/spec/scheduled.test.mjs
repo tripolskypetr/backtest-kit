@@ -212,10 +212,32 @@ test("Schedule.getData tracks scheduled signal lifecycle", async ({ pass, fail }
 
   const [awaiter, { resolve }] = createAwaiter();
 
+  const startTime = new Date("2024-01-01T00:00:00Z").getTime();
+  const intervalMs = 60000; // 1 минута
+  const basePrice = 42000;
+  const bufferMinutes = 4;
+  const bufferStartTime = startTime - bufferMinutes * intervalMs;
+
+  let allCandles = [];
+
+  // Предзаполняем минимум 5 свечей
+  for (let i = 0; i < 5; i++) {
+    allCandles.push({
+      timestamp: bufferStartTime + i * intervalMs,
+      open: basePrice,
+      high: basePrice + 100,
+      low: basePrice - 100,
+      close: basePrice,
+      volume: 100,
+    });
+  }
+
   addExchange({
     exchangeName: "binance-mock-schedule-lifecycle",
-    getCandles: async (_symbol, interval, since, limit) => {
-      return await getMockCandles(interval, since, limit);
+    getCandles: async (_symbol, _interval, since, limit) => {
+      const sinceIndex = Math.floor((since.getTime() - bufferStartTime) / intervalMs);
+      const result = allCandles.slice(sinceIndex, sinceIndex + limit);
+      return result.length > 0 ? result : allCandles.slice(0, Math.min(limit, allCandles.length));
     },
     formatPrice: async (symbol, price) => {
       return price.toFixed(8);
@@ -234,6 +256,57 @@ test("Schedule.getData tracks scheduled signal lifecycle", async ({ pass, fail }
     getSignal: async () => {
       signalCount++;
       if (signalCount === 1) {
+        allCandles = [];
+
+        // Буферные свечи (4 минуты ДО startTime)
+        for (let i = 0; i < bufferMinutes; i++) {
+          allCandles.push({
+            timestamp: bufferStartTime + i * intervalMs,
+            open: basePrice,
+            high: basePrice + 100,
+            low: basePrice - 100,
+            close: basePrice,
+            volume: 100,
+          });
+        }
+
+        // Генерируем свечи на 1 день (1440 минут)
+        for (let i = 0; i < 1440; i++) {
+          const timestamp = startTime + i * intervalMs;
+
+          if (i < 10) {
+            // Первые 10 минут: цена выше priceOpen (ожидание)
+            allCandles.push({
+              timestamp,
+              open: basePrice + 200,
+              high: basePrice + 300,
+              low: basePrice + 100,
+              close: basePrice + 200,
+              volume: 100,
+            });
+          } else if (i >= 10 && i < 20) {
+            // 10-20 минут: цена падает, активируется priceOpen
+            allCandles.push({
+              timestamp,
+              open: basePrice - 200,
+              high: basePrice + 100,
+              low: basePrice - 200,
+              close: basePrice - 100,
+              volume: 100,
+            });
+          } else {
+            // Остальное время: цена растет к TP
+            allCandles.push({
+              timestamp,
+              open: basePrice + 500,
+              high: basePrice + 600,
+              low: basePrice + 400,
+              close: basePrice + 500,
+              volume: 100,
+            });
+          }
+        }
+
         const price = await getAveragePrice("BTCUSDT");
         return {
           position: "long",
@@ -258,7 +331,7 @@ test("Schedule.getData tracks scheduled signal lifecycle", async ({ pass, fail }
 
   addFrame({
     frameName: "1d-schedule-lifecycle",
-    interval: "1d",
+    interval: "1m",
     startDate: new Date("2024-01-01T00:00:00Z"),
     endDate: new Date("2024-01-02T00:00:00Z"),
   });
