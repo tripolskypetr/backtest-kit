@@ -146,11 +146,11 @@ test("SHUTDOWN: Backtest.stop() during active signal - signal completes first", 
     },
     callbacks: {
       onOpen: (_symbol, data) => {
-        console.log("[TEST #1] onOpen called, signalId:", data.id, "signalCount:", signalsResults.opened.length + 1);
+        // console.log("[TEST #1] onOpen called, signalId:", data.id, "signalCount:", signalsResults.opened.length + 1);
         signalsResults.opened.push(data);
       },
       onClose: (_symbol, data, priceClose) => {
-        console.log("[TEST #1] onClose called, signalId:", data.id, "priceClose:", priceClose);
+        // console.log("[TEST #1] onClose called, signalId:", data.id, "priceClose:", priceClose);
         signalsResults.closed.push({ signal: data, priceClose });
       },
     },
@@ -172,25 +172,25 @@ test("SHUTDOWN: Backtest.stop() during active signal - signal completes first", 
     awaitSubject.next();
   });
 
-  console.log("[TEST #1] Starting Backtest.background");
+  // console.log("[TEST #1] Starting Backtest.background");
   Backtest.background("BTCUSDT", {
     strategyName: "test-shutdown-1",
     exchangeName: "binance-shutdown-1",
     frameName: "60m-shutdown-1",
   });
 
-  console.log("[TEST #1] Waiting for awaitSubject.toPromise()");
+  // console.log("[TEST #1] Waiting for awaitSubject.toPromise()");
   await awaitSubject.toPromise();
-  console.log("[TEST #1] awaitSubject resolved");
+  // console.log("[TEST #1] awaitSubject resolved");
   unsubscribeError();
 
   if (errorCaught) {
-    console.log("[TEST #1] ERROR CAUGHT:", errorCaught.message || errorCaught);
+    // console.log("[TEST #1] ERROR CAUGHT:", errorCaught.message || errorCaught);
     fail(`Error during backtest: ${errorCaught.message || errorCaught}`);
     return;
   }
 
-  console.log("[TEST #1] Final results - opened:", signalsResults.opened.length, "closed:", signalsResults.closed.length);
+  // console.log("[TEST #1] Final results - opened:", signalsResults.opened.length, "closed:", signalsResults.closed.length);
 
   await sleep(1_000);
 
@@ -306,11 +306,11 @@ test("SHUTDOWN: Backtest.stop() after signal closes - no new signals", async ({ 
     },
     callbacks: {
       onOpen: (_symbol, data) => {
-        console.log("[TEST #2] onOpen called, signalId:", data.id);
+        // console.log("[TEST #2] onOpen called, signalId:", data.id);
         signalsResults.opened.push(data);
       },
       onClose: (_symbol, data, priceClose) => {
-        console.log("[TEST #2] onClose called, signalId:", data.id, "priceClose:", priceClose);
+        // console.log("[TEST #2] onClose called, signalId:", data.id, "priceClose:", priceClose);
         signalsResults.closed.push({ signal: data, priceClose });
       },
     },
@@ -325,13 +325,13 @@ test("SHUTDOWN: Backtest.stop() after signal closes - no new signals", async ({ 
 
   const awaitSubject = new Subject();
   listenDoneBacktest(() => {
-    console.log("[TEST #2] listenDoneBacktest fired");
+    // console.log("[TEST #2] listenDoneBacktest fired");
     awaitSubject.next();
   });
 
   let errorCaught = null;
   const unsubscribeError = listenError((error) => {
-    console.log("[TEST #2] listenError fired:", error.message || error);
+    // console.log("[TEST #2] listenError fired:", error.message || error);
     errorCaught = error;
     awaitSubject.next();
   });
@@ -340,22 +340,22 @@ test("SHUTDOWN: Backtest.stop() after signal closes - no new signals", async ({ 
   listenSignalBacktestOnce(
     (event) => event.action === "closed",
     async () => {
-      console.log("[TEST #2] First signal closed in listener, calling Backtest.stop()");
+      // console.log("[TEST #2] First signal closed in listener, calling Backtest.stop()");
       await Backtest.stop("BTCUSDT", "test-shutdown-2");
-      console.log("[TEST #2] Backtest.stop() completed in listener");
+      // console.log("[TEST #2] Backtest.stop() completed in listener");
     }
   );
 
-  console.log("[TEST #2] Starting Backtest.background");
+  // console.log("[TEST #2] Starting Backtest.background");
   Backtest.background("BTCUSDT", {
     strategyName: "test-shutdown-2",
     exchangeName: "binance-shutdown-2",
     frameName: "60m-shutdown-2",
   });
 
-  console.log("[TEST #2] Waiting for awaitSubject.toPromise()");
+  // console.log("[TEST #2] Waiting for awaitSubject.toPromise()");
   await awaitSubject.toPromise();
-  console.log("[TEST #2] awaitSubject resolved");
+  // console.log("[TEST #2] awaitSubject resolved");
   unsubscribeError();
 
   if (errorCaught) {
@@ -363,7 +363,7 @@ test("SHUTDOWN: Backtest.stop() after signal closes - no new signals", async ({ 
     return;
   }
 
-  console.log("[TEST #2] Final results - opened:", signalsResults.opened.length, "closed:", signalsResults.closed.length);
+  // console.log("[TEST #2] Final results - opened:", signalsResults.opened.length, "closed:", signalsResults.closed.length);
 
   if (signalsResults.opened.length !== 1) {
     fail(`Expected exactly 1 opened signal (stopped after first close), got ${signalsResults.opened.length}`);
@@ -431,29 +431,29 @@ test("SHUTDOWN: Live.stop() during idle - stops immediately", async ({ pass, fai
     },
   });
 
-  console.log("[TEST #3] Starting Live.background");
+  // console.log("[TEST #3] Starting Live.background");
   const cancelFn = Live.background("BTCUSDT", {
     strategyName: "test-shutdown-4",
     exchangeName: "binance-shutdown-4",
   });
 
   // Stop during idle
-  console.log("[TEST #3] Waiting 50ms");
+  // console.log("[TEST #3] Waiting 50ms");
   await sleep(50);
 
   if (!stopExecuted) {
     stopExecuted = true;
-    console.log("[TEST #3] Calling Live.stop()");
+    // console.log("[TEST #3] Calling Live.stop()");
     await Live.stop("BTCUSDT", "test-shutdown-4");
-    console.log("[TEST #3] Live.stop() completed");
+    // console.log("[TEST #3] Live.stop() completed");
   }
 
-  console.log("[TEST #3] Waiting 50ms before cancelFn()");
+  // console.log("[TEST #3] Waiting 50ms before cancelFn()");
   await sleep(50);
-  console.log("[TEST #3] Calling cancelFn()");
+  // console.log("[TEST #3] Calling cancelFn()");
   cancelFn();
 
-  console.log("[TEST #3] onCloseCalled:", onCloseCalled);
+  // console.log("[TEST #3] onCloseCalled:", onCloseCalled);
 
   if (onCloseCalled) {
     fail("onClose should NOT be called (no signals created)");
@@ -547,34 +547,34 @@ test("SHUTDOWN: Live.stop() after signal closes - no new signals", async ({ pass
     },
     callbacks: {
       onClose: async () => {
-        console.log("[TEST #5] onClose called");
+        // console.log("[TEST #5] onClose called");
         onCloseCalled = true;
 
         // Stop after signal closes
-        console.log("[TEST #5] Waiting 10ms before Live.stop()");
+        // console.log("[TEST #5] Waiting 10ms before Live.stop()");
         await sleep(10);
         if (!stopExecuted) {
           stopExecuted = true;
-          console.log("[TEST #5] Calling Live.stop()");
+          // console.log("[TEST #5] Calling Live.stop()");
           await Live.stop("BTCUSDT", "test-shutdown-5");
-          console.log("[TEST #5] Live.stop() completed");
+          // console.log("[TEST #5] Live.stop() completed");
         }
       },
     },
   });
 
-  console.log("[TEST #5] Starting Live.background");
+  // console.log("[TEST #5] Starting Live.background");
   const cancelFn = Live.background("BTCUSDT", {
     strategyName: "test-shutdown-5",
     exchangeName: "binance-shutdown-5",
   });
 
-  console.log("[TEST #5] Waiting 100ms");
+  // console.log("[TEST #5] Waiting 100ms");
   await sleep(100);
-  console.log("[TEST #5] Calling cancelFn()");
+  // console.log("[TEST #5] Calling cancelFn()");
   cancelFn();
 
-  console.log("[TEST #5] onCloseCalled:", onCloseCalled);
+  // console.log("[TEST #5] onCloseCalled:", onCloseCalled);
 
   if (!onCloseCalled) {
     fail("onClose was NOT called (signal should close by TP)");
@@ -594,8 +594,9 @@ test("SHUTDOWN: Live.stop() after signal closes - no new signals", async ({ pass
  * - Check: Walker stops, remaining strategies don't run
  */
 test("SHUTDOWN: Walker.stop() - all strategies stop", async ({ pass, fail }) => {
-  const strategiesStarted = [];
+  const strategiesStarted = new Set();
   const strategiesCompleted = [];
+  const signalCounts = {}; // Track signals per strategy
 
   const startTime = new Date("2024-01-01T00:00:00Z").getTime();
   const intervalMs = 60000;
@@ -628,13 +629,21 @@ test("SHUTDOWN: Walker.stop() - all strategies stop", async ({ pass, fail }) => 
   // Add 3 strategies
   for (let s = 1; s <= 3; s++) {
     const strategyName = `test-shutdown-walker-${s}`;
+    signalCounts[strategyName] = 0;
 
     addStrategy({
       strategyName,
       interval: "1m",
       getSignal: async () => {
-        console.log(`[TEST #6] getSignal called for ${strategyName}`);
-        strategiesStarted.push(strategyName);
+        // console.log(`[TEST #6] getSignal called for ${strategyName}`);
+        strategiesStarted.add(strategyName);
+
+        // Only return one signal per strategy
+        signalCounts[strategyName]++;
+        if (signalCounts[strategyName] > 1) {
+          // console.log(`[TEST #6] ${strategyName} already returned signal, returning null`);
+          return null;
+        }
 
         if (allCandles.length === 5) {
           allCandles = [];
@@ -663,7 +672,7 @@ test("SHUTDOWN: Walker.stop() - all strategies stop", async ({ pass, fail }) => 
       },
       callbacks: {
         onClose: () => {
-          console.log(`[TEST #6] onClose called for ${strategyName}`);
+          // console.log(`[TEST #6] onClose called for ${strategyName}`);
           strategiesCompleted.push(strategyName);
         },
       },
@@ -677,67 +686,68 @@ test("SHUTDOWN: Walker.stop() - all strategies stop", async ({ pass, fail }) => 
     endDate: new Date("2024-01-01T00:30:00Z"),
   });
 
+  const awaitSubject = new Subject();
+  let stopCalled = false;
+
   addWalker({
     walkerName: "test-walker-shutdown",
     exchangeName: "binance-shutdown-6",
     frameName: "30m-shutdown-6",
     strategies: ["test-shutdown-walker-1", "test-shutdown-walker-2", "test-shutdown-walker-3"],
+    callbacks: {
+      onStrategyComplete: async (strategyName) => {
+        // console.log(`[TEST #6] onStrategyComplete fired for ${strategyName}`);
+        if (!stopCalled) {
+          stopCalled = true;
+          // console.log("[TEST #6] First strategy completed, calling Walker.stop()");
+          await Walker.stop("BTCUSDT", "test-walker-shutdown");
+          // console.log("[TEST #6] Walker.stop() completed");
+        }
+      }
+    }
   });
 
-  const awaitSubject = new Subject();
-  let walkerCompleted = false;
-  let stopCalled = false;
-
   listenWalkerComplete(() => {
-    console.log("[TEST #6] listenWalkerComplete fired");
-    walkerCompleted = true;
+    // console.log("[TEST #6] listenWalkerComplete fired");
     awaitSubject.next();
   });
 
   let errorCaught = null;
   const unsubscribeError = listenError((error) => {
-    console.log("[TEST #6] listenError fired:", error.message || error);
+    // console.log("[TEST #6] listenError fired:", error.message || error);
     errorCaught = error;
     awaitSubject.next();
   });
 
-  console.log("[TEST #6] Starting Walker.background");
+  // console.log("[TEST #6] Starting Walker.background");
   const cancelFn = Walker.background("BTCUSDT", {
     walkerName: "test-walker-shutdown",
   });
 
-  // Stop after short delay (during first strategy execution)
-  console.log("[TEST #6] Waiting 100ms");
-  await sleep(100);
+  // Wait for walker to complete or error
+  await awaitSubject.toPromise();
 
-  if (!stopCalled) {
-    stopCalled = true;
-    console.log("[TEST #6] Calling Walker.stop()");
-    await Walker.stop("BTCUSDT", "test-walker-shutdown");
-    console.log("[TEST #6] Walker.stop() completed");
-  }
-
-  console.log("[TEST #6] Waiting 100ms before cancelFn()");
-  await sleep(100);
-  console.log("[TEST #6] Calling cancelFn()");
+  // console.log("[TEST #6] Calling cancelFn()");
   cancelFn();
   unsubscribeError();
 
-  console.log("[TEST #6] strategiesStarted:", strategiesStarted);
-  console.log("[TEST #6] strategiesCompleted:", strategiesCompleted);
+  // console.log("[TEST #6] strategiesStarted:", strategiesStarted);
+  // console.log("[TEST #6] strategiesCompleted:", strategiesCompleted);
 
   if (errorCaught) {
     fail(`Error during walker: ${errorCaught.message || errorCaught}`);
     return;
   }
 
-  // Walker should stop early
-  if (strategiesStarted.length >= 3) {
-    fail(`Expected less than 3 strategies started (stopped early), got ${strategiesStarted.length}: ${strategiesStarted.join(", ")}`);
+  const strategiesStartedArray = Array.from(strategiesStarted);
+
+  // Walker should stop after first strategy, so max 2 strategies should start (first completes, second starts then stops)
+  if (strategiesStartedArray.length >= 3) {
+    fail(`Expected less than 3 strategies started (stopped after first), got ${strategiesStartedArray.length}: ${strategiesStartedArray.join(", ")}`);
     return;
   }
 
-  pass(`SHUTDOWN WALKER: Walker stopped. Strategies started: ${strategiesStarted.length}/3 (${strategiesStarted.join(", ")}). Completed: ${strategiesCompleted.length}`);
+  pass(`SHUTDOWN WALKER: Walker stopped after first strategy. Strategies started: ${strategiesStartedArray.length}/3 (${strategiesStartedArray.join(", ")}). Completed: ${strategiesCompleted.length}`);
 });
 
 
@@ -752,8 +762,10 @@ test("SHUTDOWN: Walker.stop() - all strategies stop", async ({ pass, fail }) => 
  * - Check: walker-A stops, walker-B continues
  */
 test("SHUTDOWN: Two walkers on same symbol - stop one doesn't affect other", async ({ pass, fail }) => {
-  const walkerAStrategiesStarted = [];
-  const walkerBStrategiesStarted = [];
+  const walkerAStrategiesStarted = new Set();
+  const walkerBStrategiesStarted = new Set();
+  const signalCountsA = {}; // Track signals for Walker A
+  const signalCountsB = {}; // Track signals for Walker B
 
   const startTime = new Date("2024-01-01T00:00:00Z").getTime();
   const intervalMs = 60000;
@@ -786,13 +798,21 @@ test("SHUTDOWN: Two walkers on same symbol - stop one doesn't affect other", asy
   // Walker A strategies
   for (let s = 1; s <= 2; s++) {
     const strategyName = `test-shutdown-walkerA-${s}`;
+    signalCountsA[strategyName] = 0;
 
     addStrategy({
       strategyName,
       interval: "1m",
       getSignal: async () => {
-        console.log(`[TEST #7] Walker A: getSignal called for ${strategyName}`);
-        walkerAStrategiesStarted.push(strategyName);
+        // console.log(`[TEST #7] Walker A: getSignal called for ${strategyName}`);
+        walkerAStrategiesStarted.add(strategyName);
+
+        // Only return one signal per strategy
+        signalCountsA[strategyName]++;
+        if (signalCountsA[strategyName] > 1) {
+          // console.log(`[TEST #7] Walker A: ${strategyName} already returned signal, returning null`);
+          return null;
+        }
 
         if (allCandles.length === 5) {
           allCandles = [];
@@ -818,13 +838,21 @@ test("SHUTDOWN: Two walkers on same symbol - stop one doesn't affect other", asy
   // Walker B strategies
   for (let s = 1; s <= 2; s++) {
     const strategyName = `test-shutdown-walkerB-${s}`;
+    signalCountsB[strategyName] = 0;
 
     addStrategy({
       strategyName,
       interval: "1m",
       getSignal: async () => {
-        console.log(`[TEST #7] Walker B: getSignal called for ${strategyName}`);
-        walkerBStrategiesStarted.push(strategyName);
+        // console.log(`[TEST #7] Walker B: getSignal called for ${strategyName}`);
+        walkerBStrategiesStarted.add(strategyName);
+
+        // Only return one signal per strategy
+        signalCountsB[strategyName]++;
+        if (signalCountsB[strategyName] > 1) {
+          // console.log(`[TEST #7] Walker B: ${strategyName} already returned signal, returning null`);
+          return null;
+        }
 
         return {
           position: "long",
@@ -845,11 +873,24 @@ test("SHUTDOWN: Two walkers on same symbol - stop one doesn't affect other", asy
     endDate: new Date("2024-01-01T00:30:00Z"),
   });
 
+  let walkerAStopCalled = false;
+
   addWalker({
     walkerName: "test-walkerA",
     exchangeName: "binance-shutdown-7",
     frameName: "30m-shutdown-7",
     strategies: ["test-shutdown-walkerA-1", "test-shutdown-walkerA-2"],
+    callbacks: {
+      onStrategyComplete: async (strategyName) => {
+        // console.log(`[TEST #7] Walker A: onStrategyComplete for ${strategyName}`);
+        if (!walkerAStopCalled) {
+          walkerAStopCalled = true;
+          // console.log("[TEST #7] Calling Walker.stop() for Walker A after first strategy");
+          await Walker.stop("BTCUSDT", "test-walkerA");
+          // console.log("[TEST #7] Walker.stop() for Walker A completed");
+        }
+      }
+    }
   });
 
   addWalker({
@@ -861,11 +902,11 @@ test("SHUTDOWN: Two walkers on same symbol - stop one doesn't affect other", asy
 
   let errorCaught = null;
   const unsubscribeError = listenError((error) => {
-    console.log("[TEST #7] listenError fired:", error.message || error);
+    // console.log("[TEST #7] listenError fired:", error.message || error);
     errorCaught = error;
   });
 
-  console.log("[TEST #7] Starting Walker A and Walker B");
+  // console.log("[TEST #7] Starting Walker A and Walker B");
   const cancelA = Walker.background("BTCUSDT", {
     walkerName: "test-walkerA",
   });
@@ -874,41 +915,41 @@ test("SHUTDOWN: Two walkers on same symbol - stop one doesn't affect other", asy
     walkerName: "test-walkerB",
   });
 
-  // Stop walker A after short delay
-  console.log("[TEST #7] Waiting 100ms");
+  // Wait for walkers to run
+  // console.log("[TEST #7] Waiting 100ms");
   await sleep(100);
-  console.log("[TEST #7] Calling Walker.stop() for Walker A");
-  await Walker.stop("BTCUSDT", "test-walkerA");
-  console.log("[TEST #7] Walker.stop() for Walker A completed");
 
   // Wait for walker B to continue
-  console.log("[TEST #7] Waiting 200ms for Walker B to continue");
+  // console.log("[TEST #7] Waiting 200ms for Walker B to continue");
   await sleep(200);
 
-  console.log("[TEST #7] Calling cancelA() and cancelB()");
+  // console.log("[TEST #7] Calling cancelA() and cancelB()");
   cancelA();
   cancelB();
   unsubscribeError();
 
-  console.log("[TEST #7] Walker A strategies started:", walkerAStrategiesStarted);
-  console.log("[TEST #7] Walker B strategies started:", walkerBStrategiesStarted);
+  // console.log("[TEST #7] Walker A strategies started:", walkerAStrategiesStarted);
+  // console.log("[TEST #7] Walker B strategies started:", walkerBStrategiesStarted);
 
   if (errorCaught) {
     fail(`Error during walkers: ${errorCaught.message || errorCaught}`);
     return;
   }
 
-  // Walker A should stop early
-  if (walkerAStrategiesStarted.length >= 2) {
-    fail(`Walker A should stop early, got ${walkerAStrategiesStarted.length} strategies: ${walkerAStrategiesStarted.join(", ")}`);
+  const walkerAArray = Array.from(walkerAStrategiesStarted);
+  const walkerBArray = Array.from(walkerBStrategiesStarted);
+
+  // Walker A should stop early (only first strategy completes)
+  if (walkerAArray.length >= 2) {
+    fail(`Walker A should stop early, got ${walkerAArray.length} strategies: ${walkerAArray.join(", ")}`);
     return;
   }
 
   // Walker B should continue (but may or may not complete all strategies due to timing)
-  if (walkerBStrategiesStarted.length === 0) {
-    fail(`Walker B should start strategies, got ${walkerBStrategiesStarted.length}`);
+  if (walkerBArray.length === 0) {
+    fail(`Walker B should start strategies, got ${walkerBArray.length}`);
     return;
   }
 
-  pass(`SHUTDOWN TWO WALKERS: Walker A stopped (${walkerAStrategiesStarted.length}/2 strategies). Walker B continued (${walkerBStrategiesStarted.length}/2 strategies).`);
+  pass(`SHUTDOWN TWO WALKERS: Walker A stopped (${walkerAArray.length}/2 strategies). Walker B continued (${walkerBArray.length}/2 strategies).`);
 });
