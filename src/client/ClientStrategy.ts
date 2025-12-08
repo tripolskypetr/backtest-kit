@@ -118,22 +118,40 @@ const VALIDATE_SIGNAL_FN = (signal: ISignalRow, currentPrice: number, isSchedule
       );
     }
 
-    // ЗАЩИТА ОТ EDGE CASE: для immediate сигналов проверяем что текущая цена не пробила SL/TP
-    // Для scheduled сигналов эта проверка избыточна т.к. priceOpen уже проверен выше
-    if (!isScheduled) {
-      // Текущая цена уже пробила StopLoss - позиция откроется и сразу закроется по SL
-      if (isFinite(currentPrice) && currentPrice < signal.priceStopLoss) {
+    // ЗАЩИТА ОТ МОМЕНТАЛЬНОГО ЗАКРЫТИЯ: проверяем что позиция не закроется сразу после открытия
+    if (!isScheduled && isFinite(currentPrice)) {
+      // LONG: currentPrice должна быть МЕЖДУ SL и TP (не пробита ни одна граница)
+      // SL < currentPrice < TP
+      if (currentPrice <= signal.priceStopLoss) {
         errors.push(
-          `Long: currentPrice (${currentPrice}) < priceStopLoss (${signal.priceStopLoss}). ` +
-            `Signal would be immediately cancelled. This signal is invalid.`
+          `Long immediate: currentPrice (${currentPrice}) <= priceStopLoss (${signal.priceStopLoss}). ` +
+            `Signal would be immediately closed by stop loss. Cannot open position that is already stopped out.`
         );
       }
 
-      // Текущая цена уже достигла TakeProfit - профит упущен
-      if (isFinite(currentPrice) && currentPrice > signal.priceTakeProfit) {
+      if (currentPrice >= signal.priceTakeProfit) {
         errors.push(
-          `Long: currentPrice (${currentPrice}) > priceTakeProfit (${signal.priceTakeProfit}). ` +
-            `Signal is invalid - the profit opportunity has already passed.`
+          `Long immediate: currentPrice (${currentPrice}) >= priceTakeProfit (${signal.priceTakeProfit}). ` +
+            `Signal would be immediately closed by take profit. The profit opportunity has already passed.`
+        );
+      }
+    }
+
+    // ЗАЩИТА ОТ МОМЕНТАЛЬНОГО ЗАКРЫТИЯ scheduled сигналов
+    if (isScheduled && isFinite(signal.priceOpen)) {
+      // LONG scheduled: priceOpen должен быть МЕЖДУ SL и TP
+      // SL < priceOpen < TP
+      if (signal.priceOpen <= signal.priceStopLoss) {
+        errors.push(
+          `Long scheduled: priceOpen (${signal.priceOpen}) <= priceStopLoss (${signal.priceStopLoss}). ` +
+            `Signal would be immediately cancelled on activation. Cannot activate position that is already stopped out.`
+        );
+      }
+
+      if (signal.priceOpen >= signal.priceTakeProfit) {
+        errors.push(
+          `Long scheduled: priceOpen (${signal.priceOpen}) >= priceTakeProfit (${signal.priceTakeProfit}). ` +
+            `Signal would close immediately on activation. This is logically impossible for LONG position.`
         );
       }
     }
@@ -178,22 +196,40 @@ const VALIDATE_SIGNAL_FN = (signal: ISignalRow, currentPrice: number, isSchedule
       );
     }
 
-    // ЗАЩИТА ОТ EDGE CASE: для immediate сигналов проверяем что текущая цена не пробила SL/TP
-    // Для scheduled сигналов эта проверка избыточна т.к. priceOpen уже проверен выше
-    if (!isScheduled) {
-      // Текущая цена уже пробила StopLoss - позиция откроется и сразу закроется по SL
-      if (isFinite(currentPrice) && currentPrice > signal.priceStopLoss) {
+    // ЗАЩИТА ОТ МОМЕНТАЛЬНОГО ЗАКРЫТИЯ: проверяем что позиция не закроется сразу после открытия
+    if (!isScheduled && isFinite(currentPrice)) {
+      // SHORT: currentPrice должна быть МЕЖДУ TP и SL (не пробита ни одна граница)
+      // TP < currentPrice < SL
+      if (currentPrice >= signal.priceStopLoss) {
         errors.push(
-          `Short: currentPrice (${currentPrice}) > priceStopLoss (${signal.priceStopLoss}). ` +
-            `Signal would be immediately cancelled. This signal is invalid.`
+          `Short immediate: currentPrice (${currentPrice}) >= priceStopLoss (${signal.priceStopLoss}). ` +
+            `Signal would be immediately closed by stop loss. Cannot open position that is already stopped out.`
         );
       }
 
-      // Текущая цена уже достигла TakeProfit - профит упущен
-      if (isFinite(currentPrice) && currentPrice < signal.priceTakeProfit) {
+      if (currentPrice <= signal.priceTakeProfit) {
         errors.push(
-          `Short: currentPrice (${currentPrice}) < priceTakeProfit (${signal.priceTakeProfit}). ` +
-            `Signal is invalid - the profit opportunity has already passed.`
+          `Short immediate: currentPrice (${currentPrice}) <= priceTakeProfit (${signal.priceTakeProfit}). ` +
+            `Signal would be immediately closed by take profit. The profit opportunity has already passed.`
+        );
+      }
+    }
+
+    // ЗАЩИТА ОТ МОМЕНТАЛЬНОГО ЗАКРЫТИЯ scheduled сигналов
+    if (isScheduled && isFinite(signal.priceOpen)) {
+      // SHORT scheduled: priceOpen должен быть МЕЖДУ TP и SL
+      // TP < priceOpen < SL
+      if (signal.priceOpen >= signal.priceStopLoss) {
+        errors.push(
+          `Short scheduled: priceOpen (${signal.priceOpen}) >= priceStopLoss (${signal.priceStopLoss}). ` +
+            `Signal would be immediately cancelled on activation. Cannot activate position that is already stopped out.`
+        );
+      }
+
+      if (signal.priceOpen <= signal.priceTakeProfit) {
+        errors.push(
+          `Short scheduled: priceOpen (${signal.priceOpen}) <= priceTakeProfit (${signal.priceTakeProfit}). ` +
+            `Signal would close immediately on activation. This is logically impossible for SHORT position.`
         );
       }
     }
