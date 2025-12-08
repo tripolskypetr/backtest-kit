@@ -23,6 +23,15 @@ constructor();
 
 ## Properties
 
+### _getInstance
+
+```ts
+_getInstance: any
+```
+
+Memoized function to get or create LiveInstance for a symbol-strategy pair.
+Each symbol-strategy combination gets its own isolated instance.
+
 ### run
 
 ```ts
@@ -81,3 +90,11 @@ dump: (symbol: string, strategyName: string, path?: string) => Promise<void>
 ```
 
 Saves strategy report to disk.
+
+### list
+
+```ts
+list: () => Promise<{ symbol: string; strategyName: string; status: "pending" | "fulfilled" | "rejected" | "ready"; }[]>
+```
+
+Lists all active live trading instances with their current status.

@@ -2221,8 +2221,8 @@ export class ClientStrategy implements IStrategy {
 
     await PersistScheduleAdapter.writeScheduleData(
       this._scheduledSignal,
-      this.params.execution.context.symbol,
-      this.params.strategyName,
+      symbol,
+      strategyName,
     );
   }
 }

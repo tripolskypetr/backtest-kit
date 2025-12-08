@@ -5168,6 +5168,11 @@ declare const PersistPartialAdapter: PersistPartialUtils;
  */
 declare class BacktestUtils {
     /**
+     * Memoized function to get or create BacktestInstance for a symbol-strategy pair.
+     * Each symbol-strategy combination gets its own isolated instance.
+     */
+    private _getInstance;
+    /**
      * Runs backtest for a symbol with context propagation.
      *
      * @param symbol - Trading pair symbol (e.g., "BTCUSDT")
@@ -5268,6 +5273,24 @@ declare class BacktestUtils {
      * ```
      */
     dump: (symbol: string, strategyName: StrategyName, path?: string) => Promise<void>;
+    /**
+     * Lists all active backtest instances with their current status.
+     *
+     * @returns Promise resolving to array of status objects for all instances
+     *
+     * @example
+     * ```typescript
+     * const statusList = await Backtest.list();
+     * statusList.forEach(status => {
+     *   console.log(`${status.symbol} - ${status.strategyName}: ${status.status}`);
+     * });
+     * ```
+     */
+    list: () => Promise<{
+        symbol: string;
+        strategyName: string;
+        status: "pending" | "fulfilled" | "rejected" | "ready";
+    }[]>;
 }
 /**
  * Singleton instance of BacktestUtils for convenient backtest operations.
@@ -5319,6 +5342,11 @@ declare const Backtest: BacktestUtils;
  * ```
  */
 declare class LiveUtils {
+    /**
+     * Memoized function to get or create LiveInstance for a symbol-strategy pair.
+     * Each symbol-strategy combination gets its own isolated instance.
+     */
+    private _getInstance;
     /**
      * Runs live trading for a symbol with context propagation.
      *
@@ -5421,6 +5449,24 @@ declare class LiveUtils {
      * ```
      */
     dump: (symbol: string, strategyName: StrategyName, path?: string) => Promise<void>;
+    /**
+     * Lists all active live trading instances with their current status.
+     *
+     * @returns Promise resolving to array of status objects for all instances
+     *
+     * @example
+     * ```typescript
+     * const statusList = await Live.list();
+     * statusList.forEach(status => {
+     *   console.log(`${status.symbol} - ${status.strategyName}: ${status.status}`);
+     * });
+     * ```
+     */
+    list: () => Promise<{
+        symbol: string;
+        strategyName: string;
+        status: "pending" | "fulfilled" | "rejected" | "ready";
+    }[]>;
 }
 /**
  * Singleton instance of LiveUtils for convenient live trading operations.
@@ -5652,6 +5698,11 @@ declare class Performance {
  */
 declare class WalkerUtils {
     /**
+     * Memoized function to get or create WalkerInstance for a symbol-walker pair.
+     * Each symbol-walker combination gets its own isolated instance.
+     */
+    private _getInstance;
+    /**
      * Runs walker comparison for a symbol with context propagation.
      *
      * @param symbol - Trading pair symbol (e.g., "BTCUSDT")
@@ -5752,6 +5803,24 @@ declare class WalkerUtils {
      * ```
      */
     dump: (symbol: string, walkerName: WalkerName, path?: string) => Promise<void>;
+    /**
+     * Lists all active walker instances with their current status.
+     *
+     * @returns Promise resolving to array of status objects for all instances
+     *
+     * @example
+     * ```typescript
+     * const statusList = await Walker.list();
+     * statusList.forEach(status => {
+     *   console.log(`${status.symbol} - ${status.walkerName}: ${status.status}`);
+     * });
+     * ```
+     */
+    list: () => Promise<{
+        symbol: string;
+        walkerName: string;
+        status: "pending" | "fulfilled" | "rejected" | "ready";
+    }[]>;
 }
 /**
  * Singleton instance of WalkerUtils for convenient walker operations.

@@ -18,6 +18,15 @@ constructor();
 
 ## Properties
 
+### _getInstance
+
+```ts
+_getInstance: any
+```
+
+Memoized function to get or create BacktestInstance for a symbol-strategy pair.
+Each symbol-strategy combination gets its own isolated instance.
+
 ### run
 
 ```ts
@@ -72,3 +81,11 @@ dump: (symbol: string, strategyName: string, path?: string) => Promise<void>
 ```
 
 Saves strategy report to disk.
+
+### list
+
+```ts
+list: () => Promise<{ symbol: string; strategyName: string; status: "pending" | "fulfilled" | "rejected" | "ready"; }[]>
+```
+
+Lists all active backtest instances with their current status.

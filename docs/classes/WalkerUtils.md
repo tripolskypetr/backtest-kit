@@ -19,6 +19,15 @@ constructor();
 
 ## Properties
 
+### _getInstance
+
+```ts
+_getInstance: any
+```
+
+Memoized function to get or create WalkerInstance for a symbol-walker pair.
+Each symbol-walker combination gets its own isolated instance.
+
 ### run
 
 ```ts
@@ -79,3 +88,11 @@ dump: (symbol: string, walkerName: string, path?: string) => Promise<void>
 ```
 
 Saves walker report to disk.
+
+### list
+
+```ts
+list: () => Promise<{ symbol: string; walkerName: string; status: "pending" | "fulfilled" | "rejected" | "ready"; }[]>
+```
+
+Lists all active walker instances with their current status.

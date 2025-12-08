@@ -227,12 +227,13 @@ Backtest.background("BTCUSDT", {
 
 - 🤝 **Mode Switching**: Seamlessly switch between backtest and live modes with identical strategy code. 🔄
 - 📜 **Crash Recovery**: Atomic persistence ensures state recovery after crashes—no duplicate signals. 🗂️
-- 🛑 **Graceful Shutdown**: Stop backtests, live trading, and walkers programmatically with `Backtest.stop()`, `Live.stop()`, and `Walker.stop()`. Current signals complete normally, no forced closures. ⏹️
+- 🛑 **Graceful Shutdown**: Stop backtests, live trading, and walkers programmatically with `stop()` methods. Current signals complete normally, no forced closures. ⏹️
+- 📋 **Task Monitoring**: Track all running instances with `list()` methods. Monitor task statuses: `ready`, `pending`, `fulfilled`, `rejected`. 📊
 - 🛠️ **Custom Validators**: Define validation rules with strategy-level throttling and price logic checks. 🔧
 - 🛡️ **Signal Lifecycle**: Type-safe state machine prevents invalid state transitions. 🚑
 - 📦 **Dependency Inversion**: Lazy-load components at runtime for modular, scalable designs. 🧩
 - 🔍 **Schema Reflection**: Runtime introspection with `listExchanges()`, `listStrategies()`, `listFrames()`. 📊
-- 🔬 **Data Validation**: Automatic detection and rejection of incomplete candles from Binance API with anomaly checks. 
+- 🔬 **Data Validation**: Automatic detection and rejection of incomplete candles from Binance API with anomaly checks. ✅ 
 
 ---
 
@@ -252,6 +253,7 @@ Backtest.background("BTCUSDT", {
 - 🌐 **`addFrame`**: Configure timeframes for backtesting. 📅
 - 🔄 **`Backtest` / `Live`**: Run strategies in backtest or live mode (generator or background). ⚡
 - 🛑 **`Backtest.stop()` / `Live.stop()` / `Walker.stop()`**: Gracefully stop running strategies—current signals complete, no forced exits. ⏹️
+- 📋 **`Backtest.list()` / `Live.list()` / `Walker.list()`**: Monitor all running instances with status tracking (`ready`, `pending`, `fulfilled`, `rejected`). 📊
 - 📅 **`Schedule`**: Track scheduled signals and cancellation rate for limit orders. 📊
 - 📊 **`Partial`**: Access partial profit/loss statistics and reports for risk management. Track signals reaching milestone levels (10%, 20%, 30%, etc.). 💹
 - 🎯 **`Constant`**: Kelly Criterion-based constants for optimal take profit (TP_LEVEL1-3) and stop loss (SL_LEVEL1-2) levels. 📐
@@ -1356,9 +1358,43 @@ listenPartialProfit(({ symbol, signal, price, level, backtest }) => {
 
 ---
 
-### 11. Graceful Shutdown
+### 11. Graceful Shutdown and Task Monitoring
 
-The framework provides graceful shutdown mechanisms for all execution modes: backtests, live trading, and walkers. This ensures clean termination without forced signal closures.
+The framework provides graceful shutdown mechanisms and task monitoring for all execution modes: backtests, live trading, and walkers. This ensures clean termination without forced signal closures and visibility into running tasks.
+
+#### Task Status Monitoring
+
+Use `list()` method to monitor all running instances and their statuses:
+
+```typescript
+// Get list of all backtest instances
+const backtests = await Backtest.list();
+console.log(backtests);
+// [
+//   { symbol: "BTCUSDT", strategyName: "strategy-1", status: "pending" },
+//   { symbol: "ETHUSDT", strategyName: "strategy-2", status: "fulfilled" }
+// ]
+
+// Get list of all live trading instances
+const liveInstances = await Live.list();
+console.log(liveInstances);
+// [
+//   { symbol: "BTCUSDT", strategyName: "my-strategy", status: "pending" }
+// ]
+
+// Get list of all walker instances
+const walkers = await Walker.list();
+console.log(walkers);
+// [
+//   { symbol: "BTCUSDT", walkerName: "btc-walker", status: "fulfilled" }
+// ]
+```
+
+**Task Statuses:**
+- `ready` - Task created but not yet started
+- `pending` - Task is currently running
+- `fulfilled` - Task completed successfully
+- `rejected` - Task failed with an error
 
 #### How Graceful Shutdown Works
 
@@ -1369,6 +1405,7 @@ When you call `Backtest.stop()`, `Live.stop()`, or `Walker.stop()`:
 3. **Callbacks Fire** - All lifecycle callbacks (`onClose`, etc.) execute as expected
 4. **Events Emitted** - Completion events (`listenDoneBacktest`, `listenDoneLive`, `listenWalkerComplete`) fire
 5. **State Persisted** - In live mode, final state is saved to disk
+6. **Status Updated** - Task status transitions from `pending` to `fulfilled`
 
 #### Backtest Shutdown
 
@@ -1442,11 +1479,17 @@ Walker.background("BTCUSDT", {
   walkerName: "btc-walker"
 });
 
+// Monitor walker status
+const walkers = await Walker.list();
+console.log(walkers.find(w => w.walkerName === "btc-walker"));
+// { symbol: "BTCUSDT", walkerName: "btc-walker", status: "pending" }
+
 // Or stop walker manually after some condition
 await Walker.stop("BTCUSDT", "btc-walker");
 // - Current strategy completes execution
 // - Remaining strategies (not yet started) won't run
 // - listenWalkerComplete fires with partial results
+// - Status changes to "fulfilled"
 
 listenWalkerComplete((results) => {
   console.log("Walker stopped early:", results.bestStrategy);
@@ -1469,6 +1512,31 @@ await Walker.stop("BTCUSDT", "walker-A");
 // - walker-B continues unaffected
 ```
 
+#### Monitoring Multiple Instances
+
+Track multiple running instances across different symbols:
+
+```typescript
+// Start multiple backtests
+Backtest.background("BTCUSDT", { strategyName: "strategy-1", ... });
+Backtest.background("ETHUSDT", { strategyName: "strategy-2", ... });
+Backtest.background("SOLUSDT", { strategyName: "strategy-3", ... });
+
+// Monitor all running backtests
+const allBacktests = await Backtest.list();
+console.log(`Running: ${allBacktests.filter(b => b.status === "pending").length}`);
+console.log(`Completed: ${allBacktests.filter(b => b.status === "fulfilled").length}`);
+console.log(`Failed: ${allBacktests.filter(b => b.status === "rejected").length}`);
+
+// Stop specific instance
+await Backtest.stop("ETHUSDT", "strategy-2");
+
+// Verify status change
+const updated = await Backtest.list();
+const eth = updated.find(b => b.symbol === "ETHUSDT");
+console.log(eth.status); // "fulfilled"
+```
+
 #### Use Cases
 
 1. **Backtest Early Exit** - Stop backtest when strategy performs poorly (e.g., drawdown > 10%)
@@ -1476,24 +1544,45 @@ await Walker.stop("BTCUSDT", "walker-A");
 3. **Walker Optimization** - Skip remaining strategies when first one is excellent
 4. **Resource Management** - Stop long-running backtests to free up resources
 5. **Conditional Termination** - Stop based on external events (API limits, market conditions)
+6. **Task Monitoring Dashboard** - Build real-time monitoring UI with `list()` method
+7. **Health Checks** - Monitor task statuses for alerting and automation
 
 #### Best Practices
 
 1. **Always await stop()** - Ensure graceful shutdown completes before exiting process
 2. **Use listenDone events** - Track completion with `listenDoneBacktest`, `listenDoneLive`, `listenWalkerComplete`
-3. **Don't force-kill** - Let signals complete naturally instead of process.exit()
-4. **Save reports** - Call `dump()` methods before stopping to preserve results
-5. **Test shutdown paths** - Write tests that verify graceful shutdown behavior
+3. **Monitor task status** - Use `list()` method to track running instances and their states
+4. **Don't force-kill** - Let signals complete naturally instead of process.exit()
+5. **Save reports** - Call `dump()` methods before stopping to preserve results
+6. **Test shutdown paths** - Write tests that verify graceful shutdown behavior
+7. **Handle rejected status** - Check for `rejected` status and handle errors appropriately
 
 ```typescript
-// GOOD - Graceful shutdown with cleanup
+// GOOD - Graceful shutdown with cleanup and monitoring
+const instances = await Backtest.list();
+console.log(`Running instances: ${instances.filter(i => i.status === "pending").length}`);
+
 await Backtest.stop("BTCUSDT", "my-strategy");
 await Backtest.dump("my-strategy"); // Save report
+
+// Verify status change
+const updated = await Backtest.list();
+const stopped = updated.find(i => i.symbol === "BTCUSDT");
+console.log(`Status: ${stopped.status}`); // "fulfilled"
 console.log("Shutdown complete");
 
 // BAD - Forced exit without cleanup
 process.exit(0); // Signals may not complete, callbacks may not fire
 ```
+
+#### Live Trading Considerations
+
+**Important:** Live mode operates on real-time data with actual minute intervals. When testing graceful shutdown in live mode:
+
+- Expect longer wait times (minimum 1 minute per candle)
+- Use backtest mode for quick iteration and testing
+- Live mode is designed for production trading, not rapid testing
+- Status transitions may take longer due to real-time constraints
 
 ---
 
