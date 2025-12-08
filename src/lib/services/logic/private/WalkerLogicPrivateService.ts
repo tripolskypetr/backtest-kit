@@ -219,7 +219,7 @@ export class WalkerLogicPrivateService {
 
         // Call onStrategyComplete callback if provided
         if (walkerSchema.callbacks?.onStrategyComplete) {
-          walkerSchema.callbacks.onStrategyComplete(
+          await walkerSchema.callbacks.onStrategyComplete(
             strategyName,
             symbol,
             stats,
