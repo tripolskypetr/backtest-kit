@@ -38,6 +38,24 @@ Runs walker comparison in background without yielding results.
 Consumes all walker progress updates internally without exposing them.
 Useful for running walker comparison for side effects only (callbacks, logging).
 
+### stop
+
+```ts
+stop: (symbol: string, walkerName: string) => Promise<void>
+```
+
+Stops all strategies in the walker from generating new signals.
+
+Iterates through all strategies defined in walker schema and:
+1. Sends stop signal via walkerStopSubject (interrupts current running strategy)
+2. Sets internal stop flag for each strategy (prevents new signals)
+
+Current active signals (if any) will complete normally.
+Walker will stop at the next safe point.
+
+Supports multiple walkers running on the same symbol simultaneously.
+Stop signal is filtered by walkerName to prevent interference.
+
 ### getData
 
 ```ts

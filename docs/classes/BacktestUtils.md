@@ -37,6 +37,18 @@ Runs backtest in background without yielding results.
 Consumes all backtest results internally without exposing them.
 Useful for running backtests for side effects only (callbacks, logging).
 
+### stop
+
+```ts
+stop: (symbol: string, strategyName: string) => Promise<void>
+```
+
+Stops the strategy from generating new signals.
+
+Sets internal flag to prevent strategy from opening new signals.
+Current active signal (if any) will complete normally.
+Backtest will stop at the next safe point (idle state or after signal closes).
+
 ### getData
 
 ```ts

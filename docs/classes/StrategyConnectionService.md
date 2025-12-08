@@ -88,6 +88,17 @@ Retrieves the currently active pending signal for the strategy.
 If no active signal exists, returns null.
 Used internally for monitoring TP/SL and time expiration.
 
+### getStopped
+
+```ts
+getStopped: (symbol: string, strategyName: string) => Promise<boolean>
+```
+
+Retrieves the stopped state of the strategy.
+
+Delegates to the underlying strategy instance to check if it has been
+marked as stopped and should cease operation.
+
 ### tick
 
 ```ts
@@ -113,7 +124,7 @@ Evaluates strategy signals against historical data.
 ### stop
 
 ```ts
-stop: (ctx: { symbol: string; strategyName: string; }) => Promise<void>
+stop: (ctx: { symbol: string; strategyName: string; }, backtest: boolean) => Promise<void>
 ```
 
 Stops the specified strategy from generating new signals.

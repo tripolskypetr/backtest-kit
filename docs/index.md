@@ -222,6 +222,7 @@ group: docs
 - [PartialStatistics](interfaces/PartialStatistics.md)
 - [IEntity](interfaces/IEntity.md)
 - [IPersistBase](interfaces/IPersistBase.md)
+- [WalkerStopContract](interfaces/WalkerStopContract.md)
 
 ## Types
 

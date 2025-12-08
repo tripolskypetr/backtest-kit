@@ -46,6 +46,18 @@ Consumes all live trading results internally without exposing them.
 Infinite loop - will run until process is stopped or crashes.
 Useful for running live trading for side effects only (callbacks, persistence).
 
+### stop
+
+```ts
+stop: (symbol: string, strategyName: string) => Promise<void>
+```
+
+Stops the strategy from generating new signals.
+
+Sets internal flag to prevent strategy from opening new signals.
+Current active signal (if any) will complete normally.
+Live trading will stop at the next safe point (idle/closed state).
+
 ### getData
 
 ```ts
