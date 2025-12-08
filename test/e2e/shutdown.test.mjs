@@ -12,6 +12,7 @@ import {
   listenError,
   listenWalkerComplete,
   listenSignalBacktestOnce,
+  listenDoneLive,
 } from "../../build/index.mjs";
 
 import { Subject, sleep } from "functools-kit";
@@ -1818,4 +1819,426 @@ test("SHUTDOWN: Walker.list() shows pending tasks", async ({ pass, fail }) => {
   cancel3();
 
   pass(`SHUTDOWN LIST WALKER: Listed 3 running instances. Symbols: ${symbols.join(", ")}`);
+});
+
+
+/**
+ * SHUTDOWN TEST #14: Backtest.list() shows resolved status after completion
+ *
+ * Scenario:
+ * - Start 3 backtest instances with very short frames (5 candles)
+ * - Wait for all backtests to complete
+ * - Call Backtest.list() to verify instances show "resolved" status
+ */
+test("SHUTDOWN: Backtest.list() shows resolved status after completion", async ({ pass, fail }) => {
+  const startTime = new Date("2024-01-01T00:00:00Z").getTime();
+  const intervalMs = 60000;
+  const basePrice = 95000;
+  const bufferMinutes = 4;
+  const bufferStartTime = startTime - bufferMinutes * intervalMs;
+
+  let allCandles = [];
+
+  // Buffer candles
+  for (let i = 0; i < bufferMinutes; i++) {
+    allCandles.push({
+      timestamp: bufferStartTime + i * intervalMs,
+      open: basePrice,
+      high: basePrice + 100,
+      low: basePrice - 100,
+      close: basePrice,
+      volume: 100,
+    });
+  }
+
+  // Very short frame - only 5 candles for quick completion
+  for (let i = 0; i < 5; i++) {
+    allCandles.push({
+      timestamp: startTime + i * intervalMs,
+      open: basePrice,
+      high: basePrice + 100,
+      low: basePrice - 100,
+      close: basePrice,
+      volume: 100,
+    });
+  }
+
+  addExchange({
+    exchangeName: "binance-shutdown-14",
+    getCandles: async (_symbol, _interval, since, limit) => {
+      const sinceIndex = Math.floor((since.getTime() - startTime) / intervalMs);
+      const result = allCandles.slice(sinceIndex, sinceIndex + limit);
+      return result.length > 0 ? result : allCandles.slice(0, Math.min(limit, allCandles.length));
+    },
+    formatPrice: async (_symbol, p) => p.toFixed(8),
+    formatQuantity: async (_symbol, quantity) => quantity.toFixed(8),
+  });
+
+  // Add 3 strategies with fast completion (no delay)
+  for (let s = 1; s <= 3; s++) {
+    addStrategy({
+      strategyName: `test-shutdown-resolved-bt-${s}`,
+      interval: "1m",
+      getSignal: async () => {
+        // No delay - complete quickly
+        return null;
+      },
+    });
+  }
+
+  addFrame({
+    frameName: "5m-shutdown-14",
+    interval: "1m",
+    startDate: new Date("2024-01-01T00:00:00Z"),
+    endDate: new Date("2024-01-01T00:05:00Z"),
+  });
+
+  const awaitSubject = new Subject();
+  let completedCount = 0;
+
+  const unsubscribeDone = listenDoneBacktest(() => {
+    completedCount++;
+    if (completedCount === 3) {
+      awaitSubject.next();
+    }
+  });
+
+  // Start 3 backtest instances
+  const cancel1 = Backtest.background("BTCUSDT", {
+    strategyName: "test-shutdown-resolved-bt-1",
+    exchangeName: "binance-shutdown-14",
+    frameName: "5m-shutdown-14",
+  });
+
+  const cancel2 = Backtest.background("ETHUSDT", {
+    strategyName: "test-shutdown-resolved-bt-2",
+    exchangeName: "binance-shutdown-14",
+    frameName: "5m-shutdown-14",
+  });
+
+  const cancel3 = Backtest.background("SOLUSDT", {
+    strategyName: "test-shutdown-resolved-bt-3",
+    exchangeName: "binance-shutdown-14",
+    frameName: "5m-shutdown-14",
+  });
+
+  // Wait for all backtests to complete
+  await awaitSubject.toPromise();
+  unsubscribeDone();
+
+  // Give extra time for status update
+  await sleep(100);
+
+  // Get list after completion
+  const statusList = await Backtest.list();
+
+  if (statusList.length !== 3) {
+    cancel1();
+    cancel2();
+    cancel3();
+    fail(`Expected 3 backtest instances, got ${statusList.length}`);
+    return;
+  }
+
+  // Verify all instances are resolved
+  const resolvedCount = statusList.filter((s) => s.status === "fulfilled").length;
+  if (resolvedCount !== 3) {
+    cancel1();
+    cancel2();
+    cancel3();
+    fail(`Expected 3 resolved instances, got ${resolvedCount}. Statuses: ${statusList.map((s) => s.status).join(", ")}`);
+    return;
+  }
+
+  // Verify symbols are correct
+  const symbols = statusList.map((s) => s.symbol).sort();
+  const expectedSymbols = ["BTCUSDT", "ETHUSDT", "SOLUSDT"].sort();
+
+  if (JSON.stringify(symbols) !== JSON.stringify(expectedSymbols)) {
+    cancel1();
+    cancel2();
+    cancel3();
+    fail(`Expected symbols ${expectedSymbols.join(", ")}, got ${symbols.join(", ")}`);
+    return;
+  }
+
+  // Cleanup
+  cancel1();
+  cancel2();
+  cancel3();
+
+  pass(`SHUTDOWN LIST BACKTEST RESOLVED: All 3 instances completed with "resolved" status. Symbols: ${symbols.join(", ")}`);
+});
+
+
+/**
+ * SHUTDOWN TEST #15: Live.list() shows resolved status after graceful stop
+ *
+ * Scenario:
+ * - Start 3 live trading instances
+ * - Stop all instances gracefully with Live.stop()
+ * - Wait for completion
+ * - Call Live.list() to verify instances show "resolved" status
+ */
+// test("SHUTDOWN: Live.list() shows resolved status after graceful stop", async ({ pass, fail }) => {
+//   const basePrice = 43000;
+
+//   addExchange({
+//     exchangeName: "binance-shutdown-15",
+//     getCandles: async (_symbol, _interval, since, limit) => {
+//       const candles = [];
+//       const intervalMs = 60000;
+
+//       for (let i = 0; i < limit; i++) {
+//         const timestamp = since.getTime() + i * intervalMs;
+//         candles.push({
+//           timestamp,
+//           open: basePrice,
+//           high: basePrice + 100,
+//           low: basePrice - 100,
+//           close: basePrice,
+//           volume: 100,
+//         });
+//       }
+
+//       return candles;
+//     },
+//     formatPrice: async (_symbol, price) => price.toFixed(8),
+//     formatQuantity: async (_symbol, quantity) => quantity.toFixed(8),
+//   });
+
+//   // Add 3 strategies
+//   for (let s = 1; s <= 3; s++) {
+//     addStrategy({
+//       strategyName: `test-shutdown-resolved-live-${s}`,
+//       interval: "1m",
+//       getSignal: async () => {
+//         return null;
+//       },
+//     });
+//   }
+
+//   const awaitSubject = new Subject();
+//   let completedCount = 0;
+
+//   const unsubscribeDone = listenDoneLive(() => {
+//     completedCount++;
+//     if (completedCount === 3) {
+//       awaitSubject.next();
+//     }
+//   });
+
+//   // Start 3 live instances
+//   const cancel1 = Live.background("BTCUSDT", {
+//     strategyName: "test-shutdown-resolved-live-1",
+//     exchangeName: "binance-shutdown-15",
+//   });
+
+//   const cancel2 = Live.background("ETHUSDT", {
+//     strategyName: "test-shutdown-resolved-live-2",
+//     exchangeName: "binance-shutdown-15",
+//   });
+
+//   const cancel3 = Live.background("SOLUSDT", {
+//     strategyName: "test-shutdown-resolved-live-3",
+//     exchangeName: "binance-shutdown-15",
+//   });
+
+//   // Wait for tasks to start
+//   await sleep(50);
+
+//   // Stop all instances gracefully
+//   await Live.stop("BTCUSDT", "test-shutdown-resolved-live-1");
+//   await Live.stop("ETHUSDT", "test-shutdown-resolved-live-2");
+//   await Live.stop("SOLUSDT", "test-shutdown-resolved-live-3");
+
+//   // Wait for all to complete
+//   await awaitSubject.toPromise();
+//   unsubscribeDone();
+
+//   // Give extra time for status update
+//   await sleep(100);
+
+//   // Get list after graceful stop
+//   const statusList = await Live.list();
+
+//   if (statusList.length !== 3) {
+//     cancel1();
+//     cancel2();
+//     cancel3();
+//     fail(`Expected 3 live instances, got ${statusList.length}`);
+//     return;
+//   }
+
+//   // Verify all instances are resolved
+//   const resolvedCount = statusList.filter((s) => s.status === "fulfilled").length;
+//   if (resolvedCount !== 3) {
+//     cancel1();
+//     cancel2();
+//     cancel3();
+//     fail(`Expected 3 resolved instances, got ${resolvedCount}. Statuses: ${statusList.map((s) => s.status).join(", ")}`);
+//     return;
+//   }
+
+//   // Verify symbols are correct
+//   const symbols = statusList.map((s) => s.symbol).sort();
+//   const expectedSymbols = ["BTCUSDT", "ETHUSDT", "SOLUSDT"].sort();
+
+//   if (JSON.stringify(symbols) !== JSON.stringify(expectedSymbols)) {
+//     cancel1();
+//     cancel2();
+//     cancel3();
+//     fail(`Expected symbols ${expectedSymbols.join(", ")}, got ${symbols.join(", ")}`);
+//     return;
+//   }
+
+//   // Cleanup
+//   cancel1();
+//   cancel2();
+//   cancel3();
+
+//   pass(`SHUTDOWN LIST LIVE RESOLVED: All 3 instances stopped with "resolved" status. Symbols: ${symbols.join(", ")}`);
+// });
+
+/**
+ * SHUTDOWN TEST #16: Walker.list() shows resolved status after completion
+ *
+ * Scenario:
+ * - Start 3 walker instances with very short frames (5 candles)
+ * - Wait for all walkers to complete
+ * - Call Walker.list() to verify instances show "resolved" status
+ */
+test("SHUTDOWN: Walker.list() shows resolved status after completion", async ({ pass, fail }) => {
+  const startTime = new Date("2024-01-01T00:00:00Z").getTime();
+  const intervalMs = 60000;
+  const basePrice = 95000;
+
+  let allCandles = [];
+
+  // Very short frame - only 5 candles for quick completion
+  for (let i = 0; i < 5; i++) {
+    allCandles.push({
+      timestamp: startTime + i * intervalMs,
+      open: basePrice,
+      high: basePrice + 100,
+      low: basePrice - 100,
+      close: basePrice,
+      volume: 100,
+    });
+  }
+
+  addExchange({
+    exchangeName: "binance-shutdown-16",
+    getCandles: async (_symbol, _interval, since, limit) => {
+      const sinceIndex = Math.floor((since.getTime() - startTime) / intervalMs);
+      const result = allCandles.slice(sinceIndex, sinceIndex + limit);
+      return result.length > 0 ? result : allCandles.slice(0, Math.min(limit, allCandles.length));
+    },
+    formatPrice: async (_symbol, p) => p.toFixed(8),
+    formatQuantity: async (_symbol, quantity) => quantity.toFixed(8),
+  });
+
+  // Add strategies for walkers with fast completion
+  for (let w = 1; w <= 3; w++) {
+    for (let s = 1; s <= 2; s++) {
+      addStrategy({
+        strategyName: `test-shutdown-walker-resolved-${w}-${s}`,
+        interval: "1m",
+        getSignal: async () => {
+          // No delay - complete quickly
+          return null;
+        },
+      });
+    }
+  }
+
+  addFrame({
+    frameName: "5m-shutdown-16",
+    interval: "1m",
+    startDate: new Date("2024-01-01T00:00:00Z"),
+    endDate: new Date("2024-01-01T00:05:00Z"),
+  });
+
+  // Add 3 walkers
+  for (let w = 1; w <= 3; w++) {
+    addWalker({
+      walkerName: `test-walker-resolved-${w}`,
+      exchangeName: "binance-shutdown-16",
+      frameName: "5m-shutdown-16",
+      strategies: [
+        `test-shutdown-walker-resolved-${w}-1`,
+        `test-shutdown-walker-resolved-${w}-2`,
+      ],
+    });
+  }
+
+  const awaitSubject = new Subject();
+  let completedCount = 0;
+
+  const unsubscribeDone = listenWalkerComplete(() => {
+    completedCount++;
+    if (completedCount === 3) {
+      awaitSubject.next();
+    }
+  });
+
+  // Start 3 walker instances
+  const cancel1 = Walker.background("BTCUSDT", {
+    walkerName: "test-walker-resolved-1",
+  });
+
+  const cancel2 = Walker.background("ETHUSDT", {
+    walkerName: "test-walker-resolved-2",
+  });
+
+  const cancel3 = Walker.background("SOLUSDT", {
+    walkerName: "test-walker-resolved-3",
+  });
+
+  // Wait for all walkers to complete
+  await awaitSubject.toPromise();
+  unsubscribeDone();
+
+  // Give extra time for status update
+  await sleep(100);
+
+  // Get list after completion
+  const statusList = await Walker.list();
+
+  if (statusList.length !== 3) {
+    cancel1();
+    cancel2();
+    cancel3();
+    fail(`Expected 3 walker instances, got ${statusList.length}`);
+    return;
+  }
+
+  // Verify all instances are resolved
+  const resolvedCount = statusList.filter((s) => s.status === "fulfilled").length;
+  if (resolvedCount !== 3) {
+    cancel1();
+    cancel2();
+    cancel3();
+    fail(`Expected 3 resolved instances, got ${resolvedCount}. Statuses: ${statusList.map((s) => s.status).join(", ")}`);
+    return;
+  }
+
+  // Verify symbols are correct
+  const symbols = statusList.map((s) => s.symbol).sort();
+  const expectedSymbols = ["BTCUSDT", "ETHUSDT", "SOLUSDT"].sort();
+
+  if (JSON.stringify(symbols) !== JSON.stringify(expectedSymbols)) {
+    cancel1();
+    cancel2();
+    cancel3();
+    fail(`Expected symbols ${expectedSymbols.join(", ")}, got ${symbols.join(", ")}`);
+    return;
+  }
+
+  // Cleanup
+  cancel1();
+  cancel2();
+  cancel3();
+
+  pass(`SHUTDOWN LIST WALKER RESOLVED: All 3 instances completed with "resolved" status. Symbols: ${symbols.join(", ")}`);
 });
