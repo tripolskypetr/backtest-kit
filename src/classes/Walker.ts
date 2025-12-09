@@ -1,7 +1,7 @@
 import backtest from "../lib";
 import { WalkerName } from "../interfaces/Walker.interface";
 import { exitEmitter, doneWalkerSubject, walkerStopSubject } from "../config/emitters";
-import { getErrorMessage, memoize, singlerun } from "functools-kit";
+import { getErrorMessage, memoize, randomString, singlerun } from "functools-kit";
 
 const WALKER_METHOD_NAME_RUN = "WalkerUtils.run";
 const WALKER_METHOD_NAME_BACKGROUND = "WalkerUtils.background";
@@ -68,7 +68,10 @@ const INSTANCE_TASK_FN = async (
  * }
  * ```
  */
-export class WalkerInstance {
+export class WalkerInstance {  
+  /** A randomly generated string. */
+  readonly id = randomString();
+
   /** Internal flag indicating if walker was stopped manually */
   _isStopped = false;
 
@@ -124,6 +127,7 @@ export class WalkerInstance {
   public getStatus = async () => {
     backtest.loggerService.info(WALKER_METHOD_NAME_GET_STATUS);
     return {
+      id: this.id,
       symbol: this.symbol,
       walkerName: this.walkerName,
       status: this.task.getStatus(),

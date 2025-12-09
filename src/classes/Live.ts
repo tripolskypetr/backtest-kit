@@ -5,7 +5,7 @@ import {
 } from "../interfaces/Strategy.interface";
 import backtest from "../lib";
 import { exitEmitter, doneLiveSubject } from "../config/emitters";
-import { getErrorMessage, memoize, singlerun } from "functools-kit";
+import { getErrorMessage, memoize, randomString, singlerun } from "functools-kit";
 
 const LIVE_METHOD_NAME_RUN = "LiveUtils.run";
 const LIVE_METHOD_NAME_BACKGROUND = "LiveUtils.background";
@@ -75,6 +75,9 @@ const INSTANCE_TASK_FN = async (
  * ```
  */
 export class LiveInstance {
+  /** A randomly generated string. */  
+  readonly id = randomString();
+
   /** Internal flag indicating if live trading was stopped manually */
   _isStopped = false;
 
@@ -131,6 +134,7 @@ export class LiveInstance {
   public getStatus = async () => {
     backtest.loggerService.info(LIVE_METHOD_NAME_GET_STATUS);
     return {
+      id: this.id,
       symbol: this.symbol,
       strategyName: this.strategyName,
       status: this.task.getStatus(),

@@ -5287,6 +5287,7 @@ declare class BacktestUtils {
      * ```
      */
     list: () => Promise<{
+        id: string;
         symbol: string;
         strategyName: string;
         status: "pending" | "fulfilled" | "rejected" | "ready";
@@ -5463,6 +5464,7 @@ declare class LiveUtils {
      * ```
      */
     list: () => Promise<{
+        id: string;
         symbol: string;
         strategyName: string;
         status: "pending" | "fulfilled" | "rejected" | "ready";
@@ -5817,6 +5819,7 @@ declare class WalkerUtils {
      * ```
      */
     list: () => Promise<{
+        id: string;
         symbol: string;
         walkerName: string;
         status: "pending" | "fulfilled" | "rejected" | "ready";

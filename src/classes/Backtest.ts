@@ -1,7 +1,7 @@
 import backtest from "../lib";
 import { StrategyName } from "../interfaces/Strategy.interface";
 import { exitEmitter, doneBacktestSubject } from "../config/emitters";
-import { getErrorMessage, memoize, singlerun } from "functools-kit";
+import { getErrorMessage, memoize, randomString, singlerun } from "functools-kit";
 
 const BACKTEST_METHOD_NAME_RUN = "BacktestUtils.run";
 const BACKTEST_METHOD_NAME_BACKGROUND = "BacktestUtils.background";
@@ -71,6 +71,9 @@ const INSTANCE_TASK_FN = async (
  * ```
  */
 export class BacktestInstance {
+  /** A randomly generated string. */  
+  readonly id = randomString();
+
   /** Internal flag indicating if backtest was stopped manually */
   _isStopped = false;
 
@@ -128,6 +131,7 @@ export class BacktestInstance {
   public getStatus = async () => {
     backtest.loggerService.info(BACKTEST_METHOD_NAME_GET_STATUS);
     return {
+      id: this.id,
       symbol: this.symbol,
       strategyName: this.strategyName,
       status: this.task.getStatus(),
