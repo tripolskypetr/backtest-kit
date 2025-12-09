@@ -159,6 +159,14 @@ export class LiveInstance {
       context,
     });
 
+    backtest.strategyValidationService.validate(context.strategyName, LIVE_METHOD_NAME_RUN);
+    backtest.exchangeValidationService.validate(context.exchangeName, LIVE_METHOD_NAME_RUN);
+
+    {
+      const { riskName } = backtest.strategySchemaService.get(context.strategyName);
+      riskName && backtest.riskValidationService.validate(riskName, LIVE_METHOD_NAME_RUN);
+    }
+
     {
       backtest.liveMarkdownService.clear({ symbol, strategyName: context.strategyName });
       backtest.scheduleMarkdownService.clear({ symbol, strategyName: context.strategyName });

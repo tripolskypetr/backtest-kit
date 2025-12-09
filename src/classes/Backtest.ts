@@ -154,6 +154,15 @@ export class BacktestInstance {
       context,
     });
 
+    backtest.strategyValidationService.validate(context.strategyName, BACKTEST_METHOD_NAME_RUN);
+    backtest.exchangeValidationService.validate(context.exchangeName, BACKTEST_METHOD_NAME_RUN);
+    backtest.frameValidationService.validate(context.frameName, BACKTEST_METHOD_NAME_RUN);
+
+    {
+      const { riskName } = backtest.strategySchemaService.get(context.strategyName);
+      riskName && backtest.riskValidationService.validate(riskName, BACKTEST_METHOD_NAME_RUN);
+    }
+
     {
       backtest.backtestMarkdownService.clear({ symbol, strategyName: context.strategyName });
       backtest.scheduleMarkdownService.clear({ symbol, strategyName: context.strategyName });
