@@ -3,6 +3,10 @@ import LoggerService from "../base/LoggerService";
 import TYPES from "../../../lib/core/types";
 import { PartialConnectionService } from "../connection/PartialConnectionService";
 import { ISignalRow } from "../../../interfaces/Strategy.interface";
+import StrategyValidationService from "../validation/StrategyValidationService";
+import StrategySchemaService from "../schema/StrategySchemaService";
+import RiskValidationService from "../validation/RiskValidationService";
+import { memoize } from "functools-kit";
 
 /**
  * Global service for partial profit/loss tracking.
@@ -49,6 +53,48 @@ export class PartialGlobalService {
   );
 
   /**
+   * Strategy validation service for validating strategy existence.
+   */
+  private readonly strategyValidationService = inject<StrategyValidationService>(
+    TYPES.strategyValidationService
+  );
+
+  /**
+   * Strategy schema service for retrieving strategy configuration.
+   */
+  private readonly strategySchemaService = inject<StrategySchemaService>(
+    TYPES.strategySchemaService
+  );
+
+  /**
+   * Risk validation service for validating risk existence.
+   */
+  private readonly riskValidationService = inject<RiskValidationService>(
+    TYPES.riskValidationService
+  );
+
+  /**
+   * Validates strategy and associated risk configuration.
+   * Memoized to avoid redundant validations for the same strategy.
+   *
+   * @param strategyName - Name of the strategy to validate
+   * @param methodName - Name of the calling method for error tracking
+   */
+  private validate = memoize(
+    ([strategyName]) => `${strategyName}`,
+    (strategyName: string, methodName: string) => {
+      this.loggerService.log("partialGlobalService validate", {
+        strategyName,
+        methodName,
+      });
+      this.strategyValidationService.validate(strategyName, methodName);
+      const strategySchema = this.strategySchemaService.get(strategyName);
+      const riskName = strategySchema.riskName;
+      riskName && this.riskValidationService.validate(riskName, methodName);
+    }
+  );
+
+  /**
    * Processes profit state and emits events for newly reached profit levels.
    *
    * Logs operation at global service level, then delegates to PartialConnectionService.
@@ -77,6 +123,7 @@ export class PartialGlobalService {
       backtest,
       when,
     });
+    this.validate(data.strategyName, "partialGlobalService profit");
     return await this.partialConnectionService.profit(
       symbol,
       data,
@@ -116,6 +163,7 @@ export class PartialGlobalService {
       backtest,
       when,
     });
+    this.validate(data.strategyName, "partialGlobalService loss");
     return await this.partialConnectionService.loss(
       symbol,
       data,
@@ -142,12 +190,13 @@ export class PartialGlobalService {
     priceClose: number,
     backtest: boolean,
   ) => {
-    this.loggerService.log("partialGlobalService profit", {
+    this.loggerService.log("partialGlobalService clear", {
       symbol,
       data,
       priceClose,
       backtest,
     });
+    this.validate(data.strategyName, "partialGlobalService clear");
     return await this.partialConnectionService.clear(symbol, data, priceClose, backtest);
   };
 }

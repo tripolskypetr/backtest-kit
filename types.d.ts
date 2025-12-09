@@ -8908,6 +8908,26 @@ declare class PartialGlobalService {
      */
     private readonly partialConnectionService;
     /**
+     * Strategy validation service for validating strategy existence.
+     */
+    private readonly strategyValidationService;
+    /**
+     * Strategy schema service for retrieving strategy configuration.
+     */
+    private readonly strategySchemaService;
+    /**
+     * Risk validation service for validating risk existence.
+     */
+    private readonly riskValidationService;
+    /**
+     * Validates strategy and associated risk configuration.
+     * Memoized to avoid redundant validations for the same strategy.
+     *
+     * @param strategyName - Name of the strategy to validate
+     * @param methodName - Name of the calling method for error tracking
+     */
+    private validate;
+    /**
      * Processes profit state and emits events for newly reached profit levels.
      *
      * Logs operation at global service level, then delegates to PartialConnectionService.
