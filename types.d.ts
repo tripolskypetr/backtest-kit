@@ -8214,8 +8214,27 @@ declare class HeatMarkdownService {
 }
 
 /**
- * @class ExchangeValidationService
- * Service for managing and validating exchange configurations
+ * Service for managing and validating exchange configurations.
+ *
+ * Maintains a registry of all configured exchanges and validates
+ * their existence before operations. Uses memoization for performance.
+ *
+ * Key features:
+ * - Registry management: addExchange() to register new exchanges
+ * - Validation: validate() ensures exchange exists before use
+ * - Memoization: validation results are cached for performance
+ * - Listing: list() returns all registered exchanges
+ *
+ * @throws {Error} If duplicate exchange name is added
+ * @throws {Error} If unknown exchange is referenced
+ *
+ * @example
+ * ```typescript
+ * const exchangeValidation = new ExchangeValidationService();
+ * exchangeValidation.addExchange("binance", binanceSchema);
+ * exchangeValidation.validate("binance", "backtest"); // OK
+ * exchangeValidation.validate("unknown", "live"); // Throws error
+ * ```
  */
 declare class ExchangeValidationService {
     /**
@@ -8251,8 +8270,29 @@ declare class ExchangeValidationService {
 }
 
 /**
- * @class StrategyValidationService
- * Service for managing and validating strategy configurations
+ * Service for managing and validating trading strategy configurations.
+ *
+ * Maintains a registry of all configured strategies, validates their existence
+ * before operations, and ensures associated risk profiles are valid.
+ * Uses memoization for performance.
+ *
+ * Key features:
+ * - Registry management: addStrategy() to register new strategies
+ * - Dual validation: validates both strategy existence and risk profile (if configured)
+ * - Memoization: validation results are cached for performance
+ * - Listing: list() returns all registered strategies
+ *
+ * @throws {Error} If duplicate strategy name is added
+ * @throws {Error} If unknown strategy is referenced
+ * @throws {Error} If strategy's risk profile doesn't exist
+ *
+ * @example
+ * ```typescript
+ * const strategyValidation = new StrategyValidationService();
+ * strategyValidation.addStrategy("momentum-btc", { ...schema, riskName: "conservative" });
+ * strategyValidation.validate("momentum-btc", "backtest"); // Validates strategy + risk
+ * strategyValidation.validate("unknown", "live"); // Throws error
+ * ```
  */
 declare class StrategyValidationService {
     /**
@@ -8295,8 +8335,27 @@ declare class StrategyValidationService {
 }
 
 /**
- * @class FrameValidationService
- * Service for managing and validating frame configurations
+ * Service for managing and validating frame (timeframe) configurations.
+ *
+ * Maintains a registry of all configured frames and validates
+ * their existence before operations. Uses memoization for performance.
+ *
+ * Key features:
+ * - Registry management: addFrame() to register new timeframes
+ * - Validation: validate() ensures frame exists before use
+ * - Memoization: validation results are cached for performance
+ * - Listing: list() returns all registered frames
+ *
+ * @throws {Error} If duplicate frame name is added
+ * @throws {Error} If unknown frame is referenced
+ *
+ * @example
+ * ```typescript
+ * const frameValidation = new FrameValidationService();
+ * frameValidation.addFrame("2024-Q1", frameSchema);
+ * frameValidation.validate("2024-Q1", "backtest"); // OK
+ * frameValidation.validate("unknown", "live"); // Throws error
+ * ```
  */
 declare class FrameValidationService {
     /**
@@ -8332,8 +8391,29 @@ declare class FrameValidationService {
 }
 
 /**
- * @class WalkerValidationService
- * Service for managing and validating walker configurations
+ * Service for managing and validating walker (parameter sweep) configurations.
+ *
+ * Maintains a registry of all configured walkers and validates
+ * their existence before operations. Uses memoization for performance.
+ *
+ * Walkers define parameter ranges for optimization and hyperparameter tuning.
+ *
+ * Key features:
+ * - Registry management: addWalker() to register new walker configurations
+ * - Validation: validate() ensures walker exists before use
+ * - Memoization: validation results are cached for performance
+ * - Listing: list() returns all registered walkers
+ *
+ * @throws {Error} If duplicate walker name is added
+ * @throws {Error} If unknown walker is referenced
+ *
+ * @example
+ * ```typescript
+ * const walkerValidation = new WalkerValidationService();
+ * walkerValidation.addWalker("rsi-sweep", walkerSchema);
+ * walkerValidation.validate("rsi-sweep", "optimizer"); // OK
+ * walkerValidation.validate("unknown", "optimizer"); // Throws error
+ * ```
  */
 declare class WalkerValidationService {
     /**
@@ -8369,8 +8449,27 @@ declare class WalkerValidationService {
 }
 
 /**
- * @class SizingValidationService
- * Service for managing and validating sizing configurations
+ * Service for managing and validating position sizing configurations.
+ *
+ * Maintains a registry of all configured sizing strategies and validates
+ * their existence before operations. Uses memoization for performance.
+ *
+ * Key features:
+ * - Registry management: addSizing() to register new sizing strategies
+ * - Validation: validate() ensures sizing strategy exists before use
+ * - Memoization: validation results are cached for performance
+ * - Listing: list() returns all registered sizing strategies
+ *
+ * @throws {Error} If duplicate sizing name is added
+ * @throws {Error} If unknown sizing strategy is referenced
+ *
+ * @example
+ * ```typescript
+ * const sizingValidation = new SizingValidationService();
+ * sizingValidation.addSizing("fixed-1000", fixedSizingSchema);
+ * sizingValidation.validate("fixed-1000", "strategy-1"); // OK
+ * sizingValidation.validate("unknown", "strategy-2"); // Throws error
+ * ```
  */
 declare class SizingValidationService {
     /**
@@ -8407,8 +8506,27 @@ declare class SizingValidationService {
 }
 
 /**
- * @class RiskValidationService
- * Service for managing and validating risk configurations
+ * Service for managing and validating risk management configurations.
+ *
+ * Maintains a registry of all configured risk profiles and validates
+ * their existence before operations. Uses memoization for performance.
+ *
+ * Key features:
+ * - Registry management: addRisk() to register new risk profiles
+ * - Validation: validate() ensures risk profile exists before use
+ * - Memoization: validation results are cached by riskName:source for performance
+ * - Listing: list() returns all registered risk profiles
+ *
+ * @throws {Error} If duplicate risk name is added
+ * @throws {Error} If unknown risk profile is referenced
+ *
+ * @example
+ * ```typescript
+ * const riskValidation = new RiskValidationService();
+ * riskValidation.addRisk("conservative", conservativeSchema);
+ * riskValidation.validate("conservative", "strategy-1"); // OK
+ * riskValidation.validate("unknown", "strategy-2"); // Throws error
+ * ```
  */
 declare class RiskValidationService {
     /**
@@ -9039,6 +9157,37 @@ declare class OutlineMarkdownService {
     dumpSignal: (signalId: ResultId, history: MessageModel[], signal: ISignalDto, outputDir?: string) => Promise<void>;
 }
 
+/**
+ * Service for validating GLOBAL_CONFIG parameters to ensure mathematical correctness
+ * and prevent unprofitable trading configurations.
+ *
+ * Performs comprehensive validation on:
+ * - **Percentage parameters**: Slippage, fees, and profit margins must be non-negative
+ * - **Economic viability**: Ensures CC_MIN_TAKEPROFIT_DISTANCE_PERCENT covers all trading costs
+ *   (slippage + fees) to guarantee profitable trades when TakeProfit is hit
+ * - **Range constraints**: Validates MIN < MAX relationships (e.g., StopLoss distances)
+ * - **Time-based parameters**: Ensures positive integer values for timeouts and lifetimes
+ * - **Candle parameters**: Validates retry counts, delays, and anomaly detection thresholds
+ *
+ * @throws {Error} If any validation fails, throws with detailed breakdown of all errors
+ *
+ * @example
+ * ```typescript
+ * const validator = new ConfigValidationService();
+ * validator.validate(); // Throws if config is invalid
+ * ```
+ *
+ * @example Validation failure output:
+ * ```
+ * GLOBAL_CONFIG validation failed:
+ *   1. CC_MIN_TAKEPROFIT_DISTANCE_PERCENT (0.3%) is too low to cover trading costs.
+ *      Required minimum: 0.40%
+ *      Breakdown:
+ *        - Slippage effect: 0.20% (0.1% × 2 transactions)
+ *        - Fees: 0.20% (0.1% × 2 transactions)
+ *      All TakeProfit signals will be unprofitable with current settings!
+ * ```
+ */
 declare class ConfigValidationService {
     /**
      * @private

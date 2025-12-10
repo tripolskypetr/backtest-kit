@@ -5,8 +5,29 @@ import { WalkerName, IWalkerSchema } from "../../../interfaces/Walker.interface"
 import { memoize } from "functools-kit";
 
 /**
- * @class WalkerValidationService
- * Service for managing and validating walker configurations
+ * Service for managing and validating walker (parameter sweep) configurations.
+ *
+ * Maintains a registry of all configured walkers and validates
+ * their existence before operations. Uses memoization for performance.
+ *
+ * Walkers define parameter ranges for optimization and hyperparameter tuning.
+ *
+ * Key features:
+ * - Registry management: addWalker() to register new walker configurations
+ * - Validation: validate() ensures walker exists before use
+ * - Memoization: validation results are cached for performance
+ * - Listing: list() returns all registered walkers
+ *
+ * @throws {Error} If duplicate walker name is added
+ * @throws {Error} If unknown walker is referenced
+ *
+ * @example
+ * ```typescript
+ * const walkerValidation = new WalkerValidationService();
+ * walkerValidation.addWalker("rsi-sweep", walkerSchema);
+ * walkerValidation.validate("rsi-sweep", "optimizer"); // OK
+ * walkerValidation.validate("unknown", "optimizer"); // Throws error
+ * ```
  */
 export class WalkerValidationService {
   /**

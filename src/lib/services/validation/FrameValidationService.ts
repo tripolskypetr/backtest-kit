@@ -5,8 +5,27 @@ import { FrameName, IFrameSchema } from "../../../interfaces/Frame.interface";
 import { memoize } from "functools-kit";
 
 /**
- * @class FrameValidationService
- * Service for managing and validating frame configurations
+ * Service for managing and validating frame (timeframe) configurations.
+ *
+ * Maintains a registry of all configured frames and validates
+ * their existence before operations. Uses memoization for performance.
+ *
+ * Key features:
+ * - Registry management: addFrame() to register new timeframes
+ * - Validation: validate() ensures frame exists before use
+ * - Memoization: validation results are cached for performance
+ * - Listing: list() returns all registered frames
+ *
+ * @throws {Error} If duplicate frame name is added
+ * @throws {Error} If unknown frame is referenced
+ *
+ * @example
+ * ```typescript
+ * const frameValidation = new FrameValidationService();
+ * frameValidation.addFrame("2024-Q1", frameSchema);
+ * frameValidation.validate("2024-Q1", "backtest"); // OK
+ * frameValidation.validate("unknown", "live"); // Throws error
+ * ```
  */
 export class FrameValidationService {
   /**

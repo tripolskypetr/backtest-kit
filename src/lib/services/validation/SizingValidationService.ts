@@ -5,8 +5,27 @@ import { SizingName, ISizingSchema } from "../../../interfaces/Sizing.interface"
 import { memoize } from "functools-kit";
 
 /**
- * @class SizingValidationService
- * Service for managing and validating sizing configurations
+ * Service for managing and validating position sizing configurations.
+ *
+ * Maintains a registry of all configured sizing strategies and validates
+ * their existence before operations. Uses memoization for performance.
+ *
+ * Key features:
+ * - Registry management: addSizing() to register new sizing strategies
+ * - Validation: validate() ensures sizing strategy exists before use
+ * - Memoization: validation results are cached for performance
+ * - Listing: list() returns all registered sizing strategies
+ *
+ * @throws {Error} If duplicate sizing name is added
+ * @throws {Error} If unknown sizing strategy is referenced
+ *
+ * @example
+ * ```typescript
+ * const sizingValidation = new SizingValidationService();
+ * sizingValidation.addSizing("fixed-1000", fixedSizingSchema);
+ * sizingValidation.validate("fixed-1000", "strategy-1"); // OK
+ * sizingValidation.validate("unknown", "strategy-2"); // Throws error
+ * ```
  */
 export class SizingValidationService {
   /**

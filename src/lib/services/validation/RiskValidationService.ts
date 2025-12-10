@@ -5,8 +5,27 @@ import { RiskName, IRiskSchema } from "../../../interfaces/Risk.interface";
 import { memoize } from "functools-kit";
 
 /**
- * @class RiskValidationService
- * Service for managing and validating risk configurations
+ * Service for managing and validating risk management configurations.
+ *
+ * Maintains a registry of all configured risk profiles and validates
+ * their existence before operations. Uses memoization for performance.
+ *
+ * Key features:
+ * - Registry management: addRisk() to register new risk profiles
+ * - Validation: validate() ensures risk profile exists before use
+ * - Memoization: validation results are cached by riskName:source for performance
+ * - Listing: list() returns all registered risk profiles
+ *
+ * @throws {Error} If duplicate risk name is added
+ * @throws {Error} If unknown risk profile is referenced
+ *
+ * @example
+ * ```typescript
+ * const riskValidation = new RiskValidationService();
+ * riskValidation.addRisk("conservative", conservativeSchema);
+ * riskValidation.validate("conservative", "strategy-1"); // OK
+ * riskValidation.validate("unknown", "strategy-2"); // Throws error
+ * ```
  */
 export class RiskValidationService {
   /**
