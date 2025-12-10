@@ -31,22 +31,22 @@ constructor();
 loggerService: any
 ```
 
-### strategyGlobalService
+### strategyCoreService
 
 ```ts
-strategyGlobalService: any
+strategyCoreService: any
 ```
 
-### exchangeGlobalService
+### exchangeCoreService
 
 ```ts
-exchangeGlobalService: any
+exchangeCoreService: any
 ```
 
-### frameGlobalService
+### frameCoreService
 
 ```ts
-frameGlobalService: any
+frameCoreService: any
 ```
 
 ### methodContextService

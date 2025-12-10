@@ -1,9 +1,9 @@
 ---
-title: docs/api-reference/class/StrategyGlobalService
+title: docs/api-reference/class/StrategyCoreService
 group: docs
 ---
 
-# StrategyGlobalService
+# StrategyCoreService
 
 Global service for strategy operations with execution context injection.
 

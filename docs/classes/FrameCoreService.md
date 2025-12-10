@@ -1,9 +1,9 @@
 ---
-title: docs/api-reference/class/FrameGlobalService
+title: docs/api-reference/class/FrameCoreService
 group: docs
 ---
 
-# FrameGlobalService
+# FrameCoreService
 
 Global service for frame operations.
 

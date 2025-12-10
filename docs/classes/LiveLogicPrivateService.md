@@ -34,10 +34,10 @@ constructor();
 loggerService: any
 ```
 
-### strategyGlobalService
+### strategyCoreService
 
 ```ts
-strategyGlobalService: any
+strategyCoreService: any
 ```
 
 ### methodContextService

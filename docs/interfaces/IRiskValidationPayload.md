@@ -10,6 +10,14 @@ Extends IRiskCheckArgs with portfolio state data.
 
 ## Properties
 
+### pendingSignal
+
+```ts
+pendingSignal: ISignalDto
+```
+
+Pending signal to apply
+
 ### activePositionCount
 
 ```ts

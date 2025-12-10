@@ -1,9 +1,9 @@
 ---
-title: docs/api-reference/class/ExchangeGlobalService
+title: docs/api-reference/class/ExchangeCoreService
 group: docs
 ---
 
-# ExchangeGlobalService
+# ExchangeCoreService
 
 Global service for exchange operations with execution context injection.
 

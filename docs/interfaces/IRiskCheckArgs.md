@@ -19,6 +19,14 @@ symbol: string
 
 Trading pair symbol (e.g., "BTCUSDT")
 
+### pendingSignal
+
+```ts
+pendingSignal: ISignalDto
+```
+
+Pending signal to apply
+
 ### strategyName
 
 ```ts
