@@ -17,8 +17,8 @@ liveCommandService:
 				• loggerService: ""
 				methodContextService: ""
 				executionContextService: ""
-			strategyGlobalService:
-				• strategyGlobalService: ""
+			strategyCoreService:
+				• strategyCoreService: ""
 				loggerService:
 					• loggerService: ""
 					methodContextService: ""
@@ -155,8 +155,8 @@ backtestCommandService:
 				• loggerService: ""
 				methodContextService: ""
 				executionContextService: ""
-			strategyGlobalService:
-				• strategyGlobalService: ""
+			strategyCoreService:
+				• strategyCoreService: ""
 				loggerService:
 					• loggerService: ""
 					methodContextService: ""
@@ -232,8 +232,8 @@ backtestCommandService:
 							methodContextService: ""
 							executionContextService: ""
 				methodContextService: ""
-			exchangeGlobalService:
-				• exchangeGlobalService: ""
+			exchangeCoreService:
+				• exchangeCoreService: ""
 				loggerService:
 					• loggerService: ""
 					methodContextService: ""
@@ -259,8 +259,8 @@ backtestCommandService:
 						• loggerService: ""
 						methodContextService: ""
 						executionContextService: ""
-			frameGlobalService:
-				• frameGlobalService: ""
+			frameCoreService:
+				• frameCoreService: ""
 				loggerService:
 					• loggerService: ""
 					methodContextService: ""
@@ -339,8 +339,8 @@ walkerCommandService:
 						• loggerService: ""
 						methodContextService: ""
 						executionContextService: ""
-					strategyGlobalService:
-						• strategyGlobalService: ""
+					strategyCoreService:
+						• strategyCoreService: ""
 						loggerService:
 							• loggerService: ""
 							methodContextService: ""
@@ -391,8 +391,8 @@ walkerCommandService:
 								• riskValidationService: ""
 								loggerService: ""
 						methodContextService: ""
-					exchangeGlobalService:
-						• exchangeGlobalService: ""
+					exchangeCoreService:
+						• exchangeCoreService: ""
 						loggerService:
 							• loggerService: ""
 							methodContextService: ""
@@ -415,8 +415,8 @@ walkerCommandService:
 								• loggerService: ""
 								methodContextService: ""
 								executionContextService: ""
-					frameGlobalService:
-						• frameGlobalService: ""
+					frameCoreService:
+						• frameCoreService: ""
 						loggerService:
 							• loggerService: ""
 							methodContextService: ""
