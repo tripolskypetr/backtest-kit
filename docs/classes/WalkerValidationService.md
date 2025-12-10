@@ -5,6 +5,19 @@ group: docs
 
 # WalkerValidationService
 
+Service for managing and validating walker (parameter sweep) configurations.
+
+Maintains a registry of all configured walkers and validates
+their existence before operations. Uses memoization for performance.
+
+Walkers define parameter ranges for optimization and hyperparameter tuning.
+
+Key features:
+- Registry management: addWalker() to register new walker configurations
+- Validation: validate() ensures walker exists before use
+- Memoization: validation results are cached for performance
+- Listing: list() returns all registered walkers
+
 ## Constructor
 
 ```ts

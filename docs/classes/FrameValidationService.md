@@ -5,6 +5,17 @@ group: docs
 
 # FrameValidationService
 
+Service for managing and validating frame (timeframe) configurations.
+
+Maintains a registry of all configured frames and validates
+their existence before operations. Uses memoization for performance.
+
+Key features:
+- Registry management: addFrame() to register new timeframes
+- Validation: validate() ensures frame exists before use
+- Memoization: validation results are cached for performance
+- Listing: list() returns all registered frames
+
 ## Constructor
 
 ```ts

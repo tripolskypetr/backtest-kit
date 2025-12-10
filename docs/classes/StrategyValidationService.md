@@ -5,6 +5,18 @@ group: docs
 
 # StrategyValidationService
 
+Service for managing and validating trading strategy configurations.
+
+Maintains a registry of all configured strategies, validates their existence
+before operations, and ensures associated risk profiles are valid.
+Uses memoization for performance.
+
+Key features:
+- Registry management: addStrategy() to register new strategies
+- Dual validation: validates both strategy existence and risk profile (if configured)
+- Memoization: validation results are cached for performance
+- Listing: list() returns all registered strategies
+
 ## Constructor
 
 ```ts

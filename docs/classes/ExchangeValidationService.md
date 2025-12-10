@@ -5,6 +5,17 @@ group: docs
 
 # ExchangeValidationService
 
+Service for managing and validating exchange configurations.
+
+Maintains a registry of all configured exchanges and validates
+their existence before operations. Uses memoization for performance.
+
+Key features:
+- Registry management: addExchange() to register new exchanges
+- Validation: validate() ensures exchange exists before use
+- Memoization: validation results are cached for performance
+- Listing: list() returns all registered exchanges
+
 ## Constructor
 
 ```ts

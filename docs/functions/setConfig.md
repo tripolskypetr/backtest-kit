@@ -6,7 +6,7 @@ group: docs
 # setConfig
 
 ```ts
-declare function setConfig(config: Partial<GlobalConfig>): Promise<void>;
+declare function setConfig(config: Partial<GlobalConfig>, _unsafe?: boolean): void;
 ```
 
 Sets global configuration parameters for the framework.
@@ -16,3 +16,4 @@ Sets global configuration parameters for the framework.
 | Parameter | Description |
 |-----------|-------------|
 | `config` | Partial configuration object to override default settings |
+| `_unsafe` | |

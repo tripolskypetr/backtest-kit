@@ -5,6 +5,17 @@ group: docs
 
 # SizingValidationService
 
+Service for managing and validating position sizing configurations.
+
+Maintains a registry of all configured sizing strategies and validates
+their existence before operations. Uses memoization for performance.
+
+Key features:
+- Registry management: addSizing() to register new sizing strategies
+- Validation: validate() ensures sizing strategy exists before use
+- Memoization: validation results are cached for performance
+- Listing: list() returns all registered sizing strategies
+
 ## Constructor
 
 ```ts

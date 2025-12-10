@@ -6,7 +6,7 @@ group: docs
 # setLogger
 
 ```ts
-declare function setLogger(logger: ILogger): Promise<void>;
+declare function setLogger(logger: ILogger): void;
 ```
 
 Sets custom logger implementation for the framework.

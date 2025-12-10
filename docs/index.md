@@ -73,6 +73,7 @@ group: docs
 - [PartialConnectionService](classes/PartialConnectionService.md)
 - [PartialGlobalService](classes/PartialGlobalService.md)
 - [OutlineMarkdownService](classes/OutlineMarkdownService.md)
+- [ConfigValidationService](classes/ConfigValidationService.md)
 
 ## Enums
 
@@ -81,6 +82,8 @@ group: docs
 
 - [setLogger](functions/setLogger.md)
 - [setConfig](functions/setConfig.md)
+- [getConfig](functions/getConfig.md)
+- [getDefaultConfig](functions/getDefaultConfig.md)
 - [addStrategy](functions/addStrategy.md)
 - [addExchange](functions/addExchange.md)
 - [addFrame](functions/addFrame.md)
