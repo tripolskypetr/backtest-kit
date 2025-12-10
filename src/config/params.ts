@@ -10,11 +10,31 @@ export const GLOBAL_CONFIG = {
    */
   CC_AVG_PRICE_CANDLES_COUNT: 5,
   /**
-   * Minimum TakeProfit distance from priceOpen (percentage)
-   * Must be greater than trading fees to ensure profitable trades
-   * Default: 0.3% (covers 2×0.1% fees + minimum profit margin)
+   * Slippage percentage applied to entry and exit prices.
+   * Simulates market impact and order book depth.
+   * Applied twice (entry and exit) for realistic execution simulation.
+   * Default: 0.1% per transaction
    */
-  CC_MIN_TAKEPROFIT_DISTANCE_PERCENT: 0.3,
+  CC_PERCENT_SLIPPAGE: 0.1,
+  /**
+   * Fee percentage charged per transaction.
+   * Applied twice (entry and exit) for total fee calculation.
+   * Default: 0.1% per transaction (total 0.2%)
+   */
+  CC_PERCENT_FEE: 0.1,
+  /**
+   * Minimum TakeProfit distance from priceOpen (percentage)
+   * Must be greater than (slippage + fees) to ensure profitable trades
+   *
+   * Calculation:
+   * - Slippage effect: ~0.2% (0.1% × 2 transactions)
+   * - Fees: 0.2% (0.1% × 2 transactions)
+   * - Minimum profit buffer: 0.1%
+   * - Total: 0.5%
+   *
+   * Default: 0.5% (covers all costs + minimum profit margin)
+   */
+  CC_MIN_TAKEPROFIT_DISTANCE_PERCENT: 0.5,
   /**
    * Minimum StopLoss distance from priceOpen (percentage)
    * Prevents signals from being immediately stopped out due to price volatility

@@ -74,6 +74,7 @@ const validationServices = {
     sizingValidationService: Symbol('sizingValidationService'),
     riskValidationService: Symbol('riskValidationService'),
     optimizerValidationService: Symbol('optimizerValidationService'),
+    configValidationService: Symbol('configValidationService'),
 }
 
 const templateServices = {

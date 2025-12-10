@@ -29,7 +29,7 @@ test("SANITIZE: Micro-profit eaten by fees - TP too close to priceOpen rejected"
   // Включаем валидацию для этого теста
   setConfig({
     CC_MIN_TAKEPROFIT_DISTANCE_PERCENT: 0.3, // Минимум 0.3% для покрытия комиссий
-  });
+  }, true);
 
   let scheduledCount = 0;
   let openedCount = 0;
@@ -136,7 +136,7 @@ test("SANITIZE: Extreme StopLoss rejected (>20% loss) - protects capital", async
   // Включаем валидацию для этого теста
   setConfig({
     CC_MAX_STOPLOSS_DISTANCE_PERCENT: 20, // Максимум 20% риска на сигнал
-  });
+  }, true);
 
   let scheduledCount = 0;
   let openedCount = 0;
@@ -243,7 +243,7 @@ test("SANITIZE: Excessive minuteEstimatedTime rejected (>30 days) - prevents ete
   // Включаем валидацию для этого теста
   setConfig({
     CC_MAX_SIGNAL_LIFETIME_MINUTES: 43200, // Максимум 30 дней (43200 минут)
-  });
+  }, true);
 
   let scheduledCount = 0;
   let openedCount = 0;

@@ -49,6 +49,7 @@ import { PartialConnectionService } from "../services/connection/PartialConnecti
 import PartialMarkdownService from "../services/markdown/PartialMarkdownService";
 import PartialGlobalService from "../services/global/PartialGlobalService";
 import OutlineMarkdownService from "../services/markdown/OutlineMarkdownService";
+import ConfigValidationService from "../services/validation/ConfigValidationService";
 
 {
     provide(TYPES.loggerService, () => new LoggerService());
@@ -126,6 +127,7 @@ import OutlineMarkdownService from "../services/markdown/OutlineMarkdownService"
     provide(TYPES.sizingValidationService, () => new SizingValidationService());
     provide(TYPES.riskValidationService, () => new RiskValidationService());
     provide(TYPES.optimizerValidationService, () => new OptimizerValidationService());
+    provide(TYPES.configValidationService, () => new ConfigValidationService());
 }
 
 {

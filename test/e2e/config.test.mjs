@@ -20,7 +20,7 @@ test("setConfig changes CC_SCHEDULE_AWAIT_MINUTES", async ({ pass, fail }) => {
   // Set custom timeout for scheduled signals
   await setConfig({
     CC_SCHEDULE_AWAIT_MINUTES: 1, // 30 minutes instead of default 120
-  });
+  }, true);
 
   let signalCancelled = false;
 
@@ -87,12 +87,12 @@ test("setConfig with partial update preserves other values", async ({ pass, fail
   await setConfig({
     CC_SCHEDULE_AWAIT_MINUTES: 90,
     CC_AVG_PRICE_CANDLES_COUNT: 7,
-  });
+  }, true);
 
   // Only update one value
   await setConfig({
     CC_AVG_PRICE_CANDLES_COUNT: 8,
-  });
+  }, true);
 
   // Both should work after partial update
   let signalOpened = false;
@@ -159,12 +159,12 @@ test("setConfig before backtest run applies configuration", async ({ pass, fail 
   await setConfig({
     CC_SCHEDULE_AWAIT_MINUTES: 120,
     CC_AVG_PRICE_CANDLES_COUNT: 5,
-  });
+  }, true);
 
   // Configure before running strategies
   await setConfig({
     CC_AVG_PRICE_CANDLES_COUNT: 6,
-  });
+  }, true);
 
   let priceCalculated = false;
 

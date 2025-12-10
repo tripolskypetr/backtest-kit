@@ -1,16 +1,5 @@
 import { ISignalRow, IStrategyPnL } from "../interfaces/Strategy.interface";
-
-/**
- * Slippage percentage applied to entry and exit prices.
- * Simulates market impact and order book depth.
- */
-const PERCENT_SLIPPAGE = 0.1;
-
-/**
- * Fee percentage charged per transaction.
- * Applied twice (entry and exit) for total fee calculation.
- */
-const PERCENT_FEE = 0.1;
+import { GLOBAL_CONFIG } from "../config/params";
 
 /**
  * Calculates profit/loss for a closed signal with slippage and fees.
@@ -52,16 +41,16 @@ export const toProfitLossDto = (
 
   if (signal.position === "long") {
     // LONG: покупаем дороже, продаем дешевле
-    priceOpenWithSlippage = priceOpen * (1 + PERCENT_SLIPPAGE / 100);
-    priceCloseWithSlippage = priceClose * (1 - PERCENT_SLIPPAGE / 100);
+    priceOpenWithSlippage = priceOpen * (1 + GLOBAL_CONFIG.CC_PERCENT_SLIPPAGE / 100);
+    priceCloseWithSlippage = priceClose * (1 - GLOBAL_CONFIG.CC_PERCENT_SLIPPAGE / 100);
   } else {
     // SHORT: продаем дешевле, покупаем дороже
-    priceOpenWithSlippage = priceOpen * (1 - PERCENT_SLIPPAGE / 100);
-    priceCloseWithSlippage = priceClose * (1 + PERCENT_SLIPPAGE / 100);
+    priceOpenWithSlippage = priceOpen * (1 - GLOBAL_CONFIG.CC_PERCENT_SLIPPAGE / 100);
+    priceCloseWithSlippage = priceClose * (1 + GLOBAL_CONFIG.CC_PERCENT_SLIPPAGE / 100);
   }
 
   // Применяем комиссию дважды (при открытии и закрытии)
-  const totalFee = PERCENT_FEE * 2;
+  const totalFee = GLOBAL_CONFIG.CC_PERCENT_FEE * 2;
 
   let pnlPercentage: number;
 

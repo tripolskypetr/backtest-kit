@@ -14,9 +14,29 @@ declare const GLOBAL_CONFIG: {
      */
     CC_AVG_PRICE_CANDLES_COUNT: number;
     /**
+     * Slippage percentage applied to entry and exit prices.
+     * Simulates market impact and order book depth.
+     * Applied twice (entry and exit) for realistic execution simulation.
+     * Default: 0.1% per transaction
+     */
+    CC_PERCENT_SLIPPAGE: number;
+    /**
+     * Fee percentage charged per transaction.
+     * Applied twice (entry and exit) for total fee calculation.
+     * Default: 0.1% per transaction (total 0.2%)
+     */
+    CC_PERCENT_FEE: number;
+    /**
      * Minimum TakeProfit distance from priceOpen (percentage)
-     * Must be greater than trading fees to ensure profitable trades
-     * Default: 0.3% (covers 2×0.1% fees + minimum profit margin)
+     * Must be greater than (slippage + fees) to ensure profitable trades
+     *
+     * Calculation:
+     * - Slippage effect: ~0.2% (0.1% × 2 transactions)
+     * - Fees: 0.2% (0.1% × 2 transactions)
+     * - Minimum profit buffer: 0.1%
+     * - Total: 0.5%
+     *
+     * Default: 0.5% (covers all costs + minimum profit margin)
      */
     CC_MIN_TAKEPROFIT_DISTANCE_PERCENT: number;
     /**
@@ -135,7 +155,7 @@ interface ILogger {
  * });
  * ```
  */
-declare function setLogger(logger: ILogger): Promise<void>;
+declare function setLogger(logger: ILogger): void;
 /**
  * Sets global configuration parameters for the framework.
  * @param config - Partial configuration object to override default settings
@@ -147,7 +167,7 @@ declare function setLogger(logger: ILogger): Promise<void>;
  * });
  * ```
  */
-declare function setConfig(config: Partial<GlobalConfig>): Promise<void>;
+declare function setConfig(config: Partial<GlobalConfig>, _unsafe?: boolean): void;
 
 /**
  * Execution context containing runtime parameters for strategy/exchange operations.
@@ -9019,6 +9039,26 @@ declare class OutlineMarkdownService {
     dumpSignal: (signalId: ResultId, history: MessageModel[], signal: ISignalDto, outputDir?: string) => Promise<void>;
 }
 
+declare class ConfigValidationService {
+    /**
+     * @private
+     * @readonly
+     * Injected logger service instance
+     */
+    private readonly loggerService;
+    /**
+     * Validates GLOBAL_CONFIG parameters for mathematical correctness.
+     *
+     * Checks:
+     * 1. CC_MIN_TAKEPROFIT_DISTANCE_PERCENT must cover slippage + fees
+     * 2. All percentage values must be positive
+     * 3. Time/count values must be positive integers
+     *
+     * @throws Error if configuration is invalid
+     */
+    validate: () => void;
+}
+
 declare const backtest: {
     optimizerTemplateService: OptimizerTemplateService;
     exchangeValidationService: ExchangeValidationService;
@@ -9028,6 +9068,7 @@ declare const backtest: {
     sizingValidationService: SizingValidationService;
     riskValidationService: RiskValidationService;
     optimizerValidationService: OptimizerValidationService;
+    configValidationService: ConfigValidationService;
     backtestMarkdownService: BacktestMarkdownService;
     liveMarkdownService: LiveMarkdownService;
     scheduleMarkdownService: ScheduleMarkdownService;

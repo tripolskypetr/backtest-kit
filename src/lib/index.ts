@@ -54,6 +54,7 @@ import { PartialConnectionService } from "./services/connection/PartialConnectio
 import PartialMarkdownService from "./services/markdown/PartialMarkdownService";
 import PartialGlobalService from "./services/global/PartialGlobalService";
 import OutlineMarkdownService from "./services/markdown/OutlineMarkdownService";
+import ConfigValidationService from "./services/validation/ConfigValidationService";
 
 const baseServices = {
   loggerService: inject<LoggerService>(TYPES.loggerService),
@@ -178,7 +179,9 @@ const markdownServices = {
   partialMarkdownService: inject<PartialMarkdownService>(
     TYPES.partialMarkdownService
   ),
-  outlineMarkdownService: inject<OutlineMarkdownService>(TYPES.outlineMarkdownService),
+  outlineMarkdownService: inject<OutlineMarkdownService>(
+    TYPES.outlineMarkdownService
+  ),
 };
 
 const validationServices = {
@@ -202,6 +205,9 @@ const validationServices = {
   ),
   optimizerValidationService: inject<OptimizerValidationService>(
     TYPES.optimizerValidationService
+  ),
+  configValidationService: inject<ConfigValidationService>(
+    TYPES.configValidationService
   ),
 };
 

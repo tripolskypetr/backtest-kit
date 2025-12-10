@@ -1,3 +1,4 @@
+import { getErrorMessage } from "functools-kit";
 import { GLOBAL_CONFIG, GlobalConfig } from "../config/params";
 import { ILogger } from "../interfaces/Logger.interface";
 import backtest from "../lib";
@@ -19,8 +20,8 @@ import backtest from "../lib";
  * });
  * ```
  */
-export async function setLogger(logger: ILogger) {
-    backtest.loggerService.setLogger(logger);
+export function setLogger(logger: ILogger) {
+  backtest.loggerService.setLogger(logger);
 }
 
 /**
@@ -34,7 +35,17 @@ export async function setLogger(logger: ILogger) {
  * });
  * ```
  */
-export async function setConfig(config: Partial<GlobalConfig>) {
+export function setConfig(config: Partial<GlobalConfig>, _unsafe?: boolean) {
+  const prevConfig = Object.assign({}, GLOBAL_CONFIG);
+  try {
     Object.assign(GLOBAL_CONFIG, config);
+    !_unsafe && backtest.configValidationService.validate();
+  } catch (error) {
+    console.warn(
+      `backtest-kit setConfig failed: ${getErrorMessage(error)}`,
+      config
+    );
+    Object.assign(GLOBAL_CONFIG, prevConfig);
+    throw error;
+  }
 }
-
