@@ -77,11 +77,8 @@ const SOURCE_LIST = [
         url.searchParams.set("limit", limit || 1000);
         url.searchParams.set("offset", offset || 0);
       }
-      const { data, error } = await fetchApi(url);
-      if (error) {
-        throw new Error(error);
-      }
-      return data.rows;
+      const { rows: data } = await fetchApi(url);
+      return data;
     },
     user: (symbol, data) =>
       str.newline(
@@ -138,11 +135,8 @@ const SOURCE_LIST = [
         url.searchParams.set("limit", limit || 1000);
         url.searchParams.set("offset", offset || 0);
       }
-      const { data, error } = await fetchApi(url);
-      if (error) {
-        throw new Error(error);
-      }
-      return data.rows;
+      const { rows: data } = await fetchApi(url);
+      return data;
     },
     user: (symbol, data) =>
       str.newline(
@@ -198,11 +192,8 @@ const SOURCE_LIST = [
         url.searchParams.set("limit", limit || 1000);
         url.searchParams.set("offset", offset || 0);
       }
-      const { data, error } = await fetchApi(url);
-      if (error) {
-        throw new Error(error);
-      }
-      return data.rows;
+      const { rows: data } = await fetchApi(url);
+      return data;
     },
     user: (symbol, data) =>
       str.newline(
@@ -256,11 +247,8 @@ const SOURCE_LIST = [
         url.searchParams.set("limit", limit || 1000);
         url.searchParams.set("offset", offset || 0);
       }
-      const { data, error } = await fetchApi(url);
-      if (error) {
-        throw new Error(error);
-      }
-      return data.rows;
+      const { rows: data } = await fetchApi(url);
+      return data;
     },
     user: (symbol, data) =>
       str.newline(
