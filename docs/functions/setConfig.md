@@ -16,4 +16,4 @@ Sets global configuration parameters for the framework.
 | Parameter | Description |
 |-----------|-------------|
 | `config` | Partial configuration object to override default settings |
-| `_unsafe` | |
+| `_unsafe` | Skip config validations - required for testbed |

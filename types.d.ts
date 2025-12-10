@@ -159,6 +159,7 @@ declare function setLogger(logger: ILogger): void;
 /**
  * Sets global configuration parameters for the framework.
  * @param config - Partial configuration object to override default settings
+ * @param _unsafe - Skip config validations - required for testbed
  *
  * @example
  * ```typescript
