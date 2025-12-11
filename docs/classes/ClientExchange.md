@@ -71,7 +71,8 @@ If volume is zero, returns simple average of close prices.
 formatQuantity(symbol: string, quantity: number): Promise<string>;
 ```
 
-Format quantity for exchange precision.
+Formats quantity according to exchange-specific rules for the given symbol.
+Applies proper decimal precision and rounding based on symbol's lot size filters.
 
 ### formatPrice
 
@@ -79,4 +80,5 @@ Format quantity for exchange precision.
 formatPrice(symbol: string, price: number): Promise<string>;
 ```
 
-Format price for exchange precision.
+Formats price according to exchange-specific rules for the given symbol.
+Applies proper decimal precision and rounding based on symbol's price filters.
