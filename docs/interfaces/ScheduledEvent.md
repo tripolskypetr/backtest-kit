@@ -6,7 +6,7 @@ group: docs
 # ScheduledEvent
 
 Unified scheduled signal event data for report generation.
-Contains all information about scheduled and cancelled events.
+Contains all information about scheduled, opened and cancelled events.
 
 ## Properties
 
@@ -21,7 +21,7 @@ Event timestamp in milliseconds (scheduledAt for scheduled/cancelled events)
 ### action
 
 ```ts
-action: "scheduled" | "cancelled"
+action: "scheduled" | "opened" | "cancelled"
 ```
 
 Event action type
@@ -104,4 +104,4 @@ Close timestamp (only for cancelled)
 duration: number
 ```
 
-Duration in minutes (only for cancelled)
+Duration in minutes (only for cancelled/opened)

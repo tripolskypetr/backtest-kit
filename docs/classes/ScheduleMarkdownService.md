@@ -45,10 +45,10 @@ Each symbol-strategy combination gets its own isolated storage instance.
 tick: any
 ```
 
-Processes tick events and accumulates scheduled/cancelled events.
-Should be called from signalLiveEmitter subscription.
+Processes tick events and accumulates scheduled/opened/cancelled events.
+Should be called from signalEmitter subscription.
 
-Processes only scheduled and cancelled event types.
+Processes only scheduled, opened and cancelled event types.
 
 ### getData
 
