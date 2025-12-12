@@ -64,6 +64,9 @@ const VALIDATE_SIGNAL_FN = (signal: ISignalRow, currentPrice: number, isSchedule
   if (signal.position === undefined || signal.position === null) {
     errors.push('position is required and must be "long" or "short"');
   }
+  if (signal.position !== "long" && signal.position !== "short") {
+    errors.push(`position must be "long" or "short", got "${signal.position}"`);
+  }
 
   // ЗАЩИТА ОТ NaN/Infinity: currentPrice должна быть конечным числом
   if (!isFinite(currentPrice)) {
