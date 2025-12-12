@@ -72,6 +72,8 @@ export interface IPartialParams {
    * Called before emitting to partialProfitSubject.
    *
    * @param symbol - Trading pair symbol (e.g., "BTCUSDT")
+   * @param strategyName - Strategy name that generated this signal
+   * @param exchangeName - Exchange name where this signal is being executed
    * @param data - Signal row data
    * @param currentPrice - Current market price
    * @param level - Profit level reached (10, 20, 30, etc)
@@ -80,6 +82,8 @@ export interface IPartialParams {
    */
   onProfit: (
     symbol: string,
+    strategyName: string,
+    exchangeName: string,
     data: ISignalRow,
     currentPrice: number,
     level: PartialLevel,
@@ -92,6 +96,8 @@ export interface IPartialParams {
    * Called before emitting to partialLossSubject.
    *
    * @param symbol - Trading pair symbol (e.g., "BTCUSDT")
+   * @param strategyName - Strategy name that generated this signal
+   * @param exchangeName - Exchange name where this signal is being executed
    * @param data - Signal row data
    * @param currentPrice - Current market price
    * @param level - Loss level reached (10, 20, 30, etc)
@@ -100,6 +106,8 @@ export interface IPartialParams {
    */
   onLoss: (
     symbol: string,
+    strategyName: string,
+    exchangeName: string,
     data: ISignalRow,
     currentPrice: number,
     level: PartialLevel,

@@ -80,7 +80,16 @@ const HANDLE_PROFIT_FN = async (
         backtest,
       });
 
-      await self.params.onProfit(symbol, data, currentPrice, level, backtest, when.getTime());
+      await self.params.onProfit(
+        symbol,
+        data.strategyName,
+        data.exchangeName,
+        data,
+        currentPrice,
+        level,
+        backtest,
+        when.getTime()
+      );
     }
   }
 
@@ -144,7 +153,16 @@ const HANDLE_LOSS_FN = async (
         backtest,
       });
 
-      await self.params.onLoss(symbol, data, currentPrice, level, backtest, when.getTime());
+      await self.params.onLoss(
+        symbol,
+        data.strategyName,
+        data.exchangeName,
+        data,
+        currentPrice,
+        level,
+        backtest,
+        when.getTime()
+      );
     }
   }
 
@@ -421,7 +439,15 @@ export class ClientPartial implements IPartial {
       backtest,
       when,
     });
-    return await HANDLE_LOSS_FN(symbol, data, currentPrice, lossPercent, backtest, when, this);
+    return await HANDLE_LOSS_FN(
+      symbol,
+      data,
+      currentPrice,
+      lossPercent,
+      backtest,
+      when,
+      this
+    );
   }
 
   /**
@@ -450,11 +476,17 @@ export class ClientPartial implements IPartial {
    * // Cleanup: PartialConnectionService.getPartial.clear(signal.id)
    * ```
    */
-  public async clear(symbol: string, data: ISignalRow, priceClose: number, backtest: boolean) {
+  public async clear(
+    symbol: string,
+    data: ISignalRow,
+    priceClose: number,
+    backtest: boolean
+  ) {
     this.params.logger.log("ClientPartial clear", {
       symbol,
       data,
       priceClose,
+      backtest,
     });
     if (this._states === NEED_FETCH) {
       throw new Error(

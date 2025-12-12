@@ -40,6 +40,18 @@ export interface PartialProfitContract {
   symbol: string;
 
   /**
+   * Strategy name that generated this signal.
+   * Identifies which strategy execution this profit event belongs to.
+   */
+  strategyName: string;
+
+  /**
+   * Exchange name where this signal is being executed.
+   * Identifies which exchange this profit event belongs to.
+   */
+  exchangeName: string;
+
+  /**
    * Complete signal row data.
    * Contains all signal information: id, position, priceOpen, priceTakeProfit, priceStopLoss, etc.
    */
