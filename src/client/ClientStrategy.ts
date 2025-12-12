@@ -463,10 +463,13 @@ const GET_SIGNAL_FN = trycatch(
   {
     defaultValue: null,
     fallback: (error) => {
-      backtest.loggerService.warn("ClientStrategy exception thrown", {
+      const message = "ClientStrategy exception thrown";
+      const payload = {
         error: errorData(error),
         message: getErrorMessage(error),
-      });
+      };
+      backtest.loggerService.warn(message, payload);
+      console.warn(message, payload);
       errorEmitter.next(error);
     },
   }

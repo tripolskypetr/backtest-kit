@@ -135,14 +135,15 @@ const GET_CANDLES_FN = async (
       return result;
     } catch (err) {
       const message = `ClientExchange GET_CANDLES_FN: attempt ${i + 1} failed for symbol=${dto.symbol}, interval=${dto.interval}, since=${since.toISOString()}, limit=${dto.limit}}`;
+      const payload = {
+        error: errorData(err),
+        message: getErrorMessage(err),
+      };
       self.params.logger.warn(
         message,
-        {
-          error: errorData(err),
-          message: getErrorMessage(err),
-        }
+        payload,
       );
-      console.warn(message);
+      console.warn(message, payload);
       lastError = err;
       await sleep(GLOBAL_CONFIG.CC_GET_CANDLES_RETRY_DELAY_MS);
     }

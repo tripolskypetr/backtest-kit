@@ -36,10 +36,13 @@ const DO_VALIDATION_FN = trycatch(
   {
     defaultValue: false,
     fallback: (error) => {
-      backtest.loggerService.warn("ClientRisk exception thrown", {
+      const message = "ClientRisk exception thrown";
+      const payload = {
         error: errorData(error),
         message: getErrorMessage(error),
-      });
+      };
+      backtest.loggerService.warn(message, payload);
+      console.warn(message, payload);
       validationSubject.next(error);
     },
   }

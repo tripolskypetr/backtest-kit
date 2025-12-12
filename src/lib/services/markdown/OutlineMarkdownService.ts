@@ -16,7 +16,7 @@ type ResultId = string | number;
  * Warning threshold for message size in kilobytes.
  * Messages exceeding this size trigger console warnings.
  */
-const WARN_KB = 100;
+const WARN_KB = 20;
 
 /**
  * Internal function for dumping signal data to markdown files.
