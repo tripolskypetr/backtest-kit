@@ -38,8 +38,11 @@ addRisk({
     riskName: "demo_risk",
     validations: [
         {
-            validate: ({ pendingSignal }) => {
-                const { priceOpen, priceTakeProfit, position } = pendingSignal;
+            validate: ({ pendingSignal, currentPrice }) => {
+                const { priceOpen = currentPrice, priceTakeProfit, position } = pendingSignal;
+                if (!priceOpen) {
+                    return;
+                }
                 const tpDistance = position === "long"
                     ? ((priceTakeProfit - priceOpen) / priceOpen) * 100
                     : ((priceOpen - priceTakeProfit) / priceOpen) * 100;
@@ -50,8 +53,11 @@ addRisk({
             note: "TP distance must be at least 1%",
         },
         {
-            validate: ({ pendingSignal }) => {
-                const { priceOpen, priceTakeProfit, priceStopLoss, position } = pendingSignal;
+            validate: ({ pendingSignal, currentPrice }) => {
+                const { priceOpen = currentPrice, priceTakeProfit, priceStopLoss, position } = pendingSignal;
+                if (!priceOpen) {
+                    return;
+                }
                 const reward = position === "long"
                     ? priceTakeProfit - priceOpen
                     : priceOpen - priceTakeProfit;
