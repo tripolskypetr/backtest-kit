@@ -141,6 +141,7 @@ export { WalkerContract } from "./contract/Walker.contract";
 export { ProgressWalkerContract } from "./contract/ProgressWalker.contract";
 export { ProgressOptimizerContract } from "./contract/ProgressOptimizer.contract";
 export { DoneContract } from "./contract/Done.contract";
+export { RiskContract } from "./contract/Risk.contract";
 export { ProgressBacktestContract } from "./contract/ProgressBacktest.contract";
 export {
   PerformanceContract,
@@ -153,6 +154,7 @@ export type { ScheduleStatistics } from "./lib/services/markdown/ScheduleMarkdow
 export type { PerformanceStatistics } from "./lib/services/markdown/PerformanceMarkdownService";
 export type { WalkerStatistics } from "./lib/services/markdown/WalkerMarkdownService";
 export type { PartialStatistics } from "./lib/services/markdown/PartialMarkdownService";
+export type { RiskStatistics } from "./lib/services/markdown/RiskMarkdownService";
 
 export { ExecutionContextService } from "./lib/services/context/ExecutionContextService";
 export { MethodContextService } from "./lib/services/context/MethodContextService";
@@ -183,6 +185,7 @@ export { PositionSize } from "./classes/PositionSize";
 export { Optimizer } from "./classes/Optimizer";
 export { Partial } from "./classes/Partial";
 export { Constant } from "./classes/Constant";
+export { Risk } from "./classes/Risk";
 
 export * as emitters from "./config/emitters";
 
