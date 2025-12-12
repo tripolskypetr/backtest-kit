@@ -10,6 +10,7 @@ import { IWalkerResults } from "../interfaces/Walker.interface";
 import { PartialProfitContract } from "../contract/PartialProfit.contract";
 import { PartialLossContract } from "../contract/PartialLoss.contract";
 import { WalkerStopContract } from "../contract/WalkerStop.contract";
+import { RiskContract } from "../contract/Risk.contract";
 
 /**
  * Global signal emitter for all trading events (live + backtest).
@@ -121,4 +122,11 @@ export const partialProfitSubject = new Subject<PartialProfitContract>();
  * Emits when a signal reaches a loss level (10%, 20%, 30%, etc).
  */
 export const partialLossSubject = new Subject<PartialLossContract>();
+
+/**
+ * Risk rejection emitter for risk management violations.
+ * Emits ONLY when a signal is rejected due to risk validation failure.
+ * Does not emit for allowed signals (prevents spam).
+ */
+export const riskSubject = new Subject<RiskContract>();
 

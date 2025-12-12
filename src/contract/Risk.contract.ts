@@ -1,0 +1,100 @@
+import { ISignalDto, StrategyName } from "../interfaces/Strategy.interface";
+import { ExchangeName } from "../interfaces/Exchange.interface";
+
+/**
+ * Contract for risk rejection events.
+ *
+ * Emitted by riskSubject ONLY when a signal is REJECTED due to risk validation failure.
+ * Used for tracking actual risk violations and monitoring rejected signals.
+ *
+ * Events are emitted only when risk limits are violated (not for allowed signals).
+ * This prevents spam and allows focusing on actual risk management interventions.
+ *
+ * Consumers:
+ * - RiskMarkdownService: Accumulates rejection events for report generation
+ * - User callbacks via listenRisk() / listenRiskOnce()
+ *
+ * @example
+ * ```typescript
+ * import { listenRisk } from "backtest-kit";
+ *
+ * // Listen to all risk rejection events
+ * listenRisk((event) => {
+ *   console.log(`[RISK REJECTED] Signal for ${event.symbol}`);
+ *   console.log(`Strategy: ${event.strategyName}`);
+ *   console.log(`Active positions: ${event.activePositionCount}`);
+ *   console.log(`Price: ${event.currentPrice}`);
+ *   console.log(`Timestamp: ${new Date(event.timestamp).toISOString()}`);
+ * });
+ *
+ * // Alert on risk rejections for specific symbol
+ * listenRisk((event) => {
+ *   if (event.symbol === "BTCUSDT") {
+ *     console.warn("BTC signal rejected due to risk limits!");
+ *   }
+ * });
+ * ```
+ */
+export interface RiskContract {
+  /**
+   * Trading pair symbol (e.g., "BTCUSDT").
+   * Identifies which market this rejected signal belongs to.
+   */
+  symbol: string;
+
+  /**
+   * Pending signal to apply.
+   * Contains signal details (position, priceOpen, priceTakeProfit, priceStopLoss, etc).
+   */
+  pendingSignal: ISignalDto;
+
+  /**
+   * Strategy name requesting to open a position.
+   * Identifies which strategy attempted to create the signal.
+   */
+  strategyName: StrategyName;
+
+  /**
+   * Exchange name.
+   * Identifies which exchange this signal was for.
+   */
+  exchangeName: ExchangeName;
+
+  /**
+   * Current VWAP price at the time of rejection.
+   * Market price when risk check was performed.
+   */
+  currentPrice: number;
+
+  /**
+   * Number of currently active positions across all strategies at rejection time.
+   * Used to track portfolio-level exposure when signal was rejected.
+   */
+  activePositionCount: number;
+
+  /**
+   * Comment describing why the signal was rejected.
+   * Captured from IRiskValidation.note or "N/A" if not provided.
+   *
+   * @example
+   * ```typescript
+   * console.log(`Rejection reason: ${event.comment}`);
+   * // Output: "Rejection reason: Max 3 positions allowed"
+   * ```
+   */
+  comment: string;
+
+  /**
+   * Event timestamp in milliseconds since Unix epoch.
+   * Represents when the signal was rejected.
+   *
+   * @example
+   * ```typescript
+   * const eventDate = new Date(event.timestamp);
+   * console.log(`Signal rejected at: ${eventDate.toISOString()}`);
+   * ```
+   */
+  timestamp: number;
+}
+
+export default RiskContract;

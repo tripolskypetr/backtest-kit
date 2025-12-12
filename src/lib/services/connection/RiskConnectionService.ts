@@ -5,6 +5,37 @@ import { RiskName, IRiskCheckArgs } from "../../../interfaces/Risk.interface";
 import { memoize } from "functools-kit";
 import ClientRisk from "../../../client/ClientRisk";
 import RiskSchemaService from "../schema/RiskSchemaService";
+import { riskSubject } from "../../../config/emitters";
+
+/**
+ * Callback function for emitting risk rejection events to riskSubject.
+ *
+ * Called by ClientRisk when a signal is rejected due to risk validation failure.
+ * Emits RiskContract event to all subscribers.
+ *
+ * @param symbol - Trading pair symbol
+ * @param params - Risk check arguments
+ * @param activePositionCount - Number of active positions at rejection time
+ * @param comment - Rejection reason from validation note or "N/A"
+ * @param timestamp - Event timestamp in milliseconds
+ */
+const COMMIT_REJECTION_FN = async (
+  symbol: string,
+  params: IRiskCheckArgs,
+  activePositionCount: number,
+  comment: string,
+  timestamp: number
+) =>
+  await riskSubject.next({
+    symbol,
+    pendingSignal: params.pendingSignal,
+    strategyName: params.strategyName,
+    exchangeName: params.exchangeName,
+    currentPrice: params.currentPrice,
+    activePositionCount,
+    comment,
+    timestamp,
+  });
 
 /**
  * Connection service routing risk operations to correct ClientRisk instance.
@@ -60,6 +91,7 @@ export class RiskConnectionService {
       return new ClientRisk({
         ...schema,
         logger: this.loggerService,
+        onRejected: COMMIT_REJECTION_FN,
       });
     }
   );
@@ -69,6 +101,7 @@ export class RiskConnectionService {
    *
    * Routes to appropriate ClientRisk instance based on provided context.
    * Validates portfolio drawdown, symbol exposure, position count, and daily loss limits.
+   * ClientRisk will emit riskSubject event via onRejected callback when signal is rejected.
    *
    * @param params - Risk check arguments (portfolio state, position details)
    * @param context - Execution context with risk name

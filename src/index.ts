@@ -49,6 +49,8 @@ export {
   listenPartialProfitOnce,
   listenWalkerProgress,
   listenOptimizerProgress,
+  listenRisk,
+  listenRiskOnce,
 } from "./function/event";
 export {
   getCandles,

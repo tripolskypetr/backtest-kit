@@ -105,11 +105,30 @@ export interface IRiskSchema {
 
 /**
  * Risk parameters passed to ClientRisk constructor.
- * Combines schema with runtime dependencies.
+ * Combines schema with runtime dependencies and emission callbacks.
  */
 export interface IRiskParams extends IRiskSchema {
   /** Logger service for debug output */
   logger: ILogger;
+
+  /**
+   * Callback invoked when a signal is rejected due to risk limits.
+   * Called before emitting to riskSubject.
+   * Used for event emission to riskSubject (separate from schema callbacks).
+   *
+   * @param symbol - Trading pair symbol
+   * @param params - Risk check arguments
+   * @param activePositionCount - Number of active positions at rejection time
+   * @param comment - Rejection reason from validation note or "N/A"
+   * @param timestamp - Event timestamp in milliseconds
+   */
+  onRejected: (
+    symbol: string,
+    params: IRiskCheckArgs,
+    activePositionCount: number,
+    comment: string,
+    timestamp: number
+  ) => void | Promise<void>;
 }
 
 /**
