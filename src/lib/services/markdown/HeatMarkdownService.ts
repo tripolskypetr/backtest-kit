@@ -147,11 +147,11 @@ class HeatmapStorage {
     }
 
     const signals = this.symbolData.get(symbol)!;
-    signals.push(data);
+    signals.unshift(data);
 
     // Trim queue if exceeded MAX_EVENTS per symbol
     if (signals.length > MAX_EVENTS) {
-      signals.shift();
+      signals.pop();
     }
   }
 

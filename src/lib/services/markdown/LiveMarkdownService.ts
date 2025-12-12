@@ -275,9 +275,9 @@ class ReportStorage {
     }
     
     {
-      this._eventList.push(newEvent);
+      this._eventList.unshift(newEvent);
       if (this._eventList.length > MAX_EVENTS) {
-        this._eventList.shift();
+        this._eventList.pop();
       }
     }
   }
@@ -288,7 +288,7 @@ class ReportStorage {
    * @param data - Opened tick result
    */
   public addOpenedEvent(data: IStrategyTickResultOpened) {
-    this._eventList.push({
+    this._eventList.unshift({
       timestamp: data.signal.pendingAt,
       action: "opened",
       symbol: data.signal.symbol,
@@ -303,7 +303,7 @@ class ReportStorage {
 
     // Trim queue if exceeded MAX_EVENTS
     if (this._eventList.length > MAX_EVENTS) {
-      this._eventList.shift();
+      this._eventList.pop();
     }
   }
 
@@ -341,11 +341,11 @@ class ReportStorage {
     }
 
     // If no previous active event found, add new event
-    this._eventList.push(newEvent);
+    this._eventList.unshift(newEvent);
 
     // Trim queue if exceeded MAX_EVENTS
     if (this._eventList.length > MAX_EVENTS) {
-      this._eventList.shift();
+      this._eventList.pop();
     }
   }
 
@@ -374,11 +374,11 @@ class ReportStorage {
       duration: durationMin,
     };
 
-    this._eventList.push(newEvent);
+    this._eventList.unshift(newEvent);
 
     // Trim queue if exceeded MAX_EVENTS
     if (this._eventList.length > MAX_EVENTS) {
-      this._eventList.shift();
+      this._eventList.pop();
     }
   }
 

@@ -152,7 +152,7 @@ class ReportStorage {
     backtest: boolean,
     timestamp: number
   ) {
-    this._eventList.push({
+    this._eventList.unshift({
       timestamp,
       action: "profit",
       symbol: data.symbol,
@@ -166,7 +166,7 @@ class ReportStorage {
 
     // Trim queue if exceeded MAX_EVENTS
     if (this._eventList.length > MAX_EVENTS) {
-      this._eventList.shift();
+      this._eventList.pop();
     }
   }
 
@@ -185,7 +185,7 @@ class ReportStorage {
     backtest: boolean,
     timestamp: number
   ) {
-    this._eventList.push({
+    this._eventList.unshift({
       timestamp,
       action: "loss",
       symbol: data.symbol,
@@ -199,7 +199,7 @@ class ReportStorage {
 
     // Trim queue if exceeded MAX_EVENTS
     if (this._eventList.length > MAX_EVENTS) {
-      this._eventList.shift();
+      this._eventList.pop();
     }
   }
 

@@ -274,7 +274,7 @@ class ReportStorage {
     }
 
     // Add strategy result to comparison list
-    this._strategyResults.push({
+    this._strategyResults.unshift({
       strategyName: data.strategyName,
       stats: data.stats,
       metricValue: data.metricValue,

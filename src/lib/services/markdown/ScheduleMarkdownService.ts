@@ -186,7 +186,7 @@ class ReportStorage {
    * @param data - Scheduled tick result
    */
   public addScheduledEvent(data: IStrategyTickResultScheduled) {
-    this._eventList.push({
+    this._eventList.unshift({
       timestamp: data.signal.scheduledAt,
       action: "scheduled",
       symbol: data.signal.symbol,
@@ -201,7 +201,7 @@ class ReportStorage {
 
     // Trim queue if exceeded MAX_EVENTS
     if (this._eventList.length > MAX_EVENTS) {
-      this._eventList.shift();
+      this._eventList.pop();
     }
   }
 
@@ -228,11 +228,11 @@ class ReportStorage {
       duration: durationMin,
     };
 
-    this._eventList.push(newEvent);
+    this._eventList.unshift(newEvent);
 
     // Trim queue if exceeded MAX_EVENTS
     if (this._eventList.length > MAX_EVENTS) {
-      this._eventList.shift();
+      this._eventList.pop();
     }
   }
 
@@ -260,11 +260,11 @@ class ReportStorage {
       duration: durationMin,
     };
 
-    this._eventList.push(newEvent);
+    this._eventList.unshift(newEvent);
 
     // Trim queue if exceeded MAX_EVENTS
     if (this._eventList.length > MAX_EVENTS) {
-      this._eventList.shift();
+      this._eventList.pop();
     }
   }
 

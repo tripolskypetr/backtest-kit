@@ -177,6 +177,9 @@ const columns: Column[] = [
   },
 ];
 
+/** Maximum number of signals to store in backtest reports */
+const MAX_EVENTS = 250;
+
 /**
  * Storage class for accumulating closed signals per strategy.
  * Maintains a list of all closed signals and provides methods to generate reports.
@@ -191,7 +194,12 @@ class ReportStorage {
    * @param data - Closed signal data with PNL and close reason
    */
   public addSignal(data: IStrategyTickResultClosed) {
-    this._signalList.push(data);
+    this._signalList.unshift(data);
+
+    // Trim queue if exceeded MAX_EVENTS
+    if (this._signalList.length > MAX_EVENTS) {
+      this._signalList.pop();
+    }
   }
 
   /**

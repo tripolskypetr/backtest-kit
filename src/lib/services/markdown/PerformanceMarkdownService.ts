@@ -116,11 +116,11 @@ class PerformanceStorage {
    * @param event - Performance event with timing data
    */
   public addEvent(event: PerformanceContract) {
-    this._events.push(event);
+    this._events.unshift(event);
 
     // Trim queue if exceeded MAX_EVENTS (keep most recent)
     if (this._events.length > MAX_EVENTS) {
-      this._events.shift();
+      this._events.pop();
     }
   }
 
