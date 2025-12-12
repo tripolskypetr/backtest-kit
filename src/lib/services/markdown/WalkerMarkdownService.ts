@@ -102,6 +102,8 @@ interface StrategyColumn {
   label: string;
   /** Formatting function to convert strategy result data to string */
   format: (data: IStrategyResult, index: number) => string;
+  /** Function to determine if column should be visible */
+  isVisible: () => boolean;
 }
 
 /**
@@ -115,6 +117,8 @@ interface SignalColumn {
   label: string;
   /** Formatting function to convert signal data to string */
   format: (data: SignalData) => string;
+  /** Function to determine if column should be visible */
+  isVisible: () => boolean;
 }
 
 /**
@@ -130,21 +134,25 @@ function createStrategyColumns(metric: WalkerMetric): StrategyColumn[] {
       key: "rank",
       label: "Rank",
       format: (data, index) => `${index + 1}`,
+      isVisible: () => true,
     },
     {
       key: "strategy",
       label: "Strategy",
       format: (data) => data.strategyName,
+      isVisible: () => true,
     },
     {
       key: "metric",
       label: metric,
       format: (data) => formatMetric(data.metricValue),
+      isVisible: () => true,
     },
     {
       key: "totalSignals",
       label: "Total Signals",
       format: (data) => `${data.stats.totalSignals}`,
+      isVisible: () => true,
     },
     {
       key: "winRate",
@@ -153,6 +161,7 @@ function createStrategyColumns(metric: WalkerMetric): StrategyColumn[] {
         data.stats.winRate !== null
           ? `${data.stats.winRate.toFixed(2)}%`
           : "N/A",
+      isVisible: () => true,
     },
     {
       key: "avgPnl",
@@ -161,6 +170,7 @@ function createStrategyColumns(metric: WalkerMetric): StrategyColumn[] {
         data.stats.avgPnl !== null
           ? `${data.stats.avgPnl > 0 ? "+" : ""}${data.stats.avgPnl.toFixed(2)}%`
           : "N/A",
+      isVisible: () => true,
     },
     {
       key: "totalPnl",
@@ -169,6 +179,7 @@ function createStrategyColumns(metric: WalkerMetric): StrategyColumn[] {
         data.stats.totalPnl !== null
           ? `${data.stats.totalPnl > 0 ? "+" : ""}${data.stats.totalPnl.toFixed(2)}%`
           : "N/A",
+      isVisible: () => true,
     },
     {
       key: "sharpeRatio",
@@ -177,6 +188,7 @@ function createStrategyColumns(metric: WalkerMetric): StrategyColumn[] {
         data.stats.sharpeRatio !== null
           ? `${data.stats.sharpeRatio.toFixed(3)}`
           : "N/A",
+      isVisible: () => true,
     },
     {
       key: "stdDev",
@@ -185,6 +197,7 @@ function createStrategyColumns(metric: WalkerMetric): StrategyColumn[] {
         data.stats.stdDev !== null
           ? `${data.stats.stdDev.toFixed(3)}%`
           : "N/A",
+      isVisible: () => true,
     },
   ];
 }
@@ -198,41 +211,49 @@ const pnlColumns: SignalColumn[] = [
     key: "strategy",
     label: "Strategy",
     format: (data) => data.strategyName,
+    isVisible: () => true,
   },
   {
     key: "signalId",
     label: "Signal ID",
     format: (data) => data.signalId,
+    isVisible: () => true,
   },
   {
     key: "symbol",
     label: "Symbol",
     format: (data) => data.symbol,
+    isVisible: () => true,
   },
   {
     key: "position",
     label: "Position",
     format: (data) => data.position.toUpperCase(),
+    isVisible: () => true,
   },
   {
     key: "pnl",
     label: "PNL (net)",
     format: (data) => `${data.pnl > 0 ? "+" : ""}${data.pnl.toFixed(2)}%`,
+    isVisible: () => true,
   },
   {
     key: "closeReason",
     label: "Close Reason",
     format: (data) => data.closeReason,
+    isVisible: () => true,
   },
   {
     key: "openTime",
     label: "Open Time",
     format: (data) => new Date(data.openTime).toISOString(),
+    isVisible: () => true,
   },
   {
     key: "closeTime",
     label: "Close Time",
     format: (data) => new Date(data.closeTime).toISOString(),
+    isVisible: () => true,
   },
 ];
 
@@ -335,14 +356,15 @@ class ReportStorage {
 
     // Get columns configuration
     const columns = createStrategyColumns(metric);
+    const visibleColumns = columns.filter((col) => col.isVisible());
 
     // Build table header
-    const header = columns.map((col) => col.label);
-    const separator = columns.map(() => "---");
+    const header = visibleColumns.map((col) => col.label);
+    const separator = visibleColumns.map(() => "---");
 
     // Build table rows
     const rows = topStrategies.map((result, index) =>
-      columns.map((col) => col.format(result, index))
+      visibleColumns.map((col) => col.format(result, index))
     );
 
     const tableData = [header, separator, ...rows];
@@ -383,12 +405,13 @@ class ReportStorage {
     }
 
     // Build table header
-    const header = pnlColumns.map((col) => col.label);
-    const separator = pnlColumns.map(() => "---");
+    const visibleColumns = pnlColumns.filter((col) => col.isVisible());
+    const header = visibleColumns.map((col) => col.label);
+    const separator = visibleColumns.map(() => "---");
 
     // Build table rows
     const rows = allSignals.map((signal) =>
-      pnlColumns.map((col) => col.format(signal))
+      visibleColumns.map((col) => col.format(signal))
     );
 
     const tableData = [header, separator, ...rows];

@@ -75,6 +75,8 @@ interface Column {
   label: string;
   /** Formatting function to convert event data to string */
   format: (data: PartialEvent) => string;
+  /** Function to determine if column should be visible */
+  isVisible: () => boolean;
 }
 
 const columns: Column[] = [
@@ -82,47 +84,56 @@ const columns: Column[] = [
     key: "action",
     label: "Action",
     format: (data) => data.action.toUpperCase(),
+    isVisible: () => true,
   },
   {
     key: "symbol",
     label: "Symbol",
     format: (data) => data.symbol,
+    isVisible: () => true,
   },
   {
     key: "strategyName",
     label: "Strategy",
     format: (data) => data.strategyName,
+    isVisible: () => true,
   },
   {
     key: "signalId",
     label: "Signal ID",
     format: (data) => data.signalId,
+    isVisible: () => true,
   },
   {
     key: "position",
     label: "Position",
     format: (data) => data.position.toUpperCase(),
+    isVisible: () => true,
   },
   {
     key: "level",
     label: "Level %",
     format: (data) =>
       data.action === "profit" ? `+${data.level}%` : `-${data.level}%`,
+    isVisible: () => true,
   },
   {
     key: "currentPrice",
     label: "Current Price",
     format: (data) => `${data.currentPrice.toFixed(8)} USD`,
+    isVisible: () => true,
   },
   {
     key: "timestamp",
     label: "Timestamp",
     format: (data) => new Date(data.timestamp).toISOString(),
+    isVisible: () => true,
   },
   {
     key: "mode",
     label: "Mode",
     format: (data) => (data.backtest ? "Backtest" : "Live"),
+    isVisible: () => true,
   },
 ];
 
@@ -247,10 +258,11 @@ class ReportStorage {
       ].join("\n");
     }
 
-    const header = columns.map((col) => col.label);
-    const separator = columns.map(() => "---");
+    const visibleColumns = columns.filter((col) => col.isVisible());
+    const header = visibleColumns.map((col) => col.label);
+    const separator = visibleColumns.map(() => "---");
     const rows = this._eventList.map((event) =>
-      columns.map((col) => col.format(event))
+      visibleColumns.map((col) => col.format(event))
     );
 
     const tableData = [header, separator, ...rows];

@@ -31,6 +31,8 @@ interface Column {
   label: string;
   /** Formatting function to convert heatmap row data to string */
   format: (data: IHeatmapRow) => string;
+  /** Function to determine if column should be visible */
+  isVisible: () => boolean;
 }
 
 /**
@@ -57,69 +59,81 @@ const columns: Column[] = [
     key: "symbol",
     label: "Symbol",
     format: (data) => data.symbol,
+    isVisible: () => true,
   },
   {
     key: "totalPnl",
     label: "Total PNL",
     format: (data) =>
       data.totalPnl !== null ? str(data.totalPnl, "%+.2f%%") : "N/A",
+    isVisible: () => true,
   },
   {
     key: "sharpeRatio",
     label: "Sharpe",
     format: (data) =>
       data.sharpeRatio !== null ? str(data.sharpeRatio, "%.2f") : "N/A",
+    isVisible: () => true,
   },
   {
     key: "profitFactor",
     label: "PF",
     format: (data) =>
       data.profitFactor !== null ? str(data.profitFactor, "%.2f") : "N/A",
+    isVisible: () => true,
   },
   {
     key: "expectancy",
     label: "Expect",
     format: (data) =>
       data.expectancy !== null ? str(data.expectancy, "%+.2f%%") : "N/A",
+    isVisible: () => true,
   },
   {
     key: "winRate",
     label: "WR",
     format: (data) =>
       data.winRate !== null ? str(data.winRate, "%.1f%%") : "N/A",
+    isVisible: () => true,
   },
   {
     key: "avgWin",
     label: "Avg Win",
     format: (data) =>
       data.avgWin !== null ? str(data.avgWin, "%+.2f%%") : "N/A",
+    isVisible: () => true,
   },
   {
     key: "avgLoss",
     label: "Avg Loss",
     format: (data) =>
       data.avgLoss !== null ? str(data.avgLoss, "%+.2f%%") : "N/A",
+    isVisible: () => true,
   },
   {
     key: "maxDrawdown",
     label: "Max DD",
     format: (data) =>
       data.maxDrawdown !== null ? str(-data.maxDrawdown, "%.2f%%") : "N/A",
+    isVisible: () => true,
   },
   {
     key: "maxWinStreak",
     label: "W Streak",
     format: (data) => data.maxWinStreak.toString(),
+    isVisible: () => true,
   },
   {
     key: "maxLossStreak",
     label: "L Streak",
     format: (data) => data.maxLossStreak.toString(),
+    isVisible: () => true,
   },
   {
     key: "totalTrades",
     label: "Trades",
     format: (data) => data.totalTrades.toString(),
+    isVisible: () => true,
   },
 ];
 
@@ -397,10 +411,11 @@ class HeatmapStorage {
       ].join("\n");
     }
 
-    const header = columns.map((col) => col.label);
-    const separator = columns.map(() => "---");
+    const visibleColumns = columns.filter((col) => col.isVisible());
+    const header = visibleColumns.map((col) => col.label);
+    const separator = visibleColumns.map(() => "---");
     const rows = data.symbols.map((row) =>
-      columns.map((col) => col.format(row))
+      visibleColumns.map((col) => col.format(row))
     );
 
     const tableData = [header, separator, ...rows];

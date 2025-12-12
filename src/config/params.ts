@@ -102,6 +102,15 @@ export const GLOBAL_CONFIG = {
    * Example: 3 candles = 12 points (use average), 5 candles = 20 points (use median)
    */
   CC_GET_CANDLES_MIN_CANDLES_FOR_MEDIAN: 5,
+
+  /**
+   * Controls visibility of signal notes in markdown report tables.
+   * When enabled, the "Note" column will be displayed in all markdown reports
+   * (backtest, live, schedule, risk, etc.)
+   *
+   * Default: false (notes are hidden to reduce table width and improve readability)
+   */
+  CC_REPORT_SHOW_SIGNAL_NOTE: false,
 };
 
 export const DEFAULT_CONFIG = Object.freeze({...GLOBAL_CONFIG});

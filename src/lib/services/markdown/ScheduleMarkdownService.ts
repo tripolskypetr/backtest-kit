@@ -13,6 +13,7 @@ import TYPES from "../../../lib/core/types";
 import { memoize, singleshot } from "functools-kit";
 import { signalEmitter, signalLiveEmitter } from "../../../config/emitters";
 import { toPlainString } from "../../../helpers/toPlainString";
+import { GLOBAL_CONFIG } from "../../../config/params";
 
 /**
  * Unified scheduled signal event data for report generation.
@@ -108,6 +109,8 @@ interface Column {
   label: string;
   /** Formatting function to convert event data to string */
   format: (data: ScheduledEvent) => string;
+  /** Function to determine if column should be visible */
+  isVisible: () => boolean;
 }
 
 const columns: Column[] = [
@@ -115,57 +118,68 @@ const columns: Column[] = [
     key: "timestamp",
     label: "Timestamp",
     format: (data) => new Date(data.timestamp).toISOString(),
+    isVisible: () => true,
   },
   {
     key: "action",
     label: "Action",
     format: (data) => data.action.toUpperCase(),
+    isVisible: () => true,
   },
   {
     key: "symbol",
     label: "Symbol",
     format: (data) => data.symbol,
+    isVisible: () => true,
   },
   {
     key: "signalId",
     label: "Signal ID",
     format: (data) => data.signalId,
+    isVisible: () => true,
   },
   {
     key: "position",
     label: "Position",
     format: (data) => data.position.toUpperCase(),
+    isVisible: () => true,
   },
   {
     key: "note",
     label: "Note",
     format: (data) => toPlainString(data.note ?? "N/A"),
+    isVisible: () => GLOBAL_CONFIG.CC_REPORT_SHOW_SIGNAL_NOTE,
   },
   {
     key: "currentPrice",
     label: "Current Price",
     format: (data) => `${data.currentPrice.toFixed(8)} USD`,
+    isVisible: () => true,
   },
   {
     key: "priceOpen",
     label: "Entry Price",
     format: (data) => `${data.priceOpen.toFixed(8)} USD`,
+    isVisible: () => true,
   },
   {
     key: "takeProfit",
     label: "Take Profit",
     format: (data) => `${data.takeProfit.toFixed(8)} USD`,
+    isVisible: () => true,
   },
   {
     key: "stopLoss",
     label: "Stop Loss",
     format: (data) => `${data.stopLoss.toFixed(8)} USD`,
+    isVisible: () => true,
   },
   {
     key: "duration",
     label: "Wait Time (min)",
     format: (data) =>
       data.duration !== undefined ? `${data.duration}` : "N/A",
+    isVisible: () => true,
   },
 ];
 
@@ -354,10 +368,11 @@ class ReportStorage {
       ].join("\n");
     }
 
-    const header = columns.map((col) => col.label);
-    const separator = columns.map(() => "---");
+    const visibleColumns = columns.filter((col) => col.isVisible());
+    const header = visibleColumns.map((col) => col.label);
+    const separator = visibleColumns.map(() => "---");
     const rows = this._eventList.map((event) =>
-      columns.map((col) => col.format(event))
+      visibleColumns.map((col) => col.format(event))
     );
 
     const tableData = [header, separator, ...rows];

@@ -99,6 +99,102 @@ function percentile(sortedArray: number[], p: number): number {
   return sortedArray[Math.max(0, index)];
 }
 
+/**
+ * Column configuration for performance metrics table generation.
+ * Defines how to extract and format data from metric statistics.
+ */
+interface Column {
+  /** Unique column identifier */
+  key: string;
+  /** Display label for column header */
+  label: string;
+  /** Formatting function to convert metric stats to string */
+  format: (data: MetricStats) => string;
+  /** Function to determine if column should be visible */
+  isVisible: () => boolean;
+}
+
+const columns: Column[] = [
+  {
+    key: "metricType",
+    label: "Metric Type",
+    format: (data) => data.metricType,
+    isVisible: () => true,
+  },
+  {
+    key: "count",
+    label: "Count",
+    format: (data) => data.count.toString(),
+    isVisible: () => true,
+  },
+  {
+    key: "totalDuration",
+    label: "Total (ms)",
+    format: (data) => data.totalDuration.toFixed(2),
+    isVisible: () => true,
+  },
+  {
+    key: "avgDuration",
+    label: "Avg (ms)",
+    format: (data) => data.avgDuration.toFixed(2),
+    isVisible: () => true,
+  },
+  {
+    key: "minDuration",
+    label: "Min (ms)",
+    format: (data) => data.minDuration.toFixed(2),
+    isVisible: () => true,
+  },
+  {
+    key: "maxDuration",
+    label: "Max (ms)",
+    format: (data) => data.maxDuration.toFixed(2),
+    isVisible: () => true,
+  },
+  {
+    key: "stdDev",
+    label: "Std Dev (ms)",
+    format: (data) => data.stdDev.toFixed(2),
+    isVisible: () => true,
+  },
+  {
+    key: "median",
+    label: "Median (ms)",
+    format: (data) => data.median.toFixed(2),
+    isVisible: () => true,
+  },
+  {
+    key: "p95",
+    label: "P95 (ms)",
+    format: (data) => data.p95.toFixed(2),
+    isVisible: () => true,
+  },
+  {
+    key: "p99",
+    label: "P99 (ms)",
+    format: (data) => data.p99.toFixed(2),
+    isVisible: () => true,
+  },
+  {
+    key: "avgWaitTime",
+    label: "Avg Wait (ms)",
+    format: (data) => data.avgWaitTime.toFixed(2),
+    isVisible: () => true,
+  },
+  {
+    key: "minWaitTime",
+    label: "Min Wait (ms)",
+    format: (data) => data.minWaitTime.toFixed(2),
+    isVisible: () => true,
+  },
+  {
+    key: "maxWaitTime",
+    label: "Max Wait (ms)",
+    format: (data) => data.maxWaitTime.toFixed(2),
+    isVisible: () => true,
+  },
+];
+
 /** Maximum number of performance events to store per strategy */
 const MAX_EVENTS = 10000;
 
@@ -234,41 +330,16 @@ class PerformanceStorage {
       (a, b) => b.totalDuration - a.totalDuration
     );
 
-    // Generate summary table
-    const summaryHeader = [
-      "Metric Type",
-      "Count",
-      "Total (ms)",
-      "Avg (ms)",
-      "Min (ms)",
-      "Max (ms)",
-      "Std Dev (ms)",
-      "Median (ms)",
-      "P95 (ms)",
-      "P99 (ms)",
-      "Avg Wait (ms)",
-      "Min Wait (ms)",
-      "Max Wait (ms)",
-    ];
-    const summarySeparator = summaryHeader.map(() => "---");
-    const summaryRows = sortedMetrics.map((metric) => [
-      metric.metricType,
-      metric.count.toString(),
-      metric.totalDuration.toFixed(2),
-      metric.avgDuration.toFixed(2),
-      metric.minDuration.toFixed(2),
-      metric.maxDuration.toFixed(2),
-      metric.stdDev.toFixed(2),
-      metric.median.toFixed(2),
-      metric.p95.toFixed(2),
-      metric.p99.toFixed(2),
-      metric.avgWaitTime.toFixed(2),
-      metric.minWaitTime.toFixed(2),
-      metric.maxWaitTime.toFixed(2),
-    ]);
+    // Generate summary table using Column interface
+    const visibleColumns = columns.filter((col) => col.isVisible());
+    const header = visibleColumns.map((col) => col.label);
+    const separator = visibleColumns.map(() => "---");
+    const rows = sortedMetrics.map((metric) =>
+      visibleColumns.map((col) => col.format(metric))
+    );
 
-    const summaryTableData = [summaryHeader, summarySeparator, ...summaryRows];
-    const summaryTable = summaryTableData.map((row) => `| ${row.join(" | ")} |`).join("\n");
+    const tableData = [header, separator, ...rows];
+    const summaryTable = tableData.map((row) => `| ${row.join(" | ")} |`).join("\n");
 
     // Calculate percentage of total time for each metric
     const percentages = sortedMetrics.map((metric) => {

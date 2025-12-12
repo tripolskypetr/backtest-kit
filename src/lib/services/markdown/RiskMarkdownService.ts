@@ -68,6 +68,8 @@ interface Column {
   label: string;
   /** Formatting function to convert event data to string */
   format: (data: RiskEvent) => string;
+  /** Function to determine if column should be visible */
+  isVisible: () => boolean;
 }
 
 const columns: Column[] = [
@@ -75,26 +77,31 @@ const columns: Column[] = [
     key: "symbol",
     label: "Symbol",
     format: (data) => data.symbol,
+    isVisible: () => true,
   },
   {
     key: "strategyName",
     label: "Strategy",
     format: (data) => data.strategyName,
+    isVisible: () => true,
   },
   {
     key: "signalId",
     label: "Signal ID",
     format: (data) => data.pendingSignal.id || "N/A",
+    isVisible: () => true,
   },
   {
     key: "position",
     label: "Position",
     format: (data) => data.pendingSignal.position.toUpperCase(),
+    isVisible: () => true,
   },
   {
     key: "exchangeName",
     label: "Exchange",
     format: (data) => data.exchangeName,
+    isVisible: () => true,
   },
   {
     key: "openPrice",
@@ -103,6 +110,7 @@ const columns: Column[] = [
       data.pendingSignal.priceOpen !== undefined
         ? `${data.pendingSignal.priceOpen.toFixed(8)} USD`
         : "N/A",
+    isVisible: () => true,
   },
   {
     key: "takeProfit",
@@ -111,6 +119,7 @@ const columns: Column[] = [
       data.pendingSignal.priceTakeProfit !== undefined
         ? `${data.pendingSignal.priceTakeProfit.toFixed(8)} USD`
         : "N/A",
+    isVisible: () => true,
   },
   {
     key: "stopLoss",
@@ -119,26 +128,31 @@ const columns: Column[] = [
       data.pendingSignal.priceStopLoss !== undefined
         ? `${data.pendingSignal.priceStopLoss.toFixed(8)} USD`
         : "N/A",
+    isVisible: () => true,
   },
   {
     key: "currentPrice",
     label: "Current Price",
     format: (data) => `${data.currentPrice.toFixed(8)} USD`,
+    isVisible: () => true,
   },
   {
     key: "activePositionCount",
     label: "Active Positions",
     format: (data) => data.activePositionCount.toString(),
+    isVisible: () => true,
   },
   {
     key: "comment",
     label: "Reason",
     format: (data) => data.comment,
+    isVisible: () => true,
   },
   {
     key: "timestamp",
     label: "Timestamp",
     format: (data) => new Date(data.timestamp).toISOString(),
+    isVisible: () => true,
   },
 ];
 
@@ -216,10 +230,11 @@ class ReportStorage {
       ].join("\n");
     }
 
-    const header = columns.map((col) => col.label);
-    const separator = columns.map(() => "---");
+    const visibleColumns = columns.filter((col) => col.isVisible());
+    const header = visibleColumns.map((col) => col.label);
+    const separator = visibleColumns.map(() => "---");
     const rows = this._eventList.map((event) =>
-      columns.map((col) => col.format(event))
+      visibleColumns.map((col) => col.format(event))
     );
 
     const tableData = [header, separator, ...rows];
