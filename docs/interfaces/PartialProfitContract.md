@@ -28,6 +28,24 @@ symbol: string
 Trading pair symbol (e.g., "BTCUSDT").
 Identifies which market this profit event belongs to.
 
+### strategyName
+
+```ts
+strategyName: string
+```
+
+Strategy name that generated this signal.
+Identifies which strategy execution this profit event belongs to.
+
+### exchangeName
+
+```ts
+exchangeName: string
+```
+
+Exchange name where this signal is being executed.
+Identifies which exchange this profit event belongs to.
+
 ### data
 
 ```ts
