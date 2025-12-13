@@ -97,19 +97,22 @@ The `getSignal` function must return an object with the following fields:
 ### Minimal Strategy Example
 
 ```typescript
-import { addStrategy } from "backtest-kit";
+import { addStrategy, getCandles } from "backtest-kit";
 
 addStrategy({
   strategyName: "simple-breakout",
   interval: "5m",
   getSignal: async (symbol) => {
+    // Fetch recent candles
+    const candles = await getCandles(symbol, "5m", 20);
+    const currentPrice = candles[candles.length - 1].close;
+
     // Strategy logic here
-    // Return null for no signal
     return {
       position: "long",
-      priceOpen: 50000,
-      priceTakeProfit: 51000,
-      priceStopLoss: 49000,
+      priceOpen: currentPrice,
+      priceTakeProfit: currentPrice * 1.02,
+      priceStopLoss: currentPrice * 0.98,
       minuteEstimatedTime: 60,
       timestamp: Date.now(),
     };
@@ -120,16 +123,17 @@ addStrategy({
 ### Real Strategy Example with MACD
 
 ```typescript
-import { addStrategy } from "backtest-kit";
+import { addStrategy, getCandles } from "backtest-kit";
 import { MACD } from "technicalindicators";
 
 addStrategy({
   strategyName: "macd-crossover",
   interval: "15m",
   getSignal: async (symbol) => {
-    // Get historical data for indicator calculation
-    // (in a real strategy, use framework methods)
-    const prices = await getHistoricalPrices(symbol);
+    // Fetch candles using context-aware getCandles
+    // Automatically receives backtest or live data via async hooks
+    const candles = await getCandles(symbol, "15m", 100);
+    const prices = candles.map(c => c.close);
 
     // Calculate MACD
     const macdResult = MACD.calculate({

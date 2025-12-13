@@ -439,7 +439,14 @@ addStrategy({
   strategyName: "production-strategy",
   interval: "15m",
   getSignal: async (symbol) => {
+    // Fetch candles for analysis
+    const candles = await getCandles(symbol, "15m", 50);
+    const currentPrice = candles[candles.length - 1].close;
+
     // Your trading logic here
+    // Example: check if conditions met
+    // return signal or null
+
     return null;  // Or return signal
   },
   callbacks: {

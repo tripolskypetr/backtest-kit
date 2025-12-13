@@ -474,7 +474,8 @@ When the live trading process restarts, signals are restored from disk:
 import {
   addStrategy,
   listenSignalBacktest,
-  Backtest
+  Backtest,
+  getCandles
 } from "backtest-kit";
 
 // Strategy with scheduled entry
@@ -482,7 +483,9 @@ addStrategy({
   strategyName: "breakout-strategy",
   interval: "15m",
   getSignal: async (symbol) => {
-    const currentPrice = 50000;
+    // Fetch recent candles to determine market state
+    const candles = await getCandles(symbol, "15m", 20);
+    const currentPrice = candles[candles.length - 1].close;
 
     // Scheduled LONG: wait for breakout down to 48000
     return {

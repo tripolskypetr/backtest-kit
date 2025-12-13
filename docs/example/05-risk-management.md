@@ -650,12 +650,16 @@ addStrategy({
   interval: "5m",
   riskName: "test-risk",
   getSignal: async (symbol) => {
+    // Fetch candles for testing
+    const candles = await getCandles(symbol, "5m", 20);
+    const currentPrice = candles[candles.length - 1].close;
+
     // Generate test signals
     return {
       position: "long",
-      priceOpen: 50000,
-      priceTakeProfit: 51000,
-      priceStopLoss: 49000,
+      priceOpen: currentPrice,
+      priceTakeProfit: currentPrice * 1.02,
+      priceStopLoss: currentPrice * 0.98,
       minuteEstimatedTime: 60,
       timestamp: Date.now(),
     };

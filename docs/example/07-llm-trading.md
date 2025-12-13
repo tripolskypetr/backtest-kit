@@ -163,70 +163,74 @@ export default json;
 ### Pattern for Analyzing Different Timeframes
 
 ```typescript
-import ccxt from "ccxt";
+import { getCandles } from "backtest-kit";
 import { json } from "./utils/json.mjs";
 
 async function analyzeMultipleTimeframes(symbol) {
-  const exchange = new ccxt.binance();
   const messages = [];
 
-  // 1. Fetch data from different timeframes
-  const candles1h = await exchange.fetchOHLCV(symbol, "1h", undefined, 24);
-  const candles15m = await exchange.fetchOHLCV(symbol, "15m", undefined, 48);
-  const candles5m = await exchange.fetchOHLCV(symbol, "5m", undefined, 60);
-  const candles1m = await exchange.fetchOHLCV(symbol, "1m", undefined, 60);
+  // 1. Fetch data from different timeframes using context-aware getCandles
+  // Automatically receives backtest or live data via async hooks
+  const candles1h = await getCandles(symbol, "1h", 24);
+  const candles15m = await getCandles(symbol, "15m", 48);
+  const candles5m = await getCandles(symbol, "5m", 60);
+  const candles1m = await getCandles(symbol, "1m", 60);
 
   // 2. 1-hour trend analysis
-  messages.push({
-    role: "user",
-    content: `Analyze 1-hour candles for ${symbol}:\n` +
-      formatCandles(candles1h) +
-      `\n\nDetermine the main trend (uptrend/downtrend/sideways).`
-  });
-
-  messages.push({
-    role: "assistant",
-    content: "1h trend analyzed. Main trend and key support/resistance levels identified."
-  });
+  messages.push(
+    {
+      role: "user",
+      content: `Analyze 1-hour candles for ${symbol}:\n` +
+        formatCandles(candles1h) +
+        `\n\nDetermine the main trend (uptrend/downtrend/sideways).`
+    },
+    {
+      role: "assistant",
+      content: "1h trend analyzed. Main trend and key support/resistance levels identified."
+    }
+  );
 
   // 3. 15-minute trend analysis
-  messages.push({
-    role: "user",
-    content: `Analyze 15-minute candles for ${symbol}:\n` +
-      formatCandles(candles15m) +
-      `\n\nDetermine short-term trend and indicator divergences.`
-  });
-
-  messages.push({
-    role: "assistant",
-    content: "15m trend analyzed. Short-term patterns identified."
-  });
+  messages.push(
+    {
+      role: "user",
+      content: `Analyze 15-minute candles for ${symbol}:\n` +
+        formatCandles(candles15m) +
+        `\n\nDetermine short-term trend and indicator divergences.`
+    },
+    {
+      role: "assistant",
+      content: "15m trend analyzed. Short-term patterns identified."
+    }
+  );
 
   // 4. 5-minute trend analysis
-  messages.push({
-    role: "user",
-    content: `Analyze 5-minute candles for ${symbol}:\n` +
-      formatCandles(candles5m) +
-      `\n\nDetermine entry points based on indicators.`
-  });
-
-  messages.push({
-    role: "assistant",
-    content: "5m trend analyzed. Potential entry points identified."
-  });
+  messages.push(
+    {
+      role: "user",
+      content: `Analyze 5-minute candles for ${symbol}:\n` +
+        formatCandles(candles5m) +
+        `\n\nDetermine entry points based on indicators.`
+    },
+    {
+      role: "assistant",
+      content: "5m trend analyzed. Potential entry points identified."
+    }
+  );
 
   // 5. 1-minute microstructure analysis
-  messages.push({
-    role: "user",
-    content: `Analyze 1-minute candles for ${symbol}:\n` +
-      formatCandles(candles1m) +
-      `\n\nDetermine optimal entry price and exit levels.`
-  });
-
-  messages.push({
-    role: "assistant",
-    content: "1m microstructure analyzed. Ready to generate signal."
-  });
+  messages.push(
+    {
+      role: "user",
+      content: `Analyze 1-minute candles for ${symbol}:\n` +
+        formatCandles(candles1m) +
+        `\n\nDetermine optimal entry price and exit levels.`
+    },
+    {
+      role: "assistant",
+      content: "1m microstructure analyzed. Ready to generate signal."
+    }
+  );
 
   // 6. Final request for signal generation
   messages.push({
@@ -250,9 +254,9 @@ async function analyzeMultipleTimeframes(symbol) {
 }
 
 function formatCandles(candles) {
-  return candles.map(([timestamp, open, high, low, close, volume]) => {
-    const date = new Date(timestamp).toISOString();
-    return `${date} | O:${open} H:${high} L:${low} C:${close} V:${volume}`;
+  return candles.map((candle) => {
+    const date = new Date(candle.timestamp).toISOString();
+    return `${date} | O:${candle.open} H:${candle.high} L:${candle.low} C:${candle.close} V:${candle.volume}`;
   }).join('\n');
 }
 ```
@@ -264,23 +268,21 @@ function formatCandles(candles) {
 ### Complete Strategy with LLM
 
 ```typescript
-import { addStrategy, Backtest } from "backtest-kit";
+import { addStrategy, Backtest, getCandles } from "backtest-kit";
 import { json } from "./utils/json.mjs";
-import ccxt from "ccxt";
 
 // Register LLM strategy
 addStrategy({
   strategyName: "llm-trading-strategy",
   interval: "5m",
   getSignal: async (symbol) => {
-    const exchange = new ccxt.binance();
     const messages = [];
 
-    // 1. Load data from various timeframes
-    const candles1h = await exchange.fetchOHLCV(symbol, "1h", undefined, 24);
-    const candles15m = await exchange.fetchOHLCV(symbol, "15m", undefined, 24);
-    const candles5m = await exchange.fetchOHLCV(symbol, "5m", undefined, 24);
-    const candles1m = await exchange.fetchOHLCV(symbol, "1m", undefined, 30);
+    // 1. Load data from various timeframes using context-aware getCandles
+    const candles1h = await getCandles(symbol, "1h", 24);
+    const candles15m = await getCandles(symbol, "15m", 24);
+    const candles5m = await getCandles(symbol, "5m", 24);
+    const candles1m = await getCandles(symbol, "1m", 30);
 
     // 2. Calculate indicators
     const indicators = calculateIndicators(candles5m);
@@ -293,7 +295,7 @@ addStrategy({
         `## 15-minute trend:\n${formatTrendAnalysis(candles15m)}\n\n` +
         `## 5-minute data with indicators:\n${formatIndicators(indicators)}\n\n` +
         `## 1-minute microstructure:\n${formatMicrostructure(candles1m)}\n\n` +
-        `Current price: ${candles5m[candles5m.length - 1][4]}`
+        `Current price: ${candles5m[candles5m.length - 1].close}`
     });
 
     // 4. Generate structured signal
@@ -445,9 +447,9 @@ async function jsonAdvanced(messages) {
 import { RSI, MACD, BollingerBands, ADX } from "technicalindicators";
 
 function calculateIndicators(candles) {
-  const closes = candles.map(c => c[4]);
-  const highs = candles.map(c => c[2]);
-  const lows = candles.map(c => c[3]);
+  const closes = candles.map(c => c.close);
+  const highs = candles.map(c => c.high);
+  const lows = candles.map(c => c.low);
 
   return {
     rsi: RSI.calculate({ period: 14, values: closes }),
@@ -496,32 +498,31 @@ function formatIndicators(indicators) {
 }
 
 function formatTrendAnalysis(candles) {
-  const closes = candles.map(c => c[4]);
+  const closes = candles.map(c => c.close);
   const trend = closes[closes.length - 1] > closes[0] ? "Uptrend" : "Downtrend";
   const changePercent = ((closes[closes.length - 1] - closes[0]) / closes[0] * 100).toFixed(2);
 
   return [
     `Trend: ${trend}`,
     `Change: ${changePercent}%`,
-    `High: ${Math.max(...candles.map(c => c[2])).toFixed(2)}`,
-    `Low: ${Math.min(...candles.map(c => c[3])).toFixed(2)}`,
+    `High: ${Math.max(...candles.map(c => c.high)).toFixed(2)}`,
+    `Low: ${Math.min(...candles.map(c => c.low)).toFixed(2)}`,
   ].join('\n');
 }
 
 function formatMicrostructure(candles) {
   const latest = candles[candles.length - 1];
-  const [timestamp, open, high, low, close, volume] = latest;
 
   return [
     `Last candle:`,
-    `Open: ${open}`,
-    `High: ${high}`,
-    `Low: ${low}`,
-    `Close: ${close}`,
-    `Volume: ${volume}`,
-    `Body: ${Math.abs(close - open).toFixed(2)}`,
-    `Wick Upper: ${(high - Math.max(open, close)).toFixed(2)}`,
-    `Wick Lower: ${(Math.min(open, close) - low).toFixed(2)}`,
+    `Open: ${latest.open}`,
+    `High: ${latest.high}`,
+    `Low: ${latest.low}`,
+    `Close: ${latest.close}`,
+    `Volume: ${latest.volume}`,
+    `Body: ${Math.abs(latest.close - latest.open).toFixed(2)}`,
+    `Wick Upper: ${(latest.high - Math.max(latest.open, latest.close)).toFixed(2)}`,
+    `Wick Lower: ${(Math.min(latest.open, latest.close) - latest.low).toFixed(2)}`,
   ].join('\n');
 }
 ```
@@ -647,20 +648,17 @@ addStrategy({
 ### LLM + Traditional Indicators
 
 ```typescript
-import { addStrategy } from "backtest-kit";
+import { addStrategy, getCandles } from "backtest-kit";
 import { json } from "./utils/json.mjs";
 import { RSI, MACD } from "technicalindicators";
-import ccxt from "ccxt";
 
 addStrategy({
   strategyName: "hybrid-llm-strategy",
   interval: "5m",
   getSignal: async (symbol) => {
-    const exchange = new ccxt.binance();
-
-    // 1. Fetch data
-    const candles5m = await exchange.fetchOHLCV(symbol, "5m", undefined, 100);
-    const closes = candles5m.map(c => c[4]);
+    // 1. Fetch data using context-aware getCandles
+    const candles5m = await getCandles(symbol, "5m", 100);
+    const closes = candles5m.map(c => c.close);
 
     // 2. Calculate traditional indicators
     const rsi = RSI.calculate({ period: 14, values: closes });
@@ -806,6 +804,7 @@ import {
   addFrame,
   Backtest,
   listenSignalBacktest,
+  getCandles,
 } from "backtest-kit";
 import { json } from "./utils/json.mjs";
 import ccxt from "ccxt";
@@ -846,12 +845,10 @@ addStrategy({
   strategyName: "llm-professional-strategy",
   interval: "5m",
   getSignal: async (symbol) => {
-    const exchange = new ccxt.binance();
-
-    // Load data
-    const candles1h = await exchange.fetchOHLCV(symbol, "1h", undefined, 24);
-    const candles5m = await exchange.fetchOHLCV(symbol, "5m", undefined, 100);
-    const closes = candles5m.map(c => c[4]);
+    // Load data using context-aware getCandles
+    const candles1h = await getCandles(symbol, "1h", 24);
+    const candles5m = await getCandles(symbol, "5m", 100);
+    const closes = candles5m.map(c => c.close);
 
     // Calculate indicators
     const rsi = RSI.calculate({ period: 14, values: closes });
@@ -897,7 +894,7 @@ addStrategy({
           formatTrendAnalysis(candles1h),
           "",
           `## Last 10 Candles (5m)`,
-          formatRecentCandles(candles5m.slice(-10)),
+          formatCandles(candles5m.slice(-10)),
         ].join('\n')
       }
     ];
