@@ -1,46 +1,46 @@
-# Управление рисками
+# Risk Management
 
-Это руководство объясняет систему управления рисками в backtest-kit, которая обеспечивает валидацию на уровне портфеля и отслеживание позиций для предотвращения чрезмерного риска.
+This guide explains the risk management system in backtest-kit, which provides portfolio-level validation and position tracking to prevent excessive risk exposure.
 
-## Что такое управление рисками?
+## What is Risk Management?
 
-Управление рисками в backtest-kit - это система валидации, которая проверяет сигналы **до** их создания, анализируя состояние всего портфеля. В отличие от валидации сигналов (которая проверяет отдельные параметры), управление рисками учитывает **все активные позиции** по всем стратегиям.
+Risk management in backtest-kit is a validation system that checks signals **before** they are created, analyzing the state of the entire portfolio. Unlike signal validation (which checks individual parameters), risk management considers **all active positions** across all strategies.
 
-### Ключевые возможности
+### Key Features
 
-- ✅ Ограничения позиций на уровне портфеля
-- ✅ Координация позиций между стратегиями
-- ✅ Пользовательские правила валидации с заметками
-- ✅ Фильтрация по символам
-- ✅ Временные окна для торговли
-- ✅ Инспекция активных позиций
-- ✅ Защита от сбоев при отслеживании позиций
-- ✅ События для отклоненных сигналов
+- ✅ Portfolio-level position limits
+- ✅ Multi-strategy position coordination
+- ✅ Custom validation rules with notes
+- ✅ Symbol filtering
+- ✅ Trading time windows
+- ✅ Active position inspection
+- ✅ Crash-safe position tracking
+- ✅ Events for rejected signals
 
 ---
 
-## Архитектура управления рисками
+## Risk Management Architecture
 
 ```mermaid
 graph TB
-    subgraph "Уровень стратегии"
+    subgraph "Strategy Layer"
         Strategy["ClientStrategy<br/>tick()"]
-        GetSignal["getSignal()<br/>Пользовательская логика"]
+        GetSignal["getSignal()<br/>Custom Logic"]
     end
 
-    subgraph "Уровень управления рисками"
+    subgraph "Risk Management Layer"
         RiskCheck["ClientRisk<br/>checkSignal()"]
-        Validations["Валидации рисков<br/>Массив правил"]
-        ActivePositions["Активные позиции<br/>Отслеживание по всем стратегиям"]
-        PersistRisk["PersistRiskAdapter<br/>Защищенное хранилище"]
+        Validations["Risk Validations<br/>Rule Array"]
+        ActivePositions["Active Positions<br/>Tracking Across Strategies"]
+        PersistRisk["PersistRiskAdapter<br/>Protected Storage"]
     end
 
-    subgraph "Payload валидации"
+    subgraph "Validation Payload"
         Payload["IRiskValidationPayload<br/>- symbol<br/>- pendingSignal<br/>- strategyName<br/>- currentPrice<br/>- activePositionCount<br/>- activePositions[]"]
     end
 
-    subgraph "Система событий"
-        RiskSubject["riskSubject<br/>События отклонения"]
+    subgraph "Event System"
+        RiskSubject["riskSubject<br/>Rejection Events"]
         Callbacks["Risk Callbacks<br/>onRejected / onAllowed"]
     end
 
@@ -59,193 +59,193 @@ graph TB
     ActivePositions --> PersistRisk
 ```
 
-### Поток выполнения
+### Execution Flow
 
-1. Стратегия вызывает `getSignal()` для генерации нового сигнала
-2. `ClientRisk.checkSignal()` оценивает сигнал по правилам рисков
-3. Каждая функция валидации получает `IRiskValidationPayload` с состоянием портфеля
-4. Если любая валидация выбрасывает ошибку, сигнал **отклоняется** (не создается)
-5. Отклонение генерирует событие в `riskSubject` с причиной
-6. Если все валидации пройдены, сигнал создается и отслеживание позиций обновляется
+1. Strategy calls `getSignal()` to generate a new signal
+2. `ClientRisk.checkSignal()` evaluates the signal against risk rules
+3. Each validation function receives `IRiskValidationPayload` with portfolio state
+4. If any validation throws an error, the signal is **rejected** (not created)
+5. Rejection generates an event in `riskSubject` with the reason
+6. If all validations pass, the signal is created and position tracking is updated
 
 ---
 
-## Регистрация профиля рисков
+## Registering a Risk Profile
 
-Профили рисков регистрируются через функцию `addRisk()`:
+Risk profiles are registered via the `addRisk()` function:
 
 ```typescript
 import { addRisk } from "backtest-kit";
 
 addRisk({
-  riskName: "conservative",          // Уникальный идентификатор
-  note: "Консервативный профиль",    // Опциональная документация
-  validations: [                      // Массив правил валидации
-    // Правила валидации здесь
+  riskName: "conservative",          // Unique identifier
+  note: "Conservative profile",      // Optional documentation
+  validations: [                      // Array of validation rules
+    // Validation rules here
   ],
-  callbacks: {                        // Опциональные коллбэки
+  callbacks: {                        // Optional callbacks
     onRejected: (symbol, params) => {
-      console.warn(`Сигнал отклонен: ${symbol}`);
+      console.warn(`Signal rejected: ${symbol}`);
     },
     onAllowed: (symbol, params) => {
-      console.log(`Сигнал разрешен: ${symbol}`);
+      console.log(`Signal allowed: ${symbol}`);
     },
   },
 });
 ```
 
-### Структура схемы рисков
+### Risk Schema Structure
 
-| Поле | Тип | Описание |
+| Field | Type | Description |
 |------|-----|----------|
-| `riskName` | `string` | Уникальный идентификатор профиля |
-| `note` | `string?` | Опциональная документация |
-| `validations` | `Array` | Массив правил валидации |
-| `callbacks` | `object?` | Опциональные коллбэки событий |
+| `riskName` | `string` | Unique profile identifier |
+| `note` | `string?` | Optional documentation |
+| `validations` | `Array` | Array of validation rules |
+| `callbacks` | `object?` | Optional event callbacks |
 
 ---
 
-## Payload валидации рисков
+## Risk Validation Payload
 
-Каждая функция валидации получает объект `IRiskValidationPayload` с полным контекстом портфеля:
+Each validation function receives an `IRiskValidationPayload` object with full portfolio context:
 
-| Поле | Тип | Описание |
+| Field | Type | Description |
 |------|-----|----------|
-| `symbol` | `string` | Торговая пара (например, "BTCUSDT") |
-| `pendingSignal` | `ISignalDto` | Сигнал для валидации |
-| `strategyName` | `string` | Стратегия, запрашивающая сигнал |
-| `exchangeName` | `string` | Название биржи |
-| `currentPrice` | `number` | Текущая VWAP цена |
-| `timestamp` | `number` | Текущая временная метка (мс) |
-| `activePositionCount` | `number` | Всего активных позиций по всем стратегиям |
-| `activePositions` | `Array` | Детальный список активных позиций |
+| `symbol` | `string` | Trading pair (e.g., "BTCUSDT") |
+| `pendingSignal` | `ISignalDto` | Signal to validate |
+| `strategyName` | `string` | Strategy requesting the signal |
+| `exchangeName` | `string` | Exchange name |
+| `currentPrice` | `number` | Current VWAP price |
+| `timestamp` | `number` | Current timestamp (ms) |
+| `activePositionCount` | `number` | Total active positions across all strategies |
+| `activePositions` | `Array` | Detailed list of active positions |
 
-### Структура активной позиции
+### Active Position Structure
 
 ```typescript
 interface IRiskActivePosition {
-  signal: ISignalRow;        // Полные данные сигнала
-  strategyName: string;      // Стратегия владелец
-  exchangeName: string;      // Название биржи
-  openTimestamp: number;     // Когда позиция открылась (мс)
+  signal: ISignalRow;        // Full signal data
+  strategyName: string;      // Owner strategy
+  exchangeName: string;      // Exchange name
+  openTimestamp: number;     // When position opened (ms)
 }
 ```
 
 ---
 
-## Примеры правил валидации
+## Validation Rule Examples
 
-### Пример 1: Ограничение одновременных позиций
+### Example 1: Concurrent Position Limit
 
 ```typescript
 addRisk({
   riskName: "max-3-positions",
-  note: "Максимум 3 одновременных позиции",
+  note: "Maximum 3 concurrent positions",
   validations: [
     ({ activePositionCount }) => {
       if (activePositionCount >= 3) {
-        throw new Error("Достигнуто максимум 3 одновременных позиций");
+        throw new Error("Maximum 3 concurrent positions reached");
       }
     }
   ]
 });
 ```
 
-**Когда применять**: Для ограничения общего количества открытых позиций и управления капиталом.
+**When to use**: To limit the total number of open positions and manage capital exposure.
 
 ---
 
-### Пример 2: Фильтрация по символам
+### Example 2: Symbol Filtering
 
 ```typescript
 addRisk({
   riskName: "no-meme-coins",
-  note: "Блокировка мем-коинов от торговли",
+  note: "Block meme coins from trading",
   validations: [
     ({ symbol }) => {
       const memeCoins = ["DOGEUSDT", "SHIBUSDT", "PEPEUSDT"];
       if (memeCoins.includes(symbol)) {
-        throw new Error(`Мем-коин ${symbol} не разрешен`);
+        throw new Error(`Meme coin ${symbol} not allowed`);
       }
     }
   ]
 });
 ```
 
-**Когда применять**: Для исключения определенных инструментов из торговли.
+**When to use**: To exclude specific instruments from trading.
 
 ---
 
-### Пример 3: Временные окна торговли
+### Example 3: Trading Time Windows
 
 ```typescript
 addRisk({
   riskName: "trading-hours",
-  note: "Торговля только в рабочие часы (9:00 - 17:00 UTC)",
+  note: "Trade only during business hours (9:00 - 17:00 UTC)",
   validations: [
     ({ timestamp }) => {
       const date = new Date(timestamp);
       const hour = date.getUTCHours();
 
       if (hour < 9 || hour >= 17) {
-        throw new Error("Торговля разрешена только 9:00 - 17:00 UTC");
+        throw new Error("Trading allowed only 9:00 - 17:00 UTC");
       }
 
-      // Проверка дня недели (не торговать в выходные)
+      // Check day of week (no weekend trading)
       const day = date.getUTCDay();
       if (day === 0 || day === 6) {
-        throw new Error("Торговля не разрешена в выходные");
+        throw new Error("Weekend trading not allowed");
       }
     }
   ]
 });
 ```
 
-**Когда применять**: Для ограничения торговли определенными временными промежутками.
+**When to use**: To restrict trading to specific time periods.
 
 ---
 
-### Пример 4: Координация между стратегиями
+### Example 4: Multi-Strategy Coordination
 
 ```typescript
 addRisk({
   riskName: "multi-strategy-coordinator",
-  note: "Ограничение экспозиции на стратегию и проверка активных позиций",
+  note: "Limit per-strategy exposure and check for active positions",
   validations: [
     ({ activePositions, strategyName, symbol }) => {
-      // Подсчет позиций для конкретной стратегии
+      // Count positions for specific strategy
       const strategyPositions = activePositions.filter(
         (pos) => pos.strategyName === strategyName
       );
 
       if (strategyPositions.length >= 2) {
-        throw new Error(`Стратегия ${strategyName} уже имеет 2 позиции`);
+        throw new Error(`Strategy ${strategyName} already has 2 positions`);
       }
 
-      // Проверка существующей позиции по этому символу
+      // Check for existing position on this symbol
       const symbolPositions = activePositions.filter(
         (pos) => pos.signal.symbol === symbol
       );
 
       if (symbolPositions.length > 0) {
         const existingStrategy = symbolPositions[0].strategyName;
-        throw new Error(`Позиция по ${symbol} уже открыта стратегией ${existingStrategy}`);
+        throw new Error(`Position on ${symbol} already open by ${existingStrategy}`);
       }
     }
   ]
 });
 ```
 
-**Когда применять**: Для управления множественными стратегиями и предотвращения дублирования позиций.
+**When to use**: To manage multiple strategies and prevent duplicate positions.
 
 ---
 
-### Пример 5: Валидация дистанции TP/SL
+### Example 5: TP/SL Distance Validation
 
 ```typescript
 addRisk({
   riskName: "tp-sl-distance",
-  note: "Минимальная дистанция TP и соотношение риск/прибыль",
+  note: "Minimum TP distance and risk/reward ratio",
   validations: [
     {
       validate: ({ pendingSignal, currentPrice }) => {
@@ -255,10 +255,10 @@ addRisk({
           : ((priceOpen - priceTakeProfit) / priceOpen) * 100;
 
         if (tpDistance < 1) {
-          throw new Error(`Дистанция TP ${tpDistance.toFixed(2)}% < 1%`);
+          throw new Error(`TP distance ${tpDistance.toFixed(2)}% < 1%`);
         }
       },
-      note: "Дистанция TP должна быть минимум 1%"
+      note: "TP distance must be at least 1%"
     },
     {
       validate: ({ pendingSignal, currentPrice }) => {
@@ -273,30 +273,30 @@ addRisk({
           : priceStopLoss - priceOpen;
 
         if (risk <= 0) {
-          throw new Error("Некорректный SL: риск должен быть положительным");
+          throw new Error("Invalid SL: risk must be positive");
         }
 
         const rrRatio = reward / risk;
         if (rrRatio < 2) {
-          throw new Error(`Соотношение R/R ${rrRatio.toFixed(2)} < 2:1`);
+          throw new Error(`R/R ratio ${rrRatio.toFixed(2)} < 2:1`);
         }
       },
-      note: "Соотношение риск/прибыль должно быть минимум 1:2"
+      note: "Risk/reward ratio must be at least 1:2"
     }
   ]
 });
 ```
 
-**Когда применять**: Для обеспечения адекватного потенциала прибыли относительно риска.
+**When to use**: To ensure adequate profit potential relative to risk.
 
 ---
 
-### Пример 6: Максимальный риск на сделку
+### Example 6: Maximum Risk Per Trade
 
 ```typescript
 addRisk({
   riskName: "max-risk-per-trade",
-  note: "Максимум 2% риска на сделку",
+  note: "Maximum 2% risk per trade",
   validations: [
     ({ pendingSignal, currentPrice }) => {
       const { priceOpen = currentPrice, priceStopLoss, position } = pendingSignal;
@@ -306,86 +306,86 @@ addRisk({
         : ((priceStopLoss - priceOpen) / priceOpen) * 100;
 
       if (slDistance > 2) {
-        throw new Error(`Дистанция SL ${slDistance.toFixed(2)}% > 2% максимального риска`);
+        throw new Error(`SL distance ${slDistance.toFixed(2)}% > 2% max risk`);
       }
     }
   ]
 });
 ```
 
-**Когда применять**: Для ограничения максимального убытка на одну сделку.
+**When to use**: To limit the maximum loss on a single trade.
 
 ---
 
-## Связывание профиля рисков со стратегией
+## Linking Risk Profile to Strategy
 
-После регистрации профиля рисков, свяжите его со стратегией:
+After registering a risk profile, link it to a strategy:
 
 ```typescript
 import { addStrategy, addRisk } from "backtest-kit";
 
-// Регистрация профиля рисков
+// Register risk profile
 addRisk({
   riskName: "conservative",
   validations: [
     ({ activePositionCount }) => {
       if (activePositionCount >= 3) {
-        throw new Error("Максимум 3 позиции");
+        throw new Error("Maximum 3 positions");
       }
     }
   ]
 });
 
-// Связывание со стратегией
+// Link to strategy
 addStrategy({
   strategyName: "macd-crossover",
   interval: "15m",
-  riskName: "conservative",  // ← Связь с профилем рисков
+  riskName: "conservative",  // ← Link to risk profile
   getSignal: async (symbol) => {
-    // Логика стратегии
+    // Strategy logic
   },
 });
 ```
 
 ---
 
-## Мониторинг событий рисков
+## Monitoring Risk Events
 
-### Слушатель событий отклонения
+### Rejection Event Listener
 
 ```typescript
 import { listenRisk } from "backtest-kit";
 
 listenRisk((event) => {
-  console.log("=== Сигнал отклонен ===");
-  console.log(`Символ: ${event.symbol}`);
-  console.log(`Стратегия: ${event.strategyName}`);
-  console.log(`Причина: ${event.comment}`);
-  console.log(`Активных позиций: ${event.activePositionCount}`);
-  console.log(`Временная метка: ${new Date(event.timestamp).toISOString()}`);
+  console.log("=== Signal Rejected ===");
+  console.log(`Symbol: ${event.symbol}`);
+  console.log(`Strategy: ${event.strategyName}`);
+  console.log(`Reason: ${event.comment}`);
+  console.log(`Active Positions: ${event.activePositionCount}`);
+  console.log(`Timestamp: ${new Date(event.timestamp).toISOString()}`);
 
-  // Отправить уведомление
-  sendAlert(`Сигнал отклонен: ${event.comment}`);
+  // Send notification
+  sendAlert(`Signal rejected: ${event.comment}`);
 });
 ```
 
-### Структура события риска
+### Risk Event Structure
 
 ```typescript
 interface RiskContract {
-  symbol: string;              // Торговая пара
-  strategyName: string;        // Название стратегии
-  exchangeName: string;        // Название биржи
-  activePositionCount: number; // Количество активных позиций
-  comment: string;             // Причина отклонения
-  timestamp: number;           // Временная метка (мс)
-  pendingSignal: ISignalDto;   // Отклоненный сигнал
+  symbol: string;              // Trading pair
+  strategyName: string;        // Strategy name
+  exchangeName: string;        // Exchange name
+  activePositionCount: number; // Active position count
+  comment: string;             // Rejection reason
+  timestamp: number;           // Timestamp (ms)
+  pendingSignal: ISignalDto;   // Rejected signal
 }
 ```
 
 ---
 
-## Использование коллбэков
+## Using Callbacks
 
 ```typescript
 addRisk({
@@ -393,17 +393,17 @@ addRisk({
   validations: [
     ({ activePositionCount }) => {
       if (activePositionCount >= 5) {
-        throw new Error("Достигнуто максимум 5 позиций");
+        throw new Error("Maximum 5 positions reached");
       }
     }
   ],
   callbacks: {
     onRejected: (symbol, params) => {
-      console.warn(`⚠️ Сигнал отклонен для ${symbol}`);
-      console.warn(`   Причина: ${params.comment}`);
-      console.warn(`   Активных позиций: ${params.activePositionCount}`);
+      console.warn(`⚠️ Signal rejected for ${symbol}`);
+      console.warn(`   Reason: ${params.comment}`);
+      console.warn(`   Active positions: ${params.activePositionCount}`);
 
-      // Логировать в базу данных
+      // Log to database
       logRiskRejection({
         symbol,
         strategy: params.strategyName,
@@ -412,9 +412,9 @@ addRisk({
       });
     },
     onAllowed: (symbol, params) => {
-      console.log(`✓ Сигнал разрешен для ${symbol}`);
-      console.log(`   Стратегия: ${params.strategyName}`);
-      console.log(`   Активных позиций после: ${params.activePositionCount + 1}`);
+      console.log(`✓ Signal allowed for ${symbol}`);
+      console.log(`   Strategy: ${params.strategyName}`);
+      console.log(`   Active positions after: ${params.activePositionCount + 1}`);
     },
   },
 });
@@ -422,79 +422,79 @@ addRisk({
 
 ---
 
-## Диаграмма потока проверки рисков
+## Risk Check Flow Diagram
 
 ```mermaid
 sequenceDiagram
     participant Strategy as ClientStrategy
     participant Risk as ClientRisk
-    participant Validations as Валидации рисков
+    participant Validations as Risk Validations
     participant Persist as PersistRiskAdapter
     participant Events as riskSubject
 
-    Strategy->>Strategy: getSignal() возвращает ISignalDto
+    Strategy->>Strategy: getSignal() returns ISignalDto
     Strategy->>Risk: checkSignal(params)
 
-    Risk->>Persist: Загрузка активных позиций
+    Risk->>Persist: Load active positions
     Persist-->>Risk: activePositions[]
 
-    Risk->>Risk: Построение IRiskValidationPayload
+    Risk->>Risk: Build IRiskValidationPayload
 
-    loop Для каждой валидации
+    loop For each validation
         Risk->>Validations: validate(payload)
-        alt Валидация выбрасывает Error
-            Validations-->>Risk: throw Error("причина")
-            Risk->>Events: emit событие отклонения
+        alt Validation throws Error
+            Validations-->>Risk: throw Error("reason")
+            Risk->>Events: emit rejection event
             Risk->>Risk: onRejected callback
             Risk-->>Strategy: return false
-        else Валидация пройдена
-            Validations-->>Risk: void (успех)
+        else Validation passes
+            Validations-->>Risk: void (success)
         end
     end
 
     Risk->>Risk: onAllowed callback
     Risk-->>Strategy: return true
-    Strategy->>Strategy: Создание сигнала
+    Strategy->>Strategy: Create signal
     Strategy->>Risk: addSignal(symbol, context)
-    Risk->>Persist: Обновление активных позиций
+    Risk->>Persist: Update active positions
 ```
 
 ---
 
-## Инспекция активных позиций
+## Inspecting Active Positions
 
 ```typescript
 addRisk({
   riskName: "position-inspector",
-  note: "Детальная инспекция активных позиций",
+  note: "Detailed inspection of active positions",
   validations: [
     ({ activePositions, symbol, strategyName }) => {
-      // Вывести все активные позиции
-      console.log(`\n=== Активные позиции (всего: ${activePositions.length}) ===`);
+      // Print all active positions
+      console.log(`\n=== Active Positions (total: ${activePositions.length}) ===`);
 
       activePositions.forEach((pos, index) => {
-        console.log(`\nПозиция ${index + 1}:`);
-        console.log(`  Стратегия: ${pos.strategyName}`);
-        console.log(`  Символ: ${pos.signal.symbol}`);
-        console.log(`  Направление: ${pos.signal.position}`);
-        console.log(`  Вход: ${pos.signal.priceOpen}`);
+        console.log(`\nPosition ${index + 1}:`);
+        console.log(`  Strategy: ${pos.strategyName}`);
+        console.log(`  Symbol: ${pos.signal.symbol}`);
+        console.log(`  Direction: ${pos.signal.position}`);
+        console.log(`  Entry: ${pos.signal.priceOpen}`);
         console.log(`  TP: ${pos.signal.priceTakeProfit}`);
         console.log(`  SL: ${pos.signal.priceStopLoss}`);
-        console.log(`  Открыта: ${new Date(pos.openTimestamp).toISOString()}`);
+        console.log(`  Opened: ${new Date(pos.openTimestamp).toISOString()}`);
       });
 
-      // Проверка коррелированных позиций
+      // Check for correlated positions
       const longCount = activePositions.filter(p => p.signal.position === "long").length;
       const shortCount = activePositions.filter(p => p.signal.position === "short").length;
 
       if (longCount > 0 && shortCount > 0) {
-        console.warn(`⚠️ Предупреждение: ${longCount} LONG и ${shortCount} SHORT позиций одновременно`);
+        console.warn(`⚠️ Warning: ${longCount} LONG and ${shortCount} SHORT positions simultaneously`);
       }
 
-      // Проверка на чрезмерную концентрацию
+      // Check for excessive concentration
       const btcPositions = activePositions.filter(p => p.signal.symbol.includes("BTC")).length;
       if (btcPositions >= 2) {
-        throw new Error(`Слишком много BTC позиций: ${btcPositions}`);
+        throw new Error(`Too many BTC positions: ${btcPositions}`);
       }
     }
   ]
@@ -503,19 +503,19 @@ addRisk({
 
 ---
 
-## Постоянство рисков (Live Trading)
+## Risk Persistence (Live Trading)
 
-В режиме live trading активные позиции сохраняются на диск через `PersistRiskAdapter`:
+In live trading mode, active positions are persisted to disk via `PersistRiskAdapter`:
 
 ```typescript
-// Автоматически сохраняется при открытии позиции
-// Путь: ./data/risk/{symbol}-{strategyName}.json
+// Automatically saved when position opens
+// Path: ./data/risk/{symbol}-{strategyName}.json
 
-// Структура сохраненных данных
+// Persisted data structure
 {
   "activePositions": [
     {
-      "signal": { /* данные сигнала */ },
+      "signal": { /* signal data */ },
       "strategyName": "macd-crossover",
       "exchangeName": "binance-live",
       "openTimestamp": 1702800000000
@@ -524,34 +524,34 @@ addRisk({
 }
 ```
 
-**Гарантии**:
-- Атомарная запись (защита от повреждения)
-- Автоматическое восстановление при перезапуске
-- Синхронизация со всеми активными позициями
+**Guarantees**:
+- Atomic writes (corruption protection)
+- Automatic recovery on restart
+- Synchronization with all active positions
 
 ---
 
-## Полный пример: Производственный профиль рисков
+## Complete Example: Production Risk Profile
 
 ```typescript
 import { addRisk, listenRisk } from "backtest-kit";
 
-// Комплексный профиль рисков для продакшена
+// Comprehensive production risk profile
 addRisk({
   riskName: "production-risk",
-  note: "Производственный профиль с множественными проверками безопасности",
+  note: "Production profile with multiple safety checks",
   validations: [
-    // 1. Ограничение общих позиций
+    // 1. Total position limit
     {
       validate: ({ activePositionCount }) => {
         if (activePositionCount >= 3) {
-          throw new Error("Максимум 3 одновременных позиции");
+          throw new Error("Maximum 3 concurrent positions");
         }
       },
-      note: "Лимит портфеля: 3 позиции"
+      note: "Portfolio limit: 3 positions"
     },
 
-    // 2. Максимум риска на сделку
+    // 2. Maximum risk per trade
     {
       validate: ({ pendingSignal, currentPrice }) => {
         const { priceOpen = currentPrice, priceStopLoss, position } = pendingSignal;
@@ -560,13 +560,13 @@ addRisk({
           : ((priceStopLoss - priceOpen) / priceOpen) * 100;
 
         if (slDistance > 2) {
-          throw new Error(`Риск ${slDistance.toFixed(2)}% > 2% лимита`);
+          throw new Error(`Risk ${slDistance.toFixed(2)}% > 2% limit`);
         }
       },
-      note: "Максимум 2% риска на сделку"
+      note: "Maximum 2% risk per trade"
     },
 
-    // 3. Минимальное соотношение риск/прибыль
+    // 3. Minimum risk/reward ratio
     {
       validate: ({ pendingSignal, currentPrice }) => {
         const { priceOpen = currentPrice, priceTakeProfit, priceStopLoss, position } = pendingSignal;
@@ -584,67 +584,67 @@ addRisk({
           throw new Error(`R/R ${rrRatio.toFixed(2)} < 2:1`);
         }
       },
-      note: "Минимум 1:2 риск/прибыль"
+      note: "Minimum 1:2 risk/reward"
     },
 
-    // 4. Временные окна
+    // 4. Time windows
     {
       validate: ({ timestamp }) => {
         const date = new Date(timestamp);
         const hour = date.getUTCHours();
 
-        // Не торговать ночью (0:00 - 6:00 UTC)
+        // No night trading (0:00 - 6:00 UTC)
         if (hour >= 0 && hour < 6) {
-          throw new Error("Торговля приостановлена в ночные часы");
+          throw new Error("Trading suspended during night hours");
         }
       },
-      note: "Запрет ночной торговли"
+      note: "Night trading prohibition"
     },
 
-    // 5. Координация стратегий
+    // 5. Strategy coordination
     {
       validate: ({ activePositions, strategyName, symbol }) => {
-        // Максимум 1 позиция на стратегию
+        // Maximum 1 position per strategy
         const strategyPositions = activePositions.filter(
           p => p.strategyName === strategyName
         );
         if (strategyPositions.length >= 1) {
-          throw new Error(`Стратегия ${strategyName} уже имеет позицию`);
+          throw new Error(`Strategy ${strategyName} already has a position`);
         }
 
-        // Не дублировать позиции по символу
+        // No duplicate positions on same symbol
         const symbolPositions = activePositions.filter(
           p => p.signal.symbol === symbol
         );
         if (symbolPositions.length > 0) {
-          throw new Error(`Позиция по ${symbol} уже существует`);
+          throw new Error(`Position on ${symbol} already exists`);
         }
       },
-      note: "Предотвращение дублирования позиций"
+      note: "Prevent duplicate positions"
     },
 
-    // 6. Фильтр волатильных инструментов
+    // 6. Volatile instrument filter
     {
       validate: ({ symbol }) => {
         const highVolatility = ["BTCUSDT", "ETHUSDT"];
         const lowLiquidity = ["PEPEUSDT", "SHIBUSDT"];
 
         if ([...highVolatility, ...lowLiquidity].includes(symbol)) {
-          // Можно торговать, но с предупреждением
-          console.warn(`⚠️ Внимание: ${symbol} - высокая волатильность/низкая ликвидность`);
+          // Can trade, but with warning
+          console.warn(`⚠️ Attention: ${symbol} - high volatility/low liquidity`);
         }
       },
-      note: "Предупреждение о волатильных инструментах"
+      note: "Warning for volatile instruments"
     },
   ],
   callbacks: {
     onRejected: (symbol, params) => {
-      console.error(`❌ СИГНАЛ ОТКЛОНЕН: ${symbol}`);
-      console.error(`   Причина: ${params.comment}`);
-      console.error(`   Стратегия: ${params.strategyName}`);
-      console.error(`   Активных позиций: ${params.activePositionCount}`);
+      console.error(`❌ SIGNAL REJECTED: ${symbol}`);
+      console.error(`   Reason: ${params.comment}`);
+      console.error(`   Strategy: ${params.strategyName}`);
+      console.error(`   Active positions: ${params.activePositionCount}`);
 
-      // Отправить критическое уведомление
+      // Send critical notification
       sendCriticalAlert({
         type: "RISK_REJECTION",
         symbol,
@@ -653,22 +653,22 @@ addRisk({
       });
     },
     onAllowed: (symbol, params) => {
-      console.log(`✓ Сигнал разрешен: ${symbol}`);
-      console.log(`   Стратегия: ${params.strategyName}`);
+      console.log(`✓ Signal allowed: ${symbol}`);
+      console.log(`   Strategy: ${params.strategyName}`);
     },
   },
 });
 
-// Мониторинг всех отклонений
+// Monitor all rejections
 listenRisk((event) => {
-  console.log("\n=== РИСК СОБЫТИЕ ===");
-  console.log(`Символ: ${event.symbol}`);
-  console.log(`Стратегия: ${event.strategyName}`);
-  console.log(`Причина отклонения: ${event.comment}`);
-  console.log(`Активных позиций: ${event.activePositionCount}`);
-  console.log(`Время: ${new Date(event.timestamp).toISOString()}`);
+  console.log("\n=== RISK EVENT ===");
+  console.log(`Symbol: ${event.symbol}`);
+  console.log(`Strategy: ${event.strategyName}`);
+  console.log(`Rejection reason: ${event.comment}`);
+  console.log(`Active positions: ${event.activePositionCount}`);
+  console.log(`Time: ${new Date(event.timestamp).toISOString()}`);
 
-  // Логирование в базу данных
+  // Log to database
   logRiskEvent({
     symbol: event.symbol,
     strategy: event.strategyName,
@@ -682,39 +682,39 @@ listenRisk((event) => {
 
 ---
 
-## Тестирование правил рисков
+## Testing Risk Rules
 
 ```typescript
 import { addRisk, addStrategy, Backtest } from "backtest-kit";
 
-// Создание тестового профиля рисков
+// Create test risk profile
 addRisk({
   riskName: "test-risk",
   validations: [
     ({ activePositionCount }) => {
-      console.log(`Проверка: активных позиций = ${activePositionCount}`);
+      console.log(`Check: active positions = ${activePositionCount}`);
       if (activePositionCount >= 2) {
-        throw new Error("Тест: максимум 2 позиции");
+        throw new Error("Test: maximum 2 positions");
       }
     }
   ],
   callbacks: {
     onRejected: (symbol, params) => {
-      console.log(`✓ Тест пройден: сигнал корректно отклонен`);
+      console.log(`✓ Test passed: signal correctly rejected`);
     },
     onAllowed: (symbol, params) => {
-      console.log(`✓ Тест пройден: сигнал корректно разрешен`);
+      console.log(`✓ Test passed: signal correctly allowed`);
     },
   },
 });
 
-// Тестовая стратегия
+// Test strategy
 addStrategy({
   strategyName: "test-strategy",
   interval: "5m",
   riskName: "test-risk",
   getSignal: async (symbol) => {
-    // Генерация тестовых сигналов
+    // Generate test signals
     return {
       position: "long",
       priceOpen: 50000,
@@ -726,7 +726,7 @@ addStrategy({
   },
 });
 
-// Запуск теста
+// Run test
 await Backtest.background("BTCUSDT", {
   strategyName: "test-strategy",
   exchangeName: "test-exchange",
@@ -736,8 +736,8 @@ await Backtest.background("BTCUSDT", {
 
 ---
 
-## Следующие шаги
+## Next Steps
 
-После настройки управления рисками:
+After setting up risk management:
 
-1. **[AI оптимизация стратегий](06-ai-optimization.md)** - генерация стратегий с использованием больших языковых моделей
+1. **[AI Strategy Optimization](06-ai-optimization.md)** - generate strategies using large language models

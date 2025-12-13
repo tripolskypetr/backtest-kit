@@ -1,113 +1,113 @@
-# AI Оптимизация стратегий
+# AI Strategy Optimization
 
-Это руководство объясняет, как использовать систему Optimizer в backtest-kit для генерации торговых стратегий с помощью больших языковых моделей (LLM). Вы узнаете, как настроить Ollama, создать источники данных и сгенерировать полностью исполняемые стратегии.
+This guide explains how to use the Optimizer system in backtest-kit to generate trading strategies using Large Language Models (LLMs). You'll learn how to set up Ollama, create data sources, and generate fully executable strategies.
 
-## Что такое Optimizer?
+## What is Optimizer?
 
-Optimizer - это система генерации стратегий мета-уровня, которая использует LLM для создания торговой логики на основе исторических данных. В отличие от режимов Backtest, Live и Walker, которые исполняют существующие стратегии, Optimizer создает новые стратегии, анализируя данные и генерируя код.
+Optimizer is a meta-level strategy generation system that uses LLMs to create trading logic based on historical data. Unlike Backtest, Live, and Walker modes which execute existing strategies, Optimizer creates new strategies by analyzing data and generating code.
 
-### Ключевые возможности
+### Key Features
 
-- 🤖 **LLM-генерация** - Использует Ollama для синтеза стратегий
-- 📊 **Мультиисточники данных** - Собирает данные из различных источников
-- 📅 **Множественные временные диапазоны** - Генерирует варианты стратегий для разных периодов
-- 🔄 **Интеграция с Walker** - Автоматическое сравнение сгенерированных стратегий
-- 💾 **Полностью исполняемый код** - Генерирует готовые к запуску `.mjs` файлы
+- 🤖 **LLM Generation** - Uses Ollama to synthesize strategies
+- 📊 **Multi-source Data** - Collects data from various sources
+- 📅 **Multiple Time Ranges** - Generates strategy variants for different periods
+- 🔄 **Walker Integration** - Automatic comparison of generated strategies
+- 💾 **Fully Executable Code** - Generates ready-to-run `.mjs` files
 
 ---
 
-## Установка Ollama
+## Installing Ollama
 
-### Шаг 1: Установка Ollama
+### Step 1: Install Ollama
 
 **Windows:**
 ```bash
-# Скачайте установщик с официального сайта
+# Download installer from official website
 https://ollama.ai/download/windows
 
-# Или используйте winget
+# Or use winget
 winget install Ollama.Ollama
 ```
 
 **macOS:**
 ```bash
-# Используйте Homebrew
+# Use Homebrew
 brew install ollama
 ```
 
 **Linux:**
 ```bash
-# Используйте curl
+# Use curl
 curl -fsSL https://ollama.ai/install.sh | sh
 ```
 
-### Шаг 2: Установка модели
+### Step 2: Install Model
 
 ```bash
-# Запустите Ollama сервер (если не запущен автоматически)
+# Start Ollama server (if not started automatically)
 ollama serve
 
-# Установите модель deepseek-v3.1 (рекомендуется для торговых стратегий)
+# Install deepseek-v3.1 model (recommended for trading strategies)
 ollama pull deepseek-v3.1
 
-# Или используйте другие модели
+# Or use other models
 ollama pull llama3
 ollama pull mistral
 ```
 
-### Шаг 3: Проверка установки
+### Step 3: Verify Installation
 
 ```bash
-# Протестируйте модель
+# Test the model
 ollama run deepseek-v3.1
->>> Привет, ты работаешь?
->>> (Ctrl+D для выхода)
+>>> Hello, are you working?
+>>> (Ctrl+D to exit)
 ```
 
-### Шаг 4: Настройка переменных окружения
+### Step 4: Configure Environment Variables
 
 ```bash
-# В .env файле
+# In .env file
 OLLAMA_HOST=http://localhost:11434
 OLLAMA_MODEL=deepseek-v3.1
 ```
 
 ---
 
-## Архитектура системы Optimizer
+## Optimizer System Architecture
 
 ```mermaid
 graph TB
-    subgraph "Конфигурация пользователя"
+    subgraph "User Configuration"
         AddOpt[addOptimizer]
         Schema[IOptimizerSchema]
     end
 
-    subgraph "Публичный API"
+    subgraph "Public API"
         OptimizerUtils[Optimizer.getData<br/>Optimizer.getCode<br/>Optimizer.dump]
     end
 
-    subgraph "Слои сервисов"
-        Global[OptimizerGlobalService<br/>обертка валидации]
-        Connection[OptimizerConnectionService<br/>создание экземпляров]
-        Client[ClientOptimizer<br/>основная логика]
+    subgraph "Service Layers"
+        Global[OptimizerGlobalService<br/>validation wrapper]
+        Connection[OptimizerConnectionService<br/>instance creation]
+        Client[ClientOptimizer<br/>core logic]
     end
 
-    subgraph "Сбор данных"
-        Sources[IOptimizerSource<br/>функции fetch]
+    subgraph "Data Collection"
+        Sources[IOptimizerSource<br/>fetch functions]
         Pagination[RESOLVE_PAGINATION_FN<br/>iterateDocuments]
-        Messages[MessageModel массив<br/>история диалога]
+        Messages[MessageModel array<br/>conversation history]
     end
 
-    subgraph "Генерация кода"
-        Template[OptimizerTemplateService<br/>11 методов шаблонов]
-        Prompt[getPrompt<br/>логика стратегии]
-        Code[Сгенерированный .mjs файл]
+    subgraph "Code Generation"
+        Template[OptimizerTemplateService<br/>11 template methods]
+        Prompt[getPrompt<br/>strategy logic]
+        Code[Generated .mjs file]
     end
 
-    subgraph "Интеграция выполнения"
-        Walker[Система Walker<br/>сравнение стратегий]
-        Backtest[Система Backtest<br/>валидация]
+    subgraph "Execution Integration"
+        Walker[Walker System<br/>strategy comparison]
+        Backtest[Backtest System<br/>validation]
     end
 
     AddOpt --> Schema
@@ -124,24 +124,24 @@ graph TB
     Prompt --> Template
     Template --> Code
 
-    Code -.->|исполняет| Walker
-    Walker -.->|использует| Backtest
+    Code -.->|executes| Walker
+    Walker -.->|uses| Backtest
 ```
 
 ---
 
-## Создание оптимизатора
+## Creating an Optimizer
 
-### Базовая конфигурация
+### Basic Configuration
 
 ```typescript
 import { addOptimizer } from "backtest-kit";
 
 addOptimizer({
   optimizerName: "crypto-optimizer",
-  note: "Генератор стратегий для криптовалют",
+  note: "Strategy generator for cryptocurrencies",
 
-  // Временные диапазоны для обучения
+  // Training time ranges
   rangeTrain: [
     {
       startDate: new Date("2025-01-01"),
@@ -153,31 +153,31 @@ addOptimizer({
     },
   ],
 
-  // Временной диапазон для тестирования
+  // Testing time range
   rangeTest: {
     startDate: new Date("2025-03-01"),
     endDate: new Date("2025-03-15"),
   },
 
-  // Источники данных
+  // Data sources
   source: [
-    // Источники данных здесь
+    // Data sources here
   ],
 
-  // Генератор промпта
+  // Prompt generator
   getPrompt: async (symbol, messages) => {
-    // Логика генерации промпта здесь
+    // Prompt generation logic here
   },
 });
 ```
 
 ---
 
-## Источники данных
+## Data Sources
 
-Источники данных - это функции, которые извлекают информацию для обучения LLM.
+Data sources are functions that extract information for LLM training.
 
-### Пример 1: Источник новостей
+### Example 1: News Source
 
 ```typescript
 import { addOptimizer } from "backtest-kit";
@@ -195,12 +195,12 @@ addOptimizer({
     endDate: new Date("2025-02-28"),
   },
 
-  // Источник новостей
+  // News source
   source: [
     {
       name: "crypto-news",
       fetch: async ({ symbol, startDate, endDate, limit, offset }) => {
-        // Вызов API новостей
+        // Call news API
         const response = await fetch(
           `https://api.cryptonews.com/v1/news?` +
           `symbol=${symbol}&` +
@@ -221,35 +221,35 @@ addOptimizer({
         }));
       },
 
-      // Форматирование для пользовательского сообщения
+      // Format for user message
       user: async (symbol, data, sourceName) => {
-        return `Вот новости о ${symbol}:\n\n` +
+        return `Here are news about ${symbol}:\n\n` +
           data.map(article =>
             `[${new Date(article.timestamp).toISOString()}] ${article.title}\n` +
-            `Настроение: ${article.sentiment}\n` +
+            `Sentiment: ${article.sentiment}\n` +
             `${article.content.substring(0, 200)}...\n`
           ).join('\n');
       },
 
-      // Форматирование для ответа ассистента
+      // Format for assistant response
       assistant: async (symbol, data, sourceName) => {
         const positiveSentiment = data.filter(a => a.sentiment > 0).length;
         const negativeSentiment = data.filter(a => a.sentiment < 0).length;
 
-        return `Проанализировал ${data.length} новостей о ${symbol}.\n` +
-          `Позитивных: ${positiveSentiment}, Негативных: ${negativeSentiment}.\n` +
-          `Общее настроение: ${positiveSentiment > negativeSentiment ? 'бычье' : 'медвежье'}.`;
+        return `Analyzed ${data.length} news articles about ${symbol}.\n` +
+          `Positive: ${positiveSentiment}, Negative: ${negativeSentiment}.\n` +
+          `Overall sentiment: ${positiveSentiment > negativeSentiment ? 'bullish' : 'bearish'}.`;
       },
     },
   ],
 
   getPrompt: async (symbol, messages) => {
-    return `На основе проанализированных новостей, создай торговую стратегию для ${symbol}.`;
+    return `Based on the analyzed news, create a trading strategy for ${symbol}.`;
   },
 });
 ```
 
-### Пример 2: Источник технических индикаторов
+### Example 2: Technical Indicators Source
 
 ```typescript
 import { SMA, RSI, MACD } from "technicalindicators";
@@ -272,7 +272,7 @@ addOptimizer({
     {
       name: "technical-indicators",
       fetch: async ({ symbol, startDate, endDate, limit, offset }) => {
-        // Получить исторические свечи
+        // Get historical candles
         const exchange = new ccxt.binance();
         const ohlcv = await exchange.fetchOHLCV(
           symbol,
@@ -283,7 +283,7 @@ addOptimizer({
 
         const closes = ohlcv.map(c => c[4]);
 
-        // Рассчитать индикаторы
+        // Calculate indicators
         const sma20 = SMA.calculate({ period: 20, values: closes });
         const sma50 = SMA.calculate({ period: 50, values: closes });
         const rsi = RSI.calculate({ period: 14, values: closes });
@@ -312,7 +312,7 @@ addOptimizer({
 
       user: async (symbol, data, sourceName) => {
         const latest = data[data.length - 1];
-        return `Текущие индикаторы для ${symbol}:\n` +
+        return `Current indicators for ${symbol}:\n` +
           `SMA(20): ${latest.indicators.sma20?.toFixed(2)}\n` +
           `SMA(50): ${latest.indicators.sma50?.toFixed(2)}\n` +
           `RSI(14): ${latest.indicators.rsi?.toFixed(2)}\n` +
@@ -322,27 +322,27 @@ addOptimizer({
 
       assistant: async (symbol, data, sourceName) => {
         const latest = data[data.length - 1];
-        const trend = latest.indicators.sma20 > latest.indicators.sma50 ? "восходящий" : "нисходящий";
-        const rsiStatus = latest.indicators.rsi > 70 ? "перекуплен" : latest.indicators.rsi < 30 ? "перепродан" : "нейтральный";
+        const trend = latest.indicators.sma20 > latest.indicators.sma50 ? "uptrend" : "downtrend";
+        const rsiStatus = latest.indicators.rsi > 70 ? "overbought" : latest.indicators.rsi < 30 ? "oversold" : "neutral";
 
-        return `Анализ индикаторов:\nТренд: ${trend}\nRSI: ${rsiStatus}`;
+        return `Indicator analysis:\nTrend: ${trend}\nRSI: ${rsiStatus}`;
       },
     },
   ],
 
   getPrompt: async (symbol, messages) => {
-    return `На основе технических индикаторов, создай стратегию для торговли ${symbol}.` +
-      `Используй комбинацию SMA кроссоверов, RSI для определения зон перекупленности/перепроданности,` +
-      `и MACD для подтверждения тренда.`;
+    return `Based on technical indicators, create a strategy for trading ${symbol}.` +
+      `Use a combination of SMA crossovers, RSI for overbought/oversold zones,` +
+      `and MACD for trend confirmation.`;
   },
 });
 ```
 
 ---
 
-## Генератор промпта
+## Prompt Generator
 
-Функция `getPrompt` получает всю собранную информацию и создает финальную инструкцию для LLM.
+The `getPrompt` function receives all collected information and creates the final instruction for the LLM.
 
 ```typescript
 import { addOptimizer } from "backtest-kit";
@@ -355,9 +355,9 @@ addOptimizer({
   source: [/* ... */],
 
   getPrompt: async (symbol, messages) => {
-    // messages - массив всех сообщений из источников данных
+    // messages - array of all messages from data sources
 
-    // Можно использовать LLM для генерации промпта
+    // Can use LLM to generate prompt
     const ollama = new Ollama({ host: process.env.OLLAMA_HOST });
 
     const summaryResponse = await ollama.chat({
@@ -365,7 +365,7 @@ addOptimizer({
       messages: [
         {
           role: "user",
-          content: "Проанализируй следующую информацию о рынке и создай краткое резюме:\n\n" +
+          content: "Analyze the following market information and create a brief summary:\n\n" +
             messages.map(m => `${m.role}: ${m.content}`).join('\n\n')
         },
       ],
@@ -373,23 +373,23 @@ addOptimizer({
 
     const summary = summaryResponse.message.content;
 
-    // Создание финального промпта стратегии
-    return `Ты - эксперт по криптовалютной торговле.
+    // Create final strategy prompt
+    return `You are a cryptocurrency trading expert.
 
-На основе следующего анализа рынка:
+Based on the following market analysis:
 ${summary}
 
-Создай торговую стратегию для ${symbol} со следующими характеристиками:
+Create a trading strategy for ${symbol} with the following characteristics:
 
-1. НАПРАВЛЕНИЕ ВХОДА: Определи, когда открывать LONG или SHORT позиции
-2. ТОЧКА ВХОДА: Определи оптимальную цену входа (используй priceOpen если нужен отложенный вход)
-3. ТЕЙК-ПРОФИТ: Целевая цена для фиксации прибыли (минимум +2% от входа)
-4. СТОП-ЛОСС: Защитный уровень (максимум -1.5% от входа)
-5. ВРЕМЯ ЖИЗНИ: Максимальное время удержания позиции в минутах
+1. ENTRY DIRECTION: Determine when to open LONG or SHORT positions
+2. ENTRY POINT: Determine optimal entry price (use priceOpen if delayed entry is needed)
+3. TAKE-PROFIT: Target price for profit taking (minimum +2% from entry)
+4. STOP-LOSS: Protective level (maximum -1.5% from entry)
+5. TIME TO LIVE: Maximum position holding time in minutes
 
-ВАЖНО: Соотношение риск/прибыль должно быть минимум 1:2.
+IMPORTANT: Risk/reward ratio must be at least 1:2.
 
-Верни результат в формате JSON:
+Return result in JSON format:
 {
   "position": "long" | "short" | "wait",
   "priceOpen": number | undefined,
@@ -398,91 +398,91 @@ ${summary}
   "minuteEstimatedTime": number
 }
 
-Если нет четкого сигнала, используй "position": "wait".`;
+If there's no clear signal, use "position": "wait".`;
   },
 });
 ```
 
 ---
 
-## Запуск оптимизации
+## Running Optimization
 
-### Метод 1: Получение данных
+### Method 1: Getting Data
 
 ```typescript
 import { Optimizer } from "backtest-kit";
 
-// Сбор данных и генерация стратегий
+// Collect data and generate strategies
 const strategies = await Optimizer.getData("BTCUSDT", {
   optimizerName: "crypto-optimizer",
 });
 
-console.log(`Сгенерировано стратегий: ${strategies.length}`);
+console.log(`Generated strategies: ${strategies.length}`);
 
 strategies.forEach((strategy, index) => {
-  console.log(`\nСтратегия ${index + 1}:`);
-  console.log(`  Название: ${strategy.name}`);
-  console.log(`  Символ: ${strategy.symbol}`);
-  console.log(`  Промпт:\n${strategy.strategy}`);
+  console.log(`\nStrategy ${index + 1}:`);
+  console.log(`  Name: ${strategy.name}`);
+  console.log(`  Symbol: ${strategy.symbol}`);
+  console.log(`  Prompt:\n${strategy.strategy}`);
 });
 ```
 
-### Метод 2: Генерация кода
+### Method 2: Generating Code
 
 ```typescript
 import { Optimizer } from "backtest-kit";
 
-// Генерация полного исполняемого кода
+// Generate full executable code
 const code = await Optimizer.getCode("BTCUSDT", {
   optimizerName: "crypto-optimizer",
 });
 
-console.log("Сгенерированный код:");
+console.log("Generated code:");
 console.log(code);
 
-// Код включает:
-// - Импорты и настройки
-// - Функции для работы с LLM
-// - Настройку биржи
-// - Фреймы для обучения и тестирования
-// - Сгенерированные стратегии
-// - Конфигурацию Walker для сравнения
-// - Слушатели событий и запуск
+// Code includes:
+// - Imports and setup
+// - LLM helper functions
+// - Exchange setup
+// - Training and testing frames
+// - Generated strategies
+// - Walker configuration for comparison
+// - Event listeners and launch
 ```
 
-### Метод 3: Сохранение в файл
+### Method 3: Dumping to File
 
 ```typescript
 import { Optimizer, listenOptimizerProgress } from "backtest-kit";
 
-// Мониторинг прогресса
+// Monitor progress
 listenOptimizerProgress((event) => {
   const percent = (event.progress * 100).toFixed(1);
-  console.log(`Прогресс: ${percent}% - ${event.comment}`);
+  console.log(`Progress: ${percent}% - ${event.comment}`);
 });
 
-// Сохранение сгенерированного кода в файл
+// Save generated code to file
 await Optimizer.dump("BTCUSDT", {
   optimizerName: "crypto-optimizer",
 });
 
-// Файл сохранен в: ./dump/optimizer/crypto-optimizer_BTCUSDT.mjs
-console.log("Код сохранен в ./dump/optimizer/crypto-optimizer_BTCUSDT.mjs");
+// File saved to: ./dump/optimizer/crypto-optimizer_BTCUSDT.mjs
+console.log("Code saved to ./dump/optimizer/crypto-optimizer_BTCUSDT.mjs");
 
-// Теперь можно запустить сгенерированную стратегию:
+// Now you can run the generated strategy:
 // node ./dump/optimizer/crypto-optimizer_BTCUSDT.mjs
 ```
 
 ---
 
-## Структура сгенерированного кода
+## Generated Code Structure
 
-Optimizer генерирует полностью готовый к выполнению `.mjs` файл со следующей структурой:
+Optimizer generates a fully ready-to-execute `.mjs` file with the following structure:
 
 ```javascript
 #!/usr/bin/env node
 
-// 1. Импорты
+// 1. Imports
 import { Ollama } from "ollama";
 import ccxt from "ccxt";
 import {
@@ -495,17 +495,17 @@ import {
   listenDoneWalker,
 } from "backtest-kit";
 
-// 2. Константы
+// 2. Constants
 const OLLAMA_HOST = process.env.OLLAMA_HOST || "http://localhost:11434";
 const OLLAMA_MODEL = process.env.OLLAMA_MODEL || "deepseek-v3.1";
 const ollama = new Ollama({ host: OLLAMA_HOST });
 
-// 3. Вспомогательные функции для работы с LLM
+// 3. Helper functions for LLM
 async function text(messages) { /* ... */ }
 async function json(messages) { /* ... */ }
 async function dumpJson(resultId, history, result) { /* ... */ }
 
-// 4. Настройка биржи
+// 4. Exchange setup
 addExchange({
   exchangeName: "a7x3k_exchange",
   getCandles: async (symbol, interval, since, limit) => { /* ... */ },
@@ -513,7 +513,7 @@ addExchange({
   formatQuantity: async (symbol, quantity) => { /* ... */ },
 });
 
-// 5. Фреймы для обучения
+// 5. Training frames
 addFrame({
   frameName: "a7x3k_train_frame-1",
   interval: "5m",
@@ -528,7 +528,7 @@ addFrame({
   endDate: new Date("2025-02-15"),
 });
 
-// 6. Фрейм для тестирования
+// 6. Testing frame
 addFrame({
   frameName: "a7x3k_test_frame",
   interval: "5m",
@@ -536,32 +536,32 @@ addFrame({
   endDate: new Date("2025-03-15"),
 });
 
-// 7. Сгенерированные стратегии
+// 7. Generated strategies
 addStrategy({
   strategyName: "a7x3k_strategy-1",
   interval: "5m",
   getSignal: async (symbol) => {
-    // Мультитаймфреймовый анализ
+    // Multi-timeframe analysis
     const messages = [];
 
-    // Загрузка свечей разных таймфреймов
+    // Load candles from different timeframes
     const microTermCandles = await getCandles(symbol, "1m", 30);
     const mainTermCandles = await getCandles(symbol, "5m", 24);
     const shortTermCandles = await getCandles(symbol, "15m", 24);
     const mediumTermCandles = await getCandles(symbol, "1h", 24);
 
-    // Анализ каждого таймфрейма
+    // Analyze each timeframe
     messages.push(
-      { role: "user", content: "Проанализируй свечи 1h..." },
-      { role: "assistant", content: "Тренд 1h проанализирован" }
+      { role: "user", content: "Analyze 1h candles..." },
+      { role: "assistant", content: "1h trend analyzed" }
     );
 
-    // ... анализ других таймфреймов ...
+    // ... analysis of other timeframes ...
 
-    // Генерация сигнала
+    // Generate signal
     messages.push({
       role: "user",
-      content: "Сгенерируй торговый сигнал: " + strategyPrompt
+      content: "Generate trading signal: " + strategyPrompt
     });
 
     const result = await json(messages);
@@ -571,7 +571,7 @@ addStrategy({
   },
 });
 
-// 8. Конфигурация Walker для сравнения
+// 8. Walker configuration for comparison
 addWalker({
   walkerName: "a7x3k_walker",
   exchangeName: "a7x3k_exchange",
@@ -582,17 +582,17 @@ addWalker({
   ],
 });
 
-// 9. Слушатели событий и запуск
+// 9. Event listeners and launch
 listenWalkerProgress((event) => {
-  console.log(`Прогресс: ${(event.progress * 100).toFixed(1)}%`);
+  console.log(`Progress: ${(event.progress * 100).toFixed(1)}%`);
 });
 
 listenDoneWalker(async (event) => {
-  console.log("Сравнение стратегий завершено");
+  console.log("Strategy comparison completed");
   await Walker.dump(event.symbol, event.walkerName);
 });
 
-// Запуск Walker
+// Launch Walker
 Walker.background("BTCUSDT", {
   walkerName: "a7x3k_walker",
 });
@@ -600,30 +600,30 @@ Walker.background("BTCUSDT", {
 
 ---
 
-## Мультитаймфреймовый анализ
+## Multi-timeframe Analysis
 
-Сгенерированные стратегии используют 4-фазный паттерн анализа:
+Generated strategies use a 4-phase analysis pattern:
 
 ```mermaid
 graph LR
-    subgraph "Фаза 1: Среднесрочный"
-        M1h[Анализ свечей 1h<br/>24 свечи]
+    subgraph "Phase 1: Medium-term"
+        M1h[1h Candles Analysis<br/>24 candles]
     end
 
-    subgraph "Фаза 2: Краткосрочный"
-        M15m[Анализ свечей 15m<br/>24 свечи]
+    subgraph "Phase 2: Short-term"
+        M15m[15m Candles Analysis<br/>24 candles]
     end
 
-    subgraph "Фаза 3: Основной"
-        M5m[Анализ свечей 5m<br/>24 свечи]
+    subgraph "Phase 3: Main"
+        M5m[5m Candles Analysis<br/>24 candles]
     end
 
-    subgraph "Фаза 4: Микро"
-        M1m[Анализ свечей 1m<br/>30 свечей]
+    subgraph "Phase 4: Micro"
+        M1m[1m Candles Analysis<br/>30 candles]
     end
 
-    subgraph "Фаза 5: Сигнал"
-        Prompt[Применение промпта стратегии<br/>Генерация сигнала]
+    subgraph "Phase 5: Signal"
+        Prompt[Apply Strategy Prompt<br/>Generate Signal]
     end
 
     M1h --> M15m
@@ -636,22 +636,22 @@ graph LR
 
 ---
 
-## Мониторинг прогресса
+## Progress Monitoring
 
 ```typescript
 import { listenOptimizerProgress, Optimizer } from "backtest-kit";
 
-// Детальный мониторинг
+// Detailed monitoring
 listenOptimizerProgress((event) => {
-  console.log("\n=== Прогресс оптимизации ===");
-  console.log(`Символ: ${event.symbol}`);
-  console.log(`Оптимизатор: ${event.optimizerName}`);
-  console.log(`Прогресс: ${(event.progress * 100).toFixed(1)}%`);
-  console.log(`Статус: ${event.comment}`);
-  console.log(`Временная метка: ${new Date(event.timestamp).toISOString()}`);
+  console.log("\n=== Optimization Progress ===");
+  console.log(`Symbol: ${event.symbol}`);
+  console.log(`Optimizer: ${event.optimizerName}`);
+  console.log(`Progress: ${(event.progress * 100).toFixed(1)}%`);
+  console.log(`Status: ${event.comment}`);
+  console.log(`Timestamp: ${new Date(event.timestamp).toISOString()}`);
 });
 
-// Запуск с мониторингом
+// Launch with monitoring
 await Optimizer.dump("BTCUSDT", {
   optimizerName: "crypto-optimizer",
 });
@@ -659,7 +659,7 @@ await Optimizer.dump("BTCUSDT", {
 
 ---
 
-## Полный пример: Продвинутый оптимизатор
+## Complete Example: Advanced Optimizer
 
 ```typescript
 import { config } from "dotenv";
@@ -672,10 +672,10 @@ import {
   listenOptimizerProgress,
 } from "backtest-kit";
 
-// Загрузка переменных окружения
+// Load environment variables
 config();
 
-// Настройка логгера
+// Setup logger
 setLogger({
   log: console.log,
   debug: console.debug,
@@ -683,10 +683,10 @@ setLogger({
   warn: console.warn,
 });
 
-// Создание оптимизатора
+// Create optimizer
 addOptimizer({
   optimizerName: "advanced-crypto-optimizer",
-  note: "Продвинутый генератор стратегий с множественными источниками данных",
+  note: "Advanced strategy generator with multiple data sources",
 
   rangeTrain: [
     {
@@ -709,7 +709,7 @@ addOptimizer({
   },
 
   source: [
-    // Источник 1: Технические индикаторы
+    // Source 1: Technical indicators
     {
       name: "technical-analysis",
       fetch: async ({ symbol, startDate, endDate, limit, offset }) => {
@@ -728,7 +728,7 @@ addOptimizer({
           timestamp: Date.now(),
           candles: ohlcv,
           indicators: {
-            // Расчет индикаторов
+            // Calculate indicators
             sma20: calculateSMA(closes, 20),
             rsi: calculateRSI(closes, 14),
             macd: calculateMACD(closes),
@@ -736,14 +736,14 @@ addOptimizer({
         }];
       },
       user: async (symbol, data) => {
-        return `Технический анализ ${symbol}:\n${JSON.stringify(data[0].indicators, null, 2)}`;
+        return `Technical analysis for ${symbol}:\n${JSON.stringify(data[0].indicators, null, 2)}`;
       },
       assistant: async () => {
-        return "Технический анализ проанализирован.";
+        return "Technical analysis completed.";
       },
     },
 
-    // Источник 2: Объемы торгов
+    // Source 2: Trading volume
     {
       name: "volume-analysis",
       fetch: async ({ symbol, startDate, endDate }) => {
@@ -758,10 +758,10 @@ addOptimizer({
         }];
       },
       user: async (symbol, data) => {
-        return `Анализ объемов ${symbol}: Давление покупателей ${(data[0].buyPressure * 100).toFixed(1)}%`;
+        return `Volume analysis for ${symbol}: Buy pressure ${(data[0].buyPressure * 100).toFixed(1)}%`;
       },
       assistant: async () => {
-        return "Анализ объемов завершен.";
+        return "Volume analysis completed.";
       },
     },
   ],
@@ -769,13 +769,13 @@ addOptimizer({
   getPrompt: async (symbol, messages) => {
     const ollama = new Ollama({ host: process.env.OLLAMA_HOST });
 
-    // Генерация сводки с помощью LLM
+    // Generate summary with LLM
     const summaryResponse = await ollama.chat({
       model: "deepseek-v3.1",
       messages: [
         {
           role: "user",
-          content: "Создай краткую сводку анализа рынка:\n\n" +
+          content: "Create a brief market analysis summary:\n\n" +
             messages.map(m => `${m.role}: ${m.content}`).join('\n\n')
         },
       ],
@@ -783,21 +783,21 @@ addOptimizer({
 
     const summary = summaryResponse.message.content;
 
-    return `Ты - эксперт по криптовалютной торговле.
+    return `You are a cryptocurrency trading expert.
 
-АНАЛИЗ РЫНКА:
+MARKET ANALYSIS:
 ${summary}
 
-ЗАДАЧА: Создай торговую стратегию для ${symbol}.
+TASK: Create a trading strategy for ${symbol}.
 
-ТРЕБОВАНИЯ:
-1. Используй комбинацию технических индикаторов и анализа объемов
-2. Определи четкие условия входа (LONG/SHORT)
-3. Установи тейк-профит минимум +2% от входа
-4. Установи стоп-лосс максимум -1.5% от входа
-5. Соотношение риск/прибыль должно быть минимум 1:2
+REQUIREMENTS:
+1. Use a combination of technical indicators and volume analysis
+2. Define clear entry conditions (LONG/SHORT)
+3. Set take-profit at minimum +2% from entry
+4. Set stop-loss at maximum -1.5% from entry
+5. Risk/reward ratio must be at least 1:2
 
-ФОРМАТ ОТВЕТА (JSON):
+RESPONSE FORMAT (JSON):
 {
   "position": "long" | "short" | "wait",
   "priceOpen": number | undefined,
@@ -808,111 +808,111 @@ ${summary}
   },
 });
 
-// Мониторинг прогресса
+// Monitor progress
 listenOptimizerProgress((event) => {
   const percent = (event.progress * 100).toFixed(1);
   console.log(`[${percent}%] ${event.comment}`);
 });
 
-// Запуск генерации
-console.log("Запуск AI оптимизации стратегий...\n");
+// Launch generation
+console.log("Starting AI strategy optimization...\n");
 
 await Optimizer.dump("BTCUSDT", {
   optimizerName: "advanced-crypto-optimizer",
 });
 
-console.log("\n✓ Генерация завершена!");
-console.log("Сгенерированный файл: ./dump/optimizer/advanced-crypto-optimizer_BTCUSDT.mjs");
-console.log("\nЗапустите сгенерированную стратегию:");
+console.log("\n✓ Generation completed!");
+console.log("Generated file: ./dump/optimizer/advanced-crypto-optimizer_BTCUSDT.mjs");
+console.log("\nRun the generated strategy:");
 console.log("node ./dump/optimizer/advanced-crypto-optimizer_BTCUSDT.mjs");
 ```
 
 ---
 
-## Запуск сгенерированной стратегии
+## Running the Generated Strategy
 
 ```bash
-# После генерации, запустите файл
+# After generation, run the file
 node ./dump/optimizer/advanced-crypto-optimizer_BTCUSDT.mjs
 
-# Вывод:
-# Запуск Walker для сравнения стратегий...
-# [10.0%] Выполнение стратегии advanced-crypto-optimizer-strategy-1
-# [20.0%] Выполнение стратегии advanced-crypto-optimizer-strategy-2
-# [30.0%] Выполнение стратегии advanced-crypto-optimizer-strategy-3
+# Output:
+# Starting Walker for strategy comparison...
+# [10.0%] Executing strategy advanced-crypto-optimizer-strategy-1
+# [20.0%] Executing strategy advanced-crypto-optimizer-strategy-2
+# [30.0%] Executing strategy advanced-crypto-optimizer-strategy-3
 # ...
-# [100%] Сравнение завершено
-# Отчет сохранен: ./dump/walker/advanced-crypto-optimizer_walker.md
+# [100%] Comparison completed
+# Report saved: ./dump/walker/advanced-crypto-optimizer_walker.md
 ```
 
 ---
 
-## Рекомендации
+## Recommendations
 
-### 1. Выбор модели
+### 1. Model Selection
 
 ```typescript
-// Для быстрого прототипирования
+// For quick prototyping
 OLLAMA_MODEL=llama3
 
-// Для продвинутого анализа (рекомендуется)
+// For advanced analysis (recommended)
 OLLAMA_MODEL=deepseek-v3.1
 
-// Для балансасоотношения скорости и качества
+// For balanced speed and quality
 OLLAMA_MODEL=mistral
 ```
 
-### 2. Размер обучающих данных
+### 2. Training Data Size
 
 ```typescript
-// Минимум 2 диапазона обучения
+// Minimum 2 training ranges
 rangeTrain: [
   { startDate: new Date("2025-01-01"), endDate: new Date("2025-01-15") },
   { startDate: new Date("2025-02-01"), endDate: new Date("2025-02-15") },
 ]
 
-// Оптимально 3-5 диапазонов
+// Optimal 3-5 ranges
 rangeTrain: [
-  // Январь
-  // Февраль
-  // Март
-  // Апрель
-  // Май
+  // January
+  // February
+  // March
+  // April
+  // May
 ]
 ```
 
-### 3. Качество промптов
+### 3. Prompt Quality
 
 ```typescript
-// Плохой промпт
+// Bad prompt
 getPrompt: async (symbol, messages) => {
-  return "Создай стратегию";
+  return "Create a strategy";
 }
 
-// Хороший промпт
+// Good prompt
 getPrompt: async (symbol, messages) => {
-  return `Ты - эксперт по торговле ${symbol}.
+  return `You are a trading expert for ${symbol}.
 
-На основе следующего анализа: ${summary}
+Based on the following analysis: ${summary}
 
-Создай стратегию со следующими характеристиками:
-- Четкие условия входа
-- TP минимум +2%
-- SL максимум -1.5%
-- Соотношение R/R минимум 1:2
+Create a strategy with the following characteristics:
+- Clear entry conditions
+- TP minimum +2%
+- SL maximum -1.5%
+- R/R ratio minimum 1:2
 
-Формат ответа: JSON...`;
+Response format: JSON...`;
 }
 ```
 
 ---
 
-## Заключение
+## Conclusion
 
-Система Optimizer в backtest-kit предоставляет мощный инструмент для генерации торговых стратегий с использованием AI. Комбинируя множественные источники данных, мультитаймфреймовый анализ и продвинутые LLM модели, вы можете создавать, тестировать и сравнивать стратегии автоматически.
+The Optimizer system in backtest-kit provides a powerful tool for generating trading strategies using AI. By combining multiple data sources, multi-timeframe analysis, and advanced LLM models, you can create, test, and compare strategies automatically.
 
-## Следующие шаги
+## Next Steps
 
-После получения оптимальной торговой стратегии:
+After obtaining an optimal trading strategy:
 
-1. **[LLM Трейдинг со структурированным JSON выводом](07-llm-trading.md)** - использование LLM как интерпретатора торговых стратегий на естественном языке
+1. **[LLM Trading with Structured JSON Output](07-llm-trading.md)** - using LLMs as interpreters for natural language trading strategies

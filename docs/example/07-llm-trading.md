@@ -1,46 +1,46 @@
-# LLM Трейдинг со структурированным JSON выводом
+# LLM Trading with Structured JSON Output
 
-Это продвинутое руководство объясняет, как использовать большие языковые модели (LLM) напрямую в торговых стратегиях для генерации сигналов в реальном времени. Вы узнаете, как настроить Ollama для структурированного JSON вывода и интегрировать AI анализ в процесс принятия торговых решений.
+This advanced guide explains how to use large language models (LLM) directly in trading strategies to generate signals in real-time. You will learn how to set up Ollama for structured JSON output and integrate AI analysis into the trading decision-making process.
 
-## Что такое LLM трейдинг?
+## What is LLM Trading?
 
-LLM трейдинг - это подход, при котором большая языковая модель анализирует рыночные данные и генерирует торговые сигналы в реальном времени. В отличие от традиционных стратегий с фиксированными правилами, LLM может адаптировать свой анализ к меняющимся рыночным условиям.
+LLM trading is an approach where a large language model analyzes market data and generates trading signals in real-time. Unlike traditional strategies with fixed rules, LLMs can adapt their analysis to changing market conditions.
 
-### Преимущества LLM трейдинга
+### Benefits of LLM Trading
 
-- 🧠 **Адаптивность** - модель может учитывать контекст и нюансы рынка
-- 📊 **Мультифакторный анализ** - одновременный анализ десятков индикаторов
-- 🔄 **Непрерывное обучение** - возможность дообучения на новых данных
-- 💡 **Объяснимость** - модель может объяснить причины своих решений
-- ⚡ **Быстрая адаптация** - легко изменить стратегию через промпт
+- **Adaptability** - the model can account for market context and nuances
+- **Multi-factor Analysis** - simultaneous analysis of dozens of indicators
+- **Continuous Learning** - ability to fine-tune on new data
+- **Explainability** - the model can explain the reasons for its decisions
+- **Fast Adaptation** - easily change strategy through prompts
 
 ---
 
-## Архитектура LLM трейдинга
+## LLM Trading Architecture
 
 ```mermaid
 graph TB
-    subgraph "Источники данных"
-        Candles["Свечи<br/>1m, 5m, 15m, 30m, 1h"]
-        Indicators["Индикаторы<br/>RSI, MACD, BB, ADX"]
-        Support["Уровни<br/>Поддержка/Сопротивление"]
-        Volume["Объемы<br/>Анализ активности"]
+    subgraph "Data Sources"
+        Candles["Candles<br/>1m, 5m, 15m, 30m, 1h"]
+        Indicators["Indicators<br/>RSI, MACD, BB, ADX"]
+        Support["Levels<br/>Support/Resistance"]
+        Volume["Volume<br/>Activity Analysis"]
     end
 
-    subgraph "Формирование контекста"
-        Messages["Массив сообщений<br/>user + assistant"]
-        Context["Контекст для LLM<br/>Технический анализ"]
+    subgraph "Context Formation"
+        Messages["Message Array<br/>user + assistant"]
+        Context["Context for LLM<br/>Technical Analysis"]
     end
 
-    subgraph "LLM Обработка"
+    subgraph "LLM Processing"
         Ollama["Ollama API<br/>deepseek-v3.1"]
-        Schema["JSON Schema<br/>Структура сигнала"]
-        Validation["Валидация<br/>format parameter"]
+        Schema["JSON Schema<br/>Signal Structure"]
+        Validation["Validation<br/>format parameter"]
     end
 
-    subgraph "Торговый сигнал"
-        Signal["Структурированный JSON<br/>position, priceOpen,<br/>priceTakeProfit,<br/>priceStopLoss,<br/>minuteEstimatedTime"]
-        Execute["Исполнение<br/>Backtest/Live"]
+    subgraph "Trading Signal"
+        Signal["Structured JSON<br/>position, priceOpen,<br/>priceTakeProfit,<br/>priceStopLoss,<br/>minuteEstimatedTime"]
+        Execute["Execution<br/>Backtest/Live"]
     end
 
     Candles --> Messages
@@ -64,12 +64,12 @@ graph TB
 
 ---
 
-## Настройка Ollama для структурированного вывода
+## Setting Up Ollama for Structured Output
 
-### Шаг 1: Установка и настройка
+### Step 1: Installation and Setup
 
 ```bash
-# Установка Ollama (если еще не установлен)
+# Install Ollama (if not already installed)
 # Windows
 winget install Ollama.Ollama
 
@@ -81,30 +81,30 @@ curl -fsSL https://ollama.ai/install.sh | sh
 ```
 
 ```bash
-# Запуск сервера
+# Start the server
 ollama serve
 
-# Установка модели deepseek-v3.1 (рекомендуется для трейдинга)
+# Install deepseek-v3.1 model (recommended for trading)
 ollama pull deepseek-v3.1
 ```
 
-### Шаг 2: Настройка переменных окружения
+### Step 2: Environment Variables Setup
 
 ```bash
-# .env файл
+# .env file
 OLLAMA_HOST=http://localhost:11434
 OLLAMA_MODEL=deepseek-v3.1
 
-# Для облачного Ollama
+# For cloud Ollama
 OLLAMA_API_KEY=your_api_key_here
 OLLAMA_HOST=https://ollama.com
 ```
 
 ---
 
-## Функция для структурированного JSON вывода
+## Function for Structured JSON Output
 
-### Базовая реализация
+### Basic Implementation
 
 ```typescript
 import { Ollama } from "ollama";
@@ -120,28 +120,28 @@ async function json(messages) {
       {
         role: "system",
         content: [
-          "Проанализируй торговую стратегию и верни торговый сигнал.",
+          "Analyze the trading strategy and return a trading signal.",
           "",
-          "ПРАВИЛА ОТКРЫТИЯ ПОЗИЦИЙ:",
+          "POSITION OPENING RULES:",
           "",
-          "1. ТИПЫ ПОЗИЦИЙ:",
-          "   - position='wait': нет четкого сигнала, жди лучших условий",
-          "   - position='long': бычий сигнал, цена будет расти",
-          "   - position='short': медвежий сигнал, цена будет падать",
+          "1. POSITION TYPES:",
+          "   - position='wait': no clear signal, wait for better conditions",
+          "   - position='long': bullish signal, price will rise",
+          "   - position='short': bearish signal, price will fall",
           "",
-          "2. ЦЕНА ВХОДА (priceOpen):",
-          "   - Может быть текущей рыночной ценой для немедленного входа",
-          "   - Может быть отложенной ценой для входа при достижении уровня",
-          "   - Укажи оптимальную цену входа согласно технического анализа",
+          "2. ENTRY PRICE (priceOpen):",
+          "   - Can be current market price for immediate entry",
+          "   - Can be pending price for entry when level is reached",
+          "   - Specify optimal entry price according to technical analysis",
           "",
-          "3. УРОВНИ ВЫХОДА:",
+          "3. EXIT LEVELS:",
           "   - LONG: priceTakeProfit > priceOpen > priceStopLoss",
           "   - SHORT: priceStopLoss > priceOpen > priceTakeProfit",
-          "   - Уровни должны иметь техническое обоснование (Fibonacci, S/R, Bollinger)",
+          "   - Levels must have technical justification (Fibonacci, S/R, Bollinger)",
           "",
-          "4. ВРЕМЕННЫЕ РАМКИ:",
-          "   - minuteEstimatedTime: прогноз времени до TP (макс 360 минут)",
-          "   - Расчет на основе ATR, ADX, MACD, Momentum, Slope",
+          "4. TIME FRAMES:",
+          "   - minuteEstimatedTime: forecast time to TP (max 360 minutes)",
+          "   - Calculation based on ATR, ADX, MACD, Momentum, Slope",
         ].join("\n"),
       },
       ...messages,
@@ -195,9 +195,9 @@ export default json;
 
 ---
 
-## Мультитаймфреймовый анализ
+## Multi-Timeframe Analysis
 
-### Паттерн анализа разных таймфреймов
+### Pattern for Analyzing Different Timeframes
 
 ```typescript
 import ccxt from "ccxt";
@@ -207,80 +207,80 @@ async function analyzeMultipleTimeframes(symbol) {
   const exchange = new ccxt.binance();
   const messages = [];
 
-  // 1. Получение данных разных таймфреймов
+  // 1. Fetch data from different timeframes
   const candles1h = await exchange.fetchOHLCV(symbol, "1h", undefined, 24);
   const candles15m = await exchange.fetchOHLCV(symbol, "15m", undefined, 48);
   const candles5m = await exchange.fetchOHLCV(symbol, "5m", undefined, 60);
   const candles1m = await exchange.fetchOHLCV(symbol, "1m", undefined, 60);
 
-  // 2. Анализ 1-часового тренда
+  // 2. 1-hour trend analysis
   messages.push({
     role: "user",
-    content: `Проанализируй 1-часовые свечи для ${symbol}:\n` +
+    content: `Analyze 1-hour candles for ${symbol}:\n` +
       formatCandles(candles1h) +
-      `\n\nОпредели основной тренд (восходящий/нисходящий/боковой).`
+      `\n\nDetermine the main trend (uptrend/downtrend/sideways).`
   });
 
   messages.push({
     role: "assistant",
-    content: "Тренд 1h проанализирован. Определен основной тренд и ключевые уровни поддержки/сопротивления."
+    content: "1h trend analyzed. Main trend and key support/resistance levels identified."
   });
 
-  // 3. Анализ 15-минутного тренда
+  // 3. 15-minute trend analysis
   messages.push({
     role: "user",
-    content: `Проанализируй 15-минутные свечи для ${symbol}:\n` +
+    content: `Analyze 15-minute candles for ${symbol}:\n` +
       formatCandles(candles15m) +
-      `\n\nОпредели краткосрочный тренд и дивергенции индикаторов.`
+      `\n\nDetermine short-term trend and indicator divergences.`
   });
 
   messages.push({
     role: "assistant",
-    content: "Тренд 15m проанализирован. Выявлены краткосрочные паттерны."
+    content: "15m trend analyzed. Short-term patterns identified."
   });
 
-  // 4. Анализ 5-минутного тренда
+  // 4. 5-minute trend analysis
   messages.push({
     role: "user",
-    content: `Проанализируй 5-минутные свечи для ${symbol}:\n` +
+    content: `Analyze 5-minute candles for ${symbol}:\n` +
       formatCandles(candles5m) +
-      `\n\nОпредели точки входа на основе индикаторов.`
+      `\n\nDetermine entry points based on indicators.`
   });
 
   messages.push({
     role: "assistant",
-    content: "Тренд 5m проанализирован. Определены потенциальные точки входа."
+    content: "5m trend analyzed. Potential entry points identified."
   });
 
-  // 5. Анализ 1-минутной микроструктуры
+  // 5. 1-minute microstructure analysis
   messages.push({
     role: "user",
-    content: `Проанализируй 1-минутные свечи для ${symbol}:\n` +
+    content: `Analyze 1-minute candles for ${symbol}:\n` +
       formatCandles(candles1m) +
-      `\n\nОпредели оптимальную цену входа и уровни выхода.`
+      `\n\nDetermine optimal entry price and exit levels.`
   });
 
   messages.push({
     role: "assistant",
-    content: "Микроструктура 1m проанализирована. Готов к генерации сигнала."
+    content: "1m microstructure analyzed. Ready to generate signal."
   });
 
-  // 6. Финальный запрос на генерацию сигнала
+  // 6. Final request for signal generation
   messages.push({
     role: "user",
     content: [
-      `На основе всех проанализированных таймфреймов, сгенерируй торговый сигнал для ${symbol}.`,
+      `Based on all analyzed timeframes, generate a trading signal for ${symbol}.`,
       "",
-      "Учти:",
-      "1. Основной тренд с 1h",
-      "2. Краткосрочные паттерны с 15m и 5m",
-      "3. Точную цену входа с 1m",
-      "4. Технические уровни поддержки/сопротивления",
-      "5. Соотношение риск/прибыль минимум 1:2",
+      "Consider:",
+      "1. Main trend from 1h",
+      "2. Short-term patterns from 15m and 5m",
+      "3. Precise entry price from 1m",
+      "4. Technical support/resistance levels",
+      "5. Risk/reward ratio minimum 1:2",
     ].join("\n")
   });
 
-  // Генерация структурированного JSON сигнала
+  // Generate structured JSON signal
   const signal = await json(messages);
 
   return signal;
@@ -296,16 +296,16 @@ function formatCandles(candles) {
 
 ---
 
-## Интеграция с Backtest-Kit
+## Integration with Backtest-Kit
 
-### Полная стратегия с LLM
+### Complete Strategy with LLM
 
 ```typescript
 import { addStrategy, Backtest } from "backtest-kit";
 import { json } from "./utils/json.mjs";
 import ccxt from "ccxt";
 
-// Регистрация LLM-стратегии
+// Register LLM strategy
 addStrategy({
   strategyName: "llm-trading-strategy",
   interval: "5m",
@@ -313,32 +313,32 @@ addStrategy({
     const exchange = new ccxt.binance();
     const messages = [];
 
-    // 1. Загрузка данных различных таймфреймов
+    // 1. Load data from various timeframes
     const candles1h = await exchange.fetchOHLCV(symbol, "1h", undefined, 24);
     const candles15m = await exchange.fetchOHLCV(symbol, "15m", undefined, 24);
     const candles5m = await exchange.fetchOHLCV(symbol, "5m", undefined, 24);
     const candles1m = await exchange.fetchOHLCV(symbol, "1m", undefined, 30);
 
-    // 2. Расчет индикаторов
+    // 2. Calculate indicators
     const indicators = calculateIndicators(candles5m);
 
-    // 3. Формирование контекста для LLM
+    // 3. Form context for LLM
     messages.push({
       role: "user",
-      content: `Анализ ${symbol}:\n\n` +
-        `## 1-часовой тренд:\n${formatTrendAnalysis(candles1h)}\n\n` +
-        `## 15-минутный тренд:\n${formatTrendAnalysis(candles15m)}\n\n` +
-        `## 5-минутные данные с индикаторами:\n${formatIndicators(indicators)}\n\n` +
-        `## 1-минутная микроструктура:\n${formatMicrostructure(candles1m)}\n\n` +
-        `Текущая цена: ${candles5m[candles5m.length - 1][4]}`
+      content: `Analysis of ${symbol}:\n\n` +
+        `## 1-hour trend:\n${formatTrendAnalysis(candles1h)}\n\n` +
+        `## 15-minute trend:\n${formatTrendAnalysis(candles15m)}\n\n` +
+        `## 5-minute data with indicators:\n${formatIndicators(indicators)}\n\n` +
+        `## 1-minute microstructure:\n${formatMicrostructure(candles1m)}\n\n` +
+        `Current price: ${candles5m[candles5m.length - 1][4]}`
     });
 
-    // 4. Генерация структурированного сигнала
+    // 4. Generate structured signal
     const signal = await json(messages);
 
-    // 5. Валидация и возврат
+    // 5. Validation and return
     if (signal.position === "wait") {
-      return null;  // Нет сигнала
+      return null;  // No signal
     }
 
     return {
@@ -348,30 +348,30 @@ addStrategy({
       priceStopLoss: signal.priceStopLoss,
       minuteEstimatedTime: signal.minuteEstimatedTime,
       timestamp: Date.now(),
-      note: signal.note,  // Дополнительная информация от LLM
+      note: signal.note,  // Additional information from LLM
     };
   },
 });
 
-// Запуск бэктеста
+// Run backtest
 for await (const result of Backtest.run("BTCUSDT", {
   strategyName: "llm-trading-strategy",
   exchangeName: "binance",
   frameName: "december-2025",
 })) {
   if (result.action === "closed") {
-    console.log(`Сигнал закрыт: ${result.closeReason}`);
+    console.log(`Signal closed: ${result.closeReason}`);
     console.log(`PNL: ${result.pnl.pnlPercentage.toFixed(2)}%`);
-    console.log(`Заметка: ${result.signal.note}`);
+    console.log(`Note: ${result.signal.note}`);
   }
 }
 ```
 
 ---
 
-## Расширенный JSON Schema для торговых сигналов
+## Advanced JSON Schema for Trading Signals
 
-### Детальная схема с дополнительными полями
+### Detailed Schema with Additional Fields
 
 ```typescript
 async function jsonAdvanced(messages) {
@@ -388,35 +388,35 @@ async function jsonAdvanced(messages) {
         position: {
           type: "string",
           enum: ["wait", "long", "short"],
-          description: "Направление позиции",
+          description: "Position direction",
         },
         confidence: {
           type: "number",
           minimum: 0,
           maximum: 100,
-          description: "Уверенность в сигнале (0-100%)",
+          description: "Signal confidence (0-100%)",
         },
         priceOpen: {
           type: "number",
-          description: "Цена входа",
+          description: "Entry price",
         },
         priceTakeProfit: {
           type: "number",
-          description: "Цена тейк-профита",
+          description: "Take profit price",
         },
         priceStopLoss: {
           type: "number",
-          description: "Цена стоп-лосса",
+          description: "Stop loss price",
         },
         minuteEstimatedTime: {
           type: "number",
           minimum: 1,
           maximum: 360,
-          description: "Ожидаемое время до TP в минутах",
+          description: "Expected time to TP in minutes",
         },
         reasoning: {
           type: "string",
-          description: "Обоснование решения",
+          description: "Decision rationale",
         },
         technicalLevels: {
           type: "object",
@@ -424,34 +424,34 @@ async function jsonAdvanced(messages) {
             support: {
               type: "array",
               items: { type: "number" },
-              description: "Уровни поддержки",
+              description: "Support levels",
             },
             resistance: {
               type: "array",
               items: { type: "number" },
-              description: "Уровни сопротивления",
+              description: "Resistance levels",
             },
           },
-          description: "Технические уровни",
+          description: "Technical levels",
         },
         indicators: {
           type: "object",
           properties: {
-            rsi: { type: "number", description: "Значение RSI" },
-            macd: { type: "string", description: "Состояние MACD (bullish/bearish)" },
-            trend: { type: "string", description: "Основной тренд" },
-            volume: { type: "string", description: "Анализ объема" },
+            rsi: { type: "number", description: "RSI value" },
+            macd: { type: "string", description: "MACD state (bullish/bearish)" },
+            trend: { type: "string", description: "Main trend" },
+            volume: { type: "string", description: "Volume analysis" },
           },
-          description: "Состояние индикаторов",
+          description: "Indicator states",
         },
         riskReward: {
           type: "number",
-          description: "Соотношение риск/прибыль",
+          description: "Risk/reward ratio",
         },
         marketContext: {
           type: "string",
           enum: ["trending", "ranging", "volatile", "breakout"],
-          description: "Контекст рынка",
+          description: "Market context",
         },
       },
       required: [
@@ -474,9 +474,9 @@ async function jsonAdvanced(messages) {
 
 ---
 
-## Обработка индикаторов для LLM
+## Indicator Processing for LLM
 
-### Вспомогательные функции
+### Helper Functions
 
 ```typescript
 import { RSI, MACD, BollingerBands, ADX } from "technicalindicators";
@@ -534,14 +534,14 @@ function formatIndicators(indicators) {
 
 function formatTrendAnalysis(candles) {
   const closes = candles.map(c => c[4]);
-  const trend = closes[closes.length - 1] > closes[0] ? "Восходящий" : "Нисходящий";
+  const trend = closes[closes.length - 1] > closes[0] ? "Uptrend" : "Downtrend";
   const changePercent = ((closes[closes.length - 1] - closes[0]) / closes[0] * 100).toFixed(2);
 
   return [
-    `Тренд: ${trend}`,
-    `Изменение: ${changePercent}%`,
-    `Максимум: ${Math.max(...candles.map(c => c[2])).toFixed(2)}`,
-    `Минимум: ${Math.min(...candles.map(c => c[3])).toFixed(2)}`,
+    `Trend: ${trend}`,
+    `Change: ${changePercent}%`,
+    `High: ${Math.max(...candles.map(c => c[2])).toFixed(2)}`,
+    `Low: ${Math.min(...candles.map(c => c[3])).toFixed(2)}`,
   ].join('\n');
 }
 
@@ -550,7 +550,7 @@ function formatMicrostructure(candles) {
   const [timestamp, open, high, low, close, volume] = latest;
 
   return [
-    `Последняя свеча:`,
+    `Last candle:`,
     `Open: ${open}`,
     `High: ${high}`,
     `Low: ${low}`,
@@ -565,9 +565,9 @@ function formatMicrostructure(candles) {
 
 ---
 
-## Текстовый анализ с Ollama
+## Text Analysis with Ollama
 
-### Функция для получения текстового анализа
+### Function for Text Analysis
 
 ```typescript
 import { Ollama } from "ollama";
@@ -579,35 +579,35 @@ async function text(symbol, messages) {
 
   const response = await ollama.chat({
     model: "deepseek-v3.1",
-    think: true,  // Включить режим рассуждений
+    think: true,  // Enable reasoning mode
     messages: [
       {
         role: "system",
         content: [
-          "Ты - профессиональный трейдер с 10+ летним опытом.",
-          "Анализируй рынок на основе технических и фундаментальных факторов.",
-          "Давай конкретные рекомендации с уровнями входа и выхода.",
+          "You are a professional trader with 10+ years of experience.",
+          "Analyze the market based on technical and fundamental factors.",
+          "Give specific recommendations with entry and exit levels.",
           "",
-          "**ВАЖНО**: Пиши только анализ, без приветствий!",
+          "**IMPORTANT**: Write only analysis, no greetings!",
         ].join("\n"),
       },
       {
         role: "system",
-        content: "Reasoning: high",  // Высокий уровень рассуждений
+        content: "Reasoning: high",  // High level of reasoning
       },
       ...messages,
       {
         role: "user",
         content: [
-          `На каких условиях мне купить/продать ${symbol}?`,
+          `What conditions should I buy/sell ${symbol} under?`,
           "",
-          "Проанализируй:",
-          "1. Уровни поддержки/сопротивления",
-          "2. Точки входа в LONG/SHORT позиции",
-          "3. Рекомендуемое соотношение риск/прибыль",
-          "4. Предпочтительное направление (LONG или SHORT)",
+          "Analyze:",
+          "1. Support/resistance levels",
+          "2. Entry points for LONG/SHORT positions",
+          "3. Recommended risk/reward ratio",
+          "4. Preferred direction (LONG or SHORT)",
           "",
-          "Дай фундаментальный анализ со стратегической рекомендацией.",
+          "Provide fundamental analysis with strategic recommendation.",
         ].join("\n"),
       },
     ],
@@ -616,11 +616,11 @@ async function text(symbol, messages) {
   return response.message.content.trim();
 }
 
-// Использование
+// Usage
 const analysis = await text("BTCUSDT", [
   {
     role: "user",
-    content: "Текущая цена BTC: $95,000. RSI: 65. MACD бычий."
+    content: "Current BTC price: $95,000. RSI: 65. MACD bullish."
   }
 ]);
 
@@ -629,9 +629,9 @@ console.log(analysis);
 
 ---
 
-## Логирование и отладка LLM сигналов
+## Logging and Debugging LLM Signals
 
-### Функция для сохранения истории
+### Function for Saving History
 
 ```typescript
 import fs from "fs/promises";
@@ -654,10 +654,10 @@ async function dumpJson(signalId, messages, result) {
   await fs.mkdir("./logs/llm-signals", { recursive: true });
   await fs.writeFile(filename, JSON.stringify(logData, null, 2));
 
-  console.log(`LLM сигнал сохранен: ${filename}`);
+  console.log(`LLM signal saved: ${filename}`);
 }
 
-// Использование в стратегии
+// Usage in strategy
 addStrategy({
   strategyName: "llm-with-logging",
   interval: "5m",
@@ -665,7 +665,7 @@ addStrategy({
     const messages = buildMessages(symbol);
     const signal = await json(messages);
 
-    // Сохранение для отладки
+    // Save for debugging
     await dumpJson(`${symbol}-${Date.now()}`, messages, signal);
 
     if (signal.position === "wait") {
@@ -679,9 +679,9 @@ addStrategy({
 
 ---
 
-## Продвинутый пример: Комбинированная стратегия
+## Advanced Example: Hybrid Strategy
 
-### LLM + Традиционные индикаторы
+### LLM + Traditional Indicators
 
 ```typescript
 import { addStrategy } from "backtest-kit";
@@ -695,11 +695,11 @@ addStrategy({
   getSignal: async (symbol) => {
     const exchange = new ccxt.binance();
 
-    // 1. Получение данных
+    // 1. Fetch data
     const candles5m = await exchange.fetchOHLCV(symbol, "5m", undefined, 100);
     const closes = candles5m.map(c => c[4]);
 
-    // 2. Расчет традиционных индикаторов
+    // 2. Calculate traditional indicators
     const rsi = RSI.calculate({ period: 14, values: closes });
     const macd = MACD.calculate({
       values: closes,
@@ -713,41 +713,41 @@ addStrategy({
     const currentRSI = rsi[rsi.length - 1];
     const currentMACD = macd[macd.length - 1];
 
-    // 3. Быстрая фильтрация условий
-    // Если RSI в нейтральной зоне и нет четкого тренда - пропустить
+    // 3. Quick condition filtering
+    // If RSI in neutral zone and no clear trend - skip
     if (currentRSI > 40 && currentRSI < 60 && Math.abs(currentMACD?.MACD || 0) < 10) {
-      return null;  // Не тратить токены LLM на неопределенные ситуации
+      return null;  // Don't spend LLM tokens on unclear situations
     }
 
-    // 4. LLM анализ только для потенциальных сигналов
+    // 4. LLM analysis only for potential signals
     const messages = [
       {
         role: "user",
-        content: `Анализ ${symbol}:\n\n` +
-          `Текущая цена: ${closes[closes.length - 1]}\n` +
+        content: `Analysis of ${symbol}:\n\n` +
+          `Current price: ${closes[closes.length - 1]}\n` +
           `RSI(14): ${currentRSI.toFixed(2)}\n` +
           `MACD: ${currentMACD?.MACD?.toFixed(4)}\n` +
           `MACD Signal: ${currentMACD?.signal?.toFixed(4)}\n` +
           `MACD Histogram: ${currentMACD?.histogram?.toFixed(4)}\n\n` +
-          `Последние 20 свечей:\n${formatCandles(candles5m.slice(-20))}`
+          `Last 20 candles:\n${formatCandles(candles5m.slice(-20))}`
       }
     ];
 
     const signal = await json(messages);
 
-    // 5. Дополнительная валидация
+    // 5. Additional validation
     if (signal.position === "wait") {
       return null;
     }
 
-    // Проверка соответствия LLM сигнала и индикаторов
+    // Check LLM signal matches indicators
     if (signal.position === "long" && currentRSI > 70) {
-      console.warn("LLM рекомендует LONG, но RSI перекуплен");
+      console.warn("LLM recommends LONG, but RSI is overbought");
       return null;
     }
 
     if (signal.position === "short" && currentRSI < 30) {
-      console.warn("LLM рекомендует SHORT, но RSI перепродан");
+      console.warn("LLM recommends SHORT, but RSI is oversold");
       return null;
     }
 
@@ -766,26 +766,26 @@ addStrategy({
 
 ---
 
-## Оптимизация затрат на токены
+## Token Cost Optimization
 
-### Кэширование анализа
+### Analysis Caching
 
 ```typescript
 const analysisCache = new Map();
-const CACHE_TTL = 60000; // 1 минута
+const CACHE_TTL = 60000; // 1 minute
 
 async function getCachedAnalysis(symbol, timeframe) {
   const cacheKey = `${symbol}-${timeframe}-${Math.floor(Date.now() / CACHE_TTL)}`;
 
   if (analysisCache.has(cacheKey)) {
-    console.log(`Использован кэш для ${cacheKey}`);
+    console.log(`Used cache for ${cacheKey}`);
     return analysisCache.get(cacheKey);
   }
 
   const analysis = await performLLMAnalysis(symbol, timeframe);
   analysisCache.set(cacheKey, analysis);
 
-  // Очистка старого кэша
+  // Clear old cache
   if (analysisCache.size > 100) {
     const firstKey = analysisCache.keys().next().value;
     analysisCache.delete(firstKey);
@@ -795,12 +795,12 @@ async function getCachedAnalysis(symbol, timeframe) {
 }
 ```
 
-### Батчинг запросов
+### Request Batching
 
 ```typescript
 const pendingRequests = [];
 const BATCH_SIZE = 5;
-const BATCH_DELAY = 1000; // 1 секунда
+const BATCH_DELAY = 1000; // 1 second
 
 async function batchLLMRequest(messages) {
   return new Promise((resolve) => {
@@ -819,7 +819,7 @@ async function processBatch() {
 
   const batch = pendingRequests.splice(0, BATCH_SIZE);
 
-  // Параллельная обработка
+  // Parallel processing
   const results = await Promise.all(
     batch.map(({ messages }) => json(messages))
   );
@@ -832,7 +832,7 @@ async function processBatch() {
 
 ---
 
-## Полный рабочий пример
+## Complete Working Example
 
 ```typescript
 import { config } from "dotenv";
@@ -848,10 +848,10 @@ import { json } from "./utils/json.mjs";
 import ccxt from "ccxt";
 import { RSI, MACD, BollingerBands } from "technicalindicators";
 
-// Загрузка переменных окружения
+// Load environment variables
 config();
 
-// Настройка логгера
+// Setup logger
 setLogger({
   log: console.log,
   debug: console.debug,
@@ -859,7 +859,7 @@ setLogger({
   warn: console.warn,
 });
 
-// Регистрация биржи
+// Register exchange
 addExchange({
   exchangeName: "binance",
   getCandles: async (symbol, interval, since, limit) => {
@@ -878,19 +878,19 @@ addExchange({
   formatQuantity: async (symbol, quantity) => quantity.toFixed(8),
 });
 
-// Регистрация LLM стратегии
+// Register LLM strategy
 addStrategy({
   strategyName: "llm-professional-strategy",
   interval: "5m",
   getSignal: async (symbol) => {
     const exchange = new ccxt.binance();
 
-    // Загрузка данных
+    // Load data
     const candles1h = await exchange.fetchOHLCV(symbol, "1h", undefined, 24);
     const candles5m = await exchange.fetchOHLCV(symbol, "5m", undefined, 100);
     const closes = candles5m.map(c => c[4]);
 
-    // Расчет индикаторов
+    // Calculate indicators
     const rsi = RSI.calculate({ period: 14, values: closes });
     const macd = MACD.calculate({
       values: closes,
@@ -911,17 +911,17 @@ addStrategy({
     const currentMACD = macd[macd.length - 1];
     const currentBB = bb[bb.length - 1];
 
-    // Формирование контекста для LLM
+    // Form context for LLM
     const messages = [
       {
         role: "user",
         content: [
-          `# Торговый анализ ${symbol}`,
+          `# Trading Analysis ${symbol}`,
           "",
-          `## Текущая рыночная ситуация`,
-          `Цена: $${currentPrice.toFixed(2)}`,
+          `## Current Market Situation`,
+          `Price: $${currentPrice.toFixed(2)}`,
           "",
-          `## Технические индикаторы (5m)`,
+          `## Technical Indicators (5m)`,
           `RSI(14): ${currentRSI.toFixed(2)}`,
           `MACD: ${currentMACD?.MACD?.toFixed(4)}`,
           `MACD Signal: ${currentMACD?.signal?.toFixed(4)}`,
@@ -930,21 +930,21 @@ addStrategy({
           `Bollinger Middle: ${currentBB?.middle?.toFixed(2)}`,
           `Bollinger Lower: ${currentBB?.lower?.toFixed(2)}`,
           "",
-          `## 1-часовой тренд`,
+          `## 1-hour Trend`,
           formatTrendAnalysis(candles1h),
           "",
-          `## Последние 10 свечей (5m)`,
+          `## Last 10 Candles (5m)`,
           formatRecentCandles(candles5m.slice(-10)),
         ].join('\n')
       }
     ];
 
-    // Генерация сигнала через LLM
+    // Generate signal via LLM
     const signal = await json(messages);
 
-    console.log(`\nLLM Анализ для ${symbol}:`);
-    console.log(`Позиция: ${signal.position}`);
-    console.log(`Заметка: ${signal.note}`);
+    console.log(`\nLLM Analysis for ${symbol}:`);
+    console.log(`Position: ${signal.position}`);
+    console.log(`Note: ${signal.note}`);
 
     if (signal.position === "wait") {
       return null;
@@ -962,7 +962,7 @@ addStrategy({
   },
 });
 
-// Регистрация фрейма
+// Register frame
 addFrame({
   frameName: "test-period",
   interval: "5m",
@@ -970,26 +970,26 @@ addFrame({
   endDate: new Date("2025-12-07"),
 });
 
-// Мониторинг сигналов
+// Monitor signals
 listenSignalBacktest((event) => {
   if (event.action === "opened") {
-    console.log(`\n✓ Позиция открыта:`);
-    console.log(`  Направление: ${event.signal.position}`);
-    console.log(`  Вход: ${event.signal.priceOpen}`);
+    console.log(`\n✓ Position opened:`);
+    console.log(`  Direction: ${event.signal.position}`);
+    console.log(`  Entry: ${event.signal.priceOpen}`);
     console.log(`  TP: ${event.signal.priceTakeProfit}`);
     console.log(`  SL: ${event.signal.priceStopLoss}`);
-    console.log(`  Анализ LLM: ${event.signal.note}`);
+    console.log(`  LLM Analysis: ${event.signal.note}`);
   }
 
   if (event.action === "closed") {
-    console.log(`\n✓ Позиция закрыта:`);
-    console.log(`  Причина: ${event.closeReason}`);
+    console.log(`\n✓ Position closed:`);
+    console.log(`  Reason: ${event.closeReason}`);
     console.log(`  PNL: ${event.pnl.pnlPercentage.toFixed(2)}%`);
   }
 });
 
-// Запуск бэктеста
-console.log("Запуск LLM бэктеста...\n");
+// Run backtest
+console.log("Starting LLM backtest...\n");
 
 await Backtest.background("BTCUSDT", {
   strategyName: "llm-professional-strategy",
@@ -997,20 +997,20 @@ await Backtest.background("BTCUSDT", {
   frameName: "test-period",
 });
 
-console.log("\nБэктест завершен!");
+console.log("\nBacktest completed!");
 ```
 
 ---
 
-## Заключение
+## Conclusion
 
-LLM трейдинг со структурированным JSON выводом открывает новые возможности для создания адаптивных торговых систем. Комбинируя мощность больших языковых моделей с надежностью традиционных индикаторов, вы можете создавать стратегии, которые адаптируются к меняющимся рыночным условиям.
+LLM trading with structured JSON output opens new possibilities for creating adaptive trading systems. By combining the power of large language models with the reliability of traditional indicators, you can create strategies that adapt to changing market conditions.
 
-**Ключевые преимущества**:
-- 🎯 Структурированный и валидируемый вывод
-- 🧠 Адаптивный анализ рыночного контекста
-- 📊 Мультитаймфреймовый анализ
-- 💡 Объяснимые торговые решения
-- 🔄 Легкая модификация стратегий через промпты
+**Key Benefits**:
+- Structured and validatable output
+- Adaptive analysis of market context
+- Multi-timeframe analysis
+- Explainable trading decisions
+- Easy strategy modification through prompts
 
-**Успешного LLM трейдинга!**
+**Happy LLM Trading!**

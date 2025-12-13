@@ -1,59 +1,59 @@
-# Понимание торговых сигналов
+# Understanding Trading Signals
 
-Это руководство объясняет полный жизненный цикл торговых сигналов в backtest-kit - от генерации до закрытия. Понимание машины состояний сигналов критически важно для создания надежных торговых стратегий.
+This guide explains the complete lifecycle of trading signals in backtest-kit - from generation to closure. Understanding the signal state machine is critical for building reliable trading strategies.
 
-## Что такое торговый сигнал?
+## What is a Trading Signal?
 
-Торговый сигнал - это структурированная инструкция для открытия позиции на рынке. Каждый сигнал содержит:
+A trading signal is a structured instruction to open a position in the market. Each signal contains:
 
-- **Направление**: LONG (покупка) или SHORT (продажа)
-- **Цена входа**: Когда открыть позицию
-- **Тейк-профит**: Целевая цена для фиксации прибыли
-- **Стоп-лосс**: Уровень защиты от больших убытков
-- **Время жизни**: Максимальная длительность позиции
+- **Direction**: LONG (buy) or SHORT (sell)
+- **Entry price**: When to open the position
+- **Take-profit**: Target price to lock in profit
+- **Stop-loss**: Protection level against large losses
+- **Lifetime**: Maximum duration of the position
 
 ---
 
-## Машина состояний сигналов
+## Signal State Machine
 
-Каждый сигнал проходит через одно из шести возможных состояний. Фреймворк строго контролирует переходы между состояниями.
+Each signal progresses through one of six possible states. The framework strictly controls transitions between states.
 
 ```mermaid
 stateDiagram-v2
-    [*] --> idle: "Стратегия запущена"
+    [*] --> idle: "Strategy started"
 
-    idle --> scheduled: "getSignal() возвращает\nсигнал с priceOpen"
-    idle --> opened: "getSignal() возвращает\nнемедленный сигнал"
-    idle --> idle: "getSignal() возвращает null"
+    idle --> scheduled: "getSignal() returns\nsignal with priceOpen"
+    idle --> opened: "getSignal() returns\nimmediate signal"
+    idle --> idle: "getSignal() returns null"
 
-    scheduled --> opened: "Цена достигла priceOpen\n(активация)"
-    scheduled --> cancelled: "Таймаут ИЛИ\nSL до активации"
+    scheduled --> opened: "Price reached priceOpen\n(activation)"
+    scheduled --> cancelled: "Timeout OR\nSL before activation"
 
-    opened --> active: "Следующий тик\n(начало мониторинга)"
+    opened --> active: "Next tick\n(begin monitoring)"
 
-    active --> closed: "TP достигнут ИЛИ\nSL достигнут ИЛИ\nвремя истекло"
-    active --> active: "Мониторинг продолжается\n(условия выхода не выполнены)"
+    active --> closed: "TP reached OR\nSL reached OR\ntime expired"
+    active --> active: "Monitoring continues\n(exit conditions not met)"
 
-    closed --> idle: "Сигнал завершен\n(можно создавать новый)"
-    cancelled --> idle: "Отложенный сигнал отменен\n(можно создавать новый)"
+    closed --> idle: "Signal completed\n(can create new)"
+    cancelled --> idle: "Scheduled signal cancelled\n(can create new)"
 ```
 
-**Критически важное ограничение**: Только **один** сигнал может быть активен для пары символ-стратегия в любой момент времени. Новые сигналы ожидают, пока предыдущий сигнал не достигнет состояния `closed` или `cancelled`.
+**Critical constraint**: Only **one** signal can be active for a symbol-strategy pair at any given time. New signals wait until the previous signal reaches `closed` or `cancelled` state.
 
 ---
 
-## Описание состояний
+## State Descriptions
 
-### 1. Idle (Ожидание)
+### 1. Idle (Waiting)
 
-Нет активного сигнала. Стратегия ожидает генерации нового сигнала.
+No active signal. Strategy is waiting for new signal generation.
 
-**Когда**:
-- Стратегия только запустилась
-- Предыдущий сигнал закрыт или отменен
-- Функция `getSignal()` вернула `null`
+**When**:
+- Strategy just started
+- Previous signal closed or cancelled
+- `getSignal()` function returned `null`
 
-**Данные события**:
+**Event data**:
 ```typescript
 {
   action: "idle",
@@ -67,17 +67,17 @@ stateDiagram-v2
 
 ---
 
-### 2. Scheduled (Отложенный)
+### 2. Scheduled (Pending)
 
-Сигнал ожидает, когда цена достигнет `priceOpen` (поведение лимитного ордера).
+Signal is waiting for price to reach `priceOpen` (limit order behavior).
 
-**Когда**: Функция `getSignal()` возвращает сигнал с указанным `priceOpen`, который еще не достигнут.
+**When**: `getSignal()` function returns a signal with specified `priceOpen` that hasn't been reached yet.
 
-**Пример LONG сигнала**:
+**Example LONG signal**:
 ```typescript
 {
   position: "long",
-  priceOpen: 42000,      // Вход когда цена упадет до 42000
+  priceOpen: 42000,      // Entry when price drops to 42000
   priceTakeProfit: 45000,
   priceStopLoss: 40000,
   minuteEstimatedTime: 120,
@@ -85,27 +85,27 @@ stateDiagram-v2
 }
 ```
 
-**Что происходит**:
-1. Сигнал сохраняется как "отложенный"
-2. Каждый тик проверяет, достигла ли цена `priceOpen`
-3. Если цена достигает `priceOpen` → переход в состояние `opened`
-4. Если таймаут или SL до активации → переход в состояние `cancelled`
+**What happens**:
+1. Signal is saved as "scheduled"
+2. Each tick checks if price has reached `priceOpen`
+3. If price reaches `priceOpen` → transition to `opened` state
+4. If timeout or SL before activation → transition to `cancelled` state
 
-**Важные особенности**:
-- **LONG**: активируется когда `currentPrice <= priceOpen` (цена падает до входа)
-- **SHORT**: активируется когда `currentPrice >= priceOpen` (цена растет до входа)
+**Important characteristics**:
+- **LONG**: activates when `currentPrice <= priceOpen` (price drops to entry)
+- **SHORT**: activates when `currentPrice >= priceOpen` (price rises to entry)
 
 ---
 
-### 3. Opened (Открыт)
+### 3. Opened (Open)
 
-Позиция только что открыта. Это промежуточное состояние, которое переходит в `active` на следующем тике.
+Position has just been opened. This is an intermediate state that transitions to `active` on the next tick.
 
-**Когда**:
-- Немедленный сигнал: `idle` → `opened` (когда `priceOpen` не указан)
-- Отложенный сигнал: `scheduled` → `opened` (когда цена активации достигнута)
+**When**:
+- Immediate signal: `idle` → `opened` (when `priceOpen` not specified)
+- Scheduled signal: `scheduled` → `opened` (when activation price reached)
 
-**Данные события**:
+**Event data**:
 ```typescript
 {
   action: "opened",
@@ -125,66 +125,66 @@ stateDiagram-v2
 }
 ```
 
-**Использование**: Этот момент идеален для отправки уведомлений о входе в позицию или логирования начала сделки.
+**Usage**: This moment is ideal for sending notifications about position entry or logging trade start.
 
 ---
 
-### 4. Active (Активный)
+### 4. Active (Active)
 
-Сигнал отслеживается на предмет условий выхода (TP, SL или истечение времени).
+Signal is being monitored for exit conditions (TP, SL, or time expiration).
 
-**Проверяемые условия выхода**:
+**Checked exit conditions**:
 
-#### Для LONG позиций:
-1. **Тейк-профит**: `currentPrice >= signal.priceTakeProfit`
-2. **Стоп-лосс**: `currentPrice <= signal.priceStopLoss`
-3. **Истечение времени**: `currentTime - signal.pendingAt > signal.minuteEstimatedTime * 60 * 1000`
+#### For LONG positions:
+1. **Take-profit**: `currentPrice >= signal.priceTakeProfit`
+2. **Stop-loss**: `currentPrice <= signal.priceStopLoss`
+3. **Time expiration**: `currentTime - signal.pendingAt > signal.minuteEstimatedTime * 60 * 1000`
 
-#### Для SHORT позиций:
-1. **Тейк-профит**: `currentPrice <= signal.priceTakeProfit`
-2. **Стоп-лосс**: `currentPrice >= signal.priceStopLoss`
-3. **Истечение времени**: (аналогично LONG)
+#### For SHORT positions:
+1. **Take-profit**: `currentPrice <= signal.priceTakeProfit`
+2. **Stop-loss**: `currentPrice >= signal.priceStopLoss`
+3. **Time expiration**: (same as LONG)
 
-**Данные события**:
+**Event data**:
 ```typescript
 {
   action: "active",
-  signal: { /* данные сигнала */ },
+  signal: { /* signal data */ },
   currentPrice: 43500,
-  percentTp: 50,   // Прогресс к TP: 50%
-  percentSl: 75,   // Удаленность от SL: 75%
+  percentTp: 50,   // Progress to TP: 50%
+  percentSl: 75,   // Distance from SL: 75%
   strategyName: "macd-crossover",
   exchangeName: "binance",
   symbol: "BTCUSDT"
 }
 ```
 
-**Использование**: Мониторинг `percentTp` и `percentSl` позволяет отслеживать прогресс позиции в реальном времени.
+**Usage**: Monitoring `percentTp` and `percentSl` allows tracking position progress in real-time.
 
 ---
 
-### 5. Closed (Закрыт)
+### 5. Closed (Closed)
 
-Сигнал завершен с расчетом финального PNL. Это терминальное состояние.
+Signal completed with final PNL calculation. This is a terminal state.
 
-**Причины закрытия**:
-- `"take_profit"` - Цена достигла целевого уровня прибыли
-- `"stop_loss"` - Сработал защитный уровень
-- `"time_expired"` - Истекло максимальное время жизни позиции
+**Close reasons**:
+- `"take_profit"` - Price reached target profit level
+- `"stop_loss"` - Protection level triggered
+- `"time_expired"` - Maximum position lifetime expired
 
-**Данные события**:
+**Event data**:
 ```typescript
 {
   action: "closed",
-  signal: { /* данные сигнала */ },
+  signal: { /* signal data */ },
   currentPrice: 45000,
   closeReason: "take_profit",
   closeTimestamp: 1702807200000,
   pnl: {
-    pnlPercentage: 6.7,      // +6.7% после всех издержек
+    pnlPercentage: 6.7,      // +6.7% after all costs
     priceOpen: 42000,
     priceClose: 45000,
-    priceOpenAdjusted: 42168,  // С учетом проскальзывания и комиссий
+    priceOpenAdjusted: 42168,  // Including slippage and fees
     priceCloseAdjusted: 44910
   },
   strategyName: "macd-crossover",
@@ -193,51 +193,51 @@ stateDiagram-v2
 }
 ```
 
-#### Расчет PNL
+#### PNL Calculation
 
-**Для LONG позиций**:
+**For LONG positions**:
 ```
-Скорректированная цена входа:
+Adjusted entry price:
   priceOpenAdjusted = priceOpen × (1 + slippage) × (1 + fee)
 
-Скорректированная цена выхода:
+Adjusted exit price:
   priceCloseAdjusted = priceClose × (1 - slippage) × (1 - fee)
 
-PNL в процентах:
+PNL percentage:
   pnlPercentage = ((priceCloseAdjusted - priceOpenAdjusted) / priceOpenAdjusted) × 100
 ```
 
-**Для SHORT позиций**:
+**For SHORT positions**:
 ```
-Скорректированная цена входа:
+Adjusted entry price:
   priceOpenAdjusted = priceOpen × (1 - slippage) × (1 - fee)
 
-Скорректированная цена выхода:
+Adjusted exit price:
   priceCloseAdjusted = priceClose × (1 + slippage) × (1 + fee)
 
-PNL в процентах:
+PNL percentage:
   pnlPercentage = ((priceOpenAdjusted - priceCloseAdjusted) / priceOpenAdjusted) × 100
 ```
 
-**Торговые издержки по умолчанию**:
-- `CC_PERCENT_SLIPPAGE = 0.1%` (воздействие на рынок)
-- `CC_PERCENT_FEE = 0.1%` (комиссия биржи)
-- **Общие издержки: ~0.4%** (2× проскальзывание + 2× комиссия)
+**Default trading costs**:
+- `CC_PERCENT_SLIPPAGE = 0.1%` (market impact)
+- `CC_PERCENT_FEE = 0.1%` (exchange commission)
+- **Total costs: ~0.4%** (2× slippage + 2× fee)
 
-**Важно**: Для безубыточности сигнал должен достичь минимум 0.4% валовой прибыли.
+**Important**: For breakeven, a signal must achieve at least 0.4% gross profit.
 
 ---
 
-### 6. Cancelled (Отменен)
+### 6. Cancelled (Cancelled)
 
-Отложенный сигнал был отменен без открытия позиции. Это терминальное состояние.
+Scheduled signal was cancelled without opening a position. This is a terminal state.
 
-**Причины отмены**:
+**Cancellation reasons**:
 
-1. **Таймаут**: Отложенный сигнал не активировался в течение `CC_SCHEDULE_AWAIT_MINUTES` (по умолчанию 60 минут)
-2. **Стоп-лосс до активации**: Цена достигла SL до того, как достигла `priceOpen`
+1. **Timeout**: Scheduled signal did not activate within `CC_SCHEDULE_AWAIT_MINUTES` (default 60 minutes)
+2. **Stop-loss before activation**: Price reached SL before reaching `priceOpen`
 
-**Данные события**:
+**Event data**:
 ```typescript
 {
   action: "cancelled",
@@ -258,70 +258,70 @@ PNL в процентах:
 
 ---
 
-## Отложенные сигналы: LONG vs SHORT
+## Scheduled Signals: LONG vs SHORT
 
-Логика активации и отмены отложенных сигналов отличается для LONG и SHORT позиций из-за противоположных направлений движения цены.
+Activation and cancellation logic for scheduled signals differs between LONG and SHORT positions due to opposite price movement directions.
 
-### Активация LONG позиции
+### LONG Position Activation
 
 ```mermaid
 flowchart TD
-    A["Отложенный LONG\npriceOpen = 42000\npriceStopLoss = 41000"] --> B["Мониторинг свечей"]
+    A["Scheduled LONG\npriceOpen = 42000\npriceStopLoss = 41000"] --> B["Monitor candles"]
 
-    B --> C{"Проверка приоритета:\ncandle.low <= priceStopLoss?"}
-    C -->|"Да (low <= 41000)"| D["ОТМЕНИТЬ отложенный\n(SL до активации)"]
-    C -->|"Нет"| E{"candle.low <= priceOpen?"}
+    B --> C{"Priority check:\ncandle.low <= priceStopLoss?"}
+    C -->|"Yes (low <= 41000)"| D["CANCEL scheduled\n(SL before activation)"]
+    C -->|"No"| E{"candle.low <= priceOpen?"}
 
-    E -->|"Да (low <= 42000)"| F["АКТИВИРОВАТЬ сигнал\n(цена достигла входа)"]
-    E -->|"Нет"| G["Продолжить мониторинг"]
+    E -->|"Yes (low <= 42000)"| F["ACTIVATE signal\n(price reached entry)"]
+    E -->|"No"| G["Continue monitoring"]
 
-    G --> H{"Таймаут?\n(CC_SCHEDULE_AWAIT_MINUTES)"}
-    H -->|"Да"| I["ОТМЕНИТЬ отложенный\n(таймаут)"]
-    H -->|"Нет"| B
+    G --> H{"Timeout?\n(CC_SCHEDULE_AWAIT_MINUTES)"}
+    H -->|"Yes"| I["CANCEL scheduled\n(timeout)"]
+    H -->|"No"| B
 
     D --> Z1["cancelled"]
     F --> Z2["opened"]
     I --> Z1
 ```
 
-**Ключевое правило**: Для LONG позиций проверка стоп-лосса имеет **приоритет** над проверкой активации.
+**Key rule**: For LONG positions, stop-loss check has **priority** over activation check.
 
-**Обоснование**: Если цена падает до обоих уровней (SL и priceOpen) на одной свече, позиция должна быть отменена (а не открыта и немедленно закрыта), предотвращая ненужные комиссии.
+**Rationale**: If price drops to both levels (SL and priceOpen) on the same candle, the position should be cancelled (not opened and immediately closed), preventing unnecessary fees.
 
 ---
 
-### Активация SHORT позиции
+### SHORT Position Activation
 
 ```mermaid
 flowchart TD
-    A["Отложенный SHORT\npriceOpen = 42000\npriceStopLoss = 44000"] --> B["Мониторинг свечей"]
+    A["Scheduled SHORT\npriceOpen = 42000\npriceStopLoss = 44000"] --> B["Monitor candles"]
 
-    B --> C{"Проверка приоритета:\ncandle.high >= priceStopLoss?"}
-    C -->|"Да (high >= 44000)"| D["ОТМЕНИТЬ отложенный\n(SL до активации)"]
-    C -->|"Нет"| E{"candle.high >= priceOpen?"}
+    B --> C{"Priority check:\ncandle.high >= priceStopLoss?"}
+    C -->|"Yes (high >= 44000)"| D["CANCEL scheduled\n(SL before activation)"]
+    C -->|"No"| E{"candle.high >= priceOpen?"}
 
-    E -->|"Да (high >= 42000)"| F["АКТИВИРОВАТЬ сигнал\n(цена достигла входа)"]
-    E -->|"Нет"| G["Продолжить мониторинг"]
+    E -->|"Yes (high >= 42000)"| F["ACTIVATE signal\n(price reached entry)"]
+    E -->|"No"| G["Continue monitoring"]
 
-    G --> H{"Таймаут?\n(CC_SCHEDULE_AWAIT_MINUTES)"}
-    H -->|"Да"| I["ОТМЕНИТЬ отложенный\n(таймаут)"]
-    H -->|"Нет"| B
+    G --> H{"Timeout?\n(CC_SCHEDULE_AWAIT_MINUTES)"}
+    H -->|"Yes"| I["CANCEL scheduled\n(timeout)"]
+    H -->|"No"| B
 
     D --> Z1["cancelled"]
     F --> Z2["opened"]
     I --> Z1
 ```
 
-**Ключевое правило**: Для SHORT позиций проверка стоп-лосса имеет **приоритет** над проверкой активации.
+**Key rule**: For SHORT positions, stop-loss check has **priority** over activation check.
 
 ---
 
-## Примеры сценариев отмены
+## Cancellation Scenario Examples
 
-### Пример 1: LONG сигнал - таймаут
+### Example 1: LONG signal - timeout
 
 ```typescript
-// Отложенный LONG сигнал создан
+// Scheduled LONG signal created
 {
   position: "long",
   priceOpen: 42000,
@@ -330,81 +330,81 @@ flowchart TD
   scheduledAt: 10:00
 }
 
-// Цена не достигает 42000 в течение 60 минут
-// Время: 11:00 - Таймаут!
-// Результат: CANCELLED (причина: timeout)
+// Price does not reach 42000 within 60 minutes
+// Time: 11:00 - Timeout!
+// Result: CANCELLED (reason: timeout)
 ```
 
-### Пример 2: LONG сигнал - SL до активации
+### Example 2: LONG signal - SL before activation
 
 ```typescript
-// Отложенный LONG сигнал создан
+// Scheduled LONG signal created
 {
   position: "long",
   priceOpen: 42000,
   priceStopLoss: 41000
 }
 
-// Путь цены: 43000 → 40500 (пропускает priceOpen, достигает SL)
-// Результат: CANCELLED (причина: SL до активации)
-// Обоснование: Открытие по 42000 с немедленным SL по 41000 тратит комиссии впустую
+// Price path: 43000 → 40500 (skips priceOpen, reaches SL)
+// Result: CANCELLED (reason: SL before activation)
+// Rationale: Opening at 42000 with immediate SL at 41000 wastes fees
 ```
 
-### Пример 3: SHORT сигнал - SL до активации
+### Example 3: SHORT signal - SL before activation
 
 ```typescript
-// Отложенный SHORT сигнал создан
+// Scheduled SHORT signal created
 {
   position: "short",
   priceOpen: 42000,
   priceStopLoss: 44000
 }
 
-// Путь цены: 41000 → 45000 (пропускает priceOpen, достигает SL)
-// Результат: CANCELLED (причина: SL до активации)
+// Price path: 41000 → 45000 (skips priceOpen, reaches SL)
+// Result: CANCELLED (reason: SL before activation)
 ```
 
 ---
 
-## Правила валидации сигналов
+## Signal Validation Rules
 
-Фреймворк применяет строгие правила валидации для предотвращения невалидных сделок.
+The framework enforces strict validation rules to prevent invalid trades.
 
-### Общие правила валидации
+### General Validation Rules
 
-| Проверка | LONG | SHORT | Ошибка при несоблюдении |
+| Check | LONG | SHORT | Error if violated |
 |----------|------|-------|-------------------------|
-| Позиция TP/SL | `TP > priceOpen > SL` | `SL > priceOpen > TP` | Нарушена логика цен |
-| Расстояние TP | `((TP - priceOpen) / priceOpen) × 100 ≥ 0.5%` | `((priceOpen - TP) / priceOpen) × 100 ≥ 0.5%` | TP слишком близко для покрытия комиссий |
-| Мин. расстояние SL | `((priceOpen - SL) / priceOpen) × 100 ≥ 0.5%` | `((SL - priceOpen) / priceOpen) × 100 ≥ 0.5%` | SL слишком близко (мгновенная остановка) |
-| Макс. расстояние SL | `((priceOpen - SL) / priceOpen) × 100 ≤ 20%` | `((SL - priceOpen) / priceOpen) × 100 ≤ 20%` | SL слишком далеко (катастрофический убыток) |
-| Время жизни | `minuteEstimatedTime ≤ 1440 минут` | То же | Время жизни сигнала слишком длинное |
+| Position TP/SL | `TP > priceOpen > SL` | `SL > priceOpen > TP` | Price logic violated |
+| TP distance | `((TP - priceOpen) / priceOpen) × 100 ≥ 0.5%` | `((priceOpen - TP) / priceOpen) × 100 ≥ 0.5%` | TP too close to cover fees |
+| Min SL distance | `((priceOpen - SL) / priceOpen) × 100 ≥ 0.5%` | `((SL - priceOpen) / priceOpen) × 100 ≥ 0.5%` | SL too close (instant stop) |
+| Max SL distance | `((priceOpen - SL) / priceOpen) × 100 ≤ 20%` | `((SL - priceOpen) / priceOpen) × 100 ≤ 20%` | SL too far (catastrophic loss) |
+| Lifetime | `minuteEstimatedTime ≤ 1440 minutes` | Same | Signal lifetime too long |
 
-### Валидация немедленных сигналов
+### Immediate Signal Validation
 
-Для сигналов, которые открываются немедленно, дополнительные проверки предотвращают мгновенное закрытие:
+For signals that open immediately, additional checks prevent instant closure:
 
-**LONG немедленный**:
+**LONG immediate**:
 ```
-currentPrice ДОЛЖНА быть между SL и TP:
+currentPrice MUST be between SL and TP:
   priceStopLoss < currentPrice < priceTakeProfit
 ```
 
-**Случаи ошибок**:
-- `currentPrice <= priceStopLoss` → "Сигнал будет немедленно закрыт стоп-лоссом"
-- `currentPrice >= priceTakeProfit` → "Возможность прибыли уже упущена"
+**Error cases**:
+- `currentPrice <= priceStopLoss` → "Signal will be immediately closed by stop-loss"
+- `currentPrice >= priceTakeProfit` → "Profit opportunity already missed"
 
-**SHORT немедленный**:
+**SHORT immediate**:
 ```
-currentPrice ДОЛЖНА быть между TP и SL:
+currentPrice MUST be between TP and SL:
   priceTakeProfit < currentPrice < priceStopLoss
 ```
 
 ---
 
-## Мониторинг сигналов с помощью событий
+## Monitoring Signals with Events
 
-### Слушатели событий
+### Event Listeners
 
 ```typescript
 import { listenSignalBacktest } from "backtest-kit";
@@ -414,62 +414,62 @@ listenSignalBacktest((event) => {
 
   switch (event.action) {
     case "idle":
-      console.log("  Ожидание нового сигнала");
+      console.log("  Waiting for new signal");
       break;
 
     case "scheduled":
-      console.log(`  Отложен: вход по ${event.signal.priceOpen}`);
+      console.log(`  Scheduled: entry at ${event.signal.priceOpen}`);
       break;
 
     case "opened":
-      console.log(`  Позиция открыта: ${event.signal.position} @ ${event.currentPrice}`);
+      console.log(`  Position opened: ${event.signal.position} @ ${event.currentPrice}`);
       break;
 
     case "active":
-      console.log(`  Мониторинг: TP ${event.percentTp}%, SL ${event.percentSl}%`);
+      console.log(`  Monitoring: TP ${event.percentTp}%, SL ${event.percentSl}%`);
       break;
 
     case "closed":
-      console.log(`  Закрыто: ${event.closeReason}`);
+      console.log(`  Closed: ${event.closeReason}`);
       console.log(`  PNL: ${event.pnl.pnlPercentage.toFixed(2)}%`);
       break;
 
     case "cancelled":
-      console.log(`  Отложенный сигнал отменен`);
+      console.log(`  Scheduled signal cancelled`);
       break;
   }
 });
 ```
 
-### Коллбэки стратегии
+### Strategy Callbacks
 
-Альтернативно, используйте коллбэки в схеме стратегии:
+Alternatively, use callbacks in the strategy schema:
 
 ```typescript
 addStrategy({
   strategyName: "macd-crossover",
   interval: "15m",
   getSignal: async (symbol) => {
-    // Логика генерации сигнала
+    // Signal generation logic
   },
   callbacks: {
     onSchedule: (symbol, signal, currentPrice, backtest) => {
-      console.log(`Отложенный сигнал создан для ${symbol}`);
+      console.log(`Scheduled signal created for ${symbol}`);
     },
     onOpen: (symbol, signal, currentPrice, backtest) => {
-      console.log(`Позиция открыта: ${signal.position} @ ${currentPrice}`);
-      // Отправить уведомление, обновить UI, и т.д.
+      console.log(`Position opened: ${signal.position} @ ${currentPrice}`);
+      // Send notification, update UI, etc.
     },
     onActive: (symbol, signal, currentPrice, backtest) => {
-      // Вызывается каждый тик во время мониторинга
-      // Используйте для отслеживания прогресса
+      // Called every tick during monitoring
+      // Use for progress tracking
     },
     onClose: (symbol, signal, priceClose, backtest) => {
-      console.log(`Позиция закрыта @ ${priceClose}`);
-      // Логировать результаты сделки
+      console.log(`Position closed @ ${priceClose}`);
+      // Log trade results
     },
     onCancel: (symbol, signal, currentPrice, backtest) => {
-      console.log(`Отложенный сигнал отменен @ ${currentPrice}`);
+      console.log(`Scheduled signal cancelled @ ${currentPrice}`);
     },
   },
 });
@@ -477,81 +477,81 @@ addStrategy({
 
 ---
 
-## Постоянство сигналов (Live Trading)
+## Signal Persistence (Live Trading)
 
-В режиме live trading активные сигналы сохраняются на диск для защиты от сбоев.
+In live trading mode, active signals are saved to disk for crash protection.
 
-### Что сохраняется
+### What Gets Saved
 
-| Состояние | Сохраняется? | Причина |
+| State | Saved? | Reason |
 |-----------|--------------|---------|
-| `idle` | ❌ Нет | Нет данных для сохранения |
-| `scheduled` | ✅ Да | В PersistScheduleAdapter |
-| `opened` | ✅ Да | В PersistSignalAdapter |
-| `active` | ✅ Да | В PersistSignalAdapter |
-| `closed` | ❌ Нет | Позиция завершена, очищена с диска |
-| `cancelled` | ❌ Нет | Отложенный сигнал отменен, очищен с диска |
+| `idle` | ❌ No | No data to save |
+| `scheduled` | ✅ Yes | In PersistScheduleAdapter |
+| `opened` | ✅ Yes | In PersistSignalAdapter |
+| `active` | ✅ Yes | In PersistSignalAdapter |
+| `closed` | ❌ No | Position completed, cleared from disk |
+| `cancelled` | ❌ No | Scheduled signal cancelled, cleared from disk |
 
-### Восстановление после сбоя
+### Crash Recovery
 
-При перезапуске процесса live trading сигналы восстанавливаются с диска:
+When the live trading process restarts, signals are restored from disk:
 
 ```typescript
-// При запуске Live.background()
-1. Чтение PersistSignalAdapter → восстановление активной позиции
-2. Чтение PersistScheduleAdapter → восстановление отложенного сигнала
-3. Вызов соответствующих коллбэков (onActive / onSchedule)
-4. Продолжение мониторинга с восстановленного состояния
+// On Live.background() startup
+1. Read PersistSignalAdapter → restore active position
+2. Read PersistScheduleAdapter → restore scheduled signal
+3. Call appropriate callbacks (onActive / onSchedule)
+4. Continue monitoring from restored state
 ```
 
-**Ключевые гарантии**:
-- Нет дублирующих сигналов (единый источник истины)
-- Нет потерянных позиций (атомарная запись предотвращает повреждение)
-- Бесшовное восстановление (коллбэки уведомляют о восстановленном состоянии)
+**Key guarantees**:
+- No duplicate signals (single source of truth)
+- No lost positions (atomic writes prevent corruption)
+- Seamless recovery (callbacks notify about restored state)
 
 ---
 
-## Диаграмма проверки условий выхода
+## Exit Condition Check Diagram
 
 ```mermaid
 flowchart TD
-    A["Активный сигнал\n(мониторинг)"] --> B["Получить текущую VWAP цену"]
+    A["Active signal\n(monitoring)"] --> B["Get current VWAP price"]
 
-    B --> C{"LONG или SHORT?"}
+    B --> C{"LONG or SHORT?"}
 
     C -->|"LONG"| D{"currentPrice >= TP?"}
     C -->|"SHORT"| E{"currentPrice <= TP?"}
 
-    D -->|"Да"| F["Закрыть: take_profit"]
-    D -->|"Нет"| G{"currentPrice <= SL?"}
+    D -->|"Yes"| F["Close: take_profit"]
+    D -->|"No"| G{"currentPrice <= SL?"}
 
-    E -->|"Да"| F
-    E -->|"Нет"| H{"currentPrice >= SL?"}
+    E -->|"Yes"| F
+    E -->|"No"| H{"currentPrice >= SL?"}
 
-    G -->|"Да"| I["Закрыть: stop_loss"]
-    G -->|"Нет"| J{"Время истекло?"}
+    G -->|"Yes"| I["Close: stop_loss"]
+    G -->|"No"| J{"Time expired?"}
 
-    H -->|"Да"| I
-    H -->|"Нет"| J
+    H -->|"Yes"| I
+    H -->|"No"| J
 
-    J -->|"Да (currentTime - pendingAt\n> minuteEstimatedTime)"| K["Закрыть: time_expired"]
-    J -->|"Нет"| L["Остаться активным\n(emit onActive)"]
+    J -->|"Yes (currentTime - pendingAt\n> minuteEstimatedTime)"| K["Close: time_expired"]
+    J -->|"No"| L["Remain active\n(emit onActive)"]
 
-    F --> M["Расчет PNL с комиссиями/проскальзыванием"]
+    F --> M["Calculate PNL with fees/slippage"]
     I --> M
     K --> M
 
-    M --> N["Вызов onClose callback"]
-    N --> O["closed состояние"]
+    M --> N["Call onClose callback"]
+    N --> O["closed state"]
 
-    L --> P["Вызов onActive callback"]
-    P --> Q["Продолжить мониторинг"]
+    L --> P["Call onActive callback"]
+    P --> Q["Continue monitoring"]
     Q --> A
 ```
 
 ---
 
-## Практический пример: Полный жизненный цикл
+## Practical Example: Full Lifecycle
 
 ```typescript
 import {
@@ -560,53 +560,53 @@ import {
   Backtest
 } from "backtest-kit";
 
-// Стратегия с отложенным входом
+// Strategy with scheduled entry
 addStrategy({
   strategyName: "breakout-strategy",
   interval: "15m",
   getSignal: async (symbol) => {
     const currentPrice = 50000;
 
-    // Отложенный LONG: ждем пробития вниз к 48000
+    // Scheduled LONG: wait for breakout down to 48000
     return {
       position: "long",
-      priceOpen: 48000,        // Активация при падении
-      priceTakeProfit: 50000,  // +4.17% целевая прибыль
-      priceStopLoss: 46500,    // -3.13% максимальный убыток
-      minuteEstimatedTime: 240,  // 4 часа
+      priceOpen: 48000,        // Activate on drop
+      priceTakeProfit: 50000,  // +4.17% target profit
+      priceStopLoss: 46500,    // -3.13% max loss
+      minuteEstimatedTime: 240,  // 4 hours
       timestamp: Date.now(),
     };
   },
   callbacks: {
     onSchedule: (symbol, signal) => {
-      console.log(`✓ Отложенный сигнал: вход по ${signal.priceOpen}`);
+      console.log(`✓ Scheduled signal: entry at ${signal.priceOpen}`);
     },
     onOpen: (symbol, signal, price) => {
-      console.log(`✓ Позиция открыта по ${price}`);
+      console.log(`✓ Position opened at ${price}`);
     },
     onActive: (symbol, signal, price) => {
-      console.log(`→ Мониторинг: текущая цена ${price}`);
+      console.log(`→ Monitoring: current price ${price}`);
     },
     onClose: (symbol, signal, price) => {
-      console.log(`✓ Позиция закрыта по ${price}`);
+      console.log(`✓ Position closed at ${price}`);
     },
     onCancel: (symbol, signal) => {
-      console.log(`✗ Отложенный сигнал отменен`);
+      console.log(`✗ Scheduled signal cancelled`);
     },
   },
 });
 
-// Мониторинг всех событий
+// Monitor all events
 listenSignalBacktest((event) => {
   console.log(`[${event.action}] ${event.symbol} @ ${event.currentPrice}`);
 
   if (event.action === "closed") {
-    console.log(`  Причина: ${event.closeReason}`);
+    console.log(`  Reason: ${event.closeReason}`);
     console.log(`  PNL: ${event.pnl.pnlPercentage.toFixed(2)}%`);
   }
 });
 
-// Запуск бэктеста
+// Run backtest
 Backtest.background("BTCUSDT", {
   strategyName: "breakout-strategy",
   exchangeName: "binance",
@@ -614,28 +614,28 @@ Backtest.background("BTCUSDT", {
 });
 ```
 
-**Возможный вывод**:
+**Possible output**:
 ```
-✓ Отложенный сигнал: вход по 48000
+✓ Scheduled signal: entry at 48000
 [scheduled] BTCUSDT @ 50000
 [opened] BTCUSDT @ 48000
-✓ Позиция открыта по 48000
+✓ Position opened at 48000
 [active] BTCUSDT @ 48500
-→ Мониторинг: текущая цена 48500
+→ Monitoring: current price 48500
 [active] BTCUSDT @ 49200
-→ Мониторинг: текущая цена 49200
+→ Monitoring: current price 49200
 [closed] BTCUSDT @ 50000
-✓ Позиция закрыта по 50000
-  Причина: take_profit
+✓ Position closed at 50000
+  Reason: take_profit
   PNL: 3.76%
 ```
 
 ---
 
-## Следующие шаги
+## Next Steps
 
-После понимания жизненного цикла сигналов:
+After understanding the signal lifecycle:
 
-1. **[Настройка живой торговли](04-live-trading.md)** - переход к реальному исполнению с автоматическим восстановлением после сбоев
-2. **[Управление рисками](05-risk-management.md)** - реализация правил валидации портфеля и ограничений позиций
-3. **[AI оптимизация](06-ai-optimization.md)** - генерация стратегий с использованием больших языковых моделей
+1. **[Live Trading Setup](04-live-trading.md)** - transition to real execution with automatic crash recovery
+2. **[Risk Management](05-risk-management.md)** - implement portfolio validation rules and position limits
+3. **[AI Optimization](06-ai-optimization.md)** - generate strategies using large language models
