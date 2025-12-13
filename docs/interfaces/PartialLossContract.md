@@ -28,6 +28,24 @@ symbol: string
 Trading pair symbol (e.g., "BTCUSDT").
 Identifies which market this loss event belongs to.
 
+### strategyName
+
+```ts
+strategyName: string
+```
+
+Strategy name that generated this signal.
+Identifies which strategy execution this loss event belongs to.
+
+### exchangeName
+
+```ts
+exchangeName: string
+```
+
+Exchange name where this signal is being executed.
+Identifies which exchange this loss event belongs to.
+
 ### data
 
 ```ts

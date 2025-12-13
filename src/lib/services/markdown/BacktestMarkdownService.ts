@@ -11,6 +11,7 @@ import TYPES from "../../../lib/core/types";
 import { memoize, singleshot } from "functools-kit";
 import { signalBacktestEmitter } from "../../../config/emitters";
 import { toPlainString } from "../../../helpers/toPlainString";
+import { GLOBAL_CONFIG } from "../../../config/params";
 
 /**
  * Column configuration for markdown table generation.
@@ -23,6 +24,8 @@ interface Column {
   label: string;
   /** Formatting function to convert signal data to string */
   format: (data: IStrategyTickResultClosed) => string;
+  /** Function to determine if column should be visible */
+  isVisible: () => boolean;
 }
 
 /**
@@ -107,41 +110,49 @@ const columns: Column[] = [
     key: "signalId",
     label: "Signal ID",
     format: (data) => data.signal.id,
+    isVisible: () => true,
   },
   {
     key: "symbol",
     label: "Symbol",
     format: (data) => data.signal.symbol,
+    isVisible: () => true,
   },
   {
     key: "position",
     label: "Position",
     format: (data) => data.signal.position.toUpperCase(),
+    isVisible: () => true,
   },
   {
     key: "note",
     label: "Note",
     format: (data) => toPlainString(data.signal.note ?? "N/A"),
+    isVisible: () => GLOBAL_CONFIG.CC_REPORT_SHOW_SIGNAL_NOTE,
   },
   {
     key: "openPrice",
     label: "Open Price",
     format: (data) => `${data.signal.priceOpen.toFixed(8)} USD`,
+    isVisible: () => true,
   },
   {
     key: "closePrice",
     label: "Close Price",
     format: (data) => `${data.currentPrice.toFixed(8)} USD`,
+    isVisible: () => true,
   },
   {
     key: "takeProfit",
     label: "Take Profit",
     format: (data) => `${data.signal.priceTakeProfit.toFixed(8)} USD`,
+    isVisible: () => true,
   },
   {
     key: "stopLoss",
     label: "Stop Loss",
     format: (data) => `${data.signal.priceStopLoss.toFixed(8)} USD`,
+    isVisible: () => true,
   },
   {
     key: "pnl",
@@ -150,11 +161,13 @@ const columns: Column[] = [
       const pnlPercentage = data.pnl.pnlPercentage;
       return `${pnlPercentage > 0 ? "+" : ""}${pnlPercentage.toFixed(2)}%`;
     },
+    isVisible: () => true,
   },
   {
     key: "closeReason",
     label: "Close Reason",
     format: (data) => data.closeReason,
+    isVisible: () => true,
   },
   {
     key: "duration",
@@ -164,16 +177,19 @@ const columns: Column[] = [
       const durationMin = Math.round(durationMs / 60000);
       return `${durationMin}`;
     },
+    isVisible: () => true,
   },
   {
     key: "openTimestamp",
     label: "Open Time",
     format: (data) => new Date(data.signal.pendingAt).toISOString(),
+    isVisible: () => true,
   },
   {
     key: "closeTimestamp",
     label: "Close Time",
     format: (data) => new Date(data.closeTimestamp).toISOString(),
+    isVisible: () => true,
   },
 ];
 
@@ -295,10 +311,11 @@ class ReportStorage {
       ].join("\n");
     }
 
-    const header = columns.map((col) => col.label);
-    const separator = columns.map(() => "---");
+    const visibleColumns = columns.filter((col) => col.isVisible());
+    const header = visibleColumns.map((col) => col.label);
+    const separator = visibleColumns.map(() => "---");
     const rows = this._signalList.map((closedSignal) =>
-      columns.map((col) => col.format(closedSignal))
+      visibleColumns.map((col) => col.format(closedSignal))
     );
 
     const tableData = [header, separator, ...rows];

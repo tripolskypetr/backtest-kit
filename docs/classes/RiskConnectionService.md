@@ -59,6 +59,7 @@ Checks if a signal should be allowed based on risk limits.
 
 Routes to appropriate ClientRisk instance based on provided context.
 Validates portfolio drawdown, symbol exposure, position count, and daily loss limits.
+ClientRisk will emit riskSubject event via onRejected callback when signal is rejected.
 
 ### addSignal
 

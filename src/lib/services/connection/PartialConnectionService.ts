@@ -17,6 +17,8 @@ import {
  * Emits PartialProfitContract event to all subscribers.
  *
  * @param symbol - Trading pair symbol
+ * @param strategyName - Strategy name that generated this signal
+ * @param exchangeName - Exchange name where this signal is being executed
  * @param data - Signal row data
  * @param currentPrice - Current market price
  * @param level - Profit level reached
@@ -25,6 +27,8 @@ import {
  */
 const COMMIT_PROFIT_FN = async (
   symbol: string,
+  strategyName: string,
+  exchangeName: string,
   data: ISignalRow,
   currentPrice: number,
   level: PartialLevel,
@@ -33,6 +37,8 @@ const COMMIT_PROFIT_FN = async (
 ) =>
   await partialProfitSubject.next({
     symbol,
+    strategyName,
+    exchangeName,
     data,
     currentPrice,
     level,
@@ -47,6 +53,8 @@ const COMMIT_PROFIT_FN = async (
  * Emits PartialLossContract event to all subscribers.
  *
  * @param symbol - Trading pair symbol
+ * @param strategyName - Strategy name that generated this signal
+ * @param exchangeName - Exchange name where this signal is being executed
  * @param data - Signal row data
  * @param currentPrice - Current market price
  * @param level - Loss level reached
@@ -55,6 +63,8 @@ const COMMIT_PROFIT_FN = async (
  */
 const COMMIT_LOSS_FN = async (
   symbol: string,
+  strategyName: string,
+  exchangeName: string,
   data: ISignalRow,
   currentPrice: number,
   level: PartialLevel,
@@ -63,6 +73,8 @@ const COMMIT_LOSS_FN = async (
 ) =>
   await partialLossSubject.next({
     symbol,
+    strategyName,
+    exchangeName,
     data,
     currentPrice,
     level,

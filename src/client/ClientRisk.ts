@@ -36,10 +36,13 @@ const DO_VALIDATION_FN = trycatch(
   {
     defaultValue: false,
     fallback: (error) => {
-      backtest.loggerService.warn("ClientRisk exception thrown", {
+      const message = "ClientRisk exception thrown";
+      const payload = {
         error: errorData(error),
         message: getErrorMessage(error),
-      });
+      };
+      backtest.loggerService.warn(message, payload);
+      console.warn(message, payload);
       validationSubject.next(error);
     },
   }
@@ -182,6 +185,7 @@ export class ClientRisk implements IRisk {
 
     // Execute custom validations
     let isValid = true;
+    let rejectionNote = "N/A";
     if (this.params.validations) {
       for (const validation of this.params.validations) {
         if (
@@ -195,12 +199,20 @@ export class ClientRisk implements IRisk {
           )
         ) {
           isValid = false;
+          // Capture note from validation if available
+          if (typeof validation !== "function" && validation.note) {
+            rejectionNote = validation.note;
+          }
           break;
         }
       }
     }
 
     if (!isValid) {
+      // Call params.onRejected for riskSubject emission
+      await this.params.onRejected(params.symbol, params, riskMap.size, rejectionNote, Date.now());
+
+      // Call schema callbacks.onRejected if defined
       if (this.params.callbacks?.onRejected) {
         this.params.callbacks.onRejected(params.symbol, params);
       }

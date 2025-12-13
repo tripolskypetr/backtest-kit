@@ -104,6 +104,14 @@ declare const GLOBAL_CONFIG: {
      * Example: 3 candles = 12 points (use average), 5 candles = 20 points (use median)
      */
     CC_GET_CANDLES_MIN_CANDLES_FOR_MEDIAN: number;
+    /**
+     * Controls visibility of signal notes in markdown report tables.
+     * When enabled, the "Note" column will be displayed in all markdown reports
+     * (backtest, live, schedule, risk, etc.)
+     *
+     * Default: false (notes are hidden to reduce table width and improve readability)
+     */
+    CC_REPORT_SHOW_SIGNAL_NOTE: boolean;
 };
 /**
  * Type for global configuration object.
@@ -197,6 +205,7 @@ declare function getConfig(): {
     CC_GET_CANDLES_RETRY_DELAY_MS: number;
     CC_GET_CANDLES_PRICE_ANOMALY_THRESHOLD_FACTOR: number;
     CC_GET_CANDLES_MIN_CANDLES_FOR_MEDIAN: number;
+    CC_REPORT_SHOW_SIGNAL_NOTE: boolean;
 };
 /**
  * Retrieves the default configuration object for the framework.
@@ -226,6 +235,7 @@ declare function getDefaultConfig(): Readonly<{
     CC_GET_CANDLES_RETRY_DELAY_MS: number;
     CC_GET_CANDLES_PRICE_ANOMALY_THRESHOLD_FACTOR: number;
     CC_GET_CANDLES_MIN_CANDLES_FOR_MEDIAN: number;
+    CC_REPORT_SHOW_SIGNAL_NOTE: boolean;
 }>;
 
 /**
@@ -624,11 +634,23 @@ interface IRiskSchema {
 }
 /**
  * Risk parameters passed to ClientRisk constructor.
- * Combines schema with runtime dependencies.
+ * Combines schema with runtime dependencies and emission callbacks.
  */
 interface IRiskParams extends IRiskSchema {
     /** Logger service for debug output */
     logger: ILogger;
+    /**
+     * Callback invoked when a signal is rejected due to risk limits.
+     * Called before emitting to riskSubject.
+     * Used for event emission to riskSubject (separate from schema callbacks).
+     *
+     * @param symbol - Trading pair symbol
+     * @param params - Risk check arguments
+     * @param activePositionCount - Number of active positions at rejection time
+     * @param comment - Rejection reason from validation note or "N/A"
+     * @param timestamp - Event timestamp in milliseconds
+     */
+    onRejected: (symbol: string, params: IRiskCheckArgs, activePositionCount: number, comment: string, timestamp: number) => void | Promise<void>;
 }
 /**
  * Risk interface implemented by ClientRisk.
@@ -2760,6 +2782,16 @@ interface PartialProfitContract {
      */
     symbol: string;
     /**
+     * Strategy name that generated this signal.
+     * Identifies which strategy execution this profit event belongs to.
+     */
+    strategyName: string;
+    /**
+     * Exchange name where this signal is being executed.
+     * Identifies which exchange this profit event belongs to.
+     */
+    exchangeName: string;
+    /**
      * Complete signal row data.
      * Contains all signal information: id, position, priceOpen, priceTakeProfit, priceStopLoss, etc.
      */
@@ -2845,6 +2877,16 @@ interface PartialLossContract {
      */
     symbol: string;
     /**
+     * Strategy name that generated this signal.
+     * Identifies which strategy execution this loss event belongs to.
+     */
+    strategyName: string;
+    /**
+     * Exchange name where this signal is being executed.
+     * Identifies which exchange this loss event belongs to.
+     */
+    exchangeName: string;
+    /**
      * Complete signal row data.
      * Contains all signal information: id, position, priceOpen, priceTakeProfit, priceStopLoss, etc.
      */
@@ -2891,6 +2933,95 @@ interface PartialLossContract {
      * const entryTime = event.data.pendingAt;
      * const timeInLoss = event.timestamp - entryTime;
      * console.log(`In loss for ${timeInLoss / 1000 / 60} minutes`);
+     * ```
+     */
+    timestamp: number;
+}
+
+/**
+ * Contract for risk rejection events.
+ *
+ * Emitted by riskSubject ONLY when a signal is REJECTED due to risk validation failure.
+ * Used for tracking actual risk violations and monitoring rejected signals.
+ *
+ * Events are emitted only when risk limits are violated (not for allowed signals).
+ * This prevents spam and allows focusing on actual risk management interventions.
+ *
+ * Consumers:
+ * - RiskMarkdownService: Accumulates rejection events for report generation
+ * - User callbacks via listenRisk() / listenRiskOnce()
+ *
+ * @example
+ * ```typescript
+ * import { listenRisk } from "backtest-kit";
+ *
+ * // Listen to all risk rejection events
+ * listenRisk((event) => {
+ *   console.log(`[RISK REJECTED] Signal for ${event.symbol}`);
+ *   console.log(`Strategy: ${event.strategyName}`);
+ *   console.log(`Active positions: ${event.activePositionCount}`);
+ *   console.log(`Price: ${event.currentPrice}`);
+ *   console.log(`Timestamp: ${new Date(event.timestamp).toISOString()}`);
+ * });
+ *
+ * // Alert on risk rejections for specific symbol
+ * listenRisk((event) => {
+ *   if (event.symbol === "BTCUSDT") {
+ *     console.warn("BTC signal rejected due to risk limits!");
+ *   }
+ * });
+ * ```
+ */
+interface RiskContract {
+    /**
+     * Trading pair symbol (e.g., "BTCUSDT").
+     * Identifies which market this rejected signal belongs to.
+     */
+    symbol: string;
+    /**
+     * Pending signal to apply.
+     * Contains signal details (position, priceOpen, priceTakeProfit, priceStopLoss, etc).
+     */
+    pendingSignal: ISignalDto;
+    /**
+     * Strategy name requesting to open a position.
+     * Identifies which strategy attempted to create the signal.
+     */
+    strategyName: StrategyName;
+    /**
+     * Exchange name.
+     * Identifies which exchange this signal was for.
+     */
+    exchangeName: ExchangeName;
+    /**
+     * Current VWAP price at the time of rejection.
+     * Market price when risk check was performed.
+     */
+    currentPrice: number;
+    /**
+     * Number of currently active positions across all strategies at rejection time.
+     * Used to track portfolio-level exposure when signal was rejected.
+     */
+    activePositionCount: number;
+    /**
+     * Comment describing why the signal was rejected.
+     * Captured from IRiskValidation.note or "N/A" if not provided.
+     *
+     * @example
+     * ```typescript
+     * console.log(`Rejection reason: ${event.comment}`);
+     * // Output: "Rejection reason: Max 3 positions allowed"
+     * ```
+     */
+    comment: string;
+    /**
+     * Event timestamp in milliseconds since Unix epoch.
+     * Represents when the signal was rejected.
+     *
+     * @example
+     * ```typescript
+     * const eventDate = new Date(event.timestamp);
+     * console.log(`Signal rejected at: ${eventDate.toISOString()}`);
      * ```
      */
     timestamp: number;
@@ -3616,6 +3747,69 @@ declare function listenPartialLoss(fn: (event: PartialLossContract) => void): ()
  * ```
  */
 declare function listenPartialLossOnce(filterFn: (event: PartialLossContract) => boolean, fn: (event: PartialLossContract) => void): () => void;
+/**
+ * Subscribes to risk rejection events with queued async processing.
+ *
+ * Emits ONLY when a signal is rejected due to risk validation failure.
+ * Does not emit for allowed signals (prevents spam).
+ * Events are processed sequentially in order received, even if callback is async.
+ * Uses queued wrapper to prevent concurrent execution of the callback.
+ *
+ * @param fn - Callback function to handle risk rejection events
+ * @returns Unsubscribe function to stop listening to events
+ *
+ * @example
+ * ```typescript
+ * import { listenRisk } from "./function/event";
+ *
+ * const unsubscribe = listenRisk((event) => {
+ *   console.log(`[RISK REJECTED] Signal for ${event.symbol}`);
+ *   console.log(`Strategy: ${event.strategyName}`);
+ *   console.log(`Position: ${event.pendingSignal.position}`);
+ *   console.log(`Active positions: ${event.activePositionCount}`);
+ *   console.log(`Reason: ${event.comment}`);
+ *   console.log(`Price: ${event.currentPrice}`);
+ * });
+ *
+ * // Later: stop listening
+ * unsubscribe();
+ * ```
+ */
+declare function listenRisk(fn: (event: RiskContract) => void): () => void;
+/**
+ * Subscribes to filtered risk rejection events with one-time execution.
+ *
+ * Listens for events matching the filter predicate, then executes callback once
+ * and automatically unsubscribes. Useful for waiting for specific risk rejection conditions.
+ *
+ * @param filterFn - Predicate to filter which events trigger the callback
+ * @param fn - Callback function to handle the filtered event (called only once)
+ * @returns Unsubscribe function to cancel the listener before it fires
+ *
+ * @example
+ * ```typescript
+ * import { listenRiskOnce } from "./function/event";
+ *
+ * // Wait for first risk rejection on BTCUSDT
+ * listenRiskOnce(
+ *   (event) => event.symbol === "BTCUSDT",
+ *   (event) => {
+ *     console.log("BTCUSDT signal rejected!");
+ *     console.log("Reason:", event.comment);
+ *   }
+ * );
+ *
+ * // Wait for rejection due to position limit
+ * const cancel = listenRiskOnce(
+ *   (event) => event.comment.includes("Max") && event.activePositionCount >= 3,
+ *   (event) => console.log("Position limit reached:", event.activePositionCount)
+ * );
+ *
+ * // Cancel if needed before event fires
+ * cancel();
+ * ```
+ */
+declare function listenRiskOnce(filterFn: (event: RiskContract) => boolean, fn: (event: RiskContract) => void): () => void;
 
 /**
  * Fetches historical candle data from the registered exchange.
@@ -4782,6 +4976,182 @@ declare class PartialMarkdownService {
      * ```typescript
      * const service = new PartialMarkdownService();
      * await service.init(); // Subscribe to profit/loss events
+     * ```
+     */
+    protected init: (() => Promise<void>) & functools_kit.ISingleshotClearable;
+}
+
+/**
+ * Risk rejection event data for report generation.
+ * Contains all information about rejected signals due to risk limits.
+ */
+interface RiskEvent {
+    /** Event timestamp in milliseconds */
+    timestamp: number;
+    /** Trading pair symbol */
+    symbol: string;
+    /** Pending signal details */
+    pendingSignal: ISignalDto;
+    /** Strategy name */
+    strategyName: string;
+    /** Exchange name */
+    exchangeName: string;
+    /** Current market price */
+    currentPrice: number;
+    /** Number of active positions at rejection time */
+    activePositionCount: number;
+    /** Rejection reason from validation note */
+    comment: string;
+}
+/**
+ * Statistical data calculated from risk rejection events.
+ *
+ * Provides metrics for risk management tracking.
+ *
+ * @example
+ * ```typescript
+ * const stats = await Risk.getData("BTCUSDT", "my-strategy");
+ *
+ * console.log(`Total rejections: ${stats.totalRejections}`);
+ * console.log(`Rejections by symbol:`, stats.bySymbol);
+ * ```
+ */
+interface RiskStatistics {
+    /** Array of all risk rejection events with full details */
+    eventList: RiskEvent[];
+    /** Total number of risk rejections */
+    totalRejections: number;
+    /** Rejections grouped by symbol */
+    bySymbol: Record<string, number>;
+    /** Rejections grouped by strategy */
+    byStrategy: Record<string, number>;
+}
+/**
+ * Service for generating and saving risk rejection markdown reports.
+ *
+ * Features:
+ * - Listens to risk rejection events via riskSubject
+ * - Accumulates all rejection events per symbol-strategy pair
+ * - Generates markdown tables with detailed rejection information
+ * - Provides statistics (total rejections, by symbol, by strategy)
+ * - Saves reports to disk in dump/risk/{symbol}_{strategyName}.md
+ *
+ * @example
+ * ```typescript
+ * const service = new RiskMarkdownService();
+ *
+ * // Service automatically subscribes to subjects on init
+ * // No manual callback setup needed
+ *
+ * // Later: generate and save report
+ * await service.dump("BTCUSDT", "my-strategy");
+ * ```
+ */
+declare class RiskMarkdownService {
+    /** Logger service for debug output */
+    private readonly loggerService;
+    /**
+     * Memoized function to get or create ReportStorage for a symbol-strategy pair.
+     * Each symbol-strategy combination gets its own isolated storage instance.
+     */
+    private getStorage;
+    /**
+     * Processes risk rejection events and accumulates them.
+     * Should be called from riskSubject subscription.
+     *
+     * @param data - Risk rejection event data
+     *
+     * @example
+     * ```typescript
+     * const service = new RiskMarkdownService();
+     * // Service automatically subscribes in init()
+     * ```
+     */
+    private tickRejection;
+    /**
+     * Gets statistical data from all risk rejection events for a symbol-strategy pair.
+     * Delegates to ReportStorage.getData().
+     *
+     * @param symbol - Trading pair symbol to get data for
+     * @param strategyName - Strategy name to get data for
+     * @returns Statistical data object with all metrics
+     *
+     * @example
+     * ```typescript
+     * const service = new RiskMarkdownService();
+     * const stats = await service.getData("BTCUSDT", "my-strategy");
+     * console.log(stats.totalRejections, stats.bySymbol);
+     * ```
+     */
+    getData: (symbol: string, strategyName: string) => Promise<RiskStatistics>;
+    /**
+     * Generates markdown report with all risk rejection events for a symbol-strategy pair.
+     * Delegates to ReportStorage.getReport().
+     *
+     * @param symbol - Trading pair symbol to generate report for
+     * @param strategyName - Strategy name to generate report for
+     * @returns Markdown formatted report string with table of all events
+     *
+     * @example
+     * ```typescript
+     * const service = new RiskMarkdownService();
+     * const markdown = await service.getReport("BTCUSDT", "my-strategy");
+     * console.log(markdown);
+     * ```
+     */
+    getReport: (symbol: string, strategyName: string) => Promise<string>;
+    /**
+     * Saves symbol-strategy report to disk.
+     * Creates directory if it doesn't exist.
+     * Delegates to ReportStorage.dump().
+     *
+     * @param symbol - Trading pair symbol to save report for
+     * @param strategyName - Strategy name to save report for
+     * @param path - Directory path to save report (default: "./dump/risk")
+     *
+     * @example
+     * ```typescript
+     * const service = new RiskMarkdownService();
+     *
+     * // Save to default path: ./dump/risk/BTCUSDT_my-strategy.md
+     * await service.dump("BTCUSDT", "my-strategy");
+     *
+     * // Save to custom path: ./custom/path/BTCUSDT_my-strategy.md
+     * await service.dump("BTCUSDT", "my-strategy", "./custom/path");
+     * ```
+     */
+    dump: (symbol: string, strategyName: string, path?: string) => Promise<void>;
+    /**
+     * Clears accumulated event data from storage.
+     * If ctx is provided, clears only that specific symbol-strategy pair's data.
+     * If nothing is provided, clears all data.
+     *
+     * @param ctx - Optional context with symbol and strategyName
+     *
+     * @example
+     * ```typescript
+     * const service = new RiskMarkdownService();
+     *
+     * // Clear specific symbol-strategy pair
+     * await service.clear({ symbol: "BTCUSDT", strategyName: "my-strategy" });
+     *
+     * // Clear all data
+     * await service.clear();
+     * ```
+     */
+    clear: (ctx?: {
+        symbol: string;
+        strategyName: string;
+    }) => Promise<void>;
+    /**
+     * Initializes the service by subscribing to risk rejection events.
+     * Uses singleshot to ensure initialization happens only once.
+     * Automatically called on first use.
+     *
+     * @example
+     * ```typescript
+     * const service = new RiskMarkdownService();
+     * await service.init(); // Subscribe to rejection events
      * ```
      */
     protected init: (() => Promise<void>) & functools_kit.ISingleshotClearable;
@@ -6445,6 +6815,157 @@ declare class ConstantUtils {
 declare const Constant: ConstantUtils;
 
 /**
+ * Utility class for accessing risk rejection reports and statistics.
+ *
+ * Provides static-like methods (via singleton instance) to retrieve data
+ * accumulated by RiskMarkdownService from risk rejection events.
+ *
+ * Features:
+ * - Statistical data extraction (total rejections count, by symbol, by strategy)
+ * - Markdown report generation with event tables
+ * - File export to disk
+ *
+ * Data source:
+ * - RiskMarkdownService listens to riskSubject
+ * - Accumulates rejection events in ReportStorage (max 250 events per symbol-strategy pair)
+ * - Events include: timestamp, symbol, strategyName, position, exchangeName, price, activePositionCount, comment
+ *
+ * @example
+ * ```typescript
+ * import { Risk } from "./classes/Risk";
+ *
+ * // Get statistical data for BTCUSDT:my-strategy
+ * const stats = await Risk.getData("BTCUSDT", "my-strategy");
+ * console.log(`Total rejections: ${stats.totalRejections}`);
+ * console.log(`By symbol:`, stats.bySymbol);
+ * console.log(`By strategy:`, stats.byStrategy);
+ *
+ * // Generate markdown report
+ * const markdown = await Risk.getReport("BTCUSDT", "my-strategy");
+ * console.log(markdown); // Formatted table with all rejection events
+ *
+ * // Export report to file
+ * await Risk.dump("BTCUSDT", "my-strategy"); // Saves to ./dump/risk/BTCUSDT_my-strategy.md
+ * await Risk.dump("BTCUSDT", "my-strategy", "./custom/path"); // Custom directory
+ * ```
+ */
+declare class RiskUtils {
+    /**
+     * Retrieves statistical data from accumulated risk rejection events.
+     *
+     * Delegates to RiskMarkdownService.getData() which reads from ReportStorage.
+     * Returns aggregated metrics calculated from all rejection events.
+     *
+     * @param symbol - Trading pair symbol (e.g., "BTCUSDT")
+     * @param strategyName - Strategy name (e.g., "my-strategy")
+     * @returns Promise resolving to RiskStatistics object with counts and event list
+     *
+     * @example
+     * ```typescript
+     * const stats = await Risk.getData("BTCUSDT", "my-strategy");
+     *
+     * console.log(`Total rejections: ${stats.totalRejections}`);
+     * console.log(`Rejections by symbol:`, stats.bySymbol);
+     * console.log(`Rejections by strategy:`, stats.byStrategy);
+     *
+     * // Iterate through all rejection events
+     * for (const event of stats.eventList) {
+     *   console.log(`REJECTED: ${event.symbol} - ${event.comment} (${event.activePositionCount} active)`);
+     * }
+     * ```
+     */
+    getData: (symbol: string, strategyName: string) => Promise<RiskStatistics>;
+    /**
+     * Generates markdown report with all risk rejection events for a symbol-strategy pair.
+     *
+     * Creates formatted table containing:
+     * - Symbol
+     * - Strategy
+     * - Position (LONG/SHORT)
+     * - Exchange
+     * - Price
+     * - Active Positions (at rejection time)
+     * - Reason (from validation note)
+     * - Timestamp (ISO 8601)
+     *
+     * Also includes summary statistics at the end (total rejections, by symbol, by strategy).
+     *
+     * @param symbol - Trading pair symbol (e.g., "BTCUSDT")
+     * @param strategyName - Strategy name (e.g., "my-strategy")
+     * @returns Promise resolving to markdown formatted report string
+     *
+     * @example
+     * ```typescript
+     * const markdown = await Risk.getReport("BTCUSDT", "my-strategy");
+     * console.log(markdown);
+     *
+     * // Output:
+     * // # Risk Rejection Report: BTCUSDT:my-strategy
+     * //
+     * // | Symbol | Strategy | Position | Exchange | Price | Active Positions | Reason | Timestamp |
+     * // | --- | --- | --- | --- | --- | --- | --- | --- |
+     * // | BTCUSDT | my-strategy | LONG | binance | 50000.00000000 USD | 3 | Max 3 positions allowed | 2024-01-15T10:30:00.000Z |
+     * //
+     * // **Total rejections:** 1
+     * //
+     * // ## Rejections by Symbol
+     * // - BTCUSDT: 1
+     * //
+     * // ## Rejections by Strategy
+     * // - my-strategy: 1
+     * ```
+     */
+    getReport: (symbol: string, strategyName: string) => Promise<string>;
+    /**
+     * Generates and saves markdown report to file.
+     *
+     * Creates directory if it doesn't exist.
+     * Filename format: {symbol}_{strategyName}.md (e.g., "BTCUSDT_my-strategy.md")
+     *
+     * Delegates to RiskMarkdownService.dump() which:
+     * 1. Generates markdown report via getReport()
+     * 2. Creates output directory (recursive mkdir)
+     * 3. Writes file with UTF-8 encoding
+     * 4. Logs success/failure to console
+     *
+     * @param symbol - Trading pair symbol (e.g., "BTCUSDT")
+     * @param strategyName - Strategy name (e.g., "my-strategy")
+     * @param path - Output directory path (default: "./dump/risk")
+     * @returns Promise that resolves when file is written
+     *
+     * @example
+     * ```typescript
+     * // Save to default path: ./dump/risk/BTCUSDT_my-strategy.md
+     * await Risk.dump("BTCUSDT", "my-strategy");
+     *
+     * // Save to custom path: ./reports/risk/BTCUSDT_my-strategy.md
+     * await Risk.dump("BTCUSDT", "my-strategy", "./reports/risk");
+     *
+     * // After multiple symbols backtested, export all risk reports
+     * for (const symbol of ["BTCUSDT", "ETHUSDT", "BNBUSDT"]) {
+     *   await Risk.dump(symbol, "my-strategy", "./backtest-results");
+     * }
+     * ```
+     */
+    dump: (symbol: string, strategyName: string, path?: string) => Promise<void>;
+}
+/**
+ * Global singleton instance of RiskUtils.
+ * Provides static-like access to risk rejection reporting methods.
+ *
+ * @example
+ * ```typescript
+ * import { Risk } from "backtest-kit";
+ *
+ * // Usage same as RiskUtils methods
+ * const stats = await Risk.getData("BTCUSDT", "my-strategy");
+ * const report = await Risk.getReport("BTCUSDT", "my-strategy");
+ * await Risk.dump("BTCUSDT", "my-strategy");
+ * ```
+ */
+declare const Risk: RiskUtils;
+
+/**
  * Contract for walker stop signal events.
  *
  * Emitted when Walker.stop() is called to interrupt a running walker.
@@ -6567,6 +7088,12 @@ declare const partialProfitSubject: Subject<PartialProfitContract>;
  * Emits when a signal reaches a loss level (10%, 20%, 30%, etc).
  */
 declare const partialLossSubject: Subject<PartialLossContract>;
+/**
+ * Risk rejection emitter for risk management violations.
+ * Emits ONLY when a signal is rejected due to risk validation failure.
+ * Does not emit for allowed signals (prevents spam).
+ */
+declare const riskSubject: Subject<RiskContract>;
 
 declare const emitters_doneBacktestSubject: typeof doneBacktestSubject;
 declare const emitters_doneLiveSubject: typeof doneLiveSubject;
@@ -6579,6 +7106,7 @@ declare const emitters_performanceEmitter: typeof performanceEmitter;
 declare const emitters_progressBacktestEmitter: typeof progressBacktestEmitter;
 declare const emitters_progressOptimizerEmitter: typeof progressOptimizerEmitter;
 declare const emitters_progressWalkerEmitter: typeof progressWalkerEmitter;
+declare const emitters_riskSubject: typeof riskSubject;
 declare const emitters_signalBacktestEmitter: typeof signalBacktestEmitter;
 declare const emitters_signalEmitter: typeof signalEmitter;
 declare const emitters_signalLiveEmitter: typeof signalLiveEmitter;
@@ -6587,7 +7115,7 @@ declare const emitters_walkerCompleteSubject: typeof walkerCompleteSubject;
 declare const emitters_walkerEmitter: typeof walkerEmitter;
 declare const emitters_walkerStopSubject: typeof walkerStopSubject;
 declare namespace emitters {
-  export { emitters_doneBacktestSubject as doneBacktestSubject, emitters_doneLiveSubject as doneLiveSubject, emitters_doneWalkerSubject as doneWalkerSubject, emitters_errorEmitter as errorEmitter, emitters_exitEmitter as exitEmitter, emitters_partialLossSubject as partialLossSubject, emitters_partialProfitSubject as partialProfitSubject, emitters_performanceEmitter as performanceEmitter, emitters_progressBacktestEmitter as progressBacktestEmitter, emitters_progressOptimizerEmitter as progressOptimizerEmitter, emitters_progressWalkerEmitter as progressWalkerEmitter, emitters_signalBacktestEmitter as signalBacktestEmitter, emitters_signalEmitter as signalEmitter, emitters_signalLiveEmitter as signalLiveEmitter, emitters_validationSubject as validationSubject, emitters_walkerCompleteSubject as walkerCompleteSubject, emitters_walkerEmitter as walkerEmitter, emitters_walkerStopSubject as walkerStopSubject };
+  export { emitters_doneBacktestSubject as doneBacktestSubject, emitters_doneLiveSubject as doneLiveSubject, emitters_doneWalkerSubject as doneWalkerSubject, emitters_errorEmitter as errorEmitter, emitters_exitEmitter as exitEmitter, emitters_partialLossSubject as partialLossSubject, emitters_partialProfitSubject as partialProfitSubject, emitters_performanceEmitter as performanceEmitter, emitters_progressBacktestEmitter as progressBacktestEmitter, emitters_progressOptimizerEmitter as progressOptimizerEmitter, emitters_progressWalkerEmitter as progressWalkerEmitter, emitters_riskSubject as riskSubject, emitters_signalBacktestEmitter as signalBacktestEmitter, emitters_signalEmitter as signalEmitter, emitters_signalLiveEmitter as signalLiveEmitter, emitters_validationSubject as validationSubject, emitters_walkerCompleteSubject as walkerCompleteSubject, emitters_walkerEmitter as walkerEmitter, emitters_walkerStopSubject as walkerStopSubject };
 }
 
 /**
@@ -7210,6 +7738,7 @@ declare class RiskConnectionService {
      *
      * Routes to appropriate ClientRisk instance based on provided context.
      * Validates portfolio drawdown, symbol exposure, position count, and daily loss limits.
+     * ClientRisk will emit riskSubject event via onRejected callback when signal is rejected.
      *
      * @param params - Risk check arguments (portfolio state, position details)
      * @param context - Execution context with risk name
@@ -9312,6 +9841,7 @@ declare const backtest: {
     heatMarkdownService: HeatMarkdownService;
     partialMarkdownService: PartialMarkdownService;
     outlineMarkdownService: OutlineMarkdownService;
+    riskMarkdownService: RiskMarkdownService;
     backtestLogicPublicService: BacktestLogicPublicService;
     liveLogicPublicService: LiveLogicPublicService;
     walkerLogicPublicService: WalkerLogicPublicService;
@@ -9351,4 +9881,4 @@ declare const backtest: {
     loggerService: LoggerService;
 };
 
-export { Backtest, type BacktestStatistics, type CandleInterval, Constant, type DoneContract, type EntityId, ExecutionContextService, type FrameInterval, type GlobalConfig, Heat, type ICandleData, type IExchangeSchema, type IFrameSchema, type IHeatmapRow, type IHeatmapStatistics, type IOptimizerCallbacks, type IOptimizerData, type IOptimizerFetchArgs, type IOptimizerFilterArgs, type IOptimizerRange, type IOptimizerSchema, type IOptimizerSource, type IOptimizerStrategy, type IOptimizerTemplate, type IPersistBase, type IPositionSizeATRParams, type IPositionSizeFixedPercentageParams, type IPositionSizeKellyParams, type IRiskActivePosition, type IRiskCheckArgs, type IRiskSchema, type IRiskValidation, type IRiskValidationFn, type IRiskValidationPayload, type IScheduledSignalRow, type ISignalDto, type ISignalRow, type ISizingCalculateParams, type ISizingCalculateParamsATR, type ISizingCalculateParamsFixedPercentage, type ISizingCalculateParamsKelly, type ISizingSchema, type ISizingSchemaATR, type ISizingSchemaFixedPercentage, type ISizingSchemaKelly, type IStrategyPnL, type IStrategySchema, type IStrategyTickResult, type IStrategyTickResultActive, type IStrategyTickResultCancelled, type IStrategyTickResultClosed, type IStrategyTickResultIdle, type IStrategyTickResultOpened, type IStrategyTickResultScheduled, type IWalkerResults, type IWalkerSchema, type IWalkerStrategyResult, Live, type LiveStatistics, type MessageModel, type MessageRole, MethodContextService, Optimizer, Partial$1 as Partial, type PartialData, type PartialLossContract, type PartialProfitContract, type PartialStatistics, Performance, type PerformanceContract, type PerformanceMetricType, type PerformanceStatistics, PersistBase, PersistPartialAdapter, PersistRiskAdapter, PersistScheduleAdapter, PersistSignalAdapter, PositionSize, type ProgressBacktestContract, type ProgressOptimizerContract, type ProgressWalkerContract, type RiskData, Schedule, type ScheduleData, type ScheduleStatistics, type SignalData, type SignalInterval, type TPersistBase, type TPersistBaseCtor, Walker, type WalkerContract, type WalkerMetric, type WalkerStatistics, addExchange, addFrame, addOptimizer, addRisk, addSizing, addStrategy, addWalker, dumpSignal, emitters, formatPrice, formatQuantity, getAveragePrice, getCandles, getConfig, getDate, getDefaultConfig, getMode, backtest as lib, listExchanges, listFrames, listOptimizers, listRisks, listSizings, listStrategies, listWalkers, listenBacktestProgress, listenDoneBacktest, listenDoneBacktestOnce, listenDoneLive, listenDoneLiveOnce, listenDoneWalker, listenDoneWalkerOnce, listenError, listenExit, listenOptimizerProgress, listenPartialLoss, listenPartialLossOnce, listenPartialProfit, listenPartialProfitOnce, listenPerformance, listenSignal, listenSignalBacktest, listenSignalBacktestOnce, listenSignalLive, listenSignalLiveOnce, listenSignalOnce, listenValidation, listenWalker, listenWalkerComplete, listenWalkerOnce, listenWalkerProgress, setConfig, setLogger };
+export { Backtest, type BacktestStatistics, type CandleInterval, Constant, type DoneContract, type EntityId, ExecutionContextService, type FrameInterval, type GlobalConfig, Heat, type ICandleData, type IExchangeSchema, type IFrameSchema, type IHeatmapRow, type IHeatmapStatistics, type IOptimizerCallbacks, type IOptimizerData, type IOptimizerFetchArgs, type IOptimizerFilterArgs, type IOptimizerRange, type IOptimizerSchema, type IOptimizerSource, type IOptimizerStrategy, type IOptimizerTemplate, type IPersistBase, type IPositionSizeATRParams, type IPositionSizeFixedPercentageParams, type IPositionSizeKellyParams, type IRiskActivePosition, type IRiskCheckArgs, type IRiskSchema, type IRiskValidation, type IRiskValidationFn, type IRiskValidationPayload, type IScheduledSignalRow, type ISignalDto, type ISignalRow, type ISizingCalculateParams, type ISizingCalculateParamsATR, type ISizingCalculateParamsFixedPercentage, type ISizingCalculateParamsKelly, type ISizingSchema, type ISizingSchemaATR, type ISizingSchemaFixedPercentage, type ISizingSchemaKelly, type IStrategyPnL, type IStrategySchema, type IStrategyTickResult, type IStrategyTickResultActive, type IStrategyTickResultCancelled, type IStrategyTickResultClosed, type IStrategyTickResultIdle, type IStrategyTickResultOpened, type IStrategyTickResultScheduled, type IWalkerResults, type IWalkerSchema, type IWalkerStrategyResult, Live, type LiveStatistics, type MessageModel, type MessageRole, MethodContextService, Optimizer, Partial$1 as Partial, type PartialData, type PartialLossContract, type PartialProfitContract, type PartialStatistics, Performance, type PerformanceContract, type PerformanceMetricType, type PerformanceStatistics, PersistBase, PersistPartialAdapter, PersistRiskAdapter, PersistScheduleAdapter, PersistSignalAdapter, PositionSize, type ProgressBacktestContract, type ProgressOptimizerContract, type ProgressWalkerContract, Risk, type RiskContract, type RiskData, type RiskStatistics, Schedule, type ScheduleData, type ScheduleStatistics, type SignalData, type SignalInterval, type TPersistBase, type TPersistBaseCtor, Walker, type WalkerContract, type WalkerMetric, type WalkerStatistics, addExchange, addFrame, addOptimizer, addRisk, addSizing, addStrategy, addWalker, dumpSignal, emitters, formatPrice, formatQuantity, getAveragePrice, getCandles, getConfig, getDate, getDefaultConfig, getMode, backtest as lib, listExchanges, listFrames, listOptimizers, listRisks, listSizings, listStrategies, listWalkers, listenBacktestProgress, listenDoneBacktest, listenDoneBacktestOnce, listenDoneLive, listenDoneLiveOnce, listenDoneWalker, listenDoneWalkerOnce, listenError, listenExit, listenOptimizerProgress, listenPartialLoss, listenPartialLossOnce, listenPartialProfit, listenPartialProfitOnce, listenPerformance, listenRisk, listenRiskOnce, listenSignal, listenSignalBacktest, listenSignalBacktestOnce, listenSignalLive, listenSignalLiveOnce, listenSignalOnce, listenValidation, listenWalker, listenWalkerComplete, listenWalkerOnce, listenWalkerProgress, setConfig, setLogger };

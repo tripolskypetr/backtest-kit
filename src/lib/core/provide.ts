@@ -50,6 +50,7 @@ import PartialMarkdownService from "../services/markdown/PartialMarkdownService"
 import PartialGlobalService from "../services/global/PartialGlobalService";
 import OutlineMarkdownService from "../services/markdown/OutlineMarkdownService";
 import ConfigValidationService from "../services/validation/ConfigValidationService";
+import RiskMarkdownService from "../services/markdown/RiskMarkdownService";
 
 {
     provide(TYPES.loggerService, () => new LoggerService());
@@ -120,6 +121,7 @@ import ConfigValidationService from "../services/validation/ConfigValidationServ
     provide(TYPES.heatMarkdownService, () => new HeatMarkdownService());
     provide(TYPES.partialMarkdownService, () => new PartialMarkdownService());
     provide(TYPES.outlineMarkdownService, () => new OutlineMarkdownService());
+    provide(TYPES.riskMarkdownService, () => new RiskMarkdownService());
 }
 
 {

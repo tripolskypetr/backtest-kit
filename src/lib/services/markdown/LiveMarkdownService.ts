@@ -13,6 +13,7 @@ import TYPES from "../../../lib/core/types";
 import { memoize, singleshot } from "functools-kit";
 import { signalLiveEmitter } from "../../../config/emitters";
 import { toPlainString } from "../../../helpers/toPlainString";
+import { GLOBAL_CONFIG } from "../../../config/params";
 
 /**
  * Checks if a value is unsafe for display (not a number, NaN, or Infinity).
@@ -145,6 +146,8 @@ interface Column {
   label: string;
   /** Formatting function to convert event data to string */
   format: (data: TickEvent) => string;
+  /** Function to determine if column should be visible */
+  isVisible: () => boolean;
 }
 
 const columns: Column[] = [
@@ -152,42 +155,50 @@ const columns: Column[] = [
     key: "timestamp",
     label: "Timestamp",
     format: (data) => new Date(data.timestamp).toISOString(),
+    isVisible: () => true,
   },
   {
     key: "action",
     label: "Action",
     format: (data) => data.action.toUpperCase(),
+    isVisible: () => true,
   },
   {
     key: "symbol",
     label: "Symbol",
     format: (data) => data.symbol ?? "N/A",
+    isVisible: () => true,
   },
   {
     key: "signalId",
     label: "Signal ID",
     format: (data) => data.signalId ?? "N/A",
+    isVisible: () => true,
   },
   {
     key: "position",
     label: "Position",
     format: (data) => data.position?.toUpperCase() ?? "N/A",
+    isVisible: () => true,
   },
   {
     key: "note",
     label: "Note",
     format: (data) => toPlainString(data.note ?? "N/A"),
+    isVisible: () => GLOBAL_CONFIG.CC_REPORT_SHOW_SIGNAL_NOTE,
   },
   {
     key: "currentPrice",
     label: "Current Price",
     format: (data) => `${data.currentPrice.toFixed(8)} USD`,
+    isVisible: () => true,
   },
   {
     key: "openPrice",
     label: "Open Price",
     format: (data) =>
       data.openPrice !== undefined ? `${data.openPrice.toFixed(8)} USD` : "N/A",
+    isVisible: () => true,
   },
   {
     key: "takeProfit",
@@ -196,24 +207,28 @@ const columns: Column[] = [
       data.takeProfit !== undefined
         ? `${data.takeProfit.toFixed(8)} USD`
         : "N/A",
+    isVisible: () => true,
   },
   {
     key: "stopLoss",
     label: "Stop Loss",
     format: (data) =>
       data.stopLoss !== undefined ? `${data.stopLoss.toFixed(8)} USD` : "N/A",
+    isVisible: () => true,
   },
   {
     key: "percentTp",
     label: "% to TP",
     format: (data) =>
       data.percentTp !== undefined ? `${data.percentTp.toFixed(2)}%` : "N/A",
+    isVisible: () => true,
   },
   {
     key: "percentSl",
     label: "% to SL",
     format: (data) =>
       data.percentSl !== undefined ? `${data.percentSl.toFixed(2)}%` : "N/A",
+    isVisible: () => true,
   },
   {
     key: "pnl",
@@ -222,17 +237,20 @@ const columns: Column[] = [
       if (data.pnl === undefined) return "N/A";
       return `${data.pnl > 0 ? "+" : ""}${data.pnl.toFixed(2)}%`;
     },
+    isVisible: () => true,
   },
   {
     key: "closeReason",
     label: "Close Reason",
     format: (data) => data.closeReason ?? "N/A",
+    isVisible: () => true,
   },
   {
     key: "duration",
     label: "Duration (min)",
     format: (data) =>
       data.duration !== undefined ? `${data.duration}` : "N/A",
+    isVisible: () => true,
   },
 ];
 
@@ -490,10 +508,11 @@ class ReportStorage {
       ].join("\n");
     }
 
-    const header = columns.map((col) => col.label);
-    const separator = columns.map(() => "---");
+    const visibleColumns = columns.filter((col) => col.isVisible());
+    const header = visibleColumns.map((col) => col.label);
+    const separator = visibleColumns.map(() => "---");
     const rows = this._eventList.map((event) =>
-      columns.map((col) => col.format(event))
+      visibleColumns.map((col) => col.format(event))
     );
 
     const tableData = [header, separator, ...rows];

@@ -6,9 +6,13 @@ import {
   addStrategy,
   addRisk,
   Backtest,
+  listenSignal,
   listenSignalBacktest,
   listenDoneBacktest,
   getAveragePrice,
+  listenRisk,
+  listenRiskOnce,
+  Risk,
 } from "../../build/index.mjs";
 
 import getMockCandles from "../mock/getMockCandles.mjs";
@@ -680,5 +684,841 @@ test("Multiple validations execute in order and fail fast", async ({ pass, fail 
   }
 
   fail(`V1: ${validation1Called}, V2: ${validation2Called}, V3: ${validation3Called}`);
+
+});
+
+test("listenRisk captures rejection events with correct data", async ({ pass, fail }) => {
+
+  const rejectionEvents = [];
+
+  addExchange({
+    exchangeName: "binance-integration-listen-risk",
+    getCandles: async (_symbol, interval, since, limit) => {
+      return await getMockCandles(interval, since, limit);
+    },
+    formatPrice: async (symbol, price) => price.toFixed(8),
+    formatQuantity: async (symbol, quantity) => quantity.toFixed(8),
+  });
+
+  addRisk({
+    riskName: "max-2-positions",
+    validations: [
+      {
+        validate: ({ activePositionCount }) => {
+          if (activePositionCount >= 2) {
+            throw new Error("Maximum 2 positions allowed");
+          }
+        },
+        note: "Max 2 positions allowed",
+      },
+    ],
+  });
+
+  // Listen to all risk rejection events
+  listenRisk((event) => {
+    // console.log("[TEST] Risk rejection event received", event.comment);
+    rejectionEvents.push(event);
+  });
+
+  let openedCount = 0;
+  let closedCount = 0;
+  listenSignal((result) => {
+    /*console.log("[TEST] listenSignal event", {
+      action: result.action,
+      symbol: result.symbol,
+      strategyName: result.strategyName,
+      reason: result.reason,
+      priceOpen: result.signal?.priceOpen,
+      priceClose: result.signal?.priceClose,
+      priceTakeProfit: result.signal?.priceTakeProfit,
+      priceStopLoss: result.signal?.priceStopLoss,
+    });*/
+    if (result.action === "opened") {
+      openedCount++;
+      // console.log("[TEST] Signal opened, total opened:", openedCount);
+    }
+    if (result.action === "closed") {
+      closedCount++;
+      // console.log("[TEST] Signal closed, reason:", result.reason, "total closed:", closedCount);
+    }
+  });
+
+  // Strategy 1 - will open position 1
+  addStrategy({
+    strategyName: "test-strategy-listen-risk-1",
+    interval: "1m",
+    riskName: "max-2-positions",
+    getSignal: async () => {
+      const price = await getAveragePrice();
+      return {
+        position: "long",
+        priceOpen: price,
+        priceTakeProfit: price * 10,  // Very high TP that won't be reached
+        priceStopLoss: price * 0.1,   // Very low SL that won't be reached
+        minuteEstimatedTime: 100000,    // Very long time so positions stay open
+      };
+    },
+  });
+
+  // Strategy 2 - will open position 2
+  addStrategy({
+    strategyName: "test-strategy-listen-risk-2",
+    interval: "1m",
+    riskName: "max-2-positions",
+    getSignal: async () => {
+      const price = await getAveragePrice();
+      return {
+        position: "short",
+        priceOpen: price,
+        priceTakeProfit: price * 0.1,  // Very low TP that won't be reached
+        priceStopLoss: price * 10,   // Very high SL that won't be reached
+        minuteEstimatedTime: 100000,    // Very long time so positions stay open
+      };
+    },
+  });
+
+  // Strategy 3 - will try to open position 3 and get rejected
+  addStrategy({
+    strategyName: "test-strategy-listen-risk-3",
+    interval: "1m",
+    riskName: "max-2-positions",
+    getSignal: async () => {
+      const price = await getAveragePrice();
+      return {
+        position: "long",
+        priceOpen: price,
+        priceTakeProfit: price * 10,
+        priceStopLoss: price * 0.1,
+        minuteEstimatedTime: 100000,
+      };
+    },
+  });
+
+  addFrame({
+    frameName: "3d-listen-risk",
+    interval: "1d",
+    startDate: new Date("2024-01-01T00:00:00Z"),
+    endDate: new Date("2024-01-04T00:00:00Z"),
+  });
+
+  const awaitSubject = new Subject();
+  let backtestsDone = 0;
+  listenDoneBacktest(() => {
+    backtestsDone++;
+    // console.log("[TEST] Backtest done, total:", backtestsDone);
+    if (backtestsDone === 3) {
+      awaitSubject.next();
+    }
+  });
+
+  Backtest.background("BTCUSDT", {
+    strategyName: "test-strategy-listen-risk-1",
+    exchangeName: "binance-integration-listen-risk",
+    frameName: "3d-listen-risk",
+  });
+
+  Backtest.background("BTCUSDT", {
+    strategyName: "test-strategy-listen-risk-2",
+    exchangeName: "binance-integration-listen-risk",
+    frameName: "3d-listen-risk",
+  });
+
+  Backtest.background("BTCUSDT", {
+    strategyName: "test-strategy-listen-risk-3",
+    exchangeName: "binance-integration-listen-risk",
+    frameName: "3d-listen-risk",
+  });
+
+  await awaitSubject.toPromise();
+
+  // console.log("[TEST] After await, before sleep");
+  // console.log("[TEST] Total rejection events:", rejectionEvents.length);
+  // console.log("[TEST] Total opened:", openedCount);
+  // console.log("[TEST] Total closed:", closedCount);
+
+  // await sleep(2000);
+
+  // Should have rejections when attempting to open more than 2 positions
+  if (rejectionEvents.length > 0) {
+    const event = rejectionEvents[0];
+    // console.log("[TEST] First rejection event:", JSON.stringify(event, null, 2));
+
+    // Verify event structure - one of the strategies should be rejected
+    // (could be any strategy since they run in parallel)
+    const isValidStrategy =
+      event.strategyName === "test-strategy-listen-risk-1" ||
+      event.strategyName === "test-strategy-listen-risk-2" ||
+      event.strategyName === "test-strategy-listen-risk-3";
+
+    if (
+      event.symbol === "BTCUSDT" &&
+      isValidStrategy &&
+      event.exchangeName === "binance-integration-listen-risk" &&
+      event.comment === "Max 2 positions allowed" &&
+      event.activePositionCount >= 2 &&
+      typeof event.currentPrice === "number" &&
+      typeof event.timestamp === "number" &&
+      event.pendingSignal &&
+      (event.pendingSignal.position === "long" || event.pendingSignal.position === "short")
+    ) {
+      pass(`listenRisk captured ${rejectionEvents.length} rejection events with correct data`);
+      return;
+    }
+
+    // console.log("[TEST] Event validation failed. Event:", event);
+    // console.log("[TEST] Validation checks:");
+    // console.log("  symbol:", event.symbol === "BTCUSDT");
+    // console.log("  strategyName:", isValidStrategy);
+    // console.log("  exchangeName:", event.exchangeName === "binance-integration-listen-risk");
+    // console.log("  comment:", event.comment === "Max 2 positions allowed");
+    // console.log("  activePositionCount:", event.activePositionCount >= 2);
+    // console.log("  currentPrice type:", typeof event.currentPrice);
+    // console.log("  timestamp type:", typeof event.timestamp);
+    // console.log("  has pendingSignal:", !!event.pendingSignal);
+    // console.log("  position:", event.pendingSignal?.position);
+  }
+
+  fail(`Expected rejection events with correct structure, got ${rejectionEvents.length} events`);
+
+});
+
+test("listenRiskOnce with filter for specific rejection condition", async ({ pass, fail }) => {
+
+  let btcRejectionCaptured = false;
+  let ethRejectionCaptured = false;
+
+  addExchange({
+    exchangeName: "binance-integration-listen-once",
+    getCandles: async (_symbol, interval, since, limit) => {
+      return await getMockCandles(interval, since, limit);
+    },
+    formatPrice: async (symbol, price) => price.toFixed(8),
+    formatQuantity: async (symbol, quantity) => quantity.toFixed(8),
+  });
+
+  addRisk({
+    riskName: "reject-btc-eth",
+    validations: [
+      {
+        validate: ({ symbol }) => {
+          if (symbol === "BTCUSDT" || symbol === "ETHUSDT") {
+            throw new Error(`${symbol} trading blocked`);
+          }
+        },
+        note: "BTC/ETH trading blocked",
+      },
+    ],
+  });
+
+  // Listen once for BTC rejection
+  listenRiskOnce(
+    (event) => event.symbol === "BTCUSDT",
+    (event) => {
+      btcRejectionCaptured = event.comment === "BTC/ETH trading blocked";
+    }
+  );
+
+  // Listen once for ETH rejection
+  listenRiskOnce(
+    (event) => event.symbol === "ETHUSDT",
+    (event) => {
+      ethRejectionCaptured = event.comment === "BTC/ETH trading blocked";
+    }
+  );
+
+  addStrategy({
+    strategyName: "test-strategy-listen-once",
+    interval: "1m",
+    riskName: "reject-btc-eth",
+    getSignal: async () => {
+      return {
+        position: "short",
+        priceTakeProfit: 40000,
+        priceStopLoss: 44000,
+        minuteEstimatedTime: 60,
+      };
+    },
+  });
+
+  addFrame({
+    frameName: "1d-listen-once",
+    interval: "1d",
+    startDate: new Date("2024-01-01T00:00:00Z"),
+    endDate: new Date("2024-01-02T00:00:00Z"),
+  });
+
+  const awaitSubject = new Subject();
+  let backtestCount = 0;
+  listenDoneBacktest(() => {
+    backtestCount++;
+    if (backtestCount === 2) {
+      awaitSubject.next();
+    }
+  });
+
+  Backtest.background("BTCUSDT", {
+    strategyName: "test-strategy-listen-once",
+    exchangeName: "binance-integration-listen-once",
+    frameName: "1d-listen-once",
+  });
+
+  Backtest.background("ETHUSDT", {
+    strategyName: "test-strategy-listen-once",
+    exchangeName: "binance-integration-listen-once",
+    frameName: "1d-listen-once",
+  });
+
+  await awaitSubject.toPromise();
+
+  if (btcRejectionCaptured && ethRejectionCaptured) {
+    pass("listenRiskOnce captured filtered rejection events for both symbols");
+    return;
+  }
+
+  fail(`BTC captured: ${btcRejectionCaptured}, ETH captured: ${ethRejectionCaptured}`);
+
+});
+
+test("Risk.getData returns correct statistics after rejections", async ({ pass, fail }) => {
+
+  addExchange({
+    exchangeName: "binance-integration-get-data",
+    getCandles: async (_symbol, interval, since, limit) => {
+      return await getMockCandles(interval, since, limit);
+    },
+    formatPrice: async (symbol, price) => price.toFixed(8),
+    formatQuantity: async (symbol, quantity) => quantity.toFixed(8),
+  });
+
+  addRisk({
+    riskName: "max-1-position-data",
+    validations: [
+      {
+        validate: ({ activePositionCount }) => {
+          if (activePositionCount >= 1) {
+            throw new Error("Max 1 position");
+          }
+        },
+        note: "Maximum 1 position allowed",
+      },
+    ],
+  });
+
+  // Strategy 1 - will open position
+  addStrategy({
+    strategyName: "test-strategy-get-data-1",
+    interval: "1m",
+    riskName: "max-1-position-data",
+    getSignal: async () => {
+      const price = await getAveragePrice();
+      return {
+        position: "long",
+        priceOpen: price,
+        priceTakeProfit: price * 10,
+        priceStopLoss: price * 0.1,
+        minuteEstimatedTime: 100000,
+      };
+    },
+  });
+
+  // Strategy 2 - will be rejected
+  addStrategy({
+    strategyName: "test-strategy-get-data-2",
+    interval: "1m",
+    riskName: "max-1-position-data",
+    getSignal: async () => {
+      const price = await getAveragePrice();
+      return {
+        position: "short",
+        priceOpen: price,
+        priceTakeProfit: price * 0.1,
+        priceStopLoss: price * 10,
+        minuteEstimatedTime: 100000,
+      };
+    },
+  });
+
+  addFrame({
+    frameName: "3d-get-data",
+    interval: "1d",
+    startDate: new Date("2024-01-01T00:00:00Z"),
+    endDate: new Date("2024-01-04T00:00:00Z"),
+  });
+
+  const awaitSubject = new Subject();
+  let backtestsDone = 0;
+  listenDoneBacktest(() => {
+    backtestsDone++;
+    if (backtestsDone === 2) {
+      awaitSubject.next();
+    }
+  });
+
+  Backtest.background("BTCUSDT", {
+    strategyName: "test-strategy-get-data-1",
+    exchangeName: "binance-integration-get-data",
+    frameName: "3d-get-data",
+  });
+
+  Backtest.background("BTCUSDT", {
+    strategyName: "test-strategy-get-data-2",
+    exchangeName: "binance-integration-get-data",
+    frameName: "3d-get-data",
+  });
+
+  await awaitSubject.toPromise();
+
+  // Get statistics for rejected strategy (strategy 2)
+  const stats = await Risk.getData("BTCUSDT", "test-strategy-get-data-2");
+
+  if (
+    stats.totalRejections > 0 &&
+    stats.eventList.length === stats.totalRejections &&
+    stats.bySymbol["BTCUSDT"] === stats.totalRejections &&
+    stats.byStrategy["test-strategy-get-data-2"] === stats.totalRejections &&
+    stats.eventList.every((event) => event.comment === "Maximum 1 position allowed")
+  ) {
+    pass(`Risk.getData returns correct stats: ${stats.totalRejections} rejections tracked`);
+    return;
+  }
+
+  fail(`Incorrect stats: total=${stats.totalRejections}, events=${stats.eventList.length}`);
+
+});
+
+test("Risk.getReport generates markdown with correct table structure", async ({ pass, fail }) => {
+
+  addExchange({
+    exchangeName: "binance-integration-get-report",
+    getCandles: async (_symbol, interval, since, limit) => {
+      return await getMockCandles(interval, since, limit);
+    },
+    formatPrice: async (symbol, price) => price.toFixed(8),
+    formatQuantity: async (symbol, quantity) => quantity.toFixed(8),
+  });
+
+  addRisk({
+    riskName: "max-1-position-report",
+    validations: [
+      {
+        validate: ({ activePositionCount }) => {
+          if (activePositionCount >= 1) {
+            throw new Error("Max 1");
+          }
+        },
+        note: "Portfolio limit reached",
+      },
+    ],
+  });
+
+  // Strategy 1 - will open position
+  addStrategy({
+    strategyName: "test-strategy-get-report-1",
+    interval: "1m",
+    riskName: "max-1-position-report",
+    getSignal: async () => {
+      const price = await getAveragePrice();
+      return {
+        position: "long",
+        priceOpen: price,
+        priceTakeProfit: price * 10,
+        priceStopLoss: price * 0.1,
+        minuteEstimatedTime: 100000,
+      };
+    },
+  });
+
+  // Strategy 2 - will be rejected
+  addStrategy({
+    strategyName: "test-strategy-get-report-2",
+    interval: "1m",
+    riskName: "max-1-position-report",
+    getSignal: async () => {
+      const price = await getAveragePrice();
+      return {
+        position: "short",
+        priceOpen: price,
+        priceTakeProfit: price * 0.1,
+        priceStopLoss: price * 10,
+        minuteEstimatedTime: 100000,
+      };
+    },
+  });
+
+  addFrame({
+    frameName: "2d-get-report",
+    interval: "1d",
+    startDate: new Date("2024-01-01T00:00:00Z"),
+    endDate: new Date("2024-01-03T00:00:00Z"),
+  });
+
+  const awaitSubject = new Subject();
+  let backtestsDone = 0;
+  listenDoneBacktest(() => {
+    backtestsDone++;
+    if (backtestsDone === 2) {
+      awaitSubject.next();
+    }
+  });
+
+  Backtest.background("ETHUSDT", {
+    strategyName: "test-strategy-get-report-1",
+    exchangeName: "binance-integration-get-report",
+    frameName: "2d-get-report",
+  });
+
+  Backtest.background("ETHUSDT", {
+    strategyName: "test-strategy-get-report-2",
+    exchangeName: "binance-integration-get-report",
+    frameName: "2d-get-report",
+  });
+
+  await awaitSubject.toPromise();
+  // await sleep(2000);
+
+  const report = await Risk.getReport("ETHUSDT", "test-strategy-get-report-2");
+
+  // Verify report structure
+  const hasTitle = report.includes("# Risk Rejection Report: ETHUSDT:test-strategy-get-report-2");
+  const hasTableHeader = report.includes("| Symbol |") && report.includes("| Reason |");
+  const hasSymbolColumn = report.includes("| ETHUSDT |");
+  const hasReasonColumn = report.includes("Portfolio limit reached");
+  const hasStatistics = report.includes("**Total rejections:**");
+  const hasBySymbol = report.includes("## Rejections by Symbol");
+  const hasByStrategy = report.includes("## Rejections by Strategy");
+
+  if (hasTitle && hasTableHeader && hasSymbolColumn && hasReasonColumn && hasStatistics && hasBySymbol && hasByStrategy) {
+    pass("Risk.getReport generates markdown with correct table and statistics");
+    return;
+  }
+
+  fail("Report missing expected structure");
+
+});
+
+test("Comment field captures validation note in rejection events", async ({ pass, fail }) => {
+
+  const rejectionComments = [];
+
+  addExchange({
+    exchangeName: "binance-integration-comment-field",
+    getCandles: async (_symbol, interval, since, limit) => {
+      return await getMockCandles(interval, since, limit);
+    },
+    formatPrice: async (symbol, price) => price.toFixed(8),
+    formatQuantity: async (symbol, quantity) => quantity.toFixed(8),
+  });
+
+  addRisk({
+    riskName: "comment-capture-risk",
+    validations: [
+      {
+        validate: ({ activePositionCount }) => {
+          if (activePositionCount >= 1) {
+            throw new Error("Limit exceeded");
+          }
+        },
+        note: "Custom rejection reason for testing",
+      },
+    ],
+  });
+
+  listenRisk((event) => {
+    rejectionComments.push(event.comment);
+  });
+
+  // Strategy 1 - will open position
+  addStrategy({
+    strategyName: "test-strategy-comment-field-1",
+    interval: "1m",
+    riskName: "comment-capture-risk",
+    getSignal: async () => {
+      const price = await getAveragePrice();
+      return {
+        position: "long",
+        priceOpen: price,
+        priceTakeProfit: price * 10,
+        priceStopLoss: price * 0.1,
+        minuteEstimatedTime: 100000,
+      };
+    },
+  });
+
+  // Strategy 2 - will be rejected
+  addStrategy({
+    strategyName: "test-strategy-comment-field-2",
+    interval: "1m",
+    riskName: "comment-capture-risk",
+    getSignal: async () => {
+      const price = await getAveragePrice();
+      return {
+        position: "short",
+        priceOpen: price,
+        priceTakeProfit: price * 0.1,
+        priceStopLoss: price * 10,
+        minuteEstimatedTime: 100000,
+      };
+    },
+  });
+
+  addFrame({
+    frameName: "2d-comment-field",
+    interval: "1d",
+    startDate: new Date("2024-01-01T00:00:00Z"),
+    endDate: new Date("2024-01-03T00:00:00Z"),
+  });
+
+  const awaitSubject = new Subject();
+  let backtestsDone = 0;
+  listenDoneBacktest(() => {
+    backtestsDone++;
+    if (backtestsDone === 2) {
+      awaitSubject.next();
+    }
+  });
+
+  Backtest.background("BTCUSDT", {
+    strategyName: "test-strategy-comment-field-1",
+    exchangeName: "binance-integration-comment-field",
+    frameName: "2d-comment-field",
+  });
+
+  Backtest.background("BTCUSDT", {
+    strategyName: "test-strategy-comment-field-2",
+    exchangeName: "binance-integration-comment-field",
+    frameName: "2d-comment-field",
+  });
+
+  await awaitSubject.toPromise();
+  // await sleep(2000);
+
+  if (rejectionComments.length > 0 && rejectionComments.every((c) => c === "Custom rejection reason for testing")) {
+    pass(`All ${rejectionComments.length} rejection events captured correct comment from validation note`);
+    return;
+  }
+
+  fail(`Expected comments with note, got: ${JSON.stringify(rejectionComments)}`);
+
+});
+
+test("No events emitted for allowed signals (anti-spam)", async ({ pass, fail }) => {
+
+  let rejectionCount = 0;
+  let allowedCount = 0;
+  let eventCount = 0;
+
+  addExchange({
+    exchangeName: "binance-integration-no-spam",
+    getCandles: async (_symbol, interval, since, limit) => {
+      return await getMockCandles(interval, since, limit);
+    },
+    formatPrice: async (symbol, price) => price.toFixed(8),
+    formatQuantity: async (symbol, quantity) => quantity.toFixed(8),
+  });
+
+  addRisk({
+    riskName: "no-spam-risk",
+    validations: [
+      {
+        validate: ({ activePositionCount }) => {
+          if (activePositionCount >= 10) {
+            throw new Error("Max 10");
+          }
+        },
+        note: "Should rarely trigger",
+      },
+    ],
+    callbacks: {
+      onRejected: () => {
+        rejectionCount++;
+      },
+      onAllowed: () => {
+        allowedCount++;
+      },
+    },
+  });
+
+  // Count events from riskSubject
+  listenRisk(() => {
+    eventCount++;
+  });
+
+  addStrategy({
+    strategyName: "test-strategy-no-spam",
+    interval: "1m",
+    riskName: "no-spam-risk",
+    getSignal: async () => {
+      return {
+        position: "long",
+        priceTakeProfit: 43000,
+        priceStopLoss: 41000,
+        minuteEstimatedTime: 60,
+      };
+    },
+  });
+
+  addFrame({
+    frameName: "3d-no-spam",
+    interval: "1d",
+    startDate: new Date("2024-01-01T00:00:00Z"),
+    endDate: new Date("2024-01-04T00:00:00Z"),
+  });
+
+  const awaitSubject = new Subject();
+  listenDoneBacktest(() => awaitSubject.next());
+
+  Backtest.background("BTCUSDT", {
+    strategyName: "test-strategy-no-spam",
+    exchangeName: "binance-integration-no-spam",
+    frameName: "3d-no-spam",
+  });
+
+  await awaitSubject.toPromise();
+
+  // With max 10 positions, most signals should be allowed (not rejected)
+  // Events should ONLY be emitted for rejections
+  if (allowedCount > 0 && eventCount === rejectionCount && eventCount < allowedCount) {
+    pass(`Anti-spam works: ${allowedCount} allowed, ${rejectionCount} rejected, ${eventCount} events (only rejections)`);
+    return;
+  }
+
+  fail(`Allowed: ${allowedCount}, Rejected: ${rejectionCount}, Events: ${eventCount} (should match rejections only)`);
+
+});
+
+test("Multiple rejection tracking with bySymbol and byStrategy statistics", async ({ pass, fail }) => {
+
+  addExchange({
+    exchangeName: "binance-integration-multi-stats",
+    getCandles: async (_symbol, interval, since, limit) => {
+      return await getMockCandles(interval, since, limit);
+    },
+    formatPrice: async (symbol, price) => price.toFixed(8),
+    formatQuantity: async (symbol, quantity) => quantity.toFixed(8),
+  });
+
+  addRisk({
+    riskName: "shared-limit-stats",
+    validations: [
+      {
+        validate: ({ activePositionCount }) => {
+          if (activePositionCount >= 2) {
+            throw new Error("Shared limit");
+          }
+        },
+        note: "Shared portfolio limit",
+      },
+    ],
+  });
+
+  // Strategy 1 - will open position
+  addStrategy({
+    strategyName: "test-strategy-stats-1",
+    interval: "1m",
+    riskName: "shared-limit-stats",
+    getSignal: async () => {
+      const price = await getAveragePrice();
+      return {
+        position: "long",
+        priceOpen: price,
+        priceTakeProfit: price * 10,
+        priceStopLoss: price * 0.1,
+        minuteEstimatedTime: 100000,
+      };
+    },
+  });
+
+  // Strategy 2 - will be rejected
+  addStrategy({
+    strategyName: "test-strategy-stats-2",
+    interval: "1m",
+    riskName: "shared-limit-stats",
+    getSignal: async () => {
+      const price = await getAveragePrice();
+      return {
+        position: "short",
+        priceOpen: price,
+        priceTakeProfit: price * 0.1,
+        priceStopLoss: price * 10,
+        minuteEstimatedTime: 100000,
+      };
+    },
+  });
+
+  addFrame({
+    frameName: "3d-multi-stats",
+    interval: "1d",
+    startDate: new Date("2024-01-01T00:00:00Z"),
+    endDate: new Date("2024-01-04T00:00:00Z"),
+  });
+
+  const awaitSubject = new Subject();
+  let backtestCount = 0;
+  listenDoneBacktest(() => {
+    backtestCount++;
+    if (backtestCount === 4) {
+      awaitSubject.next();
+    }
+  });
+
+  // Run multiple symbol-strategy combinations
+  Backtest.background("BTCUSDT", {
+    strategyName: "test-strategy-stats-1",
+    exchangeName: "binance-integration-multi-stats",
+    frameName: "3d-multi-stats",
+  });
+
+  Backtest.background("ETHUSDT", {
+    strategyName: "test-strategy-stats-1",
+    exchangeName: "binance-integration-multi-stats",
+    frameName: "3d-multi-stats",
+  });
+
+  Backtest.background("BTCUSDT", {
+    strategyName: "test-strategy-stats-2",
+    exchangeName: "binance-integration-multi-stats",
+    frameName: "3d-multi-stats",
+  });
+
+  Backtest.background("ETHUSDT", {
+    strategyName: "test-strategy-stats-2",
+    exchangeName: "binance-integration-multi-stats",
+    frameName: "3d-multi-stats",
+  });
+
+  await awaitSubject.toPromise();
+  // await sleep(2000);
+
+  // Check stats for all symbol-strategy pairs
+  const statsBTC1 = await Risk.getData("BTCUSDT", "test-strategy-stats-1");
+  const statsBTC2 = await Risk.getData("BTCUSDT", "test-strategy-stats-2");
+  const statsETH1 = await Risk.getData("ETHUSDT", "test-strategy-stats-1");
+  const statsETH2 = await Risk.getData("ETHUSDT", "test-strategy-stats-2");
+
+  // At least 2 out of 4 should have rejections (due to limit of 2)
+  const allStats = [statsBTC1, statsBTC2, statsETH1, statsETH2];
+  const pairsWithRejections = allStats.filter(s => s.totalRejections > 0);
+
+  // Verify bySymbol and byStrategy are tracked correctly for rejected pairs
+  let hasValidBySymbol = false;
+  let hasValidByStrategy = false;
+
+  for (const stats of pairsWithRejections) {
+    // Check if bySymbol contains either BTCUSDT or ETHUSDT
+    if (stats.bySymbol["BTCUSDT"] > 0 || stats.bySymbol["ETHUSDT"] > 0) {
+      hasValidBySymbol = true;
+    }
+    // Check if byStrategy contains either strategy name
+    if (stats.byStrategy["test-strategy-stats-1"] > 0 || stats.byStrategy["test-strategy-stats-2"] > 0) {
+      hasValidByStrategy = true;
+    }
+  }
+
+  if (pairsWithRejections.length >= 2 && hasValidBySymbol && hasValidByStrategy) {
+    pass(`Multiple rejection tracking works: ${pairsWithRejections.length} pairs had rejections with valid bySymbol and byStrategy aggregation`);
+    return;
+  }
+
+  fail(`Statistics aggregation incomplete: only ${pairsWithRejections.length} pairs had rejections, bySymbol=${hasValidBySymbol}, byStrategy=${hasValidByStrategy}`);
 
 });

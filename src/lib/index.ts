@@ -55,6 +55,7 @@ import PartialMarkdownService from "./services/markdown/PartialMarkdownService";
 import PartialGlobalService from "./services/global/PartialGlobalService";
 import OutlineMarkdownService from "./services/markdown/OutlineMarkdownService";
 import ConfigValidationService from "./services/validation/ConfigValidationService";
+import RiskMarkdownService from "./services/markdown/RiskMarkdownService";
 
 const baseServices = {
   loggerService: inject<LoggerService>(TYPES.loggerService),
@@ -110,12 +111,8 @@ const schemaServices = {
 };
 
 const coreServices = {
-  exchangeCoreService: inject<ExchangeCoreService>(
-    TYPES.exchangeCoreService
-  ),
-  strategyCoreService: inject<StrategyCoreService>(
-    TYPES.strategyCoreService
-  ),
+  exchangeCoreService: inject<ExchangeCoreService>(TYPES.exchangeCoreService),
+  strategyCoreService: inject<StrategyCoreService>(TYPES.strategyCoreService),
   frameCoreService: inject<FrameCoreService>(TYPES.frameCoreService),
 };
 
@@ -185,6 +182,7 @@ const markdownServices = {
   outlineMarkdownService: inject<OutlineMarkdownService>(
     TYPES.outlineMarkdownService
   ),
+  riskMarkdownService: inject<RiskMarkdownService>(TYPES.riskMarkdownService),
 };
 
 const validationServices = {

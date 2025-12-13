@@ -1,5 +1,5 @@
 import backtest from "../lib";
-import { signalEmitter, signalLiveEmitter, signalBacktestEmitter, errorEmitter, exitEmitter, doneLiveSubject, doneBacktestSubject, doneWalkerSubject, progressBacktestEmitter, progressWalkerEmitter, progressOptimizerEmitter, performanceEmitter, walkerEmitter, walkerCompleteSubject, validationSubject, partialProfitSubject, partialLossSubject } from "../config/emitters";
+import { signalEmitter, signalLiveEmitter, signalBacktestEmitter, errorEmitter, exitEmitter, doneLiveSubject, doneBacktestSubject, doneWalkerSubject, progressBacktestEmitter, progressWalkerEmitter, progressOptimizerEmitter, performanceEmitter, walkerEmitter, walkerCompleteSubject, validationSubject, partialProfitSubject, partialLossSubject, riskSubject } from "../config/emitters";
 import { IStrategyTickResult } from "../interfaces/Strategy.interface";
 import { DoneContract } from "../contract/Done.contract";
 import { ProgressBacktestContract } from "../contract/ProgressBacktest.contract";
@@ -10,6 +10,7 @@ import { WalkerContract } from "../contract/Walker.contract";
 import { IWalkerResults } from "../interfaces/Walker.interface";
 import { PartialProfitContract } from "../contract/PartialProfit.contract";
 import { PartialLossContract } from "../contract/PartialLoss.contract";
+import { RiskContract } from "../contract/Risk.contract";
 import { queued } from "functools-kit";
 
 const LISTEN_SIGNAL_METHOD_NAME = "event.listenSignal";
@@ -38,6 +39,8 @@ const LISTEN_PARTIAL_PROFIT_METHOD_NAME = "event.listenPartialProfit";
 const LISTEN_PARTIAL_PROFIT_ONCE_METHOD_NAME = "event.listenPartialProfitOnce";
 const LISTEN_PARTIAL_LOSS_METHOD_NAME = "event.listenPartialLoss";
 const LISTEN_PARTIAL_LOSS_ONCE_METHOD_NAME = "event.listenPartialLossOnce";
+const LISTEN_RISK_METHOD_NAME = "event.listenRisk";
+const LISTEN_RISK_ONCE_METHOD_NAME = "event.listenRiskOnce";
 
 /**
  * Subscribes to all signal events with queued async processing.
@@ -888,4 +891,78 @@ export function listenPartialLossOnce(
 ) {
   backtest.loggerService.log(LISTEN_PARTIAL_LOSS_ONCE_METHOD_NAME);
   return partialLossSubject.filter(filterFn).once(fn);
+}
+
+/**
+ * Subscribes to risk rejection events with queued async processing.
+ *
+ * Emits ONLY when a signal is rejected due to risk validation failure.
+ * Does not emit for allowed signals (prevents spam).
+ * Events are processed sequentially in order received, even if callback is async.
+ * Uses queued wrapper to prevent concurrent execution of the callback.
+ *
+ * @param fn - Callback function to handle risk rejection events
+ * @returns Unsubscribe function to stop listening to events
+ *
+ * @example
+ * ```typescript
+ * import { listenRisk } from "./function/event";
+ *
+ * const unsubscribe = listenRisk((event) => {
+ *   console.log(`[RISK REJECTED] Signal for ${event.symbol}`);
+ *   console.log(`Strategy: ${event.strategyName}`);
+ *   console.log(`Position: ${event.pendingSignal.position}`);
+ *   console.log(`Active positions: ${event.activePositionCount}`);
+ *   console.log(`Reason: ${event.comment}`);
+ *   console.log(`Price: ${event.currentPrice}`);
+ * });
+ *
+ * // Later: stop listening
+ * unsubscribe();
+ * ```
+ */
+export function listenRisk(fn: (event: RiskContract) => void) {
+  backtest.loggerService.log(LISTEN_RISK_METHOD_NAME);
+  return riskSubject.subscribe(queued(async (event) => fn(event)));
+}
+
+/**
+ * Subscribes to filtered risk rejection events with one-time execution.
+ *
+ * Listens for events matching the filter predicate, then executes callback once
+ * and automatically unsubscribes. Useful for waiting for specific risk rejection conditions.
+ *
+ * @param filterFn - Predicate to filter which events trigger the callback
+ * @param fn - Callback function to handle the filtered event (called only once)
+ * @returns Unsubscribe function to cancel the listener before it fires
+ *
+ * @example
+ * ```typescript
+ * import { listenRiskOnce } from "./function/event";
+ *
+ * // Wait for first risk rejection on BTCUSDT
+ * listenRiskOnce(
+ *   (event) => event.symbol === "BTCUSDT",
+ *   (event) => {
+ *     console.log("BTCUSDT signal rejected!");
+ *     console.log("Reason:", event.comment);
+ *   }
+ * );
+ *
+ * // Wait for rejection due to position limit
+ * const cancel = listenRiskOnce(
+ *   (event) => event.comment.includes("Max") && event.activePositionCount >= 3,
+ *   (event) => console.log("Position limit reached:", event.activePositionCount)
+ * );
+ *
+ * // Cancel if needed before event fires
+ * cancel();
+ * ```
+ */
+export function listenRiskOnce(
+  filterFn: (event: RiskContract) => boolean,
+  fn: (event: RiskContract) => void
+) {
+  backtest.loggerService.log(LISTEN_RISK_ONCE_METHOD_NAME);
+  return riskSubject.filter(filterFn).once(fn);
 }
