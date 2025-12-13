@@ -5,6 +5,8 @@ group: demo/live
 
 # AI-Powered Live Trading Demo
 
+> Link to [the source code](https://github.com/tripolskypetr/backtest-kit/tree/master/demo/live)
+
 LLM-driven trading strategy with real-time execution and automated signal generation using backtest-kit framework. Suitable for **both paper trading and real money trading**.
 
 ## Purpose

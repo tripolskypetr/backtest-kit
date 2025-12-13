@@ -5,6 +5,8 @@ group: demo/optimization
 
 # AI Strategy Optimizer
 
+> Link to [the source code](https://github.com/tripolskypetr/backtest-kit/tree/master/demo/optimization)
+
 Automated trading strategy generation system using LLM-powered analysis and backtest-kit framework.
 
 ## Purpose

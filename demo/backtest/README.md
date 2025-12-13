@@ -5,6 +5,8 @@ group: demo/backtest
 
 # AI-Powered Backtest Demo
 
+> Link to [the source code](https://github.com/tripolskypetr/backtest-kit/tree/master/demo/backtest)
+
 LLM-driven trading strategy with multi-timeframe analysis and automated backtesting using backtest-kit framework.
 
 ## Purpose
