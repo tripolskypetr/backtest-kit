@@ -22,7 +22,7 @@ Build reliable trading systems: backtest on historical data, deploy live bots wi
 - 📊 **Reports & Metrics**: Auto Markdown reports with PNL, Sharpe Ratio, win rate, and more.
 - 🛡️ **Risk Management**: Custom rules for position limits, time windows, and multi-strategy coordination.
 - 🔌 **Pluggable**: Custom data sources (CCXT), persistence (file/Redis), and sizing calculators.
-- 🧪 **Tested**: 244+ unit/integration tests for validation, recovery, and events.
+- 🧪 **Tested**: 280+ unit/integration tests for validation, recovery, and events.
 
 ### Supported Order Types
 
@@ -106,7 +106,7 @@ addFrame({
 ### Example Strategy (with LLM)
 ```typescript
 import { v4 as uuid } from 'uuid';
-import { addStrategy, dumpSignal } from 'backtest-kit';
+import { addStrategy, dumpSignal, getCandles } from 'backtest-kit';
 import { json } from './utils/json.mjs';  // LLM wrapper
 import { getMessages } from './utils/messages.mjs';  // Market data prep
 
@@ -115,10 +115,23 @@ addStrategy({
   interval: '5m',
   riskName: 'demo',
   getSignal: async (symbol) => {
-    const messages = await getMessages(symbol);  // Fetch indicators/news
+
+    const candles1h = await getCandles(symbol, "1h", 24);
+    const candles15m = await getCandles(symbol, "15m", 48);
+    const candles5m = await getCandles(symbol, "5m", 60);
+    const candles1m = await getCandles(symbol, "1m", 60);
+
+    const messages = await getMessages(symbol, {
+      candles15m,
+      candles15m,
+      candles5m,
+      candles1m,
+    });  // Calculate indicators / Fetch news
+  
     const resultId = uuid();
     const signal = await json(messages);  // LLM generates signal
     await dumpSignal(resultId, messages, signal);  // Log
+
     return { ...signal, id: resultId };
   },
 });
