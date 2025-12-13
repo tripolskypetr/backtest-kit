@@ -1,6 +1,6 @@
 {
   "name": "backtest-kit",
-  "version": "1.5.18",
+  "version": "1.5.19",
   "description": "A TypeScript library for trading system backtest",
   "author": {
     "name": "Petr Tripolsky",
@@ -75,7 +75,6 @@
     "di-kit": "^1.0.18",
     "di-scoped": "^1.0.20",
     "functools-kit": "^1.0.94",
-    "get-moment-stamp": "^1.1.1",
-    "ollama": "^0.6.3"
+    "get-moment-stamp": "^1.1.1"
   }
 }
