@@ -5,9 +5,56 @@ const RISK_METHOD_NAME_GET_DATA = "RiskUtils.getData";
 const RISK_METHOD_NAME_GET_REPORT = "RiskUtils.getReport";
 const RISK_METHOD_NAME_DUMP = "RiskUtils.dump";
 
+/**
+ * Composite risk management class that combines multiple risk profiles.
+ *
+ * Implements the Composite pattern to merge multiple IRisk instances into a single
+ * risk checker. All risk checks must pass (logical AND) for a signal to be allowed.
+ *
+ * Features:
+ * - Combines multiple risk profiles into one
+ * - Signal is allowed only if ALL risks approve (checkSignal returns true for all)
+ * - Propagates addSignal/removeSignal to all child risks
+ * - Used internally when strategy has both riskName and riskList
+ *
+ * @example
+ * ```typescript
+ * import { MergeRisk } from "./classes/Risk";
+ *
+ * // Combine multiple risk profiles
+ * const maxPositionsRisk = new MaxPositionsRisk(3);
+ * const correlationRisk = new CorrelationRisk(0.7);
+ * const mergedRisk = new MergeRisk([maxPositionsRisk, correlationRisk]);
+ *
+ * // Check if signal passes all risks
+ * const canTrade = await mergedRisk.checkSignal({
+ *   symbol: "BTCUSDT",
+ *   strategyName: "my-strategy",
+ *   position: PositionEnum.LONG,
+ *   exchangeName: "binance"
+ * });
+ *
+ * // If canTrade is true, all risks approved
+ * // If false, at least one risk rejected the signal
+ * ```
+ */
 export class MergeRisk implements IRisk {
+  /**
+   * Creates a merged risk profile from multiple risk instances.
+   *
+   * @param _riskList - Array of IRisk instances to combine
+   */
   constructor(readonly _riskList: IRisk[]) {}
 
+  /**
+   * Checks if signal passes all combined risk profiles.
+   *
+   * Executes checkSignal on all child risks in parallel and returns true only
+   * if ALL risks approve the signal (logical AND operation).
+   *
+   * @param params - Risk check parameters (symbol, strategy, position, exchange)
+   * @returns Promise resolving to true if all risks approve, false if any risk rejects
+   */
   public async checkSignal(params: IRiskCheckArgs): Promise<boolean> {
     backtest.loggerService.info("MergeRisk checkSignal", {
       params,
@@ -18,6 +65,16 @@ export class MergeRisk implements IRisk {
     return riskCheck.every((isSafe) => isSafe);
   }
 
+  /**
+   * Registers a signal with all child risk profiles.
+   *
+   * Propagates the addSignal call to all child risks in parallel.
+   * Used to track active positions across all risk management systems.
+   *
+   * @param symbol - Trading pair symbol
+   * @param context - Context with strategyName and riskName
+   * @returns Promise that resolves when all risks have registered the signal
+   */
   public async addSignal(
     symbol: string,
     context: { strategyName: string; riskName: string }
@@ -31,6 +88,16 @@ export class MergeRisk implements IRisk {
     );
   }
 
+  /**
+   * Removes a signal from all child risk profiles.
+   *
+   * Propagates the removeSignal call to all child risks in parallel.
+   * Used to update risk state when a position closes.
+   *
+   * @param symbol - Trading pair symbol
+   * @param context - Context with strategyName and riskName
+   * @returns Promise that resolves when all risks have removed the signal
+   */
   public async removeSignal(
     symbol: string,
     context: { strategyName: string; riskName: string }

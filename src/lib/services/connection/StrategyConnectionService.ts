@@ -19,15 +19,52 @@ import {
   signalBacktestEmitter,
   signalLiveEmitter,
 } from "../../../config/emitters";
-import { IRisk } from "../../../interfaces/Risk.interface";
+import { IRisk, RiskName } from "../../../interfaces/Risk.interface";
 import RiskConnectionService from "./RiskConnectionService";
 import { PartialConnectionService } from "./PartialConnectionService";
+import { MergeRisk } from "../../../classes/Risk";
 
 const NOOP_RISK: IRisk = {
   checkSignal: () => Promise.resolve(true),
   addSignal: () => Promise.resolve(),
   removeSignal: () => Promise.resolve(),
-}
+};
+
+const GET_RISK_FN = (
+  dto: {
+    riskName: RiskName;
+    riskList: RiskName[];
+  },
+  self: StrategyConnectionService
+) => {
+  const hasRiskName = !!dto.riskName;
+  const hasRiskList = !!(dto.riskList?.length);
+  
+  // Нет ни riskName, ни riskList
+  if (!hasRiskName && !hasRiskList) {
+    return NOOP_RISK;
+  }
+  
+  // Есть только riskName (без riskList)
+  if (hasRiskName && !hasRiskList) {
+    return self.riskConnectionService.getRisk(dto.riskName);
+  }
+  
+  // Есть только riskList (без riskName)
+  if (!hasRiskName && hasRiskList) {
+    return new MergeRisk(
+      dto.riskList.map((riskName) =>
+        self.riskConnectionService.getRisk(riskName)
+      )
+    );
+  }
+  
+  // Есть и riskName, и riskList - объединяем (riskName в начало)
+  return new MergeRisk([
+    self.riskConnectionService.getRisk(dto.riskName),
+    ...dto.riskList.map((riskName) => self.riskConnectionService.getRisk(riskName))
+  ]);
+};
 
 /**
  * Connection service routing strategy operations to correct ClientStrategy instance.
@@ -50,20 +87,25 @@ const NOOP_RISK: IRisk = {
  * ```
  */
 export class StrategyConnectionService {
-  private readonly loggerService = inject<LoggerService>(TYPES.loggerService);
-  private readonly executionContextService = inject<TExecutionContextService>(
+  public readonly loggerService = inject<LoggerService>(TYPES.loggerService);
+  public readonly executionContextService = inject<TExecutionContextService>(
     TYPES.executionContextService
   );
-  private readonly strategySchemaService = inject<StrategySchemaService>(
+  public readonly strategySchemaService = inject<StrategySchemaService>(
     TYPES.strategySchemaService
   );
-  private readonly riskConnectionService = inject<RiskConnectionService>(TYPES.riskConnectionService); 
-  private readonly exchangeConnectionService =
-    inject<ExchangeConnectionService>(TYPES.exchangeConnectionService);
-  private readonly methodContextService = inject<TMethodContextService>(
+  public readonly riskConnectionService = inject<RiskConnectionService>(
+    TYPES.riskConnectionService
+  );
+  public readonly exchangeConnectionService = inject<ExchangeConnectionService>(
+    TYPES.exchangeConnectionService
+  );
+  public readonly methodContextService = inject<TMethodContextService>(
     TYPES.methodContextService
   );
-  private readonly partialConnectionService = inject<PartialConnectionService>(TYPES.partialConnectionService);
+  public readonly partialConnectionService = inject<PartialConnectionService>(
+    TYPES.partialConnectionService
+  );
 
   /**
    * Retrieves memoized ClientStrategy instance for given symbol-strategy pair.
@@ -78,8 +120,13 @@ export class StrategyConnectionService {
   private getStrategy = memoize(
     ([symbol, strategyName]) => `${symbol}:${strategyName}`,
     (symbol: string, strategyName: StrategyName) => {
-      const { riskName, getSignal, interval, callbacks } =
-        this.strategySchemaService.get(strategyName);
+      const {
+        riskName = "",
+        riskList = [],
+        getSignal,
+        interval,
+        callbacks,
+      } = this.strategySchemaService.get(strategyName);
       return new ClientStrategy({
         symbol,
         interval,
@@ -88,7 +135,13 @@ export class StrategyConnectionService {
         logger: this.loggerService,
         partial: this.partialConnectionService,
         exchange: this.exchangeConnectionService,
-        risk: riskName ? this.riskConnectionService.getRisk(riskName) : NOOP_RISK,
+        risk: GET_RISK_FN(
+          {
+            riskName,
+            riskList,
+          },
+          this
+        ),
         riskName,
         strategyName,
         getSignal,
@@ -107,7 +160,10 @@ export class StrategyConnectionService {
    *
    * @returns Promise resolving to pending signal or null
    */
-  public getPendingSignal = async (symbol: string, strategyName: StrategyName): Promise<ISignalRow | null> => {
+  public getPendingSignal = async (
+    symbol: string,
+    strategyName: StrategyName
+  ): Promise<ISignalRow | null> => {
     this.loggerService.log("strategyConnectionService getPendingSignal", {
       symbol,
       strategyName,
@@ -126,14 +182,17 @@ export class StrategyConnectionService {
    * @param strategyName - Name of the strategy
    * @returns Promise resolving to true if strategy is stopped, false otherwise
    */
-  public getStopped = async (symbol: string, strategyName: StrategyName): Promise<boolean> => {
+  public getStopped = async (
+    symbol: string,
+    strategyName: StrategyName
+  ): Promise<boolean> => {
     this.loggerService.log("strategyConnectionService getStopped", {
       symbol,
       strategyName,
     });
     const strategy = this.getStrategy(symbol, strategyName);
     return await strategy.getStopped(symbol, strategyName);
-  }
+  };
 
   /**
    * Executes live trading tick for current strategy.
@@ -145,7 +204,10 @@ export class StrategyConnectionService {
    * @param strategyName - Name of strategy to tick
    * @returns Promise resolving to tick result (idle, opened, active, closed)
    */
-  public tick = async (symbol: string, strategyName: StrategyName): Promise<IStrategyTickResult> => {
+  public tick = async (
+    symbol: string,
+    strategyName: StrategyName
+  ): Promise<IStrategyTickResult> => {
     this.loggerService.log("strategyConnectionService tick", {
       symbol,
       strategyName,
@@ -208,9 +270,12 @@ export class StrategyConnectionService {
    * @param strategyName - Name of strategy to stop
    * @returns Promise that resolves when stop flag is set
    */
-  public stop = async (ctx: { symbol: string; strategyName: StrategyName }, backtest: boolean): Promise<void> => {
+  public stop = async (
+    ctx: { symbol: string; strategyName: StrategyName },
+    backtest: boolean
+  ): Promise<void> => {
     this.loggerService.log("strategyConnectionService stop", {
-      ctx
+      ctx,
     });
     const strategy = this.getStrategy(ctx.symbol, ctx.strategyName);
     await strategy.stop(ctx.symbol, ctx.strategyName, backtest);
@@ -224,7 +289,10 @@ export class StrategyConnectionService {
    *
    * @param ctx - Optional context with symbol and strategyName (clears all if not provided)
    */
-  public clear = async (ctx?: { symbol: string; strategyName: StrategyName }): Promise<void> => {
+  public clear = async (ctx?: {
+    symbol: string;
+    strategyName: StrategyName;
+  }): Promise<void> => {
     this.loggerService.log("strategyConnectionService clear", {
       ctx,
     });
