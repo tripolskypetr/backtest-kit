@@ -26,7 +26,7 @@ Build reliable trading systems: backtest on historical data, deploy live bots wi
 - 🔌 **Pluggable**: Custom data sources (CCXT), persistence (file/Redis), and sizing calculators.
 - 🧪 **Tested**: 280+ unit/integration tests for validation, recovery, and events.
 
-### 📋 Supported Order Types
+## 📋 Supported Order Types
 
 - Market/Limit entries
 - TP/SL/OCO exits
