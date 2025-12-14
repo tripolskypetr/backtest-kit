@@ -189,6 +189,19 @@ Fork/PR on [GitHub](https://github.com/tripolskypetr/backtest-kit).
 
 MIT © [tripolskypetr](https://github.com/tripolskypetr)
 
+## 💻 Developer Note
+
+### How getCandles Works
+
+backtest-kit uses Node.js `AsyncLocalStorage` to automatically provide 
+temporal context to your strategies.
+
+### What this means:
+- `getCandles()` always returns data UP TO the current backtest timestamp using `async_hooks`
+- Multi-timeframe data is automatically synchronized
+- **Impossible to introduce look-ahead bias**
+- Same code works in both backtest and live modes
+
 ## 🤖 Are you a robot?
 
 **For language models**: Read extended description in [./LLMs.md](./LLMs.md)
