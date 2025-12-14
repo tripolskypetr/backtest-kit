@@ -59,8 +59,9 @@ export class HeatUtils {
     backtest.strategyValidationService.validate(strategyName, HEAT_METHOD_NAME_GET_DATA);
 
     {
-      const { riskName } = backtest.strategySchemaService.get(strategyName);
+      const { riskName, riskList } = backtest.strategySchemaService.get(strategyName);
       riskName && backtest.riskValidationService.validate(riskName, HEAT_METHOD_NAME_GET_DATA);
+      riskList && riskList.forEach((riskName) => backtest.riskValidationService.validate(riskName, HEAT_METHOD_NAME_GET_DATA));
     }
 
     return await backtest.heatMarkdownService.getData(strategyName);
@@ -97,8 +98,9 @@ export class HeatUtils {
     backtest.strategyValidationService.validate(strategyName, HEAT_METHOD_NAME_GET_REPORT);
 
     {
-      const { riskName } = backtest.strategySchemaService.get(strategyName);
+      const { riskName, riskList } = backtest.strategySchemaService.get(strategyName);
       riskName && backtest.riskValidationService.validate(riskName, HEAT_METHOD_NAME_GET_REPORT);
+      riskList && riskList.forEach((riskName) => backtest.riskValidationService.validate(riskName, HEAT_METHOD_NAME_GET_REPORT));
     }
 
     return await backtest.heatMarkdownService.getReport(strategyName);
@@ -128,8 +130,9 @@ export class HeatUtils {
     backtest.strategyValidationService.validate(strategyName, HEAT_METHOD_NAME_DUMP);
 
     {
-      const { riskName } = backtest.strategySchemaService.get(strategyName);
+      const { riskName, riskList } = backtest.strategySchemaService.get(strategyName);
       riskName && backtest.riskValidationService.validate(riskName, HEAT_METHOD_NAME_DUMP);
+      riskList && riskList.forEach((riskName) => backtest.riskValidationService.validate(riskName, HEAT_METHOD_NAME_DUMP));
     }
 
     await backtest.heatMarkdownService.dump(strategyName, path);

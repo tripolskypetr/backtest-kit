@@ -1,6 +1,10 @@
 import backtest from "../lib";
 import { PerformanceStatistics } from "../lib/services/markdown/PerformanceMarkdownService";
 
+const PERFORMANCE_METHOD_NAME_GET_DATA = "Performance.getData";
+const PERFORMANCE_METHOD_NAME_GET_REPORT = "Performance.getReport";
+const PERFORMANCE_METHOD_NAME_DUMP = "Performance.dump";
+
 /**
  * Performance class provides static methods for performance metrics analysis.
  *
@@ -66,11 +70,12 @@ export class Performance {
     symbol: string,
     strategyName: string
   ): Promise<PerformanceStatistics> {
-    backtest.strategyValidationService.validate(strategyName, "Performance.getData");
+    backtest.strategyValidationService.validate(strategyName, PERFORMANCE_METHOD_NAME_GET_DATA);
 
     {
-      const { riskName } = backtest.strategySchemaService.get(strategyName);
-      riskName && backtest.riskValidationService.validate(riskName, "Performance.getData");
+      const { riskName, riskList } = backtest.strategySchemaService.get(strategyName);
+      riskName && backtest.riskValidationService.validate(riskName, PERFORMANCE_METHOD_NAME_GET_DATA);
+      riskList && riskList.forEach((riskName) => backtest.riskValidationService.validate(riskName, PERFORMANCE_METHOD_NAME_GET_DATA));
     }
 
     return backtest.performanceMarkdownService.getData(symbol, strategyName);
@@ -99,11 +104,12 @@ export class Performance {
    * ```
    */
   public static async getReport(symbol: string, strategyName: string): Promise<string> {
-    backtest.strategyValidationService.validate(strategyName, "Performance.getReport");
+    backtest.strategyValidationService.validate(strategyName, PERFORMANCE_METHOD_NAME_GET_REPORT);
 
     {
-      const { riskName } = backtest.strategySchemaService.get(strategyName);
-      riskName && backtest.riskValidationService.validate(riskName, "Performance.getReport");
+      const { riskName, riskList } = backtest.strategySchemaService.get(strategyName);
+      riskName && backtest.riskValidationService.validate(riskName, PERFORMANCE_METHOD_NAME_GET_REPORT);
+      riskList && riskList.forEach((riskName) => backtest.riskValidationService.validate(riskName, PERFORMANCE_METHOD_NAME_GET_REPORT));
     }
 
     return backtest.performanceMarkdownService.getReport(symbol, strategyName);
@@ -133,11 +139,12 @@ export class Performance {
     strategyName: string,
     path = "./dump/performance"
   ): Promise<void> {
-    backtest.strategyValidationService.validate(strategyName, "Performance.dump");
+    backtest.strategyValidationService.validate(strategyName, PERFORMANCE_METHOD_NAME_DUMP);
 
     {
-      const { riskName } = backtest.strategySchemaService.get(strategyName);
-      riskName && backtest.riskValidationService.validate(riskName, "Performance.dump");
+      const { riskName, riskList } = backtest.strategySchemaService.get(strategyName);
+      riskName && backtest.riskValidationService.validate(riskName, PERFORMANCE_METHOD_NAME_DUMP);
+      riskList && riskList.forEach((riskName) => backtest.riskValidationService.validate(riskName, PERFORMANCE_METHOD_NAME_DUMP));
     }
 
     return backtest.performanceMarkdownService.dump(symbol, strategyName, path);

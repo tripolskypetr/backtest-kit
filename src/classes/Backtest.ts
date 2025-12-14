@@ -168,8 +168,9 @@ export class BacktestInstance {
     }
 
     {
-      const { riskName } = backtest.strategySchemaService.get(context.strategyName);
+      const { riskName, riskList } = backtest.strategySchemaService.get(context.strategyName);
       riskName && backtest.riskGlobalService.clear(riskName);
+      riskList && riskList.forEach((riskName) => backtest.riskGlobalService.clear(riskName));
     }
 
     return backtest.backtestCommandService.run(symbol, context);
@@ -385,8 +386,9 @@ export class BacktestUtils {
     }
 
     {
-      const { riskName } = backtest.strategySchemaService.get(context.strategyName);
+      const { riskName, riskList } = backtest.strategySchemaService.get(context.strategyName);
       riskName && backtest.riskValidationService.validate(riskName, BACKTEST_METHOD_NAME_RUN);
+      riskList && riskList.forEach((riskName) => backtest.riskValidationService.validate(riskName, BACKTEST_METHOD_NAME_RUN));
     }
 
     const instance = this._getInstance(symbol, context.strategyName);
@@ -427,8 +429,9 @@ export class BacktestUtils {
     backtest.frameValidationService.validate(context.frameName, BACKTEST_METHOD_NAME_BACKGROUND);
 
     {
-      const { riskName } = backtest.strategySchemaService.get(context.strategyName);
+      const { riskName, riskList } = backtest.strategySchemaService.get(context.strategyName);
       riskName && backtest.riskValidationService.validate(riskName, BACKTEST_METHOD_NAME_BACKGROUND);
+      riskList && riskList.forEach((riskName) => backtest.riskValidationService.validate(riskName, BACKTEST_METHOD_NAME_BACKGROUND));
     }
 
     const instance = this._getInstance(symbol, context.strategyName);
@@ -456,8 +459,9 @@ export class BacktestUtils {
     backtest.strategyValidationService.validate(strategyName, BACKTEST_METHOD_NAME_STOP);
 
     {
-      const { riskName } = backtest.strategySchemaService.get(strategyName);
+      const { riskName, riskList } = backtest.strategySchemaService.get(strategyName);
       riskName && backtest.riskValidationService.validate(riskName, BACKTEST_METHOD_NAME_STOP);
+      riskList && riskList.forEach((riskName) => backtest.riskValidationService.validate(riskName, BACKTEST_METHOD_NAME_STOP));
     }
 
     const instance = this._getInstance(symbol, strategyName);
@@ -481,8 +485,9 @@ export class BacktestUtils {
     backtest.strategyValidationService.validate(strategyName, "BacktestUtils.getData");
 
     {
-      const { riskName } = backtest.strategySchemaService.get(strategyName);
+      const { riskName, riskList } = backtest.strategySchemaService.get(strategyName);
       riskName && backtest.riskValidationService.validate(riskName, "BacktestUtils.getData");
+      riskList && riskList.forEach((riskName) => backtest.riskValidationService.validate(riskName, "BacktestUtils.getData"));
     }
 
     const instance = this._getInstance(symbol, strategyName);
@@ -506,8 +511,9 @@ export class BacktestUtils {
     backtest.strategyValidationService.validate(strategyName, BACKTEST_METHOD_NAME_GET_REPORT);
 
     {
-      const { riskName } = backtest.strategySchemaService.get(strategyName);
+      const { riskName, riskList } = backtest.strategySchemaService.get(strategyName);
       riskName && backtest.riskValidationService.validate(riskName, BACKTEST_METHOD_NAME_GET_REPORT);
+      riskList && riskList.forEach((riskName) => backtest.riskValidationService.validate(riskName, BACKTEST_METHOD_NAME_GET_REPORT));
     }
 
     const instance = this._getInstance(symbol, strategyName);
@@ -538,8 +544,9 @@ export class BacktestUtils {
     backtest.strategyValidationService.validate(strategyName, BACKTEST_METHOD_NAME_DUMP);
 
     {
-      const { riskName } = backtest.strategySchemaService.get(strategyName);
+      const { riskName, riskList } = backtest.strategySchemaService.get(strategyName);
       riskName && backtest.riskValidationService.validate(riskName, BACKTEST_METHOD_NAME_DUMP);
+      riskList && riskList.forEach((riskName) => backtest.riskValidationService.validate(riskName, BACKTEST_METHOD_NAME_DUMP));
     }
 
     const instance = this._getInstance(symbol, strategyName);

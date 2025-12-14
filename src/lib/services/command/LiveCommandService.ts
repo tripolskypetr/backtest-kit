@@ -62,12 +62,11 @@ export class LiveCommandService {
       );
     }
     {
-      const strategySchema = this.strategySchemaService.get(
+      const { riskName, riskList } = this.strategySchemaService.get(
         context.strategyName
       );
-      const riskName = strategySchema.riskName;
-      riskName &&
-        this.riskValidationService.validate(riskName, METHOD_NAME_RUN);
+      riskName && this.riskValidationService.validate(riskName, METHOD_NAME_RUN);
+      riskList && riskList.forEach((riskName) => this.riskValidationService.validate(riskName, METHOD_NAME_RUN));
     }
     return this.liveLogicPublicService.run(symbol, context);
   };

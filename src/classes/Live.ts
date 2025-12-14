@@ -11,6 +11,7 @@ const LIVE_METHOD_NAME_RUN = "LiveUtils.run";
 const LIVE_METHOD_NAME_BACKGROUND = "LiveUtils.background";
 const LIVE_METHOD_NAME_STOP = "LiveUtils.stop";
 const LIVE_METHOD_NAME_GET_REPORT = "LiveUtils.getReport";
+const LIVE_METHOD_NAME_GET_DATA = "LiveUtils.getData";
 const LIVE_METHOD_NAME_DUMP = "LiveUtils.dump";
 const LIVE_METHOD_NAME_TASK = "LiveUtils.task";
 const LIVE_METHOD_NAME_GET_STATUS = "LiveUtils.getStatus";
@@ -173,10 +174,11 @@ export class LiveInstance {
     }
 
     {
-      const { riskName } = backtest.strategySchemaService.get(
+      const { riskName, riskList } = backtest.strategySchemaService.get(
         context.strategyName
       );
       riskName && backtest.riskGlobalService.clear(riskName);
+      riskList && riskList.forEach((riskName) => backtest.riskGlobalService.clear(riskName));
     }
 
     return backtest.liveCommandService.run(symbol, context);
@@ -402,8 +404,9 @@ export class LiveUtils {
     }
 
     {
-      const { riskName } = backtest.strategySchemaService.get(context.strategyName);
+      const { riskName, riskList } = backtest.strategySchemaService.get(context.strategyName);
       riskName && backtest.riskValidationService.validate(riskName, LIVE_METHOD_NAME_RUN);
+      riskList && riskList.forEach((riskName) => backtest.riskValidationService.validate(riskName, LIVE_METHOD_NAME_RUN));
     }
 
     const instance = this._getInstance(symbol, context.strategyName);
@@ -442,8 +445,9 @@ export class LiveUtils {
     backtest.exchangeValidationService.validate(context.exchangeName, LIVE_METHOD_NAME_BACKGROUND);
 
     {
-      const { riskName } = backtest.strategySchemaService.get(context.strategyName);
+      const { riskName, riskList } = backtest.strategySchemaService.get(context.strategyName);
       riskName && backtest.riskValidationService.validate(riskName, LIVE_METHOD_NAME_BACKGROUND);
+      riskList && riskList.forEach((riskName) => backtest.riskValidationService.validate(riskName, LIVE_METHOD_NAME_BACKGROUND));
     }
 
     const instance = this._getInstance(symbol, context.strategyName);
@@ -471,8 +475,9 @@ export class LiveUtils {
     backtest.strategyValidationService.validate(strategyName, LIVE_METHOD_NAME_STOP);
 
     {
-      const { riskName } = backtest.strategySchemaService.get(strategyName);
+      const { riskName, riskList } = backtest.strategySchemaService.get(strategyName);
       riskName && backtest.riskValidationService.validate(riskName, LIVE_METHOD_NAME_STOP);
+      riskList && riskList.forEach((riskName) => backtest.riskValidationService.validate(riskName, LIVE_METHOD_NAME_STOP));
     }
 
     const instance = this._getInstance(symbol, strategyName);
@@ -496,8 +501,9 @@ export class LiveUtils {
     backtest.strategyValidationService.validate(strategyName, "LiveUtils.getData");
 
     {
-      const { riskName } = backtest.strategySchemaService.get(strategyName);
-      riskName && backtest.riskValidationService.validate(riskName, "LiveUtils.getData");
+      const { riskName, riskList } = backtest.strategySchemaService.get(strategyName);
+      riskName && backtest.riskValidationService.validate(riskName, LIVE_METHOD_NAME_GET_DATA);
+      riskList && riskList.forEach((riskName) => backtest.riskValidationService.validate(riskName, LIVE_METHOD_NAME_GET_DATA));
     }
 
     const instance = this._getInstance(symbol, strategyName);
@@ -521,8 +527,9 @@ export class LiveUtils {
     backtest.strategyValidationService.validate(strategyName, LIVE_METHOD_NAME_GET_REPORT);
 
     {
-      const { riskName } = backtest.strategySchemaService.get(strategyName);
+      const { riskName, riskList } = backtest.strategySchemaService.get(strategyName);
       riskName && backtest.riskValidationService.validate(riskName, LIVE_METHOD_NAME_GET_REPORT);
+      riskList && riskList.forEach((riskName) => backtest.riskValidationService.validate(riskName, LIVE_METHOD_NAME_GET_REPORT));
     }
 
     const instance = this._getInstance(symbol, strategyName);
@@ -553,8 +560,9 @@ export class LiveUtils {
     backtest.strategyValidationService.validate(strategyName, LIVE_METHOD_NAME_DUMP);
 
     {
-      const { riskName } = backtest.strategySchemaService.get(strategyName);
+      const { riskName, riskList } = backtest.strategySchemaService.get(strategyName);
       riskName && backtest.riskValidationService.validate(riskName, LIVE_METHOD_NAME_DUMP);
+      riskList && riskList.forEach((riskName) => backtest.riskValidationService.validate(riskName, LIVE_METHOD_NAME_DUMP));
     }
 
     const instance = this._getInstance(symbol, strategyName);

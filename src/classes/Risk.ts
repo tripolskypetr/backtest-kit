@@ -1,8 +1,51 @@
+import { IRisk, IRiskCheckArgs } from "../interfaces/Risk.interface";
 import backtest from "../lib";
 
 const RISK_METHOD_NAME_GET_DATA = "RiskUtils.getData";
 const RISK_METHOD_NAME_GET_REPORT = "RiskUtils.getReport";
 const RISK_METHOD_NAME_DUMP = "RiskUtils.dump";
+
+export class MergeRisk implements IRisk {
+  constructor(readonly _riskList: IRisk[]) {}
+
+  public async checkSignal(params: IRiskCheckArgs): Promise<boolean> {
+    backtest.loggerService.info("MergeRisk checkSignal", {
+      params,
+    });
+    const riskCheck = await Promise.all(
+      this._riskList.map(async (risk) => await risk.checkSignal(params))
+    );
+    return riskCheck.every((isSafe) => isSafe);
+  }
+
+  public async addSignal(
+    symbol: string,
+    context: { strategyName: string; riskName: string }
+  ) {
+    backtest.loggerService.info("MergeRisk addSignal", {
+      symbol,
+      context,
+    });
+    await Promise.all(
+      this._riskList.map(async (risk) => await risk.addSignal(symbol, context))
+    );
+  }
+
+  public async removeSignal(
+    symbol: string,
+    context: { strategyName: string; riskName: string }
+  ) {
+    backtest.loggerService.info("MergeRisk removeSignal", {
+      symbol,
+      context,
+    });
+    await Promise.all(
+      this._riskList.map(
+        async (risk) => await risk.removeSignal(symbol, context)
+      )
+    );
+  }
+}
 
 /**
  * Utility class for accessing risk rejection reports and statistics.
@@ -65,13 +108,24 @@ export class RiskUtils {
    * ```
    */
   public getData = async (symbol: string, strategyName: string) => {
-    backtest.loggerService.info(RISK_METHOD_NAME_GET_DATA, { symbol, strategyName });
+    backtest.loggerService.info(RISK_METHOD_NAME_GET_DATA, {
+      symbol,
+      strategyName,
+    });
 
-    backtest.strategyValidationService.validate(strategyName, RISK_METHOD_NAME_GET_DATA);
+    backtest.strategyValidationService.validate(
+      strategyName,
+      RISK_METHOD_NAME_GET_DATA
+    );
 
     {
-      const { riskName } = backtest.strategySchemaService.get(strategyName);
-      riskName && backtest.riskValidationService.validate(riskName, RISK_METHOD_NAME_GET_DATA);
+      const { riskName, riskList } = backtest.strategySchemaService.get(strategyName);
+      riskName &&
+        backtest.riskValidationService.validate(
+          riskName,
+          RISK_METHOD_NAME_GET_DATA
+        );
+      riskList && riskList.forEach((riskName) => backtest.riskValidationService.validate(riskName, RISK_METHOD_NAME_GET_DATA));
     }
 
     return await backtest.riskMarkdownService.getData(symbol, strategyName);
@@ -117,14 +171,28 @@ export class RiskUtils {
    * // - my-strategy: 1
    * ```
    */
-  public getReport = async (symbol: string, strategyName: string): Promise<string> => {
-    backtest.loggerService.info(RISK_METHOD_NAME_GET_REPORT, { symbol, strategyName });
+  public getReport = async (
+    symbol: string,
+    strategyName: string
+  ): Promise<string> => {
+    backtest.loggerService.info(RISK_METHOD_NAME_GET_REPORT, {
+      symbol,
+      strategyName,
+    });
 
-    backtest.strategyValidationService.validate(strategyName, RISK_METHOD_NAME_GET_REPORT);
+    backtest.strategyValidationService.validate(
+      strategyName,
+      RISK_METHOD_NAME_GET_REPORT
+    );
 
     {
-      const { riskName } = backtest.strategySchemaService.get(strategyName);
-      riskName && backtest.riskValidationService.validate(riskName, RISK_METHOD_NAME_GET_REPORT);
+      const { riskName, riskList } = backtest.strategySchemaService.get(strategyName);
+      riskName &&
+        backtest.riskValidationService.validate(
+          riskName,
+          RISK_METHOD_NAME_GET_REPORT
+        );
+      riskList && riskList.forEach((riskName) => backtest.riskValidationService.validate(riskName, RISK_METHOD_NAME_GET_REPORT));
     }
 
     return await backtest.riskMarkdownService.getReport(symbol, strategyName);
@@ -161,14 +229,30 @@ export class RiskUtils {
    * }
    * ```
    */
-  public dump = async (symbol: string, strategyName: string, path?: string): Promise<void> => {
-    backtest.loggerService.info(RISK_METHOD_NAME_DUMP, { symbol, strategyName, path });
+  public dump = async (
+    symbol: string,
+    strategyName: string,
+    path?: string
+  ): Promise<void> => {
+    backtest.loggerService.info(RISK_METHOD_NAME_DUMP, {
+      symbol,
+      strategyName,
+      path,
+    });
 
-    backtest.strategyValidationService.validate(strategyName, RISK_METHOD_NAME_DUMP);
+    backtest.strategyValidationService.validate(
+      strategyName,
+      RISK_METHOD_NAME_DUMP
+    );
 
     {
-      const { riskName } = backtest.strategySchemaService.get(strategyName);
-      riskName && backtest.riskValidationService.validate(riskName, RISK_METHOD_NAME_DUMP);
+      const { riskName, riskList } = backtest.strategySchemaService.get(strategyName);
+      riskName &&
+        backtest.riskValidationService.validate(
+          riskName,
+          RISK_METHOD_NAME_DUMP
+        );
+      riskList && riskList.forEach((riskName) => backtest.riskValidationService.validate(riskName, RISK_METHOD_NAME_DUMP));
     }
 
     await backtest.riskMarkdownService.dump(symbol, strategyName, path);

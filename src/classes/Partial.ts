@@ -70,8 +70,9 @@ export class PartialUtils {
     backtest.strategyValidationService.validate(strategyName, PARTIAL_METHOD_NAME_GET_DATA);
 
     {
-      const { riskName } = backtest.strategySchemaService.get(strategyName);
+      const { riskName, riskList } = backtest.strategySchemaService.get(strategyName);
       riskName && backtest.riskValidationService.validate(riskName, PARTIAL_METHOD_NAME_GET_DATA);
+      riskList && riskList.forEach((riskName) => backtest.riskValidationService.validate(riskName, PARTIAL_METHOD_NAME_GET_DATA));
     }
 
     return await backtest.partialMarkdownService.getData(symbol, strategyName);
@@ -121,8 +122,9 @@ export class PartialUtils {
     backtest.strategyValidationService.validate(strategyName, PARTIAL_METHOD_NAME_GET_REPORT);
 
     {
-      const { riskName } = backtest.strategySchemaService.get(strategyName);
+      const { riskName, riskList } = backtest.strategySchemaService.get(strategyName);
       riskName && backtest.riskValidationService.validate(riskName, PARTIAL_METHOD_NAME_GET_REPORT);
+      riskList && riskList.forEach((riskName) => backtest.riskValidationService.validate(riskName, PARTIAL_METHOD_NAME_GET_REPORT));
     }
 
     return await backtest.partialMarkdownService.getReport(symbol, strategyName);
@@ -165,8 +167,9 @@ export class PartialUtils {
     backtest.strategyValidationService.validate(strategyName, PARTIAL_METHOD_NAME_DUMP);
 
     {
-      const { riskName } = backtest.strategySchemaService.get(strategyName);
+      const { riskName, riskList } = backtest.strategySchemaService.get(strategyName);
       riskName && backtest.riskValidationService.validate(riskName, PARTIAL_METHOD_NAME_DUMP);
+      riskList && riskList.forEach((riskName) => backtest.riskValidationService.validate(riskName, PARTIAL_METHOD_NAME_DUMP));
     }
 
     await backtest.partialMarkdownService.dump(symbol, strategyName, path);

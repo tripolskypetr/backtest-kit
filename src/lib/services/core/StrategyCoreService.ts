@@ -59,14 +59,13 @@ export class StrategyCoreService {
         symbol,
         strategyName,
       });
-      const strategySchema = this.strategySchemaService.get(strategyName);
+      const { riskName, riskList } = this.strategySchemaService.get(strategyName);
       this.strategyValidationService.validate(
         strategyName,
         METHOD_NAME_VALIDATE
       );
-      const riskName = strategySchema.riskName;
-      riskName &&
-        this.riskValidationService.validate(riskName, METHOD_NAME_VALIDATE);
+      riskName && this.riskValidationService.validate(riskName, METHOD_NAME_VALIDATE);
+      riskList && riskList.forEach((riskName) => this.riskValidationService.validate(riskName, METHOD_NAME_VALIDATE));
     }
   );
 

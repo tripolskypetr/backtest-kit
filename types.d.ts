@@ -950,6 +950,8 @@ interface IStrategySchema {
     callbacks?: Partial<IStrategyCallbacks>;
     /** Optional risk profile identifier for risk management */
     riskName?: RiskName;
+    /** Optional several risk profile list for risk management (if multiple required) */
+    riskList?: RiskName[];
 }
 /**
  * Reason why signal was closed.

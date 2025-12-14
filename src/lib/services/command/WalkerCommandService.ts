@@ -75,11 +75,10 @@ export class WalkerCommandService {
     {
       const walkerSchema = this.walkerSchemaService.get(context.walkerName);
       for (const strategyName of walkerSchema.strategies) {
-        const strategySchema = this.strategySchemaService.get(strategyName);
+        const { riskName, riskList } = this.strategySchemaService.get(strategyName);
         this.strategyValidationService.validate(strategyName, METHOD_NAME_RUN);
-        const riskName = strategySchema.riskName;
-        riskName &&
-          this.riskValidationService.validate(riskName, METHOD_NAME_RUN);
+        riskName && this.riskValidationService.validate(riskName, METHOD_NAME_RUN);
+        riskList && riskList.forEach((riskName) => this.riskValidationService.validate(riskName, METHOD_NAME_RUN));
       }
     }
     return this.walkerLogicPublicService.run(symbol, context);

@@ -93,6 +93,10 @@ export class StrategyValidationService {
         this.riskValidationService.validate(strategy.riskName, source);
       }
 
+      if (strategy.riskList) {
+        strategy.riskList.forEach((riskName) => this.riskValidationService.validate(riskName, source));
+      }
+
       return true as never;
     }
   ) as (strategyName: StrategyName, source: string) => void;

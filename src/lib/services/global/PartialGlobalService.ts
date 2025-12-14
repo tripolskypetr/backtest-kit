@@ -88,9 +88,9 @@ export class PartialGlobalService {
         methodName,
       });
       this.strategyValidationService.validate(strategyName, methodName);
-      const strategySchema = this.strategySchemaService.get(strategyName);
-      const riskName = strategySchema.riskName;
+      const { riskName, riskList } = this.strategySchemaService.get(strategyName);
       riskName && this.riskValidationService.validate(riskName, methodName);
+      riskList && riskList.forEach((riskName) => this.riskValidationService.validate(riskName, methodName));
     }
   );
 
