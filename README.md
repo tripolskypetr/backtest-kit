@@ -12,7 +12,7 @@
 
 Build reliable trading systems: backtest on historical data, deploy live bots with recovery, and optimize strategies using LLMs like Ollama.
 
-📚 **[API Reference](https://backtest-kit.github.io/)** | 🌟 **[Quick Start](https://github.com/tripolskypetr/backtest-kit/tree/master/demo)**
+📚 **[API Reference](https://backtest-kit.github.io/)** | 🌟 **[Quick Start](https://github.com/tripolskypetr/backtest-kit/tree/master/demo)** | **📰 [Article](https://tripolskypetr.medium.com/how-i-made-look-ahead-bias-architecturally-impossible-in-trading-backtests-63e4115f6e16)**
 
 ## ✨ Why Choose Backtest Kit?
 
