@@ -1,0 +1,780 @@
+---
+title: design/14_risk-management
+group: design
+---
+
+# Risk Management
+
+# Risk Management
+
+<details>
+<summary>Relevant source files</summary>
+
+The following files were used as context for generating this wiki page:
+
+- [README.md](README.md)
+- [src/client/ClientStrategy.ts](src/client/ClientStrategy.ts)
+- [src/config/emitters.ts](src/config/emitters.ts)
+- [src/function/event.ts](src/function/event.ts)
+- [src/index.ts](src/index.ts)
+- [src/interfaces/Heatmap.interface.ts](src/interfaces/Heatmap.interface.ts)
+- [src/interfaces/Strategy.interface.ts](src/interfaces/Strategy.interface.ts)
+- [src/lib/services/connection/StrategyConnectionService.ts](src/lib/services/connection/StrategyConnectionService.ts)
+- [test/e2e/defend.test.mjs](test/e2e/defend.test.mjs)
+- [test/e2e/risk.test.mjs](test/e2e/risk.test.mjs)
+- [test/index.mjs](test/index.mjs)
+- [test/mock/getMockCandles.mjs](test/mock/getMockCandles.mjs)
+- [test/spec/heat.test.mjs](test/spec/heat.test.mjs)
+- [test/spec/list.test.mjs](test/spec/list.test.mjs)
+- [types.d.ts](types.d.ts)
+
+</details>
+
+
+
+This document describes the risk management system that validates trading signals before execution. Risk profiles define portfolio-level controls such as position limits, time windows, and custom validation logic. For strategy-level signal validation (TP/SL distances, price checks), see [Strategy Execution Flow](./13-strategy-execution-flow.md). For position sizing calculations, see [Position Sizing](./15-position-sizing.md).
+
+---
+
+## Overview
+
+The risk management system enforces portfolio-level constraints on signal creation through custom validation functions. Risk profiles are registered via `addRisk()` and referenced by strategies through `riskName` or `riskList` fields. Risk checks execute **before** signals are created or activated, preventing invalid positions from entering the portfolio.
+
+**Key Features:**
+- Custom validation functions with access to portfolio state
+- Position tracking across multiple strategies
+- Multi-risk composition via `MergeRisk`
+- Event emission for rejected signals
+- Strategy-level or portfolio-level scoping
+
+**Sources:** [types.d.ts:546-691](), [src/interfaces/Risk.interface.ts](), [README.md:76-95]()
+
+---
+
+## Risk Schema Registration
+
+Risk profiles are registered using `addRisk()` and stored in `RiskSchemaService`. Each profile contains a unique identifier, optional callbacks, and an array of validation functions.
+
+### IRiskSchema Structure
+
+```typescript
+interface IRiskSchema {
+  riskName: RiskName;                                  // Unique identifier
+  note?: string;                                       // Documentation
+  callbacks?: Partial<IRiskCallbacks>;                 // Event hooks
+  validations: (IRiskValidation | IRiskValidationFn)[]; // Validation array
+}
+
+interface IRiskValidation {
+  validate: IRiskValidationFn;  // Validation function
+  note?: string;                 // Description for rejection message
+}
+```
+
+### Registration Example
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `riskName` | `string` | Yes | Unique risk profile identifier |
+| `note` | `string` | No | Developer documentation |
+| `validations` | `Array` | Yes | Array of validation functions or validation objects |
+| `callbacks` | `Object` | No | `onRejected`, `onAllowed` event hooks |
+
+**Sources:** [types.d.ts:606-634](), [src/function/add.ts](), [test/e2e/risk.test.mjs:35-56]()
+
+---
+
+## Validation Function Interface
+
+Validation functions receive `IRiskValidationPayload` containing signal details, portfolio state, and active positions. Functions should throw an error to reject the signal, or return `void`/`Promise<void>` to allow it.
+
+### IRiskValidationPayload Structure
+
+```typescript
+interface IRiskValidationPayload {
+  symbol: string;                     // Trading pair (e.g., "BTCUSDT")
+  pendingSignal: ISignalDto;          // Signal to validate
+  strategyName: StrategyName;         // Strategy requesting position
+  exchangeName: ExchangeName;         // Exchange name
+  currentPrice: number;               // Current VWAP price
+  timestamp: number;                  // Request timestamp (ms)
+  activePositionCount: number;        // Total active positions
+  activePositions: IRiskActivePosition[]; // List of active positions
+}
+
+interface IRiskActivePosition {
+  signal: ISignalRow;       // Active signal details
+  strategyName: string;     // Owning strategy
+  exchangeName: string;     // Exchange name
+  openTimestamp: number;    // Position open time (ms)
+}
+```
+
+### Common Validation Patterns
+
+**Maximum Position Limit:**
+```typescript
+({ activePositionCount }) => {
+  if (activePositionCount >= 3) {
+    throw new Error("Maximum 3 concurrent positions");
+  }
+}
+```
+
+**Symbol Filter:**
+```typescript
+({ symbol }) => {
+  if (symbol === "BTCUSDT") {
+    throw new Error("BTC trading not allowed");
+  }
+}
+```
+
+**Time Window:**
+```typescript
+({ timestamp }) => {
+  const hour = new Date(timestamp).getHours();
+  if (hour < 9 || hour > 16) {
+    throw new Error("Trading only allowed 9am-4pm");
+  }
+}
+```
+
+**Risk/Reward Ratio:**
+```typescript
+({ pendingSignal, currentPrice }) => {
+  const { priceOpen = currentPrice, priceTakeProfit, priceStopLoss, position } = pendingSignal;
+  const reward = position === "long" ? priceTakeProfit - priceOpen : priceOpen - priceTakeProfit;
+  const risk = position === "long" ? priceOpen - priceStopLoss : priceStopLoss - priceOpen;
+  if (reward / risk < 2) {
+    throw new Error("R/R ratio must be >= 2:1");
+  }
+}
+```
+
+**Sources:** [types.d.ts:588-620](), [test/e2e/risk.test.mjs:146-160](), [test/e2e/risk.test.mjs:229-234]()
+
+---
+
+## Risk Check Lifecycle
+
+Risk validation occurs at two points in the signal lifecycle: (1) when `getSignal()` returns a new signal, and (2) when a scheduled signal activates at `priceOpen`. The validation process is identical in both cases.
+
+### Risk Validation Flow
+
+```mermaid
+graph TB
+    Start["ClientStrategy.tick() or<br/>scheduled signal activation"]
+    GetSignal["getSignal() returns<br/>ISignalDto or null"]
+    CheckNull{"Signal<br/>null?"}
+    RiskCheck["ClientRisk.checkSignal()<br/>IRiskCheckArgs"]
+    LoadState["Load active positions<br/>from PersistRiskAdapter"]
+    BuildPayload["Build IRiskValidationPayload<br/>with activePositionCount"]
+    IterateValidations["Iterate validations array"]
+    RunValidation["Execute validation(payload)"]
+    ValidationThrows{"Throws<br/>error?"}
+    EmitRejection["Emit riskSubject event<br/>Call callbacks.onRejected"]
+    ReturnFalse["Return false"]
+    NextValidation["Next validation"]
+    AllPassed{"All<br/>passed?"}
+    EmitAllowed["Call callbacks.onAllowed"]
+    ReturnTrue["Return true"]
+    CheckResult{"checkSignal<br/>= true?"}
+    CreateSignal["Create ISignalRow<br/>Set scheduledAt, pendingAt"]
+    ValidateSignal["VALIDATE_SIGNAL_FN()<br/>Price/TP/SL checks"]
+    AddPosition["risk.addSignal()<br/>Track in PersistRiskAdapter"]
+    PersistSignal["Persist to PersistSignalAdapter"]
+    EmitOpened["Emit signalEmitter<br/>action: opened"]
+    Discard["Discard signal<br/>Return null"]
+    End["Continue monitoring"]
+
+    Start --> GetSignal
+    GetSignal --> CheckNull
+    CheckNull -->|"Yes"| End
+    CheckNull -->|"No"| RiskCheck
+    
+    RiskCheck --> LoadState
+    LoadState --> BuildPayload
+    BuildPayload --> IterateValidations
+    IterateValidations --> RunValidation
+    RunValidation --> ValidationThrows
+    ValidationThrows -->|"Yes"| EmitRejection
+    EmitRejection --> ReturnFalse
+    ReturnFalse --> CheckResult
+    ValidationThrows -->|"No"| NextValidation
+    NextValidation --> AllPassed
+    AllPassed -->|"No"| RunValidation
+    AllPassed -->|"Yes"| EmitAllowed
+    EmitAllowed --> ReturnTrue
+    ReturnTrue --> CheckResult
+    
+    CheckResult -->|"false"| Discard
+    Discard --> End
+    CheckResult -->|"true"| CreateSignal
+    CreateSignal --> ValidateSignal
+    ValidateSignal --> AddPosition
+    AddPosition --> PersistSignal
+    PersistSignal --> EmitOpened
+    EmitOpened --> End
+    
+    style RiskCheck fill:#fff4e1,stroke:#333,stroke-width:2px
+    style EmitRejection fill:#ffcccc,stroke:#333,stroke-width:2px
+    style AddPosition fill:#e8f5e9,stroke:#333,stroke-width:2px
+```
+
+**Sources:** [src/client/ClientStrategy.ts:375-387](), [src/client/ClientRisk.ts](), [src/client/ClientStrategy.ts:712-729]()
+
+---
+
+## Risk Check Arguments
+
+The `IRiskCheckArgs` interface defines the parameters passed from `ClientStrategy` to `ClientRisk.checkSignal()`. These are **passthrough arguments** from the strategy context, without portfolio state.
+
+### IRiskCheckArgs vs IRiskValidationPayload
+
+```mermaid
+graph LR
+    subgraph "ClientStrategy Context"
+        StrategyArgs["symbol: string<br/>pendingSignal: ISignalDto<br/>strategyName: StrategyName<br/>exchangeName: ExchangeName<br/>currentPrice: number<br/>timestamp: number"]
+    end
+    
+    subgraph "IRiskCheckArgs"
+        CheckArgs["symbol<br/>pendingSignal<br/>strategyName<br/>exchangeName<br/>currentPrice<br/>timestamp"]
+    end
+    
+    subgraph "ClientRisk.checkSignal()"
+        LoadActivePos["Load active positions<br/>from PersistRiskAdapter"]
+        CountPos["Count activePositionCount"]
+    end
+    
+    subgraph "IRiskValidationPayload"
+        Payload["symbol<br/>pendingSignal<br/>strategyName<br/>exchangeName<br/>currentPrice<br/>timestamp<br/>activePositionCount<br/>activePositions[]"]
+    end
+    
+    subgraph "Validation Functions"
+        Validate["validate(payload)<br/>Throw or return void"]
+    end
+    
+    StrategyArgs --> CheckArgs
+    CheckArgs --> LoadActivePos
+    LoadActivePos --> CountPos
+    CountPos --> Payload
+    Payload --> Validate
+    
+    style CheckArgs fill:#e1f5ff,stroke:#333,stroke-width:2px
+    style Payload fill:#fff4e1,stroke:#333,stroke-width:2px
+    style Validate fill:#e8f5e9,stroke:#333,stroke-width:2px
+```
+
+**Key Distinction:**
+- `IRiskCheckArgs` - Input to `checkSignal()` from strategy
+- `IRiskValidationPayload` - Extended payload passed to validation functions, includes `activePositionCount` and `activePositions[]`
+
+**Sources:** [types.d.ts:546-564](), [types.d.ts:588-605](), [src/client/ClientRisk.ts]()
+
+---
+
+## Position Tracking
+
+The risk system maintains a registry of active positions to enable cross-strategy validation. Positions are tracked in `PersistRiskAdapter` (crash-safe JSON storage) and loaded on demand during risk checks.
+
+### Position Lifecycle
+
+```mermaid
+graph TB
+    SignalOpened["Signal opened<br/>action: opened"]
+    AddSignal["risk.addSignal(symbol, context)<br/>context: strategyName, riskName"]
+    LoadData["PersistRiskAdapter.readRiskData(symbol, riskName)<br/>Returns RiskData | null"]
+    CreateEntry["Create IRiskActivePosition<br/>signal, strategyName, exchangeName, openTimestamp"]
+    AppendArray["Append to positions array"]
+    Persist["PersistRiskAdapter.writeRiskData(symbol, riskName, data)<br/>Atomic JSON write"]
+    
+    SignalClosed["Signal closed<br/>action: closed"]
+    RemoveSignal["risk.removeSignal(symbol, context)"]
+    LoadData2["PersistRiskAdapter.readRiskData(symbol, riskName)"]
+    FilterArray["Filter out position<br/>by signal.id"]
+    Persist2["PersistRiskAdapter.writeRiskData(symbol, riskName, data)<br/>Updated positions array"]
+    
+    RiskCheck["During risk check"]
+    LoadAllRisks["Load all risk data<br/>for symbol"]
+    FlattenPositions["Flatten positions arrays<br/>from all risk profiles"]
+    CountPositions["activePositionCount = positions.length"]
+    PassToValidation["Pass to validation functions"]
+    
+    SignalOpened --> AddSignal
+    AddSignal --> LoadData
+    LoadData --> CreateEntry
+    CreateEntry --> AppendArray
+    AppendArray --> Persist
+    
+    SignalClosed --> RemoveSignal
+    RemoveSignal --> LoadData2
+    LoadData2 --> FilterArray
+    FilterArray --> Persist2
+    
+    RiskCheck --> LoadAllRisks
+    LoadAllRisks --> FlattenPositions
+    FlattenPositions --> CountPositions
+    CountPositions --> PassToValidation
+    
+    style Persist fill:#e8f5e9,stroke:#333,stroke-width:2px
+    style Persist2 fill:#e8f5e9,stroke:#333,stroke-width:2px
+    style CountPositions fill:#fff4e1,stroke:#333,stroke-width:2px
+```
+
+### RiskData Structure
+
+```typescript
+interface RiskData {
+  positions: IRiskActivePosition[];  // Array of active positions
+}
+
+interface IRiskActivePosition {
+  signal: ISignalRow;      // Full signal details
+  strategyName: string;    // Owning strategy
+  exchangeName: string;    // Exchange name
+  openTimestamp: number;   // When position opened (ms)
+}
+```
+
+**Persistence Details:**
+- Storage: `./dump/{symbol}_{riskName}_risk.json`
+- Format: `{ positions: IRiskActivePosition[] }`
+- Atomic writes via `singleshot` pattern
+- Loaded during `checkSignal()` to populate `activePositions`
+
+**Sources:** [src/client/ClientRisk.ts](), [src/classes/Persist.ts](), [types.d.ts:566-577]()
+
+---
+
+## Component Architecture
+
+The risk system uses dependency injection to route risk checks through memoized `ClientRisk` instances. Strategies reference risk profiles by `riskName`, and `RiskConnectionService` ensures singleton instances per risk profile.
+
+```mermaid
+graph TB
+    subgraph "Public API"
+        AddRisk["addRisk(IRiskSchema)<br/>Register risk profile"]
+    end
+    
+    subgraph "Schema Registry"
+        RiskSchemaService["RiskSchemaService<br/>Store IRiskSchema by riskName"]
+    end
+    
+    subgraph "Validation Service"
+        RiskValidationService["RiskValidationService<br/>Validate schema structure<br/>Memoized checks"]
+    end
+    
+    subgraph "Connection Service"
+        RiskConnectionService["RiskConnectionService<br/>Memoized ClientRisk instances<br/>Key: riskName"]
+    end
+    
+    subgraph "Client Implementation"
+        ClientRisk["ClientRisk<br/>checkSignal(IRiskCheckArgs)<br/>addSignal(symbol, context)<br/>removeSignal(symbol, context)"]
+    end
+    
+    subgraph "Persistence Layer"
+        PersistRiskAdapter["PersistRiskAdapter<br/>readRiskData(symbol, riskName)<br/>writeRiskData(symbol, riskName, data)<br/>File: ./dump/{symbol}_{riskName}_risk.json"]
+    end
+    
+    subgraph "Event System"
+        RiskSubject["riskSubject<br/>Emit rejection events<br/>RiskContract payload"]
+    end
+    
+    subgraph "Strategy Integration"
+        StrategySchema["IStrategySchema<br/>riskName?: RiskName<br/>riskList?: RiskName[]"]
+        StrategyConnection["StrategyConnectionService<br/>GET_RISK_FN()<br/>MergeRisk for riskList"]
+        ClientStrategy["ClientStrategy<br/>Calls risk.checkSignal()<br/>before signal creation"]
+    end
+    
+    AddRisk --> RiskValidationService
+    RiskValidationService --> RiskSchemaService
+    
+    StrategySchema --> StrategyConnection
+    StrategyConnection --> RiskConnectionService
+    RiskConnectionService --> ClientRisk
+    
+    ClientRisk --> PersistRiskAdapter
+    ClientRisk --> RiskSubject
+    
+    ClientStrategy --> ClientRisk
+    
+    RiskSchemaService -.->|"Read schema"| RiskConnectionService
+    
+    style RiskConnectionService fill:#fff4e1,stroke:#333,stroke-width:3px
+    style ClientRisk fill:#e1f5ff,stroke:#333,stroke-width:2px
+    style PersistRiskAdapter fill:#e8f5e9,stroke:#333,stroke-width:2px
+```
+
+**Key Components:**
+
+| Component | File Path | Purpose |
+|-----------|-----------|---------|
+| `addRisk()` | [src/function/add.ts]() | Public registration API |
+| `RiskSchemaService` | [src/lib/services/schema/RiskSchemaService.ts]() | Schema storage and retrieval |
+| `RiskValidationService` | [src/lib/services/validation/RiskValidationService.ts]() | Schema validation |
+| `RiskConnectionService` | [src/lib/services/connection/RiskConnectionService.ts]() | Memoized ClientRisk factory |
+| `ClientRisk` | [src/client/ClientRisk.ts]() | Risk checking implementation |
+| `PersistRiskAdapter` | [src/classes/Persist.ts]() | Position persistence (JSON) |
+| `riskSubject` | [src/config/emitters.ts:131]() | Rejection event emitter |
+| `MergeRisk` | [src/classes/Risk.ts]() | Multi-risk composition |
+
+**Sources:** [src/lib/services/connection/RiskConnectionService.ts](), [src/client/ClientRisk.ts](), [src/classes/Persist.ts](), [src/lib/services/connection/StrategyConnectionService.ts:27-67]()
+
+---
+
+## Multi-Risk Composition
+
+Strategies can reference multiple risk profiles using `riskList` (array) or combine `riskName` with `riskList`. The `MergeRisk` class executes validations sequentially across all profiles.
+
+### Risk Resolution Logic
+
+```typescript
+// From StrategyConnectionService.ts
+const GET_RISK_FN = (dto, self) => {
+  const hasRiskName = !!dto.riskName;
+  const hasRiskList = !!(dto.riskList?.length);
+  
+  // No risk management
+  if (!hasRiskName && !hasRiskList) {
+    return NOOP_RISK;
+  }
+  
+  // Single risk profile
+  if (hasRiskName && !hasRiskList) {
+    return self.riskConnectionService.getRisk(dto.riskName);
+  }
+  
+  // Multiple risk profiles (riskList only)
+  if (!hasRiskName && hasRiskList) {
+    return new MergeRisk(
+      dto.riskList.map((riskName) => self.riskConnectionService.getRisk(riskName))
+    );
+  }
+  
+  // Combined (riskName + riskList)
+  return new MergeRisk([
+    self.riskConnectionService.getRisk(dto.riskName),
+    ...dto.riskList.map((riskName) => self.riskConnectionService.getRisk(riskName))
+  ]);
+};
+```
+
+### MergeRisk Behavior
+
+```mermaid
+graph TB
+    CheckSignal["MergeRisk.checkSignal(args)"]
+    IterateRisks["Iterate risks array"]
+    CallRisk["await risks[i].checkSignal(args)"]
+    CheckResult{"Result<br/>false?"}
+    ReturnFalse["Return false<br/>Signal rejected"]
+    NextRisk["Next risk profile"]
+    AllPassed{"All<br/>passed?"}
+    ReturnTrue["Return true<br/>Signal allowed"]
+    
+    AddSignal["MergeRisk.addSignal(symbol, context)"]
+    CallAdd["await risks[i].addSignal(symbol, context)"]
+    NextAdd["Next risk profile"]
+    AllAdded{"All<br/>added?"}
+    Done["Done"]
+    
+    RemoveSignal["MergeRisk.removeSignal(symbol, context)"]
+    CallRemove["await risks[i].removeSignal(symbol, context)"]
+    NextRemove["Next risk profile"]
+    AllRemoved{"All<br/>removed?"}
+    Done2["Done"]
+    
+    CheckSignal --> IterateRisks
+    IterateRisks --> CallRisk
+    CallRisk --> CheckResult
+    CheckResult -->|"Yes"| ReturnFalse
+    CheckResult -->|"No"| NextRisk
+    NextRisk --> AllPassed
+    AllPassed -->|"No"| CallRisk
+    AllPassed -->|"Yes"| ReturnTrue
+    
+    AddSignal --> CallAdd
+    CallAdd --> NextAdd
+    NextAdd --> AllAdded
+    AllAdded -->|"No"| CallAdd
+    AllAdded -->|"Yes"| Done
+    
+    RemoveSignal --> CallRemove
+    CallRemove --> NextRemove
+    NextRemove --> AllRemoved
+    AllRemoved -->|"No"| CallRemove
+    AllRemoved -->|"Yes"| Done2
+    
+    style ReturnFalse fill:#ffcccc,stroke:#333,stroke-width:2px
+    style ReturnTrue fill:#e8f5e9,stroke:#333,stroke-width:2px
+```
+
+**Usage Example:**
+```typescript
+addStrategy({
+  strategyName: "multi-risk-strategy",
+  interval: "1m",
+  riskName: "max-3-positions",     // Primary risk profile
+  riskList: ["symbol-filter", "time-window"], // Additional profiles
+  getSignal: async () => { /* ... */ }
+});
+```
+
+**Validation Order:**
+1. `max-3-positions` validations (from `riskName`)
+2. `symbol-filter` validations (from `riskList[0]`)
+3. `time-window` validations (from `riskList[1]`)
+
+**Short-Circuit:** If any validation fails, remaining profiles are not checked and signal is rejected.
+
+**Sources:** [src/lib/services/connection/StrategyConnectionService.ts:33-67](), [src/classes/Risk.ts](), [types.d.ts:949-955]()
+
+---
+
+## Event System Integration
+
+Risk rejections emit events via `riskSubject` for monitoring and alerting. Subscribers can track rejection frequency, reasons, and portfolio state at rejection time.
+
+### Risk Events
+
+```mermaid
+graph LR
+    subgraph "ClientRisk"
+        Validation["Validation throws error"]
+        EmitRejection["params.onRejected(symbol, params,<br/>activePositionCount, comment, timestamp)"]
+    end
+    
+    subgraph "Event Emitters"
+        RiskSubject["riskSubject.next(RiskContract)"]
+    end
+    
+    subgraph "Public Listeners"
+        ListenRisk["listenRisk((event) => void)<br/>Queued async processing"]
+        ListenRiskOnce["listenRiskOnce(filter, callback)<br/>One-time execution"]
+    end
+    
+    subgraph "Markdown Service"
+        RiskMarkdownService["RiskMarkdownService<br/>Accumulate rejection events<br/>MAX_EVENTS unbounded"]
+        GetReport["Risk.getReport(riskName)<br/>Generate markdown table"]
+    end
+    
+    Validation --> EmitRejection
+    EmitRejection --> RiskSubject
+    RiskSubject --> ListenRisk
+    RiskSubject --> ListenRiskOnce
+    RiskSubject --> RiskMarkdownService
+    RiskMarkdownService --> GetReport
+    
+    style RiskSubject fill:#fff4e1,stroke:#333,stroke-width:2px
+    style RiskMarkdownService fill:#e8f5e9,stroke:#333,stroke-width:2px
+```
+
+### RiskContract Structure
+
+```typescript
+interface RiskContract {
+  symbol: string;              // Trading pair
+  strategyName: string;        // Strategy that was rejected
+  exchangeName: string;        // Exchange name
+  activePositionCount: number; // Portfolio state at rejection
+  comment: string;             // Rejection reason (from validation note or "N/A")
+  timestamp: number;           // Event timestamp (ms)
+}
+```
+
+### Listening for Rejections
+
+```typescript
+import { listenRisk, listenRiskOnce } from "backtest-kit";
+
+// Subscribe to all rejections
+const unsubscribe = listenRisk((event) => {
+  console.log(`Signal rejected: ${event.comment}`);
+  console.log(`Active positions: ${event.activePositionCount}`);
+  console.log(`Strategy: ${event.strategyName}`);
+  // Send alert to monitoring service
+});
+
+// Wait for first rejection on BTCUSDT
+listenRiskOnce(
+  (event) => event.symbol === "BTCUSDT",
+  (event) => console.log(`BTCUSDT rejection: ${event.comment}`)
+);
+```
+
+**Callback Hooks:**
+- `callbacks.onRejected(symbol, params)` - Called when signal rejected (before event emission)
+- `callbacks.onAllowed(symbol, params)` - Called when signal passes all validations
+
+**Sources:** [src/client/ClientRisk.ts](), [src/config/emitters.ts:127-131](), [src/function/event.ts](), [types.d.ts:580-586]()
+
+---
+
+## Risk Statistics and Reporting
+
+The `RiskMarkdownService` accumulates rejection events to generate statistics reports. Use `Risk.getData()` to retrieve aggregated metrics or `Risk.dump()` to write markdown files.
+
+### Risk Statistics
+
+```typescript
+interface RiskStatistics {
+  totalRejections: number;       // Total rejection count
+  rejectionsByReason: Map<string, number>; // Group by comment
+  rejectionsByStrategy: Map<string, number>; // Group by strategyName
+  rejectionsBySymbol: Map<string, number>;   // Group by symbol
+  avgActivePositions: number;    // Average positions at rejection
+}
+```
+
+### Report Generation
+
+```typescript
+import { Risk, listenRisk } from "backtest-kit";
+
+// Collect rejection events
+listenRisk((event) => {
+  // Events are automatically collected by RiskMarkdownService
+});
+
+// After backtest/live execution
+const stats = await Risk.getData("my-risk-profile");
+console.log(`Total rejections: ${stats.totalRejections}`);
+
+// Generate markdown report
+await Risk.dump("my-risk-profile");
+// Writes to: ./dump/my-risk-profile_risk.md
+```
+
+**Report Contents:**
+- Rejection count by reason
+- Rejection count by strategy
+- Rejection count by symbol
+- Average active positions at rejection
+- Full rejection event table (timestamp, symbol, strategy, reason, positions)
+
+**Sources:** [src/lib/services/markdown/RiskMarkdownService.ts](), [src/classes/Risk.ts](), [test/spec/risk.test.mjs]()
+
+---
+
+## Configuration Parameters
+
+Risk-related global configuration parameters control validation behavior and timeouts.
+
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `CC_MIN_TAKEPROFIT_DISTANCE_PERCENT` | `number` | `0.5` | Minimum TP distance from priceOpen (%) |
+| `CC_MIN_STOPLOSS_DISTANCE_PERCENT` | `number` | `0.5` | Minimum SL distance from priceOpen (%) |
+| `CC_MAX_STOPLOSS_DISTANCE_PERCENT` | `number` | `20` | Maximum SL distance from priceOpen (%) |
+| `CC_MAX_SIGNAL_LIFETIME_MINUTES` | `number` | `1440` | Maximum signal lifetime (minutes) |
+| `CC_SCHEDULE_AWAIT_MINUTES` | `number` | `120` | Scheduled signal timeout (minutes) |
+
+**Note:** These parameters are enforced by `VALIDATE_SIGNAL_FN()` in `ClientStrategy`, not by risk validations. They define **strategy-level** constraints. Custom risk validations can enforce additional **portfolio-level** constraints.
+
+**Configuration API:**
+```typescript
+import { setConfig } from "backtest-kit";
+
+setConfig({
+  CC_MIN_TAKEPROFIT_DISTANCE_PERCENT: 1.0,  // Require 1% min TP
+  CC_MAX_SIGNAL_LIFETIME_MINUTES: 720,      // Max 12 hours per signal
+});
+```
+
+**Sources:** [types.d.ts:5-115](), [src/client/ClientStrategy.ts:45-330](), [src/config/params.ts]()
+
+---
+
+## Common Use Cases
+
+### Portfolio Position Limit
+
+```typescript
+addRisk({
+  riskName: "max-3-positions",
+  validations: [
+    ({ activePositionCount }) => {
+      if (activePositionCount >= 3) {
+        throw new Error("Maximum 3 concurrent positions");
+      }
+    }
+  ]
+});
+```
+
+### Per-Symbol Position Limit
+
+```typescript
+addRisk({
+  riskName: "max-1-per-symbol",
+  validations: [
+    ({ symbol, activePositions }) => {
+      const symbolPositions = activePositions.filter(p => p.signal.symbol === symbol);
+      if (symbolPositions.length >= 1) {
+        throw new Error(`Maximum 1 position for ${symbol}`);
+      }
+    }
+  ]
+});
+```
+
+### Time-Based Trading Window
+
+```typescript
+addRisk({
+  riskName: "trading-hours",
+  validations: [
+    ({ timestamp }) => {
+      const hour = new Date(timestamp).getUTCHours();
+      if (hour < 9 || hour > 16) {
+        throw new Error("Trading only allowed 09:00-16:00 UTC");
+      }
+    }
+  ]
+});
+```
+
+### Minimum Risk/Reward Ratio
+
+```typescript
+addRisk({
+  riskName: "rr-2to1",
+  validations: [
+    {
+      validate: ({ pendingSignal, currentPrice }) => {
+        const { priceOpen = currentPrice, priceTakeProfit, priceStopLoss, position } = pendingSignal;
+        const reward = position === "long" 
+          ? priceTakeProfit - priceOpen 
+          : priceOpen - priceTakeProfit;
+        const risk = position === "long" 
+          ? priceOpen - priceStopLoss 
+          : priceStopLoss - priceOpen;
+        if (reward / risk < 2) {
+          throw new Error("Risk/Reward ratio must be >= 2:1");
+        }
+      },
+      note: "R/R ratio validation"
+    }
+  ]
+});
+```
+
+### Strategy-Specific Limits
+
+```typescript
+addRisk({
+  riskName: "strategy-limits",
+  validations: [
+    ({ strategyName, activePositions }) => {
+      const strategyPositions = activePositions.filter(
+        p => p.strategyName === strategyName
+      );
+      if (strategyPositions.length >= 2) {
+        throw new Error(`Strategy ${strategyName} has max 2 positions`);
+      }
+    }
+  ]
+});
+```
+
+**Sources:** [test/e2e/risk.test.mjs:21-127](), [test/e2e/risk.test.mjs:212-317](), [test/e2e/risk.test.mjs:387-463]()

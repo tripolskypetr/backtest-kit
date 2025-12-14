@@ -1,0 +1,558 @@
+---
+title: design/26_global-configuration-parameters
+group: design
+---
+
+# Global Configuration Parameters
+
+# Global Configuration Parameters
+
+<details>
+<summary>Relevant source files</summary>
+
+The following files were used as context for generating this wiki page:
+
+- [src/config/emitters.ts](src/config/emitters.ts)
+- [src/config/params.ts](src/config/params.ts)
+- [src/function/event.ts](src/function/event.ts)
+- [src/function/setup.ts](src/function/setup.ts)
+- [src/helpers/toProfitLossDto.ts](src/helpers/toProfitLossDto.ts)
+- [src/index.ts](src/index.ts)
+- [src/lib/services/validation/ConfigValidationService.ts](src/lib/services/validation/ConfigValidationService.ts)
+- [test/config/setup.mjs](test/config/setup.mjs)
+- [test/e2e/config.test.mjs](test/e2e/config.test.mjs)
+- [test/e2e/sanitize.test.mjs](test/e2e/sanitize.test.mjs)
+- [test/spec/config.test.mjs](test/spec/config.test.mjs)
+- [types.d.ts](types.d.ts)
+
+</details>
+
+
+
+## Overview and Scope
+
+This page documents all global configuration parameters in `GLOBAL_CONFIG`, which control system-wide behavior for backtesting, live trading, data fetching, and economic calculations. These parameters affect signal validation, cost modeling, timeout enforcement, and report generation across all execution modes.
+
+For details on how these parameters are validated for economic viability, see [Economic Viability and Validation](./27-economic-viability-and-validation.md). For the configuration API (`setConfig`, `getConfig`), see [Configuration API](./28-configuration-api.md).
+
+**Sources**: [src/config/params.ts:1-122](), [types.d.ts:5-239]()
+
+---
+
+## Parameter Categories Overview
+
+The 14 global configuration parameters are organized into five functional categories:
+
+```mermaid
+graph TB
+    GLOBAL["GLOBAL_CONFIG Object<br/>(src/config/params.ts)"]
+    
+    subgraph "Economic Parameters (4)"
+        SLIP["CC_PERCENT_SLIPPAGE<br/>Default: 0.1%"]
+        FEE["CC_PERCENT_FEE<br/>Default: 0.1%"]
+        TP["CC_MIN_TAKEPROFIT_DISTANCE_PERCENT<br/>Default: 0.5%"]
+        SL_MIN["CC_MIN_STOPLOSS_DISTANCE_PERCENT<br/>Default: 0.5%"]
+        SL_MAX["CC_MAX_STOPLOSS_DISTANCE_PERCENT<br/>Default: 20%"]
+    end
+    
+    subgraph "Signal Lifecycle (3)"
+        SCHED["CC_SCHEDULE_AWAIT_MINUTES<br/>Default: 120"]
+        LIFE["CC_MAX_SIGNAL_LIFETIME_MINUTES<br/>Default: 1440"]
+        GEN["CC_MAX_SIGNAL_GENERATION_SECONDS<br/>Default: 180"]
+    end
+    
+    subgraph "Data Fetching (4)"
+        AVG["CC_AVG_PRICE_CANDLES_COUNT<br/>Default: 5"]
+        RETRY["CC_GET_CANDLES_RETRY_COUNT<br/>Default: 3"]
+        DELAY["CC_GET_CANDLES_RETRY_DELAY_MS<br/>Default: 5000"]
+        ANOM["CC_GET_CANDLES_PRICE_ANOMALY_THRESHOLD_FACTOR<br/>Default: 1000"]
+        MED["CC_GET_CANDLES_MIN_CANDLES_FOR_MEDIAN<br/>Default: 5"]
+    end
+    
+    subgraph "Reporting (1)"
+        NOTE["CC_REPORT_SHOW_SIGNAL_NOTE<br/>Default: false"]
+    end
+    
+    GLOBAL --> SLIP
+    GLOBAL --> FEE
+    GLOBAL --> TP
+    GLOBAL --> SL_MIN
+    GLOBAL --> SL_MAX
+    GLOBAL --> SCHED
+    GLOBAL --> LIFE
+    GLOBAL --> GEN
+    GLOBAL --> AVG
+    GLOBAL --> RETRY
+    GLOBAL --> DELAY
+    GLOBAL --> ANOM
+    GLOBAL --> MED
+    GLOBAL --> NOTE
+```
+
+**Sources**: [src/config/params.ts:1-122](), [types.d.ts:5-239]()
+
+---
+
+## Economic Parameters
+
+Economic parameters control transaction cost modeling and profitability constraints. These are the most critical parameters as they determine whether strategies can be profitable.
+
+### Cost Modeling: Slippage and Fees
+
+#### CC_PERCENT_SLIPPAGE
+
+**Default**: `0.1` (0.1% per transaction)  
+**Type**: `number` (non-negative)  
+**Purpose**: Simulates market impact and order book depth by worsening execution prices.
+
+Applied twice per round-trip trade:
+- **Entry**: Long positions buy at higher price (+0.1%), short positions sell at lower price (-0.1%)
+- **Exit**: Long positions sell at lower price (-0.1%), short positions buy at higher price (+0.1%)
+
+Total slippage effect: **0.2%** (2 × 0.1%)
+
+**Sources**: [types.d.ts:17-22](), [src/config/params.ts:18](), [src/helpers/toProfitLossDto.ts:39-50]()
+
+#### CC_PERCENT_FEE
+
+**Default**: `0.1` (0.1% per transaction)  
+**Type**: `number` (non-negative)  
+**Purpose**: Transaction fee charged by exchange or broker.
+
+Applied twice per round-trip trade:
+- Entry transaction: 0.1% fee
+- Exit transaction: 0.1% fee
+
+Total fee cost: **0.2%** (2 × 0.1%)
+
+**Sources**: [types.d.ts:24-28](), [src/config/params.ts:24](), [src/helpers/toProfitLossDto.ts:53]()
+
+### Cost Breakdown Diagram
+
+```mermaid
+graph LR
+    subgraph "Round-Trip Trade Cost Structure"
+        ENTRY["Entry Transaction"]
+        EXIT["Exit Transaction"]
+        
+        ENTRY_SLIP["Slippage: 0.1%"]
+        ENTRY_FEE["Fee: 0.1%"]
+        EXIT_SLIP["Slippage: 0.1%"]
+        EXIT_FEE["Fee: 0.1%"]
+        
+        TOTAL_SLIP["Total Slippage: 0.2%"]
+        TOTAL_FEE["Total Fees: 0.2%"]
+        TOTAL_COST["Total Cost: 0.4%"]
+        
+        ENTRY --> ENTRY_SLIP
+        ENTRY --> ENTRY_FEE
+        EXIT --> EXIT_SLIP
+        EXIT --> EXIT_FEE
+        
+        ENTRY_SLIP --> TOTAL_SLIP
+        EXIT_SLIP --> TOTAL_SLIP
+        ENTRY_FEE --> TOTAL_FEE
+        EXIT_FEE --> TOTAL_FEE
+        
+        TOTAL_SLIP --> TOTAL_COST
+        TOTAL_FEE --> TOTAL_COST
+    end
+```
+
+**Sources**: [src/helpers/toProfitLossDto.ts:1-82](), [src/lib/services/validation/ConfigValidationService.ts:69-72]()
+
+### Profitability Constraints
+
+#### CC_MIN_TAKEPROFIT_DISTANCE_PERCENT
+
+**Default**: `0.5` (0.5%)  
+**Type**: `number` (positive)  
+**Purpose**: Minimum distance from `priceOpen` to `priceTakeProfit` to ensure profitable trades.
+
+**Critical Constraint**: Must be **greater than** total trading costs (slippage + fees) to guarantee profit when TP is hit.
+
+**Calculation**:
+```
+Total Costs = (slippage × 2) + (fees × 2)
+            = (0.1% × 2) + (0.1% × 2)
+            = 0.2% + 0.2%
+            = 0.4%
+
+Minimum Required TP Distance = 0.4% + buffer
+Default: 0.5% (covers 0.4% costs + 0.1% profit margin)
+```
+
+**Validation**: If `CC_MIN_TAKEPROFIT_DISTANCE_PERCENT < (CC_PERCENT_SLIPPAGE × 2 + CC_PERCENT_FEE × 2)`, all TP signals will be unprofitable (see [Economic Viability and Validation](./27-economic-viability-and-validation.md)).
+
+**Sources**: [types.d.ts:30-41](), [src/config/params.ts:37](), [src/lib/services/validation/ConfigValidationService.ts:69-88]()
+
+#### CC_MIN_STOPLOSS_DISTANCE_PERCENT
+
+**Default**: `0.5` (0.5%)  
+**Type**: `number` (positive)  
+**Purpose**: Minimum distance from `priceOpen` to `priceStopLoss` to prevent signals from being immediately stopped out by normal price volatility.
+
+Prevents "instant stop loss" scenarios where minor price fluctuations trigger SL before the strategy has a chance to develop.
+
+**Sources**: [types.d.ts:43-47](), [src/config/params.ts:43](), [src/lib/services/validation/ConfigValidationService.ts:91-95]()
+
+#### CC_MAX_STOPLOSS_DISTANCE_PERCENT
+
+**Default**: `20` (20%)  
+**Type**: `number` (positive)  
+**Purpose**: Maximum distance from `priceOpen` to `priceStopLoss` to prevent catastrophic losses.
+
+Caps risk per signal to 20% of position value. Prevents single signals from causing devastating portfolio damage.
+
+**Constraint**: Must be **greater than** `CC_MIN_STOPLOSS_DISTANCE_PERCENT`.
+
+**Sources**: [types.d.ts:49-53](), [src/config/params.ts:49](), [src/lib/services/validation/ConfigValidationService.ts:98-114]()
+
+---
+
+## Signal Lifecycle Parameters
+
+Signal lifecycle parameters control timeouts and maximum durations for various signal states.
+
+### Parameter Summary Table
+
+| Parameter | Default | Type | Purpose |
+|-----------|---------|------|---------|
+| `CC_SCHEDULE_AWAIT_MINUTES` | 120 | `number` (positive integer) | Scheduled signal activation timeout |
+| `CC_MAX_SIGNAL_LIFETIME_MINUTES` | 1440 | `number` (positive integer) | Maximum signal duration (opened state) |
+| `CC_MAX_SIGNAL_GENERATION_SECONDS` | 180 | `number` (positive integer) | `getSignal` execution timeout |
+
+**Sources**: [src/config/params.ts:6-64](), [types.d.ts:7-68]()
+
+### CC_SCHEDULE_AWAIT_MINUTES
+
+**Default**: `120` (2 hours)  
+**Type**: `number` (positive integer, minutes)  
+**Purpose**: Maximum time to wait for a scheduled signal to activate (price to reach `priceOpen`).
+
+If a scheduled signal does not activate within this timeout, it is automatically cancelled to prevent indefinite blocking of risk limits.
+
+**Related Signals**: Scheduled signals (those with explicit `priceOpen` set in `getSignal` return value).
+
+**Sources**: [types.d.ts:7-10](), [src/config/params.ts:6](), [test/e2e/config.test.mjs:18-82]()
+
+### CC_MAX_SIGNAL_LIFETIME_MINUTES
+
+**Default**: `1440` (1 day = 24 hours)  
+**Type**: `number` (positive integer, minutes)  
+**Purpose**: Maximum duration a signal can remain in the "opened" state before being force-closed with reason `"time_expired"`.
+
+Prevents "eternal signals" that block risk limits for weeks/months without reaching TP or SL.
+
+**Sources**: [types.d.ts:55-59](), [src/config/params.ts:55](), [test/e2e/sanitize.test.mjs:241-339]()
+
+### CC_MAX_SIGNAL_GENERATION_SECONDS
+
+**Default**: `180` (3 minutes)  
+**Type**: `number` (positive integer, seconds)  
+**Purpose**: Maximum execution time allowed for the `getSignal` callback in strategy schemas.
+
+Prevents long-running or stuck signal generation routines from blocking execution or consuming resources indefinitely. If generation exceeds this threshold, the attempt is aborted and logged.
+
+**Sources**: [types.d.ts:61-68](), [src/config/params.ts:64]()
+
+### Lifecycle State Diagram with Timeouts
+
+```mermaid
+stateDiagram-v2
+    [*] --> Idle
+    
+    Idle --> Scheduled: "getSignal returns ISignalDto<br/>with priceOpen set"
+    Idle --> Opened: "getSignal returns ISignalDto<br/>without priceOpen"
+    
+    Scheduled --> Opened: "Price reaches priceOpen"
+    Scheduled --> Cancelled: "CC_SCHEDULE_AWAIT_MINUTES<br/>timeout (default: 120 min)"
+    
+    Opened --> Closed: "Price hits TP/SL or<br/>CC_MAX_SIGNAL_LIFETIME_MINUTES<br/>timeout (default: 1440 min)"
+    
+    Cancelled --> [*]
+    Closed --> [*]
+    
+    note right of Idle
+        getSignal callback has
+        CC_MAX_SIGNAL_GENERATION_SECONDS
+        timeout (default: 180 sec)
+    end note
+```
+
+**Sources**: [types.d.ts:7-68](), [src/config/params.ts:6-64]()
+
+---
+
+## Data Fetching and Reliability Parameters
+
+These parameters control VWAP calculation, retry logic for failed `getCandles` calls, and anomaly detection for incomplete candle data.
+
+### VWAP Calculation
+
+#### CC_AVG_PRICE_CANDLES_COUNT
+
+**Default**: `5` (5 candles)  
+**Type**: `number` (positive integer)  
+**Purpose**: Number of 1-minute candles to use for Volume-Weighted Average Price (VWAP) calculation.
+
+Default of 5 means VWAP is calculated from the last 5 minutes of 1m candle data.
+
+**Formula**:
+```
+VWAP = Σ(Typical Price × Volume) / Σ(Volume)
+where Typical Price = (High + Low + Close) / 3
+```
+
+**Used By**: `ClientExchange.getAveragePrice()` method, which is called by strategies to get current market price.
+
+**Sources**: [types.d.ts:12-15](), [src/config/params.ts:11](), [test/e2e/config.test.mjs:84-154]()
+
+### Retry Logic
+
+#### CC_GET_CANDLES_RETRY_COUNT
+
+**Default**: `3` (3 retries)  
+**Type**: `number` (non-negative integer)  
+**Purpose**: Number of retry attempts for `getCandles` function when API calls fail.
+
+Total attempts = 1 initial + 3 retries = 4 attempts maximum.
+
+**Sources**: [types.d.ts:70-73](), [src/config/params.ts:69]()
+
+#### CC_GET_CANDLES_RETRY_DELAY_MS
+
+**Default**: `5000` (5 seconds)  
+**Type**: `number` (non-negative integer, milliseconds)  
+**Purpose**: Delay between retry attempts for `getCandles` function.
+
+Provides backoff time to avoid overwhelming failing APIs or to wait for transient network issues to resolve.
+
+**Sources**: [types.d.ts:75-78](), [src/config/params.ts:74]()
+
+### Anomaly Detection
+
+#### CC_GET_CANDLES_PRICE_ANOMALY_THRESHOLD_FACTOR
+
+**Default**: `1000` (factor of 1000)  
+**Type**: `number` (positive integer)  
+**Purpose**: Maximum allowed deviation factor for detecting incomplete/anomalous candles from exchange APIs.
+
+**Detection Logic**: Price is rejected if it's more than `factor` times lower than reference price (median/average).
+
+**Reasoning**:
+- Incomplete candles from Binance API typically have prices near $0.01-$1
+- Normal BTC price: $20,000-$100,000
+- Factor 1000: Catches prices below $20-$100 when median is $20,000-$100,000
+- Factor 100 would be too permissive ($200 allowed when median is $20,000)
+- Factor 10000 might be too strict for low-cap altcoins
+
+**Example**: BTC at $50,000 median → threshold $50 → catches $0.01-$1 anomalies.
+
+**Sources**: [types.d.ts:80-92](), [src/config/params.ts:89](), [test/e2e/sanitize.test.mjs:666-784]()
+
+#### CC_GET_CANDLES_MIN_CANDLES_FOR_MEDIAN
+
+**Default**: `5` (5 candles)  
+**Type**: `number` (positive integer)  
+**Purpose**: Minimum number of candles required for reliable median calculation in anomaly detection.
+
+**Statistical Reasoning**:
+- Each candle provides 4 price points (OHLC)
+- 5 candles = 20 price points, sufficient for robust median
+- Below 5 candles, single anomaly can heavily skew median
+- Rule of thumb: minimum 7-10 data points for median stability
+- Average is more stable than median for small datasets (n < 20)
+
+**Behavior**: If fewer than this threshold, use simple average instead of median for reference price calculation.
+
+**Sources**: [types.d.ts:94-106](), [src/config/params.ts:104]()
+
+### Data Fetching Flow Diagram
+
+```mermaid
+graph TB
+    START["ClientExchange.getCandles call"]
+    
+    FETCH["Execute IExchangeSchema.getCandles"]
+    RETRY_CHECK{"Retry count < CC_GET_CANDLES_RETRY_COUNT"}
+    DELAY["Wait CC_GET_CANDLES_RETRY_DELAY_MS"]
+    ERROR["Throw Error"]
+    
+    VALIDATE["Validate candle data"]
+    COUNT_CHECK{"candles.length >= CC_GET_CANDLES_MIN_CANDLES_FOR_MEDIAN"}
+    USE_MEDIAN["Calculate reference price using MEDIAN"]
+    USE_AVG["Calculate reference price using AVERAGE"]
+    
+    ANOM_CHECK{"Any price < reference / CC_GET_CANDLES_PRICE_ANOMALY_THRESHOLD_FACTOR"}
+    REJECT["Reject anomalous candles"]
+    ACCEPT["Accept valid candles"]
+    
+    VWAP["Calculate VWAP from CC_AVG_PRICE_CANDLES_COUNT candles"]
+    RETURN["Return candle data / VWAP"]
+    
+    START --> FETCH
+    FETCH -->|Success| VALIDATE
+    FETCH -->|Failure| RETRY_CHECK
+    RETRY_CHECK -->|Yes| DELAY
+    DELAY --> FETCH
+    RETRY_CHECK -->|No| ERROR
+    
+    VALIDATE --> COUNT_CHECK
+    COUNT_CHECK -->|Yes| USE_MEDIAN
+    COUNT_CHECK -->|No| USE_AVG
+    USE_MEDIAN --> ANOM_CHECK
+    USE_AVG --> ANOM_CHECK
+    
+    ANOM_CHECK -->|Yes| REJECT
+    ANOM_CHECK -->|No| ACCEPT
+    ACCEPT --> VWAP
+    VWAP --> RETURN
+```
+
+**Sources**: [types.d.ts:70-106](), [src/config/params.ts:69-104]()
+
+---
+
+## Reporting Parameters
+
+### CC_REPORT_SHOW_SIGNAL_NOTE
+
+**Default**: `false`  
+**Type**: `boolean`  
+**Purpose**: Controls visibility of the "Note" column in markdown report tables.
+
+When `true`, the "Note" column (populated from `ISignalDto.note` field) is displayed in all markdown reports:
+- `BacktestMarkdownService` reports
+- `LiveMarkdownService` reports
+- `ScheduleMarkdownService` reports
+- `RiskMarkdownService` reports
+- Other markdown report tables
+
+When `false` (default), notes are hidden to reduce table width and improve readability.
+
+**Sources**: [types.d.ts:108-115](), [src/config/params.ts:113]()
+
+---
+
+## Complete Parameter Reference Table
+
+| Parameter | Default | Type | Constraints | Purpose |
+|-----------|---------|------|-------------|---------|
+| `CC_SCHEDULE_AWAIT_MINUTES` | `120` | `number` | Positive integer | Scheduled signal activation timeout (minutes) |
+| `CC_AVG_PRICE_CANDLES_COUNT` | `5` | `number` | Positive integer | Number of candles for VWAP calculation |
+| `CC_PERCENT_SLIPPAGE` | `0.1` | `number` | Non-negative | Slippage per transaction (%) |
+| `CC_PERCENT_FEE` | `0.1` | `number` | Non-negative | Fee per transaction (%) |
+| `CC_MIN_TAKEPROFIT_DISTANCE_PERCENT` | `0.5` | `number` | Positive, must cover costs | Minimum TP distance from priceOpen (%) |
+| `CC_MIN_STOPLOSS_DISTANCE_PERCENT` | `0.5` | `number` | Positive, < MAX_SL | Minimum SL distance from priceOpen (%) |
+| `CC_MAX_STOPLOSS_DISTANCE_PERCENT` | `20` | `number` | Positive, > MIN_SL | Maximum SL distance from priceOpen (%) |
+| `CC_MAX_SIGNAL_LIFETIME_MINUTES` | `1440` | `number` | Positive integer | Maximum signal duration (minutes) |
+| `CC_MAX_SIGNAL_GENERATION_SECONDS` | `180` | `number` | Positive integer | getSignal timeout (seconds) |
+| `CC_GET_CANDLES_RETRY_COUNT` | `3` | `number` | Non-negative integer | Number of retries for getCandles |
+| `CC_GET_CANDLES_RETRY_DELAY_MS` | `5000` | `number` | Non-negative integer | Delay between retries (milliseconds) |
+| `CC_GET_CANDLES_PRICE_ANOMALY_THRESHOLD_FACTOR` | `1000` | `number` | Positive integer | Anomaly detection factor |
+| `CC_GET_CANDLES_MIN_CANDLES_FOR_MEDIAN` | `5` | `number` | Positive integer | Min candles for median calculation |
+| `CC_REPORT_SHOW_SIGNAL_NOTE` | `false` | `boolean` | N/A | Show note column in reports |
+
+**Sources**: [src/config/params.ts:1-122](), [types.d.ts:5-239]()
+
+---
+
+## Parameter Relationships and Dependencies
+
+Some parameters have mathematical relationships and dependencies that are enforced by validation:
+
+```mermaid
+graph TB
+    subgraph "Economic Viability Constraint"
+        SLIP["CC_PERCENT_SLIPPAGE<br/>Default: 0.1%"]
+        FEE["CC_PERCENT_FEE<br/>Default: 0.1%"]
+        TP["CC_MIN_TAKEPROFIT_DISTANCE_PERCENT<br/>Default: 0.5%"]
+        
+        COST["Total Round-Trip Cost<br/>= (SLIP × 2) + (FEE × 2)<br/>= 0.2% + 0.2% = 0.4%"]
+        
+        CONSTRAINT["CONSTRAINT:<br/>TP must be > Total Cost<br/>(0.5% > 0.4% ✓)"]
+        
+        SLIP --> COST
+        FEE --> COST
+        COST --> CONSTRAINT
+        TP --> CONSTRAINT
+    end
+    
+    subgraph "StopLoss Range Constraint"
+        SL_MIN["CC_MIN_STOPLOSS_DISTANCE_PERCENT<br/>Default: 0.5%"]
+        SL_MAX["CC_MAX_STOPLOSS_DISTANCE_PERCENT<br/>Default: 20%"]
+        
+        SL_CONSTRAINT["CONSTRAINT:<br/>MIN_SL < MAX_SL<br/>(0.5% < 20% ✓)"]
+        
+        SL_MIN --> SL_CONSTRAINT
+        SL_MAX --> SL_CONSTRAINT
+    end
+    
+    subgraph "Anomaly Detection Logic"
+        MEDIAN_MIN["CC_GET_CANDLES_MIN_CANDLES_FOR_MEDIAN<br/>Default: 5"]
+        ANOM_FACTOR["CC_GET_CANDLES_PRICE_ANOMALY_THRESHOLD_FACTOR<br/>Default: 1000"]
+        
+        CANDLE_COUNT{"Candle count >= MEDIAN_MIN?"}
+        USE_MEDIAN["Use MEDIAN for reference"]
+        USE_AVG["Use AVERAGE for reference"]
+        
+        DETECT["Detect anomaly:<br/>price < reference / ANOM_FACTOR"]
+        
+        MEDIAN_MIN --> CANDLE_COUNT
+        CANDLE_COUNT -->|Yes| USE_MEDIAN
+        CANDLE_COUNT -->|No| USE_AVG
+        USE_MEDIAN --> DETECT
+        USE_AVG --> DETECT
+        ANOM_FACTOR --> DETECT
+    end
+```
+
+**Sources**: [src/lib/services/validation/ConfigValidationService.ts:55-175](), [src/config/params.ts:1-122]()
+
+---
+
+## Type Definition and Access
+
+The `GlobalConfig` type is defined as `typeof GLOBAL_CONFIG`, providing type safety for configuration access:
+
+```typescript
+// Type definition
+export type GlobalConfig = typeof GLOBAL_CONFIG;
+
+// Access via global object
+import { GLOBAL_CONFIG } from "./config/params";
+console.log(GLOBAL_CONFIG.CC_SCHEDULE_AWAIT_MINUTES); // 120
+
+// Access via API functions (see page 7.3)
+import { getConfig } from "./function/setup";
+const config = getConfig(); // Returns shallow copy
+console.log(config.CC_SCHEDULE_AWAIT_MINUTES); // 120
+```
+
+**Type Location**: [src/config/params.ts:121](), [types.d.ts:119]()
+
+**Default Configuration**: `DEFAULT_CONFIG` is a frozen copy of initial `GLOBAL_CONFIG` values, providing reference to original defaults even after configuration changes.
+
+**Sources**: [src/config/params.ts:116-122](), [types.d.ts:119-239](), [src/function/setup.ts:1-89]()
+
+---
+
+## Validation Overview
+
+All configuration parameters are validated when `setConfig()` is called (unless `_unsafe` flag is set). Validation ensures:
+
+1. **Type constraints**: Integer parameters are integers, positive values are positive
+2. **Economic viability**: `CC_MIN_TAKEPROFIT_DISTANCE_PERCENT` covers all costs
+3. **Range constraints**: MIN < MAX relationships (e.g., StopLoss distances)
+4. **Sanity checks**: Timeouts, retry counts, and thresholds are reasonable
+
+If validation fails, `setConfig()` reverts to previous configuration and throws an error with detailed breakdown of all validation failures.
+
+**Validator Class**: `ConfigValidationService` at [src/lib/services/validation/ConfigValidationService.ts:1-179]()
+
+For detailed validation rules and economic viability calculations, see [Economic Viability and Validation](./27-economic-viability-and-validation.md).
+
+For configuration API usage (setting/getting config), see [Configuration API](./28-configuration-api.md).
+
+**Sources**: [src/lib/services/validation/ConfigValidationService.ts:1-179](), [src/function/setup.ts:39-52](), [test/spec/config.test.mjs:1-438]()
