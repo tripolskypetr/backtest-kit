@@ -411,10 +411,10 @@ stateDiagram-v2
     
     PriceCheck --> CheckStopLoss: Every tick
     
-    CheckStopLoss --> Cancelled: Long: price <= SL<br/>Short: price >= SL
+    CheckStopLoss --> Cancelled: Long - price <= SL<br/>Short - price >= SL
     CheckStopLoss --> CheckActivation: SL not hit
-    
-    CheckActivation --> RiskValidation: Long: price <= priceOpen<br/>Short: price >= priceOpen
+
+    CheckActivation --> RiskValidation: Long - price <= priceOpen<br/>Short - price >= priceOpen
     CheckActivation --> Active: Waiting for price
     
     RiskValidation --> Cancelled: Risk rejected

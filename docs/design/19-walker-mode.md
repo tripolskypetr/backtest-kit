@@ -307,8 +307,8 @@ graph TB
     DONE --> LISTEN_DONE
     DONE --> LISTEN_DONE_ONCE
     
-    LISTEN_WALKER_ONCE -.->|user calls Walker.stop()| STOP
-    STOP -.->|filtered by symbol+walkerName| WALKER_LOGIC
+    LISTEN_WALKER_ONCE -.->|user calls Walker stop| STOP
+    STOP -.->|filtered by symbol and walkerName| WALKER_LOGIC
     
     style STOP fill:#ffe1e1,stroke:#333,stroke-width:2px
     style WALKER_LOGIC fill:#e1f5ff,stroke:#333,stroke-width:2px

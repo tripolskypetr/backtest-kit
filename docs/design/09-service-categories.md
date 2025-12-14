@@ -41,7 +41,7 @@ graph TB
         CONNECTION --> SCHEMA
         CORE --> CONNECTION
         GLOBAL --> CONNECTION
-        MARKDOWN -.-> "Event Emitters"
+        MARKDOWN -.-> EVENTS[Event Emitters]
     end
     
     BASE -.->|"Used by all"| CONTEXT

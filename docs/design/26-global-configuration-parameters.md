@@ -218,9 +218,9 @@ stateDiagram-v2
     Idle --> Opened: "getSignal returns ISignalDto<br/>without priceOpen"
     
     Scheduled --> Opened: "Price reaches priceOpen"
-    Scheduled --> Cancelled: "CC_SCHEDULE_AWAIT_MINUTES<br/>timeout (default: 120 min)"
+    Scheduled --> Cancelled: "CC_SCHEDULE_AWAIT_MINUTES<br/>timeout (default - 120 min)"
     
-    Opened --> Closed: "Price hits TP/SL or<br/>CC_MAX_SIGNAL_LIFETIME_MINUTES<br/>timeout (default: 1440 min)"
+    Opened --> Closed: "Price hits TP/SL or<br/>CC_MAX_SIGNAL_LIFETIME_MINUTES<br/>timeout (default - 1440 min)"
     
     Cancelled --> [*]
     Closed --> [*]
@@ -228,7 +228,7 @@ stateDiagram-v2
     note right of Idle
         getSignal callback has
         CC_MAX_SIGNAL_GENERATION_SECONDS
-        timeout (default: 180 sec)
+        timeout (default - 180 sec)
     end note
 ```
 

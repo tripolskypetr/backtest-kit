@@ -255,29 +255,29 @@ Extends `ISignalRow` for signals waiting for price to reach entry point. Identic
 sequenceDiagram
     participant Tick as "tick()"
     participant Check as "CHECK_SCHEDULED_SIGNAL_PRICE_ACTIVATION_FN"
-    participant Activate as "ACTIVATE_SCHEDULED_SIGNAL_FN"
+    participant ActFn as "ACTIVATE_SCHEDULED_SIGNAL_FN"
     participant Risk as "Risk.checkSignal"
     participant Persist as "PersistSignalAdapter"
-    
+
     Tick->>Check: Check price vs priceOpen
-    
+
     alt Price hit StopLoss first
         Check-->>Tick: shouldCancel=true
         Note over Tick: Cancel signal, return to idle
     else Price reached priceOpen
         Check-->>Tick: shouldActivate=true
-        Tick->>Activate: Activate signal
-        Activate->>Risk: Re-check risk limits
+        Tick->>ActFn: Process scheduled signal
+        ActFn->>Risk: Re-check risk limits
         alt Risk fails
-            Risk-->>Activate: Rejected
-            Activate->>Persist: Clear scheduled signal
-            Activate-->>Tick: Return null
+            Risk-->>ActFn: Rejected
+            ActFn->>Persist: Clear scheduled signal
+            ActFn-->>Tick: Return null
         else Risk passes
-            Risk-->>Activate: Allowed
-            Activate->>Persist: Clear scheduled signal
-            Activate->>Persist: Write pending signal
-            Note over Activate: Update pendingAt to current time
-            Activate-->>Tick: Return IStrategyTickResultOpened
+            Risk-->>ActFn: Allowed
+            ActFn->>Persist: Clear scheduled signal
+            ActFn->>Persist: Write pending signal
+            Note over ActFn: Update pendingAt to current time
+            ActFn-->>Tick: Return IStrategyTickResultOpened
         end
     else Still waiting
         Check-->>Tick: shouldActivate=false, shouldCancel=false
