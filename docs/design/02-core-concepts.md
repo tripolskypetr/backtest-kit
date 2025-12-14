@@ -65,8 +65,6 @@ After validation, the signal becomes an `ISignalRow` with auto-generated fields:
 - **`scheduledAt`**, **`pendingAt`**: Timing metadata
 - **`symbol`**: Trading pair (e.g., `"BTCUSDT"`)
 
-**Sources:** [types.d.ts:855-905](), [types.d.ts:976-1000](), [docs/internals.md:14-19]()
-
 ---
 
 ## Execution Contexts
@@ -157,8 +155,6 @@ graph TB
 The two contexts are **nested** to achieve separation of concerns:
 - **MethodContext** (outer): Determines *which* strategy/exchange/frame to use (immutable per run)
 - **ExecutionContext** (inner): Determines *when* and *where* to execute (changes per tick)
-
-**Sources:** [types.d.ts:242-285](), [types.d.ts:504-544](), [src/index.ts:159-160](), [docs/internals.md:47-51]()
 
 ---
 
@@ -279,8 +275,6 @@ Listener functions come in **three variants**:
    listenSignalLive((event) => { /* only live signals */ });
    ```
 
-**Sources:** [src/config/emitters.ts:1-133](), [src/function/event.ts:1-44](), [src/function/event.ts:70-113](), [docs/internals.md:83-90]()
-
 ---
 
 ## How Core Concepts Interact
@@ -327,4 +321,3 @@ sequenceDiagram
 
 This architecture enables the framework to support multiple execution modes (Backtest, Live, Walker) using the same core abstractions with different context configurations and event filtering.
 
-**Sources:** [docs/internals.md:54-82](), [types.d.ts:242-544](), [src/config/emitters.ts:15-44](), [src/function/event.ts:45-113]()

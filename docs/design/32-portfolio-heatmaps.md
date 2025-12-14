@@ -9,8 +9,6 @@ Portfolio heatmaps provide symbol-level performance analysis across all trading 
 
 For individual strategy performance metrics, see [Performance Statistics](./31-performance-statistics.md). For live trading reports, see [Reporting and Analytics](./29-reporting-and-analytics.md).
 
-**Sources**: [src/lib/services/markdown/HeatMarkdownService.ts:1-596]()
-
 ---
 
 ## Heatmap Data Structure
@@ -55,8 +53,6 @@ interface IHeatmapStatistics {
   portfolioTotalTrades: number;     // Total trades across all symbols
 }
 ```
-
-**Sources**: [src/interfaces/Heatmap.interface.ts:1-56](), [src/lib/services/markdown/HeatMarkdownService.ts:180-212]()
 
 ---
 
@@ -109,8 +105,6 @@ Located at [src/lib/services/markdown/HeatMarkdownService.ts:147-442](), this cl
 - **Enforces MAX_EVENTS**: Limits to 250 signals per symbol at [line 141, 165-170]()
 - **Calculates symbol stats**: `calculateSymbolStats()` at [line 180-296]()
 - **Aggregates portfolio**: `getData()` at [line 305-442]()
-
-**Sources**: [src/lib/services/markdown/HeatMarkdownService.ts:142-596]()
 
 ---
 
@@ -192,8 +186,6 @@ graph TB
     style CalcMetrics fill:#fff4e1
     style HeatStats fill:#e8f5e9
 ```
-
-**Sources**: [src/lib/services/markdown/HeatMarkdownService.ts:470-494](), [src/lib/services/markdown/HeatMarkdownService.ts:155-170](), [src/lib/services/markdown/HeatMarkdownService.ts:180-296]()
 
 ---
 
@@ -285,8 +277,6 @@ expectancy = (winRate / 100) × avgWin - (lossRate / 100) × abs(avgLoss)
 
 Implemented at [src/lib/services/markdown/HeatMarkdownService.ts:283-291]().
 
-**Sources**: [src/lib/services/markdown/HeatMarkdownService.ts:180-296]()
-
 ### Portfolio-Wide Metrics
 
 The `getData()` method at [src/lib/services/markdown/HeatMarkdownService.ts:305-442]() aggregates symbol statistics into portfolio metrics:
@@ -334,8 +324,6 @@ portfolioTotalTrades = symbols.reduce((sum, row) =>
 ```
 
 Implemented at [src/lib/services/markdown/HeatMarkdownService.ts:410-411]().
-
-**Sources**: [src/lib/services/markdown/HeatMarkdownService.ts:305-442]()
 
 ---
 
@@ -444,8 +432,6 @@ await Heat.clear();
 
 Implemented at [src/lib/services/markdown/HeatMarkdownService.ts:571-578]().
 
-**Sources**: [src/classes/Heat.ts](), [src/lib/services/markdown/HeatMarkdownService.ts:505-578]()
-
 ---
 
 ## Report Format
@@ -484,8 +470,6 @@ Appears after the table at [line 432-436]():
 **Portfolio Total Trades:** 127
 ```
 
-**Sources**: [src/lib/services/markdown/HeatMarkdownService.ts:57-138](), [src/lib/services/markdown/HeatMarkdownService.ts:345-442]()
-
 ---
 
 ## Usage Examples
@@ -523,8 +507,6 @@ console.log(`Best symbol: ${stats.symbols[0].symbol}`);
 await Heat.dump("trend-follow");
 ```
 
-**Sources**: [test/spec/heat.test.mjs:14-84]()
-
 ### Multi-Symbol Portfolio Analysis
 
 Analyze portfolio distribution and risk:
@@ -555,8 +537,6 @@ stats.symbols.forEach(row => {
   console.log(`${row.symbol}: ${concentration.toFixed(1)}% of trades`);
 });
 ```
-
-**Sources**: [test/spec/heat.test.mjs:86-161]()
 
 ### Live Trading Portfolio Monitoring
 
@@ -589,8 +569,6 @@ setInterval(async () => {
 }, 60000); // Every minute
 ```
 
-**Sources**: [src/lib/services/markdown/HeatMarkdownService.ts:1-596]()
-
 ### Comparing Strategies by Symbol Performance
 
 Use heatmaps to compare which strategy performs best per symbol:
@@ -614,8 +592,6 @@ const strategy1Wins = strategy1.symbols.filter(row1 => {
 
 console.log(`Strategy 1 wins on: ${strategy1Wins.map(s => s.symbol)}`);
 ```
-
-**Sources**: [test/spec/heat.test.mjs:86-280]()
 
 ---
 
@@ -705,8 +681,6 @@ private tick = async (data: IStrategyTickResult) => {
 
 At [src/lib/services/markdown/HeatMarkdownService.ts:470-494]().
 
-**Sources**: [src/lib/services/markdown/HeatMarkdownService.ts:470-494](), [src/lib/services/markdown/HeatMarkdownService.ts:580-584](), [src/config/emitters.ts:16-19]()
-
 ---
 
 ## Memory Management
@@ -769,4 +743,3 @@ At [src/lib/services/markdown/HeatMarkdownService.ts:460-463]().
 
 This ensures each strategy gets its own isolated `HeatmapStorage` instance, preventing cross-contamination of data.
 
-**Sources**: [src/lib/services/markdown/HeatMarkdownService.ts:141](), [src/lib/services/markdown/HeatMarkdownService.ts:155-170](), [src/lib/services/markdown/HeatMarkdownService.ts:460-463](), [src/lib/services/markdown/HeatMarkdownService.ts:571-578]()

@@ -70,8 +70,6 @@ graph TB
     style CP fill:#fff4e1,stroke:#333,stroke-width:2px
 ```
 
-**Sources**: [src/client/ClientStrategy.ts:1-1000](), [src/lib/services/connection/StrategyConnectionService.ts:89-309](), [types.d.ts:318-413]()
-
 ### Memoization Pattern
 
 All ConnectionServices use `memoize` from `functools-kit` to cache client instances. The cache keys are constructed from schema names (e.g., `symbol:strategyName` for ClientStrategy, `exchangeName` for ClientExchange). This pattern optimizes resource usage by ensuring only one client instance exists per unique configuration.
@@ -84,8 +82,6 @@ All ConnectionServices use `memoize` from `functools-kit` to cache client instan
 | RiskConnectionService | `${riskName}` | ClientRisk |
 | OptimizerConnectionService | `${optimizerName}` | ClientOptimizer |
 | PartialConnectionService | `${symbol}` | ClientPartial |
-
-**Sources**: [src/lib/services/connection/StrategyConnectionService.ts:120-151](), [types.d.ts:1-239]()
 
 ---
 
@@ -118,8 +114,6 @@ stateDiagram-v2
     Cancelled --> Idle
 ```
 
-**Sources**: [src/client/ClientStrategy.ts:45-330](), [src/interfaces/Strategy.interface.ts:173-312]()
-
 ### Key Methods
 
 #### tick()
@@ -135,8 +129,6 @@ Executes a single strategy iteration with VWAP monitoring. This method:
 
 Returns discriminated union `IStrategyTickResult` with action: `"idle" | "scheduled" | "opened" | "active" | "closed" | "cancelled"`.
 
-**Sources**: [src/client/ClientStrategy.ts:332-1000](), [types.d.ts:852-1002]()
-
 #### backtest()
 
 Performs fast historical simulation by iterating through candle data. For each candle:
@@ -148,8 +140,6 @@ Performs fast historical simulation by iterating through candle data. For each c
 
 Returns `IStrategyBacktestResult` (always `"closed"` or `"cancelled"`), never `"idle"` or `"active"`.
 
-**Sources**: [src/client/ClientStrategy.ts:1-1000](), [types.d.ts:310-312]()
-
 ### Scheduled Signal Handling
 
 ClientStrategy supports delayed entry signals where `priceOpen` is specified in `ISignalDto`. The signal enters `"scheduled"` state and waits for price to reach entry point:
@@ -159,8 +149,6 @@ ClientStrategy supports delayed entry signals where `priceOpen` is specified in 
 - **Cancellation**: Occurs if price breaches `priceStopLoss` before activation or timeout exceeds `CC_SCHEDULE_AWAIT_MINUTES`
 
 Timeout logic is implemented in `CHECK_SCHEDULED_SIGNAL_TIMEOUT_FN` ([src/client/ClientStrategy.ts:554-608]()), activation logic in `CHECK_SCHEDULED_SIGNAL_PRICE_ACTIVATION_FN` ([src/client/ClientStrategy.ts:610-644]()).
-
-**Sources**: [src/client/ClientStrategy.ts:389-443](), [src/client/ClientStrategy.ts:554-644]()
 
 ### Signal Validation
 
@@ -174,8 +162,6 @@ All signals pass through `VALIDATE_SIGNAL_FN` which enforces:
 - Maximum SL distance: `<= CC_MAX_STOPLOSS_DISTANCE_PERCENT` ([src/client/ClientStrategy.ts:189-199]())
 - Maximum lifetime: `<= CC_MAX_SIGNAL_LIFETIME_MINUTES` ([src/client/ClientStrategy.ts:306-316]())
 - Immediate closure prevention: validates `currentPrice` is between SL and TP bounds
-
-**Sources**: [src/client/ClientStrategy.ts:45-330](), [types.d.ts:5-115]()
 
 ### Integration Points
 
@@ -192,8 +178,6 @@ ClientStrategy receives dependencies via `IStrategyParams`:
 Risk integration occurs at two points:
 1. Before signal creation in `GET_SIGNAL_FN` ([src/client/ClientStrategy.ts:374-387]())
 2. Before scheduled signal activation in `ACTIVATE_SCHEDULED_SIGNAL_FN` ([src/client/ClientStrategy.ts:711-729]())
-
-**Sources**: [src/interfaces/Strategy.interface.ts:76-94](), [src/client/ClientStrategy.ts:332-476](), [src/client/ClientStrategy.ts:681-774]()
 
 ---
 
@@ -220,8 +204,6 @@ graph TB
     ANOMALY -->|"Price < median/1000"| ERROR
 ```
 
-**Sources**: [src/client/ClientExchange.ts:1-300](), [types.d.ts:329-413]()
-
 ### Key Methods
 
 #### getCandles()
@@ -233,13 +215,9 @@ Fetches historical candles **backwards** from execution context time (`execution
 - Median-based validation: rejects candles where `price < median / CC_GET_CANDLES_PRICE_ANOMALY_THRESHOLD_FACTOR`
 - Callback invocation: `callbacks.onCandleData` if provided
 
-**Sources**: [types.d.ts:370-377](), [types.d.ts:72-106]()
-
 #### getNextCandles()
 
 Fetches future candles **forward** from execution context time (backtest mode only). Used by `ClientStrategy.backtest()` to simulate forward-looking price action. Same retry/anomaly logic as `getCandles()`.
-
-**Sources**: [types.d.ts:378-386]()
 
 #### getAveragePrice()
 
@@ -252,13 +230,9 @@ VWAP = Σ(Typical Price × Volume) / Σ(Volume)
 
 Falls back to simple average if total volume is zero.
 
-**Sources**: [types.d.ts:404-412](), [types.d.ts:14-15]()
-
 #### formatPrice() and formatQuantity()
 
 Delegate to user-provided formatting functions in `IExchangeSchema`. These enforce exchange-specific precision rules (e.g., Binance requires 8 decimal places for BTC prices).
-
-**Sources**: [types.d.ts:388-403]()
 
 ### Anomaly Detection Rationale
 
@@ -266,8 +240,6 @@ The anomaly detection system addresses a known issue with incomplete candles fro
 
 - BTC at `$50,000` median → threshold `$50` → rejects `$0.01` candles
 - Factor 1000 is chosen as a balance: strict enough to catch incomplete data, permissive enough for normal volatility
-
-**Sources**: [types.d.ts:84-91]()
 
 ---
 
@@ -289,8 +261,6 @@ graph LR
     ARRAY -->|"onTimeframe callback"| USER["User notification"]
 ```
 
-**Sources**: [src/client/ClientFrame.ts:1-200](), [types.d.ts:419-502]()
-
 ### Interval Mapping
 
 ClientFrame converts `FrameInterval` strings into millisecond offsets:
@@ -304,13 +274,9 @@ ClientFrame converts `FrameInterval` strings into millisecond offsets:
 | `"4h"` | 14,400,000 | Daily swing trading |
 | `"1d"` | 86,400,000 | Long-term position strategies |
 
-**Sources**: [types.d.ts:427]()
-
 ### Callbacks
 
 If `IFrameSchema.callbacks.onTimeframe` is provided, ClientFrame invokes it after generating the timeframe array. This allows inspection of generated timestamps for validation or logging purposes.
-
-**Sources**: [types.d.ts:438-450](), [types.d.ts:461-467]()
 
 ---
 
@@ -341,8 +307,6 @@ graph TB
     VALIDATE -->|"Any throws"| REJECTED["Return false<br/>callbacks.onRejected<br/>riskSubject.next()"]
 ```
 
-**Sources**: [src/client/ClientRisk.ts:1-300](), [types.d.ts:546-691]()
-
 ### Validation System
 
 Risk validations are defined as an array in `IRiskSchema.validations`. Each validation can be:
@@ -351,8 +315,6 @@ Risk validations are defined as an array in `IRiskSchema.validations`. Each vali
 2. Object with function + note: `{ validate: Function, note: string }`
 
 The `note` field is included in rejection events emitted to `riskSubject`, allowing identification of which rule failed.
-
-**Sources**: [types.d.ts:599-634]()
 
 ### Position Tracking
 
@@ -366,13 +328,9 @@ ClientRisk maintains three parallel data structures:
 
 The active position count and list are passed to validation functions via `IRiskValidationPayload`, enabling rules like "max 3 concurrent positions" or "no more than 1 position per symbol".
 
-**Sources**: [types.d.ts:656-687]()
-
 ### Integration with Persistence
 
 In live mode, ClientRisk state is persisted via `PersistRiskAdapter` for crash recovery. The `_states` Map is serialized to JSON and restored on initialization via `waitForInit()`.
-
-**Sources**: [types.d.ts:637-654]()
 
 ---
 
@@ -419,8 +377,6 @@ graph TB
     EMIT_LOSS --> PERSIST
 ```
 
-**Sources**: [src/client/ClientPartial.ts:1-300](), [types.d.ts:693-847]()
-
 ### Deduplication Logic
 
 ClientPartial maintains per-signal state:
@@ -440,8 +396,6 @@ When `profit()` is called with `revenuePercent = 22.5`:
 
 This ensures each milestone is reported exactly once even if price oscillates around threshold.
 
-**Sources**: [types.d.ts:756-789](), [types.d.ts:705]()
-
 ### Persistence
 
 For live mode crash recovery, ClientPartial serializes state via `PersistPartialAdapter`:
@@ -451,13 +405,9 @@ For live mode crash recovery, ClientPartial serializes state via `PersistPartial
 
 Conversion happens in `waitForInit()` (deserialize) and on each emit (serialize).
 
-**Sources**: [types.d.ts:707-724]()
-
 ### Clear Operation
 
 When a signal closes, `clear()` removes the signal's state from memory and disk. This prevents unbounded growth of the state map and ensures milestone tracking is reset for future signals.
-
-**Sources**: [types.d.ts:825-847]()
 
 ---
 
@@ -494,8 +444,6 @@ graph TB
     OUTPUT --> DUMP
 ```
 
-**Sources**: [src/client/ClientOptimizer.ts:1-500](), [types.d.ts:3000-3200]()
-
 ### Data Source Iteration
 
 ClientOptimizer iterates through `IOptimizerSource[]` defined in `IOptimizerSchema.sources`. Each source specifies:
@@ -507,8 +455,6 @@ ClientOptimizer iterates through `IOptimizerSource[]` defined in `IOptimizerSche
 | `filter` | `(args: IOptimizerFilterArgs) => boolean` | Post-fetch filtering predicate |
 
 For each source, optimizer fetches candles and formats them as markdown tables for LLM context window.
-
-**Sources**: [types.d.ts:3050-3100]()
 
 ### LLM Prompt Construction
 
@@ -523,8 +469,6 @@ getPrompt: (data: IOptimizerData[]) => Promise<MessageModel[]>
 - `candles`: Formatted markdown table
 - `range`: Date range metadata
 
-**Sources**: [types.d.ts:3150-3170]()
-
 ### Template System
 
 ClientOptimizer uses `OptimizerTemplateService` to merge LLM-generated strategy code with boilerplate:
@@ -533,8 +477,6 @@ ClientOptimizer uses `OptimizerTemplateService` to merge LLM-generated strategy 
 2. User can override via `IOptimizerSchema.template.code`
 3. Template receives strategy code as `{{strategy}}` placeholder
 4. Result is executable Node.js module
-
-**Sources**: [src/lib/services/template/OptimizerTemplateService.ts:1-200]()
 
 ### Code Export
 
@@ -545,8 +487,6 @@ const code = await Optimizer.run("BTCUSDT", { optimizerName: "my-optimizer" });
 await Optimizer.dump("my-optimizer", "BTCUSDT", code);
 // Writes to ./my-optimizer_BTCUSDT.mjs
 ```
-
-**Sources**: [types.d.ts:3200-3250]()
 
 ---
 
@@ -590,8 +530,6 @@ graph TB
     CACHE_HIT --> RETURN
 ```
 
-**Sources**: [src/lib/services/connection/StrategyConnectionService.ts:120-151]()
-
 ### Dependency Injection Pattern
 
 All clients receive dependencies via constructor parameters. Example from ClientStrategy:
@@ -618,8 +556,6 @@ This pattern ensures:
 - Dependencies are explicit and type-safe
 - Easy to mock for testing
 
-**Sources**: [src/interfaces/Strategy.interface.ts:76-94](), [src/lib/services/connection/StrategyConnectionService.ts:130-149]()
-
 ### Initialization: waitForInit()
 
 Clients that require crash recovery implement `waitForInit()` method:
@@ -631,8 +567,6 @@ Clients that require crash recovery implement `waitForInit()` method:
 | ClientPartial | PersistPartialAdapter | Restore profit/loss milestone state |
 
 In live mode, ConnectionServices call `await strategy.waitForInit()` before first operation. In backtest mode, `waitForInit()` returns immediately (no persistence).
-
-**Sources**: [src/client/ClientStrategy.ts:491-552]()
 
 ### Cache Management
 
@@ -653,8 +587,6 @@ This is useful for:
 - Releasing resources after execution completes
 - Resetting state between test runs
 - Force-reloading strategy after schema changes
-
-**Sources**: [src/lib/services/connection/StrategyConnectionService.ts:292-305]()
 
 ### Risk Composition
 
@@ -677,8 +609,6 @@ const GET_RISK_FN = (dto, self) => {
 
 `MergeRisk` class combines multiple risk profiles by executing all validations sequentially.
 
-**Sources**: [src/lib/services/connection/StrategyConnectionService.ts:33-67]()
-
 ---
 
 ## Summary Table
@@ -692,4 +622,3 @@ const GET_RISK_FN = (dto, self) => {
 | ClientPartial | `IPartial` | [src/client/ClientPartial.ts:1-300]() | `profit()`, `loss()`, `clear()` | `${symbol}` |
 | ClientOptimizer | `IOptimizer` | [src/client/ClientOptimizer.ts:1-500]() | `run()`, `dump()` | `${optimizerName}` |
 
-**Sources**: [types.d.ts:1-4000](), [src/lib/services/connection/StrategyConnectionService.ts:1-309]()

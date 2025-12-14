@@ -83,8 +83,6 @@ graph TB
 | Live | Real-time trading | Infinite loop with persistence | Crash-safe recovery, atomic writes | Opened/closed signals, state files |
 | Optimization | LLM strategy generation | Multi-source data aggregation | Ollama API integration, code export | Executable .mjs strategy files |
 
-**Sources:** [demo/backtest/package.json:1-19](), [demo/live/package.json:1-19](), [demo/optimization/package.json:1-19]()
-
 ---
 
 ## Shared Dependencies and Configuration
@@ -113,8 +111,6 @@ Each demo includes a standardized `start` script that loads environment variable
 ```
 
 This pattern is consistent across all demos at [demo/backtest/package.json:5-7](), [demo/live/package.json:5-7](), and [demo/optimization/package.json:5-7]().
-
-**Sources:** [demo/backtest/package.json:1-19](), [demo/live/package.json:1-19](), [demo/optimization/package.json:1-19]()
 
 ---
 
@@ -149,8 +145,6 @@ listenDoneBacktest(async (event) => {
 
 The backtest demo iterates through a pre-generated timeframe array, processing each timestamp sequentially. For each tick, the framework checks for signal generation (throttled by `interval`), then uses fast candle processing to monitor TP/SL/time conditions and skip to the close timestamp for efficiency.
 
-**Sources:** [README.md:140-154](), [demo/backtest/package.json:1-19]()
-
 ---
 
 ## Live Trading Demo
@@ -180,8 +174,6 @@ listenSignalLive((event) => console.log(event));
 ```
 
 The live demo runs continuously, using `new Date()` for each tick's timestamp. State is persisted after each tick to JSON files in the `./dump/` directory, enabling crash recovery. The framework waits for all positions to close before allowing graceful shutdown via `doneLiveSubject`.
-
-**Sources:** [README.md:156-166](), [demo/live/package.json:1-19]()
 
 ---
 
@@ -308,8 +300,6 @@ The generated file includes:
 - `addFrame()` for testing period
 - `Walker.background()` to compare multiple strategies
 
-**Sources:** [demo/optimization/src/index.mjs:1-303](), [demo/optimization/package.json:1-19]()
-
 ---
 
 ## Environment Configuration
@@ -349,8 +339,6 @@ setConfig({
   CC_SCHEDULE_AWAIT_MINUTES: 120,  // Pending signal timeout
 });
 ```
-
-**Sources:** [demo/optimization/.env.example:1-3](), [README.md:42-58]()
 
 ---
 
@@ -436,8 +424,6 @@ graph LR
 | Live | Signal events, tick updates | `./dump/live_{symbol}_{strategy}.json` (state) | Continuous (until stopped) |
 | Optimization | Progress updates, LLM responses | `./generated/{optimizer}_{symbol}.mjs` (strategy code) | Minutes to hours (depends on LLM) |
 
-**Sources:** [demo/backtest/package.json:5-7](), [demo/live/package.json:5-7](), [demo/optimization/package.json:5-7](), [README.md:33-166]()
-
 ---
 
 ## Demo Code Examples from README
@@ -521,4 +507,3 @@ addStrategy({
 
 These examples demonstrate the framework's flexibility and can be adapted for custom demo applications.
 
-**Sources:** [README.md:60-138]()

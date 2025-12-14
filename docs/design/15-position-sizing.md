@@ -22,8 +22,6 @@ The position sizing system calculates the quantity of an asset to trade based on
 
 Position sizing is configured via `ISizingSchema` and registered using `addSizing()`. Each sizing configuration defines a calculation method and constraints (min/max position size, max position percentage). The framework provides three built-in methods as a discriminated union based on the `method` field.
 
-**Sources:** [types.d.ts:849-1085]()
-
 ---
 
 ## Position Sizing Methods
@@ -61,8 +59,6 @@ Stop Loss: $49,000
 Position Size = ($10,000 × 0.01) / ($50,000 - $49,000) = 0.1 BTC
 ```
 
-**Sources:** [types.d.ts:875-897]()
-
 ### Kelly Criterion Sizing
 
 Calculates optimal position size based on historical win rate and risk/reward ratio. Uses a multiplier (typically 0.25 for quarter-Kelly) to reduce variance.
@@ -95,8 +91,6 @@ Kelly % = (0.6 × 1.5 - 0.4 × 1.0) / 1.5 = 0.333
 Position = $10,000 × 0.333 × 0.25 = $833
 ```
 
-**Sources:** [types.d.ts:899-922]()
-
 ### ATR-Based Sizing
 
 Sizes positions based on Average True Range (volatility indicator). Higher volatility results in smaller positions, lower volatility in larger positions.
@@ -121,8 +115,6 @@ ATR Multiplier: 2× (stop loss at 2× ATR)
 
 Position Size = ($10,000 × 0.02) / ($500 × 2) = 0.2 BTC
 ```
-
-**Sources:** [types.d.ts:924-949]()
 
 ---
 
@@ -202,8 +194,6 @@ graph TB
     ATR --> A_CB
 ```
 
-**Sources:** [types.d.ts:849-949]()
-
 ### Registration with addSizing()
 
 Sizing configurations are registered via `addSizing()`, which validates the schema and stores it in `SizingSchemaService`.
@@ -251,8 +241,6 @@ addSizing({
   maxPositionSize: 1.0,
 });
 ```
-
-**Sources:** [src/function/add.ts:256-268](), [types.d.ts:849-949]()
 
 ---
 
@@ -304,8 +292,6 @@ interface ISizingCalculateParamsATR {
 ```
 
 **Used for:** Volatility-adjusted sizing
-
-**Sources:** [types.d.ts:951-1007]()
 
 ---
 
@@ -361,8 +347,6 @@ graph TB
     STRATEGY_SCHEMA -.->|"references"| SIZING_SCHEMA
 ```
 
-**Sources:** [src/lib/index.ts:1-242](), [src/lib/core/types.ts:1-104](), [src/lib/core/provide.ts:1-141]()
-
 ### Memoization in SizingConnectionService
 
 `SizingConnectionService` caches `ClientSizing` instances by `sizingName` to avoid redundant instantiation:
@@ -376,8 +360,6 @@ sizingName (e.g., "conservative", "kelly-optimal")
 - First call creates new `ClientSizing` instance
 - Subsequent calls with same `sizingName` return cached instance
 - Each instance reads configuration from `SizingSchemaService`
-
-**Sources:** [src/lib/core/types.ts:14](), [src/lib/core/provide.ts:68]()
 
 ---
 
@@ -432,8 +414,6 @@ sequenceDiagram
     PS-->>User: quantity
 ```
 
-**Sources:** [types.d.ts:1009-1085]()
-
 ### Constraint Application
 
 After calculating the base position size, `ClientSizing` applies constraints in this order:
@@ -459,8 +439,6 @@ After calculating the base position size, `ClientSizing` applies constraints in 
      quantity = maxPositionSize;
    }
    ```
-
-**Sources:** [types.d.ts:875-949]()
 
 ---
 
@@ -491,8 +469,6 @@ interface IStrategySchema {
 - If `sizingList` is specified, strategy can select from multiple configs
 - If neither specified, strategy must calculate position size manually
 
-**Sources:** [types.d.ts:932-955]()
-
 ### Position Size Calculation in Strategy
 
 Strategies typically calculate position size during signal generation or validation:
@@ -520,8 +496,6 @@ return {
   quantity: sizing  // Use calculated quantity
 };
 ```
-
-**Sources:** [types.d.ts:849-1085]()
 
 ---
 
@@ -581,8 +555,6 @@ const quantity = await PositionSize.calculate(
 console.log(`Position size: ${quantity} BTC`);
 // Position size: 0.1 BTC
 ```
-
-**Sources:** [src/index.ts:184](), [types.d.ts:849-1085]()
 
 ---
 
@@ -698,8 +670,6 @@ async function calculatePositionForTrade(
 }
 ```
 
-**Sources:** [src/function/add.ts:256-268](), [types.d.ts:849-1085]()
-
 ---
 
 ## Summary
@@ -725,4 +695,3 @@ The position sizing system provides three calculation methods through a discrimi
 - Optional callbacks for calculation events
 - Integration with strategy system via `sizingName` field
 
-**Sources:** [types.d.ts:849-1085](), [src/index.ts:89-101,184](), [src/function/add.ts:256-268]()

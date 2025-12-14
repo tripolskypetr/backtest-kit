@@ -70,8 +70,6 @@ graph TB
     style ClientStrategy fill:#f9f9f9,stroke:#333,stroke-width:2px
 ```
 
-**Sources**: [src/classes/Live.ts:1-607](), [src/lib/services/logic/private/LiveLogicPrivateService.ts:1-179]()
-
 ---
 
 ## Infinite Loop Execution
@@ -122,8 +120,6 @@ graph TB
     Continue --> CreateDate
 ```
 
-**Sources**: [src/lib/services/logic/private/LiveLogicPrivateService.ts:63-175]()
-
 ### Tick Interval
 
 The constant `TICK_TTL` defines the sleep duration between iterations:
@@ -134,8 +130,6 @@ const TICK_TTL = 1 * 60 * 1_000 + 1; // 61 seconds
 
 This 61-second interval (one minute plus one second buffer) ensures ticks are spaced for minute-based candle monitoring. The logic sleeps after every tick result, regardless of signal state.
 
-**Sources**: [src/lib/services/logic/private/LiveLogicPrivateService.ts:14]()
-
 ### Real-Time Date Creation
 
 Unlike backtest mode which uses pre-generated timeframes, live mode creates timestamps dynamically:
@@ -145,8 +139,6 @@ const when = new Date(); // Current real-time moment
 ```
 
 This `when` variable is passed to `strategyCoreService.tick()` as the execution timestamp. This enables `ExecutionContextService` to provide the correct time to strategy callbacks via `getDate()`.
-
-**Sources**: [src/lib/services/logic/private/LiveLogicPrivateService.ts:72]()
 
 ### Yielded Results
 
@@ -160,8 +152,6 @@ The generator yields only `opened` and `closed` results. The `idle`, `active`, a
 | `active` | No | Position monitoring in progress, no state change |
 | `closed` | Yes | Position closed with PNL, final result |
 | `cancelled` | No | Scheduled signal cancelled without opening |
-
-**Sources**: [src/lib/services/logic/private/LiveLogicPrivateService.ts:118-153]()
 
 ---
 
@@ -192,8 +182,6 @@ graph LR
     style AtomicWrite fill:#f9f9f9,stroke:#333,stroke-width:2px
 ```
 
-**Sources**: [docs/internals.md:68-81]()
-
 ### PersistSignalAdapter
 
 The `PersistSignalAdapter` class handles atomic file writes to prevent corruption during crashes. Each symbol-strategy pair has its own JSON file:
@@ -205,7 +193,6 @@ The adapter performs:
 2. Atomic write to temporary file
 3. Rename to final filename (atomic operation)
 
-**Sources**: Referenced in [src/lib/services/logic/private/LiveLogicPrivateService.ts](), implementation in persistence layer
 
 ### Persisted Data Structure
 
@@ -222,7 +209,6 @@ The following signal properties are persisted:
 | `timestampOpen` | number | Entry timestamp |
 | `minuteEstimatedTime` | number | Max duration |
 
-**Sources**: Signal structure defined in strategy interface
 
 ---
 
@@ -249,8 +235,6 @@ sequenceDiagram
     CS->>CS: Continue normal tick processing
 ```
 
-**Sources**: [docs/internals.md:76]()
-
 ### Initialization Pattern
 
 The `waitForInit()` method uses the singleshot pattern from `functools-kit` to ensure it runs exactly once per instance:
@@ -262,8 +246,6 @@ The `waitForInit()` method uses the singleshot pattern from `functools-kit` to e
 5. Method completes and never runs again
 
 This ensures recovery is transparent - the strategy continues from its exact state before the crash.
-
-**Sources**: [docs/internals.md:49-50]()
 
 ---
 
@@ -281,8 +263,6 @@ _isDone: boolean     // Process completed
 ```
 
 Calling `Live.stop()` or the cancellation closure sets `_isStopped = true`. The main loop checks this flag at safe points.
-
-**Sources**: [src/classes/Live.ts:82-86]()
 
 ### Safe Stop Points
 
@@ -305,8 +285,6 @@ The loop checks the stop flag at two locations:
      }
    }
    ```
-
-**Sources**: [src/lib/services/logic/private/LiveLogicPrivateService.ts:118-171]()
 
 ### Stop Flow Diagram
 
@@ -342,8 +320,6 @@ graph TB
     ContinueLoop --> CheckIdle
 ```
 
-**Sources**: [src/classes/Live.ts:30-56](), [src/lib/services/logic/private/LiveLogicPrivateService.ts:118-171]()
-
 ### Background Task Completion
 
 The `INSTANCE_TASK_FN` handles cleanup after the loop exits:
@@ -362,8 +338,6 @@ self._isDone = true;
 
 This ensures the `doneLiveSubject` event fires exactly once, even if the process crashes during shutdown.
 
-**Sources**: [src/classes/Live.ts:30-56]()
-
 ---
 
 ## LiveLogicPrivateService Implementation
@@ -377,8 +351,6 @@ The `LiveLogicPrivateService` class contains the core implementation of the infi
 | `LoggerService` | Structured logging with context |
 | `StrategyCoreService` | Strategy execution (tick calls) |
 | `MethodContextService` | Strategy/exchange name context |
-
-**Sources**: [src/lib/services/logic/private/LiveLogicPrivateService.ts:32-39]()
 
 ### run() Method Implementation
 
@@ -439,8 +411,6 @@ graph TB
     style TrackPerf fill:#f9f9f9,stroke:#333,stroke-width:2px
 ```
 
-**Sources**: [src/lib/services/logic/private/LiveLogicPrivateService.ts:63-175]()
-
 ### Error Handling
 
 When `tick()` throws an error, the service:
@@ -451,8 +421,6 @@ When `tick()` throws an error, the service:
 4. Continues to next iteration (doesn't break loop)
 
 This resilient design ensures temporary errors (network issues, API rate limits) don't crash the process.
-
-**Sources**: [src/lib/services/logic/private/LiveLogicPrivateService.ts:75-95]()
 
 ### Performance Tracking
 
@@ -472,8 +440,6 @@ await performanceEmitter.next({
 ```
 
 This enables monitoring of tick execution time for performance analysis.
-
-**Sources**: [src/lib/services/logic/private/LiveLogicPrivateService.ts:103-115]()
 
 ---
 
@@ -495,8 +461,6 @@ The following table highlights key differences between live and backtest executi
 | **Event Emitters** | `signalLiveEmitter` | `signalBacktestEmitter` |
 | **Backtest Flag** | `false` | `true` |
 
-**Sources**: [src/lib/services/logic/private/LiveLogicPrivateService.ts:1-179](), [src/lib/services/logic/private/BacktestLogicPrivateService.ts:1-481]()
-
 ---
 
 ## Event System
@@ -512,8 +476,6 @@ Live mode emits several events during execution for external monitoring and inte
 | `doneLiveSubject` | Completion | Loop exits | `DoneContract` |
 | `performanceEmitter` | Performance metric | After each tick | `PerformanceContract` |
 | `errorEmitter` | Recoverable error | tick() throws | Error object |
-
-**Sources**: [src/lib/services/logic/private/LiveLogicPrivateService.ts:6](), [docs/internals.md:84-89]()
 
 ### Event Listener Usage
 
@@ -537,8 +499,6 @@ listenError((error) => {
 ```
 
 All listeners use queued processing from `functools-kit` to ensure sequential execution even with async callbacks.
-
-**Sources**: [docs/internals.md:84-89]()
 
 ---
 
@@ -638,8 +598,6 @@ Live.background("BTCUSDT", { strategyName: "my-strategy", ... });
 
 No code changes needed - recovery is automatic via `waitForInit()` and `PersistSignalAdapter`.
 
-**Sources**: [docs/internals.md:76]()
-
 ---
 
 ## Reporting and Statistics
@@ -666,8 +624,6 @@ The `LiveStatistics` interface provides comprehensive metrics:
 | `certaintyRatio` | `number \| null` | avgWin / \|avgLoss\| |
 | `expectedYearlyReturns` | `number \| null` | Projected annual returns |
 
-**Sources**: [docs/interfaces/LiveStatistics.md:1-118]()
-
 ### Accessing Statistics
 
 ```typescript
@@ -688,4 +644,3 @@ await Live.dump("BTCUSDT", "my-strategy", "./reports");
 
 ---
 
-**Sources**: [src/classes/Live.ts:1-607](), [src/lib/services/logic/private/LiveLogicPrivateService.ts:1-179](), [docs/internals.md:68-81](), [docs/interfaces/LiveStatistics.md:1-118]()

@@ -13,8 +13,6 @@ This page documents the 11 service categories that comprise the Service Layer in
 
 The Service Layer implements a dependency injection architecture where services are organized into 11 functional categories. All services are registered in the `backtest` aggregation object, which serves as the central service locator throughout the codebase. The categories follow a clear separation of concerns: **Schema** services store configuration, **Validation** services enforce rules, **Connection** services create memoized client instances, **Core** services implement domain logic, **Global** services wrap public APIs, **Command** services orchestrate execution modes, **Logic** services manage execution flow, **Markdown** services generate reports, **Template** services handle code generation, **Context** services manage execution state, and **Base** services provide foundational utilities.
 
-Sources: [src/lib/index.ts:60-234](), [src/lib/core/types.ts:1-104](), [docs/internals.md:28-52]()
-
 ---
 
 ## Service Category Diagram
@@ -50,8 +48,6 @@ graph TB
     CONTEXT -.->|"Used by all"| SCHEMA
 ```
 
-Sources: [src/lib/index.ts:60-234](), [src/lib/core/types.ts:1-104]()
-
 ---
 
 ## 1. Base Services
@@ -72,8 +68,6 @@ Provides structured logging capabilities with automatic context injection. All l
 - `log(methodName, data)` - Standard logging
 - `info(methodName, data)` - Info-level logging
 - `error(methodName, error)` - Error logging
-
-Sources: [src/lib/index.ts:60-62](), [src/lib/core/types.ts:1-3](), [src/lib/core/provide.ts:55-57]()
 
 ---
 
@@ -118,8 +112,6 @@ MethodContextService.runInContext(() => {
 }, { strategyName, exchangeName, frameName });
 ```
 
-Sources: [src/lib/index.ts:64-71](), [src/lib/core/types.ts:5-8](), [src/lib/core/provide.ts:59-62]()
-
 ---
 
 ## 3. Schema Services
@@ -151,8 +143,6 @@ class XSchemaService {
 **Registration:** [src/lib/core/provide.ts:74-82]()
 
 **Storage:** Uses `ToolRegistry` from `functools-kit` for immutable storage with shallow validation.
-
-Sources: [src/lib/index.ts:97-111](), [src/lib/core/types.ts:20-28](), [src/lib/core/provide.ts:74-82](), [docs/internals.md:32-33]()
 
 ---
 
@@ -186,8 +176,6 @@ class XValidationService {
 **Memoization:** Validation results are cached to prevent redundant checks during execution loops.
 
 **Dependency:** Validation services read from corresponding schema services to verify existence.
-
-Sources: [src/lib/index.ts:188-213](), [src/lib/core/types.ts:73-82](), [src/lib/core/provide.ts:127-136](), [docs/internals.md:33-34]()
 
 ---
 
@@ -258,8 +246,6 @@ class StrategyConnectionService {
 
 **Purpose:** Prevents creating duplicate client instances during execution loops, optimizing memory usage.
 
-Sources: [src/lib/index.ts:73-95](), [src/lib/core/types.ts:10-18](), [src/lib/core/provide.ts:64-72](), [docs/internals.md:34-35]()
-
 ---
 
 ## 6. Core Services
@@ -303,8 +289,6 @@ Generates timeframe arrays for backtest iteration:
 
 **Registration:** [src/lib/core/provide.ts:87]()
 
-Sources: [src/lib/index.ts:113-117](), [src/lib/core/types.ts:30-34](), [src/lib/core/provide.ts:84-88](), [docs/internals.md:35-36]()
-
 ---
 
 ## 7. Global Services
@@ -340,8 +324,6 @@ class SizingGlobalService {
 **Registration:** [src/lib/core/provide.ts:90-94]()
 
 **Purpose:** Provide validated, context-aware access to business logic for public API functions.
-
-Sources: [src/lib/index.ts:119-128](), [src/lib/core/types.ts:36-41](), [src/lib/core/provide.ts:90-94](), [docs/internals.md:35]()
 
 ---
 
@@ -406,8 +388,6 @@ graph TB
 3. Delegate to `WalkerLogicPublicService.run()`
 
 **Registration:** [src/lib/core/provide.ts:100]()
-
-Sources: [src/lib/index.ts:130-138](), [src/lib/core/types.ts:43-47](), [src/lib/core/provide.ts:97-101]()
 
 ---
 
@@ -516,8 +496,6 @@ async *run(symbol: string): AsyncGenerator<WalkerContract> {
 }
 ```
 
-Sources: [src/lib/index.ts:140-162](), [src/lib/core/types.ts:49-59](), [src/lib/core/provide.ts:103-113](), [docs/internals.md:36-37]()
-
 ---
 
 ## 10. Markdown Services
@@ -590,8 +568,6 @@ class XMarkdownService {
 
 **MAX_EVENTS:** Unbounded (aggregates data)
 
-Sources: [src/lib/index.ts:164-186](), [src/lib/core/types.ts:61-71](), [src/lib/core/provide.ts:115-125](), [docs/internals.md:37-38]()
-
 ---
 
 ## 11. Template Services
@@ -635,8 +611,6 @@ Walker.background('BTCUSDT', {
 ```typescript
 generate(symbol: string, strategyData: IOptimizerStrategyData[]): string;
 ```
-
-Sources: [src/lib/index.ts:215-219](), [src/lib/core/types.ts:84-86](), [src/lib/core/provide.ts:138-140]()
 
 ---
 
@@ -694,8 +668,6 @@ export function addStrategy(schema: IStrategySchema) {
 }
 ```
 
-Sources: [src/lib/core/types.ts:1-104](), [src/lib/core/provide.ts:1-141](), [src/lib/index.ts:1-242](), [src/function/add.ts:52-64]()
-
 ---
 
 ## Service Category Summary Table
@@ -714,4 +686,3 @@ Sources: [src/lib/core/types.ts:1-104](), [src/lib/core/provide.ts:1-141](), [sr
 | Markdown | 9 | Report generation (bounded queues) | [src/lib/core/provide.ts:115-125]() |
 | Template | 1 | Code generation for Optimizer | [src/lib/core/provide.ts:138-140]() |
 
-Sources: [src/lib/index.ts:60-234](), [src/lib/core/types.ts:1-104](), [src/lib/core/provide.ts:1-141]()

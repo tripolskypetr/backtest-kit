@@ -22,8 +22,6 @@ The partial profit/loss system tracks milestone levels for active signals withou
 
 This differs from the final PNL calculated when signals close - partial tracking monitors intermediate states during active signal monitoring.
 
-**Sources**: [types.d.ts:693-847](), [src/interfaces/Partial.interface.ts:1-50]()
-
 ---
 
 ## Component Architecture
@@ -102,8 +100,6 @@ graph TB
 
 **Component Flow**: `ClientStrategy` invokes `ClientPartial` methods during signal monitoring. `ClientPartial` maintains in-memory Sets tracking which levels have been reached, persists state via `PersistPartialAdapter`, and emits events through `partialProfitSubject`/`partialLossSubject`. `PartialMarkdownService` subscribes to these subjects for reporting.
 
-**Sources**: [src/client/ClientStrategy.ts:1-50](), [src/config/emitters.ts:115-124](), [src/lib/services/markdown/PartialMarkdownService.ts:1-50]()
-
 ---
 
 ## Milestone Level Enumeration
@@ -120,8 +116,6 @@ When a signal's unrealized profit or loss percentage crosses one of these thresh
 - Price moves to $55,500 → 11% profit → `profit(symbol, data, 55500, 11.0, false, now)` called → Level 10 emitted
 - Price moves to $61,000 → 22% profit → `profit(symbol, data, 61000, 22.0, false, now)` called → Level 20 emitted
 - Level 10 is NOT re-emitted (Set deduplication)
-
-**Sources**: [types.d.ts:704-705](), [src/interfaces/Partial.interface.ts:10-15]()
 
 ---
 
@@ -174,8 +168,6 @@ graph LR
 | `loss()` | `symbol`, `data: ISignalRow`, `currentPrice`, `lossPercent`, `backtest`, `when` | Process loss state and emit events for new loss levels | Updates `_states` Map, persists to disk, emits via `partialLossSubject` |
 | `clear()` | `symbol`, `data: ISignalRow`, `priceClose`, `backtest` | Clear partial state when signal closes | Deletes from `_states` Map, persists updated state, clears memoized instance |
 
-**Sources**: [types.d.ts:756-847](), [src/client/ClientPartial.ts:1-300]()
-
 ---
 
 ## State Management and Persistence
@@ -213,8 +205,6 @@ interface IPartialData {
 2. → Convert Sets to arrays → `IPartialData`
 3. → `PersistPartialAdapter.persist()` → Write to `./dump/partial/{symbol}_partial.json`
 4. On crash recovery: `waitForInit()` loads JSON → Convert arrays to Sets → Restore `_states`
-
-**Sources**: [types.d.ts:707-724](), [src/classes/Persist.ts:1-100]()
 
 ---
 
@@ -262,8 +252,6 @@ sequenceDiagram
 | [src/client/ClientStrategy.ts:1100-1200]() | `backtest()` during candle processing | `profit()` or `loss()` during VWAP checks |
 | [src/client/ClientStrategy.ts:1050-1080]() | Signal close (TP/SL/time_expired) | `clear()` to remove state |
 
-**Sources**: [src/client/ClientStrategy.ts:869-1000](), [src/client/ClientPartial.ts:50-200]()
-
 ---
 
 ## Event Emission Contracts
@@ -302,8 +290,6 @@ interface PartialLossContract {
 
 **Listener Function**: `listenPartialLoss(fn)` and `listenPartialLossOnce(filterFn, fn)` at [src/function/event.ts:330-370]()
 
-**Sources**: [src/contract/PartialProfit.contract.ts:1-20](), [src/contract/PartialLoss.contract.ts:1-20](), [src/function/event.ts:280-380]()
-
 ---
 
 ## PartialConnectionService Factory
@@ -333,8 +319,6 @@ class PartialConnectionService {
 1. First call to `getPartial(symbol)` creates `ClientPartial` instance
 2. Subsequent calls return cached instance
 3. On `clear()`, instance is removed from memoization cache via [src/client/ClientPartial.ts:250-280]()
-
-**Sources**: [src/lib/services/connection/PartialConnectionService.ts:1-150](), [src/lib/services/connection/StrategyConnectionService.ts:106-108]()
 
 ---
 
@@ -407,8 +391,6 @@ interface PartialStatistics {
 | `timestamp` | Timestamp | ISO 8601 | Event time |
 | `mode` | Mode | "Backtest" / "Live" | Execution mode |
 
-**Sources**: [src/lib/services/markdown/PartialMarkdownService.ts:1-500](), [src/lib/services/markdown/PartialMarkdownService.ts:52-138]()
-
 ---
 
 ## Usage Examples
@@ -457,8 +439,6 @@ await Partial.dump('BTCUSDT', 'my-strategy', './reports/partial');
 // Writes to: ./reports/partial/BTCUSDT_my-strategy.md
 ```
 
-**Sources**: [src/function/event.ts:280-380](), [src/classes/Partial.ts:1-100]()
-
 ---
 
 ## Strategy Callback Integration
@@ -489,8 +469,6 @@ addStrategy({
 ```
 
 **Callback Timing**: Called from [src/client/ClientStrategy.ts:920-960]() during signal monitoring in `tick()` and `backtest()` methods, before partial events are emitted to subjects.
-
-**Sources**: [src/interfaces/Strategy.interface.ts:122-125](), [src/client/ClientStrategy.ts:900-1000]()
 
 ---
 
@@ -545,8 +523,6 @@ sequenceDiagram
 
 **Atomic Write Pattern**: `PersistPartialAdapter` uses the same atomic write mechanism as `PersistSignalAdapter` - write to temp file, then rename to ensure no corruption on crash.
 
-**Sources**: [src/classes/Persist.ts:350-450](), [src/client/ClientPartial.ts:80-120]()
-
 ---
 
 ## Implementation Details
@@ -588,8 +564,6 @@ async profit(symbol: string, data: ISignalRow, currentPrice: number,
 
 **Key Property**: Once a level is added to the Set, it cannot be re-added, ensuring each milestone is reported exactly once per signal.
 
-**Sources**: [src/client/ClientPartial.ts:150-250]()
-
 ---
 
 ## Performance Considerations
@@ -611,4 +585,3 @@ async profit(symbol: string, data: ISignalRow, currentPrice: number,
 
 Partial events are emitted frequently during active signal monitoring (potentially every `tick()` call when price moves through thresholds). The queued processing pattern in listener functions ensures sequential execution without blocking the main monitoring loop.
 
-**Sources**: [src/lib/services/connection/PartialConnectionService.ts:50-100](), [src/lib/services/markdown/PartialMarkdownService.ts:140-145]()

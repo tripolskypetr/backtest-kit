@@ -64,7 +64,7 @@ graph TB
     Remove -.->|"On close"| FS
 ```
 
-**Sources**: [types.d.ts:163-176](), [src/client/ClientStrategy.ts:491-552](), Diagram 1 (Overall System Architecture)
+, [src/client/ClientStrategy.ts:491-552](), Diagram 1 (Overall System Architecture)
 
 ### PersistBase Abstract Class
 
@@ -76,8 +76,6 @@ graph TB
 - `remove()`: Delete persisted state
 
 **File Naming Pattern**: `./dump/{type}_{identifier}.json`
-
-**Sources**: [types.d.ts:163-176]()
 
 ### Signal and Schedule Persistence
 
@@ -126,8 +124,6 @@ sequenceDiagram
     end
 ```
 
-**Sources**: [src/client/ClientStrategy.ts:491-552](), [types.d.ts:163-176]()
-
 ### Atomic Write Pattern
 
 All persistence adapters implement atomic writes to prevent data corruption during crashes:
@@ -139,8 +135,6 @@ All persistence adapters implement atomic writes to prevent data corruption duri
 This ensures that persisted state is always either the complete previous version or the complete new version—never a partial write.
 
 **Key Implementation**: Each `ClientStrategy` method that modifies signal state calls `setPendingSignal()` or `setScheduledSignal()`, which internally triggers `PersistSignalAdapter.write()` or `PersistScheduleAdapter.write()`.
-
-**Sources**: [src/client/ClientStrategy.ts:491-552]()
 
 ### Singleshot Initialization Pattern
 
@@ -156,8 +150,6 @@ await strategy.waitForInit();
 
 This prevents duplicate recovery attempts and ensures consistent initialization across multiple ticks.
 
-**Sources**: [src/client/ClientStrategy.ts:491-552](), [docs/internals.md:49]()
-
 ### Risk State Persistence
 
 `ClientRisk` uses `PersistRiskAdapter` to track active positions across process restarts. This is critical for portfolio-level risk management that must survive crashes.
@@ -169,7 +161,7 @@ This prevents duplicate recovery attempts and ensures consistent initialization 
 
 **File Pattern**: `./dump/risk_{symbol}_{riskName}.json`
 
-**Sources**: [types.d.ts:163-176](), Diagram 1 (Overall System Architecture)
+, Diagram 1 (Overall System Architecture)
 
 ### Partial State Persistence
 
@@ -181,8 +173,6 @@ This prevents duplicate recovery attempts and ensures consistent initialization 
 - Reached loss levels (Set serialized as array)
 
 **File Pattern**: `./dump/partial_{symbol}.json`
-
-**Sources**: [types.d.ts:707-724](), [types.d.ts:163-176]()
 
 ---
 
@@ -303,7 +293,7 @@ graph TB
     RS -.->|filter + once| LRO
 ```
 
-**Sources**: [src/config/emitters.ts:1-133](), [src/function/event.ts:1-564](), Diagram 4 (Event System and Communication Flow)
+, [src/function/event.ts:1-564](), Diagram 4 (Event System and Communication Flow)
 
 ### Signal Event Listeners
 
@@ -328,8 +318,6 @@ Signal events track the complete lifecycle of trading signals from generation th
 - `"closed"`: Signal completed (TP/SL/time_expired)
 - `"cancelled"`: Scheduled signal cancelled without activation
 
-**Sources**: [src/function/event.ts:70-221](), [types.d.ts:854-953]()
-
 ### Queued Processing Pattern
 
 All listener functions wrap callbacks with `queued()` from `functools-kit` to ensure sequential processing:
@@ -346,8 +334,6 @@ export function listenSignal(fn: (event: IStrategyTickResult) => void) {
 - Prevents concurrent execution conflicts
 
 Even if callback contains `await`, next event waits for current callback to complete.
-
-**Sources**: [src/function/event.ts:70-73](), [docs/internals.md:52]()
 
 ### Filter Predicates with Once Variants
 
@@ -368,8 +354,6 @@ After first matching event:
 3. Subscription automatically cancelled
 
 **Use Case**: Wait for specific condition during backtest/live execution without manual unsubscribe.
-
-**Sources**: [src/function/event.ts:107-113](), [src/function/event.ts:161-167]()
 
 ### Completion Event Listeners
 
@@ -395,8 +379,6 @@ Completion events signal the end of background execution:
 }
 ```
 
-**Sources**: [src/function/event.ts:308-413](), [src/config/emitters.ts:50-62]()
-
 ### Progress Event Listeners
 
 Progress events track execution advancement during long-running operations:
@@ -413,8 +395,6 @@ Progress events track execution advancement during long-running operations:
 - Percentage completion
 - Context information (symbol, strategy, etc.)
 
-**Sources**: [src/function/event.ts:464-532](), [src/config/emitters.ts:68-80]()
-
 ### Error Event Listeners
 
 Error events distinguish between recoverable and fatal errors:
@@ -428,8 +408,6 @@ Error events distinguish between recoverable and fatal errors:
 - **Recoverable**: API failures, validation errors, retry-able operations
 - **Fatal**: Unrecoverable failures requiring process restart
 
-**Sources**: [src/function/event.ts:247-279](), [src/config/emitters.ts:37-44]()
-
 ### Walker Event Listeners
 
 Walker events track multi-strategy comparison progress and results:
@@ -440,8 +418,6 @@ Walker events track multi-strategy comparison progress and results:
 | `listenWalkerOnce()` | `walkerEmitter` | `WalkerContract` | Filtered strategy result |
 | `listenWalkerComplete()` | `walkerCompleteSubject` | `IWalkerResults` | Final comparison results |
 | `listenWalkerProgress()` | `progressWalkerEmitter` | `ProgressWalkerContract` | Strategy iteration progress |
-
-**Sources**: [src/function/event.ts:415-462](), [src/config/emitters.ts:92-106]()
 
 ### Validation and Risk Event Listeners
 
@@ -454,8 +430,6 @@ Specialized listeners for risk management and validation errors:
 | `listenRiskOnce()` | `riskSubject` | `RiskContract` | Filtered risk rejection |
 
 **Important**: `riskSubject` emits only when signals are **rejected** by risk checks. Allowed signals do not emit events (prevents spam).
-
-**Sources**: [src/function/event.ts:534-564](), [src/config/emitters.ts:112-131]()
 
 ### Performance Event Listener
 
@@ -472,8 +446,6 @@ Specialized listeners for risk management and validation errors:
 - Exchange data fetch time
 - Risk validation time
 - Persistence write time
-
-**Sources**: [src/function/event.ts:464-476](), [src/config/emitters.ts:86]()
 
 ---
 
@@ -545,7 +517,7 @@ graph TB
     PartialState -->|"Remove signalId"| PersistPartialAdapter
 ```
 
-**Sources**: [types.d.ts:705-847](), Diagram 4 (Event System and Communication Flow)
+, Diagram 4 (Event System and Communication Flow)
 
 ### PartialLevel Type
 
@@ -557,8 +529,6 @@ type PartialLevel = 10 | 20 | 30 | 40 | 50 | 60 | 70 | 80 | 90 | 100;
 
 Each `PartialLevel` represents a percentage point milestone. When a signal reaches 10% profit, the `10` level is emitted. When it reaches 25% profit, levels `10` and `20` have been reached, but only `20` is emitted (deduplication via Set).
 
-**Sources**: [types.d.ts:705]()
-
 ### IPartial Interface
 
 `ClientPartial` implements the `IPartial` interface with three core methods:
@@ -568,8 +538,6 @@ Each `PartialLevel` represents a percentage point milestone. When a signal reach
 | `profit(symbol, data, currentPrice, revenuePercent, backtest, when)` | Track profit milestones | `revenuePercent > 0` in active signal |
 | `loss(symbol, data, currentPrice, lossPercent, backtest, when)` | Track loss milestones | `revenuePercent < 0` in active signal |
 | `clear(symbol, data, priceClose, backtest)` | Clear tracking state | Signal closes (TP/SL/time_expired) |
-
-**Sources**: [types.d.ts:756-847]()
 
 ### Set-Based Deduplication
 
@@ -589,8 +557,6 @@ interface IPartialState {
 4. If already in Set, skip (no duplicate event)
 
 This ensures each milestone emits exactly once per signal, even across process restarts (state persisted).
-
-**Sources**: [types.d.ts:707-724]()
 
 ### Profit Tracking Flow
 
@@ -628,8 +594,6 @@ sequenceDiagram
     end
 ```
 
-**Sources**: [types.d.ts:765-789](), [src/client/ClientStrategy.ts:900-950]()
-
 ### Loss Tracking Flow
 
 Loss tracking follows the same pattern as profit tracking, but uses negative percentage values:
@@ -639,8 +603,6 @@ Loss tracking follows the same pattern as profit tracking, but uses negative per
 - Comparison: `Math.abs(lossPercent) >= level`
 - Storage: `lossLevels` Set
 - Emission: `partialLossSubject`
-
-**Sources**: [types.d.ts:792-823]()
 
 ### Clear Operation
 
@@ -652,8 +614,6 @@ When a signal closes, `ClientPartial.clear()` removes the tracking state:
 4. Memoized `ClientPartial` instance cleared from `PartialConnectionService`
 
 **Important**: Clear operation does NOT emit events—it only cleans up state.
-
-**Sources**: [types.d.ts:826-846]()
 
 ### Partial Event Listeners
 
@@ -681,8 +641,6 @@ Four listener functions provide access to partial profit/loss events:
 
 **PartialLossContract Payload**: Same structure, but with `lossPercent` instead of `revenuePercent`.
 
-**Sources**: [src/function/event.ts:534-564](), [src/config/emitters.ts:118-124]()
-
 ### Strategy Callback Integration
 
 `IStrategySchema` includes two callbacks for partial profit/loss:
@@ -697,8 +655,6 @@ callbacks: {
 These callbacks fire on **every tick** while signal is in profit or loss, NOT just at milestones. For milestone-specific logic, use event listeners instead.
 
 **Use Case**: Strategy callbacks for real-time UI updates; event listeners for discrete alerts.
-
-**Sources**: [types.d.ts:910-931](), [docs/interfaces/IStrategyCallbacks.md:78-92]()
 
 ### Persistence Across Restarts
 
@@ -721,8 +677,6 @@ These callbacks fire on **every tick** while signal is in profit or loss, NOT ju
 
 This prevents duplicate milestone events after crashes.
 
-**Sources**: [types.d.ts:707-724](), [types.d.ts:163-176]()
-
 ---
 
 ## Summary
@@ -735,4 +689,4 @@ The three advanced features work together to create a production-ready trading s
 
 These features are optional—strategies can run without custom event listeners or partial tracking—but they're essential for professional live trading deployments.
 
-**Sources**: [docs/internals.md:1-132](), All sections above
+, All sections above

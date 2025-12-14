@@ -68,7 +68,7 @@ graph TB
 | `ClientExchange` | [src/lib/client/ClientExchange.ts]() | Business logic for candle fetching and VWAP |
 | `ExchangeCoreService` | [src/lib/services/core/ExchangeCoreService.ts]() | High-level orchestration of exchange operations |
 
-**Sources**: [types.d.ts:327-363](), [src/index.ts:1-195](), Diagram 1 from high-level architecture
+, [src/index.ts:1-195](), Diagram 1 from high-level architecture
 
 ---
 
@@ -172,8 +172,6 @@ addExchange({
 - `formatQuantity` must be a function
 - Exchange name must not already exist (checked during registration)
 
-**Sources**: [types.d.ts:327-363](), [src/function/add.ts](), [test/spec/exchange.test.mjs](), [README.md:60-75]()
-
 ---
 
 ## Candle Data and VWAP
@@ -192,8 +190,6 @@ interface ICandleData {
     volume: number;     // Trading volume
 }
 ```
-
-**Sources**: [types.d.ts:295-308]()
 
 ### VWAP Calculation
 
@@ -256,8 +252,6 @@ graph TD
 
 **Example**: BTC at $50,000 median → threshold $50. Catches incomplete candles with prices like $0.01-$1.
 
-**Sources**: [types.d.ts:14-106](), [src/lib/client/ClientExchange.ts](), [test/e2e/sanitize.test.mjs:666-784](), [src/config/params.ts:76-104]()
-
 ---
 
 ## ClientExchange Methods
@@ -299,8 +293,6 @@ graph TB
 - `getCandles`: `since = when - (limit * interval)`
 - `getNextCandles`: `since = when`
 - `ExecutionContext.when` is injected via `ExecutionContextService` (see [System Architecture](./06-system-architecture.md))
-
-**Sources**: [types.d.ts:368-413](), [src/lib/client/ClientExchange.ts]()
 
 ---
 
@@ -367,8 +359,6 @@ type FrameInterval =
     | "1d" | "3d";                             // Days
 ```
 
-**Sources**: [types.d.ts:420-502]()
-
 ### Timeframe Generation Algorithm
 
 `ClientFrame.getTimeframe()` generates an array of `Date` objects:
@@ -417,8 +407,6 @@ addFrame({
 - `endDate` must be valid Date
 - `endDate` must be greater than `startDate`
 
-**Sources**: [types.d.ts:420-502](), [src/lib/client/ClientFrame.ts](), [test/spec/exchange.test.mjs]()
-
 ---
 
 ## Exchange and Frame Integration Flow
@@ -461,8 +449,6 @@ sequenceDiagram
 - `BacktestLogicPrivateService` sets `ExecutionContextService.when = timestamp` before each `tick()` call
 - `ClientExchange.getCandles()` reads `ExecutionContext.when` to calculate `since` parameter
 - This ensures all operations are scoped to the current backtest timestamp
-
-**Sources**: [src/lib/services/logic/private/BacktestLogicPrivateService.ts](), [src/lib/services/core/ExchangeCoreService.ts](), [src/lib/services/core/FrameCoreService.ts]()
 
 ---
 
@@ -513,8 +499,6 @@ graph TB
 - Cache invalidation: None (instances live for application lifetime)
 - Benefit: Avoids repeated schema lookups and instance creation
 
-**Sources**: [src/function/exchange.ts](), [src/lib/services/connection/ExchangeConnectionService.ts](), [src/lib/services/core/ExchangeCoreService.ts]()
-
 ---
 
 ## Configuration Parameters Summary
@@ -539,8 +523,6 @@ setConfig({
 });
 ```
 
-**Sources**: [src/config/params.ts:1-122](), [types.d.ts:5-239](), [test/e2e/config.test.mjs]()
-
 ---
 
 ## Error Handling and Retry Logic
@@ -561,8 +543,6 @@ Exchange operations implement robust error handling:
 - **Anomalous Prices**: Throws error after validation, triggers retry
 
 **Test Coverage**: [test/e2e/sanitize.test.mjs:666-784]() demonstrates incomplete candle detection and rejection
-
-**Sources**: [src/lib/client/ClientExchange.ts](), [src/config/params.ts:66-104]()
 
 ---
 
@@ -607,4 +587,3 @@ From [test/e2e/sanitize.test.mjs:666-784]():
 - Error emitted via `errorEmitter`
 - Test verifies error message contains "anomalously low price"
 
-**Sources**: [test/mock/getMockCandles.mjs:1-42](), [test/e2e/sanitize.test.mjs:666-784](), [test/spec/exchange.test.mjs]()

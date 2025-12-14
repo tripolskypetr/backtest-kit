@@ -29,8 +29,6 @@ This structure is used consistently across:
 - Backtest fast-forward processing via `getNextCandles()`
 - VWAP calculation for realistic entry/exit pricing
 
-**Sources:** [types.d.ts:287-308]()
-
 ---
 
 ## VWAP Calculation
@@ -62,8 +60,6 @@ This parameter controls:
 - `5 candles`: Standard for 1-minute intervals (last 5 minutes)
 - `10+ candles`: Smoother VWAP for higher timeframes or volatile assets
 - `3 candles`: More responsive for fast-moving markets (minimum recommended)
-
-**Sources:** [types.d.ts:14-15](), [src/config/params.ts:8-11]()
 
 ---
 
@@ -113,8 +109,6 @@ graph TB
     style CALC_VWAP fill:#f9f9f9,stroke:#333,stroke-width:2px
     style ANOMALY fill:#ffe6e6,stroke:#333,stroke-width:2px
 ```
-
-**Sources:** [types.d.ts:367-413]()
 
 ---
 
@@ -185,8 +179,6 @@ Factor   | BTC Threshold | Catches Anomalies? | False Positives?
 10,000   | $5            | ✓ Yes            | ✗ Too strict (altcoins)
 ```
 
-**Sources:** [types.d.ts:80-106](), [src/config/params.ts:76-104](), [test/e2e/sanitize.test.mjs:666-784]()
-
 ---
 
 ## Anomaly Detection Flow Diagram
@@ -240,8 +232,6 @@ graph TB
     style FAIL fill:#ffcccc,stroke:#333,stroke-width:2px
 ```
 
-**Sources:** [types.d.ts:80-106](), [test/e2e/sanitize.test.mjs:666-784]()
-
 ---
 
 ## Retry Logic for Failed Requests
@@ -294,8 +284,6 @@ graph LR
 ```
 
 **Total Time Budget:** `3 retries × 5 seconds = 15 seconds` (plus request time)
-
-**Sources:** [types.d.ts:69-78](), [src/config/params.ts:66-74]()
 
 ---
 
@@ -360,8 +348,6 @@ graph TB
 - Slippage and fees are applied on top of VWAP in PnL calculation
 - Backtest uses `getNextCandles()` to simulate future price action for TP/SL checks
 
-**Sources:** [types.d.ts:367-413]()
-
 ---
 
 ## Usage Examples
@@ -422,8 +408,6 @@ listenError((error) => {
 });
 ```
 
-**Sources:** [types.d.ts:14-15](), [src/config/params.ts:8-11](), [test/e2e/sanitize.test.mjs:666-784]()
-
 ---
 
 ## Configuration Summary
@@ -441,4 +425,3 @@ listenError((error) => {
 - **Higher `CC_GET_CANDLES_RETRY_COUNT`**: More resilient to temporary failures, slower execution on persistent errors
 - **Lower `CC_GET_CANDLES_PRICE_ANOMALY_THRESHOLD_FACTOR`**: Stricter anomaly detection, may reject valid low-cap altcoin prices
 
-**Sources:** [src/config/params.ts:8-104](), [types.d.ts:14-15, 69-106]()

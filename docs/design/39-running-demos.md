@@ -39,8 +39,6 @@ demo/
         └── index.mjs
 ```
 
-**Sources**: [demo/optimization/package.json:1-18](), [demo/backtest/package.json:1-18](), [demo/live/package.json:1-18]()
-
 ---
 
 ## Demo Dependency Architecture
@@ -100,8 +98,6 @@ graph TB
     style OPT fill:#ffe1e1,stroke:#333,stroke-width:2px
 ```
 
-**Sources**: [demo/optimization/package.json:8-17](), [demo/backtest/package.json:8-17](), [demo/live/package.json:8-17]()
-
 ---
 
 ## Installation and Setup
@@ -143,8 +139,6 @@ Edit `.env` with required values:
 OLLAMA_API_KEY=your_api_key_here
 CCXT_DUMPER_URL=http://localhost:3000
 ```
-
-**Sources**: [demo/optimization/.env.example:1-2](), [demo/optimization/package.json:1-18]()
 
 ---
 
@@ -191,8 +185,6 @@ The optimization demo requires a running CCXT dumper service (referenced at [dem
   ]
 }
 ```
-
-**Sources**: [demo/optimization/src/index.mjs:64-82](), [demo/optimization/src/index.mjs:66-123]()
 
 ---
 
@@ -254,8 +246,6 @@ graph TB
     style LLM fill:#e8f5e9,stroke:#333,stroke-width:2px
     style OUTPUT fill:#fff4e1,stroke:#333,stroke-width:2px
 ```
-
-**Sources**: [demo/optimization/package.json:6](), [demo/optimization/src/index.mjs:1-4](), [demo/optimization/src/index.mjs:19-61](), [demo/optimization/src/index.mjs:66-123]()
 
 ---
 
@@ -320,8 +310,6 @@ npm start
 - Persistence confirmations
 - Graceful shutdown on Ctrl+C
 
-**Sources**: [demo/optimization/package.json:6](), [demo/backtest/package.json:6](), [demo/live/package.json:6]()
-
 ---
 
 ## Optimization Demo Source Structure
@@ -355,8 +343,6 @@ graph LR
     SRC1 --> ASSISTANT
 ```
 
-**Sources**: [demo/optimization/src/index.mjs:66-298]()
-
 ### Training and Test Ranges
 
 Configuration at [demo/optimization/src/index.mjs:19-61]():
@@ -378,8 +364,6 @@ Configuration at [demo/optimization/src/index.mjs:19-61]():
 - Auto-generates header from object keys
 - Formats separator and data rows
 - Used for LLM data presentation
-
-**Sources**: [demo/optimization/src/index.mjs:6-17](), [demo/optimization/src/index.mjs:19-61](), [demo/optimization/src/index.mjs:66-298]()
 
 ---
 
@@ -419,8 +403,6 @@ This enables:
 - `.mjs` file execution
 - Async generator functions
 
-**Sources**: [demo/optimization/package.json:4-7](), [demo/backtest/package.json:4-7](), [demo/live/package.json:4-7]()
-
 ---
 
 ## Progress Monitoring
@@ -454,8 +436,6 @@ For 4 sources:
 - Source 2 complete: `processedSources=2, progress=0.50`
 - Source 3 complete: `processedSources=3, progress=0.75`
 - Source 4 complete: `processedSources=4, progress=1.00`
-
-**Sources**: [demo/optimization/src/index.mjs:1](), [src/contract/ProgressOptimizer.contract.ts:1-31]()
 
 ---
 
@@ -503,8 +483,6 @@ ollama serve
 ollama list | grep deepseek
 ```
 
-**Sources**: [demo/optimization/.env.example:1-2](), [demo/optimization/src/index.mjs:70-82]()
-
 ---
 
 ## Demo Project Comparison
@@ -520,4 +498,3 @@ ollama list | grep deepseek
 | **State** | Stateless | Stateless | Stateful (crash-safe) |
 | **Use Case** | Strategy discovery | Strategy validation | Production trading |
 
-**Sources**: [demo/optimization/src/index.mjs:1-4](), [demo/optimization/package.json:1-18](), [demo/backtest/package.json:1-18](), [demo/live/package.json:1-18]()

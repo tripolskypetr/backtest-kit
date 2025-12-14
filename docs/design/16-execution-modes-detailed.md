@@ -23,8 +23,6 @@ All four execution modes follow a consistent architectural pattern with three pr
 | **Logic Services** | `BacktestLogicPublicService/Private`, `LiveLogicPublicService/Private`, `WalkerLogicPublicService/Private` | Core execution logic with async generators |
 | **Core Services** | `StrategyCoreService`, `ExchangeCoreService`, `FrameCoreService` | Domain business logic |
 
-**Sources:** [src/classes/Backtest.ts:1-594](), [src/classes/Live.ts:1-607](), [src/classes/Walker.ts:1-678](), [docs/internals.md:28-39]()
-
 ---
 
 ## Backtest Mode
@@ -72,8 +70,6 @@ graph TB
 
 **Diagram: Backtest Mode Service Dependencies**
 
-**Sources:** [src/classes/Backtest.ts:335-555](), [src/lib/services/logic/private/BacktestLogicPrivateService.ts:1-481]()
-
 ### Public API Entry Points
 
 The `Backtest` singleton provides the primary interface for backtest operations:
@@ -92,8 +88,6 @@ Backtest.getData(symbol, strategyName) -> Promise<BacktestStatistics>
 ```
 
 Each symbol-strategy pair is managed by a memoized `BacktestInstance` (keyed by `"${symbol}:${strategyName}"`), ensuring isolated state and preventing duplicate executions.
-
-**Sources:** [src/classes/Backtest.ts:355-396](), [src/classes/Backtest.ts:360-365]()
 
 ### Execution Flow
 
@@ -169,8 +163,6 @@ graph TD
 
 **Diagram: Backtest Execution Flow with Signal Type Handling**
 
-**Sources:** [src/lib/services/logic/private/BacktestLogicPrivateService.ts:62-477]()
-
 ### Timeframe Iteration and Skip Optimization
 
 The backtest mode uses pre-generated timeframes from `FrameCoreService.getTimeframe()`, which returns an array of `Date` objects based on the frame configuration. The main optimization technique is **skip-to-close**:
@@ -185,8 +177,6 @@ The backtest mode uses pre-generated timeframes from `FrameCoreService.getTimefr
 5. **Yield result:** Emit closed signal result immediately
 
 This pattern eliminates redundant tick calls during active signal monitoring, reducing execution time by orders of magnitude for strategies with long signal lifetimes.
-
-**Sources:** [src/lib/services/logic/private/BacktestLogicPrivateService.ts:154-301](), [src/lib/services/logic/private/BacktestLogicPrivateService.ts:304-431]()
 
 ### BacktestLogicPrivateService Implementation
 
@@ -239,8 +229,6 @@ Key implementation details:
 - **Stop checks:** Multiple stop points (before tick, after idle, after closed) for graceful shutdown
 - **Progress reporting:** Emits `progressBacktestEmitter` with `processedFrames / totalFrames`
 
-**Sources:** [src/lib/services/logic/private/BacktestLogicPrivateService.ts:62-477](), [src/lib/services/logic/private/BacktestLogicPrivateService.ts:114-129]()
-
 ### Scheduled Signal Handling
 
 Scheduled signals (delayed entry orders) require special handling in backtest mode:
@@ -272,8 +260,6 @@ The `backtest()` method internally monitors for:
 2. **Cancellation conditions:** Time expires without activation
 3. **Post-activation:** Normal TP/SL/time monitoring if activated
 
-**Sources:** [src/lib/services/logic/private/BacktestLogicPrivateService.ts:154-301](), [docs/internals.md:54-67]()
-
 ### State Management and Memory Efficiency
 
 Backtest mode is stateless by design:
@@ -295,8 +281,6 @@ const { riskName, riskList } = backtest.strategySchemaService.get(strategyName);
 riskName && backtest.riskGlobalService.clear(riskName);
 riskList?.forEach((riskName) => backtest.riskGlobalService.clear(riskName));
 ```
-
-**Sources:** [src/classes/Backtest.ts:161-174](), [docs/internals.md:92-103]()
 
 ---
 
@@ -353,8 +337,6 @@ graph TB
 
 **Diagram: Live Mode Service Dependencies with Persistence**
 
-**Sources:** [src/classes/Live.ts:1-607](), [src/lib/services/logic/private/LiveLogicPrivateService.ts:1-179]()
-
 ### Public API Entry Points
 
 The `Live` singleton provides crash-safe real-time trading:
@@ -376,8 +358,6 @@ Key differences from Backtest:
 - **Filtered output:** Generator only yields `opened` and `closed` results (not `idle`/`active`)
 - **Infinite loop:** Generator never completes unless explicitly stopped
 - **Crash recovery:** State restored from disk on restart
-
-**Sources:** [src/classes/Live.ts:372-414](), [src/classes/Live.ts:417-455]()
 
 ### Execution Flow
 
@@ -456,8 +436,6 @@ graph TD
 
 **Diagram: Live Mode Infinite Loop with Crash-Safe Persistence**
 
-**Sources:** [src/lib/services/logic/private/LiveLogicPrivateService.ts:63-175]()
-
 ### Infinite Loop Architecture
 
 The core difference between live and backtest is the infinite loop structure:
@@ -518,8 +496,6 @@ Key characteristics:
 - **No frame skipping:** Every tick is processed (no optimization like backtest)
 - **Filtered yield:** Only `opened` and `closed` emitted to consumer
 
-**Sources:** [src/lib/services/logic/private/LiveLogicPrivateService.ts:63-175](), [src/lib/services/logic/private/LiveLogicPrivateService.ts:14]()
-
 ### Crash-Safe Persistence
 
 Live mode achieves crash safety through atomic file writes and state recovery:
@@ -559,8 +535,6 @@ The `waitForInit()` is called on first tick:
 - Restores `_pendingSignal` state
 - Continues monitoring from last known position
 - If file doesn't exist, starts fresh
-
-**Sources:** [docs/internals.md:69-82](), [docs/internals.md:46-52]()
 
 ### Graceful Shutdown
 
@@ -602,8 +576,6 @@ Stop flow:
 5. **Done event:** Emits `doneLiveSubject` only when no pending signal
 
 This prevents orphaned positions by waiting for natural close (TP/SL/time).
-
-**Sources:** [src/classes/Live.ts:221-240](), [src/lib/services/logic/private/LiveLogicPrivateService.ts:155-171]()
 
 ### State Management and Persistence Lifecycle
 
@@ -659,8 +631,6 @@ The persistence layer ensures:
 - **Singleshot initialization:** `waitForInit()` called once per instance
 - **Stateless process:** All state in JSON files, not in-memory
 - **Crash recovery:** Process can restart anytime and resume monitoring
-
-**Sources:** [docs/internals.md:46-52](), [docs/internals.md:69-82]()
 
 ---
 
@@ -718,8 +688,6 @@ graph TB
 
 **Diagram: Walker Mode Architecture with Sequential Backtest Delegation**
 
-**Sources:** [src/classes/Walker.ts:1-678](), [src/lib/services/logic/private/WalkerLogicPrivateService.ts:1-263]()
-
 ### Public API Entry Points
 
 The `Walker` singleton orchestrates strategy comparison:
@@ -752,8 +720,6 @@ interface IWalkerSchema {
   };
 }
 ```
-
-**Sources:** [src/classes/Walker.ts:418-459](), [src/lib/services/logic/private/WalkerLogicPrivateService.ts:68-84]()
 
 ### Sequential Backtest Execution
 
@@ -840,8 +806,6 @@ graph TD
 ```
 
 **Diagram: Walker Sequential Execution Flow**
-
-**Sources:** [src/lib/services/logic/private/WalkerLogicPrivateService.ts:68-259]()
 
 ### WalkerLogicPrivateService Implementation
 
@@ -930,8 +894,6 @@ public async *run(
 }
 ```
 
-**Sources:** [src/lib/services/logic/private/WalkerLogicPrivateService.ts:68-259]()
-
 ### Metric Evaluation System
 
 Walker supports multiple comparison metrics:
@@ -962,8 +924,6 @@ if (isBetter && metricValue !== null) {
 
 All metrics follow "higher is better" convention (including `stdDev` as inverse in Sharpe).
 
-**Sources:** [src/lib/services/logic/private/WalkerLogicPrivateService.ts:172-190](), [docs/interfaces/BacktestStatistics.md:1-110]()
-
 ### Stop Signal System and Multiple Walkers
 
 Walker mode supports concurrent walker instances on the same symbol through filtered stop signals:
@@ -993,8 +953,6 @@ Stop flow:
 6. **Break loop:** Current strategy finishes, next is skipped
 
 The `walkerName` filter enables multiple walker instances on the same symbol without interference.
-
-**Sources:** [src/lib/services/logic/private/WalkerLogicPrivateService.ts:98-111](), [src/classes/Walker.ts:270-282]()
 
 ### Lifecycle Callbacks
 
@@ -1044,8 +1002,6 @@ if (walkerSchema.callbacks?.onStrategyComplete) {
   );
 }
 ```
-
-**Sources:** [src/lib/services/logic/private/WalkerLogicPrivateService.ts:129-228](), [src/lib/services/logic/private/WalkerLogicPrivateService.ts:254-256]()
 
 ---
 
@@ -1117,7 +1073,7 @@ Based on the provided diagrams, the Optimizer mode follows this pattern:
 5. **Template Merging:** Combines generated strategy logic with framework boilerplate
 6. **Code Export:** Outputs executable `.mjs` file with complete strategy
 
-**Sources:** [docs/internals.md:1-507]() (Diagram 2 section on Optimizer)
+(Diagram 2 section on Optimizer)
 
 ### Key Differences from Other Modes
 
@@ -1132,7 +1088,7 @@ Based on the provided diagrams, the Optimizer mode follows this pattern:
 
 The Optimizer mode is not an execution mode in the traditional sense - it's a **code generation tool** that produces strategies which can then be executed via Backtest/Live/Walker modes.
 
-**Sources:** [docs/internals.md:1-507]() (Diagram 1 and 2 sections)
+(Diagram 1 and 2 sections)
 
 ---
 
@@ -1152,7 +1108,7 @@ The Optimizer mode is not an execution mode in the traditional sense - it's a **
 | **State Management** | Cleared on start | Persisted to disk | Cleared per strategy | Stateless |
 | **Primary Use Case** | Historical validation | Production trading | Strategy comparison | Strategy generation |
 
-**Sources:** [docs/internals.md:54-82]() (Data Flow sections)
+(Data Flow sections)
 
 ### Performance Characteristics
 
@@ -1197,8 +1153,6 @@ graph LR
 
 **Diagram: Execution Mode Service Dependencies**
 
-**Sources:** [src/lib/services/logic/private/BacktestLogicPrivateService.ts:33-47](), [src/lib/services/logic/private/LiveLogicPrivateService.ts:32-39](), [src/lib/services/logic/private/WalkerLogicPrivateService.ts:29-38]()
-
 ---
 
 ## Summary
@@ -1212,4 +1166,3 @@ The four execution modes provide complementary capabilities:
 
 All modes leverage the same core service architecture (Strategy, Exchange, Frame) but implement distinct orchestration patterns via Logic services. The async generator pattern enables memory-efficient streaming, early termination, and consistent error handling across all execution modes.
 
-**Sources:** [docs/internals.md:10-27](), [docs/internals.md:54-82]()

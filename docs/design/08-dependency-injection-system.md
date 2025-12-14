@@ -11,8 +11,6 @@ The Dependency Injection (DI) system provides centralized service management for
 
 For information about how services use scoped context propagation, see [Layered Architecture](./07-layered-architecture.md). For details on individual service implementations, see [Service Categories](./09-service-categories.md).
 
-**Sources:** [src/lib/core/types.ts](), [src/lib/core/provide.ts](), [src/lib/index.ts]()
-
 ---
 
 ## Architecture Overview
@@ -106,8 +104,6 @@ graph TB
     INJECT_TEMPLATE --> BACKTEST
 ```
 
-**Sources:** [src/lib/core/types.ts:1-104](), [src/lib/core/provide.ts:1-141](), [src/lib/index.ts:1-242]()
-
 ---
 
 ## Symbol-Based Service Keys
@@ -169,8 +165,6 @@ export const TYPES = {
 ```
 
 Symbols guarantee uniqueness at runtime, preventing key collisions even if string names clash. Each Symbol is created with a descriptive string for debugging purposes.
-
-**Sources:** [src/lib/core/types.ts:1-104]()
 
 ---
 
@@ -240,8 +234,6 @@ graph LR
 ```
 
 All other service categories follow the same pattern. The factory functions are invoked lazily by the DI container when services are first injected.
-
-**Sources:** [src/lib/core/provide.ts:55-141]()
 
 ---
 
@@ -315,8 +307,6 @@ export default backtest;
 
 The `init()` call triggers dependency resolution for all registered services. The `backtest` object is then exported as both a named export and default export.
 
-**Sources:** [src/lib/index.ts:60-242]()
-
 ---
 
 ## Service Categories
@@ -330,8 +320,6 @@ Provides foundational logging infrastructure.
 | Service | Symbol Key | Class | Responsibility |
 |---------|-----------|-------|----------------|
 | `loggerService` | `TYPES.loggerService` | `LoggerService` | Structured logging with context injection |
-
-**Sources:** [src/lib/core/types.ts:1-3](), [src/lib/core/provide.ts:55-57](), [src/lib/index.ts:60-62]()
 
 ---
 
@@ -357,8 +345,6 @@ ExecutionContextService.runInContext(
 );
 ```
 
-**Sources:** [src/lib/core/types.ts:5-8](), [src/lib/core/provide.ts:59-62](), [src/lib/index.ts:64-71](), [types.d.ts:246-285](), [types.d.ts:505-544]()
-
 ---
 
 ### Schema Services
@@ -380,8 +366,6 @@ Each Schema Service provides:
 - `get(name: string): TSchema | null` - Retrieve schema
 - `has(name: string): boolean` - Check existence
 
-**Sources:** [src/lib/core/types.ts:20-28](), [src/lib/core/provide.ts:74-82](), [src/lib/index.ts:97-111]()
-
 ---
 
 ### Validation Services
@@ -402,8 +386,6 @@ Enforce schema structure and business rules before registration.
 Each Validation Service provides:
 - `addXXX(name: string, schema: TSchema): void` - Validate and throw on error
 - `list(): Promise<TSchema[]>` - Return all registered schemas
-
-**Sources:** [src/lib/core/types.ts:73-82](), [src/lib/core/provide.ts:127-136](), [src/lib/index.ts:188-213]()
 
 ---
 
@@ -441,8 +423,6 @@ class ExchangeConnectionService {
 
 Memoization ensures that multiple calls with the same identifier return the same client instance, preserving internal state.
 
-**Sources:** [src/lib/core/types.ts:10-18](), [src/lib/core/provide.ts:64-72](), [src/lib/index.ts:73-95]()
-
 ---
 
 ### Core Services
@@ -456,8 +436,6 @@ Implement domain logic for primary business entities.
 | `frameCoreService` | `TYPES.frameCoreService` | `FrameCoreService` | Timeframe generation, date iteration |
 
 Core Services are invoked by Logic Services to execute domain operations. They consume Connection Services to access client instances.
-
-**Sources:** [src/lib/core/types.ts:30-34](), [src/lib/core/provide.ts:84-88](), [src/lib/index.ts:113-117]()
 
 ---
 
@@ -474,8 +452,6 @@ Provide portfolio-level orchestration and shared state management.
 
 Global Services coordinate between multiple client instances and provide cross-cutting concerns like risk limits and position sizing.
 
-**Sources:** [src/lib/core/types.ts:36-41](), [src/lib/core/provide.ts:90-95](), [src/lib/index.ts:119-128]()
-
 ---
 
 ### Command Services
@@ -489,8 +465,6 @@ High-level orchestration layer that coordinates validation, context setup, and e
 | `walkerCommandService` | `TYPES.walkerCommandService` | `WalkerCommandService` | Walker comparison workflow |
 
 Command Services delegate to Logic Services after performing validation and context initialization.
-
-**Sources:** [src/lib/core/types.ts:43-47](), [src/lib/core/provide.ts:97-101](), [src/lib/index.ts:130-138]()
 
 ---
 
@@ -532,8 +506,6 @@ class BacktestLogicPrivateService {
 }
 ```
 
-**Sources:** [src/lib/core/types.ts:49-59](), [src/lib/core/provide.ts:103-113](), [src/lib/index.ts:140-162]()
-
 ---
 
 ### Markdown Services
@@ -557,8 +529,6 @@ Each Markdown Service subscribes to relevant event emitters and provides:
 - `getReport(): string` - Generate markdown report
 - `dump(filepath: string): Promise<void>` - Write report to file
 
-**Sources:** [src/lib/core/types.ts:61-71](), [src/lib/core/provide.ts:115-125](), [src/lib/index.ts:164-186]()
-
 ---
 
 ### Template Services
@@ -570,8 +540,6 @@ Generate code artifacts for strategy creation.
 | `optimizerTemplateService` | `TYPES.optimizerTemplateService` | `OptimizerTemplateService` | Code generation for optimizer output, default templates |
 
 The Optimizer Template Service merges user-provided template overrides with default templates to generate complete executable `.mjs` files containing strategy implementations.
-
-**Sources:** [src/lib/core/types.ts:84-86](), [src/lib/core/provide.ts:138-140](), [src/lib/index.ts:215-219]()
 
 ---
 
@@ -745,8 +713,6 @@ graph TB
 10. **Markdown Services** - Subscribe to event emitters (no direct dependencies)
 11. **Template Services** - No dependencies
 
-**Sources:** [src/lib/index.ts:1-242](), [src/lib/core/provide.ts:1-141]()
-
 ---
 
 ## Usage Patterns
@@ -806,8 +772,6 @@ init();
 
 This resolves any circular dependencies and ensures all services are properly instantiated in the container.
 
-**Sources:** [src/lib/index.ts:221-242](), [src/function/add.ts:52-64]()
-
 ---
 
 ## Summary
@@ -823,4 +787,3 @@ The Dependency Injection system provides:
 
 This architecture enables loose coupling, testability, and modular service composition across the 51 registered services in the framework.
 
-**Sources:** [src/lib/core/types.ts](), [src/lib/core/provide.ts](), [src/lib/index.ts]()

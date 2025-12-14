@@ -30,8 +30,6 @@ The generated code includes:
 - **Template-Based**: Uses customizable templates for each code section
 - **LLM-Integrated**: Communicates with Ollama API for strategy generation
 
-Sources: [src/interfaces/Optimizer.interface.ts:1-490](), [demo/optimization/src/index.mjs:1-450]()
-
 ---
 
 ## Optimizer Schema Registration
@@ -90,8 +88,6 @@ addOptimizer({
 });
 ```
 
-Sources: [src/interfaces/Optimizer.interface.ts:377-433](), [src/function/add.ts:1-300]()
-
 ### Schema Structure
 
 | Field | Type | Description |
@@ -112,8 +108,6 @@ Each `IOptimizerRange` contains:
 Each `Source` can be either:
 - A simple fetch function: `(args: IOptimizerFetchArgs) => Data[]`
 - A full configuration object with `name`, `fetch`, `user`, `assistant` fields
-
-Sources: [src/interfaces/Optimizer.interface.ts:15-433](), [demo/optimization/src/index.mjs:19-61]()
 
 ### Data Source Requirements
 
@@ -138,8 +132,6 @@ interface IOptimizerFetchArgs {
 ```
 
 The system automatically handles pagination using `iterateDocuments` from `functools-kit`, fetching all available data and deduplicating by `id` field.
-
-Sources: [src/interfaces/Optimizer.interface.ts:34-84](), [src/client/ClientOptimizer.ts:63-88]()
 
 ---
 
@@ -209,8 +201,6 @@ The architecture follows a layered pattern:
 7. **Client Layer**: Core business logic for data collection and code assembly
 8. **Event System**: Progress tracking via `progressOptimizerEmitter`
 
-Sources: [src/lib/services/global/OptimizerGlobalService.ts:1-105](), [src/lib/services/connection/OptimizerConnectionService.ts:1-175](), [src/lib/services/schema/OptimizerSchemaService.ts:1-97]()
-
 ---
 
 ## Data Collection and Processing
@@ -276,8 +266,6 @@ graph TB
 
 **Data Flow Diagram: Strategy Data Collection Process**
 
-Sources: [src/client/ClientOptimizer.ts:90-215]()
-
 ### Pagination and Deduplication
 
 The system uses `functools-kit` utilities for efficient data fetching:
@@ -310,8 +298,6 @@ This approach:
 - Deduplicates by `id` field to handle overlapping requests
 - Returns complete resolved array
 
-Sources: [src/client/ClientOptimizer.ts:63-88]()
-
 ### Conversation Building
 
 For each training range, the system builds a conversation history:
@@ -325,8 +311,6 @@ For each training range, the system builds a conversation history:
 5. **Append to History**: Add user/assistant message pair to `messageList`
 6. **Generate Prompt**: After all sources, call `getPrompt()` with complete conversation
 7. **Store Strategy**: Save `{symbol, name, messages, strategy}` to `strategyList`
-
-Sources: [src/client/ClientOptimizer.ts:99-214]()
 
 ---
 
@@ -351,8 +335,6 @@ interface IOptimizerTemplate {
   getJsonDumpTemplate(symbol: string): string | Promise<string>;
 }
 ```
-
-Sources: [src/interfaces/Optimizer.interface.ts:240-374]()
 
 ### Template Merging Process
 
@@ -390,8 +372,6 @@ const template: IOptimizerTemplate = {
 
 This allows partial overrides - any method not provided in schema falls back to `OptimizerTemplateService` defaults.
 
-Sources: [src/lib/services/connection/OptimizerConnectionService.ts:59-113]()
-
 ### Default Template Implementations
 
 The `OptimizerTemplateService` provides default implementations for all template methods:
@@ -409,8 +389,6 @@ The `OptimizerTemplateService` provides default implementations for all template
 | `getTextTemplate()` | Text LLM helper | `async function text(messages) { ... }` |
 | `getJsonTemplate()` | JSON LLM helper | `async function json(messages) { ... }` |
 | `getJsonDumpTemplate()` | Debug logger | `async function dumpJson(...) { ... }` |
-
-Sources: [src/lib/services/template/OptimizerTemplateService.ts:1-716]()
 
 ### Strategy Template Example
 
@@ -461,8 +439,6 @@ Key features:
 - Includes custom strategy prompt from `getPrompt()`
 - Calls `json()` helper for structured LLM output
 - Returns `ISignalDto` compatible object
-
-Sources: [src/lib/services/template/OptimizerTemplateService.ts:160-304]()
 
 ---
 
@@ -526,8 +502,6 @@ graph TB
 
 **Code Assembly Diagram: How Template Sections Are Combined**
 
-Sources: [src/client/ClientOptimizer.ts:217-350]()
-
 ### Naming Convention
 
 All generated entities use a unique prefix to avoid conflicts:
@@ -543,8 +517,6 @@ const walkerName = `${prefix}_walker`;            // "a7f3k2_walker"
 ```
 
 The prefix is generated using: `(Math.random() + 1).toString(36).substring(7)`
-
-Sources: [src/client/ClientOptimizer.ts:22-341]()
 
 ### Generated Code Structure
 
@@ -613,8 +585,6 @@ listenSignalBacktest((event) => { ... });
 listenWalkerComplete((results) => { ... });
 ```
 
-Sources: [src/lib/services/template/OptimizerTemplateService.ts:36-716]()
-
 ---
 
 ## Public API Methods
@@ -652,8 +622,6 @@ Useful for:
 - Validating conversation history
 - Testing `getPrompt()` output
 
-Sources: [src/classes/Optimizer.ts:32-59]()
-
 ### Optimizer.getCode()
 
 Generates complete executable strategy code as a string:
@@ -673,8 +641,6 @@ This method:
 3. Combines sections with newlines
 4. Invokes `callbacks.onCode()` if defined
 5. Returns complete code string
-
-Sources: [src/classes/Optimizer.ts:61-87]()
 
 ### Optimizer.dump()
 
@@ -699,8 +665,6 @@ This method:
 
 Default path: `./` (current directory)
 
-Sources: [src/classes/Optimizer.ts:89-121](), [src/client/ClientOptimizer.ts:353-384]()
-
 ---
 
 ## Progress Monitoring
@@ -718,8 +682,6 @@ interface ProgressOptimizerContract {
   progress: number;           // Completion (0.0 to 1.0)
 }
 ```
-
-Sources: [src/contract/ProgressOptimizer.contract.ts:1-31]()
 
 ### Listening to Progress
 
@@ -743,8 +705,6 @@ Progress is emitted:
 Calculation: `progress = processedSources / totalSources`
 
 Total sources: `rangeTrain.length * source.length`
-
-Sources: [src/function/event.ts:30-32](), [src/client/ClientOptimizer.ts:100-209]()
 
 ### Event Flow Diagram
 
@@ -780,8 +740,6 @@ graph TB
 ```
 
 **Progress Event Flow: Tracking Source Processing**
-
-Sources: [src/client/ClientOptimizer.ts:99-209]()
 
 ---
 
@@ -835,8 +793,6 @@ const SOURCE_LIST = [
 ];
 ```
 
-Sources: [demo/optimization/src/index.mjs:19-350]()
-
 ### Integration with CCXT Dumper
 
 The demo relies on `CCXT_DUMPER_URL` environment variable pointing to a pre-computation service:
@@ -853,8 +809,6 @@ The dumper service provides endpoints for each timeframe:
 - `/view/micro-term-range` - 1-minute candles with indicators
 
 Each endpoint returns JSON with paginated technical indicators (RSI, MACD, Bollinger Bands, etc.)
-
-Sources: [demo/optimization/.env.example:1-3](), [demo/optimization/src/index.mjs:66-350]()
 
 ### Prompt Generation
 
@@ -909,8 +863,6 @@ The prompt asks the LLM to:
 4. Calculate risk/reward ratios
 5. Provide strategic recommendations
 
-Sources: [demo/optimization/src/index.mjs:350-450]()
-
 ### Execution
 
 ```bash
@@ -924,8 +876,6 @@ This:
 2. Calls `Optimizer.dump("BTC/USDT", "btc-optimizer")`
 3. Generates file: `./btc-optimizer_BTC/USDT.mjs`
 4. Logs progress to console
-
-Sources: [demo/optimization/package.json]()
 
 ---
 
@@ -955,8 +905,6 @@ This prevents malicious input in:
 - Strategy prompts
 - User messages
 
-Sources: [src/lib/services/template/OptimizerTemplateService.ts:136-192]()
-
 ### Memory Efficiency: Generator Pattern
 
 While optimizer doesn't use generators (returns complete code), it processes data incrementally:
@@ -964,8 +912,6 @@ While optimizer doesn't use generators (returns complete code), it processes dat
 - Builds conversation incrementally
 - Emits progress events during processing
 - Doesn't load all training data into memory simultaneously
-
-Sources: [src/client/ClientOptimizer.ts:99-214]()
 
 ### Memoization: Client Caching
 
@@ -985,8 +931,6 @@ This ensures:
 - Template merging happens once
 - Repeated calls reuse same instance
 - Memory efficient for multiple operations on same optimizer
-
-Sources: [src/lib/services/connection/OptimizerConnectionService.ts:59-113]()
 
 ### File System: Atomic Writes
 
@@ -1008,8 +952,6 @@ While not truly atomic, it:
 - Uses UTF-8 encoding for cross-platform compatibility
 - Logs errors for debugging
 
-Sources: [src/client/ClientOptimizer.ts:360-384]()
-
 ---
 
 ## Related Documentation
@@ -1020,4 +962,3 @@ Sources: [src/client/ClientOptimizer.ts:360-384]()
 - For data fetching and VWAP calculation, see [Exchange Configuration](./22-exchange-configuration.md)
 - For event system usage, see [Event-Driven Architecture](./05-event-driven-architecture.md)
 
-Sources: All referenced documentation pages

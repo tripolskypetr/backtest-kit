@@ -18,8 +18,6 @@ This overview covers the framework's purpose, core capabilities, architectural l
 - Configuration - see [Configuration System](./25-configuration-system.md)
 - Reporting - see [Reporting and Analytics](./29-reporting-and-analytics.md)
 
-**Sources**: [README.md:1-26](), [docs/internals.md:1-13](), [package.json:1-26]()
-
 ---
 
 ## Core Features
@@ -35,8 +33,6 @@ The framework provides seven major feature categories:
 | **AI Integration** | LLM-powered strategy generation via Ollama API | `Optimizer` class, `OptimizerTemplateService` |
 | **Event-Driven Monitoring** | Pub/sub system for signals, errors, progress, completion | `listenSignal*()`, emitter subjects |
 | **Risk Management** | Custom rules for position limits, time windows, multi-strategy coordination | `IRiskSchema`, `ClientRisk` |
-
-**Sources**: [README.md:15-26](), [docs/internals.md:14-26]()
 
 ---
 
@@ -90,8 +86,6 @@ graph LR
 - Use case: AI-driven strategy development
 
 For detailed implementation details, see [Execution Modes (Detailed)](./16-execution-modes-detailed.md).
-
-**Sources**: [README.md:33-167](), [docs/internals.md:54-82](), [src/classes/Backtest.ts](), [src/classes/Live.ts](), [src/classes/Walker.ts](), [src/classes/Optimizer.ts]()
 
 ---
 
@@ -191,8 +185,6 @@ graph TD
 - `listenDoneBacktest(fn)` - Backtest completion
 - `listenWalkerComplete(fn)` - Walker final results
 
-**Sources**: [src/lib/index.ts](), [docs/internals.md:84-89](), [README.md:140-167]()
-
 ---
 
 ## Architectural Layers
@@ -285,8 +277,6 @@ graph TB
 
 For detailed architecture documentation, see [System Architecture](./06-system-architecture.md).
 
-**Sources**: [docs/internals.md:28-52](), [src/lib/index.ts](), [src/lib/services/](), [src/lib/clients/]()
-
 ---
 
 ## Dependency Injection System
@@ -315,8 +305,6 @@ graph TD
 - Scoped contexts - `ExecutionContextService` and `MethodContextService` for nested context propagation
 
 For detailed DI documentation, see [Dependency Injection System](./08-dependency-injection-system.md).
-
-**Sources**: [src/lib/index.ts](), [src/lib/types.ts](), [src/lib/provide.ts](), [docs/internals.md:46-52]()
 
 ---
 
@@ -380,8 +368,6 @@ stateDiagram-v2
 
 Each state is a discriminated union type with an `action` discriminator property, enabling TypeScript type narrowing. For detailed signal lifecycle documentation, see [Signal Lifecycle and State Machine](./03-signal-lifecycle-and-state-machine.md).
 
-**Sources**: [docs/internals.md:14-19](), [types.d.ts](), [src/lib/clients/ClientStrategy.ts]()
-
 ---
 
 ## Configuration System
@@ -413,8 +399,6 @@ graph LR
 
 The `ConfigValidationService` ensures that the combination of slippage and fees doesn't make trading economically unviable. For detailed configuration documentation, see [Configuration System](./25-configuration-system.md).
 
-**Sources**: [README.md:173-179](), [docs/internals.md:141-143](), [src/lib/services/validation/ConfigValidationService.ts]()
-
 ---
 
 ## Testing and Reliability
@@ -430,8 +414,6 @@ The framework includes 280+ tests covering validation, recovery, reports, and ev
 | **Crash Recovery** | Atomic writes, waitForInit recovery | [test/e2e/restore.test.mjs]() |
 | **Risk Management** | Portfolio limits, symbol filters, price-based logic | [test/e2e/risk.test.mjs]() |
 | **Edge Cases** | Concurrent positions, same-candle activation/close | [test/e2e/defend.test.mjs]() |
-
-**Sources**: [README.md:180-182](), [test/index.mjs:1-45](), [docs/internals.md:115-132]()
 
 ---
 
@@ -469,8 +451,6 @@ The framework is designed for:
    - Graceful shutdown (waits for position close)
    - Real-time notifications via event listeners
 
-**Sources**: [docs/internals.md:104-113](), [README.md:1-26]()
-
 ---
 
 ## Technology Stack
@@ -487,4 +467,3 @@ The framework is built on:
 | **CCXT** | Exchange data integration (peer dependency) | - |
 | **Ollama** | LLM API integration (peer dependency) | - |
 
-**Sources**: [package.json:74-79](), [demo/optimization/package.json:8-13]()

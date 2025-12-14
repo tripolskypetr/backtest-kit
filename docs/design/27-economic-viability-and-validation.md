@@ -19,8 +19,6 @@ Trading strategies must account for execution costs. Without validation, users m
 
 ### Cost Components
 
-**Sources:** [src/config/params.ts:1-122](), [src/helpers/toProfitLossDto.ts:1-82]()
-
 | Cost Component | Default Value | Application | Impact |
 |----------------|---------------|-------------|--------|
 | `CC_PERCENT_SLIPPAGE` | 0.1% | Applied twice (entry + exit) | 0.2% total |
@@ -46,8 +44,6 @@ Every trade incurs these costs regardless of direction (long/short) or outcome (
 // - Fees: 0.2% (0.1% * 2 transactions)
 // - Net PNL: -0.176% (LOSS despite hitting TP!)
 ```
-
-**Sources:** [test/e2e/sanitize.test.mjs:18-122]()
 
 ---
 
@@ -92,12 +88,7 @@ graph TB
     end
 ```
 
-**Sources:** [src/helpers/toProfitLossDto.ts:33-79](), [src/config/params.ts:12-24]()
-
 ### Implementation: toProfitLossDto
-
-[src/helpers/toProfitLossDto.ts:33-79]()
-
 ```typescript
 // Simplified excerpt showing cost application
 if (signal.position === "long") {
@@ -163,8 +154,6 @@ graph TB
     G -.->|"Error"| D
 ```
 
-**Sources:** [src/function/setup.ts:38-52](), [src/lib/services/validation/ConfigValidationService.ts:1-179]()
-
 ### Validation Categories
 
 #### 1. Economic Viability Check
@@ -202,12 +191,7 @@ This ensures that `CC_MIN_TAKEPROFIT_DISTANCE_PERCENT` (default 0.5%) is greater
 | `CC_MIN_STOPLOSS_DISTANCE_PERCENT` | > 0 | Prevents instant stop-out |
 | `CC_MAX_STOPLOSS_DISTANCE_PERCENT` | > 0 | Prevents catastrophic losses |
 
-**Sources:** [src/lib/services/validation/ConfigValidationService.ts:61-114]()
-
 #### 3. Range Constraint Validation
-
-[src/lib/services/validation/ConfigValidationService.ts:105-114]()
-
 ```typescript
 // Validate that MIN < MAX for StopLoss
 if (GLOBAL_CONFIG.CC_MIN_STOPLOSS_DISTANCE_PERCENT >= 
@@ -233,8 +217,6 @@ Prevents configurations like `MIN_SL=10%, MAX_SL=5%` which create impossible con
 | `CC_GET_CANDLES_RETRY_DELAY_MS` | integer | ≥ 0 | 5000 |
 | `CC_GET_CANDLES_PRICE_ANOMALY_THRESHOLD_FACTOR` | integer | > 0 | 1000 |
 | `CC_GET_CANDLES_MIN_CANDLES_FOR_MEDIAN` | integer | > 0 | 5 |
-
-**Sources:** [src/lib/services/validation/ConfigValidationService.ts:117-164]()
 
 ---
 
@@ -273,8 +255,6 @@ sequenceDiagram
     setConfig->>GLOBAL_CONFIG: Rollback to backup
     setConfig-->>User: throw error
 ```
-
-**Sources:** [src/function/setup.ts:39-51](), [src/lib/services/validation/ConfigValidationService.ts:55-174]()
 
 ### Error Output Example
 
@@ -319,12 +299,7 @@ graph TB
     end
 ```
 
-**Sources:** [test/e2e/sanitize.test.mjs:1-1507]()
-
 ### Test 1: Micro-Profit Protection
-
-[test/e2e/sanitize.test.mjs:27-122]()
-
 **Scenario:** Signal with `priceTakeProfit=42010, priceOpen=42000` (0.024% profit)
 
 **Expected Behavior:** Rejected by validation (not scheduled or opened)
@@ -338,9 +313,6 @@ graph TB
 **Validation:** `CC_MIN_TAKEPROFIT_DISTANCE_PERCENT: 0.3%` blocks this signal.
 
 ### Test 2: Extreme StopLoss Protection
-
-[test/e2e/sanitize.test.mjs:134-229]()
-
 **Scenario:** `priceOpen=42000, priceStopLoss=20000` (52% risk per signal)
 
 **Expected Behavior:** Rejected to prevent portfolio destruction
@@ -348,9 +320,6 @@ graph TB
 **Protection:** `CC_MAX_STOPLOSS_DISTANCE_PERCENT: 20%` (default) limits risk per signal.
 
 ### Test 3: Excessive Lifetime Protection
-
-[test/e2e/sanitize.test.mjs:241-339]()
-
 **Scenario:** `minuteEstimatedTime=50000` (34+ days)
 
 **Problem:** Signal blocks risk limits for weeks, preventing new trades
@@ -364,12 +333,7 @@ graph TB
 | Negative prices | `priceOpen=-42000` | Rejected (impossible in crypto markets) |
 | NaN/Infinity | `priceOpen=NaN` or `priceTakeProfit=Infinity` | Rejected (breaks all calculations) |
 
-**Sources:** [test/e2e/sanitize.test.mjs:351-651]()
-
 ### Test 6: Incomplete Candle Detection
-
-[test/e2e/sanitize.test.mjs:666-784]()
-
 **Problem:** Binance API sometimes returns incomplete candles with anomalously low prices (e.g., `open=0.1` instead of `42000`).
 
 **Detection:** `VALIDATE_NO_INCOMPLETE_CANDLES_FN` compares prices against reference price (median or average).
@@ -425,8 +389,6 @@ graph TB
     R5 --> T3
 ```
 
-**Sources:** [src/config/params.ts:1-122](), [src/lib/services/validation/ConfigValidationService.ts:55-174](), [test/e2e/sanitize.test.mjs:1-1507]()
-
 ---
 
 ## Usage Examples
@@ -468,9 +430,6 @@ setConfig({
 ```
 
 ### Bypassing Validation (Testing Only)
-
-[src/function/setup.ts:38-52](), [test/config/setup.mjs:89-102]()
-
 ```typescript
 // For testbed only: skip validation with _unsafe flag
 setConfig({
@@ -494,8 +453,6 @@ The `_unsafe` parameter is used in test environments to disable validation for t
 
 Configuration validation happens once at `setConfig()` time, not during execution. This ensures performance is not impacted during backtests or live trading.
 
-**Sources:** [src/function/setup.ts:38-52]()
-
 ---
 
 ## Cost Model Default Values Rationale
@@ -508,8 +465,6 @@ Configuration validation happens once at `setConfig()` time, not during executio
 | `CC_MIN_STOPLOSS_DISTANCE_PERCENT` | 0.5% | Prevents instant stop-out from normal volatility |
 | `CC_MAX_STOPLOSS_DISTANCE_PERCENT` | 20% | Limits single-signal risk to 20% of position |
 | `CC_MAX_SIGNAL_LIFETIME_MINUTES` | 1440 | 1 day prevents eternal signals blocking risk limits |
-
-**Sources:** [src/config/params.ts:1-122]()
 
 ---
 
@@ -524,8 +479,6 @@ Configuration validation happens once at `setConfig()` time, not during executio
 | Configuration validation | 25+ | All parameter constraints |
 
 **Total:** 34+ tests ensuring money safety and system stability.
-
-**Sources:** [test/e2e/sanitize.test.mjs:1-1507](), [test/spec/config.test.mjs:1-467](), [test/e2e/config.test.mjs:1-224]()
 
 ---
 
@@ -544,8 +497,6 @@ Both layers work together:
 
 For signal-level validation (e.g., `VALIDATE_SIGNAL_FN`), see [Risk Management](./14-risk-management.md).
 
-**Sources:** [src/lib/services/validation/ConfigValidationService.ts:1-179](), [test/e2e/defend.test.mjs:1-1045]()
-
 ---
 
 ## Summary
@@ -561,4 +512,3 @@ The `ConfigValidationService` prevents unprofitable and dangerous trading config
 
 This system ensures that strategies are mathematically sound before any capital is risked, providing a critical safety layer between user configuration and execution.
 
-**Sources:** [src/lib/services/validation/ConfigValidationService.ts:1-179](), [src/function/setup.ts:38-52](), [src/config/params.ts:1-122](), [test/e2e/sanitize.test.mjs:1-1507](), [test/spec/config.test.mjs:1-467]()

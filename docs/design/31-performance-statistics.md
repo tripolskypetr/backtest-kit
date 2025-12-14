@@ -24,8 +24,6 @@ The framework provides multiple statistics interfaces, each tailored to a specif
 | `PerformanceStatistics` | Execution metrics | [src/lib/services/markdown/PerformanceMarkdownService.ts:60-75]() | Duration, percentiles, wait times |
 | `PartialStatistics` | Profit/loss milestones | [src/lib/services/markdown/PartialMarkdownService.ts:53-65]() | Event counts by type |
 
-**Sources:** [src/lib/services/markdown/BacktestMarkdownService.ts:70-106](), [src/lib/services/markdown/LiveMarkdownService.ts:97-136](), [src/lib/services/markdown/ScheduleMarkdownService.ts:72-99](), [src/lib/services/markdown/WalkerMarkdownService.ts:23-26](), [src/lib/services/markdown/PerformanceMarkdownService.ts:60-75](), [src/lib/services/markdown/PartialMarkdownService.ts:53-65]()
-
 ---
 
 ## Statistics Calculation Flow
@@ -95,8 +93,6 @@ graph TB
     NULLIFY --> STATS
 ```
 
-**Sources:** [src/lib/services/markdown/BacktestMarkdownService.ts:227-295](), [src/lib/services/markdown/LiveMarkdownService.ts:409-492](), [src/lib/services/markdown/BacktestMarkdownService.ts:36-48]()
-
 ---
 
 ## Core Performance Metrics
@@ -116,8 +112,6 @@ where:
 **Interpretation:** Higher values indicate better strategy performance. A win rate above 50% means more winning trades than losing trades, but this must be considered alongside average win/loss sizes (see Certainty Ratio).
 
 **Calculation Code:**
-
-[src/lib/services/markdown/BacktestMarkdownService.ts:245-252]()
 ```typescript
 const totalSignals = this._signalList.length;
 const winCount = this._signalList.filter((s) => s.pnl.pnlPercentage > 0).length;
@@ -130,8 +124,6 @@ const winRate = (winCount / totalSignals) * 100;
 ```
 
 **Output Format:** Returned as percentage (0-100) or `null` if unsafe. Display includes win/loss counts: `"52.35% (10W / 9L)"`.
-
-**Sources:** [src/lib/services/markdown/BacktestMarkdownService.ts:245-252](), [src/lib/services/markdown/LiveMarkdownService.ts:438-439](), [src/lib/services/markdown/BacktestMarkdownService.ts:331]()
 
 ---
 
@@ -147,13 +139,9 @@ avgPnl = Σ(pnl.pnlPercentage) / totalSignals
 **Interpretation:** Higher values are better. Positive values indicate profitable strategy, negative values indicate losses. Should be significantly larger than total costs (slippage + fees) to be economically viable.
 
 **Calculation Code:**
-
-[src/lib/services/markdown/BacktestMarkdownService.ts:250]()
 ```typescript
 const avgPnl = this._signalList.reduce((sum, s) => sum + s.pnl.pnlPercentage, 0) / totalSignals;
 ```
-
-[src/lib/services/markdown/LiveMarkdownService.ts:434-436]()
 ```typescript
 const avgPnl = totalClosed > 0
   ? closedEvents.reduce((sum, e) => sum + (e.pnl || 0), 0) / totalClosed
@@ -161,8 +149,6 @@ const avgPnl = totalClosed > 0
 ```
 
 **Safety:** Returns `null` if value is NaN, Infinity, or not a number (checked via `isUnsafe()`).
-
-**Sources:** [src/lib/services/markdown/BacktestMarkdownService.ts:250](), [src/lib/services/markdown/LiveMarkdownService.ts:434-436](), [src/lib/services/markdown/BacktestMarkdownService.ts:287]()
 
 ---
 
@@ -178,15 +164,11 @@ totalPnl = Σ(pnl.pnlPercentage)
 **Interpretation:** Higher values are better. This metric shows absolute performance but doesn't account for risk or number of trades.
 
 **Calculation Code:**
-
-[src/lib/services/markdown/BacktestMarkdownService.ts:251]()
 ```typescript
 const totalPnl = this._signalList.reduce((sum, s) => sum + s.pnl.pnlPercentage, 0);
 ```
 
 **Display Example:** `"+12.45%"` or `"-5.23%"` in reports.
-
-**Sources:** [src/lib/services/markdown/BacktestMarkdownService.ts:251](), [src/lib/services/markdown/LiveMarkdownService.ts:437](), [src/lib/services/markdown/BacktestMarkdownService.ts:333]()
 
 ---
 
@@ -203,16 +185,12 @@ stdDev = √variance
 **Interpretation:** Lower values are better, indicating more consistent returns with less volatility. High standard deviation means returns are spread out over a wide range, indicating higher risk.
 
 **Calculation Code:**
-
-[src/lib/services/markdown/BacktestMarkdownService.ts:254-257]()
 ```typescript
 // Calculate Sharpe Ratio (risk-free rate = 0)
 const returns = this._signalList.map((s) => s.pnl.pnlPercentage);
 const variance = returns.reduce((sum, r) => sum + Math.pow(r - avgPnl, 2), 0) / totalSignals;
 const stdDev = Math.sqrt(variance);
 ```
-
-[src/lib/services/markdown/LiveMarkdownService.ts:443-448]()
 ```typescript
 // Calculate Sharpe Ratio (risk-free rate = 0)
 let sharpeRatio = 0;
@@ -226,8 +204,6 @@ if (totalClosed > 0) {
 ```
 
 **Note:** The calculation assumes risk-free rate = 0 for simplicity. In practice, you might subtract risk-free rate from returns before calculating Sharpe ratio.
-
-**Sources:** [src/lib/services/markdown/BacktestMarkdownService.ts:254-257](), [src/lib/services/markdown/LiveMarkdownService.ts:443-448](), [src/lib/services/markdown/BacktestMarkdownService.ts:334]()
 
 ---
 
@@ -244,8 +220,6 @@ sharpeRatio = avgPnl / stdDev
 **Interpretation:** Higher values are better. A Sharpe ratio above 1.0 is considered good, above 2.0 is very good, above 3.0 is excellent. Negative values indicate average losses exceed volatility, which is undesirable.
 
 **Calculation Code:**
-
-[src/lib/services/markdown/BacktestMarkdownService.ts:258]()
 ```typescript
 const sharpeRatio = stdDev > 0 ? avgPnl / stdDev : 0;
 ```
@@ -255,8 +229,6 @@ const sharpeRatio = stdDev > 0 ? avgPnl / stdDev : 0;
 - `0.0 - 1.0`: Acceptable risk-adjusted returns
 - `1.0 - 2.0`: Good risk-adjusted returns
 - `> 2.0`: Excellent risk-adjusted returns
-
-**Sources:** [src/lib/services/markdown/BacktestMarkdownService.ts:258](), [src/lib/services/markdown/LiveMarkdownService.ts:447](), [src/lib/services/markdown/BacktestMarkdownService.ts:335]()
 
 ---
 
@@ -272,15 +244,11 @@ annualizedSharpeRatio = sharpeRatio × √365
 **Interpretation:** This assumes 365 trading days per year. The square root scaling is based on the assumption that returns are independent and identically distributed (IID). Higher values are better, with same thresholds as regular Sharpe ratio.
 
 **Calculation Code:**
-
-[src/lib/services/markdown/BacktestMarkdownService.ts:259]()
 ```typescript
 const annualizedSharpeRatio = sharpeRatio * Math.sqrt(365);
 ```
 
 **Note:** The multiplier `√365` assumes daily trading frequency. For different frequencies, adjust accordingly (e.g., `√52` for weekly).
-
-**Sources:** [src/lib/services/markdown/BacktestMarkdownService.ts:259](), [src/lib/services/markdown/LiveMarkdownService.ts:449](), [src/lib/services/markdown/BacktestMarkdownService.ts:336]()
 
 ---
 
@@ -299,8 +267,6 @@ where:
 **Interpretation:** Higher values are better. A ratio above 1.0 means average wins are larger than average losses. A ratio of 2.0 means average wins are twice the size of average losses, which is generally considered good risk management.
 
 **Calculation Code:**
-
-[src/lib/services/markdown/BacktestMarkdownService.ts:262-270]()
 ```typescript
 // Calculate Certainty Ratio
 const wins = this._signalList.filter((s) => s.pnl.pnlPercentage > 0);
@@ -315,8 +281,6 @@ const certaintyRatio = avgLoss < 0 ? avgWin / Math.abs(avgLoss) : 0;
 ```
 
 **Example:** If `avgWin = 3.0%` and `avgLoss = -1.5%`, then `certaintyRatio = 3.0 / 1.5 = 2.0`.
-
-**Sources:** [src/lib/services/markdown/BacktestMarkdownService.ts:262-270](), [src/lib/services/markdown/LiveMarkdownService.ts:452-463](), [src/lib/services/markdown/BacktestMarkdownService.ts:337]()
 
 ---
 
@@ -334,8 +298,6 @@ expectedYearlyReturns = avgPnl × tradesPerYear
 **Interpretation:** Higher values are better. This metric assumes: (1) constant capital allocation per trade, (2) trades can be executed consecutively without gaps, (3) future performance matches historical average. It provides a rough estimate of annualized returns.
 
 **Calculation Code:**
-
-[src/lib/services/markdown/BacktestMarkdownService.ts:272-279]()
 ```typescript
 // Calculate Expected Yearly Returns
 const avgDurationMs = this._signalList.reduce(
@@ -348,8 +310,6 @@ const expectedYearlyReturns = avgPnl * tradesPerYear;
 ```
 
 **Example:** If `avgPnl = 2.5%` and average trade duration is 5 days, then `tradesPerYear = 73` and `expectedYearlyReturns = 2.5% × 73 = 182.5%`.
-
-**Sources:** [src/lib/services/markdown/BacktestMarkdownService.ts:272-279](), [src/lib/services/markdown/LiveMarkdownService.ts:466-475](), [src/lib/services/markdown/BacktestMarkdownService.ts:338]()
 
 ---
 
@@ -369,8 +329,6 @@ profitFactor = Σ(winning trades) / |Σ(losing trades)|
 **Interpretation:** Higher values are better. A profit factor above 1.0 means total profits exceed total losses. Values above 1.5 are considered good, above 2.0 are excellent.
 
 **Calculation Code:**
-
-[src/lib/services/markdown/HeatMarkdownService.ts:235-244]()
 ```typescript
 // Calculate Profit Factor
 let profitFactor: number | null = null;
@@ -382,8 +340,6 @@ if (totalLosses < 0) {
   profitFactor = Infinity; // All wins, no losses
 }
 ```
-
-**Sources:** [src/lib/services/markdown/HeatMarkdownService.ts:235-244](), [src/interfaces/Heatmap.interface.ts:26-27]()
 
 ---
 
@@ -402,8 +358,6 @@ maxDrawdown = min(drawdown)
 **Interpretation:** Lower absolute values are better (less risk). A drawdown of -20% means the portfolio declined 20% from its peak before recovering. Large drawdowns indicate higher risk and potential for significant losses.
 
 **Calculation Code:**
-
-[src/lib/services/markdown/HeatMarkdownService.ts:246-257]()
 ```typescript
 // Calculate Maximum Drawdown
 let maxDrawdown: number | null = null;
@@ -421,8 +375,6 @@ maxDrawdown = maxDD;
 
 **Example:** If cumulative PNL reaches +30%, then drops to +10%, the drawdown is -20%.
 
-**Sources:** [src/lib/services/markdown/HeatMarkdownService.ts:246-257](), [src/interfaces/Heatmap.interface.ts:13]()
-
 ---
 
 ### Expectancy
@@ -437,8 +389,6 @@ expectancy = (winRate × avgWin) - ((1 - winRate) × |avgLoss|)
 **Interpretation:** Positive values indicate a profitable strategy in the long run. This metric combines win rate, average win, and average loss into a single measure of expected profitability per trade.
 
 **Calculation Code:**
-
-[src/lib/services/markdown/HeatMarkdownService.ts:259-265]()
 ```typescript
 // Calculate Expectancy
 let expectancy: number | null = null;
@@ -452,8 +402,6 @@ if (totalTrades > 0 && winRate !== null && avgWin !== null && avgLoss !== null) 
 ```
 expectancy = (0.60 × 5%) + (0.40 × -3%) = 3.0% - 1.2% = 1.8%
 ```
-
-**Sources:** [src/lib/services/markdown/HeatMarkdownService.ts:259-265](), [src/interfaces/Heatmap.interface.ts:37]()
 
 ---
 
@@ -495,8 +443,6 @@ graph TB
 ```
 
 **Implementation:**
-
-[src/lib/services/markdown/BacktestMarkdownService.ts:37-48]()
 ```typescript
 function isUnsafe(value: number | null): boolean {
   if (typeof value !== "number") {
@@ -513,8 +459,6 @@ function isUnsafe(value: number | null): boolean {
 ```
 
 **Usage in Statistics:**
-
-[src/lib/services/markdown/BacktestMarkdownService.ts:286-293]()
 ```typescript
 return {
   signalList: this._signalList,
@@ -537,8 +481,6 @@ return {
 - Empty datasets return `null` for all metrics
 - Infinity values (e.g., profit factor with no losses) are caught and nullified
 - Type checking prevents non-numeric values
-
-**Sources:** [src/lib/services/markdown/BacktestMarkdownService.ts:37-48](), [src/lib/services/markdown/BacktestMarkdownService.ts:286-293](), [src/lib/services/markdown/LiveMarkdownService.ts:24-35]()
 
 ---
 
@@ -666,8 +608,6 @@ for (const row of heatmap.symbols) {
 }
 ```
 
-**Sources:** [src/classes/Backtest.ts](), [src/classes/Live.ts](), [src/classes/Heat.ts](), [src/lib/services/markdown/BacktestMarkdownService.ts:456-463](), [src/lib/services/markdown/LiveMarkdownService.ts:663-670](), [src/lib/services/markdown/HeatMarkdownService.ts:320-326]()
-
 ---
 
 ## Statistics by Service
@@ -704,8 +644,6 @@ The following table maps which metrics are available in each statistics interfac
 - `HeatMarkdownService` includes advanced portfolio metrics (profit factor, max drawdown, expectancy)
 - `WalkerStatistics` compares multiple strategies and identifies the best performer
 
-**Sources:** [src/lib/services/markdown/BacktestMarkdownService.ts:70-106](), [src/lib/services/markdown/LiveMarkdownService.ts:97-136](), [src/lib/services/markdown/ScheduleMarkdownService.ts:72-99](), [src/lib/services/markdown/WalkerMarkdownService.ts:23-26](), [src/lib/services/markdown/PerformanceMarkdownService.ts:60-75](), [src/lib/services/markdown/HeatMarkdownService.ts:1-56]()
-
 ---
 
 ## Null Value Handling
@@ -717,8 +655,6 @@ All calculated metrics can be `null` if:
 4. Insufficient data for calculation
 
 **Display Pattern in Reports:**
-
-[src/lib/services/markdown/BacktestMarkdownService.ts:331-338]()
 ```typescript
 `**Win rate:** ${stats.winRate === null ? "N/A" : `${stats.winRate.toFixed(2)}% (${stats.winCount}W / ${stats.lossCount}L) (higher is better)`}`,
 `**Average PNL:** ${stats.avgPnl === null ? "N/A" : `${stats.avgPnl > 0 ? "+" : ""}${stats.avgPnl.toFixed(2)}% (higher is better)`}`,
@@ -732,4 +668,3 @@ All calculated metrics can be `null` if:
 
 This pattern ensures reports always display meaningful information, even when calculations fail or data is insufficient.
 
-**Sources:** [src/lib/services/markdown/BacktestMarkdownService.ts:331-338](), [src/lib/services/markdown/LiveMarkdownService.ts:528-536]()

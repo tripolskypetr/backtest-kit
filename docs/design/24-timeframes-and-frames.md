@@ -48,8 +48,6 @@ The `FrameInterval` type defines the granularity of timestamps in the generated 
 | `"1d"` | 1 day | Daily strategy evaluation |
 | `"3d"` | 3 days | Multi-day swing trading |
 
-**Sources:** [types.d.ts:427](), [types.d.ts:470-483]()
-
 ---
 
 ## Frame Callbacks
@@ -81,8 +79,6 @@ onTimeframe: (
 - Validating generated timestamps
 - Performance monitoring
 - Custom reporting
-
-**Sources:** [types.d.ts:438-450]()
 
 ---
 
@@ -132,8 +128,6 @@ graph TB
     style REGISTRY fill:#e1f5ff,stroke:#333,stroke-width:2px
 ```
 
-**Sources:** [src/function/add.ts:145-151](), [src/lib/index.ts:24](), [src/lib/index.ts:44]()
-
 ### Discovery via listFrames
 
 All registered frames can be retrieved using `listFrames()`, which returns an array of `IFrameSchema` objects.
@@ -146,8 +140,6 @@ for (const frame of frames) {
   console.log(`Period: ${frame.startDate.toISOString()} to ${frame.endDate.toISOString()}`);
 }
 ```
-
-**Sources:** [src/function/list.ts:108-111]()
 
 ---
 
@@ -199,8 +191,6 @@ graph TB
     style BACKTEST fill:#fff4e1,stroke:#333,stroke-width:2px
 ```
 
-**Sources:** [types.d.ts:488-497](), [src/lib/services/logic/private/BacktestLogicPrivateService.ts:69-73]()
-
 ### Generation Algorithm
 
 The timeframe generation follows this logic:
@@ -226,8 +216,6 @@ The timeframe generation follows this logic:
 ]
 // Total: 6 timestamps (5 minutes + 1 for inclusive endDate)
 ```
-
-**Sources:** [types.d.ts:488-497](), [src/lib/services/logic/private/BacktestLogicPrivateService.ts:69-73]()
 
 ---
 
@@ -287,8 +275,6 @@ graph TB
     style CLIENT_FRAME fill:#fff4e1,stroke:#333,stroke-width:2px
 ```
 
-**Sources:** [src/lib/index.ts:24](), [src/lib/index.ts:44](), [src/lib/index.ts:81](), [src/lib/index.ts:116]()
-
 ### Service Responsibilities
 
 | Service | File Reference | Responsibility |
@@ -298,8 +284,6 @@ graph TB
 | `FrameConnectionService` | [src/lib/index.ts:81]() | Creates and memoizes ClientFrame instances, key: frameName |
 | `FrameCoreService` | [src/lib/index.ts:116]() | Provides getTimeframe() method, delegates to connection service |
 | `ClientFrame` | [types.d.ts:432-435]() | Implements IFrame interface, generates timeframe arrays |
-
-**Sources:** [src/lib/index.ts:24](), [src/lib/index.ts:44](), [src/lib/index.ts:81](), [src/lib/index.ts:116]()
 
 ---
 
@@ -355,8 +339,6 @@ graph TB
     style YIELD fill:#fff4e1,stroke:#333,stroke-width:2px
 ```
 
-**Sources:** [src/lib/services/logic/private/BacktestLogicPrivateService.ts:62-477]()
-
 ### Key Implementation Details
 
 1. **Frame Retrieval** ([src/lib/services/logic/private/BacktestLogicPrivateService.ts:69-73]()):
@@ -377,8 +359,6 @@ graph TB
    - When signal opens, `backtest()` processes all candles until close
    - After signal closes, skip timeframes until `closeTimestamp`
    - Optimization: avoids redundant tick calls while position is active
-
-**Sources:** [src/lib/services/logic/private/BacktestLogicPrivateService.ts:62-477]()
 
 ---
 
@@ -410,8 +390,6 @@ graph TB
     style GET_CONTEXT fill:#fff4e1,stroke:#333,stroke-width:2px
 ```
 
-**Sources:** [types.d.ts:510-517](), [src/lib/services/logic/private/BacktestLogicPrivateService.ts:44-46](), [src/lib/services/logic/private/BacktestLogicPrivateService.ts:69-73]()
-
 ### Context Structure
 
 The `IMethodContext` interface provides routing information for service lookups:
@@ -428,8 +406,6 @@ interface IMethodContext {
 - Injected: [src/lib/services/logic/private/BacktestLogicPrivateService.ts:44-46]()
 - Read: [src/lib/services/logic/private/BacktestLogicPrivateService.ts:71]()
 - Passed to: `frameCoreService.getTimeframe(symbol, this.methodContextService.context.frameName)`
-
-**Sources:** [types.d.ts:510-517](), [src/lib/services/logic/private/BacktestLogicPrivateService.ts:44-46](), [src/lib/services/logic/private/BacktestLogicPrivateService.ts:69-73]()
 
 ---
 
@@ -480,4 +456,3 @@ for await (const result of Backtest.run("BTCUSDT", {
 // 8. Process continues until i >= 145
 ```
 
-**Sources:** [src/function/add.ts:145-151](), [src/lib/services/logic/private/BacktestLogicPrivateService.ts:62-477]()

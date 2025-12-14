@@ -64,8 +64,6 @@ graph TB
     HT_API --> HT
 ```
 
-**Sources:** [src/lib/services/markdown/BacktestMarkdownService.ts:1-571](), [src/lib/services/markdown/LiveMarkdownService.ts:1-778](), [src/lib/services/markdown/ScheduleMarkdownService.ts:1-625](), [src/lib/services/markdown/WalkerMarkdownService.ts:1-569](), [src/lib/services/markdown/PerformanceMarkdownService.ts:1-467](), [src/lib/services/markdown/HeatMarkdownService.ts:1-540](), [src/lib/services/markdown/PartialMarkdownService.ts:1-399]()
-
 ### Service Summary Table
 
 | Service | Primary Purpose | Event Source | Statistics Interface | MAX_EVENTS |
@@ -79,8 +77,6 @@ graph TB
 | `PerformanceMarkdownService` | Execution timing metrics | `performanceEmitter` | `PerformanceStatistics` | 10000 |
 | `RiskMarkdownService` | Risk validation rejections | `riskSubject` | `RiskStatistics` | Unbounded |
 | `OutlineMarkdownService` | System configuration dump | N/A (manual) | N/A | N/A |
-
-**Sources:** [types.d.ts:151-157](), [src/config/emitters.ts:1-133]()
 
 ---
 
@@ -120,8 +116,6 @@ graph TB
     GETREP -->|"Write to disk"| DUMP
 ```
 
-**Sources:** [src/lib/services/markdown/BacktestMarkdownService.ts:199-367](), [src/lib/services/markdown/BacktestMarkdownService.ts:396-570]()
-
 ### Memoization Key Format
 
 Services use different memoization strategies based on their data isolation requirements:
@@ -137,8 +131,6 @@ private getStorage = memoize<(symbol: string, strategyName: string) => ReportSto
   () => new ReportStorage()
 );
 ```
-
-**Sources:** [src/lib/services/markdown/BacktestMarkdownService.ts:404-407](), [src/lib/services/markdown/LiveMarkdownService.ts:604-607]()
 
 ---
 
@@ -162,8 +154,6 @@ The following metrics appear in `BacktestStatistics`, `LiveStatistics`, and per-
 | **Annualized Sharpe** | `sharpeRatio × √365` | Yearly risk-adjusted return (higher is better) |
 | **Certainty Ratio** | `avgWin / |avgLoss|` | Win size vs loss size (higher is better) |
 | **Expected Yearly Returns** | `avgPnl × (365 / avgDurationDays)` | Projected annual return (higher is better) |
-
-**Sources:** [src/lib/services/markdown/BacktestMarkdownService.ts:227-295](), [src/lib/services/markdown/LiveMarkdownService.ts:409-492]()
 
 #### Risk-Adjusted Calculations
 
@@ -200,8 +190,6 @@ graph LR
     AVG --> EXPECT
 ```
 
-**Sources:** [src/lib/services/markdown/BacktestMarkdownService.ts:254-279](), [src/lib/services/markdown/LiveMarkdownService.ts:440-475]()
-
 ### Specialized Service Statistics
 
 #### ScheduleMarkdownService Metrics
@@ -214,8 +202,6 @@ Tracks scheduled signal activation and cancellation rates:
 | **Cancellation Rate** | `(totalCancelled / totalScheduled) × 100` | Percentage of scheduled signals that timed out |
 | **Avg Activation Time** | `Σ(pendingAt - scheduledAt) / totalOpened / 60000` | Average minutes until activation |
 | **Avg Wait Time** | `Σ(closeTimestamp - scheduledAt) / totalCancelled / 60000` | Average minutes until cancellation |
-
-**Sources:** [src/lib/services/markdown/ScheduleMarkdownService.ts:290-351]()
 
 #### PerformanceMarkdownService Metrics
 
@@ -231,8 +217,6 @@ Provides execution timing analysis per metric type:
 | **P95 / P99** | 95th / 99th percentile | Worst-case latency |
 | **Avg Wait Time** | `Σ(timestamp - previousTimestamp) / count` | Time between events |
 
-**Sources:** [src/lib/services/markdown/PerformanceMarkdownService.ts:228-309]()
-
 #### HeatMarkdownService Portfolio Metrics
 
 Aggregates symbol-level statistics with additional portfolio-wide calculations:
@@ -241,8 +225,6 @@ Aggregates symbol-level statistics with additional portfolio-wide calculations:
 - **Profit Factor**: `Σ(wins) / |Σ(losses)|` ratio
 - **Expectancy**: `(winRate × avgWin) - (lossRate × avgLoss)`
 - **Max Win/Loss Streak**: Consecutive winning/losing trades
-
-**Sources:** [src/lib/services/markdown/HeatMarkdownService.ts:180-336]()
 
 ---
 
@@ -260,8 +242,6 @@ interface Column {
   isVisible: () => boolean;     // Visibility predicate
 }
 ```
-
-**Sources:** [src/lib/services/markdown/BacktestMarkdownService.ts:20-29](), [src/lib/services/markdown/LiveMarkdownService.ts:142-151]()
 
 ### Example: BacktestMarkdownService Columns
 
@@ -300,8 +280,6 @@ graph TB
     ROWS --> TABLE
 ```
 
-**Sources:** [src/lib/services/markdown/BacktestMarkdownService.ts:108-194](), [src/lib/services/markdown/BacktestMarkdownService.ts:314-322]()
-
 ### Dynamic Visibility Control
 
 The `CC_REPORT_SHOW_SIGNAL_NOTE` configuration parameter controls note column visibility across all services:
@@ -314,8 +292,6 @@ The `CC_REPORT_SHOW_SIGNAL_NOTE` configuration parameter controls note column vi
   isVisible: () => GLOBAL_CONFIG.CC_REPORT_SHOW_SIGNAL_NOTE,
 }
 ```
-
-**Sources:** [src/lib/services/markdown/BacktestMarkdownService.ts:128-132](), [types.d.ts:108-114]()
 
 ---
 
@@ -352,8 +328,6 @@ sequenceDiagram
     Service->>User: Write to ./dump/backtest/
 ```
 
-**Sources:** [src/lib/services/markdown/BacktestMarkdownService.ts:564-567](), [src/lib/services/markdown/LiveMarkdownService.ts:771-774]()
-
 ### Service-to-Emitter Mapping
 
 ```mermaid
@@ -389,8 +363,6 @@ graph LR
     E8 -->|"subscribe(addRejection)"| S7
 ```
 
-**Sources:** [src/lib/services/markdown/BacktestMarkdownService.ts:566](), [src/lib/services/markdown/LiveMarkdownService.ts:773](), [src/lib/services/markdown/ScheduleMarkdownService.ts:620](), [src/lib/services/markdown/HeatMarkdownService.ts:519](), [src/lib/services/markdown/PartialMarkdownService.ts:363-364](), [src/lib/services/markdown/WalkerMarkdownService.ts:530](), [src/lib/services/markdown/PerformanceMarkdownService.ts:437](), [src/config/emitters.ts:1-133]()
-
 ---
 
 ## Public API Methods
@@ -422,8 +394,6 @@ public getData = async (
 ): Promise<IHeatmapStatistics>
 ```
 
-**Sources:** [src/lib/services/markdown/BacktestMarkdownService.ts:456-462](), [src/lib/services/markdown/LiveMarkdownService.ts:663-670](), [src/lib/services/markdown/HeatMarkdownService.ts:395-403]()
-
 #### getReport()
 
 Generates markdown-formatted report string.
@@ -434,8 +404,6 @@ public getReport = async (
   strategyName: StrategyName
 ): Promise<string>
 ```
-
-**Sources:** [src/lib/services/markdown/BacktestMarkdownService.ts:480-486](), [src/lib/services/markdown/LiveMarkdownService.ts:687-694]()
 
 #### dump()
 
@@ -458,8 +426,6 @@ public dump = async (
 - `WalkerMarkdownService`: `./dump/walker`
 - `PerformanceMarkdownService`: `./dump/performance`
 - `RiskMarkdownService`: `./dump/risk`
-
-**Sources:** [src/lib/services/markdown/BacktestMarkdownService.ts:509-521](), [src/lib/services/markdown/LiveMarkdownService.ts:716-728]()
 
 ### Facade Access Pattern
 
@@ -492,8 +458,6 @@ graph TB
     HT_SRV -->|"dump() writes to"| HT_FILE
 ```
 
-**Sources:** [src/classes/Backtest.ts:1-200](), [src/classes/Live.ts:1-200](), [src/classes/Heat.ts:1-150]()
-
 ---
 
 ## Memory Management and Bounds
@@ -514,8 +478,6 @@ public addSignal(data: IStrategyTickResultClosed) {
 }
 ```
 
-**Sources:** [src/lib/services/markdown/BacktestMarkdownService.ts:212-219]()
-
 ### MAX_EVENTS by Service
 
 | Service | MAX_EVENTS | Scope | Notes |
@@ -528,8 +490,6 @@ public addSignal(data: IStrategyTickResultClosed) {
 | `PerformanceMarkdownService` | 10000 | Per symbol:strategy | High-frequency timing events |
 | `WalkerMarkdownService` | Unbounded | N/A | Complete strategy list needed |
 | `RiskMarkdownService` | Unbounded | N/A | All rejections tracked |
-
-**Sources:** [src/lib/services/markdown/BacktestMarkdownService.ts:197](), [src/lib/services/markdown/LiveMarkdownService.ts:258](), [src/lib/services/markdown/ScheduleMarkdownService.ts:187](), [src/lib/services/markdown/HeatMarkdownService.ts:141](), [src/lib/services/markdown/PartialMarkdownService.ts:141](), [src/lib/services/markdown/PerformanceMarkdownService.ts:199]()
 
 ### Special Case: LiveMarkdownService Idle Event Replacement
 
@@ -567,8 +527,6 @@ public addIdleEvent(currentPrice: number) {
 }
 ```
 
-**Sources:** [src/lib/services/markdown/LiveMarkdownService.ts:274-300]()
-
 ---
 
 ## Report Output Format
@@ -601,8 +559,6 @@ All markdown services generate standardized reports with:
 **Expected Yearly Returns:** +456.25% (higher is better)
 ```
 
-**Sources:** [src/lib/services/markdown/BacktestMarkdownService.ts:303-339]()
-
 ### Example: Walker Comparison Report
 
 ```markdown
@@ -633,8 +589,6 @@ All markdown services generate standardized reports with:
 | strategy-alpha | xyz-789 | BTCUSDT | LONG | +2.50% | take_profit | 2024-01-01T00:00:00.000Z | 2024-01-01T01:00:00.000Z |
 ```
 
-**Sources:** [src/lib/services/markdown/WalkerMarkdownService.ts:430-500]()
-
 ---
 
 ## Clear API for Data Reset
@@ -660,8 +614,6 @@ public clear = async (ctx?: {
 **Behavior:**
 - **With context**: Clears only the specified symbol:strategy pair
 - **Without context**: Clears all accumulated data across all keys
-
-**Sources:** [src/lib/services/markdown/BacktestMarkdownService.ts:541-551](), [src/lib/services/markdown/LiveMarkdownService.ts:748-758]()
 
 ---
 
@@ -718,4 +670,3 @@ graph TB
     API_REP -->|"Write to disk"| API_DUMP
 ```
 
-**Sources:** [src/lib/services/markdown/BacktestMarkdownService.ts:428-439](), [src/lib/services/markdown/LiveMarkdownService.ts:630-646](), [src/lib/services/markdown/PerformanceMarkdownService.ts:410-419](), [src/config/emitters.ts:19-131]()

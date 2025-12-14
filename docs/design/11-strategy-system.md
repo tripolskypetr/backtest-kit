@@ -103,8 +103,6 @@ graph TB
     STRATEGY_CONNECTION --> SIGNAL_LIVE
 ```
 
-**Sources**: [src/client/ClientStrategy.ts:1-1158](), [src/lib/services/connection/StrategyConnectionService.ts:1-309](), [src/interfaces/Strategy.interface.ts:1-394]()
-
 ---
 
 ## Strategy Schema and Registration
@@ -123,8 +121,6 @@ Strategies are registered via `addStrategy()` with an `IStrategySchema` object. 
 | `riskName` | `RiskName` | ✗ | Single risk profile identifier |
 | `riskList` | `RiskName[]` | ✗ | Multiple risk profiles (combined) |
 
-**Sources**: [src/interfaces/Strategy.interface.ts:128-151](), [types.d.ts:936-955]()
-
 ### Signal Generation Intervals
 
 The `interval` property enforces throttling to prevent excessive `getSignal()` calls:
@@ -139,8 +135,6 @@ The `interval` property enforces throttling to prevent excessive `getSignal()` c
 | `"1h"` | 60 | Long-term strategies |
 
 Throttling is enforced by `_lastSignalTimestamp` tracking in ClientStrategy. If less than the interval has elapsed since the last call, `getSignal()` is skipped.
-
-**Sources**: [src/interfaces/Strategy.interface.ts:8-18](), [src/client/ClientStrategy.ts:34-41](), [src/client/ClientStrategy.ts:340-352]()
 
 ### Registration Example
 
@@ -173,8 +167,6 @@ addStrategy({
   }
 });
 ```
-
-**Sources**: [src/function/add.ts:1-200](), [README.md:106-138]()
 
 ---
 
@@ -239,8 +231,6 @@ graph TB
     ROW -.->|"if priceOpen specified"| SCHEDULED
 ```
 
-**Sources**: [src/interfaces/Strategy.interface.ts:20-73](), [types.d.ts:856-906]()
-
 ### Signal State Machine
 
 ```mermaid
@@ -276,8 +266,6 @@ stateDiagram-v2
 5. **Opened → Active**: Signal validated and persisted
 6. **Active → Closed**: TP/SL/Time condition met
 
-**Sources**: [src/client/ClientStrategy.ts:554-608](), [src/client/ClientStrategy.ts:610-644](), [src/client/ClientStrategy.ts:848-931]()
-
 ### Timestamp Semantics
 
 | Field | Meaning | Set When |
@@ -286,8 +274,6 @@ stateDiagram-v2
 | `pendingAt` | Position entry time | Scheduled: activation time<br/>Immediate: same as `scheduledAt` |
 
 For scheduled signals, `pendingAt` is initially set to `scheduledAt` but updated to the activation timestamp when price reaches `priceOpen`.
-
-**Sources**: [src/interfaces/Strategy.interface.ts:54-57](), [src/client/ClientStrategy.ts:734-738]()
 
 ---
 
@@ -301,8 +287,6 @@ ClientStrategy provides two execution methods:
 |--------|------|---------|----------|
 | `tick()` | Live/Backtest | `IStrategyTickResult` | Single tick with VWAP monitoring |
 | `backtest()` | Backtest only | `IStrategyBacktestResult` | Fast candle-by-candle processing |
-
-**Sources**: [src/interfaces/Strategy.interface.ts:318-388](), [src/client/ClientStrategy.ts:932-1069]()
 
 ### tick() Execution Flow
 
@@ -358,8 +342,6 @@ graph TB
 4. **Signal Creation**: Generate UUID, augment with context, persist to disk
 5. **Result Emission**: Emit to `signalEmitter`, `signalBacktestEmitter`, or `signalLiveEmitter`
 
-**Sources**: [src/client/ClientStrategy.ts:932-1019](), [src/lib/services/connection/StrategyConnectionService.ts:207-228]()
-
 ### backtest() Fast Processing
 
 The `backtest()` method optimizes historical simulation by skipping to signal close timestamps:
@@ -396,8 +378,6 @@ graph TB
 
 **Optimization**: Skip directly to `closeTimestamp` instead of processing every intermediate timeframe.
 
-**Sources**: [src/client/ClientStrategy.ts:1021-1158]()
-
 ---
 
 ## Risk Management Integration
@@ -426,8 +406,6 @@ graph TB
     START -->|"Only riskList"| LIST
     START -->|"Both"| COMBINED
 ```
-
-**Sources**: [src/lib/services/connection/StrategyConnectionService.ts:27-67](), [src/classes/Risk.ts:1-100]()
 
 ### Risk Check Flow
 
@@ -472,8 +450,6 @@ sequenceDiagram
 }
 ```
 
-**Sources**: [src/interfaces/Risk.interface.ts:547-564](), [src/client/ClientStrategy.ts:375-387](), [test/e2e/risk.test.mjs:1-700]()
-
 ---
 
 ## Signal Validation Rules
@@ -493,8 +469,6 @@ ClientStrategy enforces comprehensive validation before signal creation:
 | **Immediate Close Prevention** | SL not hit | currentPrice > SL | currentPrice < SL |
 | | TP not hit | currentPrice < TP | currentPrice > TP |
 
-**Sources**: [src/client/ClientStrategy.ts:45-330](), [types.d.ts:5-115]()
-
 ### Global Configuration Parameters
 
 | Parameter | Default | Purpose |
@@ -513,8 +487,6 @@ Minimum TP Distance = (slippage × 2) + (fees × 2) + buffer
                     = (0.1% × 2) + (0.1% × 2) + 0.1%
                     = 0.5%
 ```
-
-**Sources**: [types.d.ts:5-115](), [src/lib/services/validation/ConfigValidationService.ts:1-100]()
 
 ### Validation Error Examples
 
@@ -547,8 +519,6 @@ Minimum TP Distance = (slippage × 2) + (fees × 2) + buffer
 }
 ```
 
-**Sources**: [src/client/ClientStrategy.ts:111-291](), [test/e2e/defend.test.mjs:1-800]()
-
 ---
 
 ## Lifecycle Callbacks and Events
@@ -569,8 +539,6 @@ Strategies can register lifecycle hooks via the `callbacks` property:
 | `onPartialProfit` | Profit milestone reached | `(symbol, data, currentPrice, revenuePercent, backtest)` |
 | `onPartialLoss` | Loss milestone reached | `(symbol, data, currentPrice, lossPercent, backtest)` |
 | `onWrite` | Signal persisted (testing) | `(symbol, data, backtest)` |
-
-**Sources**: [src/interfaces/Strategy.interface.ts:96-126](), [types.d.ts:910-931]()
 
 ### Event Emission Flow
 
@@ -617,8 +585,6 @@ graph TB
     SIGNAL_LV --> LISTEN_LV
 ```
 
-**Sources**: [src/lib/services/connection/StrategyConnectionService.ts:217-227](), [src/config/emitters.ts:1-133]()
-
 ### Callback Usage Example
 
 ```typescript
@@ -653,8 +619,6 @@ addStrategy({
   }
 });
 ```
-
-**Sources**: [README.md:106-138](), [test/spec/callbacks.test.mjs:1-500]()
 
 ---
 
@@ -710,8 +674,6 @@ graph TB
 
 **Cache Clearing**: Use `clear()` method to force re-initialization or release resources.
 
-**Sources**: [src/lib/services/connection/StrategyConnectionService.ts:89-306]()
-
 ### ClientStrategy Internal State
 
 | Field | Type | Purpose |
@@ -726,8 +688,6 @@ graph TB
 1. **Idle**: Both `_pendingSignal` and `_scheduledSignal` are `null`
 2. **Scheduled**: `_scheduledSignal` is set, `_pendingSignal` is `null`
 3. **Active**: `_pendingSignal` is set, `_scheduledSignal` is `null`
-
-**Sources**: [src/client/ClientStrategy.ts:1-50]()
 
 ### Persistence and Recovery
 
@@ -764,8 +724,6 @@ sequenceDiagram
 
 **Atomic Writes**: Uses `singleshot()` pattern to prevent write race conditions.
 
-**Sources**: [src/client/ClientStrategy.ts:491-552](), [src/classes/Persist.ts:1-500]()
-
 ---
 
 ## Summary
@@ -783,4 +741,3 @@ The Strategy System provides a complete framework for defining, validating, exec
 
 For execution mode details, see Backtest Mode ([#5.1](./17-backtest-mode.md)), Live Trading Mode ([#5.2](./18-live-trading-mode.md)), and Walker Mode ([#5.3](./19-walker-mode.md)).
 
-**Sources**: [src/client/ClientStrategy.ts:1-1158](), [src/lib/services/connection/StrategyConnectionService.ts:1-309](), [src/interfaces/Strategy.interface.ts:1-394]()

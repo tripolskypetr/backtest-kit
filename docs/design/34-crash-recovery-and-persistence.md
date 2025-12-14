@@ -27,8 +27,6 @@ The crash recovery system follows a **persist-and-restart** architecture where t
 | **JSON Serialization** | Human-readable files in `./dump/` | Easy debugging and manual recovery |
 | **Per-Symbol-Strategy Isolation** | Separate files per symbol:strategy pair | Independent recovery per trading pair |
 
-**Sources:** [docs/internals.md:26](), [docs/internals.md:38](), [docs/internals.md:50]()
-
 ---
 
 ## Persistence Layer Architecture
@@ -76,8 +74,6 @@ graph TB
 3. **Atomic Write:** `PersistBase` writes to temp file, then atomically renames to final filename
 4. **Recovery:** On restart, `waitForInit()` loads last known state from disk
 
-**Sources:** [src/client/ClientStrategy.ts:28](), [src/client/ClientStrategy.ts:491-552](), [types.d.ts:163-176]()
-
 ---
 
 ## Persistence Adapters
@@ -96,8 +92,6 @@ The framework includes four persistence adapters for different state types:
 - Use `EntityId` helper type for type-safe identifiers
 - Store data as JSON for human-readable debugging
 - Support `null` data to represent "no active state"
-
-**Sources:** [types.d.ts:163-176](), [src/index.ts:162-176]()
 
 ---
 
@@ -122,8 +116,6 @@ All persistence adapters extend `PersistBase`, which provides the core atomic wr
 2. Write JSON to temporary file (`path.tmp`)
 3. Atomically rename temp file to final path
 4. File system guarantees rename is atomic (crash-safe)
-
-**Sources:** [types.d.ts:166-167](), [src/index.ts:165-167]()
 
 ---
 
@@ -176,9 +168,6 @@ sequenceDiagram
 ```
 
 **Key Implementation Details:**
-
-[src/client/ClientStrategy.ts:491-552]()
-
 ```typescript
 const WAIT_FOR_INIT_FN = async (self: ClientStrategy) => {
   self.params.logger.debug("ClientStrategy waitForInit");
@@ -228,8 +217,6 @@ const WAIT_FOR_INIT_FN = async (self: ClientStrategy) => {
 - `exchangeName` must match current strategy configuration
 - `strategyName` must match current strategy configuration
 - Prevents loading state from different strategy configurations
-
-**Sources:** [src/client/ClientStrategy.ts:491-552](), [src/lib/services/connection/StrategyConnectionService.ts:216](), [src/lib/services/connection/StrategyConnectionService.ts:252]()
 
 ---
 
@@ -293,8 +280,6 @@ stateDiagram-v2
 | **Scheduled activated** | `setScheduledSignal(null)` | `null` | Delete file |
 | **Scheduled cancelled** | `setScheduledSignal(null)` | `null` | Delete file |
 
-**Sources:** [src/client/ClientStrategy.ts:28](), [src/client/ClientStrategy.ts:498-552]()
-
 ---
 
 ## File System Structure
@@ -346,8 +331,6 @@ Persistence files are stored in the `./dump/` directory relative to the process 
 **Null State (No Active Signal):**
 - File is deleted when signal closes
 - `readSignalData()` returns `null` if file doesn't exist
-
-**Sources:** [src/client/ClientStrategy.ts:498-552]()
 
 ---
 
@@ -404,8 +387,6 @@ sequenceDiagram
 - Either the old filename or new filename exists, never both
 - No partial writes visible to readers
 - Crash at any point leaves file system in consistent state
-
-**Sources:** [docs/internals.md:38](), [docs/internals.md:50]()
 
 ---
 
@@ -475,8 +456,6 @@ sequenceDiagram
 - Persistence happens **before** sleep, ensuring state is saved
 - If crash occurs during sleep, state already persisted
 - On restart, `waitForInit()` loads last known state
-
-**Sources:** [src/client/ClientStrategy.ts:491-552](), [src/lib/services/connection/StrategyConnectionService.ts:216](), [docs/internals.md:68-81]()
 
 ---
 
@@ -548,8 +527,6 @@ class PersistSignalRedisAdapter extends PersistBase<
 | **MongoDB** | ✅ Single-doc atomic | ✅ Replicated | Medium | Multi-region deployments |
 | **PostgreSQL** | ✅ ACID transactions | ✅ ACID | Medium | Complex queries, auditing |
 
-**Sources:** [types.d.ts:166-167](), [src/index.ts:165-167]()
-
 ---
 
 ## Singleshot Initialization Pattern
@@ -606,8 +583,6 @@ sequenceDiagram
 | **Thread Safety** | `singleshot()` handles concurrent calls safely |
 | **Memory Efficiency** | Single copy of state in memory |
 
-**Sources:** [src/client/ClientStrategy.ts:491-552](), [docs/internals.md:49]()
-
 ---
 
 ## Best Practices
@@ -656,4 +631,3 @@ sequenceDiagram
    - Handle migration on format changes
    - Maintain backward compatibility
 
-**Sources:** [src/client/ClientStrategy.ts:491-552](), [docs/internals.md:26]()

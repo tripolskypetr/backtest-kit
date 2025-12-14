@@ -11,8 +11,6 @@ This document describes the **Backtest Mode** execution system in backtest-kit, 
 
 For real-time trading execution with crash recovery, see [Live Trading Mode](./18-live-trading-mode.md). For comparing multiple strategies, see [Walker Mode](./19-walker-mode.md). For strategy lifecycle and signal generation, see [Strategy Execution Flow](./13-strategy-execution-flow.md).
 
-**Sources:** [src/classes/Backtest.ts:1-594](), [src/lib/services/logic/private/BacktestLogicPrivateService.ts:1-481](), [docs/internals.md:54-67]()
-
 ---
 
 ## Overview
@@ -32,8 +30,6 @@ The system uses async generators for memory efficiency, yielding closed signals 
 | **Memory Model** | Async generator yielding closed signals only |
 | **Completion** | Finite - ends when all timeframes processed |
 | **State Persistence** | None - stateless execution |
-
-**Sources:** [src/lib/services/logic/private/BacktestLogicPrivateService.ts:20-32](), [docs/internals.md:54-67]()
 
 ---
 
@@ -96,8 +92,6 @@ graph TB
 | `StrategyCoreService` | Core services | Executes `tick()` and `backtest()` methods on strategies |
 | `ExchangeCoreService` | Core services | Fetches historical candle data with buffering |
 | `FrameCoreService` | Core services | Generates timeframe array for iteration |
-
-**Sources:** [src/classes/Backtest.ts:1-594](), [src/lib/services/logic/private/BacktestLogicPrivateService.ts:1-481](), [docs/uml.puml:128-311]()
 
 ---
 
@@ -171,8 +165,6 @@ sequenceDiagram
 | **7. Progress Emission** | Monitoring | Emit events at [BacktestLogicPrivateService.ts:84-92]() |
 | **8. Completion** | Finalize | Emit `doneBacktestSubject` at [BacktestLogicPrivateService.ts:452-461]() |
 
-**Sources:** [src/lib/services/logic/private/BacktestLogicPrivateService.ts:62-477](), [src/classes/Backtest.ts:148-177]()
-
 ---
 
 ## Timeframe Iteration and Skip Optimization
@@ -229,8 +221,6 @@ For a signal with `minuteEstimatedTime = 60` (1 hour), instead of calling `tick(
 
 This reduces computational overhead by ~60x for typical signals.
 
-**Sources:** [src/lib/services/logic/private/BacktestLogicPrivateService.ts:69-73](), [src/lib/services/logic/private/BacktestLogicPrivateService.ts:403-409]()
-
 ---
 
 ## Signal Processing: tick() and backtest()
@@ -284,8 +274,6 @@ backtestResult = await this.strategyCoreService.backtest(
 
 The `backtest()` method handles both regular and scheduled signals, automatically detecting activation conditions for scheduled signals before proceeding to TP/SL monitoring.
 
-**Sources:** [src/lib/services/logic/private/BacktestLogicPrivateService.ts:114-129](), [src/lib/services/logic/private/BacktestLogicPrivateService.ts:304-380](), [src/lib/services/logic/private/BacktestLogicPrivateService.ts:154-243]()
-
 ---
 
 ## Fast Candle Processing and Buffering
@@ -337,8 +325,6 @@ Scheduled signals require additional candles for the await period (`CC_SCHEDULE_
 ### VWAP Calculation
 
 The buffer ensures that when processing the first candle at timestamp `when`, there are already 4 preceding candles in memory to calculate VWAP using the last 5 candles (including the current one). This maintains consistency with live mode, where VWAP always uses the most recent `CC_AVG_PRICE_CANDLES_COUNT` candles.
-
-**Sources:** [src/lib/services/logic/private/BacktestLogicPrivateService.ts:315-328](), [src/lib/services/logic/private/BacktestLogicPrivateService.ts:174-186](), [docs/internals.md:18]()
 
 ---
 
@@ -407,8 +393,6 @@ public background = (symbol: string, context: {...}) => {
 | **Generator (Current)** | O(1) constant per signal | `yield signal` without storage |
 
 For a 30-day backtest with 100 signals, the generator approach uses ~99% less memory for result storage.
-
-**Sources:** [src/lib/services/logic/private/BacktestLogicPrivateService.ts:62-477](), [src/classes/Backtest.ts:199-234]()
 
 ---
 
@@ -479,8 +463,6 @@ listenDoneBacktest((done) => {
 });
 ```
 
-**Sources:** [src/lib/services/logic/private/BacktestLogicPrivateService.ts:84-92](), [src/lib/services/logic/private/BacktestLogicPrivateService.ts:391-401](), [src/classes/Backtest.ts:44-50]()
-
 ---
 
 ## Public API Methods
@@ -490,7 +472,6 @@ listenDoneBacktest((done) => {
 Returns an async generator that yields closed signals. Intended for direct consumption by user code.
 
 **Signature:**
-[Backtest.ts:374-396]()
 ```typescript
 public run = (
   symbol: string,
@@ -518,7 +499,6 @@ for await (const result of Backtest.run("BTCUSDT", {
 Consumes the generator internally without exposing results. Returns a cancellation function. Useful for running backtests for side effects (callbacks, event listeners, report generation).
 
 **Signature:**
-[Backtest.ts:419-439]()
 ```typescript
 public background = (
   symbol: string,
@@ -547,7 +527,6 @@ cancel();
 Sets internal flag to prevent strategy from generating new signals. Current active signal completes normally. Backtest stops at next safe point (idle state or after signal closes).
 
 **Signature:**
-[Backtest.ts:458-469]()
 ```typescript
 public stop = async (
   symbol: string,
@@ -560,7 +539,6 @@ public stop = async (
 Retrieves statistical data calculated from all closed signals.
 
 **Signature:**
-[Backtest.ts:484-495]()
 ```typescript
 public getData = async (
   symbol: string,
@@ -575,7 +553,6 @@ public getData = async (
 Generates markdown-formatted report with signal table and statistics.
 
 **Signature:**
-[Backtest.ts:510-521]()
 ```typescript
 public getReport = async (
   symbol: string,
@@ -588,7 +565,6 @@ public getReport = async (
 Saves markdown report to disk at specified path (default: `./dump/backtest/`).
 
 **Signature:**
-[Backtest.ts:539-554]()
 ```typescript
 public dump = async (
   symbol: string,
@@ -602,7 +578,6 @@ public dump = async (
 Lists all active backtest instances with their current status (`idle`, `running`, or `done`).
 
 **Signature:**
-[Backtest.ts:569-572]()
 ```typescript
 public list = async () => Promise<Array<{
   id: string;
@@ -611,8 +586,6 @@ public list = async () => Promise<Array<{
   status: 'idle' | 'running' | 'done';
 }>>
 ```
-
-**Sources:** [src/classes/Backtest.ts:355-593]()
 
 ---
 
@@ -669,8 +642,6 @@ const gen3 = Backtest.run("BTCUSDT", { strategyName: "strategy-2", ... });
 
 Each generator maintains its own iteration state (`i` variable in `BacktestLogicPrivateService`).
 
-**Sources:** [src/classes/Backtest.ts:360-365](), [src/classes/Backtest.ts:161-174](), [src/classes/Backtest.ts:73-334]()
-
 ---
 
 ## Performance Optimizations
@@ -720,8 +691,6 @@ Metrics emitted at:
 - [BacktestLogicPrivateService.ts:436-446]() - Timeframe duration
 - [BacktestLogicPrivateService.ts:391-401]() - Signal duration
 - [BacktestLogicPrivateService.ts:466-476]() - Total backtest duration
-
-**Sources:** [src/lib/services/logic/private/BacktestLogicPrivateService.ts:403-409](), [src/lib/services/logic/private/BacktestLogicPrivateService.ts:323-329](), [src/lib/services/logic/private/BacktestLogicPrivateService.ts:436-476]()
 
 ---
 
@@ -779,8 +748,6 @@ try {
 
 Similarly, errors during candle fetching or `backtest()` calls are caught and handled at [BacktestLogicPrivateService.ts:179-202]() and [BacktestLogicPrivateService.ts:367-380]().
 
-**Sources:** [src/classes/Backtest.ts:382-392](), [src/lib/services/logic/private/BacktestLogicPrivateService.ts:114-129]()
-
 ---
 
 ## Comparison with Live Mode
@@ -799,4 +766,3 @@ Similarly, errors during candle fetching or `backtest()` calls are caught and ha
 
 **Shared Components:** Both modes use identical validation, schema services, and core strategy/exchange/frame services. The only difference is in the orchestration logic ([BacktestLogicPrivateService.ts]() vs [LiveLogicPrivateService.ts]()).
 
-**Sources:** [src/lib/services/logic/private/BacktestLogicPrivateService.ts:1-481](), [src/lib/services/logic/private/LiveLogicPrivateService.ts:1-179](), [docs/internals.md:54-81]()

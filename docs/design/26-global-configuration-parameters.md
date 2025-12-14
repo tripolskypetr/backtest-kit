@@ -11,8 +11,6 @@ This page documents all global configuration parameters in `GLOBAL_CONFIG`, whic
 
 For details on how these parameters are validated for economic viability, see [Economic Viability and Validation](./27-economic-viability-and-validation.md). For the configuration API (`setConfig`, `getConfig`), see [Configuration API](./28-configuration-api.md).
 
-**Sources**: [src/config/params.ts:1-122](), [types.d.ts:5-239]()
-
 ---
 
 ## Parameter Categories Overview
@@ -65,8 +63,6 @@ graph TB
     GLOBAL --> NOTE
 ```
 
-**Sources**: [src/config/params.ts:1-122](), [types.d.ts:5-239]()
-
 ---
 
 ## Economic Parameters
@@ -87,8 +83,6 @@ Applied twice per round-trip trade:
 
 Total slippage effect: **0.2%** (2 × 0.1%)
 
-**Sources**: [types.d.ts:17-22](), [src/config/params.ts:18](), [src/helpers/toProfitLossDto.ts:39-50]()
-
 #### CC_PERCENT_FEE
 
 **Default**: `0.1` (0.1% per transaction)  
@@ -100,8 +94,6 @@ Applied twice per round-trip trade:
 - Exit transaction: 0.1% fee
 
 Total fee cost: **0.2%** (2 × 0.1%)
-
-**Sources**: [types.d.ts:24-28](), [src/config/params.ts:24](), [src/helpers/toProfitLossDto.ts:53]()
 
 ### Cost Breakdown Diagram
 
@@ -135,8 +127,6 @@ graph LR
     end
 ```
 
-**Sources**: [src/helpers/toProfitLossDto.ts:1-82](), [src/lib/services/validation/ConfigValidationService.ts:69-72]()
-
 ### Profitability Constraints
 
 #### CC_MIN_TAKEPROFIT_DISTANCE_PERCENT
@@ -160,8 +150,6 @@ Default: 0.5% (covers 0.4% costs + 0.1% profit margin)
 
 **Validation**: If `CC_MIN_TAKEPROFIT_DISTANCE_PERCENT < (CC_PERCENT_SLIPPAGE × 2 + CC_PERCENT_FEE × 2)`, all TP signals will be unprofitable (see [Economic Viability and Validation](./27-economic-viability-and-validation.md)).
 
-**Sources**: [types.d.ts:30-41](), [src/config/params.ts:37](), [src/lib/services/validation/ConfigValidationService.ts:69-88]()
-
 #### CC_MIN_STOPLOSS_DISTANCE_PERCENT
 
 **Default**: `0.5` (0.5%)  
@@ -169,8 +157,6 @@ Default: 0.5% (covers 0.4% costs + 0.1% profit margin)
 **Purpose**: Minimum distance from `priceOpen` to `priceStopLoss` to prevent signals from being immediately stopped out by normal price volatility.
 
 Prevents "instant stop loss" scenarios where minor price fluctuations trigger SL before the strategy has a chance to develop.
-
-**Sources**: [types.d.ts:43-47](), [src/config/params.ts:43](), [src/lib/services/validation/ConfigValidationService.ts:91-95]()
 
 #### CC_MAX_STOPLOSS_DISTANCE_PERCENT
 
@@ -181,8 +167,6 @@ Prevents "instant stop loss" scenarios where minor price fluctuations trigger SL
 Caps risk per signal to 20% of position value. Prevents single signals from causing devastating portfolio damage.
 
 **Constraint**: Must be **greater than** `CC_MIN_STOPLOSS_DISTANCE_PERCENT`.
-
-**Sources**: [types.d.ts:49-53](), [src/config/params.ts:49](), [src/lib/services/validation/ConfigValidationService.ts:98-114]()
 
 ---
 
@@ -198,8 +182,6 @@ Signal lifecycle parameters control timeouts and maximum durations for various s
 | `CC_MAX_SIGNAL_LIFETIME_MINUTES` | 1440 | `number` (positive integer) | Maximum signal duration (opened state) |
 | `CC_MAX_SIGNAL_GENERATION_SECONDS` | 180 | `number` (positive integer) | `getSignal` execution timeout |
 
-**Sources**: [src/config/params.ts:6-64](), [types.d.ts:7-68]()
-
 ### CC_SCHEDULE_AWAIT_MINUTES
 
 **Default**: `120` (2 hours)  
@@ -210,8 +192,6 @@ If a scheduled signal does not activate within this timeout, it is automatically
 
 **Related Signals**: Scheduled signals (those with explicit `priceOpen` set in `getSignal` return value).
 
-**Sources**: [types.d.ts:7-10](), [src/config/params.ts:6](), [test/e2e/config.test.mjs:18-82]()
-
 ### CC_MAX_SIGNAL_LIFETIME_MINUTES
 
 **Default**: `1440` (1 day = 24 hours)  
@@ -220,8 +200,6 @@ If a scheduled signal does not activate within this timeout, it is automatically
 
 Prevents "eternal signals" that block risk limits for weeks/months without reaching TP or SL.
 
-**Sources**: [types.d.ts:55-59](), [src/config/params.ts:55](), [test/e2e/sanitize.test.mjs:241-339]()
-
 ### CC_MAX_SIGNAL_GENERATION_SECONDS
 
 **Default**: `180` (3 minutes)  
@@ -229,8 +207,6 @@ Prevents "eternal signals" that block risk limits for weeks/months without reach
 **Purpose**: Maximum execution time allowed for the `getSignal` callback in strategy schemas.
 
 Prevents long-running or stuck signal generation routines from blocking execution or consuming resources indefinitely. If generation exceeds this threshold, the attempt is aborted and logged.
-
-**Sources**: [types.d.ts:61-68](), [src/config/params.ts:64]()
 
 ### Lifecycle State Diagram with Timeouts
 
@@ -256,8 +232,6 @@ stateDiagram-v2
     end note
 ```
 
-**Sources**: [types.d.ts:7-68](), [src/config/params.ts:6-64]()
-
 ---
 
 ## Data Fetching and Reliability Parameters
@@ -282,8 +256,6 @@ where Typical Price = (High + Low + Close) / 3
 
 **Used By**: `ClientExchange.getAveragePrice()` method, which is called by strategies to get current market price.
 
-**Sources**: [types.d.ts:12-15](), [src/config/params.ts:11](), [test/e2e/config.test.mjs:84-154]()
-
 ### Retry Logic
 
 #### CC_GET_CANDLES_RETRY_COUNT
@@ -294,8 +266,6 @@ where Typical Price = (High + Low + Close) / 3
 
 Total attempts = 1 initial + 3 retries = 4 attempts maximum.
 
-**Sources**: [types.d.ts:70-73](), [src/config/params.ts:69]()
-
 #### CC_GET_CANDLES_RETRY_DELAY_MS
 
 **Default**: `5000` (5 seconds)  
@@ -303,8 +273,6 @@ Total attempts = 1 initial + 3 retries = 4 attempts maximum.
 **Purpose**: Delay between retry attempts for `getCandles` function.
 
 Provides backoff time to avoid overwhelming failing APIs or to wait for transient network issues to resolve.
-
-**Sources**: [types.d.ts:75-78](), [src/config/params.ts:74]()
 
 ### Anomaly Detection
 
@@ -325,8 +293,6 @@ Provides backoff time to avoid overwhelming failing APIs or to wait for transien
 
 **Example**: BTC at $50,000 median → threshold $50 → catches $0.01-$1 anomalies.
 
-**Sources**: [types.d.ts:80-92](), [src/config/params.ts:89](), [test/e2e/sanitize.test.mjs:666-784]()
-
 #### CC_GET_CANDLES_MIN_CANDLES_FOR_MEDIAN
 
 **Default**: `5` (5 candles)  
@@ -341,8 +307,6 @@ Provides backoff time to avoid overwhelming failing APIs or to wait for transien
 - Average is more stable than median for small datasets (n < 20)
 
 **Behavior**: If fewer than this threshold, use simple average instead of median for reference price calculation.
-
-**Sources**: [types.d.ts:94-106](), [src/config/params.ts:104]()
 
 ### Data Fetching Flow Diagram
 
@@ -386,8 +350,6 @@ graph TB
     VWAP --> RETURN
 ```
 
-**Sources**: [types.d.ts:70-106](), [src/config/params.ts:69-104]()
-
 ---
 
 ## Reporting Parameters
@@ -406,8 +368,6 @@ When `true`, the "Note" column (populated from `ISignalDto.note` field) is displ
 - Other markdown report tables
 
 When `false` (default), notes are hidden to reduce table width and improve readability.
-
-**Sources**: [types.d.ts:108-115](), [src/config/params.ts:113]()
 
 ---
 
@@ -429,8 +389,6 @@ When `false` (default), notes are hidden to reduce table width and improve reada
 | `CC_GET_CANDLES_PRICE_ANOMALY_THRESHOLD_FACTOR` | `1000` | `number` | Positive integer | Anomaly detection factor |
 | `CC_GET_CANDLES_MIN_CANDLES_FOR_MEDIAN` | `5` | `number` | Positive integer | Min candles for median calculation |
 | `CC_REPORT_SHOW_SIGNAL_NOTE` | `false` | `boolean` | N/A | Show note column in reports |
-
-**Sources**: [src/config/params.ts:1-122](), [types.d.ts:5-239]()
 
 ---
 
@@ -484,8 +442,6 @@ graph TB
     end
 ```
 
-**Sources**: [src/lib/services/validation/ConfigValidationService.ts:55-175](), [src/config/params.ts:1-122]()
-
 ---
 
 ## Type Definition and Access
@@ -510,8 +466,6 @@ console.log(config.CC_SCHEDULE_AWAIT_MINUTES); // 120
 
 **Default Configuration**: `DEFAULT_CONFIG` is a frozen copy of initial `GLOBAL_CONFIG` values, providing reference to original defaults even after configuration changes.
 
-**Sources**: [src/config/params.ts:116-122](), [types.d.ts:119-239](), [src/function/setup.ts:1-89]()
-
 ---
 
 ## Validation Overview
@@ -531,4 +485,3 @@ For detailed validation rules and economic viability calculations, see [Economic
 
 For configuration API usage (setting/getting config), see [Configuration API](./28-configuration-api.md).
 
-**Sources**: [src/lib/services/validation/ConfigValidationService.ts:1-179](), [src/function/setup.ts:39-52](), [test/spec/config.test.mjs:1-438]()

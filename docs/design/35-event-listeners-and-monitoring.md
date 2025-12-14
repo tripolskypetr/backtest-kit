@@ -94,8 +94,6 @@ graph TB
     PERF --> MD
 ```
 
-**Sources:** [src/config/emitters.ts:1-133](), [src/function/event.ts:1-720]()
-
 ---
 
 ## Core Event Emitters
@@ -145,8 +143,6 @@ The framework defines 18 event emitters organized by domain:
 | `riskSubject` | Risk rejections | Validation failures |
 | `performanceEmitter` | Execution metrics | Performance data |
 
-**Sources:** [src/config/emitters.ts:15-132]()
-
 ---
 
 ## Queued Processing Pattern
@@ -175,7 +171,7 @@ export function listenSignal(fn: (event: IStrategyTickResult) => void) {
 
 The `queued` wrapper ensures that even if `fn()` is async, events are processed one-by-one in order received.
 
-**Sources:** [src/function/event.ts:70-73](), [functools-kit documentation]
+, [functools-kit documentation]
 
 ---
 
@@ -246,8 +242,6 @@ listenSignalLive((event) => {
 });
 ```
 
-**Sources:** [src/function/event.ts:45-221](), [types.d.ts:976-1076]()
-
 ---
 
 ## Completion Listeners
@@ -303,8 +297,6 @@ listenDoneBacktestOnce(
   }
 );
 ```
-
-**Sources:** [src/function/event.ts:281-477](), [types.d.ts:1152-1168]()
 
 ---
 
@@ -367,8 +359,6 @@ listenWalkerProgress((event) => {
 });
 ```
 
-**Sources:** [src/function/event.ts:479-576](), [types.d.ts:1223-1263]()
-
 ---
 
 ## Error and Validation Listeners
@@ -413,8 +403,6 @@ listenValidation((error) => {
   // Track validation failures for strategy improvement
 });
 ```
-
-**Sources:** [src/function/event.ts:223-280](), [src/config/emitters.ts:34-44,109-112]()
 
 ---
 
@@ -510,8 +498,6 @@ listenPartialLoss((event) => {
 });
 ```
 
-**Sources:** [src/function/event.ts:645-720](), [types.d.ts:1189-1221,694-705]()
-
 ---
 
 ## Once Variants and Filter Predicates
@@ -562,8 +548,6 @@ listenPartialProfitOnce(
 );
 ```
 
-**Sources:** [src/function/event.ts:75-113,139-167]()
-
 ---
 
 ## Performance Listeners
@@ -610,8 +594,6 @@ listenPerformance((event) => {
   metrics.record(event.metricType, event.duration);
 });
 ```
-
-**Sources:** [src/function/event.ts:578-613](), [types.d.ts:1265-1282]()
 
 ---
 
@@ -667,8 +649,6 @@ listenWalkerComplete((results) => {
 });
 ```
 
-**Sources:** [src/function/event.ts:615-664](), [types.d.ts:1170-1187]()
-
 ---
 
 ## Unsubscribing from Events
@@ -712,8 +692,6 @@ const unsubscribe = listenSignal((event) => {
   }
 });
 ```
-
-**Sources:** [src/function/event.ts:70-73]()
 
 ---
 
@@ -846,8 +824,6 @@ setInterval(async () => {
 }, 60000);
 ```
 
-**Sources:** [src/function/event.ts:1-720](), [README.md:168-171]()
-
 ---
 
 ## Event Payload Reference Table
@@ -868,8 +844,6 @@ setInterval(async () => {
 | `listenError` | `Error` | `message`, `stack` |
 | `listenValidation` | `Error` | `message`, `stack` |
 
-**Sources:** [types.d.ts:976-1282]()
-
 ---
 
 ## Summary
@@ -885,4 +859,3 @@ The event listener system provides comprehensive monitoring capabilities for str
 
 All listeners use the same pattern: subscribe to emitter, receive events via queued callback, unsubscribe when done. This consistency makes the API easy to learn and maintain.
 
-**Sources:** [src/config/emitters.ts:1-133](), [src/function/event.ts:1-720](), [types.d.ts:976-1282]()

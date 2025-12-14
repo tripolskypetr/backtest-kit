@@ -93,8 +93,6 @@ graph TB
     ClientStrategy --> logger
 ```
 
-**Sources:** [src/client/ClientStrategy.ts:1-1564](), [src/interfaces/Strategy.interface.ts:318-388]()
-
 ---
 
 ## The tick() Method: Live Execution
@@ -181,8 +179,6 @@ stateDiagram-v2
    - Returns null if strategy stopped during generation
    - Immediate activation if `priceOpen` already reached
    - Scheduled signal creation if waiting for price
-
-**Sources:** [src/client/ClientStrategy.ts:1333-1460](), [src/interfaces/Strategy.interface.ts:174-307]()
 
 ---
 
@@ -300,8 +296,6 @@ sequenceDiagram
    - If `priceOpen` provided and not reached → `IScheduledSignalRow` with `_isScheduled: true`
    - If `priceOpen` omitted → immediate `ISignalRow` with `priceOpen = currentPrice`
 
-**Sources:** [src/client/ClientStrategy.ts:332-476](), [src/interfaces/Strategy.interface.ts:8-39]()
-
 ---
 
 ## Signal Validation
@@ -398,8 +392,6 @@ graph TB
    - Default 43200 minutes (30 days)
    - Ensures portfolio turnover and risk slot availability
 
-**Sources:** [src/client/ClientStrategy.ts:45-330](), [src/config/params.ts]()
-
 ---
 
 ## Scheduled Signal Activation
@@ -479,8 +471,6 @@ stateDiagram-v2
 - `pendingAt`: Initially equals `scheduledAt`, updated to activation timestamp when activated
 - Duration calculations for pending signals use `pendingAt`, not `scheduledAt`
 
-**Sources:** [src/client/ClientStrategy.ts:554-801]()
-
 ---
 
 ## Position Monitoring and Closure
@@ -557,8 +547,6 @@ For active signals, the framework calculates progress towards TP or SL as percen
 - **Short Position Moving Up**: `percentSl = ((currentPrice - priceOpen) / (priceStopLoss - priceOpen)) * 100`
 
 These percentages trigger milestone events (10%, 20%, 30%, etc.) via `IPartial.profit()` and `IPartial.loss()` for tracking and callbacks.
-
-**Sources:** [src/client/ClientStrategy.ts:901-1129](), [src/helpers/toProfitLossDto.ts]()
 
 ---
 
@@ -654,8 +642,6 @@ const GET_AVG_PRICE_FN = (candles: ICandleData[]): number => {
 };
 ```
 
-**Sources:** [src/client/ClientStrategy.ts:1523-1564](), [src/client/ClientStrategy.ts:478-489]()
-
 ---
 
 ## State Persistence and Recovery
@@ -686,8 +672,6 @@ const GET_AVG_PRICE_FN = (candles: ICandleData[]): number => {
 - **Scheduled signals**: Restored and continue monitoring for activation
 - **No double-execution**: State cleared before persistence prevents duplication
 - **Risk state**: Risk tracking re-initialized via callbacks, not persisted
-
-**Sources:** [src/client/ClientStrategy.ts:491-552](), [src/client/ClientStrategy.ts:1304-1330](), [src/classes/Persist.ts]()
 
 ---
 
@@ -768,8 +752,6 @@ graph TB
 
 These contexts are injected via dependency injection and accessed throughout ClientStrategy via `this.params.execution.context` and `this.params.method.context`.
 
-**Sources:** [src/lib/services/connection/StrategyConnectionService.ts:89-306](), [src/lib/services/core/StrategyCoreService.ts](), [src/lib/services/context/ExecutionContextService.ts](), [src/lib/services/context/MethodContextService.ts]()
-
 ---
 
 ## Summary
@@ -789,4 +771,3 @@ Key design patterns:
 
 The execution flow integrates with risk management, position sizing, partial tracking, and exchange services through well-defined interfaces, enabling modular composition and extensibility.
 
-**Sources:** [src/client/ClientStrategy.ts:1-1564](), [src/interfaces/Strategy.interface.ts:1-394](), [src/lib/services/connection/StrategyConnectionService.ts:1-309]()

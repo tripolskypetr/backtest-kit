@@ -58,8 +58,6 @@ graph TB
     GLOBAL_CONFIG -->|"CC_REPORT_SHOW_SIGNAL_NOTE"| MarkdownServices
 ```
 
-**Sources**: [src/config/params.ts:1-122](), [src/function/setup.ts:1-89](), [src/lib/services/validation/ConfigValidationService.ts:1-166]()
-
 ---
 
 ## Global Configuration Parameters
@@ -86,8 +84,6 @@ The `GLOBAL_CONFIG` object contains 14 parameters organized into four categories
 | `CC_GET_CANDLES_MIN_CANDLES_FOR_MEDIAN` | `number` | `5` | Minimum candles required for median calculation (use average below this) |
 | **Reporting Parameters** |
 | `CC_REPORT_SHOW_SIGNAL_NOTE` | `boolean` | `false` | Controls visibility of signal notes in markdown reports |
-
-**Sources**: [types.d.ts:5-115](), [src/config/params.ts:1-122]()
 
 ---
 
@@ -129,8 +125,6 @@ For default configuration (`CC_PERCENT_SLIPPAGE = 0.1%`, `CC_PERCENT_FEE = 0.1%`
 - **Minimum TP Distance**: 0.5% (default, covers costs + 0.1% profit buffer)
 
 This ensures that when TakeProfit is hit, the signal yields at least 0.1% net profit after all costs.
-
-**Sources**: [src/helpers/toProfitLossDto.ts:1-82](), [src/lib/services/validation/ConfigValidationService.ts:69-88](), [types.d.ts:12-40]()
 
 ---
 
@@ -200,8 +194,6 @@ GLOBAL_CONFIG validation failed:
   All TakeProfit signals will be unprofitable with current settings!
 ```
 
-**Sources**: [src/lib/services/validation/ConfigValidationService.ts:55-163]()
-
 ---
 
 ## Configuration API
@@ -245,8 +237,6 @@ try {
 }
 ```
 
-**Sources**: [src/function/setup.ts:23-52]()
-
 ### `getConfig()`
 
 Returns a shallow copy of the current configuration. Use this to inspect current settings without modifying them.
@@ -266,8 +256,6 @@ console.log('Current fee:', currentConfig.CC_PERCENT_FEE);
 currentConfig.CC_PERCENT_SLIPPAGE = 999; // No effect on actual config
 ```
 
-**Sources**: [src/function/setup.ts:54-70]()
-
 ### `getDefaultConfig()`
 
 Returns a frozen reference to the default configuration. Use this to see all available parameters and their default values.
@@ -286,8 +274,6 @@ console.log('Default fee:', defaults.CC_PERCENT_FEE); // 0.1
 // Cannot modify (frozen object)
 defaults.CC_PERCENT_SLIPPAGE = 999; // TypeError in strict mode
 ```
-
-**Sources**: [src/function/setup.ts:72-88](), [src/config/params.ts:116-122]()
 
 ---
 
@@ -325,8 +311,6 @@ Complete list of validation rules enforced by `ConfigValidationService`:
 | Parameter | Rule | Rationale |
 |-----------|------|-----------|
 | `CC_REPORT_SHOW_SIGNAL_NOTE` | Must be boolean | Controls report formatting |
-
-**Sources**: [src/lib/services/validation/ConfigValidationService.ts:55-163]()
 
 ---
 
@@ -412,7 +396,7 @@ graph TB
 // Error: "Signal lifetime (50000 min) exceeds maximum (1440 min)"
 ```
 
-**Sources**: [src/lib/services/validation/SignalValidationService.ts]() (inferred from test files), [test/e2e/sanitize.test.mjs:1-887]()
+(inferred from test files), [test/e2e/sanitize.test.mjs:1-887]()
 
 ---
 
@@ -456,7 +440,7 @@ where Typical Price = (High + Low + Close) / 3
 
 VWAP = 30129000 / 600 = **50215**
 
-**Sources**: [src/client/ClientExchange.ts]() (inferred), [types.d.ts:404-412](), [src/config/params.ts:7-11]()
+(inferred), [types.d.ts:404-412](), [src/config/params.ts:7-11]()
 
 ---
 
@@ -526,8 +510,6 @@ const candles = [
 
 This protects against incomplete candles from Binance API that sometimes have near-zero prices.
 
-**Sources**: [src/config/params.ts:65-104](), [test/e2e/sanitize.test.mjs:666-784](), [types.d.ts:70-106]()
-
 ---
 
 ## Test Configuration
@@ -547,8 +529,6 @@ setConfig({
 ```
 
 **Warning**: Never use `_unsafe = true` in production. It bypasses all safety checks including economic viability validation.
-
-**Sources**: [test/config/setup.mjs:89-102](), [src/function/setup.ts:39-43]()
 
 ---
 
@@ -602,8 +582,6 @@ setConfig({
 });
 ```
 
-**Sources**: [test/e2e/config.test.mjs:1-224](), [test/spec/config.test.mjs:1-335]()
-
 ---
 
 ## Summary
@@ -623,4 +601,3 @@ The Configuration System provides:
 - **Economic Correctness**: Mathematical validation ensures profitable trades
 - **Test Flexibility**: `_unsafe` flag allows test environments to bypass validation
 
-**Sources**: [src/config/params.ts:1-122](), [src/function/setup.ts:1-89](), [src/lib/services/validation/ConfigValidationService.ts:1-166]()

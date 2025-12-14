@@ -54,8 +54,6 @@ graph TB
     CALLBACKS --> IStrategyCallbacks
 ```
 
-**Sources:** [types.d.ts:936-955](), [types.d.ts:855-873](), [types.d.ts:909-931]()
-
 ---
 
 ## Strategy Registration Flow
@@ -80,8 +78,6 @@ graph TB
     VAL_CHECKS -->|Invalid| ERROR["Throw Error"]
     SCHEMA_SERVICE --> STORAGE
 ```
-
-**Sources:** [src/function/add.ts:52-64](), [src/lib/services/validation/StrategyValidationService.ts](), [src/lib/services/schema/StrategySchemaService.ts]()
 
 ### Registration Example
 
@@ -120,8 +116,6 @@ addStrategy({
   },
 });
 ```
-
-**Sources:** [src/function/add.ts:18-64](), [types.d.ts:936-955]()
 
 ---
 
@@ -170,8 +164,6 @@ graph TB
     SCHEDULE_OR_OPEN -->|No| OPENED
 ```
 
-**Sources:** [src/lib/client/ClientStrategy.ts](), [types.d.ts:948]()
-
 ### Signal Validation Rules
 
 When `getSignal` returns a signal DTO, the framework validates:
@@ -182,8 +174,6 @@ When `getSignal` returns a signal DTO, the framework validates:
 | **SL Distance** | `priceStopLoss` must be < `priceOpen` for long, > `priceOpen` for short | `CC_MIN_STOPLOSS_DISTANCE_PERCENT`, `CC_MAX_STOPLOSS_DISTANCE_PERCENT` |
 | **Economic Viability** | TP distance must cover slippage + fees + minimum profit | Calculated by `ConfigValidationService` |
 | **Time Constraints** | `minuteEstimatedTime` must be > 0 and < `CC_MAX_SIGNAL_LIFETIME_MINUTES` | Default: 1440 minutes (1 day) |
-
-**Sources:** [types.d.ts:5-115](), [src/lib/services/validation/ConfigValidationService.ts]()
 
 ---
 
@@ -217,8 +207,6 @@ graph LR
 - If throttled, skips `getSignal` and returns current signal state (idle/active/closed)
 - If allowed, calls `getSignal` and updates `_lastSignalTime`
 
-**Sources:** [types.d.ts:853](), [src/lib/client/ClientStrategy.ts]()
-
 ### Choosing an Interval
 
 | Interval | Use Case | Tick Frequency (Live Mode) |
@@ -229,8 +217,6 @@ graph LR
 | `"1h"` | Position trading, low-frequency | Every 61 seconds (checks every hour) |
 
 **Note:** Live mode ticks occur every `TICK_TTL` (61 seconds) regardless of interval. The interval only controls how often `getSignal` is invoked during those ticks.
-
-**Sources:** [src/lib/services/logic/private/LiveLogicPrivateService.ts]()
 
 ---
 
@@ -282,8 +268,6 @@ graph TB
     CANCELLED --> ON_CANCEL
 ```
 
-**Sources:** [types.d.ts:909-931]()
-
 ### Callback Parameters
 
 | Callback | Parameters | When Called |
@@ -304,8 +288,6 @@ graph TB
 - `data`: `ISignalRow` with signal details (id, prices, timestamps)
 - `currentPrice`: Current VWAP price from `ClientExchange.getAveragePrice()`
 - `backtest`: `true` for backtest mode, `false` for live mode
-
-**Sources:** [types.d.ts:909-931](), [src/lib/client/ClientStrategy.ts]()
 
 ### Callback Example
 
@@ -358,8 +340,6 @@ addStrategy({
 });
 ```
 
-**Sources:** [types.d.ts:909-931]()
-
 ---
 
 ## Risk Integration
@@ -400,8 +380,6 @@ addStrategy({
 5. If any validation throws, signal is rejected and `riskSubject` emits event
 6. If all validations pass, signal proceeds to opened/scheduled state
 
-**Sources:** [types.d.ts:952-954](), [src/lib/client/ClientStrategy.ts](), [src/lib/client/ClientRisk.ts]()
-
 ---
 
 ## Signal Types: Immediate vs Scheduled
@@ -423,8 +401,6 @@ graph TB
     SCHEDULED --> ACTIVATE
     SCHEDULED --> CANCEL
 ```
-
-**Sources:** [types.d.ts:855-873](), [src/lib/client/ClientStrategy.ts]()
 
 ### Immediate Signal Example
 
@@ -462,8 +438,6 @@ getSignal: async (symbol, when) => {
 - If short: activation when `candle.high >= priceOpen`
 - On activation: converts to opened signal, calls `onOpen`, begins TP/SL monitoring
 - If not activated within `CC_SCHEDULE_AWAIT_MINUTES`, calls `onCancel` and removes signal
-
-**Sources:** [types.d.ts:10](), [src/lib/client/ClientStrategy.ts]()
 
 ---
 
@@ -567,4 +541,3 @@ addStrategy({
 });
 ```
 
-**Sources:** [src/function/add.ts:18-64](), [types.d.ts:936-955](), [types.d.ts:909-931]()

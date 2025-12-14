@@ -85,7 +85,7 @@ graph TB
     CP --> PPA
 ```
 
-**Sources:** [docs/internals.md:28-40](), High-Level System Architecture Diagram 1
+, High-Level System Architecture Diagram 1
 
 ---
 
@@ -123,8 +123,6 @@ The Public API Layer provides user-facing functions that serve as the framework'
 | `listenSignalLive()` | Live signals only | `signalLiveEmitter` |
 | `listenError()` | Recoverable errors | `errorEmitter` |
 | `listenExit()` | Fatal errors | `exitEmitter` |
-
-**Sources:** [src/function/add.ts:1-444](), [src/function/list.ts:1-261](), [docs/internals.md:133-389]()
 
 ---
 
@@ -177,8 +175,6 @@ Each orchestration class implements two execution patterns:
 
 The background pattern wraps the generator in error handling and emits completion events via `doneBacktestSubject`, `doneLiveSubject`, or `doneWalkerSubject`.
 
-**Sources:** [src/classes/Backtest.ts](), [src/classes/Live.ts](), [src/classes/Walker.ts](), [src/classes/Optimizer.ts](), [docs/internals.md:54-82]()
-
 ---
 
 ## Layer 3: Service Layer
@@ -224,8 +220,6 @@ Provides foundational logging functionality used by all other services.
 |---------|--------|---------|
 | `LoggerService` | `TYPES.loggerService` | Structured logging with context injection |
 
-**Sources:** [src/lib/index.ts:60-62](), [src/lib/core/types.ts:1-3](), [src/lib/core/provide.ts:55-57]()
-
 ### 3.2 Context Services
 
 Manages execution context propagation using `di-scoped` pattern.
@@ -234,8 +228,6 @@ Manages execution context propagation using `di-scoped` pattern.
 |---------|--------|---------|
 | `ExecutionContextService` | `TYPES.executionContextService` | `symbol`, `when`, `backtest` flag |
 | `MethodContextService` | `TYPES.methodContextService` | `strategyName`, `exchangeName`, `frameName` routing |
-
-**Sources:** [src/lib/index.ts:64-71](), [src/lib/core/types.ts:5-8](), [src/lib/core/provide.ts:59-62]()
 
 ### 3.3 Schema Services
 
@@ -250,8 +242,6 @@ Implements registry pattern for configuration storage using `ToolRegistry` from 
 | `SizingSchemaService` | `TYPES.sizingSchemaService` | `ISizingSchema` |
 | `RiskSchemaService` | `TYPES.riskSchemaService` | `IRiskSchema` |
 | `OptimizerSchemaService` | `TYPES.optimizerSchemaService` | `IOptimizerSchema` |
-
-**Sources:** [src/lib/index.ts:97-111](), [src/lib/core/types.ts:20-28](), [src/lib/core/provide.ts:74-82]()
 
 ### 3.4 Validation Services
 
@@ -268,8 +258,6 @@ Enforces schema existence and structural validation with memoization for perform
 | `OptimizerValidationService` | `TYPES.optimizerValidationService` | Optimizer configuration |
 | `ConfigValidationService` | `TYPES.configValidationService` | Global config viability |
 
-**Sources:** [src/lib/index.ts:188-213](), [src/lib/core/types.ts:73-82](), [src/lib/core/provide.ts:127-136]()
-
 ### 3.5 Connection Services
 
 Provides memoized client instance factories. Each service caches client instances by unique keys.
@@ -284,8 +272,6 @@ Provides memoized client instance factories. Each service caches client instance
 | `OptimizerConnectionService` | `TYPES.optimizerConnectionService` | `optimizerName` | `ClientOptimizer` |
 | `PartialConnectionService` | `TYPES.partialConnectionService` | `symbol` | `ClientPartial` |
 
-**Sources:** [src/lib/index.ts:73-95](), [src/lib/core/types.ts:10-18](), [src/lib/core/provide.ts:64-72]()
-
 ### 3.6 Core Services
 
 Implements domain logic for strategy execution, exchange data, and timeframe generation.
@@ -295,8 +281,6 @@ Implements domain logic for strategy execution, exchange data, and timeframe gen
 | `StrategyCoreService` | `TYPES.strategyCoreService` | `tick()`, `backtest()` signal lifecycle |
 | `ExchangeCoreService` | `TYPES.exchangeCoreService` | `getCandles()`, VWAP calculation |
 | `FrameCoreService` | `TYPES.frameCoreService` | `getTimeframe()` date iteration |
-
-**Sources:** [src/lib/index.ts:113-117](), [src/lib/core/types.ts:30-34](), [src/lib/core/provide.ts:84-88]()
 
 ### 3.7 Global Services
 
@@ -309,8 +293,6 @@ Manages shared state across multiple strategy instances.
 | `OptimizerGlobalService` | `TYPES.optimizerGlobalService` | LLM orchestration |
 | `PartialGlobalService` | `TYPES.partialGlobalService` | P/L milestone tracking |
 
-**Sources:** [src/lib/index.ts:119-128](), [src/lib/core/types.ts:36-41](), [src/lib/core/provide.ts:90-95]()
-
 ### 3.8 Command Services
 
 High-level orchestrators that validate inputs and delegate to Logic Services.
@@ -320,8 +302,6 @@ High-level orchestrators that validate inputs and delegate to Logic Services.
 | `BacktestCommandService` | `TYPES.backtestCommandService` | Backtest execution |
 | `LiveCommandService` | `TYPES.liveCommandService` | Live execution |
 | `WalkerCommandService` | `TYPES.walkerCommandService` | Walker execution |
-
-**Sources:** [src/lib/index.ts:130-138](), [src/lib/core/types.ts:43-47](), [src/lib/core/provide.ts:97-101]()
 
 ### 3.9 Logic Services
 
@@ -335,8 +315,6 @@ Implements execution flow as async generators with public/private split. Public 
 | `LiveLogicPrivateService` | `TYPES.liveLogicPrivateService` | Infinite loop |
 | `WalkerLogicPublicService` | `TYPES.walkerLogicPublicService` | Context wrapper |
 | `WalkerLogicPrivateService` | `TYPES.walkerLogicPrivateService` | Sequential backtests |
-
-**Sources:** [src/lib/index.ts:140-162](), [src/lib/core/types.ts:49-59](), [src/lib/core/provide.ts:103-113]()
 
 ### 3.10 Markdown Services
 
@@ -354,8 +332,6 @@ Generates reports by subscribing to event emitters and accumulating data with bo
 | `OutlineMarkdownService` | `TYPES.outlineMarkdownService` | N/A | N/A |
 | `RiskMarkdownService` | `TYPES.riskMarkdownService` | `riskSubject` | Unbounded |
 
-**Sources:** [src/lib/index.ts:164-186](), [src/lib/core/types.ts:61-71](), [src/lib/core/provide.ts:115-125]()
-
 ### 3.11 Template Services
 
 Generates code templates for optimizer output.
@@ -363,8 +339,6 @@ Generates code templates for optimizer output.
 | Service | Symbol | Purpose |
 |---------|--------|---------|
 | `OptimizerTemplateService` | `TYPES.optimizerTemplateService` | Default code templates |
-
-**Sources:** [src/lib/index.ts:215-219](), [src/lib/core/types.ts:84-86](), [src/lib/core/provide.ts:138-140]()
 
 ---
 
@@ -415,7 +389,7 @@ graph TB
 | `ClientOptimizer` | LLM integration | `run()`, Template merging |
 | `ClientPartial` | P/L milestone tracking | `check()`, Set-based deduplication |
 
-**Sources:** [docs/internals.md:30](), High-Level System Architecture Diagram 1
+, High-Level System Architecture Diagram 1
 
 ---
 
@@ -464,8 +438,6 @@ graph LR
 | `PersistScheduleAdapter` | `./schedules/{symbol}_{strategyName}.json` | Scheduled signals |
 | `PersistRiskAdapter` | `./risk/{riskName}.json` | Active positions |
 | `PersistPartialAdapter` | `./partial/{symbol}_{strategyName}.json` | P/L milestones |
-
-**Sources:** [docs/internals.md:38](), [docs/internals.md:50]()
 
 ---
 
@@ -516,7 +488,7 @@ sequenceDiagram
     CMD-->>API: Return async generator
 ```
 
-**Sources:** [docs/internals.md:54-66](), High-Level System Architecture Diagram 2
+, High-Level System Architecture Diagram 2
 
 ---
 
@@ -563,7 +535,7 @@ graph TB
     CTX --> BASE
 ```
 
-**Sources:** [src/lib/index.ts:221-234](), High-Level System Architecture Diagram 3
+, High-Level System Architecture Diagram 3
 
 ---
 
@@ -584,4 +556,3 @@ This architecture enables:
 - **Type Safety** - Discriminated unions and TypeScript throughout
 - **Crash Recovery** - Persistence Layer enables state restoration
 
-**Sources:** [docs/internals.md:10-52](), [src/lib/index.ts:1-242](), [src/lib/core/types.ts:1-104](), [src/lib/core/provide.ts:1-141]()

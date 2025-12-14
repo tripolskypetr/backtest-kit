@@ -20,8 +20,6 @@ The risk management system enforces portfolio-level constraints on signal creati
 - Event emission for rejected signals
 - Strategy-level or portfolio-level scoping
 
-**Sources:** [types.d.ts:546-691](), [src/interfaces/Risk.interface.ts](), [README.md:76-95]()
-
 ---
 
 ## Risk Schema Registration
@@ -52,8 +50,6 @@ interface IRiskValidation {
 | `note` | `string` | No | Developer documentation |
 | `validations` | `Array` | Yes | Array of validation functions or validation objects |
 | `callbacks` | `Object` | No | `onRejected`, `onAllowed` event hooks |
-
-**Sources:** [types.d.ts:606-634](), [src/function/add.ts](), [test/e2e/risk.test.mjs:35-56]()
 
 ---
 
@@ -125,8 +121,6 @@ interface IRiskActivePosition {
 }
 ```
 
-**Sources:** [types.d.ts:588-620](), [test/e2e/risk.test.mjs:146-160](), [test/e2e/risk.test.mjs:229-234]()
-
 ---
 
 ## Risk Check Lifecycle
@@ -195,8 +189,6 @@ graph TB
     style AddPosition fill:#e8f5e9,stroke:#333,stroke-width:2px
 ```
 
-**Sources:** [src/client/ClientStrategy.ts:375-387](), [src/client/ClientRisk.ts](), [src/client/ClientStrategy.ts:712-729]()
-
 ---
 
 ## Risk Check Arguments
@@ -242,8 +234,6 @@ graph LR
 **Key Distinction:**
 - `IRiskCheckArgs` - Input to `checkSignal()` from strategy
 - `IRiskValidationPayload` - Extended payload passed to validation functions, includes `activePositionCount` and `activePositions[]`
-
-**Sources:** [types.d.ts:546-564](), [types.d.ts:588-605](), [src/client/ClientRisk.ts]()
 
 ---
 
@@ -315,8 +305,6 @@ interface IRiskActivePosition {
 - Format: `{ positions: IRiskActivePosition[] }`
 - Atomic writes via `singleshot` pattern
 - Loaded during `checkSignal()` to populate `activePositions`
-
-**Sources:** [src/client/ClientRisk.ts](), [src/classes/Persist.ts](), [types.d.ts:566-577]()
 
 ---
 
@@ -391,8 +379,6 @@ graph TB
 | `PersistRiskAdapter` | [src/classes/Persist.ts]() | Position persistence (JSON) |
 | `riskSubject` | [src/config/emitters.ts:131]() | Rejection event emitter |
 | `MergeRisk` | [src/classes/Risk.ts]() | Multi-risk composition |
-
-**Sources:** [src/lib/services/connection/RiskConnectionService.ts](), [src/client/ClientRisk.ts](), [src/classes/Persist.ts](), [src/lib/services/connection/StrategyConnectionService.ts:27-67]()
 
 ---
 
@@ -501,8 +487,6 @@ addStrategy({
 
 **Short-Circuit:** If any validation fails, remaining profiles are not checked and signal is rejected.
 
-**Sources:** [src/lib/services/connection/StrategyConnectionService.ts:33-67](), [src/classes/Risk.ts](), [types.d.ts:949-955]()
-
 ---
 
 ## Event System Integration
@@ -580,8 +564,6 @@ listenRiskOnce(
 - `callbacks.onRejected(symbol, params)` - Called when signal rejected (before event emission)
 - `callbacks.onAllowed(symbol, params)` - Called when signal passes all validations
 
-**Sources:** [src/client/ClientRisk.ts](), [src/config/emitters.ts:127-131](), [src/function/event.ts](), [types.d.ts:580-586]()
-
 ---
 
 ## Risk Statistics and Reporting
@@ -626,8 +608,6 @@ await Risk.dump("my-risk-profile");
 - Average active positions at rejection
 - Full rejection event table (timestamp, symbol, strategy, reason, positions)
 
-**Sources:** [src/lib/services/markdown/RiskMarkdownService.ts](), [src/classes/Risk.ts](), [test/spec/risk.test.mjs]()
-
 ---
 
 ## Configuration Parameters
@@ -653,8 +633,6 @@ setConfig({
   CC_MAX_SIGNAL_LIFETIME_MINUTES: 720,      // Max 12 hours per signal
 });
 ```
-
-**Sources:** [types.d.ts:5-115](), [src/client/ClientStrategy.ts:45-330](), [src/config/params.ts]()
 
 ---
 
@@ -750,4 +728,3 @@ addRisk({
 });
 ```
 
-**Sources:** [test/e2e/risk.test.mjs:21-127](), [test/e2e/risk.test.mjs:212-317](), [test/e2e/risk.test.mjs:387-463]()

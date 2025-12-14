@@ -27,8 +27,6 @@ All event communication flows through typed Subject instances exported from [src
 | **Filtering** | Separate emitters for live/backtest | Targeted subscriptions |
 | **Once Semantics** | `Once` listener variants | Single-shot reactions |
 
-Sources: [src/config/emitters.ts:1-133](), [src/function/event.ts:1-548](), [docs/internals.md:83-90]()
-
 ## Event Emitter Taxonomy
 
 The framework organizes 18 event emitters into six functional categories. Each emitter is a `functools-kit` Subject instance that implements the Observable pattern.
@@ -96,8 +94,6 @@ graph TB
 | `partialProfitSubject` | `PartialProfitContract` | Profit level milestones | ClientPartial |
 | `partialLossSubject` | `PartialLossContract` | Loss level milestones | ClientPartial |
 | `riskSubject` | `RiskContract` | Risk rejection events (rejections only) | ClientRisk |
-
-Sources: [src/config/emitters.ts:15-132](), [types.d.ts:1-6000]()
 
 ## Event Producers
 
@@ -204,8 +200,6 @@ sequenceDiagram
     SBE->>BMS: subscribe callback
     BMS->>BMS: Accumulate statistics
 ```
-
-Sources: [src/lib/services/logic/private/BacktestLogicPrivateService.ts](), [src/lib/services/logic/private/LiveLogicPrivateService.ts](), [src/lib/services/logic/private/WalkerLogicPrivateService.ts](), [src/lib/services/markdown/BacktestMarkdownService.ts:564-567]()
 
 ## Event Listeners and Public API
 
@@ -366,8 +360,6 @@ const unsubscribe = listenSignal((event) => {
 unsubscribe();
 ```
 
-Sources: [src/function/event.ts:45-548](), [types.d.ts:1-6000]()
-
 ## Queued Async Processing
 
 All listener functions wrap user callbacks with `queued()` from `functools-kit` to ensure sequential async execution. This prevents race conditions and maintains event ordering even when callbacks perform async operations like database writes or API calls.
@@ -476,8 +468,6 @@ protected init = singleshot(async () => {
 });
 ```
 
-Sources: [src/function/event.ts:70-548](), [docs/internals.md:84-89]()
-
 ## Event Payload Contracts
 
 Event payloads are strongly typed interfaces (contracts) that define the data structure emitted by each event. All contracts are defined in [types.d.ts]() and exported contract files in [src/contract/]().
@@ -558,8 +548,6 @@ if (event.action === 'closed') {
   console.log(event.signal.priceOpen);
 }
 ```
-
-Sources: [types.d.ts:974-1007](), [src/contract/Done.contract.ts](), [src/contract/ProgressBacktest.contract.ts](), [src/contract/Walker.contract.ts](), [src/contract/PartialProfit.contract.ts](), [src/contract/PartialLoss.contract.ts](), [src/contract/Risk.contract.ts](), [src/contract/Performance.contract.ts]()
 
 ## Internal Event Consumers
 
@@ -676,8 +664,6 @@ const report = await Backtest.getReport("BTCUSDT", "my-strategy");
 await Backtest.dump("BTCUSDT", "my-strategy", "./reports");
 ```
 
-Sources: [src/lib/services/markdown/BacktestMarkdownService.ts:564-567](), [src/lib/services/markdown/LiveMarkdownService.ts:771-774](), [src/lib/services/markdown/LiveMarkdownService.ts:258-300](), [src/lib/services/markdown/ScheduleMarkdownService.ts](), [src/lib/services/markdown/HeatMarkdownService.ts](), [src/lib/services/markdown/PartialMarkdownService.ts](), [src/lib/services/markdown/RiskMarkdownService.ts](), [src/lib/services/markdown/PerformanceMarkdownService.ts](), [src/lib/services/markdown/WalkerMarkdownService.ts]()
-
 ## Common Event Flow Patterns
 
 This section demonstrates common event flow patterns for typical use cases.
@@ -707,8 +693,6 @@ sequenceDiagram
     User->>SE: unsubscribe()
 ```
 
-Sources: [src/function/event.ts:70-73]()
-
 ### Pattern 2: Waiting for Specific Event
 
 Use `listenSignalOnce` to wait for a specific condition:
@@ -737,8 +721,6 @@ sequenceDiagram
     end
 ```
 
-Sources: [src/function/event.ts:107-113]()
-
 ### Pattern 3: Background Execution with Completion
 
 Start background task and wait for completion:
@@ -765,8 +747,6 @@ sequenceDiagram
     CB-->>User: Notify completion
 ```
 
-Sources: [src/function/event.ts:375-382](), [src/classes/Backtest.ts]()
-
 ### Pattern 4: Progress Tracking
 
 Monitor backtest or walker progress:
@@ -786,8 +766,6 @@ sequenceDiagram
         Note over UI: processed/total * 100%
     end
 ```
-
-Sources: [src/function/event.ts:423-432]()
 
 ### Pattern 5: Risk Rejection Monitoring
 
@@ -816,8 +794,6 @@ sequenceDiagram
 ```
 
 The `riskSubject` only emits rejection events to prevent spam from allowed signals.
-
-Sources: [src/config/emitters.ts:127-132](), [types.d.ts:2244-2267]()
 
 ### Pattern 6: Partial Profit/Loss Tracking
 
@@ -848,8 +824,6 @@ sequenceDiagram
     
     Note over CP: 10% already emitted, skip
 ```
-
-Sources: [src/config/emitters.ts:115-124](), [types.d.ts:694-847]()
 
 ## Bidirectional Event: Walker Stop
 
@@ -893,8 +867,6 @@ walkerStopSubject.subscribe((stop) => {
 
 This enables graceful cancellation of long-running walker comparisons without process termination.
 
-Sources: [src/config/emitters.ts:100-107](), [src/contract/WalkerStop.contract.ts]()
-
 ## Summary
 
 The event-driven architecture in backtest-kit provides:
@@ -912,4 +884,3 @@ The event-driven architecture in backtest-kit provides:
 
 The architecture supports both internal framework operations (markdown reports, statistics) and user-defined event-driven logic (monitoring, alerting, custom analytics) through a consistent API.
 
-Sources: [src/config/emitters.ts:1-133](), [src/function/event.ts:1-548](), [docs/internals.md:83-90]()

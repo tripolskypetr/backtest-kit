@@ -24,8 +24,6 @@ The framework implements four distinct execution modes, each with different char
 | **Walker** | Strategy comparison | Sequential backtests | Finite generator | Comparative statistics | None (delegates to Backtest) |
 | **Optimizer** | LLM code generation | Multi-timeframe data | Single execution | Generated .mjs file | File system output |
 
-**Sources:** [src/classes/Backtest.ts:1-594](), [src/classes/Live.ts:1-607](), [src/classes/Walker.ts:1-643](), [types.d.ts:1-365609]()
-
 ## Mode Architecture Overview
 
 ```mermaid
@@ -92,8 +90,6 @@ graph TB
     WalkerLogicPriv --> MethodCtx
 ```
 
-**Sources:** [src/classes/Backtest.ts:355-593](), [src/classes/Live.ts:372-606](), [src/classes/Walker.ts:418-643](), [src/lib/index.ts:1-195]()
-
 ## Backtest Mode
 
 ### Purpose
@@ -129,8 +125,6 @@ graph LR
 - No persistence overhead (stateless execution)
 
 **Output:** Async generator yielding `IStrategyTickResultClosed` only. Filters out idle/active states.
-
-**Sources:** [src/classes/Backtest.ts:355-593](), [src/lib/services/logic/private/BacktestLogicPrivateService.ts:1-199](), [types.d.ts:974-1095]()
 
 ## Live Mode
 
@@ -173,8 +167,6 @@ graph LR
 - Ensures open positions complete normally before exit
 
 **Output:** Async generator yielding all tick types: `idle`, `opened`, `active`, `closed`, `scheduled`, `cancelled`
-
-**Sources:** [src/classes/Live.ts:372-606](), [src/lib/services/logic/private/LiveLogicPrivateService.ts:1-134](), [types.d.ts:974-1095]()
 
 ## Walker Mode
 
@@ -224,8 +216,6 @@ interface IWalkerSchema {
 - Stops current running strategy and prevents subsequent strategies from executing
 
 **Output:** Async generator yielding `WalkerContract` after each strategy completion
-
-**Sources:** [src/classes/Walker.ts:418-643](), [src/lib/services/logic/private/WalkerLogicPrivateService.ts:1-204](), [types.d.ts:2175-2257]()
 
 ## Optimizer Mode
 
@@ -279,8 +269,6 @@ interface IOptimizerSchema {
 
 **Output:** Returns generated code string, no async generator pattern
 
-**Sources:** [types.d.ts:2507-2647](), [src/lib/services/template/OptimizerTemplateService.ts:1-203](), [demo/optimization/src/index.mjs:1-154]()
-
 ## Mode Comparison by Data Flow
 
 ### Time Progression
@@ -333,8 +321,6 @@ if (result.action === "opened" || result.action === "closed") {
 // idle and active are filtered out to reduce noise
 ```
 
-**Sources:** [src/lib/services/logic/private/BacktestLogicPrivateService.ts:1-199](), [src/lib/services/logic/private/LiveLogicPrivateService.ts:1-134]()
-
 ## Persistence Patterns
 
 ### Backtest: Stateless
@@ -371,8 +357,6 @@ graph LR
 - Returns `null` if no persisted state exists (first run)
 - Returns `ISignalRow` if previous state exists (recovery)
 
-**Sources:** [src/classes/Persist.ts:1-372](), [src/client/ClientStrategy.ts:1-874]()
-
 ## When to Use Each Mode
 
 ### Use Backtest When:
@@ -406,8 +390,6 @@ graph LR
 - Exploring new trading ideas with AI
 - Exporting complete executable code
 - Iterative prompt engineering
-
-**Sources:** [docs/internals.md:104-113](), [types.d.ts:1-365609]()
 
 ## Code Entry Points
 
@@ -541,4 +523,3 @@ Each execution mode emits to specific event subjects for monitoring:
 - `exitEmitter` - Fatal errors requiring process termination
 - `performanceEmitter` - Execution metrics across all modes
 
-**Sources:** [src/config/emitters.ts:1-133](), [src/function/event.ts:1-610]()

@@ -94,8 +94,6 @@ graph TB
     LogicServices --> MarkdownServices
 ```
 
-**Sources:** [docs/internals.md:28-40](), [src/lib/index.ts:1-242]()
-
 ---
 
 ## Layered Architecture
@@ -115,8 +113,6 @@ The layered design ensures:
 - **Maintainability**: Changes to one layer don't cascade to others
 - **Scalability**: New features added at appropriate layers
 - **Clarity**: Responsibilities clearly separated
-
-**Sources:** [docs/internals.md:28-40](), [types.d.ts:1-100]()
 
 For detailed layer descriptions, see [Layered Architecture](./07-layered-architecture.md).
 
@@ -175,8 +171,6 @@ graph LR
     init --> backtestObject
 ```
 
-**Sources:** [src/lib/core/types.ts:1-104](), [src/lib/core/provide.ts:1-141](), [src/lib/index.ts:1-242]()
-
 ### Symbol-Based Keys
 
 Each service is registered using a unique Symbol identifier defined in [src/lib/core/types.ts:1-104](). Symbols prevent naming collisions and provide type-safe service resolution:
@@ -194,8 +188,6 @@ const schemaServices = {
 };
 ```
 
-**Sources:** [src/lib/core/types.ts:1-28]()
-
 ### Service Registration
 
 Services are registered via factory functions in [src/lib/core/provide.ts:1-141](). Each registration associates a Symbol key with a factory that creates the service instance:
@@ -206,8 +198,6 @@ provide(TYPES.loggerService, () => new LoggerService());
 provide(TYPES.strategySchemaService, () => new StrategySchemaService());
 provide(TYPES.strategyConnectionService, () => new StrategyConnectionService());
 ```
-
-**Sources:** [src/lib/core/provide.ts:55-141]()
 
 ### The `backtest` Aggregation Object
 
@@ -233,8 +223,6 @@ export const backtest = {
 
 Internal services access dependencies through this object (e.g., `backtest.loggerService`, `backtest.strategyConnectionService`).
 
-**Sources:** [src/lib/index.ts:221-242]()
-
 For implementation details, see [Dependency Injection System](./08-dependency-injection-system.md).
 
 ---
@@ -257,8 +245,6 @@ The service layer is organized into 11 categories, each with a specific responsi
 | **Markdown** | 9 | Report generation and statistics | `BacktestMarkdownService`, `LiveMarkdownService`, `ScheduleMarkdownService`, `WalkerMarkdownService`, `PerformanceMarkdownService`, `HeatMarkdownService`, `PartialMarkdownService`, `RiskMarkdownService`, `OutlineMarkdownService` |
 | **Template** | 1 | Code generation templates | `OptimizerTemplateService` |
 
-**Sources:** [src/lib/index.ts:60-219](), [src/lib/core/types.ts:1-104]()
-
 ### Service Dependency Patterns
 
 Services follow consistent dependency patterns:
@@ -270,8 +256,6 @@ Services follow consistent dependency patterns:
 5. **Global Services** → Wrap Core Services with ExecutionContext/MethodContext
 6. **Logic Services** → Depend on Core Services, implement async generators
 7. **Command Services** → Depend on Logic and Validation Services, validate and execute
-
-**Sources:** [docs/internals.md:31-37]()
 
 For detailed service descriptions, see [Service Categories](./09-service-categories.md).
 
@@ -330,8 +314,6 @@ graph TB
     PartialConnectionService --> ClientPartial
 ```
 
-**Sources:** [src/lib/services/connection/StrategyConnectionService.ts:1-100](), [src/client/ClientStrategy.ts:1-500](), [docs/internals.md:30-31]()
-
 ### Client Characteristics
 
 1. **No DI Dependencies**: Clients receive dependencies via constructor parameters, not through the DI container
@@ -348,8 +330,6 @@ graph TB
 - **ClientRisk** [src/client/ClientRisk.ts](): Portfolio-level validation, position tracking
 - **ClientOptimizer** [src/client/ClientOptimizer.ts](): LLM integration, strategy code generation
 - **ClientPartial** [src/client/ClientPartial.ts](): Profit/loss milestone tracking
-
-**Sources:** [docs/internals.md:30-31]()
 
 For detailed client implementations, see [Client Layer](./10-client-layer.md).
 
@@ -410,8 +390,6 @@ graph TB
     BacktestLogicPrivate --> MarkdownServices
 ```
 
-**Sources:** [src/classes/Backtest.ts:1-100](), [src/lib/services/logic/private/BacktestLogicPrivateService.ts:1-200](), [docs/internals.md:54-67]()
-
 ### Execution Steps
 
 1. **Public API Layer**: User calls `Backtest.run(symbol, context)` from [src/classes/Backtest.ts]()
@@ -423,8 +401,6 @@ graph TB
 7. **Client Layer**: `ClientFrame` generates dates, `ClientStrategy` executes tick/backtest logic, `ClientExchange` fetches candles
 8. **Service Layer - Markdown**: Collects signals and generates statistics
 9. **Orchestration Layer**: Yields results through generator back to user
-
-**Sources:** [docs/internals.md:54-67]()
 
 ---
 
@@ -444,4 +420,3 @@ This architecture enables:
 - **Extensibility**: New features added without modifying existing code
 - **Performance**: Memoization and prototype methods minimize memory overhead
 
-**Sources:** [docs/internals.md:10-52](), [src/lib/index.ts:1-242](), [types.d.ts:1-500]()

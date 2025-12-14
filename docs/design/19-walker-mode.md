@@ -9,8 +9,6 @@ Walker Mode provides strategy comparison and A/B testing capabilities by executi
 
 For general execution mode concepts, see [Execution Modes Overview](./04-execution-modes-overview.md). For individual backtest mechanics, see [Backtest Mode](./17-backtest-mode.md). For LLM-based strategy generation, see [Optimizer Mode](./20-optimizer-mode.md).
 
-**Sources**: [src/classes/Walker.ts:1-678](), [src/lib/services/logic/private/WalkerLogicPrivateService.ts:1-263]()
-
 ## Overview
 
 Walker Mode executes backtests sequentially for a list of strategies, tracking the best-performing strategy in real-time. It yields progress updates after each strategy completes, allowing consumers to monitor comparison progress or terminate early.
@@ -25,8 +23,6 @@ Walker Mode executes backtests sequentially for a list of strategies, tracking t
 | `BacktestLogicPublicService` | [src/lib/services/logic/public/BacktestLogicPublicService.ts]() | Delegates to individual backtests |
 | `BacktestMarkdownService` | [src/lib/services/markdown/BacktestMarkdownService.ts]() | Retrieves strategy statistics |
 | `WalkerMarkdownService` | [src/lib/services/markdown/WalkerMarkdownService.ts]() | Aggregates comparison results |
-
-**Sources**: [src/classes/Walker.ts:1-678](), [src/lib/services/logic/private/WalkerLogicPrivateService.ts:1-263]()
 
 ## Walker Schema Configuration
 
@@ -73,8 +69,6 @@ interface IWalkerCallbacks {
 ```
 
 Callbacks fire at key points during walker execution: before starting each strategy, after completing each strategy, on strategy errors, and when all strategies finish.
-
-**Sources**: [types.d.ts:1385-1520](), [src/function/add.ts:200-250]()
 
 ## Execution Flow
 
@@ -143,8 +137,6 @@ graph TB
     style COMPARE fill:#ffe1e1,stroke:#333,stroke-width:2px
 ```
 
-**Sources**: [src/classes/Walker.ts:144-193](), [src/lib/services/logic/private/WalkerLogicPrivateService.ts:68-260]()
-
 ### Sequential Backtest Execution
 
 ```mermaid
@@ -201,8 +193,6 @@ graph LR
 
 Each strategy executes a complete backtest before the next strategy begins. Progress is yielded after each strategy completes, not during individual strategy execution.
 
-**Sources**: [src/lib/services/logic/private/WalkerLogicPrivateService.ts:115-232]()
-
 ## Strategy Comparison Logic
 
 ### Metric Extraction and Comparison
@@ -237,8 +227,6 @@ if (isBetter && metricValue !== null) {
 
 Invalid metric values (null, undefined, NaN, Infinity) are treated as `null` and never considered best. The comparison always uses `>` (greater than), so higher values win.
 
-**Sources**: [src/lib/services/logic/private/WalkerLogicPrivateService.ts:169-190]()
-
 ### WalkerContract Structure
 
 After each strategy completes, the walker yields a `WalkerContract` with progress and current best:
@@ -257,8 +245,6 @@ After each strategy completes, the walker yields a `WalkerContract` with progres
 | `bestStrategy` | `string \| null` | Best strategy name so far |
 | `strategiesTested` | `number` | Number of strategies completed |
 | `totalStrategies` | `number` | Total strategies to test |
-
-**Sources**: [src/contract/Walker.contract.ts:1-20](), [src/lib/services/logic/private/WalkerLogicPrivateService.ts:194-207]()
 
 ### Final Results Structure
 
@@ -279,8 +265,6 @@ interface IWalkerResults {
 ```
 
 The `bestStats` field contains the full statistics object for the winning strategy, retrieved via `BacktestMarkdownService.getData()`.
-
-**Sources**: [types.d.ts:1485-1520](), [src/lib/services/logic/private/WalkerLogicPrivateService.ts:238-251]()
 
 ## Event System
 
@@ -330,8 +314,6 @@ graph TB
     style WALKER_LOGIC fill:#e1f5ff,stroke:#333,stroke-width:2px
 ```
 
-**Sources**: [src/config/emitters.ts:68-106](), [src/function/event.ts:514-731]()
-
 ### Progress Tracking
 
 The `progressWalkerEmitter` emits after each strategy completes:
@@ -349,8 +331,6 @@ interface ProgressWalkerContract {
 ```
 
 Progress is calculated as `processedStrategies / totalStrategies`.
-
-**Sources**: [src/contract/ProgressWalker.contract.ts:1-8](), [src/lib/services/logic/private/WalkerLogicPrivateService.ts:210-218]()
 
 ## Stop Mechanism
 
@@ -371,8 +351,6 @@ const unsubscribe = walkerStopSubject
 ```
 
 The `stoppedStrategies` Set accumulates stop signals for strategies in this walker instance only.
-
-**Sources**: [src/lib/services/logic/private/WalkerLogicPrivateService.ts:93-111]()
 
 ### Stop Propagation
 
@@ -416,13 +394,9 @@ When `Walker.stop()` is called, it:
 
 The `WalkerLogicPrivateService` receives stop signals and accumulates them in a Set. Before starting each new strategy, it checks if that strategy is in the stopped Set and breaks the loop if true.
 
-**Sources**: [src/classes/Walker.ts:270-282](), [src/classes/Walker.ts:527-541](), [src/lib/services/logic/private/WalkerLogicPrivateService.ts:93-111](), [src/lib/services/logic/private/WalkerLogicPrivateService.ts:117-125]()
-
 ### Graceful Termination
 
 Stop signals do not interrupt currently running backtests. The active strategy completes its backtest normally, then the walker checks the stopped Set before starting the next strategy and terminates gracefully.
-
-**Sources**: [src/lib/services/logic/private/WalkerLogicPrivateService.ts:117-125]()
 
 ## Results and Reporting
 
@@ -443,8 +417,6 @@ const markdown = await Walker.getReport("BTCUSDT", "my-walker");
 await Walker.dump("BTCUSDT", "my-walker");
 // Writes to: ./dump/walker/my-walker.md (default)
 ```
-
-**Sources**: [src/classes/Walker.ts:556-641]()
 
 ### WalkerMarkdownService
 
@@ -473,8 +445,6 @@ interface IWalkerStrategyResult {
 
 The service subscribes to `walkerEmitter` and accumulates results for each strategy. When `getData()` or `getReport()` is called, it sorts strategies by metric value (descending) and generates a ranked comparison.
 
-**Sources**: [src/lib/services/markdown/WalkerMarkdownService.ts](), [types.d.ts:1465-1483]()
-
 ## Instance Management
 
 ### Memoized Instance Pattern
@@ -498,8 +468,6 @@ Each instance maintains its own state:
 
 This allows multiple walkers to run on the same symbol simultaneously without interference.
 
-**Sources**: [src/classes/Walker.ts:423-428](), [src/classes/Walker.ts:71-135]()
-
 ### Status Tracking
 
 The `Walker.list()` method returns status for all active walker instances:
@@ -516,8 +484,6 @@ const statusList = await Walker.list();
 ```
 
 The status is determined by the `singlerun` wrapper around the internal task function.
-
-**Sources**: [src/classes/Walker.ts:656-659](), [src/classes/Walker.ts:127-135]()
 
 ## Usage Example
 
@@ -587,8 +553,6 @@ console.log("Best stats:", results.bestStats);
 await Walker.dump("BTCUSDT", "strategy-comparison");
 ```
 
-**Sources**: [src/classes/Walker.ts:437-459](), [src/function/event.ts:645-695](), [src/function/event.ts:728-731]()
-
 ### Background Execution with Cancellation
 
 ```typescript
@@ -610,8 +574,6 @@ The `background()` method returns a cancellation closure that:
 2. Emits stop signals via `walkerStopSubject` for each strategy
 3. Sets `_isStopped = true` on the instance
 4. Emits completion via `doneWalkerSubject` if not already done
-
-**Sources**: [src/classes/Walker.ts:480-502](), [src/classes/Walker.ts:213-245]()
 
 ## State Cleanup
 
@@ -639,8 +601,6 @@ for (const strategyName of walkerSchema.strategies) {
 
 This ensures each strategy backtest starts from a clean state, preventing cross-contamination between sequential backtests.
 
-**Sources**: [src/classes/Walker.ts:169-186]()
-
 ### Walker Markdown Cleanup
 
 The walker markdown service is also cleared before execution:
@@ -651,4 +611,3 @@ backtest.walkerMarkdownService.clear(context.walkerName);
 
 This removes any previous walker results for the same walker name, ensuring a fresh comparison.
 
-**Sources**: [src/classes/Walker.ts:166]()

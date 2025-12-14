@@ -17,8 +17,6 @@ The demo showcases:
 
 For general Optimizer system architecture, see [Optimizer Mode](./20-optimizer-mode.md). For information on running demos in general, see [Running Demos](./39-running-demos.md).
 
-**Sources:** [demo/optimization/src/index.mjs:1-399]()
-
 ---
 
 ## Demo Architecture and Data Flow
@@ -99,8 +97,6 @@ graph TB
 5. **Code Generation**: Use `OptimizerTemplateService` to create complete executable code
 6. **File Export**: Save generated strategy to `./generated/btc-optimizer_BTCUSDT.mjs`
 
-**Sources:** [demo/optimization/src/index.mjs:1-399](), [src/client/ClientOptimizer.ts:99-215](), [src/lib/services/template/OptimizerTemplateService.ts:1-716]()
-
 ---
 
 ## Data Source Configuration
@@ -156,8 +152,6 @@ Each user message contains:
 1. Title: "# {Timeframe} Candles Trading Analysis for {symbol} (Historical Data)"
 2. Markdown table with all indicator values
 3. Data Sources section explaining each indicator with min/max ranges
-
-**Sources:** [demo/optimization/src/index.mjs:66-310](), [src/interfaces/Optimizer.interface.ts:129-177]()
 
 ---
 
@@ -230,8 +224,6 @@ content.replace(/\\/g, "\\\\")    // Escape backslashes
        .replace(/"/g, '\\"')       // Escape double quotes
        .replace(/'/g, "\\'")       // Escape single quotes
 ```
-
-**Sources:** [demo/optimization/src/index.mjs:312-359](), [src/interfaces/Optimizer.interface.ts:100-123]()
 
 ---
 
@@ -348,8 +340,6 @@ The `json()` helper uses a JSON schema to ensure structured signal output:
 | `priceStopLoss` | number | > 0 | Stop loss price |
 | `minuteEstimatedTime` | number | 0-360 | Expected duration to TP |
 
-**Sources:** [src/lib/services/template/OptimizerTemplateService.ts:1-716](), [src/client/ClientOptimizer.ts:217-350]()
-
 ---
 
 ## Environment Configuration
@@ -403,8 +393,6 @@ GET /view/micro-term-range?symbol=BTCUSDT&startDate=1732406400000&endDate=173249
 ```
 
 **Reference:** CCXT Dumper API documented at [https://github.com/tripolskypetr/node-ccxt-dumper](https://github.com/tripolskypetr/node-ccxt-dumper)
-
-**Sources:** [demo/optimization/.env.example:1-3](), [demo/optimization/src/index.mjs:66-310]()
 
 ---
 
@@ -492,8 +480,6 @@ await Optimizer.getData("BTCUSDT", {
 
 This extracts only the LLM-generated strategy text for inspection without generating full executable code.
 
-**Sources:** [demo/optimization/src/index.mjs:361-399](), [src/classes/Optimizer.ts:100-120]()
-
 ---
 
 ## Debug Output and Logging
@@ -561,4 +547,3 @@ Progress events are emitted:
 1. At the start of processing each source
 2. After completing all sources (100%)
 
-**Sources:** [src/lib/services/template/OptimizerTemplateService.ts:452-546](), [src/contract/ProgressOptimizer.contract.ts:1-31](), [src/client/ClientOptimizer.ts:99-215]()

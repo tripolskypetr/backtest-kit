@@ -11,8 +11,6 @@ This document covers the exchange configuration system, which provides market da
 
 For information about strategy configuration that consumes exchange data, see [Defining Strategies](./12-defining-strategies.md). For timeframe configuration that controls backtest periods, see [Timeframes and Frames](./24-timeframes-and-frames.md).
 
-**Sources**: [types.d.ts:309-418](), [README.md:60-75]()
-
 ---
 
 ## Exchange Schema Structure
@@ -33,8 +31,6 @@ The `getCandles` function signature:
 (symbol: string, interval: CandleInterval, since: Date, limit: number) => Promise<ICandleData[]>
 ```
 
-**Sources**: [types.d.ts:327-363](), [src/function/add.ts:66-100]()
-
 ---
 
 ## Candle Data Structure
@@ -46,8 +42,6 @@ Supported intervals for candle fetching:
 ```typescript
 type CandleInterval = "1m" | "3m" | "5m" | "15m" | "30m" | "1h" | "2h" | "4h" | "6h" | "8h"
 ```
-
-**Sources**: [types.d.ts:290-291]()
 
 ### ICandleData Format
 
@@ -63,8 +57,6 @@ interface ICandleData {
   volume: number;     // Trading volume during candle period
 }
 ```
-
-**Sources**: [types.d.ts:292-308]()
 
 ---
 
@@ -109,8 +101,6 @@ The registration process:
 3. **Connection** - [ExchangeConnectionService:18]() creates memoized [ClientExchange:14]() instances keyed by `exchangeName`
 4. **Usage** - [ExchangeCoreService:24]() delegates to ClientExchange methods
 
-**Sources**: [src/function/add.ts:101-113](), [src/lib/services/validation/ExchangeValidationService.ts](), [src/lib/services/schema/ExchangeSchemaService.ts](), [src/lib/services/connection/ExchangeConnectionService.ts]()
-
 ---
 
 ## Exchange Implementation Layers
@@ -126,8 +116,6 @@ The `IExchange` interface defines methods available to strategies:
 | `formatPrice(symbol, price)` | Format price to exchange precision | Signal validation, reporting |
 | `formatQuantity(symbol, quantity)` | Format quantity to exchange precision | Position sizing, reporting |
 | `getAveragePrice(symbol)` | Calculate VWAP from last N candles | Signal generation, execution price |
-
-**Sources**: [types.d.ts:365-413]()
 
 ### ClientExchange Implementation
 
@@ -157,8 +145,6 @@ graph LR
 
 **Diagram: ClientExchange Internal Flow**
 
-**Sources**: [src/lib/client/ClientExchange.ts]()
-
 ---
 
 ## VWAP Calculation
@@ -172,8 +158,6 @@ where Typical Price = (High + Low + Close) / 3
 ```
 
 This provides realistic execution prices by accounting for volume distribution across the price range.
-
-**Sources**: [types.d.ts:404-412](), [types.d.ts:12-15]()
 
 ---
 
@@ -190,8 +174,6 @@ Exchange data fetching is protected by configurable retry and validation setting
 | `CC_GET_CANDLES_PRICE_ANOMALY_THRESHOLD_FACTOR` | 1000 | Detects incomplete candles with near-zero prices |
 | `CC_GET_CANDLES_MIN_CANDLES_FOR_MEDIAN` | 5 | Minimum candles required for median-based anomaly detection |
 
-**Sources**: [types.d.ts:70-106]()
-
 ### Anomaly Detection Logic
 
 Incomplete candles from exchange APIs (e.g., Binance returning $0.01 for BTC) are filtered using:
@@ -201,8 +183,6 @@ Incomplete candles from exchange APIs (e.g., Binance returning $0.01 for BTC) ar
 3. **Fallback** - Use simple average if candle count < minimum
 
 Example: BTC at $50,000 median → threshold $50 → catches $0.01-1 anomalies
-
-**Sources**: [types.d.ts:80-106]()
 
 ---
 
@@ -262,8 +242,6 @@ graph TB
 | ExchangeCoreService | Core | Provides high-level API wrapping ClientExchange methods |
 | ClientExchange | Client | Implements IExchange interface with retry/anomaly logic |
 
-**Sources**: [src/lib/index.ts:97-117](), [src/lib/core/types.ts:20-34]()
-
 ---
 
 ## Context Injection
@@ -286,8 +264,6 @@ The `when` field determines:
 - **getCandles()** - Fetches candles ending at `when` (looking backward)
 - **getNextCandles()** - Fetches candles starting after `when` (looking forward, backtest only)
 
-**Sources**: [types.d.ts:242-254](), [types.d.ts:274-285]()
-
 ### MethodContextService
 
 Routes exchange lookup by name:
@@ -299,8 +275,6 @@ interface IMethodContext {
   frameName: FrameName;        // (also used for frame routing)
 }
 ```
-
-**Sources**: [types.d.ts:505-517](), [types.d.ts:537-544]()
 
 ---
 
@@ -342,8 +316,6 @@ addExchange({
 });
 ```
 
-**Sources**: [README.md:60-75](), [types.d.ts:327-363]()
-
 ### Custom Data Source
 
 Pattern for database or file-based data:
@@ -377,8 +349,6 @@ addExchange({
 });
 ```
 
-**Sources**: [src/function/add.ts:66-100]()
-
 ### Lifecycle Callbacks
 
 Optional `onCandleData` callback for monitoring:
@@ -398,8 +368,6 @@ addExchange({
 });
 ```
 
-**Sources**: [types.d.ts:320-325]()
-
 ---
 
 ## Public API Functions
@@ -412,8 +380,6 @@ function addExchange(exchangeSchema: IExchangeSchema): void
 
 Registers an exchange schema after validation. Throws error if `exchangeName` already exists or schema is invalid.
 
-**Sources**: [src/function/add.ts:101-113]()
-
 ### Listing
 
 ```typescript
@@ -421,8 +387,6 @@ async function listExchanges(): Promise<IExchangeSchema[]>
 ```
 
 Returns all registered exchange schemas. Useful for debugging or building dynamic UIs.
-
-**Sources**: [src/function/list.ts:43-46]()
 
 ### Runtime Access
 
@@ -434,8 +398,6 @@ function formatQuantity(symbol: string, quantity: number): Promise<string>
 ```
 
 These functions access the exchange configured in the current `MethodContextService` context. Called from within strategy `getSignal()` callbacks.
-
-**Sources**: [src/function/exchange.ts]()
 
 ---
 
@@ -451,8 +413,6 @@ The `ExchangeValidationService` enforces the following rules at registration:
 | formatPrice | Function exists | "formatPrice must be a function" |
 | formatQuantity | Function exists | "formatQuantity must be a function" |
 | Callbacks | If provided, must be object | "callbacks must be an object" |
-
-**Sources**: [src/lib/services/validation/ExchangeValidationService.ts]()
 
 ---
 
@@ -490,8 +450,6 @@ addExchange({
 });
 ```
 
-**Sources**: [test/mock/getMockCandles.mjs:1-42](), [test/spec/heat.test.mjs:13-28]()
-
 ---
 
 ## Error Handling
@@ -505,15 +463,11 @@ ClientExchange automatically retries failed `getCandles()` calls:
 3. Retry up to `CC_GET_CANDLES_RETRY_COUNT` (default: 3) times
 4. If all retries exhausted, propagate error to caller
 
-**Sources**: [types.d.ts:70-78]()
-
 ### Anomaly Filtering
 
 Invalid candles are silently filtered (not errors) if:
 - Price is below `median / CC_GET_CANDLES_PRICE_ANOMALY_THRESHOLD_FACTOR`
 - Occurs when exchange APIs return incomplete data (e.g., $0.01 for BTC)
-
-**Sources**: [types.d.ts:80-106]()
 
 ---
 
@@ -540,8 +494,6 @@ addStrategy({
 });
 ```
 
-**Sources**: [README.md:107-137]()
-
 ### Backtest Fast Processing
 
 During backtest, `getNextCandles()` enables skip-to-close optimization:
@@ -551,8 +503,6 @@ During backtest, `getNextCandles()` enables skip-to-close optimization:
 3. Skip intermediate ticks, jump directly to close event
 4. Process only meaningful price points
 
-**Sources**: [types.d.ts:379-386]()
-
 ### Live Trading
 
 In live mode:
@@ -560,4 +510,3 @@ In live mode:
 - `getNextCandles()` throws error (not applicable to live mode)
 - `getAveragePrice()` provides real-time VWAP for execution
 
-**Sources**: [types.d.ts:369-377]()

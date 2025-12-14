@@ -33,8 +33,6 @@ function setConfig(config: Partial<GlobalConfig>, _unsafe?: boolean): void
 4. If validation fails, restores previous config from backup and throws error
 5. If validation succeeds, new config is active immediately
 
-**Sources:** [src/function/setup.ts:39-52](), [types.d.ts:168-179]()
-
 ### getConfig()
 
 Retrieves a shallow copy of the current global configuration state.
@@ -48,8 +46,6 @@ function getConfig(): GlobalConfig
 
 **Usage:** Inspect current configuration without modifying it
 
-**Sources:** [src/function/setup.ts:68-70](), [types.d.ts:181-209]()
-
 ### getDefaultConfig()
 
 Retrieves the frozen default configuration object.
@@ -62,8 +58,6 @@ function getDefaultConfig(): Readonly<GlobalConfig>
 **Returns:** Read-only reference to `DEFAULT_CONFIG` with all preset values
 
 **Usage:** Compare current config against defaults or reset to known state
-
-**Sources:** [src/function/setup.ts:86-88](), [types.d.ts:210-239](), [src/config/params.ts:116]()
 
 ---
 
@@ -111,8 +105,6 @@ graph TB
     style Active fill:#e8f5e9,stroke:#333,stroke-width:2px
 ```
 
-**Sources:** [src/function/setup.ts:39-52](), [src/lib/services/validation/ConfigValidationService.ts:55-174]()
-
 ---
 
 ## Basic Usage Examples
@@ -135,8 +127,6 @@ setConfig({
 });
 ```
 
-**Sources:** [test/e2e/config.test.mjs:18-23](), [test/e2e/config.test.mjs:85-91]()
-
 ### Partial Updates Preserve Other Values
 
 ```typescript
@@ -154,8 +144,6 @@ setConfig({
 });
 ```
 
-**Sources:** [test/e2e/config.test.mjs:84-95]()
-
 ### Reading Current Configuration
 
 ```typescript
@@ -169,8 +157,6 @@ console.log(currentConfig.CC_PERCENT_SLIPPAGE); // Current value
 currentConfig.CC_PERCENT_FEE = 999; // Does NOT affect GLOBAL_CONFIG
 ```
 
-**Sources:** [src/function/setup.ts:68-70](), [types.d.ts:189-209]()
-
 ### Inspecting Default Values
 
 ```typescript
@@ -181,8 +167,6 @@ console.log(defaults.CC_SCHEDULE_AWAIT_MINUTES); // 120
 console.log(defaults.CC_AVG_PRICE_CANDLES_COUNT); // 5
 console.log(defaults.CC_MIN_TAKEPROFIT_DISTANCE_PERCENT); // 0.5
 ```
-
-**Sources:** [src/function/setup.ts:86-88](), [src/config/params.ts:1-116]()
 
 ---
 
@@ -229,8 +213,6 @@ graph LR
     style Throw fill:#ffcccc,stroke:#333,stroke-width:2px
 ```
 
-**Sources:** [src/lib/services/validation/ConfigValidationService.ts:55-174](), [src/function/setup.ts:43-51]()
-
 ### Example Validation Errors
 
 | Scenario | Error Message |
@@ -240,8 +222,6 @@ graph LR
 | MIN_SL > MAX_SL | `CC_MIN_STOPLOSS_DISTANCE_PERCENT (10%) must be less than CC_MAX_STOPLOSS_DISTANCE_PERCENT (5%)` |
 | Non-integer count | `CC_AVG_PRICE_CANDLES_COUNT must be a positive integer, got 5.5` |
 | Multiple errors | `GLOBAL_CONFIG validation failed:\n  1. [error1]\n  2. [error2]\n  3. [error3]` |
-
-**Sources:** [test/spec/config.test.mjs:14-26](), [test/spec/config.test.mjs:44-64](), [test/spec/config.test.mjs:419-437]()
 
 ### Error Example: Take Profit Below Cost Coverage
 
@@ -266,8 +246,6 @@ try {
   //      All TakeProfit signals will be unprofitable with current settings!
 }
 ```
-
-**Sources:** [test/spec/config.test.mjs:44-64](), [src/lib/services/validation/ConfigValidationService.ts:79-88]()
 
 ---
 
@@ -302,8 +280,6 @@ setConfig({
 }, true); // _unsafe parameter
 ```
 
-**Sources:** [test/config/setup.mjs:89-102](), [src/function/setup.ts:39](), [types.d.ts:170]()
-
 ### Production Warning
 
 **Never use `_unsafe=true` in production code.** Disabling validation can lead to:
@@ -311,8 +287,6 @@ setConfig({
 - Catastrophic losses (extreme stop loss distances)
 - System instability (negative or infinite values)
 - Mathematical errors (division by zero, NaN propagation)
-
-**Sources:** [src/function/setup.ts:30]()
 
 ---
 
@@ -362,8 +336,6 @@ graph TB
     style ConfigValidation fill:#ffe1e1,stroke:#333,stroke-width:2px
 ```
 
-**Sources:** [src/config/params.ts:1-122](), [src/function/setup.ts:1-89](), [src/helpers/toProfitLossDto.ts:44-53]()
-
 ---
 
 ## Code Entity Reference
@@ -379,8 +351,6 @@ graph TB
 | `getConfig()` | [src/function/setup.ts:68-70]() | Retrieve current configuration copy |
 | `getDefaultConfig()` | [src/function/setup.ts:86-88]() | Retrieve default configuration |
 | `ConfigValidationService` | [src/lib/services/validation/ConfigValidationService.ts:37]() | Validates configuration constraints |
-
-**Sources:** [src/index.ts:1-6](), [types.d.ts:5-122](), [src/config/params.ts:1-122]()
 
 ---
 
@@ -405,8 +375,6 @@ if (process.env.NODE_ENV === 'production') {
   });
 }
 ```
-
-**Sources:** [test/e2e/config.test.mjs:156-163]()
 
 ### Configuration Before Strategy Registration
 
@@ -434,8 +402,6 @@ Backtest.run("BTCUSDT", {
 });
 ```
 
-**Sources:** [test/e2e/config.test.mjs:156-223]()
-
 ---
 
 ## Related Pages
@@ -445,4 +411,3 @@ Backtest.run("BTCUSDT", {
 - [Risk Management](./14-risk-management.md) - How configuration affects risk validation
 - [Position Sizing](./15-position-sizing.md) - How configuration influences position calculations
 
-**Sources:** [types.d.ts:5-239](), [src/function/setup.ts:1-89](), [src/config/params.ts:1-122]()
