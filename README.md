@@ -25,6 +25,7 @@ Build reliable trading systems: backtest on historical data, deploy live bots wi
 - 🛡️ **Risk Management**: Custom rules for position limits, time windows, and multi-strategy coordination.
 - 🔌 **Pluggable**: Custom data sources (CCXT), persistence (file/Redis), and sizing calculators.
 - 🧪 **Tested**: 280+ unit/integration tests for validation, recovery, and events.
+- 🔓 **Self hosted**: Zero dependency on third-party node_modules or platforms; run entirely in your own environment.
 
 ## 📋 Supported Order Types
 
