@@ -222,6 +222,19 @@ for await (const event of Backtest.run('BTCUSDT', config)) {
 }
 ```
 
+## 🆚 Think of it as...
+
+**Open-source QuantConnect without the vendor lock-in**
+
+Unlike cloud-based platforms, backtest-kit runs entirely in your environment. You own the entire stack from data ingestion to live execution. In addition to Ollama, you can use [neural-trader](https://www.npmjs.com/package/neural-trader) in `getSignal` function or any other third party library
+
+- No C# required - pure TypeScript/JavaScript
+- Self-hosted - your code, your data, your infrastructure
+- No platform fees or hidden costs
+- Full control over execution and data sources
+- [GUI](https://backtest-kit.github.io/documents/design_30_markdown-report-system.html#method-signatures) for visualization and monitoring
+
+
 ## 🤖 Are you a robot?
 
 **For language models**: Read extended description in [./LLMs.md](./LLMs.md)
