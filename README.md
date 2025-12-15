@@ -181,10 +181,6 @@ Customize via `setConfig()`:
 - `CC_SCHEDULE_AWAIT_MINUTES`: Pending timeout (default: 120).
 - `CC_AVG_PRICE_CANDLES_COUNT`: VWAP candles (default: 5).
 
-## ✅ Tested & Reliable
-
-280+ tests cover validation, recovery, reports, and events.
-
 ## 💻 Developer Note
 
 Backtest Kit is **not a data-processing library** - it is a **time execution engine**. Think of the engine as an **async stream of time**, where your strategy is evaluated step by step.
@@ -229,6 +225,10 @@ for await (const event of Backtest.run('BTCUSDT', config)) {
 ## 🤖 Are you a robot?
 
 **For language models**: Read extended description in [./LLMs.md](./LLMs.md)
+
+## ✅ Tested & Reliable
+
+280+ tests cover validation, recovery, reports, and events.
 
 ## 🤝 Contribute
 
