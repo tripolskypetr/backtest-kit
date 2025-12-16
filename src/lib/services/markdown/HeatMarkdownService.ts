@@ -315,8 +315,10 @@ class HeatmapStorage {
     const visibleColumns = heat_columns.filter((col) => col.isVisible());
     const header = visibleColumns.map((col) => col.label);
     const separator = visibleColumns.map(() => "---");
-    const rows = data.symbols.map((row, index) =>
-      visibleColumns.map((col) => col.format(row, index))
+    const rows = await Promise.all(
+      data.symbols.map(async (row, index) =>
+        Promise.all(visibleColumns.map((col) => col.format(row, index)))
+      )
     );
 
     const tableData = [header, separator, ...rows];

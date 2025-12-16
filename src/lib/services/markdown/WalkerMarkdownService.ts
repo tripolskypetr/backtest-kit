@@ -105,7 +105,7 @@ class ReportStorage {
    * @param topN - Number of top strategies to include (default: 10)
    * @returns Markdown formatted comparison table
    */
-  private getComparisonTable(topN: number = 10): string {
+  private async getComparisonTable(topN: number = 10): Promise<string> {
     if (this._strategyResults.length === 0) {
       return "No strategy results available.";
     }
@@ -128,8 +128,10 @@ class ReportStorage {
     const separator = visibleColumns.map(() => "---");
 
     // Build table rows
-    const rows = topStrategies.map((result, index) =>
-      visibleColumns.map((col) => col.format(result, index))
+    const rows = await Promise.all(
+      topStrategies.map(async (result, index) =>
+        Promise.all(visibleColumns.map((col) => col.format(result, index)))
+      )
     );
 
     const tableData = [header, separator, ...rows];
@@ -142,7 +144,7 @@ class ReportStorage {
    *
    * @returns Markdown formatted PNL table
    */
-  private getPnlTable(): string {
+  private async getPnlTable(): Promise<string> {
     if (this._strategyResults.length === 0) {
       return "No strategy results available.";
     }
@@ -175,8 +177,10 @@ class ReportStorage {
     const separator = visibleColumns.map(() => "---");
 
     // Build table rows
-    const rows = allSignals.map((signal, index) =>
-      visibleColumns.map((col) => col.format(signal, index))
+    const rows = await Promise.all(
+      allSignals.map(async (signal, index) =>
+        Promise.all(visibleColumns.map((col) => col.format(signal, index)))
+      )
     );
 
     const tableData = [header, separator, ...rows];
@@ -221,11 +225,11 @@ class ReportStorage {
       "",
       "## Top Strategies Comparison",
       "",
-      this.getComparisonTable(10),
+      await this.getComparisonTable(10),
       "",
       "## All Signals (PNL Table)",
       "",
-      this.getPnlTable(),
+      await this.getPnlTable(),
       "",
       "**Note:** Higher values are better for all metrics except Standard Deviation (lower is better)."
     ].join("\n");

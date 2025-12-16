@@ -31,7 +31,7 @@ export interface ColumnModel<T> {
   label: string;
 
   /** Formatting function to convert data to string */
-  format: (data: T, index: number) => string;
+  format: (data: T, index: number) => string | Promise<string>;
 
   /** Function to determine if column should be visible */
   isVisible: () => boolean;
