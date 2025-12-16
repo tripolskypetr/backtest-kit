@@ -169,7 +169,7 @@ function createStrategyColumns(metric: WalkerMetric): StrategyColumn[] {
  * Column configuration for PNL table.
  * Defines all columns for displaying closed signals across strategies.
  */
-const pnlColumns: ColumnModel<SignalData>[] = [
+const columns: ColumnModel<SignalData>[] = [
   {
     key: "strategy",
     label: "Strategy",
@@ -368,7 +368,7 @@ class ReportStorage {
     }
 
     // Build table header
-    const visibleColumns = pnlColumns.filter((col) => col.isVisible());
+    const visibleColumns = columns.filter((col) => col.isVisible());
     const header = visibleColumns.map((col) => col.label);
     const separator = visibleColumns.map(() => "---");
 

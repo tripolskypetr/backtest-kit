@@ -12,17 +12,12 @@ import { memoize, singleshot, str } from "functools-kit";
 import { signalEmitter } from "../../../config/emitters";
 import { IHeatmapRow } from "../../../interfaces/Heatmap.interface";
 import { HeatmapStatisticsModel } from "../../../model/HeatmapStatistics.model";
-import { ColumnModel } from "../../../model/Column.model";
+import { heat_columns } from "../../../assets/heat.columns";
 
 const HEATMAP_METHOD_NAME_GET_DATA = "HeatMarkdownService.getData";
 const HEATMAP_METHOD_NAME_GET_REPORT = "HeatMarkdownService.getReport";
 const HEATMAP_METHOD_NAME_DUMP = "HeatMarkdownService.dump";
 const HEATMAP_METHOD_NAME_CLEAR = "HeatMarkdownService.clear";
-
-/**
- * Column configuration for heatmap markdown table generation.
- * Defines how to extract and format data from heatmap rows.
- */
 
 /**
  * Checks if a value is unsafe for display (not a number, NaN, or Infinity).
@@ -42,89 +37,6 @@ function isUnsafe(value: number | null): boolean {
   }
   return false;
 }
-
-const columns: ColumnModel<IHeatmapRow>[] = [
-  {
-    key: "symbol",
-    label: "Symbol",
-    format: (data) => data.symbol,
-    isVisible: () => true,
-  },
-  {
-    key: "totalPnl",
-    label: "Total PNL",
-    format: (data) =>
-      data.totalPnl !== null ? str(data.totalPnl, "%+.2f%%") : "N/A",
-    isVisible: () => true,
-  },
-  {
-    key: "sharpeRatio",
-    label: "Sharpe",
-    format: (data) =>
-      data.sharpeRatio !== null ? str(data.sharpeRatio, "%.2f") : "N/A",
-    isVisible: () => true,
-  },
-  {
-    key: "profitFactor",
-    label: "PF",
-    format: (data) =>
-      data.profitFactor !== null ? str(data.profitFactor, "%.2f") : "N/A",
-    isVisible: () => true,
-  },
-  {
-    key: "expectancy",
-    label: "Expect",
-    format: (data) =>
-      data.expectancy !== null ? str(data.expectancy, "%+.2f%%") : "N/A",
-    isVisible: () => true,
-  },
-  {
-    key: "winRate",
-    label: "WR",
-    format: (data) =>
-      data.winRate !== null ? str(data.winRate, "%.1f%%") : "N/A",
-    isVisible: () => true,
-  },
-  {
-    key: "avgWin",
-    label: "Avg Win",
-    format: (data) =>
-      data.avgWin !== null ? str(data.avgWin, "%+.2f%%") : "N/A",
-    isVisible: () => true,
-  },
-  {
-    key: "avgLoss",
-    label: "Avg Loss",
-    format: (data) =>
-      data.avgLoss !== null ? str(data.avgLoss, "%+.2f%%") : "N/A",
-    isVisible: () => true,
-  },
-  {
-    key: "maxDrawdown",
-    label: "Max DD",
-    format: (data) =>
-      data.maxDrawdown !== null ? str(-data.maxDrawdown, "%.2f%%") : "N/A",
-    isVisible: () => true,
-  },
-  {
-    key: "maxWinStreak",
-    label: "W Streak",
-    format: (data) => data.maxWinStreak.toString(),
-    isVisible: () => true,
-  },
-  {
-    key: "maxLossStreak",
-    label: "L Streak",
-    format: (data) => data.maxLossStreak.toString(),
-    isVisible: () => true,
-  },
-  {
-    key: "totalTrades",
-    label: "Trades",
-    format: (data) => data.totalTrades.toString(),
-    isVisible: () => true,
-  },
-];
 
 /** Maximum number of signals to store per symbol in heatmap reports */
 const MAX_EVENTS = 250;
@@ -400,7 +312,7 @@ class HeatmapStorage {
       ].join("\n");
     }
 
-    const visibleColumns = columns.filter((col) => col.isVisible());
+    const visibleColumns = heat_columns.filter((col) => col.isVisible());
     const header = visibleColumns.map((col) => col.label);
     const separator = visibleColumns.map(() => "---");
     const rows = data.symbols.map((row) =>

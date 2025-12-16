@@ -1,110 +1,12 @@
 import { writeFile, mkdir } from "fs/promises";
 import { join } from "path";
-import { ISignalDto } from "../../../interfaces/Strategy.interface";
 import { inject } from "../../../lib/core/di";
 import LoggerService from "../base/LoggerService";
 import TYPES from "../../../lib/core/types";
 import { memoize, singleshot } from "functools-kit";
 import { riskSubject } from "../../../config/emitters";
-import { toPlainString } from "../../../helpers/toPlainString";
-import { GLOBAL_CONFIG } from "../../../config/params";
 import { RiskStatisticsModel, RiskEvent } from "../../../model/RiskStatistics.model";
-import { ColumnModel } from "../../../model/Column.model";
-
-/**
- * Column configuration for markdown table generation.
- * Defines how to extract and format data from risk events.
- */
-
-const columns: ColumnModel<RiskEvent>[] = [
-  {
-    key: "symbol",
-    label: "Symbol",
-    format: (data) => data.symbol,
-    isVisible: () => true,
-  },
-  {
-    key: "strategyName",
-    label: "Strategy",
-    format: (data) => data.strategyName,
-    isVisible: () => true,
-  },
-  {
-    key: "signalId",
-    label: "Signal ID",
-    format: (data) => data.pendingSignal.id || "N/A",
-    isVisible: () => true,
-  },
-  {
-    key: "position",
-    label: "Position",
-    format: (data) => data.pendingSignal.position.toUpperCase(),
-    isVisible: () => true,
-  },
-  {
-    key: "note",
-    label: "Note",
-    format: (data) => toPlainString(data.pendingSignal.note ?? "N/A"),
-    isVisible: () => GLOBAL_CONFIG.CC_REPORT_SHOW_SIGNAL_NOTE,
-  },
-  {
-    key: "exchangeName",
-    label: "Exchange",
-    format: (data) => data.exchangeName,
-    isVisible: () => true,
-  },
-  {
-    key: "openPrice",
-    label: "Open Price",
-    format: (data) =>
-      data.pendingSignal.priceOpen !== undefined
-        ? `${data.pendingSignal.priceOpen.toFixed(8)} USD`
-        : "N/A",
-    isVisible: () => true,
-  },
-  {
-    key: "takeProfit",
-    label: "Take Profit",
-    format: (data) =>
-      data.pendingSignal.priceTakeProfit !== undefined
-        ? `${data.pendingSignal.priceTakeProfit.toFixed(8)} USD`
-        : "N/A",
-    isVisible: () => true,
-  },
-  {
-    key: "stopLoss",
-    label: "Stop Loss",
-    format: (data) =>
-      data.pendingSignal.priceStopLoss !== undefined
-        ? `${data.pendingSignal.priceStopLoss.toFixed(8)} USD`
-        : "N/A",
-    isVisible: () => true,
-  },
-  {
-    key: "currentPrice",
-    label: "Current Price",
-    format: (data) => `${data.currentPrice.toFixed(8)} USD`,
-    isVisible: () => true,
-  },
-  {
-    key: "activePositionCount",
-    label: "Active Positions",
-    format: (data) => data.activePositionCount.toString(),
-    isVisible: () => true,
-  },
-  {
-    key: "comment",
-    label: "Reason",
-    format: (data) => data.comment,
-    isVisible: () => true,
-  },
-  {
-    key: "timestamp",
-    label: "Timestamp",
-    format: (data) => new Date(data.timestamp).toISOString(),
-    isVisible: () => true,
-  },
-];
+import { risk_columns } from "../../../assets/risk.columns";
 
 /** Maximum number of events to store in risk reports */
 const MAX_EVENTS = 250;
@@ -180,7 +82,7 @@ class ReportStorage {
       ].join("\n");
     }
 
-    const visibleColumns = columns.filter((col) => col.isVisible());
+    const visibleColumns = risk_columns.filter((col) => col.isVisible());
     const header = visibleColumns.map((col) => col.label);
     const separator = visibleColumns.map(() => "---");
     const rows = this._eventList.map((event) =>
