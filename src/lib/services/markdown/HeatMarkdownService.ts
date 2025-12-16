@@ -11,7 +11,7 @@ import TYPES from "../../../lib/core/types";
 import { memoize, singleshot, str } from "functools-kit";
 import { signalEmitter } from "../../../config/emitters";
 import { IHeatmapRow } from "../../../interfaces/Heatmap.interface";
-import { HeatmapStatisticsContract } from "../../../model/HeatmapStatistics.model";
+import { HeatmapStatisticsModel } from "../../../model/HeatmapStatistics.model";
 
 const HEATMAP_METHOD_NAME_GET_DATA = "HeatMarkdownService.getData";
 const HEATMAP_METHOD_NAME_GET_REPORT = "HeatMarkdownService.getReport";
@@ -338,7 +338,7 @@ class HeatmapStorage {
    *
    * @returns Promise resolving to heatmap statistics with per-symbol and portfolio-wide metrics
    */
-  public async getData(): Promise<HeatmapStatisticsContract> {
+  public async getData(): Promise<HeatmapStatisticsModel> {
     const symbols: IHeatmapRow[] = [];
 
     // Calculate per-symbol statistics
@@ -536,7 +536,7 @@ export class HeatMarkdownService {
    */
   public getData = async (
     strategyName: StrategyName
-  ): Promise<HeatmapStatisticsContract> => {
+  ): Promise<HeatmapStatisticsModel> => {
     this.loggerService.log(HEATMAP_METHOD_NAME_GET_DATA, {
       strategyName,
     });

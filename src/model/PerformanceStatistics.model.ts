@@ -50,7 +50,7 @@ export interface MetricStats {
 /**
  * Performance statistics aggregated by strategy.
  */
-export interface PerformanceStatisticsContract {
+export interface PerformanceStatisticsModel {
   /** Strategy name */
   strategyName: string;
 

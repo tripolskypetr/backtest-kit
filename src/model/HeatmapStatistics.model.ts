@@ -4,7 +4,7 @@ import { IHeatmapRow } from "../interfaces/Heatmap.interface";
  * Portfolio heatmap statistics structure.
  * Contains aggregated data for all symbols in the portfolio.
  */
-export interface HeatmapStatisticsContract {
+export interface HeatmapStatisticsModel {
   /** Array of symbol statistics */
   symbols: IHeatmapRow[];
 

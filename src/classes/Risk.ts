@@ -158,7 +158,7 @@ export class RiskUtils {
    *
    * @param symbol - Trading pair symbol (e.g., "BTCUSDT")
    * @param strategyName - Strategy name (e.g., "my-strategy")
-   * @returns Promise resolving to RiskStatisticsContract object with counts and event list
+   * @returns Promise resolving to RiskStatisticsModel object with counts and event list
    *
    * @example
    * ```typescript

@@ -1,7 +1,7 @@
 import { WalkerName, WalkerMetric } from "../interfaces/Walker.interface";
 import { StrategyName } from "../interfaces/Strategy.interface";
 import { ExchangeName } from "../interfaces/Exchange.interface";
-import { BacktestStatisticsContract } from "../model/BacktestStatistics.model";
+import { BacktestStatisticsModel } from "../model/BacktestStatistics.model";
 
 /**
  * Contract for walker progress events during strategy comparison.
@@ -24,7 +24,7 @@ export interface WalkerContract {
   strategyName: StrategyName;
 
   /** Backtest statistics for this strategy */
-  stats: BacktestStatisticsContract;
+  stats: BacktestStatisticsModel;
 
   /** Metric value for this strategy (null if invalid) */
   metricValue: number | null;

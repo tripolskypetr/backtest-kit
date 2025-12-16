@@ -2,7 +2,7 @@ import { WalkerName, WalkerMetric } from "../interfaces/Walker.interface";
 import { StrategyName } from "../interfaces/Strategy.interface";
 import { ExchangeName } from "../interfaces/Exchange.interface";
 import { FrameName } from "../interfaces/Frame.interface";
-import { BacktestStatisticsContract } from "../model/BacktestStatistics.model";
+import { BacktestStatisticsModel } from "../model/BacktestStatistics.model";
 
 /**
  * Contract for walker completion events.
@@ -49,7 +49,7 @@ export interface WalkerCompleteContract {
     bestMetric: number | null;
 
     /** bestStats - Best strategy statistics */
-    bestStats: BacktestStatisticsContract | null;
+    bestStats: BacktestStatisticsModel | null;
 }
 
 export default WalkerCompleteContract;

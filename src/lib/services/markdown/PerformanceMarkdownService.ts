@@ -9,7 +9,7 @@ import LoggerService from "../base/LoggerService";
 import TYPES from "../../../lib/core/types";
 import { memoize, singleshot } from "functools-kit";
 import { performanceEmitter } from "../../../config/emitters";
-import { PerformanceStatisticsContract, MetricStats } from "../../../model/PerformanceStatistics.model";
+import { PerformanceStatisticsModel, MetricStats } from "../../../model/PerformanceStatistics.model";
 
 /**
  * Checks if a value is unsafe for display (not a number, NaN, or Infinity).
@@ -162,7 +162,7 @@ class PerformanceStorage {
    *
    * @returns Performance statistics with metrics grouped by type
    */
-  public async getData(strategyName: string): Promise<PerformanceStatisticsContract> {
+  public async getData(strategyName: string): Promise<PerformanceStatisticsModel> {
     if (this._events.length === 0) {
       return {
         strategyName,
@@ -405,7 +405,7 @@ export class PerformanceMarkdownService {
   public getData = async (
     symbol: string,
     strategyName: string
-  ): Promise<PerformanceStatisticsContract> => {
+  ): Promise<PerformanceStatisticsModel> => {
     this.loggerService.log("performanceMarkdownService getData", {
       symbol,
       strategyName,

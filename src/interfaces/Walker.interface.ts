@@ -1,7 +1,7 @@
 import { StrategyName } from "./Strategy.interface";
 import { FrameName } from "./Frame.interface";
 import { ExchangeName } from "./Exchange.interface";
-import { BacktestStatisticsContract } from "../model/BacktestStatistics.model";
+import { BacktestStatisticsModel } from "../model/BacktestStatistics.model";
 import { WalkerCompleteContract } from "../contract/WalkerComplete.contract";
 
 /**
@@ -56,7 +56,7 @@ export interface IWalkerCallbacks {
   onStrategyComplete: (
     strategyName: StrategyName,
     symbol: string,
-    stats: BacktestStatisticsContract,
+    stats: BacktestStatisticsModel,
     metric: number | null
   ) => void;
 
@@ -79,7 +79,7 @@ export interface IWalkerStrategyResult {
   strategyName: StrategyName;
 
   /** Backtest statistics for this strategy */
-  stats: BacktestStatisticsContract;
+  stats: BacktestStatisticsModel;
 
   /** Metric value used for comparison (null if invalid) */
   metric: number | null;

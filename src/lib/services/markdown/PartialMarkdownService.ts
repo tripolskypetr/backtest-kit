@@ -10,7 +10,7 @@ import {
   partialProfitSubject,
   partialLossSubject,
 } from "../../../config/emitters";
-import { PartialStatisticsContract, PartialEvent } from "../../../model/PartialStatistics.model";
+import { PartialStatisticsModel, PartialEvent } from "../../../model/PartialStatistics.model";
 
 /**
  * Column configuration for markdown table generation.
@@ -167,7 +167,7 @@ class ReportStorage {
    *
    * @returns Statistical data (empty object if no events)
    */
-  public async getData(): Promise<PartialStatisticsContract> {
+  public async getData(): Promise<PartialStatisticsModel> {
     if (this._eventList.length === 0) {
       return {
         eventList: [],
@@ -369,7 +369,7 @@ export class PartialMarkdownService {
    * console.log(stats.totalProfit, stats.totalLoss);
    * ```
    */
-  public getData = async (symbol: string, strategyName: string): Promise<PartialStatisticsContract> => {
+  public getData = async (symbol: string, strategyName: string): Promise<PartialStatisticsModel> => {
     this.loggerService.log("partialMarkdownService getData", {
       symbol,
       strategyName,

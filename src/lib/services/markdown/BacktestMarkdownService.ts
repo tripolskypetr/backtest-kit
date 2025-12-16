@@ -12,7 +12,7 @@ import { memoize, singleshot } from "functools-kit";
 import { signalBacktestEmitter } from "../../../config/emitters";
 import { toPlainString } from "../../../helpers/toPlainString";
 import { GLOBAL_CONFIG } from "../../../config/params";
-import { BacktestStatisticsContract } from "../../../model/BacktestStatistics.model";
+import { BacktestStatisticsModel } from "../../../model/BacktestStatistics.model";
 
 /**
  * Column configuration for markdown table generation.
@@ -167,7 +167,7 @@ class ReportStorage {
    *
    * @returns Statistical data (empty object if no signals)
    */
-  public async getData(): Promise<BacktestStatisticsContract> {
+  public async getData(): Promise<BacktestStatisticsModel> {
     if (this._signalList.length === 0) {
       return {
         signalList: [],
@@ -396,7 +396,7 @@ export class BacktestMarkdownService {
    * console.log(stats.sharpeRatio, stats.winRate);
    * ```
    */
-  public getData = async (symbol: string, strategyName: StrategyName): Promise<BacktestStatisticsContract> => {
+  public getData = async (symbol: string, strategyName: StrategyName): Promise<BacktestStatisticsModel> => {
     this.loggerService.log("backtestMarkdownService getData", {
       symbol,
       strategyName,

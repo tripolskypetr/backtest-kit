@@ -52,7 +52,7 @@ export interface ScheduledEvent {
  * });
  * ```
  */
-export interface ScheduleStatisticsContract {
+export interface ScheduleStatisticsModel {
   /** Array of all scheduled/opened/cancelled events with full details */
   eventList: ScheduledEvent[];
 

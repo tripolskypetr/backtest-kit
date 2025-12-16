@@ -1123,7 +1123,7 @@ type StrategyName = string;
  * });
  * ```
  */
-interface BacktestStatisticsContract {
+interface BacktestStatisticsModel {
     /** Array of all closed signals with full details (price, PNL, timestamps, etc.) */
     signalList: IStrategyTickResultClosed[];
     /** Total number of closed signals */
@@ -1187,7 +1187,7 @@ interface WalkerCompleteContract {
     /** bestMetric - Best metric value achieved */
     bestMetric: number | null;
     /** bestStats - Best strategy statistics */
-    bestStats: BacktestStatisticsContract | null;
+    bestStats: BacktestStatisticsModel | null;
 }
 
 /**
@@ -1223,7 +1223,7 @@ interface IWalkerCallbacks {
     /** Called when starting to test a specific strategy */
     onStrategyStart: (strategyName: StrategyName, symbol: string) => void;
     /** Called when a strategy backtest completes */
-    onStrategyComplete: (strategyName: StrategyName, symbol: string, stats: BacktestStatisticsContract, metric: number | null) => void;
+    onStrategyComplete: (strategyName: StrategyName, symbol: string, stats: BacktestStatisticsModel, metric: number | null) => void;
     /** Called when a strategy backtest fails with an error */
     onStrategyError: (strategyName: StrategyName, symbol: string, error: Error | unknown) => void;
     /** Called when all strategies have been tested */
@@ -1236,7 +1236,7 @@ interface IWalkerStrategyResult {
     /** Strategy name */
     strategyName: StrategyName;
     /** Backtest statistics for this strategy */
-    stats: BacktestStatisticsContract;
+    stats: BacktestStatisticsModel;
     /** Metric value used for comparison (null if invalid) */
     metric: number | null;
     /** Rank position (1 = best, 2 = second best, etc.) */
@@ -2618,7 +2618,7 @@ interface WalkerContract {
     /** Strategy that just completed */
     strategyName: StrategyName;
     /** Backtest statistics for this strategy */
-    stats: BacktestStatisticsContract;
+    stats: BacktestStatisticsModel;
     /** Metric value for this strategy (null if invalid) */
     metricValue: number | null;
     /** Metric being optimized */
@@ -3967,7 +3967,7 @@ interface TickEvent {
  * });
  * ```
  */
-interface LiveStatisticsContract {
+interface LiveStatisticsModel {
     /** Array of all events (idle, opened, active, closed) with full details */
     eventList: TickEvent[];
     /** Total number of all events (includes idle, opened, active, closed) */
@@ -4000,7 +4000,7 @@ interface LiveStatisticsContract {
  * Portfolio heatmap statistics structure.
  * Contains aggregated data for all symbols in the portfolio.
  */
-interface HeatmapStatisticsContract {
+interface HeatmapStatisticsModel {
     /** Array of symbol statistics */
     symbols: IHeatmapRow[];
     /** Total number of symbols tracked */
@@ -4066,7 +4066,7 @@ interface ScheduledEvent {
  * });
  * ```
  */
-interface ScheduleStatisticsContract {
+interface ScheduleStatisticsModel {
     /** Array of all scheduled/opened/cancelled events with full details */
     eventList: ScheduledEvent[];
     /** Total number of all events (includes scheduled, opened, cancelled) */
@@ -4121,7 +4121,7 @@ interface MetricStats {
 /**
  * Performance statistics aggregated by strategy.
  */
-interface PerformanceStatisticsContract {
+interface PerformanceStatisticsModel {
     /** Strategy name */
     strategyName: string;
     /** Total number of performance events recorded */
@@ -4142,7 +4142,7 @@ interface IStrategyResult {
     /** Strategy name */
     strategyName: StrategyName;
     /** Complete backtest statistics for this strategy */
-    stats: BacktestStatisticsContract;
+    stats: BacktestStatisticsModel;
     /** Value of the optimization metric (null if invalid) */
     metricValue: number | null;
 }
@@ -4152,7 +4152,7 @@ interface IStrategyResult {
  *
  * Extends IWalkerResults with additional strategy comparison data.
  */
-interface WalkerStatisticsContract extends WalkerCompleteContract {
+interface WalkerStatisticsModel extends WalkerCompleteContract {
     /** Array of all strategy results for comparison and analysis */
     strategyResults: IStrategyResult[];
 }
@@ -4195,7 +4195,7 @@ interface PartialEvent {
  * console.log(`Loss events: ${stats.totalLoss}`);
  * ```
  */
-interface PartialStatisticsContract {
+interface PartialStatisticsModel {
     /** Array of all profit/loss events with full details */
     eventList: PartialEvent[];
     /** Total number of all events (includes profit, loss) */
@@ -4241,7 +4241,7 @@ interface RiskEvent {
  * console.log(`Rejections by symbol:`, stats.bySymbol);
  * ```
  */
-interface RiskStatisticsContract {
+interface RiskStatisticsModel {
     /** Array of all risk rejection events with full details */
     eventList: RiskEvent[];
     /** Total number of risk rejections */
@@ -4796,7 +4796,7 @@ declare class BacktestUtils {
      * console.log(stats.sharpeRatio, stats.winRate);
      * ```
      */
-    getData: (symbol: string, strategyName: StrategyName) => Promise<BacktestStatisticsContract>;
+    getData: (symbol: string, strategyName: StrategyName) => Promise<BacktestStatisticsModel>;
     /**
      * Generates markdown report with all closed signals for a symbol-strategy pair.
      *
@@ -4973,7 +4973,7 @@ declare class LiveUtils {
      * console.log(stats.sharpeRatio, stats.winRate);
      * ```
      */
-    getData: (symbol: string, strategyName: StrategyName) => Promise<LiveStatisticsContract>;
+    getData: (symbol: string, strategyName: StrategyName) => Promise<LiveStatisticsModel>;
     /**
      * Generates markdown report with all events for a symbol-strategy pair.
      *
@@ -5081,7 +5081,7 @@ declare class ScheduleUtils {
      * console.log(stats.cancellationRate, stats.avgWaitTime);
      * ```
      */
-    getData: (symbol: string, strategyName: StrategyName) => Promise<ScheduleStatisticsContract>;
+    getData: (symbol: string, strategyName: StrategyName) => Promise<ScheduleStatisticsModel>;
     /**
      * Generates markdown report with all scheduled events for a symbol-strategy pair.
      *
@@ -5188,7 +5188,7 @@ declare class Performance {
      * }
      * ```
      */
-    static getData(symbol: string, strategyName: string): Promise<PerformanceStatisticsContract>;
+    static getData(symbol: string, strategyName: string): Promise<PerformanceStatisticsModel>;
     /**
      * Generates markdown report with performance analysis.
      *
@@ -5444,7 +5444,7 @@ declare class HeatUtils {
      * });
      * ```
      */
-    getData: (strategyName: StrategyName) => Promise<HeatmapStatisticsContract>;
+    getData: (strategyName: StrategyName) => Promise<HeatmapStatisticsModel>;
     /**
      * Generates markdown report with portfolio heatmap table for a strategy.
      *
@@ -5725,7 +5725,7 @@ declare class PartialUtils {
      *
      * @param symbol - Trading pair symbol (e.g., "BTCUSDT")
      * @param strategyName - Strategy name (e.g., "my-strategy")
-     * @returns Promise resolving to PartialStatisticsContract object with counts and event list
+     * @returns Promise resolving to PartialStatisticsModel object with counts and event list
      *
      * @example
      * ```typescript
@@ -5741,7 +5741,7 @@ declare class PartialUtils {
      * }
      * ```
      */
-    getData: (symbol: string, strategyName: string) => Promise<PartialStatisticsContract>;
+    getData: (symbol: string, strategyName: string) => Promise<PartialStatisticsModel>;
     /**
      * Generates markdown report with all partial profit/loss events for a symbol-strategy pair.
      *
@@ -5953,7 +5953,7 @@ declare class RiskUtils {
      *
      * @param symbol - Trading pair symbol (e.g., "BTCUSDT")
      * @param strategyName - Strategy name (e.g., "my-strategy")
-     * @returns Promise resolving to RiskStatisticsContract object with counts and event list
+     * @returns Promise resolving to RiskStatisticsModel object with counts and event list
      *
      * @example
      * ```typescript
@@ -5969,7 +5969,7 @@ declare class RiskUtils {
      * }
      * ```
      */
-    getData: (symbol: string, strategyName: string) => Promise<RiskStatisticsContract>;
+    getData: (symbol: string, strategyName: string) => Promise<RiskStatisticsModel>;
     /**
      * Generates markdown report with all risk rejection events for a symbol-strategy pair.
      *
@@ -7953,7 +7953,7 @@ declare class BacktestMarkdownService {
      * console.log(stats.sharpeRatio, stats.winRate);
      * ```
      */
-    getData: (symbol: string, strategyName: StrategyName) => Promise<BacktestStatisticsContract>;
+    getData: (symbol: string, strategyName: StrategyName) => Promise<BacktestStatisticsModel>;
     /**
      * Generates markdown report with all closed signals for a symbol-strategy pair.
      * Delegates to ReportStorage.generateReport().
@@ -8102,7 +8102,7 @@ declare class LiveMarkdownService {
      * console.log(stats.sharpeRatio, stats.winRate);
      * ```
      */
-    getData: (symbol: string, strategyName: StrategyName) => Promise<LiveStatisticsContract>;
+    getData: (symbol: string, strategyName: StrategyName) => Promise<LiveStatisticsModel>;
     /**
      * Generates markdown report with all events for a symbol-strategy pair.
      * Delegates to ReportStorage.getReport().
@@ -8235,7 +8235,7 @@ declare class ScheduleMarkdownService {
      * console.log(stats.cancellationRate, stats.avgWaitTime);
      * ```
      */
-    getData: (symbol: string, strategyName: StrategyName) => Promise<ScheduleStatisticsContract>;
+    getData: (symbol: string, strategyName: StrategyName) => Promise<ScheduleStatisticsModel>;
     /**
      * Generates markdown report with all scheduled events for a symbol-strategy pair.
      * Delegates to ReportStorage.getReport().
@@ -8366,7 +8366,7 @@ declare class PerformanceMarkdownService {
      *   .sort((a, b) => b.avgDuration - a.avgDuration)[0]);
      * ```
      */
-    getData: (symbol: string, strategyName: string) => Promise<PerformanceStatisticsContract>;
+    getData: (symbol: string, strategyName: string) => Promise<PerformanceStatisticsModel>;
     /**
      * Generates markdown report with performance analysis.
      *
@@ -8615,7 +8615,7 @@ declare class HeatMarkdownService {
      * });
      * ```
      */
-    getData: (strategyName: StrategyName) => Promise<HeatmapStatisticsContract>;
+    getData: (strategyName: StrategyName) => Promise<HeatmapStatisticsModel>;
     /**
      * Generates markdown report with portfolio heatmap table for a strategy.
      *
@@ -9462,7 +9462,7 @@ declare class PartialMarkdownService {
      * console.log(stats.totalProfit, stats.totalLoss);
      * ```
      */
-    getData: (symbol: string, strategyName: string) => Promise<PartialStatisticsContract>;
+    getData: (symbol: string, strategyName: string) => Promise<PartialStatisticsModel>;
     /**
      * Generates markdown report with all partial events for a symbol-strategy pair.
      * Delegates to ReportStorage.getReport().
@@ -9793,7 +9793,7 @@ declare class RiskMarkdownService {
      * console.log(stats.totalRejections, stats.bySymbol);
      * ```
      */
-    getData: (symbol: string, strategyName: string) => Promise<RiskStatisticsContract>;
+    getData: (symbol: string, strategyName: string) => Promise<RiskStatisticsModel>;
     /**
      * Generates markdown report with all risk rejection events for a symbol-strategy pair.
      * Delegates to ReportStorage.getReport().
@@ -9925,4 +9925,4 @@ declare const backtest: {
     loggerService: LoggerService;
 };
 
-export { Backtest, type BacktestStatisticsContract, type CandleInterval, Constant, type DoneContract, type EntityId, ExecutionContextService, type FrameInterval, type GlobalConfig, Heat, type HeatmapStatisticsContract, type ICandleData, type IExchangeSchema, type IFrameSchema, type IHeatmapRow, type IOptimizerCallbacks, type IOptimizerData, type IOptimizerFetchArgs, type IOptimizerFilterArgs, type IOptimizerRange, type IOptimizerSchema, type IOptimizerSource, type IOptimizerStrategy, type IOptimizerTemplate, type IPersistBase, type IPositionSizeATRParams, type IPositionSizeFixedPercentageParams, type IPositionSizeKellyParams, type IRiskActivePosition, type IRiskCheckArgs, type IRiskSchema, type IRiskValidation, type IRiskValidationFn, type IRiskValidationPayload, type IScheduledSignalRow, type ISignalDto, type ISignalRow, type ISizingCalculateParams, type ISizingCalculateParamsATR, type ISizingCalculateParamsFixedPercentage, type ISizingCalculateParamsKelly, type ISizingSchema, type ISizingSchemaATR, type ISizingSchemaFixedPercentage, type ISizingSchemaKelly, type IStrategyPnL, type IStrategySchema, type IStrategyTickResult, type IStrategyTickResultActive, type IStrategyTickResultCancelled, type IStrategyTickResultClosed, type IStrategyTickResultIdle, type IStrategyTickResultOpened, type IStrategyTickResultScheduled, type IWalkerResults, type IWalkerSchema, type IWalkerStrategyResult, Live, type LiveStatisticsContract, type MessageModel, type MessageRole, MethodContextService, Optimizer, Partial$1 as Partial, type PartialData, type PartialLossContract, type PartialProfitContract, type PartialStatisticsContract, Performance, type PerformanceContract, type PerformanceMetricType, type PerformanceStatisticsContract, PersistBase, PersistPartialAdapter, PersistRiskAdapter, PersistScheduleAdapter, PersistSignalAdapter, PositionSize, type ProgressBacktestContract, type ProgressOptimizerContract, type ProgressWalkerContract, Risk, type RiskContract, type RiskData, type RiskStatisticsContract, Schedule, type ScheduleData, type ScheduleStatisticsContract, type SignalData, type SignalInterval, type TPersistBase, type TPersistBaseCtor, Walker, type WalkerCompleteContract, type WalkerContract, type WalkerMetric, type WalkerStatisticsContract, addExchange, addFrame, addOptimizer, addRisk, addSizing, addStrategy, addWalker, dumpSignal, emitters, formatPrice, formatQuantity, getAveragePrice, getCandles, getConfig, getDate, getDefaultConfig, getMode, backtest as lib, listExchanges, listFrames, listOptimizers, listRisks, listSizings, listStrategies, listWalkers, listenBacktestProgress, listenDoneBacktest, listenDoneBacktestOnce, listenDoneLive, listenDoneLiveOnce, listenDoneWalker, listenDoneWalkerOnce, listenError, listenExit, listenOptimizerProgress, listenPartialLoss, listenPartialLossOnce, listenPartialProfit, listenPartialProfitOnce, listenPerformance, listenRisk, listenRiskOnce, listenSignal, listenSignalBacktest, listenSignalBacktestOnce, listenSignalLive, listenSignalLiveOnce, listenSignalOnce, listenValidation, listenWalker, listenWalkerComplete, listenWalkerOnce, listenWalkerProgress, setConfig, setLogger };
+export { Backtest, type BacktestStatisticsModel, type CandleInterval, Constant, type DoneContract, type EntityId, ExecutionContextService, type FrameInterval, type GlobalConfig, Heat, type HeatmapStatisticsModel, type ICandleData, type IExchangeSchema, type IFrameSchema, type IHeatmapRow, type IOptimizerCallbacks, type IOptimizerData, type IOptimizerFetchArgs, type IOptimizerFilterArgs, type IOptimizerRange, type IOptimizerSchema, type IOptimizerSource, type IOptimizerStrategy, type IOptimizerTemplate, type IPersistBase, type IPositionSizeATRParams, type IPositionSizeFixedPercentageParams, type IPositionSizeKellyParams, type IRiskActivePosition, type IRiskCheckArgs, type IRiskSchema, type IRiskValidation, type IRiskValidationFn, type IRiskValidationPayload, type IScheduledSignalRow, type ISignalDto, type ISignalRow, type ISizingCalculateParams, type ISizingCalculateParamsATR, type ISizingCalculateParamsFixedPercentage, type ISizingCalculateParamsKelly, type ISizingSchema, type ISizingSchemaATR, type ISizingSchemaFixedPercentage, type ISizingSchemaKelly, type IStrategyPnL, type IStrategySchema, type IStrategyTickResult, type IStrategyTickResultActive, type IStrategyTickResultCancelled, type IStrategyTickResultClosed, type IStrategyTickResultIdle, type IStrategyTickResultOpened, type IStrategyTickResultScheduled, type IWalkerResults, type IWalkerSchema, type IWalkerStrategyResult, Live, type LiveStatisticsModel, type MessageModel, type MessageRole, MethodContextService, Optimizer, Partial$1 as Partial, type PartialData, type PartialLossContract, type PartialProfitContract, type PartialStatisticsModel, Performance, type PerformanceContract, type PerformanceMetricType, type PerformanceStatisticsModel, PersistBase, PersistPartialAdapter, PersistRiskAdapter, PersistScheduleAdapter, PersistSignalAdapter, PositionSize, type ProgressBacktestContract, type ProgressOptimizerContract, type ProgressWalkerContract, Risk, type RiskContract, type RiskData, type RiskStatisticsModel, Schedule, type ScheduleData, type ScheduleStatisticsModel, type SignalData, type SignalInterval, type TPersistBase, type TPersistBaseCtor, Walker, type WalkerCompleteContract, type WalkerContract, type WalkerMetric, type WalkerStatisticsModel, addExchange, addFrame, addOptimizer, addRisk, addSizing, addStrategy, addWalker, dumpSignal, emitters, formatPrice, formatQuantity, getAveragePrice, getCandles, getConfig, getDate, getDefaultConfig, getMode, backtest as lib, listExchanges, listFrames, listOptimizers, listRisks, listSizings, listStrategies, listWalkers, listenBacktestProgress, listenDoneBacktest, listenDoneBacktestOnce, listenDoneLive, listenDoneLiveOnce, listenDoneWalker, listenDoneWalkerOnce, listenError, listenExit, listenOptimizerProgress, listenPartialLoss, listenPartialLossOnce, listenPartialProfit, listenPartialProfitOnce, listenPerformance, listenRisk, listenRiskOnce, listenSignal, listenSignalBacktest, listenSignalBacktestOnce, listenSignalLive, listenSignalLiveOnce, listenSignalOnce, listenValidation, listenWalker, listenWalkerComplete, listenWalkerOnce, listenWalkerProgress, setConfig, setLogger };
