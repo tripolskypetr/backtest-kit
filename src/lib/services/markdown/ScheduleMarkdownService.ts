@@ -14,7 +14,7 @@ import { memoize, singleshot } from "functools-kit";
 import { signalEmitter, signalLiveEmitter } from "../../../config/emitters";
 import { toPlainString } from "../../../helpers/toPlainString";
 import { GLOBAL_CONFIG } from "../../../config/params";
-import { ScheduleStatistics, ScheduledEvent } from "../../../model/ScheduleStatistics.model";
+import { ScheduleStatisticsContract, ScheduledEvent } from "../../../model/ScheduleStatistics.model";
 
 /**
  * Column configuration for markdown table generation.
@@ -205,7 +205,7 @@ class ReportStorage {
    *
    * @returns Statistical data (empty object if no events)
    */
-  public async getData(): Promise<ScheduleStatistics> {
+  public async getData(): Promise<ScheduleStatisticsContract> {
     if (this._eventList.length === 0) {
       return {
         eventList: [],
@@ -425,7 +425,7 @@ export class ScheduleMarkdownService {
   public getData = async (
     symbol: string,
     strategyName: StrategyName
-  ): Promise<ScheduleStatistics> => {
+  ): Promise<ScheduleStatisticsContract> => {
     this.loggerService.log("scheduleMarkdownService getData", {
       symbol,
       strategyName,

@@ -36,7 +36,7 @@ export interface RiskEvent {
  * console.log(`Rejections by symbol:`, stats.bySymbol);
  * ```
  */
-export interface RiskStatistics {
+export interface RiskStatisticsContract {
   /** Array of all risk rejection events with full details */
   eventList: RiskEvent[];
 

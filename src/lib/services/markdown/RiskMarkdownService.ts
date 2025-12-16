@@ -8,7 +8,7 @@ import { memoize, singleshot } from "functools-kit";
 import { riskSubject } from "../../../config/emitters";
 import { toPlainString } from "../../../helpers/toPlainString";
 import { GLOBAL_CONFIG } from "../../../config/params";
-import { RiskStatistics, RiskEvent } from "../../../model/RiskStatistics.model";
+import { RiskStatisticsContract, RiskEvent } from "../../../model/RiskStatistics.model";
 
 /**
  * Column configuration for markdown table generation.
@@ -145,7 +145,7 @@ class ReportStorage {
    *
    * @returns Statistical data (empty object if no events)
    */
-  public async getData(): Promise<RiskStatistics> {
+  public async getData(): Promise<RiskStatisticsContract> {
     if (this._eventList.length === 0) {
       return {
         eventList: [],
@@ -309,7 +309,7 @@ export class RiskMarkdownService {
    * console.log(stats.totalRejections, stats.bySymbol);
    * ```
    */
-  public getData = async (symbol: string, strategyName: string): Promise<RiskStatistics> => {
+  public getData = async (symbol: string, strategyName: string): Promise<RiskStatisticsContract> => {
     this.loggerService.log("riskMarkdownService getData", {
       symbol,
       strategyName,

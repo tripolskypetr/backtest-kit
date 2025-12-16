@@ -39,7 +39,7 @@ export interface PartialEvent {
  * console.log(`Loss events: ${stats.totalLoss}`);
  * ```
  */
-export interface PartialStatistics {
+export interface PartialStatisticsContract {
   /** Array of all profit/loss events with full details */
   eventList: PartialEvent[];
 

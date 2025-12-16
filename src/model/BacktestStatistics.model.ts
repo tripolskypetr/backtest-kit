@@ -20,7 +20,7 @@ import { IStrategyTickResultClosed } from "../interfaces/Strategy.interface";
  * });
  * ```
  */
-export interface BacktestStatistics {
+export interface BacktestStatisticsContract {
   /** Array of all closed signals with full details (price, PNL, timestamps, etc.) */
   signalList: IStrategyTickResultClosed[];
 

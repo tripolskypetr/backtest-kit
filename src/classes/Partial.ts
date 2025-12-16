@@ -48,7 +48,7 @@ export class PartialUtils {
    *
    * @param symbol - Trading pair symbol (e.g., "BTCUSDT")
    * @param strategyName - Strategy name (e.g., "my-strategy")
-   * @returns Promise resolving to PartialStatistics object with counts and event list
+   * @returns Promise resolving to PartialStatisticsContract object with counts and event list
    *
    * @example
    * ```typescript

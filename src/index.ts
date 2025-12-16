@@ -132,14 +132,14 @@ export {
 
 export { MessageModel, MessageRole } from "./model/Message.model";
 
-export type { BacktestStatistics } from "./model/BacktestStatistics.model";
-export type { LiveStatistics } from "./model/LiveStatistics.model";
-export type { HeatmapStatistics } from "./model/HeatmapStatistics.model";
-export type { ScheduleStatistics } from "./model/ScheduleStatistics.model";
-export type { PerformanceStatistics } from "./model/PerformanceStatistics.model";
-export type { WalkerStatistics } from "./model/WalkerStatistics.model";
-export type { PartialStatistics } from "./model/PartialStatistics.model";
-export type { RiskStatistics } from "./model/RiskStatistics.model";
+export type { BacktestStatisticsContract } from "./model/BacktestStatistics.model";
+export type { LiveStatisticsContract } from "./model/LiveStatistics.model";
+export type { HeatmapStatisticsContract } from "./model/HeatmapStatistics.model";
+export type { ScheduleStatisticsContract } from "./model/ScheduleStatistics.model";
+export type { PerformanceStatisticsContract } from "./model/PerformanceStatistics.model";
+export type { WalkerStatisticsContract } from "./model/WalkerStatistics.model";
+export type { PartialStatisticsContract } from "./model/PartialStatistics.model";
+export type { RiskStatisticsContract } from "./model/RiskStatistics.model";
 
 export { PartialLossContract } from "./contract/PartialLoss.contract";
 export { PartialProfitContract } from "./contract/PartialProfit.contract";

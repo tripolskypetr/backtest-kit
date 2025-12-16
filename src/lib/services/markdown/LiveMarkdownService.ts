@@ -14,7 +14,7 @@ import { memoize, singleshot } from "functools-kit";
 import { signalLiveEmitter } from "../../../config/emitters";
 import { toPlainString } from "../../../helpers/toPlainString";
 import { GLOBAL_CONFIG } from "../../../config/params";
-import { LiveStatistics, TickEvent } from "../../../model/LiveStatistics.model";
+import { LiveStatisticsContract, TickEvent } from "../../../model/LiveStatistics.model";
 
 /**
  * Checks if a value is unsafe for display (not a number, NaN, or Infinity).
@@ -306,7 +306,7 @@ class ReportStorage {
    *
    * @returns Statistical data (empty object if no events)
    */
-  public async getData(): Promise<LiveStatistics> {
+  public async getData(): Promise<LiveStatisticsContract> {
     if (this._eventList.length === 0) {
       return {
         eventList: [],
@@ -560,7 +560,7 @@ export class LiveMarkdownService {
    * console.log(stats.sharpeRatio, stats.winRate);
    * ```
    */
-  public getData = async (symbol: string, strategyName: StrategyName): Promise<LiveStatistics> => {
+  public getData = async (symbol: string, strategyName: StrategyName): Promise<LiveStatisticsContract> => {
     this.loggerService.log("liveMarkdownService getData", {
       symbol,
       strategyName,

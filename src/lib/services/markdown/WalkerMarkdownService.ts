@@ -12,8 +12,8 @@ import TYPES from "../../../lib/core/types";
 import { memoize, singleshot } from "functools-kit";
 import { walkerEmitter } from "../../../config/emitters";
 import { WalkerContract } from "../../../contract/Walker.contract";
-import { BacktestStatistics } from "../../../model/BacktestStatistics.model";
-import { WalkerStatistics, IStrategyResult } from "../../../model/WalkerStatistics.model";
+import { BacktestStatisticsContract } from "../../../model/BacktestStatistics.model";
+import { WalkerStatisticsContract, IStrategyResult } from "../../../model/WalkerStatistics.model";
 
 /**
  * Checks if a value is unsafe for display (not a number, NaN, or Infinity).
@@ -242,7 +242,7 @@ class ReportStorage {
 
   /** Walker metadata (set from first addResult call) */
   private _totalStrategies: number | null = null;
-  private _bestStats: BacktestStatistics | null = null;
+  private _bestStats: BacktestStatisticsContract | null = null;
   private _bestMetric: number | null = null;
   private _bestStrategy: StrategyName | null = null;
 
@@ -290,7 +290,7 @@ class ReportStorage {
       exchangeName: string;
       frameName: string;
     }
-  ): Promise<WalkerStatistics> {
+  ): Promise<WalkerStatisticsContract> {
     if (this._totalStrategies === null) {
       throw new Error("No walker data available - no results added yet");
     }

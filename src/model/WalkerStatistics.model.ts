@@ -1,4 +1,4 @@
-import { BacktestStatistics } from "./BacktestStatistics.model";
+import { BacktestStatisticsContract } from "./BacktestStatistics.model";
 import { StrategyName } from "../interfaces/Strategy.interface";
 import { WalkerCompleteContract } from "../contract/WalkerComplete.contract";
 
@@ -10,7 +10,7 @@ export interface IStrategyResult {
   /** Strategy name */
   strategyName: StrategyName;
   /** Complete backtest statistics for this strategy */
-  stats: BacktestStatistics;
+  stats: BacktestStatisticsContract;
   /** Value of the optimization metric (null if invalid) */
   metricValue: number | null;
 }
@@ -21,7 +21,7 @@ export interface IStrategyResult {
  *
  * Extends IWalkerResults with additional strategy comparison data.
  */
-export interface WalkerStatistics extends WalkerCompleteContract {
+export interface WalkerStatisticsContract extends WalkerCompleteContract {
   /** Array of all strategy results for comparison and analysis */
   strategyResults: IStrategyResult[];
 }

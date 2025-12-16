@@ -1,5 +1,5 @@
 import backtest from "../lib";
-import { PerformanceStatistics } from "../model/PerformanceStatistics.model";
+import { PerformanceStatisticsContract } from "../model/PerformanceStatistics.model";
 
 const PERFORMANCE_METHOD_NAME_GET_DATA = "Performance.getData";
 const PERFORMANCE_METHOD_NAME_GET_REPORT = "Performance.getReport";
@@ -69,7 +69,7 @@ export class Performance {
   public static async getData(
     symbol: string,
     strategyName: string
-  ): Promise<PerformanceStatistics> {
+  ): Promise<PerformanceStatisticsContract> {
     backtest.strategyValidationService.validate(strategyName, PERFORMANCE_METHOD_NAME_GET_DATA);
 
     {

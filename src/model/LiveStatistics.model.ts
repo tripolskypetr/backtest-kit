@@ -58,7 +58,7 @@ export interface TickEvent {
  * });
  * ```
  */
-export interface LiveStatistics {
+export interface LiveStatisticsContract {
   /** Array of all events (idle, opened, active, closed) with full details */
   eventList: TickEvent[];
 
