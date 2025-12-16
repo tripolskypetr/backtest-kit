@@ -7,7 +7,7 @@ import { ProgressWalkerContract } from "../contract/ProgressWalker.contract";
 import { ProgressOptimizerContract } from "../contract/ProgressOptimizer.contract";
 import { PerformanceContract } from "../contract/Performance.contract";
 import { WalkerContract } from "../contract/Walker.contract";
-import { IWalkerResults } from "../interfaces/Walker.interface";
+import { WalkerCompleteContract } from "../contract/WalkerComplete.contract";
 import { PartialProfitContract } from "../contract/PartialProfit.contract";
 import { PartialLossContract } from "../contract/PartialLoss.contract";
 import { RiskContract } from "../contract/Risk.contract";
@@ -725,7 +725,7 @@ export function listenWalkerOnce(
  * unsubscribe();
  * ```
  */
-export function listenWalkerComplete(fn: (event: IWalkerResults) => void) {
+export function listenWalkerComplete(fn: (event: WalkerCompleteContract) => void) {
   backtest.loggerService.log(LISTEN_WALKER_COMPLETE_METHOD_NAME);
   return walkerCompleteSubject.subscribe(queued(async (event) => fn(event)));
 }

@@ -144,6 +144,7 @@ export type { RiskStatistics } from "./model/RiskStatistics.model";
 export { PartialLossContract } from "./contract/PartialLoss.contract";
 export { PartialProfitContract } from "./contract/PartialProfit.contract";
 export { WalkerContract } from "./contract/Walker.contract";
+export { WalkerCompleteContract } from "./contract/WalkerComplete.contract";
 export { ProgressWalkerContract } from "./contract/ProgressWalker.contract";
 export { ProgressOptimizerContract } from "./contract/ProgressOptimizer.contract";
 export { DoneContract } from "./contract/Done.contract";

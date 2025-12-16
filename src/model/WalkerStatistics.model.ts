@@ -1,6 +1,6 @@
-import { IWalkerResults } from "../interfaces/Walker.interface";
 import { BacktestStatistics } from "./BacktestStatistics.model";
 import { StrategyName } from "../interfaces/Strategy.interface";
+import { WalkerCompleteContract } from "../contract/WalkerComplete.contract";
 
 /**
  * Strategy result entry for comparison table.
@@ -21,7 +21,7 @@ export interface IStrategyResult {
  *
  * Extends IWalkerResults with additional strategy comparison data.
  */
-export interface WalkerStatistics extends IWalkerResults {
+export interface WalkerStatistics extends WalkerCompleteContract {
   /** Array of all strategy results for comparison and analysis */
   strategyResults: IStrategyResult[];
 }

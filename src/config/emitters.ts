@@ -6,7 +6,7 @@ import { ProgressWalkerContract } from "../contract/ProgressWalker.contract";
 import { ProgressOptimizerContract } from "../contract/ProgressOptimizer.contract";
 import { PerformanceContract } from "../contract/Performance.contract";
 import { WalkerContract } from "../contract/Walker.contract";
-import { IWalkerResults } from "../interfaces/Walker.interface";
+import { WalkerCompleteContract } from "../contract/WalkerComplete.contract";
 import { PartialProfitContract } from "../contract/PartialProfit.contract";
 import { PartialLossContract } from "../contract/PartialLoss.contract";
 import { WalkerStopContract } from "../contract/WalkerStop.contract";
@@ -95,7 +95,7 @@ export const walkerEmitter = new Subject<WalkerContract>();
  * Walker complete emitter for strategy comparison completion.
  * Emits when all strategies have been tested and final results are available.
  */
-export const walkerCompleteSubject = new Subject<IWalkerResults>();
+export const walkerCompleteSubject = new Subject<WalkerCompleteContract>();
 
 /**
  * Walker stop emitter for walker cancellation events.

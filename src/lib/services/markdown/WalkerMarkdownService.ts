@@ -3,8 +3,8 @@ import { join } from "path";
 import {
   WalkerName,
   WalkerMetric,
-  IWalkerResults,
 } from "../../../interfaces/Walker.interface";
+import { WalkerCompleteContract } from "../../../contract/WalkerComplete.contract";
 import { StrategyName } from "../../../interfaces/Strategy.interface";
 import { inject } from "../../../lib/core/di";
 import LoggerService from "../base/LoggerService";
@@ -552,7 +552,7 @@ export class WalkerMarkdownService {
       exchangeName: string;
       frameName: string;
     }
-  ): Promise<IWalkerResults> => {
+  ): Promise<WalkerCompleteContract> => {
     this.loggerService.log("walkerMarkdownService getData", {
       walkerName,
       symbol,

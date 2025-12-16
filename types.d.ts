@@ -1151,6 +1151,46 @@ interface BacktestStatistics {
 }
 
 /**
+ * Contract for walker completion events.
+ *
+ * Emitted when all strategies have been tested and final results are available.
+ * Contains complete results of the walker comparison including the best strategy.
+ *
+ * @example
+ * ```typescript
+ * import { walkerCompleteSubject } from "backtest-kit";
+ *
+ * walkerCompleteSubject
+ *   .filter((event) => event.symbol === "BTCUSDT")
+ *   .connect((event) => {
+ *     console.log("Walker completed:", event.walkerName);
+ *     console.log("Best strategy:", event.bestStrategy);
+ *     console.log("Best metric:", event.bestMetric);
+ *   });
+ * ```
+ */
+interface WalkerCompleteContract {
+    /** walkerName - Walker name */
+    walkerName: WalkerName;
+    /** symbol - Symbol tested */
+    symbol: string;
+    /** exchangeName - Exchange used */
+    exchangeName: ExchangeName;
+    /** frameName - Frame used */
+    frameName: FrameName;
+    /** metric - Metric used for optimization */
+    metric: WalkerMetric;
+    /** totalStrategies - Total number of strategies tested */
+    totalStrategies: number;
+    /** bestStrategy - Best performing strategy name */
+    bestStrategy: StrategyName | null;
+    /** bestMetric - Best metric value achieved */
+    bestMetric: number | null;
+    /** bestStats - Best strategy statistics */
+    bestStats: BacktestStatistics | null;
+}
+
+/**
  * Optimization metric for comparing strategies.
  * Higher values are always better (metric is maximized).
  */
@@ -1205,25 +1245,15 @@ interface IWalkerStrategyResult {
 /**
  * Complete walker results after comparing all strategies.
  */
-interface IWalkerResults {
-    /** Walker name */
-    walkerName: WalkerName;
+interface IWalkerResults extends WalkerCompleteContract {
     /** Symbol tested */
     symbol: string;
     /** Exchange used */
     exchangeName: ExchangeName;
+    /** Walker name */
+    walkerName: WalkerName;
     /** Frame used */
     frameName: FrameName;
-    /** Metric used for optimization */
-    metric: WalkerMetric;
-    /** Total number of strategies tested */
-    totalStrategies: number;
-    /** Best performing strategy name */
-    bestStrategy: StrategyName | null;
-    /** Best metric value achieved */
-    bestMetric: number | null;
-    /** Best strategy statistics */
-    bestStats: BacktestStatistics | null;
 }
 /**
  * Unique walker identifier.
@@ -3468,7 +3498,7 @@ declare function listenWalkerOnce(filterFn: (event: WalkerContract) => boolean, 
  * unsubscribe();
  * ```
  */
-declare function listenWalkerComplete(fn: (event: IWalkerResults) => void): () => void;
+declare function listenWalkerComplete(fn: (event: WalkerCompleteContract) => void): () => void;
 /**
  * Subscribes to risk validation errors with queued async processing.
  *
@@ -4122,7 +4152,7 @@ interface IStrategyResult {
  *
  * Extends IWalkerResults with additional strategy comparison data.
  */
-interface WalkerStatistics extends IWalkerResults {
+interface WalkerStatistics extends WalkerCompleteContract {
     /** Array of all strategy results for comparison and analysis */
     strategyResults: IStrategyResult[];
 }
@@ -5298,7 +5328,7 @@ declare class WalkerUtils {
      * console.log(results.bestStrategy, results.bestMetric);
      * ```
      */
-    getData: (symbol: string, walkerName: WalkerName) => Promise<IWalkerResults>;
+    getData: (symbol: string, walkerName: WalkerName) => Promise<WalkerCompleteContract>;
     /**
      * Generates markdown report with all strategy comparisons for a walker.
      *
@@ -6130,7 +6160,7 @@ declare const walkerEmitter: Subject<WalkerContract>;
  * Walker complete emitter for strategy comparison completion.
  * Emits when all strategies have been tested and final results are available.
  */
-declare const walkerCompleteSubject: Subject<IWalkerResults>;
+declare const walkerCompleteSubject: Subject<WalkerCompleteContract>;
 /**
  * Walker stop emitter for walker cancellation events.
  * Emits when a walker comparison is stopped/cancelled.
@@ -8442,7 +8472,7 @@ declare class WalkerMarkdownService {
     getData: (walkerName: WalkerName, symbol: string, metric: WalkerMetric, context: {
         exchangeName: string;
         frameName: string;
-    }) => Promise<IWalkerResults>;
+    }) => Promise<WalkerCompleteContract>;
     /**
      * Generates markdown report with all strategy results for a walker.
      * Delegates to ReportStorage.getReport().
@@ -9895,4 +9925,4 @@ declare const backtest: {
     loggerService: LoggerService;
 };
 
-export { Backtest, type BacktestStatistics, type CandleInterval, Constant, type DoneContract, type EntityId, ExecutionContextService, type FrameInterval, type GlobalConfig, Heat, type HeatmapStatistics, type ICandleData, type IExchangeSchema, type IFrameSchema, type IHeatmapRow, type IOptimizerCallbacks, type IOptimizerData, type IOptimizerFetchArgs, type IOptimizerFilterArgs, type IOptimizerRange, type IOptimizerSchema, type IOptimizerSource, type IOptimizerStrategy, type IOptimizerTemplate, type IPersistBase, type IPositionSizeATRParams, type IPositionSizeFixedPercentageParams, type IPositionSizeKellyParams, type IRiskActivePosition, type IRiskCheckArgs, type IRiskSchema, type IRiskValidation, type IRiskValidationFn, type IRiskValidationPayload, type IScheduledSignalRow, type ISignalDto, type ISignalRow, type ISizingCalculateParams, type ISizingCalculateParamsATR, type ISizingCalculateParamsFixedPercentage, type ISizingCalculateParamsKelly, type ISizingSchema, type ISizingSchemaATR, type ISizingSchemaFixedPercentage, type ISizingSchemaKelly, type IStrategyPnL, type IStrategySchema, type IStrategyTickResult, type IStrategyTickResultActive, type IStrategyTickResultCancelled, type IStrategyTickResultClosed, type IStrategyTickResultIdle, type IStrategyTickResultOpened, type IStrategyTickResultScheduled, type IWalkerResults, type IWalkerSchema, type IWalkerStrategyResult, Live, type LiveStatistics, type MessageModel, type MessageRole, MethodContextService, Optimizer, Partial$1 as Partial, type PartialData, type PartialLossContract, type PartialProfitContract, type PartialStatistics, Performance, type PerformanceContract, type PerformanceMetricType, type PerformanceStatistics, PersistBase, PersistPartialAdapter, PersistRiskAdapter, PersistScheduleAdapter, PersistSignalAdapter, PositionSize, type ProgressBacktestContract, type ProgressOptimizerContract, type ProgressWalkerContract, Risk, type RiskContract, type RiskData, type RiskStatistics, Schedule, type ScheduleData, type ScheduleStatistics, type SignalData, type SignalInterval, type TPersistBase, type TPersistBaseCtor, Walker, type WalkerContract, type WalkerMetric, type WalkerStatistics, addExchange, addFrame, addOptimizer, addRisk, addSizing, addStrategy, addWalker, dumpSignal, emitters, formatPrice, formatQuantity, getAveragePrice, getCandles, getConfig, getDate, getDefaultConfig, getMode, backtest as lib, listExchanges, listFrames, listOptimizers, listRisks, listSizings, listStrategies, listWalkers, listenBacktestProgress, listenDoneBacktest, listenDoneBacktestOnce, listenDoneLive, listenDoneLiveOnce, listenDoneWalker, listenDoneWalkerOnce, listenError, listenExit, listenOptimizerProgress, listenPartialLoss, listenPartialLossOnce, listenPartialProfit, listenPartialProfitOnce, listenPerformance, listenRisk, listenRiskOnce, listenSignal, listenSignalBacktest, listenSignalBacktestOnce, listenSignalLive, listenSignalLiveOnce, listenSignalOnce, listenValidation, listenWalker, listenWalkerComplete, listenWalkerOnce, listenWalkerProgress, setConfig, setLogger };
+export { Backtest, type BacktestStatistics, type CandleInterval, Constant, type DoneContract, type EntityId, ExecutionContextService, type FrameInterval, type GlobalConfig, Heat, type HeatmapStatistics, type ICandleData, type IExchangeSchema, type IFrameSchema, type IHeatmapRow, type IOptimizerCallbacks, type IOptimizerData, type IOptimizerFetchArgs, type IOptimizerFilterArgs, type IOptimizerRange, type IOptimizerSchema, type IOptimizerSource, type IOptimizerStrategy, type IOptimizerTemplate, type IPersistBase, type IPositionSizeATRParams, type IPositionSizeFixedPercentageParams, type IPositionSizeKellyParams, type IRiskActivePosition, type IRiskCheckArgs, type IRiskSchema, type IRiskValidation, type IRiskValidationFn, type IRiskValidationPayload, type IScheduledSignalRow, type ISignalDto, type ISignalRow, type ISizingCalculateParams, type ISizingCalculateParamsATR, type ISizingCalculateParamsFixedPercentage, type ISizingCalculateParamsKelly, type ISizingSchema, type ISizingSchemaATR, type ISizingSchemaFixedPercentage, type ISizingSchemaKelly, type IStrategyPnL, type IStrategySchema, type IStrategyTickResult, type IStrategyTickResultActive, type IStrategyTickResultCancelled, type IStrategyTickResultClosed, type IStrategyTickResultIdle, type IStrategyTickResultOpened, type IStrategyTickResultScheduled, type IWalkerResults, type IWalkerSchema, type IWalkerStrategyResult, Live, type LiveStatistics, type MessageModel, type MessageRole, MethodContextService, Optimizer, Partial$1 as Partial, type PartialData, type PartialLossContract, type PartialProfitContract, type PartialStatistics, Performance, type PerformanceContract, type PerformanceMetricType, type PerformanceStatistics, PersistBase, PersistPartialAdapter, PersistRiskAdapter, PersistScheduleAdapter, PersistSignalAdapter, PositionSize, type ProgressBacktestContract, type ProgressOptimizerContract, type ProgressWalkerContract, Risk, type RiskContract, type RiskData, type RiskStatistics, Schedule, type ScheduleData, type ScheduleStatistics, type SignalData, type SignalInterval, type TPersistBase, type TPersistBaseCtor, Walker, type WalkerCompleteContract, type WalkerContract, type WalkerMetric, type WalkerStatistics, addExchange, addFrame, addOptimizer, addRisk, addSizing, addStrategy, addWalker, dumpSignal, emitters, formatPrice, formatQuantity, getAveragePrice, getCandles, getConfig, getDate, getDefaultConfig, getMode, backtest as lib, listExchanges, listFrames, listOptimizers, listRisks, listSizings, listStrategies, listWalkers, listenBacktestProgress, listenDoneBacktest, listenDoneBacktestOnce, listenDoneLive, listenDoneLiveOnce, listenDoneWalker, listenDoneWalkerOnce, listenError, listenExit, listenOptimizerProgress, listenPartialLoss, listenPartialLossOnce, listenPartialProfit, listenPartialProfitOnce, listenPerformance, listenRisk, listenRiskOnce, listenSignal, listenSignalBacktest, listenSignalBacktestOnce, listenSignalLive, listenSignalLiveOnce, listenSignalOnce, listenValidation, listenWalker, listenWalkerComplete, listenWalkerOnce, listenWalkerProgress, setConfig, setLogger };

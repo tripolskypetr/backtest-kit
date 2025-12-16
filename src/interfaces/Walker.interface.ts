@@ -2,6 +2,7 @@ import { StrategyName } from "./Strategy.interface";
 import { FrameName } from "./Frame.interface";
 import { ExchangeName } from "./Exchange.interface";
 import { BacktestStatistics } from "../model/BacktestStatistics.model";
+import WalkerCompleteContract from "../contract/WalkerComplete.contract";
 
 /**
  * Optimization metric for comparing strategies.
@@ -90,33 +91,18 @@ export interface IWalkerStrategyResult {
 /**
  * Complete walker results after comparing all strategies.
  */
-export interface IWalkerResults {
-  /** Walker name */
-  walkerName: WalkerName;
-
+export interface IWalkerResults extends WalkerCompleteContract {
   /** Symbol tested */
   symbol: string;
 
   /** Exchange used */
   exchangeName: ExchangeName;
 
+  /** Walker name */
+  walkerName: WalkerName;
+
   /** Frame used */
   frameName: FrameName;
-
-  /** Metric used for optimization */
-  metric: WalkerMetric;
-
-  /** Total number of strategies tested */
-  totalStrategies: number;
-
-  /** Best performing strategy name */
-  bestStrategy: StrategyName | null;
-
-  /** Best metric value achieved */
-  bestMetric: number | null;
-
-  /** Best strategy statistics */
-  bestStats: BacktestStatistics | null;
 }
 
 /**
