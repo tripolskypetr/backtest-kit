@@ -5,36 +5,6 @@ import {
 } from "../model/WalkerStatistics.model";
 
 /**
- * Checks if a value is unsafe for display (not a number, NaN, or Infinity).
- */
-function isUnsafe(value: number | null): boolean {
-  if (value === null) {
-    return true;
-  }
-  if (typeof value !== "number") {
-    return true;
-  }
-  if (isNaN(value)) {
-    return true;
-  }
-  if (!isFinite(value)) {
-    return true;
-  }
-  return false;
-}
-
-/**
- * Formats a metric value for display.
- * Returns "N/A" for unsafe values, otherwise formats with 2 decimal places.
- */
-export function formatMetric(value: number | null): string {
-  if (isUnsafe(value)) {
-    return "N/A";
-  }
-  return value!.toFixed(2);
-}
-
-/**
  * Static column configuration for walker strategy comparison table.
  * Contains all columns for comparing strategies with a generic "Metric" header.
  */
@@ -54,7 +24,8 @@ export const walker_strategy_columns: ColumnModel<IStrategyResult>[] = [
   {
     key: "metric",
     label: "Metric",
-    format: (data) => formatMetric(data.metricValue),
+    format: (data) =>
+      data.metricValue !== null ? data.metricValue.toFixed(2) : "N/A",
     isVisible: () => true,
   },
   {

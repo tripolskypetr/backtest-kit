@@ -21,8 +21,37 @@ import { BacktestStatisticsModel } from "../../../model/BacktestStatistics.model
 import {
   walker_strategy_columns,
   walker_pnl_columns,
-  formatMetric,
 } from "../../../assets/walker.columns";
+
+/**
+ * Checks if a value is unsafe for display (not a number, NaN, or Infinity).
+ */
+function isUnsafe(value: number | null): boolean {
+  if (value === null) {
+    return true;
+  }
+  if (typeof value !== "number") {
+    return true;
+  }
+  if (isNaN(value)) {
+    return true;
+  }
+  if (!isFinite(value)) {
+    return true;
+  }
+  return false;
+}
+
+/**
+ * Formats a metric value for display.
+ * Returns "N/A" for unsafe values, otherwise formats with 2 decimal places.
+ */
+function formatMetric(value: number | null): string {
+  if (isUnsafe(value)) {
+    return "N/A";
+  }
+  return value!.toFixed(2);
+}
 
 /**
  * Storage class for accumulating walker results.
@@ -60,7 +89,7 @@ class ReportStorage {
     this._strategyResults.unshift({
       strategyName: data.strategyName,
       stats: data.stats,
-      metricValue: data.metricValue,
+      metricValue: isUnsafe(data.metricValue) ? null : data.metricValue,
     });
   }
 
