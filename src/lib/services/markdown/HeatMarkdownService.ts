@@ -21,6 +21,11 @@ const HEATMAP_METHOD_NAME_DUMP = "HeatMarkdownService.dump";
 const HEATMAP_METHOD_NAME_CLEAR = "HeatMarkdownService.clear";
 
 /**
+ * Type alias for code convention
+ */
+export type HeatmapStatistics = IHeatmapStatistics;
+
+/**
  * Column configuration for heatmap markdown table generation.
  * Defines how to extract and format data from heatmap rows.
  */

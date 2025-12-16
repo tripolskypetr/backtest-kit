@@ -150,6 +150,7 @@ export {
 
 export type { BacktestStatistics } from "./lib/services/markdown/BacktestMarkdownService";
 export type { LiveStatistics } from "./lib/services/markdown/LiveMarkdownService";
+export type { HeatmapStatistics } from "./lib/services/markdown/HeatMarkdownService";
 export type { ScheduleStatistics } from "./lib/services/markdown/ScheduleMarkdownService";
 export type { PerformanceStatistics } from "./lib/services/markdown/PerformanceMarkdownService";
 export type { WalkerStatistics } from "./lib/services/markdown/WalkerMarkdownService";
