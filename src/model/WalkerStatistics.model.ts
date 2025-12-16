@@ -3,6 +3,29 @@ import { StrategyName } from "../interfaces/Strategy.interface";
 import { WalkerCompleteContract } from "../contract/WalkerComplete.contract";
 
 /**
+ * Signal data for PNL table.
+ * Represents a single closed signal with essential trading information.
+ */
+export interface SignalData {
+  /** Strategy that generated this signal */
+  strategyName: StrategyName;
+  /** Unique signal identifier */
+  signalId: string;
+  /** Trading pair symbol */
+  symbol: string;
+  /** Position type (long/short) */
+  position: string;
+  /** PNL as percentage */
+  pnl: number;
+  /** Reason why signal was closed */
+  closeReason: string;
+  /** Timestamp when signal opened */
+  openTime: number;
+  /** Timestamp when signal closed */
+  closeTime: number;
+}
+
+/**
  * Strategy result entry for comparison table.
  * Contains strategy name, full statistics, and metric value for ranking.
  */

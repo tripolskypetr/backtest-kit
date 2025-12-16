@@ -12,11 +12,14 @@ import TYPES from "../../../lib/core/types";
 import { memoize, singleshot } from "functools-kit";
 import { walkerEmitter } from "../../../config/emitters";
 import { WalkerContract } from "../../../contract/Walker.contract";
-import { WalkerStatisticsModel, IStrategyResult } from "../../../model/WalkerStatistics.model";
+import {
+  WalkerStatisticsModel,
+  IStrategyResult,
+  SignalData,
+} from "../../../model/WalkerStatistics.model";
 import { BacktestStatisticsModel } from "../../../model/BacktestStatistics.model";
 import {
-  SignalData,
-  createStrategyColumns,
+  walker_strategy_columns,
   walker_pnl_columns,
   formatMetric,
 } from "../../../assets/walker.columns";
@@ -99,11 +102,10 @@ class ReportStorage {
    * Generates comparison table for top N strategies (View).
    * Sorts strategies by metric value and formats as markdown table.
    *
-   * @param metric - Metric being optimized
    * @param topN - Number of top strategies to include (default: 10)
    * @returns Markdown formatted comparison table
    */
-  private getComparisonTable(metric: WalkerMetric, topN: number = 10): string {
+  private getComparisonTable(topN: number = 10): string {
     if (this._strategyResults.length === 0) {
       return "No strategy results available.";
     }
@@ -119,16 +121,15 @@ class ReportStorage {
     const topStrategies = sortedResults.slice(0, topN);
 
     // Get columns configuration
-    const columns = createStrategyColumns(metric);
-    const visibleColumns = columns.filter((col) => col.isVisible());
+    const visibleColumns = walker_strategy_columns.filter((col) => col.isVisible());
 
     // Build table header
     const header = visibleColumns.map((col) => col.label);
     const separator = visibleColumns.map(() => "---");
 
     // Build table rows
-    const rows = topStrategies.map((result, index) =>
-      visibleColumns.map((col) => col.format(result, index))
+    const rows = topStrategies.map((result) =>
+      visibleColumns.map((col) => col.format(result))
     );
 
     const tableData = [header, separator, ...rows];
@@ -220,7 +221,7 @@ class ReportStorage {
       "",
       "## Top Strategies Comparison",
       "",
-      this.getComparisonTable(metric, 10),
+      this.getComparisonTable(10),
       "",
       "## All Signals (PNL Table)",
       "",

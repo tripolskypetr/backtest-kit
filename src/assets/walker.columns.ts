@@ -1,7 +1,8 @@
 import { ColumnModel } from "../model/Column.model";
-import { WalkerMetric } from "../interfaces/Walker.interface";
-import { IStrategyResult } from "../model/WalkerStatistics.model";
-import { StrategyName } from "../interfaces/Strategy.interface";
+import {
+  IStrategyResult,
+  SignalData,
+} from "../model/WalkerStatistics.model";
 
 /**
  * Checks if a value is unsafe for display (not a number, NaN, or Infinity).
@@ -34,123 +35,74 @@ export function formatMetric(value: number | null): string {
 }
 
 /**
- * Signal data for PNL table.
- * Represents a single closed signal with essential trading information.
+ * Static column configuration for walker strategy comparison table.
+ * Contains all columns for comparing strategies with a generic "Metric" header.
  */
-export interface SignalData {
-  /** Strategy that generated this signal */
-  strategyName: StrategyName;
-  /** Unique signal identifier */
-  signalId: string;
-  /** Trading pair symbol */
-  symbol: string;
-  /** Position type (long/short) */
-  position: string;
-  /** PNL as percentage */
-  pnl: number;
-  /** Reason why signal was closed */
-  closeReason: string;
-  /** Timestamp when signal opened */
-  openTime: number;
-  /** Timestamp when signal closed */
-  closeTime: number;
-}
-
-/**
- * Column configuration for strategy comparison table generation.
- * Defines how to extract and format data from strategy results.
- */
-export interface StrategyColumn {
-  /** Unique column identifier */
-  key: string;
-  /** Display label for column header */
-  label: string;
-  /** Formatting function to convert strategy result data to string */
-  format: (data: IStrategyResult, index: number) => string;
-  /** Function to determine if column should be visible */
-  isVisible: () => boolean;
-}
-
-/**
- * Creates strategy comparison columns based on metric name.
- * Dynamically builds column configuration with metric-specific header.
- *
- * @param metric - Metric being optimized
- * @returns Array of column configurations for strategy comparison table
- */
-export function createStrategyColumns(metric: WalkerMetric): StrategyColumn[] {
-  return [
-    {
-      key: "rank",
-      label: "Rank",
-      format: (data, index) => `${index + 1}`,
-      isVisible: () => true,
-    },
-    {
-      key: "strategy",
-      label: "Strategy",
-      format: (data) => data.strategyName,
-      isVisible: () => true,
-    },
-    {
-      key: "metric",
-      label: metric,
-      format: (data) => formatMetric(data.metricValue),
-      isVisible: () => true,
-    },
-    {
-      key: "totalSignals",
-      label: "Total Signals",
-      format: (data) => `${data.stats.totalSignals}`,
-      isVisible: () => true,
-    },
-    {
-      key: "winRate",
-      label: "Win Rate",
-      format: (data) =>
-        data.stats.winRate !== null
-          ? `${data.stats.winRate.toFixed(2)}%`
-          : "N/A",
-      isVisible: () => true,
-    },
-    {
-      key: "avgPnl",
-      label: "Avg PNL",
-      format: (data) =>
-        data.stats.avgPnl !== null
-          ? `${data.stats.avgPnl > 0 ? "+" : ""}${data.stats.avgPnl.toFixed(2)}%`
-          : "N/A",
-      isVisible: () => true,
-    },
-    {
-      key: "totalPnl",
-      label: "Total PNL",
-      format: (data) =>
-        data.stats.totalPnl !== null
-          ? `${data.stats.totalPnl > 0 ? "+" : ""}${data.stats.totalPnl.toFixed(2)}%`
-          : "N/A",
-      isVisible: () => true,
-    },
-    {
-      key: "sharpeRatio",
-      label: "Sharpe Ratio",
-      format: (data) =>
-        data.stats.sharpeRatio !== null
-          ? `${data.stats.sharpeRatio.toFixed(3)}`
-          : "N/A",
-      isVisible: () => true,
-    },
-    {
-      key: "stdDev",
-      label: "Std Dev",
-      format: (data) =>
-        data.stats.stdDev !== null
-          ? `${data.stats.stdDev.toFixed(3)}%`
-          : "N/A",
-      isVisible: () => true,
-    },
-  ];
-}
+export const walker_strategy_columns: ColumnModel<IStrategyResult>[] = [
+  {
+    key: "strategy",
+    label: "Strategy",
+    format: (data) => data.strategyName,
+    isVisible: () => true,
+  },
+  {
+    key: "metric",
+    label: "Metric",
+    format: (data) => formatMetric(data.metricValue),
+    isVisible: () => true,
+  },
+  {
+    key: "totalSignals",
+    label: "Total Signals",
+    format: (data) => `${data.stats.totalSignals}`,
+    isVisible: () => true,
+  },
+  {
+    key: "winRate",
+    label: "Win Rate",
+    format: (data) =>
+      data.stats.winRate !== null
+        ? `${data.stats.winRate.toFixed(2)}%`
+        : "N/A",
+    isVisible: () => true,
+  },
+  {
+    key: "avgPnl",
+    label: "Avg PNL",
+    format: (data) =>
+      data.stats.avgPnl !== null
+        ? `${data.stats.avgPnl > 0 ? "+" : ""}${data.stats.avgPnl.toFixed(2)}%`
+        : "N/A",
+    isVisible: () => true,
+  },
+  {
+    key: "totalPnl",
+    label: "Total PNL",
+    format: (data) =>
+      data.stats.totalPnl !== null
+        ? `${data.stats.totalPnl > 0 ? "+" : ""}${data.stats.totalPnl.toFixed(2)}%`
+        : "N/A",
+    isVisible: () => true,
+  },
+  {
+    key: "sharpeRatio",
+    label: "Sharpe Ratio",
+    format: (data) =>
+      data.stats.sharpeRatio !== null
+        ? `${data.stats.sharpeRatio.toFixed(3)}`
+        : "N/A",
+    isVisible: () => true,
+  },
+  {
+    key: "stdDev",
+    label: "Std Dev",
+    format: (data) =>
+      data.stats.stdDev !== null
+        ? `${data.stats.stdDev.toFixed(3)}%`
+        : "N/A",
+    isVisible: () => true,
+  },
+];
 
 /**
  * Column configuration for PNL table.
