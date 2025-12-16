@@ -15,15 +15,12 @@ import {
   IHeatmapRow,
 } from "../../../interfaces/Heatmap.interface";
 
+export type { HeatmapStatistics } from "../../../model/HeatmapStatistics.model";
+
 const HEATMAP_METHOD_NAME_GET_DATA = "HeatMarkdownService.getData";
 const HEATMAP_METHOD_NAME_GET_REPORT = "HeatMarkdownService.getReport";
 const HEATMAP_METHOD_NAME_DUMP = "HeatMarkdownService.dump";
 const HEATMAP_METHOD_NAME_CLEAR = "HeatMarkdownService.clear";
-
-/**
- * Type alias for code convention
- */
-export type HeatmapStatistics = IHeatmapStatistics;
 
 /**
  * Column configuration for heatmap markdown table generation.

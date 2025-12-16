@@ -12,18 +12,10 @@ import TYPES from "../../../lib/core/types";
 import { memoize, singleshot } from "functools-kit";
 import { walkerEmitter } from "../../../config/emitters";
 import { WalkerContract } from "../../../contract/Walker.contract";
-import { BacktestStatistics } from "./BacktestMarkdownService";
+import { BacktestStatistics } from "../../../model/BacktestStatistics.model";
+import { WalkerStatistics, IStrategyResult } from "../../../model/WalkerStatistics.model";
 
-/**
- * Alias for walker statistics result interface.
- * Used for clarity in markdown service context.
- *
- * Extends IWalkerResults with additional strategy comparison data.
- */
-export interface WalkerStatistics extends IWalkerResults {
-  /** Array of all strategy results for comparison and analysis */
-  strategyResults: IStrategyResult[];
-};
+export type { WalkerStatistics } from "../../../model/WalkerStatistics.model";
 
 /**
  * Checks if a value is unsafe for display (not a number, NaN, or Infinity).
@@ -53,19 +45,6 @@ function formatMetric(value: number | null): string {
     return "N/A";
   }
   return value!.toFixed(2);
-}
-
-/**
- * Strategy result entry for comparison table.
- * Contains strategy name, full statistics, and metric value for ranking.
- */
-interface IStrategyResult {
-  /** Strategy name */
-  strategyName: StrategyName;
-  /** Complete backtest statistics for this strategy */
-  stats: BacktestStatistics;
-  /** Value of the optimization metric (null if invalid) */
-  metricValue: number | null;
 }
 
 /**

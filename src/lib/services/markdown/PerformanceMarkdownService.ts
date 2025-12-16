@@ -9,70 +9,9 @@ import LoggerService from "../base/LoggerService";
 import TYPES from "../../../lib/core/types";
 import { memoize, singleshot } from "functools-kit";
 import { performanceEmitter } from "../../../config/emitters";
+import { PerformanceStatistics, MetricStats } from "../../../model/PerformanceStatistics.model";
 
-/**
- * Aggregated statistics for a specific metric type.
- */
-interface MetricStats {
-  /** Type of metric */
-  metricType: PerformanceMetricType;
-
-  /** Number of recorded samples */
-  count: number;
-
-  /** Total duration across all samples (ms) */
-  totalDuration: number;
-
-  /** Average duration (ms) */
-  avgDuration: number;
-
-  /** Minimum duration (ms) */
-  minDuration: number;
-
-  /** Maximum duration (ms) */
-  maxDuration: number;
-
-  /** Standard deviation of duration (ms) */
-  stdDev: number;
-
-  /** Median duration (ms) */
-  median: number;
-
-  /** 95th percentile duration (ms) */
-  p95: number;
-
-  /** 99th percentile duration (ms) */
-  p99: number;
-
-  /** Average wait time between events (ms) */
-  avgWaitTime: number;
-
-  /** Minimum wait time between events (ms) */
-  minWaitTime: number;
-
-  /** Maximum wait time between events (ms) */
-  maxWaitTime: number;
-}
-
-/**
- * Performance statistics aggregated by strategy.
- */
-export interface PerformanceStatistics {
-  /** Strategy name */
-  strategyName: string;
-
-  /** Total number of performance events recorded */
-  totalEvents: number;
-
-  /** Total execution time across all metrics (ms) */
-  totalDuration: number;
-
-  /** Statistics grouped by metric type */
-  metricStats: Record<string, MetricStats>;
-
-  /** All raw performance events */
-  events: PerformanceContract[];
-}
+export type { PerformanceStatistics } from "../../../model/PerformanceStatistics.model";
 
 /**
  * Checks if a value is unsafe for display (not a number, NaN, or Infinity).

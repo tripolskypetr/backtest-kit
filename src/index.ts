@@ -135,6 +135,15 @@ export {
 
 export { MessageModel, MessageRole } from "./model/Message.model";
 
+export type { BacktestStatistics } from "./model/BacktestStatistics.model";
+export type { LiveStatistics } from "./model/LiveStatistics.model";
+export type { HeatmapStatistics } from "./model/HeatmapStatistics.model";
+export type { ScheduleStatistics } from "./model/ScheduleStatistics.model";
+export type { PerformanceStatistics } from "./model/PerformanceStatistics.model";
+export type { WalkerStatistics } from "./model/WalkerStatistics.model";
+export type { PartialStatistics } from "./model/PartialStatistics.model";
+export type { RiskStatistics } from "./model/RiskStatistics.model";
+
 export { PartialLossContract } from "./contract/PartialLoss.contract";
 export { PartialProfitContract } from "./contract/PartialProfit.contract";
 export { WalkerContract } from "./contract/Walker.contract";
@@ -147,15 +156,6 @@ export {
   PerformanceContract,
   PerformanceMetricType,
 } from "./contract/Performance.contract";
-
-export type { BacktestStatistics } from "./lib/services/markdown/BacktestMarkdownService";
-export type { LiveStatistics } from "./lib/services/markdown/LiveMarkdownService";
-export type { HeatmapStatistics } from "./lib/services/markdown/HeatMarkdownService";
-export type { ScheduleStatistics } from "./lib/services/markdown/ScheduleMarkdownService";
-export type { PerformanceStatistics } from "./lib/services/markdown/PerformanceMarkdownService";
-export type { WalkerStatistics } from "./lib/services/markdown/WalkerMarkdownService";
-export type { PartialStatistics } from "./lib/services/markdown/PartialMarkdownService";
-export type { RiskStatistics } from "./lib/services/markdown/RiskMarkdownService";
 
 export { ExecutionContextService } from "./lib/services/context/ExecutionContextService";
 export { MethodContextService } from "./lib/services/context/MethodContextService";
