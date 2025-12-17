@@ -600,7 +600,7 @@ sequenceDiagram
 
 **Example from source:**
 
-[src/function/event.ts:70-73]()
+`src/function/event.ts:70-73`
 ```typescript
 export function listenSignal(fn: (event: IStrategyTickResult) => void) {
   backtest.loggerService.log(LISTEN_SIGNAL_METHOD_NAME);

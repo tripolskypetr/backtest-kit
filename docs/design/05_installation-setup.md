@@ -74,7 +74,7 @@ graph TB
 ```
 
 **Dependency Roles:**
-- **di-kit**: Implements the TYPES symbol registry used in [src/lib/index.ts]() and the `inject`/`provide` pattern
+- **di-kit**: Implements the TYPES symbol registry used in `src/lib/index.ts` and the `inject`/`provide` pattern
 - **di-scoped**: Powers `ExecutionContextService` and `MethodContextService` for ambient context propagation without explicit parameters
 - **functools-kit**: Provides the `queued` wrapper that ensures sequential execution of async callbacks in event listeners
 - **get-moment-stamp**: Handles timestamp conversions between Date objects and numeric millisecond stamps
@@ -92,7 +92,7 @@ Backtest Kit requires TypeScript 5.0.0 or higher as a peer dependency. Install i
 npm install --save-dev typescript
 ```
 
-The framework exports comprehensive type definitions via [types.d.ts:1-3000+]() that require TypeScript 5.0+ features including:
+The framework exports comprehensive type definitions via `types.d.ts:1-3000+` that require TypeScript 5.0+ features including:
 
 - Template literal types
 - `satisfies` operator
@@ -226,7 +226,7 @@ Create a `tsconfig.json` file in your project root:
 | `strict` | true (recommended) | Type safety for signal validation |
 | `skipLibCheck` | true | Faster compilation with large type definitions |
 
-The framework's [types.d.ts]() contains over 3000 lines of type definitions. Setting `skipLibCheck: true` reduces compilation time without sacrificing type safety for your code.
+The framework's `types.d.ts` contains over 3000 lines of type definitions. Setting `skipLibCheck: true` reduces compilation time without sacrificing type safety for your code.
 
 
 ---
@@ -287,7 +287,7 @@ setConfig({
 
 ### Module Type Configuration
 
-The demo projects use `"type": "module"` in [demo/backtest/package.json:4]() to enable native ESM. Add this to your `package.json`:
+The demo projects use `"type": "module"` in `demo/backtest/package.json:4` to enable native ESM. Add this to your `package.json`:
 
 ```json
 {
@@ -356,7 +356,7 @@ Expected output: `Backtest Kit imported successfully`
 
 ### Available Exports
 
-The framework exports the following categories from [src/index.ts]():
+The framework exports the following categories from `src/index.ts`:
 
 **Configuration Functions:**
 - `setLogger({ log, debug, info, warn })`: Configure logging output

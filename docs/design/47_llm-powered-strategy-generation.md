@@ -214,7 +214,7 @@ sequenceDiagram
 The system uses `functools-kit` utilities for automatic pagination with deduplication:
 
 **Pagination Constants**:
-- `ITERATION_LIMIT = 25` - Records per page [src/client/ClientOptimizer.ts:19]()
+- `ITERATION_LIMIT = 25` - Records per page `src/client/ClientOptimizer.ts:19`
 
 **Pagination Flow**:
 1. `iterateDocuments()` - Creates async iterator with `limit` and `offset`
@@ -236,8 +236,8 @@ For each source in each training range, the system creates a user-assistant mess
 | 6 | Call `getPrompt()` after all sources | Strategy description string |
 
 **Default Message Formatters**: If source doesn't provide custom `user()` or `assistant()` functions, defaults delegate to template methods:
-- [src/client/ClientOptimizer.ts:34-41]() - `DEFAULT_USER_FN`
-- [src/client/ClientOptimizer.ts:43-60]() - `DEFAULT_ASSISTANT_FN`
+- `src/client/ClientOptimizer.ts:34-41` - `DEFAULT_USER_FN`
+- `src/client/ClientOptimizer.ts:43-60` - `DEFAULT_ASSISTANT_FN`
 
 
 ---
@@ -287,7 +287,7 @@ graph TB
 
 The `text()` function generates narrative market analysis with fundamental recommendations:
 
-**Template Location**: [src/lib/services/template/OptimizerTemplateService.ts:555-612]()
+**Template Location**: `src/lib/services/template/OptimizerTemplateService.ts:555-612`
 
 **Key Features**:
 - Uses `deepseek-v3.1:671b` model
@@ -322,7 +322,7 @@ async function text(messages) {
 
 The `json()` function generates structured trading signals using JSON schema validation:
 
-**Template Location**: [src/lib/services/template/OptimizerTemplateService.ts:614-732]()
+**Template Location**: `src/lib/services/template/OptimizerTemplateService.ts:614-732`
 
 **Signal Schema Definition**:
 
@@ -452,22 +452,22 @@ graph TD
 
 ### Phase 1: Registration
 
-**Entry Point**: `addOptimizer(schema: IOptimizerSchema)` [src/index.ts]()
+**Entry Point**: `addOptimizer(schema: IOptimizerSchema)` `src/index.ts`
 
 **Validation Steps**:
-1. Check for duplicate `optimizerName` [src/lib/services/validation/OptimizerValidationService.ts:25-34]()
-2. Validate schema structure [src/lib/services/schema/OptimizerSchemaService.ts:41-67]()
-3. Store in `ToolRegistry` [src/lib/services/schema/OptimizerSchemaService.ts:28-32]()
+1. Check for duplicate `optimizerName` `src/lib/services/validation/OptimizerValidationService.ts:25-34`
+2. Validate schema structure `src/lib/services/schema/OptimizerSchemaService.ts:41-67`
+3. Store in `ToolRegistry` `src/lib/services/schema/OptimizerSchemaService.ts:28-32`
 
 
 ### Phase 2: Data Collection
 
-**Entry Point**: `Optimizer.getData(symbol, { optimizerName })` [src/classes/Optimizer.ts:42-59]()
+**Entry Point**: `Optimizer.getData(symbol, { optimizerName })` `src/classes/Optimizer.ts:42-59`
 
 **Execution Flow**:
-1. `OptimizerGlobalService.getData()` validates and delegates [src/lib/services/global/OptimizerGlobalService.ts:37-50]()
-2. `OptimizerConnectionService.getData()` retrieves memoized instance [src/lib/services/connection/OptimizerConnectionService.ts:122-132]()
-3. `ClientOptimizer.getData()` executes collection logic [src/client/ClientOptimizer.ts:99-215]()
+1. `OptimizerGlobalService.getData()` validates and delegates `src/lib/services/global/OptimizerGlobalService.ts:37-50`
+2. `OptimizerConnectionService.getData()` retrieves memoized instance `src/lib/services/connection/OptimizerConnectionService.ts:122-132`
+3. `ClientOptimizer.getData()` executes collection logic `src/client/ClientOptimizer.ts:99-215`
 
 **Inner Loops**:
 - **Outer Loop**: Iterate through `rangeTrain` array
@@ -480,14 +480,14 @@ graph TD
   - Call `getPrompt(symbol, messages)`
   - Store `IOptimizerStrategy` object
 
-**Progress Events**: Emits `ProgressOptimizerContract` via `progressOptimizerEmitter` [src/client/ClientOptimizer.ts:108-114]()
+**Progress Events**: Emits `ProgressOptimizerContract` via `progressOptimizerEmitter` `src/client/ClientOptimizer.ts:108-114`
 
 
 ### Phase 3: Code Generation
 
-**Entry Point**: `Optimizer.getCode(symbol, { optimizerName })` [src/classes/Optimizer.ts:70-87]()
+**Entry Point**: `Optimizer.getCode(symbol, { optimizerName })` `src/classes/Optimizer.ts:70-87`
 
-**Template Merging**: `OptimizerConnectionService` merges custom templates with defaults [src/lib/services/connection/OptimizerConnectionService.ts:59-112]()
+**Template Merging**: `OptimizerConnectionService` merges custom templates with defaults `src/lib/services/connection/OptimizerConnectionService.ts:59-112`
 
 **Code Assembly Order**:
 
@@ -503,12 +503,12 @@ graph TD
 | 8 | `getWalkerTemplate()` | Strategy comparison |
 | 9 | `getLauncherTemplate()` | Event listeners and execution |
 
-**Prefix Generation**: Uses random prefix to prevent naming conflicts [src/client/ClientOptimizer.ts:22](), [src/client/ClientOptimizer.ts:228]()
+**Prefix Generation**: Uses random prefix to prevent naming conflicts `src/client/ClientOptimizer.ts:22`, `src/client/ClientOptimizer.ts:228`
 
 
 ### Phase 4: File Export
 
-**Entry Point**: `Optimizer.dump(symbol, { optimizerName }, path)` [src/classes/Optimizer.ts:100-120]()
+**Entry Point**: `Optimizer.dump(symbol, { optimizerName }, path)` `src/classes/Optimizer.ts:100-120`
 
 **File Operations**:
 1. Generate complete code via `getCode()`
@@ -1170,7 +1170,7 @@ addOptimizer({
 - Filters out duplicate records
 - Critical for large datasets with many pages
 
-**Message Size Warning**: The `dumpJson()` function warns when user messages exceed 100KB [src/lib/services/template/OptimizerTemplateService.ts:508-515]()
+**Message Size Warning**: The `dumpJson()` function warns when user messages exceed 100KB `src/lib/services/template/OptimizerTemplateService.ts:508-515`
 
 
 ### Memoization
@@ -1180,7 +1180,7 @@ addOptimizer({
 - Template merging done once
 - Reduces initialization overhead
 
-**Memoization Key**: `[optimizerName]` [src/lib/services/connection/OptimizerConnectionService.ts:59-112]()
+**Memoization Key**: `[optimizerName]` `src/lib/services/connection/OptimizerConnectionService.ts:59-112`
 
 
 ### Pagination Efficiency

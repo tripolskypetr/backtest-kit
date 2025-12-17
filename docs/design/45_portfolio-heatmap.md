@@ -138,14 +138,14 @@ interface HeatmapStatisticsModel {
 }
 ```
 
-**Safe Math:** All numeric fields are nullable. The `isUnsafe()` function [src/lib/services/markdown/HeatMarkdownService.ts:62-73]() checks for `NaN`, `Infinity`, or non-numeric values and converts them to `null` to prevent rendering issues.
+**Safe Math:** All numeric fields are nullable. The `isUnsafe()` function `src/lib/services/markdown/HeatMarkdownService.ts:62-73` checks for `NaN`, `Infinity`, or non-numeric values and converts them to `null` to prevent rendering issues.
 
 
 ---
 
 ## Per-Symbol Statistics Calculation
 
-The `calculateSymbolStats()` method [src/lib/services/markdown/HeatMarkdownService.ts:115-271]() processes each symbol's signal array independently.
+The `calculateSymbolStats()` method `src/lib/services/markdown/HeatMarkdownService.ts:115-271` processes each symbol's signal array independently.
 
 ```mermaid
 graph LR
@@ -211,7 +211,7 @@ graph LR
 
 ### Maximum Drawdown Algorithm
 
-The drawdown calculation [src/lib/services/markdown/HeatMarkdownService.ts:158-178]() tracks cumulative PNL and measures the largest decline from peak:
+The drawdown calculation `src/lib/services/markdown/HeatMarkdownService.ts:158-178` tracks cumulative PNL and measures the largest decline from peak:
 
 ```typescript
 let peak = 0;
@@ -235,7 +235,7 @@ for (const signal of signals) {
 
 ## Portfolio-Wide Aggregation
 
-The `getData()` method [src/lib/services/markdown/HeatMarkdownService.ts:278-330]() aggregates per-symbol statistics into portfolio metrics.
+The `getData()` method `src/lib/services/markdown/HeatMarkdownService.ts:278-330` aggregates per-symbol statistics into portfolio metrics.
 
 ### Portfolio Total PNL
 
@@ -275,7 +275,7 @@ symbols.sort((a, b) => {
 
 ## Markdown Report Generation
 
-The `getReport()` method [src/lib/services/markdown/HeatMarkdownService.ts:339-377]() produces formatted markdown with customizable columns.
+The `getReport()` method `src/lib/services/markdown/HeatMarkdownService.ts:339-377` produces formatted markdown with customizable columns.
 
 ### Report Structure
 
@@ -293,7 +293,7 @@ The `getReport()` method [src/lib/services/markdown/HeatMarkdownService.ts:339-3
 
 ### Column Configuration
 
-Default columns are defined in `COLUMN_CONFIG.heat_columns` [src/config/columns.ts](). Custom columns can be provided via the `columns` parameter:
+Default columns are defined in `COLUMN_CONFIG.heat_columns` `src/config/columns.ts`. Custom columns can be provided via the `columns` parameter:
 
 ```typescript
 interface ColumnModel<IHeatmapRow> {
@@ -415,7 +415,7 @@ console.log(`Underperforming symbols: ${losers.length}`);
 
 ### Memoization Strategy
 
-`HeatMarkdownService` uses a memoized storage factory [src/lib/services/markdown/HeatMarkdownService.ts:442-445]():
+`HeatMarkdownService` uses a memoized storage factory `src/lib/services/markdown/HeatMarkdownService.ts:442-445`:
 
 ```typescript
 private getStorage = memoize<(strategyName: string) => HeatmapStorage>(
@@ -428,7 +428,7 @@ Each strategy gets exactly one `HeatmapStorage` instance. Multiple calls with th
 
 ### Per-Symbol Signal Limits
 
-Each symbol within a strategy is limited to `MAX_EVENTS = 250` signals [src/lib/services/markdown/HeatMarkdownService.ts:76]():
+Each symbol within a strategy is limited to `MAX_EVENTS = 250` signals `src/lib/services/markdown/HeatMarkdownService.ts:76`:
 
 ```typescript
 public addSignal(data: IStrategyTickResultClosed) {
@@ -451,7 +451,7 @@ For a strategy trading 10 symbols, maximum memory usage is 2,500 signals total.
 
 ### Clearing Data
 
-The service provides a `clear()` method [src/lib/services/markdown/HeatMarkdownService.ts:579-591]():
+The service provides a `clear()` method `src/lib/services/markdown/HeatMarkdownService.ts:579-591`:
 
 ```typescript
 // Clear specific strategy
@@ -507,7 +507,7 @@ sequenceDiagram
 
 ### Subscription Lifecycle
 
-The service uses `singleshot` initialization [src/lib/services/markdown/HeatMarkdownService.ts:593-606]():
+The service uses `singleshot` initialization `src/lib/services/markdown/HeatMarkdownService.ts:593-606`:
 
 ```typescript
 protected init = singleshot(async () => {
@@ -520,7 +520,7 @@ This ensures subscription happens exactly once, even if multiple methods are cal
 
 ### Event Filtering
 
-The `tick()` method [src/lib/services/markdown/HeatMarkdownService.ts:455-466]() filters incoming events:
+The `tick()` method `src/lib/services/markdown/HeatMarkdownService.ts:455-466` filters incoming events:
 
 ```typescript
 private tick = async (data: IStrategyTickResult) => {
@@ -553,7 +553,7 @@ Each service filters events independently and maintains separate storage.
 
 ## File Export
 
-The `dump()` method [src/lib/services/markdown/HeatMarkdownService.ts:386-405]() writes reports to disk:
+The `dump()` method `src/lib/services/markdown/HeatMarkdownService.ts:386-405` writes reports to disk:
 
 ```typescript
 public async dump(
@@ -599,7 +599,7 @@ The heatmap uses strategy name only (not symbol) because it aggregates across al
 
 ## Integration with Public API
 
-The `Heat` class [src/classes/Heat.ts:1-148]() provides the public-facing API:
+The `Heat` class `src/classes/Heat.ts:1-148` provides the public-facing API:
 
 ```mermaid
 graph TD

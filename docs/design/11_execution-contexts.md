@@ -375,12 +375,12 @@ However, unlike typical services, context services manage **scoped state** using
 
 | Component | File Path | Lines |
 |-----------|-----------|-------|
-| IExecutionContext interface | [types.d.ts]() | 11-18 |
-| IMethodContext interface | [types.d.ts]() | 302-309 |
-| ExecutionContextService declaration | [types.d.ts]() | 38-49 |
-| MethodContextService declaration | [types.d.ts]() | 330-336 |
-| Context service DI registration | [src/lib/core/provide.ts]() | 60-63 |
-| Context service TYPES symbols | [src/lib/core/types.ts]() | 5-8 |
-| Context services export | [src/lib/index.ts]() | 66-71, 162-163 |
-| IExchangeParams using ExecutionContext | [types.d.ts]() | 105-110 |
+| IExecutionContext interface | `types.d.ts` | 11-18 |
+| IMethodContext interface | `types.d.ts` | 302-309 |
+| ExecutionContextService declaration | `types.d.ts` | 38-49 |
+| MethodContextService declaration | `types.d.ts` | 330-336 |
+| Context service DI registration | `src/lib/core/provide.ts` | 60-63 |
+| Context service TYPES symbols | `src/lib/core/types.ts` | 5-8 |
+| Context services export | `src/lib/index.ts` | 66-71, 162-163 |
+| IExchangeParams using ExecutionContext | `types.d.ts` | 105-110 |
 

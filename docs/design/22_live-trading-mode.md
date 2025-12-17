@@ -89,13 +89,13 @@ The infinite loop in `LiveLogicPrivateService.run()` implements the following se
 
 | Step | Operation | File Reference |
 |------|-----------|----------------|
-| 1 | Create real-time date with `new Date()` | [LiveLogicPrivateService.ts:72]() |
-| 2 | Call `strategyCoreService.tick(symbol, when, false)` | [LiveLogicPrivateService.ts:76]() |
-| 3 | Handle errors and retry after sleep | [LiveLogicPrivateService.ts:77-95]() |
-| 4 | Check result action type | [LiveLogicPrivateService.ts:118-149]() |
-| 5 | Yield `opened` or `closed` results | [LiveLogicPrivateService.ts:152]() |
-| 6 | Sleep for `TICK_TTL` (1 minute + 1ms) | [LiveLogicPrivateService.ts:137-173]() |
-| 7 | Check stop conditions before continuing | [LiveLogicPrivateService.ts:119-135]() |
+| 1 | Create real-time date with `new Date()` | `LiveLogicPrivateService.ts:72` |
+| 2 | Call `strategyCoreService.tick(symbol, when, false)` | `LiveLogicPrivateService.ts:76` |
+| 3 | Handle errors and retry after sleep | `LiveLogicPrivateService.ts:77-95` |
+| 4 | Check result action type | `LiveLogicPrivateService.ts:118-149` |
+| 5 | Yield `opened` or `closed` results | `LiveLogicPrivateService.ts:152` |
+| 6 | Sleep for `TICK_TTL` (1 minute + 1ms) | `LiveLogicPrivateService.ts:137-173` |
+| 7 | Check stop conditions before continuing | `LiveLogicPrivateService.ts:119-135` |
 
 
 ### Sleep Interval Configuration

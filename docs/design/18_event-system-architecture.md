@@ -15,7 +15,7 @@ For information about how strategies generate events, see [3.1 - Signals & Signa
 
 ## Event Emitter Registry
 
-The framework provides 13 distinct `Subject` emitters organized by functional area. All emitters are defined in [src/config/emitters.ts:1-133]() using the `functools-kit` Subject pattern.
+The framework provides 13 distinct `Subject` emitters organized by functional area. All emitters are defined in `src/config/emitters.ts:1-133` using the `functools-kit` Subject pattern.
 
 ### Signal Event Emitters
 
@@ -309,7 +309,7 @@ classDiagram
 3. **Report Generation**: Formats markdown tables using configurable `ColumnModel<T>[]` arrays
 4. **File Persistence**: Writes reports to `./dump/{mode}/` directories
 
-**Idle Event Optimization**: `LiveReportStorage` replaces the last idle event instead of accumulating all idle ticks, preventing memory bloat during long idle periods [src/lib/services/markdown/LiveMarkdownService.ts:88-115]().
+**Idle Event Optimization**: `LiveReportStorage` replaces the last idle event instead of accumulating all idle ticks, preventing memory bloat during long idle periods `src/lib/services/markdown/LiveMarkdownService.ts:88-115`.
 
 
 ---
@@ -572,7 +572,7 @@ graph TB
 3. Remove oldest event via `pop()` if over limit
 4. Result: Most recent N events always retained
 
-**Idle Event Deduplication**: `LiveMarkdownService` implements additional optimization by replacing consecutive idle events instead of accumulating them [src/lib/services/markdown/LiveMarkdownService.ts:99-105]().
+**Idle Event Deduplication**: `LiveMarkdownService` implements additional optimization by replacing consecutive idle events instead of accumulating them `src/lib/services/markdown/LiveMarkdownService.ts:99-105`.
 
 
 ---

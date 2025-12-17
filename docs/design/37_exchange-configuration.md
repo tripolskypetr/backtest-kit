@@ -19,9 +19,9 @@ The exchange system provides market data abstraction through three key component
 
 | Component | Purpose | Location |
 |-----------|---------|----------|
-| `IExchangeSchema` | User-defined configuration schema | [types.d.ts:122-155]() |
-| `addExchange()` | Registration function | [src/function/add.ts]() |
-| `ClientExchange` | Internal client implementation | [src/client/ClientExchange.ts]() |
+| `IExchangeSchema` | User-defined configuration schema | `types.d.ts:122-155` |
+| `addExchange()` | Registration function | `src/function/add.ts` |
+| `ClientExchange` | Internal client implementation | `src/client/ClientExchange.ts` |
 
 An exchange schema must implement methods for fetching candles (`getCandles`), formatting prices and quantities according to exchange precision rules, and optionally handling lifecycle callbacks.
 

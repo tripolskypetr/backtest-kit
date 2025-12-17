@@ -577,12 +577,12 @@ addStrategy({
 
 | Component | File Reference | Purpose |
 |-----------|----------------|---------|
-| `IStrategySchema` | [types.d.ts:724-747]() | Schema interface definition |
-| `SignalInterval` | [types.d.ts:645]() | Throttling interval type |
-| `ISignalDto` | [types.d.ts:647-665]() | Return type for getSignal |
-| `IStrategyCallbacks` | [types.d.ts:699-723]() | Lifecycle event handlers |
-| `addStrategy()` | [src/index.ts:11-18]() | Registration function |
-| `StrategySchemaService` | [docs/classes/StrategySchemaService.md:1-50]() | Schema storage |
-| `StrategyConnectionService` | [docs/classes/StrategyConnectionService.md:1-145]() | Instance routing |
-| `ClientStrategy` | [types.d.ts:724-747]() | Strategy execution implementation |
+| `IStrategySchema` | `types.d.ts:724-747` | Schema interface definition |
+| `SignalInterval` | `types.d.ts:645` | Throttling interval type |
+| `ISignalDto` | `types.d.ts:647-665` | Return type for getSignal |
+| `IStrategyCallbacks` | `types.d.ts:699-723` | Lifecycle event handlers |
+| `addStrategy()` | `src/index.ts:11-18` | Registration function |
+| `StrategySchemaService` | `docs/classes/StrategySchemaService.md:1-50` | Schema storage |
+| `StrategyConnectionService` | `docs/classes/StrategyConnectionService.md:1-145` | Instance routing |
+| `ClientStrategy` | `types.d.ts:724-747` | Strategy execution implementation |
 

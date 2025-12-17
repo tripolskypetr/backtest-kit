@@ -461,24 +461,24 @@ Walker runs each strategy sequentially and emits progress updates after each com
 
 | Function | Purpose | Module |
 |----------|---------|--------|
-| `addExchange()` | Register exchange data source | [src/index.ts]() |
-| `addStrategy()` | Register trading strategy | [src/index.ts]() |
-| `addFrame()` | Register backtest timeframe | [src/index.ts]() |
-| `addRisk()` | Register risk profile | [src/index.ts]() |
-| `addWalker()` | Register strategy comparison | [src/index.ts]() |
-| `setConfig()` | Set global configuration | [src/index.ts]() |
-| `setLogger()` | Set custom logger | [src/index.ts]() |
-| `Backtest.run()` | Run backtest (async iterator) | [src/classes/Backtest.ts:378-400]() |
-| `Backtest.background()` | Run backtest (event-driven) | [src/classes/Backtest.ts:423-443]() |
-| `Live.run()` | Run live trading (async iterator) | [src/classes/Live.ts:398-418]() |
-| `Live.background()` | Run live trading (event-driven) | [src/classes/Live.ts:441-459]() |
-| `Walker.run()` | Run strategy comparison (async iterator) | [src/classes/Walker.ts:145-194]() |
-| `listenSignalBacktest()` | Listen to backtest signals | [src/index.ts]() |
-| `listenSignalLive()` | Listen to live signals | [src/index.ts]() |
-| `listenDoneBacktest()` | Listen to backtest completion | [src/index.ts]() |
-| `listenDoneLive()` | Listen to live completion | [src/index.ts]() |
-| `getCandles()` | Get candles with temporal context | [src/index.ts]() |
-| `getAveragePrice()` | Get VWAP price | [src/index.ts]() |
+| `addExchange()` | Register exchange data source | `src/index.ts` |
+| `addStrategy()` | Register trading strategy | `src/index.ts` |
+| `addFrame()` | Register backtest timeframe | `src/index.ts` |
+| `addRisk()` | Register risk profile | `src/index.ts` |
+| `addWalker()` | Register strategy comparison | `src/index.ts` |
+| `setConfig()` | Set global configuration | `src/index.ts` |
+| `setLogger()` | Set custom logger | `src/index.ts` |
+| `Backtest.run()` | Run backtest (async iterator) | `src/classes/Backtest.ts:378-400` |
+| `Backtest.background()` | Run backtest (event-driven) | `src/classes/Backtest.ts:423-443` |
+| `Live.run()` | Run live trading (async iterator) | `src/classes/Live.ts:398-418` |
+| `Live.background()` | Run live trading (event-driven) | `src/classes/Live.ts:441-459` |
+| `Walker.run()` | Run strategy comparison (async iterator) | `src/classes/Walker.ts:145-194` |
+| `listenSignalBacktest()` | Listen to backtest signals | `src/index.ts` |
+| `listenSignalLive()` | Listen to live signals | `src/index.ts` |
+| `listenDoneBacktest()` | Listen to backtest completion | `src/index.ts` |
+| `listenDoneLive()` | Listen to live completion | `src/index.ts` |
+| `getCandles()` | Get candles with temporal context | `src/index.ts` |
+| `getAveragePrice()` | Get VWAP price | `src/index.ts` |
 
 
 ---

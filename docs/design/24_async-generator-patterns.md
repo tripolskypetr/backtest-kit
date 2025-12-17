@@ -80,28 +80,28 @@ graph TB
 
 **Backtest Mode** uses a traditional for-loop pattern with bounded iteration:
 
-- Fetches complete `timeframes` array at start: [src/lib/services/logic/private/BacktestLogicPrivateService.ts:69-72]()
+- Fetches complete `timeframes` array at start: `src/lib/services/logic/private/BacktestLogicPrivateService.ts:69-72`
 - Iterates with index: `while (i < timeframes.length)`
 - Advances index: `i++` after processing each frame
 - **Natural completion**: Generator exhausts when all timeframes are processed
-- **Frame skipping**: After signal closes, `i` advances to `closeTimestamp`: [src/lib/services/logic/private/BacktestLogicPrivateService.ts:403-409]()
+- **Frame skipping**: After signal closes, `i` advances to `closeTimestamp`: `src/lib/services/logic/private/BacktestLogicPrivateService.ts:403-409`
 
 **Walker Mode** iterates through a finite list of strategies:
 
-- Uses `for (const strategyName of strategies)`: [src/lib/services/logic/private/WalkerLogicPrivateService.ts:115]()
-- Yields after each strategy backtest completes: [src/lib/services/logic/private/WalkerLogicPrivateService.ts:231]()
+- Uses `for (const strategyName of strategies)`: `src/lib/services/logic/private/WalkerLogicPrivateService.ts:115`
+- Yields after each strategy backtest completes: `src/lib/services/logic/private/WalkerLogicPrivateService.ts:231`
 - **Natural completion**: Generator exhausts when all strategies are tested
-- **Early exit**: `break` on stop signal: [src/lib/services/logic/private/WalkerLogicPrivateService.ts:125]()
+- **Early exit**: `break` on stop signal: `src/lib/services/logic/private/WalkerLogicPrivateService.ts:125`
 
 ### Infinite Generators (Live)
 
 **Live Mode** uses an infinite loop for continuous monitoring:
 
-- Never-ending loop: `while (true)`: [src/lib/services/logic/private/LiveLogicPrivateService.ts:70]()
-- Real-time progression: `when = new Date()`: [src/lib/services/logic/private/LiveLogicPrivateService.ts:72]()
-- Sleep interval: `await sleep(TICK_TTL)` where `TICK_TTL = 1min + 1ms`: [src/lib/services/logic/private/LiveLogicPrivateService.ts:14](), [src/lib/services/logic/private/LiveLogicPrivateService.ts:173]()
-- **Only terminates on explicit stop**: Checks `getStopped()` flag: [src/lib/services/logic/private/LiveLogicPrivateService.ts:122-136]()
-- **Graceful shutdown**: Waits for signal to close before breaking: [src/lib/services/logic/private/LiveLogicPrivateService.ts:155-170]()
+- Never-ending loop: `while (true)`: `src/lib/services/logic/private/LiveLogicPrivateService.ts:70`
+- Real-time progression: `when = new Date()`: `src/lib/services/logic/private/LiveLogicPrivateService.ts:72`
+- Sleep interval: `await sleep(TICK_TTL)` where `TICK_TTL = 1min + 1ms`: `src/lib/services/logic/private/LiveLogicPrivateService.ts:14`, `src/lib/services/logic/private/LiveLogicPrivateService.ts:173`
+- **Only terminates on explicit stop**: Checks `getStopped()` flag: `src/lib/services/logic/private/LiveLogicPrivateService.ts:122-136`
+- **Graceful shutdown**: Waits for signal to close before breaking: `src/lib/services/logic/private/LiveLogicPrivateService.ts:155-170`
 
 
 ---
@@ -171,36 +171,36 @@ graph TD
 ### Key Implementation Details
 
 **Timeframe Generation**: 
-- Calls `frameCoreService.getTimeframe()` once at start: [src/lib/services/logic/private/BacktestLogicPrivateService.ts:69-72]()
+- Calls `frameCoreService.getTimeframe()` once at start: `src/lib/services/logic/private/BacktestLogicPrivateService.ts:69-72`
 - Stores complete array: `const timeframes = await this.frameCoreService.getTimeframe(...)`
 - Tracks progress: `processedFrames: i, totalFrames: timeframes.length`
 
 **Progress Tracking**:
-- Emits after each frame: `await progressBacktestEmitter.next({...})`: [src/lib/services/logic/private/BacktestLogicPrivateService.ts:84-92]()
+- Emits after each frame: `await progressBacktestEmitter.next({...})`: `src/lib/services/logic/private/BacktestLogicPrivateService.ts:84-92`
 - Progress percentage: `progress: totalFrames > 0 ? i / totalFrames : 0`
-- Final 100% emission: [src/lib/services/logic/private/BacktestLogicPrivateService.ts:452-461]()
+- Final 100% emission: `src/lib/services/logic/private/BacktestLogicPrivateService.ts:452-461`
 
 **Fast Backtest Optimization**:
 When a signal opens (`action === "opened"`), the generator fetches all required candles at once and calls `strategyCoreService.backtest()`:
 
-1. **Calculate buffer**: `bufferMinutes = CC_AVG_PRICE_CANDLES_COUNT - 1` (for VWAP calculation): [src/lib/services/logic/private/BacktestLogicPrivateService.ts:317]()
-2. **Fetch candles**: `totalCandles = signal.minuteEstimatedTime + bufferMinutes`: [src/lib/services/logic/private/BacktestLogicPrivateService.ts:319]()
-3. **Process signal**: `backtestResult = await strategyCoreService.backtest(symbol, candles, when, true)`: [src/lib/services/logic/private/BacktestLogicPrivateService.ts:361-366]()
-4. **Skip timeframes**: Advances `i` to `closeTimestamp`: [src/lib/services/logic/private/BacktestLogicPrivateService.ts:403-409]()
+1. **Calculate buffer**: `bufferMinutes = CC_AVG_PRICE_CANDLES_COUNT - 1` (for VWAP calculation): `src/lib/services/logic/private/BacktestLogicPrivateService.ts:317`
+2. **Fetch candles**: `totalCandles = signal.minuteEstimatedTime + bufferMinutes`: `src/lib/services/logic/private/BacktestLogicPrivateService.ts:319`
+3. **Process signal**: `backtestResult = await strategyCoreService.backtest(symbol, candles, when, true)`: `src/lib/services/logic/private/BacktestLogicPrivateService.ts:361-366`
+4. **Skip timeframes**: Advances `i` to `closeTimestamp`: `src/lib/services/logic/private/BacktestLogicPrivateService.ts:403-409`
 
 This optimization avoids tick-by-tick processing while signals are active, drastically improving performance.
 
 **Scheduled Signal Handling**:
 For scheduled signals (`priceOpen` not yet reached), the generator:
 
-1. Fetches extended candles: `bufferMinutes + CC_SCHEDULE_AWAIT_MINUTES + minuteEstimatedTime + 1`: [src/lib/services/logic/private/BacktestLogicPrivateService.ts:176]()
+1. Fetches extended candles: `bufferMinutes + CC_SCHEDULE_AWAIT_MINUTES + minuteEstimatedTime + 1`: `src/lib/services/logic/private/BacktestLogicPrivateService.ts:176`
 2. Includes wait time: `CC_SCHEDULE_AWAIT_MINUTES` for activation window
 3. Monitors both activation and cancellation: `backtest()` handles both paths
 
 **Performance Metrics**:
-- Tracks frame duration: `performance.now()` before/after processing: [src/lib/services/logic/private/BacktestLogicPrivateService.ts:79](), [src/lib/services/logic/private/BacktestLogicPrivateService.ts:434]()
-- Tracks signal duration: Start when opened/scheduled, end when closed: [src/lib/services/logic/private/BacktestLogicPrivateService.ts:155](), [src/lib/services/logic/private/BacktestLogicPrivateService.ts:259]()
-- Emits `performanceEmitter` events: [src/lib/services/logic/private/BacktestLogicPrivateService.ts:391-401]()
+- Tracks frame duration: `performance.now()` before/after processing: `src/lib/services/logic/private/BacktestLogicPrivateService.ts:79`, `src/lib/services/logic/private/BacktestLogicPrivateService.ts:434`
+- Tracks signal duration: Start when opened/scheduled, end when closed: `src/lib/services/logic/private/BacktestLogicPrivateService.ts:155`, `src/lib/services/logic/private/BacktestLogicPrivateService.ts:259`
+- Emits `performanceEmitter` events: `src/lib/services/logic/private/BacktestLogicPrivateService.ts:391-401`
 
 
 ---
@@ -273,10 +273,10 @@ graph TD
 ### Key Implementation Details
 
 **Infinite Loop Structure**:
-- Never-ending: `while (true)`: [src/lib/services/logic/private/LiveLogicPrivateService.ts:70]()
-- Real-time timestamp: `const when = new Date()`: [src/lib/services/logic/private/LiveLogicPrivateService.ts:72]()
-- Tick interval: `TICK_TTL = 1 * 60 * 1_000 + 1` (1 minute + 1ms): [src/lib/services/logic/private/LiveLogicPrivateService.ts:14]()
-- Sleep between iterations: `await sleep(TICK_TTL)`: [src/lib/services/logic/private/LiveLogicPrivateService.ts:173]()
+- Never-ending: `while (true)`: `src/lib/services/logic/private/LiveLogicPrivateService.ts:70`
+- Real-time timestamp: `const when = new Date()`: `src/lib/services/logic/private/LiveLogicPrivateService.ts:72`
+- Tick interval: `TICK_TTL = 1 * 60 * 1_000 + 1` (1 minute + 1ms): `src/lib/services/logic/private/LiveLogicPrivateService.ts:14`
+- Sleep between iterations: `await sleep(TICK_TTL)`: `src/lib/services/logic/private/LiveLogicPrivateService.ts:173`
 
 **Selective Yielding**:
 The generator only yields `opened` and `closed` results, filtering out `idle`, `active`, and `scheduled`:
@@ -293,21 +293,21 @@ if (result.action === "idle") {
 yield result as IStrategyTickResultClosed | IStrategyTickResultOpened;
 ```
 
-This keeps the consumer loop clean and focused on actionable events: [src/lib/services/logic/private/LiveLogicPrivateService.ts:118-152]()
+This keeps the consumer loop clean and focused on actionable events: `src/lib/services/logic/private/LiveLogicPrivateService.ts:118-152`
 
 **Crash Recovery**:
 The live generator relies on `ClientStrategy.waitForInit()` to load persisted signal state:
 - Called automatically during `strategyCoreService.tick()` initialization
 - Reads from `PersistSignalAdapter` file storage
 - Restores `pendingSignal` if process crashed mid-signal
-- Reference: [docs/internals.md:76]()
+- Reference: `docs/internals.md:76`
 
 **Error Handling with Continue**:
 If `tick()` throws an error, the generator:
-1. Logs warning: [src/lib/services/logic/private/LiveLogicPrivateService.ts:78-91]()
-2. Emits to `errorEmitter`: [src/lib/services/logic/private/LiveLogicPrivateService.ts:92]()
+1. Logs warning: `src/lib/services/logic/private/LiveLogicPrivateService.ts:78-91`
+2. Emits to `errorEmitter`: `src/lib/services/logic/private/LiveLogicPrivateService.ts:92`
 3. Sleeps: `await sleep(TICK_TTL)`
-4. **Continues loop**: `continue` instead of breaking: [src/lib/services/logic/private/LiveLogicPrivateService.ts:94]()
+4. **Continues loop**: `continue` instead of breaking: `src/lib/services/logic/private/LiveLogicPrivateService.ts:94`
 
 This ensures transient errors (network issues, API rate limits) don't kill the live trading process.
 
@@ -317,8 +317,8 @@ The generator implements two stop checks:
 
 | Condition | Location | Behavior |
 |-----------|----------|----------|
-| Idle state | [LiveLogicPrivateService.ts:118-136]() | Immediate break if no active signal |
-| Signal closed | [LiveLogicPrivateService.ts:155-170]() | Break after signal closes |
+| Idle state | `LiveLogicPrivateService.ts:118-136` | Immediate break if no active signal |
+| Signal closed | `LiveLogicPrivateService.ts:155-170` | Break after signal closes |
 
 This ensures:
 - **No orphaned positions**: Never stops with active signal
@@ -326,9 +326,9 @@ This ensures:
 - **User control**: Responds to `strategyCoreService.getStopped()` flag
 
 **Performance Tracking**:
-- Measures tick duration: `performance.now()` before/after: [src/lib/services/logic/private/LiveLogicPrivateService.ts:71](), [src/lib/services/logic/private/LiveLogicPrivateService.ts:103]()
-- Tracks delta: `previousTimestamp` for inter-tick timing: [src/lib/services/logic/private/LiveLogicPrivateService.ts:68]()
-- Emits `performanceEmitter` with `metricType: "live_tick"`: [src/lib/services/logic/private/LiveLogicPrivateService.ts:105-115]()
+- Measures tick duration: `performance.now()` before/after: `src/lib/services/logic/private/LiveLogicPrivateService.ts:71`, `src/lib/services/logic/private/LiveLogicPrivateService.ts:103`
+- Tracks delta: `previousTimestamp` for inter-tick timing: `src/lib/services/logic/private/LiveLogicPrivateService.ts:68`
+- Emits `performanceEmitter` with `metricType: "live_tick"`: `src/lib/services/logic/private/LiveLogicPrivateService.ts:105-115`
 
 
 ---
@@ -408,9 +408,9 @@ graph TD
 ### Key Implementation Details
 
 **Sequential Backtest Execution**:
-- Iterates: `for (const strategyName of strategies)`: [src/lib/services/logic/private/WalkerLogicPrivateService.ts:115]()
-- Creates backtest iterator: `backtestLogicPublicService.run(symbol, context)`: [src/lib/services/logic/private/WalkerLogicPrivateService.ts:137-141]()
-- Consumes fully: `await resolveDocuments(iterator)`: [src/lib/services/logic/private/WalkerLogicPrivateService.ts:144]()
+- Iterates: `for (const strategyName of strategies)`: `src/lib/services/logic/private/WalkerLogicPrivateService.ts:115`
+- Creates backtest iterator: `backtestLogicPublicService.run(symbol, context)`: `src/lib/services/logic/private/WalkerLogicPrivateService.ts:137-141`
+- Consumes fully: `await resolveDocuments(iterator)`: `src/lib/services/logic/private/WalkerLogicPrivateService.ts:144`
 
 **Stop Signal Management**:
 Uses a `Set` to track stopped strategies with subscription filtering:
@@ -427,8 +427,8 @@ const unsubscribe = walkerStopSubject
 
 This enables:
 - **Per-strategy stopping**: Specific strategies can be stopped mid-comparison
-- **Symbol/walker isolation**: Filter by both `symbol` AND `walkerName`: [src/lib/services/logic/private/WalkerLogicPrivateService.ts:99]()
-- **Cleanup**: `unsubscribe()` called in `finally` block: [src/lib/services/logic/private/WalkerLogicPrivateService.ts:113](), [src/lib/services/logic/private/WalkerLogicPrivateService.ts:235]()
+- **Symbol/walker isolation**: Filter by both `symbol` AND `walkerName`: `src/lib/services/logic/private/WalkerLogicPrivateService.ts:99`
+- **Cleanup**: `unsubscribe()` called in `finally` block: `src/lib/services/logic/private/WalkerLogicPrivateService.ts:113`, `src/lib/services/logic/private/WalkerLogicPrivateService.ts:235`
 
 **Metric Extraction & Ranking**:
 
@@ -444,9 +444,9 @@ if (isBetter && metricValue !== null) {
 }
 ```
 
-- Extracts dynamic metric: `stats[metric]` where `metric` is configurable: [src/lib/services/logic/private/WalkerLogicPrivateService.ts:172]()
-- Safe math checking: Validates finite, non-NaN values: [src/lib/services/logic/private/WalkerLogicPrivateService.ts:173-180]()
-- Higher-is-better: Uses `>` comparison for ranking: [src/lib/services/logic/private/WalkerLogicPrivateService.ts:183-190]()
+- Extracts dynamic metric: `stats[metric]` where `metric` is configurable: `src/lib/services/logic/private/WalkerLogicPrivateService.ts:172`
+- Safe math checking: Validates finite, non-NaN values: `src/lib/services/logic/private/WalkerLogicPrivateService.ts:173-180`
+- Higher-is-better: Uses `>` comparison for ranking: `src/lib/services/logic/private/WalkerLogicPrivateService.ts:183-190`
 
 **Progressive Result Yielding**:
 
@@ -480,10 +480,10 @@ The walker supports optional callbacks throughout execution:
 
 | Callback | Timing | Location |
 |----------|--------|----------|
-| `onStrategyStart` | Before backtest starts | [WalkerLogicPrivateService.ts:129-131]() |
-| `onStrategyError` | On backtest failure | [WalkerLogicPrivateService.ts:157-159]() |
-| `onStrategyComplete` | After successful backtest | [WalkerLogicPrivateService.ts:221-228]() |
-| `onComplete` | After all strategies tested | [WalkerLogicPrivateService.ts:254-256]() |
+| `onStrategyStart` | Before backtest starts | `WalkerLogicPrivateService.ts:129-131` |
+| `onStrategyError` | On backtest failure | `WalkerLogicPrivateService.ts:157-159` |
+| `onStrategyComplete` | After successful backtest | `WalkerLogicPrivateService.ts:221-228` |
+| `onComplete` | After all strategies tested | `WalkerLogicPrivateService.ts:254-256` |
 
 **Final Results Emission**:
 
@@ -548,7 +548,7 @@ The framework's generators maintain constant memory by:
 
 1. **No result arrays**: Never accumulating closed signals in internal arrays
 2. **Immediate yielding**: Passing results to consumer as soon as available
-3. **Lazy markdown accumulation**: `BacktestMarkdownService` subscribes to events but limits to 250 events per key: [docs/internals.md:101]()
+3. **Lazy markdown accumulation**: `BacktestMarkdownService` subscribes to events but limits to 250 events per key: `docs/internals.md:101`
 
 ### Memory Usage Comparison
 
@@ -626,9 +626,9 @@ The backtest generator includes three stop checks:
 
 | Location | Condition | Line Reference |
 |----------|-----------|----------------|
-| Before tick | Always checks before processing frame | [BacktestLogicPrivateService.ts:95-110]() |
-| After idle tick | Only when no active signal | [BacktestLogicPrivateService.ts:132-150]() |
-| After signal closes | After yielding closed result | [BacktestLogicPrivateService.ts:284-300](), [BacktestLogicPrivateService.ts:413-430]() |
+| Before tick | Always checks before processing frame | `BacktestLogicPrivateService.ts:95-110` |
+| After idle tick | Only when no active signal | `BacktestLogicPrivateService.ts:132-150` |
+| After signal closes | After yielding closed result | `BacktestLogicPrivateService.ts:284-300`, `BacktestLogicPrivateService.ts:413-430` |
 
 This ensures:
 - **Responsive stopping**: Checks on every frame
@@ -641,8 +641,8 @@ The live generator includes two conditional checks:
 
 | Location | Condition | Line Reference |
 |----------|-----------|----------------|
-| Idle state | When `action === "idle"` | [LiveLogicPrivateService.ts:118-136]() |
-| After signal closes | When `action === "closed"` | [LiveLogicPrivateService.ts:155-170]() |
+| Idle state | When `action === "idle"` | `LiveLogicPrivateService.ts:118-136` |
+| After signal closes | When `action === "closed"` | `LiveLogicPrivateService.ts:155-170` |
 
 The logic ensures graceful shutdown:
 ```typescript
@@ -703,8 +703,8 @@ try {
 ```
 
 Also catches during candle fetching and `backtest()` calls:
-- Candle fetch error: [BacktestLogicPrivateService.ts:179-202]()
-- Backtest method error: [BacktestLogicPrivateService.ts:222-242]()
+- Candle fetch error: `BacktestLogicPrivateService.ts:179-202`
+- Backtest method error: `BacktestLogicPrivateService.ts:222-242`
 
 Strategy:
 - **Non-fatal errors**: Individual frame failures don't stop entire backtest
@@ -781,7 +781,7 @@ graph LR
 
 - **Local logging**: `loggerService` records context
 - **Global emission**: `errorEmitter` broadcasts to subscribers
-- **User notification**: `listenError()` callbacks can handle errors: [docs/internals.md:87]()
+- **User notification**: `listenError()` callbacks can handle errors: `docs/internals.md:87`
 
 
 ---

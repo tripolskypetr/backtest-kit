@@ -27,7 +27,7 @@ getSignal: (symbol: string, when: Date) => Promise<ISignalDto | null>
 - `ISignalDto` - Signal to open a position
 - `null` - No trading opportunity detected
 
-The framework calls `getSignal` at intervals specified by the strategy's `interval` property [types.d.ts:734](). Interval throttling ensures the function is not called more frequently than configured, preventing signal spam.
+The framework calls `getSignal` at intervals specified by the strategy's `interval` property `types.d.ts:734`. Interval throttling ensures the function is not called more frequently than configured, preventing signal spam.
 
 
 ---
@@ -98,7 +98,7 @@ Scheduled signals are cancelled if:
 - Stop loss is breached before activation
 - Timeout expires (`CC_SCHEDULE_AWAIT_MINUTES` configuration)
 
-The activation check happens in [src/client/ClientStrategy.ts:389-443]() within `GET_SIGNAL_FN`.
+The activation check happens in `src/client/ClientStrategy.ts:389-443` within `GET_SIGNAL_FN`.
 
 
 ---
@@ -243,7 +243,7 @@ Validation failures result in the signal being rejected without opening any posi
 
 ## Signal Validation Pipeline
 
-After `getSignal` returns an `ISignalDto`, the framework applies multi-stage validation before creating a position. All validation occurs in `VALIDATE_SIGNAL_FN` at [src/client/ClientStrategy.ts:45-330]().
+After `getSignal` returns an `ISignalDto`, the framework applies multi-stage validation before creating a position. All validation occurs in `VALIDATE_SIGNAL_FN` at `src/client/ClientStrategy.ts:45-330`.
 
 ```mermaid
 graph TD
@@ -506,7 +506,7 @@ function calculateIndicators(candles1h, candles15m) {
 }
 ```
 
-The LLM analyzes market conditions and returns a structured signal object matching `ISignalDto`. For complete LLM integration examples, see the demo projects at [demo/optimization/]() and [demo/backtest/]().
+The LLM analyzes market conditions and returns a structured signal object matching `ISignalDto`. For complete LLM integration examples, see the demo projects at `demo/optimization/` and `demo/backtest/`.
 
 
 ---

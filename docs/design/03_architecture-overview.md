@@ -123,7 +123,7 @@ graph LR
 
 ### Service Registration Pattern
 
-Services are registered in [src/lib/core/provide.ts:1-143]() using the `provide()` function with lazy factory patterns. The `backtest` object aggregates all service references via `inject()`:
+Services are registered in `src/lib/core/provide.ts:1-143` using the `provide()` function with lazy factory patterns. The `backtest` object aggregates all service references via `inject()`:
 
 ```typescript
 // From src/lib/core/provide.ts
@@ -143,7 +143,7 @@ export const backtest = {
 };
 ```
 
-The `init()` function is called at module load to trigger service initialization: [src/lib/index.ts:240]().
+The `init()` function is called at module load to trigger service initialization: `src/lib/index.ts:240`.
 
 
 ## Service Layer Architecture
@@ -224,12 +224,12 @@ graph TD
 
 Two context services use `di-scoped` library to propagate ambient information through the call stack without explicit parameter passing:
 
-**ExecutionContextService** ([src/services/context/ExecutionContextService.ts]()) provides:
+**ExecutionContextService** (`src/services/context/ExecutionContextService.ts`) provides:
 - `symbol: string` - Trading pair symbol
 - `when: Date` - Current execution timestamp
 - `backtest: boolean` - Execution mode flag
 
-**MethodContextService** ([src/services/context/MethodContextService.ts]()) provides:
+**MethodContextService** (`src/services/context/MethodContextService.ts`) provides:
 - `strategyName: string` - Active strategy identifier
 - `exchangeName: string` - Active exchange identifier  
 - `frameName?: string` - Active frame identifier (backtest only)
@@ -277,13 +277,13 @@ The client layer contains pure TypeScript classes with no dependency injection. 
 
 | Client Class | File Path | Responsibility | Key Methods |
 |--------------|-----------|----------------|-------------|
-| `ClientStrategy` | [src/lib/client/ClientStrategy.ts]() | Signal lifecycle, validation, persistence | `tick()`, `backtest()`, `getSignal()` |
-| `ClientExchange` | [src/lib/client/ClientExchange.ts]() | Candle data, VWAP calculation, price formatting | `getCandles()`, `getAveragePrice()` |
-| `ClientFrame` | [src/lib/client/ClientFrame.ts]() | Timeframe generation for backtesting | `getTimeframe()` |
-| `ClientRisk` | [src/lib/client/ClientRisk.ts]() | Risk validation, position tracking | `checkSignal()`, `addSignal()`, `removeSignal()` |
-| `MergeRisk` | [src/lib/client/ClientRisk.ts]() | Combines multiple risk profiles | `checkSignal()` |
-| `ClientPartial` | [src/lib/client/ClientPartial.ts]() | Profit/loss milestone tracking | `checkPartials()` |
-| `ClientOptimizer` | [src/lib/client/ClientOptimizer.ts]() | LLM-powered strategy generation | `getData()`, `getCode()` |
+| `ClientStrategy` | `src/lib/client/ClientStrategy.ts` | Signal lifecycle, validation, persistence | `tick()`, `backtest()`, `getSignal()` |
+| `ClientExchange` | `src/lib/client/ClientExchange.ts` | Candle data, VWAP calculation, price formatting | `getCandles()`, `getAveragePrice()` |
+| `ClientFrame` | `src/lib/client/ClientFrame.ts` | Timeframe generation for backtesting | `getTimeframe()` |
+| `ClientRisk` | `src/lib/client/ClientRisk.ts` | Risk validation, position tracking | `checkSignal()`, `addSignal()`, `removeSignal()` |
+| `MergeRisk` | `src/lib/client/ClientRisk.ts` | Combines multiple risk profiles | `checkSignal()` |
+| `ClientPartial` | `src/lib/client/ClientPartial.ts` | Profit/loss milestone tracking | `checkPartials()` |
+| `ClientOptimizer` | `src/lib/client/ClientOptimizer.ts` | LLM-powered strategy generation | `getData()`, `getCode()` |
 
 
 ### ClientStrategy Signal Processing Flow
@@ -313,26 +313,26 @@ stateDiagram-v2
     cancelled --> [*]
 ```
 
-The `tick()` method at [src/lib/client/ClientStrategy.ts]() orchestrates the entire signal lifecycle with interval throttling to prevent spam.
+The `tick()` method at `src/lib/client/ClientStrategy.ts` orchestrates the entire signal lifecycle with interval throttling to prevent spam.
 
 
 ## Public API Layer
 
-The public API consists of global functions and execution classes that provide the primary interface for users. All functions are exported from [src/index.ts]().
+The public API consists of global functions and execution classes that provide the primary interface for users. All functions are exported from `src/index.ts`.
 
 ### Configuration Functions
 
 | Function | File | Purpose |
 |----------|------|---------|
-| `addStrategy()` | [src/function/add.ts:52-64]() | Register `IStrategySchema` with validation |
-| `addExchange()` | [src/function/add.ts:101-113]() | Register `IExchangeSchema` for data source |
-| `addFrame()` | [src/function/add.ts:145-151]() | Register `IFrameSchema` for backtest period |
-| `addRisk()` | [src/function/add.ts:270-282]() | Register `IRiskSchema` with custom validations |
-| `addWalker()` | [src/function/add.ts:190-202]() | Register `IWalkerSchema` for strategy comparison |
-| `addSizing()` | [src/function/add.ts:256-268]() | Register `ISizingSchema` for position sizing |
-| `addOptimizer()` | [src/function/add.ts:294-306]() | Register `IOptimizerSchema` for LLM strategy generation |
-| `setConfig()` | [src/function/config.ts]() | Modify `GLOBAL_CONFIG` parameters |
-| `setLogger()` | [src/function/logger.ts]() | Plug in custom `ILogger` implementation |
+| `addStrategy()` | `src/function/add.ts:52-64` | Register `IStrategySchema` with validation |
+| `addExchange()` | `src/function/add.ts:101-113` | Register `IExchangeSchema` for data source |
+| `addFrame()` | `src/function/add.ts:145-151` | Register `IFrameSchema` for backtest period |
+| `addRisk()` | `src/function/add.ts:270-282` | Register `IRiskSchema` with custom validations |
+| `addWalker()` | `src/function/add.ts:190-202` | Register `IWalkerSchema` for strategy comparison |
+| `addSizing()` | `src/function/add.ts:256-268` | Register `ISizingSchema` for position sizing |
+| `addOptimizer()` | `src/function/add.ts:294-306` | Register `IOptimizerSchema` for LLM strategy generation |
+| `setConfig()` | `src/function/config.ts` | Modify `GLOBAL_CONFIG` parameters |
+| `setLogger()` | `src/function/logger.ts` | Plug in custom `ILogger` implementation |
 
 ### Execution Classes
 
@@ -391,21 +391,21 @@ The event system uses RxJS Subject pattern for decoupled communication between p
 
 | Emitter | File Path | Emits When | Payload Type |
 |---------|-----------|------------|--------------|
-| `signalEmitter` | [src/lib/subject/signalEmitter.ts]() | Every tick (all modes) | `IStrategyTickResult` |
-| `signalBacktestEmitter` | [src/lib/subject/signalBacktestEmitter.ts]() | Backtest mode only | `IStrategyTickResult` |
-| `signalLiveEmitter` | [src/lib/subject/signalLiveEmitter.ts]() | Live mode only | `IStrategyTickResult` |
-| `progressBacktestEmitter` | [src/lib/subject/progressBacktestEmitter.ts]() | Frame completion | `number` (percentage) |
-| `walkerEmitter` | [src/lib/subject/walkerEmitter.ts]() | Strategy completion in walker | `WalkerContract` |
-| `walkerCompleteSubject` | [src/lib/subject/walkerCompleteSubject.ts]() | Walker finishes all strategies | `WalkerCompleteContract` |
-| `doneBacktestSubject` | [src/lib/subject/doneBacktestSubject.ts]() | Backtest completes | `DoneContract` |
-| `doneLiveSubject` | [src/lib/subject/doneLiveSubject.ts]() | Live execution stops | `DoneContract` |
-| `doneWalkerSubject` | [src/lib/subject/doneWalkerSubject.ts]() | Walker completes | `DoneContract` |
-| `riskSubject` | [src/lib/subject/riskSubject.ts]() | Signal fails risk validation | `RiskContract` |
-| `performanceEmitter` | [src/lib/subject/performanceEmitter.ts]() | Execution timing metrics | `PerformanceContract` |
-| `partialProfitSubject` | [src/lib/subject/partialProfitSubject.ts]() | Profit milestone reached | `PartialContract` |
-| `partialLossSubject` | [src/lib/subject/partialLossSubject.ts]() | Loss milestone reached | `PartialContract` |
-| `errorEmitter` | [src/lib/subject/errorEmitter.ts]() | Recoverable error occurs | `Error` |
-| `exitEmitter` | [src/lib/subject/exitEmitter.ts]() | Fatal error (terminate) | `Error` |
+| `signalEmitter` | `src/lib/subject/signalEmitter.ts` | Every tick (all modes) | `IStrategyTickResult` |
+| `signalBacktestEmitter` | `src/lib/subject/signalBacktestEmitter.ts` | Backtest mode only | `IStrategyTickResult` |
+| `signalLiveEmitter` | `src/lib/subject/signalLiveEmitter.ts` | Live mode only | `IStrategyTickResult` |
+| `progressBacktestEmitter` | `src/lib/subject/progressBacktestEmitter.ts` | Frame completion | `number` (percentage) |
+| `walkerEmitter` | `src/lib/subject/walkerEmitter.ts` | Strategy completion in walker | `WalkerContract` |
+| `walkerCompleteSubject` | `src/lib/subject/walkerCompleteSubject.ts` | Walker finishes all strategies | `WalkerCompleteContract` |
+| `doneBacktestSubject` | `src/lib/subject/doneBacktestSubject.ts` | Backtest completes | `DoneContract` |
+| `doneLiveSubject` | `src/lib/subject/doneLiveSubject.ts` | Live execution stops | `DoneContract` |
+| `doneWalkerSubject` | `src/lib/subject/doneWalkerSubject.ts` | Walker completes | `DoneContract` |
+| `riskSubject` | `src/lib/subject/riskSubject.ts` | Signal fails risk validation | `RiskContract` |
+| `performanceEmitter` | `src/lib/subject/performanceEmitter.ts` | Execution timing metrics | `PerformanceContract` |
+| `partialProfitSubject` | `src/lib/subject/partialProfitSubject.ts` | Profit milestone reached | `PartialContract` |
+| `partialLossSubject` | `src/lib/subject/partialLossSubject.ts` | Loss milestone reached | `PartialContract` |
+| `errorEmitter` | `src/lib/subject/errorEmitter.ts` | Recoverable error occurs | `Error` |
+| `exitEmitter` | `src/lib/subject/exitEmitter.ts` | Fatal error (terminate) | `Error` |
 
 ### Event Flow Architecture
 
@@ -460,7 +460,7 @@ graph LR
     RiskEmit -->|"subscribe"| UserListeners
 ```
 
-All user event listeners use `functools-kit` `queued` wrapper ([src/function/listen.ts]()) to ensure sequential async processing, preventing race conditions during high-frequency event emission.
+All user event listeners use `functools-kit` `queued` wrapper (`src/function/listen.ts`) to ensure sequential async processing, preventing race conditions during high-frequency event emission.
 
 
 ## Data Flow Patterns
@@ -513,7 +513,7 @@ sequenceDiagram
 ```
 
 Key characteristics:
-- Deterministic timeframe iteration via [src/services/logic/private/BacktestLogicPrivateService.ts]()
+- Deterministic timeframe iteration via `src/services/logic/private/BacktestLogicPrivateService.ts`
 - Fast-forward optimization: skip timeframes while signal is active
 - Bulk candle processing via `backtest()` method
 - All events buffered in markdown services (max 250 per key)
@@ -573,7 +573,7 @@ sequenceDiagram
 ```
 
 Key characteristics:
-- Infinite loop with sleep intervals via [src/services/logic/private/LiveLogicPrivateService.ts]()
+- Infinite loop with sleep intervals via `src/services/logic/private/LiveLogicPrivateService.ts`
 - Crash-safe persistence: only opened signals are saved
 - Graceful shutdown: waits for `IStrategyTickResultClosed` before exiting
 - Real-time VWAP pricing from last 5 1-minute candles

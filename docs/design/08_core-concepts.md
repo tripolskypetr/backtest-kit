@@ -31,7 +31,7 @@ Every signal contains:
 
 **Signal DTO vs Signal Row**
 
-Strategies return `ISignalDto` objects [types.d.ts:650-665]() where `id` and `priceOpen` are optional. The framework augments these into `ISignalRow` objects [types.d.ts:670-687]() with:
+Strategies return `ISignalDto` objects `types.d.ts:650-665` where `id` and `priceOpen` are optional. The framework augments these into `ISignalRow` objects `types.d.ts:670-687` with:
 - Auto-generated `id` (UUID v4)
 - Defaulted `priceOpen` (current VWAP if omitted)
 - Metadata: `exchangeName`, `strategyName`, `scheduledAt`, `pendingAt`, `symbol`, `_isScheduled`
@@ -48,7 +48,7 @@ graph LR
 **Immediate vs Scheduled Signals**
 
 - **Immediate signals**: `priceOpen` omitted or equals current price → opens immediately at VWAP
-- **Scheduled signals**: `priceOpen` specified and differs from current price → enters "scheduled" state [types.d.ts:694-697]()
+- **Scheduled signals**: `priceOpen` specified and differs from current price → enters "scheduled" state `types.d.ts:694-697`
 
 
 ---
@@ -102,7 +102,7 @@ stateDiagram-v2
 
 Before any signal activates, it passes through 7 validation checks enforced by `GLOBAL_CONFIG`:
 
-1. **Schema Validation**: Fields match `ISignalDto` interface [types.d.ts:650-665]()
+1. **Schema Validation**: Fields match `ISignalDto` interface `types.d.ts:650-665`
 2. **Positive Price Check**: All prices > 0, finite, not NaN
 3. **TP/SL Logic**: 
    - LONG: `priceTakeProfit > priceOpen > priceStopLoss`
@@ -110,7 +110,7 @@ Before any signal activates, it passes through 7 validation checks enforced by `
 4. **TP Distance**: `(|priceTakeProfit - priceOpen| / priceOpen) >= CC_MIN_TAKEPROFIT_DISTANCE_PERCENT`
 5. **SL Range**: `(|priceStopLoss - priceOpen| / priceOpen) <= CC_MAX_STOPLOSS_DISTANCE_PERCENT`
 6. **Lifetime Limit**: `minuteEstimatedTime <= CC_MAX_SIGNAL_LIFETIME_MINUTES`
-7. **Risk Validation**: Custom validations from `IRiskSchema` [types.d.ts:417-426]()
+7. **Risk Validation**: Custom validations from `IRiskSchema` `types.d.ts:417-426`
 
 ### State Transitions
 
@@ -134,7 +134,7 @@ Before any signal activates, it passes through 7 validation checks enforced by `
 
 ## Tick Results: Discriminated Union Type System
 
-Every call to `ClientStrategy.tick()` returns a discriminated union result [types.d.ts:888]() that encodes the current signal state. This design enables type-safe handling without optional fields.
+Every call to `ClientStrategy.tick()` returns a discriminated union result `types.d.ts:888` that encodes the current signal state. This design enables type-safe handling without optional fields.
 
 ### Result Types
 
@@ -200,7 +200,7 @@ switch (result.action) {
 
 ## Strategies: Signal Generation Logic
 
-Strategies define **how** signals are generated from market data. A strategy is registered via `addStrategy()` and implements the `IStrategySchema` interface [types.d.ts:728-747]().
+Strategies define **how** signals are generated from market data. A strategy is registered via `addStrategy()` and implements the `IStrategySchema` interface `types.d.ts:728-747`.
 
 ### Strategy Schema
 
@@ -236,7 +236,7 @@ graph LR
 
 **Interval Throttling**
 
-The `interval` field [types.d.ts:734]() prevents `getSignal` from being called too frequently:
+The `interval` field `types.d.ts:734` prevents `getSignal` from being called too frequently:
 
 | Interval | Minimum Time Between Calls |
 |----------|---------------------------|
@@ -247,11 +247,11 @@ The `interval` field [types.d.ts:734]() prevents `getSignal` from being called t
 | `"30m"` | 30 minutes |
 | `"1h"` | 1 hour |
 
-Throttling is implemented in `ClientStrategy.tick()` [src/client/ClientStrategy.ts]() by tracking last call timestamp.
+Throttling is implemented in `ClientStrategy.tick()` `src/client/ClientStrategy.ts` by tracking last call timestamp.
 
 **Strategy Callbacks**
 
-Optional lifecycle hooks [types.d.ts:702-723]():
+Optional lifecycle hooks `types.d.ts:702-723`:
 
 | Callback | When Called | Parameters |
 |----------|-------------|------------|
@@ -294,7 +294,7 @@ graph TB
 
 ### ExecutionContext
 
-Provides **runtime execution parameters** [types.d.ts:11-18]():
+Provides **runtime execution parameters** `types.d.ts:11-18`:
 
 ```typescript
 interface IExecutionContext {
@@ -309,7 +309,7 @@ interface IExecutionContext {
 - `ClientExchange.getAveragePrice()` - calculates VWAP at `when`
 - `ClientStrategy.tick()` - processes signal at `when`
 
-**Access**: Via `ExecutionContextService` [types.d.ts:38-44]():
+**Access**: Via `ExecutionContextService` `types.d.ts:38-44`:
 
 ```typescript
 ExecutionContextService.runInContext(
@@ -324,7 +324,7 @@ ExecutionContextService.runInContext(
 
 ### MethodContext
 
-Provides **schema identifiers** for dependency routing [types.d.ts:302-309]():
+Provides **schema identifiers** for dependency routing `types.d.ts:302-309`:
 
 ```typescript
 interface IMethodContext {
@@ -339,7 +339,7 @@ interface IMethodContext {
 - `ExchangeConnectionService` - routes to correct `ClientExchange` instance
 - `FrameConnectionService` - routes to correct `ClientFrame` instance
 
-**Access**: Via `MethodContextService` [types.d.ts:330-336]():
+**Access**: Via `MethodContextService` `types.d.ts:330-336`:
 
 ```typescript
 MethodContextService.runAsyncIterator(
@@ -390,7 +390,7 @@ graph LR
 
 ### How It Works
 
-1. **Backtest Mode**: `BacktestLogicPrivateService` [src/lib/services/backtest/BacktestLogicPrivateService.ts]() iterates through a pre-generated timeframe:
+1. **Backtest Mode**: `BacktestLogicPrivateService` `src/lib/services/backtest/BacktestLogicPrivateService.ts` iterates through a pre-generated timeframe:
    ```typescript
    for (const when of timeframes) {
      ExecutionContextService.runInContext(
@@ -403,7 +403,7 @@ graph LR
    }
    ```
 
-2. **Live Mode**: `LiveLogicPrivateService` [src/lib/services/live/LiveLogicPrivateService.ts]() creates timestamps in real-time:
+2. **Live Mode**: `LiveLogicPrivateService` `src/lib/services/live/LiveLogicPrivateService.ts` creates timestamps in real-time:
    ```typescript
    while (true) {
      const when = new Date();
@@ -418,7 +418,7 @@ graph LR
    }
    ```
 
-3. **Data Fetching**: `ClientExchange.getCandles()` [src/client/ClientExchange.ts]() reads `ExecutionContext.when` and ensures returned data ≤ `when`:
+3. **Data Fetching**: `ClientExchange.getCandles()` `src/client/ClientExchange.ts` reads `ExecutionContext.when` and ensures returned data ≤ `when`:
    ```typescript
    async getCandles(symbol, interval, limit) {
      const { when } = this.execution.context;
@@ -505,7 +505,7 @@ graph LR
 
 ### PNL Calculation with Fees and Slippage
 
-Final profit/loss includes realistic trading costs [types.d.ts:757-764]():
+Final profit/loss includes realistic trading costs `types.d.ts:757-764`:
 
 ```typescript
 interface IStrategyPnL {
@@ -550,7 +550,7 @@ graph TD
     I --> D
 ```
 
-**Implementation**: `ClientStrategy` [src/client/ClientStrategy.ts]() maintains `_pendingSignal` field. If non-null, `getSignal()` is never called.
+**Implementation**: `ClientStrategy` `src/client/ClientStrategy.ts` maintains `_pendingSignal` field. If non-null, `getSignal()` is never called.
 
 ### Backtest Fast-Forward Optimization
 

@@ -104,9 +104,9 @@ onTick: (symbol: string, result: IStrategyTickResult, backtest: boolean) => void
 - Real-time monitoring dashboards
 
 **Invocation Points:**
-- [src/client/ClientStrategy.ts:599-606]() - After scheduled signal timeout cancellation
-- [src/client/ClientStrategy.ts:765-772]() - After scheduled signal activation
-- [src/client/ClientStrategy.ts:792-799]() - During scheduled signal monitoring
+- `src/client/ClientStrategy.ts:599-606` - After scheduled signal timeout cancellation
+- `src/client/ClientStrategy.ts:765-772` - After scheduled signal activation
+- `src/client/ClientStrategy.ts:792-799` - During scheduled signal monitoring
 
 
 ---
@@ -134,8 +134,8 @@ onOpen: (symbol: string, data: ISignalRow, currentPrice: number, backtest: boole
 - Update portfolio tracking
 
 **Invocation Points:**
-- [src/client/ClientStrategy.ts:747-754]() - After scheduled signal activation
-- [src/client/ClientStrategy.ts:862-869]() - After immediate signal creation
+- `src/client/ClientStrategy.ts:747-754` - After scheduled signal activation
+- `src/client/ClientStrategy.ts:862-869` - After immediate signal creation
 
 
 ---
@@ -163,8 +163,8 @@ onActive: (symbol: string, data: ISignalRow, currentPrice: number, backtest: boo
 - Update live dashboards with active position status
 
 **Invocation Points:**
-- [src/client/ClientStrategy.ts:512-522]() - During crash recovery initialization
-- [src/client/ClientStrategy.ts:906-916]() - During active signal monitoring in tick()
+- `src/client/ClientStrategy.ts:512-522` - During crash recovery initialization
+- `src/client/ClientStrategy.ts:906-916` - During active signal monitoring in tick()
 
 
 ---
@@ -191,7 +191,7 @@ onIdle: (symbol: string, currentPrice: number, backtest: boolean) => void
 - Trigger alerts if idle too long
 
 **Invocation Points:**
-- [src/client/ClientStrategy.ts:924-936]() - When no signal exists during tick()
+- `src/client/ClientStrategy.ts:924-936` - When no signal exists during tick()
 
 
 ---
@@ -219,7 +219,7 @@ onClose: (symbol: string, data: ISignalRow, priceClose: number, backtest: boolea
 - Update external tracking systems
 
 **Invocation Points:**
-- [src/client/ClientStrategy.ts:988-998]() - After signal closes via TP/SL/time
+- `src/client/ClientStrategy.ts:988-998` - After signal closes via TP/SL/time
 
 
 ---
@@ -247,8 +247,8 @@ onSchedule: (symbol: string, data: IScheduledSignalRow, currentPrice: number, ba
 - Monitor price distance to activation
 
 **Invocation Points:**
-- [src/client/ClientStrategy.ts:540-550]() - During crash recovery for persisted scheduled signals
-- [src/client/ClientStrategy.ts:827-837]() - After scheduled signal creation
+- `src/client/ClientStrategy.ts:540-550` - During crash recovery for persisted scheduled signals
+- `src/client/ClientStrategy.ts:827-837` - After scheduled signal creation
 
 
 ---
@@ -276,7 +276,7 @@ onCancel: (symbol: string, data: IScheduledSignalRow, currentPrice: number, back
 - Analyze scheduled signal success rate
 
 **Invocation Points:**
-- [src/client/ClientStrategy.ts:580-587]() - After scheduled signal timeout
+- `src/client/ClientStrategy.ts:580-587` - After scheduled signal timeout
 - Implicitly during scheduled signal SL breach (before activation)
 
 
@@ -304,8 +304,8 @@ onWrite: (symbol: string, data: ISignalRow | null, backtest: boolean) => void
 - Audit persistence operations
 
 **Invocation Points:**
-- [src/client/ClientStrategy.ts:1029-1053]() - In `setPendingSignal` method
-- [src/client/ClientStrategy.ts:1055-1079]() - In `setScheduledSignal` method
+- `src/client/ClientStrategy.ts:1029-1053` - In `setPendingSignal` method
+- `src/client/ClientStrategy.ts:1055-1079` - In `setScheduledSignal` method
 
 
 ---
@@ -580,7 +580,7 @@ graph TB
 
 **Key Implementation Details:**
 
-1. **Storage:** Callbacks are stored in `IStrategyParams.callbacks` field [src/interfaces/Strategy.interface.ts:79-94]()
+1. **Storage:** Callbacks are stored in `IStrategyParams.callbacks` field `src/interfaces/Strategy.interface.ts:79-94`
 
 2. **Invocation Pattern:** All callbacks use optional chaining to avoid errors if not provided:
    ```typescript
@@ -588,7 +588,7 @@ graph TB
      self.params.callbacks.onOpen(symbol, data, currentPrice, backtest);
    }
    ```
-   [src/client/ClientStrategy.ts:747-754]()
+   `src/client/ClientStrategy.ts:747-754`
 
 3. **Context Propagation:** The `backtest` flag propagates from `ExecutionContextService` to callbacks, enabling mode-specific logic
 
@@ -733,7 +733,7 @@ const GET_SIGNAL_FN = trycatch(
   }
 );
 ```
-[src/client/ClientStrategy.ts:332-476]()
+`src/client/ClientStrategy.ts:332-476`
 
 
 ---

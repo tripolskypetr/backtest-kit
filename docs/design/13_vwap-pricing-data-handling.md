@@ -392,12 +392,12 @@ Result: Fetch valid data, calculate correct VWAP=$42,015
 
 The test suite includes comprehensive anomaly detection coverage:
 
-**Test File**: [test/e2e/edge.test.mjs:148-283]()
+**Test File**: `test/e2e/edge.test.mjs:148-283`
 - Zero volume handling
 - Large profit scenarios (>100%)
 - Price skip scenarios (scheduled signal cancellation)
 
-**Test File**: [test/e2e/sanitize.test.mjs]()
+**Test File**: `test/e2e/sanitize.test.mjs`
 - Negative price rejection
 - NaN/Infinity price rejection
 - Extreme price validation
@@ -435,9 +435,9 @@ The test suite includes comprehensive anomaly detection coverage:
 
 | Scenario | Detection | Handling | Test Coverage |
 |----------|-----------|----------|---------------|
-| **Zero volume** | Volume sum = 0 | Fallback to simple average | [test/e2e/edge.test.mjs:148-283]() |
-| **Negative prices** | price < 0 | Reject signal, log error | [test/e2e/sanitize.test.mjs:351-443]() |
-| **NaN prices** | !isFinite(price) | Reject signal, log error | [test/e2e/sanitize.test.mjs:455-542]() |
+| **Zero volume** | Volume sum = 0 | Fallback to simple average | `test/e2e/edge.test.mjs:148-283` |
+| **Negative prices** | price < 0 | Reject signal, log error | `test/e2e/sanitize.test.mjs:351-443` |
+| **NaN prices** | !isFinite(price) | Reject signal, log error | `test/e2e/sanitize.test.mjs:455-542` |
 | **Anomalous prices** | price < median/1000 | Retry fetch (3×) | Config + retry logic |
 | **Empty candle array** | candles.length = 0 | Retry or throw error | Retry logic |
 | **Incomplete candles** | Missing OHLC fields | Validate schema, retry | Exchange validation |

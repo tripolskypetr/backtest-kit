@@ -196,7 +196,7 @@ setLogger({
 ```
 
 **Internal Flow:**
-The logger is stored in `LoggerService` ([src/services/base/LoggerService]()), which is injected as a dependency throughout the service layer. All services access logging via `backtest.loggerService`.
+The logger is stored in `LoggerService` (`src/services/base/LoggerService`), which is injected as a dependency throughout the service layer. All services access logging via `backtest.loggerService`.
 
 
 ---
@@ -238,7 +238,7 @@ setConfig({
 ```
 
 **Internal Validation:**
-Configuration is validated by `ConfigValidationService` ([src/services/validation/ConfigValidationService]()) which ensures:
+Configuration is validated by `ConfigValidationService` (`src/services/validation/ConfigValidationService`) which ensures:
 - All percentages are finite positive numbers
 - Retry counts are positive integers
 - Lookback periods are positive integers
@@ -306,7 +306,7 @@ setColumns({
 ```
 
 **Internal Validation:**
-Column configuration is validated by `ColumnValidationService` ([src/services/validation/ColumnValidationService]()) which ensures all keys are valid column names.
+Column configuration is validated by `ColumnValidationService` (`src/services/validation/ColumnValidationService`) which ensures all keys are valid column names.
 
 
 ---
@@ -450,7 +450,7 @@ addStrategy({
 ```
 
 **Validation:**
-`StrategyValidationService` ([src/services/validation/StrategyValidationService]()) validates:
+`StrategyValidationService` (`src/services/validation/StrategyValidationService`) validates:
 - `strategyName` is unique and non-empty string
 - `interval` is valid `SignalInterval` enum value
 - `getSignal` is a function
@@ -458,7 +458,7 @@ addStrategy({
 - If `riskName` or `riskList` provided, references valid risk profiles (deferred check)
 
 **Storage:**
-`StrategySchemaService` ([src/services/schema/StrategySchemaService]()) stores schema in `ToolRegistry` instance, enabling later retrieval by `StrategyConnectionService`.
+`StrategySchemaService` (`src/services/schema/StrategySchemaService`) stores schema in `ToolRegistry` instance, enabling later retrieval by `StrategyConnectionService`.
 
 
 ---
@@ -524,14 +524,14 @@ addExchange({
 ```
 
 **Validation:**
-`ExchangeValidationService` ([src/services/validation/ExchangeValidationService]()) validates:
+`ExchangeValidationService` (`src/services/validation/ExchangeValidationService`) validates:
 - `exchangeName` is unique and non-empty string
 - `getCandles` is a function
 - `formatPrice` is a function
 - `formatQuantity` is a function
 
 **Storage:**
-`ExchangeSchemaService` ([src/services/schema/ExchangeSchemaService]()) stores schema in `ToolRegistry` instance.
+`ExchangeSchemaService` (`src/services/schema/ExchangeSchemaService`) stores schema in `ToolRegistry` instance.
 
 
 ---
@@ -576,14 +576,14 @@ addFrame({
 ```
 
 **Validation:**
-`FrameValidationService` ([src/services/validation/FrameValidationService]()) validates:
+`FrameValidationService` (`src/services/validation/FrameValidationService`) validates:
 - `frameName` is unique and non-empty string
 - `interval` is valid `FrameInterval` enum value
 - `startDate` and `endDate` are valid Date objects
 - `endDate` is after `startDate`
 
 **Storage:**
-`FrameSchemaService` ([src/services/schema/FrameSchemaService]()) stores schema in `ToolRegistry` instance.
+`FrameSchemaService` (`src/services/schema/FrameSchemaService`) stores schema in `ToolRegistry` instance.
 
 
 ---
@@ -634,7 +634,7 @@ addWalker({
 ```
 
 **Validation:**
-`WalkerValidationService` ([src/services/validation/WalkerValidationService]()) validates:
+`WalkerValidationService` (`src/services/validation/WalkerValidationService`) validates:
 - `walkerName` is unique and non-empty string
 - `exchangeName` references valid exchange (deferred check)
 - `frameName` references valid frame (deferred check)
@@ -642,7 +642,7 @@ addWalker({
 - `metric` is valid `WalkerMetric` enum value
 
 **Storage:**
-`WalkerSchemaService` ([src/services/schema/WalkerSchemaService]()) stores schema in `ToolRegistry` instance.
+`WalkerSchemaService` (`src/services/schema/WalkerSchemaService`) stores schema in `ToolRegistry` instance.
 
 
 ---
@@ -730,14 +730,14 @@ addSizing({
 ```
 
 **Validation:**
-`SizingValidationService` ([src/services/validation/SizingValidationService]()) validates:
+`SizingValidationService` (`src/services/validation/SizingValidationService`) validates:
 - `sizingName` is unique and non-empty string
 - `method` is valid sizing method
 - Method-specific fields are present and valid
 - Percentages are positive numbers
 
 **Storage:**
-`SizingSchemaService` ([src/services/schema/SizingSchemaService]()) stores schema in `ToolRegistry` instance.
+`SizingSchemaService` (`src/services/schema/SizingSchemaService`) stores schema in `ToolRegistry` instance.
 
 
 ---
@@ -817,13 +817,13 @@ addRisk({
 ```
 
 **Validation:**
-`RiskValidationService` ([src/services/validation/RiskValidationService]()) validates:
+`RiskValidationService` (`src/services/validation/RiskValidationService`) validates:
 - `riskName` is unique and non-empty string
 - `maxConcurrentPositions` (if provided) is positive integer
 - Each validation in `validations` array has `validate` function
 
 **Storage:**
-`RiskSchemaService` ([src/services/schema/RiskSchemaService]()) stores schema in `ToolRegistry` instance.
+`RiskSchemaService` (`src/services/schema/RiskSchemaService`) stores schema in `ToolRegistry` instance.
 
 
 ---
@@ -913,7 +913,7 @@ addOptimizer({
 ```
 
 **Validation:**
-`OptimizerValidationService` ([src/services/validation/OptimizerValidationService]()) validates:
+`OptimizerValidationService` (`src/services/validation/OptimizerValidationService`) validates:
 - `optimizerName` is unique and non-empty string
 - `rangeTrain` is non-empty array
 - `rangeTest` is valid date range
@@ -921,7 +921,7 @@ addOptimizer({
 - `getPrompt` is a function
 
 **Storage:**
-`OptimizerSchemaService` ([src/services/schema/OptimizerSchemaService]()) stores schema in `ToolRegistry` instance.
+`OptimizerSchemaService` (`src/services/schema/OptimizerSchemaService`) stores schema in `ToolRegistry` instance.
 
 
 ---
@@ -1627,7 +1627,7 @@ addStrategy({
 ```
 
 **Internal Access:**
-`getDate()` retrieves `when` from `ExecutionContextService.context.when` ([src/services/context/ExecutionContextService]()).
+`getDate()` retrieves `when` from `ExecutionContextService.context.when` (`src/services/context/ExecutionContextService`).
 
 
 ---
@@ -1666,7 +1666,7 @@ addStrategy({
 ```
 
 **Internal Access:**
-`getMode()` retrieves `backtest` from `ExecutionContextService.context.backtest` ([src/services/context/ExecutionContextService]()).
+`getMode()` retrieves `backtest` from `ExecutionContextService.context.backtest` (`src/services/context/ExecutionContextService`).
 
 
 ---

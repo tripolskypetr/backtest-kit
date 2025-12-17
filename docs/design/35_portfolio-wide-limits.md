@@ -628,11 +628,11 @@ stateDiagram-v2
 
 | Stage | Code Location | Description |
 |-------|---------------|-------------|
-| **Risk Check** | [src/lib/client/ClientStrategy.ts]() `tick()` method | Calls `risk.checkSignal(params)` |
-| **Build Payload** | [src/lib/client/ClientRisk.ts]() `checkSignal()` | Queries `RiskGlobalService` for portfolio state |
-| **Run Validations** | [src/lib/client/ClientRisk.ts]() `checkSignal()` | Iterates through `validations` array |
-| **Register Position** | [src/lib/client/ClientRisk.ts]() `addSignal()` | Calls `RiskGlobalService.addPosition()` |
-| **Unregister Position** | [src/lib/client/ClientRisk.ts]() `removeSignal()` | Calls `RiskGlobalService.removePosition()` |
+| **Risk Check** | `src/lib/client/ClientStrategy.ts` `tick()` method | Calls `risk.checkSignal(params)` |
+| **Build Payload** | `src/lib/client/ClientRisk.ts` `checkSignal()` | Queries `RiskGlobalService` for portfolio state |
+| **Run Validations** | `src/lib/client/ClientRisk.ts` `checkSignal()` | Iterates through `validations` array |
+| **Register Position** | `src/lib/client/ClientRisk.ts` `addSignal()` | Calls `RiskGlobalService.addPosition()` |
+| **Unregister Position** | `src/lib/client/ClientRisk.ts` `removeSignal()` | Calls `RiskGlobalService.removePosition()` |
 
 
 ---

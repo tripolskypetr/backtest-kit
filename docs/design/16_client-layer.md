@@ -119,12 +119,12 @@ graph TB
 
 | Feature | Implementation | Location |
 |---------|----------------|----------|
-| **Interval Throttling** | Checks `_lastSignalTimestamp` before calling `getSignal()` | [src/client/ClientStrategy.ts:341-353]() |
-| **Signal Validation** | `VALIDATE_SIGNAL_FN` checks TP/SL logic, prices, GLOBAL_CONFIG | [src/client/ClientStrategy.ts:45-330]() |
-| **Scheduled Signals** | Monitors price activation and SL breach before entry | [src/client/ClientStrategy.ts:610-644]() |
-| **Crash Recovery** | `waitForInit()` loads persisted signals from disk | [src/client/ClientStrategy.ts:491-552]() |
-| **Graceful Shutdown** | `_isStopped` prevents new signals, allows active to close | [src/client/ClientStrategy.ts:336-338]() |
-| **VWAP Pricing** | Uses `exchange.getAveragePrice()` for all entry/exit prices | [src/client/ClientStrategy.ts:354-356]() |
+| **Interval Throttling** | Checks `_lastSignalTimestamp` before calling `getSignal()` | `src/client/ClientStrategy.ts:341-353` |
+| **Signal Validation** | `VALIDATE_SIGNAL_FN` checks TP/SL logic, prices, GLOBAL_CONFIG | `src/client/ClientStrategy.ts:45-330` |
+| **Scheduled Signals** | Monitors price activation and SL breach before entry | `src/client/ClientStrategy.ts:610-644` |
+| **Crash Recovery** | `waitForInit()` loads persisted signals from disk | `src/client/ClientStrategy.ts:491-552` |
+| **Graceful Shutdown** | `_isStopped` prevents new signals, allows active to close | `src/client/ClientStrategy.ts:336-338` |
+| **VWAP Pricing** | Uses `exchange.getAveragePrice()` for all entry/exit prices | `src/client/ClientStrategy.ts:354-356` |
 
 **ClientStrategy Constructor Parameters:**
 

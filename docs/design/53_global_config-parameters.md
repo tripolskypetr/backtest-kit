@@ -222,7 +222,7 @@ Must be >= CC_MIN_TAKEPROFIT_DISTANCE_PERCENT
 }
 ```
 
-**Test Coverage:** [test/e2e/sanitize.test.mjs:27-122]() demonstrates rejection of micro-profit signals (0.024% TP distance).
+**Test Coverage:** `test/e2e/sanitize.test.mjs:27-122` demonstrates rejection of micro-profit signals (0.024% TP distance).
 
 
 ---
@@ -279,7 +279,7 @@ Must be <= CC_MAX_STOPLOSS_DISTANCE_PERCENT
 }
 ```
 
-**Test Coverage:** [test/e2e/sanitize.test.mjs:134-229]() demonstrates rejection of extreme StopLoss (-52% risk).
+**Test Coverage:** `test/e2e/sanitize.test.mjs:134-229` demonstrates rejection of extreme StopLoss (-52% risk).
 
 
 ---
@@ -322,7 +322,7 @@ minuteEstimatedTime <= CC_MAX_SIGNAL_LIFETIME_MINUTES
 }
 ```
 
-**Test Coverage:** [test/e2e/sanitize.test.mjs:241-339]() demonstrates rejection of excessive lifetime (50,000 minutes).
+**Test Coverage:** `test/e2e/sanitize.test.mjs:241-339` demonstrates rejection of excessive lifetime (50,000 minutes).
 
 
 ---
@@ -439,7 +439,7 @@ while (attempts < CC_GET_CANDLES_RETRY_COUNT) {
 
 **Use Case:** Handles transient network errors, API rate limits, and temporary exchange downtime.
 
-**Test Configuration:** [test/config/setup.mjs:98]() sets this to `1` in tests for speed.
+**Test Configuration:** `test/config/setup.mjs:98` sets this to `1` in tests for speed.
 
 
 ---
@@ -452,7 +452,7 @@ while (attempts < CC_GET_CANDLES_RETRY_COUNT) {
 
 **Rationale:** 5-second delay allows exchange APIs to recover from rate limiting or temporary errors without hammering the endpoint.
 
-**Test Configuration:** [test/config/setup.mjs:99]() sets this to `100` (100ms) in tests for speed.
+**Test Configuration:** `test/config/setup.mjs:99` sets this to `100` (100ms) in tests for speed.
 
 
 ---
@@ -485,7 +485,7 @@ const vwap = totalVolume > 0
 
 **Fallback:** If `totalVolume === 0`, uses simple average of close prices.
 
-**Test Coverage:** [test/e2e/edge.test.mjs:148-283]() tests VWAP calculation with zero volume.
+**Test Coverage:** `test/e2e/edge.test.mjs:148-283` tests VWAP calculation with zero volume.
 
 
 ---
@@ -538,7 +538,7 @@ for (const candle of candles) {
 // All prices < $50 → REJECTED
 ```
 
-**Test Coverage:** [test/e2e/sanitize.test.mjs:666-784]() tests rejection of incomplete Binance candles with anomalous prices ($0.1 vs $42,000 median).
+**Test Coverage:** `test/e2e/sanitize.test.mjs:666-784` tests rejection of incomplete Binance candles with anomalous prices ($0.1 vs $42,000 median).
 
 
 ---

@@ -502,7 +502,7 @@ class StrategyCoreService {
 
 **Injection Flow:**
 
-1. `provide()` registers factory functions in [src/lib/core/provide.ts:66-72]()
+1. `provide()` registers factory functions in `src/lib/core/provide.ts:66-72`
 2. `inject()` retrieves services lazily via TYPES symbols
 3. Connection Services inject other services (Schema, Context, etc.)
 4. Clients receive fully-configured dependencies via constructor

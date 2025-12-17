@@ -32,7 +32,7 @@ The DI container consists of three core mechanisms defined across three files:
 
 ### TYPES Symbol Registry
 
-The `TYPES` object in [src/lib/core/types.ts:1-105]() defines unique Symbol identifiers for every service in the framework:
+The `TYPES` object in `src/lib/core/types.ts:1-105` defines unique Symbol identifiers for every service in the framework:
 
 ```typescript
 const baseServices = {
@@ -76,7 +76,7 @@ The Symbol-based approach ensures:
 
 ### Registration with `provide()`
 
-The [src/lib/core/provide.ts:1-143]() file registers factory functions for each service:
+The `src/lib/core/provide.ts:1-143` file registers factory functions for each service:
 
 ```typescript
 // Base Services
@@ -104,7 +104,7 @@ Each `provide()` call maps a Symbol token to a factory function. The factory is 
 
 ### Resolution with `inject()` and `init()`
 
-The [src/lib/index.ts:1-246]() file uses `inject()` to create lazy resolvers for each service:
+The `src/lib/index.ts:1-246` file uses `inject()` to create lazy resolvers for each service:
 
 ```typescript
 const baseServices = {
@@ -219,7 +219,7 @@ graph TB
 
 ## The 11 Service Categories
 
-The framework organizes services into 11 distinct categories, each with a specific responsibility. This structure is reflected in both [src/lib/core/types.ts]() and [src/lib/index.ts]().
+The framework organizes services into 11 distinct categories, each with a specific responsibility. This structure is reflected in both `src/lib/core/types.ts` and `src/lib/index.ts`.
 
 ### Category Summary Table
 
@@ -252,7 +252,7 @@ The framework organizes services into 11 distinct categories, each with a specif
 **Services**:
 - `LoggerService`: Centralized logging with automatic context injection (symbol, strategyName, timestamp). Wraps user-provided ILogger implementation.
 
-**Location**: [src/lib/index.ts:61-63]()
+**Location**: `src/lib/index.ts:61-63`
 
 **Usage Pattern**:
 ```typescript
@@ -268,7 +268,7 @@ backtest.loggerService.log('simple message');
 - `ExecutionContextService`: Manages `symbol`, `when` (timestamp), and `backtest` flag. Used by ClientStrategy to determine execution mode.
 - `MethodContextService`: Manages `strategyName`, `exchangeName`, `frameName`. Used by connection services to route operations.
 
-**Location**: [src/lib/index.ts:65-72]()
+**Location**: `src/lib/index.ts:65-72`
 
 **Context Flow Pattern**:
 ```typescript
@@ -296,7 +296,7 @@ MethodContextService.runInContext(() => {
 - `RiskSchemaService`: Stores IRiskSchema objects
 - `OptimizerSchemaService`: Stores IOptimizerSchema objects
 
-**Location**: [src/lib/index.ts:98-112]()
+**Location**: `src/lib/index.ts:98-112`
 
 **Registration Pattern**:
 ```typescript
@@ -328,7 +328,7 @@ const schema = backtest.strategySchemaService.get(strategyName);
 - `ConfigValidationService`: Validates GLOBAL_CONFIG parameters
 - `ColumnValidationService`: Validates report column configurations
 
-**Location**: [src/lib/index.ts:189-217]()
+**Location**: `src/lib/index.ts:189-217`
 
 **Usage Pattern**:
 ```typescript
@@ -358,7 +358,7 @@ const strategies = await backtest.strategyValidationService.list();
 - `OptimizerConnectionService`: Creates ClientOptimizer instances per `optimizerName`
 - `PartialConnectionService`: Creates ClientPartial instances per `symbol`
 
-**Location**: [src/lib/index.ts:74-96]()
+**Location**: `src/lib/index.ts:74-96`
 
 **Memoization Pattern**: See [Connection Services & Memoization](./14_architecture-deep-dive.md) for details.
 
@@ -372,7 +372,7 @@ const strategies = await backtest.strategyValidationService.list();
 - `ExchangeCoreService`: Orchestrates candle fetching and VWAP calculation via ClientExchange.
 - `FrameCoreService`: Orchestrates timeframe generation via ClientFrame.
 
-**Location**: [src/lib/index.ts:114-118]()
+**Location**: `src/lib/index.ts:114-118`
 
 **Orchestration Example** (StrategyCoreService):
 ```typescript
@@ -400,7 +400,7 @@ strategyCoreService.tick() {
 - `OptimizerGlobalService`: Coordinates optimizer execution state
 - `PartialGlobalService`: Tracks partial profit/loss events across strategies
 
-**Location**: [src/lib/index.ts:120-129]()
+**Location**: `src/lib/index.ts:120-129`
 
 **State Sharing Example** (RiskGlobalService):
 ```typescript
@@ -418,7 +418,7 @@ strategyCoreService.tick() {
 - `LiveLogicPrivateService`: Implements infinite loop with sleep intervals for real-time trading
 - `WalkerLogicPrivateService`: Implements strategy comparison by running multiple backtests sequentially
 
-**Location**: [src/lib/index.ts:141-151]()
+**Location**: `src/lib/index.ts:141-151`
 
 **Async Generator Pattern**:
 ```typescript
@@ -443,7 +443,7 @@ async *run(symbol: string) {
 - `LiveLogicPublicService`: Public wrapper for LiveLogicPrivateService
 - `WalkerLogicPublicService`: Public wrapper for WalkerLogicPrivateService
 
-**Location**: [src/lib/index.ts:153-163]()
+**Location**: `src/lib/index.ts:153-163`
 
 **Wrapper Pattern**:
 ```typescript
@@ -464,7 +464,7 @@ async *run(symbol: string, context: IMethodContext) {
 - `LiveCommandService`: Entry point for Live.run() and Live.background()
 - `WalkerCommandService`: Entry point for Walker.run() and Walker.background()
 
-**Location**: [src/lib/index.ts:131-139]()
+**Location**: `src/lib/index.ts:131-139`
 
 **Command Pattern**:
 ```typescript
@@ -492,7 +492,7 @@ run(symbol: string, context: IMethodContext) {
 - `OutlineMarkdownService`: Generates outline/summary reports
 - `RiskMarkdownService`: Tracks risk rejection events
 
-**Location**: [src/lib/index.ts:165-187]()
+**Location**: `src/lib/index.ts:165-187`
 
 **Event Subscription Pattern**:
 ```typescript
@@ -516,7 +516,7 @@ getReport() {
 **Services**:
 - `OptimizerTemplateService`: Generates .mjs files with strategy code, LLM integration, and backtest execution logic
 
-**Location**: [src/lib/index.ts:219-223]()
+**Location**: `src/lib/index.ts:219-223`
 
 **Code Generation Pattern**: See [Code Generation & Templates](./46_advanced-features.md) for details.
 
@@ -600,7 +600,7 @@ graph TB
 
 ## The Central `backtest` Object
 
-The [src/lib/index.ts:225-238]() file exports a single `backtest` object that aggregates all 52 services:
+The `src/lib/index.ts:225-238` file exports a single `backtest` object that aggregates all 52 services:
 
 ```typescript
 export const backtest = {

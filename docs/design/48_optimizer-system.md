@@ -102,10 +102,10 @@ graph TB
 
 **Architecture Notes:**
 
-- **Memoization**: `OptimizerConnectionService.getOptimizer()` caches instances by `optimizerName` ([src/lib/services/connection/OptimizerConnectionService.ts:59-113]())
-- **Template Merging**: Custom templates from schema override defaults from `OptimizerTemplateService` ([src/lib/services/connection/OptimizerConnectionService.ts:67-97]())
-- **Validation**: `OptimizerValidationService` maintains a `Map<OptimizerName, IOptimizerSchema>` for existence checks ([src/lib/services/validation/OptimizerValidationService.ts:15-34]())
-- **Schema Storage**: `OptimizerSchemaService` uses `ToolRegistry` for immutable schema management ([src/lib/services/schema/OptimizerSchemaService.ts:16-32]())
+- **Memoization**: `OptimizerConnectionService.getOptimizer()` caches instances by `optimizerName` (`src/lib/services/connection/OptimizerConnectionService.ts:59-113`)
+- **Template Merging**: Custom templates from schema override defaults from `OptimizerTemplateService` (`src/lib/services/connection/OptimizerConnectionService.ts:67-97`)
+- **Validation**: `OptimizerValidationService` maintains a `Map<OptimizerName, IOptimizerSchema>` for existence checks (`src/lib/services/validation/OptimizerValidationService.ts:15-34`)
+- **Schema Storage**: `OptimizerSchemaService` uses `ToolRegistry` for immutable schema management (`src/lib/services/schema/OptimizerSchemaService.ts:16-32`)
 
 
 ---
@@ -156,7 +156,7 @@ const distinct = distinctDocuments(iterator, (data) => data.id);
 const allData = await resolveDocuments(distinct);
 ```
 
-**Deduplication Key**: All data must implement `IOptimizerData` with unique `id: string | number` ([src/interfaces/Optimizer.interface.ts:38-44]()).
+**Deduplication Key**: All data must implement `IOptimizerData` with unique `id: string | number` (`src/interfaces/Optimizer.interface.ts:38-44`).
 
 
 ---
@@ -215,7 +215,7 @@ const DEFAULT_ASSISTANT_FN = async (symbol, data, name, self) => {
 };
 ```
 
-**Default Template Output** ([src/lib/services/template/OptimizerTemplateService.ts:77-110]()):
+**Default Template Output** (`src/lib/services/template/OptimizerTemplateService.ts:77-110`):
 - User: `"Прочитай данные и скажи ОК\n\n" + JSON.stringify(data)`
 - Assistant: `"ОК"`
 
@@ -473,7 +473,7 @@ interface ProgressOptimizerContract {
 1. At start of each source processing (before `fetch()` call)
 2. After all sources complete (progress = 1.0)
 
-Events are emitted via `progressOptimizerEmitter` ([src/config/emitters.ts:80]()) and accessible through `listenOptimizerProgress()` ([src/function/event.ts:514-557]()).
+Events are emitted via `progressOptimizerEmitter` (`src/config/emitters.ts:80`) and accessible through `listenOptimizerProgress()` (`src/function/event.ts:514-557`).
 
 
 ---

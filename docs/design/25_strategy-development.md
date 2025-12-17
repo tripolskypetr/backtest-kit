@@ -202,10 +202,10 @@ graph TD
 
 **Registration Process:**
 
-1. **Validation** - [src/lib/services/validation/StrategyValidationService.ts]() checks for duplicate strategy names
-2. **Storage** - [src/lib/services/schema/StrategySchemaService.ts]() stores schema in immutable `ToolRegistry`
-3. **Memoization** - [src/lib/services/connection/StrategyConnectionService.ts:120-151]() creates cached `ClientStrategy` instances per symbol-strategy pair
-4. **Execution** - [src/client/ClientStrategy.ts]() implements the `IStrategy` interface with `tick()` and `backtest()` methods
+1. **Validation** - `src/lib/services/validation/StrategyValidationService.ts` checks for duplicate strategy names
+2. **Storage** - `src/lib/services/schema/StrategySchemaService.ts` stores schema in immutable `ToolRegistry`
+3. **Memoization** - `src/lib/services/connection/StrategyConnectionService.ts:120-151` creates cached `ClientStrategy` instances per symbol-strategy pair
+4. **Execution** - `src/client/ClientStrategy.ts` implements the `IStrategy` interface with `tick()` and `backtest()` methods
 
 
 ### Code Entity Mapping: Strategy Execution Path
@@ -468,7 +468,7 @@ addStrategy({
 });
 ```
 
-**Monitoring Logic:** [src/client/ClientStrategy.ts:610-644]() checks SL **before** priceOpen to prevent "activate-and-immediately-cancel" scenarios.
+**Monitoring Logic:** `src/client/ClientStrategy.ts:610-644` checks SL **before** priceOpen to prevent "activate-and-immediately-cancel" scenarios.
 
 
 ## Best Practices

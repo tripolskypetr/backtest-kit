@@ -60,7 +60,7 @@ graph TB
 
 ### Service Provider Registration
 
-Service factories are registered via the `provide()` function, which associates each TYPES symbol with a constructor function. The registration happens in [src/lib/core/provide.ts](), organized by service category.
+Service factories are registered via the `provide()` function, which associates each TYPES symbol with a constructor function. The registration happens in `src/lib/core/provide.ts`, organized by service category.
 
 **Service Registration Pattern**
 

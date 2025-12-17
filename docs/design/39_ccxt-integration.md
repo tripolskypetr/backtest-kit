@@ -338,7 +338,7 @@ graph TB
 
 **Template Implementation:**
 
-The `getExchangeTemplate` method in [src/lib/services/template/OptimizerTemplateService.ts:314-342]() generates:
+The `getExchangeTemplate` method in `src/lib/services/template/OptimizerTemplateService.ts:314-342` generates:
 
 ```typescript
 addExchange({
@@ -356,7 +356,7 @@ addExchange({
 ```
 
 **Key Features:**
-- **Code Injection Protection**: Uses `escapedExchangeName` to prevent malicious input [src/lib/services/template/OptimizerTemplateService.ts:324-326]()
+- **Code Injection Protection**: Uses `escapedExchangeName` to prevent malicious input `src/lib/services/template/OptimizerTemplateService.ts:324-326`
 - **Hardcoded Binance**: Currently generates Binance-specific code (could be parameterized in future)
 - **Simple Formatters**: Uses basic `toFixed()` for price/quantity formatting
 
@@ -733,7 +733,7 @@ graph TB
 
 **Generated Exchange Code:**
 
-From [src/lib/services/template/OptimizerTemplateService.ts:314-342](), the optimizer generates:
+From `src/lib/services/template/OptimizerTemplateService.ts:314-342`, the optimizer generates:
 
 ```typescript
 import ccxt from 'ccxt';

@@ -709,4 +709,4 @@ Backtest Kit's advanced features enable:
 
 The optimizer system coordinates data collection, LLM interaction, and code generation through a layered service architecture. The template system assembles code components into executable strategies. The persistence layer provides crash recovery with atomic writes and async initialization.
 
-For optimizer usage examples, see [demo/optimization/]() directory. For persistence patterns, see type definitions in [types.d.ts:1655-1843](). For template customization, see [IOptimizerTemplate interface](src/interfaces/Optimizer.interface.ts:238-339).
+For optimizer usage examples, see `demo/optimization/` directory. For persistence patterns, see type definitions in `types.d.ts:1655-1843`. For template customization, see `IOptimizerTemplate interface`.

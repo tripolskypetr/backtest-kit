@@ -605,17 +605,17 @@ graph TB
 
 ### ClientStrategy Integration
 
-**`ClientStrategy.waitForInit()`** - [docs/internals.md:76]()
+**`ClientStrategy.waitForInit()`** - `docs/internals.md:76`
 - Called once per strategy instance before any tick operations
 - Triggers `PersistSignalAdapter.waitForInit()` and `hasValue()` check
 - If persisted data exists, calls `readSignalData()` to restore state
 
-**`ClientStrategy.setPendingSignal()`** - [docs/internals.md:77]()
+**`ClientStrategy.setPendingSignal()`** - `docs/internals.md:77`
 - Called when signal transitions from scheduled to opened
 - Triggers `PersistSignalAdapter.writeSignalData()`
 - Atomic write ensures crash safety
 
-**`ClientStrategy.tick()`** - [docs/internals.md:62-67]()
+**`ClientStrategy.tick()`** - `docs/internals.md:62-67`
 - Monitors active signals for TP/SL/time conditions
 - When signal closes, triggers `PersistSignalAdapter.deleteSignalData()`
 - Cleanup ensures no stale data remains

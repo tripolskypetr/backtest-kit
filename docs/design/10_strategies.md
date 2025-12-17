@@ -528,19 +528,19 @@ This table maps conceptual strategy components to concrete code entities:
 
 | Concept | Code Entity | Location | Description |
 |---------|-------------|----------|-------------|
-| Strategy Schema | `IStrategySchema` | [types.d.ts:728-747]() | Registration interface |
-| Signal DTO | `ISignalDto` | [types.d.ts:649-665]() | Return type of `getSignal` |
-| Signal Row | `ISignalRow` | [types.d.ts:669-687]() | Augmented signal with metadata |
-| Scheduled Signal | `IScheduledSignalRow` | [types.d.ts:694-697]() | Signal awaiting price activation |
-| Tick Result | `IStrategyTickResult` | [types.d.ts:888]() | Discriminated union of all states |
-| Interval Type | `SignalInterval` | [types.d.ts:645]() | Throttling intervals |
-| Callbacks | `IStrategyCallbacks` | [types.d.ts:699-723]() | Lifecycle event hooks |
-| Registration | `addStrategy()` | [src/function/add.ts]() | Global registration function |
-| Schema Storage | `StrategySchemaService` | [docs/classes/StrategySchemaService.md]() | Immutable registry |
-| Routing | `StrategyConnectionService` | [docs/classes/StrategyConnectionService.md]() | Memoized instance routing |
-| Orchestration | `StrategyCoreService` | [docs/classes/StrategyCoreService.md]() | Top-level execution coordinator |
-| Implementation | `ClientStrategy` | [docs/classes/ClientExchange.md]() | Strategy instance with tick/backtest methods |
-| Risk Integration | `ClientRisk` | [docs/classes/ClientRisk.md]() | Signal validation |
+| Strategy Schema | `IStrategySchema` | `types.d.ts:728-747` | Registration interface |
+| Signal DTO | `ISignalDto` | `types.d.ts:649-665` | Return type of `getSignal` |
+| Signal Row | `ISignalRow` | `types.d.ts:669-687` | Augmented signal with metadata |
+| Scheduled Signal | `IScheduledSignalRow` | `types.d.ts:694-697` | Signal awaiting price activation |
+| Tick Result | `IStrategyTickResult` | `types.d.ts:888` | Discriminated union of all states |
+| Interval Type | `SignalInterval` | `types.d.ts:645` | Throttling intervals |
+| Callbacks | `IStrategyCallbacks` | `types.d.ts:699-723` | Lifecycle event hooks |
+| Registration | `addStrategy()` | `src/function/add.ts` | Global registration function |
+| Schema Storage | `StrategySchemaService` | `docs/classes/StrategySchemaService.md` | Immutable registry |
+| Routing | `StrategyConnectionService` | `docs/classes/StrategyConnectionService.md` | Memoized instance routing |
+| Orchestration | `StrategyCoreService` | `docs/classes/StrategyCoreService.md` | Top-level execution coordinator |
+| Implementation | `ClientStrategy` | `docs/classes/ClientExchange.md` | Strategy instance with tick/backtest methods |
+| Risk Integration | `ClientRisk` | `docs/classes/ClientRisk.md` | Signal validation |
 
 
 ---

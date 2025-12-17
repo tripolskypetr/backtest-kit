@@ -685,7 +685,7 @@ console.log(markdown);
 
 | Aspect | Details |
 |--------|---------|
-| **Core Interface** | `ColumnModel<T>` in [src/model/Column.model.ts:26-38]() |
+| **Core Interface** | `ColumnModel<T>` in `src/model/Column.model.ts:26-38` |
 | **Default Config** | `COLUMN_CONFIG` from `src/config/columns` |
 | **Type Specializations** | 9 column types across markdown services |
 | **Visibility Control** | `isVisible()` with async support |

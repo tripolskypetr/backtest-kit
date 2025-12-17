@@ -88,7 +88,7 @@ graph TB
 
 The `IStrategy` interface defines the execution contract for trading strategies. `ClientStrategy` implements this interface to provide signal generation and monitoring capabilities.
 
-**Location:** Not explicitly exported, but documented in [docs/interfaces/IStrategy.md]()
+**Location:** Not explicitly exported, but documented in `docs/interfaces/IStrategy.md`
 
 **Methods:**
 
@@ -121,7 +121,7 @@ const result = await strategy.tick(symbol);
 
 The `IExchange` interface defines data access and formatting operations for exchange data sources. `ClientExchange` implements this interface to provide candle data and VWAP calculations.
 
-**Location:** [types.d.ts:160-205]()
+**Location:** `types.d.ts:160-205`
 
 **Methods:**
 
@@ -153,7 +153,7 @@ The `IExchange` interface defines data access and formatting operations for exch
 
 The `IFrame` interface defines timeframe generation for backtesting. `ClientFrame` implements this interface to provide timestamp arrays for iteration.
 
-**Location:** [types.d.ts:280-289]()
+**Location:** `types.d.ts:280-289`
 
 **Methods:**
 
@@ -168,7 +168,7 @@ The `IFrame` interface defines timeframe generation for backtesting. `ClientFram
 - Interval options: `1m, 3m, 5m, 15m, 30m, 1h, 2h, 4h, 6h, 8h, 12h, 1d, 3d`
 
 **Implementation Details:**
-`ClientFrame` uses [types.d.ts:262-275]() schema properties:
+`ClientFrame` uses `types.d.ts:262-275` schema properties:
 - `startDate`: Beginning of backtest period (inclusive)
 - `endDate`: End of backtest period (inclusive)
 - `interval`: Time spacing between timestamps
@@ -189,7 +189,7 @@ const timeframes = await frame.getTimeframe(symbol, frameName);
 
 The `IRisk` interface defines risk management operations for signal validation. `ClientRisk` and `MergeRisk` implement this interface to provide portfolio-level controls.
 
-**Location:** [types.d.ts:448-479]()
+**Location:** `types.d.ts:448-479`
 
 **Methods:**
 
@@ -242,7 +242,7 @@ classDiagram
 
 **Implementation Variants:**
 
-1. **ClientRisk** ([types.d.ts:417-426]()): Single risk profile with custom validations
+1. **ClientRisk** (`types.d.ts:417-426`): Single risk profile with custom validations
 2. **MergeRisk**: Combines multiple `ClientRisk` instances (used when `riskList` provided in strategy schema)
 
 **Validation Flow:**
@@ -276,7 +276,7 @@ sequenceDiagram
 
 The `IPartial` interface defines profit/loss milestone tracking for active signals. `ClientPartial` implements this interface to emit events when signals reach 10%, 20%, 30% profit or loss thresholds.
 
-**Location:** [types.d.ts:548-639]()
+**Location:** `types.d.ts:548-639`
 
 **Methods:**
 
@@ -398,7 +398,7 @@ All connection services follow this pattern:
 
 **Example: StrategyConnectionService**
 
-Key properties from [docs/classes/StrategyConnectionService.md:21-68]():
+Key properties from `docs/classes/StrategyConnectionService.md:21-68`:
 
 | Property | Type | Purpose |
 |----------|------|---------|

@@ -102,11 +102,11 @@ The `OptimizerTemplateService` class provides default implementations for all `I
 
 **Key Features**
 
-- **Multi-Timeframe Analysis**: Loads candles from 4 timeframes and formats them for LLM context [src/lib/services/template/OptimizerTemplateService.ts:202-276]()
-- **JSON Structured Output**: Uses Ollama's `format` parameter with strict schema for trading signals [src/lib/services/template/OptimizerTemplateService.ts:675-705]()
-- **Debug Logging**: Saves LLM conversations and results to `./dump/strategy/{resultId}/` [src/lib/services/template/OptimizerTemplateService.ts:457-544]()
-- **Code Injection Prevention**: Escapes special characters in all string interpolations [src/lib/services/template/OptimizerTemplateService.ts:136-147](), [src/lib/services/template/OptimizerTemplateService.ts:183-192]()
-- **CCXT Integration**: Default exchange uses `ccxt.binance()` with standard formatters [src/lib/services/template/OptimizerTemplateService.ts:328-341]()
+- **Multi-Timeframe Analysis**: Loads candles from 4 timeframes and formats them for LLM context `src/lib/services/template/OptimizerTemplateService.ts:202-276`
+- **JSON Structured Output**: Uses Ollama's `format` parameter with strict schema for trading signals `src/lib/services/template/OptimizerTemplateService.ts:675-705`
+- **Debug Logging**: Saves LLM conversations and results to `./dump/strategy/{resultId}/` `src/lib/services/template/OptimizerTemplateService.ts:457-544`
+- **Code Injection Prevention**: Escapes special characters in all string interpolations `src/lib/services/template/OptimizerTemplateService.ts:136-147`, `src/lib/services/template/OptimizerTemplateService.ts:183-192`
+- **CCXT Integration**: Default exchange uses `ccxt.binance()` with standard formatters `src/lib/services/template/OptimizerTemplateService.ts:328-341`
 
 **Default Template Method Implementations**
 
@@ -192,23 +192,23 @@ graph TB
 
 ## Code Generation Workflow in ClientOptimizer
 
-The `ClientOptimizer.getCode` method orchestrates template calls to assemble a complete executable strategy file. The `GET_STRATEGY_CODE_FN` function [src/client/ClientOptimizer.ts:225-350]() performs the following steps:
+The `ClientOptimizer.getCode` method orchestrates template calls to assemble a complete executable strategy file. The `GET_STRATEGY_CODE_FN` function `src/client/ClientOptimizer.ts:225-350` performs the following steps:
 
 **Code Assembly Process**
 
-1. **Fetch Strategy Data**: Call `getData(symbol)` to collect LLM conversation history [src/client/ClientOptimizer.ts:226]()
-2. **Generate Prefix**: Create random prefix for unique naming (e.g., `"a1b2c3"`) [src/client/ClientOptimizer.ts:228]()
-3. **Initialize Sections Array**: Accumulate code strings [src/client/ClientOptimizer.ts:229]()
-4. **Top Banner**: Imports and constants [src/client/ClientOptimizer.ts:233-236]()
-5. **JSON Dump Helper**: Debug output function [src/client/ClientOptimizer.ts:238-242]()
-6. **Helper Functions**: `text()` and `json()` LLM wrappers [src/client/ClientOptimizer.ts:244-253]()
-7. **Exchange Configuration**: CCXT integration [src/client/ClientOptimizer.ts:256-264]()
-8. **Train Frames**: One frame per training range [src/client/ClientOptimizer.ts:267-282]()
-9. **Test Frame**: Single validation timeframe [src/client/ClientOptimizer.ts:285-297]()
-10. **Strategies**: One strategy per training range × source combination [src/client/ClientOptimizer.ts:300-314]()
-11. **Walker Configuration**: Compare all strategies [src/client/ClientOptimizer.ts:317-332]()
-12. **Launcher**: Execute Walker with event listeners [src/client/ClientOptimizer.ts:335-341]()
-13. **Join and Callback**: Combine sections, trigger `onCode` callback [src/client/ClientOptimizer.ts:343-348]()
+1. **Fetch Strategy Data**: Call `getData(symbol)` to collect LLM conversation history `src/client/ClientOptimizer.ts:226`
+2. **Generate Prefix**: Create random prefix for unique naming (e.g., `"a1b2c3"`) `src/client/ClientOptimizer.ts:228`
+3. **Initialize Sections Array**: Accumulate code strings `src/client/ClientOptimizer.ts:229`
+4. **Top Banner**: Imports and constants `src/client/ClientOptimizer.ts:233-236`
+5. **JSON Dump Helper**: Debug output function `src/client/ClientOptimizer.ts:238-242`
+6. **Helper Functions**: `text()` and `json()` LLM wrappers `src/client/ClientOptimizer.ts:244-253`
+7. **Exchange Configuration**: CCXT integration `src/client/ClientOptimizer.ts:256-264`
+8. **Train Frames**: One frame per training range `src/client/ClientOptimizer.ts:267-282`
+9. **Test Frame**: Single validation timeframe `src/client/ClientOptimizer.ts:285-297`
+10. **Strategies**: One strategy per training range × source combination `src/client/ClientOptimizer.ts:300-314`
+11. **Walker Configuration**: Compare all strategies `src/client/ClientOptimizer.ts:317-332`
+12. **Launcher**: Execute Walker with event listeners `src/client/ClientOptimizer.ts:335-341`
+13. **Join and Callback**: Combine sections, trigger `onCode` callback `src/client/ClientOptimizer.ts:343-348`
 
 **Generated File Naming Convention**
 
@@ -364,7 +364,7 @@ addOptimizer({
 
 **Partial Override Behavior**
 
-The merging logic in `OptimizerConnectionService.getOptimizer` [src/lib/services/connection/OptimizerConnectionService.ts:72-97]() uses destructuring with default fallbacks:
+The merging logic in `OptimizerConnectionService.getOptimizer` `src/lib/services/connection/OptimizerConnectionService.ts:72-97` uses destructuring with default fallbacks:
 
 ```typescript
 const {
@@ -618,7 +618,7 @@ The `getTextTemplate`, `getJsonTemplate`, and `getJsonDumpTemplate` methods gene
 
 **JSON Template Signal Schema**
 
-The `json()` helper enforces a strict signal schema using Ollama's `format` parameter [src/lib/services/template/OptimizerTemplateService.ts:675-705]():
+The `json()` helper enforces a strict signal schema using Ollama's `format` parameter `src/lib/services/template/OptimizerTemplateService.ts:675-705`:
 
 ```json
 {
@@ -656,7 +656,7 @@ The `json()` helper enforces a strict signal schema using Ollama's `format` para
 
 **System Prompt for JSON Signals**
 
-The system message defines position opening rules [src/lib/services/template/OptimizerTemplateService.ts:646-671]():
+The system message defines position opening rules `src/lib/services/template/OptimizerTemplateService.ts:646-671`:
 
 - Position types: `wait` (no clear signal), `long` (bullish), `short` (bearish)
 - Entry price: can be immediate (market) or delayed (limit order)
@@ -666,7 +666,7 @@ The system message defines position opening rules [src/lib/services/template/Opt
 
 **Debug Output Structure**
 
-The `dumpJson()` function saves three types of files to `./dump/strategy/{resultId}/` [src/lib/services/template/OptimizerTemplateService.ts:457-544]():
+The `dumpJson()` function saves three types of files to `./dump/strategy/{resultId}/` `src/lib/services/template/OptimizerTemplateService.ts:457-544`:
 
 1. `00_system_prompt.md`: System messages + output JSON + result ID
 2. `{NN}_user_message.md`: Each user message with size warning if > 100 KB
@@ -736,14 +736,14 @@ All template methods that interpolate user-provided strings perform escaping to 
 
 **Escape Implementation Examples**
 
-Strategy name escaping [src/lib/services/template/OptimizerTemplateService.ts:183-186]():
+Strategy name escaping `src/lib/services/template/OptimizerTemplateService.ts:183-186`:
 ```typescript
 const escapedStrategyName = String(strategyName)
   .replace(/\\/g, '\\\\')
   .replace(/"/g, '\\"');
 ```
 
-Prompt content escaping [src/lib/services/template/OptimizerTemplateService.ts:189-192]():
+Prompt content escaping `src/lib/services/template/OptimizerTemplateService.ts:189-192`:
 ```typescript
 const escapedPrompt = String(plainPrompt)
   .replace(/\\/g, '\\\\')
@@ -751,7 +751,7 @@ const escapedPrompt = String(plainPrompt)
   .replace(/\$/g, '\\$');
 ```
 
-Symbol escaping for template literals [src/lib/services/template/OptimizerTemplateService.ts:561-565]():
+Symbol escaping for template literals `src/lib/services/template/OptimizerTemplateService.ts:561-565`:
 ```typescript
 const escapedSymbol = String(symbol)
   .replace(/\\/g, '\\\\')
@@ -775,7 +775,7 @@ All user-controlled inputs (names, prompts, symbols) are escaped before code gen
 
 ## File Output and Persistence
 
-The `ClientOptimizer.dump` method saves generated code to the file system using the `GET_STRATEGY_DUMP_FN` function [src/client/ClientOptimizer.ts:360-384]().
+The `ClientOptimizer.dump` method saves generated code to the file system using the `GET_STRATEGY_DUMP_FN` function `src/client/ClientOptimizer.ts:360-384`.
 
 **Dump Workflow**
 
@@ -841,13 +841,13 @@ node momentum-optimizer_BTCUSDT.mjs
 
 **Directory Creation**
 
-The `mkdir` call uses `{ recursive: true }` to create parent directories if they don't exist [src/client/ClientOptimizer.ts:369](). This allows paths like:
+The `mkdir` call uses `{ recursive: true }` to create parent directories if they don't exist `src/client/ClientOptimizer.ts:369`. This allows paths like:
 - `"./output/optimizers/"` (creates `output` then `optimizers`)
 - `"./strategies/2024/Q1/"` (creates entire nested structure)
 
 **Callback Integration**
 
-After successful write, the `onDump` callback is invoked [src/client/ClientOptimizer.ts:377-379]():
+After successful write, the `onDump` callback is invoked `src/client/ClientOptimizer.ts:377-379`:
 ```typescript
 if (self.params.callbacks?.onDump) {
   await self.params.callbacks.onDump(symbol, filepath);

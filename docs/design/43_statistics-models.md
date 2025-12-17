@@ -83,7 +83,7 @@ The `BacktestStatisticsModel` interface defines the canonical structure for back
 
 ### Calculation Implementation
 
-The calculation occurs in [BacktestMarkdownService.ts:100-168]() within the `ReportStorage.getData()` method:
+The calculation occurs in `BacktestMarkdownService.ts:100-168` within the `ReportStorage.getData()` method:
 
 ```mermaid
 graph TD
@@ -134,7 +134,7 @@ graph TD
 
 ### Safe Math Enforcement
 
-All numeric metrics return `null` if the calculated value is `NaN`, `Infinity`, or non-finite. The `isUnsafe()` helper function [BacktestMarkdownService.ts:56-67]() performs validation:
+All numeric metrics return `null` if the calculated value is `NaN`, `Infinity`, or non-finite. The `isUnsafe()` helper function `BacktestMarkdownService.ts:56-67` performs validation:
 
 ```typescript
 function isUnsafe(value: number | null): boolean {
@@ -163,7 +163,7 @@ The `LiveStatisticsModel` extends backtest statistics with real-time event track
 | `totalClosed` | `number` | Count of closed signals only |
 | *(inherits)* | | All `BacktestStatisticsModel` fields |
 
-The `TickEvent` type (defined in [src/model/LiveStatistics.model.ts]()) supports discriminated union based on `action` field:
+The `TickEvent` type (defined in `src/model/LiveStatistics.model.ts`) supports discriminated union based on `action` field:
 
 - `"idle"`: No active signal
 - `"opened"`: Signal just created
@@ -175,11 +175,11 @@ The `TickEvent` type (defined in [src/model/LiveStatistics.model.ts]()) supports
 
 The `LiveMarkdownService.ReportStorage` implements intelligent event deduplication to prevent memory bloat:
 
-1. **Idle events**: Replace last idle event if no opened/active events follow it [LiveMarkdownService.ts:88-114]()
-2. **Active events**: Replace last active event with same `signalId` [LiveMarkdownService.ts:148-182]()
-3. **Opened/Closed events**: Always insert new [LiveMarkdownService.ts:122-140](), [LiveMarkdownService.ts:189-215]()
+1. **Idle events**: Replace last idle event if no opened/active events follow it `LiveMarkdownService.ts:88-114`
+2. **Active events**: Replace last active event with same `signalId` `LiveMarkdownService.ts:148-182`
+3. **Opened/Closed events**: Always insert new `LiveMarkdownService.ts:122-140`, `LiveMarkdownService.ts:189-215`
 
-This maintains a 250-event maximum per symbol-strategy pair [LiveMarkdownService.ts:72]() while preserving event history.
+This maintains a 250-event maximum per symbol-strategy pair `LiveMarkdownService.ts:72` while preserving event history.
 
 
 ---
@@ -230,9 +230,9 @@ classDiagram
 
 ### Calculation Flow
 
-The `WalkerMarkdownService.ReportStorage` [WalkerMarkdownService.ts:124-192]() accumulates strategy results incrementally:
+The `WalkerMarkdownService.ReportStorage` `WalkerMarkdownService.ts:124-192` accumulates strategy results incrementally:
 
-1. Each `WalkerContract` event [WalkerMarkdownService.ts:144-158]() adds a strategy result
+1. Each `WalkerContract` event `WalkerMarkdownService.ts:144-158` adds a strategy result
 2. Best strategy is tracked by comparing `metricValue` fields
 3. `getData()` returns final aggregated model with all strategy results sorted by metric
 
@@ -275,11 +275,11 @@ The `ScheduleStatisticsModel` tracks scheduled signal lifecycle events: creation
 
 ### Event Processing Logic
 
-The service [ScheduleMarkdownService.ts:351-369]() filters events intelligently:
+The service `ScheduleMarkdownService.ts:351-369` filters events intelligently:
 
-- **Scheduled events**: Directly added [ScheduleMarkdownService.ts:358-359]()
-- **Opened events**: Only added if `scheduledAt ≠ pendingAt` [ScheduleMarkdownService.ts:360-366]() (indicates it was scheduled first)
-- **Cancelled events**: Always added [ScheduleMarkdownService.ts:367-368]()
+- **Scheduled events**: Directly added `ScheduleMarkdownService.ts:358-359`
+- **Opened events**: Only added if `scheduledAt ≠ pendingAt` `ScheduleMarkdownService.ts:360-366` (indicates it was scheduled first)
+- **Cancelled events**: Always added `ScheduleMarkdownService.ts:367-368`
 
 This prevents double-counting immediate signals that were never scheduled.
 
@@ -316,7 +316,7 @@ Each `PartialEvent` contains:
 
 ### Deduplication via Set-Based Tracking
 
-Partial events are emitted by `ClientPartial` [types.d.ts:548-639]() which uses Set-based deduplication to ensure each level emits only once per signal. The markdown service simply accumulates these deduplicated events.
+Partial events are emitted by `ClientPartial` `types.d.ts:548-639` which uses Set-based deduplication to ensure each level emits only once per signal. The markdown service simply accumulates these deduplicated events.
 
 
 ---
@@ -347,7 +347,7 @@ Each `RiskEvent` contains:
 
 ### Aggregation Logic
 
-The `getData()` method [RiskMarkdownService.ts:75-99]() iterates through all rejection events and builds aggregation maps:
+The `getData()` method `RiskMarkdownService.ts:75-99` iterates through all rejection events and builds aggregation maps:
 
 ```typescript
 const bySymbol: Record<string, number> = {};
@@ -412,7 +412,7 @@ classDiagram
 
 ### Percentile Calculation
 
-The service [PerformanceMarkdownService.ts:68-72]() includes a percentile helper:
+The service `PerformanceMarkdownService.ts:68-72` includes a percentile helper:
 
 ```typescript
 function percentile(sortedArray: number[], p: number): number {
@@ -474,7 +474,7 @@ classDiagram
 
 ### Per-Symbol Calculation
 
-Each `IHeatmapRow` [HeatMarkdownService.ts:115-271]() is calculated independently from the symbol's closed signals:
+Each `IHeatmapRow` `HeatMarkdownService.ts:115-271` is calculated independently from the symbol's closed signals:
 
 1. **Basic metrics**: Win rate, total PNL, average PNL
 2. **Volatility**: Standard deviation
@@ -484,12 +484,12 @@ Each `IHeatmapRow` [HeatMarkdownService.ts:115-271]() is calculated independentl
 6. **Streaks**: Maximum consecutive wins/losses
 7. **Expectancy**: `(winRate × avgWin) + (lossRate × avgLoss)`
 
-All metrics undergo safe math validation [HeatMarkdownService.ts:242-251]().
+All metrics undergo safe math validation `HeatMarkdownService.ts:242-251`.
 
 
 ### Portfolio Aggregation
 
-Portfolio-wide metrics [HeatMarkdownService.ts:278-330]() are computed as:
+Portfolio-wide metrics `HeatMarkdownService.ts:278-330` are computed as:
 
 - **portfolioTotalPnl**: Sum of all symbol PNLs
 - **portfolioSharpeRatio**: Trade-weighted average of symbol Sharpe Ratios
@@ -538,7 +538,7 @@ private getStorage = memoize<(symbol: string, strategyName: string) => ReportSto
 );
 ```
 
-This ensures each symbol-strategy pair has isolated storage with a maximum of 250 events [BacktestMarkdownService.ts:70](), [LiveMarkdownService.ts:72]().
+This ensures each symbol-strategy pair has isolated storage with a maximum of 250 events `BacktestMarkdownService.ts:70`, `LiveMarkdownService.ts:72`.
 
 
 ### Pattern 3: Safe Math Validation
@@ -566,7 +566,7 @@ return {
 };
 ```
 
-Markdown reports display "N/A" for null values [BacktestMarkdownService.ts:215-222]().
+Markdown reports display "N/A" for null values `BacktestMarkdownService.ts:215-222`.
 
 
 ### Pattern 4: Singleshot Initialization
@@ -587,7 +587,7 @@ This prevents duplicate subscriptions even if multiple instances are created or 
 
 ## Statistics Model Export and Usage
 
-All statistics models are exported from the main package entry point [src/index.ts:139-146]():
+All statistics models are exported from the main package entry point `src/index.ts:139-146`:
 
 ```typescript
 export { BacktestStatisticsModel } from "./model/BacktestStatistics.model";

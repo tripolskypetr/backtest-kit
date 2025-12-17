@@ -17,8 +17,8 @@ Backtest Kit architecturally eliminates look-ahead bias through its **time execu
 
 **Key Implementation:**
 
-- `ExecutionContextService` [src/lib/services/context/ExecutionContextService.ts:1-100]() propagates temporal context using Node.js `AsyncLocalStorage`
-- `getCandles()` function [src/api/getCandles.ts:1-50]() automatically filters data based on current execution timestamp
+- `ExecutionContextService` `src/lib/services/context/ExecutionContextService.ts:1-100` propagates temporal context using Node.js `AsyncLocalStorage`
+- `getCandles()` function `src/api/getCandles.ts:1-50` automatically filters data based on current execution timestamp
 - All strategy callbacks receive data UP TO the current moment, never future data
 
 **Technical Guarantee:** The `when` parameter in execution context ensures that `getCandles(symbol, interval, limit)` only returns candles with `timestamp <= when`. This makes look-ahead bias architecturally impossible without explicitly bypassing the context system.
@@ -111,9 +111,9 @@ graph LR
 
 **Mode-Specific Behaviors:**
 
-- **Backtest**: Uses `BacktestLogicPrivateService.generate()` [src/lib/services/logic/private/BacktestLogicPrivateService.ts:50-150]() to iterate through historical timeframes. Fast-forward optimization skips frames while signals are active.
-- **Live**: Uses `LiveLogicPrivateService.generate()` [src/lib/services/logic/private/LiveLogicPrivateService.ts:50-150]() with infinite `while(true)` loop. Polls every `TICK_TTL` (61000ms). Persists signals for crash recovery.
-- **Walker**: Uses `WalkerLogicPrivateService.generate()` [src/lib/services/logic/private/WalkerLogicPrivateService.ts:50-150]() to run multiple backtests sequentially, collect statistics from `BacktestMarkdownService`, and compare using configurable metrics.
+- **Backtest**: Uses `BacktestLogicPrivateService.generate()` `src/lib/services/logic/private/BacktestLogicPrivateService.ts:50-150` to iterate through historical timeframes. Fast-forward optimization skips frames while signals are active.
+- **Live**: Uses `LiveLogicPrivateService.generate()` `src/lib/services/logic/private/LiveLogicPrivateService.ts:50-150` with infinite `while(true)` loop. Polls every `TICK_TTL` (61000ms). Persists signals for crash recovery.
+- **Walker**: Uses `WalkerLogicPrivateService.generate()` `src/lib/services/logic/private/WalkerLogicPrivateService.ts:50-150` to run multiple backtests sequentially, collect statistics from `BacktestMarkdownService`, and compare using configurable metrics.
 
 
 ---
@@ -173,10 +173,10 @@ graph TB
 
 **Validation Implementation:**
 
-- Stages 1-7: `ClientStrategy.prototype.tick` [src/client/ClientStrategy.ts:200-400]() performs inline checks
-- Stage 4 (TP Distance): `CC_MIN_TAKEPROFIT_DISTANCE_PERCENT` default 0.21% ensures profits cover 0.1% fee + 0.1% slippage + margin [src/config/params.ts:20-30]()
-- Stage 7 (Anomalies): `ExchangeCoreService.prototype.getValidatedCandles` [src/lib/services/core/ExchangeCoreService.ts:50-150]() checks for median price deviations
-- Risk Check: `ClientRisk.prototype.checkSignal` [src/client/ClientRisk.ts:100-200]() executes custom validation functions
+- Stages 1-7: `ClientStrategy.prototype.tick` `src/client/ClientStrategy.ts:200-400` performs inline checks
+- Stage 4 (TP Distance): `CC_MIN_TAKEPROFIT_DISTANCE_PERCENT` default 0.21% ensures profits cover 0.1% fee + 0.1% slippage + margin `src/config/params.ts:20-30`
+- Stage 7 (Anomalies): `ExchangeCoreService.prototype.getValidatedCandles` `src/lib/services/core/ExchangeCoreService.ts:50-150` checks for median price deviations
+- Risk Check: `ClientRisk.prototype.checkSignal` `src/client/ClientRisk.ts:100-200` executes custom validation functions
 
 **Configuration Parameters:**
 
@@ -198,18 +198,18 @@ Live mode implements atomic persistence to prevent signal loss or duplication du
 **Architecture:**
 
 1. **Selective Persistence**: Only `opened` signals are persisted. Scheduled signals remain ephemeral.
-2. **Atomic Writes**: `PersistSignalAdapter` [src/lib/services/persist/PersistSignalAdapter.ts:1-150]() uses atomic file operations
-3. **Recovery on Startup**: `LiveLogicPrivateService` [src/lib/services/logic/private/LiveLogicPrivateService.ts:50-100]() loads persisted signals via `waitForInit()`
+2. **Atomic Writes**: `PersistSignalAdapter` `src/lib/services/persist/PersistSignalAdapter.ts:1-150` uses atomic file operations
+3. **Recovery on Startup**: `LiveLogicPrivateService` `src/lib/services/logic/private/LiveLogicPrivateService.ts:50-100` loads persisted signals via `waitForInit()`
 4. **Cleanup on Close**: Signals deleted from storage when closed (TP/SL/time expired)
 
 **Implementation Classes:**
 
 | Class | Role | File |
 |-------|------|------|
-| `PersistSignalAdapter` | File-based persistence implementation | [src/lib/services/persist/PersistSignalAdapter.ts]() |
-| `PersistBase` | Abstract persistence interface | [src/interfaces/Persist.interface.ts]() |
-| `ClientStrategy.persistSignal` | Save signal to storage | [src/client/ClientStrategy.ts:500-550]() |
-| `ClientStrategy.loadPersistedSignal` | Restore signal on startup | [src/client/ClientStrategy.ts:550-600]() |
+| `PersistSignalAdapter` | File-based persistence implementation | `src/lib/services/persist/PersistSignalAdapter.ts` |
+| `PersistBase` | Abstract persistence interface | `src/interfaces/Persist.interface.ts` |
+| `ClientStrategy.persistSignal` | Save signal to storage | `src/client/ClientStrategy.ts:500-550` |
+| `ClientStrategy.loadPersistedSignal` | Restore signal on startup | `src/client/ClientStrategy.ts:550-600` |
 
 **Persistence Key Format:**
 
@@ -262,7 +262,7 @@ graph TB
 
 **Risk Schema Example:**
 
-From [README.md:83-100](), a risk profile with 1% minimum TP and 2:1 R/R:
+From `README.md:83-100`, a risk profile with 1% minimum TP and 2:1 R/R:
 
 ```typescript
 addRisk({
@@ -284,9 +284,9 @@ addRisk({
 
 **Implementation:**
 
-- `ClientRisk.prototype.checkSignal` [src/client/ClientRisk.ts:100-150]() executes validation array
-- `MergeRisk` [src/client/MergeRisk.ts:1-100]() combines multiple risk profiles using logical AND
-- `RiskGlobalService` [src/lib/services/global/RiskGlobalService.ts]() maintains portfolio-wide state
+- `ClientRisk.prototype.checkSignal` `src/client/ClientRisk.ts:100-150` executes validation array
+- `MergeRisk` `src/client/MergeRisk.ts:1-100` combines multiple risk profiles using logical AND
+- `RiskGlobalService` `src/lib/services/global/RiskGlobalService.ts` maintains portfolio-wide state
 
 
 ---
@@ -342,7 +342,7 @@ graph TB
 
 **Template Methods:**
 
-`OptimizerTemplateService` [src/lib/services/template/OptimizerTemplateService.ts:27-650]() provides 11 code generation methods:
+`OptimizerTemplateService` `src/lib/services/template/OptimizerTemplateService.ts:27-650` provides 11 code generation methods:
 
 | Method | Purpose | Returns |
 |--------|---------|---------|
@@ -360,7 +360,7 @@ graph TB
 
 **Generated Code Structure:**
 
-From [src/lib/services/template/OptimizerTemplateService.ts:225-350](), the generated file contains:
+From `src/lib/services/template/OptimizerTemplateService.ts:225-350`, the generated file contains:
 
 1. Imports (Ollama, CCXT, backtest-kit)
 2. Helper functions (`text()`, `json()`, `dumpJson()`)
@@ -373,7 +373,7 @@ From [src/lib/services/template/OptimizerTemplateService.ts:225-350](), the gene
 
 **Example Integration:**
 
-From [README.md:111-143](), using Optimizer in a strategy:
+From `README.md:111-143`, using Optimizer in a strategy:
 
 ```typescript
 addStrategy({
@@ -407,7 +407,7 @@ Backtest Kit supports custom data sources through the `IExchangeSchema` interfac
 
 **CCXT Integration Example:**
 
-From [README.md:70-80]():
+From `README.md:70-80`:
 
 ```typescript
 addExchange({
@@ -425,13 +425,13 @@ addExchange({
 
 **Implementation:**
 
-- `ClientExchange` [src/client/ClientExchange.ts:1-300]() wraps exchange schema
-- `ExchangeCoreService` [src/lib/services/core/ExchangeCoreService.ts:1-200]() coordinates data fetching
-- `ExchangeConnectionService` [src/lib/services/connection/ExchangeConnectionService.ts:1-100]() caches exchange instances
+- `ClientExchange` `src/client/ClientExchange.ts:1-300` wraps exchange schema
+- `ExchangeCoreService` `src/lib/services/core/ExchangeCoreService.ts:1-200` coordinates data fetching
+- `ExchangeConnectionService` `src/lib/services/connection/ExchangeConnectionService.ts:1-100` caches exchange instances
 
 **Candle Validation:**
 
-`ExchangeCoreService.prototype.getValidatedCandles` [src/lib/services/core/ExchangeCoreService.ts:50-150]() performs:
+`ExchangeCoreService.prototype.getValidatedCandles` `src/lib/services/core/ExchangeCoreService.ts:50-150` performs:
 
 1. Anomaly detection (price spikes beyond median)
 2. Incomplete candle filtering (volume = 0 or prices missing)
@@ -495,7 +495,7 @@ graph LR
 
 **Public API Listeners:**
 
-From [README.md:175-176](), listeners use `functools-kit` `queued` wrapper for sequential execution:
+From `README.md:175-176`, listeners use `functools-kit` `queued` wrapper for sequential execution:
 
 | Function | Event | Purpose |
 |----------|-------|---------|
@@ -514,7 +514,7 @@ From [README.md:175-176](), listeners use `functools-kit` `queued` wrapper for s
 
 **Markdown Services Integration:**
 
-Markdown services [src/lib/services/markdown/]() subscribe to emitters and accumulate events in `ReportStorage` (max 250 per key) for report generation.
+Markdown services `src/lib/services/markdown/` subscribe to emitters and accumulate events in `ReportStorage` (max 250 per key) for report generation.
 
 
 ---
@@ -535,7 +535,7 @@ Backtest Kit uses async generators for memory-efficient streaming:
 
 **Implementation:**
 
-From [src/lib/services/logic/private/BacktestLogicPrivateService.ts:50-150](), backtest uses:
+From `src/lib/services/logic/private/BacktestLogicPrivateService.ts:50-150`, backtest uses:
 
 ```typescript
 public async *generate(symbol: string, context: IBacktestContext) {
@@ -549,7 +549,7 @@ public async *generate(symbol: string, context: IBacktestContext) {
 
 **Event-Driven vs. Pull-Based:**
 
-From [README.md:201-224](), two equivalent consumption models:
+From `README.md:201-224`, two equivalent consumption models:
 
 ```typescript
 // Pull-based (async iterator)
@@ -571,7 +571,7 @@ Volume Weighted Average Price ensures realistic entry/exit pricing:
 
 **Calculation:**
 
-`ClientExchange.prototype.getVWAP` [src/client/ClientExchange.ts:150-200]() computes:
+`ClientExchange.prototype.getVWAP` `src/client/ClientExchange.ts:150-200` computes:
 
 ```
 VWAP = Σ(price × volume) / Σ(volume)
@@ -606,7 +606,7 @@ Using last `CC_AVG_PRICE_CANDLES_COUNT` (default: 5) 1-minute candles.
 
 **Dependencies:**
 
-From [package.json:74-79]():
+From `package.json:74-79`:
 
 ```json
 {
@@ -630,7 +630,7 @@ From [package.json:74-79]():
 
 **Comparison to QuantConnect:**
 
-From [README.md:226-236]():
+From `README.md:226-236`:
 
 | Feature | Backtest Kit | QuantConnect |
 |---------|--------------|--------------|
@@ -681,7 +681,7 @@ Live.run('BTCUSDT', { strategyName: 'my-strategy', ... });
 
 ### Testing Coverage
 
-From [README.md:243]():
+From `README.md:243`:
 
 - 300+ unit and integration tests
 - Validation coverage
@@ -691,7 +691,7 @@ From [README.md:243]():
 
 **Test Organization:**
 
-Tests use `worker-testbed` [package.json:69]() for isolated execution environments.
+Tests use `worker-testbed` `package.json:69` for isolated execution environments.
 
 
 ---
@@ -700,11 +700,11 @@ Tests use `worker-testbed` [package.json:69]() for isolated execution environmen
 
 | Feature Category | Key Components | Primary Files |
 |------------------|----------------|---------------|
-| **Time Engine** | `ExecutionContextService`, `getCandles` | [src/lib/services/context/](), [src/api/getCandles.ts]() |
-| **Validation** | `ClientStrategy.tick`, `GLOBAL_CONFIG` | [src/client/ClientStrategy.ts](), [src/config/params.ts]() |
-| **Persistence** | `PersistSignalAdapter`, `PersistBase` | [src/lib/services/persist/]() |
-| **Risk** | `ClientRisk`, `RiskGlobalService` | [src/client/ClientRisk.ts](), [src/lib/services/global/RiskGlobalService.ts]() |
-| **LLM Integration** | `ClientOptimizer`, `OptimizerTemplateService` | [src/client/ClientOptimizer.ts](), [src/lib/services/template/OptimizerTemplateService.ts]() |
-| **Events** | 13 emitters in `emitters.ts` | [src/config/emitters.ts]() |
-| **Reporting** | Markdown services, `ReportStorage` | [src/lib/services/markdown/]() |
-| **Data Sources** | `ClientExchange`, CCXT integration | [src/client/ClientExchange.ts]() |
+| **Time Engine** | `ExecutionContextService`, `getCandles` | `src/lib/services/context/`, `src/api/getCandles.ts` |
+| **Validation** | `ClientStrategy.tick`, `GLOBAL_CONFIG` | `src/client/ClientStrategy.ts`, `src/config/params.ts` |
+| **Persistence** | `PersistSignalAdapter`, `PersistBase` | `src/lib/services/persist/` |
+| **Risk** | `ClientRisk`, `RiskGlobalService` | `src/client/ClientRisk.ts`, `src/lib/services/global/RiskGlobalService.ts` |
+| **LLM Integration** | `ClientOptimizer`, `OptimizerTemplateService` | `src/client/ClientOptimizer.ts`, `src/lib/services/template/OptimizerTemplateService.ts` |
+| **Events** | 13 emitters in `emitters.ts` | `src/config/emitters.ts` |
+| **Reporting** | Markdown services, `ReportStorage` | `src/lib/services/markdown/` |
+| **Data Sources** | `ClientExchange`, CCXT integration | `src/client/ClientExchange.ts` |

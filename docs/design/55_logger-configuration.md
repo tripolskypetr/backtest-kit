@@ -280,20 +280,20 @@ The following table lists all method name constants defined in the configuration
 
 | Constant | Value | Function | Level | File |
 |----------|-------|----------|-------|------|
-| `ADD_STRATEGY_METHOD_NAME` | `"add.addStrategy"` | `addStrategy()` | info | [src/function/add.ts:10, 53]() |
-| `ADD_EXCHANGE_METHOD_NAME` | `"add.addExchange"` | `addExchange()` | info | [src/function/add.ts:11, 102]() |
-| `ADD_FRAME_METHOD_NAME` | `"add.addFrame"` | `addFrame()` | info | [src/function/add.ts:12, 146]() |
-| `ADD_WALKER_METHOD_NAME` | `"add.addWalker"` | `addWalker()` | info | [src/function/add.ts:13, 191]() |
-| `ADD_SIZING_METHOD_NAME` | `"add.addSizing"` | `addSizing()` | info | [src/function/add.ts:14, 257]() |
-| `ADD_RISK_METHOD_NAME` | `"add.addRisk"` | `addRisk()` | info | [src/function/add.ts:15, 332]() |
-| `ADD_OPTIMIZER_METHOD_NAME` | `"add.addOptimizer"` | `addOptimizer()` | info | [src/function/add.ts:16, 433]() |
-| `LIST_EXCHANGES_METHOD_NAME` | `"list.listExchanges"` | `listExchanges()` | log | [src/function/list.ts:10, 44]() |
-| `LIST_STRATEGIES_METHOD_NAME` | `"list.listStrategies"` | `listStrategies()` | log | [src/function/list.ts:11, 79]() |
-| `LIST_FRAMES_METHOD_NAME` | `"list.listFrames"` | `listFrames()` | log | [src/function/list.ts:12, 109]() |
-| `LIST_WALKERS_METHOD_NAME` | `"list.listWalkers"` | `listWalkers()` | log | [src/function/list.ts:13, 140]() |
-| `LIST_SIZINGS_METHOD_NAME` | `"list.listSizings"` | `listSizings()` | log | [src/function/list.ts:14, 180]() |
-| `LIST_RISKS_METHOD_NAME` | `"list.listRisks"` | `listRisks()` | log | [src/function/list.ts:15, 217]() |
-| `LIST_OPTIMIZERS_METHOD_NAME` | `"list.listOptimizers"` | `listOptimizers()` | log | [src/function/list.ts:16, 258]() |
+| `ADD_STRATEGY_METHOD_NAME` | `"add.addStrategy"` | `addStrategy()` | info | `src/function/add.ts:10, 53` |
+| `ADD_EXCHANGE_METHOD_NAME` | `"add.addExchange"` | `addExchange()` | info | `src/function/add.ts:11, 102` |
+| `ADD_FRAME_METHOD_NAME` | `"add.addFrame"` | `addFrame()` | info | `src/function/add.ts:12, 146` |
+| `ADD_WALKER_METHOD_NAME` | `"add.addWalker"` | `addWalker()` | info | `src/function/add.ts:13, 191` |
+| `ADD_SIZING_METHOD_NAME` | `"add.addSizing"` | `addSizing()` | info | `src/function/add.ts:14, 257` |
+| `ADD_RISK_METHOD_NAME` | `"add.addRisk"` | `addRisk()` | info | `src/function/add.ts:15, 332` |
+| `ADD_OPTIMIZER_METHOD_NAME` | `"add.addOptimizer"` | `addOptimizer()` | info | `src/function/add.ts:16, 433` |
+| `LIST_EXCHANGES_METHOD_NAME` | `"list.listExchanges"` | `listExchanges()` | log | `src/function/list.ts:10, 44` |
+| `LIST_STRATEGIES_METHOD_NAME` | `"list.listStrategies"` | `listStrategies()` | log | `src/function/list.ts:11, 79` |
+| `LIST_FRAMES_METHOD_NAME` | `"list.listFrames"` | `listFrames()` | log | `src/function/list.ts:12, 109` |
+| `LIST_WALKERS_METHOD_NAME` | `"list.listWalkers"` | `listWalkers()` | log | `src/function/list.ts:13, 140` |
+| `LIST_SIZINGS_METHOD_NAME` | `"list.listSizings"` | `listSizings()` | log | `src/function/list.ts:14, 180` |
+| `LIST_RISKS_METHOD_NAME` | `"list.listRisks"` | `listRisks()` | log | `src/function/list.ts:15, 217` |
+| `LIST_OPTIMIZERS_METHOD_NAME` | `"list.listOptimizers"` | `listOptimizers()` | log | `src/function/list.ts:16, 258` |
 
 
 ---
