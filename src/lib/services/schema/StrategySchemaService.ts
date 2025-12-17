@@ -50,6 +50,33 @@ export class StrategySchemaService {
       );
     }
 
+    if (strategySchema.riskName && typeof strategySchema.riskName !== "string") {
+      throw new Error(
+        `strategy schema validation failed: invalid riskName`
+      );
+    }
+
+    if (strategySchema.riskList && !Array.isArray(strategySchema.riskList)) {
+      throw new Error(
+        `strategy schema validation failed: invalid riskList for strategyName=${strategySchema.strategyName} system=${strategySchema.riskList}`
+      );
+    }
+
+    if (
+      strategySchema.riskList &&
+      strategySchema.riskList.length !== new Set(strategySchema.riskList).size
+    ) {
+      throw new Error(
+        `strategy schema validation failed: found duplicate riskList for strategyName=${strategySchema.strategyName} riskList=[${strategySchema.riskList}]`
+      );
+    }
+
+    if (strategySchema.riskList?.some((value) => typeof value !== "string")) {
+      throw new Error(
+        `strategy schema validation failed: invalid riskList for strategyName=${strategySchema.strategyName} riskList=[${strategySchema.riskList}]`
+      );
+    }
+
     if (typeof strategySchema.interval !== "string") {
       throw new Error(
         `strategy schema validation failed: missing interval for strategyName=${strategySchema.strategyName}`
