@@ -1,8 +1,8 @@
 # Core Interfaces
 
-This page documents the schema interfaces that define the core configuration contracts for Backtest Kit. These interfaces are used to register strategies, exchanges, timeframes, risk profiles, walkers, position sizing rules, and optimizer configurations via the `add*` family of functions (see [Global Functions](#12.1)).
+This page documents the schema interfaces that define the core configuration contracts for Backtest Kit. These interfaces are used to register strategies, exchanges, timeframes, risk profiles, walkers, position sizing rules, and optimizer configurations via the `add*` family of functions (see [Global Functions](./56_api-reference.md)).
 
-For information about runtime result types (signals, statistics, contracts), see [Signal & Result Types](#12.5) and [Statistics & Contract Types](#12.6). For internal service interfaces, see [Service Layer Interfaces](#12.7).
+For information about runtime result types (signals, statistics, contracts), see [Signal & Result Types](./56_api-reference.md) and [Statistics & Contract Types](./56_api-reference.md). For internal service interfaces, see [Service Layer Interfaces](./56_api-reference.md).
 
 ---
 
@@ -89,7 +89,7 @@ Sources: [types.d.ts:728-969](), [src/index.ts:10-18]()
 
 ## IStrategySchema
 
-Defines a trading strategy including signal generation logic, execution interval, and lifecycle callbacks. Registered via `addStrategy()` (see [Global Functions](#12.1)).
+Defines a trading strategy including signal generation logic, execution interval, and lifecycle callbacks. Registered via `addStrategy()` (see [Global Functions](./56_api-reference.md)).
 
 **Interface Definition**
 
@@ -140,7 +140,7 @@ getSignal: (symbol: string, when: Date) => Promise<ISignalDto | null>
   - `ISignalDto` with `priceOpen` omitted: Creates **immediate signal** at current VWAP price
   - `null`: No signal generated (idle state)
 
-Inside `getSignal`, use `getCandles()` to fetch historical data for analysis (see [Exchange Functions](#12.1)).
+Inside `getSignal`, use `getCandles()` to fetch historical data for analysis (see [Exchange Functions](./56_api-reference.md)).
 
 Sources: [types.d.ts:740]()
 
@@ -1076,10 +1076,10 @@ Sources: [src/index.ts:10-18](), [types.d.ts:728-969]()
 
 ## Related Pages
 
-- **[Global Functions](#12.1)**: `addStrategy()`, `addExchange()`, and other registration functions
-- **[Execution Classes API](#12.2)**: `Backtest`, `Live`, `Walker` classes that consume these schemas
-- **[Signal & Result Types](#12.5)**: `ISignalDto`, `ISignalRow`, `IStrategyTickResult` interfaces
-- **[Statistics & Contract Types](#12.6)**: Result models and event contracts
-- **[Service Layer Interfaces](#12.7)**: Internal service interfaces for advanced usage
+- **[Global Functions](./56_api-reference.md)**: `addStrategy()`, `addExchange()`, and other registration functions
+- **[Execution Classes API](./56_api-reference.md)**: `Backtest`, `Live`, `Walker` classes that consume these schemas
+- **[Signal & Result Types](./56_api-reference.md)**: `ISignalDto`, `ISignalRow`, `IStrategyTickResult` interfaces
+- **[Statistics & Contract Types](./56_api-reference.md)**: Result models and event contracts
+- **[Service Layer Interfaces](./56_api-reference.md)**: Internal service interfaces for advanced usage
 
 Sources: [types.d.ts:1-969](), [src/index.ts:1-199]()

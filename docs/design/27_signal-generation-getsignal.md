@@ -2,7 +2,7 @@
 
 This document explains how to implement the `getSignal` function, which is the core signal generation logic for trading strategies in Backtest Kit. The `getSignal` function analyzes market conditions and returns trading signals or null when no opportunity exists.
 
-For strategy schema configuration and registration, see [Strategy Schema Definition](#6.1). For handling signal lifecycle events, see [Strategy Callbacks](#6.3). For analyzing multiple timeframes within `getSignal`, see [Multi-Timeframe Analysis](#6.4). For throttling behavior that limits `getSignal` calls, see [Interval Throttling](#6.5).
+For strategy schema configuration and registration, see [Strategy Schema Definition](./25_strategy-development.md). For handling signal lifecycle events, see [Strategy Callbacks](./25_strategy-development.md). For analyzing multiple timeframes within `getSignal`, see [Multi-Timeframe Analysis](./25_strategy-development.md). For throttling behavior that limits `getSignal` calls, see [Interval Throttling](./25_strategy-development.md).
 
 ---
 
@@ -183,7 +183,7 @@ async function getSignal(symbol: string, when: Date): Promise<ISignalDto | null>
 **Available Intervals:**
 `"1m"`, `"3m"`, `"5m"`, `"15m"`, `"30m"`, `"1h"`, `"2h"`, `"4h"`, `"6h"`, `"8h"`
 
-For detailed multi-timeframe analysis patterns, see [Multi-Timeframe Analysis](#6.4).
+For detailed multi-timeframe analysis patterns, see [Multi-Timeframe Analysis](./25_strategy-development.md).
 
 **Sources:** [src/function/exchange.ts:29-47](), [types.d.ts:82-100]()
 
@@ -328,7 +328,7 @@ Validates `minuteEstimatedTime <= CC_MAX_SIGNAL_LIFETIME_MINUTES` to prevent ete
 | `CC_MAX_STOPLOSS_DISTANCE_PERCENT` | 10% | Maximum SL to protect capital |
 | `CC_MAX_SIGNAL_LIFETIME_MINUTES` | 10080 (7 days) | Maximum signal duration to prevent deadlock |
 
-These parameters are configurable via `setConfig()`. See [GLOBAL_CONFIG Parameters](#11.1) for complete configuration reference.
+These parameters are configurable via `setConfig()`. See [GLOBAL_CONFIG Parameters](./52_configuration-reference.md) for complete configuration reference.
 
 **Sources:** [src/client/ClientStrategy.ts:45-330](), [src/config/params.ts:1-100]()
 

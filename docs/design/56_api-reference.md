@@ -3,13 +3,13 @@
 This document provides a comprehensive reference to all public APIs exposed by Backtest Kit. It organizes functions, classes, interfaces, and types by functional area to help you navigate the framework's capabilities.
 
 For detailed documentation on specific API categories, see:
-- **[Global Functions](#12.1)** - Configuration and registration functions (`addExchange`, `addStrategy`, etc.)
-- **[Execution Classes API](#12.2)** - Classes for running backtests, live trading, and strategy comparison
-- **[Reporting Classes API](#12.3)** - Classes for generating reports and accessing statistics
-- **[Core Interfaces](#12.4)** - Schema interfaces for defining strategies, exchanges, and other components
-- **[Signal & Result Types](#12.5)** - Types for trading signals and execution results
-- **[Statistics & Contract Types](#12.6)** - Types for performance metrics and event payloads
-- **[Service Layer Interfaces](#12.7)** - Internal service interfaces for advanced usage
+- **[Global Functions](./56_api-reference.md)** - Configuration and registration functions (`addExchange`, `addStrategy`, etc.)
+- **[Execution Classes API](./56_api-reference.md)** - Classes for running backtests, live trading, and strategy comparison
+- **[Reporting Classes API](./56_api-reference.md)** - Classes for generating reports and accessing statistics
+- **[Core Interfaces](./56_api-reference.md)** - Schema interfaces for defining strategies, exchanges, and other components
+- **[Signal & Result Types](./56_api-reference.md)** - Types for trading signals and execution results
+- **[Statistics & Contract Types](./56_api-reference.md)** - Types for performance metrics and event payloads
+- **[Service Layer Interfaces](./56_api-reference.md)** - Internal service interfaces for advanced usage
 
 **Sources:** [src/index.ts:1-199](), [types.d.ts:1-1000](), [README.md:1-255]()
 
@@ -808,6 +808,6 @@ lib.backtestLogicPrivateService;
 // ... etc.
 ```
 
-See **[Service Layer Interfaces](#12.7)** for detailed service documentation.
+See **[Service Layer Interfaces](./56_api-reference.md)** for detailed service documentation.
 
 **Sources:** [src/lib/index.ts:1-500](), [types.d.ts:2200-2500]()

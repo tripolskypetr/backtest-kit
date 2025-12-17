@@ -1,6 +1,6 @@
 # Installation & Setup
 
-This page covers the installation of Backtest Kit and the initial configuration required to start developing trading strategies. Topics include system requirements, package installation, peer dependencies, TypeScript configuration, and project structure setup. For a complete working example and your first backtest implementation, see [Your First Backtest](#2.2).
+This page covers the installation of Backtest Kit and the initial configuration required to start developing trading strategies. Topics include system requirements, package installation, peer dependencies, TypeScript configuration, and project structure setup. For a complete working example and your first backtest implementation, see [Your First Backtest](./04_getting-started.md).
 
 ---
 
@@ -491,10 +491,10 @@ npm install --save-dev typescript
 
 After completing installation and setup:
 
-1. **Follow the First Backtest Tutorial:** See [Your First Backtest](#2.2) for a complete working example
-2. **Explore Quick Start Examples:** Review [Quick Start Examples](#2.3) for common patterns
-3. **Study Core Concepts:** Understand [Signals & Signal Lifecycle](#3.1) and [Strategies](#3.2)
-4. **Review API Reference:** Consult [Global Functions](#12.1) for detailed API documentation
+1. **Follow the First Backtest Tutorial:** See [Your First Backtest](./04_getting-started.md) for a complete working example
+2. **Explore Quick Start Examples:** Review [Quick Start Examples](./04_getting-started.md) for common patterns
+3. **Study Core Concepts:** Understand [Signals & Signal Lifecycle](./08_core-concepts.md) and [Strategies](./08_core-concepts.md)
+4. **Review API Reference:** Consult [Global Functions](./56_api-reference.md) for detailed API documentation
 
 The framework is now installed and ready for development. The next page demonstrates creating a complete backtest with strategy registration, exchange configuration, and execution.
 

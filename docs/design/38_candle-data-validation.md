@@ -4,7 +4,7 @@
 
 This page documents the candle data structure, retrieval mechanisms, and validation system used throughout Backtest Kit. It covers the `ICandleData` interface, retry logic for network failures, anomaly detection for incomplete candles, and median-based price validation. 
 
-For information about implementing exchange data sources that provide candle data, see [Exchange Configuration](#8.1). For VWAP pricing calculation that uses validated candles, see [VWAP Pricing & Data Handling](#3.5).
+For information about implementing exchange data sources that provide candle data, see [Exchange Configuration](./36_exchanges-data-sources.md). For VWAP pricing calculation that uses validated candles, see [VWAP Pricing & Data Handling](./08_core-concepts.md).
 
 ---
 

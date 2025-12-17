@@ -4,7 +4,7 @@
 
 This page documents the multi-stage validation pipeline that every trading signal passes through before execution. The validation system ensures signals meet structural, logical, and risk requirements to prevent catastrophic losses from malformed signals, protect capital from extreme risk exposure, and enforce profitability constraints that account for trading costs.
 
-For information about defining custom risk validation rules beyond the built-in checks, see [Risk Profiles & Validation](#7.1). For portfolio-wide position limits and concurrent signal management, see [Portfolio-Wide Limits](#7.4).
+For information about defining custom risk validation rules beyond the built-in checks, see [Risk Profiles & Validation](./31_risk-management.md). For portfolio-wide position limits and concurrent signal management, see [Portfolio-Wide Limits](./31_risk-management.md).
 
 **Sources:** [src/client/ClientStrategy.ts:45-330](), [src/config/params.ts:1-122](), [README.md:17-29]()
 
@@ -449,7 +449,7 @@ if (await not(
 }
 ```
 
-For details on implementing custom risk validation logic, see [Risk Profiles & Validation](#7.1).
+For details on implementing custom risk validation logic, see [Risk Profiles & Validation](./31_risk-management.md).
 
 **Sources:** [src/client/ClientStrategy.ts:374-387](), [src/interfaces/Risk.interface.ts]()
 

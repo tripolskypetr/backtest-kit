@@ -2,7 +2,7 @@
 
 This document explains the fundamental concepts that underpin the entire backtest-kit framework. Understanding these concepts is essential for developing strategies, managing risk, and interpreting results.
 
-For information about running backtests or live trading, see [Execution Modes](#5). For details on the internal architecture and service layer, see [Architecture Deep Dive](#4). For practical examples, see [Getting Started](#2).
+For information about running backtests or live trading, see [Execution Modes](./20_execution-modes.md). For details on the internal architecture and service layer, see [Architecture Deep Dive](./14_architecture-deep-dive.md). For practical examples, see [Getting Started](./04_getting-started.md).
 
 ---
 
@@ -577,12 +577,12 @@ Sources: [src/client/ClientStrategy.ts](), High-level diagrams (Diagram 3)
 
 | Concept | Key Type/Interface | Purpose | Related Pages |
 |---------|-------------------|---------|---------------|
-| **Signal** | `ISignalDto`, `ISignalRow` | Atomic trading position | [Signals & Signal Lifecycle](#3.1) |
-| **Signal Lifecycle** | `IStrategyTickResult` (discriminated union) | State machine for signal processing | [Signals & Signal Lifecycle](#3.1) |
-| **Strategy** | `IStrategySchema`, `getSignal` function | Logic for generating signals | [Strategies](#3.2), [Strategy Development](#6) |
-| **Execution Context** | `ExecutionContextService`, `IExecutionContext` | Runtime parameters (symbol, when, mode) | [Execution Contexts](#3.3) |
-| **Method Context** | `MethodContextService`, `IMethodContext` | Schema routing (strategy/exchange/frame names) | [Execution Contexts](#3.3) |
-| **Time Execution** | Async generators, context propagation | Stream of time preventing look-ahead bias | [Time Execution Engine](#3.4) |
-| **VWAP Pricing** | `ClientExchange.getAveragePrice()` | Realistic entry/exit pricing | [VWAP Pricing & Data Handling](#3.5) |
+| **Signal** | `ISignalDto`, `ISignalRow` | Atomic trading position | [Signals & Signal Lifecycle](./08_core-concepts.md) |
+| **Signal Lifecycle** | `IStrategyTickResult` (discriminated union) | State machine for signal processing | [Signals & Signal Lifecycle](./08_core-concepts.md) |
+| **Strategy** | `IStrategySchema`, `getSignal` function | Logic for generating signals | [Strategies](./08_core-concepts.md), [Strategy Development](./25_strategy-development.md) |
+| **Execution Context** | `ExecutionContextService`, `IExecutionContext` | Runtime parameters (symbol, when, mode) | [Execution Contexts](./08_core-concepts.md) |
+| **Method Context** | `MethodContextService`, `IMethodContext` | Schema routing (strategy/exchange/frame names) | [Execution Contexts](./08_core-concepts.md) |
+| **Time Execution** | Async generators, context propagation | Stream of time preventing look-ahead bias | [Time Execution Engine](./08_core-concepts.md) |
+| **VWAP Pricing** | `ClientExchange.getAveragePrice()` | Realistic entry/exit pricing | [VWAP Pricing & Data Handling](./08_core-concepts.md) |
 
 Sources: [types.d.ts:1-1000](), High-level diagrams (all)

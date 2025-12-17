@@ -2,7 +2,7 @@
 
 This page documents the statistics models and event contract types used throughout Backtest Kit. Statistics models aggregate and analyze signal data from backtests, live trading, and walker comparisons. Contract types define the payload structures emitted by event subjects during execution.
 
-For information about the event system architecture and listeners, see [Event System Architecture](#4.4). For details on the reporting classes that generate these statistics, see [Reporting Classes API](#12.3).
+For information about the event system architecture and listeners, see [Event System Architecture](./14_architecture-deep-dive.md). For details on the reporting classes that generate these statistics, see [Reporting Classes API](./56_api-reference.md).
 
 ---
 

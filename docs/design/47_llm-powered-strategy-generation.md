@@ -4,7 +4,7 @@
 
 This page documents the LLM-powered strategy generation system in Backtest Kit, which uses AI language models to automatically generate trading strategies from historical data and market analysis. The system collects data from configurable sources, builds conversation context for an LLM, generates strategy prompts, and outputs executable TypeScript code complete with strategies, walkers, and backtests.
 
-For information about the Optimizer system architecture, see [Optimizer System](#10.2). For details on code generation templates, see [Code Generation & Templates](#10.3).
+For information about the Optimizer system architecture, see [Optimizer System](./46_advanced-features.md). For details on code generation templates, see [Code Generation & Templates](./46_advanced-features.md).
 
 **Key Capabilities:**
 - Automated strategy creation from historical backtest data

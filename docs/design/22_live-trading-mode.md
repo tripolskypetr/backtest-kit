@@ -2,7 +2,7 @@
 
 **Purpose**: This page documents the Live Trading Mode execution system, covering real-time signal execution, crash recovery, persistence, graceful shutdown, and the infinite loop architecture.
 
-For historical simulation, see [Backtest Mode](#5.1). For strategy comparison, see [Walker](#5.3). For async generator implementation details, see [Async Generator Patterns](#5.4).
+For historical simulation, see [Backtest Mode](./20_execution-modes.md). For strategy comparison, see [Walker](./20_execution-modes.md). For async generator implementation details, see [Async Generator Patterns](./20_execution-modes.md).
 
 ---
 

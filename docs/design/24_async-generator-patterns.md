@@ -2,7 +2,7 @@
 
 This page documents the async generator patterns used throughout Backtest Kit's execution modes to enable memory-efficient streaming, early termination, and progressive result delivery. Async generators are the core architectural pattern that allows the framework to process large backtests without accumulating results in memory and support graceful shutdown in live trading.
 
-For information about the higher-level execution orchestration, see [Execution Modes](#5). For details on how signals flow through the system, see [Signal Lifecycle](#3.1).
+For information about the higher-level execution orchestration, see [Execution Modes](./20_execution-modes.md). For details on how signals flow through the system, see [Signal Lifecycle](./08_core-concepts.md).
 
 ---
 

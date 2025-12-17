@@ -2,7 +2,7 @@
 
 This page describes the high-level system architecture of Backtest Kit, focusing on the layered design and how components interact. It covers the dependency injection system, service organization, client layer structure, and data flow patterns.
 
-For details on execution modes (Backtest, Live, Walker), see [Execution Modes](#5). For the signal lifecycle state machine, see [Signals & Signal Lifecycle](#3.1). For the event system details, see [Event System Architecture](#4.4).
+For details on execution modes (Backtest, Live, Walker), see [Execution Modes](./20_execution-modes.md). For the signal lifecycle state machine, see [Signals & Signal Lifecycle](./08_core-concepts.md). For the event system details, see [Event System Architecture](./14_architecture-deep-dive.md).
 
 ## System Layers
 

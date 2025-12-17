@@ -1,6 +1,6 @@
 # Backtest Mode
 
-**Purpose**: This document explains the historical simulation mode of Backtest Kit, covering timeframe iteration, fast backtest optimization, progress tracking, and deterministic execution. For real-time trading, see [Live Trading Mode](#5.2). For strategy comparison, see [Walker](#5.3).
+**Purpose**: This document explains the historical simulation mode of Backtest Kit, covering timeframe iteration, fast backtest optimization, progress tracking, and deterministic execution. For real-time trading, see [Live Trading Mode](./20_execution-modes.md). For strategy comparison, see [Walker](./20_execution-modes.md).
 
 **Scope**: Backtest mode simulates trading strategies on historical data from a defined start date to end date. It provides deterministic, reproducible results by iterating through time in discrete steps without access to future data.
 
@@ -8,7 +8,7 @@
 
 ## Overview
 
-Backtest mode executes strategies against historical market data to evaluate performance before risking real capital. Unlike [Live Trading Mode](#5.2), which runs continuously with real-time data, backtest mode operates on a bounded timeframe with a known start and end.
+Backtest mode executes strategies against historical market data to evaluate performance before risking real capital. Unlike [Live Trading Mode](./20_execution-modes.md), which runs continuously with real-time data, backtest mode operates on a bounded timeframe with a known start and end.
 
 **Key Characteristics**:
 
@@ -415,7 +415,7 @@ Backtest mode:
 
 ## Signal Lifecycle in Backtest Mode
 
-Signals progress through different states during backtest execution. The behavior differs from [Live Trading Mode](#5.2):
+Signals progress through different states during backtest execution. The behavior differs from [Live Trading Mode](./20_execution-modes.md):
 
 ### State Transitions
 
@@ -629,9 +629,9 @@ await Backtest.dump("BTCUSDT", "my-strategy");
 
 ## Related Pages
 
-- [Live Trading Mode](#5.2) - Real-time execution with persistence
-- [Walker (Strategy Comparison)](#5.3) - Sequential backtest orchestration
-- [Async Generator Patterns](#5.4) - Memory-efficient streaming patterns
-- [Signals & Signal Lifecycle](#3.1) - Signal state machine details
-- [Time Execution Engine](#3.4) - Temporal context propagation
-- [VWAP Pricing & Data Handling](#3.5) - Price calculation methodology
+- [Live Trading Mode](./20_execution-modes.md) - Real-time execution with persistence
+- [Walker (Strategy Comparison)](./20_execution-modes.md) - Sequential backtest orchestration
+- [Async Generator Patterns](./20_execution-modes.md) - Memory-efficient streaming patterns
+- [Signals & Signal Lifecycle](./08_core-concepts.md) - Signal state machine details
+- [Time Execution Engine](./08_core-concepts.md) - Temporal context propagation
+- [VWAP Pricing & Data Handling](./08_core-concepts.md) - Price calculation methodology

@@ -4,7 +4,7 @@
 
 Connection Services implement a **memoized factory pattern** that sits between the Core Services layer and the Client Layer. They cache client instances (ClientStrategy, ClientExchange, etc.) by unique keys and route method calls to the appropriate cached instance. This architecture prevents redundant instantiation, ensures proper initialization, and centralizes event emission after operations complete.
 
-For information about the Client Layer implementations that Connection Services instantiate, see [Client Layer](#4.2). For the overall service architecture and dependency injection, see [Service Layer & Dependency Injection](#4.1).
+For information about the Client Layer implementations that Connection Services instantiate, see [Client Layer](./14_architecture-deep-dive.md). For the overall service architecture and dependency injection, see [Service Layer & Dependency Injection](./14_architecture-deep-dive.md).
 
 ---
 

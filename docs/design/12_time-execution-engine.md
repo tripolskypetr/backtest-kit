@@ -4,7 +4,7 @@
 
 This document explains the Time Execution Engine, the core architectural pattern that powers Backtest Kit. The Time Execution Engine treats market data processing as an **async stream of time**, where strategies are evaluated step-by-step with strict temporal context. This architecture makes look-ahead bias architecturally impossible by controlling what data is visible at each point in time.
 
-For details about how strategies generate signals within this time stream, see [Strategies](#3.2). For information about execution modes (Backtest, Live, Walker), see [Execution Modes](#5).
+For details about how strategies generate signals within this time stream, see [Strategies](./08_core-concepts.md). For information about execution modes (Backtest, Live, Walker), see [Execution Modes](./20_execution-modes.md).
 
 ---
 
@@ -533,9 +533,9 @@ In backtest mode, `getCandles()` returns historical data up to the current frame
 
 The Time Execution Engine interacts with other architectural components:
 
-- **Execution Contexts** ([#3.3](#3.3)) - Detailed explanation of context propagation mechanisms
-- **Execution Modes** ([#5](#5)) - How time flows differently in Backtest/Live/Walker modes
-- **VWAP Pricing** ([#3.5](#3.5)) - How realistic pricing integrates with temporal context
-- **Signal Lifecycle** ([#3.1](#3.1)) - How signals evolve through time-bound state transitions
+- **Execution Contexts** ([#3.3](./08_core-concepts.md)) - Detailed explanation of context propagation mechanisms
+- **Execution Modes** ([#5](./20_execution-modes.md)) - How time flows differently in Backtest/Live/Walker modes
+- **VWAP Pricing** ([#3.5](./08_core-concepts.md)) - How realistic pricing integrates with temporal context
+- **Signal Lifecycle** ([#3.1](./08_core-concepts.md)) - How signals evolve through time-bound state transitions
 
 **Sources:** High-level architecture diagrams, [docs/internals.md:1-131]()

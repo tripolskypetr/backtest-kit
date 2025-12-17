@@ -2,7 +2,7 @@
 
 ## Purpose and Scope
 
-This page explains the execution context system in backtest-kit, which provides ambient context propagation throughout the framework without explicit parameter passing. Two context types exist: **ExecutionContext** (runtime parameters like symbol, timestamp, mode) and **MethodContext** (schema routing identifiers like strategyName, exchangeName). For information about the broader service architecture that consumes these contexts, see [4.1 Service Layer & Dependency Injection](#4.1). For details on how strategies and exchanges use this context, see [3.2 Strategies](#3.2) and [8.1 Exchange Configuration](#8.1).
+This page explains the execution context system in backtest-kit, which provides ambient context propagation throughout the framework without explicit parameter passing. Two context types exist: **ExecutionContext** (runtime parameters like symbol, timestamp, mode) and **MethodContext** (schema routing identifiers like strategyName, exchangeName). For information about the broader service architecture that consumes these contexts, see [4.1 Service Layer & Dependency Injection](./14_architecture-deep-dive.md). For details on how strategies and exchanges use this context, see [3.2 Strategies](./08_core-concepts.md) and [8.1 Exchange Configuration](./36_exchanges-data-sources.md).
 
 ## Overview
 

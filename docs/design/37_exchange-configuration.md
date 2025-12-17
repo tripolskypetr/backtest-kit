@@ -4,7 +4,7 @@
 
 This document describes how to configure exchange data sources in Backtest Kit using the `IExchangeSchema` interface. An exchange configuration defines how the framework fetches historical candle data, formats prices and quantities, and calculates VWAP for realistic trade execution.
 
-For information about candle data structure and validation, see [Candle Data & Validation](#8.2). For CCXT-specific integration patterns, see [CCXT Integration](#8.3).
+For information about candle data structure and validation, see [Candle Data & Validation](./36_exchanges-data-sources.md). For CCXT-specific integration patterns, see [CCXT Integration](./36_exchanges-data-sources.md).
 
 ---
 
@@ -599,6 +599,6 @@ The exchange configuration system provides flexible market data abstraction thro
 5. **VWAP Pricing:** Realistic entry/exit simulation using volume-weighted prices
 6. **Memoization:** Efficient instance caching per exchange name
 
-For specific integration patterns with CCXT, see [CCXT Integration](#8.3). For details on candle data structure and validation, see [Candle Data & Validation](#8.2).
+For specific integration patterns with CCXT, see [CCXT Integration](./36_exchanges-data-sources.md). For details on candle data structure and validation, see [Candle Data & Validation](./36_exchanges-data-sources.md).
 
 **Sources:** [types.d.ts:82-209](), [README.md:70-80](), [src/client/ClientExchange.ts](), [src/function/add.ts]()

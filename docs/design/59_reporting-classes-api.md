@@ -2,7 +2,7 @@
 
 This page documents the specialized reporting classes that provide access to trading statistics and analysis reports. These classes are wrappers around markdown services and offer three primary methods: `getData()`, `getReport()`, and `dump()`.
 
-For execution control classes like `Backtest`, `Live`, and `Walker`, see [Execution Classes API](#12.2). For the complete list of global configuration functions, see [Global Functions](#12.1).
+For execution control classes like `Backtest`, `Live`, and `Walker`, see [Execution Classes API](./56_api-reference.md). For the complete list of global configuration functions, see [Global Functions](./56_api-reference.md).
 
 ## Overview
 

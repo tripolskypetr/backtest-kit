@@ -4,7 +4,7 @@
 
 This page explains how to implement custom persistence backends for signal storage in Backtest Kit. The default framework uses file-based atomic writes, but you can extend it to use Redis, MongoDB, PostgreSQL, or any other storage system by implementing the `PersistBase` interface.
 
-For information about the built-in persistence system and crash recovery mechanisms, see [Crash Recovery & Persistence](#10.4). For general signal lifecycle concepts, see [Signals & Signal Lifecycle](#3.1).
+For information about the built-in persistence system and crash recovery mechanisms, see [Crash Recovery & Persistence](./46_advanced-features.md). For general signal lifecycle concepts, see [Signals & Signal Lifecycle](./08_core-concepts.md).
 
 ---
 

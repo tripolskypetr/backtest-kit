@@ -4,7 +4,7 @@
 
 This page documents how to configure exchanges and data sources in Backtest Kit. Exchanges provide historical and real-time market data (OHLCV candles) and handle price/quantity formatting according to exchange-specific precision rules. The framework supports any data source that implements the required interface, including CCXT, custom APIs, databases, or CSV files.
 
-For information about using candle data within strategies, see [Multi-Timeframe Analysis](#6.4). For execution context propagation, see [Execution Contexts](#3.3). For VWAP pricing details, see [VWAP Pricing & Data Handling](#3.5).
+For information about using candle data within strategies, see [Multi-Timeframe Analysis](./25_strategy-development.md). For execution context propagation, see [Execution Contexts](./08_core-concepts.md). For VWAP pricing details, see [VWAP Pricing & Data Handling](./08_core-concepts.md).
 
 ---
 

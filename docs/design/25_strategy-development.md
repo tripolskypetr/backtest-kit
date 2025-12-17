@@ -4,7 +4,7 @@
 
 This page provides a complete guide to developing trading strategies in Backtest Kit. It covers the fundamentals of strategy creation, signal generation logic, lifecycle callbacks, and integration with the framework's execution engine.
 
-For information about risk management and validation rules, see [Risk Management](#7). For details on execution modes (backtest, live, walker), see [Execution Modes](#5). For information on fetching and using market data, see [Exchanges & Data Sources](#8).
+For information about risk management and validation rules, see [Risk Management](./31_risk-management.md). For details on execution modes (backtest, live, walker), see [Execution Modes](./20_execution-modes.md). For information on fetching and using market data, see [Exchanges & Data Sources](./36_exchanges-data-sources.md).
 
 ## Strategy Overview
 
@@ -628,12 +628,12 @@ await Walker.run('BTCUSDT', { walkerName: 'ma-comparison' });
 // Returns ranked results by Sharpe ratio
 ```
 
-**Sources:** [README.md](), [Walker section in page 5.3](#5.3)
+**Sources:** [README.md](), [Walker section in page 5.3](./20_execution-modes.md)
 
 ---
 
 **Related Pages:**
-- [Signal Lifecycle](#3.1) - Detailed signal state machine and transitions
-- [Risk Management](#7) - Portfolio limits and validation rules
-- [Multi-Timeframe Analysis](#6.4) - Using multiple timeframes in strategies
-- [getCandles API](#12.1) - Data fetching reference
+- [Signal Lifecycle](./08_core-concepts.md) - Detailed signal state machine and transitions
+- [Risk Management](./31_risk-management.md) - Portfolio limits and validation rules
+- [Multi-Timeframe Analysis](./25_strategy-development.md) - Using multiple timeframes in strategies
+- [getCandles API](./56_api-reference.md) - Data fetching reference

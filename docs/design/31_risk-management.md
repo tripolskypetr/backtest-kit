@@ -4,7 +4,7 @@
 
 This document describes the risk management system in Backtest Kit, which validates trading signals before execution and enforces portfolio-wide limits. The risk system operates at two levels: **signal-level validation** (price logic, TP/SL distances, lifetime limits) and **portfolio-level validation** (concurrent position limits, exposure constraints).
 
-For strategy development patterns, see [Strategy Development](#6). For signal lifecycle details, see [Signals & Signal Lifecycle](#3.1). For position sizing calculations, see [Position Sizing](#7.3).
+For strategy development patterns, see [Strategy Development](./25_strategy-development.md). For signal lifecycle details, see [Signals & Signal Lifecycle](./08_core-concepts.md). For position sizing calculations, see [Position Sizing](./31_risk-management.md).
 
 ## Risk Management Architecture
 
@@ -625,7 +625,7 @@ Adjust validation thresholds based on asset class:
 
 ## Related Documentation
 
-- **[Strategy Development](#6)**: How to implement `getSignal()` and configure `riskName`
-- **[Position Sizing](#7.3)**: `ISizingSchema` for calculating position quantities
-- **[Signals & Signal Lifecycle](#3.1)**: Full signal state machine including rejection flows
-- **[Configuration Reference](#11)**: Complete `GLOBAL_CONFIG` parameter documentation
+- **[Strategy Development](./25_strategy-development.md)**: How to implement `getSignal()` and configure `riskName`
+- **[Position Sizing](./31_risk-management.md)**: `ISizingSchema` for calculating position quantities
+- **[Signals & Signal Lifecycle](./08_core-concepts.md)**: Full signal state machine including rejection flows
+- **[Configuration Reference](./52_configuration-reference.md)**: Complete `GLOBAL_CONFIG` parameter documentation

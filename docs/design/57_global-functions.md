@@ -2,7 +2,7 @@
 
 Global functions are the primary user-facing API for configuring and interacting with Backtest Kit. These functions provide a declarative interface for registering components, configuring system behavior, subscribing to events, and accessing framework utilities. All global functions are exported from the main package entry point and operate on the singleton service layer.
 
-For information about class-based execution APIs (Backtest, Live, Walker, Optimizer), see [Execution Classes API](#12.2). For data structure definitions used in function parameters and return values, see [Core Interfaces](#12.4) and [Signal & Result Types](#12.5).
+For information about class-based execution APIs (Backtest, Live, Walker, Optimizer), see [Execution Classes API](./56_api-reference.md). For data structure definitions used in function parameters and return values, see [Core Interfaces](./56_api-reference.md) and [Signal & Result Types](./56_api-reference.md).
 
 ---
 

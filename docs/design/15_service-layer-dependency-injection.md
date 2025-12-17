@@ -2,7 +2,7 @@
 
 This page documents the service layer architecture and dependency injection (DI) system that powers the backtest-kit framework. The service layer provides a structured approach to organizing business logic, managing dependencies, and enabling testability through inversion of control.
 
-**Scope**: This page covers the DI container implementation, the 11 service categories, and how services are registered and resolved. For details on the actual client business logic (ClientStrategy, ClientExchange, etc.), see [Client Layer](#4.2). For memoization patterns used by connection services, see [Connection Services & Memoization](#4.3).
+**Scope**: This page covers the DI container implementation, the 11 service categories, and how services are registered and resolved. For details on the actual client business logic (ClientStrategy, ClientExchange, etc.), see [Client Layer](./14_architecture-deep-dive.md). For memoization patterns used by connection services, see [Connection Services & Memoization](./14_architecture-deep-dive.md).
 
 ---
 
@@ -362,7 +362,7 @@ const strategies = await backtest.strategyValidationService.list();
 
 **Location**: [src/lib/index.ts:74-96]()
 
-**Memoization Pattern**: See [Connection Services & Memoization](#4.3) for details.
+**Memoization Pattern**: See [Connection Services & Memoization](./14_architecture-deep-dive.md) for details.
 
 **Sources**: [docs/internals.md:34](), [src/lib/index.ts:74-96]()
 
@@ -527,7 +527,7 @@ getReport() {
 
 **Location**: [src/lib/index.ts:219-223]()
 
-**Code Generation Pattern**: See [Code Generation & Templates](#10.3) for details.
+**Code Generation Pattern**: See [Code Generation & Templates](./46_advanced-features.md) for details.
 
 **Sources**: [src/lib/index.ts:219-223]()
 

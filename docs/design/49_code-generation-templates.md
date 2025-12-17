@@ -2,7 +2,7 @@
 
 This document covers the template system used by the Optimizer to generate executable strategy code. It explains the `IOptimizerTemplate` interface, the default `OptimizerTemplateService` implementation, how templates are assembled into complete `.mjs` files, and how to customize code generation for specific use cases.
 
-For information about the overall optimizer system and data collection, see [Optimizer System](#10.2). For details on LLM integration and prompt engineering, see [LLM-Powered Strategy Generation](#10.1).
+For information about the overall optimizer system and data collection, see [Optimizer System](./46_advanced-features.md). For details on LLM integration and prompt engineering, see [LLM-Powered Strategy Generation](./46_advanced-features.md).
 
 ---
 

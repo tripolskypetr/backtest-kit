@@ -1,6 +1,6 @@
 # Overview
 
-This document provides a high-level introduction to Backtest Kit, a production-ready TypeScript framework for building and testing trading strategies. It covers the framework's purpose, key architectural principles, and system organization. For practical usage examples, see [Getting Started](#2). For detailed architectural patterns, see [Architecture Deep Dive](#4).
+This document provides a high-level introduction to Backtest Kit, a production-ready TypeScript framework for building and testing trading strategies. It covers the framework's purpose, key architectural principles, and system organization. For practical usage examples, see [Getting Started](./04_getting-started.md). For detailed architectural patterns, see [Architecture Deep Dive](./14_architecture-deep-dive.md).
 
 **Sources:** [README.md:1-29](), [docs/internals.md:1-27]()
 

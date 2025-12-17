@@ -2,7 +2,7 @@
 
 This page documents the `IStrategySchema` interface, which defines the complete configuration for a trading strategy in Backtest Kit. The schema specifies signal generation logic, execution intervals, lifecycle callbacks, and risk management integration.
 
-For information about implementing the `getSignal` function and signal generation patterns, see [Signal Generation (getSignal)](#6.2). For details about callback implementations and event handling, see [Strategy Callbacks](#6.3). For multi-timeframe analysis patterns within strategies, see [Multi-Timeframe Analysis](#6.4).
+For information about implementing the `getSignal` function and signal generation patterns, see [Signal Generation (getSignal)](./25_strategy-development.md). For details about callback implementations and event handling, see [Strategy Callbacks](./25_strategy-development.md). For multi-timeframe analysis patterns within strategies, see [Multi-Timeframe Analysis](./25_strategy-development.md).
 
 ---
 

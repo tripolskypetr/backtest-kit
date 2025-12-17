@@ -2,7 +2,7 @@
 
 This page provides minimal working code examples demonstrating the three primary execution modes in Backtest Kit. Each example is self-contained and can be run immediately after installation.
 
-For detailed explanations of the framework's core concepts, see [Core Concepts](#3). For installation instructions, see [Installation & Setup](#2.1). For a step-by-step tutorial building your first strategy, see [Your First Backtest](#2.2).
+For detailed explanations of the framework's core concepts, see [Core Concepts](./08_core-concepts.md). For installation instructions, see [Installation & Setup](./04_getting-started.md). For a step-by-step tutorial building your first strategy, see [Your First Backtest](./04_getting-started.md).
 
 ---
 

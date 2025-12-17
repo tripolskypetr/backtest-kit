@@ -2,13 +2,13 @@
 
 This page covers the **risk profile system** in Backtest Kit: defining custom validation rules via `IRiskSchema`, combining multiple risk profiles with `MergeRisk`, and the lifecycle methods (`checkSignal`, `addSignal`, `removeSignal`) that track portfolio-wide risk state.
 
-**Scope:** This page focuses on user-defined risk profiles registered via `addRisk()`. For built-in signal validation (TP/SL logic, price checks, GLOBAL_CONFIG enforcement), see [Signal Validation Pipeline](#7.2). For position sizing calculations, see [Position Sizing](#7.3). For portfolio-wide tracking via `RiskGlobalService`, see [Portfolio-Wide Limits](#7.4).
+**Scope:** This page focuses on user-defined risk profiles registered via `addRisk()`. For built-in signal validation (TP/SL logic, price checks, GLOBAL_CONFIG enforcement), see [Signal Validation Pipeline](./31_risk-management.md). For position sizing calculations, see [Position Sizing](./31_risk-management.md). For portfolio-wide tracking via `RiskGlobalService`, see [Portfolio-Wide Limits](./31_risk-management.md).
 
 ---
 
 ## Overview
 
-Risk profiles enable **portfolio-level risk management** beyond per-signal validation. While the signal validation pipeline ([#7.2](#7.2)) enforces basic constraints like TP/SL logic and price bounds, risk profiles add:
+Risk profiles enable **portfolio-level risk management** beyond per-signal validation. While the signal validation pipeline ([#7.2](./31_risk-management.md)) enforces basic constraints like TP/SL logic and price bounds, risk profiles add:
 
 - **Concurrent position limits** (e.g., max 3 open positions)
 - **Exposure limits** (e.g., max 20% portfolio allocation)

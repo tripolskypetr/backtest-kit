@@ -9,7 +9,7 @@ This page documents advanced capabilities in Backtest Kit that extend beyond bas
 - Crash recovery mechanisms and persistence
 - Custom persistence backend implementation
 
-For basic strategy development, see [Strategy Development](#6). For risk management, see [Risk Management](#7). For execution modes, see [Execution Modes](#5).
+For basic strategy development, see [Strategy Development](./25_strategy-development.md). For risk management, see [Risk Management](./31_risk-management.md). For execution modes, see [Execution Modes](./20_execution-modes.md).
 
 ---
 

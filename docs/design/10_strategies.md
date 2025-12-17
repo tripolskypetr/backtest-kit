@@ -2,7 +2,7 @@
 
 ## Purpose and Scope
 
-This document explains what strategies are in Backtest Kit, how they generate trading signals through the `getSignal` function, the `IStrategySchema` interface contract, and how strategies integrate with the execution engine. For implementation details about writing strategies, see [Strategy Development](#6). For information about the signals themselves and their lifecycle states, see [Signals & Signal Lifecycle](#3.1). For the execution context that strategies operate within, see [Execution Contexts](#3.3).
+This document explains what strategies are in Backtest Kit, how they generate trading signals through the `getSignal` function, the `IStrategySchema` interface contract, and how strategies integrate with the execution engine. For implementation details about writing strategies, see [Strategy Development](./25_strategy-development.md). For information about the signals themselves and their lifecycle states, see [Signals & Signal Lifecycle](./08_core-concepts.md). For the execution context that strategies operate within, see [Execution Contexts](./08_core-concepts.md).
 
 ---
 
@@ -566,6 +566,6 @@ Strategies in Backtest Kit are:
 
 The `getSignal` function is the core contract: it receives temporal context implicitly, accesses market data via `getCandles()`, and returns trading signals that the framework validates, persists, and monitors through completion.
 
-For practical implementation guidance, see [Strategy Development](#6). For detailed `getSignal` patterns, see [Signal Generation (getSignal)](#6.2).
+For practical implementation guidance, see [Strategy Development](./25_strategy-development.md). For detailed `getSignal` patterns, see [Signal Generation (getSignal)](./25_strategy-development.md).
 
 Sources: [types.d.ts:728-747](), [types.d.ts:649-665](), [README.md:1-255]()

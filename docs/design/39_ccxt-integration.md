@@ -2,7 +2,7 @@
 
 This document explains how Backtest Kit integrates with the CCXT library to fetch market data from cryptocurrency exchanges. CCXT (CryptoCurrency eXchange Trading) serves as the primary data source implementation for the framework, providing historical OHLCV (Open, High, Low, Close, Volume) candle data.
 
-For information about defining custom exchange configurations, see [Exchange Configuration](#8.1). For details on candle data structures and validation, see [Candle Data & Validation](#8.2).
+For information about defining custom exchange configurations, see [Exchange Configuration](./36_exchanges-data-sources.md). For details on candle data structures and validation, see [Candle Data & Validation](./36_exchanges-data-sources.md).
 
 ---
 
@@ -809,6 +809,6 @@ CCXT integration in Backtest Kit provides:
 - Implement exchange instance caching for better performance
 - Override optimizer templates to customize generated exchange code
 
-For advanced exchange configuration patterns, see [Exchange Configuration](#8.1). For data validation and anomaly detection, see [Candle Data & Validation](#8.2).
+For advanced exchange configuration patterns, see [Exchange Configuration](./36_exchanges-data-sources.md). For data validation and anomaly detection, see [Candle Data & Validation](./36_exchanges-data-sources.md).
 
 **Sources:** [README.md:67-80](), [src/lib/services/template/OptimizerTemplateService.ts:307-342](), [package.json:1-81]()

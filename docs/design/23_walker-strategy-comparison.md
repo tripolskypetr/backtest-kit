@@ -1,8 +1,8 @@
 # Walker (Strategy Comparison)
 
-The Walker execution mode enables systematic comparison of multiple trading strategies on the same market data. Unlike Backtest mode ([5.1](#5.1)) which tests a single strategy, or Live mode ([5.2](#5.2)) which executes real-time trading, Walker orchestrates sequential backtests for multiple strategies and ranks them by a configurable performance metric. This allows data-driven strategy selection and hyperparameter optimization.
+The Walker execution mode enables systematic comparison of multiple trading strategies on the same market data. Unlike Backtest mode ([5.1](./20_execution-modes.md)) which tests a single strategy, or Live mode ([5.2](./20_execution-modes.md)) which executes real-time trading, Walker orchestrates sequential backtests for multiple strategies and ranks them by a configurable performance metric. This allows data-driven strategy selection and hyperparameter optimization.
 
-For information about individual backtest execution mechanics, see Backtest Mode ([5.1](#5.1)). For the shared async generator architecture used by all execution modes, see Async Generator Patterns ([5.4](#5.4)).
+For information about individual backtest execution mechanics, see Backtest Mode ([5.1](./20_execution-modes.md)). For the shared async generator architecture used by all execution modes, see Async Generator Patterns ([5.4](./20_execution-modes.md)).
 
 ---
 
@@ -535,7 +535,7 @@ This ensures each walker run starts with clean state, preventing contamination f
 
 ## Walker vs. Optimizer
 
-Walker and Optimizer ([10.2](#10.2)) serve different purposes:
+Walker and Optimizer ([10.2](./46_advanced-features.md)) serve different purposes:
 
 | Aspect | Walker | Optimizer |
 |--------|--------|-----------|

@@ -4,7 +4,7 @@
 
 This page documents all configuration parameters in the `GLOBAL_CONFIG` object, which controls system-wide behavior including trading execution, signal validation, data fetching, anomaly detection, and reporting. These parameters provide critical safeguards to prevent unprofitable trades, data corruption, and system instability.
 
-For information about customizing report columns, see [Column Configuration](#11.2). For logger configuration, see [Logger Configuration](#11.3). For strategy-level configuration, see [Strategy Schema Definition](#6.1).
+For information about customizing report columns, see [Column Configuration](./52_configuration-reference.md). For logger configuration, see [Logger Configuration](./52_configuration-reference.md). For strategy-level configuration, see [Strategy Schema Definition](./25_strategy-development.md).
 
 **Sources:** [src/config/params.ts:1-122]()
 
@@ -797,9 +797,9 @@ Configuration parameters are enforced at three primary points: (1) validation la
 ## Related Configuration
 
 For additional configuration options, see:
-- **Column Configuration**: [Column Configuration](#11.2) - Customize report column visibility and formatting
-- **Logger Configuration**: [Logger Configuration](#11.3) - Configure logging output and levels
-- **Strategy Configuration**: [Strategy Schema Definition](#6.1) - Per-strategy settings (interval, callbacks, risk profiles)
-- **Risk Configuration**: [Risk Profiles & Validation](#7.1) - Custom validation rules and portfolio limits
+- **Column Configuration**: [Column Configuration](./52_configuration-reference.md) - Customize report column visibility and formatting
+- **Logger Configuration**: [Logger Configuration](./52_configuration-reference.md) - Configure logging output and levels
+- **Strategy Configuration**: [Strategy Schema Definition](./25_strategy-development.md) - Per-strategy settings (interval, callbacks, risk profiles)
+- **Risk Configuration**: [Risk Profiles & Validation](./31_risk-management.md) - Custom validation rules and portfolio limits
 
 **Sources:** [src/config/params.ts:1-122]()

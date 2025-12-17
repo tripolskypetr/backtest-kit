@@ -2,7 +2,7 @@
 
 This document describes the crash-safe persistence system that enables live trading strategies to survive system crashes, process restarts, and unexpected failures. When a live trading bot restarts, it can seamlessly restore active signals and continue monitoring positions without data loss or duplicate trades.
 
-For information about live trading execution modes, see [Live Trading Mode](#5.2). For custom adapter implementation details, see [Custom Persistence Backends](#10.5).
+For information about live trading execution modes, see [Live Trading Mode](./20_execution-modes.md). For custom adapter implementation details, see [Custom Persistence Backends](./46_advanced-features.md).
 
 ---
 
@@ -803,6 +803,6 @@ Key integration points:
 - `ClientStrategy.setPendingSignal()` - Write on signal open
 - `ClientStrategy.tick()` - Delete on signal close
 
-For custom backend implementation, see [Custom Persistence Backends](#10.5).
+For custom backend implementation, see [Custom Persistence Backends](./46_advanced-features.md).
 
 **Sources**: [README.md:20](), [docs/internals.md:38](), [test/e2e/persist.test.mjs:1-300]()

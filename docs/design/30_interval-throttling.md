@@ -2,7 +2,7 @@
 
 This document explains the signal generation throttling mechanism that controls how frequently strategies can call `getSignal`. Throttling prevents signal spam, reduces computational load, and aligns with realistic trading frequencies.
 
-For information about signal lifecycle and state transitions, see [Signals & Signal Lifecycle](#3.1). For details on strategy configuration, see [Strategy Schema Definition](#6.1). For multi-timeframe analysis patterns, see [Multi-Timeframe Analysis](#6.4).
+For information about signal lifecycle and state transitions, see [Signals & Signal Lifecycle](./08_core-concepts.md). For details on strategy configuration, see [Strategy Schema Definition](./25_strategy-development.md). For multi-timeframe analysis patterns, see [Multi-Timeframe Analysis](./25_strategy-development.md).
 
 ## Purpose and Scope
 

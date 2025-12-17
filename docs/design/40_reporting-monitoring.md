@@ -13,9 +13,9 @@ This page documents the reporting and monitoring capabilities of Backtest Kit. T
 - File system persistence with organized directory structure
 
 **Related pages:**
-- For strategy lifecycle callbacks, see [Strategy Development](#6)
-- For execution modes that generate events, see [Execution Modes](#5)
-- For risk validation that triggers risk events, see [Risk Management](#7)
+- For strategy lifecycle callbacks, see [Strategy Development](./25_strategy-development.md)
+- For execution modes that generate events, see [Execution Modes](./20_execution-modes.md)
+- For risk validation that triggers risk events, see [Risk Management](./31_risk-management.md)
 
 ---
 

@@ -1,6 +1,6 @@
 # Key Features
 
-This page provides a comprehensive overview of Backtest Kit's capabilities and architectural features. Each feature is described with its purpose, implementation approach, and references to the underlying code entities. For detailed implementation guides, see Getting Started [(2)](#2). For architectural deep dives, see Architecture Deep Dive [(4)](#4).
+This page provides a comprehensive overview of Backtest Kit's capabilities and architectural features. Each feature is described with its purpose, implementation approach, and references to the underlying code entities. For detailed implementation guides, see Getting Started [(2)](./04_getting-started.md). For architectural deep dives, see Architecture Deep Dive [(4)](./14_architecture-deep-dive.md).
 
 ---
 

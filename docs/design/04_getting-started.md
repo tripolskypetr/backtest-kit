@@ -1,6 +1,6 @@
 # Getting Started
 
-This page provides a practical guide to installing Backtest Kit and running your first backtest. It covers installation, project setup, component registration, and execution patterns. For advanced topics like strategy development or risk management, see [Strategy Development](#6) and [Risk Management](#7). For architectural details about how the system works internally, see [Architecture Deep Dive](#4).
+This page provides a practical guide to installing Backtest Kit and running your first backtest. It covers installation, project setup, component registration, and execution patterns. For advanced topics like strategy development or risk management, see [Strategy Development](./25_strategy-development.md) and [Risk Management](./31_risk-management.md). For architectural details about how the system works internally, see [Architecture Deep Dive](./14_architecture-deep-dive.md).
 
 ---
 
@@ -540,9 +540,9 @@ Sources: [README.md:19-20]()
 
 ## Next Steps
 
-- **Strategy Development:** See [Strategy Development](#6) for detailed guide on writing `getSignal` functions, callbacks, and multi-timeframe analysis
-- **Risk Management:** See [Risk Management](#7) for custom validation rules and portfolio limits
-- **Live Trading:** See [Live Trading Mode](#5.2) for production deployment, persistence, and monitoring
-- **Architecture:** See [Architecture Deep Dive](#4) for service layer, dependency injection, and internal systems
+- **Strategy Development:** See [Strategy Development](./25_strategy-development.md) for detailed guide on writing `getSignal` functions, callbacks, and multi-timeframe analysis
+- **Risk Management:** See [Risk Management](./31_risk-management.md) for custom validation rules and portfolio limits
+- **Live Trading:** See [Live Trading Mode](./20_execution-modes.md) for production deployment, persistence, and monitoring
+- **Architecture:** See [Architecture Deep Dive](./14_architecture-deep-dive.md) for service layer, dependency injection, and internal systems
 
 Sources: [README.md](), [src/classes/Backtest.ts](), [src/classes/Live.ts]()

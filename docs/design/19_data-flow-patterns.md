@@ -4,7 +4,7 @@
 
 This page documents the end-to-end data flow patterns in Backtest Kit, tracing how data moves from user configuration through validation, execution, signal processing, and finally to reporting. It maps the transformation of data structures at each stage and identifies the specific services, classes, and methods that handle each transformation.
 
-For information about the service layer architecture and dependency injection patterns, see [Service Layer & Dependency Injection](#4.1). For details on client implementations, see [Client Layer](#4.2). For the event-driven architecture, see [Event System Architecture](#4.4). For execution mode specifics, see [Execution Modes](#5).
+For information about the service layer architecture and dependency injection patterns, see [Service Layer & Dependency Injection](./14_architecture-deep-dive.md). For details on client implementations, see [Client Layer](./14_architecture-deep-dive.md). For the event-driven architecture, see [Event System Architecture](./14_architecture-deep-dive.md). For execution mode specifics, see [Execution Modes](./20_execution-modes.md).
 
 This page focuses on **how data flows** rather than **what components do**. It serves as a reference for understanding the complete journey of trading signals from conception to completion.
 

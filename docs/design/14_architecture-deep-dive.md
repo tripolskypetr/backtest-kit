@@ -4,7 +4,7 @@
 
 This document provides a detailed technical exploration of Backtest Kit's internal architecture, focusing on the dependency injection system, service layer organization, context propagation mechanisms, and architectural patterns. This material is intended for developers who need to understand the framework's internal design, extend its functionality, or troubleshoot complex issues.
 
-For information about the public API and usage patterns, see [Getting Started](#2). For details on strategy development and signal generation, see [Strategy Development](#6). For client-layer implementation specifics, see [Client Layer](#4.2).
+For information about the public API and usage patterns, see [Getting Started](./04_getting-started.md). For details on strategy development and signal generation, see [Strategy Development](./25_strategy-development.md). For client-layer implementation specifics, see [Client Layer](./14_architecture-deep-dive.md).
 
 ## The Dependency Injection Container
 

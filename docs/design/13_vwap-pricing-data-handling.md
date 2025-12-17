@@ -4,7 +4,7 @@
 
 This page explains how Backtest Kit calculates Volume Weighted Average Price (VWAP) for realistic entry and exit prices, manages candle data buffers, detects price anomalies from exchange APIs, and implements fallback mechanisms for edge cases. This system ensures that backtests simulate real-world execution conditions with slippage and market depth.
 
-For information about how VWAP integrates with the time execution engine and signal lifecycle, see [Time Execution Engine](#3.4). For exchange configuration and the `getCandles` contract, see [Exchange Configuration](#8.1).
+For information about how VWAP integrates with the time execution engine and signal lifecycle, see [Time Execution Engine](./08_core-concepts.md). For exchange configuration and the `getCandles` contract, see [Exchange Configuration](./36_exchanges-data-sources.md).
 
 ---
 
@@ -500,6 +500,6 @@ VWAP Pricing & Data Handling in Backtest Kit provides:
 
 **Key Takeaway**: The system prioritizes **data integrity** over speed. If data cannot be validated, the signal is rejected rather than executed with potentially incorrect prices.
 
-For implementation details of the `getCandles` interface, see [Exchange Configuration](#8.1). For how VWAP integrates with signal pricing, see [Signals & Signal Lifecycle](#3.1).
+For implementation details of the `getCandles` interface, see [Exchange Configuration](./36_exchanges-data-sources.md). For how VWAP integrates with signal pricing, see [Signals & Signal Lifecycle](./08_core-concepts.md).
 
 Sources: [README.md:1-255](), [src/config/params.ts:1-122]()

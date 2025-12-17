@@ -1,8 +1,8 @@
 # Execution Classes API
 
-This page documents the public execution classes that orchestrate backtest, live trading, and strategy comparison operations. These are the primary entry points for running trading strategies after configuration via global functions (see [Global Functions](#12.1)).
+This page documents the public execution classes that orchestrate backtest, live trading, and strategy comparison operations. These are the primary entry points for running trading strategies after configuration via global functions (see [Global Functions](./56_api-reference.md)).
 
-For specialized reporting and monitoring classes (Performance, Heat, Risk, Schedule, Partial), see [Reporting Classes API](#12.3).
+For specialized reporting and monitoring classes (Performance, Heat, Risk, Schedule, Partial), see [Reporting Classes API](./56_api-reference.md).
 
 ---
 

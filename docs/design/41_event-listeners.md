@@ -4,7 +4,7 @@
 
 This document provides a complete reference for the event listener system in Backtest Kit. Event listeners enable real-time monitoring of strategy execution, signal lifecycle events, risk violations, and performance metrics. This page covers all available listener functions, event emitters, event contracts, and usage patterns.
 
-For information about generating markdown reports from accumulated events, see [Markdown Reports](#9.2). For statistics calculation models, see [Statistics Models](#9.3).
+For information about generating markdown reports from accumulated events, see [Markdown Reports](./40_reporting-monitoring.md). For statistics calculation models, see [Statistics Models](./40_reporting-monitoring.md).
 
 ---
 

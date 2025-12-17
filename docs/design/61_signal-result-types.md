@@ -4,7 +4,7 @@
 
 This page documents the core type definitions for signals and strategy execution results in Backtest Kit. These types define the data structures passed between strategy functions (`getSignal`), returned from execution methods (`tick`, `backtest`), and emitted through the event system.
 
-For strategy development and the `getSignal` function contract, see [Strategy Development](#6). For signal lifecycle state transitions, see [Signals & Signal Lifecycle](#3.1). For schema interface definitions, see [Core Interfaces](#12.4).
+For strategy development and the `getSignal` function contract, see [Strategy Development](./25_strategy-development.md). For signal lifecycle state transitions, see [Signals & Signal Lifecycle](./08_core-concepts.md). For schema interface definitions, see [Core Interfaces](./56_api-reference.md).
 
 **Sources:** [types.d.ts:641-892](), [src/index.ts:74-88]()
 

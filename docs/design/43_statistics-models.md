@@ -4,7 +4,7 @@
 
 This document describes the eight statistics model interfaces that aggregate and compute performance metrics from trading execution data. These models transform raw event data into actionable statistics including profit/loss calculations, risk-adjusted returns (Sharpe Ratio), win rates, and timing metrics.
 
-For information about the markdown services that generate these statistics, see [Markdown Reports](#9.2). For details on the event system that feeds data into statistics calculation, see [Event Listeners](#9.1).
+For information about the markdown services that generate these statistics, see [Markdown Reports](./40_reporting-monitoring.md). For details on the event system that feeds data into statistics calculation, see [Event Listeners](./40_reporting-monitoring.md).
 
 **Sources:** [src/index.ts:139-146](), [types.d.ts:918-943]()
 
@@ -625,6 +625,6 @@ These TypeScript interfaces are used by:
 2. Public API classes (`Backtest`, `Live`, `Walker`, etc.) for `getData()` return types
 3. External consumers for type checking and autocomplete
 
-All models are accessed via the public API classes documented in [Reporting Classes API](#12.3).
+All models are accessed via the public API classes documented in [Reporting Classes API](./56_api-reference.md).
 
 **Sources:** [src/index.ts:139-146](), [types.d.ts:918-943]()

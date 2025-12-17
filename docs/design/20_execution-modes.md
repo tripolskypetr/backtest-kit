@@ -1,6 +1,6 @@
 # Execution Modes
 
-This document describes the three execution modes provided by Backtest Kit: **Backtest**, **Live**, and **Walker**. Each mode uses the same core strategy execution logic but differs in orchestration, time progression, and result streaming patterns. For details on the strategy lifecycle within these modes, see [Signals & Signal Lifecycle](#3.1). For information on async generator implementation details, see [Async Generator Patterns](#5.4).
+This document describes the three execution modes provided by Backtest Kit: **Backtest**, **Live**, and **Walker**. Each mode uses the same core strategy execution logic but differs in orchestration, time progression, and result streaming patterns. For details on the strategy lifecycle within these modes, see [Signals & Signal Lifecycle](./08_core-concepts.md). For information on async generator implementation details, see [Async Generator Patterns](./20_execution-modes.md).
 
 ---
 

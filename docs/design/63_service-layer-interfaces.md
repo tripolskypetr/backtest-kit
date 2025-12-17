@@ -7,9 +7,9 @@ This page documents the internal service interfaces used by the backtest-kit ser
 **Target Audience:** Advanced users who need to understand the internal architecture for debugging, extending the framework, or implementing custom components.
 
 **Related Pages:**
-- For user-facing schema interfaces (`IStrategySchema`, `IExchangeSchema`, etc.), see [Core Interfaces](#12.4)
-- For public API methods and classes, see [Execution Classes API](#12.2)
-- For service layer architecture overview, see [Service Layer & Dependency Injection](#4.1)
+- For user-facing schema interfaces (`IStrategySchema`, `IExchangeSchema`, etc.), see [Core Interfaces](./56_api-reference.md)
+- For public API methods and classes, see [Execution Classes API](./56_api-reference.md)
+- For service layer architecture overview, see [Service Layer & Dependency Injection](./14_architecture-deep-dive.md)
 
 ---
 

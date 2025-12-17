@@ -4,7 +4,7 @@
 
 The Optimizer System generates executable trading strategy code using Large Language Model (LLM) analysis of historical data. It collects data from configurable sources, builds conversation histories for LLM context, generates strategy logic via Ollama deepseek-v3.1:671b, and exports complete `.mjs` files with strategies, walker configurations, and test runners.
 
-This document covers data source configuration, pagination handling, template customization, and code generation. For LLM prompt engineering details, see [LLM-Powered Strategy Generation](#10.1). For code template internals, see [Code Generation & Templates](#10.3).
+This document covers data source configuration, pagination handling, template customization, and code generation. For LLM prompt engineering details, see [LLM-Powered Strategy Generation](./46_advanced-features.md). For code template internals, see [Code Generation & Templates](./46_advanced-features.md).
 
 ---
 

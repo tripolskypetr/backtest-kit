@@ -4,14 +4,14 @@
 
 This page provides a step-by-step tutorial for running your first backtest with Backtest Kit. You will configure an exchange, define a timeframe, create a simple trading strategy, and execute a backtest. By the end, you will understand the core workflow and be ready to develop your own strategies.
 
-For installation instructions and dependencies, see [Installation & Setup](#2.1). For additional examples demonstrating different patterns, see [Quick Start Examples](#2.3). For detailed strategy development concepts, see [Strategy Development](#6).
+For installation instructions and dependencies, see [Installation & Setup](./04_getting-started.md). For additional examples demonstrating different patterns, see [Quick Start Examples](./04_getting-started.md). For detailed strategy development concepts, see [Strategy Development](./25_strategy-development.md).
 
 ---
 
 ## Prerequisites
 
 Before proceeding, ensure you have:
-- Installed `backtest-kit` and `ccxt` via npm (see [Installation & Setup](#2.1))
+- Installed `backtest-kit` and `ccxt` via npm (see [Installation & Setup](./04_getting-started.md))
 - TypeScript 5.0+ configured in your project
 - Basic understanding of trading concepts (long/short positions, take profit, stop loss)
 
@@ -586,10 +586,10 @@ Only **one active signal per symbol** is allowed at any time. New signals wait i
 
 ## Next Steps
 
-- Explore [Quick Start Examples](#2.3) for more patterns
-- Learn about [Signal Lifecycle](#3.1) to understand state transitions
-- Read [Strategy Development](#6) for advanced techniques
-- Study [Risk Management](#7) for portfolio protection
-- Review [Execution Modes](#5) to understand Live and Walker modes
+- Explore [Quick Start Examples](./04_getting-started.md) for more patterns
+- Learn about [Signal Lifecycle](./08_core-concepts.md) to understand state transitions
+- Read [Strategy Development](./25_strategy-development.md) for advanced techniques
+- Study [Risk Management](./31_risk-management.md) for portfolio protection
+- Review [Execution Modes](./20_execution-modes.md) to understand Live and Walker modes
 
 **Sources**: [README.md:1-254]()

@@ -4,7 +4,7 @@
 
 This document covers portfolio-wide risk management in Backtest Kit, focusing on how the system tracks and enforces limits across multiple strategies and symbols simultaneously. Portfolio-wide limits enable cross-strategy risk analysis by maintaining a global view of all active positions.
 
-For individual signal validation rules (price checks, TP/SL logic), see [Signal Validation Pipeline](#7.2). For position sizing calculations, see [Position Sizing](#7.3). For defining basic risk profiles, see [Risk Profiles & Validation](#7.1).
+For individual signal validation rules (price checks, TP/SL logic), see [Signal Validation Pipeline](./31_risk-management.md). For position sizing calculations, see [Position Sizing](./31_risk-management.md). For defining basic risk profiles, see [Risk Profiles & Validation](./31_risk-management.md).
 
 The core mechanism is **RiskGlobalService**, which maintains a centralized registry of active positions and makes this data available to all risk validation functions through the `IRiskValidationPayload` interface.
 

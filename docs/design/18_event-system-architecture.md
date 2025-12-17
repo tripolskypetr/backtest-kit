@@ -4,7 +4,7 @@
 
 This document describes the event-driven architecture of Backtest Kit, including the 13+ event emitters, their purposes, event flow patterns, markdown service consumers, public API listeners, and memory management strategies. The event system enables real-time monitoring, reporting, and integration with external systems without coupling producers to consumers.
 
-For information about how strategies generate events, see [3.1 - Signals & Signal Lifecycle](#3.1). For information about execution modes that produce events, see [5 - Execution Modes](#5). For information about report generation from accumulated events, see [9 - Reporting & Monitoring](#9).
+For information about how strategies generate events, see [3.1 - Signals & Signal Lifecycle](./08_core-concepts.md). For information about execution modes that produce events, see [5 - Execution Modes](./20_execution-modes.md). For information about report generation from accumulated events, see [9 - Reporting & Monitoring](./40_reporting-monitoring.md).
 
 ---
 

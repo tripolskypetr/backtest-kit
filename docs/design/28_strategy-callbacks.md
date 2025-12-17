@@ -1,6 +1,6 @@
 # Strategy Callbacks
 
-This page documents the `IStrategyCallbacks` interface and its lifecycle hooks for monitoring and responding to signal state changes. Strategy callbacks provide optional event handlers that execute synchronously during strategy execution, enabling custom logging, notifications, and state management. For information about the broader signal lifecycle and state machine, see [Signals & Signal Lifecycle](#3.1). For details on the asynchronous event system that complements callbacks, see [Event Listeners](#9.1).
+This page documents the `IStrategyCallbacks` interface and its lifecycle hooks for monitoring and responding to signal state changes. Strategy callbacks provide optional event handlers that execute synchronously during strategy execution, enabling custom logging, notifications, and state management. For information about the broader signal lifecycle and state machine, see [Signals & Signal Lifecycle](./08_core-concepts.md). For details on the asynchronous event system that complements callbacks, see [Event Listeners](./40_reporting-monitoring.md).
 
 ---
 

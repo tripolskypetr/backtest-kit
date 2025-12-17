@@ -4,7 +4,7 @@
 
 This page explains how strategies can use `getCandles()` with different timeframe intervals to build comprehensive market analysis. Multi-timeframe analysis allows strategies to examine price action across multiple time scales (e.g., 1-minute, 15-minute, 1-hour) within a single signal generation function, enabling more robust trading decisions.
 
-For general strategy development concepts, see [Strategy Development](#6). For the underlying temporal execution model that makes multi-timeframe analysis safe from look-ahead bias, see [Time Execution Engine](#3.4) and [Execution Contexts](#3.3). For signal generation basics, see [Signal Generation (getSignal)](#6.2).
+For general strategy development concepts, see [Strategy Development](./25_strategy-development.md). For the underlying temporal execution model that makes multi-timeframe analysis safe from look-ahead bias, see [Time Execution Engine](./08_core-concepts.md) and [Execution Contexts](./08_core-concepts.md). For signal generation basics, see [Signal Generation (getSignal)](./25_strategy-development.md).
 
 ---
 
@@ -333,7 +333,7 @@ The framework automatically caches candle data per execution context to avoid re
 In live trading mode, `getCandles()` makes real API calls to exchanges. Be aware of:
 
 - **Exchange rate limits**: Most exchanges limit API calls (e.g., 1200/min for Binance)
-- **Strategy interval setting**: Use appropriate `interval` in strategy schema to throttle `getSignal` calls (see [Interval Throttling](#6.5))
+- **Strategy interval setting**: Use appropriate `interval` in strategy schema to throttle `getSignal` calls (see [Interval Throttling](./25_strategy-development.md))
 - **Candle limit parameter**: Larger limits may hit rate limits faster
 - **Multiple symbols**: Each symbol makes separate API calls
 
@@ -409,7 +409,7 @@ graph TB
 
 ## Interval Throttling vs Analysis Timeframes
 
-**Important distinction**: The `interval` parameter in strategy schema (see [Interval Throttling](#6.5)) controls **how often `getSignal` is called**, while `getCandles()` timeframe parameters control **what data is analyzed**.
+**Important distinction**: The `interval` parameter in strategy schema (see [Interval Throttling](./25_strategy-development.md)) controls **how often `getSignal` is called**, while `getCandles()` timeframe parameters control **what data is analyzed**.
 
 | Concept | Purpose | Location | Example |
 |---------|---------|----------|---------|

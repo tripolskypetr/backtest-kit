@@ -4,7 +4,7 @@
 
 Performance tracking provides execution timing metrics for profiling strategy operations and identifying bottlenecks. The framework emits performance events during strategy execution, accumulates them per symbol-strategy pair, and calculates statistical metrics including average duration, percentiles, and wait times between operations.
 
-This page covers performance event emission, event listening, statistics calculation, and report generation. For general event system architecture, see [9.1 Event Listeners](#9.1). For other monitoring capabilities, see [9.2 Markdown Reports](#9.2) and [9.3 Statistics Models](#9.3).
+This page covers performance event emission, event listening, statistics calculation, and report generation. For general event system architecture, see [9.1 Event Listeners](./40_reporting-monitoring.md). For other monitoring capabilities, see [9.2 Markdown Reports](./40_reporting-monitoring.md) and [9.3 Statistics Models](./40_reporting-monitoring.md).
 
 **Sources:** [src/lib/services/markdown/PerformanceMarkdownService.ts:1-460](), [types.d.ts:156-160]()
 

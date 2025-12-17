@@ -2,7 +2,7 @@
 
 The Portfolio Heatmap provides cross-symbol aggregation and visualization for a single strategy's performance across multiple trading pairs. It calculates per-symbol and portfolio-wide statistics including Total PNL, Sharpe Ratio, Maximum Drawdown, and trade counts. This enables traders to identify which symbols perform best with a given strategy and evaluate overall portfolio health.
 
-For single symbol-strategy reporting, see [Markdown Reports](#9.2). For performance timing analysis, see [Performance Tracking](#9.4).
+For single symbol-strategy reporting, see [Markdown Reports](./40_reporting-monitoring.md). For performance timing analysis, see [Performance Tracking](./40_reporting-monitoring.md).
 
 ---
 

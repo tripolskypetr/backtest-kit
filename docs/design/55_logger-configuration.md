@@ -1,6 +1,6 @@
 # Logger Configuration
 
-This page documents the logging system in Backtest Kit, covering the `ILogger` interface, the `setLogger` function, and how logging integrates with the framework's dependency injection system. For general configuration parameters, see [GLOBAL_CONFIG Parameters](#11.1).
+This page documents the logging system in Backtest Kit, covering the `ILogger` interface, the `setLogger` function, and how logging integrates with the framework's dependency injection system. For general configuration parameters, see [GLOBAL_CONFIG Parameters](./52_configuration-reference.md).
 
 ---
 
@@ -489,13 +489,13 @@ Logger calls are synchronous and block execution. For high-frequency operations:
 
 While the logger does not appear to directly integrate with `ExecutionContextService` or `MethodContextService` in the provided code, custom logger implementations can access these services to enrich logs with contextual metadata (symbol, timestamp, strategy name).
 
-For more on context propagation, see [Execution Contexts](#3.3).
+For more on context propagation, see [Execution Contexts](./08_core-concepts.md).
 
 ### Relationship to Event System
 
 The logger operates independently of the event system (`signalEmitter`, `errorEmitter`, etc.). Events are designed for **reactive** data flow, while logging is for **observability**. Custom loggers can subscribe to event emitters to log signal lifecycle events.
 
-For more on events, see [Event System Architecture](#4.4).
+For more on events, see [Event System Architecture](./14_architecture-deep-dive.md).
 
 **Sources:** [src/lib/index.ts:66-72]()
 

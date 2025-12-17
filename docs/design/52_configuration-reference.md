@@ -2,7 +2,7 @@
 
 This page documents the global configuration system in Backtest Kit, including all `GLOBAL_CONFIG` parameters, their purposes, default values, and how they affect system behavior. Configuration controls signal validation, cost simulation, data fetching, and reporting across all execution modes.
 
-For defining custom trading strategies, see [Strategy Development](#6). For risk validation rules, see [Risk Management](#7). For logger setup, see [Logger Configuration](#11.3).
+For defining custom trading strategies, see [Strategy Development](./25_strategy-development.md). For risk validation rules, see [Risk Management](./31_risk-management.md). For logger setup, see [Logger Configuration](./52_configuration-reference.md).
 
 ---
 

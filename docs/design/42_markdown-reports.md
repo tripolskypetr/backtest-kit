@@ -2,7 +2,7 @@
 
 This page covers the markdown report generation system in Backtest Kit. The framework provides eight specialized markdown services that accumulate event data, calculate statistics, and generate formatted reports. Each service exposes three methods: `getData()` for raw statistics, `getReport()` for markdown-formatted strings, and `dump()` for saving reports to disk.
 
-For information about subscribing to the real-time events that feed these reports, see [Event Listeners](#9.1). For details about the statistical models and their calculated metrics, see [Statistics Models](#9.3).
+For information about subscribing to the real-time events that feed these reports, see [Event Listeners](./40_reporting-monitoring.md). For details about the statistical models and their calculated metrics, see [Statistics Models](./40_reporting-monitoring.md).
 
 ## Overview of Markdown Services
 

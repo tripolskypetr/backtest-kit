@@ -4,7 +4,7 @@
 
 The Client Layer implements pure business logic for trading operations without dependency injection. It consists of five client classes (`ClientStrategy`, `ClientExchange`, `ClientFrame`, `ClientRisk`, `ClientPartial`) that execute core functionality like signal generation, data fetching, timeframe calculations, risk validation, and profit/loss tracking. This layer uses prototype methods instead of arrow functions for memory efficiency and is instantiated by Connection Services through memoization.
 
-For information about how these clients are instantiated and routed through dependency injection, see [Connection Services & Memoization](#4.3). For event emission and reporting that consumes client outputs, see [Event System Architecture](#4.4).
+For information about how these clients are instantiated and routed through dependency injection, see [Connection Services & Memoization](./14_architecture-deep-dive.md). For event emission and reporting that consumes client outputs, see [Event System Architecture](./14_architecture-deep-dive.md).
 
 ---
 

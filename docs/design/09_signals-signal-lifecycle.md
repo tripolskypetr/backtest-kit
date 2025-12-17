@@ -4,7 +4,7 @@
 
 This document explains the signal system in Backtest Kit: what signals are, how they progress through their lifecycle, validation rules, and persistence mechanisms. Signals are the fundamental unit of trading action in the framework, representing entry/exit positions with take profit (TP), stop loss (SL), and time-based expiration.
 
-For information about how strategies generate signals, see [Strategies](#3.2). For execution context propagation, see [Execution Contexts](#3.3). For the time execution engine that processes signals, see [Time Execution Engine](#3.4).
+For information about how strategies generate signals, see [Strategies](./08_core-concepts.md). For execution context propagation, see [Execution Contexts](./08_core-concepts.md). For the time execution engine that processes signals, see [Time Execution Engine](./08_core-concepts.md).
 
 ---
 
