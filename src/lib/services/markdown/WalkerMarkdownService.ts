@@ -158,7 +158,12 @@ class ReportStorage {
     const topStrategies = sortedResults.slice(0, topN);
 
     // Get columns configuration
-    const visibleColumns = columns.filter((col) => col.isVisible());
+    const visibleColumns = [];
+    for (const col of columns) {
+      if (await col.isVisible()) {
+        visibleColumns.push(col);
+      }
+    }
 
     // Build table header
     const header = visibleColumns.map((col) => col.label);
@@ -212,7 +217,12 @@ class ReportStorage {
     }
 
     // Build table header
-    const visibleColumns = columns.filter((col) => col.isVisible());
+    const visibleColumns = [];
+    for (const col of columns) {
+      if (await col.isVisible()) {
+        visibleColumns.push(col);
+      }
+    }
     const header = visibleColumns.map((col) => col.label);
     const separator = visibleColumns.map(() => "---");
 

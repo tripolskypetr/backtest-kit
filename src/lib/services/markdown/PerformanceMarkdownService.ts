@@ -180,7 +180,12 @@ class PerformanceStorage {
     );
 
     // Generate summary table using Column interface
-    const visibleColumns = columns.filter((col) => col.isVisible());
+    const visibleColumns = [];
+    for (const col of columns) {
+      if (await col.isVisible()) {
+        visibleColumns.push(col);
+      }
+    }
     const header = visibleColumns.map((col) => col.label);
     const separator = visibleColumns.map(() => "---");
     const rows = await Promise.all(

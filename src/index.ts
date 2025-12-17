@@ -131,16 +131,16 @@ export {
 } from "./interfaces/Optimizer.interface";
 
 export { MessageModel, MessageRole } from "./model/Message.model";
-export type { ColumnModel } from "./model/Column.model";
+export { ColumnModel } from "./model/Column.model";
 
-export type { BacktestStatisticsModel } from "./model/BacktestStatistics.model";
-export type { LiveStatisticsModel } from "./model/LiveStatistics.model";
-export type { HeatmapStatisticsModel } from "./model/HeatmapStatistics.model";
-export type { ScheduleStatisticsModel } from "./model/ScheduleStatistics.model";
-export type { PerformanceStatisticsModel } from "./model/PerformanceStatistics.model";
-export type { WalkerStatisticsModel } from "./model/WalkerStatistics.model";
-export type { PartialStatisticsModel } from "./model/PartialStatistics.model";
-export type { RiskStatisticsModel } from "./model/RiskStatistics.model";
+export { BacktestStatisticsModel } from "./model/BacktestStatistics.model";
+export { LiveStatisticsModel } from "./model/LiveStatistics.model";
+export { HeatmapStatisticsModel } from "./model/HeatmapStatistics.model";
+export { ScheduleStatisticsModel } from "./model/ScheduleStatistics.model";
+export { PerformanceStatisticsModel } from "./model/PerformanceStatistics.model";
+export { WalkerStatisticsModel } from "./model/WalkerStatistics.model";
+export { PartialStatisticsModel } from "./model/PartialStatistics.model";
+export { RiskStatisticsModel } from "./model/RiskStatistics.model";
 
 export { PartialLossContract } from "./contract/PartialLoss.contract";
 export { PartialProfitContract } from "./contract/PartialProfit.contract";

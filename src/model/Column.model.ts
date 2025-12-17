@@ -23,7 +23,7 @@
  * };
  * ```
  */
-export interface ColumnModel<T> {
+export interface ColumnModel<T extends object = any> {
   /** Unique column identifier */
   key: string;
 
@@ -34,5 +34,5 @@ export interface ColumnModel<T> {
   format: (data: T, index: number) => string | Promise<string>;
 
   /** Function to determine if column should be visible */
-  isVisible: () => boolean;
+  isVisible: () => boolean | Promise<boolean>;
 }
