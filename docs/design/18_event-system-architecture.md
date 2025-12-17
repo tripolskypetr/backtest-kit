@@ -87,97 +87,7 @@ The framework provides 13 distinct `Subject` emitters organized by functional ar
 
 ## Event Flow Architecture
 
-```mermaid
-graph TB
-    subgraph "Event Producers"
-        ClientStrategy["ClientStrategy.tick()"]
-        BacktestLogic["BacktestLogicPrivateService"]
-        LiveLogic["LiveLogicPrivateService"]
-        WalkerLogic["WalkerLogicPrivateService"]
-        ClientRisk["ClientRisk.checkSignal()"]
-        ClientPartial["ClientPartial.profit()/loss()"]
-    end
-    
-    subgraph "Event Emitters (Subject Pattern)"
-        signalEmitter["signalEmitter"]
-        signalBacktestEmitter["signalBacktestEmitter"]
-        signalLiveEmitter["signalLiveEmitter"]
-        doneBacktestSubject["doneBacktestSubject"]
-        doneLiveSubject["doneLiveSubject"]
-        progressBacktestEmitter["progressBacktestEmitter"]
-        walkerEmitter["walkerEmitter"]
-        walkerCompleteSubject["walkerCompleteSubject"]
-        riskSubject["riskSubject"]
-        partialProfitSubject["partialProfitSubject"]
-        partialLossSubject["partialLossSubject"]
-        performanceEmitter["performanceEmitter"]
-        errorEmitter["errorEmitter"]
-        exitEmitter["exitEmitter"]
-    end
-    
-    subgraph "Markdown Service Consumers"
-        BacktestMarkdownService["BacktestMarkdownService"]
-        LiveMarkdownService["LiveMarkdownService"]
-        WalkerMarkdownService["WalkerMarkdownService"]
-        ScheduleMarkdownService["ScheduleMarkdownService"]
-        HeatMarkdownService["HeatMarkdownService"]
-        PerformanceMarkdownService["PerformanceMarkdownService"]
-        PartialMarkdownService["PartialMarkdownService"]
-        RiskMarkdownService["RiskMarkdownService"]
-    end
-    
-    subgraph "Public API Listeners"
-        listenSignal["listenSignal() with queued wrapper"]
-        listenSignalBacktest["listenSignalBacktest() with queued wrapper"]
-        listenSignalLive["listenSignalLive() with queued wrapper"]
-        listenDone["listenDone*() with queued wrapper"]
-        listenPartial["listenPartial*() with queued wrapper"]
-        listenRisk["listenRisk() with queued wrapper"]
-        listenPerformance["listenPerformance() with queued wrapper"]
-        listenError["listenError() with queued wrapper"]
-    end
-    
-    ClientStrategy --> signalEmitter
-    ClientStrategy --> signalBacktestEmitter
-    ClientStrategy --> signalLiveEmitter
-    
-    BacktestLogic --> signalBacktestEmitter
-    BacktestLogic --> doneBacktestSubject
-    BacktestLogic --> progressBacktestEmitter
-    BacktestLogic --> performanceEmitter
-    
-    LiveLogic --> signalLiveEmitter
-    LiveLogic --> doneLiveSubject
-    LiveLogic --> performanceEmitter
-    
-    WalkerLogic --> walkerEmitter
-    WalkerLogic --> walkerCompleteSubject
-    
-    ClientRisk --> riskSubject
-    ClientPartial --> partialProfitSubject
-    ClientPartial --> partialLossSubject
-    
-    signalBacktestEmitter --> BacktestMarkdownService
-    signalLiveEmitter --> LiveMarkdownService
-    signalEmitter --> ScheduleMarkdownService
-    signalEmitter --> HeatMarkdownService
-    walkerEmitter --> WalkerMarkdownService
-    performanceEmitter --> PerformanceMarkdownService
-    partialProfitSubject --> PartialMarkdownService
-    partialLossSubject --> PartialMarkdownService
-    riskSubject --> RiskMarkdownService
-    
-    signalEmitter --> listenSignal
-    signalBacktestEmitter --> listenSignalBacktest
-    signalLiveEmitter --> listenSignalLive
-    doneBacktestSubject --> listenDone
-    doneLiveSubject --> listenDone
-    partialProfitSubject --> listenPartial
-    partialLossSubject --> listenPartial
-    riskSubject --> listenRisk
-    performanceEmitter --> listenPerformance
-    errorEmitter --> listenError
-```
+![Mermaid Diagram](./diagrams\18_event-system-architecture_0.svg)
 
 **Key Flow Characteristics**:
 
@@ -192,52 +102,7 @@ graph TB
 
 All markdown services follow a consistent subscription pattern using `memoize`, `singleshot`, and `ReportStorage` classes.
 
-```mermaid
-graph TB
-    subgraph "Markdown Service Initialization"
-        Service["MarkdownService instance"]
-        Init["init() with singleshot"]
-        Subscribe["emitter.subscribe(this.tick)"]
-    end
-    
-    subgraph "Event Accumulation"
-        Tick["tick(event) handler"]
-        GetStorage["getStorage(symbol, strategyName) memoized"]
-        ReportStorage["ReportStorage instance"]
-        AddEvent["addEvent() / addSignal()"]
-        EventList["_eventList / _signalList array"]
-        MaxEventsCheck["length > MAX_EVENTS check"]
-        Pop["array.pop() trim oldest"]
-    end
-    
-    subgraph "Report Generation"
-        GetData["getData() returns statistics"]
-        GetReport["getReport() returns markdown"]
-        Dump["dump() writes to file"]
-        Calculate["Calculate stats (win rate, Sharpe, etc)"]
-        FormatTable["Format markdown table"]
-        WriteFile["writeFile() to ./dump/"]
-    end
-    
-    Service --> Init
-    Init --> Subscribe
-    
-    Subscribe --> Tick
-    Tick --> GetStorage
-    GetStorage --> ReportStorage
-    Tick --> AddEvent
-    AddEvent --> EventList
-    AddEvent --> MaxEventsCheck
-    MaxEventsCheck --> Pop
-    
-    ReportStorage --> GetData
-    ReportStorage --> GetReport
-    ReportStorage --> Dump
-    
-    GetData --> Calculate
-    GetReport --> FormatTable
-    Dump --> WriteFile
-```
+![Mermaid Diagram](./diagrams\18_event-system-architecture_1.svg)
 
 **Pattern Implementation**:
 
@@ -259,48 +124,7 @@ graph TB
 
 Each markdown service contains an inner `ReportStorage` class that encapsulates event accumulation and report generation logic.
 
-```mermaid
-classDiagram
-    class ReportStorage {
-        -_eventList: Event[]
-        +addEvent(event)
-        +getData(): Promise~Statistics~
-        +getReport(): Promise~string~
-        +dump(): Promise~void~
-    }
-    
-    class BacktestReportStorage {
-        -_signalList: IStrategyTickResultClosed[]
-        +addSignal(data)
-        +getData(): Promise~BacktestStatisticsModel~
-        +getReport(strategyName, columns): Promise~string~
-        +dump(strategyName, path, columns): Promise~void~
-    }
-    
-    class LiveReportStorage {
-        -_eventList: TickEvent[]
-        +addIdleEvent(currentPrice)
-        +addOpenedEvent(data)
-        +addActiveEvent(data)
-        +addClosedEvent(data)
-        +getData(): Promise~LiveStatisticsModel~
-        +getReport(strategyName, columns): Promise~string~
-        +dump(strategyName, path, columns): Promise~void~
-    }
-    
-    class HeatmapStorage {
-        -symbolData: Map~string IStrategyTickResultClosed[]~
-        +addSignal(data)
-        -calculateSymbolStats(symbol, signals): IHeatmapRow
-        +getData(): Promise~HeatmapStatisticsModel~
-        +getReport(strategyName, columns): Promise~string~
-        +dump(strategyName, path, columns): Promise~void~
-    }
-    
-    ReportStorage <|-- BacktestReportStorage
-    ReportStorage <|-- LiveReportStorage
-    ReportStorage <|-- HeatmapStorage
-```
+![Mermaid Diagram](./diagrams\18_event-system-architecture_2.svg)
 
 **Responsibilities**:
 
@@ -320,53 +144,7 @@ The `src/function/event.ts` module provides 20+ user-facing listener functions t
 
 ### Queued Processing Pattern
 
-```mermaid
-graph TB
-    subgraph "Without queued()"
-        Emit1["emit event 1"]
-        Emit2["emit event 2"]
-        Emit3["emit event 3"]
-        Callback1A["callback(event1) starts"]
-        Callback2A["callback(event2) starts"]
-        Callback3A["callback(event3) starts"]
-        Callback1B["callback(event1) completes"]
-        Callback2B["callback(event2) completes"]
-        Callback3B["callback(event3) completes"]
-        
-        Emit1 --> Callback1A
-        Emit2 --> Callback2A
-        Emit3 --> Callback3A
-        
-        Callback1A -.-> Callback1B
-        Callback2A -.-> Callback2B
-        Callback3A -.-> Callback3B
-        
-        Note1["Concurrent execution risk:<br/>callbacks can interleave"]
-    end
-    
-    subgraph "With queued()"
-        QEmit1["emit event 1"]
-        QEmit2["emit event 2"]
-        QEmit3["emit event 3"]
-        QCallback1A["callback(event1) starts"]
-        QCallback1B["callback(event1) completes"]
-        QCallback2A["callback(event2) starts"]
-        QCallback2B["callback(event2) completes"]
-        QCallback3A["callback(event3) starts"]
-        QCallback3B["callback(event3) completes"]
-        
-        QEmit1 --> QCallback1A
-        QCallback1A --> QCallback1B
-        QCallback1B --> QCallback2A
-        QCallback2A --> QCallback2B
-        QCallback2B --> QCallback3A
-        
-        QEmit2 -.-> QCallback2A
-        QEmit3 -.-> QCallback3A
-        
-        Note2["Sequential execution:<br/>next callback waits for previous"]
-    end
-```
+![Mermaid Diagram](./diagrams\18_event-system-architecture_3.svg)
 
 **Why Queued Processing?**: Without `queued()`, async callbacks can execute concurrently, causing race conditions in database writes, file operations, or shared state mutations. The `queued()` wrapper from `functools-kit` ensures callbacks execute sequentially.
 
@@ -536,35 +314,7 @@ All markdown services implement bounded event storage to prevent memory leaks du
 
 ### MAX_EVENTS Configuration
 
-```mermaid
-graph TB
-    subgraph "Event Storage Limits"
-        BacktestLimit["BacktestMarkdownService<br/>MAX_EVENTS = 250"]
-        LiveLimit["LiveMarkdownService<br/>MAX_EVENTS = 250"]
-        ScheduleLimit["ScheduleMarkdownService<br/>MAX_EVENTS = 250"]
-        HeatLimit["HeatMarkdownService<br/>MAX_EVENTS = 250 per symbol"]
-        PerformanceLimit["PerformanceMarkdownService<br/>MAX_EVENTS = 10000"]
-        PartialLimit["PartialMarkdownService<br/>MAX_EVENTS = 250"]
-        RiskLimit["RiskMarkdownService<br/>MAX_EVENTS = 250"]
-    end
-    
-    subgraph "Trim Pattern"
-        Unshift["array.unshift(newEvent)"]
-        CheckLength["if length > MAX_EVENTS"]
-        Pop["array.pop()"]
-        
-        Unshift --> CheckLength
-        CheckLength --> Pop
-    end
-    
-    BacktestLimit --> Unshift
-    LiveLimit --> Unshift
-    ScheduleLimit --> Unshift
-    HeatLimit --> Unshift
-    PerformanceLimit --> Unshift
-    PartialLimit --> Unshift
-    RiskLimit --> Unshift
-```
+![Mermaid Diagram](./diagrams\18_event-system-architecture_4.svg)
 
 **Trim Strategy**:
 1. New events inserted at array start via `unshift()`
@@ -635,34 +385,7 @@ listenRisk((rejection) => {
 
 Markdown services use `memoize` from `functools-kit` to create storage instances keyed by symbol and strategy name.
 
-```mermaid
-graph TB
-    subgraph "First Call"
-        FirstCall["getStorage('BTCUSDT', 'my-strategy')"]
-        FirstKey["Generate key: 'BTCUSDT:my-strategy'"]
-        FirstCreate["new ReportStorage()"]
-        FirstCache["Cache in memoize Map"]
-        FirstReturn["Return instance"]
-        
-        FirstCall --> FirstKey
-        FirstKey --> FirstCreate
-        FirstCreate --> FirstCache
-        FirstCache --> FirstReturn
-    end
-    
-    subgraph "Subsequent Calls"
-        NextCall["getStorage('BTCUSDT', 'my-strategy')"]
-        NextKey["Generate key: 'BTCUSDT:my-strategy'"]
-        NextLookup["Lookup in memoize Map"]
-        NextReturn["Return cached instance"]
-        
-        NextCall --> NextKey
-        NextKey --> NextLookup
-        NextLookup --> NextReturn
-    end
-    
-    FirstCache -.->|Same key| NextLookup
-```
+![Mermaid Diagram](./diagrams\18_event-system-architecture_5.svg)
 
 **Isolation Benefits**:
 - Each symbol-strategy pair gets isolated storage

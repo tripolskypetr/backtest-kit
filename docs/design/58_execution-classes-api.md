@@ -19,44 +19,7 @@ The framework uses a dual-class pattern for each execution mode. Every execution
 2. **Utils class** (`BacktestUtils`, `LiveUtils`, `WalkerUtils`) - Singleton wrapper providing validation, instance memoization, and convenient API surface
 3. **Exported singleton** (`Backtest`, `Live`, `Walker`) - Single instance of Utils class for application-wide use
 
-```mermaid
-graph TB
-    subgraph "Public API"
-        BacktestSingleton["Backtest (singleton)<br/>BacktestUtils instance"]
-        LiveSingleton["Live (singleton)<br/>LiveUtils instance"]
-        WalkerSingleton["Walker (singleton)<br/>WalkerUtils instance"]
-    end
-    
-    subgraph "Utils Layer - Validation & Routing"
-        BacktestUtils["BacktestUtils<br/>- Schema validation<br/>- Risk validation<br/>- Instance memoization"]
-        LiveUtils["LiveUtils<br/>- Schema validation<br/>- Risk validation<br/>- Instance memoization"]
-        WalkerUtils["WalkerUtils<br/>- Schema validation<br/>- Multi-strategy validation<br/>- Instance memoization"]
-    end
-    
-    subgraph "Instance Layer - Execution State"
-        BacktestInstance["BacktestInstance<br/>- _isStopped flag<br/>- _isDone flag<br/>- task (singlerun)<br/>- id (random string)"]
-        LiveInstance["LiveInstance<br/>- _isStopped flag<br/>- _isDone flag<br/>- task (singlerun)<br/>- id (random string)"]
-        WalkerInstance["WalkerInstance<br/>- _isStopped flag<br/>- _isDone flag<br/>- task (singlerun)<br/>- id (random string)"]
-    end
-    
-    subgraph "Command Services"
-        BacktestCommand["BacktestCommandService.run()<br/>Async generator"]
-        LiveCommand["LiveCommandService.run()<br/>Infinite async generator"]
-        WalkerCommand["WalkerCommandService.run()<br/>Async generator"]
-    end
-    
-    BacktestSingleton --> BacktestUtils
-    LiveSingleton --> LiveUtils
-    WalkerSingleton --> WalkerUtils
-    
-    BacktestUtils -->|"_getInstance(symbol, strategyName)"| BacktestInstance
-    LiveUtils -->|"_getInstance(symbol, strategyName)"| LiveInstance
-    WalkerUtils -->|"_getInstance(symbol, walkerName)"| WalkerInstance
-    
-    BacktestInstance --> BacktestCommand
-    LiveInstance --> LiveCommand
-    WalkerInstance --> WalkerCommand
-```
+![Mermaid Diagram](./diagrams\58_execution-classes-api_0.svg)
 
 **Instance Memoization**
 
@@ -92,39 +55,7 @@ All execution classes share these common patterns:
 
 ### State Management
 
-```mermaid
-stateDiagram-v2
-    [*] --> Idle: Instance created
-    
-    Idle --> Running: run() or background() called
-    
-    Running --> Stopped: stop() called
-    Running --> Done: Execution completes naturally
-    
-    Stopped --> Done: Active signal closes
-    
-    Done --> [*]
-    
-    note right of Running
-        _isStopped = false
-        _isDone = false
-        task.getStatus() = "running"
-    end note
-    
-    note right of Stopped
-        _isStopped = true
-        _isDone = false
-        Prevents new signals
-        Active signal continues
-    end note
-    
-    note right of Done
-        _isStopped = true or false
-        _isDone = true
-        task.getStatus() = "done"
-        doneSubject emitted
-    end note
-```
+![Mermaid Diagram](./diagrams\58_execution-classes-api_1.svg)
 
 Each Instance maintains:
 - `id`: Randomly generated string for tracking
@@ -135,30 +66,7 @@ Each Instance maintains:
 
 ### Task Execution Flow
 
-```mermaid
-graph TD
-    UtilsMethod["Utils.run() or Utils.background()"]
-    Validation["Schema Validation<br/>- strategyValidationService<br/>- exchangeValidationService<br/>- frameValidationService<br/>- riskValidationService"]
-    GetInstance["_getInstance(symbol, identifier)<br/>Memoized factory returns<br/>cached or new Instance"]
-    InstanceMethod["Instance.run() or Instance.background()"]
-    ClearServices["Clear Services<br/>- backtestMarkdownService.clear()<br/>- scheduleMarkdownService.clear()<br/>- strategyCoreService.clear()<br/>- riskGlobalService.clear()"]
-    CommandService["CommandService.run()<br/>Returns AsyncGenerator"]
-    TaskWrapper["task = singlerun(INSTANCE_TASK_FN)<br/>Prevents concurrent execution"]
-    ConsumeGenerator["Consume generator<br/>Check _isStopped flag<br/>on each iteration"]
-    EmitDone["Emit doneSubject<br/>if not already done"]
-    SetDone["Set _isDone = true"]
-    
-    UtilsMethod --> Validation
-    Validation --> GetInstance
-    GetInstance --> InstanceMethod
-    InstanceMethod --> ClearServices
-    ClearServices --> CommandService
-    
-    CommandService --> TaskWrapper
-    TaskWrapper --> ConsumeGenerator
-    ConsumeGenerator --> EmitDone
-    EmitDone --> SetDone
-```
+![Mermaid Diagram](./diagrams\58_execution-classes-api_2.svg)
 
 
 ---
@@ -341,34 +249,7 @@ instances.forEach(inst => {
 
 ### Backtest Execution Flow
 
-```mermaid
-sequenceDiagram
-    participant User
-    participant BacktestUtils
-    participant BacktestInstance
-    participant CommandService
-    participant MarkdownService
-    
-    User->>BacktestUtils: run(symbol, context)
-    BacktestUtils->>BacktestUtils: Validate schemas
-    BacktestUtils->>BacktestUtils: _getInstance(symbol, strategyName)
-    BacktestUtils->>BacktestInstance: run(symbol, context)
-    
-    BacktestInstance->>MarkdownService: clear(symbol, strategyName)
-    BacktestInstance->>CommandService: run(symbol, context)
-    CommandService-->>BacktestInstance: AsyncGenerator
-    
-    loop For each frame in timeframe
-        CommandService->>CommandService: tick(when, backtest=true)
-        CommandService->>MarkdownService: Emit signal events
-        CommandService-->>BacktestInstance: Yield closed signal
-        BacktestInstance-->>User: Yield closed signal
-    end
-    
-    CommandService->>CommandService: Emit doneBacktestSubject
-    CommandService-->>BacktestInstance: Generator completes
-    BacktestInstance->>BacktestInstance: Set _isDone = true
-```
+![Mermaid Diagram](./diagrams\58_execution-classes-api_3.svg)
 
 
 ---
@@ -525,52 +406,7 @@ Live.dump(
 
 ### Live Execution Flow
 
-```mermaid
-sequenceDiagram
-    participant User
-    participant LiveUtils
-    participant LiveInstance
-    participant CommandService
-    participant PersistAdapter
-    participant MarkdownService
-    
-    User->>LiveUtils: run(symbol, context)
-    LiveUtils->>LiveUtils: Validate schemas
-    LiveUtils->>LiveUtils: _getInstance(symbol, strategyName)
-    LiveUtils->>LiveInstance: run(symbol, context)
-    
-    LiveInstance->>PersistAdapter: Load persisted signal (crash recovery)
-    LiveInstance->>CommandService: run(symbol, context)
-    CommandService-->>LiveInstance: Infinite AsyncGenerator
-    
-    loop Every TICK_TTL (1 minute)
-        CommandService->>CommandService: tick(Date.now(), backtest=false)
-        
-        alt Signal opens
-            CommandService->>PersistAdapter: Persist signal
-            CommandService->>MarkdownService: Emit opened event
-            CommandService-->>LiveInstance: Yield opened signal
-            LiveInstance-->>User: Yield opened signal
-        end
-        
-        alt Signal closes
-            CommandService->>PersistAdapter: Delete persisted signal
-            CommandService->>MarkdownService: Emit closed event
-            CommandService-->>LiveInstance: Yield closed signal
-            LiveInstance-->>User: Yield closed signal
-        end
-        
-        CommandService->>CommandService: Check _isStopped flag
-        
-        alt _isStopped and signal closed
-            CommandService->>CommandService: Break loop
-        end
-        
-        CommandService->>CommandService: sleep(TICK_TTL)
-    end
-    
-    Note over CommandService: Loop exits only on stop() + closed signal
-```
+![Mermaid Diagram](./diagrams\58_execution-classes-api_4.svg)
 
 
 ---
@@ -734,46 +570,7 @@ Walker.dump(
 
 ### Walker Execution Flow
 
-```mermaid
-sequenceDiagram
-    participant User
-    participant WalkerUtils
-    participant WalkerInstance
-    participant WalkerCommand
-    participant BacktestCommand
-    participant MarkdownService
-    
-    User->>WalkerUtils: run(symbol, { walkerName })
-    WalkerUtils->>WalkerUtils: Validate walker schema
-    WalkerUtils->>WalkerUtils: Validate all strategy schemas
-    WalkerUtils->>WalkerUtils: _getInstance(symbol, walkerName)
-    WalkerUtils->>WalkerInstance: run(symbol, { walkerName })
-    
-    WalkerInstance->>MarkdownService: clear(walkerName)
-    WalkerInstance->>WalkerCommand: run(symbol, context)
-    WalkerCommand-->>WalkerInstance: AsyncGenerator
-    
-    loop For each strategy in walker.strategies
-        WalkerCommand->>BacktestCommand: run(symbol, { strategyName, exchangeName, frameName })
-        
-        loop For each frame
-            BacktestCommand->>BacktestCommand: Execute strategy tick
-        end
-        
-        BacktestCommand->>MarkdownService: Collect closed signals
-        BacktestCommand-->>WalkerCommand: Backtest complete
-        
-        WalkerCommand->>MarkdownService: Calculate statistics
-        WalkerCommand->>WalkerCommand: Compare with best metric
-        WalkerCommand->>WalkerCommand: Emit walkerEmitter
-        WalkerCommand-->>WalkerInstance: Yield progress
-        WalkerInstance-->>User: Yield progress
-    end
-    
-    WalkerCommand->>WalkerCommand: Emit walkerCompleteSubject
-    WalkerCommand-->>WalkerInstance: Generator completes
-    WalkerInstance->>WalkerInstance: Set _isDone = true
-```
+![Mermaid Diagram](./diagrams\58_execution-classes-api_5.svg)
 
 
 ---
@@ -835,18 +632,7 @@ Each Instance class maintains three state indicators:
 
 **Lifecycle:**
 
-```mermaid
-graph LR
-    Init["id generated<br/>_isStopped = false<br/>_isDone = false"]
-    Running["task executing<br/>_isStopped = false<br/>_isDone = false"]
-    Stopped["stop() called<br/>_isStopped = true<br/>_isDone = false"]
-    Done["Execution complete<br/>_isStopped = true/false<br/>_isDone = true"]
-    
-    Init --> Running
-    Running --> Stopped
-    Running --> Done
-    Stopped --> Done
-```
+![Mermaid Diagram](./diagrams\58_execution-classes-api_6.svg)
 
 
 ### Task Singlerun Wrapper
@@ -894,23 +680,7 @@ const status = await instance.getStatus();
 
 All execution methods validate required schemas before execution:
 
-```mermaid
-graph TD
-    MethodCall["Method called"]
-    ValidateStrategy["strategyValidationService.validate()"]
-    ValidateExchange["exchangeValidationService.validate()"]
-    ValidateFrame["frameValidationService.validate()"]
-    ValidateRisk["riskValidationService.validate()<br/>for riskName and riskList"]
-    GetInstance["Get or create Instance"]
-    Execute["Execute operation"]
-    
-    MethodCall --> ValidateStrategy
-    ValidateStrategy --> ValidateExchange
-    ValidateExchange --> ValidateFrame
-    ValidateFrame --> ValidateRisk
-    ValidateRisk --> GetInstance
-    GetInstance --> Execute
-```
+![Mermaid Diagram](./diagrams\58_execution-classes-api_7.svg)
 
 **Validation Failures:**
 If any schema is not registered, validation throws error with helpful message indicating which schema is missing and which method was called.
@@ -918,17 +688,7 @@ If any schema is not registered, validation throws error with helpful message in
 
 ### Error Emission
 
-```mermaid
-graph LR
-    TaskExecution["task(symbol, context)"]
-    Error["Exception thrown"]
-    ExitEmitter["exitEmitter.next(error)"]
-    Subscribers["Error subscribers notified"]
-    
-    TaskExecution --> Error
-    Error --> ExitEmitter
-    ExitEmitter --> Subscribers
-```
+![Mermaid Diagram](./diagrams\58_execution-classes-api_8.svg)
 
 **Error Handling Strategy:**
 - Background tasks catch all errors and emit to `exitEmitter`
@@ -943,76 +703,7 @@ graph LR
 
 Execution classes coordinate multiple service layers:
 
-```mermaid
-graph TB
-    subgraph "Execution Classes"
-        Backtest["Backtest"]
-        Live["Live"]
-        Walker["Walker"]
-    end
-    
-    subgraph "Validation Services"
-        StrategyVal["strategyValidationService"]
-        ExchangeVal["exchangeValidationService"]
-        FrameVal["frameValidationService"]
-        RiskVal["riskValidationService"]
-    end
-    
-    subgraph "Schema Services"
-        StrategySchema["strategySchemaService"]
-        WalkerSchema["walkerSchemaService"]
-    end
-    
-    subgraph "Command Services"
-        BacktestCmd["backtestCommandService"]
-        LiveCmd["liveCommandService"]
-        WalkerCmd["walkerCommandService"]
-    end
-    
-    subgraph "Markdown Services"
-        BacktestMd["backtestMarkdownService"]
-        LiveMd["liveMarkdownService"]
-        WalkerMd["walkerMarkdownService"]
-        ScheduleMd["scheduleMarkdownService"]
-    end
-    
-    subgraph "Core Services"
-        StrategyCore["strategyCoreService"]
-        RiskGlobal["riskGlobalService"]
-    end
-    
-    Backtest --> StrategyVal
-    Backtest --> ExchangeVal
-    Backtest --> FrameVal
-    Backtest --> RiskVal
-    Backtest --> StrategySchema
-    Backtest --> BacktestCmd
-    Backtest --> BacktestMd
-    Backtest --> ScheduleMd
-    Backtest --> StrategyCore
-    Backtest --> RiskGlobal
-    
-    Live --> StrategyVal
-    Live --> ExchangeVal
-    Live --> RiskVal
-    Live --> StrategySchema
-    Live --> LiveCmd
-    Live --> LiveMd
-    Live --> ScheduleMd
-    Live --> StrategyCore
-    Live --> RiskGlobal
-    
-    Walker --> StrategyVal
-    Walker --> ExchangeVal
-    Walker --> FrameVal
-    Walker --> RiskVal
-    Walker --> WalkerSchema
-    Walker --> WalkerCmd
-    Walker --> WalkerMd
-    Walker --> BacktestMd
-    Walker --> StrategyCore
-    Walker --> RiskGlobal
-```
+![Mermaid Diagram](./diagrams\58_execution-classes-api_9.svg)
 
 **Key Integration Points:**
 

@@ -66,40 +66,7 @@ interface ISignalRow extends ISignalDto {
 
 ### State Overview
 
-```mermaid
-stateDiagram-v2
-    [*] --> Idle
-    
-    Idle --> ValidateSchema: "getSignal() returns signal"
-    
-    ValidateSchema --> ValidatePositive: "Prices > 0, finite"
-    ValidatePositive --> ValidateTPSL: "TP/SL logic check"
-    ValidateTPSL --> ValidateDistance: "TP distance >= MIN"
-    ValidateDistance --> ValidateSLRange: "SL distance <= MAX"
-    ValidateSLRange --> ValidateLifetime: "lifetime <= MAX"
-    ValidateLifetime --> CheckRisk: "Risk validation"
-    
-    CheckRisk --> Rejected: "Risk fail"
-    CheckRisk --> CheckPrice: "Risk pass"
-    
-    CheckPrice --> Scheduled: "priceOpen not reached"
-    CheckPrice --> Opened: "priceOpen reached"
-    
-    Scheduled --> Opened: "Price reaches priceOpen"
-    Scheduled --> Cancelled: "SL before priceOpen OR timeout"
-    
-    Opened --> Active: "Persist signal"
-    
-    Active --> ClosedTP: "priceTakeProfit reached"
-    Active --> ClosedSL: "priceStopLoss reached"
-    Active --> ClosedTime: "minuteEstimatedTime expired"
-    
-    ClosedTP --> Idle: "Delete persisted signal"
-    ClosedSL --> Idle
-    ClosedTime --> Idle
-    Cancelled --> Idle
-    Rejected --> Idle
-```
+![Mermaid Diagram](./diagrams\09_signals-signal-lifecycle_0.svg)
 
 
 ### State Descriptions
@@ -124,29 +91,7 @@ stateDiagram-v2
 
 All signals pass through comprehensive validation before activation:
 
-```mermaid
-graph TB
-    Start["Signal from getSignal()"] --> Stage1["Stage 1: Schema Check"]
-    Stage1 --> Stage2["Stage 2: Positive Prices"]
-    Stage2 --> Stage3["Stage 3: TP/SL Logic"]
-    Stage3 --> Stage4["Stage 4: TP Distance"]
-    Stage4 --> Stage5["Stage 5: SL Range"]
-    Stage5 --> Stage6["Stage 6: Lifetime"]
-    Stage6 --> Stage7["Stage 7: Risk Validation"]
-    
-    Stage7 --> Pass["Validation Passed"]
-    
-    Stage1 --> Fail["Validation Failed"]
-    Stage2 --> Fail
-    Stage3 --> Fail
-    Stage4 --> Fail
-    Stage5 --> Fail
-    Stage6 --> Fail
-    Stage7 --> Fail
-    
-    Fail --> Reject["Signal Rejected"]
-    Pass --> CreateSignal["Create ISignalRow"]
-```
+![Mermaid Diagram](./diagrams\09_signals-signal-lifecycle_1.svg)
 
 
 ### Stage Details
@@ -286,27 +231,7 @@ if (!riskPassed) {
 
 When `getSignal()` returns a signal, the framework determines activation path:
 
-```mermaid
-graph TD
-    GetSignal["getSignal() returns ISignalDto"] --> CheckPriceOpen{"priceOpen specified?"}
-    
-    CheckPriceOpen -->|No| Immediate["Immediate Signal"]
-    CheckPriceOpen -->|Yes| CheckReached{"Price reached priceOpen?"}
-    
-    CheckReached -->|Yes| Immediate
-    CheckReached -->|No| Scheduled["Scheduled Signal"]
-    
-    Immediate --> SetPriceOpen["priceOpen = currentPrice"]
-    SetPriceOpen --> Validate["Run 7-stage validation"]
-    
-    Scheduled --> ValidateScheduled["Run 7-stage validation<br/>(scheduled=true)"]
-    
-    Validate --> CreateImmediate["Create ISignalRow<br/>_isScheduled=false<br/>pendingAt=currentTime"]
-    ValidateScheduled --> CreateScheduled["Create IScheduledSignalRow<br/>_isScheduled=true<br/>pendingAt=scheduledAt"]
-    
-    CreateImmediate --> Persist["Persist to PersistSignalAdapter"]
-    CreateScheduled --> PersistSchedule["Persist to PersistScheduleAdapter"]
-```
+![Mermaid Diagram](./diagrams\09_signals-signal-lifecycle_2.svg)
 
 **LONG Position Activation Logic:**
 ```typescript
@@ -329,23 +254,7 @@ if (signal.position === "short" && currentPrice >= signal.priceOpen) {
 
 Scheduled signals are monitored every tick for three conditions:
 
-```mermaid
-stateDiagram-v2
-    [*] --> Scheduled
-    
-    Scheduled --> CheckTimeout: "Every tick"
-    CheckTimeout --> CheckSL: "Not timed out"
-    CheckTimeout --> Cancelled: "CC_SCHEDULE_AWAIT_MINUTES exceeded"
-    
-    CheckSL --> CheckActivation: "SL not breached"
-    CheckSL --> Cancelled: "SL breached (critical check first)"
-    
-    CheckActivation --> Opened: "priceOpen reached"
-    CheckActivation --> Scheduled: "priceOpen not reached"
-    
-    Opened --> [*]
-    Cancelled --> [*]
-```
+![Mermaid Diagram](./diagrams\09_signals-signal-lifecycle_3.svg)
 
 **Critical Order:** SL check BEFORE activation check prevents "open-and-immediately-stop" scenarios.
 
@@ -378,33 +287,7 @@ else if (currentPrice >= scheduled.priceOpen) {
 
 Once opened, signals are monitored for three exit conditions:
 
-```mermaid
-graph TB
-    Active["Active Signal"] --> Tick["Every tick: Get VWAP price"]
-    
-    Tick --> CheckTP{"Price reached<br/>priceTakeProfit?"}
-    Tick --> CheckSL{"Price reached<br/>priceStopLoss?"}
-    Tick --> CheckTime{"Time exceeded<br/>minuteEstimatedTime?"}
-    
-    CheckTP -->|Yes| CloseTP["Close: take_profit"]
-    CheckSL -->|Yes| CloseSL["Close: stop_loss"]
-    CheckTime -->|Yes| CloseTime["Close: time_expired"]
-    
-    CheckTP -->|No| PartialCheck["Check partial profit/loss milestones"]
-    CheckSL -->|No| PartialCheck
-    CheckTime -->|No| PartialCheck
-    
-    PartialCheck --> ContinueActive["Continue monitoring"]
-    ContinueActive --> Tick
-    
-    CloseTP --> CalculatePNL["Calculate PNL with fees/slippage"]
-    CloseSL --> CalculatePNL
-    CloseTime --> CalculatePNL
-    
-    CalculatePNL --> DeletePersist["Delete from PersistSignalAdapter"]
-    DeletePersist --> EmitClosed["Emit closed event"]
-    EmitClosed --> Idle["Return to idle state"]
-```
+![Mermaid Diagram](./diagrams\09_signals-signal-lifecycle_4.svg)
 
 **Partial Profit/Loss Tracking:**
 
@@ -433,32 +316,7 @@ The framework uses two separate persistence adapters:
 
 ### Crash Recovery Flow
 
-```mermaid
-sequenceDiagram
-    participant System
-    participant ClientStrategy
-    participant PersistSignal
-    participant PersistSchedule
-    
-    System->>ClientStrategy: Initialize
-    ClientStrategy->>PersistSignal: readSignalData()
-    PersistSignal-->>ClientStrategy: ISignalRow or null
-    
-    alt Has pending signal
-        ClientStrategy->>ClientStrategy: Restore _pendingSignal
-        ClientStrategy->>ClientStrategy: Call onActive callback
-    end
-    
-    ClientStrategy->>PersistSchedule: readScheduleData()
-    PersistSchedule-->>ClientStrategy: IScheduledSignalRow or null
-    
-    alt Has scheduled signal
-        ClientStrategy->>ClientStrategy: Restore _scheduledSignal
-        ClientStrategy->>ClientStrategy: Call onSchedule callback
-    end
-    
-    ClientStrategy->>System: Ready for tick()
-```
+![Mermaid Diagram](./diagrams\09_signals-signal-lifecycle_5.svg)
 
 **Implementation:**
 
@@ -616,29 +474,7 @@ All persistence operations are atomic (write-delete patterns):
 
 ### Queue Behavior
 
-```mermaid
-graph TB
-    subgraph "Time T1"
-        S1_Gen["Signal #1 generated"]
-        S1_Gen --> S1_Open["Signal #1 opens"]
-    end
-    
-    subgraph "Time T2 (while Signal #1 active)"
-        S2_Gen["getSignal() called"]
-        S2_Gen --> S2_Block["Signal #2 NOT processed"]
-        S2_Block --> S2_Wait["Waits for Signal #1 to close"]
-    end
-    
-    subgraph "Time T3"
-        S1_Close["Signal #1 closes (TP/SL/time)"]
-        S1_Close --> S1_Idle["Returns to idle state"]
-    end
-    
-    subgraph "Time T4"
-        S2_Gen2["getSignal() called again"]
-        S2_Gen2 --> S2_Process["Signal #2 now processed"]
-    end
-```
+![Mermaid Diagram](./diagrams\09_signals-signal-lifecycle_6.svg)
 
 **Rationale:**
 - Prevents position size explosions

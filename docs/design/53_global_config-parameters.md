@@ -16,53 +16,7 @@ For information about customizing report columns, see [Column Configuration](./5
 
 ## Configuration Architecture
 
-```mermaid
-graph TB
-    subgraph "Configuration Layer"
-        GLOBAL["GLOBAL_CONFIG<br/>{CC_PERCENT_FEE, CC_PERCENT_SLIPPAGE,<br/>CC_MIN_TAKEPROFIT_DISTANCE_PERCENT,<br/>CC_MAX_STOPLOSS_DISTANCE_PERCENT,<br/>CC_MAX_SIGNAL_LIFETIME_MINUTES,<br/>...14 parameters}"]
-        DEFAULT["DEFAULT_CONFIG<br/>Object.freeze(GLOBAL_CONFIG)<br/>Immutable backup"]
-        SET_CONFIG["setConfig(partial, reset?)<br/>Public API for runtime updates"]
-    end
-    
-    subgraph "Validation Layer"
-        VALIDATE_SIGNAL["VALIDATE_SIGNAL_FN<br/>src/client/ClientStrategy.ts"]
-        VALIDATE_PRICES["Price validation:<br/>positive, finite, not NaN"]
-        VALIDATE_TP_SL["TP/SL logic validation:<br/>LONG: TP>open>SL<br/>SHORT: SL>open>TP"]
-        VALIDATE_DISTANCE["Distance validation:<br/>CC_MIN_TAKEPROFIT_DISTANCE_PERCENT<br/>CC_MAX_STOPLOSS_DISTANCE_PERCENT"]
-        VALIDATE_LIFETIME["Lifetime validation:<br/>CC_MAX_SIGNAL_LIFETIME_MINUTES"]
-    end
-    
-    subgraph "Execution Layer"
-        CALC_PNL["PNL Calculation<br/>Apply CC_PERCENT_FEE<br/>Apply CC_PERCENT_SLIPPAGE"]
-        GET_CANDLES["Exchange.getCandles<br/>Retry: CC_GET_CANDLES_RETRY_COUNT<br/>Delay: CC_GET_CANDLES_RETRY_DELAY_MS"]
-        VWAP["VWAP Calculation<br/>CC_AVG_PRICE_CANDLES_COUNT"]
-        ANOMALY["Anomaly Detection<br/>CC_GET_CANDLES_PRICE_ANOMALY_THRESHOLD_FACTOR<br/>CC_GET_CANDLES_MIN_CANDLES_FOR_MEDIAN"]
-    end
-    
-    subgraph "Reporting Layer"
-        MARKDOWN["Markdown Reports<br/>CC_REPORT_SHOW_SIGNAL_NOTE"]
-    end
-    
-    GLOBAL --> VALIDATE_SIGNAL
-    SET_CONFIG --> GLOBAL
-    DEFAULT -.->|restore on reset| GLOBAL
-    
-    VALIDATE_SIGNAL --> VALIDATE_PRICES
-    VALIDATE_SIGNAL --> VALIDATE_TP_SL
-    VALIDATE_SIGNAL --> VALIDATE_DISTANCE
-    VALIDATE_SIGNAL --> VALIDATE_LIFETIME
-    
-    VALIDATE_DISTANCE --> CALC_PNL
-    GLOBAL --> CALC_PNL
-    GLOBAL --> GET_CANDLES
-    GLOBAL --> VWAP
-    GLOBAL --> ANOMALY
-    GLOBAL --> MARKDOWN
-    
-    style GLOBAL fill:#fff3cd,stroke:#856404,stroke-width:3px
-    style VALIDATE_SIGNAL fill:#ffe1e1,stroke:#cc0000,stroke-width:2px
-    style CALC_PNL fill:#e3f2fd,stroke:#1976d2,stroke-width:2px
-```
+![Mermaid Diagram](./diagrams\53_global_config-parameters_0.svg)
 
 **Configuration Flow Overview**
 
@@ -139,42 +93,7 @@ SHORT PNL = ((priceOpen / priceClose) - 1) * 100
 
 These parameters enforce minimum quality standards for signals, preventing unprofitable or catastrophic trades.
 
-```mermaid
-graph TB
-    subgraph "Validation Pipeline"
-        SIGNAL["ISignalDto<br/>{position, priceOpen,<br/>priceTakeProfit, priceStopLoss,<br/>minuteEstimatedTime}"]
-        
-        V1["Step 1: Price Positivity<br/>All prices > 0<br/>isFinite, not NaN"]
-        V2["Step 2: TP/SL Logic<br/>LONG: TP > priceOpen > SL<br/>SHORT: SL > priceOpen > TP"]
-        V3["Step 3: Min TP Distance<br/>|TP - priceOpen| / priceOpen * 100<br/>>= CC_MIN_TAKEPROFIT_DISTANCE_PERCENT"]
-        V4["Step 4: Min SL Distance<br/>|SL - priceOpen| / priceOpen * 100<br/>>= CC_MIN_STOPLOSS_DISTANCE_PERCENT"]
-        V5["Step 5: Max SL Distance<br/>|SL - priceOpen| / priceOpen * 100<br/><= CC_MAX_STOPLOSS_DISTANCE_PERCENT"]
-        V6["Step 6: Max Lifetime<br/>minuteEstimatedTime<br/><= CC_MAX_SIGNAL_LIFETIME_MINUTES"]
-        V7["Step 7: Candle Anomalies<br/>CC_GET_CANDLES_PRICE_ANOMALY_THRESHOLD_FACTOR"]
-        
-        ACCEPT["Signal Accepted<br/>Schedule or Open"]
-        REJECT["Signal Rejected<br/>Error logged, riskSubject emitted"]
-    end
-    
-    SIGNAL --> V1
-    V1 -->|pass| V2
-    V1 -->|fail| REJECT
-    V2 -->|pass| V3
-    V2 -->|fail| REJECT
-    V3 -->|pass| V4
-    V3 -->|fail| REJECT
-    V4 -->|pass| V5
-    V4 -->|fail| REJECT
-    V5 -->|pass| V6
-    V5 -->|fail| REJECT
-    V6 -->|pass| V7
-    V6 -->|fail| REJECT
-    V7 -->|pass| ACCEPT
-    V7 -->|fail| REJECT
-    
-    style ACCEPT fill:#ccffcc,stroke:#00cc00,stroke-width:2px
-    style REJECT fill:#ffcccc,stroke:#cc0000,stroke-width:2px
-```
+![Mermaid Diagram](./diagrams\53_global_config-parameters_1.svg)
 
 **7-Stage Signal Validation Pipeline**
 
@@ -363,52 +282,7 @@ On each tick:
 
 Parameters controlling `Exchange.getCandles()` retry logic and VWAP calculation.
 
-```mermaid
-graph TB
-    subgraph "Candle Fetching Flow"
-        REQUEST["getCandles Request<br/>symbol, interval, since, limit"]
-        
-        ATTEMPT_1["Attempt 1<br/>Call Exchange.getCandles()"]
-        CHECK_1{Success?}
-        
-        WAIT_1["Wait CC_GET_CANDLES_RETRY_DELAY_MS<br/>Default: 5000ms"]
-        
-        ATTEMPT_2["Attempt 2<br/>Call Exchange.getCandles()"]
-        CHECK_2{Success?}
-        
-        WAIT_2["Wait CC_GET_CANDLES_RETRY_DELAY_MS<br/>Default: 5000ms"]
-        
-        ATTEMPT_3["Attempt 3<br/>Call Exchange.getCandles()"]
-        CHECK_3{Success?}
-        
-        VALIDATE["Validate Candles<br/>Price Anomaly Detection"]
-        VWAP["Calculate VWAP<br/>Last CC_AVG_PRICE_CANDLES_COUNT"]
-        
-        SUCCESS["Return Candles"]
-        FAIL["Throw Error<br/>Log + Exit"]
-    end
-    
-    REQUEST --> ATTEMPT_1
-    ATTEMPT_1 --> CHECK_1
-    CHECK_1 -->|yes| VALIDATE
-    CHECK_1 -->|no| WAIT_1
-    
-    WAIT_1 --> ATTEMPT_2
-    ATTEMPT_2 --> CHECK_2
-    CHECK_2 -->|yes| VALIDATE
-    CHECK_2 -->|no| WAIT_2
-    
-    WAIT_2 --> ATTEMPT_3
-    ATTEMPT_3 --> CHECK_3
-    CHECK_3 -->|yes| VALIDATE
-    CHECK_3 -->|no| FAIL
-    
-    VALIDATE --> VWAP
-    VWAP --> SUCCESS
-    
-    style SUCCESS fill:#ccffcc,stroke:#00cc00,stroke-width:2px
-    style FAIL fill:#ffcccc,stroke:#cc0000,stroke-width:2px
-```
+![Mermaid Diagram](./diagrams\53_global_config-parameters_2.svg)
 
 **Retry Logic Flow**
 
@@ -725,48 +599,7 @@ setConfig({}, true);  // Empty config + reset = full default restoration
 
 ## Validation Enforcement Points
 
-```mermaid
-graph LR
-    subgraph "Signal Generation"
-        GET_SIGNAL["getSignal()<br/>User strategy code"]
-        RETURN_SIGNAL["Return ISignalDto"]
-    end
-    
-    subgraph "Validation Layer (ClientStrategy)"
-        VALIDATE_SCHEMA["Validate schema<br/>required fields present"]
-        VALIDATE_PRICES["Validate prices<br/>positive, finite"]
-        VALIDATE_TP_SL_LOGIC["Validate TP/SL logic<br/>LONG: TP>open>SL<br/>SHORT: SL>open>TP"]
-        VALIDATE_DISTANCES["Validate distances<br/>CC_MIN/MAX checks"]
-        VALIDATE_LIFETIME["Validate lifetime<br/>CC_MAX_SIGNAL_LIFETIME"]
-        VALIDATE_CANDLES["Validate candles<br/>CC_GET_CANDLES_PRICE_ANOMALY"]
-    end
-    
-    subgraph "Execution Layer"
-        SCHEDULE_OR_OPEN["Schedule or Open signal"]
-        CALC_PNL["Calculate PNL<br/>Apply CC_PERCENT_FEE<br/>Apply CC_PERCENT_SLIPPAGE"]
-        CLOSE["Close signal"]
-    end
-    
-    subgraph "Reporting Layer"
-        EMIT_EVENTS["Emit events<br/>signalEmitter, riskSubject"]
-        GENERATE_REPORT["Generate markdown<br/>Use CC_REPORT_SHOW_SIGNAL_NOTE"]
-    end
-    
-    GET_SIGNAL --> RETURN_SIGNAL
-    RETURN_SIGNAL --> VALIDATE_SCHEMA
-    VALIDATE_SCHEMA --> VALIDATE_PRICES
-    VALIDATE_PRICES --> VALIDATE_TP_SL_LOGIC
-    VALIDATE_TP_SL_LOGIC --> VALIDATE_DISTANCES
-    VALIDATE_DISTANCES --> VALIDATE_LIFETIME
-    VALIDATE_LIFETIME --> VALIDATE_CANDLES
-    VALIDATE_CANDLES --> SCHEDULE_OR_OPEN
-    
-    SCHEDULE_OR_OPEN --> CALC_PNL
-    CALC_PNL --> CLOSE
-    
-    CLOSE --> EMIT_EVENTS
-    EMIT_EVENTS --> GENERATE_REPORT
-```
+![Mermaid Diagram](./diagrams\53_global_config-parameters_3.svg)
 
 **Configuration Enforcement Flow**
 

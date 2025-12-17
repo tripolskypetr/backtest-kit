@@ -28,47 +28,7 @@ The persistence system provides **atomic state storage** for live trading operat
 
 The framework provides four specialized persistence adapters, each responsible for a different aspect of trading state:
 
-```mermaid
-graph TB
-    subgraph "Persistence Layer"
-        PSA["PersistSignalAdapter<br/>(Active Signals)"]
-        PRA["PersistRiskAdapter<br/>(Portfolio Limits)"]
-        PSCA["PersistScheduleAdapter<br/>(Schedule Tracking)"]
-        PPA["PersistPartialAdapter<br/>(Profit/Loss Milestones)"]
-    end
-    
-    subgraph "PersistBase Interface"
-        PB["PersistBase<br/>waitForInit()<br/>readValue()<br/>hasValue()<br/>writeValue()<br/>deleteValue()"]
-    end
-    
-    subgraph "Storage Backends"
-        FILE["File System<br/>(Default)"]
-        REDIS["Redis<br/>(Custom)"]
-        MONGO["MongoDB<br/>(Custom)"]
-        CUSTOM["Custom Backend<br/>(Your Implementation)"]
-    end
-    
-    subgraph "Client Layer"
-        CS["ClientStrategy<br/>(tick, backtest methods)"]
-        CR["ClientRisk<br/>(checkSignal, addSignal)"]
-        CPART["ClientPartial<br/>(profit/loss tracking)"]
-    end
-    
-    CS -->|"setPendingSignal()"| PSA
-    CS -->|"waitForInit()"| PSA
-    CR -->|"portfolio state"| PRA
-    CPART -->|"partial events"| PPA
-    
-    PSA -.->|implements| PB
-    PRA -.->|implements| PB
-    PSCA -.->|implements| PB
-    PPA -.->|implements| PB
-    
-    PB -->|"atomic writes"| FILE
-    PB -.->|"can use"| REDIS
-    PB -.->|"can use"| MONGO
-    PB -.->|"can use"| CUSTOM
-```
+![Mermaid Diagram](./diagrams\50_crash-recovery-persistence_0.svg)
 
 
 ### Adapter Responsibilities
@@ -87,46 +47,7 @@ graph TB
 
 All persistence adapters implement the `PersistBase` interface, which defines the contract for crash-safe storage:
 
-```mermaid
-classDiagram
-    class PersistBase {
-        <<interface>>
-        +waitForInit() Promise~void~
-        +readValue(key) Promise~T~
-        +hasValue(key) Promise~boolean~
-        +writeValue(key, value) Promise~void~
-        +deleteValue(key) Promise~void~
-    }
-    
-    class PersistSignalAdapter {
-        +usePersistSignalAdapter(class)
-        -instance: PersistBase
-        +waitForInit()
-        +readSignalData(symbol, strategyName)
-        +writeSignalData(symbol, strategyName, data)
-        +deleteSignalData(symbol, strategyName)
-    }
-    
-    class FileBasedStorage {
-        +waitForInit()
-        +readValue(key)
-        +hasValue(key)
-        +writeValue(key, value)
-        +deleteValue(key)
-    }
-    
-    class RedisStorage {
-        +waitForInit()
-        +readValue(key)
-        +hasValue(key)
-        +writeValue(key, value)
-        +deleteValue(key)
-    }
-    
-    PersistBase <|.. FileBasedStorage
-    PersistBase <|.. RedisStorage
-    PersistSignalAdapter ..> PersistBase : uses
-```
+![Mermaid Diagram](./diagrams\50_crash-recovery-persistence_1.svg)
 
 
 ### Method Contracts
@@ -164,50 +85,7 @@ classDiagram
 
 Signals transition through multiple states, but only **opened** signals are persisted. This diagram shows when persistence operations occur:
 
-```mermaid
-stateDiagram-v2
-    [*] --> Idle: "No signal"
-    
-    Idle --> Scheduled: "getSignal() returns signal<br/>priceOpen not reached"
-    
-    Scheduled --> Opened: "Price reaches priceOpen<br/>⚡ writeValue() CALLED"
-    Scheduled --> Cancelled: "SL hit or timeout<br/>(no persistence)"
-    
-    Opened --> Active: "Position monitoring begins<br/>(persisted state)"
-    
-    Active --> PartialProfit: "10%, 20%, 30%+ profit<br/>PersistPartialAdapter updates"
-    Active --> PartialLoss: "-10%, -20%, -30%+ loss<br/>PersistPartialAdapter updates"
-    
-    PartialProfit --> Active: "Continue monitoring"
-    PartialLoss --> Active: "Continue monitoring"
-    
-    Active --> Closed_TP: "TP reached<br/>⚡ deleteValue() CALLED"
-    Active --> Closed_SL: "SL reached<br/>⚡ deleteValue() CALLED"
-    Active --> Closed_Time: "Time expired<br/>⚡ deleteValue() CALLED"
-    
-    Closed_TP --> Idle: "State cleaned up"
-    Closed_SL --> Idle: "State cleaned up"
-    Closed_Time --> Idle: "State cleaned up"
-    Cancelled --> Idle: "No cleanup needed"
-    
-    note right of Scheduled
-        NOT PERSISTED
-        Ephemeral state
-        No crash recovery
-    end note
-    
-    note right of Opened
-        PERSIST START
-        writeValue() atomically
-        saves ISignalRow to storage
-    end note
-    
-    note right of Closed_TP
-        PERSIST END
-        deleteValue() removes
-        signal from storage
-    end note
-```
+![Mermaid Diagram](./diagrams\50_crash-recovery-persistence_2.svg)
 
 
 ### Key State Transitions
@@ -234,30 +112,7 @@ stateDiagram-v2
 
 Persistence operations must be **atomic** to prevent data corruption during crashes. The default file-based implementation uses a temp-file-and-rename pattern:
 
-```mermaid
-sequenceDiagram
-    participant CS as "ClientStrategy<br/>(tick method)"
-    participant PSA as "PersistSignalAdapter<br/>(writeSignalData)"
-    participant FS as "File System"
-    
-    Note over CS: Signal opens<br/>priceOpen reached
-    
-    CS->>PSA: writeSignalData(symbol, strategyName, data)
-    
-    Note over PSA: Generate key<br/>`${symbol}:${strategyName}`
-    
-    PSA->>FS: Write to temp file<br/>`./persist/signals/${key}.tmp`
-    FS-->>PSA: Write complete
-    
-    PSA->>FS: Atomic rename<br/>`${key}.tmp` → `${key}.json`
-    FS-->>PSA: Rename complete
-    
-    Note over PSA,FS: CRASH-SAFE POINT<br/>Either old data or new data exists<br/>Never partial/corrupted data
-    
-    PSA-->>CS: writeValue() complete
-    
-    Note over CS: Continue monitoring<br/>Signal persisted
-```
+![Mermaid Diagram](./diagrams\50_crash-recovery-persistence_3.svg)
 
 
 ### Why Atomic Writes Matter
@@ -284,47 +139,7 @@ The `rename()` system call is atomic on POSIX systems. Either the old file exist
 
 When a live trading bot restarts after a crash, the recovery process follows this sequence:
 
-```mermaid
-sequenceDiagram
-    participant User as "User Code"
-    participant Live as "Live.background()"
-    participant CS as "ClientStrategy"
-    participant PSA as "PersistSignalAdapter"
-    participant FS as "File System"
-    
-    Note over User: Process crashed<br/>System restarts
-    
-    User->>Live: Live.background("BTCUSDT", {<br/>  strategyName, exchangeName<br/>})
-    
-    Live->>CS: Create ClientStrategy instance
-    
-    CS->>PSA: waitForInit()
-    Note over PSA: Initialize storage<br/>Check file system ready
-    PSA-->>CS: Init complete
-    
-    CS->>PSA: hasValue("BTCUSDT:strategy")
-    PSA->>FS: Check file exists<br/>`./persist/signals/BTCUSDT:strategy.json`
-    FS-->>PSA: File exists: true
-    PSA-->>CS: true
-    
-    CS->>PSA: readSignalData("BTCUSDT", "strategy")
-    PSA->>FS: Read file<br/>`./persist/signals/BTCUSDT:strategy.json`
-    FS-->>PSA: Raw JSON data
-    PSA->>PSA: Parse JSON<br/>Validate ISignalRow schema
-    PSA-->>CS: Restored ISignalRow object
-    
-    Note over CS: Signal state restored<br/>{ position, priceOpen, TP, SL, ... }
-    
-    CS->>CS: tick(when, backtest=false)
-    Note over CS: Resume monitoring<br/>Check TP/SL/time conditions<br/>Continue as if no crash occurred
-    
-    alt "TP Reached"
-        CS->>CS: Calculate PNL
-        CS->>PSA: deleteSignalData("BTCUSDT", "strategy")
-        PSA->>FS: Delete file
-        Note over CS,PSA: Position closed cleanly
-    end
-```
+![Mermaid Diagram](./diagrams\50_crash-recovery-persistence_4.svg)
 
 
 ### Recovery Scenarios
@@ -430,31 +245,7 @@ The framework includes a default file-based persistence implementation. It store
 
 The test suite includes comprehensive persistence recovery scenarios. Tests verify that signals correctly restore after simulated crashes:
 
-```mermaid
-graph TB
-    subgraph "Test Setup"
-        MOCK["Mock PersistSignalAdapter<br/>Simulates saved signal"]
-        RESTORE["readValue() returns<br/>pre-crash signal state"]
-    end
-    
-    subgraph "Test Execution"
-        LIVE["Live.background()<br/>starts with restored signal"]
-        TICK["tick() method called<br/>with current price"]
-    end
-    
-    subgraph "Test Assertions"
-        CALLBACK["onClose callback<br/>should be called"]
-        DELETE["deleteValue()<br/>should be called"]
-        PNL["PNL calculation<br/>should be correct"]
-    end
-    
-    MOCK --> RESTORE
-    RESTORE --> LIVE
-    LIVE --> TICK
-    TICK --> CALLBACK
-    TICK --> DELETE
-    TICK --> PNL
-```
+![Mermaid Diagram](./diagrams\50_crash-recovery-persistence_5.svg)
 
 
 ### Example Test: LONG Signal TP After Restart
@@ -558,49 +349,7 @@ This approach ensures:
 
 The persistence system integrates with multiple framework components:
 
-```mermaid
-graph TB
-    subgraph "Strategy Layer"
-        CS["ClientStrategy<br/>(tick, backtest methods)"]
-        SCS["StrategyConnectionService<br/>(memoized instances)"]
-    end
-    
-    subgraph "Persistence Layer"
-        PSA["PersistSignalAdapter"]
-        PB["PersistBase implementation"]
-    end
-    
-    subgraph "Execution Modes"
-        LIVE["LiveLogicPrivateService<br/>(infinite loop)"]
-        BT["BacktestLogicPrivateService<br/>(historical simulation)"]
-    end
-    
-    subgraph "Public API"
-        LIVE_CMD["Live.background()"]
-        BT_CMD["Backtest.background()"]
-    end
-    
-    LIVE_CMD -->|"starts"| LIVE
-    BT_CMD -->|"starts"| BT
-    
-    LIVE -->|"calls"| SCS
-    BT -->|"calls"| SCS
-    
-    SCS -->|"creates"| CS
-    
-    CS -->|"waitForInit()"| PSA
-    CS -->|"readSignalData()"| PSA
-    CS -->|"writeSignalData()"| PSA
-    CS -->|"deleteSignalData()"| PSA
-    
-    PSA -->|"delegates to"| PB
-    
-    Note1["Live mode:<br/>Persistence ENABLED<br/>Signals restored on restart"]
-    Note2["Backtest mode:<br/>Persistence DISABLED<br/>In-memory only"]
-    
-    LIVE -.->|reads| Note1
-    BT -.->|reads| Note2
-```
+![Mermaid Diagram](./diagrams\50_crash-recovery-persistence_6.svg)
 
 
 ### ClientStrategy Integration

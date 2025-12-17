@@ -30,50 +30,7 @@ The framework implements a comprehensive event system using `functools-kit` `Sub
 
 ### Event Emitters
 
-```mermaid
-graph TB
-    subgraph "Signal Events"
-        signalEmitter["signalEmitter<br/>(all modes)"]
-        signalBacktestEmitter["signalBacktestEmitter<br/>(backtest only)"]
-        signalLiveEmitter["signalLiveEmitter<br/>(live only)"]
-    end
-    
-    subgraph "Progress Events"
-        progressBacktestEmitter["progressBacktestEmitter<br/>(frame completion %)"]
-        progressWalkerEmitter["progressWalkerEmitter<br/>(strategy progress)"]
-        progressOptimizerEmitter["progressOptimizerEmitter<br/>(optimization progress)"]
-    end
-    
-    subgraph "Completion Events"
-        doneBacktestSubject["doneBacktestSubject<br/>(backtest complete)"]
-        doneLiveSubject["doneLiveSubject<br/>(live shutdown)"]
-        doneWalkerSubject["doneWalkerSubject<br/>(walker complete)"]
-    end
-    
-    subgraph "Monitoring Events"
-        performanceEmitter["performanceEmitter<br/>(timing metrics)"]
-        partialProfitSubject["partialProfitSubject<br/>(profit milestones)"]
-        partialLossSubject["partialLossSubject<br/>(loss milestones)"]
-        riskSubject["riskSubject<br/>(validation failures)"]
-    end
-    
-    subgraph "Walker Events"
-        walkerEmitter["walkerEmitter<br/>(strategy tested)"]
-        walkerCompleteSubject["walkerCompleteSubject<br/>(final results)"]
-        walkerStopSubject["walkerStopSubject<br/>(cancellation)"]
-    end
-    
-    subgraph "Error Events"
-        errorEmitter["errorEmitter<br/>(recoverable)"]
-        exitEmitter["exitEmitter<br/>(fatal)"]
-        validationSubject["validationSubject<br/>(validation errors)"]
-    end
-    
-    style signalEmitter fill:#e1f5ff
-    style performanceEmitter fill:#fff3e0
-    style doneBacktestSubject fill:#e8f5e9
-    style errorEmitter fill:#ffebee
-```
+![Mermaid Diagram](./diagrams\40_reporting-monitoring_0.svg)
 
 **Event Emitter Catalog**
 
@@ -104,42 +61,7 @@ graph TB
 
 Public API provides typed listener functions with `queued` wrapper from `functools-kit`. The wrapper ensures sequential async processing even during high-frequency emissions.
 
-```mermaid
-graph LR
-    subgraph "Listener Functions"
-        listenSignal["listenSignal(fn)<br/>listenSignalOnce(fn)"]
-        listenSignalBacktest["listenSignalBacktest(fn)<br/>listenSignalBacktestOnce(fn)"]
-        listenSignalLive["listenSignalLive(fn)<br/>listenSignalLiveOnce(fn)"]
-        listenPerformance["listenPerformance(fn)"]
-        listenPartial["listenPartialProfit(fn)<br/>listenPartialLoss(fn)"]
-        listenRisk["listenRisk(fn)<br/>listenRiskOnce(fn)"]
-        listenDone["listenDoneBacktest(fn)<br/>listenDoneLive(fn)<br/>listenDoneWalker(fn)"]
-        listenProgress["listenBacktestProgress(fn)<br/>listenWalkerProgress(fn)<br/>listenOptimizerProgress(fn)"]
-        listenWalker["listenWalker(fn)<br/>listenWalkerComplete(fn)"]
-        listenError["listenError(fn)<br/>listenExit(fn)<br/>listenValidation(fn)"]
-    end
-    
-    subgraph "Queued Wrapper"
-        queuedFn["queued(fn)<br/>Sequential execution<br/>Prevents concurrency"]
-    end
-    
-    subgraph "Subscription"
-        emitterSubscribe["emitter.subscribe(queuedFn)<br/>Returns unsubscribe function"]
-    end
-    
-    listenSignal --> queuedFn
-    listenSignalBacktest --> queuedFn
-    listenSignalLive --> queuedFn
-    listenPerformance --> queuedFn
-    listenPartial --> queuedFn
-    listenRisk --> queuedFn
-    listenDone --> queuedFn
-    listenProgress --> queuedFn
-    listenWalker --> queuedFn
-    listenError --> queuedFn
-    
-    queuedFn --> emitterSubscribe
-```
+![Mermaid Diagram](./diagrams\40_reporting-monitoring_1.svg)
 
 **Listener Pattern Example:**
 
@@ -175,85 +97,7 @@ Eight specialized markdown services subscribe to event emitters and accumulate d
 
 ### Service Architecture
 
-```mermaid
-graph TB
-    subgraph "Event Sources"
-        signalEmitters["Signal Emitters<br/>(signalEmitter, signalBacktestEmitter,<br/>signalLiveEmitter)"]
-        otherEmitters["Specialized Emitters<br/>(performanceEmitter, partialProfitSubject,<br/>riskSubject, walkerEmitter)"]
-    end
-    
-    subgraph "Markdown Services"
-        BacktestMarkdownService["BacktestMarkdownService<br/>Closed signals only<br/>Max 250 per symbol:strategy"]
-        LiveMarkdownService["LiveMarkdownService<br/>All tick events<br/>Max 250 per symbol:strategy"]
-        WalkerMarkdownService["WalkerMarkdownService<br/>Strategy comparison results<br/>Unlimited per walker"]
-        ScheduleMarkdownService["ScheduleMarkdownService<br/>Scheduled/opened/cancelled<br/>Max 250 per symbol:strategy"]
-        HeatMarkdownService["HeatMarkdownService<br/>Portfolio-wide aggregation<br/>Max 250 per symbol"]
-        PerformanceMarkdownService["PerformanceMarkdownService<br/>Timing metrics<br/>Max 10000 per symbol:strategy"]
-        PartialMarkdownService["PartialMarkdownService<br/>Profit/loss milestones<br/>Max 250 per symbol:strategy"]
-        RiskMarkdownService["RiskMarkdownService<br/>Rejection events<br/>Max 250 per symbol:strategy"]
-    end
-    
-    subgraph "Storage Layer"
-        ReportStorage["ReportStorage<br/>In-memory accumulation<br/>Memoized per key"]
-    end
-    
-    subgraph "Statistics Layer"
-        BacktestStatisticsModel["BacktestStatisticsModel"]
-        LiveStatisticsModel["LiveStatisticsModel"]
-        WalkerStatisticsModel["WalkerStatisticsModel"]
-        ScheduleStatisticsModel["ScheduleStatisticsModel"]
-        HeatmapStatisticsModel["HeatmapStatisticsModel"]
-        PerformanceStatisticsModel["PerformanceStatisticsModel"]
-        PartialStatisticsModel["PartialStatisticsModel"]
-        RiskStatisticsModel["RiskStatisticsModel"]
-    end
-    
-    subgraph "Public Methods"
-        getData["getData()<br/>Returns statistics model"]
-        getReport["getReport()<br/>Returns markdown string"]
-        dump["dump()<br/>Writes to file system"]
-    end
-    
-    signalEmitters --> BacktestMarkdownService
-    signalEmitters --> LiveMarkdownService
-    signalEmitters --> ScheduleMarkdownService
-    signalEmitters --> HeatMarkdownService
-    
-    otherEmitters --> PerformanceMarkdownService
-    otherEmitters --> PartialMarkdownService
-    otherEmitters --> RiskMarkdownService
-    otherEmitters --> WalkerMarkdownService
-    
-    BacktestMarkdownService --> ReportStorage
-    LiveMarkdownService --> ReportStorage
-    WalkerMarkdownService --> ReportStorage
-    ScheduleMarkdownService --> ReportStorage
-    HeatMarkdownService --> ReportStorage
-    PerformanceMarkdownService --> ReportStorage
-    PartialMarkdownService --> ReportStorage
-    RiskMarkdownService --> ReportStorage
-    
-    ReportStorage --> BacktestStatisticsModel
-    ReportStorage --> LiveStatisticsModel
-    ReportStorage --> WalkerStatisticsModel
-    ReportStorage --> ScheduleStatisticsModel
-    ReportStorage --> HeatmapStatisticsModel
-    ReportStorage --> PerformanceStatisticsModel
-    ReportStorage --> PartialStatisticsModel
-    ReportStorage --> RiskStatisticsModel
-    
-    BacktestStatisticsModel --> getData
-    LiveStatisticsModel --> getData
-    WalkerStatisticsModel --> getData
-    ScheduleStatisticsModel --> getData
-    HeatmapStatisticsModel --> getData
-    PerformanceStatisticsModel --> getData
-    PartialStatisticsModel --> getData
-    RiskStatisticsModel --> getData
-    
-    getData --> getReport
-    getReport --> dump
-```
+![Mermaid Diagram](./diagrams\40_reporting-monitoring_2.svg)
 
 
 ### Service Responsibilities
@@ -408,46 +252,7 @@ Each markdown service produces a statistics model containing aggregated metrics 
 
 ### Common Metrics Across Models
 
-```mermaid
-graph TB
-    subgraph "Trading Metrics"
-        totalSignals["totalSignals<br/>(count)"]
-        winCount["winCount<br/>(PNL > 0)"]
-        lossCount["lossCount<br/>(PNL < 0)"]
-        winRate["winRate<br/>percentage, null if unsafe"]
-        avgPnl["avgPnl<br/>percentage, null if unsafe"]
-        totalPnl["totalPnl<br/>cumulative percentage, null if unsafe"]
-    end
-    
-    subgraph "Risk Metrics"
-        stdDev["stdDev<br/>volatility, null if unsafe"]
-        sharpeRatio["sharpeRatio<br/>avgPnl / stdDev, null if unsafe"]
-        annualizedSharpeRatio["annualizedSharpeRatio<br/>sharpeRatio * sqrt(365), null if unsafe"]
-        certaintyRatio["certaintyRatio<br/>avgWin / abs(avgLoss), null if unsafe"]
-    end
-    
-    subgraph "Projection Metrics"
-        expectedYearlyReturns["expectedYearlyReturns<br/>avgPnl * tradesPerYear, null if unsafe"]
-    end
-    
-    subgraph "Raw Data"
-        signalList["signalList / eventList<br/>Array of closed signals or events"]
-    end
-    
-    totalSignals --> winRate
-    winCount --> winRate
-    lossCount --> winRate
-    
-    totalSignals --> avgPnl
-    totalPnl --> avgPnl
-    
-    avgPnl --> sharpeRatio
-    stdDev --> sharpeRatio
-    
-    sharpeRatio --> annualizedSharpeRatio
-    
-    avgPnl --> expectedYearlyReturns
-```
+![Mermaid Diagram](./diagrams\40_reporting-monitoring_3.svg)
 
 ### BacktestStatisticsModel
 
@@ -616,56 +421,7 @@ The framework provides two access patterns: instance methods on execution classe
 
 ### Execution Class Methods
 
-```mermaid
-graph LR
-    subgraph "Backtest Class"
-        Backtest.getData["Backtest.getData(symbol, strategyName)"]
-        Backtest.getReport["Backtest.getReport(symbol, strategyName, columns?)"]
-        Backtest.dump["Backtest.dump(symbol, strategyName, path?, columns?)"]
-    end
-    
-    subgraph "Live Class"
-        Live.getData["Live.getData(symbol, strategyName)"]
-        Live.getReport["Live.getReport(symbol, strategyName, columns?)"]
-        Live.dump["Live.dump(symbol, strategyName, path?, columns?)"]
-    end
-    
-    subgraph "Walker Class"
-        Walker.getData["Walker.getData(walkerName, symbol, metric, context)"]
-        Walker.getReport["Walker.getReport(walkerName, symbol, metric, context, strategyColumns?, pnlColumns?)"]
-        Walker.dump["Walker.dump(walkerName, symbol, metric, context, path?, strategyColumns?, pnlColumns?)"]
-    end
-    
-    subgraph "BacktestMarkdownService"
-        BMS.getData["backtestMarkdownService.getData(symbol, strategyName)"]
-        BMS.getReport["backtestMarkdownService.getReport(symbol, strategyName, columns)"]
-        BMS.dump["backtestMarkdownService.dump(symbol, strategyName, path, columns)"]
-    end
-    
-    subgraph "LiveMarkdownService"
-        LMS.getData["liveMarkdownService.getData(symbol, strategyName)"]
-        LMS.getReport["liveMarkdownService.getReport(symbol, strategyName, columns)"]
-        LMS.dump["liveMarkdownService.dump(symbol, strategyName, path, columns)"]
-    end
-    
-    subgraph "WalkerMarkdownService"
-        WMS.getData["walkerMarkdownService.getData(walkerName, symbol, metric, context)"]
-        WMS.getReport["walkerMarkdownService.getReport(walkerName, symbol, metric, context, strategyColumns, pnlColumns)"]
-        WMS.dump["walkerMarkdownService.dump(walkerName, symbol, metric, context, path, strategyColumns, pnlColumns)"]
-    end
-    
-    Backtest.getData --> BMS.getData
-    Backtest.getReport --> BMS.getReport
-    Backtest.dump --> BMS.dump
-    
-    Live.getData --> LMS.getData
-    Live.getReport --> LMS.getReport
-    Live.dump --> LMS.dump
-    
-    Walker.getData --> WMS.getData
-    Walker.getReport --> WMS.getReport
-    Walker.dump --> WMS.dump
-```
+![Mermaid Diagram](./diagrams\40_reporting-monitoring_4.svg)
 
 **Example Usage:**
 
@@ -698,66 +454,7 @@ await Backtest.dump("BTCUSDT", "my-strategy", "./custom/path"); // Custom direct
 
 ### Utility Classes
 
-```mermaid
-graph TB
-    subgraph "Performance Utility"
-        Performance.getData["Performance.getData(symbol, strategyName)"]
-        Performance.getReport["Performance.getReport(symbol, strategyName, columns?)"]
-        Performance.dump["Performance.dump(symbol, strategyName, path?, columns?)"]
-    end
-    
-    subgraph "Heat Utility"
-        Heat.getData["Heat.getData(strategyName)"]
-        Heat.getReport["Heat.getReport(strategyName, columns?)"]
-        Heat.dump["Heat.dump(strategyName, path?, columns?)"]
-    end
-    
-    subgraph "Schedule Utility"
-        Schedule.getData["Schedule.getData(symbol, strategyName)"]
-        Schedule.getReport["Schedule.getReport(symbol, strategyName, columns?)"]
-        Schedule.dump["Schedule.dump(symbol, strategyName, path?, columns?)"]
-    end
-    
-    subgraph "Partial Utility"
-        Partial.getData["Partial.getData(symbol, strategyName)"]
-        Partial.getReport["Partial.getReport(symbol, strategyName, columns?)"]
-        Partial.dump["Partial.dump(symbol, strategyName, path?, columns?)"]
-    end
-    
-    subgraph "Risk Utility"
-        Risk.getData["Risk.getData(symbol, strategyName)"]
-        Risk.getReport["Risk.getReport(symbol, strategyName, columns?)"]
-        Risk.dump["Risk.dump(symbol, strategyName, path?, columns?)"]
-    end
-    
-    subgraph "Markdown Services"
-        PerformanceMarkdownService["performanceMarkdownService"]
-        HeatMarkdownService["heatMarkdownService"]
-        ScheduleMarkdownService["scheduleMarkdownService"]
-        PartialMarkdownService["partialMarkdownService"]
-        RiskMarkdownService["riskMarkdownService"]
-    end
-    
-    Performance.getData --> PerformanceMarkdownService
-    Performance.getReport --> PerformanceMarkdownService
-    Performance.dump --> PerformanceMarkdownService
-    
-    Heat.getData --> HeatMarkdownService
-    Heat.getReport --> HeatMarkdownService
-    Heat.dump --> HeatMarkdownService
-    
-    Schedule.getData --> ScheduleMarkdownService
-    Schedule.getReport --> ScheduleMarkdownService
-    Schedule.dump --> ScheduleMarkdownService
-    
-    Partial.getData --> PartialMarkdownService
-    Partial.getReport --> PartialMarkdownService
-    Partial.dump --> PartialMarkdownService
-    
-    Risk.getData --> RiskMarkdownService
-    Risk.getReport --> RiskMarkdownService
-    Risk.dump --> RiskMarkdownService
-```
+![Mermaid Diagram](./diagrams\40_reporting-monitoring_5.svg)
 
 **Example Usage:**
 
@@ -812,55 +509,7 @@ interface ColumnModel<T extends object = any> {
 
 ### Column Configuration System
 
-```mermaid
-graph TB
-    subgraph "Column Definitions"
-        COLUMN_CONFIG["COLUMN_CONFIG<br/>src/config/columns.ts"]
-        backtest_columns["backtest_columns: ColumnModel<IStrategyTickResultClosed>[]"]
-        live_columns["live_columns: ColumnModel<TickEvent>[]"]
-        walker_strategy_columns["walker_strategy_columns: ColumnModel<IStrategyResult>[]"]
-        walker_pnl_columns["walker_pnl_columns: ColumnModel<SignalData>[]"]
-        schedule_columns["schedule_columns: ColumnModel<ScheduledEvent>[]"]
-        heat_columns["heat_columns: ColumnModel<IHeatmapRow>[]"]
-        performance_columns["performance_columns: ColumnModel<MetricStats>[]"]
-        partial_columns["partial_columns: ColumnModel<PartialEvent>[]"]
-        risk_columns["risk_columns: ColumnModel<RiskEvent>[]"]
-    end
-    
-    subgraph "Usage in Services"
-        getReport["service.getReport(..., columns?)"]
-        dump["service.dump(..., columns?)"]
-    end
-    
-    subgraph "Report Generation"
-        filterVisible["Filter: col.isVisible()"]
-        buildHeader["Build header from col.label"]
-        formatRows["Format rows with col.format(data, index)"]
-        generateTable["Generate markdown table"]
-    end
-    
-    COLUMN_CONFIG --> backtest_columns
-    COLUMN_CONFIG --> live_columns
-    COLUMN_CONFIG --> walker_strategy_columns
-    COLUMN_CONFIG --> walker_pnl_columns
-    COLUMN_CONFIG --> schedule_columns
-    COLUMN_CONFIG --> heat_columns
-    COLUMN_CONFIG --> performance_columns
-    COLUMN_CONFIG --> partial_columns
-    COLUMN_CONFIG --> risk_columns
-    
-    backtest_columns --> getReport
-    live_columns --> getReport
-    walker_strategy_columns --> getReport
-    heat_columns --> getReport
-    
-    getReport --> filterVisible
-    dump --> filterVisible
-    
-    filterVisible --> buildHeader
-    buildHeader --> formatRows
-    formatRows --> generateTable
-```
+![Mermaid Diagram](./diagrams\40_reporting-monitoring_6.svg)
 
 ### Custom Column Example
 
@@ -959,40 +608,7 @@ setColumns(getDefaultColumns());
 
 Each markdown service uses a memoized `ReportStorage` instance per unique key. Storage is bounded by `MAX_EVENTS` constant (typically 250, except `PerformanceMarkdownService` which uses 10000).
 
-```mermaid
-graph TB
-    subgraph "Service Layer"
-        BacktestMarkdownService["BacktestMarkdownService"]
-        LiveMarkdownService["LiveMarkdownService"]
-        PerformanceMarkdownService["PerformanceMarkdownService"]
-    end
-    
-    subgraph "Memoization"
-        getStorage["getStorage = memoize(<br/>  (symbol, strategyName) => key,<br/>  () => new ReportStorage()<br/>)"]
-    end
-    
-    subgraph "Storage Instances"
-        Storage1["ReportStorage<br/>BTCUSDT:strategy-a<br/>Max 250 events"]
-        Storage2["ReportStorage<br/>ETHUSDT:strategy-a<br/>Max 250 events"]
-        Storage3["ReportStorage<br/>BTCUSDT:strategy-b<br/>Max 250 events"]
-    end
-    
-    subgraph "Queue Behavior"
-        addEvent["addEvent(data)<br/>Unshift to front"]
-        trimQueue["if length > MAX_EVENTS:<br/>  pop from back"]
-    end
-    
-    BacktestMarkdownService --> getStorage
-    LiveMarkdownService --> getStorage
-    PerformanceMarkdownService --> getStorage
-    
-    getStorage --> Storage1
-    getStorage --> Storage2
-    getStorage --> Storage3
-    
-    Storage1 --> addEvent
-    addEvent --> trimQueue
-```
+![Mermaid Diagram](./diagrams\40_reporting-monitoring_7.svg)
 
 **Storage Key Patterns:**
 

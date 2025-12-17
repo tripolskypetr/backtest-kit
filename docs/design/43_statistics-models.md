@@ -18,43 +18,7 @@ For information about the markdown services that generate these statistics, see 
 
 The framework provides eight distinct statistics models, each serving a specific reporting domain:
 
-```mermaid
-graph TB
-    subgraph "Core Trading Statistics"
-        BT[BacktestStatisticsModel<br/>Closed signals only<br/>Win rate, Sharpe, PNL]
-        LIVE[LiveStatisticsModel<br/>All events: idle, opened, active, closed<br/>Real-time monitoring]
-        WALK[WalkerStatisticsModel<br/>Multi-strategy comparison<br/>Best strategy selection]
-    end
-    
-    subgraph "Specialized Domain Statistics"
-        SCHED[ScheduleStatisticsModel<br/>Scheduled/opened/cancelled signals<br/>Activation rates]
-        PART[PartialStatisticsModel<br/>Profit/loss milestone tracking<br/>10%, 20%, 30%... levels]
-        RISK[RiskStatisticsModel<br/>Rejection events<br/>By symbol, by strategy]
-    end
-    
-    subgraph "Performance & Portfolio Statistics"
-        PERF[PerformanceStatisticsModel<br/>Execution timing metrics<br/>Bottleneck analysis]
-        HEAT[HeatmapStatisticsModel<br/>Portfolio-wide aggregation<br/>Per-symbol breakdown]
-    end
-    
-    BT --> |"getData()"| BTService[BacktestMarkdownService]
-    LIVE --> |"getData()"| LiveService[LiveMarkdownService]
-    WALK --> |"getData()"| WalkService[WalkerMarkdownService]
-    SCHED --> |"getData()"| SchedService[ScheduleMarkdownService]
-    PART --> |"getData()"| PartService[PartialMarkdownService]
-    RISK --> |"getData()"| RiskService[RiskMarkdownService]
-    PERF --> |"getData()"| PerfService[PerformanceMarkdownService]
-    HEAT --> |"getData()"| HeatService[HeatMarkdownService]
-    
-    BTService --> Storage[ReportStorage]
-    LiveService --> Storage
-    WalkService --> Storage
-    SchedService --> Storage
-    PartService --> Storage
-    RiskService --> Storage
-    PerfService --> Storage
-    HeatService --> Storage
-```
+![Mermaid Diagram](./diagrams\43_statistics-models_0.svg)
 
 
 ---
@@ -85,51 +49,7 @@ The `BacktestStatisticsModel` interface defines the canonical structure for back
 
 The calculation occurs in `BacktestMarkdownService.ts:100-168` within the `ReportStorage.getData()` method:
 
-```mermaid
-graph TD
-    A["signalList: IStrategyTickResultClosed[]"] --> B["Filter and Count"]
-    B --> C["winCount = filter(pnl > 0).length"]
-    B --> D["lossCount = filter(pnl < 0).length"]
-    
-    A --> E["Calculate Basic Stats"]
-    E --> F["avgPnl = sum(pnl) / totalSignals"]
-    E --> G["totalPnl = sum(pnl)"]
-    E --> H["winRate = (winCount / totalSignals) × 100"]
-    
-    F --> I["Calculate Variance"]
-    I --> J["variance = sum((pnl - avgPnl)²) / totalSignals"]
-    J --> K["stdDev = √variance"]
-    
-    K --> L["Calculate Sharpe Ratio"]
-    F --> L
-    L --> M["sharpeRatio = avgPnl / stdDev"]
-    M --> N["annualizedSharpeRatio = sharpeRatio × √365"]
-    
-    C --> O["Calculate Certainty Ratio"]
-    D --> O
-    O --> P["avgWin = sum(wins) / winCount"]
-    O --> Q["avgLoss = sum(losses) / lossCount"]
-    P --> R["certaintyRatio = avgWin / |avgLoss|"]
-    Q --> R
-    
-    A --> S["Calculate Duration"]
-    S --> T["avgDurationMs = sum(closeTime - pendingAt) / totalSignals"]
-    T --> U["avgDurationDays = avgDurationMs / (1000 × 60 × 60 × 24)"]
-    U --> V["tradesPerYear = 365 / avgDurationDays"]
-    V --> W["expectedYearlyReturns = avgPnl × tradesPerYear"]
-    F --> W
-    
-    H --> X["isUnsafe() check"]
-    F --> X
-    G --> X
-    K --> X
-    M --> X
-    N --> X
-    R --> X
-    W --> X
-    
-    X --> Y["Return BacktestStatisticsModel<br/>null for unsafe values"]
-```
+![Mermaid Diagram](./diagrams\43_statistics-models_1.svg)
 
 
 ### Safe Math Enforcement
@@ -190,42 +110,7 @@ The `WalkerStatisticsModel` aggregates results from multiple strategy backtests 
 
 ### Structure
 
-```mermaid
-classDiagram
-    class WalkerStatisticsModel {
-        +string walkerName
-        +string symbol
-        +string exchangeName
-        +string frameName
-        +WalkerMetric metric
-        +number totalStrategies
-        +string|null bestStrategy
-        +number|null bestMetric
-        +BacktestStatisticsModel|null bestStats
-        +IStrategyResult[] strategyResults
-    }
-    
-    class IStrategyResult {
-        +string strategyName
-        +BacktestStatisticsModel stats
-        +number|null metricValue
-    }
-    
-    class SignalData {
-        +string strategyName
-        +string signalId
-        +string symbol
-        +string position
-        +number pnl
-        +StrategyCloseReason closeReason
-        +number openTime
-        +number closeTime
-    }
-    
-    WalkerStatisticsModel "1" --> "*" IStrategyResult : strategyResults
-    IStrategyResult --> "1" BacktestStatisticsModel : stats
-    BacktestStatisticsModel --> "*" SignalData : extracted from signalList
-```
+![Mermaid Diagram](./diagrams\43_statistics-models_2.svg)
 
 
 ### Calculation Flow
@@ -370,44 +255,7 @@ The `PerformanceStatisticsModel` aggregates execution timing metrics for profili
 
 ### Structure
 
-```mermaid
-classDiagram
-    class PerformanceStatisticsModel {
-        +string strategyName
-        +number totalEvents
-        +number totalDuration
-        +Record~string_MetricStats~ metricStats
-        +PerformanceContract[] events
-    }
-    
-    class MetricStats {
-        +string metricType
-        +number count
-        +number totalDuration
-        +number avgDuration
-        +number minDuration
-        +number maxDuration
-        +number stdDev
-        +number median
-        +number p95
-        +number p99
-        +number avgWaitTime
-        +number minWaitTime
-        +number maxWaitTime
-    }
-    
-    class PerformanceContract {
-        +string|null symbol
-        +string|null strategyName
-        +PerformanceMetricType metricType
-        +number timestamp
-        +number|null previousTimestamp
-        +number duration
-    }
-    
-    PerformanceStatisticsModel "1" --> "*" MetricStats : metricStats
-    PerformanceStatisticsModel "1" --> "*" PerformanceContract : events
-```
+![Mermaid Diagram](./diagrams\43_statistics-models_3.svg)
 
 
 ### Percentile Calculation
@@ -439,37 +287,7 @@ The `HeatmapStatisticsModel` provides portfolio-wide aggregation across all symb
 
 ### Structure
 
-```mermaid
-classDiagram
-    class HeatmapStatisticsModel {
-        +IHeatmapRow[] symbols
-        +number totalSymbols
-        +number|null portfolioTotalPnl
-        +number|null portfolioSharpeRatio
-        +number portfolioTotalTrades
-    }
-    
-    class IHeatmapRow {
-        +string symbol
-        +number|null totalPnl
-        +number|null sharpeRatio
-        +number|null maxDrawdown
-        +number totalTrades
-        +number winCount
-        +number lossCount
-        +number|null winRate
-        +number|null avgPnl
-        +number|null stdDev
-        +number|null profitFactor
-        +number|null avgWin
-        +number|null avgLoss
-        +number maxWinStreak
-        +number maxLossStreak
-        +number|null expectancy
-    }
-    
-    HeatmapStatisticsModel "1" --> "*" IHeatmapRow : symbols
-```
+![Mermaid Diagram](./diagrams\43_statistics-models_4.svg)
 
 
 ### Per-Symbol Calculation
@@ -513,18 +331,7 @@ Each markdown service contains an internal `ReportStorage` class that:
 3. Implements `getReport()` generating markdown tables
 4. Implements `dump()` saving reports to disk
 
-```mermaid
-graph LR
-    A["Event Emitter<br/>(signalEmitter, etc.)"] --> B["MarkdownService.tick()"]
-    B --> C["ReportStorage.addEvent()"]
-    C --> D["_eventList / _signalList<br/>(internal storage)"]
-    D --> E["ReportStorage.getData()"]
-    E --> F["StatisticsModel"]
-    F --> G["ReportStorage.getReport()"]
-    G --> H["Markdown String"]
-    H --> I["ReportStorage.dump()"]
-    I --> J["File System<br/>(./dump/*)"]
-```
+![Mermaid Diagram](./diagrams\43_statistics-models_5.svg)
 
 
 ### Pattern 2: Memoized Storage Factory

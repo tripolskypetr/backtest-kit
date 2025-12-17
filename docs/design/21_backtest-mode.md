@@ -76,65 +76,7 @@ Consumes results internally without yielding. Useful for:
 
 The following diagram shows the class hierarchy and data flow from public API to private orchestration:
 
-```mermaid
-graph TB
-    subgraph "Public API Layer"
-        BT_Utils["BacktestUtils<br/>(singleton)"]
-        BT_Instance["BacktestInstance<br/>(per symbol:strategy)"]
-    end
-    
-    subgraph "Command Layer"
-        BT_Cmd["BacktestCommandService"]
-    end
-    
-    subgraph "Logic Layer"
-        BT_Logic_Pub["BacktestLogicPublicService"]
-        BT_Logic_Priv["BacktestLogicPrivateService"]
-    end
-    
-    subgraph "Core Services"
-        Strat_Core["StrategyCoreService"]
-        Exch_Core["ExchangeCoreService"]
-        Frame_Core["FrameCoreService"]
-    end
-    
-    subgraph "Context Services"
-        Method_Ctx["MethodContextService<br/>(strategyName, exchangeName, frameName)"]
-        Exec_Ctx["ExecutionContextService<br/>(symbol, when, backtest=true)"]
-    end
-    
-    subgraph "Markdown & Events"
-        BT_MD["BacktestMarkdownService"]
-        Progress_Emit["progressBacktestEmitter"]
-        Done_Emit["doneBacktestSubject"]
-        Perf_Emit["performanceEmitter"]
-    end
-    
-    BT_Utils -->|"run(symbol, context)"| BT_Instance
-    BT_Utils -->|"background(symbol, context)"| BT_Instance
-    
-    BT_Instance -->|"validate schemas"| BT_Cmd
-    BT_Cmd -->|"delegates to"| BT_Logic_Pub
-    BT_Logic_Pub -->|"wraps with context"| BT_Logic_Priv
-    
-    BT_Logic_Priv -->|"getTimeframe()"| Frame_Core
-    BT_Logic_Priv -->|"tick(symbol, when, true)"| Strat_Core
-    BT_Logic_Priv -->|"backtest(symbol, candles)"| Strat_Core
-    BT_Logic_Priv -->|"getNextCandles()"| Exch_Core
-    
-    Method_Ctx -.->|"provides context to"| Strat_Core
-    Exec_Ctx -.->|"provides context to"| Strat_Core
-    
-    BT_Logic_Priv -->|"emit progress"| Progress_Emit
-    BT_Instance -->|"emit done"| Done_Emit
-    BT_Logic_Priv -->|"emit metrics"| Perf_Emit
-    
-    Strat_Core -->|"emit closed signals"| BT_MD
-    
-    style BT_Utils fill:#e1f5ff
-    style BT_Logic_Priv fill:#ffe1e1
-    style Frame_Core fill:#f0f0f0
-```
+![Mermaid Diagram](./diagrams\21_backtest-mode_0.svg)
 
 **Key Components**:
 
@@ -151,65 +93,7 @@ graph TB
 
 The `BacktestLogicPrivateService.run()` method implements the core iteration logic:
 
-```mermaid
-graph TB
-    Start["BacktestLogicPrivateService.run()"]
-    GetFrames["frameCoreService.getTimeframe()<br/>(startDate → endDate at interval)"]
-    LoopStart{"i < timeframes.length"}
-    
-    GetFrame["when = timeframes[i]"]
-    EmitProgress["progressBacktestEmitter.next()<br/>(i / totalFrames)"]
-    
-    CheckStop1{"strategyCoreService.getStopped()?"}
-    
-    Tick["strategyCoreService.tick(symbol, when, true)"]
-    
-    CheckStop2{"result.action === 'idle'<br/>AND getStopped()?"}
-    
-    CheckScheduled{"result.action === 'scheduled'?"}
-    
-    FetchCandles["exchangeCoreService.getNextCandles()<br/>(bufferMinutes + awaitMinutes + lifetime + 1)"]
-    
-    Backtest["strategyCoreService.backtest()<br/>(symbol, candles, when, true)"]
-    
-    Skip["Skip timeframes:<br/>i = backtestResult.frameSkip"]
-    
-    Yield["yield backtestResult<br/>(IStrategyTickResultClosed)"]
-    
-    Increment["i++"]
-    
-    Done["Emit doneBacktestSubject<br/>Return"]
-    
-    Start --> GetFrames
-    GetFrames --> LoopStart
-    
-    LoopStart -->|"No"| Done
-    LoopStart -->|"Yes"| GetFrame
-    
-    GetFrame --> EmitProgress
-    EmitProgress --> CheckStop1
-    
-    CheckStop1 -->|"Yes"| Done
-    CheckStop1 -->|"No"| Tick
-    
-    Tick --> CheckStop2
-    CheckStop2 -->|"Yes"| Done
-    CheckStop2 -->|"No"| CheckScheduled
-    
-    CheckScheduled -->|"Yes"| FetchCandles
-    CheckScheduled -->|"No"| Increment
-    
-    FetchCandles --> Backtest
-    Backtest --> Skip
-    Skip --> Yield
-    Yield --> Increment
-    
-    Increment --> LoopStart
-    
-    style Start fill:#e1f5ff
-    style Backtest fill:#ffe1e1
-    style Yield fill:#ccffcc
-```
+![Mermaid Diagram](./diagrams\21_backtest-mode_1.svg)
 
 **Loop Variables**:
 
@@ -246,19 +130,7 @@ Where:
 
 ### Frame Skipping Logic
 
-```mermaid
-graph LR
-    Scheduled["Signal Scheduled<br/>(action='scheduled')"]
-    FetchN["Fetch N candles<br/>(buffer + await + lifetime + 1)"]
-    Backtest["backtest(symbol, candles, when)"]
-    Result["IStrategyBacktestResult<br/>{frameSkip, ...}"]
-    Skip["i = frameSkip<br/>(jump to frame after close)"]
-    
-    Scheduled --> FetchN
-    FetchN --> Backtest
-    Backtest --> Result
-    Result --> Skip
-```
+![Mermaid Diagram](./diagrams\21_backtest-mode_2.svg)
 
 **Example**:
 
@@ -317,15 +189,7 @@ interface ProgressBacktestContract {
 
 ### Emission Points
 
-```mermaid
-graph TB
-    LoopIteration["For each timeframe i"]
-    EmitProgress["progressBacktestEmitter.next()<br/>{<br/>  processedFrames: i,<br/>  totalFrames: timeframes.length,<br/>  progress: i / totalFrames<br/>}"]
-    ProcessFrame["Process frame i"]
-    
-    LoopIteration --> EmitProgress
-    EmitProgress --> ProcessFrame
-```
+![Mermaid Diagram](./diagrams\21_backtest-mode_3.svg)
 
 ### Subscribing to Progress
 
@@ -356,19 +220,7 @@ Backtest mode guarantees reproducible results through several mechanisms:
 
 The `ExecutionContextService` ensures strategies only access data up to the current `when` timestamp:
 
-```mermaid
-graph LR
-    GetCandles["getCandles(symbol, '1h', 24)"]
-    ExecCtx["ExecutionContextService<br/>(when = 2025-01-15 10:30:00)"]
-    ExchCore["ExchangeCoreService<br/>getCandles()"]
-    Filter["Return only candles<br/>WHERE timestamp <= when"]
-    Strategy["Strategy receives<br/>candles[0..23]<br/>(no future data)"]
-    
-    GetCandles --> ExecCtx
-    ExecCtx --> ExchCore
-    ExchCore --> Filter
-    Filter --> Strategy
-```
+![Mermaid Diagram](./diagrams\21_backtest-mode_4.svg)
 
 **Mechanism**: `AsyncLocalStorage` propagates `when` context through the call stack without explicit parameters. The exchange service automatically filters candles by timestamp.
 
@@ -417,31 +269,7 @@ Signals progress through different states during backtest execution. The behavio
 
 ### State Transitions
 
-```mermaid
-stateDiagram-v2
-    [*] --> Idle
-
-    Idle --> Scheduled: tick() returns action='scheduled'<br/>(priceOpen not reached)
-    Idle --> Opened: tick() returns action='opened'<br/>(priceOpen reached immediately)
-
-    Scheduled --> Cancelled: backtest() detects<br/>SL hit before activation or<br/>timeout or manual cancellation
-    Scheduled --> Opened: backtest() detects<br/>price reaches priceOpen
-
-    Opened --> Closed: backtest() detects<br/>priceTakeProfit reached or<br/>priceStopLoss reached or<br/>minuteEstimatedTime expired
-
-    Cancelled --> Idle: No PNL calculated
-    Closed --> Idle: PNL calculated, yield result
-
-    note right of Scheduled
-        NOT persisted<br/>
-        Monitored in bulk via backtest()
-    end note
-
-    note right of Opened
-        NOT persisted (backtest mode)<br/>
-        Processed in single backtest() call
-    end note
-```
+![Mermaid Diagram](./diagrams\21_backtest-mode_5.svg)
 
 ### Key Differences from Live Mode
 
@@ -485,29 +313,7 @@ interface IStrategyBacktestResult {
 
 Before execution, the system validates all schema references:
 
-```mermaid
-graph TB
-    Run["Backtest.run()"]
-    
-    Val1["strategyValidationService.validate()"]
-    Val2["exchangeValidationService.validate()"]
-    Val3["frameValidationService.validate()"]
-    Val4["riskValidationService.validate()"]
-    
-    Throw["Throw Error<br/>(schema not found)"]
-    
-    Execute["Execute backtest"]
-    
-    Run --> Val1
-    Val1 -->|"Not found"| Throw
-    Val1 -->|"Found"| Val2
-    Val2 -->|"Not found"| Throw
-    Val2 -->|"Found"| Val3
-    Val3 -->|"Not found"| Throw
-    Val3 -->|"Found"| Val4
-    Val4 -->|"Not found"| Throw
-    Val4 -->|"Found"| Execute
-```
+![Mermaid Diagram](./diagrams\21_backtest-mode_6.svg)
 
 ### Runtime Error Handling
 
@@ -541,29 +347,7 @@ This ensures a single bad candle or strategy error doesn't halt the entire backt
 
 The `BacktestUtils` class uses memoization to ensure one `BacktestInstance` per `symbol:strategyName` pair:
 
-```mermaid
-graph TB
-    Call1["Backtest.run('BTCUSDT', {strategyName: 'strat-a'})"]
-    Call2["Backtest.run('BTCUSDT', {strategyName: 'strat-a'})"]
-    Call3["Backtest.run('ETHUSDT', {strategyName: 'strat-a'})"]
-    
-    GetInst["_getInstance(symbol, strategyName)"]
-    Memo{"Memoized instance exists?"}
-    
-    Create["new BacktestInstance(symbol, strategyName)"]
-    Return["Return cached instance"]
-    
-    Call1 --> GetInst
-    Call2 --> GetInst
-    Call3 --> GetInst
-    
-    GetInst --> Memo
-    
-    Memo -->|"No"| Create
-    Memo -->|"Yes"| Return
-    
-    Create --> Return
-```
+![Mermaid Diagram](./diagrams\21_backtest-mode_7.svg)
 
 **Memoization Key**: `${symbol}:${strategyName}`
 

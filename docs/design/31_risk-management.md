@@ -15,40 +15,7 @@ For strategy development patterns, see [Strategy Development](./25_strategy-deve
 
 The risk system integrates into the signal lifecycle as a **pre-execution validation gate**. All signals pass through validation before being scheduled or opened, ensuring that only compliant signals reach the market.
 
-```mermaid
-graph TB
-    GS["getSignal()"]
-    VS["validateSignal()"]
-    RC["checkSignal()"]
-    RV["Custom Validations"]
-    RS["Risk State Tracking"]
-    SCHED["Scheduled Signal"]
-    OPEN["Opened Signal"]
-    REJ["Rejected Signal"]
-    
-    GS -->|"Returns ISignalDto"| VS
-    VS -->|"Multi-stage checks"| VS_PRICE["Price Validation"]
-    VS_PRICE -->|"GLOBAL_CONFIG rules"| VS_TPSL["TP/SL Logic"]
-    VS_TPSL -->|"Distance checks"| VS_LIFE["Lifetime Limits"]
-    
-    VS_LIFE -->|"Pass"| RC
-    VS_LIFE -->|"Fail"| REJ
-    
-    RC -->|"IRiskCheckArgs"| RV
-    RV -->|"Custom checks"| RS
-    
-    RS -->|"Portfolio limits OK"| DECISION{{"priceOpen specified?"}}
-    RS -->|"Limit exceeded"| REJ
-    
-    DECISION -->|"Yes"| SCHED
-    DECISION -->|"No"| OPEN
-    
-    REJ -->|"Emit"| RISK_EVENT["riskSubject"]
-    
-    style VS fill:#fff3cd
-    style RC fill:#ffe1e1
-    style REJ fill:#ffcccc
-```
+![Mermaid Diagram](./diagrams\31_risk-management_0.svg)
 
 
 ---
@@ -104,48 +71,7 @@ The validation payload provides complete context for risk decisions:
 
 Before risk profile validation, signals pass through a **7-stage validation pipeline** enforced by `GLOBAL_CONFIG` parameters. This pipeline catches common errors and ensures signals meet minimum quality thresholds.
 
-```mermaid
-graph LR
-    START["ISignalDto from getSignal()"]
-    V1["1. Price Positivity"]
-    V2["2. TP/SL Logic"]
-    V3["3. TP Distance"]
-    V4["4. SL Min Distance"]
-    V5["5. SL Max Distance"]
-    V6["6. Lifetime Limit"]
-    V7["7. Candle Anomaly"]
-    RISK["8. Custom Risk Validations"]
-    PASS["Signal Accepted"]
-    FAIL["Signal Rejected"]
-    
-    START --> V1
-    V1 -->|"Prices > 0, finite, not NaN"| V2
-    V1 -.->|"Fail"| FAIL
-    
-    V2 -->|"LONG: TP>open>SL<br/>SHORT: SL>open>TP"| V3
-    V2 -.->|"Fail"| FAIL
-    
-    V3 -->|"TP distance >= CC_MIN_TAKEPROFIT_DISTANCE_PERCENT"| V4
-    V3 -.->|"Fail"| FAIL
-    
-    V4 -->|"SL distance >= CC_MIN_STOPLOSS_DISTANCE_PERCENT"| V5
-    V4 -.->|"Fail"| FAIL
-    
-    V5 -->|"SL distance <= CC_MAX_STOPLOSS_DISTANCE_PERCENT"| V6
-    V5 -.->|"Fail"| FAIL
-    
-    V6 -->|"minuteEstimatedTime <= CC_MAX_SIGNAL_LIFETIME_MINUTES"| V7
-    V6 -.->|"Fail"| FAIL
-    
-    V7 -->|"No anomalous candle prices"| RISK
-    V7 -.->|"Fail"| FAIL
-    
-    RISK -->|"All validations pass"| PASS
-    RISK -.->|"Any throws"| FAIL
-    
-    style FAIL fill:#ffcccc
-    style PASS fill:#ccffcc
-```
+![Mermaid Diagram](./diagrams\31_risk-management_1.svg)
 
 
 ### Validation Stage Details
@@ -320,44 +246,7 @@ addRisk({
 
 ### RiskGlobalService Architecture
 
-```mermaid
-graph TB
-    subgraph "Signal Lifecycle"
-        OPEN["Signal Opened"]
-        ACTIVE["Active Monitoring"]
-        CLOSE["Signal Closed"]
-    end
-    
-    subgraph "RiskGlobalService"
-        REGISTRY["Active Position Registry<br/>Map<signalId, IRiskActivePosition>"]
-        ADD["addSignal()"]
-        REMOVE["removeSignal()"]
-        CHECK["checkSignal()"]
-    end
-    
-    subgraph "Validation Context"
-        COUNT["activePositionCount"]
-        POSITIONS["activePositions[]"]
-        PAYLOAD["IRiskValidationPayload"]
-    end
-    
-    OPEN -->|"Call"| ADD
-    ADD -->|"Store"| REGISTRY
-    
-    CHECK -->|"Read"| REGISTRY
-    REGISTRY -->|"Compute"| COUNT
-    REGISTRY -->|"Provide"| POSITIONS
-    COUNT --> PAYLOAD
-    POSITIONS --> PAYLOAD
-    
-    ACTIVE -->|"Periodic"| CHECK
-    
-    CLOSE -->|"Call"| REMOVE
-    REMOVE -->|"Delete"| REGISTRY
-    
-    style REGISTRY fill:#fff3cd
-    style PAYLOAD fill:#e1f5ff
-```
+![Mermaid Diagram](./diagrams\31_risk-management_2.svg)
 
 
 ### IRiskActivePosition Structure
@@ -396,32 +285,7 @@ interface IRisk {
 
 When a strategy specifies `riskList` instead of `riskName`, the system uses `MergeRisk` to combine multiple risk profiles. All validations from all profiles must pass for the signal to be accepted.
 
-```mermaid
-graph LR
-    SIGNAL["Pending Signal"]
-    MERGE["MergeRisk"]
-    RISK1["Risk Profile 1"]
-    RISK2["Risk Profile 2"]
-    RISK3["Risk Profile 3"]
-    ALL_PASS{{"All Pass?"}}
-    ACCEPT["Signal Accepted"]
-    REJECT["Signal Rejected"]
-    
-    SIGNAL --> MERGE
-    MERGE --> RISK1
-    MERGE --> RISK2
-    MERGE --> RISK3
-    
-    RISK1 --> ALL_PASS
-    RISK2 --> ALL_PASS
-    RISK3 --> ALL_PASS
-    
-    ALL_PASS -->|"Yes"| ACCEPT
-    ALL_PASS -->|"No"| REJECT
-    
-    style REJECT fill:#ffcccc
-    style ACCEPT fill:#ccffcc
-```
+![Mermaid Diagram](./diagrams\31_risk-management_3.svg)
 
 **Example:**
 ```typescript
@@ -469,26 +333,7 @@ listenRisk((event) => {
 
 ### Risk Event Flow
 
-```mermaid
-sequenceDiagram
-    participant Strategy as ClientStrategy
-    participant Risk as ClientRisk
-    participant Custom as Custom Validations
-    participant Emit as riskSubject
-    participant User as Event Listeners
-    
-    Strategy->>Risk: checkSignal(params)
-    Risk->>Custom: Execute validations
-    
-    alt Validation Throws Error
-        Custom-->>Risk: throw new Error(reason)
-        Risk->>Emit: Emit RiskContract
-        Emit->>User: listenRisk(event)
-        Risk-->>Strategy: return false
-    else All Pass
-        Risk-->>Strategy: return true
-    end
-```
+![Mermaid Diagram](./diagrams\31_risk-management_4.svg)
 
 
 ---
@@ -539,28 +384,7 @@ When a validation function throws an error, the signal is **immediately rejected
 
 ### Error Propagation
 
-```mermaid
-graph TB
-    VAL["Validation Function"]
-    THROW["throw new Error(reason)"]
-    CATCH["Catch in ClientRisk.checkSignal()"]
-    LOG["Log rejection"]
-    EMIT["Emit riskSubject"]
-    CB["Call callbacks.onRejected()"]
-    RETURN["Return false"]
-    STRAT["Strategy continues"]
-    
-    VAL --> THROW
-    THROW --> CATCH
-    CATCH --> LOG
-    LOG --> EMIT
-    EMIT --> CB
-    CB --> RETURN
-    RETURN --> STRAT
-    
-    style THROW fill:#ffcccc
-    style RETURN fill:#ffffcc
-```
+![Mermaid Diagram](./diagrams\31_risk-management_5.svg)
 
 **Important:** Risk validation errors are **non-fatal**. The system continues executing and will attempt to generate new signals on the next tick (subject to `interval` throttling).
 

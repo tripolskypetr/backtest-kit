@@ -100,47 +100,7 @@ addStrategy({
 
 ### Timeframe Relationship Diagram
 
-```mermaid
-graph TD
-    subgraph "Strategy Execution Context"
-        WHEN["ExecutionContext.when<br/>Current timestamp"]
-    end
-    
-    subgraph "Multi-Timeframe getCandles Calls"
-        GET_1H["getCandles(symbol, '1h', 24)<br/>Returns 24 hourly candles"]
-        GET_15M["getCandles(symbol, '15m', 48)<br/>Returns 48 15-min candles"]
-        GET_5M["getCandles(symbol, '5m', 60)<br/>Returns 60 5-min candles"]
-        GET_1M["getCandles(symbol, '1m', 60)<br/>Returns 60 1-min candles"]
-    end
-    
-    subgraph "Temporal Filtering"
-        FILTER["All candles filtered:<br/>candle.timestamp <= when"]
-    end
-    
-    subgraph "Analysis Layers"
-        TREND["Trend Analysis<br/>Higher timeframe (1h)<br/>Direction, strength"]
-        MOMENTUM["Momentum Analysis<br/>Medium timeframe (15m)<br/>Acceleration, divergence"]
-        ENTRY["Entry Timing<br/>Lower timeframes (5m, 1m)<br/>Precise entry/exit"]
-    end
-    
-    WHEN --> GET_1H
-    WHEN --> GET_15M
-    WHEN --> GET_5M
-    WHEN --> GET_1M
-    
-    GET_1H --> FILTER
-    GET_15M --> FILTER
-    GET_5M --> FILTER
-    GET_1M --> FILTER
-    
-    FILTER --> TREND
-    FILTER --> MOMENTUM
-    FILTER --> ENTRY
-    
-    TREND --> DECISION["Signal Decision<br/>Combine all timeframes"]
-    MOMENTUM --> DECISION
-    ENTRY --> DECISION
-```
+![Mermaid Diagram](./diagrams\29_multi-timeframe-analysis_0.svg)
 
 
 ---
@@ -151,43 +111,7 @@ graph TD
 
 The framework uses Node.js `AsyncLocalStorage` (via `di-scoped` library) to propagate temporal context without explicit parameter passing. This ensures `getCandles()` always knows the "current time" regardless of call depth.
 
-```mermaid
-graph TD
-    subgraph "Backtest/Live Logic Layer"
-        BACKTEST["BacktestLogicPrivateService<br/>or LiveLogicPrivateService"]
-        SET_CTX["executionContextService.run()<br/>Sets: symbol, when, backtest"]
-    end
-    
-    subgraph "AsyncLocalStorage Context (di-scoped)"
-        STORAGE["AsyncLocalStorage<br/>{ symbol, when, backtest }"]
-    end
-    
-    subgraph "Strategy Execution"
-        STRATEGY["ClientStrategy.tick()<br/>Calls getSignal()"]
-        GET_SIGNAL["User's getSignal function<br/>Calls getCandles()"]
-    end
-    
-    subgraph "Exchange Core Service"
-        EXCHANGE_CORE["ExchangeCoreService.getCandles()"]
-        READ_CTX["executionContextService.context<br/>Reads: when"]
-        CLIENT_EXCH["ClientExchange.getCandles()"]
-        FILTER_CANDLES["Filter: candle.timestamp <= when"]
-    end
-    
-    BACKTEST --> SET_CTX
-    SET_CTX --> STORAGE
-    
-    STORAGE -.->|"Ambient propagation"| STRATEGY
-    STRATEGY --> GET_SIGNAL
-    GET_SIGNAL --> EXCHANGE_CORE
-    
-    EXCHANGE_CORE --> READ_CTX
-    READ_CTX --> STORAGE
-    READ_CTX --> CLIENT_EXCH
-    CLIENT_EXCH --> FILTER_CANDLES
-    
-    FILTER_CANDLES --> RETURN["Return filtered candles<br/>No future data"]
-```
+![Mermaid Diagram](./diagrams\29_multi-timeframe-analysis_1.svg)
 
 **Key insight**: The `when` timestamp is set once at the start of each tick, then automatically available throughout the call stack. User code never needs to pass or track timestamps manually.
 
@@ -342,55 +266,7 @@ In live trading mode, `getCandles()` makes real API calls to exchanges. Be aware
 
 ### End-to-End Data Flow
 
-```mermaid
-graph TB
-    subgraph "Strategy Layer"
-        USER["User's getSignal function<br/>await getCandles(symbol, '1h', 24)"]
-    end
-    
-    subgraph "Public API Layer"
-        PUBLIC_API["getCandles() function<br/>src/functions/getCandles.ts"]
-    end
-    
-    subgraph "Service Layer"
-        EXEC_CTX["ExecutionContextService<br/>context.when (timestamp)<br/>context.backtest (boolean)"]
-        METHOD_CTX["MethodContextService<br/>context.exchangeName"]
-        EXCH_CORE["ExchangeCoreService<br/>getCandles(symbol, interval, limit)"]
-    end
-    
-    subgraph "Client Layer"
-        EXCH_CONN["ExchangeConnectionService<br/>Memoized exchange instances"]
-        CLIENT_EXCH["ClientExchange<br/>getCandles() implementation"]
-    end
-    
-    subgraph "External Integration"
-        EXCHANGE_SCHEMA["IExchangeSchema<br/>User-defined getCandles<br/>(CCXT integration)"]
-        CCXT["Exchange API<br/>(Binance, etc.)"]
-    end
-    
-    subgraph "Temporal Filtering"
-        FILTER["Filter candles:<br/>timestamp <= context.when"]
-        CACHE["Memoized results:<br/>symbol:interval:limit"]
-    end
-    
-    USER --> PUBLIC_API
-    PUBLIC_API --> EXCH_CORE
-    
-    EXCH_CORE --> EXEC_CTX
-    EXCH_CORE --> METHOD_CTX
-    EXCH_CORE --> EXCH_CONN
-    
-    EXCH_CONN --> CLIENT_EXCH
-    CLIENT_EXCH --> EXCHANGE_SCHEMA
-    EXCHANGE_SCHEMA --> CCXT
-    
-    CCXT --> CLIENT_EXCH
-    CLIENT_EXCH --> FILTER
-    
-    FILTER --> EXEC_CTX
-    FILTER --> CACHE
-    CACHE --> USER
-```
+![Mermaid Diagram](./diagrams\29_multi-timeframe-analysis_2.svg)
 
 **Key components**:
 

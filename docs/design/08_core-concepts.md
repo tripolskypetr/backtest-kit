@@ -36,14 +36,7 @@ Strategies return `ISignalDto` objects `types.d.ts:650-665` where `id` and `pric
 - Defaulted `priceOpen` (current VWAP if omitted)
 - Metadata: `exchangeName`, `strategyName`, `scheduledAt`, `pendingAt`, `symbol`, `_isScheduled`
 
-```mermaid
-graph LR
-    A["getSignal()"] -->|returns| B["ISignalDto"]
-    B -->|validation| C["ISignalRow"]
-    B -->|priceOpen=null| D["IScheduledSignalRow"]
-    C --> E["Active Trading"]
-    D --> F["Waiting for Activation"]
-```
+![Mermaid Diagram](./diagrams\08_core-concepts_0.svg)
 
 **Immediate vs Scheduled Signals**
 
@@ -59,44 +52,7 @@ Signals progress through a multi-stage lifecycle with comprehensive validation b
 
 ### Lifecycle Diagram
 
-```mermaid
-stateDiagram-v2
-    [*] --> Idle: "No active signal"
-    
-    Idle --> ValidateSchema: "getSignal returns signal"
-    
-    ValidateSchema --> ValidatePositive: "Check prices > 0"
-    ValidatePositive --> ValidateTPSL: "Check TP/SL logic"
-    ValidateTPSL --> ValidateDistance: "Check TP distance >= MIN"
-    ValidateDistance --> ValidateSLRange: "Check SL distance <= MAX"
-    ValidateSLRange --> ValidateLifetime: "Check lifetime <= MAX"
-    ValidateLifetime --> CheckRisk: "GLOBAL_CONFIG validated"
-    
-    CheckRisk --> Rejected: "Risk checks fail"
-    CheckRisk --> Scheduled: "priceOpen not reached"
-    CheckRisk --> Opened: "priceOpen reached"
-    
-    Scheduled --> Opened: "Price reaches priceOpen"
-    Scheduled --> Cancelled: "SL hit or timeout"
-    
-    Opened --> Active: "Persist signal"
-    
-    Active --> PartialProfit: "10%, 20%, 30%..."
-    Active --> PartialLoss: "-10%, -20%, -30%..."
-    
-    PartialProfit --> Active: "Continue monitoring"
-    PartialLoss --> Active: "Continue monitoring"
-    
-    Active --> Closed_TP: "priceTakeProfit reached"
-    Active --> Closed_SL: "priceStopLoss reached"
-    Active --> Closed_Time: "minuteEstimatedTime expired"
-    
-    Closed_TP --> Idle: "Calculate PNL"
-    Closed_SL --> Idle: "Calculate PNL"
-    Closed_Time --> Idle: "Calculate PNL"
-    Cancelled --> Idle: "No PNL"
-    Rejected --> Idle: "Log error"
-```
+![Mermaid Diagram](./diagrams\08_core-concepts_1.svg)
 
 ### Validation Stages
 
@@ -138,22 +94,7 @@ Every call to `ClientStrategy.tick()` returns a discriminated union result `type
 
 ### Result Types
 
-```mermaid
-graph TD
-    A["IStrategyTickResult"] --> B["IStrategyTickResultIdle"]
-    A --> C["IStrategyTickResultScheduled"]
-    A --> D["IStrategyTickResultOpened"]
-    A --> E["IStrategyTickResultActive"]
-    A --> F["IStrategyTickResultClosed"]
-    A --> G["IStrategyTickResultCancelled"]
-    
-    B --> H["action: 'idle'<br/>signal: null"]
-    C --> I["action: 'scheduled'<br/>signal: IScheduledSignalRow"]
-    D --> J["action: 'opened'<br/>signal: ISignalRow"]
-    E --> K["action: 'active'<br/>signal: ISignalRow<br/>percentTp, percentSl"]
-    F --> L["action: 'closed'<br/>signal: ISignalRow<br/>closeReason, pnl"]
-    G --> M["action: 'cancelled'<br/>signal: IScheduledSignalRow"]
-```
+![Mermaid Diagram](./diagrams\08_core-concepts_2.svg)
 
 ### Type-Safe Pattern Matching
 
@@ -225,14 +166,7 @@ It returns:
 - `ISignalDto` object if conditions met
 - `null` if no signal
 
-```mermaid
-graph LR
-    A["getSignal(symbol, when)"] --> B{"Analyze<br/>Market Data"}
-    B -->|conditions met| C["return ISignalDto"]
-    B -->|no signal| D["return null"]
-    C --> E["Validation Pipeline"]
-    D --> F["IStrategyTickResultIdle"]
-```
+![Mermaid Diagram](./diagrams\08_core-concepts_3.svg)
 
 **Interval Throttling**
 
@@ -274,23 +208,7 @@ Backtest-kit uses **scoped context services** to propagate ambient information t
 
 ### Context Architecture
 
-```mermaid
-graph TB
-    A["User Code"] --> B["Backtest.run(symbol, context)"]
-    B --> C["MethodContextService.runAsyncIterator()"]
-    C --> D["ExecutionContextService.runInContext()"]
-    D --> E["ClientStrategy.tick()"]
-    E --> F["ClientExchange.getCandles()"]
-    
-    C -.->|sets| G["MethodContext:<br/>strategyName<br/>exchangeName<br/>frameName"]
-    D -.->|sets| H["ExecutionContext:<br/>symbol<br/>when<br/>backtest"]
-    
-    F -.->|reads| G
-    F -.->|reads| H
-    
-    style G fill:#fff,stroke:#333,stroke-dasharray: 5 5
-    style H fill:#fff,stroke:#333,stroke-dasharray: 5 5
-```
+![Mermaid Diagram](./diagrams\08_core-concepts_4.svg)
 
 ### ExecutionContext
 
@@ -370,21 +288,7 @@ Backtest-kit is fundamentally a **time execution engine**, not a data-processing
 
 ### Conceptual Model
 
-```mermaid
-graph LR
-    A["Time Stream"] --> B["t₀"]
-    B --> C["t₁"]
-    C --> D["t₂"]
-    D --> E["t₃"]
-    E --> F["..."]
-    
-    B -.->|ExecutionContext| G["strategy.tick(symbol, t₀)"]
-    C -.->|ExecutionContext| H["strategy.tick(symbol, t₁)"]
-    D -.->|ExecutionContext| I["strategy.tick(symbol, t₂)"]
-    
-    G --> J["getCandles(symbol, '1m', 100)"]
-    J -.->|returns data ≤ t₀| K["Candles up to t₀"]
-```
+![Mermaid Diagram](./diagrams\08_core-concepts_5.svg)
 
 **Key Principle**: At timestamp `t`, all operations see only data from timestamps `≤ t`. The `ExecutionContextService` enforces this constraint throughout the call stack.
 
@@ -432,15 +336,7 @@ graph LR
 
 The framework models execution as an **async generator** that yields results progressively:
 
-```mermaid
-graph LR
-    A["Backtest.run(symbol, context)"] --> B["AsyncGenerator<IStrategyTickResult>"]
-    B --> C["yield result₁"]
-    C --> D["yield result₂"]
-    D --> E["yield result₃"]
-    E --> F["yield result₄"]
-    F --> G["return"]
-```
+![Mermaid Diagram](./diagrams\08_core-concepts_6.svg)
 
 This design enables:
 - **Memory efficiency**: No accumulation of results in memory
@@ -457,15 +353,7 @@ All entry and exit prices use **Volume Weighted Average Price (VWAP)** calculate
 
 ### VWAP Calculation
 
-```mermaid
-graph TB
-    A["ClientExchange.getAveragePrice()"] --> B["Fetch last 5 1-minute candles"]
-    B --> C["For each candle:<br/>Typical Price = (High + Low + Close) / 3"]
-    C --> D["Numerator = Σ(Typical Price × Volume)"]
-    C --> E["Denominator = Σ(Volume)"]
-    D --> F["VWAP = Numerator / Denominator"]
-    E --> F
-```
+![Mermaid Diagram](./diagrams\08_core-concepts_7.svg)
 
 **Formula**:
 
@@ -485,17 +373,7 @@ Where `i` ranges over the last 5 one-minute candles.
 
 ### Usage in Signal Processing
 
-```mermaid
-graph LR
-    A["ClientStrategy.tick()"] --> B["Get VWAP"]
-    B --> C{"Signal State?"}
-    C -->|Idle| D["Call getSignal()"]
-    D --> E["Use VWAP as default priceOpen"]
-    C -->|Active| F["Check TP/SL against VWAP"]
-    F --> G{"VWAP reached TP/SL?"}
-    G -->|Yes| H["Close signal"]
-    G -->|No| I["Continue monitoring"]
-```
+![Mermaid Diagram](./diagrams\08_core-concepts_8.svg)
 
 **Price Application**:
 - **Signal creation**: If `priceOpen` omitted, defaults to current VWAP
@@ -536,19 +414,7 @@ Backtest-kit enforces a critical constraint: **only ONE active signal per symbol
 
 ### Constraint Enforcement
 
-```mermaid
-graph TD
-    A["ClientStrategy.tick()"] --> B{"Has active signal?"}
-    B -->|Yes| C["Monitor TP/SL/time"]
-    B -->|No| D["Check interval throttle"]
-    D -->|Too soon| E["Return idle result"]
-    D -->|Interval passed| F["Call getSignal()"]
-    F -->|Returns null| E
-    F -->|Returns signal| G["Validate and open"]
-    C -->|Not closed| H["Return active result"]
-    C -->|Closed| I["Clear signal"]
-    I --> D
-```
+![Mermaid Diagram](./diagrams\08_core-concepts_9.svg)
 
 **Implementation**: `ClientStrategy` `src/client/ClientStrategy.ts` maintains `_pendingSignal` field. If non-null, `getSignal()` is never called.
 
@@ -556,14 +422,7 @@ graph TD
 
 After a signal opens in backtest mode, the system uses `ClientStrategy.backtest()` method to efficiently process the signal until closure:
 
-```mermaid
-graph LR
-    A["Signal opens at t₀"] --> B["Fetch future candles"]
-    B --> C["Process bulk candles"]
-    C --> D["Find TP/SL/time close"]
-    D --> E["Skip timeframes from t₀ to t_close"]
-    E --> F["Resume at t_close + 1"]
-```
+![Mermaid Diagram](./diagrams\08_core-concepts_10.svg)
 
 This optimization prevents thousands of unnecessary ticks while a signal is active.
 

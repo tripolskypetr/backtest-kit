@@ -35,46 +35,7 @@ The strategy schema consists of seven primary properties:
 
 ### Strategy Schema Component Relationships
 
-```mermaid
-graph TB
-    subgraph "IStrategySchema Definition"
-        Schema["IStrategySchema"]
-        Schema --> StrategyName["strategyName: string<br/>(required, unique)"]
-        Schema --> Note["note?: string<br/>(optional documentation)"]
-        Schema --> Interval["interval: SignalInterval<br/>(required throttling)"]
-        Schema --> GetSignal["getSignal: function<br/>(required logic)"]
-        Schema --> Callbacks["callbacks?: Partial&lt;IStrategyCallbacks&gt;<br/>(optional event handlers)"]
-        Schema --> RiskName["riskName?: string<br/>(optional single risk profile)"]
-        Schema --> RiskList["riskList?: string[]<br/>(optional multiple risk profiles)"]
-    end
-    
-    subgraph "Registration Flow"
-        AddStrategy["addStrategy(schema)"]
-        Validate["StrategyValidationService.validateStrategySchema()"]
-        Store["StrategySchemaService.setStrategy()"]
-        Registry["ToolRegistry&lt;IStrategySchema&gt;"]
-    end
-    
-    subgraph "Runtime Usage"
-        Connection["StrategyConnectionService"]
-        ClientStrat["ClientStrategy instance"]
-        Core["StrategyCoreService"]
-    end
-    
-    Schema --> AddStrategy
-    AddStrategy --> Validate
-    Validate --> Store
-    Store --> Registry
-    
-    Registry -.->|retrieves schema| Connection
-    Connection -->|instantiates| ClientStrat
-    Core -->|orchestrates| Connection
-    
-    GetSignal -.->|implemented in| ClientStrat
-    Callbacks -.->|invoked by| ClientStrat
-    RiskName -.->|passed to| ClientStrat
-    RiskList -.->|passed to| ClientStrat
-```
+![Mermaid Diagram](./diagrams\26_strategy-schema-definition_0.svg)
 
 
 ---
@@ -130,27 +91,7 @@ When `ClientStrategy.tick()` is called repeatedly (in live mode), the framework 
 
 ### Throttling Implementation Flow
 
-```mermaid
-graph TB
-    Tick["ClientStrategy.tick()"]
-    CheckActive{"Active signal<br/>exists?"}
-    CheckInterval{"Interval<br/>elapsed?"}
-    CallGetSignal["Call getSignal()"]
-    MonitorSignal["Monitor TP/SL/Time"]
-    ReturnActive["Return active result"]
-    ReturnIdle["Return idle result"]
-    
-    Tick --> CheckActive
-    CheckActive -->|Yes| MonitorSignal
-    CheckActive -->|No| CheckInterval
-    CheckInterval -->|Yes| CallGetSignal
-    CheckInterval -->|No| ReturnIdle
-    MonitorSignal --> ReturnActive
-    CallGetSignal --> MonitorSignal
-    
-    Note1["Interval check compares<br/>current time vs last getSignal<br/>invocation timestamp"]
-    CheckInterval -.-> Note1
-```
+![Mermaid Diagram](./diagrams\26_strategy-schema-definition_1.svg)
 
 
 ---
@@ -217,36 +158,7 @@ When `priceOpen` **is provided**, the signal becomes scheduled. The framework:
 
 ### Signal Generation Decision Tree
 
-```mermaid
-graph TB
-    GetSignal["getSignal(symbol, when)"]
-    CheckMarket{"Analyze market<br/>conditions"}
-    ReturnNull["return null"]
-    CreateDto["Create ISignalDto"]
-    SetPriceOpen{"Include<br/>priceOpen?"}
-    ImmediateEntry["Immediate Entry<br/>priceOpen = undefined"]
-    ScheduledEntry["Scheduled Entry<br/>priceOpen = specific price"]
-    
-    Validation["Multi-stage validation<br/>TP/SL logic, distances,<br/>GLOBAL_CONFIG checks"]
-    RiskCheck["Risk validation<br/>portfolio limits,<br/>custom rules"]
-    
-    OpenImmediate["IStrategyTickResultOpened<br/>signal persisted"]
-    CreateScheduled["IStrategyTickResultScheduled<br/>NOT persisted, monitored"]
-    
-    GetSignal --> CheckMarket
-    CheckMarket -->|"No opportunity"| ReturnNull
-    CheckMarket -->|"Opportunity found"| CreateDto
-    CreateDto --> SetPriceOpen
-    SetPriceOpen -->|No| ImmediateEntry
-    SetPriceOpen -->|Yes| ScheduledEntry
-    
-    ImmediateEntry --> Validation
-    ScheduledEntry --> Validation
-    
-    Validation --> RiskCheck
-    RiskCheck -->|Immediate| OpenImmediate
-    RiskCheck -->|Scheduled| CreateScheduled
-```
+![Mermaid Diagram](./diagrams\26_strategy-schema-definition_2.svg)
 
 
 ---
@@ -306,43 +218,7 @@ The `callbacks` property allows you to register event handlers that are invoked 
 
 ### Callback Lifecycle Flow
 
-```mermaid
-stateDiagram-v2
-    [*] --> Idle: No active signal
-    
-    Idle --> onTick_idle: "tick() called"
-    onTick_idle --> onIdle: "Emit idle state"
-    onIdle --> CheckGetSignal: "Interval elapsed?"
-    
-    CheckGetSignal --> onTick_idle: "No signal"
-    CheckGetSignal --> Scheduled: "Signal with priceOpen"
-    CheckGetSignal --> Opened: "Signal without priceOpen"
-    
-    Scheduled --> onSchedule: "Emit scheduled"
-    onSchedule --> onTick_scheduled: "Monitor activation"
-    onTick_scheduled --> Opened: "Price reaches priceOpen"
-    onTick_scheduled --> Cancelled: "SL hit or timeout"
-    
-    Opened --> onOpen: "Emit open"
-    onOpen --> onWrite: "Persist signal"
-    onWrite --> Active: "Begin monitoring"
-    
-    Active --> onTick_active: "tick() called"
-    onTick_active --> onActive: "Emit active"
-    onActive --> onPartialProfit: "Profit milestone"
-    onActive --> onPartialLoss: "Loss milestone"
-    onActive --> Closed: "TP/SL/time_expired"
-    
-    onPartialProfit --> Active: "Continue"
-    onPartialLoss --> Active: "Continue"
-    
-    Closed --> onClose: "Emit close"
-    onClose --> onWrite_delete: "Delete persisted signal"
-    onWrite_delete --> [*]
-    
-    Cancelled --> onCancel: "Emit cancel"
-    onCancel --> [*]
-```
+![Mermaid Diagram](./diagrams\26_strategy-schema-definition_3.svg)
 
 
 ### Callback Use Cases
@@ -393,29 +269,7 @@ The framework instantiates `MergeRisk` which aggregates validations from all pro
 
 ### Risk Check Flow
 
-```mermaid
-graph TB
-    Signal["getSignal() returns<br/>ISignalDto"]
-    Validation["Signal validation<br/>(TP/SL logic, distances)"]
-    CheckRisk{"Risk profile<br/>configured?"}
-    NoRisk["No risk checks"]
-    RiskCheck["ClientRisk.checkSignal()<br/>or MergeRisk.checkSignal()"]
-    Approved{"All validations<br/>pass?"}
-    OpenSignal["Open signal<br/>IStrategyTickResultOpened"]
-    Reject["Reject signal<br/>Emit riskSubject"]
-    
-    Signal --> Validation
-    Validation --> CheckRisk
-    CheckRisk -->|No riskName/riskList| NoRisk
-    CheckRisk -->|Yes| RiskCheck
-    NoRisk --> OpenSignal
-    RiskCheck --> Approved
-    Approved -->|Yes| OpenSignal
-    Approved -->|No| Reject
-    
-    Note1["Risk validations receive<br/>IRiskValidationPayload:<br/>- pendingSignal<br/>- currentPrice<br/>- activePositionCount<br/>- activePositions[]"]
-    RiskCheck -.-> Note1
-```
+![Mermaid Diagram](./diagrams\26_strategy-schema-definition_4.svg)
 
 
 ### Risk vs No Risk
@@ -469,38 +323,7 @@ addStrategy({
 
 ### Runtime Instantiation
 
-```mermaid
-graph TB
-    subgraph "Registration Time"
-        AddStrategy["addStrategy(schema)"]
-        SchemaService["StrategySchemaService.setStrategy()"]
-        Registry["ToolRegistry&lt;IStrategySchema&gt;"]
-    end
-    
-    subgraph "Execution Time"
-        BacktestRun["Backtest.run() or Live.run()"]
-        ConnectionService["StrategyConnectionService.getStrategy()"]
-        Memoize{"Instance cached?"}
-        CreateClient["new ClientStrategy(params)"]
-        CachedClient["Return cached instance"]
-        Tick["ClientStrategy.tick()"]
-    end
-    
-    AddStrategy --> SchemaService
-    SchemaService --> Registry
-    
-    BacktestRun --> ConnectionService
-    ConnectionService --> Memoize
-    Memoize -->|No| CreateClient
-    Memoize -->|Yes| CachedClient
-    CreateClient --> Tick
-    CachedClient --> Tick
-    
-    Registry -.->|"retrieves by strategyName"| ConnectionService
-    
-    Note1["Memoization key:<br/>symbol:strategyName<br/>(e.g., 'BTCUSDT:momentum-breakout')"]
-    Memoize -.-> Note1
-```
+![Mermaid Diagram](./diagrams\26_strategy-schema-definition_5.svg)
 
 
 ---

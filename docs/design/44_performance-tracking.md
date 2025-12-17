@@ -18,62 +18,7 @@ This page covers performance event emission, event listening, statistics calcula
 
 The following diagram illustrates how performance events flow from emission through the event system to storage and report generation.
 
-```mermaid
-graph TB
-    subgraph "Event Emission"
-        STRAT_EXEC["Strategy Execution<br/>(ClientStrategy, StrategyCoreService)"]
-        BT_EXEC["Backtest Execution<br/>(BacktestLogicPrivateService)"]
-        LIVE_EXEC["Live Execution<br/>(LiveLogicPrivateService)"]
-    end
-    
-    subgraph "Event System"
-        PERF_EMIT["performanceEmitter<br/>Subject&lt;PerformanceContract&gt;<br/>src/config/emitters.ts:86"]
-    end
-    
-    subgraph "Public API"
-        LISTEN["listenPerformance()<br/>src/function/event.ts"]
-    end
-    
-    subgraph "Performance Service"
-        PERF_SVC["PerformanceMarkdownService<br/>src/lib/services/markdown/<br/>PerformanceMarkdownService.ts:312"]
-        TRACK["track() method<br/>Subscribe to performanceEmitter"]
-    end
-    
-    subgraph "Storage Layer"
-        STORAGE["PerformanceStorage<br/>Memoized per symbol:strategyName<br/>Max 10,000 events"]
-        ADD["addEvent()<br/>FIFO queue with trimming"]
-    end
-    
-    subgraph "Statistics Calculation"
-        GET_DATA["getData()<br/>Groups by metricType<br/>Calculates aggregates"]
-        METRICS["MetricStats<br/>avg, min, max, stdDev<br/>median, p95, p99<br/>wait times"]
-    end
-    
-    subgraph "Report Generation"
-        GET_REPORT["getReport()<br/>Markdown formatting"]
-        DUMP["dump()<br/>File: ./dump/performance/<br/>{strategyName}.md"]
-    end
-    
-    STRAT_EXEC --> PERF_EMIT
-    BT_EXEC --> PERF_EMIT
-    LIVE_EXEC --> PERF_EMIT
-    
-    PERF_EMIT --> LISTEN
-    PERF_EMIT --> TRACK
-    
-    TRACK --> STORAGE
-    STORAGE --> ADD
-    
-    STORAGE --> GET_DATA
-    GET_DATA --> METRICS
-    
-    METRICS --> GET_REPORT
-    GET_REPORT --> DUMP
-    
-    style PERF_EMIT fill:#f9f9f9,stroke:#333,stroke-width:2px
-    style STORAGE fill:#f0f0f0,stroke:#333,stroke-width:2px
-    style METRICS fill:#e8e8e8,stroke:#333,stroke-width:2px
-```
+![Mermaid Diagram](./diagrams\44_performance-tracking_0.svg)
 
 
 ---
@@ -159,56 +104,7 @@ The callback receives a `PerformanceContract` object for each event. Events are 
 
 The following diagram shows the internal structure of `PerformanceMarkdownService` and how it manages storage.
 
-```mermaid
-graph TB
-    subgraph "PerformanceMarkdownService"
-        SERVICE["PerformanceMarkdownService<br/>Singleton per DI container"]
-        GET_STORAGE["getStorage()<br/>memoize&lt;symbol:strategyName&gt;"]
-        TRACK_METHOD["track(event)<br/>Routes to storage"]
-        GET_DATA_METHOD["getData(symbol, strategyName)<br/>Returns PerformanceStatisticsModel"]
-        GET_REPORT_METHOD["getReport(symbol, strategyName)<br/>Returns markdown string"]
-        DUMP_METHOD["dump(symbol, strategyName, path)<br/>Saves to filesystem"]
-        CLEAR_METHOD["clear(ctx)<br/>Clears memoized storage"]
-        INIT_METHOD["init()<br/>singleshot subscribe"]
-    end
-    
-    subgraph "PerformanceStorage (Memoized)"
-        STORAGE_A["PerformanceStorage<br/>BTCUSDT:strategy-a"]
-        STORAGE_B["PerformanceStorage<br/>ETHUSDT:strategy-b"]
-        STORAGE_N["PerformanceStorage<br/>symbol:strategyName..."]
-    end
-    
-    subgraph "PerformanceStorage Internal"
-        EVENTS_ARRAY["_events: PerformanceContract[]<br/>Max 10,000 events (FIFO)"]
-        ADD_EVENT["addEvent(event)<br/>Unshift + trim if > MAX_EVENTS"]
-        GET_DATA_STORAGE["getData(strategyName)<br/>Calculate statistics"]
-        GET_REPORT_STORAGE["getReport(strategyName)<br/>Format markdown"]
-        DUMP_STORAGE["dump(strategyName, path)<br/>Write to file"]
-    end
-    
-    SERVICE --> GET_STORAGE
-    GET_STORAGE --> STORAGE_A
-    GET_STORAGE --> STORAGE_B
-    GET_STORAGE --> STORAGE_N
-    
-    TRACK_METHOD --> GET_STORAGE
-    GET_DATA_METHOD --> GET_STORAGE
-    GET_REPORT_METHOD --> GET_STORAGE
-    DUMP_METHOD --> GET_STORAGE
-    CLEAR_METHOD --> GET_STORAGE
-    
-    STORAGE_A --> EVENTS_ARRAY
-    STORAGE_A --> ADD_EVENT
-    STORAGE_A --> GET_DATA_STORAGE
-    STORAGE_A --> GET_REPORT_STORAGE
-    STORAGE_A --> DUMP_STORAGE
-    
-    INIT_METHOD -.->|subscribes to| TRACK_METHOD
-    
-    style SERVICE fill:#f9f9f9,stroke:#333,stroke-width:2px
-    style GET_STORAGE fill:#e8e8e8,stroke:#333,stroke-width:2px
-    style EVENTS_ARRAY fill:#f0f0f0,stroke:#333,stroke-width:2px
-```
+![Mermaid Diagram](./diagrams\44_performance-tracking_1.svg)
 
 **Key characteristics:**
 
@@ -268,27 +164,7 @@ This measures the interval between consecutive events of the same `metricType`, 
 
 The `getData()` method returns a `PerformanceStatisticsModel` object:
 
-```mermaid
-graph LR
-    MODEL["PerformanceStatisticsModel"]
-    
-    MODEL --> STRATEGY["strategyName: string"]
-    MODEL --> TOTAL_EVENTS["totalEvents: number"]
-    MODEL --> TOTAL_DURATION["totalDuration: number"]
-    MODEL --> METRIC_STATS["metricStats: Record&lt;string, MetricStats&gt;"]
-    MODEL --> EVENTS["events: PerformanceContract[]"]
-    
-    METRIC_STATS --> MS1["metricStats['tick']"]
-    METRIC_STATS --> MS2["metricStats['getSignal']"]
-    METRIC_STATS --> MS3["metricStats['getCandles']"]
-    METRIC_STATS --> MSN["metricStats[...]"]
-    
-    MS1 --> FIELDS["metricType, count, totalDuration<br/>avgDuration, minDuration, maxDuration<br/>stdDev, median, p95, p99<br/>avgWaitTime, minWaitTime, maxWaitTime"]
-    
-    style MODEL fill:#f9f9f9,stroke:#333,stroke-width:2px
-    style METRIC_STATS fill:#e8e8e8,stroke:#333,stroke-width:2px
-    style FIELDS fill:#f0f0f0,stroke:#333,stroke-width:2px
-```
+![Mermaid Diagram](./diagrams\44_performance-tracking_2.svg)
 
 
 ---
@@ -452,47 +328,7 @@ Clearing is useful when:
 
 Performance tracking integrates seamlessly with the strategy execution pipeline. The framework automatically emits events at key execution points.
 
-```mermaid
-graph TB
-    subgraph "Strategy Execution Flow"
-        TICK_START["Strategy tick begins<br/>(ClientStrategy.tick)"]
-        GET_SIGNAL["Call getSignal()<br/>Emit: metricType='getSignal'"]
-        GET_CANDLES["Fetch candles<br/>Emit: metricType='getCandles'"]
-        VWAP["Calculate VWAP<br/>Emit: metricType='getAveragePrice'"]
-        VALIDATE["Validate signal"]
-        TICK_END["Tick completes<br/>Emit: metricType='tick'"]
-    end
-    
-    subgraph "Performance Tracking"
-        START_TIMER["Start timestamp"]
-        END_TIMER["End timestamp"]
-        CALC_DURATION["duration = end - start"]
-        EMIT["Emit PerformanceContract<br/>to performanceEmitter"]
-    end
-    
-    TICK_START --> START_TIMER
-    
-    GET_SIGNAL --> START_TIMER
-    GET_SIGNAL --> END_TIMER
-    GET_SIGNAL --> CALC_DURATION
-    
-    GET_CANDLES --> START_TIMER
-    GET_CANDLES --> END_TIMER
-    GET_CANDLES --> CALC_DURATION
-    
-    VWAP --> START_TIMER
-    VWAP --> END_TIMER
-    VWAP --> CALC_DURATION
-    
-    CALC_DURATION --> EMIT
-    
-    TICK_END --> START_TIMER
-    TICK_END --> END_TIMER
-    TICK_END --> CALC_DURATION
-    
-    style START_TIMER fill:#f0f0f0,stroke:#333,stroke-width:2px
-    style EMIT fill:#e8e8e8,stroke:#333,stroke-width:2px
-```
+![Mermaid Diagram](./diagrams\44_performance-tracking_3.svg)
 
 **Typical metricType values emitted during execution:**
 

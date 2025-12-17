@@ -22,62 +22,7 @@ This page documents the internal service interfaces used by the backtest-kit ser
 
 The service layer acts as a bridge between user-defined schemas and runtime client implementations. Service interfaces define the operational contract that client classes must fulfill.
 
-```mermaid
-graph TB
-    subgraph "User Configuration Layer"
-        SCHEMA_STRAT["IStrategySchema<br/>(User-defined)"]
-        SCHEMA_EXCH["IExchangeSchema<br/>(User-defined)"]
-        SCHEMA_FRAME["IFrameSchema<br/>(User-defined)"]
-        SCHEMA_RISK["IRiskSchema<br/>(User-defined)"]
-    end
-    
-    subgraph "Service Interface Layer"
-        IFACE_STRAT["IStrategy<br/>(Internal interface)"]
-        IFACE_EXCH["IExchange<br/>(Internal interface)"]
-        IFACE_FRAME["IFrame<br/>(Internal interface)"]
-        IFACE_RISK["IRisk<br/>(Internal interface)"]
-        IFACE_PARTIAL["IPartial<br/>(Internal interface)"]
-    end
-    
-    subgraph "Client Implementation Layer"
-        CLIENT_STRAT["ClientStrategy<br/>(Prototype class)"]
-        CLIENT_EXCH["ClientExchange<br/>(Prototype class)"]
-        CLIENT_FRAME["ClientFrame<br/>(Prototype class)"]
-        CLIENT_RISK["ClientRisk<br/>(Prototype class)"]
-        CLIENT_PARTIAL["ClientPartial<br/>(Prototype class)"]
-    end
-    
-    subgraph "Service Layer Routing"
-        CONN_STRAT["StrategyConnectionService<br/>(Memoized factory)"]
-        CONN_EXCH["ExchangeConnectionService<br/>(Memoized factory)"]
-        CONN_FRAME["FrameConnectionService<br/>(Memoized factory)"]
-        CONN_RISK["RiskConnectionService<br/>(Memoized factory)"]
-        CONN_PARTIAL["PartialConnectionService<br/>(Memoized factory)"]
-    end
-    
-    SCHEMA_STRAT --> CONN_STRAT
-    SCHEMA_EXCH --> CONN_EXCH
-    SCHEMA_FRAME --> CONN_FRAME
-    SCHEMA_RISK --> CONN_RISK
-    
-    CONN_STRAT --> CLIENT_STRAT
-    CONN_EXCH --> CLIENT_EXCH
-    CONN_FRAME --> CLIENT_FRAME
-    CONN_RISK --> CLIENT_RISK
-    CONN_PARTIAL --> CLIENT_PARTIAL
-    
-    CLIENT_STRAT -.implements.-> IFACE_STRAT
-    CLIENT_EXCH -.implements.-> IFACE_EXCH
-    CLIENT_FRAME -.implements.-> IFACE_FRAME
-    CLIENT_RISK -.implements.-> IFACE_RISK
-    CLIENT_PARTIAL -.implements.-> IFACE_PARTIAL
-    
-    CONN_STRAT -.returns.-> IFACE_STRAT
-    CONN_EXCH -.returns.-> IFACE_EXCH
-    CONN_FRAME -.returns.-> IFACE_FRAME
-    CONN_RISK -.returns.-> IFACE_RISK
-    CONN_PARTIAL -.returns.-> IFACE_PARTIAL
-```
+![Mermaid Diagram](./diagrams\63_service-layer-interfaces_0.svg)
 
 
 ---
@@ -201,38 +146,7 @@ The `IRisk` interface defines risk management operations for signal validation. 
 
 **Key Data Structures:**
 
-```mermaid
-classDiagram
-    class IRiskCheckArgs {
-        +string symbol
-        +ISignalDto pendingSignal
-        +string strategyName
-        +string exchangeName
-        +number currentPrice
-        +number timestamp
-    }
-    
-    class IRiskValidationPayload {
-        +string symbol
-        +ISignalDto pendingSignal
-        +string strategyName
-        +string exchangeName
-        +number currentPrice
-        +number timestamp
-        +number activePositionCount
-        +IRiskActivePosition[] activePositions
-    }
-    
-    class IRiskActivePosition {
-        +ISignalRow signal
-        +string strategyName
-        +string exchangeName
-        +number openTimestamp
-    }
-    
-    IRiskValidationPayload --|> IRiskCheckArgs
-    IRiskValidationPayload --> IRiskActivePosition
-```
+![Mermaid Diagram](./diagrams\63_service-layer-interfaces_1.svg)
 
 **Key Characteristics:**
 - Stateful tracking of active positions across strategies
@@ -246,28 +160,7 @@ classDiagram
 2. **MergeRisk**: Combines multiple `ClientRisk` instances (used when `riskList` provided in strategy schema)
 
 **Validation Flow:**
-```mermaid
-sequenceDiagram
-    participant Strat as "ClientStrategy"
-    participant Risk as "ClientRisk/MergeRisk"
-    participant Validation as "IRiskValidationFn[]"
-    
-    Strat->>Risk: checkSignal(params)
-    Risk->>Risk: Build IRiskValidationPayload
-    Note over Risk: Add activePositionCount<br/>and activePositions array
-    
-    loop For each validation
-        Risk->>Validation: validate(payload)
-        alt Validation passes
-            Validation-->>Risk: void (no error)
-        else Validation fails
-            Validation-->>Risk: throw Error(note)
-            Risk-->>Strat: return false
-        end
-    end
-    
-    Risk-->>Strat: return true
-```
+![Mermaid Diagram](./diagrams\63_service-layer-interfaces_2.svg)
 
 
 ---
@@ -294,22 +187,7 @@ type PartialLevel = 10 | 20 | 30 | 40 | 50 | 60 | 70 | 80 | 90 | 100;
 
 **State Management:**
 
-```mermaid
-stateDiagram-v2
-    [*] --> Initialized: new signal opens
-    Initialized --> Tracking: profit()/loss() called
-    Tracking --> Tracking: Additional levels reached
-    Tracking --> [*]: clear() called on signal close
-    
-    state Tracking {
-        [*] --> CheckLevel
-        CheckLevel --> EmitEvent: Level not yet reached
-        CheckLevel --> Skip: Level already emitted
-        EmitEvent --> UpdateState: Add level to Set
-        UpdateState --> CheckLevel: Check next level
-        Skip --> CheckLevel: Check next level
-    }
-```
+![Mermaid Diagram](./diagrams\63_service-layer-interfaces_3.svg)
 
 **Key Characteristics:**
 - Stateful tracking using `Map<signalId, IPartialState>` where state contains:
@@ -321,21 +199,7 @@ stateDiagram-v2
 
 **Event Emission Logic:**
 
-```mermaid
-graph TD
-    A["profit called with revenuePercent"] --> B{revenuePercent >= 10?}
-    B -->|No| C[Return without event]
-    B -->|Yes| D[Calculate levels reached]
-    D --> E["levels = 10, 20, 30... up to floor of revenuePercent divided by 10 times 10"]
-    E --> F{For each level}
-    F --> G{Already in profitLevels Set?}
-    G -->|Yes| H[Skip level]
-    G -->|No| I[Add to profitLevels Set]
-    I --> J[Emit partialProfitSubject]
-    J --> K[Persist state to disk]
-    H --> F
-    K --> F
-```
+![Mermaid Diagram](./diagrams\63_service-layer-interfaces_4.svg)
 
 **Persistence Schema:**
 
@@ -357,36 +221,7 @@ Stored as: `Map<signalId, IPartialData>` in `PersistPartialAdapter`
 
 Connection services act as memoized factories that create and cache client instances. They route operations based on context and implement the factory pattern with caching.
 
-```mermaid
-graph LR
-    subgraph "Connection Services"
-        SC["StrategyConnectionService"]
-        EC["ExchangeConnectionService"]
-        FC["FrameConnectionService"]
-        RC["RiskConnectionService"]
-        PC["PartialConnectionService"]
-    end
-    
-    subgraph "Client Instances (Cached)"
-        CS["ClientStrategy<br/>(key: symbol:strategyName)"]
-        CE["ClientExchange<br/>(key: exchangeName)"]
-        CF["ClientFrame<br/>(key: frameName)"]
-        CR["ClientRisk/MergeRisk<br/>(key: riskName)"]
-        CP["ClientPartial<br/>(key: symbol:signalId)"]
-    end
-    
-    SC -->|getStrategy| CS
-    EC -->|getExchange| CE
-    FC -->|getFrame| CF
-    RC -->|getRisk| CR
-    PC -->|getPartial| CP
-    
-    SC -->|tick/backtest/stop| CS
-    EC -->|getCandles/getAveragePrice| CE
-    FC -->|getTimeframe| CF
-    RC -->|checkSignal/addSignal| CR
-    PC -->|profit/loss/clear| CP
-```
+![Mermaid Diagram](./diagrams\63_service-layer-interfaces_5.svg)
 
 **Common Pattern:**
 
@@ -437,37 +272,7 @@ key = `${symbol}:${signalId}`;  // "BTCUSDT:uuid-v4-here"
 
 Core services orchestrate business logic by coordinating connection services and validation services. They implement the service facade pattern.
 
-```mermaid
-graph TB
-    subgraph "Core Services"
-        StratCore["StrategyCoreService<br/>tick() orchestration"]
-        ExchCore["ExchangeCoreService<br/>Data fetching"]
-        FrameCore["FrameCoreService<br/>Timeframe generation"]
-    end
-    
-    subgraph "Connection Services"
-        StratConn["StrategyConnectionService"]
-        ExchConn["ExchangeConnectionService"]
-        FrameConn["FrameConnectionService"]
-    end
-    
-    subgraph "Validation Services"
-        StratVal["StrategyValidationService"]
-        ExchVal["ExchangeValidationService"]
-        FrameVal["FrameValidationService"]
-        RiskVal["RiskValidationService"]
-    end
-    
-    StratCore --> StratConn
-    StratCore --> StratVal
-    StratCore --> RiskVal
-    
-    ExchCore --> ExchConn
-    ExchCore --> ExchVal
-    
-    FrameCore --> FrameConn
-    FrameCore --> FrameVal
-```
+![Mermaid Diagram](./diagrams\63_service-layer-interfaces_6.svg)
 
 **StrategyCoreService Responsibilities:**
 
@@ -478,25 +283,7 @@ graph TB
 
 **Delegation Pattern:**
 
-```mermaid
-sequenceDiagram
-    participant Logic as "BacktestLogicPrivateService"
-    participant Core as "StrategyCoreService"
-    participant Val as "StrategyValidationService"
-    participant Conn as "StrategyConnectionService"
-    participant Client as "ClientStrategy"
-    
-    Logic->>Core: tick(symbol)
-    Core->>Val: strategyValidation()
-    Val-->>Core: validation result
-    Core->>Val: riskValidation()
-    Val-->>Core: validation result
-    Core->>Conn: tick(symbol, strategyName)
-    Conn->>Client: tick(symbol)
-    Client-->>Conn: IStrategyTickResult
-    Conn-->>Core: IStrategyTickResult
-    Core-->>Logic: IStrategyTickResult
-```
+![Mermaid Diagram](./diagrams\63_service-layer-interfaces_7.svg)
 
 
 ---
@@ -505,27 +292,7 @@ sequenceDiagram
 
 Global services manage cross-strategy state and provide singleton access to shared resources.
 
-```mermaid
-graph TB
-    subgraph "Global Services"
-        RiskGlobal["RiskGlobalService<br/>Portfolio-wide position tracking"]
-        PartialGlobal["PartialGlobalService<br/>Cross-symbol partial state"]
-        OptimizerGlobal["OptimizerGlobalService<br/>LLM session management"]
-    end
-    
-    subgraph "Persistence Layer"
-        RiskPersist["PersistRiskAdapter<br/>Active positions by symbol"]
-        PartialPersist["PersistPartialAdapter<br/>Profit/loss levels by signal"]
-    end
-    
-    subgraph "External Services"
-        Ollama["Ollama LLM<br/>Strategy code generation"]
-    end
-    
-    RiskGlobal --> RiskPersist
-    PartialGlobal --> PartialPersist
-    OptimizerGlobal --> Ollama
-```
+![Mermaid Diagram](./diagrams\63_service-layer-interfaces_8.svg)
 
 **RiskGlobalService:**
 
@@ -551,51 +318,7 @@ Manages LLM connection pool and prompt history for strategy optimization. Implem
 
 The service layer uses a custom dependency injection container built with Symbol-based tokens. The `backtest` object aggregates all services.
 
-```mermaid
-graph TB
-    subgraph "DI Container (lib/index.ts)"
-        TYPES["TYPES Symbol Registry<br/>Unique identifiers"]
-        PROVIDE["provide() function<br/>Register factories"]
-        INJECT["inject() function<br/>Lazy resolution"]
-        BACKTEST["backtest object<br/>Service aggregator"]
-    end
-    
-    subgraph "Service Tokens"
-        T_LOG["TYPES.LoggerService"]
-        T_EXEC["TYPES.ExecutionContextService"]
-        T_METHOD["TYPES.MethodContextService"]
-        T_STRAT_SCHEMA["TYPES.StrategySchemaService"]
-        T_STRAT_CONN["TYPES.StrategyConnectionService"]
-        T_STRAT_CORE["TYPES.StrategyCoreService"]
-    end
-    
-    subgraph "Service Instances"
-        LOG["LoggerService instance"]
-        EXEC["ExecutionContextService instance"]
-        METHOD["MethodContextService instance"]
-        STRAT_SCHEMA["StrategySchemaService instance"]
-        STRAT_CONN["StrategyConnectionService instance"]
-        STRAT_CORE["StrategyCoreService instance"]
-    end
-    
-    TYPES --> PROVIDE
-    PROVIDE --> INJECT
-    INJECT --> BACKTEST
-    
-    T_LOG --> LOG
-    T_EXEC --> EXEC
-    T_METHOD --> METHOD
-    T_STRAT_SCHEMA --> STRAT_SCHEMA
-    T_STRAT_CONN --> STRAT_CONN
-    T_STRAT_CORE --> STRAT_CORE
-    
-    BACKTEST --> LOG
-    BACKTEST --> EXEC
-    BACKTEST --> METHOD
-    BACKTEST --> STRAT_SCHEMA
-    BACKTEST --> STRAT_CONN
-    BACKTEST --> STRAT_CORE
-```
+![Mermaid Diagram](./diagrams\63_service-layer-interfaces_9.svg)
 
 **Resolution Order:**
 
@@ -638,43 +361,7 @@ const strategyConnection = lib.strategyConnectionService;
 
 Service interfaces receive ambient context through two scoped services: `ExecutionContextService` and `MethodContextService`. This enables implicit parameter passing without polluting method signatures.
 
-```mermaid
-graph TB
-    subgraph "Context Services"
-        EXEC["ExecutionContextService<br/>{symbol, when, backtest}"]
-        METHOD["MethodContextService<br/>{strategyName, exchangeName, frameName}"]
-    end
-    
-    subgraph "Execution Layer"
-        BT_LOGIC["BacktestLogicPrivateService"]
-        LIVE_LOGIC["LiveLogicPrivateService"]
-    end
-    
-    subgraph "Core Services"
-        STRAT_CORE["StrategyCoreService"]
-    end
-    
-    subgraph "Connection Services"
-        STRAT_CONN["StrategyConnectionService"]
-    end
-    
-    subgraph "Client Implementations"
-        CLIENT["ClientStrategy"]
-    end
-    
-    BT_LOGIC -->|"MethodContextService.runInContext()"| STRAT_CORE
-    LIVE_LOGIC -->|"MethodContextService.runInContext()"| STRAT_CORE
-    
-    STRAT_CORE -->|"ExecutionContextService.runInContext()"| STRAT_CONN
-    
-    STRAT_CONN -->|Reads context| EXEC
-    STRAT_CONN -->|Reads context| METHOD
-    
-    STRAT_CONN --> CLIENT
-    
-    CLIENT -->|Reads context| EXEC
-    CLIENT -->|Reads context| METHOD
-```
+![Mermaid Diagram](./diagrams\63_service-layer-interfaces_10.svg)
 
 **ExecutionContextService:**
 

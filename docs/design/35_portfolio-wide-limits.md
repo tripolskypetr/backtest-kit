@@ -19,50 +19,7 @@ The core mechanism is **RiskGlobalService**, which maintains a centralized regis
 
 The portfolio-wide risk system consists of three main components that work together to enforce limits across strategies:
 
-```mermaid
-graph TB
-    subgraph "Strategy Execution Layer"
-        CS1["ClientStrategy<br/>(Symbol: BTCUSDT, Strategy: strat-a)"]
-        CS2["ClientStrategy<br/>(Symbol: ETHUSDT, Strategy: strat-a)"]
-        CS3["ClientStrategy<br/>(Symbol: BTCUSDT, Strategy: strat-b)"]
-    end
-    
-    subgraph "Connection Layer - Memoization"
-        RC["RiskConnectionService<br/>getOrCreateRisk(riskName)"]
-    end
-    
-    subgraph "Client Layer - Shared Instances"
-        CR["ClientRisk<br/>(riskName: 'portfolio-limit')<br/>checkSignal()<br/>addSignal()<br/>removeSignal()"]
-    end
-    
-    subgraph "Global State Layer"
-        RGS["RiskGlobalService<br/>_positions: Map&lt;riskName, Set&lt;positionKey&gt;&gt;<br/>_positionData: Map&lt;positionKey, IRiskActivePosition&gt;"]
-    end
-    
-    subgraph "Schema Layer"
-        RSS["RiskSchemaService<br/>get(riskName): IRiskSchema"]
-        Schema["IRiskSchema<br/>- validations: IRiskValidation[]<br/>- callbacks"]
-    end
-    
-    CS1 -->|"uses"| RC
-    CS2 -->|"uses"| RC
-    CS3 -->|"uses"| RC
-    
-    RC -->|"memoized by riskName"| CR
-    
-    CR -->|"reads schema"| RSS
-    RSS -->|"returns"| Schema
-    
-    CR -->|"addSignal(symbol, context)"| RGS
-    CR -->|"removeSignal(symbol, context)"| RGS
-    CR -->|"checkSignal(params) - queries active positions"| RGS
-
-    RGS -->|"builds IRiskValidationPayload with activePositionCount and activePositions array"| CR
-    
-    style RGS fill:#f9f9f9,stroke:#333,stroke-width:2px
-    style CR fill:#e8f4f8,stroke:#333,stroke-width:2px
-    style RC fill:#fff9e6,stroke:#333,stroke-width:2px
-```
+![Mermaid Diagram](./diagrams\35_portfolio-wide-limits_0.svg)
 
 **Key Architecture Points:**
 
@@ -102,38 +59,7 @@ const positionKey = `${symbol}:${strategyName}`;
 
 ### Tracking Lifecycle
 
-```mermaid
-sequenceDiagram
-    participant CS as ClientStrategy
-    participant CR as ClientRisk
-    participant RGS as RiskGlobalService
-    
-    Note over CS: Signal passes validation,<br/>ready to open
-    
-    CS->>CR: addSignal(symbol, {strategyName, riskName})
-    CR->>RGS: addPosition(riskName, positionKey, positionData)
-    RGS->>RGS: _positions.get(riskName).add(positionKey)
-    RGS->>RGS: _positionData.set(positionKey, {signal, strategyName, exchangeName, openTimestamp})
-    RGS-->>CR: Position registered
-    CR-->>CS: Success
-    
-    Note over CS: Signal active,<br/>monitoring TP/SL
-    
-    CS->>CR: checkSignal(params) [for NEW signal]
-    CR->>RGS: getActivePositions(riskName)
-    RGS-->>CR: {activePositionCount, activePositions[]}
-    CR->>CR: Run validations with payload
-    CR-->>CS: true/false
-    
-    Note over CS: Signal closes<br/>(TP/SL/time)
-    
-    CS->>CR: removeSignal(symbol, {strategyName, riskName})
-    CR->>RGS: removePosition(riskName, positionKey)
-    RGS->>RGS: _positions.get(riskName).delete(positionKey)
-    RGS->>RGS: _positionData.delete(positionKey)
-    RGS-->>CR: Position removed
-    CR-->>CS: Success
-```
+![Mermaid Diagram](./diagrams\35_portfolio-wide-limits_1.svg)
 
 **Important:** Only **opened** signals are tracked. Scheduled signals (waiting for `priceOpen`) are NOT added to the position registry until they activate.
 
@@ -144,29 +70,7 @@ sequenceDiagram
 
 During `checkSignal()`, custom validation functions receive an `IRiskValidationPayload` object containing both the pending signal's data and the current portfolio state:
 
-```mermaid
-graph LR
-    subgraph "IRiskValidationPayload Interface"
-        direction TB
-        
-        subgraph "From IRiskCheckArgs (pending signal)"
-            A["symbol: string<br/>'BTCUSDT'"]
-            B["pendingSignal: ISignalDto<br/>{position, priceOpen, priceTP, priceSL, ...}"]
-            C["strategyName: string<br/>'my-strategy'"]
-            D["exchangeName: string<br/>'binance'"]
-            E["currentPrice: number<br/>50123.45"]
-            F["timestamp: number<br/>1705320000000"]
-        end
-        
-        subgraph "Portfolio State (from RiskGlobalService)"
-            G["activePositionCount: number<br/>3"]
-            H["activePositions: IRiskActivePosition[]<br/>[{signal, strategyName, exchangeName, openTimestamp}, ...]"]
-        end
-    end
-    
-    style G fill:#ffffcc,stroke:#666,stroke-width:2px
-    style H fill:#ffffcc,stroke:#666,stroke-width:2px
-```
+![Mermaid Diagram](./diagrams\35_portfolio-wide-limits_2.svg)
 
 ### Field Reference Table
 
@@ -230,45 +134,7 @@ addRisk({
 
 ### Accessing Active Positions
 
-```mermaid
-graph TB
-    subgraph "Validation Function Scope"
-        VP["IRiskValidationPayload<br/>received as parameter"]
-    end
-    
-    subgraph "Portfolio Analysis Patterns"
-        P1["Count Check<br/>activePositionCount >= maxPositions"]
-        P2["Symbol Exposure<br/>activePositions.filter(p => p.signal.symbol === symbol)"]
-        P3["Strategy Exposure<br/>activePositions.filter(p => p.strategyName === strategyName)"]
-        P4["Position Side Balance<br/>count LONG vs SHORT positions"]
-        P5["Time-Based Limits<br/>activePositions.filter(p => timestamp - p.openTimestamp < limit)"]
-        P6["Price Correlation<br/>compare pendingSignal prices with active signals"]
-    end
-    
-    VP --> P1
-    VP --> P2
-    VP --> P3
-    VP --> P4
-    VP --> P5
-    VP --> P6
-    
-    P1 -->|"throw Error"| Reject["Signal Rejected"]
-    P2 -->|"throw Error"| Reject
-    P3 -->|"throw Error"| Reject
-    P4 -->|"throw Error"| Reject
-    P5 -->|"throw Error"| Reject
-    P6 -->|"throw Error"| Reject
-    
-    P1 -->|"return"| Allow["Signal Allowed"]
-    P2 -->|"return"| Allow
-    P3 -->|"return"| Allow
-    P4 -->|"return"| Allow
-    P5 -->|"return"| Allow
-    P6 -->|"return"| Allow
-    
-    style Reject fill:#ffcccc,stroke:#cc0000,stroke-width:2px
-    style Allow fill:#ccffcc,stroke:#00cc00,stroke-width:2px
-```
+![Mermaid Diagram](./diagrams\35_portfolio-wide-limits_3.svg)
 
 
 ---
@@ -512,42 +378,7 @@ addStrategy({
 
 ### MergeRisk Flow Diagram
 
-```mermaid
-sequenceDiagram
-    participant CS as ClientStrategy
-    participant MR as MergeRisk
-    participant CR1 as ClientRisk<br/>(max-positions)
-    participant CR2 as ClientRisk<br/>(max-per-symbol)
-    participant CR3 as ClientRisk<br/>(balanced-direction)
-    participant RGS as RiskGlobalService
-    
-    CS->>MR: checkSignal(params)
-    
-    par Parallel Risk Checks
-        MR->>CR1: checkSignal(params)
-        CR1->>RGS: getActivePositions("max-positions")
-        RGS-->>CR1: portfolio state
-        CR1->>CR1: Run validation: activePositionCount >= 5?
-        CR1-->>MR: true (allowed)
-        
-        MR->>CR2: checkSignal(params)
-        CR2->>RGS: getActivePositions("max-per-symbol")
-        RGS-->>CR2: portfolio state
-        CR2->>CR2: Run validation: symbolCount >= 2?
-        CR2-->>MR: true (allowed)
-        
-        MR->>CR3: checkSignal(params)
-        CR3->>RGS: getActivePositions("balanced-direction")
-        RGS-->>CR3: portfolio state
-        CR3->>CR3: Run validation: imbalance > 3?
-        CR3-->>MR: true (allowed)
-    end
-    
-    MR->>MR: Combine results: all true?
-    MR-->>CS: true (signal allowed)
-    
-    Note over CS,RGS: If ANY risk check returns false,<br/>MergeRisk returns false
-```
+![Mermaid Diagram](./diagrams\35_portfolio-wide-limits_4.svg)
 
 **Key Point:** All risk checks execute in parallel via `Promise.all()`, and the signal is only allowed if all checks pass (logical AND operation).
 
@@ -558,71 +389,7 @@ sequenceDiagram
 
 Portfolio-wide limits integrate seamlessly into the signal lifecycle through `ClientStrategy`:
 
-```mermaid
-stateDiagram-v2
-    [*] --> CheckThrottle: getSignal returns signal
-    
-    CheckThrottle --> ValidateSchema: Throttle passed
-    
-    ValidateSchema --> ValidatePrices: Schema valid
-    
-    ValidatePrices --> ValidateTPSL: Prices valid
-    
-    ValidateTPSL --> ValidateDistance: TP/SL logic valid
-    
-    ValidateDistance --> CheckRisk: Distance checks passed
-    
-    CheckRisk --> RiskGlobalService: Query portfolio state
-    
-    RiskGlobalService --> BuildPayload: activePositionCount<br/>activePositions[]
-    
-    BuildPayload --> RunValidations: IRiskValidationPayload
-    
-    RunValidations --> ValidationLoop: Execute each validation
-    
-    ValidationLoop --> ValidationFail: Validation throws error
-    ValidationLoop --> ValidationPass: All validations pass
-    
-    ValidationFail --> RiskRejected: Emit riskSubject
-    RiskRejected --> [*]
-    
-    ValidationPass --> CheckScheduled: Risk checks passed
-    
-    CheckScheduled --> Scheduled: priceOpen not reached
-    CheckScheduled --> OpenPosition: priceOpen reached
-    
-    OpenPosition --> RegisterPosition: addSignal()
-    
-    RegisterPosition --> RiskGlobalService2: Add to _positions Map<br/>Add to _positionData Map
-    
-    RiskGlobalService2 --> Active: Position tracked
-    
-    Active --> MonitorTPSL: Monitor until close
-    
-    MonitorTPSL --> ClosePosition: TP/SL/time reached
-    
-    ClosePosition --> UnregisterPosition: removeSignal()
-    
-    UnregisterPosition --> RiskGlobalService3: Remove from _positions Map<br/>Remove from _positionData Map
-    
-    RiskGlobalService3 --> [*]
-    
-    note right of CheckRisk
-        Portfolio-wide limits checked HERE
-        Before signal activation
-        After validation
-    end note
-    
-    note right of RegisterPosition
-        Position added to portfolio state
-        Now visible to other strategies
-    end note
-    
-    note right of UnregisterPosition
-        Position removed from portfolio state
-        No longer counted in limits
-    end note
-```
+![Mermaid Diagram](./diagrams\35_portfolio-wide-limits_5.svg)
 
 ### Execution Flow Code Mapping
 

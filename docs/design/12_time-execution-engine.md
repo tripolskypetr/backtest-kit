@@ -31,50 +31,7 @@ The `when` field in `ExecutionContextService` is the key to the entire time exec
 
 ## Execution Context Architecture
 
-```mermaid
-graph TB
-    subgraph "Context Propagation Layer"
-        ECS[ExecutionContextService<br/>symbol: string<br/>when: Date<br/>backtest: boolean]
-        MCS[MethodContextService<br/>strategyName: string<br/>exchangeName: string<br/>frameName: string]
-    end
-    
-    subgraph "Orchestration Layer"
-        BTLogic[BacktestLogicPrivateService]
-        LiveLogic[LiveLogicPrivateService]
-        StratCore[StrategyCoreService]
-    end
-    
-    subgraph "Strategy Execution Layer"
-        ClientStrat[ClientStrategy]
-        GetSignal[User getSignal Function]
-        GetCandles[getCandles Helper]
-    end
-    
-    subgraph "Data Access Layer"
-        ClientExch[ClientExchange]
-        ExchSchema[IExchangeSchema.getCandles]
-    end
-    
-    BTLogic -->|"runInContext(when = frame)"| ECS
-    LiveLogic -->|"runInContext(when = new Date())"| ECS
-    
-    BTLogic -->|"runInContext(schemas)"| MCS
-    LiveLogic -->|"runInContext(schemas)"| MCS
-    
-    ECS -.->|"ambient context"| StratCore
-    MCS -.->|"ambient context"| StratCore
-    
-    StratCore --> ClientStrat
-    ClientStrat --> GetSignal
-    
-    GetSignal --> GetCandles
-    GetCandles -->|"reads when from context"| ECS
-    GetCandles --> ClientExch
-    
-    ClientExch -->|"getCandles(since=when)"| ExchSchema
-    
-    ECS -.->|"temporal boundary"| ClientExch
-```
+![Mermaid Diagram](./diagrams\12_time-execution-engine_0.svg)
 
 **Execution Context Flow**
 
@@ -89,27 +46,7 @@ The diagram shows how temporal context flows from orchestration through strategy
 
 In backtest mode, time moves forward in discrete steps defined by the frame interval. The `BacktestLogicPrivateService` generates a sequence of timestamps and processes each one sequentially:
 
-```mermaid
-sequenceDiagram
-    participant User
-    participant BTLogic as BacktestLogicPrivateService
-    participant ECS as ExecutionContextService
-    participant Frame as FrameCoreService
-    participant Strat as StrategyCoreService
-    
-    User->>BTLogic: run(symbol, context)
-    BTLogic->>Frame: getTimeFrames(frameName)
-    Frame-->>BTLogic: [t1, t2, t3, ..., tn]
-    
-    loop For each timeframe
-        BTLogic->>ECS: runInContext({ when: ti, backtest: true })
-        ECS->>Strat: tick(symbol)
-        Strat-->>ECS: result
-        ECS-->>BTLogic: yield result
-    end
-    
-    BTLogic-->>User: async generator completes
-```
+![Mermaid Diagram](./diagrams\12_time-execution-engine_1.svg)
 
 **Backtest Time Flow**
 
@@ -129,30 +66,7 @@ The backtest engine iterates through pre-generated timeframes, setting the execu
 
 In live mode, time moves continuously with the real-world clock. The `LiveLogicPrivateService` runs an infinite loop that sleeps between ticks:
 
-```mermaid
-sequenceDiagram
-    participant User
-    participant LiveLogic as LiveLogicPrivateService
-    participant ECS as ExecutionContextService
-    participant Strat as StrategyCoreService
-    participant Sleep as sleep(TICK_TTL)
-    
-    User->>LiveLogic: run(symbol, context)
-    
-    loop while(true)
-        LiveLogic->>LiveLogic: when = new Date()
-        LiveLogic->>ECS: runInContext({ when, backtest: false })
-        ECS->>Strat: tick(symbol)
-        Strat-->>ECS: result
-        ECS-->>LiveLogic: yield result
-        LiveLogic->>Sleep: sleep(60_000 + 1)
-        Sleep-->>LiveLogic: continue
-        
-        alt stop() called && signal closed
-            LiveLogic-->>User: generator completes
-        end
-    end
-```
+![Mermaid Diagram](./diagrams\12_time-execution-engine_2.svg)
 
 **Live Time Flow**
 
@@ -180,17 +94,7 @@ const candles = await getCandles(symbol, "1h", 24);
 
 Internally, this maps to:
 
-```mermaid
-graph LR
-    A["getCandles(symbol, interval, limit)"] --> B[ExchangeGlobalService]
-    B --> C[ExecutionContextService.getContext]
-    C --> D["context.when"]
-    D --> E[ClientExchange.getCandles]
-    E --> F["IExchangeSchema.getCandles(since=when)"]
-    F --> G["Returns candles UP TO when"]
-    
-    style D fill:#f9f9f9,stroke:#333,stroke-width:2px
-```
+![Mermaid Diagram](./diagrams\12_time-execution-engine_3.svg)
 
 **Temporal Data Access Flow**
 
@@ -227,35 +131,7 @@ The Time Execution Engine makes look-ahead bias **architecturally impossible** t
 
 The `when` timestamp is stored in `AsyncLocalStorage`, making it impossible for user code to access future data:
 
-```mermaid
-graph TB
-    subgraph "AsyncLocalStorage Isolation"
-        Context["ExecutionContextService<br/>when: 2025-01-15 14:30:00"]
-    end
-    
-    subgraph "User Strategy Code"
-        GetSignal["getSignal() function"]
-        GetCandles1["getCandles('1h', 24)"]
-        GetCandles2["getCandles('5m', 60)"]
-    end
-    
-    subgraph "Data Access Layer"
-        Exchange["Exchange.getCandles()"]
-        CCXT["CCXT fetchOHLCV()"]
-    end
-    
-    Context -.->|"automatic propagation"| GetSignal
-    GetSignal --> GetCandles1
-    GetSignal --> GetCandles2
-    
-    GetCandles1 -->|"reads when from context"| Exchange
-    GetCandles2 -->|"reads when from context"| Exchange
-    
-    Exchange -->|"since=2025-01-15 14:30:00<br/>limit=24"| CCXT
-    CCXT -.->|"returns only past data"| Exchange
-    
-    style Context fill:#f9f9f9,stroke:#333,stroke-width:2px
-```
+![Mermaid Diagram](./diagrams\12_time-execution-engine_4.svg)
 
 **Temporal Isolation Architecture**
 
@@ -294,57 +170,7 @@ This means strategies tested in backtest mode will behave identically in live mo
 
 The following services implement the Time Execution Engine:
 
-```mermaid
-graph TB
-    subgraph "Context Services"
-        ECS[ExecutionContextService]
-        MCS[MethodContextService]
-    end
-    
-    subgraph "Logic Services"
-        BTPriv[BacktestLogicPrivateService]
-        LivePriv[LiveLogicPrivateService]
-        BTPub[BacktestLogicPublicService]
-        LivePub[LiveLogicPublicService]
-    end
-    
-    subgraph "Core Services"
-        StratCore[StrategyCoreService]
-        ExchCore[ExchangeCoreService]
-        FrameCore[FrameCoreService]
-    end
-    
-    subgraph "Connection Services"
-        StratConn[StrategyConnectionService]
-        ExchConn[ExchangeConnectionService]
-    end
-    
-    subgraph "Client Layer"
-        ClientStrat[ClientStrategy]
-        ClientExch[ClientExchange]
-    end
-    
-    BTPub --> BTPriv
-    LivePub --> LivePriv
-    
-    BTPriv --> ECS
-    BTPriv --> MCS
-    BTPriv --> StratCore
-    BTPriv --> FrameCore
-    
-    LivePriv --> ECS
-    LivePriv --> MCS
-    LivePriv --> StratCore
-    
-    StratCore --> StratConn
-    StratConn --> ClientStrat
-    
-    ExchCore --> ExchConn
-    ExchConn --> ClientExch
-    
-    ClientStrat -.->|"reads context"| ECS
-    ClientExch -.->|"reads when"| ECS
-```
+![Mermaid Diagram](./diagrams\12_time-execution-engine_5.svg)
 
 **Service Component Architecture**
 

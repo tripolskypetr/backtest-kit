@@ -66,65 +66,7 @@ interface IWalkerCallbacks {
 
 ### Component Hierarchy
 
-```mermaid
-graph TB
-    subgraph "Public API"
-        WalkerClass["Walker class<br/>(WalkerUtils)"]
-        WalkerInstance["WalkerInstance"]
-    end
-    
-    subgraph "Command Layer"
-        WalkerCommand["WalkerCommandService"]
-    end
-    
-    subgraph "Logic Layer"
-        WalkerLogicPub["WalkerLogicPublicService"]
-        WalkerLogicPriv["WalkerLogicPrivateService"]
-    end
-    
-    subgraph "Orchestration"
-        BacktestLogicPub["BacktestLogicPublicService"]
-        BacktestLogicPriv["BacktestLogicPrivateService"]
-    end
-    
-    subgraph "Core Execution"
-        StrategyCore["StrategyCoreService"]
-        ExchangeCore["ExchangeCoreService"]
-        FrameCore["FrameCoreService"]
-    end
-    
-    subgraph "Reporting"
-        WalkerMarkdown["WalkerMarkdownService"]
-        BacktestMarkdown["BacktestMarkdownService"]
-    end
-    
-    subgraph "Event System"
-        walkerEmitter["walkerEmitter"]
-        walkerCompleteSubject["walkerCompleteSubject"]
-        walkerStopSubject["walkerStopSubject"]
-    end
-    
-    WalkerClass --> WalkerInstance
-    WalkerInstance --> WalkerCommand
-    WalkerCommand --> WalkerLogicPub
-    WalkerLogicPub --> WalkerLogicPriv
-    
-    WalkerLogicPriv --> BacktestLogicPub
-    BacktestLogicPub --> BacktestLogicPriv
-    BacktestLogicPriv --> StrategyCore
-    BacktestLogicPriv --> ExchangeCore
-    BacktestLogicPriv --> FrameCore
-    
-    WalkerLogicPriv --> WalkerMarkdown
-    WalkerLogicPriv --> BacktestMarkdown
-    
-    WalkerLogicPriv --> walkerEmitter
-    WalkerLogicPriv --> walkerCompleteSubject
-    WalkerInstance -.->|stop signal| walkerStopSubject
-    
-    style WalkerClass fill:#f0f0f0,stroke:#333,stroke-width:2px
-    style WalkerLogicPriv fill:#e0e0e0,stroke:#333,stroke-width:2px
-```
+![Mermaid Diagram](./diagrams\23_walker-strategy-comparison_0.svg)
 
 
 ### Sequential Backtest Flow
@@ -135,38 +77,7 @@ Walker executes strategies sequentially, not in parallel. This design ensures:
 - Isolated metric calculation per strategy
 - Clean event emission
 
-```mermaid
-sequenceDiagram
-    participant User
-    participant WalkerLogicPrivateService
-    participant BacktestLogicPublicService
-    participant WalkerMarkdownService
-    participant walkerEmitter
-    
-    User->>WalkerLogicPrivateService: run(symbol, strategies, metric)
-    
-    loop For each strategy
-        WalkerLogicPrivateService->>BacktestLogicPublicService: run(symbol, strategyName, context)
-        
-        loop Timeframes
-            BacktestLogicPublicService-->>BacktestLogicPublicService: tick + backtest
-        end
-        
-        BacktestLogicPublicService-->>WalkerLogicPrivateService: Closed signals
-        
-        WalkerLogicPrivateService->>WalkerMarkdownService: getData(symbol, strategyName)
-        WalkerMarkdownService-->>WalkerLogicPrivateService: BacktestStatisticsModel
-        
-        WalkerLogicPrivateService->>WalkerLogicPrivateService: Extract metric value
-        WalkerLogicPrivateService->>WalkerLogicPrivateService: Update best strategy
-        
-        WalkerLogicPrivateService->>walkerEmitter: Emit progress
-        WalkerLogicPrivateService-->>User: yield WalkerContract
-    end
-    
-    WalkerLogicPrivateService->>walkerEmitter: Emit walkerCompleteSubject
-    WalkerLogicPrivateService-->>User: Return final results
-```
+![Mermaid Diagram](./diagrams\23_walker-strategy-comparison_1.svg)
 
 
 ---
@@ -397,31 +308,7 @@ await Walker.dump("BTCUSDT", "my-optimizer", "./custom/reports");
 
 Walker uses `MethodContextService` to propagate execution context through the call stack:
 
-```mermaid
-graph TB
-    subgraph "Context Setup"
-        Walker["Walker.run()"]
-        SetContext["MethodContextService.runAsyncIterator()"]
-    end
-    
-    subgraph "Context Values"
-        Context["IMethodContext:<br/>exchangeName<br/>frameName<br/>strategyName"]
-    end
-    
-    subgraph "Context Consumers"
-        BacktestLogic["BacktestLogicPrivateService"]
-        StrategyCore["StrategyCoreService"]
-        ExchangeCore["ExchangeCoreService"]
-        FrameCore["FrameCoreService"]
-    end
-    
-    Walker --> SetContext
-    SetContext --> Context
-    Context -.->|implicit| BacktestLogic
-    Context -.->|implicit| StrategyCore
-    Context -.->|implicit| ExchangeCore
-    Context -.->|implicit| FrameCore
-```
+![Mermaid Diagram](./diagrams\23_walker-strategy-comparison_2.svg)
 
 Each strategy execution updates `context.strategyName` while preserving `exchangeName` and `frameName`. This ensures consistent exchange and timeframe across all strategy comparisons.
 
@@ -441,38 +328,7 @@ Walker integrates with the framework's event system via four emitters:
 
 ### Event Flow Diagram
 
-```mermaid
-graph LR
-    subgraph "Event Producers"
-        WalkerLogic["WalkerLogicPrivateService"]
-        WalkerStop["Walker.stop()"]
-    end
-    
-    subgraph "Event Emitters"
-        walkerEmitter["walkerEmitter"]
-        walkerComplete["walkerCompleteSubject"]
-        walkerStop["walkerStopSubject"]
-        progressWalker["progressWalkerEmitter"]
-    end
-    
-    subgraph "Event Consumers"
-        WalkerMarkdown["WalkerMarkdownService"]
-        listenWalker["listenWalker()"]
-        listenComplete["listenWalkerComplete()"]
-        listenProgress["listenWalkerProgress()"]
-    end
-    
-    WalkerLogic --> walkerEmitter
-    WalkerLogic --> walkerComplete
-    WalkerLogic --> progressWalker
-    WalkerStop --> walkerStop
-    
-    walkerEmitter --> WalkerMarkdown
-    walkerEmitter --> listenWalker
-    walkerComplete --> listenComplete
-    progressWalker --> listenProgress
-    walkerStop -.->|cancellation| WalkerLogic
-```
+![Mermaid Diagram](./diagrams\23_walker-strategy-comparison_3.svg)
 
 
 ---

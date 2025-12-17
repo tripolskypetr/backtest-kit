@@ -58,33 +58,7 @@ If `priceOpen` is omitted, the signal opens immediately at current VWAP. If `pri
 
 ## Immediate vs Scheduled Signals
 
-```mermaid
-graph TD
-    GetSignal["getSignal() returns ISignalDto"]
-    CheckPriceOpen{"priceOpen specified?"}
-    CheckActivation{"Current price reached priceOpen?"}
-    
-    ImmediateSignal["Create ISignalRow (immediate)<br/>priceOpen = currentPrice<br/>_isScheduled = false"]
-    
-    ScheduledSignal["Create IScheduledSignalRow<br/>priceOpen = dto.priceOpen<br/>_isScheduled = true"]
-    
-    ActivateImmediately["Create ISignalRow (activated)<br/>priceOpen = dto.priceOpen<br/>_isScheduled = false"]
-    
-    GetSignal --> CheckPriceOpen
-    
-    CheckPriceOpen -->|No| ImmediateSignal
-    CheckPriceOpen -->|Yes| CheckActivation
-    
-    CheckActivation -->|Yes| ActivateImmediately
-    CheckActivation -->|No| ScheduledSignal
-    
-    ImmediateSignal --> Persist["Persist to storage<br/>Begin TP/SL monitoring"]
-    ActivateImmediately --> Persist
-    ScheduledSignal --> WaitActivation["Wait for price to reach priceOpen<br/>Monitor for SL breach or timeout"]
-    
-    WaitActivation -->|Activated| Persist
-    WaitActivation -->|Cancelled| NoPosition["No position opened"]
-```
+![Mermaid Diagram](./diagrams\27_signal-generation-getsignal_0.svg)
 
 **Immediate Signals (Market Orders):**
 When `priceOpen` is omitted in the returned `ISignalDto`, the signal opens immediately at current VWAP price. The framework sets `priceOpen` equal to the current market price and persists the signal for TP/SL monitoring.
@@ -105,33 +79,7 @@ The activation check happens in `src/client/ClientStrategy.ts:389-443` within `G
 
 ## Temporal Context and Look-Ahead Bias Prevention
 
-```mermaid
-graph LR
-    subgraph "ExecutionContextService (di-scoped)"
-        Context["context: IExecutionContext<br/>- symbol<br/>- when: Date<br/>- backtest: boolean"]
-    end
-    
-    subgraph "getSignal Implementation"
-        GetSignalFn["getSignal(symbol, when)"]
-        GetCandlesFn["getCandles(symbol, interval, limit)"]
-        AnalyzeMarket["Analyze indicators, patterns,<br/>market conditions"]
-        ReturnSignal["Return ISignalDto or null"]
-    end
-    
-    subgraph "ClientExchange"
-        FetchCandles["getCandles() checks<br/>execution.context.when"]
-        FilterData["Filter data <= when<br/>Prevent look-ahead bias"]
-        ReturnCandles["Return ICandleData[]"]
-    end
-    
-    Context -->|Propagates via AsyncLocalStorage| GetSignalFn
-    GetSignalFn --> GetCandlesFn
-    GetCandlesFn --> FetchCandles
-    FetchCandles --> FilterData
-    FilterData --> ReturnCandles
-    ReturnCandles --> AnalyzeMarket
-    AnalyzeMarket --> ReturnSignal
-```
+![Mermaid Diagram](./diagrams\27_signal-generation-getsignal_1.svg)
 
 The `when` parameter passed to `getSignal` represents the current execution timestamp. This timestamp is also stored in `ExecutionContextService.context.when` and propagates through `AsyncLocalStorage` to all downstream operations.
 
@@ -191,36 +139,7 @@ For detailed multi-timeframe analysis patterns, see [Multi-Timeframe Analysis](.
 
 ## Return Value Semantics
 
-```mermaid
-stateDiagram-v2
-    [*] --> GetSignalCalled: Framework calls getSignal()
-    
-    GetSignalCalled --> AnalyzeMarket: Fetch candles, analyze
-    
-    AnalyzeMarket --> ReturnNull: No opportunity detected
-    AnalyzeMarket --> ReturnSignal: Opportunity detected
-    
-    ReturnNull --> Idle: Signal remains idle<br/>No position opened
-    ReturnSignal --> Validate: Framework validates signal
-    
-    Validate --> RiskCheck: VALIDATE_SIGNAL_FN passes
-    RiskCheck --> CheckExisting: Risk.checkSignal() passes
-    
-    CheckExisting --> Scheduled: priceOpen specified
-    CheckExisting --> Immediate: priceOpen omitted
-    
-    Scheduled --> WaitActivation
-    Immediate --> OpenPosition
-    
-    Validate --> Rejected: Validation fails
-    RiskCheck --> Rejected: Risk check fails
-    
-    Rejected --> Idle
-    
-    Idle --> [*]: Continue monitoring
-    WaitActivation --> [*]: Wait for activation or cancel
-    OpenPosition --> [*]: Begin TP/SL monitoring
-```
+![Mermaid Diagram](./diagrams\27_signal-generation-getsignal_2.svg)
 
 **Returning `null`:**
 When `getSignal` returns `null`, the strategy remains in idle state. The framework:
@@ -245,46 +164,7 @@ Validation failures result in the signal being rejected without opening any posi
 
 After `getSignal` returns an `ISignalDto`, the framework applies multi-stage validation before creating a position. All validation occurs in `VALIDATE_SIGNAL_FN` at `src/client/ClientStrategy.ts:45-330`.
 
-```mermaid
-graph TD
-    ReturnSignal["getSignal returns ISignalDto"]
-    
-    V1["Validate Required Fields<br/>id, position, symbol, etc."]
-    V2["Validate Price Finiteness<br/>No NaN/Infinity"]
-    V3["Validate Price Positivity<br/>All prices > 0"]
-    V4["Validate TP/SL Logic<br/>LONG: TP > priceOpen > SL<br/>SHORT: SL > priceOpen > TP"]
-    V5["Validate No Immediate Close<br/>Current price between TP and SL"]
-    V6["Validate TP Distance<br/>>= CC_MIN_TAKEPROFIT_DISTANCE_PERCENT"]
-    V7["Validate SL Range<br/>CC_MIN/MAX_STOPLOSS_DISTANCE_PERCENT"]
-    V8["Validate Signal Lifetime<br/><= CC_MAX_SIGNAL_LIFETIME_MINUTES"]
-    
-    RiskCheck["Risk.checkSignal()<br/>Portfolio limits, custom rules"]
-    
-    CreateSignal["Create ISignalRow<br/>with auto-generated ID"]
-    RejectSignal["Reject Signal<br/>Log error, emit riskSubject"]
-    
-    ReturnSignal --> V1
-    V1 --> V2
-    V2 --> V3
-    V3 --> V4
-    V4 --> V5
-    V5 --> V6
-    V6 --> V7
-    V7 --> V8
-    V8 --> RiskCheck
-    
-    RiskCheck -->|Pass| CreateSignal
-    RiskCheck -->|Fail| RejectSignal
-    
-    V1 -->|Fail| RejectSignal
-    V2 -->|Fail| RejectSignal
-    V3 -->|Fail| RejectSignal
-    V4 -->|Fail| RejectSignal
-    V5 -->|Fail| RejectSignal
-    V6 -->|Fail| RejectSignal
-    V7 -->|Fail| RejectSignal
-    V8 -->|Fail| RejectSignal
-```
+![Mermaid Diagram](./diagrams\27_signal-generation-getsignal_3.svg)
 
 ### Validation Stages
 
@@ -513,48 +393,5 @@ The LLM analyzes market conditions and returns a structured signal object matchi
 
 ## Signal Flow Summary
 
-```mermaid
-sequenceDiagram
-    participant Framework as Framework (ClientStrategy)
-    participant User as getSignal Implementation
-    participant Exchange as ClientExchange
-    participant Risk as ClientRisk
-    
-    Note over Framework: Interval throttle check passes
-    
-    Framework->>User: getSignal(symbol, when)
-    
-    User->>Exchange: getCandles(symbol, "1h", 24)
-    Exchange-->>User: ICandleData[]
-    
-    User->>User: Analyze market conditions
-    
-    alt Signal Detected
-        User-->>Framework: ISignalDto
-        Framework->>Framework: VALIDATE_SIGNAL_FN(signal)
-        
-        alt Validation Passes
-            Framework->>Risk: checkSignal(params)
-            Risk-->>Framework: true/false
-            
-            alt Risk Check Passes
-                Framework->>Framework: Create ISignalRow with UUID
-                
-                alt Immediate Signal
-                    Framework->>Framework: Persist to storage
-                    Framework->>Framework: Begin TP/SL monitoring
-                else Scheduled Signal
-                    Framework->>Framework: Wait for priceOpen activation
-                end
-            else Risk Check Fails
-                Framework->>Framework: Reject signal, emit riskSubject
-            end
-        else Validation Fails
-            Framework->>Framework: Reject signal, log error
-        end
-    else No Signal
-        User-->>Framework: null
-        Framework->>Framework: Remain idle
-    end
-```
+![Mermaid Diagram](./diagrams\27_signal-generation-getsignal_4.svg)
 

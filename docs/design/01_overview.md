@@ -60,21 +60,7 @@ Developers should write strategy logic once, not maintain separate codebases for
 
 Backtest Kit is fundamentally a **time execution engine**, not a data processing library. The framework processes market data as an **async stream of time**, advancing through historical or real-time timestamps sequentially.
 
-```mermaid
-graph LR
-    TE["Time Execution Engine"]
-    EC["ExecutionContextService"]
-    MC["MethodContextService"]
-    
-    TE -->|"propagates"| EC
-    TE -->|"propagates"| MC
-    EC -->|"provides { symbol, when, backtest }"| Strategy["ClientStrategy.tick()"]
-    MC -->|"provides { strategyName, exchangeName }"| Strategy
-    
-    Strategy -->|"calls"| GC["getCandles()"]
-    GC -->|"reads context"| EC
-    GC -->|"returns data ≤ when"| Strategy
-```
+![Mermaid Diagram](./diagrams\01_overview_0.svg)
 
 **Temporal Context Propagation:**
 
@@ -101,25 +87,7 @@ ExecutionContextService.runInContext(() => {
 
 Live trading requires atomic state persistence to recover from crashes without data corruption or duplicate trades. Backtest Kit implements this through several layers:
 
-```mermaid
-graph TD
-    CS["ClientStrategy"]
-    PA["PersistSignalAdapter"]
-    PB["PersistBase (abstract)"]
-    FS["File System (atomic writes)"]
-    
-    CS -->|"opened signal"| PA
-    PA -->|"writeSignalData()"| PB
-    PB -->|"atomic rename"| FS
-    
-    CS -->|"on restart"| WI["waitForInit()"]
-    WI -->|"readSignalData()"| PB
-    PB -->|"read file"| FS
-    FS -->|"restore state"| CS
-    
-    CS -->|"closed signal"| DEL["deleteSignalData()"]
-    DEL -->|"remove file"| FS
-```
+![Mermaid Diagram](./diagrams\01_overview_1.svg)
 
 **Persistence Strategy:**
 
@@ -137,26 +105,7 @@ The `PersistBase` abstract class can be extended for custom storage backends (Re
 
 All trading signals follow a deterministic state machine with discriminated union types for type safety:
 
-```mermaid
-stateDiagram-v2
-    [*] --> Idle
-    Idle --> Scheduled: "priceOpen not reached"
-    Idle --> Opened: "priceOpen reached"
-    
-    Scheduled --> Opened: "price reaches priceOpen"
-    Scheduled --> Cancelled: "SL hit or timeout"
-    
-    Opened --> Active: "persist to storage"
-    
-    Active --> Closed_TP: "priceTakeProfit reached"
-    Active --> Closed_SL: "priceStopLoss reached"
-    Active --> Closed_Time: "minuteEstimatedTime expired"
-    
-    Closed_TP --> Idle
-    Closed_SL --> Idle
-    Closed_Time --> Idle
-    Cancelled --> Idle
-```
+![Mermaid Diagram](./diagrams\01_overview_2.svg)
 
 **Type-Safe State Representation:**
 
@@ -179,47 +128,7 @@ This eliminates optional field bugs and enables exhaustive pattern matching in T
 
 All execution modes emit events through RxJS `Subject` instances, enabling real-time monitoring, logging, and report generation without blocking strategy execution:
 
-```mermaid
-graph LR
-    subgraph "Event Producers"
-        CS["ClientStrategy.tick()"]
-        BT["BacktestLogicPrivateService"]
-        LIVE["LiveLogicPrivateService"]
-    end
-    
-    subgraph "Event Emitters"
-        SE["signalEmitter"]
-        SBE["signalBacktestEmitter"]
-        SLE["signalLiveEmitter"]
-        DE["doneEmitter"]
-        RE["riskSubject"]
-    end
-    
-    subgraph "Event Consumers"
-        MD["MarkdownServices"]
-        USER["User Callbacks"]
-        LOG["Logger"]
-    end
-    
-    CS -->|"every tick"| SE
-    CS -->|"if backtest"| SBE
-    CS -->|"if live"| SLE
-    BT -->|"on completion"| DE
-    LIVE -->|"on completion"| DE
-    CS -->|"validation failure"| RE
-    
-    SE --> MD
-    SBE --> MD
-    SLE --> MD
-    DE --> MD
-    RE --> MD
-    
-    SE --> USER
-    DE --> USER
-    RE --> USER
-    
-    SE --> LOG
-```
+![Mermaid Diagram](./diagrams\01_overview_3.svg)
 
 **Event Processing Guarantees:**
 
@@ -230,103 +139,7 @@ All event listeners use `functools-kit` `queued` wrapper to ensure sequential pr
 
 Backtest Kit follows clean architecture principles with clear separation between business logic, orchestration, and infrastructure concerns:
 
-```mermaid
-graph TD
-    subgraph "Public API Layer"
-        API["Global Functions<br/>addExchange, addStrategy,<br/>addFrame, addRisk,<br/>listenSignal*, getCandles"]
-        BT_CLASS["Backtest Class<br/>run/background methods"]
-        LIVE_CLASS["Live Class<br/>run/background methods"]
-        WALK_CLASS["Walker Class<br/>run/background methods"]
-    end
-    
-    subgraph "Command Services Layer"
-        BT_CMD["BacktestCommandService"]
-        LIVE_CMD["LiveCommandService"]
-        WALK_CMD["WalkerCommandService"]
-    end
-    
-    subgraph "Logic Services Layer"
-        BT_PUB["BacktestLogicPublicService"]
-        BT_PRIV["BacktestLogicPrivateService"]
-        LIVE_PUB["LiveLogicPublicService"]
-        LIVE_PRIV["LiveLogicPrivateService"]
-        WALK_PUB["WalkerLogicPublicService"]
-        WALK_PRIV["WalkerLogicPrivateService"]
-    end
-    
-    subgraph "Core Services Layer"
-        STRAT_CORE["StrategyCoreService"]
-        EXCH_CORE["ExchangeCoreService"]
-        FRAME_CORE["FrameCoreService"]
-    end
-    
-    subgraph "Connection Services Layer"
-        STRAT_CONN["StrategyConnectionService"]
-        EXCH_CONN["ExchangeConnectionService"]
-        FRAME_CONN["FrameConnectionService"]
-        RISK_CONN["RiskConnectionService"]
-        PART_CONN["PartialConnectionService"]
-    end
-    
-    subgraph "Client Layer (Business Logic)"
-        CLIENT_STRAT["ClientStrategy"]
-        CLIENT_EXCH["ClientExchange"]
-        CLIENT_FRAME["ClientFrame"]
-        CLIENT_RISK["ClientRisk"]
-        CLIENT_PART["ClientPartial"]
-    end
-    
-    subgraph "Schema Services Layer"
-        STRAT_SCHEMA["StrategySchemaService"]
-        EXCH_SCHEMA["ExchangeSchemaService"]
-        FRAME_SCHEMA["FrameSchemaService"]
-        RISK_SCHEMA["RiskSchemaService"]
-    end
-    
-    subgraph "Persistence Layer"
-        PERSIST["PersistSignalAdapter"]
-        PERSIST_BASE["PersistBase (abstract)"]
-    end
-    
-    API --> BT_CLASS
-    API --> LIVE_CLASS
-    API --> WALK_CLASS
-    
-    BT_CLASS --> BT_CMD
-    LIVE_CLASS --> LIVE_CMD
-    WALK_CLASS --> WALK_CMD
-    
-    BT_CMD --> BT_PUB
-    BT_PUB --> BT_PRIV
-    LIVE_CMD --> LIVE_PUB
-    LIVE_PUB --> LIVE_PRIV
-    WALK_CMD --> WALK_PUB
-    WALK_PUB --> WALK_PRIV
-    
-    BT_PRIV --> STRAT_CORE
-    BT_PRIV --> EXCH_CORE
-    BT_PRIV --> FRAME_CORE
-    LIVE_PRIV --> STRAT_CORE
-    WALK_PRIV --> BT_PUB
-    
-    STRAT_CORE --> STRAT_CONN
-    EXCH_CORE --> EXCH_CONN
-    FRAME_CORE --> FRAME_CONN
-    
-    STRAT_CONN --> CLIENT_STRAT
-    EXCH_CONN --> CLIENT_EXCH
-    FRAME_CONN --> CLIENT_FRAME
-    RISK_CONN --> CLIENT_RISK
-    PART_CONN --> CLIENT_PART
-    
-    STRAT_CONN --> STRAT_SCHEMA
-    EXCH_CONN --> EXCH_SCHEMA
-    FRAME_CONN --> FRAME_SCHEMA
-    RISK_CONN --> RISK_SCHEMA
-    
-    CLIENT_STRAT --> PERSIST
-    PERSIST --> PERSIST_BASE
-```
+![Mermaid Diagram](./diagrams\01_overview_4.svg)
 
 **Layer Responsibilities:**
 
@@ -346,40 +159,7 @@ graph TD
 
 Backtest Kit uses a custom dependency injection system built on `di-kit` with Symbol-based tokens. All services are instantiated through a central container and accessed via the `backtest` object:
 
-```mermaid
-graph TD
-    TYPES["TYPES Symbol Registry"]
-    PROVIDE["provide() Function"]
-    INJECT["inject() Function"]
-    
-    subgraph "Service Container"
-        BACKTEST["backtest Object<br/>(aggregates all services)"]
-    end
-    
-    subgraph "Service Instances"
-        LOG_SVC["LoggerService"]
-        EXEC_CTX["ExecutionContextService"]
-        METHOD_CTX["MethodContextService"]
-        STRAT_SCHEMA["StrategySchemaService"]
-        STRAT_CONN["StrategyConnectionService"]
-        BT_CMD["BacktestCommandService"]
-    end
-    
-    TYPES -->|"registers symbols"| PROVIDE
-    PROVIDE -->|"registers factories"| INJECT
-    INJECT -->|"lazy resolution"| BACKTEST
-    
-    BACKTEST --> LOG_SVC
-    BACKTEST --> EXEC_CTX
-    BACKTEST --> METHOD_CTX
-    BACKTEST --> STRAT_SCHEMA
-    BACKTEST --> STRAT_CONN
-    BACKTEST --> BT_CMD
-    
-    BT_CMD -->|"injects"| STRAT_SCHEMA
-    BT_CMD -->|"injects"| EXEC_CTX
-    STRAT_CONN -->|"injects"| STRAT_SCHEMA
-```
+![Mermaid Diagram](./diagrams\01_overview_5.svg)
 
 **Service Categories:**
 
@@ -410,56 +190,7 @@ Backtest Kit provides three execution modes that share the same core strategy lo
 
 **Execution Flow Comparison:**
 
-```mermaid
-graph TB
-    subgraph "Backtest Mode"
-        BT_START["Backtest.run(symbol, config)"]
-        BT_FRAME["Generate timeframes<br/>startDate → endDate"]
-        BT_LOOP["For each timeframe"]
-        BT_TICK["tick(when, backtest=true)"]
-        BT_DONE["Emit doneBacktestSubject"]
-    end
-    
-    subgraph "Live Mode"
-        LIVE_START["Live.run(symbol, config)"]
-        LIVE_INIT["Load persisted signal<br/>waitForInit()"]
-        LIVE_LOOP["while (true)"]
-        LIVE_TICK["tick(new Date(), backtest=false)"]
-        LIVE_PERSIST["Persist opened signals"]
-        LIVE_SLEEP["sleep(TICK_TTL)"]
-        LIVE_DONE["Check stop flag"]
-    end
-    
-    subgraph "Walker Mode"
-        WALK_START["Walker.run(symbol, config)"]
-        WALK_LOAD["Load walker schema"]
-        WALK_LOOP["For each strategy"]
-        WALK_BT["Run Backtest.run()"]
-        WALK_STATS["Collect statistics"]
-        WALK_DONE["Compare & emit results"]
-    end
-    
-    BT_START --> BT_FRAME
-    BT_FRAME --> BT_LOOP
-    BT_LOOP --> BT_TICK
-    BT_TICK --> BT_LOOP
-    BT_LOOP --> BT_DONE
-    
-    LIVE_START --> LIVE_INIT
-    LIVE_INIT --> LIVE_LOOP
-    LIVE_LOOP --> LIVE_TICK
-    LIVE_TICK --> LIVE_PERSIST
-    LIVE_PERSIST --> LIVE_SLEEP
-    LIVE_SLEEP --> LIVE_DONE
-    LIVE_DONE --> LIVE_LOOP
-    
-    WALK_START --> WALK_LOAD
-    WALK_LOAD --> WALK_LOOP
-    WALK_LOOP --> WALK_BT
-    WALK_BT --> WALK_STATS
-    WALK_STATS --> WALK_LOOP
-    WALK_LOOP --> WALK_DONE
-```
+![Mermaid Diagram](./diagrams\01_overview_6.svg)
 
 All three modes call the same `StrategyCoreService.tick()` method, ensuring identical signal generation and validation logic across environments.
 

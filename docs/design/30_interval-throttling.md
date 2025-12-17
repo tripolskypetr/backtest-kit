@@ -43,18 +43,7 @@ type SignalInterval = "1m" | "3m" | "5m" | "15m" | "30m" | "1h";
 
 ### Component Overview
 
-```mermaid
-graph TD
-    A["IStrategySchema"] -->|"interval property"| B["ClientStrategy"]
-    B -->|"maintains"| C["_lastSignalTimestamp"]
-    B -->|"uses"| D["INTERVAL_MINUTES<br/>conversion table"]
-    E["tick() method"] -->|"checks"| C
-    C -->|"elapsed time<br/>< intervalMs"| F["Return null<br/>(throttled)"]
-    C -->|"elapsed time<br/>>= intervalMs"| G["Call getSignal()"]
-    G -->|"updates"| C
-    D -->|"converts to ms"| H["intervalMs"]
-    H -->|"used in"| F
-```
+![Mermaid Diagram](./diagrams\30_interval-throttling_0.svg)
 
 
 ### State Management
@@ -91,36 +80,7 @@ This table is used to convert the user-specified interval into milliseconds for 
 
 ### Throttling Logic Flow
 
-```mermaid
-sequenceDiagram
-    participant TC as tick() caller
-    participant CS as ClientStrategy
-    participant TSC as _lastSignalTimestamp
-    participant GS as getSignal (user code)
-    
-    TC->>CS: tick(symbol, strategyName)
-    CS->>CS: Get currentTime
-    CS->>TSC: Read _lastSignalTimestamp
-    
-    alt First call (_lastSignalTimestamp === null)
-        CS->>TSC: Set _lastSignalTimestamp = currentTime
-        CS->>GS: Call getSignal()
-        GS-->>CS: Return ISignalDto or null
-        CS-->>TC: Return signal result
-    else Throttle check (timestamp exists)
-        CS->>CS: Calculate elapsed = currentTime - _lastSignalTimestamp
-        CS->>CS: Calculate intervalMs from INTERVAL_MINUTES
-        
-        alt elapsed < intervalMs (throttled)
-            CS-->>TC: Return null (skipped)
-        else elapsed >= intervalMs (allowed)
-            CS->>TSC: Update _lastSignalTimestamp = currentTime
-            CS->>GS: Call getSignal()
-            GS-->>CS: Return ISignalDto or null
-            CS-->>TC: Return signal result
-        end
-    end
-```
+![Mermaid Diagram](./diagrams\30_interval-throttling_1.svg)
 
 
 ### Actual Implementation Code
@@ -167,24 +127,7 @@ Interval throttling and signal queue processing are distinct mechanisms with dif
 
 ### Example Scenario
 
-```mermaid
-graph TD
-    A["Minute 0"] --> B["getSignal() called"]
-    B --> C["Signal #1 generated"]
-    C --> D["Signal #1 scheduled"]
-    
-    E["Minute 1-4"] --> F["getSignal() throttled"]
-    F --> G["No new signal"]
-    
-    H["Minute 5"] --> I["getSignal() called"]
-    I --> J["Signal #2 generated"]
-    J --> K{"Signal #1<br/>still active?"}
-    K -->|Yes| L["Signal #2 queued<br/>(waits for #1)"]
-    K -->|No| M["Signal #2 activated<br/>immediately"]
-    
-    style F fill:#f9f9f9
-    style G fill:#f9f9f9
-```
+![Mermaid Diagram](./diagrams\30_interval-throttling_2.svg)
 
 Even with throttling allowing a new `getSignal` call, the new signal waits if a previous signal is still active. Both mechanisms work together to ensure controlled, sequential signal processing.
 
@@ -239,28 +182,7 @@ addStrategy({
 
 ### Decision Tree
 
-```mermaid
-graph TD
-    A["Select Interval"] --> B{"What timeframe candles<br/>does getSignal analyze?"}
-    
-    B -->|"1m candles"| C{"High-frequency<br/>strategy?"}
-    C -->|Yes| D["Use '1m' interval"]
-    C -->|No| E["Use '3m' or '5m'<br/>(reduce load)"]
-    
-    B -->|"5m candles"| F{"Need immediate<br/>reaction to close?"}
-    F -->|Yes| G["Use '5m' interval"]
-    F -->|No| H["Use '15m' interval<br/>(wait for confirmation)"]
-    
-    B -->|"15m candles"| I["Use '15m' interval"]
-    B -->|"1h candles"| J["Use '1h' interval"]
-    
-    K["Multi-timeframe<br/>analysis"] --> L["Use longest<br/>timeframe interval"]
-    
-    style D fill:#e1f5ff
-    style G fill:#e1f5ff
-    style I fill:#e1f5ff
-    style J fill:#e1f5ff
-```
+![Mermaid Diagram](./diagrams\30_interval-throttling_3.svg)
 
 
 ### Selection Guidelines
@@ -357,16 +279,7 @@ The throttling interval directly controls the number of `getSignal` invocations:
 
 In backtest mode, throttling still applies and significantly affects execution time:
 
-```mermaid
-graph LR
-    A["1-day backtest<br/>(1440 minutes)"] --> B["1m interval<br/>1440 getSignal calls"]
-    A --> C["5m interval<br/>288 getSignal calls"]
-    A --> D["1h interval<br/>24 getSignal calls"]
-    
-    B --> E["Slowest<br/>(100% baseline)"]
-    C --> F["5× faster<br/>(20% of baseline)"]
-    D --> G["60× faster<br/>(1.7% of baseline)"]
-```
+![Mermaid Diagram](./diagrams\30_interval-throttling_4.svg)
 
 For a 30-day backtest analyzing 20 symbols:
 - `"1m"` interval: 30 × 1,440 × 20 = 864,000 calls
@@ -393,34 +306,7 @@ Most exchanges have rate limits (e.g., Binance: 1,200 requests/minute). Proper t
 
 In live mode, the execution loop calls `tick()` approximately every minute, but throttling controls `getSignal` invocation:
 
-```mermaid
-sequenceDiagram
-    participant L as LiveLogicPrivateService
-    participant SC as StrategyCoreService
-    participant CS as ClientStrategy
-    participant GS as getSignal (user code)
-    
-    Note over L: Infinite loop with sleep
-    
-    loop Every ~1 minute
-        L->>L: when = new Date()
-        L->>SC: tick(symbol, strategyName, when)
-        SC->>CS: tick()
-        
-        alt Throttled (< 5m elapsed)
-            CS->>CS: Check timestamp
-            CS-->>SC: null (throttled)
-            SC-->>L: IStrategyTickResult (idle/active)
-        else Allowed (>= 5m elapsed)
-            CS->>GS: Call getSignal()
-            GS-->>CS: ISignalDto or null
-            CS-->>SC: IStrategyTickResult
-            SC-->>L: Result
-        end
-        
-        L->>L: await sleep(TICK_TTL)
-    end
-```
+![Mermaid Diagram](./diagrams\30_interval-throttling_5.svg)
 
 **Example Timeline** (5-minute interval):
 - 10:00:00 → `tick()` called → `getSignal()` executed
@@ -467,29 +353,13 @@ const GET_SIGNAL_FN = trycatch(
 
 During normal ticking (signal generation phase), throttling applies:
 
-```mermaid
-graph LR
-    A["tick() called<br/>every minute"] --> B{"Throttle<br/>check"}
-    B -->|"< interval"| C["Return null<br/>(skip getSignal)"]
-    B -->|">= interval"| D["Call getSignal()"]
-    D --> E["Signal generated"]
-```
+![Mermaid Diagram](./diagrams\30_interval-throttling_6.svg)
 
 ### No Throttling During Signal Monitoring
 
 Once a signal is active, the "fast backtest" mode processes candles **without throttling**:
 
-```mermaid
-graph TD
-    A["Signal opened"] --> B["Enter fast backtest mode"]
-    B --> C["Process ALL candles<br/>for TP/SL/time check"]
-    C --> D["Check EVERY candle"]
-    D --> E{"TP/SL/time<br/>reached?"}
-    E -->|No| D
-    E -->|Yes| F["Signal closed"]
-    F --> G["Exit fast backtest"]
-    G --> H["Return to normal ticking<br/>(throttled)"]
-```
+![Mermaid Diagram](./diagrams\30_interval-throttling_7.svg)
 
 **Key Point**: Throttling only applies to **signal generation**, not signal monitoring. Once a signal is active, every candle is checked for TP/SL/time_expired conditions.
 

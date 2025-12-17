@@ -29,80 +29,7 @@ All services automatically subscribe to their respective emitters during initial
 
 ## Service Architecture and Data Flow
 
-```mermaid
-graph TB
-    subgraph "Event Layer"
-        SigBT["signalBacktestEmitter"]
-        SigLive["signalLiveEmitter"]
-        WalkEm["walkerEmitter"]
-        PerfEm["performanceEmitter"]
-        SigGlobal["signalEmitter"]
-        RiskEm["riskSubject"]
-        PartProfit["partialProfitSubject"]
-        PartLoss["partialLossSubject"]
-    end
-    
-    subgraph "Markdown Service Layer"
-        BTMD["BacktestMarkdownService"]
-        LiveMD["LiveMarkdownService"]
-        WalkMD["WalkerMarkdownService"]
-        PerfMD["PerformanceMarkdownService"]
-        HeatMD["HeatMarkdownService"]
-        SchedMD["ScheduleMarkdownService"]
-        PartMD["PartialMarkdownService"]
-        RiskMD["RiskMarkdownService"]
-    end
-    
-    subgraph "Storage Layer"
-        BTStore["ReportStorage<br/>memoize by symbol:strategy"]
-        LiveStore["ReportStorage<br/>memoize by symbol:strategy"]
-        WalkStore["ReportStorage<br/>memoize by walkerName"]
-        PerfStore["PerformanceStorage<br/>memoize by symbol:strategy"]
-        HeatStore["HeatmapStorage<br/>memoize by strategyName"]
-        SchedStore["ReportStorage<br/>memoize by symbol:strategy"]
-        PartStore["ReportStorage<br/>memoize by symbol:strategy"]
-        RiskStore["ReportStorage<br/>memoize by symbol:strategy"]
-    end
-    
-    subgraph "Public API"
-        BacktestAPI["Backtest.getData/getReport/dump"]
-        LiveAPI["Live.getData/getReport/dump"]
-        WalkerAPI["Walker.getData/getReport/dump"]
-        PerfAPI["Performance.getData/getReport/dump"]
-        HeatAPI["Heat.getData/getReport/dump"]
-        SchedAPI["Schedule.getData/getReport/dump"]
-        PartAPI["Partial.getData/getReport/dump"]
-        RiskAPI["Risk.getData/getReport/dump"]
-    end
-    
-    SigBT --> BTMD
-    SigLive --> LiveMD
-    WalkEm --> WalkMD
-    PerfEm --> PerfMD
-    SigGlobal --> HeatMD
-    SigGlobal --> SchedMD
-    RiskEm --> RiskMD
-    PartProfit --> PartMD
-    PartLoss --> PartMD
-    
-    BTMD --> BTStore
-    LiveMD --> LiveStore
-    WalkMD --> WalkStore
-    PerfMD --> PerfStore
-    HeatMD --> HeatStore
-    SchedMD --> SchedStore
-    PartMD --> PartStore
-    RiskMD --> RiskStore
-    
-    BTStore --> BacktestAPI
-    LiveStore --> LiveAPI
-    WalkStore --> WalkerAPI
-    PerfStore --> PerfAPI
-    HeatStore --> HeatAPI
-    SchedStore --> SchedAPI
-    PartStore --> PartAPI
-    RiskStore --> RiskAPI
-```
+![Mermaid Diagram](./diagrams\42_markdown-reports_0.svg)
 
 
 ## Common API Pattern
@@ -556,34 +483,7 @@ The `T` type parameter corresponds to the data model for each service:
 
 ### Column Type Definitions
 
-```mermaid
-graph LR
-    subgraph "Column Types"
-        ColModel["ColumnModel<T>"]
-    end
-    
-    subgraph "Service-Specific Types"
-        BTCol["BacktestMarkdownService.Columns<br/>ColumnModel<IStrategyTickResultClosed>"]
-        LiveCol["LiveMarkdownService.Columns<br/>ColumnModel<TickEvent>"]
-        WalkStratCol["WalkerMarkdownService.StrategyColumn<br/>ColumnModel<IStrategyResult>"]
-        WalkPnlCol["WalkerMarkdownService.PnlColumn<br/>ColumnModel<SignalData>"]
-        PerfCol["PerformanceMarkdownService.Columns<br/>ColumnModel<MetricStats>"]
-        HeatCol["HeatMarkdownService.Columns<br/>ColumnModel<IHeatmapRow>"]
-        SchedCol["ScheduleMarkdownService.Columns<br/>ColumnModel<ScheduledEvent>"]
-        PartCol["PartialMarkdownService.Columns<br/>ColumnModel<PartialEvent>"]
-        RiskCol["RiskMarkdownService.Columns<br/>ColumnModel<RiskEvent>"]
-    end
-    
-    ColModel --> BTCol
-    ColModel --> LiveCol
-    ColModel --> WalkStratCol
-    ColModel --> WalkPnlCol
-    ColModel --> PerfCol
-    ColModel --> HeatCol
-    ColModel --> SchedCol
-    ColModel --> PartCol
-    ColModel --> RiskCol
-```
+![Mermaid Diagram](./diagrams\42_markdown-reports_1.svg)
 
 
 ### Custom Column Examples

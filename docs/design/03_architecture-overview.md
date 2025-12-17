@@ -13,76 +13,7 @@ For details on execution modes (Backtest, Live, Walker), see [Execution Modes](.
 
 Backtest Kit follows a clean architecture pattern with five distinct layers that separate concerns and enable testability. The layers enforce unidirectional dependencies from top to bottom.
 
-```mermaid
-graph TB
-    subgraph "Layer 1: Public API"
-        API["Global Functions<br/>(src/function/add.ts,<br/>src/function/list.ts)"]
-        Classes["Execution Classes<br/>(Backtest, Live, Walker,<br/>Optimizer, Performance)"]
-    end
-    
-    subgraph "Layer 2: Command Services"
-        BacktestCmd["BacktestCommandService"]
-        LiveCmd["LiveCommandService"]
-        WalkerCmd["WalkerCommandService"]
-    end
-    
-    subgraph "Layer 3: Service Layer"
-        Logic["Logic Services<br/>(Public & Private)"]
-        Core["Core Services<br/>(Strategy, Exchange, Frame)"]
-        Global["Global Services<br/>(Risk, Sizing, Optimizer, Partial)"]
-        Schema["Schema Services<br/>(Registry Pattern)"]
-        Validation["Validation Services<br/>(Memoized)"]
-        Connection["Connection Services<br/>(Memoized Factories)"]
-        Context["Context Services<br/>(Execution & Method)"]
-        Markdown["Markdown Services<br/>(Report Generation)"]
-        Template["Template Services<br/>(Code Generation)"]
-    end
-    
-    subgraph "Layer 4: Client Layer"
-        ClientStrategy["ClientStrategy<br/>(src/lib/client/ClientStrategy.ts)"]
-        ClientExchange["ClientExchange<br/>(src/lib/client/ClientExchange.ts)"]
-        ClientRisk["ClientRisk/MergeRisk<br/>(src/lib/client/ClientRisk.ts)"]
-        ClientFrame["ClientFrame<br/>(src/lib/client/ClientFrame.ts)"]
-        ClientPartial["ClientPartial<br/>(src/lib/client/ClientPartial.ts)"]
-    end
-    
-    subgraph "Layer 5: Persistence & External"
-        Persist["PersistSignalAdapter<br/>(src/lib/adapter/PersistSignalAdapter.ts)"]
-        Emitters["Event Emitters<br/>(src/lib/subject/*.ts)"]
-        CCXT["CCXT Exchange API"]
-        LLM["Ollama LLM"]
-    end
-    
-    API --> BacktestCmd
-    API --> LiveCmd
-    API --> WalkerCmd
-    Classes --> BacktestCmd
-    Classes --> LiveCmd
-    Classes --> WalkerCmd
-    
-    BacktestCmd --> Logic
-    LiveCmd --> Logic
-    WalkerCmd --> Logic
-    
-    Logic --> Core
-    Logic --> Context
-    Core --> Connection
-    Core --> Schema
-    Core --> Validation
-    Connection --> ClientStrategy
-    Connection --> ClientExchange
-    Connection --> ClientRisk
-    Connection --> ClientFrame
-    Connection --> ClientPartial
-    Global --> Connection
-    Markdown --> Emitters
-    Template --> Schema
-    
-    ClientStrategy --> Persist
-    ClientStrategy --> Emitters
-    ClientExchange --> CCXT
-    Core --> Emitters
-```
+![Mermaid Diagram](./diagrams\03_architecture-overview_0.svg)
 
 
 ## Dependency Injection System
@@ -91,20 +22,7 @@ The framework uses a custom dependency injection container built on `di-kit` tha
 
 ### TYPES Symbol Registry
 
-```mermaid
-graph LR
-    TYPES["TYPES Object<br/>(src/lib/core/types.ts)"]
-    
-    Base["baseServices<br/>• loggerService"]
-    Ctx["contextServices<br/>• executionContextService<br/>• methodContextService"]
-    Conn["connectionServices<br/>• exchangeConnectionService<br/>• strategyConnectionService<br/>• frameConnectionService<br/>• sizingConnectionService<br/>• riskConnectionService<br/>• optimizerConnectionService<br/>• partialConnectionService"]
-    Sch["schemaServices<br/>• exchangeSchemaService<br/>• strategySchemaService<br/>• frameSchemaService<br/>• walkerSchemaService<br/>• sizingSchemaService<br/>• riskSchemaService<br/>• optimizerSchemaService"]
-    
-    TYPES --> Base
-    TYPES --> Ctx
-    TYPES --> Conn
-    TYPES --> Sch
-```
+![Mermaid Diagram](./diagrams\03_architecture-overview_1.svg)
 
 | Service Category | Symbol Examples | Lifecycle | Purpose |
 |-----------------|----------------|-----------|---------|
@@ -152,72 +70,7 @@ The service layer consists of 11 categories organized by responsibility. Service
 
 ### Service Dependency Graph
 
-```mermaid
-graph TD
-    BacktestCmd["BacktestCommandService<br/>(src/services/command/)"]
-    LiveCmd["LiveCommandService"]
-    
-    BtLogicPub["BacktestLogicPublicService<br/>(src/services/logic/public/)"]
-    LiveLogicPub["LiveLogicPublicService"]
-    
-    BtLogicPriv["BacktestLogicPrivateService<br/>(src/services/logic/private/)"]
-    LiveLogicPriv["LiveLogicPrivateService"]
-    
-    StratCore["StrategyCoreService<br/>(src/services/core/)"]
-    ExchCore["ExchangeCoreService"]
-    FrameCore["FrameCoreService"]
-    
-    StratConn["StrategyConnectionService<br/>(src/services/connection/)"]
-    ExchConn["ExchangeConnectionService"]
-    RiskConn["RiskConnectionService"]
-    PartialConn["PartialConnectionService"]
-    
-    StratSchema["StrategySchemaService<br/>(src/services/schema/)"]
-    ExchSchema["ExchangeSchemaService"]
-    RiskSchema["RiskSchemaService"]
-    
-    StratVal["StrategyValidationService<br/>(src/services/validation/)"]
-    ExchVal["ExchangeValidationService"]
-    RiskVal["RiskValidationService"]
-    
-    ClientStrat["ClientStrategy"]
-    ClientExch["ClientExchange"]
-    ClientRisk["ClientRisk"]
-    
-    BacktestCmd --> StratVal
-    BacktestCmd --> ExchVal
-    BacktestCmd --> BtLogicPub
-    
-    LiveCmd --> StratVal
-    LiveCmd --> ExchVal
-    LiveCmd --> LiveLogicPub
-    
-    BtLogicPub --> BtLogicPriv
-    LiveLogicPub --> LiveLogicPriv
-    
-    BtLogicPriv --> StratCore
-    BtLogicPriv --> ExchCore
-    BtLogicPriv --> FrameCore
-    LiveLogicPriv --> StratCore
-    
-    StratCore --> StratConn
-    StratCore --> StratVal
-    ExchCore --> ExchConn
-    ExchCore --> ExchVal
-    
-    StratConn --> StratSchema
-    StratConn --> RiskConn
-    StratConn --> ExchConn
-    StratConn --> PartialConn
-    ExchConn --> ExchSchema
-    RiskConn --> RiskSchema
-    
-    StratConn --> ClientStrat
-    ExchConn --> ClientExch
-    RiskConn --> ClientRisk
-    
-    StratVal --> RiskVal
-```
+![Mermaid Diagram](./diagrams\03_architecture-overview_2.svg)
 
 
 ### Context Propagation Services
@@ -241,26 +94,7 @@ Both services wrap execution blocks using `runInContext()` method that leverages
 
 Connection services create and cache client instances using `functools-kit` memoization. The cache key is typically the schema name:
 
-```mermaid
-graph LR
-    StratConn["StrategyConnectionService"]
-    ExchConn["ExchangeConnectionService"]
-    
-    Cache["Memoization Cache<br/>(functools-kit)"]
-    
-    ClientStrat1["ClientStrategy<br/>instance 1"]
-    ClientStrat2["ClientStrategy<br/>instance 2"]
-    ClientExch1["ClientExchange<br/>instance 1"]
-    
-    StratConn -->|"getClient(strategyName1)"| Cache
-    StratConn -->|"getClient(strategyName2)"| Cache
-    ExchConn -->|"getClient(exchangeName)"| Cache
-    
-    Cache -->|"cache miss"| ClientStrat1
-    Cache -->|"cache hit"| ClientStrat1
-    Cache -->|"cache miss"| ClientStrat2
-    Cache -->|"cache miss"| ClientExch1
-```
+![Mermaid Diagram](./diagrams\03_architecture-overview_3.svg)
 
 This pattern ensures:
 - Only one client instance per unique schema name
@@ -288,30 +122,7 @@ The client layer contains pure TypeScript classes with no dependency injection. 
 
 ### ClientStrategy Signal Processing Flow
 
-```mermaid
-stateDiagram-v2
-    [*] --> tick
-    tick --> getSignal: "Call user's<br/>getSignal()"
-    getSignal --> validateSignal: "Check prices,<br/>TP/SL logic"
-    validateSignal --> checkRisk: "ClientRisk<br/>validation"
-    checkRisk --> scheduled: "priceOpen<br/>not reached"
-    checkRisk --> opened: "priceOpen<br/>reached"
-    scheduled --> monitorScheduled: "Check SL<br/>before activation"
-    monitorScheduled --> opened: "Price reaches<br/>priceOpen"
-    monitorScheduled --> cancelled: "SL hit or<br/>timeout"
-    opened --> persist: "PersistSignalAdapter<br/>writeSignalData()"
-    persist --> backtest: "Fast processing<br/>mode"
-    persist --> active: "Real-time<br/>monitoring"
-    active --> checkTP: "VWAP vs<br/>priceTakeProfit"
-    active --> checkSL: "VWAP vs<br/>priceStopLoss"
-    active --> checkTime: "timestamp vs<br/>minuteEstimatedTime"
-    checkTP --> closed: "TP reached"
-    checkSL --> closed: "SL reached"
-    checkTime --> closed: "Time expired"
-    backtest --> closed: "Batch candle<br/>processing"
-    closed --> [*]
-    cancelled --> [*]
-```
+![Mermaid Diagram](./diagrams\03_architecture-overview_4.svg)
 
 The `tick()` method at `src/lib/client/ClientStrategy.ts` orchestrates the entire signal lifecycle with interval throttling to prevent spam.
 
@@ -336,46 +147,7 @@ The public API consists of global functions and execution classes that provide t
 
 ### Execution Classes
 
-```mermaid
-classDiagram
-    class Backtest {
-        +run(symbol, context) AsyncGenerator
-        +background(symbol, context) void
-        +stop(symbol, strategyName) Promise
-        +getData(symbol, strategyName) BacktestStatistics
-        +getReport(symbol, strategyName) string
-        +dump(symbol, strategyName) Promise
-    }
-    
-    class Live {
-        +run(symbol, context) AsyncGenerator
-        +background(symbol, context) void
-        +stop(symbol, strategyName) Promise
-        +getData(symbol, strategyName) LiveStatistics
-        +getReport(symbol, strategyName) string
-        +dump(symbol, strategyName) Promise
-    }
-    
-    class Walker {
-        +run(symbol, context) AsyncGenerator
-        +background(symbol, context) void
-        +stop(symbol, walkerName) Promise
-        +getData(symbol, walkerName) WalkerStatistics
-        +getReport(symbol, walkerName) string
-        +dump(symbol, walkerName) Promise
-    }
-    
-    class Optimizer {
-        +getData(optimizerName) Promise~OptimizerData~
-        +getCode(optimizerName, outputPath) Promise~string~
-        +dump(optimizerName, outputPath) Promise
-    }
-    
-    Backtest --> BacktestCommandService: delegates to
-    Live --> LiveCommandService: delegates to
-    Walker --> WalkerCommandService: delegates to
-    Optimizer --> OptimizerGlobalService: delegates to
-```
+![Mermaid Diagram](./diagrams\03_architecture-overview_5.svg)
 
 Each execution class provides three consumption patterns:
 1. **Async Iterator**: `for await (const event of Backtest.run(...))`
@@ -409,56 +181,7 @@ The event system uses RxJS Subject pattern for decoupled communication between p
 
 ### Event Flow Architecture
 
-```mermaid
-graph LR
-    subgraph "Event Producers"
-        StratCore["StrategyCoreService"]
-        ClientStrat["ClientStrategy.tick()"]
-        BtLogic["BacktestLogicPrivateService"]
-        LiveLogic["LiveLogicPrivateService"]
-    end
-    
-    subgraph "Event Bus"
-        SigEmit["signalEmitter"]
-        SigBtEmit["signalBacktestEmitter"]
-        SigLiveEmit["signalLiveEmitter"]
-        ProgEmit["progressBacktestEmitter"]
-        DoneEmit["done*Subject"]
-        RiskEmit["riskSubject"]
-        PartialEmit["partial*Subject"]
-    end
-    
-    subgraph "Event Consumers"
-        BtMD["BacktestMarkdownService"]
-        LiveMD["LiveMarkdownService"]
-        SchedMD["ScheduleMarkdownService"]
-        HeatMD["HeatMarkdownService"]
-        RiskMD["RiskMarkdownService"]
-        PartialMD["PartialMarkdownService"]
-        UserListeners["User Event Listeners<br/>(listenSignal*, etc.)"]
-    end
-    
-    ClientStrat -->|"emit"| SigEmit
-    ClientStrat -->|"emit"| SigBtEmit
-    ClientStrat -->|"emit"| SigLiveEmit
-    BtLogic -->|"emit"| ProgEmit
-    BtLogic -->|"emit"| DoneEmit
-    LiveLogic -->|"emit"| DoneEmit
-    StratCore -->|"emit"| RiskEmit
-    ClientStrat -->|"emit"| PartialEmit
-    
-    SigBtEmit -->|"subscribe"| BtMD
-    SigLiveEmit -->|"subscribe"| LiveMD
-    SigEmit -->|"subscribe"| SchedMD
-    SigEmit -->|"subscribe"| HeatMD
-    RiskEmit -->|"subscribe"| RiskMD
-    PartialEmit -->|"subscribe"| PartialMD
-    
-    SigEmit -->|"subscribe"| UserListeners
-    DoneEmit -->|"subscribe"| UserListeners
-    ProgEmit -->|"subscribe"| UserListeners
-    RiskEmit -->|"subscribe"| UserListeners
-```
+![Mermaid Diagram](./diagrams\03_architecture-overview_6.svg)
 
 All user event listeners use `functools-kit` `queued` wrapper (`src/function/listen.ts`) to ensure sequential async processing, preventing race conditions during high-frequency event emission.
 
@@ -469,48 +192,7 @@ The framework implements three primary data flow patterns corresponding to the t
 
 ### Backtest Data Flow
 
-```mermaid
-sequenceDiagram
-    participant User
-    participant BacktestClass as "Backtest Class"
-    participant BacktestCmd as "BacktestCommandService"
-    participant BtLogicPriv as "BacktestLogicPrivateService"
-    participant FrameCore as "FrameCoreService"
-    participant StratCore as "StrategyCoreService"
-    participant ClientStrat as "ClientStrategy"
-    participant Emitters as "Event Emitters"
-    participant MarkdownSvc as "BacktestMarkdownService"
-    
-    User->>BacktestClass: "Backtest.run(symbol, context)"
-    BacktestClass->>BacktestCmd: "run(symbol, context)"
-    BacktestCmd->>BtLogicPriv: "run(symbol)"
-    BtLogicPriv->>FrameCore: "getTimeframe()"
-    FrameCore-->>BtLogicPriv: "[timestamps]"
-    
-    loop "For each timeframe"
-        BtLogicPriv->>StratCore: "tick(when)"
-        StratCore->>ClientStrat: "tick()"
-        ClientStrat->>ClientStrat: "getSignal()"
-        ClientStrat->>ClientStrat: "validateSignal()"
-        ClientStrat->>ClientStrat: "checkRisk()"
-        
-        alt "Signal Opened"
-            ClientStrat->>ClientStrat: "backtest(candles)"
-            ClientStrat->>Emitters: "emit signalBacktestEmitter"
-            Emitters->>MarkdownSvc: "event notification"
-            ClientStrat-->>StratCore: "IStrategyTickResultClosed"
-            StratCore-->>BtLogicPriv: "result"
-            BtLogicPriv->>User: "yield result"
-        else "No Signal / Idle"
-            ClientStrat-->>StratCore: "IStrategyTickResultIdle"
-            StratCore-->>BtLogicPriv: "result"
-            BtLogicPriv->>BtLogicPriv: "skip to next"
-        end
-    end
-    
-    BtLogicPriv->>Emitters: "emit doneBacktestSubject"
-    BtLogicPriv-->>User: "AsyncGenerator complete"
-```
+![Mermaid Diagram](./diagrams\03_architecture-overview_7.svg)
 
 Key characteristics:
 - Deterministic timeframe iteration via `src/services/logic/private/BacktestLogicPrivateService.ts`
@@ -521,56 +203,7 @@ Key characteristics:
 
 ### Live Trading Data Flow
 
-```mermaid
-sequenceDiagram
-    participant User
-    participant LiveClass as "Live Class"
-    participant LiveCmd as "LiveCommandService"
-    participant LiveLogicPriv as "LiveLogicPrivateService"
-    participant StratCore as "StrategyCoreService"
-    participant ClientStrat as "ClientStrategy"
-    participant Persist as "PersistSignalAdapter"
-    participant Emitters as "Event Emitters"
-    
-    User->>LiveClass: "Live.run(symbol, context)"
-    LiveClass->>LiveCmd: "run(symbol, context)"
-    LiveCmd->>LiveLogicPriv: "run(symbol)"
-    LiveLogicPriv->>Persist: "waitForInit() - load state"
-    Persist-->>LiveLogicPriv: "persisted signal or null"
-    
-    loop "Infinite Loop (while !stopped)"
-        LiveLogicPriv->>LiveLogicPriv: "when = new Date()"
-        LiveLogicPriv->>StratCore: "tick(when)"
-        StratCore->>ClientStrat: "tick()"
-        
-        alt "No Active Signal"
-            ClientStrat->>ClientStrat: "getSignal()"
-            ClientStrat->>ClientStrat: "validateSignal()"
-            ClientStrat->>ClientStrat: "checkRisk()"
-            
-            alt "Signal Opened"
-                ClientStrat->>Persist: "writeSignalData()"
-                Persist-->>ClientStrat: "persisted"
-                ClientStrat->>Emitters: "emit signalLiveEmitter"
-            end
-        else "Active Signal Exists"
-            ClientStrat->>ClientStrat: "checkTP/SL/Time"
-            
-            alt "Signal Closed"
-                ClientStrat->>Persist: "deleteSignalData()"
-                ClientStrat->>Emitters: "emit signalLiveEmitter"
-                ClientStrat-->>StratCore: "IStrategyTickResultClosed"
-            end
-        end
-        
-        StratCore-->>LiveLogicPriv: "result"
-        LiveLogicPriv->>User: "yield result"
-        LiveLogicPriv->>LiveLogicPriv: "sleep(TICK_TTL)"
-    end
-    
-    LiveLogicPriv->>Emitters: "emit doneLiveSubject"
-    LiveLogicPriv-->>User: "AsyncGenerator complete"
-```
+![Mermaid Diagram](./diagrams\03_architecture-overview_8.svg)
 
 Key characteristics:
 - Infinite loop with sleep intervals via `src/services/logic/private/LiveLogicPrivateService.ts`
@@ -581,41 +214,7 @@ Key characteristics:
 
 ### Walker Strategy Comparison Flow
 
-```mermaid
-sequenceDiagram
-    participant User
-    participant WalkerClass as "Walker Class"
-    participant WalkerLogicPriv as "WalkerLogicPrivateService"
-    participant BtLogicPub as "BacktestLogicPublicService"
-    participant BtMD as "BacktestMarkdownService"
-    participant Emitters as "Event Emitters"
-    
-    User->>WalkerClass: "Walker.run(symbol, context)"
-    WalkerClass->>WalkerLogicPriv: "run(symbol)"
-    WalkerLogicPriv->>WalkerLogicPriv: "Load walker schema"
-    WalkerLogicPriv->>WalkerLogicPriv: "strategies = [...]"
-    
-    loop "For each strategy"
-        WalkerLogicPriv->>BtLogicPub: "run(symbol, strategyName)"
-        
-        loop "Backtest Execution"
-            BtLogicPub->>BtLogicPub: "(internal backtest)"
-            BtLogicPub->>Emitters: "emit signals"
-        end
-        
-        BtLogicPub-->>WalkerLogicPriv: "completed"
-        WalkerLogicPriv->>BtMD: "getData(symbol, strategyName)"
-        BtMD-->>WalkerLogicPriv: "BacktestStatistics"
-        WalkerLogicPriv->>WalkerLogicPriv: "Extract metric value"
-        WalkerLogicPriv->>WalkerLogicPriv: "Compare to best"
-        WalkerLogicPriv->>Emitters: "emit walkerEmitter"
-        WalkerLogicPriv->>User: "yield progress"
-    end
-    
-    WalkerLogicPriv->>WalkerLogicPriv: "Determine best strategy"
-    WalkerLogicPriv->>Emitters: "emit walkerCompleteSubject"
-    WalkerLogicPriv-->>User: "yield final results"
-```
+![Mermaid Diagram](./diagrams\03_architecture-overview_9.svg)
 
 Key characteristics:
 - Sequential backtest execution per strategy

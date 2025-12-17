@@ -28,63 +28,7 @@ The position sizing system provides pluggable strategies for determining trade q
 
 ### Core Components
 
-```mermaid
-graph TB
-    subgraph "Public API"
-        addSizing["addSizing()<br/>Function"]
-        listSizings["listSizings()<br/>Function"]
-        PositionSizeClass["PositionSize<br/>Class"]
-    end
-    
-    subgraph "Schema Definitions"
-        ISizingSchema["ISizingSchema<br/>Base Interface"]
-        ISizingSchemaFixedPercentage["ISizingSchemaFixedPercentage<br/>Fixed % strategy"]
-        ISizingSchemaKelly["ISizingSchemaKelly<br/>Kelly criterion"]
-        ISizingSchemaATR["ISizingSchemaATR<br/>ATR-based sizing"]
-    end
-    
-    subgraph "Calculate Parameters"
-        ISizingCalculateParams["ISizingCalculateParams<br/>Base params"]
-        ISizingCalculateParamsFixedPercentage["ISizingCalculateParamsFixedPercentage<br/>Fixed % params"]
-        ISizingCalculateParamsKelly["ISizingCalculateParamsKelly<br/>Kelly params"]
-        ISizingCalculateParamsATR["ISizingCalculateParamsATR<br/>ATR params"]
-    end
-    
-    subgraph "Service Layer"
-        SizingSchemaService["SizingSchemaService<br/>Registry"]
-        SizingValidationService["SizingValidationService<br/>Existence checks"]
-        SizingConnectionService["SizingConnectionService<br/>Memoized clients"]
-    end
-    
-    subgraph "Integration Points"
-        ClientStrategy["ClientStrategy<br/>Signal execution"]
-        ClientExchange["ClientExchange<br/>Precision formatting"]
-        IRisk["IRisk<br/>Risk validation"]
-    end
-    
-    addSizing --> SizingSchemaService
-    listSizings --> SizingSchemaService
-    PositionSizeClass --> SizingConnectionService
-    
-    ISizingSchema --> ISizingSchemaFixedPercentage
-    ISizingSchema --> ISizingSchemaKelly
-    ISizingSchema --> ISizingSchemaATR
-    
-    ISizingCalculateParams --> ISizingCalculateParamsFixedPercentage
-    ISizingCalculateParams --> ISizingCalculateParamsKelly
-    ISizingCalculateParams --> ISizingCalculateParamsATR
-    
-    SizingSchemaService --> SizingValidationService
-    SizingValidationService --> SizingConnectionService
-    
-    SizingConnectionService --> ClientStrategy
-    ClientStrategy --> ClientExchange
-    ClientStrategy --> IRisk
-    
-    ISizingSchemaFixedPercentage --> ISizingCalculateParamsFixedPercentage
-    ISizingSchemaKelly --> ISizingCalculateParamsKelly
-    ISizingSchemaATR --> ISizingCalculateParamsATR
-```
+![Mermaid Diagram](./diagrams\34_position-sizing_0.svg)
 
 **Component Responsibilities:**
 
@@ -105,80 +49,7 @@ graph TB
 
 ### Interface Hierarchy
 
-```mermaid
-classDiagram
-    class ISizingSchema {
-        <<interface>>
-        +string sizingName
-        +string? note
-        +calculate(params) Promise~number~
-    }
-    
-    class ISizingSchemaFixedPercentage {
-        <<interface>>
-        +string sizingName
-        +number percentageOfBalance
-        +calculate(params) Promise~number~
-    }
-    
-    class ISizingSchemaKelly {
-        <<interface>>
-        +string sizingName
-        +number maxKellyFraction
-        +number defaultWinRate?
-        +calculate(params) Promise~number~
-    }
-    
-    class ISizingSchemaATR {
-        <<interface>>
-        +string sizingName
-        +number atrMultiplier
-        +number atrPeriod
-        +number maxRiskPercent
-        +calculate(params) Promise~number~
-    }
-    
-    class ISizingCalculateParams {
-        <<interface>>
-        +string symbol
-        +number accountBalance
-        +ISignalDto pendingSignal
-        +number currentPrice
-        +Date when
-    }
-    
-    class IPositionSizeFixedPercentageParams {
-        <<interface>>
-        +number percentageOfBalance
-    }
-    
-    class IPositionSizeKellyParams {
-        <<interface>>
-        +number winRate
-        +number riskRewardRatio
-        +number kellyFraction
-    }
-    
-    class IPositionSizeATRParams {
-        <<interface>>
-        +number atr
-        +number atrMultiplier
-        +number maxRiskPercent
-        +number stopLossDistance
-    }
-    
-    ISizingSchema <|-- ISizingSchemaFixedPercentage
-    ISizingSchema <|-- ISizingSchemaKelly
-    ISizingSchema <|-- ISizingSchemaATR
-    
-    ISizingCalculateParams <.. ISizingSchemaFixedPercentage : uses
-    ISizingCalculateParams <.. ISizingSchemaKelly : uses
-    ISizingCalculateParams <.. ISizingSchemaATR : uses
-    
-    IPositionSizeFixedPercentageParams <.. ISizingSchemaFixedPercentage : runtime
-    IPositionSizeKellyParams <.. ISizingSchemaKelly : runtime
-    IPositionSizeATRParams <.. ISizingSchemaATR : runtime
-```
+![Mermaid Diagram](./diagrams\34_position-sizing_1.svg)
 
 
 ---
@@ -397,37 +268,7 @@ addSizing({
 
 ### Position Sizing in Signal Lifecycle
 
-```mermaid
-sequenceDiagram
-    participant User as "User Code"
-    participant addSizing as "addSizing()"
-    participant SizingSchemaService as "SizingSchemaService"
-    participant ClientStrategy as "ClientStrategy"
-    participant SizingConnectionService as "SizingConnectionService"
-    participant calculate as "calculate()<br/>Sizing Function"
-    participant ClientExchange as "ClientExchange"
-    participant IExchange as "IExchange.formatQuantity()"
-    
-    User->>addSizing: Define sizing strategy
-    addSizing->>SizingSchemaService: Store schema in ToolRegistry
-    
-    Note over ClientStrategy: During signal execution...
-    
-    ClientStrategy->>SizingConnectionService: Get sizing calculator
-    SizingConnectionService->>SizingSchemaService: Load schema by sizingName
-    SizingConnectionService-->>ClientStrategy: Return calculator instance
-    
-    ClientStrategy->>calculate: Call with ISizingCalculateParams
-    Note over calculate: accountBalance, pendingSignal,<br/>currentPrice, symbol, when
-    calculate-->>ClientStrategy: Return raw quantity (e.g., 0.05321)
-    
-    ClientStrategy->>ClientExchange: Format quantity for exchange
-    ClientExchange->>IExchange: formatQuantity(symbol, quantity)
-    IExchange-->>ClientExchange: Formatted string (e.g., "0.05321000")
-    ClientExchange-->>ClientStrategy: Exchange-compliant quantity
-    
-    ClientStrategy->>ClientStrategy: Execute order with formatted quantity
-```
+![Mermaid Diagram](./diagrams\34_position-sizing_2.svg)
 
 **Integration Points:**
 
@@ -455,18 +296,7 @@ sequenceDiagram
 
 ### Registering a Sizing Strategy
 
-```mermaid
-graph LR
-    UserCode["User Code"] -->|1. addSizing schema| addSizing["addSizing()<br/>src/function/add.ts"]
-    addSizing -->|2. Store in registry| SizingSchemaService["SizingSchemaService<br/>lib/services/schema"]
-    SizingSchemaService -->|3. Validate uniqueness| SizingValidationService["SizingValidationService<br/>lib/services/validation"]
-    
-    UserCode2["Strategy Code"] -->|1. Reference sizingName| IStrategySchema["IStrategySchema<br/>sizingName: string"]
-    IStrategySchema -->|2. Validate exists| SizingValidationService
-    IStrategySchema -->|3. Retrieve| SizingConnectionService["SizingConnectionService<br/>lib/services/connection"]
-    SizingConnectionService -->|4. Instantiate| ClientSizing["Sizing Calculator<br/>Memoized instance"]
-    ClientSizing -->|5. Call calculate| CalculateFn["calculate(params)<br/>User-defined function"]
-```
+![Mermaid Diagram](./diagrams\34_position-sizing_3.svg)
 
 **Method: `addSizing(schema: ISizingSchema)`**
 

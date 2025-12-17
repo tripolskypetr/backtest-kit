@@ -30,26 +30,7 @@ An exchange schema must implement methods for fetching candles (`getCandles`), f
 
 ## Configuration Flow
 
-```mermaid
-graph TB
-    User["User Code"] -->|"addExchange(schema)"| AddFn["addExchange()<br/>function"]
-    AddFn -->|"validate"| ValSvc["ExchangeValidationService<br/>Check for duplicates"]
-    ValSvc -->|"store"| SchemaSvc["ExchangeSchemaService<br/>ToolRegistry storage"]
-    
-    SchemaSvc -.->|"retrieve during execution"| ConnSvc["ExchangeConnectionService<br/>Memoized factory"]
-    ConnSvc -->|"instantiate once"| Client["ClientExchange instance<br/>Per exchangeName"]
-    
-    Client -->|"calls"| GetCandles["schema.getCandles()<br/>Fetch OHLCV data"]
-    Client -->|"calls"| FmtPrice["schema.formatPrice()<br/>Apply precision rules"]
-    Client -->|"calls"| FmtQty["schema.formatQuantity()<br/>Apply precision rules"]
-    Client -->|"triggers"| Callbacks["schema.callbacks.onCandleData<br/>Optional lifecycle hook"]
-    
-    Client -->|"provides"| Strategy["ClientStrategy<br/>getSignal() execution"]
-    Strategy -->|"getCandles()"| Client
-    Strategy -->|"getAveragePrice()"| Client
-    
-    Client -->|"calculates VWAP"| VWAP["getAveragePrice()<br/>Last 5 1-min candles<br/>VWAP = Σ(TP × Vol) / ΣVol"]
-```
+![Mermaid Diagram](./diagrams\37_exchange-configuration_0.svg)
 
 **Diagram: Exchange Configuration and Usage Flow**
 
@@ -60,48 +41,7 @@ The user defines an `IExchangeSchema` and registers it via `addExchange()`. The 
 
 ## IExchangeSchema Interface
 
-```mermaid
-classDiagram
-    class IExchangeSchema {
-        +ExchangeName exchangeName
-        +string? note
-        +getCandles(symbol, interval, since, limit) Promise~ICandleData[]~
-        +formatQuantity(symbol, quantity) Promise~string~
-        +formatPrice(symbol, price) Promise~string~
-        +Partial~IExchangeCallbacks~? callbacks
-    }
-    
-    class IExchangeCallbacks {
-        +onCandleData(symbol, interval, since, limit, data) void
-    }
-    
-    class ICandleData {
-        +number timestamp
-        +number open
-        +number high
-        +number low
-        +number close
-        +number volume
-    }
-    
-    class CandleInterval {
-        <<enumeration>>
-        1m
-        3m
-        5m
-        15m
-        30m
-        1h
-        2h
-        4h
-        6h
-        8h
-    }
-    
-    IExchangeSchema --> IExchangeCallbacks : "optional callbacks"
-    IExchangeSchema --> ICandleData : "returns from getCandles()"
-    IExchangeSchema --> CandleInterval : "uses as interval parameter"
-```
+![Mermaid Diagram](./diagrams\37_exchange-configuration_1.svg)
 
 **Diagram: IExchangeSchema Structure**
 
@@ -256,29 +196,7 @@ addExchange({
 
 ## Registration with addExchange()
 
-```mermaid
-sequenceDiagram
-    participant User as "User Code"
-    participant AddFn as "addExchange()"
-    participant Logger as "LoggerService"
-    participant ValSvc as "ExchangeValidationService"
-    participant SchemaSvc as "ExchangeSchemaService"
-    
-    User->>AddFn: addExchange(schema)
-    AddFn->>Logger: log("add.addExchange")
-    
-    AddFn->>ValSvc: validateUniqueExchange(exchangeName)
-    alt Exchange already exists
-        ValSvc-->>AddFn: throw Error("Exchange exists")
-        AddFn-->>User: Error thrown
-    else Exchange is unique
-        ValSvc-->>AddFn: validation passed
-        AddFn->>SchemaSvc: addExchange(schema)
-        SchemaSvc->>SchemaSvc: ToolRegistry.set(exchangeName, schema)
-        SchemaSvc-->>AddFn: void
-        AddFn-->>User: void (success)
-    end
-```
+![Mermaid Diagram](./diagrams\37_exchange-configuration_2.svg)
 
 **Diagram: addExchange() Registration Flow**
 
@@ -296,24 +214,7 @@ The registration process validates uniqueness to prevent accidental overwrites, 
 
 The framework instantiates `ClientExchange` using the provided schema. This client implements additional logic around the user-defined methods.
 
-```mermaid
-graph TB
-    Schema["IExchangeSchema<br/>User configuration"] -->|"passed to"| Params["IExchangeParams<br/>+ logger<br/>+ execution context"]
-    
-    Params -->|"constructor"| Client["ClientExchange instance<br/>Prototype methods"]
-    
-    Client --> GetCandlesMethod["getCandles(symbol, interval, limit)<br/>- Reads execution context (when)<br/>- Calls schema.getCandles()<br/>- Returns data UP TO context time"]
-    
-    Client --> GetNextCandlesMethod["getNextCandles(symbol, interval, limit)<br/>- Backtest only<br/>- Returns future candles<br/>- For fast backtest optimization"]
-    
-    Client --> GetAvgPriceMethod["getAveragePrice(symbol)<br/>- Fetches last 5 1m candles<br/>- Calculates VWAP<br/>- TP = (H + L + C) / 3<br/>- VWAP = Σ(TP × Vol) / ΣVol"]
-    
-    Client --> FormatPriceMethod["formatPrice(symbol, price)<br/>- Delegates to schema.formatPrice()"]
-    
-    Client --> FormatQtyMethod["formatQuantity(symbol, quantity)<br/>- Delegates to schema.formatQuantity()"]
-    
-    GetAvgPriceMethod -->|"uses"| GetCandlesMethod
-```
+![Mermaid Diagram](./diagrams\37_exchange-configuration_3.svg)
 
 **Diagram: ClientExchange Method Structure**
 
@@ -368,35 +269,7 @@ setConfig({
 
 Strategies access exchange functionality through helper functions that automatically resolve the correct exchange instance.
 
-```mermaid
-sequenceDiagram
-    participant Strategy as "getSignal()<br/>User Strategy"
-    participant Helper as "getCandles()<br/>Helper Function"
-    participant ExecCtx as "ExecutionContextService<br/>{ symbol, when, backtest }"
-    participant MethodCtx as "MethodContextService<br/>{ exchangeName, ... }"
-    participant ConnSvc as "ExchangeConnectionService"
-    participant Client as "ClientExchange"
-    participant Schema as "schema.getCandles()"
-    
-    Strategy->>Helper: getCandles("BTCUSDT", "1h", 24)
-    Helper->>ExecCtx: Read context.symbol, context.when
-    Helper->>MethodCtx: Read context.exchangeName
-    Helper->>ConnSvc: getExchange(exchangeName)
-    
-    ConnSvc->>ConnSvc: Check memoization cache
-    alt Not cached
-        ConnSvc->>Client: new ClientExchange(schema, logger, execution)
-        ConnSvc->>ConnSvc: Cache instance
-    end
-    ConnSvc-->>Helper: ClientExchange instance
-    
-    Helper->>Client: getCandles("BTCUSDT", "1h", 24)
-    Client->>Schema: schema.getCandles(symbol, "1h", since, 24)
-    Note over Client,Schema: since = context.when - (24 * 1h)
-    Schema-->>Client: ICandleData[]
-    Client-->>Helper: ICandleData[] (filtered to context.when)
-    Helper-->>Strategy: ICandleData[]
-```
+![Mermaid Diagram](./diagrams\37_exchange-configuration_4.svg)
 
 **Diagram: Strategy to Exchange Data Flow**
 

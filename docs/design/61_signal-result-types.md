@@ -18,59 +18,7 @@ For strategy development and the `getSignal` function contract, see [Strategy De
 
 The signal and result types form a hierarchy from user input to system output:
 
-```mermaid
-graph TD
-    subgraph "Input: Strategy Returns"
-        DTO["ISignalDto<br/>(from getSignal)"]
-    end
-    
-    subgraph "Internal: System State"
-        ROW["ISignalRow<br/>(with id, timestamps)"]
-        SCHED["IScheduledSignalRow<br/>(extends ISignalRow)"]
-    end
-    
-    subgraph "Output: Result Discriminated Union"
-        RESULT["IStrategyTickResult"]
-        IDLE["IStrategyTickResultIdle"]
-        SCHEDULED["IStrategyTickResultScheduled"]
-        OPENED["IStrategyTickResultOpened"]
-        ACTIVE["IStrategyTickResultActive"]
-        CLOSED["IStrategyTickResultClosed"]
-        CANCELLED["IStrategyTickResultCancelled"]
-    end
-    
-    subgraph "Backtest Subset"
-        BT_RESULT["IStrategyBacktestResult"]
-    end
-    
-    subgraph "Supplemental Types"
-        PNL["IStrategyPnL"]
-        REASON["StrategyCloseReason"]
-    end
-    
-    DTO -->|"validation +<br/>auto-generation"| ROW
-    DTO -->|"if priceOpen specified"| SCHED
-    
-    ROW --> OPENED
-    ROW --> ACTIVE
-    ROW --> CLOSED
-    
-    SCHED --> SCHEDULED
-    SCHED --> CANCELLED
-    
-    IDLE --> RESULT
-    SCHEDULED --> RESULT
-    OPENED --> RESULT
-    ACTIVE --> RESULT
-    CLOSED --> RESULT
-    CANCELLED --> RESULT
-    
-    CLOSED --> BT_RESULT
-    CANCELLED --> BT_RESULT
-    
-    CLOSED -.->|"contains"| PNL
-    CLOSED -.->|"contains"| REASON
-```
+![Mermaid Diagram](./diagrams\61_signal-result-types_0.svg)
 
 
 ---
@@ -545,61 +493,7 @@ listenSignal((result) => {
 
 ## Type Relationship Diagram
 
-```mermaid
-graph TB
-    subgraph "getSignal Returns"
-        DTO["ISignalDto<br/>position, priceOpen?, TP, SL"]
-    end
-    
-    subgraph "Validation & Augmentation"
-        VAL["ClientStrategy.tick()<br/>- Generate UUID<br/>- Set VWAP if no priceOpen<br/>- Add timestamps<br/>- Add context fields"]
-    end
-    
-    subgraph "Persisted State"
-        ROW["ISignalRow<br/>id, scheduledAt, pendingAt"]
-        SCHED_ROW["IScheduledSignalRow<br/>extends ISignalRow"]
-    end
-    
-    subgraph "Tick Results (All States)"
-        IDLE_R["IStrategyTickResultIdle<br/>action: 'idle'<br/>signal: null"]
-        SCHED_R["IStrategyTickResultScheduled<br/>action: 'scheduled'<br/>signal: IScheduledSignalRow"]
-        OPEN_R["IStrategyTickResultOpened<br/>action: 'opened'<br/>signal: ISignalRow"]
-        ACTIVE_R["IStrategyTickResultActive<br/>action: 'active'<br/>percentTp, percentSl"]
-        CLOSED_R["IStrategyTickResultClosed<br/>action: 'closed'<br/>closeReason, pnl"]
-        CANCEL_R["IStrategyTickResultCancelled<br/>action: 'cancelled'<br/>signal: IScheduledSignalRow"]
-    end
-    
-    subgraph "Backtest Results (Terminal Only)"
-        BT_CLOSED["IStrategyTickResultClosed"]
-        BT_CANCEL["IStrategyTickResultCancelled"]
-    end
-    
-    DTO -->|"no priceOpen"| VAL
-    DTO -->|"with priceOpen"| VAL
-    
-    VAL -->|"no priceOpen"| ROW
-    VAL -->|"with priceOpen"| SCHED_ROW
-    
-    ROW --> OPEN_R
-    ROW --> ACTIVE_R
-    ROW --> CLOSED_R
-    
-    SCHED_ROW --> SCHED_R
-    SCHED_ROW --> CANCEL_R
-    
-    IDLE_R -.->|"part of"| TICK_UNION["IStrategyTickResult"]
-    SCHED_R -.->|"part of"| TICK_UNION
-    OPEN_R -.->|"part of"| TICK_UNION
-    ACTIVE_R -.->|"part of"| TICK_UNION
-    CLOSED_R -.->|"part of"| TICK_UNION
-    CANCEL_R -.->|"part of"| TICK_UNION
-    
-    CLOSED_R --> BT_CLOSED
-    CANCEL_R --> BT_CANCEL
-    
-    BT_CLOSED -.->|"part of"| BT_UNION["IStrategyBacktestResult"]
-    BT_CANCEL -.->|"part of"| BT_UNION
-```
+![Mermaid Diagram](./diagrams\61_signal-result-types_1.svg)
 
 
 ---
@@ -629,38 +523,7 @@ All result types share these common fields:
 
 Signal and result types flow through the event system via Subject emitters:
 
-```mermaid
-graph LR
-    subgraph "Strategy Execution"
-        TICK["ClientStrategy.tick()"]
-        BT["ClientStrategy.backtest()"]
-    end
-    
-    subgraph "Emitters"
-        SIGNAL_EMIT["signalEmitter<br/>Subject&lt;IStrategyTickResult&gt;"]
-        BT_EMIT["signalBacktestEmitter<br/>Subject&lt;IStrategyTickResult&gt;"]
-        LIVE_EMIT["signalLiveEmitter<br/>Subject&lt;IStrategyTickResult&gt;"]
-    end
-    
-    subgraph "Consumers"
-        LISTEN["listenSignal()<br/>listenSignalBacktest()<br/>listenSignalLive()"]
-        MD["BacktestMarkdownService<br/>LiveMarkdownService"]
-    end
-    
-    TICK -->|"IStrategyTickResult"| SIGNAL_EMIT
-    TICK -->|"if backtest"| BT_EMIT
-    TICK -->|"if live"| LIVE_EMIT
-    
-    BT -->|"IStrategyBacktestResult"| BT_EMIT
-    
-    SIGNAL_EMIT --> LISTEN
-    BT_EMIT --> LISTEN
-    LIVE_EMIT --> LISTEN
-    
-    SIGNAL_EMIT --> MD
-    BT_EMIT --> MD
-    LIVE_EMIT --> MD
-```
+![Mermaid Diagram](./diagrams\61_signal-result-types_2.svg)
 
 **Key Points:**
 

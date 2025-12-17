@@ -17,62 +17,7 @@ All schema interfaces follow a consistent registration pattern: define a configu
 
 **Schema Registration Flow**
 
-```mermaid
-graph LR
-    User["User Code"]
-    
-    subgraph "Public API"
-        AddStrategy["addStrategy()"]
-        AddExchange["addExchange()"]
-        AddFrame["addFrame()"]
-        AddRisk["addRisk()"]
-        AddWalker["addWalker()"]
-        AddSizing["addSizing()"]
-        AddOptimizer["addOptimizer()"]
-    end
-    
-    subgraph "Schema Services"
-        StrategySchema["StrategySchemaService<br/>ToolRegistry"]
-        ExchangeSchema["ExchangeSchemaService<br/>ToolRegistry"]
-        FrameSchema["FrameSchemaService<br/>ToolRegistry"]
-        RiskSchema["RiskSchemaService<br/>ToolRegistry"]
-        WalkerSchema["WalkerSchemaService<br/>ToolRegistry"]
-        SizingSchema["SizingSchemaService<br/>ToolRegistry"]
-        OptimizerSchema["OptimizerSchemaService<br/>ToolRegistry"]
-    end
-    
-    subgraph "Connection Services"
-        StrategyConn["StrategyConnectionService<br/>Memoized ClientStrategy"]
-        ExchangeConn["ExchangeConnectionService<br/>Memoized ClientExchange"]
-        FrameConn["FrameConnectionService<br/>Memoized ClientFrame"]
-        RiskConn["RiskConnectionService<br/>Memoized ClientRisk"]
-        SizingConn["SizingConnectionService<br/>Memoized ClientSizing"]
-        OptimizerConn["OptimizerConnectionService<br/>Memoized ClientOptimizer"]
-    end
-    
-    User -->|"IStrategySchema"| AddStrategy
-    User -->|"IExchangeSchema"| AddExchange
-    User -->|"IFrameSchema"| AddFrame
-    User -->|"IRiskSchema"| AddRisk
-    User -->|"IWalkerSchema"| AddWalker
-    User -->|"ISizingSchema"| AddSizing
-    User -->|"IOptimizerSchema"| AddOptimizer
-    
-    AddStrategy --> StrategySchema
-    AddExchange --> ExchangeSchema
-    AddFrame --> FrameSchema
-    AddRisk --> RiskSchema
-    AddWalker --> WalkerSchema
-    AddSizing --> SizingSchema
-    AddOptimizer --> OptimizerSchema
-    
-    StrategyConn -.->|"reads"| StrategySchema
-    ExchangeConn -.->|"reads"| ExchangeSchema
-    FrameConn -.->|"reads"| FrameSchema
-    RiskConn -.->|"reads"| RiskSchema
-    SizingConn -.->|"reads"| SizingSchema
-    OptimizerConn -.->|"reads"| OptimizerSchema
-```
+![Mermaid Diagram](./diagrams\60_core-interfaces_0.svg)
 
 
 **Schema Interface Categories**
@@ -146,31 +91,7 @@ Inside `getSignal`, use `getCandles()` to fetch historical data for analysis (se
 
 **Signal Generation Flow**
 
-```mermaid
-graph TD
-    Tick["ClientStrategy.tick()"]
-    Throttle{"Throttled?<br/>interval check"}
-    GetSignal["Call getSignal()<br/>user function"]
-    Result{"Result?"}
-    Validate["Multi-stage validation<br/>prices, TP/SL logic, distance"]
-    RiskCheck{"Risk validation<br/>if riskName/riskList"}
-    PriceOpen{"priceOpen<br/>provided?"}
-    Scheduled["Create IScheduledSignalRow<br/>action: scheduled"]
-    Opened["Create ISignalRow<br/>action: opened<br/>Persist to storage"]
-    Idle["Return IStrategyTickResultIdle<br/>action: idle"]
-    
-    Tick --> Throttle
-    Throttle -->|"Yes, skip"| Idle
-    Throttle -->|"No, proceed"| GetSignal
-    GetSignal --> Result
-    Result -->|"null"| Idle
-    Result -->|"ISignalDto"| Validate
-    Validate --> RiskCheck
-    RiskCheck -->|"Rejected"| Idle
-    RiskCheck -->|"Allowed"| PriceOpen
-    PriceOpen -->|"Yes"| Scheduled
-    PriceOpen -->|"No, use VWAP"| Opened
-```
+![Mermaid Diagram](./diagrams\60_core-interfaces_1.svg)
 
 
 **Strategy Callbacks**
@@ -317,24 +238,7 @@ getCandles: (symbol: string, interval: CandleInterval, since: Date, limit: numbe
 
 **Data Flow: Exchange to VWAP Calculation**
 
-```mermaid
-graph LR
-    User["getSignal() or tick()"]
-    Global["getCandles() global function"]
-    ExchConn["ExchangeConnectionService"]
-    ClientExch["ClientExchange"]
-    Schema["IExchangeSchema.getCandles()"]
-    Buffer["Candle Buffer<br/>Last 5x 1m candles"]
-    VWAP["VWAP Calculation<br/>Σ(typical price × volume) / Σ(volume)"]
-    
-    User -->|"calls"| Global
-    Global --> ExchConn
-    ExchConn -->|"routes by exchangeName"| ClientExch
-    ClientExch -->|"invokes"| Schema
-    Schema -->|"returns ICandleData[]"| ClientExch
-    ClientExch --> Buffer
-    Buffer --> VWAP
-```
+![Mermaid Diagram](./diagrams\60_core-interfaces_2.svg)
 
 
 **Example: CCXT Integration**
@@ -418,19 +322,7 @@ type FrameInterval = "1m" | "3m" | "5m" | "15m" | "30m" | "1h" | "2h" | "4h" | "
 
 ClientFrame generates an array of `Date` objects from `startDate` to `endDate` spaced by `interval`. BacktestLogicPrivateService iterates through these timestamps, setting `ExecutionContext.when` for each tick.
 
-```mermaid
-graph LR
-    Frame["IFrameSchema<br/>startDate: 2024-01-01<br/>endDate: 2024-01-02<br/>interval: 1m"]
-    Generate["ClientFrame.getTimeframe()"]
-    Timeframe["Date[]<br/>1440 timestamps<br/>spaced 1 minute apart"]
-    Backtest["BacktestLogicPrivateService"]
-    Loop["for each timestamp:<br/>ExecutionContext.when = timestamp<br/>StrategyCore.tick()"]
-    
-    Frame --> Generate
-    Generate --> Timeframe
-    Timeframe --> Backtest
-    Backtest --> Loop
-```
+![Mermaid Diagram](./diagrams\60_core-interfaces_3.svg)
 
 
 **Example: Multiple Time Ranges**
@@ -537,31 +429,7 @@ Validation functions receive a payload with:
 
 **Risk Validation Pipeline**
 
-```mermaid
-graph TD
-    GetSignal["getSignal() returns ISignalDto"]
-    Validate["Multi-stage validation<br/>GLOBAL_CONFIG checks"]
-    HasRisk{"riskName or<br/>riskList?"}
-    RiskConn["RiskConnectionService"]
-    ClientRisk["ClientRisk or MergeRisk"]
-    Loop["For each validation function"]
-    Execute["Execute validation(payload)"]
-    Throws{"Throws error?"}
-    Reject["Emit riskSubject<br/>Return action: idle"]
-    Allow["Proceed to signal creation"]
-    
-    GetSignal --> Validate
-    Validate --> HasRisk
-    HasRisk -->|"No"| Allow
-    HasRisk -->|"Yes"| RiskConn
-    RiskConn --> ClientRisk
-    ClientRisk --> Loop
-    Loop --> Execute
-    Execute --> Throws
-    Throws -->|"Yes"| Reject
-    Throws -->|"No, continue"| Loop
-    Loop -->|"All passed"| Allow
-```
+![Mermaid Diagram](./diagrams\60_core-interfaces_4.svg)
 
 
 **Example: Conservative Risk Profile**
@@ -669,33 +537,7 @@ type WalkerMetric = "sharpeRatio" | "annualizedSharpeRatio" | "winRate" | "total
 
 **Walker Execution Flow**
 
-```mermaid
-graph TD
-    WalkerRun["Walker.run(symbol, { walkerName })"]
-    LoadSchema["Load IWalkerSchema"]
-    Init["best = null<br/>results = []"]
-    Loop["For each strategy in strategies"]
-    RunBacktest["Backtest.run(symbol, {<br/>strategyName,<br/>exchangeName,<br/>frameName<br/>})"]
-    GetStats["BacktestMarkdownService.getData()"]
-    Extract["Extract metric value<br/>e.g., stats.sharpeRatio"]
-    Compare{"metric > best?"}
-    UpdateBest["best = metric<br/>bestStrategy = strategyName"]
-    Emit["Emit walkerEmitter<br/>with progress"]
-    Done["Emit walkerCompleteSubject<br/>Return IWalkerResults"]
-    
-    WalkerRun --> LoadSchema
-    LoadSchema --> Init
-    Init --> Loop
-    Loop --> RunBacktest
-    RunBacktest --> GetStats
-    GetStats --> Extract
-    Extract --> Compare
-    Compare -->|"Yes"| UpdateBest
-    Compare -->|"No"| Emit
-    UpdateBest --> Emit
-    Emit --> Loop
-    Loop -->|"All complete"| Done
-```
+![Mermaid Diagram](./diagrams\60_core-interfaces_5.svg)
 
 
 **Optimization Metrics**
@@ -893,25 +735,7 @@ interface IOptimizerStrategy {
 
 **Optimizer Data Flow**
 
-```mermaid
-graph TD
-    OptimizerRun["Optimizer.run(symbol, { optimizerName })"]
-    LoadSchema["Load IOptimizerSchema"]
-    FetchData["For each source:<br/>Backtest.run()<br/>Collect stats"]
-    Aggregate["Aggregate data<br/>IOptimizerData[]"]
-    LLM["Call Ollama LLM<br/>deepseek-v3.1:671b<br/>with prompt + data"]
-    Response["LLM returns<br/>strategy code"]
-    Template["OptimizerTemplateService<br/>Wrap in executable template"]
-    SaveFile["Save to .mjs file<br/>./dump/optimizer/"]
-    
-    OptimizerRun --> LoadSchema
-    LoadSchema --> FetchData
-    FetchData --> Aggregate
-    Aggregate --> LLM
-    LLM --> Response
-    Response --> Template
-    Template --> SaveFile
-```
+![Mermaid Diagram](./diagrams\60_core-interfaces_6.svg)
 
 
 **Example: Strategy Evolution**
@@ -966,73 +790,14 @@ addOptimizer({
 
 **Type Hierarchy**
 
-```mermaid
-graph TB
-    subgraph "Schema Interfaces"
-        Strategy["IStrategySchema<br/>Signal generation"]
-        Exchange["IExchangeSchema<br/>Data source"]
-        Frame["IFrameSchema<br/>Timeframe"]
-        Risk["IRiskSchema<br/>Validation"]
-        Walker["IWalkerSchema<br/>Comparison"]
-        Sizing["ISizingSchema<br/>Position size"]
-        Optimizer["IOptimizerSchema<br/>LLM generation"]
-    end
-    
-    subgraph "Core Types"
-        SignalDto["ISignalDto"]
-        SignalRow["ISignalRow"]
-        TickResult["IStrategyTickResult"]
-        Candle["ICandleData"]
-        Stats["BacktestStatisticsModel"]
-    end
-    
-    subgraph "Context Services"
-        ExecCtx["ExecutionContext<br/>symbol, when, backtest"]
-        MethodCtx["MethodContext<br/>strategyName, exchangeName, frameName"]
-    end
-    
-    Strategy -->|"returns"| SignalDto
-    Strategy -->|"references"| Risk
-    Strategy -->|"uses"| Exchange
-    
-    Exchange -->|"returns"| Candle
-    
-    Frame -->|"sets"| ExecCtx
-    
-    Walker -->|"tests"| Strategy
-    Walker -->|"uses"| Exchange
-    Walker -->|"uses"| Frame
-    Walker -->|"produces"| Stats
-    
-    Optimizer -->|"analyzes"| Stats
-    Optimizer -->|"generates"| Strategy
-    
-    MethodCtx -->|"identifies"| Strategy
-    MethodCtx -->|"identifies"| Exchange
-    MethodCtx -->|"identifies"| Frame
-    
-    SignalDto -->|"validated to"| SignalRow
-    SignalRow -->|"wrapped in"| TickResult
-```
+![Mermaid Diagram](./diagrams\60_core-interfaces_7.svg)
 
 
 **Registration and Retrieval Pattern**
 
 All schemas follow a consistent pattern:
 
-```mermaid
-graph LR
-    Register["add*() function"]
-    Validate["*ValidationService<br/>Check for duplicates"]
-    Store["*SchemaService<br/>ToolRegistry storage"]
-    Retrieve["*ConnectionService<br/>Memoized factory"]
-    Client["Client*<br/>Implementation"]
-    
-    Register --> Validate
-    Validate --> Store
-    Store --> Retrieve
-    Retrieve --> Client
-```
+![Mermaid Diagram](./diagrams\60_core-interfaces_8.svg)
 
 | Step | Strategy | Exchange | Frame | Risk | Walker | Sizing | Optimizer |
 |------|----------|----------|-------|------|--------|--------|-----------|

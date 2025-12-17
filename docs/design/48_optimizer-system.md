@@ -39,66 +39,7 @@ The system supports multiple training ranges, custom message formatters, and tem
 
 ## Architecture Diagram
 
-```mermaid
-graph TB
-    subgraph "Public API Layer"
-        OptimizerClass["Optimizer<br/>(static class)<br/>getData/getCode/dump"]
-        addOptimizer["addOptimizer()<br/>function"]
-        listenOptimizerProgress["listenOptimizerProgress()<br/>event listener"]
-    end
-    
-    subgraph "Service Layer"
-        OptimizerGlobalService["OptimizerGlobalService<br/>Validation + delegation"]
-        OptimizerValidationService["OptimizerValidationService<br/>Existence checks<br/>Memoized validation"]
-        OptimizerConnectionService["OptimizerConnectionService<br/>Memoized factory<br/>Template merging"]
-        OptimizerSchemaService["OptimizerSchemaService<br/>ToolRegistry storage<br/>Schema validation"]
-    end
-    
-    subgraph "Client Layer"
-        ClientOptimizer["ClientOptimizer<br/>Pagination handler<br/>Conversation builder<br/>Code generator"]
-    end
-    
-    subgraph "Template System"
-        OptimizerTemplateService["OptimizerTemplateService<br/>Default implementations"]
-        IOptimizerTemplate["IOptimizerTemplate<br/>getTopBanner<br/>getExchangeTemplate<br/>getFrameTemplate<br/>getStrategyTemplate<br/>getWalkerTemplate<br/>getLauncherTemplate<br/>getTextTemplate<br/>getJsonTemplate<br/>getUserMessage<br/>getAssistantMessage"]
-    end
-    
-    subgraph "Data Structures"
-        IOptimizerSchema["IOptimizerSchema<br/>optimizerName<br/>rangeTrain[]<br/>rangeTest<br/>source[]<br/>getPrompt()<br/>template?<br/>callbacks?"]
-        IOptimizerSource["IOptimizerSource<br/>name<br/>fetch()<br/>user?()<br/>assistant?()"]
-        IOptimizerStrategy["IOptimizerStrategy<br/>symbol<br/>name<br/>messages[]<br/>strategy"]
-    end
-    
-    subgraph "Event System"
-        progressOptimizerEmitter["progressOptimizerEmitter<br/>Subject<ProgressOptimizerContract>"]
-    end
-    
-    addOptimizer --> OptimizerSchemaService
-    addOptimizer --> OptimizerValidationService
-    
-    OptimizerClass --> OptimizerGlobalService
-    OptimizerGlobalService --> OptimizerValidationService
-    OptimizerGlobalService --> OptimizerConnectionService
-    
-    OptimizerConnectionService --> OptimizerSchemaService
-    OptimizerConnectionService --> OptimizerTemplateService
-    OptimizerConnectionService --> ClientOptimizer
-    
-    ClientOptimizer --> progressOptimizerEmitter
-    progressOptimizerEmitter --> listenOptimizerProgress
-    
-    IOptimizerSchema -.->|configuration| OptimizerSchemaService
-    IOptimizerSource -.->|part of| IOptimizerSchema
-    IOptimizerTemplate -.->|merged into| ClientOptimizer
-    
-    ClientOptimizer -.->|produces| IOptimizerStrategy
-    
-    OptimizerTemplateService -.->|implements| IOptimizerTemplate
-    
-    style OptimizerClass fill:#e1f5ff,stroke:#0066cc,stroke-width:3px
-    style ClientOptimizer fill:#ffe1e1,stroke:#cc0000,stroke-width:2px
-    style progressOptimizerEmitter fill:#f0f0f0,stroke:#666,stroke-width:2px
-```
+![Mermaid Diagram](./diagrams\48_optimizer-system_0.svg)
 
 **Architecture Notes:**
 
@@ -167,39 +108,7 @@ The optimizer builds conversation history by iterating through training ranges a
 
 ### Conversation Flow
 
-```mermaid
-graph TD
-    Start["Start getData()"] --> InitLoop["For each rangeTrain"]
-    InitLoop --> EmptyMessages["messages = []"]
-    EmptyMessages --> SourceLoop["For each source"]
-    
-    SourceLoop --> EmitProgress["Emit ProgressOptimizerContract<br/>processedSources / totalSources"]
-    EmitProgress --> FetchData["Fetch paginated data<br/>RESOLVE_PAGINATION_FN"]
-    FetchData --> OnSourceData["callbacks.onSourceData?()"]
-    OnSourceData --> FormatMessages["Format user + assistant messages"]
-    
-    FormatMessages --> IsFunctionSource{Source type?}
-    IsFunctionSource -->|Function| DefaultFormatters["Use DEFAULT_USER_FN<br/>DEFAULT_ASSISTANT_FN"]
-    IsFunctionSource -->|Object| CustomFormatters["Use source.user<br/>source.assistant<br/>or template defaults"]
-    
-    DefaultFormatters --> PushMessages["messages.push(<br/>  {role: 'user', content},<br/>  {role: 'assistant', content}<br/>)"]
-    CustomFormatters --> PushMessages
-    
-    PushMessages --> NextSource{More sources?}
-    NextSource -->|Yes| SourceLoop
-    NextSource -->|No| GeneratePrompt["strategy = getPrompt(symbol, messages)"]
-    
-    GeneratePrompt --> AddStrategy["strategyList.push({<br/>  symbol, name, messages, strategy<br/>})"]
-    AddStrategy --> NextRange{More ranges?}
-    NextRange -->|Yes| InitLoop
-    NextRange -->|No| FinalProgress["Emit final progress (100%)"]
-    FinalProgress --> CallbackData["callbacks.onData?()"]
-    CallbackData --> Return["Return strategyList"]
-    
-    style EmitProgress fill:#f0f0f0,stroke:#666
-    style FetchData fill:#ffe1e1,stroke:#cc0000
-    style GeneratePrompt fill:#e1f5ff,stroke:#0066cc
-```
+![Mermaid Diagram](./diagrams\48_optimizer-system_1.svg)
 
 ### Message Formatters
 
@@ -292,33 +201,7 @@ addStrategy({
 
 The `getCode()` method assembles all components into a single executable file.
 
-```mermaid
-graph TD
-    Start["getCode(symbol)"] --> GetData["getData(symbol)<br/>→ IOptimizerStrategy[]"]
-    GetData --> CreatePrefix["prefix = random string<br/>(e.g., 'abc123')"]
-    CreatePrefix --> Sections["sections: string[] = []"]
-    
-    Sections --> TopBanner["1. getTopBanner(symbol)<br/>#!/usr/bin/env node<br/>imports from backtest-kit<br/>WARN_KB constant"]
-    TopBanner --> JsonDump["2. getJsonDumpTemplate(symbol)<br/>async dumpJson() function"]
-    JsonDump --> TextHelper["3. getTextTemplate(symbol)<br/>async text() function"]
-    TextHelper --> JsonHelper["4. getJsonTemplate(symbol)<br/>async json() function"]
-    JsonHelper --> Exchange["5. getExchangeTemplate(symbol, prefix_exchange)<br/>CCXT integration"]
-    
-    Exchange --> TrainFrames["6. For each rangeTrain:<br/>getFrameTemplate(prefix_train_frame-N)"]
-    TrainFrames --> TestFrame["7. getFrameTemplate(prefix_test_frame)<br/>rangeTest configuration"]
-    TestFrame --> Strategies["8. For each strategyData:<br/>getStrategyTemplate(prefix_strategy-N)"]
-    
-    Strategies --> Walker["9. getWalkerTemplate(<br/>  prefix_walker,<br/>  prefix_exchange,<br/>  prefix_test_frame,<br/>  [prefix_strategy-1, ...]<br/>)"]
-    Walker --> Launcher["10. getLauncherTemplate(<br/>  symbol,<br/>  prefix_walker<br/>)<br/>Walker.background + listeners"]
-    
-    Launcher --> Join["code = sections.join('\\n')"]
-    Join --> Callback["callbacks.onCode?()"]
-    Callback --> Return["Return code string"]
-    
-    style GetData fill:#ffe1e1,stroke:#cc0000
-    style Strategies fill:#e1f5ff,stroke:#0066cc
-    style Walker fill:#c8e6c9,stroke:#388e3c
-```
+![Mermaid Diagram](./diagrams\48_optimizer-system_2.svg)
 
 ### Generated File Structure
 

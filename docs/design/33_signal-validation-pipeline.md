@@ -16,47 +16,7 @@ For information about defining custom risk validation rules beyond the built-in 
 
 ## Validation Pipeline Overview
 
-```mermaid
-graph TD
-    A["getSignal() returns ISignalDto"]
-    B["Stage 1: Schema Validation<br/>(required fields, types)"]
-    C["Stage 2: NaN/Infinity Protection<br/>(currentPrice, prices finite)"]
-    D["Stage 3: Positive Price Check<br/>(all prices > 0)"]
-    E["Stage 4: Position Logic<br/>(LONG/SHORT TP/SL order)"]
-    F["Stage 5: Immediate Closure Prevention<br/>(price not already at TP/SL)"]
-    G["Stage 6: Min TP Distance<br/>(CC_MIN_TAKEPROFIT_DISTANCE_PERCENT)"]
-    H["Stage 7: Min SL Distance<br/>(CC_MIN_STOPLOSS_DISTANCE_PERCENT)"]
-    I["Stage 8: Max SL Distance<br/>(CC_MAX_STOPLOSS_DISTANCE_PERCENT)"]
-    J["Stage 9: Max Lifetime<br/>(CC_MAX_SIGNAL_LIFETIME_MINUTES)"]
-    K["Stage 10: Time Parameter Validation<br/>(minuteEstimatedTime integer > 0)"]
-    L["Stage 11: Risk Validation<br/>(IRisk.checkSignal)"]
-    M["Signal Accepted"]
-    N["Signal Rejected<br/>(Error thrown, logged)"]
-    
-    A --> B
-    B -->|"Pass"| C
-    B -->|"Fail"| N
-    C -->|"Pass"| D
-    C -->|"Fail"| N
-    D -->|"Pass"| E
-    D -->|"Fail"| N
-    E -->|"Pass"| F
-    E -->|"Fail"| N
-    F -->|"Pass"| G
-    F -->|"Fail"| N
-    G -->|"Pass"| H
-    G -->|"Fail"| N
-    H -->|"Pass"| I
-    H -->|"Fail"| N
-    I -->|"Pass"| J
-    I -->|"Fail"| N
-    J -->|"Pass"| K
-    J -->|"Fail"| N
-    K -->|"Pass"| L
-    K -->|"Fail"| N
-    L -->|"Pass"| M
-    L -->|"Fail"| N
-```
+![Mermaid Diagram](./diagrams\33_signal-validation-pipeline_0.svg)
 
 **Validation Pipeline Stages**
 
@@ -89,27 +49,7 @@ The first validation stage ensures all required `ISignalRow` fields are present 
 
 **Critical**: All prices must be finite numbers. Incomplete candle data from exchanges can contain `NaN`, `Infinity`, or near-zero prices that would corrupt PNL calculations.
 
-```mermaid
-graph LR
-    A["currentPrice check"]
-    B["priceOpen check"]
-    C["priceTakeProfit check"]
-    D["priceStopLoss check"]
-    E["isFinite() test"]
-    F["Positive value test"]
-    G["Validation Pass"]
-    H["Validation Fail"]
-    
-    A --> E
-    B --> E
-    C --> E
-    D --> E
-    
-    E -->|"!isFinite()"| H
-    E -->|"isFinite()"| F
-    F -->|"<= 0"| H
-    F -->|"> 0"| G
-```
+![Mermaid Diagram](./diagrams\33_signal-validation-pipeline_1.svg)
 
 **Checks performed:**
 
@@ -389,25 +329,7 @@ setConfig({
 
 After passing all built-in validation stages, signals undergo custom risk validation via `IRisk.checkSignal()`:
 
-```mermaid
-graph TD
-    A["VALIDATE_SIGNAL_FN passes"]
-    B["GET_SIGNAL_FN execution continues"]
-    C["IRisk.checkSignal called"]
-    D["Custom validations:<br/>- Portfolio limits<br/>- Time windows<br/>- Symbol restrictions<br/>- Strategy coordination"]
-    E["Risk check passes"]
-    F["Risk check fails"]
-    G["Signal accepted,<br/>proceeds to scheduling/opening"]
-    H["Signal rejected,<br/>returns null"]
-    
-    A --> B
-    B --> C
-    C --> D
-    D --> E
-    D --> F
-    E --> G
-    F --> H
-```
+![Mermaid Diagram](./diagrams\33_signal-validation-pipeline_2.svg)
 
 **Risk Check Parameters:**
 ```typescript
@@ -457,26 +379,7 @@ For details on implementing custom risk validation logic, see [Risk Profiles & V
 
 ### Anomaly Detection Algorithm
 
-```mermaid
-graph TD
-    A["Fetch candles from exchange"]
-    B["Calculate median price<br/>from all OHLC values"]
-    C["For each candle:"]
-    D["Check if any price<br/>< median / 1000"]
-    E["Anomaly detected"]
-    F["Filter out anomalous candle"]
-    G["Valid candles only"]
-    H["Throw error if<br/>all candles filtered"]
-    
-    A --> B
-    B --> C
-    C --> D
-    D -->|"Yes"| E
-    D -->|"No"| G
-    E --> F
-    F --> C
-    G --> H
-```
+![Mermaid Diagram](./diagrams\33_signal-validation-pipeline_3.svg)
 
 **Parameters:**
 - `CC_GET_CANDLES_PRICE_ANOMALY_THRESHOLD_FACTOR`: Default 1,000
@@ -501,61 +404,7 @@ graph TD
 
 ### From Signal Generation to Acceptance
 
-```mermaid
-flowchart TD
-    Start["Strategy.getSignal() called<br/>(throttled by interval)"]
-    Return["Returns ISignalDto | null"]
-    Null["null returned<br/>(no signal this tick)"]
-    Signal["ISignalDto returned"]
-    
-    Timeout["Timeout check<br/>(CC_MAX_SIGNAL_GENERATION_SECONDS)"]
-    TimeoutFail["Timeout exceeded<br/>Error logged, null returned"]
-    
-    Schema["VALIDATE_SIGNAL_FN<br/>Stage 1-10: Built-in validation"]
-    SchemaFail["Validation error<br/>Error logged, null returned"]
-    
-    Risk["IRisk.checkSignal<br/>Custom risk validation"]
-    RiskFail["Risk rejected<br/>null returned"]
-    
-    Immediate{"priceOpen<br/>specified?"}
-    CheckPrice{"currentPrice<br/>reached priceOpen?"}
-    
-    Scheduled["Create IScheduledSignalRow<br/>_isScheduled: true"]
-    Opened["Create ISignalRow<br/>_isScheduled: false"]
-    
-    Persist["Persist signal to storage<br/>(opened signals only)"]
-    Monitor["Begin TP/SL monitoring"]
-    
-    Start --> Return
-    Return --> Null
-    Return --> Signal
-    
-    Signal --> Timeout
-    Timeout -->|"< max seconds"| Schema
-    Timeout -->|">= max seconds"| TimeoutFail
-    
-    Schema -->|"Pass"| Risk
-    Schema -->|"Fail"| SchemaFail
-    
-    Risk -->|"Pass"| Immediate
-    Risk -->|"Fail"| RiskFail
-    
-    Immediate -->|"Yes, priceOpen specified"| CheckPrice
-    Immediate -->|"No, use currentPrice"| Opened
-    
-    CheckPrice -->|"Not reached"| Scheduled
-    CheckPrice -->|"Reached"| Opened
-    
-    Opened --> Persist
-    Persist --> Monitor
-    
-    Scheduled --> Monitor
-    
-    style SchemaFail fill:#ffe6e6
-    style RiskFail fill:#ffe6e6
-    style TimeoutFail fill:#ffe6e6
-    style Monitor fill:#e6ffe6
-```
+![Mermaid Diagram](./diagrams\33_signal-validation-pipeline_4.svg)
 
 **Key Validation Points:**
 

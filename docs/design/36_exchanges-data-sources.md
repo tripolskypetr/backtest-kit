@@ -19,41 +19,7 @@ For information about using candle data within strategies, see [Multi-Timeframe 
 
 Exchanges are registered using the `IExchangeSchema` interface, which defines the contract for data fetching and formatting operations.
 
-```mermaid
-graph TB
-    subgraph "Exchange Registration"
-        AddExchange["addExchange(schema)"]
-        Schema["IExchangeSchema"]
-        ExchangeSchemaService["ExchangeSchemaService<br/>(ToolRegistry)"]
-    end
-    
-    subgraph "Schema Methods"
-        GetCandles["getCandles<br/>(symbol, interval, since, limit)"]
-        FormatPrice["formatPrice<br/>(symbol, price)"]
-        FormatQuantity["formatQuantity<br/>(symbol, quantity)"]
-        Callbacks["callbacks?<br/>(onCandleData)"]
-    end
-    
-    subgraph "Runtime Access"
-        ExchangeConnectionService["ExchangeConnectionService<br/>(memoized factory)"]
-        ClientExchange["ClientExchange<br/>(implements IExchange)"]
-    end
-    
-    AddExchange --> Schema
-    Schema --> ExchangeSchemaService
-    
-    Schema --> GetCandles
-    Schema --> FormatPrice
-    Schema --> FormatQuantity
-    Schema --> Callbacks
-    
-    ExchangeSchemaService --> ExchangeConnectionService
-    ExchangeConnectionService --> ClientExchange
-    
-    ClientExchange --> GetCandles
-    ClientExchange --> FormatPrice
-    ClientExchange --> FormatQuantity
-```
+![Mermaid Diagram](./diagrams\36_exchanges-data-sources_0.svg)
 
 **Interface Structure:**
 
@@ -129,17 +95,7 @@ getCandles: (
 
 **ICandleData Structure:**
 
-```mermaid
-graph LR
-    ICandleData["ICandleData"]
-    
-    ICandleData --> timestamp["timestamp: number<br/>(Unix ms)"]
-    ICandleData --> open["open: number"]
-    ICandleData --> high["high: number"]
-    ICandleData --> low["low: number"]
-    ICandleData --> close["close: number"]
-    ICandleData --> volume["volume: number"]
-```
+![Mermaid Diagram](./diagrams\36_exchanges-data-sources_1.svg)
 
 | Field | Type | Description |
 |-------|------|-------------|
@@ -157,57 +113,7 @@ graph LR
 
 ## Internal Data Flow
 
-```mermaid
-graph TB
-    subgraph "Strategy Layer"
-        GetCandlesGlobal["getCandles(symbol, interval, limit)<br/>Global function"]
-    end
-    
-    subgraph "Context Services"
-        ExecContext["ExecutionContextService<br/>(symbol, when, backtest)"]
-        MethodContext["MethodContextService<br/>(exchangeName, strategyName)"]
-    end
-    
-    subgraph "Service Layer"
-        ExchangeCore["ExchangeCoreService"]
-        ExchangeConnection["ExchangeConnectionService<br/>(memoized by exchangeName)"]
-    end
-    
-    subgraph "Client Layer"
-        ClientExchange["ClientExchange<br/>(implements IExchange)"]
-        GetCandlesMethod["getCandles(symbol, interval, limit)"]
-        GetNextCandlesMethod["getNextCandles(symbol, interval, limit)"]
-    end
-    
-    subgraph "Schema Layer"
-        SchemaGetCandles["schema.getCandles<br/>(symbol, interval, since, limit)"]
-    end
-    
-    subgraph "Validation & Processing"
-        RetryLogic["Retry Logic<br/>(up to CC_GET_CANDLES_RETRY_COUNT)"]
-        AnomalyDetection["Anomaly Detection<br/>(incomplete candles, price outliers)"]
-        Callback["callbacks.onCandleData"]
-    end
-    
-    GetCandlesGlobal --> ExecContext
-    GetCandlesGlobal --> MethodContext
-    
-    ExecContext --> ExchangeCore
-    MethodContext --> ExchangeCore
-    
-    ExchangeCore --> ExchangeConnection
-    ExchangeConnection --> ClientExchange
-    
-    ClientExchange --> GetCandlesMethod
-    ClientExchange --> GetNextCandlesMethod
-    
-    GetCandlesMethod --> RetryLogic
-    GetNextCandlesMethod --> RetryLogic
-    
-    RetryLogic --> SchemaGetCandles
-    SchemaGetCandles --> AnomalyDetection
-    AnomalyDetection --> Callback
-```
+![Mermaid Diagram](./diagrams\36_exchanges-data-sources_2.svg)
 
 **Key Points:**
 - `getCandles()` uses `when - (limit × interval)` to calculate `since` (backward lookup)
@@ -230,21 +136,7 @@ Typical Price = (High + Low + Close) / 3
 VWAP = Σ(Typical Price × Volume) / Σ(Volume)
 ```
 
-```mermaid
-graph TB
-    subgraph "VWAP Calculation"
-        GetAvgPrice["getAveragePrice(symbol)<br/>Global function"]
-        Fetch5Candles["Fetch last 5 candles<br/>(1m interval)"]
-        CalcTypical["Calculate Typical Price<br/>for each candle<br/>(H+L+C)/3"]
-        WeightByVolume["Weight by Volume<br/>Σ(TP × Vol) / Σ(Vol)"]
-        ReturnVWAP["Return VWAP"]
-    end
-    
-    GetAvgPrice --> Fetch5Candles
-    Fetch5Candles --> CalcTypical
-    CalcTypical --> WeightByVolume
-    WeightByVolume --> ReturnVWAP
-```
+![Mermaid Diagram](./diagrams\36_exchanges-data-sources_3.svg)
 
 **Configuration:**
 - `CC_AVG_PRICE_CANDLES_COUNT` - Number of candles for VWAP (default: 5)
@@ -271,28 +163,7 @@ The framework detects incomplete candles from API responses (e.g., Binance somet
 
 **Detection Logic:**
 
-```mermaid
-graph TB
-    FetchCandles["Fetch Candles"]
-    CalcMedian["Calculate Median Price<br/>(from all OHLC values)"]
-    CheckMinCandles{">= MIN_CANDLES_FOR_MEDIAN?"}
-    UseMedian["Use Median"]
-    UseAverage["Use Average"]
-    CheckAnomaly["For each candle:<br/>check if any price < threshold"]
-    Threshold["Threshold = medianPrice /<br/>ANOMALY_THRESHOLD_FACTOR"]
-    ThrowError["Throw Error:<br/>'Incomplete candle detected'"]
-    ReturnCandles["Return Valid Candles"]
-    
-    FetchCandles --> CalcMedian
-    CalcMedian --> CheckMinCandles
-    CheckMinCandles -->|Yes| UseMedian
-    CheckMinCandles -->|No| UseAverage
-    UseMedian --> CheckAnomaly
-    UseAverage --> CheckAnomaly
-    CheckAnomaly --> Threshold
-    Threshold -->|Anomaly found| ThrowError
-    Threshold -->|All valid| ReturnCandles
-```
+![Mermaid Diagram](./diagrams\36_exchanges-data-sources_4.svg)
 
 **Configuration Parameters:**
 
@@ -327,32 +198,7 @@ graph TB
 
 The framework implements automatic retry logic with exponential backoff for transient network failures.
 
-```mermaid
-graph TB
-    Start["getCandles called"]
-    Attempt["Attempt fetch<br/>(call schema.getCandles)"]
-    Success{Success?}
-    ValidateData["Validate data<br/>(anomaly detection)"]
-    Return["Return candles"]
-    
-    CheckRetries{Retries remaining?}
-    Sleep["Sleep<br/>CC_GET_CANDLES_RETRY_DELAY_MS"]
-    IncrementRetry["Increment retry count"]
-    ThrowError["Throw final error"]
-    
-    Start --> Attempt
-    Attempt --> Success
-    Success -->|Yes| ValidateData
-    ValidateData -->|Valid| Return
-    ValidateData -->|Invalid| CheckRetries
-    Success -->|No| CheckRetries
-    
-    CheckRetries -->|Yes| Sleep
-    Sleep --> IncrementRetry
-    IncrementRetry --> Attempt
-    
-    CheckRetries -->|No| ThrowError
-```
+![Mermaid Diagram](./diagrams\36_exchanges-data-sources_5.svg)
 
 **Configuration:**
 
@@ -495,52 +341,7 @@ Object.entries(exchanges).forEach(([name, instance]) => {
 
 `ClientExchange` is the internal client that wraps exchange schemas and provides additional functionality like VWAP calculation and retry logic.
 
-```mermaid
-graph TB
-    subgraph "Service Layer"
-        ExchangeConnectionService["ExchangeConnectionService"]
-        Memoization["Memoization Cache<br/>Map<exchangeName, ClientExchange>"]
-    end
-    
-    subgraph "ClientExchange Instance"
-        Constructor["Constructor<br/>(IExchangeParams)"]
-        GetCandlesMethod["getCandles()<br/>backward lookup"]
-        GetNextCandlesMethod["getNextCandles()<br/>forward lookup"]
-        FormatPriceMethod["formatPrice()"]
-        FormatQuantityMethod["formatQuantity()"]
-        GetAvgPriceMethod["getAveragePrice()<br/>VWAP calculation"]
-    end
-    
-    subgraph "Schema Access"
-        SchemaRef["schema: IExchangeSchema"]
-        Logger["logger: ILogger"]
-        Execution["execution: ExecutionContextService"]
-    end
-    
-    subgraph "Validation"
-        RetryWrapper["Retry Wrapper"]
-        AnomalyCheck["Anomaly Detection"]
-        Callback["onCandleData callback"]
-    end
-    
-    ExchangeConnectionService --> Memoization
-    Memoization --> Constructor
-    
-    Constructor --> GetCandlesMethod
-    Constructor --> GetNextCandlesMethod
-    Constructor --> FormatPriceMethod
-    Constructor --> FormatQuantityMethod
-    Constructor --> GetAvgPriceMethod
-    
-    Constructor --> SchemaRef
-    Constructor --> Logger
-    Constructor --> Execution
-    
-    GetCandlesMethod --> RetryWrapper
-    GetNextCandlesMethod --> RetryWrapper
-    RetryWrapper --> AnomalyCheck
-    AnomalyCheck --> Callback
-```
+![Mermaid Diagram](./diagrams\36_exchanges-data-sources_6.svg)
 
 **Key Architectural Decisions:**
 

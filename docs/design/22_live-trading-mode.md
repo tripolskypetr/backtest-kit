@@ -29,58 +29,7 @@ Key characteristics:
 
 ### Execution Flow Diagram
 
-```mermaid
-graph TD
-    LiveRun["Live.run(symbol, context)"]
-    LiveBg["Live.background(symbol, context)"]
-    LiveInstance["LiveInstance"]
-    TaskFn["INSTANCE_TASK_FN"]
-    PrivateRun["LiveLogicPrivateService.run()"]
-    
-    InfiniteLoop["while(true)"]
-    CreateDate["when = new Date()"]
-    TickCall["strategyCoreService.tick(symbol, when, false)"]
-    CheckResult{"result.action?"}
-    
-    IdleCheck{"Idle & Stopped?"}
-    ActiveSleep["Sleep TICK_TTL"]
-    ScheduledSleep["Sleep TICK_TTL"]
-    
-    YieldResult["yield result"]
-    ClosedCheck{"Closed & Stopped?"}
-    ClosedSleep["Sleep TICK_TTL"]
-    
-    Break["break"]
-    Done["doneLiveSubject.next()"]
-    
-    LiveRun --> LiveInstance
-    LiveBg --> LiveInstance
-    LiveInstance --> TaskFn
-    TaskFn --> PrivateRun
-    
-    PrivateRun --> InfiniteLoop
-    InfiniteLoop --> CreateDate
-    CreateDate --> TickCall
-    TickCall --> CheckResult
-    
-    CheckResult -->|"idle"| IdleCheck
-    CheckResult -->|"active"| ActiveSleep
-    CheckResult -->|"scheduled"| ScheduledSleep
-    CheckResult -->|"opened/closed"| YieldResult
-    
-    IdleCheck -->|"Yes"| Break
-    IdleCheck -->|"No"| ActiveSleep
-    
-    ActiveSleep --> InfiniteLoop
-    ScheduledSleep --> InfiniteLoop
-    
-    YieldResult --> ClosedCheck
-    ClosedCheck -->|"Yes"| Break
-    ClosedCheck -->|"No"| ClosedSleep
-    ClosedSleep --> InfiniteLoop
-    
-    Break --> Done
-```
+![Mermaid Diagram](./diagrams\22_live-trading-mode_0.svg)
 
 
 ### Core Loop Implementation
@@ -118,34 +67,7 @@ The `TICK_TTL` constant defines the polling interval. The additional 1ms prevent
 
 ### Persistence Architecture Diagram
 
-```mermaid
-graph LR
-    subgraph "Before Crash"
-        OpenSignal["Signal Opens"]
-        Persist["PersistSignalAdapter.writeValue()"]
-        OpenSignal --> Persist
-    end
-    
-    subgraph "Process Crash"
-        Kill["Process Terminated"]
-        Persist -.->|"Atomic write complete"| Kill
-    end
-    
-    subgraph "After Restart"
-        Restart["Process Restarts"]
-        WaitInit["ClientStrategy.waitForInit()"]
-        ReadValue["PersistSignalAdapter.readValue()"]
-        Restore["Restore pendingSignal state"]
-        Resume["Resume tick() monitoring"]
-        
-        Restart --> WaitInit
-        WaitInit --> ReadValue
-        ReadValue --> Restore
-        Restore --> Resume
-    end
-    
-    Kill -.->|"Restart"| Restart
-```
+![Mermaid Diagram](./diagrams\22_live-trading-mode_1.svg)
 
 
 ### Persistence Strategy
@@ -211,27 +133,7 @@ Implementations must ensure:
 
 ### Shutdown Flow Diagram
 
-```mermaid
-stateDiagram-v2
-    [*] --> Running
-    Running --> StopRequested: Live.stop() called
-    
-    StopRequested --> CheckSignal: Check active signal
-    
-    CheckSignal --> WaitClose: Signal is opened/active
-    CheckSignal --> Immediate: Signal is idle
-    
-    WaitClose --> TickLoop: Continue tick() monitoring
-    TickLoop --> CheckResult: Result action?
-    
-    CheckResult --> WaitClose: active/scheduled
-    CheckResult --> FinalClose: closed
-    
-    FinalClose --> EmitDone: doneLiveSubject.next()
-    Immediate --> EmitDone
-    
-    EmitDone --> [*]
-```
+![Mermaid Diagram](./diagrams\22_live-trading-mode_2.svg)
 
 
 ### Stop Mechanism Implementation
@@ -315,47 +217,7 @@ The cancellation closure:
 
 ### LiveUtils Class Diagram
 
-```mermaid
-classDiagram
-    class LiveUtils {
-        -_getInstance memoize
-        +run(symbol, context) AsyncGenerator
-        +background(symbol, context) CancelFn
-        +stop(symbol, strategyName) Promise~void~
-        +getData(symbol, strategyName) Promise~Statistics~
-        +getReport(symbol, strategyName, columns?) Promise~string~
-        +dump(symbol, strategyName, path?, columns?) Promise~void~
-        +list() Promise~Status[]~
-    }
-    
-    class LiveInstance {
-        +readonly id string
-        +readonly symbol string
-        +readonly strategyName string
-        +_isStopped boolean
-        +_isDone boolean
-        -task singlerun
-        +run(symbol, context) AsyncGenerator
-        +background(symbol, context) CancelFn
-        +stop(symbol, strategyName) Promise~void~
-        +getData(symbol, strategyName) Promise~Statistics~
-        +getReport(symbol, strategyName, columns?) Promise~string~
-        +dump(symbol, strategyName, path?, columns?) Promise~void~
-        +getStatus() Promise~Status~
-    }
-    
-    class LiveLogicPrivateService {
-        +run(symbol) AsyncGenerator~IStrategyTickResult~
-    }
-    
-    class LiveCommandService {
-        +run(symbol, context) AsyncGenerator
-    }
-    
-    LiveUtils --> LiveInstance: creates via _getInstance()
-    LiveInstance --> LiveLogicPrivateService: delegates to
-    LiveCommandService --> LiveLogicPrivateService: wraps
-```
+![Mermaid Diagram](./diagrams\22_live-trading-mode_3.svg)
 
 
 ### Method Reference
@@ -542,36 +404,7 @@ statusList.forEach(status => {
 
 Each `symbol:strategyName` combination gets its own isolated `LiveInstance`:
 
-```mermaid
-stateDiagram-v2
-    [*] --> Created: new LiveInstance()
-    Created --> Idle: getStatus() → "idle"
-    
-    Idle --> Running: background() or run()
-    Running --> Running: Processing ticks
-    
-    Running --> Stopped: stop() called
-    Stopped --> Done: Signal closed
-    
-    Done --> Idle: Can restart
-    
-    note right of Created
-        LiveInstance per symbol:strategyName
-        Memoized via _getInstance()
-    end note
-    
-    note right of Running
-        _isStopped = false
-        _isDone = false
-        task.getStatus() → "running"
-    end note
-    
-    note right of Done
-        _isStopped = true
-        _isDone = true
-        task.getStatus() → "done"
-    end note
-```
+![Mermaid Diagram](./diagrams\22_live-trading-mode_4.svg)
 
 
 ### Instance Isolation
@@ -621,31 +454,7 @@ private task = singlerun(async (
 
 ### Live Mode Event Flow
 
-```mermaid
-graph TD
-    Tick["strategyCoreService.tick()"]
-    Result{"Result Action?"}
-    
-    SignalEmit["signalEmitter.next()"]
-    SignalLiveEmit["signalLiveEmitter.next()"]
-    PerfEmit["performanceEmitter.next()"]
-    ErrorEmit["errorEmitter.next()"]
-    DoneEmit["doneLiveSubject.next()"]
-    
-    Tick --> Result
-    
-    Result -->|"opened"| SignalEmit
-    Result -->|"closed"| SignalEmit
-    Result -->|"scheduled"| SignalEmit
-    Result -->|"cancelled"| SignalEmit
-    
-    SignalEmit --> SignalLiveEmit
-    
-    Tick -->|"Every tick"| PerfEmit
-    Tick -->|"Error"| ErrorEmit
-    
-    Result -->|"closed + stopped"| DoneEmit
-```
+![Mermaid Diagram](./diagrams\22_live-trading-mode_5.svg)
 
 
 ### Event Types and Payloads

@@ -93,57 +93,7 @@ Backtest.background('BTCUSDT', {
 
 ### Execution Flow Diagram
 
-```mermaid
-graph TD
-    User["User Code"]
-    
-    subgraph "Registration Phase"
-        AddExch["addExchange()"]
-        AddStrat["addStrategy()"]
-        AddFrame["addFrame()"]
-    end
-    
-    subgraph "Execution Phase"
-        BTBg["Backtest.background()"]
-        BTInst["BacktestInstance"]
-        BTLogic["BacktestLogicPrivateService"]
-        StratCore["StrategyCoreService"]
-        ClientStrat["ClientStrategy"]
-        GetSig["getSignal()"]
-    end
-    
-    subgraph "Reporting Phase"
-        ListenDone["listenDoneBacktest()"]
-        BTDump["Backtest.dump()"]
-        BTMd["BacktestMarkdownService"]
-        File["./dump/backtest/<br/>simple-momentum.md"]
-    end
-    
-    User --> AddExch
-    User --> AddStrat
-    User --> AddFrame
-    User --> ListenDone
-    User --> BTBg
-    
-    AddExch --> |"stores in"| ExchSchema["ExchangeSchemaService"]
-    AddStrat --> |"stores in"| StratSchema["StrategySchemaService"]
-    AddFrame --> |"stores in"| FrameSchema["FrameSchemaService"]
-    
-    BTBg --> |"creates"| BTInst
-    BTInst --> |"delegates to"| BTLogic
-    BTLogic --> |"iterates frames<br/>calls tick()"| StratCore
-    StratCore --> |"manages lifecycle"| ClientStrat
-    ClientStrat --> |"invokes"| GetSig
-    
-    ClientStrat --> |"emits to"| SigEmit["signalBacktestEmitter"]
-    SigEmit --> BTMd
-    
-    BTLogic --> |"emits to"| DoneEmit["doneBacktestSubject"]
-    DoneEmit --> ListenDone
-    ListenDone --> BTDump
-    BTDump --> BTMd
-    BTMd --> File
-```
+![Mermaid Diagram](./diagrams\07_quick-start-examples_0.svg)
 
 - `README.md:40-159`
 - `src/classes/Backtest.ts:200-235`
@@ -354,33 +304,7 @@ Walker.background('BTCUSDT', {
 
 ### Walker Execution Flow
 
-```mermaid
-sequenceDiagram
-    participant User
-    participant WalkerCmd as WalkerCommandService
-    participant WalkerLogic as WalkerLogicPrivateService
-    participant BTLogic as BacktestLogicPublicService
-    participant WalkerMd as WalkerMarkdownService
-    
-    User->>WalkerCmd: Walker.background()
-    WalkerCmd->>WalkerLogic: run()
-    
-    Note over WalkerLogic: Load walker schema<br/>strategies: [aggressive,<br/>conservative, multi-tf]
-    
-    loop For each strategy
-        WalkerLogic->>BTLogic: Backtest.run(strategy)
-        BTLogic-->>WalkerLogic: yield closed signals
-        WalkerLogic->>WalkerMd: Accumulate statistics
-        WalkerLogic->>User: Emit progress event
-    end
-    
-    WalkerLogic->>WalkerMd: Compare by metric
-    Note over WalkerMd: Calculate Sharpe ratios<br/>Find best performer
-    
-    WalkerLogic->>User: Emit walkerCompleteSubject
-    User->>WalkerMd: Walker.getData()
-    WalkerMd-->>User: Return best strategy
-```
+![Mermaid Diagram](./diagrams\07_quick-start-examples_1.svg)
 
 ### Available Comparison Metrics
 
@@ -486,59 +410,7 @@ Backtest.background('BTCUSDT', {
 
 ### Event System Architecture
 
-```mermaid
-graph LR
-    subgraph "Event Emitters"
-        SigEmit["signalBacktestEmitter"]
-        ProgEmit["progressBacktestEmitter"]
-        DoneEmit["doneBacktestSubject"]
-        PPEmit["partialProfitSubject"]
-        PLEmit["partialLossSubject"]
-        RiskEmit["riskSubject"]
-        ErrEmit["errorEmitter"]
-    end
-    
-    subgraph "User Listeners"
-        ListenSig["listenSignalBacktest()"]
-        ListenProg["listenProgressBacktest()"]
-        ListenDone["listenDoneBacktest()"]
-        ListenPP["listenPartialProfit()"]
-        ListenPL["listenPartialLoss()"]
-        ListenRisk["listenRisk()"]
-        ListenErr["listenError()"]
-    end
-    
-    subgraph "Internal Services"
-        ClientStrat["ClientStrategy"]
-        BTLogic["BacktestLogicPrivateService"]
-        ClientPartial["ClientPartial"]
-        RiskGlobal["RiskGlobalService"]
-    end
-    
-    ClientStrat -->|"emits signals"| SigEmit
-    BTLogic -->|"emits progress"| ProgEmit
-    BTLogic -->|"emits completion"| DoneEmit
-    ClientPartial -->|"emits milestones"| PPEmit
-    ClientPartial -->|"emits milestones"| PLEmit
-    RiskGlobal -->|"emits rejections"| RiskEmit
-    ClientStrat -->|"emits errors"| ErrEmit
-    
-    SigEmit --> ListenSig
-    ProgEmit --> ListenProg
-    DoneEmit --> ListenDone
-    PPEmit --> ListenPP
-    PLEmit --> ListenPL
-    RiskEmit --> ListenRisk
-    ErrEmit --> ListenErr
-    
-    ListenSig --> UserCode["User Code<br/>Custom Logic"]
-    ListenProg --> UserCode
-    ListenDone --> UserCode
-    ListenPP --> UserCode
-    ListenPL --> UserCode
-    ListenRisk --> UserCode
-    ListenErr --> UserCode
-```
+![Mermaid Diagram](./diagrams\07_quick-start-examples_2.svg)
 
 **Event Listener Characteristics:**
 - All listeners use `functools-kit` `queued` wrapper (`src/index.ts:204-210`) for sequential async execution
@@ -612,40 +484,7 @@ runBacktestWithControl();
 
 ### Push vs Pull Execution Models
 
-```mermaid
-graph TB
-    subgraph "Push Model (background)"
-        PushUser["User Code"]
-        PushBg["Backtest.background()"]
-        PushTask["Background Task"]
-        PushEmit["Event Emitters"]
-        PushListen["Event Listeners"]
-        
-        PushUser -->|"fire and forget"| PushBg
-        PushBg -->|"spawns"| PushTask
-        PushTask -->|"emits events"| PushEmit
-        PushEmit -->|"triggers"| PushListen
-        PushListen -->|"callbacks execute"| PushUser
-        
-        Note1["Characteristics:<br/>- Non-blocking<br/>- Decoupled execution<br/>- Multiple subscribers<br/>- Event-driven"]
-    end
-    
-    subgraph "Pull Model (run)"
-        PullUser["User Code"]
-        PullRun["Backtest.run()"]
-        PullGen["AsyncGenerator"]
-        PullLoop["for await...of loop"]
-        
-        PullUser -->|"creates generator"| PullRun
-        PullRun -->|"returns"| PullGen
-        PullUser -->|"iterates"| PullLoop
-        PullLoop -->|"pulls next value"| PullGen
-        PullGen -->|"yields result"| PullLoop
-        PullLoop -->|"processes result"| PullUser
-        
-        Note2["Characteristics:<br/>- Blocking iteration<br/>- Sequential control<br/>- Early termination<br/>- Flow control"]
-    end
-```
+![Mermaid Diagram](./diagrams\07_quick-start-examples_3.svg)
 
 **Use Cases:**
 
@@ -705,42 +544,7 @@ setLogger({
 
 ### Configuration Impact on Signal Validation
 
-```mermaid
-graph TD
-    GetSig["getSignal() returns signal"]
-    
-    subgraph "Validation Pipeline"
-        V1["Check prices > 0,<br/>finite, not NaN"]
-        V2["Check TP/SL logic<br/>LONG: TP>open>SL<br/>SHORT: SL>open>TP"]
-        V3["Check TP distance >=<br/>MIN_TAKEPROFIT_DISTANCE"]
-        V4["Check SL distance <=<br/>MAX_STOPLOSS_DISTANCE"]
-        V5["Check lifetime <=<br/>MAX_SIGNAL_LIFETIME"]
-        V6["Check candle anomalies<br/>MAX_PRICE_ANOMALY_PERCENTAGE"]
-        V7["Risk validation"]
-    end
-    
-    GetSig --> V1
-    V1 -->|"pass"| V2
-    V1 -->|"fail"| Reject["Emit riskSubject<br/>Signal rejected"]
-    
-    V2 -->|"pass"| V3
-    V2 -->|"fail"| Reject
-    
-    V3 -->|"pass"| V4
-    V3 -->|"fail"| Reject
-    
-    V4 -->|"pass"| V5
-    V4 -->|"fail"| Reject
-    
-    V5 -->|"pass"| V6
-    V5 -->|"fail"| Reject
-    
-    V6 -->|"pass"| V7
-    V6 -->|"fail"| Reject
-    
-    V7 -->|"pass"| Accept["Signal accepted<br/>Schedule or Open"]
-    V7 -->|"fail"| Reject
-```
+![Mermaid Diagram](./diagrams\07_quick-start-examples_4.svg)
 
 **Critical Configuration Notes:**
 - `CC_MIN_TAKEPROFIT_DISTANCE_PERCENT` **must** be set high enough to cover `CC_PERCENT_FEE + CC_PERCENT_SLIPPAGE`, otherwise all trades will lose money even when hitting TP

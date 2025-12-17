@@ -149,70 +149,7 @@ The `init()` call at the end triggers initialization of the DI container. After 
 
 The following diagram shows how the three DI mechanisms work together:
 
-```mermaid
-graph TB
-    subgraph "types.ts - Symbol Registry"
-        TYPES["TYPES Object"]
-        LOGGER_SYM["Symbol('loggerService')"]
-        EXEC_SYM["Symbol('executionContextService')"]
-        STRAT_CONN_SYM["Symbol('strategyConnectionService')"]
-        
-        TYPES --> LOGGER_SYM
-        TYPES --> EXEC_SYM
-        TYPES --> STRAT_CONN_SYM
-    end
-    
-    subgraph "provide.ts - Factory Registration"
-        PROVIDE["provide() Function"]
-        LOGGER_FACTORY["() => new LoggerService()"]
-        EXEC_FACTORY["() => new ExecutionContextService()"]
-        STRAT_FACTORY["() => new StrategyConnectionService()"]
-        
-        PROVIDE --> LOGGER_FACTORY
-        PROVIDE --> EXEC_FACTORY
-        PROVIDE --> STRAT_FACTORY
-    end
-    
-    subgraph "index.ts - Service Aggregation"
-        INJECT["inject() Function"]
-        INIT["init() Function"]
-        BACKTEST["backtest Object"]
-        LOGGER_REF["backtest.loggerService"]
-        EXEC_REF["backtest.executionContextService"]
-        STRAT_REF["backtest.strategyConnectionService"]
-        
-        INJECT --> LOGGER_REF
-        INJECT --> EXEC_REF
-        INJECT --> STRAT_REF
-        BACKTEST --> LOGGER_REF
-        BACKTEST --> EXEC_REF
-        BACKTEST --> STRAT_REF
-        INIT --> BACKTEST
-    end
-    
-    subgraph "Runtime Instantiation"
-        CONTAINER["DI Container"]
-        LOGGER_INST["LoggerService Instance"]
-        EXEC_INST["ExecutionContextService Instance"]
-        STRAT_INST["StrategyConnectionService Instance"]
-        
-        CONTAINER --> LOGGER_INST
-        CONTAINER --> EXEC_INST
-        CONTAINER --> STRAT_INST
-    end
-    
-    LOGGER_SYM -.->|"maps to"| LOGGER_FACTORY
-    EXEC_SYM -.->|"maps to"| EXEC_FACTORY
-    STRAT_CONN_SYM -.->|"maps to"| STRAT_FACTORY
-    
-    LOGGER_REF -.->|"resolves via"| LOGGER_SYM
-    EXEC_REF -.->|"resolves via"| EXEC_SYM
-    STRAT_REF -.->|"resolves via"| STRAT_CONN_SYM
-    
-    LOGGER_FACTORY -.->|"creates"| LOGGER_INST
-    EXEC_FACTORY -.->|"creates"| EXEC_INST
-    STRAT_FACTORY -.->|"creates"| STRAT_INST
-```
+![Mermaid Diagram](./diagrams\15_service-layer-dependency-injection_0.svg)
 
 
 ---
@@ -527,65 +464,7 @@ getReport() {
 
 This diagram maps the dependencies between major service categories, showing how the acyclic architecture prevents circular dependencies:
 
-```mermaid
-graph TB
-    subgraph "Public API Layer"
-        CMD["Command Services<br/>BacktestCommandService<br/>LiveCommandService<br/>WalkerCommandService"]
-    end
-    
-    subgraph "Orchestration Layer"
-        LOGIC_PUB["Logic Services (Public)<br/>BacktestLogicPublicService<br/>LiveLogicPublicService<br/>WalkerLogicPublicService"]
-        LOGIC_PRIV["Logic Services (Private)<br/>BacktestLogicPrivateService<br/>LiveLogicPrivateService<br/>WalkerLogicPrivateService"]
-    end
-    
-    subgraph "Business Logic Layer"
-        CORE["Core Services<br/>StrategyCoreService<br/>ExchangeCoreService<br/>FrameCoreService"]
-        CONN["Connection Services<br/>StrategyConnectionService<br/>ExchangeConnectionService<br/>FrameConnectionService<br/>RiskConnectionService<br/>PartialConnectionService"]
-    end
-    
-    subgraph "Configuration Layer"
-        SCHEMA["Schema Services<br/>StrategySchemaService<br/>ExchangeSchemaService<br/>FrameSchemaService<br/>RiskSchemaService"]
-        VAL["Validation Services<br/>StrategyValidationService<br/>ExchangeValidationService<br/>FrameValidationService<br/>RiskValidationService"]
-    end
-    
-    subgraph "Infrastructure Layer"
-        BASE["Base Services<br/>LoggerService"]
-        CTX["Context Services<br/>ExecutionContextService<br/>MethodContextService"]
-        GLOBAL["Global Services<br/>RiskGlobalService<br/>PartialGlobalService"]
-    end
-    
-    subgraph "Reporting Layer"
-        MD["Markdown Services<br/>BacktestMarkdownService<br/>LiveMarkdownService<br/>WalkerMarkdownService"]
-        TMPL["Template Services<br/>OptimizerTemplateService"]
-    end
-    
-    CMD --> LOGIC_PUB
-    LOGIC_PUB --> LOGIC_PRIV
-    LOGIC_PRIV --> CORE
-    CORE --> CONN
-    CONN --> SCHEMA
-    CONN --> VAL
-    VAL --> SCHEMA
-    
-    CMD --> CTX
-    LOGIC_PUB --> CTX
-    LOGIC_PRIV --> CTX
-    CORE --> CTX
-    CONN --> CTX
-    
-    CMD --> BASE
-    LOGIC_PUB --> BASE
-    LOGIC_PRIV --> BASE
-    CORE --> BASE
-    CONN --> BASE
-    SCHEMA --> BASE
-    VAL --> BASE
-    
-    CONN --> GLOBAL
-    
-    MD -.->|"subscribes to events"| LOGIC_PRIV
-    TMPL -.->|"uses"| SCHEMA
-```
+![Mermaid Diagram](./diagrams\15_service-layer-dependency-injection_1.svg)
 
 **Key Architectural Principles**:
 
@@ -660,32 +539,7 @@ expect(mockLogger.info).toHaveBeenCalledWith(...);
 
 The initialization sequence follows this pattern:
 
-```mermaid
-sequenceDiagram
-    participant Import as "import backtest"
-    participant Provide as "provide.ts"
-    participant Types as "types.ts"
-    participant Index as "index.ts"
-    participant DI as "DI Container"
-    participant Service as "Service Instance"
-    
-    Import->>Types: Load TYPES symbols
-    Import->>Provide: Execute provide() calls
-    Note over Provide: Registers factories,<br/>does NOT instantiate
-    Import->>Index: Load inject() calls
-    Index->>DI: Call init()
-    Note over DI: Container ready,<br/>services still not created
-    
-    Import->>Index: Access backtest.loggerService
-    Index->>DI: Resolve TYPES.loggerService
-    DI->>Provide: Execute factory function
-    Provide->>Service: new LoggerService()
-    Service-->>DI: Instance
-    DI-->>Index: Cached instance
-    Index-->>Import: LoggerService instance
-    
-    Note over Import,Service: All subsequent accesses<br/>return cached instance
-```
+![Mermaid Diagram](./diagrams\15_service-layer-dependency-injection_2.svg)
 
 ### Lazy Instantiation
 

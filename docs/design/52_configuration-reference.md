@@ -17,33 +17,7 @@ Backtest Kit uses a global configuration object (`GLOBAL_CONFIG`) that controls 
 
 **Configuration Flow Diagram:**
 
-```mermaid
-graph TD
-    User["User Code<br/>setConfig()"]
-    GlobalConfig["GLOBAL_CONFIG<br/>src/config/params.ts:1-114"]
-    
-    ValidationServices["Signal Validation<br/>TP/SL checks"]
-    CostServices["Cost Simulation<br/>Fees + Slippage"]
-    DataServices["Data Fetching<br/>Retry logic + Anomaly detection"]
-    VWAPServices["VWAP Calculation<br/>Average price"]
-    ReportServices["Markdown Reports<br/>Column visibility"]
-    TimeoutServices["Timeouts<br/>Signal generation + Lifetime"]
-    
-    User --> GlobalConfig
-    GlobalConfig --> ValidationServices
-    GlobalConfig --> CostServices
-    GlobalConfig --> DataServices
-    GlobalConfig --> VWAPServices
-    GlobalConfig --> ReportServices
-    GlobalConfig --> TimeoutServices
-    
-    ValidationServices --> SignalPipeline["Signal Processing Pipeline"]
-    CostServices --> PNLCalc["PNL Calculation"]
-    DataServices --> ExchangeClient["ClientExchange"]
-    VWAPServices --> ExchangeClient
-    ReportServices --> MarkdownServices["Markdown Services"]
-    TimeoutServices --> StrategyCore["StrategyCoreService"]
-```
+![Mermaid Diagram](./diagrams\52_configuration-reference_0.svg)
 
 
 ---
@@ -110,34 +84,7 @@ These parameters enforce safety constraints on signal geometry, preventing dange
 
 **Validation Logic Diagram:**
 
-```mermaid
-graph TB
-    Signal["ISignalDto<br/>from getSignal()"]
-    
-    CheckPositive["Check prices > 0<br/>isFinite, not NaN"]
-    CheckTPSL["Check TP/SL logic<br/>LONG: TP>open>SL<br/>SHORT: SL>open>TP"]
-    CheckTPDistance["Check TP distance >=<br/>CC_MIN_TAKEPROFIT_DISTANCE_PERCENT"]
-    CheckSLMin["Check SL distance >=<br/>CC_MIN_STOPLOSS_DISTANCE_PERCENT"]
-    CheckSLMax["Check SL distance <=<br/>CC_MAX_STOPLOSS_DISTANCE_PERCENT"]
-    CheckLifetime["Check lifetime <=<br/>CC_MAX_SIGNAL_LIFETIME_MINUTES"]
-    
-    Pass["Validation Passed<br/>Signal Scheduled/Opened"]
-    Reject["Validation Failed<br/>Signal Rejected<br/>Emit riskSubject"]
-    
-    Signal --> CheckPositive
-    CheckPositive -->|Pass| CheckTPSL
-    CheckPositive -->|Fail| Reject
-    CheckTPSL -->|Pass| CheckTPDistance
-    CheckTPSL -->|Fail| Reject
-    CheckTPDistance -->|Pass| CheckSLMin
-    CheckTPDistance -->|Fail| Reject
-    CheckSLMin -->|Pass| CheckSLMax
-    CheckSLMin -->|Fail| Reject
-    CheckSLMax -->|Pass| CheckLifetime
-    CheckSLMax -->|Fail| Reject
-    CheckLifetime -->|Pass| Pass
-    CheckLifetime -->|Fail| Reject
-```
+![Mermaid Diagram](./diagrams\52_configuration-reference_1.svg)
 
 **Example: Signal rejected by TP distance validation**
 
@@ -180,31 +127,7 @@ Anomaly detected: Price $0.01 < $50 → Reject candle
 
 **Retry Logic Flow:**
 
-```mermaid
-graph LR
-    Request["getCandles() request"]
-    Attempt["Attempt #1"]
-    Success["Return candles"]
-    Fail1["Request failed"]
-    Delay1["Wait CC_GET_CANDLES_RETRY_DELAY_MS"]
-    Attempt2["Attempt #2"]
-    Fail2["Request failed"]
-    Delay2["Wait CC_GET_CANDLES_RETRY_DELAY_MS"]
-    Attempt3["Attempt #3"]
-    FinalFail["Throw error"]
-    
-    Request --> Attempt
-    Attempt -->|Success| Success
-    Attempt -->|Fail| Fail1
-    Fail1 --> Delay1
-    Delay1 --> Attempt2
-    Attempt2 -->|Success| Success
-    Attempt2 -->|Fail| Fail2
-    Fail2 --> Delay2
-    Delay2 --> Attempt3
-    Attempt3 -->|Success| Success
-    Attempt3 -->|Fail| FinalFail
-```
+![Mermaid Diagram](./diagrams\52_configuration-reference_2.svg)
 
 
 ---
@@ -248,24 +171,7 @@ These parameters control time-based constraints and limits.
 
 **Scheduled Signal Timeout Diagram:**
 
-```mermaid
-stateDiagram-v2
-    [*] --> Scheduled: getSignal returns signal<br/>priceOpen not reached
-    
-    Scheduled --> Opened: Price reaches priceOpen<br/>within CC_SCHEDULE_AWAIT_MINUTES
-    Scheduled --> Cancelled: Timeout after<br/>CC_SCHEDULE_AWAIT_MINUTES
-    Scheduled --> Cancelled: SL hit before activation
-    
-    Opened --> Closed: TP/SL/time_expired
-    Cancelled --> [*]
-    Closed --> [*]
-    
-    note right of Scheduled
-        Timer starts when signal enters
-        scheduled state. Tracks elapsed
-        time in minutes.
-    end note
-```
+![Mermaid Diagram](./diagrams\52_configuration-reference_3.svg)
 
 
 ---
@@ -305,46 +211,7 @@ When `CC_REPORT_SHOW_SIGNAL_NOTE = false` (default):
 
 **Configuration Impact Map:**
 
-```mermaid
-graph TD
-    Validation["Signal Validation Layer"]
-    CostSim["Cost Simulation Layer"]
-    DataFetch["Data Fetching Layer"]
-    Reporting["Reporting Layer"]
-    
-    MinTP["CC_MIN_TAKEPROFIT_DISTANCE_PERCENT<br/>Default: 0.5%"]
-    Fee["CC_PERCENT_FEE<br/>Default: 0.1%"]
-    Slip["CC_PERCENT_SLIPPAGE<br/>Default: 0.1%"]
-    
-    MinTP --> Validation
-    Fee --> CostSim
-    Slip --> CostSim
-    
-    Validation -->|Rejects signals where| Constraint1["TP distance < 0.5%"]
-    CostSim -->|Applies| Constraint2["Total cost = 0.4%<br/>2× (fee + slippage)"]
-    
-    Relationship["Relationship:<br/>CC_MIN_TAKEPROFIT_DISTANCE_PERCENT (0.5%)<br/>must cover<br/>Total costs (0.4%) + profit margin (0.1%)"]
-    
-    MinTP --> Relationship
-    Fee --> Relationship
-    Slip --> Relationship
-    
-    MaxSL["CC_MAX_STOPLOSS_DISTANCE_PERCENT<br/>Default: 20%"]
-    MinSL["CC_MIN_STOPLOSS_DISTANCE_PERCENT<br/>Default: 0.5%"]
-    
-    MaxSL --> Validation
-    MinSL --> Validation
-    
-    Validation -->|Enforces| Range["SL distance must be:<br/>0.5% <= distance <= 20%"]
-    
-    RetryCount["CC_GET_CANDLES_RETRY_COUNT<br/>Default: 3"]
-    RetryDelay["CC_GET_CANDLES_RETRY_DELAY_MS<br/>Default: 5000"]
-    
-    RetryCount --> DataFetch
-    RetryDelay --> DataFetch
-    
-    DataFetch -->|Max wait time| TotalRetryTime["Total: 3 attempts × 5 sec = 15 sec<br/>before final failure"]
-```
+![Mermaid Diagram](./diagrams\52_configuration-reference_4.svg)
 
 
 ---

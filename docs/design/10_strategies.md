@@ -112,57 +112,7 @@ When no trading opportunity exists, `getSignal` returns `null`. This is the norm
 
 This diagram shows the relationship between strategy components from registration to execution:
 
-```mermaid
-graph TB
-    subgraph "Registration Layer"
-        AddStrategy["addStrategy()"]
-        Schema["IStrategySchema<br/>- strategyName<br/>- interval<br/>- getSignal<br/>- riskName/riskList<br/>- callbacks"]
-    end
-    
-    subgraph "Schema Storage"
-        SchemaService["StrategySchemaService<br/>ToolRegistry pattern<br/>Immutable storage"]
-    end
-    
-    subgraph "Execution Routing"
-        ConnectionService["StrategyConnectionService<br/>Memoized ClientStrategy<br/>instances by symbol:strategyName"]
-        CoreService["StrategyCoreService<br/>Orchestrates tick/backtest<br/>operations"]
-    end
-    
-    subgraph "Strategy Implementation"
-        ClientStrategy["ClientStrategy<br/>- tick() method<br/>- backtest() method<br/>- Signal state machine"]
-    end
-    
-    subgraph "Signal Generation"
-        GetSignal["getSignal(symbol, when)<br/>User-defined logic"]
-        VWAP["VWAP Pricing<br/>Last 5 1-min candles"]
-        Context["ExecutionContextService<br/>Temporal boundary"]
-    end
-    
-    subgraph "Validation & Risk"
-        Validator["Signal Validation<br/>TP/SL logic<br/>GLOBAL_CONFIG"]
-        RiskCheck["Risk Validation<br/>ClientRisk.checkSignal()"]
-    end
-    
-    subgraph "Output"
-        Result["IStrategyTickResult<br/>idle | scheduled |<br/>opened | active |<br/>closed | cancelled"]
-    end
-    
-    AddStrategy --> Schema
-    Schema --> SchemaService
-    SchemaService --> ConnectionService
-    ConnectionService --> ClientStrategy
-    CoreService --> ConnectionService
-    ClientStrategy --> GetSignal
-    GetSignal --> Context
-    GetSignal --> VWAP
-    GetSignal --> Validator
-    Validator --> RiskCheck
-    RiskCheck --> Result
-    
-    style GetSignal fill:#ffe1e1,stroke:#cc0000,stroke-width:2px
-    style ClientStrategy fill:#e1f5ff,stroke:#0066cc,stroke-width:2px
-    style Result fill:#c8e6c9,stroke:#388e3c,stroke-width:2px
-```
+![Mermaid Diagram](./diagrams\10_strategies_0.svg)
 
 **Execution Flow:**
 
@@ -182,58 +132,7 @@ graph TB
 
 This diagram details the `getSignal` execution process and decision points:
 
-```mermaid
-graph TD
-    Start["Strategy tick triggered<br/>by BacktestLogicPrivateService<br/>or LiveLogicPrivateService"]
-    
-    Throttle{Interval throttle<br/>check}
-    Skip["Return previous state<br/>Continue monitoring"]
-    
-    NoSignal["Has active<br/>pending signal?"]
-    Monitor["Monitor TP/SL/time<br/>Return active state"]
-    
-    CallGetSignal["Invoke getSignal(symbol, when)<br/>User-defined logic"]
-    
-    ReturnNull{Returns null?}
-    Idle["Return IStrategyTickResultIdle<br/>action: 'idle'"]
-    
-    ValidateDTO["Validate ISignalDto<br/>- Prices > 0<br/>- TP/SL logic correct<br/>- Distance thresholds<br/>- Lifetime limits"]
-    
-    ValidationFail{Validation<br/>passes?}
-    Reject["Log error<br/>Emit errorEmitter<br/>Return idle"]
-    
-    RiskCheck["Call ClientRisk.checkSignal()<br/>Portfolio limits<br/>Custom validations"]
-    
-    RiskFail{Risk<br/>allowed?}
-    RiskReject["Emit riskSubject<br/>Return idle"]
-    
-    PriceOpenCheck{priceOpen<br/>specified?}
-    
-    Scheduled["Create IScheduledSignalRow<br/>Return IStrategyTickResultScheduled<br/>action: 'scheduled'"]
-    
-    Opened["Create ISignalRow<br/>Persist to storage<br/>Return IStrategyTickResultOpened<br/>action: 'opened'"]
-    
-    Start --> Throttle
-    Throttle -->|Not elapsed| Skip
-    Throttle -->|Elapsed| NoSignal
-    NoSignal -->|Yes| Monitor
-    NoSignal -->|No| CallGetSignal
-    CallGetSignal --> ReturnNull
-    ReturnNull -->|Yes| Idle
-    ReturnNull -->|No| ValidateDTO
-    ValidateDTO --> ValidationFail
-    ValidationFail -->|No| Reject
-    ValidationFail -->|Yes| RiskCheck
-    RiskCheck --> RiskFail
-    RiskFail -->|No| RiskReject
-    RiskFail -->|Yes| PriceOpenCheck
-    PriceOpenCheck -->|Yes| Scheduled
-    PriceOpenCheck -->|No| Opened
-    
-    style CallGetSignal fill:#ffe1e1,stroke:#cc0000,stroke-width:2px
-    style Opened fill:#c8e6c9,stroke:#388e3c,stroke-width:2px
-    style Scheduled fill:#fff3cd,stroke:#856404,stroke-width:2px
-```
+![Mermaid Diagram](./diagrams\10_strategies_1.svg)
 
 **Key Decision Points:**
 
@@ -353,35 +252,7 @@ All risk profiles in `riskList` must pass validation. If any validation fails, t
 
 ### Risk Validation Flow
 
-```mermaid
-graph LR
-    Signal["getSignal returns<br/>ISignalDto"]
-    
-    HasRisk{riskName or<br/>riskList present?}
-    
-    GetRisk["Resolve risk profiles<br/>via RiskConnectionService"]
-    
-    Validate["ClientRisk.checkSignal()<br/>or MergeRisk for multiple"]
-    
-    AllPass{All validations<br/>pass?}
-    
-    Accept["Signal proceeds<br/>to open/schedule"]
-    
-    Reject["Signal rejected<br/>Emit riskSubject<br/>Return idle"]
-    
-    NoRisk["Skip risk validation<br/>Signal proceeds"]
-    
-    Signal --> HasRisk
-    HasRisk -->|No| NoRisk
-    HasRisk -->|Yes| GetRisk
-    GetRisk --> Validate
-    Validate --> AllPass
-    AllPass -->|Yes| Accept
-    AllPass -->|No| Reject
-    
-    style Reject fill:#ffcccc,stroke:#cc0000,stroke-width:2px
-    style Accept fill:#ccffcc,stroke:#00cc00,stroke-width:2px
-```
+![Mermaid Diagram](./diagrams\10_strategies_2.svg)
 
 **Risk Validation Context:**
 
@@ -443,70 +314,7 @@ Only "opened" signals persist to storage (via `PersistSignalAdapter`). Scheduled
 
 This diagram traces the path from `addStrategy()` to strategy execution in both modes:
 
-```mermaid
-graph TB
-    subgraph "User Code"
-        UserCode["Developer calls<br/>addStrategy(IStrategySchema)"]
-    end
-    
-    subgraph "Global Function Layer"
-        AddStrategyFn["addStrategy()<br/>src/function/add.ts"]
-    end
-    
-    subgraph "Validation Layer"
-        Validator["StrategyValidationService<br/>Check for duplicate<br/>strategyName"]
-    end
-    
-    subgraph "Storage Layer"
-        SchemaService["StrategySchemaService<br/>ToolRegistry storage<br/>Immutable schema map"]
-    end
-    
-    subgraph "Execution Initiation"
-        BacktestRun["Backtest.run() or<br/>Backtest.background()"]
-        LiveRun["Live.run() or<br/>Live.background()"]
-    end
-    
-    subgraph "Context Setup"
-        MethodCtx["MethodContextService.runAsyncIterator()<br/>Sets strategyName, exchangeName, frameName"]
-        ExecCtx["ExecutionContextService.runInContext()<br/>Sets symbol, when, backtest flag"]
-    end
-    
-    subgraph "Service Orchestration"
-        CoreService["StrategyCoreService.tick()<br/>Orchestrates strategy execution"]
-        ConnectionService["StrategyConnectionService.tick()<br/>Routes to correct ClientStrategy"]
-    end
-    
-    subgraph "Strategy Instance"
-        ClientStrategy["ClientStrategy.tick()<br/>Throttling, getSignal, validation"]
-        GetSignal["User-defined getSignal(symbol, when)"]
-    end
-    
-    subgraph "Result Emission"
-        Result["IStrategyTickResult<br/>Emitted to signalEmitter"]
-    end
-    
-    UserCode --> AddStrategyFn
-    AddStrategyFn --> Validator
-    Validator --> SchemaService
-    
-    SchemaService -.->|Later referenced| BacktestRun
-    SchemaService -.->|Later referenced| LiveRun
-    
-    BacktestRun --> MethodCtx
-    LiveRun --> MethodCtx
-    
-    MethodCtx --> ExecCtx
-    ExecCtx --> CoreService
-    CoreService --> ConnectionService
-    
-    ConnectionService -->|Memoized instance| ClientStrategy
-    ClientStrategy --> GetSignal
-    GetSignal --> Result
-    
-    style GetSignal fill:#ffe1e1,stroke:#cc0000,stroke-width:2px
-    style SchemaService fill:#fff3cd,stroke:#856404,stroke-width:2px
-    style ClientStrategy fill:#e1f5ff,stroke:#0066cc,stroke-width:2px
-```
+![Mermaid Diagram](./diagrams\10_strategies_3.svg)
 
 **Key Components:**
 

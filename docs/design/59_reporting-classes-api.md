@@ -44,67 +44,7 @@ Each method performs strategy validation before delegating to its markdown servi
 
 ## Class Hierarchy and Data Flow
 
-```mermaid
-graph TD
-    User["User Code"]
-    
-    subgraph "Public API Classes"
-        Perf["Performance<br/>(static methods)"]
-        Heat["Heat<br/>(singleton)"]
-        Risk["Risk<br/>(singleton)"]
-        Schedule["Schedule<br/>(singleton)"]
-        Partial["Partial<br/>(singleton)"]
-    end
-    
-    subgraph "Markdown Services"
-        PerfMD["PerformanceMarkdownService"]
-        HeatMD["HeatMarkdownService"]
-        RiskMD["RiskMarkdownService"]
-        ScheduleMD["ScheduleMarkdownService"]
-        PartialMD["PartialMarkdownService"]
-    end
-    
-    subgraph "Storage Layer"
-        PerfStorage["PerformanceStorage<br/>(per symbol-strategy)"]
-        HeatStorage["HeatmapStorage<br/>(per strategy)"]
-        RiskStorage["ReportStorage<br/>(per symbol-strategy)"]
-        ScheduleStorage["ReportStorage<br/>(per symbol-strategy)"]
-        PartialStorage["ReportStorage<br/>(per symbol-strategy)"]
-    end
-    
-    subgraph "Event System"
-        PerfEmit["performanceEmitter"]
-        SigEmit["signalEmitter"]
-        RiskEmit["riskSubject"]
-        PPEmit["partialProfitSubject"]
-        PLEmit["partialLossSubject"]
-    end
-    
-    User --> Perf
-    User --> Heat
-    User --> Risk
-    User --> Schedule
-    User --> Partial
-    
-    Perf --> PerfMD
-    Heat --> HeatMD
-    Risk --> RiskMD
-    Schedule --> ScheduleMD
-    Partial --> PartialMD
-    
-    PerfMD --> PerfStorage
-    HeatMD --> HeatStorage
-    RiskMD --> RiskStorage
-    ScheduleMD --> ScheduleStorage
-    PartialMD --> PartialStorage
-    
-    PerfEmit --> PerfMD
-    SigEmit --> HeatMD
-    SigEmit --> ScheduleMD
-    RiskEmit --> RiskMD
-    PPEmit --> PartialMD
-    PLEmit --> PartialMD
-```
+![Mermaid Diagram](./diagrams\59_reporting-classes-api_0.svg)
 
 
 ## Performance Class

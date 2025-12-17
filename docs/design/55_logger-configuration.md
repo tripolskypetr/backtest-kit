@@ -113,33 +113,7 @@ The logger is registered in the DI container as `LoggerService` and accessed via
 
 #### Logger Service Registration Diagram
 
-```mermaid
-graph TB
-    subgraph "Dependency Injection Setup"
-        TYPES["TYPES.loggerService<br/>(Symbol)"]
-        PROVIDE["provide()<br/>src/lib/core/provide.ts:57"]
-        LOGGER_SERVICE["new LoggerService()<br/>src/services/base/LoggerService"]
-    end
-    
-    subgraph "Service Access"
-        INJECT["inject&lt;LoggerService&gt;<br/>src/lib/index.ts:62"]
-        BACKTEST_OBJ["backtest.loggerService<br/>src/lib/index.ts:225-238"]
-    end
-    
-    subgraph "Consumer Services"
-        ADD_STRATEGY["addStrategy()<br/>src/function/add.ts:52-64"]
-        ADD_EXCHANGE["addExchange()<br/>src/function/add.ts:101-113"]
-        LIST_EXCHANGES["listExchanges()<br/>src/function/list.ts:43-46"]
-    end
-    
-    TYPES --> PROVIDE
-    PROVIDE --> LOGGER_SERVICE
-    LOGGER_SERVICE --> INJECT
-    INJECT --> BACKTEST_OBJ
-    BACKTEST_OBJ --> ADD_STRATEGY
-    BACKTEST_OBJ --> ADD_EXCHANGE
-    BACKTEST_OBJ --> LIST_EXCHANGES
-```
+![Mermaid Diagram](./diagrams\55_logger-configuration_0.svg)
 
 
 ### Logger Service Injection Pattern
@@ -255,21 +229,7 @@ export async function listExchanges(): Promise<IExchangeSchema[]> {
 
 ### Execution Path from User Code to Logger Output
 
-```mermaid
-sequenceDiagram
-    participant USER as "User Code"
-    participant ADD_FUNC as "addStrategy()<br/>src/function/add.ts:52"
-    participant LOGGER_SVC as "LoggerService<br/>via backtest.loggerService"
-    participant IMPL as "Custom ILogger<br/>Implementation"
-    participant OUTPUT as "Output Destination<br/>(console/file/service)"
-    
-    USER->>ADD_FUNC: "addStrategy({ strategyName: 'my-strategy', ... })"
-    ADD_FUNC->>LOGGER_SVC: "info('add.addStrategy', { strategySchema })"
-    LOGGER_SVC->>IMPL: "info(...args)"
-    IMPL->>OUTPUT: "Write log entry"
-    ADD_FUNC->>ADD_FUNC: "Validate and register strategy"
-    ADD_FUNC-->>USER: "Strategy registered"
-```
+![Mermaid Diagram](./diagrams\55_logger-configuration_1.svg)
 
 
 ---

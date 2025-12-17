@@ -23,39 +23,7 @@ Backtest Kit architecturally eliminates look-ahead bias through its **time execu
 
 **Technical Guarantee:** The `when` parameter in execution context ensures that `getCandles(symbol, interval, limit)` only returns candles with `timestamp <= when`. This makes look-ahead bias architecturally impossible without explicitly bypassing the context system.
 
-```mermaid
-graph TB
-    subgraph "Execution Context Propagation"
-        AsyncStorage["AsyncLocalStorage<br/>(Node.js built-in)"]
-        ExecCtxService["ExecutionContextService<br/>symbol, when, backtest flag"]
-        MethodCtxService["MethodContextService<br/>strategyName, exchangeName"]
-    end
-    
-    subgraph "Time-Constrained Data Access"
-        GetCandles["getCandles function<br/>Filters by when timestamp"]
-        ExchangeCore["ExchangeCoreService<br/>Data fetching coordination"]
-        ClientExchange["ClientExchange<br/>CCXT integration"]
-    end
-    
-    subgraph "Strategy Execution"
-        ClientStrategy["ClientStrategy.tick<br/>Receives temporal context"]
-        GetSignal["User getSignal function<br/>Cannot access future data"]
-    end
-    
-    AsyncStorage --> ExecCtxService
-    ExecCtxService --> GetCandles
-    ExecCtxService --> ClientStrategy
-    MethodCtxService --> ClientStrategy
-    
-    GetCandles --> ExchangeCore
-    ExchangeCore --> ClientExchange
-    
-    ClientStrategy --> GetSignal
-    GetSignal --> GetCandles
-    
-    style ExecCtxService fill:#f9f9f9,stroke:#333
-    style GetCandles fill:#f9f9f9,stroke:#333
-```
+![Mermaid Diagram](./diagrams\02_key-features_0.svg)
 
 **Diagram: Temporal Context Propagation for Look-Ahead Bias Prevention**
 
@@ -74,38 +42,7 @@ Three execution modes share identical signal logic while differing in orchestrat
 
 **Code Mapping:**
 
-```mermaid
-graph LR
-    subgraph "Public API Classes"
-        BacktestClass["Backtest<br/>src/classes/Backtest.ts"]
-        LiveClass["Live<br/>src/classes/Live.ts"]
-        WalkerClass["Walker<br/>src/classes/Walker.ts"]
-    end
-    
-    subgraph "Orchestration Services"
-        BTLogic["BacktestLogicPrivateService<br/>Async generator<br/>Timeframe iteration"]
-        LiveLogic["LiveLogicPrivateService<br/>Infinite loop<br/>1-minute polling"]
-        WalkLogic["WalkerLogicPrivateService<br/>Multi-strategy comparison"]
-    end
-    
-    subgraph "Shared Core"
-        StratCore["StrategyCoreService<br/>Signal orchestration"]
-        ClientStrat["ClientStrategy<br/>tick method<br/>backtest method"]
-    end
-    
-    BacktestClass --> BTLogic
-    LiveClass --> LiveLogic
-    WalkerClass --> WalkLogic
-    
-    BTLogic --> StratCore
-    LiveLogic --> StratCore
-    WalkLogic --> BTLogic
-    
-    StratCore --> ClientStrat
-    
-    style StratCore fill:#f9f9f9,stroke:#333
-    style ClientStrat fill:#f9f9f9,stroke:#333
-```
+![Mermaid Diagram](./diagrams\02_key-features_1.svg)
 
 **Diagram: Three Execution Modes Sharing Core Strategy Logic**
 
@@ -124,50 +61,7 @@ graph LR
 
 Every signal passes through seven validation stages before activation, enforced by `GLOBAL_CONFIG` parameters:
 
-```mermaid
-graph TB
-    Start["Signal returned from getSignal"]
-    
-    V1["1. Schema Validation<br/>Check ISignalDto structure"]
-    V2["2. Price Positivity<br/>prices > 0, finite, not NaN"]
-    V3["3. TP/SL Logic<br/>LONG: TP>open>SL<br/>SHORT: SL>open>TP"]
-    V4["4. Min TP Distance<br/>>= CC_MIN_TAKEPROFIT_DISTANCE_PERCENT<br/>Covers 0.1% fee + 0.1% slippage"]
-    V5["5. Max SL Distance<br/><= CC_MAX_STOPLOSS_DISTANCE_PERCENT"]
-    V6["6. Signal Lifetime<br/><= CC_MAX_SIGNAL_LIFETIME_MINUTES"]
-    V7["7. Candle Anomaly Detection<br/>Price spikes, gaps, incomplete candles"]
-    
-    RiskCheck["Risk Validation<br/>ClientRisk.checkSignal"]
-    
-    Rejected["Rejected<br/>Emit riskSubject<br/>Log error"]
-    Scheduled["Scheduled State<br/>priceOpen not reached"]
-    Opened["Opened State<br/>priceOpen reached<br/>Persist to storage"]
-    
-    Start --> V1
-    V1 -->|Pass| V2
-    V2 -->|Pass| V3
-    V3 -->|Pass| V4
-    V4 -->|Pass| V5
-    V5 -->|Pass| V6
-    V6 -->|Pass| V7
-    V7 -->|Pass| RiskCheck
-    
-    V1 -->|Fail| Rejected
-    V2 -->|Fail| Rejected
-    V3 -->|Fail| Rejected
-    V4 -->|Fail| Rejected
-    V5 -->|Fail| Rejected
-    V6 -->|Fail| Rejected
-    V7 -->|Fail| Rejected
-    
-    RiskCheck -->|Fail| Rejected
-    RiskCheck -->|Pass| CheckPrice{priceOpen<br/>reached?}
-    
-    CheckPrice -->|No| Scheduled
-    CheckPrice -->|Yes| Opened
-    
-    style V4 fill:#f9f9f9,stroke:#333
-    style RiskCheck fill:#f9f9f9,stroke:#333
-```
+![Mermaid Diagram](./diagrams\02_key-features_2.svg)
 
 **Diagram: Seven-Stage Signal Validation Pipeline**
 
@@ -226,37 +120,7 @@ Example: `persist_BTCUSDT_myStrategy_binance.json`
 
 Risk management operates at three levels:
 
-```mermaid
-graph TB
-    subgraph "Signal-Level Validation"
-        ISignalDto["ISignalDto<br/>TP/SL/position/lifetime"]
-        ValidationPipeline["7-stage validation pipeline<br/>GLOBAL_CONFIG enforcement"]
-    end
-    
-    subgraph "Strategy-Level Risk"
-        IRiskSchema["IRiskSchema<br/>Custom validation functions"]
-        ClientRisk["ClientRisk<br/>checkSignal method"]
-        MergeRisk["MergeRisk<br/>Combines multiple risk profiles"]
-    end
-    
-    subgraph "Portfolio-Level Risk"
-        RiskGlobalService["RiskGlobalService<br/>Cross-strategy coordination"]
-        PortfolioLimits["Portfolio exposure limits<br/>Concurrent position tracking"]
-    end
-    
-    ISignalDto --> ValidationPipeline
-    ValidationPipeline --> ClientRisk
-    
-    IRiskSchema --> ClientRisk
-    IRiskSchema --> MergeRisk
-    MergeRisk --> ClientRisk
-    
-    ClientRisk --> RiskGlobalService
-    RiskGlobalService --> PortfolioLimits
-    
-    style ClientRisk fill:#f9f9f9,stroke:#333
-    style RiskGlobalService fill:#f9f9f9,stroke:#333
-```
+![Mermaid Diagram](./diagrams\02_key-features_3.svg)
 
 **Diagram: Three-Level Risk Management Architecture**
 
@@ -297,46 +161,7 @@ addRisk({
 
 The Optimizer system generates executable strategy code using LLM (Large Language Model) integration:
 
-```mermaid
-graph TB
-    subgraph "Configuration Phase"
-        IOptimizerSchema["IOptimizerSchema<br/>Training ranges<br/>Data sources<br/>getPrompt function"]
-        addOptimizer["addOptimizer API<br/>Register optimizer"]
-    end
-    
-    subgraph "Data Collection Phase"
-        Source["IOptimizerSource<br/>fetch function<br/>user/assistant formatters"]
-        IterateDocuments["iterateDocuments<br/>Pagination with distinctDocuments"]
-        MessageModel["MessageModel array<br/>Conversation history"]
-    end
-    
-    subgraph "Code Generation Phase"
-        OptimizerTemplate["OptimizerTemplateService<br/>11 template methods"]
-        ClientOptimizer["ClientOptimizer<br/>getData<br/>getCode<br/>dump"]
-        GeneratedCode["Generated .mjs file<br/>Executable strategy"]
-    end
-    
-    subgraph "LLM Integration"
-        OllamaAPI["Ollama API<br/>deepseek-v3.1:671b"]
-        JsonSchema["JSON schema<br/>Signal structure"]
-    end
-    
-    IOptimizerSchema --> addOptimizer
-    addOptimizer --> ClientOptimizer
-    
-    IOptimizerSchema --> Source
-    Source --> IterateDocuments
-    IterateDocuments --> MessageModel
-    
-    MessageModel --> OllamaAPI
-    OllamaAPI --> JsonSchema
-    
-    OptimizerTemplate --> ClientOptimizer
-    ClientOptimizer --> GeneratedCode
-    
-    style ClientOptimizer fill:#f9f9f9,stroke:#333
-    style OptimizerTemplate fill:#f9f9f9,stroke:#333
-```
+![Mermaid Diagram](./diagrams\02_key-features_4.svg)
 
 **Diagram: LLM-Powered Strategy Generation Workflow**
 
@@ -444,43 +269,7 @@ addExchange({
 
 The framework provides 13 event emitters for real-time monitoring:
 
-```mermaid
-graph LR
-    subgraph "Signal Events"
-        signalEmitter["signalEmitter<br/>All signals"]
-        signalBacktestEmitter["signalBacktestEmitter<br/>Backtest only"]
-        signalLiveEmitter["signalLiveEmitter<br/>Live only"]
-    end
-    
-    subgraph "Progress Events"
-        progressBacktestEmitter["progressBacktestEmitter<br/>Frame completion %"]
-        walkerEmitter["walkerEmitter<br/>Strategy comparison"]
-        progressOptimizerEmitter["progressOptimizerEmitter<br/>Data source processing"]
-    end
-    
-    subgraph "Completion Events"
-        doneBacktestSubject["doneBacktestSubject"]
-        doneLiveSubject["doneLiveSubject"]
-        doneWalkerSubject["doneWalkerSubject"]
-        walkerCompleteSubject["walkerCompleteSubject"]
-    end
-    
-    subgraph "Partial & Risk Events"
-        partialProfitSubject["partialProfitSubject<br/>10%, 20%, 30%..."]
-        partialLossSubject["partialLossSubject<br/>-10%, -20%..."]
-        riskSubject["riskSubject<br/>Validation failures"]
-    end
-    
-    subgraph "System Events"
-        performanceEmitter["performanceEmitter<br/>Timing metrics"]
-        errorEmitter["errorEmitter<br/>Recoverable errors"]
-        exitEmitter["exitEmitter<br/>Fatal errors"]
-    end
-    
-    style signalEmitter fill:#f9f9f9,stroke:#333
-    style progressBacktestEmitter fill:#f9f9f9,stroke:#333
-    style riskSubject fill:#f9f9f9,stroke:#333
-```
+![Mermaid Diagram](./diagrams\02_key-features_5.svg)
 
 **Diagram: 13 Event Emitters for Monitoring**
 

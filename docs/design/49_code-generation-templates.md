@@ -17,28 +17,7 @@ The template system transforms optimizer data (market analysis, backtest results
 
 **Template Workflow Diagram**
 
-```mermaid
-graph TB
-    Schema["IOptimizerSchema<br/>with optional template overrides"]
-    Connection["OptimizerConnectionService<br/>merges custom + defaults"]
-    Default["OptimizerTemplateService<br/>default implementations"]
-    Interface["IOptimizerTemplate<br/>complete template object"]
-    Client["ClientOptimizer<br/>GET_STRATEGY_CODE_FN"]
-    
-    Sections["Code Sections:<br/>1. Top Banner (imports)<br/>2. dumpJson helper<br/>3. text helper<br/>4. json helper<br/>5. Exchange config<br/>6. Train Frames<br/>7. Test Frame<br/>8. Strategies<br/>9. Walker<br/>10. Launcher"]
-    
-    Output["Generated .mjs file<br/>executable strategy code"]
-    
-    Schema --> Connection
-    Default --> Connection
-    Connection --> Interface
-    Interface --> Client
-    Client --> Sections
-    Sections --> Output
-    
-    style Interface fill:#f9f9f9,stroke:#333,stroke-width:2px
-    style Client fill:#f9f9f9,stroke:#333,stroke-width:2px
-```
+![Mermaid Diagram](./diagrams\49_code-generation-templates_0.svg)
 
 
 ---
@@ -66,32 +45,7 @@ The `IOptimizerTemplate` interface defines 11 template methods that generate dif
 
 **Template Method Dependencies**
 
-```mermaid
-graph TB
-    Banner["getTopBanner<br/>imports, constants"]
-    Dump["getJsonDumpTemplate<br/>debug helper"]
-    Text["getTextTemplate<br/>LLM text generation"]
-    Json["getJsonTemplate<br/>LLM JSON with schema"]
-    Exchange["getExchangeTemplate<br/>CCXT integration"]
-    TrainFrames["getFrameTemplate<br/>x N train ranges"]
-    TestFrame["getFrameTemplate<br/>1 test range"]
-    Strategies["getStrategyTemplate<br/>x N strategies"]
-    Walker["getWalkerTemplate<br/>comparison config"]
-    Launcher["getLauncherTemplate<br/>execution + events"]
-    
-    Banner --> Dump
-    Dump --> Text
-    Text --> Json
-    Json --> Exchange
-    Exchange --> TrainFrames
-    TrainFrames --> TestFrame
-    TestFrame --> Strategies
-    Strategies --> Walker
-    Walker --> Launcher
-    
-    style Banner fill:#f9f9f9,stroke:#333,stroke-width:2px
-    style Launcher fill:#f9f9f9,stroke:#333,stroke-width:2px
-```
+![Mermaid Diagram](./diagrams\49_code-generation-templates_1.svg)
 
 
 ---
@@ -125,67 +79,7 @@ The `OptimizerTemplateService` class provides default implementations for all `I
 
 **getStrategyTemplate Multi-Timeframe Flow**
 
-```mermaid
-graph TB
-    Start["getSignal called<br/>by framework"]
-    Messages["messages = []"]
-    
-    Load1h["Load mediumTermCandles<br/>getCandles('1h', 24)"]
-    Format1h["formatCandles helper<br/>ISO timestamp + OHLCV"]
-    Push1h["Push user message:<br/>'Analyze 1h candles'<br/>+ formatted data"]
-    Ack1h["Push assistant:<br/>'1h trend analyzed'"]
-    
-    Load15m["Load shortTermCandles<br/>getCandles('15m', 24)"]
-    Format15m["formatCandles helper"]
-    Push15m["Push user message:<br/>'Analyze 15m candles'"]
-    Ack15m["Push assistant:<br/>'15m trend analyzed'"]
-    
-    Load5m["Load mainTermCandles<br/>getCandles('5m', 24)"]
-    Format5m["formatCandles helper"]
-    Push5m["Push user message:<br/>'Analyze 5m candles'"]
-    Ack5m["Push assistant:<br/>'5m timeframe analyzed'"]
-    
-    Load1m["Load microTermCandles<br/>getCandles('1m', 30)"]
-    Format1m["formatCandles helper"]
-    Push1m["Push user message:<br/>'Analyze 1m candles'"]
-    Ack1m["Push assistant:<br/>'1m microstructure analyzed'"]
-    
-    Strategy["Push user message:<br/>Analyze all timeframes<br/>+ escapedPrompt<br/>'If conflicting, wait'"]
-    
-    Json["Call json(messages)<br/>Ollama with schema"]
-    Dump["Call dumpJson<br/>save to disk"]
-    Return["Return signal object<br/>with resultId"]
-    
-    Start --> Messages
-    Messages --> Load1h
-    Load1h --> Format1h
-    Format1h --> Push1h
-    Push1h --> Ack1h
-    
-    Ack1h --> Load15m
-    Load15m --> Format15m
-    Format15m --> Push15m
-    Push15m --> Ack15m
-    
-    Ack15m --> Load5m
-    Load5m --> Format5m
-    Format5m --> Push5m
-    Push5m --> Ack5m
-    
-    Ack5m --> Load1m
-    Load1m --> Format1m
-    Format1m --> Push1m
-    Push1m --> Ack1m
-    
-    Ack1m --> Strategy
-    Strategy --> Json
-    Json --> Dump
-    Dump --> Return
-    
-    style Start fill:#f9f9f9,stroke:#333,stroke-width:2px
-    style Json fill:#f9f9f9,stroke:#333,stroke-width:2px
-    style Return fill:#f9f9f9,stroke:#333,stroke-width:2px
-```
+![Mermaid Diagram](./diagrams\49_code-generation-templates_2.svg)
 
 
 ---
@@ -221,57 +115,7 @@ The `ClientOptimizer.getCode` method orchestrates template calls to assemble a c
 
 **Code Generation Data Flow**
 
-```mermaid
-graph TB
-    Input["symbol: string<br/>ClientOptimizer instance"]
-    GetData["getData(symbol)<br/>returns IOptimizerStrategy[]"]
-    Prefix["CREATE_PREFIX_FN()<br/>random identifier"]
-    
-    Banner["template.getTopBanner(symbol)"]
-    JsonDump["template.getJsonDumpTemplate(symbol)"]
-    TextHelper["template.getTextTemplate(symbol)"]
-    JsonHelper["template.getJsonTemplate(symbol)"]
-    Exchange["template.getExchangeTemplate(symbol, exchangeName)"]
-    
-    TrainLoop["for rangeTrain[i]"]
-    TrainFrame["template.getFrameTemplate(symbol, frameName, '1m', start, end)"]
-    
-    TestFrameGen["template.getFrameTemplate(symbol, testFrameName, '1m', start, end)"]
-    
-    StratLoop["for strategyData[i]"]
-    StratGen["template.getStrategyTemplate(strategyName, '5m', strategy.strategy)"]
-    
-    WalkerGen["template.getWalkerTemplate(walkerName, exchangeName, testFrameName, strategies[])"]
-    LauncherGen["template.getLauncherTemplate(symbol, walkerName)"]
-    
-    Join["sections.join('\\n')<br/>combine all code"]
-    Callback["callbacks?.onCode(symbol, code)"]
-    Output["code: string<br/>executable .mjs content"]
-    
-    Input --> GetData
-    GetData --> Prefix
-    Prefix --> Banner
-    Banner --> JsonDump
-    JsonDump --> TextHelper
-    TextHelper --> JsonHelper
-    JsonHelper --> Exchange
-    Exchange --> TrainLoop
-    TrainLoop --> TrainFrame
-    TrainFrame --> TrainLoop
-    TrainLoop --> TestFrameGen
-    TestFrameGen --> StratLoop
-    StratLoop --> StratGen
-    StratGen --> StratLoop
-    StratLoop --> WalkerGen
-    WalkerGen --> LauncherGen
-    LauncherGen --> Join
-    Join --> Callback
-    Callback --> Output
-    
-    style GetData fill:#f9f9f9,stroke:#333,stroke-width:2px
-    style Join fill:#f9f9f9,stroke:#333,stroke-width:2px
-    style Output fill:#f9f9f9,stroke:#333,stroke-width:2px
-```
+![Mermaid Diagram](./diagrams\49_code-generation-templates_3.svg)
 
 
 ---
@@ -282,30 +126,7 @@ Users can override individual template methods in the `IOptimizerSchema.template
 
 **Template Merging Process**
 
-```mermaid
-graph TB
-    Schema["IOptimizerSchema<br/>addOptimizer() call"]
-    Custom["schema.template<br/>Partial<IOptimizerTemplate>"]
-    Default["OptimizerTemplateService<br/>all 11 methods"]
-    
-    GetOptimizer["OptimizerConnectionService.getOptimizer<br/>memoized factory"]
-    Destructure["Destructure custom overrides<br/>with default fallbacks"]
-    Merged["Complete IOptimizerTemplate<br/>all 11 methods defined"]
-    
-    ClientParams["IOptimizerParams<br/>{ template: IOptimizerTemplate }"]
-    ClientInstance["new ClientOptimizer(params)"]
-    
-    Schema --> Custom
-    Schema --> GetOptimizer
-    Custom --> Destructure
-    Default --> Destructure
-    GetOptimizer --> Destructure
-    Destructure --> Merged
-    Merged --> ClientParams
-    ClientParams --> ClientInstance
-    
-    style Merged fill:#f9f9f9,stroke:#333,stroke-width:2px
-```
+![Mermaid Diagram](./diagrams\49_code-generation-templates_4.svg)
 
 
 **Custom Template Example**
@@ -572,42 +393,7 @@ listenError((error) => {
 
 **Section Dependencies**
 
-```mermaid
-graph TB
-    S1["Section 1: Top Banner<br/>Imports all dependencies"]
-    S2["Section 2: dumpJson<br/>Uses fs, path, uuid"]
-    S3["Section 3: text<br/>Uses Ollama"]
-    S4["Section 4: json<br/>Uses Ollama"]
-    S5["Section 5: Exchange<br/>Uses ccxt, addExchange"]
-    S6["Section 6: Train Frames<br/>Uses addFrame"]
-    S7["Section 7: Test Frame<br/>Uses addFrame"]
-    S8["Section 8: Strategies<br/>Uses addStrategy, getCandles, json, dumpJson"]
-    S9["Section 9: Walker<br/>Uses addWalker, references exchange/frame/strategies"]
-    S10["Section 10: Launcher<br/>Uses Walker.background, event listeners"]
-    
-    S1 --> S2
-    S1 --> S3
-    S1 --> S4
-    S1 --> S5
-    S1 --> S6
-    S1 --> S7
-    S1 --> S8
-    S1 --> S9
-    S1 --> S10
-    
-    S2 --> S8
-    S3 --> S8
-    S4 --> S8
-    S5 --> S9
-    S6 --> S9
-    S7 --> S9
-    S8 --> S9
-    S9 --> S10
-    
-    style S1 fill:#f9f9f9,stroke:#333,stroke-width:2px
-    style S9 fill:#f9f9f9,stroke:#333,stroke-width:2px
-    style S10 fill:#f9f9f9,stroke:#333,stroke-width:2px
-```
+![Mermaid Diagram](./diagrams\49_code-generation-templates_5.svg)
 
 
 ---
@@ -674,50 +460,7 @@ The `dumpJson()` function saves three types of files to `./dump/strategy/{result
 
 **LLM Template Workflow**
 
-```mermaid
-graph TB
-    GetSignal["getSignal called<br/>in strategy execution"]
-    LoadCandles["Load 4 timeframes:<br/>1m, 5m, 15m, 1h"]
-    BuildMessages["Build message array<br/>4 timeframe analyses"]
-    AddStrategy["Add strategy prompt<br/>from getPrompt()"]
-    
-    CallJson["Call json(messages)<br/>generated helper function"]
-    
-    Ollama["Ollama API call<br/>model: deepseek-v3.1:671b<br/>with JSON schema"]
-    Parse["JSON.parse response"]
-    
-    UUID["Generate uuid()<br/>for resultId"]
-    CallDump["Call dumpJson(resultId, messages, result)"]
-    
-    SaveSystem["Save 00_system_prompt.md"]
-    SaveUser["Save NN_user_message.md<br/>for each user message"]
-    SaveOutput["Save NN+1_llm_output.md"]
-    
-    AttachId["Attach resultId to signal"]
-    Return["Return signal object<br/>to framework"]
-    
-    GetSignal --> LoadCandles
-    LoadCandles --> BuildMessages
-    BuildMessages --> AddStrategy
-    AddStrategy --> CallJson
-    
-    CallJson --> Ollama
-    Ollama --> Parse
-    
-    Parse --> UUID
-    UUID --> CallDump
-    
-    CallDump --> SaveSystem
-    CallDump --> SaveUser
-    CallDump --> SaveOutput
-    
-    SaveOutput --> AttachId
-    AttachId --> Return
-    
-    style CallJson fill:#f9f9f9,stroke:#333,stroke-width:2px
-    style Ollama fill:#f9f9f9,stroke:#333,stroke-width:2px
-    style CallDump fill:#f9f9f9,stroke:#333,stroke-width:2px
-```
+![Mermaid Diagram](./diagrams\49_code-generation-templates_6.svg)
 
 
 ---
@@ -779,45 +522,7 @@ The `ClientOptimizer.dump` method saves generated code to the file system using 
 
 **Dump Workflow**
 
-```mermaid
-graph TB
-    Input["dump(symbol, path)<br/>called by user"]
-    GetCode["await getCode(symbol)<br/>generate complete code"]
-    
-    Cwd["process.cwd()"]
-    Join["path.join(cwd, path)"]
-    Mkdir["mkdir(dir, recursive: true)"]
-    
-    Filename["filename =<br/>{optimizerName}_{symbol}.mjs"]
-    FilePath["filepath = path.join(dir, filename)"]
-    
-    WriteFile["writeFile(filepath, report, 'utf-8')"]
-    LogInfo["logger.info('saved: ' + filepath)"]
-    
-    Callback["callbacks?.onDump(symbol, filepath)"]
-    
-    Catch["catch error"]
-    LogWarn["logger.warn('failed to save')"]
-    Throw["throw error"]
-    
-    Input --> GetCode
-    GetCode --> Cwd
-    Cwd --> Join
-    Join --> Mkdir
-    Mkdir --> Filename
-    Filename --> FilePath
-    FilePath --> WriteFile
-    WriteFile --> LogInfo
-    LogInfo --> Callback
-    
-    WriteFile --> Catch
-    Catch --> LogWarn
-    LogWarn --> Throw
-    
-    style GetCode fill:#f9f9f9,stroke:#333,stroke-width:2px
-    style WriteFile fill:#f9f9f9,stroke:#333,stroke-width:2px
-    style Callback fill:#f9f9f9,stroke:#333,stroke-width:2px
-```
+![Mermaid Diagram](./diagrams\49_code-generation-templates_7.svg)
 
 **File Naming Convention**
 
@@ -930,33 +635,7 @@ console.log(strategies[0].strategy); // View generated strategy prompt
 
 **Method Call Flow**
 
-```mermaid
-graph TB
-    User["User calls<br/>Optimizer.getData/getCode/dump"]
-    OptimizerUtils["OptimizerUtils class<br/>src/classes/Optimizer.ts"]
-    LoggerInfo["loggerService.info(methodName)"]
-    Validation["optimizerValidationService.validate(optimizerName)"]
-    GlobalService["optimizerGlobalService[method]"]
-    ConnectionService["optimizerConnectionService[method]"]
-    GetOptimizer["getOptimizer(optimizerName)<br/>memoized factory"]
-    ClientOptimizer["ClientOptimizer instance"]
-    Execute["Execute getData/getCode/dump"]
-    Return["Return result to user"]
-    
-    User --> OptimizerUtils
-    OptimizerUtils --> LoggerInfo
-    LoggerInfo --> Validation
-    Validation --> GlobalService
-    GlobalService --> ConnectionService
-    ConnectionService --> GetOptimizer
-    GetOptimizer --> ClientOptimizer
-    ClientOptimizer --> Execute
-    Execute --> Return
-    
-    style OptimizerUtils fill:#f9f9f9,stroke:#333,stroke-width:2px
-    style ClientOptimizer fill:#f9f9f9,stroke:#333,stroke-width:2px
-    style Execute fill:#f9f9f9,stroke:#333,stroke-width:2px
-```
+![Mermaid Diagram](./diagrams\49_code-generation-templates_8.svg)
 
 
 ---

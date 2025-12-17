@@ -30,122 +30,7 @@ Global functions are organized into six functional categories:
 
 ## Architecture: Global Functions to Service Layer
 
-```mermaid
-graph TB
-    subgraph "User Code"
-        USER["User Application"]
-    end
-    
-    subgraph "Global Functions (src/function/)"
-        CONFIG_FN["setLogger()<br/>setConfig()<br/>setColumns()"]
-        ADD_FN["addExchange()<br/>addStrategy()<br/>addFrame()<br/>addRisk()<br/>addWalker()<br/>addSizing()<br/>addOptimizer()"]
-        LIST_FN["listExchanges()<br/>listStrategies()<br/>listFrames()<br/>etc."]
-        LISTEN_FN["listenSignal*()<br/>listenDone*()<br/>listenPartial*()"]
-        UTIL_FN["getCandles()<br/>getAveragePrice()<br/>formatPrice()"]
-        CTX_FN["getDate()<br/>getMode()"]
-    end
-    
-    subgraph "Service Layer Access (src/lib/index.ts)"
-        BACKTEST_OBJ["backtest object<br/>Singleton service container"]
-    end
-    
-    subgraph "Validation Services"
-        VAL_EXCHANGE["ExchangeValidationService"]
-        VAL_STRATEGY["StrategyValidationService"]
-        VAL_FRAME["FrameValidationService"]
-        VAL_RISK["RiskValidationService"]
-        VAL_WALKER["WalkerValidationService"]
-        VAL_SIZING["SizingValidationService"]
-        VAL_OPTIMIZER["OptimizerValidationService"]
-        VAL_CONFIG["ConfigValidationService"]
-        VAL_COLUMN["ColumnValidationService"]
-    end
-    
-    subgraph "Schema Services (ToolRegistry pattern)"
-        SCHEMA_EXCHANGE["ExchangeSchemaService"]
-        SCHEMA_STRATEGY["StrategySchemaService"]
-        SCHEMA_FRAME["FrameSchemaService"]
-        SCHEMA_RISK["RiskSchemaService"]
-        SCHEMA_WALKER["WalkerSchemaService"]
-        SCHEMA_SIZING["SizingSchemaService"]
-        SCHEMA_OPTIMIZER["OptimizerSchemaService"]
-    end
-    
-    subgraph "Context Services"
-        CTX_EXEC["ExecutionContextService<br/>symbol, when, backtest flag"]
-        CTX_METHOD["MethodContextService<br/>strategyName, exchangeName"]
-    end
-    
-    subgraph "Connection Services"
-        CONN_EXCHANGE["ExchangeConnectionService<br/>ClientExchange instances"]
-    end
-    
-    subgraph "Event System"
-        EMITTERS["signalEmitter<br/>doneBacktestSubject<br/>doneLiveSubject<br/>partialProfitSubject<br/>etc."]
-    end
-    
-    USER --> CONFIG_FN
-    USER --> ADD_FN
-    USER --> LIST_FN
-    USER --> LISTEN_FN
-    USER --> UTIL_FN
-    USER --> CTX_FN
-    
-    CONFIG_FN --> BACKTEST_OBJ
-    ADD_FN --> BACKTEST_OBJ
-    LIST_FN --> BACKTEST_OBJ
-    LISTEN_FN --> EMITTERS
-    UTIL_FN --> BACKTEST_OBJ
-    CTX_FN --> BACKTEST_OBJ
-    
-    BACKTEST_OBJ --> VAL_EXCHANGE
-    BACKTEST_OBJ --> VAL_STRATEGY
-    BACKTEST_OBJ --> VAL_FRAME
-    BACKTEST_OBJ --> VAL_RISK
-    BACKTEST_OBJ --> VAL_WALKER
-    BACKTEST_OBJ --> VAL_SIZING
-    BACKTEST_OBJ --> VAL_OPTIMIZER
-    BACKTEST_OBJ --> VAL_CONFIG
-    BACKTEST_OBJ --> VAL_COLUMN
-    BACKTEST_OBJ --> SCHEMA_EXCHANGE
-    BACKTEST_OBJ --> SCHEMA_STRATEGY
-    BACKTEST_OBJ --> SCHEMA_FRAME
-    BACKTEST_OBJ --> SCHEMA_RISK
-    BACKTEST_OBJ --> SCHEMA_WALKER
-    BACKTEST_OBJ --> SCHEMA_SIZING
-    BACKTEST_OBJ --> SCHEMA_OPTIMIZER
-    BACKTEST_OBJ --> CTX_EXEC
-    BACKTEST_OBJ --> CTX_METHOD
-    BACKTEST_OBJ --> CONN_EXCHANGE
-    
-    ADD_FN --> VAL_EXCHANGE
-    ADD_FN --> VAL_STRATEGY
-    ADD_FN --> VAL_FRAME
-    ADD_FN --> VAL_RISK
-    ADD_FN --> VAL_WALKER
-    ADD_FN --> VAL_SIZING
-    ADD_FN --> VAL_OPTIMIZER
-    
-    VAL_EXCHANGE --> SCHEMA_EXCHANGE
-    VAL_STRATEGY --> SCHEMA_STRATEGY
-    VAL_FRAME --> SCHEMA_FRAME
-    VAL_RISK --> SCHEMA_RISK
-    VAL_WALKER --> SCHEMA_WALKER
-    VAL_SIZING --> SCHEMA_SIZING
-    VAL_OPTIMIZER --> SCHEMA_OPTIMIZER
-    
-    LIST_FN --> VAL_EXCHANGE
-    LIST_FN --> VAL_STRATEGY
-    LIST_FN --> VAL_FRAME
-    LIST_FN --> VAL_RISK
-    LIST_FN --> VAL_WALKER
-    LIST_FN --> VAL_SIZING
-    LIST_FN --> VAL_OPTIMIZER
-    
-    UTIL_FN --> CTX_EXEC
-    UTIL_FN --> CTX_METHOD
-    UTIL_FN --> CONN_EXCHANGE
-```
+![Mermaid Diagram](./diagrams\57_global-functions_0.svg)
 
 **Architectural Flow:**
 
@@ -344,30 +229,7 @@ Registration functions validate and store component schemas in the service layer
 1. **Validation** via dedicated ValidationService (shallow validation, duplicate checking)
 2. **Storage** via dedicated SchemaService (ToolRegistry pattern for immutable storage)
 
-```mermaid
-graph TB
-    ADD["addStrategy()<br/>addExchange()<br/>addFrame()<br/>addRisk()<br/>addWalker()<br/>addSizing()<br/>addOptimizer()"]
-    
-    LOG["LoggerService.info()<br/>Log registration attempt"]
-    
-    VALIDATE["ValidationService<br/>addStrategy() / addExchange() / etc.<br/>Check for duplicates<br/>Validate schema shape"]
-    
-    REGISTER["SchemaService<br/>register(name, schema)<br/>Store in ToolRegistry"]
-    
-    TOOLREG["ToolRegistry<br/>Map<name, schema><br/>Immutable storage"]
-    
-    CONNECTION["ConnectionService<br/>Memoized factory<br/>Creates client instances"]
-    
-    CLIENT["ClientStrategy<br/>ClientExchange<br/>ClientFrame<br/>ClientRisk<br/>ClientSizing"]
-    
-    ADD --> LOG
-    LOG --> VALIDATE
-    VALIDATE --> REGISTER
-    REGISTER --> TOOLREG
-    
-    TOOLREG -.->|"Lazy loading"| CONNECTION
-    CONNECTION -.->|"First access"| CLIENT
-```
+![Mermaid Diagram](./diagrams\57_global-functions_1.svg)
 
 **Registration Flow:**
 
@@ -930,23 +792,7 @@ addOptimizer({
 
 Query functions retrieve lists of registered schemas from validation services. All functions return arrays of schema objects.
 
-```mermaid
-graph LR
-    LIST["listExchanges()<br/>listStrategies()<br/>listFrames()<br/>listRisks()<br/>listWalkers()<br/>listSizings()<br/>listOptimizers()"]
-    
-    LOG["LoggerService.log()<br/>Log list request"]
-    
-    VALIDATE["ValidationService<br/>list()<br/>Returns array of schemas"]
-    
-    SCHEMA["SchemaService<br/>ToolRegistry.getItems()<br/>Retrieves all entries"]
-    
-    RETURN["Returns:<br/>IExchangeSchema[]<br/>IStrategySchema[]<br/>IFrameSchema[]<br/>etc."]
-    
-    LIST --> LOG
-    LOG --> VALIDATE
-    VALIDATE --> SCHEMA
-    SCHEMA --> RETURN
-```
+![Mermaid Diagram](./diagrams\57_global-functions_2.svg)
 
 All list functions share the same pattern:
 1. Log the request via `LoggerService`
@@ -1097,83 +943,7 @@ console.log(optimizers.map(o => o.optimizerName));
 
 Event subscription functions register callbacks for framework events. The framework uses a Subject pattern for event emission with support for both persistent and one-time listeners.
 
-```mermaid
-graph TB
-    subgraph "Event Producers"
-        STRAT["ClientStrategy<br/>Strategy execution"]
-        BT["BacktestLogicPrivateService<br/>Backtest orchestration"]
-        LIVE["LiveLogicPrivateService<br/>Live trading"]
-        WALK["WalkerLogicPrivateService<br/>Walker comparison"]
-        RISK["ClientRisk<br/>Risk validation"]
-        PARTIAL["ClientPartial<br/>Partial monitoring"]
-    end
-    
-    subgraph "Event Emitters (Subject Pattern)"
-        SIG_EMIT["signalEmitter<br/>All signals"]
-        SIG_BT["signalBacktestEmitter<br/>Backtest signals"]
-        SIG_LIVE["signalLiveEmitter<br/>Live signals"]
-        DONE_BT["doneBacktestSubject<br/>Backtest complete"]
-        DONE_LIVE["doneLiveSubject<br/>Live complete"]
-        DONE_WALK["doneWalkerSubject<br/>Walker complete"]
-        PROG_BT["progressBacktestEmitter<br/>Frame progress"]
-        PROG_WALK["walkerEmitter<br/>Strategy progress"]
-        WALK_COMP["walkerCompleteSubject<br/>Final results"]
-        RISK_EMIT["riskSubject<br/>Rejected signals"]
-        PERF["performanceEmitter<br/>Timing metrics"]
-        PP["partialProfitSubject<br/>Profit milestones"]
-        PL["partialLossSubject<br/>Loss milestones"]
-        ERR["errorEmitter<br/>Recoverable errors"]
-        EXIT["exitEmitter<br/>Fatal errors"]
-    end
-    
-    subgraph "Listen Functions"
-        LISTEN["listenSignal()<br/>listenSignalBacktest()<br/>listenSignalLive()<br/>listenDone*()<br/>listenBacktestProgress()<br/>listenWalkerProgress()<br/>listenRisk()<br/>listenPerformance()<br/>listenPartialProfit()<br/>listenPartialLoss()<br/>listenError()<br/>listenExit()"]
-        
-        QUEUED["functools-kit queued()<br/>Sequential async execution<br/>Prevents concurrent callbacks"]
-    end
-    
-    STRAT --> SIG_EMIT
-    STRAT --> SIG_BT
-    STRAT --> SIG_LIVE
-    
-    BT --> DONE_BT
-    BT --> PROG_BT
-    BT --> PERF
-    
-    LIVE --> DONE_LIVE
-    LIVE --> PERF
-    
-    WALK --> DONE_WALK
-    WALK --> PROG_WALK
-    WALK --> WALK_COMP
-    
-    RISK --> RISK_EMIT
-    PARTIAL --> PP
-    PARTIAL --> PL
-    
-    STRAT --> ERR
-    BT --> ERR
-    LIVE --> ERR
-    WALK --> EXIT
-    
-    SIG_EMIT --> LISTEN
-    SIG_BT --> LISTEN
-    SIG_LIVE --> LISTEN
-    DONE_BT --> LISTEN
-    DONE_LIVE --> LISTEN
-    DONE_WALK --> LISTEN
-    PROG_BT --> LISTEN
-    PROG_WALK --> LISTEN
-    WALK_COMP --> LISTEN
-    RISK_EMIT --> LISTEN
-    PERF --> LISTEN
-    PP --> LISTEN
-    PL --> LISTEN
-    ERR --> LISTEN
-    EXIT --> LISTEN
-    
-    LISTEN --> QUEUED
-```
+![Mermaid Diagram](./diagrams\57_global-functions_3.svg)
 
 **Event Subscription Pattern:**
 
@@ -1545,48 +1315,7 @@ Walker.background('BTCUSDT', { walkerName: 'llm-optimizer' });
 
 Context access functions retrieve ambient execution state propagated via `AsyncLocalStorage`. These functions work within strategy code and callbacks.
 
-```mermaid
-graph TB
-    subgraph "Execution Entry Points"
-        BT_RUN["Backtest.run()<br/>Backtest.background()"]
-        LIVE_RUN["Live.run()<br/>Live.background()"]
-    end
-    
-    subgraph "Context Setup"
-        SET_EXEC["ExecutionContextService.run()<br/>Set: symbol, when, backtest"]
-        SET_METHOD["MethodContextService.run()<br/>Set: strategyName, exchangeName, frameName"]
-    end
-    
-    subgraph "Strategy Execution"
-        GET_SIGNAL["getSignal(symbol, when)"]
-        CALLBACKS["Strategy callbacks<br/>onOpen, onClose, etc."]
-    end
-    
-    subgraph "Context Access Functions"
-        GET_DATE["getDate()<br/>Returns: Date"]
-        GET_MODE["getMode()<br/>Returns: boolean"]
-    end
-    
-    subgraph "Context Services (AsyncLocalStorage)"
-        EXEC_CTX["ExecutionContextService<br/>{ symbol, when, backtest }"]
-        METHOD_CTX["MethodContextService<br/>{ strategyName, exchangeName, frameName }"]
-    end
-    
-    BT_RUN --> SET_EXEC
-    LIVE_RUN --> SET_EXEC
-    
-    SET_EXEC --> SET_METHOD
-    SET_METHOD --> GET_SIGNAL
-    SET_METHOD --> CALLBACKS
-    
-    GET_SIGNAL --> GET_DATE
-    GET_SIGNAL --> GET_MODE
-    CALLBACKS --> GET_DATE
-    CALLBACKS --> GET_MODE
-    
-    GET_DATE --> EXEC_CTX
-    GET_MODE --> EXEC_CTX
-```
+![Mermaid Diagram](./diagrams\57_global-functions_4.svg)
 
 **Context Propagation:**
 
@@ -1675,48 +1404,7 @@ addStrategy({
 
 Exchange utility functions provide access to candle data and formatting methods. These functions retrieve the exchange from context and delegate to `ClientExchange` methods.
 
-```mermaid
-graph TB
-    subgraph "Utility Functions"
-        GET_CANDLES["getCandles(symbol, interval, limit)"]
-        GET_AVG["getAveragePrice(symbol)"]
-        FMT_PRICE["formatPrice(symbol, price)"]
-        FMT_QTY["formatQuantity(symbol, quantity)"]
-    end
-    
-    subgraph "Context Resolution"
-        METHOD_CTX["MethodContextService<br/>Get: exchangeName"]
-    end
-    
-    subgraph "Connection Service"
-        EXCH_CONN["ExchangeConnectionService<br/>Memoized factory"]
-    end
-    
-    subgraph "Client Layer"
-        CLIENT_EXCH["ClientExchange<br/>CCXT integration<br/>VWAP calculation"]
-    end
-    
-    subgraph "Exchange Schema"
-        SCHEMA["IExchangeSchema<br/>User-defined functions"]
-    end
-    
-    subgraph "External API"
-        CCXT["CCXT Library<br/>fetchOHLCV()"]
-        DB["Database<br/>Custom data source"]
-    end
-    
-    GET_CANDLES --> METHOD_CTX
-    GET_AVG --> METHOD_CTX
-    FMT_PRICE --> METHOD_CTX
-    FMT_QTY --> METHOD_CTX
-    
-    METHOD_CTX --> EXCH_CONN
-    EXCH_CONN --> CLIENT_EXCH
-    
-    CLIENT_EXCH --> SCHEMA
-    SCHEMA --> CCXT
-    SCHEMA --> DB
-```
+![Mermaid Diagram](./diagrams\57_global-functions_5.svg)
 
 **Utility Function Flow:**
 

@@ -26,36 +26,7 @@ The framework defines unique Symbol tokens for each service, organized by catego
 
 **TYPES Symbol Structure**
 
-```mermaid
-graph TB
-    subgraph "TYPES Registry (src/lib/core/types.ts)"
-        BASE["baseServices<br/>loggerService"]
-        CONTEXT["contextServices<br/>executionContextService<br/>methodContextService"]
-        SCHEMA["schemaServices<br/>exchangeSchemaService<br/>strategySchemaService<br/>frameSchemaService<br/>walkerSchemaService<br/>sizingSchemaService<br/>riskSchemaService<br/>optimizerSchemaService"]
-        VALIDATION["validationServices<br/>exchangeValidationService<br/>strategyValidationService<br/>frameValidationService<br/>walkerValidationService<br/>sizingValidationService<br/>riskValidationService<br/>optimizerValidationService<br/>configValidationService<br/>columnValidationService"]
-        CONNECTION["connectionServices<br/>exchangeConnectionService<br/>strategyConnectionService<br/>frameConnectionService<br/>sizingConnectionService<br/>riskConnectionService<br/>optimizerConnectionService<br/>partialConnectionService"]
-        CORE["coreServices<br/>exchangeCoreService<br/>strategyCoreService<br/>frameCoreService"]
-        GLOBAL["globalServices<br/>sizingGlobalService<br/>riskGlobalService<br/>optimizerGlobalService<br/>partialGlobalService"]
-        COMMAND["commandServices<br/>liveCommandService<br/>backtestCommandService<br/>walkerCommandService"]
-        LOGIC_PRIV["logicPrivateServices<br/>backtestLogicPrivateService<br/>liveLogicPrivateService<br/>walkerLogicPrivateService"]
-        LOGIC_PUB["logicPublicServices<br/>backtestLogicPublicService<br/>liveLogicPublicService<br/>walkerLogicPublicService"]
-        MARKDOWN["markdownServices<br/>backtestMarkdownService<br/>liveMarkdownService<br/>scheduleMarkdownService<br/>performanceMarkdownService<br/>walkerMarkdownService<br/>heatMarkdownService<br/>partialMarkdownService<br/>outlineMarkdownService<br/>riskMarkdownService"]
-        TEMPLATE["templateServices<br/>optimizerTemplateService"]
-    end
-    
-    BASE --> TYPES_EXPORT["TYPES Object<br/>Exported from<br/>src/lib/core/types.ts"]
-    CONTEXT --> TYPES_EXPORT
-    SCHEMA --> TYPES_EXPORT
-    VALIDATION --> TYPES_EXPORT
-    CONNECTION --> TYPES_EXPORT
-    CORE --> TYPES_EXPORT
-    GLOBAL --> TYPES_EXPORT
-    COMMAND --> TYPES_EXPORT
-    LOGIC_PRIV --> TYPES_EXPORT
-    LOGIC_PUB --> TYPES_EXPORT
-    MARKDOWN --> TYPES_EXPORT
-    TEMPLATE --> TYPES_EXPORT
-```
+![Mermaid Diagram](./diagrams\14_architecture-deep-dive_0.svg)
 
 
 ### Service Provider Registration
@@ -87,30 +58,7 @@ The `backtest` object aggregates all injected services into a single namespace, 
 
 **Backtest Object Structure**
 
-```mermaid
-graph LR
-    subgraph "Service Injection (src/lib/index.ts)"
-        INJECT["inject() function<br/>Lazy resolution"]
-        
-        BASE_INJ["baseServices<br/>loggerService: inject(TYPES.loggerService)"]
-        CONTEXT_INJ["contextServices<br/>executionContextService: inject(...)<br/>methodContextService: inject(...)"]
-        SCHEMA_INJ["schemaServices<br/>exchangeSchemaService: inject(...)<br/>strategySchemaService: inject(...)<br/>etc..."]
-        CONN_INJ["connectionServices<br/>exchangeConnectionService: inject(...)<br/>strategyConnectionService: inject(...)<br/>etc..."]
-        CORE_INJ["coreServices<br/>exchangeCoreService: inject(...)<br/>strategyCoreService: inject(...)<br/>frameCoreService: inject(...)"]
-        
-        INJECT -.-> BASE_INJ
-        INJECT -.-> CONTEXT_INJ
-        INJECT -.-> SCHEMA_INJ
-        INJECT -.-> CONN_INJ
-        INJECT -.-> CORE_INJ
-    end
-    
-    BASE_INJ --> BACKTEST["backtest Object<br/>Aggregates all services<br/>Export: lib"]
-    CONTEXT_INJ --> BACKTEST
-    SCHEMA_INJ --> BACKTEST
-    CONN_INJ --> BACKTEST
-    CORE_INJ --> BACKTEST
-```
+![Mermaid Diagram](./diagrams\14_architecture-deep-dive_1.svg)
 
 The aggregation structure allows services to access other services through the same namespace:
 
@@ -149,68 +97,7 @@ The service architecture follows a strict layering principle to prevent circular
 
 **Service Dependency Hierarchy**
 
-```mermaid
-graph TB
-    subgraph "Layer 1: Foundation"
-        BASE["Base Services<br/>LoggerService"]
-    end
-    
-    subgraph "Layer 2: Context"
-        CONTEXT["Context Services<br/>ExecutionContextService<br/>MethodContextService"]
-    end
-    
-    subgraph "Layer 3: Configuration"
-        SCHEMA["Schema Services<br/>Store user configs"]
-        VALIDATION["Validation Services<br/>Existence checks"]
-    end
-    
-    subgraph "Layer 4: Client Management"
-        CONNECTION["Connection Services<br/>Memoized client factories"]
-    end
-    
-    subgraph "Layer 5: Core Logic"
-        CORE["Core Services<br/>Business logic orchestration"]
-        GLOBAL["Global Services<br/>Shared state management"]
-    end
-    
-    subgraph "Layer 6: Execution"
-        LOGIC_PRIV["Logic Private Services<br/>Async generators"]
-    end
-    
-    subgraph "Layer 7: Public API"
-        LOGIC_PUB["Logic Public Services<br/>API wrappers"]
-        COMMAND["Command Services<br/>Entry points"]
-    end
-    
-    subgraph "Layer 8: Reporting"
-        MARKDOWN["Markdown Services<br/>Event subscribers"]
-        TEMPLATE["Template Services<br/>Code generation"]
-    end
-    
-    BASE --> CONTEXT
-    BASE --> SCHEMA
-    BASE --> VALIDATION
-    
-    CONTEXT --> CONNECTION
-    SCHEMA --> VALIDATION
-    SCHEMA --> CONNECTION
-    
-    VALIDATION --> CORE
-    CONNECTION --> CORE
-    CONNECTION --> GLOBAL
-    
-    CORE --> LOGIC_PRIV
-    GLOBAL --> LOGIC_PRIV
-    
-    LOGIC_PRIV --> LOGIC_PUB
-    
-    LOGIC_PUB --> COMMAND
-    VALIDATION --> COMMAND
-    SCHEMA --> COMMAND
-    
-    LOGIC_PRIV -.->|subscribe| MARKDOWN
-    SCHEMA --> TEMPLATE
-```
+![Mermaid Diagram](./diagrams\14_architecture-deep-dive_2.svg)
 
 
 ### Service Category Implementation Details
@@ -309,45 +196,7 @@ interface IMethodContext {
 
 ### Context Propagation Flow
 
-```mermaid
-graph TB
-    subgraph "Public API Layer"
-        BACKTEST_RUN["Backtest.run()<br/>symbol: 'BTCUSDT'<br/>context: { strategyName, exchangeName, frameName }"]
-        LIVE_RUN["Live.run()<br/>symbol: 'BTCUSDT'<br/>context: { strategyName, exchangeName }"]
-    end
-    
-    subgraph "Method Context Setup"
-        METHOD_CTX["MethodContextService.runAsyncIterator()<br/>Sets: strategyName, exchangeName, frameName<br/>Wraps: async generator"]
-    end
-    
-    subgraph "Logic Layer"
-        LOGIC["BacktestLogicPrivateService.run()<br/>Iterates timeframes<br/>For each frame:"]
-    end
-    
-    subgraph "Execution Context Setup"
-        EXEC_CTX["ExecutionContextService.runInContext()<br/>Sets: symbol, when, backtest=true<br/>Calls: StrategyGlobalService.tick()"]
-    end
-    
-    subgraph "Core Service Layer"
-        CORE["StrategyCoreService.tick()<br/>Accesses contexts:<br/>- executionContextService.context<br/>- methodContextService.context"]
-    end
-    
-    subgraph "Connection Layer"
-        CONN["StrategyConnectionService.getStrategy()<br/>Uses methodContextService.context.strategyName<br/>Returns: memoized ClientStrategy"]
-    end
-    
-    subgraph "Client Layer"
-        CLIENT["ClientStrategy.tick()<br/>Uses executionContextService.context:<br/>- symbol, when, backtest"]
-    end
-    
-    BACKTEST_RUN --> METHOD_CTX
-    LIVE_RUN --> METHOD_CTX
-    METHOD_CTX --> LOGIC
-    LOGIC --> EXEC_CTX
-    EXEC_CTX --> CORE
-    CORE --> CONN
-    CONN --> CLIENT
-```
+![Mermaid Diagram](./diagrams\14_architecture-deep-dive_3.svg)
 
 ### Context Access Pattern
 
@@ -386,39 +235,7 @@ Connection services use memoization to cache client instances, preventing redund
 
 **StrategyConnectionService Example**
 
-```mermaid
-graph LR
-    subgraph "StrategyConnectionService"
-        GET_STRATEGY["getStrategy(strategyName)<br/>Memoized method"]
-        CREATE["createStrategy(strategyName)<br/>Factory method"]
-        CACHE["Memoization Cache<br/>Key: strategyName<br/>Value: ClientStrategy instance"]
-    end
-    
-    subgraph "First Call"
-        CALL1["getStrategy('my-strategy')"]
-        MISS1["Cache miss"]
-        CREATE1["Create new ClientStrategy"]
-        STORE1["Store in cache"]
-        RETURN1["Return instance"]
-    end
-    
-    subgraph "Subsequent Calls"
-        CALL2["getStrategy('my-strategy')"]
-        HIT2["Cache hit"]
-        RETURN2["Return cached instance"]
-    end
-    
-    CALL1 --> MISS1
-    MISS1 --> CREATE1
-    CREATE1 --> STORE1
-    STORE1 --> RETURN1
-    
-    CALL2 --> HIT2
-    HIT2 --> RETURN2
-    
-    GET_STRATEGY -.->|uses| CACHE
-    CREATE -.->|creates| ClientStrategy["ClientStrategy instance<br/>Maintains internal state"]
-```
+![Mermaid Diagram](./diagrams\14_architecture-deep-dive_4.svg)
 
 ### Memoization Benefits
 
@@ -481,44 +298,7 @@ The service layer exhibits a carefully designed dependency structure that avoids
 
 **Command Service Dependencies**
 
-```mermaid
-graph TB
-    subgraph "BacktestCommandService"
-        BCmdLogger["loggerService"]
-        BCmdStratSchema["strategySchemaService"]
-        BCmdRiskVal["riskValidationService"]
-        BCmdLogicPub["backtestLogicPublicService"]
-        BCmdStratVal["strategyValidationService"]
-        BCmdExchVal["exchangeValidationService"]
-        BCmdFrameVal["frameValidationService"]
-    end
-    
-    subgraph "BacktestLogicPublicService"
-        BPubLogger["loggerService"]
-        BPubLogicPriv["backtestLogicPrivateService"]
-    end
-    
-    subgraph "BacktestLogicPrivateService"
-        BPrivLogger["loggerService"]
-        BPrivStratCore["strategyCoreService"]
-        BPrivExchCore["exchangeCoreService"]
-        BPrivFrameCore["frameCoreService"]
-        BPrivMethod["methodContextService"]
-    end
-    
-    subgraph "StrategyCoreService"
-        SCoreLogger["loggerService"]
-        SCoreStratConn["strategyConnectionService"]
-        SCoreStratSchema["strategySchemaService"]
-        SCoreRiskVal["riskValidationService"]
-        SCoreStratVal["strategyValidationService"]
-        SCoreMethod["methodContextService"]
-    end
-    
-    BCmdLogicPub --> BPubLogicPriv
-    BPubLogicPriv --> BPrivStratCore
-    BPrivStratCore --> SCoreStratConn
-```
+![Mermaid Diagram](./diagrams\14_architecture-deep-dive_5.svg)
 
 ### Cross-Service Communication Patterns
 
@@ -556,25 +336,7 @@ The architecture prevents circular dependencies through:
 
 **Dependency Flow Direction**
 
-```mermaid
-graph LR
-    SCHEMA["Schema Services<br/>Configuration storage"] --> VALIDATION["Validation Services<br/>Existence checks"]
-    SCHEMA --> CONNECTION["Connection Services<br/>Client factories"]
-    VALIDATION --> CORE["Core Services<br/>Orchestration"]
-    CONNECTION --> CORE
-    CORE --> LOGIC_PRIV["Logic Private<br/>Generators"]
-    LOGIC_PRIV --> LOGIC_PUB["Logic Public<br/>API wrappers"]
-    LOGIC_PUB --> COMMAND["Command Services<br/>Entry points"]
-    
-    CONTEXT["Context Services<br/>Ambient context"] -.->|used by| CONNECTION
-    CONTEXT -.->|used by| CORE
-    CONTEXT -.->|used by| LOGIC_PRIV
-    
-    BASE["Base Services<br/>Logger"] -.->|used by| SCHEMA
-    BASE -.->|used by| VALIDATION
-    BASE -.->|used by| CONNECTION
-    BASE -.->|used by| CORE
-```
+![Mermaid Diagram](./diagrams\14_architecture-deep-dive_6.svg)
 
 
 ## Initialization Flow
@@ -583,32 +345,7 @@ The framework initialization follows a specific sequence to ensure all services 
 
 ### Initialization Sequence
 
-```mermaid
-sequenceDiagram
-    participant Import as Module Import
-    participant Provide as provide.ts
-    participant DI as DI Container
-    participant Init as init()
-    participant Backtest as backtest Object
-    
-    Import->>Provide: Execute provide.ts
-    Note over Provide: Registers all service factories
-    Provide->>DI: provide(TYPES.loggerService, factory)
-    Provide->>DI: provide(TYPES.executionContextService, factory)
-    Provide->>DI: provide(TYPES.strategySchemaService, factory)
-    Provide->>DI: ... (all services)
-    
-    Import->>Init: Call init()
-    Note over Init: Triggers lazy resolution setup
-    Init->>DI: Initialize DI container
-    
-    Import->>Backtest: Export backtest object
-    Note over Backtest: All services available via inject()
-    
-    Backtest->>DI: First access to service
-    DI->>DI: Instantiate service (lazy)
-    DI->>Backtest: Return instance
-```
+![Mermaid Diagram](./diagrams\14_architecture-deep-dive_7.svg)
 
 ### Lazy Dependency Resolution
 
@@ -671,34 +408,6 @@ type TExecutionContextService = InstanceType<typeof ExecutionContextService>;
 
 ### Type Flow Through Layers
 
-```mermaid
-graph TB
-    subgraph "Type Definitions (types.d.ts)"
-        INTERFACES["Interfaces<br/>IExchangeSchema<br/>IStrategySchema<br/>IFrameSchema<br/>etc."]
-        CONTRACTS["Contract Types<br/>DoneContract<br/>PerformanceContract<br/>etc."]
-        RESULT_TYPES["Result Types<br/>IStrategyTickResult<br/>IStrategyBacktestResult"]
-    end
-    
-    subgraph "Service Implementations"
-        SCHEMA_SVC["Schema Services<br/>Use interface types for storage"]
-        CONN_SVC["Connection Services<br/>Return typed client instances"]
-        LOGIC_SVC["Logic Services<br/>Yield typed results"]
-    end
-    
-    subgraph "Public API"
-        ADD_FUNCS["add*() functions<br/>Accept interface types"]
-        EVENT_FUNCS["listen*() functions<br/>Receive typed events"]
-        CLASS_API["Class methods<br/>Return typed results"]
-    end
-    
-    INTERFACES --> SCHEMA_SVC
-    INTERFACES --> ADD_FUNCS
-    
-    CONTRACTS --> LOGIC_SVC
-    CONTRACTS --> EVENT_FUNCS
-    
-    RESULT_TYPES --> CONN_SVC
-    RESULT_TYPES --> CLASS_API
-```
+![Mermaid Diagram](./diagrams\14_architecture-deep-dive_8.svg)
 
 Full type safety is maintained from user-facing API through internal service layer to client implementations, ensuring compile-time error detection and rich IDE support.

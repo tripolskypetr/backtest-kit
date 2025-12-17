@@ -35,46 +35,7 @@ The generator pattern is implemented at two layers:
 
 The framework implements two distinct generator lifecycles depending on the execution mode:
 
-```mermaid
-graph TB
-    subgraph "Finite Generator (Backtest)"
-        BT_START["Start: Get timeframes array"]
-        BT_LOOP["while i < timeframes.length"]
-        BT_TICK["Process timeframe at index i"]
-        BT_YIELD["yield closed signal"]
-        BT_INC["i++"]
-        BT_CHECK{"i < length?"}
-        BT_END["End: Generator completes"]
-        
-        BT_START --> BT_LOOP
-        BT_LOOP --> BT_TICK
-        BT_TICK --> BT_YIELD
-        BT_YIELD --> BT_INC
-        BT_INC --> BT_CHECK
-        BT_CHECK -->|yes| BT_LOOP
-        BT_CHECK -->|no| BT_END
-    end
-    
-    subgraph "Infinite Generator (Live)"
-        LIVE_START["Start: while(true)"]
-        LIVE_WHEN["when = new Date()"]
-        LIVE_TICK["tick with current time"]
-        LIVE_YIELD["yield if opened/closed"]
-        LIVE_SLEEP["sleep TICK_TTL (1 min)"]
-        LIVE_STOP{"Stop requested?"}
-        LIVE_LOOP["Continue loop"]
-        LIVE_END["End: Only on explicit stop"]
-        
-        LIVE_START --> LIVE_WHEN
-        LIVE_WHEN --> LIVE_TICK
-        LIVE_TICK --> LIVE_YIELD
-        LIVE_YIELD --> LIVE_SLEEP
-        LIVE_SLEEP --> LIVE_STOP
-        LIVE_STOP -->|no| LIVE_LOOP
-        LIVE_LOOP --> LIVE_WHEN
-        LIVE_STOP -->|yes AND closed| LIVE_END
-    end
-```
+![Mermaid Diagram](./diagrams\24_async-generator-patterns_0.svg)
 
 ### Finite Generators (Backtest, Walker)
 
@@ -110,63 +71,7 @@ graph TB
 
 The backtest generator implements a deterministic iteration pattern that processes historical data minute-by-minute while optimizing performance through timeframe skipping.
 
-```mermaid
-graph TD
-    START["async *run(symbol)"]
-    GET_FRAMES["timeframes = frameCoreService.getTimeframe()"]
-    INIT["i = 0, while i < timeframes.length"]
-    PROGRESS["emit progressBacktestEmitter"]
-    TICK["result = strategyCoreService.tick(when, backtest=true)"]
-    CHECK_ACTION{"result.action?"}
-    
-    IDLE["action === 'idle'"]
-    SCHEDULED["action === 'scheduled'"]
-    OPENED["action === 'opened'"]
-    
-    FETCH_CANDLES_SCHED["getNextCandles(bufferMinutes + CC_SCHEDULE_AWAIT_MINUTES + minuteEstimatedTime)"]
-    FETCH_CANDLES_OPEN["getNextCandles(bufferMinutes + minuteEstimatedTime)"]
-    
-    BACKTEST_SCHED["strategyCoreService.backtest(candles)"]
-    BACKTEST_OPEN["strategyCoreService.backtest(candles)"]
-    
-    YIELD_SCHED["yield backtestResult"]
-    YIELD_OPEN["yield backtestResult"]
-    
-    SKIP_SCHED["Skip frames: while i < length && timeframes[i] < closeTimestamp"]
-    SKIP_OPEN["Skip frames: while i < length && timeframes[i] < closeTimestamp"]
-    
-    INCREMENT["i++"]
-    CHECK_MORE{"i < timeframes.length?"}
-    END["End: emit final progress (100%)"]
-    
-    START --> GET_FRAMES
-    GET_FRAMES --> INIT
-    INIT --> PROGRESS
-    PROGRESS --> TICK
-    TICK --> CHECK_ACTION
-    
-    CHECK_ACTION -->|idle| IDLE
-    CHECK_ACTION -->|scheduled| SCHEDULED
-    CHECK_ACTION -->|opened| OPENED
-    
-    IDLE --> INCREMENT
-    
-    SCHEDULED --> FETCH_CANDLES_SCHED
-    FETCH_CANDLES_SCHED --> BACKTEST_SCHED
-    BACKTEST_SCHED --> YIELD_SCHED
-    YIELD_SCHED --> SKIP_SCHED
-    SKIP_SCHED --> CHECK_MORE
-    
-    OPENED --> FETCH_CANDLES_OPEN
-    FETCH_CANDLES_OPEN --> BACKTEST_OPEN
-    BACKTEST_OPEN --> YIELD_OPEN
-    YIELD_OPEN --> SKIP_OPEN
-    SKIP_OPEN --> CHECK_MORE
-    
-    INCREMENT --> CHECK_MORE
-    CHECK_MORE -->|yes| PROGRESS
-    CHECK_MORE -->|no| END
-```
+![Mermaid Diagram](./diagrams\24_async-generator-patterns_1.svg)
 
 ### Key Implementation Details
 
@@ -209,66 +114,7 @@ For scheduled signals (`priceOpen` not yet reached), the generator:
 
 The live generator implements an infinite loop that continuously monitors real-time market conditions with crash recovery and graceful shutdown support.
 
-```mermaid
-graph TD
-    START["async *run(symbol)"]
-    INIT["previousEventTimestamp = null"]
-    LOOP["while(true)"]
-    CREATE_WHEN["when = new Date()"]
-    TICK["result = strategyCoreService.tick(symbol, when, backtest=false)"]
-    PERF["emit performanceEmitter (tick duration)"]
-    
-    CHECK_ACTION{"result.action?"}
-    
-    IDLE["action === 'idle'"]
-    ACTIVE["action === 'active'"]
-    SCHEDULED["action === 'scheduled'"]
-    OPENED["action === 'opened'"]
-    CLOSED["action === 'closed'"]
-    
-    CHECK_STOP_IDLE{"getStopped()?"}
-    BREAK_IDLE["break (exit generator)"]
-    SLEEP_IDLE["sleep(TICK_TTL)"]
-    
-    SLEEP_ACTIVE["sleep(TICK_TTL)"]
-    SLEEP_SCHEDULED["sleep(TICK_TTL)"]
-    
-    YIELD["yield result (opened or closed)"]
-    CHECK_STOP_CLOSED{"result.action === 'closed' && getStopped()?"}
-    BREAK_CLOSED["break (graceful shutdown)"]
-    SLEEP["sleep(TICK_TTL)"]
-    
-    START --> INIT
-    INIT --> LOOP
-    LOOP --> CREATE_WHEN
-    CREATE_WHEN --> TICK
-    TICK --> PERF
-    PERF --> CHECK_ACTION
-    
-    CHECK_ACTION -->|idle| IDLE
-    CHECK_ACTION -->|active| ACTIVE
-    CHECK_ACTION -->|scheduled| SCHEDULED
-    CHECK_ACTION -->|opened| OPENED
-    CHECK_ACTION -->|closed| CLOSED
-    
-    IDLE --> CHECK_STOP_IDLE
-    CHECK_STOP_IDLE -->|yes| BREAK_IDLE
-    CHECK_STOP_IDLE -->|no| SLEEP_IDLE
-    SLEEP_IDLE --> LOOP
-    
-    ACTIVE --> SLEEP_ACTIVE
-    SLEEP_ACTIVE --> LOOP
-    
-    SCHEDULED --> SLEEP_SCHEDULED
-    SLEEP_SCHEDULED --> LOOP
-    
-    OPENED --> YIELD
-    CLOSED --> YIELD
-    YIELD --> CHECK_STOP_CLOSED
-    CHECK_STOP_CLOSED -->|yes| BREAK_CLOSED
-    CHECK_STOP_CLOSED -->|no| SLEEP
-    SLEEP --> LOOP
-```
+![Mermaid Diagram](./diagrams\24_async-generator-patterns_2.svg)
 
 ### Key Implementation Details
 
@@ -337,73 +183,7 @@ This ensures:
 
 The walker generator orchestrates multiple backtests sequentially, yielding progress updates after each strategy completes to enable real-time comparison tracking.
 
-```mermaid
-graph TD
-    START["async *run(symbol, strategies, metric, context)"]
-    INIT["strategiesTested = 0, bestMetric = null, bestStrategy = null"]
-    SUBSCRIBE["Subscribe to walkerStopSubject for stop signals"]
-    
-    LOOP["for (const strategyName of strategies)"]
-    CHECK_STOPPED{"stoppedStrategies.has(strategyName)?"}
-    BREAK["break (strategy stopped)"]
-    
-    CALLBACK_START["walkerSchema.callbacks?.onStrategyStart()"]
-    RUN_BACKTEST["iterator = backtestLogicPublicService.run()"]
-    AWAIT["await resolveDocuments(iterator)"]
-    
-    CALLBACK_ERROR["walkerSchema.callbacks?.onStrategyError()"]
-    CONTINUE["continue (skip strategy)"]
-    
-    GET_STATS["stats = backtestMarkdownService.getData()"]
-    EXTRACT_METRIC["metricValue = stats[metric]"]
-    UPDATE_BEST["if metricValue > bestMetric: update best"]
-    INCREMENT["strategiesTested++"]
-    
-    BUILD_CONTRACT["walkerContract = {...stats, metricValue, bestMetric, bestStrategy}"]
-    EMIT_PROGRESS["emit progressWalkerEmitter"]
-    CALLBACK_COMPLETE["walkerSchema.callbacks?.onStrategyComplete()"]
-    EMIT_WALKER["emit walkerEmitter.next(walkerContract)"]
-    YIELD["yield walkerContract"]
-    
-    CHECK_MORE{"More strategies?"}
-    
-    UNSUBSCRIBE["unsubscribe() from stop signals"]
-    CALLBACK_FINAL["walkerSchema.callbacks?.onComplete(finalResults)"]
-    EMIT_COMPLETE["emit walkerCompleteSubject.next()"]
-    END["End generator"]
-    
-    START --> INIT
-    INIT --> SUBSCRIBE
-    SUBSCRIBE --> LOOP
-    LOOP --> CHECK_STOPPED
-    CHECK_STOPPED -->|yes| BREAK
-    CHECK_STOPPED -->|no| CALLBACK_START
-    
-    CALLBACK_START --> RUN_BACKTEST
-    RUN_BACKTEST --> AWAIT
-    AWAIT -->|error| CALLBACK_ERROR
-    CALLBACK_ERROR --> CONTINUE
-    CONTINUE --> LOOP
-    
-    AWAIT -->|success| GET_STATS
-    GET_STATS --> EXTRACT_METRIC
-    EXTRACT_METRIC --> UPDATE_BEST
-    UPDATE_BEST --> INCREMENT
-    INCREMENT --> BUILD_CONTRACT
-    BUILD_CONTRACT --> EMIT_PROGRESS
-    EMIT_PROGRESS --> CALLBACK_COMPLETE
-    CALLBACK_COMPLETE --> EMIT_WALKER
-    EMIT_WALKER --> YIELD
-    YIELD --> CHECK_MORE
-    
-    CHECK_MORE -->|yes| LOOP
-    CHECK_MORE -->|no| UNSUBSCRIBE
-    BREAK --> UNSUBSCRIBE
-    
-    UNSUBSCRIBE --> CALLBACK_FINAL
-    CALLBACK_FINAL --> EMIT_COMPLETE
-    EMIT_COMPLETE --> END
-```
+![Mermaid Diagram](./diagrams\24_async-generator-patterns_3.svg)
 
 ### Key Implementation Details
 
@@ -591,34 +371,7 @@ When the consumer breaks:
 
 The framework also supports **producer-initiated stopping** via `getStopped()` checks:
 
-```mermaid
-graph TD
-    CONSUMER["Consumer breaks from loop"]
-    STOP_FLAG["User calls strategy.stop()"]
-    
-    GENERATOR["Generator checks getStopped()"]
-    
-    BACKTEST_CHECK1["Before tick: if getStopped() break"]
-    BACKTEST_CHECK2["After idle: if getStopped() break"]
-    BACKTEST_CHECK3["After closed: if getStopped() break"]
-    
-    LIVE_CHECK1["Idle state: if getStopped() break"]
-    LIVE_CHECK2["After closed: if getStopped() break"]
-    
-    WALKER_CHECK["Before each strategy: if stopped.has(name) break"]
-    
-    CONSUMER --> GENERATOR
-    STOP_FLAG --> GENERATOR
-    
-    GENERATOR --> BACKTEST_CHECK1
-    GENERATOR --> BACKTEST_CHECK2
-    GENERATOR --> BACKTEST_CHECK3
-    
-    GENERATOR --> LIVE_CHECK1
-    GENERATOR --> LIVE_CHECK2
-    
-    GENERATOR --> WALKER_CHECK
-```
+![Mermaid Diagram](./diagrams\24_async-generator-patterns_4.svg)
 
 ### Backtest Stop Checks
 
@@ -765,19 +518,7 @@ Strategy:
 
 All three modes follow this pattern:
 
-```mermaid
-graph LR
-    ERROR["Error thrown"]
-    CATCH["catch block"]
-    LOG["loggerService.warn()"]
-    EMIT["errorEmitter.next(error)"]
-    LISTENER["listenError() subscribers"]
-    
-    ERROR --> CATCH
-    CATCH --> LOG
-    LOG --> EMIT
-    EMIT --> LISTENER
-```
+![Mermaid Diagram](./diagrams\24_async-generator-patterns_5.svg)
 
 - **Local logging**: `loggerService` records context
 - **Global emission**: `errorEmitter` broadcasts to subscribers
@@ -792,26 +533,7 @@ All generator patterns integrate with the framework's context services to propag
 
 ### Context Service Integration
 
-```mermaid
-graph TD
-    PUBLIC["BacktestLogicPublicService.run(symbol, context)"]
-    METHOD_CTX["MethodContextService.runInContext(context, fn)"]
-    PRIVATE["BacktestLogicPrivateService.run(symbol)"]
-    
-    EXEC_CTX["ExecutionContextService.runInContext({symbol, when, backtest}, fn)"]
-    TICK["strategyCoreService.tick(symbol, when, backtest)"]
-    
-    ACCESS_METHOD["methodContextService.context.strategyName"]
-    ACCESS_EXEC["executionContextService.context.symbol"]
-    
-    PUBLIC --> METHOD_CTX
-    METHOD_CTX --> PRIVATE
-    PRIVATE --> EXEC_CTX
-    EXEC_CTX --> TICK
-    
-    TICK --> ACCESS_METHOD
-    TICK --> ACCESS_EXEC
-```
+![Mermaid Diagram](./diagrams\24_async-generator-patterns_6.svg)
 
 ### Public Logic Layer: Method Context Setup
 

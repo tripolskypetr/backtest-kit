@@ -27,61 +27,7 @@ The `ColumnModel<T>` interface is a generic abstraction for defining table colum
 
 ### Interface Structure
 
-```mermaid
-classDiagram
-    class ColumnModel~T~ {
-        +string key
-        +string label
-        +format(data: T, index: number) string | Promise~string~
-        +isVisible() boolean | Promise~boolean~
-    }
-    
-    class BacktestColumns {
-        T = IStrategyTickResultClosed
-    }
-    
-    class LiveColumns {
-        T = TickEvent
-    }
-    
-    class WalkerStrategyColumn {
-        T = IStrategyResult
-    }
-    
-    class WalkerPnlColumn {
-        T = SignalData
-    }
-    
-    class HeatColumns {
-        T = IHeatmapRow
-    }
-    
-    class PerformanceColumns {
-        T = MetricStats
-    }
-    
-    class ScheduleColumns {
-        T = ScheduledEvent
-    }
-    
-    class PartialColumns {
-        T = PartialEvent
-    }
-    
-    class RiskColumns {
-        T = RiskEvent
-    }
-    
-    ColumnModel~T~ <|.. BacktestColumns
-    ColumnModel~T~ <|.. LiveColumns
-    ColumnModel~T~ <|.. WalkerStrategyColumn
-    ColumnModel~T~ <|.. WalkerPnlColumn
-    ColumnModel~T~ <|.. HeatColumns
-    ColumnModel~T~ <|.. PerformanceColumns
-    ColumnModel~T~ <|.. ScheduleColumns
-    ColumnModel~T~ <|.. PartialColumns
-    ColumnModel~T~ <|.. RiskColumns
-```
+![Mermaid Diagram](./diagrams\54_column-configuration_0.svg)
 
 
 ### Property Descriptions
@@ -198,30 +144,7 @@ columns: Columns[] = COLUMN_CONFIG.risk_columns
 
 ### COLUMN_CONFIG Structure
 
-```mermaid
-graph TB
-    COLUMN_CONFIG["COLUMN_CONFIG<br/>(config/columns)"]
-    
-    COLUMN_CONFIG --> backtest["backtest_columns<br/>ColumnModel&lt;IStrategyTickResultClosed&gt;[]"]
-    COLUMN_CONFIG --> live["live_columns<br/>ColumnModel&lt;TickEvent&gt;[]"]
-    COLUMN_CONFIG --> walker_strat["walker_strategy_columns<br/>ColumnModel&lt;IStrategyResult&gt;[]"]
-    COLUMN_CONFIG --> walker_pnl["walker_pnl_columns<br/>ColumnModel&lt;SignalData&gt;[]"]
-    COLUMN_CONFIG --> heat["heat_columns<br/>ColumnModel&lt;IHeatmapRow&gt;[]"]
-    COLUMN_CONFIG --> perf["performance_columns<br/>ColumnModel&lt;MetricStats&gt;[]"]
-    COLUMN_CONFIG --> sched["schedule_columns<br/>ColumnModel&lt;ScheduledEvent&gt;[]"]
-    COLUMN_CONFIG --> partial["partial_columns<br/>ColumnModel&lt;PartialEvent&gt;[]"]
-    COLUMN_CONFIG --> risk["risk_columns<br/>ColumnModel&lt;RiskEvent&gt;[]"]
-    
-    backtest --> BacktestMarkdownService
-    live --> LiveMarkdownService
-    walker_strat --> WalkerMarkdownService
-    walker_pnl --> WalkerMarkdownService
-    heat --> HeatMarkdownService
-    perf --> PerformanceMarkdownService
-    sched --> ScheduleMarkdownService
-    partial --> PartialMarkdownService
-    risk --> RiskMarkdownService
-```
+![Mermaid Diagram](./diagrams\54_column-configuration_1.svg)
 
 
 ---
@@ -343,37 +266,7 @@ The `isVisible()` function enables conditional column display:
 
 ### Implementation in Markdown Services
 
-```mermaid
-sequenceDiagram
-    participant Service as "Markdown Service"
-    participant Storage as "ReportStorage"
-    participant Column as "ColumnModel"
-    
-    Service->>Storage: getReport(strategyName, columns)
-    Storage->>Storage: getData()
-    
-    loop For each column
-        Storage->>Column: isVisible()
-        Column-->>Storage: boolean
-        alt isVisible === true
-            Storage->>Storage: Add to visibleColumns
-        else isVisible === false
-            Storage->>Storage: Skip column
-        end
-    end
-    
-    Storage->>Storage: Build header from visibleColumns
-    Storage->>Storage: Build separator from visibleColumns
-    
-    loop For each data row
-        loop For each visibleColumn
-            Storage->>Column: format(data, index)
-            Column-->>Storage: formattedString
-        end
-    end
-    
-    Storage-->>Service: markdown string
-```
+![Mermaid Diagram](./diagrams\54_column-configuration_2.svg)
 
 
 ### Example: Conditional Visibility
@@ -483,41 +376,7 @@ This pattern ensures:
 
 ### Column Flow Architecture
 
-```mermaid
-graph TB
-    User["User Code"]
-    BacktestClass["Backtest.getReport()<br/>Backtest.dump()"]
-    LiveClass["Live.getReport()<br/>Live.dump()"]
-    WalkerClass["Walker.getReport()<br/>Walker.dump()"]
-    
-    User -->|"customColumns?"| BacktestClass
-    User -->|"customColumns?"| LiveClass
-    User -->|"strategyColumns?, pnlColumns?"| WalkerClass
-    
-    BacktestClass -->|"columns || COLUMN_CONFIG.backtest_columns"| BacktestService["BacktestMarkdownService"]
-    LiveClass -->|"columns || COLUMN_CONFIG.live_columns"| LiveService["LiveMarkdownService"]
-    WalkerClass -->|"columns || COLUMN_CONFIG.walker_*_columns"| WalkerService["WalkerMarkdownService"]
-    
-    BacktestService --> Storage1["ReportStorage.getReport()"]
-    LiveService --> Storage2["ReportStorage.getReport()"]
-    WalkerService --> Storage3["ReportStorage.getReport()"]
-    
-    Storage1 --> Filter1["Filter visible columns"]
-    Storage2 --> Filter2["Filter visible columns"]
-    Storage3 --> Filter3["Filter visible columns"]
-    
-    Filter1 --> Format1["Format each cell"]
-    Filter2 --> Format2["Format each cell"]
-    Filter3 --> Format3["Format each cell"]
-    
-    Format1 --> Table1["Build markdown table"]
-    Format2 --> Table2["Build markdown table"]
-    Format3 --> Table3["Build markdown table"]
-    
-    Table1 --> Output["Markdown String"]
-    Table2 --> Output
-    Table3 --> Output
-```
+![Mermaid Diagram](./diagrams\54_column-configuration_3.svg)
 
 
 ### Default Column Resolution

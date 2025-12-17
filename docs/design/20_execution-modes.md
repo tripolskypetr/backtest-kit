@@ -26,61 +26,7 @@ All three modes share the same core execution components (`StrategyCoreService`,
 
 ## Architecture: Mode-Specific Orchestration
 
-```mermaid
-graph TB
-    subgraph "Public API Layer"
-        BacktestClass["Backtest.run(symbol, context)<br/>Backtest.background(symbol, context)"]
-        LiveClass["Live.run(symbol, context)<br/>Live.background(symbol, context)"]
-        WalkerClass["Walker.run(symbol, context)<br/>Walker.background(symbol, context)"]
-    end
-    
-    subgraph "Instance Management"
-        BacktestInstance["BacktestInstance<br/>Per symbol:strategyName<br/>Memoized"]
-        LiveInstance["LiveInstance<br/>Per symbol:strategyName<br/>Memoized"]
-        WalkerInstance["WalkerInstance<br/>Per symbol:walkerName<br/>Memoized"]
-    end
-    
-    subgraph "Orchestration Services"
-        BacktestLogic["BacktestLogicPrivateService.run()<br/>Timeframe iteration<br/>Async generator"]
-        LiveLogic["LiveLogicPrivateService.run()<br/>Infinite loop + sleep<br/>Async generator"]
-        WalkerLogic["WalkerLogicPrivateService.run()<br/>Sequential backtests<br/>Async generator"]
-    end
-    
-    subgraph "Shared Core Execution"
-        StrategyCore["StrategyCoreService<br/>tick() - Signal state machine<br/>backtest() - Fast TP/SL detection"]
-        ClientStrategy["ClientStrategy instances<br/>Signal lifecycle management<br/>VWAP pricing"]
-    end
-    
-    subgraph "Supporting Services"
-        FrameCore["FrameCoreService<br/>getTimeframe()"]
-        ExchangeCore["ExchangeCoreService<br/>getNextCandles()"]
-        MarkdownServices["BacktestMarkdownService<br/>LiveMarkdownService<br/>WalkerMarkdownService"]
-    end
-    
-    BacktestClass --> BacktestInstance
-    LiveClass --> LiveInstance
-    WalkerClass --> WalkerInstance
-    
-    BacktestInstance --> BacktestLogic
-    LiveInstance --> LiveLogic
-    WalkerInstance --> WalkerLogic
-    
-    BacktestLogic --> FrameCore
-    BacktestLogic --> StrategyCore
-    BacktestLogic --> ExchangeCore
-    
-    LiveLogic --> StrategyCore
-    
-    WalkerLogic --> BacktestLogic
-    WalkerLogic --> MarkdownServices
-    
-    StrategyCore --> ClientStrategy
-    
-    style BacktestClass fill:#e3f2fd,stroke:#1976d2,stroke-width:2px
-    style LiveClass fill:#fff3e0,stroke:#f57c00,stroke-width:2px
-    style WalkerClass fill:#f3e5f5,stroke:#7b1fa2,stroke-width:2px
-    style StrategyCore fill:#c8e6c9,stroke:#388e3c,stroke-width:3px
-```
+![Mermaid Diagram](./diagrams\20_execution-modes_0.svg)
 
 **Execution Mode Architecture**
 
@@ -118,53 +64,7 @@ Both methods delegate to `BacktestInstance` which maintains isolated state per `
 
 The `BacktestLogicPrivateService.run()` method implements the core backtest loop:
 
-```mermaid
-graph TB
-    Start["BacktestLogicPrivateService.run(symbol)"]
-    GetFrames["Get timeframes from FrameCoreService<br/>startDate → endDate at interval"]
-    LoopStart["i = 0<br/>while i < timeframes.length"]
-    EmitProgress["Emit progressBacktestEmitter<br/>progress = i / totalFrames"]
-    CheckStop1{{"Check getStopped()<br/>before tick?"}}
-    CallTick["await StrategyCoreService.tick()<br/>symbol, when=timeframes[i], backtest=true"]
-    TickResult{{"result.action?"}}
-    CheckStop2{{"result.action === 'idle'<br/>AND getStopped()?"}}
-    HandleScheduled["Handle scheduled signal:<br/>1. Calculate candles needed<br/>2. Fetch candles via getNextCandles<br/>3. Call backtest() with candles"]
-    BacktestFast["StrategyCoreService.backtest()<br/>Fast TP/SL detection<br/>Bulk candle processing"]
-    BacktestResult{{"backtest result?"}}
-    SkipFrames["Skip frames: when += minutesUsed<br/>i += minutesUsed"]
-    YieldClosed["yield closed signal with PNL"]
-    IncrementI["i++"]
-    EmitFinalProgress["Emit final progress (100%)"]
-    EmitPerformance["Emit performanceEmitter<br/>with total duration"]
-    Done["End generator"]
-    
-    Start --> GetFrames
-    GetFrames --> LoopStart
-    LoopStart --> EmitProgress
-    EmitProgress --> CheckStop1
-    CheckStop1 -->|"stopped"| Done
-    CheckStop1 -->|"continue"| CallTick
-    CallTick --> TickResult
-    TickResult -->|"idle"| CheckStop2
-    CheckStop2 -->|"stopped"| Done
-    CheckStop2 -->|"continue"| IncrementI
-    TickResult -->|"active"| IncrementI
-    TickResult -->|"scheduled"| HandleScheduled
-    TickResult -->|"opened"| HandleScheduled
-    HandleScheduled --> BacktestFast
-    BacktestFast --> BacktestResult
-    BacktestResult -->|"closed"| SkipFrames
-    SkipFrames --> YieldClosed
-    YieldClosed --> LoopStart
-    BacktestResult -->|"active"| IncrementI
-    IncrementI --> LoopStart
-    LoopStart -->|"i >= timeframes.length"| EmitFinalProgress
-    EmitFinalProgress --> EmitPerformance
-    EmitPerformance --> Done
-    
-    style Done fill:#c8e6c9,stroke:#388e3c
-    style YieldClosed fill:#fff9c4,stroke:#f57f17
-```
+![Mermaid Diagram](./diagrams\20_execution-modes_1.svg)
 
 **Backtest Orchestration Flow**
 
@@ -245,44 +145,7 @@ Both methods delegate to `LiveInstance` which maintains isolated state per `symb
 
 The `LiveLogicPrivateService.run()` method implements the infinite monitoring loop:
 
-```mermaid
-graph TB
-    Start["LiveLogicPrivateService.run(symbol)"]
-    LoopStart["while true:<br/>when = new Date()"]
-    CallTick["await StrategyCoreService.tick()<br/>symbol, when, backtest=false"]
-    EmitPerformance["Emit performanceEmitter<br/>metricType: 'live_tick'<br/>duration: tickEndTime - tickStartTime"]
-    TickResult{{"result.action?"}}
-    CheckStopIdle{{"getStopped()?"}}
-    CheckStopClosed{{"getStopped()?"}}
-    YieldResult["yield result<br/>opened or closed"]
-    SleepIdle["await sleep(TICK_TTL)<br/>1 minute + 1ms"]
-    SleepAfter["await sleep(TICK_TTL)"]
-    Done["Break loop - end generator"]
-    
-    Start --> LoopStart
-    LoopStart --> CallTick
-    CallTick --> EmitPerformance
-    EmitPerformance --> TickResult
-    
-    TickResult -->|"idle"| CheckStopIdle
-    CheckStopIdle -->|"stopped"| Done
-    CheckStopIdle -->|"continue"| SleepIdle
-    SleepIdle --> LoopStart
-    
-    TickResult -->|"active"| SleepAfter
-    TickResult -->|"scheduled"| SleepAfter
-    SleepAfter --> LoopStart
-    
-    TickResult -->|"opened"| YieldResult
-    TickResult -->|"closed"| YieldResult
-    YieldResult --> CheckStopClosed
-    CheckStopClosed -->|"stopped AND closed"| Done
-    CheckStopClosed -->|"continue"| SleepAfter
-    
-    style Done fill:#c8e6c9,stroke:#388e3c
-    style YieldResult fill:#fff9c4,stroke:#f57f17
-    style LoopStart fill:#e3f2fd,stroke:#1976d2
-```
+![Mermaid Diagram](./diagrams\20_execution-modes_2.svg)
 
 **Live Trading Orchestration Flow**
 
@@ -385,51 +248,7 @@ addWalker({
 
 The `WalkerLogicPrivateService.run()` method iterates through strategies:
 
-```mermaid
-graph TB
-    Start["WalkerLogicPrivateService.run()<br/>symbol, strategies, metric, context"]
-    Init["strategiesTested = 0<br/>bestMetric = null<br/>bestStrategy = null<br/>stoppedStrategies = Set()"]
-    Subscribe["Subscribe to walkerStopSubject<br/>Filter by symbol AND walkerName<br/>Collect stops in Set"]
-    LoopStart["for each strategyName in strategies"]
-    CheckStopped{{"stoppedStrategies.has(strategyName)?"}}
-    CallbackStart["Call onStrategyStart callback<br/>if provided"]
-    RunBacktest["iterator = BacktestLogicPublicService.run()<br/>symbol, strategyName, exchangeName, frameName"]
-    ConsumeAll["await resolveDocuments(iterator)<br/>Consume all backtest results"]
-    GetStats["stats = BacktestMarkdownService.getData()<br/>symbol, strategyName"]
-    ExtractMetric["metricValue = stats[metric]<br/>Extract configured metric"]
-    CompareMetric{{"metricValue > bestMetric?"}}
-    UpdateBest["bestMetric = metricValue<br/>bestStrategy = strategyName"]
-    CallbackComplete["Call onStrategyComplete callback<br/>if provided"]
-    EmitProgress["Emit walkerEmitter with progress<br/>Yield WalkerContract"]
-    Increment["strategiesTested++"]
-    EmitComplete["Emit walkerCompleteSubject<br/>with final results"]
-    Unsubscribe["unsubscribe() from stop signals"]
-    Done["End generator"]
-    
-    Start --> Init
-    Init --> Subscribe
-    Subscribe --> LoopStart
-    LoopStart --> CheckStopped
-    CheckStopped -->|"stopped"| EmitComplete
-    CheckStopped -->|"continue"| CallbackStart
-    CallbackStart --> RunBacktest
-    RunBacktest --> ConsumeAll
-    ConsumeAll --> GetStats
-    GetStats --> ExtractMetric
-    ExtractMetric --> CompareMetric
-    CompareMetric -->|"yes"| UpdateBest
-    CompareMetric -->|"no"| CallbackComplete
-    UpdateBest --> CallbackComplete
-    CallbackComplete --> EmitProgress
-    EmitProgress --> Increment
-    Increment --> LoopStart
-    LoopStart -->|"all strategies done"| EmitComplete
-    EmitComplete --> Unsubscribe
-    Unsubscribe --> Done
-    
-    style Done fill:#c8e6c9,stroke:#388e3c
-    style EmitProgress fill:#fff9c4,stroke:#f57f17
-```
+![Mermaid Diagram](./diagrams\20_execution-modes_3.svg)
 
 **Walker Orchestration Flow**
 
@@ -617,40 +436,7 @@ The `singlerun` wrapper from `functools-kit` ensures only one execution per inst
 
 Despite different orchestration patterns, all three modes delegate to the same core services for strategy execution:
 
-```mermaid
-graph TB
-    subgraph "Orchestration Layer (Mode-Specific)"
-        BacktestLogic["BacktestLogicPrivateService"]
-        LiveLogic["LiveLogicPrivateService"]
-        WalkerLogic["WalkerLogicPrivateService"]
-    end
-    
-    subgraph "Core Strategy Execution (Shared)"
-        StrategyCore["StrategyCoreService<br/>tick() - State machine progression<br/>backtest() - Bulk candle processing<br/>clear() - State reset<br/>stop() - Graceful shutdown"]
-        StrategyConn["StrategyConnectionService<br/>Memoized factory<br/>Per symbol:strategyName"]
-        ClientStrategy["ClientStrategy<br/>Signal lifecycle management<br/>Validation pipeline<br/>VWAP pricing<br/>Persistence integration"]
-    end
-    
-    subgraph "Domain Services (Shared)"
-        ExchangeConn["ExchangeConnectionService<br/>ClientExchange instances"]
-        RiskConn["RiskConnectionService<br/>ClientRisk instances"]
-        PartialConn["PartialConnectionService<br/>ClientPartial instances"]
-    end
-    
-    BacktestLogic --> StrategyCore
-    LiveLogic --> StrategyCore
-    WalkerLogic --> BacktestLogic
-    
-    StrategyCore --> StrategyConn
-    StrategyConn --> ClientStrategy
-    
-    ClientStrategy --> ExchangeConn
-    ClientStrategy --> RiskConn
-    ClientStrategy --> PartialConn
-    
-    style StrategyCore fill:#c8e6c9,stroke:#388e3c,stroke-width:3px
-    style ClientStrategy fill:#ffe1e1,stroke:#cc0000,stroke-width:2px
-```
+![Mermaid Diagram](./diagrams\20_execution-modes_4.svg)
 
 **Shared Core Execution Architecture**
 

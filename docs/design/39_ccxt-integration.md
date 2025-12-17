@@ -28,41 +28,7 @@ CCXT is a JavaScript/TypeScript library that provides a unified API for interact
 
 ### CCXT in the Exchange Layer
 
-```mermaid
-graph TB
-    subgraph "User Code Layer"
-        addExchange["addExchange()<br/>IExchangeSchema"]
-    end
-    
-    subgraph "Service Layer"
-        ExchangeSchemaService["ExchangeSchemaService<br/>Register & Store"]
-        ExchangeConnectionService["ExchangeConnectionService<br/>Memoized ClientExchange"]
-    end
-    
-    subgraph "Client Layer"
-        ClientExchange["ClientExchange<br/>getCandles, formatPrice,<br/>formatQuantity"]
-    end
-    
-    subgraph "CCXT Integration"
-        CCXT["ccxt.binance()<br/>ccxt.kraken()<br/>etc."]
-        fetchOHLCV["exchange.fetchOHLCV()<br/>Returns: [timestamp, O, H, L, C, V][]"]
-    end
-    
-    subgraph "Framework Data Model"
-        ICandleData["ICandleData<br/>{timestamp, open, high,<br/>low, close, volume}"]
-    end
-    
-    addExchange --> ExchangeSchemaService
-    ExchangeSchemaService --> ExchangeConnectionService
-    ExchangeConnectionService --> ClientExchange
-    
-    ClientExchange -->|calls getCandles| CCXT
-    CCXT --> fetchOHLCV
-    fetchOHLCV -->|maps array to objects| ICandleData
-    
-    style CCXT fill:#e1f5ff,stroke:#0066cc,stroke-width:2px
-    style ICandleData fill:#ffe1e1,stroke:#cc0000,stroke-width:2px
-```
+![Mermaid Diagram](./diagrams\39_ccxt-integration_0.svg)
 
 **Data Flow:**
 1. User calls `addExchange()` with CCXT-based implementation
@@ -133,23 +99,7 @@ addExchange({
 
 CCXT returns OHLCV data as nested arrays with a specific structure. Backtest Kit requires object-based `ICandleData` format for easier manipulation and type safety.
 
-```mermaid
-graph LR
-    subgraph "CCXT Output Format"
-        CCXT_Array["[[timestamp, O, H, L, C, V],<br/>[timestamp, O, H, L, C, V],<br/>...]"]
-    end
-    
-    subgraph "Mapping Process"
-        Map["ohlcv.map([t, o, h, l, c, v])<br/>=> ({timestamp: t, open: o, ...})"]
-    end
-    
-    subgraph "Framework Format"
-        ICandleData_Array["[{timestamp, open, high, low, close, volume},<br/>{timestamp, open, high, low, close, volume},<br/>...]"]
-    end
-    
-    CCXT_Array -->|destructure array| Map
-    Map -->|construct objects| ICandleData_Array
-```
+![Mermaid Diagram](./diagrams\39_ccxt-integration_1.svg)
 
 **CCXT Array Structure:**
 ```
@@ -313,28 +263,7 @@ addExchange({
 
 The `OptimizerTemplateService` automatically generates CCXT integration code when creating strategy files. This ensures consistency across optimizer-generated strategies.
 
-```mermaid
-graph TB
-    subgraph "Optimizer Code Generation"
-        Template["OptimizerTemplateService<br/>getExchangeTemplate()"]
-        Code["Generated .mjs File"]
-    end
-    
-    subgraph "Generated Code Structure"
-        Import["import ccxt from 'ccxt'"]
-        AddExchange["addExchange({<br/>  exchangeName: 'prefix_exchange',<br/>  getCandles: async (...) => {...}<br/>})"]
-        CCXT_Call["new ccxt.binance()<br/>fetchOHLCV()"]
-        Map["ohlcv.map(([t, o, h, l, c, v]) => {...})"]
-    end
-    
-    Template --> Code
-    Code --> Import
-    Code --> AddExchange
-    AddExchange --> CCXT_Call
-    CCXT_Call --> Map
-    
-    style Template fill:#e1f5ff,stroke:#0066cc,stroke-width:2px
-```
+![Mermaid Diagram](./diagrams\39_ccxt-integration_2.svg)
 
 **Template Implementation:**
 
@@ -695,41 +624,7 @@ The Optimizer system automatically generates CCXT integration code for strategy 
 
 ### Generated Code Structure
 
-```mermaid
-graph TB
-    subgraph "Optimizer Schema"
-        addOptimizer["addOptimizer({<br/>optimizerName,<br/>source,<br/>rangeTrain,<br/>rangeTest<br/>})"]
-    end
-    
-    subgraph "Code Generation Pipeline"
-        Template["OptimizerTemplateService"]
-        getTopBanner["getTopBanner()<br/>import ccxt"]
-        getExchangeTemplate["getExchangeTemplate()<br/>addExchange(...)"]
-        getStrategyTemplate["getStrategyTemplate()<br/>addStrategy(...)"]
-        getLauncherTemplate["getLauncherTemplate()<br/>Walker.background()"]
-    end
-    
-    subgraph "Generated .mjs File"
-        Import["import ccxt from 'ccxt'"]
-        Exchange["addExchange({<br/>  exchangeName: 'prefix_exchange',<br/>  getCandles: async (...) => {<br/>    const exchange = new ccxt.binance();<br/>    ...<br/>  }<br/>})"]
-        Strategy["addStrategy({...})"]
-        Walker["Walker.background(...)"]
-    end
-    
-    addOptimizer --> Template
-    Template --> getTopBanner
-    Template --> getExchangeTemplate
-    Template --> getStrategyTemplate
-    Template --> getLauncherTemplate
-    
-    getTopBanner --> Import
-    getExchangeTemplate --> Exchange
-    getStrategyTemplate --> Strategy
-    getLauncherTemplate --> Walker
-    
-    style Template fill:#e1f5ff,stroke:#0066cc,stroke-width:2px
-    style Exchange fill:#ffe1e1,stroke:#cc0000,stroke-width:2px
-```
+![Mermaid Diagram](./diagrams\39_ccxt-integration_3.svg)
 
 **Generated Exchange Code:**
 

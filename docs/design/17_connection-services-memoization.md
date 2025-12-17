@@ -39,37 +39,7 @@ All connection services follow the same pattern:
 
 Connection Services use **memoization** to prevent creating duplicate client instances for the same context. The `memoize()` function from `functools-kit` caches function results based on a computed cache key.
 
-```mermaid
-graph TB
-    subgraph "First Call Sequence"
-        Call1["strategyCoreService.tick(symbol, strategyName)"]
-        ConnCheck1["strategyConnectionService.getStrategy(symbol, strategyName)"]
-        CacheMiss1["Cache miss: key not found"]
-        Create1["new ClientStrategy(params)"]
-        Store1["Store in cache with key 'symbol:strategyName'"]
-        Return1["Return ClientStrategy instance"]
-    end
-    
-    subgraph "Subsequent Calls"
-        Call2["strategyCoreService.tick(symbol, strategyName)"]
-        ConnCheck2["strategyConnectionService.getStrategy(symbol, strategyName)"]
-        CacheHit2["Cache hit: key found"]
-        Return2["Return cached ClientStrategy instance"]
-    end
-    
-    Call1 --> ConnCheck1
-    ConnCheck1 --> CacheMiss1
-    CacheMiss1 --> Create1
-    Create1 --> Store1
-    Store1 --> Return1
-    
-    Call2 --> ConnCheck2
-    ConnCheck2 --> CacheHit2
-    CacheHit2 --> Return2
-    
-    style CacheMiss1 fill:#ffeeee
-    style CacheHit2 fill:#eeffee
-```
+![Mermaid Diagram](./diagrams\17_connection-services-memoization_0.svg)
 
 **Memoization Benefits:**
 
@@ -94,32 +64,7 @@ graph TB
 
 ### Architecture
 
-```mermaid
-graph TB
-    Core["StrategyCoreService<br/>(orchestration)"]
-    Conn["StrategyConnectionService<br/>(memoized routing)"]
-    Client["ClientStrategy<br/>(business logic)"]
-    Schema["StrategySchemaService<br/>(configuration)"]
-    ExchConn["ExchangeConnectionService"]
-    RiskConn["RiskConnectionService"]
-    PartialConn["PartialConnectionService"]
-    ExecCtx["ExecutionContextService<br/>(symbol, when, backtest flag)"]
-    MethodCtx["MethodContextService<br/>(strategyName, exchangeName)"]
-    
-    Core -->|"tick(symbol, strategyName)"| Conn
-    Conn -->|"getStrategy(symbol, strategyName)"| Client
-    Conn -->|"lookup config"| Schema
-    Conn -->|"inject"| ExchConn
-    Conn -->|"inject"| RiskConn
-    Conn -->|"inject"| PartialConn
-    Conn -->|"inject"| ExecCtx
-    Conn -->|"inject"| MethodCtx
-    Client -->|"uses"| ExchConn
-    Client -->|"uses"| RiskConn
-    Client -->|"uses"| PartialConn
-    Client -->|"reads"| ExecCtx
-    Client -->|"reads"| MethodCtx
-```
+![Mermaid Diagram](./diagrams\17_connection-services-memoization_1.svg)
 
 
 ### Key Methods
@@ -367,33 +312,7 @@ Manages `ClientOptimizer` instances for LLM-based strategy generation.
 
 ### Cache Lifecycle
 
-```mermaid
-stateDiagram-v2
-    [*] --> Empty: Initial state
-    
-    Empty --> Populated: First call creates instance
-    Populated --> Populated: Subsequent calls return cached instance
-    Populated --> Cleared: clear(key) called
-    Cleared --> Empty: Cache entry removed
-    
-    Empty --> PopulatedMultiple: Multiple keys cached
-    PopulatedMultiple --> PopulatedMultiple: Calls with different keys
-    PopulatedMultiple --> Empty: clear() with no args
-    
-    note right of Populated
-        Cache key examples:
-        - "BTCUSDT:my-strategy"
-        - "ETHUSDT:my-strategy"
-        - "binance" (exchange)
-        - "conservative" (risk)
-    end note
-    
-    note right of Cleared
-        Cleared entries force
-        re-instantiation on
-        next call with same key
-    end note
-```
+![Mermaid Diagram](./diagrams\17_connection-services-memoization_2.svg)
 
 
 ### Memory Implications
@@ -423,63 +342,7 @@ For a backtest with 100 symbols and 5 strategies:
 
 ### Dependency Flow
 
-```mermaid
-graph TB
-    subgraph "Command Layer"
-        BacktestCmd["BacktestCommandService"]
-        LiveCmd["LiveCommandService"]
-    end
-    
-    subgraph "Logic Layer"
-        BacktestLogic["BacktestLogicPrivateService"]
-        LiveLogic["LiveLogicPrivateService"]
-    end
-    
-    subgraph "Core Layer"
-        StrategyCore["StrategyCoreService"]
-        ExchangeCore["ExchangeCoreService"]
-    end
-    
-    subgraph "Connection Layer (This Document)"
-        StrategyConn["StrategyConnectionService"]
-        ExchangeConn["ExchangeConnectionService"]
-        RiskConn["RiskConnectionService"]
-        PartialConn["PartialConnectionService"]
-    end
-    
-    subgraph "Client Layer"
-        ClientStrategy["ClientStrategy<br/>(memoized instances)"]
-        ClientExchange["ClientExchange<br/>(memoized instances)"]
-        ClientRisk["ClientRisk<br/>(memoized instances)"]
-        ClientPartial["ClientPartial<br/>(singleton)"]
-    end
-    
-    subgraph "Schema Layer"
-        StrategySchema["StrategySchemaService"]
-        ExchangeSchema["ExchangeSchemaService"]
-        RiskSchema["RiskSchemaService"]
-    end
-    
-    BacktestCmd --> BacktestLogic
-    LiveCmd --> LiveLogic
-    BacktestLogic --> StrategyCore
-    LiveLogic --> StrategyCore
-    StrategyCore --> StrategyConn
-    ExchangeCore --> ExchangeConn
-    
-    StrategyConn -->|"getStrategy()<br/>(memoized)"| ClientStrategy
-    ExchangeConn -->|"getExchange()<br/>(memoized)"| ClientExchange
-    RiskConn -->|"getRisk()<br/>(memoized)"| ClientRisk
-    PartialConn -->|"singleton"| ClientPartial
-    
-    StrategyConn -->|"lookup config"| StrategySchema
-    ExchangeConn -->|"lookup config"| ExchangeSchema
-    RiskConn -->|"lookup config"| RiskSchema
-    
-    ClientStrategy -->|"uses"| ExchangeConn
-    ClientStrategy -->|"uses"| RiskConn
-    ClientStrategy -->|"uses"| PartialConn
-```
+![Mermaid Diagram](./diagrams\17_connection-services-memoization_3.svg)
 
 
 ### Dependency Injection Pattern

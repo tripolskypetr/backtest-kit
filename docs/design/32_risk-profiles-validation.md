@@ -146,40 +146,7 @@ interface IRiskActivePosition {
 
 ## Diagram: Risk Validation Data Flow
 
-```mermaid
-graph TD
-    Strategy["Strategy<br/>getSignal() returns ISignalDto"]
-    SignalVal["Signal Validation Pipeline<br/>(#7.2)<br/>TP/SL logic, price checks"]
-    RiskCheck["Risk Check Orchestration<br/>StrategyCoreService"]
-    
-    RiskCheck --> GetRisk["Get IRisk instance<br/>RiskConnectionService"]
-    GetRisk --> ClientRisk["ClientRisk.checkSignal()<br/>or MergeRisk.checkSignal()"]
-    
-    ClientRisk --> BuildPayload["Build IRiskValidationPayload<br/>+ activePositionCount<br/>+ activePositions[]"]
-    
-    BuildPayload --> Val1["Validation 1<br/>validate(payload)"]
-    BuildPayload --> Val2["Validation 2<br/>validate(payload)"]
-    BuildPayload --> ValN["Validation N<br/>validate(payload)"]
-    
-    Val1 -->|"throw Error"| Reject["Signal Rejected<br/>riskSubject.next()<br/>return false"]
-    Val2 -->|"throw Error"| Reject
-    ValN -->|"throw Error"| Reject
-    
-    Val1 -->|"pass"| AllPass
-    Val2 -->|"pass"| AllPass
-    ValN -->|"pass"| AllPass
-    
-    AllPass["All validations pass"] --> Allow["Signal Allowed<br/>onAllowed callback<br/>return true"]
-    
-    Strategy --> SignalVal
-    SignalVal -->|"valid signal"| RiskCheck
-    
-    Allow --> OpenSignal["Open Signal<br/>addSignal(symbol, context)"]
-    Reject -.-> NoOpen["Signal not opened"]
-    
-    style Reject fill:#fee,stroke:#c00
-    style Allow fill:#efe,stroke:#0c0
-```
+![Mermaid Diagram](./diagrams\32_risk-profiles-validation_0.svg)
 
 
 ---
@@ -241,39 +208,7 @@ interface IRisk {
 
 ## Diagram: Risk Lifecycle State Machine
 
-```mermaid
-stateDiagram-v2
-    [*] --> NoSignal: "Initial state"
-    
-    NoSignal --> CheckingRisk: "getSignal() returns signal"
-    
-    CheckingRisk --> Rejected: "checkSignal() = false<br/>(validation threw error)"
-    CheckingRisk --> Approved: "checkSignal() = true<br/>(all validations passed)"
-    
-    Approved --> SignalOpened: "Open signal<br/>addSignal(symbol, context)"
-    
-    SignalOpened --> Active: "Position active<br/>tracked in RiskGlobalService"
-    
-    Active --> Closed: "TP/SL/time_expired<br/>removeSignal(symbol, context)"
-    
-    Closed --> NoSignal: "Position removed<br/>from activePositions[]"
-    
-    Rejected --> NoSignal: "No position opened"
-    
-    note right of CheckingRisk
-        Validations see:
-        - activePositionCount
-        - activePositions[]
-        - pendingSignal
-        - currentPrice
-    end note
-    
-    note right of Active
-        Other strategies' checkSignal()
-        calls see this position in
-        activePositions[]
-    end note
-```
+![Mermaid Diagram](./diagrams\32_risk-profiles-validation_1.svg)
 
 
 ---
@@ -469,38 +404,7 @@ const canTrade = await mergedRisk.checkSignal(params);  // All must pass
 
 ## Diagram: MergeRisk Composite Pattern
 
-```mermaid
-graph TB
-    Strategy["Strategy<br/>riskList: ['r1', 'r2', 'r3']"]
-    
-    Strategy --> GetMerged["RiskConnectionService<br/>creates MergeRisk instance"]
-    
-    GetMerged --> MergeRisk["MergeRisk<br/>_riskList: [r1, r2, r3]"]
-    
-    MergeRisk --> CheckAll["checkSignal(params)"]
-    
-    CheckAll --> R1["ClientRisk('r1')<br/>checkSignal(params)"]
-    CheckAll --> R2["ClientRisk('r2')<br/>checkSignal(params)"]
-    CheckAll --> R3["ClientRisk('r3')<br/>checkSignal(params)"]
-    
-    R1 --> R1Val["r1.validations[]<br/>run all"]
-    R2 --> R2Val["r2.validations[]<br/>run all"]
-    R3 --> R3Val["r3.validations[]<br/>run all"]
-    
-    R1Val -->|"true"| AND["Promise.all()<br/>every(isSafe => isSafe)"]
-    R2Val -->|"true"| AND
-    R3Val -->|"true"| AND
-    
-    R1Val -->|"false"| AND
-    R2Val -->|"false"| AND
-    R3Val -->|"false"| AND
-    
-    AND -->|"all true"| Allowed["return true<br/>Signal allowed"]
-    AND -->|"any false"| Rejected["return false<br/>Signal rejected"]
-    
-    style Allowed fill:#efe,stroke:#0c0
-    style Rejected fill:#fee,stroke:#c00
-```
+![Mermaid Diagram](./diagrams\32_risk-profiles-validation_2.svg)
 
 
 ---
@@ -607,43 +511,7 @@ addStrategy({
 
 ## Diagram: Code Entity Map
 
-```mermaid
-graph TD
-    addRisk["addRisk()<br/>src/function/add.ts"]
-    
-    addRisk --> SchemaService["RiskSchemaService<br/>stores IRiskSchema"]
-    
-    SchemaService --> ValidationService["RiskValidationService<br/>validates riskName exists"]
-    
-    ValidationService --> ConnectionService["RiskConnectionService<br/>memoized factory"]
-    
-    ConnectionService -->|"riskName only"| ClientRisk["ClientRisk<br/>src/lib/client/ClientRisk.ts<br/>implements IRisk"]
-    ConnectionService -->|"riskList"| MergeRisk["MergeRisk<br/>src/classes/Risk.ts:42-111<br/>implements IRisk"]
-    
-    ClientRisk --> checkSignal["checkSignal()<br/>runs validations[]"]
-    ClientRisk --> addSignal["addSignal()<br/>registers position"]
-    ClientRisk --> removeSignal["removeSignal()<br/>unregisters position"]
-    
-    MergeRisk --> checkSignalMerge["checkSignal()<br/>Promise.all() + every()"]
-    MergeRisk --> addSignalMerge["addSignal()<br/>propagates to all"]
-    MergeRisk --> removeSignalMerge["removeSignal()<br/>propagates to all"]
-    
-    checkSignal --> Validations["validations[]<br/>IRiskValidationFn"]
-    Validations --> Payload["IRiskValidationPayload<br/>types.d.ts:380-390"]
-    
-    checkSignal -->|"reject"| riskSubject["riskSubject.next()<br/>src/config/emitters.ts:131"]
-    riskSubject --> listenRisk["listenRisk()<br/>src/function/event.ts"]
-    
-    addSignal --> RiskGlobalService["RiskGlobalService<br/>tracks activePositions"]
-    removeSignal --> RiskGlobalService
-    
-    RiskGlobalService --> Payload
-    
-    style addRisk fill:#e1f5ff,stroke:#0066cc
-    style ClientRisk fill:#ffe1e1,stroke:#cc0000
-    style MergeRisk fill:#ffe1e1,stroke:#cc0000
-    style riskSubject fill:#fff3cd,stroke:#856404
-```
+![Mermaid Diagram](./diagrams\32_risk-profiles-validation_3.svg)
 
 
 ---

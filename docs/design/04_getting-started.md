@@ -256,25 +256,7 @@ await Backtest.dump('BTCUSDT', 'simple-strategy');
 
 ### Component Registration Flow
 
-```mermaid
-flowchart TD
-    Start["User Application"] --> SetLogger["setLogger()"]
-    SetLogger --> SetConfig["setConfig()"]
-    SetConfig --> AddExchange["addExchange()"]
-    AddExchange --> AddRisk["addRisk()"]
-    AddRisk --> AddFrame["addFrame()"]
-    AddFrame --> AddStrategy["addStrategy()"]
-    AddStrategy --> RunBacktest["Backtest.run() or<br/>Backtest.background()"]
-    
-    AddExchange --> ExchangeSchema["ExchangeSchemaService<br/>stores IExchangeSchema"]
-    AddRisk --> RiskSchema["RiskSchemaService<br/>stores IRiskSchema"]
-    AddFrame --> FrameSchema["FrameSchemaService<br/>stores IFrameSchema"]
-    AddStrategy --> StrategySchema["StrategySchemaService<br/>stores IStrategySchema"]
-    
-    RunBacktest --> Validation["Validation Services<br/>check existence"]
-    Validation --> ConnectionServices["Connection Services<br/>create memoized clients"]
-    ConnectionServices --> Execution["BacktestLogicPrivateService<br/>executes strategy"]
-```
+![Mermaid Diagram](./diagrams\04_getting-started_0.svg)
 
 
 ---
@@ -383,44 +365,7 @@ The `Live` class automatically persists signals to disk for crash recovery. The 
 
 ### Execution Mode Comparison
 
-```mermaid
-graph TD
-    subgraph BacktestMode["Backtest Mode"]
-        BT_Entry["Backtest.run()"]
-        BT_Frame["FrameCoreService<br/>generates timeframes"]
-        BT_Tick["ClientStrategy.tick()<br/>when = frame timestamp"]
-        BT_Done["Emits doneBacktestSubject<br/>Returns closed signals"]
-        
-        BT_Entry --> BT_Frame
-        BT_Frame --> BT_Tick
-        BT_Tick --> BT_Done
-    end
-    
-    subgraph LiveMode["Live Mode"]
-        LIVE_Entry["Live.run()"]
-        LIVE_Loop["Infinite loop<br/>when = new Date()"]
-        LIVE_Sleep["sleep 1 minute"]
-        LIVE_Tick["ClientStrategy.tick()<br/>when = Date.now()"]
-        LIVE_Persist["PersistSignalAdapter<br/>save to disk"]
-        
-        LIVE_Entry --> LIVE_Loop
-        LIVE_Loop --> LIVE_Tick
-        LIVE_Tick --> LIVE_Persist
-        LIVE_Persist --> LIVE_Sleep
-        LIVE_Sleep --> LIVE_Loop
-    end
-    
-    subgraph SharedCore["Shared Core"]
-        STRAT["ClientStrategy<br/>Signal lifecycle management"]
-        VALID["Signal Validation<br/>TP/SL logic, GLOBAL_CONFIG"]
-        RISK["ClientRisk<br/>Risk validation"]
-    end
-    
-    BT_Tick --> STRAT
-    LIVE_Tick --> STRAT
-    STRAT --> VALID
-    STRAT --> RISK
-```
+![Mermaid Diagram](./diagrams\04_getting-started_1.svg)
 
 
 ### Walker (Strategy Comparison)
@@ -489,13 +434,7 @@ Walker runs each strategy sequentially and emits progress updates after each com
 
 Backtest Kit is fundamentally a **time execution engine**. The system processes market data as an async stream of time, where each `tick` call represents a moment in time. The temporal context is propagated via Node.js `AsyncLocalStorage`, making look-ahead bias architecturally impossible.
 
-```mermaid
-graph LR
-    Frame["FrameCoreService<br/>generates timestamps"] --> Context["ExecutionContextService<br/>sets 'when' via AsyncLocalStorage"]
-    Context --> Strategy["ClientStrategy.tick()<br/>calls getSignal()"]
-    Strategy --> GetCandles["getCandles()<br/>reads temporal context"]
-    GetCandles --> Exchange["ClientExchange<br/>filters data <= 'when'"]
-```
+![Mermaid Diagram](./diagrams\04_getting-started_2.svg)
 
 When `getCandles` is called inside `getSignal`, it automatically reads the current `when` timestamp from `AsyncLocalStorage` and only returns data up to that point. This prevents future data leakage.
 

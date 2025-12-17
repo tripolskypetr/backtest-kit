@@ -61,28 +61,7 @@ The system maintains a configurable buffer of recent candles for VWAP calculatio
 
 The `getCandles()` function is time-aware via `AsyncLocalStorage` context propagation. In backtest mode, it **always** returns candles up to the current simulation timestamp, preventing look-ahead bias.
 
-```mermaid
-graph LR
-    subgraph "Candle Buffer Flow"
-        A["getAveragePrice(symbol)"]
-        B["ExecutionContext<br/>(symbol, when, backtest)"]
-        C["getCandles(symbol, '1m', limit=5)"]
-        D["Exchange API"]
-        E["Candle Validation"]
-        F["VWAP Calculation"]
-        G["Return Price"]
-    end
-    
-    A --> B
-    B --> C
-    C --> D
-    D --> E
-    E --> F
-    F --> G
-    
-    B -.->|"temporal context"| C
-    E -.->|"anomaly detection"| F
-```
+![Mermaid Diagram](./diagrams\13_vwap-pricing-data-handling_0.svg)
 
 **Diagram: Candle Buffer Data Flow**
 
@@ -95,29 +74,7 @@ Candle data undergoes multi-stage validation to detect incomplete or anomalous d
 
 ### Validation Stages
 
-```mermaid
-graph TD
-    subgraph "Candle Validation Pipeline"
-        A["Raw Candles<br/>from Exchange"]
-        B["Retry Logic<br/>(3 attempts)"]
-        C["Median Price<br/>Calculation"]
-        D["Anomaly Detection<br/>(1000× threshold)"]
-        E["Volume Check<br/>(zero volume?)"]
-        F["Valid Candles"]
-        G["Fallback: Simple Average"]
-        H["Fallback: Retry"]
-    end
-    
-    A --> B
-    B --> C
-    C --> D
-    D -->|"price < median/1000"| H
-    D -->|"valid"| E
-    E -->|"volume > 0"| F
-    E -->|"all zero"| G
-    H --> B
-    G --> F
-```
+![Mermaid Diagram](./diagrams\13_vwap-pricing-data-handling_1.svg)
 
 **Diagram: Candle Validation Pipeline**
 
@@ -186,23 +143,7 @@ The system implements exponential backoff retry logic for `getCandles()` calls t
 
 ### Retry Flow
 
-```mermaid
-stateDiagram-v2
-    [*] --> Attempt1: getCandles() called
-    Attempt1 --> Validate1: Received candles
-    Validate1 --> Success: Valid data
-    Validate1 --> Wait1: Anomaly detected
-    Wait1 --> Attempt2: Sleep 5s
-    Attempt2 --> Validate2: Received candles
-    Validate2 --> Success: Valid data
-    Validate2 --> Wait2: Anomaly detected
-    Wait2 --> Attempt3: Sleep 5s
-    Attempt3 --> Validate3: Received candles
-    Validate3 --> Success: Valid data
-    Validate3 --> Error: Still anomalous
-    Error --> [*]: Throw error
-    Success --> [*]: Return candles
-```
+![Mermaid Diagram](./diagrams\13_vwap-pricing-data-handling_2.svg)
 
 **Diagram: Retry State Machine**
 
@@ -278,23 +219,7 @@ When a signal closes (TP/SL/time), VWAP is recalculated to determine the **actua
 
 ### Price Discovery Flow
 
-```mermaid
-sequenceDiagram
-    participant Strategy as "ClientStrategy"
-    participant Context as "ExecutionContext"
-    participant Exchange as "ClientExchange"
-    participant API as "Exchange API"
-    
-    Strategy->>Context: getAveragePrice(symbol)
-    Context->>Exchange: getCandles(symbol, '1m', 5)
-    Exchange->>API: fetchOHLCV(symbol, '1m', limit=5)
-    API-->>Exchange: [candle1, candle2, ..., candle5]
-    Exchange->>Exchange: Validate candles (anomaly check)
-    Exchange->>Exchange: Calculate VWAP or fallback
-    Exchange-->>Context: VWAP price
-    Context-->>Strategy: Current market price
-    Strategy->>Strategy: Check TP/SL with VWAP price
-```
+![Mermaid Diagram](./diagrams\13_vwap-pricing-data-handling_3.svg)
 
 **Diagram: VWAP Price Discovery Sequence**
 
@@ -446,32 +371,7 @@ The test suite includes comprehensive anomaly detection coverage:
 
 ### Error Propagation
 
-```mermaid
-graph TD
-    subgraph "Error Handling Flow"
-        A["getAveragePrice() called"]
-        B["getCandles() attempt"]
-        C["Anomaly detected"]
-        D["Retry logic"]
-        E["Max retries exceeded"]
-        F["Throw Error"]
-        G["Error bubbles to Strategy"]
-        H["Signal validation fails"]
-        I["Signal rejected"]
-        J["Log to errorEmitter"]
-    end
-    
-    A --> B
-    B --> C
-    C -->|"attempt < 3"| D
-    D --> B
-    C -->|"attempt = 3"| E
-    E --> F
-    F --> G
-    G --> H
-    H --> I
-    I --> J
-```
+![Mermaid Diagram](./diagrams\13_vwap-pricing-data-handling_4.svg)
 
 **Diagram: Error Propagation Path**
 

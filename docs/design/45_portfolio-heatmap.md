@@ -27,66 +27,7 @@ The heatmap system aggregates closed signals from all symbols traded by a strate
 
 ## System Architecture
 
-```mermaid
-graph TD
-    subgraph "Event Source"
-        SE["signalEmitter<br/>(global)"]
-        CE["closed signals<br/>IStrategyTickResultClosed"]
-    end
-    
-    subgraph "HeatMarkdownService"
-        INIT["init()<br/>singleshot subscription"]
-        TICK["tick(IStrategyTickResult)<br/>filter action === 'closed'"]
-        STORAGE["getStorage(strategyName)<br/>memoized per strategy"]
-    end
-    
-    subgraph "HeatmapStorage (per strategy)"
-        MAP["symbolData: Map<string, IStrategyTickResultClosed[]>"]
-        ADD["addSignal(data)<br/>unshift + trim to MAX_EVENTS"]
-        CALC["calculateSymbolStats(symbol, signals)<br/>15+ metrics per symbol"]
-        DATA["getData()<br/>aggregates + portfolio metrics"]
-        REPORT["getReport(strategyName)<br/>markdown generation"]
-        DUMP["dump(strategyName, path)<br/>file export"]
-    end
-    
-    subgraph "Heat Class (Public API)"
-        GET_DATA["Heat.getData(strategyName)"]
-        GET_REPORT["Heat.getReport(strategyName)"]
-        DUMP_FILE["Heat.dump(strategyName, path)"]
-    end
-    
-    subgraph "Data Models"
-        HEATMAP_MODEL["HeatmapStatisticsModel<br/>symbols: IHeatmapRow[]<br/>portfolioTotalPnl<br/>portfolioSharpeRatio"]
-        ROW["IHeatmapRow<br/>per-symbol metrics"]
-    end
-    
-    SE --> CE
-    CE --> INIT
-    INIT --> TICK
-    TICK --> STORAGE
-    STORAGE --> MAP
-    TICK --> ADD
-    ADD --> MAP
-    
-    MAP --> CALC
-    CALC --> DATA
-    DATA --> HEATMAP_MODEL
-    DATA --> REPORT
-    REPORT --> DUMP
-    
-    GET_DATA --> STORAGE
-    STORAGE --> DATA
-    GET_REPORT --> STORAGE
-    STORAGE --> REPORT
-    DUMP_FILE --> STORAGE
-    STORAGE --> DUMP
-    
-    HEATMAP_MODEL --> ROW
-    
-    style STORAGE fill:#f9f9f9
-    style MAP fill:#e1f5ff
-    style HEATMAP_MODEL fill:#fff3cd
-```
+![Mermaid Diagram](./diagrams\45_portfolio-heatmap_0.svg)
 
 **Flow:**
 1. `signalEmitter` broadcasts all closed signals from any strategy/symbol
@@ -147,67 +88,7 @@ interface HeatmapStatisticsModel {
 
 The `calculateSymbolStats()` method `src/lib/services/markdown/HeatMarkdownService.ts:115-271` processes each symbol's signal array independently.
 
-```mermaid
-graph LR
-    SIGNALS["signals: IStrategyTickResultClosed[]"]
-    
-    subgraph "Basic Metrics"
-        COUNT["totalTrades = signals.length"]
-        WIN["winCount = filter(pnl > 0)"]
-        LOSS["lossCount = filter(pnl < 0)"]
-        RATE["winRate = (winCount / totalTrades) × 100"]
-    end
-    
-    subgraph "PNL Analysis"
-        TOTAL["totalPnl = sum(all pnl)"]
-        AVG["avgPnl = totalPnl / totalTrades"]
-        VARIANCE["variance = sum((pnl - avgPnl)²) / count"]
-        STD["stdDev = sqrt(variance)"]
-    end
-    
-    subgraph "Risk Metrics"
-        SHARPE["sharpeRatio = avgPnl / stdDev"]
-        DRAWDOWN["maxDrawdown = max cumulative decline"]
-        PROFIT["profitFactor = sumWins / sumLosses"]
-    end
-    
-    subgraph "Win/Loss Analysis"
-        AVGWIN["avgWin = sum(wins) / winCount"]
-        AVGLOSS["avgLoss = sum(losses) / lossCount"]
-        EXPECT["expectancy = (winRate × avgWin) + ((100-winRate) × avgLoss)"]
-    end
-    
-    subgraph "Streak Detection"
-        WINSTREAK["maxWinStreak = longest consecutive wins"]
-        LOSSSTREAK["maxLossStreak = longest consecutive losses"]
-    end
-    
-    SIGNALS --> COUNT
-    SIGNALS --> WIN
-    SIGNALS --> LOSS
-    COUNT --> RATE
-    WIN --> RATE
-    
-    SIGNALS --> TOTAL
-    TOTAL --> AVG
-    AVG --> VARIANCE
-    VARIANCE --> STD
-    
-    AVG --> SHARPE
-    STD --> SHARPE
-    SIGNALS --> DRAWDOWN
-    WIN --> PROFIT
-    LOSS --> PROFIT
-    
-    WIN --> AVGWIN
-    LOSS --> AVGLOSS
-    RATE --> EXPECT
-    AVGWIN --> EXPECT
-    AVGLOSS --> EXPECT
-    
-    SIGNALS --> WINSTREAK
-    SIGNALS --> LOSSSTREAK
-```
+![Mermaid Diagram](./diagrams\45_portfolio-heatmap_1.svg)
 
 ### Maximum Drawdown Algorithm
 
@@ -471,39 +352,7 @@ This is useful for:
 
 ## Event System Integration
 
-```mermaid
-sequenceDiagram
-    participant ST as ClientStrategy
-    participant SE as signalEmitter
-    participant HMS as HeatMarkdownService
-    participant HS as HeatmapStorage
-    participant BMS as BacktestMarkdownService
-    participant LMS as LiveMarkdownService
-    
-    Note over HMS: init() subscribes once
-    HMS->>SE: signalEmitter.subscribe(tick)
-    
-    Note over ST: Signal closes
-    ST->>SE: emit(closed signal)
-    
-    SE->>HMS: tick(IStrategyTickResultClosed)
-    HMS->>HMS: filter: action === "closed"
-    HMS->>HMS: getStorage(strategyName)
-    HMS->>HS: addSignal(data)
-    HS->>HS: symbolData.get(symbol).push()
-    
-    Note over SE: Parallel subscriptions
-    SE->>BMS: tick(closed signal)
-    SE->>LMS: tick(closed signal)
-    
-    Note over HMS: Later: user requests report
-    ST->>HMS: Heat.getData("strategy")
-    HMS->>HS: getData()
-    HS->>HS: calculateSymbolStats() for each
-    HS->>HS: aggregate portfolio metrics
-    HS-->>HMS: HeatmapStatisticsModel
-    HMS-->>ST: return stats
-```
+![Mermaid Diagram](./diagrams\45_portfolio-heatmap_2.svg)
 
 ### Subscription Lifecycle
 
@@ -601,60 +450,7 @@ The heatmap uses strategy name only (not symbol) because it aggregates across al
 
 The `Heat` class `src/classes/Heat.ts:1-148` provides the public-facing API:
 
-```mermaid
-graph TD
-    subgraph "Public API (src/classes/Heat.ts)"
-        HEAT["Heat (singleton instance)"]
-        GET_DATA["getData(strategyName)"]
-        GET_REPORT["getReport(strategyName, columns?)"]
-        DUMP["dump(strategyName, path?, columns?)"]
-    end
-    
-    subgraph "Validation Layer"
-        VAL_STRAT["strategyValidationService.validate()"]
-        VAL_RISK["riskValidationService.validate()"]
-    end
-    
-    subgraph "Service Layer (src/lib/services/markdown)"
-        HMS["HeatMarkdownService"]
-        HMS_DATA["getData(strategyName)"]
-        HMS_REPORT["getReport(strategyName, columns)"]
-        HMS_DUMP["dump(strategyName, path, columns)"]
-    end
-    
-    subgraph "Storage Layer"
-        HS["HeatmapStorage (memoized)"]
-        MAP["symbolData: Map<symbol, signals[]>"]
-    end
-    
-    HEAT --> GET_DATA
-    HEAT --> GET_REPORT
-    HEAT --> DUMP
-    
-    GET_DATA --> VAL_STRAT
-    GET_DATA --> VAL_RISK
-    VAL_STRAT --> HMS_DATA
-    VAL_RISK --> HMS_DATA
-    
-    GET_REPORT --> VAL_STRAT
-    GET_REPORT --> VAL_RISK
-    VAL_STRAT --> HMS_REPORT
-    VAL_RISK --> HMS_REPORT
-    
-    DUMP --> VAL_STRAT
-    DUMP --> VAL_RISK
-    VAL_STRAT --> HMS_DUMP
-    VAL_RISK --> HMS_DUMP
-    
-    HMS_DATA --> HS
-    HMS_REPORT --> HS
-    HMS_DUMP --> HS
-    
-    HS --> MAP
-    
-    style HEAT fill:#e1f5ff
-    style HS fill:#fff3cd
-```
+![Mermaid Diagram](./diagrams\45_portfolio-heatmap_3.svg)
 
 **Validation flow:**
 1. `Heat` methods validate strategy name exists

@@ -24,66 +24,7 @@ Backtest Kit integrates with Large Language Models (specifically Ollama) to gene
 
 ### Integration Architecture
 
-```mermaid
-graph TB
-    subgraph "User Space"
-        USER["User defines<br/>IOptimizerSchema"]
-        DATA_SOURCES["Data Sources<br/>IOptimizerSourceFn[]"]
-        RANGES["Time Ranges<br/>rangeTrain, rangeTest"]
-        PROMPT_FN["getPrompt function<br/>MessageModel[] → string"]
-    end
-    
-    subgraph "Optimizer System"
-        CLIENT["ClientOptimizer"]
-        CONN["OptimizerConnectionService"]
-        GLOBAL["OptimizerGlobalService"]
-    end
-    
-    subgraph "Data Collection"
-        PAGINATE["RESOLVE_PAGINATION_FN<br/>iterateDocuments"]
-        DEDUPE["distinctDocuments<br/>by data.id"]
-        MESSAGES["Build MessageModel[]<br/>user/assistant pairs"]
-    end
-    
-    subgraph "LLM Integration"
-        USER_MSG["getUserMessage<br/>OptimizerTemplateService"]
-        ASSIST_MSG["getAssistantMessage<br/>OptimizerTemplateService"]
-        LLM["External LLM<br/>Ollama API"]
-    end
-    
-    subgraph "Code Generation"
-        STRATEGY_DATA["IOptimizerStrategy[]<br/>messages + prompt"]
-        TEMPLATE["OptimizerTemplateService<br/>getStrategyTemplate, etc"]
-        CODE_GEN["Generated .mjs file<br/>Executable strategy"]
-    end
-    
-    USER --> CLIENT
-    DATA_SOURCES --> CLIENT
-    RANGES --> CLIENT
-    PROMPT_FN --> CLIENT
-    
-    CLIENT --> CONN
-    CONN --> GLOBAL
-    
-    CLIENT --> PAGINATE
-    PAGINATE --> DEDUPE
-    DEDUPE --> MESSAGES
-    
-    MESSAGES --> USER_MSG
-    MESSAGES --> ASSIST_MSG
-    USER_MSG --> LLM
-    ASSIST_MSG --> LLM
-    
-    LLM --> PROMPT_FN
-    PROMPT_FN --> STRATEGY_DATA
-    
-    STRATEGY_DATA --> TEMPLATE
-    TEMPLATE --> CODE_GEN
-    
-    style CLIENT fill:#f9f9f9,stroke:#333,stroke-width:2px
-    style LLM fill:#f9f9f9,stroke:#333,stroke-width:2px
-    style CODE_GEN fill:#f9f9f9,stroke:#333,stroke-width:2px
-```
+![Mermaid Diagram](./diagrams\46_advanced-features_0.svg)
 
 
 ### Message Model Structure
@@ -145,72 +86,7 @@ The Optimizer system coordinates data collection, LLM interaction, and code gene
 
 ### Service Layer Hierarchy
 
-```mermaid
-graph TB
-    subgraph "Public API"
-        OPTIMIZER_CLASS["Optimizer class<br/>getData, getCode, dump"]
-    end
-    
-    subgraph "Global Service Layer"
-        OPTIMIZER_GLOBAL["OptimizerGlobalService<br/>Validation + delegation"]
-    end
-    
-    subgraph "Connection Service Layer"
-        OPTIMIZER_CONN["OptimizerConnectionService<br/>Instance caching (memoized)"]
-    end
-    
-    subgraph "Client Layer"
-        CLIENT_OPT["ClientOptimizer<br/>Business logic implementation"]
-        GET_DATA["getData: IOptimizerStrategy[]"]
-        GET_CODE["getCode: string"]
-        DUMP["dump: void (writes file)"]
-    end
-    
-    subgraph "Schema & Validation"
-        SCHEMA_SVC["OptimizerSchemaService<br/>ToolRegistry storage"]
-        VALIDATION_SVC["OptimizerValidationService<br/>Existence checks (memoized)"]
-    end
-    
-    subgraph "Template Service"
-        TEMPLATE_SVC["OptimizerTemplateService<br/>Code snippet generators"]
-        GET_TOP["getTopBanner"]
-        GET_STRATEGY["getStrategyTemplate"]
-        GET_EXCHANGE["getExchangeTemplate"]
-        GET_FRAME["getFrameTemplate"]
-        GET_WALKER["getWalkerTemplate"]
-        GET_LAUNCHER["getLauncherTemplate"]
-        GET_JSON_DUMP["getJsonDumpTemplate"]
-        GET_TEXT["getTextTemplate"]
-        GET_JSON["getJsonTemplate"]
-    end
-    
-    OPTIMIZER_CLASS --> OPTIMIZER_GLOBAL
-    OPTIMIZER_GLOBAL --> VALIDATION_SVC
-    OPTIMIZER_GLOBAL --> OPTIMIZER_CONN
-    
-    OPTIMIZER_CONN --> SCHEMA_SVC
-    OPTIMIZER_CONN --> TEMPLATE_SVC
-    OPTIMIZER_CONN --> CLIENT_OPT
-    
-    CLIENT_OPT --> GET_DATA
-    CLIENT_OPT --> GET_CODE
-    CLIENT_OPT --> DUMP
-    
-    GET_CODE --> TEMPLATE_SVC
-    
-    TEMPLATE_SVC --> GET_TOP
-    TEMPLATE_SVC --> GET_STRATEGY
-    TEMPLATE_SVC --> GET_EXCHANGE
-    TEMPLATE_SVC --> GET_FRAME
-    TEMPLATE_SVC --> GET_WALKER
-    TEMPLATE_SVC --> GET_LAUNCHER
-    TEMPLATE_SVC --> GET_JSON_DUMP
-    TEMPLATE_SVC --> GET_TEXT
-    TEMPLATE_SVC --> GET_JSON
-    
-    style CLIENT_OPT fill:#f9f9f9,stroke:#333,stroke-width:2px
-    style TEMPLATE_SVC fill:#f9f9f9,stroke:#333,stroke-width:2px
-```
+![Mermaid Diagram](./diagrams\46_advanced-features_1.svg)
 
 
 ### Optimizer Schema Definition
@@ -235,44 +111,7 @@ Each `IOptimizerRange` defines:
 
 ### Data Collection Flow
 
-```mermaid
-sequenceDiagram
-    participant USER as User Code
-    participant CLIENT as ClientOptimizer
-    participant PAGINATE as RESOLVE_PAGINATION_FN
-    participant SOURCE as IOptimizerSourceFn
-    participant DEDUPE as distinctDocuments
-    participant TEMPLATE as OptimizerTemplateService
-    
-    USER->>CLIENT: getData(symbol, optimizerName)
-    
-    loop For each rangeTrain
-        loop For each source
-            CLIENT->>PAGINATE: Fetch with pagination
-            loop While has more pages
-                PAGINATE->>SOURCE: fetch({limit, offset, symbol, dates})
-                SOURCE-->>PAGINATE: Data page
-            end
-            PAGINATE->>DEDUPE: Deduplicate by data.id
-            DEDUPE-->>CLIENT: Unique data array
-            
-            CLIENT->>TEMPLATE: getUserMessage(symbol, data, name)
-            TEMPLATE-->>CLIENT: User message content
-            
-            CLIENT->>TEMPLATE: getAssistantMessage(symbol, data, name)
-            TEMPLATE-->>CLIENT: Assistant message content
-            
-            CLIENT->>CLIENT: Build MessageModel pair
-        end
-        
-        CLIENT->>USER: Call getPrompt(symbol, messages)
-        USER-->>CLIENT: Strategy prompt string
-        
-        CLIENT->>CLIENT: Create IOptimizerStrategy
-    end
-    
-    CLIENT-->>USER: IOptimizerStrategy[]
-```
+![Mermaid Diagram](./diagrams\46_advanced-features_2.svg)
 
 
 ### Progress Tracking
@@ -325,45 +164,7 @@ All methods are `async` and return `string | Promise<string>`.
 
 ### Generated Code Structure
 
-```mermaid
-graph TB
-    subgraph "Generated .mjs File"
-        BANNER["#!/usr/bin/env node<br/>Imports: Ollama, ccxt,<br/>backtest-kit, uuid"]
-        HELPERS["Helper Functions<br/>dumpJson, text, json"]
-        EXCHANGE["addExchange<br/>CCXT Binance integration"]
-        FRAMES["addFrame calls<br/>Train + Test frames"]
-        STRATEGIES["addStrategy calls<br/>Multi-timeframe analysis<br/>LLM signal generation"]
-        WALKER["addWalker<br/>Strategy comparison config"]
-        LAUNCHER["Walker.background<br/>Event listeners"]
-    end
-    
-    subgraph "Template Methods"
-        T1["getTopBanner"]
-        T2["getJsonDumpTemplate<br/>getTextTemplate<br/>getJsonTemplate"]
-        T3["getExchangeTemplate"]
-        T4["getFrameTemplate"]
-        T5["getStrategyTemplate"]
-        T6["getWalkerTemplate"]
-        T7["getLauncherTemplate"]
-    end
-    
-    T1 --> BANNER
-    T2 --> HELPERS
-    T3 --> EXCHANGE
-    T4 --> FRAMES
-    T5 --> STRATEGIES
-    T6 --> WALKER
-    T7 --> LAUNCHER
-    
-    BANNER --> HELPERS
-    HELPERS --> EXCHANGE
-    EXCHANGE --> FRAMES
-    FRAMES --> STRATEGIES
-    STRATEGIES --> WALKER
-    WALKER --> LAUNCHER
-    
-    style STRATEGIES fill:#f9f9f9,stroke:#333,stroke-width:2px
-```
+![Mermaid Diagram](./diagrams\46_advanced-features_3.svg)
 
 
 ### Strategy Template Composition
@@ -423,58 +224,7 @@ Backtest Kit implements crash-safe persistence to recover state after system fai
 
 ### Persistence Architecture
 
-```mermaid
-graph TB
-    subgraph "Client Layer"
-        CLIENT_STRAT["ClientStrategy<br/>Signal lifecycle"]
-        CLIENT_PART["ClientPartial<br/>Profit/loss tracking"]
-        CLIENT_RISK["ClientRisk<br/>Active positions"]
-    end
-    
-    subgraph "Persist Adapters"
-        PERSIST_SIGNAL["PersistSignalAdapter<br/>SignalData by symbol"]
-        PERSIST_PARTIAL["PersistPartialAdapter<br/>PartialData by signalId"]
-        PERSIST_RISK["PersistRiskAdapter<br/>RiskData by symbol"]
-        PERSIST_SCHEDULE["PersistScheduleAdapter<br/>ScheduleData by symbol"]
-    end
-    
-    subgraph "Base Persistence"
-        PERSIST_BASE["PersistBase<br/>Abstract base class"]
-        WRITE["write(entityId, value)<br/>Atomic JSON writes"]
-        READ["read(entityId)<br/>Async read"]
-        DELETE["delete(entityId)<br/>Async delete"]
-        CLEAR["clear()<br/>Delete all"]
-        INIT["waitForInit()<br/>Async initialization"]
-    end
-    
-    subgraph "File System"
-        FILES["./persist/{entityId}.json<br/>Atomic writes with rename"]
-    end
-    
-    CLIENT_STRAT --> PERSIST_SIGNAL
-    CLIENT_PART --> PERSIST_PARTIAL
-    CLIENT_RISK --> PERSIST_RISK
-    CLIENT_STRAT --> PERSIST_SCHEDULE
-    
-    PERSIST_SIGNAL --> PERSIST_BASE
-    PERSIST_PARTIAL --> PERSIST_BASE
-    PERSIST_RISK --> PERSIST_BASE
-    PERSIST_SCHEDULE --> PERSIST_BASE
-    
-    PERSIST_BASE --> WRITE
-    PERSIST_BASE --> READ
-    PERSIST_BASE --> DELETE
-    PERSIST_BASE --> CLEAR
-    PERSIST_BASE --> INIT
-    
-    WRITE --> FILES
-    READ --> FILES
-    DELETE --> FILES
-    CLEAR --> FILES
-    
-    style PERSIST_BASE fill:#f9f9f9,stroke:#333,stroke-width:2px
-    style FILES fill:#f9f9f9,stroke:#333,stroke-width:2px
-```
+![Mermaid Diagram](./diagrams\46_advanced-features_4.svg)
 
 
 ### PersistBase Interface
@@ -558,36 +308,7 @@ This ensures:
 
 ### Initialization Flow
 
-```mermaid
-sequenceDiagram
-    participant CLIENT as ClientStrategy/Partial/Risk
-    participant ADAPTER as PersistAdapter
-    participant BASE as PersistBase
-    participant FS as File System
-    
-    CLIENT->>ADAPTER: waitForInit(entityId)
-    ADAPTER->>BASE: waitForInit(entityId)
-    
-    alt First call for entityId
-        BASE->>FS: mkdir(directory, recursive: true)
-        BASE->>FS: Check if file exists
-        
-        alt File exists
-            BASE->>FS: readFile(entityId.json)
-            FS-->>BASE: Stored value
-            BASE->>BASE: Store in _cache Map
-        else File not exists
-            BASE->>BASE: Store null in _cache
-        end
-        
-        BASE-->>ADAPTER: Ready
-    else Subsequent calls
-        BASE->>BASE: Check _cache Map
-        BASE-->>ADAPTER: Already initialized
-    end
-    
-    ADAPTER-->>CLIENT: Ready
-```
+![Mermaid Diagram](./diagrams\46_advanced-features_5.svg)
 
 
 ---

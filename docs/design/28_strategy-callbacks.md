@@ -24,58 +24,7 @@ The `IStrategyCallbacks` interface defines 10 optional lifecycle hooks that fire
 
 ## IStrategyCallbacks Interface Structure
 
-```mermaid
-graph TB
-    subgraph IStrategyCallbacks["IStrategyCallbacks Interface"]
-        onTick["onTick(symbol, result, backtest)"]
-        onOpen["onOpen(symbol, data, currentPrice, backtest)"]
-        onActive["onActive(symbol, data, currentPrice, backtest)"]
-        onIdle["onIdle(symbol, currentPrice, backtest)"]
-        onClose["onClose(symbol, data, priceClose, backtest)"]
-        onSchedule["onSchedule(symbol, data, currentPrice, backtest)"]
-        onCancel["onCancel(symbol, data, currentPrice, backtest)"]
-        onWrite["onWrite(symbol, data, backtest)"]
-        onPartialProfit["onPartialProfit(symbol, data, currentPrice, revenuePercent, backtest)"]
-        onPartialLoss["onPartialLoss(symbol, data, currentPrice, lossPercent, backtest)"]
-    end
-    
-    subgraph Invocation["Callback Invocation Context"]
-        ClientStrategy["ClientStrategy class"]
-        TickMethod["tick() method"]
-        BacktestMethod["backtest() method"]
-        
-        ClientStrategy --> TickMethod
-        ClientStrategy --> BacktestMethod
-    end
-    
-    subgraph Parameters["Common Parameters"]
-        Symbol["symbol: Trading pair"]
-        Backtest["backtest: Execution mode flag"]
-        Data["data: ISignalRow or IScheduledSignalRow"]
-        CurrentPrice["currentPrice: VWAP price"]
-    end
-    
-    TickMethod --> onTick
-    TickMethod --> onOpen
-    TickMethod --> onActive
-    TickMethod --> onIdle
-    TickMethod --> onClose
-    TickMethod --> onSchedule
-    TickMethod --> onCancel
-    
-    BacktestMethod --> onTick
-    BacktestMethod --> onOpen
-    BacktestMethod --> onClose
-    
-    onPartialProfit --> CurrentPrice
-    onPartialLoss --> CurrentPrice
-    onOpen --> Data
-    onActive --> Data
-    onClose --> Data
-    
-    style IStrategyCallbacks fill:#f9f9f9,stroke:#333,stroke-width:2px
-    style Invocation fill:#e8f4f8,stroke:#333,stroke-width:2px
-```
+![Mermaid Diagram](./diagrams\28_strategy-callbacks_0.svg)
 
 
 ---
@@ -374,105 +323,7 @@ onPartialLoss: (symbol: string, data: ISignalRow, currentPrice: number, lossPerc
 
 The following diagram shows the execution order of callbacks during different signal lifecycle transitions:
 
-```mermaid
-stateDiagram-v2
-    [*] --> getSignalCall: tick() invoked
-    
-    getSignalCall --> noSignal: Returns null
-    getSignalCall --> scheduledCheck: Returns signal
-    
-    noSignal --> idleState: No active signal
-    idleState --> onIdle: Callback
-    idleState --> onTick: Callback
-    idleState --> [*]
-    
-    scheduledCheck --> scheduledCreated: priceOpen not reached
-    scheduledCheck --> immediateCreated: priceOpen reached or omitted
-    
-    scheduledCreated --> onSchedule: Callback
-    scheduledCreated --> onTick: Callback
-    scheduledCreated --> waitActivation: Wait for price
-    
-    waitActivation --> checkTimeout: Each tick
-    checkTimeout --> timedOut: Timeout exceeded
-    checkTimeout --> checkSL: Timeout OK
-    
-    timedOut --> onCancel: Callback (timeout)
-    timedOut --> onTick: Callback
-    timedOut --> [*]
-    
-    checkSL --> slBreach: SL hit before activation
-    checkSL --> checkPrice: SL OK
-    
-    slBreach --> onCancel: Callback (SL breach)
-    slBreach --> onTick: Callback
-    slBreach --> [*]
-    
-    checkPrice --> activateSignal: priceOpen reached
-    checkPrice --> stillScheduled: Not yet
-    
-    stillScheduled --> onTick: Callback (scheduled active)
-    stillScheduled --> waitActivation
-    
-    activateSignal --> onOpen: Callback (activation)
-    activateSignal --> activeState
-    
-    immediateCreated --> onOpen: Callback (immediate)
-    immediateCreated --> activeState
-    
-    activeState --> persistSignal: Save to storage
-    persistSignal --> onWrite: Callback (if provided)
-    persistSignal --> monitoring
-    
-    monitoring --> checkPartial: Each tick
-    checkPartial --> profitMilestone: 10%, 20%, 30% profit
-    checkPartial --> lossMilestone: -10%, -20%, -30% loss
-    checkPartial --> onActive: Callback (monitoring)
-    
-    profitMilestone --> onPartialProfit: Callback
-    profitMilestone --> checkPartial
-    
-    lossMilestone --> onPartialLoss: Callback
-    lossMilestone --> checkPartial
-    
-    checkPartial --> checkTP: Check take profit
-    checkTP --> tpHit: TP reached
-    checkTP --> checkSL2: TP not reached
-    
-    checkSL2 --> slHit: SL reached
-    checkSL2 --> checkTime: SL not reached
-    
-    checkTime --> timeExpired: Time limit exceeded
-    checkTime --> stillActive: Time OK
-    
-    stillActive --> onTick: Callback (active)
-    stillActive --> monitoring
-    
-    tpHit --> onClose: Callback (take_profit)
-    tpHit --> deleteSignal
-    
-    slHit --> onClose: Callback (stop_loss)
-    slHit --> deleteSignal
-    
-    timeExpired --> onClose: Callback (time_expired)
-    timeExpired --> deleteSignal
-    
-    deleteSignal --> onWrite: Callback (data=null)
-    deleteSignal --> onTick: Callback (closed)
-    deleteSignal --> [*]
-    
-    note right of onTick
-        onTick executes after
-        all other callbacks
-        in the same tick
-    end note
-    
-    note right of onWrite
-        onWrite executes only
-        in live mode, not
-        during backtest
-    end note
-```
+![Mermaid Diagram](./diagrams\28_strategy-callbacks_1.svg)
 
 
 ---
@@ -540,43 +391,7 @@ listenSignal((event) => {
 
 The `StrategyConnectionService` acts as a router between the public API and individual `ClientStrategy` instances. Callbacks are passed through this routing layer and stored in the `ClientStrategy` instance.
 
-```mermaid
-graph TB
-    subgraph UserCode["User Code"]
-        addStrategy["addStrategy({ callbacks: {...} })"]
-    end
-    
-    subgraph ServiceLayer["Service Layer"]
-        StrategySchema["StrategySchemaService<br/>Stores IStrategySchema"]
-        StrategyConnection["StrategyConnectionService<br/>Memoized factory"]
-        ClientStrategyInstance["ClientStrategy instance<br/>params.callbacks"]
-    end
-    
-    subgraph Execution["Execution"]
-        TickMethod["tick() method"]
-        BacktestMethod["backtest() method"]
-        CallbackInvocation["Callback invocation<br/>if (params.callbacks?.onOpen) {...}"]
-    end
-    
-    addStrategy --> StrategySchema
-    StrategySchema --> StrategyConnection
-    StrategyConnection --> ClientStrategyInstance
-    
-    ClientStrategyInstance --> TickMethod
-    ClientStrategyInstance --> BacktestMethod
-    
-    TickMethod --> CallbackInvocation
-    BacktestMethod --> CallbackInvocation
-    
-    CallbackInvocation --> onOpen["onOpen(...)"]
-    CallbackInvocation --> onClose["onClose(...)"]
-    CallbackInvocation --> onActive["onActive(...)"]
-    CallbackInvocation --> onTick["onTick(...)"]
-    
-    style UserCode fill:#f9f9f9,stroke:#333,stroke-width:2px
-    style ServiceLayer fill:#e8f4f8,stroke:#333,stroke-width:2px
-    style Execution fill:#f0f0f0,stroke:#333,stroke-width:2px
-```
+![Mermaid Diagram](./diagrams\28_strategy-callbacks_2.svg)
 
 **Key Implementation Details:**
 

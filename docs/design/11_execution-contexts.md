@@ -46,47 +46,7 @@ The `MethodContext` is set at the orchestration layer (backtest/live/walker logi
 
 ## Context Services Architecture
 
-```mermaid
-graph TB
-    subgraph "Context Service Definitions"
-        IEC["IExecutionContext<br/>{symbol, when, backtest}"]
-        IMC["IMethodContext<br/>{exchangeName, strategyName, frameName}"]
-    end
-    
-    subgraph "Service Instances"
-        ECS["ExecutionContextService<br/>di-scoped scoped class"]
-        MCS["MethodContextService<br/>di-scoped scoped class"]
-    end
-    
-    subgraph "DI Registration"
-        TYPES_EC["TYPES.executionContextService<br/>Symbol('executionContextService')"]
-        TYPES_MC["TYPES.methodContextService<br/>Symbol('methodContextService')"]
-        PROVIDE_EC["provide(TYPES.executionContextService,<br/>() => new ExecutionContextService())"]
-        PROVIDE_MC["provide(TYPES.methodContextService,<br/>() => new MethodContextService())"]
-    end
-    
-    subgraph "Exported API"
-        LIB_EC["lib.executionContextService"]
-        LIB_MC["lib.methodContextService"]
-        EXPORT_EC["export { ExecutionContextService }"]
-        EXPORT_MC["export { MethodContextService }"]
-    end
-    
-    IEC -.->|"defines interface for"| ECS
-    IMC -.->|"defines interface for"| MCS
-    
-    ECS --> TYPES_EC
-    MCS --> TYPES_MC
-    
-    TYPES_EC --> PROVIDE_EC
-    TYPES_MC --> PROVIDE_MC
-    
-    PROVIDE_EC --> LIB_EC
-    PROVIDE_MC --> LIB_MC
-    
-    ECS --> EXPORT_EC
-    MCS --> EXPORT_MC
-```
+![Mermaid Diagram](./diagrams\11_execution-contexts_0.svg)
 
 
 ## Context Propagation with di-scoped
@@ -128,90 +88,7 @@ This establishes context for the entire generator lifetime, allowing all yielded
 
 ## Context Flow Through Execution Layers
 
-```mermaid
-graph TB
-    subgraph "Public API Layer"
-        BT_RUN["Backtest.run(symbol, context)"]
-        LIVE_RUN["Live.run(symbol, context)"]
-        WALK_RUN["Walker.run(symbol, walkerContext)"]
-    end
-    
-    subgraph "Command Services"
-        BT_CMD["BacktestCommandService"]
-        LIVE_CMD["LiveCommandService"]
-        WALK_CMD["WalkerCommandService"]
-    end
-    
-    subgraph "Logic Public Services"
-        BT_LOG_PUB["BacktestLogicPublicService"]
-        LIVE_LOG_PUB["LiveLogicPublicService"]
-        WALK_LOG_PUB["WalkerLogicPublicService"]
-    end
-    
-    subgraph "MethodContext Established"
-        MC_SET["MethodContextService.runAsyncIterator()<br/>{strategyName, exchangeName, frameName}"]
-    end
-    
-    subgraph "Logic Private Services"
-        BT_LOG_PRIV["BacktestLogicPrivateService<br/>Iterates timeframes"]
-        LIVE_LOG_PRIV["LiveLogicPrivateService<br/>Infinite loop with sleep"]
-        WALK_LOG_PRIV["WalkerLogicPrivateService<br/>Sequential strategy execution"]
-    end
-    
-    subgraph "ExecutionContext Established"
-        EC_SET["ExecutionContextService.runInContext()<br/>{symbol, when, backtest}"]
-    end
-    
-    subgraph "Core Services"
-        STRAT_CORE["StrategyCoreService.tick()"]
-        EXCH_CORE["ExchangeCoreService.getCandles()"]
-        FRAME_CORE["FrameCoreService.getTimeframe()"]
-    end
-    
-    subgraph "Connection Services"
-        STRAT_CONN["StrategyConnectionService<br/>Reads methodContext"]
-        EXCH_CONN["ExchangeConnectionService<br/>Reads methodContext"]
-        FRAME_CONN["FrameConnectionService<br/>Reads methodContext"]
-    end
-    
-    subgraph "Client Layer"
-        CLIENT_STRAT["ClientStrategy<br/>Reads executionContext"]
-        CLIENT_EXCH["ClientExchange<br/>Reads executionContext"]
-        CLIENT_FRAME["ClientFrame"]
-    end
-    
-    BT_RUN --> BT_CMD
-    LIVE_RUN --> LIVE_CMD
-    WALK_RUN --> WALK_CMD
-    
-    BT_CMD --> BT_LOG_PUB
-    LIVE_CMD --> LIVE_LOG_PUB
-    WALK_CMD --> WALK_LOG_PUB
-    
-    BT_LOG_PUB --> MC_SET
-    LIVE_LOG_PUB --> MC_SET
-    WALK_LOG_PUB --> MC_SET
-    
-    MC_SET --> BT_LOG_PRIV
-    MC_SET --> LIVE_LOG_PRIV
-    MC_SET --> WALK_LOG_PRIV
-    
-    BT_LOG_PRIV --> EC_SET
-    LIVE_LOG_PRIV --> EC_SET
-    WALK_LOG_PRIV --> EC_SET
-    
-    EC_SET --> STRAT_CORE
-    EC_SET --> EXCH_CORE
-    EC_SET --> FRAME_CORE
-    
-    STRAT_CORE --> STRAT_CONN
-    EXCH_CORE --> EXCH_CONN
-    FRAME_CORE --> FRAME_CONN
-    
-    STRAT_CONN --> CLIENT_STRAT
-    EXCH_CONN --> CLIENT_EXCH
-    FRAME_CONN --> CLIENT_FRAME
-```
+![Mermaid Diagram](./diagrams\11_execution-contexts_1.svg)
 
 
 ## Context Access Patterns
@@ -254,36 +131,7 @@ This pattern allows connection services to route operations to the correct clien
 
 ## Context Propagation in Backtest vs Live
 
-```mermaid
-graph TB
-    subgraph "Backtest Mode"
-        BT_FRAME["Generate timeframes<br/>[t1, t2, t3, ..., tn]"]
-        BT_LOOP["for each timeframe"]
-        BT_EC["ExecutionContextService.runInContext()<br/>{symbol, when: timeframe[i], backtest: true}"]
-        BT_TICK["StrategyCoreService.tick()"]
-        BT_CLIENT["ClientStrategy reads context<br/>when = historical timestamp<br/>backtest = true"]
-    end
-    
-    subgraph "Live Mode"
-        LIVE_SLEEP["sleep(TICK_TTL = 1 minute)"]
-        LIVE_LOOP["while(true)"]
-        LIVE_EC["ExecutionContextService.runInContext()<br/>{symbol, when: new Date(), backtest: false}"]
-        LIVE_TICK["StrategyCoreService.tick()"]
-        LIVE_CLIENT["ClientStrategy reads context<br/>when = current timestamp<br/>backtest = false"]
-    end
-    
-    BT_FRAME --> BT_LOOP
-    BT_LOOP --> BT_EC
-    BT_EC --> BT_TICK
-    BT_TICK --> BT_CLIENT
-    BT_CLIENT -.->|"next timeframe"| BT_LOOP
-    
-    LIVE_SLEEP --> LIVE_LOOP
-    LIVE_LOOP --> LIVE_EC
-    LIVE_EC --> LIVE_TICK
-    LIVE_TICK --> LIVE_CLIENT
-    LIVE_CLIENT -.->|"sleep and repeat"| LIVE_SLEEP
-```
+![Mermaid Diagram](./diagrams\11_execution-contexts_2.svg)
 
 The key difference:
 - **Backtest**: `when` is set to each historical timeframe timestamp, advancing deterministically
@@ -296,27 +144,7 @@ Both modes use the same `StrategyCoreService.tick()` and `ClientStrategy` implem
 
 Walker mode demonstrates nested context usage:
 
-```mermaid
-graph TB
-    WALK_START["Walker.run(symbol, {walkerName})"]
-    WALK_MC["MethodContextService.runAsyncIterator()<br/>{strategyName: '', exchangeName: '', frameName: ''}"]
-    WALK_LOAD["Load walker schema<br/>Get list of strategies to test"]
-    WALK_FOR["for each strategyName in walker.strategies"]
-    
-    subgraph "Inner Backtest Context"
-        BT_MC["MethodContextService.runAsyncIterator()<br/>{strategyName, exchangeName, frameName}"]
-        BT_RUN["BacktestLogicPublicService.run()"]
-        BT_COMPLETE["Collect statistics"]
-    end
-    
-    WALK_START --> WALK_MC
-    WALK_MC --> WALK_LOAD
-    WALK_LOAD --> WALK_FOR
-    WALK_FOR --> BT_MC
-    BT_MC --> BT_RUN
-    BT_RUN --> BT_COMPLETE
-    BT_COMPLETE -.->|"next strategy"| WALK_FOR
-```
+![Mermaid Diagram](./diagrams\11_execution-contexts_3.svg)
 
 Walker establishes an outer MethodContext with empty schema names, then for each strategy creates a nested inner MethodContext with the specific strategyName/exchangeName/frameName. This allows each backtest to run in isolated context.
 

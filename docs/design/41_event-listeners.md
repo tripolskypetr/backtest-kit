@@ -19,111 +19,7 @@ The framework implements a comprehensive event-driven architecture using the Sub
 
 **Architecture Diagram**
 
-```mermaid
-graph TB
-    subgraph "Event Producers"
-        ClientStrategy["ClientStrategy<br/>(tick/backtest methods)"]
-        ClientRisk["ClientRisk<br/>(checkSignal)"]
-        ClientPartial["ClientPartial<br/>(profit/loss)"]
-        BacktestLogic["BacktestLogicPrivateService"]
-        LiveLogic["LiveLogicPrivateService"]
-        WalkerLogic["WalkerLogicPrivateService"]
-    end
-    
-    subgraph "Event Emitters (Subject instances)"
-        signalEmitter["signalEmitter<br/>(all signals)"]
-        signalLiveEmitter["signalLiveEmitter<br/>(live only)"]
-        signalBacktestEmitter["signalBacktestEmitter<br/>(backtest only)"]
-        errorEmitter["errorEmitter<br/>(recoverable errors)"]
-        exitEmitter["exitEmitter<br/>(fatal errors)"]
-        doneBacktestSubject["doneBacktestSubject"]
-        doneLiveSubject["doneLiveSubject"]
-        doneWalkerSubject["doneWalkerSubject"]
-        progressBacktestEmitter["progressBacktestEmitter"]
-        progressWalkerEmitter["progressWalkerEmitter"]
-        performanceEmitter["performanceEmitter"]
-        walkerEmitter["walkerEmitter"]
-        walkerCompleteSubject["walkerCompleteSubject"]
-        riskSubject["riskSubject"]
-        partialProfitSubject["partialProfitSubject"]
-        partialLossSubject["partialLossSubject"]
-    end
-    
-    subgraph "Listener Functions (Public API)"
-        listenSignal["listenSignal()"]
-        listenSignalOnce["listenSignalOnce()"]
-        listenSignalLive["listenSignalLive()"]
-        listenSignalBacktest["listenSignalBacktest()"]
-        listenError["listenError()"]
-        listenExit["listenExit()"]
-        listenDoneBacktest["listenDoneBacktest()"]
-        listenDoneLive["listenDoneLive()"]
-        listenDoneWalker["listenDoneWalker()"]
-        listenBacktestProgress["listenBacktestProgress()"]
-        listenPerformance["listenPerformance()"]
-        listenWalker["listenWalker()"]
-        listenRisk["listenRisk()"]
-        listenPartialProfit["listenPartialProfit()"]
-        listenPartialLoss["listenPartialLoss()"]
-    end
-    
-    subgraph "Queued Processing"
-        queued["functools-kit queued()<br/>Sequential async execution"]
-    end
-    
-    ClientStrategy --> signalEmitter
-    ClientStrategy --> signalLiveEmitter
-    ClientStrategy --> signalBacktestEmitter
-    
-    ClientRisk --> riskSubject
-    ClientPartial --> partialProfitSubject
-    ClientPartial --> partialLossSubject
-    
-    BacktestLogic --> progressBacktestEmitter
-    BacktestLogic --> doneBacktestSubject
-    BacktestLogic --> performanceEmitter
-    
-    LiveLogic --> doneLiveSubject
-    LiveLogic --> performanceEmitter
-    
-    WalkerLogic --> progressWalkerEmitter
-    WalkerLogic --> walkerEmitter
-    WalkerLogic --> walkerCompleteSubject
-    WalkerLogic --> doneWalkerSubject
-    
-    BacktestLogic --> errorEmitter
-    LiveLogic --> errorEmitter
-    WalkerLogic --> exitEmitter
-    
-    signalEmitter --> listenSignal
-    signalEmitter --> listenSignalOnce
-    signalLiveEmitter --> listenSignalLive
-    signalBacktestEmitter --> listenSignalBacktest
-    errorEmitter --> listenError
-    exitEmitter --> listenExit
-    doneBacktestSubject --> listenDoneBacktest
-    doneLiveSubject --> listenDoneLive
-    doneWalkerSubject --> listenDoneWalker
-    progressBacktestEmitter --> listenBacktestProgress
-    performanceEmitter --> listenPerformance
-    walkerEmitter --> listenWalker
-    riskSubject --> listenRisk
-    partialProfitSubject --> listenPartialProfit
-    partialLossSubject --> listenPartialLoss
-    
-    listenSignal --> queued
-    listenSignalLive --> queued
-    listenSignalBacktest --> queued
-    listenError --> queued
-    listenDoneBacktest --> queued
-    listenDoneLive --> queued
-    listenBacktestProgress --> queued
-    listenPerformance --> queued
-    listenWalker --> queued
-    listenRisk --> queued
-    listenPartialProfit --> queued
-    listenPartialLoss --> queued
-```
+![Mermaid Diagram](./diagrams\41_event-listeners_0.svg)
 
 
 ---
@@ -162,60 +58,11 @@ All listener functions are exported from `src/function/event.ts` and accept call
 
 **Signal Listeners**
 
-```mermaid
-graph LR
-    subgraph "Global Signal Listeners"
-        listenSignal["listenSignal(fn)<br/>Returns: unsubscribe()"]
-        listenSignalOnce["listenSignalOnce(filterFn, fn)<br/>Returns: cancel()"]
-    end
-    
-    subgraph "Mode-Specific Signal Listeners"
-        listenSignalLive["listenSignalLive(fn)"]
-        listenSignalLiveOnce["listenSignalLiveOnce(filterFn, fn)"]
-        listenSignalBacktest["listenSignalBacktest(fn)"]
-        listenSignalBacktestOnce["listenSignalBacktestOnce(filterFn, fn)"]
-    end
-    
-    subgraph "Event Flow"
-        signalEmitter["signalEmitter<br/>(Subject)"]
-        signalLiveEmitter["signalLiveEmitter"]
-        signalBacktestEmitter["signalBacktestEmitter"]
-    end
-    
-    signalEmitter --> listenSignal
-    signalEmitter --> listenSignalOnce
-    signalLiveEmitter --> listenSignalLive
-    signalLiveEmitter --> listenSignalLiveOnce
-    signalBacktestEmitter --> listenSignalBacktest
-    signalBacktestEmitter --> listenSignalBacktestOnce
-```
+![Mermaid Diagram](./diagrams\41_event-listeners_1.svg)
 
 **Completion Listeners**
 
-```mermaid
-graph LR
-    subgraph "Done Event Listeners"
-        listenDoneLive["listenDoneLive(fn)"]
-        listenDoneLiveOnce["listenDoneLiveOnce(filterFn, fn)"]
-        listenDoneBacktest["listenDoneBacktest(fn)"]
-        listenDoneBacktestOnce["listenDoneBacktestOnce(filterFn, fn)"]
-        listenDoneWalker["listenDoneWalker(fn)"]
-        listenDoneWalkerOnce["listenDoneWalkerOnce(filterFn, fn)"]
-    end
-    
-    subgraph "Emitters"
-        doneLiveSubject["doneLiveSubject"]
-        doneBacktestSubject["doneBacktestSubject"]
-        doneWalkerSubject["doneWalkerSubject"]
-    end
-    
-    doneLiveSubject --> listenDoneLive
-    doneLiveSubject --> listenDoneLiveOnce
-    doneBacktestSubject --> listenDoneBacktest
-    doneBacktestSubject --> listenDoneBacktestOnce
-    doneWalkerSubject --> listenDoneWalker
-    doneWalkerSubject --> listenDoneWalkerOnce
-```
+![Mermaid Diagram](./diagrams\41_event-listeners_2.svg)
 
 **Progress and Monitoring Listeners**
 
@@ -259,17 +106,7 @@ Event contracts define the structure of data passed to listener callbacks. All c
 
 The `IStrategyTickResult` is a discriminated union representing all signal states:
 
-```mermaid
-graph TD
-    IStrategyTickResult["IStrategyTickResult<br/>(Discriminated Union)"]
-    
-    IStrategyTickResult --> IStrategyTickResultIdle["IStrategyTickResultIdle<br/>action: 'idle'<br/>signal: null<br/>currentPrice"]
-    IStrategyTickResult --> IStrategyTickResultScheduled["IStrategyTickResultScheduled<br/>action: 'scheduled'<br/>signal: IScheduledSignalRow<br/>currentPrice"]
-    IStrategyTickResult --> IStrategyTickResultOpened["IStrategyTickResultOpened<br/>action: 'opened'<br/>signal: ISignalRow<br/>currentPrice"]
-    IStrategyTickResult --> IStrategyTickResultActive["IStrategyTickResultActive<br/>action: 'active'<br/>signal: ISignalRow<br/>currentPrice, percentTp, percentSl"]
-    IStrategyTickResult --> IStrategyTickResultClosed["IStrategyTickResultClosed<br/>action: 'closed'<br/>signal: ISignalRow<br/>currentPrice, closeReason, pnl"]
-    IStrategyTickResult --> IStrategyTickResultCancelled["IStrategyTickResultCancelled<br/>action: 'cancelled'<br/>signal: IScheduledSignalRow<br/>currentPrice, closeTimestamp"]
-```
+![Mermaid Diagram](./diagrams\41_event-listeners_3.svg)
 
 **DoneContract**
 
@@ -573,21 +410,7 @@ listenExit((error) => {
 
 All listener callbacks are wrapped with `queued` from `functools-kit` to ensure sequential async execution. This prevents race conditions when multiple events arrive rapidly or when callbacks contain async operations.
 
-```mermaid
-sequenceDiagram
-    participant Emitter as signalEmitter
-    participant Queue as queued() Wrapper
-    participant Callback1 as Callback Execution 1
-    participant Callback2 as Callback Execution 2
-    
-    Emitter->>Queue: emit(event1)
-    Queue->>Callback1: Start async callback(event1)
-    Emitter->>Queue: emit(event2)
-    Note over Queue: Event2 waits in queue
-    Callback1-->>Queue: Complete
-    Queue->>Callback2: Start async callback(event2)
-    Callback2-->>Queue: Complete
-```
+![Mermaid Diagram](./diagrams\41_event-listeners_4.svg)
 
 **How It Works:**
 
@@ -664,19 +487,7 @@ listenSignalOnce(
 
 Markdown services subscribe to emitters to accumulate event data for report generation. For example, `BacktestMarkdownService` subscribes to `signalBacktestEmitter`:
 
-```mermaid
-graph LR
-    ClientStrategy["ClientStrategy.tick()"]
-    signalBacktestEmitter["signalBacktestEmitter.emit()"]
-    BacktestMarkdownService["BacktestMarkdownService<br/>(ReportStorage)"]
-    
-    ClientStrategy --> signalBacktestEmitter
-    signalBacktestEmitter --> BacktestMarkdownService
-    
-    BacktestMarkdownService --> getData["getData()<br/>Returns statistics"]
-    BacktestMarkdownService --> getReport["getReport()<br/>Returns markdown"]
-    BacktestMarkdownService --> dump["dump()<br/>Writes file"]
-```
+![Mermaid Diagram](./diagrams\41_event-listeners_5.svg)
 
 Each markdown service maintains a `ReportStorage` instance that stores up to 250 events per `symbol:strategyName` key to prevent memory bloat during long-running executions.
 

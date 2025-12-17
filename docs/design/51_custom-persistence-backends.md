@@ -17,41 +17,7 @@ For information about the built-in persistence system and crash recovery mechani
 
 The persistence layer in Backtest Kit follows a pluggable adapter pattern, allowing custom storage backends to be seamlessly integrated without modifying core framework code.
 
-```mermaid
-graph TB
-    subgraph "Client Layer"
-        CS["ClientStrategy"]
-    end
-    
-    subgraph "Persistence Layer"
-        PSA["PersistSignalAdapter<br/>(Framework Adapter)"]
-        PB["PersistBase<br/>(Abstract Interface)"]
-    end
-    
-    subgraph "Built-in Implementation"
-        FILE["PersistFile<br/>(Default File Storage)"]
-    end
-    
-    subgraph "Custom Implementations"
-        REDIS["PersistRedis<br/>(Custom Redis Backend)"]
-        MONGO["PersistMongo<br/>(Custom MongoDB Backend)"]
-        SQL["PersistPostgres<br/>(Custom SQL Backend)"]
-    end
-    
-    CS -->|"setPendingSignal()"| PSA
-    CS -->|"waitForInit()"| PSA
-    
-    PSA -->|"extends"| PB
-    
-    FILE -.->|"extends"| PB
-    REDIS -.->|"extends"| PB
-    MONGO -.->|"extends"| PB
-    SQL -.->|"extends"| PB
-    
-    PSA -->|"writeSignalData()"| FILE
-    PSA -->|"readSignalData()"| FILE
-    PSA -->|"deleteSignalData()"| FILE
-```
+![Mermaid Diagram](./diagrams\51_custom-persistence-backends_0.svg)
 
 **Persistence Architecture**
 
@@ -69,38 +35,7 @@ The `ClientStrategy` class uses `PersistSignalAdapter` for all persistence opera
 
 Custom persistence backends must implement the `PersistBase` interface, which defines three core methods for signal lifecycle management:
 
-```mermaid
-classDiagram
-    class PersistBase {
-        <<interface>>
-        +writeSignalData(symbol: string, strategyName: string, data: ISignalRow) Promise~void~
-        +readSignalData(symbol: string, strategyName: string) Promise~ISignalRow | null~
-        +deleteSignalData(symbol: string, strategyName: string) Promise~void~
-    }
-    
-    class PersistSignalAdapter {
-        -persistBase: PersistBase
-        -initPromise: Map~string, Promise~ISignalRow~
-        +waitForInit(symbol: string, strategyName: string) Promise~ISignalRow~
-        +setPendingSignal(symbol: string, strategyName: string, data: ISignalRow) Promise~void~
-        +deletePendingSignal(symbol: string, strategyName: string) Promise~void~
-    }
-    
-    class ISignalRow {
-        <<interface>>
-        +id: string
-        +position: "long" | "short"
-        +priceOpen: number
-        +priceTakeProfit: number
-        +priceStopLoss: number
-        +openTimestamp: number
-        +...more fields
-    }
-    
-    PersistSignalAdapter --> PersistBase : delegates to
-    PersistSignalAdapter ..> ISignalRow : reads/writes
-    PersistBase ..> ISignalRow : serializes
-```
+![Mermaid Diagram](./diagrams\51_custom-persistence-backends_1.svg)
 
 **PersistBase Interface Contract**
 
@@ -134,44 +69,7 @@ Implementations must serialize/deserialize this object correctly, preserving num
 
 The default `PersistFile` implementation provides a reference for custom backends:
 
-```mermaid
-sequenceDiagram
-    participant CS as ClientStrategy
-    participant PSA as PersistSignalAdapter
-    participant PF as PersistFile
-    participant FS as File System
-    
-    Note over CS,FS: Signal Opening Flow
-    CS->>PSA: setPendingSignal(symbol, strategy, data)
-    PSA->>PF: writeSignalData(symbol, strategy, data)
-    PF->>PF: Build file path: ./data/{strategy}/{symbol}.json
-    PF->>FS: Write JSON atomically (tmp + rename)
-    FS-->>PF: Write complete
-    PF-->>PSA: Success
-    PSA-->>CS: Persisted
-    
-    Note over CS,FS: Crash Recovery Flow
-    CS->>PSA: waitForInit(symbol, strategy)
-    PSA->>PF: readSignalData(symbol, strategy)
-    PF->>FS: Read ./data/{strategy}/{symbol}.json
-    alt File exists
-        FS-->>PF: JSON content
-        PF->>PF: Parse JSON to ISignalRow
-        PF-->>PSA: ISignalRow
-    else File not found
-        FS-->>PF: File not found
-        PF-->>PSA: null
-    end
-    PSA-->>CS: Restored signal or null
-    
-    Note over CS,FS: Signal Closing Flow
-    CS->>PSA: deletePendingSignal(symbol, strategy)
-    PSA->>PF: deleteSignalData(symbol, strategy)
-    PF->>FS: Delete ./data/{strategy}/{symbol}.json
-    FS-->>PF: Deleted
-    PF-->>PSA: Success
-    PSA-->>CS: Removed
-```
+![Mermaid Diagram](./diagrams\51_custom-persistence-backends_2.svg)
 
 **File-Based Persistence Flow**
 
@@ -205,27 +103,7 @@ Each strategy gets its own directory to organize signals. The composite key `(st
 
 Redis is ideal for live trading due to its speed and built-in data expiration features:
 
-```mermaid
-graph LR
-    subgraph "Redis Data Model"
-        KEY["Key Format:<br/>signal:{strategyName}:{symbol}"]
-        VALUE["Value: JSON String<br/>{id, position, priceOpen, ...}"]
-        TTL["TTL: Optional expiration<br/>(e.g., 7 days)"]
-    end
-    
-    KEY --> VALUE
-    VALUE --> TTL
-    
-    subgraph "Operations"
-        SET["SET signal:strategy1:BTCUSDT '{...}'"]
-        GET["GET signal:strategy1:BTCUSDT"]
-        DEL["DEL signal:strategy1:BTCUSDT"]
-    end
-    
-    subgraph "Atomicity"
-        ATOMIC["Redis commands are atomic<br/>No need for transactions"]
-    end
-```
+![Mermaid Diagram](./diagrams\51_custom-persistence-backends_3.svg)
 
 **Redis Persistence Schema**
 
@@ -313,41 +191,7 @@ const persistRedis = new PersistRedis(redisClient, 7 * 24 * 3600); // 7-day TTL
 
 MongoDB provides rich query capabilities and automatic schema evolution:
 
-```mermaid
-graph TB
-    subgraph "MongoDB Schema"
-        COLL["Collection: signals"]
-        DOC["Document Structure"]
-    end
-    
-    subgraph "Document Fields"
-        ID["_id: ObjectId (auto-generated)"]
-        COMP["compositeKey: 'strategy1:BTCUSDT'"]
-        STRAT["strategyName: 'strategy1'"]
-        SYM["symbol: 'BTCUSDT'"]
-        DATA["signalData: { id, position, priceOpen, ... }"]
-        TS["updatedAt: ISODate (auto)"]
-    end
-    
-    subgraph "Indexes"
-        IDX1["Unique index on compositeKey"]
-        IDX2["Index on strategyName + symbol"]
-        IDX3["TTL index on updatedAt (optional)"]
-    end
-    
-    COLL --> DOC
-    DOC --> ID
-    DOC --> COMP
-    DOC --> STRAT
-    DOC --> SYM
-    DOC --> DATA
-    DOC --> TS
-    
-    IDX1 -.->|"enforces"| COMP
-    IDX2 -.->|"optimizes"| STRAT
-    IDX2 -.->|"optimizes"| SYM
-    IDX3 -.->|"auto-deletes"| TS
-```
+![Mermaid Diagram](./diagrams\51_custom-persistence-backends_4.svg)
 
 **MongoDB Document Schema**
 
@@ -452,19 +296,7 @@ The TTL index uses MongoDB's native expiration feature to clean up abandoned sig
 
 PostgreSQL provides ACID guarantees and relational integrity:
 
-```mermaid
-erDiagram
-    SIGNALS {
-        serial id PK
-        varchar strategy_name
-        varchar symbol
-        jsonb signal_data
-        timestamp created_at
-        timestamp updated_at
-    }
-    
-    SIGNALS ||--o{ UNIQUE_CONSTRAINT : "strategy_name + symbol"
-```
+![Mermaid Diagram](./diagrams\51_custom-persistence-backends_5.svg)
 
 **PostgreSQL Table Schema**
 
@@ -593,31 +425,7 @@ async writeMultipleSignals(signals: Array<{
 
 To use a custom persistence backend, you need to instantiate your implementation and pass it to the framework during initialization:
 
-```mermaid
-sequenceDiagram
-    participant USER as User Code
-    participant FACTORY as PersistFactory (Hypothetical)
-    participant CUSTOM as Custom PersistBase
-    participant PSA as PersistSignalAdapter
-    participant CS as ClientStrategy
-    
-    USER->>FACTORY: createPersistAdapter(customBackend)
-    FACTORY->>CUSTOM: new PersistRedis(config)
-    FACTORY->>PSA: new PersistSignalAdapter(customBackend)
-    
-    Note over USER,CS: Framework uses adapter internally
-    
-    USER->>CS: Live.run() or Backtest.run()
-    CS->>PSA: waitForInit(symbol, strategy)
-    PSA->>CUSTOM: readSignalData(symbol, strategy)
-    CUSTOM-->>PSA: ISignalRow or null
-    PSA-->>CS: Restored state
-    
-    CS->>PSA: setPendingSignal(symbol, strategy, data)
-    PSA->>CUSTOM: writeSignalData(symbol, strategy, data)
-    CUSTOM-->>PSA: Success
-    PSA-->>CS: Persisted
-```
+![Mermaid Diagram](./diagrams\51_custom-persistence-backends_6.svg)
 
 **Custom Backend Integration Flow**
 
@@ -700,25 +508,7 @@ else {
 
 All persistence operations must be **atomic** to prevent data corruption during crashes:
 
-```mermaid
-graph TB
-    subgraph "Atomic Write Strategies"
-        REDIS["Redis:<br/>Single SET command<br/>(native atomicity)"]
-        MONGO["MongoDB:<br/>updateOne with upsert<br/>(native atomicity)"]
-        SQL["SQL:<br/>INSERT...ON CONFLICT<br/>(native atomicity)"]
-        FILE["File System:<br/>write-tmp + rename<br/>(POSIX atomicity)"]
-    end
-    
-    subgraph "Anti-Patterns"
-        MULTI["Multiple separate commands"]
-        CHECK["Read-check-write pattern"]
-        CACHE["Write to cache then flush"]
-    end
-    
-    REDIS -.->|"Avoid"| MULTI
-    MONGO -.->|"Avoid"| CHECK
-    SQL -.->|"Avoid"| CACHE
-```
+![Mermaid Diagram](./diagrams\51_custom-persistence-backends_7.svg)
 
 **Atomic Write Strategies by Backend**
 
@@ -771,30 +561,7 @@ async function testAtomicity(persist: PersistBase) {
 
 Persistence failures should be **propagated** to the framework's event system, not silently swallowed:
 
-```mermaid
-sequenceDiagram
-    participant CS as ClientStrategy
-    participant PSA as PersistSignalAdapter
-    participant CUSTOM as Custom Backend
-    participant STORAGE as Storage System
-    participant ERR as errorEmitter
-    
-    CS->>PSA: setPendingSignal(data)
-    PSA->>CUSTOM: writeSignalData(data)
-    CUSTOM->>STORAGE: Write operation
-    
-    alt Storage Success
-        STORAGE-->>CUSTOM: OK
-        CUSTOM-->>PSA: Success
-        PSA-->>CS: Persisted
-    else Storage Failure
-        STORAGE-->>CUSTOM: Connection error
-        CUSTOM->>CUSTOM: Throw error
-        CUSTOM-->>PSA: Error thrown
-        PSA->>ERR: Emit error event
-        PSA-->>CS: Error propagated
-    end
-```
+![Mermaid Diagram](./diagrams\51_custom-persistence-backends_8.svg)
 
 **Error Handling Flow**
 
@@ -850,26 +617,7 @@ listenError((error) => {
 
 Custom backends must handle **high-frequency writes** during backtests and **low-latency reads** during live trading:
 
-```mermaid
-graph LR
-    subgraph "Performance Metrics"
-        BT["Backtest Mode:<br/>Thousands of writes/sec<br/>(fast mode)"]
-        LIVE["Live Mode:<br/>1 read on startup<br/>1 write per signal<br/>1 delete on close"]
-    end
-    
-    subgraph "Optimization Techniques"
-        BATCH["Batch writes in backtest"]
-        CACHE["Cache reads in memory"]
-        ASYNC["Non-blocking async I/O"]
-        POOL["Connection pooling"]
-    end
-    
-    BT --> BATCH
-    LIVE --> CACHE
-    BATCH --> ASYNC
-    CACHE --> ASYNC
-    ASYNC --> POOL
-```
+![Mermaid Diagram](./diagrams\51_custom-persistence-backends_9.svg)
 
 **Performance Optimization Strategies**
 
@@ -985,33 +733,7 @@ Target performance for live trading:
 
 Comprehensive testing ensures your custom backend handles crash recovery correctly:
 
-```mermaid
-graph TB
-    subgraph "Test Categories"
-        UNIT["Unit Tests:<br/>Read/Write/Delete operations"]
-        INTEG["Integration Tests:<br/>Actual storage system"]
-        CRASH["Crash Recovery Tests:<br/>Process restarts"]
-        RACE["Race Condition Tests:<br/>Concurrent operations"]
-    end
-    
-    subgraph "Test Scenarios"
-        HAPPY["Happy path:<br/>Normal signal lifecycle"]
-        NOTFOUND["Not found:<br/>Read nonexistent signal"]
-        OVERWRITE["Overwrite:<br/>Update existing signal"]
-        DELETE["Delete idempotency:<br/>Delete twice"]
-        CRASH_BEFORE["Crash before write:<br/>Data not persisted"]
-        CRASH_DURING["Crash during write:<br/>Atomic guarantee"]
-        CRASH_AFTER["Crash after write:<br/>Data restored"]
-    end
-    
-    UNIT --> HAPPY
-    UNIT --> NOTFOUND
-    INTEG --> OVERWRITE
-    INTEG --> DELETE
-    CRASH --> CRASH_BEFORE
-    CRASH --> CRASH_DURING
-    CRASH --> CRASH_AFTER
-```
+![Mermaid Diagram](./diagrams\51_custom-persistence-backends_10.svg)
 
 **Test Coverage Matrix**
 

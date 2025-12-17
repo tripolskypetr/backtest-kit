@@ -17,50 +17,7 @@ Statistics models are immutable data structures returned by `getData()` methods 
 
 ### Statistics Model Hierarchy
 
-```mermaid
-graph TD
-    subgraph "Backtest & Live Statistics"
-        BSM["BacktestStatisticsModel"]
-        LSM["LiveStatisticsModel"]
-        BSM_Fields["signalList: IStrategyTickResultClosed[]<br/>totalSignals: number<br/>winCount: number<br/>lossCount: number<br/>winRate: number | null<br/>avgPnl: number | null<br/>totalPnl: number | null<br/>stdDev: number | null<br/>sharpeRatio: number | null<br/>annualizedSharpeRatio: number | null<br/>certaintyRatio: number | null<br/>expectedYearlyReturns: number | null"]
-        LSM_Fields["Same as BacktestStatisticsModel<br/>but includes live-only events"]
-    end
-    
-    subgraph "Walker Statistics"
-        WSM["WalkerStatisticsModel"]
-        WSM_Fields["walkerName: WalkerName<br/>symbol: string<br/>exchangeName: ExchangeName<br/>frameName: FrameName<br/>metric: WalkerMetric<br/>totalStrategies: number<br/>bestStrategy: StrategyName | null<br/>bestMetric: number | null<br/>bestStats: BacktestStatisticsModel | null<br/>strategyResults: IStrategyResult[]"]
-        STRAT_RES["IStrategyResult"]
-        STRAT_RES_Fields["strategyName: StrategyName<br/>stats: BacktestStatisticsModel<br/>metricValue: number | null"]
-    end
-    
-    subgraph "Auxiliary Statistics"
-        SCHED["ScheduleStatisticsModel"]
-        SCHED_Fields["eventList: ScheduledEvent[]<br/>totalEvents: number<br/>totalScheduled: number<br/>totalOpened: number<br/>totalCancelled: number<br/>cancellationRate: number | null<br/>activationRate: number | null<br/>avgWaitTime: number | null<br/>avgActivationTime: number | null"]
-        
-        RISK["RiskStatisticsModel"]
-        RISK_Fields["eventList: RiskEvent[]<br/>totalRejections: number<br/>bySymbol: Record<string, number><br/>byStrategy: Record<string, number>"]
-        
-        PARTIAL["PartialStatisticsModel"]
-        PARTIAL_Fields["profitEvents: PartialProfitContract[]<br/>lossEvents: PartialLossContract[]<br/>totalProfitEvents: number<br/>totalLossEvents: number<br/>byLevel: Record<PartialLevel, number>"]
-        
-        PERF["PerformanceStatisticsModel"]
-        PERF_Fields["events: PerformanceContract[]<br/>totalEvents: number<br/>byMetricType: Record<PerformanceMetricType, {...}>"]
-        
-        HEAT["HeatmapStatisticsModel"]
-        HEAT_Fields["rows: IHeatmapRow[]<br/>totalRows: number<br/>aggregated statistics across symbols"]
-    end
-    
-    BSM --> BSM_Fields
-    LSM --> LSM_Fields
-    WSM --> WSM_Fields
-    WSM --> STRAT_RES
-    STRAT_RES --> STRAT_RES_Fields
-    SCHED --> SCHED_Fields
-    RISK --> RISK_Fields
-    PARTIAL --> PARTIAL_Fields
-    PERF --> PERF_Fields
-    HEAT --> HEAT_Fields
-```
+![Mermaid Diagram](./diagrams\62_statistics-contract-types_0.svg)
 
 
 ---
@@ -166,23 +123,7 @@ Aggregates results from walker comparisons, ranking multiple strategies by a cho
 
 ### Structure
 
-```mermaid
-graph LR
-    WSM["WalkerStatisticsModel"]
-    WCC["extends WalkerCompleteContract"]
-    STRAT_RES["strategyResults: IStrategyResult[]"]
-    
-    FIELDS["walkerName: WalkerName<br/>symbol: string<br/>exchangeName: ExchangeName<br/>frameName: FrameName<br/>metric: WalkerMetric<br/>totalStrategies: number<br/>bestStrategy: StrategyName | null<br/>bestMetric: number | null<br/>bestStats: BacktestStatisticsModel | null"]
-    
-    STRAT["IStrategyResult"]
-    STRAT_FIELDS["strategyName: StrategyName<br/>stats: BacktestStatisticsModel<br/>metricValue: number | null"]
-    
-    WSM --> WCC
-    WSM --> STRAT_RES
-    WSM --> FIELDS
-    STRAT_RES --> STRAT
-    STRAT --> STRAT_FIELDS
-```
+![Mermaid Diagram](./diagrams\62_statistics-contract-types_1.svg)
 
 ### IStrategyResult
 
@@ -357,72 +298,7 @@ Contract types define the payload structures emitted by event subjects. These ty
 
 ### Contract Type to Emitter Mapping
 
-```mermaid
-graph TD
-    subgraph "Signal Events"
-        SIG_EMT["signalEmitter<br/>signalBacktestEmitter<br/>signalLiveEmitter"]
-        SIG_TYPE["IStrategyTickResult"]
-    end
-    
-    subgraph "Completion Events"
-        DONE_EMT["doneLiveSubject<br/>doneBacktestSubject<br/>doneWalkerSubject"]
-        DONE_TYPE["DoneContract"]
-    end
-    
-    subgraph "Progress Events"
-        PROG_BT["progressBacktestEmitter"]
-        PROG_BT_TYPE["ProgressBacktestContract"]
-        PROG_WALK["progressWalkerEmitter"]
-        PROG_WALK_TYPE["ProgressWalkerContract"]
-        PROG_OPT["progressOptimizerEmitter"]
-        PROG_OPT_TYPE["ProgressOptimizerContract"]
-    end
-    
-    subgraph "Performance Events"
-        PERF_EMT["performanceEmitter"]
-        PERF_TYPE["PerformanceContract"]
-    end
-    
-    subgraph "Walker Events"
-        WALK_EMT["walkerEmitter"]
-        WALK_TYPE["WalkerContract"]
-        WALK_COMP["walkerCompleteSubject"]
-        WALK_COMP_TYPE["WalkerCompleteContract"]
-    end
-    
-    subgraph "Partial Events"
-        PP_EMT["partialProfitSubject"]
-        PP_TYPE["PartialProfitContract"]
-        PL_EMT["partialLossSubject"]
-        PL_TYPE["PartialLossContract"]
-    end
-    
-    subgraph "Risk Events"
-        RISK_EMT["riskSubject"]
-        RISK_TYPE["RiskContract"]
-    end
-    
-    subgraph "Error Events"
-        ERR_EMT["errorEmitter"]
-        ERR_TYPE["Error"]
-        EXIT_EMT["exitEmitter"]
-        EXIT_TYPE["Error"]
-    end
-    
-    SIG_EMT --> SIG_TYPE
-    DONE_EMT --> DONE_TYPE
-    PROG_BT --> PROG_BT_TYPE
-    PROG_WALK --> PROG_WALK_TYPE
-    PROG_OPT --> PROG_OPT_TYPE
-    PERF_EMT --> PERF_TYPE
-    WALK_EMT --> WALK_TYPE
-    WALK_COMP --> WALK_COMP_TYPE
-    PP_EMT --> PP_TYPE
-    PL_EMT --> PL_TYPE
-    RISK_EMT --> RISK_TYPE
-    ERR_EMT --> ERR_TYPE
-    EXIT_EMT --> EXIT_TYPE
-```
+![Mermaid Diagram](./diagrams\62_statistics-contract-types_2.svg)
 
 
 ---
@@ -786,52 +662,7 @@ console.log(`Sharpe Ratio: ${displaySharpe}`);
 
 ## Statistics Generation Flow
 
-```mermaid
-graph TD
-    subgraph "Execution"
-        EXEC["Strategy Execution<br/>(tick/backtest methods)"]
-        EMIT["Event Emission<br/>(signalEmitter, etc.)"]
-    end
-    
-    subgraph "Markdown Services"
-        BT_MD["BacktestMarkdownService"]
-        LIVE_MD["LiveMarkdownService"]
-        WALK_MD["WalkerMarkdownService"]
-        SCHED_MD["ScheduleMarkdownService"]
-        RISK_MD["RiskMarkdownService"]
-        PART_MD["PartialMarkdownService"]
-        PERF_MD["PerformanceMarkdownService"]
-    end
-    
-    subgraph "Storage"
-        STORAGE["ReportStorage<br/>In-memory event accumulation<br/>Max 250 events per key"]
-    end
-    
-    subgraph "API Access"
-        GET_DATA["Backtest.getData()<br/>Live.getData()<br/>Walker.getData()<br/>etc."]
-        MODELS["BacktestStatisticsModel<br/>LiveStatisticsModel<br/>WalkerStatisticsModel<br/>etc."]
-    end
-    
-    EXEC --> EMIT
-    EMIT -->|"signalBacktestEmitter"| BT_MD
-    EMIT -->|"signalLiveEmitter"| LIVE_MD
-    EMIT -->|"walkerEmitter"| WALK_MD
-    EMIT -->|"signalEmitter (scheduled/cancelled)"| SCHED_MD
-    EMIT -->|"riskSubject"| RISK_MD
-    EMIT -->|"partialProfitSubject/partialLossSubject"| PART_MD
-    EMIT -->|"performanceEmitter"| PERF_MD
-    
-    BT_MD --> STORAGE
-    LIVE_MD --> STORAGE
-    WALK_MD --> STORAGE
-    SCHED_MD --> STORAGE
-    RISK_MD --> STORAGE
-    PART_MD --> STORAGE
-    PERF_MD --> STORAGE
-    
-    STORAGE --> GET_DATA
-    GET_DATA --> MODELS
-```
+![Mermaid Diagram](./diagrams\62_statistics-contract-types_3.svg)
 
 **Flow Description:**
 

@@ -28,31 +28,7 @@ A **strategy** in Backtest Kit is a self-contained module that generates trading
 
 ### Strategy Development Flow
 
-```mermaid
-graph TD
-    Define["Define Strategy Schema<br/>(IStrategySchema)"]
-    Implement["Implement getSignal Function<br/>Returns ISignalDto | null"]
-    Register["Register via addStrategy()<br/>Stores in StrategySchemaService"]
-    Execute["Execute via Backtest/Live/Walker<br/>Creates ClientStrategy instance"]
-    Tick["tick() Method<br/>Throttled by interval"]
-    GetSignal["Call getSignal()<br/>with symbol, when"]
-    Validate["Multi-Stage Validation<br/>VALIDATE_SIGNAL_FN"]
-    Risk["Risk Check<br/>IRisk.checkSignal()"]
-    Monitor["Signal Monitoring<br/>TP/SL/time_expired"]
-    
-    Define --> Implement
-    Implement --> Register
-    Register --> Execute
-    Execute --> Tick
-    Tick --> GetSignal
-    GetSignal --> Validate
-    Validate --> Risk
-    Risk --> Monitor
-    
-    style Define fill:#f9f9f9
-    style Execute fill:#f9f9f9
-    style GetSignal fill:#f9f9f9
-```
+![Mermaid Diagram](./diagrams\25_strategy-development_0.svg)
 
 
 ## Strategy Anatomy: Core Components
@@ -61,25 +37,7 @@ graph TD
 
 The `IStrategySchema` interface defines the complete configuration for a trading strategy:
 
-```mermaid
-graph LR
-    Schema["IStrategySchema"]
-    Name["strategyName: string<br/>(unique identifier)"]
-    Interval["interval: SignalInterval<br/>(1m, 5m, 15m, 30m, 1h)"]
-    GetSignal["getSignal: Function<br/>(symbol, when) => Promise"]
-    Callbacks["callbacks?: Partial<br/>IStrategyCallbacks>"]
-    Risk["riskName?: string<br/>riskList?: string[]"]
-    Note["note?: string<br/>(developer documentation)"]
-    
-    Schema --> Name
-    Schema --> Interval
-    Schema --> GetSignal
-    Schema --> Callbacks
-    Schema --> Risk
-    Schema --> Note
-    
-    style Schema fill:#f9f9f9
-```
+![Mermaid Diagram](./diagrams\25_strategy-development_1.svg)
 
 
 ### Signal Data Transfer Object (ISignalDto)
@@ -171,34 +129,7 @@ addStrategy({
 
 ### Registration via addStrategy()
 
-```mermaid
-graph TD
-    User["Developer Code<br/>addStrategy(schema)"]
-    Validate["StrategyValidationService<br/>Check for duplicate names"]
-    Schema["StrategySchemaService<br/>Store in ToolRegistry"]
-    
-    User --> Validate
-    Validate --> Schema
-    
-    subgraph "Execution Phase (Later)"
-        BT["Backtest.run(symbol, config)"]
-        Method["MethodContextService.runAsyncIterator()<br/>Set strategyName context"]
-        Conn["StrategyConnectionService<br/>getStrategy(symbol, strategyName)"]
-        Client["ClientStrategy instance<br/>(memoized by symbol:strategyName)"]
-        Tick["tick() / backtest() methods<br/>Execute strategy logic"]
-        
-        BT --> Method
-        Method --> Conn
-        Conn --> Client
-        Client --> Tick
-    end
-    
-    Schema -.->|"Retrieved during execution"| Conn
-    
-    style User fill:#f9f9f9
-    style Schema fill:#f9f9f9
-    style Client fill:#f9f9f9
-```
+![Mermaid Diagram](./diagrams\25_strategy-development_2.svg)
 
 **Registration Process:**
 
@@ -210,49 +141,7 @@ graph TD
 
 ### Code Entity Mapping: Strategy Execution Path
 
-```mermaid
-graph TB
-    subgraph "Public API Layer"
-        addStrategy["addStrategy()<br/>src/function/add.ts"]
-        Backtest["Backtest.run()<br/>src/classes/Backtest.ts"]
-    end
-    
-    subgraph "Service Layer"
-        StrategySchema["StrategySchemaService<br/>src/lib/services/schema/"]
-        StrategyValidation["StrategyValidationService<br/>src/lib/services/validation/"]
-        StrategyConnection["StrategyConnectionService<br/>src/lib/services/connection/"]
-        MethodContext["MethodContextService<br/>src/lib/services/context/"]
-        ExecutionContext["ExecutionContextService<br/>src/lib/services/context/"]
-    end
-    
-    subgraph "Client Layer"
-        ClientStrategy["ClientStrategy<br/>src/client/ClientStrategy.ts"]
-        GET_SIGNAL_FN["GET_SIGNAL_FN<br/>lines 332-476"]
-        VALIDATE_SIGNAL_FN["VALIDATE_SIGNAL_FN<br/>lines 45-330"]
-    end
-    
-    subgraph "User-Defined Logic"
-        getSignal["getSignal(symbol, when)<br/>User implementation"]
-        callbacks["IStrategyCallbacks<br/>onOpen, onClose, etc."]
-    end
-    
-    addStrategy --> StrategyValidation
-    StrategyValidation --> StrategySchema
-    
-    Backtest --> MethodContext
-    MethodContext --> StrategyConnection
-    StrategyConnection --> ClientStrategy
-    
-    ClientStrategy --> ExecutionContext
-    ClientStrategy --> GET_SIGNAL_FN
-    GET_SIGNAL_FN --> getSignal
-    getSignal --> VALIDATE_SIGNAL_FN
-    VALIDATE_SIGNAL_FN --> callbacks
-    
-    style getSignal fill:#ffffcc
-    style callbacks fill:#ffffcc
-    style ClientStrategy fill:#f9f9f9
-```
+![Mermaid Diagram](./diagrams\25_strategy-development_3.svg)
 
 **Key Code Entities:**
 
@@ -273,61 +162,14 @@ graph TB
 
 ### tick() Method - Live Trading & Step-by-Step Backtest
 
-```mermaid
-graph TD
-    Start["tick(symbol, strategyName)"]
-    Throttle["Interval Throttling Check<br/>Last signal + interval < now?"]
-    GetSignal["GET_SIGNAL_FN<br/>Call user's getSignal()"]
-    Timeout["Timeout Check<br/>CC_MAX_SIGNAL_GENERATION_SECONDS"]
-    Validate["VALIDATE_SIGNAL_FN<br/>Price logic, TP/SL, lifetime"]
-    Risk["Risk.checkSignal()<br/>Portfolio limits"]
-    Active["Active Signal?"]
-    Monitor["Monitor TP/SL/time_expired<br/>Check current VWAP"]
-    Return["Return IStrategyTickResult<br/>idle, opened, active, closed"]
-    
-    Start --> Active
-    Active -->|No| Throttle
-    Active -->|Yes| Monitor
-    Throttle -->|Too soon| Return
-    Throttle -->|OK| GetSignal
-    GetSignal --> Timeout
-    Timeout -->|Success| Validate
-    Timeout -->|Timeout| Return
-    Validate --> Risk
-    Risk --> Return
-    Monitor --> Return
-    
-    style Start fill:#f9f9f9
-    style Return fill:#f9f9f9
-```
+![Mermaid Diagram](./diagrams\25_strategy-development_4.svg)
 
 **Used by:** Live.run(), Backtest.run() (minute-by-minute iteration)
 
 
 ### backtest() Method - Fast Historical Processing
 
-```mermaid
-graph TD
-    Start["backtest(symbol, strategyName, candles)"]
-    Signal["Signal from getSignal()"]
-    Scheduled{Is Scheduled Signal?}
-    ActivateLoop["Loop through candles<br/>Check priceOpen reached"]
-    TPSLLoop["Loop through remaining candles<br/>Check TP/SL hit"]
-    VWAP["Calculate VWAP per candle<br/>GET_AVG_PRICE_FN"]
-    Close["Signal closes<br/>Return IStrategyBacktestResult"]
-    
-    Start --> Signal
-    Signal --> Scheduled
-    Scheduled -->|Yes| ActivateLoop
-    Scheduled -->|No| TPSLLoop
-    ActivateLoop -->|Activated| TPSLLoop
-    ActivateLoop -->|Cancelled| Close
-    TPSLLoop --> VWAP
-    VWAP --> Close
-    
-    style Start fill:#f9f9f9
-    style Close fill:#f9f9f9
-```
+![Mermaid Diagram](./diagrams\25_strategy-development_5.svg)
 
 **Used by:** Backtest.run() (after signal opens, fast-forward through candles)
 
@@ -397,35 +239,7 @@ Strategies can create **scheduled signals** by specifying `priceOpen` in the ret
 
 ### Scheduled Signal Lifecycle
 
-```mermaid
-stateDiagram-v2
-    [*] --> getSignal: "Throttle OK"
-    getSignal --> Validation: "Returns ISignalDto<br/>with priceOpen"
-    Validation --> Scheduled: "Price not at priceOpen yet"
-    Validation --> Opened: "Price already at priceOpen<br/>(immediate activation)"
-    
-    Scheduled --> Monitoring: "Wait for activation"
-    Monitoring --> CheckSL: "Every tick"
-    CheckSL --> Cancelled: "SL hit before entry<br/>(scheduled signal cancelled)"
-    CheckSL --> CheckPrice: "SL not hit"
-    CheckPrice --> Cancelled: "Timeout<br/>(CC_SCHEDULE_AWAIT_MINUTES)"
-    CheckPrice --> Opened: "priceOpen reached<br/>(activate signal)"
-    
-    Opened --> Active: "Persist to storage<br/>Begin TP/SL monitoring"
-    Active --> Closed: "TP/SL/time_expired"
-    Cancelled --> [*]: "No PNL"
-    Closed --> [*]: "Calculate PNL"
-    
-    note right of Scheduled
-        Scheduled signals NOT persisted
-        Only active signals saved to storage
-    end note
-    
-    note right of CheckSL
-        CRITICAL: Check SL BEFORE priceOpen
-        Prevents "activate then immediately stop"
-    end note
-```
+![Mermaid Diagram](./diagrams\25_strategy-development_6.svg)
 
 **Key Differences from Immediate Signals:**
 

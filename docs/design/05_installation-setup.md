@@ -42,36 +42,7 @@ This installs the core framework with its runtime dependencies:
 
 ### Dependency Tree
 
-```mermaid
-graph TB
-    BK["backtest-kit<br/>(Core Framework)"]
-    
-    DI["di-kit<br/>^1.0.18"]
-    SCOPED["di-scoped<br/>^1.0.20"]
-    FUNC["functools-kit<br/>^1.0.94"]
-    MOMENT["get-moment-stamp<br/>^1.1.1"]
-    
-    TS["typescript<br/>^5.0.0<br/>(peer)"]
-    
-    BK --> DI
-    BK --> SCOPED
-    BK --> FUNC
-    BK --> MOMENT
-    BK -.-> TS
-    
-    DI_DESC["Provides TYPES registry<br/>and inject/provide functions"]
-    SCOPED_DESC["ExecutionContextService<br/>MethodContextService<br/>AsyncLocalStorage-based"]
-    FUNC_DESC["queued function wrapper<br/>for sequential event handling"]
-    MOMENT_DESC["Timestamp conversion utilities"]
-    
-    DI -.->|"implements"| DI_DESC
-    SCOPED -.->|"implements"| SCOPED_DESC
-    FUNC -.->|"implements"| FUNC_DESC
-    MOMENT -.->|"implements"| MOMENT_DESC
-    
-    style BK fill:#f9f9f9,stroke:#333,stroke-width:2px
-    style TS fill:#f9f9f9,stroke:#333,stroke-width:2px,stroke-dasharray: 5 5
-```
+![Mermaid Diagram](./diagrams\05_installation-setup_0.svg)
 
 **Dependency Roles:**
 - **di-kit**: Implements the TYPES symbol registry used in `src/lib/index.ts` and the `inject`/`provide` pattern
@@ -133,51 +104,7 @@ npm install --save-dev dotenv-cli
 
 ### Package Installation Flow
 
-```mermaid
-graph TD
-    START["npm init -y"]
-    
-    CORE["npm install backtest-kit"]
-    PEER["npm install -D typescript"]
-    
-    OPT_DATA["npm install ccxt"]
-    OPT_LLM["npm install ollama"]
-    OPT_UTIL["npm install uuid"]
-    OPT_DEV["npm install -D dotenv-cli"]
-    
-    VERIFY["npx tsc --version<br/>node --version"]
-    
-    SETUP["Create src/ directory<br/>Create index.ts entry point"]
-    
-    CONFIG["Configure tsconfig.json"]
-    
-    IMPORT["import { addExchange, addStrategy,<br/>Backtest, setLogger } from 'backtest-kit'"]
-    
-    READY["Ready to develop"]
-    
-    START --> CORE
-    CORE --> PEER
-    
-    PEER --> OPT_DATA
-    PEER --> OPT_LLM
-    PEER --> OPT_UTIL
-    PEER --> OPT_DEV
-    
-    OPT_DATA --> VERIFY
-    OPT_LLM --> VERIFY
-    OPT_UTIL --> VERIFY
-    OPT_DEV --> VERIFY
-    
-    VERIFY --> SETUP
-    SETUP --> CONFIG
-    CONFIG --> IMPORT
-    IMPORT --> READY
-    
-    style START fill:#f9f9f9,stroke:#333
-    style CORE fill:#f9f9f9,stroke:#333,stroke-width:2px
-    style PEER fill:#f9f9f9,stroke:#333,stroke-width:2px
-    style READY fill:#f9f9f9,stroke:#333,stroke-width:2px
-```
+![Mermaid Diagram](./diagrams\05_installation-setup_1.svg)
 
 **Installation Steps:**
 1. Initialize npm project with `package.json`

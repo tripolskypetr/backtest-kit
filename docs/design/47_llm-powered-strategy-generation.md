@@ -25,63 +25,7 @@ For information about the Optimizer system architecture, see [Optimizer System](
 
 The LLM strategy generation system consists of four main layers: schema registration, data collection, LLM interaction, and code generation. The `ClientOptimizer` orchestrates the entire workflow while `OptimizerTemplateService` provides the code generation templates.
 
-```mermaid
-graph TB
-    subgraph "Public API"
-        AddOptimizer["addOptimizer()<br/>IOptimizerSchema"]
-        OptimizerClass["Optimizer.getData()<br/>Optimizer.getCode()<br/>Optimizer.dump()"]
-    end
-    
-    subgraph "Service Layer"
-        OptimizerGlobal["OptimizerGlobalService<br/>Validation + delegation"]
-        OptimizerConnection["OptimizerConnectionService<br/>Memoized instances"]
-        OptimizerValidation["OptimizerValidationService<br/>Existence checks"]
-        OptimizerSchema["OptimizerSchemaService<br/>ToolRegistry storage"]
-    end
-    
-    subgraph "Client Layer"
-        ClientOptimizer["ClientOptimizer<br/>getData()<br/>getCode()<br/>dump()"]
-        TemplateService["OptimizerTemplateService<br/>11 template methods"]
-    end
-    
-    subgraph "Data Sources"
-        UserSources["IOptimizerSource[]<br/>fetch(), user(), assistant()"]
-        Pagination["iterateDocuments()<br/>distinctDocuments()<br/>ITERATION_LIMIT=25"]
-    end
-    
-    subgraph "LLM Integration"
-        Messages["MessageModel[]<br/>role: user|assistant|system<br/>content: string"]
-        GetPrompt["getPrompt()<br/>User-defined logic"]
-        Ollama["Ollama API<br/>deepseek-v3.1:671b<br/>JSON schema mode"]
-    end
-    
-    subgraph "Code Generation"
-        Templates["IOptimizerTemplate<br/>getTopBanner()<br/>getStrategyTemplate()<br/>getExchangeTemplate()<br/>etc."]
-        GeneratedCode["Generated .mjs file<br/>Strategies + Walker + Launcher"]
-    end
-    
-    AddOptimizer --> OptimizerSchema
-    AddOptimizer --> OptimizerValidation
-    OptimizerClass --> OptimizerGlobal
-    OptimizerGlobal --> OptimizerValidation
-    OptimizerGlobal --> OptimizerConnection
-    OptimizerConnection --> OptimizerSchema
-    OptimizerConnection --> TemplateService
-    OptimizerConnection --> ClientOptimizer
-    
-    ClientOptimizer --> UserSources
-    UserSources --> Pagination
-    Pagination --> Messages
-    Messages --> GetPrompt
-    GetPrompt --> Ollama
-    
-    ClientOptimizer --> Templates
-    Templates --> GeneratedCode
-    
-    style ClientOptimizer fill:#ffe1e1,stroke:#cc0000,stroke-width:2px
-    style TemplateService fill:#e1f5ff,stroke:#0066cc,stroke-width:2px
-    style Ollama fill:#f0f0f0,stroke:#666,stroke-width:2px
-```
+![Mermaid Diagram](./diagrams\47_llm-powered-strategy-generation_0.svg)
 
 **Architecture Flow:**
 
@@ -130,22 +74,7 @@ interface IOptimizerRange {
 
 Data sources can be simple functions or full configuration objects with custom message formatters:
 
-```mermaid
-graph LR
-    SourceConfig["IOptimizerSource"]
-    SimpleFn["IOptimizerSourceFn"]
-    FetchFn["fetch(args)<br/>Returns data array"]
-    UserFn["user(symbol, data, name)<br/>Formats user message"]
-    AssistantFn["assistant(symbol, data, name)<br/>Formats assistant message"]
-    
-    SourceConfig --> FetchFn
-    SourceConfig --> UserFn
-    SourceConfig --> AssistantFn
-    SimpleFn --> FetchFn
-    
-    style SourceConfig fill:#e1f5ff,stroke:#0066cc,stroke-width:2px
-    style SimpleFn fill:#fff3cd,stroke:#856404,stroke-width:2px
-```
+![Mermaid Diagram](./diagrams\47_llm-powered-strategy-generation_1.svg)
 
 **Simple Function Source**:
 ```typescript
@@ -173,41 +102,7 @@ const source: IOptimizerSource = {
 
 The data collection pipeline fetches data from all sources across all training ranges, building a comprehensive conversation history for the LLM. Pagination is handled automatically via `functools-kit`.
 
-```mermaid
-sequenceDiagram
-    participant User
-    participant ClientOptimizer
-    participant Source
-    participant Pagination
-    participant Messages
-    participant GetPrompt
-    
-    User->>ClientOptimizer: getData(symbol)
-    
-    loop For each rangeTrain
-        loop For each source
-            ClientOptimizer->>Source: fetch({ symbol, dates, limit, offset })
-            Source->>Pagination: iterateDocuments()
-            Pagination->>Pagination: distinctDocuments(id)
-            Pagination-->>ClientOptimizer: deduplicated data[]
-            
-            ClientOptimizer->>Source: user(symbol, data, name)
-            Source-->>ClientOptimizer: userContent string
-            
-            ClientOptimizer->>Source: assistant(symbol, data, name)
-            Source-->>ClientOptimizer: assistantContent string
-            
-            ClientOptimizer->>Messages: push({ role: "user", content })
-            ClientOptimizer->>Messages: push({ role: "assistant", content })
-        end
-        
-        ClientOptimizer->>GetPrompt: getPrompt(symbol, messages)
-        GetPrompt-->>ClientOptimizer: strategy prompt
-        ClientOptimizer->>ClientOptimizer: Store IOptimizerStrategy
-    end
-    
-    ClientOptimizer-->>User: IOptimizerStrategy[]
-```
+![Mermaid Diagram](./diagrams\47_llm-powered-strategy-generation_2.svg)
 
 ### Pagination Implementation
 
@@ -248,40 +143,7 @@ The generated code integrates with Ollama LLM for real-time strategy decisions. 
 
 ### LLM Helper Functions
 
-```mermaid
-graph TB
-    subgraph "Generated Code"
-        Text["text(messages)<br/>Narrative analysis"]
-        Json["json(messages)<br/>Structured signals"]
-        DumpJson["dumpJson(resultId, history, result)<br/>Debug logging"]
-    end
-    
-    subgraph "Ollama Configuration"
-        Host["host: https://ollama.com"]
-        Auth["Authorization: Bearer API_KEY"]
-        Model["model: deepseek-v3.1:671b"]
-    end
-    
-    subgraph "Strategy Execution"
-        GetSignal["getSignal(symbol)<br/>Multi-timeframe analysis"]
-        Messages["messages: MessageModel[]"]
-        Result["ISignalDto<br/>position, prices, timing"]
-    end
-    
-    Text --> Host
-    Json --> Host
-    Host --> Auth
-    Host --> Model
-    
-    GetSignal --> Messages
-    Messages --> Text
-    Messages --> Json
-    Json --> Result
-    Result --> DumpJson
-    
-    style Json fill:#ffe1e1,stroke:#cc0000,stroke-width:2px
-    style Model fill:#f0f0f0,stroke:#666,stroke-width:2px
-```
+![Mermaid Diagram](./diagrams\47_llm-powered-strategy-generation_3.svg)
 
 ### text() Template
 
@@ -395,60 +257,7 @@ The `dumpJson()` function saves LLM conversations and results to `./dump/strateg
 
 The complete workflow from configuration to executable code involves multiple stages: data fetching, message building, prompt generation, and code assembly.
 
-```mermaid
-graph TD
-    Start["addOptimizer(schema)"]
-    Validate["OptimizerValidationService<br/>Check duplicate names"]
-    Register["OptimizerSchemaService<br/>Store in ToolRegistry"]
-    
-    GetData["Optimizer.getData(symbol)"]
-    Connection["OptimizerConnectionService<br/>Get memoized instance"]
-    
-    LoopRanges["Loop: rangeTrain"]
-    LoopSources["Loop: source"]
-    Fetch["Fetch data with pagination<br/>iterateDocuments()"]
-    Dedupe["distinctDocuments(id)<br/>Remove duplicates"]
-    UserMsg["Call user() formatter<br/>or DEFAULT_USER_FN"]
-    AssistantMsg["Call assistant() formatter<br/>or DEFAULT_ASSISTANT_FN"]
-    AppendMsg["Append MessageModel pair"]
-    
-    CallPrompt["Call getPrompt(symbol, messages)<br/>User-defined logic"]
-    StoreStrategy["Store IOptimizerStrategy"]
-    
-    GetCode["Optimizer.getCode(symbol)"]
-    Templates["OptimizerTemplateService<br/>11 template methods"]
-    Assemble["Assemble code sections:<br/>1. Top banner<br/>2. Helpers<br/>3. Exchange<br/>4. Frames<br/>5. Strategies<br/>6. Walker<br/>7. Launcher"]
-    
-    Dump["Optimizer.dump(symbol, path)"]
-    WriteFile["writeFile(.mjs)<br/>Executable strategy"]
-    
-    Start --> Validate
-    Validate --> Register
-    Register --> GetData
-    GetData --> Connection
-    Connection --> LoopRanges
-    LoopRanges --> LoopSources
-    LoopSources --> Fetch
-    Fetch --> Dedupe
-    Dedupe --> UserMsg
-    UserMsg --> AssistantMsg
-    AssistantMsg --> AppendMsg
-    AppendMsg --> LoopSources
-    LoopSources --> CallPrompt
-    CallPrompt --> StoreStrategy
-    StoreStrategy --> LoopRanges
-    LoopRanges --> GetData
-    
-    GetData --> GetCode
-    GetCode --> Templates
-    Templates --> Assemble
-    Assemble --> Dump
-    Dump --> WriteFile
-    
-    style Connection fill:#e1f5ff,stroke:#0066cc,stroke-width:2px
-    style Templates fill:#ffe1e1,stroke:#cc0000,stroke-width:2px
-    style WriteFile fill:#c8e6c9,stroke:#388e3c,stroke-width:2px
-```
+![Mermaid Diagram](./diagrams\47_llm-powered-strategy-generation_4.svg)
 
 ### Phase 1: Registration
 
@@ -527,58 +336,7 @@ The generated `.mjs` file is a complete, executable Node.js script that includes
 
 ### Complete File Anatomy
 
-```mermaid
-graph TB
-    subgraph "Section 1: Banner"
-        Shebang["#!/usr/bin/env node"]
-        Imports["import Ollama, ccxt, backtest-kit"]
-        Constants["WARN_KB = 100"]
-    end
-    
-    subgraph "Section 2-4: Helpers"
-        DumpJson["async function dumpJson()<br/>Saves to ./dump/strategy/"]
-        Text["async function text()<br/>Narrative analysis"]
-        Json["async function json()<br/>Signal schema validation"]
-    end
-    
-    subgraph "Section 5: Exchange"
-        AddExchange["addExchange()<br/>exchangeName: prefix_exchange<br/>CCXT Binance integration"]
-    end
-    
-    subgraph "Section 6: Frames"
-        TrainFrames["addFrame() × rangeTrain.length<br/>frameName: prefix_train_frame-N<br/>interval: 1m"]
-        TestFrame["addFrame()<br/>frameName: prefix_test_frame<br/>rangeTest dates"]
-    end
-    
-    subgraph "Section 7: Strategies"
-        Strategies["addStrategy() × strategyData.length<br/>strategyName: prefix_strategy-N<br/>interval: 5m<br/>getSignal: multi-timeframe + LLM"]
-    end
-    
-    subgraph "Section 8: Walker"
-        AddWalker["addWalker()<br/>walkerName: prefix_walker<br/>All strategies for comparison"]
-    end
-    
-    subgraph "Section 9: Launcher"
-        Background["Walker.background(symbol)"]
-        Listeners["listenSignalBacktest()<br/>listenBacktestProgress()<br/>listenWalkerProgress()<br/>listenWalkerComplete()<br/>listenDoneBacktest()<br/>listenError()"]
-    end
-    
-    Shebang --> Imports
-    Imports --> Constants
-    Constants --> DumpJson
-    DumpJson --> Text
-    Text --> Json
-    Json --> AddExchange
-    AddExchange --> TrainFrames
-    TrainFrames --> TestFrame
-    TestFrame --> Strategies
-    Strategies --> AddWalker
-    AddWalker --> Background
-    Background --> Listeners
-    
-    style Strategies fill:#ffe1e1,stroke:#cc0000,stroke-width:2px
-    style AddWalker fill:#e1f5ff,stroke:#0066cc,stroke-width:2px
-```
+![Mermaid Diagram](./diagrams\47_llm-powered-strategy-generation_5.svg)
 
 
 ### Multi-Timeframe Strategy Template

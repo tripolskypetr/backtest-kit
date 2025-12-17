@@ -32,65 +32,7 @@ We will create a minimal backtest that:
 
 ### Component Architecture
 
-```mermaid
-graph TB
-    User["User Code"]
-    
-    subgraph "Registration Phase"
-        AddExchange["addExchange()<br/>IExchangeSchema"]
-        AddRisk["addRisk()<br/>IRiskSchema"]
-        AddFrame["addFrame()<br/>IFrameSchema"]
-        AddStrategy["addStrategy()<br/>IStrategySchema"]
-    end
-    
-    subgraph "Schema Registry"
-        ExchangeSchemaService["ExchangeSchemaService"]
-        RiskSchemaService["RiskSchemaService"]
-        FrameSchemaService["FrameSchemaService"]
-        StrategySchemaService["StrategySchemaService"]
-    end
-    
-    subgraph "Execution"
-        BacktestClass["Backtest.background()"]
-        BacktestCommandService["BacktestCommandService"]
-        BacktestLogicPrivateService["BacktestLogicPrivateService"]
-    end
-    
-    subgraph "Core Execution Engine"
-        StrategyCoreService["StrategyCoreService"]
-        ClientStrategy["ClientStrategy<br/>(tick method)"]
-        ClientExchange["ClientExchange<br/>(getCandles)"]
-    end
-    
-    subgraph "Events & Reporting"
-        SignalEmitter["signalBacktestEmitter"]
-        DoneEmitter["doneBacktestSubject"]
-        BacktestMarkdownService["BacktestMarkdownService"]
-    end
-    
-    User --> AddExchange
-    User --> AddRisk
-    User --> AddFrame
-    User --> AddStrategy
-    
-    AddExchange --> ExchangeSchemaService
-    AddRisk --> RiskSchemaService
-    AddFrame --> FrameSchemaService
-    AddStrategy --> StrategySchemaService
-    
-    User --> BacktestClass
-    BacktestClass --> BacktestCommandService
-    BacktestCommandService --> BacktestLogicPrivateService
-    
-    BacktestLogicPrivateService --> StrategyCoreService
-    StrategyCoreService --> ClientStrategy
-    ClientStrategy --> ClientExchange
-    
-    ClientStrategy --> SignalEmitter
-    BacktestLogicPrivateService --> DoneEmitter
-    
-    SignalEmitter --> BacktestMarkdownService
-```
+![Mermaid Diagram](./diagrams\06_your-first-backtest_0.svg)
 
 **Component Registration Flow**: User code registers schemas via global functions. Schemas are stored in schema services. During execution, services are retrieved and instantiated into client objects.
 
@@ -188,21 +130,7 @@ addRisk({
 
 ### Validation Execution Flow
 
-```mermaid
-graph LR
-    GetSignal["getSignal()<br/>returns ISignalDto"]
-    ValidateSchema["Validate Schema<br/>(prices > 0, TP/SL logic)"]
-    ValidateGlobal["Validate GLOBAL_CONFIG<br/>(distance, lifetime)"]
-    ValidateRisk["Run Risk Validations<br/>(custom checks)"]
-    Scheduled["Signal Scheduled"]
-    Rejected["Signal Rejected"]
-    
-    GetSignal --> ValidateSchema
-    ValidateSchema --> ValidateGlobal
-    ValidateGlobal --> ValidateRisk
-    ValidateRisk -->|All pass| Scheduled
-    ValidateRisk -->|Any fail| Rejected
-```
+![Mermaid Diagram](./diagrams\06_your-first-backtest_1.svg)
 
 **Validation Stages**: Signals pass through schema validation (structural checks), global config validation (distance/lifetime limits), and custom risk validations before scheduling.
 
@@ -293,36 +221,7 @@ addStrategy({
 
 ### Signal Generation Flow
 
-```mermaid
-sequenceDiagram
-    participant BL as BacktestLogicPrivateService
-    participant SC as StrategyCoreService
-    participant CS as ClientStrategy
-    participant GS as getSignal function
-    participant CE as ClientExchange
-    
-    BL->>SC: tick(when, backtest=true)
-    SC->>CS: tick(when, backtest=true)
-    
-    alt Interval throttle allows
-        CS->>GS: Call user's getSignal(symbol)
-        GS->>CE: await getCandles(symbol, "1h", 24)
-        CE-->>GS: Array<ICandleData>
-        GS->>GS: Analyze market data
-        GS-->>CS: Return ISignalDto or null
-        
-        alt Signal returned
-            CS->>CS: Validate signal
-            CS->>CS: Check risk
-            alt Validation passes
-                CS->>CS: Schedule or open signal
-            end
-        end
-    end
-    
-    CS-->>SC: Return IStrategyTickResult
-    SC-->>BL: Return IStrategyTickResult
-```
+![Mermaid Diagram](./diagrams\06_your-first-backtest_2.svg)
 
 **Interval Throttling**: Even though `tick()` is called every minute, `getSignal()` only executes at `interval` frequency (e.g., every 5 minutes for `interval: '5m'`). This prevents signal spam.
 
@@ -380,34 +279,7 @@ await Backtest.dump('BTCUSDT', 'simple-momentum');
 
 ### Execution Flow Diagram
 
-```mermaid
-graph TB
-    Start["Backtest.background()"]
-    Validate["Validate Schemas<br/>(StrategyValidationService,<br/>ExchangeValidationService,<br/>FrameValidationService)"]
-    GetFrame["FrameCoreService.frames()<br/>Generate timeframe array"]
-    
-    subgraph "Iteration Loop"
-        NextFrame["Get next timestamp"]
-        SetContext["ExecutionContextService<br/>Set(symbol, when, backtest=true)"]
-        TickStrategy["StrategyCoreService.tick()"]
-        ProcessResult["Process IStrategyTickResult"]
-        EmitEvent["Emit to signalBacktestEmitter"]
-    end
-    
-    Complete["Emit doneBacktestSubject"]
-    Report["BacktestMarkdownService<br/>Generate report"]
-    
-    Start --> Validate
-    Validate --> GetFrame
-    GetFrame --> NextFrame
-    NextFrame --> SetContext
-    SetContext --> TickStrategy
-    TickStrategy --> ProcessResult
-    ProcessResult --> EmitEvent
-    EmitEvent --> NextFrame
-    NextFrame -->|All frames processed| Complete
-    Complete --> Report
-```
+![Mermaid Diagram](./diagrams\06_your-first-backtest_3.svg)
 
 **Two Consumption Models**: `Backtest.background()` runs asynchronously and emits events. `Backtest.run()` returns an async generator for pull-based consumption. Both use the same underlying `BacktestLogicPrivateService`.
 

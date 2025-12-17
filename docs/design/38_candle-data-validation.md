@@ -50,28 +50,7 @@ The `getCandles` function provides the primary interface for retrieving historic
 
 **Candle Retrieval with Temporal Context**
 
-```mermaid
-graph TD
-    User["Strategy getSignal()"]
-    GetCandles["getCandles(symbol, interval, limit)"]
-    ExecCtx["ExecutionContextService.context"]
-    Exchange["ClientExchange.getCandles()"]
-    Schema["IExchangeSchema.getCandles()"]
-    Retry["Retry Logic<br/>(CC_GET_CANDLES_RETRY_COUNT)"]
-    Validate["Anomaly Detection"]
-    Result["ICandleData[]"]
-    
-    User -->|"calls"| GetCandles
-    GetCandles -->|"reads temporal context"| ExecCtx
-    GetCandles -->|"delegates to"| Exchange
-    Exchange -->|"calls user implementation"| Schema
-    Schema -->|"fetch with retry"| Retry
-    Retry -->|"returns raw data"| Validate
-    Validate -->|"filtered candles"| Result
-    Result -->|"return"| User
-    
-    ExecCtx -.->|"provides when (Date)"| Exchange
-```
+![Mermaid Diagram](./diagrams\38_candle-data-validation_0.svg)
 
 
 ---
@@ -129,35 +108,7 @@ The framework uses a **factor-based threshold** approach comparing each candle a
 
 **Anomaly Detection Algorithm**
 
-```mermaid
-graph TD
-    Input["Raw ICandleData[]"]
-    CalcMedian["Calculate Median Price<br/>from all OHLC values"]
-    CheckCount{"Candle count >=<br/>CC_MIN_CANDLES_FOR_MEDIAN?"}
-    UseMedian["Use Median as<br/>Reference Price"]
-    UseAvg["Use Average as<br/>Reference Price"]
-    Threshold["Threshold =<br/>Reference / CC_THRESHOLD_FACTOR"]
-    
-    FilterLoop["For each candle"]
-    CheckOHLC{"All OHLC values<br/>> Threshold?"}
-    Keep["Keep Candle"]
-    Discard["Discard Candle<br/>(log warning)"]
-    
-    Output["Filtered ICandleData[]"]
-    
-    Input --> CalcMedian
-    CalcMedian --> CheckCount
-    CheckCount -->|">= 5"| UseMedian
-    CheckCount -->|"< 5"| UseAvg
-    UseMedian --> Threshold
-    UseAvg --> Threshold
-    Threshold --> FilterLoop
-    FilterLoop --> CheckOHLC
-    CheckOHLC -->|"yes"| Keep
-    CheckOHLC -->|"no"| Discard
-    Keep --> Output
-    Discard --> FilterLoop
-```
+![Mermaid Diagram](./diagrams\38_candle-data-validation_1.svg)
 
 
 ### Threshold Calculation
@@ -215,17 +166,7 @@ The choice between median and average affects anomaly detection robustness.
 
 ### Decision Logic
 
-```mermaid
-graph LR
-    Input["Candle Batch"]
-    Count{"Candle Count"}
-    Median["Calculate Median<br/>Robust to outliers"]
-    Average["Calculate Average<br/>Faster computation"]
-    
-    Input --> Count
-    Count -->|">= CC_MIN_CANDLES_FOR_MEDIAN (5)"| Median
-    Count -->|"< 5"| Average
-```
+![Mermaid Diagram](./diagrams\38_candle-data-validation_2.svg)
 
 ### Statistical Rationale
 
@@ -266,66 +207,7 @@ With ≥ 5 candles → Use Median (outlier protection)
 
 **Candle Data Validation Pipeline**
 
-```mermaid
-graph TB
-    subgraph "1. User Request"
-        UserCall["getCandles(symbol, '1h', 100)"]
-    end
-    
-    subgraph "2. Context Injection"
-        ExecCtx["ExecutionContextService<br/>provides: symbol, when, backtest"]
-        MethodCtx["MethodContextService<br/>provides: exchangeName"]
-    end
-    
-    subgraph "3. Exchange Layer"
-        ConnService["ExchangeConnectionService<br/>getMemoizedExchange()"]
-        ClientExch["ClientExchange<br/>getCandles()"]
-        UserImpl["User IExchangeSchema.getCandles()<br/>(CCXT, API, Database)"]
-    end
-    
-    subgraph "4. Retry Logic"
-        TryCount["Attempt Counter<br/>0 / CC_GET_CANDLES_RETRY_COUNT"]
-        NetworkCall["Network Request"]
-        RetryDelay["sleep(CC_GET_CANDLES_RETRY_DELAY_MS)"]
-        Success{"Success?"}
-        Exhausted{"Retries<br/>Exhausted?"}
-    end
-    
-    subgraph "5. Validation"
-        RawData["Raw ICandleData[]"]
-        CalcRef["Calculate Reference Price<br/>(median or average)"]
-        FilterAnom["Filter Anomalies<br/>(price < threshold)"]
-        CheckEmpty{"Empty<br/>result?"}
-        LogWarn["Log Warning<br/>(anomalies detected)"]
-    end
-    
-    subgraph "6. Return"
-        ValidData["Validated ICandleData[]"]
-        ErrorEmit["Emit errorEmitter<br/>(if all retries fail)"]
-    end
-    
-    UserCall --> ExecCtx
-    ExecCtx --> MethodCtx
-    MethodCtx --> ConnService
-    ConnService --> ClientExch
-    ClientExch --> UserImpl
-    
-    UserImpl --> TryCount
-    TryCount --> NetworkCall
-    NetworkCall --> Success
-    Success -->|"fail"| Exhausted
-    Exhausted -->|"yes"| ErrorEmit
-    Exhausted -->|"no"| RetryDelay
-    RetryDelay --> TryCount
-    Success -->|"ok"| RawData
-    
-    RawData --> CalcRef
-    CalcRef --> FilterAnom
-    FilterAnom --> CheckEmpty
-    CheckEmpty -->|"anomalies found"| LogWarn
-    CheckEmpty -->|"all valid"| ValidData
-    LogWarn --> ValidData
-```
+![Mermaid Diagram](./diagrams\38_candle-data-validation_3.svg)
 
 
 ---
