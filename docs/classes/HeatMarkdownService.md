@@ -57,7 +57,7 @@ Only processes closed signals - opened signals are ignored.
 ### getData
 
 ```ts
-getData: (strategyName: string) => Promise<IHeatmapStatistics>
+getData: (strategyName: string) => Promise<HeatmapStatisticsModel>
 ```
 
 Gets aggregated portfolio heatmap statistics for a strategy.
@@ -65,7 +65,7 @@ Gets aggregated portfolio heatmap statistics for a strategy.
 ### getReport
 
 ```ts
-getReport: (strategyName: string) => Promise<string>
+getReport: (strategyName: string, columns?: Columns$2[]) => Promise<string>
 ```
 
 Generates markdown report with portfolio heatmap table for a strategy.
@@ -73,7 +73,7 @@ Generates markdown report with portfolio heatmap table for a strategy.
 ### dump
 
 ```ts
-dump: (strategyName: string, path?: string) => Promise<void>
+dump: (strategyName: string, path?: string, columns?: Columns$2[]) => Promise<void>
 ```
 
 Saves heatmap report to disk for a strategy.

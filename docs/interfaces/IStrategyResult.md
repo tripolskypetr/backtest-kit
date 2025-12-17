@@ -21,7 +21,7 @@ Strategy name
 ### stats
 
 ```ts
-stats: BacktestStatistics
+stats: BacktestStatisticsModel
 ```
 
 Complete backtest statistics for this strategy

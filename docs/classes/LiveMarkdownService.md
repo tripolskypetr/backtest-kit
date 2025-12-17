@@ -53,7 +53,7 @@ Processes all event types: idle, opened, active, closed.
 ### getData
 
 ```ts
-getData: (symbol: string, strategyName: string) => Promise<LiveStatistics>
+getData: (symbol: string, strategyName: string) => Promise<LiveStatisticsModel>
 ```
 
 Gets statistical data from all live trading events for a symbol-strategy pair.
@@ -62,7 +62,7 @@ Delegates to ReportStorage.getData().
 ### getReport
 
 ```ts
-getReport: (symbol: string, strategyName: string) => Promise<string>
+getReport: (symbol: string, strategyName: string, columns?: Columns$5[]) => Promise<string>
 ```
 
 Generates markdown report with all events for a symbol-strategy pair.
@@ -71,7 +71,7 @@ Delegates to ReportStorage.getReport().
 ### dump
 
 ```ts
-dump: (symbol: string, strategyName: string, path?: string) => Promise<void>
+dump: (symbol: string, strategyName: string, path?: string, columns?: Columns$5[]) => Promise<void>
 ```
 
 Saves symbol-strategy report to disk.

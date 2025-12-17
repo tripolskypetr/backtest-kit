@@ -24,7 +24,7 @@ constructor();
 ### getData
 
 ```ts
-static getData(symbol: string, strategyName: string): Promise<PerformanceStatistics>;
+static getData(symbol: string, strategyName: string): Promise<PerformanceStatisticsModel>;
 ```
 
 Gets aggregated performance statistics for a symbol-strategy pair.
@@ -37,7 +37,7 @@ Returns detailed metrics grouped by operation type:
 ### getReport
 
 ```ts
-static getReport(symbol: string, strategyName: string): Promise<string>;
+static getReport(symbol: string, strategyName: string, columns?: Columns$3[]): Promise<string>;
 ```
 
 Generates markdown report with performance analysis.
@@ -50,7 +50,7 @@ Report includes:
 ### dump
 
 ```ts
-static dump(symbol: string, strategyName: string, path?: string): Promise<void>;
+static dump(symbol: string, strategyName: string, path?: string, columns?: Columns$3[]): Promise<void>;
 ```
 
 Saves performance report to disk.

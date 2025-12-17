@@ -21,7 +21,7 @@ Called when starting to test a specific strategy
 ### onStrategyComplete
 
 ```ts
-onStrategyComplete: (strategyName: string, symbol: string, stats: BacktestStatistics, metric: number) => void
+onStrategyComplete: (strategyName: string, symbol: string, stats: BacktestStatisticsModel, metric: number) => void
 ```
 
 Called when a strategy backtest completes

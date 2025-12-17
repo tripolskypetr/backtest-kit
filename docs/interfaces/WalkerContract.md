@@ -53,7 +53,7 @@ Strategy that just completed
 ### stats
 
 ```ts
-stats: BacktestStatistics
+stats: BacktestStatisticsModel
 ```
 
 Backtest statistics for this strategy

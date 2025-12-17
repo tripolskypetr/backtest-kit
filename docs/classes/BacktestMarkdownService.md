@@ -52,7 +52,7 @@ Only processes closed signals - opened signals are ignored.
 ### getData
 
 ```ts
-getData: (symbol: string, strategyName: string) => Promise<BacktestStatistics>
+getData: (symbol: string, strategyName: string) => Promise<BacktestStatisticsModel>
 ```
 
 Gets statistical data from all closed signals for a symbol-strategy pair.
@@ -61,7 +61,7 @@ Delegates to ReportStorage.getData().
 ### getReport
 
 ```ts
-getReport: (symbol: string, strategyName: string) => Promise<string>
+getReport: (symbol: string, strategyName: string, columns?: Columns$6[]) => Promise<string>
 ```
 
 Generates markdown report with all closed signals for a symbol-strategy pair.
@@ -70,7 +70,7 @@ Delegates to ReportStorage.generateReport().
 ### dump
 
 ```ts
-dump: (symbol: string, strategyName: string, path?: string) => Promise<void>
+dump: (symbol: string, strategyName: string, path?: string, columns?: Columns$6[]) => Promise<void>
 ```
 
 Saves symbol-strategy report to disk.

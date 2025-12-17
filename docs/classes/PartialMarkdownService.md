@@ -60,7 +60,7 @@ Should be called from partialLossSubject subscription.
 ### getData
 
 ```ts
-getData: (symbol: string, strategyName: string) => Promise<PartialStatistics>
+getData: (symbol: string, strategyName: string) => Promise<PartialStatisticsModel>
 ```
 
 Gets statistical data from all partial profit/loss events for a symbol-strategy pair.
@@ -69,7 +69,7 @@ Delegates to ReportStorage.getData().
 ### getReport
 
 ```ts
-getReport: (symbol: string, strategyName: string) => Promise<string>
+getReport: (symbol: string, strategyName: string, columns?: Columns$1[]) => Promise<string>
 ```
 
 Generates markdown report with all partial events for a symbol-strategy pair.
@@ -78,7 +78,7 @@ Delegates to ReportStorage.getReport().
 ### dump
 
 ```ts
-dump: (symbol: string, strategyName: string, path?: string) => Promise<void>
+dump: (symbol: string, strategyName: string, path?: string, columns?: Columns$1[]) => Promise<void>
 ```
 
 Saves symbol-strategy report to disk.

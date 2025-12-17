@@ -6,7 +6,7 @@ group: docs
 # listenWalkerComplete
 
 ```ts
-declare function listenWalkerComplete(fn: (event: IWalkerResults) => void): () => void;
+declare function listenWalkerComplete(fn: (event: WalkerCompleteContract) => void): () => void;
 ```
 
 Subscribes to walker completion events with queued async processing.

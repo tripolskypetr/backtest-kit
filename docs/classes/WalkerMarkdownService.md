@@ -50,7 +50,7 @@ Should be called from walkerEmitter.
 ### getData
 
 ```ts
-getData: (walkerName: string, symbol: string, metric: WalkerMetric, context: { exchangeName: string; frameName: string; }) => Promise<IWalkerResults>
+getData: (walkerName: string, symbol: string, metric: WalkerMetric, context: { exchangeName: string; frameName: string; }) => Promise<WalkerCompleteContract>
 ```
 
 Gets walker results data from all strategy results.
@@ -59,7 +59,7 @@ Delegates to ReportStorage.getData().
 ### getReport
 
 ```ts
-getReport: (walkerName: string, symbol: string, metric: WalkerMetric, context: { exchangeName: string; frameName: string; }) => Promise<string>
+getReport: (walkerName: string, symbol: string, metric: WalkerMetric, context: { exchangeName: string; frameName: string; }, strategyColumns?: StrategyColumn[], pnlColumns?: PnlColumn[]) => Promise<...>
 ```
 
 Generates markdown report with all strategy results for a walker.
@@ -68,7 +68,7 @@ Delegates to ReportStorage.getReport().
 ### dump
 
 ```ts
-dump: (walkerName: string, symbol: string, metric: WalkerMetric, context: { exchangeName: string; frameName: string; }, path?: string) => Promise<void>
+dump: (walkerName: string, symbol: string, metric: WalkerMetric, context: { exchangeName: string; frameName: string; }, path?: string, strategyColumns?: StrategyColumn[], pnlColumns?: PnlColumn[]) => Promise<...>
 ```
 
 Saves walker report to disk.

@@ -4868,6 +4868,37 @@ declare class PersistPartialUtils {
  */
 declare const PersistPartialAdapter: PersistPartialUtils;
 
+/**
+ * Type alias for column configuration used in backtest markdown reports.
+ *
+ * Represents a column model specifically designed to format and display
+ * closed backtest signals in markdown tables.
+ *
+ * @typeParam IStrategyTickResultClosed - The closed signal data type containing
+ *   PNL information, close reason, timestamps, and other trade details
+ *
+ * @example
+ * ```typescript
+ * // Column to display signal ID
+ * const signalIdColumn: Columns = {
+ *   key: "signalId",
+ *   label: "Signal ID",
+ *   format: (signal) => signal.signal.id,
+ *   isVisible: () => true
+ * };
+ *
+ * // Column to display PNL percentage
+ * const pnlColumn: Columns = {
+ *   key: "pnl",
+ *   label: "PNL %",
+ *   format: (signal) => `${signal.pnl.pnlPercentage.toFixed(2)}%`,
+ *   isVisible: () => true
+ * };
+ * ```
+ *
+ * @see ColumnModel for the base interface
+ * @see IStrategyTickResultClosed for the signal data structure
+ */
 type Columns$6 = ColumnModel<IStrategyTickResultClosed>;
 /**
  * Service for generating and saving backtest markdown reports.
@@ -5183,6 +5214,37 @@ declare class BacktestUtils {
  */
 declare const Backtest: BacktestUtils;
 
+/**
+ * Type alias for column configuration used in live trading markdown reports.
+ *
+ * Represents a column model specifically designed to format and display
+ * real-time trading events in markdown tables.
+ *
+ * @typeParam TickEvent - The live trading event data type containing
+ *   signal information, timestamps, and trade details from active positions
+ *
+ * @example
+ * ```typescript
+ * // Column to display event timestamp
+ * const timestampColumn: Columns = {
+ *   key: "timestamp",
+ *   label: "Time",
+ *   format: (event) => new Date(event.timestamp).toISOString(),
+ *   isVisible: () => true
+ * };
+ *
+ * // Column to display event action type
+ * const actionColumn: Columns = {
+ *   key: "action",
+ *   label: "Action",
+ *   format: (event) => event.action,
+ *   isVisible: () => true
+ * };
+ * ```
+ *
+ * @see ColumnModel for the base interface
+ * @see TickEvent for the event data structure
+ */
 type Columns$5 = ColumnModel<TickEvent>;
 /**
  * Service for generating and saving live trading markdown reports.
@@ -5511,6 +5573,37 @@ declare class LiveUtils {
  */
 declare const Live: LiveUtils;
 
+/**
+ * Type alias for column configuration used in scheduled events markdown reports.
+ *
+ * Represents a column model specifically designed to format and display
+ * scheduled and cancelled signal events in markdown tables.
+ *
+ * @typeParam ScheduledEvent - The scheduled event data type containing
+ *   signal scheduling information, cancellation details, and timing
+ *
+ * @example
+ * ```typescript
+ * // Column to display event type
+ * const typeColumn: Columns = {
+ *   key: "type",
+ *   label: "Type",
+ *   format: (event) => event.type,
+ *   isVisible: () => true
+ * };
+ *
+ * // Column to display scheduled time
+ * const timeColumn: Columns = {
+ *   key: "time",
+ *   label: "Scheduled Time",
+ *   format: (event) => new Date(event.timestamp).toISOString(),
+ *   isVisible: () => true
+ * };
+ * ```
+ *
+ * @see ColumnModel for the base interface
+ * @see ScheduledEvent for the event data structure
+ */
 type Columns$4 = ColumnModel<ScheduledEvent>;
 /**
  * Service for generating and saving scheduled signals markdown reports.
@@ -5734,6 +5827,37 @@ declare class ScheduleUtils {
  */
 declare const Schedule: ScheduleUtils;
 
+/**
+ * Type alias for column configuration used in performance metrics markdown reports.
+ *
+ * Represents a column model specifically designed to format and display
+ * performance statistics for various trading metrics in markdown tables.
+ *
+ * @typeParam MetricStats - The performance metric statistics data type containing
+ *   aggregated statistics for a specific performance metric
+ *
+ * @example
+ * ```typescript
+ * // Column to display metric name
+ * const metricColumn: Columns = {
+ *   key: "metric",
+ *   label: "Metric",
+ *   format: (stat) => stat.metric,
+ *   isVisible: () => true
+ * };
+ *
+ * // Column to display average value
+ * const avgColumn: Columns = {
+ *   key: "average",
+ *   label: "Average",
+ *   format: (stat) => stat.average.toFixed(2),
+ *   isVisible: () => true
+ * };
+ * ```
+ *
+ * @see ColumnModel for the base interface
+ * @see MetricStats for the metric data structure
+ */
 type Columns$3 = ColumnModel<MetricStats>;
 /**
  * Service for collecting and analyzing performance metrics.
@@ -5952,7 +6076,69 @@ declare class Performance {
     static dump(symbol: string, strategyName: string, path?: string, columns?: Columns$3[]): Promise<void>;
 }
 
+/**
+ * Type alias for column configuration used in walker strategy markdown reports.
+ *
+ * Represents a column model specifically designed to format and display
+ * walker backtest strategy results in markdown tables.
+ *
+ * @typeParam IStrategyResult - The walker strategy result data type containing
+ *   strategy name, performance metrics, and aggregated trade statistics
+ *
+ * @example
+ * ```typescript
+ * // Column to display strategy name
+ * const strategyColumn: StrategyColumn = {
+ *   key: "strategyName",
+ *   label: "Strategy",
+ *   format: (result) => result.strategyName,
+ *   isVisible: () => true
+ * };
+ *
+ * // Column to display total trades
+ * const tradesColumn: StrategyColumn = {
+ *   key: "totalTrades",
+ *   label: "Total Trades",
+ *   format: (result) => result.totalTrades.toString(),
+ *   isVisible: () => true
+ * };
+ * ```
+ *
+ * @see ColumnModel for the base interface
+ * @see IStrategyResult for the strategy result data structure
+ */
 type StrategyColumn = ColumnModel<IStrategyResult>;
+/**
+ * Type alias for column configuration used in walker PNL markdown reports.
+ *
+ * Represents a column model specifically designed to format and display
+ * walker backtest signal PNL data in markdown tables.
+ *
+ * @typeParam SignalData - The signal PNL data type containing
+ *   signal information and PNL details from individual trades
+ *
+ * @example
+ * ```typescript
+ * // Column to display signal ID
+ * const signalIdColumn: PnlColumn = {
+ *   key: "signalId",
+ *   label: "Signal ID",
+ *   format: (signal) => signal.signalId,
+ *   isVisible: () => true
+ * };
+ *
+ * // Column to display PNL percentage
+ * const pnlColumn: PnlColumn = {
+ *   key: "pnl",
+ *   label: "PNL %",
+ *   format: (signal) => signal.pnl.toFixed(2) + '%',
+ *   isVisible: () => true
+ * };
+ * ```
+ *
+ * @see ColumnModel for the base interface
+ * @see SignalData for the signal data structure
+ */
 type PnlColumn = ColumnModel<SignalData$1>;
 /**
  * Service for generating and saving walker markdown reports.
@@ -6263,6 +6449,37 @@ declare class WalkerUtils {
  */
 declare const Walker: WalkerUtils;
 
+/**
+ * Type alias for column configuration used in heatmap markdown reports.
+ *
+ * Represents a column model specifically designed to format and display
+ * per-symbol portfolio statistics in markdown tables.
+ *
+ * @typeParam IHeatmapRow - The heatmap row data type containing aggregated
+ *   statistics per symbol (PNL, Sharpe Ratio, Max Drawdown, trade counts)
+ *
+ * @example
+ * ```typescript
+ * // Column to display symbol name
+ * const symbolColumn: Columns = {
+ *   key: "symbol",
+ *   label: "Symbol",
+ *   format: (row) => row.symbol,
+ *   isVisible: () => true
+ * };
+ *
+ * // Column to display portfolio PNL
+ * const pnlColumn: Columns = {
+ *   key: "totalPnl",
+ *   label: "Total PNL %",
+ *   format: (row) => row.totalPnl !== null ? row.totalPnl.toFixed(2) + '%' : 'N/A',
+ *   isVisible: () => true
+ * };
+ * ```
+ *
+ * @see ColumnModel for the base interface
+ * @see IHeatmapRow for the row data structure
+ */
 type Columns$2 = ColumnModel<IHeatmapRow>;
 /**
  * Portfolio Heatmap Markdown Service.
@@ -6693,6 +6910,37 @@ declare class OptimizerUtils {
  */
 declare const Optimizer: OptimizerUtils;
 
+/**
+ * Type alias for column configuration used in partial profit/loss markdown reports.
+ *
+ * Represents a column model specifically designed to format and display
+ * partial position exit events in markdown tables.
+ *
+ * @typeParam PartialEvent - The partial exit event data type containing
+ *   profit/loss level information, symbol, and timing details
+ *
+ * @example
+ * ```typescript
+ * // Column to display symbol
+ * const symbolColumn: Columns = {
+ *   key: "symbol",
+ *   label: "Symbol",
+ *   format: (event) => event.symbol,
+ *   isVisible: () => true
+ * };
+ *
+ * // Column to display profit level
+ * const levelColumn: Columns = {
+ *   key: "level",
+ *   label: "Exit Level",
+ *   format: (event) => event.level.toString(),
+ *   isVisible: () => true
+ * };
+ * ```
+ *
+ * @see ColumnModel for the base interface
+ * @see PartialEvent for the event data structure
+ */
 type Columns$1 = ColumnModel<PartialEvent>;
 /**
  * Service for generating and saving partial profit/loss markdown reports.
@@ -7070,6 +7318,37 @@ declare class ConstantUtils {
  */
 declare const Constant: ConstantUtils;
 
+/**
+ * Type alias for column configuration used in risk management markdown reports.
+ *
+ * Represents a column model specifically designed to format and display
+ * risk rejection events in markdown tables.
+ *
+ * @typeParam RiskEvent - The risk event data type containing
+ *   risk rejection details, symbol, and rejection reason
+ *
+ * @example
+ * ```typescript
+ * // Column to display symbol
+ * const symbolColumn: Columns = {
+ *   key: "symbol",
+ *   label: "Symbol",
+ *   format: (event) => event.symbol,
+ *   isVisible: () => true
+ * };
+ *
+ * // Column to display rejection reason
+ * const reasonColumn: Columns = {
+ *   key: "reason",
+ *   label: "Rejection Reason",
+ *   format: (event) => event.reason,
+ *   isVisible: () => true
+ * };
+ * ```
+ *
+ * @see ColumnModel for the base interface
+ * @see RiskEvent for the event data structure
+ */
 type Columns = ColumnModel<RiskEvent>;
 /**
  * Service for generating and saving risk rejection markdown reports.
