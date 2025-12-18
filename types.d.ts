@@ -1714,7 +1714,7 @@ declare function getDefaultConfig(): Readonly<{
  */
 declare function setColumns(columns: Partial<ColumnConfig>, _unsafe?: boolean): void;
 /**
- * Retrieves a copy of the current column configuration.
+ * Retrieves a copy of the current column configuration for markdown report generation.
  *
  * Returns a shallow copy of the current COLUMN_CONFIG to prevent accidental mutations.
  * Use this to inspect the current column definitions without modifying them.
@@ -1739,7 +1739,7 @@ declare function getColumns(): {
     walker_strategy_columns: ColumnModel<IStrategyResult>[];
 };
 /**
- * Retrieves the default column configuration object for the framework.
+ * Retrieves the default column configuration object for markdown report generation.
  *
  * Returns a reference to the default column definitions with all preset values.
  * Use this to see what column options are available and their default definitions.

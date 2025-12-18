@@ -19,7 +19,7 @@ declare function getColumns(): {
 };
 ```
 
-Retrieves a copy of the current column configuration.
+Retrieves a copy of the current column configuration for markdown report generation.
 
 Returns a shallow copy of the current COLUMN_CONFIG to prevent accidental mutations.
 Use this to inspect the current column definitions without modifying them.

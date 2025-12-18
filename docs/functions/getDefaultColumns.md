@@ -19,7 +19,7 @@ declare function getDefaultColumns(): Readonly<{
 }>;
 ```
 
-Retrieves the default column configuration object for the framework.
+Retrieves the default column configuration object for markdown report generation.
 
 Returns a reference to the default column definitions with all preset values.
 Use this to see what column options are available and their default definitions.
