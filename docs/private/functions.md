@@ -1,5 +1,5 @@
 ---
-title: private/internals
+title: private/functions
 group: private
 ---
 
