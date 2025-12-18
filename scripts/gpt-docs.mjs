@@ -290,31 +290,47 @@ const generateDescription = retry(
   5_000
 );
 
-const outputPath = join(process.cwd(), "docs", `internals.md`);
-const output = [];
+// Helper function to create document with header
+const createDocumentWithHeader = (content, title, group) => {
+  const output = [];
+  output.push("---");
+  output.push(`title: ${title}`);
+  output.push(`group: ${group}`);
+  output.push("---");
+  output.push("");
+  output.push(HEADER_CONTENT);
+  output.push("");
+  output.push(content);
+  return output.join("\n");
+};
 
+// Generate functions document
 {
-  const classList = globSync(`./docs/functions/*`);
+  const functionsList = globSync(`./docs/functions/*`);
+  const output = [];
   output.push(`# ${MODULE_NAME} functions`);
   output.push("");
-  if (!classList.length) {
+  if (!functionsList.length) {
     output.push("No data available");
   }
-  for (const classPath of classList) {
-    const className = basename(classPath, extname(classPath));
-    const content = await generateDescription(classPath, GPT_FUNCTION_PROMPT);
+  for (const functionPath of functionsList) {
+    const functionName = basename(functionPath, extname(functionPath));
+    const content = await generateDescription(functionPath, GPT_FUNCTION_PROMPT);
     if (content.trim()) {
-      output.push(`## Function ${className}`);
+      output.push(`## Function ${functionName}`);
       output.push("");
       output.push(content);
       output.push("");
     }
-    fs.writeFileSync(outputPath, output.join("\n"));
   }
+  const outputPath = join(process.cwd(), "docs", "private", "functions.md");
+  fs.writeFileSync(outputPath, createDocumentWithHeader(output.join("\n"), "private/functions", "private"));
 }
 
+// Generate classes document
 {
   const classList = globSync(`./docs/classes/*`);
+  const output = [];
   output.push(`# ${MODULE_NAME} classes`);
   output.push("");
   if (!classList.length) {
@@ -329,12 +345,15 @@ const output = [];
       output.push(content);
       output.push("");
     }
-    fs.writeFileSync(outputPath, output.join("\n"));
   }
+  const outputPath = join(process.cwd(), "docs", "private", "classes.md");
+  fs.writeFileSync(outputPath, createDocumentWithHeader(output.join("\n"), "private/classes", "private"));
 }
 
+// Generate interfaces document
 {
   const interfaceList = globSync(`./docs/interfaces/*`);
+  const output = [];
   output.push(`# ${MODULE_NAME} interfaces`);
   output.push("");
   if (!interfaceList.length) {
@@ -352,20 +371,7 @@ const output = [];
       output.push(content);
       output.push("");
     }
-    fs.writeFileSync(outputPath, output.join("\n"));
   }
+  const outputPath = join(process.cwd(), "docs", "private", "interfaces.md");
+  fs.writeFileSync(outputPath, createDocumentWithHeader(output.join("\n"), "private/interfaces", "private"));
 }
-
-{
-  output.unshift("");
-  output.unshift(HEADER_CONTENT);
-}
-{
-  output.unshift("");
-  output.unshift("---");
-  output.unshift(`group: docs`);
-  output.unshift(`title: docs/internals`);
-  output.unshift("---");
-}
-
-fs.writeFileSync(outputPath, output.join("\n"));
