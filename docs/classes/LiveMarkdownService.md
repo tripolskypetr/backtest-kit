@@ -36,8 +36,8 @@ Logger service for debug output
 getStorage: any
 ```
 
-Memoized function to get or create ReportStorage for a symbol-strategy pair.
-Each symbol-strategy combination gets its own isolated storage instance.
+Memoized function to get or create ReportStorage for a symbol-strategy-backtest triple.
+Each symbol-strategy-backtest combination gets its own isolated storage instance.
 
 ### tick
 
@@ -53,7 +53,7 @@ Processes all event types: idle, opened, active, closed.
 ### getData
 
 ```ts
-getData: (symbol: string, strategyName: string) => Promise<LiveStatisticsModel>
+getData: (symbol: string, strategyName: string, backtest: boolean) => Promise<LiveStatisticsModel>
 ```
 
 Gets statistical data from all live trading events for a symbol-strategy pair.
@@ -62,7 +62,7 @@ Delegates to ReportStorage.getData().
 ### getReport
 
 ```ts
-getReport: (symbol: string, strategyName: string, columns?: Columns$5[]) => Promise<string>
+getReport: (symbol: string, strategyName: string, backtest: boolean, columns?: Columns$5[]) => Promise<string>
 ```
 
 Generates markdown report with all events for a symbol-strategy pair.
@@ -71,7 +71,7 @@ Delegates to ReportStorage.getReport().
 ### dump
 
 ```ts
-dump: (symbol: string, strategyName: string, path?: string, columns?: Columns$5[]) => Promise<void>
+dump: (symbol: string, strategyName: string, backtest: boolean, path?: string, columns?: Columns$5[]) => Promise<void>
 ```
 
 Saves symbol-strategy report to disk.
@@ -81,11 +81,11 @@ Delegates to ReportStorage.dump().
 ### clear
 
 ```ts
-clear: (ctx?: { symbol: string; strategyName: string; }) => Promise<void>
+clear: (backtest: boolean, ctx?: { symbol: string; strategyName: string; }) => Promise<void>
 ```
 
 Clears accumulated event data from storage.
-If ctx is provided, clears only that specific symbol-strategy pair's data.
+If ctx is provided, clears only that specific symbol-strategy-backtest triple's data.
 If nothing is provided, clears all data.
 
 ### init

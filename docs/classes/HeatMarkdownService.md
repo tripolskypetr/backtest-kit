@@ -40,8 +40,8 @@ Logger service for debug output
 getStorage: any
 ```
 
-Memoized function to get or create HeatmapStorage for a strategy.
-Each strategy gets its own isolated heatmap storage instance.
+Memoized function to get or create HeatmapStorage for a strategy and backtest mode.
+Each strategy + backtest mode combination gets its own isolated heatmap storage instance.
 
 ### tick
 
@@ -57,7 +57,7 @@ Only processes closed signals - opened signals are ignored.
 ### getData
 
 ```ts
-getData: (strategyName: string) => Promise<HeatmapStatisticsModel>
+getData: (strategyName: string, backtest: boolean) => Promise<HeatmapStatisticsModel>
 ```
 
 Gets aggregated portfolio heatmap statistics for a strategy.
@@ -65,7 +65,7 @@ Gets aggregated portfolio heatmap statistics for a strategy.
 ### getReport
 
 ```ts
-getReport: (strategyName: string, columns?: Columns$2[]) => Promise<string>
+getReport: (strategyName: string, backtest: boolean, columns?: Columns$2[]) => Promise<string>
 ```
 
 Generates markdown report with portfolio heatmap table for a strategy.
@@ -73,7 +73,7 @@ Generates markdown report with portfolio heatmap table for a strategy.
 ### dump
 
 ```ts
-dump: (strategyName: string, path?: string, columns?: Columns$2[]) => Promise<void>
+dump: (strategyName: string, backtest: boolean, path?: string, columns?: Columns$2[]) => Promise<void>
 ```
 
 Saves heatmap report to disk for a strategy.
@@ -84,12 +84,12 @@ Default filename: {strategyName}.md
 ### clear
 
 ```ts
-clear: (strategyName?: string) => Promise<void>
+clear: (backtest: boolean, ctx?: { strategyName: string; }) => Promise<void>
 ```
 
 Clears accumulated heatmap data from storage.
-If strategyName is provided, clears only that strategy's data.
-If strategyName is omitted, clears all strategies' data.
+If ctx is provided, clears only that strategy+backtest combination's data.
+If ctx is omitted, clears all data.
 
 ### init
 

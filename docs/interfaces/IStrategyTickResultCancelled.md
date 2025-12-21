@@ -65,3 +65,11 @@ symbol: string
 ```
 
 Trading pair symbol (e.g., "BTCUSDT")
+
+### backtest
+
+```ts
+backtest: boolean
+```
+
+Whether this event is from backtest mode (true) or live mode (false)

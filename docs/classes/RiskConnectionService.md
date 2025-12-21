@@ -41,18 +41,18 @@ riskSchemaService: any
 ### getRisk
 
 ```ts
-getRisk: ((riskName: string) => ClientRisk) & IClearableMemoize<string> & IControlMemoize<string, ClientRisk>
+getRisk: ((riskName: string, backtest: boolean) => ClientRisk) & IClearableMemoize<string> & IControlMemoize<string, ClientRisk>
 ```
 
-Retrieves memoized ClientRisk instance for given risk name.
+Retrieves memoized ClientRisk instance for given risk name and backtest mode.
 
 Creates ClientRisk on first call, returns cached instance on subsequent calls.
-Cache key is riskName string.
+Cache key is "riskName:backtest" string to separate live and backtest instances.
 
 ### checkSignal
 
 ```ts
-checkSignal: (params: IRiskCheckArgs, context: { riskName: string; }) => Promise<boolean>
+checkSignal: (params: IRiskCheckArgs, context: { riskName: string; backtest: boolean; }) => Promise<boolean>
 ```
 
 Checks if a signal should be allowed based on risk limits.
@@ -64,7 +64,7 @@ ClientRisk will emit riskSubject event via onRejected callback when signal is re
 ### addSignal
 
 ```ts
-addSignal: (symbol: string, context: { strategyName: string; riskName: string; }) => Promise<void>
+addSignal: (symbol: string, context: { strategyName: string; riskName: string; backtest: boolean; }) => Promise<void>
 ```
 
 Registers an opened signal with the risk management system.
@@ -73,7 +73,7 @@ Routes to appropriate ClientRisk instance.
 ### removeSignal
 
 ```ts
-removeSignal: (symbol: string, context: { strategyName: string; riskName: string; }) => Promise<void>
+removeSignal: (symbol: string, context: { strategyName: string; riskName: string; backtest: boolean; }) => Promise<void>
 ```
 
 Removes a closed signal from the risk management system.
@@ -82,7 +82,7 @@ Routes to appropriate ClientRisk instance.
 ### clear
 
 ```ts
-clear: (riskName?: string) => Promise<void>
+clear: (backtest: boolean, riskName?: string) => Promise<void>
 ```
 
 Clears the cached ClientRisk instance for the given risk name.

@@ -8,7 +8,7 @@ group: docs
 Utility class for managing partial profit/loss levels persistence.
 
 Features:
-- Memoized storage instances per symbol
+- Memoized storage instances per symbol:strategyName
 - Custom adapter support
 - Atomic read/write operations for partial data
 - Crash-safe partial state management
@@ -38,10 +38,10 @@ getPartialStorage: any
 ### readPartialData
 
 ```ts
-readPartialData: (symbol: string) => Promise<PartialData>
+readPartialData: (symbol: string, strategyName: string) => Promise<PartialData>
 ```
 
-Reads persisted partial data for a symbol.
+Reads persisted partial data for a symbol and strategy.
 
 Called by ClientPartial.waitForInit() to restore state.
 Returns empty object if no partial data exists.
@@ -49,7 +49,7 @@ Returns empty object if no partial data exists.
 ### writePartialData
 
 ```ts
-writePartialData: (partialData: PartialData, symbol: string) => Promise<void>
+writePartialData: (partialData: PartialData, symbol: string, strategyName: string) => Promise<void>
 ```
 
 Writes partial data to disk with atomic file writes.

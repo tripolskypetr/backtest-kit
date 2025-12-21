@@ -70,7 +70,7 @@ Logs validation activity.
 ### getPendingSignal
 
 ```ts
-getPendingSignal: (symbol: string, strategyName: string) => Promise<ISignalRow>
+getPendingSignal: (backtest: boolean, symbol: string, strategyName: string) => Promise<ISignalRow>
 ```
 
 Retrieves the currently active pending signal for the symbol.
@@ -80,7 +80,7 @@ Used internally for monitoring TP/SL and time expiration.
 ### getStopped
 
 ```ts
-getStopped: (symbol: string, strategyName: string) => Promise<boolean>
+getStopped: (backtest: boolean, symbol: string, strategyName: string) => Promise<boolean>
 ```
 
 Checks if the strategy has been stopped.
@@ -113,7 +113,7 @@ timestamp, and backtest mode flag.
 ### stop
 
 ```ts
-stop: (ctx: { symbol: string; strategyName: string; }, backtest: boolean) => Promise<void>
+stop: (backtest: boolean, ctx: { symbol: string; strategyName: string; }) => Promise<void>
 ```
 
 Stops the strategy from generating new signals.
@@ -124,7 +124,7 @@ Does not require execution context.
 ### clear
 
 ```ts
-clear: (ctx?: { symbol: string; strategyName: string; }) => Promise<void>
+clear: (backtest: boolean, ctx?: { symbol: string; strategyName: string; }) => Promise<void>
 ```
 
 Clears the memoized ClientStrategy instance from cache.

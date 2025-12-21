@@ -81,7 +81,7 @@ Cache key is symbol:strategyName string.
 ### getPendingSignal
 
 ```ts
-getPendingSignal: (symbol: string, strategyName: string) => Promise<ISignalRow>
+getPendingSignal: (backtest: boolean, symbol: string, strategyName: string) => Promise<ISignalRow>
 ```
 
 Retrieves the currently active pending signal for the strategy.
@@ -91,7 +91,7 @@ Used internally for monitoring TP/SL and time expiration.
 ### getStopped
 
 ```ts
-getStopped: (symbol: string, strategyName: string) => Promise<boolean>
+getStopped: (backtest: boolean, symbol: string, strategyName: string) => Promise<boolean>
 ```
 
 Retrieves the stopped state of the strategy.
@@ -124,7 +124,7 @@ Evaluates strategy signals against historical data.
 ### stop
 
 ```ts
-stop: (ctx: { symbol: string; strategyName: string; }, backtest: boolean) => Promise<void>
+stop: (backtest: boolean, ctx: { symbol: string; strategyName: string; }) => Promise<void>
 ```
 
 Stops the specified strategy from generating new signals.
@@ -135,7 +135,7 @@ getSignal from being called on subsequent ticks.
 ### clear
 
 ```ts
-clear: (ctx?: { symbol: string; strategyName: string; }) => Promise<void>
+clear: (backtest: boolean, ctx?: { symbol: string; strategyName: string; }) => Promise<void>
 ```
 
 Clears the memoized ClientStrategy instance from cache.

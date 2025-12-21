@@ -49,7 +49,7 @@ Logs validation activity.
 ### checkSignal
 
 ```ts
-checkSignal: (params: IRiskCheckArgs, context: { riskName: string; }) => Promise<boolean>
+checkSignal: (params: IRiskCheckArgs, context: { riskName: string; backtest: boolean; }) => Promise<boolean>
 ```
 
 Checks if a signal should be allowed based on risk limits.
@@ -57,7 +57,7 @@ Checks if a signal should be allowed based on risk limits.
 ### addSignal
 
 ```ts
-addSignal: (symbol: string, context: { strategyName: string; riskName: string; }) => Promise<void>
+addSignal: (symbol: string, context: { strategyName: string; riskName: string; backtest: boolean; }) => Promise<void>
 ```
 
 Registers an opened signal with the risk management system.
@@ -65,7 +65,7 @@ Registers an opened signal with the risk management system.
 ### removeSignal
 
 ```ts
-removeSignal: (symbol: string, context: { strategyName: string; riskName: string; }) => Promise<void>
+removeSignal: (symbol: string, context: { strategyName: string; riskName: string; backtest: boolean; }) => Promise<void>
 ```
 
 Removes a closed signal from the risk management system.
@@ -73,7 +73,7 @@ Removes a closed signal from the risk management system.
 ### clear
 
 ```ts
-clear: (riskName?: string) => Promise<void>
+clear: (backtest: boolean, riskName?: string) => Promise<void>
 ```
 
 Clears risk data.

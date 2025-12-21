@@ -59,6 +59,7 @@ _updatePositions: any
 ```
 
 Persists current active positions to disk.
+Skips in backtest mode.
 
 ### checkSignal
 

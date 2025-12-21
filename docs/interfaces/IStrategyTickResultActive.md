@@ -73,3 +73,11 @@ percentSl: number
 ```
 
 Percentage progress towards stop loss (0-100%, 0 if moving towards TP)
+
+### backtest
+
+```ts
+backtest: boolean
+```
+
+Whether this event is from backtest mode (true) or live mode (false)

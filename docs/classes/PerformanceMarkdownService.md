@@ -36,8 +36,8 @@ Logger service for debug output
 getStorage: any
 ```
 
-Memoized function to get or create PerformanceStorage for a symbol-strategy pair.
-Each symbol-strategy combination gets its own isolated storage instance.
+Memoized function to get or create PerformanceStorage for a symbol-strategy-backtest triple.
+Each symbol-strategy-backtest combination gets its own isolated storage instance.
 
 ### track
 
@@ -51,7 +51,7 @@ Should be called from performance tracking code.
 ### getData
 
 ```ts
-getData: (symbol: string, strategyName: string) => Promise<PerformanceStatisticsModel>
+getData: (symbol: string, strategyName: string, backtest: boolean) => Promise<PerformanceStatisticsModel>
 ```
 
 Gets aggregated performance statistics for a symbol-strategy pair.
@@ -59,7 +59,7 @@ Gets aggregated performance statistics for a symbol-strategy pair.
 ### getReport
 
 ```ts
-getReport: (symbol: string, strategyName: string, columns?: Columns$3[]) => Promise<string>
+getReport: (symbol: string, strategyName: string, backtest: boolean, columns?: Columns$3[]) => Promise<string>
 ```
 
 Generates markdown report with performance analysis.
@@ -67,7 +67,7 @@ Generates markdown report with performance analysis.
 ### dump
 
 ```ts
-dump: (symbol: string, strategyName: string, path?: string, columns?: Columns$3[]) => Promise<void>
+dump: (symbol: string, strategyName: string, backtest: boolean, path?: string, columns?: Columns$3[]) => Promise<void>
 ```
 
 Saves performance report to disk.
@@ -75,7 +75,7 @@ Saves performance report to disk.
 ### clear
 
 ```ts
-clear: (ctx?: { symbol: string; strategyName: string; }) => Promise<void>
+clear: (backtest: boolean, ctx?: { symbol: string; strategyName: string; }) => Promise<void>
 ```
 
 Clears accumulated performance data from storage.

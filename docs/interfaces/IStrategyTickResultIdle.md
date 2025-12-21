@@ -56,3 +56,11 @@ currentPrice: number
 ```
 
 Current VWAP price during idle state
+
+### backtest
+
+```ts
+backtest: boolean
+```
+
+Whether this event is from backtest mode (true) or live mode (false)

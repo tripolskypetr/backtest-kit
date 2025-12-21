@@ -31,7 +31,7 @@ constructor();
 ### getData
 
 ```ts
-getData: (symbol: string, strategyName: string) => Promise<RiskStatisticsModel>
+getData: (symbol: string, strategyName: string, backtest: boolean) => Promise<RiskStatisticsModel>
 ```
 
 Retrieves statistical data from accumulated risk rejection events.
@@ -42,7 +42,7 @@ Returns aggregated metrics calculated from all rejection events.
 ### getReport
 
 ```ts
-getReport: (symbol: string, strategyName: string, columns?: Columns[]) => Promise<string>
+getReport: (symbol: string, strategyName: string, backtest: boolean, columns?: Columns[]) => Promise<string>
 ```
 
 Generates markdown report with all risk rejection events for a symbol-strategy pair.
@@ -62,7 +62,7 @@ Also includes summary statistics at the end (total rejections, by symbol, by str
 ### dump
 
 ```ts
-dump: (symbol: string, strategyName: string, path?: string, columns?: Columns[]) => Promise<void>
+dump: (symbol: string, strategyName: string, backtest: boolean, path?: string, columns?: Columns[]) => Promise<void>
 ```
 
 Generates and saves markdown report to file.

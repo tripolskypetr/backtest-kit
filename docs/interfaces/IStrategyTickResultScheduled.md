@@ -57,3 +57,11 @@ currentPrice: number
 ```
 
 Current VWAP price when scheduled signal created
+
+### backtest
+
+```ts
+backtest: boolean
+```
+
+Whether this event is from backtest mode (true) or live mode (false)

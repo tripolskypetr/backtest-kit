@@ -31,7 +31,7 @@ constructor();
 ### getData
 
 ```ts
-getData: (symbol: string, strategyName: string) => Promise<PartialStatisticsModel>
+getData: (symbol: string, strategyName: string, backtest: boolean) => Promise<PartialStatisticsModel>
 ```
 
 Retrieves statistical data from accumulated partial profit/loss events.
@@ -42,7 +42,7 @@ Returns aggregated metrics calculated from all profit and loss events.
 ### getReport
 
 ```ts
-getReport: (symbol: string, strategyName: string, columns?: Columns$1[]) => Promise<string>
+getReport: (symbol: string, strategyName: string, backtest: boolean, columns?: Columns$1[]) => Promise<string>
 ```
 
 Generates markdown report with all partial profit/loss events for a symbol-strategy pair.
@@ -63,7 +63,7 @@ Also includes summary statistics at the end.
 ### dump
 
 ```ts
-dump: (symbol: string, strategyName: string, path?: string, columns?: Columns$1[]) => Promise<void>
+dump: (symbol: string, strategyName: string, backtest: boolean, path?: string, columns?: Columns$1[]) => Promise<void>
 ```
 
 Generates and saves markdown report to file.

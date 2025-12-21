@@ -47,10 +47,10 @@ getPartial: any
 
 Memoized factory function for ClientPartial instances.
 
-Creates one ClientPartial per signal ID with configured callbacks.
+Creates one ClientPartial per signal ID and backtest mode with configured callbacks.
 Instances are cached until clear() is called.
 
-Key format: signalId
+Key format: "signalId:backtest" or "signalId:live"
 Value: ClientPartial instance with logger and event emitters
 
 ### profit
