@@ -213,6 +213,15 @@ export class BacktestInstance {
       symbol,
       context,
     });
+    {
+      const currentStatus = this.task.getStatus();
+      if (currentStatus === "pending") {
+        throw new Error(`Backtest.background is already running for symbol=${symbol} strategyName=${context.strategyName} exchangeName=${context.exchangeName} frameName=${context.frameName}`);
+      }
+      if (currentStatus === "rejected") {
+        throw new Error(`Backtest.background has failed for symbol=${symbol} strategyName=${context.strategyName} exchangeName=${context.exchangeName} frameName=${context.frameName}`);
+      }
+    }
     this.task(symbol, context).catch((error) =>
       exitEmitter.next(new Error(getErrorMessage(error)))
     );

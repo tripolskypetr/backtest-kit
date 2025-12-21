@@ -250,9 +250,16 @@ export class WalkerInstance {
       symbol,
       context,
     });
-
     const walkerSchema = backtest.walkerSchemaService.get(context.walkerName);
-
+    {
+      const currentStatus = this.task.getStatus();
+      if (currentStatus === "pending") {
+        throw new Error(`Walker.background is already running for symbol=${symbol} walkerName=${context.walkerName}`);
+      }
+      if (currentStatus === "rejected") {
+        throw new Error(`Walker.background has failed for symbol=${symbol} walkerName=${context.walkerName}`);
+      }
+    }
     this.task(symbol, context).catch((error) =>
       exitEmitter.next(new Error(getErrorMessage(error)))
     );

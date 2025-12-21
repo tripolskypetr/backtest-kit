@@ -220,6 +220,15 @@ export class LiveInstance {
       symbol,
       context,
     });
+    const currentStatus = this.task.getStatus();
+    {
+      if (currentStatus === "pending") {
+        throw new Error(`Live.background is already running for symbol=${symbol} strategyName=${context.strategyName} exchangeName=${context.exchangeName}`);
+      }
+      if (currentStatus === "rejected") {
+        throw new Error(`Live.background has failed for symbol=${symbol} strategyName=${context.strategyName} exchangeName=${context.exchangeName}`);
+      }
+    }
     this.task(symbol, context).catch((error) =>
       exitEmitter.next(new Error(getErrorMessage(error)))
     );
