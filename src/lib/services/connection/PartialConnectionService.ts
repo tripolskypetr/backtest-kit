@@ -130,9 +130,10 @@ export class PartialConnectionService implements IPartial {
    * Value: ClientPartial instance with logger and event emitters
    */
   private getPartial = memoize<(signalId: string, backtest: boolean) => ClientPartial>(
-    ([signalId, backtest]) => `${signalId}:$:${backtest ? "backtest" : "live"}`,
+    ([signalId, backtest]) => `${signalId}:${backtest ? "backtest" : "live"}`,
     (signalId: string, backtest: boolean) => {
       return new ClientPartial({
+        signalId,
         logger: this.loggerService,
         backtest,
         onProfit: COMMIT_PROFIT_FN,
@@ -257,7 +258,7 @@ export class PartialConnectionService implements IPartial {
     const partial = this.getPartial(data.id, backtest);
     await partial.waitForInit(symbol, data.strategyName);
     await partial.clear(symbol, data, priceClose, backtest);
-    const key = `${data.id}:$:${backtest ? "backtest" : "live"}`;
+    const key = `${data.id}:${backtest ? "backtest" : "live"}`;
     this.getPartial.clear(key);
   };
 }

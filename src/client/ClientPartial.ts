@@ -56,6 +56,12 @@ const HANDLE_PROFIT_FN = async (
     );
   }
 
+  if (data.id !== self.params.signalId) {
+    throw new Error(
+      `Signal ID mismatch: expected ${self.params.signalId}, got ${data.id}`
+    );
+  }
+
   let state = self._states.get(data.id);
   if (!state) {
     state = {
@@ -125,6 +131,12 @@ const HANDLE_LOSS_FN = async (
   if (self._states === NEED_FETCH) {
     throw new Error(
       "ClientPartial not initialized. Call waitForInit() before using."
+    );
+  }
+
+  if (data.id !== self.params.signalId) {
+    throw new Error(
+      `Signal ID mismatch: expected ${self.params.signalId}, got ${data.id}`
     );
   }
 
@@ -510,6 +522,11 @@ export class ClientPartial implements IPartial {
     if (this._states === NEED_FETCH) {
       throw new Error(
         "ClientPartial not initialized. Call waitForInit() before using."
+      );
+    }
+    if (data.id !== this.params.signalId) {
+      throw new Error(
+        `Signal ID mismatch: expected ${this.params.signalId}, got ${data.id}`
       );
     }
     this._states.delete(data.id);

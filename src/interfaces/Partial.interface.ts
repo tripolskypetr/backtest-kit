@@ -62,6 +62,12 @@ export interface IPartialData {
  * Defines logger and callback handlers for profit/loss events.
  */
 export interface IPartialParams {
+
+  /**
+   * Unique signal ID associated with this ClientPartial instance.
+   */
+  signalId: ISignalRow["id"];
+
   /**
    * Logger instance for debug and info messages.
    */

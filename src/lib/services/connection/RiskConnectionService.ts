@@ -86,7 +86,7 @@ export class RiskConnectionService {
    * @returns Configured ClientRisk instance
    */
   public getRisk = memoize(
-    ([riskName, backtest]) => `${riskName}:$:${backtest ? "backtest" : "live"}`,
+    ([riskName, backtest]) => `${riskName}:${backtest ? "backtest" : "live"}`,
     (riskName: RiskName, backtest: boolean) => {
       const schema = this.riskSchemaService.get(riskName);
       return new ClientRisk({
@@ -166,7 +166,7 @@ export class RiskConnectionService {
       riskName,
       backtest,
     });
-    const key = `${riskName}:$:${backtest ? "backtest" : "live"}`;
+    const key = `${riskName}:${backtest ? "backtest" : "live"}`;
     this.getRisk.clear(key);
   };
 }
