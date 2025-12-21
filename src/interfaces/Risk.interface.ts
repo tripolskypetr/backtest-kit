@@ -111,6 +111,9 @@ export interface IRiskParams extends IRiskSchema {
   /** Logger service for debug output */
   logger: ILogger;
 
+  /** True if backtest mode, false if live mode */
+  backtest: boolean;
+
   /**
    * Callback invoked when a signal is rejected due to risk limits.
    * Called before emitting to riskSubject.

@@ -431,6 +431,8 @@ interface IRiskSchema {
 interface IRiskParams extends IRiskSchema {
     /** Logger service for debug output */
     logger: ILogger;
+    /** True if backtest mode, false if live mode */
+    backtest: boolean;
     /**
      * Callback invoked when a signal is rejected due to risk limits.
      * Called before emitting to riskSubject.
@@ -8109,6 +8111,7 @@ declare class ClientRisk implements IRisk {
     private waitForInit;
     /**
      * Persists current active positions to disk.
+     * Skips in backtest mode.
      */
     private _updatePositions;
     /**
@@ -8179,15 +8182,16 @@ declare class RiskConnectionService {
     private readonly loggerService;
     private readonly riskSchemaService;
     /**
-     * Retrieves memoized ClientRisk instance for given risk name.
+     * Retrieves memoized ClientRisk instance for given risk name and backtest mode.
      *
      * Creates ClientRisk on first call, returns cached instance on subsequent calls.
-     * Cache key is riskName string.
+     * Cache key is "riskName:backtest" string to separate live and backtest instances.
      *
      * @param riskName - Name of registered risk schema
+     * @param backtest - True if backtest mode, false if live mode
      * @returns Configured ClientRisk instance
      */
-    getRisk: ((riskName: RiskName) => ClientRisk) & functools_kit.IClearableMemoize<string> & functools_kit.IControlMemoize<string, ClientRisk>;
+    getRisk: ((riskName: RiskName, backtest: boolean) => ClientRisk) & functools_kit.IClearableMemoize<string> & functools_kit.IControlMemoize<string, ClientRisk>;
     /**
      * Checks if a signal should be allowed based on risk limits.
      *
@@ -8196,40 +8200,43 @@ declare class RiskConnectionService {
      * ClientRisk will emit riskSubject event via onRejected callback when signal is rejected.
      *
      * @param params - Risk check arguments (portfolio state, position details)
-     * @param context - Execution context with risk name
+     * @param context - Execution context with risk name and backtest mode
      * @returns Promise resolving to risk check result
      */
     checkSignal: (params: IRiskCheckArgs, context: {
         riskName: RiskName;
+        backtest: boolean;
     }) => Promise<boolean>;
     /**
      * Registers an opened signal with the risk management system.
      * Routes to appropriate ClientRisk instance.
      *
      * @param symbol - Trading pair symbol
-     * @param context - Context information (strategyName, riskName)
+     * @param context - Context information (strategyName, riskName, backtest)
      */
     addSignal: (symbol: string, context: {
         strategyName: string;
         riskName: RiskName;
+        backtest: boolean;
     }) => Promise<void>;
     /**
      * Removes a closed signal from the risk management system.
      * Routes to appropriate ClientRisk instance.
      *
      * @param symbol - Trading pair symbol
-     * @param context - Context information (strategyName, riskName)
+     * @param context - Context information (strategyName, riskName, backtest)
      */
     removeSignal: (symbol: string, context: {
         strategyName: string;
         riskName: RiskName;
+        backtest: boolean;
     }) => Promise<void>;
     /**
      * Clears the cached ClientRisk instance for the given risk name.
      *
      * @param riskName - Name of the risk schema to clear from cache
      */
-    clear: (riskName?: RiskName) => Promise<void>;
+    clear: (backtest: boolean, riskName?: RiskName) => Promise<void>;
 }
 
 /**
@@ -8382,7 +8389,7 @@ declare class StrategyConnectionService {
      *
      * @returns Promise resolving to pending signal or null
      */
-    getPendingSignal: (symbol: string, strategyName: StrategyName) => Promise<ISignalRow | null>;
+    getPendingSignal: (backtest: boolean, symbol: string, strategyName: StrategyName) => Promise<ISignalRow | null>;
     /**
      * Retrieves the stopped state of the strategy.
      *
@@ -8393,7 +8400,7 @@ declare class StrategyConnectionService {
      * @param strategyName - Name of the strategy
      * @returns Promise resolving to true if strategy is stopped, false otherwise
      */
-    getStopped: (symbol: string, strategyName: StrategyName) => Promise<boolean>;
+    getStopped: (backtest: boolean, symbol: string, strategyName: StrategyName) => Promise<boolean>;
     /**
      * Executes live trading tick for current strategy.
      *
@@ -8427,10 +8434,10 @@ declare class StrategyConnectionService {
      * @param strategyName - Name of strategy to stop
      * @returns Promise that resolves when stop flag is set
      */
-    stop: (ctx: {
+    stop: (backtest: boolean, ctx: {
         symbol: string;
         strategyName: StrategyName;
-    }, backtest: boolean) => Promise<void>;
+    }) => Promise<void>;
     /**
      * Clears the memoized ClientStrategy instance from cache.
      *
@@ -8439,7 +8446,7 @@ declare class StrategyConnectionService {
      *
      * @param ctx - Optional context with symbol and strategyName (clears all if not provided)
      */
-    clear: (ctx?: {
+    clear: (backtest: boolean, ctx?: {
         symbol: string;
         strategyName: StrategyName;
     }) => Promise<void>;
@@ -8707,7 +8714,7 @@ declare class StrategyCoreService {
      * @param strategyName - Name of the strategy
      * @returns Promise resolving to pending signal or null
      */
-    getPendingSignal: (symbol: string, strategyName: StrategyName) => Promise<ISignalRow | null>;
+    getPendingSignal: (backtest: boolean, symbol: string, strategyName: StrategyName) => Promise<ISignalRow | null>;
     /**
      * Checks if the strategy has been stopped.
      *
@@ -8718,7 +8725,7 @@ declare class StrategyCoreService {
      * @param strategyName - Name of the strategy
      * @returns Promise resolving to true if strategy is stopped, false otherwise
      */
-    getStopped: (symbol: string, strategyName: StrategyName) => Promise<boolean>;
+    getStopped: (backtest: boolean, symbol: string, strategyName: StrategyName) => Promise<boolean>;
     /**
      * Checks signal status at a specific timestamp.
      *
@@ -8754,10 +8761,10 @@ declare class StrategyCoreService {
      * @param strategyName - Name of strategy to stop
      * @returns Promise that resolves when stop flag is set
      */
-    stop: (ctx: {
+    stop: (backtest: boolean, ctx: {
         symbol: string;
         strategyName: StrategyName;
-    }, backtest: boolean) => Promise<void>;
+    }) => Promise<void>;
     /**
      * Clears the memoized ClientStrategy instance from cache.
      *
@@ -8766,7 +8773,7 @@ declare class StrategyCoreService {
      *
      * @param ctx - Optional context with symbol and strategyName (clears all if not provided)
      */
-    clear: (ctx?: {
+    clear: (backtest: boolean, ctx?: {
         symbol: string;
         strategyName: StrategyName;
     }) => Promise<void>;
@@ -8840,6 +8847,7 @@ declare class RiskGlobalService {
      */
     checkSignal: (params: IRiskCheckArgs, context: {
         riskName: RiskName;
+        backtest: boolean;
     }) => Promise<boolean>;
     /**
      * Registers an opened signal with the risk management system.
@@ -8850,6 +8858,7 @@ declare class RiskGlobalService {
     addSignal: (symbol: string, context: {
         strategyName: string;
         riskName: RiskName;
+        backtest: boolean;
     }) => Promise<void>;
     /**
      * Removes a closed signal from the risk management system.
@@ -8860,6 +8869,7 @@ declare class RiskGlobalService {
     removeSignal: (symbol: string, context: {
         strategyName: string;
         riskName: RiskName;
+        backtest: boolean;
     }) => Promise<void>;
     /**
      * Clears risk data.
@@ -8867,7 +8877,7 @@ declare class RiskGlobalService {
      * If no riskName is provided, clears all risk data.
      * @param riskName - Optional name of the risk instance to clear
      */
-    clear: (riskName?: RiskName) => Promise<void>;
+    clear: (backtest: boolean, riskName?: RiskName) => Promise<void>;
 }
 
 /**

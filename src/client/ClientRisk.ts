@@ -52,9 +52,17 @@ const DO_VALIDATION_FN = trycatch(
  * Initializes active positions by reading from persistence.
  * Uses singleshot pattern to ensure it only runs once.
  * This function is exported for use in tests or other modules.
+ *
+ * In backtest mode, initializes with empty Map. In live mode, reads from persist storage.
  */
 export const WAIT_FOR_INIT_FN = async (self: ClientRisk): Promise<void> => {
-  self.params.logger.debug("ClientRisk waitForInit");
+  self.params.logger.debug("ClientRisk waitForInit", { backtest: self.params.backtest });
+
+  if (self.params.backtest) {
+    self._activePositions = new Map();
+    return;
+  }
+
   const persistedPositions = await PersistRiskAdapter.readPositionData(
     self.params.riskName
   );
@@ -92,11 +100,17 @@ export class ClientRisk implements IRisk {
 
   /**
    * Persists current active positions to disk.
+   * Skips in backtest mode.
    */
   private async _updatePositions(): Promise<void> {
+    if (this.params.backtest) {
+      return;
+    }
+
     if (this._activePositions === POSITION_NEED_FETCH) {
       await this.waitForInit();
     }
+
     await PersistRiskAdapter.writePositionData(
       Array.from(<RiskMap>this._activePositions),
       this.params.riskName
@@ -114,10 +128,13 @@ export class ClientRisk implements IRisk {
     this.params.logger.debug("ClientRisk addSignal", {
       symbol,
       context,
+      backtest: this.params.backtest,
     });
+
     if (this._activePositions === POSITION_NEED_FETCH) {
       await this.waitForInit();
     }
+
     const key = GET_KEY_FN(context.strategyName, symbol);
     const riskMap = <RiskMap>this._activePositions;
     riskMap.set(key, {
@@ -141,10 +158,13 @@ export class ClientRisk implements IRisk {
     this.params.logger.debug("ClientRisk removeSignal", {
       symbol,
       context,
+      backtest: this.params.backtest,
     });
+
     if (this._activePositions === POSITION_NEED_FETCH) {
       await this.waitForInit();
     }
+
     const key = GET_KEY_FN(context.strategyName, symbol);
     const riskMap = <RiskMap>this._activePositions;
     riskMap.delete(key);
@@ -169,6 +189,7 @@ export class ClientRisk implements IRisk {
     this.params.logger.debug("ClientRisk checkSignal", {
       symbol: params.symbol,
       strategyName: params.strategyName,
+      backtest: this.params.backtest,
     });
 
     if (this._activePositions === POSITION_NEED_FETCH) {

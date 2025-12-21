@@ -35,34 +35,37 @@ const GET_RISK_FN = (
     riskName: RiskName;
     riskList: RiskName[];
   },
+  backtest: boolean,
   self: StrategyConnectionService
 ) => {
   const hasRiskName = !!dto.riskName;
-  const hasRiskList = !!(dto.riskList?.length);
-  
+  const hasRiskList = !!dto.riskList?.length;
+
   // Нет ни riskName, ни riskList
   if (!hasRiskName && !hasRiskList) {
     return NOOP_RISK;
   }
-  
+
   // Есть только riskName (без riskList)
   if (hasRiskName && !hasRiskList) {
-    return self.riskConnectionService.getRisk(dto.riskName);
+    return self.riskConnectionService.getRisk(dto.riskName, backtest);
   }
-  
+
   // Есть только riskList (без riskName)
   if (!hasRiskName && hasRiskList) {
     return new MergeRisk(
       dto.riskList.map((riskName) =>
-        self.riskConnectionService.getRisk(riskName)
+        self.riskConnectionService.getRisk(riskName, backtest)
       )
     );
   }
-  
+
   // Есть и riskName, и riskList - объединяем (riskName в начало)
   return new MergeRisk([
-    self.riskConnectionService.getRisk(dto.riskName),
-    ...dto.riskList.map((riskName) => self.riskConnectionService.getRisk(riskName))
+    self.riskConnectionService.getRisk(dto.riskName, backtest),
+    ...dto.riskList.map((riskName) =>
+      self.riskConnectionService.getRisk(riskName, backtest)
+    ),
   ]);
 };
 
@@ -118,8 +121,9 @@ export class StrategyConnectionService {
    * @returns Configured ClientStrategy instance
    */
   private getStrategy = memoize(
-    ([symbol, strategyName]) => `${symbol}:${strategyName}`,
-    (symbol: string, strategyName: StrategyName) => {
+    ([symbol, strategyName, backtest]) =>
+      `${symbol}:${strategyName}:${backtest ? "backtest" : "live"}`,
+    (symbol: string, strategyName: StrategyName, backtest: boolean) => {
       const {
         riskName = "",
         riskList = [],
@@ -140,6 +144,7 @@ export class StrategyConnectionService {
             riskName,
             riskList,
           },
+          backtest,
           this
         ),
         riskName,
@@ -161,14 +166,16 @@ export class StrategyConnectionService {
    * @returns Promise resolving to pending signal or null
    */
   public getPendingSignal = async (
+    backtest: boolean,
     symbol: string,
     strategyName: StrategyName
   ): Promise<ISignalRow | null> => {
     this.loggerService.log("strategyConnectionService getPendingSignal", {
       symbol,
       strategyName,
+      backtest,
     });
-    const strategy = this.getStrategy(symbol, strategyName);
+    const strategy = this.getStrategy(symbol, strategyName, backtest);
     return await strategy.getPendingSignal(symbol, strategyName);
   };
 
@@ -183,14 +190,16 @@ export class StrategyConnectionService {
    * @returns Promise resolving to true if strategy is stopped, false otherwise
    */
   public getStopped = async (
+    backtest: boolean,
     symbol: string,
     strategyName: StrategyName
   ): Promise<boolean> => {
     this.loggerService.log("strategyConnectionService getStopped", {
       symbol,
       strategyName,
+      backtest,
     });
-    const strategy = this.getStrategy(symbol, strategyName);
+    const strategy = this.getStrategy(symbol, strategyName, backtest);
     return await strategy.getStopped(symbol, strategyName);
   };
 
@@ -212,7 +221,8 @@ export class StrategyConnectionService {
       symbol,
       strategyName,
     });
-    const strategy = this.getStrategy(symbol, strategyName);
+    const backtest = this.executionContextService.context.backtest;
+    const strategy = this.getStrategy(symbol, strategyName, backtest);
     await strategy.waitForInit();
     const tick = await strategy.tick(symbol, strategyName);
     {
@@ -248,7 +258,8 @@ export class StrategyConnectionService {
       strategyName,
       candleCount: candles.length,
     });
-    const strategy = this.getStrategy(symbol, strategyName);
+    const backtest = this.executionContextService.context.backtest;
+    const strategy = this.getStrategy(symbol, strategyName, backtest);
     await strategy.waitForInit();
     const tick = await strategy.backtest(symbol, strategyName, candles);
     {
@@ -271,13 +282,13 @@ export class StrategyConnectionService {
    * @returns Promise that resolves when stop flag is set
    */
   public stop = async (
+    backtest: boolean,
     ctx: { symbol: string; strategyName: StrategyName },
-    backtest: boolean
   ): Promise<void> => {
     this.loggerService.log("strategyConnectionService stop", {
       ctx,
     });
-    const strategy = this.getStrategy(ctx.symbol, ctx.strategyName);
+    const strategy = this.getStrategy(ctx.symbol, ctx.strategyName, backtest);
     await strategy.stop(ctx.symbol, ctx.strategyName, backtest);
   };
 
@@ -289,15 +300,20 @@ export class StrategyConnectionService {
    *
    * @param ctx - Optional context with symbol and strategyName (clears all if not provided)
    */
-  public clear = async (ctx?: {
-    symbol: string;
-    strategyName: StrategyName;
-  }): Promise<void> => {
+  public clear = async (
+    backtest: boolean,
+    ctx?: {
+      symbol: string;
+      strategyName: StrategyName;
+    }
+  ): Promise<void> => {
     this.loggerService.log("strategyConnectionService clear", {
       ctx,
     });
     if (ctx) {
-      const key = `${ctx.symbol}:${ctx.strategyName}`;
+      const key = `${ctx.symbol}:${ctx.strategyName}:${
+        backtest ? "backtest" : "live"
+      }`;
       this.getStrategy.clear(key);
     } else {
       this.getStrategy.clear();

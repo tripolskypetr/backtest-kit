@@ -50,7 +50,7 @@ export class RiskGlobalService {
    */
   public checkSignal = async (
     params: IRiskCheckArgs,
-    context: { riskName: RiskName }
+    context: { riskName: RiskName; backtest: boolean }
   ) => {
     this.loggerService.log("riskGlobalService checkSignal", {
       symbol: params.symbol,
@@ -68,7 +68,7 @@ export class RiskGlobalService {
    */
   public addSignal = async (
     symbol: string,
-    context: { strategyName: string; riskName: RiskName }
+    context: { strategyName: string; riskName: RiskName; backtest: boolean }
   ) => {
     this.loggerService.log("riskGlobalService addSignal", {
       symbol,
@@ -86,7 +86,7 @@ export class RiskGlobalService {
    */
   public removeSignal = async (
     symbol: string,
-    context: { strategyName: string; riskName: RiskName }
+    context: { strategyName: string; riskName: RiskName; backtest: boolean }
   ) => {
     this.loggerService.log("riskGlobalService removeSignal", {
       symbol,
@@ -102,14 +102,15 @@ export class RiskGlobalService {
    * If no riskName is provided, clears all risk data.
    * @param riskName - Optional name of the risk instance to clear
    */
-  public clear = async (riskName?: RiskName): Promise<void> => {
+  public clear = async (backtest: boolean, riskName?: RiskName): Promise<void> => {
     this.loggerService.log("riskGlobalService clear", {
       riskName,
+      backtest,
     });
     if (riskName) {
       await this.validate(riskName);
     }
-    return await this.riskConnectionService.clear(riskName);
+    return await this.riskConnectionService.clear(backtest, riskName);
   };
 }
 

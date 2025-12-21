@@ -120,6 +120,7 @@ export class LiveLogicPrivateService {
           await and(
             Promise.resolve(true),
             this.strategyCoreService.getStopped(
+              false,
               symbol,
               this.methodContextService.context.strategyName
             )
@@ -155,6 +156,7 @@ export class LiveLogicPrivateService {
       if (result.action === "closed") {
         if (
           await this.strategyCoreService.getStopped(
+            false,
             symbol,
             this.methodContextService.context.strategyName
           )

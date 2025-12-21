@@ -76,21 +76,23 @@ export class RiskConnectionService {
   );
 
   /**
-   * Retrieves memoized ClientRisk instance for given risk name.
+   * Retrieves memoized ClientRisk instance for given risk name and backtest mode.
    *
    * Creates ClientRisk on first call, returns cached instance on subsequent calls.
-   * Cache key is riskName string.
+   * Cache key is "riskName:backtest" string to separate live and backtest instances.
    *
    * @param riskName - Name of registered risk schema
+   * @param backtest - True if backtest mode, false if live mode
    * @returns Configured ClientRisk instance
    */
   public getRisk = memoize(
-    ([riskName]) => `${riskName}`,
-    (riskName: RiskName) => {
+    ([riskName, backtest]) => `${riskName}:$:${backtest ? "backtest" : "live"}`,
+    (riskName: RiskName, backtest: boolean) => {
       const schema = this.riskSchemaService.get(riskName);
       return new ClientRisk({
         ...schema,
         logger: this.loggerService,
+        backtest,
         onRejected: COMMIT_REJECTION_FN,
       });
     }
@@ -104,18 +106,18 @@ export class RiskConnectionService {
    * ClientRisk will emit riskSubject event via onRejected callback when signal is rejected.
    *
    * @param params - Risk check arguments (portfolio state, position details)
-   * @param context - Execution context with risk name
+   * @param context - Execution context with risk name and backtest mode
    * @returns Promise resolving to risk check result
    */
   public checkSignal = async (
     params: IRiskCheckArgs,
-    context: { riskName: RiskName }
+    context: { riskName: RiskName; backtest: boolean }
   ) => {
     this.loggerService.log("riskConnectionService checkSignal", {
       symbol: params.symbol,
       context,
     });
-    return await this.getRisk(context.riskName).checkSignal(params);
+    return await this.getRisk(context.riskName, context.backtest).checkSignal(params);
   };
 
   /**
@@ -123,17 +125,17 @@ export class RiskConnectionService {
    * Routes to appropriate ClientRisk instance.
    *
    * @param symbol - Trading pair symbol
-   * @param context - Context information (strategyName, riskName)
+   * @param context - Context information (strategyName, riskName, backtest)
    */
   public addSignal = async (
     symbol: string,
-    context: { strategyName: string; riskName: RiskName }
+    context: { strategyName: string; riskName: RiskName; backtest: boolean }
   ) => {
     this.loggerService.log("riskConnectionService addSignal", {
       symbol,
       context,
     });
-    await this.getRisk(context.riskName).addSignal(symbol, context);
+    await this.getRisk(context.riskName, context.backtest).addSignal(symbol, context);
   };
 
   /**
@@ -141,17 +143,17 @@ export class RiskConnectionService {
    * Routes to appropriate ClientRisk instance.
    *
    * @param symbol - Trading pair symbol
-   * @param context - Context information (strategyName, riskName)
+   * @param context - Context information (strategyName, riskName, backtest)
    */
   public removeSignal = async (
     symbol: string,
-    context: { strategyName: string; riskName: RiskName }
+    context: { strategyName: string; riskName: RiskName; backtest: boolean }
   ) => {
     this.loggerService.log("riskConnectionService removeSignal", {
       symbol,
       context,
     });
-    await this.getRisk(context.riskName).removeSignal(symbol, context);
+    await this.getRisk(context.riskName, context.backtest).removeSignal(symbol, context);
   };
 
   /**
@@ -159,11 +161,13 @@ export class RiskConnectionService {
    *
    * @param riskName - Name of the risk schema to clear from cache
    */
-  public clear = async (riskName?: RiskName): Promise<void> => {
+  public clear = async (backtest: boolean, riskName?: RiskName): Promise<void> => {
     this.loggerService.log("riskConnectionService clear", {
       riskName,
+      backtest,
     });
-    this.getRisk.clear(riskName);
+    const key = `${riskName}:$:${backtest ? "backtest" : "live"}`;
+    this.getRisk.clear(key);
   };
 }
 

@@ -79,6 +79,7 @@ export class StrategyCoreService {
    * @returns Promise resolving to pending signal or null
    */
   public getPendingSignal = async (
+    backtest: boolean, 
     symbol: string,
     strategyName: StrategyName
   ): Promise<ISignalRow | null> => {
@@ -90,7 +91,7 @@ export class StrategyCoreService {
       throw new Error("strategyCoreService getPendingSignal requires a method context");
     }
     await this.validate(symbol, strategyName);
-    return await this.strategyConnectionService.getPendingSignal(symbol, strategyName);
+    return await this.strategyConnectionService.getPendingSignal(backtest, symbol, strategyName);
   };
 
   /**
@@ -104,18 +105,20 @@ export class StrategyCoreService {
    * @returns Promise resolving to true if strategy is stopped, false otherwise
    */
   public getStopped = async (
+    backtest: boolean, 
     symbol: string,
     strategyName: StrategyName
   ): Promise<boolean> => {
     this.loggerService.log("strategyCoreService getStopped", {
       symbol,
       strategyName,
+      backtest,
     });
     if (!MethodContextService.hasContext()) {
       throw new Error("strategyCoreService getStopped requires a method context");
     }
     await this.validate(symbol, strategyName);
-    return await this.strategyConnectionService.getStopped(symbol, strategyName);
+    return await this.strategyConnectionService.getStopped(backtest, symbol, strategyName);
   };
 
   /**
@@ -207,13 +210,13 @@ export class StrategyCoreService {
    * @param strategyName - Name of strategy to stop
    * @returns Promise that resolves when stop flag is set
    */
-  public stop = async (ctx: { symbol: string; strategyName: StrategyName }, backtest: boolean): Promise<void> => {
+  public stop = async (backtest: boolean, ctx: { symbol: string; strategyName: StrategyName }): Promise<void> => {
     this.loggerService.log("strategyCoreService stop", {
       ctx,
       backtest,
     });
     await this.validate(ctx.symbol, ctx.strategyName);
-    return await this.strategyConnectionService.stop(ctx, backtest);
+    return await this.strategyConnectionService.stop(backtest, ctx);
   };
 
   /**
@@ -224,14 +227,14 @@ export class StrategyCoreService {
    *
    * @param ctx - Optional context with symbol and strategyName (clears all if not provided)
    */
-  public clear = async (ctx?: { symbol: string; strategyName: StrategyName }): Promise<void> => {
+  public clear = async (backtest: boolean, ctx?: { symbol: string; strategyName: StrategyName }): Promise<void> => {
     this.loggerService.log("strategyCoreService clear", {
       ctx,
     });
     if (ctx) {
       await this.validate(ctx.symbol, ctx.strategyName);
     }
-    return await this.strategyConnectionService.clear(ctx);
+    return await this.strategyConnectionService.clear(backtest, ctx);
   };
 }
 

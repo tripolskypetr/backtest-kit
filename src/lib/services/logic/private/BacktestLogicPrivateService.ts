@@ -94,6 +94,7 @@ export class BacktestLogicPrivateService {
       // Check if strategy should stop before processing next frame
       if (
         await this.strategyCoreService.getStopped(
+          true,
           symbol,
           this.methodContextService.context.strategyName
         )
@@ -133,6 +134,7 @@ export class BacktestLogicPrivateService {
         await and(
           Promise.resolve(result.action === "idle"),
           this.strategyCoreService.getStopped(
+            true,
             symbol,
             this.methodContextService.context.strategyName
           )
@@ -283,6 +285,7 @@ export class BacktestLogicPrivateService {
         // Check if strategy should stop after signal is closed
         if (
           await this.strategyCoreService.getStopped(
+            true,
             symbol,
             this.methodContextService.context.strategyName
           )
@@ -413,6 +416,7 @@ export class BacktestLogicPrivateService {
         // Check if strategy should stop after signal is closed
         if (
           await this.strategyCoreService.getStopped(
+            true,
             symbol,
             this.methodContextService.context.strategyName
           )

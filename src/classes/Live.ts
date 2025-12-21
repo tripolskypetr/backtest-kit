@@ -171,15 +171,15 @@ export class LiveInstance {
     }
 
     {
-      backtest.strategyCoreService.clear({ symbol, strategyName: context.strategyName });
+      backtest.strategyCoreService.clear(false, { symbol, strategyName: context.strategyName });
     }
 
     {
       const { riskName, riskList } = backtest.strategySchemaService.get(
         context.strategyName
       );
-      riskName && backtest.riskGlobalService.clear(riskName);
-      riskList && riskList.forEach((riskName) => backtest.riskGlobalService.clear(riskName));
+      riskName && backtest.riskGlobalService.clear(false, riskName);
+      riskList && riskList.forEach((riskName) => backtest.riskGlobalService.clear(false, riskName));
     }
 
     return backtest.liveCommandService.run(symbol, context);
@@ -220,9 +220,9 @@ export class LiveInstance {
       exitEmitter.next(new Error(getErrorMessage(error)))
     );
     return () => {
-      backtest.strategyCoreService.stop({symbol, strategyName: context.strategyName}, false);
+      backtest.strategyCoreService.stop(false, {symbol, strategyName: context.strategyName});
       backtest.strategyCoreService
-        .getPendingSignal(symbol, context.strategyName)
+        .getPendingSignal(false, symbol, context.strategyName)
         .then(async (pendingSignal) => {
           if (pendingSignal) {
             return;
@@ -263,7 +263,7 @@ export class LiveInstance {
       symbol,
       strategyName,
     });
-    await backtest.strategyCoreService.stop({ symbol, strategyName }, false);
+    await backtest.strategyCoreService.stop(false, { symbol, strategyName });
   };
 
   /**
