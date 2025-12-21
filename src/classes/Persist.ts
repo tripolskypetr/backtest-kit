@@ -885,7 +885,7 @@ export type PartialData = Record<string, IPartialData>;
  * Utility class for managing partial profit/loss levels persistence.
  *
  * Features:
- * - Memoized storage instances per symbol
+ * - Memoized storage instances per symbol:strategyName
  * - Custom adapter support
  * - Atomic read/write operations for partial data
  * - Crash-safe partial state management
@@ -897,10 +897,10 @@ export class PersistPartialUtils {
     PersistBase;
 
   private getPartialStorage = memoize(
-    ([symbol]: [string]): string => `${symbol}`,
-    (symbol: string): IPersistBase<PartialData> =>
+    ([symbol, strategyName]: [string, StrategyName]): string => `${symbol}:${strategyName}`,
+    (symbol: string, strategyName: StrategyName): IPersistBase<PartialData> =>
       Reflect.construct(this.PersistPartialFactory, [
-        symbol,
+        `${symbol}_${strategyName}`,
         `./dump/data/partial/`,
       ])
   );
@@ -929,19 +929,21 @@ export class PersistPartialUtils {
   }
 
   /**
-   * Reads persisted partial data for a symbol.
+   * Reads persisted partial data for a symbol and strategy.
    *
    * Called by ClientPartial.waitForInit() to restore state.
    * Returns empty object if no partial data exists.
    *
    * @param symbol - Trading pair symbol
+   * @param strategyName - Strategy identifier
    * @returns Promise resolving to partial data record
    */
-  public readPartialData = async (symbol: string): Promise<PartialData> => {
+  public readPartialData = async (symbol: string, strategyName: StrategyName): Promise<PartialData> => {
     swarm.loggerService.info(PERSIST_PARTIAL_UTILS_METHOD_NAME_READ_DATA);
 
-    const isInitial = !this.getPartialStorage.has(symbol);
-    const stateStorage = this.getPartialStorage(symbol);
+    const key = `${symbol}:${strategyName}`;
+    const isInitial = !this.getPartialStorage.has(key);
+    const stateStorage = this.getPartialStorage(symbol, strategyName);
     await stateStorage.waitForInit(isInitial);
 
     const PARTIAL_STORAGE_KEY = "levels";
@@ -961,16 +963,19 @@ export class PersistPartialUtils {
    *
    * @param partialData - Record of signal IDs to partial data
    * @param symbol - Trading pair symbol
+   * @param strategyName - Strategy identifier
    * @returns Promise that resolves when write is complete
    */
   public writePartialData = async (
     partialData: PartialData,
-    symbol: string
+    symbol: string,
+    strategyName: StrategyName
   ): Promise<void> => {
     swarm.loggerService.info(PERSIST_PARTIAL_UTILS_METHOD_NAME_WRITE_DATA);
 
-    const isInitial = !this.getPartialStorage.has(symbol);
-    const stateStorage = this.getPartialStorage(symbol);
+    const key = `${symbol}:${strategyName}`;
+    const isInitial = !this.getPartialStorage.has(key);
+    const stateStorage = this.getPartialStorage(symbol, strategyName);
     await stateStorage.waitForInit(isInitial);
 
     const PARTIAL_STORAGE_KEY = "levels";
@@ -989,10 +994,11 @@ export class PersistPartialUtils {
  * PersistPartialAdapter.usePersistPartialAdapter(RedisPersist);
  *
  * // Read partial data
- * const partialData = await PersistPartialAdapter.readPartialData("BTCUSDT");
+ * const partialData = await PersistPartialAdapter.readPartialData("BTCUSDT", "my-strategy");
  *
  * // Write partial data
- * await PersistPartialAdapter.writePartialData(partialData, "BTCUSDT");
+ * await PersistPartialAdapter.writePartialData(partialData, "BTCUSDT", "my-strategy");
  * ```
  */
 export const PersistPartialAdapter = new PersistPartialUtils();
+

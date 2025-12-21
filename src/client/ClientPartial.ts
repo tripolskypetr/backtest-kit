@@ -94,7 +94,7 @@ const HANDLE_PROFIT_FN = async (
   }
 
   if (shouldPersist) {
-    await self._persistState(symbol, backtest);
+    await self._persistState(symbol, data.strategyName, backtest);
   }
 };
 
@@ -167,7 +167,7 @@ const HANDLE_LOSS_FN = async (
   }
 
   if (shouldPersist) {
-    await self._persistState(symbol, backtest);
+    await self._persistState(symbol, data.strategyName, backtest);
   }
 };
 
@@ -178,10 +178,11 @@ const HANDLE_LOSS_FN = async (
  * Converts serialized arrays back to Sets for O(1) lookups.
  *
  * @param symbol - Trading pair symbol
+ * @param strategyName - Strategy identifier
  * @param self - ClientPartial instance reference
  */
-const WAIT_FOR_INIT_FN = async (symbol: string, self: ClientPartial) => {
-  self.params.logger.debug("ClientPartial waitForInit", { symbol });
+const WAIT_FOR_INIT_FN = async (symbol: string, strategyName: string, self: ClientPartial) => {
+  self.params.logger.debug("ClientPartial waitForInit", { symbol, strategyName });
 
   if (self._states === NEED_FETCH) {
     throw new Error(
@@ -189,7 +190,7 @@ const WAIT_FOR_INIT_FN = async (symbol: string, self: ClientPartial) => {
     );
   }
 
-  const partialData = await PersistPartialAdapter.readPartialData(symbol);
+  const partialData = await PersistPartialAdapter.readPartialData(symbol, strategyName);
 
   for (const [signalId, data] of Object.entries(partialData)) {
     const state: IPartialState = {
@@ -201,6 +202,7 @@ const WAIT_FOR_INIT_FN = async (symbol: string, self: ClientPartial) => {
 
   self.params.logger.info("ClientPartial restored state", {
     symbol,
+    strategyName,
     signalCount: Object.keys(partialData).length,
   });
 };
@@ -283,23 +285,24 @@ export class ClientPartial implements IPartial {
   /**
    * Initializes partial state by loading from disk.
    *
-   * Uses singleshot pattern to ensure initialization happens exactly once per symbol.
+   * Uses singleshot pattern to ensure initialization happens exactly once per symbol:strategyName.
    * Reads persisted state from PersistPartialAdapter and restores to _states Map.
    *
    * Must be called before profit()/loss()/clear() methods.
    *
    * @param symbol - Trading pair symbol
+   * @param strategyName - Strategy identifier
    * @returns Promise that resolves when initialization is complete
    *
    * @example
    * ```typescript
    * const partial = new ClientPartial(params);
-   * await partial.waitForInit("BTCUSDT"); // Load persisted state
+   * await partial.waitForInit("BTCUSDT", "my-strategy"); // Load persisted state
    * // Now profit()/loss() can be called
    * ```
    */
   public waitForInit = singleshot(
-    async (symbol: string) => await WAIT_FOR_INIT_FN(symbol, this)
+    async (symbol: string, strategyName: string) => await WAIT_FOR_INIT_FN(symbol, strategyName, this)
   );
 
   /**
@@ -313,13 +316,15 @@ export class ClientPartial implements IPartial {
    * Uses atomic file writes via PersistPartialAdapter.
    *
    * @param symbol - Trading pair symbol
+   * @param strategyName - Strategy identifier
+   * @param backtest - True if backtest mode
    * @returns Promise that resolves when persistence is complete
    */
-  public async _persistState(symbol: string, backtest: boolean): Promise<void> {
+  public async _persistState(symbol: string, strategyName: string, backtest: boolean): Promise<void> {
     if (backtest) {
       return;
     }
-    this.params.logger.debug("ClientPartial persistState", { symbol });
+    this.params.logger.debug("ClientPartial persistState", { symbol, strategyName });
     if (this._states === NEED_FETCH) {
       throw new Error(
         "ClientPartial not initialized. Call waitForInit() before using."
@@ -332,7 +337,7 @@ export class ClientPartial implements IPartial {
         lossLevels: Array.from(state.lossLevels),
       };
     }
-    await PersistPartialAdapter.writePartialData(partialData, symbol);
+    await PersistPartialAdapter.writePartialData(partialData, symbol, strategyName);
   }
 
   /**
@@ -494,7 +499,7 @@ export class ClientPartial implements IPartial {
       );
     }
     this._states.delete(data.id);
-    await this._persistState(symbol, backtest);
+    await this._persistState(symbol, data.strategyName, backtest);
   }
 }
 

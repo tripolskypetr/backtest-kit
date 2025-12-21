@@ -4803,7 +4803,7 @@ type PartialData = Record<string, IPartialData>;
  * Utility class for managing partial profit/loss levels persistence.
  *
  * Features:
- * - Memoized storage instances per symbol
+ * - Memoized storage instances per symbol:strategyName
  * - Custom adapter support
  * - Atomic read/write operations for partial data
  * - Crash-safe partial state management
@@ -4829,15 +4829,16 @@ declare class PersistPartialUtils {
      */
     usePersistPartialAdapter(Ctor: TPersistBaseCtor<string, PartialData>): void;
     /**
-     * Reads persisted partial data for a symbol.
+     * Reads persisted partial data for a symbol and strategy.
      *
      * Called by ClientPartial.waitForInit() to restore state.
      * Returns empty object if no partial data exists.
      *
      * @param symbol - Trading pair symbol
+     * @param strategyName - Strategy identifier
      * @returns Promise resolving to partial data record
      */
-    readPartialData: (symbol: string) => Promise<PartialData>;
+    readPartialData: (symbol: string, strategyName: StrategyName) => Promise<PartialData>;
     /**
      * Writes partial data to disk with atomic file writes.
      *
@@ -4846,9 +4847,10 @@ declare class PersistPartialUtils {
      *
      * @param partialData - Record of signal IDs to partial data
      * @param symbol - Trading pair symbol
+     * @param strategyName - Strategy identifier
      * @returns Promise that resolves when write is complete
      */
-    writePartialData: (partialData: PartialData, symbol: string) => Promise<void>;
+    writePartialData: (partialData: PartialData, symbol: string, strategyName: StrategyName) => Promise<void>;
 }
 /**
  * Global singleton instance of PersistPartialUtils.
@@ -4860,10 +4862,10 @@ declare class PersistPartialUtils {
  * PersistPartialAdapter.usePersistPartialAdapter(RedisPersist);
  *
  * // Read partial data
- * const partialData = await PersistPartialAdapter.readPartialData("BTCUSDT");
+ * const partialData = await PersistPartialAdapter.readPartialData("BTCUSDT", "my-strategy");
  *
  * // Write partial data
- * await PersistPartialAdapter.writePartialData(partialData, "BTCUSDT");
+ * await PersistPartialAdapter.writePartialData(partialData, "BTCUSDT", "my-strategy");
  * ```
  */
 declare const PersistPartialAdapter: PersistPartialUtils;
