@@ -45,7 +45,7 @@ export class ScheduleUtils {
    * console.log(stats.cancellationRate, stats.avgWaitTime);
    * ```
    */
-  public getData = async (symbol: string, strategyName: StrategyName, backtest: boolean) => {
+  public getData = async (symbol: string, strategyName: StrategyName, backtest = false) => {
     bt.loggerService.info(SCHEDULE_METHOD_NAME_GET_DATA, {
       symbol,
       strategyName,
@@ -77,7 +77,7 @@ export class ScheduleUtils {
    * console.log(markdown);
    * ```
    */
-  public getReport = async (symbol: string, strategyName: StrategyName, backtest: boolean, columns?: Columns[]): Promise<string> => {
+  public getReport = async (symbol: string, strategyName: StrategyName, backtest = false, columns?: Columns[]): Promise<string> => {
     bt.loggerService.info(SCHEDULE_METHOD_NAME_GET_REPORT, {
       symbol,
       strategyName,
@@ -115,7 +115,7 @@ export class ScheduleUtils {
   public dump = async (
     symbol: string,
     strategyName: StrategyName,
-    backtest: boolean,
+    backtest = false,
     path?: string,
     columns?: Columns[]
   ): Promise<void> => {

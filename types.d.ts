@@ -5836,7 +5836,7 @@ declare class ScheduleUtils {
      * console.log(stats.cancellationRate, stats.avgWaitTime);
      * ```
      */
-    getData: (symbol: string, strategyName: StrategyName, backtest: boolean) => Promise<ScheduleStatisticsModel>;
+    getData: (symbol: string, strategyName: StrategyName, backtest?: boolean) => Promise<ScheduleStatisticsModel>;
     /**
      * Generates markdown report with all scheduled events for a symbol-strategy pair.
      *
@@ -5851,7 +5851,7 @@ declare class ScheduleUtils {
      * console.log(markdown);
      * ```
      */
-    getReport: (symbol: string, strategyName: StrategyName, backtest: boolean, columns?: Columns$4[]) => Promise<string>;
+    getReport: (symbol: string, strategyName: StrategyName, backtest?: boolean, columns?: Columns$4[]) => Promise<string>;
     /**
      * Saves strategy report to disk.
      *
@@ -5869,7 +5869,7 @@ declare class ScheduleUtils {
      * await Schedule.dump("BTCUSDT", "my-strategy", "./custom/path");
      * ```
      */
-    dump: (symbol: string, strategyName: StrategyName, backtest: boolean, path?: string, columns?: Columns$4[]) => Promise<void>;
+    dump: (symbol: string, strategyName: StrategyName, backtest?: boolean, path?: string, columns?: Columns$4[]) => Promise<void>;
 }
 /**
  * Singleton instance of ScheduleUtils for convenient scheduled signals reporting.
@@ -6088,7 +6088,7 @@ declare class Performance {
      * }
      * ```
      */
-    static getData(symbol: string, strategyName: string, backtest: boolean): Promise<PerformanceStatisticsModel>;
+    static getData(symbol: string, strategyName: string, backtest?: boolean): Promise<PerformanceStatisticsModel>;
     /**
      * Generates markdown report with performance analysis.
      *
@@ -6112,7 +6112,7 @@ declare class Performance {
      * await fs.writeFile("performance-report.md", markdown);
      * ```
      */
-    static getReport(symbol: string, strategyName: string, backtest: boolean, columns?: Columns$3[]): Promise<string>;
+    static getReport(symbol: string, strategyName: string, backtest?: boolean, columns?: Columns$3[]): Promise<string>;
     /**
      * Saves performance report to disk.
      *
@@ -6133,7 +6133,7 @@ declare class Performance {
      * await Performance.dump("BTCUSDT", "my-strategy", "./reports/perf");
      * ```
      */
-    static dump(symbol: string, strategyName: string, backtest: boolean, path?: string, columns?: Columns$3[]): Promise<void>;
+    static dump(symbol: string, strategyName: string, backtest?: boolean, path?: string, columns?: Columns$3[]): Promise<void>;
 }
 
 /**
@@ -6737,7 +6737,7 @@ declare class HeatUtils {
      * });
      * ```
      */
-    getData: (strategyName: StrategyName, backtest: boolean) => Promise<HeatmapStatisticsModel>;
+    getData: (strategyName: StrategyName, backtest?: boolean) => Promise<HeatmapStatisticsModel>;
     /**
      * Generates markdown report with portfolio heatmap table for a strategy.
      *
@@ -6764,7 +6764,7 @@ declare class HeatUtils {
      * // ...
      * ```
      */
-    getReport: (strategyName: StrategyName, backtest: boolean, columns?: Columns$2[]) => Promise<string>;
+    getReport: (strategyName: StrategyName, backtest?: boolean, columns?: Columns$2[]) => Promise<string>;
     /**
      * Saves heatmap report to disk for a strategy.
      *
@@ -6784,7 +6784,7 @@ declare class HeatUtils {
      * await Heat.dump("my-strategy", "./reports");
      * ```
      */
-    dump: (strategyName: StrategyName, backtest: boolean, path?: string, columns?: Columns$2[]) => Promise<void>;
+    dump: (strategyName: StrategyName, backtest?: boolean, path?: string, columns?: Columns$2[]) => Promise<void>;
 }
 /**
  * Singleton instance of HeatUtils for convenient heatmap operations.
@@ -7218,7 +7218,7 @@ declare class PartialUtils {
      * }
      * ```
      */
-    getData: (symbol: string, strategyName: string, backtest: boolean) => Promise<PartialStatisticsModel>;
+    getData: (symbol: string, strategyName: string, backtest?: boolean) => Promise<PartialStatisticsModel>;
     /**
      * Generates markdown report with all partial profit/loss events for a symbol-strategy pair.
      *
@@ -7258,7 +7258,7 @@ declare class PartialUtils {
      * // **Loss events:** 1
      * ```
      */
-    getReport: (symbol: string, strategyName: string, backtest: boolean, columns?: Columns$1[]) => Promise<string>;
+    getReport: (symbol: string, strategyName: string, backtest?: boolean, columns?: Columns$1[]) => Promise<string>;
     /**
      * Generates and saves markdown report to file.
      *
@@ -7291,7 +7291,7 @@ declare class PartialUtils {
      * }
      * ```
      */
-    dump: (symbol: string, strategyName: string, backtest: boolean, path?: string, columns?: Columns$1[]) => Promise<void>;
+    dump: (symbol: string, strategyName: string, backtest?: boolean, path?: string, columns?: Columns$1[]) => Promise<void>;
 }
 /**
  * Global singleton instance of PartialUtils.
@@ -7617,7 +7617,7 @@ declare class RiskUtils {
      * }
      * ```
      */
-    getData: (symbol: string, strategyName: string, backtest: boolean) => Promise<RiskStatisticsModel>;
+    getData: (symbol: string, strategyName: string, backtest?: boolean) => Promise<RiskStatisticsModel>;
     /**
      * Generates markdown report with all risk rejection events for a symbol-strategy pair.
      *
@@ -7659,7 +7659,7 @@ declare class RiskUtils {
      * // - my-strategy: 1
      * ```
      */
-    getReport: (symbol: string, strategyName: string, backtest: boolean, columns?: Columns[]) => Promise<string>;
+    getReport: (symbol: string, strategyName: string, backtest?: boolean, columns?: Columns[]) => Promise<string>;
     /**
      * Generates and saves markdown report to file.
      *
@@ -7692,7 +7692,7 @@ declare class RiskUtils {
      * }
      * ```
      */
-    dump: (symbol: string, strategyName: string, backtest: boolean, path?: string, columns?: Columns[]) => Promise<void>;
+    dump: (symbol: string, strategyName: string, backtest?: boolean, path?: string, columns?: Columns[]) => Promise<void>;
 }
 /**
  * Global singleton instance of RiskUtils.

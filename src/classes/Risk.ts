@@ -175,7 +175,7 @@ export class RiskUtils {
    * }
    * ```
    */
-  public getData = async (symbol: string, strategyName: string, backtest: boolean) => {
+  public getData = async (symbol: string, strategyName: string, backtest = false) => {
     bt.loggerService.info(RISK_METHOD_NAME_GET_DATA, {
       symbol,
       strategyName,
@@ -243,7 +243,7 @@ export class RiskUtils {
   public getReport = async (
     symbol: string,
     strategyName: string,
-    backtest: boolean,
+    backtest = false,
     columns?: Columns[]
   ): Promise<string> => {
     bt.loggerService.info(RISK_METHOD_NAME_GET_REPORT, {
@@ -304,7 +304,7 @@ export class RiskUtils {
   public dump = async (
     symbol: string,
     strategyName: string,
-    backtest: boolean,
+    backtest = false,
     path?: string,
     columns?: Columns[]
   ): Promise<void> => {

@@ -70,7 +70,7 @@ export class Performance {
   public static async getData(
     symbol: string,
     strategyName: string,
-    backtest: boolean,
+    backtest = false,
   ): Promise<PerformanceStatisticsModel> {
     bt.strategyValidationService.validate(strategyName, PERFORMANCE_METHOD_NAME_GET_DATA);
 
@@ -106,7 +106,7 @@ export class Performance {
    * await fs.writeFile("performance-report.md", markdown);
    * ```
    */
-  public static async getReport(symbol: string, strategyName: string, backtest: boolean, columns?: Columns[]): Promise<string> {
+  public static async getReport(symbol: string, strategyName: string, backtest = false, columns?: Columns[]): Promise<string> {
     bt.strategyValidationService.validate(strategyName, PERFORMANCE_METHOD_NAME_GET_REPORT);
 
     {
@@ -141,7 +141,7 @@ export class Performance {
   public static async dump(
     symbol: string,
     strategyName: string,
-    backtest: boolean,
+    backtest = false,
     path = "./dump/performance",
     columns?: Columns[]
   ): Promise<void> {

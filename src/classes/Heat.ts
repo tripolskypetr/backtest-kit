@@ -54,7 +54,7 @@ export class HeatUtils {
    * });
    * ```
    */
-  public getData = async (strategyName: StrategyName, backtest: boolean): Promise<HeatmapStatisticsModel> => {
+  public getData = async (strategyName: StrategyName, backtest = false): Promise<HeatmapStatisticsModel> => {
     bt.loggerService.info(HEAT_METHOD_NAME_GET_DATA, { strategyName });
 
     bt.strategyValidationService.validate(strategyName, HEAT_METHOD_NAME_GET_DATA);
@@ -94,7 +94,7 @@ export class HeatUtils {
    * // ...
    * ```
    */
-  public getReport = async (strategyName: StrategyName, backtest: boolean, columns?: Columns[]): Promise<string> => {
+  public getReport = async (strategyName: StrategyName, backtest = false, columns?: Columns[]): Promise<string> => {
     bt.loggerService.info(HEAT_METHOD_NAME_GET_REPORT, { strategyName });
 
     bt.strategyValidationService.validate(strategyName, HEAT_METHOD_NAME_GET_REPORT);
@@ -127,7 +127,7 @@ export class HeatUtils {
    * await Heat.dump("my-strategy", "./reports");
    * ```
    */
-  public dump = async (strategyName: StrategyName, backtest: boolean, path?: string, columns?: Columns[]): Promise<void> => {
+  public dump = async (strategyName: StrategyName, backtest = false, path?: string, columns?: Columns[]): Promise<void> => {
     bt.loggerService.info(HEAT_METHOD_NAME_DUMP, { strategyName, path });
 
     bt.strategyValidationService.validate(strategyName, HEAT_METHOD_NAME_DUMP);
