@@ -30,10 +30,21 @@ Each exchange gets its own isolated instance.
 ### getCandles
 
 ```ts
-getCandles: (symbol: string, interval: CandleInterval, since: Date, limit: number, context: { exchangeName: string; }) => Promise<ICandleData[]>
+getCandles: (symbol: string, interval: CandleInterval, limit: number, context: { exchangeName: string; }) => Promise<ICandleData[]>
 ```
 
 Fetch candles from data source (API or database).
+
+Automatically calculates the start date based on Date.now() and the requested interval/limit.
+Uses the same logic as ClientExchange to ensure backwards compatibility.
+
+### getAveragePrice
+
+```ts
+getAveragePrice: (symbol: string, context: { exchangeName: string; }) => Promise<number>
+```
+
+Calculates VWAP (Volume Weighted Average Price) from last N 1m candles.
 
 ### formatQuantity
 

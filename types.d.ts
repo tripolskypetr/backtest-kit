@@ -7720,7 +7720,10 @@ declare const Risk: RiskUtils;
  * ```typescript
  * import { Exchange } from "./classes/Exchange";
  *
- * const candles = await Exchange.getCandles("BTCUSDT", "1m", new Date(), 100, {
+ * const candles = await Exchange.getCandles("BTCUSDT", "1m", 100, {
+ *   exchangeName: "binance"
+ * });
+ * const vwap = await Exchange.getAveragePrice("BTCUSDT", {
  *   exchangeName: "binance"
  * });
  * const formatted = await Exchange.formatQuantity("BTCUSDT", 0.001, {
@@ -7737,16 +7740,28 @@ declare class ExchangeUtils {
     /**
      * Fetch candles from data source (API or database).
      *
+     * Automatically calculates the start date based on Date.now() and the requested interval/limit.
+     * Uses the same logic as ClientExchange to ensure backwards compatibility.
+     *
      * @param symbol - Trading pair symbol (e.g., "BTCUSDT")
      * @param interval - Candle time interval (e.g., "1m", "1h")
-     * @param since - Start date for candle fetching
      * @param limit - Maximum number of candles to fetch
      * @param context - Execution context with exchange name
      * @returns Promise resolving to array of OHLCV candle data
      */
-    getCandles: (symbol: string, interval: CandleInterval, since: Date, limit: number, context: {
+    getCandles: (symbol: string, interval: CandleInterval, limit: number, context: {
         exchangeName: ExchangeName;
     }) => Promise<ICandleData[]>;
+    /**
+     * Calculates VWAP (Volume Weighted Average Price) from last N 1m candles.
+     *
+     * @param symbol - Trading pair symbol
+     * @param context - Execution context with exchange name
+     * @returns Promise resolving to VWAP price
+     */
+    getAveragePrice: (symbol: string, context: {
+        exchangeName: ExchangeName;
+    }) => Promise<number>;
     /**
      * Format quantity according to exchange precision rules.
      *
@@ -7778,7 +7793,10 @@ declare class ExchangeUtils {
  * import { Exchange } from "./classes/Exchange";
  *
  * // Using static-like API with context
- * const candles = await Exchange.getCandles("BTCUSDT", "1m", new Date(), 100, {
+ * const candles = await Exchange.getCandles("BTCUSDT", "1m", 100, {
+ *   exchangeName: "binance"
+ * });
+ * const vwap = await Exchange.getAveragePrice("BTCUSDT", {
  *   exchangeName: "binance"
  * });
  * const qty = await Exchange.formatQuantity("BTCUSDT", 0.001, {
@@ -7790,7 +7808,8 @@ declare class ExchangeUtils {
  *
  * // Using instance API (no context needed, exchange set in constructor)
  * const binance = new ExchangeInstance("binance");
- * const candles2 = await binance.getCandles("BTCUSDT", "1m", new Date(), 100);
+ * const candles2 = await binance.getCandles("BTCUSDT", "1m", 100);
+ * const vwap2 = await binance.getAveragePrice("BTCUSDT");
  * ```
  */
 declare const Exchange: ExchangeUtils;
