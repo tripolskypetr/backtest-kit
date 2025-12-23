@@ -27,7 +27,7 @@ constructor();
 ### getData
 
 ```ts
-getData: (symbol: string, strategyName: string, backtest: boolean) => Promise<ScheduleStatisticsModel>
+getData: (symbol: string, strategyName: string, backtest?: boolean) => Promise<ScheduleStatisticsModel>
 ```
 
 Gets statistical data from all scheduled signal events for a symbol-strategy pair.
@@ -35,7 +35,7 @@ Gets statistical data from all scheduled signal events for a symbol-strategy pai
 ### getReport
 
 ```ts
-getReport: (symbol: string, strategyName: string, backtest: boolean, columns?: Columns$4[]) => Promise<string>
+getReport: (symbol: string, strategyName: string, backtest?: boolean, columns?: Columns$4[]) => Promise<string>
 ```
 
 Generates markdown report with all scheduled events for a symbol-strategy pair.
@@ -43,7 +43,7 @@ Generates markdown report with all scheduled events for a symbol-strategy pair.
 ### dump
 
 ```ts
-dump: (symbol: string, strategyName: string, backtest: boolean, path?: string, columns?: Columns$4[]) => Promise<void>
+dump: (symbol: string, strategyName: string, backtest?: boolean, path?: string, columns?: Columns$4[]) => Promise<void>
 ```
 
 Saves strategy report to disk.
