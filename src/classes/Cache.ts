@@ -214,7 +214,7 @@ export class CacheUtils {
       interval: CandleInterval;
     }
   ): Function => {
-    backtest.loggerService.debug(CACHE_METHOD_NAME_FN, {
+    backtest.loggerService.info(CACHE_METHOD_NAME_FN, {
       context,
     });
 
@@ -250,7 +250,7 @@ export class CacheUtils {
    * ```
    */
   public clear = <T extends Function>(run?: T) => {
-    backtest.loggerService.debug(CACHE_METHOD_NAME_CLEAR, {
+    backtest.loggerService.info(CACHE_METHOD_NAME_CLEAR, {
       run,
     });
     this._getInstance.clear(run);
