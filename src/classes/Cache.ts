@@ -6,6 +6,7 @@ import backtest, {
   MethodContextService,
 } from "../lib";
 
+const CACHE_METHOD_NAME_CLEAR = "CacheUtils.clear";
 const CACHE_METHOD_NAME_RUN = "CacheInstance.run";
 const CACHE_METHOD_NAME_FN = "CacheUtils.fn";
 
@@ -88,12 +89,24 @@ export class CacheInstance<T extends Function = Function> {
   /**
    * Execute function with caching based on timeframe intervals.
    *
-   * Caches function results and invalidates when execution time moves to a different
-   * interval boundary. Uses execution context (strategy, exchange, backtest mode) and
-   * method context for cache key generation.
+   * This method implements intelligent time-based caching:
+   * 1. Generates cache key from strategy name, exchange name, and execution mode (backtest/live)
+   * 2. Checks if cached value exists and is still valid for current interval
+   * 3. Returns cached value if time elapsed is less than interval duration
+   * 4. Recomputes and caches new value when moving to next interval boundary
+   *
+   * Cache invalidation example with 15m interval:
+   * - 10:00 AM: First call → computes and caches result
+   * - 10:05 AM: Same interval → returns cached result
+   * - 10:15 AM: New interval → recomputes and caches new result
+   *
+   * Requires active execution context (strategy, exchange, backtest mode) and method context.
+   * Each unique combination of these contexts maintains separate cache entries.
    *
    * @param args - Arguments to pass to the cached function
-   * @returns Cached result containing value and timestamp
+   * @returns Cached result object containing:
+   *   - `value`: The computed or cached function result
+   *   - `when`: Timestamp when this value was cached
    * @throws Error if interval is unknown or required context is missing
    *
    * @example
@@ -210,6 +223,38 @@ export class CacheUtils {
       return instance.run(...args).value;
     };
   };
+
+  /**
+   * Clear cached instances for specific function or all cached functions.
+   *
+   * This method delegates to the memoized `_getInstance` function's clear method,
+   * which removes cached CacheInstance objects. When a CacheInstance is removed,
+   * all cached function results for that instance are also discarded.
+   *
+   * Use cases:
+   * - Clear cache for a specific function when its implementation changes
+   * - Free memory by removing unused cached instances
+   * - Reset all caches when switching contexts (e.g., between different backtests)
+   *
+   * @param run - Optional function to clear cache for. If omitted, clears all cached instances.
+   *
+   * @example
+   * ```typescript
+   * const cachedCalc = Cache.fn(calculateIndicator, { interval: "1h" });
+   *
+   * // Clear cache for specific function
+   * Cache.clear(calculateIndicator);
+   *
+   * // Clear all cached instances
+   * Cache.clear();
+   * ```
+   */
+  public clear = <T extends Function>(run?: T) => {
+    backtest.loggerService.debug(CACHE_METHOD_NAME_CLEAR, {
+      run,
+    });
+    this._getInstance.clear(run);
+  }
 }
 
 /**

@@ -7866,6 +7866,32 @@ declare class CacheUtils {
     fn: <T extends Function>(run: T, context: {
         interval: CandleInterval;
     }) => Function;
+    /**
+     * Clear cached instances for specific function or all cached functions.
+     *
+     * This method delegates to the memoized `_getInstance` function's clear method,
+     * which removes cached CacheInstance objects. When a CacheInstance is removed,
+     * all cached function results for that instance are also discarded.
+     *
+     * Use cases:
+     * - Clear cache for a specific function when its implementation changes
+     * - Free memory by removing unused cached instances
+     * - Reset all caches when switching contexts (e.g., between different backtests)
+     *
+     * @param run - Optional function to clear cache for. If omitted, clears all cached instances.
+     *
+     * @example
+     * ```typescript
+     * const cachedCalc = Cache.fn(calculateIndicator, { interval: "1h" });
+     *
+     * // Clear cache for specific function
+     * Cache.clear(calculateIndicator);
+     *
+     * // Clear all cached instances
+     * Cache.clear();
+     * ```
+     */
+    clear: <T extends Function>(run?: T) => void;
 }
 /**
  * Singleton instance of CacheUtils for convenient function caching.
