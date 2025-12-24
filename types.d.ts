@@ -7865,33 +7865,67 @@ declare class CacheUtils {
      */
     fn: <T extends Function>(run: T, context: {
         interval: CandleInterval;
-    }) => Function;
+    }) => T;
     /**
-     * Clear cached instances for specific function or all cached functions.
+     * Flush (remove) cached CacheInstance for a specific function or all functions.
      *
-     * This method delegates to the memoized `_getInstance` function's clear method,
-     * which removes cached CacheInstance objects. When a CacheInstance is removed,
-     * all cached function results for that instance are also discarded.
+     * This method removes CacheInstance objects from the internal memoization cache.
+     * When a CacheInstance is flushed, all cached results across all contexts
+     * (all strategy/exchange/mode combinations) for that function are discarded.
      *
      * Use cases:
-     * - Clear cache for a specific function when its implementation changes
-     * - Free memory by removing unused cached instances
-     * - Reset all caches when switching contexts (e.g., between different backtests)
+     * - Remove specific function's CacheInstance when implementation changes
+     * - Free memory by removing unused CacheInstances
+     * - Reset all CacheInstances when switching between different test scenarios
      *
-     * @param run - Optional function to clear cache for. If omitted, clears all cached instances.
+     * Note: This is different from `clear()` which only removes cached values
+     * for the current context within an existing CacheInstance.
+     *
+     * @template T - Function type
+     * @param run - Optional function to flush CacheInstance for. If omitted, flushes all CacheInstances.
      *
      * @example
      * ```typescript
-     * const cachedCalc = Cache.fn(calculateIndicator, { interval: "1h" });
+     * const cachedFn = Cache.fn(calculateIndicator, { interval: "1h" });
      *
-     * // Clear cache for specific function
-     * Cache.clear(calculateIndicator);
+     * // Flush CacheInstance for specific function
+     * Cache.flush(calculateIndicator);
      *
-     * // Clear all cached instances
-     * Cache.clear();
+     * // Flush all CacheInstances
+     * Cache.flush();
      * ```
      */
-    clear: <T extends Function>(run?: T) => void;
+    flush: <T extends Function>(run?: T) => void;
+    /**
+     * Clear cached value for current execution context of a specific function.
+     *
+     * Removes the cached entry for the current strategy/exchange/mode combination
+     * from the specified function's CacheInstance. The next call to the wrapped function
+     * will recompute the value for that context.
+     *
+     * This only clears the cache for the current execution context, not all contexts.
+     * Use `flush()` to remove the entire CacheInstance across all contexts.
+     *
+     * Requires active execution context (strategy, exchange, backtest mode) and method context.
+     *
+     * @template T - Function type
+     * @param run - Function whose cache should be cleared for current context
+     *
+     * @example
+     * ```typescript
+     * const cachedFn = Cache.fn(calculateIndicator, { interval: "1h" });
+     *
+     * // Within strategy execution context
+     * const result1 = cachedFn("BTCUSDT", 14); // Computed
+     * const result2 = cachedFn("BTCUSDT", 14); // Cached
+     *
+     * Cache.clear(calculateIndicator); // Clear cache for current context only
+     *
+     * const result3 = cachedFn("BTCUSDT", 14); // Recomputed for this context
+     * // Other contexts (different strategies/exchanges) remain cached
+     * ```
+     */
+    clear: <T extends Function>(run: T) => void;
 }
 /**
  * Singleton instance of CacheUtils for convenient function caching.

@@ -6,7 +6,8 @@ import backtest, {
   MethodContextService,
 } from "../lib";
 
-const CACHE_METHOD_NAME_CLEAR = "CacheUtils.clear";
+const CACHE_METHOD_NAME_FLUSH = "CacheUtils.flush";
+const CACHE_METHOD_NAME_CLEAR = "CacheInstance.clear";
 const CACHE_METHOD_NAME_RUN = "CacheInstance.run";
 const CACHE_METHOD_NAME_FN = "CacheUtils.fn";
 
@@ -160,6 +161,35 @@ export class CacheInstance<T extends Function = Function> {
 
     return newCache;
   };
+
+  /**
+   * Clear cached value for current execution context.
+   *
+   * Removes the cached entry for the current strategy/exchange/mode combination
+   * from this instance's cache map. The next `run()` call will recompute the value.
+   *
+   * Requires active execution context (strategy, exchange, backtest mode) and method context
+   * to determine which cache entry to clear.
+   *
+   * @example
+   * ```typescript
+   * const instance = new CacheInstance(calculateIndicator, "1h");
+   * const result1 = instance.run("BTCUSDT", 14); // Computed
+   * const result2 = instance.run("BTCUSDT", 14); // Cached
+   *
+   * instance.clear(); // Clear cache for current context
+   *
+   * const result3 = instance.run("BTCUSDT", 14); // Recomputed
+   * ```
+   */
+  public clear = () => {
+    const key = createKey(
+      backtest.methodContextService.context.strategyName,
+      backtest.methodContextService.context.exchangeName,
+      backtest.executionContextService.context.backtest
+    );
+    this._cacheMap.delete(key);
+  };
 }
 
 /**
@@ -216,48 +246,90 @@ export class CacheUtils {
     context: {
       interval: CandleInterval;
     }
-  ): Function => {
+  ): T => {
     backtest.loggerService.info(CACHE_METHOD_NAME_FN, {
       context,
     });
 
-    return (...args: Parameters<T>): ReturnType<T> => {
+    const wrappedFn = (...args: Parameters<T>): ReturnType<T> => {
       const instance = this._getInstance(run, context.interval);
       return instance.run(...args).value;
     };
+
+    return wrappedFn as T;
   };
 
   /**
-   * Clear cached instances for specific function or all cached functions.
+   * Flush (remove) cached CacheInstance for a specific function or all functions.
    *
-   * This method delegates to the memoized `_getInstance` function's clear method,
-   * which removes cached CacheInstance objects. When a CacheInstance is removed,
-   * all cached function results for that instance are also discarded.
+   * This method removes CacheInstance objects from the internal memoization cache.
+   * When a CacheInstance is flushed, all cached results across all contexts
+   * (all strategy/exchange/mode combinations) for that function are discarded.
    *
    * Use cases:
-   * - Clear cache for a specific function when its implementation changes
-   * - Free memory by removing unused cached instances
-   * - Reset all caches when switching contexts (e.g., between different backtests)
+   * - Remove specific function's CacheInstance when implementation changes
+   * - Free memory by removing unused CacheInstances
+   * - Reset all CacheInstances when switching between different test scenarios
    *
-   * @param run - Optional function to clear cache for. If omitted, clears all cached instances.
+   * Note: This is different from `clear()` which only removes cached values
+   * for the current context within an existing CacheInstance.
+   *
+   * @template T - Function type
+   * @param run - Optional function to flush CacheInstance for. If omitted, flushes all CacheInstances.
    *
    * @example
    * ```typescript
-   * const cachedCalc = Cache.fn(calculateIndicator, { interval: "1h" });
+   * const cachedFn = Cache.fn(calculateIndicator, { interval: "1h" });
    *
-   * // Clear cache for specific function
-   * Cache.clear(calculateIndicator);
+   * // Flush CacheInstance for specific function
+   * Cache.flush(calculateIndicator);
    *
-   * // Clear all cached instances
-   * Cache.clear();
+   * // Flush all CacheInstances
+   * Cache.flush();
    * ```
    */
-  public clear = <T extends Function>(run?: T) => {
-    backtest.loggerService.info(CACHE_METHOD_NAME_CLEAR, {
+  public flush = <T extends Function>(run?: T) => {
+    backtest.loggerService.info(CACHE_METHOD_NAME_FLUSH, {
       run,
     });
     this._getInstance.clear(run);
-  }
+  };
+
+  /**
+   * Clear cached value for current execution context of a specific function.
+   *
+   * Removes the cached entry for the current strategy/exchange/mode combination
+   * from the specified function's CacheInstance. The next call to the wrapped function
+   * will recompute the value for that context.
+   *
+   * This only clears the cache for the current execution context, not all contexts.
+   * Use `flush()` to remove the entire CacheInstance across all contexts.
+   *
+   * Requires active execution context (strategy, exchange, backtest mode) and method context.
+   *
+   * @template T - Function type
+   * @param run - Function whose cache should be cleared for current context
+   *
+   * @example
+   * ```typescript
+   * const cachedFn = Cache.fn(calculateIndicator, { interval: "1h" });
+   *
+   * // Within strategy execution context
+   * const result1 = cachedFn("BTCUSDT", 14); // Computed
+   * const result2 = cachedFn("BTCUSDT", 14); // Cached
+   *
+   * Cache.clear(calculateIndicator); // Clear cache for current context only
+   *
+   * const result3 = cachedFn("BTCUSDT", 14); // Recomputed for this context
+   * // Other contexts (different strategies/exchanges) remain cached
+   * ```
+   */
+  public clear = <T extends Function>(run: T) => {
+    backtest.loggerService.info(CACHE_METHOD_NAME_CLEAR, {
+      run,
+    });
+    this._getInstance.get(run).clear();
+  };
 }
 
 /**
