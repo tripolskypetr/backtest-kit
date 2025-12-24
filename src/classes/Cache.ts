@@ -119,6 +119,7 @@ export class CacheInstance<T extends Function = Function> {
    */
   public run = (...args: Parameters<T>): ICache<T> => {
     backtest.loggerService.debug(CACHE_METHOD_NAME_RUN, { args });
+
     const step = INTERVAL_MINUTES[this.interval];
 
     {
