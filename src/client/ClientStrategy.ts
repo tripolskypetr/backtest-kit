@@ -69,6 +69,11 @@ const VALIDATE_SIGNAL_FN = (signal: ISignalRow, currentPrice: number, isSchedule
   }
 
   // ЗАЩИТА ОТ NaN/Infinity: currentPrice должна быть конечным числом
+  if (typeof currentPrice !== "number") {
+    errors.push(
+      `currentPrice must be a number type, got ${currentPrice} (${typeof currentPrice})`
+    );
+  }
   if (!isFinite(currentPrice)) {
     errors.push(
       `currentPrice must be a finite number, got ${currentPrice} (${typeof currentPrice})`
@@ -79,14 +84,29 @@ const VALIDATE_SIGNAL_FN = (signal: ISignalRow, currentPrice: number, isSchedule
   }
 
   // ЗАЩИТА ОТ NaN/Infinity: все цены должны быть конечными числами
+  if (typeof signal.priceOpen !== "number") {
+    errors.push(
+      `priceOpen must be a number type, got ${signal.priceOpen} (${typeof signal.priceOpen})`
+    );
+  }
   if (!isFinite(signal.priceOpen)) {
     errors.push(
       `priceOpen must be a finite number, got ${signal.priceOpen} (${typeof signal.priceOpen})`
     );
   }
+  if (typeof signal.priceTakeProfit !== "number") {
+    errors.push(
+      `priceTakeProfit must be a number type, got ${signal.priceTakeProfit} (${typeof signal.priceTakeProfit})`
+    );
+  }
   if (!isFinite(signal.priceTakeProfit)) {
     errors.push(
       `priceTakeProfit must be a finite number, got ${signal.priceTakeProfit} (${typeof signal.priceTakeProfit})`
+    );
+  }
+  if (typeof signal.priceStopLoss !== "number") {
+    errors.push(
+      `priceStopLoss must be a number type, got ${signal.priceStopLoss} (${typeof signal.priceStopLoss})`
     );
   }
   if (!isFinite(signal.priceStopLoss)) {
@@ -291,6 +311,11 @@ const VALIDATE_SIGNAL_FN = (signal: ISignalRow, currentPrice: number, isSchedule
   }
 
   // Валидация временных параметров
+  if (typeof signal.minuteEstimatedTime !== "number") {
+    errors.push(
+      `minuteEstimatedTime must be a number type, got ${signal.minuteEstimatedTime} (${typeof signal.minuteEstimatedTime})`
+    );
+  }
   if (signal.minuteEstimatedTime <= 0) {
     errors.push(
       `minuteEstimatedTime must be positive, got ${signal.minuteEstimatedTime}`
@@ -299,6 +324,12 @@ const VALIDATE_SIGNAL_FN = (signal: ISignalRow, currentPrice: number, isSchedule
   if (!Number.isInteger(signal.minuteEstimatedTime)) {
     errors.push(
       `minuteEstimatedTime must be an integer (whole number), got ${signal.minuteEstimatedTime}`
+    );
+  }
+
+  if (!isFinite(signal.minuteEstimatedTime)) {
+    errors.push(
+      `minuteEstimatedTime must be a finite number, got ${signal.minuteEstimatedTime}`
     );
   }
 
@@ -314,8 +345,18 @@ const VALIDATE_SIGNAL_FN = (signal: ISignalRow, currentPrice: number, isSchedule
       );
     }
   }
+  if (typeof signal.scheduledAt !== "number") {
+    errors.push(
+      `scheduledAt must be a number type, got ${signal.scheduledAt} (${typeof signal.scheduledAt})`
+    );
+  }
   if (signal.scheduledAt <= 0) {
     errors.push(`scheduledAt must be positive, got ${signal.scheduledAt}`);
+  }
+  if (typeof signal.pendingAt !== "number") {
+    errors.push(
+      `pendingAt must be a number type, got ${signal.pendingAt} (${typeof signal.pendingAt})`
+    );
   }
   if (signal.pendingAt <= 0) {
     errors.push(`pendingAt must be positive, got ${signal.pendingAt}`);
