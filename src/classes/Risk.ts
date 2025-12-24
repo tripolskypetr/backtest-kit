@@ -1,3 +1,4 @@
+import { not } from "functools-kit";
 import { IRisk, IRiskCheckArgs } from "../interfaces/Risk.interface";
 import bt from "../lib";
 import { Columns } from "../lib/services/markdown/RiskMarkdownService";
@@ -60,10 +61,12 @@ export class MergeRisk implements IRisk {
     bt.loggerService.info("MergeRisk checkSignal", {
       params,
     });
-    const riskCheck = await Promise.all(
-      this._riskList.map(async (risk) => await risk.checkSignal(params))
-    );
-    return riskCheck.every((isSafe) => isSafe);
+    for (const risk of this._riskList) {
+      if (await not(risk.checkSignal(params))) {
+        return false;
+      }
+    }
+    return true;
   }
 
   /**
@@ -175,7 +178,11 @@ export class RiskUtils {
    * }
    * ```
    */
-  public getData = async (symbol: string, strategyName: string, backtest = false) => {
+  public getData = async (
+    symbol: string,
+    strategyName: string,
+    backtest = false
+  ) => {
     bt.loggerService.info(RISK_METHOD_NAME_GET_DATA, {
       symbol,
       strategyName,
@@ -189,11 +196,11 @@ export class RiskUtils {
     {
       const { riskName, riskList } = bt.strategySchemaService.get(strategyName);
       riskName &&
-        bt.riskValidationService.validate(
-          riskName,
-          RISK_METHOD_NAME_GET_DATA
+        bt.riskValidationService.validate(riskName, RISK_METHOD_NAME_GET_DATA);
+      riskList &&
+        riskList.forEach((riskName) =>
+          bt.riskValidationService.validate(riskName, RISK_METHOD_NAME_GET_DATA)
         );
-      riskList && riskList.forEach((riskName) => bt.riskValidationService.validate(riskName, RISK_METHOD_NAME_GET_DATA));
     }
 
     return await bt.riskMarkdownService.getData(symbol, strategyName, backtest);
@@ -263,10 +270,21 @@ export class RiskUtils {
           riskName,
           RISK_METHOD_NAME_GET_REPORT
         );
-      riskList && riskList.forEach((riskName) => bt.riskValidationService.validate(riskName, RISK_METHOD_NAME_GET_REPORT));
+      riskList &&
+        riskList.forEach((riskName) =>
+          bt.riskValidationService.validate(
+            riskName,
+            RISK_METHOD_NAME_GET_REPORT
+          )
+        );
     }
 
-    return await bt.riskMarkdownService.getReport(symbol, strategyName, backtest, columns);
+    return await bt.riskMarkdownService.getReport(
+      symbol,
+      strategyName,
+      backtest,
+      columns
+    );
   };
 
   /**
@@ -314,22 +332,25 @@ export class RiskUtils {
       path,
     });
 
-    bt.strategyValidationService.validate(
-      strategyName,
-      RISK_METHOD_NAME_DUMP
-    );
+    bt.strategyValidationService.validate(strategyName, RISK_METHOD_NAME_DUMP);
 
     {
       const { riskName, riskList } = bt.strategySchemaService.get(strategyName);
       riskName &&
-        bt.riskValidationService.validate(
-          riskName,
-          RISK_METHOD_NAME_DUMP
+        bt.riskValidationService.validate(riskName, RISK_METHOD_NAME_DUMP);
+      riskList &&
+        riskList.forEach((riskName) =>
+          bt.riskValidationService.validate(riskName, RISK_METHOD_NAME_DUMP)
         );
-      riskList && riskList.forEach((riskName) => bt.riskValidationService.validate(riskName, RISK_METHOD_NAME_DUMP));
     }
 
-    await bt.riskMarkdownService.dump(symbol, strategyName, backtest, path, columns);
+    await bt.riskMarkdownService.dump(
+      symbol,
+      strategyName,
+      backtest,
+      path,
+      columns
+    );
   };
 }
 
