@@ -193,6 +193,14 @@ export { Risk } from "./classes/Risk";
 export { Exchange } from "./classes/Exchange";
 export { Cache } from "./classes/Cache";
 
+export { type TickEvent } from "./model/LiveStatistics.model";
+export { type PartialEvent } from "./model/PartialStatistics.model";
+export { type MetricStats } from "./model/PerformanceStatistics.model";
+export { type RiskEvent } from "./model/RiskStatistics.model";
+export { type ScheduledEvent } from "./model/ScheduleStatistics.model";
+export { type IStrategyResult } from "./model/WalkerStatistics.model";
+export { type SignalData as WalkerSignalData } from "./model/WalkerStatistics.model";
+
 export * as emitters from "./config/emitters";
 
 export { type GlobalConfig } from "./config/params";
