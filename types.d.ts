@@ -62,12 +62,23 @@ interface ValidateArgs<T = Enum> {
  * strategies, risks, sizings, optimizers, walkers) and validates that each entity
  * name exists in its respective registry. Validation results are memoized for performance.
  *
+ * If no arguments are provided (or specific entity types are omitted), the function
+ * automatically fetches and validates ALL registered entities from their respective
+ * validation services. This is useful for comprehensive validation of the entire setup.
+ *
  * Use this before running backtests or optimizations to ensure all referenced
  * entities are properly registered and configured.
  *
  * @public
- * @param args - Partial validation arguments containing entity name enums to validate
+ * @param args - Partial validation arguments containing entity name enums to validate.
+ *                If empty or omitted, validates all registered entities.
  * @throws {Error} If any entity name is not found in its validation service
+ *
+ * @example
+ * ```typescript
+ * // Validate ALL registered entities (exchanges, frames, strategies, etc.)
+ * await validate({});
+ * ```
  *
  * @example
  * ```typescript
@@ -81,8 +92,8 @@ interface ValidateArgs<T = Enum> {
  *   MOMENTUM_BTC = "momentum-btc"
  * }
  *
- * // Validate all entities before running backtest
- * validate({
+ * // Validate specific entities before running backtest
+ * await validate({
  *   ExchangeName,
  *   StrategyName,
  * });
@@ -91,13 +102,13 @@ interface ValidateArgs<T = Enum> {
  * @example
  * ```typescript
  * // Validate specific entity types
- * validate({
+ * await validate({
  *   RiskName: { CONSERVATIVE: "conservative" },
  *   SizingName: { FIXED_1000: "fixed-1000" },
  * });
  * ```
  */
-declare function validate(args: Partial<Args>): void;
+declare function validate(args?: Partial<Args>): Promise<void>;
 
 declare const GLOBAL_CONFIG: {
     /**
