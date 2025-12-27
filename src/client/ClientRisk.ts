@@ -16,9 +16,9 @@ import {
   IRiskValidationFn,
 } from "../interfaces/Risk.interface";
 import { PersistRiskAdapter } from "../classes/Persist";
-import backtest from "src/lib";
-import { validationSubject } from "src/config/emitters";
-import { get } from "src/utils/get";
+import backtest from "../lib";
+import { validationSubject } from "../config/emitters";
+import { get } from "../utils/get";
 
 /** Type for active position map */
 type RiskMap = Map<string, IRiskActivePosition>;
