@@ -235,6 +235,14 @@ export class ClientRisk implements IRisk {
           break;
         }
 
+        if (typeof rejection === "string") {
+          rejectionResult = {
+            id: null,
+            note: rejection,
+          };
+          break;
+        }
+
         if (isObject(rejection)) {
           rejectionResult = {
             id: get(rejection, "id") || null,
