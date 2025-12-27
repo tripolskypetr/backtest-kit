@@ -97,6 +97,8 @@ setConfig(
     CC_MAX_SIGNAL_LIFETIME_MINUTES: 999999, // Разрешаем любое время жизни сигнала
     CC_GET_CANDLES_RETRY_COUNT: 1, // Отключаем ретраи в тестах для ускорения
     CC_GET_CANDLES_RETRY_DELAY_MS: 100, // Минимальная задержка между ретраями
+
+    CC_REPORT_SHOW_SIGNAL_NOTE: true, // Показываем заметки сигналов в отчете
   },
   true
 );

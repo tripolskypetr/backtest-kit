@@ -716,7 +716,7 @@ test("listenRisk captures rejection events with correct data", async ({ pass, fa
 
   // Listen to all risk rejection events
   listenRisk((event) => {
-    // console.log("[TEST] Risk rejection event received", event.comment);
+    // console.log("[TEST] Risk rejection event received", event.rejectionNote);
     rejectionEvents.push(event);
   });
 
@@ -854,10 +854,11 @@ test("listenRisk captures rejection events with correct data", async ({ pass, fa
       event.symbol === "BTCUSDT" &&
       isValidStrategy &&
       event.exchangeName === "binance-integration-listen-risk" &&
-      event.comment === "Max 2 positions allowed" &&
+      event.rejectionNote === "Max 2 positions allowed" &&
       event.activePositionCount >= 2 &&
       typeof event.currentPrice === "number" &&
       typeof event.timestamp === "number" &&
+      (typeof event.rejectionId === "string" || event.rejectionId === null) &&
       event.pendingSignal &&
       (event.pendingSignal.position === "long" || event.pendingSignal.position === "short")
     ) {
@@ -870,10 +871,11 @@ test("listenRisk captures rejection events with correct data", async ({ pass, fa
     // console.log("  symbol:", event.symbol === "BTCUSDT");
     // console.log("  strategyName:", isValidStrategy);
     // console.log("  exchangeName:", event.exchangeName === "binance-integration-listen-risk");
-    // console.log("  comment:", event.comment === "Max 2 positions allowed");
+    // console.log("  rejectionNote:", event.rejectionNote === "Max 2 positions allowed");
     // console.log("  activePositionCount:", event.activePositionCount >= 2);
     // console.log("  currentPrice type:", typeof event.currentPrice);
     // console.log("  timestamp type:", typeof event.timestamp);
+    // console.log("  rejectionId type:", typeof event.rejectionId);
     // console.log("  has pendingSignal:", !!event.pendingSignal);
     // console.log("  position:", event.pendingSignal?.position);
   }
@@ -914,7 +916,7 @@ test("listenRiskOnce with filter for specific rejection condition", async ({ pas
   listenRiskOnce(
     (event) => event.symbol === "BTCUSDT",
     (event) => {
-      btcRejectionCaptured = event.comment === "BTC/ETH trading blocked";
+      btcRejectionCaptured = event.rejectionNote === "BTC/ETH trading blocked";
     }
   );
 
@@ -922,7 +924,7 @@ test("listenRiskOnce with filter for specific rejection condition", async ({ pas
   listenRiskOnce(
     (event) => event.symbol === "ETHUSDT",
     (event) => {
-      ethRejectionCaptured = event.comment === "BTC/ETH trading blocked";
+      ethRejectionCaptured = event.rejectionNote === "BTC/ETH trading blocked";
     }
   );
 
@@ -1076,7 +1078,7 @@ test("Risk.getData returns correct statistics after rejections", async ({ pass, 
     stats.eventList.length === stats.totalRejections &&
     stats.bySymbol["BTCUSDT"] === stats.totalRejections &&
     stats.byStrategy["test-strategy-get-data-2"] === stats.totalRejections &&
-    stats.eventList.every((event) => event.comment === "Maximum 1 position allowed")
+    stats.eventList.every((event) => event.rejectionNote === "Maximum 1 position allowed")
   ) {
     pass(`Risk.getData returns correct stats: ${stats.totalRejections} rejections tracked`);
     return;
@@ -1180,14 +1182,15 @@ test("Risk.getReport generates markdown with correct table structure", async ({ 
 
   // Verify report structure
   const hasTitle = report.includes("# Risk Rejection Report: ETHUSDT:test-strategy-get-report-2");
-  const hasTableHeader = report.includes("| Symbol |") && report.includes("| Reason |");
+  const hasTableHeader = report.includes("| Symbol |") && report.includes("| Rejection Reason |");
   const hasSymbolColumn = report.includes("| ETHUSDT |");
   const hasReasonColumn = report.includes("Portfolio limit reached");
   const hasStatistics = report.includes("**Total rejections:**");
   const hasBySymbol = report.includes("## Rejections by Symbol");
   const hasByStrategy = report.includes("## Rejections by Strategy");
+  const hasIDColumn = report.includes("| ID |");
 
-  if (hasTitle && hasTableHeader && hasSymbolColumn && hasReasonColumn && hasStatistics && hasBySymbol && hasByStrategy) {
+  if (hasTitle && hasTableHeader && hasSymbolColumn && hasReasonColumn && hasStatistics && hasBySymbol && hasByStrategy && hasIDColumn) {
     pass("Risk.getReport generates markdown with correct table and statistics");
     return;
   }
@@ -1196,12 +1199,12 @@ test("Risk.getReport generates markdown with correct table structure", async ({ 
 
 });
 
-test("Comment field captures validation note in rejection events", async ({ pass, fail }) => {
+test("RejectionNote field captures validation note in rejection events", async ({ pass, fail }) => {
 
-  const rejectionComments = [];
+  const rejectionNotes = [];
 
   addExchange({
-    exchangeName: "binance-integration-comment-field",
+    exchangeName: "binance-integration-rejection-note-field",
     getCandles: async (_symbol, interval, since, limit) => {
       return await getMockCandles(interval, since, limit);
     },
@@ -1224,7 +1227,7 @@ test("Comment field captures validation note in rejection events", async ({ pass
   });
 
   listenRisk((event) => {
-    rejectionComments.push(event.comment);
+    rejectionNotes.push(event.rejectionNote);
   });
 
   // Strategy 1 - will open position
@@ -1279,25 +1282,25 @@ test("Comment field captures validation note in rejection events", async ({ pass
 
   Backtest.background("BTCUSDT", {
     strategyName: "test-strategy-comment-field-1",
-    exchangeName: "binance-integration-comment-field",
+    exchangeName: "binance-integration-rejection-note-field",
     frameName: "2d-comment-field",
   });
 
   Backtest.background("BTCUSDT", {
     strategyName: "test-strategy-comment-field-2",
-    exchangeName: "binance-integration-comment-field",
+    exchangeName: "binance-integration-rejection-note-field",
     frameName: "2d-comment-field",
   });
 
   await awaitSubject.toPromise();
   // await sleep(2000);
 
-  if (rejectionComments.length > 0 && rejectionComments.every((c) => c === "Custom rejection reason for testing")) {
-    pass(`All ${rejectionComments.length} rejection events captured correct comment from validation note`);
+  if (rejectionNotes.length > 0 && rejectionNotes.every((c) => c === "Custom rejection reason for testing")) {
+    pass(`All ${rejectionNotes.length} rejection events captured correct rejectionNote from validation note`);
     return;
   }
 
-  fail(`Expected comments with note, got: ${JSON.stringify(rejectionComments)}`);
+  fail(`Expected rejectionNotes with note, got: ${JSON.stringify(rejectionNotes)}`);
 
 });
 
