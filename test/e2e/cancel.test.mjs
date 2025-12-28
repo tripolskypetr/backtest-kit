@@ -390,6 +390,7 @@ test("Cancel scheduled signal after 5 onPing calls in backtest", async ({ pass, 
   let openedCount = 0;
   let pingCount = 0;
   const pingTimestamps = [];
+  let signalCreated = false;
 
   const startTime = new Date("2024-01-01T00:00:00Z").getTime();
   const intervalMs = 60 * 1000; // 1 minute
@@ -426,6 +427,11 @@ test("Cancel scheduled signal after 5 onPing calls in backtest", async ({ pass, 
     strategyName: "test-strategy-cancel-ping",
     interval: "1m",
     getSignal: async () => {
+      // Создаем сигнал только один раз
+      if (signalCreated) {
+        return null;
+      }
+
       // Генерируем ВСЕ свечи только в первый раз
       if (allCandles.length === 5) {
         allCandles = [];
@@ -459,6 +465,8 @@ test("Cancel scheduled signal after 5 onPing calls in backtest", async ({ pass, 
       }
 
       const price = await getAveragePrice("BTCUSDT");
+
+      signalCreated = true;
 
       // Создаем scheduled сигнал (priceOpen ниже текущей цены для LONG)
       return {

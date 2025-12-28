@@ -689,8 +689,8 @@ const CANCEL_SCHEDULED_SIGNAL_BY_STOPLOSS_FN = async (
   self: ClientStrategy,
   scheduled: IScheduledSignalRow,
   currentPrice: number
-): Promise<IStrategyTickResultIdle> => {
-  self.params.logger.info("ClientStrategy scheduled signal cancelled", {
+): Promise<IStrategyTickResultCancelled> => {
+  self.params.logger.info("ClientStrategy scheduled signal cancelled by StopLoss", {
     symbol: self.params.execution.context.symbol,
     signalId: scheduled.id,
     position: scheduled.position,
@@ -700,13 +700,23 @@ const CANCEL_SCHEDULED_SIGNAL_BY_STOPLOSS_FN = async (
 
   await self.setScheduledSignal(null);
 
-  const result: IStrategyTickResultIdle = {
-    action: "idle",
-    signal: null,
+  if (self.params.callbacks?.onCancel) {
+    self.params.callbacks.onCancel(
+      self.params.execution.context.symbol,
+      scheduled,
+      currentPrice,
+      self.params.execution.context.backtest
+    );
+  }
+
+  const result: IStrategyTickResultCancelled = {
+    action: "cancelled",
+    signal: scheduled,
+    currentPrice: currentPrice,
+    closeTimestamp: self.params.execution.context.when.getTime(),
     strategyName: self.params.method.context.strategyName,
     exchangeName: self.params.method.context.exchangeName,
     symbol: self.params.execution.context.symbol,
-    currentPrice: currentPrice,
     backtest: self.params.execution.context.backtest,
   };
 
@@ -1493,6 +1503,18 @@ const PROCESS_SCHEDULED_SIGNAL_CANDLES_FN = async (
     const recentCandles = candles.slice(Math.max(0, i - (candlesCount - 1)), i + 1);
     const averagePrice = GET_AVG_PRICE_FN(recentCandles);
 
+    // КРИТИЧНО: Проверяем был ли сигнал отменен пользователем через cancel()
+    if (self._cancelledSignal) {
+      // Сигнал был отменен через cancel() в onPing
+      const result = await CANCEL_SCHEDULED_SIGNAL_IN_BACKTEST_FN(
+        self,
+        scheduled,
+        averagePrice,
+        candle.timestamp
+      );
+      return { activated: false, cancelled: true, activationIndex: i, result };
+    }
+
     // КРИТИЧНО: Проверяем timeout ПЕРЕД проверкой цены
     const elapsedTime = candle.timestamp - scheduled.scheduledAt;
     if (elapsedTime >= maxTimeToWait) {
@@ -1989,6 +2011,16 @@ export class ClientStrategy implements IStrategy {
         symbol: this.params.execution.context.symbol,
         signalId: cancelledSignal.id,
       });
+
+      // Call onCancel callback
+      if (this.params.callbacks?.onCancel) {
+        this.params.callbacks.onCancel(
+          this.params.execution.context.symbol,
+          cancelledSignal,
+          currentPrice,
+          this.params.execution.context.backtest
+        );
+      }
 
       const result: IStrategyTickResultCancelled = {
         action: "cancelled",
