@@ -1866,7 +1866,7 @@ export class ClientStrategy implements IStrategy {
 
   /**
    * Retrieves the current pending signal.
-   * If no signal is pending, returns null. 
+   * If no signal is pending, returns null.
    * @returns Promise resolving to the pending signal or null.
    */
   public async getPendingSignal(symbol: string, strategyName: StrategyName): Promise<ISignalRow | null> {
@@ -1875,6 +1875,19 @@ export class ClientStrategy implements IStrategy {
       strategyName,
     });
     return this._pendingSignal;
+  }
+
+  /**
+   * Retrieves the current scheduled signal.
+   * If no scheduled signal exists, returns null.
+   * @returns Promise resolving to the scheduled signal or null.
+   */
+  public async getScheduledSignal(symbol: string, strategyName: StrategyName): Promise<IScheduledSignalRow | null> {
+    this.params.logger.debug("ClientStrategy getScheduledSignal", {
+      symbol,
+      strategyName,
+    });
+    return this._scheduledSignal;
   }
 
   /**
@@ -2269,6 +2282,53 @@ export class ClientStrategy implements IStrategy {
     });
 
     this._isStopped = true;
+
+    // Clear scheduled signal if exists
+    if (!this._scheduledSignal) {
+      return;
+    }
+
+    this._scheduledSignal = null;
+
+    if (backtest) {
+      return;
+    }
+
+    await PersistScheduleAdapter.writeScheduleData(
+      this._scheduledSignal,
+      symbol,
+      strategyName,
+    );
+  }
+
+  /**
+   * Cancels the scheduled signal without stopping the strategy.
+   *
+   * Clears the scheduled signal (waiting for priceOpen activation).
+   * Does NOT affect active pending signals or strategy operation.
+   * Does NOT set stop flag - strategy can continue generating new signals.
+   *
+   * Use case: Cancel a scheduled entry that is no longer desired without stopping the entire strategy.
+   *
+   * @param symbol - Trading pair symbol (e.g., "BTCUSDT")
+   * @param strategyName - Name of the strategy
+   * @param backtest - Whether running in backtest mode
+   * @returns Promise that resolves when scheduled signal is cleared
+   *
+   * @example
+   * ```typescript
+   * // Cancel scheduled signal without stopping strategy
+   * await strategy.cancel("BTCUSDT", "my-strategy", false);
+   * // Strategy continues, can generate new signals
+   * ```
+   */
+  public async cancel(symbol: string, strategyName: StrategyName, backtest: boolean): Promise<void> {
+    this.params.logger.debug("ClientStrategy cancel", {
+      symbol,
+      strategyName,
+      hasScheduledSignal: this._scheduledSignal !== null,
+      backtest,
+    });
 
     // Clear scheduled signal if exists
     if (!this._scheduledSignal) {

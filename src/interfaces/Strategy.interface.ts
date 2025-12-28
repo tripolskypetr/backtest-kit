@@ -350,6 +350,17 @@ export interface IStrategy {
   getPendingSignal: (symbol: string, strategyName: StrategyName) => Promise<ISignalRow | null>;
 
   /**
+   * Retrieves the currently active scheduled signal for the symbol.
+   * If no scheduled signal exists, returns null.
+   * Used internally for monitoring scheduled signal activation.
+   *
+   * @param symbol - Trading pair symbol
+   * @param strategyName - Name of the strategy
+   * @returns Promise resolving to scheduled signal or null
+   */
+  getScheduledSignal: (symbol: string, strategyName: StrategyName) => Promise<IScheduledSignalRow | null>;
+
+  /**
    * Checks if the strategy has been stopped.
    *
    * Returns the stopped state indicating whether the strategy should
@@ -397,6 +408,29 @@ export interface IStrategy {
    * ```
    */
   stop: (symbol: string, strategyName: StrategyName, backtest: boolean) => Promise<void>;
+
+  /**
+   * Cancels the scheduled signal without stopping the strategy.
+   *
+   * Clears the scheduled signal (waiting for priceOpen activation).
+   * Does NOT affect active pending signals or strategy operation.
+   * Does NOT set stop flag - strategy can continue generating new signals.
+   *
+   * Use case: Cancel a scheduled entry that is no longer desired without stopping the entire strategy.
+   *
+   * @param symbol - Trading pair symbol (e.g., "BTCUSDT")
+   * @param strategyName - Name of the strategy
+   * @param backtest - Whether running in backtest mode
+   * @returns Promise that resolves when scheduled signal is cleared
+   *
+   * @example
+   * ```typescript
+   * // Cancel scheduled signal without stopping strategy
+   * await strategy.cancel("BTCUSDT", "my-strategy", false);
+   * // Strategy continues, can generate new signals
+   * ```
+   */
+  cancel: (symbol: string, strategyName: StrategyName, backtest: boolean) => Promise<void>;
 }
 
 /**

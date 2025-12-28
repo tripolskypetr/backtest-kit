@@ -7,6 +7,7 @@ import { memoize } from "functools-kit";
 import ClientStrategy from "../../../client/ClientStrategy";
 import {
   ISignalRow,
+  IScheduledSignalRow,
   IStrategyBacktestResult,
   IStrategyTickResult,
   StrategyName,
@@ -180,6 +181,30 @@ export class StrategyConnectionService {
   };
 
   /**
+   * Retrieves the currently active scheduled signal for the strategy.
+   * If no scheduled signal exists, returns null.
+   * Used internally for monitoring scheduled signal activation.
+   *
+   * @param symbol - Trading pair symbol
+   * @param strategyName - Name of strategy to get scheduled signal for
+   *
+   * @returns Promise resolving to scheduled signal or null
+   */
+  public getScheduledSignal = async (
+    backtest: boolean,
+    symbol: string,
+    strategyName: StrategyName
+  ): Promise<IScheduledSignalRow | null> => {
+    this.loggerService.log("strategyConnectionService getScheduledSignal", {
+      symbol,
+      strategyName,
+      backtest,
+    });
+    const strategy = this.getStrategy(symbol, strategyName, backtest);
+    return await strategy.getScheduledSignal(symbol, strategyName);
+  };
+
+  /**
    * Retrieves the stopped state of the strategy.
    *
    * Delegates to the underlying strategy instance to check if it has been
@@ -318,6 +343,27 @@ export class StrategyConnectionService {
     } else {
       this.getStrategy.clear();
     }
+  };
+
+  /**
+   * Cancels the scheduled signal for the specified strategy.
+   *
+   * Delegates to ClientStrategy.cancel() which clears the scheduled signal
+   * without stopping the strategy or affecting pending signals.
+   *
+   * @param backtest - Whether running in backtest mode
+   * @param ctx - Context with symbol and strategyName
+   * @returns Promise that resolves when scheduled signal is cancelled
+   */
+  public cancel = async (
+    backtest: boolean,
+    ctx: { symbol: string; strategyName: StrategyName },
+  ): Promise<void> => {
+    this.loggerService.log("strategyConnectionService cancel", {
+      ctx,
+    });
+    const strategy = this.getStrategy(ctx.symbol, ctx.strategyName, backtest);
+    await strategy.cancel(ctx.symbol, ctx.strategyName, backtest);
   };
 }
 
