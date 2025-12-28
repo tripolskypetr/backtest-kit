@@ -11,6 +11,10 @@ const BACKTEST_METHOD_NAME_GET_REPORT = "BacktestUtils.getReport";
 const BACKTEST_METHOD_NAME_DUMP = "BacktestUtils.dump";
 const BACKTEST_METHOD_NAME_TASK = "BacktestUtils.task";
 const BACKTEST_METHOD_NAME_GET_STATUS = "BacktestUtils.getStatus";
+const BACKTEST_METHOD_NAME_GET_PENDING_SIGNAL = "BacktestUtils.getPendingSignal";
+const BACKTEST_METHOD_NAME_GET_SCHEDULED_SIGNAL = "BacktestUtils.getScheduledSignal";
+const BACKTEST_METHOD_NAME_CANCEL = "BacktestUtils.cancel";
+const BACKTEST_METHOD_NAME_GET_DATA = "BacktestUtils.getData";
 
 /**
  * Internal task function that runs backtest and handles completion.
@@ -248,6 +252,56 @@ export class BacktestInstance {
   };
 
   /**
+   * Retrieves the currently active pending signal for the strategy.
+   * If no active signal exists, returns null.
+   *
+   * @param symbol - Trading pair symbol
+   * @param strategyName - Name of strategy to get pending signal for
+   * @returns Promise resolving to pending signal or null
+   *
+   * @example
+   * ```typescript
+   * const instance = new BacktestInstance();
+   * const pending = await instance.getPendingSignal("BTCUSDT", "my-strategy");
+   * if (pending) {
+   *   console.log("Active signal:", pending.id);
+   * }
+   * ```
+   */
+  public getPendingSignal = async (symbol: string, strategyName: StrategyName) => {
+    backtest.loggerService.info(BACKTEST_METHOD_NAME_GET_PENDING_SIGNAL, {
+      symbol,
+      strategyName,
+    });
+    return await backtest.strategyCoreService.getPendingSignal(true, symbol, strategyName);
+  };
+
+  /**
+   * Retrieves the currently active scheduled signal for the strategy.
+   * If no scheduled signal exists, returns null.
+   *
+   * @param symbol - Trading pair symbol
+   * @param strategyName - Name of strategy to get scheduled signal for
+   * @returns Promise resolving to scheduled signal or null
+   *
+   * @example
+   * ```typescript
+   * const instance = new BacktestInstance();
+   * const scheduled = await instance.getScheduledSignal("BTCUSDT", "my-strategy");
+   * if (scheduled) {
+   *   console.log("Scheduled signal:", scheduled.id);
+   * }
+   * ```
+   */
+  public getScheduledSignal = async (symbol: string, strategyName: StrategyName) => {
+    backtest.loggerService.info(BACKTEST_METHOD_NAME_GET_SCHEDULED_SIGNAL, {
+      symbol,
+      strategyName,
+    });
+    return await backtest.strategyCoreService.getScheduledSignal(true, symbol, strategyName);
+  };
+
+  /**
    * Stops the strategy from generating new signals.
    *
    * Sets internal flag to prevent strategy from opening new signals.
@@ -480,6 +534,64 @@ export class BacktestUtils {
 
     const instance = this._getInstance(symbol, context.strategyName);
     return instance.background(symbol, context);
+  };
+
+  /**
+   * Retrieves the currently active pending signal for the strategy.
+   * If no active signal exists, returns null.
+   *
+   * @param symbol - Trading pair symbol
+   * @param strategyName - Name of strategy to get pending signal for
+   * @returns Promise resolving to pending signal or null
+   *
+   * @example
+   * ```typescript
+   * const pending = await Backtest.getPendingSignal("BTCUSDT", "my-strategy");
+   * if (pending) {
+   *   console.log("Active signal:", pending.id);
+   * }
+   * ```
+   */
+  public getPendingSignal = async (symbol: string, strategyName: StrategyName) => {
+    backtest.strategyValidationService.validate(strategyName, BACKTEST_METHOD_NAME_GET_PENDING_SIGNAL);
+
+    {
+      const { riskName, riskList } = backtest.strategySchemaService.get(strategyName);
+      riskName && backtest.riskValidationService.validate(riskName, BACKTEST_METHOD_NAME_GET_PENDING_SIGNAL);
+      riskList && riskList.forEach((riskName) => backtest.riskValidationService.validate(riskName, BACKTEST_METHOD_NAME_GET_PENDING_SIGNAL));
+    }
+
+    const instance = this._getInstance(symbol, strategyName);
+    return await instance.getPendingSignal(symbol, strategyName);
+  };
+
+  /**
+   * Retrieves the currently active scheduled signal for the strategy.
+   * If no scheduled signal exists, returns null.
+   *
+   * @param symbol - Trading pair symbol
+   * @param strategyName - Name of strategy to get scheduled signal for
+   * @returns Promise resolving to scheduled signal or null
+   *
+   * @example
+   * ```typescript
+   * const scheduled = await Backtest.getScheduledSignal("BTCUSDT", "my-strategy");
+   * if (scheduled) {
+   *   console.log("Scheduled signal:", scheduled.id);
+   * }
+   * ```
+   */
+  public getScheduledSignal = async (symbol: string, strategyName: StrategyName) => {
+    backtest.strategyValidationService.validate(strategyName, BACKTEST_METHOD_NAME_GET_SCHEDULED_SIGNAL);
+
+    {
+      const { riskName, riskList } = backtest.strategySchemaService.get(strategyName);
+      riskName && backtest.riskValidationService.validate(riskName, BACKTEST_METHOD_NAME_GET_SCHEDULED_SIGNAL);
+      riskList && riskList.forEach((riskName) => backtest.riskValidationService.validate(riskName, BACKTEST_METHOD_NAME_GET_SCHEDULED_SIGNAL));
+    }
+
+    const instance = this._getInstance(symbol, strategyName);
+    return await instance.getScheduledSignal(symbol, strategyName);
   };
 
   /**

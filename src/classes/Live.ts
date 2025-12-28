@@ -16,6 +16,9 @@ const LIVE_METHOD_NAME_GET_DATA = "LiveUtils.getData";
 const LIVE_METHOD_NAME_DUMP = "LiveUtils.dump";
 const LIVE_METHOD_NAME_TASK = "LiveUtils.task";
 const LIVE_METHOD_NAME_GET_STATUS = "LiveUtils.getStatus";
+const LIVE_METHOD_NAME_GET_PENDING_SIGNAL = "LiveUtils.getPendingSignal";
+const LIVE_METHOD_NAME_GET_SCHEDULED_SIGNAL = "LiveUtils.getScheduledSignal";
+const LIVE_METHOD_NAME_CANCEL = "LiveUtils.cancel";
 
 /**
  * Internal task function that runs live trading and handles completion.
@@ -255,6 +258,56 @@ export class LiveInstance {
   };
 
   /**
+   * Retrieves the currently active pending signal for the strategy.
+   * If no active signal exists, returns null.
+   *
+   * @param symbol - Trading pair symbol
+   * @param strategyName - Name of strategy to get pending signal for
+   * @returns Promise resolving to pending signal or null
+   *
+   * @example
+   * ```typescript
+   * const instance = new LiveInstance();
+   * const pending = await instance.getPendingSignal("BTCUSDT", "my-strategy");
+   * if (pending) {
+   *   console.log("Active signal:", pending.id);
+   * }
+   * ```
+   */
+  public getPendingSignal = async (symbol: string, strategyName: StrategyName) => {
+    backtest.loggerService.info(LIVE_METHOD_NAME_GET_PENDING_SIGNAL, {
+      symbol,
+      strategyName,
+    });
+    return await backtest.strategyCoreService.getPendingSignal(false, symbol, strategyName);
+  };
+
+  /**
+   * Retrieves the currently active scheduled signal for the strategy.
+   * If no scheduled signal exists, returns null.
+   *
+   * @param symbol - Trading pair symbol
+   * @param strategyName - Name of strategy to get scheduled signal for
+   * @returns Promise resolving to scheduled signal or null
+   *
+   * @example
+   * ```typescript
+   * const instance = new LiveInstance();
+   * const scheduled = await instance.getScheduledSignal("BTCUSDT", "my-strategy");
+   * if (scheduled) {
+   *   console.log("Scheduled signal:", scheduled.id);
+   * }
+   * ```
+   */
+  public getScheduledSignal = async (symbol: string, strategyName: StrategyName) => {
+    backtest.loggerService.info(LIVE_METHOD_NAME_GET_SCHEDULED_SIGNAL, {
+      symbol,
+      strategyName,
+    });
+    return await backtest.strategyCoreService.getScheduledSignal(false, symbol, strategyName);
+  };
+
+  /**
    * Stops the strategy from generating new signals.
    *
    * Sets internal flag to prevent strategy from opening new signals.
@@ -298,7 +351,7 @@ export class LiveInstance {
    * ```
    */
   public cancel = async (symbol: string, strategyName: StrategyName, cancelId?: string): Promise<void> => {
-    backtest.loggerService.info("LiveInstance.cancel", {
+    backtest.loggerService.info(LIVE_METHOD_NAME_CANCEL, {
       symbol,
       strategyName,
       cancelId,
@@ -499,6 +552,64 @@ export class LiveUtils {
   };
 
   /**
+   * Retrieves the currently active pending signal for the strategy.
+   * If no active signal exists, returns null.
+   *
+   * @param symbol - Trading pair symbol
+   * @param strategyName - Name of strategy to get pending signal for
+   * @returns Promise resolving to pending signal or null
+   *
+   * @example
+   * ```typescript
+   * const pending = await Live.getPendingSignal("BTCUSDT", "my-strategy");
+   * if (pending) {
+   *   console.log("Active signal:", pending.id);
+   * }
+   * ```
+   */
+  public getPendingSignal = async (symbol: string, strategyName: StrategyName) => {
+    backtest.strategyValidationService.validate(strategyName, LIVE_METHOD_NAME_GET_PENDING_SIGNAL);
+
+    {
+      const { riskName, riskList } = backtest.strategySchemaService.get(strategyName);
+      riskName && backtest.riskValidationService.validate(riskName, LIVE_METHOD_NAME_GET_PENDING_SIGNAL);
+      riskList && riskList.forEach((riskName) => backtest.riskValidationService.validate(riskName, LIVE_METHOD_NAME_GET_PENDING_SIGNAL));
+    }
+
+    const instance = this._getInstance(symbol, strategyName);
+    return await instance.getPendingSignal(symbol, strategyName);
+  };
+
+  /**
+   * Retrieves the currently active scheduled signal for the strategy.
+   * If no scheduled signal exists, returns null.
+   *
+   * @param symbol - Trading pair symbol
+   * @param strategyName - Name of strategy to get scheduled signal for
+   * @returns Promise resolving to scheduled signal or null
+   *
+   * @example
+   * ```typescript
+   * const scheduled = await Live.getScheduledSignal("BTCUSDT", "my-strategy");
+   * if (scheduled) {
+   *   console.log("Scheduled signal:", scheduled.id);
+   * }
+   * ```
+   */
+  public getScheduledSignal = async (symbol: string, strategyName: StrategyName) => {
+    backtest.strategyValidationService.validate(strategyName, LIVE_METHOD_NAME_GET_SCHEDULED_SIGNAL);
+
+    {
+      const { riskName, riskList } = backtest.strategySchemaService.get(strategyName);
+      riskName && backtest.riskValidationService.validate(riskName, LIVE_METHOD_NAME_GET_SCHEDULED_SIGNAL);
+      riskList && riskList.forEach((riskName) => backtest.riskValidationService.validate(riskName, LIVE_METHOD_NAME_GET_SCHEDULED_SIGNAL));
+    }
+
+    const instance = this._getInstance(symbol, strategyName);
+    return await instance.getScheduledSignal(symbol, strategyName);
+  };
+
+  /**
    * Stops the strategy from generating new signals.
    *
    * Sets internal flag to prevent strategy from opening new signals.
@@ -547,12 +658,12 @@ export class LiveUtils {
    * ```
    */
   public cancel = async (symbol: string, strategyName: StrategyName, cancelId?: string): Promise<void> => {
-    backtest.strategyValidationService.validate(strategyName, "LiveUtils.cancel");
+    backtest.strategyValidationService.validate(strategyName, LIVE_METHOD_NAME_CANCEL);
 
     {
       const { riskName, riskList } = backtest.strategySchemaService.get(strategyName);
-      riskName && backtest.riskValidationService.validate(riskName, "LiveUtils.cancel");
-      riskList && riskList.forEach((riskName) => backtest.riskValidationService.validate(riskName, "LiveUtils.cancel"));
+      riskName && backtest.riskValidationService.validate(riskName, LIVE_METHOD_NAME_CANCEL);
+      riskList && riskList.forEach((riskName) => backtest.riskValidationService.validate(riskName, LIVE_METHOD_NAME_CANCEL));
     }
 
     const instance = this._getInstance(symbol, strategyName);
