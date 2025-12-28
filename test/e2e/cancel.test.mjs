@@ -382,3 +382,182 @@ test("Multiple scheduled signals - cancel only first one via onSchedule", async 
   fail(`Expected >=2 scheduled and >=1 opened, got: scheduled=${scheduledCount}, opened=${openedCount}`);
 
 });
+
+test("Cancel scheduled signal after 5 onPing calls in backtest", async ({ pass, fail }) => {
+
+  let scheduledCount = 0;
+  let cancelledCount = 0;
+  let openedCount = 0;
+  let pingCount = 0;
+  const pingTimestamps = [];
+
+  const startTime = new Date("2024-01-01T00:00:00Z").getTime();
+  const intervalMs = 60 * 1000; // 1 minute
+  const basePrice = 42000;
+
+  const bufferMinutes = 4;
+  const bufferStartTime = startTime - bufferMinutes * intervalMs;
+  let allCandles = [];
+
+  // Предзаполняем минимум 5 свечей ДО первого вызова getSignal
+  for (let i = 0; i < 5; i++) {
+    allCandles.push({
+      timestamp: bufferStartTime + i * intervalMs,
+      open: basePrice,
+      high: basePrice + 100,
+      low: basePrice - 100,
+      close: basePrice,
+      volume: 100,
+    });
+  }
+
+  addExchange({
+    exchangeName: "binance-cancel-ping-test",
+    getCandles: async (_symbol, _interval, since, limit) => {
+      const sinceIndex = Math.floor((since.getTime() - bufferStartTime) / intervalMs);
+      const result = allCandles.slice(sinceIndex, sinceIndex + limit);
+      return result.length > 0 ? result : allCandles.slice(0, Math.min(limit, allCandles.length));
+    },
+    formatPrice: async (symbol, price) => price.toFixed(8),
+    formatQuantity: async (symbol, quantity) => quantity.toFixed(8),
+  });
+
+  addStrategy({
+    strategyName: "test-strategy-cancel-ping",
+    interval: "1m",
+    getSignal: async () => {
+      // Генерируем ВСЕ свечи только в первый раз
+      if (allCandles.length === 5) {
+        allCandles = [];
+
+        // Буферные свечи (4 минуты)
+        for (let i = 0; i < bufferMinutes; i++) {
+          allCandles.push({
+            timestamp: bufferStartTime + i * intervalMs,
+            open: basePrice,
+            high: basePrice + 100,
+            low: basePrice - 100,
+            close: basePrice,
+            volume: 100,
+          });
+        }
+
+        // Генерируем 30 минут свечей (достаточно для 5 ping + отмена)
+        for (let minuteIndex = 0; minuteIndex < 30; minuteIndex++) {
+          const timestamp = startTime + minuteIndex * intervalMs;
+
+          // Все свечи ВЫШЕ priceOpen - чтобы сигнал точно был scheduled
+          allCandles.push({
+            timestamp,
+            open: basePrice + 500,
+            high: basePrice + 600,
+            low: basePrice + 400,
+            close: basePrice + 500,
+            volume: 100,
+          });
+        }
+      }
+
+      const price = await getAveragePrice("BTCUSDT");
+
+      // Создаем scheduled сигнал (priceOpen ниже текущей цены для LONG)
+      return {
+        position: "long",
+        note: "cancel ping test",
+        priceOpen: price - 500,  // Ниже текущей цены → будет scheduled
+        priceTakeProfit: price + 1000,
+        priceStopLoss: price - 10000,
+        minuteEstimatedTime: 120,
+      };
+    },
+    callbacks: {
+      onSchedule: async () => {
+        scheduledCount++;
+      },
+      onCancel: () => {
+        cancelledCount++;
+      },
+      onOpen: () => {
+        openedCount++;
+      },
+      onPing: async (_symbol, when, _backtest) => {
+        pingCount++;
+        pingTimestamps.push(when.getTime());
+
+        // Отменяем после 5-го ping
+        if (pingCount === 5) {
+          await Backtest.cancel("BTCUSDT", "test-strategy-cancel-ping");
+        }
+      },
+    },
+  });
+
+  addFrame({
+    frameName: "30m-cancel-ping-test",
+    interval: "1m",
+    startDate: new Date("2024-01-01T00:00:00Z"),
+    endDate: new Date("2024-01-01T00:30:00Z"),
+  });
+
+  const awaitSubject = new Subject();
+
+  let errorCaught = null;
+  const unsubscribeError = listenError((error) => {
+    errorCaught = error;
+    awaitSubject.next();
+  });
+
+  listenDoneBacktest(() => {
+    awaitSubject.next();
+  });
+
+  let scheduledEvents = 0;
+  let cancelledEvents = 0;
+
+  listenSignalBacktest((result) => {
+    if (result.action === "scheduled") {
+      scheduledEvents++;
+    }
+    if (result.action === "cancelled") {
+      cancelledEvents++;
+    }
+  });
+
+  Backtest.background("BTCUSDT", {
+    strategyName: "test-strategy-cancel-ping",
+    exchangeName: "binance-cancel-ping-test",
+    frameName: "30m-cancel-ping-test",
+  });
+
+  await awaitSubject.toPromise();
+  unsubscribeError();
+
+  if (errorCaught) {
+    fail(`Error during backtest: ${errorCaught.message || errorCaught}`);
+    return;
+  }
+
+  // Проверяем что было ровно 5 вызовов onPing
+  if (pingCount !== 5) {
+    fail(`Expected exactly 5 onPing calls, got ${pingCount}`);
+    return;
+  }
+
+  // Проверяем что пинги идут каждую минуту
+  for (let i = 1; i < pingTimestamps.length; i++) {
+    const diff = pingTimestamps[i] - pingTimestamps[i - 1];
+    if (diff !== 60 * 1000) {
+      fail(`Ping ${i} should be 1 minute after ping ${i - 1}, got ${diff}ms`);
+      return;
+    }
+  }
+
+  // Проверяем что был создан scheduled сигнал и получено cancelled событие
+  if (scheduledCount >= 1 && cancelledEvents >= 1 && openedCount === 0) {
+    pass(`Scheduled signal cancelled after 5 onPing calls: ${pingCount} pings, ${scheduledCount} scheduled, ${cancelledEvents} cancelled events`);
+    return;
+  }
+
+  fail(`Expected scheduled signal to be cancelled after 5 pings, got: pings=${pingCount}, scheduled=${scheduledCount}, cancelledEvents=${cancelledEvents}, opened=${openedCount}`);
+
+});

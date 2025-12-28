@@ -822,6 +822,15 @@ const RETURN_SCHEDULED_SIGNAL_ACTIVE_FN = async (
   scheduled: IScheduledSignalRow,
   currentPrice: number
 ): Promise<IStrategyTickResultActive> => {
+  // Call onPing callback only if signal is still active (not cancelled, not activated)
+  if (self.params.callbacks?.onPing) {
+    await self.params.callbacks.onPing(
+      self.params.execution.context.symbol,
+      self.params.execution.context.when,
+      self.params.execution.context.backtest
+    );
+  }
+
   const result: IStrategyTickResultActive = {
     action: "active",
     signal: scheduled,
@@ -1551,6 +1560,15 @@ const PROCESS_SCHEDULED_SIGNAL_CANDLES_FN = async (
         activationIndex: i,
         result: null,
       };
+    }
+
+    // Call onPing callback only if signal is NOT going to be cancelled or activated
+    if (self.params.callbacks?.onPing) {
+      await self.params.callbacks.onPing(
+        self.params.execution.context.symbol,
+        new Date(candle.timestamp),
+        self.params.execution.context.backtest
+      );
     }
   }
 
