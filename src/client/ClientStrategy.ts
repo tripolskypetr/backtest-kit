@@ -827,11 +827,11 @@ const ACTIVATE_SCHEDULED_SIGNAL_FN = async (
   return result;
 };
 
-const RETURN_SCHEDULED_SIGNAL_ACTIVE_FN = async (
+const CALL_PING_CALLBACKS_FN = async (
   self: ClientStrategy,
   scheduled: IScheduledSignalRow,
-  currentPrice: number
-): Promise<IStrategyTickResultActive> => {
+  timestamp: number
+): Promise<void> => {
   // Call system onPing callback first (emits to pingSubject)
   await self.params.onPing(
     self.params.execution.context.symbol,
@@ -839,7 +839,7 @@ const RETURN_SCHEDULED_SIGNAL_ACTIVE_FN = async (
     self.params.method.context.exchangeName,
     scheduled,
     self.params.execution.context.backtest,
-    self.params.execution.context.when.getTime()
+    timestamp
   );
 
   // Call user onPing callback only if signal is still active (not cancelled, not activated)
@@ -847,10 +847,22 @@ const RETURN_SCHEDULED_SIGNAL_ACTIVE_FN = async (
     await self.params.callbacks.onPing(
       self.params.execution.context.symbol,
       scheduled,
-      self.params.execution.context.when,
+      new Date(timestamp),
       self.params.execution.context.backtest
     );
   }
+};
+
+const RETURN_SCHEDULED_SIGNAL_ACTIVE_FN = async (
+  self: ClientStrategy,
+  scheduled: IScheduledSignalRow,
+  currentPrice: number
+): Promise<IStrategyTickResultActive> => {
+  await CALL_PING_CALLBACKS_FN(
+    self,
+    scheduled,
+    self.params.execution.context.when.getTime()
+  );
 
   const result: IStrategyTickResultActive = {
     action: "active",
@@ -1595,25 +1607,7 @@ const PROCESS_SCHEDULED_SIGNAL_CANDLES_FN = async (
       };
     }
 
-    // Call system onPing callback first (emits to pingSubject)
-    await self.params.onPing(
-      self.params.execution.context.symbol,
-      self.params.method.context.strategyName,
-      self.params.method.context.exchangeName,
-      scheduled,
-      self.params.execution.context.backtest,
-      candle.timestamp
-    );
-
-    // Call user onPing callback only if signal is NOT going to be cancelled or activated
-    if (self.params.callbacks?.onPing) {
-      await self.params.callbacks.onPing(
-        self.params.execution.context.symbol,
-        scheduled,
-        new Date(candle.timestamp),
-        self.params.execution.context.backtest
-      );
-    }
+    await CALL_PING_CALLBACKS_FN(self, scheduled, candle.timestamp);
   }
 
   return {
