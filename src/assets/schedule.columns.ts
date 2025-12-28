@@ -79,7 +79,8 @@ export const schedule_columns: ColumnModel<ScheduledEvent>[] = [
   {
     key: "currentPrice",
     label: "Current Price",
-    format: (data) => `${data.currentPrice.toFixed(8)} USD`,
+    format: (data) =>
+      data.currentPrice ? `${data.currentPrice.toFixed(8)} USD` : "N/A",
     isVisible: () => true,
   },
   {

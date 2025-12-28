@@ -280,6 +280,31 @@ export class LiveInstance {
   };
 
   /**
+   * Cancels the scheduled signal without stopping the strategy.
+   *
+   * Clears the scheduled signal (waiting for priceOpen activation).
+   * Does NOT affect active pending signals or strategy operation.
+   * Does NOT set stop flag - strategy can continue generating new signals.
+   *
+   * @param symbol - Trading pair symbol
+   * @param strategyName - Strategy name
+   * @returns Promise that resolves when scheduled signal is cancelled
+   *
+   * @example
+   * ```typescript
+   * const instance = new LiveInstance();
+   * await instance.cancel("BTCUSDT", "my-strategy");
+   * ```
+   */
+  public cancel = async (symbol: string, strategyName: StrategyName): Promise<void> => {
+    backtest.loggerService.info("LiveInstance.cancel", {
+      symbol,
+      strategyName,
+    });
+    await backtest.strategyCoreService.cancel(false, { symbol, strategyName });
+  };
+
+  /**
    * Gets statistical data from all live trading events for a symbol-strategy pair.
    *
    * @param symbol - Trading pair symbol
@@ -499,6 +524,36 @@ export class LiveUtils {
 
     const instance = this._getInstance(symbol, strategyName);
     return await instance.stop(symbol, strategyName);
+  };
+
+  /**
+   * Cancels the scheduled signal without stopping the strategy.
+   *
+   * Clears the scheduled signal (waiting for priceOpen activation).
+   * Does NOT affect active pending signals or strategy operation.
+   * Does NOT set stop flag - strategy can continue generating new signals.
+   *
+   * @param symbol - Trading pair symbol
+   * @param strategyName - Strategy name
+   * @returns Promise that resolves when scheduled signal is cancelled
+   *
+   * @example
+   * ```typescript
+   * // Cancel scheduled signal in live trading
+   * await Live.cancel("BTCUSDT", "my-strategy");
+   * ```
+   */
+  public cancel = async (symbol: string, strategyName: StrategyName): Promise<void> => {
+    backtest.strategyValidationService.validate(strategyName, "LiveUtils.cancel");
+
+    {
+      const { riskName, riskList } = backtest.strategySchemaService.get(strategyName);
+      riskName && backtest.riskValidationService.validate(riskName, "LiveUtils.cancel");
+      riskList && riskList.forEach((riskName) => backtest.riskValidationService.validate(riskName, "LiveUtils.cancel"));
+    }
+
+    const instance = this._getInstance(symbol, strategyName);
+    return await instance.cancel(symbol, strategyName);
   };
 
   /**

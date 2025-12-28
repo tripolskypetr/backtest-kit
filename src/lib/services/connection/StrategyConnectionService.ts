@@ -351,6 +351,9 @@ export class StrategyConnectionService {
    * Delegates to ClientStrategy.cancel() which clears the scheduled signal
    * without stopping the strategy or affecting pending signals.
    *
+   * Note: Cancelled event will be emitted on next tick() call when strategy
+   * detects the scheduled signal was cancelled.
+   *
    * @param backtest - Whether running in backtest mode
    * @param ctx - Context with symbol and strategyName
    * @returns Promise that resolves when scheduled signal is cancelled
