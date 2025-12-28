@@ -832,7 +832,16 @@ const RETURN_SCHEDULED_SIGNAL_ACTIVE_FN = async (
   scheduled: IScheduledSignalRow,
   currentPrice: number
 ): Promise<IStrategyTickResultActive> => {
-  // Call onPing callback only if signal is still active (not cancelled, not activated)
+  // Call system onPing callback first (emits to pingSubject)
+  await self.params.onPing(
+    self.params.execution.context.symbol,
+    self.params.method.context.strategyName,
+    self.params.method.context.exchangeName,
+    self.params.execution.context.backtest,
+    self.params.execution.context.when.getTime()
+  );
+
+  // Call user onPing callback only if signal is still active (not cancelled, not activated)
   if (self.params.callbacks?.onPing) {
     await self.params.callbacks.onPing(
       self.params.execution.context.symbol,
@@ -1584,7 +1593,16 @@ const PROCESS_SCHEDULED_SIGNAL_CANDLES_FN = async (
       };
     }
 
-    // Call onPing callback only if signal is NOT going to be cancelled or activated
+    // Call system onPing callback first (emits to pingSubject)
+    await self.params.onPing(
+      self.params.execution.context.symbol,
+      self.params.method.context.strategyName,
+      self.params.method.context.exchangeName,
+      self.params.execution.context.backtest,
+      candle.timestamp
+    );
+
+    // Call user onPing callback only if signal is NOT going to be cancelled or activated
     if (self.params.callbacks?.onPing) {
       await self.params.callbacks.onPing(
         self.params.execution.context.symbol,

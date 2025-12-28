@@ -19,6 +19,7 @@ import {
   signalEmitter,
   signalBacktestEmitter,
   signalLiveEmitter,
+  pingSubject,
 } from "../../../config/emitters";
 import { IRisk, RiskName } from "../../../interfaces/Risk.interface";
 import RiskConnectionService from "./RiskConnectionService";
@@ -69,6 +70,33 @@ const GET_RISK_FN = (
     ),
   ]);
 };
+
+/**
+ * Callback function for emitting ping events to pingSubject.
+ *
+ * Called by ClientStrategy when a scheduled signal is being monitored every minute.
+ * Emits PingContract event to all subscribers.
+ *
+ * @param symbol - Trading pair symbol
+ * @param strategyName - Strategy name that is monitoring this scheduled signal
+ * @param exchangeName - Exchange name where this scheduled signal is being executed
+ * @param backtest - True if backtest mode
+ * @param timestamp - Event timestamp in milliseconds
+ */
+const COMMIT_PING_FN = async (
+  symbol: string,
+  strategyName: string,
+  exchangeName: string,
+  backtest: boolean,
+  timestamp: number
+) =>
+  await pingSubject.next({
+    symbol,
+    strategyName,
+    exchangeName,
+    backtest,
+    timestamp,
+  });
 
 /**
  * Connection service routing strategy operations to correct ClientStrategy instance.
@@ -152,6 +180,7 @@ export class StrategyConnectionService {
         strategyName,
         getSignal,
         callbacks,
+        onPing: COMMIT_PING_FN,
       });
     }
   );

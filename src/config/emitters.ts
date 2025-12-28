@@ -11,6 +11,7 @@ import { PartialProfitContract } from "../contract/PartialProfit.contract";
 import { PartialLossContract } from "../contract/PartialLoss.contract";
 import { WalkerStopContract } from "../contract/WalkerStop.contract";
 import { RiskContract } from "../contract/Risk.contract";
+import { PingContract } from "../contract/Ping.contract";
 
 /**
  * Global signal emitter for all trading events (live + backtest).
@@ -129,4 +130,11 @@ export const partialLossSubject = new Subject<PartialLossContract>();
  * Does not emit for allowed signals (prevents spam).
  */
 export const riskSubject = new Subject<RiskContract>();
+
+/**
+ * Ping emitter for scheduled signal monitoring events.
+ * Emits every minute when a scheduled signal is being monitored (waiting for activation).
+ * Allows users to track scheduled signal lifecycle and implement custom cancellation logic.
+ */
+export const pingSubject = new Subject<PingContract>();
 
