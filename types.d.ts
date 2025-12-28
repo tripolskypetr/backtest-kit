@@ -1207,7 +1207,7 @@ type StrategyCloseReason = "time_expired" | "take_profit" | "stop_loss";
  * Reason why scheduled signal was cancelled.
  * Used in discriminated union for type-safe handling.
  */
-type StrategyCancelReason = "timeout" | "stoploss" | "user";
+type StrategyCancelReason = "timeout" | "price_reject" | "user";
 /**
  * Profit and loss calculation result.
  * Includes adjusted prices with fees (0.1%) and slippage (0.1%).
@@ -4506,7 +4506,7 @@ interface ScheduledEvent {
     /** Duration in minutes (only for cancelled/opened) */
     duration?: number;
     /** Cancellation reason (only for cancelled events) */
-    cancelReason?: "timeout" | "stoploss" | "user";
+    cancelReason?: "timeout" | "price_reject" | "user";
     /** Cancellation ID (only for user-initiated cancellations) */
     cancelId?: string;
 }
