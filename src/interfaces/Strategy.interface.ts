@@ -173,7 +173,7 @@ export type StrategyCloseReason = "time_expired" | "take_profit" | "stop_loss";
  * Reason why scheduled signal was cancelled.
  * Used in discriminated union for type-safe handling.
  */
-export type StrategyCancelReason = "timeout" | "stoploss" | "user";
+export type StrategyCancelReason = "timeout" | "price_reject" | "user";
 
 /**
  * Profit and loss calculation result.

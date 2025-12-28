@@ -721,7 +721,7 @@ const CANCEL_SCHEDULED_SIGNAL_BY_STOPLOSS_FN = async (
     exchangeName: self.params.method.context.exchangeName,
     symbol: self.params.execution.context.symbol,
     backtest: self.params.execution.context.backtest,
-    reason: "stoploss",
+    reason: "price_reject",
   };
 
   if (self.params.callbacks?.onTick) {
@@ -1602,7 +1602,7 @@ const PROCESS_SCHEDULED_SIGNAL_CANDLES_FN = async (
         scheduled,
         averagePrice,
         candle.timestamp,
-        "stoploss"
+        "price_reject"
       );
       return { activated: false, cancelled: true, activationIndex: i, result };
     }
