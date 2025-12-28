@@ -5309,6 +5309,24 @@ declare class BacktestUtils {
      */
     stop: (symbol: string, strategyName: StrategyName) => Promise<void>;
     /**
+     * Cancels the scheduled signal without stopping the strategy.
+     *
+     * Clears the scheduled signal (waiting for priceOpen activation).
+     * Does NOT affect active pending signals or strategy operation.
+     * Does NOT set stop flag - strategy can continue generating new signals.
+     *
+     * @param symbol - Trading pair symbol
+     * @param strategyName - Strategy name
+     * @returns Promise that resolves when scheduled signal is cancelled
+     *
+     * @example
+     * ```typescript
+     * // Cancel scheduled signal
+     * await Backtest.cancel("BTCUSDT", "my-strategy");
+     * ```
+     */
+    cancel: (symbol: string, strategyName: StrategyName) => Promise<void>;
+    /**
      * Gets statistical data from all closed signals for a symbol-strategy pair.
      *
      * @param symbol - Trading pair symbol
@@ -5674,6 +5692,24 @@ declare class LiveUtils {
      * ```
      */
     stop: (symbol: string, strategyName: StrategyName) => Promise<void>;
+    /**
+     * Cancels the scheduled signal without stopping the strategy.
+     *
+     * Clears the scheduled signal (waiting for priceOpen activation).
+     * Does NOT affect active pending signals or strategy operation.
+     * Does NOT set stop flag - strategy can continue generating new signals.
+     *
+     * @param symbol - Trading pair symbol
+     * @param strategyName - Strategy name
+     * @returns Promise that resolves when scheduled signal is cancelled
+     *
+     * @example
+     * ```typescript
+     * // Cancel scheduled signal in live trading
+     * await Live.cancel("BTCUSDT", "my-strategy");
+     * ```
+     */
+    cancel: (symbol: string, strategyName: StrategyName) => Promise<void>;
     /**
      * Gets statistical data from all live trading events for a symbol-strategy pair.
      *
@@ -8826,6 +8862,17 @@ declare class StrategyConnectionService {
      */
     getPendingSignal: (backtest: boolean, symbol: string, strategyName: StrategyName) => Promise<ISignalRow | null>;
     /**
+     * Retrieves the currently active scheduled signal for the strategy.
+     * If no scheduled signal exists, returns null.
+     * Used internally for monitoring scheduled signal activation.
+     *
+     * @param symbol - Trading pair symbol
+     * @param strategyName - Name of strategy to get scheduled signal for
+     *
+     * @returns Promise resolving to scheduled signal or null
+     */
+    getScheduledSignal: (backtest: boolean, symbol: string, strategyName: StrategyName) => Promise<IScheduledSignalRow | null>;
+    /**
      * Retrieves the stopped state of the strategy.
      *
      * Delegates to the underlying strategy instance to check if it has been
@@ -8882,6 +8929,23 @@ declare class StrategyConnectionService {
      * @param ctx - Optional context with symbol and strategyName (clears all if not provided)
      */
     clear: (backtest: boolean, ctx?: {
+        symbol: string;
+        strategyName: StrategyName;
+    }) => Promise<void>;
+    /**
+     * Cancels the scheduled signal for the specified strategy.
+     *
+     * Delegates to ClientStrategy.cancel() which clears the scheduled signal
+     * without stopping the strategy or affecting pending signals.
+     *
+     * Note: Cancelled event will be emitted on next tick() call when strategy
+     * detects the scheduled signal was cancelled.
+     *
+     * @param backtest - Whether running in backtest mode
+     * @param ctx - Context with symbol and strategyName
+     * @returns Promise that resolves when scheduled signal is cancelled
+     */
+    cancel: (backtest: boolean, ctx: {
         symbol: string;
         strategyName: StrategyName;
     }) => Promise<void>;
@@ -9151,6 +9215,16 @@ declare class StrategyCoreService {
      */
     getPendingSignal: (backtest: boolean, symbol: string, strategyName: StrategyName) => Promise<ISignalRow | null>;
     /**
+     * Retrieves the currently active scheduled signal for the symbol.
+     * If no scheduled signal exists, returns null.
+     * Used internally for monitoring scheduled signal activation.
+     *
+     * @param symbol - Trading pair symbol
+     * @param strategyName - Name of the strategy
+     * @returns Promise resolving to scheduled signal or null
+     */
+    getScheduledSignal: (backtest: boolean, symbol: string, strategyName: StrategyName) => Promise<IScheduledSignalRow | null>;
+    /**
      * Checks if the strategy has been stopped.
      *
      * Validates strategy existence and delegates to connection service
@@ -9197,6 +9271,21 @@ declare class StrategyCoreService {
      * @returns Promise that resolves when stop flag is set
      */
     stop: (backtest: boolean, ctx: {
+        symbol: string;
+        strategyName: StrategyName;
+    }) => Promise<void>;
+    /**
+     * Cancels the scheduled signal without stopping the strategy.
+     *
+     * Delegates to StrategyConnectionService.cancel() to clear scheduled signal
+     * and emit cancelled event through emitters.
+     * Does not require execution context.
+     *
+     * @param backtest - Whether running in backtest mode
+     * @param ctx - Context with symbol and strategyName
+     * @returns Promise that resolves when scheduled signal is cancelled
+     */
+    cancel: (backtest: boolean, ctx: {
         symbol: string;
         strategyName: StrategyName;
     }) => Promise<void>;

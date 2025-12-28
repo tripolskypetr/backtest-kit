@@ -4,6 +4,7 @@ import TYPES from "../../core/types";
 import ExecutionContextService from "../context/ExecutionContextService";
 import {
   ISignalRow,
+  IScheduledSignalRow,
   IStrategyBacktestResult,
   IStrategyTickResult,
   StrategyName,
@@ -79,7 +80,7 @@ export class StrategyCoreService {
    * @returns Promise resolving to pending signal or null
    */
   public getPendingSignal = async (
-    backtest: boolean, 
+    backtest: boolean,
     symbol: string,
     strategyName: StrategyName
   ): Promise<ISignalRow | null> => {
@@ -92,6 +93,31 @@ export class StrategyCoreService {
     }
     await this.validate(symbol, strategyName);
     return await this.strategyConnectionService.getPendingSignal(backtest, symbol, strategyName);
+  };
+
+  /**
+   * Retrieves the currently active scheduled signal for the symbol.
+   * If no scheduled signal exists, returns null.
+   * Used internally for monitoring scheduled signal activation.
+   *
+   * @param symbol - Trading pair symbol
+   * @param strategyName - Name of the strategy
+   * @returns Promise resolving to scheduled signal or null
+   */
+  public getScheduledSignal = async (
+    backtest: boolean,
+    symbol: string,
+    strategyName: StrategyName
+  ): Promise<IScheduledSignalRow | null> => {
+    this.loggerService.log("strategyCoreService getScheduledSignal", {
+      symbol,
+      strategyName,
+    });
+    if (!MethodContextService.hasContext()) {
+      throw new Error("strategyCoreService getScheduledSignal requires a method context");
+    }
+    await this.validate(symbol, strategyName);
+    return await this.strategyConnectionService.getScheduledSignal(backtest, symbol, strategyName);
   };
 
   /**
@@ -217,6 +243,26 @@ export class StrategyCoreService {
     });
     await this.validate(ctx.symbol, ctx.strategyName);
     return await this.strategyConnectionService.stop(backtest, ctx);
+  };
+
+  /**
+   * Cancels the scheduled signal without stopping the strategy.
+   *
+   * Delegates to StrategyConnectionService.cancel() to clear scheduled signal
+   * and emit cancelled event through emitters.
+   * Does not require execution context.
+   *
+   * @param backtest - Whether running in backtest mode
+   * @param ctx - Context with symbol and strategyName
+   * @returns Promise that resolves when scheduled signal is cancelled
+   */
+  public cancel = async (backtest: boolean, ctx: { symbol: string; strategyName: StrategyName }): Promise<void> => {
+    this.loggerService.log("strategyCoreService cancel", {
+      ctx,
+      backtest,
+    });
+    await this.validate(ctx.symbol, ctx.strategyName);
+    return await this.strategyConnectionService.cancel(backtest, ctx);
   };
 
   /**

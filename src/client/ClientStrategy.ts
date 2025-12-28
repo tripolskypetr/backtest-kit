@@ -1785,9 +1785,12 @@ const PROCESS_PENDING_SIGNAL_CANDLES_FN = async (
  */
 export class ClientStrategy implements IStrategy {
   _isStopped = false;
+
   _pendingSignal: ISignalRow | null = null;
-  _scheduledSignal: IScheduledSignalRow | null = null;
   _lastSignalTimestamp: number | null = null;
+
+  _scheduledSignal: IScheduledSignalRow | null = null;
+  _cancelledSignal: IScheduledSignalRow | null = null;
 
   constructor(readonly params: IStrategyParams) {}
 
@@ -1866,7 +1869,7 @@ export class ClientStrategy implements IStrategy {
 
   /**
    * Retrieves the current pending signal.
-   * If no signal is pending, returns null. 
+   * If no signal is pending, returns null.
    * @returns Promise resolving to the pending signal or null.
    */
   public async getPendingSignal(symbol: string, strategyName: StrategyName): Promise<ISignalRow | null> {
@@ -1875,6 +1878,19 @@ export class ClientStrategy implements IStrategy {
       strategyName,
     });
     return this._pendingSignal;
+  }
+
+  /**
+   * Retrieves the current scheduled signal.
+   * If no scheduled signal exists, returns null.
+   * @returns Promise resolving to the scheduled signal or null.
+   */
+  public async getScheduledSignal(symbol: string, strategyName: StrategyName): Promise<IScheduledSignalRow | null> {
+    this.params.logger.debug("ClientStrategy getScheduledSignal", {
+      symbol,
+      strategyName,
+    });
+    return this._scheduledSignal;
   }
 
   /**
@@ -1940,6 +1956,34 @@ export class ClientStrategy implements IStrategy {
         this.params.execution.context.symbol
       );
       return await RETURN_IDLE_FN(this, currentPrice);
+    }
+
+    // Check if scheduled signal was cancelled - emit cancelled event once
+    if (this._cancelledSignal) {
+      const currentPrice = await this.params.exchange.getAveragePrice(
+        this.params.execution.context.symbol
+      );
+
+      const cancelledSignal = this._cancelledSignal;
+      this._cancelledSignal = null; // Clear after emitting
+
+      this.params.logger.info("ClientStrategy tick: scheduled signal was cancelled", {
+        symbol: this.params.execution.context.symbol,
+        signalId: cancelledSignal.id,
+      });
+
+      const result: IStrategyTickResultCancelled = {
+        action: "cancelled",
+        signal: cancelledSignal,
+        currentPrice,
+        closeTimestamp: currentTime,
+        strategyName: this.params.method.context.strategyName,
+        exchangeName: this.params.method.context.exchangeName,
+        symbol: this.params.execution.context.symbol,
+        backtest: this.params.execution.context.backtest,
+      };
+
+      return result;
     }
 
     // Monitor scheduled signal
@@ -2084,6 +2128,29 @@ export class ClientStrategy implements IStrategy {
 
     if (!this.params.execution.context.backtest) {
       throw new Error("ClientStrategy backtest: running in live context");
+    }
+
+    // If signal was cancelled - return cancelled
+    if (this._cancelledSignal) {
+      this.params.logger.debug("ClientStrategy backtest: no signal (cancelled or not created)");
+
+      const currentPrice = await this.params.exchange.getAveragePrice(symbol);
+
+      const cancelledSignal = this._cancelledSignal;
+      this._cancelledSignal = null; // Clear after using
+
+      const cancelledResult: IStrategyTickResultCancelled = {
+        action: "cancelled",
+        signal: cancelledSignal,
+        currentPrice,
+        closeTimestamp: this.params.execution.context.when.getTime(),
+        strategyName: this.params.method.context.strategyName,
+        exchangeName: this.params.method.context.exchangeName,
+        symbol: this.params.execution.context.symbol,
+        backtest: true,
+      };
+
+      return cancelledResult;
     }
 
     if (!this._pendingSignal && !this._scheduledSignal) {
@@ -2276,6 +2343,52 @@ export class ClientStrategy implements IStrategy {
     }
 
     this._scheduledSignal = null;
+
+    if (backtest) {
+      return;
+    }
+
+    await PersistScheduleAdapter.writeScheduleData(
+      this._scheduledSignal,
+      symbol,
+      strategyName,
+    );
+  }
+
+  /**
+   * Cancels the scheduled signal without stopping the strategy.
+   *
+   * Clears the scheduled signal (waiting for priceOpen activation).
+   * Does NOT affect active pending signals or strategy operation.
+   * Does NOT set stop flag - strategy can continue generating new signals.
+   *
+   * Use case: Cancel a scheduled entry that is no longer desired without stopping the entire strategy.
+   *
+   * @param symbol - Trading pair symbol (e.g., "BTCUSDT")
+   * @param strategyName - Name of the strategy
+   * @param backtest - Whether running in backtest mode
+   * @returns Promise that resolves when scheduled signal is cleared
+   *
+   * @example
+   * ```typescript
+   * // Cancel scheduled signal without stopping strategy
+   * await strategy.cancel("BTCUSDT", "my-strategy", false);
+   * // Strategy continues, can generate new signals
+   * ```
+   */
+  public async cancel(symbol: string, strategyName: StrategyName, backtest: boolean): Promise<void> {
+    this.params.logger.debug("ClientStrategy cancel", {
+      symbol,
+      strategyName,
+      hasScheduledSignal: this._scheduledSignal !== null,
+      backtest,
+    });
+
+    // Save cancelled signal for next tick to emit cancelled event
+    if (this._scheduledSignal) {
+      this._cancelledSignal = this._scheduledSignal;
+      this._scheduledSignal = null;
+    }
 
     if (backtest) {
       return;
