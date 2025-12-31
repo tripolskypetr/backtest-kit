@@ -1,0 +1,1074 @@
+# Risk Validation
+
+<details>
+<summary>Relevant source files</summary>
+
+The following files were used as context for generating this wiki page:
+
+- [README.md](README.md)
+- [src/client/ClientStrategy.ts](src/client/ClientStrategy.ts)
+- [src/config/emitters.ts](src/config/emitters.ts)
+- [src/function/event.ts](src/function/event.ts)
+- [src/index.ts](src/index.ts)
+- [src/interfaces/Strategy.interface.ts](src/interfaces/Strategy.interface.ts)
+- [test/e2e/defend.test.mjs](test/e2e/defend.test.mjs)
+- [test/index.mjs](test/index.mjs)
+- [types.d.ts](types.d.ts)
+
+</details>
+
+
+
+This page documents the risk validation system that ensures all signals meet safety and profitability requirements before execution. Risk validation operates as a two-tier system: built-in structural validation and user-defined custom risk rules.
+
+For information about risk profiles and position tracking, see [Risk Profiles](#12.1). For signal lifecycle states, see [Signal Lifecycle Overview](#2.2).
+
+---
+
+## Two-Tier Validation Architecture
+
+The framework employs a two-tier validation system to ensure signal integrity and enforce risk management rules:
+
+1. **Built-in Validation** (`VALIDATE_SIGNAL_FN` in `ClientStrategy`) - Structural validation that prevents logic errors, infinite values, and dangerous price configurations
+2. **Custom Risk Validation** (`ClientRisk.checkSignal`) - User-defined business rules via `IRiskValidation[]` chain
+
+### System Architecture
+
+```mermaid
+graph TB
+    subgraph "IStrategySchema.getSignal"
+        GetSignal["getSignal()"]
+        SignalDto["Returns ISignalDto"]
+    end
+    
+    subgraph "ClientStrategy.GET_SIGNAL_FN [332-476]"
+        ValidateSignal["VALIDATE_SIGNAL_FN [45-330]"]
+        CheckRequired["Required fields:<br/>id, symbol, position, priceOpen,<br/>priceTakeProfit, priceStopLoss"]
+        CheckFinite["isFinite() checks:<br/>NaN, Infinity protection"]
+        CheckPriceLogic["Price ordering:<br/>Long: SL < Open < TP<br/>Short: TP < Open < SL"]
+        CheckDistances["CC_MIN_TAKEPROFIT_DISTANCE_PERCENT<br/>CC_MIN_STOPLOSS_DISTANCE_PERCENT<br/>CC_MAX_STOPLOSS_DISTANCE_PERCENT"]
+        CheckLifetime["CC_MAX_SIGNAL_LIFETIME_MINUTES<br/>minuteEstimatedTime validation"]
+        CheckImmediate["Immediate close protection:<br/>Long: SL < currentPrice < TP<br/>Short: TP < currentPrice < SL"]
+    end
+    
+    subgraph "ClientRisk.checkSignal [src/client/ClientRisk.ts]"
+        RiskCheck["checkSignal(IRiskCheckArgs)"]
+        BuildPayload["Build IRiskValidationPayload:<br/>pendingSignal + activePositionCount<br/>+ activePositions[]"]
+        ValidationLoop["Sequential validation loop:<br/>for (validation of validations)"]
+        CallValidate["validation.validate(payload)"]
+        OnAllowed["callbacks.onAllowed()"]
+        OnRejected["callbacks.onRejected()"]
+    end
+    
+    subgraph "Result"
+        SignalRow["ISignalRow created<br/>Signal opened"]
+        Rejected["return null<br/>Signal rejected"]
+    end
+    
+    GetSignal --> SignalDto
+    SignalDto --> ValidateSignal
+    ValidateSignal --> CheckRequired
+    CheckRequired --> CheckFinite
+    CheckFinite --> CheckPriceLogic
+    CheckPriceLogic --> CheckDistances
+    CheckDistances --> CheckLifetime
+    CheckLifetime --> CheckImmediate
+    
+    CheckImmediate -->|"Pass"| RiskCheck
+    CheckImmediate -->|"Fail (throw Error)"| Rejected
+    
+    RiskCheck --> BuildPayload
+    BuildPayload --> ValidationLoop
+    ValidationLoop --> CallValidate
+    
+    CallValidate -->|"No throw"| ValidationLoop
+    CallValidate -->|"All pass"| OnAllowed
+    CallValidate -->|"throw Error"| OnRejected
+    
+    OnAllowed --> SignalRow
+    OnRejected --> Rejected
+```
+
+**Sources:** [src/client/ClientStrategy.ts:45-476](), [src/client/ClientRisk.ts](), [types.d.ts:338-485]()
+
+---
+
+## Built-in Signal Validation (VALIDATE_SIGNAL_FN)
+
+The `VALIDATE_SIGNAL_FN` in `ClientStrategy` performs comprehensive structural validation before any signal is created. This validation is **non-negotiable** and cannot be disabled.
+
+### Validation Categories
+
+| Category | Checks | Purpose |
+|----------|--------|---------|
+| **Required Fields** | `id`, `exchangeName`, `strategyName`, `symbol`, `position`, `_isScheduled` | Ensures signal has all mandatory properties |
+| **Type Validation** | `position` must be "long" or "short" | Prevents invalid position types |
+| **Finite Number Protection** | `currentPrice`, `priceOpen`, `priceTakeProfit`, `priceStopLoss` must be finite | Guards against NaN/Infinity crashes |
+| **Positive Price Validation** | All prices must be > 0 | Prevents negative or zero prices |
+| **Price Logic (Long)** | `TP > Open > SL` | Ensures profitable long setup |
+| **Price Logic (Short)** | `TP < Open < SL` | Ensures profitable short setup |
+| **Immediate Close Protection** | `currentPrice` between TP and SL | Prevents signals that close instantly |
+| **Scheduled Signal Protection** | `priceOpen` between TP and SL | Prevents scheduled signals that cancel/close immediately |
+| **Minimum TP Distance** | `CC_MIN_TAKEPROFIT_DISTANCE_PERCENT` | Ensures TP covers trading fees |
+| **Minimum SL Distance** | `CC_MIN_STOPLOSS_DISTANCE_PERCENT` | Prevents instant stop-out from volatility |
+| **Maximum SL Distance** | `CC_MAX_STOPLOSS_DISTANCE_PERCENT` | Limits maximum loss per trade |
+| **Time Validation** | `minuteEstimatedTime` must be positive integer | Ensures valid time estimate |
+| **Maximum Lifetime** | `CC_MAX_SIGNAL_LIFETIME_MINUTES` | Prevents eternal signals that block strategy |
+| **Timestamp Validation** | `scheduledAt`, `pendingAt` must be positive | Ensures valid timestamps |
+
+**Sources:** [src/client/ClientStrategy.ts:45-330]()
+
+---
+
+### Price Logic Validation
+
+The validation enforces strict price ordering based on position direction:
+
+```mermaid
+stateDiagram-v2
+    [*] --> ValidateLong: position === "long"
+    [*] --> ValidateShort: position === "short"
+    
+    state ValidateLong {
+        [*] --> CheckTPAboveOpen
+        CheckTPAboveOpen --> CheckSLBelowOpen: TP > Open
+        CheckSLBelowOpen --> CheckCurrentPrice: SL < Open
+        CheckCurrentPrice --> [*]: SL < Current < TP
+        
+        CheckTPAboveOpen --> Error1: TP <= Open
+        CheckSLBelowOpen --> Error2: SL >= Open
+        CheckCurrentPrice --> Error3: Current <= SL
+        CheckCurrentPrice --> Error4: Current >= TP
+    }
+    
+    state ValidateShort {
+        [*] --> CheckTPBelowOpen
+        CheckTPBelowOpen --> CheckSLAboveOpen: TP < Open
+        CheckSLAboveOpen --> CheckCurrentPrice2: SL > Open
+        CheckCurrentPrice2 --> [*]: TP < Current < SL
+        
+        CheckTPBelowOpen --> Error5: TP >= Open
+        CheckSLAboveOpen --> Error6: SL <= Open
+        CheckCurrentPrice2 --> Error7: Current >= SL
+        CheckCurrentPrice2 --> Error8: Current <= TP
+    }
+    
+    Error1 --> Rejected: "priceTakeProfit must be > priceOpen"
+    Error2 --> Rejected: "priceStopLoss must be < priceOpen"
+    Error3 --> Rejected: "currentPrice <= SL (instant stop)"
+    Error4 --> Rejected: "currentPrice >= TP (opportunity passed)"
+    Error5 --> Rejected: "priceTakeProfit must be < priceOpen"
+    Error6 --> Rejected: "priceStopLoss must be > priceOpen"
+    Error7 --> Rejected: "currentPrice >= SL (instant stop)"
+    Error8 --> Rejected: "currentPrice <= TP (opportunity passed)"
+    
+    Rejected --> [*]
+```
+
+**Sources:** [src/client/ClientStrategy.ts:111-291]()
+
+---
+
+### Distance Check Implementation
+
+Distance checks ensure signals have adequate profit potential and risk buffers:
+
+```typescript
+// Long Position Example (from VALIDATE_SIGNAL_FN)
+
+// MINIMUM TP DISTANCE (must cover fees)
+const tpDistancePercent = ((signal.priceTakeProfit - signal.priceOpen) / signal.priceOpen) * 100;
+if (tpDistancePercent < GLOBAL_CONFIG.CC_MIN_TAKEPROFIT_DISTANCE_PERCENT) {
+  throw new Error(`TakeProfit too close (${tpDistancePercent.toFixed(3)}%)`);
+}
+
+// MINIMUM SL DISTANCE (avoid instant stop on volatility)
+const slDistancePercent = ((signal.priceOpen - signal.priceStopLoss) / signal.priceOpen) * 100;
+if (slDistancePercent < GLOBAL_CONFIG.CC_MIN_STOPLOSS_DISTANCE_PERCENT) {
+  throw new Error(`StopLoss too close (${slDistancePercent.toFixed(3)}%)`);
+}
+
+// MAXIMUM SL DISTANCE (capital protection)
+if (slDistancePercent > GLOBAL_CONFIG.CC_MAX_STOPLOSS_DISTANCE_PERCENT) {
+  throw new Error(`StopLoss too far (${slDistancePercent.toFixed(3)}%)`);
+}
+```
+
+**Default Configuration Values:**
+
+| Parameter | Default | Purpose |
+|-----------|---------|---------|
+| `CC_MIN_TAKEPROFIT_DISTANCE_PERCENT` | 0.5% | Minimum TP distance to cover trading fees (0.1% entry + 0.1% exit + slippage) |
+| `CC_MIN_STOPLOSS_DISTANCE_PERCENT` | 0.2% | Minimum SL buffer to prevent instant stop-out from market noise |
+| `CC_MAX_STOPLOSS_DISTANCE_PERCENT` | 10% | Maximum loss limit to protect capital |
+| `CC_MAX_SIGNAL_LIFETIME_MINUTES` | 43,200 (30 days) | Prevents eternal signals that block risk limits |
+
+**Sources:** [src/client/ClientStrategy.ts:163-316](), [src/config/params.ts]()
+
+---
+
+### Immediate Close Protection
+
+A critical protection prevents signals that would close immediately after opening:
+
+```mermaid
+graph TB
+    subgraph "Immediate Signal (priceOpen undefined)"
+        CheckImmediate["Check currentPrice<br/>vs TP/SL"]
+        ValidLong["LONG: SL < current < TP"]
+        ValidShort["SHORT: TP < current < SL"]
+        InvalidLong["LONG: current <= SL<br/>OR current >= TP"]
+        InvalidShort["SHORT: current >= SL<br/>OR current <= TP"]
+    end
+    
+    subgraph "Scheduled Signal (priceOpen defined)"
+        CheckScheduled["Check priceOpen<br/>vs TP/SL"]
+        ValidLongSched["LONG: SL < priceOpen < TP"]
+        ValidShortSched["SHORT: TP < priceOpen < SL"]
+        InvalidLongSched["LONG: priceOpen <= SL<br/>OR priceOpen >= TP"]
+        InvalidShortSched["SHORT: priceOpen >= SL<br/>OR priceOpen <= TP"]
+    end
+    
+    CheckImmediate --> ValidLong
+    CheckImmediate --> ValidShort
+    CheckImmediate --> InvalidLong
+    CheckImmediate --> InvalidShort
+    
+    CheckScheduled --> ValidLongSched
+    CheckScheduled --> ValidShortSched
+    CheckScheduled --> InvalidLongSched
+    CheckScheduled --> InvalidShortSched
+    
+    ValidLong --> Pass["✓ Pass"]
+    ValidShort --> Pass
+    ValidLongSched --> Pass
+    ValidShortSched --> Pass
+    
+    InvalidLong --> Reject["✗ Reject<br/>'Signal would close immediately'"]
+    InvalidShort --> Reject
+    InvalidLongSched --> Reject
+    InvalidShortSched --> Reject
+```
+
+**Sources:** [src/client/ClientStrategy.ts:124-160](), [src/client/ClientStrategy.ts:215-250]()
+
+---
+
+## Custom Risk Validation (ClientRisk.checkSignal)
+
+After passing built-in validation, signals are evaluated against user-defined risk rules via `ClientRisk.checkSignal()` which executes the `IRiskValidation[]` chain.
+
+### Type Definitions and Relationships
+
+```mermaid
+classDiagram
+    class IRisk {
+        <<interface>>
+        +checkSignal(params: IRiskCheckArgs) Promise~boolean~
+        +addSignal(symbol: string, ctx: object) Promise~void~
+        +removeSignal(symbol: string, ctx: object) Promise~void~
+    }
+    
+    class IRiskCheckArgs {
+        +symbol: string
+        +pendingSignal: ISignalDto
+        +strategyName: StrategyName
+        +exchangeName: ExchangeName
+        +currentPrice: number
+        +timestamp: number
+    }
+    
+    class IRiskValidationPayload {
+        <<extends IRiskCheckArgs>>
+        +activePositionCount: number
+        +activePositions: IRiskActivePosition[]
+    }
+    
+    class IRiskActivePosition {
+        +signal: ISignalRow
+        +strategyName: string
+        +exchangeName: string
+        +openTimestamp: number
+    }
+    
+    class IRiskValidationFn {
+        <<type>>
+        (payload: IRiskValidationPayload) void | Promise~void~
+    }
+    
+    class IRiskValidation {
+        +validate: IRiskValidationFn
+        +note?: string
+    }
+    
+    class IRiskCallbacks {
+        +onRejected: (symbol, params, count, comment, ts) => void
+        +onAllowed: (symbol, params) => void
+    }
+    
+    class IRiskSchema {
+        +riskName: RiskName
+        +note?: string
+        +validations: (IRiskValidation | IRiskValidationFn)[]
+        +callbacks?: Partial~IRiskCallbacks~
+    }
+    
+    class ClientRisk {
+        -_activePositionsMap: Map
+        -params: IRiskParams
+        +checkSignal(params: IRiskCheckArgs) Promise~boolean~
+        +addSignal(symbol, ctx) Promise~void~
+        +removeSignal(symbol, ctx) Promise~void~
+    }
+    
+    IRisk <|.. ClientRisk : implements
+    IRiskCheckArgs <|-- IRiskValidationPayload : extends
+    IRiskValidationPayload ..> IRiskActivePosition : contains
+    IRiskValidation ..> IRiskValidationFn : uses
+    IRiskSchema ..> IRiskValidation : contains array
+    IRiskSchema ..> IRiskCallbacks : optional
+    ClientRisk ..> IRiskSchema : constructed from
+    ClientRisk ..> IRiskValidationPayload : builds
+```
+
+**Sources:** [types.d.ts:338-485](), [src/interfaces/Risk.interface.ts](), [src/client/ClientRisk.ts]()
+
+---
+
+### Validation Chain Execution
+
+The `ClientRisk.checkSignal()` method executes custom risk validations sequentially in a **fail-fast** pattern. Each validation function receives `IRiskValidationPayload` and throws on rejection.
+
+#### ClientRisk.checkSignal Implementation Flow
+
+```mermaid
+sequenceDiagram
+    participant CS as ClientStrategy.GET_SIGNAL_FN
+    participant CR as ClientRisk.checkSignal
+    participant MAP as _activePositionsMap
+    participant V1 as validations[0].validate
+    participant V2 as validations[1].validate
+    participant VN as validations[n].validate
+    participant CB1 as callbacks.onAllowed
+    participant CB2 as callbacks.onRejected
+    participant RS as riskSubject
+    participant VS as validationSubject
+    
+    CS->>CR: checkSignal(IRiskCheckArgs)
+    Note over CR: Build IRiskValidationPayload
+    CR->>MAP: Get activePositionCount
+    CR->>MAP: Get activePositions[]
+    Note over CR: payload = {...params, activePositionCount, activePositions}
+    
+    CR->>V1: validate(payload)
+    alt V1 passes (no throw)
+        V1-->>CR: return
+        CR->>V2: validate(payload)
+        
+        alt V2 passes (no throw)
+            V2-->>CR: return
+            CR->>VN: validate(payload)
+            
+            alt VN passes (all pass)
+                VN-->>CR: return
+                CR->>CB1: onAllowed(symbol, params)
+                CR-->>CS: return true
+                Note over CS: Signal proceeds to creation
+            else VN fails (throw Error)
+                VN-->>CR: throw Error("reason")
+                CR->>VS: validationSubject.next(error)
+                CR->>CB2: onRejected(symbol, params, count, note, ts)
+                CR->>RS: riskSubject.next(rejection)
+                CR-->>CS: return false
+                Note over CS: return null (signal rejected)
+            end
+        else V2 fails (throw Error)
+            V2-->>CR: throw Error("reason")
+            CR->>VS: validationSubject.next(error)
+            CR->>CB2: onRejected(symbol, params, count, note, ts)
+            CR->>RS: riskSubject.next(rejection)
+            CR-->>CS: return false
+            Note over CS: return null (signal rejected)
+        end
+    else V1 fails (throw Error)
+        V1-->>CR: throw Error("reason")
+        CR->>VS: validationSubject.next(error)
+        CR->>CB2: onRejected(symbol, params, count, note, ts)
+        CR->>RS: riskSubject.next(rejection)
+        CR-->>CS: return false
+        Note over CS: return null (signal rejected)
+    end
+```
+
+**Sources:** [src/client/ClientRisk.ts](), [src/client/ClientStrategy.ts:374-387](), [src/config/emitters.ts:112-131]()
+
+---
+
+### IRiskValidationPayload Structure
+
+The validation payload extends `IRiskCheckArgs` with portfolio-level context:
+
+#### Payload Fields
+
+| Field | Type | Source | Description |
+|-------|------|--------|-------------|
+| `pendingSignal` | `ISignalDto` | From `IRiskCheckArgs` | Signal being validated (may not have `id` yet) |
+| `symbol` | `string` | From `IRiskCheckArgs` | Trading pair (e.g., "BTCUSDT") |
+| `strategyName` | `string` | From `IRiskCheckArgs` | Strategy identifier |
+| `exchangeName` | `string` | From `IRiskCheckArgs` | Exchange identifier |
+| `currentPrice` | `number` | From `IRiskCheckArgs` | Current market price (VWAP from `exchange.getAveragePrice`) |
+| `timestamp` | `number` | From `IRiskCheckArgs` | Validation timestamp (ms since epoch) |
+| `activePositionCount` | `number` | Computed by `ClientRisk` | Number of currently active positions across all strategies |
+| `activePositions` | `IRiskActivePosition[]` | From `ClientRisk._activePositionsMap` | Array of all active positions with signal details |
+
+#### IRiskActivePosition Structure
+
+```typescript
+interface IRiskActivePosition {
+  signal: ISignalRow;          // Full signal data
+  strategyName: string;         // Strategy that owns this position
+  exchangeName: string;         // Exchange identifier
+  openTimestamp: number;        // When position was opened (ms)
+}
+```
+
+**Payload Construction Location:** [src/client/ClientRisk.ts]()
+
+#### Example: Risk-Reward Ratio Validation
+
+```javascript
+// IRiskValidation with note and validate function
+{
+  validate: ({ pendingSignal, currentPrice }) => {
+    const { priceOpen = currentPrice, priceTakeProfit, priceStopLoss, position } = pendingSignal;
+    
+    // Calculate reward (distance to TP)
+    const reward = position === "long"
+      ? priceTakeProfit - priceOpen
+      : priceOpen - priceTakeProfit;
+    
+    // Calculate risk (distance to SL)
+    const risk = position === "long"
+      ? priceOpen - priceStopLoss
+      : priceStopLoss - priceOpen;
+    
+    if (risk <= 0) {
+      throw new Error("Invalid SL: risk must be positive");
+    }
+    
+    const rrRatio = reward / risk;
+    if (rrRatio < 2) {
+      throw new Error(`RR ratio ${rrRatio.toFixed(2)} < 2:1 required`);
+    }
+  },
+  note: "Risk-Reward ratio must be at least 1:2"
+}
+```
+
+#### Example: Portfolio Position Limit Validation
+
+```javascript
+// Using activePositionCount from payload
+{
+  validate: ({ activePositionCount }) => {
+    if (activePositionCount >= 3) {
+      throw new Error(`Max 3 concurrent positions (current: ${activePositionCount})`);
+    }
+  },
+  note: "Limit portfolio to 3 concurrent positions"
+}
+```
+
+#### Example: Position Correlation Check
+
+```javascript
+// Using activePositions array from payload
+{
+  validate: ({ pendingSignal, activePositions, symbol }) => {
+    const sameSymbolCount = activePositions.filter(pos => pos.signal.symbol === symbol).length;
+    if (sameSymbolCount >= 2) {
+      throw new Error(`Max 2 positions per symbol (${symbol} has ${sameSymbolCount})`);
+    }
+    
+    const sameDirectionCount = activePositions.filter(
+      pos => pos.signal.position === pendingSignal.position
+    ).length;
+    if (sameDirectionCount >= 5) {
+      throw new Error(`Max 5 ${pendingSignal.position} positions (current: ${sameDirectionCount})`);
+    }
+  },
+  note: "Limit symbol concentration and directional bias"
+}
+```
+
+**Sources:** [types.d.ts:338-412](), [demo/backtest/src/index.mjs:37-82](), [demo/live/src/index.mjs:37-78]()
+
+---
+
+## Validation Points in Signal Lifecycle
+
+Risk validation occurs at **two critical checkpoints** in the signal lifecycle to ensure safety at generation and activation.
+
+### Checkpoint Locations in ClientStrategy
+
+```mermaid
+stateDiagram-v2
+    [*] --> Idle
+    
+    Idle --> GET_SIGNAL_FN: "Strategy interval elapsed"
+    
+    state GET_SIGNAL_FN {
+        state "Line 332-476" as GSFN
+        [*] --> CallGetSignal
+        CallGetSignal --> VALIDATE_SIGNAL_FN: "ISignalDto returned"
+        
+        state VALIDATE_SIGNAL_FN {
+            state "Lines 45-330" as VSF
+            [*] --> StructuralChecks
+            StructuralChecks --> [*]: "All pass"
+            StructuralChecks --> ThrowError: "Any fail"
+        }
+        
+        VALIDATE_SIGNAL_FN --> CheckRisk: "Structural validation passes"
+        
+        state CheckRisk {
+            state "Lines 374-387" as CR1
+            [*] --> CallCheckSignal1
+            CallCheckSignal1 --> BuildIRiskCheckArgs1
+            BuildIRiskCheckArgs1 --> ClientRiskCheckSignal1
+            ClientRiskCheckSignal1 --> [*]: "return true"
+            ClientRiskCheckSignal1 --> ReturnFalse1: "return false"
+        }
+        
+        CheckRisk --> CreateSignalRow: "risk.checkSignal() === true"
+        CreateSignalRow --> [*]
+        
+        ThrowError --> ReturnNull1: "catch block"
+        ReturnFalse1 --> ReturnNull1
+        ReturnNull1 --> [*]
+    }
+    
+    GET_SIGNAL_FN --> Scheduled: "priceOpen specified"
+    GET_SIGNAL_FN --> Opened: "priceOpen undefined"
+    GET_SIGNAL_FN --> Idle: "Validation failed (return null)"
+    
+    Scheduled --> ACTIVATE_SCHEDULED_SIGNAL_FN
+    
+    state ACTIVATE_SCHEDULED_SIGNAL_FN {
+        state "Lines 681-774" as ASSF
+        [*] --> CheckStopped
+        CheckStopped --> CheckRiskAtActivation: "Not stopped"
+        
+        state CheckRiskAtActivation {
+            state "Lines 711-729" as CR2
+            [*] --> CallCheckSignal2
+            CallCheckSignal2 --> BuildIRiskCheckArgs2
+            BuildIRiskCheckArgs2 --> ClientRiskCheckSignal2
+            ClientRiskCheckSignal2 --> [*]: "return true"
+            ClientRiskCheckSignal2 --> ReturnNull2: "return false"
+        }
+        
+        CheckRiskAtActivation --> UpdatePendingAt: "risk.checkSignal() === true"
+        UpdatePendingAt --> SetPendingSignal
+        SetPendingSignal --> AddSignalToRisk
+        AddSignalToRisk --> [*]
+        
+        ReturnNull2 --> [*]
+    }
+    
+    ACTIVATE_SCHEDULED_SIGNAL_FN --> Opened: "Activation + risk check passes"
+    ACTIVATE_SCHEDULED_SIGNAL_FN --> Idle: "Risk check fails (return null)"
+    
+    Opened --> Active
+    Active --> Closed
+    Closed --> Idle
+    
+    note right of CheckRisk
+        First checkpoint:
+        IRiskCheckArgs with
+        currentPrice at generation time
+    end note
+    
+    note right of CheckRiskAtActivation
+        Second checkpoint:
+        IRiskCheckArgs with
+        currentPrice = scheduled.priceOpen
+        at activation time
+    end note
+```
+
+### Checkpoint 1: Signal Generation
+
+**Location:** [src/client/ClientStrategy.ts:374-387]()
+
+```typescript
+// Inside GET_SIGNAL_FN after VALIDATE_SIGNAL_FN passes
+if (
+  await not(
+    self.params.risk.checkSignal({
+      pendingSignal: signal,
+      symbol: self.params.execution.context.symbol,
+      strategyName: self.params.method.context.strategyName,
+      exchangeName: self.params.method.context.exchangeName,
+      currentPrice,
+      timestamp: currentTime,
+    })
+  )
+) {
+  return null; // Signal rejected by custom risk rules
+}
+```
+
+**Purpose:** Validates signal against portfolio risk rules at generation time. If rejected, signal is never created and strategy remains idle.
+
+### Checkpoint 2: Scheduled Signal Activation
+
+**Location:** [src/client/ClientStrategy.ts:711-729]()
+
+```typescript
+// Inside ACTIVATE_SCHEDULED_SIGNAL_FN before activating scheduled signal
+if (
+  await not(
+    self.params.risk.checkSignal({
+      symbol: self.params.execution.context.symbol,
+      pendingSignal: scheduled,
+      strategyName: self.params.method.context.strategyName,
+      exchangeName: self.params.method.context.exchangeName,
+      currentPrice: scheduled.priceOpen,
+      timestamp: activationTime,
+    })
+  )
+) {
+  self.params.logger.info("ClientStrategy scheduled signal rejected by risk", {
+    symbol: self.params.execution.context.symbol,
+    signalId: scheduled.id,
+  });
+  await self.setScheduledSignal(null);
+  return null; // Scheduled signal cancelled at activation
+}
+```
+
+**Purpose:** Re-validates scheduled signals at activation time because market conditions may have changed since generation:
+
+- Portfolio may now be full (reached `activePositionCount` limit)
+- New positions may have created unwanted correlation
+- Risk parameters may have been updated
+
+**Key Difference:** The `currentPrice` parameter differs between checkpoints:
+- **Checkpoint 1:** Uses `currentPrice` from `exchange.getAveragePrice()` at generation time
+- **Checkpoint 2:** Uses `scheduled.priceOpen` (the activation price)
+
+**Sources:** [src/client/ClientStrategy.ts:374-387](), [src/client/ClientStrategy.ts:711-729]()
+
+---
+
+## Fail-Fast Pattern
+
+The validation system implements a **fail-fast pattern** where rejected signals immediately abort signal creation and emit rejection events for monitoring:
+
+```mermaid
+graph LR
+    subgraph "Validation Flow"
+        Start["getSignal()<br/>returns ISignalDto"]
+        V1["VALIDATE_SIGNAL_FN"]
+        V2["risk.checkSignal()"]
+        Success["ISignalRow created<br/>Signal opened"]
+    end
+    
+    subgraph "Failure Paths"
+        F1["Built-in validation fails"]
+        F2["Custom risk fails"]
+        Emit["riskEmitter.next()"]
+        Null["return null"]
+        Idle["Strategy stays idle"]
+    end
+    
+    Start --> V1
+    V1 -->|"Pass"| V2
+    V1 -->|"Fail"| F1
+    V2 -->|"Pass"| Success
+    V2 -->|"Fail"| F2
+    
+    F1 --> Emit
+    F2 --> Emit
+    Emit --> Null
+    Null --> Idle
+    
+    style F1 fill:#fee
+    style F2 fill:#fee
+    style Emit fill:#fee
+    style Null fill:#fee
+    style Idle fill:#eef
+```
+
+**Rejection Event Structure:**
+
+```typescript
+interface IRiskEvent {
+  symbol: string;
+  strategyName: string;
+  exchangeName: string;
+  currentPrice: number;
+  timestamp: number;
+  pendingSignal: ISignalDto | ISignalRow;
+  error: Error;
+}
+```
+
+Rejection events are emitted via `riskEmitter` for observability. Applications can subscribe using `listenRisk()` to track rejected signals for strategy tuning.
+
+**Sources:** [src/client/ClientRisk.ts](), [src/config/emitters.ts]()
+
+---
+
+## Configuration Parameters
+
+Global configuration parameters control validation behavior:
+
+### Distance Parameters
+
+| Parameter | Default | Configurable Via | Impact |
+|-----------|---------|------------------|--------|
+| `CC_MIN_TAKEPROFIT_DISTANCE_PERCENT` | 0.5% | `setConfig({ CC_MIN_TAKEPROFIT_DISTANCE_PERCENT: 1.0 })` | Ensures TP covers trading fees and slippage |
+| `CC_MIN_STOPLOSS_DISTANCE_PERCENT` | 0.2% | `setConfig({ CC_MIN_STOPLOSS_DISTANCE_PERCENT: 0.5 })` | Prevents instant stop-out from market noise |
+| `CC_MAX_STOPLOSS_DISTANCE_PERCENT` | 10% | `setConfig({ CC_MAX_STOPLOSS_DISTANCE_PERCENT: 5.0 })` | Limits maximum loss per position |
+
+### Time Parameters
+
+| Parameter | Default | Configurable Via | Impact |
+|-----------|---------|------------------|--------|
+| `CC_MAX_SIGNAL_LIFETIME_MINUTES` | 43,200 (30 days) | `setConfig({ CC_MAX_SIGNAL_LIFETIME_MINUTES: 10080 })` | Prevents eternal signals that block strategy |
+| `CC_SCHEDULE_AWAIT_MINUTES` | 1,440 (24 hours) | `setConfig({ CC_SCHEDULE_AWAIT_MINUTES: 720 })` | Max time to wait for scheduled signal activation |
+| `CC_MAX_SIGNAL_GENERATION_SECONDS` | 30 | `setConfig({ CC_MAX_SIGNAL_GENERATION_SECONDS: 60 })` | Timeout for `getSignal()` execution |
+
+### Example Configuration
+
+```typescript
+import { setConfig } from "backtest-kit";
+
+setConfig({
+  // Tighter validation for scalping strategies
+  CC_MIN_TAKEPROFIT_DISTANCE_PERCENT: 0.8,
+  CC_MIN_STOPLOSS_DISTANCE_PERCENT: 0.3,
+  CC_MAX_STOPLOSS_DISTANCE_PERCENT: 3.0,
+  
+  // Shorter timeouts for high-frequency trading
+  CC_MAX_SIGNAL_LIFETIME_MINUTES: 1440, // 1 day max
+  CC_SCHEDULE_AWAIT_MINUTES: 60, // 1 hour max wait
+});
+```
+
+**Sources:** [src/config/params.ts](), [src/client/ClientStrategy.ts:163-316]()
+
+---
+
+## Common Validation Patterns
+
+### Pattern 1: Risk-Reward Ratio Enforcement
+
+```javascript
+{
+  validate: ({ pendingSignal, currentPrice }) => {
+    const { priceOpen = currentPrice, priceTakeProfit, priceStopLoss, position } = pendingSignal;
+    
+    const reward = position === "long"
+      ? priceTakeProfit - priceOpen
+      : priceOpen - priceTakeProfit;
+    
+    const risk = position === "long"
+      ? priceOpen - priceStopLoss
+      : priceStopLoss - priceOpen;
+    
+    const rrRatio = reward / risk;
+    if (rrRatio < 2) {
+      throw new Error(`RR ratio ${rrRatio.toFixed(2)} < 2:1 required`);
+    }
+  },
+  note: "Minimum 1:2 risk-reward ratio"
+}
+```
+
+### Pattern 2: Maximum Concurrent Positions
+
+```javascript
+{
+  validate: async ({ symbol, strategyName }) => {
+    const activeCount = await getActiveSignalCount(strategyName);
+    if (activeCount >= 3) {
+      throw new Error(`Max 3 concurrent positions (current: ${activeCount})`);
+    }
+  },
+  note: "Limit concurrent positions per strategy"
+}
+```
+
+### Pattern 3: Minimum Take-Profit Percentage
+
+```javascript
+{
+  validate: ({ pendingSignal, currentPrice }) => {
+    const { priceOpen = currentPrice, priceTakeProfit, position } = pendingSignal;
+    
+    const tpDistance = position === "long"
+      ? ((priceTakeProfit - priceOpen) / priceOpen) * 100
+      : ((priceOpen - priceTakeProfit) / priceOpen) * 100;
+    
+    if (tpDistance < 1) {
+      throw new Error(`TP distance ${tpDistance.toFixed(2)}% < 1% minimum`);
+    }
+  },
+  note: "TP distance must be at least 1%"
+}
+```
+
+### Pattern 4: Symbol-Specific Rules
+
+```javascript
+{
+  validate: ({ symbol, pendingSignal }) => {
+    if (symbol === "BTCUSDT" && pendingSignal.minuteEstimatedTime > 1440) {
+      throw new Error("BTC signals limited to 24h max");
+    }
+    if (symbol.includes("USD") && pendingSignal.minuteEstimatedTime < 60) {
+      throw new Error("USD pairs require minimum 1h timeframe");
+    }
+  },
+  note: "Symbol-specific time constraints"
+}
+```
+
+**Sources:** [demo/backtest/src/index.mjs:37-82](), [demo/live/src/index.mjs:37-78]()
+
+---
+
+## Integration with Signal Lifecycle
+
+Risk validation integrates seamlessly with the signal state machine:
+
+```mermaid
+stateDiagram-v2
+    [*] --> Idle
+    
+    Idle --> ValidateGeneration: "getSignal() returns signal"
+    
+    state ValidateGeneration {
+        [*] --> BuiltInCheck
+        BuiltInCheck --> CustomRiskCheck: "VALIDATE_SIGNAL_FN passes"
+        CustomRiskCheck --> [*]: "risk.checkSignal() passes"
+    }
+    
+    ValidateGeneration --> Scheduled: "Validation passes + priceOpen set"
+    ValidateGeneration --> Opened: "Validation passes + priceOpen undefined"
+    ValidateGeneration --> RejectedGeneration: "Validation fails"
+    
+    Scheduled --> AwaitActivation
+    
+    state AwaitActivation {
+        [*] --> MonitorPrice
+        MonitorPrice --> ValidateActivation: "priceOpen reached"
+        
+        state ValidateActivation {
+            [*] --> ReCheckRisk
+            ReCheckRisk --> [*]: "risk.checkSignal() passes"
+        }
+        
+        ValidateActivation --> [*]: "Re-validation passes"
+        ValidateActivation --> RejectedActivation: "Re-validation fails"
+    }
+    
+    AwaitActivation --> Opened: "Activation validation passes"
+    AwaitActivation --> Cancelled: "Activation validation fails"
+    
+    Opened --> Active: "Position created"
+    Active --> Closed: "TP/SL/timeout"
+    
+    RejectedGeneration --> Idle: "riskEmitter.next(rejection)"
+    RejectedActivation --> Idle: "riskEmitter.next(rejection)"
+    Cancelled --> Idle
+    Closed --> Idle
+    
+    note right of ValidateGeneration
+        First validation checkpoint:
+        - Structure (VALIDATE_SIGNAL_FN)
+        - Custom rules (risk.checkSignal)
+    end note
+    
+    note right of ValidateActivation
+        Second validation checkpoint:
+        - Only custom rules (risk.checkSignal)
+        - Market conditions may have changed
+    end note
+```
+
+**Sources:** [src/client/ClientStrategy.ts:332-476](), [src/client/ClientStrategy.ts:681-774]()
+
+---
+
+## Callback System (onAllowed / onRejected)
+
+The `IRiskCallbacks` interface provides hooks for monitoring validation decisions in real-time.
+
+### IRiskCallbacks Interface Definition
+
+```typescript
+interface IRiskCallbacks {
+  /** Called when a signal is rejected due to risk limits */
+  onRejected: (
+    symbol: string,
+    params: IRiskCheckArgs,
+    activePositionCount: number,
+    comment: string,
+    timestamp: number
+  ) => void;
+  
+  /** Called when a signal passes risk checks */
+  onAllowed: (
+    symbol: string,
+    params: IRiskCheckArgs
+  ) => void;
+}
+```
+
+**Sources:** [types.d.ts:371-378]()
+
+### Callback Invocation Flow
+
+```mermaid
+sequenceDiagram
+    participant CS as ClientStrategy
+    participant CR as ClientRisk.checkSignal
+    participant VL as Validation Loop
+    participant V as validation.validate
+    participant CBA as callbacks.onAllowed
+    participant CBR as callbacks.onRejected
+    participant RS as riskSubject
+    participant VS as validationSubject
+    
+    CS->>CR: checkSignal(IRiskCheckArgs)
+    CR->>VL: Execute validation chain
+    
+    alt All validations pass
+        VL->>CR: No throw (success)
+        CR->>CBA: onAllowed(symbol, params)
+        Note over CBA: Optional callback<br/>for allowed signals
+        CR-->>CS: return true
+    else Any validation fails
+        VL->>V: validate(payload)
+        V-->>VL: throw Error("reason")
+        VL->>VS: validationSubject.next(error)
+        Note over VS: Emits to listenValidation()
+        VL->>CBR: onRejected(symbol, params, count, note, ts)
+        Note over CBR: Required callback<br/>with rejection details
+        VL->>RS: riskSubject.next(rejection)
+        Note over RS: Emits to listenRisk()
+        VL-->>CR: return from catch block
+        CR-->>CS: return false
+    end
+```
+
+**Sources:** [src/client/ClientRisk.ts](), [src/config/emitters.ts:112-131]()
+
+### Example: Logging Allowed Signals
+
+```javascript
+import { addRisk } from "backtest-kit";
+
+addRisk({
+  riskName: "demo-risk",
+  validations: [
+    // ... validation functions
+  ],
+  callbacks: {
+    onAllowed: (symbol, params) => {
+      console.log(`[ALLOWED] ${symbol} signal from ${params.strategyName}`);
+      console.log(`  Position: ${params.pendingSignal.position}`);
+      console.log(`  Price: ${params.currentPrice}`);
+      console.log(`  TP: ${params.pendingSignal.priceTakeProfit}`);
+      console.log(`  SL: ${params.pendingSignal.priceStopLoss}`);
+    },
+    onRejected: (symbol, params, activePositionCount, comment, timestamp) => {
+      console.error(`[REJECTED] ${symbol} signal from ${params.strategyName}`);
+      console.error(`  Reason: ${comment}`);
+      console.error(`  Active positions: ${activePositionCount}`);
+      console.error(`  Price: ${params.currentPrice}`);
+      console.error(`  Time: ${new Date(timestamp).toISOString()}`);
+    },
+  },
+});
+```
+
+### Example: Alerting on Risk Rejections
+
+```javascript
+import { addRisk } from "backtest-kit";
+import { sendAlert } from "./alerts.js";
+
+addRisk({
+  riskName: "monitored-risk",
+  validations: [
+    // ... validation functions
+  ],
+  callbacks: {
+    onRejected: async (symbol, params, activePositionCount, comment, timestamp) => {
+      // Send alert to monitoring system
+      await sendAlert({
+        level: "warning",
+        title: `Risk rejection on ${symbol}`,
+        message: `Strategy ${params.strategyName} rejected: ${comment}`,
+        metadata: {
+          symbol,
+          strategy: params.strategyName,
+          activePositions: activePositionCount,
+          price: params.currentPrice,
+          timestamp: new Date(timestamp).toISOString(),
+        },
+      });
+    },
+  },
+});
+```
+
+### Callback vs Event Emitters
+
+The callback system provides three layers of observability:
+
+| Layer | Mechanism | Scope | Use Case |
+|-------|-----------|-------|----------|
+| **Schema Callbacks** | `IRiskCallbacks.onRejected/onAllowed` | Per-risk profile | Risk-specific logging, custom actions |
+| **Event Emitters** | `riskSubject`, `validationSubject` | Global | Cross-strategy monitoring, dashboard updates |
+| **Report Generation** | `RiskMarkdownService` | Per-report dump | Post-execution analysis, debugging |
+
+**Event Emitters:**
+- `riskSubject` [src/config/emitters.ts:127-131]() - Emits `RiskContract` for risk rejections
+- `validationSubject` [src/config/emitters.ts:109-112]() - Emits `Error` for validation failures
+
+**Subscription Example:**
+
+```javascript
+import { listenRisk } from "backtest-kit";
+
+listenRisk((event) => {
+  console.log(`[RISK EVENT] ${event.symbol} rejected`);
+  console.log(`  Strategy: ${event.strategyName}`);
+  console.log(`  Reason: ${event.comment}`);
+  console.log(`  Active: ${event.activePositionCount}`);
+});
+```
+
+**Sources:** [types.d.ts:371-378](), [src/config/emitters.ts:109-131](), [src/function/event.ts:896-968]()
+
+---
+
+## Summary
+
+The risk validation system provides **defense in depth** through:
+
+1. **Built-in Validation** - Prevents structural errors, NaN/Infinity, dangerous price configurations
+2. **Custom Risk Rules** - Enforces business logic (RR ratios, position limits, portfolio rules)
+3. **Fail-Fast Pattern** - Rejects invalid signals immediately before position creation
+4. **Double Validation** - Re-validates scheduled signals at activation to account for market changes
+5. **Comprehensive Observability** - Emits events, logs warnings, generates reports for all rejections
+
+This ensures that **only high-quality, risk-managed signals reach execution**, protecting capital and preventing strategy errors.
+
+**Sources:** [src/client/ClientStrategy.ts:45-476](), [src/client/ClientRisk.ts](), [src/interfaces/Risk.interface.ts](), [demo/backtest/src/index.mjs:37-82](), [demo/live/src/index.mjs:37-78]()
