@@ -7,7 +7,7 @@ group: design
 
 This document describes the dependency injection (DI) system used throughout backtest-kit to manage service instantiation and dependencies. The DI system provides a centralized mechanism for service registration, lazy initialization, and singleton management across 50+ services organized into distinct categories.
 
-For information about how services use context propagation, see [Context Propagation](#3.3). For details on the service layer architecture and responsibilities, see [Layer Responsibilities](#3.1).
+For information about how services use context propagation, see [Context Propagation](./13_Context_Propagation.md). For details on the service layer architecture and responsibilities, see [Layer Responsibilities](./11_Layer_Responsibilities.md).
 
 ---
 

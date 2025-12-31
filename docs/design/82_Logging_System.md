@@ -9,7 +9,7 @@ group: design
 
 The Logging System provides a unified interface for recording diagnostic information throughout the backtest-kit framework. It enables debugging, monitoring, and auditing of framework operations across all execution modes (Backtest, Live, Walker, Optimizer).
 
-This document covers the logging interface contract, custom logger configuration, default implementation, and usage patterns throughout the framework. For event-driven monitoring and observability, see [Event System](#3.4). For performance metrics and bottleneck detection, see [Performance Metrics](#13.2).
+This document covers the logging interface contract, custom logger configuration, default implementation, and usage patterns throughout the framework. For event-driven monitoring and observability, see [Event System](./14_Event_System.md). For performance metrics and bottleneck detection, see [Performance Metrics](./73_Performance_Metrics.md).
 
 **Sources:** [types.d.ts:122-147](), [src/function/setup.ts]()
 
@@ -173,7 +173,7 @@ The framework uses four log levels with distinct purposes:
 
 ### No Error Level
 
-The `ILogger` interface does not include an `error()` method. Error handling is performed through the event system's `errorEmitter` and `exitEmitter` subjects (see [Error Handling](#15.2)).
+The `ILogger` interface does not include an `error()` method. Error handling is performed through the event system's `errorEmitter` and `exitEmitter` subjects (see [Error Handling](./83_Error_Handling.md)).
 
 **Sources:** [types.d.ts:126-147]()
 
@@ -300,19 +300,19 @@ The logging system operates independently from the event system but serves compl
 - **Logging**: Synchronous diagnostic information for debugging and monitoring
 - **Events**: Asynchronous notifications for application logic and data flow
 
-See [Event System](#3.4) for event-driven monitoring.
+See [Event System](./14_Event_System.md) for event-driven monitoring.
 
 ### Performance Tracking Integration
 
 Performance metrics are emitted through the event system (`performanceEmitter`) rather than logged. This allows for structured performance data collection without cluttering logs.
 
-See [Performance Metrics](#13.2) for performance monitoring.
+See [Performance Metrics](./73_Performance_Metrics.md) for performance monitoring.
 
 ### Error Handling Integration
 
 Errors are propagated through dedicated event emitters (`errorEmitter`, `exitEmitter`) in addition to any logging that may occur. This separation allows for both diagnostic logging and programmatic error handling.
 
-See [Error Handling](#15.2) for error management.
+See [Error Handling](./83_Error_Handling.md) for error management.
 
 **Sources:** [src/config/emitters.ts:15-44]()
 

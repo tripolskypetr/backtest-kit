@@ -9,7 +9,7 @@ group: design
 
 This page documents the performance tracking system implemented by `PerformanceMarkdownService`, which collects timing metrics, calculates statistical aggregates, and generates bottleneck analysis reports. The system tracks operation durations throughout strategy execution and identifies performance bottlenecks.
 
-For broader markdown report generation architecture and event subscription patterns, see [Markdown Report Generation](#13.1). For trading performance statistics including Sharpe ratio, PNL calculations, and win rate metrics, see [Statistics Calculation](#13.3).
+For broader markdown report generation architecture and event subscription patterns, see [Markdown Report Generation](./72_Markdown_Report_Generation.md). For trading performance statistics including Sharpe ratio, PNL calculations, and win rate metrics, see [Statistics Calculation](./74_Statistics_Calculation.md).
 
 ---
 

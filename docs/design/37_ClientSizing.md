@@ -7,7 +7,7 @@ group: design
 
 ClientSizing implements position size calculation logic for trading signals. It provides three distinct sizing methods: fixed percentage allocation, Kelly criterion optimization, and ATR-based volatility scaling. This class belongs to the Client Classes layer (Layer 4) and operates without dependency injection, accepting all dependencies through constructor parameters.
 
-For information about risk validation and portfolio limits, see [ClientRisk](#6.4). For strategy-level signal generation, see [ClientStrategy](#6.1).
+For information about risk validation and portfolio limits, see [ClientRisk](./36_ClientRisk.md). For strategy-level signal generation, see [ClientStrategy](./33_ClientStrategy.md).
 
 ## Purpose and Scope
 

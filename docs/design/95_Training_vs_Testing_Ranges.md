@@ -9,7 +9,7 @@ group: design
 
 This document explains the training and testing range architecture in the Optimizer system. Training ranges (`rangeTrain`) define multiple historical periods used to generate strategy variants, while the testing range (`rangeTest`) defines a single held-out period for evaluating which strategy performs best. This approach enables automated strategy discovery across different market conditions without overfitting to a single historical period.
 
-For information about the broader Optimizer architecture and data collection pipeline, see [Optimizer Architecture](#16.5.1). For details on LLM integration and strategy prompting, see [LLM Integration](#16.5.3). For code generation mechanics, see [Strategy Code Generation](#16.5.4).
+For information about the broader Optimizer architecture and data collection pipeline, see [Optimizer Architecture](./91_Optimizer_Architecture.md). For details on LLM integration and strategy prompting, see [LLM Integration](./93_LLM_Integration.md). For code generation mechanics, see [Strategy Code Generation](./94_Strategy_Code_Generation.md).
 
 ## Conceptual Model
 

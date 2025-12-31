@@ -7,7 +7,7 @@ group: design
 
 The Walker API provides methods for running comparative strategy backtests across multiple strategies on the same symbol. It orchestrates sequential backtest execution, aggregates results, and ranks strategies by configurable metrics (Sharpe ratio, win rate, etc.). This API reuses the backtest infrastructure internally while providing specialized methods for multi-strategy comparison and reporting.
 
-**Related Pages**: For running individual strategy backtests, see [Backtest API](#4.3). For live trading execution, see [Live Trading API](#4.4). For detailed walker execution flow and comparison logic, see [Walker Mode](#11). For walker schema configuration, see [Walker Schemas](#5.6).
+**Related Pages**: For running individual strategy backtests, see [Backtest API](./18_Backtest_API.md). For live trading execution, see [Live Trading API](./19_Live_Trading_API.md). For detailed walker execution flow and comparison logic, see [Walker Mode](./63_Walker_Mode.md). For walker schema configuration, see [Walker Schemas](./30_Walker_Schemas.md).
 
 ---
 

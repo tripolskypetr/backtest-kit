@@ -9,7 +9,7 @@ group: design
 
 This page explains how backtest-kit prevents look-ahead bias—the critical flaw where backtesting code accidentally uses future data that wouldn't be available in real-time trading. The system achieves this through **temporal isolation** using Node.js `AsyncLocalStorage` to enforce strict time boundaries during strategy execution.
 
-For information about the three execution modes (Backtest, Live, Walker) and how they handle data differently, see [Execution Modes](#2.1). For details about the overall component registration pattern, see [Component Registration](#2.3).
+For information about the three execution modes (Backtest, Live, Walker) and how they handle data differently, see [Execution Modes](./06_Execution_Modes.md). For details about the overall component registration pattern, see [Component Registration](./08_Component_Registration.md).
 
 ---
 

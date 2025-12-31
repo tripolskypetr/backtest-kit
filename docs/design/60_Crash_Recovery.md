@@ -9,9 +9,9 @@ group: design
 
 This page explains the crash recovery system for Live Trading mode, which ensures that active trading positions survive process crashes and restarts. When a live trading bot crashes, all in-memory state is lost. Without crash recovery, open positions would be abandoned with no monitoring of take profit (TP) or stop loss (SL) conditions, leading to uncontrolled risk exposure and potential financial losses.
 
-The crash recovery system persists signal state to disk and restores it on restart, preserving critical timing information (`pendingAt`, `scheduledAt`) to maintain correct signal lifetime calculations. For information about the overall Live Trading execution flow, see [Live Execution Flow](#10.1). For details on how restored signals are monitored, see [Real-time Monitoring](#10.3).
+The crash recovery system persists signal state to disk and restores it on restart, preserving critical timing information (`pendingAt`, `scheduledAt`) to maintain correct signal lifetime calculations. For information about the overall Live Trading execution flow, see [Live Execution Flow](./59_Live_Execution_Flow.md). For details on how restored signals are monitored, see [Real-time Monitoring](./61_Real-time_Monitoring.md).
 
-**Key Point**: Crash recovery is only active in **Live mode**. Backtest mode operates entirely in-memory with no persistence, as documented in [Backtest Execution Flow](#9.1).
+**Key Point**: Crash recovery is only active in **Live mode**. Backtest mode operates entirely in-memory with no persistence, as documented in [Backtest Execution Flow](./55_Backtest_Execution_Flow.md).
 
 ---
 
@@ -174,7 +174,7 @@ Crash recovery is **disabled in Backtest mode** to maximize performance:
 |-----------|----------|----------|
 | `waitForInit()` backtest check | [src/client/ClientStrategy.ts:493-495]() | `if (backtest) return;` |
 | `setPendingSignal()` no-op | Referenced in `ClientStrategy` | Skips file write when `backtest=true` |
-| Backtest signal handling | [Backtest Execution Flow](#9.1) | All signals processed in-memory |
+| Backtest signal handling | [Backtest Execution Flow](./55_Backtest_Execution_Flow.md) | All signals processed in-memory |
 
 **Why backtest skips persistence**:
 - Backtests iterate through thousands of candles rapidly
@@ -197,7 +197,7 @@ The atomic write pattern ensures:
 - **No race conditions**: File rename is atomic at OS level
 - **Safe concurrent reads**: Readers always see complete JSON
 
-**Persistence Base Class**: `PersistBase` provides the atomic write implementation (referenced in [Persistence Layer](#15.3)).
+**Persistence Base Class**: `PersistBase` provides the atomic write implementation (referenced in [Persistence Layer](./84_Persistence_Layer.md)).
 
 **Sources**: [src/classes/Persist:28]() (referenced in ClientStrategy.ts)
 
@@ -260,7 +260,7 @@ Crash recovery behavior is controlled by global configuration:
 | `CC_MAX_SIGNAL_LIFETIME_MINUTES` | 10080 (7 days) | Max `minuteEstimatedTime` to prevent eternal signals |
 | `TICK_TTL` | 60000ms | Interval between tick processing (affects restore frequency) |
 
-**Related**: See [Timing Parameters](#14.3) for detailed configuration reference.
+**Related**: See [Timing Parameters](./80_Timing_Parameters.md) for detailed configuration reference.
 
 **Sources**: [src/config/params.ts]() (referenced in ClientStrategy.ts)
 

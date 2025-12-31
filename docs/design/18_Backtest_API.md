@@ -7,7 +7,7 @@ group: design
 
 This document describes the public API for historical backtesting operations provided by the `Backtest` singleton. The Backtest API enables testing trading strategies against historical market data with statistical analysis and markdown report generation.
 
-For live trading operations, see [Live Trading API](#4.4). For strategy comparison across multiple configurations, see [Walker API](#4.5). For component registration, see [Component Registration Functions](#4.2).
+For live trading operations, see [Live Trading API](./19_Live_Trading_API.md). For strategy comparison across multiple configurations, see [Walker API](./20_Walker_API.md). For component registration, see [Component Registration Functions](./17_Component_Registration_Functions.md).
 
 ## Overview
 
@@ -21,7 +21,7 @@ The Backtest API is implemented as a singleton instance of `BacktestUtils` expor
 | `getReport()` | Generate markdown report | Post-execution analysis |
 | `dump()` | Save report to filesystem | Post-execution persistence |
 
-The Backtest API operates on historical data defined by Frame schemas (see [Frame Schemas](#5.3)) and evaluates Strategy schemas (see [Strategy Schemas](#5.1)) sequentially through each timeframe.
+The Backtest API operates on historical data defined by Frame schemas (see [Frame Schemas](./27_Frame_Schemas.md)) and evaluates Strategy schemas (see [Strategy Schemas](./25_Strategy_Schemas.md)) sequentially through each timeframe.
 
 Sources: [src/classes/Backtest.ts:1-232](), [docs/classes/BacktestUtils.md:1-63]()
 

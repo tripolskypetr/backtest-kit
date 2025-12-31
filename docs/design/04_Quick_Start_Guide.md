@@ -5,7 +5,7 @@ group: design
 
 # Quick Start Guide
 
-This guide demonstrates a minimal working example of the backtest-kit framework. You'll learn how to register a strategy, configure an exchange data source, set up a timeframe, and execute a backtest. For installation instructions, see [Installation and Setup](#1.2). For deeper understanding of execution modes and lifecycle concepts, see [Core Concepts](#2) and [Component Registration](#2.3).
+This guide demonstrates a minimal working example of the backtest-kit framework. You'll learn how to register a strategy, configure an exchange data source, set up a timeframe, and execute a backtest. For installation instructions, see [Installation and Setup](./03_Installation_and_Setup.md). For deeper understanding of execution modes and lifecycle concepts, see [Core Concepts](./05_Core_Concepts.md) and [Component Registration](./08_Component_Registration.md).
 
 ## Overview: The Basic Flow
 
@@ -364,19 +364,19 @@ Backtest.background("BTCUSDT", {
 ## Next Steps
 
 **Essential Reading:**
-- [Core Concepts](#2) - Understanding execution modes and signal lifecycle
-- [Component Registration](#2.3) - Deep dive into registration patterns
-- [Signal Lifecycle Overview](#2.2) - State transitions and validation
+- [Core Concepts](./05_Core_Concepts.md) - Understanding execution modes and signal lifecycle
+- [Component Registration](./08_Component_Registration.md) - Deep dive into registration patterns
+- [Signal Lifecycle Overview](./07_Signal_Lifecycle_Overview.md) - State transitions and validation
 
 **Advanced Topics:**
-- [Live Trading API](#4.4) - Real-time execution with crash recovery
-- [Walker API](#4.5) - Strategy comparison and optimization
-- [Risk Management](#12) - Portfolio-level risk controls
-- [Custom Exchange Integration](#16.1) - Implement CCXT or database sources
+- [Live Trading API](./19_Live_Trading_API.md) - Real-time execution with crash recovery
+- [Walker API](./20_Walker_API.md) - Strategy comparison and optimization
+- [Risk Management](./67_Risk_Management.md) - Portfolio-level risk controls
+- [Custom Exchange Integration](./86_Custom_Exchange_Integration.md) - Implement CCXT or database sources
 
 **Additional Examples:**
-- [Backtest API](#4.3) - Full method reference
-- [Event Listeners](#4.8) - Complete event API
-- [Reporting and Analytics](#13) - Performance metrics and statistics
+- [Backtest API](./18_Backtest_API.md) - Full method reference
+- [Event Listeners](./23_Event_Listeners.md) - Complete event API
+- [Reporting and Analytics](./71_Reporting_and_Analytics.md) - Performance metrics and statistics
 
 **Sources:** [types.d.ts:1-100](), [src/index.ts:1-184]()

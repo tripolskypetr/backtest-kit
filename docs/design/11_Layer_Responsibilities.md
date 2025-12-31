@@ -7,7 +7,7 @@ group: design
 
 This document describes the service architecture of backtest-kit and the responsibilities of each layer. The framework follows a clean architecture pattern with strict separation of concerns, dependency injection, and unidirectional data flow from public API down to business logic.
 
-For information about how dependency injection works across these layers, see [Dependency Injection System](#3.2). For details on how context flows through the layers, see [Context Propagation](#3.3).
+For information about how dependency injection works across these layers, see [Dependency Injection System](./12_Dependency_Injection_System.md). For details on how context flows through the layers, see [Context Propagation](./13_Context_Propagation.md).
 
 ---
 

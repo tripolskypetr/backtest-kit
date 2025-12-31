@@ -9,7 +9,7 @@ group: design
 
 This page documents the public API functions used to register components in backtest-kit. These functions (`addStrategy`, `addExchange`, `addFrame`, `addRisk`, `addSizing`, `addWalker`, `addOptimizer`) provide the primary interface for configuring trading strategies, data sources, risk management, and optimization workflows.
 
-For detailed schema interface definitions, see [Component Schemas](#5). For information about the registration pattern and schema storage mechanism, see [Component Registration](#2.3). For the underlying schema service implementations, see [Schema Services](#7.3).
+For detailed schema interface definitions, see [Component Schemas](./24_Component_Schemas.md). For information about the registration pattern and schema storage mechanism, see [Component Registration](./08_Component_Registration.md). For the underlying schema service implementations, see [Schema Services](./43_Schema_Services.md).
 
 **Sources:** [src/function/add.ts:1-445]()
 

@@ -9,7 +9,7 @@ group: design
 
 This page documents the timing-related configuration constants that control temporal behavior in backtest-kit. These parameters govern how long the system waits for scheduled signals to activate, the maximum lifetime of active signals, and the sleep interval between tick iterations in live mode.
 
-For validation distance thresholds (take profit/stop loss distances), see [Validation Parameters](#14.2). For general configuration including fees, slippage, and VWAP settings, see [Global Configuration](#14.1).
+For validation distance thresholds (take profit/stop loss distances), see [Validation Parameters](./79_Validation_Parameters.md). For general configuration including fees, slippage, and VWAP settings, see [Global Configuration](./78_Global_Configuration.md).
 
 ---
 
@@ -21,7 +21,7 @@ Timing parameters control three critical aspects of signal execution:
 2. **Signal Lifetime Limits**: Maximum duration a signal can remain active before forced time-based exit
 3. **Live Mode Tick Interval**: Sleep duration between tick iterations to prevent API spam
 
-All timing parameters are configurable via the global configuration system (see [Global Configuration](#14.1)) and accessed through `GLOBAL_CONFIG` imported from [src/config/params.ts]().
+All timing parameters are configurable via the global configuration system (see [Global Configuration](./78_Global_Configuration.md)) and accessed through `GLOBAL_CONFIG` imported from [src/config/params.ts]().
 
 ---
 

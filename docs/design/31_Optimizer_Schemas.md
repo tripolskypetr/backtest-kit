@@ -13,7 +13,7 @@ This page documents the `IOptimizerSchema` interface used with `addOptimizer()` 
 - **LLM integration**: Conversation history building with `MessageModel[]` and prompt generation via `getPrompt()`
 - **Code generation**: Template-based strategy code export through `IOptimizerTemplate`
 
-For optimizer execution and lifecycle, see [AI-Powered Strategy Optimization](#16.5). For other registration schemas, see [Strategy Schemas](#5.1), [Exchange Schemas](#5.2), [Walker Schemas](#5.6).
+For optimizer execution and lifecycle, see [AI-Powered Strategy Optimization](./90_AI-Powered_Strategy_Optimization.md). For other registration schemas, see [Strategy Schemas](./25_Strategy_Schemas.md), [Exchange Schemas](./26_Exchange_Schemas.md), [Walker Schemas](./30_Walker_Schemas.md).
 
 Sources: [src/interfaces/Optimizer.interface.ts:380-433](), [src/function/add.ts]() (addOptimizer function)
 

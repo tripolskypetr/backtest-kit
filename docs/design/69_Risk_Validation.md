@@ -7,7 +7,7 @@ group: design
 
 This page documents the risk validation system that ensures all signals meet safety and profitability requirements before execution. Risk validation operates as a two-tier system: built-in structural validation and user-defined custom risk rules.
 
-For information about risk profiles and position tracking, see [Risk Profiles](#12.1). For signal lifecycle states, see [Signal Lifecycle Overview](#2.2).
+For information about risk profiles and position tracking, see [Risk Profiles](./68_Risk_Profiles.md). For signal lifecycle states, see [Signal Lifecycle Overview](./07_Signal_Lifecycle_Overview.md).
 
 ---
 

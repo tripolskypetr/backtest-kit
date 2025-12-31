@@ -5,9 +5,9 @@ group: design
 
 # Live Trading
 
-Live Trading mode executes trading strategies in real-time against current market conditions with automatic crash recovery. Unlike Backtest mode (see [Backtesting](#9)), which simulates historical data, Live mode operates continuously with `Date.now()` timestamps and persists state to disk after every tick. This enables production-grade trading that survives process crashes, power failures, and system restarts.
+Live Trading mode executes trading strategies in real-time against current market conditions with automatic crash recovery. Unlike Backtest mode (see [Backtesting](./54_Backtesting.md)), which simulates historical data, Live mode operates continuously with `Date.now()` timestamps and persists state to disk after every tick. This enables production-grade trading that survives process crashes, power failures, and system restarts.
 
-For basic execution concepts, see [Execution Modes](#2.1). For persistence details, see [Persistence Layer](#15.3). For signal state management, see [Signal Lifecycle](#8).
+For basic execution concepts, see [Execution Modes](./06_Execution_Modes.md). For persistence details, see [Persistence Layer](./84_Persistence_Layer.md). For signal state management, see [Signal Lifecycle](./48_Signal_Lifecycle.md).
 
 ---
 
@@ -424,8 +424,8 @@ Subscribe to these events to monitor:
 
 ## Related Pages
 
-- [Backtesting](#9) - Historical simulation mode
-- [Signal Lifecycle](#8) - Signal state transitions
-- [Crash Recovery](#10.2) - Detailed persistence mechanisms
-- [Client Implementations](#6) - ClientStrategy details
-- [Persistence Layer](#15.3) - Atomic write patterns
+- [Backtesting](./54_Backtesting.md) - Historical simulation mode
+- [Signal Lifecycle](./48_Signal_Lifecycle.md) - Signal state transitions
+- [Crash Recovery](./60_Crash_Recovery.md) - Detailed persistence mechanisms
+- [Client Implementations](./32_Client_Implementations.md) - ClientStrategy details
+- [Persistence Layer](./84_Persistence_Layer.md) - Atomic write patterns

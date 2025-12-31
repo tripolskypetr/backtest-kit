@@ -7,7 +7,7 @@ group: design
 
 **Purpose**: This page introduces backtest-kit, a TypeScript framework for backtesting and live trading algorithmic strategies. It covers the framework's architecture, execution modes, and core components.
 
-**Scope**: This overview provides a high-level understanding of the system's structure. For detailed API documentation, see [Public API Reference](#4). For signal lifecycle details, see [Signal Lifecycle](#8). For execution mode specifics, see [Backtest](#9), [Live Trading](#10), and [Walker Mode](#11).
+**Scope**: This overview provides a high-level understanding of the system's structure. For detailed API documentation, see [Public API Reference](./15_Public_API_Reference.md). For signal lifecycle details, see [Signal Lifecycle](./48_Signal_Lifecycle.md). For execution mode specifics, see [Backtest](./54_Backtesting.md), [Live Trading](./58_Live_Trading.md), and [Walker Mode](./63_Walker_Mode.md).
 
 ---
 
@@ -262,8 +262,8 @@ The framework includes comprehensive test coverage across multiple categories:
 
 ## Next Steps
 
-- For detailed API reference, see [Public API Reference](#4)
-- For signal lifecycle deep dive, see [Signal Lifecycle](#8)
-- For execution mode details, see [Execution Modes](#2.1)
-- For risk management, see [Risk Management](#12)
-- For AI optimization, see [AI-Powered Strategy Optimization](#16.5)
+- For detailed API reference, see [Public API Reference](./15_Public_API_Reference.md)
+- For signal lifecycle deep dive, see [Signal Lifecycle](./48_Signal_Lifecycle.md)
+- For execution mode details, see [Execution Modes](./06_Execution_Modes.md)
+- For risk management, see [Risk Management](./67_Risk_Management.md)
+- For AI optimization, see [AI-Powered Strategy Optimization](./90_AI-Powered_Strategy_Optimization.md)

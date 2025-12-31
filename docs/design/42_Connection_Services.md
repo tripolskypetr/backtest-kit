@@ -7,7 +7,7 @@ group: design
 
 Connection Services form the factory layer in backtest-kit's service architecture. They create, cache, and manage client implementation instances, routing operations from global services to the appropriate client based on execution context. This layer uses memoization to ensure singleton behavior per unique identifier combination (e.g., `symbol:strategyName:backtest`), preventing duplicate instantiation and maintaining consistent state across the system.
 
-For information about the client implementations that connection services instantiate, see [Client Implementations](#6). For the global services that delegate to connection services, see [Global Services](#7.5).
+For information about the client implementations that connection services instantiate, see [Client Implementations](./32_Client_Implementations.md). For the global services that delegate to connection services, see [Global Services](./45_Global_Services.md).
 
 ## Architecture Overview
 

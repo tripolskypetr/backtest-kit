@@ -9,7 +9,7 @@ group: design
 
 This document provides a comprehensive guide to backtesting mode in the backtest-kit framework. Backtesting executes trading strategies against historical market data to evaluate their performance before deploying them in live trading. This page covers the execution flow, timeframe iteration, fast-forward optimization, and the public API for running backtests.
 
-For information about live trading execution, see [Live Trading](#10). For comparing multiple strategies simultaneously, see [Walker Mode](#11). For the internal strategy logic that processes signals, see [ClientStrategy](#6.1).
+For information about live trading execution, see [Live Trading](./58_Live_Trading.md). For comparing multiple strategies simultaneously, see [Walker Mode](./63_Walker_Mode.md). For the internal strategy logic that processes signals, see [ClientStrategy](./33_ClientStrategy.md).
 
 ## Overview
 

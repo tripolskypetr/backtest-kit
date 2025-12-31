@@ -9,7 +9,7 @@ group: design
 
 Signal persistence is the crash recovery system that enables production-grade live trading in backtest-kit. This system ensures that active trading positions and scheduled limit orders are never lost, even during catastrophic failures (process crashes, power loss, SIGKILL, OOM errors).
 
-This page documents the persistence layer specifically for signal state management. For risk position persistence, see [12.3](#12.3). For partial profit/loss state persistence, see [6.6](#6.6). For the overall signal lifecycle state machine, see [8.1](#8.1).
+This page documents the persistence layer specifically for signal state management. For risk position persistence, see [12.3](./70_Position_Tracking.md). For partial profit/loss state persistence, see [6.6](./38_ClientPartial.md). For the overall signal lifecycle state machine, see [8.1](./49_Signal_States.md).
 
 **Key Characteristics:**
 

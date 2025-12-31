@@ -7,7 +7,7 @@ group: design
 
 The risk management system enforces portfolio-level constraints and validation rules that prevent signals from opening when they violate risk parameters. Risk profiles are defined via `addRisk()` and referenced by strategies using `riskName` or `riskList`. The system tracks active positions across all strategies and evaluates custom validation functions before allowing new signals to open.
 
-For signal lifecycle information, see [Signal Lifecycle](#8). For strategy configuration, see [Strategy Schemas](#5.1). For event monitoring, see [Event Listeners](#4.8).
+For signal lifecycle information, see [Signal Lifecycle](./48_Signal_Lifecycle.md). For strategy configuration, see [Strategy Schemas](./25_Strategy_Schemas.md). For event monitoring, see [Event Listeners](./23_Event_Listeners.md).
 
 ## Risk Profile Configuration
 

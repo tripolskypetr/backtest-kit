@@ -7,7 +7,7 @@ group: design
 
 This page describes the three execution modes available in backtest-kit: **Backtest**, **Live**, and **Walker**. Each mode provides distinct behavior for data handling, state persistence, and execution flow. Understanding these modes is essential for choosing the correct execution strategy for different use cases.
 
-For information about signal lifecycle states within these modes, see [Signal Lifecycle Overview](#2.2). For details on preventing look-ahead bias during backtesting, see [Temporal Isolation and Look-Ahead Prevention](#2.4).
+For information about signal lifecycle states within these modes, see [Signal Lifecycle Overview](./07_Signal_Lifecycle_Overview.md). For details on preventing look-ahead bias during backtesting, see [Temporal Isolation and Look-Ahead Prevention](./09_Temporal_Isolation_and_Look-Ahead_Prevention.md).
 
 ---
 

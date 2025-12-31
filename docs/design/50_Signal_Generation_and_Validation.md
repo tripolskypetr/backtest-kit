@@ -7,7 +7,7 @@ group: design
 
 This page documents the signal generation process and the multi-layer validation pipeline that ensures all trading signals meet safety and logical requirements before execution. Signal generation occurs in the `getSignal` function defined in `IStrategySchema`, and validation is performed by `VALIDATE_SIGNAL_FN` within `ClientStrategy`.
 
-**Scope**: This page covers the mechanics of signal creation from `getSignal()` through validation. For information about signal state transitions after validation, see [Signal States](#8.1). For the actual risk checking integration, see [Risk Management](#12). For signal persistence after validation, see [Signal Persistence](#8.4).
+**Scope**: This page covers the mechanics of signal creation from `getSignal()` through validation. For information about signal state transitions after validation, see [Signal States](./49_Signal_States.md). For the actual risk checking integration, see [Risk Management](./67_Risk_Management.md). For signal persistence after validation, see [Signal Persistence](./52_Signal_Persistence.md).
 
 ---
 

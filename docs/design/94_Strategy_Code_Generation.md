@@ -7,7 +7,7 @@ group: design
 
 This page documents the code generation system used by the Optimizer to produce executable trading strategy scripts. The generation process transforms collected data and LLM conversation histories into standalone Node.js files that implement multi-timeframe trading strategies with Walker-based comparison.
 
-For information about data collection and LLM integration, see [AI-Powered Strategy Optimization](#16.5). For details on prompt engineering and conversation building, see [LLM Integration](#16.5.3). For information about walk-forward validation, see [Training vs Testing Ranges](#16.5.5).
+For information about data collection and LLM integration, see [AI-Powered Strategy Optimization](./90_AI-Powered_Strategy_Optimization.md). For details on prompt engineering and conversation building, see [LLM Integration](./93_LLM_Integration.md). For information about walk-forward validation, see [Training vs Testing Ranges](./95_Training_vs_Testing_Ranges.md).
 
 ## Template System Architecture
 

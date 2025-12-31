@@ -9,7 +9,7 @@ group: design
 
 This document describes the **client implementation classes** that form the core business logic layer of backtest-kit. Client implementations are concrete classes that execute trading operations: signal generation, market data fetching, risk validation, position sizing, partial profit tracking, and strategy optimization.
 
-For schema definitions that configure these clients, see [Component Schemas](#5). For the service layer that routes operations to client instances, see [Service Layer](#7). For the signal lifecycle state machine, see [Signal Lifecycle](#8).
+For schema definitions that configure these clients, see [Component Schemas](./24_Component_Schemas.md). For the service layer that routes operations to client instances, see [Service Layer](./40_Service_Layer.md). For the signal lifecycle state machine, see [Signal Lifecycle](./48_Signal_Lifecycle.md).
 
 ---
 

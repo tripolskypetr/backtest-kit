@@ -457,7 +457,7 @@ const RESOLVE_PAGINATION_FN = async <Data extends IOptimizerData = any>(
 
 `OptimizerSchemaService` is a standard schema service that maintains a registry mapping `optimizerName` to `IOptimizerSchema`. It follows the same pattern as other schema services in the codebase (`StrategySchemaService`, `ExchangeSchemaService`, etc.).
 
-For schema service architecture details, see [Schema Services](#7.3).
+For schema service architecture details, see [Schema Services](./43_Schema_Services.md).
 
 ## Template Merging Pattern
 
@@ -648,6 +648,6 @@ The following symbols identify Optimizer-related services in the dependency inje
 
 ![Mermaid Diagram](./diagrams/91_Optimizer_Architecture_7.svg)
 
-The Optimizer services follow the same dependency injection pattern as other framework components. For comprehensive coverage of the DI system, see [Dependency Injection System](#3.2).
+The Optimizer services follow the same dependency injection pattern as other framework components. For comprehensive coverage of the DI system, see [Dependency Injection System](./12_Dependency_Injection_System.md).
 
 **Sources:** [src/lib/services/connection/OptimizerConnectionService.ts:42-48](), [src/lib/services/template/OptimizerTemplateService.ts:27]()

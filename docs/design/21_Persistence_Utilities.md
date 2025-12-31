@@ -7,7 +7,7 @@ group: design
 
 This page documents the persistence layer that enables crash-safe live trading in backtest-kit. The persistence utilities provide atomic file-based storage for trading state across four domains: signals, risk positions, scheduled signals, and partial profit/loss levels.
 
-For details on crash recovery in live trading, see [Live Trading API](#4.4). For the client implementations that use these utilities, see [Client Implementations](#6).
+For details on crash recovery in live trading, see [Live Trading API](./19_Live_Trading_API.md). For the client implementations that use these utilities, see [Client Implementations](./32_Client_Implementations.md).
 
 ---
 

@@ -9,7 +9,7 @@ group: design
 
 Timeframe generation is the process of creating a sequential array of timestamps that define when strategy evaluation occurs during backtesting. The `FrameCoreService` generates these timestamps based on a configured `IFrameSchema`, which specifies the start date, end date, and interval granularity. This timestamp array drives the backtest execution loop, determining at which points in historical time the strategy's `getSignal()` function is evaluated.
 
-For information about how these generated timeframes are consumed during backtest execution, see [Backtest Execution Flow](#9.1). For details on how signals are processed at each timeframe tick, see [Fast-Forward Simulation](#9.3).
+For information about how these generated timeframes are consumed during backtest execution, see [Backtest Execution Flow](./55_Backtest_Execution_Flow.md). For details on how signals are processed at each timeframe tick, see [Fast-Forward Simulation](./57_Fast-Forward_Simulation.md).
 
 ---
 

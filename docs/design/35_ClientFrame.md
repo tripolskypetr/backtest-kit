@@ -7,7 +7,7 @@ group: design
 
 **Purpose**: ClientFrame implements timeframe generation for backtesting by creating arrays of timestamps spaced according to configured intervals. It transforms frame schemas (startDate, endDate, interval) into concrete arrays of Date objects that BacktestLogicPrivateService iterates through during historical simulation.
 
-For information about the Frame schema configuration that ClientFrame consumes, see [Frame Schemas](#5.3). For backtest execution flow that uses these timeframes, see [Backtest Execution Flow](#9.1).
+For information about the Frame schema configuration that ClientFrame consumes, see [Frame Schemas](./27_Frame_Schemas.md). For backtest execution flow that uses these timeframes, see [Backtest Execution Flow](./55_Backtest_Execution_Flow.md).
 
 ---
 
@@ -411,10 +411,10 @@ Backtest.run("BTCUSDT", {
 
 ## Related Components
 
-- [Frame Schemas](#5.3) - Configuration interface for addFrame()
-- [Backtest Execution Flow](#9.1) - How timeframes are consumed during backtesting
-- [Timeframe Generation](#9.2) - FrameCoreService algorithms
-- [Connection Services](#7.2) - Factory pattern and memoization strategy
-- [Schema Services](#7.3) - ToolRegistry storage pattern
+- [Frame Schemas](./27_Frame_Schemas.md) - Configuration interface for addFrame()
+- [Backtest Execution Flow](./55_Backtest_Execution_Flow.md) - How timeframes are consumed during backtesting
+- [Timeframe Generation](./56_Timeframe_Generation.md) - FrameCoreService algorithms
+- [Connection Services](./42_Connection_Services.md) - Factory pattern and memoization strategy
+- [Schema Services](./43_Schema_Services.md) - ToolRegistry storage pattern
 
 **Sources**: Table of contents

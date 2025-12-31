@@ -7,7 +7,7 @@ group: design
 
 This document covers advanced integration patterns and customization techniques for the backtest-kit framework. It explains how to implement custom exchange data sources, integrate alternative persistence backends, and design multi-symbol trading strategies with shared state management.
 
-For basic usage of the public API, see [Public API Reference](#3). For service architecture patterns, see [Service Layer](#5). For signal lifecycle fundamentals, see [Signal Lifecycle](#6).
+For basic usage of the public API, see [Public API Reference](./15_Public_API_Reference.md). For service architecture patterns, see [Service Layer](./40_Service_Layer.md). For signal lifecycle fundamentals, see [Signal Lifecycle](./48_Signal_Lifecycle.md).
 
 ---
 

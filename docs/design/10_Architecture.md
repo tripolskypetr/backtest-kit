@@ -8,10 +8,10 @@ group: design
 This document describes the overall architecture of backtest-kit, including its layered design, dependency injection system, context propagation mechanisms, and event-driven patterns. The architecture is designed to support three execution modes (Backtest, Live, Walker) while maintaining temporal isolation, crash recovery, and clean separation of concerns.
 
 For detailed information about specific architectural components:
-- Layer-specific responsibilities and interactions, see [Layer Responsibilities](#3.1)
-- Dependency injection container implementation, see [Dependency Injection System](#3.2)
-- Context propagation with AsyncLocalStorage, see [Context Propagation](#3.3)
-- Event emitters and listener functions, see [Event System](#3.4)
+- Layer-specific responsibilities and interactions, see [Layer Responsibilities](./11_Layer_Responsibilities.md)
+- Dependency injection container implementation, see [Dependency Injection System](./12_Dependency_Injection_System.md)
+- Context propagation with AsyncLocalStorage, see [Context Propagation](./13_Context_Propagation.md)
+- Event emitters and listener functions, see [Event System](./14_Event_System.md)
 
 ## System Overview
 

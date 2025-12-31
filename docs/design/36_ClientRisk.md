@@ -10,9 +10,9 @@ group: design
 `ClientRisk` is the core implementation of the `IRisk` interface responsible for **signal validation** and **position tracking** within the `backtest-kit` framework. This class executes user-defined validation rules, enforces risk management policies, and maintains active position counts across trading strategies.
 
 This document covers the internal implementation of `ClientRisk` and how it integrates with the signal lifecycle. For information about:
-- Defining risk schemas via `addRisk()`, see [Risk Schemas](#5.4)
-- The broader risk management system, see [Risk Management](#12)
-- Position tracking mechanisms, see [Position Tracking](#12.3)
+- Defining risk schemas via `addRisk()`, see [Risk Schemas](./28_Risk_Schemas.md)
+- The broader risk management system, see [Risk Management](./67_Risk_Management.md)
+- Position tracking mechanisms, see [Position Tracking](./70_Position_Tracking.md)
 
 ---
 

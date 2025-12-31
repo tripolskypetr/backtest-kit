@@ -7,7 +7,7 @@ group: design
 
 Scheduled signals are limit orders that wait for price to reach a specific entry point (`priceOpen`) before activating. Unlike immediate signals that open at current market price, scheduled signals remain in a "scheduled" state until market conditions satisfy the entry criteria or the signal is cancelled due to timeout or adverse price movement.
 
-For information about the complete signal lifecycle including other states, see [Signal States](#8.1). For signal generation and validation, see [Signal Generation and Validation](#8.2). For persistence of scheduled signals, see [Signal Persistence](#8.4).
+For information about the complete signal lifecycle including other states, see [Signal States](./49_Signal_States.md). For signal generation and validation, see [Signal Generation and Validation](./50_Signal_Generation_and_Validation.md). For persistence of scheduled signals, see [Signal Persistence](./52_Signal_Persistence.md).
 
 ---
 

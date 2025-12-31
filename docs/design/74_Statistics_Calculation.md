@@ -9,7 +9,7 @@ group: design
 
 This page explains how trading performance statistics are calculated from closed signals in the backtest-kit framework. It covers the mathematical formulas, implementation details, and safe math handling for all metrics exposed through the reporting system.
 
-For information about generating markdown reports from these statistics, see [Markdown Report Generation](#13.1). For tracking partial profit/loss milestones during signal execution, see [Partial Profit/Loss Tracking](#13.4). For portfolio-level aggregation across multiple symbols, see [Heatmap Analytics](#13.5).
+For information about generating markdown reports from these statistics, see [Markdown Report Generation](./72_Markdown_Report_Generation.md). For tracking partial profit/loss milestones during signal execution, see [Partial Profit/Loss Tracking](./75_Partial_Profit_Loss_Tracking.md). For portfolio-level aggregation across multiple symbols, see [Heatmap Analytics](./76_Heatmap_Analytics.md).
 
 **Scope:** This page covers only the calculation logic for statistics. It does not cover event collection, report formatting, or storage mechanisms.
 

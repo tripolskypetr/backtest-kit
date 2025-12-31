@@ -7,7 +7,7 @@ group: design
 
 Walker reports provide comparative analysis of multiple trading strategies executed on the same symbol during the same timeframe. These reports aggregate performance metrics from individual backtests and rank strategies based on a configured optimization metric (e.g., Sharpe Ratio, total PNL, win rate).
 
-For information about walker execution flow and strategy comparison mechanics, see [Walker Execution Flow](#11.1) and [Strategy Comparison](#11.2). For individual strategy backtest reports, see [Backtest API](#4.3).
+For information about walker execution flow and strategy comparison mechanics, see [Walker Execution Flow](./64_Walker_Execution_Flow.md) and [Strategy Comparison](./65_Strategy_Comparison.md). For individual strategy backtest reports, see [Backtest API](./18_Backtest_API.md).
 
 ---
 

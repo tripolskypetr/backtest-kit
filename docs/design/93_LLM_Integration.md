@@ -9,7 +9,7 @@ This page documents the integration between backtest-kit's Optimizer system and 
 
 The LLM integration enables automated strategy generation by processing historical market data through multi-timeframe analysis and producing structured trading signals via JSON schema enforcement.
 
-For information about the overall optimizer architecture, see [Optimizer Architecture](#16.5.1). For details on data source pagination, see [Data Collection Pipeline](#16.5.2). For the complete code generation process, see [Strategy Code Generation](#16.5.4).
+For information about the overall optimizer architecture, see [Optimizer Architecture](./91_Optimizer_Architecture.md). For details on data source pagination, see [Data Collection Pipeline](./92_Data_Collection_Pipeline.md). For the complete code generation process, see [Strategy Code Generation](./94_Strategy_Code_Generation.md).
 
 ---
 

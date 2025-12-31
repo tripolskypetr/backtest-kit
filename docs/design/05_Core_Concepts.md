@@ -13,7 +13,7 @@ This page introduces the fundamental architectural patterns and execution models
 - **Context Propagation**: Implicit parameter passing via `di-scoped` for clean API design
 - **Event System**: Pub-sub architecture for observability and real-time monitoring
 
-For detailed API documentation, see [Public API Reference](#4). For implementation details of specific components, see [Component Types](#5). For service layer architecture, see [Architecture](#3).
+For detailed API documentation, see [Public API Reference](./15_Public_API_Reference.md). For implementation details of specific components, see [Component Types](./24_Component_Schemas.md). For service layer architecture, see [Architecture](./10_Architecture.md).
 
 ## Execution Modes
 
@@ -322,6 +322,6 @@ const candles = await getCandles(symbol, interval, limit);
 // - executionContext.backtest (historical vs real-time data)
 ```
 
-For detailed context propagation mechanics, see [Context Propagation](#3.3).
+For detailed context propagation mechanics, see [Context Propagation](./13_Context_Propagation.md).
 
 **Sources:** [src/lib/services/context/ExecutionContextService.ts:1-50](), [src/lib/services/context/MethodContextService.ts:1-50](), [src/function/exchange.ts]()

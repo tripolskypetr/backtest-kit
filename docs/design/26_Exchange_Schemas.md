@@ -7,7 +7,7 @@ group: design
 
 Exchange schemas define market data sources for backtesting and live trading. An exchange provides historical candle data (OHLCV) and formatting functions for prices and quantities. Exchanges are registered via `addExchange()` and instantiated as `ClientExchange` instances by the connection service layer.
 
-For information about strategy schemas that consume exchange data, see [Strategy Schemas](#5.1). For frame schemas that define backtest time ranges, see [Frame Schemas](#5.3).
+For information about strategy schemas that consume exchange data, see [Strategy Schemas](./25_Strategy_Schemas.md). For frame schemas that define backtest time ranges, see [Frame Schemas](./27_Frame_Schemas.md).
 
 ---
 

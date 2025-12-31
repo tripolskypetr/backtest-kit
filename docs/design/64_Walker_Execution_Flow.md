@@ -7,7 +7,7 @@ group: design
 
 ## Purpose and Scope
 
-This document describes the execution flow of Walker mode, which orchestrates sequential strategy comparison for metric-based optimization. It focuses on the `WalkerLogicPrivateService` implementation that iterates through strategies, extracts performance metrics, and tracks the best-performing strategy. For details on metric selection and comparison logic, see [Strategy Comparison](#11.2). For report generation and output formats, see [Walker Reports](#11.3). For the Walker API entry points, see [Walker API](#4.5).
+This document describes the execution flow of Walker mode, which orchestrates sequential strategy comparison for metric-based optimization. It focuses on the `WalkerLogicPrivateService` implementation that iterates through strategies, extracts performance metrics, and tracks the best-performing strategy. For details on metric selection and comparison logic, see [Strategy Comparison](./65_Strategy_Comparison.md). For report generation and output formats, see [Walker Reports](./66_Walker_Reports.md). For the Walker API entry points, see [Walker API](./20_Walker_API.md).
 
 ## Overview
 
@@ -161,7 +161,7 @@ Key behaviors:
 - **Ties**: First strategy to achieve a tied metric wins (no tie-breaking logic)
 - **Maximization only**: The system does not support minimization metrics (e.g., max drawdown)
 
-For metric selection details and supported metrics, see [Strategy Comparison](#11.2).
+For metric selection details and supported metrics, see [Strategy Comparison](./65_Strategy_Comparison.md).
 
 Sources: [src/lib/services/logic/private/WalkerLogicPrivateService.ts:179-187]()
 

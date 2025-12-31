@@ -7,7 +7,7 @@ group: design
 
 This page documents how to implement custom persistence backends for backtest-kit's crash recovery system. It covers the `IPersistBase` interface, adapter registration, and integration with external storage systems like Redis, MongoDB, or cloud storage.
 
-For information about the persistence layer architecture and crash recovery mechanisms, see [Persistence Layer](#15.3). For details about the default file-based persistence implementation, see [Persistence Utilities](#4.6).
+For information about the persistence layer architecture and crash recovery mechanisms, see [Persistence Layer](./84_Persistence_Layer.md). For details about the default file-based persistence implementation, see [Persistence Utilities](./21_Persistence_Utilities.md).
 
 ---
 
@@ -498,10 +498,10 @@ async writeValue<T>(entityId: EntityId, entity: T): Promise<void> {
 
 ## Related Interfaces
 
-See [Persistence Layer](#15.3) for crash recovery architecture and atomic write guarantees.
+See [Persistence Layer](./84_Persistence_Layer.md) for crash recovery architecture and atomic write guarantees.
 
-See [Persistence Utilities](#4.6) for public API documentation of `PersistSignalAdapter`, `PersistRiskAdapter`, `PersistScheduleAdapter`, and `PersistPartialAdapter`.
+See [Persistence Utilities](./21_Persistence_Utilities.md) for public API documentation of `PersistSignalAdapter`, `PersistRiskAdapter`, `PersistScheduleAdapter`, and `PersistPartialAdapter`.
 
-See [Live Trading API](#4.4) for integration with `Live.background()` and crash recovery workflow.
+See [Live Trading API](./19_Live_Trading_API.md) for integration with `Live.background()` and crash recovery workflow.
 
 **Sources:** [docs/index.md:10-13](), [docs/classes/LiveUtils.md:1-101](), [docs/classes/BacktestUtils.md:1-92]()

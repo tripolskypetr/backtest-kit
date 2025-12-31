@@ -7,7 +7,7 @@ group: design
 
 Custom risk validations allow you to define portfolio-level constraints and business rules that prevent signals from opening positions when specific conditions are not met. This guide covers how to implement custom validation functions using the `IRiskValidation` interface with access to `IRiskValidationPayload`.
 
-For risk profile configuration basics, see [Risk Profiles](#12.1). For position tracking implementation, see [Position Tracking](#12.3). For risk validation chain execution, see [Risk Validation](#12.2).
+For risk profile configuration basics, see [Risk Profiles](./68_Risk_Profiles.md). For position tracking implementation, see [Position Tracking](./70_Position_Tracking.md). For risk validation chain execution, see [Risk Validation](./69_Risk_Validation.md).
 
 ---
 

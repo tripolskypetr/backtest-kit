@@ -7,7 +7,7 @@ group: design
 
 This page documents the error handling infrastructure in backtest-kit, including error categorization, emission, propagation, and recovery patterns. The system implements a multi-tier error handling architecture that distinguishes between recoverable errors, fatal errors, and validation failures.
 
-For logging system configuration, see [Logging System](#15.1). For persistence error handling, see [Persistence Layer](#15.3).
+For logging system configuration, see [Logging System](./82_Logging_System.md). For persistence error handling, see [Persistence Layer](./84_Persistence_Layer.md).
 
 ---
 

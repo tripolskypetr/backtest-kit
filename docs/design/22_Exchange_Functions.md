@@ -7,7 +7,7 @@ group: design
 
 This page documents the exchange helper functions provided by the framework for working with exchange data within strategy code. The primary focus is on the formatting functions `formatPrice` and `formatQuantity`, which enable strategies to display prices and quantities according to exchange-specific precision rules.
 
-For information about implementing custom exchange integrations, see [Custom Exchange Integration](#16.1). For information about the Exchange client implementation, see [ClientExchange](#6.2). For information about exchange schemas and registration, see [Exchange Schemas](#5.2).
+For information about implementing custom exchange integrations, see [Custom Exchange Integration](./86_Custom_Exchange_Integration.md). For information about the Exchange client implementation, see [ClientExchange](./34_ClientExchange.md). For information about exchange schemas and registration, see [Exchange Schemas](./26_Exchange_Schemas.md).
 
 ---
 

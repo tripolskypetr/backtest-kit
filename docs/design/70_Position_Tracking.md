@@ -9,7 +9,7 @@ group: design
 
 This document explains how the framework tracks active trading positions across strategies for risk management purposes. Position tracking enables the risk system to enforce concurrent position limits, provide portfolio-level validation, and maintain accurate state for cross-strategy risk analysis.
 
-For information about defining risk profiles, see [Risk Profiles](#12.1). For details on validation logic, see [Risk Validation](#12.2).
+For information about defining risk profiles, see [Risk Profiles](./68_Risk_Profiles.md). For details on validation logic, see [Risk Validation](./69_Risk_Validation.md).
 
 ---
 
@@ -622,6 +622,6 @@ Position tracking is a critical component of the risk management system that:
 
 The registry is synchronized with the signal lifecycle through `addSignal()` and `removeSignal()` calls, ensuring accurate position counts for risk enforcement and portfolio-level analysis.
 
-For implementation of risk profiles, see [Risk Profiles](#12.1). For details on validation logic, see [Risk Validation](#12.2).
+For implementation of risk profiles, see [Risk Profiles](./68_Risk_Profiles.md). For details on validation logic, see [Risk Validation](./69_Risk_Validation.md).
 
 Sources: [src/client/ClientStrategy.ts:1-1200](), [src/lib/services/connection/StrategyConnectionService.ts:1-241](), [src/function/add.ts:270-343]()

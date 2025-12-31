@@ -19,7 +19,7 @@ Component schemas are TypeScript interface definitions that specify the structur
 | Walker | `IWalkerSchema` | `addWalker()` | `walkerName` |
 | Optimizer | `IOptimizerSchema` | `addOptimizer()` | `optimizerName` |
 
-Related pages: [Service Layer](#7), [Component Registration](#2.3), [Component Registration Functions](#4.2), [Client Implementations](#6).
+Related pages: [Service Layer](./40_Service_Layer.md), [Component Registration](./08_Component_Registration.md), [Component Registration Functions](./17_Component_Registration_Functions.md), [Client Implementations](./32_Client_Implementations.md).
 
 **Sources:** [types.d.ts:730-749](), [types.d.ts:122-155](), [types.d.ts:262-275](), [types.d.ts:417-426](), [types.d.ts:956-971]()
 

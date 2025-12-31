@@ -7,7 +7,7 @@ group: design
 
 This document defines the `IWalkerSchema` interface for registering Walker components via `addWalker()`. Walker schemas configure strategy comparison operations that run multiple strategies sequentially and rank them by a chosen performance metric.
 
-For information about executing Walker operations, see [Walker API](#4.5). For details about Walker execution flow and implementation, see [Walker Mode](#11).
+For information about executing Walker operations, see [Walker API](./20_Walker_API.md). For details about Walker execution flow and implementation, see [Walker Mode](./63_Walker_Mode.md).
 
 ## Schema Interface
 

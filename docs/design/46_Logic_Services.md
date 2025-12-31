@@ -7,7 +7,7 @@ group: design
 
 Logic Services implement the core execution orchestration layer for the three operational modes: Backtest, Live, and Walker. These services manage the temporal progression, signal lifecycle coordination, and result streaming for each execution mode.
 
-This page documents the Logic Service architecture, the Private/Public service separation pattern, and the AsyncGenerator streaming model. For information about Strategy execution logic, see [ClientStrategy](#6.1). For command validation and delegation, see [Service Architecture Overview](#7.1).
+This page documents the Logic Service architecture, the Private/Public service separation pattern, and the AsyncGenerator streaming model. For information about Strategy execution logic, see [ClientStrategy](./33_ClientStrategy.md). For command validation and delegation, see [Service Architecture Overview](./41_Service_Architecture_Overview.md).
 
 ## Architecture Overview
 

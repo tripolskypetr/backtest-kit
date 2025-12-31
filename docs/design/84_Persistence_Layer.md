@@ -9,7 +9,7 @@ group: design
 
 The Persistence Layer provides crash-safe state management for live trading by atomically writing signal data to disk. This enables automatic recovery of active and scheduled signals after process crashes or restarts, ensuring that open trading positions are never lost. The layer is only active in Live mode; Backtest mode operates entirely in-memory for performance.
 
-For information about Live mode execution flow, see [Live Trading](#10). For signal lifecycle states, see [Signal Lifecycle](#8).
+For information about Live mode execution flow, see [Live Trading](./58_Live_Trading.md). For signal lifecycle states, see [Signal Lifecycle](./48_Signal_Lifecycle.md).
 
 ---
 

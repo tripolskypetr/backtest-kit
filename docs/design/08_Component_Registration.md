@@ -9,7 +9,7 @@ group: design
 
 Component registration is the mechanism by which users configure backtest-kit's core building blocks before executing backtests, live trading, or strategy optimization. This page explains the declarative registration pattern using `add*` functions and how registered schemas are stored in schema services for later retrieval.
 
-For detailed API documentation of each registration function and its parameters, see [Component Registration Functions](#4.2). For schema interface definitions, see [Component Schemas](#5). For the internal implementation of schema services, see [Schema Services](#7.3).
+For detailed API documentation of each registration function and its parameters, see [Component Registration Functions](./17_Component_Registration_Functions.md). For schema interface definitions, see [Component Schemas](./24_Component_Schemas.md). For the internal implementation of schema services, see [Schema Services](./43_Schema_Services.md).
 
 ---
 
@@ -417,4 +417,4 @@ This architecture provides:
 - **Efficient execution** via memoized client instances
 - **Clean separation** between configuration and execution
 
-For detailed parameter documentation, see [Component Registration Functions](#4.2). For schema interfaces, see [Component Schemas](#5). For connection service implementation, see [Connection Services](#7.2).
+For detailed parameter documentation, see [Component Registration Functions](./17_Component_Registration_Functions.md). For schema interfaces, see [Component Schemas](./24_Component_Schemas.md). For connection service implementation, see [Connection Services](./42_Connection_Services.md).

@@ -7,7 +7,7 @@ group: design
 
 Real-time monitoring is the continuous process of evaluating signal states during live trading execution. The system uses an infinite loop with periodic sleep intervals to check signal status, emit events, collect performance metrics, and handle errors without interrupting execution. This page covers the monitoring loop architecture, tick evaluation, event emission, and state-specific monitoring behavior.
 
-For information about the overall live execution flow, see [10.1](#10.1). For crash recovery mechanisms, see [10.2](#10.2). For interval-based throttling to prevent signal spam, see [10.4](#10.4).
+For information about the overall live execution flow, see [10.1](./59_Live_Execution_Flow.md). For crash recovery mechanisms, see [10.2](./60_Crash_Recovery.md). For interval-based throttling to prevent signal spam, see [10.4](./62_Interval_Throttling.md).
 
 ---
 

@@ -7,7 +7,7 @@ group: design
 
 This page provides a comprehensive technical reference of backtest-kit's core capabilities. These features enable production-grade backtesting and live trading with enterprise-level reliability, performance, and extensibility.
 
-For installation and setup instructions, see [Installation and Setup](#1.2). For hands-on examples, see [Quick Start Guide](#1.3). For detailed architecture documentation, see [Architecture](#3).
+For installation and setup instructions, see [Installation and Setup](./03_Installation_and_Setup.md). For hands-on examples, see [Quick Start Guide](./04_Quick_Start_Guide.md). For detailed architecture documentation, see [Architecture](./10_Architecture.md).
 
 ---
 
@@ -603,22 +603,22 @@ Implementation: [src/client/Optimizer.client.ts](), [src/services/template/Optim
 
 | Feature | Key Component | Wiki Reference |
 |---------|---------------|----------------|
-| Multi-mode execution | BacktestLogicPrivateService, LiveLogicPrivateService, WalkerLogicPrivateService | [Execution Modes](#2.1) |
-| Crash-safe persistence | PersistSignalAdapter, PersistBase | [Signal Persistence](#8.4) |
-| Signal validation | VALIDATE_SIGNAL_FN, Risk validation chain | [Signal Generation and Validation](#8.2) |
-| State machine | IStrategyTickResult discriminated union | [Signal States](#8.1) |
-| VWAP pricing | getAveragePrice(), CC_AVERAGE_PRICE_* config | [Backtesting](#9) |
-| Interval throttling | Strategy.interval, last signal timestamp check | [Signal Lifecycle Overview](#2.2) |
-| PNL calculation | calculatePnl(), CC_TRADE_FEE, CC_SLIPPAGE | [PnL Calculation](#8.5) |
-| Context propagation | ExecutionContextService, MethodContextService | [Context Propagation](#3.3) |
-| Markdown reports | BacktestMarkdownService, LiveMarkdownService, etc. | [Markdown Report Generation](#13.1) |
-| Performance profiling | PerformanceMarkdownService, PerformanceEmitter | [Performance Metrics](#13.2) |
-| Strategy comparison | WalkerLogicPrivateService | [Walker Mode](#11) |
-| Portfolio heatmap | HeatMarkdownService | [Heatmap Analytics](#13.5) |
-| Position sizing | PositionSize utils (fixed/kelly/atr) | [Component Types](#5) |
-| Risk management | ClientRisk, IRiskSchema validations | [Risk Management](#12) |
-| Pluggable exchanges | ClientExchange, IExchangeSchema | [Exchange Schemas](#5.2) |
-| Pluggable persistence | PersistBase, custom adapters | [Custom Persistence Backends](#16.2) |
-| AI optimizer | ClientOptimizer, Ollama integration | [AI-Powered Strategy Optimization](#16.5) |
+| Multi-mode execution | BacktestLogicPrivateService, LiveLogicPrivateService, WalkerLogicPrivateService | [Execution Modes](./06_Execution_Modes.md) |
+| Crash-safe persistence | PersistSignalAdapter, PersistBase | [Signal Persistence](./52_Signal_Persistence.md) |
+| Signal validation | VALIDATE_SIGNAL_FN, Risk validation chain | [Signal Generation and Validation](./50_Signal_Generation_and_Validation.md) |
+| State machine | IStrategyTickResult discriminated union | [Signal States](./49_Signal_States.md) |
+| VWAP pricing | getAveragePrice(), CC_AVERAGE_PRICE_* config | [Backtesting](./54_Backtesting.md) |
+| Interval throttling | Strategy.interval, last signal timestamp check | [Signal Lifecycle Overview](./07_Signal_Lifecycle_Overview.md) |
+| PNL calculation | calculatePnl(), CC_TRADE_FEE, CC_SLIPPAGE | [PnL Calculation](./53_PnL_Calculation.md) |
+| Context propagation | ExecutionContextService, MethodContextService | [Context Propagation](./13_Context_Propagation.md) |
+| Markdown reports | BacktestMarkdownService, LiveMarkdownService, etc. | [Markdown Report Generation](./72_Markdown_Report_Generation.md) |
+| Performance profiling | PerformanceMarkdownService, PerformanceEmitter | [Performance Metrics](./73_Performance_Metrics.md) |
+| Strategy comparison | WalkerLogicPrivateService | [Walker Mode](./63_Walker_Mode.md) |
+| Portfolio heatmap | HeatMarkdownService | [Heatmap Analytics](./76_Heatmap_Analytics.md) |
+| Position sizing | PositionSize utils (fixed/kelly/atr) | [Component Types](./24_Component_Schemas.md) |
+| Risk management | ClientRisk, IRiskSchema validations | [Risk Management](./67_Risk_Management.md) |
+| Pluggable exchanges | ClientExchange, IExchangeSchema | [Exchange Schemas](./26_Exchange_Schemas.md) |
+| Pluggable persistence | PersistBase, custom adapters | [Custom Persistence Backends](./87_Custom_Persistence_Backends.md) |
+| AI optimizer | ClientOptimizer, Ollama integration | [AI-Powered Strategy Optimization](./90_AI-Powered_Strategy_Optimization.md) |
 
 **Sources:** [README.md:15-53](), [README.md:226-237](), [docs/internals.md:10-26]()

@@ -9,7 +9,7 @@ group: design
 
 Markdown Services comprise the reporting and analytics layer of the backtest-kit framework. These services listen to various event emitters, accumulate signal and performance data, calculate trading statistics, and generate formatted markdown reports persisted to disk. Each service specializes in a specific aspect of trading analysis: backtest results, live trading events, scheduled signals, partial profit/loss milestones, strategy comparisons, portfolio heatmaps, and performance profiling.
 
-For information about the event system that feeds these services, see [3.4](#3.4). For details about the execution modes that generate events, see [2.1](#2.1).
+For information about the event system that feeds these services, see [3.4](./14_Event_System.md). For details about the execution modes that generate events, see [2.1](./06_Execution_Modes.md).
 
 ## Architecture Overview
 

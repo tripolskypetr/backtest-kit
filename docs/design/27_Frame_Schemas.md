@@ -9,7 +9,7 @@ group: design
 
 Frame schemas define **backtest timeframe configurations** for historical strategy simulation. A frame specifies the date range (`startDate` to `endDate`) and timestamp interval (`interval`) used to generate a sequence of timestamps for backtest iteration. Each frame is registered via `addFrame()` and referenced by `frameName` when executing backtests.
 
-For information about strategy configurations, see [Strategy Schemas](#5.1). For walker configurations that use frames, see [Walker Schemas](#5.6). For the actual backtest execution flow, see section 9.
+For information about strategy configurations, see [Strategy Schemas](./25_Strategy_Schemas.md). For walker configurations that use frames, see [Walker Schemas](./30_Walker_Schemas.md). For the actual backtest execution flow, see section 9.
 
 **Sources**: [types.d.ts:212-295](), [src/index.ts:90]()
 

@@ -9,7 +9,7 @@ group: design
 
 This document provides comprehensive documentation of the six discrete states that a trading signal can occupy during its lifecycle in backtest-kit. Each state is represented by a distinct TypeScript interface as part of a discriminated union (`IStrategyTickResult`), enabling type-safe state handling throughout the system.
 
-For information about the complete signal lifecycle flow and state transitions, see [Signal Lifecycle Overview](#2.2). For details on signal generation and validation, see [Signal Generation and Validation](#8.2). For information on how signals are persisted across crashes in live mode, see [Signal Persistence](#8.4).
+For information about the complete signal lifecycle flow and state transitions, see [Signal Lifecycle Overview](./07_Signal_Lifecycle_Overview.md). For details on signal generation and validation, see [Signal Generation and Validation](./50_Signal_Generation_and_Validation.md). For information on how signals are persisted across crashes in live mode, see [Signal Persistence](./52_Signal_Persistence.md).
 
 **Sources:** [types.d.ts:770-895](), [src/interfaces/Strategy.interface.ts:173-307]()
 
@@ -640,6 +640,6 @@ In live trading mode (when `execution.context.backtest === false`), signal state
 
 ![Mermaid Diagram](./diagrams/49_Signal_States_4.svg)
 
-For detailed information on persistence mechanics, see [Signal Persistence](#8.4) and [Crash Recovery](#10.2).
+For detailed information on persistence mechanics, see [Signal Persistence](./52_Signal_Persistence.md) and [Crash Recovery](./60_Crash_Recovery.md).
 
 **Sources:** [src/classes/Persist.ts:1-500](), [src/client/ClientStrategy.ts:157-175](), [src/client/ClientStrategy.ts:491-552]()

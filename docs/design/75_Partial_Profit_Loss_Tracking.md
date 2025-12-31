@@ -7,7 +7,7 @@ group: design
 
 **Purpose**: This document describes the partial profit/loss tracking system that monitors trading signals and emits events when they reach percentage-based profit or loss milestones (10%, 20%, 30%, etc.). This enables tracking partial take-profit and stop-loss behavior, generating detailed reports, and monitoring strategy performance at granular levels.
 
-For information about overall reporting infrastructure, see [Reporting and Analytics](#13). For risk management and portfolio constraints, see [Risk Management](#12). For signal lifecycle states, see [Signal Lifecycle](#8).
+For information about overall reporting infrastructure, see [Reporting and Analytics](./71_Reporting_and_Analytics.md). For risk management and portfolio constraints, see [Risk Management](./67_Risk_Management.md). For signal lifecycle states, see [Signal Lifecycle](./48_Signal_Lifecycle.md).
 
 ---
 

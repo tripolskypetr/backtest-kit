@@ -9,7 +9,7 @@ group: design
 
 This document explains the context propagation system in backtest-kit, which uses `ExecutionContextService` and `MethodContextService` to pass runtime parameters and schema identifiers implicitly through the call stack without manual parameter threading. This pattern enables temporal isolation for look-ahead bias prevention and proper instance isolation across different execution contexts.
 
-For information about how these context services integrate with the dependency injection system, see [Dependency Injection System](#3.2). For details on how temporal isolation prevents look-ahead bias, see [Temporal Isolation and Look-Ahead Prevention](#2.4).
+For information about how these context services integrate with the dependency injection system, see [Dependency Injection System](./12_Dependency_Injection_System.md). For details on how temporal isolation prevents look-ahead bias, see [Temporal Isolation and Look-Ahead Prevention](./09_Temporal_Isolation_and_Look-Ahead_Prevention.md).
 
 ---
 

@@ -7,7 +7,7 @@ group: design
 
 This page documents the global configuration functions that control system-wide behavior across all execution modes (Backtest, Live, Walker). These functions must be called before registering components or executing strategies.
 
-For component registration (strategies, exchanges, risk profiles), see [Component Registration Functions](#4.2). For global configuration parameters and defaults, see [Global Configuration](#14.1).
+For component registration (strategies, exchanges, risk profiles), see [Component Registration Functions](./17_Component_Registration_Functions.md). For global configuration parameters and defaults, see [Global Configuration](./78_Global_Configuration.md).
 
 ---
 

@@ -10,10 +10,10 @@ group: design
 This document provides a high-level overview of how trading signals progress through their lifecycle states in the backtest-kit framework. It covers the state machine model, signal types, state transitions, validation rules, and monitoring logic.
 
 For detailed information about:
-- Execution mode differences (backtest vs live), see [Execution Modes](#2.1)
-- Component registration and schema definitions, see [Component Registration](#2.3)
-- Deep dive into each signal state, see [Signal States](#8.1)
-- Signal persistence and crash recovery, see [Signal Persistence](#8.4)
+- Execution mode differences (backtest vs live), see [Execution Modes](./06_Execution_Modes.md)
+- Component registration and schema definitions, see [Component Registration](./08_Component_Registration.md)
+- Deep dive into each signal state, see [Signal States](./49_Signal_States.md)
+- Signal persistence and crash recovery, see [Signal Persistence](./52_Signal_Persistence.md)
 
 ---
 

@@ -9,7 +9,7 @@ group: design
 
 ClientPartial implements milestone-based profit/loss tracking for active trading signals. It monitors when signals reach specific profit or loss thresholds (10%, 20%, 30%, etc.) and emits events for each milestone exactly once per signal. The system provides crash-safe state persistence for live trading and integrates with the broader signal lifecycle through PartialGlobalService and PartialConnectionService.
 
-For signal lifecycle state management, see [ClientStrategy](#6.1). For persistence architecture details, see [Persistence Layer](#15.3). For event consumption patterns, see [Event Listeners](#4.8).
+For signal lifecycle state management, see [ClientStrategy](./33_ClientStrategy.md). For persistence architecture details, see [Persistence Layer](./84_Persistence_Layer.md). For event consumption patterns, see [Event Listeners](./23_Event_Listeners.md).
 
 ---
 

@@ -9,7 +9,7 @@ group: design
 
 `ClientOptimizer` is the core implementation class for AI-driven strategy generation within the backtest-kit framework. It orchestrates data collection from multiple sources, builds conversation history for Large Language Models (LLMs), and generates executable trading strategy code. This class implements the `IOptimizer` interface and operates without dependency injection, making it a pure business logic component.
 
-For information about the optimizer schema configuration and registration, see [5.7 - Optimizer Schemas](#5.7). For the public API used to invoke optimizer operations, see [16.5 - AI-Powered Strategy Optimization](#16.5). For the template system used to generate code, see [16.5.4 - Strategy Code Generation](#16.5.4).
+For information about the optimizer schema configuration and registration, see [5.7 - Optimizer Schemas](./31_Optimizer_Schemas.md). For the public API used to invoke optimizer operations, see [16.5 - AI-Powered Strategy Optimization](./90_AI-Powered_Strategy_Optimization.md). For the template system used to generate code, see [16.5.4 - Strategy Code Generation](./94_Strategy_Code_Generation.md).
 
 **Sources:** [src/client/ClientOptimizer.ts:1-447](), [src/interfaces/Optimizer.interface.ts:454-484]()
 

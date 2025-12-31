@@ -19,7 +19,7 @@ group: design
 **State Machine Implementation:**
 The class manages six discriminated union states: `IStrategyTickResultIdle`, `IStrategyTickResultScheduled`, `IStrategyTickResultOpened`, `IStrategyTickResultActive`, `IStrategyTickResultClosed`, `IStrategyTickResultCancelled`.
 
-For strategy schema definitions, see [Strategy Schemas](#5.1). For signal state transitions, see [Signal Lifecycle](#8). For persistence adapters, see [Signal Persistence](#8.4).
+For strategy schema definitions, see [Strategy Schemas](./25_Strategy_Schemas.md). For signal state transitions, see [Signal Lifecycle](./48_Signal_Lifecycle.md). For persistence adapters, see [Signal Persistence](./52_Signal_Persistence.md).
 
 **Sources**: [src/client/ClientStrategy.ts:1-30](), [src/interfaces/Strategy.interface.ts:318-388](), [src/interfaces/Strategy.interface.ts:76-94]()
 

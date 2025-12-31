@@ -7,7 +7,7 @@ group: design
 
 This page documents the heatmap analytics system, which aggregates trading performance across multiple symbols for portfolio-wide analysis. The system tracks per-symbol and portfolio-level metrics for a single strategy executing across multiple trading pairs.
 
-For individual symbol-strategy pair statistics in backtest mode, see [Backtest Reports](#13.2). For live trading reports, see [Live Trading Reports](#13.3). For multi-strategy comparison, see [Walker Mode Reports](#11.3).
+For individual symbol-strategy pair statistics in backtest mode, see [Backtest Reports](./73_Performance_Metrics.md). For live trading reports, see [Live Trading Reports](./73_Performance_Metrics.md). For multi-strategy comparison, see [Walker Mode Reports](./66_Walker_Reports.md).
 
 ## Purpose and Scope
 

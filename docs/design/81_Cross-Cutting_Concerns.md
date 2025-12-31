@@ -7,7 +7,7 @@ group: design
 
 This page documents system-wide concerns that affect multiple components across the backtest-kit architecture. These concerns include logging, error handling, and persistence, which are not specific to any single component but are fundamental to the system's operation.
 
-For component-specific logging, error handling, or persistence behavior, see the individual component documentation in [Client Implementations](#6), [Service Layer](#7), or [Signal Lifecycle](#8).
+For component-specific logging, error handling, or persistence behavior, see the individual component documentation in [Client Implementations](./32_Client_Implementations.md), [Service Layer](./40_Service_Layer.md), or [Signal Lifecycle](./48_Signal_Lifecycle.md).
 
 ---
 

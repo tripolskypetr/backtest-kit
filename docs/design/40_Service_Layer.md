@@ -7,7 +7,7 @@ group: design
 
 The Service Layer provides the orchestration infrastructure that coordinates business logic execution across the framework. It implements a layered architecture where ~60 services are organized into functional categories, each handling a specific aspect of system operation: connection management, schema registration, validation, context injection, execution logic, and reporting. Services communicate through dependency injection, with the `backtest` aggregation object providing a unified namespace for all service access.
 
-For information about the core business logic classes (`ClientStrategy`, `ClientExchange`, etc.) that services orchestrate, see [Core Business Logic](#6). For dependency injection implementation details, see [Dependency Injection System](#3.2).
+For information about the core business logic classes (`ClientStrategy`, `ClientExchange`, etc.) that services orchestrate, see [Core Business Logic](./32_Client_Implementations.md). For dependency injection implementation details, see [Dependency Injection System](./12_Dependency_Injection_System.md).
 
 ## Service Organization
 
@@ -136,7 +136,7 @@ This separation enables Private Services to call other Private Services without 
 - **LiveLogicPrivateService**: Infinite `while(true)` loop with `sleep(TICK_TTL)`, persistence recovery
 - **WalkerLogicPrivateService**: Serial strategy iteration with metric comparison
 
-For detailed execution flows, see [Logic Services](#7.6).
+For detailed execution flows, see [Logic Services](./46_Logic_Services.md).
 
 **Sources:** [src/lib/index.ts:138-160]()
 
@@ -155,7 +155,7 @@ Markdown Services accumulate events from execution and generate reports with sta
 - Annualized metrics (Sharpe, returns)
 - Win rate, certainty ratio, expected yearly returns
 
-For detailed metrics, see [Performance Metrics](#13.2).
+For detailed metrics, see [Performance Metrics](./73_Performance_Metrics.md).
 
 **Sources:** [src/lib/index.ts:162-180](), [src/classes/Backtest.ts:144-163]()
 
@@ -169,7 +169,7 @@ Template Services provide code generation templates for AI optimization. `Optimi
 - `getWalkerTemplate()`: Walker comparison setup
 - `getLauncherTemplate()`: Execution code with event listeners
 
-For details on AI optimization, see [AI-Powered Strategy Optimization](#16.5).
+For details on AI optimization, see [AI-Powered Strategy Optimization](./90_AI-Powered_Strategy_Optimization.md).
 
 **Sources:** [src/lib/index.ts:206-210]()
 
@@ -290,10 +290,10 @@ Each layer adds value:
 
 For detailed information about each service category:
 
-- [Service Architecture Overview](#7.1) - Service matrix patterns and organization principles
-- [Connection Services](#7.2) - Memoization, instance routing, dependency injection details
-- [Schema Services](#7.3) - Registration patterns, retrieval, name-based lookup
-- [Validation Services](#7.4) - 30+ validation rules, error handling, registration validation
-- [Global Services](#7.5) - Context injection wrappers, ExecutionContext integration
-- [Logic Services](#7.6) - Private vs Public separation, AsyncGenerator streaming, execution orchestration
-- [Markdown Services](#7.7) - Event accumulation, statistics calculation, report generation
+- [Service Architecture Overview](./41_Service_Architecture_Overview.md) - Service matrix patterns and organization principles
+- [Connection Services](./42_Connection_Services.md) - Memoization, instance routing, dependency injection details
+- [Schema Services](./43_Schema_Services.md) - Registration patterns, retrieval, name-based lookup
+- [Validation Services](./44_Validation_Services.md) - 30+ validation rules, error handling, registration validation
+- [Global Services](./45_Global_Services.md) - Context injection wrappers, ExecutionContext integration
+- [Logic Services](./46_Logic_Services.md) - Private vs Public separation, AsyncGenerator streaming, execution orchestration
+- [Markdown Services](./47_Markdown_Services.md) - Event accumulation, statistics calculation, report generation

@@ -16,7 +16,7 @@ The framework provides four Global Services, each managing a distinct domain:
 | `PartialGlobalService` | Profit/loss milestones | Validates strategies, delegates milestone tracking to PartialConnectionService |
 | `OptimizerGlobalService` | LLM strategy generation | Validates optimizer configurations, delegates code generation to OptimizerConnectionService |
 
-For information about the overall service layer organization, see [Service Architecture Overview](#7.1). For details on the services that Global Services delegate to, see [Connection Services](#7.2), [Schema Services](#7.3), and [Validation Services](#7.4).
+For information about the overall service layer organization, see [Service Architecture Overview](./41_Service_Architecture_Overview.md). For details on the services that Global Services delegate to, see [Connection Services](./42_Connection_Services.md), [Schema Services](./43_Schema_Services.md), and [Validation Services](./44_Validation_Services.md).
 
 **Sources:** [src/lib/index.ts:120-129](), [src/lib/core/types.ts:36-41](), [src/lib/core/provide.ts:91-96]()
 </thinking>

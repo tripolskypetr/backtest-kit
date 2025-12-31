@@ -7,7 +7,7 @@ group: design
 
 This document provides instructions for installing `backtest-kit` and configuring a new project. It covers package installation, peer dependencies, module formats, TypeScript configuration, and project structure recommendations.
 
-For usage examples and running your first backtest, see [Quick Start Guide](#1.3). For advanced configuration of global parameters, see [Global Configuration](#14.1).
+For usage examples and running your first backtest, see [Quick Start Guide](./04_Quick_Start_Guide.md). For advanced configuration of global parameters, see [Global Configuration](./78_Global_Configuration.md).
 
 ---
 
@@ -90,7 +90,7 @@ npm install ollama
 ```
 
 **Ollama** client library for local LLM inference. Required for:
-- AI-powered strategy generation via `addOptimizer()` (see [Optimizer Schemas](#5.7))
+- AI-powered strategy generation via `addOptimizer()` (see [Optimizer Schemas](./31_Optimizer_Schemas.md))
 - Signal generation with LLM-based decision making
 - Multi-timeframe analysis patterns
 
@@ -240,7 +240,7 @@ While `backtest-kit` is distributed as compiled JavaScript with type definitions
 - `"skipLibCheck": true` - Recommended for faster builds (skips type checking of declaration files)
 - `"strict": true` - Enables all strict type checking for safety
 
-**AsyncLocalStorage Support:** The codebase uses Node.js `async_hooks` for temporal isolation (see [Temporal Isolation and Look-Ahead Prevention](#2.4)). No special TypeScript configuration is needed beyond `"types": ["node"]`.
+**AsyncLocalStorage Support:** The codebase uses Node.js `async_hooks` for temporal isolation (see [Temporal Isolation and Look-Ahead Prevention](./09_Temporal_Isolation_and_Look-Ahead_Prevention.md)). No special TypeScript configuration is needed beyond `"types": ["node"]`.
 
 **Sources:** [src/client/ClientStrategy.ts:1-10](), [src/lib/services/context/ExecutionContextService.ts]()
 
@@ -435,9 +435,9 @@ import {
 
 After installation and basic configuration:
 
-1. **[Quick Start Guide](#1.3)** - Walk through a minimal backtest example
-2. **[Component Registration](#2.3)** - Learn the `add*` function pattern
-3. **[Exchange Integration](#16.1)** - Implement custom data sources
-4. **[Public API Reference](#4)** - Complete API documentation
+1. **[Quick Start Guide](./04_Quick_Start_Guide.md)** - Walk through a minimal backtest example
+2. **[Component Registration](./08_Component_Registration.md)** - Learn the `add*` function pattern
+3. **[Exchange Integration](./86_Custom_Exchange_Integration.md)** - Implement custom data sources
+4. **[Public API Reference](./15_Public_API_Reference.md)** - Complete API documentation
 
 **Sources:** [README.md:36-177](), [demo/backtest/src/index.mjs:1-145](), [demo/live/src/index.mjs:1-163]()

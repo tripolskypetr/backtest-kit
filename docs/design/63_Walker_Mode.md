@@ -5,11 +5,11 @@ group: design
 
 # Walker Mode
 
-Walker Mode is a strategy comparison and optimization system that executes multiple backtest runs sequentially and ranks strategies by a configurable performance metric. This mode enables automated strategy selection by comparing historical performance across different strategy implementations for the same market conditions. For information about individual backtest execution, see [Backtesting](#9). For live trading execution, see [Live Trading](#10).
+Walker Mode is a strategy comparison and optimization system that executes multiple backtest runs sequentially and ranks strategies by a configurable performance metric. This mode enables automated strategy selection by comparing historical performance across different strategy implementations for the same market conditions. For information about individual backtest execution, see [Backtesting](./54_Backtesting.md). For live trading execution, see [Live Trading](./58_Live_Trading.md).
 
 ## Overview
 
-Walker Mode orchestrates multiple [ClientStrategy](#6.1) instances through the same historical timeframe, collecting performance statistics for each strategy and identifying the best performer based on a selected metric. Unlike Backtest Mode which evaluates a single strategy, Walker Mode provides comparative analysis across strategy variants.
+Walker Mode orchestrates multiple [ClientStrategy](./33_ClientStrategy.md) instances through the same historical timeframe, collecting performance statistics for each strategy and identifying the best performer based on a selected metric. Unlike Backtest Mode which evaluates a single strategy, Walker Mode provides comparative analysis across strategy variants.
 
 The walker system consists of three primary components:
 
@@ -414,6 +414,6 @@ for (const metric of metrics) {
 
 **4. AI-Driven Strategy Generation**:
 
-Walker Mode integrates with the Optimizer system for LLM-generated strategy comparison. See [AI-Powered Strategy Optimization](#16.5) for details on the complete pipeline. The optimizer generates multiple strategy variants and uses walker to identify the best performer on test data.
+Walker Mode integrates with the Optimizer system for LLM-generated strategy comparison. See [AI-Powered Strategy Optimization](./90_AI-Powered_Strategy_Optimization.md) for details on the complete pipeline. The optimizer generates multiple strategy variants and uses walker to identify the best performer on test data.
 
 Sources: [src/lib/services/logic/private/WalkerLogicPrivateService.ts:1-255](), [src/interfaces/Walker.interface.ts](), [docs/index.md:168-172]()

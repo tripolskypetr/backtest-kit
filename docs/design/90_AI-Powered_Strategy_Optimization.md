@@ -9,11 +9,11 @@ group: design
 
 The AI-Powered Strategy Optimization system enables automated generation of executable trading strategies using Large Language Models (LLMs). This document provides an overview of the optimizer's architecture, configuration, and execution flow. For detailed information about specific subsystems, see:
 
-- [Optimizer Architecture](#16.5.1) - Internal components and code generation pipeline
-- [Data Collection Pipeline](#16.5.2) - Data fetching, pagination, and deduplication
-- [LLM Integration](#16.5.3) - Ollama integration and prompt engineering
-- [Strategy Code Generation](#16.5.4) - Template system and code assembly
-- [Training vs Testing Ranges](#16.5.5) - Date range configuration for optimization
+- [Optimizer Architecture](./91_Optimizer_Architecture.md) - Internal components and code generation pipeline
+- [Data Collection Pipeline](./92_Data_Collection_Pipeline.md) - Data fetching, pagination, and deduplication
+- [LLM Integration](./93_LLM_Integration.md) - Ollama integration and prompt engineering
+- [Strategy Code Generation](./94_Strategy_Code_Generation.md) - Template system and code assembly
+- [Training vs Testing Ranges](./95_Training_vs_Testing_Ranges.md) - Date range configuration for optimization
 
 ## System Overview
 
@@ -52,7 +52,7 @@ Sources: [src/lib/services/connection/OptimizerConnectionService.ts:17-114](), [
 
 ## Configuration Schema
 
-The `IOptimizerSchema` defines the complete optimizer configuration. Registration is performed via the `addOptimizer` function (see [Component Registration](#2.3)).
+The `IOptimizerSchema` defines the complete optimizer configuration. Registration is performed via the `addOptimizer` function (see [Component Registration](./08_Component_Registration.md)).
 
 ![Mermaid Diagram](./diagrams/90_AI-Powered_Strategy_Optimization_1.svg)
 

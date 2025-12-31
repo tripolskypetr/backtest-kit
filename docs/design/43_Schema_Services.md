@@ -7,7 +7,7 @@ group: design
 
 Schema Services provide centralized in-memory storage for component configurations registered via the `add*` functions in the public API. Each schema service implements the ToolRegistry pattern to store, retrieve, and validate registered schemas before they are used by connection services to instantiate client implementations.
 
-For information about how schemas are validated before registration, see [Validation Services](#7.4). For information about how registered schemas are used to create client instances, see [Connection Services](#7.2).
+For information about how schemas are validated before registration, see [Validation Services](./44_Validation_Services.md). For information about how registered schemas are used to create client instances, see [Connection Services](./42_Connection_Services.md).
 
 ---
 

@@ -7,7 +7,7 @@ group: design
 
 This page explains how profit and loss (PnL) are calculated when signals close in the backtest-kit framework. It covers fee application, slippage simulation, price adjustments, and the final percentage calculation returned in closed signal events.
 
-For information about signal lifecycle states and when signals close, see [Signal States](#8.1). For validation rules that prevent unprofitable signals, see [Signal Generation and Validation](#8.2).
+For information about signal lifecycle states and when signals close, see [Signal States](./49_Signal_States.md). For validation rules that prevent unprofitable signals, see [Signal Generation and Validation](./50_Signal_Generation_and_Validation.md).
 
 ---
 

@@ -7,7 +7,7 @@ group: design
 
 This page documents the global configuration system in backtest-kit, including runtime parameters, validation thresholds, timing constants, and report formatting options. These configuration values control core trading logic, risk management boundaries, and output presentation.
 
-For component-specific schemas (strategies, exchanges, risks, etc.), see [Component Schemas](#5). For execution-mode-specific settings, see [Execution Modes](#2.1).
+For component-specific schemas (strategies, exchanges, risks, etc.), see [Component Schemas](./24_Component_Schemas.md). For execution-mode-specific settings, see [Execution Modes](./06_Execution_Modes.md).
 
 ---
 

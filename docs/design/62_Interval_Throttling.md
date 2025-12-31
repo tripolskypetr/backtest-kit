@@ -9,7 +9,7 @@ group: design
 
 This page documents the interval throttling system in backtest-kit, which prevents excessive `getSignal()` calls by enforcing minimum time delays between signal generation attempts. Interval throttling ensures strategies execute at defined timeframes (e.g., every 5 minutes) rather than on every tick, reducing computational overhead and aligning signal generation with strategy timeframes.
 
-For information about the signal lifecycle after generation, see [Signal Lifecycle Overview](#2.2). For details on real-time monitoring loops, see [Real-time Monitoring](#10.3).
+For information about the signal lifecycle after generation, see [Signal Lifecycle Overview](./07_Signal_Lifecycle_Overview.md). For details on real-time monitoring loops, see [Real-time Monitoring](./61_Real-time_Monitoring.md).
 
 ---
 
