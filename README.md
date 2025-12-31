@@ -2,7 +2,7 @@
 
 # 🧿 Backtest Kit
 
-> A TypeScript framework for backtesting and live trading strategies on multi-asset, crypto or forex, with crash-safe persistence, signal validation, and AI optimization.
+> A TypeScript framework for backtesting and live trading strategies on multi-asset, crypto, forex or [DEX (peer-to-peer marketplace)](https://en.wikipedia.org/wiki/Decentralized_finance#Decentralized_exchanges) with crash-safe persistence, signal validation, and AI optimization.
 
 ![future](./assets/prophet.png)
 
