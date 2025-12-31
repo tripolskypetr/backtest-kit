@@ -52,11 +52,13 @@ export type Columns = ColumnModel<ScheduledEvent>;
 /**
  * Creates a unique key for memoizing ReportStorage instances.
  * Key format: "symbol:strategyName:backtest" or "symbol:strategyName:live"
- * @param param0 - Tuple of symbol, strategyName and backtest boolean
+ * @param symbol - Trading pair symbol
+ * @param strategyName - Name of the strategy
+ * @param backtest - Whether running in backtest mode
  * @returns Unique string key for memoization
  */
-const CREATE_KEY_FN = ([symbol, strategyName, backtest]: [string, StrategyName, boolean]) =>
-  `${symbol}:${strategyName}:${backtest ? "backtest" : "live"}`;
+const CREATE_KEY_FN = (symbol: string, strategyName: StrategyName, backtest: boolean) =>
+  `${symbol}:${strategyName}:${backtest ? "backtest" : "live"}` as const;
 
 /** Maximum number of events to store in schedule reports */
 const MAX_EVENTS = 250;
@@ -340,8 +342,8 @@ export class ScheduleMarkdownService {
    * Memoized function to get or create ReportStorage for a symbol-strategy-backtest triple.
    * Each symbol-strategy-backtest combination gets its own isolated storage instance.
    */
-  private getStorage = memoize<(symbol: string, strategyName: string, backtest: boolean) => ReportStorage>(
-    CREATE_KEY_FN,
+  private getStorage = memoize<(symbol: string, strategyName: StrategyName, backtest: boolean) => ReportStorage>(
+    ([symbol, strategyName, backtest]) => CREATE_KEY_FN(symbol, strategyName, backtest),
     () => new ReportStorage()
   );
 
@@ -505,7 +507,7 @@ export class ScheduleMarkdownService {
       ctx,
     });
     if (ctx) {
-      const key = CREATE_KEY_FN([ctx.symbol, ctx.strategyName, backtest]);
+      const key = CREATE_KEY_FN(ctx.symbol, ctx.strategyName, backtest);
       this.getStorage.clear(key);
     } else {
       this.getStorage.clear();

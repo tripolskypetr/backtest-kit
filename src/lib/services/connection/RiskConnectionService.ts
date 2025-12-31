@@ -10,11 +10,12 @@ import { riskSubject } from "../../../config/emitters";
 /**
  * Creates a unique key for memoizing ClientRisk instances.
  * Key format: "riskName:backtest" or "riskName:live"
- * @param param0 - Tuple of riskName and backtest boolean
+ * @param riskName - Name of the risk schema
+ * @param backtest - Whether running in backtest mode
  * @returns Unique string key for memoization
  */
-const CREATE_KEY_FN = ([riskName, backtest]: [RiskName, boolean]) =>
-  `${riskName}:${backtest ? "backtest" : "live"}`;
+const CREATE_KEY_FN = (riskName: RiskName, backtest: boolean) =>
+  `${riskName}:${backtest ? "backtest" : "live"}` as const;
 
 /**
  * Callback function for emitting risk rejection events to riskSubject.
@@ -99,7 +100,7 @@ export class RiskConnectionService {
    * @returns Configured ClientRisk instance
    */
   public getRisk = memoize(
-    CREATE_KEY_FN,
+    ([riskName, backtest]) => CREATE_KEY_FN(riskName, backtest),
     (riskName: RiskName, backtest: boolean) => {
       const schema = this.riskSchemaService.get(riskName);
       return new ClientRisk({
@@ -184,7 +185,7 @@ export class RiskConnectionService {
       backtest,
     });
     if (ctx) {
-      const key = CREATE_KEY_FN([ctx.riskName, backtest]);
+      const key = CREATE_KEY_FN(ctx.riskName, backtest);
       this.getRisk.clear(key);
     } else {
       this.getRisk.clear();

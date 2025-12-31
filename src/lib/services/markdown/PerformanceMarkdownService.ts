@@ -50,11 +50,13 @@ export type Columns = ColumnModel<MetricStats>;
 /**
  * Creates a unique key for memoizing PerformanceStorage instances.
  * Key format: "symbol:strategyName:backtest" or "symbol:strategyName:live"
- * @param param0 - Tuple of symbol, strategyName and backtest boolean
+ * @param symbol - Trading pair symbol
+ * @param strategyName - Name of the strategy
+ * @param backtest - Whether running in backtest mode
  * @returns Unique string key for memoization
  */
-const CREATE_KEY_FN = ([symbol, strategyName, backtest]: [string, StrategyName, boolean]) =>
-  `${symbol}:${strategyName}:${backtest ? "backtest" : "live"}`;
+const CREATE_KEY_FN = (symbol: string, strategyName: StrategyName, backtest: boolean) =>
+  `${symbol}:${strategyName}:${backtest ? "backtest" : "live"}` as const;
 
 /**
  * Checks if a value is unsafe for display (not a number, NaN, or Infinity).
@@ -327,8 +329,8 @@ export class PerformanceMarkdownService {
    * Memoized function to get or create PerformanceStorage for a symbol-strategy-backtest triple.
    * Each symbol-strategy-backtest combination gets its own isolated storage instance.
    */
-  private getStorage = memoize<(symbol: string, strategyName: string, backtest: boolean) => PerformanceStorage>(
-    CREATE_KEY_FN,
+  private getStorage = memoize<(symbol: string, strategyName: StrategyName, backtest: boolean) => PerformanceStorage>(
+    ([symbol, strategyName, backtest]) => CREATE_KEY_FN(symbol, strategyName, backtest),
     () => new PerformanceStorage()
   );
 
@@ -456,7 +458,7 @@ export class PerformanceMarkdownService {
       ctx,
     });
     if (ctx) {
-      const key = CREATE_KEY_FN([ctx.symbol, ctx.strategyName, backtest]);
+      const key = CREATE_KEY_FN(ctx.symbol, ctx.strategyName, backtest);
       this.getStorage.clear(key);
     } else {
       this.getStorage.clear();

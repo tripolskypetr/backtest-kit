@@ -74,11 +74,13 @@ const GET_RISK_FN = (
 /**
  * Creates a unique key for memoizing ClientStrategy instances.
  * Key format: "symbol:strategyName:backtest" or "symbol:strategyName:live"
- * @param param0 - Tuple of symbol, strategyName and backtest boolean
+ * @param symbol - Trading pair symbol
+ * @param strategyName - Name of the strategy
+ * @param backtest - Whether running in backtest mode
  * @returns Unique string key for memoization
  */
-const CREATE_KEY_FN = ([symbol, strategyName, backtest]: [string, StrategyName, boolean]) =>
-  `${symbol}:${strategyName}:${backtest ? "backtest" : "live"}`;
+const CREATE_KEY_FN = (symbol: string, strategyName: StrategyName, backtest: boolean) =>
+  `${symbol}:${strategyName}:${backtest ? "backtest" : "live"}` as const;
 
 /**
  * Callback function for emitting ping events to pingSubject.
@@ -162,7 +164,7 @@ export class StrategyConnectionService {
    * @returns Configured ClientStrategy instance
    */
   private getStrategy = memoize(
-    CREATE_KEY_FN,
+    ([symbol, strategyName, backtest]) => CREATE_KEY_FN(symbol, strategyName, backtest),
     (symbol: string, strategyName: StrategyName, backtest: boolean) => {
       const {
         riskName = "",
@@ -376,7 +378,7 @@ export class StrategyConnectionService {
       ctx,
     });
     if (ctx) {
-      const key = CREATE_KEY_FN([ctx.symbol, ctx.strategyName, backtest]);
+      const key = CREATE_KEY_FN(ctx.symbol, ctx.strategyName, backtest);
       this.getStrategy.clear(key);
     } else {
       this.getStrategy.clear();

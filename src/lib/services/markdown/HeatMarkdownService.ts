@@ -51,11 +51,12 @@ export type Columns = ColumnModel<IHeatmapRow>;
 /**
  * Creates a unique key for memoizing HeatmapStorage instances.
  * Key format: "strategyName:backtest" or "strategyName:live"
- * @param param0 - Tuple of strategyName and backtest boolean
+ * @param strategyName - Name of the strategy
+ * @param backtest - Whether running in backtest mode
  * @returns Unique string key for memoization
  */
-const CREATE_KEY_FN = ([strategyName, backtest]: [StrategyName, boolean]) =>
-  `${strategyName}:${backtest ? "backtest" : "live"}`;
+const CREATE_KEY_FN = (strategyName: StrategyName, backtest: boolean) =>
+  `${strategyName}:${backtest ? "backtest" : "live"}` as const;
 
 const HEATMAP_METHOD_NAME_GET_DATA = "HeatMarkdownService.getData";
 const HEATMAP_METHOD_NAME_GET_REPORT = "HeatMarkdownService.getReport";
@@ -448,8 +449,8 @@ export class HeatMarkdownService {
    * Memoized function to get or create HeatmapStorage for a strategy and backtest mode.
    * Each strategy + backtest mode combination gets its own isolated heatmap storage instance.
    */
-  private getStorage = memoize<(strategyName: string, backtest: boolean) => HeatmapStorage>(
-    CREATE_KEY_FN,
+  private getStorage = memoize<(strategyName: StrategyName, backtest: boolean) => HeatmapStorage>(
+    ([strategyName, backtest]) => CREATE_KEY_FN(strategyName, backtest),
     () => new HeatmapStorage()
   );
 
@@ -606,7 +607,7 @@ export class HeatMarkdownService {
       ctx,
     });
     if (ctx) {
-      const key = CREATE_KEY_FN([ctx.strategyName, backtest]);
+      const key = CREATE_KEY_FN(ctx.strategyName, backtest);
       this.getStorage.clear(key);
     } else {
       this.getStorage.clear();
