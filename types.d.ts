@@ -8937,7 +8937,7 @@ declare class RiskConnectionService {
      * @param backtest - True if backtest mode, false if live mode
      * @returns Configured ClientRisk instance
      */
-    getRisk: ((riskName: RiskName, backtest: boolean) => ClientRisk) & functools_kit.IClearableMemoize<string> & functools_kit.IControlMemoize<string, ClientRisk>;
+    getRisk: ((riskName: RiskName, backtest: boolean) => ClientRisk) & functools_kit.IClearableMemoize<`${string}:backtest` | `${string}:live`> & functools_kit.IControlMemoize<`${string}:backtest` | `${string}:live`, ClientRisk>;
     /**
      * Checks if a signal should be allowed based on risk limits.
      *
