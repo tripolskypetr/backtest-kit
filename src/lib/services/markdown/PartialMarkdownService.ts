@@ -57,7 +57,7 @@ export type Columns = ColumnModel<PartialEvent>;
  * @returns Unique string key for memoization
  */
 const CREATE_KEY_FN = ([symbol, strategyName, backtest]: [string, StrategyName, boolean]) =>
-  `${symbol}:${strategyName}:${backtest ? "backtest" : "live"}`;
+  `${symbol}:${strategyName}:${backtest ? "backtest" : "live"}` as const;
 
 /** Maximum number of events to store in partial reports */
 const MAX_EVENTS = 250;
