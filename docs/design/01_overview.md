@@ -3,11 +3,6 @@ title: design/01_overview
 group: design
 ---
 
----
-title: design/01_overview
-group: design
----
-
 # Overview
 
 **Purpose**: This page introduces backtest-kit, a TypeScript framework for backtesting and live trading algorithmic strategies. It covers the framework's architecture, execution modes, and core components.
