@@ -98,19 +98,23 @@ export class RiskGlobalService {
 
   /**
    * Clears risk data.
-   * If riskName is provided, clears data for that specific risk instance.
-   * If no riskName is provided, clears all risk data.
-   * @param riskName - Optional name of the risk instance to clear
+   * If ctx is provided, clears data for that specific risk instance.
+   * If no ctx is provided, clears all risk data.
+   * @param backtest - Whether running in backtest mode
+   * @param ctx - Optional context with riskName (clears all if not provided)
    */
-  public clear = async (backtest: boolean, riskName?: RiskName): Promise<void> => {
+  public clear = async (
+    backtest: boolean,
+    ctx?: { riskName: RiskName }
+  ): Promise<void> => {
     this.loggerService.log("riskGlobalService clear", {
-      riskName,
+      ctx,
       backtest,
     });
-    if (riskName) {
-      await this.validate(riskName);
+    if (ctx) {
+      await this.validate(ctx.riskName);
     }
-    return await this.riskConnectionService.clear(backtest, riskName);
+    return await this.riskConnectionService.clear(backtest, ctx);
   };
 }
 

@@ -11,6 +11,16 @@ import {
 } from "../../../config/emitters";
 
 /**
+ * Creates a unique key for memoizing ClientPartial instances.
+ * Key format: "signalId:backtest" or "signalId:live"
+ *
+ * @param param0 - Tuple of signalId and backtest boolean
+ * @returns Unique string key for memoization
+ */
+const CREATE_KEY_FN = ([signalId, backtest]: [string, boolean]) =>
+  `${signalId}:${backtest ? "backtest" : "live"}`;
+
+/**
  * Callback function for emitting profit events to partialProfitSubject.
  *
  * Called by ClientPartial when a new profit level is reached.
@@ -130,7 +140,7 @@ export class PartialConnectionService implements IPartial {
    * Value: ClientPartial instance with logger and event emitters
    */
   private getPartial = memoize<(signalId: string, backtest: boolean) => ClientPartial>(
-    ([signalId, backtest]) => `${signalId}:${backtest ? "backtest" : "live"}`,
+    CREATE_KEY_FN,
     (signalId: string, backtest: boolean) => {
       return new ClientPartial({
         signalId,
@@ -258,7 +268,7 @@ export class PartialConnectionService implements IPartial {
     const partial = this.getPartial(data.id, backtest);
     await partial.waitForInit(symbol, data.strategyName);
     await partial.clear(symbol, data, priceClose, backtest);
-    const key = `${data.id}:${backtest ? "backtest" : "live"}`;
+    const key = CREATE_KEY_FN([data.id, backtest]);
     this.getPartial.clear(key);
   };
 }

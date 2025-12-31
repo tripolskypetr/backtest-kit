@@ -1,6 +1,6 @@
 import { writeFile, mkdir } from "fs/promises";
 import { join } from "path";
-import { ISignalRow } from "../../../interfaces/Strategy.interface";
+import { ISignalRow, StrategyName } from "../../../interfaces/Strategy.interface";
 import { PartialLevel } from "../../../interfaces/Partial.interface";
 import { inject } from "../../../lib/core/di";
 import LoggerService from "../base/LoggerService";
@@ -49,6 +49,15 @@ import { COLUMN_CONFIG } from "../../../config/columns";
  * @see PartialEvent for the event data structure
  */
 export type Columns = ColumnModel<PartialEvent>;
+
+/**
+ * Creates a unique key for memoizing ReportStorage instances.
+ * Key format: "symbol:strategyName:backtest" or "symbol:strategyName:live"
+ * @param param0 - Tuple of symbol, strategyName and backtest boolean
+ * @returns Unique string key for memoization
+ */
+const CREATE_KEY_FN = ([symbol, strategyName, backtest]: [string, StrategyName, boolean]) =>
+  `${symbol}:${strategyName}:${backtest ? "backtest" : "live"}`;
 
 /** Maximum number of events to store in partial reports */
 const MAX_EVENTS = 250;
@@ -265,7 +274,7 @@ export class PartialMarkdownService {
    * Each symbol-strategy-backtest combination gets its own isolated storage instance.
    */
   private getStorage = memoize<(symbol: string, strategyName: string, backtest: boolean) => ReportStorage>(
-    ([symbol, strategyName, backtest]) => `${symbol}:${strategyName}:${backtest ? "backtest" : "live"}`,
+    CREATE_KEY_FN,
     () => new ReportStorage()
   );
 
@@ -459,7 +468,7 @@ export class PartialMarkdownService {
       ctx,
     });
     if (ctx) {
-      const key = `${ctx.symbol}:${ctx.strategyName}:${backtest ? "backtest" : "live"}`;
+      const key = CREATE_KEY_FN([ctx.symbol, ctx.strategyName, backtest]);
       this.getStorage.clear(key);
     } else {
       this.getStorage.clear();

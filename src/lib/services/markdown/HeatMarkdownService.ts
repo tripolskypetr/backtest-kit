@@ -48,6 +48,15 @@ import { COLUMN_CONFIG } from "../../../config/columns";
  */
 export type Columns = ColumnModel<IHeatmapRow>;
 
+/**
+ * Creates a unique key for memoizing HeatmapStorage instances.
+ * Key format: "strategyName:backtest" or "strategyName:live"
+ * @param param0 - Tuple of strategyName and backtest boolean
+ * @returns Unique string key for memoization
+ */
+const CREATE_KEY_FN = ([strategyName, backtest]: [StrategyName, boolean]) =>
+  `${strategyName}:${backtest ? "backtest" : "live"}`;
+
 const HEATMAP_METHOD_NAME_GET_DATA = "HeatMarkdownService.getData";
 const HEATMAP_METHOD_NAME_GET_REPORT = "HeatMarkdownService.getReport";
 const HEATMAP_METHOD_NAME_DUMP = "HeatMarkdownService.dump";
@@ -440,7 +449,7 @@ export class HeatMarkdownService {
    * Each strategy + backtest mode combination gets its own isolated heatmap storage instance.
    */
   private getStorage = memoize<(strategyName: string, backtest: boolean) => HeatmapStorage>(
-    ([strategyName, backtest]) => `${strategyName}:${backtest ? "backtest" : "live"}`,
+    CREATE_KEY_FN,
     () => new HeatmapStorage()
   );
 
@@ -597,7 +606,7 @@ export class HeatMarkdownService {
       ctx,
     });
     if (ctx) {
-      const key = `${ctx.strategyName}:${backtest ? "backtest" : "live"}`;
+      const key = CREATE_KEY_FN([ctx.strategyName, backtest]);
       this.getStorage.clear(key);
     } else {
       this.getStorage.clear();

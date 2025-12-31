@@ -185,8 +185,8 @@ export class LiveInstance {
       const { riskName, riskList } = backtest.strategySchemaService.get(
         context.strategyName
       );
-      riskName && backtest.riskGlobalService.clear(false, riskName);
-      riskList && riskList.forEach((riskName) => backtest.riskGlobalService.clear(false, riskName));
+      riskName && backtest.riskGlobalService.clear(false, { riskName });
+      riskList && riskList.forEach((riskName) => backtest.riskGlobalService.clear(false, { riskName }));
     }
 
     return backtest.liveCommandService.run(symbol, context);

@@ -50,6 +50,15 @@ import { COLUMN_CONFIG } from "../../../config/columns";
 export type Columns = ColumnModel<TickEvent>;
 
 /**
+ * Creates a unique key for memoizing ReportStorage instances.
+ * Key format: "symbol:strategyName:backtest" or "symbol:strategyName:live"
+ * @param param0 - Tuple of symbol, strategyName and backtest boolean
+ * @returns Unique string key for memoization
+ */
+const CREATE_KEY_FN = ([symbol, strategyName, backtest]: [string, StrategyName, boolean]) =>
+  `${symbol}:${strategyName}:${backtest ? "backtest" : "live"}`;
+
+/**
  * Checks if a value is unsafe for display (not a number, NaN, or Infinity).
  *
  * @param value - Value to check
@@ -429,7 +438,7 @@ export class LiveMarkdownService {
    * Each symbol-strategy-backtest combination gets its own isolated storage instance.
    */
   private getStorage = memoize<(symbol: string, strategyName: string, backtest: boolean) => ReportStorage>(
-    ([symbol, strategyName, backtest]) => `${symbol}:${strategyName}:${backtest ? "backtest" : "live"}`,
+    CREATE_KEY_FN,
     () => new ReportStorage()
   );
 
@@ -594,7 +603,7 @@ export class LiveMarkdownService {
       ctx,
     });
     if (ctx) {
-      const key = `${ctx.symbol}:${ctx.strategyName}:${backtest ? "backtest" : "live"}`;
+      const key = CREATE_KEY_FN([ctx.symbol, ctx.strategyName, backtest]);
       this.getStorage.clear(key);
     } else {
       this.getStorage.clear();

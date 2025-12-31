@@ -8980,9 +8980,12 @@ declare class RiskConnectionService {
     /**
      * Clears the cached ClientRisk instance for the given risk name.
      *
-     * @param riskName - Name of the risk schema to clear from cache
+     * @param backtest - Whether running in backtest mode
+     * @param ctx - Optional context with riskName (clears all if not provided)
      */
-    clear: (backtest: boolean, riskName?: RiskName) => Promise<void>;
+    clear: (backtest: boolean, ctx?: {
+        riskName: RiskName;
+    }) => Promise<void>;
 }
 
 /**
@@ -9674,11 +9677,14 @@ declare class RiskGlobalService {
     }) => Promise<void>;
     /**
      * Clears risk data.
-     * If riskName is provided, clears data for that specific risk instance.
-     * If no riskName is provided, clears all risk data.
-     * @param riskName - Optional name of the risk instance to clear
+     * If ctx is provided, clears data for that specific risk instance.
+     * If no ctx is provided, clears all risk data.
+     * @param backtest - Whether running in backtest mode
+     * @param ctx - Optional context with riskName (clears all if not provided)
      */
-    clear: (backtest: boolean, riskName?: RiskName) => Promise<void>;
+    clear: (backtest: boolean, ctx?: {
+        riskName: RiskName;
+    }) => Promise<void>;
 }
 
 /**

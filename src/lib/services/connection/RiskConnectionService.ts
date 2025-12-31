@@ -8,6 +8,15 @@ import RiskSchemaService from "../schema/RiskSchemaService";
 import { riskSubject } from "../../../config/emitters";
 
 /**
+ * Creates a unique key for memoizing ClientRisk instances.
+ * Key format: "riskName:backtest" or "riskName:live"
+ * @param param0 - Tuple of riskName and backtest boolean
+ * @returns Unique string key for memoization
+ */
+const CREATE_KEY_FN = ([riskName, backtest]: [RiskName, boolean]) =>
+  `${riskName}:${backtest ? "backtest" : "live"}`;
+
+/**
  * Callback function for emitting risk rejection events to riskSubject.
  *
  * Called by ClientRisk when a signal is rejected due to risk validation failure.
@@ -90,7 +99,7 @@ export class RiskConnectionService {
    * @returns Configured ClientRisk instance
    */
   public getRisk = memoize(
-    ([riskName, backtest]) => `${riskName}:${backtest ? "backtest" : "live"}`,
+    CREATE_KEY_FN,
     (riskName: RiskName, backtest: boolean) => {
       const schema = this.riskSchemaService.get(riskName);
       return new ClientRisk({
@@ -163,15 +172,23 @@ export class RiskConnectionService {
   /**
    * Clears the cached ClientRisk instance for the given risk name.
    *
-   * @param riskName - Name of the risk schema to clear from cache
+   * @param backtest - Whether running in backtest mode
+   * @param ctx - Optional context with riskName (clears all if not provided)
    */
-  public clear = async (backtest: boolean, riskName?: RiskName): Promise<void> => {
+  public clear = async (
+    backtest: boolean,
+    ctx?: { riskName: RiskName }
+  ): Promise<void> => {
     this.loggerService.log("riskConnectionService clear", {
-      riskName,
+      ctx,
       backtest,
     });
-    const key = `${riskName}:${backtest ? "backtest" : "live"}`;
-    this.getRisk.clear(key);
+    if (ctx) {
+      const key = CREATE_KEY_FN([ctx.riskName, backtest]);
+      this.getRisk.clear(key);
+    } else {
+      this.getRisk.clear();
+    }
   };
 }
 
