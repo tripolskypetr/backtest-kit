@@ -18,8 +18,7 @@ For information about Live mode execution flow, see [Live Trading](./58_Live_Tra
 The persistence layer implements a pluggable adapter pattern with atomic file writes to prevent data corruption during crashes.
 
 ![Mermaid Diagram](./diagrams/84_Persistence_Layer_0.svg)
-
-**Sources:** [src/client/ClientStrategy.ts:28](), [docs/internals.md:38]()
+
 
 ---
 
@@ -39,8 +38,7 @@ Abstract base class providing atomic write operations and storage interface. All
 - `readData(filePath)` - Read persisted data
 - `deleteData(filePath)` - Remove persisted state
 - `ensureDirectory(dirPath)` - Create storage directories
-
-**Sources:** [docs/internals.md:51]()
+
 
 ---
 
@@ -72,8 +70,7 @@ Manages persistence of active signals (opened → active → closed lifecycle).
   _isScheduled: false;
 }
 ```
-
-**Sources:** [src/client/ClientStrategy.ts:498-509](), [src/client/ClientStrategy.ts:740](), [src/client/ClientStrategy.ts:1000]()
+
 
 ---
 
@@ -105,8 +102,7 @@ Manages persistence of scheduled signals (awaiting price activation).
   _isScheduled: true;
 }
 ```
-
-**Sources:** [src/client/ClientStrategy.ts:526-537](), [src/client/ClientStrategy.ts:731]()
+
 
 ---
 
@@ -124,8 +120,7 @@ The system validates that restored signals match the current strategy configurat
 | `exchangeName === current` | Prevent cross-exchange contamination |
 | `strategyName === current` | Prevent cross-strategy contamination |
 | Signal structure valid | Ensure data integrity |
-
-**Sources:** [src/client/ClientStrategy.ts:491-552]()
+
 
 ---
 
@@ -144,8 +139,7 @@ The system validates that restored signals match the current strategy configurat
 | `scheduled → opened` | `deleteScheduleData()` + `writeSignalData()` | Both |
 | `scheduled → cancelled` | `deleteScheduleData()` | PersistScheduleAdapter |
 | `active → closed` | `deleteSignalData()` | PersistSignalAdapter |
-
-**Sources:** [src/client/ClientStrategy.ts:740](), [src/client/ClientStrategy.ts:731](), [src/client/ClientStrategy.ts:1000]()
+
 
 ---
 
@@ -172,8 +166,7 @@ The persistence layer uses atomic file operations to prevent corruption during c
 | Crash after write, before rename | Old file intact | Temp file complete, final untouched |
 | Crash during rename | Either old or new file | OS guarantees rename atomicity |
 | Crash after rename | New file intact | Rename completed successfully |
-
-**Sources:** [docs/internals.md:26](), [docs/internals.md:38]()
+
 
 ---
 
@@ -201,8 +194,7 @@ if (self.params.execution.context.backtest) {
   return; // Skip persistence in backtest
 }
 ```
-
-**Sources:** [src/client/ClientStrategy.ts:493-495](), [docs/internals.md:22]()
+
 
 ---
 
@@ -276,8 +268,7 @@ class MongoPersistBase extends PersistBase {
 PersistSignalAdapter.setBackend(new RedisPersistBase());
 PersistScheduleAdapter.setBackend(new MongoPersistBase());
 ```
-
-**Sources:** [docs/internals.md:51](), [docs/internals.md:26]()
+
 
 ---
 
@@ -321,8 +312,7 @@ project-root/
 | Scheduled → Opened | File created | File deleted |
 | Signal closed | File deleted | N/A |
 | Signal cancelled | N/A | File deleted |
-
-**Sources:** [src/client/ClientStrategy.ts:498](), [src/client/ClientStrategy.ts:526]()
+
 
 ---
 
@@ -375,8 +365,7 @@ addStrategy({
   }
 });
 ```
-
-**Sources:** [src/interfaces/Strategy.interface.ts:121](), [docs/interfaces/IStrategyCallbacks.md:69-76]()
+
 
 ---
 
@@ -414,8 +403,7 @@ Persistence operations are wrapped in error handling to prevent crashes from pro
   }
 }
 ```
-
-**Sources:** [src/config/emitters.ts](), [docs/internals.md:24]()
+
 
 ---
 
@@ -462,8 +450,7 @@ Persistence adds I/O overhead to live trading operations. The framework optimize
 - Current: Plain JSON
 - Potential: gzip/zstd compression
 - Trade-off: CPU vs. disk I/O
-
-**Sources:** [docs/internals.md:22]()
+
 
 ---
 
@@ -472,5 +459,4 @@ Persistence adds I/O overhead to live trading operations. The framework optimize
 Persistence operations integrate seamlessly with the signal lifecycle state machine.
 
 ![Mermaid Diagram](./diagrams/84_Persistence_Layer_9.svg)
-
-**Sources:** [src/client/ClientStrategy.ts:491-552](), [src/client/ClientStrategy.ts:740](), [src/client/ClientStrategy.ts:1000]()
+

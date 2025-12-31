@@ -34,8 +34,7 @@ The framework uses a singleton `GLOBAL_CONFIG` object to store runtime parameter
 | `CC_GET_CANDLES_RETRY_DELAY_MS` | 5000 | milliseconds | Exchange | Delay between retries for getCandles function |
 | `CC_GET_CANDLES_PRICE_ANOMALY_THRESHOLD_FACTOR` | 1000 | factor | Exchange | Maximum allowed deviation for price anomaly detection |
 | `CC_GET_CANDLES_MIN_CANDLES_FOR_MEDIAN` | 5 | candles | Exchange | Minimum candles required for median calculation |
-
-Sources: [src/config/params.ts:1-30](), [types.d.ts:5-72]()
+
 
 ---
 
@@ -65,8 +64,7 @@ setConfig(config: Partial<GlobalConfig>): Promise<void>
 **Code Flow:**
 
 ![Mermaid Diagram](./diagrams/78_Global_Configuration_1.svg)
-
-Sources: [types.d.ts:124-135](), [src/client/ClientStrategy.ts:30](), [src/client/ClientStrategy.ts:474-528]()
+
 
 ---
 
@@ -95,8 +93,7 @@ setConfig({
   CC_SCHEDULE_AWAIT_MINUTES: 240, // 4 hours
 });
 ```
-
-Sources: [src/config/params.ts:3-6](), [types.d.ts:7-10](), [test/e2e/defend.test.mjs:444-536]()
+
 
 ---
 
@@ -123,8 +120,7 @@ setConfig({
   CC_AVG_PRICE_CANDLES_COUNT: 10,
 });
 ```
-
-Sources: [src/config/params.ts:8-10](), [types.d.ts:12-15](), [types.d.ts:264-270]()
+
 
 ---
 
@@ -151,8 +147,7 @@ setConfig({
   CC_MIN_TAKEPROFIT_DISTANCE_PERCENT: 0.5,
 });
 ```
-
-Sources: [src/config/params.ts:12-17](), [types.d.ts:17-21](), [test/e2e/sanitize.test.mjs:26-131]()
+
 
 ---
 
@@ -179,8 +174,7 @@ setConfig({
   CC_MAX_STOPLOSS_DISTANCE_PERCENT: 10,
 });
 ```
-
-Sources: [src/config/params.ts:19-23](), [types.d.ts:23-27](), [test/e2e/sanitize.test.mjs:143-238]()
+
 
 ---
 
@@ -208,8 +202,7 @@ setConfig({
   CC_MAX_SIGNAL_LIFETIME_MINUTES: 10080, // 7 days
 });
 ```
-
-Sources: [src/config/params.ts:25-29](), [types.d.ts:29-34](), [test/e2e/sanitize.test.mjs:250-348]()
+
 
 ---
 
@@ -236,8 +229,7 @@ setConfig({
   CC_GET_CANDLES_RETRY_COUNT: 5,
 });
 ```
-
-Sources: [types.d.ts:35-38]()
+
 
 ---
 
@@ -260,8 +252,7 @@ setConfig({
   CC_GET_CANDLES_RETRY_DELAY_MS: 1000, // 1 second
 });
 ```
-
-Sources: [types.d.ts:39-43]()
+
 
 ---
 
@@ -296,8 +287,7 @@ setConfig({
   CC_GET_CANDLES_PRICE_ANOMALY_THRESHOLD_FACTOR: 10000, // Filter prices below 1/10000th
 });
 ```
-
-Sources: [types.d.ts:44-57]()
+
 
 ---
 
@@ -331,8 +321,7 @@ setConfig({
   CC_GET_CANDLES_MIN_CANDLES_FOR_MEDIAN: 10,
 });
 ```
-
-Sources: [types.d.ts:58-72]()
+
 
 ---
 
@@ -357,8 +346,7 @@ The configuration system follows a simple write-once-read-many pattern, where co
 | `CHECK_PENDING_SIGNAL_COMPLETION_FN` | ClientStrategy.ts:817 | `CC_MAX_SIGNAL_LIFETIME_MINUTES` | Check signal expiration |
 | `CHECK_SCHEDULED_SIGNAL_TIMEOUT_FN` | ClientStrategy.ts:474 | `CC_SCHEDULE_AWAIT_MINUTES` | Check scheduled timeout |
 | `PROCESS_SCHEDULED_SIGNAL_CANDLES_FN` | ClientStrategy.ts:1263 | `CC_SCHEDULE_AWAIT_MINUTES` | Check scheduled timeout in backtest |
-
-Sources: [src/config/params.ts:1-30](), [types.d.ts:5-72](), [src/client/ClientStrategy.ts:30](), [src/client/ClientStrategy.ts:41-261](), [src/client/ClientStrategy.ts:474-528](), [src/client/ClientStrategy.ts:817-876](), [src/client/ClientStrategy.ts:1263-1357]()
+
 
 ---
 
@@ -390,8 +378,7 @@ function setConfig(config: Partial<GlobalConfig>): Promise<void>;
 - Compile-time validation of parameter types
 - Prevention of typos in parameter names
 - IDE support for parameter discovery
-
-Sources: [src/config/params.ts:32-35](), [types.d.ts:36-38]()
+
 
 ---
 
@@ -409,8 +396,7 @@ await setConfig({
   CC_MAX_SIGNAL_LIFETIME_MINUTES: 999999, // Allow any lifetime
 });
 ```
-
-Sources: [test/config/setup.mjs:36-41]()
+
 
 ---
 
@@ -441,8 +427,7 @@ await setConfig({
 });
 // All other parameters retain their default values
 ```
-
-Sources: [test/e2e/sanitize.test.mjs:30-32](), [test/e2e/sanitize.test.mjs:146-148]()
+
 
 ---
 
@@ -503,5 +488,4 @@ The default configuration values represent a balanced approach suitable for most
 | `CC_MAX_SIGNAL_LIFETIME_MINUTES` | 1440 min | 24-hour limit prevents eternal signals blocking risk limits |
 
 **Note:** The default `CC_MIN_TAKEPROFIT_DISTANCE_PERCENT` of 0.1% is intentionally permissive. For production use with 0.1% trading fees, consider increasing to 0.3% or higher to ensure profitable trades after fees.
-
-Sources: [src/config/params.ts:1-30](), [types.d.ts:5-34]()
+

@@ -25,8 +25,7 @@ Look-ahead bias occurs when backtesting code accesses data from the future, prod
 | **VWAP Contamination** | Calculating volume-weighted average price including future volume | Entry/exit prices artificially favorable |
 
 Traditional backtesting frameworks require manual timestamp management, making it easy to introduce subtle look-ahead bugs. backtest-kit makes look-ahead bias **architecturally impossible** through automatic temporal isolation.
-
-**Sources**: README.md:190-199, types.d.ts:5-18
+
 
 ---
 
@@ -41,8 +40,7 @@ Traditional backtesting frameworks require manual timestamp management, making i
 3. **BacktestLogicPrivateService**: Sets `when` to each frame timestamp during historical iteration
 4. **LiveLogicPrivateService**: Sets `when` to `Date.now()` for real-time execution
 5. **ClientExchange.getCandles()**: Filters candle data to only return records with `timestamp <= context.when`
-
-**Sources**: types.d.ts:11-18, types.d.ts:38-44, README.md:190-199, src/client/ClientStrategy.ts:339
+
 
 ---
 
@@ -63,8 +61,7 @@ At each backtest tick, the following sequence executes:
 5. **Context Retrieval**: Data access functions read `execution.context.when` from AsyncLocalStorage
 6. **Temporal Filtering**: Exchange implementation filters: `candles.filter(c => c.timestamp <= context.when)`
 7. **Historical Data Only**: Only past data returned to strategy
-
-**Sources**: types.d.ts:38-44, README.md:190-199
+
 
 ---
 
@@ -120,8 +117,7 @@ await ExecutionContextService.runInContext(
     { symbol: "BTCUSDT", when: new Date(), backtest: false }
 );
 ```
-
-**Sources**: types.d.ts:11-18, types.d.ts:38-44
+
 
 ---
 
@@ -147,8 +143,7 @@ getCandles(symbol: string, interval: CandleInterval, limit: number): Promise<ICa
 const candles1h = await getCandles("BTCUSDT", "1h", 24);  // Last 24 hours
 const candles5m = await getCandles("BTCUSDT", "5m", 60);  // Last 60 periods
 ```
-
-**Sources**: README.md:123-127, types.d.ts:169
+
 
 ---
 
@@ -170,8 +165,7 @@ const currentPrice = await self.params.exchange.getAveragePrice(
     self.params.execution.context.symbol
 );
 ```
-
-**Sources**: types.d.ts:196-204, src/client/ClientStrategy.ts:354
+
 
 ---
 
@@ -197,8 +191,7 @@ if (isBacktest) {
     // Live trading logic (e.g., send alerts)
 }
 ```
-
-**Sources**: src/index.ts:59-63, types.d.ts:11-18
+
 
 ---
 
@@ -220,8 +213,7 @@ const candles1h = await getCandles(symbol, "1h", 24);  // Last 24 hours
 ![Mermaid Diagram](./diagrams/09_Temporal_Isolation_and_Look-Ahead_Prevention_3.svg)
 
 **Guarantee**: All data fetched within a single `runInContext()` callback shares the same temporal boundary. Look-ahead bias across timeframes is architecturally impossible.
-
-**Sources**: README.md:195-198
+
 
 ---
 
@@ -286,8 +278,7 @@ Live.background("BTCUSDT", {
 ```
 
 **Key Insight**: The strategy code never explicitly handles timestamps. Temporal isolation is enforced by the execution engine, not by user code discipline.
-
-**Sources**: README.md:146-171, types.d.ts:11-18
+
 
 ---
 
@@ -302,8 +293,7 @@ Live.background("BTCUSDT", {
 2. **Automatic propagation**: Context flows through `await`, `Promise.then()`, `async` functions automatically
 3. **Call stack isolation**: Nested contexts don't interfere (important for parallel execution)
 4. **Memory efficiency**: Context destroyed after callback completes
-
-**Sources**: types.d.ts:38-44
+
 
 ---
 
@@ -345,8 +335,7 @@ test("DEFEND: Scheduled LONG cancelled by SL BEFORE activation",
     // Confirms context enforces activation timing
 });
 ```
-
-**Sources**: test/e2e/defend.test.mjs:1519-1653, test/e2e/defend.test.mjs:1393-1507
+
 
 ---
 
@@ -376,8 +365,7 @@ const getExchange = memoize((symbol: string, exchangeName: string) => {
     });
 });
 ```
-
-**Sources**: README.md:190-199
+
 
 ---
 
@@ -439,8 +427,7 @@ getSignal: async (symbol) => {
     const now = getDate();  // Good!
 }
 ```
-
-**Sources**: README.md:111-143, types.d.ts:144
+
 
 ---
 
@@ -482,8 +469,7 @@ interface IRiskValidationPayload {
     // ...
 }
 ```
-
-**Sources**: src/client/ClientStrategy.ts:339, types.d.ts:382-390
+
 
 ---
 
@@ -536,8 +522,7 @@ getSignal: async (symbol) => {
     const localCache = {};
 }
 ```
-
-**Sources**: types.d.ts:144, README.md:190-199
+
 
 ---
 
@@ -552,5 +537,4 @@ getSignal: async (symbol) => {
 | **Zero Overhead** | Native async_hooks, ~100ns reads | Production-grade performance |
 
 The temporal isolation system makes it **impossible** to accidentally introduce look-ahead bias through normal API usage. The `when` timestamp is enforced at the framework level, not relying on developer discipline.
-
-**Sources**: types.d.ts:11-18, types.d.ts:38-44, README.md:190-199, src/client/ClientStrategy.ts:339
+

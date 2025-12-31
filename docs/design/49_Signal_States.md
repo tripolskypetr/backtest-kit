@@ -10,8 +10,7 @@ group: design
 This document provides comprehensive documentation of the six discrete states that a trading signal can occupy during its lifecycle in backtest-kit. Each state is represented by a distinct TypeScript interface as part of a discriminated union (`IStrategyTickResult`), enabling type-safe state handling throughout the system.
 
 For information about the complete signal lifecycle flow and state transitions, see [Signal Lifecycle Overview](./07_Signal_Lifecycle_Overview.md). For details on signal generation and validation, see [Signal Generation and Validation](./50_Signal_Generation_and_Validation.md). For information on how signals are persisted across crashes in live mode, see [Signal Persistence](./52_Signal_Persistence.md).
-
-**Sources:** [types.d.ts:770-895](), [src/interfaces/Strategy.interface.ts:173-307]()
+
 
 ---
 
@@ -20,8 +19,7 @@ For information about the complete signal lifecycle flow and state transitions, 
 The signal state machine consists of six mutually exclusive states, represented as a discriminated union with the `action` field as the discriminator:
 
 ![Mermaid Diagram](./diagrams/49_Signal_States_0.svg)
-
-**Sources:** [src/client/ClientStrategy.ts:1-1500](), [types.d.ts:770-895]()
+
 
 ---
 
@@ -49,8 +47,7 @@ if (result.action === "closed") {
   console.log(result.pnl.pnlPercentage); // ✓ Valid
 }
 ```
-
-**Sources:** [types.d.ts:890-895](), [src/interfaces/Strategy.interface.ts:301-307]()
+
 
 ---
 
@@ -97,8 +94,7 @@ The idle state is returned by `ClientStrategy.tick()` when:
 1. No pending signal exists (`this._pendingSignal === null`)
 2. No scheduled signal exists (`this._scheduledSignal === null`)
 3. `getSignal()` returns `null` or validation fails
-
-**Sources:** [types.d.ts:770-783](), [src/interfaces/Strategy.interface.ts:173-188](), [src/client/ClientStrategy.ts:820-913]()
+
 
 ---
 
@@ -169,8 +165,7 @@ Scheduled signal handling occurs in:
 - Activation check: [src/client/ClientStrategy.ts:610-644]()
 - Timeout check: [src/client/ClientStrategy.ts:554-608]()
 - Cancellation by StopLoss: [src/client/ClientStrategy.ts:646-679]()
-
-**Sources:** [types.d.ts:788-807](), [src/interfaces/Strategy.interface.ts:190-207](), [src/client/ClientStrategy.ts:610-801]()
+
 
 ---
 
@@ -231,8 +226,7 @@ When entering the opened state:
 The opened state is emitted by:
 - Immediate signal opening: [src/client/ClientStrategy.ts:803-860]()
 - Scheduled signal activation: [src/client/ClientStrategy.ts:681-774]()
-
-**Sources:** [types.d.ts:809-826](), [src/interfaces/Strategy.interface.ts:209-227](), [src/client/ClientStrategy.ts:681-860]()
+
 
 ---
 
@@ -311,8 +305,7 @@ Active state monitoring occurs in:
 - Main monitoring loop: [src/client/ClientStrategy.ts:862-1085]()
 - Progress calculation: [src/client/ClientStrategy.ts:920-1000]()
 - Exit condition checks: [src/client/ClientStrategy.ts:1000-1085]()
-
-**Sources:** [types.d.ts:824-849](), [src/interfaces/Strategy.interface.ts:229-249](), [src/client/ClientStrategy.ts:862-1085]()
+
 
 ---
 
@@ -404,8 +397,7 @@ Closed state creation occurs in:
 - Take profit closure: [src/client/ClientStrategy.ts:1000-1050]()
 - Stop loss closure: [src/client/ClientStrategy.ts:1050-1100]()
 - Time expiration closure: [src/client/ClientStrategy.ts:1100-1150]()
-
-**Sources:** [types.d.ts:846-874](), [src/interfaces/Strategy.interface.ts:251-274](), [src/client/ClientStrategy.ts:1087-1229]()
+
 
 ---
 
@@ -464,8 +456,7 @@ if (currentPrice >= signal.priceStopLoss && currentPrice < signal.priceOpen) {
 ```
 
 **Rationale:** Prevents opening positions that would trigger immediate stop loss, saving fees and slippage costs.
-
-**Sources:** [src/client/ClientStrategy.ts:610-644](), [src/client/ClientStrategy.ts:646-679]()
+
 
 #### 2. Timeout Exceeded
 
@@ -480,8 +471,7 @@ if (elapsedTime >= maxTimeToWait) {
 ```
 
 **Rationale:** Prevents "zombie" scheduled signals from blocking risk limits indefinitely.
-
-**Sources:** [src/client/ClientStrategy.ts:554-608](), [src/config/params.ts:1-100]()
+
 
 ### State Transitions
 
@@ -507,8 +497,7 @@ When entering the cancelled state:
 Cancelled state creation occurs in:
 - Timeout cancellation: [src/client/ClientStrategy.ts:554-608]()
 - Pre-activation SL cancellation: [src/client/ClientStrategy.ts:646-679]()
-
-**Sources:** [types.d.ts:870-895](), [src/interfaces/Strategy.interface.ts:276-295](), [src/client/ClientStrategy.ts:554-679]()
+
 
 ---
 
@@ -527,8 +516,7 @@ Cancelled state creation occurs in:
 | `closeReason` | ✗ | ✗ | ✗ | ✗ | ✓ | ✗ |
 | `closeTimestamp` | ✗ | ✗ | ✗ | ✗ | ✓ | ✓ |
 | `pnl` | ✗ | ✗ | ✗ | ✗ | ✓ | ✗ |
-
-**Sources:** [types.d.ts:770-895](), [src/interfaces/Strategy.interface.ts:173-307]()
+
 
 ---
 
@@ -537,8 +525,7 @@ Cancelled state creation occurs in:
 The following diagram maps signal states to their implementation in `ClientStrategy`:
 
 ![Mermaid Diagram](./diagrams/49_Signal_States_3.svg)
-
-**Sources:** [src/client/ClientStrategy.ts:1-1500]()
+
 
 ---
 
@@ -597,8 +584,7 @@ if (priceOpen <= priceTakeProfit || priceOpen >= priceStopLoss) {
 ```
 
 **Rationale:** Prevents signals that would incur fees/slippage without any opportunity for profit.
-
-**Sources:** [src/client/ClientStrategy.ts:45-330](), [src/config/params.ts:1-100]()
+
 
 ---
 
@@ -618,8 +604,7 @@ The following table shows which RxJS subjects emit events for each state:
 All states emit to:
 - Global `signalEmitter` [src/config/emitters.ts:19]()
 - Mode-specific emitters based on `execution.context.backtest` flag [src/client/ClientStrategy.ts:1200-1229]()
-
-**Sources:** [src/config/emitters.ts:1-133](), [src/client/ClientStrategy.ts:1200-1229]()
+
 
 ---
 
@@ -641,5 +626,4 @@ In live trading mode (when `execution.context.backtest === false`), signal state
 ![Mermaid Diagram](./diagrams/49_Signal_States_4.svg)
 
 For detailed information on persistence mechanics, see [Signal Persistence](./52_Signal_Persistence.md) and [Crash Recovery](./60_Crash_Recovery.md).
-
-**Sources:** [src/classes/Persist.ts:1-500](), [src/client/ClientStrategy.ts:157-175](), [src/client/ClientStrategy.ts:491-552]()
+

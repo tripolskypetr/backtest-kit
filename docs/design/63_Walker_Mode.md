@@ -18,8 +18,7 @@ The walker system consists of three primary components:
 | `WalkerLogicPrivateService` | Orchestrates sequential backtest execution and metric comparison | [src/lib/services/logic/private/WalkerLogicPrivateService.ts:1-255]() |
 | `WalkerSchema` | Defines strategies to compare, metric selection, and callbacks | [src/interfaces/Walker.interface.ts]() |
 | `WalkerMarkdownService` | Accumulates results and generates comparative reports | [src/lib/services/markdown/WalkerMarkdownService.ts]() |
-
-Sources: [src/lib/services/logic/private/WalkerLogicPrivateService.ts:1-255](), [docs/index.md:1-130]()
+
 
 ## Execution Flow
 
@@ -35,8 +34,7 @@ The walker execution follows a strict sequential pattern to ensure fair comparis
 4. **Statistics Collection**: Retrieves performance metrics via `BacktestMarkdownService.getData()` [src/lib/services/logic/private/WalkerLogicPrivateService.ts:165]()
 5. **Metric Comparison**: Extracts the configured metric value and updates `bestStrategy`/`bestMetric` if the current strategy outperforms [src/lib/services/logic/private/WalkerLogicPrivateService.ts:168-186]()
 6. **Progress Emission**: Yields `WalkerContract` after each strategy completion for real-time monitoring [src/lib/services/logic/private/WalkerLogicPrivateService.ts:190-227]()
-
-Sources: [src/lib/services/logic/private/WalkerLogicPrivateService.ts:70-251]()
+
 
 ## Walker Schema Definition
 
@@ -72,8 +70,7 @@ interface IWalkerSchema {
 | `onStrategyComplete` | `(strategyName, symbol, stats, metricValue) => void` | After each strategy backtest completes [src/lib/services/logic/private/WalkerLogicPrivateService.ts:217-224]() |
 | `onStrategyError` | `(strategyName, symbol, error) => void` | If a strategy backtest throws an exception [src/lib/services/logic/private/WalkerLogicPrivateService.ts:143-145]() |
 | `onComplete` | `(finalResults) => void` | After all strategies complete with final best results [src/lib/services/logic/private/WalkerLogicPrivateService.ts:245-248]() |
-
-Sources: [src/interfaces/Walker.interface.ts](), [docs/index.md:168-169](), [src/lib/services/logic/private/WalkerLogicPrivateService.ts:88-248]()
+
 
 ## Metric Selection and Comparison
 
@@ -122,8 +119,7 @@ if (isBetter && metricValue !== null) {
 ```
 
 If a strategy produces an invalid metric (NaN, Infinity, null), it is excluded from comparison but does not halt execution.
-
-Sources: [src/lib/services/logic/private/WalkerLogicPrivateService.ts:168-186](), [src/interfaces/Walker.interface.ts]()
+
 
 ## Walker Contract and Progress Tracking
 
@@ -170,8 +166,7 @@ Two event channels emit progress updates:
 2. **`walkerEmitter`** [src/lib/services/logic/private/WalkerLogicPrivateService.ts:226](): Emits full `WalkerContract` after each strategy
 
 3. **`walkerCompleteSubject`** [src/lib/services/logic/private/WalkerLogicPrivateService.ts:250](): Emits final results with best strategy and statistics
-
-Sources: [src/lib/services/logic/private/WalkerLogicPrivateService.ts:190-227](), [src/lib/services/logic/private/WalkerLogicPrivateService.ts:230-250](), [src/config/emitters.ts]()
+
 
 ## Walker API
 
@@ -239,8 +234,7 @@ console.log(markdown);
 ```
 
 Generates a markdown table comparing all strategies with their metrics, ranked from best to worst.
-
-Sources: [docs/classes/WalkerUtils.md](), [src/lib/utils/WalkerUtils.ts](), [src/lib/services/command/WalkerCommandService.ts]()
+
 
 ## Integration with Backtest System
 
@@ -285,8 +279,7 @@ The `StrategyConnectionService` uses a composite key `${symbol}-${strategyName}`
 - Each strategy gets its own isolated state
 - Multiple walker runs for the same symbol don't interfere
 - Strategy instances persist across multiple walker executions
-
-Sources: [src/lib/services/logic/private/WalkerLogicPrivateService.ts:117-165](), [src/lib/services/connection/StrategyConnectionService.ts](), [src/lib/services/markdown/BacktestMarkdownService.ts]()
+
 
 ## Cancellation and Error Handling
 
@@ -330,8 +323,7 @@ If a strategy backtest throws an exception, walker:
 5. Proceeds to the next strategy in the array
 
 This graceful degradation ensures that one failing strategy does not abort the entire walker comparison.
-
-Sources: [src/lib/services/logic/private/WalkerLogicPrivateService.ts:96-157](), [src/config/emitters.ts]()
+
 
 ## Use Cases and Patterns
 
@@ -415,5 +407,4 @@ for (const metric of metrics) {
 **4. AI-Driven Strategy Generation**:
 
 Walker Mode integrates with the Optimizer system for LLM-generated strategy comparison. See [AI-Powered Strategy Optimization](./90_AI-Powered_Strategy_Optimization.md) for details on the complete pipeline. The optimizer generates multiple strategy variants and uses walker to identify the best performer on test data.
-
-Sources: [src/lib/services/logic/private/WalkerLogicPrivateService.ts:1-255](), [src/interfaces/Walker.interface.ts](), [docs/index.md:168-172]()
+

@@ -26,8 +26,7 @@ The performance tracking system follows a publish-subscribe pattern where code e
 3. **Aggregation**: Events are grouped by `metricType` and statistical calculations are performed
 4. **Analysis**: Metrics are sorted by total duration to identify bottlenecks
 5. **Reporting**: Markdown tables present performance data with percentiles and wait times
-
-**Sources**: [src/lib/services/markdown/PerformanceMarkdownService.ts:1-476]()
+
 
 ---
 
@@ -53,8 +52,7 @@ Common metric types used throughout the system:
 - **Risk Operations**: `"risk.checkSignal"`, `"risk.addSignal"`, `"risk.removeSignal"`
 - **Sizing Operations**: `"sizing.calculate"`
 - **Orchestration**: `"backtest.iteration"`, `"live.iteration"`, `"walker.strategy"`
-
-**Sources**: [src/contract/Performance.contract.ts](), [types.d.ts:5-8]()
+
 
 ---
 
@@ -96,8 +94,7 @@ This higher limit accommodates fine-grained performance tracking where operation
 **Memoization Key**: `"${symbol}:${strategyName}"`
 
 Each symbol-strategy combination maintains isolated storage, preventing cross-contamination of performance data.
-
-**Sources**: [src/lib/services/markdown/PerformanceMarkdownService.ts:74-76](), [src/lib/services/markdown/PerformanceMarkdownService.ts:320-323]()
+
 
 ---
 
@@ -135,8 +132,7 @@ function percentile(sortedArray: number[], p: number): number {
   return sortedArray[Math.max(0, index)];
 }
 ```
-
-**Sources**: [src/lib/services/markdown/PerformanceMarkdownService.ts:104-184](), [src/lib/services/markdown/PerformanceMarkdownService.ts:68-72]()
+
 
 ---
 
@@ -170,8 +166,7 @@ export type Columns = ColumnModel<MetricStats>;
 ```
 
 The column system allows customization of which statistics appear in reports and how they are formatted.
-
-**Sources**: [src/lib/services/markdown/PerformanceMarkdownService.ts:194-254](), [src/lib/services/markdown/PerformanceMarkdownService.ts:232-235]()
+
 
 ---
 
@@ -209,8 +204,7 @@ protected init = singleshot(async () => {
 ```
 
 The `singleshot` wrapper ensures subscription happens only once, even if multiple operations trigger initialization.
-
-**Sources**: [src/function/event.ts:295-310](), [src/lib/services/markdown/PerformanceMarkdownService.ts:445-450]()
+
 
 ---
 
@@ -347,8 +341,7 @@ await Performance.clear({
 // Clear all performance data
 await Performance.clear();
 ```
-
-**Sources**: [src/lib/services/markdown/PerformanceMarkdownService.ts:295-450](), [src/function/event.ts:295-310](), [src/classes/Performance.ts]()
+
 
 ---
 
@@ -378,5 +371,4 @@ Performance events can be emitted from any code that executes during strategy li
 - **ClientRisk**: Risk validation checks
 - **ClientSizing**: Position size calculations
 - **Logic Services**: Backtest/Live/Walker orchestration
-
-**Sources**: [src/lib/services/markdown/PerformanceMarkdownService.ts:1-476](), [src/lib/services/markdown/BacktestMarkdownService.ts:1-464](), [src/lib/services/markdown/LiveMarkdownService.ts:1-612]()
+

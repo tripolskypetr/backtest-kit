@@ -14,8 +14,7 @@ This document explains the service layer architecture in backtest-kit, which sit
 The service layer implements a dependency injection architecture using Symbol-based tokens from `di-scoped` package. All services are singleton instances registered in [src/lib/core/provide.ts:52-131]() using the `provide()` function and injected in [src/lib/index.ts:57-210]() using the `inject<T>()` function. The DI container is initialized via `init()` call at [src/lib/index.ts:226]().
 
 The service layer isolates business logic (Client classes) from framework concerns (validation, context propagation, persistence, reporting). Client classes (`ClientStrategy`, `ClientExchange`, `ClientFrame`, `ClientRisk`, `ClientSizing`, `ClientOptimizer`) have no DI dependencies and receive all parameters explicitly through constructor injection, while services handle cross-cutting concerns through the DI container.
-
-**Sources:** [src/lib/index.ts:1-232](), [src/lib/core/provide.ts:1-132]()
+
 
 ## Service Category Matrix
 
@@ -24,8 +23,7 @@ The framework organizes services into 11 functional categories, with most catego
 **Service Categories by Function:**
 
 ![Mermaid Diagram](./diagrams/41_Service_Architecture_Overview_0.svg)
-
-**Sources:** [src/lib/core/types.ts:1-97](), [src/lib/index.ts:57-224]()
+
 
 ## Service Organization in Code
 
@@ -52,8 +50,7 @@ The dependency injection container is initialized through three core files:
 1. **[src/lib/core/types.ts:1-97]()**: Defines Symbol-based tokens for all 48 services organized into category groups at lines 1-3 (base), 5-8 (context), 10-18 (connection), 20-28 (schema), 30-38 (global), 40-44 (command), 46-50 (logicPrivate), 52-56 (logicPublic), 58-66 (markdown), 68-76 (validation), 78-80 (template)
 2. **[src/lib/core/provide.ts:52-131]()**: Binds service implementations to tokens using `provide()` function with factory callbacks
 3. **[src/lib/index.ts:57-224]()**: Injects services using `inject<T>()` and aggregates them into the unified `backtest` export object at lines 212-224
-
-**Sources:** [src/lib/index.ts:57-224](), [src/lib/core/types.ts:1-97](), [src/lib/core/provide.ts:52-131]()
+
 
 ## Dependency Injection System
 
@@ -64,8 +61,7 @@ Services use Symbol-based dependency injection for type-safe resolution. Each se
 ![Mermaid Diagram](./diagrams/41_Service_Architecture_Overview_1.svg)
 
 The DI container resolves the dependency graph at initialization time via `init()` called in [src/lib/index.ts:226](). Services receive dependencies through constructor injection, with the `di-scoped` package handling singleton lifecycle and lazy initialization.
-
-**Sources:** [src/lib/core/types.ts:1-97](), [src/lib/core/provide.ts:1-132](), [src/lib/index.ts:1-232]()
+
 
 ## Service Category Responsibilities
 
@@ -152,8 +148,7 @@ Subscribe to event emitters and generate performance reports. Markdown services 
 `OptimizerTemplateService` provides code generation templates for AI-powered strategy optimization. It exposes 11 template methods (`getTopBanner()`, `getJsonDumpTemplate()`, `getTextTemplate()`, `getJsonTemplate()`, `getExchangeTemplate()`, `getFrameTemplate()`, `getStrategyTemplate()`, `getWalkerTemplate()`, `getLauncherTemplate()`, etc.) that generate standalone Node.js code.
 
 **File Location:** [src/lib/services/template/OptimizerTemplateService.ts]()
-
-**Sources:** [src/lib/services/base/](), [src/lib/services/context/](), [src/lib/services/schema/](), [src/lib/services/validation/](), [src/lib/services/connection/](), [src/lib/services/global/](), [src/lib/services/command/](), [src/lib/services/logic/](), [src/lib/services/markdown/](), [src/lib/services/template/]()
+
 
 ## Service Dependency Chain
 
@@ -164,8 +159,7 @@ Services form a dependency chain from user-facing API functions to Client classe
 ![Mermaid Diagram](./diagrams/41_Service_Architecture_Overview_2.svg)
 
 The pattern is identical for Live and Walker modes, with `LiveCommandService`/`WalkerCommandService`, `LiveLogicPublicService`/`WalkerLogicPublicService`, and `LiveLogicPrivateService`/`WalkerLogicPrivateService` replacing the Backtest equivalents.
-
-**Sources:** [src/function/add.ts:1-444](), [src/lib/services/command/](), [src/lib/services/logic/](), [src/lib/services/global/](), [src/lib/services/connection/]()
+
 
 ## Component Service Matrix
 
@@ -187,8 +181,7 @@ Services are organized around eight component types (Strategy, Exchange, Frame, 
 ![Mermaid Diagram](./diagrams/41_Service_Architecture_Overview_3.svg)
 
 Walker is a special case that uses Logic services instead of Global/Connection services, as it orchestrates multiple backtest runs rather than managing a single Client instance.
-
-**Sources:** [src/lib/core/types.ts:10-38](), [src/lib/services/global/](), [src/lib/services/connection/](), [src/lib/services/schema/](), [src/lib/services/validation/]()
+
 
 ## Context Propagation Through Services
 
@@ -197,5 +190,4 @@ Services use `MethodContextService` and `ExecutionContextService` from `di-scope
 ![Mermaid Diagram](./diagrams/41_Service_Architecture_Overview_4.svg)
 
 Services at any depth can resolve `MethodContextService` or `ExecutionContextService` via DI to access context without it being passed as parameters. This enables clean APIs where strategy authors call `getCandles(symbol, interval, limit)` instead of `getCandles(symbol, interval, limit, context)`.
-
-**Sources:** [src/lib/services/context/ExecutionContextService.ts](), [src/lib/services/context/MethodContextService.ts](), [src/lib/services/logic/public/]()
+

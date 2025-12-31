@@ -14,8 +14,7 @@ This page documents the `IOptimizerSchema` interface used with `addOptimizer()` 
 - **Code generation**: Template-based strategy code export through `IOptimizerTemplate`
 
 For optimizer execution and lifecycle, see [AI-Powered Strategy Optimization](./90_AI-Powered_Strategy_Optimization.md). For other registration schemas, see [Strategy Schemas](./25_Strategy_Schemas.md), [Exchange Schemas](./26_Exchange_Schemas.md), [Walker Schemas](./30_Walker_Schemas.md).
-
-Sources: [src/interfaces/Optimizer.interface.ts:380-433](), [src/function/add.ts]() (addOptimizer function)
+
 
 ---
 
@@ -26,8 +25,7 @@ Sources: [src/interfaces/Optimizer.interface.ts:380-433](), [src/function/add.ts
 **Diagram: IOptimizerSchema Structure and Registration Flow**
 
 The schema defines required configuration (training/test ranges, data sources, prompt generation) and optional customization (template overrides, lifecycle hooks). Registration flows through `OptimizerSchemaService` and `OptimizerValidationService`, with runtime access via `OptimizerConnectionService`.
-
-Sources: [src/interfaces/Optimizer.interface.ts:380-433](), [src/lib/services/schema/OptimizerSchemaService.ts:28-32](), [src/lib/services/validation/OptimizerValidationService.ts:25-34](), [src/lib/services/connection/OptimizerConnectionService.ts:59-113]()
+
 
 ---
 
@@ -49,8 +47,7 @@ Used as:
 - Validation map key in `OptimizerValidationService._optimizerMap` [src/lib/services/validation/OptimizerValidationService.ts:15]()
 
 Must be filesystem-safe and unique across all registered optimizers.
-
-Sources: [src/interfaces/Optimizer.interface.ts:390](), [src/client/ClientOptimizer.ts:371](), [src/lib/services/connection/OptimizerConnectionService.ts:60]()
+
 
 ---
 
@@ -92,8 +89,7 @@ For each training range:
 5. Call `getPrompt(symbol, messages)` to generate strategy prompt
 
 Generated strategies are compared on `rangeTest` via Walker to identify best performer.
-
-Sources: [src/interfaces/Optimizer.interface.ts:16-32](), [src/interfaces/Optimizer.interface.ts:396](), [src/client/ClientOptimizer.ts:104-198]()
+
 
 ---
 
@@ -118,8 +114,7 @@ In `ClientOptimizer.GET_STRATEGY_CODE_FN()`, the test range becomes:
 2. Walker configuration parameter: `addWalker({ frameName: testFrameName, ... })` [src/client/ClientOptimizer.ts:318-332]()
 
 Should be chronologically after `rangeTrain[]` to prevent look-ahead bias.
-
-Sources: [src/interfaces/Optimizer.interface.ts:402](), [src/client/ClientOptimizer.ts:286-296](), [src/client/ClientOptimizer.ts:318-332]()
+
 
 ---
 
@@ -189,8 +184,7 @@ const RESOLVE_PAGINATION_FN = async (fetch, filterData) => {
 ```
 
 All returned data must have `id` field for deduplication. Empty array signals end of pagination.
-
-Sources: [src/interfaces/Optimizer.interface.ts:92-186](), [src/client/ClientOptimizer.ts:70-88](), [src/client/ClientOptimizer.ts:106-187]()
+
 
 ---
 
@@ -240,8 +234,7 @@ messageList.push(
 **Output Usage:**
 
 Returned prompt embedded in generated strategy via `template.getStrategyTemplate(strategyName, interval, prompt)` [src/lib/services/template/OptimizerTemplateService.ts:166-303](), where it guides runtime LLM signal generation.
-
-Sources: [src/interfaces/Optimizer.interface.ts:418-421](), [src/model/Message.model.ts:1-25](), [src/client/ClientOptimizer.ts:196](), [src/lib/services/template/OptimizerTemplateService.ts:166-303]()
+
 
 ---
 
@@ -309,8 +302,7 @@ addStrategy({
   }
 }
 ```
-
-Sources: [src/interfaces/Optimizer.interface.ts:242-374](), [src/lib/services/template/OptimizerTemplateService.ts:27-713](), [src/lib/services/connection/OptimizerConnectionService.ts:70-97]()
+
 
 ---
 
@@ -355,8 +347,7 @@ callbacks: {
 ```
 
 Callbacks are synchronous or async. If they return promises, execution blocks until resolution. Cannot modify data but can perform logging, metrics, validation.
-
-Sources: [src/interfaces/Optimizer.interface.ts:191-236](), [src/client/ClientOptimizer.ts:122-130](), [src/client/ClientOptimizer.ts:161-168](), [src/client/ClientOptimizer.ts:210-212](), [src/client/ClientOptimizer.ts:345-347](), [src/client/ClientOptimizer.ts:377-379]()
+
 
 ---
 
@@ -414,8 +405,7 @@ const RESOLVE_PAGINATION_FN = async (fetch, filterData) => {
 2. All objects must have unique `id: string | number` for deduplication
 3. Honor `limit` and `offset` parameters
 4. Filter by `startDate` and `endDate`
-
-Sources: [src/interfaces/Optimizer.interface.ts:48-94](), [src/client/ClientOptimizer.ts:19-88]()
+
 
 ---
 
@@ -495,8 +485,7 @@ addOptimizer({
   }
 });
 ```
-
-Sources: [demo/optimization/src/index.mjs:1-320]()
+
 
 ---
 
@@ -549,8 +538,7 @@ The generated file is a standalone Node.js module that can be executed directly:
 chmod +x ./output/trend-analyzer_BTCUSDT.mjs
 ./output/trend-analyzer_BTCUSDT.mjs
 ```
-
-Sources: [src/client/ClientOptimizer.ts:225-350](), [src/lib/services/connection/OptimizerConnectionService.ts:122-171]()
+
 
 ---
 
@@ -615,8 +603,7 @@ public addOptimizer = (optimizerName: OptimizerName, optimizerSchema: IOptimizer
 | `callbacks` | If present, all hooks must be functions | Runtime (TypeScript checks) |
 
 Validation occurs in `OptimizerSchemaService.register()` [src/lib/services/schema/OptimizerSchemaService.ts:28-32](), throwing descriptive errors before storage.
-
-Sources: [src/lib/services/schema/OptimizerSchemaService.ts:28-67](), [src/lib/services/validation/OptimizerValidationService.ts:25-34]()
+
 
 ---
 
@@ -632,8 +619,7 @@ Sources: [src/lib/services/schema/OptimizerSchemaService.ts:28-67](), [src/lib/s
 2. **OptimizerValidationService**: Prevents duplicates, maintains `_optimizerMap` [src/lib/services/validation/OptimizerValidationService.ts:13-70]()
 3. **OptimizerConnectionService**: Creates memoized `ClientOptimizer` instances [src/lib/services/connection/OptimizerConnectionService.ts:41-173]()
 4. **OptimizerGlobalService**: Public API entry point with validation [src/lib/services/global/OptimizerGlobalService.ts:21-104]()
-
-Sources: [src/lib/services/schema/OptimizerSchemaService.ts:28-97](), [src/lib/services/validation/OptimizerValidationService.ts:25-59](), [src/lib/services/connection/OptimizerConnectionService.ts:59-113](), [src/lib/services/global/OptimizerGlobalService.ts:28-102]()
+
 
 ---
 
@@ -851,5 +837,4 @@ await Optimizer.dump("BTCUSDT", "multi-timeframe-optimizer", "./output");
 // Generated file can be executed:
 // ./output/multi-timeframe-optimizer_BTCUSDT.mjs
 ```
-
-Sources: [demo/optimization/src/index.mjs:1-320]()
+

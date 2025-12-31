@@ -8,8 +8,7 @@ group: design
 Sizing schemas define position sizing methods for calculating trade quantities based on account balance, risk parameters, and market conditions. The framework provides three built-in sizing methods via a discriminated union: fixed-percentage, Kelly Criterion, and ATR-based. Strategies reference sizing schemas by name via the `sizingName` field in `IStrategySchema`.
 
 For information about how strategies reference sizing, see [Strategy Schemas](./25_Strategy_Schemas.md). For risk management that controls whether positions are allowed, see [Risk Schemas](./28_Risk_Schemas.md).
-
-**Sources:** [types.d.ts:202-267](), [src/function/add.ts:202-266]()
+
 
 ---
 
@@ -18,8 +17,7 @@ For information about how strategies reference sizing, see [Strategy Schemas](./
 The `ISizingSchema` type is a discriminated union using the `method` field as the discriminator. Each method has specific required and optional parameters suited to its calculation algorithm.
 
 ![Mermaid Diagram](./diagrams/29_Sizing_Schemas_0.svg)
-
-**Sources:** [types.d.ts:59-70](), [src/index.ts:58-70]()
+
 
 ---
 
@@ -28,8 +26,7 @@ The `ISizingSchema` type is a discriminated union using the `method` field as th
 Sizing schemas are registered via `addSizing()`, which stores them in `SizingSchemaService` and validates them through `SizingValidationService`. Strategies reference sizing configurations by name, triggering lazy instantiation of `ClientSizing` via `SizingConnectionService`.
 
 ![Mermaid Diagram](./diagrams/29_Sizing_Schemas_1.svg)
-
-**Sources:** [src/function/add.ts:254-266](), [src/lib/index.ts:72-77]()
+
 
 ---
 
@@ -70,8 +67,7 @@ addSizing({
   },
 });
 ```
-
-**Sources:** [src/function/add.ts:223-231](), [types.d.ts:202-266]()
+
 
 ---
 
@@ -114,8 +110,7 @@ addSizing({
   },
 });
 ```
-
-**Sources:** [src/function/add.ts:233-238](), [types.d.ts:202-266]()
+
 
 ---
 
@@ -159,8 +154,7 @@ addSizing({
   },
 });
 ```
-
-**Sources:** [src/function/add.ts:240-252](), [types.d.ts:202-266]()
+
 
 ---
 
@@ -177,8 +171,7 @@ All sizing methods support optional position size constraints to enforce portfol
 | `maxPositionPercentage` | `number` | Maximum position as % of account balance (prevents over-concentration) |
 | `minPositionSize` | `number` | Minimum position size in base asset (prevents dust trades) |
 | `maxPositionSize` | `number` | Maximum position size in base asset (absolute limit) |
-
-**Sources:** [types.d.ts:202-266]()
+
 
 ---
 
@@ -187,8 +180,7 @@ All sizing methods support optional position size constraints to enforce portfol
 When calculating position size, `ClientSizing` receives method-specific parameters through the discriminated union `ISizingCalculateParams`:
 
 ![Mermaid Diagram](./diagrams/29_Sizing_Schemas_3.svg)
-
-**Sources:** [types.d.ts:59-70]()
+
 
 ---
 
@@ -208,8 +200,7 @@ interface ISizingCallbacks {
 ### Callback Invocation
 
 ![Mermaid Diagram](./diagrams/29_Sizing_Schemas_4.svg)
-
-**Sources:** [types.d.ts:202-266]()
+
 
 ---
 
@@ -237,8 +228,7 @@ addStrategy({
 ### Service Interaction
 
 ![Mermaid Diagram](./diagrams/29_Sizing_Schemas_5.svg)
-
-**Sources:** [types.d.ts:616-633](), [src/lib/index.ts:1-170]()
+
 
 ---
 
@@ -258,8 +248,7 @@ The sizing system follows the standard service layer pattern with Schema, Valida
 `SizingConnectionService` memoizes `ClientSizing` instances to ensure singleton behavior per sizing name:
 
 ![Mermaid Diagram](./diagrams/29_Sizing_Schemas_6.svg)
-
-**Sources:** [src/lib/index.ts:72-77](), [src/lib/core/types.ts:14-16](), [src/lib/core/provide.ts:57-58]()
+
 
 ---
 
@@ -284,8 +273,7 @@ sizings.forEach(schema => {
   }
 });
 ```
-
-**Sources:** [src/function/list.ts:177-180]()
+
 
 ---
 
@@ -344,5 +332,4 @@ addSizing({
   },
 });
 ```
-
-**Sources:** [src/function/add.ts:202-266]()
+

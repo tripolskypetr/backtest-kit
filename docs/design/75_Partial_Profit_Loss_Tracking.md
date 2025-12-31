@@ -28,8 +28,7 @@ The partial tracking system monitors active trading signals and emits events whe
 ### Data Flow
 
 ![Mermaid Diagram](./diagrams/75_Partial_Profit_Loss_Tracking_0.svg)
-
-**Sources**: [src/client/ClientPartial.ts:1-478](), [src/lib/services/connection/PartialConnectionService.ts:1-267](), [src/lib/services/global/PartialGlobalService.ts:1-205](), [src/lib/services/markdown/PartialMarkdownService.ts:1-478]()
+
 
 ---
 
@@ -63,8 +62,7 @@ interface IPartialState {
 ```
 
 State is stored in a `Map<signalId, IPartialState>` within each `ClientPartial` instance. For persistence, Sets are converted to arrays in `IPartialData` format.
-
-**Sources**: [src/interfaces/Partial.interface.ts:1-250](), [src/client/ClientPartial.ts:20-28]()
+
 
 ---
 
@@ -77,8 +75,7 @@ State is stored in a `Map<signalId, IPartialState>` within each `ClientPartial` 
 ![Mermaid Diagram](./diagrams/75_Partial_Profit_Loss_Tracking_1.svg)
 
 The initialization uses a sentinel value `NEED_FETCH` to ensure `waitForInit()` is called before operations. The `singleshot` pattern from `functools-kit` guarantees initialization happens exactly once per symbol-strategy combination.
-
-**Sources**: [src/client/ClientPartial.ts:13-235]()
+
 
 ### Level Detection Logic
 
@@ -101,8 +98,7 @@ The `HANDLE_PROFIT_FN` and `HANDLE_LOSS_FN` functions iterate through level arra
 ### Method Flow Diagram
 
 ![Mermaid Diagram](./diagrams/75_Partial_Profit_Loss_Tracking_2.svg)
-
-**Sources**: [src/client/ClientPartial.ts:159-227](), [src/lib/services/connection/PartialConnectionService.ts:159-227]()
+
 
 ---
 
@@ -122,8 +118,7 @@ Emitted when a signal reaches a new profit level milestone:
 | `level` | `PartialLevel` | Profit level reached (10, 20...100) |
 | `backtest` | `boolean` | True if backtest mode, false if live |
 | `timestamp` | `number` | Event time (ms since Unix epoch) |
-
-**Sources**: [src/contract/PartialProfit.contract.ts:1-100]()
+
 
 ### PartialLossContract
 
@@ -141,8 +136,7 @@ Emitted when a signal reaches a new loss level milestone:
 | `timestamp` | `number` | Event time (ms since Unix epoch) |
 
 **Note**: `level` is stored as a positive number but represents negative loss. `level=20` means -20% loss.
-
-**Sources**: [src/contract/PartialLoss.contract.ts:1-116]()
+
 
 ---
 
@@ -181,8 +175,7 @@ Partial state files are stored at:
 ```
 ./dump/data/partial/my-strategy/BTCUSDT.json
 ```
-
-**Sources**: [src/client/ClientPartial.ts:199-367](), [src/classes/Persist.ts:38-43]()
+
 
 ---
 
@@ -227,8 +220,7 @@ Generated markdown reports include:
 - Current Price
 - Level reached
 - Backtest flag
-
-**Sources**: [src/lib/services/markdown/PartialMarkdownService.ts:1-478]()
+
 
 ---
 
@@ -279,8 +271,7 @@ The hierarchy follows the standard service layer pattern:
 1. **Global Service**: Entry point with validation and logging
 2. **Connection Service**: Factory and instance management
 3. **Client Implementation**: Core business logic
-
-**Sources**: [src/lib/services/global/PartialGlobalService.ts:1-205](), [src/lib/services/connection/PartialConnectionService.ts:1-267]()
+
 
 ---
 
@@ -321,8 +312,7 @@ await partialMarkdownService.dump(
 Default persistence path: `./dump/data/partial/{strategy}/{symbol}.json`
 
 The base directory can be customized when creating `PersistPartialAdapter` instances, though this is typically managed internally by the framework.
-
-**Sources**: [src/lib/services/markdown/PartialMarkdownService.ts:17-51](), [src/model/Column.model.ts:1-39]()
+
 
 ---
 
@@ -378,8 +368,7 @@ console.log(markdown);
 // Save to disk
 await service.dump("BTCUSDT", "my-strategy", "./reports");
 ```
-
-**Sources**: [src/lib/services/markdown/PartialMarkdownService.ts:239-427]()
+
 
 ---
 
@@ -405,8 +394,7 @@ Using `Set<PartialLevel>` for state provides:
 - **O(1) lookup**: Fast checking if level already emitted
 - **O(1) insertion**: Adding new levels has constant time complexity
 - **Memory efficiency**: Only stores emitted levels (max 10 per signal per profit/loss)
-
-**Sources**: [src/client/ClientPartial.ts:214-218](), [src/client/ClientPartial.ts:350-352](), [src/interfaces/Partial.interface.ts:19-37]()
+
 
 ---
 
@@ -442,5 +430,4 @@ if (data.id !== self.params.signalId) {
 - **Retry count**: 5 attempts with 1-second delays [src/classes/Persist.ts:57-58]()
 - **Validation on init**: Reads and validates all JSON files during initialization [src/classes/Persist.ts:138-152]()
 - **Auto-cleanup**: Removes corrupted files that fail parsing [src/classes/Persist.ts:143-151]()
-
-**Sources**: [src/client/ClientPartial.ts:53-62](), [src/lib/services/global/PartialGlobalService.ts:83-95](), [src/classes/Persist.ts:57-152]()
+

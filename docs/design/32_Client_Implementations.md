@@ -20,8 +20,7 @@ Client implementations sit between the **connection service layer** and the **tr
 ### System Layer Hierarchy
 
 ![Mermaid Diagram](./diagrams/32_Client_Implementations_0.svg)
-
-**Sources:** [src/lib/services/connection/StrategyConnectionService.ts:1-325](), [src/client/ClientStrategy.ts:1-100]()
+
 
 ---
 
@@ -42,8 +41,7 @@ Client implementations sit between the **connection service layer** and the **tr
 ### Instance Creation and Memoization
 
 ![Mermaid Diagram](./diagrams/32_Client_Implementations_1.svg)
-
-**Sources:** [src/lib/services/connection/StrategyConnectionService.ts:123-156](), [src/client/ClientStrategy.ts:1074-1140]()
+
 
 ### Signal Validation Pipeline
 
@@ -62,22 +60,19 @@ Client implementations sit between the **connection service layer** and the **tr
 | **Maximum SL Distance** | `CC_MAX_STOPLOSS_DISTANCE_PERCENT` enforced | SL 50% away from open |
 | **Time Validation** | `minuteEstimatedTime` must be positive integer | `minuteEstimatedTime === 0` |
 | **Maximum Lifetime** | `CC_MAX_SIGNAL_LIFETIME_MINUTES` enforced | `minuteEstimatedTime > 10080` (7 days) |
-
-**Sources:** [src/client/ClientStrategy.ts:45-330]()
+
 
 ### Signal Generation with Throttling
 
 ![Mermaid Diagram](./diagrams/32_Client_Implementations_2.svg)
-
-**Sources:** [src/client/ClientStrategy.ts:332-476](), [src/client/ClientStrategy.ts:34-41]()
+
 
 ### Scheduled Signal Activation Logic
 
 Scheduled signals (limit orders) require special handling for activation and cancellation. The logic checks both price conditions and stop loss violations.
 
 ![Mermaid Diagram](./diagrams/32_Client_Implementations_3.svg)
-
-**Sources:** [src/client/ClientStrategy.ts:610-644](), [src/client/ClientStrategy.ts:646-679](), [src/client/ClientStrategy.ts:681-774]()
+
 
 ### Method Reference
 
@@ -90,8 +85,7 @@ Scheduled signals (limit orders) require special handling for activation and can
 | `stop()` | `(symbol, strategyName, backtest) => Promise<void>` | Prevent new signal generation |
 | `setPendingSignal()` | `(signal) => Promise<void>` | Persist pending signal atomically |
 | `setScheduledSignal()` | `(signal) => Promise<void>` | Persist scheduled signal atomically |
-
-**Sources:** [src/interfaces/Strategy.interface.ts:318-388](), [src/client/ClientStrategy.ts:1142-1470]()
+
 
 ---
 
@@ -123,14 +117,12 @@ VWAP = sumPriceVolume / totalVolume
 ```
 
 If `totalVolume === 0`, fallback to simple average: `Σ(close) / candles.length`
-
-**Sources:** [src/client/ClientStrategy.ts:478-489](), [src/config/params.ts]()
+
 
 ### Temporal Isolation
 
 `ClientExchange.getCandles()` uses `ExecutionContextService` to enforce temporal bounds. In backtest mode, it **never returns data from the future**, preventing look-ahead bias.
-
-**Sources:** Connection services document context propagation, AsyncLocalStorage used for temporal isolation
+
 
 ---
 
@@ -162,8 +154,7 @@ _activePositionsMap = Map<symbol, Set<strategyIdentifier>>
 ```
 
 **Persistence:** State saved to `./dump/data/risk/{riskName}.json` via `PersistRiskAdapter` after every `addSignal()` or `removeSignal()` call.
-
-**Sources:** [src/client/ClientRisk.ts]() (not provided but referenced in architecture), [src/classes/Persist.ts]()
+
 
 ---
 
@@ -185,8 +176,7 @@ All methods respect constraints from `ISizingSchema`:
 - `minPositionSize`: Minimum position value
 - `maxPositionSize`: Maximum position value
 - `maxPositionPercent`: Maximum % of account balance
-
-**Sources:** Schema documentation references sizing interface
+
 
 ---
 
@@ -206,8 +196,7 @@ All methods respect constraints from `ISizingSchema`:
 ![Mermaid Diagram](./diagrams/32_Client_Implementations_6.svg)
 
 **State Persistence:** `./dump/data/partial/{strategy}/{symbol}.json` stores already-emitted milestones to prevent duplicate events after crash recovery.
-
-**Sources:** [src/lib/services/connection/PartialConnectionService.ts]() (referenced in architecture)
+
 
 ---
 
@@ -224,8 +213,7 @@ All methods respect constraints from `ISizingSchema`:
 - `endDate`: 2025-01-02 00:00:00
 - `interval`: 1h
 - **Output:** 24 Date objects, one per hour
-
-**Sources:** Frame schema references
+
 
 ---
 
@@ -258,8 +246,7 @@ All methods respect constraints from `ISizingSchema`:
 ```
 
 **Pagination:** Uses `iterateDocuments()` for paginated fetching and `distinctDocuments()` for deduplication by ID.
-
-**Sources:** [README.md:111-142]() shows LLM strategy example
+
 
 ---
 
@@ -285,8 +272,7 @@ private getStrategy = memoize(
 - Singleton behavior per context
 - Preserved state across calls
 - Memory efficiency
-
-**Sources:** [src/lib/services/connection/StrategyConnectionService.ts:123-156]()
+
 
 ### Persistence Adapters
 
@@ -303,8 +289,7 @@ Client implementations that require crash recovery use persistence adapters:
 1. Write to temporary file: `data.json.tmp`
 2. Call `fsync()` to ensure disk write
 3. Rename `data.json.tmp` → `data.json` (atomic operation)
-
-**Sources:** [src/classes/Persist.ts](), [src/client/ClientStrategy.ts:28]()
+
 
 ### Context Dependency Injection
 
@@ -329,8 +314,7 @@ interface IStrategyParams {
 - `context.frameName`: Active frame identifier (backtest only)
 
 These contexts use `AsyncLocalStorage` for implicit propagation without manual parameter threading.
-
-**Sources:** [src/interfaces/Strategy.interface.ts:76-94]()
+
 
 ### Event Emission
 
@@ -350,8 +334,7 @@ await signalLiveEmitter.next(tickResult);
 - `errorEmitter`: Exception propagation
 - `partialProfitSubject`: TP milestone events
 - `partialLossSubject`: SL milestone events
-
-**Sources:** [src/config/emitters.ts](), [src/lib/services/connection/StrategyConnectionService.ts:228-237]()
+
 
 ---
 
@@ -364,5 +347,4 @@ await signalLiveEmitter.next(tickResult);
 ### Cleanup and Disposal
 
 ![Mermaid Diagram](./diagrams/32_Client_Implementations_10.svg)
-
-**Sources:** [src/lib/services/connection/StrategyConnectionService.ts:284-321](), [src/classes/Backtest.ts:254-260]()
+

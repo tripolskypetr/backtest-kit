@@ -22,8 +22,7 @@ Schema Services serve as the **configuration registry layer** in the service arc
 5. **Lifecycle Management**: Persist schemas throughout application lifetime (singleton pattern)
 
 Schema Services do **not** perform validation logic (delegated to Validation Services) or instantiate clients (delegated to Connection Services). They are pure storage and retrieval mechanisms.
-
-**Sources**: [src/lib/index.ts:98-112](), [src/function/add.ts:1-444]()
+
 
 ---
 
@@ -42,8 +41,7 @@ The framework provides seven schema services, one for each registrable component
 | `OptimizerSchemaService` | `IOptimizerSchema` | `OptimizerName` | `addOptimizer()` | `TYPES.optimizerSchemaService` |
 
 All schema services follow identical structural patterns but store different schema types.
-
-**Sources**: [src/lib/index.ts:98-112](), [src/lib/core/types.ts:20-28](), [types.d.ts:119-156,261-275,417-426,730-749,956-971]()
+
 
 ---
 
@@ -54,8 +52,7 @@ All schema services follow identical structural patterns but store different sch
 **Diagram: Schema Services in the Service Layer Hierarchy**
 
 This diagram shows how schema services sit between validation and connection layers. The public API functions call validation services for checks, then schema services for storage. Later, connection services retrieve schemas to instantiate clients.
-
-**Sources**: [src/function/add.ts:52-64,101-113,145-151,190-202,256-268,331-343,432-444](), [src/lib/index.ts:74-96,98-112]()
+
 
 ---
 
@@ -76,8 +73,7 @@ Each schema service implements the **ToolRegistry pattern** for in-memory storag
 **Diagram: ToolRegistry Storage Operations**
 
 The ToolRegistry pattern provides a simple but consistent API across all schema services. Each operation interacts with the underlying Map storage.
-
-**Sources**: [src/lib/index.ts:98-112](), [src/function/add.ts:52-444]()
+
 
 ---
 
@@ -90,8 +86,7 @@ The registration flow is consistent across all component types. Here is the deta
 **Diagram: Strategy Registration Sequence**
 
 The registration flow shows the orchestration between validation and storage. Validation occurs first (throwing errors if schema is invalid), followed by storage in the schema service's ToolRegistry.
-
-**Sources**: [src/function/add.ts:52-64]()
+
 
 ---
 
@@ -104,8 +99,7 @@ Connection services are the primary consumers of schema services. They retrieve 
 **Diagram: Schema Retrieval and Client Instantiation Flow**
 
 Connection services use `MethodContextService` to determine which schema to retrieve, then fetch it from the appropriate schema service. The retrieved schema is combined with runtime dependencies (logger, context services) to instantiate a memoized client.
-
-**Sources**: [src/lib/index.ts:74-96](), [types.d.ts:298-329]()
+
 
 ---
 
@@ -123,8 +117,7 @@ Connection services use `MethodContextService` to determine which schema to retr
 - `riskName` / `riskList`: Optional risk profile references
 
 **Used By**: `StrategyConnectionService` to create `ClientStrategy` instances
-
-**Sources**: [src/function/add.ts:52-64](), [types.d.ts:730-749]()
+
 
 ---
 
@@ -140,8 +133,7 @@ Connection services use `MethodContextService` to determine which schema to retr
 - `callbacks`: Optional hooks (`onCandleData`)
 
 **Used By**: `ExchangeConnectionService` to create `ClientExchange` instances
-
-**Sources**: [src/function/add.ts:101-113](), [types.d.ts:119-156]()
+
 
 ---
 
@@ -157,8 +149,7 @@ Connection services use `MethodContextService` to determine which schema to retr
 - `callbacks`: Optional hooks (`onTimeframe`)
 
 **Used By**: `FrameConnectionService` to create `ClientFrame` instances
-
-**Sources**: [src/function/add.ts:145-151](), [types.d.ts:261-275]()
+
 
 ---
 
@@ -172,8 +163,7 @@ Connection services use `MethodContextService` to determine which schema to retr
 - `callbacks`: Optional hooks (`onRejected`, `onAllowed`)
 
 **Used By**: `RiskConnectionService` to create `ClientRisk` instances shared across strategies
-
-**Sources**: [src/function/add.ts:331-343](), [types.d.ts:417-426]()
+
 
 ---
 
@@ -188,8 +178,7 @@ Connection services use `MethodContextService` to determine which schema to retr
 - `callbacks`: Optional hooks (`onCalculate`)
 
 **Used By**: `SizingConnectionService` to create `ClientSizing` instances
-
-**Sources**: [src/function/add.ts:256-268]()
+
 
 ---
 
@@ -206,8 +195,7 @@ Connection services use `MethodContextService` to determine which schema to retr
 - `callbacks`: Optional hooks (`onStrategyComplete`, `onComplete`)
 
 **Used By**: `WalkerCommandService` for orchestrating multi-strategy backtests
-
-**Sources**: [src/function/add.ts:190-202](), [types.d.ts:956-971]()
+
 
 ---
 
@@ -225,8 +213,7 @@ Connection services use `MethodContextService` to determine which schema to retr
 - `callbacks`: Optional hooks (`onData`, `onCode`, `onDump`, `onSourceData`)
 
 **Used By**: `OptimizerConnectionService` to create `ClientOptimizer` instances
-
-**Sources**: [src/function/add.ts:432-444]()
+
 
 ---
 
@@ -239,8 +226,7 @@ Schema services are registered in the DI container as singleton instances:
 **Diagram: Schema Services Dependency Injection Flow**
 
 Schema services are registered once at application startup via `provide()` calls, creating singleton instances. The `inject()` function retrieves these instances using TYPES symbols, making them available throughout the application.
-
-**Sources**: [src/lib/core/provide.ts:75-83](), [src/lib/core/types.ts:20-28](), [src/lib/index.ts:98-112]()
+
 
 ---
 
@@ -253,8 +239,7 @@ Schema services support **schema replacement** through re-registration. When `re
 **Diagram: Schema Override and Cache Invalidation**
 
 When a schema is re-registered, the ToolRegistry overwrites the previous version. Connection services that memoize client instances must invalidate their caches to ensure new instances use the updated schema.
-
-**Sources**: [src/function/add.ts:52-64]()
+
 
 ---
 
@@ -286,8 +271,7 @@ addStrategy({
 ```
 
 Schema services themselves do not perform validation—they assume incoming schemas have already been validated.
-
-**Sources**: [src/function/add.ts:52-64]()
+
 
 ---
 
@@ -321,8 +305,7 @@ The framework also exposes public `list*` functions that wrap schema service lis
 | `listSizings()` | `sizingSchemaService.list()` | `SizingName[]` |
 | `listRisks()` | `riskSchemaService.list()` | `RiskName[]` |
 | `listOptimizers()` | `optimizerSchemaService.list()` | `OptimizerName[]` |
-
-**Sources**: [src/index.ts:20-26]()
+
 
 ---
 
@@ -352,8 +335,7 @@ Schema services store configurations **only in memory**. Schemas are lost on pro
 1. Schemas contain executable code (`getSignal`, `getCandles` functions)
 2. Serializing functions is unsafe and non-portable
 3. Applications should re-register schemas on startup via configuration files
-
-**Sources**: [src/lib/core/provide.ts:75-83](), [src/lib/index.ts:98-112]()
+
 
 ---
 
@@ -416,8 +398,7 @@ strategies.forEach(({ name, risk }) => {
   });
 });
 ```
-
-**Sources**: [src/function/add.ts:52-64]()
+
 
 ---
 
@@ -438,8 +419,7 @@ Schema Services are **pure storage** with no business logic. They do not:
 - Create client instances (Connection Services)
 - Execute strategies (Core Services)
 - Orchestrate workflows (Command Services)
-
-**Sources**: [src/lib/index.ts:61-241]()
+
 
 ---
 
@@ -457,5 +437,4 @@ Schema Services implement the ToolRegistry pattern to provide centralized, in-me
 8. **No Instantiation**: Connection Services handle client creation
 
 Schema Services serve as the **configuration registry** that bridges the public API (`add*` functions) with the internal service architecture (connection/core/command layers).
-
-**Sources**: [src/lib/index.ts:98-112](), [src/lib/core/provide.ts:75-83](), [src/function/add.ts:1-444]()
+

@@ -27,8 +27,7 @@ interface IFrame {
   getTimeframe: (symbol: string, frameName: FrameName) => Promise<Date[]>;
 }
 ```
-
-**Sources**: [types.d.ts:212-294]()
+
 
 ---
 
@@ -71,8 +70,7 @@ interface IFrameCallbacks {
 ```
 
 The `onTimeframe` callback fires after timeframe array generation, providing the complete array and configuration for validation or logging.
-
-**Sources**: [types.d.ts:212-275]()
+
 
 ---
 
@@ -97,8 +95,7 @@ The `onTimeframe` callback fires after timeframe array generation, providing the
 | 12h | 43,200,000 | Half-day intervals |
 | 1d | 86,400,000 | Daily candle backtests |
 | 3d | 259,200,000 | Multi-day pattern testing |
-
-**Sources**: [types.d.ts:219]()
+
 
 ---
 
@@ -113,8 +110,7 @@ The `onTimeframe` callback fires after timeframe array generation, providing the
 3. **Client Layer**: `ClientFrame` implements timeframe generation via `getTimeframe()` method
 4. **Core Layer**: `FrameCoreService` contains interval conversion and date iteration algorithms
 5. **Execution Layer**: `BacktestLogicPrivateService` consumes generated timeframe arrays for iteration
-
-**Sources**: Architecture diagrams, [types.d.ts:212-294]()
+
 
 ---
 
@@ -147,8 +143,7 @@ For `startDate = 2024-01-01T00:00:00Z`, `endDate = 2024-01-01T02:00:00Z`, `inter
 ]
 // 3 timestamps covering 2-hour period at 1-hour intervals
 ```
-
-**Sources**: [types.d.ts:276-288]()
+
 
 ---
 
@@ -175,8 +170,7 @@ const frame2 = frameConnectionService.getFrame("1d-backtest");
 
 // frame1 === frame2 (same instance)
 ```
-
-**Sources**: [src/lib/services/connection/StrategyConnectionService.ts:1-324]() (pattern reference), [types.d.ts:212-294]()
+
 
 ---
 
@@ -198,8 +192,7 @@ const frame2 = frameConnectionService.getFrame("1d-backtest");
 10. **Completion**: Generator exhausts when all timestamps processed
 
 **Temporal Isolation**: Each timestamp iteration updates `ExecutionContextService.context.when`, ensuring strategies cannot access future data during `getSignal()` calls.
-
-**Sources**: [src/classes/Backtest.ts:1-601](), [types.d.ts:212-294]()
+
 
 ---
 
@@ -245,8 +238,7 @@ for await (const result of Backtest.run("BTCUSDT", {
 ```
 
 **Execution**: BacktestLogicPrivateService iterates through all 1440 timestamps, invoking strategy logic at each tick.
-
-**Sources**: [types.d.ts:247-275](), [src/classes/Backtest.ts:149-178]()
+
 
 ---
 
@@ -302,8 +294,7 @@ function generateTimeframe(
 - **Empty Range**: If `startDate > endDate`, returns `[]` (empty array)
 - **Single Timestamp**: If `startDate === endDate`, returns `[startDate]` (one element)
 - **Inclusive End**: Final timestamp included if `endDate` aligns with interval boundary
-
-**Sources**: [types.d.ts:219](), [types.d.ts:276-288]()
+
 
 ---
 
@@ -326,8 +317,7 @@ getTimeframe(symbol: string, frameName: FrameName): Promise<Date[]>
 - Symbol-specific trading hours (e.g., market open/close times)
 - Exchange-specific interval restrictions
 - Holiday calendar integration per market
-
-**Sources**: [types.d.ts:287-288]()
+
 
 ---
 
@@ -362,8 +352,7 @@ Backtest.run("BTCUSDT", {
 });
 // Error: Frame "non-existent-frame" not registered
 ```
-
-**Sources**: [src/classes/Backtest.ts:387-390]()
+
 
 ---
 
@@ -378,8 +367,7 @@ Backtest.run("BTCUSDT", {
 | **BacktestLogicPrivateService** | Consumer | Iterates through generated timeframe arrays |
 | **ExecutionContextService** | Context | Updates `context.when` for each timestamp iteration |
 | **MethodContextService** | Routing | Provides `frameName` for frame instance lookup |
-
-**Sources**: Architecture diagrams, [types.d.ts:212-294]()
+
 
 ---
 
@@ -404,8 +392,7 @@ Backtest.run("BTCUSDT", {
 1. **Choose Appropriate Intervals**: Use coarser intervals (1h, 1d) for long-term backtests
 2. **Split Large Ranges**: Break multi-year backtests into smaller frame periods
 3. **Memory Monitoring**: Monitor heap usage for 1-minute backtests > 3 months
-
-**Sources**: [types.d.ts:276-288]()
+
 
 ---
 
@@ -416,5 +403,4 @@ Backtest.run("BTCUSDT", {
 - [Timeframe Generation](./56_Timeframe_Generation.md) - FrameCoreService algorithms
 - [Connection Services](./42_Connection_Services.md) - Factory pattern and memoization strategy
 - [Schema Services](./43_Schema_Services.md) - ToolRegistry storage pattern
-
-**Sources**: Table of contents
+

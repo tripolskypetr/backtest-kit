@@ -14,16 +14,14 @@ This document describes the execution flow of Walker mode, which orchestrates se
 Walker mode executes a complete backtest for each registered strategy in sequence, comparing their performance using a configurable metric (e.g., `sharpeRatio`, `winRate`). The execution model uses an `AsyncGenerator` pattern to stream progress updates after each strategy completes, enabling real-time monitoring of long-running optimization tasks. The system maintains cumulative tracking of the best strategy across all iterations and emits detailed progress events through the event bus.
 
 The walker execution is stateless between strategy runs, relying on `BacktestLogicPublicService` for individual strategy execution and `BacktestMarkdownService` for metric extraction. This separation allows walker to focus purely on orchestration and comparison logic.
-
-Sources: [src/lib/services/logic/private/WalkerLogicPrivateService.ts:1-254]()
+
 
 ## Execution Architecture
 
 ![Mermaid Diagram](./diagrams/64_Walker_Execution_Flow_0.svg)
 
 **Diagram: Walker Execution Architecture** - Shows the layered architecture from API entry point through orchestration, strategy execution, statistics extraction, and callback lifecycle.
-
-Sources: [src/lib/services/logic/private/WalkerLogicPrivateService.ts:31-254]()
+
 
 ## Sequential Strategy Iteration
 
@@ -46,16 +44,14 @@ The core iteration logic resides in `WalkerLogicPrivateService.run()` method, wh
 | 9 | Emit final results | `walkerCompleteSubject.next(finalResults)` |
 
 The iteration maintains strict ordering with no overlap between strategy executions. Each strategy receives the same execution context (`exchangeName`, `frameName`) to ensure fair comparison.
-
-Sources: [src/lib/services/logic/private/WalkerLogicPrivateService.ts:70-252]()
+
 
 ### State Machine for Single Strategy Execution
 
 ![Mermaid Diagram](./diagrams/64_Walker_Execution_Flow_1.svg)
 
 **Diagram: State Machine for Single Strategy in Walker** - Shows the complete lifecycle of a single strategy execution within the walker loop, from callback invocation through metric extraction to progress emission.
-
-Sources: [src/lib/services/logic/private/WalkerLogicPrivateService.ts:107-228]()
+
 
 ## Backtest Orchestration
 
@@ -82,8 +78,7 @@ The orchestration follows this sequence:
 ![Mermaid Diagram](./diagrams/64_Walker_Execution_Flow_2.svg)
 
 **Diagram: Backtest Orchestration Sequence** - Shows the message flow from walker through backtest execution to statistics extraction.
-
-Sources: [src/lib/services/logic/private/WalkerLogicPrivateService.ts:117-165](), [src/lib/services/logic/private/BacktestLogicPrivateService.ts:62-384]()
+
 
 ### Error Handling During Backtest
 
@@ -105,8 +100,7 @@ try {
   continue; // Skip to next strategy
 }
 ```
-
-Sources: [src/lib/services/logic/private/WalkerLogicPrivateService.ts:126-147]()
+
 
 ## Metric Extraction and Comparison
 
@@ -137,8 +131,7 @@ const metricValue =
 ```
 
 Invalid metrics result in `metricValue = null`, which is excluded from best strategy selection. This ensures that strategies producing invalid statistics (e.g., `NaN` Sharpe ratio due to zero volatility) do not win by default.
-
-Sources: [src/lib/services/logic/private/WalkerLogicPrivateService.ts:165-177]()
+
 
 ### Best Strategy Update Logic
 
@@ -162,8 +155,7 @@ Key behaviors:
 - **Maximization only**: The system does not support minimization metrics (e.g., max drawdown)
 
 For metric selection details and supported metrics, see [Strategy Comparison](./65_Strategy_Comparison.md).
-
-Sources: [src/lib/services/logic/private/WalkerLogicPrivateService.ts:179-187]()
+
 
 ## Progress Tracking and Emission
 
@@ -198,8 +190,7 @@ for await (const progress of walkerLogic.run(...)) {
   console.log(`Best so far: ${progress.bestStrategy} = ${progress.bestMetric}`);
 }
 ```
-
-Sources: [src/lib/services/logic/private/WalkerLogicPrivateService.ts:190-203](), [src/contract/Walker.contract.ts]()
+
 
 ### Progress Event Emission
 
@@ -227,8 +218,7 @@ await walkerEmitter.next(walkerContract);
 Consumers can listen to either channel:
 - Use `listenWalkerProgress()` for simple progress bars
 - Use `listenWalker()` for detailed monitoring with metric values
-
-Sources: [src/lib/services/logic/private/WalkerLogicPrivateService.ts:206-227](), [src/config/emitters.ts]()
+
 
 ### Final Results Emission
 
@@ -253,8 +243,7 @@ await walkerCompleteSubject.next(finalResults);
 ```
 
 This final emission includes the full statistics object for the best strategy, enabling post-processing and report generation.
-
-Sources: [src/lib/services/logic/private/WalkerLogicPrivateService.ts:230-250]()
+
 
 ## Callback Lifecycle
 
@@ -265,8 +254,7 @@ The walker schema supports four lifecycle callbacks that execute at specific poi
 ![Mermaid Diagram](./diagrams/64_Walker_Execution_Flow_3.svg)
 
 **Diagram: Walker Callback Invocation Points** - Shows the four callback types and when they execute during the walker lifecycle.
-
-Sources: [src/lib/services/logic/private/WalkerLogicPrivateService.ts:109-248]()
+
 
 ### Callback Signatures
 
@@ -278,8 +266,7 @@ Sources: [src/lib/services/logic/private/WalkerLogicPrivateService.ts:109-248]()
 | `onComplete` | `(finalResults: object) => void` | After all strategies complete | Generate final report, persist best strategy |
 
 Callbacks are optional and defined in the walker schema passed to `addWalker()`. All callbacks execute synchronously in the main execution flow.
-
-Sources: [src/lib/services/logic/private/WalkerLogicPrivateService.ts:109-248](), [src/interfaces/Walker.interface.ts]()
+
 
 ### Example Callback Implementation
 
@@ -311,8 +298,7 @@ addWalker({
   }
 });
 ```
-
-Sources: [src/lib/services/logic/private/WalkerLogicPrivateService.ts:109-248]()
+
 
 ## Cancellation Mechanism
 
@@ -339,8 +325,7 @@ const listenStop = walkerStopSubject
 ```
 
 The listener filters stop events by matching `symbol` and `strategyName`, ensuring that only relevant stop signals trigger cancellation. The `CANCEL_SYMBOL` sentinel value distinguishes cancellation from normal backtest completion.
-
-Sources: [src/lib/services/logic/private/WalkerLogicPrivateService.ts:19-104]()
+
 
 ### Race Condition Handling
 
@@ -367,8 +352,7 @@ for (const strategyName of strategies) {
 ```
 
 The race pattern ensures immediate response to cancellation without waiting for the current backtest to complete. The strategy loop breaks immediately upon receiving `CANCEL_SYMBOL`, skipping remaining strategies.
-
-Sources: [src/lib/services/logic/private/WalkerLogicPrivateService.ts:126-157]()
+
 
 ### Triggering Cancellation
 
@@ -385,8 +369,7 @@ walkerStopSubject.next({
 ```
 
 The cancellation is non-destructive: already-completed strategies retain their results, and the walker emits a final `walkerCompleteSubject` event with partial results. However, `onComplete` callback still executes, receiving results from only the strategies that completed before cancellation.
-
-Sources: [src/lib/services/logic/private/WalkerLogicPrivateService.ts:96-157]()
+
 
 ## AsyncGenerator Streaming Pattern
 
@@ -408,8 +391,7 @@ public async *run(
 ```
 
 The generator yields after each strategy completes, producing an unbounded stream for potentially large strategy sets.
-
-Sources: [src/lib/services/logic/private/WalkerLogicPrivateService.ts:70-79]()
+
 
 ### Consumption Patterns
 
@@ -452,13 +434,11 @@ Walker.background(symbol);
 ```
 
 This pattern decouples walker execution from result consumption via the event bus.
-
-Sources: [src/lib/services/logic/private/WalkerLogicPrivateService.ts:70-252]()
+
 
 ### Memory Efficiency
 
 The generator pattern provides constant memory overhead regardless of strategy count, as only one `WalkerContract` exists in memory at a time during streaming consumption. The backtest results from previous strategies are released as soon as their metrics are extracted, preventing accumulation of large signal datasets. The walker itself maintains only scalar tracking state (`bestMetric`, `bestStrategy`, `strategiesTested`).
 
 For walker executions testing hundreds of strategies over years of data, this streaming architecture prevents out-of-memory errors that would occur with array accumulation patterns.
-
-Sources: [src/lib/services/logic/private/WalkerLogicPrivateService.ts:1-254]()
+

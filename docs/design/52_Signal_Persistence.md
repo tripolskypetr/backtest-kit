@@ -25,8 +25,7 @@ This page documents the persistence layer specifically for signal state manageme
 The signal persistence system operates across two independent domains to maintain crash safety:
 
 ![Mermaid Diagram](./diagrams/52_Signal_Persistence_0.svg)
-
-**Sources:** [src/client/ClientStrategy.ts:1-1500](), [src/classes/Persist.ts:504-622]()
+
 
 ---
 
@@ -81,8 +80,7 @@ Signal persistence uses a hierarchical directory structure to isolate signals by
   "_isScheduled": true
 }
 ```
-
-**Sources:** [src/classes/Persist.ts:514-603](), [src/client/ClientStrategy.ts:496-551]()
+
 
 ---
 
@@ -98,8 +96,7 @@ The persistence layer uses an atomic write pattern to guarantee crash-safe opera
 2. **All-or-Nothing**: OS rename operation is atomic at filesystem level
 3. **Crash Safety**: If process crashes during write, either old file or new file exists (never corrupted)
 4. **No Data Loss**: `fsync()` ensures data is flushed to disk before rename
-
-**Sources:** [src/utils/writeFileAtomic.ts](), [src/classes/Persist.ts:295-314]()
+
 
 ---
 
@@ -118,8 +115,7 @@ Signal persistence is tightly integrated with the `ClientStrategy` state machine
 | `Scheduled → Pending` | `setScheduledSignal(null)` + `setPendingSignal(signal)` | Clear schedule file, write signal file |
 | `Scheduled → Idle` | `setScheduledSignal(null)` | Write `null` to schedule file |
 | `Pending → Closed` | `setPendingSignal(null)` | Write `null` to signal file |
-
-**Sources:** [src/client/ClientStrategy.ts:1097-1138](), [src/client/ClientStrategy.ts:1140-1179]()
+
 
 ---
 
@@ -137,8 +133,7 @@ The `PersistBase` class performs automatic validation and cleanup during `waitFo
 2. **File Validation**: Each JSON file is parsed and validated
 3. **Corrupted File Cleanup**: Invalid files are automatically deleted with retry logic (5 attempts, 1-second delay)
 4. **Schema Mismatch Check**: Restored signals must match `exchangeName` and `strategyName`
-
-**Sources:** [src/client/ClientStrategy.ts:491-552](), [src/classes/Persist.ts:132-177]()
+
 
 ---
 
@@ -164,8 +159,7 @@ These singleton utility classes provide the high-level API for signal persistenc
 - **Base Directory**: `./dump/data/signal/`
 - **Entity Name**: `{symbol}_{strategyName}`
 - **File Name**: `{symbol}.json`
-
-**Sources:** [src/classes/Persist.ts:504-622]()
+
 
 ### PersistScheduleAdapter
 
@@ -185,8 +179,7 @@ These singleton utility classes provide the high-level API for signal persistenc
 - **Base Directory**: `./dump/data/schedule/`
 - **Entity Name**: `{symbol}_{strategyName}`
 - **File Name**: `{symbol}.json`
-
-**Sources:** [src/classes/Persist.ts:700-818]()
+
 
 ---
 
@@ -213,8 +206,7 @@ async setPendingSignal(signal: ISignalRow | null): Promise<void>
 - `OPEN_NEW_PENDING_SIGNAL_FN()` - When immediate signal opens
 - `ACTIVATE_SCHEDULED_SIGNAL_FN()` - When scheduled signal activates
 - `CLOSE_PENDING_SIGNAL_FN()` - When signal closes (writes `null`)
-
-**Sources:** [src/client/ClientStrategy.ts:1097-1138]()
+
 
 ### setScheduledSignal()
 
@@ -236,8 +228,7 @@ async setScheduledSignal(signal: IScheduledSignalRow | null): Promise<void>
 - `ACTIVATE_SCHEDULED_SIGNAL_FN()` - Clears scheduled signal (writes `null`) before activation
 - `CANCEL_SCHEDULED_SIGNAL_BY_STOPLOSS_FN()` - Clears scheduled signal on cancellation
 - `CHECK_SCHEDULED_SIGNAL_TIMEOUT_FN()` - Clears scheduled signal on timeout
-
-**Sources:** [src/client/ClientStrategy.ts:1140-1179]()
+
 
 ---
 
@@ -279,8 +270,7 @@ if (this.params.execution.context.backtest) {
 // Continue with disk write in live mode
 await PersistSignalAdapter.writeSignalData(signal, symbol, strategy);
 ```
-
-**Sources:** [src/client/ClientStrategy.ts:1097-1179](), [src/lib/services/context/ExecutionContextService.ts]()
+
 
 ---
 
@@ -321,8 +311,7 @@ PersistSignalAdapter.usePersistSignalAdapter(RedisPersist);
 
 // Now all signal persistence uses Redis instead of file system
 ```
-
-**Sources:** [src/classes/Persist.ts:69-131](), [src/classes/Persist.ts:541-548]()
+
 
 ---
 
@@ -362,8 +351,7 @@ for await (const key of this.keys()) {
 |----------|-------|-------------|
 | `BASE_UNLINK_RETRY_COUNT` | 5 | Maximum deletion attempts |
 | `BASE_UNLINK_RETRY_DELAY` | 1000ms | Delay between attempts |
-
-**Sources:** [src/classes/Persist.ts:132-177]()
+
 
 ### File System Error Handling
 
@@ -389,8 +377,7 @@ try {
   throw new Error(`Failed to write entity: ${getErrorMessage(error)}`);
 }
 ```
-
-**Sources:** [src/classes/Persist.ts:251-314]()
+
 
 ---
 
@@ -415,8 +402,7 @@ private getSignalStorage = memoize(
 - Avoids recreating file handles for repeated operations
 - Reuses validated directory paths
 - Reduces initialization overhead
-
-**Sources:** [src/classes/Persist.ts:517-525]()
+
 
 ### Directory Isolation
 
@@ -446,8 +432,7 @@ if (this.params.execution.context.backtest) {
 ```
 
 **Impact:** Backtests run 100x+ faster without persistence overhead.
-
-**Sources:** [src/client/ClientStrategy.ts:1097-1179]()
+
 
 ---
 
@@ -478,8 +463,7 @@ addStrategy({
 - Verifying persistence operations in tests
 - Debugging live trading state changes
 - Monitoring disk write frequency
-
-**Sources:** [src/interfaces/Strategy.interface.ts:121](), [src/client/ClientStrategy.ts:1097-1179]()
+
 
 ### Test Coverage
 
@@ -495,5 +479,4 @@ The test suite includes comprehensive persistence tests:
 4. Backtest mode skips persistence
 5. Null writes clear state
 6. Directory creation and validation
-
-**Sources:** [test/index.mjs:11](), [test/e2e/restore.test.mjs]()
+

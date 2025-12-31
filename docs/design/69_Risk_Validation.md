@@ -21,8 +21,7 @@ The framework employs a two-tier validation system to ensure signal integrity an
 ### System Architecture
 
 ![Mermaid Diagram](./diagrams/69_Risk_Validation_0.svg)
-
-**Sources:** [src/client/ClientStrategy.ts:45-476](), [src/client/ClientRisk.ts](), [types.d.ts:338-485]()
+
 
 ---
 
@@ -48,8 +47,7 @@ The `VALIDATE_SIGNAL_FN` in `ClientStrategy` performs comprehensive structural v
 | **Time Validation** | `minuteEstimatedTime` must be positive integer | Ensures valid time estimate |
 | **Maximum Lifetime** | `CC_MAX_SIGNAL_LIFETIME_MINUTES` | Prevents eternal signals that block strategy |
 | **Timestamp Validation** | `scheduledAt`, `pendingAt` must be positive | Ensures valid timestamps |
-
-**Sources:** [src/client/ClientStrategy.ts:45-330]()
+
 
 ---
 
@@ -58,8 +56,7 @@ The `VALIDATE_SIGNAL_FN` in `ClientStrategy` performs comprehensive structural v
 The validation enforces strict price ordering based on position direction:
 
 ![Mermaid Diagram](./diagrams/69_Risk_Validation_1.svg)
-
-**Sources:** [src/client/ClientStrategy.ts:111-291]()
+
 
 ---
 
@@ -96,8 +93,7 @@ if (slDistancePercent > GLOBAL_CONFIG.CC_MAX_STOPLOSS_DISTANCE_PERCENT) {
 | `CC_MIN_STOPLOSS_DISTANCE_PERCENT` | 0.2% | Minimum SL buffer to prevent instant stop-out from market noise |
 | `CC_MAX_STOPLOSS_DISTANCE_PERCENT` | 10% | Maximum loss limit to protect capital |
 | `CC_MAX_SIGNAL_LIFETIME_MINUTES` | 43,200 (30 days) | Prevents eternal signals that block risk limits |
-
-**Sources:** [src/client/ClientStrategy.ts:163-316](), [src/config/params.ts]()
+
 
 ---
 
@@ -106,8 +102,7 @@ if (slDistancePercent > GLOBAL_CONFIG.CC_MAX_STOPLOSS_DISTANCE_PERCENT) {
 A critical protection prevents signals that would close immediately after opening:
 
 ![Mermaid Diagram](./diagrams/69_Risk_Validation_2.svg)
-
-**Sources:** [src/client/ClientStrategy.ts:124-160](), [src/client/ClientStrategy.ts:215-250]()
+
 
 ---
 
@@ -118,8 +113,7 @@ After passing built-in validation, signals are evaluated against user-defined ri
 ### Type Definitions and Relationships
 
 ![Mermaid Diagram](./diagrams/69_Risk_Validation_3.svg)
-
-**Sources:** [types.d.ts:338-485](), [src/interfaces/Risk.interface.ts](), [src/client/ClientRisk.ts]()
+
 
 ---
 
@@ -130,8 +124,7 @@ The `ClientRisk.checkSignal()` method executes custom risk validations sequentia
 #### ClientRisk.checkSignal Implementation Flow
 
 ![Mermaid Diagram](./diagrams/69_Risk_Validation_4.svg)
-
-**Sources:** [src/client/ClientRisk.ts](), [src/client/ClientStrategy.ts:374-387](), [src/config/emitters.ts:112-131]()
+
 
 ---
 
@@ -231,8 +224,7 @@ interface IRiskActivePosition {
   note: "Limit symbol concentration and directional bias"
 }
 ```
-
-**Sources:** [types.d.ts:338-412](), [demo/backtest/src/index.mjs:37-82](), [demo/live/src/index.mjs:37-78]()
+
 
 ---
 
@@ -304,8 +296,7 @@ if (
 **Key Difference:** The `currentPrice` parameter differs between checkpoints:
 - **Checkpoint 1:** Uses `currentPrice` from `exchange.getAveragePrice()` at generation time
 - **Checkpoint 2:** Uses `scheduled.priceOpen` (the activation price)
-
-**Sources:** [src/client/ClientStrategy.ts:374-387](), [src/client/ClientStrategy.ts:711-729]()
+
 
 ---
 
@@ -330,8 +321,7 @@ interface IRiskEvent {
 ```
 
 Rejection events are emitted via `riskEmitter` for observability. Applications can subscribe using `listenRisk()` to track rejected signals for strategy tuning.
-
-**Sources:** [src/client/ClientRisk.ts](), [src/config/emitters.ts]()
+
 
 ---
 
@@ -371,8 +361,7 @@ setConfig({
   CC_SCHEDULE_AWAIT_MINUTES: 60, // 1 hour max wait
 });
 ```
-
-**Sources:** [src/config/params.ts](), [src/client/ClientStrategy.ts:163-316]()
+
 
 ---
 
@@ -450,8 +439,7 @@ setConfig({
   note: "Symbol-specific time constraints"
 }
 ```
-
-**Sources:** [demo/backtest/src/index.mjs:37-82](), [demo/live/src/index.mjs:37-78]()
+
 
 ---
 
@@ -460,8 +448,7 @@ setConfig({
 Risk validation integrates seamlessly with the signal state machine:
 
 ![Mermaid Diagram](./diagrams/69_Risk_Validation_7.svg)
-
-**Sources:** [src/client/ClientStrategy.ts:332-476](), [src/client/ClientStrategy.ts:681-774]()
+
 
 ---
 
@@ -489,14 +476,12 @@ interface IRiskCallbacks {
   ) => void;
 }
 ```
-
-**Sources:** [types.d.ts:371-378]()
+
 
 ### Callback Invocation Flow
 
 ![Mermaid Diagram](./diagrams/69_Risk_Validation_8.svg)
-
-**Sources:** [src/client/ClientRisk.ts](), [src/config/emitters.ts:112-131]()
+
 
 ### Example: Logging Allowed Signals
 
@@ -584,8 +569,7 @@ listenRisk((event) => {
   console.log(`  Active: ${event.activePositionCount}`);
 });
 ```
-
-**Sources:** [types.d.ts:371-378](), [src/config/emitters.ts:109-131](), [src/function/event.ts:896-968]()
+
 
 ---
 
@@ -600,5 +584,4 @@ The risk validation system provides **defense in depth** through:
 5. **Comprehensive Observability** - Emits events, logs warnings, generates reports for all rejections
 
 This ensures that **only high-quality, risk-managed signals reach execution**, protecting capital and preventing strategy errors.
-
-**Sources:** [src/client/ClientStrategy.ts:45-476](), [src/client/ClientRisk.ts](), [src/interfaces/Risk.interface.ts](), [demo/backtest/src/index.mjs:37-82](), [demo/live/src/index.mjs:37-78]()
+

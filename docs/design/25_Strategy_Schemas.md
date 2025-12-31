@@ -10,8 +10,7 @@ group: design
 This page documents the `IStrategySchema` interface, which defines the configuration structure for trading strategies in backtest-kit. Strategy schemas specify signal generation logic, throttling intervals, lifecycle callbacks, and optional risk management integration.
 
 For information about risk management configuration, see [Risk Schemas](./28_Risk_Schemas.md). For exchange data source configuration, see [Exchange Schemas](./26_Exchange_Schemas.md). For strategy execution patterns, see [ClientStrategy](./33_ClientStrategy.md).
-
-**Sources:** [types.d.ts:536-633](), [src/function/add.ts:9-62]()
+
 
 ---
 
@@ -20,8 +19,7 @@ For information about risk management configuration, see [Risk Schemas](./28_Ris
 The `IStrategySchema` interface defines the complete configuration for a trading strategy. When registered via `addStrategy()`, the schema is stored in `StrategySchemaService` and validated by `StrategyValidationService`.
 
 ![Mermaid Diagram](./diagrams/25_Strategy_Schemas_0.svg)
-
-**Sources:** [types.d.ts:616-633](), [types.d.ts:544-559](), [types.d.ts:593-611]()
+
 
 ---
 
@@ -39,8 +37,7 @@ Unique identifier for the strategy. Used throughout the framework for:
 - Report generation and markdown output
 
 The strategy name must be unique across all registered strategies. Multiple calls to `addStrategy()` with the same `strategyName` will overwrite the previous registration.
-
-**Sources:** [types.d.ts:617](), [src/function/add.ts:50-62]()
+
 
 ---
 
@@ -64,8 +61,7 @@ The framework enforces this interval using `_lastSignalTimestamp` tracking in `C
 | `15m` | 15 | Medium-term swing strategies |
 | `30m` | 30 | Longer-term position strategies |
 | `1h` | 60 | Low-frequency strategies |
-
-**Sources:** [types.d.ts:539](), [src/lib/constants/interval.ts]()
+
 
 ---
 
@@ -110,8 +106,7 @@ The `getSignal` function executes within `ExecutionContextService.runInContext()
 - Backtest flag via `executionContext.backtest`
 - Exchange operations via `getCandles(symbol, interval, limit)`
 - Price formatting via `formatPrice(symbol, price)`
-
-**Sources:** [types.d.ts:628](), [src/lib/classes/client/ClientStrategy.ts]()
+
 
 ---
 
@@ -139,8 +134,7 @@ The `ISignalDto` interface defines the structure returned by `getSignal()`. It i
 
 - **`priceOpen` provided:** Signal enters `scheduled` state, waits for price activation
 - **`priceOpen` omitted:** Signal enters `opened` state immediately at current VWAP
-
-**Sources:** [types.d.ts:544-559](), [src/lib/utils/validate/signal.ts]()
+
 
 ---
 
@@ -193,8 +187,7 @@ interface IStrategyCallbacks {
 - **Metrics:** Track custom performance indicators
 - **Debugging:** Inspect signal lifecycle during development
 - **Integration:** Connect to external monitoring systems
-
-**Sources:** [types.d.ts:593-611](), [types.d.ts:630](), [src/lib/classes/client/ClientStrategy.ts]()
+
 
 ---
 
@@ -240,8 +233,7 @@ addStrategy({
 ```
 
 For detailed risk management configuration, see [Risk Schemas](./28_Risk_Schemas.md).
-
-**Sources:** [types.d.ts:632](), [types.d.ts:476-533](), [src/function/add.ts:50-62]()
+
 
 ---
 
@@ -255,8 +247,7 @@ Developer documentation string. Used for:
 - UI display in strategy selection interfaces
 
 Not used by framework logic, purely informational.
-
-**Sources:** [types.d.ts:620]()
+
 
 ---
 
@@ -285,8 +276,7 @@ When strategy is first used (during `Backtest.run()` or `Live.run()`):
    - `TExchangeGlobalService` (exchange operations)
    - `TRiskGlobalService` (risk checking, if `riskName` specified)
 3. Instance is memoized (one per strategy name)
-
-**Sources:** [src/function/add.ts:50-62](), [src/lib/services/connection/StrategyConnectionService.ts]()
+
 
 ---
 
@@ -297,8 +287,7 @@ When strategy is first used (during `Backtest.run()` or `Live.run()`):
 ![Mermaid Diagram](./diagrams/25_Strategy_Schemas_6.svg)
 
 The `getSignal` function has implicit access to exchange operations via context propagation. No explicit parameters needed.
-
-**Sources:** [src/function/exchange.ts](), [src/lib/services/context/ExecutionContextService.ts]()
+
 
 ---
 
@@ -316,8 +305,7 @@ The `getSignal` function has implicit access to exchange operations via context 
    - `params`: Signal details (symbol, price, timestamp)
 4. If validation passes, signal opens and `addSignal()` called
 5. On signal close, `removeSignal()` called to update portfolio state
-
-**Sources:** [src/lib/classes/client/ClientStrategy.ts](), [src/lib/classes/client/ClientRisk.ts]()
+
 
 ---
 
@@ -383,8 +371,7 @@ addStrategy({
   riskName: "conservative",
 });
 ```
-
-**Sources:** [src/function/add.ts:16-62](), [types.d.ts:616-633]()
+
 
 ---
 
@@ -395,8 +382,7 @@ addStrategy({
 Type alias: `string`
 
 Unique identifier for strategy schemas. Used as registry key in `StrategySchemaService`.
-
-**Sources:** [types.d.ts:824]()
+
 
 ---
 
@@ -405,8 +391,7 @@ Unique identifier for strategy schemas. Used as registry key in `StrategySchemaS
 Type: `"1m" | "3m" | "5m" | "15m" | "30m" | "1h"`
 
 Throttling intervals for signal generation. Enforced by `ClientStrategy._lastSignalTimestamp` tracking.
-
-**Sources:** [types.d.ts:539]()
+
 
 ---
 
@@ -423,8 +408,7 @@ Extended version of `ISignalDto` with auto-generated fields:
 - `_isScheduled`: Internal runtime flag
 
 Used internally by `ClientStrategy` and emitted in callbacks.
-
-**Sources:** [types.d.ts:564-581]()
+
 
 ---
 
@@ -440,5 +424,4 @@ Discriminated union of tick results:
 - `IStrategyTickResultCancelled`: Scheduled signal cancelled
 
 Use discriminant `result.action` for type-safe handling.
-
-**Sources:** [types.d.ts:654-774]()
+

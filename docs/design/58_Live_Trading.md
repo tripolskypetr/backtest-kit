@@ -31,8 +31,7 @@ Live Trading provides:
 | Completion | Finite (ends when timeframes exhausted) | Infinite (runs until stopped) |
 | Persistence | Disabled (in-memory only) | Enabled (atomic disk writes) |
 | Speed | Fast-forward through candles | Real-time (1 tick per `TICK_TTL`) |
-
-**Sources:** [src/classes/Live.ts:1-614](), [src/classes/Backtest.ts:1-601](), [src/lib/services/logic/private/LiveLogicPrivateService.ts:1-181]()
+
 
 ---
 
@@ -41,24 +40,21 @@ Live Trading provides:
 ### High-Level Architecture
 
 ![Mermaid Diagram](./diagrams/58_Live_Trading_0.svg)
-
-**Sources:** [src/classes/Live.ts:347-376](), [src/lib/services/logic/private/LiveLogicPrivateService.ts:14-181]()
+
 
 ### Infinite Loop Structure
 
 The core live trading loop is implemented in `LiveLogicPrivateService.run()`:
 
 ![Mermaid Diagram](./diagrams/58_Live_Trading_1.svg)
-
-**Sources:** [src/lib/services/logic/private/LiveLogicPrivateService.ts:14-181]()
+
 
 ### LiveUtils Public API
 
 The `LiveUtils` class provides a singleton interface for live trading operations:
 
 ![Mermaid Diagram](./diagrams/58_Live_Trading_2.svg)
-
-**Sources:** [src/classes/Live.ts:376-596](), [src/classes/Live.ts:79-345]()
+
 
 ---
 
@@ -80,24 +76,21 @@ Live Trading persists four types of state to disk after every tick:
 All persistence uses the atomic write pattern to prevent data corruption:
 
 ![Mermaid Diagram](./diagrams/58_Live_Trading_3.svg)
-
-**Sources:** [src/classes/Persist.ts]() (referenced in diagrams)
+
 
 ### Recovery Flow
 
 When a live trading process restarts after a crash:
 
 ![Mermaid Diagram](./diagrams/58_Live_Trading_4.svg)
-
-**Sources:** [src/client/ClientStrategy.ts]() (referenced in architecture diagrams), [src/lib/services/connection/PartialConnectionService.ts]() (persistence architecture)
+
 
 ### Validation on Init
 
 `PersistBase` validates all JSON files on initialization:
 
 ![Mermaid Diagram](./diagrams/58_Live_Trading_5.svg)
-
-**Sources:** [src/classes/Persist.ts]() (referenced in Diagram 5 of architecture overview)
+
 
 ---
 
@@ -118,16 +111,14 @@ Each tick evaluates the current signal state and returns a discriminated union:
 ### Signal State Transitions in Live Mode
 
 ![Mermaid Diagram](./diagrams/58_Live_Trading_6.svg)
-
-**Sources:** [src/client/ClientStrategy.ts]() (signal lifecycle), [src/lib/services/logic/private/LiveLogicPrivateService.ts:62-177]()
+
 
 ### Event Emission
 
 Live mode emits events to three distinct channels:
 
 ![Mermaid Diagram](./diagrams/58_Live_Trading_7.svg)
-
-**Sources:** [src/lib/services/connection/StrategyConnectionService.ts:216-238](), [src/lib/services/logic/private/LiveLogicPrivateService.ts:102-115]()
+
 
 ---
 
@@ -161,8 +152,7 @@ addStrategy({
 ### Throttling Mechanism
 
 ![Mermaid Diagram](./diagrams/58_Live_Trading_8.svg)
-
-**Sources:** [src/client/ClientStrategy.ts]() (referenced in architecture), [src/interfaces/Strategy.interface.ts]() (interval types)
+
 
 ### TICK_TTL Constant
 
@@ -175,8 +165,7 @@ TICK_TTL = 1 * 60 * 1_000 + 1
 ```
 
 This ensures approximately 1 tick per minute, regardless of strategy interval. Strategies with longer intervals (e.g., `5m`, `1h`) simply skip calling `getSignal()` on intermediate ticks.
-
-**Sources:** [src/lib/services/logic/private/LiveLogicPrivateService.ts:14]()
+
 
 ---
 
@@ -216,8 +205,7 @@ for await (const result of Live.run("BTCUSDT", {
   }
 }
 ```
-
-**Sources:** [src/classes/Live.ts:598-614]()
+
 
 ### Background Execution
 
@@ -233,8 +221,7 @@ setTimeout(() => {
   cancel(); // Sets stop flag
 }, 3600000); // 1 hour
 ```
-
-**Sources:** [src/classes/Live.ts:440-459]()
+
 
 ### Graceful Shutdown
 
@@ -254,8 +241,7 @@ if (pending) {
   // Allow signal to complete normally
 }
 ```
-
-**Sources:** [src/classes/Live.ts:461-489](), [src/classes/Live.ts:222-241]()
+
 
 ### Crash Recovery Example
 
@@ -279,8 +265,7 @@ Live.background("BTCUSDT", {
 // - ./dump/data/partial/my-strategy/BTCUSDT.json
 // Trading resumes monitoring TP/SL exactly where it left off
 ```
-
-**Sources:** [src/classes/Live.ts:1-614](), [src/lib/services/logic/private/LiveLogicPrivateService.ts:1-181]()
+
 
 ---
 
@@ -316,8 +301,7 @@ statusList.forEach(status => {
 - `idle`: Instance created but not running
 - `running`: Active infinite loop in progress
 - `done`: Loop terminated (rare in live mode)
-
-**Sources:** [src/classes/Live.ts:380-386](), [src/classes/Live.ts:592-595]()
+
 
 ---
 
@@ -341,8 +325,7 @@ Live:     memoize key = "${symbol}:${strategyName}:live"
 ```
 
 This allows running the same strategy in both modes simultaneously without interference.
-
-**Sources:** [src/lib/services/connection/StrategyConnectionService.ts:123-156]()
+
 
 ### Persistence Behavior
 
@@ -355,8 +338,7 @@ This allows running the same strategy in both modes simultaneously without inter
 | `ClientStrategy.waitForInit()` | No-op | Loads state from disk |
 
 Backtest mode skips all persistence for performance, while Live mode persists state after every tick to enable crash recovery.
-
-**Sources:** [src/client/ClientStrategy.ts]() (referenced in architecture diagrams)
+
 
 ---
 
@@ -379,8 +361,7 @@ try {
 ```
 
 The loop continues, allowing transient errors (network timeouts, API rate limits) to self-recover.
-
-**Sources:** [src/lib/services/logic/private/LiveLogicPrivateService.ts:74-95]()
+
 
 ### Persistence Failures
 
@@ -391,8 +372,7 @@ If atomic write fails:
 4. Next tick will retry persistence
 
 This ensures trading continues even if disk I/O is temporarily unavailable.
-
-**Sources:** [src/classes/Persist.ts]() (referenced in Diagram 5)
+
 
 ---
 
@@ -417,8 +397,7 @@ Subscribe to these events to monitor:
 - Tick processing duration
 - Time between ticks
 - System performance trends
-
-**Sources:** [src/lib/services/logic/private/LiveLogicPrivateService.ts:102-115]()
+
 
 ---
 

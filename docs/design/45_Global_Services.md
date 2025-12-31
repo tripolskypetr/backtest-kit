@@ -17,8 +17,7 @@ The framework provides four Global Services, each managing a distinct domain:
 | `OptimizerGlobalService` | LLM strategy generation | Validates optimizer configurations, delegates code generation to OptimizerConnectionService |
 
 For information about the overall service layer organization, see [Service Architecture Overview](./41_Service_Architecture_Overview.md). For details on the services that Global Services delegate to, see [Connection Services](./42_Connection_Services.md), [Schema Services](./43_Schema_Services.md), and [Validation Services](./44_Validation_Services.md).
-
-**Sources:** [src/lib/index.ts:120-129](), [src/lib/core/types.ts:36-41](), [src/lib/core/provide.ts:91-96]()
+
 </thinking>
 
 ---
@@ -32,8 +31,7 @@ Global Services occupy a specific niche in the service architecture distinct fro
 ![Mermaid Diagram](./diagrams/45_Global_Services_0.svg)
 
 **Purpose**: This diagram shows how Global Services fit between client classes and connection services. Unlike `add*` functions which access schema/validation services directly, global services provide validated entry points for runtime operations.
-
-**Sources:** [src/lib/index.ts:120-129](), [src/function/add.ts:52-64](), [src/lib/services/global/PartialGlobalService.ts:40-54]()
+
 
 ### Comparison with Other Layers
 
@@ -46,8 +44,7 @@ Global Services occupy a specific niche in the service architecture distinct fro
 | **Command Services** | Orchestrate execution workflows | Stateless (delegates to Logic) | Utility classes (Backtest, Live, Walker) |
 
 **Key distinction**: Global Services are **runtime facades** used by client classes during execution. Schema Services are **configuration stores** used during setup. Command Services are **execution orchestrators** used by utility classes.
-
-**Sources:** [src/lib/index.ts:61-129](), [src/lib/services/global/PartialGlobalService.ts:1-205]()
+
 
 ---
 
@@ -60,8 +57,7 @@ All Global Services follow a consistent three-step pattern for public methods:
 ![Mermaid Diagram](./diagrams/45_Global_Services_1.svg)
 
 **Purpose**: This diagram shows the standard three-step pattern that all Global Service methods follow: log the operation, validate component existence, then delegate to the corresponding Connection Service.
-
-**Sources:** [src/lib/services/global/PartialGlobalService.ts:110-135]()
+
 
 ### Standard Method Structure
 
@@ -101,8 +97,7 @@ public profit = async (
   );
 };
 ```
-
-**Sources:** [src/lib/services/global/PartialGlobalService.ts:110-135]()
+
 
 ---
 
@@ -115,8 +110,7 @@ All Global Services inject three types of dependencies via the DI container:
 ![Mermaid Diagram](./diagrams/45_Global_Services_2.svg)
 
 **Purpose**: This diagram shows the dependency injection pattern used by PartialGlobalService. All dependencies are injected using the `inject()` function with TYPES symbols.
-
-**Sources:** [src/lib/services/global/PartialGlobalService.ts:40-74]()
+
 
 ### Dependency Categories
 
@@ -146,8 +140,7 @@ private readonly riskValidationService = inject<RiskValidationService>(
   TYPES.riskValidationService
 );
 ```
-
-**Sources:** [src/lib/services/global/PartialGlobalService.ts:40-74]()
+
 
 ---
 
@@ -160,8 +153,7 @@ Global Services use memoization to avoid redundant validation calls for the same
 ![Mermaid Diagram](./diagrams/45_Global_Services_3.svg)
 
 **Purpose**: This sequence diagram shows how memoization prevents redundant validation. The first call performs validation and caches the result. Subsequent calls for the same strategy return immediately from cache.
-
-**Sources:** [src/lib/services/global/PartialGlobalService.ts:77-95](), [src/lib/services/global/PartialGlobalService.ts:110-135]()
+
 
 ### Memoize Implementation
 
@@ -199,8 +191,7 @@ private validate = memoize(
 - **First call**: Validates strategy and associated risk profiles
 - **Subsequent calls**: Returns immediately (no validation performed)
 - **Scope**: Per Global Service instance (singleton via DI)
-
-**Sources:** [src/lib/services/global/PartialGlobalService.ts:77-95]()
+
 
 ---
 
@@ -213,8 +204,7 @@ PartialGlobalService coordinates partial profit/loss milestone tracking. It vali
 ![Mermaid Diagram](./diagrams/45_Global_Services_4.svg)
 
 **Purpose**: This diagram shows PartialGlobalService's role in the partial tracking system. ClientStrategy calls the global service, which validates and delegates to PartialConnectionService, which manages ClientPartial instances.
-
-**Sources:** [src/lib/services/global/PartialGlobalService.ts:1-205](), [src/lib/services/connection/PartialConnectionService.ts:117-264]()
+
 
 ### Public Methods
 
@@ -263,32 +253,28 @@ public profit = async (
 2. Retrieves strategy schema to check `riskName` and `riskList`
 3. Validates each associated risk profile via `RiskValidationService`
 4. Delegates to `PartialConnectionService`
-
-**Sources:** [src/lib/services/global/PartialGlobalService.ts:77-201]()
+
 
 ---
 
 ## RiskGlobalService
 
 RiskGlobalService coordinates portfolio-level risk management. It validates risk profiles and delegates position tracking to RiskConnectionService. (Not fully detailed in provided files, but follows the same pattern as PartialGlobalService.)
-
-**Sources:** [src/lib/index.ts:122](), [src/lib/core/types.ts:38]()
+
 
 ---
 
 ## SizingGlobalService
 
 SizingGlobalService coordinates position sizing calculations. It validates sizing configurations and delegates calculations to SizingConnectionService. (Not fully detailed in provided files, but follows the same pattern.)
-
-**Sources:** [src/lib/index.ts:121](), [src/lib/core/types.ts:37]()
+
 
 ---
 
 ## OptimizerGlobalService
 
 OptimizerGlobalService coordinates LLM-based strategy generation. It validates optimizer configurations and delegates code generation to OptimizerConnectionService. (Not fully detailed in provided files, but follows the same pattern.)
-
-**Sources:** [src/lib/index.ts:123-125](), [src/lib/core/types.ts:39]()
+
 
 ---
 
@@ -301,8 +287,7 @@ Global Services are primarily used by client classes during runtime execution, n
 ![Mermaid Diagram](./diagrams/45_Global_Services_5.svg)
 
 **Purpose**: This sequence diagram shows the complete call chain from ClientStrategy through PartialGlobalService to ClientPartial. Global Services act as validated entry points, not as direct public APIs.
-
-**Sources:** [src/lib/services/global/PartialGlobalService.ts:110-135](), [src/lib/services/connection/PartialConnectionService.ts:159-185](), [src/client/ClientPartial.ts:399-424]()
+
 
 ### Injection Pattern
 
@@ -335,8 +320,7 @@ class ClientStrategy {
 - Client classes access them via `this.params.*GlobalService`
 - Public API functions (`add*`, `list*`) do NOT use Global Services
 - Global Services are runtime facades, not configuration APIs
-
-**Sources:** [src/lib/services/global/PartialGlobalService.ts:40-54]()
+
 
 ---
 
@@ -398,8 +382,7 @@ const globalServices = {
 - Services are registered as factory functions via `provide()`
 - Services are lazily initialized on first `inject()` call
 - Singletons: Only one instance per service type
-
-**Sources:** [src/lib/core/provide.ts:91-96](), [src/lib/core/types.ts:36-41](), [src/lib/index.ts:120-129]()
+
 
 ---
 
@@ -435,8 +418,7 @@ private validate = memoize(
 ```
 
 The cache key is the component name string. First invocation performs validation, subsequent calls return immediately.
-
-**Sources:** [src/lib/services/global/RiskGlobalService.ts:31-42]()
+
 
 ### Consistent Logging
 
@@ -460,8 +442,7 @@ Log entries include:
 - Service and method name (e.g., `"riskGlobalService checkSignal"`)
 - Operation-specific context (symbol, component names)
 - Structured data for debugging
-
-**Sources:** [src/lib/services/global/RiskGlobalService.ts:51-61]()
+
 
 ### Single Responsibility
 
@@ -470,8 +451,7 @@ Each Global Service manages exactly one component type or execution mode:
 - `StrategyGlobalService` → Strategies only  
 - `BacktestGlobalService` → Backtest execution only
 - `WalkerGlobalService` → Both walker components AND walker execution (special case)
-
-**Sources:** [src/lib/index.ts:93-108]()
+
 
 ---
 
@@ -480,5 +460,4 @@ Each Global Service manages exactly one component type or execution mode:
 ![Mermaid Diagram](./diagrams/45_Global_Services_6.svg)
 
 **Purpose**: This diagram summarizes the complete delegation flow for both Component and Execution Global Services. Both types perform validation first, but Component services delegate to Connection Services while Execution services delegate to Logic Services.
-
-**Sources:** [src/lib/services/global/RiskGlobalService.ts:15-114](), [src/lib/index.ts:93-132]()
+

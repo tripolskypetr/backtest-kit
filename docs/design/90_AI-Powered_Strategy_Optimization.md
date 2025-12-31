@@ -30,8 +30,7 @@ The Optimizer generates complete, executable trading strategy code by analyzing 
 | **Automated Testing** | Generated Walker for immediate strategy comparison |
 
 The optimizer bridges raw market data to production-ready strategies through a four-stage pipeline: data collection, prompt construction, LLM inference, and code assembly.
-
-Sources: [src/interfaces/Optimizer.interface.ts:379-433](), [src/client/ClientOptimizer.ts:1-19]()
+
 
 ## Architecture Components
 
@@ -47,8 +46,7 @@ Sources: [src/interfaces/Optimizer.interface.ts:379-433](), [src/client/ClientOp
 | **OptimizerSchemaService** | [src/lib/services/schema/OptimizerSchemaService.ts:13-95]() | Immutable schema storage via ToolRegistry |
 | **OptimizerTemplateService** | [src/lib/services/template/OptimizerTemplateService.ts:27-713]() | Default code generation templates |
 | **ClientOptimizer** | [src/client/ClientOptimizer.ts:397-445]() | Core business logic for data and code generation |
-
-Sources: [src/lib/services/connection/OptimizerConnectionService.ts:17-114](), [src/client/ClientOptimizer.ts:397-445](), [src/classes/Optimizer.ts:1-134]()
+
 
 ## Configuration Schema
 
@@ -90,8 +88,7 @@ const complexSource: IOptimizerSource = {
   }
 };
 ```
-
-Sources: [src/interfaces/Optimizer.interface.ts:377-433](), [src/interfaces/Optimizer.interface.ts:129-177]()
+
 
 ## Execution Flow
 
@@ -109,8 +106,7 @@ The optimizer executes through three primary methods: `getData()`, `getCode()`, 
 6. **Prompt Generation** - Calls `getPrompt()` with complete conversation history
 7. **Code Assembly** - Generates imports, helpers, components via templates
 8. **File Export** - Writes `{optimizerName}_{symbol}.mjs` to filesystem
-
-Sources: [src/client/ClientOptimizer.ts:99-214](), [src/client/ClientOptimizer.ts:225-350](), [src/client/ClientOptimizer.ts:360-384]()
+
 
 ## Public API Usage
 
@@ -172,8 +168,7 @@ await Optimizer.dump("BTCUSDT", {
 | `getData()` | Fetch data and build conversation history | `IOptimizerStrategy[]` | Inspect intermediate data, debug prompts |
 | `getCode()` | Generate complete executable code | `string` | Preview code before saving, custom post-processing |
 | `dump()` | Generate and save code to file | `void` | Production usage, automated workflows |
-
-Sources: [src/classes/Optimizer.ts:32-134](), [src/lib/services/global/OptimizerGlobalService.ts:28-101]()
+
 
 ## Generated Code Structure
 
@@ -211,8 +206,7 @@ The generated signal schema enforces:
 - `priceOpen`, `priceTakeProfit`, `priceStopLoss`: entry/exit prices
 - `minuteEstimatedTime`: expected trade duration (max 360 minutes)
 - `note`: strategy explanation
-
-Sources: [src/client/ClientOptimizer.ts:225-350](), [src/lib/services/template/OptimizerTemplateService.ts:168-304]()
+
 
 ## Template Customization
 
@@ -268,8 +262,7 @@ addOptimizer({
   }
 });
 ```
-
-Sources: [src/interfaces/Optimizer.interface.ts:242-374](), [src/lib/services/connection/OptimizerConnectionService.ts:59-112]()
+
 
 ## Progress Monitoring
 
@@ -307,8 +300,7 @@ await Optimizer.dump("BTCUSDT", { optimizerName: "my-optimizer" });
 Progress events are emitted:
 1. At the start of processing each source (before fetch)
 2. After completing all sources (progress = 1.0)
-
-Sources: [src/client/ClientOptimizer.ts:99-214](), [src/lib/services/connection/OptimizerConnectionService.ts:20-21]()
+
 
 ## Use Cases and Patterns
 
@@ -375,8 +367,7 @@ addOptimizer({
   // ...
 });
 ```
-
-Sources: [src/interfaces/Optimizer.interface.ts:191-236](), [src/client/ClientOptimizer.ts:99-214]()
+
 
 ## Integration with Walker
 
@@ -415,5 +406,4 @@ listenWalkerComplete((results) => {
   Walker.dump("BTCUSDT", results.walkerName);
 });
 ```
-
-Sources: [src/lib/services/template/OptimizerTemplateService.ts:122-157](), [src/lib/services/template/OptimizerTemplateService.ts:395-443](), [src/client/ClientOptimizer.ts:317-332]()
+

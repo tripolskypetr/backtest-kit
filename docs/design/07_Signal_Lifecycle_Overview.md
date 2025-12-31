@@ -30,8 +30,7 @@ The framework implements a type-safe state machine using discriminated unions. E
 - `active`: Position monitoring TP/SL conditions
 - `closed`: Signal completed with PNL calculation
 - `cancelled`: Scheduled signal cancelled before activation
-
-**Sources:** [src/interfaces/Strategy.interface.ts:171-311](), [src/client/ClientStrategy.ts:1-1500]()
+
 
 ---
 
@@ -53,8 +52,7 @@ The data transfer object returned by the strategy's `getSignal` function:
 | `priceStopLoss` | `number` | SL exit price |
 | `minuteEstimatedTime` | `number` | Max duration in minutes |
 | `note` | `string?` | Optional description |
-
-**Sources:** [src/interfaces/Strategy.interface.ts:24-39]()
+
 
 ### ISignalRow
 
@@ -70,14 +68,12 @@ Augmented signal with auto-generated metadata:
 | `scheduledAt` | `number` | Creation timestamp (ms) |
 | `pendingAt` | `number` | Activation timestamp (ms) |
 | `_isScheduled` | `boolean` | Internal runtime marker |
-
-**Sources:** [src/interfaces/Strategy.interface.ts:45-62]()
+
 
 ### IScheduledSignalRow
 
 Extends `ISignalRow` for signals awaiting price activation. The `pendingAt` field is initially set to `scheduledAt` and updated upon activation.
-
-**Sources:** [src/interfaces/Strategy.interface.ts:64-73]()
+
 
 ---
 
@@ -129,8 +125,7 @@ if (shouldActivateImmediately) {
   return signalRow;
 }
 ```
-
-**Sources:** [src/client/ClientStrategy.ts:332-476](), [src/interfaces/Strategy.interface.ts:12-18]()
+
 
 ---
 
@@ -173,8 +168,7 @@ if (elapsedTime >= maxTimeToWait) {
   // Cancel due to timeout
 }
 ```
-
-**Sources:** [src/client/ClientStrategy.ts:554-774](), [src/config/params.ts]()
+
 
 ---
 
@@ -222,8 +216,7 @@ if (!isScheduled && isFinite(currentPrice)) {
   }
 }
 ```
-
-**Sources:** [src/client/ClientStrategy.ts:45-330](), [src/client/ClientStrategy.ts:848-899]()
+
 
 ---
 
@@ -291,8 +284,7 @@ if (signal.position === "long") {
   }
 }
 ```
-
-**Sources:** [src/client/ClientStrategy.ts:901-1023](), [src/helpers/toProfitLossDto.ts](), [src/client/ClientPartial.ts]()
+
 
 ---
 
@@ -347,8 +339,7 @@ while (true) {
   await sleep(GLOBAL_CONFIG.TICK_TTL);
 }
 ```
-
-**Sources:** [src/lib/services/logic/BacktestLogicPrivateService.ts](), [src/lib/services/logic/LiveLogicPrivateService.ts]()
+
 
 ---
 
@@ -376,8 +367,7 @@ The following table maps high-level concepts to concrete code entities:
 | **Routing** | `StrategyConnectionService` | [src/lib/services/connection/StrategyConnectionService.ts:52-240]() |
 | **Event emission** | `signalEmitter`, `signalBacktestEmitter`, `signalLiveEmitter` | [src/config/emitters.ts]() |
 | **Callbacks** | `IStrategyCallbacks` interface | [src/interfaces/Strategy.interface.ts:100-126]() |
-
-**Sources:** [src/client/ClientStrategy.ts:1-1500](), [src/interfaces/Strategy.interface.ts:1-392](), [src/lib/services/connection/StrategyConnectionService.ts:1-241]()
+
 
 ---
 
@@ -396,5 +386,4 @@ The following table maps high-level concepts to concrete code entities:
 6. **Mode-specific optimizations**: Backtest uses fast-forward simulation, live uses continuous VWAP monitoring with persistence for crash recovery.
 
 7. **Event-driven architecture**: Every state transition emits typed events via `signalEmitter`, `signalBacktestEmitter`, and `signalLiveEmitter` for external consumption.
-
-**Sources:** [src/client/ClientStrategy.ts:1-1500](), [src/interfaces/Strategy.interface.ts:1-392](), [docs/internals.md:1-1000]()
+

@@ -10,8 +10,7 @@ group: design
 `ClientExchange` is the core data access class that provides market data to trading strategies through a unified interface. It wraps external exchange data providers (CCXT libraries, custom APIs, or database sources) and handles candle fetching, price formatting, and VWAP calculation. The class implements time-aware data fetching by using `ExecutionContextService` to determine the temporal boundary for historical vs. future data requests.
 
 This document covers the implementation details of `ClientExchange` including its constructor parameters, core methods, retry logic, and integration with the execution context system. For exchange schema registration, see [Exchange Schemas](./26_Exchange_Schemas.md). For how `ClientExchange` instances are managed and memoized, see [Connection Services](./42_Connection_Services.md).
-
-**Sources:** [src/client/ClientExchange.ts:1-375]()
+
 
 ---
 
@@ -22,8 +21,7 @@ This document covers the implementation details of `ClientExchange` including it
 ### Integration in System Architecture
 
 ![Mermaid Diagram](./diagrams/34_ClientExchange_0.svg)
-
-**Sources:** [src/client/ClientExchange.ts:179-372](), [src/lib/services/global/ExchangeGlobalService.ts:1-100](), [src/lib/services/connection/ExchangeConnectionService.ts:1-80]()
+
 
 ---
 
@@ -42,8 +40,7 @@ This document covers the implementation details of `ClientExchange` including it
 | `execution` | `ExecutionContextService` | Reference to execution context for time-aware fetching |
 | `logger` | `LoggerService` | Logger instance for debug/warn/error messages |
 | `callbacks?.onCandleData` | `(symbol, interval, since, limit, data) => void` | Optional callback invoked after fetching candles |
-
-**Sources:** [src/interfaces/Exchange.interface.ts:15-35](), [src/client/ClientExchange.ts:179-180]()
+
 
 ### Constructor Invocation
 
@@ -65,8 +62,7 @@ const exchange = new ClientExchange({
   }
 });
 ```
-
-**Sources:** [src/client/ClientExchange.ts:164-177]()
+
 
 ---
 
@@ -107,8 +103,7 @@ async getCandles(
 
 4. **Callback Invocation** [src/client/ClientExchange.ts:231-239]()
    - Calls `params.callbacks.onCandleData` if provided
-
-**Sources:** [src/client/ClientExchange.ts:190-242]()
+
 
 ---
 
@@ -145,8 +140,7 @@ async getNextCandles(
    - Called when scheduled signal is detected
    - Fetches `CC_SCHEDULE_AWAIT_MINUTES + minuteEstimatedTime + 1` candles
    - Used to simulate scheduled signal activation and closure
-
-**Sources:** [src/client/ClientExchange.ts:244-304](), [src/lib/services/logic/private/BacktestLogicPrivateService.ts:131-155]()
+
 
 ---
 
@@ -181,8 +175,7 @@ async getAveragePrice(symbol: string): Promise<number>
 4. **Usage Context**
    - Called by `ClientStrategy.backtest()` during signal closure simulation
    - Used to determine realistic fill prices in backtesting
-
-**Sources:** [src/client/ClientExchange.ts:306-355]()
+
 
 ---
 
@@ -202,8 +195,7 @@ async formatQuantity(symbol: string, quantity: number): Promise<number>
 **Typical Use Cases:**
 - `formatPrice`: Rounds price to exchange's tick size (e.g., 0.01 for BTCUSDT)
 - `formatQuantity`: Rounds quantity to exchange's lot size (e.g., 0.00001 BTC)
-
-**Sources:** [src/client/ClientExchange.ts:357-371]()
+
 
 ---
 
@@ -235,8 +227,7 @@ The `VALIDATE_NO_INCOMPLETE_CANDLES_FN` function detects anomalous candles that 
 4. **Anomaly Detection** [src/client/ClientExchange.ts:92-104]()
    - Flags prices below `referencePrice / CC_GET_CANDLES_PRICE_ANOMALY_THRESHOLD_FACTOR`
    - Default factor: 10 (prices 10x lower than median are rejected)
-
-**Sources:** [src/client/ClientExchange.ts:23-105]()
+
 
 ---
 
@@ -251,8 +242,7 @@ The `GET_CANDLES_FN` helper implements automatic retry with exponential backoff 
 **Configuration Parameters:**
 - `CC_GET_CANDLES_RETRY_COUNT`: Number of retry attempts (default: 3) [src/config/params.ts:15]()
 - `CC_GET_CANDLES_RETRY_DELAY_MS`: Delay between retries in milliseconds (default: 1000) [src/config/params.ts:16]()
-
-**Sources:** [src/client/ClientExchange.ts:107-151]()
+
 
 ---
 
@@ -278,8 +268,7 @@ The `GET_CANDLES_FN` helper implements automatic retry with exponential backoff 
 3. **Symbol Context** [src/interfaces/Exchange.interface.ts:18-35]()
    - Exchange methods receive symbol from strategy invocation
    - No implicit symbol storage in `ClientExchange`
-
-**Sources:** [src/client/ClientExchange.ts:211-212](), [src/client/ClientExchange.ts:265-275](), [src/interfaces/Exchange.interface.ts:18-35]()
+
 
 ---
 
@@ -295,8 +284,7 @@ const candles = await exchange.getCandles("BTCUSDT", "1h", 24);
 // Analyze candles and generate signal
 const signal = strategy.getSignal(symbol, candles);
 ```
-
-**Sources:** [src/client/ClientStrategy.ts:250-300]()
+
 
 ---
 
@@ -315,8 +303,7 @@ if (result.action === "opened") {
   const backtestResult = await strategyGlobalService.backtest(symbol, candles, when, true);
 }
 ```
-
-**Sources:** [src/lib/services/logic/private/BacktestLogicPrivateService.ts:249-257]()
+
 
 ---
 
@@ -327,8 +314,7 @@ if (result.action === "opened") {
 const vwap = await this.params.exchange.getAveragePrice(symbol);
 const pnl = this.calculatePnL(signal, vwap);
 ```
-
-**Sources:** [src/client/ClientStrategy.ts:600-650]()
+
 
 ---
 
@@ -367,5 +353,4 @@ addExchange({
   }
 });
 ```
-
-**Sources:** [src/interfaces/Exchange.interface.ts:15-60](), [src/lib/add/exchange.ts:1-50]()
+

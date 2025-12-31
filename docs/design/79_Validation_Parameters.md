@@ -23,8 +23,7 @@ The framework enforces four critical validation parameters that act as financial
 | `CC_MAX_SIGNAL_LIFETIME_MINUTES` | number | 1440 | Maximum signal duration in minutes to prevent eternal signals blocking risk limits |
 
 These validations occur in the `VALIDATE_SIGNAL_FN` function within `ClientStrategy`, which is called before every signal is created. Signals that fail validation are rejected immediately with descriptive error messages.
-
-**Sources:** [types.d.ts:29-59](), [src/client/ClientStrategy.ts:45-330]()
+
 
 ---
 
@@ -82,8 +81,7 @@ The default value of `0.5%` provides a safety margin above trading fees:
 - Can be increased to enforce larger minimum profits (e.g., 1.0% for conservative strategies)
 - Can be decreased to 0.2% for zero-fee/zero-slippage testing environments
 - Can be set to `0` to disable validation (only for testing environments)
-
-**Sources:** [types.d.ts:29-40](), [src/client/ClientStrategy.ts:163-173](), [src/client/ClientStrategy.ts:254-264]()
+
 
 ---
 
@@ -142,8 +140,7 @@ The default value of `0.5%` provides a buffer against normal market noise:
 - Can be decreased to `0.2-0.3%` for stable forex pairs with tight spreads
 - Can be increased to `1-2%` for volatile crypto markets
 - Should not be set to `0` in production (disables protection against micro-stops)
-
-**Sources:** [types.d.ts:43-46](), [src/client/ClientStrategy.ts:176-186](), [src/client/ClientStrategy.ts:267-277]()
+
 
 ---
 
@@ -198,8 +195,7 @@ The default value of `20%` represents a reasonable maximum loss per signal:
 - Enforces risk discipline at the signal level
 - Can be tightened to `5-10%` for conservative strategies
 - Should not be disabled (set to `100+%`) in production
-
-**Sources:** [types.d.ts:49-52](), [src/client/ClientStrategy.ts:189-199](), [src/client/ClientStrategy.ts:280-290]()
+
 
 ---
 
@@ -244,8 +240,7 @@ The default value of `1440 minutes` (1 day):
 - Aligns with typical intraday/swing trading timeframes
 - Can be increased for longer-term strategies (e.g., 10080 minutes = 1 week)
 - Should not be disabled (set to `999999`) in production
-
-**Sources:** [types.d.ts:55-58](), [src/client/ClientStrategy.ts:306-316]()
+
 
 ---
 
@@ -270,8 +265,7 @@ The validation occurs in `VALIDATE_SIGNAL_FN` at [src/client/ClientStrategy.ts:4
 | **Short Position Logic** | 202-290 | For `position === "short"`: validates SL > Open > TP, checks all distance constraints | `CC_MIN_TAKEPROFIT_DISTANCE_PERCENT`, `CC_MIN_STOPLOSS_DISTANCE_PERCENT`, `CC_MAX_STOPLOSS_DISTANCE_PERCENT` |
 | **Time Parameter Validation** | 293-323 | Validates `minuteEstimatedTime`, `scheduledAt`, `pendingAt` are positive integers | `CC_MAX_SIGNAL_LIFETIME_MINUTES` |
 | **Error Aggregation** | 325-330 | Throws single error with newline-separated list of all failures | N/A |
-
-**Sources:** [src/client/ClientStrategy.ts:45-330]()
+
 
 ---
 
@@ -398,8 +392,7 @@ minuteEstimatedTime too large (50000 minutes = 34.7 days). Maximum: 1440 minutes
 ```
 
 This comprehensive error output allows developers to fix all validation issues in a single iteration, reducing trial-and-error debugging cycles.
-
-**Sources:** [src/client/ClientStrategy.ts:325-330]()
+
 
 ---
 
@@ -423,5 +416,4 @@ These validation parameters work in conjunction with risk profile limits (see [R
 **Diagram: Validation Parameters as First Line of Defense**
 
 Validation parameters act as the first line of defense, rejecting signals before they reach the risk management layer. This prevents invalid signals from consuming risk limit slots or triggering custom validations.
-
-**Sources:** [src/config/params.ts:1-36](), [src/client/ClientStrategy.ts:40-185](), [test/e2e/sanitize.test.mjs:1-660](), [test/e2e/defend.test.mjs:1-1100]()
+

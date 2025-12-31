@@ -30,8 +30,7 @@ The framework calculates statistics at three levels:
 **Statistics Calculation Flow**
 
 ![Mermaid Diagram](./diagrams/74_Statistics_Calculation_0.svg)
-
-**Sources:** [src/lib/services/markdown/BacktestMarkdownService.ts:1-571](), [src/lib/services/markdown/LiveMarkdownService.ts:1-778](), [src/lib/services/markdown/HeatMarkdownService.ts:1-625]()
+
 
 ---
 
@@ -62,8 +61,7 @@ const winRate = (winCount / totalSignals) * 100;
 ```
 
 **Safe Math:** Returns `null` if `isUnsafe(winRate)` evaluates to `true` [src/lib/services/markdown/BacktestMarkdownService.ts:286]().
-
-**Sources:** [src/lib/services/markdown/BacktestMarkdownService.ts:245-252](), [src/lib/services/markdown/LiveMarkdownService.ts:430-439]()
+
 
 ---
 
@@ -86,8 +84,7 @@ Where:
 ```typescript
 const avgPnl = this._signalList.reduce((sum, s) => sum + s.pnl.pnlPercentage, 0) / totalSignals;
 ```
-
-**Sources:** [src/lib/services/markdown/BacktestMarkdownService.ts:250](), [src/lib/services/markdown/LiveMarkdownService.ts:434-436]()
+
 
 ---
 
@@ -109,8 +106,7 @@ Where:
 ```typescript
 const totalPnl = this._signalList.reduce((sum, s) => sum + s.pnl.pnlPercentage, 0);
 ```
-
-**Sources:** [src/lib/services/markdown/BacktestMarkdownService.ts:251](), [src/lib/services/markdown/LiveMarkdownService.ts:437]()
+
 
 ---
 
@@ -137,8 +133,7 @@ const returns = this._signalList.map((s) => s.pnl.pnlPercentage);
 const variance = returns.reduce((sum, r) => sum + Math.pow(r - avgPnl, 2), 0) / totalSignals;
 const stdDev = Math.sqrt(variance);
 ```
-
-**Sources:** [src/lib/services/markdown/BacktestMarkdownService.ts:254-257](), [src/lib/services/markdown/LiveMarkdownService.ts:444-447]()
+
 
 ---
 
@@ -173,8 +168,7 @@ const sharpeRatio = stdDev > 0 ? avgPnl / stdDev : 0;
 ```
 sharpeRatio = (avgReturn - riskFreeRate) / stdDev
 ```
-
-**Sources:** [src/lib/services/markdown/BacktestMarkdownService.ts:258](), [src/lib/services/markdown/LiveMarkdownService.ts:447]()
+
 
 ---
 
@@ -199,8 +193,7 @@ Where:
 ```typescript
 const annualizedSharpeRatio = sharpeRatio * Math.sqrt(365);
 ```
-
-**Sources:** [src/lib/services/markdown/BacktestMarkdownService.ts:259](), [src/lib/services/markdown/LiveMarkdownService.ts:449]()
+
 
 ---
 
@@ -239,8 +232,7 @@ const avgLoss = losses.length > 0
   : 0;
 const certaintyRatio = avgLoss < 0 ? avgWin / Math.abs(avgLoss) : 0;
 ```
-
-**Sources:** [src/lib/services/markdown/BacktestMarkdownService.ts:262-270](), [src/lib/services/markdown/LiveMarkdownService.ts:451-462]()
+
 
 ---
 
@@ -280,8 +272,7 @@ const avgDurationDays = avgDurationMs / (1000 * 60 * 60 * 24);
 const tradesPerYear = avgDurationDays > 0 ? 365 / avgDurationDays : 0;
 const expectedYearlyReturns = avgPnl * tradesPerYear;
 ```
-
-**Sources:** [src/lib/services/markdown/BacktestMarkdownService.ts:273-279](), [src/lib/services/markdown/LiveMarkdownService.ts:466-475]()
+
 
 ---
 
@@ -330,8 +321,7 @@ if (winCount > 0 && lossCount > 0) {
   }
 }
 ```
-
-**Sources:** [src/lib/services/markdown/HeatMarkdownService.ts:246-259]()
+
 
 ---
 
@@ -365,8 +355,7 @@ if (winRate !== null && avgWin !== null && avgLoss !== null) {
   expectancy = (winRate / 100) * avgWin + (lossRate / 100) * avgLoss;
 }
 ```
-
-**Sources:** [src/lib/services/markdown/HeatMarkdownService.ts:300-304]()
+
 
 ---
 
@@ -413,8 +402,7 @@ if (signals.length > 0) {
   maxDrawdown = maxDD;
 }
 ```
-
-**Sources:** [src/lib/services/markdown/HeatMarkdownService.ts:224-243]()
+
 
 ---
 
@@ -469,8 +457,7 @@ for (const signal of signals) {
   }
 }
 ```
-
-**Sources:** [src/lib/services/markdown/HeatMarkdownService.ts:278-297]()
+
 
 ---
 
@@ -522,8 +509,7 @@ expectedYearlyReturns: isUnsafe(expectedYearlyReturns) ? null : expectedYearlyRe
 - Non-numeric types from calculation errors
 - `NaN` from invalid mathematical operations
 - `Infinity` or `-Infinity` from overflow
-
-**Sources:** [src/lib/services/markdown/BacktestMarkdownService.ts:37-48](), [src/lib/services/markdown/LiveMarkdownService.ts:24-35](), [src/lib/services/markdown/HeatMarkdownService.ts:44-55]()
+
 
 ---
 
@@ -563,8 +549,7 @@ Different execution modes calculate statistics with mode-specific nuances:
 3. **Extended Metrics:**
    - Portfolio (Heat) calculates additional metrics not available in individual strategy statistics
    - Heat calculates weighted Sharpe Ratio across symbols [src/lib/services/markdown/HeatMarkdownService.ts:373-382]()
-
-**Sources:** [src/lib/services/markdown/BacktestMarkdownService.ts:70-106](), [src/lib/services/markdown/LiveMarkdownService.ts:97-136](), [src/lib/services/markdown/HeatMarkdownService.ts:5-38]()
+
 
 ---
 
@@ -573,8 +558,7 @@ Different execution modes calculate statistics with mode-specific nuances:
 **Service-to-Statistics Mapping**
 
 ![Mermaid Diagram](./diagrams/74_Statistics_Calculation_3.svg)
-
-**Sources:** [src/lib/services/markdown/BacktestMarkdownService.ts:428-439](), [src/lib/services/markdown/LiveMarkdownService.ts:630-646](), [src/lib/services/markdown/HeatMarkdownService.ts:507-524]()
+
 
 ---
 
@@ -628,8 +612,7 @@ const avgWaitTime =
     ? sortedWaitTimes.reduce((sum, w) => sum + w, 0) / sortedWaitTimes.length
     : 0;
 ```
-
-**Sources:** [src/lib/services/markdown/PerformanceMarkdownService.ts:14-76](), [src/lib/services/markdown/PerformanceMarkdownService.ts:228-309]()
+
 
 ---
 
@@ -643,5 +626,4 @@ The statistics calculation system provides comprehensive performance metrics thr
 4. **Performance metrics** track execution timing separately from trading results
 
 All statistics are calculated from closed signals stored in memoized storage instances, with results exposed through typed interfaces for type-safe consumption.
-
-**Sources:** [src/lib/services/markdown/BacktestMarkdownService.ts:1-571](), [src/lib/services/markdown/LiveMarkdownService.ts:1-778](), [src/lib/services/markdown/HeatMarkdownService.ts:1-625](), [src/lib/services/markdown/PerformanceMarkdownService.ts:1-547]()
+

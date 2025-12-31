@@ -23,8 +23,7 @@ Live execution operates as an infinite async generator that monitors trading sig
 | Public | `LiveLogicPublicService` | Context injection via `MethodContextService` |
 
 The generator yields only `opened` and `closed` results to consumers, filtering out `idle`, `active`, and `scheduled` states internally.
-
-**Sources**: [src/lib/services/logic/private/LiveLogicPrivateService.ts:12-134]()
+
 
 ---
 
@@ -33,8 +32,7 @@ The generator yields only `opened` and `closed` results to consumers, filtering 
 **Live Execution Service Stack**
 
 ![Mermaid Diagram](./diagrams/59_Live_Execution_Flow_0.svg)
-
-**Sources**: [src/lib/services/logic/private/LiveLogicPrivateService.ts:30-131](), [src/lib/services/logic/public/LiveLogicPublicService.ts:1-78]()
+
 
 ---
 
@@ -59,8 +57,7 @@ The generator yields only `opened` and `closed` results to consumers, filtering 
 | [110-123]() | `if (action === 'active/idle/scheduled')` | Filter non-terminal states |
 | [126]() | `yield result` | Stream opened/closed results to consumer |
 | [86, 111, 116, 121, 128]() | `await sleep(TICK_TTL)` | Sleep between iterations |
-
-**Sources**: [src/lib/services/logic/private/LiveLogicPrivateService.ts:12-131]()
+
 
 ---
 
@@ -83,8 +80,7 @@ interface IMethodContext {
 ```
 
 The `MethodContextService` uses `AsyncLocalStorage` to provide scoped context access throughout the call chain. Services read `this.methodContextService.context` to retrieve the current context without parameter passing.
-
-**Sources**: [src/lib/services/logic/public/LiveLogicPublicService.ts:55-78](), [src/lib/services/context/MethodContextService.ts:1-120]()
+
 
 ---
 
@@ -115,8 +111,7 @@ public async *run(symbol: string): AsyncGenerator<
   unknown
 >
 ```
-
-**Sources**: [src/lib/services/logic/private/LiveLogicPrivateService.ts:61-131]()
+
 
 ---
 
@@ -172,8 +167,7 @@ await sleep(TICK_TTL);
 **Timing Sequence:**
 
 ![Mermaid Diagram](./diagrams/59_Live_Execution_Flow_4.svg)
-
-**Sources**: [src/lib/services/logic/private/LiveLogicPrivateService.ts:12](), [src/lib/services/logic/private/LiveLogicPrivateService.ts:86-128]()
+
 
 ---
 
@@ -199,8 +193,7 @@ await sleep(TICK_TTL);
 The `backtest` flag passed to `tick()` controls mode-specific behavior:
 - `false`: Live mode - uses persistence, real-time VWAP, enables crash recovery
 - `true`: Backtest mode - fast-forward simulation, uses historical data
-
-**Sources**: [src/lib/services/logic/private/LiveLogicPrivateService.ts:30-131]()
+
 
 ---
 
@@ -225,8 +218,7 @@ The `backtest` flag passed to `tick()` controls mode-specific behavior:
 After initialization, subsequent ticks use the in-memory `_signal` and `_scheduledSignal` state, only persisting changes to disk atomically.
 
 For detailed persistence mechanisms, see [Crash Recovery (10.2)]().
-
-**Sources**: [src/lib/services/logic/private/LiveLogicPrivateService.ts:68-131](), [src/client/ClientStrategy.ts:100-200]()
+
 
 ---
 
@@ -262,5 +254,4 @@ for await (const result of Live.run("BTCUSDT", {
 ```
 
 Each iteration of the loop represents one 1-minute tick. Results stream immediately when signals open or close, enabling real-time event processing and logging.
-
-**Sources**: [types.d.ts:707-749](), [src/lib/services/logic/private/LiveLogicPrivateService.ts:39-52]()
+

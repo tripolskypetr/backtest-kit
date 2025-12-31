@@ -25,8 +25,7 @@ backtest-kit supports six predefined throttling intervals, each enforcing a mini
 | `"15m"` | 15 | 900,000 | Medium-term intraday strategies |
 | `"30m"` | 30 | 1,800,000 | Swing trading, position management |
 | `"1h"` | 60 | 3,600,000 | Long-term position strategies |
-
-**Sources:** [src/interfaces/Strategy.interface.ts:12-18](), [src/client/ClientStrategy.ts:34-41]()
+
 
 ---
 
@@ -37,8 +36,7 @@ backtest-kit supports six predefined throttling intervals, each enforcing a mini
 ![Mermaid Diagram](./diagrams/62_Interval_Throttling_0.svg)
 
 **Diagram: Interval Throttling Decision Flow**
-
-**Sources:** [src/client/ClientStrategy.ts:332-476]()
+
 
 ---
 
@@ -74,8 +72,7 @@ const currentTime = self.params.execution.context.when.getTime();
 3. **Millisecond Precision**: Converts minutes to milliseconds for accurate comparison
 4. **Early Return**: Returns `null` immediately if throttled, preventing unnecessary computation
 5. **Timestamp Update**: Updates `_lastSignalTimestamp` only after throttle check passes
-
-**Sources:** [src/client/ClientStrategy.ts:336-352]()
+
 
 ---
 
@@ -86,8 +83,7 @@ The `INTERVAL_MINUTES` constant maps `SignalInterval` string values to numeric m
 | Constant | File Location | Type |
 |----------|--------------|------|
 | `INTERVAL_MINUTES` | [src/client/ClientStrategy.ts:34-41]() | `Record<SignalInterval, number>` |
-
-**Sources:** [src/client/ClientStrategy.ts:34-41]()
+
 
 ---
 
@@ -106,8 +102,7 @@ export interface IStrategySchema {
   // ... other fields
 }
 ```
-
-**Sources:** [src/interfaces/Strategy.interface.ts:132-151]()
+
 
 ---
 
@@ -123,8 +118,7 @@ addStrategy({
   },
 });
 ```
-
-**Sources:** [README.md:118-143]()
+
 
 ---
 
@@ -137,8 +131,7 @@ In backtest mode, `ClientStrategy.tick()` is called once per candle iteration. T
 ![Mermaid Diagram](./diagrams/62_Interval_Throttling_1.svg)
 
 **Diagram: Interval Throttling in Backtest Mode**
-
-**Sources:** [src/client/ClientStrategy.ts:1056-1187](), [src/lib/services/command/BacktestCommandService.ts]()
+
 
 ---
 
@@ -149,8 +142,7 @@ In live mode, `ClientStrategy.tick()` is called continuously in a loop with `TIC
 ![Mermaid Diagram](./diagrams/62_Interval_Throttling_2.svg)
 
 **Diagram: Interval Throttling in Live Mode Loop**
-
-**Sources:** [src/lib/services/command/LiveCommandService.ts](), [src/client/ClientStrategy.ts:336-352]()
+
 
 ---
 
@@ -174,8 +166,7 @@ export class ClientStrategy implements IStrategy {
 1. **Symbol-Strategy Pairs**: Each symbol-strategy combination gets isolated throttle state
 2. **Backtest vs Live**: Separate instances for backtest and live modes via memoization key `symbol:strategyName:backtest`
 3. **No Cross-Contamination**: One strategy's throttle state never affects another
-
-**Sources:** [src/client/ClientStrategy.ts](), [src/lib/services/connection/StrategyConnectionService.ts:123-156]()
+
 
 ---
 
@@ -210,8 +201,7 @@ Longer intervals reduce:
 - **Indicator Calculations**: Reduced technical indicator recomputation
 - **Network Requests**: Fewer `getCandles()` fetches (when using live data sources)
 - **CPU Usage**: Less frequent strategy evaluation
-
-**Sources:** [README.md:118-143](), [src/client/ClientStrategy.ts:336-352]()
+
 
 ---
 
@@ -233,8 +223,7 @@ The throttle uses **strict inequality** (`<`), meaning:
 
 - **Exactly Equal**: If `currentTime - lastSignalTimestamp === intervalMs`, the throttle **allows** execution
 - **Example**: With `interval='5m'` and `lastSignalTimestamp=00:00:00`, the signal at `00:05:00` will execute (not throttled)
-
-**Sources:** [src/client/ClientStrategy.ts:339-350]()
+
 
 ---
 
@@ -247,8 +236,7 @@ The throttle mechanism is validated by multiple test suites:
 | `timing.test.mjs` | Interval timing accuracy | [test/e2e/timing.test.mjs]() |
 | `defend.test.mjs` | Edge cases (boundary conditions, multiple signals) | [test/e2e/defend.test.mjs]() |
 | `scheduled.test.mjs` | Throttle with scheduled signals | [test/e2e/scheduled.test.mjs]() |
-
-**Sources:** [test/index.mjs:1-48]()
+
 
 ---
 
@@ -260,21 +248,18 @@ The throttle mechanism is validated by multiple test suites:
 - **minuteEstimatedTime**: Controls **how long** an active signal lives before time expiration
 
 These are independent parameters. A strategy with `interval='5m'` can have `minuteEstimatedTime=120` (2 hours).
-
-**Sources:** [src/interfaces/Strategy.interface.ts:38]()
+
 
 ---
 
 ### Pitfall 2: Expecting Sub-Interval Updates in Live Mode
 
 In live mode with `interval='5m'`, even though `tick()` runs every minute, `getSignal()` only executes every 5 minutes. Price checks for active signals still occur every minute (TP/SL monitoring), but **new signal generation is throttled**.
-
-**Sources:** [src/client/ClientStrategy.ts:1023-1054]()
+
 
 ---
 
 ## Summary
 
 Interval throttling in backtest-kit enforces minimum time delays between `getSignal()` calls, preventing excessive strategy evaluations and aligning signal generation with meaningful timeframes. The system uses per-instance `_lastSignalTimestamp` tracking with temporal consistency via `ExecutionContextService`, ensuring identical behavior across backtest and live modes while maintaining symbol-strategy isolation.
-
-**Sources:** [src/client/ClientStrategy.ts:34-476](), [src/interfaces/Strategy.interface.ts:12-18](), [src/lib/services/connection/StrategyConnectionService.ts:123-156]()
+

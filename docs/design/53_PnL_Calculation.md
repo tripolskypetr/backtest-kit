@@ -21,8 +21,7 @@ PnL calculation occurs when a signal transitions to the `closed` state (action: 
 - **Realistic cost modeling**: Total ~0.4% transaction cost (configurable)
 - **Position-aware logic**: Different calculations for long vs short positions
 - **Type-safe results**: Returns `IStrategyPnL` with adjusted prices
-
-Sources: [types.d.ts:17-40](), [types.d.ts:161-168]()
+
 
 ---
 
@@ -55,8 +54,7 @@ Slippage simulates market impact and order book depth. Applied **twice**:
 **Total cost per round-trip trade**: ~0.4% (0.2% fees + 0.2% slippage)
 
 This cost structure explains why `CC_MIN_TAKEPROFIT_DISTANCE_PERCENT` defaults to 0.5% - positions must move at least 0.5% favorably to cover costs and generate minimum profit.
-
-Sources: [types.d.ts:17-40](), [types.d.ts:41-52]()
+
 
 ---
 
@@ -99,16 +97,14 @@ adjustedPriceClose = priceClose × (1 + CC_PERCENT_SLIPPAGE/100 + CC_PERCENT_FEE
 - Adjusted priceOpen: $50,000 × 0.998 = $49,900
 - Original priceClose: $49,000
 - Adjusted priceClose: $49,000 × 1.002 = $49,098
-
-Sources: [src/helpers/toProfitLossDto.ts](), [types.d.ts:17-28]()
+
 
 ---
 
 ## PnL Calculation Process
 
 ![Mermaid Diagram](./diagrams/53_PnL_Calculation_0.svg)
-
-Sources: [src/helpers/toProfitLossDto.ts](), [src/client/ClientStrategy.ts:26]()
+
 
 ### Long Position PnL
 
@@ -141,8 +137,7 @@ Note the reversed order: short positions profit when price falls (priceOpen > pr
 **Raw profit before fees/slippage**: ((50,000 - 49,000) / 50,000) × 100 = 2.0%  
 **Net profit after fees/slippage**: 1.61%  
 **Cost impact**: 0.39% (roughly 0.4% as expected)
-
-Sources: [src/helpers/toProfitLossDto.ts]()
+
 
 ---
 
@@ -189,8 +184,7 @@ listenSignal((result) => {
   }
 });
 ```
-
-Sources: [types.d.ts:161-168](), [types.d.ts:253-272]()
+
 
 ---
 
@@ -237,8 +231,7 @@ setConfig({
 ```
 
 **Impact on minimum profit requirements**: When reducing fees/slippage, you can also reduce `CC_MIN_TAKEPROFIT_DISTANCE_PERCENT` proportionally.
-
-Sources: [types.d.ts:17-28](), [src/config/params.ts]()
+
 
 ---
 
@@ -280,16 +273,14 @@ if (tpDistancePercent < CC_MIN_TAKEPROFIT_DISTANCE_PERCENT) {
 ```
 
 This validation prevents strategies from generating signals that would be unprofitable even if take profit is hit.
-
-Sources: [types.d.ts:30-52](), [src/client/ClientStrategy.ts:163-173](), [src/client/ClientStrategy.ts:254-263]()
+
 
 ---
 
 ## PnL Calculation Flow
 
 ![Mermaid Diagram](./diagrams/53_PnL_Calculation_1.svg)
-
-Sources: [src/client/ClientStrategy.ts](), [src/helpers/toProfitLossDto.ts]()
+
 
 ---
 
@@ -308,8 +299,7 @@ PnL calculation occurs at the final stage of the signal lifecycle:
 | `time_expired` | Current VWAP price | Variable |
 
 **Note**: Even take profit hits can result in negative PnL if the distance to TP was too small to cover fees/slippage. This is why `CC_MIN_TAKEPROFIT_DISTANCE_PERCENT` validation exists.
-
-Sources: [src/client/ClientStrategy.ts](), [types.d.ts:155-168]()
+
 
 ---
 
@@ -332,8 +322,7 @@ PnL data is aggregated in backtest markdown reports:
 - Average win: Average PnL of winning trades
 - Average loss: Average PnL of losing trades
 - Sharpe ratio: Risk-adjusted return metric
-
-Sources: [src/lib/services/markdown/BacktestMarkdownService.ts]()
+
 
 ### Live Trading Reports
 
@@ -347,8 +336,7 @@ Live reports include both closed and active signals:
 ```
 
 **Real-time monitoring**: Active signals show unrealized PnL based on current price and estimated costs.
-
-Sources: [src/lib/services/markdown/LiveMarkdownService.ts]()
+
 
 ---
 
@@ -389,8 +377,7 @@ listenSignalLive((result) => {
 - `signalEmitter`: All signals (backtest + live)
 - `signalBacktestEmitter`: Backtest-only signals
 - `signalLiveEmitter`: Live-only signals
-
-Sources: [src/config/emitters.ts:19-31](), [src/function/event.ts:70-221]()
+
 
 ---
 
@@ -417,8 +404,7 @@ Sources: [src/config/emitters.ts:19-31](), [src/function/event.ts:70-221]()
 **Gross profit**: $1,000 (2.0%)  
 **Transaction costs**: ~$198 (0.4%)  
 **Net profit**: $802 (1.61%)
-
-Sources: [types.d.ts:17-40]()
+
 
 ---
 
@@ -440,5 +426,4 @@ The PnL calculation system in backtest-kit provides realistic profit/loss simula
 - Minimum profit buffer: 0.5% (configurable)
 
 This realistic cost modeling ensures backtest results closely match live trading performance, accounting for exchange fees, market impact, and order execution slippage.
-
-Sources: [types.d.ts:17-52](), [types.d.ts:161-168](), [src/client/ClientStrategy.ts:26](), [src/helpers/toProfitLossDto.ts]()
+

@@ -22,8 +22,7 @@ backtest-kit provides three execution modes that share strategy and exchange com
 ### Mode Comparison Diagram
 
 ![Mermaid Diagram](./diagrams/05_Core_Concepts_0.svg)
-
-**Sources:** [src/classes/Backtest.ts:1-208](), [src/classes/Live.ts:1-220](), [src/classes/Walker.ts:1-274](), [src/lib/services/command/BacktestCommandService.ts](), [src/lib/services/command/LiveCommandService.ts](), [src/lib/services/command/WalkerCommandService.ts](), [src/lib/services/logic/BacktestLogicPrivateService.ts](), [src/lib/services/logic/LiveLogicPrivateService.ts](), [src/lib/services/logic/WalkerLogicPrivateService.ts]()
+
 
 ### Mode Characteristics Table
 
@@ -48,8 +47,7 @@ The Command Services validate schema existence before delegating to Logic Servic
 // LiveCommandService validates strategyName, exchangeName
 // WalkerCommandService validates walkerName
 ```
-
-**Sources:** [src/lib/services/command/BacktestCommandService.ts:1-100](), [src/lib/services/command/LiveCommandService.ts:1-100](), [src/lib/services/command/WalkerCommandService.ts:1-100]()
+
 
 ### Execution Context Differences
 
@@ -63,8 +61,7 @@ The `backtest` flag controls behavior throughout the system:
 - VWAP calculation source (historical candles vs real-time API)
 - Signal persistence (disabled in backtest, enabled in live)
 - Event emitter routing (`signalBacktestEmitter` vs `signalLiveEmitter`)
-
-**Sources:** [src/lib/services/context/ExecutionContextService.ts:1-50](), [src/lib/services/logic/BacktestLogicPrivateService.ts](), [src/lib/services/logic/LiveLogicPrivateService.ts]()
+
 
 ## Event System
 
@@ -99,8 +96,7 @@ The framework provides typed event emitters using `Subject` from `functools-kit`
 - `errorEmitter`: Recoverable errors (execution continues)
 - `exitEmitter`: Fatal errors (execution terminates)
 - `validationSubject`: Risk validation errors
-
-**Sources:** [src/config/emitters.ts:1-133]()
+
 
 ### Event Subscription Pattern
 
@@ -117,14 +113,12 @@ This guarantees:
 - Events are processed in order received
 - No concurrent execution of callback functions
 - Async callbacks complete before next event is processed
-
-**Sources:** [src/function/event.ts:70-73](), [src/function/event.ts:1-800]()
+
 
 ### Event Flow Diagram
 
 ![Mermaid Diagram](./diagrams/05_Core_Concepts_1.svg)
-
-**Sources:** [src/client/ClientStrategy.ts](), [src/client/ClientRisk.ts](), [src/client/ClientPartial.ts](), [src/lib/services/logic/WalkerLogicPrivateService.ts](), [src/function/event.ts](), [src/config/emitters.ts]()
+
 
 ### Markdown Services as Event Consumers
 
@@ -138,8 +132,7 @@ Markdown Services subscribe to events for statistics aggregation and report gene
 - `PerformanceMarkdownService`: Subscribes to `performanceEmitter` for timing metrics
 
 These services maintain internal state and provide `getData()` methods for report generation via `Backtest.getData()`, `Live.getData()`, etc.
-
-**Sources:** [src/lib/services/markdown/BacktestMarkdownService.ts](), [src/lib/services/markdown/LiveMarkdownService.ts](), [src/lib/services/markdown/PartialMarkdownService.ts](), [src/lib/services/markdown/RiskMarkdownService.ts](), [src/lib/services/markdown/WalkerMarkdownService.ts](), [src/lib/services/markdown/PerformanceMarkdownService.ts]()
+
 
 ## Signal Lifecycle
 
@@ -148,8 +141,7 @@ Signals progress through a state machine implemented as a discriminated union of
 ### State Machine Diagram
 
 ![Mermaid Diagram](./diagrams/05_Core_Concepts_2.svg)
-
-**Sources:** [src/interfaces/Strategy.interface.ts:159-296](), [src/client/ClientStrategy.ts:40-895](), Diagram 5 from high-level architecture
+
 
 ### Signal State Types
 
@@ -182,8 +174,7 @@ Signals track two critical timestamps for accurate duration calculation:
 - **pendingAt**: When position became active at `priceOpen` (updated on scheduled signal activation) - [src/interfaces/Strategy.interface.ts:56-56]()
 
 The `minuteEstimatedTime` countdown uses `pendingAt`, not `scheduledAt`, ensuring scheduled signals don't count waiting time toward expiration - [src/client/ClientStrategy.ts:681-683]().
-
-**Sources:** [src/interfaces/Strategy.interface.ts:284-295](), [src/client/ClientStrategy.ts:186-283](), [src/client/ClientStrategy.ts:681-683]()
+
 
 ## Component-Based Architecture
 
@@ -192,8 +183,7 @@ backtest-kit uses a registration-based architecture where components are defined
 ### Component Registration Flow
 
 ![Mermaid Diagram](./diagrams/05_Core_Concepts_3.svg)
-
-**Sources:** [src/index.ts:1-131](), [src/lib/services/connection/StrategyConnectionService.ts:76-94](), Diagram 2 from high-level architecture
+
 
 ### Component Types
 
@@ -215,8 +205,7 @@ Each schema is stored in a corresponding `*SchemaService` using the ToolRegistry
 The framework uses memoized Connection Services to lazily instantiate Client classes:
 
 ![Mermaid Diagram](./diagrams/05_Core_Concepts_4.svg)
-
-**Sources:** [src/lib/services/connection/StrategyConnectionService.ts:76-94](), [src/client/ClientStrategy.ts:1-1092]()
+
 
 This multi-tier architecture (Schema → Validation → Connection → Client) enables:
 
@@ -246,8 +235,7 @@ This pattern applies to all Connection Services:
 - `FrameConnectionService.getFrame(frameName)`
 - `RiskConnectionService.getRisk(riskName)`
 - `PartialConnectionService.getPartial(symbol)`
-
-**Sources:** [src/function/add.ts](), [src/lib/services/schema/StrategySchemaService.ts](), [src/lib/services/connection/StrategyConnectionService.ts:52-94](), [src/lib/services/validation/StrategyValidationService.ts](), [src/client/ClientStrategy.ts:298-330]()
+
 
 ## Context Propagation
 
@@ -279,8 +267,7 @@ ExecutionContextService.runInContext(async () => {
   await strategy.tick(symbol);
 }, { symbol, when, backtest });
 ```
-
-**Sources:** [src/lib/services/context/ExecutionContextService.ts:1-50](), [src/lib/services/context/MethodContextService.ts:1-50](), [types.d.ts:241-286](), [types.d.ts:504-544]()
+
 
 ### Context Resolution in Connection Services
 
@@ -301,14 +288,12 @@ return new ClientExchange({ ...schema, execution: executionContext });
 This two-context design separates:
 - **What** to execute (MethodContext: which schemas)
 - **When/How** to execute (ExecutionContext: runtime parameters)
-
-**Sources:** [src/lib/services/connection/ExchangeConnectionService.ts](), [src/lib/services/connection/StrategyConnectionService.ts](), [src/lib/services/core/ExchangeCoreService.ts]()
+
 
 ### Context Flow Example
 
 ![Mermaid Diagram](./diagrams/05_Core_Concepts_5.svg)
-
-**Sources:** [src/lib/services/context/ExecutionContextService.ts](), [src/lib/services/context/MethodContextService.ts](), Diagram 6 from high-level architecture
+
 
 This pattern enables clean strategy code without framework boilerplate:
 
@@ -323,5 +308,4 @@ const candles = await getCandles(symbol, interval, limit);
 ```
 
 For detailed context propagation mechanics, see [Context Propagation](./13_Context_Propagation.md).
-
-**Sources:** [src/lib/services/context/ExecutionContextService.ts:1-50](), [src/lib/services/context/MethodContextService.ts:1-50](), [src/function/exchange.ts]()
+

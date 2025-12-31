@@ -32,8 +32,7 @@ The crash recovery system prevents all these issues by:
 2. **Restoring signals on restart** with original timing information intact
 3. **Validating restored signals** to prevent stale data from wrong exchange/strategy
 4. **Triggering lifecycle callbacks** to notify monitoring systems of restoration
-
-**Sources**: [src/client/ClientStrategy.ts:491-552]()
+
 
 ---
 
@@ -52,8 +51,7 @@ The crash recovery system uses two specialized persistence adapters:
 | **Signal Active** | No action (already persisted) | N/A |
 | **Signal Close** | Delete file (`setPendingSignal(null)`) | N/A (already converted to pending) |
 | **Signal Cancel** | N/A | Delete file (`setScheduledSignal(null)`) |
-
-**Sources**: [src/client/ClientStrategy.ts:681-774](), [src/client/ClientStrategy.ts:803-846](), [src/client/ClientStrategy.ts:848-899](), [src/client/ClientStrategy.ts:962-1023]()
+
 
 ---
 
@@ -89,8 +87,7 @@ if (pendingSignal.strategyName !== self.params.method.context.strategyName) {
 ```
 
 **Why this matters**: If you switch strategies or exchanges, old persisted signals must not be restored. The `exchangeName` and `strategyName` fields in persisted data act as ownership markers.
-
-**Sources**: [src/client/ClientStrategy.ts:491-552](), [src/lib/services/connection/StrategyConnectionService.ts:148-166]()
+
 
 ---
 
@@ -157,8 +154,7 @@ pendingAt: twelveHoursAgo, // Activated 12 hours ago
 const remainingTime = expectedTime - elapsedTime;
 // Should be ~12 hours remaining (not restarting from 24h)
 ```
-
-**Sources**: [src/client/ClientStrategy.ts:681-774](), [src/client/ClientStrategy.ts:901-920](), [test/e2e/timing.test.mjs:416-505]()
+
 
 ---
 
@@ -181,8 +177,7 @@ Crash recovery is **disabled in Backtest mode** to maximize performance:
 - Historical data is deterministic (no crashes in historical replay)
 - File I/O would slow down backtests by 100x+
 - Results are reproducible without state persistence
-
-**Sources**: [src/client/ClientStrategy.ts:491-495]()
+
 
 ---
 
@@ -198,8 +193,7 @@ The atomic write pattern ensures:
 - **Safe concurrent reads**: Readers always see complete JSON
 
 **Persistence Base Class**: `PersistBase` provides the atomic write implementation (referenced in [Persistence Layer](./84_Persistence_Layer.md)).
-
-**Sources**: [src/classes/Persist:28]() (referenced in ClientStrategy.ts)
+
 
 ---
 
@@ -245,8 +239,7 @@ test("Restored pending signal preserves 24h timing from pendingAt", async ({ pas
 | Pending signal restoration | [test/e2e/timing.test.mjs]() | 416-505 | `pendingAt` preservation, 12h remaining |
 | Scheduled signal restoration | [test/spec/scheduled.test.mjs]() | 211-362 | Scheduled signal lifecycle tracking |
 | Timing calculations | [test/e2e/timing.test.mjs]() | 34-201 | `minuteEstimatedTime` from `pendingAt` |
-
-**Sources**: [test/e2e/timing.test.mjs:416-505](), [test/spec/scheduled.test.mjs:211-362]()
+
 
 ---
 
@@ -261,8 +254,7 @@ Crash recovery behavior is controlled by global configuration:
 | `TICK_TTL` | 60000ms | Interval between tick processing (affects restore frequency) |
 
 **Related**: See [Timing Parameters](./80_Timing_Parameters.md) for detailed configuration reference.
-
-**Sources**: [src/config/params.ts]() (referenced in ClientStrategy.ts)
+
 
 ---
 
@@ -277,5 +269,4 @@ The crash recovery system is a critical safety mechanism for live trading:
 5. **Disabled in backtest mode** for performance ([src/client/ClientStrategy.ts:493-495]())
 
 Without crash recovery, process crashes would abandon open positions, leading to uncontrolled risk exposure and guaranteed losses from entry fees. The system ensures that live trading operations are resilient to infrastructure failures while maintaining correct position lifetime calculations.
-
-**Sources**: [src/client/ClientStrategy.ts:491-552](), [src/client/ClientStrategy.ts:681-774](), [src/client/ClientStrategy.ts:901-920](), [test/e2e/timing.test.mjs:416-505]()
+

@@ -23,8 +23,7 @@ Risk schemas provide portfolio-level risk management by:
 - **Risk isolation**: Each risk profile maintains independent position tracking via memoized `ClientRisk` instances
 
 Risk schemas are registered via `addRisk()` and referenced by strategies via the `riskName` or `riskList` fields in `IStrategySchema`. The validation functions throw errors to reject signals or return normally to allow them.
-
-**Sources**: [src/interfaces/Risk.interface.ts:87-100](), [types.d.ts:414-426](), [src/function/add.ts:268-341]()
+
 
 ---
 
@@ -50,8 +49,7 @@ The `IRiskSchema` interface consists of:
 - All validations receive `IRiskValidationPayload` with portfolio state (`activePositionCount`, `activePositions`)
 - Throwing an error in any validation function rejects the signal
 - Both callback functions receive `IRiskCheckArgs` (without portfolio state additions)
-
-**Sources**: [src/interfaces/Risk.interface.ts:87-100](), [types.d.ts:414-426](), [types.d.ts:338-397]()
+
 
 ---
 
@@ -91,8 +89,7 @@ addRisk({
   ]
 });
 ```
-
-**Sources**: [src/interfaces/Risk.interface.ts:62-85](), [test/spec/risk.test.mjs:209-247]()
+
 
 ### IRiskValidationPayload
 
@@ -114,8 +111,7 @@ Validation functions receive a payload with all risk check context:
 - Each `IRiskActivePosition` entry includes the signal details, strategy name, exchange name, and open timestamp
 - The `activePositionCount` is simply `activePositions.length` for convenience
 - The `pendingSignal` contains the signal attempting to open, allowing price/position validation
-
-**Sources**: [src/interfaces/Risk.interface.ts:52-60](), [types.d.ts:379-391](), [types.d.ts:338-356]()
+
 
 ### Validation Execution Flow
 
@@ -131,8 +127,7 @@ Validation execution follows this pattern:
 4. **Error Handling**: Wrapped by `DO_VALIDATION_FN` with automatic error catching ([src/client/ClientRisk.ts:31-46]())
 5. **Early Exit**: Stop on first validation failure
 6. **Callback Invocation**: Trigger `onRejected` or `onAllowed` based on result
-
-**Sources**: [src/client/ClientRisk.ts:165-217](), [src/lib/services/global/RiskGlobalService.ts:51-61]()
+
 
 ---
 
@@ -158,8 +153,7 @@ interface IRiskActivePosition {
   openTimestamp: number;     // Timestamp when position opened
 }
 ```
-
-**Sources**: [src/client/ClientRisk.ts:20-28](), [src/interfaces/Risk.interface.ts:23-35]()
+
 
 ### Position Lifecycle
 
@@ -182,8 +176,7 @@ Position tracking operations:
 3. **checkSignal()**: Exposes position count and list to validations ([src/client/ClientRisk.ts:165-217]())
    - Provides `activePositionCount = riskMap.size`
    - Provides `activePositions = Array.from(riskMap.values())`
-
-**Sources**: [src/client/ClientRisk.ts:73-150](), [src/lib/services/connection/StrategyConnectionService.ts:1-300]()
+
 
 ### Risk Isolation
 
@@ -194,8 +187,7 @@ Each `riskName` maintains independent position tracking:
 **Diagram: Risk Profile Isolation via Memoization**
 
 Each risk profile gets its own `ClientRisk` instance via memoization in `RiskConnectionService.getRisk()`. The memoization key is the `riskName`, ensuring complete isolation between risk profiles.
-
-**Sources**: [src/lib/services/connection/RiskConnectionService.ts:56-65](), [test/spec/risk.test.mjs:374-437]()
+
 
 ---
 
@@ -241,8 +233,7 @@ addRisk({
   }
 });
 ```
-
-**Sources**: [src/interfaces/Risk.interface.ts:39-49](), [test/spec/risk.test.mjs:41-93]()
+
 
 ---
 
@@ -291,8 +282,7 @@ addRisk({
   }
 });
 ```
-
-**Sources**: [src/function/add.ts:268-341](), [test/spec/risk.test.mjs:9-18]()
+
 
 ### Referencing from Strategies
 
@@ -331,8 +321,7 @@ addStrategy({
 ```
 
 Multiple strategies can share the same risk profile, enabling cross-strategy position limits.
-
-**Sources**: [src/interfaces/Strategy.interface.ts:613-633](), [test/e2e/risk.test.mjs:1-500]()
+
 
 ---
 
@@ -383,8 +372,7 @@ type PersistedPositions = Array<[
 ```
 
 This format allows direct conversion to/from the internal `Map<string, IRiskActivePosition>` structure.
-
-**Sources**: [src/client/ClientRisk.ts:53-101](), [src/classes/Persist.ts:1-400](), [test/spec/risk.test.mjs:498-841]()
+
 
 ---
 
@@ -405,8 +393,7 @@ The risk system follows the standard service layer pattern:
 | **Connection** | `RiskConnectionService` | Memoized ClientRisk instance management |
 | **Client** | `ClientRisk` | Business logic: position tracking, validation execution |
 | **Persistence** | `PersistRiskAdapter` | Crash-safe file writes for live mode |
-
-**Sources**: [src/function/add.ts:329-341](), [src/lib/services/global/RiskGlobalService.ts:1-117](), [src/lib/services/connection/RiskConnectionService.ts:1-138](), [src/client/ClientRisk.ts:1-221]()
+
 
 ---
 
@@ -478,5 +465,4 @@ addRisk({
   ]
 });
 ```
-
-**Sources**: [test/spec/risk.test.mjs:41-373](), [src/function/add.ts:268-328]()
+

@@ -22,8 +22,7 @@ backtest-kit supports three execution modes that determine how strategies proces
 | **Walker** | Historical candles (delegates to Backtest) | Fast-forward through timeframes | None (in-memory only) | A/B testing multiple strategies |
 
 The execution mode is determined by the `backtest` boolean flag in `IExecutionContext`, which propagates throughout the system via `ExecutionContextService`.
-
-**Sources:** [types.d.ts:11-18](), [README diagrams]()
+
 
 ---
 
@@ -90,8 +89,7 @@ const cancel = Backtest.background("ETHUSDT", {
 // Stop execution
 cancel();
 ```
-
-**Sources:** [src/classes/Backtest.ts:1-601](), [types.d.ts:11-18](), [src/lib/services/connection/StrategyConnectionService.ts:123-156]()
+
 
 ---
 
@@ -180,8 +178,7 @@ Live.background("BTCUSDT", {
     └── production-v1/
         └── BTCUSDT.json          # Profit/loss milestone tracking
 ```
-
-**Sources:** [src/classes/Live.ts:1-614](), [src/classes/Persist.ts](), [types.d.ts:11-18](), [src/lib/services/connection/StrategyConnectionService.ts:123-156]()
+
 
 ---
 
@@ -260,8 +257,7 @@ Walker generates markdown reports showing:
 - Best performer highlighted
 - Individual strategy PNL details
 - Statistical comparison
-
-**Sources:** [src/classes/Walker.ts:1-856](), [types.d.ts:951-971](), [src/config/emitters.ts:88-106]()
+
 
 ---
 
@@ -298,8 +294,7 @@ This ensures complete isolation between modes - they never share state or interf
 | `Backtest.run()` | `true` | Disabled | `IFrameSchema` via `FrameCoreService` |
 | `Live.run()` | `false` | Enabled | `Date.now()` real-time |
 | `Walker.run()` | `true` (delegates to backtest) | Disabled | `IFrameSchema` via `FrameCoreService` |
-
-**Sources:** [types.d.ts:11-18](), [types.d.ts:38-49](), [src/lib/services/connection/StrategyConnectionService.ts:123-156]()
+
 
 ---
 
@@ -320,8 +315,7 @@ This ensures complete isolation between modes - they never share state or interf
 | **State Lifetime** | Duration of backtest execution | Until process stops or crashes | Duration of walker execution |
 | **Typical Duration** | Seconds to minutes | Hours to days (continuous) | Minutes to hours (multiple backtests) |
 | **Use Case** | Strategy validation, parameter tuning | Production trading | A/B testing, optimization |
-
-**Sources:** [src/classes/Backtest.ts:1-601](), [src/classes/Live.ts:1-614](), [src/classes/Walker.ts:1-856]()
+
 
 ---
 
@@ -393,5 +387,4 @@ symbols.forEach(symbol => {
 // Each symbol maintains separate persistence files
 // Crash recovery works independently per symbol
 ```
-
-**Sources:** [src/classes/Backtest.ts:1-601](), [src/classes/Live.ts:1-614](), [src/classes/Walker.ts:1-856](), [types.d.ts:11-18]()
+

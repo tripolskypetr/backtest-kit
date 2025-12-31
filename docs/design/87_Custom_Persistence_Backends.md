@@ -23,8 +23,7 @@ backtest-kit provides a pluggable persistence system that allows custom storage 
 | `PersistPartialAdapter` | Partial profit/loss levels | `Record<string, IPartialData>` | `./dump/data/partial/` |
 
 Each adapter accepts a custom constructor via `use*Adapter()` methods, enabling integration with any storage system that implements the `IPersistBase` interface.
-
-**Sources:** [src/classes/Persist.ts:1-1000](), [docs/classes/PersistSignalUtils.md:1-13]()
+
 
 ---
 
@@ -33,8 +32,7 @@ Each adapter accepts a custom constructor via `use*Adapter()` methods, enabling 
 ![Mermaid Diagram](./diagrams/87_Custom_Persistence_Backends_0.svg)
 
 **Architecture:** Each adapter uses a factory pattern with constructor type `TPersistBaseCtor`. Custom backends register by calling `use*Adapter(CustomConstructor)` which replaces the factory. Instances are memoized per entity name using `memoize()` from functools-kit.
-
-**Sources:** [src/classes/Persist.ts:514-621](), [src/classes/Persist.ts:647-750](), [src/classes/Persist.ts:769-876](), [src/classes/Persist.ts:895-970]()
+
 
 ---
 
@@ -71,8 +69,7 @@ interface IPersistBase<Entity extends IEntity | null = IEntity> {
 | Partial | `Record<string, IPartialData>` | `"levels"` (constant) |
 
 **Important:** `waitForInit()` receives `initial: boolean` flag indicating first-time initialization. Use this to optimize connection pooling or skip expensive validation.
-
-**Sources:** [src/classes/Persist.ts:88-130](), [src/classes/Persist.ts:64-84]()
+
 
 ---
 
@@ -103,8 +100,7 @@ This guarantees that files are never in a partially-written state, critical for 
 4. Retry deletion up to 5 times with 1-second delays
 
 This prevents corrupted files from blocking initialization after crashes.
-
-**Sources:** [src/classes/Persist.ts:179-501](), [src/utils/writeFileAtomic.ts:1-50]()
+
 
 ---
 
@@ -195,8 +191,7 @@ export const PersistPartialAdapter = new PersistPartialUtils();
 **Memoization Key:** [src/classes/Persist.ts:899-900]() uses `${symbol}:${strategyName}` as cache key.
 
 **Storage Key:** [src/classes/Persist.ts:949]() uses constant `"levels"` as entity ID for all partial data.
-
-**Sources:** [src/classes/Persist.ts:514-621](), [src/classes/Persist.ts:647-750](), [src/classes/Persist.ts:769-876](), [src/classes/Persist.ts:895-970]()
+
 
 ---
 
@@ -281,8 +276,7 @@ PersistRiskAdapter.usePersistRiskAdapter(RedisPersist);
 PersistScheduleAdapter.usePersistScheduleAdapter(RedisPersist);
 PersistPartialAdapter.usePersistPartialAdapter(RedisPersist);
 ```
-
-**Sources:** [src/classes/Persist.ts:196-501](), [src/classes/Persist.ts:541-548](), [src/classes/Persist.ts:674-681]()
+
 
 ---
 
@@ -296,8 +290,7 @@ PersistPartialAdapter.usePersistPartialAdapter(RedisPersist);
 2. **Write Frequency:** Signal persistence occurs on every state change [src/client/ClientStrategy.ts:500-700]()
 3. **Read Frequency:** State loaded once during initialization, never re-read
 4. **Cleanup:** No explicit cleanup - storage instances remain memoized
-
-**Sources:** [src/classes/Persist.ts:560-602](), [src/client/ClientPartial.ts:199-235](), [docs/classes/LiveUtils.md:38-46]()
+
 
 ---
 
@@ -368,8 +361,7 @@ PersistPartialAdapter.usePersistPartialAdapter(S3Persist); // Analytics
 ```
 
 **Benefit:** Optimize for read/write patterns - low-latency Redis for hot data, cost-effective S3 for cold analytics.
-
-**Sources:** [src/classes/Persist.ts:514-621](), [src/classes/Persist.ts:647-750]()
+
 
 ---
 
@@ -453,8 +445,7 @@ async writeValue<T>(entityId: EntityId, entity: T): Promise<void> {
   await this.redis.set(this.getKey(entityId), encrypted);
 }
 ```
-
-**Sources:** [src/classes/Persist.ts:132-177](), [src/classes/Persist.ts:295-314]()
+
 
 ---
 
@@ -491,8 +482,7 @@ async writeValue<T>(entityId: EntityId, entity: T): Promise<void> {
 **Cause:** Incorrect memoization key format
 
 **Solution:** Follow exact key format from [src/classes/Persist.ts:519](): `${symbol}:${strategyName}`
-
-**Sources:** [src/classes/Persist.ts:228-238](), [src/client/ClientPartial.ts:199-235](), [src/classes/Persist.ts:560-602]()
+
 
 ---
 
@@ -503,5 +493,4 @@ See [Persistence Layer](./84_Persistence_Layer.md) for crash recovery architectu
 See [Persistence Utilities](./21_Persistence_Utilities.md) for public API documentation of `PersistSignalAdapter`, `PersistRiskAdapter`, `PersistScheduleAdapter`, and `PersistPartialAdapter`.
 
 See [Live Trading API](./19_Live_Trading_API.md) for integration with `Live.background()` and crash recovery workflow.
-
-**Sources:** [docs/index.md:10-13](), [docs/classes/LiveUtils.md:1-101](), [docs/classes/BacktestUtils.md:1-92]()
+

@@ -25,8 +25,7 @@ The architecture supports three primary execution modes:
 ### Architectural Layers
 
 ![Mermaid Diagram](./diagrams/10_Architecture_0.svg)
-
-**Sources:** [src/lib/index.ts:1-246](), [src/lib/core/types.ts:1-105](), [src/lib/core/provide.ts:1-143]()
+
 
 ### Service Registration and Resolution
 
@@ -44,8 +43,7 @@ provide(TYPES.strategyConnectionService, () => new StrategyConnectionService());
 const strategySchemaService = inject<StrategySchemaService>(TYPES.strategySchemaService);
 const strategyConnectionService = inject<StrategyConnectionService>(TYPES.strategyConnectionService);
 ```
-
-**Sources:** [src/lib/core/provide.ts:1-143](), [src/lib/core/types.ts:1-105](), [src/lib/index.ts:1-246]()
+
 
 ## Architectural Patterns
 
@@ -68,8 +66,7 @@ Each layer has specific responsibilities and communicates only with adjacent lay
 | **Markdown** | Report generation | `BacktestMarkdownService` | Subscribes to events |
 | **Client** | Business logic execution | `ClientStrategy` | Uses Context |
 | **Context** | Implicit parameters | `ExecutionContextService` | AsyncLocalStorage |
-
-**Sources:** [src/lib/index.ts:61-238](), [types.d.ts:1-50]()
+
 
 ### 2. Factory Pattern with Memoization
 
@@ -86,8 +83,7 @@ This ensures that:
 - Backtest and live modes use separate instances (prevent state contamination)
 - Each symbol gets its own instance (parallel execution support)
 - Multiple strategies can share risk/sizing instances (portfolio-level analysis)
-
-**Sources:** [src/lib/services/connection/StrategyConnectionService.ts](), [src/lib/services/connection/ExchangeConnectionService.ts]()
+
 
 ### 3. Context Propagation with AsyncLocalStorage
 
@@ -106,8 +102,7 @@ Two scoped services provide implicit parameter passing without manual threading:
 - `frameName`: Which frame to use (empty for live)
 
 This pattern eliminates the need to pass these parameters explicitly through every function call.
-
-**Sources:** [types.d.ts:6-50](), [src/lib/services/context/ExecutionContextService.ts](), [src/lib/services/context/MethodContextService.ts]()
+
 
 ### 4. Event-Driven Architecture with RxJS
 
@@ -124,8 +119,7 @@ This allows subscribers to listen at different granularities without tight coupl
 
 **Queued Processing:**
 All listener callbacks are wrapped with `queued()` from functools-kit, ensuring sequential execution even for async handlers. This prevents race conditions in event processing.
-
-**Sources:** [src/config/emitters.ts:1-133](), [src/function/event.ts:1-969]()
+
 
 ## Data Flow: Backtest Execution
 
@@ -139,8 +133,7 @@ The following diagram shows how data flows through the system during a backtest 
 3. **Connection Services** provide memoized client instances
 4. **ClientStrategy** orchestrates signal logic and emits events
 5. **Event emitters** enable parallel data collection (markdown, user callbacks)
-
-**Sources:** [src/classes/Backtest.ts](), [src/lib/services/command/BacktestCommandService.ts](), [src/lib/services/logic/public/BacktestLogicPublicService.ts](), [src/lib/services/logic/private/BacktestLogicPrivateService.ts](), [src/client/ClientStrategy.ts]()
+
 
 ## Design Principles
 
@@ -153,8 +146,7 @@ The following diagram shows how data flows through the system during a backtest 
 - In live mode: Fetches most recent candles up to `Date.now()`
 
 This ensures strategies cannot access "future" data during backtesting, making backtest results realistic.
-
-**Sources:** [types.d.ts:6-18](), [src/client/ClientExchange.ts](), [src/lib/services/context/ExecutionContextService.ts]()
+
 
 ### Crash-Safe Persistence
 
@@ -171,8 +163,7 @@ Multiple persistence adapters extend `PersistBase`:
 - **PersistPartialAdapter**: Profit/loss milestone tracking per symbol/strategy
 
 Each adapter has separate file paths to prevent cross-contamination. On restart, `waitForInit()` loads state from disk files.
-
-**Sources:** [src/classes/Persist.ts](), [src/client/ClientStrategy.ts](), [types.d.ts:165-180]()
+
 
 ### Type-Safe Discriminated Unions
 
@@ -199,8 +190,7 @@ if (result.action === "closed") {
 ```
 
 This prevents accessing properties that don't exist in the current state, catching bugs at compile time.
-
-**Sources:** [types.d.ts:769-895](), [src/interfaces/Strategy.interface.ts]()
+
 
 ### Memoized Service Instantiation
 
@@ -230,8 +220,7 @@ This pattern:
 - Prevents duplicate instantiation (performance)
 - Maintains state per key (correctness)
 - Supports parallel execution (isolation)
-
-**Sources:** [src/lib/services/connection/StrategyConnectionService.ts](), [src/lib/services/connection/ExchangeConnectionService.ts](), [src/lib/services/connection/PartialConnectionService.ts]()
+
 
 ## Component Interaction Example: Risk Management
 
@@ -245,8 +234,7 @@ The following diagram shows how risk management integrates across layers:
 3. **State Loading**: ClientRisk calls `waitForInit()` → PersistRiskAdapter loads from disk
 4. **Validation**: ClientRisk runs validation chain → emits event on rejection
 5. **State Update**: On signal open/close → ClientRisk updates portfolio state → persists to disk
-
-**Sources:** [src/function/add.ts:270-343](), [src/lib/services/connection/RiskConnectionService.ts](), [src/client/ClientRisk.ts](), [src/classes/Persist.ts](), [src/config/emitters.ts:127-132]()
+
 
 ## Summary
 
@@ -262,5 +250,4 @@ The backtest-kit architecture is characterized by:
 8. **Type Safety**: Discriminated unions for compile-time correctness
 
 This architecture enables the framework to support complex trading workflows while maintaining testability, extensibility, and reliability. The layered design ensures that changes to one component (e.g., persistence implementation) do not cascade to unrelated components (e.g., signal generation logic).
-
-**Sources:** [src/lib/index.ts:1-246](), [src/lib/core/types.ts:1-105](), [src/lib/core/provide.ts:1-143](), [types.d.ts:1-1190](), [src/index.ts:1-199]()
+

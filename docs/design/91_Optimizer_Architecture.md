@@ -33,8 +33,7 @@ Supporting services:
 - Ollama API integration: see page 16.5.3
 - Template methods and code sections: see page 16.5.4
 - `rangeTrain` and `rangeTest` configuration: see page 16.5.5
-
-**Sources:** [src/classes/Optimizer.ts:1-135](), [src/client/ClientOptimizer.ts:1-448](), [src/lib/services/connection/OptimizerConnectionService.ts:1-175](), [src/lib/services/template/OptimizerTemplateService.ts:1-716]()
+
 </old_str>
 
 <old_str>
@@ -83,8 +82,7 @@ The class delegates to three internal functions defined at module scope:
 | `DEFAULT_ASSISTANT_FN` | [line 53-60]() | Delegates to `template.getAssistantMessage()` for default assistant message formatting |
 | `RESOLVE_PAGINATION_FN` | [line 70-88]() | Uses `iterateDocuments` and `distinctDocuments` from functools-kit for pagination with deduplication |
 | `CREATE_PREFIX_FN` | [line 22]() | Generates random base36 prefix for generated code identifiers |
-
-**Sources:** [src/client/ClientOptimizer.ts:397-447](), [src/client/ClientOptimizer.ts:22](), [src/client/ClientOptimizer.ts:34-60](), [src/client/ClientOptimizer.ts:70-88](), [src/interfaces/Optimizer.interface.ts:436-484]()
+
 </old_str>
 <new_str>
 The Optimizer system consists of four primary components organized in a layered architecture:
@@ -104,16 +102,14 @@ The Optimizer system consists of four primary components organized in a layered 
 3. **Validation Chain**: `OptimizerGlobalService` calls `OptimizerValidationService.validate()` before delegating to `OptimizerConnectionService`, ensuring optimizer exists [src/lib/services/global/OptimizerGlobalService.ts:45-48]()
 
 4. **Function Delegation**: `ClientOptimizer` public methods delegate to module-scoped functions (`GET_STRATEGY_DATA_FN`, `GET_STRATEGY_CODE_FN`, `GET_STRATEGY_DUMP_FN`) that accept `self: ClientOptimizer` as the last parameter [src/client/ClientOptimizer.ts:410-444]()
-
-**Sources:** [src/client/ClientOptimizer.ts:1-448](), [src/lib/services/connection/OptimizerConnectionService.ts:1-175](), [src/lib/services/template/OptimizerTemplateService.ts:1-716](), [src/lib/services/global/OptimizerGlobalService.ts:1-105](), [src/lib/services/validation/OptimizerValidationService.ts:1-72](), [src/classes/Optimizer.ts:1-135](), [src/lib/services/schema/OptimizerSchemaService.ts:1-97]()
+
 
 ## Data Flow Through Components
 
 **Diagram: getData() Method Call Chain**
 
 ![Mermaid Diagram](./diagrams/91_Optimizer_Architecture_1.svg)
-
-**Sources:** [src/classes/Optimizer.ts:42-59](), [src/lib/services/global/OptimizerGlobalService.ts:37-50](), [src/lib/services/connection/OptimizerConnectionService.ts:59-132](), [src/client/ClientOptimizer.ts:410-415]()
+
 
 ## Core Components
 
@@ -208,8 +204,7 @@ All three public methods follow the same pattern: retrieve memoized `ClientOptim
 | `getData` | [122-132]() | `optimizer.getData(symbol)` |
 | `getCode` | [141-151]() | `optimizer.getCode(symbol)` |
 | `dump` | [160-171]() | `optimizer.dump(symbol, path)` |
-
-**Sources:** [src/lib/services/connection/OptimizerConnectionService.ts:41-174](), [src/lib/services/connection/OptimizerConnectionService.ts:18-21](), [src/interfaces/Optimizer.interface.ts:242-374]()
+
 
 ### OptimizerTemplateService
 
@@ -276,8 +271,7 @@ const escapedPrompt = String(plainPrompt)
 3. **Signal Generation** [279-290](): Final LLM prompt with strategy description
 
 4. **Result Processing** [294-300](): UUID generation, JSON signal, and `dumpJson` call
-
-**Sources:** [src/lib/services/template/OptimizerTemplateService.ts:27-716](), [src/interfaces/Optimizer.interface.ts:242-374]()
+
 
 ### ClientOptimizer
 
@@ -332,8 +326,7 @@ export interface IOptimizerParams extends IOptimizerSchema {
 | `DEFAULT_ASSISTANT_FN` | [53-60]() | Delegates to `template.getAssistantMessage(symbol, data, name)` |
 | `RESOLVE_PAGINATION_FN` | [70-88]() | Uses `iterateDocuments` + `distinctDocuments` from functools-kit for paginated fetching with deduplication by `data.id` |
 | `CREATE_PREFIX_FN` | [22]() | Generates random base36 string for identifier prefixes: `(Math.random() + 1).toString(36).substring(7)` |
-
-**Sources:** [src/client/ClientOptimizer.ts:397-447](), [src/client/ClientOptimizer.ts:22](), [src/client/ClientOptimizer.ts:34-88](), [src/interfaces/Optimizer.interface.ts:436-484]()
+
 
 ## Operation Execution Flows
 
@@ -391,8 +384,7 @@ const RESOLVE_PAGINATION_FN = async <Data extends IOptimizerData = any>(
   return await resolveDocuments(distinct);
 };
 ```
-
-**Sources:** [src/client/ClientOptimizer.ts:99-215](), [src/client/ClientOptimizer.ts:70-88](), [src/client/ClientOptimizer.ts:410-415](), [src/interfaces/Optimizer.interface.ts:100-123]()
+
 
 **Key Implementation Steps:**
 
@@ -450,8 +442,7 @@ const RESOLVE_PAGINATION_FN = async <Data extends IOptimizerData = any>(
     progress: number  // 0.0 to 1.0
   }
   ```
-
-**Sources:** [src/client/ClientOptimizer.ts:99-215](), [src/client/ClientOptimizer.ts:70-88](), [src/client/ClientOptimizer.ts:410-415](), [src/contract/ProgressOptimizer.contract.ts]()
+
 
 ### OptimizerSchemaService
 
@@ -529,8 +520,7 @@ addOptimizer({
   }
 });
 ```
-
-**Sources:** [src/lib/services/connection/OptimizerConnectionService.ts:59-113](), [src/interfaces/Optimizer.interface.ts:426-427](), [src/interfaces/Optimizer.interface.ts:242-374]()
+
 
 ## Execution Flow
 
@@ -549,8 +539,7 @@ The `getData` method collects data from all configured sources and builds LLM co
 5. **Message Formatting**: Call user/assistant formatters, append to conversation history [src/client/ClientOptimizer.ts:132-145]()
 6. **Strategy Generation**: Call `getPrompt()` with complete message history [src/client/ClientOptimizer.ts:196]()
 7. **Callback Execution**: Invoke `onData` callback if provided [src/client/ClientOptimizer.ts:210-212]()
-
-**Sources:** [src/client/ClientOptimizer.ts:99-215](), [src/client/ClientOptimizer.ts:410-415]()
+
 
 ### getCode Flow
 
@@ -584,8 +573,7 @@ All generated identifiers use a random base36 prefix to prevent collisions [src/
 | 8 | [300-314]() | `getStrategyTemplate` (loop) | `addStrategy({strategyName, interval: '5m', getSignal: async...})` × N |
 | 9 | [317-332]() | `getWalkerTemplate` | `addWalker({walkerName, exchangeName, frameName, strategies: [...]})` |
 | 10 | [335-341]() | `getLauncherTemplate` | `Walker.background()`, `listenSignalBacktest()`, `listenWalkerComplete()`, etc. |
-
-**Sources:** [src/client/ClientOptimizer.ts:225-350](), [src/client/ClientOptimizer.ts:424-429](), [src/client/ClientOptimizer.ts:22]()
+
 
 ### dump Flow
 
@@ -630,8 +618,7 @@ if (self.params.callbacks?.onDump) {
   await self.params.callbacks.onDump(symbol, filepath);
 }
 ```
-
-**Sources:** [src/client/ClientOptimizer.ts:360-384](), [src/client/ClientOptimizer.ts:438-444](), [src/interfaces/Optimizer.interface.ts:216-218]()
+
 
 ## Dependency Injection and Service Registration
 
@@ -649,5 +636,4 @@ The following symbols identify Optimizer-related services in the dependency inje
 ![Mermaid Diagram](./diagrams/91_Optimizer_Architecture_7.svg)
 
 The Optimizer services follow the same dependency injection pattern as other framework components. For comprehensive coverage of the DI system, see [Dependency Injection System](./12_Dependency_Injection_System.md).
-
-**Sources:** [src/lib/services/connection/OptimizerConnectionService.ts:42-48](), [src/lib/services/template/OptimizerTemplateService.ts:27]()
+

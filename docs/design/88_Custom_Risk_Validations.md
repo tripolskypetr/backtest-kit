@@ -29,8 +29,7 @@ Validations execute synchronously in the order defined and can reject signals by
 ![Mermaid Diagram](./diagrams/88_Custom_Risk_Validations_0.svg)
 
 **Validation Timing**: Risk validations execute **after** signal generation but **before** position opening. This ensures that portfolio state is current and no capital is committed until all checks pass.
-
-**Sources**: [types.d.ts:382-426](), [src/client/ClientStrategy.ts:376-387]()
+
 
 ---
 
@@ -62,8 +61,7 @@ The `IRiskValidation` interface has two properties:
 2. **Exception-Based**: Throw errors to reject signals; return normally to allow
 3. **Sequential Execution**: Validations run in array order; first error stops the chain
 4. **No Return Value**: Functions return `void` - all communication via exceptions
-
-**Sources**: [types.d.ts:399-412]()
+
 
 ---
 
@@ -103,8 +101,7 @@ interface IRiskActivePosition {
   openTimestamp: number;       // When position opened (ms)
 }
 ```
-
-**Sources**: [types.d.ts:343-390](), [types.d.ts:359-369]()
+
 
 ---
 
@@ -148,8 +145,7 @@ addRisk({
 - Appears in rejection events via `riskSubject`
 - Logged when validation fails
 - Aids debugging and monitoring
-
-**Sources**: [types.d.ts:425](), [README.md:83-100]()
+
 
 ---
 
@@ -197,8 +193,7 @@ Ensure minimum risk/reward ratio (e.g., 2:1):
   note: "Enforce minimum 2:1 risk/reward ratio"
 }
 ```
-
-**Sources**: [README.md:92-98]()
+
 
 ### Pattern 3: Minimum Take Profit Distance
 
@@ -222,8 +217,7 @@ Ensure take profit covers trading fees:
   note: "Ensure TP distance covers trading fees (1% minimum)"
 }
 ```
-
-**Sources**: [README.md:87-91]()
+
 
 ### Pattern 4: Symbol-Specific Position Limits
 
@@ -281,8 +275,7 @@ Allow or forbid opposing positions on same symbol:
   note: "Prevent opposing positions on same symbol (no hedging)"
 }
 ```
-
-**Sources**: Derived from [types.d.ts:382-390]()
+
 
 ---
 
@@ -297,8 +290,7 @@ Allow or forbid opposing positions on same symbol:
 3. **All-or-Nothing**: All validations must pass for signal to proceed
 4. **Error Capture**: Thrown errors are caught and converted to rejection events
 5. **Async Support**: Async validations are `await`ed before proceeding
-
-**Sources**: [src/client/ClientStrategy.ts:376-387]()
+
 
 ---
 
@@ -355,8 +347,7 @@ listenRisk((event) => {
 | `activePositionCount` | `number` | Position count at rejection |
 | `comment` | `string` | Validation note or error message |
 | `timestamp` | `number` | Rejection timestamp (ms) |
-
-**Sources**: [src/function/event.ts:896-927](), [types.d.ts:446-447]()
+
 
 ---
 
@@ -387,8 +378,7 @@ Validations can be async for external lookups:
 - High latency can delay signal processing
 - Consider caching external data to reduce API calls
 - Timeout long-running validations to prevent hangs
-
-**Sources**: [types.d.ts:396]()
+
 
 ---
 
@@ -403,8 +393,7 @@ Validations can be async for external lookups:
 3. **Monitoring Phase**: Active positions count toward `activePositionCount` in future validations
 4. **Position Closure**: Closed positions are removed from `_activePositionsMap` via `removeSignal()`
 5. **Crash Recovery**: Persisted positions restore `_activePositionsMap` on restart
-
-**Sources**: [src/client/ClientStrategy.ts:376-387](), [src/client/ClientStrategy.ts:742-745]()
+
 
 ---
 
@@ -520,8 +509,7 @@ test("Risk validation blocks signal in backtest", async ({ pass, fail }) => {
   }
 });
 ```
-
-**Sources**: [test/e2e/defend.test.mjs:543-642]()
+
 
 ---
 
@@ -628,8 +616,7 @@ Ensure no single strategy dominates:
   note: "No strategy exceeds 50% of portfolio"
 }
 ```
-
-**Sources**: Derived from [types.d.ts:382-390]()
+
 
 ---
 
@@ -675,8 +662,7 @@ addStrategy({
 ```
 
 **Execution Order**: All risk profiles in `riskList` are applied sequentially. Signal must pass **all** validations from **all** risk profiles.
-
-**Sources**: [types.d.ts:150]()
+
 
 ---
 
@@ -764,8 +750,7 @@ const getRisk = memoize((riskName: string, backtest: boolean) => {
 - Risk profile validations are **shared** across all strategies using that risk profile
 - `_activePositionsMap` is **shared** across strategies in same risk profile
 - Backtest and Live modes have **separate** `ClientRisk` instances (different `backtest` flag)
-
-**Sources**: Inferred from memoization patterns in codebase
+
 
 ---
 
@@ -824,8 +809,7 @@ Include rich error messages with context:
   note: "Portfolio position limit (5 max)"
 }
 ```
-
-**Sources**: [src/function/event.ts:733-760](), [src/function/event.ts:896-927]()
+
 
 ---
 
@@ -845,8 +829,7 @@ Include rich error messages with context:
 **When to Use**:
 - **Validations**: Enforce business rules that prevent unsafe trades
 - **Callbacks**: Observe and react to events without affecting execution
-
-**Sources**: [types.d.ts:100-126](), [types.d.ts:399-412]()
+
 
 ---
 

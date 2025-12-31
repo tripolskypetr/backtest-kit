@@ -14,8 +14,7 @@ For information about the client implementations that connection services instan
 Connection services sit between the global service layer and client implementations, acting as intelligent routers and instance factories. They inject dependencies into clients and ensure proper initialization before operation execution.
 
 ![Mermaid Diagram](./diagrams/42_Connection_Services_0.svg)
-
-**Sources**: 
+
 - [src/lib/services/connection/StrategyConnectionService.ts:1-325]()
 - [src/lib/services/connection/PartialConnectionService.ts:1-267]()
 
@@ -62,8 +61,7 @@ private getStrategy = memoize<
 1. **Key Generator**: First parameter defines how to create unique cache keys from function arguments
 2. **Factory Function**: Second parameter defines how to construct instances when cache miss occurs
 3. **Return Type**: Generic type parameter specifies function signature for type safety
-
-**Sources**: [src/lib/services/connection/StrategyConnectionService.ts:123-156]()
+
 
 ### Memoization Keys by Service
 
@@ -77,8 +75,7 @@ Different connection services use different key formats based on their isolation
 | `ExchangeConnectionService` | `exchangeName:backtest` | Exchanges are shared across symbols but have different behavior in backtest |
 
 The `backtest` flag in keys ensures that live trading and backtesting never share the same client instances, preventing state contamination between execution modes.
-
-**Sources**: 
+
 - [src/lib/services/connection/StrategyConnectionService.ts:123-156]()
 - [src/lib/services/connection/PartialConnectionService.ts:132-143]()
 
@@ -112,8 +109,7 @@ This pattern guarantees:
 - Initialization code runs exactly once per instance
 - Concurrent calls wait for the same initialization promise
 - Operations never execute on uninitialized instances
-
-**Sources**: 
+
 - [src/lib/services/connection/PartialConnectionService.ts:159-185]()
 - [src/client/ClientPartial.ts:330-332]()
 
@@ -138,8 +134,7 @@ Cache clearing is essential for:
 - **Resource cleanup**: Releasing memory after backtest completes
 - **State reset**: Ensuring fresh instances for new execution runs
 - **Testing**: Isolating test cases from each other
-
-**Sources**: [src/lib/services/connection/StrategyConnectionService.ts:303-321]()
+
 
 ## StrategyConnectionService
 
@@ -158,8 +153,7 @@ The service injects multiple dependencies into each `ClientStrategy`:
 - `exchange`: `ExchangeConnectionService` for market data (VWAP pricing, candles)
 - `risk`: `IRisk` instance (single or merged) for portfolio validation
 - `partial`: `PartialConnectionService` for profit/loss milestone tracking
-
-**Sources**: [src/lib/services/connection/StrategyConnectionService.ts:126-155]()
+
 
 ### Risk Merging Logic
 
@@ -201,8 +195,7 @@ const GET_RISK_FN = (dto: { riskName: RiskName; riskList: RiskName[] }, backtest
 ```
 
 `MergeRisk` is a composite risk implementation that validates signals against all child risks sequentially, rejecting if any risk rejects.
-
-**Sources**: [src/lib/services/connection/StrategyConnectionService.ts:33-70]()
+
 
 ### Operation Delegation
 
@@ -232,8 +225,7 @@ public async tick(symbol: string, strategyName: StrategyName): Promise<IStrategy
   return tick;
 }
 ```
-
-**Sources**: [src/lib/services/connection/StrategyConnectionService.ts:216-238]()
+
 
 ### Utility Methods
 
@@ -250,8 +242,7 @@ These methods are used by:
 - **BacktestUtils/LiveUtils**: For graceful shutdown and status checking
 - **WalkerUtils**: To stop strategies during walker interruption
 - **Testing utilities**: To reset state between test cases
-
-**Sources**: [src/lib/services/connection/StrategyConnectionService.ts:168-321]()
+
 
 ## PartialConnectionService
 
@@ -267,8 +258,7 @@ The per-signal isolation ensures that:
 - Profit/loss levels are tracked independently for each position
 - Closing one signal doesn't affect others' milestone tracking
 - State is properly cleaned up when signals complete
-
-**Sources**: [src/lib/services/connection/PartialConnectionService.ts:132-143]()
+
 
 ### Event Emission Callbacks
 
@@ -310,8 +300,7 @@ return new ClientPartial({
   onLoss: COMMIT_LOSS_FN,
 });
 ```
-
-**Sources**: 
+
 - [src/lib/services/connection/PartialConnectionService.ts:28-83]()
 - [src/lib/services/connection/PartialConnectionService.ts:132-143]()
 
@@ -338,8 +327,7 @@ public async profit(
 ```
 
 The same pattern applies to `loss()` and `clear()` operations. This consistency makes the connection service layer predictable and easy to understand.
-
-**Sources**: [src/lib/services/connection/PartialConnectionService.ts:159-227]()
+
 
 ### Cleanup on Signal Close
 
@@ -362,8 +350,7 @@ public async clear(symbol: string, data: ISignalRow, priceClose: number, backtes
 This two-step cleanup ensures:
 1. Persisted state is updated (signal removed from disk file)
 2. In-memory cache entry is released (prevents memory leaks)
-
-**Sources**: [src/lib/services/connection/PartialConnectionService.ts:246-263]()
+
 
 ## Integration with Utility Classes
 
@@ -397,8 +384,7 @@ This validation layer ensures that:
 - All required schemas are registered before execution
 - Clear error messages identify missing configurations
 - Connection services receive only valid schema references
-
-**Sources**: [src/classes/Backtest.ts:378-400]()
+
 
 ### Instance Isolation
 
@@ -418,8 +404,7 @@ This creates a two-level memoization hierarchy:
 2. **Connection level**: `ClientStrategy` per `symbol:strategyName:backtest`
 
 The utility instance delegates to the connection service, which delegates to the client. This separation allows utility instances to track execution state (e.g., `_isStopped`, `_isDone`) while connection services manage client instances.
-
-**Sources**: 
+
 - [src/classes/Backtest.ts:364-369]()
 - [src/classes/Live.ts:381-386]()
 
@@ -448,5 +433,4 @@ export class StrategyConnectionService {
   // ...
 }
 ```
-
-**Sources**: [src/lib/services/connection/StrategyConnectionService.ts:93-111]()
+

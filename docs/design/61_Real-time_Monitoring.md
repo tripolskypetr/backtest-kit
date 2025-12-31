@@ -32,8 +32,7 @@ The monitoring loop is implemented in `LiveLogicPrivateService` as an infinite `
 2. **Real-time Timestamps**: Each iteration uses current time, not historical data
 3. **Error Recovery**: Errors are logged and emitted but do not break the loop
 4. **State-Aware Sleep**: All states sleep for `TICK_TTL` except when breaking
-
-**Sources:** [src/lib/services/logic/private/LiveLogicPrivateService.ts:14-177]()
+
 
 ---
 
@@ -56,8 +55,7 @@ The signal validation process runs multiple checks sequentially before allowing 
 | Price Distance | `ClientStrategy` | TP/SL meet minimum distance requirements |
 | Time Validity | `ClientStrategy` | `minuteEstimatedTime` is positive |
 | Risk Checks | `ClientRisk.checkSignal()` | Portfolio limits, custom validations |
-
-**Sources:** [src/lib/services/core/StrategyCoreService.ts:135-160](), [src/lib/services/connection/StrategyConnectionService.ts](), [src/client/ClientStrategy.ts]()
+
 
 ---
 
@@ -95,8 +93,7 @@ The `queued()` wrapper guarantees that:
 - The next event waits for the previous callback to complete
 - No concurrent execution of the same callback
 - Async callbacks are properly awaited
-
-**Sources:** [src/lib/services/logic/private/LiveLogicPrivateService.ts:63-177](), [src/config/emitters.ts:1-133](), [src/function/event.ts:135-167]()
+
 
 ---
 
@@ -125,8 +122,7 @@ For live trading, the primary metric is:
 - `"live_tick"`: Time to complete one monitoring iteration including tick evaluation, event emission, and state checks
 
 The `previousTimestamp` field enables calculating time between events for monitoring system throughput.
-
-**Sources:** [src/lib/services/logic/private/LiveLogicPrivateService.ts:103-115](), [src/contract/Performance.contract.ts]()
+
 
 ---
 
@@ -160,8 +156,7 @@ symbol=${symbol} strategyName=${strategyName} exchangeName=${exchangeName}
 - Errors do not accumulate - each is handled independently
 - Sleep interval matches normal tick interval to maintain timing
 - Next iteration starts fresh with new `Date()` timestamp
-
-**Sources:** [src/lib/services/logic/private/LiveLogicPrivateService.ts:74-95]()
+
 
 ---
 
@@ -195,8 +190,7 @@ The `getStopped()` check occurs at strategic points:
 - **Before idle sleep**: Safe to stop when no active position
 - **After closed yield**: Graceful exit after position completes
 - **Not during active/scheduled**: Prevents stopping mid-position
-
-**Sources:** [src/lib/services/logic/private/LiveLogicPrivateService.ts:118-176](), [types.d.ts:769-890]()
+
 
 ---
 
@@ -227,5 +221,4 @@ Backtest monitoring prioritizes **speed** and **efficiency**:
 - No persistence to avoid disk I/O overhead
 - Timeframe skipping reduces redundant checks
 - Fast-forward through signal duration with `backtest()` method
-
-**Sources:** [src/lib/services/logic/private/LiveLogicPrivateService.ts:63-177](), [src/lib/services/logic/private/BacktestLogicPrivateService.ts:62-481]()
+

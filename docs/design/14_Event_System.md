@@ -25,8 +25,7 @@ Event Source → Subject.next() → Queued Listener → User Callback
 **Event Emitter Diagram**
 
 ![Mermaid Diagram](./diagrams/14_Event_System_0.svg)
-
-**Sources:** [src/config/emitters.ts:1-81](), [src/function/event.ts:1-647]()
+
 
 ---
 
@@ -49,8 +48,7 @@ The `IStrategyTickResult` discriminated union includes:
 - `IStrategyTickResultActive` - Position being monitored
 - `IStrategyTickResultClosed` - Position closed with PnL
 - `IStrategyTickResultCancelled` - Scheduled signal cancelled
-
-**Sources:** [src/config/emitters.ts:9-25](), [types.d.ts:653-770]()
+
 
 ### Completion Events
 
@@ -61,8 +59,7 @@ Completion events signal when background execution finishes:
 | `doneBacktestSubject` | Backtest completion | `DoneContract` | `Backtest.background()` ends |
 | `doneLiveSubject` | Live trading completion | `DoneContract` | `Live.background()` ends |
 | `doneWalkerSubject` | Walker completion | `DoneContract` | `Walker.background()` ends |
-
-**Sources:** [src/config/emitters.ts:33-49]()
+
 
 ### Progress Events
 
@@ -73,8 +70,7 @@ Progress events track execution advancement:
 | `progressEmitter` | Backtest progress | `ProgressContract` | Per timeframe batch |
 | `walkerEmitter` | Walker strategy progress | `WalkerContract` | Per strategy completion |
 | `walkerCompleteSubject` | Walker final results | `IWalkerResults` | Once at end |
-
-**Sources:** [src/config/emitters.ts:51-73]()
+
 
 ### Error and Validation Events
 
@@ -82,16 +78,14 @@ Progress events track execution advancement:
 |---------|---------|------------|---------|
 | `errorEmitter` | Background execution errors | `Error` | Caught exceptions in `.background()` |
 | `validationSubject` | Risk validation failures | `Error` | Risk validation function throws |
-
-**Sources:** [src/config/emitters.ts:28-31](), [src/config/emitters.ts:76-79]()
+
 
 ### Performance Events
 
 | Emitter | Purpose | Event Type | Usage |
 |---------|---------|------------|-------|
 | `performanceEmitter` | Timing metrics | `PerformanceContract` | Profiling and bottleneck detection |
-
-**Sources:** [src/config/emitters.ts:57-61]()
+
 
 ---
 
@@ -121,8 +115,7 @@ Returns an unsubscribe function to stop listening.
 | `listenWalker()` | `walkerEmitter` | Yes | Walker progress |
 | `listenWalkerComplete()` | `walkerCompleteSubject` | Yes | Walker final results |
 | `listenValidation()` | `validationSubject` | Yes | Risk validation errors |
-
-**Sources:** [src/function/event.ts:56-623]()
+
 
 ### Once Listeners
 
@@ -144,8 +137,7 @@ function listen*Once(
 | `listenDoneLiveOnce()` | `doneLiveSubject` | Filter + auto-unsubscribe |
 | `listenDoneWalkerOnce()` | `doneWalkerSubject` | Filter + auto-unsubscribe |
 | `listenWalkerOnce()` | `walkerEmitter` | Filter + auto-unsubscribe |
-
-**Sources:** [src/function/event.ts:93-587]()
+
 
 ---
 
@@ -169,8 +161,7 @@ export function listenSignal(fn: (event: IStrategyTickResult) => void) {
 **Queued Processing Flow**
 
 ![Mermaid Diagram](./diagrams/14_Event_System_1.svg)
-
-**Sources:** [src/function/event.ts:58](), [src/function/event.ts:9]()
+
 
 ---
 
@@ -187,8 +178,7 @@ export function listenSignal(fn: (event: IStrategyTickResult) => void) {
 1. **Signal Events**: Emitted by `BacktestLogicPrivateService.run()` for each tick result
 2. **Progress Events**: Emitted periodically during timeframe iteration
 3. **Completion Events**: Emitted when `Backtest.background()` finishes
-
-**Sources:** [src/classes/Backtest.ts:102-114]()
+
 
 ### Live Event Flow
 
@@ -201,8 +191,7 @@ export function listenSignal(fn: (event: IStrategyTickResult) => void) {
 1. **Signal Events**: Emitted by `LiveLogicPrivateService.run()` for each tick result
 2. **Persistence**: State saved before events emitted
 3. **Completion Events**: Emitted when `Live.background()` stops and last position closes
-
-**Sources:** [src/classes/Live.ts:117-129]()
+
 
 ### Walker Event Flow
 
@@ -215,8 +204,7 @@ export function listenSignal(fn: (event: IStrategyTickResult) => void) {
 1. **Progress Events**: Emitted after each strategy backtest completes
 2. **Completion Events**: Emitted when all strategies tested
 3. **Final Results**: Emitted with best strategy selection
-
-**Sources:** [src/classes/Walker.ts:122-134]()
+
 
 ---
 
@@ -236,8 +224,7 @@ interface DoneContract {
 ```
 
 Emitted by completion subjects (`doneBacktestSubject`, `doneLiveSubject`, `doneWalkerSubject`).
-
-**Sources:** [src/contract/Done.contract.ts]()
+
 
 ### ProgressContract
 
@@ -254,8 +241,7 @@ interface ProgressContract {
 ```
 
 Emitted by `progressEmitter` during backtest execution.
-
-**Sources:** [src/contract/Progress.contract.ts]()
+
 
 ### PerformanceContract
 
@@ -270,8 +256,7 @@ interface PerformanceContract {
 ```
 
 Emitted by `performanceEmitter` for profiling.
-
-**Sources:** [src/contract/Performance.contract.ts]()
+
 
 ### WalkerContract
 
@@ -291,8 +276,7 @@ interface WalkerContract {
 ```
 
 Emitted by `walkerEmitter` after each strategy completes.
-
-**Sources:** [src/contract/Walker.contract.ts]()
+
 
 ---
 
@@ -322,8 +306,7 @@ await doneBacktestSubject.next({
   symbol,
 });
 ```
-
-**Sources:** [src/classes/Backtest.ts:108-113]()
+
 
 ### Using Listeners in Application Code
 
@@ -362,8 +345,7 @@ listenError((error) => {
   // Send to monitoring service
 });
 ```
-
-**Sources:** [src/function/event.ts:40-91](), [src/function/event.ts:93-99](), [src/function/event.ts:232-235]()
+
 
 ---
 
@@ -384,8 +366,7 @@ Markdown services automatically subscribe to event emitters to accumulate data f
 **WalkerMarkdownService:**
 - Subscribes to `walkerEmitter` and `walkerCompleteSubject`
 - Tracks strategy comparison results
-
-**Sources:** [types.d.ts:899-1008](), [src/index.ts:126]()
+
 
 ---
 
@@ -405,5 +386,4 @@ Markdown services automatically subscribe to event emitters to accumulate data f
 | Walker complete | `walkerCompleteSubject` | `listenWalkerComplete()` | `IWalkerResults` | Yes | No |
 | Errors | `errorEmitter` | `listenError()` | `Error` | Yes | No |
 | Validation | `validationSubject` | `listenValidation()` | `Error` | Yes | No |
-
-**Sources:** [src/config/emitters.ts:1-81](), [src/function/event.ts:1-647]()
+

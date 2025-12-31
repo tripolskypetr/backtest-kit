@@ -59,8 +59,7 @@ Scheduled signals transition to `cancelled` state when:
 - Pre-activation stop loss: Stop loss price would be hit before `priceOpen` is reached
 
 ![Mermaid Diagram](./diagrams/80_Timing_Parameters_0.svg)
-
-**Sources**: 
+
 - [src/lib/services/logic/private/BacktestLogicPrivateService.ts:155-178]()
 - [types.d.ts:786-801]() (IStrategyTickResultScheduled)
 
@@ -100,8 +99,7 @@ The first condition to be met triggers `closeReason: "time_expired"`.
 In backtest mode, the system fetches exactly `minuteEstimatedTime` candles after signal opens, avoiding unnecessary processing of longer timeframes. If a signal would exceed `CC_MAX_SIGNAL_LIFETIME_MINUTES`, it's capped at the global limit.
 
 ![Mermaid Diagram](./diagrams/80_Timing_Parameters_1.svg)
-
-**Sources**:
+
 - [types.d.ts:666]() (minuteEstimatedTime field)
 - [types.d.ts:754]() (StrategyCloseReason type)
 - [src/lib/services/logic/private/BacktestLogicPrivateService.ts:320-332]()
@@ -167,8 +165,7 @@ For example, with `interval: "5m"`:
 - Ticks still occur every 60 seconds via `TICK_TTL`
 - But `getSignal()` is only called every 5 minutes
 - Intermediate ticks only monitor existing signal's TP/SL/time progress
-
-**Sources**:
+
 - [src/lib/services/logic/private/LiveLogicPrivateService.ts:14]()
 - [src/lib/services/logic/private/LiveLogicPrivateService.ts:63-177]()
 - [types.d.ts:647]() (SignalInterval type)
@@ -213,8 +210,7 @@ After a signal closes, the backtest loop skips timeframes until reaching `closeT
 ![Mermaid Diagram](./diagrams/80_Timing_Parameters_4.svg)
 
 This optimization prevents redundant tick() calls during the signal's active period, significantly improving backtest performance.
-
-**Sources**:
+
 - [src/lib/services/logic/private/BacktestLogicPrivateService.ts:155-283]() (scheduled signal handling)
 - [src/lib/services/logic/private/BacktestLogicPrivateService.ts:307-434]() (immediate signal handling)
 - [src/lib/services/logic/private/BacktestLogicPrivateService.ts:406-412]() (timeframe skipping)
@@ -250,8 +246,7 @@ elapsedSincePending = (Date.now() - pendingAt) / 60000
 |------|------------------|------------------|
 | **Live** | `new Date()` at each tick | Wall clock time, 60-second granularity |
 | **Backtest** | `timeframes[i]` from frame generation | Historical candle timestamps, exact replay |
-
-**Sources**:
+
 - [src/lib/services/logic/private/LiveLogicPrivateService.ts:63-177]()
 - [src/lib/services/logic/private/LiveLogicPrivateService.ts:72]() (timestamp generation)
 - [src/lib/services/logic/private/LiveLogicPrivateService.ts:93-95]() (sleep implementation)
@@ -283,8 +278,7 @@ setConfig({
 ```
 
 **Note**: `TICK_TTL` is hardcoded in [src/lib/services/logic/private/LiveLogicPrivateService.ts:14]() and not user-configurable. To modify tick frequency, you must edit the source code directly.
-
-**Sources**:
+
 - [src/config/params.ts]()
 - [src/function/setup.ts]() (setConfig, getConfig functions)
 - [types.d.ts:195]() (GlobalConfig type reference)

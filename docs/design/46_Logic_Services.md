@@ -24,8 +24,7 @@ Logic Services are organized into three execution mode families, each with Priva
 **Public Services** wrap Private Services with `MethodContextService` to provide implicit context propagation, allowing downstream functions to access `strategyName`, `exchangeName`, and `frameName` without explicit parameters.
 
 ![Mermaid Diagram](./diagrams/46_Logic_Services_0.svg)
-
-**Sources:** [src/lib/services/logic/private/BacktestLogicPrivateService.ts:1-387](), [src/lib/services/logic/private/LiveLogicPrivateService.ts:1-134](), [src/lib/services/logic/private/WalkerLogicPrivateService.ts:1-255]()
+
 
 ## Private vs Public Service Separation
 
@@ -87,8 +86,7 @@ public readonly run = (
 ```
 
 This pattern allows downstream functions like `getCandles()` and `getSignal()` to access context implicitly through `MethodContextService`.
-
-**Sources:** [src/lib/services/logic/public/BacktestLogicPublicService.ts](), [src/lib/services/logic/public/LiveLogicPublicService.ts](), [src/lib/services/logic/private/BacktestLogicPrivateService.ts:33-46]()
+
 
 ## BacktestLogicPrivateService
 
@@ -97,8 +95,7 @@ This pattern allows downstream functions like `getCandles()` and `getSignal()` t
 ### Execution Flow
 
 ![Mermaid Diagram](./diagrams/46_Logic_Services_1.svg)
-
-**Sources:** [src/lib/services/logic/private/BacktestLogicPrivateService.ts:62-384]()
+
 
 ### Key Implementation Details
 
@@ -163,8 +160,7 @@ All operations are wrapped in try-catch blocks that emit errors via `errorEmitte
 - [src/lib/services/logic/private/BacktestLogicPrivateService.ts:95-110](): `tick()` failures skip the current timeframe
 - [src/lib/services/logic/private/BacktestLogicPrivateService.ts:133-155](): `getNextCandles()` failures skip signal processing
 - [src/lib/services/logic/private/BacktestLogicPrivateService.ts:175-195](): `backtest()` failures skip signal result
-
-**Sources:** [src/lib/services/logic/private/BacktestLogicPrivateService.ts:62-384]()
+
 
 ## LiveLogicPrivateService
 
@@ -173,8 +169,7 @@ All operations are wrapped in try-catch blocks that emit errors via `errorEmitte
 ### Execution Flow
 
 ![Mermaid Diagram](./diagrams/46_Logic_Services_2.svg)
-
-**Sources:** [src/lib/services/logic/private/LiveLogicPrivateService.ts:61-130]()
+
 
 ### Key Implementation Details
 
@@ -239,8 +234,7 @@ try {
   continue;
 }
 ```
-
-**Sources:** [src/lib/services/logic/private/LiveLogicPrivateService.ts:1-134]()
+
 
 ## WalkerLogicPrivateService
 
@@ -249,8 +243,7 @@ try {
 ### Execution Flow
 
 ![Mermaid Diagram](./diagrams/46_Logic_Services_3.svg)
-
-**Sources:** [src/lib/services/logic/private/WalkerLogicPrivateService.ts:70-251]()
+
 
 ### Key Implementation Details
 
@@ -350,8 +343,7 @@ const listenStop = walkerStopSubject
   .map(() => CANCEL_SYMBOL)
   .toPromise();
 ```
-
-**Sources:** [src/lib/services/logic/private/WalkerLogicPrivateService.ts:70-251]()
+
 
 ## AsyncGenerator Streaming Architecture
 
@@ -360,8 +352,7 @@ All Logic Services use AsyncGenerator functions (`async *`) for memory-efficient
 ### AsyncGenerator Pattern
 
 ![Mermaid Diagram](./diagrams/46_Logic_Services_4.svg)
-
-**Sources:** [src/lib/services/logic/private/BacktestLogicPrivateService.ts:62](), [src/lib/services/logic/private/LiveLogicPrivateService.ts:61](), [src/lib/services/logic/private/WalkerLogicPrivateService.ts:70]()
+
 
 ### Benefits of AsyncGenerator Pattern
 
@@ -426,8 +417,7 @@ for await (const result of backtestLogic.run("BTCUSDT")) {
   if (result.pnl.pnlPercentage < -10) break; // Cancel remaining execution
 }
 ```
-
-**Sources:** [src/lib/services/logic/private/BacktestLogicPrivateService.ts:54-60](), [src/lib/services/logic/private/LiveLogicPrivateService.ts:48-59](), [src/lib/services/logic/private/WalkerLogicPrivateService.ts:54-68]()
+
 
 ## Event Emission
 
@@ -498,16 +488,14 @@ await performanceEmitter.next({
   backtest: true,
 });
 ```
-
-**Sources:** [src/lib/services/logic/private/BacktestLogicPrivateService.ts:84-92](), [src/lib/services/logic/private/BacktestLogicPrivateService.ts:214-224](), [src/lib/services/logic/private/LiveLogicPrivateService.ts:98-108](), [src/lib/services/logic/private/WalkerLogicPrivateService.ts:206-214]()
+
 
 ## Integration with Other Services
 
 Logic Services coordinate execution by orchestrating calls to Global Services, Schema Services, and Markdown Services.
 
 ![Mermaid Diagram](./diagrams/46_Logic_Services_5.svg)
-
-**Sources:** [src/lib/services/logic/private/BacktestLogicPrivateService.ts:35-46](), [src/lib/services/logic/private/LiveLogicPrivateService.ts:31-37](), [src/lib/services/logic/private/WalkerLogicPrivateService.ts:31-40]()
+
 
 ### Service Dependencies
 
@@ -555,8 +543,7 @@ for each strategy:
   → BacktestMarkdownService.getData(symbol, strategy)
   → compare metric values
 ```
-
-**Sources:** [src/lib/services/logic/private/BacktestLogicPrivateService.ts:69-96](), [src/lib/services/logic/private/LiveLogicPrivateService.ts:68-88](), [src/lib/services/logic/private/WalkerLogicPrivateService.ts:107-165]()
+
 
 ## Execution Mode Comparison
 
@@ -574,5 +561,4 @@ for each strategy:
 | **Error Handling** | Skip timeframe, continue | Sleep and retry | Skip strategy, continue |
 | **Context Parameters** | `strategyName`, `exchangeName`, `frameName` | `strategyName`, `exchangeName` | `walkerName`, `exchangeName`, `frameName` |
 | **Use Case** | Historical analysis | Production trading | Strategy comparison |
-
-**Sources:** [src/lib/services/logic/private/BacktestLogicPrivateService.ts:21-32](), [src/lib/services/logic/private/LiveLogicPrivateService.ts:14-29](), [src/lib/services/logic/private/WalkerLogicPrivateService.ts:21-30]()
+

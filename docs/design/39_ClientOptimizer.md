@@ -10,8 +10,7 @@ group: design
 `ClientOptimizer` is the core implementation class for AI-driven strategy generation within the backtest-kit framework. It orchestrates data collection from multiple sources, builds conversation history for Large Language Models (LLMs), and generates executable trading strategy code. This class implements the `IOptimizer` interface and operates without dependency injection, making it a pure business logic component.
 
 For information about the optimizer schema configuration and registration, see [5.7 - Optimizer Schemas](./31_Optimizer_Schemas.md). For the public API used to invoke optimizer operations, see [16.5 - AI-Powered Strategy Optimization](./90_AI-Powered_Strategy_Optimization.md). For the template system used to generate code, see [16.5.4 - Strategy Code Generation](./94_Strategy_Code_Generation.md).
-
-**Sources:** [src/client/ClientOptimizer.ts:1-447](), [src/interfaces/Optimizer.interface.ts:454-484]()
+
 
 ---
 
@@ -28,8 +27,7 @@ Data sources provide the training data that feeds into the LLM conversation. Eac
 2. `iterateDocuments()` handles automatic pagination
 3. `distinctDocuments()` deduplicates by `data.id`
 4. Custom or default formatters convert data to messages
-
-**Sources:** [src/client/ClientOptimizer.ts:70-88](), [src/interfaces/Optimizer.interface.ts:86-177]()
+
 
 ### Training Ranges
 
@@ -42,16 +40,14 @@ Training ranges (`IOptimizerRange[]`) define time periods for data collection. E
 | `note` | `string?` | Optional description (e.g., "Bull market Q1") |
 
 Each training range produces one strategy variant. All variants are compared using the Walker mode on the test range.
-
-**Sources:** [src/interfaces/Optimizer.interface.ts:16-32](), [src/client/ClientOptimizer.ts:104-198]()
+
 
 ### Message History
 
 Message history follows the standard LLM conversation format with three roles: `system`, `user`, and `assistant`. For each data source within each training range, the optimizer appends a user-assistant message pair. This builds context progressively across all sources.
 
 ![Mermaid Diagram](./diagrams/39_ClientOptimizer_1.svg)
-
-**Sources:** [src/client/ClientOptimizer.ts:99-215](), [src/model/Message.model.ts:1-26]()
+
 
 ---
 
@@ -60,8 +56,7 @@ Message history follows the standard LLM conversation format with three roles: `
 The `getData()` method orchestrates the entire data collection pipeline, building strategy metadata with full conversation context.
 
 ![Mermaid Diagram](./diagrams/39_ClientOptimizer_2.svg)
-
-**Sources:** [src/client/ClientOptimizer.ts:99-215](), [src/client/ClientOptimizer.ts:410-415]()
+
 
 ### Source Processing
 
@@ -76,8 +71,7 @@ Sources are processed sequentially to maintain conversation order. The type of s
 - Uses `source.user()` if provided, otherwise defaults
 - Uses `source.assistant()` if provided, otherwise defaults
 - Uses `source.name` for identification
-
-**Sources:** [src/client/ClientOptimizer.ts:115-187](), [src/client/ClientOptimizer.ts:34-60]()
+
 
 ### Pagination and Deduplication
 
@@ -92,8 +86,7 @@ The `RESOLVE_PAGINATION_FN` helper handles pagination automatically using `funct
 **Pagination Parameters:**
 - `limit`: 25 (ITERATION_LIMIT constant)
 - `offset`: Automatically incremented (page * limit)
-
-**Sources:** [src/client/ClientOptimizer.ts:70-88](), [src/client/ClientOptimizer.ts:19]()
+
 
 ### Message Formatting
 
@@ -108,8 +101,7 @@ DEFAULT_ASSISTANT_FN → template.getAssistantMessage(symbol, data, name)
 source.user(symbol, data, name) → custom formatted string
 source.assistant(symbol, data, name) → custom formatted string
 ```
-
-**Sources:** [src/client/ClientOptimizer.ts:34-60](), [src/lib/services/template/OptimizerTemplateService.ts:77-110]()
+
 
 ---
 
@@ -118,8 +110,7 @@ source.assistant(symbol, data, name) → custom formatted string
 The `getCode()` method generates complete executable strategy files by assembling multiple template sections.
 
 ![Mermaid Diagram](./diagrams/39_ClientOptimizer_3.svg)
-
-**Sources:** [src/client/ClientOptimizer.ts:225-350](), [src/client/ClientOptimizer.ts:424-429]()
+
 
 ### Code Assembly Process
 
@@ -145,8 +136,7 @@ The code generation follows a strict nine-section structure:
 - Test frame: `{prefix}_test_frame` → e.g., `"xyz123_test_frame"`
 - Strategies: `{prefix}_strategy-{i}` → e.g., `"xyz123_strategy-1"`
 - Walker: `{prefix}_walker` → e.g., `"xyz123_walker"`
-
-**Sources:** [src/client/ClientOptimizer.ts:225-350](), [src/client/ClientOptimizer.ts:22]()
+
 
 ### Template Integration
 
@@ -173,8 +163,7 @@ interface IOptimizerTemplate {
   getAssistantMessage(symbol: string, data: any[], name: string): Promise<string>;
 }
 ```
-
-**Sources:** [src/interfaces/Optimizer.interface.ts:242-374](), [src/lib/services/connection/OptimizerConnectionService.ts:59-113]()
+
 
 ### Generated Code Structure
 
@@ -234,8 +223,7 @@ listenWalkerProgress(...);
 listenWalkerComplete(...);
 listenError(...);
 ```
-
-**Sources:** [src/lib/services/template/OptimizerTemplateService.ts:36-712]()
+
 
 ---
 
@@ -264,8 +252,7 @@ progress = totalSources > 0 ? processedSources / totalSources : 0
 **Emission Points:**
 1. At the start of each source processing (before fetch)
 2. After all sources complete (progress = 1.0)
-
-**Sources:** [src/client/ClientOptimizer.ts:101-114](), [src/client/ClientOptimizer.ts:201-208](), [src/contract/ProgressOptimizer.contract.ts]()
+
 
 ---
 
@@ -304,8 +291,7 @@ addOptimizer({
   }
 });
 ```
-
-**Sources:** [src/interfaces/Optimizer.interface.ts:191-236](), [src/client/ClientOptimizer.ts:122-129](), [src/client/ClientOptimizer.ts:210-212](), [src/client/ClientOptimizer.ts:345-347](), [src/client/ClientOptimizer.ts:377-379]()
+
 
 ---
 
@@ -328,8 +314,7 @@ constructor(
 - `params.template`: For code generation (merged defaults + custom)
 - `params.callbacks`: For lifecycle hooks (optional)
 - `onProgress`: Injected by `OptimizerConnectionService` → emits to `progressOptimizerEmitter`
-
-**Sources:** [src/client/ClientOptimizer.ts:397-401](), [src/interfaces/Optimizer.interface.ts:436-451]()
+
 
 ### Main Methods
 
@@ -359,8 +344,7 @@ const GET_STRATEGY_DUMP_FN = async (
   self: ClientOptimizer
 ): Promise<void> => { ... }
 ```
-
-**Sources:** [src/client/ClientOptimizer.ts:403-444]()
+
 
 ### Helper Functions
 
@@ -389,8 +373,7 @@ Four module-level helper functions support the main operations:
 **Constants:**
 - `ITERATION_LIMIT = 25`: Pagination page size
 - `DEFAULT_SOURCE_NAME = "unknown"`: Fallback source name
-
-**Sources:** [src/client/ClientOptimizer.ts:19-88]()
+
 
 ---
 
@@ -435,8 +418,7 @@ await Optimizer.dump("BTCUSDT", {
 
 // Output: ./strategies/momentum-strategy_BTCUSDT.mjs
 ```
-
-**Sources:** [src/classes/Optimizer.ts:1-135]()
+
 
 ### Multi-Source with Custom Formatters
 
@@ -470,8 +452,7 @@ addOptimizer({
   }
 });
 ```
-
-**Sources:** [src/interfaces/Optimizer.interface.ts:129-177]()
+
 
 ### Progress Monitoring
 
@@ -489,8 +470,7 @@ await Optimizer.getData("BTCUSDT", { optimizerName: "my-optimizer" });
 // - Start of each source (processedSources increments)
 // - End of all sources (progress = 1.0)
 ```
-
-**Sources:** [src/client/ClientOptimizer.ts:108-114](), [src/client/ClientOptimizer.ts:201-208]()
+
 
 ### Template Customization
 
@@ -517,8 +497,7 @@ addStrategy({
   // ... other config
 });
 ```
-
-**Sources:** [src/lib/services/connection/OptimizerConnectionService.ts:59-113]()
+
 
 ### Lifecycle Callbacks
 
@@ -554,5 +533,4 @@ addOptimizer({
   // ... other config
 });
 ```
-
-**Sources:** [src/client/ClientOptimizer.ts:122-129](), [src/client/ClientOptimizer.ts:210-212](), [src/client/ClientOptimizer.ts:345-347](), [src/client/ClientOptimizer.ts:377-379]()
+

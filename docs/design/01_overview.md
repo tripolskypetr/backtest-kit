@@ -26,8 +26,7 @@ backtest-kit is a TypeScript framework for backtesting and live trading strategi
 | **Event System** | RxJS `Subject`-based pub-sub with `queued()` wrapper | Sequential callback execution prevents race conditions |
 | **Async Generators** | `BacktestLogicPrivateService.run()` and `LiveLogicPrivateService.run()` yield results | Memory-efficient streaming for large datasets |
 | **AI Integration** | `ClientOptimizer` with Ollama `deepseek-v3.1:671b` model | LLM-powered strategy generation from market data |
-
-**Sources**: [README.md:1-29](), [package.json:1-6](), [src/client/ClientStrategy.ts:1-100]()
+
 
 ---
 
@@ -51,8 +50,7 @@ backtest-kit implements a layered architecture with 50+ services organized into 
 | **Schema Services** | Store registered configurations using `ToolRegistry` | `StrategySchemaService.add()`, `ExchangeSchemaService.add()` |
 | **Client Implementations** | Business logic for strategies, exchanges, risk | `ClientStrategy.tick()`, `ClientExchange.getCandles()`, `ClientRisk.checkSignal()` |
 | **Persistence Layer** | Atomic file writes for crash recovery | `PersistSignalAdapter.writeSignalData()`, `PersistRiskAdapter.writePositionData()` |
-
-**Sources**: [src/client/ClientStrategy.ts:1-50](), [src/lib/services/connection/StrategyConnectionService.ts:1-100](), [docs/classes/BacktestUtils.md:1-92](), [docs/classes/LiveUtils.md:1-101]()
+
 
 ---
 
@@ -78,8 +76,7 @@ All modes use `ExecutionContextService` with `AsyncLocalStorage` to propagate:
 - `symbol: string` - Trading pair (e.g., "BTCUSDT")
 - `when: Date` - Current timestamp for temporal isolation
 - `backtest: boolean` - Mode flag determining persistence behavior
-
-**Sources**: [docs/classes/BacktestUtils.md:1-92](), [docs/classes/LiveUtils.md:1-101](), [docs/classes/WalkerUtils.md:1-99](), [src/client/ClientStrategy.ts:490-552]()
+
 
 ---
 
@@ -112,8 +109,7 @@ Backtest.background("BTCUSDT", {
   frameName: "1d-backtest"
 });
 ```
-
-**Sources**: [README.md:100-223](), [test/e2e/defend.test.mjs:32-57]()
+
 
 ---
 
@@ -143,8 +139,7 @@ Signals progress through a type-safe state machine implemented as TypeScript dis
 - `ACTIVATE_SCHEDULED_SIGNAL_FN()` - Converts `IScheduledSignalRow` to `ISignalRow` and persists
 - `CHECK_PENDING_SIGNAL_COMPLETION_FN()` - Monitors active signal for TP/SL/time exit
 - `CLOSE_PENDING_SIGNAL_FN()` - Calculates PNL and closes signal
-
-**Sources**: [src/interfaces/Strategy.interface.ts:173-312](), [src/client/ClientStrategy.ts:332-476](), [src/client/ClientStrategy.ts:554-608](), [src/client/ClientStrategy.ts:610-644]()
+
 
 ---
 
@@ -187,8 +182,7 @@ Each event emitter has a corresponding TypeScript interface:
 - `PartialEvent` - Partial profit/loss milestone reached
 - `WalkerCompleteContract` - Walker comparison results with rankings
 - `PerformanceContract` - Operation timing metrics
-
-**Sources**: [src/config/emitters.ts:1-50](), [README.md:173-177](), [demo/live/src/index.mjs:111-162](), [demo/backtest/src/index.mjs:115-144]()
+
 
 ---
 
@@ -207,8 +201,7 @@ The framework is built on the following core dependencies:
 | `functools-kit` | ^1.0.94 | Reactive primitives (Subject), async utilities (queued, singleshot) |
 | `get-moment-stamp` | ^1.1.1 | Timestamp formatting for candles and reports |
 | `ollama` | ^0.6.3 | LLM integration for AI-driven strategy generation |
-
-**Sources**: [package.json:74-80](), [package-lock.json:1-37]()
+
 
 ---
 
@@ -237,8 +230,7 @@ backtest-kit/
 - Execution engines (`Backtest`, `Live`, `Walker`)
 - Event listeners (`listenSignal`, `listenError`, etc.)
 - Utility functions (`getCandles`, `formatPrice`, etc.)
-
-**Sources**: [package.json:27-58](), [test/index.mjs:1-46]()
+
 
 ---
 
@@ -255,8 +247,7 @@ The framework includes comprehensive test coverage across multiple categories:
 | **E2E Integration** | `defend.test.mjs`, `risk.test.mjs`, `scheduled.test.mjs`, `persist.test.mjs` | Edge cases, crash recovery, risk limits |
 | **Spec Tests** | `backtest.test.mjs`, `live.test.mjs`, `walker.test.mjs`, `heat.test.mjs` | Feature validation, PNL accuracy |
 | **Mock Infrastructure** | `getMockCandles.mjs` | Deterministic candle generation for reproducible tests |
-
-**Sources**: [test/index.mjs:1-46](), [test/e2e/defend.test.mjs:1-278](), [test/spec/heat.test.mjs:1-474](), [test/mock/getMockCandles.mjs:1-42]()
+
 
 ---
 

@@ -27,8 +27,7 @@ This document covers the internal implementation of `ClientRisk` and how it inte
 | `removeSignal` | Removes position from tracking | When signal closes (TP/SL/timeout) |
 
 ![Mermaid Diagram](./diagrams/36_ClientRisk_0.svg)
-
-**Sources:** [src/client/ClientStrategy.ts:376-387](), [src/client/ClientStrategy.ts:712-729](), [src/client/ClientStrategy.ts:742-745](), [src/client/ClientStrategy.ts:995-998]()
+
 
 ---
 
@@ -37,8 +36,7 @@ This document covers the internal implementation of `ClientRisk` and how it inte
 `ClientRisk` wraps user-defined risk schemas registered via `addRisk()`. Each schema contains an array of validation rules that are executed sequentially:
 
 ![Mermaid Diagram](./diagrams/36_ClientRisk_1.svg)
-
-**Sources:** [demo/live/src/index.mjs:37-78](), [demo/backtest/src/index.mjs:37-82]()
+
 
 ---
 
@@ -62,8 +60,7 @@ interface ICheckSignalPayload {
 ### Validation Execution Sequence
 
 ![Mermaid Diagram](./diagrams/36_ClientRisk_2.svg)
-
-**Sources:** [src/client/ClientStrategy.ts:376-387](), [src/client/ClientStrategy.ts:712-729]()
+
 
 ---
 
@@ -118,8 +115,7 @@ Ensures favorable risk-reward ratio:
   note: "Risk-Reward ratio must be at least 1:2"
 }
 ```
-
-**Sources:** [demo/live/src/index.mjs:40-78](), [demo/backtest/src/index.mjs:40-82]()
+
 
 ---
 
@@ -139,8 +135,7 @@ Ensures favorable risk-reward ratio:
 ### Integration Points
 
 ![Mermaid Diagram](./diagrams/36_ClientRisk_4.svg)
-
-**Sources:** [src/client/ClientStrategy.ts:742-745](), [src/client/ClientStrategy.ts:867-870](), [src/client/ClientStrategy.ts:995-998]()
+
 
 ---
 
@@ -155,8 +150,7 @@ This pattern ensures:
 2. **Single rejection event** emitted per validation attempt
 3. **Diagnostic information** via `note` field in validation rule
 4. **Optional callbacks** via `onReject` for custom handling
-
-**Sources:** [src/client/ClientStrategy.ts:374-387]()
+
 
 ---
 
@@ -173,8 +167,7 @@ const NOOP_RISK: IRisk = {
 ```
 
 This allows strategies to operate without risk management while maintaining the same interface contract.
-
-**Sources:** [src/lib/services/connection/StrategyConnectionService.ts:26-30](), [src/lib/services/connection/StrategyConnectionService.ts:91]()
+
 
 ---
 
@@ -188,8 +181,7 @@ The connection service ensures:
 - **One instance per risk profile** via memoization
 - **Efficient routing** based on `riskName` string
 - **Fallback to NOOP** when no risk profile assigned
-
-**Sources:** [src/lib/services/connection/StrategyConnectionService.ts:60](), [src/lib/services/connection/StrategyConnectionService.ts:91]()
+
 
 ---
 
@@ -213,8 +205,7 @@ interface IRiskEvent {
   validationNote: string;    // "note" field from validation rule
 }
 ```
-
-**Sources:** [demo/live/src/index.mjs:131-133](), [demo/backtest/src/index.mjs:129-131]()
+
 
 ---
 
@@ -233,5 +224,4 @@ interface IRiskEvent {
 | **Fallback** | NOOP implementation when no risk profile assigned |
 
 The separation of `ClientRisk` from dependency injection allows risk logic to be **pure, testable, and reusable** across different execution contexts (backtest, live, walker).
-
-**Sources:** [src/client/ClientStrategy.ts:1-330](), [src/lib/services/connection/StrategyConnectionService.ts:26-98]()
+

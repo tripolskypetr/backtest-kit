@@ -25,8 +25,7 @@ Additionally, the framework provides performance profiling via `performanceEmitt
 **Reporting System Architecture Diagram**
 
 ![Mermaid Diagram](./diagrams/71_Reporting_and_Analytics_0.svg)
-
-**Sources**: [src/lib/services/markdown/BacktestMarkdownService.ts:1-533](), [src/lib/services/markdown/LiveMarkdownService.ts:1-737](), [src/lib/services/markdown/ScheduleMarkdownService.ts:1-535](), [src/config/emitters.ts:1-81](), [src/classes/Backtest.ts:1-208](), [src/classes/Live.ts:1-220](), [src/classes/Walker.ts:1-274](), [src/classes/Schedule.ts:1-135]()
+
 
 ## Service Architecture
 
@@ -54,8 +53,7 @@ if (data.action !== "closed") {
 const storage = this.getStorage(data.strategyName);
 storage.addSignal(data);
 ```
-
-**Sources**: [src/lib/services/markdown/BacktestMarkdownService.ts:370-533]()
+
 
 ### LiveMarkdownService
 
@@ -76,8 +74,7 @@ The service uses a more sophisticated storage mechanism that replaces existing e
 For `idle` events, the service implements smart replacement logic:
 - If the last event is `idle` and no `opened`/`active` events follow it, replace it (avoids idle spam)
 - Otherwise, append the new idle event
-
-**Sources**: [src/lib/services/markdown/LiveMarkdownService.ts:567-737]()
+
 
 ### WalkerMarkdownService
 
@@ -103,8 +100,7 @@ Metrics supported for comparison (specified in `IWalkerSchema.metric`):
 - `avgPnl`
 - `totalPnl`
 - `certaintyRatio`
-
-**Sources**: [src/lib/services/global/WalkerGlobalService.ts:1-90](), [src/classes/Walker.ts:1-274]()
+
 
 ### ScheduleMarkdownService
 
@@ -127,8 +123,7 @@ The service calculates key metrics for limit order effectiveness:
 Scheduled signals are created when `signal.priceOpen` is specified (price must reach entry before activation). They transition to `cancelled` if:
 1. Timeout expires (`CC_SCHEDULE_AWAIT_MINUTES` minutes pass without activation)
 2. Stop loss price is hit before entry price
-
-**Sources**: [src/lib/services/markdown/ScheduleMarkdownService.ts:1-535](), [src/classes/Schedule.ts:1-135]()
+
 
 ## Report Structure
 
@@ -137,8 +132,7 @@ Scheduled signals are created when `signal.priceOpen` is specified (price must r
 Both services define their reports using a `Column` interface that specifies extraction and formatting logic:
 
 ![Mermaid Diagram](./diagrams/71_Reporting_and_Analytics_1.svg)
-
-**Sources**: [src/lib/services/markdown/BacktestMarkdownService.ts:18-100](), [src/lib/services/markdown/LiveMarkdownService.ts:53-137]()
+
 
 ### Backtest Report Columns
 
@@ -159,8 +153,7 @@ The backtest report focuses on completed trade analysis with the following colum
 | Duration (min) | Integer minutes | `Math.round((closeTimestamp - pendingAt) / 60000)` |
 | Open Time | ISO 8601 | `new Date(data.signal.pendingAt).toISOString()` |
 | Close Time | ISO 8601 | `new Date(data.closeTimestamp).toISOString()` |
-
-**Sources**: [src/lib/services/markdown/BacktestMarkdownService.ts:104-177]()
+
 
 ### Live Report Columns
 
@@ -183,8 +176,7 @@ The live trading report includes all event types with these columns:
 | Duration (min) | Integer minutes or "N/A" | Yes |
 
 The nullable columns are only populated for relevant event types (e.g., `pnl` only exists for `closed` events, `signalId` does not exist for `idle` events).
-
-**Sources**: [src/lib/services/markdown/LiveMarkdownService.ts:145-220]()
+
 
 ### Schedule Report Columns
 
@@ -205,8 +197,7 @@ The schedule report tracks scheduled and cancelled limit order signals:
 | Wait Time (min) | Integer minutes or "N/A" | Yes (only for cancelled) |
 
 The `Wait Time` column shows how long the signal waited before cancellation (timeout or SL hit before entry).
-
-**Sources**: [src/lib/services/markdown/ScheduleMarkdownService.ts:101-158]()
+
 
 ### Walker Report Structure
 
@@ -231,8 +222,7 @@ Best Metric: 1.92
 ```
 
 The table is sorted descending by the selected metric, making it easy to identify the best-performing strategy at a glance.
-
-**Sources**: [src/classes/Walker.ts:159-179]()
+
 
 ## Data Storage and Event Processing
 
@@ -241,8 +231,7 @@ The table is sorted descending by the selected metric, making it easy to identif
 Both services use an internal `ReportStorage` class to manage data accumulation:
 
 ![Mermaid Diagram](./diagrams/71_Reporting_and_Analytics_2.svg)
-
-**Sources**: [src/lib/services/markdown/BacktestMarkdownService.ts:106-179](), [src/lib/services/markdown/LiveMarkdownService.ts:143-331]()
+
 
 ### Backtest Event Processing
 
@@ -259,8 +248,7 @@ storage.addSignal(data); // Append to list
 ```
 
 Each closed signal is appended to the `_signalList` array without modification.
-
-**Sources**: [src/lib/services/markdown/BacktestMarkdownService.ts:240-251]()
+
 
 ### Live Event Processing
 
@@ -269,8 +257,7 @@ The live service implements an update-or-append model to handle signal state tra
 ![Mermaid Diagram](./diagrams/71_Reporting_and_Analytics_3.svg)
 
 This design ensures that each signal appears only once in the final report, showing its most recent state.
-
-**Sources**: [src/lib/services/markdown/LiveMarkdownService.ts:186-250](), [src/lib/services/markdown/LiveMarkdownService.ts:397-413]()
+
 
 ## Statistics Calculation
 
@@ -290,8 +277,7 @@ function isUnsafe(value: number | null): boolean {
 ```
 
 This prevents display of invalid metrics like `NaN%` or `Infinity` in reports, returning `null` instead which renders as "N/A" in markdown.
-
-**Sources**: [src/lib/services/markdown/LiveMarkdownService.ts:22-33](), [src/lib/services/markdown/BacktestMarkdownService.ts:33-44]()
+
 
 ### Statistical Metrics Table
 
@@ -347,8 +333,7 @@ const expectedYearlyReturns = avgPnl * tradesPerYear;
 ```
 
 All calculations return `null` if the result is unsafe, which renders as "N/A" in markdown reports.
-
-**Sources**: [src/lib/services/markdown/BacktestMarkdownService.ts:202-270](), [src/lib/services/markdown/LiveMarkdownService.ts:381-464]()
+
 
 ### Backtest Statistics Interface
 
@@ -368,8 +353,7 @@ export interface BacktestStatistics {
   expectedYearlyReturns: number | null;
 }
 ```
-
-**Sources**: [src/lib/services/markdown/BacktestMarkdownService.ts:66-102]()
+
 
 ### Live Statistics Interface
 
@@ -392,8 +376,7 @@ export interface LiveStatistics {
 ```
 
 The only difference from backtest statistics is that `eventList` includes all event types (idle, opened, active, closed), not just closed signals.
-
-**Sources**: [src/lib/services/markdown/LiveMarkdownService.ts:91-131]()
+
 
 ### Schedule Statistics Interface
 
@@ -409,8 +392,7 @@ export interface ScheduleStatistics {
 ```
 
 Schedule statistics focus on limit order effectiveness rather than trading performance.
-
-**Sources**: [src/lib/services/markdown/ScheduleMarkdownService.ts:68-86]()
+
 
 ## Performance Profiling
 
@@ -457,8 +439,7 @@ unsubscribe();
 ```
 
 Events are processed sequentially via `queued()` wrapper to prevent concurrent callback execution, ensuring consistent metric aggregation even with async callbacks.
-
-**Sources**: [src/function/event.ts:501-505](), [src/config/emitters.ts:59-61]()
+
 
 ## Public API Methods
 
@@ -496,8 +477,7 @@ const walkerResults = await Walker.getData("BTCUSDT", "my-walker");
 console.log("Best Strategy:", walkerResults.bestStrategy);
 console.log("Best Metric:", walkerResults.bestMetric);
 ```
-
-**Sources**: [src/classes/Backtest.ts:136-141](), [src/classes/Live.ts:151-156](), [src/classes/Schedule.ts:47-52](), [src/classes/Walker.ts:159-179]()
+
 
 ### getReport() Methods
 
@@ -526,8 +506,7 @@ console.log(scheduleReport);
 const walkerReport = await Walker.getReport("BTCUSDT", "my-walker");
 console.log(walkerReport);
 ```
-
-**Sources**: [src/lib/services/markdown/BacktestMarkdownService.ts:451-457](), [src/lib/services/markdown/LiveMarkdownService.ts:655-661](), [src/lib/services/markdown/ScheduleMarkdownService.ts:453-459](), [src/classes/Walker.ts:194-214]()
+
 
 ### dump() Methods - Saving Reports to Disk
 
@@ -567,8 +546,7 @@ await Live.dump("my-strategy", "./custom/path");
 await Schedule.dump("my-strategy", "./custom/path");
 await Walker.dump("BTCUSDT", "my-walker", "./custom/path");
 ```
-
-**Sources**: [src/lib/services/markdown/BacktestMarkdownService.ts:478-487](), [src/lib/services/markdown/LiveMarkdownService.ts:682-691](), [src/lib/services/markdown/ScheduleMarkdownService.ts:480-489](), [src/classes/Walker.ts:232-255]()
+
 
 ### clear() Methods - Clearing Accumulated Data
 
@@ -615,8 +593,7 @@ await Live.clear();
 await Schedule.clear();
 await Walker.clear();
 ```
-
-**Sources**: [src/lib/services/markdown/BacktestMarkdownService.ts:508-513](), [src/lib/services/markdown/LiveMarkdownService.ts:712-717](), [src/lib/services/markdown/ScheduleMarkdownService.ts:510-515]()
+
 
 ## Initialization and Event Subscription
 
@@ -627,16 +604,14 @@ Both services use the `singleshot` decorator from `functools-kit` to ensure init
 ![Mermaid Diagram](./diagrams/71_Reporting_and_Analytics_5.svg)
 
 The `init()` method is protected and automatically invoked on first service use. It subscribes the service's `tick()` method to the appropriate signal emitter.
-
-**Sources**: [src/lib/services/markdown/BacktestMarkdownService.ts:342-345](), [src/lib/services/markdown/LiveMarkdownService.ts:504-507]()
+
 
 ### Event Emitter Binding
 
 ![Mermaid Diagram](./diagrams/71_Reporting_and_Analytics_6.svg)
 
 The emitters are defined in `src/config/emitters.ts` and use the event system to decouple signal generation from report accumulation.
-
-**Sources**: [src/lib/services/markdown/BacktestMarkdownService.ts:12](), [src/lib/services/markdown/LiveMarkdownService.ts:14]()
+
 
 ## Markdown Table Formatting
 
@@ -680,8 +655,7 @@ return str.newline(
   `**Statistics here**`
 );
 ```
-
-**Sources**: [src/lib/services/markdown/BacktestMarkdownService.ts:289-313](), [src/lib/services/markdown/LiveMarkdownService.ts:483-507](), [src/lib/services/markdown/ScheduleMarkdownService.ts:304-323]()
+
 
 ## Integration with Execution Flow
 
@@ -690,5 +664,4 @@ The markdown services operate completely independently from the main execution l
 ![Mermaid Diagram](./diagrams/71_Reporting_and_Analytics_7.svg)
 
 This architecture ensures that report generation never blocks strategy execution or impacts performance. The event-driven design allows reports to be generated incrementally as signals close, rather than requiring post-processing of execution results.
-
-**Sources**: [src/lib/services/markdown/BacktestMarkdownService.ts:240-251](), [src/lib/services/markdown/LiveMarkdownService.ts:397-413]()
+

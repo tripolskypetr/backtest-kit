@@ -23,14 +23,12 @@ The optimizer integrates with **Ollama** hosting the `deepseek-v3.1:671b` model.
 | `getJsonTemplate()` | `json(messages)` | Structured signal generation with schema |
 | `getJsonDumpTemplate()` | `dumpJson(resultId, history, result)` | Debug output to `./dump/strategy/{uuid}/` |
 </thinking>
-
-**Sources:** [src/lib/services/template/OptimizerTemplateService.ts:1-27](), [src/lib/services/template/OptimizerTemplateService.ts:452-546](), [src/lib/services/template/OptimizerTemplateService.ts:555-612](), [src/lib/services/template/OptimizerTemplateService.ts:629-712]()
+
 
 **LLM Integration Data Flow**
 
 ![Mermaid Diagram](./diagrams/93_LLM_Integration_0.svg)
-
-**Sources:** [src/client/ClientOptimizer.ts:99-215](), [src/lib/services/template/OptimizerTemplateService.ts:1-27](), [src/lib/services/template/OptimizerTemplateService.ts:168-304]()
+
 
 ---
 
@@ -41,8 +39,7 @@ The `GET_STRATEGY_DATA_FN` function in `ClientOptimizer` builds conversation his
 **Message Construction Flow in GET_STRATEGY_DATA_FN**
 
 ![Mermaid Diagram](./diagrams/93_LLM_Integration_1.svg)
-
-**Sources:** [src/client/ClientOptimizer.ts:99-215]()
+
 
 **DEFAULT_USER_FN and DEFAULT_ASSISTANT_FN Implementation**
 
@@ -52,8 +49,7 @@ These functions delegate to `OptimizerTemplateService` methods:
 |----------|-----------|--------------|
 | `DEFAULT_USER_FN` | `(symbol, data, name, self) => Promise<string>` | `self.params.template.getUserMessage(symbol, data, name)` |
 | `DEFAULT_ASSISTANT_FN` | `(symbol, data, name, self) => Promise<string>` | `self.params.template.getAssistantMessage(symbol, data, name)` |
-
-**Sources:** [src/client/ClientOptimizer.ts:34-60]()
+
 
 **MessageModel Interface**
 
@@ -65,8 +61,7 @@ interface MessageModel {
   content: string;
 }
 ```
-
-**Sources:** [src/model/Message.model.ts:1-26]()
+
 
 ---
 
@@ -94,8 +89,7 @@ const ollama = new Ollama({
     },
 });
 ```
-
-**Sources:** [src/lib/services/template/OptimizerTemplateService.ts:555-574](), [src/lib/services/template/OptimizerTemplateService.ts:629-640]()
+
 
 **getTextTemplate() - Unstructured Analysis**
 
@@ -104,8 +98,7 @@ The `getTextTemplate()` method generates a `text(messages)` helper for fundament
 **text() Function Structure**
 
 ![Mermaid Diagram](./diagrams/93_LLM_Integration_2.svg)
-
-**Sources:** [src/lib/services/template/OptimizerTemplateService.ts:555-612]()
+
 
 **System Message Content**
 
@@ -130,8 +123,7 @@ The function appends a final user query with the symbol injected via `escapedSym
 
 Сделай не сухой технический, а фундаментальный анализ, содержащий стратигическую рекомендацию
 ```
-
-**Sources:** [src/lib/services/template/OptimizerTemplateService.ts:581-599]()
+
 
 **getJsonTemplate() - Structured Signal Generation**
 
@@ -140,8 +132,7 @@ The `getJsonTemplate()` method generates a `json(messages)` helper that enforces
 **json() Function Structure**
 
 ![Mermaid Diagram](./diagrams/93_LLM_Integration_3.svg)
-
-**Sources:** [src/lib/services/template/OptimizerTemplateService.ts:629-712]()
+
 
 **ollama.chat() Parameters**
 
@@ -152,8 +143,7 @@ The `json()` helper calls `ollama.chat()` with the `format` parameter to enforce
 | `model` | `"deepseek-v3.1:671b"` |
 | `messages` | `[{role: "system", content}, ...messages]` |
 | `format` | JSON schema object with 6 required properties |
-
-**Sources:** [src/lib/services/template/OptimizerTemplateService.ts:642-706]()
+
 
 ---
 
@@ -164,8 +154,7 @@ The `getStrategyTemplate()` method generates `addStrategy()` calls where `getSig
 **getSignal() Execution Flow**
 
 ![Mermaid Diagram](./diagrams/93_LLM_Integration_4.svg)
-
-**Sources:** [src/lib/services/template/OptimizerTemplateService.ts:194-302]()
+
 
 **Timeframe Parameters**
 
@@ -175,8 +164,7 @@ The `getStrategyTemplate()` method generates `addStrategy()` calls where `getSig
 | `shortTermCandles` | `"15m"` | `24` | `// Сообщение 2: Краткосрочный тренд` |
 | `mainTermCandles` | `"5m"` | `24` | `// Сообщение 3: Основной таймфрейм` |
 | `microTermCandles` | `"1m"` | `30` | `// Сообщение 4: Микро-структура` |
-
-**Sources:** [src/lib/services/template/OptimizerTemplateService.ts:202-205]()
+
 
 **formatCandles() Local Function**
 
@@ -189,8 +177,7 @@ function formatCandles(candles, timeframe) {
     ).join("\n");
 }
 ```
-
-**Sources:** [src/lib/services/template/OptimizerTemplateService.ts:207-211]()
+
 
 ---
 
@@ -201,8 +188,7 @@ The `json()` helper function passes a `format` parameter to `ollama.chat()` that
 **ollama.chat() format Parameter Structure**
 
 ![Mermaid Diagram](./diagrams/93_LLM_Integration_5.svg)
-
-**Sources:** [src/lib/services/template/OptimizerTemplateService.ts:675-705]()
+
 
 **Schema Property Definitions**
 
@@ -216,8 +202,7 @@ The schema enforces six required fields with specific types and descriptions:
 | `priceTakeProfit` | `"number"` | - | `"Take profit target price"` |
 | `priceStopLoss` | `"number"` | - | `"Stop loss exit price"` |
 | `minuteEstimatedTime` | `"number"` | - | `"Expected time to reach TP in minutes (max 360)"` |
-
-**Sources:** [src/lib/services/template/OptimizerTemplateService.ts:677-703]()
+
 
 **System Message Content**
 
@@ -229,8 +214,7 @@ The system message in `json()` provides detailed trading rules split into four s
 | ЦЕНА ВХОДА (priceOpen) | Can be current market price or limit order price based on technical analysis |
 | УРОВНИ ВЫХОДА | LONG: `priceTakeProfit > priceOpen > priceStopLoss`, SHORT: `priceStopLoss > priceOpen > priceTakeProfit` |
 | ВРЕМЕННЫЕ РАМКИ | `minuteEstimatedTime` based on ATR, ADX, MACD, Momentum, Slope (max 360) |
-
-**Sources:** [src/lib/services/template/OptimizerTemplateService.ts:647-671]()
+
 
 ---
 
@@ -241,8 +225,7 @@ The system message in `json()` provides detailed trading rules split into four s
 **Template Method Resolution in OptimizerConnectionService**
 
 ![Mermaid Diagram](./diagrams/93_LLM_Integration_6.svg)
-
-**Sources:** [src/lib/services/connection/OptimizerConnectionService.ts:59-113]()
+
 
 **IOptimizerTemplate Method List**
 
@@ -261,8 +244,7 @@ The service provides defaults for eleven template methods:
 | `getStrategyTemplate(strategyName, interval, prompt)` | `addStrategy({...})` | Strategy with getSignal |
 | `getWalkerTemplate(walkerName, ...)` | `addWalker({...})` | Strategy comparison |
 | `getLauncherTemplate(symbol, walkerName)` | `Walker.background(...) + listeners` | Execution and event handling |
-
-**Sources:** [src/lib/services/template/OptimizerTemplateService.ts:27-716]()
+
 
 **Override Levels**
 
@@ -272,8 +254,7 @@ Custom formatters can be provided at two granularities:
 |-------|-----------|-----------------|-------|
 | Schema Level | `IOptimizerSchema.template` | `Partial<IOptimizerTemplate>` | All sources in this optimizer |
 | Source Level | `IOptimizerSource.user/assistant` | `(symbol, data, name) => string \| Promise<string>` | Specific source only |
-
-**Sources:** [src/interfaces/Optimizer.interface.ts:129-177](), [src/interfaces/Optimizer.interface.ts:426-427]()
+
 
 ---
 
@@ -284,8 +265,7 @@ The `getJsonDumpTemplate()` method generates an `async dumpJson(resultId, histor
 **dumpJson() Execution Flow**
 
 ![Mermaid Diagram](./diagrams/93_LLM_Integration_7.svg)
-
-**Sources:** [src/lib/services/template/OptimizerTemplateService.ts:457-544]()
+
 
 **Generated File Structure**
 
@@ -294,8 +274,7 @@ The `getJsonDumpTemplate()` method generates an `async dumpJson(resultId, histor
 | `00_system_prompt.md` | ResultId, output JSON, all system messages | [src/lib/services/template/OptimizerTemplateService.ts:470-498]() |
 | `01_user_message.md`, `02_user_message.md`, ... | ResultId, user input N, size check via `Buffer.byteLength()` | [src/lib/services/template/OptimizerTemplateService.ts:500-525]() |
 | `XX_llm_output.md` (where XX = userMessages.length + 1) | ResultId, full output JSON | [src/lib/services/template/OptimizerTemplateService.ts:527-543]() |
-
-**Sources:** [src/lib/services/template/OptimizerTemplateService.ts:452-546]()
+
 
 **WARN_KB Threshold**
 
@@ -310,14 +289,12 @@ if (messageSizeKb > WARN_KB) {
     );
 }
 ```
-
-**Sources:** [src/lib/services/template/OptimizerTemplateService.ts:64](), [src/lib/services/template/OptimizerTemplateService.ts:508-515]()
+
 
 **Return Early Logic**
 
 If the `resultId` folder already exists, `dumpJson()` returns immediately without writing files. This prevents overwriting debug output on subsequent calls with the same UUID.
-
-**Sources:** [src/lib/services/template/OptimizerTemplateService.ts:463-467]()
+
 
 ---
 
@@ -357,5 +334,4 @@ addStrategy({
     },
 });
 ```
-
-**Sources:** [demo/backtest/src/index.mjs:91-106](), [demo/live/src/index.mjs:87-102](), [src/lib/services/template/OptimizerTemplateService.ts:168-304]()
+

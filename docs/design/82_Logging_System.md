@@ -10,8 +10,7 @@ group: design
 The Logging System provides a unified interface for recording diagnostic information throughout the backtest-kit framework. It enables debugging, monitoring, and auditing of framework operations across all execution modes (Backtest, Live, Walker, Optimizer).
 
 This document covers the logging interface contract, custom logger configuration, default implementation, and usage patterns throughout the framework. For event-driven monitoring and observability, see [Event System](./14_Event_System.md). For performance metrics and bottleneck detection, see [Performance Metrics](./73_Performance_Metrics.md).
-
-**Sources:** [types.d.ts:122-147](), [src/function/setup.ts]()
+
 
 ---
 
@@ -22,8 +21,7 @@ This document covers the logging interface contract, custom logger configuration
 **Diagram 1: Logging System Architecture**
 
 The logging system follows a dependency injection pattern where `LoggerService` is registered globally and injected into all framework services. Custom logger implementations can replace the default via `setLogger()`.
-
-**Sources:** [src/lib/core/types.ts:1-3](), [src/lib/core/provide.ts:55-57](), [src/lib/index.ts:60-62]()
+
 
 ---
 
@@ -48,8 +46,7 @@ The interface documentation specifies that these methods are used throughout the
 - **Operational details**: Tool calls, message emissions, data fetching
 - **Validation outcomes**: Policy checks, risk validation results
 - **Errors**: Persistence failures, API errors, validation failures
-
-**Sources:** [types.d.ts:122-147]()
+
 
 ---
 
@@ -91,8 +88,7 @@ setLogger({
 ### Context Injection
 
 The documentation indicates that custom loggers receive "automatic context injection (strategyName, exchangeName, symbol, etc.)", though the actual context propagation appears to be handled manually by calling code passing context as additional arguments.
-
-**Sources:** [types.d.ts:149-166](), [src/index.ts:1-6]()
+
 
 ---
 
@@ -107,8 +103,7 @@ The framework includes a default `LoggerService` implementation that is register
 **Diagram 2: LoggerService Registration Flow**
 
 The `LoggerService` is instantiated once during framework initialization and made available to all services through the dependency injection container.
-
-**Sources:** [src/lib/core/provide.ts:55-57](), [src/lib/core/types.ts:1-3]()
+
 
 ---
 
@@ -153,8 +148,7 @@ const baseServices = {
 **Diagram 3: Logger Injection Pattern**
 
 Services access the logger through dependency injection, ensuring a single shared logger instance across the entire framework.
-
-**Sources:** [src/lib/core/types.ts:1-3](), [src/lib/core/provide.ts:55-57](), [src/lib/index.ts:60-62]()
+
 
 ---
 
@@ -174,8 +168,7 @@ The framework uses four log levels with distinct purposes:
 ### No Error Level
 
 The `ILogger` interface does not include an `error()` method. Error handling is performed through the event system's `errorEmitter` and `exitEmitter` subjects (see [Error Handling](./83_Error_Handling.md)).
-
-**Sources:** [types.d.ts:126-147]()
+
 
 ---
 
@@ -217,8 +210,7 @@ export function listenSignal(fn: (event: IStrategyTickResult) => void) {
 ![Mermaid Diagram](./diagrams/82_Logging_System_3.svg)
 
 **Diagram 4: Logging Points Across Framework Layers**
-
-**Sources:** [src/function/add.ts:10-64](), [src/function/event.ts:16-73]()
+
 
 ---
 
@@ -264,8 +256,7 @@ interface IExchangeParams extends IExchangeSchema {
 ```
 
 This allows client implementations to include execution context (symbol, timestamp, backtest flag) in their log messages.
-
-**Sources:** [src/function/add.ts:10-16](), [src/function/event.ts:16-43](), [types.d.ts:310-318]()
+
 
 ---
 
@@ -286,8 +277,7 @@ The following table shows which services and clients receive logger instances:
 | **ClientRisk** | Via constructor params | Log risk validation results |
 | **ClientFrame** | Via constructor params | Log timeframe generation |
 | **ClientOptimizer** | Via constructor params | Log strategy generation progress |
-
-**Sources:** [src/lib/index.ts:60-234](), [types.d.ts:310-435]()
+
 
 ---
 
@@ -313,8 +303,7 @@ See [Performance Metrics](./73_Performance_Metrics.md) for performance monitorin
 Errors are propagated through dedicated event emitters (`errorEmitter`, `exitEmitter`) in addition to any logging that may occur. This separation allows for both diagnostic logging and programmatic error handling.
 
 See [Error Handling](./83_Error_Handling.md) for error management.
-
-**Sources:** [src/config/emitters.ts:15-44]()
+
 
 ---
 
@@ -337,5 +326,4 @@ See [Error Handling](./83_Error_Handling.md) for error management.
    - `debug` for detailed diagnostic information
    - `warn` for non-critical issues
 4. **Avoid excessive logging**: Focus on significant operations and state changes
-
-**Sources:** [src/function/add.ts:10-64](), [src/function/event.ts:16-73]()
+

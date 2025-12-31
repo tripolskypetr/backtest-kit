@@ -18,8 +18,7 @@ Key characteristics:
 - **Real-time accumulation**: Subscribes to `signalEmitter` to track closed signals as they occur
 - **Bounded storage**: Maximum 250 closed signals per symbol per strategy
 - **Safe math**: Handles NaN/Infinity gracefully by converting to null
-
-Sources: [src/lib/services/markdown/HeatMarkdownService.ts:1-609]()
+
 
 ## System Architecture
 
@@ -28,8 +27,7 @@ Sources: [src/lib/services/markdown/HeatMarkdownService.ts:1-609]()
 **Service Integration**: `HeatMarkdownService` is instantiated via the dependency injection system and subscribes to `signalEmitter` on first use. Unlike `BacktestMarkdownService` and `LiveMarkdownService` which use `symbol:strategyName` as storage keys, `HeatMarkdownService` uses only `strategyName` as the key because it aggregates across all symbols.
 
 **Storage Strategy**: Each strategy gets exactly one `HeatmapStorage` instance via memoization [src/lib/services/markdown/HeatMarkdownService.ts:442-445](). Within each storage, a `Map<string, IStrategyTickResultClosed[]>` maintains per-symbol closed signal arrays [src/lib/services/markdown/HeatMarkdownService.ts:84]().
-
-Sources: [src/lib/services/markdown/HeatMarkdownService.ts:434-606]()
+
 
 ## Data Model
 
@@ -55,8 +53,7 @@ Each symbol tracked by a strategy has statistics calculated into an `IHeatmapRow
 | `maxWinStreak` | `number` | Longest consecutive wins |
 | `maxLossStreak` | `number` | Longest consecutive losses |
 | `expectancy` | `number \| null` | Expected PNL per trade |
-
-Sources: [src/interfaces/Heatmap.interface.ts](), [src/lib/services/markdown/HeatMarkdownService.ts:253-271]()
+
 
 ### Portfolio Statistics Model
 
@@ -76,8 +73,7 @@ The `HeatmapStatisticsModel` contains aggregated portfolio-wide data:
 ```
 portfolioSharpeRatio = Σ(sharpeRatio_i × totalTrades_i) / portfolioTotalTrades
 ```
-
-Sources: [src/model/HeatmapStatistics.model.ts](), [src/lib/services/markdown/HeatMarkdownService.ts:278-330]()
+
 
 ## Signal Accumulation Flow
 
@@ -86,8 +82,7 @@ Sources: [src/model/HeatmapStatistics.model.ts](), [src/lib/services/markdown/He
 **Event Filtering**: The `tick` method only processes signals where `action === "closed"` [src/lib/services/markdown/HeatMarkdownService.ts:460-462](). Idle, opened, active, and scheduled signals are ignored.
 
 **Deque Behavior**: New signals are added to the front with `unshift`, and old signals are removed from the back with `pop` when exceeding `MAX_EVENTS=250` [src/lib/services/markdown/HeatMarkdownService.ts:99-104](). This maintains a rolling window of the most recent 250 closed signals per symbol.
-
-Sources: [src/lib/services/markdown/HeatMarkdownService.ts:455-466](), [src/lib/services/markdown/HeatMarkdownService.ts:91-105]()
+
 
 ## Per-Symbol Statistics Calculation
 
@@ -135,8 +130,7 @@ expectancy = (winRate/100) × avgWin + ((100-winRate)/100) × avgLoss
 ```
 
 **Safe Math**: All calculated values are checked with `isUnsafe()` before returning. If a value is `NaN`, `Infinity`, or not a number, it's set to `null` [src/lib/services/markdown/HeatMarkdownService.ts:242-251]().
-
-Sources: [src/lib/services/markdown/HeatMarkdownService.ts:115-271]()
+
 
 ## Portfolio Aggregation
 
@@ -147,8 +141,7 @@ The `getData` method [src/lib/services/markdown/HeatMarkdownService.ts:278-330](
 1. **Per-symbol statistics**: Calls `calculateSymbolStats` for each symbol in `symbolData` Map
 2. **Sorting**: Sorts symbols by Sharpe ratio descending, with nulls last [src/lib/services/markdown/HeatMarkdownService.ts:288-293]()
 3. **Portfolio aggregation**: Sums PNL and trades, calculates trade-weighted Sharpe ratio
-
-Sources: [src/lib/services/markdown/HeatMarkdownService.ts:278-330]()
+
 
 ## Public API Methods
 
@@ -174,8 +167,7 @@ stats.symbols.forEach(row => {
   console.log(`${row.symbol}: ${row.totalPnl}% (${row.totalTrades} trades)`);
 });
 ```
-
-Sources: [src/lib/services/markdown/HeatMarkdownService.ts:487-495]()
+
 
 ### getReport(strategyName, columns?)
 
@@ -204,8 +196,7 @@ Example output [src/lib/services/markdown/HeatMarkdownService.ts:370-376]():
 | BTCUSDT | +15.5% | 2.10 | -2.5% | 45 | 68.9% | ... |
 | ETHUSDT | +12.3% | 1.85 | -3.1% | 38 | 63.2% | ... |
 ```
-
-Sources: [src/lib/services/markdown/HeatMarkdownService.ts:521-530](), [src/lib/services/markdown/HeatMarkdownService.ts:339-377]()
+
 
 ### dump(strategyName, path?, columns?)
 
@@ -229,8 +220,7 @@ await service.dump("my-strategy");
 // Custom path: ./reports/my-strategy.md
 await service.dump("my-strategy", "./reports");
 ```
-
-Sources: [src/lib/services/markdown/HeatMarkdownService.ts:553-564](), [src/lib/services/markdown/HeatMarkdownService.ts:386-405]()
+
 
 ### clear(strategyName?)
 
@@ -242,8 +232,7 @@ public clear = async (strategyName?: StrategyName): Promise<void>
 
 - **With strategyName**: Clears data for that strategy only
 - **Without strategyName**: Clears all strategies' data
-
-Sources: [src/lib/services/markdown/HeatMarkdownService.ts:584-589]()
+
 
 ## Column Configuration
 
@@ -279,8 +268,7 @@ const pnlColumn: Columns = {
 ```
 
 **Custom columns**: Users can pass custom `Columns[]` arrays to `getReport` and `dump` methods to override default display configuration.
-
-Sources: [src/lib/services/markdown/HeatMarkdownService.ts:49](), [src/model/Column.model.ts:1-39](), [src/config/columns.ts]()
+
 
 ## Integration with Other Services
 
@@ -298,8 +286,7 @@ Sources: [src/lib/services/markdown/HeatMarkdownService.ts:49](), [src/model/Col
 - **BacktestMarkdownService**: Detailed signal-level analysis for one backtest run
 - **LiveMarkdownService**: Real-time monitoring of one live trading pair
 - **HeatMarkdownService**: Portfolio-wide performance comparison across multiple symbols
-
-Sources: [src/lib/services/markdown/BacktestMarkdownService.ts:290-293](), [src/lib/services/markdown/LiveMarkdownService.ts:431-434](), [src/lib/services/markdown/HeatMarkdownService.ts:442-445]()
+
 
 ## Initialization and Lifecycle
 
@@ -320,5 +307,4 @@ protected init = singleshot(async () => {
 5. `clear()` can reset storage without unsubscribing
 
 **Automatic initialization**: Users do not need to manually call `init()`. The service begins accumulating data automatically when first accessed.
-
-Sources: [src/lib/services/markdown/HeatMarkdownService.ts:602-605]()
+

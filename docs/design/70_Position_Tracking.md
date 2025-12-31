@@ -46,8 +46,7 @@ class ClientRisk {
   // - openTimestamp: number (when position opened)
 }
 ```
-
-Sources: [types.d.ts:358-369](), [src/client/ClientStrategy.ts:742-745](), [src/classes/Persist.ts:623-782]()
+
 
 ---
 
@@ -56,8 +55,7 @@ Sources: [types.d.ts:358-369](), [src/client/ClientStrategy.ts:742-745](), [src/
 ![Mermaid Diagram](./diagrams/70_Position_Tracking_0.svg)
 
 **Figure 1: Position Tracking Architecture** - Multiple `ClientStrategy` instances share a single `ClientRisk` instance through `RiskConnectionService` memoization. Each symbol maintains a `Set` of position keys identifying active strategies.
-
-Sources: [src/client/ClientStrategy.ts:1-96](), [src/lib/services/connection/StrategyConnectionService.ts:60-96](), [src/function/add.ts:270-343]()
+
 
 ---
 
@@ -66,8 +64,7 @@ Sources: [src/client/ClientStrategy.ts:1-96](), [src/lib/services/connection/Str
 ![Mermaid Diagram](./diagrams/70_Position_Tracking_1.svg)
 
 **Figure 2: Position Lifecycle with Risk Tracking** - Positions are added to the risk registry immediately after validation and removed when closed. The registry state is synchronized with the signal lifecycle.
-
-Sources: [src/client/ClientStrategy.ts:681-774](), [src/client/ClientStrategy.ts:848-899](), [src/client/ClientStrategy.ts:962-1023]()
+
 
 ---
 
@@ -133,8 +130,7 @@ This structure allows the risk system to:
 - Correlate positions across multiple symbols and strategies
 
 The `addSignal()` method receives a context object `{ strategyName, riskName }`, but only `strategyName` is stored in the position record. The `riskName` is used for identifying which `ClientRisk` instance to add to, not stored per-position.
-
-Sources: [types.d.ts:358-369](), [src/client/ClientStrategy.ts:742-745](), [src/client/ClientStrategy.ts:867-870]()
+
 
 ---
 
@@ -166,8 +162,7 @@ ClientStrategy.CLOSE_PENDING_SIGNAL_FN()
 - `time_expired`: `minuteEstimatedTime` elapsed since `pendingAt`
 
 **Code Location**: [src/client/ClientStrategy.ts:962-1023]()
-
-Sources: [src/client/ClientStrategy.ts:995-998](), [src/client/ClientStrategy.ts:901-960]()
+
 
 ---
 
@@ -202,8 +197,7 @@ Custom validations can query the risk instance's internal registry to:
 - Check if specific strategy already has position on symbol
 - Analyze position distribution across symbols
 - Calculate portfolio-level metrics
-
-Sources: [src/client/ClientStrategy.ts:376-384](), [src/client/ClientStrategy.ts:712-721](), [src/client/ClientStrategy.ts:852-865]()
+
 
 ---
 
@@ -237,8 +231,7 @@ addRisk({
   }
 });
 ```
-
-Sources: [src/function/add.ts:270-343](), [src/client/ClientStrategy.ts:374-387]()
+
 
 ---
 
@@ -357,8 +350,7 @@ addRisk({
 ```
 
 The `activePositions` array provides complete access to all tracked positions, enabling sophisticated cross-strategy and cross-symbol risk logic.
-
-Sources: [types.d.ts:380-391](), [types.d.ts:358-369](), [types.d.ts:393-412](), [src/function/add.ts:296-328]()
+
 
 ---
 
@@ -420,8 +412,7 @@ The position tracking state is persisted in TWO places:
 2. **Risk registry**: `PersistRiskAdapter` → per risk profile
 
 Both are restored independently during initialization, so the registry already contains the position. Calling `addSignal()` would create a duplicate entry.
-
-Sources: [src/client/ClientStrategy.ts:491-552](), [src/classes/Persist.ts:514-622](), [src/classes/Persist.ts:623-782]()
+
 
 ---
 
@@ -594,8 +585,7 @@ The `writeFileAtomic()` function ensures crash-safe persistence:
 ```
 
 This pattern prevents corruption if the process crashes during write.
-
-Sources: [types.d.ts:358-369](), [types.d.ts:623-627](), [src/classes/Persist.ts:623-782](), [src/classes/Persist.ts:11-13](), [src/lib/services/connection/StrategyConnectionService.ts:26-30]()
+
 
 ---
 
@@ -604,8 +594,7 @@ Sources: [types.d.ts:358-369](), [types.d.ts:623-627](), [src/classes/Persist.ts
 ![Mermaid Diagram](./diagrams/70_Position_Tracking_5.svg)
 
 **Figure 5: Position Tracking in Service Architecture** - Position tracking is integrated throughout the service layers, from connection services to markdown reporting.
-
-Sources: [src/lib/services/connection/StrategyConnectionService.ts:52-98](), [src/lib/services/connection/RiskConnectionService.ts:1-100](), [src/lib/index.ts:1-242]()
+
 
 ---
 
@@ -623,5 +612,4 @@ Position tracking is a critical component of the risk management system that:
 The registry is synchronized with the signal lifecycle through `addSignal()` and `removeSignal()` calls, ensuring accurate position counts for risk enforcement and portfolio-level analysis.
 
 For implementation of risk profiles, see [Risk Profiles](./68_Risk_Profiles.md). For details on validation logic, see [Risk Validation](./69_Risk_Validation.md).
-
-Sources: [src/client/ClientStrategy.ts:1-1200](), [src/lib/services/connection/StrategyConnectionService.ts:1-241](), [src/function/add.ts:270-343]()
+

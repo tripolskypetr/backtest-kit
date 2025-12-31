@@ -62,8 +62,7 @@ The extraction performs five safety checks to prevent invalid comparisons. If an
 | `expectedYearlyReturns` | `stats.expectedYearlyReturns` | Based on avg trade duration and PNL | Yes |
 
 All metrics assume higher values indicate better performance. No metrics use ascending comparison order.
-
-**Sources:** [types.d.ts:920-945](), [types.d.ts:951]()
+
 
 ---
 
@@ -92,8 +91,7 @@ Four optional callbacks are invoked during execution:
 2. `onStrategyError(strategyName, symbol, error)` - If backtest throws
 3. `onStrategyComplete(strategyName, symbol, stats, metricValue)` - After backtest succeeds
 4. `onComplete(finalResults)` - After all strategies finish
-
-**Sources:** [src/lib/services/logic/private/WalkerLogicPrivateService.ts:70-252]()
+
 
 ## Best Strategy Selection Logic
 
@@ -123,8 +121,7 @@ if (isBetter && metricValue !== null) {
 ### Ascending vs Descending Metrics
 
 All supported metrics use **descending** comparison (higher is better). There are no metrics where lower values are preferable. This simplifies the comparison logic to a single `>` operator.
-
-**Sources:** [src/lib/services/logic/private/WalkerLogicPrivateService.ts:179-186]()
+
 
 ---
 
@@ -180,8 +177,7 @@ Three emissions occur per strategy:
 1. **progressWalkerEmitter** - Numeric progress (count, percentage)
 2. **walkerEmitter** - Full contract for external listeners
 3. **yield** - Contract to the async generator consumer
-
-**Sources:** [src/lib/services/logic/private/WalkerLogicPrivateService.ts:190-227]()
+
 
 ---
 
@@ -232,8 +228,7 @@ await walkerCompleteSubject.next(finalResults);
 ```
 
 The final results are constructed at [src/lib/services/logic/private/WalkerLogicPrivateService.ts:230-250](). Unlike `WalkerContract`, the final results include `bestStats` which contains the full `BacktestStatistics` for the winning strategy.
-
-**Sources:** [src/lib/services/logic/private/WalkerLogicPrivateService.ts:230-251]()
+
 
 ---
 
@@ -314,8 +309,7 @@ Subscribes to `walkerEmitter`. Receives full `WalkerContract` with statistics af
 Subscribes to `walkerCompleteSubject`. Receives `IWalkerResults` once at completion.
 
 All three listeners support filtering by `symbol`, `walkerName`, `exchangeName`, or `frameName` properties.
-
-**Sources:** [src/lib/services/logic/private/WalkerLogicPrivateService.ts:206-227](), [src/lib/services/logic/private/WalkerLogicPrivateService.ts:245-250]()
+
 
 ---
 
@@ -350,8 +344,7 @@ interface BacktestStatistics {
 ```
 
 Each metric field may be `null` if calculation is unsafe (e.g., NaN, Infinity, insufficient data). Walker's metric extraction checks for null values before comparison.
-
-**Sources:** [src/lib/services/logic/private/WalkerLogicPrivateService.ts:165](), [src/lib/services/markdown/BacktestMarkdownService.ts]()
+
 
 ---
 
@@ -391,8 +384,7 @@ for (const strategyName of walkerSchema.strategies) {
 ```
 
 This ensures each strategy starts with clean state and no leftover data from previous runs.
-
-**Sources:** [src/classes/Walker.ts:64-79]()
+
 
 ---
 
@@ -405,8 +397,7 @@ This ensures each strategy starts with clean state and no leftover data from pre
 **WalkerMarkdownService Component Diagram:**
 
 ![Mermaid Diagram](./diagrams/65_Strategy_Comparison_4.svg)
-
-**Sources:** [src/lib/services/markdown/WalkerMarkdownService.ts:519-530](), [src/lib/services/markdown/WalkerMarkdownService.ts:264-298]()
+
 
 ### ReportStorage Accumulation
 
@@ -425,8 +416,7 @@ The storage maintains:
 - `_bestStrategy: StrategyName | null` - Best strategy name
 - `_bestMetric: number | null` - Best metric value
 - `_bestStats: BacktestStatistics | null` - Full statistics for best strategy
-
-**Sources:** [src/lib/services/markdown/WalkerMarkdownService.ts:543-551](), [src/lib/services/markdown/WalkerMarkdownService.ts:264-298]()
+
 
 ### Comparison Table Generation
 
@@ -454,8 +444,7 @@ The comparison table includes columns configured in `createStrategyColumns()`:
 - Total PNL
 - Sharpe Ratio
 - Std Dev
-
-**Sources:** [src/lib/services/markdown/WalkerMarkdownService.ts:342-372](), [src/lib/services/markdown/WalkerMarkdownService.ts:131-203]()
+
 
 ### PNL Table Generation
 
@@ -482,8 +471,7 @@ for (const result of this._strategyResults) {
 ```
 
 The PNL table provides granular signal-level analysis across all compared strategies.
-
-**Sources:** [src/lib/services/markdown/WalkerMarkdownService.ts:380-419]()
+
 
 ### Report API
 
@@ -502,8 +490,7 @@ await Walker.dump("BTCUSDT", "my-walker");
 // Save to custom path
 await Walker.dump("BTCUSDT", "my-walker", "./custom/reports");
 ```
-
-**Sources:** [src/classes/Walker.ts:283-317](), [src/classes/Walker.ts:333-353](), [src/classes/Walker.ts:372-395]()
+
 
 ---
 
@@ -541,8 +528,7 @@ stop();
 4. Errors are caught and emitted to `errorEmitter`
 
 The cancellation function calls `strategyGlobalService.stop()` for each strategy to gracefully terminate any ongoing backtests.
-
-**Sources:** [src/classes/Walker.ts:108-143]()
+
 
 ---
 
@@ -591,8 +577,7 @@ const rankings = new Map();
 const consensusWinner = Array.from(rankings.entries())
   .sort((a, b) => a[1] - b[1])[0][0];
 ```
-
-**Sources:** [README.md:461-466]()
+
 
 ---
 
@@ -650,5 +635,4 @@ const results = await Walker.getData("BTCUSDT", "my-walker");
 3. **Report generation** - Automatic markdown reports
 4. **Data isolation** - Automatic clearing between runs
 5. **Validation** - Upfront validation of all dependencies
-
-**Sources:** [README.md:407-459]()
+

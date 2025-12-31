@@ -16,8 +16,7 @@ For information about strategy schemas that consume exchange data, see [Strategy
 The `IExchangeSchema` interface specifies the contract for all exchange implementations. It consists of three core functions and optional lifecycle callbacks.
 
 ![Mermaid Diagram](./diagrams/26_Exchange_Schemas_0.svg)
-
-**Sources:** [types.d.ts:80-155]()
+
 
 ---
 
@@ -73,8 +72,7 @@ formatQuantity: (
     quantity: number    // Raw quantity value
 ) => Promise<string>    // Formatted quantity string
 ```
-
-**Sources:** [types.d.ts:119-155](), [src/interfaces/Exchange.interface.ts:1-100]()
+
 
 ---
 
@@ -99,8 +97,7 @@ Each candle represents aggregated trading data for a specific time interval.
 Typical Price = (High + Low + Close) / 3
 VWAP = Σ(Typical Price × Volume) / Σ(Volume)
 ```
-
-**Sources:** [types.d.ts:84-100](), [src/client/ClientExchange.ts:140-167]()
+
 
 ---
 
@@ -109,8 +106,7 @@ VWAP = Σ(Typical Price × Volume) / Σ(Volume)
 Exchange schemas are registered via `addExchange()` and stored in `ExchangeSchemaService` using the `ToolRegistry` pattern.
 
 ![Mermaid Diagram](./diagrams/26_Exchange_Schemas_2.svg)
-
-**Sources:** [src/function/add.ts:1-50](), [src/lib/services/global/ExchangeGlobalService.ts:1-100](), [src/lib/services/schema/ExchangeSchemaService.ts:1-50]()
+
 
 ---
 
@@ -126,8 +122,7 @@ This ensures separate exchange instances for:
 - Different symbols (e.g., BTCUSDT vs ETHUSDT)
 - Different exchanges (e.g., binance vs coinbase)
 - Different execution modes (backtest vs live)
-
-**Sources:** [src/lib/services/connection/ExchangeConnectionService.ts:1-100](), [src/client/ClientExchange.ts:1-50]()
+
 
 ---
 
@@ -138,8 +133,7 @@ Exchange candles flow through multiple layers before reaching strategies.
 ![Mermaid Diagram](./diagrams/26_Exchange_Schemas_4.svg)
 
 **Temporal Isolation:** `ClientExchange` automatically filters candles to ensure `candle.timestamp <= ExecutionContextService.context.when`. This prevents look-ahead bias in backtesting.
-
-**Sources:** [src/client/ClientExchange.ts:50-200](), [src/lib/services/context/ExecutionContextService.ts:1-50]()
+
 
 ---
 
@@ -162,8 +156,7 @@ callbacks: {
     ) => void
 }
 ```
-
-**Sources:** [types.d.ts:113-118]()
+
 
 ---
 
@@ -215,8 +208,7 @@ addExchange({
     }
 });
 ```
-
-**Sources:** [demo/backtest/src/index.mjs:24-35](), [demo/live/src/index.mjs:24-35]()
+
 
 ---
 
@@ -230,8 +222,7 @@ addExchange({
 | **Required Functions** | `getCandles`, `formatPrice`, `formatQuantity` must be provided |
 | **Valid Return Types** | `getCandles` must return `Promise<ICandleData[]>` |
 | **Valid Intervals** | All `CandleInterval` values must be supported |
-
-**Sources:** [src/lib/services/validation/ExchangeValidationService.ts:1-100]()
+
 
 ---
 
@@ -275,8 +266,7 @@ const totalValue = candles.reduce((sum, c) => {
 const totalVolume = candles.reduce((sum, c) => sum + c.volume, 0);
 return totalValue / totalVolume;
 ```
-
-**Sources:** [src/client/ClientExchange.ts:1-250](), [types.d.ts:159-205]()
+
 
 ---
 
@@ -289,8 +279,7 @@ return totalValue / totalVolume;
 **Implementation:** [src/client/ClientExchange.ts:70-120]()
 
 This ensures that strategies only see historical data up to the current backtest timestamp, preventing look-ahead bias and ensuring realistic strategy testing.
-
-**Sources:** [src/client/ClientExchange.ts:70-120](), [src/lib/services/context/ExecutionContextService.ts:1-50]()
+
 
 ---
 
@@ -328,5 +317,4 @@ const qtyStr = await formatQuantity("BTCUSDT", 0.123456789);  // "0.12345679"
 ```
 
 Formats values according to exchange precision rules.
-
-**Sources:** [src/function/exchange.ts:1-150](), [src/index.ts:58-65]()
+

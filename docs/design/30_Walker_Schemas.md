@@ -14,8 +14,7 @@ For information about executing Walker operations, see [Walker API](./20_Walker_
 Walker schemas are registered using the `IWalkerSchema` interface, which specifies a collection of strategies to compare, a metric for ranking, and the execution environment.
 
 ![Mermaid Diagram](./diagrams/30_Walker_Schemas_0.svg)
-
-**Sources:** [types.d.ts:1486-1530]()
+
 
 ## Required Fields
 
@@ -50,8 +49,7 @@ strategies: [
 ```
 
 Walker executes each strategy using the same `exchangeName` and `frameName`, ensuring fair comparison under identical market conditions.
-
-**Sources:** [types.d.ts:1493-1495]()
+
 
 ### metric
 
@@ -69,8 +67,7 @@ type WalkerMetric =
   | "certaintyRatio"
   | "expectedYearlyReturns";
 ```
-
-**Sources:** [types.d.ts:1496](), [types.d.ts:1509-1517]()
+
 
 ### exchangeName
 
@@ -97,8 +94,7 @@ frameName: FrameName; // string type alias
 ```typescript
 frameName: "2024-q1"
 ```
-
-**Sources:** [types.d.ts:1497-1499]()
+
 
 ## Metric Selection
 
@@ -122,8 +118,7 @@ The `metric` field determines how strategies are ranked. Higher metric values in
 - Use `totalPnl` or `avgPnl` for absolute return comparison
 - Use `certaintyRatio` for strategies with varying volatility
 - Use `expectedYearlyReturns` for long-term performance projection
-
-**Sources:** [types.d.ts:1509-1517]()
+
 
 ## Optional Fields
 
@@ -147,8 +142,7 @@ Lifecycle event callbacks triggered during Walker execution. Provides hooks for 
 ```typescript
 callbacks?: Partial<IWalkerCallbacks>;
 ```
-
-**Sources:** [types.d.ts:1492](), [types.d.ts:1500]()
+
 
 ## Callback Lifecycle
 
@@ -199,8 +193,7 @@ onComplete: (
 - Generate comparison reports
 - Trigger downstream automation (e.g., deploy best strategy)
 - Archive results for historical tracking
-
-**Sources:** [types.d.ts:1502-1507]()
+
 
 ## Walker Results Structure
 
@@ -245,8 +238,7 @@ listenWalkerComplete((walkerName, results) => {
   console.log(winner.statistics);
 });
 ```
-
-**Sources:** [types.d.ts:1519-1530]()
+
 
 ## Registration
 
@@ -286,8 +278,7 @@ await addWalker({
   }
 });
 ```
-
-**Sources:** [src/lib/add.ts]() (addWalker implementation)
+
 
 ## Validation Rules
 
@@ -306,8 +297,7 @@ Walker schemas undergo validation before registration to ensure configuration in
 **Validation timing:** All validation occurs synchronously during `addWalker()` call, before the schema is stored. Registration either succeeds completely or throws an error.
 
 **Validation implementation:** [src/lib/services/validation/WalkerValidationService.ts]()
-
-**Sources:** [src/lib/services/validation/WalkerValidationService.ts]()
+
 
 ## Strategy Order Considerations
 
@@ -322,8 +312,7 @@ The `strategies` array order determines execution sequence, which affects:
 ![Mermaid Diagram](./diagrams/30_Walker_Schemas_3.svg)
 
 **Best practice:** Place high-priority or baseline strategies first in the array for earlier feedback during long-running comparisons.
-
-**Sources:** [src/lib/services/logic/WalkerLogicPrivateService.ts]()
+
 
 ## Integration with Walker Execution
 
@@ -342,8 +331,7 @@ Walker schemas are consumed by the Walker execution pipeline during `Walker.run(
 5. Compare all metric values, identify best strategy
 6. Build `IWalkerResults` and fire `onComplete` callback
 7. Return results via `Walker.getData()`
-
-**Sources:** [src/lib/services/logic/WalkerLogicPrivateService.ts](), [src/lib/services/command/WalkerCommandService.ts]()
+
 
 ## Complete Example
 
@@ -428,5 +416,4 @@ for await (const progress of Walker.run("BTCUSDT", {
 const results = await Walker.getData("momentum-strategies");
 console.log(`Winner: ${results.bestStrategy}`);
 ```
-
-**Sources:** [types.d.ts:1486-1530](), [src/lib/add.ts]()
+

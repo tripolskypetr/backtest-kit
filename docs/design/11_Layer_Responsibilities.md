@@ -18,8 +18,7 @@ The backtest-kit framework organizes services into distinct functional layers. S
 **Complete Layer Architecture**
 
 ![Mermaid Diagram](./diagrams/11_Layer_Responsibilities_0.svg)
-
-**Sources**: [src/lib/core/types.ts:1-81](), [src/lib/core/provide.ts:1-111](), [src/classes/Backtest.ts:1-231](), [src/classes/Live.ts:1-245](), [src/classes/Walker.ts:1-287]()
+
 </thinking>
 
 ## Layer 1: API Layer
@@ -44,8 +43,7 @@ Each execution class:
 1. Logs the operation via `backtest.loggerService`
 2. Clears relevant markdown services and strategy caches
 3. Delegates to the corresponding Command Service
-
-**Sources**: [src/classes/Backtest.ts:38-66](), [src/classes/Live.ts:55-84](), [src/classes/Walker.ts:39-87]()
+
 
 ### Registration Functions
 
@@ -60,8 +58,7 @@ Component registration functions in [src/function/add.ts]() provide schema regis
 | `addSizing()` | Register sizing method | `SizingValidationService`, `SizingSchemaService` |
 | `addWalker()` | Register walker comparison | `WalkerValidationService`, `WalkerSchemaService` |
 | `addOptimizer()` | Register optimizer configuration | `OptimizerValidationService`, `OptimizerSchemaService` |
-
-**Sources**: [src/function/add.ts:1-342](), [src/function/list.ts:1-218]()
+
 
 ---
 
@@ -115,8 +112,7 @@ run(symbol, context) {
   return backtestLogicPublicService.run(symbol, context)
 }
 ```
-
-**Sources**: [docs/classes/BacktestCommandService.md:1-70](), [docs/classes/LiveCommandService.md:1-66](), [src/classes/Walker.ts:50-60]()
+
 
 ---
 
@@ -139,8 +135,7 @@ Each Public Logic Service:
 3. Returns AsyncGenerator from Private Logic Service
 
 The `MethodContextService` uses scoped dependency injection to make context available to downstream services without explicit parameter passing.
-
-**Sources**: [src/lib/services/logic/public/BacktestLogicPublicService.ts:1-40](), [src/lib/services/logic/public/LiveLogicPublicService.ts:1-35]()
+
 
 ### Private Logic Services
 
@@ -159,8 +154,7 @@ Private Logic Services implement the core execution algorithms:
 **LiveLogicPrivateService Execution Flow**
 
 ![Mermaid Diagram](./diagrams/11_Layer_Responsibilities_5.svg)
-
-**Sources**: [src/lib/services/logic/private/BacktestLogicPrivateService.ts:1-120](), [src/lib/services/logic/private/LiveLogicPrivateService.ts:1-85](), [src/lib/services/logic/private/WalkerLogicPrivateService.ts:1-145]()
+
 
 ---
 
@@ -189,8 +183,7 @@ Each Global Service:
 3. **Delegates to Connection Service** - Passes call to underlying connection service
 
 The `ExecutionContextService` makes `symbol`, `when`, and `backtest` flag available to Client Classes without parameter drilling.
-
-**Sources**: [src/lib/services/global/StrategyGlobalService.ts:104-126](), [src/lib/services/global/ExchangeGlobalService.ts:1-95]()
+
 
 ---
 
@@ -239,8 +232,7 @@ Execution entry points provide static methods for running backtests and live tra
 - `Walker.run()` / `Walker.background()` - Multi-strategy comparison
 
 These delegate to corresponding Global Services which wrap Logic Services with validation.
-
-**Sources**: [src/function/add.ts:1-342](), [src/function/list.ts:1-218]()
+
 
 ---
 
@@ -290,8 +282,7 @@ These services have dependencies on:
 - `ExchangeGlobalService` - Market data (backtest only)
 - `FrameGlobalService` - Timeframe generation (backtest only)
 - Markdown services - Report generation
-
-**Sources**: [src/lib/core/types.ts:38-48](), [src/lib/core/provide.ts:81-91](), [docs/internals.md:36-37]()
+
 
 ---
 
@@ -371,8 +362,7 @@ const tick = await strategy.tick(symbol, strategyName);
   await signalEmitter.next(tick);
 }
 ```
-
-**Sources**: [src/lib/services/connection/StrategyConnectionService.ts:52-219](), [src/lib/services/connection/ExchangeConnectionService.ts:1-150](), [src/lib/core/types.ts:10-16]()
+
 
 ---
 
@@ -401,8 +391,7 @@ Client Classes have no knowledge of:
 - Event emission (handled by Connection Services)
 
 They receive all dependencies as constructor parameters and expose simple method interfaces.
-
-**Sources**: [src/client/ClientStrategy.ts:1-450](), [src/client/ClientExchange.ts:1-280](), [src/client/ClientRisk.ts:1-150]()
+
 
 ---
 
@@ -439,8 +428,7 @@ Client classes have NO direct dependency injection. Instead:
 3. **Prototype methods** are used for memory efficiency (not arrow functions)
 
 Example: `ClientStrategy` receives schema functions and other clients as constructor parameters, not DI symbols.
-
-**Sources**: [docs/internals.md:30]()
+
 
 ---
 
@@ -514,8 +502,7 @@ When `BacktestLogicPublicService` starts execution:
 2. Calls `ExchangeValidationService.validate(exchangeName)`
 3. Calls `FrameValidationService.validate(frameName)`
 4. If strategy has `riskName`, validates via `RiskValidationService.validate(riskName)`
-
-**Sources**: [src/lib/core/types.ts:18-25](), [src/lib/core/types.ts:59-66](), [src/lib/core/provide.ts:61-68](), [src/lib/core/provide.ts:102-109](), [docs/internals.md:32-34]()
+
 
 ---
 
@@ -559,8 +546,7 @@ Storage is memoized per component:
 - `BacktestMarkdownService` - One storage per (strategyName, exchangeName, frameName)
 - `LiveMarkdownService` - One storage per (strategyName, exchangeName)
 - `WalkerMarkdownService` - One storage per walkerName
-
-**Sources**: [src/lib/core/types.ts:50-57](), [src/lib/core/provide.ts:93-100](), [docs/internals.md:37]()
+
 
 ---
 
@@ -605,8 +591,7 @@ The `MethodContextService` manages component selection using `di-scoped`:
 | `frameName` | Active frame identifier (backtest only) |
 
 Used by Connection Services to resolve which component instance to return.
-
-**Sources**: [src/lib/core/types.ts:1-8](), [src/lib/index.ts:49-60](), [docs/internals.md:72-73]()
+
 
 ---
 
@@ -651,8 +636,7 @@ Layer 5 (Schemas)
 ```
 
 Events flow horizontally to Layer 6 (Markdown Services) for reporting.
-
-**Sources**: [src/function/add.ts:50-62](), [docs/internals.md:54-92]()
+
 
 ---
 
@@ -704,5 +688,4 @@ export const backtest = {
   ...validationServices,
 };
 ```
-
-**Sources**: [src/lib/core/provide.ts:1-111](), [src/lib/index.ts:49-162]()
+

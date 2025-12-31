@@ -10,8 +10,7 @@ group: design
 Frame schemas define **backtest timeframe configurations** for historical strategy simulation. A frame specifies the date range (`startDate` to `endDate`) and timestamp interval (`interval`) used to generate a sequence of timestamps for backtest iteration. Each frame is registered via `addFrame()` and referenced by `frameName` when executing backtests.
 
 For information about strategy configurations, see [Strategy Schemas](./25_Strategy_Schemas.md). For walker configurations that use frames, see [Walker Schemas](./30_Walker_Schemas.md). For the actual backtest execution flow, see section 9.
-
-**Sources**: [types.d.ts:212-295](), [src/index.ts:90]()
+
 
 ---
 
@@ -46,8 +45,7 @@ addFrame({
   }
 });
 ```
-
-**Sources**: [types.d.ts:262-275](), [demo/backtest/src/index.mjs:84-89]()
+
 
 ---
 
@@ -79,8 +77,7 @@ type FrameInterval =
 | `1d` | 1 | Position trading, long-term strategies | Minimal |
 
 **Note**: Shorter intervals generate more timestamps, increasing backtest execution time and memory usage. Choose the longest interval that still captures your strategy's signal generation frequency.
-
-**Sources**: [types.d.ts:219](), [types.d.ts:268]()
+
 
 ---
 
@@ -111,8 +108,7 @@ For frame with `interval: "1h"`, `startDate: 2024-01-01T00:00:00Z`, `endDate: 20
   Date("2024-01-01T03:00:00.000Z")
 ]
 ```
-
-**Sources**: [types.d.ts:280-289](), High-level diagram references throughout the system
+
 
 ---
 
@@ -146,8 +142,7 @@ interface IFrame {
 ### Return Value
 
 Returns `Promise<Date[]>` - an array of `Date` objects representing the complete backtest timeframe. Each `Date` corresponds to one tick in the backtest simulation.
-
-**Sources**: [types.d.ts:280-289]()
+
 
 ---
 
@@ -204,8 +199,7 @@ addFrame({
   }
 });
 ```
-
-**Sources**: [types.d.ts:229-242](), [types.d.ts:274]()
+
 
 ---
 
@@ -257,8 +251,7 @@ await Backtest.run("BTCUSDT", {
   frameName: "jan-2024"  // Uses registered frame
 });
 ```
-
-**Sources**: [demo/backtest/src/index.mjs:84-89](), [demo/backtest/src/index.mjs:109-113]()
+
 
 ---
 
@@ -287,8 +280,7 @@ The `FrameConnectionService` provides dependencies when instantiating `ClientFra
 ### ClientFrame Instantiation
 
 ![Mermaid Diagram](./diagrams/27_Frame_Schemas_3.svg)
-
-**Sources**: [types.d.ts:221-227]()
+
 
 ---
 
@@ -332,8 +324,7 @@ await Backtest.run("BTCUSDT", {
   frameName: "jan-2024"  // Must specify frame
 });
 ```
-
-**Sources**: [types.d.ts:294](), [types.d.ts:308]()
+
 
 ---
 
@@ -365,8 +356,7 @@ for (const when of timeframe) {
   );
 }
 ```
-
-**Sources**: High-level system architecture diagrams, [types.d.ts:11-18]()
+
 
 ---
 
@@ -385,5 +375,4 @@ for (const when of timeframe) {
 | `FrameConnectionService` | Service | ClientFrame factory and caching |
 | `FrameCoreService` | Service | Timeframe generation algorithm |
 | `ClientFrame` | Class | IFrame implementation |
-
-**Sources**: [types.d.ts:212-295](), Service layer architecture throughout codebase
+

@@ -24,8 +24,7 @@ This approach enables loose coupling between services, simplifies testing throug
 ### DI Flow Architecture
 
 ![Mermaid Diagram](./diagrams/12_Dependency_Injection_System_0.svg)
-
-**Sources**: [src/lib/core/types.ts:1-105](), [src/lib/core/provide.ts:1-143](), [src/lib/index.ts:1-246]()
+
 
 ---
 
@@ -38,8 +37,7 @@ The `TYPES` object contains Symbol-based identifiers for all services in the sys
 ![Mermaid Diagram](./diagrams/12_Dependency_Injection_System_1.svg)
 
 The TYPES registry is divided into logical categories matching the service layer architecture. Each symbol is created using JavaScript's `Symbol()` constructor with a descriptive string identifier for debugging purposes.
-
-**Sources**: [src/lib/core/types.ts:1-105]()
+
 
 ---
 
@@ -78,8 +76,7 @@ provide(TYPES.optimizerSchemaService, () => new OptimizerSchemaService());
 | Markdown Services | [116-126]() | 9 | Report generation for various aspects |
 | Validation Services | [128-138]() | 9 | Registration-time validation |
 | Template Services | [140-142]() | 1 | Code generation for optimizer |
-
-**Sources**: [src/lib/core/provide.ts:1-143]()
+
 
 ---
 
@@ -117,8 +114,7 @@ In this example:
 2. `backtest.strategyValidationService` - Lazy instantiation of validation service
 3. `backtest.strategySchemaService` - Lazy instantiation of schema service
 4. All subsequent accesses return the same singleton instances
-
-**Sources**: [src/lib/index.ts:61-246](), [src/function/add.ts:52-64]()
+
 
 ---
 
@@ -140,8 +136,7 @@ Services are organized into 12 distinct categories, each serving a specific arch
 | **Logic Public** | `BacktestLogicPublicService`<br/>`LiveLogicPublicService`<br/>`WalkerLogicPublicService` | [src/lib/services/logic/public/]() | Controlled wrappers with additional validation |
 | **Markdown** | `BacktestMarkdownService`<br/>`LiveMarkdownService`<br/>`ScheduleMarkdownService`<br/>`PerformanceMarkdownService`<br/>`WalkerMarkdownService`<br/>`HeatMarkdownService`<br/>`PartialMarkdownService`<br/>`OutlineMarkdownService`<br/>`RiskMarkdownService` | [src/lib/services/markdown/]() | Event-driven report generation with bounded queues |
 | **Template** | `OptimizerTemplateService` | [src/lib/services/template/]() | Code generation for LLM-based strategy optimization |
-
-**Sources**: [src/lib/index.ts:61-237](), [src/lib/core/types.ts:1-105]()
+
 
 ---
 
@@ -160,8 +155,7 @@ The DI system initialization occurs in [src/lib/index.ts:240]() via the `init()`
 3. **Initialization Call** - [src/lib/index.ts:240]() finalizes the container
 4. **Lazy Instantiation** - Services are created only when first accessed by application code
 5. **Singleton Behavior** - Once created, the same instance is returned for all subsequent accesses
-
-**Sources**: [src/lib/index.ts:1-246](), [src/lib/core/provide.ts:1-143]()
+
 
 ---
 
@@ -185,8 +179,7 @@ Connection services demonstrate the most complex dependency patterns, as they cr
 | `ClientSizing` | `SizingConnectionService` | `ExecutionContextService`, `MethodContextService`, `SizingSchemaService` |
 | `ClientFrame` | `FrameConnectionService` | `MethodContextService`, `FrameSchemaService`, `FrameCoreService` |
 | `ClientPartial` | `PartialConnectionService` | `ExecutionContextService`, `MethodContextService`, `PersistPartialAdapter` |
-
-**Sources**: [src/function/add.ts:52-64](), [src/lib/services/connection/]()
+
 
 ---
 
@@ -234,8 +227,7 @@ This pattern ensures:
 - Same `ClientStrategy` instance for `symbol="BTC/USDT", strategyName="my-strategy", backtest=true`
 - Different instance for `symbol="BTC/USDT", strategyName="my-strategy", backtest=false` (live mode)
 - Different instance for `symbol="ETH/USDT", strategyName="my-strategy", backtest=true` (different symbol)
-
-**Sources**: [src/lib/services/connection/]()
+
 
 ---
 
@@ -282,5 +274,4 @@ New services can be added by:
 4. Exporting the service accessor in the appropriate category object
 
 No existing code requires modification when adding new services.
-
-**Sources**: [src/lib/index.ts:1-246](), [src/lib/core/types.ts:1-105](), [src/lib/core/provide.ts:1-143]()
+

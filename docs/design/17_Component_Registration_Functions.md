@@ -10,8 +10,7 @@ group: design
 This page documents the public API functions used to register components in backtest-kit. These functions (`addStrategy`, `addExchange`, `addFrame`, `addRisk`, `addSizing`, `addWalker`, `addOptimizer`) provide the primary interface for configuring trading strategies, data sources, risk management, and optimization workflows.
 
 For detailed schema interface definitions, see [Component Schemas](./24_Component_Schemas.md). For information about the registration pattern and schema storage mechanism, see [Component Registration](./08_Component_Registration.md). For the underlying schema service implementations, see [Schema Services](./43_Schema_Services.md).
-
-**Sources:** [src/function/add.ts:1-445]()
+
 
 ---
 
@@ -22,8 +21,7 @@ All component registration functions follow a uniform three-step pattern: loggin
 ### Common Registration Pattern
 
 ![Mermaid Diagram](./diagrams/17_Component_Registration_Functions_0.svg)
-
-**Sources:** [src/function/add.ts:52-64](), [src/function/add.ts:101-113](), [src/lib/index.ts:1-246]()
+
 
 ---
 
@@ -84,8 +82,7 @@ addStrategy({
 - `getSignal` is an async function
 - Either `riskName` or `riskList` provided (not both)
 - Callback functions have correct signatures
-
-**Sources:** [src/function/add.ts:52-64](), [demo/backtest/src/index.mjs:91-107](), [demo/live/src/index.mjs:87-103]()
+
 
 ---
 
@@ -139,8 +136,7 @@ addExchange({
 - `formatPrice` is an async function
 - `formatQuantity` is an async function
 - Callback functions have correct signatures
-
-**Sources:** [src/function/add.ts:101-113](), [demo/backtest/src/index.mjs:24-35](), [demo/live/src/index.mjs:24-35]()
+
 
 ---
 
@@ -188,8 +184,7 @@ addFrame({
 - `startDate` is before `endDate`
 - Dates are valid Date objects
 - Callback functions have correct signatures
-
-**Sources:** [src/function/add.ts:145-151](), [demo/backtest/src/index.mjs:84-89](), [demo/live/src/index.mjs:80-85]()
+
 
 ---
 
@@ -270,8 +265,7 @@ addRisk({
 - `maxConcurrentPositions` is positive integer (if provided)
 - Validation functions have correct signatures
 - Callback functions have correct signatures
-
-**Sources:** [src/function/add.ts:331-343](), [demo/backtest/src/index.mjs:37-82](), [demo/live/src/index.mjs:37-78]()
+
 
 ---
 
@@ -335,8 +329,7 @@ addSizing({
 - Method-specific required fields present
 - Numeric fields are positive
 - Callback functions have correct signatures
-
-**Sources:** [src/function/add.ts:256-268]()
+
 
 ---
 
@@ -404,8 +397,7 @@ addWalker({
 - All strategy names exist in registry
 - Strategies array is non-empty
 - Callback functions have correct signatures
-
-**Sources:** [src/function/add.ts:190-202]()
+
 
 ---
 
@@ -503,8 +495,7 @@ addOptimizer({
 - `source` array is non-empty
 - `getPrompt` is an async function
 - Callback functions have correct signatures
-
-**Sources:** [src/function/add.ts:432-444]()
+
 
 ---
 
@@ -523,8 +514,7 @@ Components must be registered in a specific order due to inter-component referen
 | Risk | Strategy | Strategy requires risk profile |
 | Sizing | Strategy (if used) | Strategy may reference sizing configuration |
 | Strategy | Walker | Walker references strategies for comparison |
-
-**Sources:** [src/function/add.ts:1-445](), [demo/backtest/src/index.mjs:24-113](), [demo/live/src/index.mjs:24-109]()
+
 
 ---
 
@@ -561,8 +551,7 @@ Component registration performs validation in two phases: **registration-time va
 | Distance | TP distance ≥ `CC_MIN_TAKEPROFIT_DISTANCE_PERCENT`, SL within bounds |
 | Time | `minuteEstimatedTime` within limits, signal not expired |
 | Risk | Custom validation functions pass, concurrent position limit not exceeded |
-
-**Sources:** [src/function/add.ts:1-445](), [src/lib/core/provide.ts:128-138]()
+
 
 ---
 
@@ -617,5 +606,4 @@ class *SchemaService {
 | `SizingSchemaService` | `ISizingSchema` | `TYPES.sizingSchemaService` |
 | `WalkerSchemaService` | `IWalkerSchema` | `TYPES.walkerSchemaService` |
 | `OptimizerSchemaService` | `IOptimizerSchema` | `TYPES.optimizerSchemaService` |
-
-**Sources:** [src/lib/index.ts:98-112](), [src/lib/core/types.ts:20-28](), [src/lib/core/provide.ts:75-83]()
+

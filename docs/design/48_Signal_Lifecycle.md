@@ -16,8 +16,7 @@ For information about risk management checks that occur during signal generation
 Signals in backtest-kit follow a discriminated union pattern (`IStrategyTickResult`) with six possible states. Each state is represented by a specific TypeScript interface with an `action` discriminator field for type-safe handling.
 
 ![Mermaid Diagram](./diagrams/48_Signal_Lifecycle_0.svg)
-
-**Sources:** [src/interfaces/Strategy.interface.ts:171-305](), [src/client/ClientStrategy.ts:45-330](), [src/client/ClientStrategy.ts:554-801]()
+
 
 ---
 
@@ -34,8 +33,7 @@ The framework defines a hierarchy of signal types with increasing levels of comp
 | `IScheduledSignalRow` | Scheduled signal variant | Extends `ISignalRow`, enforces `priceOpen` presence | Represents delayed entry signals |
 
 ![Mermaid Diagram](./diagrams/48_Signal_Lifecycle_1.svg)
-
-**Sources:** [types.d.ts:543-592](), [src/interfaces/Strategy.interface.ts:19-72](), [src/client/ClientStrategy.ts:187-283]()
+
 
 ---
 
@@ -87,8 +85,7 @@ The `GET_SIGNAL_FN` is wrapped with `trycatch` from `functools-kit` ([ClientStra
 1. Logs warning via `loggerService.warn()`
 2. Emits error via `errorEmitter.next(error)`
 3. Returns `null` (defaultValue) instead of crashing
-
-**Sources:** [src/client/ClientStrategy.ts:332-476](), [src/client/ClientStrategy.ts:34-41](), [src/client/ClientStrategy.ts:45-330](), [src/interfaces/Strategy.interface.ts:8-18]()
+
 
 ---
 
@@ -227,8 +224,7 @@ VALIDATE_SIGNAL_FN throws:
    Signal would be immediately closed by take profit.
    The profit opportunity has already passed."
 ```
-
-**Sources:** [src/client/ClientStrategy.ts:45-330](), [src/config/params.ts:1-50](), [test/spec/validation.test.mjs:1-500]()
+
 
 ---
 
@@ -239,8 +235,7 @@ When no active signal exists, `ClientStrategy.tick()` attempts to generate a new
 ![Mermaid Diagram](./diagrams/48_Signal_Lifecycle_3.svg)
 
 **Key Difference:** Immediate signals undergo risk check and call `risk.addSignal()` immediately. Scheduled signals defer risk check until price activation.
-
-**Sources:** [src/client/ClientStrategy.ts:578-621](), [src/client/ClientStrategy.ts:623-673]()
+
 
 ---
 
@@ -314,8 +309,7 @@ With priority check:
   2. Never opens position
   3. Result: No loss, no fees wasted
 ```
-
-**Sources:** [src/client/ClientStrategy.ts:554-679](), [src/client/ClientStrategy.ts:681-774](), [src/client/ClientStrategy.ts:610-644](), [test/e2e/scheduled.test.mjs:17-219](), [test/e2e/timing.test.mjs:521-643]()
+
 
 ### Activation vs Cancellation Priority
 
@@ -334,8 +328,7 @@ if (scheduled.position === "long") {
   }
 }
 ```
-
-**Sources:** [src/client/ClientStrategy.ts:388-422]()
+
 
 ---
 
@@ -346,8 +339,7 @@ Once a signal is opened (stored in `_pendingSignal`), it enters active monitorin
 ![Mermaid Diagram](./diagrams/48_Signal_Lifecycle_5.svg)
 
 **Critical Detail:** Time expiration uses `pendingAt` timestamp, not `scheduledAt`. For scheduled signals, this ensures `minuteEstimatedTime` counts from activation, not from creation.
-
-**Sources:** [src/client/ClientStrategy.ts:675-734](), [src/client/ClientStrategy.ts:736-789]()
+
 
 ---
 
@@ -430,8 +422,7 @@ elapsed = currentTime - pendingAt
 - Premature signal closure causes financial losses (wasted trading fees: ~0.2% per trade)
 - Strategy appears to perform worse than actual backtests
 - Risk management becomes inaccurate (positions close before expected)
-
-**Sources:** [src/client/ClientStrategy.ts:445-461](), [src/client/ClientStrategy.ts:423-442](), [src/client/ClientStrategy.ts:734-738](), [src/client/ClientStrategy.ts:906-918](), [test/e2e/timing.test.mjs:34-201]()
+
 
 ---
 
@@ -491,8 +482,7 @@ async waitForInit() {
 ```
 
 **Note:** Scheduled signals (`_scheduledSignal`) are NOT persisted. Only active positions (`_pendingSignal`) survive crashes.
-
-**Sources:** [src/client/ClientStrategy.ts:1068-1081](), [src/client/ClientStrategy.ts:298-330](), [src/classes/Persist.ts:1-300]()
+
 
 ---
 
@@ -545,8 +535,7 @@ pnlPercentage = ((99.7999 - 99.198001) / 99.7999) * 100 = 0.603%
 ```
 
 **Note:** The `CC_MIN_TAKEPROFIT_DISTANCE_PERCENT` default of 0.3% accounts for the 0.2% total fees (entry + exit), ensuring profitable trades after costs.
-
-**Sources:** [src/helpers/toProfitLossDto.ts:1-50](), [types.d.ts:16-20]()
+
 
 ---
 
@@ -570,8 +559,7 @@ The signal lifecycle behaves differently in backtest and live modes due to timin
 ![Mermaid Diagram](./diagrams/48_Signal_Lifecycle_10.svg)
 
 **Key Optimization:** The backtest method processes all candles in a single pass without yielding control, making it significantly faster than tick-by-tick iteration.
-
-**Sources:** [src/client/ClientStrategy.ts:1008-1177](), [src/client/ClientStrategy.ts:897-973](), [src/client/ClientStrategy.ts:975-1006]()
+
 
 ---
 
@@ -582,8 +570,7 @@ Every state transition emits events through Subject-based emitters, enabling obs
 ![Mermaid Diagram](./diagrams/48_Signal_Lifecycle_11.svg)
 
 **Event Flow:** Each state transition calls the specific lifecycle callback (e.g., `onOpen`), then always calls `onTick` with the full result. The result is then emitted to all registered listeners via the Subject pattern.
-
-**Sources:** [src/config/emitters.ts:1-100](), [src/lib/services/connection/StrategyConnectionService.ts:104-121](), [types.d.ts:595-611]()
+
 
 ---
 
@@ -603,5 +590,4 @@ Every state transition emits events through Subject-based emitters, enabling obs
 | `CLOSE_PENDING_SIGNAL_FN` | [ClientStrategy.ts:736-789]() | Close signal and calculate PnL (live) | `IStrategyTickResultClosed` |
 | `CLOSE_PENDING_SIGNAL_IN_BACKTEST_FN` | [ClientStrategy.ts:975-1006]() | Close signal and calculate PnL (backtest) | `IStrategyTickResultClosed` |
 | `toProfitLossDto` | [toProfitLossDto.ts:1-50]() | Calculate PnL with fees/slippage | `IStrategyPnL` |
-
-**Sources:** [src/client/ClientStrategy.ts:1-1300](), [src/helpers/toProfitLossDto.ts:1-50]()
+

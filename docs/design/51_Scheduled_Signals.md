@@ -20,8 +20,7 @@ Scheduled signals enable strategies to implement **limit order** behavior, where
 - **Conditional activation**: Price must reach `priceOpen` before timeout (`CC_SCHEDULE_AWAIT_MINUTES`, default 120 minutes)
 - **Pre-activation cancellation**: Signal cancels if `priceStopLoss` is hit before `priceOpen` is reached
 - **Dual timestamps**: `scheduledAt` (creation time) and `pendingAt` (activation time) track full lifecycle
-
-**Sources:** [types.d.ts:691-699](), [src/interfaces/Strategy.interface.ts:64-73](), [README.md:30-34]()
+
 
 ---
 
@@ -61,8 +60,7 @@ When `priceOpen` is provided, the system checks if it should activate immediatel
 | `short` | `currentPrice >= priceOpen` | Price already high enough, activate immediately |
 
 If immediate activation conditions are met, the signal transitions directly to "opened" state, skipping the "scheduled" phase.
-
-**Sources:** [src/client/ClientStrategy.ts:388-443](), [src/interfaces/Strategy.interface.ts:24-39]()
+
 
 ---
 
@@ -76,8 +74,7 @@ If immediate activation conditions are met, the signal transitions directly to "
 2. **Scheduled → Cancelled (Timeout)**: Waiting time exceeds `CC_SCHEDULE_AWAIT_MINUTES`
 3. **Scheduled → Cancelled (StopLoss)**: `priceStopLoss` hit before `priceOpen` reached
 4. **Scheduled → Cancelled (Risk)**: Price reaches `priceOpen` but risk validation rejects activation
-
-**Sources:** [src/client/ClientStrategy.ts:554-608](), [src/client/ClientStrategy.ts:610-644](), [src/client/ClientStrategy.ts:646-679](), [src/client/ClientStrategy.ts:681-774]()
+
 
 ---
 
@@ -127,8 +124,7 @@ When activation occurs, `pendingAt` is updated to reflect the actual activation 
 |------|---------------------|-----------|
 | **Backtest** | `candle.timestamp + 60000` | Next candle after activation candle (precise timing) |
 | **Live** | `Date.now()` | Current time when activation detected (approximate timing) |
-
-**Sources:** [src/client/ClientStrategy.ts:610-644](), [src/client/ClientStrategy.ts:681-774](), [test/e2e/defend.test.mjs:26-146]()
+
 
 ---
 
@@ -170,8 +166,7 @@ If price moves against the position and hits `priceStopLoss` **before** reaching
 2. Price drops directly from 45000 to 39000, **skipping priceOpen**
 3. Without cancellation: Signal would activate at 42000, immediately close at 40000 (instant loss)
 4. With cancellation: Signal cancelled at 40000, no position opened (no loss)
-
-**Sources:** [src/client/ClientStrategy.ts:554-608](), [src/client/ClientStrategy.ts:646-679](), [test/e2e/defend.test.mjs:446-537](), [test/e2e/defend.test.mjs:1393-1507]()
+
 
 ---
 
@@ -229,8 +224,7 @@ const activatedSignal: ISignalRow = {
 
 await setPendingSignal(activatedSignal);
 ```
-
-**Sources:** [src/interfaces/Strategy.interface.ts:45-62](), [src/client/ClientStrategy.ts:732-740](), [test/e2e/defend.test.mjs:291-439]()
+
 
 ---
 
@@ -278,8 +272,7 @@ Scheduled signals are stored separately from active signals:
 | Read scheduled | `readScheduleData()` | [src/classes/Persist.ts]() | Load scheduled signal on restart |
 | Delete scheduled | `setScheduledSignal(null)` | [src/client/ClientStrategy.ts:863-881]() | Remove scheduled signal after activation/cancellation |
 | Restore on init | `WAIT_FOR_INIT_FN` | [src/client/ClientStrategy.ts:525-551]() | Load scheduled signal from disk on `waitForInit()` |
-
-**Sources:** [src/client/ClientStrategy.ts:491-552](), [src/client/ClientStrategy.ts:863-881](), [src/classes/Persist.ts](), [types.d.ts:166-179]()
+
 
 ---
 
@@ -339,8 +332,7 @@ if (signal.priceOpen <= signal.priceTakeProfit) {
 | LONG: `priceOpen >= priceTakeProfit` | `Signal would close immediately on activation` | Prevents impossible LONG logic |
 | SHORT: `priceOpen >= priceStopLoss` | `Signal would be immediately cancelled on activation` | Prevents instant cancellation after activation |
 | SHORT: `priceOpen <= priceTakeProfit` | `Signal would close immediately on activation` | Prevents impossible SHORT logic |
-
-**Sources:** [src/client/ClientStrategy.ts:144-160](), [src/client/ClientStrategy.ts:234-251](), [test/e2e/defend.test.mjs:543-642]()
+
 
 ---
 
@@ -365,8 +357,7 @@ Sequence:
 - Signal emits `IStrategyTickResultClosed` with `closeReason="take_profit"` (immediate closure)
 - `scheduledAt` != `pendingAt` (different timestamps maintained)
 - PNL calculated correctly with fees and slippage
-
-**Sources:** [test/e2e/defend.test.mjs:291-439]()
+
 
 ### Edge Case 2: Price Crosses Both TP and SL on Same Candle (After Activation)
 
@@ -387,8 +378,7 @@ Price path (inferred):
 - Rationale: When both TP and SL are hit, TP is assumed to have occurred first during the candle
 - This is a conservative assumption favoring profitable outcomes
 - In backtest mode, this behavior is deterministic
-
-**Sources:** [test/e2e/defend.test.mjs:1520-1653]()
+
 
 ### Edge Case 3: Multiple Scheduled Signals on Same Symbol
 
@@ -407,8 +397,7 @@ Time T2: Signal3 scheduled (priceOpen=40000)
 - Signals must queue: First signal activates → closes → Second signal can activate
 
 **Critical protection:** Prevents leveraging portfolio beyond risk limits.
-
-**Sources:** [test/e2e/defend.test.mjs:1281-1382](), [src/client/ClientStrategy.ts:863-881]()
+
 
 ### Edge Case 4: Impossible Limit Order Cancellation
 
@@ -432,8 +421,7 @@ Pre-activation cancellation is IMPOSSIBLE because priceOpen comes first.
 **Critical distinction:**
 - **Pre-activation cancellation**: Price skips priceOpen entirely, hits SL first → cancelled, no loss
 - **Post-activation closure**: Price reaches priceOpen first, then hits SL → activated then closed, loss recorded
-
-**Sources:** [test/e2e/defend.test.mjs:26-146](), [test/e2e/defend.test.mjs:158-278]()
+
 
 ### Edge Case 5: Timeout Boundary Condition
 
@@ -452,8 +440,7 @@ Condition: elapsedTime >= maxTimeToWait
 - Signal cancelled with `IStrategyTickResultCancelled` emitted
 - Close timestamp equals current time (120 minutes after scheduled)
 - Risk limits released (position count decremented)
-
-**Sources:** [test/e2e/defend.test.mjs:446-537](), [src/client/ClientStrategy.ts:554-608]()
+
 
 ---
 
@@ -493,5 +480,4 @@ Condition: elapsedTime >= maxTimeToWait
 | `CC_SCHEDULE_AWAIT_MINUTES` | `120` | [src/config/params.ts]() | Maximum waiting time for scheduled signal before timeout cancellation |
 | `CC_MIN_TAKEPROFIT_DISTANCE_PERCENT` | Configurable | [src/config/params.ts]() | Minimum distance between priceOpen and priceTakeProfit |
 | `CC_MIN_STOPLOSS_DISTANCE_PERCENT` | Configurable | [src/config/params.ts]() | Minimum distance between priceOpen and priceStopLoss |
-
-**Sources:** [src/client/ClientStrategy.ts](), [src/classes/Persist.ts](), [src/config/params.ts](), [types.d.ts]()
+

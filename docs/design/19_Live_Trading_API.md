@@ -10,8 +10,7 @@ This page documents the `Live` utility class and its methods for executing real-
 ## LiveUtils Class
 
 The `Live` object is a singleton instance of `LiveUtils` that provides five primary methods for live trading operations. Unlike backtesting which iterates through predefined timeframes, live trading runs an infinite loop with real-time timestamps and persists state for crash recovery.
-
-**Sources:** [src/classes/Live.ts:1-246]()
+
 
 ### Method Overview
 
@@ -22,16 +21,14 @@ The `Live` object is a singleton instance of `LiveUtils` that provides five prim
 | `getData(symbol, strategyName)` | `Promise<LiveStatistics>` | Retrieves accumulated statistics from all live events |
 | `getReport(symbol, strategyName)` | `Promise<string>` | Generates markdown report with performance metrics |
 | `dump(strategyName, path?)` | `Promise<void>` | Saves markdown report to disk |
-
-**Sources:** [src/classes/Live.ts:44-228](), [docs/classes/LiveUtils.md:1-72]()
+
 
 ## Live Execution Model
 
 ![Mermaid Diagram](./diagrams/19_Live_Trading_API_0.svg)
 
 Live trading executes an infinite polling loop where each iteration calls `tick()` with the current timestamp. The loop sleeps for `TICK_TTL` (61 seconds by default) between iterations to prevent excessive API calls. Only `opened` and `closed` signals are yielded to the consumer; `idle`, `active`, and `scheduled` states trigger sleep without yielding.
-
-**Sources:** [src/classes/Live.ts:55-84](), [src/lib/services/connection/StrategyConnectionService.ts:119-147]()
+
 
 ## API Reference
 
@@ -60,8 +57,7 @@ Live.run(
 - Clears associated `RiskGlobalService` cache if risk profile exists [src/classes/Live.ts:76-81]()
 - Never completes naturally (infinite generator) - must be interrupted externally
 - Process can crash and restart; state is recovered from persistence layer
-
-**Sources:** [src/classes/Live.ts:55-84](), [docs/classes/LiveUtils.md:26-36]()
+
 
 ### Live.background()
 
@@ -85,8 +81,7 @@ Live.background(
 
 **Error Handling:**
 - Catches errors and emits to `exitEmitter` for fatal error handling [src/classes/Live.ts:136-138]()
-
-**Sources:** [src/classes/Live.ts:107-159](), [docs/classes/LiveUtils.md:37-48]()
+
 
 ### Live.getData()
 
@@ -104,8 +99,7 @@ Live.getData(
 - PNL statistics (total PNL, average PNL, percentage)
 - Trade counts (total trades, winning/losing trades)
 - Risk metrics (max drawdown, volatility)
-
-**Sources:** [src/classes/Live.ts:174-180]()
+
 
 ### Live.getReport()
 
@@ -123,8 +117,7 @@ Live.getReport(
 - Chronological list of all signals with timestamps
 - PNL breakdown per trade
 - Performance analysis
-
-**Sources:** [src/classes/Live.ts:195-201]()
+
 
 ### Live.dump()
 
@@ -140,8 +133,7 @@ Live.dump(
 **Parameters:**
 - `strategyName` - Strategy name (used as filename)
 - `path` - Optional directory path (default: `"./dump/live"`)
-
-**Sources:** [src/classes/Live.ts:218-227]()
+
 
 ## Crash Recovery Architecture
 
@@ -157,8 +149,7 @@ Live trading persists critical state at each lifecycle transition to enable cras
 
 **Atomic Operations:**
 Each persistence adapter implements `IPersistBase` interface with atomic `writeValue()` operations, ensuring consistency during crashes. Default implementation uses file-based storage with JSON serialization.
-
-**Sources:** [src/classes/Live.ts:49](), [src/lib/services/connection/StrategyConnectionService.ts:96](), [src/lib/services/connection/StrategyConnectionService.ts:135]()
+
 
 ## Comparison with Backtest API
 
@@ -175,8 +166,7 @@ Each persistence adapter implements `IPersistBase` interface with atomic `writeV
 | **Service Initialization** | `waitForInit()` loads persisted state | No initialization delay |
 | **Signal Emitters** | `signalLiveEmitter`, `signalEmitter` | `signalBacktestEmitter`, `signalEmitter` |
 | **Completion Event** | `doneLiveSubject` | `doneBacktestSubject` |
-
-**Sources:** [src/classes/Live.ts:1-246](), [src/classes/Backtest.ts:1-232]()
+
 
 ## Service Delegation Chain
 
@@ -191,8 +181,7 @@ The Live API follows a multi-tier service architecture where each layer adds spe
 5. **StrategyGlobalService** - ExecutionContext injection (symbol, when, backtest flag) [src/lib/services/global/StrategyGlobalService.ts:104-126]()
 6. **StrategyConnectionService** - Memoized strategy instance routing by `symbol:strategyName` [src/lib/services/connection/StrategyConnectionService.ts:78-98]()
 7. **ClientStrategy** - Signal state machine with tick() implementation
-
-**Sources:** [src/classes/Live.ts:55-84](), [src/lib/services/global/StrategyGlobalService.ts:104-126](), [src/lib/services/connection/StrategyConnectionService.ts:129-147]()
+
 
 ## Usage Examples
 
@@ -249,8 +238,7 @@ console.log(markdown);
 // Save to disk
 await Live.dump("my-strategy", "./reports");
 ```
-
-**Sources:** [src/classes/Live.ts:26-42](), [src/classes/Live.ts:98-105](), [docs/classes/LiveUtils.md:1-72]()
+
 
 ## Context Propagation
 
@@ -267,5 +255,4 @@ Live trading uses two context services to propagate parameters implicitly throug
 - Accessed by: `ClientStrategy` to get current symbol and timestamp for signal evaluation
 
 This architecture eliminates the need to pass these parameters through every function call in the service chain.
-
-**Sources:** [src/lib/services/global/StrategyGlobalService.ts:114-126](), [src/lib/services/connection/StrategyConnectionService.ts:52-65]()
+

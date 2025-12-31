@@ -22,8 +22,7 @@ The registration system follows a consistent three-step pattern:
 **Diagram: Component Registration Flow**
 
 Each `add*` function performs validation before storage, ensuring schemas are valid at configuration time rather than runtime. Schema services use the `ToolRegistry` pattern to store configurations in memory with type-safe retrieval.
-
-**Sources:**
+
 - [src/function/add.ts:1-444]()
 - [src/lib/services/schema/*]()
 - [src/lib/services/validation/*]()
@@ -45,8 +44,7 @@ backtest-kit provides seven component types, each with a dedicated registration 
 | **Optimizer** | `addOptimizer` | LLM strategy generation | `IOptimizerSchema` |
 
 All registration functions share a consistent naming pattern: `add<ComponentType>`, where the component type matches the schema name.
-
-**Sources:**
+
 - [src/function/add.ts:1-444]()
 - [src/interfaces/*.interface.ts]()
 
@@ -67,8 +65,7 @@ All registration functions inject three dependencies via the DI container:
 1. **LoggerService**: Records registration attempts with full schema content
 2. **ValidationService**: Enforces business rules (e.g., required fields, value ranges)
 3. **SchemaService**: Persists validated schemas in `ToolRegistry`
-
-**Sources:**
+
 - [src/function/add.ts:52-64]() (Strategy example)
 - [src/function/add.ts:101-113]() (Exchange example)
 - [src/lib/index.ts:61-63]() (Logger service injection)
@@ -103,8 +100,7 @@ export function addStrategy(strategySchema: IStrategySchema) {
 3. `strategySchemaService.register()` stores schema in `ToolRegistry` keyed by `strategyName`
 
 If validation fails, an error is thrown and the schema is **not** registered.
-
-**Sources:**
+
 - [src/function/add.ts:52-64]()
 - [src/lib/services/validation/StrategyValidationService.ts]()
 - [src/lib/services/schema/StrategySchemaService.ts]()
@@ -128,8 +124,7 @@ Each schema service extends a base pattern:
 - **Value**: Full schema object (e.g., `IStrategySchema`, `IExchangeSchema`)
 - **Retrieval**: Type-safe `get(name)` method
 - **Validation**: `has(name)` to check existence before retrieval
-
-**Sources:**
+
 - [package.json:75-78]() (di-kit dependency)
 - [src/lib/services/schema/*]()
 - [src/lib/core/types.ts:20-28]() (Schema service symbols)
@@ -151,8 +146,7 @@ All schema services are registered as singletons in the DI container:
 ```
 
 **Singleton behavior:** Each schema service is instantiated once and shared across the entire application. This ensures that all components (validation services, connection services, command services) access the same registry.
-
-**Sources:**
+
 - [src/lib/core/provide.ts:75-83]()
 - [src/lib/core/types.ts:20-28]()
 
@@ -174,8 +168,7 @@ A typical backtest setup registers multiple components with dependencies between
 4. **Frame** must be registered before **Walker** (referenced in execution)
 
 **Note:** Validation services check for missing dependencies during registration. If a strategy references a non-existent `riskName`, `addStrategy()` throws an error.
-
-**Sources:**
+
 - [demo/backtest/src/index.mjs:24-107]()
 - [demo/live/src/index.mjs:24-103]()
 
@@ -240,8 +233,7 @@ Backtest.background("BTCUSDT", {
     frameName: "test_frame",
 });
 ```
-
-**Sources:**
+
 - [demo/backtest/src/index.mjs:24-113]()
 
 ---
@@ -271,8 +263,7 @@ Backtest.background("BTCUSDT", {
 4. **Memoization**: Validation results are cached by component name
    - Prevents redundant validation for the same component
    - Enabled via `memoize()` from `functools-kit`
-
-**Sources:**
+
 - [src/lib/services/validation/*]()
 - [src/function/add.ts:56-59]() (Strategy validation call)
 - [package.json:74-79]() (functools-kit dependency)
@@ -305,8 +296,7 @@ export function addStrategy(strategySchema: IStrategySchema) {
 - Callbacks (if provided) are functions
 
 **If validation fails:** Error is thrown immediately, preventing registration. The schema is **not** stored in the schema service.
-
-**Sources:**
+
 - [src/function/add.ts:56-59]()
 - [src/lib/services/validation/StrategyValidationService.ts]()
 
@@ -343,8 +333,7 @@ This ensures proper isolation:
 - Strategies are isolated by symbol and execution mode
 - Exchanges have separate instances for backtest vs. live (temporal isolation)
 - Risk/Sizing/Frame use simpler keys (no mode dependency)
-
-**Sources:**
+
 - [src/lib/services/connection/StrategyConnectionService.ts]()
 - [src/lib/services/connection/ExchangeConnectionService.ts]()
 - [src/lib/services/command/*]()
@@ -361,8 +350,7 @@ When `Backtest.run("BTCUSDT", { strategyName: "test_strategy", ... })` executes:
    - Caches client under memoization key
 4. Returns cached/created `ClientStrategy` instance
 5. Command service calls `clientStrategy.backtest(timeframes)` to execute strategy
-
-**Sources:**
+
 - [src/lib/services/connection/StrategyConnectionService.ts]()
 - [src/lib/services/command/BacktestCommandService.ts]()
 - [src/client/ClientStrategy.ts]()
@@ -392,8 +380,7 @@ Understanding the separation between **registration phase** and **execution phas
 2. **Reusability**: Same schema can be used in multiple executions (different symbols, modes)
 3. **Testability**: Components can be registered once and tested multiple times
 4. **Isolation**: Registration state is global, execution state is scoped to specific runs
-
-**Sources:**
+
 - [src/function/add.ts:1-444]() (Registration phase)
 - [src/lib/services/command/*]() (Execution phase)
 - [src/lib/services/connection/*]() (Bridge between phases)

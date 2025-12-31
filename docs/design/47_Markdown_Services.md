@@ -16,8 +16,7 @@ For information about the event system that feeds these services, see [3.4](./14
 All Markdown Services follow a consistent architecture with three layers: **Event Subscription**, **Storage Accumulation**, and **Report Generation**. Each service subscribes to specific event emitters during initialization, maintains memoized storage instances per symbol-strategy pair, and provides methods to retrieve statistics or generate markdown reports.
 
 ![Mermaid Diagram](./diagrams/47_Markdown_Services_0.svg)
-
-**Sources:** [src/lib/services/markdown/BacktestMarkdownService.ts:1-571](), [src/lib/services/markdown/LiveMarkdownService.ts:1-778](), [src/lib/services/markdown/ScheduleMarkdownService.ts:1-625](), [src/lib/services/markdown/PartialMarkdownService.ts:1-481](), [src/lib/services/markdown/WalkerMarkdownService.ts:1-675](), [src/lib/services/markdown/HeatMarkdownService.ts:1-599](), [src/lib/services/markdown/PerformanceMarkdownService.ts:1-506]()
+
 
 ## Service Catalog
 
@@ -30,16 +29,14 @@ All Markdown Services follow a consistent architecture with three layers: **Even
 | `WalkerMarkdownService` | `walkerEmitter` | Walker | Strategy comparison | `WalkerStatistics` |
 | `HeatMarkdownService` | `signalEmitter` | Strategy | Portfolio heatmap | `IHeatmapStatistics` |
 | `PerformanceMarkdownService` | `performanceEmitter` | Symbol-Strategy | Performance profiling | `PerformanceStatistics` |
-
-**Sources:** [src/lib/services/markdown/BacktestMarkdownService.ts:369-395](), [src/lib/services/markdown/LiveMarkdownService.ts:566-595](), [src/lib/services/markdown/ScheduleMarkdownService.ts:424-444](), [src/lib/services/markdown/PartialMarkdownService.ts:307-327](), [src/lib/services/markdown/WalkerMarkdownService.ts:503-518](), [src/lib/services/markdown/HeatMarkdownService.ts:460-485](), [src/lib/services/markdown/PerformanceMarkdownService.ts:396-422]()
+
 
 ## Common Architecture Pattern
 
 All Markdown Services implement a consistent internal structure with a memoized `ReportStorage` class that handles data accumulation and report generation. The service layer provides dependency injection integration and event subscription.
 
 ![Mermaid Diagram](./diagrams/47_Markdown_Services_1.svg)
-
-**Sources:** [src/lib/services/markdown/BacktestMarkdownService.ts:196-367](), [src/lib/services/markdown/LiveMarkdownService.ts:260-564]()
+
 
 ### Memoized Storage Pattern
 
@@ -54,8 +51,7 @@ private getStorage = memoize<(symbol: string, strategyName: string) => ReportSto
 ```
 
 This ensures that each unique symbol-strategy pair maintains isolated state, preventing cross-contamination of statistics.
-
-**Sources:** [src/lib/services/markdown/BacktestMarkdownService.ts:404-407](), [src/lib/services/markdown/LiveMarkdownService.ts:604-607](), [src/lib/services/markdown/ScheduleMarkdownService.ts:453-456]()
+
 
 ### Singleshot Initialization
 
@@ -67,8 +63,7 @@ protected init = singleshot(async () => {
   signalBacktestEmitter.subscribe(this.tick);
 });
 ```
-
-**Sources:** [src/lib/services/markdown/BacktestMarkdownService.ts:564-567](), [src/lib/services/markdown/LiveMarkdownService.ts:771-774]()
+
 
 ## BacktestMarkdownService
 
@@ -99,14 +94,12 @@ interface BacktestStatistics {
   expectedYearlyReturns: number | null;  // avgPnl × tradesPerYear
 }
 ```
-
-**Sources:** [src/lib/services/markdown/BacktestMarkdownService.ts:70-106](), [docs/interfaces/BacktestStatistics.md:1-110]()
+
 
 ### Data Flow
 
 ![Mermaid Diagram](./diagrams/47_Markdown_Services_2.svg)
-
-**Sources:** [src/lib/services/markdown/BacktestMarkdownService.ts:428-439](), [src/lib/services/markdown/BacktestMarkdownService.ts:227-295]()
+
 
 ## LiveMarkdownService
 
@@ -126,8 +119,7 @@ Tracks all tick events from live trading including idle, opened, active, and clo
 The service implements smart idle event deduplication to prevent idle event spam while preserving important state transitions:
 
 ![Mermaid Diagram](./diagrams/47_Markdown_Services_3.svg)
-
-**Sources:** [src/lib/services/markdown/LiveMarkdownService.ts:274-301]()
+
 
 ### Active Event Replacement
 
@@ -145,8 +137,7 @@ if (lastActiveIndex !== -1) {
   return;
 }
 ```
-
-**Sources:** [src/lib/services/markdown/LiveMarkdownService.ts:350-359]()
+
 
 ## ScheduleMarkdownService
 
@@ -174,14 +165,12 @@ interface ScheduleStatistics {
   avgActivationTime: number | null;     // minutes for opened signals
 }
 ```
-
-**Sources:** [src/lib/services/markdown/ScheduleMarkdownService.ts:72-99]()
+
 
 ### Event Processing Logic
 
 ![Mermaid Diagram](./diagrams/47_Markdown_Services_4.svg)
-
-**Sources:** [src/lib/services/markdown/ScheduleMarkdownService.ts:472-490]()
+
 
 ## PartialMarkdownService
 
@@ -204,14 +193,12 @@ interface PartialStatistics {
   totalLoss: number;      // count of loss milestone events
 }
 ```
-
-**Sources:** [src/lib/services/markdown/PartialMarkdownService.ts:39-65]()
+
 
 ### Event Flow
 
 ![Mermaid Diagram](./diagrams/47_Markdown_Services_5.svg)
-
-**Sources:** [src/lib/services/markdown/PartialMarkdownService.ts:341-380]()
+
 
 ## WalkerMarkdownService
 
@@ -238,16 +225,14 @@ interface IStrategyResult {
   metricValue: number | null;  // Value of optimization metric
 }
 ```
-
-**Sources:** [src/lib/services/markdown/WalkerMarkdownService.ts:17-69]()
+
 
 ### Comparison Table Generation
 
 The service dynamically creates column configuration based on the optimization metric:
 
 ![Mermaid Diagram](./diagrams/47_Markdown_Services_6.svg)
-
-**Sources:** [src/lib/services/markdown/WalkerMarkdownService.ts:131-203](), [src/lib/services/markdown/WalkerMarkdownService.ts:342-372](), [src/lib/services/markdown/WalkerMarkdownService.ts:380-419]()
+
 
 ## HeatMarkdownService
 
@@ -289,14 +274,12 @@ interface IHeatmapRow {
   // ... additional fields
 }
 ```
-
-**Sources:** [src/lib/services/markdown/HeatMarkdownService.ts:13-16]()
+
 
 ### Portfolio Metrics Calculation
 
 ![Mermaid Diagram](./diagrams/47_Markdown_Services_7.svg)
-
-**Sources:** [src/lib/services/markdown/HeatMarkdownService.ts:180-336](), [src/lib/services/markdown/HeatMarkdownService.ts:343-395]()
+
 
 ## PerformanceMarkdownService
 
@@ -338,8 +321,7 @@ interface MetricStats {
   maxWaitTime: number;
 }
 ```
-
-**Sources:** [src/lib/services/markdown/PerformanceMarkdownService.ts:14-75]()
+
 
 ### Percentile Calculation
 
@@ -357,8 +339,7 @@ median: percentile(durations, 50),
 p95: percentile(durations, 95),
 p99: percentile(durations, 99),
 ```
-
-**Sources:** [src/lib/services/markdown/PerformanceMarkdownService.ts:96-100]()
+
 
 ## Column Configuration Pattern
 
@@ -403,8 +384,7 @@ const columns: Column[] = [
   // ... more columns
 ];
 ```
-
-**Sources:** [src/lib/services/markdown/BacktestMarkdownService.ts:108-194]()
+
 
 ### Table Generation Process
 
@@ -418,8 +398,7 @@ The generated markdown follows this format:
 | abc123 | BTCUSDT | LONG | +2.45% | take_profit | 45 |
 | def456 | ETHUSDT | SHORT | -1.20% | stop_loss | 30 |
 ```
-
-**Sources:** [src/lib/services/markdown/BacktestMarkdownService.ts:314-322]()
+
 
 ## Safe Math and Null Handling
 
@@ -445,8 +424,7 @@ if (isUnsafe(sharpeRatio)) sharpeRatio = null;
 ```
 
 This prevents division by zero, empty array reductions, and other edge cases from producing invalid statistics.
-
-**Sources:** [src/lib/services/markdown/BacktestMarkdownService.ts:32-48](), [src/lib/services/markdown/LiveMarkdownService.ts:24-35](), [src/lib/services/markdown/HeatMarkdownService.ts:39-55]()
+
 
 ## Public API Methods
 
@@ -477,8 +455,7 @@ await Backtest.dump("BTCUSDT", "my-strategy", "./custom/path");
 // Clear data
 await Backtest.clear({ symbol: "BTCUSDT", strategyName: "my-strategy" });
 ```
-
-**Sources:** [src/lib/services/markdown/BacktestMarkdownService.ts:456-463](), [src/lib/services/markdown/BacktestMarkdownService.ts:480-487](), [src/lib/services/markdown/BacktestMarkdownService.ts:509-521](), [src/lib/services/markdown/BacktestMarkdownService.ts:541-551]()
+
 
 ## File Output Structure
 
@@ -513,13 +490,11 @@ Naming conventions:
 - Backtest/Live/Schedule/Heatmap: `{strategyName}.md`
 - Partial/Performance: `{symbol}_{strategyName}.md`
 - Walker: `{walkerName}.md`
-
-**Sources:** [src/lib/services/markdown/BacktestMarkdownService.ts:348-366](), [src/lib/services/markdown/LiveMarkdownService.ts:545-563](), [src/lib/services/markdown/PartialMarkdownService.ts:289-304]()
+
 
 ## Integration with Event System
 
 Markdown Services are automatically initialized and subscribed to their respective emitters. The initialization occurs lazily via `singleshot` wrapper, ensuring subscriptions happen only once regardless of how many times the service is accessed.
 
 ![Mermaid Diagram](./diagrams/47_Markdown_Services_9.svg)
-
-**Sources:** [src/lib/services/markdown/BacktestMarkdownService.ts:564-567](), [src/lib/services/markdown/LiveMarkdownService.ts:771-774](), [src/lib/services/markdown/ScheduleMarkdownService.ts:618-621]()
+

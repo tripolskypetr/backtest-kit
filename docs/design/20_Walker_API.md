@@ -16,8 +16,7 @@ The Walker API provides methods for running comparative strategy backtests acros
 The Walker API follows the same architectural pattern as Backtest and Live APIs, consisting of an instance class for isolated execution and a utility class providing convenient singleton access.
 
 ![Mermaid Diagram](./diagrams/20_Walker_API_0.svg)
-
-**Sources**: [src/classes/Walker.ts:1-677]()
+
 
 ---
 
@@ -34,8 +33,7 @@ The `WalkerInstance` class provides isolated walker execution for a specific sym
 | `walkerName` | `WalkerName` | Walker configuration name |
 | `_isStopped` | `boolean` | Internal flag indicating manual stop |
 | `_isDone` | `boolean` | Internal flag indicating task completion |
-
-**Sources**: [src/classes/Walker.ts:71-90]()
+
 
 ### WalkerUtils
 
@@ -50,8 +48,7 @@ The `WalkerUtils` class provides simplified access to walker functionality with 
 | `getReport()` | `Promise<string>` | Generates markdown report |
 | `dump()` | `Promise<void>` | Saves report to disk |
 | `list()` | `Promise<Array<Status>>` | Lists all active walker instances |
-
-**Sources**: [src/classes/Walker.ts:460-838]()
+
 
 ---
 
@@ -100,8 +97,7 @@ for await (const progress of Walker.run("BTCUSDT", {
   );
 }
 ```
-
-**Sources**: [src/classes/Walker.ts:480-525](), [src/classes/Walker.ts:156-219]()
+
 
 ---
 
@@ -145,8 +141,7 @@ const cancel = Walker.background("BTCUSDT", {
 // Later, to stop:
 cancel();
 ```
-
-**Sources**: [src/classes/Walker.ts:546-591](), [src/classes/Walker.ts:239-275]()
+
 
 ---
 
@@ -183,8 +178,7 @@ await Walker.stop("BTCUSDT", "momentum-comparison");
 // Active signals will reach TP/SL/timeout normally
 // No new signals will be generated
 ```
-
-**Sources**: [src/classes/Walker.ts:616-650](), [src/classes/Walker.ts:300-315]()
+
 
 ---
 
@@ -240,8 +234,7 @@ results.strategies.forEach(s => {
   console.log(`${s.strategyName}: ${s.sharpeRatio.toFixed(2)}`);
 });
 ```
-
-**Sources**: [src/classes/Walker.ts:665-696](), [src/classes/Walker.ts:331-348]()
+
 
 ---
 
@@ -285,8 +278,7 @@ console.log(markdown);
 // 2. rsi-reversal: 1.87
 // ...
 ```
-
-**Sources**: [src/classes/Walker.ts:713-754](), [src/classes/Walker.ts:366-390]()
+
 
 ---
 
@@ -318,8 +310,7 @@ await Walker.dump("BTCUSDT", "momentum-comparison");
 // Save to custom path: ./reports/walker/momentum-comparison.md
 await Walker.dump("BTCUSDT", "momentum-comparison", "./reports/walker");
 ```
-
-**Sources**: [src/classes/Walker.ts:774-817](), [src/classes/Walker.ts:411-438]()
+
 
 ---
 
@@ -359,8 +350,7 @@ statusList.forEach(status => {
 // BTCUSDT - momentum-comparison: pending
 // ETHUSDT - trend-following: fulfilled
 ```
-
-**Sources**: [src/classes/Walker.ts:832-837](), [src/classes/Walker.ts:139-147]()
+
 
 ---
 
@@ -371,8 +361,7 @@ The walker orchestrates multiple strategy backtests sequentially, aggregating re
 ![Mermaid Diagram](./diagrams/20_Walker_API_2.svg)
 
 **Sequential Processing**: Strategies are tested one at a time to ensure deterministic results and consistent resource usage. Each backtest completes fully before the next begins.
-
-**Sources**: [src/classes/Walker.ts:156-219](), [src/classes/Walker.ts:39-65]()
+
 
 ---
 
@@ -389,8 +378,7 @@ Walker instances are memoized by `symbol:walkerName` key to ensure isolation and
 - Multiple walkers can run on same symbol without interference
 - Prevents duplicate execution via `singlerun` wrapper
 - Efficient resource usage through instance reuse
-
-**Sources**: [src/classes/Walker.ts:465-471](), [src/classes/Walker.ts:100-100]()
+
 
 ---
 
@@ -399,8 +387,7 @@ Walker instances are memoized by `symbol:walkerName` key to ensure isolation and
 The `task` method wraps walker execution with `singlerun` to prevent concurrent execution of the same walker instance.
 
 ![Mermaid Diagram](./diagrams/20_Walker_API_4.svg)
-
-**Sources**: [src/classes/Walker.ts:112-125]()
+
 
 ---
 
@@ -427,8 +414,7 @@ Before execution, walker validates all component registrations to ensure configu
 
 Walker.run("BTCUSDT", { walkerName: "momentum-comparison" });
 ```
-
-**Sources**: [src/classes/Walker.ts:486-521](), [src/classes/Walker.ts:167-188]()
+
 
 ---
 
@@ -455,8 +441,7 @@ class WalkerInstance {
 - Setting `_isStopped` interrupts the walker loop
 - Current strategy backtest completes before stopping
 - Stop signals propagate to all strategies via `walkerStopSubject`
-
-**Sources**: [src/classes/Walker.ts:84-100](), [src/classes/Walker.ts:39-65]()
+
 
 ---
 
@@ -480,8 +465,7 @@ interface WalkerContract {
 ### Event Flow
 
 ![Mermaid Diagram](./diagrams/20_Walker_API_5.svg)
-
-**Sources**: [src/classes/Walker.ts:156-219](), [docs/interfaces/WalkerStopContract.md:1-41]()
+
 
 ---
 
@@ -507,8 +491,7 @@ addWalker({
   metric: "sharpeRatio"  // <-- Ranking metric
 });
 ```
-
-**Sources**: [src/classes/Walker.ts:337-347](), [src/classes/Walker.ts:377-389]()
+
 
 ---
 
@@ -636,8 +619,7 @@ listenWalker((progress) => {
   }
 });
 ```
-
-**Sources**: [src/classes/Walker.ts:460-838](), [docs/classes/WalkerUtils.md:1-99]()
+
 
 ---
 
@@ -680,8 +662,7 @@ try {
   console.error("Configuration error:", error.message);
 }
 ```
-
-**Sources**: [src/classes/Walker.ts:252-254](), [src/classes/Walker.ts:239-275]()
+
 
 ---
 
@@ -696,5 +677,4 @@ Walker internally uses the Backtest API for each strategy execution. Understandi
 - **Walker**: Multiple strategies, yields progress updates
 - **Backtest**: Returns `IStrategyBacktestResult[]`
 - **Walker**: Returns `WalkerContract` with aggregated metrics
-
-**Sources**: [src/classes/Walker.ts:1-677](), [src/classes/Backtest.ts:1-587]()
+

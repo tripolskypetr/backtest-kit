@@ -18,8 +18,7 @@ For signal lifecycle state management, see [ClientStrategy](./33_ClientStrategy.
 ClientPartial operates within a multi-layered service architecture that separates concerns between core logic, instance management, and global coordination.
 
 ![Mermaid Diagram](./diagrams/38_ClientPartial_0.svg)
-
-**Sources**: [src/client/ClientPartial.ts:1-538](), [src/lib/services/connection/PartialConnectionService.ts:1-267](), [src/lib/services/global/PartialGlobalService.ts:1-205](), [src/classes/Persist.ts:662-740]()
+
 
 ---
 
@@ -45,8 +44,7 @@ ClientPartial is the core implementation that tracks profit/loss milestones for 
 - `loss(symbol, data, currentPrice, lossPercent, backtest, when)`: Checks for newly reached loss levels, emits events, persists state
 - `clear(symbol, data, priceClose, backtest)`: Removes signal state and persists changes
 - `_persistState(symbol, strategyName)`: Converts in-memory Maps/Sets to JSON and writes atomically
-
-**Sources**: [src/client/ClientPartial.ts:292-538](), [src/interfaces/Partial.interface.ts:60-128]()
+
 
 ### State Structures
 
@@ -70,8 +68,7 @@ interface IPartialData {
 // Milestone levels (10%, 20%, ..., 100%)
 type PartialLevel = 10 | 20 | 30 | 40 | 50 | 60 | 70 | 80 | 90 | 100;
 ```
-
-**Sources**: [src/interfaces/Partial.interface.ts:16-58]()
+
 
 ---
 
@@ -84,8 +81,7 @@ The profit detection algorithm iterates through predefined profit levels and che
 ![Mermaid Diagram](./diagrams/38_ClientPartial_2.svg)
 
 **Implementation**: The `HANDLE_PROFIT_FN` function at [src/client/ClientPartial.ts:44-105]() implements this logic. It uses a `for` loop over `PROFIT_LEVELS` constant defined at [src/client/ClientPartial.ts:22]().
-
-**Sources**: [src/client/ClientPartial.ts:22-105](), [src/client/ClientPartial.ts:399-424]()
+
 
 ### Loss Level Tracking
 
@@ -104,8 +100,7 @@ for (const level of LOSS_LEVELS) {
   }
 }
 ```
-
-**Sources**: [src/client/ClientPartial.ts:122-184](), [src/client/ClientPartial.ts:457-482]()
+
 
 ---
 
@@ -136,8 +131,7 @@ private getPartial = memoize<(signalId: string, backtest: boolean) => ClientPart
 ```
 
 **Cleanup on Signal Close**: When `clear()` is called, the memoized entry is removed at [src/lib/services/connection/PartialConnectionService.ts:262](). This prevents memory leaks for long-running live trading sessions.
-
-**Sources**: [src/lib/services/connection/PartialConnectionService.ts:117-264]()
+
 
 ---
 
@@ -179,8 +173,7 @@ PersistPartialAdapter extends the base persistence system with partial-specific 
 ```
 
 Each file is a `Record<signalId, IPartialData>` where multiple signals for the same symbol/strategy are stored together.
-
-**Sources**: [src/classes/Persist.ts:662-755]()
+
 
 ### Initialization Flow
 
@@ -191,8 +184,7 @@ Each file is a `Record<signalId, IPartialData>` where multiple signals for the s
 2. Backtest mode skips all persistence operations (lines 215-218 of ClientPartial.ts)
 3. Live mode reads existing state from disk and converts `IPartialData` arrays to `IPartialState` Sets
 4. State restoration happens at lines 222-228 of ClientPartial.ts
-
-**Sources**: [src/client/ClientPartial.ts:199-235](), [src/client/ClientPartial.ts:330-332]()
+
 
 ---
 
@@ -214,8 +206,7 @@ The `partial` parameter is injected into ClientStrategy through `IStrategyParams
 5. PartialGlobalService validates and delegates to PartialConnectionService
 6. PartialConnectionService retrieves/creates ClientPartial for signal ID
 7. ClientPartial checks levels, emits event for 10%, persists state
-
-**Sources**: [src/client/ClientPartial.ts:399-424](), [src/client/ClientPartial.ts:457-482]()
+
 
 ---
 
@@ -226,8 +217,7 @@ The `partial` parameter is injected into ClientStrategy through `IStrategyParams
 ClientPartial emits events through callback functions passed via `IPartialParams`. These callbacks are configured by PartialConnectionService to emit to RxJS Subjects.
 
 ![Mermaid Diagram](./diagrams/38_ClientPartial_6.svg)
-
-**Sources**: [src/lib/services/connection/PartialConnectionService.ts:28-83](), [src/config/emitters.ts:115-124]()
+
 
 ### Event Contracts
 
@@ -247,8 +237,7 @@ ClientPartial emits events through callback functions passed via `IPartialParams
 **PartialLossContract** ([src/contract/PartialLoss.contract.ts:40-113]()):
 
 Same structure as PartialProfitContract. The `level` field stores absolute value (e.g., `20` for -20% loss).
-
-**Sources**: [src/contract/PartialProfit.contract.ts:1-101](), [src/contract/PartialLoss.contract.ts:1-116]()
+
 
 ---
 
@@ -331,8 +320,7 @@ class RedisPersistPartial extends PersistBase {
 // Register custom adapter
 PersistPartialAdapter.usePersistPartialAdapter(RedisPersistPartial);
 ```
-
-**Sources**: [src/function/event.ts:38-41](), [src/function/event.ts:673-726](), [src/classes/Persist.ts:694-710]()
+
 
 ---
 
@@ -359,8 +347,7 @@ PersistPartialAdapter.usePersistPartialAdapter(RedisPersistPartial);
 1. **Single Callback per Level**: Each level emits exactly one event due to Set-based tracking
 
 2. **Queued Processing**: Event listeners use `queued()` wrapper to process events sequentially, preventing backpressure ([src/function/event.ts:14]())
-
-**Sources**: [src/lib/services/connection/PartialConnectionService.ts:246-263](), [src/client/ClientPartial.ts:74-104](), [src/client/ClientPartial.ts:153-183]()
+
 
 ---
 
@@ -379,8 +366,7 @@ if (self._states === NEED_FETCH) {
 ```
 
 This prevents accessing uninitialized state and ensures crash recovery data is loaded in live mode.
-
-**Sources**: [src/client/ClientPartial.ts:53-57](), [src/client/ClientPartial.ts:131-135]()
+
 
 ### Signal ID Validation
 
@@ -395,8 +381,7 @@ if (data.id !== self.params.signalId) {
 ```
 
 This catches programming errors where the wrong signal is passed to an instance.
-
-**Sources**: [src/client/ClientPartial.ts:59-63](), [src/client/ClientPartial.ts:527-531]()
+
 
 ### Persistence Failure Handling
 
@@ -404,8 +389,7 @@ If persistence fails during `_persistState()`, the error propagates to the calle
 
 1. Either the full state is written successfully
 2. Or the previous state remains intact (no partial corruption)
-
-**Sources**: [src/client/ClientPartial.ts:349-367](), [src/classes/Persist.ts:296-314]()
+
 
 ---
 
@@ -469,5 +453,4 @@ const restored: IPartialState = {
   lossLevels: new Set(data.lossLevels),
 };
 ```
-
-**Sources**: [src/client/ClientPartial.ts:359-367](), [src/client/ClientPartial.ts:222-228]()
+

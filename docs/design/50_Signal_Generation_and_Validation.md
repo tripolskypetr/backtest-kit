@@ -18,8 +18,7 @@ Signal generation is the entry point for all trading decisions. The `getSignal` 
 ### Signal Generation Flow Diagram
 
 ![Mermaid Diagram](./diagrams/50_Signal_Generation_and_Validation_0.svg)
-
-**Sources**: [src/client/ClientStrategy.ts:332-476]()
+
 
 ---
 
@@ -38,8 +37,7 @@ The `getSignal` function returns an `ISignalDto` object containing the signal pa
 | `priceTakeProfit` | `number` | Yes | Target exit price for profit |
 | `priceStopLoss` | `number` | Yes | Exit price for loss protection |
 | `minuteEstimatedTime` | `number` | Yes | Expected duration in minutes before time expiration |
-
-**Sources**: [src/interfaces/Strategy.interface.ts:20-39](), [types.d.ts:649-667]()
+
 
 ### Augmented Signal Row (ISignalRow)
 
@@ -55,8 +53,7 @@ After validation, `ISignalDto` is augmented with system metadata to create `ISig
 | `scheduledAt` | `number` | Signal creation timestamp (milliseconds) |
 | `pendingAt` | `number` | Position activation timestamp (milliseconds) |
 | `_isScheduled` | `boolean` | Internal marker for scheduled signals |
-
-**Sources**: [src/interfaces/Strategy.interface.ts:41-62](), [src/client/ClientStrategy.ts:400-456]()
+
 
 ---
 
@@ -67,8 +64,7 @@ The validation function `VALIDATE_SIGNAL_FN` performs comprehensive safety check
 ### Validation Layers
 
 ![Mermaid Diagram](./diagrams/50_Signal_Generation_and_Validation_1.svg)
-
-**Sources**: [src/client/ClientStrategy.ts:45-330]()
+
 
 ---
 
@@ -96,8 +92,7 @@ if (signal.position !== "long" && signal.position !== "short") {
 - `symbol`: Must be defined and non-empty string
 - `_isScheduled`: Must be boolean
 - `position`: Must be exactly `"long"` or `"short"` (no other values allowed)
-
-**Sources**: [src/client/ClientStrategy.ts:48-70]()
+
 
 ---
 
@@ -122,8 +117,7 @@ Price validation protects against `NaN` and `Infinity` values that could cause f
 - **Zero StopLoss**: Would allow unlimited losses in flash crashes
 - **NaN prices**: Would cause position to never close (TP/SL comparisons always false)
 - **Infinity prices**: Would cause position to never trigger TP or SL
-
-**Sources**: [src/client/ClientStrategy.ts:71-109]()
+
 
 ---
 
@@ -154,8 +148,7 @@ Long immediate: currentPrice (41000) <= priceStopLoss (41500).
 Long scheduled: priceOpen (40000) <= priceStopLoss (40500). 
   Signal would be immediately cancelled on activation.
 ```
-
-**Sources**: [src/client/ClientStrategy.ts:111-200]()
+
 
 ### SHORT Position Rules
 
@@ -180,8 +173,7 @@ Short immediate: currentPrice (45000) >= priceStopLoss (44500).
 Short scheduled: priceOpen (46000) >= priceStopLoss (45500). 
   Signal would be immediately cancelled on activation.
 ```
-
-**Sources**: [src/client/ClientStrategy.ts:202-291]()
+
 
 ---
 
@@ -212,8 +204,7 @@ const tpDistancePercent = ((priceOpen - priceTakeProfit) / priceOpen) * 100;
 ```
 
 **Protection**: With fees (0.1%) + slippage (0.1%) = 0.2% total overhead, a minimum TP distance (e.g., 0.5%) ensures trades can be profitable after costs.
-
-**Sources**: [src/client/ClientStrategy.ts:163-173](), [src/client/ClientStrategy.ts:254-263]()
+
 
 ### Minimum StopLoss Distance
 
@@ -229,8 +220,7 @@ Long: StopLoss too close to priceOpen (0.120%).
   Minimum distance: 0.300% to avoid instant stop out on market volatility. 
   Current: SL=41950, Open=42000
 ```
-
-**Sources**: [src/client/ClientStrategy.ts:176-186](), [src/client/ClientStrategy.ts:266-276]()
+
 
 ### Maximum StopLoss Distance
 
@@ -248,8 +238,7 @@ Long: StopLoss too far from priceOpen (8.500%).
   Maximum distance: 5.000% to protect capital. 
   Current: SL=38430, Open=42000
 ```
-
-**Sources**: [src/client/ClientStrategy.ts:189-199](), [src/client/ClientStrategy.ts:279-290]()
+
 
 ---
 
@@ -283,8 +272,7 @@ minuteEstimatedTime too large (43200 minutes = 30.0 days).
   Maximum: 10080 minutes (7 days) to prevent strategy deadlock. 
   Eternal signals block risk limits and prevent new trades.
 ```
-
-**Sources**: [src/client/ClientStrategy.ts:294-323]()
+
 
 ---
 
@@ -308,8 +296,7 @@ The signal generation logic determines whether to create an immediate entry (`_i
 5. Both `scheduledAt` and `pendingAt` are set to same timestamp
 
 **Use Case**: Market orders that execute at current market price without waiting.
-
-**Sources**: [src/client/ClientStrategy.ts:445-461]()
+
 
 ### Scheduled Entry (Limit Order) - Wait for Activation
 
@@ -327,8 +314,7 @@ The signal generation logic determines whether to create an immediate entry (`_i
 5. Signal waits in scheduled state until price reaches `priceOpen`
 
 **Use Case**: Limit orders that wait for better entry price before activating.
-
-**Sources**: [src/client/ClientStrategy.ts:423-442]()
+
 
 ### Scheduled Entry (Limit Order) - Immediate Activation
 
@@ -346,8 +332,7 @@ The signal generation logic determines whether to create an immediate entry (`_i
 5. Position opens immediately without waiting
 
 **Critical Logic**: This prevents the system from creating a scheduled signal when the target price has already been reached. Instead, it treats it as an immediate entry at the specified `priceOpen`.
-
-**Sources**: [src/client/ClientStrategy.ts:389-420]()
+
 
 ---
 
@@ -376,8 +361,7 @@ After the internal validation checks pass, the signal must also pass risk manage
 - Signal generation aborts and returns `null`
 - No signal is created or persisted
 - Risk callbacks (`onRejected`) are fired for monitoring
-
-**Sources**: [src/client/ClientStrategy.ts:374-387](), [src/interfaces/Risk.interface.ts:339-397]()
+
 
 ---
 
@@ -406,8 +390,7 @@ Validation errors are caught by `trycatch()` wrapper around `GET_SIGNAL_FN`, pre
   }
 }
 ```
-
-**Sources**: [src/client/ClientStrategy.ts:332-476](), [src/client/ClientStrategy.ts:463-475]()
+
 
 ---
 
@@ -435,8 +418,7 @@ The validation pipeline is extensively tested to ensure all edge cases are handl
 | **Infrastructure** | Exchange.getCandles throws error | [test/e2e/defend.test.mjs:1664-1743]() |
 
 **Test Philosophy**: Each test validates that the system **rejects** invalid signals before they can cause financial harm. Tests verify error messages contain actionable information.
-
-**Sources**: [test/e2e/defend.test.mjs:1-1860]()
+
 
 ---
 
@@ -469,8 +451,7 @@ The validation pipeline is extensively tested to ensure all edge cases are handl
 | `CC_MAX_STOPLOSS_DISTANCE_PERCENT` | `number \| undefined` | Maximum SL distance percentage |
 | `CC_MAX_SIGNAL_LIFETIME_MINUTES` | `number \| undefined` | Maximum signal duration |
 | `CC_SCHEDULE_AWAIT_MINUTES` | `number` | Scheduled signal timeout (default: 120) |
-
-**Sources**: [src/config/params.ts](), [types.d.ts:179-184]()
+
 
 ---
 
@@ -577,5 +558,4 @@ return {
 };
 // This will be REJECTED if CC_MAX_SIGNAL_LIFETIME_MINUTES is set
 ```
-
-**Sources**: [README.md:86-143](), [test/e2e/defend.test.mjs]()
+

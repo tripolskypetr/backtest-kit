@@ -40,8 +40,7 @@ interface IFrameSchema {
 | `endDate` | `Date` | Last timestamp (inclusive) | `new Date("2024-01-31T23:59:59Z")` |
 
 The generated timeframe array will contain timestamps starting at `startDate` and incrementing by `interval` until reaching or exceeding `endDate`.
-
-**Sources:** [types.d.ts:262-275](), [src/index.ts:90]()
+
 
 ---
 
@@ -70,8 +69,7 @@ The `FrameInterval` type defines supported tick granularities for timeframe gene
 | `3d` | 259,200,000 | 4320 | Multi-day position strategies |
 
 **Important:** The `SignalInterval` type (used for strategy throttling) supports only `"1m" | "3m" | "5m" | "15m" | "30m" | "1h"`, while `FrameInterval` includes additional hour and day intervals. This allows backtests to run at coarser granularity than signal generation.
-
-**Sources:** [types.d.ts:219](), [types.d.ts:647]()
+
 
 ---
 
@@ -80,8 +78,7 @@ The `FrameInterval` type defines supported tick granularities for timeframe gene
 The frame system follows a layered architecture where schemas are registered, validated, and then used to instantiate `ClientFrame` instances that generate timestamp arrays.
 
 ![Mermaid Diagram](./diagrams/56_Timeframe_Generation_1.svg)
-
-**Sources:** [src/lib/services/logic/private/BacktestLogicPrivateService.ts:69-72]()
+
 
 ---
 
@@ -99,8 +96,7 @@ The `FrameCoreService` acts as the entry point for timeframe retrieval during ba
 2. **Schema Retrieval:** The `IFrameSchema` is fetched from `FrameSchemaService` on each call, but the `ClientFrame` instance is reused
 3. **Timestamp Array:** `ClientFrame.getTimeframe()` returns a complete `Date[]` array representing the entire backtest period
 4. **Memory Efficiency:** While the full array is returned, the backtest loop consumes it sequentially, allowing early termination
-
-**Sources:** [src/lib/services/logic/private/BacktestLogicPrivateService.ts:69-72](), [types.d.ts:280-289]()
+
 
 ---
 
@@ -141,8 +137,7 @@ The `ClientFrame` class implements the timestamp generation logic based on the c
 ]
 // Total: 4 timestamps
 ```
-
-**Sources:** [types.d.ts:280-289](), [types.d.ts:262-275]()
+
 
 ---
 
@@ -183,8 +178,7 @@ while (i < timeframes.length) {
 ```
 
 **Timeframe Skipping:** When a signal opens, the backtest fetches future candles and fast-forwards through the signal's lifetime. The loop skips timeframes by incrementing `i` until reaching the signal's `closeTimestamp`, avoiding redundant `tick()` calls while a position is active.
-
-**Sources:** [src/lib/services/logic/private/BacktestLogicPrivateService.ts:69-72](), [src/lib/services/logic/private/BacktestLogicPrivateService.ts:78-453]()
+
 
 ---
 
@@ -240,8 +234,7 @@ addFrame({
 | **Progress Tracking** | Update UI with timeframe generation completion |
 | **Analytics** | Calculate estimated backtest duration based on frame size |
 | **Testing** | Assert correct timestamp generation in unit tests |
-
-**Sources:** [types.d.ts:231-242](), [types.d.ts:262-275]()
+
 
 ---
 
@@ -260,8 +253,7 @@ The `FrameValidationService` ensures that registered `IFrameSchema` objects meet
 3. **startDate:** Must be a `Date` object earlier than `endDate`
 4. **endDate:** Must be a `Date` object later than `startDate`
 5. **callbacks:** If provided, `onTimeframe` must be a function
-
-**Sources:** [types.d.ts:262-275]()
+
 
 ---
 
@@ -290,8 +282,7 @@ Each timestamp in the timeframe array requires:
 4. **Progress emission:** `progressBacktestEmitter.next()` event
 
 **Optimization:** The backtest loop skips timeframes when signals are active, reducing unnecessary ticks. When a signal opens, the loop increments `i` to skip past the signal's lifetime.
-
-**Sources:** [src/lib/services/logic/private/BacktestLogicPrivateService.ts:406-412](), [src/lib/services/logic/private/BacktestLogicPrivateService.ts:276-282]()
+
 
 ---
 
@@ -345,5 +336,4 @@ for (const frame of ["scalping-frame", "swing-frame", "position-frame"]) {
 ```
 
 This approach allows empirical determination of the optimal evaluation frequency for a given strategy.
-
-**Sources:** [types.d.ts:262-275](), [types.d.ts:956-971]()
+

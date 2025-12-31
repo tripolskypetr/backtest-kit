@@ -34,8 +34,7 @@ The persistence utilities form a **critical differentiator** for backtest-kit, e
 **Backtest vs Live Mode:**
 - **Backtest**: Persistence is **disabled** (purely in-memory for performance)
 - **Live**: Persistence is **enabled** after every tick for crash recovery
-
-Sources: [src/classes/Persist.ts:1-100](), [src/classes/Persist.ts:504-622](), [src/classes/Persist.ts:636-750](), [src/classes/Persist.ts:769-876](), [src/classes/Persist.ts:895-989]()
+
 
 ---
 
@@ -54,8 +53,7 @@ Each domain has its own utility class and global singleton adapter. All four ada
 - **Memoized storage instances**: One `PersistBase` instance per entity prevents redundant I/O
 - **Atomic writes**: Temp file pattern ensures no partial writes or corruption
 - **Domain isolation**: Each domain has dedicated directory structure
-
-Sources: [src/classes/Persist.ts:179-501](), [src/classes/Persist.ts:514-622](), [src/classes/Persist.ts:647-750](), [src/classes/Persist.ts:769-876](), [src/classes/Persist.ts:895-989]()
+
 
 ---
 
@@ -112,8 +110,7 @@ new PersistBase(
 ```
 
 Example: `./dump/data/signal/BTCUSDT_my-strategy/BTCUSDT.json`
-
-Sources: [src/classes/Persist.ts:179-501]()
+
 
 ---
 
@@ -143,8 +140,7 @@ async function writeFileAtomic(filePath: string, data: string, encoding: string)
   await fs.rename(tmpPath, filePath);  // Atomic operation
 }
 ```
-
-Sources: [src/classes/Persist.ts:295-314](), [src/utils/writeFileAtomic.ts]()
+
 
 ---
 
@@ -175,8 +171,7 @@ for await (const key of this.keys()) {
   }
 }
 ```
-
-Sources: [src/classes/Persist.ts:132-177]()
+
 
 ---
 
@@ -223,8 +218,7 @@ Example: `./dump/data/signal/BTCUSDT_my-strategy/BTCUSDT.json`
 - **Key**: `symbol` (e.g., "BTCUSDT")
 - **Value**: `ISignalRow | null` (null when no active signal)
 - **Memoization**: Cached by `${symbol}:${strategyName}` composite key
-
-Sources: [src/classes/Persist.ts:504-622]()
+
 
 ---
 
@@ -253,8 +247,7 @@ if (signal !== null) {
   console.log(`Position: ${signal.position}, Entry: ${signal.priceOpen}`);
 }
 ```
-
-Sources: [src/classes/Persist.ts:560-576]()
+
 
 ---
 
@@ -292,8 +285,7 @@ await PersistSignalAdapter.writeSignalData(signal, "BTCUSDT", "my-strategy");
 // When signal closes, write null to clear state
 await PersistSignalAdapter.writeSignalData(null, "BTCUSDT", "my-strategy");
 ```
-
-Sources: [src/classes/Persist.ts:589-602]()
+
 
 ---
 
@@ -339,8 +331,7 @@ PersistSignalAdapter.usePersistSignalAdapter(RedisPersistSignal);
 
 // All subsequent signal persistence operations will use Redis
 ```
-
-Sources: [src/classes/Persist.ts:541-548]()
+
 
 ---
 
@@ -390,8 +381,7 @@ Example: `./dump/data/risk/my-risk/positions.json`
 - **Key**: Fixed string `"positions"` (single file per risk profile)
 - **Value**: `Array<[string, IRiskActivePosition]>` (Map entries serialized as array)
 - **Memoization**: Cached by `riskName`
-
-Sources: [src/classes/Persist.ts:627-750]()
+
 
 ---
 
@@ -422,8 +412,7 @@ for (const [key, position] of positionsMap) {
   console.log(`Position: ${position.symbol} ${position.position} @ ${position.priceOpen}`);
 }
 ```
-
-Sources: [src/classes/Persist.ts:692-706]()
+
 
 ---
 
@@ -461,16 +450,14 @@ const riskData: RiskData = Array.from(activePositionsMap.entries());
 await PersistRiskAdapter.writePositionData(riskData, "my-risk");
 // Positions atomically written to ./dump/data/risk/my-risk/positions.json
 ```
-
-Sources: [src/classes/Persist.ts:718-731]()
+
 
 ---
 
 #### `PersistRiskAdapter.usePersistRiskAdapter(Ctor): void`
 
 Registers a custom persistence adapter for risk positions. See [Signal Persistence](#signal-persistence) for custom adapter pattern example.
-
-Sources: [src/classes/Persist.ts:674-680]()
+
 
 ---
 
@@ -513,8 +500,7 @@ Example: `./dump/data/schedule/BTCUSDT_my-strategy/BTCUSDT.json`
 - **Key**: `symbol` (e.g., "BTCUSDT")
 - **Value**: `IScheduledSignalRow | null` (null when no scheduled signal)
 - **Memoization**: Cached by `${symbol}:${strategyName}` composite key
-
-Sources: [src/classes/Persist.ts:769-876]()
+
 
 ---
 
@@ -543,8 +529,7 @@ if (scheduled !== null) {
   console.log(`Waiting for price to reach ${scheduled.priceOpen}`);
 }
 ```
-
-Sources: [src/classes/Persist.ts:815-831]()
+
 
 ---
 
@@ -581,16 +566,14 @@ await PersistScheduleAdapter.writeScheduleData(scheduled, "BTCUSDT", "my-strateg
 // When scheduled signal activates or cancels, write null
 await PersistScheduleAdapter.writeScheduleData(null, "BTCUSDT", "my-strategy");
 ```
-
-Sources: [src/classes/Persist.ts:844-857]()
+
 
 ---
 
 #### `PersistScheduleAdapter.usePersistScheduleAdapter(Ctor): void`
 
 Registers a custom persistence adapter for scheduled signals. See [Signal Persistence](#signal-persistence) for custom adapter pattern example.
-
-Sources: [src/classes/Persist.ts:796-802]()
+
 
 ---
 
@@ -637,8 +620,7 @@ Example: `./dump/data/partial/BTCUSDT_my-strategy/levels.json`
 - **Key**: Fixed string `"levels"` (single file per symbol-strategy pair)
 - **Value**: `Record<signalId, IPartialData>` (all signals' partial states in one file)
 - **Memoization**: Cached by `${symbol}:${strategyName}` composite key
-
-Sources: [src/classes/Persist.ts:879-989]()
+
 
 ---
 
@@ -674,8 +656,7 @@ for (const [signalId, data] of Object.entries(partialData)) {
   console.log(`  Loss levels reached: ${Array.from(lossLevels).join(", ")}%`);
 }
 ```
-
-Sources: [src/classes/Persist.ts:941-956]()
+
 
 ---
 
@@ -710,16 +691,14 @@ const partialData: PartialData = {
 await PersistPartialAdapter.writePartialData(partialData, "BTCUSDT", "my-strategy");
 // Partial state written to ./dump/data/partial/BTCUSDT_my-strategy/levels.json
 ```
-
-Sources: [src/classes/Persist.ts:958-989]()
+
 
 ---
 
 #### `PersistPartialAdapter.usePersistPartialAdapter(Ctor): void`
 
 Registers a custom persistence adapter for partial data. See [Signal Persistence](#signal-persistence) for custom adapter pattern example.
-
-Sources: [src/classes/Persist.ts:922-928]()
+
 
 ---
 
@@ -748,8 +727,7 @@ When `Live.background()` is called after a crash:
    - System operates as if crash never occurred
 
 **Critical Guarantee**: Because state is persisted after every tick, the maximum loss window is one tick interval (typically 1 minute for live mode).
-
-Sources: [src/client/ClientStrategy.ts]() (waitForInit method), [src/client/ClientRisk.ts]() (waitForInit method), [src/client/ClientPartial.ts:199-235]()
+
 
 ---
 
@@ -793,8 +771,7 @@ stats.eventList.forEach(event => {
   }
 });
 ```
-
-Sources: [src/lib/services/markdown/ScheduleMarkdownService.ts:492-517](), [test/spec/scheduled.test.mjs:15-82]()
+
 
 ---
 
@@ -824,8 +801,7 @@ console.log(markdown);
 // | 2024-01-01T10:00:00Z | SCHEDULED | BTCUSDT | abc123 | LONG | 94900.00 USD | N/A |
 // | 2024-01-01T10:15:00Z | OPENED | BTCUSDT | abc123 | LONG | 94900.00 USD | 15 |
 ```
-
-Sources: [src/lib/services/markdown/ScheduleMarkdownService.ts:519-541]()
+
 
 ---
 
@@ -849,8 +825,7 @@ await Schedule.dump("BTCUSDT", "my-strategy");
 // Save to custom path
 await Schedule.dump("BTCUSDT", "my-strategy", "./reports/schedule");
 ```
-
-Sources: [src/lib/services/markdown/ScheduleMarkdownService.ts:543-575]()
+
 
 ---
 
@@ -863,8 +838,7 @@ The Schedule API automatically subscribes to signal events and filters for sched
 **Diagram: Schedule Event Data Flow from Signal Scheduling to Public API**
 
 When `getSignal()` returns a signal with `priceOpen` specified, a scheduled signal is created. The framework monitors market price continuously, checking if the entry price is reached, stop loss is hit, or timeout occurs (configured via `CC_SCHEDULE_AWAIT_MINUTES`). All lifecycle events (scheduled, opened, cancelled) are emitted via `signalEmitter`. The `ScheduleMarkdownService` filters and aggregates these events, storing them in a `ReportStorage` instance accessible via the public API.
-
-Sources: [src/lib/services/markdown/ScheduleMarkdownService.ts:424-622](), [test/spec/scheduled.test.mjs:211-362]()
+
 
 ---
 
@@ -880,8 +854,7 @@ Sources: [src/lib/services/markdown/ScheduleMarkdownService.ts:424-622](), [test
 | **Backtest Support** | ✅ Yes | ✅ Yes |
 | **Live Support** | ✅ Yes | ✅ Yes |
 | **Report Location** | `./dump/partial/` | `./dump/schedule/` |
-
-Sources: [src/lib/services/markdown/PartialMarkdownService.ts:1-520](), [src/lib/services/markdown/ScheduleMarkdownService.ts:1-625]()
+
 
 ---
 
@@ -894,8 +867,7 @@ Both APIs are implemented as markdown services that aggregate event data into qu
 **Diagram: Service Architecture Connecting Strategy Execution to Public APIs**
 
 The `ClientStrategy` class emits events during signal monitoring. These events flow through typed subjects (`partialProfitSubject`, `partialLossSubject`, `signalEmitter`) to markdown services. Each service maintains a memoized `ReportStorage` instance per symbol-strategy pair, ensuring isolated data collection. The public API facades (`Partial`, `Schedule`) provide simplified access to the underlying service methods.
-
-Sources: [src/lib/services/markdown/PartialMarkdownService.ts:328-520](), [src/lib/services/markdown/ScheduleMarkdownService.ts:445-622]()
+
 
 ---
 
@@ -929,8 +901,7 @@ console.log(`Avg activation time: ${scheduleStats.avgActivationTime} min`);
 await Partial.dump("BTCUSDT", "my-strategy");
 await Schedule.dump("BTCUSDT", "my-strategy");
 ```
-
-Sources: [test/e2e/partial.test.mjs:666-794](), [test/spec/scheduled.test.mjs:15-82]()
+
 
 ---
 
@@ -960,8 +931,7 @@ setInterval(async () => {
   }
 }, 60000); // Check every minute
 ```
-
-Sources: [src/lib/services/markdown/PartialMarkdownService.ts:307-520](), [src/lib/services/markdown/ScheduleMarkdownService.ts:424-622]()
+
 
 ---
 
@@ -1002,8 +972,7 @@ const best = results.reduce((best, curr) =>
 
 console.log(`Optimal entry offset: ${best.entryOffset} with ${best.activationRate}% activation`);
 ```
-
-Sources: [test/spec/scheduled.test.mjs:84-154]()
+
 
 ---
 
@@ -1017,8 +986,7 @@ Both APIs use a bounded storage mechanism to prevent memory growth:
 - **Persistence**: Events are only stored in memory (not persisted to disk unless `dump()` is called)
 
 Storage instances are memoized using the pattern `${symbol}:${strategyName}` as the cache key.
-
-Sources: [src/lib/services/markdown/PartialMarkdownService.ts:140-142](), [src/lib/services/markdown/ScheduleMarkdownService.ts:186-188]()
+
 
 ---
 
@@ -1045,8 +1013,7 @@ if (stats.cancellationRate !== null && stats.cancellationRate > 50) {
   console.warn("High cancellation rate!");
 }
 ```
-
-Sources: [src/lib/services/markdown/ScheduleMarkdownService.ts:286-352](), [src/lib/services/markdown/PartialMarkdownService.ts:217-241]()
+
 
 ---
 
@@ -1062,8 +1029,7 @@ The Partial and Schedule APIs complement the main execution APIs:
 - **Schedule.getData**: Provides scheduled signal lifecycle analysis
 
 All three APIs source data from the same underlying event system, but aggregate different aspects of signal behavior.
-
-Sources: [src/lib/services/markdown/PartialMarkdownService.ts:1-520](), [src/lib/services/markdown/ScheduleMarkdownService.ts:1-625](), [src/lib/services/markdown/BacktestMarkdownService.ts:1-571](), [src/lib/services/markdown/LiveMarkdownService.ts:1-778]()
+
 
 ---
 
@@ -1085,5 +1051,4 @@ GLOBAL_CONFIG.CC_SCHEDULE_AWAIT_MINUTES = 120; // default: 120 minutes
 ```
 
 If a scheduled signal does not activate within this period, it is cancelled with `action="cancelled"`.
-
-Sources: [src/config/params.ts](), [test/e2e/timing.test.mjs:34-201]()
+

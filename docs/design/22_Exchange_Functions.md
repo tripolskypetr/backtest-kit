@@ -25,8 +25,7 @@ The framework exports six helper functions from [src/function/exchange.ts]() tha
 | `getMode` | Context | Check if running in backtest mode |
 
 All functions respect **temporal isolation** via `ExecutionContextService` and **schema routing** via `MethodContextService`, ensuring strategies access the correct exchange instance and cannot peek into future data during backtests.
-
-**Sources**: [src/index.ts:59-65](), [types.d.ts:159-205]()
+
 
 ---
 
@@ -64,8 +63,7 @@ async function myStrategy(symbol: string) {
 2. Routes to `ExchangeGlobalService.formatPrice()`
 3. Delegates to `ClientExchange.formatPrice()`
 4. Calls the `formatPrice` function from the registered `IExchangeSchema`
-
-**Sources**: [src/index.ts:64](), [types.d.ts:147-152]()
+
 
 ### formatQuantity Function
 
@@ -93,8 +91,7 @@ async function myStrategy(symbol: string) {
 ```
 
 **Implementation Flow**: Same as `formatPrice`, but routes to the `formatQuantity` function from `IExchangeSchema`.
-
-**Sources**: [src/index.ts:64](), [types.d.ts:139-145]()
+
 
 ---
 
@@ -105,8 +102,7 @@ The diagram below shows how exchange helper functions integrate with the service
 **Diagram: Exchange Function Call Flow**
 
 ![Mermaid Diagram](./diagrams/22_Exchange_Functions_0.svg)
-
-**Sources**: [types.d.ts:6-49]() (ExecutionContextService), [types.d.ts:296-336]() (MethodContextService), Diagram 1 from high-level overview
+
 
 ---
 
@@ -124,8 +120,7 @@ See detailed documentation for `getCandles` function reference.
 - Respects temporal isolation (cannot fetch future data in backtests)
 - Returns OHLCV data (`ICandleData[]`)
 - Delegates to exchange-specific implementation
-
-**Sources**: [types.d.ts:162-169]()
+
 
 ### getAveragePrice
 
@@ -135,8 +130,7 @@ See detailed documentation for `getAveragePrice` function reference.
 
 **Formula**: VWAP = Σ(Typical Price × Volume) / Σ(Volume)  
 where Typical Price = (High + Low + Close) / 3
-
-**Sources**: [types.d.ts:196-204](), Diagram 2 from high-level overview (Signal Lifecycle)
+
 
 ---
 
@@ -155,8 +149,7 @@ Returns the current execution timestamp from `ExecutionContextService`. In live 
 **Returns**: Current execution timestamp as Date object
 
 **Use Case**: Logging, calculating time-based conditions, or debugging temporal issues.
-
-**Sources**: [types.d.ts:11-18]() (IExecutionContext)
+
 
 ### getMode
 
@@ -169,8 +162,7 @@ Returns whether the current execution is running in backtest mode (`true`) or li
 **Returns**: Boolean indicating backtest mode
 
 **Use Case**: Conditional logic that should behave differently in live vs backtest (e.g., reduced logging in backtest).
-
-**Sources**: [types.d.ts:11-18]() (IExecutionContext)
+
 
 ---
 
@@ -189,8 +181,7 @@ The diagram below illustrates how temporal isolation is maintained when exchange
 2. **Backwards Fetching**: `ClientExchange.getCandles()` always fetches data **backwards** from the current `when` timestamp, preventing look-ahead bias.
 
 3. **Forward Fetching (Backtest Only)**: `ClientExchange.getNextCandles()` is used internally during backtests to fast-forward through candles but is not exposed to user strategy code.
-
-**Sources**: [types.d.ts:6-49]() (ExecutionContextService), [types.d.ts:159-178]() (IExchange methods), Diagram 1 from high-level overview
+
 
 ---
 
@@ -205,8 +196,7 @@ The `ExchangeConnectionService` uses memoization to cache `ClientExchange` insta
 - `"BTCUSDT:binance:live"` - Separate instance for live trading
 
 This separation ensures backtest and live executions maintain independent state and cannot interfere with each other.
-
-**Sources**: [types.d.ts:102-110]() (IExchangeParams), Diagram 4 from high-level overview (Service Layer Architecture)
+
 
 ---
 
@@ -232,8 +222,7 @@ The helper functions documented on this page ultimately delegate to these user-d
 | `formatQuantity()` | `IExchangeSchema.formatQuantity` |
 | `getCandles()` | `IExchangeSchema.getCandles` (via `ClientExchange`) |
 | `getAveragePrice()` | Uses `getCandles()` + VWAP calculation |
-
-**Sources**: [types.d.ts:122-155]() (IExchangeSchema), [src/index.ts:11-18]() (addExchange export)
+
 
 ---
 
@@ -247,5 +236,4 @@ The helper functions documented on this page ultimately delegate to these user-d
 | `getAveragePrice` | symbol | number (VWAP) | Current market price | Yes |
 | `getDate` | none | Date | Current execution time | N/A |
 | `getMode` | none | boolean | Check if backtesting | N/A |
-
-**Sources**: [src/index.ts:59-65](), [types.d.ts:159-205]()
+

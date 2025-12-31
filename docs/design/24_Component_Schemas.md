@@ -20,8 +20,7 @@ Component schemas are TypeScript interface definitions that specify the structur
 | Optimizer | `IOptimizerSchema` | `addOptimizer()` | `optimizerName` |
 
 Related pages: [Service Layer](./40_Service_Layer.md), [Component Registration](./08_Component_Registration.md), [Component Registration Functions](./17_Component_Registration_Functions.md), [Client Implementations](./32_Client_Implementations.md).
-
-**Sources:** [types.d.ts:730-749](), [types.d.ts:122-155](), [types.d.ts:262-275](), [types.d.ts:417-426](), [types.d.ts:956-971]()
+
 
 ---
 
@@ -47,8 +46,7 @@ interface ISchemaPattern {
   callbacks?: Partial<I{Type}Callbacks>;  // Optional: lifecycle hooks
 }
 ```
-
-**Sources:** [types.d.ts:730-749](), [types.d.ts:122-155](), [types.d.ts:262-275]()
+
 
 ## Schema Registration and Storage Flow
 
@@ -59,8 +57,7 @@ interface ISchemaPattern {
 **Storage Structure:**
 
 Each schema service maintains an in-memory `Map<string, ISchema>` where the key is the component name field (`strategyName`, `exchangeName`, etc.) and the value is the complete schema object. Schema services use the `ToolRegistry` pattern from the codebase for registration and retrieval.
-
-**Sources:** [src/function/add.ts:52-64](), [src/function/add.ts:101-113]()
+
 
 ---
 
@@ -86,8 +83,7 @@ Schema validation occurs at registration time via dedicated validation services.
 - Reference validation (riskName exists in RiskSchemaService)
 - Callback signature validation (correct parameter types)
 ```
-
-**Sources:** [src/function/add.ts:52-64](), [src/function/add.ts:101-113]()
+
 
 ---
 
@@ -96,8 +92,7 @@ Schema validation occurs at registration time via dedicated validation services.
 Component registration follows a three-phase pipeline: user code calls an `add*` function with a schema object, the function delegates to a validation service that applies 10-30 validation rules depending on component type, and upon successful validation the schema is stored in a schema service for later retrieval by connection services during execution.
 
 ![Mermaid Diagram](./diagrams/24_Component_Schemas_1.svg)
-
-**Sources:** [src/function/add.ts:52-64](), [src/function/add.ts:101-113](), [src/lib/core/types.ts:11-14](), [src/lib/core/provide.ts:64-72]()
+
 
 ---
 
@@ -134,8 +129,7 @@ type StrategyName = string;
 | `callbacks` | `Partial<IStrategyCallbacks>` | No | Lifecycle event hooks (onOpen, onClose, etc.) |
 | `riskName` | `string` | No | Single risk profile reference |
 | `riskList` | `string[]` | No | Multiple risk profile references |
-
-**Sources:** [types.d.ts:730-749](), [src/function/add.ts:18-64]()
+
 
 ### Signal Data Transfer Objects
 
@@ -177,8 +171,7 @@ interface ISignalRow extends ISignalDto {
 | `strategyName` | N/A | Required | Method context |
 | `scheduledAt` | N/A | Required | `Date.now()` |
 | `pendingAt` | N/A | Required | Activation timestamp |
-
-**Sources:** [types.d.ts:652-689](), [demo/backtest/src/index.mjs:91-107]()
+
 
 ### IStrategyCallbacks
 
@@ -214,8 +207,7 @@ interface IStrategyCallbacks {
 | `onClose` | Signal closes (TP/SL/timeout) | Log exit execution |
 | `onCancel` | Scheduled signal cancelled | Track failed activations |
 | `onWrite` | Signal persisted to disk (live mode) | Testing persistence layer |
-
-**Sources:** [types.d.ts:704-725](), [demo/backtest/src/index.mjs:115-144]()
+
 
 ### Registration Example
 
@@ -256,8 +248,7 @@ addStrategy({
   },
 });
 ```
-
-**Sources:** [src/function/add.ts:52-64](), [demo/backtest/src/index.mjs:91-107]()
+
 
 ---
 
@@ -313,8 +304,7 @@ interface IExchangeCallbacks {
 ```
 
 **`onCandleData`**: Invoked after `getCandles()` successfully fetches data. Receives all function parameters plus the returned candle array. Useful for caching, logging, or monitoring data source health.
-
-**Sources:** [types.d.ts:87-155](), [demo/backtest/src/index.mjs:24-35]()
+
 
 
 ### Registration Example
@@ -360,8 +350,7 @@ addExchange({
   },
 });
 ```
-
-**Sources:** [src/function/add.ts:101-113](), [demo/backtest/src/index.mjs:24-35]()
+
 
 ---
 
@@ -411,8 +400,7 @@ interface IFrameCallbacks {
 **Timeframe Generation:**
 
 `ClientFrame.getTimeframe()` generates an array by starting at `startDate` and incrementing by `interval` milliseconds until exceeding `endDate`. Example: `["2024-01-01 00:00", "2024-01-01 01:00", "2024-01-01 02:00", ...]` for 1-hour intervals.
-
-**Sources:** [types.d.ts:229-275](), [demo/backtest/src/index.mjs:84-89]()
+
 
 ### Registration Example
 
@@ -435,8 +423,7 @@ addFrame({
   },
 });
 ```
-
-**Sources:** [src/function/add.ts:145-151](), [demo/backtest/src/index.mjs:84-89]()
+
 
 ---
 
@@ -507,8 +494,7 @@ interface IRiskActivePosition {
 ```
 
 **Validation Execution:** Each validation function in the `validations` array is called sequentially. If any throws an error, the signal is rejected and `callbacks.onRejected` is invoked. If all pass, `callbacks.onAllowed` is invoked.
-
-**Sources:** [types.d.ts:343-426](), [demo/backtest/src/index.mjs:37-82]()
+
 
 ### IRiskCallbacks
 
@@ -524,8 +510,7 @@ interface IRiskCallbacks {
 |---|---|---|
 | `onRejected` | Any validation throws | `symbol`, `IRiskCheckArgs` |
 | `onAllowed` | All validations pass | `symbol`, `IRiskCheckArgs` |
-
-**Sources:** [types.d.ts:372-378](), [demo/backtest/src/index.mjs:37-82]()
+
 
 ### Registration Example
 
@@ -571,8 +556,7 @@ addRisk({
   },
 });
 ```
-
-**Sources:** [src/function/add.ts:331-343](), [demo/backtest/src/index.mjs:37-82]()
+
 
 ---
 
@@ -648,8 +632,7 @@ type SizingName = string;
 | **fixed-percentage** | `riskPercentage` (required) | `(account × risk%) / stopDistance` |
 | **kelly-criterion** | `kellyMultiplier` (default 0.25) | `kellyMultiplier × kelly × account / price` |
 | **atr-based** | `riskPercentage` (required), `atrMultiplier` (default 2.0) | `(account × risk%) / (ATR × atrMultiplier)` |
-
-**Sources:** [src/index.ts:93-104]()
+
 
 ### ISizingCallbacks
 
@@ -667,8 +650,7 @@ interface ISizingCalculateParams {
 ```
 
 **`onCalculate`**: Invoked after position quantity calculation. Receives calculated quantity and input parameters. Use for logging or external tracking.
-
-**Sources:** [src/index.ts:97-104]()
+
 
 ### Registration Example
 
@@ -706,8 +688,7 @@ addSizing({
   maxPositionPercentage: 12,
 });
 ```
-
-**Sources:** [src/function/add.ts:256-268]()
+
 
 ---
 
@@ -753,8 +734,7 @@ type WalkerMetric =
 | `strategies` | `string[]` | Yes | Array of strategy names to compare (all must exist) |
 | `metric` | `WalkerMetric` | No | Performance metric for ranking (default: `"sharpeRatio"`) |
 | `callbacks` | `Partial<IWalkerCallbacks>` | No | Lifecycle event hooks (onStrategyStart, onStrategyComplete) |
-
-**Sources:** [types.d.ts:951-971]()
+
 
 ### IWalkerCallbacks
 
@@ -770,8 +750,7 @@ interface IWalkerCallbacks {
 |---|---|---|
 | `onStrategyStart` | Before each strategy backtest begins | `strategyName`, `symbol` |
 | `onStrategyComplete` | After each strategy backtest finishes | `strategyName`, `symbol`, `BacktestStatisticsModel`, `metricValue` |
-
-**Sources:** [types.d.ts:976-980]()
+
 
 ### Registration Example
 
@@ -809,8 +788,7 @@ addWalker({
   },
 });
 ```
-
-**Sources:** [src/function/add.ts:190-202](), [src/lib/core/types.ts:23-24]()
+
 
 ---
 
@@ -873,8 +851,7 @@ interface IOptimizerData {
 | `getPrompt` | `function` | Yes | Generate strategy prompt from messages: `(symbol, messages) => Promise<string>` |
 | `template` | `Partial<IOptimizerTemplate>` | No | Override code generation templates |
 | `callbacks` | `Partial<IOptimizerCallbacks>` | No | Lifecycle event hooks |
-
-**Sources:** [src/index.ts:124-134]()
+
 
 ### Data Collection Pipeline
 
@@ -885,8 +862,7 @@ The optimizer iterates through training ranges and sources in nested loops: for 
 **Pagination Logic:**
 
 Sources are fetched with pagination to handle large datasets. The optimizer starts with `offset = 0`, `limit = 1000`, and repeatedly calls the source function until the returned data length is less than `limit`, indicating no more data. All fetched pages are concatenated and passed to message formatters.
-
-**Sources:** [src/function/add.ts:345-431](), [src/lib/core/types.ts:16-17](), [src/lib/core/provide.ts:70-71]()
+
 
 ### Code Generation Pipeline
 
@@ -945,8 +921,7 @@ addWalker({
 // 10. Launcher with event listeners
 Walker.background(symbol, { walkerName: "llm-comparison" });
 ```
-
-**Sources:** [src/function/add.ts:345-431](), [src/lib/core/types.ts:84-86](), [src/lib/core/provide.ts:138-140]()
+
 
 ### Optimizer Template Customization
 
@@ -990,8 +965,7 @@ addOptimizer({
   },
 });
 ```
-
-**Sources:** [src/function/add.ts:366-431](), [src/lib/core/types.ts:84-86]()
+
 
 ### Optimizer Callbacks
 
@@ -1010,8 +984,7 @@ interface IOptimizerCallbacks {
 - **`onCode`**: Called after code generation completes. Receives symbol and full generated code string before file write.
 - **`onDump`**: Called after file write completes. Receives symbol and output file path.
 - **`onSourceData`**: Called after each source fetch completes. Receives symbol, source name, fetched data array, and date range. Useful for monitoring data collection progress.
-
-**Sources:** [src/function/add.ts:419-431]()
+
 
 ### Registration Example
 
@@ -1095,8 +1068,7 @@ addOptimizer({
   },
 });
 ```
-
-**Sources:** [src/function/add.ts:432-444](), [src/lib/core/types.ts:27-28]()
+
 
 ---
 
@@ -1119,5 +1091,4 @@ Component types form a dependency graph where strategies reference exchanges and
 - **Registration**: Component name uniqueness is validated by schema services (throws if duplicate name).
 - **Execution**: Referential integrity is validated by connection services (throws if referenced component doesn't exist).
 - **Walker**: Strategy/exchange/frame existence is validated by `WalkerValidationService` before execution.
-
-**Sources:** [src/lib/services/validation/WalkerValidationService.ts](), [src/lib/services/schema](), [src/function/add.ts:1-444]()
+

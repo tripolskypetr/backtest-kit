@@ -20,8 +20,7 @@ The backtest execution follows a pipeline where `BacktestLogicPrivateService` or
 **High-Level Execution Sequence**
 
 ![Mermaid Diagram](./diagrams/55_Backtest_Execution_Flow_0.svg)
-
-**Sources:** [src/lib/services/logic/private/BacktestLogicPrivateService.ts:1-123](), [src/lib/services/logic/public/BacktestLogicPublicService.ts:1-70]()
+
 
 ---
 
@@ -32,8 +31,7 @@ The backtest execution involves multiple service layers with clear separation of
 **Service Layer Interaction Diagram**
 
 ![Mermaid Diagram](./diagrams/55_Backtest_Execution_Flow_1.svg)
-
-**Sources:** [src/lib/services/logic/public/BacktestLogicPublicService.ts:1-70](), [src/lib/services/logic/private/BacktestLogicPrivateService.ts:1-123](), [src/lib/services/context/MethodContextService.ts:1-56]()
+
 
 ---
 
@@ -51,8 +49,7 @@ The `BacktestLogicPublicService.run()` method wraps the private service with `Me
 | Execution Context | `ExecutionContextService` | Provides symbol, current timestamp (when), backtest flag |
 
 The backtest instance is also cleared of any previous state via `strategyCoreService.clear()`, `backtestMarkdownService.clear()`, and `riskGlobalService.clear()` before execution begins.
-
-**Sources:** [src/classes/Backtest.ts:161-175](), [src/lib/services/logic/private/BacktestLogicPrivateService.ts:1-50]()
+
 
 ### Step 2: Timeframe Array Generation
 
@@ -67,8 +64,7 @@ const timeframes = await this.frameCoreService.getTimeframe(
 ```
 
 The timeframe generation is configured via `addFrame()` and handled by `ClientFrame`. For a 24-hour backtest with 1-minute intervals, this produces 1,440 timestamps.
-
-**Sources:** [src/lib/services/logic/private/BacktestLogicPrivateService.ts:69-73]()
+
 </thinking>
 
 <old_str>
@@ -86,8 +82,7 @@ For each timestamp, the service calls `strategyCoreService.tick()` with `backtes
 | `opened` | Market order signal opened immediately | `bufferMinutes + minuteEstimatedTime` | Fetch candles, call `backtest()` |
 
 The `bufferMinutes` value is `GLOBAL_CONFIG.CC_AVG_PRICE_CANDLES_COUNT - 1`, which provides historical candles needed for VWAP calculation.
-
-**Sources:** [src/lib/services/logic/private/BacktestLogicPrivateService.ts:114-130](), [src/lib/services/logic/private/BacktestLogicPrivateService.ts:154-242](), [src/lib/services/logic/private/BacktestLogicPrivateService.ts:304-380]()
+
 </old_str>
 
 <new_str>
@@ -98,8 +93,7 @@ The service iterates through the timeframe array using a while loop with manual 
 **Iteration Loop with Progress and Stop Checking**
 
 ![Mermaid Diagram](./diagrams/55_Backtest_Execution_Flow_2.svg)
-
-**Sources:** [src/lib/services/logic/private/BacktestLogicPrivateService.ts:78-453]()
+
 
 ---
 
@@ -124,8 +118,7 @@ Where:
 - `CC_SCHEDULE_AWAIT_MINUTES`: Maximum time to wait for price activation (default: 60 minutes)
 - `minuteEstimatedTime`: Expected signal lifetime after activation
 - `+1`: Include the `when` timestamp as the first candle
-
-**Sources:** [src/lib/services/logic/private/BacktestLogicPrivateService.ts:156-244](), [src/lib/services/logic/private/BacktestLogicPrivateService.ts:176-178]()
+
 
 ---
 
@@ -146,8 +139,7 @@ const bufferStartTime = new Date(when.getTime() - bufferMinutes * 60 * 1000);
 ```
 
 This ensures VWAP can be calculated from the first candle onwards by including historical context.
-
-**Sources:** [src/lib/services/logic/private/BacktestLogicPrivateService.ts:306-383](), [src/lib/services/logic/private/BacktestLogicPrivateService.ts:320-332]()
+
 
 ---
 
@@ -158,8 +150,7 @@ When a signal opens or activates, the backtest flow transitions to fast-forward 
 **Fast-Forward Execution Flow**
 
 ![Mermaid Diagram](./diagrams/55_Backtest_Execution_Flow_5.svg)
-
-**Sources:** [src/lib/services/logic/private/BacktestLogicPrivateService.ts:306-414]()
+
 
 ### Candle Fetching with VWAP Buffer
 
@@ -182,8 +173,7 @@ const candles = await this.exchangeCoreService.getNextCandles(
 ```
 
 If no candles are returned (end of historical data), the iteration continues to the next timeframe without yielding a result.
-
-**Sources:** [src/lib/services/logic/private/BacktestLogicPrivateService.ts:320-348]()
+
 
 ### Backtest Method Execution
 
@@ -198,8 +188,7 @@ The `ClientStrategy.backtest()` method receives the candle array and iterates th
 5. If no hit by end: return closed result with `closeReason="time_expired"`
 
 For details on the backtest algorithm, see page 9.3 (Fast-Forward Simulation).
-
-**Sources:** [src/lib/services/logic/private/BacktestLogicPrivateService.ts:362-370](), [src/lib/services/logic/private/BacktestLogicPrivateService.ts:223-230]()
+
 
 ---
 
@@ -227,8 +216,7 @@ This skipping ensures:
 1. No duplicate signals during an active signal's lifetime
 2. Correct temporal progression of the backtest
 3. Memory efficiency (no need to store signal state between timestamps)
-
-**Sources:** [src/lib/services/logic/private/BacktestLogicPrivateService.ts:276-281](), [src/lib/services/logic/private/BacktestLogicPrivateService.ts:406-411]()
+
 
 ---
 
@@ -245,8 +233,7 @@ The backtest execution is designed for memory efficiency, enabling backtests ove
 | **Single Result Yield** | Only yields `closed` results, not `idle`/`active` | Reduces memory footprint and consumer processing |
 | **Timestamp Skipping** | Jumps to `closeTimestamp` after signal closes | Avoids iterating through thousands of timestamps unnecessarily |
 | **No Signal State Storage** | Signal state cleared after close in backtest mode | No memory accumulation across signal lifecycle |
-
-**Sources:** [src/lib/services/logic/private/BacktestLogicPrivateService.ts:62-481]()
+
 
 ### Async Generator Pattern
 
@@ -268,8 +255,7 @@ for await (const result of backtestLogic.run("BTCUSDT")) {
   if (result.pnl.pnlPercentage < -10) break;  // Stop on 10% loss
 }
 ```
-
-**Sources:** [src/lib/services/logic/private/BacktestLogicPrivateService.ts:48-119]()
+
 
 ---
 
@@ -280,8 +266,7 @@ The following diagram traces a complete execution from the Public API through al
 **End-to-End Execution Trace**
 
 ![Mermaid Diagram](./diagrams/55_Backtest_Execution_Flow_7.svg)
-
-**Sources:** [src/classes/Backtest.ts:149-177](), [src/lib/services/logic/private/BacktestLogicPrivateService.ts:62-481]()
+
 
 ---
 
@@ -303,8 +288,7 @@ Each metric includes:
 - `duration`: Performance duration in milliseconds
 - `strategyName`, `exchangeName`, `symbol`: Context identifiers
 - `backtest: true`: Execution mode flag
-
-**Sources:** [src/lib/services/logic/private/BacktestLogicPrivateService.ts:438-450](), [src/lib/services/logic/private/BacktestLogicPrivateService.ts:391-404](), [src/lib/services/logic/private/BacktestLogicPrivateService.ts:468-480]()
+
 
 ---
 
@@ -321,8 +305,7 @@ Stop checking ensures:
 2. Backtest stops at safe state boundaries (idle or closed)
 3. No new signals are opened after stop request
 4. Graceful cleanup and final progress emission
-
-**Sources:** [src/lib/services/logic/private/BacktestLogicPrivateService.ts:95-112](), [src/lib/services/logic/private/BacktestLogicPrivateService.ts:134-153](), [src/lib/services/logic/private/BacktestLogicPrivateService.ts:416-433]()
+
 
 ---
 
@@ -345,8 +328,7 @@ The backtest execution includes error handling at the tick level to prevent sing
 | **Empty timeframe array** | `timeframes.length === 0` | Loop never executes | Generator completes |
 
 The `errorEmitter` allows external listeners to collect all errors via `listenError()` for logging and monitoring without interrupting execution.
-
-**Sources:** [src/lib/services/logic/private/BacktestLogicPrivateService.ts:114-130](), [src/lib/services/logic/private/BacktestLogicPrivateService.ts:181-204](), [src/lib/services/logic/private/BacktestLogicPrivateService.ts:325-348]()
+
 
 ---
 
@@ -357,8 +339,7 @@ While the execution flow itself doesn't directly interact with reporting service
 The reporting integration happens at the consumer level, where the Public API's `Backtest.run()` or `Backtest.background()` methods pass results to the markdown service for accumulation.
 
 For details on report generation, see [Markdown Report Generation](./72_Markdown_Report_Generation.md).
-
-**Sources:** [src/lib/services/logic/private/BacktestLogicPrivateService.ts:283](), [src/lib/services/logic/private/BacktestLogicPrivateService.ts:414]()
+
 
 ---
 
@@ -379,5 +360,4 @@ The async generator pattern enables memory-efficient streaming, early terminatio
 - Automatic timestamp skipping to prevent overlap
 - Clean separation between orchestration and business logic
 - Context propagation through dependency injection
-
-**Sources:** [src/lib/services/logic/private/BacktestLogicPrivateService.ts:1-123](), [src/lib/services/logic/public/BacktestLogicPublicService.ts:1-70](), [src/client/ClientStrategy.ts:1-660]()
+

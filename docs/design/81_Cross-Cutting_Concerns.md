@@ -52,8 +52,7 @@ The logger is stored in `LoggerService` and injected throughout the system via t
 ### Dependency Injection Pattern
 
 ![Mermaid Diagram](./diagrams/81_Cross-Cutting_Concerns_0.svg)
-
-**Sources:** [types.d.ts:52-77](), [src/lib/services/base/LoggerService.ts](), [src/lib/core/types.ts]()
+
 
 ### Logging Conventions
 
@@ -93,8 +92,7 @@ swarm.loggerService.debug("PersistBase.readValue", {
   entityId
 });
 ```
-
-**Sources:** [src/client/ClientPartial.ts:81-87](), [src/classes/Persist.ts:254-257]()
+
 
 ---
 
@@ -105,8 +103,7 @@ The error handling system distinguishes between recoverable and fatal errors, pr
 ### Error Classification
 
 ![Mermaid Diagram](./diagrams/81_Cross-Cutting_Concerns_1.svg)
-
-**Sources:** [src/config/emitters.ts:36-44](), [src/config/emitters.ts:109-112](), [src/function/event.ts:223-279]()
+
 
 ### Error Emitters
 
@@ -141,8 +138,7 @@ listenValidation((error) => {
   // Track rejection patterns, adjust parameters
 });
 ```
-
-**Sources:** [src/function/event.ts:223-250](), [src/function/event.ts:252-279]()
+
 
 ### Try-Catch Patterns
 
@@ -205,8 +201,7 @@ try {
 ### Validation Error Handling
 
 ![Mermaid Diagram](./diagrams/81_Cross-Cutting_Concerns_2.svg)
-
-**Sources:** [src/client/ClientRisk.ts](), [src/lib/services/validation/RiskValidationService.ts](), [src/config/emitters.ts:109-112]()
+
 
 ---
 
@@ -219,8 +214,7 @@ The persistence layer provides crash-safe storage for live trading state using a
 `PersistBase` is the foundation for all persistence adapters, implementing CRUD operations with automatic directory management and corruption recovery.
 
 ![Mermaid Diagram](./diagrams/81_Cross-Cutting_Concerns_3.svg)
-
-**Sources:** [src/classes/Persist.ts:179-501]()
+
 
 ### Directory Structure
 
@@ -238,8 +232,7 @@ The persistence layer provides crash-safe storage for live trading state using a
 The atomic write pattern ensures that files are never left in a corrupted state, even if the process crashes during write operations.
 
 ![Mermaid Diagram](./diagrams/81_Cross-Cutting_Concerns_4.svg)
-
-**Sources:** [src/classes/Persist.ts:295-314](), [src/utils/writeFileAtomic.ts]()
+
 
 ### Initialization and Validation
 
@@ -282,8 +275,7 @@ for await (const key of self.keys()) {
 ### Crash Recovery Integration
 
 ![Mermaid Diagram](./diagrams/81_Cross-Cutting_Concerns_5.svg)
-
-**Sources:** [src/client/ClientStrategy.ts](), [src/client/ClientRisk.ts](), [src/client/ClientPartial.ts](), [src/classes/Persist.ts:132-153]()
+
 
 ### Custom Persistence Adapters
 
@@ -320,8 +312,7 @@ class RedisPersist extends PersistBase {
 // Register custom adapter
 PersistSignalAdapter.usePersistSignalAdapter(RedisPersist);
 ```
-
-**Sources:** [src/classes/Persist.ts:541-548](), [src/classes/Persist.ts:69-78]()
+
 
 ### Persistence Adapter Comparison
 
@@ -361,5 +352,4 @@ for await (const entity of persistAdapter.take(10)) {
   console.log(entity);
 }
 ```
-
-**Sources:** [src/classes/Persist.ts:377-499]()
+

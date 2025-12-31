@@ -40,8 +40,7 @@ type IRiskValidationFn = (payload: IRiskValidationPayload) => void | Promise<voi
 ```
 
 Validation functions receive `IRiskValidationPayload` containing complete context about the signal and portfolio state.
-
-**Sources**: [types.d.ts:417-426](), [types.d.ts:402-412](), [types.d.ts:395-397]()
+
 
 ## Risk Validation Payload
 
@@ -63,8 +62,7 @@ The payload passed to validation functions contains both signal details and port
 | `activePositions` | `IRiskActivePosition[]` | Details of all active positions |
 
 Validation functions throw `Error` to reject signals. The error message becomes the rejection reason logged to `riskSubject`.
-
-**Sources**: [types.d.ts:343-356](), [types.d.ts:383-390](), [types.d.ts:360-369]()
+
 
 ## Risk Validation Flow
 
@@ -80,8 +78,7 @@ Risk validation occurs **twice** for scheduled signals:
 2. **Activation Check**: When price reaches `priceOpen` ([src/client/ClientStrategy.ts:712-729]())
 
 This dual-check prevents race conditions where portfolio state changes between signal creation and activation.
-
-**Sources**: [src/client/ClientStrategy.ts:376-387](), [src/client/ClientStrategy.ts:712-729]()
+
 
 ## ClientRisk Implementation
 
@@ -113,8 +110,7 @@ interface IRisk {
   removeSignal(symbol: string, context: { strategyName: string; riskName: string }): Promise<void>;
 }
 ```
-
-**Sources**: [types.d.ts:453-481](), [src/client/ClientRisk.ts]()
+
 
 ## Persistence and Recovery
 
@@ -136,8 +132,7 @@ This prevents partial writes during crashes.
 
 - **Backtest**: No persistence (in-memory only for speed)
 - **Live**: Full persistence after every `addSignal`/`removeSignal`
-
-**Sources**: [src/classes/Persist.ts](), [types.d.ts:431-448]()
+
 
 ## Event System for Risk Rejections
 
@@ -175,8 +170,7 @@ listenRiskOnce(
   (event) => console.log("BTCUSDT signal rejected!")
 );
 ```
-
-**Sources**: [src/function/event.ts:924-968](), [src/config/emitters.ts:131](), [src/contract/Risk.contract.ts]()
+
 
 ## Common Risk Validation Patterns
 
@@ -287,8 +281,7 @@ addRisk({
   ]
 });
 ```
-
-**Sources**: [test/e2e/risk.test.mjs](), [README.md:86-99]()
+
 
 ## Integration with Strategy Lifecycle
 
@@ -311,8 +304,7 @@ addStrategy({
 ```
 
 All risk profiles in `riskList` are checked sequentially. If any validation fails, the signal is rejected.
-
-**Sources**: [types.d.ts:730-750](), [src/client/ClientStrategy.ts:376-387](), [src/client/ClientStrategy.ts:712-729]()
+
 
 ## Global Risk Configuration
 
@@ -337,8 +329,7 @@ These parameters are enforced by `VALIDATE_SIGNAL_FN` before risk validation:
 | `CC_MAX_STOPLOSS_DISTANCE_PERCENT` | `5.0` | Maximum SL distance to protect capital |
 | `CC_MAX_SIGNAL_LIFETIME_MINUTES` | `10080` | Maximum signal duration (7 days) |
 | `CC_SCHEDULE_AWAIT_MINUTES` | `120` | Scheduled signal timeout (2 hours) |
-
-**Sources**: [src/config/params.ts](), [src/client/ClientStrategy.ts:45-330]()
+
 
 ## Validation Error Handling
 
@@ -354,8 +345,7 @@ Validation errors are caught and handled gracefully:
 4. `onRejected` callback invoked with error message
 5. `riskSubject` emits `RiskContract` with rejection details
 6. `checkSignal()` returns `false`
-
-**Sources**: [src/function/event.ts:757-760](), [src/config/emitters.ts:112]()
+
 
 ## Performance Considerations
 
@@ -376,5 +366,4 @@ Validation errors are caught and handled gracefully:
 ### Memoization
 
 `ClientRisk` instances are memoized per `riskName` in `RiskConnectionService`, ensuring singleton behavior and preventing duplicate position tracking.
-
-**Sources**: [src/lib/services/connection/RiskConnectionService.ts]()
+

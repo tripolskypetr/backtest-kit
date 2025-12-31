@@ -18,8 +18,7 @@ For installation and setup instructions, see [Installation and Setup](./03_Insta
 The framework supports three distinct execution modes that share identical strategy code through context propagation:
 
 ![Mermaid Diagram](./diagrams/02_Key_Features_0.svg)
-
-**Sources:** [README.md:17-18](), [docs/internals.md:54-81](), [High-Level System Architecture Diagram 2]()
+
 
 **Backtest Mode** processes historical data deterministically using async generators. It fast-forwards through active signals for performance optimization, yielding only closed/cancelled results.
 
@@ -43,8 +42,7 @@ All execution modes use async generators (`async function*`) to stream results w
 | Walker | `AsyncGenerator<WalkerContract>` | O(n) where n = strategies |
 
 This architecture enables processing years of historical data without loading everything into memory, and allows early termination via `break` statements in consumer code.
-
-**Sources:** [README.md:23-24](), [docs/internals.md:22](), [docs/internals.md:92-98]()
+
 
 ### Graceful Shutdown
 
@@ -62,8 +60,7 @@ await Walker.stop("BTCUSDT", "walker-name");
 - No new signals generated after stop
 - Completion events (`listenDoneBacktest`, `listenDoneLive`) fire when complete
 - Persisted state remains intact for resume on restart
-
-**Sources:** [README.md:230](), [README.md:372-376](), [README.md:416-420](), [README.md:470-475]()
+
 
 ---
 
@@ -74,8 +71,7 @@ await Walker.stop("BTCUSDT", "walker-name");
 Live trading mode uses atomic file writes with automatic recovery to ensure no duplicate signals or lost state after process crashes:
 
 ![Mermaid Diagram](./diagrams/02_Key_Features_1.svg)
-
-**Sources:** [README.md:19](), [README.md:426](), [docs/internals.md:25]()
+
 
 The persistence layer uses a base class (`PersistBase`) that can be extended for custom backends:
 
@@ -91,8 +87,7 @@ Implementation details:
 - [src/adapters/PersistSignalAdapter.ts]() - Signal state persistence
 - [src/adapters/PersistRiskAdapter.ts]() - Risk management persistence
 - [src/adapters/PersistScheduleAdapter.ts]() - Scheduled signal persistence
-
-**Sources:** [README.md:47](), [README.md:771-906]()
+
 
 ### Pluggable Persistence Adapters
 
@@ -116,16 +111,14 @@ Custom adapters must implement the `PersistBase` interface:
 | `removeAll()` | Clear all entities |
 | `values<T>()` | Async iterator over all values |
 | `keys()` | Async iterator over all IDs |
-
-**Sources:** [README.md:771-1058]()
+
 
 ### Comprehensive Signal Validation
 
 Signals are validated before execution to prevent invalid trades:
 
 ![Mermaid Diagram](./diagrams/02_Key_Features_2.svg)
-
-**Sources:** [README.md:21-22](), [README.md:236](), [docs/internals.md:19](), [test/e2e/defend.test.mjs:545-642]()
+
 
 Validation implementation in [src/client/Strategy.client.ts]() uses the `VALIDATE_SIGNAL_FN` constant with configurable parameters from `GLOBAL_CONFIG`.
 
@@ -138,8 +131,7 @@ Validation implementation in [src/client/Strategy.client.ts]() uses the `VALIDAT
 The signal lifecycle is implemented as a discriminated union with compile-time type safety:
 
 ![Mermaid Diagram](./diagrams/02_Key_Features_3.svg)
-
-**Sources:** [README.md:27](), [Signal Lifecycle State Machine Diagram](), [docs/internals.md:16]()
+
 
 TypeScript discriminated union types ensure type safety at compile time:
 
@@ -156,8 +148,7 @@ type IStrategyTickResult =
 Each variant has a unique `action` field used for type narrowing in consumer code.
 
 Implementation: [src/interfaces/StrategyTickResult.interface.ts]()
-
-**Sources:** [docs/types/IStrategyTickResult.md]()
+
 
 ### Interval Throttling
 
@@ -173,8 +164,7 @@ Strategies define a minimum interval between `getSignal()` calls to prevent sign
 | `"1h"` | 60 | Long-term strategies |
 
 The throttling is enforced by comparing the last signal timestamp with the configured interval. Implementation in [src/client/Strategy.client.ts]().
-
-**Sources:** [README.md:20](), [docs/internals.md:20](), [docs/interfaces/IStrategySchema.md:29-35]()
+
 
 ### Scheduled Signal Activation
 
@@ -190,8 +180,7 @@ Signals with `priceOpen` defined become scheduled (limit orders) waiting for pri
 - If price passes through both `priceOpen` and `priceStopLoss` on same candle, activation takes priority (signal opens then immediately closes by SL)
 - Backtest mode checks candle high/low for intra-candle price movements
 - Live mode uses VWAP at configured intervals
-
-**Sources:** [test/e2e/defend.test.mjs:16-146](), [test/e2e/defend.test.mjs:148-278](), [test/e2e/scheduled.test.mjs]()
+
 
 ---
 
@@ -202,8 +191,7 @@ Signals with `priceOpen` defined become scheduled (limit orders) waiting for pri
 All entry/exit decisions use Volume-Weighted Average Price from the last 5 one-minute candles for realistic simulation:
 
 ![Mermaid Diagram](./diagrams/02_Key_Features_4.svg)
-
-**Sources:** [README.md:25](), [docs/internals.md:18]()
+
 
 The VWAP calculation ensures backtest results match live execution behavior. Configured via:
 - `CC_AVERAGE_PRICE_CANDLE_COUNT` - Number of candles (default: 5)
@@ -224,16 +212,14 @@ The async generator architecture processes data without accumulation:
 
 **Backtest fast-forward optimization:**
 When a signal opens, the backtest skips ahead to the estimated close time rather than processing every timeframe. This reduces execution time by ~10-100x for strategies with long signal durations.
-
-**Sources:** [docs/internals.md:92-98]()
+
 
 ### Memoized Service Instances
 
 The dependency injection system memoizes service instances by configuration key:
 
 ![Mermaid Diagram](./diagrams/02_Key_Features_5.svg)
-
-**Sources:** [docs/internals.md:46](), [Service Architecture & Dependency Injection Diagram]()
+
 
 This ensures one instance per unique combination of:
 - Symbol + Strategy name
@@ -251,8 +237,7 @@ The `LiveMarkdownService` uses a bounded queue (`MAX_EVENTS = 25`) to prevent me
 - Drops oldest events when full
 - Preserves recent history for reporting
 - Prevents unbounded growth
-
-**Sources:** [docs/internals.md:101]()
+
 
 ---
 
@@ -274,8 +259,7 @@ The framework calculates extensive performance metrics for backtests and live tr
 | **Expected Yearly Returns** | Based on avg duration & PNL | Projected annual performance |
 
 **Safe math:** All calculations return `null` for invalid results (NaN, Infinity) rather than propagating unsafe values.
-
-**Sources:** [README.md:33](), [README.md:49](), [docs/interfaces/BacktestStatistics.md](), [docs/interfaces/LiveStatistics.md]()
+
 
 Implementation: [src/services/markdown/]()
 
@@ -284,8 +268,7 @@ Implementation: [src/services/markdown/]()
 Nine types of markdown reports are automatically generated:
 
 ![Mermaid Diagram](./diagrams/02_Key_Features_6.svg)
-
-**Sources:** [Event System & Reporting Architecture Diagram](), [docs/internals.md:37]()
+
 
 Reports include:
 - Summary statistics tables
@@ -324,8 +307,7 @@ interface IHeatmapRow {
 **Sorting:** Symbols sorted by Sharpe Ratio descending (best performers first)
 
 **Portfolio metrics:** Aggregated statistics across all symbols
-
-**Sources:** [README.md:39](), [README.md:507-588](), [src/interfaces/Heatmap.interface.ts]()
+
 
 ### Partial Profit/Loss Tracking
 
@@ -341,8 +323,7 @@ These events fire callbacks and emit to listeners, enabling:
 - Position adjustment
 - Performance analysis
 - Real-time monitoring
-
-**Sources:** [README.md:258](), [docs/interfaces/IStrategyCallbacks.md:77-91]()
+
 
 ### Performance Profiling
 
@@ -362,8 +343,7 @@ Helps identify bottlenecks in:
 - Signal generation logic
 - Validation functions
 - Persistence operations
-
-**Sources:** [README.md:35]()
+
 
 ---
 
@@ -374,8 +354,7 @@ Helps identify bottlenecks in:
 The risk management system coordinates across strategies and symbols:
 
 ![Mermaid Diagram](./diagrams/02_Key_Features_7.svg)
-
-**Sources:** [README.md:43](), [README.md:674-768]()
+
 
 **Validation context provided to each function:**
 
@@ -392,16 +371,14 @@ The risk management system coordinates across strategies and symbols:
 **Fail-fast pattern:** Validations execute sequentially; first failure stops execution and rejects signal.
 
 Implementation: [src/client/Risk.client.ts]()
-
-**Sources:** [test/e2e/risk.test.mjs:615-688]()
+
 
 ### Position Sizing Calculator
 
 Three position sizing methods with configurable constraints:
 
 ![Mermaid Diagram](./diagrams/02_Key_Features_8.svg)
-
-**Sources:** [README.md:41](), [README.md:589-673]()
+
 
 **When to use each method:**
 
@@ -440,8 +417,7 @@ addRisk({
   ]
 });
 ```
-
-**Sources:** [README.md:733-757](), [test/e2e/risk.test.mjs:319-385]()
+
 
 ---
 
@@ -458,8 +434,7 @@ Exchange adapters provide market data without requiring pre-downloaded datasets:
 | `formatQuantity()` | Format quantity for exchange | `Promise<string>` |
 
 **Zero data download:** Unlike Freqtrade and similar frameworks, backtest-kit doesn't require downloading gigabytes of historical data. You can plug any data source: CCXT for live data, databases for fast backtesting, or custom APIs.
-
-**Sources:** [README.md:45](), [README.md:274-313]()
+
 
 Example integrations:
 - CCXT for real-time exchange data
@@ -475,8 +450,7 @@ Implementation: [src/client/Exchange.client.ts]()
 Components are registered by name and lazily instantiated at runtime:
 
 ![Mermaid Diagram](./diagrams/02_Key_Features_9.svg)
-
-**Sources:** [README.md:191-222](), [README.md:234](), [docs/internals.md:32-36]()
+
 
 **Benefits:**
 - Modular design: Components in separate modules
@@ -486,16 +460,14 @@ Components are registered by name and lazily instantiated at runtime:
 - Memory efficiency: Only instantiate what's used
 
 **Schema reflection:** Use `listExchanges()`, `listStrategies()`, `listFrames()` for runtime introspection.
-
-**Sources:** [README.md:235](), [test/spec/list.test.mjs]()
+
 
 ### Context Propagation
 
 Async context propagation eliminates need for explicit parameter passing:
 
 ![Mermaid Diagram](./diagrams/02_Key_Features_10.svg)
-
-**Sources:** [README.md:31](), [docs/internals.md:47-50]()
+
 
 This "time-travel context" enables the same strategy code to:
 - Run in backtest with historical `when` timestamp
@@ -533,16 +505,14 @@ The framework includes extensive test coverage across multiple dimensions:
 | **Heatmap** | [test/spec/heat.test.mjs]() | Portfolio metrics, cross-symbol analysis |
 | **Performance** | [test/spec/performance.test.mjs]() | Execution timing, bottleneck detection |
 | **Optimizer** | [test/spec/optimizer.test.mjs]() | AI strategy generation, LLM integration |
-
-**Sources:** [README.md:53](), [docs/internals.md:114-130](), [test/index.mjs]()
+
 
 ### Edge Case Defense Tests
 
 Critical defensive tests ensure correct behavior in complex scenarios:
 
 ![Mermaid Diagram](./diagrams/02_Key_Features_11.svg)
-
-**Sources:** [test/e2e/defend.test.mjs:16-146](), [test/e2e/defend.test.mjs:148-278](), [test/e2e/defend.test.mjs:281-439](), [test/e2e/defend.test.mjs:446-537](), [test/e2e/defend.test.mjs:545-642]()
+
 
 These tests prove that the framework handles edge cases correctly and prevents financial loss from logic bugs.
 
@@ -561,8 +531,7 @@ All statistical calculations are protected against unsafe numeric values:
 - Reports show "N/A" for invalid metrics instead of crashing
 - Partial data still useful (e.g., total PNL valid even if Sharpe ratio invalid)
 - No silent errors from mathematical edge cases
-
-**Sources:** [README.md:49]()
+
 
 Implementation in statistics calculation functions: [src/services/markdown/]()
 
@@ -575,8 +544,7 @@ Implementation in statistics calculation functions: [src/services/markdown/]()
 LLM-powered strategy generation from historical data:
 
 ![Mermaid Diagram](./diagrams/02_Key_Features_12.svg)
-
-**Sources:** [README.md:51](), [AI-Driven Strategy Generation Diagram]()
+
 
 **Optimizer workflow:**
 1. Configure training date ranges and data sources
@@ -620,5 +588,4 @@ Implementation: [src/client/Optimizer.client.ts](), [src/services/template/Optim
 | Pluggable exchanges | ClientExchange, IExchangeSchema | [Exchange Schemas](./26_Exchange_Schemas.md) |
 | Pluggable persistence | PersistBase, custom adapters | [Custom Persistence Backends](./87_Custom_Persistence_Backends.md) |
 | AI optimizer | ClientOptimizer, Ollama integration | [AI-Powered Strategy Optimization](./90_AI-Powered_Strategy_Optimization.md) |
-
-**Sources:** [README.md:15-53](), [README.md:226-237](), [docs/internals.md:10-26]()
+

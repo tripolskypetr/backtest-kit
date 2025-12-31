@@ -16,8 +16,7 @@ The framework separates data retrieval (user-provided `IExchangeSchema`) from da
 3. `formatQuantity()` - Format quantities to exchange precision
 
 The framework wraps these implementations in `ClientExchange` which adds VWAP calculation, execution context awareness, and bidirectional time-travel (backwards for historical data, forwards for backtest fast-forward).
-
-**Sources:** [types.d.ts:122-155](), [types.d.ts:87-100]()
+
 </thinking>
 
 ---
@@ -29,8 +28,7 @@ The framework wraps these implementations in `ClientExchange` which adds VWAP ca
 **Diagram: Exchange schema registration and instantiation flow**
 
 When `addExchange()` is called, the schema is stored in `ExchangeSchemaService` using the ToolRegistry pattern. On first use, `ExchangeConnectionService` creates a `ClientExchange` instance wrapping the user schema. This instance is memoized and reused for all subsequent operations.
-
-**Sources:** [src/function/add.ts](), [src/lib/services/connection/ExchangeConnectionService.ts]()
+
 
 ---
 
@@ -46,8 +44,7 @@ User implementations must conform to `IExchangeSchema`:
 | `formatPrice` | `(symbol, price) => Promise<string>` | Yes | Format price to exchange precision rules |
 | `formatQuantity` | `(symbol, quantity) => Promise<string>` | Yes | Format quantity to exchange precision rules |
 | `callbacks` | `Partial<IExchangeCallbacks>` | No | Optional lifecycle event hooks |
-
-**Sources:** [types.d.ts:122-155]()
+
 
 ## getCandles Implementation
 
@@ -89,8 +86,7 @@ getCandles: (
 2. Sort candles by timestamp in ascending order (oldest first)
 3. Align timestamps to interval boundaries (e.g., "1m" at :00 seconds)
 4. Throw descriptive errors for failed requests or invalid symbols
-
-**Sources:** [types.d.ts:122-155](), [types.d.ts:87-100]()
+
 
 ---
 
@@ -131,8 +127,7 @@ addExchange({
 - Map to `ICandleData` structure with named fields
 - CCXT handles rate limiting, authentication, and exchange-specific APIs
 - Same code works for any CCXT-supported exchange (Binance, Bybit, etc.)
-
-**Sources:** [demo/backtest/src/index.mjs:24-35](), [demo/live/src/index.mjs:24-35]()
+
 
 ## Example: Database Exchange
 
@@ -163,8 +158,7 @@ addExchange({
 - 10-100x faster backtesting (no API rate limits)
 - Offline operation (no network dependency)
 - Consistent data (pre-downloaded and validated)
-
-**Sources:** [types.d.ts:122-155]()
+
 
 ## ClientExchange Time-Travel Wrapper
 
@@ -173,8 +167,7 @@ addExchange({
 **Diagram: ClientExchange wraps user schema with time-aware fetching**
 
 `ClientExchange.getCandles()` reads `ExecutionContextService.context.when` to determine the current time (historical for backtest, `Date.now()` for live). It calculates `since = when - (interval × limit)`, fetches candles via user schema, then filters results to `[since, when]` range.
-
-**Sources:** [src/client/ClientExchange.ts]()
+
 
 ---
 
@@ -217,8 +210,7 @@ addExchange({
   },
 });
 ```
-
-**Sources:** [types.d.ts:144-152]()
+
 
 ## Lifecycle Callbacks
 
@@ -262,8 +254,7 @@ addExchange({
 - Metrics collection
 - Data quality validation
 - Cache prewarming
-
-**Sources:** [types.d.ts:113-117](), [types.d.ts:154]()
+
 
 ---
 
@@ -280,8 +271,7 @@ addExchange({
 Where `Typical Price = (High + Low + Close) / 3`
 
 **Fallback:** If `totalVolume == 0`, returns simple average of close prices.
-
-**Sources:** [src/client/ClientExchange.ts](), [types.d.ts:196-204]()
+
 
 ## Bidirectional Time-Travel
 
@@ -302,8 +292,7 @@ Where `Typical Price = (High + Low + Close) / 3`
 - Backtest at `2024-01-15 12:00:00`
 - Strategy calls `getCandles("BTCUSDT", "1m", 100)` for indicators → fetches `[12:00 - 100min, 12:00]`
 - Framework calls `getNextCandles("BTCUSDT", "1m", 60)` for signal outcome → fetches `[12:00, 12:00 + 60min]`
-
-**Sources:** [src/client/ClientExchange.ts](), [types.d.ts:168-178]()
+
 
 ## Automatic Filtering and Validation
 
@@ -329,8 +318,7 @@ if (filteredData.length < limit) {
 ```
 
 Logs warnings for data gaps or quality issues.
-
-**Sources:** [src/client/ClientExchange.ts]()
+
 
 ## Service Layer Integration
 
@@ -343,8 +331,7 @@ Logs warnings for data gaps or quality issues.
 3. `MethodContextService` provides `exchangeName` via scoped DI
 4. `ExecutionContextService` provides `{when, backtest, symbol}` via scoped DI
 5. `ClientExchange` wraps user schema with enhanced functionality
-
-**Sources:** [src/lib/services/schema/ExchangeSchemaService.ts](), [src/lib/services/connection/ExchangeConnectionService.ts]()
+
 
 ## Testing Custom Exchanges
 
@@ -375,8 +362,7 @@ Test these scenarios when implementing custom exchanges:
 - Implement rate limiting and exponential backoff for API sources
 - Use connection pooling for database sources
 - Set reasonable timeouts (5-30s depending on data source)
-
-**Sources:** [src/client/ClientExchange.ts]()
+
 
 ## Common Implementation Patterns
 
@@ -445,8 +431,7 @@ addExchange({
   // ... formatPrice, formatQuantity
 });
 ```
-
-**Sources:** [types.d.ts:122-155]()
+
 
 ---
 
@@ -501,8 +486,7 @@ addExchange({
   // ... other methods
 });
 ```
-
-**Sources:** [src/client/ClientExchange.ts]()
+
 
 ---
 
@@ -515,5 +499,4 @@ Custom exchange integration requires implementing three core methods (`getCandle
 - Handle errors with descriptive messages
 - Respect exchange precision in formatting methods
 - Consider caching and rate limiting for production use
-
-**Sources:** [types.d.ts:137-171](), [src/client/ClientExchange.ts:1-223]()
+

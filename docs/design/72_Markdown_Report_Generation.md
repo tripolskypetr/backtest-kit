@@ -54,8 +54,7 @@ class XxxMarkdownService {
   protected init = singleshot(async () => { /* subscribe */ });
 }
 ```
-
-**Sources:** [src/lib/services/markdown/BacktestMarkdownService.ts:282-461](), [src/lib/services/markdown/LiveMarkdownService.ts:423-609](), [src/lib/services/markdown/ScheduleMarkdownService.ts:324-508](), [src/lib/services/markdown/PartialMarkdownService.ts:259-475](), [src/lib/services/markdown/WalkerMarkdownService.ts:406-603](), [src/lib/services/markdown/HeatMarkdownService.ts:434-606](), [src/lib/services/markdown/PerformanceMarkdownService.ts:312-454]()
+
 
 ---
 
@@ -72,8 +71,7 @@ All markdown services implement the same architectural pattern: a public service
 - **Storage Class**: Event accumulation, statistical calculation, markdown formatting
 
 The separation ensures that each symbol-strategy pair gets isolated storage while the service class manages the storage lifecycle.
-
-**Sources:** [src/lib/services/markdown/BacktestMarkdownService.ts:76-253](), [src/lib/services/markdown/BacktestMarkdownService.ts:282-461](), [src/lib/services/markdown/LiveMarkdownService.ts:78-391](), [src/lib/services/markdown/LiveMarkdownService.ts:423-609]()
+
 
 ---
 
@@ -106,8 +104,7 @@ public addSignal(data: IStrategyTickResultClosed) {
 ```
 
 The bounded queue ensures that even with millions of events over days of live trading, each storage instance uses constant memory. With typical deployments running 10-20 symbol-strategy pairs, total memory usage remains under 5 MB for all markdown services combined.
-
-**Sources:** [src/lib/services/markdown/BacktestMarkdownService.ts:70](), [src/lib/services/markdown/BacktestMarkdownService.ts:85-92](), [src/lib/services/markdown/LiveMarkdownService.ts:72](), [src/lib/services/markdown/LiveMarkdownService.ts:122-140](), [src/lib/services/markdown/ScheduleMarkdownService.ts:53]()
+
 
 ---
 
@@ -120,8 +117,7 @@ Each markdown service subscribes to event emitters during initialization using t
 ![Mermaid Diagram](./diagrams/72_Markdown_Report_Generation_3.svg)
 
 The `singleshot` wrapper ensures thread-safe initialization without locks by leveraging JavaScript's single-threaded event loop. Multiple concurrent calls to `getData()` will queue behind the first call's initialization.
-
-**Sources:** [src/lib/services/markdown/BacktestMarkdownService.ts:457-460](), [src/lib/services/markdown/LiveMarkdownService.ts:605-608](), [src/lib/services/markdown/ScheduleMarkdownService.ts:504-507]()
+
 
 ### Backtest Event Processing
 
@@ -139,8 +135,7 @@ private tick = async (data: IStrategyTickResult) => {
   storage.addSignal(data);  // Only closed events stored
 };
 ```
-
-**Sources:** [src/lib/services/markdown/BacktestMarkdownService.ts:314-325](), [src/lib/services/markdown/BacktestMarkdownService.ts:457-460]()
+
 
 ### Live Event Processing
 
@@ -180,8 +175,7 @@ public addIdleEvent(currentPrice: number) {
 ```
 
 This optimization prevents a strategy polling every minute with no signals from accumulating 1440 idle events per day. Instead, only the most recent idle event is retained until signal activity resumes.
-
-**Sources:** [src/lib/services/markdown/LiveMarkdownService.ts:88-115](), [src/lib/services/markdown/LiveMarkdownService.ts:147-182](), [src/lib/services/markdown/LiveMarkdownService.ts:189-215](), [src/lib/services/markdown/LiveMarkdownService.ts:72]()
+
 
 ### Schedule Event Processing
 
@@ -215,8 +209,7 @@ private tick = async (data: IStrategyTickResult) => {
 ```
 
 The service subscribes to `signalEmitter` (global) rather than mode-specific emitters because scheduled signals can occur in both backtest and live modes.
-
-**Sources:** [src/lib/services/markdown/ScheduleMarkdownService.ts:68-86](), [src/lib/services/markdown/ScheduleMarkdownService.ts:93-117](), [src/lib/services/markdown/ScheduleMarkdownService.ts:124-149](), [src/lib/services/markdown/ScheduleMarkdownService.ts:351-369]()
+
 
 ---
 
@@ -235,8 +228,7 @@ The backtest service generates reports with closed signal data in a tabular form
 | `BacktestStatistics` | Interface for statistical data | [BacktestMarkdownService.ts:66-102]() |
 | `Column[]` | Table column definitions | [BacktestMarkdownService.ts:104-177]() |
 | `getStorage()` | Memoized storage retriever | [BacktestMarkdownService.ts:378-381]() |
-
-**Sources:** [src/lib/services/markdown/BacktestMarkdownService.ts:370-542]()
+
 
 ### LiveMarkdownService
 
@@ -250,8 +242,7 @@ The live service generates reports with all event types (idle, opened, active, c
 | `TickEvent` | Unified event data structure | [LiveMarkdownService.ts:39-66]() |
 | `Column[]` | Table column definitions | [LiveMarkdownService.ts:145-220]() |
 | `MAX_EVENTS` | Event queue capacity (250) | [LiveMarkdownService.ts:223]() |
-
-**Sources:** [src/lib/services/markdown/LiveMarkdownService.ts:567-746]()
+
 
 ### ScheduleMarkdownService
 
@@ -264,8 +255,7 @@ The schedule service tracks scheduled signals and their cancellation metrics. Re
 | `ScheduleStatistics` | Interface for statistical data | [ScheduleMarkdownService.ts:68-86]() |
 | `ScheduledEvent` | Scheduled/cancelled event data | [ScheduleMarkdownService.ts:19-44]() |
 | `Column[]` | Table column definitions | [ScheduleMarkdownService.ts:101-158]() |
-
-**Sources:** [src/lib/services/markdown/ScheduleMarkdownService.ts:374-545]()
+
 
 ---
 
@@ -278,8 +268,7 @@ All markdown services expose three public methods for data access, report genera
 **API Contract**
 
 ![Mermaid Diagram](./diagrams/72_Markdown_Report_Generation_5.svg)
-
-**Sources:** [src/lib/services/markdown/BacktestMarkdownService.ts:342-414](), [src/lib/services/markdown/LiveMarkdownService.ts:490-562](), [src/lib/services/markdown/ScheduleMarkdownService.ts:386-461]()
+
 
 ### getData() - Statistical Data Access
 
@@ -329,8 +318,7 @@ function isUnsafe(value: number | null): boolean {
 winRate: isUnsafe(winRate) ? null : winRate,
 sharpeRatio: isUnsafe(sharpeRatio) ? null : sharpeRatio,
 ```
-
-**Sources:** [src/lib/services/markdown/BacktestMarkdownService.ts:56-67](), [src/lib/services/markdown/BacktestMarkdownService.ts:100-168](), [src/lib/services/markdown/LiveMarkdownService.ts:58-69](), [src/lib/services/markdown/LiveMarkdownService.ts:223-306]()
+
 
 ### getReport() - Markdown Generation
 
@@ -379,8 +367,7 @@ const pnlColumn: ColumnModel<IStrategyTickResultClosed> = {
 ```
 
 The `isVisible()` function allows dynamic column hiding based on configuration or data availability.
-
-**Sources:** [src/model/Column.model.ts:1-39](), [src/lib/services/markdown/BacktestMarkdownService.ts:177-224](), [src/lib/services/markdown/LiveMarkdownService.ts:315-362]()
+
 
 ### dump() - File Persistence
 
@@ -390,8 +377,7 @@ The `dump()` method writes markdown reports to disk using Node.js file system AP
 - Backtest: `./dump/backtest/{strategyName}.md`
 - Live: `./dump/live/{strategyName}.md`
 - Schedule: `./dump/schedule/{strategyName}.md`
-
-**Sources:** [src/lib/services/markdown/BacktestMarkdownService.ts:322-340](), [src/lib/services/markdown/LiveMarkdownService.ts:516-534](), [src/lib/services/markdown/ScheduleMarkdownService.ts:332-350]()
+
 
 ---
 
@@ -400,8 +386,7 @@ The `dump()` method writes markdown reports to disk using Node.js file system AP
 Tables are generated using a column configuration system that defines label, key, and formatting function for each column. The system maps event data to table rows using these column definitions.
 
 ![Mermaid Diagram](./diagrams/72_Markdown_Report_Generation_6.svg)
-
-**Sources:** [src/lib/services/markdown/BacktestMarkdownService.ts:289-296](), [src/lib/services/markdown/LiveMarkdownService.ts:483-490]()
+
 
 ### Backtest Columns
 
@@ -422,8 +407,7 @@ The backtest table includes 12 columns showing complete signal lifecycle data:
 | Duration (min) | Integer minutes | `120` |
 | Open Time | ISO 8601 | `2024-01-15T10:30:00.000Z` |
 | Close Time | ISO 8601 | `2024-01-15T12:30:00.000Z` |
-
-**Sources:** [src/lib/services/markdown/BacktestMarkdownService.ts:104-177]()
+
 
 ### Live Columns
 
@@ -444,8 +428,7 @@ The live table includes 13 columns showing all event types including idle period
 | PNL (net) | +/- 2 decimals + % or N/A | `+3.00%` |
 | Close Reason | Enum or N/A | `TAKEPROFIT` |
 | Duration (min) | Integer or N/A | `120` |
-
-**Sources:** [src/lib/services/markdown/LiveMarkdownService.ts:145-220]()
+
 
 ### Schedule Columns
 
@@ -464,8 +447,7 @@ The schedule table includes 11 columns focused on scheduled signal lifecycle:
 | Take Profit | 8 decimals + USD | `52000.00000000 USD` |
 | Stop Loss | 8 decimals + USD | `49000.00000000 USD` |
 | Wait Time (min) | Integer or N/A | `45` |
-
-**Sources:** [src/lib/services/markdown/ScheduleMarkdownService.ts:101-158]()
+
 
 ---
 
@@ -484,8 +466,7 @@ private getStorage = memoize<(symbol: string, strategyName: string) => ReportSto
   () => new ReportStorage()
 );
 ```
-
-**Sources:** [src/lib/services/markdown/BacktestMarkdownService.ts:290-293](), [src/lib/services/markdown/LiveMarkdownService.ts:431-434](), [src/lib/services/markdown/ScheduleMarkdownService.ts:332-335]()
+
 
 ### Clear Operation
 
@@ -502,8 +483,7 @@ await service.clear();
 ```
 
 The clear operation calls `memoize.clear()` which removes cached entries, enabling garbage collection of storage instances.
-
-**Sources:** [src/lib/services/markdown/BacktestMarkdownService.ts:434-444](), [src/lib/services/markdown/LiveMarkdownService.ts:582-592](), [src/lib/services/markdown/ScheduleMarkdownService.ts:481-491]()
+
 
 ---
 
@@ -525,8 +505,7 @@ private tick = async (data: IStrategyTickResult) => {
   storage.addSignal(data);
 };
 ```
-
-**Sources:** [src/lib/services/markdown/BacktestMarkdownService.ts:314-325]()
+
 
 ### Live Event Types
 
@@ -538,8 +517,7 @@ Live processes all four action types with specialized handling for each:
 | `opened` | Push new event | Track signal opening |
 | `active` | Find by signalId and replace | Update position monitoring state |
 | `closed` | Find by signalId and replace | Record final PNL and close reason |
-
-**Sources:** [src/lib/services/markdown/LiveMarkdownService.ts:457-473]()
+
 
 ### Schedule Event Types
 
@@ -549,8 +527,7 @@ Schedule processes two action types related to limit orders:
 |--------|----------------|---------|
 | `scheduled` | Push new event | Track limit order creation |
 | `cancelled` | Find by signalId and replace | Record cancellation with wait time |
-
-**Sources:** [src/lib/services/markdown/ScheduleMarkdownService.ts:351-369]()
+
 
 ---
 
@@ -559,7 +536,6 @@ Schedule processes two action types related to limit orders:
 All markdown services use the `singleshot` pattern from `functools-kit` to ensure event subscription happens exactly once. The `init()` method is marked protected and called automatically on first data access.
 
 ![Mermaid Diagram](./diagrams/72_Markdown_Report_Generation_7.svg)
-
-**Sources:** [src/lib/services/markdown/BacktestMarkdownService.ts:538-541](), [src/lib/services/markdown/LiveMarkdownService.ts:742-745](), [src/lib/services/markdown/ScheduleMarkdownService.ts:541-544]()
+
 
 The protected visibility (`protected init`) allows subclass testing while preventing external calls. The automatic initialization ensures services are ready without explicit setup calls.

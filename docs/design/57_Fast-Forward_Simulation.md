@@ -21,8 +21,7 @@ This page documents:
 - **Determinism**: Uses `candle.high`/`candle.low` for exact TP/SL detection
 - **Memory Efficiency**: Streams results via `AsyncGenerator`, no intermediate state accumulation
 - **Accuracy**: VWAP calculation accounts for volume-weighted intra-candle movements
-
-Sources: [src/client/ClientStrategy.ts:1781-1949](), [src/lib/services/logic/private/BacktestLogicPrivateService.ts]()
+
 
 ---
 
@@ -38,8 +37,7 @@ The framework supports two execution modes for strategy evaluation:
 **Backtest Execution Flow**
 
 ![Mermaid Diagram](./diagrams/57_Fast-Forward_Simulation_0.svg)
-
-**Sources:** [src/lib/services/logic/private/BacktestLogicPrivateService.ts:59-298](), [src/client/ClientStrategy.ts:1639-1753]()
+
 
 ---
 
@@ -65,8 +63,7 @@ backtest: (
 **Signal Lifecycle Processing Flow**
 
 ![Mermaid Diagram](./diagrams/57_Fast-Forward_Simulation_1.svg)
-
-**Sources:** [src/client/ClientStrategy.ts:1781-1949](), [src/interfaces/Strategy.interface.ts:304-306]()
+
 
 ---
 
@@ -112,8 +109,7 @@ if (signal.position === "short") {
 2. **Priority Order**: Time expiration is checked first, then TP/SL. If `minuteEstimatedTime` expires, the signal closes at current VWAP price regardless of TP/SL proximity.
 
 3. **VWAP Calculation**: Average price is calculated using volume-weighted average of recent candles (controlled by `CC_AVG_PRICE_CANDLES_COUNT`).
-
-**Sources:** [src/client/ClientStrategy.ts:1164-1186](), [src/client/ClientStrategy.ts:1143-1183]()
+
 
 ---
 
@@ -158,8 +154,7 @@ for (let i = candlesCount - 1; i < candles.length; i++) {
   // Check TP/SL against averagePrice
 }
 ```
-
-**Sources:** [src/client/ClientStrategy.ts:398-409](), [src/client/ClientStrategy.ts:1364](), [types.d.ts:14-15]()
+
 
 ---
 
@@ -234,8 +229,7 @@ const candles = await exchangeGlobalService.getNextCandles(
 |-------------|----------------|--------|
 | Opened | `minuteEstimatedTime` | Signal already active, only need TP/SL monitoring duration |
 | Scheduled | `CC_SCHEDULE_AWAIT_MINUTES + minuteEstimatedTime + 1` | Need activation window + TP/SL duration + 1 for inclusive range |
-
-**Sources:** [src/lib/services/logic/private/BacktestLogicPrivateService.ts:186-253](), [src/client/ClientStrategy.ts:1263-1357]()
+
 
 ---
 
@@ -270,8 +264,7 @@ For a scheduled signal:
 - `pendingAt`: Timestamp when price reached `priceOpen` and position activated
 
 If `minuteEstimatedTime` counted from `scheduledAt`, the signal would close prematurely, incurring trading fees without adequate time to reach TP.
-
-**Sources:** [src/client/ClientStrategy.ts:1136-1186](), [test/e2e/timing.test.mjs:34-153]()
+
 
 ---
 
@@ -310,8 +303,7 @@ yield backtestResult;
 ```
 
 This prevents thousands of redundant `tick()` calls during the signal's active period.
-
-**Sources:** [src/lib/services/logic/private/BacktestLogicPrivateService.ts:186-253](), [src/lib/services/connection/StrategyConnectionService.ts:132-150](), [src/lib/services/global/StrategyGlobalService.ts]()
+
 
 ---
 
@@ -346,8 +338,7 @@ For a 30-day backtest with 15-minute signals:
 - **Tick-by-tick**: ~43,200 tick calls (30 days × 24 hours × 60 minutes)
 - **Fast-forward**: ~100 backtest calls (assuming ~3 signals/day)
 - **Speedup**: ~430x fewer function calls
-
-**Sources:** [src/lib/services/logic/private/BacktestLogicPrivateService.ts:64-298](), [src/config/emitters.ts]()
+
 
 ---
 
@@ -389,8 +380,7 @@ This determinism is critical for:
 - **Strategy Development**: Iterative testing without environmental noise
 - **Walker Optimization**: Fair comparison between strategy variants
 - **Regression Testing**: Verify framework changes don't alter outcomes
-
-**Sources:** [src/lib/services/logic/private/BacktestLogicPrivateService.ts:59-300](), [src/client/ClientStrategy.ts:1188-1318]()
+
 
 ---
 
@@ -414,5 +404,4 @@ This determinism is critical for:
 | `CC_AVG_PRICE_CANDLES_COUNT` | 3 | VWAP window size |
 | `CC_SCHEDULE_AWAIT_MINUTES` | 120 | Scheduled signal timeout |
 | `CC_MAX_SIGNAL_LIFETIME_MINUTES` | 10080 | Maximum signal duration (7 days) |
-
-**Sources:** [src/client/ClientStrategy.ts:1-1318](), [src/config/params.ts]()
+

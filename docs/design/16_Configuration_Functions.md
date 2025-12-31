@@ -20,8 +20,7 @@ Configuration functions provide three categories of system-wide settings:
 3. **Column Configuration**: Report column visibility and formatting for markdown output
 
 All configuration functions are idempotent and can be called multiple times. The last call before component registration takes precedence. Configuration changes after component registration do not affect already-registered components.
-
-**Sources**: [src/index.ts:1-9](), [types.d.ts:52-77]()
+
 
 ---
 
@@ -30,8 +29,7 @@ All configuration functions are idempotent and can be called multiple times. The
 ![Mermaid Diagram](./diagrams/16_Configuration_Functions_0.svg)
 
 **Analysis**: Configuration functions operate at the topmost layer of the system. `setLogger()` injects a custom logger into the DI container, replacing the default `LoggerService` implementation. `setConfig()` and `setColumns()` update memoized stores that are read by validation and markdown services. All configuration is immutable after initial setup.
-
-**Sources**: [src/lib/index.ts:1-246](), [src/lib/core/provide.ts:1-143](), [src/lib/core/types.ts:1-105]()
+
 
 ---
 
@@ -111,8 +109,7 @@ The system uses structured topic strings for log filtering:
 | `event.listener` | `event.listenSignal` | Event subscription |
 | `command.execution` | `backtest.run` | Execution commands |
 | `connection.factory` | `connection.getStrategy` | Connection services |
-
-**Sources**: [types.d.ts:52-77](), [src/index.ts:1-9](), [src/lib/services/base/LoggerService.ts]()
+
 
 ---
 
@@ -174,8 +171,7 @@ setConfig({
   TICK_TTL: 5000,         // Check every 5 seconds
 });
 ```
-
-**Sources**: [src/index.ts:1-9](), [src/config/params.ts](), [types.d.ts:1-900]()
+
 
 ---
 
@@ -203,8 +199,7 @@ console.log(`Current fees: ${config.fees}%`);
 console.log(`VWAP candle count: ${config.CC_VWAP_CANDLE_COUNT}`);
 console.log(`Min TP distance: ${config.CC_MIN_TAKEPROFIT_DISTANCE_PERCENT}%`);
 ```
-
-**Sources**: [src/index.ts:1-9](), [src/config/params.ts]()
+
 
 ---
 
@@ -236,8 +231,7 @@ const diff = Object.keys(current).filter(
 );
 console.log("Modified config keys:", diff);
 ```
-
-**Sources**: [src/index.ts:1-9](), [src/config/params.ts]()
+
 
 ---
 
@@ -313,8 +307,7 @@ setColumns({
   percentSl: true,
 });
 ```
-
-**Sources**: [src/index.ts:1-9](), [src/config/columns.ts](), [src/model/Column.model.ts]()
+
 
 ---
 
@@ -346,8 +339,7 @@ if (columns.pnlPercentage) {
 const enabledCount = Object.values(columns).filter(Boolean).length;
 console.log(`${enabledCount} columns enabled`);
 ```
-
-**Sources**: [src/index.ts:1-9](), [src/config/columns.ts]()
+
 
 ---
 
@@ -379,8 +371,7 @@ const modified = Object.keys(current).filter(
 );
 console.log("Modified columns:", modified);
 ```
-
-**Sources**: [src/index.ts:1-9](), [src/config/columns.ts]()
+
 
 ---
 
@@ -396,8 +387,7 @@ console.log("Modified columns:", modified);
 2. **Idempotency**: Multiple calls are allowed; last call wins
 3. **Immutability**: Configuration is frozen at first component registration
 4. **Defaults**: Unset properties use memoized defaults from `getDefaultConfig()` and `getDefaultColumns()`
-
-**Sources**: [src/function/add.ts:1-445](), [src/lib/services/validation/ConfigValidationService.ts](), [src/lib/services/validation/ColumnValidationService.ts]()
+
 
 ---
 
@@ -430,8 +420,7 @@ setColumns({
   unknownColumn: true,  // Ignored, logged as warning
 });
 ```
-
-**Sources**: [src/lib/services/validation/ConfigValidationService.ts](), [src/lib/services/validation/ColumnValidationService.ts](), [src/lib/core/types.ts:81-83]()
+
 
 ---
 
@@ -521,8 +510,7 @@ setConfig({
 - **Entry price**: Adjusted by `(1 + slippage/100) * (1 + fees/100)` for long, opposite for short
 - **Exit price**: Adjusted by `(1 - slippage/100) * (1 - fees/100)` for long, opposite for short
 - **Used by**: `ClientStrategy._calculatePnL()` ([src/client/ClientStrategy.ts]())
-
-**Sources**: [src/config/params.ts](), [src/client/ClientStrategy.ts](), [src/client/ClientExchange.ts](), [src/lib/services/logic/private/LiveLogicPrivateService.ts]()
+
 
 ---
 
@@ -537,5 +525,4 @@ setConfig({
 | `setColumns()` | Report Config | Markdown generation | Before execution |
 | `getColumns()` | Report Config | N/A (read-only) | Anytime |
 | `getDefaultColumns()` | Report Config | N/A (read-only) | Anytime |
-
-**Sources**: [src/index.ts:1-9](), [src/function/setup.ts](), [types.d.ts:1-900]()
+

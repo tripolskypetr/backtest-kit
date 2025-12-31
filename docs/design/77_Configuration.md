@@ -46,8 +46,7 @@ setConfig({
   vwapCandleCount: 10,  // Use 10 candles for VWAP calculation
 });
 ```
-
-**Sources**: [src/index.ts:1-9](), [types.d.ts:52-77]()
+
 
 ---
 
@@ -70,8 +69,7 @@ The `GlobalConfig` type defines runtime parameters that affect profit/loss calcu
 | `scheduleAwaitMinutes` | `number` | `60` | Timeout for scheduled signals awaiting activation | Scheduled signal cancellation |
 | `maxSignalLifetimeMinutes` | `number` | `1440` (24h) | Maximum duration for active signals | Active signal timeout |
 | `tickTTL` | `number` | `60000` (1min) | Sleep interval between live mode ticks | `LiveLogicPrivateService` loop |
-
-**Sources**: [src/index.ts:195](), [types.d.ts:758]()
+
 
 ---
 
@@ -109,8 +107,7 @@ setConfig({
   fees: 0.0005,     // 0.05% fees (VIP tier with rebates)
 });
 ```
-
-**Sources**: [types.d.ts:756-766]()
+
 
 ---
 
@@ -142,8 +139,7 @@ setConfig({
   vwapCandleCount: 15,  // 15-minute VWAP window
 });
 ```
-
-**Sources**: [types.d.ts:196-204](), [types.d.ts:119-136]()
+
 
 ---
 
@@ -187,8 +183,7 @@ setConfig({
 "Take profit must be greater than entry price for LONG positions"
 "Take profit must be less than entry price for SHORT positions"
 ```
-
-**Sources**: [types.d.ts:651-667]()
+
 
 ---
 
@@ -253,8 +248,7 @@ setConfig({
   tickTTL: 300000,                  // 5-minute tick interval
 });
 ```
-
-**Sources**: [types.d.ts:694-698](), [types.d.ts:686-689]()
+
 
 ---
 
@@ -345,8 +339,7 @@ setColumns(allColumns);
 | `WalkerMarkdownService` | Strategy comparison results | Yes |
 | `ScheduleMarkdownService` | Scheduled signals | Yes |
 | `PartialMarkdownService` | Partial profit/loss milestones | Yes |
-
-**Sources**: [src/index.ts:196](), [src/lib/index.ts:182-186]()
+
 
 ---
 
@@ -382,8 +375,7 @@ setConfig({
   tickTTL: 500,   // ERROR: < 1000
 });
 ```
-
-**Sources**: [src/lib/index.ts:212-213](), [src/lib/core/provide.ts:136-137]()
+
 
 ---
 
@@ -410,5 +402,4 @@ setConfig({
 - Increase `vwapCandleCount` cautiously (more candles = more database queries)
 - Set `tickTTL` as high as acceptable to reduce CPU usage in live mode
 - Use `getDefaultConfig()` as baseline and override only necessary parameters
-
-**Sources**: [src/index.ts:1-9](), [types.d.ts:195-196]()
+
