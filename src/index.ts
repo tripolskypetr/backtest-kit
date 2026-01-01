@@ -147,6 +147,23 @@ export {
 export { MessageModel, MessageRole } from "./model/Message.model";
 export { ColumnModel } from "./model/Column.model";
 
+export {
+  NotificationModel,
+  BacktestDoneNotification,
+  CriticalErrorNotification,
+  InfoErrorNotification,
+  LiveDoneNotification,
+  PartialLossNotification,
+  PartialProfitNotification,
+  ProgressBacktestNotification,
+  RiskRejectionNotification,
+  SignalCancelledNotification,
+  SignalClosedNotification,
+  SignalOpenedNotification,
+  SignalScheduledNotification,
+  ValidationErrorNotification,
+} from "./model/Notification.model";
+
 export { BacktestStatisticsModel } from "./model/BacktestStatistics.model";
 export { LiveStatisticsModel } from "./model/LiveStatistics.model";
 export { HeatmapStatisticsModel } from "./model/HeatmapStatistics.model";
@@ -203,6 +220,7 @@ export { Constant } from "./classes/Constant";
 export { Risk } from "./classes/Risk";
 export { Exchange } from "./classes/Exchange";
 export { Cache } from "./classes/Cache";
+export { Notification } from "./classes/Notification";
 
 export { type TickEvent } from "./model/LiveStatistics.model";
 export { type PartialEvent } from "./model/PartialStatistics.model";
