@@ -22,7 +22,7 @@ constructor();
 ### getData
 
 ```ts
-getData: (strategyName: string, context: { exchangeName: string; frameName: string; }, backtest?: boolean) => Promise<HeatmapStatisticsModel>
+getData: (context: { strategyName: string; exchangeName: string; frameName: string; }, backtest?: boolean) => Promise<HeatmapStatisticsModel>
 ```
 
 Gets aggregated portfolio heatmap statistics for a strategy.
@@ -33,7 +33,7 @@ Data is automatically collected from all closed signals for the strategy.
 ### getReport
 
 ```ts
-getReport: (strategyName: string, context: { exchangeName: string; frameName: string; }, backtest?: boolean, columns?: Columns$2[]) => Promise<string>
+getReport: (context: { strategyName: string; exchangeName: string; frameName: string; }, backtest?: boolean, columns?: Columns$2[]) => Promise<string>
 ```
 
 Generates markdown report with portfolio heatmap table for a strategy.
@@ -44,7 +44,7 @@ Symbols are sorted by Total PNL descending.
 ### dump
 
 ```ts
-dump: (strategyName: string, context: { exchangeName: string; frameName: string; }, backtest?: boolean, path?: string, columns?: Columns$2[]) => Promise<void>
+dump: (context: { strategyName: string; exchangeName: string; frameName: string; }, backtest?: boolean, path?: string, columns?: Columns$2[]) => Promise<void>
 ```
 
 Saves heatmap report to disk for a strategy.

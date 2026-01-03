@@ -49,7 +49,7 @@ Identifies which strategy attempted to create the signal.
 ### frameName
 
 ```ts
-frameName: FrameName$1
+frameName: string
 ```
 
 Frame name used in backtest execution.

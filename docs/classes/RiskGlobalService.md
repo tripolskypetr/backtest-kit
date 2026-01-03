@@ -43,7 +43,7 @@ validate: any
 ```
 
 Validates risk configuration.
-Memoized to avoid redundant validations for the same risk instance.
+Memoized to avoid redundant validations for the same risk-exchange-frame combination.
 Logs validation activity.
 
 ### checkSignal

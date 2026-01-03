@@ -58,7 +58,7 @@ validate: any
 
 Validates strategy and associated risk configuration.
 
-Memoized to avoid redundant validations for the same symbol-strategy pair.
+Memoized to avoid redundant validations for the same symbol-strategy-exchange-frame combination.
 Logs validation activity.
 
 ### getPendingSignal

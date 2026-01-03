@@ -9,14 +9,6 @@ Active position tracked by ClientRisk for cross-strategy analysis.
 
 ## Properties
 
-### signal
-
-```ts
-signal: ISignalRow
-```
-
-Signal details for the active position
-
 ### strategyName
 
 ```ts

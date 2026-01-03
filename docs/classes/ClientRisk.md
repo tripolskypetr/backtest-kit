@@ -84,6 +84,7 @@ Triggers callbacks (onRejected, onAllowed) based on result.
 addSignal(symbol: string, context: {
     strategyName: string;
     riskName: string;
+    exchangeName: string;
 }): Promise<void>;
 ```
 
@@ -96,6 +97,7 @@ Called by StrategyConnectionService after signal is opened.
 removeSignal(symbol: string, context: {
     strategyName: string;
     riskName: string;
+    exchangeName: string;
 }): Promise<void>;
 ```
 
