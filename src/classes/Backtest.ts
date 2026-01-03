@@ -326,8 +326,8 @@ export class BacktestUtils {
    * Each symbol-strategy combination gets its own isolated instance.
    */
   private _getInstance = memoize(
-    ([symbol, strategyName, exchangeName, frameName]) =>
-      `${symbol}:${strategyName}:${exchangeName}:${frameName}`,
+    ([symbol, strategyName]) =>
+      `${symbol}:${strategyName}`,
     (
       symbol: string,
       strategyName: StrategyName,
