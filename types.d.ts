@@ -10151,10 +10151,10 @@ declare class StrategyCoreService {
     /**
      * Validates strategy and associated risk configuration.
      *
-     * Memoized to avoid redundant validations for the same symbol-strategy pair.
+     * Memoized to avoid redundant validations for the same symbol-strategy-exchange-frame combination.
      * Logs validation activity.
      * @param symbol - Trading pair symbol
-     * @param strategyName - Name of the strategy to validate
+     * @param context - Execution context with strategyName, exchangeName, frameName
      * @returns Promise that resolves when validation is complete
      */
     private validate;
@@ -10343,9 +10343,9 @@ declare class RiskGlobalService {
     private readonly riskValidationService;
     /**
      * Validates risk configuration.
-     * Memoized to avoid redundant validations for the same risk instance.
+     * Memoized to avoid redundant validations for the same risk-exchange-frame combination.
      * Logs validation activity.
-     * @param riskName - Name of the risk instance to validate
+     * @param payload - Payload with riskName, exchangeName and frameName
      * @returns Promise that resolves when validation is complete
      */
     private validate;
@@ -11745,9 +11745,9 @@ declare class PartialGlobalService {
     private readonly riskValidationService;
     /**
      * Validates strategy and associated risk configuration.
-     * Memoized to avoid redundant validations for the same strategy.
+     * Memoized to avoid redundant validations for the same strategy-exchange-frame combination.
      *
-     * @param strategyName - Name of the strategy to validate
+     * @param context - Context with strategyName, exchangeName and frameName
      * @param methodName - Name of the calling method for error tracking
      */
     private validate;
