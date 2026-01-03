@@ -1,6 +1,6 @@
 import { ISignalDto, StrategyName } from "../interfaces/Strategy.interface";
 import { ExchangeName } from "../interfaces/Exchange.interface";
-import { FrameName } from "src/interfaces/Frame.interface";
+import { FrameName } from "../interfaces/Frame.interface";
 
 /**
  * Contract for risk rejection events.

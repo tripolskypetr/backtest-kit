@@ -1,5 +1,4 @@
 import * as di_scoped from 'di-scoped';
-import { FrameName as FrameName$1 } from 'src/interfaces/Frame.interface';
 import * as functools_kit from 'functools-kit';
 import { Subject } from 'functools-kit';
 
@@ -3224,7 +3223,7 @@ interface RiskContract {
      * Frame name used in backtest execution.
      * Identifies which frame this signal was for in backtest execution.
      */
-    frameName: FrameName$1;
+    frameName: FrameName;
     /**
      * Exchange name.
      * Identifies which exchange this signal was for.
