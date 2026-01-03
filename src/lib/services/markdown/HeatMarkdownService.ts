@@ -50,13 +50,22 @@ export type Columns = ColumnModel<IHeatmapRow>;
 
 /**
  * Creates a unique key for memoizing HeatmapStorage instances.
- * Key format: "strategyName:backtest" or "strategyName:live"
- * @param strategyName - Name of the strategy
+ * Key format: "exchangeName:frameName:backtest" or "exchangeName:live"
+ * @param exchangeName - Exchange name
+ * @param frameName - Frame name
  * @param backtest - Whether running in backtest mode
  * @returns Unique string key for memoization
  */
-const CREATE_KEY_FN = (strategyName: StrategyName, backtest: boolean) =>
-  `${strategyName}:${backtest ? "backtest" : "live"}` as const;
+const CREATE_KEY_FN = (
+  exchangeName: string,
+  frameName: string,
+  backtest: boolean
+): string => {
+  const parts = [exchangeName];
+  if (frameName) parts.push(frameName);
+  parts.push(backtest ? "backtest" : "live");
+  return parts.join(":");
+};
 
 const HEATMAP_METHOD_NAME_GET_DATA = "HeatMarkdownService.getData";
 const HEATMAP_METHOD_NAME_GET_REPORT = "HeatMarkdownService.getReport";
@@ -446,11 +455,11 @@ export class HeatMarkdownService {
   private readonly loggerService = inject<LoggerService>(TYPES.loggerService);
 
   /**
-   * Memoized function to get or create HeatmapStorage for a strategy and backtest mode.
-   * Each strategy + backtest mode combination gets its own isolated heatmap storage instance.
+   * Memoized function to get or create HeatmapStorage for exchange, frame and backtest mode.
+   * Each exchangeName + frameName + backtest mode combination gets its own isolated heatmap storage instance.
    */
-  private getStorage = memoize<(strategyName: StrategyName, backtest: boolean) => HeatmapStorage>(
-    ([strategyName, backtest]) => CREATE_KEY_FN(strategyName, backtest),
+  private getStorage = memoize<(exchangeName: string, frameName: string, backtest: boolean) => HeatmapStorage>(
+    ([exchangeName, frameName, backtest]) => CREATE_KEY_FN(exchangeName, frameName, backtest),
     () => new HeatmapStorage()
   );
 
@@ -462,7 +471,7 @@ export class HeatMarkdownService {
    *
    * @param data - Tick result from strategy execution (closed signals only)
    */
-  private tick = async (data: IStrategyTickResult) => {
+  private tick = async (data: IStrategyTickResult & { frameName: string }) => {
     this.loggerService.log("heatMarkdownService tick", {
       data,
     });
@@ -471,21 +480,22 @@ export class HeatMarkdownService {
       return;
     }
 
-    const storage = this.getStorage(data.strategyName, data.backtest);
+    const storage = this.getStorage(data.exchangeName, data.frameName, data.backtest);
     storage.addSignal(data);
   };
 
   /**
-   * Gets aggregated portfolio heatmap statistics for a strategy.
+   * Gets aggregated portfolio heatmap statistics.
    *
-   * @param strategyName - Strategy name to get heatmap data for
+   * @param exchangeName - Exchange name
+   * @param frameName - Frame name
    * @param backtest - True if backtest mode, false if live mode
    * @returns Promise resolving to heatmap statistics with per-symbol and portfolio-wide metrics
    *
    * @example
    * ```typescript
    * const service = new HeatMarkdownService();
-   * const stats = await service.getData("my-strategy", true);
+   * const stats = await service.getData("binance", "frame1", true);
    *
    * console.log(`Total symbols: ${stats.totalSymbols}`);
    * console.log(`Portfolio PNL: ${stats.portfolioTotalPnl}%`);
@@ -496,21 +506,25 @@ export class HeatMarkdownService {
    * ```
    */
   public getData = async (
-    strategyName: StrategyName,
+    exchangeName: string,
+    frameName: string,
     backtest: boolean
   ): Promise<HeatmapStatisticsModel> => {
     this.loggerService.log(HEATMAP_METHOD_NAME_GET_DATA, {
-      strategyName,
+      exchangeName,
+      frameName,
       backtest,
     });
-    const storage = this.getStorage(strategyName, backtest);
+    const storage = this.getStorage(exchangeName, frameName, backtest);
     return storage.getData();
   };
 
   /**
-   * Generates markdown report with portfolio heatmap table for a strategy.
+   * Generates markdown report with portfolio heatmap table.
    *
-   * @param strategyName - Strategy name to generate heatmap report for
+   * @param strategyName - Strategy name for report title
+   * @param exchangeName - Exchange name
+   * @param frameName - Frame name
    * @param backtest - True if backtest mode, false if live mode
    * @param columns - Column configuration for formatting the table
    * @returns Promise resolving to markdown formatted report string
@@ -518,7 +532,7 @@ export class HeatMarkdownService {
    * @example
    * ```typescript
    * const service = new HeatMarkdownService();
-   * const markdown = await service.getReport("my-strategy", true);
+   * const markdown = await service.getReport("my-strategy", "binance", "frame1", true);
    * console.log(markdown);
    * // Output:
    * // # Portfolio Heatmap: my-strategy
@@ -534,24 +548,30 @@ export class HeatMarkdownService {
    */
   public getReport = async (
     strategyName: StrategyName,
+    exchangeName: string,
+    frameName: string,
     backtest: boolean,
     columns: Columns[] = COLUMN_CONFIG.heat_columns
   ): Promise<string> => {
     this.loggerService.log(HEATMAP_METHOD_NAME_GET_REPORT, {
       strategyName,
+      exchangeName,
+      frameName,
       backtest,
     });
-    const storage = this.getStorage(strategyName, backtest);
+    const storage = this.getStorage(exchangeName, frameName, backtest);
     return storage.getReport(strategyName, columns);
   };
 
   /**
-   * Saves heatmap report to disk for a strategy.
+   * Saves heatmap report to disk.
    *
    * Creates directory if it doesn't exist.
    * Default filename: {strategyName}.md
    *
-   * @param strategyName - Strategy name to save heatmap report for
+   * @param strategyName - Strategy name for report filename
+   * @param exchangeName - Exchange name
+   * @param frameName - Frame name
    * @param backtest - True if backtest mode, false if live mode
    * @param path - Optional directory path to save report (default: "./dump/heatmap")
    * @param columns - Column configuration for formatting the table
@@ -561,53 +581,57 @@ export class HeatMarkdownService {
    * const service = new HeatMarkdownService();
    *
    * // Save to default path: ./dump/heatmap/my-strategy.md
-   * await service.dump("my-strategy", true);
+   * await service.dump("my-strategy", "binance", "frame1", true);
    *
    * // Save to custom path: ./reports/my-strategy.md
-   * await service.dump("my-strategy", true, "./reports");
+   * await service.dump("my-strategy", "binance", "frame1", true, "./reports");
    * ```
    */
   public dump = async (
     strategyName: StrategyName,
+    exchangeName: string,
+    frameName: string,
     backtest: boolean,
     path = "./dump/heatmap",
     columns: Columns[] = COLUMN_CONFIG.heat_columns
   ): Promise<void> => {
     this.loggerService.log(HEATMAP_METHOD_NAME_DUMP, {
       strategyName,
+      exchangeName,
+      frameName,
       backtest,
       path,
     });
-    const storage = this.getStorage(strategyName, backtest);
+    const storage = this.getStorage(exchangeName, frameName, backtest);
     await storage.dump(strategyName, path, columns);
   };
 
   /**
    * Clears accumulated heatmap data from storage.
-   * If ctx is provided, clears only that strategy+backtest combination's data.
+   * If ctx is provided, clears only that exchangeName+frameName+backtest combination's data.
    * If ctx is omitted, clears all data.
    *
    * @param backtest - Backtest mode flag
-   * @param ctx - Optional context with strategyName to clear specific data
+   * @param ctx - Optional context with exchangeName and frameName to clear specific data
    *
    * @example
    * ```typescript
    * const service = new HeatMarkdownService();
    *
-   * // Clear specific strategy+backtest data
-   * await service.clear(true, { strategyName: "my-strategy" });
+   * // Clear specific exchange+frame+backtest data
+   * await service.clear(true, { exchangeName: "binance", frameName: "frame1" });
    *
    * // Clear all data
    * await service.clear();
    * ```
    */
-  public clear = async (backtest: boolean, ctx?: { strategyName: StrategyName }) => {
+  public clear = async (backtest: boolean, ctx?: { exchangeName: string; frameName: string }) => {
     this.loggerService.log(HEATMAP_METHOD_NAME_CLEAR, {
       backtest,
       ctx,
     });
     if (ctx) {
-      const key = CREATE_KEY_FN(ctx.strategyName, backtest);
+      const key = CREATE_KEY_FN(ctx.exchangeName, ctx.frameName, backtest);
       this.getStorage.clear(key);
     } else {
       this.getStorage.clear();

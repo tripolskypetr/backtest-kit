@@ -101,11 +101,11 @@ export class RiskGlobalService {
    * If ctx is provided, clears data for that specific risk instance.
    * If no ctx is provided, clears all risk data.
    * @param backtest - Whether running in backtest mode
-   * @param ctx - Optional context with riskName (clears all if not provided)
+   * @param ctx - Optional context with riskName, exchangeName, frameName (clears all if not provided)
    */
   public clear = async (
     backtest: boolean,
-    ctx?: { riskName: RiskName }
+    ctx?: { riskName: RiskName; exchangeName: string; frameName: string }
   ): Promise<void> => {
     this.loggerService.log("riskGlobalService clear", {
       ctx,

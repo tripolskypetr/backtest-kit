@@ -51,14 +51,26 @@ export type Columns = ColumnModel<ScheduledEvent>;
 
 /**
  * Creates a unique key for memoizing ReportStorage instances.
- * Key format: "symbol:strategyName:backtest" or "symbol:strategyName:live"
+ * Key format: "symbol:strategyName:exchangeName:frameName:backtest" or "symbol:strategyName:exchangeName:live"
  * @param symbol - Trading pair symbol
  * @param strategyName - Name of the strategy
+ * @param exchangeName - Exchange name
+ * @param frameName - Frame name
  * @param backtest - Whether running in backtest mode
  * @returns Unique string key for memoization
  */
-const CREATE_KEY_FN = (symbol: string, strategyName: StrategyName, backtest: boolean) =>
-  `${symbol}:${strategyName}:${backtest ? "backtest" : "live"}` as const;
+const CREATE_KEY_FN = (
+  symbol: string,
+  strategyName: StrategyName,
+  exchangeName: string,
+  frameName: string,
+  backtest: boolean
+): string => {
+  const parts = [symbol, strategyName, exchangeName];
+  if (frameName) parts.push(frameName);
+  parts.push(backtest ? "backtest" : "live");
+  return parts.join(":");
+};
 
 /** Maximum number of events to store in schedule reports */
 const MAX_EVENTS = 250;
@@ -339,11 +351,11 @@ export class ScheduleMarkdownService {
   private readonly loggerService = inject<LoggerService>(TYPES.loggerService);
 
   /**
-   * Memoized function to get or create ReportStorage for a symbol-strategy-backtest triple.
-   * Each symbol-strategy-backtest combination gets its own isolated storage instance.
+   * Memoized function to get or create ReportStorage for a symbol-strategy-exchange-frame-backtest combination.
+   * Each combination gets its own isolated storage instance.
    */
-  private getStorage = memoize<(symbol: string, strategyName: StrategyName, backtest: boolean) => ReportStorage>(
-    ([symbol, strategyName, backtest]) => CREATE_KEY_FN(symbol, strategyName, backtest),
+  private getStorage = memoize<(symbol: string, strategyName: StrategyName, exchangeName: string, frameName: string, backtest: boolean) => ReportStorage>(
+    ([symbol, strategyName, exchangeName, frameName, backtest]) => CREATE_KEY_FN(symbol, strategyName, exchangeName, frameName, backtest),
     () => new ReportStorage()
   );
 
@@ -353,7 +365,7 @@ export class ScheduleMarkdownService {
    *
    * Processes only scheduled, opened and cancelled event types.
    *
-   * @param data - Tick result from strategy execution
+   * @param data - Tick result from strategy execution with frameName wrapper
    *
    * @example
    * ```typescript
@@ -361,12 +373,12 @@ export class ScheduleMarkdownService {
    * // Service automatically subscribes in init()
    * ```
    */
-  private tick = async (data: IStrategyTickResult) => {
+  private tick = async (data: IStrategyTickResult & { frameName: string }) => {
     this.loggerService.log("scheduleMarkdownService tick", {
       data,
     });
 
-    const storage = this.getStorage(data.symbol, data.strategyName, data.backtest);
+    const storage = this.getStorage(data.symbol, data.strategyName, data.exchangeName, data.frameName, data.backtest);
 
     if (data.action === "scheduled") {
       storage.addScheduledEvent(data);
@@ -387,27 +399,33 @@ export class ScheduleMarkdownService {
    *
    * @param symbol - Trading pair symbol
    * @param strategyName - Strategy name to get data for
+   * @param exchangeName - Exchange name
+   * @param frameName - Frame name
    * @param backtest - True if backtest mode, false if live mode
    * @returns Statistical data object with all metrics
    *
    * @example
    * ```typescript
    * const service = new ScheduleMarkdownService();
-   * const stats = await service.getData("BTCUSDT", "my-strategy", false);
+   * const stats = await service.getData("BTCUSDT", "my-strategy", "binance", "1h", false);
    * console.log(stats.cancellationRate, stats.avgWaitTime);
    * ```
    */
   public getData = async (
     symbol: string,
     strategyName: StrategyName,
+    exchangeName: string,
+    frameName: string,
     backtest: boolean
   ): Promise<ScheduleStatisticsModel> => {
     this.loggerService.log("scheduleMarkdownService getData", {
       symbol,
       strategyName,
+      exchangeName,
+      frameName,
       backtest,
     });
-    const storage = this.getStorage(symbol, strategyName, backtest);
+    const storage = this.getStorage(symbol, strategyName, exchangeName, frameName, backtest);
     return storage.getData();
   };
 
@@ -417,6 +435,8 @@ export class ScheduleMarkdownService {
    *
    * @param symbol - Trading pair symbol
    * @param strategyName - Strategy name to generate report for
+   * @param exchangeName - Exchange name
+   * @param frameName - Frame name
    * @param backtest - True if backtest mode, false if live mode
    * @param columns - Column configuration for formatting the table
    * @returns Markdown formatted report string with table of all events
@@ -424,22 +444,26 @@ export class ScheduleMarkdownService {
    * @example
    * ```typescript
    * const service = new ScheduleMarkdownService();
-   * const markdown = await service.getReport("BTCUSDT", "my-strategy", false);
+   * const markdown = await service.getReport("BTCUSDT", "my-strategy", "binance", "1h", false);
    * console.log(markdown);
    * ```
    */
   public getReport = async (
     symbol: string,
     strategyName: StrategyName,
+    exchangeName: string,
+    frameName: string,
     backtest: boolean,
     columns: Columns[] = COLUMN_CONFIG.schedule_columns
   ): Promise<string> => {
     this.loggerService.log("scheduleMarkdownService getReport", {
       symbol,
       strategyName,
+      exchangeName,
+      frameName,
       backtest,
     });
-    const storage = this.getStorage(symbol, strategyName, backtest);
+    const storage = this.getStorage(symbol, strategyName, exchangeName, frameName, backtest);
     return storage.getReport(strategyName, columns);
   };
 
@@ -450,6 +474,8 @@ export class ScheduleMarkdownService {
    *
    * @param symbol - Trading pair symbol
    * @param strategyName - Strategy name to save report for
+   * @param exchangeName - Exchange name
+   * @param frameName - Frame name
    * @param backtest - True if backtest mode, false if live mode
    * @param path - Directory path to save report (default: "./dump/schedule")
    * @param columns - Column configuration for formatting the table
@@ -459,15 +485,17 @@ export class ScheduleMarkdownService {
    * const service = new ScheduleMarkdownService();
    *
    * // Save to default path: ./dump/schedule/my-strategy.md
-   * await service.dump("BTCUSDT", "my-strategy", false);
+   * await service.dump("BTCUSDT", "my-strategy", "binance", "1h", false);
    *
    * // Save to custom path: ./custom/path/my-strategy.md
-   * await service.dump("BTCUSDT", "my-strategy", false, "./custom/path");
+   * await service.dump("BTCUSDT", "my-strategy", "binance", "1h", false, "./custom/path");
    * ```
    */
   public dump = async (
     symbol: string,
     strategyName: StrategyName,
+    exchangeName: string,
+    frameName: string,
     backtest: boolean,
     path = "./dump/schedule",
     columns: Columns[] = COLUMN_CONFIG.schedule_columns
@@ -475,39 +503,41 @@ export class ScheduleMarkdownService {
     this.loggerService.log("scheduleMarkdownService dump", {
       symbol,
       strategyName,
+      exchangeName,
+      frameName,
       backtest,
       path,
     });
-    const storage = this.getStorage(symbol, strategyName, backtest);
+    const storage = this.getStorage(symbol, strategyName, exchangeName, frameName, backtest);
     await storage.dump(strategyName, path, columns);
   };
 
   /**
    * Clears accumulated event data from storage.
-   * If ctx is provided, clears only that specific symbol-strategy-backtest triple's data.
+   * If ctx is provided, clears only that specific symbol-strategy-exchange-frame-backtest combination's data.
    * If nothing is provided, clears all data.
    *
    * @param backtest - Backtest mode flag
-   * @param ctx - Optional context with symbol and strategyName
+   * @param ctx - Optional context with symbol, strategyName, exchangeName, frameName
    *
    * @example
    * ```typescript
    * const service = new ScheduleMarkdownService();
    *
-   * // Clear specific symbol-strategy-backtest triple
-   * await service.clear(false, { symbol: "BTCUSDT", strategyName: "my-strategy" });
+   * // Clear specific combination
+   * await service.clear(false, { symbol: "BTCUSDT", strategyName: "my-strategy", exchangeName: "binance", frameName: "1h" });
    *
    * // Clear all data
    * await service.clear();
    * ```
    */
-  public clear = async (backtest: boolean, ctx?: { symbol: string; strategyName: StrategyName }) => {
+  public clear = async (backtest: boolean, ctx?: { symbol: string; strategyName: StrategyName; exchangeName: string; frameName: string }) => {
     this.loggerService.log("scheduleMarkdownService clear", {
       backtest,
       ctx,
     });
     if (ctx) {
-      const key = CREATE_KEY_FN(ctx.symbol, ctx.strategyName, backtest);
+      const key = CREATE_KEY_FN(ctx.symbol, ctx.strategyName, ctx.exchangeName, ctx.frameName, backtest);
       this.getStorage.clear(key);
     } else {
       this.getStorage.clear();

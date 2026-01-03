@@ -181,6 +181,11 @@ export class RiskUtils {
   public getData = async (
     symbol: string,
     strategyName: string,
+    context: {
+      strategyName: string;
+      exchangeName: string;
+      frameName: string;
+    },
     backtest = false
   ) => {
     bt.loggerService.info(RISK_METHOD_NAME_GET_DATA, {
@@ -203,7 +208,7 @@ export class RiskUtils {
         );
     }
 
-    return await bt.riskMarkdownService.getData(symbol, strategyName, backtest);
+    return await bt.riskMarkdownService.getData(symbol, strategyName, context.exchangeName, context.frameName, backtest);
   };
 
   /**
@@ -250,6 +255,11 @@ export class RiskUtils {
   public getReport = async (
     symbol: string,
     strategyName: string,
+    context: {
+      strategyName: string;
+      exchangeName: string;
+      frameName: string;
+    },
     backtest = false,
     columns?: Columns[]
   ): Promise<string> => {
@@ -282,6 +292,8 @@ export class RiskUtils {
     return await bt.riskMarkdownService.getReport(
       symbol,
       strategyName,
+      context.exchangeName,
+      context.frameName,
       backtest,
       columns
     );
@@ -322,6 +334,11 @@ export class RiskUtils {
   public dump = async (
     symbol: string,
     strategyName: string,
+    context: {
+      strategyName: string;
+      exchangeName: string;
+      frameName: string;
+    },
     backtest = false,
     path?: string,
     columns?: Columns[]
@@ -347,6 +364,8 @@ export class RiskUtils {
     await bt.riskMarkdownService.dump(
       symbol,
       strategyName,
+      context.exchangeName,
+      context.frameName,
       backtest,
       path,
       columns

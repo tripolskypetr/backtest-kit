@@ -14,7 +14,6 @@ import {
 } from "../../../interfaces/Strategy.interface";
 import StrategySchemaService from "../schema/StrategySchemaService";
 import ExchangeConnectionService from "./ExchangeConnectionService";
-import { TMethodContextService } from "../context/MethodContextService";
 import {
   signalEmitter,
   signalBacktestEmitter,
@@ -40,6 +39,8 @@ const NOOP_RISK: IRisk = {
  * Determines the appropriate IRisk instance based on provided riskName and riskList.
  * @param dto - Object containing riskName and riskList
  * @param backtest - Whether running in backtest mode
+ * @param exchangeName - Exchange name for risk isolation
+ * @param frameName - Frame name for risk isolation
  * @param self - Reference to StrategyConnectionService instance
  * @returns Configured IRisk instance (single or merged)
  */
@@ -49,6 +50,8 @@ const GET_RISK_FN = (
     riskList: RiskName[];
   },
   backtest: boolean,
+  exchangeName: string,
+  frameName: string,
   self: StrategyConnectionService
 ) => {
   const hasRiskName = !!dto.riskName;
@@ -61,37 +64,49 @@ const GET_RISK_FN = (
 
   // Есть только riskName (без riskList)
   if (hasRiskName && !hasRiskList) {
-    return self.riskConnectionService.getRisk(dto.riskName, backtest);
+    return self.riskConnectionService.getRisk(dto.riskName, exchangeName, frameName, backtest);
   }
 
   // Есть только riskList (без riskName)
   if (!hasRiskName && hasRiskList) {
     return new MergeRisk(
       dto.riskList.map((riskName) =>
-        self.riskConnectionService.getRisk(riskName, backtest)
+        self.riskConnectionService.getRisk(riskName, exchangeName, frameName, backtest)
       )
     );
   }
 
   // Есть и riskName, и riskList - объединяем (riskName в начало)
   return new MergeRisk([
-    self.riskConnectionService.getRisk(dto.riskName, backtest),
+    self.riskConnectionService.getRisk(dto.riskName, exchangeName, frameName, backtest),
     ...dto.riskList.map((riskName) =>
-      self.riskConnectionService.getRisk(riskName, backtest)
+      self.riskConnectionService.getRisk(riskName, exchangeName, frameName, backtest)
     ),
   ]);
 };
 
 /**
  * Creates a unique key for memoizing ClientStrategy instances.
- * Key format: "symbol:strategyName:backtest" or "symbol:strategyName:live"
+ * Key format: "symbol:strategyName:exchangeName:frameName:backtest" or "symbol:strategyName:exchangeName:live"
  * @param symbol - Trading pair symbol
  * @param strategyName - Name of the strategy
+ * @param exchangeName - Exchange name
+ * @param frameName - Frame name (empty string for live)
  * @param backtest - Whether running in backtest mode
  * @returns Unique string key for memoization
  */
-const CREATE_KEY_FN = (symbol: string, strategyName: StrategyName, backtest: boolean) =>
-  `${symbol}:${strategyName}:${backtest ? "backtest" : "live"}` as const;
+const CREATE_KEY_FN = (
+  symbol: string,
+  strategyName: StrategyName,
+  exchangeName: string,
+  frameName: string,
+  backtest: boolean
+): string => {
+  const parts = [symbol, strategyName, exchangeName];
+  if (frameName) parts.push(frameName);
+  parts.push(backtest ? "backtest" : "live");
+  return parts.join(":");
+};
 
 /**
  * Callback function for emitting ping events to pingSubject.
@@ -157,26 +172,27 @@ export class StrategyConnectionService {
   public readonly exchangeConnectionService = inject<ExchangeConnectionService>(
     TYPES.exchangeConnectionService
   );
-  public readonly methodContextService = inject<TMethodContextService>(
-    TYPES.methodContextService
-  );
   public readonly partialConnectionService = inject<PartialConnectionService>(
     TYPES.partialConnectionService
   );
 
   /**
-   * Retrieves memoized ClientStrategy instance for given symbol-strategy pair.
+   * Retrieves memoized ClientStrategy instance for given symbol-strategy pair with exchange and frame isolation.
    *
    * Creates ClientStrategy on first call, returns cached instance on subsequent calls.
-   * Cache key is symbol:strategyName string.
+   * Cache key includes exchangeName and frameName for proper isolation.
    *
    * @param symbol - Trading pair symbol
    * @param strategyName - Name of registered strategy schema
+   * @param exchangeName - Exchange name
+   * @param frameName - Frame name (empty string for live)
+   * @param backtest - Whether running in backtest mode
    * @returns Configured ClientStrategy instance
    */
   private getStrategy = memoize(
-    ([symbol, strategyName, backtest]) => CREATE_KEY_FN(symbol, strategyName, backtest),
-    (symbol: string, strategyName: StrategyName, backtest: boolean) => {
+    ([symbol, strategyName, exchangeName, frameName, backtest]) =>
+      CREATE_KEY_FN(symbol, strategyName, exchangeName, frameName, backtest),
+    (symbol: string, strategyName: StrategyName, exchangeName: string, frameName: string, backtest: boolean) => {
       const {
         riskName = "",
         riskList = [],
@@ -188,7 +204,7 @@ export class StrategyConnectionService {
         symbol,
         interval,
         execution: this.executionContextService,
-        method: this.methodContextService,
+        method: { context: { strategyName, exchangeName, frameName } },
         logger: this.loggerService,
         partial: this.partialConnectionService,
         exchange: this.exchangeConnectionService,
@@ -198,6 +214,8 @@ export class StrategyConnectionService {
             riskList,
           },
           backtest,
+          exchangeName,
+          frameName,
           this
         ),
         riskName,
@@ -214,23 +232,24 @@ export class StrategyConnectionService {
    * If no active signal exists, returns null.
    * Used internally for monitoring TP/SL and time expiration.
    *
+   * @param backtest - Whether running in backtest mode
    * @param symbol - Trading pair symbol
-   * @param strategyName - Name of strategy to get pending signal for
+   * @param context - Execution context with strategyName, exchangeName, frameName
    *
    * @returns Promise resolving to pending signal or null
    */
   public getPendingSignal = async (
     backtest: boolean,
     symbol: string,
-    strategyName: StrategyName
+    context: { strategyName: StrategyName; exchangeName: string; frameName: string }
   ): Promise<ISignalRow | null> => {
     this.loggerService.log("strategyConnectionService getPendingSignal", {
       symbol,
-      strategyName,
+      context,
       backtest,
     });
-    const strategy = this.getStrategy(symbol, strategyName, backtest);
-    return await strategy.getPendingSignal(symbol, strategyName);
+    const strategy = this.getStrategy(symbol, context.strategyName, context.exchangeName, context.frameName, backtest);
+    return await strategy.getPendingSignal(symbol, context.strategyName);
   };
 
   /**
@@ -238,23 +257,24 @@ export class StrategyConnectionService {
    * If no scheduled signal exists, returns null.
    * Used internally for monitoring scheduled signal activation.
    *
+   * @param backtest - Whether running in backtest mode
    * @param symbol - Trading pair symbol
-   * @param strategyName - Name of strategy to get scheduled signal for
+   * @param context - Execution context with strategyName, exchangeName, frameName
    *
    * @returns Promise resolving to scheduled signal or null
    */
   public getScheduledSignal = async (
     backtest: boolean,
     symbol: string,
-    strategyName: StrategyName
+    context: { strategyName: StrategyName; exchangeName: string; frameName: string }
   ): Promise<IScheduledSignalRow | null> => {
     this.loggerService.log("strategyConnectionService getScheduledSignal", {
       symbol,
-      strategyName,
+      context,
       backtest,
     });
-    const strategy = this.getStrategy(symbol, strategyName, backtest);
-    return await strategy.getScheduledSignal(symbol, strategyName);
+    const strategy = this.getStrategy(symbol, context.strategyName, context.exchangeName, context.frameName, backtest);
+    return await strategy.getScheduledSignal(symbol, context.strategyName);
   };
 
   /**
@@ -263,22 +283,23 @@ export class StrategyConnectionService {
    * Delegates to the underlying strategy instance to check if it has been
    * marked as stopped and should cease operation.
    *
+   * @param backtest - Whether running in backtest mode
    * @param symbol - Trading pair symbol
-   * @param strategyName - Name of the strategy
+   * @param context - Execution context with strategyName, exchangeName, frameName
    * @returns Promise resolving to true if strategy is stopped, false otherwise
    */
   public getStopped = async (
     backtest: boolean,
     symbol: string,
-    strategyName: StrategyName
+    context: { strategyName: StrategyName; exchangeName: string; frameName: string }
   ): Promise<boolean> => {
     this.loggerService.log("strategyConnectionService getStopped", {
       symbol,
-      strategyName,
+      context,
       backtest,
     });
-    const strategy = this.getStrategy(symbol, strategyName, backtest);
-    return await strategy.getStopped(symbol, strategyName);
+    const strategy = this.getStrategy(symbol, context.strategyName, context.exchangeName, context.frameName, backtest);
+    return await strategy.getStopped(symbol, context.strategyName);
   };
 
   /**
@@ -288,21 +309,22 @@ export class StrategyConnectionService {
    * Evaluates current market conditions and returns signal state.
    *
    * @param symbol - Trading pair symbol
-   * @param strategyName - Name of strategy to tick
+   * @param context - Execution context with strategyName, exchangeName, frameName
    * @returns Promise resolving to tick result (idle, opened, active, closed)
    */
   public tick = async (
     symbol: string,
-    strategyName: StrategyName
+    context: { strategyName: StrategyName; exchangeName: string; frameName: string }
   ): Promise<IStrategyTickResult> => {
+    const backtest = this.executionContextService.context.backtest;
     this.loggerService.log("strategyConnectionService tick", {
       symbol,
-      strategyName,
+      context,
+      backtest,
     });
-    const backtest = this.executionContextService.context.backtest;
-    const strategy = this.getStrategy(symbol, strategyName, backtest);
+    const strategy = this.getStrategy(symbol, context.strategyName, context.exchangeName, context.frameName, backtest);
     await strategy.waitForInit();
-    const tick = await strategy.tick(symbol, strategyName);
+    const tick = await strategy.tick(symbol, context.strategyName);
     {
       if (this.executionContextService.context.backtest) {
         await signalBacktestEmitter.next(tick);
@@ -322,29 +344,32 @@ export class StrategyConnectionService {
    * Evaluates strategy signals against historical data.
    *
    * @param symbol - Trading pair symbol
-   * @param strategyName - Name of strategy to backtest
+   * @param context - Execution context with strategyName, exchangeName, frameName
    * @param candles - Array of historical candle data to backtest
    * @returns Promise resolving to backtest result (signal or idle)
    */
   public backtest = async (
     symbol: string,
-    strategyName: StrategyName,
+    context: { strategyName: StrategyName; exchangeName: string; frameName: string },
     candles: ICandleData[]
   ): Promise<IStrategyBacktestResult> => {
+    const backtest = this.executionContextService.context.backtest;
     this.loggerService.log("strategyConnectionService backtest", {
       symbol,
-      strategyName,
+      context,
       candleCount: candles.length,
+      backtest,
     });
-    const backtest = this.executionContextService.context.backtest;
-    const strategy = this.getStrategy(symbol, strategyName, backtest);
+    const strategy = this.getStrategy(symbol, context.strategyName, context.exchangeName, context.frameName, backtest);
     await strategy.waitForInit();
-    const tick = await strategy.backtest(symbol, strategyName, candles);
+    const tick = await strategy.backtest(symbol, context.strategyName, candles);
     {
+      // Wrap tick result with frameName for markdown services
+      const tickWithFrame = { ...tick, frameName: context.frameName };
       if (this.executionContextService.context.backtest) {
-        await signalBacktestEmitter.next(tick);
+        await signalBacktestEmitter.next(tickWithFrame);
       }
-      await signalEmitter.next(tick);
+      await signalEmitter.next(tickWithFrame);
     }
     return tick;
   };
@@ -355,19 +380,22 @@ export class StrategyConnectionService {
    * Delegates to ClientStrategy.stop() which sets internal flag to prevent
    * getSignal from being called on subsequent ticks.
    *
+   * @param backtest - Whether running in backtest mode
    * @param symbol - Trading pair symbol
-   * @param strategyName - Name of strategy to stop
+   * @param ctx - Context with strategyName, exchangeName, frameName
    * @returns Promise that resolves when stop flag is set
    */
   public stop = async (
     backtest: boolean,
-    ctx: { symbol: string; strategyName: StrategyName },
+    symbol: string,
+    context: { strategyName: StrategyName; exchangeName: string; frameName: string },
   ): Promise<void> => {
     this.loggerService.log("strategyConnectionService stop", {
-      ctx,
+      symbol,
+      context,
     });
-    const strategy = this.getStrategy(ctx.symbol, ctx.strategyName, backtest);
-    await strategy.stop(ctx.symbol, ctx.strategyName, backtest);
+    const strategy = this.getStrategy(symbol, context.strategyName, context.exchangeName, context.frameName, backtest);
+    await strategy.stop(symbol, context.strategyName, backtest);
   };
 
   /**
@@ -376,20 +404,22 @@ export class StrategyConnectionService {
    * Forces re-initialization of strategy on next getStrategy call.
    * Useful for resetting strategy state or releasing resources.
    *
-   * @param ctx - Optional context with symbol and strategyName (clears all if not provided)
+   * @param payload - Optional payload with symbol, context and backtest flag (clears all if not provided)
    */
   public clear = async (
-    backtest: boolean,
-    ctx?: {
+    payload?: {
       symbol: string;
       strategyName: StrategyName;
+      exchangeName: string;
+      frameName: string;
+      backtest: boolean;
     }
   ): Promise<void> => {
     this.loggerService.log("strategyConnectionService clear", {
-      ctx,
+      payload,
     });
-    if (ctx) {
-      const key = CREATE_KEY_FN(ctx.symbol, ctx.strategyName, backtest);
+    if (payload) {
+      const key = CREATE_KEY_FN(payload.symbol, payload.strategyName, payload.exchangeName, payload.frameName, payload.backtest);
       this.getStrategy.clear(key);
     } else {
       this.getStrategy.clear();
@@ -406,21 +436,24 @@ export class StrategyConnectionService {
    * detects the scheduled signal was cancelled.
    *
    * @param backtest - Whether running in backtest mode
-   * @param ctx - Context with symbol and strategyName
+   * @param symbol - Trading pair symbol
+   * @param ctx - Context with strategyName, exchangeName, frameName
    * @param cancelId - Optional cancellation ID for user-initiated cancellations
    * @returns Promise that resolves when scheduled signal is cancelled
    */
   public cancel = async (
     backtest: boolean,
-    ctx: { symbol: string; strategyName: StrategyName },
+    symbol: string,
+    context: { strategyName: StrategyName; exchangeName: string; frameName: string },
     cancelId?: string
   ): Promise<void> => {
     this.loggerService.log("strategyConnectionService cancel", {
-      ctx,
+      symbol,
+      context,
       cancelId,
     });
-    const strategy = this.getStrategy(ctx.symbol, ctx.strategyName, backtest);
-    await strategy.cancel(ctx.symbol, ctx.strategyName, backtest, cancelId);
+    const strategy = this.getStrategy(symbol, context.strategyName, context.exchangeName, context.frameName, backtest);
+    await strategy.cancel(symbol, context.strategyName, backtest, cancelId);
   };
 }
 

@@ -65,7 +65,16 @@ export class PartialUtils {
    * }
    * ```
    */
-  public getData = async (symbol: string, strategyName: string, backtest = false) => {
+  public getData = async (
+    symbol: string,
+    strategyName: string,
+    context: {
+      strategyName: string;
+      exchangeName: string;
+      frameName: string;
+    },
+    backtest = false
+  ) => {
     bt.loggerService.info(PARTIAL_METHOD_NAME_GET_DATA, { symbol, strategyName });
 
     bt.strategyValidationService.validate(strategyName, PARTIAL_METHOD_NAME_GET_DATA);
@@ -76,7 +85,7 @@ export class PartialUtils {
       riskList && riskList.forEach((riskName) => bt.riskValidationService.validate(riskName, PARTIAL_METHOD_NAME_GET_DATA));
     }
 
-    return await bt.partialMarkdownService.getData(symbol, strategyName, backtest);
+    return await bt.partialMarkdownService.getData(symbol, strategyName, context.exchangeName, context.frameName, backtest);
   };
 
   /**
@@ -118,7 +127,17 @@ export class PartialUtils {
    * // **Loss events:** 1
    * ```
    */
-  public getReport = async (symbol: string, strategyName: string, backtest = false, columns?: Columns[]): Promise<string> => {
+  public getReport = async (
+    symbol: string,
+    strategyName: string,
+    context: {
+      strategyName: string;
+      exchangeName: string;
+      frameName: string;
+    },
+    backtest = false,
+    columns?: Columns[]
+  ): Promise<string> => {
     bt.loggerService.info(PARTIAL_METHOD_NAME_GET_REPORT, { symbol, strategyName });
 
     bt.strategyValidationService.validate(strategyName, PARTIAL_METHOD_NAME_GET_REPORT);
@@ -129,7 +148,7 @@ export class PartialUtils {
       riskList && riskList.forEach((riskName) => bt.riskValidationService.validate(riskName, PARTIAL_METHOD_NAME_GET_REPORT));
     }
 
-    return await bt.partialMarkdownService.getReport(symbol, strategyName, backtest, columns);
+    return await bt.partialMarkdownService.getReport(symbol, strategyName, context.exchangeName, context.frameName, backtest, columns);
   };
 
   /**
@@ -164,7 +183,18 @@ export class PartialUtils {
    * }
    * ```
    */
-  public dump = async (symbol: string, strategyName: string, backtest = false, path?: string, columns?: Columns[]): Promise<void> => {
+  public dump = async (
+    symbol: string,
+    strategyName: string,
+    context: {
+      strategyName: string;
+      exchangeName: string;
+      frameName: string;
+    },
+    backtest = false,
+    path?: string,
+    columns?: Columns[]
+  ): Promise<void> => {
     bt.loggerService.info(PARTIAL_METHOD_NAME_DUMP, { symbol, strategyName, path });
 
     bt.strategyValidationService.validate(strategyName, PARTIAL_METHOD_NAME_DUMP);
@@ -175,7 +205,7 @@ export class PartialUtils {
       riskList && riskList.forEach((riskName) => bt.riskValidationService.validate(riskName, PARTIAL_METHOD_NAME_DUMP));
     }
 
-    await bt.partialMarkdownService.dump(symbol, strategyName, backtest, path, columns);
+    await bt.partialMarkdownService.dump(symbol, strategyName, context.exchangeName, context.frameName, backtest, path, columns);
   };
 }
 

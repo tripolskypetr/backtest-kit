@@ -4,6 +4,7 @@ import { IExchange, ICandleData, ExchangeName } from "./Exchange.interface";
 import { ILogger } from "./Logger.interface";
 import { IRisk, RiskName } from "./Risk.interface";
 import { IPartial } from "./Partial.interface";
+import { FrameName } from "./Frame.interface";
 
 /**
  * Signal generation interval for throttling.
@@ -200,6 +201,8 @@ export interface IStrategyTickResultIdle {
   strategyName: StrategyName;
   /** Exchange name for tracking idle events */
   exchangeName: ExchangeName;
+  /** Time frame name for tracking (e.g., "1m", "5m") */
+  frameName: FrameName;
   /** Trading pair symbol (e.g., "BTCUSDT") */
   symbol: string;
   /** Current VWAP price during idle state */
@@ -221,6 +224,8 @@ export interface IStrategyTickResultScheduled {
   strategyName: StrategyName;
   /** Exchange name for tracking */
   exchangeName: ExchangeName;
+  /** Time frame name for tracking (e.g., "1m", "5m") */
+  frameName: FrameName;
   /** Trading pair symbol (e.g., "BTCUSDT") */
   symbol: string;
   /** Current VWAP price when scheduled signal created */
@@ -242,6 +247,8 @@ export interface IStrategyTickResultOpened {
   strategyName: StrategyName;
   /** Exchange name for tracking */
   exchangeName: ExchangeName;
+  /** Time frame name for tracking (e.g., "1m", "5m") */
+  frameName: FrameName;
   /** Trading pair symbol (e.g., "BTCUSDT") */
   symbol: string;
   /** Current VWAP price at signal open */
@@ -265,6 +272,8 @@ export interface IStrategyTickResultActive {
   strategyName: StrategyName;
   /** Exchange name for tracking */
   exchangeName: ExchangeName;
+  /** Time frame name for tracking (e.g., "1m", "5m") */
+  frameName: FrameName;
   /** Trading pair symbol (e.g., "BTCUSDT") */
   symbol: string;
   /** Percentage progress towards take profit (0-100%, 0 if moving towards SL) */
@@ -296,6 +305,8 @@ export interface IStrategyTickResultClosed {
   strategyName: StrategyName;
   /** Exchange name for tracking */
   exchangeName: ExchangeName;
+  /** Time frame name for tracking (e.g., "1m", "5m") */
+  frameName: FrameName;
   /** Trading pair symbol (e.g., "BTCUSDT") */
   symbol: string;
   /** Whether this event is from backtest mode (true) or live mode (false) */
@@ -319,6 +330,8 @@ export interface IStrategyTickResultCancelled {
   strategyName: StrategyName;
   /** Exchange name for tracking */
   exchangeName: ExchangeName;
+  /** Time frame name for tracking (e.g., "1m", "5m") */
+  frameName: FrameName;
   /** Trading pair symbol (e.g., "BTCUSDT") */
   symbol: string;
   /** Whether this event is from backtest mode (true) or live mode (false) */

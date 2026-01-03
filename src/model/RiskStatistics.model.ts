@@ -15,6 +15,8 @@ export interface RiskEvent {
   strategyName: string;
   /** Exchange name */
   exchangeName: string;
+  /** Time frame name */
+  frameName: string;
   /** Current market price */
   currentPrice: number;
   /** Number of active positions at rejection time */

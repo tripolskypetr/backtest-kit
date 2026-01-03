@@ -49,14 +49,26 @@ export type Columns = ColumnModel<IStrategyTickResultClosed>;
 
 /**
  * Creates a unique key for memoizing ReportStorage instances.
- * Key format: "symbol:strategyName:backtest" or "symbol:strategyName:live"
+ * Key format: "symbol:strategyName:exchangeName:frameName:backtest" or "symbol:strategyName:exchangeName:live"
  * @param symbol - Trading pair symbol
  * @param strategyName - Name of the strategy
+ * @param exchangeName - Exchange name
+ * @param frameName - Frame name
  * @param backtest - Whether running in backtest mode
  * @returns Unique string key for memoization
  */
-const CREATE_KEY_FN = (symbol: string, strategyName: StrategyName, backtest: boolean) =>
-  `${symbol}:${strategyName}:${backtest ? "backtest" : "live"}` as const;
+const CREATE_KEY_FN = (
+  symbol: string,
+  strategyName: StrategyName,
+  exchangeName: string,
+  frameName: string,
+  backtest: boolean
+): string => {
+  const parts = [symbol, strategyName, exchangeName];
+  if (frameName) parts.push(frameName);
+  parts.push(backtest ? "backtest" : "live");
+  return parts.join(":");
+};
 
 /**
  * Checks if a value is unsafe for display (not a number, NaN, or Infinity).
@@ -295,11 +307,11 @@ export class BacktestMarkdownService {
   private readonly loggerService = inject<LoggerService>(TYPES.loggerService);
 
   /**
-   * Memoized function to get or create ReportStorage for a symbol-strategy-backtest triple.
-   * Each symbol-strategy-backtest combination gets its own isolated storage instance.
+   * Memoized function to get or create ReportStorage for a symbol-strategy-exchange-frame-backtest combination.
+   * Each combination gets its own isolated storage instance.
    */
-  private getStorage = memoize<(symbol: string, strategyName: StrategyName, backtest: boolean) => ReportStorage>(
-    ([symbol, strategyName, backtest]) => CREATE_KEY_FN(symbol, strategyName, backtest),
+  private getStorage = memoize<(symbol: string, strategyName: StrategyName, exchangeName: string, frameName: string, backtest: boolean) => ReportStorage>(
+    ([symbol, strategyName, exchangeName, frameName, backtest]) => CREATE_KEY_FN(symbol, strategyName, exchangeName, frameName, backtest),
     () => new ReportStorage()
   );
 
@@ -309,7 +321,7 @@ export class BacktestMarkdownService {
    *
    * Only processes closed signals - opened signals are ignored.
    *
-   * @param data - Tick result from strategy execution (opened or closed)
+   * @param data - Tick result from strategy execution (opened or closed) with frameName wrapper
    *
    * @example
    * ```typescript
@@ -322,7 +334,7 @@ export class BacktestMarkdownService {
    * }
    * ```
    */
-  private tick = async (data: IStrategyTickResult) => {
+  private tick = async (data: IStrategyTickResult & { frameName: string }) => {
     this.loggerService.log("backtestMarkdownService tick", {
       data,
     });
@@ -331,7 +343,7 @@ export class BacktestMarkdownService {
       return;
     }
 
-    const storage = this.getStorage(data.symbol, data.strategyName, true);
+    const storage = this.getStorage(data.symbol, data.strategyName, data.exchangeName, data.frameName, true);
     storage.addSignal(data);
   };
 
@@ -341,23 +353,27 @@ export class BacktestMarkdownService {
    *
    * @param symbol - Trading pair symbol
    * @param strategyName - Strategy name to get data for
+   * @param exchangeName - Exchange name
+   * @param frameName - Frame name
    * @param backtest - True if backtest mode, false if live mode
    * @returns Statistical data object with all metrics
    *
    * @example
    * ```typescript
    * const service = new BacktestMarkdownService();
-   * const stats = await service.getData("BTCUSDT", "my-strategy", true);
+   * const stats = await service.getData("BTCUSDT", "my-strategy", "binance", "1h", true);
    * console.log(stats.sharpeRatio, stats.winRate);
    * ```
    */
-  public getData = async (symbol: string, strategyName: StrategyName, backtest: boolean): Promise<BacktestStatisticsModel> => {
+  public getData = async (symbol: string, strategyName: StrategyName, exchangeName: string, frameName: string, backtest: boolean): Promise<BacktestStatisticsModel> => {
     this.loggerService.log("backtestMarkdownService getData", {
       symbol,
       strategyName,
+      exchangeName,
+      frameName,
       backtest,
     });
-    const storage = this.getStorage(symbol, strategyName, backtest);
+    const storage = this.getStorage(symbol, strategyName, exchangeName, frameName, backtest);
     return storage.getData();
   };
 
@@ -367,6 +383,8 @@ export class BacktestMarkdownService {
    *
    * @param symbol - Trading pair symbol
    * @param strategyName - Strategy name to generate report for
+   * @param exchangeName - Exchange name
+   * @param frameName - Frame name
    * @param backtest - True if backtest mode, false if live mode
    * @param columns - Column configuration for formatting the table
    * @returns Markdown formatted report string with table of all closed signals
@@ -374,22 +392,26 @@ export class BacktestMarkdownService {
    * @example
    * ```typescript
    * const service = new BacktestMarkdownService();
-   * const markdown = await service.getReport("BTCUSDT", "my-strategy", true);
+   * const markdown = await service.getReport("BTCUSDT", "my-strategy", "binance", "1h", true);
    * console.log(markdown);
    * ```
    */
   public getReport = async (
     symbol: string,
     strategyName: StrategyName,
+    exchangeName: string,
+    frameName: string,
     backtest: boolean,
     columns: Columns[] = COLUMN_CONFIG.backtest_columns
   ): Promise<string> => {
     this.loggerService.log("backtestMarkdownService getReport", {
       symbol,
       strategyName,
+      exchangeName,
+      frameName,
       backtest,
     });
-    const storage = this.getStorage(symbol, strategyName, backtest);
+    const storage = this.getStorage(symbol, strategyName, exchangeName, frameName, backtest);
     return storage.getReport(strategyName, columns);
   };
 
@@ -400,6 +422,8 @@ export class BacktestMarkdownService {
    *
    * @param symbol - Trading pair symbol
    * @param strategyName - Strategy name to save report for
+   * @param exchangeName - Exchange name
+   * @param frameName - Frame name
    * @param backtest - True if backtest mode, false if live mode
    * @param path - Directory path to save report (default: "./dump/backtest")
    * @param columns - Column configuration for formatting the table
@@ -409,15 +433,17 @@ export class BacktestMarkdownService {
    * const service = new BacktestMarkdownService();
    *
    * // Save to default path: ./dump/backtest/my-strategy.md
-   * await service.dump("BTCUSDT", "my-strategy", true);
+   * await service.dump("BTCUSDT", "my-strategy", "binance", "1h", true);
    *
    * // Save to custom path: ./custom/path/my-strategy.md
-   * await service.dump("BTCUSDT", "my-strategy", true, "./custom/path");
+   * await service.dump("BTCUSDT", "my-strategy", "binance", "1h", true, "./custom/path");
    * ```
    */
   public dump = async (
     symbol: string,
     strategyName: StrategyName,
+    exchangeName: string,
+    frameName: string,
     backtest: boolean,
     path = "./dump/backtest",
     columns: Columns[] = COLUMN_CONFIG.backtest_columns
@@ -425,39 +451,41 @@ export class BacktestMarkdownService {
     this.loggerService.log("backtestMarkdownService dump", {
       symbol,
       strategyName,
+      exchangeName,
+      frameName,
       backtest,
       path,
     });
-    const storage = this.getStorage(symbol, strategyName, backtest);
+    const storage = this.getStorage(symbol, strategyName, exchangeName, frameName, backtest);
     await storage.dump(strategyName, path, columns);
   };
 
   /**
    * Clears accumulated signal data from storage.
-   * If ctx is provided, clears only that specific symbol-strategy-backtest triple's data.
+   * If ctx is provided, clears only that specific symbol-strategy-exchange-frame-backtest combination's data.
    * If nothing is provided, clears all data.
    *
    * @param backtest - Backtest mode flag
-   * @param ctx - Optional context with symbol and strategyName
+   * @param ctx - Optional context with symbol, strategyName, exchangeName, frameName
    *
    * @example
    * ```typescript
    * const service = new BacktestMarkdownService();
    *
-   * // Clear specific symbol-strategy-backtest triple
-   * await service.clear(true, { symbol: "BTCUSDT", strategyName: "my-strategy" });
+   * // Clear specific combination
+   * await service.clear(true, { symbol: "BTCUSDT", strategyName: "my-strategy", exchangeName: "binance", frameName: "1h" });
    *
    * // Clear all data
    * await service.clear();
    * ```
    */
-  public clear = async (backtest: boolean, ctx?: { symbol: string; strategyName: StrategyName }) => {
+  public clear = async (backtest: boolean, ctx?: { symbol: string; strategyName: StrategyName; exchangeName: string; frameName: string }) => {
     this.loggerService.log("backtestMarkdownService clear", {
       backtest,
       ctx,
     });
     if (ctx) {
-      const key = CREATE_KEY_FN(ctx.symbol, ctx.strategyName, backtest);
+      const key = CREATE_KEY_FN(ctx.symbol, ctx.strategyName, ctx.exchangeName, ctx.frameName, backtest);
       this.getStorage.clear(key);
     } else {
       this.getStorage.clear();

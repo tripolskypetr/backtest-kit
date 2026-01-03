@@ -45,7 +45,16 @@ export class ScheduleUtils {
    * console.log(stats.cancellationRate, stats.avgWaitTime);
    * ```
    */
-  public getData = async (symbol: string, strategyName: StrategyName, backtest = false) => {
+  public getData = async (
+    symbol: string,
+    strategyName: StrategyName,
+    context: {
+      strategyName: string;
+      exchangeName: string;
+      frameName: string;
+    },
+    backtest = false
+  ) => {
     bt.loggerService.info(SCHEDULE_METHOD_NAME_GET_DATA, {
       symbol,
       strategyName,
@@ -60,7 +69,7 @@ export class ScheduleUtils {
       riskList && riskList.forEach((riskName) => bt.riskValidationService.validate(riskName, SCHEDULE_METHOD_NAME_GET_DATA));
     }
 
-    return await bt.scheduleMarkdownService.getData(symbol, strategyName, backtest);
+    return await bt.scheduleMarkdownService.getData(symbol, strategyName, context.exchangeName, context.frameName, backtest);
   };
 
   /**
@@ -77,7 +86,17 @@ export class ScheduleUtils {
    * console.log(markdown);
    * ```
    */
-  public getReport = async (symbol: string, strategyName: StrategyName, backtest = false, columns?: Columns[]): Promise<string> => {
+  public getReport = async (
+    symbol: string,
+    strategyName: StrategyName,
+    context: {
+      strategyName: string;
+      exchangeName: string;
+      frameName: string;
+    },
+    backtest = false,
+    columns?: Columns[]
+  ): Promise<string> => {
     bt.loggerService.info(SCHEDULE_METHOD_NAME_GET_REPORT, {
       symbol,
       strategyName,
@@ -92,7 +111,7 @@ export class ScheduleUtils {
       riskList && riskList.forEach((riskName) => bt.riskValidationService.validate(riskName, SCHEDULE_METHOD_NAME_GET_REPORT));
     }
 
-    return await bt.scheduleMarkdownService.getReport(symbol, strategyName, backtest, columns);
+    return await bt.scheduleMarkdownService.getReport(symbol, strategyName, context.exchangeName, context.frameName, backtest, columns);
   };
 
   /**
@@ -115,6 +134,11 @@ export class ScheduleUtils {
   public dump = async (
     symbol: string,
     strategyName: StrategyName,
+    context: {
+      strategyName: string;
+      exchangeName: string;
+      frameName: string;
+    },
     backtest = false,
     path?: string,
     columns?: Columns[]
@@ -134,7 +158,7 @@ export class ScheduleUtils {
       riskList && riskList.forEach((riskName) => bt.riskValidationService.validate(riskName, SCHEDULE_METHOD_NAME_DUMP));
     }
 
-    await bt.scheduleMarkdownService.dump(symbol, strategyName, backtest, path, columns);
+    await bt.scheduleMarkdownService.dump(symbol, strategyName, context.exchangeName, context.frameName, backtest, path, columns);
   };
 }
 

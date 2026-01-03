@@ -1,5 +1,6 @@
 import { ISignalDto, StrategyName } from "../interfaces/Strategy.interface";
 import { ExchangeName } from "../interfaces/Exchange.interface";
+import { FrameName } from "src/interfaces/Frame.interface";
 
 /**
  * Contract for risk rejection events.
@@ -53,6 +54,12 @@ export interface RiskContract {
    * Identifies which strategy attempted to create the signal.
    */
   strategyName: StrategyName;
+
+  /**
+   * Frame name used in backtest execution.
+   * Identifies which frame this signal was for in backtest execution.
+   */
+  frameName: FrameName;
 
   /**
    * Exchange name.

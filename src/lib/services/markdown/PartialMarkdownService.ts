@@ -52,12 +52,26 @@ export type Columns = ColumnModel<PartialEvent>;
 
 /**
  * Creates a unique key for memoizing ReportStorage instances.
- * Key format: "symbol:strategyName:backtest" or "symbol:strategyName:live"
- * @param param0 - Tuple of symbol, strategyName and backtest boolean
+ * Key format: "symbol:strategyName:exchangeName:frameName:backtest" or "symbol:strategyName:exchangeName:live"
+ * @param symbol - Trading pair symbol
+ * @param strategyName - Name of the strategy
+ * @param exchangeName - Exchange name
+ * @param frameName - Frame name
+ * @param backtest - Whether running in backtest mode
  * @returns Unique string key for memoization
  */
-const CREATE_KEY_FN = ([symbol, strategyName, backtest]: [string, StrategyName, boolean]) =>
-  `${symbol}:${strategyName}:${backtest ? "backtest" : "live"}` as const;
+const CREATE_KEY_FN = (
+  symbol: string,
+  strategyName: StrategyName,
+  exchangeName: string,
+  frameName: string,
+  backtest: boolean
+): string => {
+  const parts = [symbol, strategyName, exchangeName];
+  if (frameName) parts.push(frameName);
+  parts.push(backtest ? "backtest" : "live");
+  return parts.join(":");
+};
 
 /** Maximum number of events to store in partial reports */
 const MAX_EVENTS = 250;
@@ -270,11 +284,11 @@ export class PartialMarkdownService {
   private readonly loggerService = inject<LoggerService>(TYPES.loggerService);
 
   /**
-   * Memoized function to get or create ReportStorage for a symbol-strategy-backtest triple.
-   * Each symbol-strategy-backtest combination gets its own isolated storage instance.
+   * Memoized function to get or create ReportStorage for a symbol-strategy-exchange-frame-backtest combination.
+   * Each combination gets its own isolated storage instance.
    */
-  private getStorage = memoize<(symbol: string, strategyName: string, backtest: boolean) => ReportStorage>(
-    CREATE_KEY_FN,
+  private getStorage = memoize<(symbol: string, strategyName: string, exchangeName: string, frameName: string, backtest: boolean) => ReportStorage>(
+    ([symbol, strategyName, exchangeName, frameName, backtest]) => CREATE_KEY_FN(symbol, strategyName, exchangeName, frameName, backtest),
     () => new ReportStorage()
   );
 
@@ -282,7 +296,7 @@ export class PartialMarkdownService {
    * Processes profit events and accumulates them.
    * Should be called from partialProfitSubject subscription.
    *
-   * @param data - Profit event data
+   * @param data - Profit event data with frameName wrapper
    *
    * @example
    * ```typescript
@@ -297,12 +311,14 @@ export class PartialMarkdownService {
     level: PartialLevel;
     backtest: boolean;
     timestamp: number;
+    exchangeName: string;
+    frameName: string;
   }) => {
     this.loggerService.log("partialMarkdownService tickProfit", {
       data,
     });
 
-    const storage = this.getStorage(data.symbol, data.data.strategyName, data.backtest);
+    const storage = this.getStorage(data.symbol, data.data.strategyName, data.exchangeName, data.frameName, data.backtest);
     storage.addProfitEvent(
       data.data,
       data.currentPrice,
@@ -316,7 +332,7 @@ export class PartialMarkdownService {
    * Processes loss events and accumulates them.
    * Should be called from partialLossSubject subscription.
    *
-   * @param data - Loss event data
+   * @param data - Loss event data with frameName wrapper
    *
    * @example
    * ```typescript
@@ -331,12 +347,14 @@ export class PartialMarkdownService {
     level: PartialLevel;
     backtest: boolean;
     timestamp: number;
+    exchangeName: string;
+    frameName: string;
   }) => {
     this.loggerService.log("partialMarkdownService tickLoss", {
       data,
     });
 
-    const storage = this.getStorage(data.symbol, data.data.strategyName, data.backtest);
+    const storage = this.getStorage(data.symbol, data.data.strategyName, data.exchangeName, data.frameName, data.backtest);
     storage.addLossEvent(
       data.data,
       data.currentPrice,
@@ -352,23 +370,27 @@ export class PartialMarkdownService {
    *
    * @param symbol - Trading pair symbol to get data for
    * @param strategyName - Strategy name to get data for
+   * @param exchangeName - Exchange name
+   * @param frameName - Frame name
    * @param backtest - True if backtest mode, false if live mode
    * @returns Statistical data object with all metrics
    *
    * @example
    * ```typescript
    * const service = new PartialMarkdownService();
-   * const stats = await service.getData("BTCUSDT", "my-strategy", false);
+   * const stats = await service.getData("BTCUSDT", "my-strategy", "binance", "1h", false);
    * console.log(stats.totalProfit, stats.totalLoss);
    * ```
    */
-  public getData = async (symbol: string, strategyName: string, backtest: boolean): Promise<PartialStatisticsModel> => {
+  public getData = async (symbol: string, strategyName: string, exchangeName: string, frameName: string, backtest: boolean): Promise<PartialStatisticsModel> => {
     this.loggerService.log("partialMarkdownService getData", {
       symbol,
       strategyName,
+      exchangeName,
+      frameName,
       backtest,
     });
-    const storage = this.getStorage(symbol, strategyName, backtest);
+    const storage = this.getStorage(symbol, strategyName, exchangeName, frameName, backtest);
     return storage.getData();
   };
 
@@ -378,6 +400,8 @@ export class PartialMarkdownService {
    *
    * @param symbol - Trading pair symbol to generate report for
    * @param strategyName - Strategy name to generate report for
+   * @param exchangeName - Exchange name
+   * @param frameName - Frame name
    * @param backtest - True if backtest mode, false if live mode
    * @param columns - Column configuration for formatting the table
    * @returns Markdown formatted report string with table of all events
@@ -385,22 +409,26 @@ export class PartialMarkdownService {
    * @example
    * ```typescript
    * const service = new PartialMarkdownService();
-   * const markdown = await service.getReport("BTCUSDT", "my-strategy", false);
+   * const markdown = await service.getReport("BTCUSDT", "my-strategy", "binance", "1h", false);
    * console.log(markdown);
    * ```
    */
   public getReport = async (
     symbol: string,
     strategyName: string,
+    exchangeName: string,
+    frameName: string,
     backtest: boolean,
     columns: Columns[] = COLUMN_CONFIG.partial_columns
   ): Promise<string> => {
     this.loggerService.log("partialMarkdownService getReport", {
       symbol,
       strategyName,
+      exchangeName,
+      frameName,
       backtest,
     });
-    const storage = this.getStorage(symbol, strategyName, backtest);
+    const storage = this.getStorage(symbol, strategyName, exchangeName, frameName, backtest);
     return storage.getReport(symbol, strategyName, columns);
   };
 
@@ -411,6 +439,8 @@ export class PartialMarkdownService {
    *
    * @param symbol - Trading pair symbol to save report for
    * @param strategyName - Strategy name to save report for
+   * @param exchangeName - Exchange name
+   * @param frameName - Frame name
    * @param backtest - True if backtest mode, false if live mode
    * @param path - Directory path to save report (default: "./dump/partial")
    * @param columns - Column configuration for formatting the table
@@ -420,15 +450,17 @@ export class PartialMarkdownService {
    * const service = new PartialMarkdownService();
    *
    * // Save to default path: ./dump/partial/BTCUSDT_my-strategy.md
-   * await service.dump("BTCUSDT", "my-strategy", false);
+   * await service.dump("BTCUSDT", "my-strategy", "binance", "1h", false);
    *
    * // Save to custom path: ./custom/path/BTCUSDT_my-strategy.md
-   * await service.dump("BTCUSDT", "my-strategy", false, "./custom/path");
+   * await service.dump("BTCUSDT", "my-strategy", "binance", "1h", false, "./custom/path");
    * ```
    */
   public dump = async (
     symbol: string,
     strategyName: string,
+    exchangeName: string,
+    frameName: string,
     backtest: boolean,
     path = "./dump/partial",
     columns: Columns[] = COLUMN_CONFIG.partial_columns
@@ -436,39 +468,41 @@ export class PartialMarkdownService {
     this.loggerService.log("partialMarkdownService dump", {
       symbol,
       strategyName,
+      exchangeName,
+      frameName,
       backtest,
       path,
     });
-    const storage = this.getStorage(symbol, strategyName, backtest);
+    const storage = this.getStorage(symbol, strategyName, exchangeName, frameName, backtest);
     await storage.dump(symbol, strategyName, path, columns);
   };
 
   /**
    * Clears accumulated event data from storage.
-   * If ctx is provided, clears only that specific symbol-strategy-backtest triple's data.
+   * If ctx is provided, clears only that specific symbol-strategy-exchange-frame-backtest combination's data.
    * If nothing is provided, clears all data.
    *
    * @param backtest - Backtest mode flag
-   * @param ctx - Optional context with symbol and strategyName
+   * @param ctx - Optional context with symbol, strategyName, exchangeName, frameName
    *
    * @example
    * ```typescript
    * const service = new PartialMarkdownService();
    *
-   * // Clear specific symbol-strategy-backtest triple
-   * await service.clear(false, { symbol: "BTCUSDT", strategyName: "my-strategy" });
+   * // Clear specific combination
+   * await service.clear(false, { symbol: "BTCUSDT", strategyName: "my-strategy", exchangeName: "binance", frameName: "1h" });
    *
    * // Clear all data
    * await service.clear();
    * ```
    */
-  public clear = async (backtest: boolean, ctx?: { symbol: string; strategyName: string }) => {
+  public clear = async (backtest: boolean, ctx?: { symbol: string; strategyName: string; exchangeName: string; frameName: string }) => {
     this.loggerService.log("partialMarkdownService clear", {
       backtest,
       ctx,
     });
     if (ctx) {
-      const key = CREATE_KEY_FN([ctx.symbol, ctx.strategyName, backtest]);
+      const key = CREATE_KEY_FN(ctx.symbol, ctx.strategyName, ctx.exchangeName, ctx.frameName, backtest);
       this.getStorage.clear(key);
     } else {
       this.getStorage.clear();

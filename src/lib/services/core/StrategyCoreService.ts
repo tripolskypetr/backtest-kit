@@ -11,12 +11,10 @@ import {
 } from "../../../interfaces/Strategy.interface";
 import StrategyConnectionService from "../connection/StrategyConnectionService";
 import { ICandleData } from "../../../interfaces/Exchange.interface";
-import { memoize, singleshot } from "functools-kit";
+import { memoize } from "functools-kit";
 import StrategySchemaService from "../schema/StrategySchemaService";
 import RiskValidationService from "../validation/RiskValidationService";
 import StrategyValidationService from "../validation/StrategyValidationService";
-import { TMethodContextService } from "../context/MethodContextService";
-import MethodContextService from "../context/MethodContextService";
 
 const METHOD_NAME_VALIDATE = "strategyCoreService validate";
 
@@ -40,9 +38,6 @@ export class StrategyCoreService {
   );
   private readonly strategyValidationService =
     inject<StrategyValidationService>(TYPES.strategyValidationService);
-  private readonly methodContextService = inject<TMethodContextService>(
-    TYPES.methodContextService
-  );
 
   /**
    * Validates strategy and associated risk configuration.
@@ -75,21 +70,22 @@ export class StrategyCoreService {
    * If no active signal exists, returns null.
    * Used internally for monitoring TP/SL and time expiration.
    *
+   * @param backtest - Whether running in backtest mode
    * @param symbol - Trading pair symbol
-   * @param strategyName - Name of the strategy
+   * @param context - Execution context with strategyName, exchangeName, frameName
    * @returns Promise resolving to pending signal or null
    */
   public getPendingSignal = async (
     backtest: boolean,
     symbol: string,
-    strategyName: StrategyName
+    context: { strategyName: StrategyName; exchangeName: string; frameName: string }
   ): Promise<ISignalRow | null> => {
     this.loggerService.log("strategyCoreService getPendingSignal", {
       symbol,
-      strategyName,
+      context,
     });
-    await this.validate(symbol, strategyName);
-    return await this.strategyConnectionService.getPendingSignal(backtest, symbol, strategyName);
+    await this.validate(symbol, context.strategyName);
+    return await this.strategyConnectionService.getPendingSignal(backtest, symbol, context);
   };
 
   /**
@@ -97,21 +93,22 @@ export class StrategyCoreService {
    * If no scheduled signal exists, returns null.
    * Used internally for monitoring scheduled signal activation.
    *
+   * @param backtest - Whether running in backtest mode
    * @param symbol - Trading pair symbol
-   * @param strategyName - Name of the strategy
+   * @param context - Execution context with strategyName, exchangeName, frameName
    * @returns Promise resolving to scheduled signal or null
    */
   public getScheduledSignal = async (
     backtest: boolean,
     symbol: string,
-    strategyName: StrategyName
+    context: { strategyName: StrategyName; exchangeName: string; frameName: string }
   ): Promise<IScheduledSignalRow | null> => {
     this.loggerService.log("strategyCoreService getScheduledSignal", {
       symbol,
-      strategyName,
+      context,
     });
-    await this.validate(symbol, strategyName);
-    return await this.strategyConnectionService.getScheduledSignal(backtest, symbol, strategyName);
+    await this.validate(symbol, context.strategyName);
+    return await this.strategyConnectionService.getScheduledSignal(backtest, symbol, context);
   };
 
   /**
@@ -120,22 +117,23 @@ export class StrategyCoreService {
    * Validates strategy existence and delegates to connection service
    * to retrieve the stopped state from the strategy instance.
    *
+   * @param backtest - Whether running in backtest mode
    * @param symbol - Trading pair symbol
-   * @param strategyName - Name of the strategy
+   * @param context - Execution context with strategyName, exchangeName, frameName
    * @returns Promise resolving to true if strategy is stopped, false otherwise
    */
   public getStopped = async (
-    backtest: boolean, 
+    backtest: boolean,
     symbol: string,
-    strategyName: StrategyName
+    context: { strategyName: StrategyName; exchangeName: string; frameName: string }
   ): Promise<boolean> => {
     this.loggerService.log("strategyCoreService getStopped", {
       symbol,
-      strategyName,
+      context,
       backtest,
     });
-    await this.validate(symbol, strategyName);
-    return await this.strategyConnectionService.getStopped(backtest, symbol, strategyName);
+    await this.validate(symbol, context.strategyName);
+    return await this.strategyConnectionService.getStopped(backtest, symbol, context);
   };
 
   /**
@@ -147,26 +145,25 @@ export class StrategyCoreService {
    * @param symbol - Trading pair symbol
    * @param when - Timestamp for tick evaluation
    * @param backtest - Whether running in backtest mode
+   * @param context - Execution context with strategyName, exchangeName, frameName
    * @returns Discriminated union of tick result (idle, opened, active, closed)
    */
   public tick = async (
     symbol: string,
     when: Date,
-    backtest: boolean
+    backtest: boolean,
+    context: { strategyName: StrategyName; exchangeName: string; frameName: string }
   ): Promise<IStrategyTickResult> => {
     this.loggerService.log("strategyCoreService tick", {
       symbol,
       when,
       backtest,
+      context,
     });
-    if (!MethodContextService.hasContext()) {
-      throw new Error("strategyCoreService tick requires a method context");
-    }
-    const strategyName = this.methodContextService.context.strategyName;
-    await this.validate(symbol, strategyName);
+    await this.validate(symbol, context.strategyName);
     return await ExecutionContextService.runInContext(
       async () => {
-        return await this.strategyConnectionService.tick(symbol, strategyName);
+        return await this.strategyConnectionService.tick(symbol, context);
       },
       {
         symbol,
@@ -186,28 +183,27 @@ export class StrategyCoreService {
    * @param candles - Array of historical candles to test against
    * @param when - Starting timestamp for backtest
    * @param backtest - Whether running in backtest mode (typically true)
+   * @param context - Execution context with strategyName, exchangeName, frameName
    * @returns Closed signal result with PNL
    */
   public backtest = async (
     symbol: string,
     candles: ICandleData[],
     when: Date,
-    backtest: boolean
+    backtest: boolean,
+    context: { strategyName: StrategyName; exchangeName: string; frameName: string }
   ): Promise<IStrategyBacktestResult> => {
     this.loggerService.log("strategyCoreService backtest", {
       symbol,
       candleCount: candles.length,
       when,
       backtest,
+      context,
     });
-    if (!MethodContextService.hasContext()) {
-      throw new Error("strategyCoreService backtest requires a method context");
-    }
-    const strategyName = this.methodContextService.context.strategyName;
-    await this.validate(symbol, strategyName);
+    await this.validate(symbol, context.strategyName);
     return await ExecutionContextService.runInContext(
       async () => {
-        return await this.strategyConnectionService.backtest(symbol, strategyName, candles);
+        return await this.strategyConnectionService.backtest(symbol, context, candles);
       },
       {
         symbol,
@@ -223,17 +219,19 @@ export class StrategyCoreService {
    * Delegates to StrategyConnectionService.stop() to set internal flag.
    * Does not require execution context.
    *
+   * @param backtest - Whether running in backtest mode
    * @param symbol - Trading pair symbol
-   * @param strategyName - Name of strategy to stop
+   * @param ctx - Context with strategyName, exchangeName, frameName
    * @returns Promise that resolves when stop flag is set
    */
-  public stop = async (backtest: boolean, ctx: { symbol: string; strategyName: StrategyName }): Promise<void> => {
+  public stop = async (backtest: boolean, symbol: string, context: { strategyName: StrategyName; exchangeName: string; frameName: string }): Promise<void> => {
     this.loggerService.log("strategyCoreService stop", {
-      ctx,
+      symbol,
+      context,
       backtest,
     });
-    await this.validate(ctx.symbol, ctx.strategyName);
-    return await this.strategyConnectionService.stop(backtest, ctx);
+    await this.validate(symbol, context.strategyName);
+    return await this.strategyConnectionService.stop(backtest, symbol, context);
   };
 
   /**
@@ -244,18 +242,20 @@ export class StrategyCoreService {
    * Does not require execution context.
    *
    * @param backtest - Whether running in backtest mode
-   * @param ctx - Context with symbol and strategyName
+   * @param symbol - Trading pair symbol
+   * @param ctx - Context with strategyName, exchangeName, frameName
    * @param cancelId - Optional cancellation ID for user-initiated cancellations
    * @returns Promise that resolves when scheduled signal is cancelled
    */
-  public cancel = async (backtest: boolean, ctx: { symbol: string; strategyName: StrategyName }, cancelId?: string): Promise<void> => {
+  public cancel = async (backtest: boolean, symbol: string, context: { strategyName: StrategyName; exchangeName: string; frameName: string }, cancelId?: string): Promise<void> => {
     this.loggerService.log("strategyCoreService cancel", {
-      ctx,
+      symbol,
+      context,
       backtest,
       cancelId,
     });
-    await this.validate(ctx.symbol, ctx.strategyName);
-    return await this.strategyConnectionService.cancel(backtest, ctx, cancelId);
+    await this.validate(symbol, context.strategyName);
+    return await this.strategyConnectionService.cancel(backtest, symbol, context, cancelId);
   };
 
   /**
@@ -264,16 +264,16 @@ export class StrategyCoreService {
    * Delegates to StrategyConnectionService.clear() to remove strategy from cache.
    * Forces re-initialization of strategy on next operation.
    *
-   * @param ctx - Optional context with symbol and strategyName (clears all if not provided)
+   * @param payload - Optional payload with symbol, context and backtest flag (clears all if not provided)
    */
-  public clear = async (backtest: boolean, ctx?: { symbol: string; strategyName: StrategyName }): Promise<void> => {
+  public clear = async (payload?: { symbol: string; strategyName: StrategyName; exchangeName: string; frameName: string; backtest: boolean }): Promise<void> => {
     this.loggerService.log("strategyCoreService clear", {
-      ctx,
+      payload,
     });
-    if (ctx) {
-      await this.validate(ctx.symbol, ctx.strategyName);
+    if (payload) {
+      await this.validate(payload.symbol, payload.strategyName);
     }
-    return await this.strategyConnectionService.clear(backtest, ctx);
+    return await this.strategyConnectionService.clear(payload);
   };
 }
 

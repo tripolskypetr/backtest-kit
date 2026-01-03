@@ -73,7 +73,11 @@ export class LiveLogicPrivateService {
 
       let result: IStrategyTickResult;
       try {
-        result = await this.strategyCoreService.tick(symbol, when, false);
+        result = await this.strategyCoreService.tick(symbol, when, false, {
+          strategyName: this.methodContextService.context.strategyName,
+          exchangeName: this.methodContextService.context.exchangeName,
+          frameName: this.methodContextService.context.frameName,
+        });
       } catch (error) {
         console.warn(
           `backtestLogicPrivateService tick failed when=${when.toISOString()} symbol=${symbol} strategyName=${
@@ -122,7 +126,11 @@ export class LiveLogicPrivateService {
             this.strategyCoreService.getStopped(
               false,
               symbol,
-              this.methodContextService.context.strategyName
+              {
+                strategyName: this.methodContextService.context.strategyName,
+                exchangeName: this.methodContextService.context.exchangeName,
+                frameName: this.methodContextService.context.frameName,
+              }
             )
           )
         ) {
@@ -158,7 +166,11 @@ export class LiveLogicPrivateService {
           await this.strategyCoreService.getStopped(
             false,
             symbol,
-            this.methodContextService.context.strategyName
+            {
+              strategyName: this.methodContextService.context.strategyName,
+              exchangeName: this.methodContextService.context.exchangeName,
+              frameName: this.methodContextService.context.frameName,
+            }
           )
         ) {
           this.loggerService.info(

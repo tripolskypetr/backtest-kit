@@ -38,11 +38,16 @@ export class HeatUtils {
    * Data is automatically collected from all closed signals for the strategy.
    *
    * @param strategyName - Strategy name to get heatmap data for
+   * @param context - Execution context with exchangeName and frameName
+   * @param backtest - True if backtest mode, false if live mode (default: false)
    * @returns Promise resolving to heatmap statistics object
    *
    * @example
    * ```typescript
-   * const stats = await Heat.getData("my-strategy");
+   * const stats = await Heat.getData("my-strategy", {
+   *   exchangeName: "binance",
+   *   frameName: "frame1"
+   * });
    *
    * console.log(`Total symbols: ${stats.totalSymbols}`);
    * console.log(`Portfolio Total PNL: ${stats.portfolioTotalPnl}%`);
@@ -54,7 +59,14 @@ export class HeatUtils {
    * });
    * ```
    */
-  public getData = async (strategyName: StrategyName, backtest = false): Promise<HeatmapStatisticsModel> => {
+  public getData = async (
+    strategyName: StrategyName,
+    context: {
+      exchangeName: string;
+      frameName: string;
+    },
+    backtest = false
+  ): Promise<HeatmapStatisticsModel> => {
     bt.loggerService.info(HEAT_METHOD_NAME_GET_DATA, { strategyName });
 
     bt.strategyValidationService.validate(strategyName, HEAT_METHOD_NAME_GET_DATA);
@@ -65,7 +77,7 @@ export class HeatUtils {
       riskList && riskList.forEach((riskName) => bt.riskValidationService.validate(riskName, HEAT_METHOD_NAME_GET_DATA));
     }
 
-    return await bt.heatMarkdownService.getData(strategyName, backtest);
+    return await bt.heatMarkdownService.getData(context.exchangeName, context.frameName, backtest);
   };
 
   /**
@@ -75,12 +87,17 @@ export class HeatUtils {
    * Symbols are sorted by Total PNL descending.
    *
    * @param strategyName - Strategy name to generate heatmap report for
+   * @param context - Execution context with exchangeName and frameName
+   * @param backtest - True if backtest mode, false if live mode (default: false)
    * @param columns - Optional columns configuration for the report
    * @returns Promise resolving to markdown formatted report string
    *
    * @example
    * ```typescript
-   * const markdown = await Heat.getReport("my-strategy");
+   * const markdown = await Heat.getReport("my-strategy", {
+   *   exchangeName: "binance",
+   *   frameName: "frame1"
+   * });
    * console.log(markdown);
    * // Output:
    * // # Portfolio Heatmap: my-strategy
@@ -94,7 +111,15 @@ export class HeatUtils {
    * // ...
    * ```
    */
-  public getReport = async (strategyName: StrategyName, backtest = false, columns?: Columns[]): Promise<string> => {
+  public getReport = async (
+    strategyName: StrategyName,
+    context: {
+      exchangeName: string;
+      frameName: string;
+    },
+    backtest = false,
+    columns?: Columns[]
+  ): Promise<string> => {
     bt.loggerService.info(HEAT_METHOD_NAME_GET_REPORT, { strategyName });
 
     bt.strategyValidationService.validate(strategyName, HEAT_METHOD_NAME_GET_REPORT);
@@ -105,7 +130,7 @@ export class HeatUtils {
       riskList && riskList.forEach((riskName) => bt.riskValidationService.validate(riskName, HEAT_METHOD_NAME_GET_REPORT));
     }
 
-    return await bt.heatMarkdownService.getReport(strategyName, backtest, columns);
+    return await bt.heatMarkdownService.getReport(strategyName, context.exchangeName, context.frameName, backtest, columns);
   };
 
   /**
@@ -115,19 +140,36 @@ export class HeatUtils {
    * Default filename: {strategyName}.md
    *
    * @param strategyName - Strategy name to save heatmap report for
+   * @param context - Execution context with exchangeName and frameName
+   * @param backtest - True if backtest mode, false if live mode (default: false)
    * @param path - Optional directory path to save report (default: "./dump/heatmap")
    * @param columns - Optional columns configuration for the report
    *
    * @example
    * ```typescript
    * // Save to default path: ./dump/heatmap/my-strategy.md
-   * await Heat.dump("my-strategy");
+   * await Heat.dump("my-strategy", {
+   *   exchangeName: "binance",
+   *   frameName: "frame1"
+   * });
    *
    * // Save to custom path: ./reports/my-strategy.md
-   * await Heat.dump("my-strategy", "./reports");
+   * await Heat.dump("my-strategy", {
+   *   exchangeName: "binance",
+   *   frameName: "frame1"
+   * }, false, "./reports");
    * ```
    */
-  public dump = async (strategyName: StrategyName, backtest = false, path?: string, columns?: Columns[]): Promise<void> => {
+  public dump = async (
+    strategyName: StrategyName,
+    context: {
+      exchangeName: string;
+      frameName: string;
+    },
+    backtest = false,
+    path?: string,
+    columns?: Columns[]
+  ): Promise<void> => {
     bt.loggerService.info(HEAT_METHOD_NAME_DUMP, { strategyName, path });
 
     bt.strategyValidationService.validate(strategyName, HEAT_METHOD_NAME_DUMP);
@@ -138,7 +180,7 @@ export class HeatUtils {
       riskList && riskList.forEach((riskName) => bt.riskValidationService.validate(riskName, HEAT_METHOD_NAME_DUMP));
     }
 
-    await bt.heatMarkdownService.dump(strategyName, backtest, path, columns);
+    await bt.heatMarkdownService.dump(strategyName, context.exchangeName, context.frameName, backtest, path, columns);
   };
 }
 

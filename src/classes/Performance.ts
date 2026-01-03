@@ -70,6 +70,11 @@ export class Performance {
   public static async getData(
     symbol: string,
     strategyName: string,
+    context: {
+      strategyName: string;
+      exchangeName: string;
+      frameName: string;
+    },
     backtest = false,
   ): Promise<PerformanceStatisticsModel> {
     bt.strategyValidationService.validate(strategyName, PERFORMANCE_METHOD_NAME_GET_DATA);
@@ -80,7 +85,7 @@ export class Performance {
       riskList && riskList.forEach((riskName) => bt.riskValidationService.validate(riskName, PERFORMANCE_METHOD_NAME_GET_DATA));
     }
 
-    return bt.performanceMarkdownService.getData(symbol, strategyName, backtest);
+    return bt.performanceMarkdownService.getData(symbol, strategyName, context.exchangeName, context.frameName, backtest);
   }
 
   /**
@@ -106,7 +111,17 @@ export class Performance {
    * await fs.writeFile("performance-report.md", markdown);
    * ```
    */
-  public static async getReport(symbol: string, strategyName: string, backtest = false, columns?: Columns[]): Promise<string> {
+  public static async getReport(
+    symbol: string,
+    strategyName: string,
+    context: {
+      strategyName: string;
+      exchangeName: string;
+      frameName: string;
+    },
+    backtest = false,
+    columns?: Columns[]
+  ): Promise<string> {
     bt.strategyValidationService.validate(strategyName, PERFORMANCE_METHOD_NAME_GET_REPORT);
 
     {
@@ -115,7 +130,7 @@ export class Performance {
       riskList && riskList.forEach((riskName) => bt.riskValidationService.validate(riskName, PERFORMANCE_METHOD_NAME_GET_REPORT));
     }
 
-    return bt.performanceMarkdownService.getReport(symbol, strategyName, backtest, columns);
+    return bt.performanceMarkdownService.getReport(symbol, strategyName, context.exchangeName, context.frameName, backtest, columns);
   }
 
   /**
@@ -141,6 +156,11 @@ export class Performance {
   public static async dump(
     symbol: string,
     strategyName: string,
+    context: {
+      strategyName: string;
+      exchangeName: string;
+      frameName: string;
+    },
     backtest = false,
     path = "./dump/performance",
     columns?: Columns[]
@@ -153,7 +173,7 @@ export class Performance {
       riskList && riskList.forEach((riskName) => bt.riskValidationService.validate(riskName, PERFORMANCE_METHOD_NAME_DUMP));
     }
 
-    return bt.performanceMarkdownService.dump(symbol, strategyName, backtest, path, columns);
+    return bt.performanceMarkdownService.dump(symbol, strategyName, context.exchangeName, context.frameName, backtest, path, columns);
   }
 }
 

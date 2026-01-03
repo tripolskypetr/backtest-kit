@@ -28,10 +28,9 @@ const CANCEL_METHOD_NAME = "strategy.cancel";
  * await stop("BTCUSDT", "my-strategy");
  * ```
  */
-export async function stop(symbol: string, strategyName: StrategyName): Promise<void> {
+export async function stop(symbol: string): Promise<void> {
   backtest.loggerService.info(STOP_METHOD_NAME, {
     symbol,
-    strategyName,
   });
   if (!ExecutionContextService.hasContext()) {
     throw new Error("stop requires an execution context");
@@ -40,7 +39,13 @@ export async function stop(symbol: string, strategyName: StrategyName): Promise<
     throw new Error("stop requires a method context");
   }
   const { backtest: isBacktest } = backtest.executionContextService.context;
-  await backtest.strategyCoreService.stop(isBacktest, { symbol, strategyName });
+  const { exchangeName, frameName, strategyName } =
+    backtest.methodContextService.context;
+  await backtest.strategyCoreService.stop(isBacktest, symbol, {
+    exchangeName,
+    frameName,
+    strategyName,
+  });
 }
 
 /**
@@ -65,10 +70,9 @@ export async function stop(symbol: string, strategyName: StrategyName): Promise<
  * await cancel("BTCUSDT", "my-strategy", "manual-cancel-001");
  * ```
  */
-export async function cancel(symbol: string, strategyName: StrategyName, cancelId?: string): Promise<void> {
+export async function cancel(symbol: string, cancelId?: string): Promise<void> {
   backtest.loggerService.info(CANCEL_METHOD_NAME, {
     symbol,
-    strategyName,
     cancelId,
   });
   if (!ExecutionContextService.hasContext()) {
@@ -78,7 +82,14 @@ export async function cancel(symbol: string, strategyName: StrategyName, cancelI
     throw new Error("cancel requires a method context");
   }
   const { backtest: isBacktest } = backtest.executionContextService.context;
-  await backtest.strategyCoreService.cancel(isBacktest, { symbol, strategyName }, cancelId);
+  const { exchangeName, frameName, strategyName } =
+    backtest.methodContextService.context;
+  await backtest.strategyCoreService.cancel(
+    isBacktest,
+    symbol,
+    { exchangeName, frameName, strategyName },
+    cancelId
+  );
 }
 
 export default { stop, cancel };
