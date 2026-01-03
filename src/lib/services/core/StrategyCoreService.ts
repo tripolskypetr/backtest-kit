@@ -42,22 +42,22 @@ export class StrategyCoreService {
   /**
    * Validates strategy and associated risk configuration.
    *
-   * Memoized to avoid redundant validations for the same symbol-strategy pair.
+   * Memoized to avoid redundant validations for the same symbol-strategy-exchange-frame combination.
    * Logs validation activity.
    * @param symbol - Trading pair symbol
-   * @param strategyName - Name of the strategy to validate
+   * @param context - Execution context with strategyName, exchangeName, frameName
    * @returns Promise that resolves when validation is complete
    */
   private validate = memoize(
-    ([symbol, strategyName]) => `${symbol}:${strategyName}`,
-    async (symbol: string, strategyName: string) => {
+    ([symbol, context]) => `${symbol}:${context.strategyName}:${context.exchangeName}:${context.frameName}`,
+    async (symbol: string, context: { strategyName: string; exchangeName: string; frameName: string }) => {
       this.loggerService.log(METHOD_NAME_VALIDATE, {
         symbol,
-        strategyName,
+        context,
       });
-      const { riskName, riskList } = this.strategySchemaService.get(strategyName);
+      const { riskName, riskList } = this.strategySchemaService.get(context.strategyName);
       this.strategyValidationService.validate(
-        strategyName,
+        context.strategyName,
         METHOD_NAME_VALIDATE
       );
       riskName && this.riskValidationService.validate(riskName, METHOD_NAME_VALIDATE);
@@ -84,7 +84,7 @@ export class StrategyCoreService {
       symbol,
       context,
     });
-    await this.validate(symbol, context.strategyName);
+    await this.validate(symbol, context);
     return await this.strategyConnectionService.getPendingSignal(backtest, symbol, context);
   };
 
@@ -107,7 +107,7 @@ export class StrategyCoreService {
       symbol,
       context,
     });
-    await this.validate(symbol, context.strategyName);
+    await this.validate(symbol, context);
     return await this.strategyConnectionService.getScheduledSignal(backtest, symbol, context);
   };
 
@@ -132,7 +132,7 @@ export class StrategyCoreService {
       context,
       backtest,
     });
-    await this.validate(symbol, context.strategyName);
+    await this.validate(symbol, context);
     return await this.strategyConnectionService.getStopped(backtest, symbol, context);
   };
 
@@ -160,7 +160,7 @@ export class StrategyCoreService {
       backtest,
       context,
     });
-    await this.validate(symbol, context.strategyName);
+    await this.validate(symbol, context);
     return await ExecutionContextService.runInContext(
       async () => {
         return await this.strategyConnectionService.tick(symbol, context);
@@ -200,7 +200,7 @@ export class StrategyCoreService {
       backtest,
       context,
     });
-    await this.validate(symbol, context.strategyName);
+    await this.validate(symbol, context);
     return await ExecutionContextService.runInContext(
       async () => {
         return await this.strategyConnectionService.backtest(symbol, context, candles);
@@ -230,7 +230,7 @@ export class StrategyCoreService {
       context,
       backtest,
     });
-    await this.validate(symbol, context.strategyName);
+    await this.validate(symbol, context);
     return await this.strategyConnectionService.stop(backtest, symbol, context);
   };
 
@@ -254,7 +254,7 @@ export class StrategyCoreService {
       backtest,
       cancelId,
     });
-    await this.validate(symbol, context.strategyName);
+    await this.validate(symbol, context);
     return await this.strategyConnectionService.cancel(backtest, symbol, context, cancelId);
   };
 
@@ -271,7 +271,11 @@ export class StrategyCoreService {
       payload,
     });
     if (payload) {
-      await this.validate(payload.symbol, payload.strategyName);
+      await this.validate(payload.symbol, {
+        strategyName: payload.strategyName,
+        exchangeName: payload.exchangeName,
+        frameName: payload.frameName
+      });
     }
     return await this.strategyConnectionService.clear(payload);
   };

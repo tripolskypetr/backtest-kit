@@ -23,19 +23,19 @@ export class RiskGlobalService {
 
   /**
    * Validates risk configuration.
-   * Memoized to avoid redundant validations for the same risk instance.
+   * Memoized to avoid redundant validations for the same risk-exchange-frame combination.
    * Logs validation activity.
-   * @param riskName - Name of the risk instance to validate
+   * @param payload - Payload with riskName, exchangeName and frameName
    * @returns Promise that resolves when validation is complete
    */
   private validate = memoize(
-    ([riskName]) => `${riskName}`,
-    async (riskName: RiskName) => {
+    ([payload]) => `${payload.riskName}:${payload.exchangeName}:${payload.frameName}`,
+    async (payload: { riskName: RiskName; exchangeName: string; frameName: string }) => {
       this.loggerService.log("riskGlobalService validate", {
-        riskName,
+        payload,
       });
       this.riskValidationService.validate(
-        riskName,
+        payload.riskName,
         "riskGlobalService validate"
       );
     }
@@ -56,7 +56,7 @@ export class RiskGlobalService {
       symbol: params.symbol,
       payload,
     });
-    await this.validate(payload.riskName);
+    await this.validate(payload);
     return await this.riskConnectionService.checkSignal(params, payload);
   };
 
@@ -74,7 +74,7 @@ export class RiskGlobalService {
       symbol,
       payload,
     });
-    await this.validate(payload.riskName);
+    await this.validate(payload);
     await this.riskConnectionService.addSignal(symbol, payload);
   };
 
@@ -92,7 +92,7 @@ export class RiskGlobalService {
       symbol,
       payload,
     });
-    await this.validate(payload.riskName);
+    await this.validate(payload);
     await this.riskConnectionService.removeSignal(symbol, payload);
   };
 
@@ -109,7 +109,7 @@ export class RiskGlobalService {
       payload,
     });
     if (payload) {
-      await this.validate(payload.riskName);
+      await this.validate(payload);
     }
     return await this.riskConnectionService.clear(payload);
   };

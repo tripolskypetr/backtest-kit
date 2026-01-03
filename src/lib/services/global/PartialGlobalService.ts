@@ -75,20 +75,20 @@ export class PartialGlobalService {
 
   /**
    * Validates strategy and associated risk configuration.
-   * Memoized to avoid redundant validations for the same strategy.
+   * Memoized to avoid redundant validations for the same strategy-exchange-frame combination.
    *
-   * @param strategyName - Name of the strategy to validate
+   * @param context - Context with strategyName, exchangeName and frameName
    * @param methodName - Name of the calling method for error tracking
    */
   private validate = memoize(
-    ([strategyName]) => `${strategyName}`,
-    (strategyName: string, methodName: string) => {
+    ([context]) => `${context.strategyName}:${context.exchangeName}:${context.frameName}`,
+    (context: { strategyName: string; exchangeName: string; frameName: string }, methodName: string) => {
       this.loggerService.log("partialGlobalService validate", {
-        strategyName,
+        context,
         methodName,
       });
-      this.strategyValidationService.validate(strategyName, methodName);
-      const { riskName, riskList } = this.strategySchemaService.get(strategyName);
+      this.strategyValidationService.validate(context.strategyName, methodName);
+      const { riskName, riskList } = this.strategySchemaService.get(context.strategyName);
       riskName && this.riskValidationService.validate(riskName, methodName);
       riskList && riskList.forEach((riskName) => this.riskValidationService.validate(riskName, methodName));
     }
@@ -123,7 +123,11 @@ export class PartialGlobalService {
       backtest,
       when,
     });
-    this.validate(data.strategyName, "partialGlobalService profit");
+    this.validate({
+      strategyName: data.strategyName,
+      exchangeName: data.exchangeName,
+      frameName: data.frameName
+    }, "partialGlobalService profit");
     return await this.partialConnectionService.profit(
       symbol,
       data,
@@ -163,7 +167,11 @@ export class PartialGlobalService {
       backtest,
       when,
     });
-    this.validate(data.strategyName, "partialGlobalService loss");
+    this.validate({
+      strategyName: data.strategyName,
+      exchangeName: data.exchangeName,
+      frameName: data.frameName
+    }, "partialGlobalService loss");
     return await this.partialConnectionService.loss(
       symbol,
       data,
@@ -196,7 +204,11 @@ export class PartialGlobalService {
       priceClose,
       backtest,
     });
-    this.validate(data.strategyName, "partialGlobalService clear");
+    this.validate({
+      strategyName: data.strategyName,
+      exchangeName: data.exchangeName,
+      frameName: data.frameName
+    }, "partialGlobalService clear");
     return await this.partialConnectionService.clear(symbol, data, priceClose, backtest);
   };
 }
