@@ -67,7 +67,8 @@ test("Heat.getData returns heatmap statistics for strategy", async ({ pass, fail
     // Just consume
   }
 
-  const stats = await Heat.getData("test-strategy-heat-1", {
+  const stats = await Heat.getData({
+    strategyName: "test-strategy-heat-1",
     exchangeName: "binance-mock-heat-1",
     frameName: "1d-backtest-heat-1",
   }, true);
@@ -141,7 +142,8 @@ test("Heat heatmap includes per-symbol statistics", async ({ pass, fail }) => {
     // Just consume
   }
 
-  const stats = await Heat.getData("test-strategy-heat-2", {
+  const stats = await Heat.getData({
+    strategyName: "test-strategy-heat-2",
     exchangeName: "binance-mock-heat-2",
     frameName: "1d-backtest-heat-2",
   }, true);
@@ -212,7 +214,8 @@ test("Heat.getReport generates markdown report", async ({ pass, fail }) => {
     // Just consume
   }
 
-  const markdown = await Heat.getReport("test-strategy-heat-3", {
+  const markdown = await Heat.getReport({
+    strategyName: "test-strategy-heat-3",
     exchangeName: "binance-mock-heat-3",
     frameName: "1d-backtest-heat-3",
   }, true);
@@ -305,7 +308,8 @@ test("Heat calculates portfolio-wide metrics", async ({ pass, fail }) => {
     // Just consume
   }
 
-  const stats = await Heat.getData("test-strategy-heat-4", {
+  const stats = await Heat.getData({
+    strategyName: "test-strategy-heat-4",
     exchangeName: "binance-mock-heat-4",
     frameName: "1d-backtest-heat-4",
   }, true);
@@ -372,7 +376,8 @@ test("Heat calculates extended metrics correctly", async ({ pass, fail }) => {
     // Just consume
   }
 
-  const stats = await Heat.getData("test-strategy-heat-extended", {
+  const stats = await Heat.getData({
+    strategyName: "test-strategy-heat-extended",
     exchangeName: "binance-mock-heat-extended",
     frameName: "1d-backtest-heat-extended",
   }, true);
@@ -450,7 +455,8 @@ test("Heat sorts symbols by Sharpe Ratio descending", async ({ pass, fail }) => 
     // Just consume
   }
 
-  const stats = await Heat.getData("test-strategy-heat-6", {
+  const stats = await Heat.getData({
+    strategyName: "test-strategy-heat-6",
     exchangeName: "binance-mock-heat-6",
     frameName: "1d-backtest-heat-6",
   }, true);

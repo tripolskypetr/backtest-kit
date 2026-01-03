@@ -494,11 +494,13 @@ test("MARKDOWN PARALLEL: All markdown services work with multi-symbol isolation"
 
   // 4. HeatMarkdownService - проверяем getData()
   try {
-    const btcHeatData = await Heat.getData("test-markdown-parallel", {
+    const btcHeatData = await Heat.getData({
+      strategyName: "test-markdown-parallel",
       exchangeName: "binance-markdown-parallel",
       frameName: "1h-markdown-parallel",
     }, true);
-    const ethHeatData = await Heat.getData("test-markdown-parallel", {
+    const ethHeatData = await Heat.getData({
+      strategyName: "test-markdown-parallel",
       exchangeName: "binance-markdown-parallel",
       frameName: "1h-markdown-parallel",
     }, true);

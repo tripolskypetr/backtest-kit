@@ -7588,15 +7588,27 @@ declare class HeatMarkdownService {
  * import { Heat } from "backtest-kit";
  *
  * // Get raw heatmap data for a strategy
- * const stats = await Heat.getData("my-strategy");
+ * const stats = await Heat.getData({
+ *   strategyName: "my-strategy",
+ *   exchangeName: "binance",
+ *   frameName: "frame1"
+ * });
  * console.log(`Portfolio PNL: ${stats.portfolioTotalPnl}%`);
  *
  * // Generate markdown report
- * const markdown = await Heat.getReport("my-strategy");
+ * const markdown = await Heat.getReport({
+ *   strategyName: "my-strategy",
+ *   exchangeName: "binance",
+ *   frameName: "frame1"
+ * });
  * console.log(markdown);
  *
  * // Save to disk
- * await Heat.dump("my-strategy", "./reports");
+ * await Heat.dump({
+ *   strategyName: "my-strategy",
+ *   exchangeName: "binance",
+ *   frameName: "frame1"
+ * }, false, "./reports");
  * ```
  */
 declare class HeatUtils {
@@ -7606,14 +7618,14 @@ declare class HeatUtils {
      * Returns per-symbol breakdown and portfolio-wide metrics.
      * Data is automatically collected from all closed signals for the strategy.
      *
-     * @param strategyName - Strategy name to get heatmap data for
-     * @param context - Execution context with exchangeName and frameName
+     * @param context - Execution context with strategyName, exchangeName and frameName
      * @param backtest - True if backtest mode, false if live mode (default: false)
      * @returns Promise resolving to heatmap statistics object
      *
      * @example
      * ```typescript
-     * const stats = await Heat.getData("my-strategy", {
+     * const stats = await Heat.getData({
+     *   strategyName: "my-strategy",
      *   exchangeName: "binance",
      *   frameName: "frame1"
      * });
@@ -7628,7 +7640,8 @@ declare class HeatUtils {
      * });
      * ```
      */
-    getData: (strategyName: StrategyName, context: {
+    getData: (context: {
+        strategyName: string;
         exchangeName: string;
         frameName: string;
     }, backtest?: boolean) => Promise<HeatmapStatisticsModel>;
@@ -7638,15 +7651,15 @@ declare class HeatUtils {
      * Table includes: Symbol, Total PNL, Sharpe Ratio, Max Drawdown, Trades.
      * Symbols are sorted by Total PNL descending.
      *
-     * @param strategyName - Strategy name to generate heatmap report for
-     * @param context - Execution context with exchangeName and frameName
+     * @param context - Execution context with strategyName, exchangeName and frameName
      * @param backtest - True if backtest mode, false if live mode (default: false)
      * @param columns - Optional columns configuration for the report
      * @returns Promise resolving to markdown formatted report string
      *
      * @example
      * ```typescript
-     * const markdown = await Heat.getReport("my-strategy", {
+     * const markdown = await Heat.getReport({
+     *   strategyName: "my-strategy",
      *   exchangeName: "binance",
      *   frameName: "frame1"
      * });
@@ -7663,7 +7676,8 @@ declare class HeatUtils {
      * // ...
      * ```
      */
-    getReport: (strategyName: StrategyName, context: {
+    getReport: (context: {
+        strategyName: string;
         exchangeName: string;
         frameName: string;
     }, backtest?: boolean, columns?: Columns$2[]) => Promise<string>;
@@ -7673,8 +7687,7 @@ declare class HeatUtils {
      * Creates directory if it doesn't exist.
      * Default filename: {strategyName}.md
      *
-     * @param strategyName - Strategy name to save heatmap report for
-     * @param context - Execution context with exchangeName and frameName
+     * @param context - Execution context with strategyName, exchangeName and frameName
      * @param backtest - True if backtest mode, false if live mode (default: false)
      * @param path - Optional directory path to save report (default: "./dump/heatmap")
      * @param columns - Optional columns configuration for the report
@@ -7682,19 +7695,22 @@ declare class HeatUtils {
      * @example
      * ```typescript
      * // Save to default path: ./dump/heatmap/my-strategy.md
-     * await Heat.dump("my-strategy", {
+     * await Heat.dump({
+     *   strategyName: "my-strategy",
      *   exchangeName: "binance",
      *   frameName: "frame1"
      * });
      *
      * // Save to custom path: ./reports/my-strategy.md
-     * await Heat.dump("my-strategy", {
+     * await Heat.dump({
+     *   strategyName: "my-strategy",
      *   exchangeName: "binance",
      *   frameName: "frame1"
      * }, false, "./reports");
      * ```
      */
-    dump: (strategyName: StrategyName, context: {
+    dump: (context: {
+        strategyName: string;
         exchangeName: string;
         frameName: string;
     }, backtest?: boolean, path?: string, columns?: Columns$2[]) => Promise<void>;
@@ -7707,7 +7723,11 @@ declare class HeatUtils {
  * import { Heat } from "backtest-kit";
  *
  * // Strategy-specific heatmap
- * const stats = await Heat.getData("my-strategy");
+ * const stats = await Heat.getData({
+ *   strategyName: "my-strategy",
+ *   exchangeName: "binance",
+ *   frameName: "frame1"
+ * });
  * console.log(`Portfolio PNL: ${stats.portfolioTotalPnl}%`);
  * console.log(`Total Symbols: ${stats.totalSymbols}`);
  *
@@ -7721,7 +7741,11 @@ declare class HeatUtils {
  * });
  *
  * // Generate and save report
- * await Heat.dump("my-strategy", "./reports");
+ * await Heat.dump({
+ *   strategyName: "my-strategy",
+ *   exchangeName: "binance",
+ *   frameName: "frame1"
+ * }, false, "./reports");
  * ```
  */
 declare const Heat: HeatUtils;

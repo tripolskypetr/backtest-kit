@@ -373,11 +373,13 @@ test("FACADES PARALLEL: All public facades isolate data by (symbol, strategyName
 
   // 3. Heat.getData(strategyName, backtest)
   try {
-    const btcHeat = await Heat.getData("test-facades-parallel", {
+    const btcHeat = await Heat.getData({
+      strategyName: "test-facades-parallel",
       exchangeName: "binance-facades-parallel",
       frameName: "1h-facades-parallel",
     }, true);
-    const ethHeat = await Heat.getData("test-facades-parallel", {
+    const ethHeat = await Heat.getData({
+      strategyName: "test-facades-parallel",
       exchangeName: "binance-facades-parallel",
       frameName: "1h-facades-parallel",
     }, true);
@@ -502,11 +504,13 @@ test("FACADES PARALLEL: All public facades isolate data by (symbol, strategyName
 
   // 8. Heat.getReport(strategyName, backtest)
   try {
-    const btcHeatReport = await Heat.getReport("test-facades-parallel", {
+    const btcHeatReport = await Heat.getReport({
+      strategyName: "test-facades-parallel",
       exchangeName: "binance-facades-parallel",
       frameName: "1h-facades-parallel",
     }, true);
-    const ethHeatReport = await Heat.getReport("test-facades-parallel", {
+    const ethHeatReport = await Heat.getReport({
+      strategyName: "test-facades-parallel",
       exchangeName: "binance-facades-parallel",
       frameName: "1h-facades-parallel",
     }, true);
