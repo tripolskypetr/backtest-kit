@@ -28,7 +28,7 @@ import {
 import toProfitLossDto from "../helpers/toProfitLossDto";
 import { ICandleData } from "../interfaces/Exchange.interface";
 import { PersistSignalAdapter, PersistScheduleAdapter } from "../classes/Persist";
-import backtest from "../lib";
+import backtest, { ExecutionContextService } from "../lib";
 import { errorEmitter } from "../config/emitters";
 import { GLOBAL_CONFIG } from "../config/params";
 import toPlainString from "../helpers/toPlainString";
@@ -556,17 +556,18 @@ const WAIT_FOR_INIT_FN = async (self: ClientStrategy) => {
     self._pendingSignal = pendingSignal;
 
     // Call onActive callback for restored signal
-    if (self.params.callbacks?.onActive) {
-      const currentPrice = await self.params.exchange.getAveragePrice(
-        self.params.execution.context.symbol
-      );
-      self.params.callbacks.onActive(
-        self.params.execution.context.symbol,
-        pendingSignal,
-        currentPrice,
-        self.params.execution.context.backtest
-      );
-    }
+    const currentPrice = await self.params.exchange.getAveragePrice(
+      self.params.execution.context.symbol
+    );
+    const currentTime = self.params.execution.context.when.getTime();
+    await CALL_ACTIVE_CALLBACKS_FN(
+      self,
+      self.params.execution.context.symbol,
+      pendingSignal,
+      currentPrice,
+      currentTime,
+      self.params.execution.context.backtest
+    );
   }
 
   // Restore scheduled signal
@@ -584,17 +585,18 @@ const WAIT_FOR_INIT_FN = async (self: ClientStrategy) => {
     self._scheduledSignal = scheduledSignal;
 
     // Call onSchedule callback for restored scheduled signal
-    if (self.params.callbacks?.onSchedule) {
-      const currentPrice = await self.params.exchange.getAveragePrice(
-        self.params.execution.context.symbol
-      );
-      self.params.callbacks.onSchedule(
-        self.params.execution.context.symbol,
-        scheduledSignal,
-        currentPrice,
-        self.params.execution.context.backtest
-      );
-    }
+    const currentPrice = await self.params.exchange.getAveragePrice(
+      self.params.execution.context.symbol
+    );
+    const currentTime = self.params.execution.context.when.getTime();
+    await CALL_SCHEDULE_CALLBACKS_FN(
+      self,
+      self.params.execution.context.symbol,
+      scheduledSignal,
+      currentPrice,
+      currentTime,
+      self.params.execution.context.backtest
+    );
   }
 };
 
@@ -722,14 +724,14 @@ const CHECK_SCHEDULED_SIGNAL_TIMEOUT_FN = async (
 
   await self.setScheduledSignal(null);
 
-  if (self.params.callbacks?.onCancel) {
-    self.params.callbacks.onCancel(
-      self.params.execution.context.symbol,
-      scheduled,
-      currentPrice,
-      self.params.execution.context.backtest
-    );
-  }
+  await CALL_CANCEL_CALLBACKS_FN(
+    self,
+    self.params.execution.context.symbol,
+    scheduled,
+    currentPrice,
+    currentTime,
+    self.params.execution.context.backtest
+  );
 
   const result: IStrategyTickResultCancelled = {
     action: "cancelled",
@@ -744,13 +746,13 @@ const CHECK_SCHEDULED_SIGNAL_TIMEOUT_FN = async (
     reason: "timeout",
   };
 
-  if (self.params.callbacks?.onTick) {
-    self.params.callbacks.onTick(
-      self.params.execution.context.symbol,
-      result,
-      self.params.execution.context.backtest
-    );
-  }
+  await CALL_TICK_CALLBACKS_FN(
+    self,
+    self.params.execution.context.symbol,
+    result,
+    currentTime,
+    self.params.execution.context.backtest
+  );
 
   return result;
 };
@@ -806,20 +808,22 @@ const CANCEL_SCHEDULED_SIGNAL_BY_STOPLOSS_FN = async (
 
   await self.setScheduledSignal(null);
 
-  if (self.params.callbacks?.onCancel) {
-    self.params.callbacks.onCancel(
-      self.params.execution.context.symbol,
-      scheduled,
-      currentPrice,
-      self.params.execution.context.backtest
-    );
-  }
+  const currentTime = self.params.execution.context.when.getTime();
+
+  await CALL_CANCEL_CALLBACKS_FN(
+    self,
+    self.params.execution.context.symbol,
+    scheduled,
+    currentPrice,
+    currentTime,
+    self.params.execution.context.backtest
+  );
 
   const result: IStrategyTickResultCancelled = {
     action: "cancelled",
     signal: scheduled,
     currentPrice: currentPrice,
-    closeTimestamp: self.params.execution.context.when.getTime(),
+    closeTimestamp: currentTime,
     strategyName: self.params.method.context.strategyName,
     exchangeName: self.params.method.context.exchangeName,
     frameName: self.params.method.context.frameName,
@@ -828,13 +832,13 @@ const CANCEL_SCHEDULED_SIGNAL_BY_STOPLOSS_FN = async (
     reason: "price_reject",
   };
 
-  if (self.params.callbacks?.onTick) {
-    self.params.callbacks.onTick(
-      self.params.execution.context.symbol,
-      result,
-      self.params.execution.context.backtest
-    );
-  }
+  await CALL_TICK_CALLBACKS_FN(
+    self,
+    self.params.execution.context.symbol,
+    result,
+    currentTime,
+    self.params.execution.context.backtest
+  );
 
   return result;
 };
@@ -908,14 +912,14 @@ const ACTIVATE_SCHEDULED_SIGNAL_FN = async (
     frameName: self.params.method.context.frameName,
   });
 
-  if (self.params.callbacks?.onOpen) {
-    self.params.callbacks.onOpen(
-      self.params.execution.context.symbol,
-      self._pendingSignal,
-      self._pendingSignal.priceOpen,
-      self.params.execution.context.backtest
-    );
-  }
+  await CALL_OPEN_CALLBACKS_FN(
+    self,
+    self.params.execution.context.symbol,
+    self._pendingSignal,
+    self._pendingSignal.priceOpen,
+    activationTime,
+    self.params.execution.context.backtest
+  );
 
   const result: IStrategyTickResultOpened = {
     action: "opened",
@@ -928,13 +932,13 @@ const ACTIVATE_SCHEDULED_SIGNAL_FN = async (
     backtest: self.params.execution.context.backtest,
   };
 
-  if (self.params.callbacks?.onTick) {
-    self.params.callbacks.onTick(
-      self.params.execution.context.symbol,
-      result,
-      self.params.execution.context.backtest
-    );
-  }
+  await CALL_TICK_CALLBACKS_FN(
+    self,
+    self.params.execution.context.symbol,
+    result,
+    activationTime,
+    self.params.execution.context.backtest
+  );
 
   return result;
 };
@@ -942,32 +946,382 @@ const ACTIVATE_SCHEDULED_SIGNAL_FN = async (
 const CALL_PING_CALLBACKS_FN = trycatch(
   async (
     self: ClientStrategy,
+    symbol: string,
     scheduled: IScheduledSignalRow,
-    timestamp: number
+    timestamp: number,
+    backtest: boolean,
   ): Promise<void> => {
-    // Call system onPing callback first (emits to pingSubject)
-    await self.params.onPing(
-      self.params.execution.context.symbol,
-      self.params.method.context.strategyName,
-      self.params.method.context.exchangeName,
-      scheduled,
-      self.params.execution.context.backtest,
-      timestamp
-    );
-
-    // Call user onPing callback only if signal is still active (not cancelled, not activated)
-    if (self.params.callbacks?.onPing) {
-      await self.params.callbacks.onPing(
+    await ExecutionContextService.runInContext(async () => {
+      // Call system onPing callback first (emits to pingSubject)
+      await self.params.onPing(
         self.params.execution.context.symbol,
+        self.params.method.context.strategyName,
+        self.params.method.context.exchangeName,
         scheduled,
-        new Date(timestamp),
-        self.params.execution.context.backtest
+        self.params.execution.context.backtest,
+        timestamp
       );
-    }
+
+      // Call user onPing callback only if signal is still active (not cancelled, not activated)
+      if (self.params.callbacks?.onPing) {
+        await self.params.callbacks.onPing(
+          self.params.execution.context.symbol,
+          scheduled,
+          new Date(timestamp),
+          self.params.execution.context.backtest
+        );
+      }
+    }, {
+      when: new Date(timestamp),
+      symbol: symbol,
+      backtest: backtest,
+    })
   },
   {
     fallback: (error) => {
       const message = "ClientStrategy CALL_PING_CALLBACKS_FN thrown";
+      const payload = {
+        error: errorData(error),
+        message: getErrorMessage(error),
+      };
+      backtest.loggerService.warn(message, payload);
+      console.warn(message, payload);
+      errorEmitter.next(error);
+    },
+  }
+);
+
+const CALL_ACTIVE_CALLBACKS_FN = trycatch(
+  async (
+    self: ClientStrategy,
+    symbol: string,
+    signal: ISignalRow,
+    currentPrice: number,
+    timestamp: number,
+    backtest: boolean
+  ): Promise<void> => {
+    await ExecutionContextService.runInContext(async () => {
+      if (self.params.callbacks?.onActive) {
+        self.params.callbacks.onActive(
+          self.params.execution.context.symbol,
+          signal,
+          currentPrice,
+          self.params.execution.context.backtest
+        );
+      }
+    }, {
+      when: new Date(timestamp),
+      symbol: symbol,
+      backtest: backtest,
+    });
+  },
+  {
+    fallback: (error) => {
+      const message = "ClientStrategy CALL_ACTIVE_CALLBACKS_FN thrown";
+      const payload = {
+        error: errorData(error),
+        message: getErrorMessage(error),
+      };
+      backtest.loggerService.warn(message, payload);
+      console.warn(message, payload);
+      errorEmitter.next(error);
+    },
+  }
+);
+
+const CALL_SCHEDULE_CALLBACKS_FN = trycatch(
+  async (
+    self: ClientStrategy,
+    symbol: string,
+    signal: IScheduledSignalRow,
+    currentPrice: number,
+    timestamp: number,
+    backtest: boolean
+  ): Promise<void> => {
+    await ExecutionContextService.runInContext(async () => {
+      if (self.params.callbacks?.onSchedule) {
+        self.params.callbacks.onSchedule(
+          self.params.execution.context.symbol,
+          signal,
+          currentPrice,
+          self.params.execution.context.backtest
+        );
+      }
+    }, {
+      when: new Date(timestamp),
+      symbol: symbol,
+      backtest: backtest,
+    });
+  },
+  {
+    fallback: (error) => {
+      const message = "ClientStrategy CALL_SCHEDULE_CALLBACKS_FN thrown";
+      const payload = {
+        error: errorData(error),
+        message: getErrorMessage(error),
+      };
+      backtest.loggerService.warn(message, payload);
+      console.warn(message, payload);
+      errorEmitter.next(error);
+    },
+  }
+);
+
+const CALL_CANCEL_CALLBACKS_FN = trycatch(
+  async (
+    self: ClientStrategy,
+    symbol: string,
+    signal: IScheduledSignalRow,
+    currentPrice: number,
+    timestamp: number,
+    backtest: boolean
+  ): Promise<void> => {
+    await ExecutionContextService.runInContext(async () => {
+      if (self.params.callbacks?.onCancel) {
+        self.params.callbacks.onCancel(
+          self.params.execution.context.symbol,
+          signal,
+          currentPrice,
+          self.params.execution.context.backtest
+        );
+      }
+    }, {
+      when: new Date(timestamp),
+      symbol: symbol,
+      backtest: backtest,
+    });
+  },
+  {
+    fallback: (error) => {
+      const message = "ClientStrategy CALL_CANCEL_CALLBACKS_FN thrown";
+      const payload = {
+        error: errorData(error),
+        message: getErrorMessage(error),
+      };
+      backtest.loggerService.warn(message, payload);
+      console.warn(message, payload);
+      errorEmitter.next(error);
+    },
+  }
+);
+
+const CALL_OPEN_CALLBACKS_FN = trycatch(
+  async (
+    self: ClientStrategy,
+    symbol: string,
+    signal: ISignalRow,
+    priceOpen: number,
+    timestamp: number,
+    backtest: boolean
+  ): Promise<void> => {
+    await ExecutionContextService.runInContext(async () => {
+      if (self.params.callbacks?.onOpen) {
+        self.params.callbacks.onOpen(
+          self.params.execution.context.symbol,
+          signal,
+          priceOpen,
+          self.params.execution.context.backtest
+        );
+      }
+    }, {
+      when: new Date(timestamp),
+      symbol: symbol,
+      backtest: backtest,
+    });
+  },
+  {
+    fallback: (error) => {
+      const message = "ClientStrategy CALL_OPEN_CALLBACKS_FN thrown";
+      const payload = {
+        error: errorData(error),
+        message: getErrorMessage(error),
+      };
+      backtest.loggerService.warn(message, payload);
+      console.warn(message, payload);
+      errorEmitter.next(error);
+    },
+  }
+);
+
+const CALL_CLOSE_CALLBACKS_FN = trycatch(
+  async (
+    self: ClientStrategy,
+    symbol: string,
+    signal: ISignalRow,
+    currentPrice: number,
+    timestamp: number,
+    backtest: boolean
+  ): Promise<void> => {
+    await ExecutionContextService.runInContext(async () => {
+      if (self.params.callbacks?.onClose) {
+        self.params.callbacks.onClose(
+          self.params.execution.context.symbol,
+          signal,
+          currentPrice,
+          self.params.execution.context.backtest
+        );
+      }
+    }, {
+      when: new Date(timestamp),
+      symbol: symbol,
+      backtest: backtest,
+    });
+  },
+  {
+    fallback: (error) => {
+      const message = "ClientStrategy CALL_CLOSE_CALLBACKS_FN thrown";
+      const payload = {
+        error: errorData(error),
+        message: getErrorMessage(error),
+      };
+      backtest.loggerService.warn(message, payload);
+      console.warn(message, payload);
+      errorEmitter.next(error);
+    },
+  }
+);
+
+const CALL_TICK_CALLBACKS_FN = trycatch(
+  async (
+    self: ClientStrategy,
+    symbol: string,
+    result: IStrategyTickResult,
+    timestamp: number,
+    backtest: boolean
+  ): Promise<void> => {
+    await ExecutionContextService.runInContext(async () => {
+      if (self.params.callbacks?.onTick) {
+        self.params.callbacks.onTick(
+          self.params.execution.context.symbol,
+          result,
+          self.params.execution.context.backtest
+        );
+      }
+    }, {
+      when: new Date(timestamp),
+      symbol: symbol,
+      backtest: backtest,
+    });
+  },
+  {
+    fallback: (error) => {
+      const message = "ClientStrategy CALL_TICK_CALLBACKS_FN thrown";
+      const payload = {
+        error: errorData(error),
+        message: getErrorMessage(error),
+      };
+      backtest.loggerService.warn(message, payload);
+      console.warn(message, payload);
+      errorEmitter.next(error);
+    },
+  }
+);
+
+const CALL_IDLE_CALLBACKS_FN = trycatch(
+  async (
+    self: ClientStrategy,
+    symbol: string,
+    currentPrice: number,
+    timestamp: number,
+    backtest: boolean
+  ): Promise<void> => {
+    await ExecutionContextService.runInContext(async () => {
+      if (self.params.callbacks?.onIdle) {
+        self.params.callbacks.onIdle(
+          self.params.execution.context.symbol,
+          currentPrice,
+          self.params.execution.context.backtest
+        );
+      }
+    }, {
+      when: new Date(timestamp),
+      symbol: symbol,
+      backtest: backtest,
+    });
+  },
+  {
+    fallback: (error) => {
+      const message = "ClientStrategy CALL_IDLE_CALLBACKS_FN thrown";
+      const payload = {
+        error: errorData(error),
+        message: getErrorMessage(error),
+      };
+      backtest.loggerService.warn(message, payload);
+      console.warn(message, payload);
+      errorEmitter.next(error);
+    },
+  }
+);
+
+const CALL_PARTIAL_PROFIT_CALLBACKS_FN = trycatch(
+  async (
+    self: ClientStrategy,
+    symbol: string,
+    signal: ISignalRow,
+    currentPrice: number,
+    percentTp: number,
+    timestamp: number,
+    backtest: boolean
+  ): Promise<void> => {
+    await ExecutionContextService.runInContext(async () => {
+      if (self.params.callbacks?.onPartialProfit) {
+        self.params.callbacks.onPartialProfit(
+          self.params.execution.context.symbol,
+          signal,
+          currentPrice,
+          percentTp,
+          self.params.execution.context.backtest
+        );
+      }
+    }, {
+      when: new Date(timestamp),
+      symbol: symbol,
+      backtest: backtest,
+    });
+  },
+  {
+    fallback: (error) => {
+      const message = "ClientStrategy CALL_PARTIAL_PROFIT_CALLBACKS_FN thrown";
+      const payload = {
+        error: errorData(error),
+        message: getErrorMessage(error),
+      };
+      backtest.loggerService.warn(message, payload);
+      console.warn(message, payload);
+      errorEmitter.next(error);
+    },
+  }
+);
+
+const CALL_PARTIAL_LOSS_CALLBACKS_FN = trycatch(
+  async (
+    self: ClientStrategy,
+    symbol: string,
+    signal: ISignalRow,
+    currentPrice: number,
+    percentSl: number,
+    timestamp: number,
+    backtest: boolean
+  ): Promise<void> => {
+    await ExecutionContextService.runInContext(async () => {
+      if (self.params.callbacks?.onPartialLoss) {
+        self.params.callbacks.onPartialLoss(
+          self.params.execution.context.symbol,
+          signal,
+          currentPrice,
+          percentSl,
+          self.params.execution.context.backtest
+        );
+      }
+    }, {
+      when: new Date(timestamp),
+      symbol: symbol,
+      backtest: backtest,
+    });
+  },
+  {
+    fallback: (error) => {
+      const message = "ClientStrategy CALL_PARTIAL_LOSS_CALLBACKS_FN thrown";
       const payload = {
         error: errorData(error),
         message: getErrorMessage(error),
@@ -984,10 +1338,14 @@ const RETURN_SCHEDULED_SIGNAL_ACTIVE_FN = async (
   scheduled: IScheduledSignalRow,
   currentPrice: number
 ): Promise<IStrategyTickResultActive> => {
+  const currentTime = self.params.execution.context.when.getTime();
+
   await CALL_PING_CALLBACKS_FN(
     self,
+    self.params.execution.context.symbol,
     scheduled,
-    self.params.execution.context.when.getTime()
+    currentTime,
+    self.params.execution.context.backtest
   );
 
   const result: IStrategyTickResultActive = {
@@ -1003,13 +1361,13 @@ const RETURN_SCHEDULED_SIGNAL_ACTIVE_FN = async (
     backtest: self.params.execution.context.backtest,
   };
 
-  if (self.params.callbacks?.onTick) {
-    self.params.callbacks.onTick(
-      self.params.execution.context.symbol,
-      result,
-      self.params.execution.context.backtest
-    );
-  }
+  await CALL_TICK_CALLBACKS_FN(
+    self,
+    self.params.execution.context.symbol,
+    result,
+    currentTime,
+    self.params.execution.context.backtest
+  );
 
   return result;
 };
@@ -1022,6 +1380,8 @@ const OPEN_NEW_SCHEDULED_SIGNAL_FN = async (
     self.params.execution.context.symbol
   );
 
+  const currentTime = self.params.execution.context.when.getTime();
+
   self.params.logger.info("ClientStrategy scheduled signal created", {
     symbol: self.params.execution.context.symbol,
     signalId: signal.id,
@@ -1030,14 +1390,14 @@ const OPEN_NEW_SCHEDULED_SIGNAL_FN = async (
     currentPrice: currentPrice,
   });
 
-  if (self.params.callbacks?.onSchedule) {
-    self.params.callbacks.onSchedule(
-      self.params.execution.context.symbol,
-      signal,
-      currentPrice,
-      self.params.execution.context.backtest
-    );
-  }
+  await CALL_SCHEDULE_CALLBACKS_FN(
+    self,
+    self.params.execution.context.symbol,
+    signal,
+    currentPrice,
+    currentTime,
+    self.params.execution.context.backtest
+  );
 
   const result: IStrategyTickResultScheduled = {
     action: "scheduled",
@@ -1050,13 +1410,13 @@ const OPEN_NEW_SCHEDULED_SIGNAL_FN = async (
     backtest: self.params.execution.context.backtest,
   };
 
-  if (self.params.callbacks?.onTick) {
-    self.params.callbacks.onTick(
-      self.params.execution.context.symbol,
-      result,
-      self.params.execution.context.backtest
-    );
-  }
+  await CALL_TICK_CALLBACKS_FN(
+    self,
+    self.params.execution.context.symbol,
+    result,
+    currentTime,
+    self.params.execution.context.backtest
+  );
 
   return result;
 };
@@ -1088,14 +1448,16 @@ const OPEN_NEW_PENDING_SIGNAL_FN = async (
     frameName: self.params.method.context.frameName,
   });
 
-  if (self.params.callbacks?.onOpen) {
-    self.params.callbacks.onOpen(
-      self.params.execution.context.symbol,
-      signal,
-      signal.priceOpen,
-      self.params.execution.context.backtest
-    );
-  }
+  const currentTime = self.params.execution.context.when.getTime();
+
+  await CALL_OPEN_CALLBACKS_FN(
+    self,
+    self.params.execution.context.symbol,
+    signal,
+    signal.priceOpen,
+    currentTime,
+    self.params.execution.context.backtest
+  );
 
   const result: IStrategyTickResultOpened = {
     action: "opened",
@@ -1108,13 +1470,13 @@ const OPEN_NEW_PENDING_SIGNAL_FN = async (
     backtest: self.params.execution.context.backtest,
   };
 
-  if (self.params.callbacks?.onTick) {
-    self.params.callbacks.onTick(
-      self.params.execution.context.symbol,
-      result,
-      self.params.execution.context.backtest
-    );
-  }
+  await CALL_TICK_CALLBACKS_FN(
+    self,
+    self.params.execution.context.symbol,
+    result,
+    currentTime,
+    self.params.execution.context.backtest
+  );
 
   return result;
 };
@@ -1188,6 +1550,8 @@ const CLOSE_PENDING_SIGNAL_FN = async (
 ): Promise<IStrategyTickResultClosed> => {
   const pnl = toProfitLossDto(signal, currentPrice);
 
+  const currentTime = self.params.execution.context.when.getTime();
+
   self.params.logger.info(`ClientStrategy signal ${closeReason}`, {
     symbol: self.params.execution.context.symbol,
     signalId: signal.id,
@@ -1196,14 +1560,14 @@ const CLOSE_PENDING_SIGNAL_FN = async (
     pnlPercentage: pnl.pnlPercentage,
   });
 
-  if (self.params.callbacks?.onClose) {
-    self.params.callbacks.onClose(
-      self.params.execution.context.symbol,
-      signal,
-      currentPrice,
-      self.params.execution.context.backtest
-    );
-  }
+  await CALL_CLOSE_CALLBACKS_FN(
+    self,
+    self.params.execution.context.symbol,
+    signal,
+    currentPrice,
+    currentTime,
+    self.params.execution.context.backtest
+  );
 
   // КРИТИЧНО: Очищаем состояние ClientPartial при закрытии позиции
   await self.params.partial.clear(
@@ -1227,7 +1591,7 @@ const CLOSE_PENDING_SIGNAL_FN = async (
     signal: signal,
     currentPrice: currentPrice,
     closeReason: closeReason,
-    closeTimestamp: self.params.execution.context.when.getTime(),
+    closeTimestamp: currentTime,
     pnl: pnl,
     strategyName: self.params.method.context.strategyName,
     exchangeName: self.params.method.context.exchangeName,
@@ -1236,13 +1600,13 @@ const CLOSE_PENDING_SIGNAL_FN = async (
     backtest: self.params.execution.context.backtest,
   };
 
-  if (self.params.callbacks?.onTick) {
-    self.params.callbacks.onTick(
-      self.params.execution.context.symbol,
-      result,
-      self.params.execution.context.backtest
-    );
-  }
+  await CALL_TICK_CALLBACKS_FN(
+    self,
+    self.params.execution.context.symbol,
+    result,
+    currentTime,
+    self.params.execution.context.backtest
+  );
 
   return result;
 };
@@ -1254,6 +1618,8 @@ const RETURN_PENDING_SIGNAL_ACTIVE_FN = async (
 ): Promise<IStrategyTickResultActive> => {
   let percentTp = 0;
   let percentSl = 0;
+
+  const currentTime = self.params.execution.context.when.getTime();
 
   // Calculate percentage of path to TP/SL for partial fill/loss callbacks
   {
@@ -1276,15 +1642,15 @@ const RETURN_PENDING_SIGNAL_ACTIVE_FN = async (
           self.params.execution.context.when
         );
 
-        if (self.params.callbacks?.onPartialProfit) {
-          self.params.callbacks.onPartialProfit(
-            self.params.execution.context.symbol,
-            signal,
-            currentPrice,
-            percentTp,
-            self.params.execution.context.backtest
-          );
-        }
+        await CALL_PARTIAL_PROFIT_CALLBACKS_FN(
+          self,
+          self.params.execution.context.symbol,
+          signal,
+          currentPrice,
+          percentTp,
+          currentTime,
+          self.params.execution.context.backtest
+        );
       } else if (currentDistance < 0) {
         // Moving towards SL
         const slDistance = signal.priceOpen - signal.priceStopLoss;
@@ -1300,15 +1666,15 @@ const RETURN_PENDING_SIGNAL_ACTIVE_FN = async (
           self.params.execution.context.when
         );
 
-        if (self.params.callbacks?.onPartialLoss) {
-          self.params.callbacks.onPartialLoss(
-            self.params.execution.context.symbol,
-            signal,
-            currentPrice,
-            percentSl,
-            self.params.execution.context.backtest
-          );
-        }
+        await CALL_PARTIAL_LOSS_CALLBACKS_FN(
+          self,
+          self.params.execution.context.symbol,
+          signal,
+          currentPrice,
+          percentSl,
+          currentTime,
+          self.params.execution.context.backtest
+        );
       }
     } else if (signal.position === "short") {
       // For short: calculate progress towards TP or SL
@@ -1329,15 +1695,15 @@ const RETURN_PENDING_SIGNAL_ACTIVE_FN = async (
           self.params.execution.context.when
         );
 
-        if (self.params.callbacks?.onPartialProfit) {
-          self.params.callbacks.onPartialProfit(
-            self.params.execution.context.symbol,
-            signal,
-            currentPrice,
-            percentTp,
-            self.params.execution.context.backtest
-          );
-        }
+        await CALL_PARTIAL_PROFIT_CALLBACKS_FN(
+          self,
+          self.params.execution.context.symbol,
+          signal,
+          currentPrice,
+          percentTp,
+          currentTime,
+          self.params.execution.context.backtest
+        );
       }
 
       if (currentDistance < 0) {
@@ -1355,15 +1721,15 @@ const RETURN_PENDING_SIGNAL_ACTIVE_FN = async (
           self.params.execution.context.when
         );
 
-        if (self.params.callbacks?.onPartialLoss) {
-          self.params.callbacks.onPartialLoss(
-            self.params.execution.context.symbol,
-            signal,
-            currentPrice,
-            percentSl,
-            self.params.execution.context.backtest
-          );
-        }
+        await CALL_PARTIAL_LOSS_CALLBACKS_FN(
+          self,
+          self.params.execution.context.symbol,
+          signal,
+          currentPrice,
+          percentSl,
+          currentTime,
+          self.params.execution.context.backtest
+        );
       }
     }
   }
@@ -1381,13 +1747,13 @@ const RETURN_PENDING_SIGNAL_ACTIVE_FN = async (
     backtest: self.params.execution.context.backtest,
   };
 
-  if (self.params.callbacks?.onTick) {
-    self.params.callbacks.onTick(
-      self.params.execution.context.symbol,
-      result,
-      self.params.execution.context.backtest
-    );
-  }
+  await CALL_TICK_CALLBACKS_FN(
+    self,
+    self.params.execution.context.symbol,
+    result,
+    currentTime,
+    self.params.execution.context.backtest
+  );
 
   return result;
 };
@@ -1396,13 +1762,15 @@ const RETURN_IDLE_FN = async (
   self: ClientStrategy,
   currentPrice: number
 ): Promise<IStrategyTickResultIdle> => {
-  if (self.params.callbacks?.onIdle) {
-    self.params.callbacks.onIdle(
-      self.params.execution.context.symbol,
-      currentPrice,
-      self.params.execution.context.backtest
-    );
-  }
+  const currentTime = self.params.execution.context.when.getTime();
+
+  await CALL_IDLE_CALLBACKS_FN(
+    self,
+    self.params.execution.context.symbol,
+    currentPrice,
+    currentTime,
+    self.params.execution.context.backtest
+  );
 
   const result: IStrategyTickResultIdle = {
     action: "idle",
@@ -1415,13 +1783,13 @@ const RETURN_IDLE_FN = async (
     backtest: self.params.execution.context.backtest,
   };
 
-  if (self.params.callbacks?.onTick) {
-    self.params.callbacks.onTick(
-      self.params.execution.context.symbol,
-      result,
-      self.params.execution.context.backtest
-    );
-  }
+  await CALL_TICK_CALLBACKS_FN(
+    self,
+    self.params.execution.context.symbol,
+    result,
+    currentTime,
+    self.params.execution.context.backtest
+  );
 
   return result;
 };
@@ -1447,14 +1815,14 @@ const CANCEL_SCHEDULED_SIGNAL_IN_BACKTEST_FN = async (
 
   await self.setScheduledSignal(null);
 
-  if (self.params.callbacks?.onCancel) {
-    self.params.callbacks.onCancel(
-      self.params.execution.context.symbol,
-      scheduled,
-      averagePrice,
-      self.params.execution.context.backtest
-    );
-  }
+  await CALL_CANCEL_CALLBACKS_FN(
+    self,
+    self.params.execution.context.symbol,
+    scheduled,
+    averagePrice,
+    closeTimestamp,
+    self.params.execution.context.backtest
+  );
 
   const result: IStrategyTickResultCancelled = {
     action: "cancelled",
@@ -1469,13 +1837,13 @@ const CANCEL_SCHEDULED_SIGNAL_IN_BACKTEST_FN = async (
     reason,
   };
 
-  if (self.params.callbacks?.onTick) {
-    self.params.callbacks.onTick(
-      self.params.execution.context.symbol,
-      result,
-      self.params.execution.context.backtest
-    );
-  }
+  await CALL_TICK_CALLBACKS_FN(
+    self,
+    self.params.execution.context.symbol,
+    result,
+    closeTimestamp,
+    self.params.execution.context.backtest
+  );
 
   return result;
 };
@@ -1550,14 +1918,14 @@ const ACTIVATE_SCHEDULED_SIGNAL_IN_BACKTEST_FN = async (
     frameName: self.params.method.context.frameName,
   });
 
-  if (self.params.callbacks?.onOpen) {
-    self.params.callbacks.onOpen(
-      self.params.execution.context.symbol,
-      activatedSignal,
-      activatedSignal.priceOpen,
-      self.params.execution.context.backtest
-    );
-  }
+  await CALL_OPEN_CALLBACKS_FN(
+    self,
+    self.params.execution.context.symbol,
+    activatedSignal,
+    activatedSignal.priceOpen,
+    activationTime,
+    self.params.execution.context.backtest
+  );
 
   return true;
 };
@@ -1596,14 +1964,14 @@ const CLOSE_PENDING_SIGNAL_IN_BACKTEST_FN = async (
     );
   }
 
-  if (self.params.callbacks?.onClose) {
-    self.params.callbacks.onClose(
-      self.params.execution.context.symbol,
-      signal,
-      averagePrice,
-      self.params.execution.context.backtest
-    );
-  }
+  await CALL_CLOSE_CALLBACKS_FN(
+    self,
+    self.params.execution.context.symbol,
+    signal,
+    averagePrice,
+    closeTimestamp,
+    self.params.execution.context.backtest
+  );
 
   // КРИТИЧНО: Очищаем состояние ClientPartial при закрытии позиции
   await self.params.partial.clear(
@@ -1636,13 +2004,13 @@ const CLOSE_PENDING_SIGNAL_IN_BACKTEST_FN = async (
     backtest: self.params.execution.context.backtest,
   };
 
-  if (self.params.callbacks?.onTick) {
-    self.params.callbacks.onTick(
-      self.params.execution.context.symbol,
-      result,
-      self.params.execution.context.backtest
-    );
-  }
+  await CALL_TICK_CALLBACKS_FN(
+    self,
+    self.params.execution.context.symbol,
+    result,
+    closeTimestamp,
+    self.params.execution.context.backtest
+  );
 
   return result;
 };
@@ -1757,7 +2125,7 @@ const PROCESS_SCHEDULED_SIGNAL_CANDLES_FN = async (
       };
     }
 
-    await CALL_PING_CALLBACKS_FN(self, scheduled, candle.timestamp);
+    await CALL_PING_CALLBACKS_FN(self, self.params.execution.context.symbol, scheduled, candle.timestamp, true);
   }
 
   return {
@@ -1869,15 +2237,15 @@ const PROCESS_PENDING_SIGNAL_CANDLES_FN = async (
             new Date(currentCandleTimestamp)
           );
 
-          if (self.params.callbacks?.onPartialProfit) {
-            self.params.callbacks.onPartialProfit(
-              self.params.execution.context.symbol,
-              signal,
-              averagePrice,
-              Math.min(progressPercent, 100),
-              self.params.execution.context.backtest
-            );
-          }
+          await CALL_PARTIAL_PROFIT_CALLBACKS_FN(
+            self,
+            self.params.execution.context.symbol,
+            signal,
+            averagePrice,
+            Math.min(progressPercent, 100),
+            currentCandleTimestamp,
+            self.params.execution.context.backtest
+          );
         } else if (currentDistance < 0) {
           // Moving towards SL
           const slDistance = signal.priceOpen - signal.priceStopLoss;
@@ -1892,15 +2260,15 @@ const PROCESS_PENDING_SIGNAL_CANDLES_FN = async (
             new Date(currentCandleTimestamp)
           );
 
-          if (self.params.callbacks?.onPartialLoss) {
-            self.params.callbacks.onPartialLoss(
-              self.params.execution.context.symbol,
-              signal,
-              averagePrice,
-              Math.min(progressPercent, 100),
-              self.params.execution.context.backtest
-            );
-          }
+          await CALL_PARTIAL_LOSS_CALLBACKS_FN(
+            self,
+            self.params.execution.context.symbol,
+            signal,
+            averagePrice,
+            Math.min(progressPercent, 100),
+            currentCandleTimestamp,
+            self.params.execution.context.backtest
+          );
         }
       } else if (signal.position === "short") {
         // For short: calculate progress towards TP or SL
@@ -1920,17 +2288,17 @@ const PROCESS_PENDING_SIGNAL_CANDLES_FN = async (
             new Date(currentCandleTimestamp)
           );
 
-          if (self.params.callbacks?.onPartialProfit) {
-            self.params.callbacks.onPartialProfit(
-              self.params.execution.context.symbol,
-              signal,
-              averagePrice,
-              Math.min(progressPercent, 100),
-              self.params.execution.context.backtest
-            );
-          }
+          await CALL_PARTIAL_PROFIT_CALLBACKS_FN(
+            self,
+            self.params.execution.context.symbol,
+            signal,
+            averagePrice,
+            Math.min(progressPercent, 100),
+            currentCandleTimestamp,
+            self.params.execution.context.backtest
+          );
         }
-        
+
         if (currentDistance < 0) {
           // Moving towards SL
           const slDistance = signal.priceStopLoss - signal.priceOpen;
@@ -1945,15 +2313,15 @@ const PROCESS_PENDING_SIGNAL_CANDLES_FN = async (
             new Date(currentCandleTimestamp)
           );
 
-          if (self.params.callbacks?.onPartialLoss) {
-            self.params.callbacks.onPartialLoss(
-              self.params.execution.context.symbol,
-              signal,
-              averagePrice,
-              Math.min(progressPercent, 100),
-              self.params.execution.context.backtest
-            );
-          }
+          await CALL_PARTIAL_LOSS_CALLBACKS_FN(
+            self,
+            self.params.execution.context.symbol,
+            signal,
+            averagePrice,
+            Math.min(progressPercent, 100),
+            currentCandleTimestamp,
+            self.params.execution.context.backtest
+          );
         }
       }
     }
@@ -2176,14 +2544,14 @@ export class ClientStrategy implements IStrategy {
       });
 
       // Call onCancel callback
-      if (this.params.callbacks?.onCancel) {
-        this.params.callbacks.onCancel(
-          this.params.execution.context.symbol,
-          cancelledSignal,
-          currentPrice,
-          this.params.execution.context.backtest
-        );
-      }
+      await CALL_CANCEL_CALLBACKS_FN(
+        this,
+        this.params.execution.context.symbol,
+        cancelledSignal,
+        currentPrice,
+        currentTime,
+        this.params.execution.context.backtest
+      );
 
       const result: IStrategyTickResultCancelled = {
         action: "cancelled",
@@ -2355,20 +2723,22 @@ export class ClientStrategy implements IStrategy {
       const cancelledSignal = this._cancelledSignal;
       this._cancelledSignal = null; // Clear after using
 
-      if (this.params.callbacks?.onCancel) {
-        this.params.callbacks.onCancel(
-          this.params.execution.context.symbol,
-          cancelledSignal,
-          currentPrice,
-          this.params.execution.context.backtest
-        );
-      }
+      const closeTimestamp = this.params.execution.context.when.getTime();
+
+      await CALL_CANCEL_CALLBACKS_FN(
+        this,
+        this.params.execution.context.symbol,
+        cancelledSignal,
+        currentPrice,
+        closeTimestamp,
+        this.params.execution.context.backtest
+      );
 
       const cancelledResult: IStrategyTickResultCancelled = {
         action: "cancelled",
         signal: cancelledSignal,
         currentPrice,
-        closeTimestamp: this.params.execution.context.when.getTime(),
+        closeTimestamp: closeTimestamp,
         strategyName: this.params.method.context.strategyName,
         exchangeName: this.params.method.context.exchangeName,
         frameName: this.params.method.context.frameName,
