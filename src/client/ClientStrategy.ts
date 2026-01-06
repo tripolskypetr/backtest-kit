@@ -905,12 +905,12 @@ const ACTIVATE_SCHEDULED_SIGNAL_FN = async (
 
   await self.setPendingSignal(activatedSignal);
 
-  await self.params.risk.addSignal(self.params.execution.context.symbol, {
-    strategyName: self.params.method.context.strategyName,
-    riskName: self.params.riskName,
-    exchangeName: self.params.method.context.exchangeName,
-    frameName: self.params.method.context.frameName,
-  });
+  await CALL_RISK_ADD_SIGNAL_FN(
+    self,
+    self.params.execution.context.symbol,
+    activationTime,
+    self.params.execution.context.backtest
+  );
 
   await CALL_OPEN_CALLBACKS_FN(
     self,
@@ -1253,6 +1253,110 @@ const CALL_IDLE_CALLBACKS_FN = trycatch(
   }
 );
 
+const CALL_RISK_ADD_SIGNAL_FN = trycatch(
+  async (
+    self: ClientStrategy,
+    symbol: string,
+    timestamp: number,
+    backtest: boolean
+  ): Promise<void> => {
+    await ExecutionContextService.runInContext(async () => {
+      await self.params.risk.addSignal(symbol, {
+        strategyName: self.params.method.context.strategyName,
+        riskName: self.params.riskName,
+        exchangeName: self.params.method.context.exchangeName,
+        frameName: self.params.method.context.frameName,
+      });
+    }, {
+      when: new Date(timestamp),
+      symbol: symbol,
+      backtest: backtest,
+    });
+  },
+  {
+    fallback: (error) => {
+      const message = "ClientStrategy CALL_RISK_ADD_SIGNAL_FN thrown";
+      const payload = {
+        error: errorData(error),
+        message: getErrorMessage(error),
+      };
+      backtest.loggerService.warn(message, payload);
+      console.warn(message, payload);
+      errorEmitter.next(error);
+    },
+  }
+);
+
+const CALL_RISK_REMOVE_SIGNAL_FN = trycatch(
+  async (
+    self: ClientStrategy,
+    symbol: string,
+    timestamp: number,
+    backtest: boolean
+  ): Promise<void> => {
+    await ExecutionContextService.runInContext(async () => {
+      await self.params.risk.removeSignal(symbol, {
+        strategyName: self.params.method.context.strategyName,
+        riskName: self.params.riskName,
+        exchangeName: self.params.method.context.exchangeName,
+        frameName: self.params.method.context.frameName,
+      });
+    }, {
+      when: new Date(timestamp),
+      symbol: symbol,
+      backtest: backtest,
+    });
+  },
+  {
+    fallback: (error) => {
+      const message = "ClientStrategy CALL_RISK_REMOVE_SIGNAL_FN thrown";
+      const payload = {
+        error: errorData(error),
+        message: getErrorMessage(error),
+      };
+      backtest.loggerService.warn(message, payload);
+      console.warn(message, payload);
+      errorEmitter.next(error);
+    },
+  }
+);
+
+const CALL_PARTIAL_CLEAR_FN = trycatch(
+  async (
+    self: ClientStrategy,
+    symbol: string,
+    signal: ISignalRow,
+    currentPrice: number,
+    timestamp: number,
+    backtest: boolean
+  ): Promise<void> => {
+    await ExecutionContextService.runInContext(async () => {
+      await self.params.partial.clear(
+        symbol,
+        signal,
+        currentPrice,
+        backtest,
+      );
+    }, {
+      when: new Date(timestamp),
+      symbol: symbol,
+      backtest: backtest,
+    });
+  },
+  {
+    fallback: (error) => {
+      const message = "ClientStrategy CALL_PARTIAL_CLEAR_FN thrown";
+      const payload = {
+        error: errorData(error),
+        message: getErrorMessage(error),
+      };
+      backtest.loggerService.warn(message, payload);
+      console.warn(message, payload);
+      errorEmitter.next(error);
+    },
+  }
+);
+
 const CALL_PARTIAL_PROFIT_CALLBACKS_FN = trycatch(
   async (
     self: ClientStrategy,
@@ -1441,6 +1545,8 @@ const OPEN_NEW_PENDING_SIGNAL_FN = async (
   self: ClientStrategy,
   signal: ISignalRow
 ): Promise<IStrategyTickResultOpened | null> => {
+  const currentTime = self.params.execution.context.when.getTime();
+
   if (
     await not(
       self.params.risk.checkSignal({
@@ -1450,21 +1556,19 @@ const OPEN_NEW_PENDING_SIGNAL_FN = async (
         exchangeName: self.params.method.context.exchangeName,
         frameName: self.params.method.context.frameName,
         currentPrice: signal.priceOpen,
-        timestamp: self.params.execution.context.when.getTime(),
+        timestamp: currentTime,
       })
     )
   ) {
     return null;
   }
 
-  await self.params.risk.addSignal(self.params.execution.context.symbol, {
-    strategyName: self.params.method.context.strategyName,
-    riskName: self.params.riskName,
-    exchangeName: self.params.method.context.exchangeName,
-    frameName: self.params.method.context.frameName,
-  });
-
-  const currentTime = self.params.execution.context.when.getTime();
+  await CALL_RISK_ADD_SIGNAL_FN(
+    self,
+    self.params.execution.context.symbol,
+    currentTime,
+    self.params.execution.context.backtest
+  );
 
   await CALL_OPEN_CALLBACKS_FN(
     self,
@@ -1586,19 +1690,21 @@ const CLOSE_PENDING_SIGNAL_FN = async (
   );
 
   // КРИТИЧНО: Очищаем состояние ClientPartial при закрытии позиции
-  await self.params.partial.clear(
+  await CALL_PARTIAL_CLEAR_FN(
+    self,
     self.params.execution.context.symbol,
     signal,
     currentPrice,
-    self.params.execution.context.backtest,
+    currentTime,
+    self.params.execution.context.backtest
   );
 
-  await self.params.risk.removeSignal(self.params.execution.context.symbol, {
-    strategyName: self.params.method.context.strategyName,
-    riskName: self.params.riskName,
-    exchangeName: self.params.method.context.exchangeName,
-    frameName: self.params.method.context.frameName,
-  });
+  await CALL_RISK_REMOVE_SIGNAL_FN(
+    self,
+    self.params.execution.context.symbol,
+    currentTime,
+    self.params.execution.context.backtest
+  );
 
   await self.setPendingSignal(null);
 
@@ -1888,12 +1994,12 @@ const ACTIVATE_SCHEDULED_SIGNAL_IN_BACKTEST_FN = async (
 
   await self.setPendingSignal(activatedSignal);
 
-  await self.params.risk.addSignal(self.params.execution.context.symbol, {
-    strategyName: self.params.method.context.strategyName,
-    riskName: self.params.riskName,
-    exchangeName: self.params.method.context.exchangeName,
-    frameName: self.params.method.context.frameName,
-  });
+  await CALL_RISK_ADD_SIGNAL_FN(
+    self,
+    self.params.execution.context.symbol,
+    activationTime,
+    self.params.execution.context.backtest
+  );
 
   await CALL_OPEN_CALLBACKS_FN(
     self,
@@ -1951,19 +2057,21 @@ const CLOSE_PENDING_SIGNAL_IN_BACKTEST_FN = async (
   );
 
   // КРИТИЧНО: Очищаем состояние ClientPartial при закрытии позиции
-  await self.params.partial.clear(
+  await CALL_PARTIAL_CLEAR_FN(
+    self,
     self.params.execution.context.symbol,
     signal,
     averagePrice,
+    closeTimestamp,
     self.params.execution.context.backtest
   );
 
-  await self.params.risk.removeSignal(self.params.execution.context.symbol, {
-    strategyName: self.params.method.context.strategyName,
-    riskName: self.params.riskName,
-    exchangeName: self.params.method.context.exchangeName,
-    frameName: self.params.method.context.frameName,
-  });
+  await CALL_RISK_REMOVE_SIGNAL_FN(
+    self,
+    self.params.execution.context.symbol,
+    closeTimestamp,
+    self.params.execution.context.backtest
+  );
 
   await self.setPendingSignal(null);
 

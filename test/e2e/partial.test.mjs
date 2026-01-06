@@ -2785,13 +2785,13 @@ test("PARTIAL LISTENER: partialProfit() with listenPartialProfit for LONG", asyn
   const unsubscribeListener = listenPartialProfit(async ({ symbol, signal, price, level, backtest }) => {
     listenerFired = true;
     listenerData = { symbol, signalId: signal?.id, price, level, backtest };
-    console.log(`[TEST #15 listenPartialProfit] symbol=${symbol}, signal.id=${signal?.id}, price=${price}, level=${level}, backtest=${backtest}`);
+    // console.log(`[TEST #15 listenPartialProfit] symbol=${symbol}, signal.id=${signal?.id}, price=${price}, level=${level}, backtest=${backtest}`);
 
     // Вызываем partialProfit при достижении уровня 30%
     if (!partialCalled && level >= 30) {
       partialCalled = true;
       await partialProfit("BTCUSDT", 30);
-      console.log(`[TEST #15] partialProfit called at level ${level}%`);
+      // console.log(`[TEST #15] partialProfit called at level ${level}%`);
     }
   });
 
@@ -2857,7 +2857,7 @@ test("PARTIAL LISTENER: partialProfit() with listenPartialProfit for LONG", asyn
     frameName: "40m-listener-partial-profit",
   });
 
-  console.log("[TEST #15] getData result:", JSON.stringify(data, null, 2));
+  // console.log("[TEST #15] getData result:", JSON.stringify(data, null, 2));
 
   if (!data.signalList || data.signalList.length === 0) {
     fail("No signals found in backtest data");
@@ -2865,7 +2865,7 @@ test("PARTIAL LISTENER: partialProfit() with listenPartialProfit for LONG", asyn
   }
 
   const signal = data.signalList[0].signal;
-  console.log("[TEST #15] signal._partial:", JSON.stringify(signal._partial, null, 2));
+  // console.log("[TEST #15] signal._partial:", JSON.stringify(signal._partial, null, 2));
 
   if (!signal._partial || !Array.isArray(signal._partial) || signal._partial.length !== 1) {
     fail("Field _partial is invalid or empty");
@@ -3008,13 +3008,13 @@ test("PARTIAL LISTENER: partialLoss() with listenPartialLoss for LONG", async ({
   const unsubscribeListener = listenPartialLoss(async ({ symbol, signal, price, level, backtest }) => {
     listenerFired = true;
     listenerData = { symbol, signalId: signal?.id, price, level, backtest };
-    console.log(`[TEST #16 listenPartialLoss] symbol=${symbol}, signal.id=${signal?.id}, price=${price}, level=${level}, backtest=${backtest}`);
+    // console.log(`[TEST #16 listenPartialLoss] symbol=${symbol}, signal.id=${signal?.id}, price=${price}, level=${level}, backtest=${backtest}`);
 
     // Вызываем partialLoss при достижении уровня 30%
     if (!partialCalled && level >= 30) {
       partialCalled = true;
       await partialLoss("BTCUSDT", 40);
-      console.log(`[TEST #16] partialLoss called at level ${level}%`);
+      // console.log(`[TEST #16] partialLoss called at level ${level}%`);
     }
   });
 
@@ -3080,7 +3080,7 @@ test("PARTIAL LISTENER: partialLoss() with listenPartialLoss for LONG", async ({
     frameName: "40m-listener-partial-loss",
   });
 
-  console.log("[TEST #16] getData result:", JSON.stringify(data, null, 2));
+  // console.log("[TEST #16] getData result:", JSON.stringify(data, null, 2));
 
   if (!data.signalList || data.signalList.length === 0) {
     fail("No signals found in backtest data");
@@ -3088,7 +3088,7 @@ test("PARTIAL LISTENER: partialLoss() with listenPartialLoss for LONG", async ({
   }
 
   const signal = data.signalList[0].signal;
-  console.log("[TEST #16] signal._partial:", JSON.stringify(signal._partial, null, 2));
+  // console.log("[TEST #16] signal._partial:", JSON.stringify(signal._partial, null, 2));
 
   if (!signal._partial || !Array.isArray(signal._partial) || signal._partial.length !== 1) {
     fail("Field _partial is invalid or empty");
@@ -3230,17 +3230,17 @@ test("PARTIAL LISTENER: Multiple partialProfit with listenPartialProfit", async 
   // Подписываемся на события listenPartialProfit и вызываем partialProfit внутри
   const unsubscribeListener = listenPartialProfit(async ({ symbol, signal, price, level, backtest }) => {
     listenerEvents.push({ symbol, signalId: signal?.id, price, level, backtest });
-    console.log(`[TEST #17 listenPartialProfit] symbol=${symbol}, signal.id=${signal?.id}, price=${price}, level=${level}, backtest=${backtest}, count=${listenerEvents.length}`);
+    // console.log(`[TEST #17 listenPartialProfit] symbol=${symbol}, signal.id=${signal?.id}, price=${price}, level=${level}, backtest=${backtest}, count=${listenerEvents.length}`);
 
     // Вызываем partialProfit на разных уровнях
     if (!firstPartialCalled && level >= 20) {
       firstPartialCalled = true;
       await partialProfit("BTCUSDT", 30);
-      console.log(`[TEST #17] First partialProfit called at level ${level}%`);
+      // console.log(`[TEST #17] First partialProfit called at level ${level}%`);
     } else if (!secondPartialCalled && level >= 30) {
       secondPartialCalled = true;
       await partialProfit("BTCUSDT", 40);
-      console.log(`[TEST #17] Second partialProfit called at level ${level}%`);
+      // console.log(`[TEST #17] Second partialProfit called at level ${level}%`);
     }
   });
 
@@ -3290,7 +3290,7 @@ test("PARTIAL LISTENER: Multiple partialProfit with listenPartialProfit", async 
     frameName: "50m-listener-partial-multiple",
   });
 
-  console.log("[TEST #17] getData result:", JSON.stringify(data, null, 2));
+  // console.log("[TEST #17] getData result:", JSON.stringify(data, null, 2));
 
   if (!data.signalList || data.signalList.length === 0) {
     fail("No signals found in backtest data");
@@ -3298,7 +3298,7 @@ test("PARTIAL LISTENER: Multiple partialProfit with listenPartialProfit", async 
   }
 
   const signal = data.signalList[0].signal;
-  console.log("[TEST #17] signal._partial:", JSON.stringify(signal._partial, null, 2));
+  // console.log("[TEST #17] signal._partial:", JSON.stringify(signal._partial, null, 2));
 
   if (!signal._partial || !Array.isArray(signal._partial) || signal._partial.length !== 2) {
     fail(`Field _partial should have 2 items, got ${signal._partial?.length}`);
@@ -3448,13 +3448,13 @@ test("PARTIAL LISTENER: partialProfit() with listenPartialProfit for SHORT", asy
   const unsubscribeListener = listenPartialProfit(async ({ symbol, signal, price, level, backtest }) => {
     listenerFired = true;
     listenerData = { symbol, signalId: signal?.id, price, level, backtest };
-    console.log(`[TEST #18 listenPartialProfit] symbol=${symbol}, signal.id=${signal?.id}, price=${price}, level=${level}, backtest=${backtest}`);
+    // console.log(`[TEST #18 listenPartialProfit] symbol=${symbol}, signal.id=${signal?.id}, price=${price}, level=${level}, backtest=${backtest}`);
 
     // Вызываем partialProfit при достижении уровня 30%
     if (!partialCalled && level >= 30) {
       partialCalled = true;
       await partialProfit("BTCUSDT", 30);
-      console.log(`[TEST #18] partialProfit called at level ${level}%`);
+      // console.log(`[TEST #18] partialProfit called at level ${level}%`);
     }
   });
 
@@ -3520,7 +3520,7 @@ test("PARTIAL LISTENER: partialProfit() with listenPartialProfit for SHORT", asy
     frameName: "40m-listener-short-profit",
   });
 
-  console.log("[TEST #18] getData result:", JSON.stringify(data, null, 2));
+  // console.log("[TEST #18] getData result:", JSON.stringify(data, null, 2));
 
   if (!data.signalList || data.signalList.length === 0) {
     fail("No signals found in backtest data");
@@ -3528,7 +3528,7 @@ test("PARTIAL LISTENER: partialProfit() with listenPartialProfit for SHORT", asy
   }
 
   const signal = data.signalList[0].signal;
-  console.log("[TEST #18] signal._partial:", JSON.stringify(signal._partial, null, 2));
+  // console.log("[TEST #18] signal._partial:", JSON.stringify(signal._partial, null, 2));
 
   if (!signal._partial || !Array.isArray(signal._partial) || signal._partial.length !== 1) {
     fail("Field _partial is invalid or empty");
