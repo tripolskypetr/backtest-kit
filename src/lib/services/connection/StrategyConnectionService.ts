@@ -456,6 +456,96 @@ export class StrategyConnectionService {
     const strategy = this.getStrategy(symbol, context.strategyName, context.exchangeName, context.frameName, backtest);
     await strategy.cancel(symbol, backtest, cancelId);
   };
+
+  /**
+   * Executes partial close at profit level (moving toward TP).
+   *
+   * Closes a percentage of the pending position at the current price, recording it as a "profit" type partial.
+   * The partial close is tracked in `_partial` array for weighted PNL calculation when position fully closes.
+   *
+   * Delegates to ClientStrategy.partialProfit() with current execution context.
+   *
+   * @param backtest - Whether running in backtest mode
+   * @param symbol - Trading pair symbol
+   * @param context - Execution context with strategyName, exchangeName, frameName
+   * @param percentToClose - Percentage of position to close (0-100, absolute value)
+   * @param currentPrice - Current market price for this partial close
+   * @returns Promise that resolves when state is updated and persisted
+   *
+   * @example
+   * ```typescript
+   * // Close 30% of position at profit
+   * await strategyConnectionService.partialProfit(
+   *   false,
+   *   "BTCUSDT",
+   *   { strategyName: "my-strategy", exchangeName: "binance", frameName: "" },
+   *   30,
+   *   45000
+   * );
+   * ```
+   */
+  public partialProfit = async (
+    backtest: boolean,
+    symbol: string,
+    percentToClose: number,
+    currentPrice: number,
+    context: { strategyName: StrategyName; exchangeName: string; frameName: string },
+  ): Promise<void> => {
+    this.loggerService.log("strategyConnectionService partialProfit", {
+      symbol,
+      context,
+      percentToClose,
+      currentPrice,
+      backtest,
+    });
+    const strategy = this.getStrategy(symbol, context.strategyName, context.exchangeName, context.frameName, backtest);
+    await strategy.partialProfit(symbol, percentToClose, currentPrice, backtest);
+  };
+
+  /**
+   * Executes partial close at loss level (moving toward SL).
+   *
+   * Closes a percentage of the pending position at the current price, recording it as a "loss" type partial.
+   * The partial close is tracked in `_partial` array for weighted PNL calculation when position fully closes.
+   *
+   * Delegates to ClientStrategy.partialLoss() with current execution context.
+   *
+   * @param backtest - Whether running in backtest mode
+   * @param symbol - Trading pair symbol
+   * @param context - Execution context with strategyName, exchangeName, frameName
+   * @param percentToClose - Percentage of position to close (0-100, absolute value)
+   * @param currentPrice - Current market price for this partial close
+   * @returns Promise that resolves when state is updated and persisted
+   *
+   * @example
+   * ```typescript
+   * // Close 40% of position at loss
+   * await strategyConnectionService.partialLoss(
+   *   false,
+   *   "BTCUSDT",
+   *   { strategyName: "my-strategy", exchangeName: "binance", frameName: "" },
+   *   40,
+   *   38000
+   * );
+   * ```
+   */
+  public partialLoss = async (
+    backtest: boolean,
+    symbol: string,
+    percentToClose: number,
+    currentPrice: number,
+    context: { strategyName: StrategyName; exchangeName: string; frameName: string },
+  ): Promise<void> => {
+    this.loggerService.log("strategyConnectionService partialLoss", {
+      symbol,
+      context,
+      percentToClose,
+      currentPrice,
+      backtest,
+    });
+    const strategy = this.getStrategy(symbol, context.strategyName, context.exchangeName, context.frameName, backtest);
+    await strategy.partialLoss(symbol, percentToClose, currentPrice, backtest);
+  };
 }
 
 export default StrategyConnectionService;

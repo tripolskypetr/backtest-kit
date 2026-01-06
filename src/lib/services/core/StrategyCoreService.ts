@@ -279,6 +279,96 @@ export class StrategyCoreService {
     }
     return await this.strategyConnectionService.clear(payload);
   };
+
+  /**
+   * Executes partial close at profit level (moving toward TP).
+   *
+   * Validates strategy existence and delegates to connection service
+   * to close a percentage of the pending position at profit.
+   *
+   * Does not require execution context as this is a direct state mutation.
+   *
+   * @param backtest - Whether running in backtest mode
+   * @param symbol - Trading pair symbol
+   * @param percentToClose - Percentage of position to close (0-100, absolute value)
+   * @param currentPrice - Current market price for this partial close (must be in profit direction)
+   * @param context - Execution context with strategyName, exchangeName, frameName
+   * @returns Promise that resolves when state is updated and persisted
+   *
+   * @example
+   * ```typescript
+   * // Close 30% of position at profit
+   * await strategyCoreService.partialProfit(
+   *   false,
+   *   "BTCUSDT",
+   *   30,
+   *   45000,
+   *   { strategyName: "my-strategy", exchangeName: "binance", frameName: "" }
+   * );
+   * ```
+   */
+  public partialProfit = async (
+    backtest: boolean,
+    symbol: string,
+    percentToClose: number,
+    currentPrice: number,
+    context: { strategyName: StrategyName; exchangeName: string; frameName: string }
+  ): Promise<void> => {
+    this.loggerService.log("strategyCoreService partialProfit", {
+      symbol,
+      percentToClose,
+      currentPrice,
+      context,
+      backtest,
+    });
+    await this.validate(symbol, context);
+    return await this.strategyConnectionService.partialProfit(backtest, symbol, percentToClose, currentPrice, context);
+  };
+
+  /**
+   * Executes partial close at loss level (moving toward SL).
+   *
+   * Validates strategy existence and delegates to connection service
+   * to close a percentage of the pending position at loss.
+   *
+   * Does not require execution context as this is a direct state mutation.
+   *
+   * @param backtest - Whether running in backtest mode
+   * @param symbol - Trading pair symbol
+   * @param percentToClose - Percentage of position to close (0-100, absolute value)
+   * @param currentPrice - Current market price for this partial close (must be in loss direction)
+   * @param context - Execution context with strategyName, exchangeName, frameName
+   * @returns Promise that resolves when state is updated and persisted
+   *
+   * @example
+   * ```typescript
+   * // Close 40% of position at loss
+   * await strategyCoreService.partialLoss(
+   *   false,
+   *   "BTCUSDT",
+   *   40,
+   *   38000,
+   *   { strategyName: "my-strategy", exchangeName: "binance", frameName: "" }
+   * );
+   * ```
+   */
+  public partialLoss = async (
+    backtest: boolean,
+    symbol: string,
+    percentToClose: number,
+    currentPrice: number,
+    context: { strategyName: StrategyName; exchangeName: string; frameName: string }
+  ): Promise<void> => {
+    this.loggerService.log("strategyCoreService partialLoss", {
+      symbol,
+      percentToClose,
+      currentPrice,
+      context,
+      backtest,
+    });
+    await this.validate(symbol, context);
+    return await this.strategyConnectionService.partialLoss(backtest, symbol, percentToClose, currentPrice, context);
+  };
 }
 
 export default StrategyCoreService;

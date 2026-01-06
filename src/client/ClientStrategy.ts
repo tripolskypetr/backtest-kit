@@ -3018,10 +3018,13 @@ export class ClientStrategy implements IStrategy {
    * - Throws if percentToClose is not a finite number
    * - Throws if percentToClose <= 0 or > 100
    * - Throws if currentPrice is not a positive finite number
+   * - Throws if currentPrice is not moving toward TP:
+   *   - LONG: currentPrice must be > priceOpen
+   *   - SHORT: currentPrice must be < priceOpen
    *
    * @param symbol - Trading pair symbol (e.g., "BTCUSDT")
    * @param percentToClose - Percentage of position to close (0-100, absolute value)
-   * @param currentPrice - Current market price for this partial close
+   * @param currentPrice - Current market price for this partial close (must be in profit direction)
    * @param backtest - Whether running in backtest mode (controls persistence)
    * @returns Promise that resolves when state is updated and persisted
    *
@@ -3082,6 +3085,23 @@ export class ClientStrategy implements IStrategy {
       );
     }
 
+    // Validation: currentPrice must be moving toward TP (profit direction)
+    if (this._pendingSignal.position === "long") {
+      // For LONG: currentPrice must be higher than priceOpen (moving toward TP)
+      if (currentPrice <= this._pendingSignal.priceOpen) {
+        throw new Error(
+          `ClientStrategy partialProfit: For LONG position, currentPrice (${currentPrice}) must be > priceOpen (${this._pendingSignal.priceOpen})`
+        );
+      }
+    } else {
+      // For SHORT: currentPrice must be lower than priceOpen (moving toward TP)
+      if (currentPrice >= this._pendingSignal.priceOpen) {
+        throw new Error(
+          `ClientStrategy partialProfit: For SHORT position, currentPrice (${currentPrice}) must be < priceOpen (${this._pendingSignal.priceOpen})`
+        );
+      }
+    }
+
     // Execute partial close logic
     PARTIAL_PROFIT_FN(this, this._pendingSignal, percentToClose, currentPrice);
 
@@ -3127,10 +3147,13 @@ export class ClientStrategy implements IStrategy {
    * - Throws if percentToClose is not a finite number
    * - Throws if percentToClose <= 0 or > 100
    * - Throws if currentPrice is not a positive finite number
+   * - Throws if currentPrice is not moving toward SL:
+   *   - LONG: currentPrice must be < priceOpen
+   *   - SHORT: currentPrice must be > priceOpen
    *
    * @param symbol - Trading pair symbol (e.g., "BTCUSDT")
    * @param percentToClose - Percentage of position to close (0-100, absolute value)
-   * @param currentPrice - Current market price for this partial close
+   * @param currentPrice - Current market price for this partial close (must be in loss direction)
    * @param backtest - Whether running in backtest mode (controls persistence)
    * @returns Promise that resolves when state is updated and persisted
    *
@@ -3189,6 +3212,23 @@ export class ClientStrategy implements IStrategy {
       throw new Error(
         `ClientStrategy partialLoss: currentPrice must be a positive finite number, got ${currentPrice}`
       );
+    }
+
+    // Validation: currentPrice must be moving toward SL (loss direction)
+    if (this._pendingSignal.position === "long") {
+      // For LONG: currentPrice must be lower than priceOpen (moving toward SL)
+      if (currentPrice >= this._pendingSignal.priceOpen) {
+        throw new Error(
+          `ClientStrategy partialLoss: For LONG position, currentPrice (${currentPrice}) must be < priceOpen (${this._pendingSignal.priceOpen})`
+        );
+      }
+    } else {
+      // For SHORT: currentPrice must be higher than priceOpen (moving toward SL)
+      if (currentPrice <= this._pendingSignal.priceOpen) {
+        throw new Error(
+          `ClientStrategy partialLoss: For SHORT position, currentPrice (${currentPrice}) must be > priceOpen (${this._pendingSignal.priceOpen})`
+        );
+      }
     }
 
     // Execute partial close logic
