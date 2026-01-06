@@ -48,7 +48,7 @@ export const heat_columns: ColumnModel<IHeatmapRow>[] = [
     key: "totalPnl",
     label: "Total PNL",
     format: (data) =>
-      data.totalPnl !== null ? str(data.totalPnl, "%+.2f%%") : "N/A",
+      data.totalPnl !== null ? str(data.totalPnl, "%") : "N/A",
     isVisible: () => true,
   },
   {
@@ -69,7 +69,7 @@ export const heat_columns: ColumnModel<IHeatmapRow>[] = [
     key: "expectancy",
     label: "Expect",
     format: (data) =>
-      data.expectancy !== null ? str(data.expectancy, "%+.2f%%") : "N/A",
+      data.expectancy !== null ? str(data.expectancy, "%") : "N/A",
     isVisible: () => true,
   },
   {
@@ -83,14 +83,14 @@ export const heat_columns: ColumnModel<IHeatmapRow>[] = [
     key: "avgWin",
     label: "Avg Win",
     format: (data) =>
-      data.avgWin !== null ? str(data.avgWin, "%+.2f%%") : "N/A",
+      data.avgWin !== null ? str(data.avgWin, "%") : "N/A",
     isVisible: () => true,
   },
   {
     key: "avgLoss",
     label: "Avg Loss",
     format: (data) =>
-      data.avgLoss !== null ? str(data.avgLoss, "%+.2f%%") : "N/A",
+      data.avgLoss !== null ? str(data.avgLoss, "%") : "N/A",
     isVisible: () => true,
   },
   {

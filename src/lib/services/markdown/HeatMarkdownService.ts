@@ -389,7 +389,7 @@ class HeatmapStorage {
     return [
       `# Portfolio Heatmap: ${strategyName}`,
       "",
-      `**Total Symbols:** ${data.totalSymbols} | **Portfolio PNL:** ${data.portfolioTotalPnl !== null ? str(data.portfolioTotalPnl, "%+.2f%%") : "N/A"} | **Portfolio Sharpe:** ${data.portfolioSharpeRatio !== null ? str(data.portfolioSharpeRatio, "%.2f") : "N/A"} | **Total Trades:** ${data.portfolioTotalTrades}`,
+      `**Total Symbols:** ${data.totalSymbols} | **Portfolio PNL:** ${data.portfolioTotalPnl !== null ? str(data.portfolioTotalPnl, "%") : "N/A"} | **Portfolio Sharpe:** ${data.portfolioSharpeRatio !== null ? str(data.portfolioSharpeRatio, "%.2f") : "N/A"} | **Total Trades:** ${data.portfolioTotalTrades}`,
       "",
       table
     ].join("\n");
