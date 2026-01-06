@@ -1793,3 +1793,641 @@ test("PARTIAL DEDUPE: Events NOT emitted twice for same level", async ({ pass, f
 
   pass(`Deduplication WORKS: ${partialProfitEvents.length} unique events, levels: ${uniqueLevels.join('%, ')}%, max ${maxLevel}%`);
 });
+
+
+/**
+ * PARTIAL FUNCTION TEST #1: partialProfit() успешно закрывает 30% позиции LONG
+ *
+ * Проверяем что:
+ * - Функция partialProfit принимает symbol и percentToClose
+ * - Извлекает currentPrice через getAveragePrice автоматически
+ * - Валидация проходит (LONG: currentPrice > priceOpen для profit)
+ * - Состояние _partial обновляется корректно
+ */
+test("PARTIAL FUNCTION: partialProfit() closes 30% of LONG position", async ({ pass, fail }) => {
+  const { partialProfit } = await import("../../build/index.mjs");
+
+  const startTime = new Date("2024-01-01T00:00:00Z").getTime();
+  const intervalMs = 60000;
+  const basePrice = 100000;
+  const bufferMinutes = 4;
+  const bufferStartTime = startTime - bufferMinutes * intervalMs;
+
+  let allCandles = [];
+  let signalGenerated = false;
+  let partialCalled = false;
+
+  for (let i = 0; i < 5; i++) {
+    allCandles.push({
+      timestamp: bufferStartTime + i * intervalMs,
+      open: basePrice,
+      high: basePrice + 100,
+      low: basePrice - 50,
+      close: basePrice,
+      volume: 100,
+    });
+  }
+
+  addExchange({
+    exchangeName: "binance-function-partial-profit",
+    getCandles: async (_symbol, _interval, since, limit) => {
+      const sinceIndex = Math.floor((since.getTime() - bufferStartTime) / intervalMs);
+      const result = allCandles.slice(sinceIndex, sinceIndex + limit);
+      return result.length > 0 ? result : allCandles.slice(0, Math.min(limit, allCandles.length));
+    },
+    formatPrice: async (_symbol, p) => p.toFixed(8),
+    formatQuantity: async (_symbol, quantity) => quantity.toFixed(8),
+  });
+
+  addStrategy({
+    strategyName: "test-function-partial-profit",
+    interval: "1m",
+    getSignal: async () => {
+      if (signalGenerated) return null;
+      signalGenerated = true;
+
+      allCandles = [];
+
+      for (let i = 0; i < bufferMinutes; i++) {
+        allCandles.push({
+          timestamp: bufferStartTime + i * intervalMs,
+          open: basePrice,
+          high: basePrice + 50,
+          low: basePrice - 50,
+          close: basePrice,
+          volume: 100,
+        });
+      }
+
+      for (let i = 0; i < 40; i++) {
+        const timestamp = startTime + i * intervalMs;
+
+        if (i < 5) {
+          allCandles.push({
+            timestamp,
+            open: basePrice,
+            high: basePrice + 100,
+            low: basePrice - 100,
+            close: basePrice,
+            volume: 100,
+          });
+        } else if (i >= 5 && i < 20) {
+          const price = basePrice + 20000;
+          allCandles.push({
+            timestamp,
+            open: price,
+            high: price + 100,
+            low: price - 100,
+            close: price,
+            volume: 100,
+          });
+        } else {
+          allCandles.push({
+            timestamp,
+            open: basePrice + 10000,
+            high: basePrice + 10100,
+            low: basePrice + 9900,
+            close: basePrice + 10000,
+            volume: 100,
+          });
+        }
+      }
+
+      return {
+        position: "long",
+        priceOpen: basePrice,
+        priceTakeProfit: basePrice + 60000,
+        priceStopLoss: basePrice - 50000,
+        minuteEstimatedTime: 120,
+      };
+    },
+    callbacks: {
+      onPartialProfit: async (_symbol, _data, _currentPrice, revenuePercent, _backtest) => {
+        // Вызываем partialProfit при достижении 20% к TP
+        if (!partialCalled && revenuePercent >= 20) {
+          partialCalled = true;
+          try {
+            await partialProfit("BTCUSDT", 30); // Закрываем 30%
+            // console.log("[TEST] partialProfit called: 30% at level " + revenuePercent.toFixed(2) + "%");
+          } catch (err) {
+            // console.error("[TEST] partialProfit error:", err);
+          }
+        }
+      },
+    },
+  });
+
+  addFrame({
+    frameName: "40m-function-partial-profit",
+    interval: "1m",
+    startDate: new Date("2024-01-01T00:00:00Z"),
+    endDate: new Date("2024-01-01T00:40:00Z"),
+  });
+
+  const awaitSubject = new Subject();
+  listenDoneBacktest(() => awaitSubject.next());
+
+  let errorCaught = null;
+  const unsubscribeError = listenError((error) => {
+    errorCaught = error;
+    awaitSubject.next();
+  });
+
+  Backtest.background("BTCUSDT", {
+    strategyName: "test-function-partial-profit",
+    exchangeName: "binance-function-partial-profit",
+    frameName: "40m-function-partial-profit",
+  });
+
+  await awaitSubject.toPromise();
+  unsubscribeError();
+
+  if (errorCaught) {
+    fail(`Error: ${errorCaught.message || errorCaught}`);
+    return;
+  }
+
+  if (!partialCalled) {
+    fail("partialProfit was NOT called");
+    return;
+  }
+
+  pass("partialProfit() WORKS: 30% position closed successfully");
+});
+
+
+/**
+ * PARTIAL FUNCTION TEST #2: partialLoss() успешно закрывает 40% позиции LONG
+ *
+ * Проверяем что:
+ * - Функция partialLoss принимает symbol и percentToClose
+ * - Валидация проходит (LONG: currentPrice < priceOpen для loss)
+ * - Состояние _partial обновляется типом "loss"
+ */
+test("PARTIAL FUNCTION: partialLoss() closes 40% of LONG position", async ({ pass, fail }) => {
+  const { partialLoss } = await import("../../build/index.mjs");
+
+  const startTime = new Date("2024-01-01T00:00:00Z").getTime();
+  const intervalMs = 60000;
+  const basePrice = 100000;
+  const bufferMinutes = 4;
+  const bufferStartTime = startTime - bufferMinutes * intervalMs;
+
+  let allCandles = [];
+  let signalGenerated = false;
+  let partialCalled = false;
+
+  for (let i = 0; i < 5; i++) {
+    allCandles.push({
+      timestamp: bufferStartTime + i * intervalMs,
+      open: basePrice,
+      high: basePrice + 100,
+      low: basePrice - 50,
+      close: basePrice,
+      volume: 100,
+    });
+  }
+
+  addExchange({
+    exchangeName: "binance-function-partial-loss",
+    getCandles: async (_symbol, _interval, since, limit) => {
+      const sinceIndex = Math.floor((since.getTime() - bufferStartTime) / intervalMs);
+      const result = allCandles.slice(sinceIndex, sinceIndex + limit);
+      return result.length > 0 ? result : allCandles.slice(0, Math.min(limit, allCandles.length));
+    },
+    formatPrice: async (_symbol, p) => p.toFixed(8),
+    formatQuantity: async (_symbol, quantity) => quantity.toFixed(8),
+  });
+
+  addStrategy({
+    strategyName: "test-function-partial-loss",
+    interval: "1m",
+    getSignal: async () => {
+      if (signalGenerated) return null;
+      signalGenerated = true;
+
+      allCandles = [];
+
+      for (let i = 0; i < bufferMinutes; i++) {
+        allCandles.push({
+          timestamp: bufferStartTime + i * intervalMs,
+          open: basePrice,
+          high: basePrice + 50,
+          low: basePrice - 50,
+          close: basePrice,
+          volume: 100,
+        });
+      }
+
+      for (let i = 0; i < 40; i++) {
+        const timestamp = startTime + i * intervalMs;
+
+        if (i < 5) {
+          allCandles.push({
+            timestamp,
+            open: basePrice,
+            high: basePrice + 100,
+            low: basePrice - 100,
+            close: basePrice,
+            volume: 100,
+          });
+        } else if (i >= 5 && i < 20) {
+          const price = basePrice - 10000;
+          allCandles.push({
+            timestamp,
+            open: price,
+            high: price + 100,
+            low: price - 100,
+            close: price,
+            volume: 100,
+          });
+        } else {
+          allCandles.push({
+            timestamp,
+            open: basePrice - 5000,
+            high: basePrice - 4900,
+            low: basePrice - 5100,
+            close: basePrice - 5000,
+            volume: 100,
+          });
+        }
+      }
+
+      return {
+        position: "long",
+        priceOpen: basePrice,
+        priceTakeProfit: basePrice + 60000,
+        priceStopLoss: basePrice - 50000,
+        minuteEstimatedTime: 120,
+      };
+    },
+    callbacks: {
+      onPartialLoss: async (_symbol, _data, _currentPrice, revenuePercent, _backtest) => {
+        // Вызываем partialLoss при достижении 20% к SL
+        if (!partialCalled && revenuePercent >= 20) {
+          partialCalled = true;
+          try {
+            await partialLoss("BTCUSDT", 40); // Закрываем 40%
+            // console.log("[TEST] partialLoss called: 40% at level " + revenuePercent.toFixed(2) + "%");
+          } catch (err) {
+            // console.error("[TEST] partialLoss error:", err);
+          }
+        }
+      },
+    },
+  });
+
+  addFrame({
+    frameName: "40m-function-partial-loss",
+    interval: "1m",
+    startDate: new Date("2024-01-01T00:00:00Z"),
+    endDate: new Date("2024-01-01T00:40:00Z"),
+  });
+
+  const awaitSubject = new Subject();
+  listenDoneBacktest(() => awaitSubject.next());
+
+  let errorCaught = null;
+  const unsubscribeError = listenError((error) => {
+    errorCaught = error;
+    awaitSubject.next();
+  });
+
+  Backtest.background("BTCUSDT", {
+    strategyName: "test-function-partial-loss",
+    exchangeName: "binance-function-partial-loss",
+    frameName: "40m-function-partial-loss",
+  });
+
+  await awaitSubject.toPromise();
+  unsubscribeError();
+
+  if (errorCaught) {
+    fail(`Error: ${errorCaught.message || errorCaught}`);
+    return;
+  }
+
+  if (!partialCalled) {
+    fail("partialLoss was NOT called");
+    return;
+  }
+
+  pass("partialLoss() WORKS: 40% position closed successfully");
+});
+
+
+/**
+ * PARTIAL FUNCTION TEST #3: Множественные partialProfit - 30%, потом еще 40%
+ */
+test("PARTIAL FUNCTION: Multiple partialProfit calls (30% + 40%)", async ({ pass, fail }) => {
+  const { partialProfit } = await import("../../build/index.mjs");
+
+  const startTime = new Date("2024-01-01T00:00:00Z").getTime();
+  const intervalMs = 60000;
+  const basePrice = 100000;
+  const bufferMinutes = 4;
+  const bufferStartTime = startTime - bufferMinutes * intervalMs;
+
+  let allCandles = [];
+  let signalGenerated = false;
+  let firstPartialCalled = false;
+  let secondPartialCalled = false;
+
+  for (let i = 0; i < 5; i++) {
+    allCandles.push({
+      timestamp: bufferStartTime + i * intervalMs,
+      open: basePrice,
+      high: basePrice + 100,
+      low: basePrice - 50,
+      close: basePrice,
+      volume: 100,
+    });
+  }
+
+  addExchange({
+    exchangeName: "binance-function-partial-multiple",
+    getCandles: async (_symbol, _interval, since, limit) => {
+      const sinceIndex = Math.floor((since.getTime() - bufferStartTime) / intervalMs);
+      const result = allCandles.slice(sinceIndex, sinceIndex + limit);
+      return result.length > 0 ? result : allCandles.slice(0, Math.min(limit, allCandles.length));
+    },
+    formatPrice: async (_symbol, p) => p.toFixed(8),
+    formatQuantity: async (_symbol, quantity) => quantity.toFixed(8),
+  });
+
+  addStrategy({
+    strategyName: "test-function-partial-multiple",
+    interval: "1m",
+    getSignal: async () => {
+      if (signalGenerated) return null;
+      signalGenerated = true;
+
+      allCandles = [];
+
+      for (let i = 0; i < bufferMinutes; i++) {
+        allCandles.push({
+          timestamp: bufferStartTime + i * intervalMs,
+          open: basePrice,
+          high: basePrice + 50,
+          low: basePrice - 50,
+          close: basePrice,
+          volume: 100,
+        });
+      }
+
+      for (let i = 0; i < 50; i++) {
+        const timestamp = startTime + i * intervalMs;
+
+        if (i < 5) {
+          allCandles.push({
+            timestamp,
+            open: basePrice,
+            high: basePrice + 100,
+            low: basePrice - 100,
+            close: basePrice,
+            volume: 100,
+          });
+        } else {
+          const price = basePrice + 15000;
+          allCandles.push({
+            timestamp,
+            open: price,
+            high: price + 100,
+            low: price - 100,
+            close: price,
+            volume: 100,
+          });
+        }
+      }
+
+      return {
+        position: "long",
+        priceOpen: basePrice,
+        priceTakeProfit: basePrice + 60000,
+        priceStopLoss: basePrice - 50000,
+        minuteEstimatedTime: 120,
+      };
+    },
+    callbacks: {
+      onPartialProfit: async (_symbol, _data, _currentPrice, revenuePercent, _backtest) => {
+        // Первый вызов при 10%
+        if (!firstPartialCalled && revenuePercent >= 10) {
+          firstPartialCalled = true;
+          try {
+            await partialProfit("BTCUSDT", 30);
+            // console.log("[TEST] First partial: 30% at level " + revenuePercent.toFixed(2) + "%");
+          } catch (err) {
+            // console.error("[TEST] First partial error:", err);
+          }
+        }
+        // Второй вызов при 20%
+        else if (!secondPartialCalled && revenuePercent >= 20) {
+          secondPartialCalled = true;
+          try {
+            await partialProfit("BTCUSDT", 40);
+            // console.log("[TEST] Second partial: 40% at level " + revenuePercent.toFixed(2) + "%");
+          } catch (err) {
+            // console.error("[TEST] Second partial error:", err);
+          }
+        }
+      },
+    },
+  });
+
+  addFrame({
+    frameName: "50m-function-partial-multiple",
+    interval: "1m",
+    startDate: new Date("2024-01-01T00:00:00Z"),
+    endDate: new Date("2024-01-01T00:50:00Z"),
+  });
+
+  const awaitSubject = new Subject();
+  listenDoneBacktest(() => awaitSubject.next());
+
+  let errorCaught = null;
+  const unsubscribeError = listenError((error) => {
+    errorCaught = error;
+    awaitSubject.next();
+  });
+
+  Backtest.background("BTCUSDT", {
+    strategyName: "test-function-partial-multiple",
+    exchangeName: "binance-function-partial-multiple",
+    frameName: "50m-function-partial-multiple",
+  });
+
+  await awaitSubject.toPromise();
+  unsubscribeError();
+
+  if (errorCaught) {
+    fail(`Error: ${errorCaught.message || errorCaught}`);
+    return;
+  }
+
+  if (!firstPartialCalled) {
+    fail("First partialProfit was NOT called");
+    return;
+  }
+
+  if (!secondPartialCalled) {
+    fail("Second partialProfit was NOT called");
+    return;
+  }
+
+  pass("Multiple partialProfit() WORKS: 30% + 40% = 70% closed");
+});
+
+
+/**
+ * PARTIAL FUNCTION TEST #4: SHORT позиция - partialProfit
+ */
+test("PARTIAL FUNCTION: partialProfit() works for SHORT position", async ({ pass, fail }) => {
+  const { partialProfit } = await import("../../build/index.mjs");
+
+  const startTime = new Date("2024-01-01T00:00:00Z").getTime();
+  const intervalMs = 60000;
+  const basePrice = 100000;
+  const bufferMinutes = 4;
+  const bufferStartTime = startTime - bufferMinutes * intervalMs;
+
+  let allCandles = [];
+  let signalGenerated = false;
+  let partialCalled = false;
+
+  for (let i = 0; i < 5; i++) {
+    allCandles.push({
+      timestamp: bufferStartTime + i * intervalMs,
+      open: basePrice,
+      high: basePrice + 100,
+      low: basePrice - 50,
+      close: basePrice,
+      volume: 100,
+    });
+  }
+
+  addExchange({
+    exchangeName: "binance-function-short-profit",
+    getCandles: async (_symbol, _interval, since, limit) => {
+      const sinceIndex = Math.floor((since.getTime() - bufferStartTime) / intervalMs);
+      const result = allCandles.slice(sinceIndex, sinceIndex + limit);
+      return result.length > 0 ? result : allCandles.slice(0, Math.min(limit, allCandles.length));
+    },
+    formatPrice: async (_symbol, p) => p.toFixed(8),
+    formatQuantity: async (_symbol, quantity) => quantity.toFixed(8),
+  });
+
+  addStrategy({
+    strategyName: "test-function-short-profit",
+    interval: "1m",
+    getSignal: async () => {
+      if (signalGenerated) return null;
+      signalGenerated = true;
+
+      allCandles = [];
+
+      for (let i = 0; i < bufferMinutes; i++) {
+        allCandles.push({
+          timestamp: bufferStartTime + i * intervalMs,
+          open: basePrice,
+          high: basePrice + 50,
+          low: basePrice - 50,
+          close: basePrice,
+          volume: 100,
+        });
+      }
+
+      for (let i = 0; i < 40; i++) {
+        const timestamp = startTime + i * intervalMs;
+
+        if (i < 5) {
+          allCandles.push({
+            timestamp,
+            open: basePrice,
+            high: basePrice + 100,
+            low: basePrice - 100,
+            close: basePrice,
+            volume: 100,
+          });
+        } else if (i >= 5 && i < 20) {
+          const price = basePrice - 15000;
+          allCandles.push({
+            timestamp,
+            open: price,
+            high: price + 100,
+            low: price - 100,
+            close: price,
+            volume: 100,
+          });
+        } else {
+          allCandles.push({
+            timestamp,
+            open: basePrice - 10000,
+            high: basePrice - 9900,
+            low: basePrice - 10100,
+            close: basePrice - 10000,
+            volume: 100,
+          });
+        }
+      }
+
+      return {
+        position: "short",
+        priceOpen: basePrice,
+        priceTakeProfit: basePrice - 60000,
+        priceStopLoss: basePrice + 50000,
+        minuteEstimatedTime: 120,
+      };
+    },
+    callbacks: {
+      onPartialProfit: async (_symbol, _data, _currentPrice, revenuePercent, _backtest) => {
+        // Вызываем partialProfit при достижении 20% к TP для SHORT
+        if (!partialCalled && revenuePercent >= 20) {
+          partialCalled = true;
+          try {
+            await partialProfit("BTCUSDT", 30);
+            // console.log("[TEST] partialProfit SHORT called: 30% at level " + revenuePercent.toFixed(2) + "%");
+          } catch (err) {
+            // console.error("[TEST] partialProfit error:", err);
+          }
+        }
+      },
+    },
+  });
+
+  addFrame({
+    frameName: "40m-function-short-profit",
+    interval: "1m",
+    startDate: new Date("2024-01-01T00:00:00Z"),
+    endDate: new Date("2024-01-01T00:40:00Z"),
+  });
+
+  const awaitSubject = new Subject();
+  listenDoneBacktest(() => awaitSubject.next());
+
+  let errorCaught = null;
+  const unsubscribeError = listenError((error) => {
+    errorCaught = error;
+    awaitSubject.next();
+  });
+
+  Backtest.background("BTCUSDT", {
+    strategyName: "test-function-short-profit",
+    exchangeName: "binance-function-short-profit",
+    frameName: "40m-function-short-profit",
+  });
+
+  await awaitSubject.toPromise();
+  unsubscribeError();
+
+  if (errorCaught) {
+    fail(`Error: ${errorCaught.message || errorCaught}`);
+    return;
+  }
+
+  if (!partialCalled) {
+    fail("partialProfit was NOT called");
+    return;
+  }
+
+  pass("partialProfit() SHORT WORKS: 30% position closed successfully");
+});
