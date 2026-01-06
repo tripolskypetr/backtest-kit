@@ -23,6 +23,8 @@ const BACKTEST_METHOD_NAME_GET_PENDING_SIGNAL =
 const BACKTEST_METHOD_NAME_GET_SCHEDULED_SIGNAL =
   "BacktestUtils.getScheduledSignal";
 const BACKTEST_METHOD_NAME_CANCEL = "BacktestUtils.cancel";
+const BACKTEST_METHOD_NAME_PARTIAL_PROFIT = "BacktestUtils.partialProfit";
+const BACKTEST_METHOD_NAME_PARTIAL_LOSS = "BacktestUtils.partialLoss";
 const BACKTEST_METHOD_NAME_GET_DATA = "BacktestUtils.getData";
 
 /**
@@ -718,6 +720,140 @@ export class BacktestUtils {
       symbol,
       context,
       cancelId
+    );
+  };
+
+  /**
+   * Executes partial close at profit level (moving toward TP).
+   *
+   * Closes a percentage of the active pending position at profit.
+   * Price must be moving toward take profit (in profit direction).
+   *
+   * @param symbol - Trading pair symbol
+   * @param percentToClose - Percentage of position to close (0-100, absolute value)
+   * @param currentPrice - Current market price for this partial close
+   * @param context - Execution context with strategyName, exchangeName, and frameName
+   * @returns Promise that resolves when state is updated
+   *
+   * @throws Error if currentPrice is not in profit direction:
+   *   - LONG: currentPrice must be > priceOpen
+   *   - SHORT: currentPrice must be < priceOpen
+   *
+   * @example
+   * ```typescript
+   * // Close 30% of LONG position at profit
+   * await Backtest.partialProfit("BTCUSDT", 30, 45000, {
+   *   exchangeName: "binance",
+   *   frameName: "frame1",
+   *   strategyName: "my-strategy"
+   * });
+   * ```
+   */
+  public partialProfit = async (
+    symbol: string,
+    percentToClose: number,
+    currentPrice: number,
+    context: {
+      strategyName: string;
+      exchangeName: string;
+      frameName: string;
+    }
+  ): Promise<void> => {
+    backtest.strategyValidationService.validate(
+      context.strategyName,
+      BACKTEST_METHOD_NAME_PARTIAL_PROFIT
+    );
+
+    {
+      const { riskName, riskList } =
+        backtest.strategySchemaService.get(context.strategyName);
+      riskName &&
+        backtest.riskValidationService.validate(
+          riskName,
+          BACKTEST_METHOD_NAME_PARTIAL_PROFIT
+        );
+      riskList &&
+        riskList.forEach((riskName) =>
+          backtest.riskValidationService.validate(
+            riskName,
+            BACKTEST_METHOD_NAME_PARTIAL_PROFIT
+          )
+        );
+    }
+
+    await backtest.strategyCoreService.partialProfit(
+      true,
+      symbol,
+      percentToClose,
+      currentPrice,
+      context
+    );
+  };
+
+  /**
+   * Executes partial close at loss level (moving toward SL).
+   *
+   * Closes a percentage of the active pending position at loss.
+   * Price must be moving toward stop loss (in loss direction).
+   *
+   * @param symbol - Trading pair symbol
+   * @param percentToClose - Percentage of position to close (0-100, absolute value)
+   * @param currentPrice - Current market price for this partial close
+   * @param context - Execution context with strategyName, exchangeName, and frameName
+   * @returns Promise that resolves when state is updated
+   *
+   * @throws Error if currentPrice is not in loss direction:
+   *   - LONG: currentPrice must be < priceOpen
+   *   - SHORT: currentPrice must be > priceOpen
+   *
+   * @example
+   * ```typescript
+   * // Close 40% of LONG position at loss
+   * await Backtest.partialLoss("BTCUSDT", 40, 38000, {
+   *   exchangeName: "binance",
+   *   frameName: "frame1",
+   *   strategyName: "my-strategy"
+   * });
+   * ```
+   */
+  public partialLoss = async (
+    symbol: string,
+    percentToClose: number,
+    currentPrice: number,
+    context: {
+      strategyName: string;
+      exchangeName: string;
+      frameName: string;
+    }
+  ): Promise<void> => {
+    backtest.strategyValidationService.validate(
+      context.strategyName,
+      BACKTEST_METHOD_NAME_PARTIAL_LOSS
+    );
+
+    {
+      const { riskName, riskList } =
+        backtest.strategySchemaService.get(context.strategyName);
+      riskName &&
+        backtest.riskValidationService.validate(
+          riskName,
+          BACKTEST_METHOD_NAME_PARTIAL_LOSS
+        );
+      riskList &&
+        riskList.forEach((riskName) =>
+          backtest.riskValidationService.validate(
+            riskName,
+            BACKTEST_METHOD_NAME_PARTIAL_LOSS
+          )
+        );
+    }
+
+    await backtest.strategyCoreService.partialLoss(
+      true,
+      symbol,
+      percentToClose,
+      currentPrice,
+      context
     );
   };
 

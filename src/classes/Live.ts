@@ -20,6 +20,8 @@ const LIVE_METHOD_NAME_GET_STATUS = "LiveUtils.getStatus";
 const LIVE_METHOD_NAME_GET_PENDING_SIGNAL = "LiveUtils.getPendingSignal";
 const LIVE_METHOD_NAME_GET_SCHEDULED_SIGNAL = "LiveUtils.getScheduledSignal";
 const LIVE_METHOD_NAME_CANCEL = "LiveUtils.cancel";
+const LIVE_METHOD_NAME_PARTIAL_PROFIT = "LiveUtils.partialProfit";
+const LIVE_METHOD_NAME_PARTIAL_LOSS = "LiveUtils.partialLoss";
 
 /**
  * Internal task function that runs live trading and handles completion.
@@ -547,6 +549,104 @@ export class LiveUtils {
       exchangeName: context.exchangeName,
       frameName: "",
     }, cancelId);
+  };
+
+  /**
+   * Executes partial close at profit level (moving toward TP).
+   *
+   * Closes a percentage of the active pending position at profit.
+   * Price must be moving toward take profit (in profit direction).
+   *
+   * @param symbol - Trading pair symbol
+   * @param percentToClose - Percentage of position to close (0-100, absolute value)
+   * @param currentPrice - Current market price for this partial close
+   * @param context - Execution context with strategyName and exchangeName
+   * @returns Promise that resolves when state is updated
+   *
+   * @throws Error if currentPrice is not in profit direction:
+   *   - LONG: currentPrice must be > priceOpen
+   *   - SHORT: currentPrice must be < priceOpen
+   *
+   * @example
+   * ```typescript
+   * // Close 30% of LONG position at profit
+   * await Live.partialProfit("BTCUSDT", 30, 45000, {
+   *   exchangeName: "binance",
+   *   strategyName: "my-strategy"
+   * });
+   * ```
+   */
+  public partialProfit = async (
+    symbol: string,
+    percentToClose: number,
+    currentPrice: number,
+    context: {
+      strategyName: string;
+      exchangeName: string;
+    }
+  ): Promise<void> => {
+    backtest.strategyValidationService.validate(context.strategyName, LIVE_METHOD_NAME_PARTIAL_PROFIT);
+
+    {
+      const { riskName, riskList } = backtest.strategySchemaService.get(context.strategyName);
+      riskName && backtest.riskValidationService.validate(riskName, LIVE_METHOD_NAME_PARTIAL_PROFIT);
+      riskList && riskList.forEach((riskName) => backtest.riskValidationService.validate(riskName, LIVE_METHOD_NAME_PARTIAL_PROFIT));
+    }
+
+    await backtest.strategyCoreService.partialProfit(false, symbol, percentToClose, currentPrice, {
+      strategyName: context.strategyName,
+      exchangeName: context.exchangeName,
+      frameName: "",
+    });
+  };
+
+  /**
+   * Executes partial close at loss level (moving toward SL).
+   *
+   * Closes a percentage of the active pending position at loss.
+   * Price must be moving toward stop loss (in loss direction).
+   *
+   * @param symbol - Trading pair symbol
+   * @param percentToClose - Percentage of position to close (0-100, absolute value)
+   * @param currentPrice - Current market price for this partial close
+   * @param context - Execution context with strategyName and exchangeName
+   * @returns Promise that resolves when state is updated
+   *
+   * @throws Error if currentPrice is not in loss direction:
+   *   - LONG: currentPrice must be < priceOpen
+   *   - SHORT: currentPrice must be > priceOpen
+   *
+   * @example
+   * ```typescript
+   * // Close 40% of LONG position at loss
+   * await Live.partialLoss("BTCUSDT", 40, 38000, {
+   *   exchangeName: "binance",
+   *   strategyName: "my-strategy"
+   * });
+   * ```
+   */
+  public partialLoss = async (
+    symbol: string,
+    percentToClose: number,
+    currentPrice: number,
+    context: {
+      strategyName: string;
+      exchangeName: string;
+    }
+  ): Promise<void> => {
+    backtest.strategyValidationService.validate(context.strategyName, LIVE_METHOD_NAME_PARTIAL_LOSS);
+
+    {
+      const { riskName, riskList } = backtest.strategySchemaService.get(context.strategyName);
+      riskName && backtest.riskValidationService.validate(riskName, LIVE_METHOD_NAME_PARTIAL_LOSS);
+      riskList && riskList.forEach((riskName) => backtest.riskValidationService.validate(riskName, LIVE_METHOD_NAME_PARTIAL_LOSS));
+    }
+
+    await backtest.strategyCoreService.partialLoss(false, symbol, percentToClose, currentPrice, {
+      strategyName: context.strategyName,
+      exchangeName: context.exchangeName,
+      frameName: "",
+    });
   };
 
   /**
