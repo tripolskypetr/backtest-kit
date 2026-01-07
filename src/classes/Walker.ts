@@ -476,29 +476,31 @@ export class WalkerUtils {
    * Stop signal is filtered by walkerName to prevent interference.
    *
    * @param symbol - Trading pair symbol
-   * @param walkerName - Walker name to stop
+   * @param context - Execution context with walker name
    * @returns Promise that resolves when all stop flags are set
    *
    * @example
    * ```typescript
    * // Stop walker and all its strategies
-   * await Walker.stop("BTCUSDT", "my-walker");
+   * await Walker.stop("BTCUSDT", { walkerName: "my-walker" });
    * ```
    */
   public stop = async (
     symbol: string,
-    walkerName: WalkerName
+    context: {
+      walkerName: string;
+    }
   ): Promise<void> => {
     backtest.loggerService.info(WALKER_METHOD_NAME_STOP, {
       symbol,
-      walkerName,
+      context,
     });
     backtest.walkerValidationService.validate(
-      walkerName,
+      context.walkerName,
       WALKER_METHOD_NAME_STOP
     );
 
-    const walkerSchema = backtest.walkerSchemaService.get(walkerName);
+    const walkerSchema = backtest.walkerSchemaService.get(context.walkerName);
 
     for (const strategyName of walkerSchema.strategies) {
       backtest.strategyValidationService.validate(
@@ -522,7 +524,7 @@ export class WalkerUtils {
     }
 
     for (const strategyName of walkerSchema.strategies) {
-      await walkerStopSubject.next({ symbol, strategyName, walkerName });
+      await walkerStopSubject.next({ symbol, strategyName, walkerName: context.walkerName });
       await backtest.strategyCoreService.stop(true, symbol, {
         strategyName,
         exchangeName: walkerSchema.exchangeName,
@@ -535,26 +537,31 @@ export class WalkerUtils {
    * Gets walker results data from all strategy comparisons.
    *
    * @param symbol - Trading symbol
-   * @param walkerName - Walker name to get data for
+   * @param context - Execution context with walker name
    * @returns Promise resolving to walker results data object
    *
    * @example
    * ```typescript
-   * const results = await Walker.getData("BTCUSDT", "my-walker");
+   * const results = await Walker.getData("BTCUSDT", { walkerName: "my-walker" });
    * console.log(results.bestStrategy, results.bestMetric);
    * ```
    */
-  public getData = async (symbol: string, walkerName: WalkerName) => {
+  public getData = async (
+    symbol: string,
+    context: {
+      walkerName: string;
+    }
+  ) => {
     backtest.loggerService.info(WALKER_METHOD_NAME_GET_DATA, {
       symbol,
-      walkerName,
+      context,
     });
     backtest.walkerValidationService.validate(
-      walkerName,
+      context.walkerName,
       WALKER_METHOD_NAME_GET_DATA
     );
 
-    const walkerSchema = backtest.walkerSchemaService.get(walkerName);
+    const walkerSchema = backtest.walkerSchemaService.get(context.walkerName);
 
     for (const strategyName of walkerSchema.strategies) {
       backtest.strategyValidationService.validate(
@@ -578,7 +585,7 @@ export class WalkerUtils {
     }
 
     return await backtest.walkerMarkdownService.getData(
-      walkerName,
+      context.walkerName,
       symbol,
       walkerSchema.metric || "sharpeRatio",
       {
@@ -592,33 +599,35 @@ export class WalkerUtils {
    * Generates markdown report with all strategy comparisons for a walker.
    *
    * @param symbol - Trading symbol
-   * @param walkerName - Walker name to generate report for
+   * @param context - Execution context with walker name
    * @param strategyColumns - Optional strategy columns configuration
    * @param pnlColumns - Optional PNL columns configuration
    * @returns Promise resolving to markdown formatted report string
    *
    * @example
    * ```typescript
-   * const markdown = await Walker.getReport("BTCUSDT", "my-walker");
+   * const markdown = await Walker.getReport("BTCUSDT", { walkerName: "my-walker" });
    * console.log(markdown);
    * ```
    */
   public getReport = async (
     symbol: string,
-    walkerName: WalkerName,
+    context: {
+      walkerName: string;
+    },
     strategyColumns?: StrategyColumn[],
     pnlColumns?: PnlColumn[]
   ): Promise<string> => {
     backtest.loggerService.info(WALKER_METHOD_NAME_GET_REPORT, {
       symbol,
-      walkerName,
+      context,
     });
     backtest.walkerValidationService.validate(
-      walkerName,
+      context.walkerName,
       WALKER_METHOD_NAME_GET_REPORT
     );
 
-    const walkerSchema = backtest.walkerSchemaService.get(walkerName);
+    const walkerSchema = backtest.walkerSchemaService.get(context.walkerName);
 
     for (const strategyName of walkerSchema.strategies) {
       backtest.strategyValidationService.validate(
@@ -642,7 +651,7 @@ export class WalkerUtils {
     }
 
     return await backtest.walkerMarkdownService.getReport(
-      walkerName,
+      context.walkerName,
       symbol,
       walkerSchema.metric || "sharpeRatio",
       {
@@ -658,7 +667,7 @@ export class WalkerUtils {
    * Saves walker report to disk.
    *
    * @param symbol - Trading symbol
-   * @param walkerName - Walker name to save report for
+   * @param context - Execution context with walker name
    * @param path - Optional directory path to save report (default: "./dump/walker")
    * @param strategyColumns - Optional strategy columns configuration
    * @param pnlColumns - Optional PNL columns configuration
@@ -666,30 +675,32 @@ export class WalkerUtils {
    * @example
    * ```typescript
    * // Save to default path: ./dump/walker/my-walker.md
-   * await Walker.dump("BTCUSDT", "my-walker");
+   * await Walker.dump("BTCUSDT", { walkerName: "my-walker" });
    *
    * // Save to custom path: ./custom/path/my-walker.md
-   * await Walker.dump("BTCUSDT", "my-walker", "./custom/path");
+   * await Walker.dump("BTCUSDT", { walkerName: "my-walker" }, "./custom/path");
    * ```
    */
   public dump = async (
     symbol: string,
-    walkerName: WalkerName,
+    context: {
+      walkerName: string;
+    },
     path?: string,
     strategyColumns?: StrategyColumn[],
     pnlColumns?: PnlColumn[]
   ): Promise<void> => {
     backtest.loggerService.info(WALKER_METHOD_NAME_DUMP, {
       symbol,
-      walkerName,
+      context,
       path,
     });
     backtest.walkerValidationService.validate(
-      walkerName,
+      context.walkerName,
       WALKER_METHOD_NAME_DUMP
     );
 
-    const walkerSchema = backtest.walkerSchemaService.get(walkerName);
+    const walkerSchema = backtest.walkerSchemaService.get(context.walkerName);
 
     for (const strategyName of walkerSchema.strategies) {
       backtest.strategyValidationService.validate(
@@ -713,7 +724,7 @@ export class WalkerUtils {
     }
 
     await backtest.walkerMarkdownService.dump(
-      walkerName,
+      context.walkerName,
       symbol,
       walkerSchema.metric || "sharpeRatio",
       {

@@ -540,7 +540,7 @@ test("Walker.getData returns accumulated results", async ({ pass, fail }) => {
         try {
           const data = await Walker.getData(
             "BTCUSDT",
-            "test-walker-getdata"
+            { walkerName: "test-walker-getdata" }
           );
           if (
             data &&
@@ -739,7 +739,7 @@ test("Walker.getReport generates markdown report", async ({ pass, fail }) => {
         try {
           const report = await Walker.getReport(
             "BTCUSDT",
-            "test-walker-report"
+            { walkerName: "test-walker-report" }
           );
           if (
             report &&

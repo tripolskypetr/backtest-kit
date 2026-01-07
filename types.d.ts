@@ -7647,51 +7647,57 @@ declare class WalkerUtils {
      * Stop signal is filtered by walkerName to prevent interference.
      *
      * @param symbol - Trading pair symbol
-     * @param walkerName - Walker name to stop
+     * @param context - Execution context with walker name
      * @returns Promise that resolves when all stop flags are set
      *
      * @example
      * ```typescript
      * // Stop walker and all its strategies
-     * await Walker.stop("BTCUSDT", "my-walker");
+     * await Walker.stop("BTCUSDT", { walkerName: "my-walker" });
      * ```
      */
-    stop: (symbol: string, walkerName: WalkerName) => Promise<void>;
+    stop: (symbol: string, context: {
+        walkerName: string;
+    }) => Promise<void>;
     /**
      * Gets walker results data from all strategy comparisons.
      *
      * @param symbol - Trading symbol
-     * @param walkerName - Walker name to get data for
+     * @param context - Execution context with walker name
      * @returns Promise resolving to walker results data object
      *
      * @example
      * ```typescript
-     * const results = await Walker.getData("BTCUSDT", "my-walker");
+     * const results = await Walker.getData("BTCUSDT", { walkerName: "my-walker" });
      * console.log(results.bestStrategy, results.bestMetric);
      * ```
      */
-    getData: (symbol: string, walkerName: WalkerName) => Promise<WalkerCompleteContract>;
+    getData: (symbol: string, context: {
+        walkerName: string;
+    }) => Promise<WalkerCompleteContract>;
     /**
      * Generates markdown report with all strategy comparisons for a walker.
      *
      * @param symbol - Trading symbol
-     * @param walkerName - Walker name to generate report for
+     * @param context - Execution context with walker name
      * @param strategyColumns - Optional strategy columns configuration
      * @param pnlColumns - Optional PNL columns configuration
      * @returns Promise resolving to markdown formatted report string
      *
      * @example
      * ```typescript
-     * const markdown = await Walker.getReport("BTCUSDT", "my-walker");
+     * const markdown = await Walker.getReport("BTCUSDT", { walkerName: "my-walker" });
      * console.log(markdown);
      * ```
      */
-    getReport: (symbol: string, walkerName: WalkerName, strategyColumns?: StrategyColumn[], pnlColumns?: PnlColumn[]) => Promise<string>;
+    getReport: (symbol: string, context: {
+        walkerName: string;
+    }, strategyColumns?: StrategyColumn[], pnlColumns?: PnlColumn[]) => Promise<string>;
     /**
      * Saves walker report to disk.
      *
      * @param symbol - Trading symbol
-     * @param walkerName - Walker name to save report for
+     * @param context - Execution context with walker name
      * @param path - Optional directory path to save report (default: "./dump/walker")
      * @param strategyColumns - Optional strategy columns configuration
      * @param pnlColumns - Optional PNL columns configuration
@@ -7699,13 +7705,15 @@ declare class WalkerUtils {
      * @example
      * ```typescript
      * // Save to default path: ./dump/walker/my-walker.md
-     * await Walker.dump("BTCUSDT", "my-walker");
+     * await Walker.dump("BTCUSDT", { walkerName: "my-walker" });
      *
      * // Save to custom path: ./custom/path/my-walker.md
-     * await Walker.dump("BTCUSDT", "my-walker", "./custom/path");
+     * await Walker.dump("BTCUSDT", { walkerName: "my-walker" }, "./custom/path");
      * ```
      */
-    dump: (symbol: string, walkerName: WalkerName, path?: string, strategyColumns?: StrategyColumn[], pnlColumns?: PnlColumn[]) => Promise<void>;
+    dump: (symbol: string, context: {
+        walkerName: string;
+    }, path?: string, strategyColumns?: StrategyColumn[], pnlColumns?: PnlColumn[]) => Promise<void>;
     /**
      * Lists all active walker instances with their current status.
      *
@@ -9887,7 +9895,7 @@ declare class ClientRisk implements IRisk {
  * Maps all keys of IRisk to any type.
  * Used for dynamic method routing in RiskConnectionService.
  */
-type TRisk = {
+type TRisk$1 = {
     [key in keyof IRisk]: any;
 };
 /**
@@ -9922,7 +9930,7 @@ type TRisk = {
  * );
  * ```
  */
-declare class RiskConnectionService implements TRisk {
+declare class RiskConnectionService implements TRisk$1 {
     private readonly loggerService;
     private readonly riskSchemaService;
     /**
@@ -10098,7 +10106,7 @@ declare class PartialConnectionService implements IPartial {
  * Maps all keys of IStrategy to any type.
  * Used for dynamic method routing in StrategyConnectionService.
  */
-type TStrategy = {
+type TStrategy$1 = {
     [key in keyof IStrategy]: any;
 };
 /**
@@ -10121,7 +10129,7 @@ type TStrategy = {
  * // Routes to correct strategy instance for symbol-strategy pair
  * ```
  */
-declare class StrategyConnectionService implements TStrategy {
+declare class StrategyConnectionService implements TStrategy$1 {
     readonly loggerService: LoggerService;
     readonly executionContextService: {
         readonly context: IExecutionContext;
@@ -10442,7 +10450,7 @@ declare class ClientSizing implements ISizing {
  * Maps all keys of ISizing to any type.
  * Used for dynamic method routing in SizingConnectionService.
  */
-type TSizing = {
+type TSizing$1 = {
     [key in keyof ISizing]: any;
 };
 /**
@@ -10474,7 +10482,7 @@ type TSizing = {
  * );
  * ```
  */
-declare class SizingConnectionService implements TSizing {
+declare class SizingConnectionService implements TSizing$1 {
     private readonly loggerService;
     private readonly sizingSchemaService;
     /**
@@ -10503,6 +10511,14 @@ declare class SizingConnectionService implements TSizing {
 }
 
 /**
+ * Type definition for exchange methods.
+ * Maps all keys of IExchange to any type.
+ * Used for dynamic method routing in ExchangeCoreService.
+ */
+type TExchange = {
+    [key in keyof IExchange]: any;
+};
+/**
  * Global service for exchange operations with execution context injection.
  *
  * Wraps ExchangeConnectionService with ExecutionContextService to inject
@@ -10510,7 +10526,7 @@ declare class SizingConnectionService implements TSizing {
  *
  * Used internally by BacktestLogicPrivateService and LiveLogicPrivateService.
  */
-declare class ExchangeCoreService {
+declare class ExchangeCoreService implements TExchange {
     private readonly loggerService;
     private readonly exchangeConnectionService;
     private readonly methodContextService;
@@ -10577,6 +10593,14 @@ declare class ExchangeCoreService {
 }
 
 /**
+ * Type definition for strategy methods.
+ * Maps all keys of IStrategy to any type.
+ * Used for dynamic method routing in StrategyCoreService.
+ */
+type TStrategy = {
+    [key in keyof IStrategy]: any;
+};
+/**
  * Global service for strategy operations with execution context injection.
  *
  * Wraps StrategyConnectionService with ExecutionContextService to inject
@@ -10584,7 +10608,7 @@ declare class ExchangeCoreService {
  *
  * Used internally by BacktestLogicPrivateService and LiveLogicPrivateService.
  */
-declare class StrategyCoreService {
+declare class StrategyCoreService implements TStrategy {
     private readonly loggerService;
     private readonly strategyConnectionService;
     private readonly strategySchemaService;
@@ -10797,12 +10821,20 @@ declare class StrategyCoreService {
 }
 
 /**
+ * Type definition for frame methods.
+ * Maps all keys of IFrame to any type.
+ * Used for dynamic method routing in FrameCoreService.
+ */
+type TFrame = {
+    [key in keyof IFrame]: any;
+};
+/**
  * Global service for frame operations.
  *
  * Wraps FrameConnectionService for timeframe generation.
  * Used internally by BacktestLogicPrivateService.
  */
-declare class FrameCoreService {
+declare class FrameCoreService implements TFrame {
     private readonly loggerService;
     private readonly frameConnectionService;
     private readonly frameValidationService;
@@ -10816,12 +10848,20 @@ declare class FrameCoreService {
 }
 
 /**
+ * Type definition for sizing methods.
+ * Maps all keys of ISizing to any type.
+ * Used for dynamic method routing in SizingGlobalService.
+ */
+type TSizing = {
+    [key in keyof ISizing]: any;
+};
+/**
  * Global service for sizing operations.
  *
  * Wraps SizingConnectionService for position size calculation.
  * Used internally by strategy execution and public API.
  */
-declare class SizingGlobalService {
+declare class SizingGlobalService implements TSizing {
     private readonly loggerService;
     private readonly sizingConnectionService;
     private readonly sizingValidationService;
@@ -10838,12 +10878,20 @@ declare class SizingGlobalService {
 }
 
 /**
+ * Type definition for risk methods.
+ * Maps all keys of IRisk to any type.
+ * Used for dynamic method routing in RiskGlobalService.
+ */
+type TRisk = {
+    [key in keyof IRisk]: any;
+};
+/**
  * Global service for risk operations.
  *
  * Wraps RiskConnectionService for risk limit validation.
  * Used internally by strategy execution and public API.
  */
-declare class RiskGlobalService {
+declare class RiskGlobalService implements TRisk {
     private readonly loggerService;
     private readonly riskConnectionService;
     private readonly riskValidationService;
@@ -12099,7 +12147,7 @@ declare class ClientOptimizer implements IOptimizer {
  * Type helper for optimizer method signatures.
  * Maps IOptimizer interface methods to any return type.
  */
-type TOptimizer = {
+type TOptimizer$1 = {
     [key in keyof IOptimizer]: any;
 };
 /**
@@ -12112,7 +12160,7 @@ type TOptimizer = {
  * - Logger injection
  * - Delegates to ClientOptimizer for actual operations
  */
-declare class OptimizerConnectionService implements TOptimizer {
+declare class OptimizerConnectionService implements TOptimizer$1 {
     private readonly loggerService;
     private readonly optimizerSchemaService;
     private readonly optimizerTemplateService;
@@ -12153,6 +12201,14 @@ declare class OptimizerConnectionService implements TOptimizer {
 }
 
 /**
+ * Type definition for optimizer methods.
+ * Maps all keys of IOptimizer to any type.
+ * Used for dynamic method routing in OptimizerGlobalService.
+ */
+type TOptimizer = {
+    [key in keyof IOptimizer]: any;
+};
+/**
  * Global service for optimizer operations with validation.
  * Entry point for public API, performs validation before delegating to ConnectionService.
  *
@@ -12161,7 +12217,7 @@ declare class OptimizerConnectionService implements TOptimizer {
  * 2. Validate optimizer exists
  * 3. Delegate to OptimizerConnectionService
  */
-declare class OptimizerGlobalService {
+declare class OptimizerGlobalService implements TOptimizer {
     private readonly loggerService;
     private readonly optimizerConnectionService;
     private readonly optimizerValidationService;
@@ -12198,6 +12254,14 @@ declare class OptimizerGlobalService {
 }
 
 /**
+ * Type definition for partial methods.
+ * Maps all keys of IPartial to any type.
+ * Used for dynamic method routing in PartialGlobalService.
+ */
+type TPartial = {
+    [key in keyof IPartial]: any;
+};
+/**
  * Global service for partial profit/loss tracking.
  *
  * Thin delegation layer that forwards operations to PartialConnectionService.
@@ -12226,7 +12290,7 @@ declare class OptimizerGlobalService {
  * // Logs at global level → delegates to PartialConnectionService
  * ```
  */
-declare class PartialGlobalService {
+declare class PartialGlobalService implements TPartial {
     /**
      * Logger service injected from DI container.
      * Used for logging operations at global service level.

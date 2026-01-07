@@ -711,7 +711,7 @@ test("SHUTDOWN: Walker.stop() - all strategies stop", async ({ pass, fail }) => 
         if (!stopCalled) {
           stopCalled = true;
           // console.log("[TEST #6] First strategy completed, calling Walker.stop()");
-          await Walker.stop("BTCUSDT", "test-walker-shutdown");
+          await Walker.stop("BTCUSDT", { walkerName: "test-walker-shutdown"});
           // console.log("[TEST #6] Walker.stop() completed");
         }
       }
@@ -897,7 +897,7 @@ test("SHUTDOWN: Two walkers on same symbol - stop one doesn't affect other", asy
         if (!walkerAStopCalled) {
           walkerAStopCalled = true;
           // console.log("[TEST #7] Calling Walker.stop() for Walker A after first strategy");
-          await Walker.stop("BTCUSDT", "test-walkerA");
+          await Walker.stop("BTCUSDT", { walkerName: "test-walkerA" });
           // console.log("[TEST #7] Walker.stop() for Walker A completed");
         }
       }
@@ -1242,7 +1242,7 @@ test("SHUTDOWN: Walker with getSignal always null - stops early", async ({ pass,
 
   // Stop walker after 2 seconds (before first strategy completes all 10 frames)
   await sleep(2_000);
-  await Walker.stop("BTCUSDT", "test-walker-shutdown-null");
+  await Walker.stop("BTCUSDT", { walkerName: "test-walker-shutdown-null" });
 
   // Race: listenWalkerComplete should fire before 5 seconds timeout
   const raceResult = await Promise.race([
@@ -1407,7 +1407,7 @@ test("SHUTDOWN: Walker with getSignal always null - stops next strategy", async 
 
   // Stop walker after 1 second (before first strategy completes all 5 frames)
   await sleep(1_000);
-  await Walker.stop("BTCUSDT", "test-walker-shutdown-null-10");
+  await Walker.stop("BTCUSDT", { walkerName: "test-walker-shutdown-null-10" });
 
   // Race: listenWalkerComplete should fire before 3 seconds timeout
   const raceResult = await Promise.race([
