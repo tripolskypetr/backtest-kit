@@ -5,7 +5,7 @@ import ExecutionContextService from "../context/ExecutionContextService";
 import FrameConnectionService from "../connection/FrameConnectionService";
 import FrameValidationService from "../validation/FrameValidationService";
 import MethodContextService from "../context/MethodContextService";
-import { IFrame } from "src/interfaces/Frame.interface";
+import { IFrame } from "../../../interfaces/Frame.interface";
 
 const METHOD_NAME_GET_TIMEFRAME = "frameCoreService getTimeframe";
 

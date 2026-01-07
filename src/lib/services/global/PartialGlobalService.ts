@@ -7,7 +7,7 @@ import StrategyValidationService from "../validation/StrategyValidationService";
 import StrategySchemaService from "../schema/StrategySchemaService";
 import RiskValidationService from "../validation/RiskValidationService";
 import { memoize } from "functools-kit";
-import { IPartial } from "src/interfaces/Partial.interface";
+import { IPartial } from "../../../interfaces/Partial.interface";
 
 /**
  * Type definition for partial methods.
