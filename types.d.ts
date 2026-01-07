@@ -1497,6 +1497,170 @@ type IStrategyTickResult = IStrategyTickResultIdle | IStrategyTickResultSchedule
  */
 type IStrategyBacktestResult = IStrategyTickResultClosed | IStrategyTickResultCancelled;
 /**
+ * Strategy interface implemented by ClientStrategy.
+ * Defines core strategy execution methods.
+ */
+interface IStrategy {
+    /**
+     * Single tick of strategy execution with VWAP monitoring.
+     * Checks for signal generation (throttled) and TP/SL conditions.
+     *
+     * @param symbol - Trading pair symbol (e.g., "BTCUSDT")
+     * @param strategyName - Name of the strategy
+     * @returns Promise resolving to tick result (idle | opened | active | closed)
+     */
+    tick: (symbol: string, strategyName: StrategyName) => Promise<IStrategyTickResult>;
+    /**
+     * Retrieves the currently active pending signal for the symbol.
+     * If no active signal exists, returns null.
+     * Used internally for monitoring TP/SL and time expiration.
+     *
+     * @param symbol - Trading pair symbol
+     * @returns Promise resolving to pending signal or null
+     */
+    getPendingSignal: (symbol: string) => Promise<ISignalRow | null>;
+    /**
+     * Retrieves the currently active scheduled signal for the symbol.
+     * If no scheduled signal exists, returns null.
+     * Used internally for monitoring scheduled signal activation.
+     *
+     * @param symbol - Trading pair symbol
+     * @returns Promise resolving to scheduled signal or null
+     */
+    getScheduledSignal: (symbol: string) => Promise<IScheduledSignalRow | null>;
+    /**
+     * Checks if the strategy has been stopped.
+     *
+     * Returns the stopped state indicating whether the strategy should
+     * cease processing new ticks or signals.
+     *
+     * @param symbol - Trading pair symbol
+     * @returns Promise resolving to true if strategy is stopped, false otherwise
+     */
+    getStopped: (symbol: string) => Promise<boolean>;
+    /**
+     * Fast backtest using historical candles.
+     * Iterates through candles, calculates VWAP, checks TP/SL on each candle.
+     *
+     * For scheduled signals: first monitors activation/cancellation,
+     * then if activated continues with TP/SL monitoring.
+     *
+     * @param symbol - Trading pair symbol
+     * @param strategyName - Name of the strategy
+     * @param candles - Array of historical candle data
+     * @returns Promise resolving to closed result (always completes signal)
+     */
+    backtest: (symbol: string, strategyName: StrategyName, candles: ICandleData[]) => Promise<IStrategyBacktestResult>;
+    /**
+     * Stops the strategy from generating new signals.
+     *
+     * Sets internal flag to prevent getSignal from being called on subsequent ticks.
+     * Does NOT force-close active pending signals - they continue monitoring until natural closure (TP/SL/time_expired).
+     *
+     * Use case: Graceful shutdown in live trading mode without abandoning open positions.
+     *
+     * @param symbol - Trading pair symbol (e.g., "BTCUSDT")
+     * @returns Promise that resolves immediately when stop flag is set
+     *
+     * @example
+     * ```typescript
+     * // Graceful shutdown in Live.background() cancellation
+     * const cancel = await Live.background("BTCUSDT", { ... });
+     *
+     * // Later: stop new signals, let existing ones close naturally
+     * await cancel();
+     * ```
+     */
+    stop: (symbol: string, backtest: boolean) => Promise<void>;
+    /**
+     * Cancels the scheduled signal without stopping the strategy.
+     *
+     * Clears the scheduled signal (waiting for priceOpen activation).
+     * Does NOT affect active pending signals or strategy operation.
+     * Does NOT set stop flag - strategy can continue generating new signals.
+     *
+     * Use case: Cancel a scheduled entry that is no longer desired without stopping the entire strategy.
+     *
+     * @param symbol - Trading pair symbol (e.g., "BTCUSDT")
+     * @param cancelId - Optional cancellation ID
+     * @returns Promise that resolves when scheduled signal is cleared
+     *
+     * @example
+     * ```typescript
+     * // Cancel scheduled signal without stopping strategy
+     * await strategy.cancel("BTCUSDT");
+     * // Strategy continues, can generate new signals
+     * ```
+     */
+    cancel: (symbol: string, backtest: boolean, cancelId?: string) => Promise<void>;
+    /**
+     * Executes partial close at profit level (moving toward TP).
+     *
+     * Closes specified percentage of position at current price.
+     * Updates _tpClosed, _totalClosed, and _partialHistory state.
+     * Persists updated signal state for crash recovery.
+     *
+     * Validations:
+     * - Throws if no pending signal exists
+     * - Throws if called on scheduled signal (not yet activated)
+     * - Throws if percentToClose <= 0 or > 100
+     * - Does nothing if _totalClosed + percentToClose > 100 (prevents over-closing)
+     *
+     * Use case: User-controlled partial close triggered from onPartialProfit callback.
+     *
+     * @param symbol - Trading pair symbol (e.g., "BTCUSDT")
+     * @param percentToClose - Absolute percentage of position to close (0-100)
+     * @param currentPrice - Current market price for partial close
+     * @param backtest - Whether running in backtest mode
+     * @returns Promise that resolves when partial close is complete
+     *
+     * @example
+     * ```typescript
+     * callbacks: {
+     *   onPartialProfit: async (symbol, signal, currentPrice, percentTp, backtest) => {
+     *     if (percentTp >= 50) {
+     *       await strategy.partialProfit(symbol, 25, currentPrice, backtest);
+     *     }
+     *   }
+     * }
+     * ```
+     */
+    partialProfit: (symbol: string, percentToClose: number, currentPrice: number, backtest: boolean) => Promise<void>;
+    /**
+     * Executes partial close at loss level (moving toward SL).
+     *
+     * Closes specified percentage of position at current price.
+     * Updates _slClosed, _totalClosed, and _partialHistory state.
+     * Persists updated signal state for crash recovery.
+     *
+     * Validations:
+     * - Throws if no pending signal exists
+     * - Throws if called on scheduled signal (not yet activated)
+     * - Throws if percentToClose <= 0 or > 100
+     * - Does nothing if _totalClosed + percentToClose > 100 (prevents over-closing)
+     *
+     * Use case: User-controlled partial close triggered from onPartialLoss callback.
+     *
+     * @param symbol - Trading pair symbol (e.g., "BTCUSDT")
+     * @param percentToClose - Absolute percentage of position to close (0-100)
+     * @param currentPrice - Current market price for partial close
+     * @param backtest - Whether running in backtest mode
+     * @returns Promise that resolves when partial close is complete
+     *
+     * @example
+     * ```typescript
+     * callbacks: {
+     *   onPartialLoss: async (symbol, signal, currentPrice, percentSl, backtest) => {
+     *     if (percentSl >= 80) {
+     *       await strategy.partialLoss(symbol, 50, currentPrice, backtest);
+     *     }
+     *   }
+     * }
+     * ```
+     */
+    partialLoss: (symbol: string, percentToClose: number, currentPrice: number, backtest: boolean) => Promise<void>;
+}
+/**
  * Unique strategy identifier.
  */
 type StrategyName = string;
@@ -2854,6 +3018,8 @@ interface DoneContract {
     exchangeName: string;
     /** strategyName - Name of the strategy that completed */
     strategyName: string;
+    /** frameName - Name of the frame (empty string for live mode) */
+    frameName: string;
     /** backtest - True if backtest mode, false if live mode */
     backtest: boolean;
     /** symbol - Trading symbol (e.g., "BTCUSDT") */
@@ -9717,6 +9883,14 @@ declare class ClientRisk implements IRisk {
 }
 
 /**
+ * Type definition for risk methods.
+ * Maps all keys of IRisk to any type.
+ * Used for dynamic method routing in RiskConnectionService.
+ */
+type TRisk = {
+    [key in keyof IRisk]: any;
+};
+/**
  * Connection service routing risk operations to correct ClientRisk instance.
  *
  * Routes risk checking calls to the appropriate risk implementation
@@ -9748,7 +9922,7 @@ declare class ClientRisk implements IRisk {
  * );
  * ```
  */
-declare class RiskConnectionService {
+declare class RiskConnectionService implements TRisk {
     private readonly loggerService;
     private readonly riskSchemaService;
     /**
@@ -9920,6 +10094,14 @@ declare class PartialConnectionService implements IPartial {
 }
 
 /**
+ * Type definition for strategy methods.
+ * Maps all keys of IStrategy to any type.
+ * Used for dynamic method routing in StrategyConnectionService.
+ */
+type TStrategy = {
+    [key in keyof IStrategy]: any;
+};
+/**
  * Connection service routing strategy operations to correct ClientStrategy instance.
  *
  * Routes all IStrategy method calls to the appropriate strategy implementation
@@ -9939,7 +10121,7 @@ declare class PartialConnectionService implements IPartial {
  * // Routes to correct strategy instance for symbol-strategy pair
  * ```
  */
-declare class StrategyConnectionService {
+declare class StrategyConnectionService implements TStrategy {
     readonly loggerService: LoggerService;
     readonly executionContextService: {
         readonly context: IExecutionContext;
@@ -10256,6 +10438,14 @@ declare class ClientSizing implements ISizing {
 }
 
 /**
+ * Type definition for sizing methods.
+ * Maps all keys of ISizing to any type.
+ * Used for dynamic method routing in SizingConnectionService.
+ */
+type TSizing = {
+    [key in keyof ISizing]: any;
+};
+/**
  * Connection service routing sizing operations to correct ClientSizing instance.
  *
  * Routes sizing method calls to the appropriate sizing implementation
@@ -10284,7 +10474,7 @@ declare class ClientSizing implements ISizing {
  * );
  * ```
  */
-declare class SizingConnectionService {
+declare class SizingConnectionService implements TSizing {
     private readonly loggerService;
     private readonly sizingSchemaService;
     /**

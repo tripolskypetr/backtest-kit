@@ -123,19 +123,35 @@ listenBacktestProgress((event) => {
 
 listenDoneBacktest(async (event) => {
     console.log("Backtest completed:", event.symbol);
-    await Backtest.dump(event.symbol, event.strategyName);
+    await Backtest.dump(event.symbol, {
+        strategyName: event.strategyName,
+        exchangeName: event.exchangeName,
+        frameName: event.frameName
+    });
 });
 
 listenRisk(async (event) => {
-    await Risk.dump(event.symbol, event.strategyName);
+    await Risk.dump(event.symbol, {
+        strategyName: event.strategyName,
+        exchangeName: event.exchangeName,
+        frameName: event.frameName
+    });
 });
 
 listenPartialLoss(async (event) => {
-    await Partial.dump(event.symbol, event.strategyName);
+    await Partial.dump(event.symbol, {
+        strategyName: event.strategyName,
+        exchangeName: event.exchangeName,
+        frameName: event.frameName
+    });
 });
 
 listenPartialProfit(async (event) => {
-    await Partial.dump(event.symbol, event.strategyName);
+    await Partial.dump(event.symbol, {
+        strategyName: event.strategyName,
+        exchangeName: event.exchangeName,
+        frameName: event.frameName
+    });
 });
 
 listenError((error) => {

@@ -57,6 +57,7 @@ const INSTANCE_TASK_FN = async (
     await doneWalkerSubject.next({
       exchangeName: walkerSchema.exchangeName,
       strategyName: context.walkerName,
+      frameName: walkerSchema.frameName,
       backtest: true,
       symbol,
     });
@@ -299,6 +300,7 @@ export class WalkerInstance {
         doneWalkerSubject.next({
           exchangeName: walkerSchema.exchangeName,
           strategyName: context.walkerName,
+          frameName: walkerSchema.frameName,
           backtest: true,
           symbol,
         });

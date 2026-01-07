@@ -55,6 +55,7 @@ const INSTANCE_TASK_FN = async (
     await doneLiveSubject.next({
       exchangeName: context.exchangeName,
       strategyName: context.strategyName,
+      frameName: "",
       backtest: false,
       symbol,
     });
@@ -276,6 +277,7 @@ export class LiveInstance {
             await doneLiveSubject.next({
               exchangeName: context.exchangeName,
               strategyName: context.strategyName,
+              frameName: "",
               backtest: false,
               symbol,
             });

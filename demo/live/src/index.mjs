@@ -116,20 +116,40 @@ listenSignalLive(async (event) => {
         console.log("Close position");
     }
     if (event.action === "closed") {
-        await Live.dump(event.symbol, event.strategyName);
-        await Partial.dump(event.symbol, event.strategyName);
+        await Live.dump(event.symbol, {
+            strategyName: event.strategyName,
+            exchangeName: event.exchangeName,
+            frameName: event.frameName
+        });
+        await Partial.dump(event.symbol, {
+            strategyName: event.strategyName,
+            exchangeName: event.exchangeName,
+            frameName: event.frameName
+        });
     }
     if (event.action === "scheduled") {
-        await Schedule.dump(event.symbol, event.strategyName);
+        await Schedule.dump(event.symbol, {
+            strategyName: event.strategyName,
+            exchangeName: event.exchangeName,
+            frameName: event.frameName
+        });
     }
     if (event.action === "cancelled") {
-        await Schedule.dump(event.symbol, event.strategyName);
+        await Schedule.dump(event.symbol, {
+            strategyName: event.strategyName,
+            exchangeName: event.exchangeName,
+            frameName: event.frameName
+        });
     }
     console.log(event);
 });
 
 listenRisk(async (event) => {
-    await Risk.dump(event.symbol, event.strategyName);
+    await Risk.dump(event.symbol, {
+        strategyName: event.strategyName,
+        exchangeName: event.exchangeName,
+        frameName: event.frameName
+    });
 });
 
 listenError((error) => {

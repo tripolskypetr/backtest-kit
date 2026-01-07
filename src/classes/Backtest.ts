@@ -60,6 +60,7 @@ const INSTANCE_TASK_FN = async (
     await doneBacktestSubject.next({
       exchangeName: context.exchangeName,
       strategyName: context.strategyName,
+      frameName: context.frameName,
       backtest: true,
       symbol,
     });
@@ -327,6 +328,7 @@ export class BacktestInstance {
             await doneBacktestSubject.next({
               exchangeName: context.exchangeName,
               strategyName: context.strategyName,
+              frameName: context.frameName,
               backtest: true,
               symbol,
             });

@@ -22,6 +22,8 @@ export interface DoneContract {
     exchangeName: string;
     /** strategyName - Name of the strategy that completed */
     strategyName: string;
+    /** frameName - Name of the frame (empty string for live mode) */
+    frameName: string;
     /** backtest - True if backtest mode, false if live mode */
     backtest: boolean;
     /** symbol - Trading symbol (e.g., "BTCUSDT") */
