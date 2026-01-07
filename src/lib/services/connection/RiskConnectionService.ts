@@ -1,7 +1,7 @@
 import { inject } from "../../core/di";
 import LoggerService from "../base/LoggerService";
 import TYPES from "../../core/types";
-import { RiskName, IRiskCheckArgs, IRiskRejectionResult } from "../../../interfaces/Risk.interface";
+import { RiskName, IRiskCheckArgs, IRiskRejectionResult, IRisk } from "../../../interfaces/Risk.interface";
 import { memoize } from "functools-kit";
 import ClientRisk from "../../../client/ClientRisk";
 import RiskSchemaService from "../schema/RiskSchemaService";
@@ -68,6 +68,15 @@ const COMMIT_REJECTION_FN = async (
   });
 
 /**
+ * Type definition for risk methods.
+ * Maps all keys of IRisk to any type.
+ * Used for dynamic method routing in RiskConnectionService.
+ */
+type TRisk = {
+  [key in keyof IRisk]: any;
+}
+
+/**
  * Connection service routing risk operations to correct ClientRisk instance.
  *
  * Routes risk checking calls to the appropriate risk implementation
@@ -99,7 +108,7 @@ const COMMIT_REJECTION_FN = async (
  * );
  * ```
  */
-export class RiskConnectionService {
+export class RiskConnectionService implements TRisk {
   private readonly loggerService = inject<LoggerService>(TYPES.loggerService);
   private readonly riskSchemaService = inject<RiskSchemaService>(
     TYPES.riskSchemaService

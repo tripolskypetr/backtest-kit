@@ -1,10 +1,19 @@
 import { inject } from "../../core/di";
 import LoggerService from "../base/LoggerService";
 import TYPES from "../../core/types";
-import { SizingName, ISizingCalculateParams } from "../../../interfaces/Sizing.interface";
+import { SizingName, ISizingCalculateParams, ISizing } from "../../../interfaces/Sizing.interface";
 import { memoize } from "functools-kit";
 import ClientSizing from "../../../client/ClientSizing";
 import SizingSchemaService from "../schema/SizingSchemaService";
+
+/**
+ * Type definition for sizing methods.
+ * Maps all keys of ISizing to any type.
+ * Used for dynamic method routing in SizingConnectionService.
+ */
+type TSizing = {
+  [key in keyof ISizing]: any;
+}
 
 /**
  * Connection service routing sizing operations to correct ClientSizing instance.
@@ -35,7 +44,7 @@ import SizingSchemaService from "../schema/SizingSchemaService";
  * );
  * ```
  */
-export class SizingConnectionService {
+export class SizingConnectionService implements TSizing {
   private readonly loggerService = inject<LoggerService>(TYPES.loggerService);
   private readonly sizingSchemaService = inject<SizingSchemaService>(
     TYPES.sizingSchemaService
