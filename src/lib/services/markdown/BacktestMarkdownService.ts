@@ -505,8 +505,14 @@ export class BacktestMarkdownService {
    */
   protected init = singleshot(async () => {
     this.loggerService.log("backtestMarkdownService init");
-    signalBacktestEmitter.subscribe(this.tick);
+    this.unsubscribe = signalBacktestEmitter.subscribe(this.tick);
   });
+
+  /**
+   * Function to unsubscribe from backtest signal events.
+   * Assigned during init().
+   */
+  public unsubscribe: Function;
 }
 
 export default BacktestMarkdownService;

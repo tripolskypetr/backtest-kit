@@ -9,6 +9,9 @@ import {
   ISizingSchemaKelly,
   ISizingSchemaATR,
 } from "../interfaces/Sizing.interface";
+import { trycatch, errorData, getErrorMessage } from "functools-kit";
+import backtest from "../lib";
+import { errorEmitter } from "../config/emitters";
 
 /**
  * Calculates position size using fixed percentage risk method.
@@ -98,6 +101,30 @@ const calculateATRBased = (
   return riskAmount / stopDistance;
 };
 
+const CALL_CALCULATE_CALLBACKS_FN = trycatch(
+  async (
+    self: ClientSizing,
+    quantity: number,
+    params: ISizingCalculateParams
+  ): Promise<void> => {
+    if (self.params.callbacks?.onCalculate) {
+      await self.params.callbacks.onCalculate(quantity, params);
+    }
+  },
+  {
+    fallback: (error) => {
+      const message = "ClientSizing CALL_CALCULATE_CALLBACKS_FN thrown";
+      const payload = {
+        error: errorData(error),
+        message: getErrorMessage(error),
+      };
+      backtest.loggerService.warn(message, payload);
+      console.warn(message, payload);
+      errorEmitter.next(error);
+    },
+  }
+);
+
 /**
  * Main calculation function routing to specific sizing method.
  * Applies min/max constraints after calculation.
@@ -166,9 +193,7 @@ const CALCULATE_FN = async (
   }
 
   // Trigger callback if defined
-  if (schema.callbacks?.onCalculate) {
-    await schema.callbacks.onCalculate(quantity, params);
-  }
+  await CALL_CALCULATE_CALLBACKS_FN(self, quantity, params);
 
   return quantity;
 };

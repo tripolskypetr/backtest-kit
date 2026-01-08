@@ -651,8 +651,14 @@ export class HeatMarkdownService {
    */
   protected init = singleshot(async () => {
     this.loggerService.log("heatMarkdownService init");
-    signalEmitter.subscribe(this.tick);
+    this.unsubscribe = signalEmitter.subscribe(this.tick);
   });
+
+  /**
+   * Function to unsubscribe from backtest signal events.
+   * Assigned during init().
+   */
+  public unsubscribe: Function;
 }
 
 export default HeatMarkdownService;

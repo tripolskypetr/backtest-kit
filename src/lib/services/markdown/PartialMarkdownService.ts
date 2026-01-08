@@ -5,7 +5,7 @@ import { PartialLevel } from "../../../interfaces/Partial.interface";
 import { inject } from "../../../lib/core/di";
 import LoggerService from "../base/LoggerService";
 import TYPES from "../../../lib/core/types";
-import { memoize, singleshot } from "functools-kit";
+import { compose, memoize, singleshot } from "functools-kit";
 import {
   partialProfitSubject,
   partialLossSubject,
@@ -522,9 +522,19 @@ export class PartialMarkdownService {
    */
   protected init = singleshot(async () => {
     this.loggerService.log("partialMarkdownService init");
-    partialProfitSubject.subscribe(this.tickProfit);
-    partialLossSubject.subscribe(this.tickLoss);
+    const unProfit = partialProfitSubject.subscribe(this.tickProfit);
+    const unLoss = partialLossSubject.subscribe(this.tickLoss);
+    this.unsubscribe = compose(
+      () => unProfit(),
+      () => unLoss()
+    );
   });
+
+  /**
+   * Function to unsubscribe from partial profit/loss events.
+   * Assigned during init().
+   */
+  public unsubscribe: Function;
 }
 
 export default PartialMarkdownService;

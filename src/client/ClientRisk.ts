@@ -18,7 +18,7 @@ import {
 } from "../interfaces/Risk.interface";
 import { PersistRiskAdapter } from "../classes/Persist";
 import backtest from "../lib";
-import { validationSubject } from "../config/emitters";
+import { validationSubject, errorEmitter } from "../config/emitters";
 import { get } from "../utils/get";
 import { ExchangeName } from "../interfaces/Exchange.interface";
 import { StrategyName } from "../interfaces/Strategy.interface";
@@ -52,6 +52,54 @@ const DO_VALIDATION_FN = async (
     return payload.message;
   }
 };
+
+const CALL_REJECTED_CALLBACKS_FN = trycatch(
+  async (
+    self: ClientRisk,
+    symbol: string,
+    params: IRiskCheckArgs
+  ): Promise<void> => {
+    if (self.params.callbacks?.onRejected) {
+      await self.params.callbacks.onRejected(symbol, params);
+    }
+  },
+  {
+    fallback: (error) => {
+      const message = "ClientRisk CALL_REJECTED_CALLBACKS_FN thrown";
+      const payload = {
+        error: errorData(error),
+        message: getErrorMessage(error),
+      };
+      backtest.loggerService.warn(message, payload);
+      console.warn(message, payload);
+      errorEmitter.next(error);
+    },
+  }
+);
+
+const CALL_ALLOWED_CALLBACKS_FN = trycatch(
+  async (
+    self: ClientRisk,
+    symbol: string,
+    params: IRiskCheckArgs
+  ): Promise<void> => {
+    if (self.params.callbacks?.onAllowed) {
+      await self.params.callbacks.onAllowed(symbol, params);
+    }
+  },
+  {
+    fallback: (error) => {
+      const message = "ClientRisk CALL_ALLOWED_CALLBACKS_FN thrown";
+      const payload = {
+        error: errorData(error),
+        message: getErrorMessage(error),
+      };
+      backtest.loggerService.warn(message, payload);
+      console.warn(message, payload);
+      errorEmitter.next(error);
+    },
+  }
+);
 
 /**
  * Initializes active positions by reading from persistence.
@@ -257,17 +305,13 @@ export class ClientRisk implements IRisk {
       );
 
       // Call schema callbacks.onRejected if defined
-      if (this.params.callbacks?.onRejected) {
-        await this.params.callbacks.onRejected(params.symbol, params);
-      }
+      await CALL_REJECTED_CALLBACKS_FN(this, params.symbol, params);
 
       return false;
     }
 
     // All checks passed
-    if (this.params.callbacks?.onAllowed) {
-      await this.params.callbacks.onAllowed(params.symbol, params);
-    }
+    await CALL_ALLOWED_CALLBACKS_FN(this, params.symbol, params);
 
     return true;
   };

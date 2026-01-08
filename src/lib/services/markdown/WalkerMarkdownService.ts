@@ -600,8 +600,14 @@ export class WalkerMarkdownService {
    */
   protected init = singleshot(async () => {
     this.loggerService.log("walkerMarkdownService init");
-    walkerEmitter.subscribe(this.tick);
+    this.unsubscribe = walkerEmitter.subscribe(this.tick);
   });
+
+  /**
+   * Function to unsubscribe from partial profit/loss events.
+   * Assigned during init().
+   */
+  public unsubscribe: Function;
 }
 
 export default WalkerMarkdownService;

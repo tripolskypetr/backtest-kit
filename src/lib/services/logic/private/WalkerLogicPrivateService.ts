@@ -14,9 +14,115 @@ import {
   progressWalkerEmitter,
   errorEmitter,
 } from "../../../../config/emitters";
-import { errorData, getErrorMessage, resolveDocuments } from "functools-kit";
+import { errorData, getErrorMessage, resolveDocuments, trycatch } from "functools-kit";
 import { ExchangeName } from "../../../../interfaces/Exchange.interface";
 import { FrameName } from "../../../../interfaces/Frame.interface";
+import { IWalkerSchema } from "../../../../interfaces/Walker.interface";
+import { BacktestStatisticsModel } from "../../../../model/BacktestStatistics.model";
+import backtest from "../../../../lib";
+
+const CALL_STRATEGY_START_CALLBACKS_FN = trycatch(
+  async (
+    walkerSchema: IWalkerSchema,
+    strategyName: StrategyName,
+    symbol: string
+  ): Promise<void> => {
+    if (walkerSchema.callbacks?.onStrategyStart) {
+      await walkerSchema.callbacks.onStrategyStart(strategyName, symbol);
+    }
+  },
+  {
+    fallback: (error) => {
+      const message = "WalkerLogicPrivateService CALL_STRATEGY_START_CALLBACKS_FN thrown";
+      const payload = {
+        error: errorData(error),
+        message: getErrorMessage(error),
+      };
+      backtest.loggerService.warn(message, payload);
+      console.warn(message, payload);
+      errorEmitter.next(error);
+    },
+  }
+);
+
+const CALL_STRATEGY_ERROR_CALLBACKS_FN = trycatch(
+  async (
+    walkerSchema: IWalkerSchema,
+    strategyName: StrategyName,
+    symbol: string,
+    error: Error | unknown
+  ): Promise<void> => {
+    if (walkerSchema.callbacks?.onStrategyError) {
+      await walkerSchema.callbacks.onStrategyError(strategyName, symbol, error);
+    }
+  },
+  {
+    fallback: (error) => {
+      const message = "WalkerLogicPrivateService CALL_STRATEGY_ERROR_CALLBACKS_FN thrown";
+      const payload = {
+        error: errorData(error),
+        message: getErrorMessage(error),
+      };
+      backtest.loggerService.warn(message, payload);
+      console.warn(message, payload);
+      errorEmitter.next(error);
+    },
+  }
+);
+
+const CALL_STRATEGY_COMPLETE_CALLBACKS_FN = trycatch(
+  async (
+    walkerSchema: IWalkerSchema,
+    strategyName: StrategyName,
+    symbol: string,
+    stats: BacktestStatisticsModel,
+    metricValue: number | null
+  ): Promise<void> => {
+    if (walkerSchema.callbacks?.onStrategyComplete) {
+      await walkerSchema.callbacks.onStrategyComplete(
+        strategyName,
+        symbol,
+        stats,
+        metricValue
+      );
+    }
+  },
+  {
+    fallback: (error) => {
+      const message = "WalkerLogicPrivateService CALL_STRATEGY_COMPLETE_CALLBACKS_FN thrown";
+      const payload = {
+        error: errorData(error),
+        message: getErrorMessage(error),
+      };
+      backtest.loggerService.warn(message, payload);
+      console.warn(message, payload);
+      errorEmitter.next(error);
+    },
+  }
+);
+
+const CALL_COMPLETE_CALLBACKS_FN = trycatch(
+  async (
+    walkerSchema: IWalkerSchema,
+    finalResults: any
+  ): Promise<void> => {
+    if (walkerSchema.callbacks?.onComplete) {
+      await walkerSchema.callbacks.onComplete(finalResults);
+    }
+  },
+  {
+    fallback: (error) => {
+      const message = "WalkerLogicPrivateService CALL_COMPLETE_CALLBACKS_FN thrown";
+      const payload = {
+        error: errorData(error),
+        message: getErrorMessage(error),
+      };
+      backtest.loggerService.warn(message, payload);
+      console.warn(message, payload);
+      errorEmitter.next(error);
+    },
+  }
+);
 
 /**
  * Private service for walker orchestration (strategy comparison).
@@ -128,9 +234,7 @@ export class WalkerLogicPrivateService {
         }
 
         // Call onStrategyStart callback if provided
-        if (walkerSchema.callbacks?.onStrategyStart) {
-          await walkerSchema.callbacks.onStrategyStart(strategyName, symbol);
-        }
+        await CALL_STRATEGY_START_CALLBACKS_FN(walkerSchema, strategyName, symbol);
         this.loggerService.info("walkerLogicPrivateService testing strategy", {
           strategyName,
           symbol,
@@ -156,9 +260,7 @@ export class WalkerLogicPrivateService {
           );
           await errorEmitter.next(error);
           // Call onStrategyError callback if provided
-          if (walkerSchema.callbacks?.onStrategyError) {
-            await walkerSchema.callbacks.onStrategyError(strategyName, symbol, error);
-          }
+          await CALL_STRATEGY_ERROR_CALLBACKS_FN(walkerSchema, strategyName, symbol, error);
           continue;
         }
 
@@ -220,14 +322,13 @@ export class WalkerLogicPrivateService {
         });
 
         // Call onStrategyComplete callback if provided
-        if (walkerSchema.callbacks?.onStrategyComplete) {
-          await walkerSchema.callbacks.onStrategyComplete(
-            strategyName,
-            symbol,
-            stats,
-            metricValue
-          );
-        }
+        await CALL_STRATEGY_COMPLETE_CALLBACKS_FN(
+          walkerSchema,
+          strategyName,
+          symbol,
+          stats,
+          metricValue
+        );
 
         await walkerEmitter.next(walkerContract);
         yield walkerContract;
@@ -253,9 +354,7 @@ export class WalkerLogicPrivateService {
     };
 
     // Call onComplete callback if provided with final best results
-    if (walkerSchema.callbacks?.onComplete) {
-      await walkerSchema.callbacks.onComplete(finalResults);
-    }
+    await CALL_COMPLETE_CALLBACKS_FN(walkerSchema, finalResults);
 
     await walkerCompleteSubject.next(finalResults);
   }

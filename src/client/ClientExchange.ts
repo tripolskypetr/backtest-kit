@@ -5,7 +5,9 @@ import {
   IExchangeParams,
 } from "../interfaces/Exchange.interface";
 import { GLOBAL_CONFIG } from "../config/params";
-import { errorData, getErrorMessage, sleep } from "functools-kit";
+import { errorData, getErrorMessage, sleep, trycatch } from "functools-kit";
+import backtest from "../lib";
+import { errorEmitter } from "../config/emitters";
 
 const INTERVAL_MINUTES: Record<CandleInterval, number> = {
   "1m": 1,
@@ -151,6 +153,39 @@ const GET_CANDLES_FN = async (
   throw lastError;
 };
 
+const CALL_CANDLE_DATA_CALLBACKS_FN = trycatch(
+  async (
+    self: ClientExchange,
+    symbol: string,
+    interval: CandleInterval,
+    since: Date,
+    limit: number,
+    data: ICandleData[]
+  ): Promise<void> => {
+    if (self.params.callbacks?.onCandleData) {
+      await self.params.callbacks.onCandleData(
+        symbol,
+        interval,
+        since,
+        limit,
+        data
+      );
+    }
+  },
+  {
+    fallback: (error) => {
+      const message = "ClientExchange CALL_CANDLE_DATA_CALLBACKS_FN thrown";
+      const payload = {
+        error: errorData(error),
+        message: getErrorMessage(error),
+      };
+      backtest.loggerService.warn(message, payload);
+      console.warn(message, payload);
+      errorEmitter.next(error);
+    },
+  }
+);
+
 /**
  * Client implementation for exchange data access.
  *
@@ -229,15 +264,14 @@ export class ClientExchange implements IExchange {
       );
     }
 
-    if (this.params.callbacks?.onCandleData) {
-      await this.params.callbacks.onCandleData(
-        symbol,
-        interval,
-        since,
-        limit,
-        filteredData
-      );
-    }
+    await CALL_CANDLE_DATA_CALLBACKS_FN(
+      this,
+      symbol,
+      interval,
+      since,
+      limit,
+      filteredData
+    );
 
     return filteredData;
   }
@@ -291,15 +325,14 @@ export class ClientExchange implements IExchange {
       );
     }
 
-    if (this.params.callbacks?.onCandleData) {
-      await this.params.callbacks.onCandleData(
-        symbol,
-        interval,
-        since,
-        limit,
-        filteredData
-      );
-    }
+    await CALL_CANDLE_DATA_CALLBACKS_FN(
+      this,
+      symbol,
+      interval,
+      since,
+      limit,
+      filteredData
+    );
 
     return filteredData;
   }

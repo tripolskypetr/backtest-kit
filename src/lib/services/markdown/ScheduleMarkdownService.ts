@@ -557,8 +557,14 @@ export class ScheduleMarkdownService {
    */
   protected init = singleshot(async () => {
     this.loggerService.log("scheduleMarkdownService init");
-    signalEmitter.subscribe(this.tick);
+    this.unsubscribe = signalEmitter.subscribe(this.tick);
   });
+
+  /**
+   * Function to unsubscribe from partial profit/loss events.
+   * Assigned during init().
+   */
+  public unsubscribe: Function;
 }
 
 export default ScheduleMarkdownService;
