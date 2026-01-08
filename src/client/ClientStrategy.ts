@@ -739,6 +739,66 @@ const PARTIAL_LOSS_FN = (
   });
 };
 
+const TRAILING_FN = (
+  self: ClientStrategy,
+  signal: ISignalRow,
+  percentDistance: number
+): void => {
+  // Calculate new stop-loss price based on position type and ORIGINAL priceStopLoss
+  let newStopLoss: number;
+
+  if (signal.position === "long") {
+    // LONG: newSL = originalSL + (originalSL * percentDistance/100)
+    // Trailing SL moves UPWARD as price rises (protecting profit)
+    newStopLoss = signal.priceStopLoss * (1 + percentDistance / 100);
+  } else {
+    // SHORT: newSL = originalSL - (originalSL * percentDistance/100)
+    // Trailing SL moves DOWNWARD as price falls (protecting profit)
+    newStopLoss = signal.priceStopLoss * (1 - percentDistance / 100);
+  }
+
+  // Get current effective stop-loss (trailing or original)
+  const currentStopLoss = signal._trailingPriceStopLoss ?? signal.priceStopLoss;
+
+  // Only update if new SL is BETTER (closer to profit, further from original SL)
+  let shouldUpdate = false;
+
+  if (signal.position === "long") {
+    // LONG: new SL must be HIGHER than current SL (moving upward = better)
+    if (newStopLoss > currentStopLoss) {
+      shouldUpdate = true;
+    }
+  } else {
+    // SHORT: new SL must be LOWER than current SL (moving downward = better)
+    if (newStopLoss < currentStopLoss) {
+      shouldUpdate = true;
+    }
+  }
+
+  if (!shouldUpdate) {
+    self.params.logger.debug("TRAILING_FN: new SL not better, skipping", {
+      signalId: signal.id,
+      position: signal.position,
+      currentStopLoss,
+      newStopLoss,
+      percentDistance,
+    });
+    return;
+  }
+
+  // Update trailing stop-loss
+  signal._trailingPriceStopLoss = newStopLoss;
+
+  self.params.logger.info("TRAILING_FN executed", {
+    signalId: signal.id,
+    position: signal.position,
+    originalStopLoss: signal.priceStopLoss,
+    previousStopLoss: currentStopLoss,
+    newStopLoss,
+    percentDistance,
+  });
+};
+
 const CHECK_SCHEDULED_SIGNAL_TIMEOUT_FN = async (
   self: ClientStrategy,
   scheduled: IScheduledSignalRow,
@@ -1719,21 +1779,23 @@ const CHECK_PENDING_SIGNAL_COMPLETION_FN = async (
     );
   }
 
-  // Check stop loss
-  if (signal.position === "long" && averagePrice <= signal.priceStopLoss) {
+  // Check stop loss (use trailing SL if set, otherwise original SL)
+  const effectiveStopLoss = signal._trailingPriceStopLoss ?? signal.priceStopLoss;
+
+  if (signal.position === "long" && averagePrice <= effectiveStopLoss) {
     return await CLOSE_PENDING_SIGNAL_FN(
       self,
       signal,
-      signal.priceStopLoss, // КРИТИЧНО: используем точную цену SL
+      effectiveStopLoss, // КРИТИЧНО: используем точную цену SL (trailing or original)
       "stop_loss"
     );
   }
 
-  if (signal.position === "short" && averagePrice >= signal.priceStopLoss) {
+  if (signal.position === "short" && averagePrice >= effectiveStopLoss) {
     return await CLOSE_PENDING_SIGNAL_FN(
       self,
       signal,
-      signal.priceStopLoss, // КРИТИЧНО: используем точную цену SL
+      effectiveStopLoss, // КРИТИЧНО: используем точную цену SL (trailing or original)
       "stop_loss"
     );
   }
@@ -1844,8 +1906,9 @@ const RETURN_PENDING_SIGNAL_ACTIVE_FN = async (
           self.params.execution.context.backtest
         );
       } else if (currentDistance < 0) {
-        // Moving towards SL
-        const slDistance = signal.priceOpen - signal.priceStopLoss;
+        // Moving towards SL (use trailing SL if set)
+        const effectiveStopLoss = signal._trailingPriceStopLoss ?? signal.priceStopLoss;
+        const slDistance = signal.priceOpen - effectiveStopLoss;
         const progressPercent = (Math.abs(currentDistance) / slDistance) * 100;
         percentSl = Math.min(progressPercent, 100);
         await CALL_PARTIAL_LOSS_CALLBACKS_FN(
@@ -1879,8 +1942,9 @@ const RETURN_PENDING_SIGNAL_ACTIVE_FN = async (
       }
 
       if (currentDistance < 0) {
-        // Moving towards SL
-        const slDistance = signal.priceStopLoss - signal.priceOpen;
+        // Moving towards SL (use trailing SL if set)
+        const effectiveStopLoss = signal._trailingPriceStopLoss ?? signal.priceStopLoss;
+        const slDistance = effectiveStopLoss - signal.priceOpen;
         const progressPercent = (Math.abs(currentDistance) / slDistance) * 100;
         percentSl = Math.min(progressPercent, 100);
         await CALL_PARTIAL_LOSS_CALLBACKS_FN(
@@ -2339,12 +2403,15 @@ const PROCESS_PENDING_SIGNAL_CANDLES_FN = async (
 
     // Check TP/SL only if not expired
     // КРИТИЧНО: используем candle.high/low для точной проверки достижения TP/SL
+    // КРИТИЧНО: используем trailing SL если установлен
+    const effectiveStopLoss = signal._trailingPriceStopLoss ?? signal.priceStopLoss;
+
     if (!shouldClose && signal.position === "long") {
       // Для LONG: TP срабатывает если high >= TP, SL если low <= SL
       if (currentCandle.high >= signal.priceTakeProfit) {
         shouldClose = true;
         closeReason = "take_profit";
-      } else if (currentCandle.low <= signal.priceStopLoss) {
+      } else if (currentCandle.low <= effectiveStopLoss) {
         shouldClose = true;
         closeReason = "stop_loss";
       }
@@ -2355,7 +2422,7 @@ const PROCESS_PENDING_SIGNAL_CANDLES_FN = async (
       if (currentCandle.low <= signal.priceTakeProfit) {
         shouldClose = true;
         closeReason = "take_profit";
-      } else if (currentCandle.high >= signal.priceStopLoss) {
+      } else if (currentCandle.high >= effectiveStopLoss) {
         shouldClose = true;
         closeReason = "stop_loss";
       }
@@ -2367,7 +2434,7 @@ const PROCESS_PENDING_SIGNAL_CANDLES_FN = async (
       if (closeReason === "take_profit") {
         closePrice = signal.priceTakeProfit;
       } else if (closeReason === "stop_loss") {
-        closePrice = signal.priceStopLoss;
+        closePrice = effectiveStopLoss; // Используем trailing SL если установлен
       }
 
       return await CLOSE_PENDING_SIGNAL_IN_BACKTEST_FN(
@@ -2400,8 +2467,9 @@ const PROCESS_PENDING_SIGNAL_CANDLES_FN = async (
             self.params.execution.context.backtest
           );
         } else if (currentDistance < 0) {
-          // Moving towards SL
-          const slDistance = signal.priceOpen - signal.priceStopLoss;
+          // Moving towards SL (use trailing SL if set)
+          const effectiveStopLoss = signal._trailingPriceStopLoss ?? signal.priceStopLoss;
+          const slDistance = signal.priceOpen - effectiveStopLoss;
           const progressPercent = (Math.abs(currentDistance) / slDistance) * 100;
           await CALL_PARTIAL_LOSS_CALLBACKS_FN(
             self,
@@ -2434,8 +2502,9 @@ const PROCESS_PENDING_SIGNAL_CANDLES_FN = async (
         }
 
         if (currentDistance < 0) {
-          // Moving towards SL
-          const slDistance = signal.priceStopLoss - signal.priceOpen;
+          // Moving towards SL (use trailing SL if set)
+          const effectiveStopLoss = signal._trailingPriceStopLoss ?? signal.priceStopLoss;
+          const slDistance = effectiveStopLoss - signal.priceOpen;
           const progressPercent = (Math.abs(currentDistance) / slDistance) * 100;
           await CALL_PARTIAL_LOSS_CALLBACKS_FN(
             self,
@@ -3360,6 +3429,106 @@ export class ClientStrategy implements IStrategy {
 
     // Persist updated signal state (inline setPendingSignal content)
     // Note: this._pendingSignal already mutated by PARTIAL_LOSS_FN, no reassignment needed
+    this.params.logger.debug("ClientStrategy setPendingSignal (inline)", {
+      pendingSignal: this._pendingSignal,
+    });
+
+    // Call onWrite callback for testing persist storage
+    if (this.params.callbacks?.onWrite) {
+      this.params.callbacks.onWrite(
+        this.params.execution.context.symbol,
+        this._pendingSignal,
+        backtest
+      );
+    }
+
+    if (!backtest) {
+      await PersistSignalAdapter.writeSignalData(
+        this._pendingSignal,
+        this.params.execution.context.symbol,
+        this.params.strategyName,
+      );
+    }
+  }
+
+  /**
+   * Sets trailing stop-loss at specified percentage distance from current price.
+   *
+   * Calculates new stop-loss price based on position type and percentage:
+   * - For LONG: newSL = currentPrice * (1 - percentDistance/100) - moves SL upward as price rises
+   * - For SHORT: newSL = currentPrice * (1 + percentDistance/100) - moves SL downward as price falls
+   *
+   * Trailing behavior:
+   * - Only updates if new SL is BETTER than existing (closer to profit)
+   * - For LONG: only moves SL upward (never down)
+   * - For SHORT: only moves SL downward (never up)
+   * - Stores in _trailingPriceStopLoss, original priceStopLoss preserved
+   * - Persists updated signal state (backtest and live modes)
+   * - Calls onWrite callback for persistence testing
+   *
+   * Validation:
+   * - Throws if no pending signal exists
+   * - Throws if percentDistance is not a finite number
+   * - Throws if percentDistance <= 0 or > 100
+   * - Throws if currentPrice is not a positive finite number
+   *
+   * @param symbol - Trading pair symbol (e.g., "BTCUSDT")
+   * @param percentDistance - Positive percentage distance from current price (0-100)
+   * @param backtest - Whether running in backtest mode (controls persistence)
+   * @returns Promise that resolves when trailing SL is updated and persisted
+   *
+   * @example
+   * ```typescript
+   * // Set trailing SL at 2% distance from current price
+   * await strategy.trailing("BTCUSDT", 2, 45000, false);
+   *
+   * // As price rises (LONG), SL moves up automatically
+   * await strategy.trailing("BTCUSDT", 2, 46000, false); // SL moves to 46000 * 0.98
+   * await strategy.trailing("BTCUSDT", 2, 47000, false); // SL moves to 47000 * 0.98
+   * ```
+   */
+  public async trailing(
+    symbol: string,
+    percentDistance: number,
+    backtest: boolean
+  ): Promise<void> {
+    this.params.logger.debug("ClientStrategy trailing", {
+      symbol,
+      percentDistance,
+      hasPendingSignal: this._pendingSignal !== null,
+    });
+
+    // Validation: must have pending signal
+    if (!this._pendingSignal) {
+      throw new Error(
+        `ClientStrategy trailing: No pending signal exists for symbol=${symbol}`
+      );
+    }
+
+    // Validation: percentDistance must be valid
+    if (typeof percentDistance !== "number" || !isFinite(percentDistance)) {
+      throw new Error(
+        `ClientStrategy trailing: percentDistance must be a finite number, got ${percentDistance} (${typeof percentDistance})`
+      );
+    }
+
+    if (percentDistance <= 0) {
+      throw new Error(
+        `ClientStrategy trailing: percentDistance must be > 0, got ${percentDistance}`
+      );
+    }
+
+    if (percentDistance > 100) {
+      throw new Error(
+        `ClientStrategy trailing: percentDistance must be <= 100, got ${percentDistance}`
+      );
+    }
+
+    // Execute trailing logic
+    TRAILING_FN(this, this._pendingSignal, percentDistance);
+
+    // Persist updated signal state (inline setPendingSignal content)
+    // Note: this._pendingSignal already mutated by TRAILING_FN, no reassignment needed
     this.params.logger.debug("ClientStrategy setPendingSignal (inline)", {
       pendingSignal: this._pendingSignal,
     });

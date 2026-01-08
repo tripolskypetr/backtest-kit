@@ -80,6 +80,15 @@ export interface ISignalRow extends ISignalDto {
     /** Price at which this partial was executed */
     price: number;
   }>;
+  /**
+   * Trailing stop-loss price that overrides priceStopLoss when set.
+   * Updated by trailing() method based on position type and percentage distance.
+   * - For LONG: moves upward as price moves toward TP (never moves down)
+   * - For SHORT: moves downward as price moves toward TP (never moves up)
+   * When _trailingPriceStopLoss is set, it replaces priceStopLoss for TP/SL checks.
+   * Original priceStopLoss is preserved in persistence but ignored during execution.
+   */
+  _trailingPriceStopLoss?: number;
 }
 
 /**
@@ -550,6 +559,49 @@ export interface IStrategy {
    * ```
    */
   partialLoss: (symbol: string, percentToClose: number, currentPrice: number, backtest: boolean) => Promise<void>;
+
+  /**
+   * Sets trailing stop-loss at specified percentage distance from ORIGINAL stop-loss.
+   *
+   * Calculates new stop-loss price based on position type and percentage FROM ORIGINAL priceStopLoss:
+   * - For LONG: newSL = originalSL * (1 + percentDistance/100) - moves SL upward as price rises
+   * - For SHORT: newSL = originalSL * (1 - percentDistance/100) - moves SL downward as price falls
+   *
+   * Trailing behavior:
+   * - Only updates if new SL is BETTER than existing (closer to profit)
+   * - For LONG: only moves SL upward (never down)
+   * - For SHORT: only moves SL downward (never up)
+   * - Stores in _trailingPriceStopLoss, original priceStopLoss preserved
+   * - Percent is calculated from ORIGINAL priceStopLoss, not from current price
+   * - Larger percentDistance values override smaller ones (no accumulation)
+   *
+   * Validations:
+   * - Throws if no pending signal exists
+   * - Throws if called on scheduled signal (not yet activated)
+   * - Throws if percentDistance <= 0 or > 100
+   * - Throws if currentPrice is not a positive finite number
+   *
+   * Use case: User-controlled trailing stop triggered from onPartialProfit callback.
+   *
+   * @param symbol - Trading pair symbol (e.g., "BTCUSDT")
+   * @param percentDistance - Positive percentage distance from ORIGINAL priceStopLoss (0-100)
+   * @param backtest - Whether running in backtest mode
+   * @returns Promise that resolves when trailing SL is updated
+   *
+   * @example
+   * ```typescript
+   * callbacks: {
+   *   onPartialProfit: async (symbol, signal, currentPrice, percentTp, backtest) => {
+   *     if (percentTp >= 50) {
+   *       // Set trailing SL at 2% from ORIGINAL stop-loss
+   *       // If original SL was 100, new SL will be 102 (LONG) or 98 (SHORT)
+   *       await strategy.trailing(symbol, 2, currentPrice, backtest);
+   *     }
+   *   }
+   * }
+   * ```
+   */
+  trailing: (symbol: string, percentDistance: number, backtest: boolean) => Promise<void>;
 }
 
 /**
