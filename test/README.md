@@ -1638,6 +1638,317 @@ console.log(`  shouldActivate for LONG: VWAP <= priceOpen?`);
 - Восстановлением цены после SL
 - Учетом immediate activation
 
+## Trailing Stop Feature
+
+**НОВАЯ ФУНКЦИОНАЛЬНОСТЬ**: Trailing Stop позволяет динамически изменять StopLoss во время работы opened сигнала.
+
+### Основные концепции
+
+#### Принцип работы
+
+Trailing Stop работает **относительно entry price**, а НЕ относительно текущей цены:
+
+```typescript
+// Текущий SL distance (от entry): 2%
+// percentShift = -0.5% (отрицательный = подтягиваем SL)
+// Новый SL distance: 2% + (-0.5%) = 1.5%
+
+// LONG пример:
+// entry = 100, originalSL = 98 (distance = 2%)
+// Trailing: percentShift = -0.5%
+// newSL = 100 - (100 * 0.015) = 98.5 (distance = 1.5%)
+```
+
+**Важно**:
+- **Отрицательный shift** = подтягивание SL (уменьшение distance, защита прибыли)
+- **Положительный shift** = ослабление SL (увеличение distance, больше свободы цене)
+
+### API методы
+
+#### 1. Функциональный API (в стратегиях)
+
+```typescript
+import { trailingStop } from "backtest-kit";
+
+// В callbacks стратегии
+await trailingStop(symbol, percentShift);
+```
+
+**Автоматически определяет режим** (backtest/live) из контекста выполнения.
+
+#### 2. Class API для Backtest
+
+```typescript
+import { Backtest } from "backtest-kit";
+
+await Backtest.trailingStop(symbol, percentShift, {
+  strategyName: "my-strategy",
+  exchangeName: "binance",
+  frameName: "1h-frame"
+});
+```
+
+#### 3. Class API для Live
+
+```typescript
+import { Live } from "backtest-kit";
+
+await Live.trailingStop(symbol, percentShift, {
+  strategyName: "my-strategy",
+  exchangeName: "binance"
+});
+```
+
+### Интеграция с Partial Events
+
+#### Паттерн #1: onPartialProfit callback
+
+```javascript
+addStrategy({
+  strategyName: "trailing-strategy",
+  getSignal: async () => ({ ... }),
+  callbacks: {
+    onPartialProfit: async (symbol, signal, currentPrice, revenuePercent, backtest) => {
+      // revenuePercent - прогресс к TP (0-100%)
+      // Для LONG: (currentPrice - entry) / (TP - entry) * 100
+
+      // Применяем trailing stop на определенных уровнях
+      const level = Math.round(revenuePercent / 10) * 10;
+
+      if (level === 10) {
+        await trailingStop(symbol, -0.5); // Подтягиваем SL на 10% прибыли
+      } else if (level === 20) {
+        await trailingStop(symbol, -0.5); // Еще подтягиваем на 20%
+      }
+    }
+  }
+});
+```
+
+#### Паттерн #2: listenPartialProfit глобальный слушатель
+
+```javascript
+import { listenPartialProfit, trailingStop } from "backtest-kit";
+
+const unsubscribe = listenPartialProfit(async ({ symbol, level, data, currentPrice }) => {
+  // level - округленный процент (10, 20, 30, ...)
+  // data - IPublicSignal
+
+  if (level === 20) {
+    await trailingStop(symbol, -0.5);
+  }
+});
+```
+
+#### Паттерн #3: listenPartialLoss для защиты убытков
+
+```javascript
+import { listenPartialLoss, trailingStop } from "backtest-kit";
+
+const unsubscribe = listenPartialLoss(async ({ symbol, level, data, currentPrice }) => {
+  // Подтягиваем SL вверх даже при убытках (cut losses faster)
+
+  if (level === 10) {
+    await trailingStop(symbol, -0.5); // Уменьшаем расстояние до SL
+  }
+});
+```
+
+### Валидация и безопасность
+
+#### Проверки системы
+
+1. **Новый SL не может пересечь entry**:
+   ```typescript
+   // LONG: newSL >= entry → отклонено
+   // SHORT: newSL <= entry → отклонено
+   ```
+
+2. **Только улучшение SL**:
+   ```typescript
+   // LONG: newSL должен быть ВЫШЕ currentSL
+   // SHORT: newSL должен быть НИЖЕ currentSL
+   ```
+
+3. **Требуется opened сигнал**:
+   - Trailing stop работает ТОЛЬКО для opened сигналов
+   - Scheduled сигналы не поддерживают trailing stop
+
+### Примеры тестов
+
+#### Тест #1: Базовый trailing stop
+
+```javascript
+test("TRAILING STOP: Tightens SL for LONG position", async ({ pass, fail }) => {
+  addStrategy({
+    getSignal: async () => ({
+      position: "long",
+      priceOpen: 100,
+      priceTakeProfit: 110,
+      priceStopLoss: 98,  // Original SL: -2%
+      minuteEstimatedTime: 60,
+    }),
+    callbacks: {
+      onOpen: async (symbol) => {
+        // После открытия применяем trailing stop
+        await trailingStop(symbol, -0.5); // Shift = -0.5%
+        // newSL = 100 - (100 * 0.015) = 98.5
+      }
+    }
+  });
+
+  // Генерируем свечи с падением к новому SL (98.5)
+  // ...
+
+  // Проверяем: closeReason = "stop_loss", close price ≈ 98.5
+});
+```
+
+#### Тест #2: Множественные adjustments
+
+```javascript
+test("TRAILING STOP: Multiple adjustments on profit", async ({ pass, fail }) => {
+  let adjustments = 0;
+
+  addStrategy({
+    getSignal: async () => ({
+      position: "long",
+      priceOpen: 100,
+      priceTakeProfit: 160,
+      priceStopLoss: 97.8,
+      minuteEstimatedTime: 200,
+    }),
+    callbacks: {
+      onPartialProfit: async (symbol, signal, currentPrice, revenuePercent) => {
+        const level = Math.round(revenuePercent / 10) * 10;
+
+        if (level === 10 && adjustments < 1) {
+          await trailingStop(symbol, -0.5);
+          adjustments++;
+        } else if (level === 20 && adjustments < 2) {
+          await trailingStop(symbol, -0.5);
+          adjustments++;
+        } else if (level === 30 && adjustments < 3) {
+          await trailingStop(symbol, -0.5);
+          adjustments++;
+        }
+      }
+    }
+  });
+
+  // ... генерация свечей с ростом до 33% прибыли, затем падение
+
+  // Проверяем: adjustments === 3
+});
+```
+
+#### Тест #3: Trailing stop с listenPartialLoss
+
+```javascript
+test("TRAILING STOP: Apply on loss for faster exit", async ({ pass, fail }) => {
+  const adjustments = [];
+
+  const unsubscribe = listenPartialLoss(async ({ symbol, level }) => {
+    if (level === 10) {
+      await trailingStop(symbol, -0.5);
+      adjustments.push(10);
+    } else if (level === 20) {
+      await trailingStop(symbol, -0.5);
+      adjustments.push(20);
+    }
+  });
+
+  // ... генерация свечей с падением к SL
+
+  // Проверяем: adjustments.length >= 2
+  unsubscribe();
+});
+```
+
+### Типичные проблемы
+
+#### Проблема #1: Trailing stop не применяется
+
+**Причина**: Сигнал в состоянии scheduled, не opened.
+
+**Решение**: Используйте immediate activation или scheduled → opened переход:
+
+```javascript
+// Для immediate activation НЕ указывайте priceOpen в сигнале:
+return {
+  position: "long",
+  // priceOpen не указан → система использует currentPrice (VWAP)
+  priceTakeProfit: basePrice + 60000,
+  priceStopLoss: basePrice - 2200,
+};
+
+// Система установит priceOpen = VWAP и откроет immediate если в зоне
+```
+
+#### Проблема #2: Partial события не срабатывают
+
+**Причина**: Нет буферных свечей, VWAP рассчитывается неправильно.
+
+**Решение**: Добавьте 4 буферные свечи ДО startTime (см. раздел "Buffer Candles для VWAP расчета").
+
+#### Проблема #3: closeReason = time_expired вместо stop_loss
+
+**Причина**: Недостаточно времени или цена не достигла нового trailing SL.
+
+**Решение**:
+- Увеличьте `minuteEstimatedTime`
+- Убедитесь что свечи достигают нового SL
+- Добавьте фазу падения после adjustments
+
+### Архитектурные изменения
+
+#### Новые файлы и методы
+
+1. **src/function/strategy.ts**:
+   - Добавлен метод `trailingStop(symbol, percentShift)`
+
+2. **src/classes/Backtest.ts**:
+   - Добавлен метод `Backtest.trailingStop(symbol, percentShift, context)`
+
+3. **src/classes/Live.ts**:
+   - Добавлен метод `Live.trailingStop(symbol, percentShift, context)`
+
+4. **src/lib/services/core/StrategyCoreService.ts**:
+   - Добавлен метод `trailingStop(backtest, symbol, percentShift, context)`
+
+5. **src/lib/services/connection/StrategyConnectionService.ts**:
+   - Добавлен метод `trailingStop(backtest, symbol, percentShift, context)`
+
+6. **src/client/ClientStrategy.ts**:
+   - Добавлена функция `TRAILING_STOP_FN(self, signal, percentShift)`
+   - Добавлен метод `trailingStop(symbol, percentShift, backtest)`
+   - Добавлено внутреннее поле `signal._trailingPriceStopLoss`
+
+#### Изменения в типах
+
+```typescript
+interface ISignalRow {
+  // ... существующие поля
+  _trailingPriceStopLoss?: number;  // Trailing SL если установлен
+}
+```
+
+### Интеграция с существующей логикой
+
+- При проверке SL система использует `effectiveStopLoss = signal._trailingPriceStopLoss ?? signal.priceStopLoss`
+- Partial loss callbacks учитывают trailing SL при расчете progress
+- Закрытие по SL использует точную цену trailing SL
+
+### Тестовые файлы
+
+- **test/e2e/trailing.test.mjs**: 6 тестов trailing stop функциональности
+  - Тест #1: Базовое подтягивание SL для LONG
+  - Тест #2: Отклонение ухудшающего SL
+  - Тест #3: Trailing stop для SHORT позиций
+  - Тест #4: Интеграция с listenPartialProfit
+  - Тест #5: Множественные adjustments на разных уровнях прибыли
+  - Тест #6: Применение на partial loss событиях
+
 ## Changelog: Immediate Activation Feature
 
 ### Изменения в ClientStrategy.ts
@@ -1665,7 +1976,9 @@ console.log(`  shouldActivate for LONG: VWAP <= priceOpen?`);
 - **test/e2e/sanitize.test.mjs**: Скорректированы ожидания (5 вместо 2, 4 вместо 3)
 - **test/e2e/edge.test.mjs**: Гибкие проверки для количества сигналов
 - **test/e2e/other.test.mjs**: Новые тесты #9 и #10 для immediate activation
+- **test/e2e/trailing.test.mjs**: Все 6 тестов используют immediate activation через отсутствие priceOpen
 
 ### См. также
 
 - [test/e2e/other.test.mjs](./e2e/other.test.mjs) - Тесты #9 и #10 демонстрируют immediate activation для LONG и SHORT
+- [test/e2e/trailing.test.mjs](./e2e/trailing.test.mjs) - Тесты #5 и #6 демонстрируют trailing stop с immediate activation
