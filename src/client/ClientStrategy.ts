@@ -799,30 +799,42 @@ const TRAILING_STOP_FN = (
   signal: ISignalRow,
   percentShift: number
 ): void => {
-  // Calculate distance between entry and original stop-loss
-  const slDistance = Math.abs(signal.priceOpen - signal.priceStopLoss);
+  // Calculate distance between entry and original stop-loss AS PERCENTAGE of entry price
+  const slDistancePercent = Math.abs((signal.priceOpen - signal.priceStopLoss) / signal.priceOpen * 100);
 
-  // Calculate new stop-loss price based on position type and percentShift
-  // Negative percentShift: move SL closer to entry (tighten stop)
-  // Positive percentShift: move SL away from entry (loosen stop, protect more profit)
+  // Calculate new stop-loss distance percentage by adding shift
+  // Negative percentShift: reduces distance % (tightens stop, moves SL toward entry)
+  // Positive percentShift: increases distance % (loosens stop, moves SL away from entry)
+  const newSlDistancePercent = slDistancePercent + percentShift;
+
+  // Validate: new distance must be positive (SL cannot cross entry)
+  if (newSlDistancePercent <= 0) {
+    self.params.logger.warn("TRAILING_STOP_FN: new distance would be zero or negative, skipping", {
+      signalId: signal.id,
+      position: signal.position,
+      originalDistancePercent: slDistancePercent,
+      percentShift,
+      newDistancePercent: newSlDistancePercent,
+    });
+    return;
+  }
+
+  // Calculate new stop-loss price based on new distance percentage
   let newStopLoss: number;
 
   if (signal.position === "long") {
-    // LONG: originalSL is below entry
-    // Formula: entry - distance * (1 + percentShift/100)
-    // Negative %: reduces distance (SL moves UP toward entry, tightens stop)
-    // Positive %: increases distance (SL moves DOWN away from entry, loosens stop)
-    // Example: entry=100, distance=10, shift=-50% → 100 - 10*0.5 = 95 (tighter)
-    // Example: entry=100, distance=10, shift=+20% → 100 - 10*1.2 = 88 (looser)
-    newStopLoss = signal.priceOpen - slDistance * (1 + percentShift / 100);
+    // LONG: SL is below entry
+    // Formula: entry * (1 - newDistance%)
+    // Example: entry=100, originalSL=-1%, shift=-1% → newDistance=0% → invalid (caught above)
+    // Example: entry=100, originalSL=-1%, shift=+1% → newDistance=2% → 100 * 0.98 = 98 (looser)
+    // Example: entry=100, originalSL=-2%, shift=+1% → newDistance=1% → 100 * 0.99 = 99 (tighter)
+    newStopLoss = signal.priceOpen * (1 - newSlDistancePercent / 100);
   } else {
-    // SHORT: originalSL is above entry
-    // Formula: entry + distance * (1 + percentShift/100)
-    // Negative %: reduces distance (SL moves DOWN toward entry, tightens stop)
-    // Positive %: increases distance (SL moves UP away from entry, loosens stop)
-    // Example: entry=100, distance=10, shift=-50% → 100 + 10*0.5 = 105 (tighter)
-    // Example: entry=100, distance=10, shift=+20% → 100 + 10*1.2 = 112 (looser)
-    newStopLoss = signal.priceOpen + slDistance * (1 + percentShift / 100);
+    // SHORT: SL is above entry
+    // Formula: entry * (1 + newDistance%)
+    // Example: entry=100, originalSL=+1%, shift=+1% → newDistance=2% → 100 * 1.02 = 102 (looser)
+    // Example: entry=100, originalSL=+2%, shift=-1% → newDistance=1% → 100 * 1.01 = 101 (tighter)
+    newStopLoss = signal.priceOpen * (1 + newSlDistancePercent / 100);
   }
 
   // Validate: new SL must not cross entry price
@@ -887,10 +899,11 @@ const TRAILING_STOP_FN = (
     position: signal.position,
     priceOpen: signal.priceOpen,
     originalStopLoss: signal.priceStopLoss,
+    originalDistancePercent: slDistancePercent,
     previousStopLoss: currentStopLoss,
     newStopLoss,
+    newDistancePercent: newSlDistancePercent,
     percentShift,
-    slDistance,
   });
 };
 

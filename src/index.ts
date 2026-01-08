@@ -6,6 +6,7 @@ export {
   cancel,
   partialLoss,
   partialProfit,
+  trailingStop,
 } from "./function/strategy";
 export {
   setLogger,
