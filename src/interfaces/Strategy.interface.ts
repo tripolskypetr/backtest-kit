@@ -103,6 +103,24 @@ export interface IScheduledSignalRow extends ISignalRow {
 }
 
 /**
+ * Public signal row with original stop-loss price.
+ * Extends ISignalRow to include originalPriceStopLoss for external visibility.
+ * Used in public APIs to show user the original SL even if trailing SL is active.
+ * This allows users to see both the current effective SL and the original SL set at signal creation.
+ * The originalPriceStopLoss remains unchanged even if _trailingPriceStopLoss modifies the effective SL.
+ * Useful for transparency in reporting and user interfaces.
+ * Note: originalPriceStopLoss is identical to priceStopLoss at signal creation time.
+ */
+export interface IPublicSignalRow extends ISignalRow {
+  /**
+   * Original stop-loss price set at signal creation.
+   * Remains unchanged even if trailing stop-loss modifies effective SL.
+   * Used for user visibility of initial SL parameters.
+   */
+  originalPriceStopLoss: number;
+}
+
+/**
  * Scheduled signal row with cancellation ID.
  * Extends IScheduledSignalRow to include optional cancelId for user-initiated cancellations.
  */
@@ -248,7 +266,7 @@ export interface IStrategyTickResultScheduled {
   /** Discriminator for type-safe union */
   action: "scheduled";
   /** Scheduled signal waiting for activation */
-  signal: IScheduledSignalRow;
+  signal: IPublicSignalRow;
   /** Strategy name for tracking */
   strategyName: StrategyName;
   /** Exchange name for tracking */
@@ -271,7 +289,7 @@ export interface IStrategyTickResultOpened {
   /** Discriminator for type-safe union */
   action: "opened";
   /** Newly created and validated signal with generated ID */
-  signal: ISignalRow;
+  signal: IPublicSignalRow;
   /** Strategy name for tracking */
   strategyName: StrategyName;
   /** Exchange name for tracking */
@@ -294,7 +312,7 @@ export interface IStrategyTickResultActive {
   /** Discriminator for type-safe union */
   action: "active";
   /** Currently monitored signal */
-  signal: ISignalRow;
+  signal: IPublicSignalRow;
   /** Current VWAP price for monitoring */
   currentPrice: number;
   /** Strategy name for tracking */
@@ -321,7 +339,7 @@ export interface IStrategyTickResultClosed {
   /** Discriminator for type-safe union */
   action: "closed";
   /** Completed signal with original parameters */
-  signal: ISignalRow;
+  signal: IPublicSignalRow;
   /** Final VWAP price at close */
   currentPrice: number;
   /** Why signal closed (time_expired | take_profit | stop_loss) */
@@ -350,7 +368,7 @@ export interface IStrategyTickResultCancelled {
   /** Discriminator for type-safe union */
   action: "cancelled";
   /** Cancelled scheduled signal */
-  signal: IScheduledSignalRow;
+  signal: IPublicSignalRow;
   /** Final VWAP price at cancellation */
   currentPrice: number;
   /** Unix timestamp in milliseconds when signal cancelled */
@@ -411,7 +429,7 @@ export interface IStrategy {
    * @param symbol - Trading pair symbol
    * @returns Promise resolving to pending signal or null
    */
-  getPendingSignal: (symbol: string) => Promise<ISignalRow | null>;
+  getPendingSignal: (symbol: string) => Promise<IPublicSignalRow | null>;
 
   /**
    * Retrieves the currently active scheduled signal for the symbol.
@@ -421,7 +439,7 @@ export interface IStrategy {
    * @param symbol - Trading pair symbol
    * @returns Promise resolving to scheduled signal or null
    */
-  getScheduledSignal: (symbol: string) => Promise<IScheduledSignalRow | null>;
+  getScheduledSignal: (symbol: string) => Promise<IPublicSignalRow | null>;
 
   /**
    * Checks if the strategy has been stopped.

@@ -87,6 +87,7 @@ export {
   SignalInterval,
   ISignalDto,
   ISignalRow,
+  IPublicSignalRow,
   IScheduledSignalCancelRow,
   IScheduledSignalRow,
   IStrategySchema,

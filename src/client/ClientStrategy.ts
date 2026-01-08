@@ -13,6 +13,7 @@ import {
   ISignalDto,
   IScheduledSignalRow,
   IScheduledSignalCancelRow,
+  IPublicSignalRow,
   IStrategyParams,
   IStrategyTickResult,
   IStrategyTickResultIdle,
@@ -44,6 +45,20 @@ const INTERVAL_MINUTES: Record<SignalInterval, number> = {
 };
 
 const TIMEOUT_SYMBOL = Symbol('timeout');
+
+const TO_PUBLIC_SIGNAL = <T extends ISignalRow | IScheduledSignalRow>(signal: T): IPublicSignalRow => {
+  if (signal._trailingPriceStopLoss !== undefined) {
+    return {
+      ...signal,
+      priceStopLoss: signal._trailingPriceStopLoss,
+      originalPriceStopLoss: signal.priceStopLoss,
+    };
+  }
+  return {
+    ...signal,
+    originalPriceStopLoss: signal.priceStopLoss,
+  };
+};
 
 const VALIDATE_SIGNAL_FN = (signal: ISignalRow, currentPrice: number, isScheduled: boolean): void => {
   const errors: string[] = [];
@@ -876,7 +891,7 @@ const CHECK_SCHEDULED_SIGNAL_TIMEOUT_FN = async (
 
   const result: IStrategyTickResultCancelled = {
     action: "cancelled",
-    signal: scheduled,
+    signal: TO_PUBLIC_SIGNAL(scheduled),
     currentPrice: currentPrice,
     closeTimestamp: currentTime,
     strategyName: self.params.method.context.strategyName,
@@ -962,7 +977,7 @@ const CANCEL_SCHEDULED_SIGNAL_BY_STOPLOSS_FN = async (
 
   const result: IStrategyTickResultCancelled = {
     action: "cancelled",
-    signal: scheduled,
+    signal: TO_PUBLIC_SIGNAL(scheduled),
     currentPrice: currentPrice,
     closeTimestamp: currentTime,
     strategyName: self.params.method.context.strategyName,
@@ -1063,7 +1078,7 @@ const ACTIVATE_SCHEDULED_SIGNAL_FN = async (
 
   const result: IStrategyTickResultOpened = {
     action: "opened",
-    signal: self._pendingSignal,
+    signal: TO_PUBLIC_SIGNAL(self._pendingSignal),
     strategyName: self.params.method.context.strategyName,
     exchangeName: self.params.method.context.exchangeName,
     frameName: self.params.method.context.frameName,
@@ -1650,7 +1665,7 @@ const RETURN_SCHEDULED_SIGNAL_ACTIVE_FN = async (
 
   const result: IStrategyTickResultActive = {
     action: "active",
-    signal: scheduled,
+    signal: TO_PUBLIC_SIGNAL(scheduled),
     currentPrice: currentPrice,
     strategyName: self.params.method.context.strategyName,
     exchangeName: self.params.method.context.exchangeName,
@@ -1701,7 +1716,7 @@ const OPEN_NEW_SCHEDULED_SIGNAL_FN = async (
 
   const result: IStrategyTickResultScheduled = {
     action: "scheduled",
-    signal: signal,
+    signal: TO_PUBLIC_SIGNAL(signal),
     strategyName: self.params.method.context.strategyName,
     exchangeName: self.params.method.context.exchangeName,
     frameName: self.params.method.context.frameName,
@@ -1760,7 +1775,7 @@ const OPEN_NEW_PENDING_SIGNAL_FN = async (
 
   const result: IStrategyTickResultOpened = {
     action: "opened",
-    signal: signal,
+    signal: TO_PUBLIC_SIGNAL(signal),
     strategyName: self.params.method.context.strategyName,
     exchangeName: self.params.method.context.exchangeName,
     frameName: self.params.method.context.frameName,
@@ -1891,7 +1906,7 @@ const CLOSE_PENDING_SIGNAL_FN = async (
 
   const result: IStrategyTickResultClosed = {
     action: "closed",
-    signal: signal,
+    signal: TO_PUBLIC_SIGNAL(signal),
     currentPrice: currentPrice,
     closeReason: closeReason,
     closeTimestamp: currentTime,
@@ -2002,7 +2017,7 @@ const RETURN_PENDING_SIGNAL_ACTIVE_FN = async (
 
   const result: IStrategyTickResultActive = {
     action: "active",
-    signal: signal,
+    signal: TO_PUBLIC_SIGNAL(signal),
     currentPrice: currentPrice,
     strategyName: self.params.method.context.strategyName,
     exchangeName: self.params.method.context.exchangeName,
@@ -2092,7 +2107,7 @@ const CANCEL_SCHEDULED_SIGNAL_IN_BACKTEST_FN = async (
 
   const result: IStrategyTickResultCancelled = {
     action: "cancelled",
-    signal: scheduled,
+    signal: TO_PUBLIC_SIGNAL(scheduled),
     currentPrice: averagePrice,
     closeTimestamp: closeTimestamp,
     strategyName: self.params.method.context.strategyName,
@@ -2259,7 +2274,7 @@ const CLOSE_PENDING_SIGNAL_IN_BACKTEST_FN = async (
 
   const result: IStrategyTickResultClosed = {
     action: "closed",
-    signal: signal,
+    signal: TO_PUBLIC_SIGNAL(signal),
     currentPrice: averagePrice,
     closeReason: closeReason,
     closeTimestamp: closeTimestamp,
@@ -2679,11 +2694,11 @@ export class ClientStrategy implements IStrategy {
    * If no signal is pending, returns null.
    * @returns Promise resolving to the pending signal or null.
    */
-  public async getPendingSignal(symbol: string): Promise<ISignalRow | null> {
+  public async getPendingSignal(symbol: string): Promise<IPublicSignalRow | null> {
     this.params.logger.debug("ClientStrategy getPendingSignal", {
       symbol,
     });
-    return this._pendingSignal;
+    return this._pendingSignal ? TO_PUBLIC_SIGNAL(this._pendingSignal) : null;
   }
 
   /**
@@ -2691,11 +2706,11 @@ export class ClientStrategy implements IStrategy {
    * If no scheduled signal exists, returns null.
    * @returns Promise resolving to the scheduled signal or null.
    */
-  public async getScheduledSignal(symbol: string): Promise<IScheduledSignalRow | null> {
+  public async getScheduledSignal(symbol: string): Promise<IPublicSignalRow | null> {
     this.params.logger.debug("ClientStrategy getScheduledSignal", {
       symbol,
     });
-    return this._scheduledSignal;
+    return this._scheduledSignal ? TO_PUBLIC_SIGNAL(this._scheduledSignal) : null;
   }
 
   /**
@@ -2788,7 +2803,7 @@ export class ClientStrategy implements IStrategy {
 
       const result: IStrategyTickResultCancelled = {
         action: "cancelled",
-        signal: cancelledSignal,
+        signal: TO_PUBLIC_SIGNAL(cancelledSignal),
         currentPrice,
         closeTimestamp: currentTime,
         strategyName: this.params.method.context.strategyName,
@@ -2969,7 +2984,7 @@ export class ClientStrategy implements IStrategy {
 
       const cancelledResult: IStrategyTickResultCancelled = {
         action: "cancelled",
-        signal: cancelledSignal,
+        signal: TO_PUBLIC_SIGNAL(cancelledSignal),
         currentPrice,
         closeTimestamp: closeTimestamp,
         strategyName: this.params.method.context.strategyName,
@@ -3060,7 +3075,7 @@ export class ClientStrategy implements IStrategy {
           // but this is correct behavior if someone calls backtest() with partial data
           const result: IStrategyTickResultActive = {
             action: "active",
-            signal: scheduled,
+            signal: TO_PUBLIC_SIGNAL(scheduled),
             currentPrice: lastPrice,
             percentSl: 0,
             percentTp: 0,
