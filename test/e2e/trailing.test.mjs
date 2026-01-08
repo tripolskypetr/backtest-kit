@@ -1311,3 +1311,266 @@ test("TRAILING STOP: Rejects wrong direction for LONG position", async ({ pass, 
 
   pass(`TRAILING STOP DIRECTION PROTECTION WORKS: System rejected wrong direction, closed by first trailing SL with PNL ${closedResult.pnl.pnlPercentage.toFixed(2)}%`);
 });
+
+
+/**
+ * TRAILING STOP ТЕСТ #7: Cannot change trailing stop direction after it's set
+ *
+ * Проверяем что:
+ * - Направление trailing stop устанавливается первым вызовом и больше не меняется
+ * - Система отклоняет ВСЕ попытки изменить направление (не только ухудшающие, но и улучшающие в другую сторону)
+ * - Можно только продолжать движение в том же направлении
+ *
+ * Сценарий:
+ * 1. LONG позиция: entry=100k, originalSL=98k (distance=2%)
+ * 2. Первый вызов trailingStop(+1) → newSL=97k (направление DOWN установлено, ослабляем защиту)
+ * 3. Второй вызов trailingStop(-3) → система ОТКЛОНЯЕТ (пытается двигать вверх, улучшая защиту, но направление DOWN)
+ * 4. Третий вызов trailingStop(+2) → ПРИНИМАЕТСЯ (направление DOWN, продолжаем движение вниз, newSL=96k)
+ * 5. Цена падает до 96.5k
+ * 6. Позиция закрывается по финальному trailing SL (96k)
+ */
+test("TRAILING STOP: Cannot change direction once set", async ({ pass, fail }) => {
+  const startTime = new Date("2024-01-01T00:00:00Z").getTime();
+  const intervalMs = 60000;
+  const basePrice = 100000;
+  const bufferMinutes = 4;
+  const bufferStartTime = startTime - bufferMinutes * intervalMs;
+
+  let allCandles = [];
+  let signalGenerated = false;
+  let firstTrailingApplied = false;
+  let secondTrailingAttempted = false;
+  let thirdTrailingApplied = false;
+
+  for (let i = 0; i < 5; i++) {
+    allCandles.push({
+      timestamp: bufferStartTime + i * intervalMs,
+      open: basePrice,
+      high: basePrice + 100,
+      low: basePrice - 50,
+      close: basePrice,
+      volume: 100,
+    });
+  }
+
+  addExchange({
+    exchangeName: "binance-trailing-no-direction-change",
+    getCandles: async (_symbol, _interval, since, limit) => {
+      const sinceIndex = Math.floor((since.getTime() - bufferStartTime) / intervalMs);
+      const result = allCandles.slice(sinceIndex, sinceIndex + limit);
+      return result.length > 0 ? result : allCandles.slice(0, Math.min(limit, allCandles.length));
+    },
+    formatPrice: async (_symbol, p) => p.toFixed(8),
+    formatQuantity: async (_symbol, quantity) => quantity.toFixed(8),
+  });
+
+  addStrategy({
+    strategyName: "test-trailing-no-direction-change",
+    interval: "1m",
+    getSignal: async () => {
+      if (signalGenerated) return null;
+      signalGenerated = true;
+
+      allCandles = [];
+
+      for (let i = 0; i < bufferMinutes; i++) {
+        allCandles.push({
+          timestamp: bufferStartTime + i * intervalMs,
+          open: basePrice,
+          high: basePrice + 50,
+          low: basePrice - 50,
+          close: basePrice,
+          volume: 100,
+        });
+      }
+
+      for (let i = 0; i < 50; i++) {
+        const timestamp = startTime + i * intervalMs;
+
+        // Фаза 1 (0-9): Активация и стабильность на basePrice
+        if (i < 10) {
+          allCandles.push({
+            timestamp,
+            open: basePrice,
+            high: basePrice + 100,
+            low: basePrice - 100,
+            close: basePrice,
+            volume: 100
+          });
+        }
+        // Фаза 2 (10-19): Небольшой рост до +3% для второй попытки
+        else if (i >= 10 && i < 20) {
+          const price = basePrice + 3000;
+          allCandles.push({
+            timestamp,
+            open: price,
+            high: price + 100,
+            low: price - 100,
+            close: price,
+            volume: 100
+          });
+        }
+        // Фаза 3 (20-29): Рост до +5% для третьей попытки
+        else if (i >= 20 && i < 30) {
+          const price = basePrice + 5000;
+          allCandles.push({
+            timestamp,
+            open: price,
+            high: price + 100,
+            low: price - 100,
+            close: price,
+            volume: 100
+          });
+        }
+        // Фаза 4 (30-39): Падение до 95k (гарантированно пробивает третий trailing SL=96k)
+        else if (i >= 30 && i < 40) {
+          const price = 95000;
+          allCandles.push({
+            timestamp,
+            open: price,
+            high: price + 100,
+            low: price - 100,  // low=94900, гарантированно < 96000
+            close: price,
+            volume: 100
+          });
+        }
+        // Остальное: не должно достигаться
+        else {
+          allCandles.push({
+            timestamp,
+            open: basePrice,
+            high: basePrice + 100,
+            low: basePrice - 100,
+            close: basePrice,
+            volume: 100
+          });
+        }
+      }
+
+      return {
+        position: "long",
+        priceOpen: basePrice,              // 100000
+        priceTakeProfit: basePrice + 20000, // 120000 (+20%)
+        priceStopLoss: basePrice - 2000,    // 98000 (-2%)
+        minuteEstimatedTime: 200,  // Увеличено для 50 свечей
+      };
+    },
+    callbacks: {
+      onOpen: async (symbol, _signal, _priceOpen, _backtest) => {
+        console.log(`[onOpen] Applying first trailing stop (direction DOWN)`);
+
+        // Первый вызов: устанавливает направление DOWN (ослабление защиты)
+        // percentShift = +1% → newDistance = 2% + 1% = 3% → newSL = 97k
+        // Направление: DOWN (97k < 98k)
+        await trailingStop(symbol, +1);
+        firstTrailingApplied = true;
+
+        console.log(`[trailingStop #1] Applied shift=+1%, direction set to DOWN (97k < 98k original)`);
+      },
+      onPartialProfit: async (symbol, _signal, _currentPrice, revenuePercent, _backtest) => {
+        // Второй вызов при 3% profit: пытается двигать вверх (улучшение, но wrong direction)
+        if (firstTrailingApplied && !secondTrailingAttempted && revenuePercent >= 3 && revenuePercent < 5) {
+          console.log(`[onPartialProfit] Second trailing: shift=-3% at ${revenuePercent.toFixed(2)}%`);
+
+          // percentShift = -3% → newDistance = 2% + (-3%) = -1% → newSL = 101k (в зоне прибыли!)
+          // Направление: UP (101k > 97k) - ОТКЛОНЯЕТСЯ, т.к. изначальное направление DOWN
+          // Даже несмотря на то, что это УЛУЧШАЕТ защиту!
+          await trailingStop(symbol, -3);
+          secondTrailingAttempted = true;
+
+          console.log(`[trailingStop #2] Attempted shift=-3% (improvement!), but should be REJECTED (wrong direction)`);
+        }
+
+        // Третий вызов при 5% profit: двигаем вниз (same direction)
+        if (secondTrailingAttempted && !thirdTrailingApplied && revenuePercent >= 5) {
+          console.log(`[onPartialProfit] Third trailing: shift=+2% at ${revenuePercent.toFixed(2)}%`);
+
+          // percentShift = +2% → newDistance = 2% + 2% = 4% → newSL = 96k
+          // Направление: DOWN (96k < 97k) - ПРИНИМАЕТСЯ, т.к. направление DOWN
+          await trailingStop(symbol, +2);
+          thirdTrailingApplied = true;
+
+          console.log(`[trailingStop #3] Applied shift=+2%, continuing DOWN direction (96k < 97k)`);
+        }
+      },
+    },
+  });
+
+  addFrame({
+    frameName: "50m-trailing-no-direction-change",
+    interval: "1m",
+    startDate: new Date("2024-01-01T00:00:00Z"),
+    endDate: new Date("2024-01-01T00:50:00Z"),
+  });
+
+  const signalResults = [];
+  const unsubscribeSignal = listenSignalBacktest((result) => {
+    signalResults.push(result);
+    console.log(`[listenSignalBacktest] action=${result.action}, closeReason=${result.closeReason || 'N/A'}`);
+  });
+
+  const awaitSubject = new Subject();
+  listenDoneBacktest(() => awaitSubject.next());
+
+  let errorCaught = null;
+  const unsubscribeError = listenError((error) => {
+    errorCaught = error;
+    awaitSubject.next();
+  });
+
+  Backtest.background("BTCUSDT", {
+    strategyName: "test-trailing-no-direction-change",
+    exchangeName: "binance-trailing-no-direction-change",
+    frameName: "50m-trailing-no-direction-change",
+  });
+
+  await awaitSubject.toPromise();
+  unsubscribeError();
+  unsubscribeSignal();
+
+  if (errorCaught) {
+    fail(`Error: ${errorCaught.message || errorCaught}`);
+    return;
+  }
+
+  if (!firstTrailingApplied) {
+    fail("First trailing stop was NOT applied!");
+    return;
+  }
+
+  if (!secondTrailingAttempted) {
+    fail("Second trailing stop was NOT attempted!");
+    return;
+  }
+
+  if (!thirdTrailingApplied) {
+    fail("Third trailing stop was NOT applied!");
+    return;
+  }
+
+  const closedResult = signalResults.find(r => r.action === "closed");
+  if (!closedResult) {
+    fail("Signal was NOT closed!");
+    return;
+  }
+
+  // Проверяем что закрылось по stop_loss
+  if (closedResult.closeReason !== "stop_loss") {
+    fail(`Expected closeReason="stop_loss", got "${closedResult.closeReason}"`);
+    return;
+  }
+
+  console.log(`[TEST] Signal closed by ${closedResult.closeReason}, PNL: ${closedResult.pnl.pnlPercentage.toFixed(2)}%`);
+
+  // Проверяем PNL: должен быть убыток близкий к -4% (третий trailing SL=96k был применен)
+  // Если бы второй вызов сработал (улучшение в wrong direction), PNL был бы положительным (+1% при SL=101k)
+  // Если бы третий вызов не сработал, PNL был бы -3% (первый trailing SL=97k)
+  // PNL = (96000 - 100000) / 100000 * 100 = -4%
+  // Проверяем что PNL в диапазоне от -3.5% до -4.5% (третий trailing применен)
+  if (closedResult.pnl.pnlPercentage < -4.5 || closedResult.pnl.pnlPercentage > -3.5) {
+    fail(`PNL should be between -4.5% and -3.5% (third trailing SL applied), got ${closedResult.pnl.pnlPercentage.toFixed(2)}%`);
+    return;
+  }
+
+  pass(`TRAILING STOP DIRECTION LOCK WORKS: System rejected improvement in wrong direction, accepted continuation in same direction. Final PNL ${closedResult.pnl.pnlPercentage.toFixed(2)}%`);
+});
