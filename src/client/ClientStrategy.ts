@@ -49,320 +49,361 @@ const VALIDATE_SIGNAL_FN = (signal: ISignalRow, currentPrice: number, isSchedule
   const errors: string[] = [];
 
   // ПРОВЕРКА ОБЯЗАТЕЛЬНЫХ ПОЛЕЙ ISignalRow
-  if (signal.id === undefined || signal.id === null || signal.id === '') {
-    errors.push('id is required and must be a non-empty string');
-  }
-  if (signal.exchangeName === undefined || signal.exchangeName === null || signal.exchangeName === '') {
-    errors.push('exchangeName is required');
-  }
-  if (signal.strategyName === undefined || signal.strategyName === null || signal.strategyName === '') {
-    errors.push('strategyName is required');
-  }
-  if (signal.symbol === undefined || signal.symbol === null || signal.symbol === '') {
-    errors.push('symbol is required and must be a non-empty string');
-  }
-  if (signal._isScheduled === undefined || signal._isScheduled === null) {
-    errors.push('_isScheduled is required');
-  }
-  if (signal.position === undefined || signal.position === null) {
-    errors.push('position is required and must be "long" or "short"');
-  }
-  if (signal.position !== "long" && signal.position !== "short") {
-    errors.push(`position must be "long" or "short", got "${signal.position}"`);
+  {
+    if (signal.id === undefined || signal.id === null || signal.id === '') {
+      errors.push('id is required and must be a non-empty string');
+    }
+    if (signal.exchangeName === undefined || signal.exchangeName === null || signal.exchangeName === '') {
+      errors.push('exchangeName is required');
+    }
+    if (signal.strategyName === undefined || signal.strategyName === null || signal.strategyName === '') {
+      errors.push('strategyName is required');
+    }
+    if (signal.symbol === undefined || signal.symbol === null || signal.symbol === '') {
+      errors.push('symbol is required and must be a non-empty string');
+    }
+    if (signal._isScheduled === undefined || signal._isScheduled === null) {
+      errors.push('_isScheduled is required');
+    }
+    if (signal.position === undefined || signal.position === null) {
+      errors.push('position is required and must be "long" or "short"');
+    }
+    if (signal.position !== "long" && signal.position !== "short") {
+      errors.push(`position must be "long" or "short", got "${signal.position}"`);
+    }
   }
 
   // ЗАЩИТА ОТ NaN/Infinity: currentPrice должна быть конечным числом
-  if (typeof currentPrice !== "number") {
-    errors.push(
-      `currentPrice must be a number type, got ${currentPrice} (${typeof currentPrice})`
-    );
-  }
-  if (!isFinite(currentPrice)) {
-    errors.push(
-      `currentPrice must be a finite number, got ${currentPrice} (${typeof currentPrice})`
-    );
-  }
-  if (isFinite(currentPrice) && currentPrice <= 0) {
-    errors.push(`currentPrice must be positive, got ${currentPrice}`);
+  {
+    if (typeof currentPrice !== "number") {
+      errors.push(
+        `currentPrice must be a number type, got ${currentPrice} (${typeof currentPrice})`
+      );
+    }
+    if (!isFinite(currentPrice)) {
+      errors.push(
+        `currentPrice must be a finite number, got ${currentPrice} (${typeof currentPrice})`
+      );
+    }
+    if (isFinite(currentPrice) && currentPrice <= 0) {
+      errors.push(`currentPrice must be positive, got ${currentPrice}`);
+    }
   }
 
   // ЗАЩИТА ОТ NaN/Infinity: все цены должны быть конечными числами
-  if (typeof signal.priceOpen !== "number") {
-    errors.push(
-      `priceOpen must be a number type, got ${signal.priceOpen} (${typeof signal.priceOpen})`
-    );
-  }
-  if (!isFinite(signal.priceOpen)) {
-    errors.push(
-      `priceOpen must be a finite number, got ${signal.priceOpen} (${typeof signal.priceOpen})`
-    );
-  }
-  if (typeof signal.priceTakeProfit !== "number") {
-    errors.push(
-      `priceTakeProfit must be a number type, got ${signal.priceTakeProfit} (${typeof signal.priceTakeProfit})`
-    );
-  }
-  if (!isFinite(signal.priceTakeProfit)) {
-    errors.push(
-      `priceTakeProfit must be a finite number, got ${signal.priceTakeProfit} (${typeof signal.priceTakeProfit})`
-    );
-  }
-  if (typeof signal.priceStopLoss !== "number") {
-    errors.push(
-      `priceStopLoss must be a number type, got ${signal.priceStopLoss} (${typeof signal.priceStopLoss})`
-    );
-  }
-  if (!isFinite(signal.priceStopLoss)) {
-    errors.push(
-      `priceStopLoss must be a finite number, got ${signal.priceStopLoss} (${typeof signal.priceStopLoss})`
-    );
+  {
+    if (typeof signal.priceOpen !== "number") {
+      errors.push(
+        `priceOpen must be a number type, got ${signal.priceOpen} (${typeof signal.priceOpen})`
+      );
+    }
+    if (!isFinite(signal.priceOpen)) {
+      errors.push(
+        `priceOpen must be a finite number, got ${signal.priceOpen} (${typeof signal.priceOpen})`
+      );
+    }
+    if (typeof signal.priceTakeProfit !== "number") {
+      errors.push(
+        `priceTakeProfit must be a number type, got ${signal.priceTakeProfit} (${typeof signal.priceTakeProfit})`
+      );
+    }
+    if (!isFinite(signal.priceTakeProfit)) {
+      errors.push(
+        `priceTakeProfit must be a finite number, got ${signal.priceTakeProfit} (${typeof signal.priceTakeProfit})`
+      );
+    }
+    if (typeof signal.priceStopLoss !== "number") {
+      errors.push(
+        `priceStopLoss must be a number type, got ${signal.priceStopLoss} (${typeof signal.priceStopLoss})`
+      );
+    }
+    if (!isFinite(signal.priceStopLoss)) {
+      errors.push(
+        `priceStopLoss must be a finite number, got ${signal.priceStopLoss} (${typeof signal.priceStopLoss})`
+      );
+    }
   }
 
   // Валидация цен (только если они конечные)
-  if (isFinite(signal.priceOpen) && signal.priceOpen <= 0) {
-    errors.push(`priceOpen must be positive, got ${signal.priceOpen}`);
-  }
-  if (isFinite(signal.priceTakeProfit) && signal.priceTakeProfit <= 0) {
-    errors.push(
-      `priceTakeProfit must be positive, got ${signal.priceTakeProfit}`
-    );
-  }
-  if (isFinite(signal.priceStopLoss) && signal.priceStopLoss <= 0) {
-    errors.push(`priceStopLoss must be positive, got ${signal.priceStopLoss}`);
+  {
+    if (isFinite(signal.priceOpen) && signal.priceOpen <= 0) {
+      errors.push(`priceOpen must be positive, got ${signal.priceOpen}`);
+    }
+    if (isFinite(signal.priceTakeProfit) && signal.priceTakeProfit <= 0) {
+      errors.push(
+        `priceTakeProfit must be positive, got ${signal.priceTakeProfit}`
+      );
+    }
+    if (isFinite(signal.priceStopLoss) && signal.priceStopLoss <= 0) {
+      errors.push(`priceStopLoss must be positive, got ${signal.priceStopLoss}`);
+    }
   }
 
   // Валидация для long позиции
   if (signal.position === "long") {
-    if (signal.priceTakeProfit <= signal.priceOpen) {
-      errors.push(
-        `Long: priceTakeProfit (${signal.priceTakeProfit}) must be > priceOpen (${signal.priceOpen})`
-      );
-    }
-    if (signal.priceStopLoss >= signal.priceOpen) {
-      errors.push(
-        `Long: priceStopLoss (${signal.priceStopLoss}) must be < priceOpen (${signal.priceOpen})`
-      );
+    // Проверка соотношения цен для long
+    {
+      if (signal.priceTakeProfit <= signal.priceOpen) {
+        errors.push(
+          `Long: priceTakeProfit (${signal.priceTakeProfit}) must be > priceOpen (${signal.priceOpen})`
+        );
+      }
+      if (signal.priceStopLoss >= signal.priceOpen) {
+        errors.push(
+          `Long: priceStopLoss (${signal.priceStopLoss}) must be < priceOpen (${signal.priceOpen})`
+        );
+      }
     }
 
     // ЗАЩИТА ОТ МОМЕНТАЛЬНОГО ЗАКРЫТИЯ: проверяем что позиция не закроется сразу после открытия
-    if (!isScheduled && isFinite(currentPrice)) {
-      // LONG: currentPrice должна быть МЕЖДУ SL и TP (не пробита ни одна граница)
-      // SL < currentPrice < TP
-      if (currentPrice <= signal.priceStopLoss) {
-        errors.push(
-          `Long immediate: currentPrice (${currentPrice}) <= priceStopLoss (${signal.priceStopLoss}). ` +
-            `Signal would be immediately closed by stop loss. Cannot open position that is already stopped out.`
-        );
-      }
+    {
+      if (!isScheduled && isFinite(currentPrice)) {
+        // LONG: currentPrice должна быть МЕЖДУ SL и TP (не пробита ни одна граница)
+        // SL < currentPrice < TP
+        if (currentPrice <= signal.priceStopLoss) {
+          errors.push(
+            `Long immediate: currentPrice (${currentPrice}) <= priceStopLoss (${signal.priceStopLoss}). ` +
+              `Signal would be immediately closed by stop loss. Cannot open position that is already stopped out.`
+          );
+        }
 
-      if (currentPrice >= signal.priceTakeProfit) {
-        errors.push(
-          `Long immediate: currentPrice (${currentPrice}) >= priceTakeProfit (${signal.priceTakeProfit}). ` +
-            `Signal would be immediately closed by take profit. The profit opportunity has already passed.`
-        );
+        if (currentPrice >= signal.priceTakeProfit) {
+          errors.push(
+            `Long immediate: currentPrice (${currentPrice}) >= priceTakeProfit (${signal.priceTakeProfit}). ` +
+              `Signal would be immediately closed by take profit. The profit opportunity has already passed.`
+          );
+        }
       }
     }
 
     // ЗАЩИТА ОТ МОМЕНТАЛЬНОГО ЗАКРЫТИЯ scheduled сигналов
-    if (isScheduled && isFinite(signal.priceOpen)) {
-      // LONG scheduled: priceOpen должен быть МЕЖДУ SL и TP
-      // SL < priceOpen < TP
-      if (signal.priceOpen <= signal.priceStopLoss) {
-        errors.push(
-          `Long scheduled: priceOpen (${signal.priceOpen}) <= priceStopLoss (${signal.priceStopLoss}). ` +
-            `Signal would be immediately cancelled on activation. Cannot activate position that is already stopped out.`
-        );
-      }
+    {
+      if (isScheduled && isFinite(signal.priceOpen)) {
+        // LONG scheduled: priceOpen должен быть МЕЖДУ SL и TP
+        // SL < priceOpen < TP
+        if (signal.priceOpen <= signal.priceStopLoss) {
+          errors.push(
+            `Long scheduled: priceOpen (${signal.priceOpen}) <= priceStopLoss (${signal.priceStopLoss}). ` +
+              `Signal would be immediately cancelled on activation. Cannot activate position that is already stopped out.`
+          );
+        }
 
-      if (signal.priceOpen >= signal.priceTakeProfit) {
-        errors.push(
-          `Long scheduled: priceOpen (${signal.priceOpen}) >= priceTakeProfit (${signal.priceTakeProfit}). ` +
-            `Signal would close immediately on activation. This is logically impossible for LONG position.`
-        );
+        if (signal.priceOpen >= signal.priceTakeProfit) {
+          errors.push(
+            `Long scheduled: priceOpen (${signal.priceOpen}) >= priceTakeProfit (${signal.priceTakeProfit}). ` +
+              `Signal would close immediately on activation. This is logically impossible for LONG position.`
+          );
+        }
       }
     }
 
     // ЗАЩИТА ОТ МИКРО-ПРОФИТА: TakeProfit должен быть достаточно далеко, чтобы покрыть комиссии
-    if (GLOBAL_CONFIG.CC_MIN_TAKEPROFIT_DISTANCE_PERCENT) {
-      const tpDistancePercent =
-        ((signal.priceTakeProfit - signal.priceOpen) / signal.priceOpen) * 100;
-      if (tpDistancePercent < GLOBAL_CONFIG.CC_MIN_TAKEPROFIT_DISTANCE_PERCENT) {
-        errors.push(
-          `Long: TakeProfit too close to priceOpen (${tpDistancePercent.toFixed(3)}%). ` +
-            `Minimum distance: ${GLOBAL_CONFIG.CC_MIN_TAKEPROFIT_DISTANCE_PERCENT}% to cover trading fees. ` +
-            `Current: TP=${signal.priceTakeProfit}, Open=${signal.priceOpen}`
-        );
+    {
+      if (GLOBAL_CONFIG.CC_MIN_TAKEPROFIT_DISTANCE_PERCENT) {
+        const tpDistancePercent =
+          ((signal.priceTakeProfit - signal.priceOpen) / signal.priceOpen) * 100;
+        if (tpDistancePercent < GLOBAL_CONFIG.CC_MIN_TAKEPROFIT_DISTANCE_PERCENT) {
+          errors.push(
+            `Long: TakeProfit too close to priceOpen (${tpDistancePercent.toFixed(3)}%). ` +
+              `Minimum distance: ${GLOBAL_CONFIG.CC_MIN_TAKEPROFIT_DISTANCE_PERCENT}% to cover trading fees. ` +
+              `Current: TP=${signal.priceTakeProfit}, Open=${signal.priceOpen}`
+          );
+        }
       }
     }
 
     // ЗАЩИТА ОТ СЛИШКОМ УЗКОГО STOPLOSS: минимальный буфер для избежания моментального закрытия
-    if (GLOBAL_CONFIG.CC_MIN_STOPLOSS_DISTANCE_PERCENT) {
-      const slDistancePercent =
-        ((signal.priceOpen - signal.priceStopLoss) / signal.priceOpen) * 100;
-      if (slDistancePercent < GLOBAL_CONFIG.CC_MIN_STOPLOSS_DISTANCE_PERCENT) {
-        errors.push(
-          `Long: StopLoss too close to priceOpen (${slDistancePercent.toFixed(3)}%). ` +
-            `Minimum distance: ${GLOBAL_CONFIG.CC_MIN_STOPLOSS_DISTANCE_PERCENT}% to avoid instant stop out on market volatility. ` +
-            `Current: SL=${signal.priceStopLoss}, Open=${signal.priceOpen}`
-        );
+    {
+      if (GLOBAL_CONFIG.CC_MIN_STOPLOSS_DISTANCE_PERCENT) {
+        const slDistancePercent =
+          ((signal.priceOpen - signal.priceStopLoss) / signal.priceOpen) * 100;
+        if (slDistancePercent < GLOBAL_CONFIG.CC_MIN_STOPLOSS_DISTANCE_PERCENT) {
+          errors.push(
+            `Long: StopLoss too close to priceOpen (${slDistancePercent.toFixed(3)}%). ` +
+              `Minimum distance: ${GLOBAL_CONFIG.CC_MIN_STOPLOSS_DISTANCE_PERCENT}% to avoid instant stop out on market volatility. ` +
+              `Current: SL=${signal.priceStopLoss}, Open=${signal.priceOpen}`
+          );
+        }
       }
     }
 
     // ЗАЩИТА ОТ ЭКСТРЕМАЛЬНОГО STOPLOSS: ограничиваем максимальный убыток
-    if (GLOBAL_CONFIG.CC_MAX_STOPLOSS_DISTANCE_PERCENT) {
-      const slDistancePercent =
-        ((signal.priceOpen - signal.priceStopLoss) / signal.priceOpen) * 100;
-      if (slDistancePercent > GLOBAL_CONFIG.CC_MAX_STOPLOSS_DISTANCE_PERCENT) {
-        errors.push(
-          `Long: StopLoss too far from priceOpen (${slDistancePercent.toFixed(3)}%). ` +
-            `Maximum distance: ${GLOBAL_CONFIG.CC_MAX_STOPLOSS_DISTANCE_PERCENT}% to protect capital. ` +
-            `Current: SL=${signal.priceStopLoss}, Open=${signal.priceOpen}`
-        );
+    {
+      if (GLOBAL_CONFIG.CC_MAX_STOPLOSS_DISTANCE_PERCENT) {
+        const slDistancePercent =
+          ((signal.priceOpen - signal.priceStopLoss) / signal.priceOpen) * 100;
+        if (slDistancePercent > GLOBAL_CONFIG.CC_MAX_STOPLOSS_DISTANCE_PERCENT) {
+          errors.push(
+            `Long: StopLoss too far from priceOpen (${slDistancePercent.toFixed(3)}%). ` +
+              `Maximum distance: ${GLOBAL_CONFIG.CC_MAX_STOPLOSS_DISTANCE_PERCENT}% to protect capital. ` +
+              `Current: SL=${signal.priceStopLoss}, Open=${signal.priceOpen}`
+          );
+        }
       }
     }
   }
 
   // Валидация для short позиции
   if (signal.position === "short") {
-    if (signal.priceTakeProfit >= signal.priceOpen) {
-      errors.push(
-        `Short: priceTakeProfit (${signal.priceTakeProfit}) must be < priceOpen (${signal.priceOpen})`
-      );
-    }
-    if (signal.priceStopLoss <= signal.priceOpen) {
-      errors.push(
-        `Short: priceStopLoss (${signal.priceStopLoss}) must be > priceOpen (${signal.priceOpen})`
-      );
+    // Проверка соотношения цен для short
+    {
+      if (signal.priceTakeProfit >= signal.priceOpen) {
+        errors.push(
+          `Short: priceTakeProfit (${signal.priceTakeProfit}) must be < priceOpen (${signal.priceOpen})`
+        );
+      }
+      if (signal.priceStopLoss <= signal.priceOpen) {
+        errors.push(
+          `Short: priceStopLoss (${signal.priceStopLoss}) must be > priceOpen (${signal.priceOpen})`
+        );
+      }
     }
 
     // ЗАЩИТА ОТ МОМЕНТАЛЬНОГО ЗАКРЫТИЯ: проверяем что позиция не закроется сразу после открытия
-    if (!isScheduled && isFinite(currentPrice)) {
-      // SHORT: currentPrice должна быть МЕЖДУ TP и SL (не пробита ни одна граница)
-      // TP < currentPrice < SL
-      if (currentPrice >= signal.priceStopLoss) {
-        errors.push(
-          `Short immediate: currentPrice (${currentPrice}) >= priceStopLoss (${signal.priceStopLoss}). ` +
-            `Signal would be immediately closed by stop loss. Cannot open position that is already stopped out.`
-        );
-      }
+    {
+      if (!isScheduled && isFinite(currentPrice)) {
+        // SHORT: currentPrice должна быть МЕЖДУ TP и SL (не пробита ни одна граница)
+        // TP < currentPrice < SL
+        if (currentPrice >= signal.priceStopLoss) {
+          errors.push(
+            `Short immediate: currentPrice (${currentPrice}) >= priceStopLoss (${signal.priceStopLoss}). ` +
+              `Signal would be immediately closed by stop loss. Cannot open position that is already stopped out.`
+          );
+        }
 
-      if (currentPrice <= signal.priceTakeProfit) {
-        errors.push(
-          `Short immediate: currentPrice (${currentPrice}) <= priceTakeProfit (${signal.priceTakeProfit}). ` +
-            `Signal would be immediately closed by take profit. The profit opportunity has already passed.`
-        );
+        if (currentPrice <= signal.priceTakeProfit) {
+          errors.push(
+            `Short immediate: currentPrice (${currentPrice}) <= priceTakeProfit (${signal.priceTakeProfit}). ` +
+              `Signal would be immediately closed by take profit. The profit opportunity has already passed.`
+          );
+        }
       }
     }
 
     // ЗАЩИТА ОТ МОМЕНТАЛЬНОГО ЗАКРЫТИЯ scheduled сигналов
-    if (isScheduled && isFinite(signal.priceOpen)) {
-      // SHORT scheduled: priceOpen должен быть МЕЖДУ TP и SL
-      // TP < priceOpen < SL
-      if (signal.priceOpen >= signal.priceStopLoss) {
-        errors.push(
-          `Short scheduled: priceOpen (${signal.priceOpen}) >= priceStopLoss (${signal.priceStopLoss}). ` +
-            `Signal would be immediately cancelled on activation. Cannot activate position that is already stopped out.`
-        );
-      }
+    {
+      if (isScheduled && isFinite(signal.priceOpen)) {
+        // SHORT scheduled: priceOpen должен быть МЕЖДУ TP и SL
+        // TP < priceOpen < SL
+        if (signal.priceOpen >= signal.priceStopLoss) {
+          errors.push(
+            `Short scheduled: priceOpen (${signal.priceOpen}) >= priceStopLoss (${signal.priceStopLoss}). ` +
+              `Signal would be immediately cancelled on activation. Cannot activate position that is already stopped out.`
+          );
+        }
 
-      if (signal.priceOpen <= signal.priceTakeProfit) {
-        errors.push(
-          `Short scheduled: priceOpen (${signal.priceOpen}) <= priceTakeProfit (${signal.priceTakeProfit}). ` +
-            `Signal would close immediately on activation. This is logically impossible for SHORT position.`
-        );
+        if (signal.priceOpen <= signal.priceTakeProfit) {
+          errors.push(
+            `Short scheduled: priceOpen (${signal.priceOpen}) <= priceTakeProfit (${signal.priceTakeProfit}). ` +
+              `Signal would close immediately on activation. This is logically impossible for SHORT position.`
+          );
+        }
       }
     }
 
     // ЗАЩИТА ОТ МИКРО-ПРОФИТА: TakeProfit должен быть достаточно далеко, чтобы покрыть комиссии
-    if (GLOBAL_CONFIG.CC_MIN_TAKEPROFIT_DISTANCE_PERCENT) {
-      const tpDistancePercent =
-        ((signal.priceOpen - signal.priceTakeProfit) / signal.priceOpen) * 100;
-      if (tpDistancePercent < GLOBAL_CONFIG.CC_MIN_TAKEPROFIT_DISTANCE_PERCENT) {
-        errors.push(
-          `Short: TakeProfit too close to priceOpen (${tpDistancePercent.toFixed(3)}%). ` +
-            `Minimum distance: ${GLOBAL_CONFIG.CC_MIN_TAKEPROFIT_DISTANCE_PERCENT}% to cover trading fees. ` +
-            `Current: TP=${signal.priceTakeProfit}, Open=${signal.priceOpen}`
-        );
+    {
+      if (GLOBAL_CONFIG.CC_MIN_TAKEPROFIT_DISTANCE_PERCENT) {
+        const tpDistancePercent =
+          ((signal.priceOpen - signal.priceTakeProfit) / signal.priceOpen) * 100;
+        if (tpDistancePercent < GLOBAL_CONFIG.CC_MIN_TAKEPROFIT_DISTANCE_PERCENT) {
+          errors.push(
+            `Short: TakeProfit too close to priceOpen (${tpDistancePercent.toFixed(3)}%). ` +
+              `Minimum distance: ${GLOBAL_CONFIG.CC_MIN_TAKEPROFIT_DISTANCE_PERCENT}% to cover trading fees. ` +
+              `Current: TP=${signal.priceTakeProfit}, Open=${signal.priceOpen}`
+          );
+        }
       }
     }
 
     // ЗАЩИТА ОТ СЛИШКОМ УЗКОГО STOPLOSS: минимальный буфер для избежания моментального закрытия
-    if (GLOBAL_CONFIG.CC_MIN_STOPLOSS_DISTANCE_PERCENT) {
-      const slDistancePercent =
-        ((signal.priceStopLoss - signal.priceOpen) / signal.priceOpen) * 100;
-      if (slDistancePercent < GLOBAL_CONFIG.CC_MIN_STOPLOSS_DISTANCE_PERCENT) {
-        errors.push(
-          `Short: StopLoss too close to priceOpen (${slDistancePercent.toFixed(3)}%). ` +
-            `Minimum distance: ${GLOBAL_CONFIG.CC_MIN_STOPLOSS_DISTANCE_PERCENT}% to avoid instant stop out on market volatility. ` +
-            `Current: SL=${signal.priceStopLoss}, Open=${signal.priceOpen}`
-        );
+    {
+      if (GLOBAL_CONFIG.CC_MIN_STOPLOSS_DISTANCE_PERCENT) {
+        const slDistancePercent =
+          ((signal.priceStopLoss - signal.priceOpen) / signal.priceOpen) * 100;
+        if (slDistancePercent < GLOBAL_CONFIG.CC_MIN_STOPLOSS_DISTANCE_PERCENT) {
+          errors.push(
+            `Short: StopLoss too close to priceOpen (${slDistancePercent.toFixed(3)}%). ` +
+              `Minimum distance: ${GLOBAL_CONFIG.CC_MIN_STOPLOSS_DISTANCE_PERCENT}% to avoid instant stop out on market volatility. ` +
+              `Current: SL=${signal.priceStopLoss}, Open=${signal.priceOpen}`
+          );
+        }
       }
     }
 
     // ЗАЩИТА ОТ ЭКСТРЕМАЛЬНОГО STOPLOSS: ограничиваем максимальный убыток
-    if (GLOBAL_CONFIG.CC_MAX_STOPLOSS_DISTANCE_PERCENT) {
-      const slDistancePercent =
-        ((signal.priceStopLoss - signal.priceOpen) / signal.priceOpen) * 100;
-      if (slDistancePercent > GLOBAL_CONFIG.CC_MAX_STOPLOSS_DISTANCE_PERCENT) {
-        errors.push(
-          `Short: StopLoss too far from priceOpen (${slDistancePercent.toFixed(3)}%). ` +
-            `Maximum distance: ${GLOBAL_CONFIG.CC_MAX_STOPLOSS_DISTANCE_PERCENT}% to protect capital. ` +
-            `Current: SL=${signal.priceStopLoss}, Open=${signal.priceOpen}`
-        );
+    {
+      if (GLOBAL_CONFIG.CC_MAX_STOPLOSS_DISTANCE_PERCENT) {
+        const slDistancePercent =
+          ((signal.priceStopLoss - signal.priceOpen) / signal.priceOpen) * 100;
+        if (slDistancePercent > GLOBAL_CONFIG.CC_MAX_STOPLOSS_DISTANCE_PERCENT) {
+          errors.push(
+            `Short: StopLoss too far from priceOpen (${slDistancePercent.toFixed(3)}%). ` +
+              `Maximum distance: ${GLOBAL_CONFIG.CC_MAX_STOPLOSS_DISTANCE_PERCENT}% to protect capital. ` +
+              `Current: SL=${signal.priceStopLoss}, Open=${signal.priceOpen}`
+          );
+        }
       }
     }
   }
 
   // Валидация временных параметров
-  if (typeof signal.minuteEstimatedTime !== "number") {
-    errors.push(
-      `minuteEstimatedTime must be a number type, got ${signal.minuteEstimatedTime} (${typeof signal.minuteEstimatedTime})`
-    );
-  }
-  if (signal.minuteEstimatedTime <= 0) {
-    errors.push(
-      `minuteEstimatedTime must be positive, got ${signal.minuteEstimatedTime}`
-    );
-  }
-  if (!Number.isInteger(signal.minuteEstimatedTime)) {
-    errors.push(
-      `minuteEstimatedTime must be an integer (whole number), got ${signal.minuteEstimatedTime}`
-    );
-  }
-
-  if (!isFinite(signal.minuteEstimatedTime)) {
-    errors.push(
-      `minuteEstimatedTime must be a finite number, got ${signal.minuteEstimatedTime}`
-    );
-  }
-
-  // ЗАЩИТА ОТ ВЕЧНЫХ СИГНАЛОВ: ограничиваем максимальное время жизни сигнала
-  if (GLOBAL_CONFIG.CC_MAX_SIGNAL_LIFETIME_MINUTES && GLOBAL_CONFIG.CC_MAX_SIGNAL_LIFETIME_MINUTES) {
-    if (signal.minuteEstimatedTime > GLOBAL_CONFIG.CC_MAX_SIGNAL_LIFETIME_MINUTES) {
-      const days = (signal.minuteEstimatedTime / 60 / 24).toFixed(1);
-      const maxDays = (GLOBAL_CONFIG.CC_MAX_SIGNAL_LIFETIME_MINUTES / 60 / 24).toFixed(0);
+  {
+    if (typeof signal.minuteEstimatedTime !== "number") {
       errors.push(
-        `minuteEstimatedTime too large (${signal.minuteEstimatedTime} minutes = ${days} days). ` +
-          `Maximum: ${GLOBAL_CONFIG.CC_MAX_SIGNAL_LIFETIME_MINUTES} minutes (${maxDays} days) to prevent strategy deadlock. ` +
-          `Eternal signals block risk limits and prevent new trades.`
+        `minuteEstimatedTime must be a number type, got ${signal.minuteEstimatedTime} (${typeof signal.minuteEstimatedTime})`
+      );
+    }
+    if (signal.minuteEstimatedTime <= 0) {
+      errors.push(
+        `minuteEstimatedTime must be positive, got ${signal.minuteEstimatedTime}`
+      );
+    }
+    if (!Number.isInteger(signal.minuteEstimatedTime)) {
+      errors.push(
+        `minuteEstimatedTime must be an integer (whole number), got ${signal.minuteEstimatedTime}`
+      );
+    }
+    if (!isFinite(signal.minuteEstimatedTime)) {
+      errors.push(
+        `minuteEstimatedTime must be a finite number, got ${signal.minuteEstimatedTime}`
       );
     }
   }
-  if (typeof signal.scheduledAt !== "number") {
-    errors.push(
-      `scheduledAt must be a number type, got ${signal.scheduledAt} (${typeof signal.scheduledAt})`
-    );
+
+  // ЗАЩИТА ОТ ВЕЧНЫХ СИГНАЛОВ: ограничиваем максимальное время жизни сигнала
+  {
+    if (GLOBAL_CONFIG.CC_MAX_SIGNAL_LIFETIME_MINUTES && GLOBAL_CONFIG.CC_MAX_SIGNAL_LIFETIME_MINUTES) {
+      if (signal.minuteEstimatedTime > GLOBAL_CONFIG.CC_MAX_SIGNAL_LIFETIME_MINUTES) {
+        const days = (signal.minuteEstimatedTime / 60 / 24).toFixed(1);
+        const maxDays = (GLOBAL_CONFIG.CC_MAX_SIGNAL_LIFETIME_MINUTES / 60 / 24).toFixed(0);
+        errors.push(
+          `minuteEstimatedTime too large (${signal.minuteEstimatedTime} minutes = ${days} days). ` +
+            `Maximum: ${GLOBAL_CONFIG.CC_MAX_SIGNAL_LIFETIME_MINUTES} minutes (${maxDays} days) to prevent strategy deadlock. ` +
+            `Eternal signals block risk limits and prevent new trades.`
+        );
+      }
+    }
   }
-  if (signal.scheduledAt <= 0) {
-    errors.push(`scheduledAt must be positive, got ${signal.scheduledAt}`);
-  }
-  if (typeof signal.pendingAt !== "number") {
-    errors.push(
-      `pendingAt must be a number type, got ${signal.pendingAt} (${typeof signal.pendingAt})`
-    );
-  }
-  if (signal.pendingAt <= 0) {
-    errors.push(`pendingAt must be positive, got ${signal.pendingAt}`);
+
+  // Валидация временных меток
+  {
+    if (typeof signal.scheduledAt !== "number") {
+      errors.push(
+        `scheduledAt must be a number type, got ${signal.scheduledAt} (${typeof signal.scheduledAt})`
+      );
+    }
+    if (signal.scheduledAt <= 0) {
+      errors.push(`scheduledAt must be positive, got ${signal.scheduledAt}`);
+    }
+    if (typeof signal.pendingAt !== "number") {
+      errors.push(
+        `pendingAt must be a number type, got ${signal.pendingAt} (${typeof signal.pendingAt})`
+      );
+    }
+    if (signal.pendingAt <= 0) {
+      errors.push(`pendingAt must be positive, got ${signal.pendingAt}`);
+    }
   }
 
   // Кидаем ошибку если есть проблемы
@@ -1001,7 +1042,7 @@ const CALL_ACTIVE_CALLBACKS_FN = trycatch(
   ): Promise<void> => {
     await ExecutionContextService.runInContext(async () => {
       if (self.params.callbacks?.onActive) {
-        self.params.callbacks.onActive(
+        await self.params.callbacks.onActive(
           self.params.execution.context.symbol,
           signal,
           currentPrice,
@@ -1039,7 +1080,7 @@ const CALL_SCHEDULE_CALLBACKS_FN = trycatch(
   ): Promise<void> => {
     await ExecutionContextService.runInContext(async () => {
       if (self.params.callbacks?.onSchedule) {
-        self.params.callbacks.onSchedule(
+        await self.params.callbacks.onSchedule(
           self.params.execution.context.symbol,
           signal,
           currentPrice,
@@ -1077,7 +1118,7 @@ const CALL_CANCEL_CALLBACKS_FN = trycatch(
   ): Promise<void> => {
     await ExecutionContextService.runInContext(async () => {
       if (self.params.callbacks?.onCancel) {
-        self.params.callbacks.onCancel(
+        await self.params.callbacks.onCancel(
           self.params.execution.context.symbol,
           signal,
           currentPrice,
@@ -1115,7 +1156,7 @@ const CALL_OPEN_CALLBACKS_FN = trycatch(
   ): Promise<void> => {
     await ExecutionContextService.runInContext(async () => {
       if (self.params.callbacks?.onOpen) {
-        self.params.callbacks.onOpen(
+        await self.params.callbacks.onOpen(
           self.params.execution.context.symbol,
           signal,
           priceOpen,
@@ -1153,7 +1194,7 @@ const CALL_CLOSE_CALLBACKS_FN = trycatch(
   ): Promise<void> => {
     await ExecutionContextService.runInContext(async () => {
       if (self.params.callbacks?.onClose) {
-        self.params.callbacks.onClose(
+        await self.params.callbacks.onClose(
           self.params.execution.context.symbol,
           signal,
           currentPrice,
@@ -1190,7 +1231,7 @@ const CALL_TICK_CALLBACKS_FN = trycatch(
   ): Promise<void> => {
     await ExecutionContextService.runInContext(async () => {
       if (self.params.callbacks?.onTick) {
-        self.params.callbacks.onTick(
+        await self.params.callbacks.onTick(
           self.params.execution.context.symbol,
           result,
           self.params.execution.context.backtest
@@ -1226,7 +1267,7 @@ const CALL_IDLE_CALLBACKS_FN = trycatch(
   ): Promise<void> => {
     await ExecutionContextService.runInContext(async () => {
       if (self.params.callbacks?.onIdle) {
-        self.params.callbacks.onIdle(
+        await self.params.callbacks.onIdle(
           self.params.execution.context.symbol,
           currentPrice,
           self.params.execution.context.backtest
@@ -1416,7 +1457,7 @@ const CALL_PARTIAL_PROFIT_CALLBACKS_FN = trycatch(
         new Date(timestamp),
       );
       if (self.params.callbacks?.onPartialProfit) {
-        self.params.callbacks.onPartialProfit(
+        await self.params.callbacks.onPartialProfit(
           symbol,
           signal,
           currentPrice,
@@ -1464,7 +1505,7 @@ const CALL_PARTIAL_LOSS_CALLBACKS_FN = trycatch(
         new Date(timestamp)
       );
       if (self.params.callbacks?.onPartialLoss) {
-        self.params.callbacks.onPartialLoss(
+        await self.params.callbacks.onPartialLoss(
           symbol,
           signal,
           currentPrice,

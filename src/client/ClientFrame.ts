@@ -1,9 +1,11 @@
-import { singleshot } from "functools-kit";
+import { singleshot, trycatch, errorData, getErrorMessage } from "functools-kit";
 import {
   IFrame,
   IFrameParams,
   FrameInterval,
 } from "../interfaces/Frame.interface";
+import backtest from "../lib";
+import { errorEmitter } from "../config/emitters";
 
 /**
  * Maps FrameInterval to minutes for timestamp calculation.
@@ -24,6 +26,42 @@ const INTERVAL_MINUTES: Record<FrameInterval, number> = {
   "1d": 1440,
   "3d": 4320,
 };
+
+/**
+ * Wrapper to call onTimeframe callback with error handling.
+ * Catches and logs any errors thrown by the user-provided callback.
+ *
+ * @param self - ClientFrame instance reference
+ * @param timeframe - Array of generated timestamp dates
+ * @param startDate - Start date of the backtest period
+ * @param endDate - Effective end date of the backtest period
+ * @param interval - Frame interval used for generation
+ */
+const CALL_TIMEFRAME_CALLBACKS_FN = trycatch(
+  async (
+    self: ClientFrame,
+    timeframe: Date[],
+    startDate: Date,
+    endDate: Date,
+    interval: FrameInterval
+  ): Promise<void> => {
+    if (self.params.callbacks?.onTimeframe) {
+      await self.params.callbacks.onTimeframe(timeframe, startDate, endDate, interval);
+    }
+  },
+  {
+    fallback: (error) => {
+      const message = "ClientFrame CALL_TIMEFRAME_CALLBACKS_FN thrown";
+      const payload = {
+        error: errorData(error),
+        message: getErrorMessage(error),
+      };
+      backtest.loggerService.warn(message, payload);
+      console.warn(message, payload);
+      errorEmitter.next(error);
+    },
+  }
+);
 
 /**
  * Generates timeframe array from startDate to endDate with specified interval.
@@ -61,9 +99,7 @@ const GET_TIMEFRAME_FN = async (symbol: string, self: ClientFrame) => {
     currentDate = new Date(currentDate.getTime() + intervalMinutes * 60 * 1000);
   }
 
-  if (self.params.callbacks?.onTimeframe) {
-    self.params.callbacks.onTimeframe(timeframes, startDate, effectiveEndDate, interval);
-  }
+  await CALL_TIMEFRAME_CALLBACKS_FN(self, timeframes, startDate, effectiveEndDate, interval);
 
   return timeframes;
 };

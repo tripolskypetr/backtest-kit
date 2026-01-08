@@ -633,7 +633,7 @@ interface IExchangeParams extends IExchangeSchema {
  */
 interface IExchangeCallbacks {
     /** Called when candle data is fetched */
-    onCandleData: (symbol: string, interval: CandleInterval, since: Date, limit: number, data: ICandleData[]) => void;
+    onCandleData: (symbol: string, interval: CandleInterval, since: Date, limit: number, data: ICandleData[]) => void | Promise<void>;
 }
 /**
  * Exchange schema registered via addExchange().
@@ -758,7 +758,7 @@ interface IFrameCallbacks {
      * @param endDate - End of the backtest period
      * @param interval - Interval used for generation
      */
-    onTimeframe: (timeframe: Date[], startDate: Date, endDate: Date, interval: FrameInterval) => void;
+    onTimeframe: (timeframe: Date[], startDate: Date, endDate: Date, interval: FrameInterval) => void | Promise<void>;
 }
 /**
  * Frame schema registered via addFrame().
@@ -897,9 +897,9 @@ interface IRiskActivePosition {
  */
 interface IRiskCallbacks {
     /** Called when a signal is rejected due to risk limits */
-    onRejected: (symbol: string, params: IRiskCheckArgs) => void;
+    onRejected: (symbol: string, params: IRiskCheckArgs) => void | Promise<void>;
     /** Called when a signal passes risk checks */
-    onAllowed: (symbol: string, params: IRiskCheckArgs) => void;
+    onAllowed: (symbol: string, params: IRiskCheckArgs) => void | Promise<void>;
 }
 /**
  * Payload passed to risk validation functions.
@@ -1272,25 +1272,25 @@ interface IScheduledSignalCancelRow extends IScheduledSignalRow {
  */
 interface IStrategyCallbacks {
     /** Called on every tick with the result */
-    onTick: (symbol: string, result: IStrategyTickResult, backtest: boolean) => void;
+    onTick: (symbol: string, result: IStrategyTickResult, backtest: boolean) => void | Promise<void>;
     /** Called when new signal is opened (after validation) */
-    onOpen: (symbol: string, data: ISignalRow, currentPrice: number, backtest: boolean) => void;
+    onOpen: (symbol: string, data: ISignalRow, currentPrice: number, backtest: boolean) => void | Promise<void>;
     /** Called when signal is being monitored (active state) */
-    onActive: (symbol: string, data: ISignalRow, currentPrice: number, backtest: boolean) => void;
+    onActive: (symbol: string, data: ISignalRow, currentPrice: number, backtest: boolean) => void | Promise<void>;
     /** Called when no active signal exists (idle state) */
-    onIdle: (symbol: string, currentPrice: number, backtest: boolean) => void;
+    onIdle: (symbol: string, currentPrice: number, backtest: boolean) => void | Promise<void>;
     /** Called when signal is closed with final price */
-    onClose: (symbol: string, data: ISignalRow, priceClose: number, backtest: boolean) => void;
+    onClose: (symbol: string, data: ISignalRow, priceClose: number, backtest: boolean) => void | Promise<void>;
     /** Called when scheduled signal is created (delayed entry) */
-    onSchedule: (symbol: string, data: IScheduledSignalRow, currentPrice: number, backtest: boolean) => void;
+    onSchedule: (symbol: string, data: IScheduledSignalRow, currentPrice: number, backtest: boolean) => void | Promise<void>;
     /** Called when scheduled signal is cancelled without opening position */
-    onCancel: (symbol: string, data: IScheduledSignalRow, currentPrice: number, backtest: boolean) => void;
+    onCancel: (symbol: string, data: IScheduledSignalRow, currentPrice: number, backtest: boolean) => void | Promise<void>;
     /** Called when signal is written to persist storage (for testing) */
     onWrite: (symbol: string, data: ISignalRow | null, backtest: boolean) => void;
     /** Called when signal is in partial profit state (price moved favorably but not reached TP yet) */
-    onPartialProfit: (symbol: string, data: ISignalRow, currentPrice: number, revenuePercent: number, backtest: boolean) => void;
+    onPartialProfit: (symbol: string, data: ISignalRow, currentPrice: number, revenuePercent: number, backtest: boolean) => void | Promise<void>;
     /** Called when signal is in partial loss state (price moved against position but not hit SL yet) */
-    onPartialLoss: (symbol: string, data: ISignalRow, currentPrice: number, lossPercent: number, backtest: boolean) => void;
+    onPartialLoss: (symbol: string, data: ISignalRow, currentPrice: number, lossPercent: number, backtest: boolean) => void | Promise<void>;
     /** Called every minute regardless of strategy interval (for custom monitoring like checking if signal should be cancelled) */
     onPing: (symbol: string, data: IScheduledSignalRow, when: Date, backtest: boolean) => void | Promise<void>;
 }
@@ -1783,13 +1783,13 @@ interface IWalkerSchema {
  */
 interface IWalkerCallbacks {
     /** Called when starting to test a specific strategy */
-    onStrategyStart: (strategyName: StrategyName, symbol: string) => void;
+    onStrategyStart: (strategyName: StrategyName, symbol: string) => void | Promise<void>;
     /** Called when a strategy backtest completes */
-    onStrategyComplete: (strategyName: StrategyName, symbol: string, stats: BacktestStatisticsModel, metric: number | null) => void;
+    onStrategyComplete: (strategyName: StrategyName, symbol: string, stats: BacktestStatisticsModel, metric: number | null) => void | Promise<void>;
     /** Called when a strategy backtest fails with an error */
-    onStrategyError: (strategyName: StrategyName, symbol: string, error: Error | unknown) => void;
+    onStrategyError: (strategyName: StrategyName, symbol: string, error: Error | unknown) => void | Promise<void>;
     /** Called when all strategies have been tested */
-    onComplete: (results: IWalkerResults) => void;
+    onComplete: (results: IWalkerResults) => void | Promise<void>;
 }
 /**
  * Result for a single strategy in the comparison.
@@ -1924,7 +1924,7 @@ interface ISizingCallbacks {
      * @param quantity - Calculated position size
      * @param params - Parameters used for calculation
      */
-    onCalculate: (quantity: number, params: ISizingCalculateParams) => void;
+    onCalculate: (quantity: number, params: ISizingCalculateParams) => void | Promise<void>;
 }
 /**
  * Base sizing schema with common fields.
@@ -5948,6 +5948,11 @@ declare class BacktestMarkdownService {
      * ```
      */
     protected init: (() => Promise<void>) & functools_kit.ISingleshotClearable;
+    /**
+     * Function to unsubscribe from backtest signal events.
+     * Assigned during init().
+     */
+    unsubscribe: Function;
 }
 
 /**
@@ -6485,6 +6490,11 @@ declare class LiveMarkdownService {
      * ```
      */
     protected init: (() => Promise<void>) & functools_kit.ISingleshotClearable;
+    /**
+     * Function to unsubscribe from backtest signal events.
+     * Assigned during init().
+     */
+    unsubscribe: Function;
 }
 
 /**
@@ -6997,6 +7007,11 @@ declare class ScheduleMarkdownService {
      * ```
      */
     protected init: (() => Promise<void>) & functools_kit.ISingleshotClearable;
+    /**
+     * Function to unsubscribe from partial profit/loss events.
+     * Assigned during init().
+     */
+    unsubscribe: Function;
 }
 
 /**
@@ -7247,6 +7262,11 @@ declare class PerformanceMarkdownService {
      * Uses singleshot to ensure initialization happens only once.
      */
     protected init: (() => Promise<void>) & functools_kit.ISingleshotClearable;
+    /**
+     * Function to unsubscribe from partial profit/loss events.
+     * Assigned during init().
+     */
+    unsubscribe: Function;
 }
 
 /**
@@ -7574,6 +7594,11 @@ declare class WalkerMarkdownService {
      * ```
      */
     protected init: (() => Promise<void>) & functools_kit.ISingleshotClearable;
+    /**
+     * Function to unsubscribe from partial profit/loss events.
+     * Assigned during init().
+     */
+    unsubscribe: Function;
 }
 
 /**
@@ -7936,6 +7961,11 @@ declare class HeatMarkdownService {
      * ```
      */
     protected init: (() => Promise<void>) & functools_kit.ISingleshotClearable;
+    /**
+     * Function to unsubscribe from backtest signal events.
+     * Assigned during init().
+     */
+    unsubscribe: Function;
 }
 
 /**
@@ -8463,6 +8493,11 @@ declare class PartialMarkdownService {
      * ```
      */
     protected init: (() => Promise<void>) & functools_kit.ISingleshotClearable;
+    /**
+     * Function to unsubscribe from partial profit/loss events.
+     * Assigned during init().
+     */
+    unsubscribe: Function;
 }
 
 /**
@@ -8882,6 +8917,11 @@ declare class RiskMarkdownService {
      * ```
      */
     protected init: (() => Promise<void>) & functools_kit.ISingleshotClearable;
+    /**
+     * Function to unsubscribe from partial profit/loss events.
+     * Assigned during init().
+     */
+    unsubscribe: Function;
 }
 
 /**
@@ -9157,7 +9197,7 @@ declare const Exchange: ExchangeUtils;
  * Generic function type that accepts any arguments and returns any value.
  * Used as a constraint for cached functions.
  */
-type Function = (...args: any[]) => any;
+type Function$1 = (...args: any[]) => any;
 /**
  * Utility class for function caching with timeframe-based invalidation.
  *
@@ -9202,7 +9242,7 @@ declare class CacheUtils {
      * const result2 = cachedCalculate("BTCUSDT", 14); // Cached (same 15m interval)
      * ```
      */
-    fn: <T extends Function>(run: T, context: {
+    fn: <T extends Function$1>(run: T, context: {
         interval: CandleInterval;
     }) => T;
     /**
@@ -9234,7 +9274,7 @@ declare class CacheUtils {
      * Cache.flush();
      * ```
      */
-    flush: <T extends Function>(run?: T) => void;
+    flush: <T extends Function$1>(run?: T) => void;
     /**
      * Clear cached value for current execution context of a specific function.
      *
@@ -9264,7 +9304,7 @@ declare class CacheUtils {
      * // Other contexts (different strategies/exchanges) remain cached
      * ```
      */
-    clear: <T extends Function>(run: T) => void;
+    clear: <T extends Function$1>(run: T) => void;
 }
 /**
  * Singleton instance of CacheUtils for convenient function caching.

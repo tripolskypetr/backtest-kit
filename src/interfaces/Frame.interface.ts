@@ -50,7 +50,7 @@ export interface IFrameCallbacks {
     startDate: Date,
     endDate: Date,
     interval: FrameInterval
-  ) => void;
+  ) => void | Promise<void>;
 }
 
 /**

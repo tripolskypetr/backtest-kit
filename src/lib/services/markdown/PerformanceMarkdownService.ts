@@ -502,8 +502,14 @@ export class PerformanceMarkdownService {
    */
   protected init = singleshot(async () => {
     this.loggerService.log("performanceMarkdownService init");
-    performanceEmitter.subscribe(this.track);
+    this.unsubscribe = performanceEmitter.subscribe(this.track);
   });
+
+  /**
+   * Function to unsubscribe from partial profit/loss events.
+   * Assigned during init().
+   */
+  public unsubscribe: Function;
 }
 
 export default PerformanceMarkdownService;

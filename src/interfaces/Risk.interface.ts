@@ -52,9 +52,9 @@ export interface IRiskCallbacks {
   onRejected: (
     symbol: string,
     params: IRiskCheckArgs
-  ) => void;
+  ) => void | Promise<void>;
   /** Called when a signal passes risk checks */
-  onAllowed: (symbol: string, params: IRiskCheckArgs) => void;
+  onAllowed: (symbol: string, params: IRiskCheckArgs) => void | Promise<void>;
 }
 
 /**

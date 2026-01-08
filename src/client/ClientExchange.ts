@@ -5,7 +5,9 @@ import {
   IExchangeParams,
 } from "../interfaces/Exchange.interface";
 import { GLOBAL_CONFIG } from "../config/params";
-import { errorData, getErrorMessage, sleep } from "functools-kit";
+import { errorData, getErrorMessage, sleep, trycatch } from "functools-kit";
+import backtest from "../lib";
+import { errorEmitter } from "../config/emitters";
 
 const INTERVAL_MINUTES: Record<CandleInterval, number> = {
   "1m": 1,
@@ -152,6 +154,50 @@ const GET_CANDLES_FN = async (
 };
 
 /**
+ * Wrapper to call onCandleData callback with error handling.
+ * Catches and logs any errors thrown by the user-provided callback.
+ *
+ * @param self - ClientExchange instance reference
+ * @param symbol - Trading pair symbol
+ * @param interval - Candle interval
+ * @param since - Start date for candle data
+ * @param limit - Number of candles
+ * @param data - Array of candle data
+ */
+const CALL_CANDLE_DATA_CALLBACKS_FN = trycatch(
+  async (
+    self: ClientExchange,
+    symbol: string,
+    interval: CandleInterval,
+    since: Date,
+    limit: number,
+    data: ICandleData[]
+  ): Promise<void> => {
+    if (self.params.callbacks?.onCandleData) {
+      await self.params.callbacks.onCandleData(
+        symbol,
+        interval,
+        since,
+        limit,
+        data
+      );
+    }
+  },
+  {
+    fallback: (error) => {
+      const message = "ClientExchange CALL_CANDLE_DATA_CALLBACKS_FN thrown";
+      const payload = {
+        error: errorData(error),
+        message: getErrorMessage(error),
+      };
+      backtest.loggerService.warn(message, payload);
+      console.warn(message, payload);
+      errorEmitter.next(error);
+    },
+  }
+);
+
+/**
  * Client implementation for exchange data access.
  *
  * Features:
@@ -229,15 +275,14 @@ export class ClientExchange implements IExchange {
       );
     }
 
-    if (this.params.callbacks?.onCandleData) {
-      this.params.callbacks.onCandleData(
-        symbol,
-        interval,
-        since,
-        limit,
-        filteredData
-      );
-    }
+    await CALL_CANDLE_DATA_CALLBACKS_FN(
+      this,
+      symbol,
+      interval,
+      since,
+      limit,
+      filteredData
+    );
 
     return filteredData;
   }
@@ -291,15 +336,14 @@ export class ClientExchange implements IExchange {
       );
     }
 
-    if (this.params.callbacks?.onCandleData) {
-      this.params.callbacks.onCandleData(
-        symbol,
-        interval,
-        since,
-        limit,
-        filteredData
-      );
-    }
+    await CALL_CANDLE_DATA_CALLBACKS_FN(
+      this,
+      symbol,
+      interval,
+      since,
+      limit,
+      filteredData
+    );
 
     return filteredData;
   }

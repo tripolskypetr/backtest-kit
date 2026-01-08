@@ -57,7 +57,7 @@ export interface IExchangeCallbacks {
     since: Date,
     limit: number,
     data: ICandleData[]
-  ) => void;
+  ) => void | Promise<void>;
 }
 
 /**

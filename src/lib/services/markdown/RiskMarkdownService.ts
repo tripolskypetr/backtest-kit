@@ -421,8 +421,14 @@ export class RiskMarkdownService {
    */
   protected init = singleshot(async () => {
     this.loggerService.log("riskMarkdownService init");
-    riskSubject.subscribe(this.tickRejection);
+    this.unsubscribe = riskSubject.subscribe(this.tickRejection);
   });
+
+  /**
+   * Function to unsubscribe from partial profit/loss events.
+   * Assigned during init().
+   */
+  public unsubscribe: Function;
 }
 
 export default RiskMarkdownService;

@@ -123,7 +123,7 @@ export interface ISizingCallbacks {
   onCalculate: (
     quantity: number,
     params: ISizingCalculateParams
-  ) => void;
+  ) => void | Promise<void>;
 }
 
 /**

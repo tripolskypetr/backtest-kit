@@ -653,8 +653,14 @@ export class LiveMarkdownService {
    */
   protected init = singleshot(async () => {
     this.loggerService.log("liveMarkdownService init");
-    signalLiveEmitter.subscribe(this.tick);
+    this.unsubscribe = signalLiveEmitter.subscribe(this.tick);
   });
+
+  /**
+   * Function to unsubscribe from backtest signal events.
+   * Assigned during init().
+   */
+  public unsubscribe: Function;
 }
 
 export default LiveMarkdownService;

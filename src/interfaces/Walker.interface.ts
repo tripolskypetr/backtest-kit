@@ -50,7 +50,7 @@ export interface IWalkerSchema {
  */
 export interface IWalkerCallbacks {
   /** Called when starting to test a specific strategy */
-  onStrategyStart: (strategyName: StrategyName, symbol: string) => void;
+  onStrategyStart: (strategyName: StrategyName, symbol: string) => void | Promise<void>;
 
   /** Called when a strategy backtest completes */
   onStrategyComplete: (
@@ -58,17 +58,17 @@ export interface IWalkerCallbacks {
     symbol: string,
     stats: BacktestStatisticsModel,
     metric: number | null
-  ) => void;
+  ) => void | Promise<void>;
 
   /** Called when a strategy backtest fails with an error */
   onStrategyError: (
     strategyName: StrategyName,
     symbol: string,
     error: Error | unknown
-  ) => void;
+  ) => void | Promise<void>;
 
   /** Called when all strategies have been tested */
-  onComplete: (results: IWalkerResults) => void;
+  onComplete: (results: IWalkerResults) => void | Promise<void>;
 }
 
 /**
