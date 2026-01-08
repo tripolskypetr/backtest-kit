@@ -561,29 +561,37 @@ export interface IStrategy {
   partialLoss: (symbol: string, percentToClose: number, currentPrice: number, backtest: boolean) => Promise<void>;
 
   /**
-   * Sets trailing stop-loss at specified percentage distance from ORIGINAL stop-loss.
+   * Adjusts trailing stop-loss by shifting distance between entry and original SL.
    *
-   * Calculates new stop-loss as a percentage shift from the ORIGINAL priceStopLoss:
-   * - For LONG: newSL = originalSL * (1 + percentDistance/100) - moves SL upward (closer to entry)
-   * - For SHORT: newSL = originalSL * (1 - percentDistance/100) - moves SL downward (closer to entry)
+   * Calculates new SL based on percentage shift of the distance (entry - originalSL):
+   * - Negative %: tightens stop (moves SL closer to entry, reduces risk)
+   * - Positive %: loosens stop (moves SL away from entry, allows more drawdown)
+   *
+   * For LONG position (entry=100, originalSL=90, distance=10):
+   * - percentShift = -50: newSL = 100 - 10*(1-0.5) = 95 (tighter, closer to entry)
+   * - percentShift = +20: newSL = 100 - 10*(1+0.2) = 88 (looser, away from entry)
+   *
+   * For SHORT position (entry=100, originalSL=110, distance=10):
+   * - percentShift = -50: newSL = 100 + 10*(1-0.5) = 105 (tighter, closer to entry)
+   * - percentShift = +20: newSL = 100 + 10*(1+0.2) = 112 (looser, away from entry)
    *
    * Trailing behavior:
-   * - Only updates if new SL is BETTER than current effective SL
-   * - For LONG: only moves SL upward (never down)
-   * - For SHORT: only moves SL downward (never up)
-   * - Larger shifts override smaller shifts (not cumulative)
+   * - Only updates if new SL is BETTER (protects more profit)
+   * - For LONG: only accepts higher SL (never moves down)
+   * - For SHORT: only accepts lower SL (never moves up)
+   * - Validates that SL never crosses entry price
    * - Stores in _trailingPriceStopLoss, original priceStopLoss preserved
-   * - Percent is calculated from ORIGINAL priceStopLoss, not from current price
-   * - Larger percentDistance values override smaller ones (no accumulation)
    *
    * Validations:
    * - Throws if no pending signal exists
-   * - Throws if percentDistance <= 0 or > 100
+   * - Throws if percentDistance < -100 or > 100
+   * - Throws if percentDistance === 0
+   * - Skips if new SL would cross entry price
    *
    * Use case: User-controlled trailing stop triggered from onPartialProfit callback.
    *
    * @param symbol - Trading pair symbol (e.g., "BTCUSDT")
-   * @param percentDistance - Percentage shift from original stop-loss (0-100)
+   * @param percentDistance - Percentage shift of SL distance [-100, 100], excluding 0
    * @param backtest - Whether running in backtest mode
    * @returns Promise that resolves when trailing SL is updated
    *
@@ -592,10 +600,9 @@ export interface IStrategy {
    * callbacks: {
    *   onPartialProfit: async (symbol, signal, currentPrice, percentTp, backtest) => {
    *     if (percentTp >= 50) {
-   *       // Shift SL by +5% from ORIGINAL stop-loss
-   *       // LONG: If original SL was 90, new SL will be 94.5
-   *       // SHORT: If original SL was 110, new SL will be 104.5
-   *       await strategy.trailingStop(symbol, 5, backtest);
+   *       // LONG: entry=100, originalSL=90, distance=10
+   *       // Tighten stop by 50%: newSL = 100 - 10*(1-0.5) = 95
+   *       await strategy.trailingStop(symbol, -50, backtest);
    *     }
    *   }
    * }

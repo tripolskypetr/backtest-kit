@@ -742,25 +742,63 @@ const PARTIAL_LOSS_FN = (
 const TRAILING_STOP_FN = (
   self: ClientStrategy,
   signal: ISignalRow,
-  percentDistance: number
+  percentShift: number
 ): void => {
-  // Calculate new stop-loss price based on position type and ORIGINAL priceStopLoss
+  // Calculate distance between entry and original stop-loss
+  const slDistance = Math.abs(signal.priceOpen - signal.priceStopLoss);
+
+  // Calculate new stop-loss price based on position type and percentShift
+  // Negative percentShift: move SL closer to entry (tighten stop)
+  // Positive percentShift: move SL away from entry (loosen stop, protect more profit)
   let newStopLoss: number;
 
   if (signal.position === "long") {
-    // LONG: newSL = originalSL + (originalSL * percentDistance/100)
-    // Trailing SL moves UPWARD as price rises (protecting profit)
-    newStopLoss = signal.priceStopLoss * (1 + percentDistance / 100);
+    // LONG: originalSL is below entry
+    // Formula: entry - distance * (1 + percentShift/100)
+    // Negative %: reduces distance (SL moves UP toward entry, tightens stop)
+    // Positive %: increases distance (SL moves DOWN away from entry, loosens stop)
+    // Example: entry=100, distance=10, shift=-50% → 100 - 10*0.5 = 95 (tighter)
+    // Example: entry=100, distance=10, shift=+20% → 100 - 10*1.2 = 88 (looser)
+    newStopLoss = signal.priceOpen - slDistance * (1 + percentShift / 100);
   } else {
-    // SHORT: newSL = originalSL - (originalSL * percentDistance/100)
-    // Trailing SL moves DOWNWARD as price falls (protecting profit)
-    newStopLoss = signal.priceStopLoss * (1 - percentDistance / 100);
+    // SHORT: originalSL is above entry
+    // Formula: entry + distance * (1 + percentShift/100)
+    // Negative %: reduces distance (SL moves DOWN toward entry, tightens stop)
+    // Positive %: increases distance (SL moves UP away from entry, loosens stop)
+    // Example: entry=100, distance=10, shift=-50% → 100 + 10*0.5 = 105 (tighter)
+    // Example: entry=100, distance=10, shift=+20% → 100 + 10*1.2 = 112 (looser)
+    newStopLoss = signal.priceOpen + slDistance * (1 + percentShift / 100);
+  }
+
+  // Validate: new SL must not cross entry price
+  if (signal.position === "long") {
+    if (newStopLoss >= signal.priceOpen) {
+      self.params.logger.warn("TRAILING_STOP_FN: new SL would cross entry price, skipping", {
+        signalId: signal.id,
+        position: signal.position,
+        priceOpen: signal.priceOpen,
+        newStopLoss,
+        percentShift,
+      });
+      return;
+    }
+  } else {
+    if (newStopLoss <= signal.priceOpen) {
+      self.params.logger.warn("TRAILING_STOP_FN: new SL would cross entry price, skipping", {
+        signalId: signal.id,
+        position: signal.position,
+        priceOpen: signal.priceOpen,
+        newStopLoss,
+        percentShift,
+      });
+      return;
+    }
   }
 
   // Get current effective stop-loss (trailing or original)
   const currentStopLoss = signal._trailingPriceStopLoss ?? signal.priceStopLoss;
 
-  // Only update if new SL is BETTER (closer to profit, further from original SL)
+  // Only update if new SL is BETTER (protects more profit)
   let shouldUpdate = false;
 
   if (signal.position === "long") {
@@ -781,7 +819,7 @@ const TRAILING_STOP_FN = (
       position: signal.position,
       currentStopLoss,
       newStopLoss,
-      percentDistance,
+      percentShift,
     });
     return;
   }
@@ -792,10 +830,12 @@ const TRAILING_STOP_FN = (
   self.params.logger.info("TRAILING_STOP_FN executed", {
     signalId: signal.id,
     position: signal.position,
+    priceOpen: signal.priceOpen,
     originalStopLoss: signal.priceStopLoss,
     previousStopLoss: currentStopLoss,
     newStopLoss,
-    percentDistance,
+    percentShift,
+    slDistance,
   });
 };
 
@@ -3452,46 +3492,50 @@ export class ClientStrategy implements IStrategy {
   }
 
   /**
-   * Sets trailing stop-loss at specified percentage distance from ORIGINAL stop-loss.
+   * Adjusts trailing stop-loss by shifting distance between entry and original SL.
    *
-   * Calculates new stop-loss as a percentage shift from the ORIGINAL priceStopLoss:
-   * - For LONG: newSL = originalSL * (1 + percentDistance/100) - moves SL upward (closer to entry)
-   * - For SHORT: newSL = originalSL * (1 - percentDistance/100) - moves SL downward (closer to entry)
+   * Calculates new SL based on percentage shift of the distance (entry - originalSL):
+   * - Negative %: tightens stop (moves SL closer to entry, reduces risk)
+   * - Positive %: loosens stop (moves SL away from entry, allows more drawdown)
+   *
+   * For LONG position (entry=100, originalSL=90, distance=10):
+   * - percentShift = -50: newSL = 100 - 10*(1-0.5) = 95 (tighter, closer to entry)
+   * - percentShift = +20: newSL = 100 - 10*(1+0.2) = 88 (looser, away from entry)
+   *
+   * For SHORT position (entry=100, originalSL=110, distance=10):
+   * - percentShift = -50: newSL = 100 + 10*(1-0.5) = 105 (tighter, closer to entry)
+   * - percentShift = +20: newSL = 100 + 10*(1+0.2) = 112 (looser, away from entry)
    *
    * Trailing behavior:
-   * - Only updates if new SL is BETTER than current effective SL
-   * - For LONG: only moves SL upward (never down)
-   * - For SHORT: only moves SL downward (never up)
-   * - Larger shifts override smaller shifts (not cumulative)
+   * - Only updates if new SL is BETTER (protects more profit)
+   * - For LONG: only accepts higher SL (never moves down)
+   * - For SHORT: only accepts lower SL (never moves up)
+   * - Validates that SL never crosses entry price
    * - Stores in _trailingPriceStopLoss, original priceStopLoss preserved
-   * - Persists updated signal state (backtest and live modes)
-   * - Calls onWrite callback for persistence testing
    *
    * Validation:
    * - Throws if no pending signal exists
-   * - Throws if percentDistance is not a finite number
-   * - Throws if percentDistance <= 0 or > 100
+   * - Throws if percentShift is not a finite number
+   * - Throws if percentShift < -100 or > 100
+   * - Throws if percentShift === 0
+   * - Skips if new SL would cross entry price
    *
    * @param symbol - Trading pair symbol (e.g., "BTCUSDT")
-   * @param percentDistance - Percentage shift from original stop-loss (0-100)
+   * @param percentDistance - Percentage shift of SL distance [-100, 100], excluding 0
    * @param backtest - Whether running in backtest mode (controls persistence)
    * @returns Promise that resolves when trailing SL is updated and persisted
    *
    * @example
    * ```typescript
-   * // LONG position: priceOpen=100, originalSL=90
+   * // LONG position: entry=100, originalSL=90, distance=10
    *
-   * // Shift SL by +5% from original (90 → 94.5)
-   * await strategy.trailingStop("BTCUSDT", 5, false);
-   * // newSL = 90 * 1.05 = 94.5
+   * // Move SL 50% closer to entry (tighten)
+   * await strategy.trailingStop("BTCUSDT", -50, false);
+   * // newSL = 100 - 10*(1-0.5) = 95
    *
-   * // Shift SL by +10% from original (90 → 99)
-   * await strategy.trailingStop("BTCUSDT", 10, false);
-   * // newSL = 90 * 1.10 = 99 (larger shift overrides previous)
-   *
-   * // Try smaller shift (90 → 92.7)
-   * await strategy.trailingStop("BTCUSDT", 3, false);
-   * // newSL = 90 * 1.03 = 92.7 (SKIPPED: smaller than current 99)
+   * // Move SL 30% away from entry (loosen, protect profit)
+   * await strategy.trailingStop("BTCUSDT", 30, false);
+   * // newSL = 100 - 10*(1+0.3) = 87 (SKIPPED: worse than 95)
    * ```
    */
   public async trailingStop(
@@ -3519,15 +3563,15 @@ export class ClientStrategy implements IStrategy {
       );
     }
 
-    if (percentDistance <= 0) {
+    if (percentDistance < -100 || percentDistance > 100) {
       throw new Error(
-        `ClientStrategy trailingStop: percentDistance must be > 0, got ${percentDistance}`
+        `ClientStrategy trailingStop: percentDistance must be in range [-100, 100], got ${percentDistance}`
       );
     }
 
-    if (percentDistance > 100) {
+    if (percentDistance === 0) {
       throw new Error(
-        `ClientStrategy trailingStop: percentDistance must be <= 100, got ${percentDistance}`
+        `ClientStrategy trailingStop: percentDistance cannot be 0`
       );
     }
 
