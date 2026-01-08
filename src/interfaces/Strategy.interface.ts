@@ -149,7 +149,7 @@ export interface IStrategyParams extends IStrategySchema {
   /** Method context service (strategyName, exchangeName, frameName) */
   method: TMethodContextService;
   /** System callback for ping events (emits to pingSubject) */
-  onPing: (symbol: string, strategyName: StrategyName, exchangeName: ExchangeName, data: IScheduledSignalRow, backtest: boolean, timestamp: number) => Promise<void>;
+  onPing: (symbol: string, strategyName: StrategyName, exchangeName: ExchangeName, data: IPublicSignalRow, backtest: boolean, timestamp: number) => Promise<void>;
 }
 
 /**
@@ -160,30 +160,30 @@ export interface IStrategyCallbacks {
   /** Called on every tick with the result */
   onTick: (symbol: string, result: IStrategyTickResult, backtest: boolean) => void | Promise<void>;
   /** Called when new signal is opened (after validation) */
-  onOpen: (symbol: string, data: ISignalRow, currentPrice: number, backtest: boolean) => void | Promise<void>;
+  onOpen: (symbol: string, data: IPublicSignalRow, currentPrice: number, backtest: boolean) => void | Promise<void>;
   /** Called when signal is being monitored (active state) */
-  onActive: (symbol: string, data: ISignalRow, currentPrice: number, backtest: boolean) => void | Promise<void>;
+  onActive: (symbol: string, data: IPublicSignalRow, currentPrice: number, backtest: boolean) => void | Promise<void>;
   /** Called when no active signal exists (idle state) */
   onIdle: (symbol: string, currentPrice: number, backtest: boolean) => void | Promise<void>;
   /** Called when signal is closed with final price */
   onClose: (
     symbol: string,
-    data: ISignalRow,
+    data: IPublicSignalRow,
     priceClose: number,
     backtest: boolean,
   ) => void | Promise<void>;
   /** Called when scheduled signal is created (delayed entry) */
-  onSchedule: (symbol: string, data: IScheduledSignalRow, currentPrice: number, backtest: boolean) => void | Promise<void>;
+  onSchedule: (symbol: string, data: IPublicSignalRow, currentPrice: number, backtest: boolean) => void | Promise<void>;
   /** Called when scheduled signal is cancelled without opening position */
-  onCancel: (symbol: string, data: IScheduledSignalRow, currentPrice: number, backtest: boolean) => void | Promise<void>;
+  onCancel: (symbol: string, data: IPublicSignalRow, currentPrice: number, backtest: boolean) => void | Promise<void>;
   /** Called when signal is written to persist storage (for testing) */
-  onWrite: (symbol: string, data: ISignalRow | null, backtest: boolean) => void;
+  onWrite: (symbol: string, data: IPublicSignalRow | null, backtest: boolean) => void;
   /** Called when signal is in partial profit state (price moved favorably but not reached TP yet) */
-  onPartialProfit: (symbol: string, data: ISignalRow, currentPrice: number, revenuePercent: number, backtest: boolean) => void | Promise<void>;
+  onPartialProfit: (symbol: string, data: IPublicSignalRow, currentPrice: number, revenuePercent: number, backtest: boolean) => void | Promise<void>;
   /** Called when signal is in partial loss state (price moved against position but not hit SL yet) */
-  onPartialLoss: (symbol: string, data: ISignalRow, currentPrice: number, lossPercent: number, backtest: boolean) => void | Promise<void>;
+  onPartialLoss: (symbol: string, data: IPublicSignalRow, currentPrice: number, lossPercent: number, backtest: boolean) => void | Promise<void>;
   /** Called every minute regardless of strategy interval (for custom monitoring like checking if signal should be cancelled) */
-  onPing: (symbol: string, data: IScheduledSignalRow, when: Date, backtest: boolean) => void | Promise<void>;
+  onPing: (symbol: string, data: IPublicSignalRow, when: Date, backtest: boolean) => void | Promise<void>;
 }
 
 /**

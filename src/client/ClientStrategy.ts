@@ -1107,12 +1107,14 @@ const CALL_PING_CALLBACKS_FN = trycatch(
     backtest: boolean,
   ): Promise<void> => {
     await ExecutionContextService.runInContext(async () => {
+      const publicSignal = TO_PUBLIC_SIGNAL(scheduled);
+
       // Call system onPing callback first (emits to pingSubject)
       await self.params.onPing(
         self.params.execution.context.symbol,
         self.params.method.context.strategyName,
         self.params.method.context.exchangeName,
-        scheduled,
+        publicSignal,
         self.params.execution.context.backtest,
         timestamp
       );
@@ -1121,7 +1123,7 @@ const CALL_PING_CALLBACKS_FN = trycatch(
       if (self.params.callbacks?.onPing) {
         await self.params.callbacks.onPing(
           self.params.execution.context.symbol,
-          scheduled,
+          publicSignal,
           new Date(timestamp),
           self.params.execution.context.backtest
         );
@@ -1157,9 +1159,10 @@ const CALL_ACTIVE_CALLBACKS_FN = trycatch(
   ): Promise<void> => {
     await ExecutionContextService.runInContext(async () => {
       if (self.params.callbacks?.onActive) {
+        const publicSignal = TO_PUBLIC_SIGNAL(signal);
         await self.params.callbacks.onActive(
           self.params.execution.context.symbol,
-          signal,
+          publicSignal,
           currentPrice,
           self.params.execution.context.backtest
         );
@@ -1195,9 +1198,10 @@ const CALL_SCHEDULE_CALLBACKS_FN = trycatch(
   ): Promise<void> => {
     await ExecutionContextService.runInContext(async () => {
       if (self.params.callbacks?.onSchedule) {
+        const publicSignal = TO_PUBLIC_SIGNAL(signal);
         await self.params.callbacks.onSchedule(
           self.params.execution.context.symbol,
-          signal,
+          publicSignal,
           currentPrice,
           self.params.execution.context.backtest
         );
@@ -1233,9 +1237,10 @@ const CALL_CANCEL_CALLBACKS_FN = trycatch(
   ): Promise<void> => {
     await ExecutionContextService.runInContext(async () => {
       if (self.params.callbacks?.onCancel) {
+        const publicSignal = TO_PUBLIC_SIGNAL(signal);
         await self.params.callbacks.onCancel(
           self.params.execution.context.symbol,
-          signal,
+          publicSignal,
           currentPrice,
           self.params.execution.context.backtest
         );
@@ -1271,9 +1276,10 @@ const CALL_OPEN_CALLBACKS_FN = trycatch(
   ): Promise<void> => {
     await ExecutionContextService.runInContext(async () => {
       if (self.params.callbacks?.onOpen) {
+        const publicSignal = TO_PUBLIC_SIGNAL(signal);
         await self.params.callbacks.onOpen(
           self.params.execution.context.symbol,
-          signal,
+          publicSignal,
           priceOpen,
           self.params.execution.context.backtest
         );
@@ -1309,9 +1315,10 @@ const CALL_CLOSE_CALLBACKS_FN = trycatch(
   ): Promise<void> => {
     await ExecutionContextService.runInContext(async () => {
       if (self.params.callbacks?.onClose) {
+        const publicSignal = TO_PUBLIC_SIGNAL(signal);
         await self.params.callbacks.onClose(
           self.params.execution.context.symbol,
-          signal,
+          publicSignal,
           currentPrice,
           self.params.execution.context.backtest
         );
@@ -1486,9 +1493,10 @@ const CALL_PARTIAL_CLEAR_FN = trycatch(
     backtest: boolean
   ): Promise<void> => {
     await ExecutionContextService.runInContext(async () => {
+      const publicSignal = TO_PUBLIC_SIGNAL(signal);
       await self.params.partial.clear(
         symbol,
-        signal,
+        publicSignal,
         currentPrice,
         backtest,
       );
@@ -1522,8 +1530,14 @@ const CALL_RISK_CHECK_SIGNAL_FN = trycatch(
     backtest: boolean
   ): Promise<boolean> => {
     return await ExecutionContextService.runInContext(async () => {
+      // If pendingSignal has internal state (_trailingPriceStopLoss), convert to public format
+      // ISignalDto doesn't have id field, so we can check for it to distinguish from ISignalRow
+      const signalForRisk = (pendingSignal as ISignalRow).id
+        ? TO_PUBLIC_SIGNAL(pendingSignal as ISignalRow | IScheduledSignalRow)
+        : pendingSignal;
+
       return await self.params.risk.checkSignal({
-        pendingSignal,
+        pendingSignal: signalForRisk,
         symbol: symbol,
         strategyName: self.params.method.context.strategyName,
         exchangeName: self.params.method.context.exchangeName,
@@ -1563,9 +1577,10 @@ const CALL_PARTIAL_PROFIT_CALLBACKS_FN = trycatch(
     backtest: boolean
   ): Promise<void> => {
     await ExecutionContextService.runInContext(async () => {
+      const publicSignal = TO_PUBLIC_SIGNAL(signal);
       await self.params.partial.profit(
         symbol,
-        signal,
+        publicSignal,
         currentPrice,
         percentTp,
         backtest,
@@ -1574,7 +1589,7 @@ const CALL_PARTIAL_PROFIT_CALLBACKS_FN = trycatch(
       if (self.params.callbacks?.onPartialProfit) {
         await self.params.callbacks.onPartialProfit(
           symbol,
-          signal,
+          publicSignal,
           currentPrice,
           percentTp,
           backtest
@@ -1611,9 +1626,10 @@ const CALL_PARTIAL_LOSS_CALLBACKS_FN = trycatch(
     backtest: boolean
   ): Promise<void> => {
     await ExecutionContextService.runInContext(async () => {
+      const publicSignal = TO_PUBLIC_SIGNAL(signal);
       await self.params.partial.loss(
         symbol,
-        signal,
+        publicSignal,
         currentPrice,
         percentSl,
         backtest,
@@ -1622,7 +1638,7 @@ const CALL_PARTIAL_LOSS_CALLBACKS_FN = trycatch(
       if (self.params.callbacks?.onPartialLoss) {
         await self.params.callbacks.onPartialLoss(
           symbol,
-          signal,
+          publicSignal,
           currentPrice,
           percentSl,
           backtest
@@ -2645,9 +2661,10 @@ export class ClientStrategy implements IStrategy {
     // КРИТИЧНО: Всегда вызываем коллбек onWrite для тестирования persist storage
     // даже в backtest режиме, чтобы тесты могли перехватывать вызовы через mock adapter
     if (this.params.callbacks?.onWrite) {
+      const publicSignal = this._pendingSignal ? TO_PUBLIC_SIGNAL(this._pendingSignal) : null;
       this.params.callbacks.onWrite(
         this.params.execution.context.symbol,
-        this._pendingSignal,
+        publicSignal,
         this.params.execution.context.backtest
       );
     }
@@ -3363,7 +3380,7 @@ export class ClientStrategy implements IStrategy {
     if (this.params.callbacks?.onWrite) {
       this.params.callbacks.onWrite(
         this.params.execution.context.symbol,
-        this._pendingSignal,
+        TO_PUBLIC_SIGNAL(this._pendingSignal),
         backtest
       );
     }
@@ -3492,7 +3509,7 @@ export class ClientStrategy implements IStrategy {
     if (this.params.callbacks?.onWrite) {
       this.params.callbacks.onWrite(
         this.params.execution.context.symbol,
-        this._pendingSignal,
+        TO_PUBLIC_SIGNAL(this._pendingSignal),
         backtest
       );
     }
@@ -3601,9 +3618,10 @@ export class ClientStrategy implements IStrategy {
 
     // Call onWrite callback for testing persist storage
     if (this.params.callbacks?.onWrite) {
+      const publicSignal = TO_PUBLIC_SIGNAL(this._pendingSignal);
       this.params.callbacks.onWrite(
         this.params.execution.context.symbol,
-        this._pendingSignal,
+        publicSignal,
         backtest
       );
     }

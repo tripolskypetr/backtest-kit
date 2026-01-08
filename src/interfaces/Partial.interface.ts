@@ -1,7 +1,7 @@
 import { ExchangeName } from "./Exchange.interface";
 import { FrameName } from "./Frame.interface";
 import { ILogger } from "./Logger.interface";
-import { ISignalRow, StrategyName } from "./Strategy.interface";
+import { ISignalRow, IPublicSignalRow, StrategyName } from "./Strategy.interface";
 
 /**
  * Profit or loss level milestone in percentage points.
@@ -99,7 +99,7 @@ export interface IPartialParams {
     strategyName: StrategyName,
     exchangeName: ExchangeName,
     frameName: FrameName,
-    data: ISignalRow,
+    data: IPublicSignalRow,
     currentPrice: number,
     level: PartialLevel,
     backtest: boolean,
@@ -125,7 +125,7 @@ export interface IPartialParams {
     strategyName: StrategyName,
     exchangeName: ExchangeName,
     frameName: FrameName,
-    data: ISignalRow,
+    data: IPublicSignalRow,
     currentPrice: number,
     level: PartialLevel,
     backtest: boolean,
@@ -200,7 +200,7 @@ export interface IPartial {
    */
   profit(
     symbol: string,
-    data: ISignalRow,
+    data: IPublicSignalRow,
     currentPrice: number,
     revenuePercent: number,
     backtest: boolean,
@@ -242,7 +242,7 @@ export interface IPartial {
    */
   loss(
     symbol: string,
-    data: ISignalRow,
+    data: IPublicSignalRow,
     currentPrice: number,
     lossPercent: number,
     backtest: boolean,
@@ -270,5 +270,5 @@ export interface IPartial {
    * // Memoized instance cleared from getPartial cache
    * ```
    */
-  clear(symbol: string, data: ISignalRow, priceClose: number, backtest: boolean): Promise<void>;
+  clear(symbol: string, data: IPublicSignalRow, priceClose: number, backtest: boolean): Promise<void>;
 }
