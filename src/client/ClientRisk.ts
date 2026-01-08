@@ -29,9 +29,15 @@ type RiskMap = Map<string, IRiskActivePosition>;
 /** Symbol indicating that positions need to be fetched from persistence */
 const POSITION_NEED_FETCH = Symbol("risk-need-fetch");
 
-/** Converts ISignalDto or ISignalRow to IRiskSignalRow format */
+/** Converts ISignalRow or IScheduledSignalRow to IRiskSignalRow format */
 const TO_PUBLIC_SIGNAL = <T extends ISignalDto | ISignalRow>(signal: T, currentPrice: number): IRiskSignalRow => {
-  // Always use original priceStopLoss, never expose trailing SL to risk validation
+  if ("_trailingPriceStopLoss" in signal) {
+    return {
+      ...signal,
+      priceStopLoss: signal._trailingPriceStopLoss,
+      originalPriceStopLoss: signal.priceStopLoss,
+    };
+  }
   return {
     ...signal,
     priceOpen: signal.priceOpen ?? currentPrice,
