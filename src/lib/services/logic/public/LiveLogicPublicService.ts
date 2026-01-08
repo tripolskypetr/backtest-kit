@@ -7,6 +7,24 @@ import { StrategyName } from "../../../../interfaces/Strategy.interface";
 import { ExchangeName } from "../../../../interfaces/Exchange.interface";
 
 /**
+ * Type definition for public LiveLogic service.
+ * Omits private dependencies from LiveLogicPrivateService.
+ */
+type ILiveLogicPrivateService = Omit<LiveLogicPrivateService, keyof {
+  loggerService: never;
+  strategyCoreService: never;
+  methodContextService: never;
+}>;
+
+/**
+ * Type definition for LiveLogicPublicService.
+ * Maps all keys of ILiveLogicPrivateService to any type.
+ */
+type TLiveLogicPrivateService = {
+  [key in keyof ILiveLogicPrivateService]: any;
+};
+
+/**
  * Public service for live trading orchestration with context management.
  *
  * Wraps LiveLogicPrivateService with MethodContextService to provide
@@ -37,7 +55,7 @@ import { ExchangeName } from "../../../../interfaces/Exchange.interface";
  * }
  * ```
  */
-export class LiveLogicPublicService {
+export class LiveLogicPublicService implements TLiveLogicPrivateService {
   private readonly loggerService = inject<LoggerService>(TYPES.loggerService);
   private readonly liveLogicPrivateService = inject<LiveLogicPrivateService>(
     TYPES.liveLogicPrivateService

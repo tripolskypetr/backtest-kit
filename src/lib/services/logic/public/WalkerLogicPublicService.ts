@@ -8,6 +8,25 @@ import { FrameName } from "../../../../interfaces/Frame.interface";
 import { WalkerName } from "../../../../interfaces/Walker.interface";
 
 /**
+ * Type definition for public WalkerLogic service.
+ * Omits private dependencies from WalkerLogicPrivateService.
+ */
+type IWalkerLogicPrivateService = Omit<WalkerLogicPrivateService, keyof {
+  loggerService: never;
+  walkerSchemaService: never;
+  backtestMarkdownService: never;
+  backtestLogicPublicService: never;
+}>;
+
+/**
+ * Type definition for WalkerLogicPublicService.
+ * Maps all keys of IWalkerLogicPrivateService to any type.
+ */
+type TWalkerLogicPrivateService = {
+  [key in keyof IWalkerLogicPrivateService]: any;
+};
+
+/**
  * Public service for walker orchestration with context management.
  *
  * Wraps WalkerLogicPrivateService with MethodContextService to provide
@@ -28,7 +47,7 @@ import { WalkerName } from "../../../../interfaces/Walker.interface";
  * console.log("Best strategy:", results.bestStrategy);
  * ```
  */
-export class WalkerLogicPublicService {
+export class WalkerLogicPublicService implements TWalkerLogicPrivateService {
   private readonly loggerService = inject<LoggerService>(TYPES.loggerService);
   private readonly walkerLogicPrivateService =
     inject<WalkerLogicPrivateService>(TYPES.walkerLogicPrivateService);

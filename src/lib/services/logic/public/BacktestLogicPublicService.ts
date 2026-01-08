@@ -8,6 +8,26 @@ import { ExchangeName } from "../../../../interfaces/Exchange.interface";
 import { FrameName } from "../../../../interfaces/Frame.interface";
 
 /**
+ * Type definition for public BacktestLogic service.
+ * Omits private dependencies from BacktestLogicPrivateService.
+ */
+type IBacktestLogicPrivateService = Omit<BacktestLogicPrivateService, keyof {
+  loggerService: never;
+  strategyCoreService: never;
+  exchangeCoreService: never;
+  frameCoreService: never;
+  methodContextService: never;
+}>;
+
+/**
+ * Type definition for BacktestLogicPublicService.
+ * Maps all keys of IBacktestLogicPrivateService to any type.
+ */
+type TBacktestLogicPrivateService = {
+  [key in keyof IBacktestLogicPrivateService]: any;
+};
+
+/**
  * Public service for backtest orchestration with context management.
  *
  * Wraps BacktestLogicPrivateService with MethodContextService to provide
@@ -31,7 +51,7 @@ import { FrameName } from "../../../../interfaces/Frame.interface";
  * }
  * ```
  */
-export class BacktestLogicPublicService {
+export class BacktestLogicPublicService implements TBacktestLogicPrivateService {
   private readonly loggerService = inject<LoggerService>(TYPES.loggerService);
   private readonly backtestLogicPrivateService =
     inject<BacktestLogicPrivateService>(TYPES.backtestLogicPrivateService);
