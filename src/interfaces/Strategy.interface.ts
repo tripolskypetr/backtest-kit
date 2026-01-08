@@ -642,7 +642,7 @@ export interface IStrategy {
    * }
    * ```
    */
-  trailingStop: (symbol: string, percentDistance: number, backtest: boolean) => Promise<void>;
+  trailingStop: (symbol: string, percentShift: number, backtest: boolean) => Promise<void>;
 }
 
 /**

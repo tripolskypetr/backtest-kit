@@ -22,6 +22,7 @@ const LIVE_METHOD_NAME_GET_SCHEDULED_SIGNAL = "LiveUtils.getScheduledSignal";
 const LIVE_METHOD_NAME_CANCEL = "LiveUtils.cancel";
 const LIVE_METHOD_NAME_PARTIAL_PROFIT = "LiveUtils.partialProfit";
 const LIVE_METHOD_NAME_PARTIAL_LOSS = "LiveUtils.partialLoss";
+const LIVE_METHOD_NAME_TRAILING_STOP = "LiveUtils.trailingStop";
 
 /**
  * Internal task function that runs live trading and handles completion.
@@ -674,6 +675,55 @@ export class LiveUtils {
     }
 
     await backtest.strategyCoreService.partialLoss(false, symbol, percentToClose, currentPrice, {
+      strategyName: context.strategyName,
+      exchangeName: context.exchangeName,
+      frameName: "",
+    });
+  };
+
+  /**
+   * Adjusts the trailing stop-loss distance for an active pending signal.
+   *
+   * Updates the stop-loss distance by a percentage adjustment relative to the original SL distance.
+   * Positive percentShift tightens the SL (reduces distance), negative percentShift loosens it.
+   *
+   * @param symbol - Trading pair symbol
+   * @param percentShift - Percentage adjustment to SL distance (-100 to 100)
+   * @param context - Execution context with strategyName and exchangeName
+   * @returns Promise that resolves when trailing SL is updated
+   *
+   * @example
+   * ```typescript
+   * // LONG: entry=100, originalSL=90, distance=10
+   * // Tighten stop by 50%: newSL = 100 - 10*(1-0.5) = 95
+   * await Live.trailingStop("BTCUSDT", -50, {
+   *   exchangeName: "binance",
+   *   strategyName: "my-strategy"
+   * });
+   * ```
+   */
+  public trailingStop = async (
+    symbol: string,
+    percentShift: number,
+    context: {
+      strategyName: StrategyName;
+      exchangeName: ExchangeName;
+    }
+  ): Promise<void> => {
+    backtest.loggerService.info(LIVE_METHOD_NAME_TRAILING_STOP, {
+      symbol,
+      percentShift,
+      context,
+    });
+    backtest.strategyValidationService.validate(context.strategyName, LIVE_METHOD_NAME_TRAILING_STOP);
+
+    {
+      const { riskName, riskList } = backtest.strategySchemaService.get(context.strategyName);
+      riskName && backtest.riskValidationService.validate(riskName, LIVE_METHOD_NAME_TRAILING_STOP);
+      riskList && riskList.forEach((riskName) => backtest.riskValidationService.validate(riskName, LIVE_METHOD_NAME_TRAILING_STOP));
+    }
+
+    await backtest.strategyCoreService.trailingStop(false, symbol, percentShift, {
       strategyName: context.strategyName,
       exchangeName: context.exchangeName,
       frameName: "",

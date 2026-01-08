@@ -559,6 +559,48 @@ export class StrategyConnectionService implements TStrategy {
     const strategy = this.getStrategy(symbol, context.strategyName, context.exchangeName, context.frameName, backtest);
     await strategy.partialLoss(symbol, percentToClose, currentPrice, backtest);
   };
+
+  /**
+   * Adjusts the trailing stop-loss distance for an active pending signal.
+   *
+   * Updates the stop-loss distance by a percentage adjustment relative to the original SL distance.
+   * Positive percentShift tightens the SL (reduces distance), negative percentShift loosens it.
+   *
+   * Delegates to ClientStrategy.trailingStop() with current execution context.
+   *
+   * @param backtest - Whether running in backtest mode
+   * @param symbol - Trading pair symbol
+   * @param percentShift - Percentage adjustment to SL distance (-100 to 100)
+   * @param context - Execution context with strategyName, exchangeName, frameName
+   * @returns Promise that resolves when trailing SL is updated
+   *
+   * @example
+   * ```typescript
+   * // LONG: entry=100, originalSL=90, distance=10
+   * // Tighten stop by 50%: newSL = 100 - 10*(1-0.5) = 95
+   * await strategyConnectionService.trailingStop(
+   *   false,
+   *   "BTCUSDT",
+   *   -50,
+   *   { strategyName: "my-strategy", exchangeName: "binance", frameName: "" }
+   * );
+   * ```
+   */
+  public trailingStop = async (
+    backtest: boolean,
+    symbol: string,
+    percentShift: number,
+    context: { strategyName: StrategyName; exchangeName: ExchangeName; frameName: FrameName },
+  ): Promise<void> => {
+    this.loggerService.log("strategyConnectionService trailingStop", {
+      symbol,
+      context,
+      percentShift,
+      backtest,
+    });
+    const strategy = this.getStrategy(symbol, context.strategyName, context.exchangeName, context.frameName, backtest);
+    await strategy.trailingStop(symbol, percentShift, backtest);
+  };
 }
 
 export default StrategyConnectionService;

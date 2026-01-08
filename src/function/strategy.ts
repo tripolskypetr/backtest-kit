@@ -8,6 +8,7 @@ const STOP_METHOD_NAME = "strategy.stop";
 const CANCEL_METHOD_NAME = "strategy.cancel";
 const PARTIAL_PROFIT_METHOD_NAME = "strategy.partialProfit";
 const PARTIAL_LOSS_METHOD_NAME = "strategy.partialLoss";
+const TRAILING_STOP_METHOD_NAME = "strategy.trailingStop";
 
 /**
  * Stops the strategy from generating new signals.
@@ -196,4 +197,50 @@ export async function partialLoss(
   );
 }
 
-export default { stop, cancel, partialProfit, partialLoss };
+/**
+ * Adjusts the trailing stop-loss distance for an active pending signal.
+ *
+ * Updates the stop-loss distance by a percentage adjustment relative to the original SL distance.
+ * Positive percentShift tightens the SL (reduces distance), negative percentShift loosens it.
+ *
+ * Automatically detects backtest/live mode from execution context.
+ *
+ * @param symbol - Trading pair symbol
+ * @param percentShift - Percentage adjustment to SL distance (-100 to 100)
+ * @returns Promise that resolves when trailing SL is updated
+ *
+ * @example
+ * ```typescript
+ * import { trailingStop } from "backtest-kit";
+ *
+ * // LONG: entry=100, originalSL=90, distance=10
+ * // Tighten stop by 50%: newSL = 100 - 10*(1-0.5) = 95
+ * await trailingStop("BTCUSDT", -50);
+ * ```
+ */
+export async function trailingStop(
+  symbol: string,
+  percentShift: number,
+): Promise<void> {
+  backtest.loggerService.info(TRAILING_STOP_METHOD_NAME, {
+    symbol,
+    percentShift,
+  });
+  if (!ExecutionContextService.hasContext()) {
+    throw new Error("trailingStop requires an execution context");
+  }
+  if (!MethodContextService.hasContext()) {
+    throw new Error("trailingStop requires a method context");
+  }
+  const { backtest: isBacktest } = backtest.executionContextService.context;
+  const { exchangeName, frameName, strategyName } =
+    backtest.methodContextService.context;
+  await backtest.strategyCoreService.trailingStop(
+    isBacktest,
+    symbol,
+    percentShift,
+    { exchangeName, frameName, strategyName }
+  );
+}
+
+export default { stop, cancel, partialProfit, partialLoss, trailingStop };
