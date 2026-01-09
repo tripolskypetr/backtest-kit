@@ -905,40 +905,143 @@ const BREAKEVEN_FN = (
   signal: ISignalRow,
   currentPrice: number
 ): boolean => {
-  // Get current effective stop-loss (trailing or original)
-  const currentStopLoss = signal._trailingPriceStopLoss ?? signal.priceStopLoss;
-
   // Get threshold from global config
   const breakevenThresholdPercent = GLOBAL_CONFIG.CC_BREAKEVEN_THRESHOLD;
 
-  // Calculate breakeven price with threshold buffer
-  // Threshold is distance from entry where breakeven becomes available
-  let breakevenPrice: number;
+  // Check if trailing stop is already set
+  if (signal._trailingPriceStopLoss !== undefined) {
+    const trailingStopLoss = signal._trailingPriceStopLoss;
+    const breakevenPrice = signal.priceOpen;
+
+    if (signal.position === "long") {
+      // LONG: trailing SL is positive if it's above entry (in profit zone)
+      const isPositiveTrailing = trailingStopLoss > signal.priceOpen;
+
+      if (isPositiveTrailing) {
+        // Trailing stop is already protecting profit - consider breakeven achieved
+        self.params.logger.debug("BREAKEVEN_FN: positive trailing stop already set, returning true", {
+          signalId: signal.id,
+          position: signal.position,
+          priceOpen: signal.priceOpen,
+          trailingStopLoss,
+          breakevenPrice,
+          reason: "trailing SL already in profit zone (above entry)",
+        });
+        return true;
+      } else {
+        // Trailing stop is negative (below entry)
+        // Check if we can upgrade it to breakeven
+        const thresholdPrice = signal.priceOpen * (1 + breakevenThresholdPercent / 100);
+        const isThresholdReached = currentPrice >= thresholdPrice;
+
+        if (isThresholdReached && breakevenPrice > trailingStopLoss) {
+          // Breakeven is better than current trailing SL - upgrade to breakeven
+          signal._trailingPriceStopLoss = breakevenPrice;
+
+          self.params.logger.info("BREAKEVEN_FN: upgraded negative trailing stop to breakeven", {
+            signalId: signal.id,
+            position: signal.position,
+            priceOpen: signal.priceOpen,
+            previousTrailingSL: trailingStopLoss,
+            newStopLoss: breakevenPrice,
+            currentPrice,
+            thresholdPrice,
+            reason: "breakeven is higher than negative trailing SL",
+          });
+          return true;
+        } else {
+          // Cannot upgrade - threshold not reached or breakeven is worse
+          self.params.logger.debug("BREAKEVEN_FN: negative trailing stop set, cannot upgrade", {
+            signalId: signal.id,
+            position: signal.position,
+            priceOpen: signal.priceOpen,
+            trailingStopLoss,
+            breakevenPrice,
+            isThresholdReached,
+            reason: !isThresholdReached
+              ? "threshold not reached"
+              : "breakeven not better than current trailing SL",
+          });
+          return false;
+        }
+      }
+    } else {
+      // SHORT: trailing SL is positive if it's below entry (in profit zone)
+      const isPositiveTrailing = trailingStopLoss < signal.priceOpen;
+
+      if (isPositiveTrailing) {
+        // Trailing stop is already protecting profit - consider breakeven achieved
+        self.params.logger.debug("BREAKEVEN_FN: positive trailing stop already set, returning true", {
+          signalId: signal.id,
+          position: signal.position,
+          priceOpen: signal.priceOpen,
+          trailingStopLoss,
+          breakevenPrice,
+          reason: "trailing SL already in profit zone (below entry)",
+        });
+        return true;
+      } else {
+        // Trailing stop is negative (above entry)
+        // Check if we can upgrade it to breakeven
+        const thresholdPrice = signal.priceOpen * (1 - breakevenThresholdPercent / 100);
+        const isThresholdReached = currentPrice <= thresholdPrice;
+
+        if (isThresholdReached && breakevenPrice < trailingStopLoss) {
+          // Breakeven is better than current trailing SL - upgrade to breakeven
+          signal._trailingPriceStopLoss = breakevenPrice;
+
+          self.params.logger.info("BREAKEVEN_FN: upgraded negative trailing stop to breakeven", {
+            signalId: signal.id,
+            position: signal.position,
+            priceOpen: signal.priceOpen,
+            previousTrailingSL: trailingStopLoss,
+            newStopLoss: breakevenPrice,
+            currentPrice,
+            thresholdPrice,
+            reason: "breakeven is lower than negative trailing SL",
+          });
+          return true;
+        } else {
+          // Cannot upgrade - threshold not reached or breakeven is worse
+          self.params.logger.debug("BREAKEVEN_FN: negative trailing stop set, cannot upgrade", {
+            signalId: signal.id,
+            position: signal.position,
+            priceOpen: signal.priceOpen,
+            trailingStopLoss,
+            breakevenPrice,
+            isThresholdReached,
+            reason: !isThresholdReached
+              ? "threshold not reached"
+              : "breakeven not better than current trailing SL",
+          });
+          return false;
+        }
+      }
+    }
+  }
+
+  // No trailing stop set - proceed with normal breakeven logic
+  const currentStopLoss = signal.priceStopLoss;
+  const breakevenPrice = signal.priceOpen;
+
+  // Calculate threshold price
   let thresholdPrice: number;
   let isThresholdReached: boolean;
   let canMoveToBreakeven: boolean;
 
   if (signal.position === "long") {
-    // LONG: breakeven = entry price (move SL up to entry)
-    // Threshold reached when price goes UP by breakevenThresholdPercent from entry
-    breakevenPrice = signal.priceOpen;
+    // LONG: threshold reached when price goes UP by breakevenThresholdPercent from entry
     thresholdPrice = signal.priceOpen * (1 + breakevenThresholdPercent / 100);
     isThresholdReached = currentPrice >= thresholdPrice;
 
-    // Can move to breakeven only if:
-    // 1. Threshold reached (price is high enough)
-    // 2. Current SL is still below entry (not already at/above breakeven)
+    // Can move to breakeven only if threshold reached and SL is below entry
     canMoveToBreakeven = isThresholdReached && currentStopLoss < breakevenPrice;
   } else {
-    // SHORT: breakeven = entry price (move SL down to entry)
-    // Threshold reached when price goes DOWN by breakevenThresholdPercent from entry
-    breakevenPrice = signal.priceOpen;
+    // SHORT: threshold reached when price goes DOWN by breakevenThresholdPercent from entry
     thresholdPrice = signal.priceOpen * (1 - breakevenThresholdPercent / 100);
     isThresholdReached = currentPrice <= thresholdPrice;
 
-    // Can move to breakeven only if:
-    // 1. Threshold reached (price is low enough)
-    // 2. Current SL is still above entry (not already at/below breakeven)
+    // Can move to breakeven only if threshold reached and SL is above entry
     canMoveToBreakeven = isThresholdReached && currentStopLoss > breakevenPrice;
   }
 
