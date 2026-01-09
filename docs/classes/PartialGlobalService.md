@@ -84,7 +84,7 @@ Memoized to avoid redundant validations for the same strategy-exchange-frame com
 ### profit
 
 ```ts
-profit: (symbol: string, data: ISignalRow, currentPrice: number, revenuePercent: number, backtest: boolean, when: Date) => Promise<void>
+profit: (symbol: string, data: IPublicSignalRow, currentPrice: number, revenuePercent: number, backtest: boolean, when: Date) => Promise<void>
 ```
 
 Processes profit state and emits events for newly reached profit levels.
@@ -94,7 +94,7 @@ Logs operation at global service level, then delegates to PartialConnectionServi
 ### loss
 
 ```ts
-loss: (symbol: string, data: ISignalRow, currentPrice: number, lossPercent: number, backtest: boolean, when: Date) => Promise<void>
+loss: (symbol: string, data: IPublicSignalRow, currentPrice: number, lossPercent: number, backtest: boolean, when: Date) => Promise<void>
 ```
 
 Processes loss state and emits events for newly reached loss levels.

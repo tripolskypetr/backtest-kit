@@ -12,7 +12,7 @@ Optional callbacks for risk events.
 ### onRejected
 
 ```ts
-onRejected: (symbol: string, params: IRiskCheckArgs) => void
+onRejected: (symbol: string, params: IRiskCheckArgs) => void | Promise<void>
 ```
 
 Called when a signal is rejected due to risk limits
@@ -20,7 +20,7 @@ Called when a signal is rejected due to risk limits
 ### onAllowed
 
 ```ts
-onAllowed: (symbol: string, params: IRiskCheckArgs) => void
+onAllowed: (symbol: string, params: IRiskCheckArgs) => void | Promise<void>
 ```
 
 Called when a signal passes risk checks

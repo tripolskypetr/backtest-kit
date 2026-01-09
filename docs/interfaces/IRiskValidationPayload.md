@@ -13,10 +13,10 @@ Extends IRiskCheckArgs with portfolio state data.
 ### pendingSignal
 
 ```ts
-pendingSignal: ISignalDto
+pendingSignal: IRiskSignalRow
 ```
 
-Pending signal to apply
+Pending signal to apply (IRiskSignalRow is calculated internally so priceOpen always exist)
 
 ### activePositionCount
 

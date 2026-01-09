@@ -175,3 +175,16 @@ Validates strategy existence and delegates to connection service
 to close a percentage of the pending position at loss.
 
 Does not require execution context as this is a direct state mutation.
+
+### trailingStop
+
+```ts
+trailingStop: (backtest: boolean, symbol: string, percentShift: number, context: { strategyName: string; exchangeName: string; frameName: string; }) => Promise<void>
+```
+
+Adjusts the trailing stop-loss distance for an active pending signal.
+
+Validates strategy existence and delegates to connection service
+to update the stop-loss distance by a percentage adjustment.
+
+Does not require execution context as this is a direct state mutation.

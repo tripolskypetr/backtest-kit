@@ -13,7 +13,7 @@ Called when signals are opened, active, idle, closed, scheduled, or cancelled.
 ### onTick
 
 ```ts
-onTick: (symbol: string, result: IStrategyTickResult, backtest: boolean) => void
+onTick: (symbol: string, result: IStrategyTickResult, backtest: boolean) => void | Promise<void>
 ```
 
 Called on every tick with the result
@@ -21,7 +21,7 @@ Called on every tick with the result
 ### onOpen
 
 ```ts
-onOpen: (symbol: string, data: ISignalRow, currentPrice: number, backtest: boolean) => void
+onOpen: (symbol: string, data: IPublicSignalRow, currentPrice: number, backtest: boolean) => void | Promise<void>
 ```
 
 Called when new signal is opened (after validation)
@@ -29,7 +29,7 @@ Called when new signal is opened (after validation)
 ### onActive
 
 ```ts
-onActive: (symbol: string, data: ISignalRow, currentPrice: number, backtest: boolean) => void
+onActive: (symbol: string, data: IPublicSignalRow, currentPrice: number, backtest: boolean) => void | Promise<void>
 ```
 
 Called when signal is being monitored (active state)
@@ -37,7 +37,7 @@ Called when signal is being monitored (active state)
 ### onIdle
 
 ```ts
-onIdle: (symbol: string, currentPrice: number, backtest: boolean) => void
+onIdle: (symbol: string, currentPrice: number, backtest: boolean) => void | Promise<void>
 ```
 
 Called when no active signal exists (idle state)
@@ -45,7 +45,7 @@ Called when no active signal exists (idle state)
 ### onClose
 
 ```ts
-onClose: (symbol: string, data: ISignalRow, priceClose: number, backtest: boolean) => void
+onClose: (symbol: string, data: IPublicSignalRow, priceClose: number, backtest: boolean) => void | Promise<void>
 ```
 
 Called when signal is closed with final price
@@ -53,7 +53,7 @@ Called when signal is closed with final price
 ### onSchedule
 
 ```ts
-onSchedule: (symbol: string, data: IScheduledSignalRow, currentPrice: number, backtest: boolean) => void
+onSchedule: (symbol: string, data: IPublicSignalRow, currentPrice: number, backtest: boolean) => void | Promise<void>
 ```
 
 Called when scheduled signal is created (delayed entry)
@@ -61,7 +61,7 @@ Called when scheduled signal is created (delayed entry)
 ### onCancel
 
 ```ts
-onCancel: (symbol: string, data: IScheduledSignalRow, currentPrice: number, backtest: boolean) => void
+onCancel: (symbol: string, data: IPublicSignalRow, currentPrice: number, backtest: boolean) => void | Promise<void>
 ```
 
 Called when scheduled signal is cancelled without opening position
@@ -69,7 +69,7 @@ Called when scheduled signal is cancelled without opening position
 ### onWrite
 
 ```ts
-onWrite: (symbol: string, data: ISignalRow, backtest: boolean) => void
+onWrite: (symbol: string, data: IPublicSignalRow, backtest: boolean) => void
 ```
 
 Called when signal is written to persist storage (for testing)
@@ -77,7 +77,7 @@ Called when signal is written to persist storage (for testing)
 ### onPartialProfit
 
 ```ts
-onPartialProfit: (symbol: string, data: ISignalRow, currentPrice: number, revenuePercent: number, backtest: boolean) => void
+onPartialProfit: (symbol: string, data: IPublicSignalRow, currentPrice: number, revenuePercent: number, backtest: boolean) => void | Promise<void>
 ```
 
 Called when signal is in partial profit state (price moved favorably but not reached TP yet)
@@ -85,7 +85,7 @@ Called when signal is in partial profit state (price moved favorably but not rea
 ### onPartialLoss
 
 ```ts
-onPartialLoss: (symbol: string, data: ISignalRow, currentPrice: number, lossPercent: number, backtest: boolean) => void
+onPartialLoss: (symbol: string, data: IPublicSignalRow, currentPrice: number, lossPercent: number, backtest: boolean) => void | Promise<void>
 ```
 
 Called when signal is in partial loss state (price moved against position but not hit SL yet)
@@ -93,7 +93,7 @@ Called when signal is in partial loss state (price moved against position but no
 ### onPing
 
 ```ts
-onPing: (symbol: string, data: IScheduledSignalRow, when: Date, backtest: boolean) => void | Promise<void>
+onPing: (symbol: string, data: IPublicSignalRow, when: Date, backtest: boolean) => void | Promise<void>
 ```
 
 Called every minute regardless of strategy interval (for custom monitoring like checking if signal should be cancelled)

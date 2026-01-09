@@ -13,6 +13,7 @@ import {
   ISignalDto,
   IScheduledSignalRow,
   IScheduledSignalCancelRow,
+  IPublicSignalRow,
   IStrategyParams,
   IStrategyTickResult,
   IStrategyTickResultIdle,
@@ -44,6 +45,60 @@ const INTERVAL_MINUTES: Record<SignalInterval, number> = {
 };
 
 const TIMEOUT_SYMBOL = Symbol('timeout');
+
+/**
+ * Converts internal signal to public API format.
+ *
+ * This function is used AFTER position opens for external callbacks and API.
+ * It hides internal implementation details while exposing effective values:
+ *
+ * - Replaces internal _trailingPriceStopLoss with effective priceStopLoss
+ * - Preserves original stop-loss in originalPriceStopLoss for reference
+ * - Ensures external code never sees private _trailingPriceStopLoss field
+ * - Maintains backward compatibility with non-trailing positions
+ *
+ * Key differences from TO_RISK_SIGNAL (in ClientRisk.ts):
+ * - Used AFTER position opens (vs BEFORE for risk validation)
+ * - Works only with ISignalRow/IScheduledSignalRow (vs ISignalDto)
+ * - No currentPrice fallback needed (priceOpen always present in opened signals)
+ * - Returns IPublicSignalRow (vs IRiskSignalRow for risk checks)
+ *
+ * Use cases:
+ * - All strategy callbacks (onOpen, onClose, onActive, etc.)
+ * - External API responses (getPendingSignal, getScheduledSignal)
+ * - Event emissions and logging
+ * - Integration with ClientPartial and ClientRisk
+ *
+ * @param signal - Internal signal row with optional trailing stop-loss
+ * @returns Signal in IPublicSignalRow format with effective stop-loss and hidden internals
+ *
+ * @example
+ * ```typescript
+ * // Signal without trailing SL
+ * const publicSignal = TO_PUBLIC_SIGNAL(signal);
+ * // publicSignal.priceStopLoss = signal.priceStopLoss
+ * // publicSignal.originalPriceStopLoss = signal.priceStopLoss
+ *
+ * // Signal with trailing SL
+ * const publicSignal = TO_PUBLIC_SIGNAL(signalWithTrailing);
+ * // publicSignal.priceStopLoss = signal._trailingPriceStopLoss (effective)
+ * // publicSignal.originalPriceStopLoss = signal.priceStopLoss (original)
+ * // publicSignal._trailingPriceStopLoss = undefined (hidden from external API)
+ * ```
+ */
+const TO_PUBLIC_SIGNAL = <T extends ISignalRow | IScheduledSignalRow>(signal: T): IPublicSignalRow => {
+  if (signal._trailingPriceStopLoss !== undefined) {
+    return {
+      ...structuredClone(signal) as ISignalRow | IScheduledSignalRow,
+      priceStopLoss: signal._trailingPriceStopLoss,
+      originalPriceStopLoss: signal.priceStopLoss,
+    };
+  }
+  return {
+    ...structuredClone(signal) as ISignalRow | IScheduledSignalRow,
+    originalPriceStopLoss: signal.priceStopLoss,
+  };
+};
 
 const VALIDATE_SIGNAL_FN = (signal: ISignalRow, currentPrice: number, isScheduled: boolean): void => {
   const errors: string[] = [];
@@ -532,7 +587,7 @@ const GET_SIGNAL_FN = trycatch(
     const signalRow: ISignalRow = {
       id: signal.id || randomString(),
       priceOpen: currentPrice,
-      ...signal,
+      ...structuredClone(signal),
       note: toPlainString(signal.note),
       symbol: self.params.execution.context.symbol,
       exchangeName: self.params.method.context.exchangeName,
@@ -739,6 +794,112 @@ const PARTIAL_LOSS_FN = (
   });
 };
 
+const TRAILING_STOP_FN = (
+  self: ClientStrategy,
+  signal: ISignalRow,
+  percentShift: number
+): void => {
+  // Calculate distance between entry and original stop-loss AS PERCENTAGE of entry price
+  const slDistancePercent = Math.abs((signal.priceOpen - signal.priceStopLoss) / signal.priceOpen * 100);
+
+  // Calculate new stop-loss distance percentage by adding shift
+  // Negative percentShift: reduces distance % (tightens stop, moves SL toward entry or beyond)
+  // Positive percentShift: increases distance % (loosens stop, moves SL away from entry)
+  const newSlDistancePercent = slDistancePercent + percentShift;
+
+  // Calculate new stop-loss price based on new distance percentage
+  // Negative newSlDistancePercent means SL crosses entry into profit zone
+  let newStopLoss: number;
+
+  if (signal.position === "long") {
+    // LONG: SL is below entry (or above entry if in profit zone)
+    // Formula: entry * (1 - newDistance%)
+    // Example: entry=100, originalSL=90 (10%), shift=-15% → newDistance=-5% → 100 * 1.05 = 105 (profit zone)
+    // Example: entry=100, originalSL=90 (10%), shift=-5% → newDistance=5% → 100 * 0.95 = 95 (tighter)
+    // Example: entry=100, originalSL=90 (10%), shift=+5% → newDistance=15% → 100 * 0.85 = 85 (looser)
+    newStopLoss = signal.priceOpen * (1 - newSlDistancePercent / 100);
+  } else {
+    // SHORT: SL is above entry (or below entry if in profit zone)
+    // Formula: entry * (1 + newDistance%)
+    // Example: entry=100, originalSL=110 (10%), shift=-15% → newDistance=-5% → 100 * 0.95 = 95 (profit zone)
+    // Example: entry=100, originalSL=110 (10%), shift=-5% → newDistance=5% → 100 * 1.05 = 105 (tighter)
+    // Example: entry=100, originalSL=110 (10%), shift=+5% → newDistance=15% → 100 * 1.15 = 115 (looser)
+    newStopLoss = signal.priceOpen * (1 + newSlDistancePercent / 100);
+  }
+
+  // Get current effective stop-loss (trailing or original)
+  const currentStopLoss = signal._trailingPriceStopLoss ?? signal.priceStopLoss;
+
+  // Determine if this is the first trailing stop call (direction not set yet)
+  const isFirstCall = signal._trailingPriceStopLoss === undefined;
+
+  if (isFirstCall) {
+    // First call: set the direction and update SL unconditionally
+    signal._trailingPriceStopLoss = newStopLoss;
+
+    self.params.logger.info("TRAILING_STOP_FN executed (first call - direction set)", {
+      signalId: signal.id,
+      position: signal.position,
+      priceOpen: signal.priceOpen,
+      originalStopLoss: signal.priceStopLoss,
+      originalDistancePercent: slDistancePercent,
+      previousStopLoss: currentStopLoss,
+      newStopLoss,
+      newDistancePercent: newSlDistancePercent,
+      percentShift,
+      inProfitZone: signal.position === "long" ? newStopLoss > signal.priceOpen : newStopLoss < signal.priceOpen,
+      direction: newStopLoss > currentStopLoss ? "up" : "down",
+    });
+  } else {
+    // Subsequent calls: only update if new SL continues in the same direction
+    const movingUp = newStopLoss > currentStopLoss;
+    const movingDown = newStopLoss < currentStopLoss;
+
+    // Determine initial direction based on first trailing SL vs original SL
+    const initialDirection = signal._trailingPriceStopLoss > signal.priceStopLoss ? "up" : "down";
+
+    let shouldUpdate = false;
+
+    if (initialDirection === "up" && movingUp) {
+      // Direction is UP, and new SL continues moving up
+      shouldUpdate = true;
+    } else if (initialDirection === "down" && movingDown) {
+      // Direction is DOWN, and new SL continues moving down
+      shouldUpdate = true;
+    }
+
+    if (!shouldUpdate) {
+      self.params.logger.debug("TRAILING_STOP_FN: new SL not in same direction, skipping", {
+        signalId: signal.id,
+        position: signal.position,
+        currentStopLoss,
+        newStopLoss,
+        percentShift,
+        initialDirection,
+        attemptedDirection: movingUp ? "up" : movingDown ? "down" : "same",
+      });
+      return;
+    }
+
+    // Update trailing stop-loss
+    signal._trailingPriceStopLoss = newStopLoss;
+
+    self.params.logger.info("TRAILING_STOP_FN executed", {
+      signalId: signal.id,
+      position: signal.position,
+      priceOpen: signal.priceOpen,
+      originalStopLoss: signal.priceStopLoss,
+      originalDistancePercent: slDistancePercent,
+      previousStopLoss: currentStopLoss,
+      newStopLoss,
+      newDistancePercent: newSlDistancePercent,
+      percentShift,
+      inProfitZone: signal.position === "long" ? newStopLoss > signal.priceOpen : newStopLoss < signal.priceOpen,
+      direction: initialDirection,
+    });
+  }
+};
+
 const CHECK_SCHEDULED_SIGNAL_TIMEOUT_FN = async (
   self: ClientStrategy,
   scheduled: IScheduledSignalRow,
@@ -776,7 +937,7 @@ const CHECK_SCHEDULED_SIGNAL_TIMEOUT_FN = async (
 
   const result: IStrategyTickResultCancelled = {
     action: "cancelled",
-    signal: scheduled,
+    signal: TO_PUBLIC_SIGNAL(scheduled),
     currentPrice: currentPrice,
     closeTimestamp: currentTime,
     strategyName: self.params.method.context.strategyName,
@@ -862,7 +1023,7 @@ const CANCEL_SCHEDULED_SIGNAL_BY_STOPLOSS_FN = async (
 
   const result: IStrategyTickResultCancelled = {
     action: "cancelled",
-    signal: scheduled,
+    signal: TO_PUBLIC_SIGNAL(scheduled),
     currentPrice: currentPrice,
     closeTimestamp: currentTime,
     strategyName: self.params.method.context.strategyName,
@@ -963,7 +1124,7 @@ const ACTIVATE_SCHEDULED_SIGNAL_FN = async (
 
   const result: IStrategyTickResultOpened = {
     action: "opened",
-    signal: self._pendingSignal,
+    signal: TO_PUBLIC_SIGNAL(self._pendingSignal),
     strategyName: self.params.method.context.strategyName,
     exchangeName: self.params.method.context.exchangeName,
     frameName: self.params.method.context.frameName,
@@ -992,12 +1153,14 @@ const CALL_PING_CALLBACKS_FN = trycatch(
     backtest: boolean,
   ): Promise<void> => {
     await ExecutionContextService.runInContext(async () => {
+      const publicSignal = TO_PUBLIC_SIGNAL(scheduled);
+
       // Call system onPing callback first (emits to pingSubject)
       await self.params.onPing(
         self.params.execution.context.symbol,
         self.params.method.context.strategyName,
         self.params.method.context.exchangeName,
-        scheduled,
+        publicSignal,
         self.params.execution.context.backtest,
         timestamp
       );
@@ -1006,7 +1169,7 @@ const CALL_PING_CALLBACKS_FN = trycatch(
       if (self.params.callbacks?.onPing) {
         await self.params.callbacks.onPing(
           self.params.execution.context.symbol,
-          scheduled,
+          publicSignal,
           new Date(timestamp),
           self.params.execution.context.backtest
         );
@@ -1042,9 +1205,10 @@ const CALL_ACTIVE_CALLBACKS_FN = trycatch(
   ): Promise<void> => {
     await ExecutionContextService.runInContext(async () => {
       if (self.params.callbacks?.onActive) {
+        const publicSignal = TO_PUBLIC_SIGNAL(signal);
         await self.params.callbacks.onActive(
           self.params.execution.context.symbol,
-          signal,
+          publicSignal,
           currentPrice,
           self.params.execution.context.backtest
         );
@@ -1080,9 +1244,10 @@ const CALL_SCHEDULE_CALLBACKS_FN = trycatch(
   ): Promise<void> => {
     await ExecutionContextService.runInContext(async () => {
       if (self.params.callbacks?.onSchedule) {
+        const publicSignal = TO_PUBLIC_SIGNAL(signal);
         await self.params.callbacks.onSchedule(
           self.params.execution.context.symbol,
-          signal,
+          publicSignal,
           currentPrice,
           self.params.execution.context.backtest
         );
@@ -1118,9 +1283,10 @@ const CALL_CANCEL_CALLBACKS_FN = trycatch(
   ): Promise<void> => {
     await ExecutionContextService.runInContext(async () => {
       if (self.params.callbacks?.onCancel) {
+        const publicSignal = TO_PUBLIC_SIGNAL(signal);
         await self.params.callbacks.onCancel(
           self.params.execution.context.symbol,
-          signal,
+          publicSignal,
           currentPrice,
           self.params.execution.context.backtest
         );
@@ -1156,9 +1322,10 @@ const CALL_OPEN_CALLBACKS_FN = trycatch(
   ): Promise<void> => {
     await ExecutionContextService.runInContext(async () => {
       if (self.params.callbacks?.onOpen) {
+        const publicSignal = TO_PUBLIC_SIGNAL(signal);
         await self.params.callbacks.onOpen(
           self.params.execution.context.symbol,
-          signal,
+          publicSignal,
           priceOpen,
           self.params.execution.context.backtest
         );
@@ -1194,9 +1361,10 @@ const CALL_CLOSE_CALLBACKS_FN = trycatch(
   ): Promise<void> => {
     await ExecutionContextService.runInContext(async () => {
       if (self.params.callbacks?.onClose) {
+        const publicSignal = TO_PUBLIC_SIGNAL(signal);
         await self.params.callbacks.onClose(
           self.params.execution.context.symbol,
-          signal,
+          publicSignal,
           currentPrice,
           self.params.execution.context.backtest
         );
@@ -1371,9 +1539,10 @@ const CALL_PARTIAL_CLEAR_FN = trycatch(
     backtest: boolean
   ): Promise<void> => {
     await ExecutionContextService.runInContext(async () => {
+      const publicSignal = TO_PUBLIC_SIGNAL(signal);
       await self.params.partial.clear(
         symbol,
-        signal,
+        publicSignal,
         currentPrice,
         backtest,
       );
@@ -1448,9 +1617,10 @@ const CALL_PARTIAL_PROFIT_CALLBACKS_FN = trycatch(
     backtest: boolean
   ): Promise<void> => {
     await ExecutionContextService.runInContext(async () => {
+      const publicSignal = TO_PUBLIC_SIGNAL(signal);
       await self.params.partial.profit(
         symbol,
-        signal,
+        publicSignal,
         currentPrice,
         percentTp,
         backtest,
@@ -1459,7 +1629,7 @@ const CALL_PARTIAL_PROFIT_CALLBACKS_FN = trycatch(
       if (self.params.callbacks?.onPartialProfit) {
         await self.params.callbacks.onPartialProfit(
           symbol,
-          signal,
+          publicSignal,
           currentPrice,
           percentTp,
           backtest
@@ -1496,9 +1666,10 @@ const CALL_PARTIAL_LOSS_CALLBACKS_FN = trycatch(
     backtest: boolean
   ): Promise<void> => {
     await ExecutionContextService.runInContext(async () => {
+      const publicSignal = TO_PUBLIC_SIGNAL(signal);
       await self.params.partial.loss(
         symbol,
-        signal,
+        publicSignal,
         currentPrice,
         percentSl,
         backtest,
@@ -1507,7 +1678,7 @@ const CALL_PARTIAL_LOSS_CALLBACKS_FN = trycatch(
       if (self.params.callbacks?.onPartialLoss) {
         await self.params.callbacks.onPartialLoss(
           symbol,
-          signal,
+          publicSignal,
           currentPrice,
           percentSl,
           backtest
@@ -1550,7 +1721,7 @@ const RETURN_SCHEDULED_SIGNAL_ACTIVE_FN = async (
 
   const result: IStrategyTickResultActive = {
     action: "active",
-    signal: scheduled,
+    signal: TO_PUBLIC_SIGNAL(scheduled),
     currentPrice: currentPrice,
     strategyName: self.params.method.context.strategyName,
     exchangeName: self.params.method.context.exchangeName,
@@ -1601,7 +1772,7 @@ const OPEN_NEW_SCHEDULED_SIGNAL_FN = async (
 
   const result: IStrategyTickResultScheduled = {
     action: "scheduled",
-    signal: signal,
+    signal: TO_PUBLIC_SIGNAL(signal),
     strategyName: self.params.method.context.strategyName,
     exchangeName: self.params.method.context.exchangeName,
     frameName: self.params.method.context.frameName,
@@ -1660,7 +1831,7 @@ const OPEN_NEW_PENDING_SIGNAL_FN = async (
 
   const result: IStrategyTickResultOpened = {
     action: "opened",
-    signal: signal,
+    signal: TO_PUBLIC_SIGNAL(signal),
     strategyName: self.params.method.context.strategyName,
     exchangeName: self.params.method.context.exchangeName,
     frameName: self.params.method.context.frameName,
@@ -1719,21 +1890,23 @@ const CHECK_PENDING_SIGNAL_COMPLETION_FN = async (
     );
   }
 
-  // Check stop loss
-  if (signal.position === "long" && averagePrice <= signal.priceStopLoss) {
+  // Check stop loss (use trailing SL if set, otherwise original SL)
+  const effectiveStopLoss = signal._trailingPriceStopLoss ?? signal.priceStopLoss;
+
+  if (signal.position === "long" && averagePrice <= effectiveStopLoss) {
     return await CLOSE_PENDING_SIGNAL_FN(
       self,
       signal,
-      signal.priceStopLoss, // КРИТИЧНО: используем точную цену SL
+      effectiveStopLoss, // КРИТИЧНО: используем точную цену SL (trailing or original)
       "stop_loss"
     );
   }
 
-  if (signal.position === "short" && averagePrice >= signal.priceStopLoss) {
+  if (signal.position === "short" && averagePrice >= effectiveStopLoss) {
     return await CLOSE_PENDING_SIGNAL_FN(
       self,
       signal,
-      signal.priceStopLoss, // КРИТИЧНО: используем точную цену SL
+      effectiveStopLoss, // КРИТИЧНО: используем точную цену SL (trailing or original)
       "stop_loss"
     );
   }
@@ -1789,7 +1962,7 @@ const CLOSE_PENDING_SIGNAL_FN = async (
 
   const result: IStrategyTickResultClosed = {
     action: "closed",
-    signal: signal,
+    signal: TO_PUBLIC_SIGNAL(signal),
     currentPrice: currentPrice,
     closeReason: closeReason,
     closeTimestamp: currentTime,
@@ -1844,8 +2017,9 @@ const RETURN_PENDING_SIGNAL_ACTIVE_FN = async (
           self.params.execution.context.backtest
         );
       } else if (currentDistance < 0) {
-        // Moving towards SL
-        const slDistance = signal.priceOpen - signal.priceStopLoss;
+        // Moving towards SL (use trailing SL if set)
+        const effectiveStopLoss = signal._trailingPriceStopLoss ?? signal.priceStopLoss;
+        const slDistance = signal.priceOpen - effectiveStopLoss;
         const progressPercent = (Math.abs(currentDistance) / slDistance) * 100;
         percentSl = Math.min(progressPercent, 100);
         await CALL_PARTIAL_LOSS_CALLBACKS_FN(
@@ -1879,8 +2053,9 @@ const RETURN_PENDING_SIGNAL_ACTIVE_FN = async (
       }
 
       if (currentDistance < 0) {
-        // Moving towards SL
-        const slDistance = signal.priceStopLoss - signal.priceOpen;
+        // Moving towards SL (use trailing SL if set)
+        const effectiveStopLoss = signal._trailingPriceStopLoss ?? signal.priceStopLoss;
+        const slDistance = effectiveStopLoss - signal.priceOpen;
         const progressPercent = (Math.abs(currentDistance) / slDistance) * 100;
         percentSl = Math.min(progressPercent, 100);
         await CALL_PARTIAL_LOSS_CALLBACKS_FN(
@@ -1898,7 +2073,7 @@ const RETURN_PENDING_SIGNAL_ACTIVE_FN = async (
 
   const result: IStrategyTickResultActive = {
     action: "active",
-    signal: signal,
+    signal: TO_PUBLIC_SIGNAL(signal),
     currentPrice: currentPrice,
     strategyName: self.params.method.context.strategyName,
     exchangeName: self.params.method.context.exchangeName,
@@ -1988,7 +2163,7 @@ const CANCEL_SCHEDULED_SIGNAL_IN_BACKTEST_FN = async (
 
   const result: IStrategyTickResultCancelled = {
     action: "cancelled",
-    signal: scheduled,
+    signal: TO_PUBLIC_SIGNAL(scheduled),
     currentPrice: averagePrice,
     closeTimestamp: closeTimestamp,
     strategyName: self.params.method.context.strategyName,
@@ -2155,7 +2330,7 @@ const CLOSE_PENDING_SIGNAL_IN_BACKTEST_FN = async (
 
   const result: IStrategyTickResultClosed = {
     action: "closed",
-    signal: signal,
+    signal: TO_PUBLIC_SIGNAL(signal),
     currentPrice: averagePrice,
     closeReason: closeReason,
     closeTimestamp: closeTimestamp,
@@ -2339,12 +2514,15 @@ const PROCESS_PENDING_SIGNAL_CANDLES_FN = async (
 
     // Check TP/SL only if not expired
     // КРИТИЧНО: используем candle.high/low для точной проверки достижения TP/SL
+    // КРИТИЧНО: используем trailing SL если установлен
+    const effectiveStopLoss = signal._trailingPriceStopLoss ?? signal.priceStopLoss;
+
     if (!shouldClose && signal.position === "long") {
       // Для LONG: TP срабатывает если high >= TP, SL если low <= SL
       if (currentCandle.high >= signal.priceTakeProfit) {
         shouldClose = true;
         closeReason = "take_profit";
-      } else if (currentCandle.low <= signal.priceStopLoss) {
+      } else if (currentCandle.low <= effectiveStopLoss) {
         shouldClose = true;
         closeReason = "stop_loss";
       }
@@ -2355,7 +2533,7 @@ const PROCESS_PENDING_SIGNAL_CANDLES_FN = async (
       if (currentCandle.low <= signal.priceTakeProfit) {
         shouldClose = true;
         closeReason = "take_profit";
-      } else if (currentCandle.high >= signal.priceStopLoss) {
+      } else if (currentCandle.high >= effectiveStopLoss) {
         shouldClose = true;
         closeReason = "stop_loss";
       }
@@ -2367,7 +2545,7 @@ const PROCESS_PENDING_SIGNAL_CANDLES_FN = async (
       if (closeReason === "take_profit") {
         closePrice = signal.priceTakeProfit;
       } else if (closeReason === "stop_loss") {
-        closePrice = signal.priceStopLoss;
+        closePrice = effectiveStopLoss; // Используем trailing SL если установлен
       }
 
       return await CLOSE_PENDING_SIGNAL_IN_BACKTEST_FN(
@@ -2400,8 +2578,9 @@ const PROCESS_PENDING_SIGNAL_CANDLES_FN = async (
             self.params.execution.context.backtest
           );
         } else if (currentDistance < 0) {
-          // Moving towards SL
-          const slDistance = signal.priceOpen - signal.priceStopLoss;
+          // Moving towards SL (use trailing SL if set)
+          const effectiveStopLoss = signal._trailingPriceStopLoss ?? signal.priceStopLoss;
+          const slDistance = signal.priceOpen - effectiveStopLoss;
           const progressPercent = (Math.abs(currentDistance) / slDistance) * 100;
           await CALL_PARTIAL_LOSS_CALLBACKS_FN(
             self,
@@ -2434,8 +2613,9 @@ const PROCESS_PENDING_SIGNAL_CANDLES_FN = async (
         }
 
         if (currentDistance < 0) {
-          // Moving towards SL
-          const slDistance = signal.priceStopLoss - signal.priceOpen;
+          // Moving towards SL (use trailing SL if set)
+          const effectiveStopLoss = signal._trailingPriceStopLoss ?? signal.priceStopLoss;
+          const slDistance = effectiveStopLoss - signal.priceOpen;
           const progressPercent = (Math.abs(currentDistance) / slDistance) * 100;
           await CALL_PARTIAL_LOSS_CALLBACKS_FN(
             self,
@@ -2521,9 +2701,10 @@ export class ClientStrategy implements IStrategy {
     // КРИТИЧНО: Всегда вызываем коллбек onWrite для тестирования persist storage
     // даже в backtest режиме, чтобы тесты могли перехватывать вызовы через mock adapter
     if (this.params.callbacks?.onWrite) {
+      const publicSignal = this._pendingSignal ? TO_PUBLIC_SIGNAL(this._pendingSignal) : null;
       this.params.callbacks.onWrite(
         this.params.execution.context.symbol,
-        this._pendingSignal,
+        publicSignal,
         this.params.execution.context.backtest
       );
     }
@@ -2570,11 +2751,11 @@ export class ClientStrategy implements IStrategy {
    * If no signal is pending, returns null.
    * @returns Promise resolving to the pending signal or null.
    */
-  public async getPendingSignal(symbol: string): Promise<ISignalRow | null> {
+  public async getPendingSignal(symbol: string): Promise<IPublicSignalRow | null> {
     this.params.logger.debug("ClientStrategy getPendingSignal", {
       symbol,
     });
-    return this._pendingSignal;
+    return this._pendingSignal ? TO_PUBLIC_SIGNAL(this._pendingSignal) : null;
   }
 
   /**
@@ -2582,11 +2763,11 @@ export class ClientStrategy implements IStrategy {
    * If no scheduled signal exists, returns null.
    * @returns Promise resolving to the scheduled signal or null.
    */
-  public async getScheduledSignal(symbol: string): Promise<IScheduledSignalRow | null> {
+  public async getScheduledSignal(symbol: string): Promise<IPublicSignalRow | null> {
     this.params.logger.debug("ClientStrategy getScheduledSignal", {
       symbol,
     });
-    return this._scheduledSignal;
+    return this._scheduledSignal ? TO_PUBLIC_SIGNAL(this._scheduledSignal) : null;
   }
 
   /**
@@ -2679,7 +2860,7 @@ export class ClientStrategy implements IStrategy {
 
       const result: IStrategyTickResultCancelled = {
         action: "cancelled",
-        signal: cancelledSignal,
+        signal: TO_PUBLIC_SIGNAL(cancelledSignal),
         currentPrice,
         closeTimestamp: currentTime,
         strategyName: this.params.method.context.strategyName,
@@ -2860,7 +3041,7 @@ export class ClientStrategy implements IStrategy {
 
       const cancelledResult: IStrategyTickResultCancelled = {
         action: "cancelled",
-        signal: cancelledSignal,
+        signal: TO_PUBLIC_SIGNAL(cancelledSignal),
         currentPrice,
         closeTimestamp: closeTimestamp,
         strategyName: this.params.method.context.strategyName,
@@ -2951,7 +3132,7 @@ export class ClientStrategy implements IStrategy {
           // but this is correct behavior if someone calls backtest() with partial data
           const result: IStrategyTickResultActive = {
             action: "active",
-            signal: scheduled,
+            signal: TO_PUBLIC_SIGNAL(scheduled),
             currentPrice: lastPrice,
             percentSl: 0,
             percentTp: 0,
@@ -3239,7 +3420,7 @@ export class ClientStrategy implements IStrategy {
     if (this.params.callbacks?.onWrite) {
       this.params.callbacks.onWrite(
         this.params.execution.context.symbol,
-        this._pendingSignal,
+        TO_PUBLIC_SIGNAL(this._pendingSignal),
         backtest
       );
     }
@@ -3368,7 +3549,119 @@ export class ClientStrategy implements IStrategy {
     if (this.params.callbacks?.onWrite) {
       this.params.callbacks.onWrite(
         this.params.execution.context.symbol,
+        TO_PUBLIC_SIGNAL(this._pendingSignal),
+        backtest
+      );
+    }
+
+    if (!backtest) {
+      await PersistSignalAdapter.writeSignalData(
         this._pendingSignal,
+        this.params.execution.context.symbol,
+        this.params.strategyName,
+      );
+    }
+  }
+
+  /**
+   * Adjusts trailing stop-loss by shifting distance between entry and original SL.
+   *
+   * Calculates new SL based on percentage shift of the distance (entry - originalSL):
+   * - Negative %: tightens stop (moves SL closer to entry, reduces risk)
+   * - Positive %: loosens stop (moves SL away from entry, allows more drawdown)
+   *
+   * For LONG position (entry=100, originalSL=90, distance=10):
+   * - percentShift = -50: newSL = 100 - 10*(1-0.5) = 95 (tighter, closer to entry)
+   * - percentShift = +20: newSL = 100 - 10*(1+0.2) = 88 (looser, away from entry)
+   *
+   * For SHORT position (entry=100, originalSL=110, distance=10):
+   * - percentShift = -50: newSL = 100 + 10*(1-0.5) = 105 (tighter, closer to entry)
+   * - percentShift = +20: newSL = 100 + 10*(1+0.2) = 112 (looser, away from entry)
+   *
+   * Trailing behavior:
+   * - Only updates if new SL is BETTER (protects more profit)
+   * - For LONG: only accepts higher SL (never moves down)
+   * - For SHORT: only accepts lower SL (never moves up)
+   * - Validates that SL never crosses entry price
+   * - Stores in _trailingPriceStopLoss, original priceStopLoss preserved
+   *
+   * Validation:
+   * - Throws if no pending signal exists
+   * - Throws if percentShift is not a finite number
+   * - Throws if percentShift < -100 or > 100
+   * - Throws if percentShift === 0
+   * - Skips if new SL would cross entry price
+   *
+   * @param symbol - Trading pair symbol (e.g., "BTCUSDT")
+   * @param percentShift - Percentage shift of SL distance [-100, 100], excluding 0
+   * @param backtest - Whether running in backtest mode (controls persistence)
+   * @returns Promise that resolves when trailing SL is updated and persisted
+   *
+   * @example
+   * ```typescript
+   * // LONG position: entry=100, originalSL=90, distance=10
+   *
+   * // Move SL 50% closer to entry (tighten)
+   * await strategy.trailingStop("BTCUSDT", -50, false);
+   * // newSL = 100 - 10*(1-0.5) = 95
+   *
+   * // Move SL 30% away from entry (loosen, allow more drawdown)
+   * await strategy.trailingStop("BTCUSDT", 30, false);
+   * // newSL = 100 - 10*(1+0.3) = 87 (SKIPPED: worse than current 95)
+   * ```
+   */
+  public async trailingStop(
+    symbol: string,
+    percentShift: number,
+    backtest: boolean
+  ): Promise<void> {
+    this.params.logger.debug("ClientStrategy trailingStop", {
+      symbol,
+      percentShift,
+      hasPendingSignal: this._pendingSignal !== null,
+    });
+
+    // Validation: must have pending signal
+    if (!this._pendingSignal) {
+      throw new Error(
+        `ClientStrategy trailingStop: No pending signal exists for symbol=${symbol}`
+      );
+    }
+
+    // Validation: percentShift must be valid
+    if (typeof percentShift !== "number" || !isFinite(percentShift)) {
+      throw new Error(
+        `ClientStrategy trailingStop: percentShift must be a finite number, got ${percentShift} (${typeof percentShift})`
+      );
+    }
+
+    if (percentShift < -100 || percentShift > 100) {
+      throw new Error(
+        `ClientStrategy trailingStop: percentShift must be in range [-100, 100], got ${percentShift}`
+      );
+    }
+
+    if (percentShift === 0) {
+      throw new Error(
+        `ClientStrategy trailingStop: percentShift cannot be 0`
+      );
+    }
+
+    // Execute trailing logic
+    TRAILING_STOP_FN(this, this._pendingSignal, percentShift);
+
+    // Persist updated signal state (inline setPendingSignal content)
+    // Note: this._pendingSignal already mutated by TRAILING_STOP_FN, no reassignment needed
+    this.params.logger.debug("ClientStrategy setPendingSignal (inline)", {
+      pendingSignal: this._pendingSignal,
+    });
+
+    // Call onWrite callback for testing persist storage
+    if (this.params.callbacks?.onWrite) {
+      const publicSignal = TO_PUBLIC_SIGNAL(this._pendingSignal);
+      this.params.callbacks.onWrite(
+        this.params.execution.context.symbol,
+        publicSignal,
         backtest
       );
     }

@@ -21,7 +21,7 @@ Discriminator for type-safe union
 ### signal
 
 ```ts
-signal: IScheduledSignalRow
+signal: IPublicSignalRow
 ```
 
 Cancelled scheduled signal

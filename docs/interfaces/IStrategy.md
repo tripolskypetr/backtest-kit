@@ -22,7 +22,7 @@ Checks for signal generation (throttled) and TP/SL conditions.
 ### getPendingSignal
 
 ```ts
-getPendingSignal: (symbol: string) => Promise<ISignalRow>
+getPendingSignal: (symbol: string) => Promise<IPublicSignalRow>
 ```
 
 Retrieves the currently active pending signal for the symbol.
@@ -32,7 +32,7 @@ Used internally for monitoring TP/SL and time expiration.
 ### getScheduledSignal
 
 ```ts
-getScheduledSignal: (symbol: string) => Promise<IScheduledSignalRow>
+getScheduledSignal: (symbol: string) => Promise<IPublicSignalRow>
 ```
 
 Retrieves the currently active scheduled signal for the symbol.
@@ -128,3 +128,38 @@ Validations:
 - Does nothing if _totalClosed + percentToClose &gt; 100 (prevents over-closing)
 
 Use case: User-controlled partial close triggered from onPartialLoss callback.
+
+### trailingStop
+
+```ts
+trailingStop: (symbol: string, percentShift: number, backtest: boolean) => Promise<void>
+```
+
+Adjusts trailing stop-loss by shifting distance between entry and original SL.
+
+Calculates new SL based on percentage shift of the distance (entry - originalSL):
+- Negative %: tightens stop (moves SL closer to entry, reduces risk)
+- Positive %: loosens stop (moves SL away from entry, allows more drawdown)
+
+For LONG position (entry=100, originalSL=90, distance=10):
+- percentShift = -50: newSL = 100 - 10*(1-0.5) = 95 (tighter, closer to entry)
+- percentShift = +20: newSL = 100 - 10*(1+0.2) = 88 (looser, away from entry)
+
+For SHORT position (entry=100, originalSL=110, distance=10):
+- percentShift = -50: newSL = 100 + 10*(1-0.5) = 105 (tighter, closer to entry)
+- percentShift = +20: newSL = 100 + 10*(1+0.2) = 112 (looser, away from entry)
+
+Trailing behavior:
+- Only updates if new SL is BETTER (protects more profit)
+- For LONG: only accepts higher SL (never moves down)
+- For SHORT: only accepts lower SL (never moves up)
+- Validates that SL never crosses entry price
+- Stores in _trailingPriceStopLoss, original priceStopLoss preserved
+
+Validations:
+- Throws if no pending signal exists
+- Throws if percentShift&lt; -100 or &gt; 100
+- Throws if percentShift=== 0
+- Skips if new SL would cross entry price
+
+Use case: User-controlled trailing stop triggered from onPartialProfit callback.

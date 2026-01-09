@@ -380,6 +380,48 @@ export class StrategyCoreService implements TStrategy {
     await this.validate(symbol, context);
     return await this.strategyConnectionService.partialLoss(backtest, symbol, percentToClose, currentPrice, context);
   };
+
+  /**
+   * Adjusts the trailing stop-loss distance for an active pending signal.
+   *
+   * Validates strategy existence and delegates to connection service
+   * to update the stop-loss distance by a percentage adjustment.
+   *
+   * Does not require execution context as this is a direct state mutation.
+   *
+   * @param backtest - Whether running in backtest mode
+   * @param symbol - Trading pair symbol
+   * @param percentShift - Percentage adjustment to SL distance (-100 to 100)
+   * @param context - Execution context with strategyName, exchangeName, frameName
+   * @returns Promise that resolves when trailing SL is updated
+   *
+   * @example
+   * ```typescript
+   * // LONG: entry=100, originalSL=90, distance=10
+   * // Tighten stop by 50%: newSL = 100 - 10*(1-0.5) = 95
+   * await strategyCoreService.trailingStop(
+   *   false,
+   *   "BTCUSDT",
+   *   -50,
+   *   { strategyName: "my-strategy", exchangeName: "binance", frameName: "" }
+   * );
+   * ```
+   */
+  public trailingStop = async (
+    backtest: boolean,
+    symbol: string,
+    percentShift: number,
+    context: { strategyName: StrategyName; exchangeName: ExchangeName; frameName: FrameName }
+  ): Promise<void> => {
+    this.loggerService.log("strategyCoreService trailingStop", {
+      symbol,
+      percentShift,
+      context,
+      backtest,
+    });
+    await this.validate(symbol, context);
+    return await this.strategyConnectionService.trailingStop(backtest, symbol, percentShift, context);
+  };
 }
 
 export default StrategyCoreService;

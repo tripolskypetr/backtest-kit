@@ -88,3 +88,12 @@ init: (() => Promise<void>) & ISingleshotClearable
 
 Initializes the service by subscribing to performance events.
 Uses singleshot to ensure initialization happens only once.
+
+### unsubscribe
+
+```ts
+unsubscribe: Function
+```
+
+Function to unsubscribe from partial profit/loss events.
+Assigned during init().

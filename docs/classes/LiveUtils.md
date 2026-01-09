@@ -119,6 +119,17 @@ Executes partial close at loss level (moving toward SL).
 Closes a percentage of the active pending position at loss.
 Price must be moving toward stop loss (in loss direction).
 
+### trailingStop
+
+```ts
+trailingStop: (symbol: string, percentShift: number, context: { strategyName: string; exchangeName: string; }) => Promise<void>
+```
+
+Adjusts the trailing stop-loss distance for an active pending signal.
+
+Updates the stop-loss distance by a percentage adjustment relative to the original SL distance.
+Positive percentShift tightens the SL (reduces distance), negative percentShift loosens it.
+
 ### getData
 
 ```ts

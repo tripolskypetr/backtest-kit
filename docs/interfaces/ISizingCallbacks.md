@@ -12,7 +12,7 @@ Callbacks for sizing lifecycle events.
 ### onCalculate
 
 ```ts
-onCalculate: (quantity: number, params: ISizingCalculateParams) => void
+onCalculate: (quantity: number, params: ISizingCalculateParams) => void | Promise<void>
 ```
 
 Called after position size calculation.

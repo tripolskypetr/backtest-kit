@@ -1,7 +1,7 @@
 import { inject } from "../../../lib/core/di";
 import LoggerService from "../base/LoggerService";
 import TYPES from "../../../lib/core/types";
-import { ISignalRow, StrategyName } from "../../../interfaces/Strategy.interface";
+import { IPublicSignalRow, ISignalRow, StrategyName } from "../../../interfaces/Strategy.interface";
 import { IPartial, PartialLevel } from "../../../interfaces/Partial.interface";
 import ClientPartial from "../../../client/ClientPartial";
 import { memoize } from "functools-kit";
@@ -175,7 +175,7 @@ export class PartialConnectionService implements IPartial {
    */
   public profit = async (
     symbol: string,
-    data: ISignalRow,
+    data: IPublicSignalRow,
     currentPrice: number,
     revenuePercent: number,
     backtest: boolean,
@@ -217,7 +217,7 @@ export class PartialConnectionService implements IPartial {
    */
   public loss = async (
     symbol: string,
-    data: ISignalRow,
+    data: IPublicSignalRow,
     currentPrice: number,
     lossPercent: number,
     backtest: boolean,

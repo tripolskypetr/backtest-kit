@@ -15,6 +15,7 @@ import "./e2e/sequence.test.mjs"
 import "./e2e/other.test.mjs"
 import "./e2e/defend.test.mjs"
 import "./e2e/parallel.test.mjs";
+import "./e2e/trailing.test.mjs";
 import "./e2e/close.test.mjs"
 import "./e2e/sanitize.test.mjs"
 import "./e2e/edge.test.mjs"
@@ -42,7 +43,6 @@ import "./spec/pnl.test.mjs";
 import "./spec/optimizer.test.mjs"
 import "./spec/config.test.mjs"
 import "./spec/columns.test.mjs"
-
 
 run(import.meta.url, () => {
     console.log("All tests are finished");

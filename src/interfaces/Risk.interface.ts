@@ -1,5 +1,5 @@
 import { ILogger } from "./Logger.interface";
-import { ISignalDto, ISignalRow, StrategyName } from "./Strategy.interface";
+import { ISignalDto, IRiskSignalRow, StrategyName, ISignalRow } from "./Strategy.interface";
 import { ExchangeName } from "./Exchange.interface";
 import { FrameName } from "./Frame.interface";
 
@@ -18,7 +18,7 @@ export interface IRiskCheckArgs {
   /** Trading pair symbol (e.g., "BTCUSDT") */
   symbol: string;
   /** Pending signal to apply */
-  pendingSignal: ISignalDto;
+  pendingSignal: ISignalDto | ISignalRow;
   /** Strategy name requesting to open a position */
   strategyName: StrategyName;
   /** Exchange name */
@@ -62,8 +62,8 @@ export interface IRiskCallbacks {
  * Extends IRiskCheckArgs with portfolio state data.
  */
 export interface IRiskValidationPayload extends IRiskCheckArgs {
-  /** Pending signal to apply */
-  pendingSignal: ISignalDto;
+  /** Pending signal to apply (IRiskSignalRow is calculated internally so priceOpen always exist) */
+  pendingSignal: IRiskSignalRow;
   /** Number of currently active positions across all strategies */
   activePositionCount: number;
   /** List of currently active positions across all strategies */

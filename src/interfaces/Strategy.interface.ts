@@ -80,6 +80,15 @@ export interface ISignalRow extends ISignalDto {
     /** Price at which this partial was executed */
     price: number;
   }>;
+  /**
+   * Trailing stop-loss price that overrides priceStopLoss when set.
+   * Updated by trailing() method based on position type and percentage distance.
+   * - For LONG: moves upward as price moves toward TP (never moves down)
+   * - For SHORT: moves downward as price moves toward TP (never moves up)
+   * When _trailingPriceStopLoss is set, it replaces priceStopLoss for TP/SL checks.
+   * Original priceStopLoss is preserved in persistence but ignored during execution.
+   */
+  _trailingPriceStopLoss?: number;
 }
 
 /**
@@ -91,6 +100,40 @@ export interface ISignalRow extends ISignalDto {
 export interface IScheduledSignalRow extends ISignalRow {
   /** Entry price for the position */
   priceOpen: number;
+}
+
+/**
+ * Public signal row with original stop-loss price.
+ * Extends ISignalRow to include originalPriceStopLoss for external visibility.
+ * Used in public APIs to show user the original SL even if trailing SL is active.
+ * This allows users to see both the current effective SL and the original SL set at signal creation.
+ * The originalPriceStopLoss remains unchanged even if _trailingPriceStopLoss modifies the effective SL.
+ * Useful for transparency in reporting and user interfaces.
+ * Note: originalPriceStopLoss is identical to priceStopLoss at signal creation time.
+ */
+export interface IPublicSignalRow extends ISignalRow {
+  /**
+   * Original stop-loss price set at signal creation.
+   * Remains unchanged even if trailing stop-loss modifies effective SL.
+   * Used for user visibility of initial SL parameters.
+   */
+  originalPriceStopLoss: number;
+}
+
+/**
+ * Risk signal row for internal risk management.
+ * Extends ISignalDto to include priceOpen and originalPriceStopLoss.
+ * Used in risk validation to access entry price and original SL.
+ */
+export interface IRiskSignalRow extends ISignalDto {
+  /**
+   * Entry price for the position.
+   */
+  priceOpen: number;
+  /**
+   * Original stop-loss price set at signal creation.
+   */
+  originalPriceStopLoss: number;
 }
 
 /**
@@ -122,7 +165,7 @@ export interface IStrategyParams extends IStrategySchema {
   /** Method context service (strategyName, exchangeName, frameName) */
   method: TMethodContextService;
   /** System callback for ping events (emits to pingSubject) */
-  onPing: (symbol: string, strategyName: StrategyName, exchangeName: ExchangeName, data: IScheduledSignalRow, backtest: boolean, timestamp: number) => Promise<void>;
+  onPing: (symbol: string, strategyName: StrategyName, exchangeName: ExchangeName, data: IPublicSignalRow, backtest: boolean, timestamp: number) => Promise<void>;
 }
 
 /**
@@ -133,30 +176,30 @@ export interface IStrategyCallbacks {
   /** Called on every tick with the result */
   onTick: (symbol: string, result: IStrategyTickResult, backtest: boolean) => void | Promise<void>;
   /** Called when new signal is opened (after validation) */
-  onOpen: (symbol: string, data: ISignalRow, currentPrice: number, backtest: boolean) => void | Promise<void>;
+  onOpen: (symbol: string, data: IPublicSignalRow, currentPrice: number, backtest: boolean) => void | Promise<void>;
   /** Called when signal is being monitored (active state) */
-  onActive: (symbol: string, data: ISignalRow, currentPrice: number, backtest: boolean) => void | Promise<void>;
+  onActive: (symbol: string, data: IPublicSignalRow, currentPrice: number, backtest: boolean) => void | Promise<void>;
   /** Called when no active signal exists (idle state) */
   onIdle: (symbol: string, currentPrice: number, backtest: boolean) => void | Promise<void>;
   /** Called when signal is closed with final price */
   onClose: (
     symbol: string,
-    data: ISignalRow,
+    data: IPublicSignalRow,
     priceClose: number,
     backtest: boolean,
   ) => void | Promise<void>;
   /** Called when scheduled signal is created (delayed entry) */
-  onSchedule: (symbol: string, data: IScheduledSignalRow, currentPrice: number, backtest: boolean) => void | Promise<void>;
+  onSchedule: (symbol: string, data: IPublicSignalRow, currentPrice: number, backtest: boolean) => void | Promise<void>;
   /** Called when scheduled signal is cancelled without opening position */
-  onCancel: (symbol: string, data: IScheduledSignalRow, currentPrice: number, backtest: boolean) => void | Promise<void>;
+  onCancel: (symbol: string, data: IPublicSignalRow, currentPrice: number, backtest: boolean) => void | Promise<void>;
   /** Called when signal is written to persist storage (for testing) */
-  onWrite: (symbol: string, data: ISignalRow | null, backtest: boolean) => void;
+  onWrite: (symbol: string, data: IPublicSignalRow | null, backtest: boolean) => void;
   /** Called when signal is in partial profit state (price moved favorably but not reached TP yet) */
-  onPartialProfit: (symbol: string, data: ISignalRow, currentPrice: number, revenuePercent: number, backtest: boolean) => void | Promise<void>;
+  onPartialProfit: (symbol: string, data: IPublicSignalRow, currentPrice: number, revenuePercent: number, backtest: boolean) => void | Promise<void>;
   /** Called when signal is in partial loss state (price moved against position but not hit SL yet) */
-  onPartialLoss: (symbol: string, data: ISignalRow, currentPrice: number, lossPercent: number, backtest: boolean) => void | Promise<void>;
+  onPartialLoss: (symbol: string, data: IPublicSignalRow, currentPrice: number, lossPercent: number, backtest: boolean) => void | Promise<void>;
   /** Called every minute regardless of strategy interval (for custom monitoring like checking if signal should be cancelled) */
-  onPing: (symbol: string, data: IScheduledSignalRow, when: Date, backtest: boolean) => void | Promise<void>;
+  onPing: (symbol: string, data: IPublicSignalRow, when: Date, backtest: boolean) => void | Promise<void>;
 }
 
 /**
@@ -239,7 +282,7 @@ export interface IStrategyTickResultScheduled {
   /** Discriminator for type-safe union */
   action: "scheduled";
   /** Scheduled signal waiting for activation */
-  signal: IScheduledSignalRow;
+  signal: IPublicSignalRow;
   /** Strategy name for tracking */
   strategyName: StrategyName;
   /** Exchange name for tracking */
@@ -262,7 +305,7 @@ export interface IStrategyTickResultOpened {
   /** Discriminator for type-safe union */
   action: "opened";
   /** Newly created and validated signal with generated ID */
-  signal: ISignalRow;
+  signal: IPublicSignalRow;
   /** Strategy name for tracking */
   strategyName: StrategyName;
   /** Exchange name for tracking */
@@ -285,7 +328,7 @@ export interface IStrategyTickResultActive {
   /** Discriminator for type-safe union */
   action: "active";
   /** Currently monitored signal */
-  signal: ISignalRow;
+  signal: IPublicSignalRow;
   /** Current VWAP price for monitoring */
   currentPrice: number;
   /** Strategy name for tracking */
@@ -312,7 +355,7 @@ export interface IStrategyTickResultClosed {
   /** Discriminator for type-safe union */
   action: "closed";
   /** Completed signal with original parameters */
-  signal: ISignalRow;
+  signal: IPublicSignalRow;
   /** Final VWAP price at close */
   currentPrice: number;
   /** Why signal closed (time_expired | take_profit | stop_loss) */
@@ -341,7 +384,7 @@ export interface IStrategyTickResultCancelled {
   /** Discriminator for type-safe union */
   action: "cancelled";
   /** Cancelled scheduled signal */
-  signal: IScheduledSignalRow;
+  signal: IPublicSignalRow;
   /** Final VWAP price at cancellation */
   currentPrice: number;
   /** Unix timestamp in milliseconds when signal cancelled */
@@ -402,7 +445,7 @@ export interface IStrategy {
    * @param symbol - Trading pair symbol
    * @returns Promise resolving to pending signal or null
    */
-  getPendingSignal: (symbol: string) => Promise<ISignalRow | null>;
+  getPendingSignal: (symbol: string) => Promise<IPublicSignalRow | null>;
 
   /**
    * Retrieves the currently active scheduled signal for the symbol.
@@ -412,7 +455,7 @@ export interface IStrategy {
    * @param symbol - Trading pair symbol
    * @returns Promise resolving to scheduled signal or null
    */
-  getScheduledSignal: (symbol: string) => Promise<IScheduledSignalRow | null>;
+  getScheduledSignal: (symbol: string) => Promise<IPublicSignalRow | null>;
 
   /**
    * Checks if the strategy has been stopped.
@@ -550,6 +593,56 @@ export interface IStrategy {
    * ```
    */
   partialLoss: (symbol: string, percentToClose: number, currentPrice: number, backtest: boolean) => Promise<void>;
+
+  /**
+   * Adjusts trailing stop-loss by shifting distance between entry and original SL.
+   *
+   * Calculates new SL based on percentage shift of the distance (entry - originalSL):
+   * - Negative %: tightens stop (moves SL closer to entry, reduces risk)
+   * - Positive %: loosens stop (moves SL away from entry, allows more drawdown)
+   *
+   * For LONG position (entry=100, originalSL=90, distance=10):
+   * - percentShift = -50: newSL = 100 - 10*(1-0.5) = 95 (tighter, closer to entry)
+   * - percentShift = +20: newSL = 100 - 10*(1+0.2) = 88 (looser, away from entry)
+   *
+   * For SHORT position (entry=100, originalSL=110, distance=10):
+   * - percentShift = -50: newSL = 100 + 10*(1-0.5) = 105 (tighter, closer to entry)
+   * - percentShift = +20: newSL = 100 + 10*(1+0.2) = 112 (looser, away from entry)
+   *
+   * Trailing behavior:
+   * - Only updates if new SL is BETTER (protects more profit)
+   * - For LONG: only accepts higher SL (never moves down)
+   * - For SHORT: only accepts lower SL (never moves up)
+   * - Validates that SL never crosses entry price
+   * - Stores in _trailingPriceStopLoss, original priceStopLoss preserved
+   *
+   * Validations:
+   * - Throws if no pending signal exists
+   * - Throws if percentShift< -100 or > 100
+   * - Throws if percentShift=== 0
+   * - Skips if new SL would cross entry price
+   *
+   * Use case: User-controlled trailing stop triggered from onPartialProfit callback.
+   *
+   * @param symbol - Trading pair symbol (e.g., "BTCUSDT")
+   * @param percentShift- Percentage shift of SL distance [-100, 100], excluding 0
+   * @param backtest - Whether running in backtest mode
+   * @returns Promise that resolves when trailing SL is updated
+   *
+   * @example
+   * ```typescript
+   * callbacks: {
+   *   onPartialProfit: async (symbol, signal, currentPrice, percentTp, backtest) => {
+   *     if (percentTp >= 50) {
+   *       // LONG: entry=100, originalSL=90, distance=10
+   *       // Tighten stop by 50%: newSL = 100 - 10*(1-0.5) = 95
+   *       await strategy.trailingStop(symbol, -50, backtest);
+   *     }
+   *   }
+   * }
+   * ```
+   */
+  trailingStop: (symbol: string, percentShift: number, backtest: boolean) => Promise<void>;
 }
 
 /**

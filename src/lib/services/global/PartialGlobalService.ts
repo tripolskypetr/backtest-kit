@@ -2,7 +2,7 @@ import { inject } from "../../../lib/core/di";
 import LoggerService from "../base/LoggerService";
 import TYPES from "../../../lib/core/types";
 import { PartialConnectionService } from "../connection/PartialConnectionService";
-import { ISignalRow, StrategyName } from "../../../interfaces/Strategy.interface";
+import { IPublicSignalRow, ISignalRow, StrategyName } from "../../../interfaces/Strategy.interface";
 import StrategyValidationService from "../validation/StrategyValidationService";
 import StrategySchemaService from "../schema/StrategySchemaService";
 import RiskValidationService from "../validation/RiskValidationService";
@@ -121,7 +121,7 @@ export class PartialGlobalService implements TPartial {
    */
   public profit = async (
     symbol: string,
-    data: ISignalRow,
+    data: IPublicSignalRow,
     currentPrice: number,
     revenuePercent: number,
     backtest: boolean,
@@ -165,7 +165,7 @@ export class PartialGlobalService implements TPartial {
    */
   public loss = async (
     symbol: string,
-    data: ISignalRow,
+    data: IPublicSignalRow,
     currentPrice: number,
     lossPercent: number,
     backtest: boolean,

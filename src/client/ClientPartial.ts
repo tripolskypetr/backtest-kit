@@ -5,7 +5,7 @@ import {
   IPartialData,
   IPartial,
 } from "../interfaces/Partial.interface";
-import { ISignalRow, StrategyName } from "../interfaces/Strategy.interface";
+import { IPublicSignalRow, ISignalRow, StrategyName } from "../interfaces/Strategy.interface";
 import { PersistPartialAdapter } from "../classes/Persist";
 import { singleshot } from "functools-kit";
 
@@ -43,7 +43,7 @@ const LOSS_LEVELS: PartialLevel[] = [10, 20, 30, 40, 50, 60, 70, 80, 90, 100];
  */
 const HANDLE_PROFIT_FN = async (
   symbol: string,
-  data: ISignalRow,
+  data: IPublicSignalRow,
   currentPrice: number,
   revenuePercent: number,
   backtest: boolean,
@@ -122,7 +122,7 @@ const HANDLE_PROFIT_FN = async (
  */
 const HANDLE_LOSS_FN = async (
   symbol: string,
-  data: ISignalRow,
+  data: IPublicSignalRow,
   currentPrice: number,
   lossPercent: number,
   backtest: boolean,
@@ -400,7 +400,7 @@ export class ClientPartial implements IPartial {
    */
   public async profit(
     symbol: string,
-    data: ISignalRow,
+    data: IPublicSignalRow,
     currentPrice: number,
     revenuePercent: number,
     backtest: boolean,
@@ -458,7 +458,7 @@ export class ClientPartial implements IPartial {
    */
   public async loss(
     symbol: string,
-    data: ISignalRow,
+    data: IPublicSignalRow,
     currentPrice: number,
     lossPercent: number,
     backtest: boolean,

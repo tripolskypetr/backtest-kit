@@ -12,7 +12,7 @@ Optional callbacks for exchange data events.
 ### onCandleData
 
 ```ts
-onCandleData: (symbol: string, interval: CandleInterval, since: Date, limit: number, data: ICandleData[]) => void
+onCandleData: (symbol: string, interval: CandleInterval, since: Date, limit: number, data: ICandleData[]) => void | Promise<void>
 ```
 
 Called when candle data is fetched

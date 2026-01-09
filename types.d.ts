@@ -205,6 +205,28 @@ declare function partialProfit(symbol: string, percentToClose: number): Promise<
  * ```
  */
 declare function partialLoss(symbol: string, percentToClose: number): Promise<void>;
+/**
+ * Adjusts the trailing stop-loss distance for an active pending signal.
+ *
+ * Updates the stop-loss distance by a percentage adjustment relative to the original SL distance.
+ * Positive percentShift tightens the SL (reduces distance), negative percentShift loosens it.
+ *
+ * Automatically detects backtest/live mode from execution context.
+ *
+ * @param symbol - Trading pair symbol
+ * @param percentShift - Percentage adjustment to SL distance (-100 to 100)
+ * @returns Promise that resolves when trailing SL is updated
+ *
+ * @example
+ * ```typescript
+ * import { trailingStop } from "backtest-kit";
+ *
+ * // LONG: entry=100, originalSL=90, distance=10
+ * // Tighten stop by 50%: newSL = 100 - 10*(1-0.5) = 95
+ * await trailingStop("BTCUSDT", -50);
+ * ```
+ */
+declare function trailingStop(symbol: string, percentShift: number): Promise<void>;
 
 declare const GLOBAL_CONFIG: {
     /**
@@ -869,7 +891,7 @@ interface IRiskCheckArgs {
     /** Trading pair symbol (e.g., "BTCUSDT") */
     symbol: string;
     /** Pending signal to apply */
-    pendingSignal: ISignalDto;
+    pendingSignal: ISignalDto | ISignalRow;
     /** Strategy name requesting to open a position */
     strategyName: StrategyName;
     /** Exchange name */
@@ -906,8 +928,8 @@ interface IRiskCallbacks {
  * Extends IRiskCheckArgs with portfolio state data.
  */
 interface IRiskValidationPayload extends IRiskCheckArgs {
-    /** Pending signal to apply */
-    pendingSignal: ISignalDto;
+    /** Pending signal to apply (IRiskSignalRow is calculated internally so priceOpen always exist) */
+    pendingSignal: IRiskSignalRow;
     /** Number of currently active positions across all strategies */
     activePositionCount: number;
     /** List of currently active positions across all strategies */
@@ -1122,7 +1144,7 @@ interface IPartial {
      * // Emits events for 20% level only (10% already emitted)
      * ```
      */
-    profit(symbol: string, data: ISignalRow, currentPrice: number, revenuePercent: number, backtest: boolean, when: Date): Promise<void>;
+    profit(symbol: string, data: IPublicSignalRow, currentPrice: number, revenuePercent: number, backtest: boolean, when: Date): Promise<void>;
     /**
      * Processes loss state and emits events for new loss levels reached.
      *
@@ -1156,7 +1178,7 @@ interface IPartial {
      * // Emits events for 20% level only (10% already emitted)
      * ```
      */
-    loss(symbol: string, data: ISignalRow, currentPrice: number, lossPercent: number, backtest: boolean, when: Date): Promise<void>;
+    loss(symbol: string, data: IPublicSignalRow, currentPrice: number, lossPercent: number, backtest: boolean, when: Date): Promise<void>;
     /**
      * Clears partial profit/loss state when signal closes.
      *
@@ -1178,7 +1200,7 @@ interface IPartial {
      * // Memoized instance cleared from getPartial cache
      * ```
      */
-    clear(symbol: string, data: ISignalRow, priceClose: number, backtest: boolean): Promise<void>;
+    clear(symbol: string, data: IPublicSignalRow, priceClose: number, backtest: boolean): Promise<void>;
 }
 
 /**
@@ -1247,6 +1269,15 @@ interface ISignalRow extends ISignalDto {
         /** Price at which this partial was executed */
         price: number;
     }>;
+    /**
+     * Trailing stop-loss price that overrides priceStopLoss when set.
+     * Updated by trailing() method based on position type and percentage distance.
+     * - For LONG: moves upward as price moves toward TP (never moves down)
+     * - For SHORT: moves downward as price moves toward TP (never moves up)
+     * When _trailingPriceStopLoss is set, it replaces priceStopLoss for TP/SL checks.
+     * Original priceStopLoss is preserved in persistence but ignored during execution.
+     */
+    _trailingPriceStopLoss?: number;
 }
 /**
  * Scheduled signal row for delayed entry at specific price.
@@ -1257,6 +1288,38 @@ interface ISignalRow extends ISignalDto {
 interface IScheduledSignalRow extends ISignalRow {
     /** Entry price for the position */
     priceOpen: number;
+}
+/**
+ * Public signal row with original stop-loss price.
+ * Extends ISignalRow to include originalPriceStopLoss for external visibility.
+ * Used in public APIs to show user the original SL even if trailing SL is active.
+ * This allows users to see both the current effective SL and the original SL set at signal creation.
+ * The originalPriceStopLoss remains unchanged even if _trailingPriceStopLoss modifies the effective SL.
+ * Useful for transparency in reporting and user interfaces.
+ * Note: originalPriceStopLoss is identical to priceStopLoss at signal creation time.
+ */
+interface IPublicSignalRow extends ISignalRow {
+    /**
+     * Original stop-loss price set at signal creation.
+     * Remains unchanged even if trailing stop-loss modifies effective SL.
+     * Used for user visibility of initial SL parameters.
+     */
+    originalPriceStopLoss: number;
+}
+/**
+ * Risk signal row for internal risk management.
+ * Extends ISignalDto to include priceOpen and originalPriceStopLoss.
+ * Used in risk validation to access entry price and original SL.
+ */
+interface IRiskSignalRow extends ISignalDto {
+    /**
+     * Entry price for the position.
+     */
+    priceOpen: number;
+    /**
+     * Original stop-loss price set at signal creation.
+     */
+    originalPriceStopLoss: number;
 }
 /**
  * Scheduled signal row with cancellation ID.
@@ -1274,25 +1337,25 @@ interface IStrategyCallbacks {
     /** Called on every tick with the result */
     onTick: (symbol: string, result: IStrategyTickResult, backtest: boolean) => void | Promise<void>;
     /** Called when new signal is opened (after validation) */
-    onOpen: (symbol: string, data: ISignalRow, currentPrice: number, backtest: boolean) => void | Promise<void>;
+    onOpen: (symbol: string, data: IPublicSignalRow, currentPrice: number, backtest: boolean) => void | Promise<void>;
     /** Called when signal is being monitored (active state) */
-    onActive: (symbol: string, data: ISignalRow, currentPrice: number, backtest: boolean) => void | Promise<void>;
+    onActive: (symbol: string, data: IPublicSignalRow, currentPrice: number, backtest: boolean) => void | Promise<void>;
     /** Called when no active signal exists (idle state) */
     onIdle: (symbol: string, currentPrice: number, backtest: boolean) => void | Promise<void>;
     /** Called when signal is closed with final price */
-    onClose: (symbol: string, data: ISignalRow, priceClose: number, backtest: boolean) => void | Promise<void>;
+    onClose: (symbol: string, data: IPublicSignalRow, priceClose: number, backtest: boolean) => void | Promise<void>;
     /** Called when scheduled signal is created (delayed entry) */
-    onSchedule: (symbol: string, data: IScheduledSignalRow, currentPrice: number, backtest: boolean) => void | Promise<void>;
+    onSchedule: (symbol: string, data: IPublicSignalRow, currentPrice: number, backtest: boolean) => void | Promise<void>;
     /** Called when scheduled signal is cancelled without opening position */
-    onCancel: (symbol: string, data: IScheduledSignalRow, currentPrice: number, backtest: boolean) => void | Promise<void>;
+    onCancel: (symbol: string, data: IPublicSignalRow, currentPrice: number, backtest: boolean) => void | Promise<void>;
     /** Called when signal is written to persist storage (for testing) */
-    onWrite: (symbol: string, data: ISignalRow | null, backtest: boolean) => void;
+    onWrite: (symbol: string, data: IPublicSignalRow | null, backtest: boolean) => void;
     /** Called when signal is in partial profit state (price moved favorably but not reached TP yet) */
-    onPartialProfit: (symbol: string, data: ISignalRow, currentPrice: number, revenuePercent: number, backtest: boolean) => void | Promise<void>;
+    onPartialProfit: (symbol: string, data: IPublicSignalRow, currentPrice: number, revenuePercent: number, backtest: boolean) => void | Promise<void>;
     /** Called when signal is in partial loss state (price moved against position but not hit SL yet) */
-    onPartialLoss: (symbol: string, data: ISignalRow, currentPrice: number, lossPercent: number, backtest: boolean) => void | Promise<void>;
+    onPartialLoss: (symbol: string, data: IPublicSignalRow, currentPrice: number, lossPercent: number, backtest: boolean) => void | Promise<void>;
     /** Called every minute regardless of strategy interval (for custom monitoring like checking if signal should be cancelled) */
-    onPing: (symbol: string, data: IScheduledSignalRow, when: Date, backtest: boolean) => void | Promise<void>;
+    onPing: (symbol: string, data: IPublicSignalRow, when: Date, backtest: boolean) => void | Promise<void>;
 }
 /**
  * Strategy schema registered via addStrategy().
@@ -1369,7 +1432,7 @@ interface IStrategyTickResultScheduled {
     /** Discriminator for type-safe union */
     action: "scheduled";
     /** Scheduled signal waiting for activation */
-    signal: IScheduledSignalRow;
+    signal: IPublicSignalRow;
     /** Strategy name for tracking */
     strategyName: StrategyName;
     /** Exchange name for tracking */
@@ -1391,7 +1454,7 @@ interface IStrategyTickResultOpened {
     /** Discriminator for type-safe union */
     action: "opened";
     /** Newly created and validated signal with generated ID */
-    signal: ISignalRow;
+    signal: IPublicSignalRow;
     /** Strategy name for tracking */
     strategyName: StrategyName;
     /** Exchange name for tracking */
@@ -1413,7 +1476,7 @@ interface IStrategyTickResultActive {
     /** Discriminator for type-safe union */
     action: "active";
     /** Currently monitored signal */
-    signal: ISignalRow;
+    signal: IPublicSignalRow;
     /** Current VWAP price for monitoring */
     currentPrice: number;
     /** Strategy name for tracking */
@@ -1439,7 +1502,7 @@ interface IStrategyTickResultClosed {
     /** Discriminator for type-safe union */
     action: "closed";
     /** Completed signal with original parameters */
-    signal: ISignalRow;
+    signal: IPublicSignalRow;
     /** Final VWAP price at close */
     currentPrice: number;
     /** Why signal closed (time_expired | take_profit | stop_loss) */
@@ -1467,7 +1530,7 @@ interface IStrategyTickResultCancelled {
     /** Discriminator for type-safe union */
     action: "cancelled";
     /** Cancelled scheduled signal */
-    signal: IScheduledSignalRow;
+    signal: IPublicSignalRow;
     /** Final VWAP price at cancellation */
     currentPrice: number;
     /** Unix timestamp in milliseconds when signal cancelled */
@@ -1518,7 +1581,7 @@ interface IStrategy {
      * @param symbol - Trading pair symbol
      * @returns Promise resolving to pending signal or null
      */
-    getPendingSignal: (symbol: string) => Promise<ISignalRow | null>;
+    getPendingSignal: (symbol: string) => Promise<IPublicSignalRow | null>;
     /**
      * Retrieves the currently active scheduled signal for the symbol.
      * If no scheduled signal exists, returns null.
@@ -1527,7 +1590,7 @@ interface IStrategy {
      * @param symbol - Trading pair symbol
      * @returns Promise resolving to scheduled signal or null
      */
-    getScheduledSignal: (symbol: string) => Promise<IScheduledSignalRow | null>;
+    getScheduledSignal: (symbol: string) => Promise<IPublicSignalRow | null>;
     /**
      * Checks if the strategy has been stopped.
      *
@@ -1659,6 +1722,55 @@ interface IStrategy {
      * ```
      */
     partialLoss: (symbol: string, percentToClose: number, currentPrice: number, backtest: boolean) => Promise<void>;
+    /**
+     * Adjusts trailing stop-loss by shifting distance between entry and original SL.
+     *
+     * Calculates new SL based on percentage shift of the distance (entry - originalSL):
+     * - Negative %: tightens stop (moves SL closer to entry, reduces risk)
+     * - Positive %: loosens stop (moves SL away from entry, allows more drawdown)
+     *
+     * For LONG position (entry=100, originalSL=90, distance=10):
+     * - percentShift = -50: newSL = 100 - 10*(1-0.5) = 95 (tighter, closer to entry)
+     * - percentShift = +20: newSL = 100 - 10*(1+0.2) = 88 (looser, away from entry)
+     *
+     * For SHORT position (entry=100, originalSL=110, distance=10):
+     * - percentShift = -50: newSL = 100 + 10*(1-0.5) = 105 (tighter, closer to entry)
+     * - percentShift = +20: newSL = 100 + 10*(1+0.2) = 112 (looser, away from entry)
+     *
+     * Trailing behavior:
+     * - Only updates if new SL is BETTER (protects more profit)
+     * - For LONG: only accepts higher SL (never moves down)
+     * - For SHORT: only accepts lower SL (never moves up)
+     * - Validates that SL never crosses entry price
+     * - Stores in _trailingPriceStopLoss, original priceStopLoss preserved
+     *
+     * Validations:
+     * - Throws if no pending signal exists
+     * - Throws if percentShift< -100 or > 100
+     * - Throws if percentShift=== 0
+     * - Skips if new SL would cross entry price
+     *
+     * Use case: User-controlled trailing stop triggered from onPartialProfit callback.
+     *
+     * @param symbol - Trading pair symbol (e.g., "BTCUSDT")
+     * @param percentShift- Percentage shift of SL distance [-100, 100], excluding 0
+     * @param backtest - Whether running in backtest mode
+     * @returns Promise that resolves when trailing SL is updated
+     *
+     * @example
+     * ```typescript
+     * callbacks: {
+     *   onPartialProfit: async (symbol, signal, currentPrice, percentTp, backtest) => {
+     *     if (percentTp >= 50) {
+     *       // LONG: entry=100, originalSL=90, distance=10
+     *       // Tighten stop by 50%: newSL = 100 - 10*(1-0.5) = 95
+     *       await strategy.trailingStop(symbol, -50, backtest);
+     *     }
+     *   }
+     * }
+     * ```
+     */
+    trailingStop: (symbol: string, percentShift: number, backtest: boolean) => Promise<void>;
 }
 /**
  * Unique strategy identifier.
@@ -6178,6 +6290,33 @@ declare class BacktestUtils {
         frameName: FrameName;
     }) => Promise<void>;
     /**
+     * Adjusts the trailing stop-loss distance for an active pending signal.
+     *
+     * Updates the stop-loss distance by a percentage adjustment relative to the original SL distance.
+     * Positive percentShift tightens the SL (reduces distance), negative percentShift loosens it.
+     *
+     * @param symbol - Trading pair symbol
+     * @param percentShift - Percentage adjustment to SL distance (-100 to 100)
+     * @param context - Execution context with strategyName, exchangeName, and frameName
+     * @returns Promise that resolves when trailing SL is updated
+     *
+     * @example
+     * ```typescript
+     * // LONG: entry=100, originalSL=90, distance=10
+     * // Tighten stop by 50%: newSL = 100 - 10*(1-0.5) = 95
+     * await Backtest.trailingStop("BTCUSDT", -50, {
+     *   exchangeName: "binance",
+     *   frameName: "frame1",
+     *   strategyName: "my-strategy"
+     * });
+     * ```
+     */
+    trailingStop: (symbol: string, percentShift: number, context: {
+        strategyName: StrategyName;
+        exchangeName: ExchangeName;
+        frameName: FrameName;
+    }) => Promise<void>;
+    /**
      * Gets statistical data from all closed signals for a symbol-strategy pair.
      *
      * @param symbol - Trading pair symbol
@@ -6714,6 +6853,31 @@ declare class LiveUtils {
      * ```
      */
     partialLoss: (symbol: string, percentToClose: number, currentPrice: number, context: {
+        strategyName: StrategyName;
+        exchangeName: ExchangeName;
+    }) => Promise<void>;
+    /**
+     * Adjusts the trailing stop-loss distance for an active pending signal.
+     *
+     * Updates the stop-loss distance by a percentage adjustment relative to the original SL distance.
+     * Positive percentShift tightens the SL (reduces distance), negative percentShift loosens it.
+     *
+     * @param symbol - Trading pair symbol
+     * @param percentShift - Percentage adjustment to SL distance (-100 to 100)
+     * @param context - Execution context with strategyName and exchangeName
+     * @returns Promise that resolves when trailing SL is updated
+     *
+     * @example
+     * ```typescript
+     * // LONG: entry=100, originalSL=90, distance=10
+     * // Tighten stop by 50%: newSL = 100 - 10*(1-0.5) = 95
+     * await Live.trailingStop("BTCUSDT", -50, {
+     *   exchangeName: "binance",
+     *   strategyName: "my-strategy"
+     * });
+     * ```
+     */
+    trailingStop: (symbol: string, percentShift: number, context: {
         strategyName: StrategyName;
         exchangeName: ExchangeName;
     }) => Promise<void>;
@@ -10105,7 +10269,7 @@ declare class PartialConnectionService implements IPartial {
      * @param when - Event timestamp (current time for live, candle time for backtest)
      * @returns Promise that resolves when profit processing is complete
      */
-    profit: (symbol: string, data: ISignalRow, currentPrice: number, revenuePercent: number, backtest: boolean, when: Date) => Promise<void>;
+    profit: (symbol: string, data: IPublicSignalRow, currentPrice: number, revenuePercent: number, backtest: boolean, when: Date) => Promise<void>;
     /**
      * Processes loss state and emits events for newly reached loss levels.
      *
@@ -10120,7 +10284,7 @@ declare class PartialConnectionService implements IPartial {
      * @param when - Event timestamp (current time for live, candle time for backtest)
      * @returns Promise that resolves when loss processing is complete
      */
-    loss: (symbol: string, data: ISignalRow, currentPrice: number, lossPercent: number, backtest: boolean, when: Date) => Promise<void>;
+    loss: (symbol: string, data: IPublicSignalRow, currentPrice: number, lossPercent: number, backtest: boolean, when: Date) => Promise<void>;
     /**
      * Clears partial profit/loss state when signal closes.
      *
@@ -10385,6 +10549,37 @@ declare class StrategyConnectionService implements TStrategy$1 {
      * ```
      */
     partialLoss: (backtest: boolean, symbol: string, percentToClose: number, currentPrice: number, context: {
+        strategyName: StrategyName;
+        exchangeName: ExchangeName;
+        frameName: FrameName;
+    }) => Promise<void>;
+    /**
+     * Adjusts the trailing stop-loss distance for an active pending signal.
+     *
+     * Updates the stop-loss distance by a percentage adjustment relative to the original SL distance.
+     * Positive percentShift tightens the SL (reduces distance), negative percentShift loosens it.
+     *
+     * Delegates to ClientStrategy.trailingStop() with current execution context.
+     *
+     * @param backtest - Whether running in backtest mode
+     * @param symbol - Trading pair symbol
+     * @param percentShift - Percentage adjustment to SL distance (-100 to 100)
+     * @param context - Execution context with strategyName, exchangeName, frameName
+     * @returns Promise that resolves when trailing SL is updated
+     *
+     * @example
+     * ```typescript
+     * // LONG: entry=100, originalSL=90, distance=10
+     * // Tighten stop by 50%: newSL = 100 - 10*(1-0.5) = 95
+     * await strategyConnectionService.trailingStop(
+     *   false,
+     *   "BTCUSDT",
+     *   -50,
+     *   { strategyName: "my-strategy", exchangeName: "binance", frameName: "" }
+     * );
+     * ```
+     */
+    trailingStop: (backtest: boolean, symbol: string, percentShift: number, context: {
         strategyName: StrategyName;
         exchangeName: ExchangeName;
         frameName: FrameName;
@@ -10857,6 +11052,37 @@ declare class StrategyCoreService implements TStrategy {
      * ```
      */
     partialLoss: (backtest: boolean, symbol: string, percentToClose: number, currentPrice: number, context: {
+        strategyName: StrategyName;
+        exchangeName: ExchangeName;
+        frameName: FrameName;
+    }) => Promise<void>;
+    /**
+     * Adjusts the trailing stop-loss distance for an active pending signal.
+     *
+     * Validates strategy existence and delegates to connection service
+     * to update the stop-loss distance by a percentage adjustment.
+     *
+     * Does not require execution context as this is a direct state mutation.
+     *
+     * @param backtest - Whether running in backtest mode
+     * @param symbol - Trading pair symbol
+     * @param percentShift - Percentage adjustment to SL distance (-100 to 100)
+     * @param context - Execution context with strategyName, exchangeName, frameName
+     * @returns Promise that resolves when trailing SL is updated
+     *
+     * @example
+     * ```typescript
+     * // LONG: entry=100, originalSL=90, distance=10
+     * // Tighten stop by 50%: newSL = 100 - 10*(1-0.5) = 95
+     * await strategyCoreService.trailingStop(
+     *   false,
+     *   "BTCUSDT",
+     *   -50,
+     *   { strategyName: "my-strategy", exchangeName: "binance", frameName: "" }
+     * );
+     * ```
+     */
+    trailingStop: (backtest: boolean, symbol: string, percentShift: number, context: {
         strategyName: StrategyName;
         exchangeName: ExchangeName;
         frameName: FrameName;
@@ -12449,7 +12675,7 @@ declare class PartialGlobalService implements TPartial {
      * @param when - Event timestamp (current time for live, candle time for backtest)
      * @returns Promise that resolves when profit processing is complete
      */
-    profit: (symbol: string, data: ISignalRow, currentPrice: number, revenuePercent: number, backtest: boolean, when: Date) => Promise<void>;
+    profit: (symbol: string, data: IPublicSignalRow, currentPrice: number, revenuePercent: number, backtest: boolean, when: Date) => Promise<void>;
     /**
      * Processes loss state and emits events for newly reached loss levels.
      *
@@ -12463,7 +12689,7 @@ declare class PartialGlobalService implements TPartial {
      * @param when - Event timestamp (current time for live, candle time for backtest)
      * @returns Promise that resolves when loss processing is complete
      */
-    loss: (symbol: string, data: ISignalRow, currentPrice: number, lossPercent: number, backtest: boolean, when: Date) => Promise<void>;
+    loss: (symbol: string, data: IPublicSignalRow, currentPrice: number, lossPercent: number, backtest: boolean, when: Date) => Promise<void>;
     /**
      * Clears partial profit/loss state when signal closes.
      *
@@ -12682,4 +12908,4 @@ declare const backtest: {
     loggerService: LoggerService;
 };
 
-export { Backtest, type BacktestDoneNotification, type BacktestStatisticsModel, type BootstrapNotification, Cache, type CandleInterval, type ColumnConfig, type ColumnModel, Constant, type CriticalErrorNotification, type DoneContract, type EntityId, Exchange, ExecutionContextService, type FrameInterval, type GlobalConfig, Heat, type HeatmapStatisticsModel, type ICandleData, type IExchangeSchema, type IFrameSchema, type IHeatmapRow, type IOptimizerCallbacks, type IOptimizerData, type IOptimizerFetchArgs, type IOptimizerFilterArgs, type IOptimizerRange, type IOptimizerSchema, type IOptimizerSource, type IOptimizerStrategy, type IOptimizerTemplate, type IPersistBase, type IPositionSizeATRParams, type IPositionSizeFixedPercentageParams, type IPositionSizeKellyParams, type IRiskActivePosition, type IRiskCheckArgs, type IRiskSchema, type IRiskValidation, type IRiskValidationFn, type IRiskValidationPayload, type IScheduledSignalCancelRow, type IScheduledSignalRow, type ISignalDto, type ISignalRow, type ISizingCalculateParams, type ISizingCalculateParamsATR, type ISizingCalculateParamsFixedPercentage, type ISizingCalculateParamsKelly, type ISizingSchema, type ISizingSchemaATR, type ISizingSchemaFixedPercentage, type ISizingSchemaKelly, type IStrategyPnL, type IStrategyResult, type IStrategySchema, type IStrategyTickResult, type IStrategyTickResultActive, type IStrategyTickResultCancelled, type IStrategyTickResultClosed, type IStrategyTickResultIdle, type IStrategyTickResultOpened, type IStrategyTickResultScheduled, type IWalkerResults, type IWalkerSchema, type IWalkerStrategyResult, type InfoErrorNotification, Live, type LiveDoneNotification, type LiveStatisticsModel, type MessageModel, type MessageRole, MethodContextService, type MetricStats, Notification, type NotificationModel, Optimizer, Partial$1 as Partial, type PartialData, type PartialEvent, type PartialLossContract, type PartialLossNotification, type PartialProfitContract, type PartialProfitNotification, type PartialStatisticsModel, Performance, type PerformanceContract, type PerformanceMetricType, type PerformanceStatisticsModel, PersistBase, PersistPartialAdapter, PersistRiskAdapter, PersistScheduleAdapter, PersistSignalAdapter, type PingContract, PositionSize, type ProgressBacktestContract, type ProgressBacktestNotification, type ProgressOptimizerContract, type ProgressWalkerContract, Risk, type RiskContract, type RiskData, type RiskEvent, type RiskRejectionNotification, type RiskStatisticsModel, Schedule, type ScheduleData, type ScheduleStatisticsModel, type ScheduledEvent, type SignalCancelledNotification, type SignalClosedNotification, type SignalData, type SignalInterval, type SignalOpenedNotification, type SignalScheduledNotification, type TPersistBase, type TPersistBaseCtor, type TickEvent, type ValidationErrorNotification, Walker, type WalkerCompleteContract, type WalkerContract, type WalkerMetric, type SignalData$1 as WalkerSignalData, type WalkerStatisticsModel, addExchange, addFrame, addOptimizer, addRisk, addSizing, addStrategy, addWalker, cancel, dumpSignal, emitters, formatPrice, formatQuantity, getAveragePrice, getCandles, getColumns, getConfig, getDate, getDefaultColumns, getDefaultConfig, getMode, hasTradeContext, backtest as lib, listExchanges, listFrames, listOptimizers, listRisks, listSizings, listStrategies, listWalkers, listenBacktestProgress, listenDoneBacktest, listenDoneBacktestOnce, listenDoneLive, listenDoneLiveOnce, listenDoneWalker, listenDoneWalkerOnce, listenError, listenExit, listenOptimizerProgress, listenPartialLoss, listenPartialLossOnce, listenPartialProfit, listenPartialProfitOnce, listenPerformance, listenPing, listenPingOnce, listenRisk, listenRiskOnce, listenSignal, listenSignalBacktest, listenSignalBacktestOnce, listenSignalLive, listenSignalLiveOnce, listenSignalOnce, listenValidation, listenWalker, listenWalkerComplete, listenWalkerOnce, listenWalkerProgress, partialLoss, partialProfit, setColumns, setConfig, setLogger, stop, validate };
+export { Backtest, type BacktestDoneNotification, type BacktestStatisticsModel, type BootstrapNotification, Cache, type CandleInterval, type ColumnConfig, type ColumnModel, Constant, type CriticalErrorNotification, type DoneContract, type EntityId, Exchange, ExecutionContextService, type FrameInterval, type GlobalConfig, Heat, type HeatmapStatisticsModel, type ICandleData, type IExchangeSchema, type IFrameSchema, type IHeatmapRow, type IOptimizerCallbacks, type IOptimizerData, type IOptimizerFetchArgs, type IOptimizerFilterArgs, type IOptimizerRange, type IOptimizerSchema, type IOptimizerSource, type IOptimizerStrategy, type IOptimizerTemplate, type IPersistBase, type IPositionSizeATRParams, type IPositionSizeFixedPercentageParams, type IPositionSizeKellyParams, type IPublicSignalRow, type IRiskActivePosition, type IRiskCheckArgs, type IRiskSchema, type IRiskValidation, type IRiskValidationFn, type IRiskValidationPayload, type IScheduledSignalCancelRow, type IScheduledSignalRow, type ISignalDto, type ISignalRow, type ISizingCalculateParams, type ISizingCalculateParamsATR, type ISizingCalculateParamsFixedPercentage, type ISizingCalculateParamsKelly, type ISizingSchema, type ISizingSchemaATR, type ISizingSchemaFixedPercentage, type ISizingSchemaKelly, type IStrategyPnL, type IStrategyResult, type IStrategySchema, type IStrategyTickResult, type IStrategyTickResultActive, type IStrategyTickResultCancelled, type IStrategyTickResultClosed, type IStrategyTickResultIdle, type IStrategyTickResultOpened, type IStrategyTickResultScheduled, type IWalkerResults, type IWalkerSchema, type IWalkerStrategyResult, type InfoErrorNotification, Live, type LiveDoneNotification, type LiveStatisticsModel, type MessageModel, type MessageRole, MethodContextService, type MetricStats, Notification, type NotificationModel, Optimizer, Partial$1 as Partial, type PartialData, type PartialEvent, type PartialLossContract, type PartialLossNotification, type PartialProfitContract, type PartialProfitNotification, type PartialStatisticsModel, Performance, type PerformanceContract, type PerformanceMetricType, type PerformanceStatisticsModel, PersistBase, PersistPartialAdapter, PersistRiskAdapter, PersistScheduleAdapter, PersistSignalAdapter, type PingContract, PositionSize, type ProgressBacktestContract, type ProgressBacktestNotification, type ProgressOptimizerContract, type ProgressWalkerContract, Risk, type RiskContract, type RiskData, type RiskEvent, type RiskRejectionNotification, type RiskStatisticsModel, Schedule, type ScheduleData, type ScheduleStatisticsModel, type ScheduledEvent, type SignalCancelledNotification, type SignalClosedNotification, type SignalData, type SignalInterval, type SignalOpenedNotification, type SignalScheduledNotification, type TPersistBase, type TPersistBaseCtor, type TickEvent, type ValidationErrorNotification, Walker, type WalkerCompleteContract, type WalkerContract, type WalkerMetric, type SignalData$1 as WalkerSignalData, type WalkerStatisticsModel, addExchange, addFrame, addOptimizer, addRisk, addSizing, addStrategy, addWalker, cancel, dumpSignal, emitters, formatPrice, formatQuantity, getAveragePrice, getCandles, getColumns, getConfig, getDate, getDefaultColumns, getDefaultConfig, getMode, hasTradeContext, backtest as lib, listExchanges, listFrames, listOptimizers, listRisks, listSizings, listStrategies, listWalkers, listenBacktestProgress, listenDoneBacktest, listenDoneBacktestOnce, listenDoneLive, listenDoneLiveOnce, listenDoneWalker, listenDoneWalkerOnce, listenError, listenExit, listenOptimizerProgress, listenPartialLoss, listenPartialLossOnce, listenPartialProfit, listenPartialProfitOnce, listenPerformance, listenPing, listenPingOnce, listenRisk, listenRiskOnce, listenSignal, listenSignalBacktest, listenSignalBacktestOnce, listenSignalLive, listenSignalLiveOnce, listenSignalOnce, listenValidation, listenWalker, listenWalkerComplete, listenWalkerOnce, listenWalkerProgress, partialLoss, partialProfit, setColumns, setConfig, setLogger, stop, trailingStop, validate };

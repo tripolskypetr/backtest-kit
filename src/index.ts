@@ -6,6 +6,7 @@ export {
   cancel,
   partialLoss,
   partialProfit,
+  trailingStop,
 } from "./function/strategy";
 export {
   setLogger,
@@ -87,6 +88,7 @@ export {
   SignalInterval,
   ISignalDto,
   ISignalRow,
+  IPublicSignalRow,
   IScheduledSignalCancelRow,
   IScheduledSignalRow,
   IStrategySchema,

@@ -76,6 +76,7 @@ test("Risk validation rejects signal when activePositionCount exceeds limit", as
     {
       symbol: "SOLUSDT",
       strategyName: "test-strategy-4",
+      pendingSignal: {},
       exchangeName: "binance",
       currentPrice: 100,
       timestamp: Date.now(),
@@ -126,6 +127,7 @@ test("Risk validation allows signal when within limits", async ({ pass, fail }) 
     {
       symbol: "BNBUSDT",
       strategyName: "test-strategy-3",
+      pendingSignal: {},
       exchangeName: "binance",
       currentPrice: 300,
       timestamp: Date.now(),
@@ -170,6 +172,7 @@ test("Risk addSignal and removeSignal update activePositionCount", async ({ pass
     {
       symbol: "SOLUSDT",
       strategyName: "test-strategy-4",
+      pendingSignal: {},
       exchangeName: "binance",
       currentPrice: 100,
       timestamp: Date.now(),
@@ -190,6 +193,7 @@ test("Risk addSignal and removeSignal update activePositionCount", async ({ pass
     {
       symbol: "DOGEUSDT",
       strategyName: "test-strategy-5",
+      pendingSignal: {},
       exchangeName: "binance",
       currentPrice: 0.1,
       timestamp: Date.now(),
@@ -230,6 +234,7 @@ test("Risk validation with function (not object) works", async ({ pass, fail }) 
     {
       symbol: "ETHUSDT",
       strategyName: "test-strategy-2",
+      pendingSignal: {},
       exchangeName: "binance",
       currentPrice: 2000,
       timestamp: Date.now(),
@@ -264,6 +269,7 @@ test("Risk validation receives all IRiskCheckArgs fields", async ({ pass, fail }
   const testArgs = {
     symbol: "BTCUSDT",
     strategyName: "test-strategy",
+    pendingSignal: {},
     exchangeName: "binance",
     currentPrice: 50000,
     timestamp: 1234567890,
@@ -315,6 +321,7 @@ test("Risk validation can reject based on symbol", async ({ pass, fail }) => {
     {
       symbol: "BTCUSDT",
       strategyName: "test-strategy",
+      pendingSignal: {},
       exchangeName: "binance",
       currentPrice: 50000,
       timestamp: Date.now(),
@@ -327,6 +334,7 @@ test("Risk validation can reject based on symbol", async ({ pass, fail }) => {
     {
       symbol: "DOGEUSDT",
       strategyName: "test-strategy",
+      pendingSignal: {},
       exchangeName: "binance",
       currentPrice: 0.1,
       timestamp: Date.now(),
@@ -355,6 +363,7 @@ test("Risk with no validations always allows signals", async ({ pass, fail }) =>
     {
       symbol: "BTCUSDT",
       strategyName: "test-strategy",
+      pendingSignal: {},
       exchangeName: "binance",
       currentPrice: 50000,
       timestamp: Date.now(),
@@ -408,6 +417,7 @@ test("Risk activePositionCount is isolated per riskName", async ({ pass, fail })
     {
       symbol: "SOLUSDT",
       strategyName: "test-strategy-4",
+      pendingSignal: {},
       exchangeName: "binance",
       currentPrice: 100,
       timestamp: Date.now(),
@@ -420,6 +430,7 @@ test("Risk activePositionCount is isolated per riskName", async ({ pass, fail })
     {
       symbol: "ADAUSDT",
       strategyName: "test-strategy-5",
+      pendingSignal: {},
       exchangeName: "binance",
       currentPrice: 0.5,
       timestamp: Date.now(),
@@ -459,6 +470,7 @@ test("Risk removeSignal with same strategyName:symbol key", async ({ pass, fail 
     {
       symbol: "ETHUSDT",
       strategyName: "test-strategy-2",
+      pendingSignal: {},
       exchangeName: "binance",
       currentPrice: 2000,
       timestamp: Date.now(),
@@ -479,6 +491,7 @@ test("Risk removeSignal with same strategyName:symbol key", async ({ pass, fail 
     {
       symbol: "BNBUSDT",
       strategyName: "test-strategy-3",
+      pendingSignal: {},
       exchangeName: "binance",
       currentPrice: 300,
       timestamp: Date.now(),

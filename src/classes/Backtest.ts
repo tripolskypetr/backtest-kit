@@ -25,6 +25,7 @@ const BACKTEST_METHOD_NAME_GET_SCHEDULED_SIGNAL =
 const BACKTEST_METHOD_NAME_CANCEL = "BacktestUtils.cancel";
 const BACKTEST_METHOD_NAME_PARTIAL_PROFIT = "BacktestUtils.partialProfit";
 const BACKTEST_METHOD_NAME_PARTIAL_LOSS = "BacktestUtils.partialLoss";
+const BACKTEST_METHOD_NAME_TRAILING_STOP = "BacktestUtils.trailingStop";
 const BACKTEST_METHOD_NAME_GET_DATA = "BacktestUtils.getData";
 
 /**
@@ -884,6 +885,72 @@ export class BacktestUtils {
       symbol,
       percentToClose,
       currentPrice,
+      context
+    );
+  };
+
+  /**
+   * Adjusts the trailing stop-loss distance for an active pending signal.
+   *
+   * Updates the stop-loss distance by a percentage adjustment relative to the original SL distance.
+   * Positive percentShift tightens the SL (reduces distance), negative percentShift loosens it.
+   *
+   * @param symbol - Trading pair symbol
+   * @param percentShift - Percentage adjustment to SL distance (-100 to 100)
+   * @param context - Execution context with strategyName, exchangeName, and frameName
+   * @returns Promise that resolves when trailing SL is updated
+   *
+   * @example
+   * ```typescript
+   * // LONG: entry=100, originalSL=90, distance=10
+   * // Tighten stop by 50%: newSL = 100 - 10*(1-0.5) = 95
+   * await Backtest.trailingStop("BTCUSDT", -50, {
+   *   exchangeName: "binance",
+   *   frameName: "frame1",
+   *   strategyName: "my-strategy"
+   * });
+   * ```
+   */
+  public trailingStop = async (
+    symbol: string,
+    percentShift: number,
+    context: {
+      strategyName: StrategyName;
+      exchangeName: ExchangeName;
+      frameName: FrameName;
+    }
+  ): Promise<void> => {
+    backtest.loggerService.info(BACKTEST_METHOD_NAME_TRAILING_STOP, {
+      symbol,
+      percentShift,
+      context,
+    });
+    backtest.strategyValidationService.validate(
+      context.strategyName,
+      BACKTEST_METHOD_NAME_TRAILING_STOP
+    );
+
+    {
+      const { riskName, riskList } =
+        backtest.strategySchemaService.get(context.strategyName);
+      riskName &&
+        backtest.riskValidationService.validate(
+          riskName,
+          BACKTEST_METHOD_NAME_TRAILING_STOP
+        );
+      riskList &&
+        riskList.forEach((riskName) =>
+          backtest.riskValidationService.validate(
+            riskName,
+            BACKTEST_METHOD_NAME_TRAILING_STOP
+          )
+        );
+    }
+
+    await backtest.strategyCoreService.trailingStop(
+      true,
+      symbol,
+      percentShift,
       context
     );
   };
