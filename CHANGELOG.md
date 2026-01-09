@@ -1,3 +1,85 @@
+# Breakeven Protection (v1.10.1, 09/01/2026)
+
+> Github [release link](https://github.com/tripolskypetr/backtest-kit/releases/tag/1.10.1)
+
+**Breakeven Stop-Loss Protection** 🛡️📈
+
+New breakeven protection automatically moves stop-loss to entry price when profit threshold is reached! When the price moves far enough in profit direction, the system locks in a zero-risk position by moving SL to breakeven. The threshold is calculated as `(CC_PERCENT_SLIPPAGE + CC_PERCENT_FEE) * 2` to account for trading costs. Breakeven is triggered exactly once per signal with crash-safe persistence and memory-optimized instance management. ✨
+
+```ts
+import {
+  listenBreakeven,
+  Backtest,
+  Live,
+} from "backtest-kit";
+
+// Listen to breakeven events
+listenBreakeven(({ symbol, signal, currentPrice, backtest }) => {
+  console.log(`${symbol} signal #${signal.id} moved to breakeven at ${currentPrice}`);
+  console.log(`Entry: ${signal.priceOpen}, Position: ${signal.position}`);
+});
+
+// Manual breakeven trigger (optional)
+await Backtest.breakeven("BTCUSDT", currentPrice, {
+  strategyName: "my-strategy",
+  exchangeName: "binance",
+  frameName: "1d-backtest"
+});
+
+await Live.breakeven("BTCUSDT", currentPrice, {
+  strategyName: "my-strategy",
+  exchangeName: "binance"
+});
+```
+
+**Breakeven Statistics & Reports** 📊
+
+```ts
+import { Breakeven } from "backtest-kit";
+
+// Get statistical data
+const stats = await Breakeven.getData("BTCUSDT", {
+  strategyName: "my-strategy",
+  exchangeName: "binance",
+  frameName: "1d-backtest"
+});
+console.log(stats);
+// {
+//   totalBreakeven: 42,
+//   eventList: [...]
+// }
+
+// Generate markdown report
+const markdown = await Breakeven.getReport("BTCUSDT", {
+  strategyName: "my-strategy",
+  exchangeName: "binance",
+  frameName: "1d-backtest"
+});
+
+// Save to disk
+await Breakeven.dump("BTCUSDT", {
+  strategyName: "my-strategy",
+  exchangeName: "binance",
+  frameName: "1d-backtest"
+}); // ./dump/breakeven/BTCUSDT_my-strategy.md
+```
+
+**Architecture** 🏗️
+
+- **BreakevenGlobalService**: Global service layer with validation and logging
+- **BreakevenConnectionService**: Connection layer with memoized ClientBreakeven instances
+- **ClientBreakeven**: Core breakeven logic with state persistence
+- **PersistBreakevenUtils**: Crash-safe state persistence to disk
+- **BreakevenMarkdownService**: Event accumulation and report generation
+
+Features:
+- One ClientBreakeven instance per signal ID (memoized for performance)
+- Automatic cleanup on signal close to prevent memory leaks
+- File-based persistence in `./dump/data/breakeven/{symbol}_{strategy}/state.json`
+- Real-time event emission via breakevenSubject
+- Markdown reports with complete breakeven history
+
+
 # Enhanced Risk Management (v1.6.1, 28/12/2025)
 
 > Github [release link](https://github.com/tripolskypetr/backtest-kit/releases/tag/1.6.1)
