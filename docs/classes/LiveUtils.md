@@ -35,7 +35,7 @@ Each symbol-strategy combination gets its own isolated instance.
 ### run
 
 ```ts
-run: (symbol: string, context: { strategyName: string; exchangeName: string; }) => AsyncGenerator<IStrategyTickResultClosed | IStrategyTickResultOpened, void, unknown>
+run: (symbol: string, context: { strategyName: string; exchangeName: string; }) => AsyncGenerator<IStrategyTickResultOpened | IStrategyTickResultClosed, void, unknown>
 ```
 
 Runs live trading for a symbol with context propagation.
@@ -130,6 +130,17 @@ Adjusts the trailing stop-loss distance for an active pending signal.
 Updates the stop-loss distance by a percentage adjustment relative to the original SL distance.
 Positive percentShift tightens the SL (reduces distance), negative percentShift loosens it.
 
+### breakeven
+
+```ts
+breakeven: (symbol: string, currentPrice: number, context: { strategyName: string; exchangeName: string; }) => Promise<boolean>
+```
+
+Moves stop-loss to breakeven when price reaches threshold.
+
+Moves SL to entry price (zero-risk position) when current price has moved
+far enough in profit direction. Threshold is calculated as: (CC_PERCENT_SLIPPAGE + CC_PERCENT_FEE) * 2
+
 ### getData
 
 ```ts
@@ -141,7 +152,7 @@ Gets statistical data from all live trading events for a symbol-strategy pair.
 ### getReport
 
 ```ts
-getReport: (symbol: string, context: { strategyName: string; exchangeName: string; }, columns?: Columns$5[]) => Promise<string>
+getReport: (symbol: string, context: { strategyName: string; exchangeName: string; }, columns?: Columns$6[]) => Promise<string>
 ```
 
 Generates markdown report with all events for a symbol-strategy pair.
@@ -149,7 +160,7 @@ Generates markdown report with all events for a symbol-strategy pair.
 ### dump
 
 ```ts
-dump: (symbol: string, context: { strategyName: string; exchangeName: string; }, path?: string, columns?: Columns$5[]) => Promise<void>
+dump: (symbol: string, context: { strategyName: string; exchangeName: string; }, path?: string, columns?: Columns$6[]) => Promise<void>
 ```
 
 Saves strategy report to disk.

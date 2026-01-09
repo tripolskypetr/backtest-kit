@@ -42,7 +42,7 @@ Returns aggregated metrics calculated from all rejection events.
 ### getReport
 
 ```ts
-getReport: (symbol: string, context: { strategyName: string; exchangeName: string; frameName: string; }, backtest?: boolean, columns?: Columns[]) => Promise<string>
+getReport: (symbol: string, context: { strategyName: string; exchangeName: string; frameName: string; }, backtest?: boolean, columns?: Columns$1[]) => Promise<string>
 ```
 
 Generates markdown report with all risk rejection events for a symbol-strategy pair.
@@ -62,7 +62,7 @@ Also includes summary statistics at the end (total rejections, by symbol, by str
 ### dump
 
 ```ts
-dump: (symbol: string, context: { strategyName: string; exchangeName: string; frameName: string; }, backtest?: boolean, path?: string, columns?: Columns[]) => Promise<void>
+dump: (symbol: string, context: { strategyName: string; exchangeName: string; frameName: string; }, backtest?: boolean, path?: string, columns?: Columns$1[]) => Promise<void>
 ```
 
 Generates and saves markdown report to file.

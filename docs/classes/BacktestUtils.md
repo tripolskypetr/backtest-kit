@@ -121,6 +121,17 @@ Adjusts the trailing stop-loss distance for an active pending signal.
 Updates the stop-loss distance by a percentage adjustment relative to the original SL distance.
 Positive percentShift tightens the SL (reduces distance), negative percentShift loosens it.
 
+### breakeven
+
+```ts
+breakeven: (symbol: string, currentPrice: number, context: { strategyName: string; exchangeName: string; frameName: string; }) => Promise<boolean>
+```
+
+Moves stop-loss to breakeven when price reaches threshold.
+
+Moves SL to entry price (zero-risk position) when current price has moved
+far enough in profit direction. Threshold is calculated as: (CC_PERCENT_SLIPPAGE + CC_PERCENT_FEE) * 2
+
 ### getData
 
 ```ts
@@ -132,7 +143,7 @@ Gets statistical data from all closed signals for a symbol-strategy pair.
 ### getReport
 
 ```ts
-getReport: (symbol: string, context: { strategyName: string; exchangeName: string; frameName: string; }, columns?: Columns$6[]) => Promise<string>
+getReport: (symbol: string, context: { strategyName: string; exchangeName: string; frameName: string; }, columns?: Columns$7[]) => Promise<string>
 ```
 
 Generates markdown report with all closed signals for a symbol-strategy pair.
@@ -140,7 +151,7 @@ Generates markdown report with all closed signals for a symbol-strategy pair.
 ### dump
 
 ```ts
-dump: (symbol: string, context: { strategyName: string; exchangeName: string; frameName: string; }, path?: string, columns?: Columns$6[]) => Promise<void>
+dump: (symbol: string, context: { strategyName: string; exchangeName: string; frameName: string; }, path?: string, columns?: Columns$7[]) => Promise<void>
 ```
 
 Saves strategy report to disk.

@@ -38,7 +38,7 @@ getSignalStorage: any
 ### readSignalData
 
 ```ts
-readSignalData: (symbol: string, strategyName: string) => Promise<ISignalRow>
+readSignalData: (symbol: string, strategyName: string, exchangeName: string) => Promise<ISignalRow>
 ```
 
 Reads persisted signal data for a symbol and strategy.
@@ -49,7 +49,7 @@ Returns null if no signal exists.
 ### writeSignalData
 
 ```ts
-writeSignalData: (signalRow: ISignalRow, symbol: string, strategyName: string) => Promise<void>
+writeSignalData: (signalRow: ISignalRow, symbol: string, strategyName: string, exchangeName: string) => Promise<void>
 ```
 
 Writes signal data to disk with atomic file writes.

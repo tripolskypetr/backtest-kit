@@ -42,3 +42,11 @@ writeValue: (entityId: EntityId, entity: Entity) => Promise<void>
 ```
 
 Write entity to storage with atomic file writes.
+
+### keys
+
+```ts
+keys: () => AsyncGenerator<EntityId, any, any>
+```
+
+Async generator yielding all entity IDs.

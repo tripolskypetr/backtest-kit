@@ -163,3 +163,39 @@ Validations:
 - Skips if new SL would cross entry price
 
 Use case: User-controlled trailing stop triggered from onPartialProfit callback.
+
+### breakeven
+
+```ts
+breakeven: (symbol: string, currentPrice: number, backtest: boolean) => Promise<boolean>
+```
+
+Moves stop-loss to breakeven (entry price) when price reaches threshold.
+
+Moves SL to entry price (zero-risk position) when current price has moved
+far enough in profit direction to cover transaction costs (slippage + fees).
+Threshold is calculated as: (CC_PERCENT_SLIPPAGE + CC_PERCENT_FEE) * 2
+
+Behavior:
+- Returns true if SL was moved to breakeven
+- Returns false if conditions not met (threshold not reached or already at breakeven)
+- Uses _trailingPriceStopLoss to store breakeven SL (preserves original priceStopLoss)
+- Only moves SL once per position (idempotent - safe to call multiple times)
+
+For LONG position (entry=100, slippage=0.1%, fee=0.1%):
+- Threshold: (0.1 + 0.1) * 2 = 0.4%
+- Breakeven available when price &gt;= 100.4 (entry + 0.4%)
+- Moves SL from original (e.g. 95) to 100 (breakeven)
+- Returns true on first successful move, false on subsequent calls
+
+For SHORT position (entry=100, slippage=0.1%, fee=0.1%):
+- Threshold: (0.1 + 0.1) * 2 = 0.4%
+- Breakeven available when price &lt;= 99.6 (entry - 0.4%)
+- Moves SL from original (e.g. 105) to 100 (breakeven)
+- Returns true on first successful move, false on subsequent calls
+
+Validations:
+- Throws if no pending signal exists
+- Throws if currentPrice is not a positive finite number
+
+Use case: User-controlled breakeven protection triggered from onPartialProfit callback.

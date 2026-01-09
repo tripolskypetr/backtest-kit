@@ -38,7 +38,7 @@ getRiskStorage: any
 ### readPositionData
 
 ```ts
-readPositionData: (riskName: string) => Promise<RiskData>
+readPositionData: (riskName: string, exchangeName: string) => Promise<RiskData>
 ```
 
 Reads persisted active positions for a risk profile.
@@ -49,7 +49,7 @@ Returns empty Map if no positions exist.
 ### writePositionData
 
 ```ts
-writePositionData: (riskRow: RiskData, riskName: string) => Promise<void>
+writePositionData: (riskRow: RiskData, riskName: string, exchangeName: string) => Promise<void>
 ```
 
 Writes active positions to disk with atomic file writes.

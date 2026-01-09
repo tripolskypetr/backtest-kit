@@ -10,6 +10,14 @@ Combines schema with runtime dependencies and emission callbacks.
 
 ## Properties
 
+### exchangeName
+
+```ts
+exchangeName: string
+```
+
+Exchange name (e.g., "binance")
+
 ### logger
 
 ```ts

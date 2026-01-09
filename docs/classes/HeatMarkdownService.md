@@ -65,7 +65,7 @@ Gets aggregated portfolio heatmap statistics.
 ### getReport
 
 ```ts
-getReport: (strategyName: string, exchangeName: string, frameName: string, backtest: boolean, columns?: Columns$2[]) => Promise<string>
+getReport: (strategyName: string, exchangeName: string, frameName: string, backtest: boolean, columns?: Columns$3[]) => Promise<string>
 ```
 
 Generates markdown report with portfolio heatmap table.
@@ -73,7 +73,7 @@ Generates markdown report with portfolio heatmap table.
 ### dump
 
 ```ts
-dump: (strategyName: string, exchangeName: string, frameName: string, backtest: boolean, path?: string, columns?: Columns$2[]) => Promise<void>
+dump: (strategyName: string, exchangeName: string, frameName: string, backtest: boolean, path?: string, columns?: Columns$3[]) => Promise<void>
 ```
 
 Saves heatmap report to disk.

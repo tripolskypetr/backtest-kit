@@ -69,6 +69,12 @@ exchangeConnectionService: ExchangeConnectionService
 partialConnectionService: PartialConnectionService
 ```
 
+### breakevenConnectionService
+
+```ts
+breakevenConnectionService: BreakevenConnectionService
+```
+
 ### getStrategy
 
 ```ts
@@ -207,3 +213,11 @@ Updates the stop-loss distance by a percentage adjustment relative to the origin
 Positive percentShift tightens the SL (reduces distance), negative percentShift loosens it.
 
 Delegates to ClientStrategy.trailingStop() with current execution context.
+
+### breakeven
+
+```ts
+breakeven: (backtest: boolean, symbol: string, currentPrice: number, context: { strategyName: string; exchangeName: string; frameName: string; }) => Promise<boolean>
+```
+
+Delegates to ClientStrategy.breakeven() with current execution context.

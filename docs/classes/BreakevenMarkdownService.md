@@ -1,18 +1,18 @@
 ---
-title: docs/class/LiveMarkdownService
+title: docs/class/BreakevenMarkdownService
 group: docs
 ---
 
-# LiveMarkdownService
+# BreakevenMarkdownService
 
-Service for generating and saving live trading markdown reports.
+Service for generating and saving breakeven markdown reports.
 
 Features:
-- Listens to all signal events via onTick callback
-- Accumulates all events (idle, opened, active, closed) per strategy
+- Listens to breakeven events via breakevenSubject
+- Accumulates all events per symbol-strategy pair
 - Generates markdown tables with detailed event information
-- Provides trading statistics (win rate, average PNL)
-- Saves reports to disk in logs/live/{strategyName}.md
+- Provides statistics (total breakeven events)
+- Saves reports to disk in dump/breakeven/{symbol}_{strategyName}.md
 
 ## Constructor
 
@@ -39,39 +39,37 @@ getStorage: any
 Memoized function to get or create ReportStorage for a symbol-strategy-exchange-frame-backtest combination.
 Each combination gets its own isolated storage instance.
 
-### tick
+### tickBreakeven
 
 ```ts
-tick: any
+tickBreakeven: any
 ```
 
-Processes tick events and accumulates all event types.
-Should be called from IStrategyCallbacks.onTick.
-
-Processes all event types: idle, opened, active, closed.
+Processes breakeven events and accumulates them.
+Should be called from breakevenSubject subscription.
 
 ### getData
 
 ```ts
-getData: (symbol: string, strategyName: string, exchangeName: string, frameName: string, backtest: boolean) => Promise<LiveStatisticsModel>
+getData: (symbol: string, strategyName: string, exchangeName: string, frameName: string, backtest: boolean) => Promise<BreakevenStatisticsModel>
 ```
 
-Gets statistical data from all live trading events for a symbol-strategy pair.
+Gets statistical data from all breakeven events for a symbol-strategy pair.
 Delegates to ReportStorage.getData().
 
 ### getReport
 
 ```ts
-getReport: (symbol: string, strategyName: string, exchangeName: string, frameName: string, backtest: boolean, columns?: Columns$6[]) => Promise<string>
+getReport: (symbol: string, strategyName: string, exchangeName: string, frameName: string, backtest: boolean, columns?: Columns[]) => Promise<string>
 ```
 
-Generates markdown report with all events for a symbol-strategy pair.
+Generates markdown report with all breakeven events for a symbol-strategy pair.
 Delegates to ReportStorage.getReport().
 
 ### dump
 
 ```ts
-dump: (symbol: string, strategyName: string, exchangeName: string, frameName: string, backtest: boolean, path?: string, columns?: Columns$6[]) => Promise<void>
+dump: (symbol: string, strategyName: string, exchangeName: string, frameName: string, backtest: boolean, path?: string, columns?: Columns[]) => Promise<void>
 ```
 
 Saves symbol-strategy report to disk.
@@ -94,7 +92,7 @@ If nothing is provided, clears all data.
 init: (() => Promise<void>) & ISingleshotClearable
 ```
 
-Initializes the service by subscribing to live signal events.
+Initializes the service by subscribing to breakeven events.
 Uses singleshot to ensure initialization happens only once.
 Automatically called on first use.
 
@@ -104,5 +102,5 @@ Automatically called on first use.
 unsubscribe: Function
 ```
 
-Function to unsubscribe from backtest signal events.
+Function to unsubscribe from breakeven events.
 Assigned during init().

@@ -90,6 +90,14 @@ onPartialLoss: (symbol: string, data: IPublicSignalRow, currentPrice: number, lo
 
 Called when signal is in partial loss state (price moved against position but not hit SL yet)
 
+### onBreakeven
+
+```ts
+onBreakeven: (symbol: string, data: IPublicSignalRow, currentPrice: number, backtest: boolean) => void | Promise<void>
+```
+
+Called when signal reaches breakeven (stop-loss moved to entry price to protect capital)
+
 ### onPing
 
 ```ts

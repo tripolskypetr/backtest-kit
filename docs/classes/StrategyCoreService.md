@@ -188,3 +188,12 @@ Validates strategy existence and delegates to connection service
 to update the stop-loss distance by a percentage adjustment.
 
 Does not require execution context as this is a direct state mutation.
+
+### breakeven
+
+```ts
+breakeven: (backtest: boolean, symbol: string, currentPrice: number, context: { strategyName: string; exchangeName: string; frameName: string; }) => Promise<boolean>
+```
+
+Moves stop-loss to breakeven when price reaches threshold.
+Validates context and delegates to StrategyConnectionService.

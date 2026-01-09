@@ -33,7 +33,7 @@ Data is automatically collected from all closed signals for the strategy.
 ### getReport
 
 ```ts
-getReport: (context: { strategyName: string; exchangeName: string; frameName: string; }, backtest?: boolean, columns?: Columns$2[]) => Promise<string>
+getReport: (context: { strategyName: string; exchangeName: string; frameName: string; }, backtest?: boolean, columns?: Columns$3[]) => Promise<string>
 ```
 
 Generates markdown report with portfolio heatmap table for a strategy.
@@ -44,7 +44,7 @@ Symbols are sorted by Total PNL descending.
 ### dump
 
 ```ts
-dump: (context: { strategyName: string; exchangeName: string; frameName: string; }, backtest?: boolean, path?: string, columns?: Columns$2[]) => Promise<void>
+dump: (context: { strategyName: string; exchangeName: string; frameName: string; }, backtest?: boolean, path?: string, columns?: Columns$3[]) => Promise<void>
 ```
 
 Saves heatmap report to disk for a strategy.

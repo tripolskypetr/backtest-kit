@@ -38,7 +38,7 @@ getPartialStorage: any
 ### readPartialData
 
 ```ts
-readPartialData: (symbol: string, strategyName: string) => Promise<PartialData>
+readPartialData: (symbol: string, strategyName: string, signalId: string, exchangeName: string) => Promise<PartialData>
 ```
 
 Reads persisted partial data for a symbol and strategy.
@@ -49,7 +49,7 @@ Returns empty object if no partial data exists.
 ### writePartialData
 
 ```ts
-writePartialData: (partialData: PartialData, symbol: string, strategyName: string) => Promise<void>
+writePartialData: (partialData: PartialData, symbol: string, strategyName: string, signalId: string, exchangeName: string) => Promise<void>
 ```
 
 Writes partial data to disk with atomic file writes.

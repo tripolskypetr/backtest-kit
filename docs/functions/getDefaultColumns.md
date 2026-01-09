@@ -11,6 +11,7 @@ declare function getDefaultColumns(): Readonly<{
     heat_columns: ColumnModel<IHeatmapRow>[];
     live_columns: ColumnModel<TickEvent>[];
     partial_columns: ColumnModel<PartialEvent>[];
+    breakeven_columns: ColumnModel<BreakevenEvent>[];
     performance_columns: ColumnModel<MetricStats>[];
     risk_columns: ColumnModel<RiskEvent>[];
     schedule_columns: ColumnModel<ScheduledEvent>[];
