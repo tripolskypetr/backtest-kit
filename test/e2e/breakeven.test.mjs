@@ -850,3 +850,516 @@ test("BREAKEVEN BACKTEST: NO event if threshold NOT reached", async ({ pass, fai
 
   pass("Breakeven threshold NOT reached: 0 events (as expected)");
 });
+
+
+/**
+ * BREAKEVEN ТЕСТ #6: onBreakeven callback вызывается для LONG позиции
+ *
+ * Проверяем что:
+ * - Callback onBreakeven вызывается когда threshold достигнут
+ * - Получаем корректные параметры в callback
+ * - Callback вызывается только один раз (idempotent)
+ */
+test("BREAKEVEN CALLBACK: onBreakeven fires for LONG position", async ({ pass, fail }) => {
+  const breakevenCallbacks = [];
+
+  const startTime = new Date("2024-01-01T00:00:00Z").getTime();
+  const intervalMs = 60000;
+  const basePrice = 100000;
+  const bufferMinutes = 4;
+  const bufferStartTime = startTime - bufferMinutes * intervalMs;
+
+  let allCandles = [];
+  let signalGenerated = false;
+
+  for (let i = 0; i < 5; i++) {
+    allCandles.push({
+      timestamp: bufferStartTime + i * intervalMs,
+      open: basePrice,
+      high: basePrice + 100,
+      low: basePrice - 50,
+      close: basePrice,
+      volume: 100,
+    });
+  }
+
+  addExchange({
+    exchangeName: "binance-breakeven-6",
+    getCandles: async (_symbol, _interval, since, limit) => {
+      const sinceIndex = Math.floor((since.getTime() - bufferStartTime) / intervalMs);
+      const result = allCandles.slice(sinceIndex, sinceIndex + limit);
+      return result.length > 0 ? result : allCandles.slice(0, Math.min(limit, allCandles.length));
+    },
+    formatPrice: async (_symbol, p) => p.toFixed(8),
+    formatQuantity: async (_symbol, quantity) => quantity.toFixed(8),
+  });
+
+  addStrategy({
+    strategyName: "test-breakeven-6",
+    interval: "1m",
+    getSignal: async () => {
+      if (signalGenerated) return null;
+      signalGenerated = true;
+
+      allCandles = [];
+
+      for (let i = 0; i < bufferMinutes; i++) {
+        allCandles.push({
+          timestamp: bufferStartTime + i * intervalMs,
+          open: basePrice,
+          high: basePrice + 50,
+          low: basePrice - 50,
+          close: basePrice,
+          volume: 100,
+        });
+      }
+
+      for (let i = 0; i < 30; i++) {
+        const timestamp = startTime + i * intervalMs;
+
+        if (i < 5) {
+          allCandles.push({
+            timestamp,
+            open: basePrice,
+            high: basePrice + 50,
+            low: basePrice - 50,
+            close: basePrice,
+            volume: 100,
+          });
+        } else if (i >= 5 && i < 15) {
+          const progress = (i - 4) / 10;
+          const targetPrice = basePrice + 600;
+          const price = basePrice + (targetPrice - basePrice) * progress;
+          allCandles.push({
+            timestamp,
+            open: price,
+            high: price + 50,
+            low: price - 50,
+            close: price,
+            volume: 100,
+          });
+        } else if (i >= 15 && i < 25) {
+          const price = basePrice + 800;
+          allCandles.push({
+            timestamp,
+            open: price,
+            high: price + 50,
+            low: price - 50,
+            close: price,
+            volume: 100,
+          });
+        } else {
+          const tpPrice = basePrice + 2000;
+          allCandles.push({
+            timestamp,
+            open: tpPrice,
+            high: tpPrice + 50,
+            low: tpPrice - 50,
+            close: tpPrice,
+            volume: 100,
+          });
+        }
+      }
+
+      return {
+        position: "long",
+        priceOpen: basePrice,
+        priceTakeProfit: basePrice + 2000,
+        priceStopLoss: basePrice - 2000,
+        minuteEstimatedTime: 60,
+      };
+    },
+    callbacks: {
+      onBreakeven: async (symbol, data, currentPrice, backtest) => {
+        breakevenCallbacks.push({
+          symbol,
+          signalId: data.id,
+          currentPrice,
+          backtest,
+        });
+      },
+    },
+  });
+
+  addFrame({
+    frameName: "30m-breakeven-6",
+    interval: "1m",
+    startDate: new Date("2024-01-01T00:00:00Z"),
+    endDate: new Date("2024-01-01T00:30:00Z"),
+  });
+
+  const awaitSubject = new Subject();
+  listenDoneBacktest(() => awaitSubject.next());
+
+  let errorCaught = null;
+  const unsubscribeError = listenError((error) => {
+    errorCaught = error;
+    awaitSubject.next();
+  });
+
+  Backtest.background("BTCUSDT", {
+    strategyName: "test-breakeven-6",
+    exchangeName: "binance-breakeven-6",
+    frameName: "30m-breakeven-6",
+  });
+
+  await awaitSubject.toPromise();
+  await sleep(100);
+  unsubscribeError();
+
+  if (errorCaught) {
+    fail(`Error: ${errorCaught.message || errorCaught}`);
+    return;
+  }
+
+  // Должен быть вызван ровно 1 раз
+  if (breakevenCallbacks.length !== 1) {
+    fail(`Expected exactly 1 onBreakeven callback, got ${breakevenCallbacks.length}`);
+    return;
+  }
+
+  const callback = breakevenCallbacks[0];
+
+  // Проверяем параметры
+  if (callback.symbol !== "BTCUSDT") {
+    fail(`Expected symbol BTCUSDT, got ${callback.symbol}`);
+    return;
+  }
+
+  if (callback.backtest !== true) {
+    fail(`Expected backtest=true, got ${callback.backtest}`);
+    return;
+  }
+
+  if (typeof callback.currentPrice !== "number") {
+    fail(`Expected currentPrice to be number, got ${typeof callback.currentPrice}`);
+    return;
+  }
+
+  if (typeof callback.signalId !== "string") {
+    fail(`Expected signalId to be string, got ${typeof callback.signalId}`);
+    return;
+  }
+
+  pass(`onBreakeven callback WORKS: called once with correct params`);
+});
+
+
+/**
+ * BREAKEVEN ТЕСТ #7: onBreakeven callback вызывается для SHORT позиции
+ */
+test("BREAKEVEN CALLBACK: onBreakeven fires for SHORT position", async ({ pass, fail }) => {
+  const breakevenCallbacks = [];
+
+  const startTime = new Date("2024-01-01T00:00:00Z").getTime();
+  const intervalMs = 60000;
+  const basePrice = 100000;
+  const bufferMinutes = 4;
+  const bufferStartTime = startTime - bufferMinutes * intervalMs;
+
+  let allCandles = [];
+  let signalGenerated = false;
+
+  for (let i = 0; i < 5; i++) {
+    allCandles.push({
+      timestamp: bufferStartTime + i * intervalMs,
+      open: basePrice,
+      high: basePrice + 100,
+      low: basePrice - 50,
+      close: basePrice,
+      volume: 100,
+    });
+  }
+
+  addExchange({
+    exchangeName: "binance-breakeven-7",
+    getCandles: async (_symbol, _interval, since, limit) => {
+      const sinceIndex = Math.floor((since.getTime() - bufferStartTime) / intervalMs);
+      const result = allCandles.slice(sinceIndex, sinceIndex + limit);
+      return result.length > 0 ? result : allCandles.slice(0, Math.min(limit, allCandles.length));
+    },
+    formatPrice: async (_symbol, p) => p.toFixed(8),
+    formatQuantity: async (_symbol, quantity) => quantity.toFixed(8),
+  });
+
+  addStrategy({
+    strategyName: "test-breakeven-7",
+    interval: "1m",
+    getSignal: async () => {
+      if (signalGenerated) return null;
+      signalGenerated = true;
+
+      allCandles = [];
+
+      for (let i = 0; i < bufferMinutes; i++) {
+        allCandles.push({
+          timestamp: bufferStartTime + i * intervalMs,
+          open: basePrice,
+          high: basePrice + 50,
+          low: basePrice - 50,
+          close: basePrice,
+          volume: 100,
+        });
+      }
+
+      for (let i = 0; i < 30; i++) {
+        const timestamp = startTime + i * intervalMs;
+
+        if (i < 5) {
+          allCandles.push({
+            timestamp,
+            open: basePrice,
+            high: basePrice + 50,
+            low: basePrice - 50,
+            close: basePrice,
+            volume: 100,
+          });
+        } else if (i >= 5 && i < 15) {
+          const progress = (i - 4) / 10;
+          const targetPrice = basePrice - 600;
+          const price = basePrice + (targetPrice - basePrice) * progress;
+          allCandles.push({
+            timestamp,
+            open: price,
+            high: price + 50,
+            low: price - 50,
+            close: price,
+            volume: 100,
+          });
+        } else if (i >= 15 && i < 25) {
+          const price = basePrice - 800;
+          allCandles.push({
+            timestamp,
+            open: price,
+            high: price + 50,
+            low: price - 50,
+            close: price,
+            volume: 100,
+          });
+        } else {
+          const tpPrice = basePrice - 2000;
+          allCandles.push({
+            timestamp,
+            open: tpPrice,
+            high: tpPrice + 50,
+            low: tpPrice - 50,
+            close: tpPrice,
+            volume: 100,
+          });
+        }
+      }
+
+      return {
+        position: "short",
+        priceOpen: basePrice,
+        priceTakeProfit: basePrice - 2000,
+        priceStopLoss: basePrice + 2000,
+        minuteEstimatedTime: 60,
+      };
+    },
+    callbacks: {
+      onBreakeven: async (symbol, data, currentPrice, backtest) => {
+        breakevenCallbacks.push({
+          symbol,
+          signalId: data.id,
+          currentPrice,
+          backtest,
+        });
+      },
+    },
+  });
+
+  addFrame({
+    frameName: "30m-breakeven-7",
+    interval: "1m",
+    startDate: new Date("2024-01-01T00:00:00Z"),
+    endDate: new Date("2024-01-01T00:30:00Z"),
+  });
+
+  const awaitSubject = new Subject();
+  listenDoneBacktest(() => awaitSubject.next());
+
+  let errorCaught = null;
+  const unsubscribeError = listenError((error) => {
+    errorCaught = error;
+    awaitSubject.next();
+  });
+
+  Backtest.background("BTCUSDT", {
+    strategyName: "test-breakeven-7",
+    exchangeName: "binance-breakeven-7",
+    frameName: "30m-breakeven-7",
+  });
+
+  await awaitSubject.toPromise();
+  await sleep(100);
+  unsubscribeError();
+
+  if (errorCaught) {
+    fail(`Error: ${errorCaught.message || errorCaught}`);
+    return;
+  }
+
+  if (breakevenCallbacks.length !== 1) {
+    fail(`Expected exactly 1 onBreakeven callback, got ${breakevenCallbacks.length}`);
+    return;
+  }
+
+  const callback = breakevenCallbacks[0];
+
+  if (callback.symbol !== "BTCUSDT") {
+    fail(`Expected symbol BTCUSDT, got ${callback.symbol}`);
+    return;
+  }
+
+  if (callback.backtest !== true) {
+    fail(`Expected backtest=true, got ${callback.backtest}`);
+    return;
+  }
+
+  pass(`onBreakeven callback SHORT WORKS: called once with correct params`);
+});
+
+
+/**
+ * BREAKEVEN ТЕСТ #8: onBreakeven НЕ вызывается если threshold не достигнут
+ */
+test("BREAKEVEN CALLBACK: onBreakeven NOT called if threshold not reached", async ({ pass, fail }) => {
+  const breakevenCallbacks = [];
+
+  const startTime = new Date("2024-01-01T00:00:00Z").getTime();
+  const intervalMs = 60000;
+  const basePrice = 100000;
+  const bufferMinutes = 4;
+  const bufferStartTime = startTime - bufferMinutes * intervalMs;
+
+  let allCandles = [];
+  let signalGenerated = false;
+
+  for (let i = 0; i < 5; i++) {
+    allCandles.push({
+      timestamp: bufferStartTime + i * intervalMs,
+      open: basePrice,
+      high: basePrice + 100,
+      low: basePrice - 50,
+      close: basePrice,
+      volume: 100,
+    });
+  }
+
+  addExchange({
+    exchangeName: "binance-breakeven-8",
+    getCandles: async (_symbol, _interval, since, limit) => {
+      const sinceIndex = Math.floor((since.getTime() - bufferStartTime) / intervalMs);
+      const result = allCandles.slice(sinceIndex, sinceIndex + limit);
+      return result.length > 0 ? result : allCandles.slice(0, Math.min(limit, allCandles.length));
+    },
+    formatPrice: async (_symbol, p) => p.toFixed(8),
+    formatQuantity: async (_symbol, quantity) => quantity.toFixed(8),
+  });
+
+  addStrategy({
+    strategyName: "test-breakeven-8",
+    interval: "1m",
+    getSignal: async () => {
+      if (signalGenerated) return null;
+      signalGenerated = true;
+
+      allCandles = [];
+
+      for (let i = 0; i < bufferMinutes; i++) {
+        allCandles.push({
+          timestamp: bufferStartTime + i * intervalMs,
+          open: basePrice,
+          high: basePrice + 50,
+          low: basePrice - 50,
+          close: basePrice,
+          volume: 100,
+        });
+      }
+
+      // Цена колеблется ±0.3% (ниже threshold 0.6%)
+      for (let i = 0; i < 30; i++) {
+        const timestamp = startTime + i * intervalMs;
+
+        if (i < 5) {
+          allCandles.push({
+            timestamp,
+            open: basePrice,
+            high: basePrice + 50,
+            low: basePrice - 50,
+            close: basePrice,
+            volume: 100,
+          });
+        } else {
+          const price = basePrice + (i % 2 === 0 ? 300 : -300);
+          allCandles.push({
+            timestamp,
+            open: price,
+            high: price + 50,
+            low: price - 50,
+            close: price,
+            volume: 100,
+          });
+        }
+      }
+
+      return {
+        position: "long",
+        priceOpen: basePrice,
+        priceTakeProfit: basePrice + 2000,
+        priceStopLoss: basePrice - 2000,
+        minuteEstimatedTime: 60,
+      };
+    },
+    callbacks: {
+      onBreakeven: async (symbol, data, currentPrice, backtest) => {
+        breakevenCallbacks.push({
+          symbol,
+          signalId: data.id,
+          currentPrice,
+          backtest,
+        });
+      },
+    },
+  });
+
+  addFrame({
+    frameName: "30m-breakeven-8",
+    interval: "1m",
+    startDate: new Date("2024-01-01T00:00:00Z"),
+    endDate: new Date("2024-01-01T00:30:00Z"),
+  });
+
+  const awaitSubject = new Subject();
+  listenDoneBacktest(() => awaitSubject.next());
+
+  let errorCaught = null;
+  const unsubscribeError = listenError((error) => {
+    errorCaught = error;
+    awaitSubject.next();
+  });
+
+  Backtest.background("BTCUSDT", {
+    strategyName: "test-breakeven-8",
+    exchangeName: "binance-breakeven-8",
+    frameName: "30m-breakeven-8",
+  });
+
+  await awaitSubject.toPromise();
+  await sleep(100);
+  unsubscribeError();
+
+  if (errorCaught) {
+    fail(`Error: ${errorCaught.message || errorCaught}`);
+    return;
+  }
+
+  // Callback НЕ должен быть вызван
+  if (breakevenCallbacks.length > 0) {
+    fail(`Expected 0 onBreakeven callbacks (threshold not reached), got ${breakevenCallbacks.length}`);
+    return;
+  }
+
+  pass("onBreakeven callback NOT called: threshold not reached (as expected)");
+});
