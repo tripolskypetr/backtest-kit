@@ -62,13 +62,14 @@ const POSITION_NEED_FETCH = Symbol("risk-need-fetch");
 const TO_RISK_SIGNAL = <T extends ISignalDto | ISignalRow>(signal: T, currentPrice: number): IRiskSignalRow => {
   if ("_trailingPriceStopLoss" in signal) {
     return {
-      ...signal,
+      ...structuredClone(signal) as ISignalDto | ISignalRow,
+      priceOpen: signal.priceOpen ?? currentPrice,
       priceStopLoss: signal._trailingPriceStopLoss,
       originalPriceStopLoss: signal.priceStopLoss,
     };
   }
   return {
-    ...signal,
+    ...structuredClone(signal) as ISignalDto | ISignalRow,
     priceOpen: signal.priceOpen ?? currentPrice,
     originalPriceStopLoss: signal.priceStopLoss,
   };

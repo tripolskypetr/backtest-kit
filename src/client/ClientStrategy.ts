@@ -89,13 +89,13 @@ const TIMEOUT_SYMBOL = Symbol('timeout');
 const TO_PUBLIC_SIGNAL = <T extends ISignalRow | IScheduledSignalRow>(signal: T): IPublicSignalRow => {
   if (signal._trailingPriceStopLoss !== undefined) {
     return {
-      ...signal,
+      ...structuredClone(signal) as ISignalRow | IScheduledSignalRow,
       priceStopLoss: signal._trailingPriceStopLoss,
       originalPriceStopLoss: signal.priceStopLoss,
     };
   }
   return {
-    ...signal,
+    ...structuredClone(signal) as ISignalRow | IScheduledSignalRow,
     originalPriceStopLoss: signal.priceStopLoss,
   };
 };
@@ -587,7 +587,7 @@ const GET_SIGNAL_FN = trycatch(
     const signalRow: ISignalRow = {
       id: signal.id || randomString(),
       priceOpen: currentPrice,
-      ...signal,
+      ...structuredClone(signal),
       note: toPlainString(signal.note),
       symbol: self.params.execution.context.symbol,
       exchangeName: self.params.method.context.exchangeName,
