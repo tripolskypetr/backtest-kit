@@ -111,6 +111,20 @@ export const GLOBAL_CONFIG = {
    * Default: false (notes are hidden to reduce table width and improve readability)
    */
   CC_REPORT_SHOW_SIGNAL_NOTE: false,
+  /**
+   * Breakeven threshold percentage - minimum profit distance from entry to enable breakeven.
+   * When price moves this percentage in profit direction, stop-loss can be moved to entry (breakeven).
+   *
+   * Calculation:
+   * - Slippage effect: ~0.2% (0.1% × 2 transactions)
+   * - Fees: 0.2% (0.1% × 2 transactions)
+   * - Total: 0.4%
+   * - Added buffer: 0.2%
+   * - Overall: 0.6%
+   *
+   * Default: 0.2% (additional buffer above costs to ensure no loss when moving to breakeven)
+   */
+  CC_BREAKEVEN_THRESHOLD: 0.2,
 };
 
 export const DEFAULT_CONFIG = Object.freeze({...GLOBAL_CONFIG});

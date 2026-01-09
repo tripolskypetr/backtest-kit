@@ -61,6 +61,8 @@ export {
   listenPartialLossOnce,
   listenPartialProfit,
   listenPartialProfitOnce,
+  listenBreakeven,
+  listenBreakevenOnce,
   listenWalkerProgress,
   listenOptimizerProgress,
   listenRisk,
@@ -189,6 +191,7 @@ export { DoneContract } from "./contract/Done.contract";
 export { RiskContract } from "./contract/Risk.contract";
 export { ProgressBacktestContract } from "./contract/ProgressBacktest.contract";
 export { PingContract } from "./contract/Ping.contract";
+export { BreakevenContract } from "./contract/Breakeven.contract";
 export {
   PerformanceContract,
   PerformanceMetricType,
@@ -211,6 +214,8 @@ export {
   PersistScheduleAdapter,
   PartialData,
   PersistPartialAdapter,
+  BreakevenData,
+  PersistBreakevenAdapter,
 } from "./classes/Persist";
 
 export { Backtest } from "./classes/Backtest";
@@ -227,6 +232,7 @@ export { Risk } from "./classes/Risk";
 export { Exchange } from "./classes/Exchange";
 export { Cache } from "./classes/Cache";
 export { Notification } from "./classes/Notification";
+export { Breakeven } from "./classes/Breakeven";
 
 export { type TickEvent } from "./model/LiveStatistics.model";
 export { type PartialEvent } from "./model/PartialStatistics.model";

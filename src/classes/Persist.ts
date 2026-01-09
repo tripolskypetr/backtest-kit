@@ -18,6 +18,7 @@ import {
 } from "../interfaces/Strategy.interface";
 import { IRiskActivePosition, RiskName } from "../interfaces/Risk.interface";
 import { IPartialData } from "../interfaces/Partial.interface";
+import { IBreakevenData } from "../interfaces/Breakeven.interface";
 
 const BASE_WAIT_FOR_INIT_SYMBOL = Symbol("wait-for-init");
 
@@ -41,6 +42,13 @@ const PERSIST_PARTIAL_UTILS_METHOD_NAME_READ_DATA =
   "PersistPartialUtils.readPartialData";
 const PERSIST_PARTIAL_UTILS_METHOD_NAME_WRITE_DATA =
   "PersistPartialUtils.writePartialData";
+
+const PERSIST_BREAKEVEN_UTILS_METHOD_NAME_USE_PERSIST_BREAKEVEN_ADAPTER =
+  "PersistBreakevenUtils.usePersistBreakevenAdapter";
+const PERSIST_BREAKEVEN_UTILS_METHOD_NAME_READ_DATA =
+  "PersistBreakevenUtils.readBreakevenData";
+const PERSIST_BREAKEVEN_UTILS_METHOD_NAME_WRITE_DATA =
+  "PersistBreakevenUtils.writeBreakevenData";
 
 const PERSIST_BASE_METHOD_NAME_CTOR = "PersistBase.CTOR";
 const PERSIST_BASE_METHOD_NAME_WAIT_FOR_INIT = "PersistBase.waitForInit";
@@ -1001,4 +1009,163 @@ export class PersistPartialUtils {
  * ```
  */
 export const PersistPartialAdapter = new PersistPartialUtils();
+
+/**
+ * Type for persisted breakeven data.
+ * Stores breakeven state (reached flag) for each signal ID.
+ */
+export type BreakevenData = Record<string, IBreakevenData>;
+
+/**
+ * Persistence utility class for breakeven state management.
+ *
+ * Handles reading and writing breakeven state to disk.
+ * Uses memoized PersistBase instances per symbol-strategy pair.
+ *
+ * Features:
+ * - Atomic file writes via PersistBase.writeValue()
+ * - Lazy initialization on first access
+ * - Singleton pattern for global access
+ * - Custom adapter support via usePersistBreakevenAdapter()
+ *
+ * File structure:
+ * ```
+ * ./dump/data/breakeven/
+ * ├── BTCUSDT_my-strategy/
+ * │   └── state.json        // { "signal-id-1": { reached: true }, ... }
+ * └── ETHUSDT_other-strategy/
+ *     └── state.json
+ * ```
+ *
+ * @example
+ * ```typescript
+ * // Read breakeven data
+ * const breakevenData = await PersistBreakevenAdapter.readBreakevenData("BTCUSDT", "my-strategy");
+ * // Returns: { "signal-id": { reached: true }, ... }
+ *
+ * // Write breakeven data
+ * await PersistBreakevenAdapter.writeBreakevenData(breakevenData, "BTCUSDT", "my-strategy");
+ * ```
+ */
+class PersistBreakevenUtils {
+  /**
+   * Factory for creating PersistBase instances.
+   * Can be replaced via usePersistBreakevenAdapter().
+   */
+  private PersistBreakevenFactory: TPersistBaseCtor<string, BreakevenData> =
+    PersistBase;
+
+  /**
+   * Memoized storage factory for breakeven data.
+   * Creates one PersistBase instance per symbol-strategy pair.
+   * Key format: "symbol:strategyName"
+   *
+   * @param symbol - Trading pair symbol
+   * @param strategyName - Strategy identifier
+   * @returns PersistBase instance for this symbol-strategy pair
+   */
+  private getBreakevenStorage = memoize(
+    ([symbol, strategyName]: [string, StrategyName]): string => `${symbol}:${strategyName}`,
+    (symbol: string, strategyName: StrategyName): IPersistBase<BreakevenData> =>
+      Reflect.construct(this.PersistBreakevenFactory, [
+        `${symbol}_${strategyName}`,
+        `./dump/data/breakeven/`,
+      ])
+  );
+
+  /**
+   * Registers a custom persistence adapter.
+   *
+   * @param Ctor - Custom PersistBase constructor
+   *
+   * @example
+   * ```typescript
+   * class RedisPersist extends PersistBase {
+   *   async readValue(id) { return JSON.parse(await redis.get(id)); }
+   *   async writeValue(id, entity) { await redis.set(id, JSON.stringify(entity)); }
+   * }
+   * PersistBreakevenAdapter.usePersistBreakevenAdapter(RedisPersist);
+   * ```
+   */
+  public usePersistBreakevenAdapter(
+    Ctor: TPersistBaseCtor<string, BreakevenData>
+  ): void {
+    swarm.loggerService.info(
+      PERSIST_BREAKEVEN_UTILS_METHOD_NAME_USE_PERSIST_BREAKEVEN_ADAPTER
+    );
+    this.PersistBreakevenFactory = Ctor;
+  }
+
+  /**
+   * Reads persisted breakeven data for a symbol and strategy.
+   *
+   * Called by ClientBreakeven.waitForInit() to restore state.
+   * Returns empty object if no breakeven data exists.
+   *
+   * @param symbol - Trading pair symbol
+   * @param strategyName - Strategy identifier
+   * @returns Promise resolving to breakeven data record
+   */
+  public readBreakevenData = async (symbol: string, strategyName: StrategyName): Promise<BreakevenData> => {
+    swarm.loggerService.info(PERSIST_BREAKEVEN_UTILS_METHOD_NAME_READ_DATA);
+
+    const key = `${symbol}:${strategyName}`;
+    const isInitial = !this.getBreakevenStorage.has(key);
+    const stateStorage = this.getBreakevenStorage(symbol, strategyName);
+    await stateStorage.waitForInit(isInitial);
+
+    const BREAKEVEN_STORAGE_KEY = "state";
+
+    const hasData = await stateStorage.hasValue(BREAKEVEN_STORAGE_KEY);
+    if (!hasData) {
+      return {};
+    }
+
+    const breakevenData = await stateStorage.readValue(BREAKEVEN_STORAGE_KEY);
+    return breakevenData;
+  };
+
+  /**
+   * Writes breakeven data to disk.
+   *
+   * Called by ClientBreakeven._persistState() after state changes.
+   * Creates directory and file if they don't exist.
+   * Uses atomic writes to prevent data corruption.
+   *
+   * @param breakevenData - Breakeven data record to persist
+   * @param symbol - Trading pair symbol
+   * @param strategyName - Strategy identifier
+   * @returns Promise that resolves when write is complete
+   */
+  public writeBreakevenData = async (breakevenData: BreakevenData, symbol: string, strategyName: StrategyName): Promise<void> => {
+    swarm.loggerService.info(PERSIST_BREAKEVEN_UTILS_METHOD_NAME_WRITE_DATA);
+
+    const key = `${symbol}:${strategyName}`;
+    const isInitial = !this.getBreakevenStorage.has(key);
+    const stateStorage = this.getBreakevenStorage(symbol, strategyName);
+    await stateStorage.waitForInit(isInitial);
+
+    const BREAKEVEN_STORAGE_KEY = "state";
+
+    await stateStorage.writeValue(BREAKEVEN_STORAGE_KEY, breakevenData);
+  };
+}
+
+/**
+ * Global singleton instance of PersistBreakevenUtils.
+ * Used by ClientBreakeven for breakeven state persistence.
+ *
+ * @example
+ * ```typescript
+ * // Custom adapter
+ * PersistBreakevenAdapter.usePersistBreakevenAdapter(RedisPersist);
+ *
+ * // Read breakeven data
+ * const breakevenData = await PersistBreakevenAdapter.readBreakevenData("BTCUSDT", "my-strategy");
+ *
+ * // Write breakeven data
+ * await PersistBreakevenAdapter.writeBreakevenData(breakevenData, "BTCUSDT", "my-strategy");
+ * ```
+ */
+export const PersistBreakevenAdapter = new PersistBreakevenUtils();
 

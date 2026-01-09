@@ -9,6 +9,7 @@ import { WalkerContract } from "../contract/Walker.contract";
 import { WalkerCompleteContract } from "../contract/WalkerComplete.contract";
 import { PartialProfitContract } from "../contract/PartialProfit.contract";
 import { PartialLossContract } from "../contract/PartialLoss.contract";
+import { BreakevenContract } from "../contract/Breakeven.contract";
 import { WalkerStopContract } from "../contract/WalkerStop.contract";
 import { RiskContract } from "../contract/Risk.contract";
 import { PingContract } from "../contract/Ping.contract";
@@ -123,6 +124,12 @@ export const partialProfitSubject = new Subject<PartialProfitContract>();
  * Emits when a signal reaches a loss level (10%, 20%, 30%, etc).
  */
 export const partialLossSubject = new Subject<PartialLossContract>();
+
+/**
+ * Breakeven emitter for stop-loss protection milestones.
+ * Emits when a signal's stop-loss is moved to breakeven (entry price).
+ */
+export const breakevenSubject = new Subject<BreakevenContract>();
 
 /**
  * Risk rejection emitter for risk management violations.

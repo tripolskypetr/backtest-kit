@@ -53,6 +53,9 @@ import OptimizerGlobalService from "./services/global/OptimizerGlobalService";
 import PartialConnectionService from "./services/connection/PartialConnectionService";
 import PartialMarkdownService from "./services/markdown/PartialMarkdownService";
 import PartialGlobalService from "./services/global/PartialGlobalService";
+import BreakevenConnectionService from "./services/connection/BreakevenConnectionService";
+import BreakevenMarkdownService from "./services/markdown/BreakevenMarkdownService";
+import BreakevenGlobalService from "./services/global/BreakevenGlobalService";
 import OutlineMarkdownService from "./services/markdown/OutlineMarkdownService";
 import ConfigValidationService from "./services/validation/ConfigValidationService";
 import RiskMarkdownService from "./services/markdown/RiskMarkdownService";
@@ -93,6 +96,9 @@ const connectionServices = {
   partialConnectionService: inject<PartialConnectionService>(
     TYPES.partialConnectionService
   ),
+  breakevenConnectionService: inject<BreakevenConnectionService>(
+    TYPES.breakevenConnectionService
+  ),
 };
 
 const schemaServices = {
@@ -125,6 +131,9 @@ const globalServices = {
   ),
   partialGlobalService: inject<PartialGlobalService>(
     TYPES.partialGlobalService
+  ),
+  breakevenGlobalService: inject<BreakevenGlobalService>(
+    TYPES.breakevenGlobalService
   ),
 };
 
@@ -179,6 +188,9 @@ const markdownServices = {
   heatMarkdownService: inject<HeatMarkdownService>(TYPES.heatMarkdownService),
   partialMarkdownService: inject<PartialMarkdownService>(
     TYPES.partialMarkdownService
+  ),
+  breakevenMarkdownService: inject<BreakevenMarkdownService>(
+    TYPES.breakevenMarkdownService
   ),
   outlineMarkdownService: inject<OutlineMarkdownService>(
     TYPES.outlineMarkdownService

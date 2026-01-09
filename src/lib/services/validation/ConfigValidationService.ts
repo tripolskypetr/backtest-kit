@@ -66,6 +66,10 @@ export class ConfigValidationService {
       errors.push(`CC_PERCENT_FEE must be a non-negative number, got ${GLOBAL_CONFIG.CC_PERCENT_FEE}`);
     }
 
+    if (!Number.isFinite(GLOBAL_CONFIG.CC_BREAKEVEN_THRESHOLD) || GLOBAL_CONFIG.CC_BREAKEVEN_THRESHOLD < 0) {
+      errors.push(`CC_BREAKEVEN_THRESHOLD must be a non-negative number, got ${GLOBAL_CONFIG.CC_BREAKEVEN_THRESHOLD}`);
+    }
+
     // Calculate minimum required TP distance to cover costs
     const slippageEffect = GLOBAL_CONFIG.CC_PERCENT_SLIPPAGE * 2; // Applied twice (entry + exit)
     const feesTotal = GLOBAL_CONFIG.CC_PERCENT_FEE * 2; // Applied twice (entry + exit)

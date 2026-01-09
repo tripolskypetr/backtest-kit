@@ -1,5 +1,5 @@
 import backtest from "../lib";
-import { signalEmitter, signalLiveEmitter, signalBacktestEmitter, errorEmitter, exitEmitter, doneLiveSubject, doneBacktestSubject, doneWalkerSubject, progressBacktestEmitter, progressWalkerEmitter, progressOptimizerEmitter, performanceEmitter, walkerEmitter, walkerCompleteSubject, validationSubject, partialProfitSubject, partialLossSubject, riskSubject, pingSubject } from "../config/emitters";
+import { signalEmitter, signalLiveEmitter, signalBacktestEmitter, errorEmitter, exitEmitter, doneLiveSubject, doneBacktestSubject, doneWalkerSubject, progressBacktestEmitter, progressWalkerEmitter, progressOptimizerEmitter, performanceEmitter, walkerEmitter, walkerCompleteSubject, validationSubject, partialProfitSubject, partialLossSubject, breakevenSubject, riskSubject, pingSubject } from "../config/emitters";
 import { IStrategyTickResult } from "../interfaces/Strategy.interface";
 import { DoneContract } from "../contract/Done.contract";
 import { ProgressBacktestContract } from "../contract/ProgressBacktest.contract";
@@ -10,6 +10,7 @@ import { WalkerContract } from "../contract/Walker.contract";
 import { WalkerCompleteContract } from "../contract/WalkerComplete.contract";
 import { PartialProfitContract } from "../contract/PartialProfit.contract";
 import { PartialLossContract } from "../contract/PartialLoss.contract";
+import { BreakevenContract } from "../contract/Breakeven.contract";
 import { RiskContract } from "../contract/Risk.contract";
 import { PingContract } from "../contract/Ping.contract";
 import { queued } from "functools-kit";
@@ -40,6 +41,8 @@ const LISTEN_PARTIAL_PROFIT_METHOD_NAME = "event.listenPartialProfit";
 const LISTEN_PARTIAL_PROFIT_ONCE_METHOD_NAME = "event.listenPartialProfitOnce";
 const LISTEN_PARTIAL_LOSS_METHOD_NAME = "event.listenPartialLoss";
 const LISTEN_PARTIAL_LOSS_ONCE_METHOD_NAME = "event.listenPartialLossOnce";
+const LISTEN_BREAKEVEN_METHOD_NAME = "event.listenBreakeven";
+const LISTEN_BREAKEVEN_ONCE_METHOD_NAME = "event.listenBreakevenOnce";
 const LISTEN_RISK_METHOD_NAME = "event.listenRisk";
 const LISTEN_RISK_ONCE_METHOD_NAME = "event.listenRiskOnce";
 const LISTEN_PING_METHOD_NAME = "event.listenPing";
@@ -894,6 +897,75 @@ export function listenPartialLossOnce(
 ) {
   backtest.loggerService.log(LISTEN_PARTIAL_LOSS_ONCE_METHOD_NAME);
   return partialLossSubject.filter(filterFn).once(fn);
+}
+
+/**
+ * Subscribes to breakeven protection events with queued async processing.
+ *
+ * Emits when a signal's stop-loss is moved to breakeven (entry price).
+ * This happens when price moves far enough in profit direction to cover transaction costs.
+ * Events are processed sequentially in order received, even if callback is async.
+ * Uses queued wrapper to prevent concurrent execution of the callback.
+ *
+ * @param fn - Callback function to handle breakeven events
+ * @returns Unsubscribe function to stop listening to events
+ *
+ * @example
+ * ```typescript
+ * import { listenBreakeven } from "./function/event";
+ *
+ * const unsubscribe = listenBreakeven((event) => {
+ *   console.log(`Signal ${event.data.id} reached breakeven`);
+ *   console.log(`Symbol: ${event.symbol}, Position: ${event.data.position}`);
+ *   console.log(`Entry: ${event.data.priceOpen}, Current: ${event.currentPrice}`);
+ *   console.log(`Mode: ${event.backtest ? "Backtest" : "Live"}`);
+ * });
+ *
+ * // Later: stop listening
+ * unsubscribe();
+ * ```
+ */
+export function listenBreakeven(fn: (event: BreakevenContract) => void) {
+  backtest.loggerService.log(LISTEN_BREAKEVEN_METHOD_NAME);
+  return breakevenSubject.subscribe(queued(async (event) => fn(event)));
+}
+
+/**
+ * Subscribes to filtered breakeven protection events with one-time execution.
+ *
+ * Listens for events matching the filter predicate, then executes callback once
+ * and automatically unsubscribes. Useful for waiting for specific breakeven conditions.
+ *
+ * @param filterFn - Predicate to filter which events trigger the callback
+ * @param fn - Callback function to handle the filtered event (called only once)
+ * @returns Unsubscribe function to cancel the listener before it fires
+ *
+ * @example
+ * ```typescript
+ * import { listenBreakevenOnce } from "./function/event";
+ *
+ * // Wait for first breakeven on any signal
+ * listenBreakevenOnce(
+ *   (event) => true,
+ *   (event) => console.log("First breakeven reached:", event.data.id)
+ * );
+ *
+ * // Wait for breakeven on BTCUSDT LONG position
+ * const cancel = listenBreakevenOnce(
+ *   (event) => event.symbol === "BTCUSDT" && event.data.position === "long",
+ *   (event) => console.log("BTCUSDT LONG reached breakeven at", event.currentPrice)
+ * );
+ *
+ * // Cancel if needed before event fires
+ * cancel();
+ * ```
+ */
+export function listenBreakevenOnce(
+  filterFn: (event: BreakevenContract) => boolean,
+  fn: (event: BreakevenContract) => void
+) {
+  backtest.loggerService.log(LISTEN_BREAKEVEN_ONCE_METHOD_NAME);
+  return breakevenSubject.filter(filterFn).once(fn);
 }
 
 /**

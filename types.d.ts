@@ -254,350 +254,6 @@ declare function trailingStop(symbol: string, percentShift: number): Promise<voi
  */
 declare function breakeven(symbol: string): Promise<boolean>;
 
-declare const GLOBAL_CONFIG: {
-    /**
-     * Time to wait for scheduled signal to activate (in minutes)
-     * If signal does not activate within this time, it will be cancelled.
-     */
-    CC_SCHEDULE_AWAIT_MINUTES: number;
-    /**
-     * Number of candles to use for average price calculation (VWAP)
-     * Default: 5 candles (last 5 minutes when using 1m interval)
-     */
-    CC_AVG_PRICE_CANDLES_COUNT: number;
-    /**
-     * Slippage percentage applied to entry and exit prices.
-     * Simulates market impact and order book depth.
-     * Applied twice (entry and exit) for realistic execution simulation.
-     * Default: 0.1% per transaction
-     */
-    CC_PERCENT_SLIPPAGE: number;
-    /**
-     * Fee percentage charged per transaction.
-     * Applied twice (entry and exit) for total fee calculation.
-     * Default: 0.1% per transaction (total 0.2%)
-     */
-    CC_PERCENT_FEE: number;
-    /**
-     * Minimum TakeProfit distance from priceOpen (percentage)
-     * Must be greater than (slippage + fees) to ensure profitable trades
-     *
-     * Calculation:
-     * - Slippage effect: ~0.2% (0.1% × 2 transactions)
-     * - Fees: 0.2% (0.1% × 2 transactions)
-     * - Minimum profit buffer: 0.1%
-     * - Total: 0.5%
-     *
-     * Default: 0.5% (covers all costs + minimum profit margin)
-     */
-    CC_MIN_TAKEPROFIT_DISTANCE_PERCENT: number;
-    /**
-     * Minimum StopLoss distance from priceOpen (percentage)
-     * Prevents signals from being immediately stopped out due to price volatility
-     * Default: 0.5% (buffer to avoid instant stop loss on normal market fluctuations)
-     */
-    CC_MIN_STOPLOSS_DISTANCE_PERCENT: number;
-    /**
-     * Maximum StopLoss distance from priceOpen (percentage)
-     * Prevents catastrophic losses from extreme StopLoss values
-     * Default: 20% (one signal cannot lose more than 20% of position)
-     */
-    CC_MAX_STOPLOSS_DISTANCE_PERCENT: number;
-    /**
-     * Maximum signal lifetime in minutes
-     * Prevents eternal signals that block risk limits for weeks/months
-     * Default: 1440 minutes (1 day)
-     */
-    CC_MAX_SIGNAL_LIFETIME_MINUTES: number;
-    /**
-     * Maximum time allowed for signal generation (in seconds).
-     * Prevents long-running or stuck signal generation routines from blocking
-     * execution or consuming resources indefinitely. If generation exceeds this
-     * threshold the attempt should be aborted, logged and optionally retried.
-     *
-     * Default: 180 seconds (3 minutes)
-     */
-    CC_MAX_SIGNAL_GENERATION_SECONDS: number;
-    /**
-     * Number of retries for getCandles function
-     * Default: 3 retries
-     */
-    CC_GET_CANDLES_RETRY_COUNT: number;
-    /**
-     * Delay between retries for getCandles function (in milliseconds)
-     * Default: 5000 ms (5 seconds)
-     */
-    CC_GET_CANDLES_RETRY_DELAY_MS: number;
-    /**
-     * Maximum allowed deviation factor for price anomaly detection.
-     * Price should not be more than this factor lower than reference price.
-     *
-     * Reasoning:
-     * - Incomplete candles from Binance API typically have prices near 0 (e.g., $0.01-1)
-     * - Normal BTC price ranges: $20,000-100,000
-     * - Factor 1000 catches prices below $20-100 when median is $20,000-100,000
-     * - Factor 100 would be too permissive (allows $200 when median is $20,000)
-     * - Factor 10000 might be too strict for low-cap altcoins
-     *
-     * Example: BTC at $50,000 median → threshold $50 (catches $0.01-1 anomalies)
-     */
-    CC_GET_CANDLES_PRICE_ANOMALY_THRESHOLD_FACTOR: number;
-    /**
-     * Minimum number of candles required for reliable median calculation.
-     * Below this threshold, use simple average instead of median.
-     *
-     * Reasoning:
-     * - Each candle provides 4 price points (OHLC)
-     * - 5 candles = 20 price points, sufficient for robust median calculation
-     * - Below 5 candles, single anomaly can heavily skew median
-     * - Statistical rule of thumb: minimum 7-10 data points for median stability
-     * - Average is more stable than median for small datasets (n < 20)
-     *
-     * Example: 3 candles = 12 points (use average), 5 candles = 20 points (use median)
-     */
-    CC_GET_CANDLES_MIN_CANDLES_FOR_MEDIAN: number;
-    /**
-     * Controls visibility of signal notes in markdown report tables.
-     * When enabled, the "Note" column will be displayed in all markdown reports
-     * (backtest, live, schedule, risk, etc.)
-     *
-     * Default: false (notes are hidden to reduce table width and improve readability)
-     */
-    CC_REPORT_SHOW_SIGNAL_NOTE: boolean;
-};
-/**
- * Type for global configuration object.
- */
-type GlobalConfig = typeof GLOBAL_CONFIG;
-
-/**
- * Mapping of available table/markdown reports to their column definitions.
- *
- * Each property references a column definition object imported from
- * `src/assets/*.columns`. These are used by markdown/report generators
- * (backtest, live, schedule, risk, heat, performance, partial, walker).
- */
-declare const COLUMN_CONFIG: {
-    /** Columns used in backtest markdown tables and reports */
-    backtest_columns: ColumnModel<IStrategyTickResultClosed>[];
-    /** Columns used by heatmap / heat reports */
-    heat_columns: ColumnModel<IHeatmapRow>[];
-    /** Columns for live trading reports and logs */
-    live_columns: ColumnModel<TickEvent>[];
-    /** Columns for partial-results / incremental reports */
-    partial_columns: ColumnModel<PartialEvent>[];
-    /** Columns for performance summary reports */
-    performance_columns: ColumnModel<MetricStats>[];
-    /** Columns for risk-related reports */
-    risk_columns: ColumnModel<RiskEvent>[];
-    /** Columns for scheduled report output */
-    schedule_columns: ColumnModel<ScheduledEvent>[];
-    /** Walker: PnL summary columns */
-    walker_pnl_columns: ColumnModel<SignalData$1>[];
-    /** Walker: strategy-level summary columns */
-    walker_strategy_columns: ColumnModel<IStrategyResult>[];
-};
-/**
- * Type for the column configuration object.
- */
-type ColumnConfig = typeof COLUMN_CONFIG;
-
-/**
- * Interface representing a logging mechanism for the swarm system.
- * Provides methods to record messages at different severity levels, used across components like agents, sessions, states, storage, swarms, history, embeddings, completions, and policies.
- * Logs are utilized to track lifecycle events (e.g., initialization, disposal), operational details (e.g., tool calls, message emissions), validation outcomes (e.g., policy checks), and errors (e.g., persistence failures), aiding in debugging, monitoring, and auditing.
-*/
-interface ILogger {
-    /**
-     * Logs a general-purpose message.
-     * Used throughout the swarm system to record significant events or state changes, such as agent execution, session connections, or storage updates.
-     */
-    log(topic: string, ...args: any[]): void;
-    /**
-     * Logs a debug-level message.
-     * Employed for detailed diagnostic information, such as intermediate states during agent tool calls, swarm navigation changes, or embedding creation processes, typically enabled in development or troubleshooting scenarios.
-     */
-    debug(topic: string, ...args: any[]): void;
-    /**
-     * Logs an info-level message.
-     * Used to record informational updates, such as successful completions, policy validations, or history commits, providing a high-level overview of system activity without excessive detail.
-     */
-    info(topic: string, ...args: any[]): void;
-    /**
-     * Logs a warning-level message.
-     * Used to record potentially problematic situations that don't prevent execution but may require attention, such as missing data, unexpected conditions, or deprecated usage.
-     */
-    warn(topic: string, ...args: any[]): void;
-}
-
-/**
- * Sets custom logger implementation for the framework.
- *
- * All log messages from internal services will be forwarded to the provided logger
- * with automatic context injection (strategyName, exchangeName, symbol, etc.).
- *
- * @param logger - Custom logger implementing ILogger interface
- *
- * @example
- * ```typescript
- * setLogger({
- *   log: (topic, ...args) => console.log(topic, args),
- *   debug: (topic, ...args) => console.debug(topic, args),
- *   info: (topic, ...args) => console.info(topic, args),
- * });
- * ```
- */
-declare function setLogger(logger: ILogger): void;
-/**
- * Sets global configuration parameters for the framework.
- * @param config - Partial configuration object to override default settings
- * @param _unsafe - Skip config validations - required for testbed
- *
- * @example
- * ```typescript
- * setConfig({
- *   CC_SCHEDULE_AWAIT_MINUTES: 90,
- * });
- * ```
- */
-declare function setConfig(config: Partial<GlobalConfig>, _unsafe?: boolean): void;
-/**
- * Retrieves a copy of the current global configuration.
- *
- * Returns a shallow copy of the current GLOBAL_CONFIG to prevent accidental mutations.
- * Use this to inspect the current configuration state without modifying it.
- *
- * @returns {GlobalConfig} A copy of the current global configuration object
- *
- * @example
- * ```typescript
- * const currentConfig = getConfig();
- * console.log(currentConfig.CC_SCHEDULE_AWAIT_MINUTES);
- * ```
- */
-declare function getConfig(): {
-    CC_SCHEDULE_AWAIT_MINUTES: number;
-    CC_AVG_PRICE_CANDLES_COUNT: number;
-    CC_PERCENT_SLIPPAGE: number;
-    CC_PERCENT_FEE: number;
-    CC_MIN_TAKEPROFIT_DISTANCE_PERCENT: number;
-    CC_MIN_STOPLOSS_DISTANCE_PERCENT: number;
-    CC_MAX_STOPLOSS_DISTANCE_PERCENT: number;
-    CC_MAX_SIGNAL_LIFETIME_MINUTES: number;
-    CC_MAX_SIGNAL_GENERATION_SECONDS: number;
-    CC_GET_CANDLES_RETRY_COUNT: number;
-    CC_GET_CANDLES_RETRY_DELAY_MS: number;
-    CC_GET_CANDLES_PRICE_ANOMALY_THRESHOLD_FACTOR: number;
-    CC_GET_CANDLES_MIN_CANDLES_FOR_MEDIAN: number;
-    CC_REPORT_SHOW_SIGNAL_NOTE: boolean;
-};
-/**
- * Retrieves the default configuration object for the framework.
- *
- * Returns a reference to the default configuration with all preset values.
- * Use this to see what configuration options are available and their default values.
- *
- * @returns {GlobalConfig} The default configuration object
- *
- * @example
- * ```typescript
- * const defaultConfig = getDefaultConfig();
- * console.log(defaultConfig.CC_SCHEDULE_AWAIT_MINUTES);
- * ```
- */
-declare function getDefaultConfig(): Readonly<{
-    CC_SCHEDULE_AWAIT_MINUTES: number;
-    CC_AVG_PRICE_CANDLES_COUNT: number;
-    CC_PERCENT_SLIPPAGE: number;
-    CC_PERCENT_FEE: number;
-    CC_MIN_TAKEPROFIT_DISTANCE_PERCENT: number;
-    CC_MIN_STOPLOSS_DISTANCE_PERCENT: number;
-    CC_MAX_STOPLOSS_DISTANCE_PERCENT: number;
-    CC_MAX_SIGNAL_LIFETIME_MINUTES: number;
-    CC_MAX_SIGNAL_GENERATION_SECONDS: number;
-    CC_GET_CANDLES_RETRY_COUNT: number;
-    CC_GET_CANDLES_RETRY_DELAY_MS: number;
-    CC_GET_CANDLES_PRICE_ANOMALY_THRESHOLD_FACTOR: number;
-    CC_GET_CANDLES_MIN_CANDLES_FOR_MEDIAN: number;
-    CC_REPORT_SHOW_SIGNAL_NOTE: boolean;
-}>;
-/**
- * Sets custom column configurations for markdown report generation.
- *
- * Allows overriding default column definitions for any report type.
- * All columns are validated before assignment to ensure structural correctness.
- *
- * @param columns - Partial column configuration object to override default column settings
- * @param _unsafe - Skip column validations - required for testbed
- *
- * @example
- * ```typescript
- * setColumns({
- *   backtest_columns: [
- *     {
- *       key: "customId",
- *       label: "Custom ID",
- *       format: (data) => data.signal.id,
- *       isVisible: () => true
- *     }
- *   ],
- * });
- * ```
- *
- * @throws {Error} If column configuration is invalid
- */
-declare function setColumns(columns: Partial<ColumnConfig>, _unsafe?: boolean): void;
-/**
- * Retrieves a copy of the current column configuration for markdown report generation.
- *
- * Returns a shallow copy of the current COLUMN_CONFIG to prevent accidental mutations.
- * Use this to inspect the current column definitions without modifying them.
- *
- * @returns {ColumnConfig} A copy of the current column configuration object
- *
- * @example
- * ```typescript
- * const currentColumns = getColumns();
- * console.log(currentColumns.backtest_columns.length);
- * ```
- */
-declare function getColumns(): {
-    backtest_columns: ColumnModel<IStrategyTickResultClosed>[];
-    heat_columns: ColumnModel<IHeatmapRow>[];
-    live_columns: ColumnModel<TickEvent>[];
-    partial_columns: ColumnModel<PartialEvent>[];
-    performance_columns: ColumnModel<MetricStats>[];
-    risk_columns: ColumnModel<RiskEvent>[];
-    schedule_columns: ColumnModel<ScheduledEvent>[];
-    walker_pnl_columns: ColumnModel<SignalData$1>[];
-    walker_strategy_columns: ColumnModel<IStrategyResult>[];
-};
-/**
- * Retrieves the default column configuration object for markdown report generation.
- *
- * Returns a reference to the default column definitions with all preset values.
- * Use this to see what column options are available and their default definitions.
- *
- * @returns {ColumnConfig} The default column configuration object
- *
- * @example
- * ```typescript
- * const defaultColumns = getDefaultColumns();
- * console.log(defaultColumns.backtest_columns);
- * ```
- */
-declare function getDefaultColumns(): Readonly<{
-    backtest_columns: ColumnModel<IStrategyTickResultClosed>[];
-    heat_columns: ColumnModel<IHeatmapRow>[];
-    live_columns: ColumnModel<TickEvent>[];
-    partial_columns: ColumnModel<PartialEvent>[];
-    performance_columns: ColumnModel<MetricStats>[];
-    risk_columns: ColumnModel<RiskEvent>[];
-    schedule_columns: ColumnModel<ScheduledEvent>[];
-    walker_pnl_columns: ColumnModel<SignalData$1>[];
-    walker_strategy_columns: ColumnModel<IStrategyResult>[];
-}>;
-
 /**
  * Execution context containing runtime parameters for strategy/exchange operations.
  *
@@ -643,6 +299,34 @@ declare const ExecutionContextService: (new () => {
  * Used for dependency injection type annotations.
  */
 type TExecutionContextService = InstanceType<typeof ExecutionContextService>;
+
+/**
+ * Interface representing a logging mechanism for the swarm system.
+ * Provides methods to record messages at different severity levels, used across components like agents, sessions, states, storage, swarms, history, embeddings, completions, and policies.
+ * Logs are utilized to track lifecycle events (e.g., initialization, disposal), operational details (e.g., tool calls, message emissions), validation outcomes (e.g., policy checks), and errors (e.g., persistence failures), aiding in debugging, monitoring, and auditing.
+*/
+interface ILogger {
+    /**
+     * Logs a general-purpose message.
+     * Used throughout the swarm system to record significant events or state changes, such as agent execution, session connections, or storage updates.
+     */
+    log(topic: string, ...args: any[]): void;
+    /**
+     * Logs a debug-level message.
+     * Employed for detailed diagnostic information, such as intermediate states during agent tool calls, swarm navigation changes, or embedding creation processes, typically enabled in development or troubleshooting scenarios.
+     */
+    debug(topic: string, ...args: any[]): void;
+    /**
+     * Logs an info-level message.
+     * Used to record informational updates, such as successful completions, policy validations, or history commits, providing a high-level overview of system activity without excessive detail.
+     */
+    info(topic: string, ...args: any[]): void;
+    /**
+     * Logs a warning-level message.
+     * Used to record potentially problematic situations that don't prevent execution but may require attention, such as missing data, unexpected conditions, or deprecated usage.
+     */
+    warn(topic: string, ...args: any[]): void;
+}
 
 /**
  * Candle time interval for fetching historical data.
@@ -1224,6 +908,112 @@ interface IPartial {
      * // State removed from _states Map
      * // Persisted to disk without this signal's data
      * // Memoized instance cleared from getPartial cache
+     * ```
+     */
+    clear(symbol: string, data: IPublicSignalRow, priceClose: number, backtest: boolean): Promise<void>;
+}
+
+/**
+ * Serializable breakeven data for persistence layer.
+ * Converts state to simple boolean for JSON serialization.
+ *
+ * Stored in PersistBreakevenAdapter as Record<signalId, IBreakevenData>.
+ * Loaded on initialization and converted back to IBreakevenState.
+ */
+interface IBreakevenData {
+    /**
+     * Whether breakeven has been reached for this signal.
+     * Serialized form of IBreakevenState.reached.
+     */
+    reached: boolean;
+}
+/**
+ * Breakeven tracking interface.
+ * Implemented by ClientBreakeven and BreakevenConnectionService.
+ *
+ * Tracks when a signal's stop-loss is moved to breakeven (entry price).
+ * Emits events when threshold is reached (price moves far enough to cover transaction costs).
+ *
+ * @example
+ * ```typescript
+ * import { ClientBreakeven } from "./client/ClientBreakeven";
+ *
+ * const breakeven = new ClientBreakeven({
+ *   logger: loggerService,
+ *   onBreakeven: (symbol, data, price, backtest, timestamp) => {
+ *     console.log(`Signal ${data.id} reached breakeven at ${price}`);
+ *   }
+ * });
+ *
+ * await breakeven.waitForInit("BTCUSDT");
+ *
+ * // During signal monitoring
+ * await breakeven.check("BTCUSDT", signal, 100.5, false, new Date());
+ * // Emits event when threshold reached and SL moved to entry
+ *
+ * // When signal closes
+ * await breakeven.clear("BTCUSDT", signal, 101, false);
+ * ```
+ */
+interface IBreakeven {
+    /**
+     * Checks if breakeven should be triggered and emits event if conditions met.
+     *
+     * Called by ClientStrategy during signal monitoring.
+     * Checks if:
+     * 1. Breakeven not already reached
+     * 2. Price has moved far enough to cover transaction costs
+     * 3. Stop-loss can be moved to entry price
+     *
+     * If all conditions met:
+     * - Marks breakeven as reached
+     * - Calls onBreakeven callback (emits to breakevenSubject)
+     * - Persists state to disk
+     *
+     * @param symbol - Trading pair symbol (e.g., "BTCUSDT")
+     * @param data - Signal row data
+     * @param currentPrice - Current market price
+     * @param backtest - True if backtest mode, false if live mode
+     * @param when - Event timestamp (current time for live, candle time for backtest)
+     * @returns Promise that resolves when breakeven check is complete
+     *
+     * @example
+     * ```typescript
+     * // LONG: entry=100, slippage=0.1%, fee=0.1%, threshold=0.4%
+     * // Price at 100.3 - threshold not reached
+     * await breakeven.check("BTCUSDT", signal, 100.3, false, new Date());
+     * // No event emitted (price < 100.4)
+     *
+     * // Price at 100.5 - threshold reached!
+     * await breakeven.check("BTCUSDT", signal, 100.5, false, new Date());
+     * // Emits breakevenSubject event
+     *
+     * // Price at 101 - already at breakeven
+     * await breakeven.check("BTCUSDT", signal, 101, false, new Date());
+     * // No event emitted (already reached)
+     * ```
+     */
+    check(symbol: string, data: IPublicSignalRow, currentPrice: number, backtest: boolean, when: Date): Promise<void>;
+    /**
+     * Clears breakeven state when signal closes.
+     *
+     * Called by ClientStrategy when signal completes (TP/SL/time_expired).
+     * Removes signal state from memory and persists changes to disk.
+     * Cleans up memoized ClientBreakeven instance in BreakevenConnectionService.
+     *
+     * @param symbol - Trading pair symbol (e.g., "BTCUSDT")
+     * @param data - Signal row data
+     * @param priceClose - Final closing price
+     * @param backtest - True if backtest mode, false if live mode
+     * @returns Promise that resolves when clear is complete
+     *
+     * @example
+     * ```typescript
+     * // Signal closes at take profit
+     * await breakeven.clear("BTCUSDT", signal, 101);
+     * // State removed from _states Map
+     * // Persisted to disk without this signal's data
+     * // Memoized instance cleared from getBreakeven cache
      * ```
      */
     clear(symbol: string, data: IPublicSignalRow, priceClose: number, backtest: boolean): Promise<void>;
@@ -1852,6 +1642,384 @@ interface IStrategy {
  * Unique strategy identifier.
  */
 type StrategyName = string;
+
+/**
+ * Unified breakeven event data for report generation.
+ * Contains all information about when signals reached breakeven.
+ */
+interface BreakevenEvent {
+    /** Event timestamp in milliseconds */
+    timestamp: number;
+    /** Trading pair symbol */
+    symbol: string;
+    /** Strategy name */
+    strategyName: StrategyName;
+    /** Signal ID */
+    signalId: string;
+    /** Position type */
+    position: string;
+    /** Current market price when breakeven was reached */
+    currentPrice: number;
+    /** Entry price (breakeven level) */
+    priceOpen: number;
+    /** True if backtest mode, false if live mode */
+    backtest: boolean;
+}
+/**
+ * Statistical data calculated from breakeven events.
+ *
+ * Provides metrics for breakeven milestone tracking.
+ *
+ * @example
+ * ```typescript
+ * const stats = await Breakeven.getData("BTCUSDT", "my-strategy");
+ *
+ * console.log(`Total breakeven events: ${stats.totalEvents}`);
+ * console.log(`Average threshold: ${stats.averageThreshold}%`);
+ * ```
+ */
+interface BreakevenStatisticsModel {
+    /** Array of all breakeven events with full details */
+    eventList: BreakevenEvent[];
+    /** Total number of breakeven events */
+    totalEvents: number;
+}
+
+declare const GLOBAL_CONFIG: {
+    /**
+     * Time to wait for scheduled signal to activate (in minutes)
+     * If signal does not activate within this time, it will be cancelled.
+     */
+    CC_SCHEDULE_AWAIT_MINUTES: number;
+    /**
+     * Number of candles to use for average price calculation (VWAP)
+     * Default: 5 candles (last 5 minutes when using 1m interval)
+     */
+    CC_AVG_PRICE_CANDLES_COUNT: number;
+    /**
+     * Slippage percentage applied to entry and exit prices.
+     * Simulates market impact and order book depth.
+     * Applied twice (entry and exit) for realistic execution simulation.
+     * Default: 0.1% per transaction
+     */
+    CC_PERCENT_SLIPPAGE: number;
+    /**
+     * Fee percentage charged per transaction.
+     * Applied twice (entry and exit) for total fee calculation.
+     * Default: 0.1% per transaction (total 0.2%)
+     */
+    CC_PERCENT_FEE: number;
+    /**
+     * Minimum TakeProfit distance from priceOpen (percentage)
+     * Must be greater than (slippage + fees) to ensure profitable trades
+     *
+     * Calculation:
+     * - Slippage effect: ~0.2% (0.1% × 2 transactions)
+     * - Fees: 0.2% (0.1% × 2 transactions)
+     * - Minimum profit buffer: 0.1%
+     * - Total: 0.5%
+     *
+     * Default: 0.5% (covers all costs + minimum profit margin)
+     */
+    CC_MIN_TAKEPROFIT_DISTANCE_PERCENT: number;
+    /**
+     * Minimum StopLoss distance from priceOpen (percentage)
+     * Prevents signals from being immediately stopped out due to price volatility
+     * Default: 0.5% (buffer to avoid instant stop loss on normal market fluctuations)
+     */
+    CC_MIN_STOPLOSS_DISTANCE_PERCENT: number;
+    /**
+     * Maximum StopLoss distance from priceOpen (percentage)
+     * Prevents catastrophic losses from extreme StopLoss values
+     * Default: 20% (one signal cannot lose more than 20% of position)
+     */
+    CC_MAX_STOPLOSS_DISTANCE_PERCENT: number;
+    /**
+     * Maximum signal lifetime in minutes
+     * Prevents eternal signals that block risk limits for weeks/months
+     * Default: 1440 minutes (1 day)
+     */
+    CC_MAX_SIGNAL_LIFETIME_MINUTES: number;
+    /**
+     * Maximum time allowed for signal generation (in seconds).
+     * Prevents long-running or stuck signal generation routines from blocking
+     * execution or consuming resources indefinitely. If generation exceeds this
+     * threshold the attempt should be aborted, logged and optionally retried.
+     *
+     * Default: 180 seconds (3 minutes)
+     */
+    CC_MAX_SIGNAL_GENERATION_SECONDS: number;
+    /**
+     * Number of retries for getCandles function
+     * Default: 3 retries
+     */
+    CC_GET_CANDLES_RETRY_COUNT: number;
+    /**
+     * Delay between retries for getCandles function (in milliseconds)
+     * Default: 5000 ms (5 seconds)
+     */
+    CC_GET_CANDLES_RETRY_DELAY_MS: number;
+    /**
+     * Maximum allowed deviation factor for price anomaly detection.
+     * Price should not be more than this factor lower than reference price.
+     *
+     * Reasoning:
+     * - Incomplete candles from Binance API typically have prices near 0 (e.g., $0.01-1)
+     * - Normal BTC price ranges: $20,000-100,000
+     * - Factor 1000 catches prices below $20-100 when median is $20,000-100,000
+     * - Factor 100 would be too permissive (allows $200 when median is $20,000)
+     * - Factor 10000 might be too strict for low-cap altcoins
+     *
+     * Example: BTC at $50,000 median → threshold $50 (catches $0.01-1 anomalies)
+     */
+    CC_GET_CANDLES_PRICE_ANOMALY_THRESHOLD_FACTOR: number;
+    /**
+     * Minimum number of candles required for reliable median calculation.
+     * Below this threshold, use simple average instead of median.
+     *
+     * Reasoning:
+     * - Each candle provides 4 price points (OHLC)
+     * - 5 candles = 20 price points, sufficient for robust median calculation
+     * - Below 5 candles, single anomaly can heavily skew median
+     * - Statistical rule of thumb: minimum 7-10 data points for median stability
+     * - Average is more stable than median for small datasets (n < 20)
+     *
+     * Example: 3 candles = 12 points (use average), 5 candles = 20 points (use median)
+     */
+    CC_GET_CANDLES_MIN_CANDLES_FOR_MEDIAN: number;
+    /**
+     * Controls visibility of signal notes in markdown report tables.
+     * When enabled, the "Note" column will be displayed in all markdown reports
+     * (backtest, live, schedule, risk, etc.)
+     *
+     * Default: false (notes are hidden to reduce table width and improve readability)
+     */
+    CC_REPORT_SHOW_SIGNAL_NOTE: boolean;
+    /**
+     * Breakeven threshold percentage - minimum profit distance from entry to enable breakeven.
+     * When price moves this percentage in profit direction, stop-loss can be moved to entry (breakeven).
+     *
+     * Calculation:
+     * - Slippage effect: ~0.2% (0.1% × 2 transactions)
+     * - Fees: 0.2% (0.1% × 2 transactions)
+     * - Total: 0.4%
+     * - Added buffer: 0.2%
+     * - Overall: 0.6%
+     *
+     * Default: 0.2% (additional buffer above costs to ensure no loss when moving to breakeven)
+     */
+    CC_BREAKEVEN_THRESHOLD: number;
+};
+/**
+ * Type for global configuration object.
+ */
+type GlobalConfig = typeof GLOBAL_CONFIG;
+
+/**
+ * Mapping of available table/markdown reports to their column definitions.
+ *
+ * Each property references a column definition object imported from
+ * `src/assets/*.columns`. These are used by markdown/report generators
+ * (backtest, live, schedule, risk, heat, performance, partial, walker).
+ */
+declare const COLUMN_CONFIG: {
+    /** Columns used in backtest markdown tables and reports */
+    backtest_columns: ColumnModel<IStrategyTickResultClosed>[];
+    /** Columns used by heatmap / heat reports */
+    heat_columns: ColumnModel<IHeatmapRow>[];
+    /** Columns for live trading reports and logs */
+    live_columns: ColumnModel<TickEvent>[];
+    /** Columns for partial-results / incremental reports */
+    partial_columns: ColumnModel<PartialEvent>[];
+    /** Columns for breakeven protection events */
+    breakeven_columns: ColumnModel<BreakevenEvent>[];
+    /** Columns for performance summary reports */
+    performance_columns: ColumnModel<MetricStats>[];
+    /** Columns for risk-related reports */
+    risk_columns: ColumnModel<RiskEvent>[];
+    /** Columns for scheduled report output */
+    schedule_columns: ColumnModel<ScheduledEvent>[];
+    /** Walker: PnL summary columns */
+    walker_pnl_columns: ColumnModel<SignalData$1>[];
+    /** Walker: strategy-level summary columns */
+    walker_strategy_columns: ColumnModel<IStrategyResult>[];
+};
+/**
+ * Type for the column configuration object.
+ */
+type ColumnConfig = typeof COLUMN_CONFIG;
+
+/**
+ * Sets custom logger implementation for the framework.
+ *
+ * All log messages from internal services will be forwarded to the provided logger
+ * with automatic context injection (strategyName, exchangeName, symbol, etc.).
+ *
+ * @param logger - Custom logger implementing ILogger interface
+ *
+ * @example
+ * ```typescript
+ * setLogger({
+ *   log: (topic, ...args) => console.log(topic, args),
+ *   debug: (topic, ...args) => console.debug(topic, args),
+ *   info: (topic, ...args) => console.info(topic, args),
+ * });
+ * ```
+ */
+declare function setLogger(logger: ILogger): void;
+/**
+ * Sets global configuration parameters for the framework.
+ * @param config - Partial configuration object to override default settings
+ * @param _unsafe - Skip config validations - required for testbed
+ *
+ * @example
+ * ```typescript
+ * setConfig({
+ *   CC_SCHEDULE_AWAIT_MINUTES: 90,
+ * });
+ * ```
+ */
+declare function setConfig(config: Partial<GlobalConfig>, _unsafe?: boolean): void;
+/**
+ * Retrieves a copy of the current global configuration.
+ *
+ * Returns a shallow copy of the current GLOBAL_CONFIG to prevent accidental mutations.
+ * Use this to inspect the current configuration state without modifying it.
+ *
+ * @returns {GlobalConfig} A copy of the current global configuration object
+ *
+ * @example
+ * ```typescript
+ * const currentConfig = getConfig();
+ * console.log(currentConfig.CC_SCHEDULE_AWAIT_MINUTES);
+ * ```
+ */
+declare function getConfig(): {
+    CC_SCHEDULE_AWAIT_MINUTES: number;
+    CC_AVG_PRICE_CANDLES_COUNT: number;
+    CC_PERCENT_SLIPPAGE: number;
+    CC_PERCENT_FEE: number;
+    CC_MIN_TAKEPROFIT_DISTANCE_PERCENT: number;
+    CC_MIN_STOPLOSS_DISTANCE_PERCENT: number;
+    CC_MAX_STOPLOSS_DISTANCE_PERCENT: number;
+    CC_MAX_SIGNAL_LIFETIME_MINUTES: number;
+    CC_MAX_SIGNAL_GENERATION_SECONDS: number;
+    CC_GET_CANDLES_RETRY_COUNT: number;
+    CC_GET_CANDLES_RETRY_DELAY_MS: number;
+    CC_GET_CANDLES_PRICE_ANOMALY_THRESHOLD_FACTOR: number;
+    CC_GET_CANDLES_MIN_CANDLES_FOR_MEDIAN: number;
+    CC_REPORT_SHOW_SIGNAL_NOTE: boolean;
+    CC_BREAKEVEN_THRESHOLD: number;
+};
+/**
+ * Retrieves the default configuration object for the framework.
+ *
+ * Returns a reference to the default configuration with all preset values.
+ * Use this to see what configuration options are available and their default values.
+ *
+ * @returns {GlobalConfig} The default configuration object
+ *
+ * @example
+ * ```typescript
+ * const defaultConfig = getDefaultConfig();
+ * console.log(defaultConfig.CC_SCHEDULE_AWAIT_MINUTES);
+ * ```
+ */
+declare function getDefaultConfig(): Readonly<{
+    CC_SCHEDULE_AWAIT_MINUTES: number;
+    CC_AVG_PRICE_CANDLES_COUNT: number;
+    CC_PERCENT_SLIPPAGE: number;
+    CC_PERCENT_FEE: number;
+    CC_MIN_TAKEPROFIT_DISTANCE_PERCENT: number;
+    CC_MIN_STOPLOSS_DISTANCE_PERCENT: number;
+    CC_MAX_STOPLOSS_DISTANCE_PERCENT: number;
+    CC_MAX_SIGNAL_LIFETIME_MINUTES: number;
+    CC_MAX_SIGNAL_GENERATION_SECONDS: number;
+    CC_GET_CANDLES_RETRY_COUNT: number;
+    CC_GET_CANDLES_RETRY_DELAY_MS: number;
+    CC_GET_CANDLES_PRICE_ANOMALY_THRESHOLD_FACTOR: number;
+    CC_GET_CANDLES_MIN_CANDLES_FOR_MEDIAN: number;
+    CC_REPORT_SHOW_SIGNAL_NOTE: boolean;
+    CC_BREAKEVEN_THRESHOLD: number;
+}>;
+/**
+ * Sets custom column configurations for markdown report generation.
+ *
+ * Allows overriding default column definitions for any report type.
+ * All columns are validated before assignment to ensure structural correctness.
+ *
+ * @param columns - Partial column configuration object to override default column settings
+ * @param _unsafe - Skip column validations - required for testbed
+ *
+ * @example
+ * ```typescript
+ * setColumns({
+ *   backtest_columns: [
+ *     {
+ *       key: "customId",
+ *       label: "Custom ID",
+ *       format: (data) => data.signal.id,
+ *       isVisible: () => true
+ *     }
+ *   ],
+ * });
+ * ```
+ *
+ * @throws {Error} If column configuration is invalid
+ */
+declare function setColumns(columns: Partial<ColumnConfig>, _unsafe?: boolean): void;
+/**
+ * Retrieves a copy of the current column configuration for markdown report generation.
+ *
+ * Returns a shallow copy of the current COLUMN_CONFIG to prevent accidental mutations.
+ * Use this to inspect the current column definitions without modifying them.
+ *
+ * @returns {ColumnConfig} A copy of the current column configuration object
+ *
+ * @example
+ * ```typescript
+ * const currentColumns = getColumns();
+ * console.log(currentColumns.backtest_columns.length);
+ * ```
+ */
+declare function getColumns(): {
+    backtest_columns: ColumnModel<IStrategyTickResultClosed>[];
+    heat_columns: ColumnModel<IHeatmapRow>[];
+    live_columns: ColumnModel<TickEvent>[];
+    partial_columns: ColumnModel<PartialEvent>[];
+    breakeven_columns: ColumnModel<BreakevenEvent>[];
+    performance_columns: ColumnModel<MetricStats>[];
+    risk_columns: ColumnModel<RiskEvent>[];
+    schedule_columns: ColumnModel<ScheduledEvent>[];
+    walker_pnl_columns: ColumnModel<SignalData$1>[];
+    walker_strategy_columns: ColumnModel<IStrategyResult>[];
+};
+/**
+ * Retrieves the default column configuration object for markdown report generation.
+ *
+ * Returns a reference to the default column definitions with all preset values.
+ * Use this to see what column options are available and their default definitions.
+ *
+ * @returns {ColumnConfig} The default column configuration object
+ *
+ * @example
+ * ```typescript
+ * const defaultColumns = getDefaultColumns();
+ * console.log(defaultColumns.backtest_columns);
+ * ```
+ */
+declare function getDefaultColumns(): Readonly<{
+    backtest_columns: ColumnModel<IStrategyTickResultClosed>[];
+    heat_columns: ColumnModel<IHeatmapRow>[];
+    live_columns: ColumnModel<TickEvent>[];
+    partial_columns: ColumnModel<PartialEvent>[];
+    breakeven_columns: ColumnModel<BreakevenEvent>[];
+    performance_columns: ColumnModel<MetricStats>[];
+    risk_columns: ColumnModel<RiskEvent>[];
+    schedule_columns: ColumnModel<ScheduledEvent>[];
+    walker_pnl_columns: ColumnModel<SignalData$1>[];
+    walker_strategy_columns: ColumnModel<IStrategyResult>[];
+}>;
 
 /**
  * Statistical data calculated from backtest results.
@@ -3592,6 +3760,91 @@ interface PartialLossContract {
 }
 
 /**
+ * Contract for breakeven events.
+ *
+ * Emitted by breakevenSubject when a signal's stop-loss is moved to breakeven (entry price).
+ * Used for tracking risk reduction milestones and monitoring strategy safety.
+ *
+ * Events are emitted only once per signal (idempotent - protected by ClientBreakeven state).
+ * Breakeven is triggered when price moves far enough in profit direction to cover transaction costs.
+ *
+ * Consumers:
+ * - BreakevenMarkdownService: Accumulates events for report generation
+ * - User callbacks via listenBreakeven() / listenBreakevenOnce()
+ *
+ * @example
+ * ```typescript
+ * import { listenBreakeven } from "backtest-kit";
+ *
+ * // Listen to all breakeven events
+ * listenBreakeven((event) => {
+ *   console.log(`[${event.backtest ? "Backtest" : "Live"}] Signal ${event.data.id} moved to breakeven`);
+ *   console.log(`Symbol: ${event.symbol}, Price: ${event.currentPrice}`);
+ *   console.log(`Position: ${event.data.position}, Entry: ${event.data.priceOpen}`);
+ *   console.log(`Original SL: ${event.data.priceStopLoss}, New SL: ${event.data.priceOpen}`);
+ * });
+ *
+ * // Wait for specific signal to reach breakeven
+ * listenBreakevenOnce(
+ *   (event) => event.data.id === "target-signal-id",
+ *   (event) => console.log("Signal reached breakeven:", event.data.id)
+ * );
+ * ```
+ */
+interface BreakevenContract {
+    /**
+     * Trading pair symbol (e.g., "BTCUSDT").
+     * Identifies which market this breakeven event belongs to.
+     */
+    symbol: string;
+    /**
+     * Strategy name that generated this signal.
+     * Identifies which strategy execution this breakeven event belongs to.
+     */
+    strategyName: StrategyName;
+    /**
+     * Exchange name where this signal is being executed.
+     * Identifies which exchange this breakeven event belongs to.
+     */
+    exchangeName: ExchangeName;
+    /**
+     * Frame name where this signal is being executed.
+     * Identifies which frame this breakeven event belongs to (empty string for live mode).
+     */
+    frameName: FrameName;
+    /**
+     * Complete signal row data.
+     * Contains all signal information: id, position, priceOpen, priceTakeProfit, priceStopLoss, etc.
+     */
+    data: ISignalRow;
+    /**
+     * Current market price at which breakeven was triggered.
+     * Used to verify threshold calculation.
+     */
+    currentPrice: number;
+    /**
+     * Execution mode flag.
+     * - true: Event from backtest execution (historical candle data)
+     * - false: Event from live trading (real-time tick)
+     */
+    backtest: boolean;
+    /**
+     * Event timestamp in milliseconds since Unix epoch.
+     *
+     * Timing semantics:
+     * - Live mode: when.getTime() at the moment breakeven was set
+     * - Backtest mode: candle.timestamp of the candle that triggered breakeven
+     *
+     * @example
+     * ```typescript
+     * const eventDate = new Date(event.timestamp);
+     * console.log(`Breakeven set at: ${eventDate.toISOString()}`);
+     * ```
+     */
+    timestamp: number;
+}
+
+/**
  * Contract for risk rejection events.
  *
  * Emitted by riskSubject ONLY when a signal is REJECTED due to risk validation failure.
@@ -4490,6 +4743,64 @@ declare function listenPartialLoss(fn: (event: PartialLossContract) => void): ()
  * ```
  */
 declare function listenPartialLossOnce(filterFn: (event: PartialLossContract) => boolean, fn: (event: PartialLossContract) => void): () => void;
+/**
+ * Subscribes to breakeven protection events with queued async processing.
+ *
+ * Emits when a signal's stop-loss is moved to breakeven (entry price).
+ * This happens when price moves far enough in profit direction to cover transaction costs.
+ * Events are processed sequentially in order received, even if callback is async.
+ * Uses queued wrapper to prevent concurrent execution of the callback.
+ *
+ * @param fn - Callback function to handle breakeven events
+ * @returns Unsubscribe function to stop listening to events
+ *
+ * @example
+ * ```typescript
+ * import { listenBreakeven } from "./function/event";
+ *
+ * const unsubscribe = listenBreakeven((event) => {
+ *   console.log(`Signal ${event.data.id} reached breakeven`);
+ *   console.log(`Symbol: ${event.symbol}, Position: ${event.data.position}`);
+ *   console.log(`Entry: ${event.data.priceOpen}, Current: ${event.currentPrice}`);
+ *   console.log(`Mode: ${event.backtest ? "Backtest" : "Live"}`);
+ * });
+ *
+ * // Later: stop listening
+ * unsubscribe();
+ * ```
+ */
+declare function listenBreakeven(fn: (event: BreakevenContract) => void): () => void;
+/**
+ * Subscribes to filtered breakeven protection events with one-time execution.
+ *
+ * Listens for events matching the filter predicate, then executes callback once
+ * and automatically unsubscribes. Useful for waiting for specific breakeven conditions.
+ *
+ * @param filterFn - Predicate to filter which events trigger the callback
+ * @param fn - Callback function to handle the filtered event (called only once)
+ * @returns Unsubscribe function to cancel the listener before it fires
+ *
+ * @example
+ * ```typescript
+ * import { listenBreakevenOnce } from "./function/event";
+ *
+ * // Wait for first breakeven on any signal
+ * listenBreakevenOnce(
+ *   (event) => true,
+ *   (event) => console.log("First breakeven reached:", event.data.id)
+ * );
+ *
+ * // Wait for breakeven on BTCUSDT LONG position
+ * const cancel = listenBreakevenOnce(
+ *   (event) => event.symbol === "BTCUSDT" && event.data.position === "long",
+ *   (event) => console.log("BTCUSDT LONG reached breakeven at", event.currentPrice)
+ * );
+ *
+ * // Cancel if needed before event fires
+ * cancel();
+ * ```
+ */
+declare function listenBreakevenOnce(filterFn: (event: BreakevenContract) => boolean, fn: (event: BreakevenContract) => void): () => void;
 /**
  * Subscribes to risk rejection events with queued async processing.
  *
@@ -5947,6 +6258,115 @@ declare class PersistPartialUtils {
  * ```
  */
 declare const PersistPartialAdapter: PersistPartialUtils;
+/**
+ * Type for persisted breakeven data.
+ * Stores breakeven state (reached flag) for each signal ID.
+ */
+type BreakevenData = Record<string, IBreakevenData>;
+/**
+ * Persistence utility class for breakeven state management.
+ *
+ * Handles reading and writing breakeven state to disk.
+ * Uses memoized PersistBase instances per symbol-strategy pair.
+ *
+ * Features:
+ * - Atomic file writes via PersistBase.writeValue()
+ * - Lazy initialization on first access
+ * - Singleton pattern for global access
+ * - Custom adapter support via usePersistBreakevenAdapter()
+ *
+ * File structure:
+ * ```
+ * ./dump/data/breakeven/
+ * ├── BTCUSDT_my-strategy/
+ * │   └── state.json        // { "signal-id-1": { reached: true }, ... }
+ * └── ETHUSDT_other-strategy/
+ *     └── state.json
+ * ```
+ *
+ * @example
+ * ```typescript
+ * // Read breakeven data
+ * const breakevenData = await PersistBreakevenAdapter.readBreakevenData("BTCUSDT", "my-strategy");
+ * // Returns: { "signal-id": { reached: true }, ... }
+ *
+ * // Write breakeven data
+ * await PersistBreakevenAdapter.writeBreakevenData(breakevenData, "BTCUSDT", "my-strategy");
+ * ```
+ */
+declare class PersistBreakevenUtils {
+    /**
+     * Factory for creating PersistBase instances.
+     * Can be replaced via usePersistBreakevenAdapter().
+     */
+    private PersistBreakevenFactory;
+    /**
+     * Memoized storage factory for breakeven data.
+     * Creates one PersistBase instance per symbol-strategy pair.
+     * Key format: "symbol:strategyName"
+     *
+     * @param symbol - Trading pair symbol
+     * @param strategyName - Strategy identifier
+     * @returns PersistBase instance for this symbol-strategy pair
+     */
+    private getBreakevenStorage;
+    /**
+     * Registers a custom persistence adapter.
+     *
+     * @param Ctor - Custom PersistBase constructor
+     *
+     * @example
+     * ```typescript
+     * class RedisPersist extends PersistBase {
+     *   async readValue(id) { return JSON.parse(await redis.get(id)); }
+     *   async writeValue(id, entity) { await redis.set(id, JSON.stringify(entity)); }
+     * }
+     * PersistBreakevenAdapter.usePersistBreakevenAdapter(RedisPersist);
+     * ```
+     */
+    usePersistBreakevenAdapter(Ctor: TPersistBaseCtor<string, BreakevenData>): void;
+    /**
+     * Reads persisted breakeven data for a symbol and strategy.
+     *
+     * Called by ClientBreakeven.waitForInit() to restore state.
+     * Returns empty object if no breakeven data exists.
+     *
+     * @param symbol - Trading pair symbol
+     * @param strategyName - Strategy identifier
+     * @returns Promise resolving to breakeven data record
+     */
+    readBreakevenData: (symbol: string, strategyName: StrategyName) => Promise<BreakevenData>;
+    /**
+     * Writes breakeven data to disk.
+     *
+     * Called by ClientBreakeven._persistState() after state changes.
+     * Creates directory and file if they don't exist.
+     * Uses atomic writes to prevent data corruption.
+     *
+     * @param breakevenData - Breakeven data record to persist
+     * @param symbol - Trading pair symbol
+     * @param strategyName - Strategy identifier
+     * @returns Promise that resolves when write is complete
+     */
+    writeBreakevenData: (breakevenData: BreakevenData, symbol: string, strategyName: StrategyName) => Promise<void>;
+}
+/**
+ * Global singleton instance of PersistBreakevenUtils.
+ * Used by ClientBreakeven for breakeven state persistence.
+ *
+ * @example
+ * ```typescript
+ * // Custom adapter
+ * PersistBreakevenAdapter.usePersistBreakevenAdapter(RedisPersist);
+ *
+ * // Read breakeven data
+ * const breakevenData = await PersistBreakevenAdapter.readBreakevenData("BTCUSDT", "my-strategy");
+ *
+ * // Write breakeven data
+ * await PersistBreakevenAdapter.writeBreakevenData(breakevenData, "BTCUSDT", "my-strategy");
+ * ```
+ */
+declare const PersistBreakevenAdapter: PersistBreakevenUtils;
 
 /**
  * Type alias for column configuration used in backtest markdown reports.
@@ -5979,7 +6399,7 @@ declare const PersistPartialAdapter: PersistPartialUtils;
  * @see ColumnModel for the base interface
  * @see IStrategyTickResultClosed for the signal data structure
  */
-type Columns$6 = ColumnModel<IStrategyTickResultClosed>;
+type Columns$7 = ColumnModel<IStrategyTickResultClosed>;
 /**
  * Service for generating and saving backtest markdown reports.
  *
@@ -6073,7 +6493,7 @@ declare class BacktestMarkdownService {
      * console.log(markdown);
      * ```
      */
-    getReport: (symbol: string, strategyName: StrategyName, exchangeName: ExchangeName, frameName: FrameName, backtest: boolean, columns?: Columns$6[]) => Promise<string>;
+    getReport: (symbol: string, strategyName: StrategyName, exchangeName: ExchangeName, frameName: FrameName, backtest: boolean, columns?: Columns$7[]) => Promise<string>;
     /**
      * Saves symbol-strategy report to disk.
      * Creates directory if it doesn't exist.
@@ -6098,7 +6518,7 @@ declare class BacktestMarkdownService {
      * await service.dump("BTCUSDT", "my-strategy", "binance", "1h", true, "./custom/path");
      * ```
      */
-    dump: (symbol: string, strategyName: StrategyName, exchangeName: ExchangeName, frameName: FrameName, backtest: boolean, path?: string, columns?: Columns$6[]) => Promise<void>;
+    dump: (symbol: string, strategyName: StrategyName, exchangeName: ExchangeName, frameName: FrameName, backtest: boolean, path?: string, columns?: Columns$7[]) => Promise<void>;
     /**
      * Clears accumulated signal data from storage.
      * If payload is provided, clears only that specific symbol-strategy-exchange-frame-backtest combination's data.
@@ -6464,7 +6884,7 @@ declare class BacktestUtils {
         strategyName: StrategyName;
         exchangeName: ExchangeName;
         frameName: FrameName;
-    }, columns?: Columns$6[]) => Promise<string>;
+    }, columns?: Columns$7[]) => Promise<string>;
     /**
      * Saves strategy report to disk.
      *
@@ -6495,7 +6915,7 @@ declare class BacktestUtils {
         strategyName: StrategyName;
         exchangeName: ExchangeName;
         frameName: FrameName;
-    }, path?: string, columns?: Columns$6[]) => Promise<void>;
+    }, path?: string, columns?: Columns$7[]) => Promise<void>;
     /**
      * Lists all active backtest instances with their current status.
      *
@@ -6569,7 +6989,7 @@ declare const Backtest: BacktestUtils;
  * @see ColumnModel for the base interface
  * @see TickEvent for the event data structure
  */
-type Columns$5 = ColumnModel<TickEvent>;
+type Columns$6 = ColumnModel<TickEvent>;
 /**
  * Service for generating and saving live trading markdown reports.
  *
@@ -6668,7 +7088,7 @@ declare class LiveMarkdownService {
      * console.log(markdown);
      * ```
      */
-    getReport: (symbol: string, strategyName: StrategyName, exchangeName: ExchangeName, frameName: FrameName, backtest: boolean, columns?: Columns$5[]) => Promise<string>;
+    getReport: (symbol: string, strategyName: StrategyName, exchangeName: ExchangeName, frameName: FrameName, backtest: boolean, columns?: Columns$6[]) => Promise<string>;
     /**
      * Saves symbol-strategy report to disk.
      * Creates directory if it doesn't exist.
@@ -6693,7 +7113,7 @@ declare class LiveMarkdownService {
      * await service.dump("BTCUSDT", "my-strategy", "binance", "1h", false, "./custom/path");
      * ```
      */
-    dump: (symbol: string, strategyName: StrategyName, exchangeName: ExchangeName, frameName: FrameName, backtest: boolean, path?: string, columns?: Columns$5[]) => Promise<void>;
+    dump: (symbol: string, strategyName: StrategyName, exchangeName: ExchangeName, frameName: FrameName, backtest: boolean, path?: string, columns?: Columns$6[]) => Promise<void>;
     /**
      * Clears accumulated event data from storage.
      * If payload is provided, clears only that specific symbol-strategy-exchange-frame-backtest combination's data.
@@ -7052,7 +7472,7 @@ declare class LiveUtils {
     getReport: (symbol: string, context: {
         strategyName: StrategyName;
         exchangeName: ExchangeName;
-    }, columns?: Columns$5[]) => Promise<string>;
+    }, columns?: Columns$6[]) => Promise<string>;
     /**
      * Saves strategy report to disk.
      *
@@ -7082,7 +7502,7 @@ declare class LiveUtils {
     dump: (symbol: string, context: {
         strategyName: StrategyName;
         exchangeName: ExchangeName;
-    }, path?: string, columns?: Columns$5[]) => Promise<void>;
+    }, path?: string, columns?: Columns$6[]) => Promise<void>;
     /**
      * Lists all active live trading instances with their current status.
      *
@@ -7152,7 +7572,7 @@ declare const Live: LiveUtils;
  * @see ColumnModel for the base interface
  * @see ScheduledEvent for the event data structure
  */
-type Columns$4 = ColumnModel<ScheduledEvent>;
+type Columns$5 = ColumnModel<ScheduledEvent>;
 /**
  * Service for generating and saving scheduled signals markdown reports.
  *
@@ -7235,7 +7655,7 @@ declare class ScheduleMarkdownService {
      * console.log(markdown);
      * ```
      */
-    getReport: (symbol: string, strategyName: StrategyName, exchangeName: ExchangeName, frameName: FrameName, backtest: boolean, columns?: Columns$4[]) => Promise<string>;
+    getReport: (symbol: string, strategyName: StrategyName, exchangeName: ExchangeName, frameName: FrameName, backtest: boolean, columns?: Columns$5[]) => Promise<string>;
     /**
      * Saves symbol-strategy report to disk.
      * Creates directory if it doesn't exist.
@@ -7260,7 +7680,7 @@ declare class ScheduleMarkdownService {
      * await service.dump("BTCUSDT", "my-strategy", "binance", "1h", false, "./custom/path");
      * ```
      */
-    dump: (symbol: string, strategyName: StrategyName, exchangeName: ExchangeName, frameName: FrameName, backtest: boolean, path?: string, columns?: Columns$4[]) => Promise<void>;
+    dump: (symbol: string, strategyName: StrategyName, exchangeName: ExchangeName, frameName: FrameName, backtest: boolean, path?: string, columns?: Columns$5[]) => Promise<void>;
     /**
      * Clears accumulated event data from storage.
      * If payload is provided, clears only that specific symbol-strategy-exchange-frame-backtest combination's data.
@@ -7367,7 +7787,7 @@ declare class ScheduleUtils {
         strategyName: StrategyName;
         exchangeName: ExchangeName;
         frameName: FrameName;
-    }, backtest?: boolean, columns?: Columns$4[]) => Promise<string>;
+    }, backtest?: boolean, columns?: Columns$5[]) => Promise<string>;
     /**
      * Saves strategy report to disk.
      *
@@ -7389,7 +7809,7 @@ declare class ScheduleUtils {
         strategyName: StrategyName;
         exchangeName: ExchangeName;
         frameName: FrameName;
-    }, backtest?: boolean, path?: string, columns?: Columns$4[]) => Promise<void>;
+    }, backtest?: boolean, path?: string, columns?: Columns$5[]) => Promise<void>;
 }
 /**
  * Singleton instance of ScheduleUtils for convenient scheduled signals reporting.
@@ -7435,7 +7855,7 @@ declare const Schedule: ScheduleUtils;
  * @see ColumnModel for the base interface
  * @see MetricStats for the metric data structure
  */
-type Columns$3 = ColumnModel<MetricStats>;
+type Columns$4 = ColumnModel<MetricStats>;
 /**
  * Service for collecting and analyzing performance metrics.
  *
@@ -7514,7 +7934,7 @@ declare class PerformanceMarkdownService {
      * console.log(markdown);
      * ```
      */
-    getReport: (symbol: string, strategyName: StrategyName, exchangeName: ExchangeName, frameName: FrameName, backtest: boolean, columns?: Columns$3[]) => Promise<string>;
+    getReport: (symbol: string, strategyName: StrategyName, exchangeName: ExchangeName, frameName: FrameName, backtest: boolean, columns?: Columns$4[]) => Promise<string>;
     /**
      * Saves performance report to disk.
      *
@@ -7535,7 +7955,7 @@ declare class PerformanceMarkdownService {
      * await performanceService.dump("BTCUSDT", "my-strategy", "binance", "1h", false, "./custom/path");
      * ```
      */
-    dump: (symbol: string, strategyName: StrategyName, exchangeName: ExchangeName, frameName: FrameName, backtest: boolean, path?: string, columns?: Columns$3[]) => Promise<void>;
+    dump: (symbol: string, strategyName: StrategyName, exchangeName: ExchangeName, frameName: FrameName, backtest: boolean, path?: string, columns?: Columns$4[]) => Promise<void>;
     /**
      * Clears accumulated performance data from storage.
      *
@@ -7653,7 +8073,7 @@ declare class Performance {
         strategyName: StrategyName;
         exchangeName: ExchangeName;
         frameName: FrameName;
-    }, backtest?: boolean, columns?: Columns$3[]): Promise<string>;
+    }, backtest?: boolean, columns?: Columns$4[]): Promise<string>;
     /**
      * Saves performance report to disk.
      *
@@ -7678,7 +8098,7 @@ declare class Performance {
         strategyName: StrategyName;
         exchangeName: ExchangeName;
         frameName: FrameName;
-    }, backtest?: boolean, path?: string, columns?: Columns$3[]): Promise<void>;
+    }, backtest?: boolean, path?: string, columns?: Columns$4[]): Promise<void>;
 }
 
 /**
@@ -8098,7 +8518,7 @@ declare const Walker: WalkerUtils;
  * @see ColumnModel for the base interface
  * @see IHeatmapRow for the row data structure
  */
-type Columns$2 = ColumnModel<IHeatmapRow>;
+type Columns$3 = ColumnModel<IHeatmapRow>;
 /**
  * Portfolio Heatmap Markdown Service.
  *
@@ -8191,7 +8611,7 @@ declare class HeatMarkdownService {
      * // ...
      * ```
      */
-    getReport: (strategyName: StrategyName, exchangeName: ExchangeName, frameName: FrameName, backtest: boolean, columns?: Columns$2[]) => Promise<string>;
+    getReport: (strategyName: StrategyName, exchangeName: ExchangeName, frameName: FrameName, backtest: boolean, columns?: Columns$3[]) => Promise<string>;
     /**
      * Saves heatmap report to disk.
      *
@@ -8216,7 +8636,7 @@ declare class HeatMarkdownService {
      * await service.dump("my-strategy", "binance", "frame1", true, "./reports");
      * ```
      */
-    dump: (strategyName: StrategyName, exchangeName: ExchangeName, frameName: FrameName, backtest: boolean, path?: string, columns?: Columns$2[]) => Promise<void>;
+    dump: (strategyName: StrategyName, exchangeName: ExchangeName, frameName: FrameName, backtest: boolean, path?: string, columns?: Columns$3[]) => Promise<void>;
     /**
      * Clears accumulated heatmap data from storage.
      * If payload is provided, clears only that exchangeName+frameName+backtest combination's data.
@@ -8363,7 +8783,7 @@ declare class HeatUtils {
         strategyName: StrategyName;
         exchangeName: ExchangeName;
         frameName: FrameName;
-    }, backtest?: boolean, columns?: Columns$2[]) => Promise<string>;
+    }, backtest?: boolean, columns?: Columns$3[]) => Promise<string>;
     /**
      * Saves heatmap report to disk for a strategy.
      *
@@ -8396,7 +8816,7 @@ declare class HeatUtils {
         strategyName: StrategyName;
         exchangeName: ExchangeName;
         frameName: FrameName;
-    }, backtest?: boolean, path?: string, columns?: Columns$2[]) => Promise<void>;
+    }, backtest?: boolean, path?: string, columns?: Columns$3[]) => Promise<void>;
 }
 /**
  * Singleton instance of HeatUtils for convenient heatmap operations.
@@ -8627,7 +9047,7 @@ declare const Optimizer: OptimizerUtils;
  * @see ColumnModel for the base interface
  * @see PartialEvent for the event data structure
  */
-type Columns$1 = ColumnModel<PartialEvent>;
+type Columns$2 = ColumnModel<PartialEvent>;
 /**
  * Service for generating and saving partial profit/loss markdown reports.
  *
@@ -8721,7 +9141,7 @@ declare class PartialMarkdownService {
      * console.log(markdown);
      * ```
      */
-    getReport: (symbol: string, strategyName: StrategyName, exchangeName: ExchangeName, frameName: FrameName, backtest: boolean, columns?: Columns$1[]) => Promise<string>;
+    getReport: (symbol: string, strategyName: StrategyName, exchangeName: ExchangeName, frameName: FrameName, backtest: boolean, columns?: Columns$2[]) => Promise<string>;
     /**
      * Saves symbol-strategy report to disk.
      * Creates directory if it doesn't exist.
@@ -8746,7 +9166,7 @@ declare class PartialMarkdownService {
      * await service.dump("BTCUSDT", "my-strategy", "binance", "1h", false, "./custom/path");
      * ```
      */
-    dump: (symbol: string, strategyName: StrategyName, exchangeName: ExchangeName, frameName: FrameName, backtest: boolean, path?: string, columns?: Columns$1[]) => Promise<void>;
+    dump: (symbol: string, strategyName: StrategyName, exchangeName: ExchangeName, frameName: FrameName, backtest: boolean, path?: string, columns?: Columns$2[]) => Promise<void>;
     /**
      * Clears accumulated event data from storage.
      * If payload is provided, clears only that specific symbol-strategy-exchange-frame-backtest combination's data.
@@ -8899,7 +9319,7 @@ declare class PartialUtils {
         strategyName: StrategyName;
         exchangeName: ExchangeName;
         frameName: FrameName;
-    }, backtest?: boolean, columns?: Columns$1[]) => Promise<string>;
+    }, backtest?: boolean, columns?: Columns$2[]) => Promise<string>;
     /**
      * Generates and saves markdown report to file.
      *
@@ -8936,7 +9356,7 @@ declare class PartialUtils {
         strategyName: StrategyName;
         exchangeName: ExchangeName;
         frameName: FrameName;
-    }, backtest?: boolean, path?: string, columns?: Columns$1[]) => Promise<void>;
+    }, backtest?: boolean, path?: string, columns?: Columns$2[]) => Promise<void>;
 }
 /**
  * Global singleton instance of PartialUtils.
@@ -9064,7 +9484,7 @@ declare const Constant: ConstantUtils;
  * @see ColumnModel for the base interface
  * @see RiskEvent for the event data structure
  */
-type Columns = ColumnModel<RiskEvent>;
+type Columns$1 = ColumnModel<RiskEvent>;
 /**
  * Service for generating and saving risk rejection markdown reports.
  *
@@ -9145,7 +9565,7 @@ declare class RiskMarkdownService {
      * console.log(markdown);
      * ```
      */
-    getReport: (symbol: string, strategyName: StrategyName, exchangeName: ExchangeName, frameName: FrameName, backtest: boolean, columns?: Columns[]) => Promise<string>;
+    getReport: (symbol: string, strategyName: StrategyName, exchangeName: ExchangeName, frameName: FrameName, backtest: boolean, columns?: Columns$1[]) => Promise<string>;
     /**
      * Saves symbol-strategy report to disk.
      * Creates directory if it doesn't exist.
@@ -9170,7 +9590,7 @@ declare class RiskMarkdownService {
      * await service.dump("BTCUSDT", "my-strategy", "binance", "1h", false, "./custom/path");
      * ```
      */
-    dump: (symbol: string, strategyName: StrategyName, exchangeName: ExchangeName, frameName: FrameName, backtest: boolean, path?: string, columns?: Columns[]) => Promise<void>;
+    dump: (symbol: string, strategyName: StrategyName, exchangeName: ExchangeName, frameName: FrameName, backtest: boolean, path?: string, columns?: Columns$1[]) => Promise<void>;
     /**
      * Clears accumulated event data from storage.
      * If payload is provided, clears only that specific symbol-strategy-exchange-frame-backtest combination's data.
@@ -9325,7 +9745,7 @@ declare class RiskUtils {
         strategyName: StrategyName;
         exchangeName: ExchangeName;
         frameName: FrameName;
-    }, backtest?: boolean, columns?: Columns[]) => Promise<string>;
+    }, backtest?: boolean, columns?: Columns$1[]) => Promise<string>;
     /**
      * Generates and saves markdown report to file.
      *
@@ -9362,7 +9782,7 @@ declare class RiskUtils {
         strategyName: StrategyName;
         exchangeName: ExchangeName;
         frameName: FrameName;
-    }, backtest?: boolean, path?: string, columns?: Columns[]) => Promise<void>;
+    }, backtest?: boolean, path?: string, columns?: Columns$1[]) => Promise<void>;
 }
 /**
  * Global singleton instance of RiskUtils.
@@ -9707,6 +10127,343 @@ declare class NotificationUtils {
 declare const Notification: NotificationUtils;
 
 /**
+ * Type alias for column configuration used in breakeven markdown reports.
+ *
+ * Represents a column model specifically designed to format and display
+ * breakeven events in markdown tables.
+ *
+ * @typeParam BreakevenEvent - The breakeven event data type containing
+ *   signal information, symbol, and timing details
+ *
+ * @example
+ * ```typescript
+ * // Column to display symbol
+ * const symbolColumn: Columns = {
+ *   key: "symbol",
+ *   label: "Symbol",
+ *   format: (event) => event.symbol,
+ *   isVisible: () => true
+ * };
+ *
+ * // Column to display price when breakeven was reached
+ * const priceColumn: Columns = {
+ *   key: "currentPrice",
+ *   label: "Price",
+ *   format: (event) => event.currentPrice.toString(),
+ *   isVisible: () => true
+ * };
+ * ```
+ *
+ * @see ColumnModel for the base interface
+ * @see BreakevenEvent for the event data structure
+ */
+type Columns = ColumnModel<BreakevenEvent>;
+/**
+ * Service for generating and saving breakeven markdown reports.
+ *
+ * Features:
+ * - Listens to breakeven events via breakevenSubject
+ * - Accumulates all events per symbol-strategy pair
+ * - Generates markdown tables with detailed event information
+ * - Provides statistics (total breakeven events)
+ * - Saves reports to disk in dump/breakeven/{symbol}_{strategyName}.md
+ *
+ * @example
+ * ```typescript
+ * const service = new BreakevenMarkdownService();
+ *
+ * // Service automatically subscribes to subjects on init
+ * // No manual callback setup needed
+ *
+ * // Later: generate and save report
+ * await service.dump("BTCUSDT", "my-strategy");
+ * ```
+ */
+declare class BreakevenMarkdownService {
+    /** Logger service for debug output */
+    private readonly loggerService;
+    /**
+     * Memoized function to get or create ReportStorage for a symbol-strategy-exchange-frame-backtest combination.
+     * Each combination gets its own isolated storage instance.
+     */
+    private getStorage;
+    /**
+     * Processes breakeven events and accumulates them.
+     * Should be called from breakevenSubject subscription.
+     *
+     * @param data - Breakeven event data with frameName wrapper
+     *
+     * @example
+     * ```typescript
+     * const service = new BreakevenMarkdownService();
+     * // Service automatically subscribes in init()
+     * ```
+     */
+    private tickBreakeven;
+    /**
+     * Gets statistical data from all breakeven events for a symbol-strategy pair.
+     * Delegates to ReportStorage.getData().
+     *
+     * @param symbol - Trading pair symbol to get data for
+     * @param strategyName - Strategy name to get data for
+     * @param exchangeName - Exchange name
+     * @param frameName - Frame name
+     * @param backtest - True if backtest mode, false if live mode
+     * @returns Statistical data object with all metrics
+     *
+     * @example
+     * ```typescript
+     * const service = new BreakevenMarkdownService();
+     * const stats = await service.getData("BTCUSDT", "my-strategy", "binance", "1h", false);
+     * console.log(stats.totalEvents);
+     * ```
+     */
+    getData: (symbol: string, strategyName: StrategyName, exchangeName: ExchangeName, frameName: FrameName, backtest: boolean) => Promise<BreakevenStatisticsModel>;
+    /**
+     * Generates markdown report with all breakeven events for a symbol-strategy pair.
+     * Delegates to ReportStorage.getReport().
+     *
+     * @param symbol - Trading pair symbol to generate report for
+     * @param strategyName - Strategy name to generate report for
+     * @param exchangeName - Exchange name
+     * @param frameName - Frame name
+     * @param backtest - True if backtest mode, false if live mode
+     * @param columns - Column configuration for formatting the table
+     * @returns Markdown formatted report string with table of all events
+     *
+     * @example
+     * ```typescript
+     * const service = new BreakevenMarkdownService();
+     * const markdown = await service.getReport("BTCUSDT", "my-strategy", "binance", "1h", false);
+     * console.log(markdown);
+     * ```
+     */
+    getReport: (symbol: string, strategyName: StrategyName, exchangeName: ExchangeName, frameName: FrameName, backtest: boolean, columns?: Columns[]) => Promise<string>;
+    /**
+     * Saves symbol-strategy report to disk.
+     * Creates directory if it doesn't exist.
+     * Delegates to ReportStorage.dump().
+     *
+     * @param symbol - Trading pair symbol to save report for
+     * @param strategyName - Strategy name to save report for
+     * @param exchangeName - Exchange name
+     * @param frameName - Frame name
+     * @param backtest - True if backtest mode, false if live mode
+     * @param path - Directory path to save report (default: "./dump/breakeven")
+     * @param columns - Column configuration for formatting the table
+     *
+     * @example
+     * ```typescript
+     * const service = new BreakevenMarkdownService();
+     *
+     * // Save to default path: ./dump/breakeven/BTCUSDT_my-strategy.md
+     * await service.dump("BTCUSDT", "my-strategy", "binance", "1h", false);
+     *
+     * // Save to custom path: ./custom/path/BTCUSDT_my-strategy.md
+     * await service.dump("BTCUSDT", "my-strategy", "binance", "1h", false, "./custom/path");
+     * ```
+     */
+    dump: (symbol: string, strategyName: StrategyName, exchangeName: ExchangeName, frameName: FrameName, backtest: boolean, path?: string, columns?: Columns[]) => Promise<void>;
+    /**
+     * Clears accumulated event data from storage.
+     * If payload is provided, clears only that specific symbol-strategy-exchange-frame-backtest combination's data.
+     * If nothing is provided, clears all data.
+     *
+     * @param payload - Optional payload with symbol, strategyName, exchangeName, frameName, backtest
+     *
+     * @example
+     * ```typescript
+     * const service = new BreakevenMarkdownService();
+     *
+     * // Clear specific combination
+     * await service.clear({ symbol: "BTCUSDT", strategyName: "my-strategy", exchangeName: "binance", frameName: "1h", backtest: false });
+     *
+     * // Clear all data
+     * await service.clear();
+     * ```
+     */
+    clear: (payload?: {
+        symbol: string;
+        strategyName: StrategyName;
+        exchangeName: ExchangeName;
+        frameName: FrameName;
+        backtest: boolean;
+    }) => Promise<void>;
+    /**
+     * Initializes the service by subscribing to breakeven events.
+     * Uses singleshot to ensure initialization happens only once.
+     * Automatically called on first use.
+     *
+     * @example
+     * ```typescript
+     * const service = new BreakevenMarkdownService();
+     * await service.init(); // Subscribe to breakeven events
+     * ```
+     */
+    protected init: (() => Promise<void>) & functools_kit.ISingleshotClearable;
+    /**
+     * Function to unsubscribe from breakeven events.
+     * Assigned during init().
+     */
+    unsubscribe: Function;
+}
+
+/**
+ * Utility class for accessing breakeven protection reports and statistics.
+ *
+ * Provides static-like methods (via singleton instance) to retrieve data
+ * accumulated by BreakevenMarkdownService from breakeven events.
+ *
+ * Features:
+ * - Statistical data extraction (total breakeven events count)
+ * - Markdown report generation with event tables
+ * - File export to disk
+ *
+ * Data source:
+ * - BreakevenMarkdownService listens to breakevenSubject
+ * - Accumulates events in ReportStorage (max 250 events per symbol-strategy pair)
+ * - Events include: timestamp, symbol, strategyName, signalId, position, priceOpen, currentPrice, mode
+ *
+ * @example
+ * ```typescript
+ * import { Breakeven } from "./classes/Breakeven";
+ *
+ * // Get statistical data for BTCUSDT:my-strategy
+ * const stats = await Breakeven.getData("BTCUSDT", "my-strategy");
+ * console.log(`Total breakeven events: ${stats.totalEvents}`);
+ *
+ * // Generate markdown report
+ * const markdown = await Breakeven.getReport("BTCUSDT", "my-strategy");
+ * console.log(markdown); // Formatted table with all events
+ *
+ * // Export report to file
+ * await Breakeven.dump("BTCUSDT", "my-strategy"); // Saves to ./dump/breakeven/BTCUSDT_my-strategy.md
+ * await Breakeven.dump("BTCUSDT", "my-strategy", "./custom/path"); // Custom directory
+ * ```
+ */
+declare class BreakevenUtils {
+    /**
+     * Retrieves statistical data from accumulated breakeven events.
+     *
+     * Delegates to BreakevenMarkdownService.getData() which reads from ReportStorage.
+     * Returns aggregated metrics calculated from all breakeven events.
+     *
+     * @param symbol - Trading pair symbol (e.g., "BTCUSDT")
+     * @param strategyName - Strategy name (e.g., "my-strategy")
+     * @returns Promise resolving to BreakevenStatisticsModel object with counts and event list
+     *
+     * @example
+     * ```typescript
+     * const stats = await Breakeven.getData("BTCUSDT", "my-strategy");
+     *
+     * console.log(`Total breakeven events: ${stats.totalEvents}`);
+     *
+     * // Iterate through all events
+     * for (const event of stats.eventList) {
+     *   console.log(`Signal ${event.signalId} reached breakeven at ${event.currentPrice}`);
+     * }
+     * ```
+     */
+    getData: (symbol: string, context: {
+        strategyName: StrategyName;
+        exchangeName: ExchangeName;
+        frameName: FrameName;
+    }, backtest?: boolean) => Promise<BreakevenStatisticsModel>;
+    /**
+     * Generates markdown report with all breakeven events for a symbol-strategy pair.
+     *
+     * Creates formatted table containing:
+     * - Symbol
+     * - Strategy
+     * - Signal ID
+     * - Position (LONG/SHORT)
+     * - Entry Price
+     * - Breakeven Price
+     * - Timestamp (ISO 8601)
+     * - Mode (Backtest/Live)
+     *
+     * Also includes summary statistics at the end.
+     *
+     * @param symbol - Trading pair symbol (e.g., "BTCUSDT")
+     * @param strategyName - Strategy name (e.g., "my-strategy")
+     * @param columns - Optional columns configuration for the report
+     * @returns Promise resolving to markdown formatted report string
+     *
+     * @example
+     * ```typescript
+     * const markdown = await Breakeven.getReport("BTCUSDT", "my-strategy");
+     * console.log(markdown);
+     *
+     * // Output:
+     * // # Breakeven Protection Report: BTCUSDT:my-strategy
+     * //
+     * // | Symbol | Strategy | Signal ID | Position | Entry Price | Breakeven Price | Timestamp | Mode |
+     * // | --- | --- | --- | --- | --- | --- | --- | --- |
+     * // | BTCUSDT | my-strategy | abc123 | LONG | 50000.00000000 USD | 50100.00000000 USD | 2024-01-15T10:30:00.000Z | Backtest |
+     * //
+     * // **Total events:** 1
+     * ```
+     */
+    getReport: (symbol: string, context: {
+        strategyName: StrategyName;
+        exchangeName: ExchangeName;
+        frameName: FrameName;
+    }, backtest?: boolean, columns?: Columns[]) => Promise<string>;
+    /**
+     * Generates and saves markdown report to file.
+     *
+     * Creates directory if it doesn't exist.
+     * Filename format: {symbol}_{strategyName}.md (e.g., "BTCUSDT_my-strategy.md")
+     *
+     * Delegates to BreakevenMarkdownService.dump() which:
+     * 1. Generates markdown report via getReport()
+     * 2. Creates output directory (recursive mkdir)
+     * 3. Writes file with UTF-8 encoding
+     * 4. Logs success/failure to console
+     *
+     * @param symbol - Trading pair symbol (e.g., "BTCUSDT")
+     * @param strategyName - Strategy name (e.g., "my-strategy")
+     * @param path - Output directory path (default: "./dump/breakeven")
+     * @param columns - Optional columns configuration for the report
+     * @returns Promise that resolves when file is written
+     *
+     * @example
+     * ```typescript
+     * // Save to default path: ./dump/breakeven/BTCUSDT_my-strategy.md
+     * await Breakeven.dump("BTCUSDT", "my-strategy");
+     *
+     * // Save to custom path: ./reports/breakeven/BTCUSDT_my-strategy.md
+     * await Breakeven.dump("BTCUSDT", "my-strategy", "./reports/breakeven");
+     *
+     * // After multiple symbols backtested, export all reports
+     * for (const symbol of ["BTCUSDT", "ETHUSDT", "BNBUSDT"]) {
+     *   await Breakeven.dump(symbol, "my-strategy", "./backtest-results");
+     * }
+     * ```
+     */
+    dump: (symbol: string, context: {
+        strategyName: StrategyName;
+        exchangeName: ExchangeName;
+        frameName: FrameName;
+    }, backtest?: boolean, path?: string, columns?: Columns[]) => Promise<void>;
+}
+/**
+ * Global singleton instance of BreakevenUtils.
+ * Provides static-like access to breakeven protection reporting methods.
+ *
+ * @example
+ * ```typescript
+ * import { Breakeven } from "backtest-kit";
+ *
+ * // Usage same as BreakevenUtils methods
+ * const stats = await Breakeven.getData("BTCUSDT", "my-strategy");
+ * const report = await Breakeven.getReport("BTCUSDT", "my-strategy");
+ * await Breakeven.dump("BTCUSDT", "my-strategy");
+ * ```
+ */
+declare const Breakeven: BreakevenUtils;
+
+/**
  * Contract for walker stop signal events.
  *
  * Emitted when Walker.stop() is called to interrupt a running walker.
@@ -9830,6 +10587,11 @@ declare const partialProfitSubject: Subject<PartialProfitContract>;
  */
 declare const partialLossSubject: Subject<PartialLossContract>;
 /**
+ * Breakeven emitter for stop-loss protection milestones.
+ * Emits when a signal's stop-loss is moved to breakeven (entry price).
+ */
+declare const breakevenSubject: Subject<BreakevenContract>;
+/**
  * Risk rejection emitter for risk management violations.
  * Emits ONLY when a signal is rejected due to risk validation failure.
  * Does not emit for allowed signals (prevents spam).
@@ -9842,6 +10604,7 @@ declare const riskSubject: Subject<RiskContract>;
  */
 declare const pingSubject: Subject<PingContract>;
 
+declare const emitters_breakevenSubject: typeof breakevenSubject;
 declare const emitters_doneBacktestSubject: typeof doneBacktestSubject;
 declare const emitters_doneLiveSubject: typeof doneLiveSubject;
 declare const emitters_doneWalkerSubject: typeof doneWalkerSubject;
@@ -9863,7 +10626,7 @@ declare const emitters_walkerCompleteSubject: typeof walkerCompleteSubject;
 declare const emitters_walkerEmitter: typeof walkerEmitter;
 declare const emitters_walkerStopSubject: typeof walkerStopSubject;
 declare namespace emitters {
-  export { emitters_doneBacktestSubject as doneBacktestSubject, emitters_doneLiveSubject as doneLiveSubject, emitters_doneWalkerSubject as doneWalkerSubject, emitters_errorEmitter as errorEmitter, emitters_exitEmitter as exitEmitter, emitters_partialLossSubject as partialLossSubject, emitters_partialProfitSubject as partialProfitSubject, emitters_performanceEmitter as performanceEmitter, emitters_pingSubject as pingSubject, emitters_progressBacktestEmitter as progressBacktestEmitter, emitters_progressOptimizerEmitter as progressOptimizerEmitter, emitters_progressWalkerEmitter as progressWalkerEmitter, emitters_riskSubject as riskSubject, emitters_signalBacktestEmitter as signalBacktestEmitter, emitters_signalEmitter as signalEmitter, emitters_signalLiveEmitter as signalLiveEmitter, emitters_validationSubject as validationSubject, emitters_walkerCompleteSubject as walkerCompleteSubject, emitters_walkerEmitter as walkerEmitter, emitters_walkerStopSubject as walkerStopSubject };
+  export { emitters_breakevenSubject as breakevenSubject, emitters_doneBacktestSubject as doneBacktestSubject, emitters_doneLiveSubject as doneLiveSubject, emitters_doneWalkerSubject as doneWalkerSubject, emitters_errorEmitter as errorEmitter, emitters_exitEmitter as exitEmitter, emitters_partialLossSubject as partialLossSubject, emitters_partialProfitSubject as partialProfitSubject, emitters_performanceEmitter as performanceEmitter, emitters_pingSubject as pingSubject, emitters_progressBacktestEmitter as progressBacktestEmitter, emitters_progressOptimizerEmitter as progressOptimizerEmitter, emitters_progressWalkerEmitter as progressWalkerEmitter, emitters_riskSubject as riskSubject, emitters_signalBacktestEmitter as signalBacktestEmitter, emitters_signalEmitter as signalEmitter, emitters_signalLiveEmitter as signalLiveEmitter, emitters_validationSubject as validationSubject, emitters_walkerCompleteSubject as walkerCompleteSubject, emitters_walkerEmitter as walkerEmitter, emitters_walkerStopSubject as walkerStopSubject };
 }
 
 /**
@@ -10433,6 +11196,88 @@ declare class PartialConnectionService implements IPartial {
 }
 
 /**
+ * Connection service for breakeven tracking.
+ *
+ * Provides memoized ClientBreakeven instances per signal ID.
+ * Acts as factory and lifetime manager for ClientBreakeven objects.
+ *
+ * Features:
+ * - Creates one ClientBreakeven instance per signal ID (memoized)
+ * - Configures instances with logger and event emitter callbacks
+ * - Delegates check/clear operations to appropriate ClientBreakeven
+ * - Cleans up memoized instances when signals are cleared
+ *
+ * Architecture:
+ * - Injected into ClientStrategy via BreakevenGlobalService
+ * - Uses memoize from functools-kit for instance caching
+ * - Emits events to breakevenSubject
+ *
+ * @example
+ * ```typescript
+ * // Service injected via DI
+ * const service = inject<BreakevenConnectionService>(TYPES.breakevenConnectionService);
+ *
+ * // Called by ClientStrategy during signal monitoring
+ * await service.check("BTCUSDT", signal, 100.5, false, new Date());
+ * // Creates or reuses ClientBreakeven for signal.id
+ * // Delegates to ClientBreakeven.check()
+ *
+ * // When signal closes
+ * await service.clear("BTCUSDT", signal, 101, false);
+ * // Clears signal state and removes memoized instance
+ * ```
+ */
+declare class BreakevenConnectionService implements IBreakeven {
+    /**
+     * Logger service injected from DI container.
+     */
+    private readonly loggerService;
+    /**
+     * Memoized factory function for ClientBreakeven instances.
+     *
+     * Creates one ClientBreakeven per signal ID and backtest mode with configured callbacks.
+     * Instances are cached until clear() is called.
+     *
+     * Key format: "signalId:backtest" or "signalId:live"
+     * Value: ClientBreakeven instance with logger and event emitter
+     */
+    private getBreakeven;
+    /**
+     * Checks if breakeven should be triggered and emits event if conditions met.
+     *
+     * Retrieves or creates ClientBreakeven for signal ID, initializes it if needed,
+     * then delegates to ClientBreakeven.check() method.
+     *
+     * @param symbol - Trading pair symbol (e.g., "BTCUSDT")
+     * @param data - Signal row data
+     * @param currentPrice - Current market price
+     * @param backtest - True if backtest mode, false if live mode
+     * @param when - Event timestamp (current time for live, candle time for backtest)
+     * @returns Promise that resolves when breakeven check is complete
+     */
+    check: (symbol: string, data: IPublicSignalRow, currentPrice: number, backtest: boolean, when: Date) => Promise<void>;
+    /**
+     * Clears breakeven state when signal closes.
+     *
+     * Retrieves ClientBreakeven for signal ID, initializes if needed,
+     * delegates clear operation, then removes memoized instance.
+     *
+     * Sequence:
+     * 1. Get ClientBreakeven from memoize cache
+     * 2. Ensure initialization (waitForInit)
+     * 3. Call ClientBreakeven.clear() - removes state, persists to disk
+     * 4. Clear memoized instance - prevents memory leaks
+     *
+     * @param symbol - Trading pair symbol (e.g., "BTCUSDT")
+     * @param data - Signal row data
+     * @param priceClose - Final closing price
+     * @param backtest - True if backtest mode, false if live mode
+     * @returns Promise that resolves when clear is complete
+     */
+    clear: (symbol: string, data: ISignalRow, priceClose: number, backtest: boolean) => Promise<void>;
+}
+
+/**
  * Type definition for strategy methods.
  * Maps all keys of IStrategy to any type.
  * Used for dynamic method routing in StrategyConnectionService.
@@ -10472,6 +11317,7 @@ declare class StrategyConnectionService implements TStrategy$1 {
     readonly riskConnectionService: RiskConnectionService;
     readonly exchangeConnectionService: ExchangeConnectionService;
     readonly partialConnectionService: PartialConnectionService;
+    readonly breakevenConnectionService: BreakevenConnectionService;
     /**
      * Retrieves memoized ClientStrategy instance for given symbol-strategy pair with exchange and frame isolation.
      *
@@ -12883,6 +13729,101 @@ declare class PartialGlobalService implements TPartial {
 }
 
 /**
+ * Type definition for breakeven methods.
+ * Maps all keys of IBreakeven to any type.
+ * Used for dynamic method routing in BreakevenGlobalService.
+ */
+type TBreakeven = {
+    [key in keyof IBreakeven]: any;
+};
+/**
+ * Global service for breakeven tracking.
+ *
+ * Thin delegation layer that forwards operations to BreakevenConnectionService.
+ * Provides centralized logging for all breakeven operations at the global level.
+ *
+ * Architecture:
+ * - Injected into ClientStrategy constructor via IStrategyParams
+ * - Delegates all operations to BreakevenConnectionService
+ * - Logs operations at "breakevenGlobalService" level before delegation
+ *
+ * Purpose:
+ * - Single injection point for ClientStrategy (dependency injection pattern)
+ * - Centralized logging for monitoring breakeven operations
+ * - Layer of abstraction between strategy and connection layer
+ *
+ * @example
+ * ```typescript
+ * // Service injected into ClientStrategy via DI
+ * const strategy = new ClientStrategy({
+ *   breakeven: breakevenGlobalService,
+ *   ...
+ * });
+ *
+ * // Called during signal monitoring
+ * await strategy.params.breakeven.check("BTCUSDT", signal, 100.5, false, new Date());
+ * // Logs at global level → delegates to BreakevenConnectionService
+ * ```
+ */
+declare class BreakevenGlobalService implements TBreakeven {
+    /**
+     * Logger service injected from DI container.
+     * Used for logging operations at global service level.
+     */
+    private readonly loggerService;
+    /**
+     * Connection service injected from DI container.
+     * Handles actual ClientBreakeven instance creation and management.
+     */
+    private readonly breakevenConnectionService;
+    /**
+     * Strategy validation service for validating strategy existence.
+     */
+    private readonly strategyValidationService;
+    /**
+     * Strategy schema service for retrieving strategy configuration.
+     */
+    private readonly strategySchemaService;
+    /**
+     * Risk validation service for validating risk existence.
+     */
+    private readonly riskValidationService;
+    /**
+     * Validates strategy and associated risk configuration.
+     * Memoized to avoid redundant validations for the same strategy-exchange-frame combination.
+     *
+     * @param context - Context with strategyName, exchangeName and frameName
+     * @param methodName - Name of the calling method for error tracking
+     */
+    private validate;
+    /**
+     * Checks if breakeven should be triggered and emits event if conditions met.
+     *
+     * Logs operation at global service level, then delegates to BreakevenConnectionService.
+     *
+     * @param symbol - Trading pair symbol (e.g., "BTCUSDT")
+     * @param data - Signal row data
+     * @param currentPrice - Current market price
+     * @param backtest - True if backtest mode, false if live mode
+     * @param when - Event timestamp (current time for live, candle time for backtest)
+     * @returns Promise that resolves when breakeven check is complete
+     */
+    check: (symbol: string, data: IPublicSignalRow, currentPrice: number, backtest: boolean, when: Date) => Promise<void>;
+    /**
+     * Clears breakeven state when signal closes.
+     *
+     * Logs operation at global service level, then delegates to BreakevenConnectionService.
+     *
+     * @param symbol - Trading pair symbol (e.g., "BTCUSDT")
+     * @param data - Signal row data
+     * @param priceClose - Final closing price
+     * @param backtest - True if backtest mode, false if live mode
+     * @returns Promise that resolves when clear is complete
+     */
+    clear: (symbol: string, data: ISignalRow, priceClose: number, backtest: boolean) => Promise<void>;
+}
+
+/**
  * Unique identifier for outline result.
  * Can be string or number for flexible ID formats.
  */
@@ -13046,6 +13987,7 @@ declare const backtest: {
     walkerMarkdownService: WalkerMarkdownService;
     heatMarkdownService: HeatMarkdownService;
     partialMarkdownService: PartialMarkdownService;
+    breakevenMarkdownService: BreakevenMarkdownService;
     outlineMarkdownService: OutlineMarkdownService;
     riskMarkdownService: RiskMarkdownService;
     backtestLogicPublicService: BacktestLogicPublicService;
@@ -13061,6 +14003,7 @@ declare const backtest: {
     riskGlobalService: RiskGlobalService;
     optimizerGlobalService: OptimizerGlobalService;
     partialGlobalService: PartialGlobalService;
+    breakevenGlobalService: BreakevenGlobalService;
     exchangeCoreService: ExchangeCoreService;
     strategyCoreService: StrategyCoreService;
     frameCoreService: FrameCoreService;
@@ -13078,6 +14021,7 @@ declare const backtest: {
     riskConnectionService: RiskConnectionService;
     optimizerConnectionService: OptimizerConnectionService;
     partialConnectionService: PartialConnectionService;
+    breakevenConnectionService: BreakevenConnectionService;
     executionContextService: {
         readonly context: IExecutionContext;
     };
@@ -13087,4 +14031,4 @@ declare const backtest: {
     loggerService: LoggerService;
 };
 
-export { Backtest, type BacktestDoneNotification, type BacktestStatisticsModel, type BootstrapNotification, Cache, type CandleInterval, type ColumnConfig, type ColumnModel, Constant, type CriticalErrorNotification, type DoneContract, type EntityId, Exchange, ExecutionContextService, type FrameInterval, type GlobalConfig, Heat, type HeatmapStatisticsModel, type ICandleData, type IExchangeSchema, type IFrameSchema, type IHeatmapRow, type IOptimizerCallbacks, type IOptimizerData, type IOptimizerFetchArgs, type IOptimizerFilterArgs, type IOptimizerRange, type IOptimizerSchema, type IOptimizerSource, type IOptimizerStrategy, type IOptimizerTemplate, type IPersistBase, type IPositionSizeATRParams, type IPositionSizeFixedPercentageParams, type IPositionSizeKellyParams, type IPublicSignalRow, type IRiskActivePosition, type IRiskCheckArgs, type IRiskSchema, type IRiskValidation, type IRiskValidationFn, type IRiskValidationPayload, type IScheduledSignalCancelRow, type IScheduledSignalRow, type ISignalDto, type ISignalRow, type ISizingCalculateParams, type ISizingCalculateParamsATR, type ISizingCalculateParamsFixedPercentage, type ISizingCalculateParamsKelly, type ISizingSchema, type ISizingSchemaATR, type ISizingSchemaFixedPercentage, type ISizingSchemaKelly, type IStrategyPnL, type IStrategyResult, type IStrategySchema, type IStrategyTickResult, type IStrategyTickResultActive, type IStrategyTickResultCancelled, type IStrategyTickResultClosed, type IStrategyTickResultIdle, type IStrategyTickResultOpened, type IStrategyTickResultScheduled, type IWalkerResults, type IWalkerSchema, type IWalkerStrategyResult, type InfoErrorNotification, Live, type LiveDoneNotification, type LiveStatisticsModel, type MessageModel, type MessageRole, MethodContextService, type MetricStats, Notification, type NotificationModel, Optimizer, Partial$1 as Partial, type PartialData, type PartialEvent, type PartialLossContract, type PartialLossNotification, type PartialProfitContract, type PartialProfitNotification, type PartialStatisticsModel, Performance, type PerformanceContract, type PerformanceMetricType, type PerformanceStatisticsModel, PersistBase, PersistPartialAdapter, PersistRiskAdapter, PersistScheduleAdapter, PersistSignalAdapter, type PingContract, PositionSize, type ProgressBacktestContract, type ProgressBacktestNotification, type ProgressOptimizerContract, type ProgressWalkerContract, Risk, type RiskContract, type RiskData, type RiskEvent, type RiskRejectionNotification, type RiskStatisticsModel, Schedule, type ScheduleData, type ScheduleStatisticsModel, type ScheduledEvent, type SignalCancelledNotification, type SignalClosedNotification, type SignalData, type SignalInterval, type SignalOpenedNotification, type SignalScheduledNotification, type TPersistBase, type TPersistBaseCtor, type TickEvent, type ValidationErrorNotification, Walker, type WalkerCompleteContract, type WalkerContract, type WalkerMetric, type SignalData$1 as WalkerSignalData, type WalkerStatisticsModel, addExchange, addFrame, addOptimizer, addRisk, addSizing, addStrategy, addWalker, breakeven, cancel, dumpSignal, emitters, formatPrice, formatQuantity, getAveragePrice, getCandles, getColumns, getConfig, getDate, getDefaultColumns, getDefaultConfig, getMode, hasTradeContext, backtest as lib, listExchanges, listFrames, listOptimizers, listRisks, listSizings, listStrategies, listWalkers, listenBacktestProgress, listenDoneBacktest, listenDoneBacktestOnce, listenDoneLive, listenDoneLiveOnce, listenDoneWalker, listenDoneWalkerOnce, listenError, listenExit, listenOptimizerProgress, listenPartialLoss, listenPartialLossOnce, listenPartialProfit, listenPartialProfitOnce, listenPerformance, listenPing, listenPingOnce, listenRisk, listenRiskOnce, listenSignal, listenSignalBacktest, listenSignalBacktestOnce, listenSignalLive, listenSignalLiveOnce, listenSignalOnce, listenValidation, listenWalker, listenWalkerComplete, listenWalkerOnce, listenWalkerProgress, partialLoss, partialProfit, setColumns, setConfig, setLogger, stop, trailingStop, validate };
+export { Backtest, type BacktestDoneNotification, type BacktestStatisticsModel, type BootstrapNotification, Breakeven, type BreakevenContract, type BreakevenData, Cache, type CandleInterval, type ColumnConfig, type ColumnModel, Constant, type CriticalErrorNotification, type DoneContract, type EntityId, Exchange, ExecutionContextService, type FrameInterval, type GlobalConfig, Heat, type HeatmapStatisticsModel, type ICandleData, type IExchangeSchema, type IFrameSchema, type IHeatmapRow, type IOptimizerCallbacks, type IOptimizerData, type IOptimizerFetchArgs, type IOptimizerFilterArgs, type IOptimizerRange, type IOptimizerSchema, type IOptimizerSource, type IOptimizerStrategy, type IOptimizerTemplate, type IPersistBase, type IPositionSizeATRParams, type IPositionSizeFixedPercentageParams, type IPositionSizeKellyParams, type IPublicSignalRow, type IRiskActivePosition, type IRiskCheckArgs, type IRiskSchema, type IRiskValidation, type IRiskValidationFn, type IRiskValidationPayload, type IScheduledSignalCancelRow, type IScheduledSignalRow, type ISignalDto, type ISignalRow, type ISizingCalculateParams, type ISizingCalculateParamsATR, type ISizingCalculateParamsFixedPercentage, type ISizingCalculateParamsKelly, type ISizingSchema, type ISizingSchemaATR, type ISizingSchemaFixedPercentage, type ISizingSchemaKelly, type IStrategyPnL, type IStrategyResult, type IStrategySchema, type IStrategyTickResult, type IStrategyTickResultActive, type IStrategyTickResultCancelled, type IStrategyTickResultClosed, type IStrategyTickResultIdle, type IStrategyTickResultOpened, type IStrategyTickResultScheduled, type IWalkerResults, type IWalkerSchema, type IWalkerStrategyResult, type InfoErrorNotification, Live, type LiveDoneNotification, type LiveStatisticsModel, type MessageModel, type MessageRole, MethodContextService, type MetricStats, Notification, type NotificationModel, Optimizer, Partial$1 as Partial, type PartialData, type PartialEvent, type PartialLossContract, type PartialLossNotification, type PartialProfitContract, type PartialProfitNotification, type PartialStatisticsModel, Performance, type PerformanceContract, type PerformanceMetricType, type PerformanceStatisticsModel, PersistBase, PersistBreakevenAdapter, PersistPartialAdapter, PersistRiskAdapter, PersistScheduleAdapter, PersistSignalAdapter, type PingContract, PositionSize, type ProgressBacktestContract, type ProgressBacktestNotification, type ProgressOptimizerContract, type ProgressWalkerContract, Risk, type RiskContract, type RiskData, type RiskEvent, type RiskRejectionNotification, type RiskStatisticsModel, Schedule, type ScheduleData, type ScheduleStatisticsModel, type ScheduledEvent, type SignalCancelledNotification, type SignalClosedNotification, type SignalData, type SignalInterval, type SignalOpenedNotification, type SignalScheduledNotification, type TPersistBase, type TPersistBaseCtor, type TickEvent, type ValidationErrorNotification, Walker, type WalkerCompleteContract, type WalkerContract, type WalkerMetric, type SignalData$1 as WalkerSignalData, type WalkerStatisticsModel, addExchange, addFrame, addOptimizer, addRisk, addSizing, addStrategy, addWalker, breakeven, cancel, dumpSignal, emitters, formatPrice, formatQuantity, getAveragePrice, getCandles, getColumns, getConfig, getDate, getDefaultColumns, getDefaultConfig, getMode, hasTradeContext, backtest as lib, listExchanges, listFrames, listOptimizers, listRisks, listSizings, listStrategies, listWalkers, listenBacktestProgress, listenBreakeven, listenBreakevenOnce, listenDoneBacktest, listenDoneBacktestOnce, listenDoneLive, listenDoneLiveOnce, listenDoneWalker, listenDoneWalkerOnce, listenError, listenExit, listenOptimizerProgress, listenPartialLoss, listenPartialLossOnce, listenPartialProfit, listenPartialProfitOnce, listenPerformance, listenPing, listenPingOnce, listenRisk, listenRiskOnce, listenSignal, listenSignalBacktest, listenSignalBacktestOnce, listenSignalLive, listenSignalLiveOnce, listenSignalOnce, listenValidation, listenWalker, listenWalkerComplete, listenWalkerOnce, listenWalkerProgress, partialLoss, partialProfit, setColumns, setConfig, setLogger, stop, trailingStop, validate };

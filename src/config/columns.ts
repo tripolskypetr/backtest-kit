@@ -2,6 +2,7 @@ import { backtest_columns } from "../assets/backtest.columns";
 import { heat_columns } from "../assets/heat.columns";
 import { live_columns } from "../assets/live.columns";
 import { partial_columns } from "../assets/partial.columns";
+import { breakeven_columns } from "../assets/breakeven.columns";
 import { performance_columns } from "../assets/performance.columns";
 import { risk_columns } from "../assets/risk.columns";
 import { schedule_columns } from "../assets/schedule.columns";
@@ -26,6 +27,8 @@ export const COLUMN_CONFIG = {
   live_columns,
   /** Columns for partial-results / incremental reports */
   partial_columns,
+  /** Columns for breakeven protection events */
+  breakeven_columns,
   /** Columns for performance summary reports */
   performance_columns,
   /** Columns for risk-related reports */

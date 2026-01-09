@@ -48,6 +48,9 @@ import OptimizerConnectionService from "../services/connection/OptimizerConnecti
 import { PartialConnectionService } from "../services/connection/PartialConnectionService";
 import PartialMarkdownService from "../services/markdown/PartialMarkdownService";
 import PartialGlobalService from "../services/global/PartialGlobalService";
+import { BreakevenConnectionService } from "../services/connection/BreakevenConnectionService";
+import BreakevenMarkdownService from "../services/markdown/BreakevenMarkdownService";
+import BreakevenGlobalService from "../services/global/BreakevenGlobalService";
 import OutlineMarkdownService from "../services/markdown/OutlineMarkdownService";
 import ConfigValidationService from "../services/validation/ConfigValidationService";
 import RiskMarkdownService from "../services/markdown/RiskMarkdownService";
@@ -70,6 +73,7 @@ import ColumnValidationService from "../services/validation/ColumnValidationServ
     provide(TYPES.riskConnectionService, () => new RiskConnectionService());
     provide(TYPES.optimizerConnectionService, () => new OptimizerConnectionService());
     provide(TYPES.partialConnectionService, () => new PartialConnectionService());
+    provide(TYPES.breakevenConnectionService, () => new BreakevenConnectionService());
 }
 
 {
@@ -93,6 +97,7 @@ import ColumnValidationService from "../services/validation/ColumnValidationServ
     provide(TYPES.riskGlobalService, () => new RiskGlobalService());
     provide(TYPES.optimizerGlobalService, () => new OptimizerGlobalService());
     provide(TYPES.partialGlobalService, () => new PartialGlobalService());
+    provide(TYPES.breakevenGlobalService, () => new BreakevenGlobalService());
 }
 
 {
@@ -121,6 +126,7 @@ import ColumnValidationService from "../services/validation/ColumnValidationServ
     provide(TYPES.walkerMarkdownService, () => new WalkerMarkdownService());
     provide(TYPES.heatMarkdownService, () => new HeatMarkdownService());
     provide(TYPES.partialMarkdownService, () => new PartialMarkdownService());
+    provide(TYPES.breakevenMarkdownService, () => new BreakevenMarkdownService());
     provide(TYPES.outlineMarkdownService, () => new OutlineMarkdownService());
     provide(TYPES.riskMarkdownService, () => new RiskMarkdownService());
 }

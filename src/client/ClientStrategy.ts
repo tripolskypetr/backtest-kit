@@ -1891,6 +1891,81 @@ const CALL_PARTIAL_LOSS_CALLBACKS_FN = trycatch(
   }
 );
 
+const CALL_BREAKEVEN_CHECK_FN = trycatch(
+  async (
+    self: ClientStrategy,
+    symbol: string,
+    signal: ISignalRow,
+    currentPrice: number,
+    timestamp: number,
+    backtest: boolean
+  ): Promise<void> => {
+    await ExecutionContextService.runInContext(async () => {
+      const publicSignal = TO_PUBLIC_SIGNAL(signal);
+      await self.params.breakeven.check(
+        symbol,
+        publicSignal,
+        currentPrice,
+        backtest,
+        new Date(timestamp)
+      );
+    }, {
+      when: new Date(timestamp),
+      symbol: symbol,
+      backtest: backtest,
+    });
+  },
+  {
+    fallback: (error) => {
+      const message = "ClientStrategy CALL_BREAKEVEN_CHECK_FN thrown";
+      const payload = {
+        error: errorData(error),
+        message: getErrorMessage(error),
+      };
+      backtest.loggerService.warn(message, payload);
+      console.warn(message, payload);
+      errorEmitter.next(error);
+    },
+  }
+);
+
+const CALL_BREAKEVEN_CLEAR_FN = trycatch(
+  async (
+    self: ClientStrategy,
+    symbol: string,
+    signal: ISignalRow,
+    currentPrice: number,
+    timestamp: number,
+    backtest: boolean
+  ): Promise<void> => {
+    await ExecutionContextService.runInContext(async () => {
+      const publicSignal = TO_PUBLIC_SIGNAL(signal);
+      await self.params.breakeven.clear(
+        symbol,
+        publicSignal,
+        currentPrice,
+        backtest
+      );
+    }, {
+      when: new Date(timestamp),
+      symbol: symbol,
+      backtest: backtest,
+    });
+  },
+  {
+    fallback: (error) => {
+      const message = "ClientStrategy CALL_BREAKEVEN_CLEAR_FN thrown";
+      const payload = {
+        error: errorData(error),
+        message: getErrorMessage(error),
+      };
+      backtest.loggerService.warn(message, payload);
+      console.warn(message, payload);
+      errorEmitter.next(error);
+    },
+  }
+);
+
 const RETURN_SCHEDULED_SIGNAL_ACTIVE_FN = async (
   self: ClientStrategy,
   scheduled: IScheduledSignalRow,
@@ -2138,6 +2213,16 @@ const CLOSE_PENDING_SIGNAL_FN = async (
     self.params.execution.context.backtest
   );
 
+  // КРИТИЧНО: Очищаем состояние ClientBreakeven при закрытии позиции
+  await CALL_BREAKEVEN_CLEAR_FN(
+    self,
+    self.params.execution.context.symbol,
+    signal,
+    currentPrice,
+    currentTime,
+    self.params.execution.context.backtest
+  );
+
   await CALL_RISK_REMOVE_SIGNAL_FN(
     self,
     self.params.execution.context.symbol,
@@ -2189,6 +2274,18 @@ const RETURN_PENDING_SIGNAL_ACTIVE_FN = async (
       const currentDistance = currentPrice - signal.priceOpen;
 
       if (currentDistance > 0) {
+        // Check if breakeven should be triggered
+        await CALL_BREAKEVEN_CHECK_FN(
+          self,
+          self.params.execution.context.symbol,
+          signal,
+          currentPrice,
+          currentTime,
+          self.params.execution.context.backtest
+        );
+      }
+
+      if (currentDistance > 0) {
         // Moving towards TP
         const tpDistance = signal.priceTakeProfit - signal.priceOpen;
         const progressPercent = (currentDistance / tpDistance) * 100;
@@ -2222,6 +2319,18 @@ const RETURN_PENDING_SIGNAL_ACTIVE_FN = async (
     } else if (signal.position === "short") {
       // For short: calculate progress towards TP or SL
       const currentDistance = signal.priceOpen - currentPrice;
+
+      if (currentDistance > 0) {
+        // Check if breakeven should be triggered
+        await CALL_BREAKEVEN_CHECK_FN(
+          self,
+          self.params.execution.context.symbol,
+          signal,
+          currentPrice,
+          currentTime,
+          self.params.execution.context.backtest
+        );
+      }
 
       if (currentDistance > 0) {
         // Moving towards TP
@@ -2506,6 +2615,16 @@ const CLOSE_PENDING_SIGNAL_IN_BACKTEST_FN = async (
     self.params.execution.context.backtest
   );
 
+  // КРИТИЧНО: Очищаем состояние ClientBreakeven при закрытии позиции
+  await CALL_BREAKEVEN_CLEAR_FN(
+    self,
+    self.params.execution.context.symbol,
+    signal,
+    averagePrice,
+    closeTimestamp,
+    self.params.execution.context.backtest
+  );
+
   await CALL_RISK_REMOVE_SIGNAL_FN(
     self,
     self.params.execution.context.symbol,
@@ -2752,6 +2871,18 @@ const PROCESS_PENDING_SIGNAL_CANDLES_FN = async (
         const currentDistance = averagePrice - signal.priceOpen;
 
         if (currentDistance > 0) {
+          // Check if breakeven should be triggered
+          await CALL_BREAKEVEN_CHECK_FN(
+            self,
+            self.params.execution.context.symbol,
+            signal,
+            averagePrice,
+            currentCandleTimestamp,
+            self.params.execution.context.backtest
+          );
+        }
+
+        if (currentDistance > 0) {
           // Moving towards TP
           const tpDistance = signal.priceTakeProfit - signal.priceOpen;
           const progressPercent = (currentDistance / tpDistance) * 100;
@@ -2782,6 +2913,18 @@ const PROCESS_PENDING_SIGNAL_CANDLES_FN = async (
       } else if (signal.position === "short") {
         // For short: calculate progress towards TP or SL
         const currentDistance = signal.priceOpen - averagePrice;
+
+        if (currentDistance > 0) {
+          // Check if breakeven should be triggered
+          await CALL_BREAKEVEN_CHECK_FN(
+            self,
+            self.params.execution.context.symbol,
+            signal,
+            averagePrice,
+            currentCandleTimestamp,
+            self.params.execution.context.backtest
+          );
+        }
 
         if (currentDistance > 0) {
           // Moving towards TP

@@ -4,6 +4,7 @@ import { IExchange, ICandleData, ExchangeName } from "./Exchange.interface";
 import { ILogger } from "./Logger.interface";
 import { IRisk, RiskName } from "./Risk.interface";
 import { IPartial } from "./Partial.interface";
+import { IBreakeven } from "./Breakeven.interface";
 import { FrameName } from "./Frame.interface";
 
 /**
@@ -154,6 +155,8 @@ export interface IStrategyParams extends IStrategySchema {
   symbol: string;
   /** Partial handling service for partial profit/loss */
   partial: IPartial;
+  /** Breakeven handling service for stop-loss protection */
+  breakeven: IBreakeven;
   /** Logger service for debug output */
   logger: ILogger;
   /** Exchange service for candle data and VWAP */

@@ -24,6 +24,7 @@ import {
 import { IRisk, RiskName } from "../../../interfaces/Risk.interface";
 import RiskConnectionService from "./RiskConnectionService";
 import { PartialConnectionService } from "./PartialConnectionService";
+import { BreakevenConnectionService } from "./BreakevenConnectionService";
 import { MergeRisk } from "../../../classes/Risk";
 import { TMethodContextService } from "../context/MethodContextService";
 import { FrameName } from "../../../interfaces/Frame.interface";
@@ -188,6 +189,9 @@ export class StrategyConnectionService implements TStrategy {
   public readonly partialConnectionService = inject<PartialConnectionService>(
     TYPES.partialConnectionService
   );
+  public readonly breakevenConnectionService = inject<BreakevenConnectionService>(
+    TYPES.breakevenConnectionService
+  );
 
   /**
    * Retrieves memoized ClientStrategy instance for given symbol-strategy pair with exchange and frame isolation.
@@ -220,6 +224,7 @@ export class StrategyConnectionService implements TStrategy {
         method: this.methodContextService,
         logger: this.loggerService,
         partial: this.partialConnectionService,
+        breakeven: this.breakevenConnectionService,
         exchange: this.exchangeConnectionService,
         risk: GET_RISK_FN(
           {
