@@ -14,7 +14,9 @@ import {
     listenPartialLoss,
     listenError,
     listenRisk,
+    listenBreakeven,
     dumpSignal,
+    Breakeven,
 } from "backtest-kit";
 import { v4 as uuid } from "uuid";
 
@@ -142,6 +144,14 @@ listenSignalLive(async (event) => {
         });
     }
     console.log(event);
+});
+
+listenBreakeven(async (event) => {
+    await Breakeven.dump(event.symbol, {
+        strategyName: event.strategyName,
+        exchangeName: event.exchangeName,
+        frameName: event.frameName
+    });
 });
 
 listenRisk(async (event) => {
