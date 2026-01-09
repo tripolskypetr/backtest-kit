@@ -4455,6 +4455,35 @@ export class ClientStrategy implements IStrategy {
       return;
     }
 
+    // Check for conflict with existing trailing take profit
+    const effectiveTakeProfit = signal._trailingPriceTakeProfit ?? signal.priceTakeProfit;
+    
+    if (signal.position === "long" && newStopLoss >= effectiveTakeProfit) {
+      // LONG: New SL would be at or above current TP - invalid configuration
+      this.params.logger.debug("ClientStrategy trailingStop: SL/TP conflict detected, skipping SL update", {
+        signalId: signal.id,
+        position: signal.position,
+        priceOpen: signal.priceOpen,
+        newStopLoss,
+        effectiveTakeProfit,
+        reason: "newStopLoss >= effectiveTakeProfit (LONG position)"
+      });
+      return;
+    }
+
+    if (signal.position === "short" && newStopLoss <= effectiveTakeProfit) {
+      // SHORT: New SL would be at or below current TP - invalid configuration
+      this.params.logger.debug("ClientStrategy trailingStop: SL/TP conflict detected, skipping SL update", {
+        signalId: signal.id,
+        position: signal.position,
+        priceOpen: signal.priceOpen,
+        newStopLoss,
+        effectiveTakeProfit,
+        reason: "newStopLoss <= effectiveTakeProfit (SHORT position)"
+      });
+      return;
+    }
+
     // Execute trailing logic
     TRAILING_STOP_FN(this, this._pendingSignal, percentShift);
 
@@ -4592,6 +4621,35 @@ export class ClientStrategy implements IStrategy {
         newTakeProfit,
         currentPrice,
         reason: "currentPrice below newTakeProfit (SHORT position)"
+      });
+      return;
+    }
+
+    // Check for conflict with existing trailing stop loss
+    const effectiveStopLoss = signal._trailingPriceStopLoss ?? signal.priceStopLoss;
+    
+    if (signal.position === "long" && newTakeProfit <= effectiveStopLoss) {
+      // LONG: New TP would be at or below current SL - invalid configuration
+      this.params.logger.debug("ClientStrategy trailingProfit: TP/SL conflict detected, skipping TP update", {
+        signalId: signal.id,
+        position: signal.position,
+        priceOpen: signal.priceOpen,
+        newTakeProfit,
+        effectiveStopLoss,
+        reason: "newTakeProfit <= effectiveStopLoss (LONG position)"
+      });
+      return;
+    }
+
+    if (signal.position === "short" && newTakeProfit >= effectiveStopLoss) {
+      // SHORT: New TP would be at or above current SL - invalid configuration
+      this.params.logger.debug("ClientStrategy trailingProfit: TP/SL conflict detected, skipping TP update", {
+        signalId: signal.id,
+        position: signal.position,
+        priceOpen: signal.priceOpen,
+        newTakeProfit,
+        effectiveStopLoss,
+        reason: "newTakeProfit >= effectiveStopLoss (SHORT position)"
       });
       return;
     }
