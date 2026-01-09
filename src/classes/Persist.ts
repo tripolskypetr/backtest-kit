@@ -135,6 +135,13 @@ export interface IPersistBase<Entity extends IEntity | null = IEntity> {
    * @throws Error if write fails
    */
   writeValue(entityId: EntityId, entity: Entity): Promise<void>;
+
+  /**
+   * Async generator yielding all entity IDs.
+   *
+   * @returns AsyncGenerator yielding entity IDs
+   */
+  keys(): AsyncGenerator<EntityId>;
 }
 
 const BASE_WAIT_FOR_INIT_FN = async (self: TPersistBase): Promise<void> => {
@@ -1114,13 +1121,11 @@ class PersistBreakevenUtils {
     const stateStorage = this.getBreakevenStorage(symbol, strategyName);
     await stateStorage.waitForInit(isInitial);
 
-    const hasData = await stateStorage.hasValue(signalId);
-    if (!hasData) {
-      return {};
+    if (await stateStorage.hasValue(signalId)) {
+      return await stateStorage.readValue(signalId);
     }
 
-    const breakevenData = await stateStorage.readValue(signalId);
-    return breakevenData;
+    return {};
   };
 
   /**
