@@ -96,3 +96,12 @@ init: (() => Promise<void>) & ISingleshotClearable
 Initializes the service by subscribing to backtest signal events.
 Uses singleshot to ensure initialization happens only once.
 Automatically called on first use.
+
+### unsubscribe
+
+```ts
+unsubscribe: Function
+```
+
+Function to unsubscribe from backtest signal events.
+Assigned during init().

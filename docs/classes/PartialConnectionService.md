@@ -56,7 +56,7 @@ Value: ClientPartial instance with logger and event emitters
 ### profit
 
 ```ts
-profit: (symbol: string, data: ISignalRow, currentPrice: number, revenuePercent: number, backtest: boolean, when: Date) => Promise<void>
+profit: (symbol: string, data: IPublicSignalRow, currentPrice: number, revenuePercent: number, backtest: boolean, when: Date) => Promise<void>
 ```
 
 Processes profit state and emits events for newly reached profit levels.
@@ -67,7 +67,7 @@ then delegates to ClientPartial.profit() method.
 ### loss
 
 ```ts
-loss: (symbol: string, data: ISignalRow, currentPrice: number, lossPercent: number, backtest: boolean, when: Date) => Promise<void>
+loss: (symbol: string, data: IPublicSignalRow, currentPrice: number, lossPercent: number, backtest: boolean, when: Date) => Promise<void>
 ```
 
 Processes loss state and emits events for newly reached loss levels.

@@ -194,3 +194,16 @@ Closes a percentage of the pending position at the current price, recording it a
 The partial close is tracked in `_partial` array for weighted PNL calculation when position fully closes.
 
 Delegates to ClientStrategy.partialLoss() with current execution context.
+
+### trailingStop
+
+```ts
+trailingStop: (backtest: boolean, symbol: string, percentShift: number, context: { strategyName: string; exchangeName: string; frameName: string; }) => Promise<void>
+```
+
+Adjusts the trailing stop-loss distance for an active pending signal.
+
+Updates the stop-loss distance by a percentage adjustment relative to the original SL distance.
+Positive percentShift tightens the SL (reduces distance), negative percentShift loosens it.
+
+Delegates to ClientStrategy.trailingStop() with current execution context.

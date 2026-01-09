@@ -16,7 +16,7 @@ Emits events when signals reach 10%, 20%, 30%, etc profit or loss.
 ### profit
 
 ```ts
-profit: (symbol: string, data: ISignalRow, currentPrice: number, revenuePercent: number, backtest: boolean, when: Date) => Promise<void>
+profit: (symbol: string, data: IPublicSignalRow, currentPrice: number, revenuePercent: number, backtest: boolean, when: Date) => Promise<void>
 ```
 
 Processes profit state and emits events for new profit levels reached.
@@ -28,7 +28,7 @@ and emits events for new levels only (Set-based deduplication).
 ### loss
 
 ```ts
-loss: (symbol: string, data: ISignalRow, currentPrice: number, lossPercent: number, backtest: boolean, when: Date) => Promise<void>
+loss: (symbol: string, data: IPublicSignalRow, currentPrice: number, lossPercent: number, backtest: boolean, when: Date) => Promise<void>
 ```
 
 Processes loss state and emits events for new loss levels reached.
@@ -40,7 +40,7 @@ and emits events for new levels only (Set-based deduplication).
 ### clear
 
 ```ts
-clear: (symbol: string, data: ISignalRow, priceClose: number, backtest: boolean) => Promise<void>
+clear: (symbol: string, data: IPublicSignalRow, priceClose: number, backtest: boolean) => Promise<void>
 ```
 
 Clears partial profit/loss state when signal closes.

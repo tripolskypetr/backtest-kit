@@ -30,7 +30,7 @@ Each function gets its own isolated cache instance.
 ### fn
 
 ```ts
-fn: <T extends Function>(run: T, context: { interval: CandleInterval; }) => T
+fn: <T extends Function$1>(run: T, context: { interval: CandleInterval; }) => T
 ```
 
 Wrap a function with caching based on timeframe intervals.
@@ -41,7 +41,7 @@ and invalidates based on the specified candle interval.
 ### flush
 
 ```ts
-flush: <T extends Function>(run?: T) => void
+flush: <T extends Function$1>(run?: T) => void
 ```
 
 Flush (remove) cached CacheInstance for a specific function or all functions.
@@ -61,7 +61,7 @@ for the current context within an existing CacheInstance.
 ### clear
 
 ```ts
-clear: <T extends Function>(run: T) => void
+clear: <T extends Function$1>(run: T) => void
 ```
 
 Clear cached value for current execution context of a specific function.

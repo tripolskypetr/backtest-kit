@@ -21,7 +21,7 @@ Discriminator for type-safe union
 ### signal
 
 ```ts
-signal: ISignalRow
+signal: IPublicSignalRow
 ```
 
 Completed signal with original parameters

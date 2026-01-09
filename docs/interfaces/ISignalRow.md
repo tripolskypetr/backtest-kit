@@ -96,3 +96,16 @@ Computed values (derived from this array):
 - _tpClosed: Sum of all "profit" type partial close percentages
 - _slClosed: Sum of all "loss" type partial close percentages
 - _totalClosed: Sum of all partial close percentages (profit + loss)
+
+### _trailingPriceStopLoss
+
+```ts
+_trailingPriceStopLoss: number
+```
+
+Trailing stop-loss price that overrides priceStopLoss when set.
+Updated by trailing() method based on position type and percentage distance.
+- For LONG: moves upward as price moves toward TP (never moves down)
+- For SHORT: moves downward as price moves toward TP (never moves up)
+When _trailingPriceStopLoss is set, it replaces priceStopLoss for TP/SL checks.
+Original priceStopLoss is preserved in persistence but ignored during execution.

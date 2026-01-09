@@ -22,7 +22,7 @@ Trading pair symbol (e.g., "BTCUSDT")
 ### pendingSignal
 
 ```ts
-pendingSignal: ISignalDto
+pendingSignal: ISignalDto | ISignalRow
 ```
 
 Pending signal to apply

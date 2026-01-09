@@ -12,7 +12,7 @@ Callbacks for frame lifecycle events.
 ### onTimeframe
 
 ```ts
-onTimeframe: (timeframe: Date[], startDate: Date, endDate: Date, interval: FrameInterval) => void
+onTimeframe: (timeframe: Date[], startDate: Date, endDate: Date, interval: FrameInterval) => void | Promise<void>
 ```
 
 Called after timeframe array generation.
