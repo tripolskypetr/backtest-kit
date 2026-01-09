@@ -32,6 +32,9 @@ Build reliable trading systems: backtest on historical data, deploy live bots wi
 - Market/Limit entries
 - TP/SL/OCO exits
 - Grid with auto-cancel on unmet conditions
+- Partial profit/loss levels
+- Trailing stop-loss
+- Breakeven protection
 
 ## 🚀 Quick Start
 
