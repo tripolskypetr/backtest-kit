@@ -37,16 +37,19 @@ const POSITION_NEED_FETCH = Symbol("risk-need-fetch");
  *
  * - Falls back to currentPrice if priceOpen is not set (for ISignalDto/scheduled signals)
  * - Replaces priceStopLoss with trailing SL if active (for positions with trailing stops)
+ * - Replaces priceTakeProfit with trailing TP if active (for positions with trailing take-profit)
  * - Preserves original stop-loss in originalPriceStopLoss for reference
+ * - Preserves original take-profit in originalPriceTakeProfit for reference
  *
  * Use cases:
  * - Risk validation before opening a position (checkSignal)
  * - Pre-flight validation of scheduled signals
  * - Calculating position size based on stop-loss distance
+ * - Calculating risk-reward ratio using effective SL/TP
  *
  * @param signal - Signal DTO or row (may not have priceOpen for scheduled signals)
  * @param currentPrice - Current market price, used as fallback for priceOpen if not set
- * @returns Signal in IRiskSignalRow format with guaranteed priceOpen and effective stop-loss
+ * @returns Signal in IRiskSignalRow format with guaranteed priceOpen and effective SL/TP
  *
  * @example
  * ```typescript
@@ -54,24 +57,25 @@ const POSITION_NEED_FETCH = Symbol("risk-need-fetch");
  * const riskSignal = TO_RISK_SIGNAL(scheduledSignal, 45000);
  * // riskSignal.priceOpen = 45000 (fallback to currentPrice)
  *
- * // For signal with trailing SL
+ * // For signal with trailing SL/TP
  * const riskSignal = TO_RISK_SIGNAL(activeSignal, 46000);
- * // riskSignal.priceStopLoss = activeSignal._trailingPriceStopLoss
+ * // riskSignal.priceStopLoss = activeSignal._trailingPriceStopLoss (effective)
+ * // riskSignal.priceTakeProfit = activeSignal._trailingPriceTakeProfit (effective)
+ * // riskSignal.originalPriceStopLoss = activeSignal.priceStopLoss (original)
+ * // riskSignal.originalPriceTakeProfit = activeSignal.priceTakeProfit (original)
  * ```
  */
 const TO_RISK_SIGNAL = <T extends ISignalDto | ISignalRow>(signal: T, currentPrice: number): IRiskSignalRow => {
-  if ("_trailingPriceStopLoss" in signal) {
-    return {
-      ...structuredClone(signal) as ISignalDto | ISignalRow,
-      priceOpen: signal.priceOpen ?? currentPrice,
-      priceStopLoss: signal._trailingPriceStopLoss,
-      originalPriceStopLoss: signal.priceStopLoss,
-    };
-  }
+  const hasTrailingSL = "_trailingPriceStopLoss" in signal && signal._trailingPriceStopLoss !== undefined;
+  const hasTrailingTP = "_trailingPriceTakeProfit" in signal && signal._trailingPriceTakeProfit !== undefined;
+  
   return {
     ...structuredClone(signal) as ISignalDto | ISignalRow,
     priceOpen: signal.priceOpen ?? currentPrice,
+    priceStopLoss: hasTrailingSL ? signal._trailingPriceStopLoss : signal.priceStopLoss,
+    priceTakeProfit: hasTrailingTP ? signal._trailingPriceTakeProfit : signal.priceTakeProfit,
     originalPriceStopLoss: signal.priceStopLoss,
+    originalPriceTakeProfit: signal.priceTakeProfit,
   };
 };
 

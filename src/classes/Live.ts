@@ -24,6 +24,7 @@ const LIVE_METHOD_NAME_CANCEL = "LiveUtils.cancel";
 const LIVE_METHOD_NAME_PARTIAL_PROFIT = "LiveUtils.partialProfit";
 const LIVE_METHOD_NAME_PARTIAL_LOSS = "LiveUtils.partialLoss";
 const LIVE_METHOD_NAME_TRAILING_STOP = "LiveUtils.trailingStop";
+const LIVE_METHOD_NAME_TRAILING_PROFIT = "LiveUtils.trailingProfit";
 
 /**
  * Internal task function that runs live trading and handles completion.
@@ -784,6 +785,60 @@ export class LiveUtils {
     }
 
     await backtest.strategyCoreService.trailingStop(false, symbol, percentShift, currentPrice, {
+      strategyName: context.strategyName,
+      exchangeName: context.exchangeName,
+      frameName: "",
+    });
+  };
+
+  /**
+   * Adjusts the trailing take-profit distance for an active pending signal.
+   *
+   * Updates the take-profit distance by a percentage adjustment relative to the original TP distance.
+   * Negative percentShift brings TP closer to entry, positive percentShift moves it further.
+   * Once direction is set on first call, subsequent calls must continue in same direction.
+   *
+   * @param symbol - Trading pair symbol
+   * @param percentShift - Percentage adjustment to TP distance (-100 to 100)
+   * @param currentPrice - Current market price to check for intrusion
+   * @param context - Execution context with strategyName and exchangeName
+   * @returns Promise that resolves when trailing TP is updated
+   *
+   * @example
+   * ```typescript
+   * // LONG: entry=100, originalTP=110, distance=10%, currentPrice=102
+   * // Move TP further by 50%: newTP = 100 + 15% = 115
+   * await Live.trailingProfit("BTCUSDT", 50, 102, {
+   *   exchangeName: "binance",
+   *   strategyName: "my-strategy"
+   * });
+   * ```
+   */
+  public trailingProfit = async (
+    symbol: string,
+    percentShift: number,
+    currentPrice: number,
+    context: {
+      strategyName: StrategyName;
+      exchangeName: ExchangeName;
+    }
+  ): Promise<void> => {
+    backtest.loggerService.info(LIVE_METHOD_NAME_TRAILING_PROFIT, {
+      symbol,
+      percentShift,
+      currentPrice,
+      context,
+    });
+    backtest.strategyValidationService.validate(context.strategyName, LIVE_METHOD_NAME_TRAILING_PROFIT);
+    backtest.exchangeValidationService.validate(context.exchangeName, LIVE_METHOD_NAME_TRAILING_PROFIT);
+
+    {
+      const { riskName, riskList } = backtest.strategySchemaService.get(context.strategyName);
+      riskName && backtest.riskValidationService.validate(riskName, LIVE_METHOD_NAME_TRAILING_PROFIT);
+      riskList && riskList.forEach((riskName) => backtest.riskValidationService.validate(riskName, LIVE_METHOD_NAME_TRAILING_PROFIT));
+    }
+
+    await backtest.strategyCoreService.trailingProfit(false, symbol, percentShift, currentPrice, {
       strategyName: context.strategyName,
       exchangeName: context.exchangeName,
       frameName: "",

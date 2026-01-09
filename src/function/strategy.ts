@@ -9,6 +9,7 @@ const CANCEL_METHOD_NAME = "strategy.cancel";
 const PARTIAL_PROFIT_METHOD_NAME = "strategy.partialProfit";
 const PARTIAL_LOSS_METHOD_NAME = "strategy.partialLoss";
 const TRAILING_STOP_METHOD_NAME = "strategy.trailingStop";
+const TRAILING_PROFIT_METHOD_NAME = "strategy.trailingProfit";
 const BREAKEVEN_METHOD_NAME = "strategy.breakeven";
 
 /**
@@ -249,6 +250,57 @@ export async function trailingStop(
 }
 
 /**
+ * Adjusts the trailing take-profit distance for an active pending signal.
+ *
+ * Updates the take-profit distance by a percentage adjustment relative to the original TP distance.
+ * Negative percentShift brings TP closer to entry, positive percentShift moves it further.
+ * Once direction is set on first call, subsequent calls must continue in same direction.
+ *
+ * Automatically detects backtest/live mode from execution context.
+ *
+ * @param symbol - Trading pair symbol
+ * @param percentShift - Percentage adjustment to TP distance (-100 to 100)
+ * @param currentPrice - Current market price to check for intrusion
+ * @returns Promise that resolves when trailing TP is updated
+ *
+ * @example
+ * ```typescript
+ * import { trailingProfit } from "backtest-kit";
+ *
+ * // LONG: entry=100, originalTP=110, distance=10%, currentPrice=102
+ * // Move TP further by 50%: newTP = 100 + 15% = 115
+ * await trailingProfit("BTCUSDT", 50, 102);
+ * ```
+ */
+export async function trailingProfit(
+  symbol: string,
+  percentShift: number,
+  currentPrice: number,
+): Promise<void> {
+  backtest.loggerService.info(TRAILING_PROFIT_METHOD_NAME, {
+    symbol,
+    percentShift,
+    currentPrice,
+  });
+  if (!ExecutionContextService.hasContext()) {
+    throw new Error("trailingProfit requires an execution context");
+  }
+  if (!MethodContextService.hasContext()) {
+    throw new Error("trailingProfit requires a method context");
+  }
+  const { backtest: isBacktest } = backtest.executionContextService.context;
+  const { exchangeName, frameName, strategyName } =
+    backtest.methodContextService.context;
+  await backtest.strategyCoreService.trailingProfit(
+    isBacktest,
+    symbol,
+    percentShift,
+    currentPrice,
+    { exchangeName, frameName, strategyName }
+  );
+}
+
+/**
  * Moves stop-loss to breakeven when price reaches threshold.
  *
  * Moves SL to entry price (zero-risk position) when current price has moved
@@ -295,4 +347,4 @@ export async function breakeven(symbol: string): Promise<boolean> {
   );
 }
 
-export default { stop, cancel, partialProfit, partialLoss, trailingStop, breakeven };
+export default { stop, cancel, partialProfit, partialLoss, trailingStop, trailingProfit, breakeven };

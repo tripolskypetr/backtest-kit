@@ -474,6 +474,48 @@ export class StrategyCoreService implements TStrategy {
   };
 
   /**
+   * Adjusts the trailing take-profit distance for an active pending signal.
+   * Validates context and delegates to StrategyConnectionService.
+   *
+   * @param backtest - Whether running in backtest mode
+   * @param symbol - Trading pair symbol
+   * @param percentShift - Percentage adjustment to TP distance (-100 to 100)
+   * @param currentPrice - Current market price to check for intrusion
+   * @param context - Strategy context with strategyName, exchangeName, frameName
+   * @returns Promise that resolves when trailing TP is updated
+   *
+   * @example
+   * ```typescript
+   * // LONG: entry=100, originalTP=110, distance=10%, currentPrice=102
+   * // Move TP further by 50%: newTP = 100 + 15% = 115
+   * await strategyCoreService.trailingProfit(
+   *   false,
+   *   "BTCUSDT",
+   *   50,
+   *   102,
+   *   { strategyName: "my-strategy", exchangeName: "binance", frameName: "" }
+   * );
+   * ```
+   */
+  public trailingProfit = async (
+    backtest: boolean,
+    symbol: string,
+    percentShift: number,
+    currentPrice: number,
+    context: { strategyName: StrategyName; exchangeName: ExchangeName; frameName: FrameName }
+  ): Promise<void> => {
+    this.loggerService.log("strategyCoreService trailingProfit", {
+      symbol,
+      percentShift,
+      currentPrice,
+      context,
+      backtest,
+    });
+    await this.validate(symbol, context);
+    return await this.strategyConnectionService.trailingProfit(backtest, symbol, percentShift, currentPrice, context);
+  };
+
+  /**
    * Moves stop-loss to breakeven when price reaches threshold.
    * Validates context and delegates to StrategyConnectionService.
    *

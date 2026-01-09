@@ -1097,6 +1097,17 @@ interface ISignalRow extends ISignalDto {
      * Original priceStopLoss is preserved in persistence but ignored during execution.
      */
     _trailingPriceStopLoss?: number;
+    /**
+     * Trailing take-profit price that overrides priceTakeProfit when set.
+     * Created and managed by trailingProfit() method for dynamic TP adjustment.
+     * Allows moving TP further from or closer to current price based on strategy.
+     * Updated by trailingProfit() method based on position type and percentage distance.
+     * - For LONG: can move upward (further) or downward (closer) from entry
+     * - For SHORT: can move downward (further) or upward (closer) from entry
+     * When _trailingPriceTakeProfit is set, it replaces priceTakeProfit for TP/SL checks.
+     * Original priceTakeProfit is preserved in persistence but ignored during execution.
+     */
+    _trailingPriceTakeProfit?: number;
 }
 /**
  * Scheduled signal row for delayed entry at specific price.
@@ -1109,13 +1120,13 @@ interface IScheduledSignalRow extends ISignalRow {
     priceOpen: number;
 }
 /**
- * Public signal row with original stop-loss price.
- * Extends ISignalRow to include originalPriceStopLoss for external visibility.
- * Used in public APIs to show user the original SL even if trailing SL is active.
- * This allows users to see both the current effective SL and the original SL set at signal creation.
- * The originalPriceStopLoss remains unchanged even if _trailingPriceStopLoss modifies the effective SL.
+ * Public signal row with original stop-loss and take-profit prices.
+ * Extends ISignalRow to include originalPriceStopLoss and originalPriceTakeProfit for external visibility.
+ * Used in public APIs to show user the original SL/TP even if trailing SL/TP are active.
+ * This allows users to see both the current effective SL/TP and the original values set at signal creation.
+ * The original prices remain unchanged even if _trailingPriceStopLoss or _trailingPriceTakeProfit modify the effective values.
  * Useful for transparency in reporting and user interfaces.
- * Note: originalPriceStopLoss is identical to priceStopLoss at signal creation time.
+ * Note: originalPriceStopLoss/originalPriceTakeProfit are identical to priceStopLoss/priceTakeProfit at signal creation time.
  */
 interface IPublicSignalRow extends ISignalRow {
     /**
@@ -1124,11 +1135,17 @@ interface IPublicSignalRow extends ISignalRow {
      * Used for user visibility of initial SL parameters.
      */
     originalPriceStopLoss: number;
+    /**
+     * Original take-profit price set at signal creation.
+     * Remains unchanged even if trailing take-profit modifies effective TP.
+     * Used for user visibility of initial TP parameters.
+     */
+    originalPriceTakeProfit: number;
 }
 /**
  * Risk signal row for internal risk management.
- * Extends ISignalDto to include priceOpen and originalPriceStopLoss.
- * Used in risk validation to access entry price and original SL.
+ * Extends ISignalDto to include priceOpen, originalPriceStopLoss and originalPriceTakeProfit.
+ * Used in risk validation to access entry price and original SL/TP.
  */
 interface IRiskSignalRow extends ISignalDto {
     /**
@@ -1139,6 +1156,10 @@ interface IRiskSignalRow extends ISignalDto {
      * Original stop-loss price set at signal creation.
      */
     originalPriceStopLoss: number;
+    /**
+     * Original take-profit price set at signal creation.
+     */
+    originalPriceTakeProfit: number;
 }
 /**
  * Scheduled signal row with cancellation ID.
@@ -1628,6 +1649,34 @@ interface IStrategy {
      * ```
      */
     trailingStop: (symbol: string, percentShift: number, currentPrice: number, backtest: boolean) => Promise<void>;
+    /**
+     * Adjusts the trailing take-profit distance for an active pending signal.
+     *
+     * Updates the take-profit distance by a percentage adjustment relative to the original TP distance.
+     * Negative percentShift brings TP closer to entry, positive percentShift moves it further.
+     * Once direction is set on first call, subsequent calls must continue in same direction.
+     *
+     * Price intrusion protection: If current price has already crossed the new TP level,
+     * the update is skipped to prevent immediate TP triggering.
+     *
+     * @param symbol - Trading pair symbol
+     * @param percentShift - Percentage adjustment to TP distance (-100 to 100)
+     * @param currentPrice - Current market price to check for intrusion
+     * @param backtest - Whether running in backtest mode
+     * @returns Promise that resolves when trailing TP is updated
+     *
+     * @example
+     * ```typescript
+     * // LONG: entry=100, originalTP=110, distance=10%, currentPrice=102
+     * // Move TP further by 50%: newTP = 100 + 15% = 115
+     * await strategy.trailingProfit(symbol, 50, 102, backtest);
+     *
+     * // SHORT: entry=100, originalTP=90, distance=10%, currentPrice=98
+     * // Move TP closer by 30%: newTP = 100 - 7% = 93
+     * await strategy.trailingProfit(symbol, -30, 98, backtest);
+     * ```
+     */
+    trailingProfit: (symbol: string, percentShift: number, currentPrice: number, backtest: boolean) => Promise<void>;
     /**
      * Moves stop-loss to breakeven (entry price) when price reaches threshold.
      *
@@ -6905,6 +6954,35 @@ declare class BacktestUtils {
         frameName: FrameName;
     }) => Promise<void>;
     /**
+     * Adjusts the trailing take-profit distance for an active pending signal.
+     *
+     * Updates the take-profit distance by a percentage adjustment relative to the original TP distance.
+     * Negative percentShift brings TP closer to entry, positive percentShift moves it further.
+     * Once direction is set on first call, subsequent calls must continue in same direction.
+     *
+     * @param symbol - Trading pair symbol
+     * @param percentShift - Percentage adjustment to TP distance (-100 to 100)
+     * @param currentPrice - Current market price to check for intrusion
+     * @param context - Execution context with strategyName, exchangeName, and frameName
+     * @returns Promise that resolves when trailing TP is updated
+     *
+     * @example
+     * ```typescript
+     * // LONG: entry=100, originalTP=110, distance=10%, currentPrice=102
+     * // Move TP further by 50%: newTP = 100 + 15% = 115
+     * await Backtest.trailingProfit("BTCUSDT", 50, 102, {
+     *   exchangeName: "binance",
+     *   frameName: "frame1",
+     *   strategyName: "my-strategy"
+     * });
+     * ```
+     */
+    trailingProfit: (symbol: string, percentShift: number, currentPrice: number, context: {
+        strategyName: StrategyName;
+        exchangeName: ExchangeName;
+        frameName: FrameName;
+    }) => Promise<void>;
+    /**
      * Moves stop-loss to breakeven when price reaches threshold.
      *
      * Moves SL to entry price (zero-risk position) when current price has moved
@@ -7520,6 +7598,33 @@ declare class LiveUtils {
      * ```
      */
     trailingStop: (symbol: string, percentShift: number, currentPrice: number, context: {
+        strategyName: StrategyName;
+        exchangeName: ExchangeName;
+    }) => Promise<void>;
+    /**
+     * Adjusts the trailing take-profit distance for an active pending signal.
+     *
+     * Updates the take-profit distance by a percentage adjustment relative to the original TP distance.
+     * Negative percentShift brings TP closer to entry, positive percentShift moves it further.
+     * Once direction is set on first call, subsequent calls must continue in same direction.
+     *
+     * @param symbol - Trading pair symbol
+     * @param percentShift - Percentage adjustment to TP distance (-100 to 100)
+     * @param currentPrice - Current market price to check for intrusion
+     * @param context - Execution context with strategyName and exchangeName
+     * @returns Promise that resolves when trailing TP is updated
+     *
+     * @example
+     * ```typescript
+     * // LONG: entry=100, originalTP=110, distance=10%, currentPrice=102
+     * // Move TP further by 50%: newTP = 100 + 15% = 115
+     * await Live.trailingProfit("BTCUSDT", 50, 102, {
+     *   exchangeName: "binance",
+     *   strategyName: "my-strategy"
+     * });
+     * ```
+     */
+    trailingProfit: (symbol: string, percentShift: number, currentPrice: number, context: {
         strategyName: StrategyName;
         exchangeName: ExchangeName;
     }) => Promise<void>;
@@ -11715,6 +11820,39 @@ declare class StrategyConnectionService implements TStrategy$1 {
         frameName: FrameName;
     }) => Promise<void>;
     /**
+     * Adjusts the trailing take-profit distance for an active pending signal.
+     *
+     * Updates the take-profit distance by a percentage adjustment relative to the original TP distance.
+     * Negative percentShift brings TP closer to entry, positive percentShift moves it further.
+     *
+     * Delegates to ClientStrategy.trailingProfit() with current execution context.
+     *
+     * @param backtest - Whether running in backtest mode
+     * @param symbol - Trading pair symbol
+     * @param percentShift - Percentage adjustment to TP distance (-100 to 100)
+     * @param currentPrice - Current market price to check for intrusion
+     * @param context - Execution context with strategyName, exchangeName, frameName
+     * @returns Promise that resolves when trailing TP is updated
+     *
+     * @example
+     * ```typescript
+     * // LONG: entry=100, originalTP=110, distance=10%, currentPrice=102
+     * // Move TP further by 50%: newTP = 100 + 15% = 115
+     * await strategyConnectionService.trailingProfit(
+     *   false,
+     *   "BTCUSDT",
+     *   50,
+     *   102,
+     *   { strategyName: "my-strategy", exchangeName: "binance", frameName: "" }
+     * );
+     * ```
+     */
+    trailingProfit: (backtest: boolean, symbol: string, percentShift: number, currentPrice: number, context: {
+        strategyName: StrategyName;
+        exchangeName: ExchangeName;
+        frameName: FrameName;
+    }) => Promise<void>;
+    /**
      * Delegates to ClientStrategy.breakeven() with current execution context.
      *
      * @param backtest - Whether running in backtest mode
@@ -12277,6 +12415,35 @@ declare class StrategyCoreService implements TStrategy {
      * ```
      */
     trailingStop: (backtest: boolean, symbol: string, percentShift: number, currentPrice: number, context: {
+        strategyName: StrategyName;
+        exchangeName: ExchangeName;
+        frameName: FrameName;
+    }) => Promise<void>;
+    /**
+     * Adjusts the trailing take-profit distance for an active pending signal.
+     * Validates context and delegates to StrategyConnectionService.
+     *
+     * @param backtest - Whether running in backtest mode
+     * @param symbol - Trading pair symbol
+     * @param percentShift - Percentage adjustment to TP distance (-100 to 100)
+     * @param currentPrice - Current market price to check for intrusion
+     * @param context - Strategy context with strategyName, exchangeName, frameName
+     * @returns Promise that resolves when trailing TP is updated
+     *
+     * @example
+     * ```typescript
+     * // LONG: entry=100, originalTP=110, distance=10%, currentPrice=102
+     * // Move TP further by 50%: newTP = 100 + 15% = 115
+     * await strategyCoreService.trailingProfit(
+     *   false,
+     *   "BTCUSDT",
+     *   50,
+     *   102,
+     *   { strategyName: "my-strategy", exchangeName: "binance", frameName: "" }
+     * );
+     * ```
+     */
+    trailingProfit: (backtest: boolean, symbol: string, percentShift: number, currentPrice: number, context: {
         strategyName: StrategyName;
         exchangeName: ExchangeName;
         frameName: FrameName;

@@ -53,8 +53,10 @@ const TIMEOUT_SYMBOL = Symbol('timeout');
  * It hides internal implementation details while exposing effective values:
  *
  * - Replaces internal _trailingPriceStopLoss with effective priceStopLoss
+ * - Replaces internal _trailingPriceTakeProfit with effective priceTakeProfit
  * - Preserves original stop-loss in originalPriceStopLoss for reference
- * - Ensures external code never sees private _trailingPriceStopLoss field
+ * - Preserves original take-profit in originalPriceTakeProfit for reference
+ * - Ensures external code never sees private _trailing* fields
  * - Maintains backward compatibility with non-trailing positions
  *
  * Key differences from TO_RISK_SIGNAL (in ClientRisk.ts):
@@ -69,34 +71,38 @@ const TIMEOUT_SYMBOL = Symbol('timeout');
  * - Event emissions and logging
  * - Integration with ClientPartial and ClientRisk
  *
- * @param signal - Internal signal row with optional trailing stop-loss
- * @returns Signal in IPublicSignalRow format with effective stop-loss and hidden internals
+ * @param signal - Internal signal row with optional trailing stop-loss/take-profit
+ * @returns Signal in IPublicSignalRow format with effective SL/TP and hidden internals
  *
  * @example
  * ```typescript
- * // Signal without trailing SL
+ * // Signal without trailing SL/TP
  * const publicSignal = TO_PUBLIC_SIGNAL(signal);
  * // publicSignal.priceStopLoss = signal.priceStopLoss
+ * // publicSignal.priceTakeProfit = signal.priceTakeProfit
  * // publicSignal.originalPriceStopLoss = signal.priceStopLoss
+ * // publicSignal.originalPriceTakeProfit = signal.priceTakeProfit
  *
- * // Signal with trailing SL
+ * // Signal with trailing SL/TP
  * const publicSignal = TO_PUBLIC_SIGNAL(signalWithTrailing);
  * // publicSignal.priceStopLoss = signal._trailingPriceStopLoss (effective)
+ * // publicSignal.priceTakeProfit = signal._trailingPriceTakeProfit (effective)
  * // publicSignal.originalPriceStopLoss = signal.priceStopLoss (original)
+ * // publicSignal.originalPriceTakeProfit = signal.priceTakeProfit (original)
  * // publicSignal._trailingPriceStopLoss = undefined (hidden from external API)
+ * // publicSignal._trailingPriceTakeProfit = undefined (hidden from external API)
  * ```
  */
 const TO_PUBLIC_SIGNAL = <T extends ISignalRow | IScheduledSignalRow>(signal: T): IPublicSignalRow => {
-  if (signal._trailingPriceStopLoss !== undefined) {
-    return {
-      ...structuredClone(signal) as ISignalRow | IScheduledSignalRow,
-      priceStopLoss: signal._trailingPriceStopLoss,
-      originalPriceStopLoss: signal.priceStopLoss,
-    };
-  }
+  const hasTrailingSL = signal._trailingPriceStopLoss !== undefined;
+  const hasTrailingTP = signal._trailingPriceTakeProfit !== undefined;
+  
   return {
     ...structuredClone(signal) as ISignalRow | IScheduledSignalRow,
+    priceStopLoss: hasTrailingSL ? signal._trailingPriceStopLoss : signal.priceStopLoss,
+    priceTakeProfit: hasTrailingTP ? signal._trailingPriceTakeProfit : signal.priceTakeProfit,
     originalPriceStopLoss: signal.priceStopLoss,
+    originalPriceTakeProfit: signal.priceTakeProfit,
   };
 };
 
@@ -897,6 +903,107 @@ const TRAILING_STOP_FN = (
       newDistancePercent: newSlDistancePercent,
       percentShift,
       inProfitZone: signal.position === "long" ? newStopLoss > signal.priceOpen : newStopLoss < signal.priceOpen,
+      direction: initialDirection,
+    });
+  }
+};
+
+const TRAILING_PROFIT_FN = (
+  self: ClientStrategy,
+  signal: ISignalRow,
+  percentShift: number
+): void => {
+  // Calculate distance between entry and original take-profit AS PERCENTAGE of entry price
+  const tpDistancePercent = Math.abs((signal.priceTakeProfit - signal.priceOpen) / signal.priceOpen * 100);
+
+  // Calculate new take-profit distance percentage by adding shift
+  // Negative percentShift: reduces distance % (brings TP closer to entry)
+  // Positive percentShift: increases distance % (moves TP further from entry)
+  const newTpDistancePercent = tpDistancePercent + percentShift;
+
+  // Calculate new take-profit price based on new distance percentage
+  let newTakeProfit: number;
+
+  if (signal.position === "long") {
+    // LONG: TP is above entry
+    // Formula: entry * (1 + newDistance%)
+    // Example: entry=100, originalTP=110 (10%), shift=+5% → newDistance=15% → 100 * 1.15 = 115 (further)
+    // Example: entry=100, originalTP=110 (10%), shift=-5% → newDistance=5% → 100 * 1.05 = 105 (closer)
+    newTakeProfit = signal.priceOpen * (1 + newTpDistancePercent / 100);
+  } else {
+    // SHORT: TP is below entry
+    // Formula: entry * (1 - newDistance%)
+    // Example: entry=100, originalTP=90 (10%), shift=+5% → newDistance=15% → 100 * 0.85 = 85 (further)
+    // Example: entry=100, originalTP=90 (10%), shift=-5% → newDistance=5% → 100 * 0.95 = 95 (closer)
+    newTakeProfit = signal.priceOpen * (1 - newTpDistancePercent / 100);
+  }
+
+  // Get current effective take-profit (trailing or original)
+  const currentTakeProfit = signal._trailingPriceTakeProfit ?? signal.priceTakeProfit;
+
+  // Determine if this is the first trailing profit call (direction not set yet)
+  const isFirstCall = signal._trailingPriceTakeProfit === undefined;
+
+  if (isFirstCall) {
+    // First call: set the direction and update TP unconditionally
+    signal._trailingPriceTakeProfit = newTakeProfit;
+
+    self.params.logger.info("TRAILING_PROFIT_FN executed (first call - direction set)", {
+      signalId: signal.id,
+      position: signal.position,
+      priceOpen: signal.priceOpen,
+      originalTakeProfit: signal.priceTakeProfit,
+      originalDistancePercent: tpDistancePercent,
+      previousTakeProfit: currentTakeProfit,
+      newTakeProfit,
+      newDistancePercent: newTpDistancePercent,
+      percentShift,
+      direction: newTakeProfit > currentTakeProfit ? "up" : "down",
+    });
+  } else {
+    // Subsequent calls: only update if new TP continues in the same direction
+    const movingUp = newTakeProfit > currentTakeProfit;
+    const movingDown = newTakeProfit < currentTakeProfit;
+
+    // Determine initial direction based on first trailing TP vs original TP
+    const initialDirection = signal._trailingPriceTakeProfit > signal.priceTakeProfit ? "up" : "down";
+
+    let shouldUpdate = false;
+
+    if (initialDirection === "up" && movingUp) {
+      // Direction is UP, and new TP continues moving up
+      shouldUpdate = true;
+    } else if (initialDirection === "down" && movingDown) {
+      // Direction is DOWN, and new TP continues moving down
+      shouldUpdate = true;
+    }
+
+    if (!shouldUpdate) {
+      self.params.logger.debug("TRAILING_PROFIT_FN: new TP not in same direction, skipping", {
+        signalId: signal.id,
+        position: signal.position,
+        currentTakeProfit,
+        newTakeProfit,
+        percentShift,
+        initialDirection,
+        attemptedDirection: movingUp ? "up" : movingDown ? "down" : "same",
+      });
+      return;
+    }
+
+    // Update trailing take-profit
+    signal._trailingPriceTakeProfit = newTakeProfit;
+
+    self.params.logger.info("TRAILING_PROFIT_FN executed", {
+      signalId: signal.id,
+      position: signal.position,
+      priceOpen: signal.priceOpen,
+      originalTakeProfit: signal.priceTakeProfit,
+      originalDistancePercent: tpDistancePercent,
+      previousTakeProfit: currentTakeProfit,
+      newTakeProfit,
+      newDistancePercent: newTpDistancePercent,
+      percentShift,
       direction: initialDirection,
     });
   }
@@ -2198,21 +2305,23 @@ const CHECK_PENDING_SIGNAL_COMPLETION_FN = async (
     );
   }
 
-  // Check take profit
-  if (signal.position === "long" && averagePrice >= signal.priceTakeProfit) {
+  // Check take profit (use trailing TP if set, otherwise original TP)
+  const effectiveTakeProfit = signal._trailingPriceTakeProfit ?? signal.priceTakeProfit;
+
+  if (signal.position === "long" && averagePrice >= effectiveTakeProfit) {
     return await CLOSE_PENDING_SIGNAL_FN(
       self,
       signal,
-      signal.priceTakeProfit, // КРИТИЧНО: используем точную цену TP
+      effectiveTakeProfit, // КРИТИЧНО: используем точную цену TP
       "take_profit"
     );
   }
 
-  if (signal.position === "short" && averagePrice <= signal.priceTakeProfit) {
+  if (signal.position === "short" && averagePrice <= effectiveTakeProfit) {
     return await CLOSE_PENDING_SIGNAL_FN(
       self,
       signal,
-      signal.priceTakeProfit, // КРИТИЧНО: используем точную цену TP
+      effectiveTakeProfit, // КРИТИЧНО: используем точную цену TP
       "take_profit"
     );
   }
@@ -2351,8 +2460,9 @@ const RETURN_PENDING_SIGNAL_ACTIVE_FN = async (
       }
 
       if (currentDistance > 0) {
-        // Moving towards TP
-        const tpDistance = signal.priceTakeProfit - signal.priceOpen;
+        // Moving towards TP (use trailing TP if set)
+        const effectiveTakeProfit = signal._trailingPriceTakeProfit ?? signal.priceTakeProfit;
+        const tpDistance = effectiveTakeProfit - signal.priceOpen;
         const progressPercent = (currentDistance / tpDistance) * 100;
         percentTp = Math.min(progressPercent, 100);
 
@@ -2398,8 +2508,9 @@ const RETURN_PENDING_SIGNAL_ACTIVE_FN = async (
       }
 
       if (currentDistance > 0) {
-        // Moving towards TP
-        const tpDistance = signal.priceOpen - signal.priceTakeProfit;
+        // Moving towards TP (use trailing TP if set)
+        const effectiveTakeProfit = signal._trailingPriceTakeProfit ?? signal.priceTakeProfit;
+        const tpDistance = signal.priceOpen - effectiveTakeProfit;
         const progressPercent = (currentDistance / tpDistance) * 100;
         percentTp = Math.min(progressPercent, 100);
         await CALL_PARTIAL_PROFIT_CALLBACKS_FN(
@@ -2885,12 +2996,13 @@ const PROCESS_PENDING_SIGNAL_CANDLES_FN = async (
 
     // Check TP/SL only if not expired
     // КРИТИЧНО: используем averagePrice (VWAP) для проверки достижения TP/SL (как в live mode)
-    // КРИТИЧНО: используем trailing SL если установлен
+    // КРИТИЧНО: используем trailing SL и TP если установлены
     const effectiveStopLoss = signal._trailingPriceStopLoss ?? signal.priceStopLoss;
+    const effectiveTakeProfit = signal._trailingPriceTakeProfit ?? signal.priceTakeProfit;
 
     if (!shouldClose && signal.position === "long") {
       // Для LONG: TP срабатывает если VWAP >= TP, SL если VWAP <= SL
-      if (averagePrice >= signal.priceTakeProfit) {
+      if (averagePrice >= effectiveTakeProfit) {
         shouldClose = true;
         closeReason = "take_profit";
       } else if (averagePrice <= effectiveStopLoss) {
@@ -2901,7 +3013,7 @@ const PROCESS_PENDING_SIGNAL_CANDLES_FN = async (
 
     if (!shouldClose && signal.position === "short") {
       // Для SHORT: TP срабатывает если VWAP <= TP, SL если VWAP >= SL
-      if (averagePrice <= signal.priceTakeProfit) {
+      if (averagePrice <= effectiveTakeProfit) {
         shouldClose = true;
         closeReason = "take_profit";
       } else if (averagePrice >= effectiveStopLoss) {
@@ -2950,8 +3062,9 @@ const PROCESS_PENDING_SIGNAL_CANDLES_FN = async (
         }
 
         if (currentDistance > 0) {
-          // Moving towards TP
-          const tpDistance = signal.priceTakeProfit - signal.priceOpen;
+          // Moving towards TP (use trailing TP if set)
+          const effectiveTakeProfit = signal._trailingPriceTakeProfit ?? signal.priceTakeProfit;
+          const tpDistance = effectiveTakeProfit - signal.priceOpen;
           const progressPercent = (currentDistance / tpDistance) * 100;
           await CALL_PARTIAL_PROFIT_CALLBACKS_FN(
             self,
@@ -2994,8 +3107,9 @@ const PROCESS_PENDING_SIGNAL_CANDLES_FN = async (
         }
 
         if (currentDistance > 0) {
-          // Moving towards TP
-          const tpDistance = signal.priceOpen - signal.priceTakeProfit;
+          // Moving towards TP (use trailing TP if set)
+          const effectiveTakeProfit = signal._trailingPriceTakeProfit ?? signal.priceTakeProfit;
+          const tpDistance = signal.priceOpen - effectiveTakeProfit;
           const progressPercent = (currentDistance / tpDistance) * 100;
 
           await CALL_PARTIAL_PROFIT_CALLBACKS_FN(
@@ -4366,6 +4480,147 @@ export class ClientStrategy implements IStrategy {
         this.params.execution.context.symbol,
         this.params.strategyName,
         this.params.exchangeName,
+      );
+    }
+  }
+
+  /**
+   * Adjusts the trailing take-profit distance for an active pending signal.
+   *
+   * Updates the take-profit distance by a percentage adjustment relative to the original TP distance.
+   * Negative percentShift brings TP closer to entry, positive percentShift moves it further.
+   * Once direction is set on first call, subsequent calls must continue in same direction.
+   *
+   * Price intrusion protection: If current price has already crossed the new TP level,
+   * the update is skipped to prevent immediate TP triggering.
+   *
+   * @param symbol - Trading pair symbol
+   * @param percentShift - Percentage adjustment to TP distance (-100 to 100)
+   * @param currentPrice - Current market price to check for intrusion
+   * @param backtest - Whether running in backtest mode
+   * @returns Promise that resolves when trailing TP is updated
+   * 
+   * @example
+   * ```typescript
+   * // LONG: entry=100, originalTP=110, distance=10%, currentPrice=102
+   * // Move TP further by 50%: newTP = 100 + 15% = 115
+   * await strategy.trailingProfit("BTCUSDT", 50, 102, false);
+   * 
+   * // SHORT: entry=100, originalTP=90, distance=10%, currentPrice=98  
+   * // Move TP closer by 30%: newTP = 100 - 7% = 93
+   * await strategy.trailingProfit("BTCUSDT", -30, 98, false);
+   * ```
+   */
+  public async trailingProfit(
+    symbol: string,
+    percentShift: number,
+    currentPrice: number,
+    backtest: boolean
+  ): Promise<void> {
+    this.params.logger.debug("ClientStrategy trailingProfit", {
+      symbol,
+      percentShift,
+      currentPrice,
+      hasPendingSignal: this._pendingSignal !== null,
+    });
+
+    // Validation: must have pending signal
+    if (!this._pendingSignal) {
+      throw new Error(
+        `ClientStrategy trailingProfit: No pending signal exists for symbol=${symbol}`
+      );
+    }
+
+    // Validation: percentShift must be valid
+    if (typeof percentShift !== "number" || !isFinite(percentShift)) {
+      throw new Error(
+        `ClientStrategy trailingProfit: percentShift must be a finite number, got ${percentShift} (${typeof percentShift})`
+      );
+    }
+
+    if (percentShift < -100 || percentShift > 100) {
+      throw new Error(
+        `ClientStrategy trailingProfit: percentShift must be in range [-100, 100], got ${percentShift}`
+      );
+    }
+
+    if (percentShift === 0) {
+      throw new Error(
+        `ClientStrategy trailingProfit: percentShift cannot be 0`
+      );
+    }
+
+    // Validation: currentPrice must be valid
+    if (typeof currentPrice !== "number" || !isFinite(currentPrice) || currentPrice <= 0) {
+      throw new Error(
+        `ClientStrategy trailingProfit: currentPrice must be a positive finite number, got ${currentPrice}`
+      );
+    }
+
+    // Calculate what the new take profit would be
+    const signal = this._pendingSignal;
+    const tpDistancePercent = Math.abs((signal.priceTakeProfit - signal.priceOpen) / signal.priceOpen * 100);
+    const newTpDistancePercent = tpDistancePercent + percentShift;
+    
+    let newTakeProfit: number;
+    if (signal.position === "long") {
+      newTakeProfit = signal.priceOpen * (1 + newTpDistancePercent / 100);
+    } else {
+      newTakeProfit = signal.priceOpen * (1 - newTpDistancePercent / 100);
+    }
+
+    // Check for price intrusion before executing trailing logic
+    if (signal.position === "long" && currentPrice > newTakeProfit) {
+      // LONG: Price already crossed the new take profit level - skip setting TP
+      this.params.logger.debug("ClientStrategy trailingProfit: price intrusion detected, skipping TP update", {
+        signalId: signal.id,
+        position: signal.position,
+        priceOpen: signal.priceOpen,
+        newTakeProfit,
+        currentPrice,
+        reason: "currentPrice above newTakeProfit (LONG position)"
+      });
+      return;
+    }
+
+    if (signal.position === "short" && currentPrice < newTakeProfit) {
+      // SHORT: Price already crossed the new take profit level - skip setting TP
+      this.params.logger.debug("ClientStrategy trailingProfit: price intrusion detected, skipping TP update", {
+        signalId: signal.id,
+        position: signal.position,
+        priceOpen: signal.priceOpen,
+        newTakeProfit,
+        currentPrice,
+        reason: "currentPrice below newTakeProfit (SHORT position)"
+      });
+      return;
+    }
+
+    // Execute trailing logic
+    TRAILING_PROFIT_FN(this, this._pendingSignal, percentShift);
+
+    // Persist updated signal state (inline setPendingSignal content)
+    // Note: this._pendingSignal already mutated by TRAILING_PROFIT_FN, no reassignment needed
+    this.params.logger.debug("ClientStrategy setPendingSignal (inline)", {
+      pendingSignal: this._pendingSignal,
+    });
+
+    // Call onWrite callback for testing persist storage
+    if (this.params.callbacks?.onWrite) {
+      const publicSignal = TO_PUBLIC_SIGNAL(this._pendingSignal);
+      this.params.callbacks.onWrite(
+        this.params.execution.context.symbol,
+        publicSignal,
+        backtest
+      );
+    }
+
+    if (!backtest) {
+      await PersistSignalAdapter.writeSignalData(
+        this._pendingSignal,
+        this.params.execution.context.symbol,
+        this.params.strategyName,
+        this.params.exchangeName
       );
     }
   }

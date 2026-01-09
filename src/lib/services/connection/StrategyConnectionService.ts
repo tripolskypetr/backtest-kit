@@ -659,6 +659,52 @@ export class StrategyConnectionService implements TStrategy {
   };
 
   /**
+   * Adjusts the trailing take-profit distance for an active pending signal.
+   *
+   * Updates the take-profit distance by a percentage adjustment relative to the original TP distance.
+   * Negative percentShift brings TP closer to entry, positive percentShift moves it further.
+   *
+   * Delegates to ClientStrategy.trailingProfit() with current execution context.
+   *
+   * @param backtest - Whether running in backtest mode
+   * @param symbol - Trading pair symbol
+   * @param percentShift - Percentage adjustment to TP distance (-100 to 100)
+   * @param currentPrice - Current market price to check for intrusion
+   * @param context - Execution context with strategyName, exchangeName, frameName
+   * @returns Promise that resolves when trailing TP is updated
+   *
+   * @example
+   * ```typescript
+   * // LONG: entry=100, originalTP=110, distance=10%, currentPrice=102
+   * // Move TP further by 50%: newTP = 100 + 15% = 115
+   * await strategyConnectionService.trailingProfit(
+   *   false,
+   *   "BTCUSDT",
+   *   50,
+   *   102,
+   *   { strategyName: "my-strategy", exchangeName: "binance", frameName: "" }
+   * );
+   * ```
+   */
+  public trailingProfit = async (
+    backtest: boolean,
+    symbol: string,
+    percentShift: number,
+    currentPrice: number,
+    context: { strategyName: StrategyName; exchangeName: ExchangeName; frameName: FrameName },
+  ): Promise<void> => {
+    this.loggerService.log("strategyConnectionService trailingProfit", {
+      symbol,
+      context,
+      percentShift,
+      currentPrice,
+      backtest,
+    });
+    const strategy = this.getStrategy(symbol, context.strategyName, context.exchangeName, context.frameName, backtest);
+    await strategy.trailingProfit(symbol, percentShift, currentPrice, backtest);
+  };
+
+  /**
    * Delegates to ClientStrategy.breakeven() with current execution context.
    *
    * @param backtest - Whether running in backtest mode
