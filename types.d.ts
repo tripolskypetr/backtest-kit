@@ -227,6 +227,32 @@ declare function partialLoss(symbol: string, percentToClose: number): Promise<vo
  * ```
  */
 declare function trailingStop(symbol: string, percentShift: number): Promise<void>;
+/**
+ * Moves stop-loss to breakeven when price reaches threshold.
+ *
+ * Moves SL to entry price (zero-risk position) when current price has moved
+ * far enough in profit direction to cover transaction costs.
+ * Threshold is calculated as: (CC_PERCENT_SLIPPAGE + CC_PERCENT_FEE) * 2
+ *
+ * Automatically detects backtest/live mode from execution context.
+ * Automatically fetches current price via getAveragePrice.
+ *
+ * @param symbol - Trading pair symbol
+ * @returns Promise<boolean> - true if breakeven was set, false if conditions not met
+ *
+ * @example
+ * ```typescript
+ * import { breakeven } from "backtest-kit";
+ *
+ * // LONG: entry=100, slippage=0.1%, fee=0.1%, threshold=0.4%
+ * // Try to move SL to breakeven (activates when price >= 100.4)
+ * const moved = await breakeven("BTCUSDT");
+ * if (moved) {
+ *   console.log("Position moved to breakeven!");
+ * }
+ * ```
+ */
+declare function breakeven(symbol: string): Promise<boolean>;
 
 declare const GLOBAL_CONFIG: {
     /**
@@ -1771,6 +1797,56 @@ interface IStrategy {
      * ```
      */
     trailingStop: (symbol: string, percentShift: number, backtest: boolean) => Promise<void>;
+    /**
+     * Moves stop-loss to breakeven (entry price) when price reaches threshold.
+     *
+     * Moves SL to entry price (zero-risk position) when current price has moved
+     * far enough in profit direction to cover transaction costs (slippage + fees).
+     * Threshold is calculated as: (CC_PERCENT_SLIPPAGE + CC_PERCENT_FEE) * 2
+     *
+     * Behavior:
+     * - Returns true if SL was moved to breakeven
+     * - Returns false if conditions not met (threshold not reached or already at breakeven)
+     * - Uses _trailingPriceStopLoss to store breakeven SL (preserves original priceStopLoss)
+     * - Only moves SL once per position (idempotent - safe to call multiple times)
+     *
+     * For LONG position (entry=100, slippage=0.1%, fee=0.1%):
+     * - Threshold: (0.1 + 0.1) * 2 = 0.4%
+     * - Breakeven available when price >= 100.4 (entry + 0.4%)
+     * - Moves SL from original (e.g. 95) to 100 (breakeven)
+     * - Returns true on first successful move, false on subsequent calls
+     *
+     * For SHORT position (entry=100, slippage=0.1%, fee=0.1%):
+     * - Threshold: (0.1 + 0.1) * 2 = 0.4%
+     * - Breakeven available when price <= 99.6 (entry - 0.4%)
+     * - Moves SL from original (e.g. 105) to 100 (breakeven)
+     * - Returns true on first successful move, false on subsequent calls
+     *
+     * Validations:
+     * - Throws if no pending signal exists
+     * - Throws if currentPrice is not a positive finite number
+     *
+     * Use case: User-controlled breakeven protection triggered from onPartialProfit callback.
+     *
+     * @param symbol - Trading pair symbol (e.g., "BTCUSDT")
+     * @param currentPrice - Current market price to check threshold
+     * @param backtest - Whether running in backtest mode
+     * @returns Promise<boolean> - true if breakeven was set, false if conditions not met
+     *
+     * @example
+     * ```typescript
+     * callbacks: {
+     *   onPartialProfit: async (symbol, signal, currentPrice, percentTp, backtest) => {
+     *     // Try to move SL to breakeven when threshold reached
+     *     const movedToBreakeven = await strategy.breakeven(symbol, currentPrice, backtest);
+     *     if (movedToBreakeven) {
+     *       console.log(`Position moved to breakeven at ${currentPrice}`);
+     *     }
+     *   }
+     * }
+     * ```
+     */
+    breakeven: (symbol: string, currentPrice: number, backtest: boolean) => Promise<boolean>;
 }
 /**
  * Unique strategy identifier.
@@ -6317,6 +6393,32 @@ declare class BacktestUtils {
         frameName: FrameName;
     }) => Promise<void>;
     /**
+     * Moves stop-loss to breakeven when price reaches threshold.
+     *
+     * Moves SL to entry price (zero-risk position) when current price has moved
+     * far enough in profit direction. Threshold is calculated as: (CC_PERCENT_SLIPPAGE + CC_PERCENT_FEE) * 2
+     *
+     * @param symbol - Trading pair symbol
+     * @param currentPrice - Current market price to check threshold
+     * @param context - Strategy context with strategyName, exchangeName, frameName
+     * @returns Promise<boolean> - true if breakeven was set, false otherwise
+     *
+     * @example
+     * ```typescript
+     * const moved = await Backtest.breakeven(
+     *   "BTCUSDT",
+     *   112,
+     *   { strategyName: "my-strategy", exchangeName: "binance", frameName: "1h" }
+     * );
+     * console.log(moved); // true (SL moved to entry price)
+     * ```
+     */
+    breakeven: (symbol: string, currentPrice: number, context: {
+        strategyName: StrategyName;
+        exchangeName: ExchangeName;
+        frameName: FrameName;
+    }) => Promise<boolean>;
+    /**
      * Gets statistical data from all closed signals for a symbol-strategy pair.
      *
      * @param symbol - Trading pair symbol
@@ -6881,6 +6983,31 @@ declare class LiveUtils {
         strategyName: StrategyName;
         exchangeName: ExchangeName;
     }) => Promise<void>;
+    /**
+     * Moves stop-loss to breakeven when price reaches threshold.
+     *
+     * Moves SL to entry price (zero-risk position) when current price has moved
+     * far enough in profit direction. Threshold is calculated as: (CC_PERCENT_SLIPPAGE + CC_PERCENT_FEE) * 2
+     *
+     * @param symbol - Trading pair symbol
+     * @param currentPrice - Current market price to check threshold
+     * @param context - Strategy context with strategyName and exchangeName
+     * @returns Promise<boolean> - true if breakeven was set, false otherwise
+     *
+     * @example
+     * ```typescript
+     * const moved = await Live.breakeven(
+     *   "BTCUSDT",
+     *   112,
+     *   { strategyName: "my-strategy", exchangeName: "binance" }
+     * );
+     * console.log(moved); // true (SL moved to entry price)
+     * ```
+     */
+    breakeven: (symbol: string, currentPrice: number, context: {
+        strategyName: StrategyName;
+        exchangeName: ExchangeName;
+    }) => Promise<boolean>;
     /**
      * Gets statistical data from all live trading events for a symbol-strategy pair.
      *
@@ -10584,6 +10711,33 @@ declare class StrategyConnectionService implements TStrategy$1 {
         exchangeName: ExchangeName;
         frameName: FrameName;
     }) => Promise<void>;
+    /**
+     * Delegates to ClientStrategy.breakeven() with current execution context.
+     *
+     * @param backtest - Whether running in backtest mode
+     * @param symbol - Trading pair symbol
+     * @param currentPrice - Current market price to check threshold
+     * @param context - Execution context with strategyName, exchangeName, frameName
+     * @returns Promise<boolean> - true if breakeven was set, false otherwise
+     *
+     * @example
+     * ```typescript
+     * // LONG: entry=100, slippage=0.1%, fee=0.1%, threshold=0.4%
+     * // Try to move SL to breakeven when price >= 100.4
+     * const moved = await strategyConnectionService.breakeven(
+     *   false,
+     *   "BTCUSDT",
+     *   100.5,
+     *   { strategyName: "my-strategy", exchangeName: "binance", frameName: "" }
+     * );
+     * console.log(moved); // true (SL moved to 100)
+     * ```
+     */
+    breakeven: (backtest: boolean, symbol: string, currentPrice: number, context: {
+        strategyName: StrategyName;
+        exchangeName: ExchangeName;
+        frameName: FrameName;
+    }) => Promise<boolean>;
 }
 
 /**
@@ -11087,6 +11241,31 @@ declare class StrategyCoreService implements TStrategy {
         exchangeName: ExchangeName;
         frameName: FrameName;
     }) => Promise<void>;
+    /**
+     * Moves stop-loss to breakeven when price reaches threshold.
+     * Validates context and delegates to StrategyConnectionService.
+     *
+     * @param backtest - Whether running in backtest mode
+     * @param symbol - Trading pair symbol
+     * @param currentPrice - Current market price to check threshold
+     * @param context - Strategy context with strategyName, exchangeName, frameName
+     * @returns Promise<boolean> - true if breakeven was set, false otherwise
+     *
+     * @example
+     * ```typescript
+     * const moved = await strategyCoreService.breakeven(
+     *   false,
+     *   "BTCUSDT",
+     *   112,
+     *   { strategyName: "my-strategy", exchangeName: "binance", frameName: "" }
+     * );
+     * ```
+     */
+    breakeven: (backtest: boolean, symbol: string, currentPrice: number, context: {
+        strategyName: StrategyName;
+        exchangeName: ExchangeName;
+        frameName: FrameName;
+    }) => Promise<boolean>;
 }
 
 /**
@@ -12908,4 +13087,4 @@ declare const backtest: {
     loggerService: LoggerService;
 };
 
-export { Backtest, type BacktestDoneNotification, type BacktestStatisticsModel, type BootstrapNotification, Cache, type CandleInterval, type ColumnConfig, type ColumnModel, Constant, type CriticalErrorNotification, type DoneContract, type EntityId, Exchange, ExecutionContextService, type FrameInterval, type GlobalConfig, Heat, type HeatmapStatisticsModel, type ICandleData, type IExchangeSchema, type IFrameSchema, type IHeatmapRow, type IOptimizerCallbacks, type IOptimizerData, type IOptimizerFetchArgs, type IOptimizerFilterArgs, type IOptimizerRange, type IOptimizerSchema, type IOptimizerSource, type IOptimizerStrategy, type IOptimizerTemplate, type IPersistBase, type IPositionSizeATRParams, type IPositionSizeFixedPercentageParams, type IPositionSizeKellyParams, type IPublicSignalRow, type IRiskActivePosition, type IRiskCheckArgs, type IRiskSchema, type IRiskValidation, type IRiskValidationFn, type IRiskValidationPayload, type IScheduledSignalCancelRow, type IScheduledSignalRow, type ISignalDto, type ISignalRow, type ISizingCalculateParams, type ISizingCalculateParamsATR, type ISizingCalculateParamsFixedPercentage, type ISizingCalculateParamsKelly, type ISizingSchema, type ISizingSchemaATR, type ISizingSchemaFixedPercentage, type ISizingSchemaKelly, type IStrategyPnL, type IStrategyResult, type IStrategySchema, type IStrategyTickResult, type IStrategyTickResultActive, type IStrategyTickResultCancelled, type IStrategyTickResultClosed, type IStrategyTickResultIdle, type IStrategyTickResultOpened, type IStrategyTickResultScheduled, type IWalkerResults, type IWalkerSchema, type IWalkerStrategyResult, type InfoErrorNotification, Live, type LiveDoneNotification, type LiveStatisticsModel, type MessageModel, type MessageRole, MethodContextService, type MetricStats, Notification, type NotificationModel, Optimizer, Partial$1 as Partial, type PartialData, type PartialEvent, type PartialLossContract, type PartialLossNotification, type PartialProfitContract, type PartialProfitNotification, type PartialStatisticsModel, Performance, type PerformanceContract, type PerformanceMetricType, type PerformanceStatisticsModel, PersistBase, PersistPartialAdapter, PersistRiskAdapter, PersistScheduleAdapter, PersistSignalAdapter, type PingContract, PositionSize, type ProgressBacktestContract, type ProgressBacktestNotification, type ProgressOptimizerContract, type ProgressWalkerContract, Risk, type RiskContract, type RiskData, type RiskEvent, type RiskRejectionNotification, type RiskStatisticsModel, Schedule, type ScheduleData, type ScheduleStatisticsModel, type ScheduledEvent, type SignalCancelledNotification, type SignalClosedNotification, type SignalData, type SignalInterval, type SignalOpenedNotification, type SignalScheduledNotification, type TPersistBase, type TPersistBaseCtor, type TickEvent, type ValidationErrorNotification, Walker, type WalkerCompleteContract, type WalkerContract, type WalkerMetric, type SignalData$1 as WalkerSignalData, type WalkerStatisticsModel, addExchange, addFrame, addOptimizer, addRisk, addSizing, addStrategy, addWalker, cancel, dumpSignal, emitters, formatPrice, formatQuantity, getAveragePrice, getCandles, getColumns, getConfig, getDate, getDefaultColumns, getDefaultConfig, getMode, hasTradeContext, backtest as lib, listExchanges, listFrames, listOptimizers, listRisks, listSizings, listStrategies, listWalkers, listenBacktestProgress, listenDoneBacktest, listenDoneBacktestOnce, listenDoneLive, listenDoneLiveOnce, listenDoneWalker, listenDoneWalkerOnce, listenError, listenExit, listenOptimizerProgress, listenPartialLoss, listenPartialLossOnce, listenPartialProfit, listenPartialProfitOnce, listenPerformance, listenPing, listenPingOnce, listenRisk, listenRiskOnce, listenSignal, listenSignalBacktest, listenSignalBacktestOnce, listenSignalLive, listenSignalLiveOnce, listenSignalOnce, listenValidation, listenWalker, listenWalkerComplete, listenWalkerOnce, listenWalkerProgress, partialLoss, partialProfit, setColumns, setConfig, setLogger, stop, trailingStop, validate };
+export { Backtest, type BacktestDoneNotification, type BacktestStatisticsModel, type BootstrapNotification, Cache, type CandleInterval, type ColumnConfig, type ColumnModel, Constant, type CriticalErrorNotification, type DoneContract, type EntityId, Exchange, ExecutionContextService, type FrameInterval, type GlobalConfig, Heat, type HeatmapStatisticsModel, type ICandleData, type IExchangeSchema, type IFrameSchema, type IHeatmapRow, type IOptimizerCallbacks, type IOptimizerData, type IOptimizerFetchArgs, type IOptimizerFilterArgs, type IOptimizerRange, type IOptimizerSchema, type IOptimizerSource, type IOptimizerStrategy, type IOptimizerTemplate, type IPersistBase, type IPositionSizeATRParams, type IPositionSizeFixedPercentageParams, type IPositionSizeKellyParams, type IPublicSignalRow, type IRiskActivePosition, type IRiskCheckArgs, type IRiskSchema, type IRiskValidation, type IRiskValidationFn, type IRiskValidationPayload, type IScheduledSignalCancelRow, type IScheduledSignalRow, type ISignalDto, type ISignalRow, type ISizingCalculateParams, type ISizingCalculateParamsATR, type ISizingCalculateParamsFixedPercentage, type ISizingCalculateParamsKelly, type ISizingSchema, type ISizingSchemaATR, type ISizingSchemaFixedPercentage, type ISizingSchemaKelly, type IStrategyPnL, type IStrategyResult, type IStrategySchema, type IStrategyTickResult, type IStrategyTickResultActive, type IStrategyTickResultCancelled, type IStrategyTickResultClosed, type IStrategyTickResultIdle, type IStrategyTickResultOpened, type IStrategyTickResultScheduled, type IWalkerResults, type IWalkerSchema, type IWalkerStrategyResult, type InfoErrorNotification, Live, type LiveDoneNotification, type LiveStatisticsModel, type MessageModel, type MessageRole, MethodContextService, type MetricStats, Notification, type NotificationModel, Optimizer, Partial$1 as Partial, type PartialData, type PartialEvent, type PartialLossContract, type PartialLossNotification, type PartialProfitContract, type PartialProfitNotification, type PartialStatisticsModel, Performance, type PerformanceContract, type PerformanceMetricType, type PerformanceStatisticsModel, PersistBase, PersistPartialAdapter, PersistRiskAdapter, PersistScheduleAdapter, PersistSignalAdapter, type PingContract, PositionSize, type ProgressBacktestContract, type ProgressBacktestNotification, type ProgressOptimizerContract, type ProgressWalkerContract, Risk, type RiskContract, type RiskData, type RiskEvent, type RiskRejectionNotification, type RiskStatisticsModel, Schedule, type ScheduleData, type ScheduleStatisticsModel, type ScheduledEvent, type SignalCancelledNotification, type SignalClosedNotification, type SignalData, type SignalInterval, type SignalOpenedNotification, type SignalScheduledNotification, type TPersistBase, type TPersistBaseCtor, type TickEvent, type ValidationErrorNotification, Walker, type WalkerCompleteContract, type WalkerContract, type WalkerMetric, type SignalData$1 as WalkerSignalData, type WalkerStatisticsModel, addExchange, addFrame, addOptimizer, addRisk, addSizing, addStrategy, addWalker, breakeven, cancel, dumpSignal, emitters, formatPrice, formatQuantity, getAveragePrice, getCandles, getColumns, getConfig, getDate, getDefaultColumns, getDefaultConfig, getMode, hasTradeContext, backtest as lib, listExchanges, listFrames, listOptimizers, listRisks, listSizings, listStrategies, listWalkers, listenBacktestProgress, listenDoneBacktest, listenDoneBacktestOnce, listenDoneLive, listenDoneLiveOnce, listenDoneWalker, listenDoneWalkerOnce, listenError, listenExit, listenOptimizerProgress, listenPartialLoss, listenPartialLossOnce, listenPartialProfit, listenPartialProfitOnce, listenPerformance, listenPing, listenPingOnce, listenRisk, listenRiskOnce, listenSignal, listenSignalBacktest, listenSignalBacktestOnce, listenSignalLive, listenSignalLiveOnce, listenSignalOnce, listenValidation, listenWalker, listenWalkerComplete, listenWalkerOnce, listenWalkerProgress, partialLoss, partialProfit, setColumns, setConfig, setLogger, stop, trailingStop, validate };

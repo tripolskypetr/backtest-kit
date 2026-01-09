@@ -905,8 +905,11 @@ const BREAKEVEN_FN = (
   signal: ISignalRow,
   currentPrice: number
 ): boolean => {
-  // Get threshold from global config
-  const breakevenThresholdPercent = GLOBAL_CONFIG.CC_BREAKEVEN_THRESHOLD;
+  // Calculate breakeven threshold based on slippage and fees
+  // Need to cover: entry slippage + entry fee + exit slippage + exit fee
+  // Total: (slippage + fee) * 2 transactions
+  const breakevenThresholdPercent =
+    (GLOBAL_CONFIG.CC_PERCENT_SLIPPAGE + GLOBAL_CONFIG.CC_PERCENT_FEE) * 2;
 
   // Check if trailing stop is already set
   if (signal._trailingPriceStopLoss !== undefined) {
@@ -3751,8 +3754,8 @@ export class ClientStrategy implements IStrategy {
    * Moves stop-loss to breakeven (entry price) when price reaches threshold.
    *
    * Moves SL to entry price (zero-risk position) when current price has moved
-   * far enough in profit direction to justify protecting the entry.
-   * Threshold is configured via CC_BREAKEVEN_THRESHOLD in global config.
+   * far enough in profit direction to cover transaction costs (slippage + fees).
+   * Threshold is calculated as: (CC_PERCENT_SLIPPAGE + CC_PERCENT_FEE) * 2
    *
    * Behavior:
    * - Returns true if SL was moved to breakeven
@@ -3760,13 +3763,15 @@ export class ClientStrategy implements IStrategy {
    * - Uses _trailingPriceStopLoss to store breakeven SL (preserves original priceStopLoss)
    * - Only moves SL once per position (idempotent - safe to call multiple times)
    *
-   * For LONG position (entry=100, CC_BREAKEVEN_THRESHOLD=10%):
-   * - Breakeven available when price >= 110 (entry + 10%)
+   * For LONG position (entry=100, slippage=0.1%, fee=0.1%):
+   * - Threshold: (0.1 + 0.1) * 2 = 0.4%
+   * - Breakeven available when price >= 100.4 (entry + 0.4%)
    * - Moves SL from original (e.g. 95) to 100 (breakeven)
    * - Returns true on first successful move, false on subsequent calls
    *
-   * For SHORT position (entry=100, CC_BREAKEVEN_THRESHOLD=10%):
-   * - Breakeven available when price <= 90 (entry - 10%)
+   * For SHORT position (entry=100, slippage=0.1%, fee=0.1%):
+   * - Threshold: (0.1 + 0.1) * 2 = 0.4%
+   * - Breakeven available when price <= 99.6 (entry - 0.4%)
    * - Moves SL from original (e.g. 105) to 100 (breakeven)
    * - Returns true on first successful move, false on subsequent calls
    *
@@ -3781,18 +3786,18 @@ export class ClientStrategy implements IStrategy {
    *
    * @example
    * ```typescript
-   * // LONG position: entry=100, currentSL=95, CC_BREAKEVEN_THRESHOLD=10%
+   * // LONG position: entry=100, currentSL=95, threshold=0.4%
    *
-   * // Price at 105 - threshold not reached yet
-   * const result1 = await strategy.breakeven("BTCUSDT", 105, false);
-   * // Returns false (price < 110)
+   * // Price at 100.3 - threshold not reached yet
+   * const result1 = await strategy.breakeven("BTCUSDT", 100.3, false);
+   * // Returns false (price < 100.4)
    *
-   * // Price at 112 - threshold reached!
-   * const result2 = await strategy.breakeven("BTCUSDT", 112, false);
+   * // Price at 100.5 - threshold reached!
+   * const result2 = await strategy.breakeven("BTCUSDT", 100.5, false);
    * // Returns true, SL moved to 100 (breakeven)
    *
-   * // Price at 120 - already at breakeven
-   * const result3 = await strategy.breakeven("BTCUSDT", 120, false);
+   * // Price at 101 - already at breakeven
+   * const result3 = await strategy.breakeven("BTCUSDT", 101, false);
    * // Returns false (already at breakeven, no change)
    * ```
    */
@@ -3804,7 +3809,7 @@ export class ClientStrategy implements IStrategy {
     this.params.logger.debug("ClientStrategy breakeven", {
       symbol,
       currentPrice,
-      breakevenThreshold: GLOBAL_CONFIG.CC_BREAKEVEN_THRESHOLD,
+      breakevenThresholdPercent: (GLOBAL_CONFIG.CC_PERCENT_SLIPPAGE + GLOBAL_CONFIG.CC_PERCENT_FEE) * 2,
       hasPendingSignal: this._pendingSignal !== null,
     });
 

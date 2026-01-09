@@ -111,22 +111,6 @@ export const GLOBAL_CONFIG = {
    * Default: false (notes are hidden to reduce table width and improve readability)
    */
   CC_REPORT_SHOW_SIGNAL_NOTE: false,
-  /**
-   * Breakeven threshold percentage - minimum profit distance from entry to enable breakeven.
-   * When price moves this percentage in profit direction, stop-loss can be moved to entry (breakeven).
-   *
-   * Calculation:
-   * - For LONG: threshold reached when price >= entry * (1 + threshold%)
-   * - For SHORT: threshold reached when price <= entry * (1 - threshold%)
-   * - Once reached, SL moves to entry price (zero-risk position)
-   *
-   * Example (threshold=10%):
-   * - LONG: entry=100 → breakeven available at price >= 110
-   * - SHORT: entry=100 → breakeven available at price <= 90
-   *
-   * Default: 10% (requires 10% profit before protecting entry)
-   */
-  CC_BREAKEVEN_THRESHOLD: 10,
 };
 
 export const DEFAULT_CONFIG = Object.freeze({...GLOBAL_CONFIG});

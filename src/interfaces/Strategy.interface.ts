@@ -648,8 +648,8 @@ export interface IStrategy {
    * Moves stop-loss to breakeven (entry price) when price reaches threshold.
    *
    * Moves SL to entry price (zero-risk position) when current price has moved
-   * far enough in profit direction to justify protecting the entry.
-   * Threshold is configured via CC_BREAKEVEN_THRESHOLD in global config.
+   * far enough in profit direction to cover transaction costs (slippage + fees).
+   * Threshold is calculated as: (CC_PERCENT_SLIPPAGE + CC_PERCENT_FEE) * 2
    *
    * Behavior:
    * - Returns true if SL was moved to breakeven
@@ -657,13 +657,15 @@ export interface IStrategy {
    * - Uses _trailingPriceStopLoss to store breakeven SL (preserves original priceStopLoss)
    * - Only moves SL once per position (idempotent - safe to call multiple times)
    *
-   * For LONG position (entry=100, CC_BREAKEVEN_THRESHOLD=10%):
-   * - Breakeven available when price >= 110 (entry + 10%)
+   * For LONG position (entry=100, slippage=0.1%, fee=0.1%):
+   * - Threshold: (0.1 + 0.1) * 2 = 0.4%
+   * - Breakeven available when price >= 100.4 (entry + 0.4%)
    * - Moves SL from original (e.g. 95) to 100 (breakeven)
    * - Returns true on first successful move, false on subsequent calls
    *
-   * For SHORT position (entry=100, CC_BREAKEVEN_THRESHOLD=10%):
-   * - Breakeven available when price <= 90 (entry - 10%)
+   * For SHORT position (entry=100, slippage=0.1%, fee=0.1%):
+   * - Threshold: (0.1 + 0.1) * 2 = 0.4%
+   * - Breakeven available when price <= 99.6 (entry - 0.4%)
    * - Moves SL from original (e.g. 105) to 100 (breakeven)
    * - Returns true on first successful move, false on subsequent calls
    *

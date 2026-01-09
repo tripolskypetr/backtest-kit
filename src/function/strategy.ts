@@ -248,7 +248,8 @@ export async function trailingStop(
  * Moves stop-loss to breakeven when price reaches threshold.
  *
  * Moves SL to entry price (zero-risk position) when current price has moved
- * far enough in profit direction. Threshold is configured via CC_BREAKEVEN_THRESHOLD.
+ * far enough in profit direction to cover transaction costs.
+ * Threshold is calculated as: (CC_PERCENT_SLIPPAGE + CC_PERCENT_FEE) * 2
  *
  * Automatically detects backtest/live mode from execution context.
  * Automatically fetches current price via getAveragePrice.
@@ -260,8 +261,8 @@ export async function trailingStop(
  * ```typescript
  * import { breakeven } from "backtest-kit";
  *
- * // LONG: entry=100, CC_BREAKEVEN_THRESHOLD=10%
- * // Try to move SL to breakeven (activates when price >= 110)
+ * // LONG: entry=100, slippage=0.1%, fee=0.1%, threshold=0.4%
+ * // Try to move SL to breakeven (activates when price >= 100.4)
  * const moved = await breakeven("BTCUSDT");
  * if (moved) {
  *   console.log("Position moved to breakeven!");

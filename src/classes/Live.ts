@@ -734,7 +734,7 @@ export class LiveUtils {
    * Moves stop-loss to breakeven when price reaches threshold.
    *
    * Moves SL to entry price (zero-risk position) when current price has moved
-   * far enough in profit direction. Threshold is configured via CC_BREAKEVEN_THRESHOLD.
+   * far enough in profit direction. Threshold is calculated as: (CC_PERCENT_SLIPPAGE + CC_PERCENT_FEE) * 2
    *
    * @param symbol - Trading pair symbol
    * @param currentPrice - Current market price to check threshold

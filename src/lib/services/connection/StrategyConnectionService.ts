@@ -613,12 +613,12 @@ export class StrategyConnectionService implements TStrategy {
    *
    * @example
    * ```typescript
-   * // LONG: entry=100, CC_BREAKEVEN_THRESHOLD=10%
-   * // Try to move SL to breakeven when price >= 110
+   * // LONG: entry=100, slippage=0.1%, fee=0.1%, threshold=0.4%
+   * // Try to move SL to breakeven when price >= 100.4
    * const moved = await strategyConnectionService.breakeven(
    *   false,
    *   "BTCUSDT",
-   *   112,
+   *   100.5,
    *   { strategyName: "my-strategy", exchangeName: "binance", frameName: "" }
    * );
    * console.log(moved); // true (SL moved to 100)
