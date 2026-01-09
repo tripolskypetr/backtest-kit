@@ -12376,6 +12376,7 @@ declare class RiskGlobalService implements TRisk {
     private readonly loggerService;
     private readonly riskConnectionService;
     private readonly riskValidationService;
+    private readonly exchangeValidationService;
     /**
      * Validates risk configuration.
      * Memoized to avoid redundant validations for the same risk-exchange-frame combination.
@@ -13867,6 +13868,10 @@ declare class PartialGlobalService implements TPartial {
      */
     private readonly riskValidationService;
     /**
+     * Exchange validation service for validating exchange existence.
+     */
+    private readonly exchangeValidationService;
+    /**
      * Validates strategy and associated risk configuration.
      * Memoized to avoid redundant validations for the same strategy-exchange-frame combination.
      *
@@ -13975,6 +13980,10 @@ declare class BreakevenGlobalService implements TBreakeven {
      * Risk validation service for validating risk existence.
      */
     private readonly riskValidationService;
+    /**
+     * Exchange validation service for validating exchange existence.
+     */
+    private readonly exchangeValidationService;
     /**
      * Validates strategy and associated risk configuration.
      * Memoized to avoid redundant validations for the same strategy-exchange-frame combination.
