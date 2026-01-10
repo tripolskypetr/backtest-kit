@@ -21,6 +21,7 @@ import backtest from "../lib";
 import { validationSubject, errorEmitter } from "../config/emitters";
 import { get } from "../utils/get";
 import { ExchangeName } from "../interfaces/Exchange.interface";
+import { FrameName } from "../interfaces/Frame.interface";
 import { IRiskSignalRow, ISignalDto, ISignalRow, StrategyName } from "../interfaces/Strategy.interface";
 
 /** Type for active position map */
@@ -232,11 +233,20 @@ export class ClientRisk implements IRisk {
    */
   public async addSignal(
     symbol: string,
-    context: { strategyName: StrategyName; riskName: RiskName; exchangeName: ExchangeName; }
+    context: { strategyName: StrategyName; riskName: RiskName; exchangeName: ExchangeName; frameName: FrameName },
+    positionData: {
+      position: "long" | "short";
+      priceOpen: number;
+      priceStopLoss: number;
+      priceTakeProfit: number;
+      minuteEstimatedTime: number;
+      openTimestamp: number;
+    }
   ) {
     this.params.logger.debug("ClientRisk addSignal", {
       symbol,
       context,
+      positionData,
       backtest: this.params.backtest,
     });
 
@@ -249,7 +259,14 @@ export class ClientRisk implements IRisk {
     riskMap.set(key, {
       strategyName: context.strategyName,
       exchangeName: context.exchangeName,
-      openTimestamp: Date.now(),
+      frameName: context.frameName,
+      symbol,
+      position: positionData.position,
+      priceOpen: positionData.priceOpen,
+      priceStopLoss: positionData.priceStopLoss,
+      priceTakeProfit: positionData.priceTakeProfit,
+      minuteEstimatedTime: positionData.minuteEstimatedTime,
+      openTimestamp: positionData.openTimestamp,
     });
 
     await this._updatePositions();

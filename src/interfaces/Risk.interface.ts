@@ -39,6 +39,20 @@ export interface IRiskActivePosition {
   strategyName: StrategyName;
   /** Exchange name */
   exchangeName: ExchangeName;
+  /** Frame name */
+  frameName: FrameName;
+  /** Trading pair symbol (e.g., "BTCUSDT") */
+  symbol: string;
+  /** Position direction ("long" or "short") */
+  position: "long" | "short";
+  /** Entry price */
+  priceOpen: number;
+  /** Stop loss price */
+  priceStopLoss: number;
+  /** Take profit price */
+  priceTakeProfit: number;
+  /** Estimated time in minutes */
+  minuteEstimatedTime: number;
   /** Timestamp when the position was opened */
   openTimestamp: number;
 }
@@ -176,8 +190,20 @@ export interface IRisk {
    *
    * @param symbol - Trading pair symbol
    * @param context - Context information (strategyName, riskName, exchangeName, frameName)
+   * @param positionData - Position data (position, prices, timing)
    */
-  addSignal: (symbol: string, context: { strategyName: StrategyName; riskName: RiskName; exchangeName: ExchangeName; frameName: FrameName }) => Promise<void>;
+  addSignal: (
+    symbol: string,
+    context: { strategyName: StrategyName; riskName: RiskName; exchangeName: ExchangeName; frameName: FrameName },
+    positionData: {
+      position: "long" | "short";
+      priceOpen: number;
+      priceStopLoss: number;
+      priceTakeProfit: number;
+      minuteEstimatedTime: number;
+      openTimestamp: number;
+    }
+  ) => Promise<void>;
 
   /**
    * Remove a closed signal/position.

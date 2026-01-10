@@ -80,6 +80,13 @@ test("Risk validation rejects signal when activePositionCount exceeds limit", as
     exchangeName: "binance",
     frameName: "",
     backtest: false,
+  }, {
+    position: "long",
+    priceOpen: 50000,
+    priceStopLoss: 48000,
+    priceTakeProfit: 52000,
+    minuteEstimatedTime: 60,
+    openTimestamp: Date.now(),
   });
   await riskGlobalService.addSignal("ETHUSDT", {
     strategyName: "test-strategy-2",
@@ -87,6 +94,13 @@ test("Risk validation rejects signal when activePositionCount exceeds limit", as
     exchangeName: "binance",
     frameName: "",
     backtest: false,
+  }, {
+    position: "long",
+    priceOpen: 2000,
+    priceStopLoss: 1900,
+    priceTakeProfit: 2100,
+    minuteEstimatedTime: 60,
+    openTimestamp: Date.now(),
   });
   await riskGlobalService.addSignal("BNBUSDT", {
     strategyName: "test-strategy-3",
@@ -94,6 +108,13 @@ test("Risk validation rejects signal when activePositionCount exceeds limit", as
     exchangeName: "binance",
     frameName: "",
     backtest: false,
+  }, {
+    position: "short",
+    priceOpen: 300,
+    priceStopLoss: 310,
+    priceTakeProfit: 290,
+    minuteEstimatedTime: 120,
+    openTimestamp: Date.now(),
   });
 
   // 4th signal should fail
@@ -173,6 +194,13 @@ test("Risk validation allows signal when within limits", async ({
     exchangeName: "binance",
     frameName: "",
     backtest: false,
+  }, {
+    position: "long",
+    priceOpen: 50000,
+    priceStopLoss: 48000,
+    priceTakeProfit: 52000,
+    minuteEstimatedTime: 60,
+    openTimestamp: Date.now(),
   });
   await riskGlobalService.addSignal("ETHUSDT", {
     strategyName: "test-strategy-2",
@@ -180,6 +208,13 @@ test("Risk validation allows signal when within limits", async ({
     exchangeName: "binance",
     frameName: "",
     backtest: false,
+  }, {
+    position: "long",
+    priceOpen: 2000,
+    priceStopLoss: 1900,
+    priceTakeProfit: 2100,
+    minuteEstimatedTime: 60,
+    openTimestamp: Date.now(),
   });
 
   // 3rd signal should pass
@@ -245,6 +280,13 @@ test("Risk addSignal and removeSignal update activePositionCount", async ({
     exchangeName: "binance",
     frameName: "",
     backtest: false,
+  }, {
+    position: "long",
+    priceOpen: 50000,
+    priceStopLoss: 48000,
+    priceTakeProfit: 52000,
+    minuteEstimatedTime: 60,
+    openTimestamp: Date.now(),
   });
   await riskGlobalService.addSignal("ETHUSDT", {
     strategyName: "test-strategy-2",
@@ -252,6 +294,13 @@ test("Risk addSignal and removeSignal update activePositionCount", async ({
     exchangeName: "binance",
     frameName: "",
     backtest: false,
+  }, {
+    position: "long",
+    priceOpen: 2000,
+    priceStopLoss: 1900,
+    priceTakeProfit: 2100,
+    minuteEstimatedTime: 60,
+    openTimestamp: Date.now(),
   });
   await riskGlobalService.addSignal("BNBUSDT", {
     strategyName: "test-strategy-3",
@@ -259,6 +308,13 @@ test("Risk addSignal and removeSignal update activePositionCount", async ({
     exchangeName: "binance",
     frameName: "",
     backtest: false,
+  }, {
+    position: "short",
+    priceOpen: 300,
+    priceStopLoss: 310,
+    priceTakeProfit: 290,
+    minuteEstimatedTime: 120,
+    openTimestamp: Date.now(),
   });
 
   // Check count is 3
@@ -353,6 +409,13 @@ test("Risk validation with function (not object) works", async ({
     exchangeName: "binance",
     frameName: "",
     backtest: false,
+  }, {
+    position: "long",
+    priceOpen: 50000,
+    priceStopLoss: 48000,
+    priceTakeProfit: 52000,
+    minuteEstimatedTime: 60,
+    openTimestamp: Date.now(),
   });
 
   const result = await riskGlobalService.checkSignal(
@@ -599,6 +662,13 @@ test("Risk activePositionCount is isolated per riskName", async ({
     exchangeName: "binance",
     frameName: "",
     backtest: false,
+  }, {
+    position: "long",
+    priceOpen: 50000,
+    priceStopLoss: 48000,
+    priceTakeProfit: 52000,
+    minuteEstimatedTime: 60,
+    openTimestamp: Date.now(),
   });
   await riskGlobalService.addSignal("ETHUSDT", {
     strategyName: "test-strategy-2",
@@ -606,6 +676,13 @@ test("Risk activePositionCount is isolated per riskName", async ({
     exchangeName: "binance",
     frameName: "",
     backtest: false,
+  }, {
+    position: "long",
+    priceOpen: 2000,
+    priceStopLoss: 1900,
+    priceTakeProfit: 2100,
+    minuteEstimatedTime: 60,
+    openTimestamp: Date.now(),
   });
 
   // Add 1 signal to risk2
@@ -615,6 +692,13 @@ test("Risk activePositionCount is isolated per riskName", async ({
     exchangeName: "binance",
     frameName: "",
     backtest: false,
+  }, {
+    position: "short",
+    priceOpen: 300,
+    priceStopLoss: 310,
+    priceTakeProfit: 290,
+    minuteEstimatedTime: 120,
+    openTimestamp: Date.now(),
   });
 
   // Check risk1 count
@@ -695,6 +779,13 @@ test("Risk removeSignal with same strategyName:symbol key", async ({
     exchangeName: "binance",
     frameName: "",
     backtest: false,
+  }, {
+    position: "long",
+    priceOpen: 50000,
+    priceStopLoss: 48000,
+    priceTakeProfit: 52000,
+    minuteEstimatedTime: 60,
+    openTimestamp: Date.now(),
   });
 
   // Check count is 1

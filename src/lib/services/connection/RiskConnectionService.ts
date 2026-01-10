@@ -182,16 +182,26 @@ export class RiskConnectionService implements TRisk {
    *
    * @param symbol - Trading pair symbol
    * @param payload - Payload information (strategyName, riskName, exchangeName, frameName, backtest)
+   * @param positionData - Position data (position, prices, timing)
    */
   public addSignal = async (
     symbol: string,
-    payload: { strategyName: StrategyName; riskName: RiskName; exchangeName: ExchangeName; frameName: FrameName; backtest: boolean }
+    payload: { strategyName: StrategyName; riskName: RiskName; exchangeName: ExchangeName; frameName: FrameName; backtest: boolean },
+    positionData: {
+      position: "long" | "short";
+      priceOpen: number;
+      priceStopLoss: number;
+      priceTakeProfit: number;
+      minuteEstimatedTime: number;
+      openTimestamp: number;
+    }
   ) => {
     this.loggerService.log("riskConnectionService addSignal", {
       symbol,
       payload,
+      positionData,
     });
-    await this.getRisk(payload.riskName, payload.exchangeName, payload.frameName, payload.backtest).addSignal(symbol, payload);
+    await this.getRisk(payload.riskName, payload.exchangeName, payload.frameName, payload.backtest).addSignal(symbol, payload, positionData);
   };
 
   /**

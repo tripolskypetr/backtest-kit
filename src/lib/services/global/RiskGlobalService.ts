@@ -90,17 +90,27 @@ export class RiskGlobalService implements TRisk {
    *
    * @param symbol - Trading pair symbol
    * @param payload - Payload information (strategyName, riskName, exchangeName, frameName, backtest)
+   * @param positionData - Position data (position, prices, timing)
    */
   public addSignal = async (
     symbol: string,
-    payload: { strategyName: StrategyName; riskName: RiskName; exchangeName: ExchangeName; frameName: FrameName; backtest: boolean }
+    payload: { strategyName: StrategyName; riskName: RiskName; exchangeName: ExchangeName; frameName: FrameName; backtest: boolean },
+    positionData: {
+      position: "long" | "short";
+      priceOpen: number;
+      priceStopLoss: number;
+      priceTakeProfit: number;
+      minuteEstimatedTime: number;
+      openTimestamp: number;
+    }
   ) => {
     this.loggerService.log("riskGlobalService addSignal", {
       symbol,
       payload,
+      positionData,
     });
     await this.validate(payload);
-    await this.riskConnectionService.addSignal(symbol, payload);
+    await this.riskConnectionService.addSignal(symbol, payload, positionData);
   };
 
   /**

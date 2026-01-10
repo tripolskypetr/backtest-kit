@@ -84,14 +84,22 @@ export class MergeRisk implements IRisk {
    */
   public async addSignal(
     symbol: string,
-    context: { strategyName: StrategyName; riskName: RiskName; exchangeName: ExchangeName; frameName: FrameName }
+    context: { strategyName: StrategyName; riskName: RiskName; exchangeName: ExchangeName; frameName: FrameName },
+    positionData: {
+      position: "long" | "short";
+      priceOpen: number;
+      priceStopLoss: number;
+      priceTakeProfit: number;
+      minuteEstimatedTime: number;
+      openTimestamp: number;
+    }
   ) {
     bt.loggerService.info("MergeRisk addSignal", {
       symbol,
       context,
     });
     await Promise.all(
-      this._riskList.map(async (risk) => await risk.addSignal(symbol, context))
+      this._riskList.map(async (risk) => await risk.addSignal(symbol, context, positionData))
     );
   }
 

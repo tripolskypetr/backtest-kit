@@ -687,6 +687,20 @@ interface IRiskActivePosition {
     strategyName: StrategyName;
     /** Exchange name */
     exchangeName: ExchangeName;
+    /** Frame name */
+    frameName: FrameName;
+    /** Trading pair symbol (e.g., "BTCUSDT") */
+    symbol: string;
+    /** Position direction ("long" or "short") */
+    position: "long" | "short";
+    /** Entry price */
+    priceOpen: number;
+    /** Stop loss price */
+    priceStopLoss: number;
+    /** Take profit price */
+    priceTakeProfit: number;
+    /** Estimated time in minutes */
+    minuteEstimatedTime: number;
     /** Timestamp when the position was opened */
     openTimestamp: number;
 }
@@ -800,12 +814,20 @@ interface IRisk {
      *
      * @param symbol - Trading pair symbol
      * @param context - Context information (strategyName, riskName, exchangeName, frameName)
+     * @param positionData - Position data (position, prices, timing)
      */
     addSignal: (symbol: string, context: {
         strategyName: StrategyName;
         riskName: RiskName;
         exchangeName: ExchangeName;
         frameName: FrameName;
+    }, positionData: {
+        position: "long" | "short";
+        priceOpen: number;
+        priceStopLoss: number;
+        priceTakeProfit: number;
+        minuteEstimatedTime: number;
+        openTimestamp: number;
     }) => Promise<void>;
     /**
      * Remove a closed signal/position.
@@ -11367,6 +11389,14 @@ declare class ClientRisk implements IRisk {
         strategyName: StrategyName;
         riskName: RiskName;
         exchangeName: ExchangeName;
+        frameName: FrameName;
+    }, positionData: {
+        position: "long" | "short";
+        priceOpen: number;
+        priceStopLoss: number;
+        priceTakeProfit: number;
+        minuteEstimatedTime: number;
+        openTimestamp: number;
     }): Promise<void>;
     /**
      * Removes a closed signal.
@@ -11472,6 +11502,7 @@ declare class RiskConnectionService implements TRisk$1 {
      *
      * @param symbol - Trading pair symbol
      * @param payload - Payload information (strategyName, riskName, exchangeName, frameName, backtest)
+     * @param positionData - Position data (position, prices, timing)
      */
     addSignal: (symbol: string, payload: {
         strategyName: StrategyName;
@@ -11479,6 +11510,13 @@ declare class RiskConnectionService implements TRisk$1 {
         exchangeName: ExchangeName;
         frameName: FrameName;
         backtest: boolean;
+    }, positionData: {
+        position: "long" | "short";
+        priceOpen: number;
+        priceStopLoss: number;
+        priceTakeProfit: number;
+        minuteEstimatedTime: number;
+        openTimestamp: number;
     }) => Promise<void>;
     /**
      * Removes a closed signal from the risk management system.
@@ -12764,6 +12802,7 @@ declare class RiskGlobalService implements TRisk {
      *
      * @param symbol - Trading pair symbol
      * @param payload - Payload information (strategyName, riskName, exchangeName, frameName, backtest)
+     * @param positionData - Position data (position, prices, timing)
      */
     addSignal: (symbol: string, payload: {
         strategyName: StrategyName;
@@ -12771,6 +12810,13 @@ declare class RiskGlobalService implements TRisk {
         exchangeName: ExchangeName;
         frameName: FrameName;
         backtest: boolean;
+    }, positionData: {
+        position: "long" | "short";
+        priceOpen: number;
+        priceStopLoss: number;
+        priceTakeProfit: number;
+        minuteEstimatedTime: number;
+        openTimestamp: number;
     }) => Promise<void>;
     /**
      * Removes a closed signal from the risk management system.

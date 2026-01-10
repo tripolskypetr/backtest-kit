@@ -1440,6 +1440,7 @@ const ACTIVATE_SCHEDULED_SIGNAL_FN = async (
   await CALL_RISK_ADD_SIGNAL_FN(
     self,
     self.params.execution.context.symbol,
+    activatedSignal,
     activationTime,
     self.params.execution.context.backtest
   );
@@ -1796,16 +1797,28 @@ const CALL_RISK_ADD_SIGNAL_FN = trycatch(
   async (
     self: ClientStrategy,
     symbol: string,
+    signal: ISignalRow,
     timestamp: number,
     backtest: boolean
   ): Promise<void> => {
     await ExecutionContextService.runInContext(async () => {
-      await self.params.risk.addSignal(symbol, {
-        strategyName: self.params.method.context.strategyName,
-        riskName: self.params.riskName,
-        exchangeName: self.params.method.context.exchangeName,
-        frameName: self.params.method.context.frameName,
-      });
+      await self.params.risk.addSignal(
+        symbol,
+        {
+          strategyName: self.params.method.context.strategyName,
+          riskName: self.params.riskName,
+          exchangeName: self.params.method.context.exchangeName,
+          frameName: self.params.method.context.frameName,
+        },
+        {
+          position: signal.position,
+          priceOpen: signal.priceOpen,
+          priceStopLoss: signal.priceStopLoss,
+          priceTakeProfit: signal.priceTakeProfit,
+          minuteEstimatedTime: signal.minuteEstimatedTime,
+          openTimestamp: timestamp,
+        }
+      );
     }, {
       when: new Date(timestamp),
       symbol: symbol,
@@ -2230,6 +2243,7 @@ const OPEN_NEW_PENDING_SIGNAL_FN = async (
   await CALL_RISK_ADD_SIGNAL_FN(
     self,
     self.params.execution.context.symbol,
+    signal,
     currentTime,
     self.params.execution.context.backtest
   );
@@ -2702,6 +2716,7 @@ const ACTIVATE_SCHEDULED_SIGNAL_IN_BACKTEST_FN = async (
   await CALL_RISK_ADD_SIGNAL_FN(
     self,
     self.params.execution.context.symbol,
+    activatedSignal,
     activationTime,
     self.params.execution.context.backtest
   );
