@@ -19,10 +19,12 @@ const LIVE_METHOD_NAME_TASK = "LiveUtils.task";
 const LIVE_METHOD_NAME_GET_STATUS = "LiveUtils.getStatus";
 const LIVE_METHOD_NAME_GET_PENDING_SIGNAL = "LiveUtils.getPendingSignal";
 const LIVE_METHOD_NAME_GET_SCHEDULED_SIGNAL = "LiveUtils.getScheduledSignal";
+const LIVE_METHOD_NAME_GET_BREAKEVEN = "LiveUtils.getBreakeven";
 const LIVE_METHOD_NAME_CANCEL = "LiveUtils.cancel";
 const LIVE_METHOD_NAME_PARTIAL_PROFIT = "LiveUtils.partialProfit";
 const LIVE_METHOD_NAME_PARTIAL_LOSS = "LiveUtils.partialLoss";
 const LIVE_METHOD_NAME_TRAILING_STOP = "LiveUtils.trailingStop";
+const LIVE_METHOD_NAME_TRAILING_PROFIT = "LiveUtils.trailingProfit";
 
 /**
  * Internal task function that runs live trading and handles completion.
@@ -427,6 +429,7 @@ export class LiveUtils {
       context,
     });
     backtest.strategyValidationService.validate(context.strategyName, LIVE_METHOD_NAME_GET_PENDING_SIGNAL);
+    backtest.exchangeValidationService.validate(context.exchangeName, LIVE_METHOD_NAME_GET_PENDING_SIGNAL);
 
     {
       const { riskName, riskList } = backtest.strategySchemaService.get(context.strategyName);
@@ -463,6 +466,7 @@ export class LiveUtils {
       context,
     });
     backtest.strategyValidationService.validate(context.strategyName, LIVE_METHOD_NAME_GET_SCHEDULED_SIGNAL);
+    backtest.exchangeValidationService.validate(context.exchangeName, LIVE_METHOD_NAME_GET_SCHEDULED_SIGNAL);
 
     {
       const { riskName, riskList } = backtest.strategySchemaService.get(context.strategyName);
@@ -471,6 +475,55 @@ export class LiveUtils {
     }
 
     return await backtest.strategyCoreService.getScheduledSignal(false, symbol, {
+      strategyName: context.strategyName,
+      exchangeName: context.exchangeName,
+      frameName: "",
+    });
+  };
+
+  /**
+   * Checks if breakeven threshold has been reached for the current pending signal.
+   *
+   * Uses the same formula as BREAKEVEN_FN to determine if price has moved far enough
+   * to cover transaction costs (slippage + fees) and allow breakeven to be set.
+   *
+   * @param symbol - Trading pair symbol
+   * @param currentPrice - Current market price to check against threshold
+   * @param context - Execution context with strategyName and exchangeName
+   * @returns Promise<boolean> - true if breakeven threshold reached, false otherwise
+   *
+   * @example
+   * ```typescript
+   * const canBreakeven = await Live.getBreakeven("BTCUSDT", 100.5, {
+   *   strategyName: "my-strategy",
+   *   exchangeName: "binance"
+   * });
+   * if (canBreakeven) {
+   *   console.log("Breakeven threshold reached");
+   *   await Live.breakeven("BTCUSDT", 100.5, context);
+   * }
+   * ```
+   */
+  public getBreakeven = async (
+    symbol: string,
+    currentPrice: number,
+    context: { strategyName: StrategyName; exchangeName: ExchangeName; }
+  ): Promise<boolean> => {
+    backtest.loggerService.info(LIVE_METHOD_NAME_GET_BREAKEVEN, {
+      symbol,
+      currentPrice,
+      context,
+    });
+    backtest.strategyValidationService.validate(context.strategyName, LIVE_METHOD_NAME_GET_BREAKEVEN);
+    backtest.exchangeValidationService.validate(context.exchangeName, LIVE_METHOD_NAME_GET_BREAKEVEN);
+
+    {
+      const { riskName, riskList } = backtest.strategySchemaService.get(context.strategyName);
+      riskName && backtest.riskValidationService.validate(riskName, LIVE_METHOD_NAME_GET_BREAKEVEN);
+      riskList && riskList.forEach((riskName) => backtest.riskValidationService.validate(riskName, LIVE_METHOD_NAME_GET_BREAKEVEN));
+    }
+
+    return await backtest.strategyCoreService.getBreakeven(false, symbol, currentPrice, {
       strategyName: context.strategyName,
       exchangeName: context.exchangeName,
       frameName: "",
@@ -506,6 +559,7 @@ export class LiveUtils {
       context,
     });
     backtest.strategyValidationService.validate(context.strategyName, LIVE_METHOD_NAME_STOP);
+    backtest.exchangeValidationService.validate(context.exchangeName, LIVE_METHOD_NAME_STOP);
 
     {
       const { riskName, riskList } = backtest.strategySchemaService.get(context.strategyName);
@@ -557,6 +611,7 @@ export class LiveUtils {
       cancelId,
     });
     backtest.strategyValidationService.validate(context.strategyName, LIVE_METHOD_NAME_CANCEL);
+    backtest.exchangeValidationService.validate(context.exchangeName, LIVE_METHOD_NAME_CANCEL);
 
     {
       const { riskName, riskList } = backtest.strategySchemaService.get(context.strategyName);
@@ -612,6 +667,7 @@ export class LiveUtils {
       context,
     });
     backtest.strategyValidationService.validate(context.strategyName, LIVE_METHOD_NAME_PARTIAL_PROFIT);
+    backtest.exchangeValidationService.validate(context.exchangeName, LIVE_METHOD_NAME_PARTIAL_PROFIT);
 
     {
       const { riskName, riskList } = backtest.strategySchemaService.get(context.strategyName);
@@ -667,6 +723,7 @@ export class LiveUtils {
       context,
     });
     backtest.strategyValidationService.validate(context.strategyName, LIVE_METHOD_NAME_PARTIAL_LOSS);
+    backtest.exchangeValidationService.validate(context.exchangeName, LIVE_METHOD_NAME_PARTIAL_LOSS);
 
     {
       const { riskName, riskList } = backtest.strategySchemaService.get(context.strategyName);
@@ -689,14 +746,15 @@ export class LiveUtils {
    *
    * @param symbol - Trading pair symbol
    * @param percentShift - Percentage adjustment to SL distance (-100 to 100)
+   * @param currentPrice - Current market price to check for intrusion
    * @param context - Execution context with strategyName and exchangeName
    * @returns Promise that resolves when trailing SL is updated
    *
    * @example
    * ```typescript
-   * // LONG: entry=100, originalSL=90, distance=10
-   * // Tighten stop by 50%: newSL = 100 - 10*(1-0.5) = 95
-   * await Live.trailingStop("BTCUSDT", -50, {
+   * // LONG: entry=100, originalSL=90, distance=10%, currentPrice=102
+   * // Tighten stop by 50%: newSL = 100 - 5% = 95
+   * await Live.trailingStop("BTCUSDT", -50, 102, {
    *   exchangeName: "binance",
    *   strategyName: "my-strategy"
    * });
@@ -705,6 +763,7 @@ export class LiveUtils {
   public trailingStop = async (
     symbol: string,
     percentShift: number,
+    currentPrice: number,
     context: {
       strategyName: StrategyName;
       exchangeName: ExchangeName;
@@ -713,9 +772,11 @@ export class LiveUtils {
     backtest.loggerService.info(LIVE_METHOD_NAME_TRAILING_STOP, {
       symbol,
       percentShift,
+      currentPrice,
       context,
     });
     backtest.strategyValidationService.validate(context.strategyName, LIVE_METHOD_NAME_TRAILING_STOP);
+    backtest.exchangeValidationService.validate(context.exchangeName, LIVE_METHOD_NAME_TRAILING_STOP);
 
     {
       const { riskName, riskList } = backtest.strategySchemaService.get(context.strategyName);
@@ -723,7 +784,61 @@ export class LiveUtils {
       riskList && riskList.forEach((riskName) => backtest.riskValidationService.validate(riskName, LIVE_METHOD_NAME_TRAILING_STOP));
     }
 
-    await backtest.strategyCoreService.trailingStop(false, symbol, percentShift, {
+    await backtest.strategyCoreService.trailingStop(false, symbol, percentShift, currentPrice, {
+      strategyName: context.strategyName,
+      exchangeName: context.exchangeName,
+      frameName: "",
+    });
+  };
+
+  /**
+   * Adjusts the trailing take-profit distance for an active pending signal.
+   *
+   * Updates the take-profit distance by a percentage adjustment relative to the original TP distance.
+   * Negative percentShift brings TP closer to entry, positive percentShift moves it further.
+   * Once direction is set on first call, subsequent calls must continue in same direction.
+   *
+   * @param symbol - Trading pair symbol
+   * @param percentShift - Percentage adjustment to TP distance (-100 to 100)
+   * @param currentPrice - Current market price to check for intrusion
+   * @param context - Execution context with strategyName and exchangeName
+   * @returns Promise that resolves when trailing TP is updated
+   *
+   * @example
+   * ```typescript
+   * // LONG: entry=100, originalTP=110, distance=10%, currentPrice=102
+   * // Move TP further by 50%: newTP = 100 + 15% = 115
+   * await Live.trailingProfit("BTCUSDT", 50, 102, {
+   *   exchangeName: "binance",
+   *   strategyName: "my-strategy"
+   * });
+   * ```
+   */
+  public trailingProfit = async (
+    symbol: string,
+    percentShift: number,
+    currentPrice: number,
+    context: {
+      strategyName: StrategyName;
+      exchangeName: ExchangeName;
+    }
+  ): Promise<void> => {
+    backtest.loggerService.info(LIVE_METHOD_NAME_TRAILING_PROFIT, {
+      symbol,
+      percentShift,
+      currentPrice,
+      context,
+    });
+    backtest.strategyValidationService.validate(context.strategyName, LIVE_METHOD_NAME_TRAILING_PROFIT);
+    backtest.exchangeValidationService.validate(context.exchangeName, LIVE_METHOD_NAME_TRAILING_PROFIT);
+
+    {
+      const { riskName, riskList } = backtest.strategySchemaService.get(context.strategyName);
+      riskName && backtest.riskValidationService.validate(riskName, LIVE_METHOD_NAME_TRAILING_PROFIT);
+      riskList && riskList.forEach((riskName) => backtest.riskValidationService.validate(riskName, LIVE_METHOD_NAME_TRAILING_PROFIT));
+    }
+
+    await backtest.strategyCoreService.trailingProfit(false, symbol, percentShift, currentPrice, {
       strategyName: context.strategyName,
       exchangeName: context.exchangeName,
       frameName: "",
@@ -765,6 +880,7 @@ export class LiveUtils {
       context,
     });
     backtest.strategyValidationService.validate(context.strategyName, "Live.breakeven");
+    backtest.exchangeValidationService.validate(context.exchangeName, "Live.breakeven");
 
     {
       const { riskName, riskList } = backtest.strategySchemaService.get(context.strategyName);
@@ -809,6 +925,7 @@ export class LiveUtils {
       context,
     });
     backtest.strategyValidationService.validate(context.strategyName, LIVE_METHOD_NAME_GET_DATA);
+    backtest.exchangeValidationService.validate(context.exchangeName, LIVE_METHOD_NAME_GET_DATA);
 
     {
       const { riskName, riskList } = backtest.strategySchemaService.get(context.strategyName);
@@ -851,6 +968,7 @@ export class LiveUtils {
       context,
     });
     backtest.strategyValidationService.validate(context.strategyName, LIVE_METHOD_NAME_GET_REPORT);
+    backtest.exchangeValidationService.validate(context.exchangeName, LIVE_METHOD_NAME_GET_REPORT);
 
     {
       const { riskName, riskList } = backtest.strategySchemaService.get(context.strategyName);
@@ -902,6 +1020,7 @@ export class LiveUtils {
       path,
     });
     backtest.strategyValidationService.validate(context.strategyName, LIVE_METHOD_NAME_DUMP);
+    backtest.exchangeValidationService.validate(context.exchangeName, LIVE_METHOD_NAME_DUMP);
 
     {
       const { riskName, riskList } = backtest.strategySchemaService.get(context.strategyName);

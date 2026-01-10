@@ -84,6 +84,7 @@ export class HeatUtils {
     bt.loggerService.info(HEAT_METHOD_NAME_GET_DATA, { strategyName: context.strategyName });
 
     bt.strategyValidationService.validate(context.strategyName, HEAT_METHOD_NAME_GET_DATA);
+    bt.exchangeValidationService.validate(context.exchangeName, HEAT_METHOD_NAME_GET_DATA);
 
     {
       const { riskName, riskList } = bt.strategySchemaService.get(context.strategyName);
@@ -137,6 +138,7 @@ export class HeatUtils {
     bt.loggerService.info(HEAT_METHOD_NAME_GET_REPORT, { strategyName: context.strategyName });
 
     bt.strategyValidationService.validate(context.strategyName, HEAT_METHOD_NAME_GET_REPORT);
+    bt.exchangeValidationService.validate(context.exchangeName, HEAT_METHOD_NAME_GET_REPORT);
 
     {
       const { riskName, riskList } = bt.strategySchemaService.get(context.strategyName);
@@ -188,6 +190,7 @@ export class HeatUtils {
     bt.loggerService.info(HEAT_METHOD_NAME_DUMP, { strategyName: context.strategyName, path });
 
     bt.strategyValidationService.validate(context.strategyName, HEAT_METHOD_NAME_DUMP);
+    bt.exchangeValidationService.validate(context.exchangeName, HEAT_METHOD_NAME_DUMP);
 
     {
       const { riskName, riskList } = bt.strategySchemaService.get(context.strategyName);

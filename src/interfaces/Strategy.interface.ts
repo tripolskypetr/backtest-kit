@@ -90,6 +90,17 @@ export interface ISignalRow extends ISignalDto {
    * Original priceStopLoss is preserved in persistence but ignored during execution.
    */
   _trailingPriceStopLoss?: number;
+  /**
+   * Trailing take-profit price that overrides priceTakeProfit when set.
+   * Created and managed by trailingProfit() method for dynamic TP adjustment.
+   * Allows moving TP further from or closer to current price based on strategy.
+   * Updated by trailingProfit() method based on position type and percentage distance.
+   * - For LONG: can move upward (further) or downward (closer) from entry
+   * - For SHORT: can move downward (further) or upward (closer) from entry
+   * When _trailingPriceTakeProfit is set, it replaces priceTakeProfit for TP/SL checks.
+   * Original priceTakeProfit is preserved in persistence but ignored during execution.
+   */
+  _trailingPriceTakeProfit?: number;
 }
 
 /**
@@ -104,13 +115,13 @@ export interface IScheduledSignalRow extends ISignalRow {
 }
 
 /**
- * Public signal row with original stop-loss price.
- * Extends ISignalRow to include originalPriceStopLoss for external visibility.
- * Used in public APIs to show user the original SL even if trailing SL is active.
- * This allows users to see both the current effective SL and the original SL set at signal creation.
- * The originalPriceStopLoss remains unchanged even if _trailingPriceStopLoss modifies the effective SL.
+ * Public signal row with original stop-loss and take-profit prices.
+ * Extends ISignalRow to include originalPriceStopLoss and originalPriceTakeProfit for external visibility.
+ * Used in public APIs to show user the original SL/TP even if trailing SL/TP are active.
+ * This allows users to see both the current effective SL/TP and the original values set at signal creation.
+ * The original prices remain unchanged even if _trailingPriceStopLoss or _trailingPriceTakeProfit modify the effective values.
  * Useful for transparency in reporting and user interfaces.
- * Note: originalPriceStopLoss is identical to priceStopLoss at signal creation time.
+ * Note: originalPriceStopLoss/originalPriceTakeProfit are identical to priceStopLoss/priceTakeProfit at signal creation time.
  */
 export interface IPublicSignalRow extends ISignalRow {
   /**
@@ -119,12 +130,18 @@ export interface IPublicSignalRow extends ISignalRow {
    * Used for user visibility of initial SL parameters.
    */
   originalPriceStopLoss: number;
+  /**
+   * Original take-profit price set at signal creation.
+   * Remains unchanged even if trailing take-profit modifies effective TP.
+   * Used for user visibility of initial TP parameters.
+   */
+  originalPriceTakeProfit: number;
 }
 
 /**
  * Risk signal row for internal risk management.
- * Extends ISignalDto to include priceOpen and originalPriceStopLoss.
- * Used in risk validation to access entry price and original SL.
+ * Extends ISignalDto to include priceOpen, originalPriceStopLoss and originalPriceTakeProfit.
+ * Used in risk validation to access entry price and original SL/TP.
  */
 export interface IRiskSignalRow extends ISignalDto {
   /**
@@ -135,6 +152,10 @@ export interface IRiskSignalRow extends ISignalDto {
    * Original stop-loss price set at signal creation.
    */
   originalPriceStopLoss: number;
+  /**
+   * Original take-profit price set at signal creation.
+   */
+  originalPriceTakeProfit: number;
 }
 
 /**
@@ -465,6 +486,43 @@ export interface IStrategy {
   getScheduledSignal: (symbol: string) => Promise<IPublicSignalRow | null>;
 
   /**
+   * Checks if breakeven threshold has been reached for the current pending signal.
+   *
+   * Uses the same formula as BREAKEVEN_FN to determine if price has moved far enough
+   * to cover transaction costs (slippage + fees) and allow breakeven to be set.
+   * Threshold: (CC_PERCENT_SLIPPAGE + CC_PERCENT_FEE) * 2 transactions
+   *
+   * For LONG position:
+   * - Returns true when: currentPrice >= priceOpen * (1 + threshold%)
+   * - Example: entry=100, threshold=0.4% → true when price >= 100.4
+   *
+   * For SHORT position:
+   * - Returns true when: currentPrice <= priceOpen * (1 - threshold%)
+   * - Example: entry=100, threshold=0.4% → true when price <= 99.6
+   *
+   * Special cases:
+   * - Returns false if no pending signal exists
+   * - Returns true if trailing stop is already in profit zone (breakeven already achieved)
+   * - Returns false if threshold not reached yet
+   *
+   * @param symbol - Trading pair symbol (e.g., "BTCUSDT")
+   * @param currentPrice - Current market price to check against threshold
+   * @returns Promise<boolean> - true if breakeven threshold reached, false otherwise
+   *
+   * @example
+   * ```typescript
+   * // Check if breakeven is available for LONG position (entry=100, threshold=0.4%)
+   * const canBreakeven = await strategy.getBreakeven("BTCUSDT", 100.5);
+   * // Returns true (price >= 100.4)
+   *
+   * if (canBreakeven) {
+   *   await strategy.breakeven("BTCUSDT", 100.5, false);
+   * }
+   * ```
+   */
+  getBreakeven: (symbol: string, currentPrice: number) => Promise<boolean>;
+
+  /**
    * Checks if the strategy has been stopped.
    *
    * Returns the stopped state indicating whether the strategy should
@@ -649,7 +707,36 @@ export interface IStrategy {
    * }
    * ```
    */
-  trailingStop: (symbol: string, percentShift: number, backtest: boolean) => Promise<void>;
+  trailingStop: (symbol: string, percentShift: number, currentPrice: number, backtest: boolean) => Promise<void>;
+
+  /**
+   * Adjusts the trailing take-profit distance for an active pending signal.
+   *
+   * Updates the take-profit distance by a percentage adjustment relative to the original TP distance.
+   * Negative percentShift brings TP closer to entry, positive percentShift moves it further.
+   * Once direction is set on first call, subsequent calls must continue in same direction.
+   *
+   * Price intrusion protection: If current price has already crossed the new TP level,
+   * the update is skipped to prevent immediate TP triggering.
+   *
+   * @param symbol - Trading pair symbol
+   * @param percentShift - Percentage adjustment to TP distance (-100 to 100)
+   * @param currentPrice - Current market price to check for intrusion
+   * @param backtest - Whether running in backtest mode
+   * @returns Promise that resolves when trailing TP is updated
+   * 
+   * @example
+   * ```typescript
+   * // LONG: entry=100, originalTP=110, distance=10%, currentPrice=102
+   * // Move TP further by 50%: newTP = 100 + 15% = 115
+   * await strategy.trailingProfit(symbol, 50, 102, backtest);
+   * 
+   * // SHORT: entry=100, originalTP=90, distance=10%, currentPrice=98  
+   * // Move TP closer by 30%: newTP = 100 - 7% = 93
+   * await strategy.trailingProfit(symbol, -30, 98, backtest);
+   * ```
+   */
+  trailingProfit: (symbol: string, percentShift: number, currentPrice: number, backtest: boolean) => Promise<void>;
 
   /**
    * Moves stop-loss to breakeven (entry price) when price reaches threshold.

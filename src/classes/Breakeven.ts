@@ -76,6 +76,7 @@ export class BreakevenUtils {
     bt.loggerService.info(BREAKEVEN_METHOD_NAME_GET_DATA, { symbol, strategyName: context.strategyName });
 
     bt.strategyValidationService.validate(context.strategyName, BREAKEVEN_METHOD_NAME_GET_DATA);
+    bt.exchangeValidationService.validate(context.exchangeName, BREAKEVEN_METHOD_NAME_GET_DATA);
 
     {
       const { riskName, riskList } = bt.strategySchemaService.get(context.strategyName);
@@ -134,6 +135,7 @@ export class BreakevenUtils {
     bt.loggerService.info(BREAKEVEN_METHOD_NAME_GET_REPORT, { symbol, strategyName: context.strategyName });
 
     bt.strategyValidationService.validate(context.strategyName, BREAKEVEN_METHOD_NAME_GET_REPORT);
+    bt.exchangeValidationService.validate(context.exchangeName, BREAKEVEN_METHOD_NAME_GET_REPORT);
 
     {
       const { riskName, riskList } = bt.strategySchemaService.get(context.strategyName);
@@ -190,6 +192,7 @@ export class BreakevenUtils {
     bt.loggerService.info(BREAKEVEN_METHOD_NAME_DUMP, { symbol, strategyName: context.strategyName, path });
 
     bt.strategyValidationService.validate(context.strategyName, BREAKEVEN_METHOD_NAME_DUMP);
+    bt.exchangeValidationService.validate(context.exchangeName, BREAKEVEN_METHOD_NAME_DUMP);
 
     {
       const { riskName, riskList } = bt.strategySchemaService.get(context.strategyName);

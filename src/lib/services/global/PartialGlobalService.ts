@@ -6,6 +6,7 @@ import { IPublicSignalRow, ISignalRow, StrategyName } from "../../../interfaces/
 import StrategyValidationService from "../validation/StrategyValidationService";
 import StrategySchemaService from "../schema/StrategySchemaService";
 import RiskValidationService from "../validation/RiskValidationService";
+import ExchangeValidationService from "../validation/ExchangeValidationService";
 import { memoize } from "functools-kit";
 import { IPartial } from "../../../interfaces/Partial.interface";
 import { FrameName } from "../../../interfaces/Frame.interface";
@@ -86,6 +87,13 @@ export class PartialGlobalService implements TPartial {
   );
 
   /**
+   * Exchange validation service for validating exchange existence.
+   */
+  private readonly exchangeValidationService = inject<ExchangeValidationService>(
+    TYPES.exchangeValidationService
+  );
+
+  /**
    * Validates strategy and associated risk configuration.
    * Memoized to avoid redundant validations for the same strategy-exchange-frame combination.
    *
@@ -100,6 +108,7 @@ export class PartialGlobalService implements TPartial {
         methodName,
       });
       this.strategyValidationService.validate(context.strategyName, methodName);
+      this.exchangeValidationService.validate(context.exchangeName, methodName);
       const { riskName, riskList } = this.strategySchemaService.get(context.strategyName);
       riskName && this.riskValidationService.validate(riskName, methodName);
       riskList && riskList.forEach((riskName) => this.riskValidationService.validate(riskName, methodName));

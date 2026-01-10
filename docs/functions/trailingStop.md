@@ -6,7 +6,7 @@ group: docs
 # trailingStop
 
 ```ts
-declare function trailingStop(symbol: string, percentShift: number): Promise<void>;
+declare function trailingStop(symbol: string, percentShift: number, currentPrice: number): Promise<void>;
 ```
 
 Adjusts the trailing stop-loss distance for an active pending signal.
@@ -22,3 +22,4 @@ Automatically detects backtest/live mode from execution context.
 |-----------|-------------|
 | `symbol` | Trading pair symbol |
 | `percentShift` | Percentage adjustment to SL distance (-100 to 100) |
+| `currentPrice` | Current market price to check for intrusion |

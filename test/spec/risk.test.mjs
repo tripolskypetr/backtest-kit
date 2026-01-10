@@ -2,23 +2,21 @@ import { test } from "worker-testbed";
 
 import {
   addRisk,
+  addExchange,
   lib,
   PersistRiskAdapter,
 } from "../../build/index.mjs";
 
 test("addRisk registers risk profile successfully", async ({ pass, fail }) => {
-
   addRisk({
     riskName: "test-basic-risk",
     note: "Basic risk profile for testing",
   });
 
   pass("Risk profile registered successfully");
-
 });
 
 test("addRisk throws on duplicate risk name", async ({ pass, fail }) => {
-
   addRisk({
     riskName: "test-duplicate-risk",
   });
@@ -35,11 +33,12 @@ test("addRisk throws on duplicate risk name", async ({ pass, fail }) => {
     }
     fail(`Unexpected error message: ${error.message}`);
   }
-
 });
 
-test("Risk validation rejects signal when activePositionCount exceeds limit", async ({ pass, fail }) => {
-
+test("Risk validation rejects signal when activePositionCount exceeds limit", async ({
+  pass,
+  fail,
+}) => {
   let rejectedSymbol = null;
   let rejectedReason = null;
 
@@ -63,13 +62,39 @@ test("Risk validation rejects signal when activePositionCount exceeds limit", as
     },
   });
 
+  // Add mock exchange for all tests
+  addExchange({
+    exchangeName: "binance",
+    getCandles: async () => [],
+    formatPrice: async (_symbol, p) => p.toFixed(8),
+    formatQuantity: async (_symbol, quantity) => quantity.toFixed(8),
+  });
+
   // Simulate strategy with risk check
   const { riskGlobalService } = lib;
 
   // First 3 signals should pass
-  await riskGlobalService.addSignal("BTCUSDT", { strategyName: "test-strategy-1", riskName: "test-max-positions" });
-  await riskGlobalService.addSignal("ETHUSDT", { strategyName: "test-strategy-2", riskName: "test-max-positions" });
-  await riskGlobalService.addSignal("BNBUSDT", { strategyName: "test-strategy-3", riskName: "test-max-positions" });
+  await riskGlobalService.addSignal("BTCUSDT", {
+    strategyName: "test-strategy-1",
+    riskName: "test-max-positions",
+    exchangeName: "binance",
+    frameName: "",
+    backtest: false,
+  });
+  await riskGlobalService.addSignal("ETHUSDT", {
+    strategyName: "test-strategy-2",
+    riskName: "test-max-positions",
+    exchangeName: "binance",
+    frameName: "",
+    backtest: false,
+  });
+  await riskGlobalService.addSignal("BNBUSDT", {
+    strategyName: "test-strategy-3",
+    riskName: "test-max-positions",
+    exchangeName: "binance",
+    frameName: "",
+    backtest: false,
+  });
 
   // 4th signal should fail
   const result = await riskGlobalService.checkSignal(
@@ -81,20 +106,35 @@ test("Risk validation rejects signal when activePositionCount exceeds limit", as
       currentPrice: 100,
       timestamp: Date.now(),
     },
-    { riskName: "test-max-positions" }
+    {
+      riskName: "test-max-positions",
+      exchangeName: "binance",
+      frameName: "",
+      backtest: false,
+    }
   );
 
-  if (!result && rejectedSymbol === "SOLUSDT" && rejectedReason && rejectedReason.symbol === "SOLUSDT") {
+  if (
+    !result &&
+    rejectedSymbol === "SOLUSDT" &&
+    rejectedReason &&
+    rejectedReason.symbol === "SOLUSDT"
+  ) {
     pass("Risk validation correctly rejected 4th position");
     return;
   }
 
-  fail(`Expected rejection but got result: ${result}, symbol: ${rejectedSymbol}, reason: ${JSON.stringify(rejectedReason)}`);
-
+  fail(
+    `Expected rejection but got result: ${result}, symbol: ${rejectedSymbol}, reason: ${JSON.stringify(
+      rejectedReason
+    )}`
+  );
 });
 
-test("Risk validation allows signal when within limits", async ({ pass, fail }) => {
-
+test("Risk validation allows signal when within limits", async ({
+  pass,
+  fail,
+}) => {
   let allowedSymbol = null;
 
   addRisk({
@@ -116,11 +156,31 @@ test("Risk validation allows signal when within limits", async ({ pass, fail }) 
     },
   });
 
+  // Add mock exchange for all tests
+  addExchange({
+    exchangeName: "binance",
+    getCandles: async () => [],
+    formatPrice: async (_symbol, p) => p.toFixed(8),
+    formatQuantity: async (_symbol, quantity) => quantity.toFixed(8),
+  });
+
   const { riskGlobalService } = lib;
 
   // Add 2 positions
-  await riskGlobalService.addSignal("BTCUSDT", { strategyName: "test-strategy-1", riskName: "test-allow-positions" });
-  await riskGlobalService.addSignal("ETHUSDT", { strategyName: "test-strategy-2", riskName: "test-allow-positions" });
+  await riskGlobalService.addSignal("BTCUSDT", {
+    strategyName: "test-strategy-1",
+    riskName: "test-allow-positions",
+    exchangeName: "binance",
+    frameName: "",
+    backtest: false,
+  });
+  await riskGlobalService.addSignal("ETHUSDT", {
+    strategyName: "test-strategy-2",
+    riskName: "test-allow-positions",
+    exchangeName: "binance",
+    frameName: "",
+    backtest: false,
+  });
 
   // 3rd signal should pass
   const result = await riskGlobalService.checkSignal(
@@ -132,7 +192,12 @@ test("Risk validation allows signal when within limits", async ({ pass, fail }) 
       currentPrice: 300,
       timestamp: Date.now(),
     },
-    { riskName: "test-allow-positions" }
+    {
+      riskName: "test-allow-positions",
+      exchangeName: "binance",
+      frameName: "",
+      backtest: false,
+    }
   );
 
   if (result && allowedSymbol === "BNBUSDT") {
@@ -140,12 +205,15 @@ test("Risk validation allows signal when within limits", async ({ pass, fail }) 
     return;
   }
 
-  fail(`Expected approval but got result: ${result}, allowedSymbol: ${allowedSymbol}`);
-
+  fail(
+    `Expected approval but got result: ${result}, allowedSymbol: ${allowedSymbol}`
+  );
 });
 
-test("Risk addSignal and removeSignal update activePositionCount", async ({ pass, fail }) => {
-
+test("Risk addSignal and removeSignal update activePositionCount", async ({
+  pass,
+  fail,
+}) => {
   let finalCount = -1;
 
   addRisk({
@@ -160,12 +228,38 @@ test("Risk addSignal and removeSignal update activePositionCount", async ({ pass
     ],
   });
 
+  // Add mock exchange for all tests
+  addExchange({
+    exchangeName: "binance",
+    getCandles: async () => [],
+    formatPrice: async (_symbol, p) => p.toFixed(8),
+    formatQuantity: async (_symbol, quantity) => quantity.toFixed(8),
+  });
+
   const { riskGlobalService } = lib;
 
   // Add 3 signals
-  await riskGlobalService.addSignal("BTCUSDT", { strategyName: "test-strategy-1", riskName: "test-count-tracking" });
-  await riskGlobalService.addSignal("ETHUSDT", { strategyName: "test-strategy-2", riskName: "test-count-tracking" });
-  await riskGlobalService.addSignal("BNBUSDT", { strategyName: "test-strategy-3", riskName: "test-count-tracking" });
+  await riskGlobalService.addSignal("BTCUSDT", {
+    strategyName: "test-strategy-1",
+    riskName: "test-count-tracking",
+    exchangeName: "binance",
+    frameName: "",
+    backtest: false,
+  });
+  await riskGlobalService.addSignal("ETHUSDT", {
+    strategyName: "test-strategy-2",
+    riskName: "test-count-tracking",
+    exchangeName: "binance",
+    frameName: "",
+    backtest: false,
+  });
+  await riskGlobalService.addSignal("BNBUSDT", {
+    strategyName: "test-strategy-3",
+    riskName: "test-count-tracking",
+    exchangeName: "binance",
+    frameName: "",
+    backtest: false,
+  });
 
   // Check count is 3
   await riskGlobalService.checkSignal(
@@ -177,7 +271,12 @@ test("Risk addSignal and removeSignal update activePositionCount", async ({ pass
       currentPrice: 100,
       timestamp: Date.now(),
     },
-    { riskName: "test-count-tracking" }
+    {
+      riskName: "test-count-tracking",
+      exchangeName: "binance",
+      frameName: "",
+      backtest: false,
+    }
   );
 
   if (finalCount !== 3) {
@@ -186,7 +285,13 @@ test("Risk addSignal and removeSignal update activePositionCount", async ({ pass
   }
 
   // Remove 1 signal
-  await riskGlobalService.removeSignal("ETHUSDT", { strategyName: "test-strategy-2", riskName: "test-count-tracking" });
+  await riskGlobalService.removeSignal("ETHUSDT", {
+    strategyName: "test-strategy-2",
+    riskName: "test-count-tracking",
+    exchangeName: "binance",
+    frameName: "",
+    backtest: false,
+  });
 
   // Check count is 2
   await riskGlobalService.checkSignal(
@@ -198,7 +303,12 @@ test("Risk addSignal and removeSignal update activePositionCount", async ({ pass
       currentPrice: 0.1,
       timestamp: Date.now(),
     },
-    { riskName: "test-count-tracking" }
+    {
+      riskName: "test-count-tracking",
+      exchangeName: "binance",
+      frameName: "",
+      backtest: false,
+    }
   );
 
   if (finalCount === 2) {
@@ -207,11 +317,12 @@ test("Risk addSignal and removeSignal update activePositionCount", async ({ pass
   }
 
   fail(`Expected count 2 after removing 1 signal, got ${finalCount}`);
-
 });
 
-test("Risk validation with function (not object) works", async ({ pass, fail }) => {
-
+test("Risk validation with function (not object) works", async ({
+  pass,
+  fail,
+}) => {
   let validationCalled = false;
 
   addRisk({
@@ -226,9 +337,23 @@ test("Risk validation with function (not object) works", async ({ pass, fail }) 
     ],
   });
 
+  // Add mock exchange for all tests
+  addExchange({
+    exchangeName: "binance",
+    getCandles: async () => [],
+    formatPrice: async (_symbol, p) => p.toFixed(8),
+    formatQuantity: async (_symbol, quantity) => quantity.toFixed(8),
+  });
+
   const { riskGlobalService } = lib;
 
-  await riskGlobalService.addSignal("BTCUSDT", { strategyName: "test-strategy-1", riskName: "test-function-validation" });
+  await riskGlobalService.addSignal("BTCUSDT", {
+    strategyName: "test-strategy-1",
+    riskName: "test-function-validation",
+    exchangeName: "binance",
+    frameName: "",
+    backtest: false,
+  });
 
   const result = await riskGlobalService.checkSignal(
     {
@@ -239,7 +364,12 @@ test("Risk validation with function (not object) works", async ({ pass, fail }) 
       currentPrice: 2000,
       timestamp: Date.now(),
     },
-    { riskName: "test-function-validation" }
+    {
+      riskName: "test-function-validation",
+      exchangeName: "binance",
+      frameName: "",
+      backtest: false,
+    }
   );
 
   if (validationCalled && result) {
@@ -248,11 +378,12 @@ test("Risk validation with function (not object) works", async ({ pass, fail }) 
   }
 
   fail(`Validation called: ${validationCalled}, result: ${result}`);
-
 });
 
-test("Risk validation receives all IRiskCheckArgs fields", async ({ pass, fail }) => {
-
+test("Risk validation receives all IRiskCheckArgs fields", async ({
+  pass,
+  fail,
+}) => {
   let receivedPayload = null;
 
   addRisk({
@@ -262,6 +393,14 @@ test("Risk validation receives all IRiskCheckArgs fields", async ({ pass, fail }
         receivedPayload = payload;
       },
     ],
+  });
+
+  // Add mock exchange for all tests
+  addExchange({
+    exchangeName: "binance",
+    getCandles: async () => [],
+    formatPrice: async (_symbol, p) => p.toFixed(8),
+    formatQuantity: async (_symbol, quantity) => quantity.toFixed(8),
   });
 
   const { riskGlobalService } = lib;
@@ -275,7 +414,12 @@ test("Risk validation receives all IRiskCheckArgs fields", async ({ pass, fail }
     timestamp: 1234567890,
   };
 
-  await riskGlobalService.checkSignal(testArgs, { riskName: "test-payload-fields" });
+  await riskGlobalService.checkSignal(testArgs, {
+    riskName: "test-payload-fields",
+    exchangeName: "binance",
+    frameName: "",
+    backtest: false,
+  });
 
   if (
     receivedPayload &&
@@ -286,16 +430,16 @@ test("Risk validation receives all IRiskCheckArgs fields", async ({ pass, fail }
     receivedPayload.timestamp === testArgs.timestamp &&
     typeof receivedPayload.activePositionCount === "number"
   ) {
-    pass("Validation receives all IRiskCheckArgs fields plus activePositionCount");
+    pass(
+      "Validation receives all IRiskCheckArgs fields plus activePositionCount"
+    );
     return;
   }
 
   fail(`Invalid payload received: ${JSON.stringify(receivedPayload)}`);
-
 });
 
 test("Risk validation can reject based on symbol", async ({ pass, fail }) => {
-
   let rejectedSymbol = null;
 
   addRisk({
@@ -314,6 +458,14 @@ test("Risk validation can reject based on symbol", async ({ pass, fail }) => {
     },
   });
 
+  // Add mock exchange for all tests
+  addExchange({
+    exchangeName: "binance",
+    getCandles: async () => [],
+    formatPrice: async (_symbol, p) => p.toFixed(8),
+    formatQuantity: async (_symbol, quantity) => quantity.toFixed(8),
+  });
+
   const { riskGlobalService } = lib;
 
   // BTC should pass
@@ -326,7 +478,12 @@ test("Risk validation can reject based on symbol", async ({ pass, fail }) => {
       currentPrice: 50000,
       timestamp: Date.now(),
     },
-    { riskName: "test-symbol-filter" }
+    {
+      riskName: "test-symbol-filter",
+      exchangeName: "binance",
+      frameName: "",
+      backtest: false,
+    }
   );
 
   // DOGE should fail
@@ -339,7 +496,12 @@ test("Risk validation can reject based on symbol", async ({ pass, fail }) => {
       currentPrice: 0.1,
       timestamp: Date.now(),
     },
-    { riskName: "test-symbol-filter" }
+    {
+      riskName: "test-symbol-filter",
+      exchangeName: "binance",
+      frameName: "",
+      backtest: false,
+    }
   );
 
   if (btcResult && !dogeResult && rejectedSymbol === "DOGEUSDT") {
@@ -347,14 +509,25 @@ test("Risk validation can reject based on symbol", async ({ pass, fail }) => {
     return;
   }
 
-  fail(`BTC result: ${btcResult}, DOGE result: ${dogeResult}, rejected: ${rejectedSymbol}`);
-
+  fail(
+    `BTC result: ${btcResult}, DOGE result: ${dogeResult}, rejected: ${rejectedSymbol}`
+  );
 });
 
-test("Risk with no validations always allows signals", async ({ pass, fail }) => {
-
+test("Risk with no validations always allows signals", async ({
+  pass,
+  fail,
+}) => {
   addRisk({
     riskName: "test-no-validations",
+  });
+
+  // Add mock exchange for all tests
+  addExchange({
+    exchangeName: "binance",
+    getCandles: async () => [],
+    formatPrice: async (_symbol, p) => p.toFixed(8),
+    formatQuantity: async (_symbol, quantity) => quantity.toFixed(8),
   });
 
   const { riskGlobalService } = lib;
@@ -368,7 +541,12 @@ test("Risk with no validations always allows signals", async ({ pass, fail }) =>
       currentPrice: 50000,
       timestamp: Date.now(),
     },
-    { riskName: "test-no-validations" }
+    {
+      riskName: "test-no-validations",
+      exchangeName: "binance",
+      frameName: "",
+      backtest: false,
+    }
   );
 
   if (result) {
@@ -377,11 +555,12 @@ test("Risk with no validations always allows signals", async ({ pass, fail }) =>
   }
 
   fail("Risk with no validations should allow signals");
-
 });
 
-test("Risk activePositionCount is isolated per riskName", async ({ pass, fail }) => {
-
+test("Risk activePositionCount is isolated per riskName", async ({
+  pass,
+  fail,
+}) => {
   let risk1Count = -1;
   let risk2Count = -1;
 
@@ -403,14 +582,40 @@ test("Risk activePositionCount is isolated per riskName", async ({ pass, fail })
     ],
   });
 
+  // Add mock exchange for all tests
+  addExchange({
+    exchangeName: "binance",
+    getCandles: async () => [],
+    formatPrice: async (_symbol, p) => p.toFixed(8),
+    formatQuantity: async (_symbol, quantity) => quantity.toFixed(8),
+  });
+
   const { riskGlobalService } = lib;
 
   // Add 2 signals to risk1
-  await riskGlobalService.addSignal("BTCUSDT", { strategyName: "test-strategy-1", riskName: "test-isolation-1" });
-  await riskGlobalService.addSignal("ETHUSDT", { strategyName: "test-strategy-2", riskName: "test-isolation-1" });
+  await riskGlobalService.addSignal("BTCUSDT", {
+    strategyName: "test-strategy-1",
+    riskName: "test-isolation-1",
+    exchangeName: "binance",
+    frameName: "",
+    backtest: false,
+  });
+  await riskGlobalService.addSignal("ETHUSDT", {
+    strategyName: "test-strategy-2",
+    riskName: "test-isolation-1",
+    exchangeName: "binance",
+    frameName: "",
+    backtest: false,
+  });
 
   // Add 1 signal to risk2
-  await riskGlobalService.addSignal("BNBUSDT", { strategyName: "test-strategy-3", riskName: "test-isolation-2" });
+  await riskGlobalService.addSignal("BNBUSDT", {
+    strategyName: "test-strategy-3",
+    riskName: "test-isolation-2",
+    exchangeName: "binance",
+    frameName: "",
+    backtest: false,
+  });
 
   // Check risk1 count
   await riskGlobalService.checkSignal(
@@ -422,7 +627,12 @@ test("Risk activePositionCount is isolated per riskName", async ({ pass, fail })
       currentPrice: 100,
       timestamp: Date.now(),
     },
-    { riskName: "test-isolation-1" }
+    {
+      riskName: "test-isolation-1",
+      exchangeName: "binance",
+      frameName: "",
+      backtest: false,
+    }
   );
 
   // Check risk2 count
@@ -435,7 +645,12 @@ test("Risk activePositionCount is isolated per riskName", async ({ pass, fail })
       currentPrice: 0.5,
       timestamp: Date.now(),
     },
-    { riskName: "test-isolation-2" }
+    {
+      riskName: "test-isolation-2",
+      exchangeName: "binance",
+      frameName: "",
+      backtest: false,
+    }
   );
 
   if (risk1Count === 2 && risk2Count === 1) {
@@ -443,12 +658,15 @@ test("Risk activePositionCount is isolated per riskName", async ({ pass, fail })
     return;
   }
 
-  fail(`Expected risk1: 2, risk2: 1, got risk1: ${risk1Count}, risk2: ${risk2Count}`);
-
+  fail(
+    `Expected risk1: 2, risk2: 1, got risk1: ${risk1Count}, risk2: ${risk2Count}`
+  );
 });
 
-test("Risk removeSignal with same strategyName:symbol key", async ({ pass, fail }) => {
-
+test("Risk removeSignal with same strategyName:symbol key", async ({
+  pass,
+  fail,
+}) => {
   let finalCount = -1;
 
   addRisk({
@@ -460,10 +678,24 @@ test("Risk removeSignal with same strategyName:symbol key", async ({ pass, fail 
     ],
   });
 
+  // Add mock exchange for all tests
+  addExchange({
+    exchangeName: "binance",
+    getCandles: async () => [],
+    formatPrice: async (_symbol, p) => p.toFixed(8),
+    formatQuantity: async (_symbol, quantity) => quantity.toFixed(8),
+  });
+
   const { riskGlobalService } = lib;
 
   // Add signal
-  await riskGlobalService.addSignal("BTCUSDT", { strategyName: "test-strategy-1", riskName: "test-remove-by-key" });
+  await riskGlobalService.addSignal("BTCUSDT", {
+    strategyName: "test-strategy-1",
+    riskName: "test-remove-by-key",
+    exchangeName: "binance",
+    frameName: "",
+    backtest: false,
+  });
 
   // Check count is 1
   await riskGlobalService.checkSignal(
@@ -475,7 +707,12 @@ test("Risk removeSignal with same strategyName:symbol key", async ({ pass, fail 
       currentPrice: 2000,
       timestamp: Date.now(),
     },
-    { riskName: "test-remove-by-key" }
+    {
+      riskName: "test-remove-by-key",
+      exchangeName: "binance",
+      frameName: "",
+      backtest: false,
+    }
   );
 
   if (finalCount !== 1) {
@@ -484,7 +721,13 @@ test("Risk removeSignal with same strategyName:symbol key", async ({ pass, fail 
   }
 
   // Remove signal by same strategyName and symbol
-  await riskGlobalService.removeSignal("BTCUSDT", { strategyName: "test-strategy-1", riskName: "test-remove-by-key" });
+  await riskGlobalService.removeSignal("BTCUSDT", {
+    strategyName: "test-strategy-1",
+    riskName: "test-remove-by-key",
+    exchangeName: "binance",
+    frameName: "",
+    backtest: false,
+  });
 
   // Check count is 0
   await riskGlobalService.checkSignal(
@@ -496,7 +739,12 @@ test("Risk removeSignal with same strategyName:symbol key", async ({ pass, fail 
       currentPrice: 300,
       timestamp: Date.now(),
     },
-    { riskName: "test-remove-by-key" }
+    {
+      riskName: "test-remove-by-key",
+      exchangeName: "binance",
+      frameName: "",
+      backtest: false,
+    }
   );
 
   if (finalCount === 0) {
@@ -505,23 +753,28 @@ test("Risk removeSignal with same strategyName:symbol key", async ({ pass, fail 
   }
 
   fail(`Expected count 0 after removing signal, got ${finalCount}`);
-
 });
 
-test("PersistRiskAdapter.readPositionData returns empty array when no data exists", async ({ pass, fail }) => {
-
-  PersistRiskAdapter.usePersistRiskAdapter(class {
-    async waitForInit() {}
-    async readValue() {
-      throw new Error("Not found");
+test("PersistRiskAdapter.readPositionData returns empty array when no data exists", async ({
+  pass,
+  fail,
+}) => {
+  PersistRiskAdapter.usePersistRiskAdapter(
+    class {
+      async waitForInit() {}
+      async readValue() {
+        throw new Error("Not found");
+      }
+      async hasValue() {
+        return false;
+      }
+      async writeValue() {}
     }
-    async hasValue() {
-      return false;
-    }
-    async writeValue() {}
-  });
+  );
 
-  const positions = await PersistRiskAdapter.readPositionData("test-risk-empty");
+  const positions = await PersistRiskAdapter.readPositionData(
+    "test-risk-empty"
+  );
 
   if (Array.isArray(positions) && positions.length === 0) {
     pass("readPositionData returns empty array for new risk profile");
@@ -529,40 +782,49 @@ test("PersistRiskAdapter.readPositionData returns empty array when no data exist
   }
 
   fail(`Expected empty array, got ${JSON.stringify(positions)}`);
-
 });
 
-test("PersistRiskAdapter.writePositionData and readPositionData persist data correctly", async ({ pass, fail }) => {
-
+test("PersistRiskAdapter.writePositionData and readPositionData persist data correctly", async ({
+  pass,
+  fail,
+}) => {
   let storedData = null;
 
-  PersistRiskAdapter.usePersistRiskAdapter(class {
-    async waitForInit() {}
-    async readValue() {
-      return storedData;
+  PersistRiskAdapter.usePersistRiskAdapter(
+    class {
+      async waitForInit() {}
+      async readValue() {
+        return storedData;
+      }
+      async hasValue() {
+        return storedData !== null;
+      }
+      async writeValue(_key, value) {
+        storedData = value;
+      }
     }
-    async hasValue() {
-      return storedData !== null;
-    }
-    async writeValue(_key, value) {
-      storedData = value;
-    }
-  });
+  );
 
   const testRiskName = "test-risk-persist";
   const testPositions = [
-    ["strategy1:BTCUSDT", {
-      signal: null,
-      strategyName: "strategy1",
-      exchangeName: "binance",
-      openTimestamp: 1234567890,
-    }],
-    ["strategy2:ETHUSDT", {
-      signal: null,
-      strategyName: "strategy2",
-      exchangeName: "binance",
-      openTimestamp: 1234567900,
-    }],
+    [
+      "strategy1:BTCUSDT",
+      {
+        signal: null,
+        strategyName: "strategy1",
+        exchangeName: "binance",
+        openTimestamp: 1234567890,
+      },
+    ],
+    [
+      "strategy2:ETHUSDT",
+      {
+        signal: null,
+        strategyName: "strategy2",
+        exchangeName: "binance",
+        openTimestamp: 1234567900,
+      },
+    ],
   ];
 
   // Write data
@@ -579,53 +841,63 @@ test("PersistRiskAdapter.writePositionData and readPositionData persist data cor
     readPositions[1][0] === "strategy2:ETHUSDT" &&
     readPositions[1][1].strategyName === "strategy2"
   ) {
-    pass("writePositionData and readPositionData correctly persist and restore data");
+    pass(
+      "writePositionData and readPositionData correctly persist and restore data"
+    );
     return;
   }
 
   fail(`Data mismatch. Read: ${JSON.stringify(readPositions)}`);
-
 });
 
 test("PersistRiskAdapter supports custom adapter", async ({ pass, fail }) => {
-
   let writeCalled = false;
   let readCalled = false;
 
   const mockPositions = [
-    ["custom:BTCUSDT", {
-      signal: null,
-      strategyName: "custom-strategy",
-      exchangeName: "custom-exchange",
-      openTimestamp: 9999999,
-    }],
+    [
+      "custom:BTCUSDT",
+      {
+        signal: null,
+        strategyName: "custom-strategy",
+        exchangeName: "custom-exchange",
+        openTimestamp: 9999999,
+      },
+    ],
   ];
 
-  PersistRiskAdapter.usePersistRiskAdapter(class {
-    async waitForInit() {
-      // Mock initialization
-    }
-    async readValue() {
-      readCalled = true;
-      return mockPositions;
-    }
-    async hasValue() {
-      return true;
-    }
-    async writeValue(key, value) {
-      writeCalled = true;
-      if (key === "positions" && Array.isArray(value)) {
-        return;
+  PersistRiskAdapter.usePersistRiskAdapter(
+    class {
+      async waitForInit() {
+        // Mock initialization
       }
-      throw new Error("Invalid write");
+      async readValue() {
+        readCalled = true;
+        return mockPositions;
+      }
+      async hasValue() {
+        return true;
+      }
+      async writeValue(key, value) {
+        writeCalled = true;
+        if (key === "positions" && Array.isArray(value)) {
+          return;
+        }
+        throw new Error("Invalid write");
+      }
     }
-  });
+  );
 
   // Test write
-  await PersistRiskAdapter.writePositionData(mockPositions, "test-custom-adapter");
+  await PersistRiskAdapter.writePositionData(
+    mockPositions,
+    "test-custom-adapter"
+  );
 
   // Test read
-  const positions = await PersistRiskAdapter.readPositionData("test-custom-adapter");
+  const positions = await PersistRiskAdapter.readPositionData(
+    "test-custom-adapter"
+  );
 
   if (
     writeCalled &&
@@ -637,43 +909,54 @@ test("PersistRiskAdapter supports custom adapter", async ({ pass, fail }) => {
     return;
   }
 
-  fail(`Custom adapter failed. writeCalled: ${writeCalled}, readCalled: ${readCalled}`);
-
+  fail(
+    `Custom adapter failed. writeCalled: ${writeCalled}, readCalled: ${readCalled}`
+  );
 });
 
-test("PersistRiskAdapter handles Map to Array conversion", async ({ pass, fail }) => {
-
+test("PersistRiskAdapter handles Map to Array conversion", async ({
+  pass,
+  fail,
+}) => {
   let storedData = null;
 
-  PersistRiskAdapter.usePersistRiskAdapter(class {
-    async waitForInit() {}
-    async readValue() {
-      return storedData;
+  PersistRiskAdapter.usePersistRiskAdapter(
+    class {
+      async waitForInit() {}
+      async readValue() {
+        return storedData;
+      }
+      async hasValue() {
+        return storedData !== null;
+      }
+      async writeValue(_key, value) {
+        storedData = value;
+      }
     }
-    async hasValue() {
-      return storedData !== null;
-    }
-    async writeValue(_key, value) {
-      storedData = value;
-    }
-  });
+  );
 
   const testRiskName = "test-risk-map-conversion";
 
   // Create a Map
   const positionsMap = new Map([
-    ["strategy1:BTCUSDT", {
-      signal: null,
-      strategyName: "strategy1",
-      exchangeName: "binance",
-      openTimestamp: Date.now(),
-    }],
-    ["strategy2:ETHUSDT", {
-      signal: null,
-      strategyName: "strategy2",
-      exchangeName: "binance",
-      openTimestamp: Date.now(),
-    }],
+    [
+      "strategy1:BTCUSDT",
+      {
+        signal: null,
+        strategyName: "strategy1",
+        exchangeName: "binance",
+        openTimestamp: Date.now(),
+      },
+    ],
+    [
+      "strategy2:ETHUSDT",
+      {
+        signal: null,
+        strategyName: "strategy2",
+        exchangeName: "binance",
+        openTimestamp: Date.now(),
+      },
+    ],
   ]);
 
   // Convert Map to Array and write
@@ -698,54 +981,63 @@ test("PersistRiskAdapter handles Map to Array conversion", async ({ pass, fail }
   }
 
   fail(`Map conversion failed. Restored size: ${restoredMap.size}`);
-
 });
 
 test("PersistRiskAdapter overwrites existing data", async ({ pass, fail }) => {
-
   let storedData = null;
 
-  PersistRiskAdapter.usePersistRiskAdapter(class {
-    async waitForInit() {}
-    async readValue() {
-      return storedData;
+  PersistRiskAdapter.usePersistRiskAdapter(
+    class {
+      async waitForInit() {}
+      async readValue() {
+        return storedData;
+      }
+      async hasValue() {
+        return storedData !== null;
+      }
+      async writeValue(_key, value) {
+        storedData = value;
+      }
     }
-    async hasValue() {
-      return storedData !== null;
-    }
-    async writeValue(_key, value) {
-      storedData = value;
-    }
-  });
+  );
 
   const testRiskName = "test-risk-overwrite";
 
   // Write initial data
   const initialPositions = [
-    ["strategy1:BTCUSDT", {
-      signal: null,
-      strategyName: "strategy1",
-      exchangeName: "binance",
-      openTimestamp: 1111111,
-    }],
+    [
+      "strategy1:BTCUSDT",
+      {
+        signal: null,
+        strategyName: "strategy1",
+        exchangeName: "binance",
+        openTimestamp: 1111111,
+      },
+    ],
   ];
 
   await PersistRiskAdapter.writePositionData(initialPositions, testRiskName);
 
   // Overwrite with new data
   const newPositions = [
-    ["strategy2:ETHUSDT", {
-      signal: null,
-      strategyName: "strategy2",
-      exchangeName: "binance",
-      openTimestamp: 2222222,
-    }],
-    ["strategy3:BNBUSDT", {
-      signal: null,
-      strategyName: "strategy3",
-      exchangeName: "binance",
-      openTimestamp: 3333333,
-    }],
+    [
+      "strategy2:ETHUSDT",
+      {
+        signal: null,
+        strategyName: "strategy2",
+        exchangeName: "binance",
+        openTimestamp: 2222222,
+      },
+    ],
+    [
+      "strategy3:BNBUSDT",
+      {
+        signal: null,
+        strategyName: "strategy3",
+        exchangeName: "binance",
+        openTimestamp: 3333333,
+      },
+    ],
   ];
 
   await PersistRiskAdapter.writePositionData(newPositions, testRiskName);
@@ -763,81 +1055,97 @@ test("PersistRiskAdapter overwrites existing data", async ({ pass, fail }) => {
   }
 
   fail(`Overwrite failed. Read: ${JSON.stringify(readPositions)}`);
-
 });
 
 test("PersistRiskAdapter isolates data by riskName", async ({ pass, fail }) => {
-
   // Storage per riskName - simulates how PersistBase would store data
   const storageByRisk = new Map();
 
-  PersistRiskAdapter.usePersistRiskAdapter(class {
-    constructor(riskName) {
-      this.riskName = riskName;
-    }
+  PersistRiskAdapter.usePersistRiskAdapter(
+    class {
+      constructor(riskName) {
+        this.riskName = riskName;
+      }
 
-    async waitForInit() {
-      // Initialize storage for this riskName if needed
-      if (!storageByRisk.has(this.riskName)) {
-        storageByRisk.set(this.riskName, new Map());
+      async waitForInit() {
+        // Initialize storage for this riskName if needed
+        if (!storageByRisk.has(this.riskName)) {
+          storageByRisk.set(this.riskName, new Map());
+        }
       }
-    }
 
-    async readValue(key) {
-      const riskStorage = storageByRisk.get(this.riskName);
-      if (!riskStorage) {
-        throw new Error("Storage not initialized");
+      async readValue(key) {
+        const riskStorage = storageByRisk.get(this.riskName);
+        if (!riskStorage) {
+          throw new Error("Storage not initialized");
+        }
+        const data = riskStorage.get(key);
+        if (!data) {
+          throw new Error("Not found");
+        }
+        return data;
       }
-      const data = riskStorage.get(key);
-      if (!data) {
-        throw new Error("Not found");
-      }
-      return data;
-    }
 
-    async hasValue(key) {
-      const riskStorage = storageByRisk.get(this.riskName);
-      if (!riskStorage) {
-        return false;
+      async hasValue(key) {
+        const riskStorage = storageByRisk.get(this.riskName);
+        if (!riskStorage) {
+          return false;
+        }
+        return riskStorage.has(key);
       }
-      return riskStorage.has(key);
-    }
 
-    async writeValue(key, value) {
-      let riskStorage = storageByRisk.get(this.riskName);
-      if (!riskStorage) {
-        riskStorage = new Map();
-        storageByRisk.set(this.riskName, riskStorage);
+      async writeValue(key, value) {
+        let riskStorage = storageByRisk.get(this.riskName);
+        if (!riskStorage) {
+          riskStorage = new Map();
+          storageByRisk.set(this.riskName, riskStorage);
+        }
+        riskStorage.set(key, value);
       }
-      riskStorage.set(key, value);
     }
-  });
+  );
 
   const risk1Data = [
-    ["risk1:BTCUSDT", {
-      signal: null,
-      strategyName: "risk1-strategy",
-      exchangeName: "binance",
-      openTimestamp: 1111111,
-    }],
+    [
+      "risk1:BTCUSDT",
+      {
+        signal: null,
+        strategyName: "risk1-strategy",
+        exchangeName: "binance",
+        openTimestamp: 1111111,
+      },
+    ],
   ];
 
   const risk2Data = [
-    ["risk2:ETHUSDT", {
-      signal: null,
-      strategyName: "risk2-strategy",
-      exchangeName: "binance",
-      openTimestamp: 2222222,
-    }],
+    [
+      "risk2:ETHUSDT",
+      {
+        signal: null,
+        strategyName: "risk2-strategy",
+        exchangeName: "binance",
+        openTimestamp: 2222222,
+      },
+    ],
   ];
 
   // Write to two different risk profiles
-  await PersistRiskAdapter.writePositionData(risk1Data, "test-risk-isolation-1");
-  await PersistRiskAdapter.writePositionData(risk2Data, "test-risk-isolation-2");
+  await PersistRiskAdapter.writePositionData(
+    risk1Data,
+    "test-risk-isolation-1"
+  );
+  await PersistRiskAdapter.writePositionData(
+    risk2Data,
+    "test-risk-isolation-2"
+  );
 
   // Read back both
-  const read1 = await PersistRiskAdapter.readPositionData("test-risk-isolation-1");
-  const read2 = await PersistRiskAdapter.readPositionData("test-risk-isolation-2");
+  const read1 = await PersistRiskAdapter.readPositionData(
+    "test-risk-isolation-1"
+  );
+  const read2 = await PersistRiskAdapter.readPositionData(
+    "test-risk-isolation-2"
+  );
 
   if (
     read1.length === 1 &&
@@ -849,6 +1157,9 @@ test("PersistRiskAdapter isolates data by riskName", async ({ pass, fail }) => {
     return;
   }
 
-  fail(`Isolation failed. risk1: ${JSON.stringify(read1)}, risk2: ${JSON.stringify(read2)}`);
-
+  fail(
+    `Isolation failed. risk1: ${JSON.stringify(read1)}, risk2: ${JSON.stringify(
+      read2
+    )}`
+  );
 });

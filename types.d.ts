@@ -215,18 +215,43 @@ declare function partialLoss(symbol: string, percentToClose: number): Promise<vo
  *
  * @param symbol - Trading pair symbol
  * @param percentShift - Percentage adjustment to SL distance (-100 to 100)
+ * @param currentPrice - Current market price to check for intrusion
  * @returns Promise that resolves when trailing SL is updated
  *
  * @example
  * ```typescript
  * import { trailingStop } from "backtest-kit";
  *
- * // LONG: entry=100, originalSL=90, distance=10
- * // Tighten stop by 50%: newSL = 100 - 10*(1-0.5) = 95
- * await trailingStop("BTCUSDT", -50);
+ * // LONG: entry=100, originalSL=90, distance=10%, currentPrice=102
+ * // Tighten stop by 50%: newSL = 100 - 5% = 95
+ * await trailingStop("BTCUSDT", -50, 102);
  * ```
  */
-declare function trailingStop(symbol: string, percentShift: number): Promise<void>;
+declare function trailingStop(symbol: string, percentShift: number, currentPrice: number): Promise<void>;
+/**
+ * Adjusts the trailing take-profit distance for an active pending signal.
+ *
+ * Updates the take-profit distance by a percentage adjustment relative to the original TP distance.
+ * Negative percentShift brings TP closer to entry, positive percentShift moves it further.
+ * Once direction is set on first call, subsequent calls must continue in same direction.
+ *
+ * Automatically detects backtest/live mode from execution context.
+ *
+ * @param symbol - Trading pair symbol
+ * @param percentShift - Percentage adjustment to TP distance (-100 to 100)
+ * @param currentPrice - Current market price to check for intrusion
+ * @returns Promise that resolves when trailing TP is updated
+ *
+ * @example
+ * ```typescript
+ * import { trailingProfit } from "backtest-kit";
+ *
+ * // LONG: entry=100, originalTP=110, distance=10%, currentPrice=102
+ * // Move TP further by 50%: newTP = 100 + 15% = 115
+ * await trailingProfit("BTCUSDT", 50, 102);
+ * ```
+ */
+declare function trailingProfit(symbol: string, percentShift: number, currentPrice: number): Promise<void>;
 /**
  * Moves stop-loss to breakeven when price reaches threshold.
  *
@@ -1096,6 +1121,17 @@ interface ISignalRow extends ISignalDto {
      * Original priceStopLoss is preserved in persistence but ignored during execution.
      */
     _trailingPriceStopLoss?: number;
+    /**
+     * Trailing take-profit price that overrides priceTakeProfit when set.
+     * Created and managed by trailingProfit() method for dynamic TP adjustment.
+     * Allows moving TP further from or closer to current price based on strategy.
+     * Updated by trailingProfit() method based on position type and percentage distance.
+     * - For LONG: can move upward (further) or downward (closer) from entry
+     * - For SHORT: can move downward (further) or upward (closer) from entry
+     * When _trailingPriceTakeProfit is set, it replaces priceTakeProfit for TP/SL checks.
+     * Original priceTakeProfit is preserved in persistence but ignored during execution.
+     */
+    _trailingPriceTakeProfit?: number;
 }
 /**
  * Scheduled signal row for delayed entry at specific price.
@@ -1108,13 +1144,13 @@ interface IScheduledSignalRow extends ISignalRow {
     priceOpen: number;
 }
 /**
- * Public signal row with original stop-loss price.
- * Extends ISignalRow to include originalPriceStopLoss for external visibility.
- * Used in public APIs to show user the original SL even if trailing SL is active.
- * This allows users to see both the current effective SL and the original SL set at signal creation.
- * The originalPriceStopLoss remains unchanged even if _trailingPriceStopLoss modifies the effective SL.
+ * Public signal row with original stop-loss and take-profit prices.
+ * Extends ISignalRow to include originalPriceStopLoss and originalPriceTakeProfit for external visibility.
+ * Used in public APIs to show user the original SL/TP even if trailing SL/TP are active.
+ * This allows users to see both the current effective SL/TP and the original values set at signal creation.
+ * The original prices remain unchanged even if _trailingPriceStopLoss or _trailingPriceTakeProfit modify the effective values.
  * Useful for transparency in reporting and user interfaces.
- * Note: originalPriceStopLoss is identical to priceStopLoss at signal creation time.
+ * Note: originalPriceStopLoss/originalPriceTakeProfit are identical to priceStopLoss/priceTakeProfit at signal creation time.
  */
 interface IPublicSignalRow extends ISignalRow {
     /**
@@ -1123,11 +1159,17 @@ interface IPublicSignalRow extends ISignalRow {
      * Used for user visibility of initial SL parameters.
      */
     originalPriceStopLoss: number;
+    /**
+     * Original take-profit price set at signal creation.
+     * Remains unchanged even if trailing take-profit modifies effective TP.
+     * Used for user visibility of initial TP parameters.
+     */
+    originalPriceTakeProfit: number;
 }
 /**
  * Risk signal row for internal risk management.
- * Extends ISignalDto to include priceOpen and originalPriceStopLoss.
- * Used in risk validation to access entry price and original SL.
+ * Extends ISignalDto to include priceOpen, originalPriceStopLoss and originalPriceTakeProfit.
+ * Used in risk validation to access entry price and original SL/TP.
  */
 interface IRiskSignalRow extends ISignalDto {
     /**
@@ -1138,6 +1180,10 @@ interface IRiskSignalRow extends ISignalDto {
      * Original stop-loss price set at signal creation.
      */
     originalPriceStopLoss: number;
+    /**
+     * Original take-profit price set at signal creation.
+     */
+    originalPriceTakeProfit: number;
 }
 /**
  * Scheduled signal row with cancellation ID.
@@ -1412,6 +1458,42 @@ interface IStrategy {
      */
     getScheduledSignal: (symbol: string) => Promise<IPublicSignalRow | null>;
     /**
+     * Checks if breakeven threshold has been reached for the current pending signal.
+     *
+     * Uses the same formula as BREAKEVEN_FN to determine if price has moved far enough
+     * to cover transaction costs (slippage + fees) and allow breakeven to be set.
+     * Threshold: (CC_PERCENT_SLIPPAGE + CC_PERCENT_FEE) * 2 transactions
+     *
+     * For LONG position:
+     * - Returns true when: currentPrice >= priceOpen * (1 + threshold%)
+     * - Example: entry=100, threshold=0.4% → true when price >= 100.4
+     *
+     * For SHORT position:
+     * - Returns true when: currentPrice <= priceOpen * (1 - threshold%)
+     * - Example: entry=100, threshold=0.4% → true when price <= 99.6
+     *
+     * Special cases:
+     * - Returns false if no pending signal exists
+     * - Returns true if trailing stop is already in profit zone (breakeven already achieved)
+     * - Returns false if threshold not reached yet
+     *
+     * @param symbol - Trading pair symbol (e.g., "BTCUSDT")
+     * @param currentPrice - Current market price to check against threshold
+     * @returns Promise<boolean> - true if breakeven threshold reached, false otherwise
+     *
+     * @example
+     * ```typescript
+     * // Check if breakeven is available for LONG position (entry=100, threshold=0.4%)
+     * const canBreakeven = await strategy.getBreakeven("BTCUSDT", 100.5);
+     * // Returns true (price >= 100.4)
+     *
+     * if (canBreakeven) {
+     *   await strategy.breakeven("BTCUSDT", 100.5, false);
+     * }
+     * ```
+     */
+    getBreakeven: (symbol: string, currentPrice: number) => Promise<boolean>;
+    /**
      * Checks if the strategy has been stopped.
      *
      * Returns the stopped state indicating whether the strategy should
@@ -1590,7 +1672,35 @@ interface IStrategy {
      * }
      * ```
      */
-    trailingStop: (symbol: string, percentShift: number, backtest: boolean) => Promise<void>;
+    trailingStop: (symbol: string, percentShift: number, currentPrice: number, backtest: boolean) => Promise<void>;
+    /**
+     * Adjusts the trailing take-profit distance for an active pending signal.
+     *
+     * Updates the take-profit distance by a percentage adjustment relative to the original TP distance.
+     * Negative percentShift brings TP closer to entry, positive percentShift moves it further.
+     * Once direction is set on first call, subsequent calls must continue in same direction.
+     *
+     * Price intrusion protection: If current price has already crossed the new TP level,
+     * the update is skipped to prevent immediate TP triggering.
+     *
+     * @param symbol - Trading pair symbol
+     * @param percentShift - Percentage adjustment to TP distance (-100 to 100)
+     * @param currentPrice - Current market price to check for intrusion
+     * @param backtest - Whether running in backtest mode
+     * @returns Promise that resolves when trailing TP is updated
+     *
+     * @example
+     * ```typescript
+     * // LONG: entry=100, originalTP=110, distance=10%, currentPrice=102
+     * // Move TP further by 50%: newTP = 100 + 15% = 115
+     * await strategy.trailingProfit(symbol, 50, 102, backtest);
+     *
+     * // SHORT: entry=100, originalTP=90, distance=10%, currentPrice=98
+     * // Move TP closer by 30%: newTP = 100 - 7% = 93
+     * await strategy.trailingProfit(symbol, -30, 98, backtest);
+     * ```
+     */
+    trailingProfit: (symbol: string, percentShift: number, currentPrice: number, backtest: boolean) => Promise<void>;
     /**
      * Moves stop-loss to breakeven (entry price) when price reaches threshold.
      *
@@ -6694,6 +6804,35 @@ declare class BacktestUtils {
         frameName: FrameName;
     }) => Promise<IScheduledSignalRow>;
     /**
+     * Checks if breakeven threshold has been reached for the current pending signal.
+     *
+     * Uses the same formula as BREAKEVEN_FN to determine if price has moved far enough
+     * to cover transaction costs (slippage + fees) and allow breakeven to be set.
+     *
+     * @param symbol - Trading pair symbol
+     * @param currentPrice - Current market price to check against threshold
+     * @param context - Execution context with strategyName, exchangeName, frameName
+     * @returns Promise<boolean> - true if breakeven threshold reached, false otherwise
+     *
+     * @example
+     * ```typescript
+     * const canBreakeven = await Backtest.getBreakeven("BTCUSDT", 100.5, {
+     *   strategyName: "my-strategy",
+     *   exchangeName: "binance",
+     *   frameName: "backtest_frame"
+     * });
+     * if (canBreakeven) {
+     *   console.log("Breakeven threshold reached");
+     *   await Backtest.breakeven("BTCUSDT", 100.5, context);
+     * }
+     * ```
+     */
+    getBreakeven: (symbol: string, currentPrice: number, context: {
+        strategyName: StrategyName;
+        exchangeName: ExchangeName;
+        frameName: FrameName;
+    }) => Promise<boolean>;
+    /**
      * Stops the strategy from generating new signals.
      *
      * Sets internal flag to prevent strategy from opening new signals.
@@ -6818,21 +6957,51 @@ declare class BacktestUtils {
      *
      * @param symbol - Trading pair symbol
      * @param percentShift - Percentage adjustment to SL distance (-100 to 100)
+     * @param currentPrice - Current market price to check for intrusion
      * @param context - Execution context with strategyName, exchangeName, and frameName
      * @returns Promise that resolves when trailing SL is updated
      *
      * @example
      * ```typescript
-     * // LONG: entry=100, originalSL=90, distance=10
-     * // Tighten stop by 50%: newSL = 100 - 10*(1-0.5) = 95
-     * await Backtest.trailingStop("BTCUSDT", -50, {
+     * // LONG: entry=100, originalSL=90, distance=10%, currentPrice=102
+     * // Tighten stop by 50%: newSL = 100 - 5% = 95
+     * await Backtest.trailingStop("BTCUSDT", -50, 102, {
      *   exchangeName: "binance",
      *   frameName: "frame1",
      *   strategyName: "my-strategy"
      * });
      * ```
      */
-    trailingStop: (symbol: string, percentShift: number, context: {
+    trailingStop: (symbol: string, percentShift: number, currentPrice: number, context: {
+        strategyName: StrategyName;
+        exchangeName: ExchangeName;
+        frameName: FrameName;
+    }) => Promise<void>;
+    /**
+     * Adjusts the trailing take-profit distance for an active pending signal.
+     *
+     * Updates the take-profit distance by a percentage adjustment relative to the original TP distance.
+     * Negative percentShift brings TP closer to entry, positive percentShift moves it further.
+     * Once direction is set on first call, subsequent calls must continue in same direction.
+     *
+     * @param symbol - Trading pair symbol
+     * @param percentShift - Percentage adjustment to TP distance (-100 to 100)
+     * @param currentPrice - Current market price to check for intrusion
+     * @param context - Execution context with strategyName, exchangeName, and frameName
+     * @returns Promise that resolves when trailing TP is updated
+     *
+     * @example
+     * ```typescript
+     * // LONG: entry=100, originalTP=110, distance=10%, currentPrice=102
+     * // Move TP further by 50%: newTP = 100 + 15% = 115
+     * await Backtest.trailingProfit("BTCUSDT", 50, 102, {
+     *   exchangeName: "binance",
+     *   frameName: "frame1",
+     *   strategyName: "my-strategy"
+     * });
+     * ```
+     */
+    trailingProfit: (symbol: string, percentShift: number, currentPrice: number, context: {
         strategyName: StrategyName;
         exchangeName: ExchangeName;
         frameName: FrameName;
@@ -7298,6 +7467,33 @@ declare class LiveUtils {
         exchangeName: ExchangeName;
     }) => Promise<IScheduledSignalRow>;
     /**
+     * Checks if breakeven threshold has been reached for the current pending signal.
+     *
+     * Uses the same formula as BREAKEVEN_FN to determine if price has moved far enough
+     * to cover transaction costs (slippage + fees) and allow breakeven to be set.
+     *
+     * @param symbol - Trading pair symbol
+     * @param currentPrice - Current market price to check against threshold
+     * @param context - Execution context with strategyName and exchangeName
+     * @returns Promise<boolean> - true if breakeven threshold reached, false otherwise
+     *
+     * @example
+     * ```typescript
+     * const canBreakeven = await Live.getBreakeven("BTCUSDT", 100.5, {
+     *   strategyName: "my-strategy",
+     *   exchangeName: "binance"
+     * });
+     * if (canBreakeven) {
+     *   console.log("Breakeven threshold reached");
+     *   await Live.breakeven("BTCUSDT", 100.5, context);
+     * }
+     * ```
+     */
+    getBreakeven: (symbol: string, currentPrice: number, context: {
+        strategyName: StrategyName;
+        exchangeName: ExchangeName;
+    }) => Promise<boolean>;
+    /**
      * Stops the strategy from generating new signals.
      *
      * Sets internal flag to prevent strategy from opening new signals.
@@ -7411,20 +7607,48 @@ declare class LiveUtils {
      *
      * @param symbol - Trading pair symbol
      * @param percentShift - Percentage adjustment to SL distance (-100 to 100)
+     * @param currentPrice - Current market price to check for intrusion
      * @param context - Execution context with strategyName and exchangeName
      * @returns Promise that resolves when trailing SL is updated
      *
      * @example
      * ```typescript
-     * // LONG: entry=100, originalSL=90, distance=10
-     * // Tighten stop by 50%: newSL = 100 - 10*(1-0.5) = 95
-     * await Live.trailingStop("BTCUSDT", -50, {
+     * // LONG: entry=100, originalSL=90, distance=10%, currentPrice=102
+     * // Tighten stop by 50%: newSL = 100 - 5% = 95
+     * await Live.trailingStop("BTCUSDT", -50, 102, {
      *   exchangeName: "binance",
      *   strategyName: "my-strategy"
      * });
      * ```
      */
-    trailingStop: (symbol: string, percentShift: number, context: {
+    trailingStop: (symbol: string, percentShift: number, currentPrice: number, context: {
+        strategyName: StrategyName;
+        exchangeName: ExchangeName;
+    }) => Promise<void>;
+    /**
+     * Adjusts the trailing take-profit distance for an active pending signal.
+     *
+     * Updates the take-profit distance by a percentage adjustment relative to the original TP distance.
+     * Negative percentShift brings TP closer to entry, positive percentShift moves it further.
+     * Once direction is set on first call, subsequent calls must continue in same direction.
+     *
+     * @param symbol - Trading pair symbol
+     * @param percentShift - Percentage adjustment to TP distance (-100 to 100)
+     * @param currentPrice - Current market price to check for intrusion
+     * @param context - Execution context with strategyName and exchangeName
+     * @returns Promise that resolves when trailing TP is updated
+     *
+     * @example
+     * ```typescript
+     * // LONG: entry=100, originalTP=110, distance=10%, currentPrice=102
+     * // Move TP further by 50%: newTP = 100 + 15% = 115
+     * await Live.trailingProfit("BTCUSDT", 50, 102, {
+     *   exchangeName: "binance",
+     *   strategyName: "my-strategy"
+     * });
+     * ```
+     */
+    trailingProfit: (symbol: string, percentShift: number, currentPrice: number, context: {
         strategyName: StrategyName;
         exchangeName: ExchangeName;
     }) => Promise<void>;
@@ -11390,6 +11614,41 @@ declare class StrategyConnectionService implements TStrategy$1 {
         frameName: FrameName;
     }) => Promise<IScheduledSignalRow | null>;
     /**
+     * Checks if breakeven threshold has been reached for the current pending signal.
+     *
+     * Uses the same formula as BREAKEVEN_FN to determine if price has moved far enough
+     * to cover transaction costs and allow breakeven to be set.
+     *
+     * Delegates to ClientStrategy.getBreakeven() with current execution context.
+     *
+     * @param backtest - Whether running in backtest mode
+     * @param symbol - Trading pair symbol
+     * @param currentPrice - Current market price to check against threshold
+     * @param context - Execution context with strategyName, exchangeName, frameName
+     * @returns Promise<boolean> - true if breakeven threshold reached, false otherwise
+     *
+     * @example
+     * ```typescript
+     * // Check if breakeven is available for LONG position (entry=100, threshold=0.4%)
+     * const canBreakeven = await strategyConnectionService.getBreakeven(
+     *   false,
+     *   "BTCUSDT",
+     *   100.5,
+     *   { strategyName: "my-strategy", exchangeName: "binance", frameName: "" }
+     * );
+     * // Returns true (price >= 100.4)
+     *
+     * if (canBreakeven) {
+     *   await strategyConnectionService.breakeven(false, "BTCUSDT", 100.5, context);
+     * }
+     * ```
+     */
+    getBreakeven: (backtest: boolean, symbol: string, currentPrice: number, context: {
+        strategyName: StrategyName;
+        exchangeName: ExchangeName;
+        frameName: FrameName;
+    }) => Promise<boolean>;
+    /**
      * Retrieves the stopped state of the strategy.
      *
      * Delegates to the underlying strategy instance to check if it has been
@@ -11562,22 +11821,57 @@ declare class StrategyConnectionService implements TStrategy$1 {
      * @param backtest - Whether running in backtest mode
      * @param symbol - Trading pair symbol
      * @param percentShift - Percentage adjustment to SL distance (-100 to 100)
+     * @param currentPrice - Current market price to check for intrusion
      * @param context - Execution context with strategyName, exchangeName, frameName
      * @returns Promise that resolves when trailing SL is updated
      *
      * @example
      * ```typescript
-     * // LONG: entry=100, originalSL=90, distance=10
-     * // Tighten stop by 50%: newSL = 100 - 10*(1-0.5) = 95
+     * // LONG: entry=100, originalSL=90, distance=10%, currentPrice=102
+     * // Tighten stop by 50%: newSL = 100 - 5% = 95
      * await strategyConnectionService.trailingStop(
      *   false,
      *   "BTCUSDT",
      *   -50,
+     *   102,
      *   { strategyName: "my-strategy", exchangeName: "binance", frameName: "" }
      * );
      * ```
      */
-    trailingStop: (backtest: boolean, symbol: string, percentShift: number, context: {
+    trailingStop: (backtest: boolean, symbol: string, percentShift: number, currentPrice: number, context: {
+        strategyName: StrategyName;
+        exchangeName: ExchangeName;
+        frameName: FrameName;
+    }) => Promise<void>;
+    /**
+     * Adjusts the trailing take-profit distance for an active pending signal.
+     *
+     * Updates the take-profit distance by a percentage adjustment relative to the original TP distance.
+     * Negative percentShift brings TP closer to entry, positive percentShift moves it further.
+     *
+     * Delegates to ClientStrategy.trailingProfit() with current execution context.
+     *
+     * @param backtest - Whether running in backtest mode
+     * @param symbol - Trading pair symbol
+     * @param percentShift - Percentage adjustment to TP distance (-100 to 100)
+     * @param currentPrice - Current market price to check for intrusion
+     * @param context - Execution context with strategyName, exchangeName, frameName
+     * @returns Promise that resolves when trailing TP is updated
+     *
+     * @example
+     * ```typescript
+     * // LONG: entry=100, originalTP=110, distance=10%, currentPrice=102
+     * // Move TP further by 50%: newTP = 100 + 15% = 115
+     * await strategyConnectionService.trailingProfit(
+     *   false,
+     *   "BTCUSDT",
+     *   50,
+     *   102,
+     *   { strategyName: "my-strategy", exchangeName: "binance", frameName: "" }
+     * );
+     * ```
+     */
+    trailingProfit: (backtest: boolean, symbol: string, percentShift: number, currentPrice: number, context: {
         strategyName: StrategyName;
         exchangeName: ExchangeName;
         frameName: FrameName;
@@ -11918,6 +12212,41 @@ declare class StrategyCoreService implements TStrategy {
         frameName: FrameName;
     }) => Promise<IScheduledSignalRow | null>;
     /**
+     * Checks if breakeven threshold has been reached for the current pending signal.
+     *
+     * Validates strategy existence and delegates to connection service
+     * to check if price has moved far enough to cover transaction costs.
+     *
+     * Does not require execution context as this is a state query operation.
+     *
+     * @param backtest - Whether running in backtest mode
+     * @param symbol - Trading pair symbol
+     * @param currentPrice - Current market price to check against threshold
+     * @param context - Execution context with strategyName, exchangeName, frameName
+     * @returns Promise<boolean> - true if breakeven threshold reached, false otherwise
+     *
+     * @example
+     * ```typescript
+     * // Check if breakeven is available for LONG position (entry=100, threshold=0.4%)
+     * const canBreakeven = await strategyCoreService.getBreakeven(
+     *   false,
+     *   "BTCUSDT",
+     *   100.5,
+     *   { strategyName: "my-strategy", exchangeName: "binance", frameName: "" }
+     * );
+     * // Returns true (price >= 100.4)
+     *
+     * if (canBreakeven) {
+     *   await strategyCoreService.breakeven(false, "BTCUSDT", 100.5, context);
+     * }
+     * ```
+     */
+    getBreakeven: (backtest: boolean, symbol: string, currentPrice: number, context: {
+        strategyName: StrategyName;
+        exchangeName: ExchangeName;
+        frameName: FrameName;
+    }) => Promise<boolean>;
+    /**
      * Checks if the strategy has been stopped.
      *
      * Validates strategy existence and delegates to connection service
@@ -12092,22 +12421,53 @@ declare class StrategyCoreService implements TStrategy {
      * @param backtest - Whether running in backtest mode
      * @param symbol - Trading pair symbol
      * @param percentShift - Percentage adjustment to SL distance (-100 to 100)
+     * @param currentPrice - Current market price to check for intrusion
      * @param context - Execution context with strategyName, exchangeName, frameName
      * @returns Promise that resolves when trailing SL is updated
      *
      * @example
      * ```typescript
-     * // LONG: entry=100, originalSL=90, distance=10
-     * // Tighten stop by 50%: newSL = 100 - 10*(1-0.5) = 95
+     * // LONG: entry=100, originalSL=90, distance=10%, currentPrice=102
+     * // Tighten stop by 50%: newSL = 100 - 5% = 95
      * await strategyCoreService.trailingStop(
      *   false,
      *   "BTCUSDT",
      *   -50,
+     *   102,
      *   { strategyName: "my-strategy", exchangeName: "binance", frameName: "" }
      * );
      * ```
      */
-    trailingStop: (backtest: boolean, symbol: string, percentShift: number, context: {
+    trailingStop: (backtest: boolean, symbol: string, percentShift: number, currentPrice: number, context: {
+        strategyName: StrategyName;
+        exchangeName: ExchangeName;
+        frameName: FrameName;
+    }) => Promise<void>;
+    /**
+     * Adjusts the trailing take-profit distance for an active pending signal.
+     * Validates context and delegates to StrategyConnectionService.
+     *
+     * @param backtest - Whether running in backtest mode
+     * @param symbol - Trading pair symbol
+     * @param percentShift - Percentage adjustment to TP distance (-100 to 100)
+     * @param currentPrice - Current market price to check for intrusion
+     * @param context - Strategy context with strategyName, exchangeName, frameName
+     * @returns Promise that resolves when trailing TP is updated
+     *
+     * @example
+     * ```typescript
+     * // LONG: entry=100, originalTP=110, distance=10%, currentPrice=102
+     * // Move TP further by 50%: newTP = 100 + 15% = 115
+     * await strategyCoreService.trailingProfit(
+     *   false,
+     *   "BTCUSDT",
+     *   50,
+     *   102,
+     *   { strategyName: "my-strategy", exchangeName: "binance", frameName: "" }
+     * );
+     * ```
+     */
+    trailingProfit: (backtest: boolean, symbol: string, percentShift: number, currentPrice: number, context: {
         strategyName: StrategyName;
         exchangeName: ExchangeName;
         frameName: FrameName;
@@ -12214,6 +12574,7 @@ declare class RiskGlobalService implements TRisk {
     private readonly loggerService;
     private readonly riskConnectionService;
     private readonly riskValidationService;
+    private readonly exchangeValidationService;
     /**
      * Validates risk configuration.
      * Memoized to avoid redundant validations for the same risk-exchange-frame combination.
@@ -13705,6 +14066,10 @@ declare class PartialGlobalService implements TPartial {
      */
     private readonly riskValidationService;
     /**
+     * Exchange validation service for validating exchange existence.
+     */
+    private readonly exchangeValidationService;
+    /**
      * Validates strategy and associated risk configuration.
      * Memoized to avoid redundant validations for the same strategy-exchange-frame combination.
      *
@@ -13813,6 +14178,10 @@ declare class BreakevenGlobalService implements TBreakeven {
      * Risk validation service for validating risk existence.
      */
     private readonly riskValidationService;
+    /**
+     * Exchange validation service for validating exchange existence.
+     */
+    private readonly exchangeValidationService;
     /**
      * Validates strategy and associated risk configuration.
      * Memoized to avoid redundant validations for the same strategy-exchange-frame combination.
@@ -14056,4 +14425,4 @@ declare const backtest: {
     loggerService: LoggerService;
 };
 
-export { Backtest, type BacktestDoneNotification, type BacktestStatisticsModel, type BootstrapNotification, Breakeven, type BreakevenContract, type BreakevenData, Cache, type CandleInterval, type ColumnConfig, type ColumnModel, Constant, type CriticalErrorNotification, type DoneContract, type EntityId, Exchange, ExecutionContextService, type FrameInterval, type GlobalConfig, Heat, type HeatmapStatisticsModel, type ICandleData, type IExchangeSchema, type IFrameSchema, type IHeatmapRow, type IOptimizerCallbacks, type IOptimizerData, type IOptimizerFetchArgs, type IOptimizerFilterArgs, type IOptimizerRange, type IOptimizerSchema, type IOptimizerSource, type IOptimizerStrategy, type IOptimizerTemplate, type IPersistBase, type IPositionSizeATRParams, type IPositionSizeFixedPercentageParams, type IPositionSizeKellyParams, type IPublicSignalRow, type IRiskActivePosition, type IRiskCheckArgs, type IRiskSchema, type IRiskValidation, type IRiskValidationFn, type IRiskValidationPayload, type IScheduledSignalCancelRow, type IScheduledSignalRow, type ISignalDto, type ISignalRow, type ISizingCalculateParams, type ISizingCalculateParamsATR, type ISizingCalculateParamsFixedPercentage, type ISizingCalculateParamsKelly, type ISizingSchema, type ISizingSchemaATR, type ISizingSchemaFixedPercentage, type ISizingSchemaKelly, type IStrategyPnL, type IStrategyResult, type IStrategySchema, type IStrategyTickResult, type IStrategyTickResultActive, type IStrategyTickResultCancelled, type IStrategyTickResultClosed, type IStrategyTickResultIdle, type IStrategyTickResultOpened, type IStrategyTickResultScheduled, type IWalkerResults, type IWalkerSchema, type IWalkerStrategyResult, type InfoErrorNotification, Live, type LiveDoneNotification, type LiveStatisticsModel, type MessageModel, type MessageRole, MethodContextService, type MetricStats, Notification, type NotificationModel, Optimizer, Partial$1 as Partial, type PartialData, type PartialEvent, type PartialLossContract, type PartialLossNotification, type PartialProfitContract, type PartialProfitNotification, type PartialStatisticsModel, Performance, type PerformanceContract, type PerformanceMetricType, type PerformanceStatisticsModel, PersistBase, PersistBreakevenAdapter, PersistPartialAdapter, PersistRiskAdapter, PersistScheduleAdapter, PersistSignalAdapter, type PingContract, PositionSize, type ProgressBacktestContract, type ProgressBacktestNotification, type ProgressOptimizerContract, type ProgressWalkerContract, Risk, type RiskContract, type RiskData, type RiskEvent, type RiskRejectionNotification, type RiskStatisticsModel, Schedule, type ScheduleData, type ScheduleStatisticsModel, type ScheduledEvent, type SignalCancelledNotification, type SignalClosedNotification, type SignalData, type SignalInterval, type SignalOpenedNotification, type SignalScheduledNotification, type TPersistBase, type TPersistBaseCtor, type TickEvent, type ValidationErrorNotification, Walker, type WalkerCompleteContract, type WalkerContract, type WalkerMetric, type SignalData$1 as WalkerSignalData, type WalkerStatisticsModel, addExchange, addFrame, addOptimizer, addRisk, addSizing, addStrategy, addWalker, breakeven, cancel, dumpSignal, emitters, formatPrice, formatQuantity, getAveragePrice, getCandles, getColumns, getConfig, getDate, getDefaultColumns, getDefaultConfig, getMode, hasTradeContext, backtest as lib, listExchanges, listFrames, listOptimizers, listRisks, listSizings, listStrategies, listWalkers, listenBacktestProgress, listenBreakeven, listenBreakevenOnce, listenDoneBacktest, listenDoneBacktestOnce, listenDoneLive, listenDoneLiveOnce, listenDoneWalker, listenDoneWalkerOnce, listenError, listenExit, listenOptimizerProgress, listenPartialLoss, listenPartialLossOnce, listenPartialProfit, listenPartialProfitOnce, listenPerformance, listenPing, listenPingOnce, listenRisk, listenRiskOnce, listenSignal, listenSignalBacktest, listenSignalBacktestOnce, listenSignalLive, listenSignalLiveOnce, listenSignalOnce, listenValidation, listenWalker, listenWalkerComplete, listenWalkerOnce, listenWalkerProgress, partialLoss, partialProfit, setColumns, setConfig, setLogger, stop, trailingStop, validate };
+export { Backtest, type BacktestDoneNotification, type BacktestStatisticsModel, type BootstrapNotification, Breakeven, type BreakevenContract, type BreakevenData, Cache, type CandleInterval, type ColumnConfig, type ColumnModel, Constant, type CriticalErrorNotification, type DoneContract, type EntityId, Exchange, ExecutionContextService, type FrameInterval, type GlobalConfig, Heat, type HeatmapStatisticsModel, type ICandleData, type IExchangeSchema, type IFrameSchema, type IHeatmapRow, type IOptimizerCallbacks, type IOptimizerData, type IOptimizerFetchArgs, type IOptimizerFilterArgs, type IOptimizerRange, type IOptimizerSchema, type IOptimizerSource, type IOptimizerStrategy, type IOptimizerTemplate, type IPersistBase, type IPositionSizeATRParams, type IPositionSizeFixedPercentageParams, type IPositionSizeKellyParams, type IPublicSignalRow, type IRiskActivePosition, type IRiskCheckArgs, type IRiskSchema, type IRiskValidation, type IRiskValidationFn, type IRiskValidationPayload, type IScheduledSignalCancelRow, type IScheduledSignalRow, type ISignalDto, type ISignalRow, type ISizingCalculateParams, type ISizingCalculateParamsATR, type ISizingCalculateParamsFixedPercentage, type ISizingCalculateParamsKelly, type ISizingSchema, type ISizingSchemaATR, type ISizingSchemaFixedPercentage, type ISizingSchemaKelly, type IStrategyPnL, type IStrategyResult, type IStrategySchema, type IStrategyTickResult, type IStrategyTickResultActive, type IStrategyTickResultCancelled, type IStrategyTickResultClosed, type IStrategyTickResultIdle, type IStrategyTickResultOpened, type IStrategyTickResultScheduled, type IWalkerResults, type IWalkerSchema, type IWalkerStrategyResult, type InfoErrorNotification, Live, type LiveDoneNotification, type LiveStatisticsModel, type MessageModel, type MessageRole, MethodContextService, type MetricStats, Notification, type NotificationModel, Optimizer, Partial$1 as Partial, type PartialData, type PartialEvent, type PartialLossContract, type PartialLossNotification, type PartialProfitContract, type PartialProfitNotification, type PartialStatisticsModel, Performance, type PerformanceContract, type PerformanceMetricType, type PerformanceStatisticsModel, PersistBase, PersistBreakevenAdapter, PersistPartialAdapter, PersistRiskAdapter, PersistScheduleAdapter, PersistSignalAdapter, type PingContract, PositionSize, type ProgressBacktestContract, type ProgressBacktestNotification, type ProgressOptimizerContract, type ProgressWalkerContract, Risk, type RiskContract, type RiskData, type RiskEvent, type RiskRejectionNotification, type RiskStatisticsModel, Schedule, type ScheduleData, type ScheduleStatisticsModel, type ScheduledEvent, type SignalCancelledNotification, type SignalClosedNotification, type SignalData, type SignalInterval, type SignalOpenedNotification, type SignalScheduledNotification, type TPersistBase, type TPersistBaseCtor, type TickEvent, type ValidationErrorNotification, Walker, type WalkerCompleteContract, type WalkerContract, type WalkerMetric, type SignalData$1 as WalkerSignalData, type WalkerStatisticsModel, addExchange, addFrame, addOptimizer, addRisk, addSizing, addStrategy, addWalker, breakeven, cancel, dumpSignal, emitters, formatPrice, formatQuantity, getAveragePrice, getCandles, getColumns, getConfig, getDate, getDefaultColumns, getDefaultConfig, getMode, hasTradeContext, backtest as lib, listExchanges, listFrames, listOptimizers, listRisks, listSizings, listStrategies, listWalkers, listenBacktestProgress, listenBreakeven, listenBreakevenOnce, listenDoneBacktest, listenDoneBacktestOnce, listenDoneLive, listenDoneLiveOnce, listenDoneWalker, listenDoneWalkerOnce, listenError, listenExit, listenOptimizerProgress, listenPartialLoss, listenPartialLossOnce, listenPartialProfit, listenPartialProfitOnce, listenPerformance, listenPing, listenPingOnce, listenRisk, listenRiskOnce, listenSignal, listenSignalBacktest, listenSignalBacktestOnce, listenSignalLive, listenSignalLiveOnce, listenSignalOnce, listenValidation, listenWalker, listenWalkerComplete, listenWalkerOnce, listenWalkerProgress, partialLoss, partialProfit, setColumns, setConfig, setLogger, stop, trailingProfit, trailingStop, validate };

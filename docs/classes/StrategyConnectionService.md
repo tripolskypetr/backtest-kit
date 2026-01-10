@@ -106,6 +106,19 @@ Retrieves the currently active scheduled signal for the strategy.
 If no scheduled signal exists, returns null.
 Used internally for monitoring scheduled signal activation.
 
+### getBreakeven
+
+```ts
+getBreakeven: (backtest: boolean, symbol: string, currentPrice: number, context: { strategyName: string; exchangeName: string; frameName: string; }) => Promise<boolean>
+```
+
+Checks if breakeven threshold has been reached for the current pending signal.
+
+Uses the same formula as BREAKEVEN_FN to determine if price has moved far enough
+to cover transaction costs and allow breakeven to be set.
+
+Delegates to ClientStrategy.getBreakeven() with current execution context.
+
 ### getStopped
 
 ```ts
@@ -204,7 +217,7 @@ Delegates to ClientStrategy.partialLoss() with current execution context.
 ### trailingStop
 
 ```ts
-trailingStop: (backtest: boolean, symbol: string, percentShift: number, context: { strategyName: string; exchangeName: string; frameName: string; }) => Promise<void>
+trailingStop: (backtest: boolean, symbol: string, percentShift: number, currentPrice: number, context: { strategyName: string; exchangeName: string; frameName: string; }) => Promise<void>
 ```
 
 Adjusts the trailing stop-loss distance for an active pending signal.
@@ -213,6 +226,19 @@ Updates the stop-loss distance by a percentage adjustment relative to the origin
 Positive percentShift tightens the SL (reduces distance), negative percentShift loosens it.
 
 Delegates to ClientStrategy.trailingStop() with current execution context.
+
+### trailingProfit
+
+```ts
+trailingProfit: (backtest: boolean, symbol: string, percentShift: number, currentPrice: number, context: { strategyName: string; exchangeName: string; frameName: string; }) => Promise<void>
+```
+
+Adjusts the trailing take-profit distance for an active pending signal.
+
+Updates the take-profit distance by a percentage adjustment relative to the original TP distance.
+Negative percentShift brings TP closer to entry, positive percentShift moves it further.
+
+Delegates to ClientStrategy.trailingProfit() with current execution context.
 
 ### breakeven
 

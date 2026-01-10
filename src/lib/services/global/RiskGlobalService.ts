@@ -5,6 +5,7 @@ import RiskConnectionService from "../connection/RiskConnectionService";
 import { IRisk, IRiskCheckArgs, RiskName } from "../../../interfaces/Risk.interface";
 import { memoize } from "functools-kit";
 import RiskValidationService from "../validation/RiskValidationService";
+import ExchangeValidationService from "../validation/ExchangeValidationService";
 import { ExchangeName } from "../../../interfaces/Exchange.interface";
 import { FrameName } from "../../../interfaces/Frame.interface";
 import { StrategyName } from "../../../interfaces/Strategy.interface";
@@ -32,6 +33,9 @@ export class RiskGlobalService implements TRisk {
   private readonly riskValidationService = inject<RiskValidationService>(
     TYPES.riskValidationService
   );
+  private readonly exchangeValidationService = inject<ExchangeValidationService>(
+    TYPES.exchangeValidationService
+  );
 
   /**
    * Validates risk configuration.
@@ -48,6 +52,10 @@ export class RiskGlobalService implements TRisk {
       });
       this.riskValidationService.validate(
         payload.riskName,
+        "riskGlobalService validate"
+      );
+      this.exchangeValidationService.validate(
+        payload.exchangeName,
         "riskGlobalService validate"
       );
     }

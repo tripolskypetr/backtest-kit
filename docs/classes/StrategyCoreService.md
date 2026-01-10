@@ -83,6 +83,19 @@ Retrieves the currently active scheduled signal for the symbol.
 If no scheduled signal exists, returns null.
 Used internally for monitoring scheduled signal activation.
 
+### getBreakeven
+
+```ts
+getBreakeven: (backtest: boolean, symbol: string, currentPrice: number, context: { strategyName: string; exchangeName: string; frameName: string; }) => Promise<boolean>
+```
+
+Checks if breakeven threshold has been reached for the current pending signal.
+
+Validates strategy existence and delegates to connection service
+to check if price has moved far enough to cover transaction costs.
+
+Does not require execution context as this is a state query operation.
+
 ### getStopped
 
 ```ts
@@ -179,7 +192,7 @@ Does not require execution context as this is a direct state mutation.
 ### trailingStop
 
 ```ts
-trailingStop: (backtest: boolean, symbol: string, percentShift: number, context: { strategyName: string; exchangeName: string; frameName: string; }) => Promise<void>
+trailingStop: (backtest: boolean, symbol: string, percentShift: number, currentPrice: number, context: { strategyName: string; exchangeName: string; frameName: string; }) => Promise<void>
 ```
 
 Adjusts the trailing stop-loss distance for an active pending signal.
@@ -188,6 +201,15 @@ Validates strategy existence and delegates to connection service
 to update the stop-loss distance by a percentage adjustment.
 
 Does not require execution context as this is a direct state mutation.
+
+### trailingProfit
+
+```ts
+trailingProfit: (backtest: boolean, symbol: string, percentShift: number, currentPrice: number, context: { strategyName: string; exchangeName: string; frameName: string; }) => Promise<void>
+```
+
+Adjusts the trailing take-profit distance for an active pending signal.
+Validates context and delegates to StrategyConnectionService.
 
 ### breakeven
 

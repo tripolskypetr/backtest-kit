@@ -297,6 +297,52 @@ export class StrategyConnectionService implements TStrategy {
   };
 
   /**
+   * Checks if breakeven threshold has been reached for the current pending signal.
+   *
+   * Uses the same formula as BREAKEVEN_FN to determine if price has moved far enough
+   * to cover transaction costs and allow breakeven to be set.
+   *
+   * Delegates to ClientStrategy.getBreakeven() with current execution context.
+   *
+   * @param backtest - Whether running in backtest mode
+   * @param symbol - Trading pair symbol
+   * @param currentPrice - Current market price to check against threshold
+   * @param context - Execution context with strategyName, exchangeName, frameName
+   * @returns Promise<boolean> - true if breakeven threshold reached, false otherwise
+   *
+   * @example
+   * ```typescript
+   * // Check if breakeven is available for LONG position (entry=100, threshold=0.4%)
+   * const canBreakeven = await strategyConnectionService.getBreakeven(
+   *   false,
+   *   "BTCUSDT", 
+   *   100.5,
+   *   { strategyName: "my-strategy", exchangeName: "binance", frameName: "" }
+   * );
+   * // Returns true (price >= 100.4)
+   *
+   * if (canBreakeven) {
+   *   await strategyConnectionService.breakeven(false, "BTCUSDT", 100.5, context);
+   * }
+   * ```
+   */
+  public getBreakeven = async (
+    backtest: boolean,
+    symbol: string,
+    currentPrice: number,
+    context: { strategyName: StrategyName; exchangeName: ExchangeName; frameName: FrameName }
+  ): Promise<boolean> => {
+    this.loggerService.log("strategyConnectionService getBreakeven", {
+      symbol,
+      context,
+      currentPrice,
+      backtest,
+    });
+    const strategy = this.getStrategy(symbol, context.strategyName, context.exchangeName, context.frameName, backtest);
+    return await strategy.getBreakeven(symbol, currentPrice);
+  };
+
+  /**
    * Retrieves the stopped state of the strategy.
    *
    * Delegates to the underlying strategy instance to check if it has been
@@ -577,17 +623,19 @@ export class StrategyConnectionService implements TStrategy {
    * @param backtest - Whether running in backtest mode
    * @param symbol - Trading pair symbol
    * @param percentShift - Percentage adjustment to SL distance (-100 to 100)
+   * @param currentPrice - Current market price to check for intrusion
    * @param context - Execution context with strategyName, exchangeName, frameName
    * @returns Promise that resolves when trailing SL is updated
    *
    * @example
    * ```typescript
-   * // LONG: entry=100, originalSL=90, distance=10
-   * // Tighten stop by 50%: newSL = 100 - 10*(1-0.5) = 95
+   * // LONG: entry=100, originalSL=90, distance=10%, currentPrice=102
+   * // Tighten stop by 50%: newSL = 100 - 5% = 95
    * await strategyConnectionService.trailingStop(
    *   false,
    *   "BTCUSDT",
    *   -50,
+   *   102,
    *   { strategyName: "my-strategy", exchangeName: "binance", frameName: "" }
    * );
    * ```
@@ -596,16 +644,64 @@ export class StrategyConnectionService implements TStrategy {
     backtest: boolean,
     symbol: string,
     percentShift: number,
+    currentPrice: number,
     context: { strategyName: StrategyName; exchangeName: ExchangeName; frameName: FrameName },
   ): Promise<void> => {
     this.loggerService.log("strategyConnectionService trailingStop", {
       symbol,
       context,
       percentShift,
+      currentPrice,
       backtest,
     });
     const strategy = this.getStrategy(symbol, context.strategyName, context.exchangeName, context.frameName, backtest);
-    await strategy.trailingStop(symbol, percentShift, backtest);
+    await strategy.trailingStop(symbol, percentShift, currentPrice, backtest);
+  };
+
+  /**
+   * Adjusts the trailing take-profit distance for an active pending signal.
+   *
+   * Updates the take-profit distance by a percentage adjustment relative to the original TP distance.
+   * Negative percentShift brings TP closer to entry, positive percentShift moves it further.
+   *
+   * Delegates to ClientStrategy.trailingProfit() with current execution context.
+   *
+   * @param backtest - Whether running in backtest mode
+   * @param symbol - Trading pair symbol
+   * @param percentShift - Percentage adjustment to TP distance (-100 to 100)
+   * @param currentPrice - Current market price to check for intrusion
+   * @param context - Execution context with strategyName, exchangeName, frameName
+   * @returns Promise that resolves when trailing TP is updated
+   *
+   * @example
+   * ```typescript
+   * // LONG: entry=100, originalTP=110, distance=10%, currentPrice=102
+   * // Move TP further by 50%: newTP = 100 + 15% = 115
+   * await strategyConnectionService.trailingProfit(
+   *   false,
+   *   "BTCUSDT",
+   *   50,
+   *   102,
+   *   { strategyName: "my-strategy", exchangeName: "binance", frameName: "" }
+   * );
+   * ```
+   */
+  public trailingProfit = async (
+    backtest: boolean,
+    symbol: string,
+    percentShift: number,
+    currentPrice: number,
+    context: { strategyName: StrategyName; exchangeName: ExchangeName; frameName: FrameName },
+  ): Promise<void> => {
+    this.loggerService.log("strategyConnectionService trailingProfit", {
+      symbol,
+      context,
+      percentShift,
+      currentPrice,
+      backtest,
+    });
+    const strategy = this.getStrategy(symbol, context.strategyName, context.exchangeName, context.frameName, backtest);
+    await strategy.trailingProfit(symbol, percentShift, currentPrice, backtest);
   };
 
   /**

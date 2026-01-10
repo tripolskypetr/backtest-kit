@@ -72,6 +72,14 @@ riskValidationService: any
 
 Risk validation service for validating risk existence.
 
+### exchangeValidationService
+
+```ts
+exchangeValidationService: any
+```
+
+Exchange validation service for validating exchange existence.
+
 ### validate
 
 ```ts

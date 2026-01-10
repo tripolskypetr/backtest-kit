@@ -38,6 +38,12 @@ riskConnectionService: any
 riskValidationService: any
 ```
 
+### exchangeValidationService
+
+```ts
+exchangeValidationService: any
+```
+
 ### validate
 
 ```ts

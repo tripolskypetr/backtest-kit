@@ -950,6 +950,13 @@ test("Partial.getData returns empty statistics for nonexistent symbol", async ({
     getSignal: async () => null,
   });
 
+  addExchange({
+    exchangeName: "nonexistent-exchange",
+    getCandles: async () => [],
+    formatPrice: async (_symbol, p) => p.toFixed(8),
+    formatQuantity: async (_symbol, quantity) => quantity.toFixed(8),
+  })
+
   const stats = await Partial.getData("NONEXISTENT_SYMBOL_12345", {
     strategyName: "nonexistent-strategy",
     exchangeName: "nonexistent-exchange",

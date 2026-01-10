@@ -39,6 +39,31 @@ Retrieves the currently active scheduled signal for the symbol.
 If no scheduled signal exists, returns null.
 Used internally for monitoring scheduled signal activation.
 
+### getBreakeven
+
+```ts
+getBreakeven: (symbol: string, currentPrice: number) => Promise<boolean>
+```
+
+Checks if breakeven threshold has been reached for the current pending signal.
+
+Uses the same formula as BREAKEVEN_FN to determine if price has moved far enough
+to cover transaction costs (slippage + fees) and allow breakeven to be set.
+Threshold: (CC_PERCENT_SLIPPAGE + CC_PERCENT_FEE) * 2 transactions
+
+For LONG position:
+- Returns true when: currentPrice &gt;= priceOpen * (1 + threshold%)
+- Example: entry=100, threshold=0.4% → true when price &gt;= 100.4
+
+For SHORT position:
+- Returns true when: currentPrice &lt;= priceOpen * (1 - threshold%)
+- Example: entry=100, threshold=0.4% → true when price &lt;= 99.6
+
+Special cases:
+- Returns false if no pending signal exists
+- Returns true if trailing stop is already in profit zone (breakeven already achieved)
+- Returns false if threshold not reached yet
+
 ### getStopped
 
 ```ts
@@ -132,7 +157,7 @@ Use case: User-controlled partial close triggered from onPartialLoss callback.
 ### trailingStop
 
 ```ts
-trailingStop: (symbol: string, percentShift: number, backtest: boolean) => Promise<void>
+trailingStop: (symbol: string, percentShift: number, currentPrice: number, backtest: boolean) => Promise<void>
 ```
 
 Adjusts trailing stop-loss by shifting distance between entry and original SL.
@@ -163,6 +188,21 @@ Validations:
 - Skips if new SL would cross entry price
 
 Use case: User-controlled trailing stop triggered from onPartialProfit callback.
+
+### trailingProfit
+
+```ts
+trailingProfit: (symbol: string, percentShift: number, currentPrice: number, backtest: boolean) => Promise<void>
+```
+
+Adjusts the trailing take-profit distance for an active pending signal.
+
+Updates the take-profit distance by a percentage adjustment relative to the original TP distance.
+Negative percentShift brings TP closer to entry, positive percentShift moves it further.
+Once direction is set on first call, subsequent calls must continue in same direction.
+
+Price intrusion protection: If current price has already crossed the new TP level,
+the update is skipped to prevent immediate TP triggering.
 
 ### breakeven
 

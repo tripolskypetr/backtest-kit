@@ -109,3 +109,18 @@ Updated by trailing() method based on position type and percentage distance.
 - For SHORT: moves downward as price moves toward TP (never moves up)
 When _trailingPriceStopLoss is set, it replaces priceStopLoss for TP/SL checks.
 Original priceStopLoss is preserved in persistence but ignored during execution.
+
+### _trailingPriceTakeProfit
+
+```ts
+_trailingPriceTakeProfit: number
+```
+
+Trailing take-profit price that overrides priceTakeProfit when set.
+Created and managed by trailingProfit() method for dynamic TP adjustment.
+Allows moving TP further from or closer to current price based on strategy.
+Updated by trailingProfit() method based on position type and percentage distance.
+- For LONG: can move upward (further) or downward (closer) from entry
+- For SHORT: can move downward (further) or upward (closer) from entry
+When _trailingPriceTakeProfit is set, it replaces priceTakeProfit for TP/SL checks.
+Original priceTakeProfit is preserved in persistence but ignored during execution.

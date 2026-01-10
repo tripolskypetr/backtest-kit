@@ -64,6 +64,17 @@ getScheduledSignal: (symbol: string, context: { strategyName: string; exchangeNa
 Retrieves the currently active scheduled signal for the strategy.
 If no scheduled signal exists, returns null.
 
+### getBreakeven
+
+```ts
+getBreakeven: (symbol: string, currentPrice: number, context: { strategyName: string; exchangeName: string; frameName: string; }) => Promise<boolean>
+```
+
+Checks if breakeven threshold has been reached for the current pending signal.
+
+Uses the same formula as BREAKEVEN_FN to determine if price has moved far enough
+to cover transaction costs (slippage + fees) and allow breakeven to be set.
+
 ### stop
 
 ```ts
@@ -113,13 +124,25 @@ Price must be moving toward stop loss (in loss direction).
 ### trailingStop
 
 ```ts
-trailingStop: (symbol: string, percentShift: number, context: { strategyName: string; exchangeName: string; frameName: string; }) => Promise<void>
+trailingStop: (symbol: string, percentShift: number, currentPrice: number, context: { strategyName: string; exchangeName: string; frameName: string; }) => Promise<void>
 ```
 
 Adjusts the trailing stop-loss distance for an active pending signal.
 
 Updates the stop-loss distance by a percentage adjustment relative to the original SL distance.
 Positive percentShift tightens the SL (reduces distance), negative percentShift loosens it.
+
+### trailingProfit
+
+```ts
+trailingProfit: (symbol: string, percentShift: number, currentPrice: number, context: { strategyName: string; exchangeName: string; frameName: string; }) => Promise<void>
+```
+
+Adjusts the trailing take-profit distance for an active pending signal.
+
+Updates the take-profit distance by a percentage adjustment relative to the original TP distance.
+Negative percentShift brings TP closer to entry, positive percentShift moves it further.
+Once direction is set on first call, subsequent calls must continue in same direction.
 
 ### breakeven
 
