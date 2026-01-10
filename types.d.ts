@@ -12332,6 +12332,7 @@ declare class StrategyCoreService implements TStrategy {
     private readonly riskValidationService;
     private readonly strategyValidationService;
     private readonly exchangeValidationService;
+    private readonly frameValidationService;
     /**
      * Validates strategy and associated risk configuration.
      *
@@ -12736,6 +12737,7 @@ declare class RiskGlobalService implements TRisk {
     private readonly riskConnectionService;
     private readonly riskValidationService;
     private readonly exchangeValidationService;
+    private readonly frameValidationService;
     /**
      * Validates risk configuration.
      * Memoized to avoid redundant validations for the same risk-exchange-frame combination.
@@ -14231,6 +14233,10 @@ declare class PartialGlobalService implements TPartial {
      */
     private readonly exchangeValidationService;
     /**
+     * Frame validation service for validating frame existence.
+     */
+    private readonly frameValidationService;
+    /**
      * Validates strategy and associated risk configuration.
      * Memoized to avoid redundant validations for the same strategy-exchange-frame combination.
      *
@@ -14343,6 +14349,10 @@ declare class BreakevenGlobalService implements TBreakeven {
      * Exchange validation service for validating exchange existence.
      */
     private readonly exchangeValidationService;
+    /**
+     * Frame validation service for validating frame existence.
+     */
+    private readonly frameValidationService;
     /**
      * Validates strategy and associated risk configuration.
      * Memoized to avoid redundant validations for the same strategy-exchange-frame combination.

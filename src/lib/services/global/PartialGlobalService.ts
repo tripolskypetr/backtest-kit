@@ -7,6 +7,7 @@ import StrategyValidationService from "../validation/StrategyValidationService";
 import StrategySchemaService from "../schema/StrategySchemaService";
 import RiskValidationService from "../validation/RiskValidationService";
 import ExchangeValidationService from "../validation/ExchangeValidationService";
+import FrameValidationService from "../validation/FrameValidationService";
 import { memoize } from "functools-kit";
 import { IPartial } from "../../../interfaces/Partial.interface";
 import { FrameName } from "../../../interfaces/Frame.interface";
@@ -94,6 +95,13 @@ export class PartialGlobalService implements TPartial {
   );
 
   /**
+   * Frame validation service for validating frame existence.
+   */
+  private readonly frameValidationService = inject<FrameValidationService>(
+    TYPES.frameValidationService
+  );
+
+  /**
    * Validates strategy and associated risk configuration.
    * Memoized to avoid redundant validations for the same strategy-exchange-frame combination.
    *
@@ -109,6 +117,7 @@ export class PartialGlobalService implements TPartial {
       });
       this.strategyValidationService.validate(context.strategyName, methodName);
       this.exchangeValidationService.validate(context.exchangeName, methodName);
+      context.frameName && this.frameValidationService.validate(context.frameName, methodName);
       const { riskName, riskList } = this.strategySchemaService.get(context.strategyName);
       riskName && this.riskValidationService.validate(riskName, methodName);
       riskList && riskList.forEach((riskName) => this.riskValidationService.validate(riskName, methodName));
