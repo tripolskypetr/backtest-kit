@@ -97,7 +97,7 @@ group: docs
 - [partialProfit](functions/partialProfit.md)
 - [partialLoss](functions/partialLoss.md)
 - [trailingStop](functions/trailingStop.md)
-- [trailingProfit](functions/trailingProfit.md)
+- [trailingTake](functions/trailingTake.md)
 - [breakeven](functions/breakeven.md)
 - [setLogger](functions/setLogger.md)
 - [setConfig](functions/setConfig.md)

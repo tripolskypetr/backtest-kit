@@ -124,25 +124,46 @@ Price must be moving toward stop loss (in loss direction).
 ### trailingStop
 
 ```ts
-trailingStop: (symbol: string, percentShift: number, currentPrice: number, context: { strategyName: string; exchangeName: string; frameName: string; }) => Promise<void>
+trailingStop: (symbol: string, percentShift: number, currentPrice: number, context: { strategyName: string; exchangeName: string; frameName: string; }) => Promise<boolean>
 ```
 
 Adjusts the trailing stop-loss distance for an active pending signal.
 
-Updates the stop-loss distance by a percentage adjustment relative to the original SL distance.
-Positive percentShift tightens the SL (reduces distance), negative percentShift loosens it.
+CRITICAL: Always calculates from ORIGINAL SL, not from current trailing SL.
+This prevents error accumulation on repeated calls.
+Larger percentShift ABSORBS smaller one (updates only towards better protection).
 
-### trailingProfit
+Updates the stop-loss distance by a percentage adjustment relative to the ORIGINAL SL distance.
+Negative percentShift tightens the SL (reduces distance, moves closer to entry).
+Positive percentShift loosens the SL (increases distance, moves away from entry).
+
+Absorption behavior:
+- First call: sets trailing SL unconditionally
+- Subsequent calls: updates only if new SL is BETTER (protects more profit)
+- For LONG: only accepts HIGHER SL (never moves down, closer to entry wins)
+- For SHORT: only accepts LOWER SL (never moves up, closer to entry wins)
+
+### trailingTake
 
 ```ts
-trailingProfit: (symbol: string, percentShift: number, currentPrice: number, context: { strategyName: string; exchangeName: string; frameName: string; }) => Promise<void>
+trailingTake: (symbol: string, percentShift: number, currentPrice: number, context: { strategyName: string; exchangeName: string; frameName: string; }) => Promise<boolean>
 ```
 
 Adjusts the trailing take-profit distance for an active pending signal.
 
-Updates the take-profit distance by a percentage adjustment relative to the original TP distance.
-Negative percentShift brings TP closer to entry, positive percentShift moves it further.
-Once direction is set on first call, subsequent calls must continue in same direction.
+CRITICAL: Always calculates from ORIGINAL TP, not from current trailing TP.
+This prevents error accumulation on repeated calls.
+Larger percentShift ABSORBS smaller one (updates only towards more conservative TP).
+
+Updates the take-profit distance by a percentage adjustment relative to the ORIGINAL TP distance.
+Negative percentShift brings TP closer to entry (more conservative).
+Positive percentShift moves TP further from entry (more aggressive).
+
+Absorption behavior:
+- First call: sets trailing TP unconditionally
+- Subsequent calls: updates only if new TP is MORE CONSERVATIVE (closer to entry)
+- For LONG: only accepts LOWER TP (never moves up, closer to entry wins)
+- For SHORT: only accepts HIGHER TP (never moves down, closer to entry wins)
 
 ### breakeven
 

@@ -157,49 +157,65 @@ Use case: User-controlled partial close triggered from onPartialLoss callback.
 ### trailingStop
 
 ```ts
-trailingStop: (symbol: string, percentShift: number, currentPrice: number, backtest: boolean) => Promise<void>
+trailingStop: (symbol: string, percentShift: number, currentPrice: number, backtest: boolean) => Promise<boolean>
 ```
 
 Adjusts trailing stop-loss by shifting distance between entry and original SL.
 
-Calculates new SL based on percentage shift of the distance (entry - originalSL):
+CRITICAL: Always calculates from ORIGINAL SL, not from current trailing SL.
+This prevents error accumulation on repeated calls.
+Larger percentShift ABSORBS smaller one (updates only towards better protection).
+
+Calculates new SL based on percentage shift of the ORIGINAL distance (entry - originalSL):
 - Negative %: tightens stop (moves SL closer to entry, reduces risk)
 - Positive %: loosens stop (moves SL away from entry, allows more drawdown)
 
-For LONG position (entry=100, originalSL=90, distance=10):
-- percentShift = -50: newSL = 100 - 10*(1-0.5) = 95 (tighter, closer to entry)
-- percentShift = +20: newSL = 100 - 10*(1+0.2) = 88 (looser, away from entry)
+For LONG position (entry=100, originalSL=90, distance=10%):
+- percentShift = -50: newSL = 100 - 10%*(1-0.5) = 95 (5% distance, tighter)
+- percentShift = +20: newSL = 100 - 10%*(1+0.2) = 88 (12% distance, looser)
 
-For SHORT position (entry=100, originalSL=110, distance=10):
-- percentShift = -50: newSL = 100 + 10*(1-0.5) = 105 (tighter, closer to entry)
-- percentShift = +20: newSL = 100 + 10*(1+0.2) = 112 (looser, away from entry)
+For SHORT position (entry=100, originalSL=110, distance=10%):
+- percentShift = -50: newSL = 100 + 10%*(1-0.5) = 105 (5% distance, tighter)
+- percentShift = +20: newSL = 100 + 10%*(1+0.2) = 112 (12% distance, looser)
 
-Trailing behavior:
-- Only updates if new SL is BETTER (protects more profit)
-- For LONG: only accepts higher SL (never moves down)
-- For SHORT: only accepts lower SL (never moves up)
-- Validates that SL never crosses entry price
-- Stores in _trailingPriceStopLoss, original priceStopLoss preserved
+Absorption behavior:
+- First call: sets trailing SL unconditionally
+- Subsequent calls: updates only if new SL is BETTER (protects more profit)
+- For LONG: only accepts HIGHER SL (never moves down, closer to entry wins)
+- For SHORT: only accepts LOWER SL (never moves up, closer to entry wins)
+- Stores in _trailingPriceStopLoss, original priceStopLoss always preserved
 
 Validations:
 - Throws if no pending signal exists
-- Throws if percentShift&lt; -100 or &gt; 100
-- Throws if percentShift=== 0
+- Throws if percentShift &lt; -100 or &gt; 100
+- Throws if percentShift === 0
 - Skips if new SL would cross entry price
+- Skips if currentPrice already crossed new SL level (price intrusion protection)
 
 Use case: User-controlled trailing stop triggered from onPartialProfit callback.
 
-### trailingProfit
+### trailingTake
 
 ```ts
-trailingProfit: (symbol: string, percentShift: number, currentPrice: number, backtest: boolean) => Promise<void>
+trailingTake: (symbol: string, percentShift: number, currentPrice: number, backtest: boolean) => Promise<boolean>
 ```
 
 Adjusts the trailing take-profit distance for an active pending signal.
 
-Updates the take-profit distance by a percentage adjustment relative to the original TP distance.
-Negative percentShift brings TP closer to entry, positive percentShift moves it further.
-Once direction is set on first call, subsequent calls must continue in same direction.
+CRITICAL: Always calculates from ORIGINAL TP, not from current trailing TP.
+This prevents error accumulation on repeated calls.
+Larger percentShift ABSORBS smaller one (updates only towards more conservative TP).
+
+Updates the take-profit distance by a percentage adjustment relative to the ORIGINAL TP distance.
+Negative percentShift brings TP closer to entry (more conservative).
+Positive percentShift moves TP further from entry (more aggressive).
+
+Absorption behavior:
+- First call: sets trailing TP unconditionally
+- Subsequent calls: updates only if new TP is MORE CONSERVATIVE (closer to entry)
+- For LONG: only accepts LOWER TP (never moves up, closer to entry wins)
+- For SHORT: only accepts HIGHER TP (never moves down, closer to entry wins)
+- Stores in _trailingPriceTakeProfit, original priceTakeProfit always preserved
 
 Price intrusion protection: If current price has already crossed the new TP level,
 the update is skipped to prevent immediate TP triggering.

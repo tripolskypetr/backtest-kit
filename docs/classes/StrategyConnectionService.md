@@ -217,7 +217,7 @@ Delegates to ClientStrategy.partialLoss() with current execution context.
 ### trailingStop
 
 ```ts
-trailingStop: (backtest: boolean, symbol: string, percentShift: number, currentPrice: number, context: { strategyName: string; exchangeName: string; frameName: string; }) => Promise<void>
+trailingStop: (backtest: boolean, symbol: string, percentShift: number, currentPrice: number, context: { strategyName: string; exchangeName: string; frameName: string; }) => Promise<boolean>
 ```
 
 Adjusts the trailing stop-loss distance for an active pending signal.
@@ -227,10 +227,10 @@ Positive percentShift tightens the SL (reduces distance), negative percentShift 
 
 Delegates to ClientStrategy.trailingStop() with current execution context.
 
-### trailingProfit
+### trailingTake
 
 ```ts
-trailingProfit: (backtest: boolean, symbol: string, percentShift: number, currentPrice: number, context: { strategyName: string; exchangeName: string; frameName: string; }) => Promise<void>
+trailingTake: (backtest: boolean, symbol: string, percentShift: number, currentPrice: number, context: { strategyName: string; exchangeName: string; frameName: string; }) => Promise<boolean>
 ```
 
 Adjusts the trailing take-profit distance for an active pending signal.
@@ -238,7 +238,7 @@ Adjusts the trailing take-profit distance for an active pending signal.
 Updates the take-profit distance by a percentage adjustment relative to the original TP distance.
 Negative percentShift brings TP closer to entry, positive percentShift moves it further.
 
-Delegates to ClientStrategy.trailingProfit() with current execution context.
+Delegates to ClientStrategy.trailingTake() with current execution context.
 
 ### breakeven
 

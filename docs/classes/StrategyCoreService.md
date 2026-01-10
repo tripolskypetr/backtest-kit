@@ -192,7 +192,7 @@ Does not require execution context as this is a direct state mutation.
 ### trailingStop
 
 ```ts
-trailingStop: (backtest: boolean, symbol: string, percentShift: number, currentPrice: number, context: { strategyName: string; exchangeName: string; frameName: string; }) => Promise<void>
+trailingStop: (backtest: boolean, symbol: string, percentShift: number, currentPrice: number, context: { strategyName: string; exchangeName: string; frameName: string; }) => Promise<boolean>
 ```
 
 Adjusts the trailing stop-loss distance for an active pending signal.
@@ -202,10 +202,10 @@ to update the stop-loss distance by a percentage adjustment.
 
 Does not require execution context as this is a direct state mutation.
 
-### trailingProfit
+### trailingTake
 
 ```ts
-trailingProfit: (backtest: boolean, symbol: string, percentShift: number, currentPrice: number, context: { strategyName: string; exchangeName: string; frameName: string; }) => Promise<void>
+trailingTake: (backtest: boolean, symbol: string, percentShift: number, currentPrice: number, context: { strategyName: string; exchangeName: string; frameName: string; }) => Promise<boolean>
 ```
 
 Adjusts the trailing take-profit distance for an active pending signal.

@@ -117,9 +117,9 @@ _trailingPriceTakeProfit: number
 ```
 
 Trailing take-profit price that overrides priceTakeProfit when set.
-Created and managed by trailingProfit() method for dynamic TP adjustment.
+Created and managed by trailingTake() method for dynamic TP adjustment.
 Allows moving TP further from or closer to current price based on strategy.
-Updated by trailingProfit() method based on position type and percentage distance.
+Updated by trailingTake() method based on position type and percentage distance.
 - For LONG: can move upward (further) or downward (closer) from entry
 - For SHORT: can move downward (further) or upward (closer) from entry
 When _trailingPriceTakeProfit is set, it replaces priceTakeProfit for TP/SL checks.
