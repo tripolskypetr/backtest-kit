@@ -16,6 +16,7 @@ import { memoize } from "functools-kit";
 import StrategySchemaService from "../schema/StrategySchemaService";
 import RiskValidationService from "../validation/RiskValidationService";
 import StrategyValidationService from "../validation/StrategyValidationService";
+import ExchangeValidationService from "../validation/ExchangeValidationService";
 import { FrameName } from "../../../interfaces/Frame.interface";
 
 const METHOD_NAME_VALIDATE = "strategyCoreService validate";
@@ -49,6 +50,9 @@ export class StrategyCoreService implements TStrategy {
   );
   private readonly strategyValidationService =
     inject<StrategyValidationService>(TYPES.strategyValidationService);
+  private readonly exchangeValidationService = inject<ExchangeValidationService>(
+    TYPES.exchangeValidationService
+  );
 
   /**
    * Validates strategy and associated risk configuration.
@@ -69,6 +73,10 @@ export class StrategyCoreService implements TStrategy {
       const { riskName, riskList } = this.strategySchemaService.get(context.strategyName);
       this.strategyValidationService.validate(
         context.strategyName,
+        METHOD_NAME_VALIDATE
+      );
+      this.exchangeValidationService.validate(
+        context.exchangeName,
         METHOD_NAME_VALIDATE
       );
       riskName && this.riskValidationService.validate(riskName, METHOD_NAME_VALIDATE);

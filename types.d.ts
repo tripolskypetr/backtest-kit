@@ -12331,6 +12331,7 @@ declare class StrategyCoreService implements TStrategy {
     private readonly strategySchemaService;
     private readonly riskValidationService;
     private readonly strategyValidationService;
+    private readonly exchangeValidationService;
     /**
      * Validates strategy and associated risk configuration.
      *
