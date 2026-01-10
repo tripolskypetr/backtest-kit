@@ -9,7 +9,7 @@ const CANCEL_METHOD_NAME = "strategy.cancel";
 const PARTIAL_PROFIT_METHOD_NAME = "strategy.partialProfit";
 const PARTIAL_LOSS_METHOD_NAME = "strategy.partialLoss";
 const TRAILING_STOP_METHOD_NAME = "strategy.trailingStop";
-const TRAILING_PROFIT_METHOD_NAME = "strategy.trailingProfit";
+const TRAILING_PROFIT_METHOD_NAME = "strategy.trailingTake";
 const BREAKEVEN_METHOD_NAME = "strategy.breakeven";
 
 /**
@@ -265,14 +265,14 @@ export async function trailingStop(
  *
  * @example
  * ```typescript
- * import { trailingProfit } from "backtest-kit";
+ * import { trailingTake } from "backtest-kit";
  *
  * // LONG: entry=100, originalTP=110, distance=10%, currentPrice=102
  * // Move TP further by 50%: newTP = 100 + 15% = 115
- * await trailingProfit("BTCUSDT", 50, 102);
+ * await trailingTake("BTCUSDT", 50, 102);
  * ```
  */
-export async function trailingProfit(
+export async function trailingTake(
   symbol: string,
   percentShift: number,
   currentPrice: number,
@@ -283,15 +283,15 @@ export async function trailingProfit(
     currentPrice,
   });
   if (!ExecutionContextService.hasContext()) {
-    throw new Error("trailingProfit requires an execution context");
+    throw new Error("trailingTake requires an execution context");
   }
   if (!MethodContextService.hasContext()) {
-    throw new Error("trailingProfit requires a method context");
+    throw new Error("trailingTake requires a method context");
   }
   const { backtest: isBacktest } = backtest.executionContextService.context;
   const { exchangeName, frameName, strategyName } =
     backtest.methodContextService.context;
-  await backtest.strategyCoreService.trailingProfit(
+  await backtest.strategyCoreService.trailingTake(
     isBacktest,
     symbol,
     percentShift,
@@ -347,4 +347,4 @@ export async function breakeven(symbol: string): Promise<boolean> {
   );
 }
 
-export default { stop, cancel, partialProfit, partialLoss, trailingStop, trailingProfit, breakeven };
+export default { stop, cancel, partialProfit, partialLoss, trailingStop, trailingTake, breakeven };

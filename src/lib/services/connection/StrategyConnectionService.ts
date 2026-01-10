@@ -664,7 +664,7 @@ export class StrategyConnectionService implements TStrategy {
    * Updates the take-profit distance by a percentage adjustment relative to the original TP distance.
    * Negative percentShift brings TP closer to entry, positive percentShift moves it further.
    *
-   * Delegates to ClientStrategy.trailingProfit() with current execution context.
+   * Delegates to ClientStrategy.trailingTake() with current execution context.
    *
    * @param backtest - Whether running in backtest mode
    * @param symbol - Trading pair symbol
@@ -677,7 +677,7 @@ export class StrategyConnectionService implements TStrategy {
    * ```typescript
    * // LONG: entry=100, originalTP=110, distance=10%, currentPrice=102
    * // Move TP further by 50%: newTP = 100 + 15% = 115
-   * await strategyConnectionService.trailingProfit(
+   * await strategyConnectionService.trailingTake(
    *   false,
    *   "BTCUSDT",
    *   50,
@@ -686,14 +686,14 @@ export class StrategyConnectionService implements TStrategy {
    * );
    * ```
    */
-  public trailingProfit = async (
+  public trailingTake = async (
     backtest: boolean,
     symbol: string,
     percentShift: number,
     currentPrice: number,
     context: { strategyName: StrategyName; exchangeName: ExchangeName; frameName: FrameName },
   ): Promise<void> => {
-    this.loggerService.log("strategyConnectionService trailingProfit", {
+    this.loggerService.log("strategyConnectionService trailingTake", {
       symbol,
       context,
       percentShift,
@@ -701,7 +701,7 @@ export class StrategyConnectionService implements TStrategy {
       backtest,
     });
     const strategy = this.getStrategy(symbol, context.strategyName, context.exchangeName, context.frameName, backtest);
-    await strategy.trailingProfit(symbol, percentShift, currentPrice, backtest);
+    await strategy.trailingTake(symbol, percentShift, currentPrice, backtest);
   };
 
   /**

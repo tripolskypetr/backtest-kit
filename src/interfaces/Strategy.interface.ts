@@ -92,9 +92,9 @@ export interface ISignalRow extends ISignalDto {
   _trailingPriceStopLoss?: number;
   /**
    * Trailing take-profit price that overrides priceTakeProfit when set.
-   * Created and managed by trailingProfit() method for dynamic TP adjustment.
+   * Created and managed by trailingTake() method for dynamic TP adjustment.
    * Allows moving TP further from or closer to current price based on strategy.
-   * Updated by trailingProfit() method based on position type and percentage distance.
+   * Updated by trailingTake() method based on position type and percentage distance.
    * - For LONG: can move upward (further) or downward (closer) from entry
    * - For SHORT: can move downward (further) or upward (closer) from entry
    * When _trailingPriceTakeProfit is set, it replaces priceTakeProfit for TP/SL checks.
@@ -729,14 +729,14 @@ export interface IStrategy {
    * ```typescript
    * // LONG: entry=100, originalTP=110, distance=10%, currentPrice=102
    * // Move TP further by 50%: newTP = 100 + 15% = 115
-   * await strategy.trailingProfit(symbol, 50, 102, backtest);
+   * await strategy.trailingTake(symbol, 50, 102, backtest);
    * 
    * // SHORT: entry=100, originalTP=90, distance=10%, currentPrice=98  
    * // Move TP closer by 30%: newTP = 100 - 7% = 93
-   * await strategy.trailingProfit(symbol, -30, 98, backtest);
+   * await strategy.trailingTake(symbol, -30, 98, backtest);
    * ```
    */
-  trailingProfit: (symbol: string, percentShift: number, currentPrice: number, backtest: boolean) => Promise<void>;
+  trailingTake: (symbol: string, percentShift: number, currentPrice: number, backtest: boolean) => Promise<void>;
 
   /**
    * Moves stop-loss to breakeven (entry price) when price reaches threshold.

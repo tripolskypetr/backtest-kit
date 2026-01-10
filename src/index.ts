@@ -7,7 +7,7 @@ export {
   partialLoss,
   partialProfit,
   trailingStop,
-  trailingProfit,
+  trailingTake,
   breakeven,
 } from "./function/strategy";
 export {

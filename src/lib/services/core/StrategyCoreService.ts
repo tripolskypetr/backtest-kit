@@ -488,7 +488,7 @@ export class StrategyCoreService implements TStrategy {
    * ```typescript
    * // LONG: entry=100, originalTP=110, distance=10%, currentPrice=102
    * // Move TP further by 50%: newTP = 100 + 15% = 115
-   * await strategyCoreService.trailingProfit(
+   * await strategyCoreService.trailingTake(
    *   false,
    *   "BTCUSDT",
    *   50,
@@ -497,14 +497,14 @@ export class StrategyCoreService implements TStrategy {
    * );
    * ```
    */
-  public trailingProfit = async (
+  public trailingTake = async (
     backtest: boolean,
     symbol: string,
     percentShift: number,
     currentPrice: number,
     context: { strategyName: StrategyName; exchangeName: ExchangeName; frameName: FrameName }
   ): Promise<void> => {
-    this.loggerService.log("strategyCoreService trailingProfit", {
+    this.loggerService.log("strategyCoreService trailingTake", {
       symbol,
       percentShift,
       currentPrice,
@@ -512,7 +512,7 @@ export class StrategyCoreService implements TStrategy {
       backtest,
     });
     await this.validate(symbol, context);
-    return await this.strategyConnectionService.trailingProfit(backtest, symbol, percentShift, currentPrice, context);
+    return await this.strategyConnectionService.trailingTake(backtest, symbol, percentShift, currentPrice, context);
   };
 
   /**

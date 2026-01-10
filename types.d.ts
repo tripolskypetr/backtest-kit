@@ -244,14 +244,14 @@ declare function trailingStop(symbol: string, percentShift: number, currentPrice
  *
  * @example
  * ```typescript
- * import { trailingProfit } from "backtest-kit";
+ * import { trailingTake } from "backtest-kit";
  *
  * // LONG: entry=100, originalTP=110, distance=10%, currentPrice=102
  * // Move TP further by 50%: newTP = 100 + 15% = 115
- * await trailingProfit("BTCUSDT", 50, 102);
+ * await trailingTake("BTCUSDT", 50, 102);
  * ```
  */
-declare function trailingProfit(symbol: string, percentShift: number, currentPrice: number): Promise<void>;
+declare function trailingTake(symbol: string, percentShift: number, currentPrice: number): Promise<void>;
 /**
  * Moves stop-loss to breakeven when price reaches threshold.
  *
@@ -1123,9 +1123,9 @@ interface ISignalRow extends ISignalDto {
     _trailingPriceStopLoss?: number;
     /**
      * Trailing take-profit price that overrides priceTakeProfit when set.
-     * Created and managed by trailingProfit() method for dynamic TP adjustment.
+     * Created and managed by trailingTake() method for dynamic TP adjustment.
      * Allows moving TP further from or closer to current price based on strategy.
-     * Updated by trailingProfit() method based on position type and percentage distance.
+     * Updated by trailingTake() method based on position type and percentage distance.
      * - For LONG: can move upward (further) or downward (closer) from entry
      * - For SHORT: can move downward (further) or upward (closer) from entry
      * When _trailingPriceTakeProfit is set, it replaces priceTakeProfit for TP/SL checks.
@@ -1693,14 +1693,14 @@ interface IStrategy {
      * ```typescript
      * // LONG: entry=100, originalTP=110, distance=10%, currentPrice=102
      * // Move TP further by 50%: newTP = 100 + 15% = 115
-     * await strategy.trailingProfit(symbol, 50, 102, backtest);
+     * await strategy.trailingTake(symbol, 50, 102, backtest);
      *
      * // SHORT: entry=100, originalTP=90, distance=10%, currentPrice=98
      * // Move TP closer by 30%: newTP = 100 - 7% = 93
-     * await strategy.trailingProfit(symbol, -30, 98, backtest);
+     * await strategy.trailingTake(symbol, -30, 98, backtest);
      * ```
      */
-    trailingProfit: (symbol: string, percentShift: number, currentPrice: number, backtest: boolean) => Promise<void>;
+    trailingTake: (symbol: string, percentShift: number, currentPrice: number, backtest: boolean) => Promise<void>;
     /**
      * Moves stop-loss to breakeven (entry price) when price reaches threshold.
      *
@@ -6994,14 +6994,14 @@ declare class BacktestUtils {
      * ```typescript
      * // LONG: entry=100, originalTP=110, distance=10%, currentPrice=102
      * // Move TP further by 50%: newTP = 100 + 15% = 115
-     * await Backtest.trailingProfit("BTCUSDT", 50, 102, {
+     * await Backtest.trailingTake("BTCUSDT", 50, 102, {
      *   exchangeName: "binance",
      *   frameName: "frame1",
      *   strategyName: "my-strategy"
      * });
      * ```
      */
-    trailingProfit: (symbol: string, percentShift: number, currentPrice: number, context: {
+    trailingTake: (symbol: string, percentShift: number, currentPrice: number, context: {
         strategyName: StrategyName;
         exchangeName: ExchangeName;
         frameName: FrameName;
@@ -7642,13 +7642,13 @@ declare class LiveUtils {
      * ```typescript
      * // LONG: entry=100, originalTP=110, distance=10%, currentPrice=102
      * // Move TP further by 50%: newTP = 100 + 15% = 115
-     * await Live.trailingProfit("BTCUSDT", 50, 102, {
+     * await Live.trailingTake("BTCUSDT", 50, 102, {
      *   exchangeName: "binance",
      *   strategyName: "my-strategy"
      * });
      * ```
      */
-    trailingProfit: (symbol: string, percentShift: number, currentPrice: number, context: {
+    trailingTake: (symbol: string, percentShift: number, currentPrice: number, context: {
         strategyName: StrategyName;
         exchangeName: ExchangeName;
     }) => Promise<void>;
@@ -11849,7 +11849,7 @@ declare class StrategyConnectionService implements TStrategy$1 {
      * Updates the take-profit distance by a percentage adjustment relative to the original TP distance.
      * Negative percentShift brings TP closer to entry, positive percentShift moves it further.
      *
-     * Delegates to ClientStrategy.trailingProfit() with current execution context.
+     * Delegates to ClientStrategy.trailingTake() with current execution context.
      *
      * @param backtest - Whether running in backtest mode
      * @param symbol - Trading pair symbol
@@ -11862,7 +11862,7 @@ declare class StrategyConnectionService implements TStrategy$1 {
      * ```typescript
      * // LONG: entry=100, originalTP=110, distance=10%, currentPrice=102
      * // Move TP further by 50%: newTP = 100 + 15% = 115
-     * await strategyConnectionService.trailingProfit(
+     * await strategyConnectionService.trailingTake(
      *   false,
      *   "BTCUSDT",
      *   50,
@@ -11871,7 +11871,7 @@ declare class StrategyConnectionService implements TStrategy$1 {
      * );
      * ```
      */
-    trailingProfit: (backtest: boolean, symbol: string, percentShift: number, currentPrice: number, context: {
+    trailingTake: (backtest: boolean, symbol: string, percentShift: number, currentPrice: number, context: {
         strategyName: StrategyName;
         exchangeName: ExchangeName;
         frameName: FrameName;
@@ -12458,7 +12458,7 @@ declare class StrategyCoreService implements TStrategy {
      * ```typescript
      * // LONG: entry=100, originalTP=110, distance=10%, currentPrice=102
      * // Move TP further by 50%: newTP = 100 + 15% = 115
-     * await strategyCoreService.trailingProfit(
+     * await strategyCoreService.trailingTake(
      *   false,
      *   "BTCUSDT",
      *   50,
@@ -12467,7 +12467,7 @@ declare class StrategyCoreService implements TStrategy {
      * );
      * ```
      */
-    trailingProfit: (backtest: boolean, symbol: string, percentShift: number, currentPrice: number, context: {
+    trailingTake: (backtest: boolean, symbol: string, percentShift: number, currentPrice: number, context: {
         strategyName: StrategyName;
         exchangeName: ExchangeName;
         frameName: FrameName;
@@ -14425,4 +14425,4 @@ declare const backtest: {
     loggerService: LoggerService;
 };
 
-export { Backtest, type BacktestDoneNotification, type BacktestStatisticsModel, type BootstrapNotification, Breakeven, type BreakevenContract, type BreakevenData, Cache, type CandleInterval, type ColumnConfig, type ColumnModel, Constant, type CriticalErrorNotification, type DoneContract, type EntityId, Exchange, ExecutionContextService, type FrameInterval, type GlobalConfig, Heat, type HeatmapStatisticsModel, type ICandleData, type IExchangeSchema, type IFrameSchema, type IHeatmapRow, type IOptimizerCallbacks, type IOptimizerData, type IOptimizerFetchArgs, type IOptimizerFilterArgs, type IOptimizerRange, type IOptimizerSchema, type IOptimizerSource, type IOptimizerStrategy, type IOptimizerTemplate, type IPersistBase, type IPositionSizeATRParams, type IPositionSizeFixedPercentageParams, type IPositionSizeKellyParams, type IPublicSignalRow, type IRiskActivePosition, type IRiskCheckArgs, type IRiskSchema, type IRiskValidation, type IRiskValidationFn, type IRiskValidationPayload, type IScheduledSignalCancelRow, type IScheduledSignalRow, type ISignalDto, type ISignalRow, type ISizingCalculateParams, type ISizingCalculateParamsATR, type ISizingCalculateParamsFixedPercentage, type ISizingCalculateParamsKelly, type ISizingSchema, type ISizingSchemaATR, type ISizingSchemaFixedPercentage, type ISizingSchemaKelly, type IStrategyPnL, type IStrategyResult, type IStrategySchema, type IStrategyTickResult, type IStrategyTickResultActive, type IStrategyTickResultCancelled, type IStrategyTickResultClosed, type IStrategyTickResultIdle, type IStrategyTickResultOpened, type IStrategyTickResultScheduled, type IWalkerResults, type IWalkerSchema, type IWalkerStrategyResult, type InfoErrorNotification, Live, type LiveDoneNotification, type LiveStatisticsModel, type MessageModel, type MessageRole, MethodContextService, type MetricStats, Notification, type NotificationModel, Optimizer, Partial$1 as Partial, type PartialData, type PartialEvent, type PartialLossContract, type PartialLossNotification, type PartialProfitContract, type PartialProfitNotification, type PartialStatisticsModel, Performance, type PerformanceContract, type PerformanceMetricType, type PerformanceStatisticsModel, PersistBase, PersistBreakevenAdapter, PersistPartialAdapter, PersistRiskAdapter, PersistScheduleAdapter, PersistSignalAdapter, type PingContract, PositionSize, type ProgressBacktestContract, type ProgressBacktestNotification, type ProgressOptimizerContract, type ProgressWalkerContract, Risk, type RiskContract, type RiskData, type RiskEvent, type RiskRejectionNotification, type RiskStatisticsModel, Schedule, type ScheduleData, type ScheduleStatisticsModel, type ScheduledEvent, type SignalCancelledNotification, type SignalClosedNotification, type SignalData, type SignalInterval, type SignalOpenedNotification, type SignalScheduledNotification, type TPersistBase, type TPersistBaseCtor, type TickEvent, type ValidationErrorNotification, Walker, type WalkerCompleteContract, type WalkerContract, type WalkerMetric, type SignalData$1 as WalkerSignalData, type WalkerStatisticsModel, addExchange, addFrame, addOptimizer, addRisk, addSizing, addStrategy, addWalker, breakeven, cancel, dumpSignal, emitters, formatPrice, formatQuantity, getAveragePrice, getCandles, getColumns, getConfig, getDate, getDefaultColumns, getDefaultConfig, getMode, hasTradeContext, backtest as lib, listExchanges, listFrames, listOptimizers, listRisks, listSizings, listStrategies, listWalkers, listenBacktestProgress, listenBreakeven, listenBreakevenOnce, listenDoneBacktest, listenDoneBacktestOnce, listenDoneLive, listenDoneLiveOnce, listenDoneWalker, listenDoneWalkerOnce, listenError, listenExit, listenOptimizerProgress, listenPartialLoss, listenPartialLossOnce, listenPartialProfit, listenPartialProfitOnce, listenPerformance, listenPing, listenPingOnce, listenRisk, listenRiskOnce, listenSignal, listenSignalBacktest, listenSignalBacktestOnce, listenSignalLive, listenSignalLiveOnce, listenSignalOnce, listenValidation, listenWalker, listenWalkerComplete, listenWalkerOnce, listenWalkerProgress, partialLoss, partialProfit, setColumns, setConfig, setLogger, stop, trailingProfit, trailingStop, validate };
+export { Backtest, type BacktestDoneNotification, type BacktestStatisticsModel, type BootstrapNotification, Breakeven, type BreakevenContract, type BreakevenData, Cache, type CandleInterval, type ColumnConfig, type ColumnModel, Constant, type CriticalErrorNotification, type DoneContract, type EntityId, Exchange, ExecutionContextService, type FrameInterval, type GlobalConfig, Heat, type HeatmapStatisticsModel, type ICandleData, type IExchangeSchema, type IFrameSchema, type IHeatmapRow, type IOptimizerCallbacks, type IOptimizerData, type IOptimizerFetchArgs, type IOptimizerFilterArgs, type IOptimizerRange, type IOptimizerSchema, type IOptimizerSource, type IOptimizerStrategy, type IOptimizerTemplate, type IPersistBase, type IPositionSizeATRParams, type IPositionSizeFixedPercentageParams, type IPositionSizeKellyParams, type IPublicSignalRow, type IRiskActivePosition, type IRiskCheckArgs, type IRiskSchema, type IRiskValidation, type IRiskValidationFn, type IRiskValidationPayload, type IScheduledSignalCancelRow, type IScheduledSignalRow, type ISignalDto, type ISignalRow, type ISizingCalculateParams, type ISizingCalculateParamsATR, type ISizingCalculateParamsFixedPercentage, type ISizingCalculateParamsKelly, type ISizingSchema, type ISizingSchemaATR, type ISizingSchemaFixedPercentage, type ISizingSchemaKelly, type IStrategyPnL, type IStrategyResult, type IStrategySchema, type IStrategyTickResult, type IStrategyTickResultActive, type IStrategyTickResultCancelled, type IStrategyTickResultClosed, type IStrategyTickResultIdle, type IStrategyTickResultOpened, type IStrategyTickResultScheduled, type IWalkerResults, type IWalkerSchema, type IWalkerStrategyResult, type InfoErrorNotification, Live, type LiveDoneNotification, type LiveStatisticsModel, type MessageModel, type MessageRole, MethodContextService, type MetricStats, Notification, type NotificationModel, Optimizer, Partial$1 as Partial, type PartialData, type PartialEvent, type PartialLossContract, type PartialLossNotification, type PartialProfitContract, type PartialProfitNotification, type PartialStatisticsModel, Performance, type PerformanceContract, type PerformanceMetricType, type PerformanceStatisticsModel, PersistBase, PersistBreakevenAdapter, PersistPartialAdapter, PersistRiskAdapter, PersistScheduleAdapter, PersistSignalAdapter, type PingContract, PositionSize, type ProgressBacktestContract, type ProgressBacktestNotification, type ProgressOptimizerContract, type ProgressWalkerContract, Risk, type RiskContract, type RiskData, type RiskEvent, type RiskRejectionNotification, type RiskStatisticsModel, Schedule, type ScheduleData, type ScheduleStatisticsModel, type ScheduledEvent, type SignalCancelledNotification, type SignalClosedNotification, type SignalData, type SignalInterval, type SignalOpenedNotification, type SignalScheduledNotification, type TPersistBase, type TPersistBaseCtor, type TickEvent, type ValidationErrorNotification, Walker, type WalkerCompleteContract, type WalkerContract, type WalkerMetric, type SignalData$1 as WalkerSignalData, type WalkerStatisticsModel, addExchange, addFrame, addOptimizer, addRisk, addSizing, addStrategy, addWalker, breakeven, cancel, dumpSignal, emitters, formatPrice, formatQuantity, getAveragePrice, getCandles, getColumns, getConfig, getDate, getDefaultColumns, getDefaultConfig, getMode, hasTradeContext, backtest as lib, listExchanges, listFrames, listOptimizers, listRisks, listSizings, listStrategies, listWalkers, listenBacktestProgress, listenBreakeven, listenBreakevenOnce, listenDoneBacktest, listenDoneBacktestOnce, listenDoneLive, listenDoneLiveOnce, listenDoneWalker, listenDoneWalkerOnce, listenError, listenExit, listenOptimizerProgress, listenPartialLoss, listenPartialLossOnce, listenPartialProfit, listenPartialProfitOnce, listenPerformance, listenPing, listenPingOnce, listenRisk, listenRiskOnce, listenSignal, listenSignalBacktest, listenSignalBacktestOnce, listenSignalLive, listenSignalLiveOnce, listenSignalOnce, listenValidation, listenWalker, listenWalkerComplete, listenWalkerOnce, listenWalkerProgress, partialLoss, partialProfit, setColumns, setConfig, setLogger, stop, trailingStop, trailingTake, validate };

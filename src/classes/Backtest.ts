@@ -27,7 +27,7 @@ const BACKTEST_METHOD_NAME_CANCEL = "BacktestUtils.cancel";
 const BACKTEST_METHOD_NAME_PARTIAL_PROFIT = "BacktestUtils.partialProfit";
 const BACKTEST_METHOD_NAME_PARTIAL_LOSS = "BacktestUtils.partialLoss";
 const BACKTEST_METHOD_NAME_TRAILING_STOP = "BacktestUtils.trailingStop";
-const BACKTEST_METHOD_NAME_TRAILING_PROFIT = "BacktestUtils.trailingProfit";
+const BACKTEST_METHOD_NAME_TRAILING_PROFIT = "BacktestUtils.trailingTake";
 const BACKTEST_METHOD_NAME_GET_DATA = "BacktestUtils.getData";
 
 /**
@@ -1078,14 +1078,14 @@ export class BacktestUtils {
    * ```typescript
    * // LONG: entry=100, originalTP=110, distance=10%, currentPrice=102
    * // Move TP further by 50%: newTP = 100 + 15% = 115
-   * await Backtest.trailingProfit("BTCUSDT", 50, 102, {
+   * await Backtest.trailingTake("BTCUSDT", 50, 102, {
    *   exchangeName: "binance",
    *   frameName: "frame1",
    *   strategyName: "my-strategy"
    * });
    * ```
    */
-  public trailingProfit = async (
+  public trailingTake = async (
     symbol: string,
     percentShift: number,
     currentPrice: number,
@@ -1127,7 +1127,7 @@ export class BacktestUtils {
         );
     }
 
-    await backtest.strategyCoreService.trailingProfit(
+    await backtest.strategyCoreService.trailingTake(
       true,
       symbol,
       percentShift,

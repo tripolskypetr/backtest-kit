@@ -11,7 +11,7 @@ import {
   listenPartialProfit,
   listenPartialLoss,
   trailingStop,
-  trailingProfit,
+  trailingTake,
 } from "../../build/index.mjs";
 
 import { Subject, sleep } from "functools-kit";
@@ -2063,14 +2063,14 @@ test("TRAILING STOP: Price intrusion protection blocks trailing stop", async ({ 
  * TRAILING PROFIT ТЕСТ #1: Trailing profit tightens TP for LONG position
  *
  * Проверяем что:
- * - trailingProfit с отрицательным shift сужает расстояние TP (подтягивает TP ближе к entry)
+ * - trailingTake с отрицательным shift сужает расстояние TP (подтягивает TP ближе к entry)
  * - Позиция закрывается по новому trailing TP, а не по original TP
  * - percentShift работает относительно цены входа (entry price)
  *
  * Сценарий:
  * 1. LONG позиция открывается: entry=100k, originalTP=130k (distance=30%)
  * 2. Цена растет до +15%
- * 3. Вызываем trailingProfit(-10) → newDistance = 30% + (-10%) = 20% → newTP = 120k
+ * 3. Вызываем trailingTake(-10) → newDistance = 30% + (-10%) = 20% → newTP = 120k
  * 4. Цена растет до 121k
  * 5. Позиция закрывается по trailing TP (120k), а не по original TP (130k)
  */
@@ -2197,11 +2197,11 @@ test("TRAILING PROFIT: Tightens TP for LONG position with negative shift", async
 
           try {
             // percentShift = -10% → newDistance = 30% + (-10%) = 20% → newTP = 120k
-            await trailingProfit(symbol, -10, currentPrice);
+            await trailingTake(symbol, -10, currentPrice);
             trailingApplied = true;
-            // console.log(`[trailingProfit] Applied shift=-10%, original TP distance=30%, new distance=20%`);
+            // console.log(`[trailingTake] Applied shift=-10%, original TP distance=30%, new distance=20%`);
           } catch (error) {
-            // console.log(`[trailingProfit] ERROR:`, error.message);
+            // console.log(`[trailingTake] ERROR:`, error.message);
           }
         }
       },
@@ -2292,7 +2292,7 @@ test("TRAILING PROFIT: Tightens TP for LONG position with negative shift", async
  * Сценарий:
  * 1. SHORT позиция: entry=100k, originalTP=70k (distance=30%)
  * 2. Цена падает до -15%
- * 3. Вызываем trailingProfit(-10) → newDistance = 30% + (-10%) = 20% → newTP = 80k
+ * 3. Вызываем trailingTake(-10) → newDistance = 30% + (-10%) = 20% → newTP = 80k
  * 4. Цена падает до 79k
  * 5. Позиция закрывается по trailing TP (80k)
  */
@@ -2415,11 +2415,11 @@ test("TRAILING PROFIT: Tightens TP for SHORT position", async ({ pass, fail }) =
 
           try {
             // percentShift = -10% → newDistance = 30% + (-10%) = 20% → newTP = 80k
-            await trailingProfit(symbol, -10, currentPrice);
+            await trailingTake(symbol, -10, currentPrice);
             trailingApplied = true;
-            // console.log(`[trailingProfit SHORT] Applied shift=-10%, original TP distance=30%, new distance=20%`);
+            // console.log(`[trailingTake SHORT] Applied shift=-10%, original TP distance=30%, new distance=20%`);
           } catch (error) {
-            // console.log(`[trailingProfit SHORT] ERROR:`, error.message);
+            // console.log(`[trailingTake SHORT] ERROR:`, error.message);
           }
         }
       },
@@ -2501,15 +2501,15 @@ test("TRAILING PROFIT: Tightens TP for SHORT position", async ({ pass, fail }) =
  * TRAILING PROFIT ТЕСТ #3: Direction-based validation - once direction set, must continue
  *
  * Проверяем что:
- * - Первый вызов trailingProfit устанавливает направление движения TP
+ * - Первый вызов trailingTake устанавливает направление движения TP
  * - Система отклоняет попытки двигать TP в противоположном направлении
  * - Можно только продолжать движение в том же направлении
  *
  * Сценарий:
  * 1. LONG позиция: entry=100k, originalTP=120k (distance=20%)
- * 2. Первый вызов trailingProfit(-5) → newTP=115k (направление CLOSER установлено)
- * 3. Второй вызов trailingProfit(+3) → система ОТКЛОНЯЕТ (пытается двигать дальше от entry)
- * 4. Третий вызов trailingProfit(-3) → ПРИНИМАЕТСЯ (направление CLOSER продолжается)
+ * 2. Первый вызов trailingTake(-5) → newTP=115k (направление CLOSER установлено)
+ * 3. Второй вызов trailingTake(+3) → система ОТКЛОНЯЕТ (пытается двигать дальше от entry)
+ * 4. Третий вызов trailingTake(-3) → ПРИНИМАЕТСЯ (направление CLOSER продолжается)
  * 5. Позиция закрывается по финальному trailing TP
  */
 test("TRAILING PROFIT: Direction-based validation for LONG position", async ({ pass, fail }) => {
@@ -2645,11 +2645,11 @@ test("TRAILING PROFIT: Direction-based validation for LONG position", async ({ p
         try {
           // Первый вызов: устанавливает направление CLOSER (к entry)
           // percentShift = -5% → newDistance = 20% + (-5%) = 15% → newTP = 115k
-          await trailingProfit(symbol, -5, priceOpen);
+          await trailingTake(symbol, -5, priceOpen);
           firstTrailingApplied = true;
-          // console.log(`[trailingProfit #1] Applied shift=-5%, direction set to CLOSER (115k < 120k original)`);
+          // console.log(`[trailingTake #1] Applied shift=-5%, direction set to CLOSER (115k < 120k original)`);
         } catch (error) {
-          // console.log(`[trailingProfit #1] ERROR:`, error.message);
+          // console.log(`[trailingTake #1] ERROR:`, error.message);
         }
       },
       onPartialProfit: async (symbol, _signal, _currentPrice, revenuePercent, _backtest) => {
@@ -2660,10 +2660,10 @@ test("TRAILING PROFIT: Direction-based validation for LONG position", async ({ p
           try {
             // percentShift = +3% → newDistance = 20% + 3% = 23% → newTP = 123k
             // Направление: FARTHER (123k > 115k) - ОТКЛОНЯЕТСЯ, т.к. направление CLOSER
-            await trailingProfit(symbol, +3, _currentPrice);
-            // console.log(`[trailingProfit #2] UNEXPECTED: Applied shift=+3% (wrong direction accepted?)`);
+            await trailingTake(symbol, +3, _currentPrice);
+            // console.log(`[trailingTake #2] UNEXPECTED: Applied shift=+3% (wrong direction accepted?)`);
           } catch (error) {
-            // console.log(`[trailingProfit #2] EXPECTED: Rejected shift=+3% (wrong direction)`);
+            // console.log(`[trailingTake #2] EXPECTED: Rejected shift=+3% (wrong direction)`);
           }
           secondTrailingAttempted = true;
         }
@@ -2675,11 +2675,11 @@ test("TRAILING PROFIT: Direction-based validation for LONG position", async ({ p
           try {
             // percentShift = -3% → newDistance = 20% + (-3%) = 17% → newTP = 117k → но уже есть 115k
             // Система должна принять но установить 112k (15% - 3% = 12%)
-            await trailingProfit(symbol, -3, _currentPrice);
+            await trailingTake(symbol, -3, _currentPrice);
             thirdTrailingApplied = true;
-            // console.log(`[trailingProfit #3] Applied shift=-3%, continuing CLOSER direction`);
+            // console.log(`[trailingTake #3] Applied shift=-3%, continuing CLOSER direction`);
           } catch (error) {
-            // console.log(`[trailingProfit #3] ERROR:`, error.message);
+            // console.log(`[trailingTake #3] ERROR:`, error.message);
           }
         }
       },
@@ -2771,13 +2771,13 @@ test("TRAILING PROFIT: Direction-based validation for LONG position", async ({ p
  * TRAILING PROFIT ТЕСТ #4: Cross-validation with trailing stop
  *
  * Проверяем что:
- * - Нельзя применить trailingProfit когда уже есть активный trailingStop
- * - Нельзя применить trailingStop когда уже есть активный trailingProfit
+ * - Нельзя применить trailingTake когда уже есть активный trailingStop
+ * - Нельзя применить trailingStop когда уже есть активный trailingTake
  * - Система блокирует конфликтующие вызовы
  *
  * Сценарий:
  * 1. LONG позиция: entry=100k, originalTP=120k, originalSL=98k
- * 2. Применяем trailingProfit(-5) → newTP=115k
+ * 2. Применяем trailingTake(-5) → newTP=115k
  * 3. Пытаемся применить trailingStop(-0.5) → система ОТКЛОНЯЕТ (conflict)
  * 4. Позиция закрывается по trailing TP
  */
@@ -2790,7 +2790,7 @@ test("TRAILING PROFIT: Cross-validation with trailing stop conflict", async ({ p
 
   let allCandles = [];
   let signalGenerated = false;
-  let trailingProfitApplied = false;
+  let trailingTakeApplied = false;
   let trailingStopAttempted = false;
   let conflictBlocked = false;
 
@@ -2910,17 +2910,17 @@ test("TRAILING PROFIT: Cross-validation with trailing stop conflict", async ({ p
     callbacks: {
       onPartialProfit: async (symbol, _signal, currentPrice, revenuePercent, _backtest) => {
         // Первым применяем trailing profit при 10%
-        if (!trailingProfitApplied && revenuePercent >= 10 && revenuePercent < 15) {
+        if (!trailingTakeApplied && revenuePercent >= 10 && revenuePercent < 15) {
           // console.log(`[onPartialProfit] Applying trailing profit at ${revenuePercent.toFixed(2)}%`);
 
-          await trailingProfit(symbol, -5, currentPrice);
-          trailingProfitApplied = true;
+          await trailingTake(symbol, -5, currentPrice);
+          trailingTakeApplied = true;
 
-          // console.log(`[trailingProfit] Applied, trailing profit is now active`);
+          // console.log(`[trailingTake] Applied, trailing profit is now active`);
         }
 
         // Затем пытаемся применить trailing stop при 15% (должно быть заблокировано)
-        if (trailingProfitApplied && !trailingStopAttempted && revenuePercent >= 15) {
+        if (trailingTakeApplied && !trailingStopAttempted && revenuePercent >= 15) {
           // console.log(`[onPartialProfit] Attempting trailing stop at ${revenuePercent.toFixed(2)}% (should be blocked)`);
 
           try {
@@ -2974,7 +2974,7 @@ test("TRAILING PROFIT: Cross-validation with trailing stop conflict", async ({ p
     return;
   }
 
-  if (!trailingProfitApplied) {
+  if (!trailingTakeApplied) {
     fail("Trailing profit was NOT applied!");
     return;
   }
@@ -3028,7 +3028,7 @@ test("TRAILING PROFIT: Cross-validation with trailing stop conflict", async ({ p
  * Сценарий:
  * 1. LONG позиция: entry=100k, originalTP=120k (distance=20%)
  * 2. Цена растет до 118k (уже выше того TP который хотим установить)
- * 3. Пытаемся применить trailingProfit(-5%) → newTP=115k
+ * 3. Пытаемся применить trailingTake(-5%) → newTP=115k
  * 4. Система блокирует: currentPrice=118k > newTP=115k (price intrusion!)
  * 5. Позиция закрывается по original TP (120k), PNL ≈ +20%
  */
@@ -3166,10 +3166,10 @@ test("TRAILING PROFIT: Price intrusion protection blocks trailing profit", async
           try {
             // percentShift = -5% → newDistance = 20% + (-5%) = 15% → newTP = 115k
             // При 90% прогресса currentPrice≈118k > newTP=115k → price intrusion!
-            await trailingProfit(symbol, -5, currentPrice);
-            // console.log(`[trailingProfit] Applied shift=-5%, newTP should be ~115k`);
+            await trailingTake(symbol, -5, currentPrice);
+            // console.log(`[trailingTake] Applied shift=-5%, newTP should be ~115k`);
           } catch (error) {
-            // console.log(`[trailingProfit] BLOCKED by price intrusion: ${error.message}`);
+            // console.log(`[trailingTake] BLOCKED by price intrusion: ${error.message}`);
             intrusionBlocked = true;
           }
           

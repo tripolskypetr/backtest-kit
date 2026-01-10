@@ -24,7 +24,7 @@ const LIVE_METHOD_NAME_CANCEL = "LiveUtils.cancel";
 const LIVE_METHOD_NAME_PARTIAL_PROFIT = "LiveUtils.partialProfit";
 const LIVE_METHOD_NAME_PARTIAL_LOSS = "LiveUtils.partialLoss";
 const LIVE_METHOD_NAME_TRAILING_STOP = "LiveUtils.trailingStop";
-const LIVE_METHOD_NAME_TRAILING_PROFIT = "LiveUtils.trailingProfit";
+const LIVE_METHOD_NAME_TRAILING_PROFIT = "LiveUtils.trailingTake";
 
 /**
  * Internal task function that runs live trading and handles completion.
@@ -808,13 +808,13 @@ export class LiveUtils {
    * ```typescript
    * // LONG: entry=100, originalTP=110, distance=10%, currentPrice=102
    * // Move TP further by 50%: newTP = 100 + 15% = 115
-   * await Live.trailingProfit("BTCUSDT", 50, 102, {
+   * await Live.trailingTake("BTCUSDT", 50, 102, {
    *   exchangeName: "binance",
    *   strategyName: "my-strategy"
    * });
    * ```
    */
-  public trailingProfit = async (
+  public trailingTake = async (
     symbol: string,
     percentShift: number,
     currentPrice: number,
@@ -838,7 +838,7 @@ export class LiveUtils {
       riskList && riskList.forEach((riskName) => backtest.riskValidationService.validate(riskName, LIVE_METHOD_NAME_TRAILING_PROFIT));
     }
 
-    await backtest.strategyCoreService.trailingProfit(false, symbol, percentShift, currentPrice, {
+    await backtest.strategyCoreService.trailingTake(false, symbol, percentShift, currentPrice, {
       strategyName: context.strategyName,
       exchangeName: context.exchangeName,
       frameName: "",

@@ -802,7 +802,7 @@ const PARTIAL_LOSS_FN = (
   });
 };
 
-const TRAILING_STOP_FN = (
+const TRAILING_STOP_LOSS_FN = (
   self: ClientStrategy,
   signal: ISignalRow,
   percentShift: number
@@ -914,7 +914,7 @@ const TRAILING_STOP_FN = (
   }
 };
 
-const TRAILING_PROFIT_FN = (
+const TRAILING_TAKE_PROFIT_FN = (
   self: ClientStrategy,
   signal: ISignalRow,
   percentShift: number
@@ -4499,7 +4499,7 @@ export class ClientStrategy implements IStrategy {
     }
 
     // Execute trailing logic
-    TRAILING_STOP_FN(this, this._pendingSignal, percentShift);
+    TRAILING_STOP_LOSS_FN(this, this._pendingSignal, percentShift);
 
     // Persist updated signal state (inline setPendingSignal content)
     // Note: this._pendingSignal already mutated by TRAILING_STOP_FN, no reassignment needed
@@ -4547,20 +4547,20 @@ export class ClientStrategy implements IStrategy {
    * ```typescript
    * // LONG: entry=100, originalTP=110, distance=10%, currentPrice=102
    * // Move TP further by 50%: newTP = 100 + 15% = 115
-   * await strategy.trailingProfit("BTCUSDT", 50, 102, false);
+   * await strategy.trailingTake("BTCUSDT", 50, 102, false);
    * 
    * // SHORT: entry=100, originalTP=90, distance=10%, currentPrice=98  
    * // Move TP closer by 30%: newTP = 100 - 7% = 93
-   * await strategy.trailingProfit("BTCUSDT", -30, 98, false);
+   * await strategy.trailingTake("BTCUSDT", -30, 98, false);
    * ```
    */
-  public async trailingProfit(
+  public async trailingTake(
     symbol: string,
     percentShift: number,
     currentPrice: number,
     backtest: boolean
   ): Promise<void> {
-    this.params.logger.debug("ClientStrategy trailingProfit", {
+    this.params.logger.debug("ClientStrategy trailingTake", {
       symbol,
       percentShift,
       currentPrice,
@@ -4570,33 +4570,33 @@ export class ClientStrategy implements IStrategy {
     // Validation: must have pending signal
     if (!this._pendingSignal) {
       throw new Error(
-        `ClientStrategy trailingProfit: No pending signal exists for symbol=${symbol}`
+        `ClientStrategy trailingTake: No pending signal exists for symbol=${symbol}`
       );
     }
 
     // Validation: percentShift must be valid
     if (typeof percentShift !== "number" || !isFinite(percentShift)) {
       throw new Error(
-        `ClientStrategy trailingProfit: percentShift must be a finite number, got ${percentShift} (${typeof percentShift})`
+        `ClientStrategy trailingTake: percentShift must be a finite number, got ${percentShift} (${typeof percentShift})`
       );
     }
 
     if (percentShift < -100 || percentShift > 100) {
       throw new Error(
-        `ClientStrategy trailingProfit: percentShift must be in range [-100, 100], got ${percentShift}`
+        `ClientStrategy trailingTake: percentShift must be in range [-100, 100], got ${percentShift}`
       );
     }
 
     if (percentShift === 0) {
       throw new Error(
-        `ClientStrategy trailingProfit: percentShift cannot be 0`
+        `ClientStrategy trailingTake: percentShift cannot be 0`
       );
     }
 
     // Validation: currentPrice must be valid
     if (typeof currentPrice !== "number" || !isFinite(currentPrice) || currentPrice <= 0) {
       throw new Error(
-        `ClientStrategy trailingProfit: currentPrice must be a positive finite number, got ${currentPrice}`
+        `ClientStrategy trailingTake: currentPrice must be a positive finite number, got ${currentPrice}`
       );
     }
 
@@ -4615,7 +4615,7 @@ export class ClientStrategy implements IStrategy {
     // Check for price intrusion before executing trailing logic
     if (signal.position === "long" && currentPrice > newTakeProfit) {
       // LONG: Price already crossed the new take profit level - skip setting TP
-      this.params.logger.debug("ClientStrategy trailingProfit: price intrusion detected, skipping TP update", {
+      this.params.logger.debug("ClientStrategy trailingTake: price intrusion detected, skipping TP update", {
         signalId: signal.id,
         position: signal.position,
         priceOpen: signal.priceOpen,
@@ -4628,7 +4628,7 @@ export class ClientStrategy implements IStrategy {
 
     if (signal.position === "short" && currentPrice < newTakeProfit) {
       // SHORT: Price already crossed the new take profit level - skip setting TP
-      this.params.logger.debug("ClientStrategy trailingProfit: price intrusion detected, skipping TP update", {
+      this.params.logger.debug("ClientStrategy trailingTake: price intrusion detected, skipping TP update", {
         signalId: signal.id,
         position: signal.position,
         priceOpen: signal.priceOpen,
@@ -4644,7 +4644,7 @@ export class ClientStrategy implements IStrategy {
     
     if (signal.position === "long" && newTakeProfit <= effectiveStopLoss) {
       // LONG: New TP would be at or below current SL - invalid configuration
-      this.params.logger.debug("ClientStrategy trailingProfit: TP/SL conflict detected, skipping TP update", {
+      this.params.logger.debug("ClientStrategy trailingTake: TP/SL conflict detected, skipping TP update", {
         signalId: signal.id,
         position: signal.position,
         priceOpen: signal.priceOpen,
@@ -4657,7 +4657,7 @@ export class ClientStrategy implements IStrategy {
 
     if (signal.position === "short" && newTakeProfit >= effectiveStopLoss) {
       // SHORT: New TP would be at or above current SL - invalid configuration
-      this.params.logger.debug("ClientStrategy trailingProfit: TP/SL conflict detected, skipping TP update", {
+      this.params.logger.debug("ClientStrategy trailingTake: TP/SL conflict detected, skipping TP update", {
         signalId: signal.id,
         position: signal.position,
         priceOpen: signal.priceOpen,
@@ -4669,7 +4669,7 @@ export class ClientStrategy implements IStrategy {
     }
 
     // Execute trailing logic
-    TRAILING_PROFIT_FN(this, this._pendingSignal, percentShift);
+    TRAILING_TAKE_PROFIT_FN(this, this._pendingSignal, percentShift);
 
     // Persist updated signal state (inline setPendingSignal content)
     // Note: this._pendingSignal already mutated by TRAILING_PROFIT_FN, no reassignment needed
