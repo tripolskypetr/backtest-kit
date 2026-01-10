@@ -4025,6 +4025,31 @@ export class ClientStrategy implements IStrategy {
       }
     }
 
+    // Check if currentPrice already crossed take profit level
+    const effectiveTakeProfit = this._pendingSignal._trailingPriceTakeProfit ?? this._pendingSignal.priceTakeProfit;
+
+    if (this._pendingSignal.position === "long" && currentPrice >= effectiveTakeProfit) {
+      this.params.logger.debug("ClientStrategy partialProfit: price already at/above TP, skipping partial close", {
+        signalId: this._pendingSignal.id,
+        position: this._pendingSignal.position,
+        currentPrice,
+        effectiveTakeProfit,
+        reason: "currentPrice >= effectiveTakeProfit (LONG position)"
+      });
+      return;
+    }
+
+    if (this._pendingSignal.position === "short" && currentPrice <= effectiveTakeProfit) {
+      this.params.logger.debug("ClientStrategy partialProfit: price already at/below TP, skipping partial close", {
+        signalId: this._pendingSignal.id,
+        position: this._pendingSignal.position,
+        currentPrice,
+        effectiveTakeProfit,
+        reason: "currentPrice <= effectiveTakeProfit (SHORT position)"
+      });
+      return;
+    }
+
     // Execute partial close logic
     PARTIAL_PROFIT_FN(this, this._pendingSignal, percentToClose, currentPrice);
 
@@ -4155,6 +4180,31 @@ export class ClientStrategy implements IStrategy {
       }
     }
 
+    // Check if currentPrice already crossed stop loss level
+    const effectiveStopLoss = this._pendingSignal._trailingPriceStopLoss ?? this._pendingSignal.priceStopLoss;
+
+    if (this._pendingSignal.position === "long" && currentPrice <= effectiveStopLoss) {
+      this.params.logger.debug("ClientStrategy partialLoss: price already at/below SL, skipping partial close", {
+        signalId: this._pendingSignal.id,
+        position: this._pendingSignal.position,
+        currentPrice,
+        effectiveStopLoss,
+        reason: "currentPrice <= effectiveStopLoss (LONG position)"
+      });
+      return;
+    }
+
+    if (this._pendingSignal.position === "short" && currentPrice >= effectiveStopLoss) {
+      this.params.logger.debug("ClientStrategy partialLoss: price already at/above SL, skipping partial close", {
+        signalId: this._pendingSignal.id,
+        position: this._pendingSignal.position,
+        currentPrice,
+        effectiveStopLoss,
+        reason: "currentPrice >= effectiveStopLoss (SHORT position)"
+      });
+      return;
+    }
+
     // Execute partial close logic
     PARTIAL_LOSS_FN(this, this._pendingSignal, percentToClose, currentPrice);
 
@@ -4258,6 +4308,37 @@ export class ClientStrategy implements IStrategy {
       throw new Error(
         `ClientStrategy breakeven: currentPrice must be a positive finite number, got ${currentPrice}`
       );
+    }
+
+    // Check for conflict with existing trailing take profit
+    const signal = this._pendingSignal;
+    const breakevenPrice = signal.priceOpen;
+    const effectiveTakeProfit = signal._trailingPriceTakeProfit ?? signal.priceTakeProfit;
+
+    if (signal.position === "long" && breakevenPrice >= effectiveTakeProfit) {
+      // LONG: Breakeven SL would be at or above current TP - invalid configuration
+      this.params.logger.debug("ClientStrategy breakeven: SL/TP conflict detected, skipping breakeven", {
+        signalId: signal.id,
+        position: signal.position,
+        priceOpen: signal.priceOpen,
+        breakevenPrice,
+        effectiveTakeProfit,
+        reason: "breakevenPrice >= effectiveTakeProfit (LONG position)"
+      });
+      return false;
+    }
+
+    if (signal.position === "short" && breakevenPrice <= effectiveTakeProfit) {
+      // SHORT: Breakeven SL would be at or below current TP - invalid configuration
+      this.params.logger.debug("ClientStrategy breakeven: SL/TP conflict detected, skipping breakeven", {
+        signalId: signal.id,
+        position: signal.position,
+        priceOpen: signal.priceOpen,
+        breakevenPrice,
+        effectiveTakeProfit,
+        reason: "breakevenPrice <= effectiveTakeProfit (SHORT position)"
+      });
+      return false;
     }
 
     // Execute breakeven logic
