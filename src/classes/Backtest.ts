@@ -990,11 +990,22 @@ export class BacktestUtils {
   /**
    * Adjusts the trailing stop-loss distance for an active pending signal.
    *
-   * Updates the stop-loss distance by a percentage adjustment relative to the original SL distance.
-   * Positive percentShift tightens the SL (reduces distance), negative percentShift loosens it.
+   * CRITICAL: Always calculates from ORIGINAL SL, not from current trailing SL.
+   * This prevents error accumulation on repeated calls.
+   * Larger percentShift ABSORBS smaller one (updates only towards better protection).
+   *
+   * Updates the stop-loss distance by a percentage adjustment relative to the ORIGINAL SL distance.
+   * Negative percentShift tightens the SL (reduces distance, moves closer to entry).
+   * Positive percentShift loosens the SL (increases distance, moves away from entry).
+   *
+   * Absorption behavior:
+   * - First call: sets trailing SL unconditionally
+   * - Subsequent calls: updates only if new SL is BETTER (protects more profit)
+   * - For LONG: only accepts HIGHER SL (never moves down, closer to entry wins)
+   * - For SHORT: only accepts LOWER SL (never moves up, closer to entry wins)
    *
    * @param symbol - Trading pair symbol
-   * @param percentShift - Percentage adjustment to SL distance (-100 to 100)
+   * @param percentShift - Percentage adjustment to ORIGINAL SL distance (-100 to 100)
    * @param currentPrice - Current market price to check for intrusion
    * @param context - Execution context with strategyName, exchangeName, and frameName
    * @returns Promise that resolves when trailing SL is updated
@@ -1002,12 +1013,22 @@ export class BacktestUtils {
    * @example
    * ```typescript
    * // LONG: entry=100, originalSL=90, distance=10%, currentPrice=102
-   * // Tighten stop by 50%: newSL = 100 - 5% = 95
-   * await Backtest.trailingStop("BTCUSDT", -50, 102, {
+   *
+   * // First call: tighten by 5%
+   * await Backtest.trailingStop("BTCUSDT", -5, 102, {
    *   exchangeName: "binance",
    *   frameName: "frame1",
    *   strategyName: "my-strategy"
    * });
+   * // newDistance = 10% - 5% = 5%, newSL = 95
+   *
+   * // Second call: try weaker protection (smaller percentShift)
+   * await Backtest.trailingStop("BTCUSDT", -3, 102, context);
+   * // SKIPPED: newSL=97 < 95 (worse protection, larger % absorbs smaller)
+   *
+   * // Third call: stronger protection (larger percentShift)
+   * await Backtest.trailingStop("BTCUSDT", -7, 102, context);
+   * // ACCEPTED: newDistance = 10% - 7% = 3%, newSL = 97 > 95 (better protection)
    * ```
    */
   public trailingStop = async (
@@ -1064,12 +1085,22 @@ export class BacktestUtils {
   /**
    * Adjusts the trailing take-profit distance for an active pending signal.
    *
-   * Updates the take-profit distance by a percentage adjustment relative to the original TP distance.
-   * Negative percentShift brings TP closer to entry, positive percentShift moves it further.
-   * Once direction is set on first call, subsequent calls must continue in same direction.
+   * CRITICAL: Always calculates from ORIGINAL TP, not from current trailing TP.
+   * This prevents error accumulation on repeated calls.
+   * Larger percentShift ABSORBS smaller one (updates only towards more conservative TP).
+   *
+   * Updates the take-profit distance by a percentage adjustment relative to the ORIGINAL TP distance.
+   * Negative percentShift brings TP closer to entry (more conservative).
+   * Positive percentShift moves TP further from entry (more aggressive).
+   *
+   * Absorption behavior:
+   * - First call: sets trailing TP unconditionally
+   * - Subsequent calls: updates only if new TP is MORE CONSERVATIVE (closer to entry)
+   * - For LONG: only accepts LOWER TP (never moves up, closer to entry wins)
+   * - For SHORT: only accepts HIGHER TP (never moves down, closer to entry wins)
    *
    * @param symbol - Trading pair symbol
-   * @param percentShift - Percentage adjustment to TP distance (-100 to 100)
+   * @param percentShift - Percentage adjustment to ORIGINAL TP distance (-100 to 100)
    * @param currentPrice - Current market price to check for intrusion
    * @param context - Execution context with strategyName, exchangeName, and frameName
    * @returns Promise that resolves when trailing TP is updated
@@ -1077,12 +1108,22 @@ export class BacktestUtils {
    * @example
    * ```typescript
    * // LONG: entry=100, originalTP=110, distance=10%, currentPrice=102
-   * // Move TP further by 50%: newTP = 100 + 15% = 115
-   * await Backtest.trailingTake("BTCUSDT", 50, 102, {
+   *
+   * // First call: bring TP closer by 3%
+   * await Backtest.trailingTake("BTCUSDT", -3, 102, {
    *   exchangeName: "binance",
    *   frameName: "frame1",
    *   strategyName: "my-strategy"
    * });
+   * // newDistance = 10% - 3% = 7%, newTP = 107
+   *
+   * // Second call: try to move TP further (less conservative)
+   * await Backtest.trailingTake("BTCUSDT", 2, 102, context);
+   * // SKIPPED: newTP=112 > 107 (less conservative, larger % absorbs smaller)
+   *
+   * // Third call: even more conservative
+   * await Backtest.trailingTake("BTCUSDT", -5, 102, context);
+   * // ACCEPTED: newDistance = 10% - 5% = 5%, newTP = 105 < 107 (more conservative)
    * ```
    */
   public trailingTake = async (

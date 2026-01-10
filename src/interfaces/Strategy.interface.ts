@@ -662,35 +662,41 @@ export interface IStrategy {
   /**
    * Adjusts trailing stop-loss by shifting distance between entry and original SL.
    *
-   * Calculates new SL based on percentage shift of the distance (entry - originalSL):
+   * CRITICAL: Always calculates from ORIGINAL SL, not from current trailing SL.
+   * This prevents error accumulation on repeated calls.
+   * Larger percentShift ABSORBS smaller one (updates only towards better protection).
+   *
+   * Calculates new SL based on percentage shift of the ORIGINAL distance (entry - originalSL):
    * - Negative %: tightens stop (moves SL closer to entry, reduces risk)
    * - Positive %: loosens stop (moves SL away from entry, allows more drawdown)
    *
-   * For LONG position (entry=100, originalSL=90, distance=10):
-   * - percentShift = -50: newSL = 100 - 10*(1-0.5) = 95 (tighter, closer to entry)
-   * - percentShift = +20: newSL = 100 - 10*(1+0.2) = 88 (looser, away from entry)
+   * For LONG position (entry=100, originalSL=90, distance=10%):
+   * - percentShift = -50: newSL = 100 - 10%*(1-0.5) = 95 (5% distance, tighter)
+   * - percentShift = +20: newSL = 100 - 10%*(1+0.2) = 88 (12% distance, looser)
    *
-   * For SHORT position (entry=100, originalSL=110, distance=10):
-   * - percentShift = -50: newSL = 100 + 10*(1-0.5) = 105 (tighter, closer to entry)
-   * - percentShift = +20: newSL = 100 + 10*(1+0.2) = 112 (looser, away from entry)
+   * For SHORT position (entry=100, originalSL=110, distance=10%):
+   * - percentShift = -50: newSL = 100 + 10%*(1-0.5) = 105 (5% distance, tighter)
+   * - percentShift = +20: newSL = 100 + 10%*(1+0.2) = 112 (12% distance, looser)
    *
-   * Trailing behavior:
-   * - Only updates if new SL is BETTER (protects more profit)
-   * - For LONG: only accepts higher SL (never moves down)
-   * - For SHORT: only accepts lower SL (never moves up)
-   * - Validates that SL never crosses entry price
-   * - Stores in _trailingPriceStopLoss, original priceStopLoss preserved
+   * Absorption behavior:
+   * - First call: sets trailing SL unconditionally
+   * - Subsequent calls: updates only if new SL is BETTER (protects more profit)
+   * - For LONG: only accepts HIGHER SL (never moves down, closer to entry wins)
+   * - For SHORT: only accepts LOWER SL (never moves up, closer to entry wins)
+   * - Stores in _trailingPriceStopLoss, original priceStopLoss always preserved
    *
    * Validations:
    * - Throws if no pending signal exists
-   * - Throws if percentShift< -100 or > 100
-   * - Throws if percentShift=== 0
+   * - Throws if percentShift < -100 or > 100
+   * - Throws if percentShift === 0
    * - Skips if new SL would cross entry price
+   * - Skips if currentPrice already crossed new SL level (price intrusion protection)
    *
    * Use case: User-controlled trailing stop triggered from onPartialProfit callback.
    *
    * @param symbol - Trading pair symbol (e.g., "BTCUSDT")
-   * @param percentShift- Percentage shift of SL distance [-100, 100], excluding 0
+   * @param percentShift - Percentage shift of ORIGINAL SL distance [-100, 100], excluding 0
+   * @param currentPrice - Current market price to check for intrusion
    * @param backtest - Whether running in backtest mode
    * @returns Promise that resolves when trailing SL is updated
    *
@@ -699,9 +705,19 @@ export interface IStrategy {
    * callbacks: {
    *   onPartialProfit: async (symbol, signal, currentPrice, percentTp, backtest) => {
    *     if (percentTp >= 50) {
-   *       // LONG: entry=100, originalSL=90, distance=10
-   *       // Tighten stop by 50%: newSL = 100 - 10*(1-0.5) = 95
-   *       await strategy.trailingStop(symbol, -50, backtest);
+   *       // LONG: entry=100, originalSL=90, distance=10%
+   *
+   *       // First call: tighten by 5%
+   *       await strategy.trailingStop(symbol, -5, currentPrice, backtest);
+   *       // newDistance = 10% - 5% = 5%, newSL = 95
+   *
+   *       // Second call: try weaker protection
+   *       await strategy.trailingStop(symbol, -3, currentPrice, backtest);
+   *       // SKIPPED: newSL=97 < 95 (worse protection, larger % absorbs smaller)
+   *
+   *       // Third call: stronger protection
+   *       await strategy.trailingStop(symbol, -7, currentPrice, backtest);
+   *       // ACCEPTED: newDistance = 3%, newSL = 97 > 95 (better protection)
    *     }
    *   }
    * }
@@ -712,28 +728,49 @@ export interface IStrategy {
   /**
    * Adjusts the trailing take-profit distance for an active pending signal.
    *
-   * Updates the take-profit distance by a percentage adjustment relative to the original TP distance.
-   * Negative percentShift brings TP closer to entry, positive percentShift moves it further.
-   * Once direction is set on first call, subsequent calls must continue in same direction.
+   * CRITICAL: Always calculates from ORIGINAL TP, not from current trailing TP.
+   * This prevents error accumulation on repeated calls.
+   * Larger percentShift ABSORBS smaller one (updates only towards more conservative TP).
+   *
+   * Updates the take-profit distance by a percentage adjustment relative to the ORIGINAL TP distance.
+   * Negative percentShift brings TP closer to entry (more conservative).
+   * Positive percentShift moves TP further from entry (more aggressive).
+   *
+   * Absorption behavior:
+   * - First call: sets trailing TP unconditionally
+   * - Subsequent calls: updates only if new TP is MORE CONSERVATIVE (closer to entry)
+   * - For LONG: only accepts LOWER TP (never moves up, closer to entry wins)
+   * - For SHORT: only accepts HIGHER TP (never moves down, closer to entry wins)
+   * - Stores in _trailingPriceTakeProfit, original priceTakeProfit always preserved
    *
    * Price intrusion protection: If current price has already crossed the new TP level,
    * the update is skipped to prevent immediate TP triggering.
    *
    * @param symbol - Trading pair symbol
-   * @param percentShift - Percentage adjustment to TP distance (-100 to 100)
+   * @param percentShift - Percentage adjustment to ORIGINAL TP distance (-100 to 100)
    * @param currentPrice - Current market price to check for intrusion
    * @param backtest - Whether running in backtest mode
    * @returns Promise that resolves when trailing TP is updated
-   * 
+   *
    * @example
    * ```typescript
-   * // LONG: entry=100, originalTP=110, distance=10%, currentPrice=102
-   * // Move TP further by 50%: newTP = 100 + 15% = 115
-   * await strategy.trailingTake(symbol, 50, 102, backtest);
-   * 
-   * // SHORT: entry=100, originalTP=90, distance=10%, currentPrice=98  
-   * // Move TP closer by 30%: newTP = 100 - 7% = 93
-   * await strategy.trailingTake(symbol, -30, 98, backtest);
+   * callbacks: {
+   *   onPartialProfit: async (symbol, signal, currentPrice, percentTp, backtest) => {
+   *     // LONG: entry=100, originalTP=110, distance=10%, currentPrice=102
+   *
+   *     // First call: bring TP closer by 3%
+   *     await strategy.trailingTake(symbol, -3, currentPrice, backtest);
+   *     // newDistance = 10% - 3% = 7%, newTP = 107
+   *
+   *     // Second call: try to move TP further (less conservative)
+   *     await strategy.trailingTake(symbol, 2, currentPrice, backtest);
+   *     // SKIPPED: newTP=112 > 107 (less conservative, larger % absorbs smaller)
+   *
+   *     // Third call: even more conservative
+   *     await strategy.trailingTake(symbol, -5, currentPrice, backtest);
+   *     // ACCEPTED: newDistance = 5%, newTP = 105 < 107 (more conservative)
+   *   }
+   * }
    * ```
    */
   trailingTake: (symbol: string, percentShift: number, currentPrice: number, backtest: boolean) => Promise<void>;
