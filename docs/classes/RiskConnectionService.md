@@ -66,7 +66,7 @@ ClientRisk will emit riskSubject event via onRejected callback when signal is re
 ### addSignal
 
 ```ts
-addSignal: (symbol: string, payload: { strategyName: string; riskName: string; exchangeName: string; frameName: string; backtest: boolean; }) => Promise<void>
+addSignal: (symbol: string, payload: { strategyName: string; riskName: string; exchangeName: string; frameName: string; backtest: boolean; }, positionData: { position: "long" | "short"; priceOpen: number; priceStopLoss: number; priceTakeProfit: number; minuteEstimatedTime: number; openTimestamp: number; }) => Promise<...>
 ```
 
 Registers an opened signal with the risk management system.

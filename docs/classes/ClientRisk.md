@@ -85,6 +85,14 @@ addSignal(symbol: string, context: {
     strategyName: StrategyName;
     riskName: RiskName;
     exchangeName: ExchangeName;
+    frameName: FrameName;
+}, positionData: {
+    position: "long" | "short";
+    priceOpen: number;
+    priceStopLoss: number;
+    priceTakeProfit: number;
+    minuteEstimatedTime: number;
+    openTimestamp: number;
 }): Promise<void>;
 ```
 

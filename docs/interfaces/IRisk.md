@@ -21,7 +21,7 @@ Check if a signal should be allowed based on risk limits.
 ### addSignal
 
 ```ts
-addSignal: (symbol: string, context: { strategyName: string; riskName: string; exchangeName: string; frameName: string; }) => Promise<void>
+addSignal: (symbol: string, context: { strategyName: string; riskName: string; exchangeName: string; frameName: string; }, positionData: { position: "long" | "short"; priceOpen: number; priceStopLoss: number; priceTakeProfit: number; minuteEstimatedTime: number; openTimestamp: number; }) => Promise<...>
 ```
 
 Register a new opened signal/position.
