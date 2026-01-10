@@ -203,6 +203,10 @@ export class RiskUtils {
       context.exchangeName,
       RISK_METHOD_NAME_GET_DATA
     );
+    context.frameName && bt.frameValidationService.validate(
+      context.frameName,
+      RISK_METHOD_NAME_GET_DATA
+    );
 
     {
       const { riskName, riskList } = bt.strategySchemaService.get(context.strategyName);
@@ -279,6 +283,10 @@ export class RiskUtils {
     );
     bt.exchangeValidationService.validate(
       context.exchangeName,
+      RISK_METHOD_NAME_GET_REPORT
+    );
+    context.frameName && bt.frameValidationService.validate(
+      context.frameName,
       RISK_METHOD_NAME_GET_REPORT
     );
 
@@ -359,6 +367,7 @@ export class RiskUtils {
 
     bt.strategyValidationService.validate(context.strategyName, RISK_METHOD_NAME_DUMP);
     bt.exchangeValidationService.validate(context.exchangeName, RISK_METHOD_NAME_DUMP);
+    context.frameName && bt.frameValidationService.validate(context.frameName, RISK_METHOD_NAME_DUMP);
 
     {
       const { riskName, riskList } = bt.strategySchemaService.get(context.strategyName);

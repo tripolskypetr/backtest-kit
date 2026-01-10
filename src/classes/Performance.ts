@@ -81,6 +81,7 @@ export class Performance {
   ): Promise<PerformanceStatisticsModel> {
     bt.strategyValidationService.validate(context.strategyName, PERFORMANCE_METHOD_NAME_GET_DATA);
     bt.exchangeValidationService.validate(context.exchangeName, PERFORMANCE_METHOD_NAME_GET_DATA);
+    context.frameName && bt.frameValidationService.validate(context.frameName, PERFORMANCE_METHOD_NAME_GET_DATA);
 
     {
       const { riskName, riskList } = bt.strategySchemaService.get(context.strategyName);
@@ -126,6 +127,7 @@ export class Performance {
   ): Promise<string> {
     bt.strategyValidationService.validate(context.strategyName, PERFORMANCE_METHOD_NAME_GET_REPORT);
     bt.exchangeValidationService.validate(context.exchangeName, PERFORMANCE_METHOD_NAME_GET_REPORT);
+    context.frameName && bt.frameValidationService.validate(context.frameName, PERFORMANCE_METHOD_NAME_GET_REPORT);
 
     {
       const { riskName, riskList } = bt.strategySchemaService.get(context.strategyName);
@@ -169,6 +171,7 @@ export class Performance {
   ): Promise<void> {
     bt.strategyValidationService.validate(context.strategyName, PERFORMANCE_METHOD_NAME_DUMP);
     bt.exchangeValidationService.validate(context.exchangeName, PERFORMANCE_METHOD_NAME_DUMP);
+    context.frameName && bt.frameValidationService.validate(context.frameName, PERFORMANCE_METHOD_NAME_DUMP);
 
     {
       const { riskName, riskList } = bt.strategySchemaService.get(context.strategyName);

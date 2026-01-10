@@ -85,6 +85,7 @@ export class HeatUtils {
 
     bt.strategyValidationService.validate(context.strategyName, HEAT_METHOD_NAME_GET_DATA);
     bt.exchangeValidationService.validate(context.exchangeName, HEAT_METHOD_NAME_GET_DATA);
+    context.frameName && bt.frameValidationService.validate(context.frameName, HEAT_METHOD_NAME_GET_DATA);
 
     {
       const { riskName, riskList } = bt.strategySchemaService.get(context.strategyName);
@@ -139,6 +140,7 @@ export class HeatUtils {
 
     bt.strategyValidationService.validate(context.strategyName, HEAT_METHOD_NAME_GET_REPORT);
     bt.exchangeValidationService.validate(context.exchangeName, HEAT_METHOD_NAME_GET_REPORT);
+    context.frameName && bt.frameValidationService.validate(context.frameName, HEAT_METHOD_NAME_GET_REPORT);
 
     {
       const { riskName, riskList } = bt.strategySchemaService.get(context.strategyName);
@@ -191,6 +193,7 @@ export class HeatUtils {
 
     bt.strategyValidationService.validate(context.strategyName, HEAT_METHOD_NAME_DUMP);
     bt.exchangeValidationService.validate(context.exchangeName, HEAT_METHOD_NAME_DUMP);
+    context.frameName && bt.frameValidationService.validate(context.frameName, HEAT_METHOD_NAME_DUMP);
 
     {
       const { riskName, riskList } = bt.strategySchemaService.get(context.strategyName);

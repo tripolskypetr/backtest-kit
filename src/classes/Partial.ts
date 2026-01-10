@@ -81,6 +81,7 @@ export class PartialUtils {
 
     bt.strategyValidationService.validate(context.strategyName, PARTIAL_METHOD_NAME_GET_DATA);
     bt.exchangeValidationService.validate(context.exchangeName, PARTIAL_METHOD_NAME_GET_DATA);
+    context.frameName && bt.frameValidationService.validate(context.frameName, PARTIAL_METHOD_NAME_GET_DATA);
 
     {
       const { riskName, riskList } = bt.strategySchemaService.get(context.strategyName);
@@ -144,6 +145,7 @@ export class PartialUtils {
 
     bt.strategyValidationService.validate(context.strategyName, PARTIAL_METHOD_NAME_GET_REPORT);
     bt.exchangeValidationService.validate(context.exchangeName, PARTIAL_METHOD_NAME_GET_REPORT);
+    context.frameName && bt.frameValidationService.validate(context.frameName, PARTIAL_METHOD_NAME_GET_REPORT);
 
     {
       const { riskName, riskList } = bt.strategySchemaService.get(context.strategyName);
@@ -201,6 +203,7 @@ export class PartialUtils {
 
     bt.strategyValidationService.validate(context.strategyName, PARTIAL_METHOD_NAME_DUMP);
     bt.exchangeValidationService.validate(context.exchangeName, PARTIAL_METHOD_NAME_DUMP);
+    context.frameName && bt.frameValidationService.validate(context.frameName, PARTIAL_METHOD_NAME_DUMP);
 
     {
       const { riskName, riskList } = bt.strategySchemaService.get(context.strategyName);

@@ -64,6 +64,7 @@ export class ScheduleUtils {
 
     bt.strategyValidationService.validate(context.strategyName, SCHEDULE_METHOD_NAME_GET_DATA);
     bt.exchangeValidationService.validate(context.exchangeName, SCHEDULE_METHOD_NAME_GET_DATA);
+    context.frameName && bt.frameValidationService.validate(context.frameName, SCHEDULE_METHOD_NAME_GET_DATA);
 
     {
       const { riskName, riskList } = bt.strategySchemaService.get(context.strategyName);
@@ -106,6 +107,7 @@ export class ScheduleUtils {
 
     bt.strategyValidationService.validate(context.strategyName, SCHEDULE_METHOD_NAME_GET_REPORT);
     bt.exchangeValidationService.validate(context.exchangeName, SCHEDULE_METHOD_NAME_GET_REPORT);
+    context.frameName && bt.frameValidationService.validate(context.frameName, SCHEDULE_METHOD_NAME_GET_REPORT);
 
     {
       const { riskName, riskList } = bt.strategySchemaService.get(context.strategyName);
@@ -153,6 +155,7 @@ export class ScheduleUtils {
 
     bt.strategyValidationService.validate(context.strategyName, SCHEDULE_METHOD_NAME_DUMP);
     bt.exchangeValidationService.validate(context.exchangeName, SCHEDULE_METHOD_NAME_DUMP);
+    context.frameName && bt.frameValidationService.validate(context.frameName, SCHEDULE_METHOD_NAME_DUMP);
 
     {
       const { riskName, riskList } = bt.strategySchemaService.get(context.strategyName);
