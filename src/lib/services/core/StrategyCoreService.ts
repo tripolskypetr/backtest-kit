@@ -68,10 +68,9 @@ export class StrategyCoreService implements TStrategy {
    * @returns Promise that resolves when validation is complete
    */
   private validate = memoize(
-    ([symbol, context]) => `${symbol}:${context.strategyName}:${context.exchangeName}:${context.frameName}`,
-    async (symbol: string, context: { strategyName: StrategyName; exchangeName: ExchangeName; frameName: FrameName }) => {
+    ([context]) => `${context.strategyName}:${context.exchangeName}:${context.frameName}`,
+    async (context: { strategyName: StrategyName; exchangeName: ExchangeName; frameName: FrameName }) => {
       this.loggerService.log(METHOD_NAME_VALIDATE, {
-        symbol,
         context,
       });
       const { riskName, riskList } = this.strategySchemaService.get(context.strategyName);
@@ -108,7 +107,7 @@ export class StrategyCoreService implements TStrategy {
       symbol,
       context,
     });
-    await this.validate(symbol, context);
+    await this.validate(context);
     return await this.strategyConnectionService.getPendingSignal(backtest, symbol, context);
   };
 
@@ -131,7 +130,7 @@ export class StrategyCoreService implements TStrategy {
       symbol,
       context,
     });
-    await this.validate(symbol, context);
+    await this.validate(context);
     return await this.strategyConnectionService.getScheduledSignal(backtest, symbol, context);
   };
 
@@ -177,7 +176,7 @@ export class StrategyCoreService implements TStrategy {
       context,
       backtest,
     });
-    await this.validate(symbol, context);
+    await this.validate(context);
     return await this.strategyConnectionService.getBreakeven(backtest, symbol, currentPrice, context);
   };
 
@@ -202,7 +201,7 @@ export class StrategyCoreService implements TStrategy {
       context,
       backtest,
     });
-    await this.validate(symbol, context);
+    await this.validate(context);
     return await this.strategyConnectionService.getStopped(backtest, symbol, context);
   };
 
@@ -230,7 +229,7 @@ export class StrategyCoreService implements TStrategy {
       backtest,
       context,
     });
-    await this.validate(symbol, context);
+    await this.validate(context);
     return await ExecutionContextService.runInContext(
       async () => {
         return await this.strategyConnectionService.tick(symbol, context);
@@ -270,7 +269,7 @@ export class StrategyCoreService implements TStrategy {
       backtest,
       context,
     });
-    await this.validate(symbol, context);
+    await this.validate(context);
     return await ExecutionContextService.runInContext(
       async () => {
         return await this.strategyConnectionService.backtest(symbol, context, candles);
@@ -300,7 +299,7 @@ export class StrategyCoreService implements TStrategy {
       context,
       backtest,
     });
-    await this.validate(symbol, context);
+    await this.validate(context);
     return await this.strategyConnectionService.stop(backtest, symbol, context);
   };
 
@@ -324,7 +323,7 @@ export class StrategyCoreService implements TStrategy {
       backtest,
       cancelId,
     });
-    await this.validate(symbol, context);
+    await this.validate(context);
     return await this.strategyConnectionService.cancel(backtest, symbol, context, cancelId);
   };
 
@@ -341,7 +340,7 @@ export class StrategyCoreService implements TStrategy {
       payload,
     });
     if (payload) {
-      await this.validate(payload.symbol, {
+      await this.validate({
         strategyName: payload.strategyName,
         exchangeName: payload.exchangeName,
         frameName: payload.frameName
@@ -391,7 +390,7 @@ export class StrategyCoreService implements TStrategy {
       context,
       backtest,
     });
-    await this.validate(symbol, context);
+    await this.validate(context);
     return await this.strategyConnectionService.partialProfit(backtest, symbol, percentToClose, currentPrice, context);
   };
 
@@ -436,7 +435,7 @@ export class StrategyCoreService implements TStrategy {
       context,
       backtest,
     });
-    await this.validate(symbol, context);
+    await this.validate(context);
     return await this.strategyConnectionService.partialLoss(backtest, symbol, percentToClose, currentPrice, context);
   };
 
@@ -482,7 +481,7 @@ export class StrategyCoreService implements TStrategy {
       context,
       backtest,
     });
-    await this.validate(symbol, context);
+    await this.validate(context);
     return await this.strategyConnectionService.trailingStop(backtest, symbol, percentShift, currentPrice, context);
   };
 
@@ -524,7 +523,7 @@ export class StrategyCoreService implements TStrategy {
       context,
       backtest,
     });
-    await this.validate(symbol, context);
+    await this.validate(context);
     return await this.strategyConnectionService.trailingTake(backtest, symbol, percentShift, currentPrice, context);
   };
 
@@ -560,7 +559,7 @@ export class StrategyCoreService implements TStrategy {
       context,
       backtest,
     });
-    await this.validate(symbol, context);
+    await this.validate(context);
     return await this.strategyConnectionService.breakeven(backtest, symbol, currentPrice, context);
   };
 }
