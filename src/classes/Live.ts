@@ -789,7 +789,7 @@ export class LiveUtils {
       strategyName: StrategyName;
       exchangeName: ExchangeName;
     }
-  ): Promise<void> => {
+  ): Promise<boolean> => {
     backtest.loggerService.info(LIVE_METHOD_NAME_TRAILING_STOP, {
       symbol,
       percentShift,
@@ -805,7 +805,7 @@ export class LiveUtils {
       riskList && riskList.forEach((riskName) => backtest.riskValidationService.validate(riskName, LIVE_METHOD_NAME_TRAILING_STOP));
     }
 
-    await backtest.strategyCoreService.trailingStop(false, symbol, percentShift, currentPrice, {
+    return await backtest.strategyCoreService.trailingStop(false, symbol, percentShift, currentPrice, {
       strategyName: context.strategyName,
       exchangeName: context.exchangeName,
       frameName: "",
@@ -863,7 +863,7 @@ export class LiveUtils {
       strategyName: StrategyName;
       exchangeName: ExchangeName;
     }
-  ): Promise<void> => {
+  ): Promise<boolean> => {
     backtest.loggerService.info(LIVE_METHOD_NAME_TRAILING_PROFIT, {
       symbol,
       percentShift,
@@ -879,7 +879,7 @@ export class LiveUtils {
       riskList && riskList.forEach((riskName) => backtest.riskValidationService.validate(riskName, LIVE_METHOD_NAME_TRAILING_PROFIT));
     }
 
-    await backtest.strategyCoreService.trailingTake(false, symbol, percentShift, currentPrice, {
+    return await backtest.strategyCoreService.trailingTake(false, symbol, percentShift, currentPrice, {
       strategyName: context.strategyName,
       exchangeName: context.exchangeName,
       frameName: "",

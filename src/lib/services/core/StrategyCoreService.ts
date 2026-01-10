@@ -461,7 +461,7 @@ export class StrategyCoreService implements TStrategy {
     percentShift: number,
     currentPrice: number,
     context: { strategyName: StrategyName; exchangeName: ExchangeName; frameName: FrameName }
-  ): Promise<void> => {
+  ): Promise<boolean> => {
     this.loggerService.log("strategyCoreService trailingStop", {
       symbol,
       percentShift,
@@ -503,7 +503,7 @@ export class StrategyCoreService implements TStrategy {
     percentShift: number,
     currentPrice: number,
     context: { strategyName: StrategyName; exchangeName: ExchangeName; frameName: FrameName }
-  ): Promise<void> => {
+  ): Promise<boolean> => {
     this.loggerService.log("strategyCoreService trailingTake", {
       symbol,
       percentShift,

@@ -698,7 +698,7 @@ export interface IStrategy {
    * @param percentShift - Percentage shift of ORIGINAL SL distance [-100, 100], excluding 0
    * @param currentPrice - Current market price to check for intrusion
    * @param backtest - Whether running in backtest mode
-   * @returns Promise that resolves when trailing SL is updated
+   * @returns Promise<boolean> - true if trailing SL was set/updated, false if rejected
    *
    * @example
    * ```typescript
@@ -708,22 +708,22 @@ export interface IStrategy {
    *       // LONG: entry=100, originalSL=90, distance=10%
    *
    *       // First call: tighten by 5%
-   *       await strategy.trailingStop(symbol, -5, currentPrice, backtest);
-   *       // newDistance = 10% - 5% = 5%, newSL = 95
+   *       const success1 = await strategy.trailingStop(symbol, -5, currentPrice, backtest);
+   *       // success1 = true, newDistance = 10% - 5% = 5%, newSL = 95
    *
    *       // Second call: try weaker protection
-   *       await strategy.trailingStop(symbol, -3, currentPrice, backtest);
-   *       // SKIPPED: newSL=97 < 95 (worse protection, larger % absorbs smaller)
+   *       const success2 = await strategy.trailingStop(symbol, -3, currentPrice, backtest);
+   *       // success2 = false (SKIPPED: newSL=97 < 95, worse protection, larger % absorbs smaller)
    *
    *       // Third call: stronger protection
-   *       await strategy.trailingStop(symbol, -7, currentPrice, backtest);
-   *       // ACCEPTED: newDistance = 3%, newSL = 97 > 95 (better protection)
+   *       const success3 = await strategy.trailingStop(symbol, -7, currentPrice, backtest);
+   *       // success3 = true (ACCEPTED: newDistance = 3%, newSL = 97 > 95, better protection)
    *     }
    *   }
    * }
    * ```
    */
-  trailingStop: (symbol: string, percentShift: number, currentPrice: number, backtest: boolean) => Promise<void>;
+  trailingStop: (symbol: string, percentShift: number, currentPrice: number, backtest: boolean) => Promise<boolean>;
 
   /**
    * Adjusts the trailing take-profit distance for an active pending signal.
@@ -750,7 +750,7 @@ export interface IStrategy {
    * @param percentShift - Percentage adjustment to ORIGINAL TP distance (-100 to 100)
    * @param currentPrice - Current market price to check for intrusion
    * @param backtest - Whether running in backtest mode
-   * @returns Promise that resolves when trailing TP is updated
+   * @returns Promise<boolean> - true if trailing TP was set/updated, false if rejected
    *
    * @example
    * ```typescript
@@ -759,21 +759,21 @@ export interface IStrategy {
    *     // LONG: entry=100, originalTP=110, distance=10%, currentPrice=102
    *
    *     // First call: bring TP closer by 3%
-   *     await strategy.trailingTake(symbol, -3, currentPrice, backtest);
-   *     // newDistance = 10% - 3% = 7%, newTP = 107
+   *     const success1 = await strategy.trailingTake(symbol, -3, currentPrice, backtest);
+   *     // success1 = true, newDistance = 10% - 3% = 7%, newTP = 107
    *
    *     // Second call: try to move TP further (less conservative)
-   *     await strategy.trailingTake(symbol, 2, currentPrice, backtest);
-   *     // SKIPPED: newTP=112 > 107 (less conservative, larger % absorbs smaller)
+   *     const success2 = await strategy.trailingTake(symbol, 2, currentPrice, backtest);
+   *     // success2 = false (SKIPPED: newTP=112 > 107, less conservative, larger % absorbs smaller)
    *
    *     // Third call: even more conservative
-   *     await strategy.trailingTake(symbol, -5, currentPrice, backtest);
-   *     // ACCEPTED: newDistance = 5%, newTP = 105 < 107 (more conservative)
+   *     const success3 = await strategy.trailingTake(symbol, -5, currentPrice, backtest);
+   *     // success3 = true (ACCEPTED: newDistance = 5%, newTP = 105 < 107, more conservative)
    *   }
    * }
    * ```
    */
-  trailingTake: (symbol: string, percentShift: number, currentPrice: number, backtest: boolean) => Promise<void>;
+  trailingTake: (symbol: string, percentShift: number, currentPrice: number, backtest: boolean) => Promise<boolean>;
 
   /**
    * Moves stop-loss to breakeven (entry price) when price reaches threshold.

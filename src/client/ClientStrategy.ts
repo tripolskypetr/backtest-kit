@@ -806,7 +806,7 @@ const TRAILING_STOP_LOSS_FN = (
   self: ClientStrategy,
   signal: ISignalRow,
   percentShift: number
-): void => {
+): boolean => {
   // КРИТИЧНО: Всегда считаем от ОРИГИНАЛЬНОГО SL, а не от текущего trailing
   // Это предотвращает накопление ошибок при повторных вызовах
   const originalSlDistancePercent = Math.abs((signal.priceOpen - signal.priceStopLoss) / signal.priceOpen * 100);
@@ -850,6 +850,7 @@ const TRAILING_STOP_LOSS_FN = (
       percentShift,
       inProfitZone: signal.position === "long" ? newStopLoss > signal.priceOpen : newStopLoss < signal.priceOpen,
     });
+    return true;
   } else {
     // КРИТИЧНО: Больший процент поглощает меньший
     // Для LONG: более высокий SL (ближе к entry) поглощает более низкий
@@ -873,7 +874,7 @@ const TRAILING_STOP_LOSS_FN = (
         percentShift,
         reason: "larger percentShift absorbs smaller one",
       });
-      return;
+      return false;
     }
 
     // Update trailing stop-loss
@@ -892,6 +893,7 @@ const TRAILING_STOP_LOSS_FN = (
       percentShift,
       inProfitZone: signal.position === "long" ? newStopLoss > signal.priceOpen : newStopLoss < signal.priceOpen,
     });
+    return true;
   }
 };
 
@@ -899,7 +901,7 @@ const TRAILING_TAKE_PROFIT_FN = (
   self: ClientStrategy,
   signal: ISignalRow,
   percentShift: number
-): void => {
+): boolean => {
   // КРИТИЧНО: Всегда считаем от ОРИГИНАЛЬНОГО TP, а не от текущего trailing
   // Это предотвращает накопление ошибок при повторных вызовах
   const originalTpDistancePercent = Math.abs((signal.priceTakeProfit - signal.priceOpen) / signal.priceOpen * 100);
@@ -941,6 +943,7 @@ const TRAILING_TAKE_PROFIT_FN = (
       newDistancePercent: newTpDistancePercent,
       percentShift,
     });
+    return true;
   } else {
     // КРИТИЧНО: Больший процент поглощает меньший
     // Для LONG: более низкий TP (ближе к entry) поглощает более высокий
@@ -964,7 +967,7 @@ const TRAILING_TAKE_PROFIT_FN = (
         percentShift,
         reason: "larger percentShift absorbs smaller one",
       });
-      return;
+      return false;
     }
 
     // Update trailing take-profit
@@ -982,6 +985,7 @@ const TRAILING_TAKE_PROFIT_FN = (
       newDistancePercent: newTpDistancePercent,
       percentShift,
     });
+    return true;
   }
 };
 
@@ -4339,28 +4343,28 @@ export class ClientStrategy implements IStrategy {
    * @param percentShift - Percentage shift of ORIGINAL SL distance [-100, 100], excluding 0
    * @param currentPrice - Current market price to check for intrusion
    * @param backtest - Whether running in backtest mode (controls persistence)
-   * @returns Promise that resolves when trailing SL is updated and persisted
+   * @returns Promise<boolean> - true if trailing SL was set/updated, false if rejected (absorption/intrusion/conflict)
    *
    * @example
    * ```typescript
    * // LONG position: entry=100, originalSL=90, distance=10%, currentPrice=102
    *
    * // Move SL 50% closer to entry (tighten): reduces distance by 50%
-   * await strategy.trailingStop("BTCUSDT", -50, 102, false);
-   * // newDistance = 10% - 50% = 5%, newSL = 100 * (1 - 0.05) = 95
+   * const success1 = await strategy.trailingStop("BTCUSDT", -50, 102, false);
+   * // success1 = true, newDistance = 10% - 50% = 5%, newSL = 100 * (1 - 0.05) = 95
    *
    * // Try to move SL only 30% closer (less aggressive)
-   * await strategy.trailingStop("BTCUSDT", -30, 102, false);
-   * // SKIPPED: newSL=97 < 95 (worse protection, larger % absorbs smaller)
+   * const success2 = await strategy.trailingStop("BTCUSDT", -30, 102, false);
+   * // success2 = false (SKIPPED: newSL=97 < 95, worse protection, larger % absorbs smaller)
    *
    * // Move SL 70% closer to entry (more aggressive)
-   * await strategy.trailingStop("BTCUSDT", -70, 102, false);
-   * // newDistance = 10% - 70% = 3%, newSL = 100 * (1 - 0.03) = 97
+   * const success3 = await strategy.trailingStop("BTCUSDT", -70, 102, false);
+   * // success3 = true, newDistance = 10% - 70% = 3%, newSL = 100 * (1 - 0.03) = 97
    * // Updated! SL=97 > 95 (better protection)
    *
    * // Price intrusion example: currentPrice=92, trying to set SL=95
-   * await strategy.trailingStop("BTCUSDT", -50, 92, false);
-   * // SKIPPED: currentPrice (92) < newSL (95) - would trigger immediate stop
+   * const success4 = await strategy.trailingStop("BTCUSDT", -50, 92, false);
+   * // success4 = false (SKIPPED: currentPrice (92) < newSL (95) - would trigger immediate stop)
    * ```
    */
   public async trailingStop(
@@ -4368,7 +4372,7 @@ export class ClientStrategy implements IStrategy {
     percentShift: number,
     currentPrice: number,
     backtest: boolean
-  ): Promise<void> {
+  ): Promise<boolean> {
     this.params.logger.debug("ClientStrategy trailingStop", {
       symbol,
       percentShift,
@@ -4413,7 +4417,7 @@ export class ClientStrategy implements IStrategy {
     const signal = this._pendingSignal;
     const slDistancePercent = Math.abs((signal.priceOpen - signal.priceStopLoss) / signal.priceOpen * 100);
     const newSlDistancePercent = slDistancePercent + percentShift;
-    
+
     let newStopLoss: number;
     if (signal.position === "long") {
       newStopLoss = signal.priceOpen * (1 - newSlDistancePercent / 100);
@@ -4432,7 +4436,7 @@ export class ClientStrategy implements IStrategy {
         currentPrice,
         reason: "currentPrice below newStopLoss (LONG position)"
       });
-      return;
+      return false;
     }
 
     if (signal.position === "short" && currentPrice > newStopLoss) {
@@ -4445,12 +4449,12 @@ export class ClientStrategy implements IStrategy {
         currentPrice,
         reason: "currentPrice above newStopLoss (SHORT position)"
       });
-      return;
+      return false;
     }
 
     // Check for conflict with existing trailing take profit
     const effectiveTakeProfit = signal._trailingPriceTakeProfit ?? signal.priceTakeProfit;
-    
+
     if (signal.position === "long" && newStopLoss >= effectiveTakeProfit) {
       // LONG: New SL would be at or above current TP - invalid configuration
       this.params.logger.debug("ClientStrategy trailingStop: SL/TP conflict detected, skipping SL update", {
@@ -4461,7 +4465,7 @@ export class ClientStrategy implements IStrategy {
         effectiveTakeProfit,
         reason: "newStopLoss >= effectiveTakeProfit (LONG position)"
       });
-      return;
+      return false;
     }
 
     if (signal.position === "short" && newStopLoss <= effectiveTakeProfit) {
@@ -4474,11 +4478,16 @@ export class ClientStrategy implements IStrategy {
         effectiveTakeProfit,
         reason: "newStopLoss <= effectiveTakeProfit (SHORT position)"
       });
-      return;
+      return false;
     }
 
-    // Execute trailing logic
-    TRAILING_STOP_LOSS_FN(this, this._pendingSignal, percentShift);
+    // Execute trailing logic and get result
+    const wasUpdated = TRAILING_STOP_LOSS_FN(this, this._pendingSignal, percentShift);
+
+    // If trailing was not updated (absorption rejected), return false without persistence
+    if (!wasUpdated) {
+      return false;
+    }
 
     // Persist updated signal state (inline setPendingSignal content)
     // Note: this._pendingSignal already mutated by TRAILING_STOP_FN, no reassignment needed
@@ -4504,6 +4513,8 @@ export class ClientStrategy implements IStrategy {
         this.params.exchangeName,
       );
     }
+
+    return true;
   }
 
   /**
@@ -4538,28 +4549,29 @@ export class ClientStrategy implements IStrategy {
    * @param percentShift - Percentage adjustment to ORIGINAL TP distance (-100 to 100)
    * @param currentPrice - Current market price to check for intrusion
    * @param backtest - Whether running in backtest mode
-   * @returns Promise that resolves when trailing TP is updated
+   * @returns Promise<boolean> - true if trailing TP was set/updated, false if rejected (absorption/intrusion/conflict)
    *
    * @example
    * ```typescript
    * // LONG: entry=100, originalTP=110, distance=10%, currentPrice=102
    *
    * // Move TP closer by 30% (more conservative)
-   * await strategy.trailingTake("BTCUSDT", -30, 102, false);
-   * // newDistance = 10% - 30% = 7%, newTP = 100 * (1 + 0.07) = 107
+   * const success1 = await strategy.trailingTake("BTCUSDT", -30, 102, false);
+   * // success1 = true, newDistance = 10% - 30% = 7%, newTP = 100 * (1 + 0.07) = 107
    *
    * // Try to move TP further by 20% (less conservative)
-   * await strategy.trailingTake("BTCUSDT", 20, 102, false);
-   * // SKIPPED: newTP=112 > 107 (less conservative, larger % absorbs smaller)
+   * const success2 = await strategy.trailingTake("BTCUSDT", 20, 102, false);
+   * // success2 = false (SKIPPED: newTP=112 > 107, less conservative, larger % absorbs smaller)
    *
    * // Move TP even closer by 50% (most conservative)
-   * await strategy.trailingTake("BTCUSDT", -50, 102, false);
-   * // newDistance = 10% - 50% = 5%, newTP = 100 * (1 + 0.05) = 105
+   * const success3 = await strategy.trailingTake("BTCUSDT", -50, 102, false);
+   * // success3 = true, newDistance = 10% - 50% = 5%, newTP = 100 * (1 + 0.05) = 105
    * // Updated! TP=105 < 107 (more conservative)
    *
    * // SHORT: entry=100, originalTP=90, distance=10%, currentPrice=98
    * // Move TP closer by 30%: newTP = 100 - 7% = 93
-   * await strategy.trailingTake("BTCUSDT", -30, 98, false);
+   * const success4 = await strategy.trailingTake("BTCUSDT", -30, 98, false);
+   * // success4 = true
    * ```
    */
   public async trailingTake(
@@ -4567,7 +4579,7 @@ export class ClientStrategy implements IStrategy {
     percentShift: number,
     currentPrice: number,
     backtest: boolean
-  ): Promise<void> {
+  ): Promise<boolean> {
     this.params.logger.debug("ClientStrategy trailingTake", {
       symbol,
       percentShift,
@@ -4612,7 +4624,7 @@ export class ClientStrategy implements IStrategy {
     const signal = this._pendingSignal;
     const tpDistancePercent = Math.abs((signal.priceTakeProfit - signal.priceOpen) / signal.priceOpen * 100);
     const newTpDistancePercent = tpDistancePercent + percentShift;
-    
+
     let newTakeProfit: number;
     if (signal.position === "long") {
       newTakeProfit = signal.priceOpen * (1 + newTpDistancePercent / 100);
@@ -4631,7 +4643,7 @@ export class ClientStrategy implements IStrategy {
         currentPrice,
         reason: "currentPrice above newTakeProfit (LONG position)"
       });
-      return;
+      return false;
     }
 
     if (signal.position === "short" && currentPrice < newTakeProfit) {
@@ -4644,12 +4656,12 @@ export class ClientStrategy implements IStrategy {
         currentPrice,
         reason: "currentPrice below newTakeProfit (SHORT position)"
       });
-      return;
+      return false;
     }
 
     // Check for conflict with existing trailing stop loss
     const effectiveStopLoss = signal._trailingPriceStopLoss ?? signal.priceStopLoss;
-    
+
     if (signal.position === "long" && newTakeProfit <= effectiveStopLoss) {
       // LONG: New TP would be at or below current SL - invalid configuration
       this.params.logger.debug("ClientStrategy trailingTake: TP/SL conflict detected, skipping TP update", {
@@ -4660,7 +4672,7 @@ export class ClientStrategy implements IStrategy {
         effectiveStopLoss,
         reason: "newTakeProfit <= effectiveStopLoss (LONG position)"
       });
-      return;
+      return false;
     }
 
     if (signal.position === "short" && newTakeProfit >= effectiveStopLoss) {
@@ -4673,11 +4685,16 @@ export class ClientStrategy implements IStrategy {
         effectiveStopLoss,
         reason: "newTakeProfit >= effectiveStopLoss (SHORT position)"
       });
-      return;
+      return false;
     }
 
-    // Execute trailing logic
-    TRAILING_TAKE_PROFIT_FN(this, this._pendingSignal, percentShift);
+    // Execute trailing logic and get result
+    const wasUpdated = TRAILING_TAKE_PROFIT_FN(this, this._pendingSignal, percentShift);
+
+    // If trailing was not updated (absorption rejected), return false without persistence
+    if (!wasUpdated) {
+      return false;
+    }
 
     // Persist updated signal state (inline setPendingSignal content)
     // Note: this._pendingSignal already mutated by TRAILING_PROFIT_FN, no reassignment needed
@@ -4703,6 +4720,8 @@ export class ClientStrategy implements IStrategy {
         this.params.exchangeName
       );
     }
+
+    return true;
   }
 }
 

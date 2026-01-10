@@ -646,7 +646,7 @@ export class StrategyConnectionService implements TStrategy {
     percentShift: number,
     currentPrice: number,
     context: { strategyName: StrategyName; exchangeName: ExchangeName; frameName: FrameName },
-  ): Promise<void> => {
+  ): Promise<boolean> => {
     this.loggerService.log("strategyConnectionService trailingStop", {
       symbol,
       context,
@@ -655,7 +655,7 @@ export class StrategyConnectionService implements TStrategy {
       backtest,
     });
     const strategy = this.getStrategy(symbol, context.strategyName, context.exchangeName, context.frameName, backtest);
-    await strategy.trailingStop(symbol, percentShift, currentPrice, backtest);
+    return await strategy.trailingStop(symbol, percentShift, currentPrice, backtest);
   };
 
   /**
@@ -692,7 +692,7 @@ export class StrategyConnectionService implements TStrategy {
     percentShift: number,
     currentPrice: number,
     context: { strategyName: StrategyName; exchangeName: ExchangeName; frameName: FrameName },
-  ): Promise<void> => {
+  ): Promise<boolean> => {
     this.loggerService.log("strategyConnectionService trailingTake", {
       symbol,
       context,
@@ -701,7 +701,7 @@ export class StrategyConnectionService implements TStrategy {
       backtest,
     });
     const strategy = this.getStrategy(symbol, context.strategyName, context.exchangeName, context.frameName, backtest);
-    await strategy.trailingTake(symbol, percentShift, currentPrice, backtest);
+    return await strategy.trailingTake(symbol, percentShift, currentPrice, backtest);
   };
 
   /**

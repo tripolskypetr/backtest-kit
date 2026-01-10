@@ -1040,7 +1040,7 @@ export class BacktestUtils {
       exchangeName: ExchangeName;
       frameName: FrameName;
     }
-  ): Promise<void> => {
+  ): Promise<boolean> => {
     backtest.loggerService.info(BACKTEST_METHOD_NAME_TRAILING_STOP, {
       symbol,
       percentShift,
@@ -1073,7 +1073,7 @@ export class BacktestUtils {
         );
     }
 
-    await backtest.strategyCoreService.trailingStop(
+    return await backtest.strategyCoreService.trailingStop(
       true,
       symbol,
       percentShift,
@@ -1135,7 +1135,7 @@ export class BacktestUtils {
       exchangeName: ExchangeName;
       frameName: FrameName;
     }
-  ): Promise<void> => {
+  ): Promise<boolean> => {
     backtest.loggerService.info(BACKTEST_METHOD_NAME_TRAILING_PROFIT, {
       symbol,
       percentShift,
@@ -1168,7 +1168,7 @@ export class BacktestUtils {
         );
     }
 
-    await backtest.strategyCoreService.trailingTake(
+    return await backtest.strategyCoreService.trailingTake(
       true,
       symbol,
       percentShift,

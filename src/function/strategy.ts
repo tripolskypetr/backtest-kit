@@ -246,7 +246,7 @@ export async function trailingStop(
   symbol: string,
   percentShift: number,
   currentPrice: number,
-): Promise<void> {
+): Promise<boolean> {
   backtest.loggerService.info(TRAILING_STOP_METHOD_NAME, {
     symbol,
     percentShift,
@@ -261,7 +261,7 @@ export async function trailingStop(
   const { backtest: isBacktest } = backtest.executionContextService.context;
   const { exchangeName, frameName, strategyName } =
     backtest.methodContextService.context;
-  await backtest.strategyCoreService.trailingStop(
+  return await backtest.strategyCoreService.trailingStop(
     isBacktest,
     symbol,
     percentShift,
@@ -317,7 +317,7 @@ export async function trailingTake(
   symbol: string,
   percentShift: number,
   currentPrice: number,
-): Promise<void> {
+): Promise<boolean> {
   backtest.loggerService.info(TRAILING_PROFIT_METHOD_NAME, {
     symbol,
     percentShift,
@@ -332,7 +332,7 @@ export async function trailingTake(
   const { backtest: isBacktest } = backtest.executionContextService.context;
   const { exchangeName, frameName, strategyName } =
     backtest.methodContextService.context;
-  await backtest.strategyCoreService.trailingTake(
+  return await backtest.strategyCoreService.trailingTake(
     isBacktest,
     symbol,
     percentShift,
