@@ -438,6 +438,7 @@ class HeatmapStorage {
       file: filename,
       symbol: "",
       strategyName: "",
+      signalId: "",
       exchangeName: this.exchangeName,
       frameName: this.frameName
     });

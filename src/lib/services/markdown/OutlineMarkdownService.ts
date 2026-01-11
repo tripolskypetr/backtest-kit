@@ -71,6 +71,7 @@ const DUMP_SIGNAL_FN = async <Data extends ISignalDto>(
       path: subfolderPath,
       file: "00_system_prompt.md",
       symbol: "",
+      signalId: String(signalId),
       strategyName: "",
       exchangeName: "",
       frameName: ""
@@ -104,6 +105,7 @@ const DUMP_SIGNAL_FN = async <Data extends ISignalDto>(
         await Markdown.writeData("outline", content, {
           path: subfolderPath,
           file: contentFileName,
+          signalId: String(signalId),
           symbol: "",
           strategyName: "",
           exchangeName: "",
@@ -132,6 +134,7 @@ const DUMP_SIGNAL_FN = async <Data extends ISignalDto>(
       path: subfolderPath,
       file: contentFileName,
       symbol: "",
+      signalId: String(signalId),
       strategyName: "",
       exchangeName: "",
       frameName: ""

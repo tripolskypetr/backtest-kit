@@ -273,6 +273,7 @@ class ReportStorage {
       path,
       file: filename,
       symbol: this.symbol,
+      signalId: "",
       strategyName: this.strategyName,
       exchangeName: this.exchangeName,
       frameName: this.frameName

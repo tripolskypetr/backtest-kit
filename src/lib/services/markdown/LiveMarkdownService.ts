@@ -432,6 +432,7 @@ class ReportStorage {
     const filename = CREATE_FILE_NAME_FN(this.symbol, strategyName, this.exchangeName, this.frameName, timestamp);
     await Markdown.writeData("live", markdown, {
       path,
+      signalId: "",
       file: filename,
       symbol: this.symbol,
       strategyName: this.strategyName,

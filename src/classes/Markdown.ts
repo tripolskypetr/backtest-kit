@@ -64,6 +64,7 @@ export interface IMarkdownDumpOptions {
   strategyName: string;
   exchangeName: string;
   frameName: string;
+  signalId: string;
 }
 
 export type TMarkdownBase = {
@@ -104,10 +105,34 @@ export const MarkdownFileBase = makeExtendable(
         );
       }
 
+      const searchFlags: Partial<IMarkdownDumpOptions> = {};
+
+      {
+        if (options.symbol) {
+          searchFlags.symbol = options.symbol;
+        }
+
+        if (options.strategyName) {
+          searchFlags.strategyName = options.strategyName;
+        }
+
+        if (options.exchangeName) {
+          searchFlags.exchangeName = options.exchangeName;
+        }
+
+        if (options.frameName) {
+          searchFlags.frameName = options.frameName;
+        }
+
+        if (options.signalId) {
+          searchFlags.signalId = options.signalId;
+        }
+      }
+
       const line = JSON.stringify({
         markdownName: this.markdownName,
         content,
-        options,
+        ...searchFlags,
         timestamp: Date.now(),
       }) + "\n";
 

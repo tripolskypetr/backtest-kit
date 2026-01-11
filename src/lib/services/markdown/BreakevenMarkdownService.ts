@@ -227,6 +227,7 @@ class ReportStorage {
       symbol: this.symbol,
       strategyName: this.strategyName,
       exchangeName: this.exchangeName,
+      signalId: "",
       frameName: this.frameName
     });
   }
