@@ -224,6 +224,7 @@ export {
   ReportBase,
   ReportName,
   TReportBase,
+  IReportDumpOptions,
 } from "./classes/Report";
 
 export { 
@@ -231,7 +232,8 @@ export {
   MarkdownFileBase,
   MarkdownFolderBase,
   MarkdownName,
-  TMarkdownBase
+  TMarkdownBase,
+  IMarkdownDumpOptions,
 } from "./classes/Markdown";
 
 export { Backtest } from "./classes/Backtest";
