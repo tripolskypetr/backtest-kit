@@ -1,5 +1,5 @@
 import { ILogger } from "./Logger.interface";
-import { ISignalDto, IRiskSignalRow, StrategyName, ISignalRow } from "./Strategy.interface";
+import { IPublicSignalRow, IRiskSignalRow, StrategyName } from "./Strategy.interface";
 import { ExchangeName } from "./Exchange.interface";
 import { FrameName } from "./Frame.interface";
 
@@ -18,7 +18,7 @@ export interface IRiskCheckArgs {
   /** Trading pair symbol (e.g., "BTCUSDT") */
   symbol: string;
   /** Pending signal to apply */
-  pendingSignal: ISignalDto | ISignalRow;
+  pendingSignal: IPublicSignalRow;
   /** Strategy name requesting to open a position */
   strategyName: StrategyName;
   /** Exchange name */

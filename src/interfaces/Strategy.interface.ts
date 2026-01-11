@@ -143,7 +143,7 @@ export interface IPublicSignalRow extends ISignalRow {
  * Extends ISignalDto to include priceOpen, originalPriceStopLoss and originalPriceTakeProfit.
  * Used in risk validation to access entry price and original SL/TP.
  */
-export interface IRiskSignalRow extends ISignalDto {
+export interface IRiskSignalRow extends IPublicSignalRow {
   /**
    * Entry price for the position.
    */

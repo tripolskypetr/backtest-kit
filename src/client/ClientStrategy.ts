@@ -93,9 +93,9 @@ const TIMEOUT_SYMBOL = Symbol('timeout');
  * // publicSignal._trailingPriceTakeProfit = undefined (hidden from external API)
  * ```
  */
-const TO_PUBLIC_SIGNAL = <T extends ISignalRow | IScheduledSignalRow>(signal: T): IPublicSignalRow => {
-  const hasTrailingSL = signal._trailingPriceStopLoss !== undefined;
-  const hasTrailingTP = signal._trailingPriceTakeProfit !== undefined;
+const TO_PUBLIC_SIGNAL = <T extends ISignalDto | ISignalRow | IScheduledSignalRow>(signal: T): IPublicSignalRow => {
+  const hasTrailingSL = "_trailingPriceStopLoss" in signal && signal._trailingPriceStopLoss !== undefined;
+  const hasTrailingTP = "_trailingPriceTakeProfit" in signal && signal._trailingPriceTakeProfit !== undefined;
   
   return {
     ...structuredClone(signal) as ISignalRow | IScheduledSignalRow,
@@ -1925,7 +1925,7 @@ const CALL_RISK_CHECK_SIGNAL_FN = trycatch(
   ): Promise<boolean> => {
     return await ExecutionContextService.runInContext(async () => {
       return await self.params.risk.checkSignal({
-        pendingSignal,
+        pendingSignal: TO_PUBLIC_SIGNAL(pendingSignal),
         symbol: symbol,
         strategyName: self.params.method.context.strategyName,
         exchangeName: self.params.method.context.exchangeName,

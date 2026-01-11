@@ -1,5 +1,5 @@
 import { FrameName } from "../interfaces/Frame.interface";
-import { ISignalDto, StrategyName } from "../interfaces/Strategy.interface";
+import { IRiskSignalRow, StrategyName } from "../interfaces/Strategy.interface";
 import { ExchangeName } from "../interfaces/Exchange.interface";
 
 /**
@@ -12,7 +12,7 @@ export interface RiskEvent {
   /** Trading pair symbol */
   symbol: string;
   /** Pending signal details */
-  pendingSignal: ISignalDto;
+  pendingSignal: IRiskSignalRow;
   /** Strategy name */
   strategyName: StrategyName;
   /** Exchange name */

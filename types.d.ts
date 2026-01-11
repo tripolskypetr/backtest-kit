@@ -674,7 +674,7 @@ interface IRiskCheckArgs {
     /** Trading pair symbol (e.g., "BTCUSDT") */
     symbol: string;
     /** Pending signal to apply */
-    pendingSignal: ISignalDto | ISignalRow;
+    pendingSignal: IPublicSignalRow;
     /** Strategy name requesting to open a position */
     strategyName: StrategyName;
     /** Exchange name */
@@ -1243,7 +1243,7 @@ interface IPublicSignalRow extends ISignalRow {
  * Extends ISignalDto to include priceOpen, originalPriceStopLoss and originalPriceTakeProfit.
  * Used in risk validation to access entry price and original SL/TP.
  */
-interface IRiskSignalRow extends ISignalDto {
+interface IRiskSignalRow extends IPublicSignalRow {
     /**
      * Entry price for the position.
      */
@@ -6002,7 +6002,7 @@ interface RiskEvent {
     /** Trading pair symbol */
     symbol: string;
     /** Pending signal details */
-    pendingSignal: ISignalDto;
+    pendingSignal: IRiskSignalRow;
     /** Strategy name */
     strategyName: StrategyName;
     /** Exchange name */
