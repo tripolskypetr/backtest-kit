@@ -636,7 +636,7 @@ export class LiveUtils {
    * @param percentToClose - Percentage of position to close (0-100, absolute value)
    * @param currentPrice - Current market price for this partial close
    * @param context - Execution context with strategyName and exchangeName
-   * @returns Promise that resolves when state is updated
+   * @returns Promise<boolean> - true if partial close executed, false if skipped
    *
    * @throws Error if currentPrice is not in profit direction:
    *   - LONG: currentPrice must be > priceOpen
@@ -645,10 +645,13 @@ export class LiveUtils {
    * @example
    * ```typescript
    * // Close 30% of LONG position at profit
-   * await Live.partialProfit("BTCUSDT", 30, 45000, {
+   * const success = await Live.partialProfit("BTCUSDT", 30, 45000, {
    *   exchangeName: "binance",
    *   strategyName: "my-strategy"
    * });
+   * if (success) {
+   *   console.log('Partial profit executed');
+   * }
    * ```
    */
   public partialProfit = async (
@@ -659,7 +662,7 @@ export class LiveUtils {
       strategyName: StrategyName;
       exchangeName: ExchangeName;
     }
-  ): Promise<void> => {
+  ): Promise<boolean> => {
     backtest.loggerService.info(LIVE_METHOD_NAME_PARTIAL_PROFIT, {
       symbol,
       percentToClose,
@@ -675,7 +678,7 @@ export class LiveUtils {
       riskList && riskList.forEach((riskName) => backtest.riskValidationService.validate(riskName, LIVE_METHOD_NAME_PARTIAL_PROFIT));
     }
 
-    await backtest.strategyCoreService.partialProfit(false, symbol, percentToClose, currentPrice, {
+    return await backtest.strategyCoreService.partialProfit(false, symbol, percentToClose, currentPrice, {
       strategyName: context.strategyName,
       exchangeName: context.exchangeName,
       frameName: "",
@@ -692,7 +695,7 @@ export class LiveUtils {
    * @param percentToClose - Percentage of position to close (0-100, absolute value)
    * @param currentPrice - Current market price for this partial close
    * @param context - Execution context with strategyName and exchangeName
-   * @returns Promise that resolves when state is updated
+   * @returns Promise<boolean> - true if partial close executed, false if skipped
    *
    * @throws Error if currentPrice is not in loss direction:
    *   - LONG: currentPrice must be < priceOpen
@@ -701,10 +704,13 @@ export class LiveUtils {
    * @example
    * ```typescript
    * // Close 40% of LONG position at loss
-   * await Live.partialLoss("BTCUSDT", 40, 38000, {
+   * const success = await Live.partialLoss("BTCUSDT", 40, 38000, {
    *   exchangeName: "binance",
    *   strategyName: "my-strategy"
    * });
+   * if (success) {
+   *   console.log('Partial loss executed');
+   * }
    * ```
    */
   public partialLoss = async (
@@ -715,7 +721,7 @@ export class LiveUtils {
       strategyName: StrategyName;
       exchangeName: ExchangeName;
     }
-  ): Promise<void> => {
+  ): Promise<boolean> => {
     backtest.loggerService.info(LIVE_METHOD_NAME_PARTIAL_LOSS, {
       symbol,
       percentToClose,
@@ -731,7 +737,7 @@ export class LiveUtils {
       riskList && riskList.forEach((riskName) => backtest.riskValidationService.validate(riskName, LIVE_METHOD_NAME_PARTIAL_LOSS));
     }
 
-    await backtest.strategyCoreService.partialLoss(false, symbol, percentToClose, currentPrice, {
+    return await backtest.strategyCoreService.partialLoss(false, symbol, percentToClose, currentPrice, {
       strategyName: context.strategyName,
       exchangeName: context.exchangeName,
       frameName: "",

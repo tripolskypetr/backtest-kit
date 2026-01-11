@@ -843,7 +843,7 @@ export class BacktestUtils {
    * @param percentToClose - Percentage of position to close (0-100, absolute value)
    * @param currentPrice - Current market price for this partial close
    * @param context - Execution context with strategyName, exchangeName, and frameName
-   * @returns Promise that resolves when state is updated
+   * @returns Promise<boolean> - true if partial close executed, false if skipped
    *
    * @throws Error if currentPrice is not in profit direction:
    *   - LONG: currentPrice must be > priceOpen
@@ -852,11 +852,14 @@ export class BacktestUtils {
    * @example
    * ```typescript
    * // Close 30% of LONG position at profit
-   * await Backtest.partialProfit("BTCUSDT", 30, 45000, {
+   * const success = await Backtest.partialProfit("BTCUSDT", 30, 45000, {
    *   exchangeName: "binance",
    *   frameName: "frame1",
    *   strategyName: "my-strategy"
    * });
+   * if (success) {
+   *   console.log('Partial profit executed');
+   * }
    * ```
    */
   public partialProfit = async (
@@ -868,7 +871,7 @@ export class BacktestUtils {
       exchangeName: ExchangeName;
       frameName: FrameName;
     }
-  ): Promise<void> => {
+  ): Promise<boolean> => {
     backtest.loggerService.info(BACKTEST_METHOD_NAME_PARTIAL_PROFIT, {
       symbol,
       percentToClose,
@@ -901,7 +904,7 @@ export class BacktestUtils {
         );
     }
 
-    await backtest.strategyCoreService.partialProfit(
+    return await backtest.strategyCoreService.partialProfit(
       true,
       symbol,
       percentToClose,
@@ -920,7 +923,7 @@ export class BacktestUtils {
    * @param percentToClose - Percentage of position to close (0-100, absolute value)
    * @param currentPrice - Current market price for this partial close
    * @param context - Execution context with strategyName, exchangeName, and frameName
-   * @returns Promise that resolves when state is updated
+   * @returns Promise<boolean> - true if partial close executed, false if skipped
    *
    * @throws Error if currentPrice is not in loss direction:
    *   - LONG: currentPrice must be < priceOpen
@@ -929,11 +932,14 @@ export class BacktestUtils {
    * @example
    * ```typescript
    * // Close 40% of LONG position at loss
-   * await Backtest.partialLoss("BTCUSDT", 40, 38000, {
+   * const success = await Backtest.partialLoss("BTCUSDT", 40, 38000, {
    *   exchangeName: "binance",
    *   frameName: "frame1",
    *   strategyName: "my-strategy"
    * });
+   * if (success) {
+   *   console.log('Partial loss executed');
+   * }
    * ```
    */
   public partialLoss = async (
@@ -945,7 +951,7 @@ export class BacktestUtils {
       exchangeName: ExchangeName;
       frameName: FrameName;
     }
-  ): Promise<void> => {
+  ): Promise<boolean> => {
     backtest.loggerService.info(BACKTEST_METHOD_NAME_PARTIAL_LOSS, {
       symbol,
       percentToClose,
@@ -978,7 +984,7 @@ export class BacktestUtils {
         );
     }
 
-    await backtest.strategyCoreService.partialLoss(
+    return await backtest.strategyCoreService.partialLoss(
       true,
       symbol,
       percentToClose,

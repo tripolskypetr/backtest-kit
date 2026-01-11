@@ -362,18 +362,21 @@ export class StrategyCoreService implements TStrategy {
    * @param percentToClose - Percentage of position to close (0-100, absolute value)
    * @param currentPrice - Current market price for this partial close (must be in profit direction)
    * @param context - Execution context with strategyName, exchangeName, frameName
-   * @returns Promise that resolves when state is updated and persisted
+   * @returns Promise<boolean> - true if partial close executed, false if skipped
    *
    * @example
    * ```typescript
    * // Close 30% of position at profit
-   * await strategyCoreService.partialProfit(
+   * const success = await strategyCoreService.partialProfit(
    *   false,
    *   "BTCUSDT",
    *   30,
    *   45000,
    *   { strategyName: "my-strategy", exchangeName: "binance", frameName: "" }
    * );
+   * if (success) {
+   *   console.log('Partial profit executed');
+   * }
    * ```
    */
   public partialProfit = async (
@@ -382,7 +385,7 @@ export class StrategyCoreService implements TStrategy {
     percentToClose: number,
     currentPrice: number,
     context: { strategyName: StrategyName; exchangeName: ExchangeName; frameName: FrameName }
-  ): Promise<void> => {
+  ): Promise<boolean> => {
     this.loggerService.log("strategyCoreService partialProfit", {
       symbol,
       percentToClose,
@@ -407,18 +410,21 @@ export class StrategyCoreService implements TStrategy {
    * @param percentToClose - Percentage of position to close (0-100, absolute value)
    * @param currentPrice - Current market price for this partial close (must be in loss direction)
    * @param context - Execution context with strategyName, exchangeName, frameName
-   * @returns Promise that resolves when state is updated and persisted
+   * @returns Promise<boolean> - true if partial close executed, false if skipped
    *
    * @example
    * ```typescript
    * // Close 40% of position at loss
-   * await strategyCoreService.partialLoss(
+   * const success = await strategyCoreService.partialLoss(
    *   false,
    *   "BTCUSDT",
    *   40,
    *   38000,
    *   { strategyName: "my-strategy", exchangeName: "binance", frameName: "" }
    * );
+   * if (success) {
+   *   console.log('Partial loss executed');
+   * }
    * ```
    */
   public partialLoss = async (
@@ -427,7 +433,7 @@ export class StrategyCoreService implements TStrategy {
     percentToClose: number,
     currentPrice: number,
     context: { strategyName: StrategyName; exchangeName: ExchangeName; frameName: FrameName }
-  ): Promise<void> => {
+  ): Promise<boolean> => {
     this.loggerService.log("strategyCoreService partialLoss", {
       symbol,
       percentToClose,

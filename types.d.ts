@@ -166,7 +166,7 @@ declare function cancel(symbol: string, cancelId?: string): Promise<void>;
  *
  * @param symbol - Trading pair symbol
  * @param percentToClose - Percentage of position to close (0-100, absolute value)
- * @returns Promise that resolves when state is updated
+ * @returns Promise<boolean> - true if partial close executed, false if skipped
  *
  * @throws Error if currentPrice is not in profit direction:
  *   - LONG: currentPrice must be > priceOpen
@@ -177,10 +177,13 @@ declare function cancel(symbol: string, cancelId?: string): Promise<void>;
  * import { partialProfit } from "backtest-kit";
  *
  * // Close 30% of LONG position at profit
- * await partialProfit("BTCUSDT", 30, 45000);
+ * const success = await partialProfit("BTCUSDT", 30);
+ * if (success) {
+ *   console.log('Partial profit executed');
+ * }
  * ```
  */
-declare function partialProfit(symbol: string, percentToClose: number): Promise<void>;
+declare function partialProfit(symbol: string, percentToClose: number): Promise<boolean>;
 /**
  * Executes partial close at loss level (moving toward SL).
  *
@@ -191,7 +194,7 @@ declare function partialProfit(symbol: string, percentToClose: number): Promise<
  *
  * @param symbol - Trading pair symbol
  * @param percentToClose - Percentage of position to close (0-100, absolute value)
- * @returns Promise that resolves when state is updated
+ * @returns Promise<boolean> - true if partial close executed, false if skipped
  *
  * @throws Error if currentPrice is not in loss direction:
  *   - LONG: currentPrice must be < priceOpen
@@ -202,10 +205,13 @@ declare function partialProfit(symbol: string, percentToClose: number): Promise<
  * import { partialLoss } from "backtest-kit";
  *
  * // Close 40% of LONG position at loss
- * await partialLoss("BTCUSDT", 40, 38000);
+ * const success = await partialLoss("BTCUSDT", 40);
+ * if (success) {
+ *   console.log('Partial loss executed');
+ * }
  * ```
  */
-declare function partialLoss(symbol: string, percentToClose: number): Promise<void>;
+declare function partialLoss(symbol: string, percentToClose: number): Promise<boolean>;
 /**
  * Adjusts the trailing stop-loss distance for an active pending signal.
  *
@@ -1635,7 +1641,7 @@ interface IStrategy {
      * - Throws if no pending signal exists
      * - Throws if called on scheduled signal (not yet activated)
      * - Throws if percentToClose <= 0 or > 100
-     * - Does nothing if _totalClosed + percentToClose > 100 (prevents over-closing)
+     * - Returns false if _totalClosed + percentToClose > 100 (prevents over-closing)
      *
      * Use case: User-controlled partial close triggered from onPartialProfit callback.
      *
@@ -1643,20 +1649,23 @@ interface IStrategy {
      * @param percentToClose - Absolute percentage of position to close (0-100)
      * @param currentPrice - Current market price for partial close
      * @param backtest - Whether running in backtest mode
-     * @returns Promise that resolves when partial close is complete
+     * @returns Promise<boolean> - true if partial close executed, false if skipped
      *
      * @example
      * ```typescript
      * callbacks: {
      *   onPartialProfit: async (symbol, signal, currentPrice, percentTp, backtest) => {
      *     if (percentTp >= 50) {
-     *       await strategy.partialProfit(symbol, 25, currentPrice, backtest);
+     *       const success = await strategy.partialProfit(symbol, 25, currentPrice, backtest);
+     *       if (success) {
+     *         console.log('Partial profit executed');
+     *       }
      *     }
      *   }
      * }
      * ```
      */
-    partialProfit: (symbol: string, percentToClose: number, currentPrice: number, backtest: boolean) => Promise<void>;
+    partialProfit: (symbol: string, percentToClose: number, currentPrice: number, backtest: boolean) => Promise<boolean>;
     /**
      * Executes partial close at loss level (moving toward SL).
      *
@@ -1668,7 +1677,7 @@ interface IStrategy {
      * - Throws if no pending signal exists
      * - Throws if called on scheduled signal (not yet activated)
      * - Throws if percentToClose <= 0 or > 100
-     * - Does nothing if _totalClosed + percentToClose > 100 (prevents over-closing)
+     * - Returns false if _totalClosed + percentToClose > 100 (prevents over-closing)
      *
      * Use case: User-controlled partial close triggered from onPartialLoss callback.
      *
@@ -1676,20 +1685,23 @@ interface IStrategy {
      * @param percentToClose - Absolute percentage of position to close (0-100)
      * @param currentPrice - Current market price for partial close
      * @param backtest - Whether running in backtest mode
-     * @returns Promise that resolves when partial close is complete
+     * @returns Promise<boolean> - true if partial close executed, false if skipped
      *
      * @example
      * ```typescript
      * callbacks: {
      *   onPartialLoss: async (symbol, signal, currentPrice, percentSl, backtest) => {
      *     if (percentSl >= 80) {
-     *       await strategy.partialLoss(symbol, 50, currentPrice, backtest);
+     *       const success = await strategy.partialLoss(symbol, 50, currentPrice, backtest);
+     *       if (success) {
+     *         console.log('Partial loss executed');
+     *       }
      *     }
      *   }
      * }
      * ```
      */
-    partialLoss: (symbol: string, percentToClose: number, currentPrice: number, backtest: boolean) => Promise<void>;
+    partialLoss: (symbol: string, percentToClose: number, currentPrice: number, backtest: boolean) => Promise<boolean>;
     /**
      * Adjusts trailing stop-loss by shifting distance between entry and original SL.
      *
@@ -7578,7 +7590,7 @@ declare class BacktestUtils {
      * @param percentToClose - Percentage of position to close (0-100, absolute value)
      * @param currentPrice - Current market price for this partial close
      * @param context - Execution context with strategyName, exchangeName, and frameName
-     * @returns Promise that resolves when state is updated
+     * @returns Promise<boolean> - true if partial close executed, false if skipped
      *
      * @throws Error if currentPrice is not in profit direction:
      *   - LONG: currentPrice must be > priceOpen
@@ -7587,18 +7599,21 @@ declare class BacktestUtils {
      * @example
      * ```typescript
      * // Close 30% of LONG position at profit
-     * await Backtest.partialProfit("BTCUSDT", 30, 45000, {
+     * const success = await Backtest.partialProfit("BTCUSDT", 30, 45000, {
      *   exchangeName: "binance",
      *   frameName: "frame1",
      *   strategyName: "my-strategy"
      * });
+     * if (success) {
+     *   console.log('Partial profit executed');
+     * }
      * ```
      */
     partialProfit: (symbol: string, percentToClose: number, currentPrice: number, context: {
         strategyName: StrategyName;
         exchangeName: ExchangeName;
         frameName: FrameName;
-    }) => Promise<void>;
+    }) => Promise<boolean>;
     /**
      * Executes partial close at loss level (moving toward SL).
      *
@@ -7609,7 +7624,7 @@ declare class BacktestUtils {
      * @param percentToClose - Percentage of position to close (0-100, absolute value)
      * @param currentPrice - Current market price for this partial close
      * @param context - Execution context with strategyName, exchangeName, and frameName
-     * @returns Promise that resolves when state is updated
+     * @returns Promise<boolean> - true if partial close executed, false if skipped
      *
      * @throws Error if currentPrice is not in loss direction:
      *   - LONG: currentPrice must be < priceOpen
@@ -7618,18 +7633,21 @@ declare class BacktestUtils {
      * @example
      * ```typescript
      * // Close 40% of LONG position at loss
-     * await Backtest.partialLoss("BTCUSDT", 40, 38000, {
+     * const success = await Backtest.partialLoss("BTCUSDT", 40, 38000, {
      *   exchangeName: "binance",
      *   frameName: "frame1",
      *   strategyName: "my-strategy"
      * });
+     * if (success) {
+     *   console.log('Partial loss executed');
+     * }
      * ```
      */
     partialLoss: (symbol: string, percentToClose: number, currentPrice: number, context: {
         strategyName: StrategyName;
         exchangeName: ExchangeName;
         frameName: FrameName;
-    }) => Promise<void>;
+    }) => Promise<boolean>;
     /**
      * Adjusts the trailing stop-loss distance for an active pending signal.
      *
@@ -8284,7 +8302,7 @@ declare class LiveUtils {
      * @param percentToClose - Percentage of position to close (0-100, absolute value)
      * @param currentPrice - Current market price for this partial close
      * @param context - Execution context with strategyName and exchangeName
-     * @returns Promise that resolves when state is updated
+     * @returns Promise<boolean> - true if partial close executed, false if skipped
      *
      * @throws Error if currentPrice is not in profit direction:
      *   - LONG: currentPrice must be > priceOpen
@@ -8293,16 +8311,19 @@ declare class LiveUtils {
      * @example
      * ```typescript
      * // Close 30% of LONG position at profit
-     * await Live.partialProfit("BTCUSDT", 30, 45000, {
+     * const success = await Live.partialProfit("BTCUSDT", 30, 45000, {
      *   exchangeName: "binance",
      *   strategyName: "my-strategy"
      * });
+     * if (success) {
+     *   console.log('Partial profit executed');
+     * }
      * ```
      */
     partialProfit: (symbol: string, percentToClose: number, currentPrice: number, context: {
         strategyName: StrategyName;
         exchangeName: ExchangeName;
-    }) => Promise<void>;
+    }) => Promise<boolean>;
     /**
      * Executes partial close at loss level (moving toward SL).
      *
@@ -8313,7 +8334,7 @@ declare class LiveUtils {
      * @param percentToClose - Percentage of position to close (0-100, absolute value)
      * @param currentPrice - Current market price for this partial close
      * @param context - Execution context with strategyName and exchangeName
-     * @returns Promise that resolves when state is updated
+     * @returns Promise<boolean> - true if partial close executed, false if skipped
      *
      * @throws Error if currentPrice is not in loss direction:
      *   - LONG: currentPrice must be < priceOpen
@@ -8322,16 +8343,19 @@ declare class LiveUtils {
      * @example
      * ```typescript
      * // Close 40% of LONG position at loss
-     * await Live.partialLoss("BTCUSDT", 40, 38000, {
+     * const success = await Live.partialLoss("BTCUSDT", 40, 38000, {
      *   exchangeName: "binance",
      *   strategyName: "my-strategy"
      * });
+     * if (success) {
+     *   console.log('Partial loss executed');
+     * }
      * ```
      */
     partialLoss: (symbol: string, percentToClose: number, currentPrice: number, context: {
         strategyName: StrategyName;
         exchangeName: ExchangeName;
-    }) => Promise<void>;
+    }) => Promise<boolean>;
     /**
      * Adjusts the trailing stop-loss distance for an active pending signal.
      *
@@ -12633,25 +12657,28 @@ declare class StrategyConnectionService implements TStrategy$1 {
      * @param context - Execution context with strategyName, exchangeName, frameName
      * @param percentToClose - Percentage of position to close (0-100, absolute value)
      * @param currentPrice - Current market price for this partial close
-     * @returns Promise that resolves when state is updated and persisted
+     * @returns Promise<boolean> - true if partial close executed, false if skipped
      *
      * @example
      * ```typescript
      * // Close 30% of position at profit
-     * await strategyConnectionService.partialProfit(
+     * const success = await strategyConnectionService.partialProfit(
      *   false,
      *   "BTCUSDT",
      *   { strategyName: "my-strategy", exchangeName: "binance", frameName: "" },
      *   30,
      *   45000
      * );
+     * if (success) {
+     *   console.log('Partial profit executed');
+     * }
      * ```
      */
     partialProfit: (backtest: boolean, symbol: string, percentToClose: number, currentPrice: number, context: {
         strategyName: StrategyName;
         exchangeName: ExchangeName;
         frameName: FrameName;
-    }) => Promise<void>;
+    }) => Promise<boolean>;
     /**
      * Executes partial close at loss level (moving toward SL).
      *
@@ -12665,25 +12692,28 @@ declare class StrategyConnectionService implements TStrategy$1 {
      * @param context - Execution context with strategyName, exchangeName, frameName
      * @param percentToClose - Percentage of position to close (0-100, absolute value)
      * @param currentPrice - Current market price for this partial close
-     * @returns Promise that resolves when state is updated and persisted
+     * @returns Promise<boolean> - true if partial close executed, false if skipped
      *
      * @example
      * ```typescript
      * // Close 40% of position at loss
-     * await strategyConnectionService.partialLoss(
+     * const success = await strategyConnectionService.partialLoss(
      *   false,
      *   "BTCUSDT",
      *   { strategyName: "my-strategy", exchangeName: "binance", frameName: "" },
      *   40,
      *   38000
      * );
+     * if (success) {
+     *   console.log('Partial loss executed');
+     * }
      * ```
      */
     partialLoss: (backtest: boolean, symbol: string, percentToClose: number, currentPrice: number, context: {
         strategyName: StrategyName;
         exchangeName: ExchangeName;
         frameName: FrameName;
-    }) => Promise<void>;
+    }) => Promise<boolean>;
     /**
      * Adjusts the trailing stop-loss distance for an active pending signal.
      *
@@ -13235,25 +13265,28 @@ declare class StrategyCoreService implements TStrategy {
      * @param percentToClose - Percentage of position to close (0-100, absolute value)
      * @param currentPrice - Current market price for this partial close (must be in profit direction)
      * @param context - Execution context with strategyName, exchangeName, frameName
-     * @returns Promise that resolves when state is updated and persisted
+     * @returns Promise<boolean> - true if partial close executed, false if skipped
      *
      * @example
      * ```typescript
      * // Close 30% of position at profit
-     * await strategyCoreService.partialProfit(
+     * const success = await strategyCoreService.partialProfit(
      *   false,
      *   "BTCUSDT",
      *   30,
      *   45000,
      *   { strategyName: "my-strategy", exchangeName: "binance", frameName: "" }
      * );
+     * if (success) {
+     *   console.log('Partial profit executed');
+     * }
      * ```
      */
     partialProfit: (backtest: boolean, symbol: string, percentToClose: number, currentPrice: number, context: {
         strategyName: StrategyName;
         exchangeName: ExchangeName;
         frameName: FrameName;
-    }) => Promise<void>;
+    }) => Promise<boolean>;
     /**
      * Executes partial close at loss level (moving toward SL).
      *
@@ -13267,25 +13300,28 @@ declare class StrategyCoreService implements TStrategy {
      * @param percentToClose - Percentage of position to close (0-100, absolute value)
      * @param currentPrice - Current market price for this partial close (must be in loss direction)
      * @param context - Execution context with strategyName, exchangeName, frameName
-     * @returns Promise that resolves when state is updated and persisted
+     * @returns Promise<boolean> - true if partial close executed, false if skipped
      *
      * @example
      * ```typescript
      * // Close 40% of position at loss
-     * await strategyCoreService.partialLoss(
+     * const success = await strategyCoreService.partialLoss(
      *   false,
      *   "BTCUSDT",
      *   40,
      *   38000,
      *   { strategyName: "my-strategy", exchangeName: "binance", frameName: "" }
      * );
+     * if (success) {
+     *   console.log('Partial loss executed');
+     * }
      * ```
      */
     partialLoss: (backtest: boolean, symbol: string, percentToClose: number, currentPrice: number, context: {
         strategyName: StrategyName;
         exchangeName: ExchangeName;
         frameName: FrameName;
-    }) => Promise<void>;
+    }) => Promise<boolean>;
     /**
      * Adjusts the trailing stop-loss distance for an active pending signal.
      *

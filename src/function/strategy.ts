@@ -107,7 +107,7 @@ export async function cancel(symbol: string, cancelId?: string): Promise<void> {
  *
  * @param symbol - Trading pair symbol
  * @param percentToClose - Percentage of position to close (0-100, absolute value)
- * @returns Promise that resolves when state is updated
+ * @returns Promise<boolean> - true if partial close executed, false if skipped
  *
  * @throws Error if currentPrice is not in profit direction:
  *   - LONG: currentPrice must be > priceOpen
@@ -118,13 +118,16 @@ export async function cancel(symbol: string, cancelId?: string): Promise<void> {
  * import { partialProfit } from "backtest-kit";
  *
  * // Close 30% of LONG position at profit
- * await partialProfit("BTCUSDT", 30, 45000);
+ * const success = await partialProfit("BTCUSDT", 30);
+ * if (success) {
+ *   console.log('Partial profit executed');
+ * }
  * ```
  */
 export async function partialProfit(
   symbol: string,
   percentToClose: number,
-): Promise<void> {
+): Promise<boolean> {
   backtest.loggerService.info(PARTIAL_PROFIT_METHOD_NAME, {
     symbol,
     percentToClose,
@@ -139,7 +142,7 @@ export async function partialProfit(
   const { backtest: isBacktest } = backtest.executionContextService.context;
   const { exchangeName, frameName, strategyName } =
     backtest.methodContextService.context;
-  await backtest.strategyCoreService.partialProfit(
+  return await backtest.strategyCoreService.partialProfit(
     isBacktest,
     symbol,
     percentToClose,
@@ -158,7 +161,7 @@ export async function partialProfit(
  *
  * @param symbol - Trading pair symbol
  * @param percentToClose - Percentage of position to close (0-100, absolute value)
- * @returns Promise that resolves when state is updated
+ * @returns Promise<boolean> - true if partial close executed, false if skipped
  *
  * @throws Error if currentPrice is not in loss direction:
  *   - LONG: currentPrice must be < priceOpen
@@ -169,13 +172,16 @@ export async function partialProfit(
  * import { partialLoss } from "backtest-kit";
  *
  * // Close 40% of LONG position at loss
- * await partialLoss("BTCUSDT", 40, 38000);
+ * const success = await partialLoss("BTCUSDT", 40);
+ * if (success) {
+ *   console.log('Partial loss executed');
+ * }
  * ```
  */
 export async function partialLoss(
   symbol: string,
   percentToClose: number,
-): Promise<void> {
+): Promise<boolean> {
   backtest.loggerService.info(PARTIAL_LOSS_METHOD_NAME, {
     symbol,
     percentToClose,
@@ -190,7 +196,7 @@ export async function partialLoss(
   const { backtest: isBacktest } = backtest.executionContextService.context;
   const { exchangeName, frameName, strategyName } =
     backtest.methodContextService.context;
-  await backtest.strategyCoreService.partialLoss(
+  return await backtest.strategyCoreService.partialLoss(
     isBacktest,
     symbol,
     percentToClose,

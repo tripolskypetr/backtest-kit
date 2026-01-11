@@ -546,18 +546,21 @@ export class StrategyConnectionService implements TStrategy {
    * @param context - Execution context with strategyName, exchangeName, frameName
    * @param percentToClose - Percentage of position to close (0-100, absolute value)
    * @param currentPrice - Current market price for this partial close
-   * @returns Promise that resolves when state is updated and persisted
+   * @returns Promise<boolean> - true if partial close executed, false if skipped
    *
    * @example
    * ```typescript
    * // Close 30% of position at profit
-   * await strategyConnectionService.partialProfit(
+   * const success = await strategyConnectionService.partialProfit(
    *   false,
    *   "BTCUSDT",
    *   { strategyName: "my-strategy", exchangeName: "binance", frameName: "" },
    *   30,
    *   45000
    * );
+   * if (success) {
+   *   console.log('Partial profit executed');
+   * }
    * ```
    */
   public partialProfit = async (
@@ -566,7 +569,7 @@ export class StrategyConnectionService implements TStrategy {
     percentToClose: number,
     currentPrice: number,
     context: { strategyName: StrategyName; exchangeName: ExchangeName; frameName: FrameName },
-  ): Promise<void> => {
+  ): Promise<boolean> => {
     this.loggerService.log("strategyConnectionService partialProfit", {
       symbol,
       context,
@@ -575,7 +578,7 @@ export class StrategyConnectionService implements TStrategy {
       backtest,
     });
     const strategy = this.getStrategy(symbol, context.strategyName, context.exchangeName, context.frameName, backtest);
-    await strategy.partialProfit(symbol, percentToClose, currentPrice, backtest);
+    return await strategy.partialProfit(symbol, percentToClose, currentPrice, backtest);
   };
 
   /**
@@ -591,18 +594,21 @@ export class StrategyConnectionService implements TStrategy {
    * @param context - Execution context with strategyName, exchangeName, frameName
    * @param percentToClose - Percentage of position to close (0-100, absolute value)
    * @param currentPrice - Current market price for this partial close
-   * @returns Promise that resolves when state is updated and persisted
+   * @returns Promise<boolean> - true if partial close executed, false if skipped
    *
    * @example
    * ```typescript
    * // Close 40% of position at loss
-   * await strategyConnectionService.partialLoss(
+   * const success = await strategyConnectionService.partialLoss(
    *   false,
    *   "BTCUSDT",
    *   { strategyName: "my-strategy", exchangeName: "binance", frameName: "" },
    *   40,
    *   38000
    * );
+   * if (success) {
+   *   console.log('Partial loss executed');
+   * }
    * ```
    */
   public partialLoss = async (
@@ -611,7 +617,7 @@ export class StrategyConnectionService implements TStrategy {
     percentToClose: number,
     currentPrice: number,
     context: { strategyName: StrategyName; exchangeName: ExchangeName; frameName: FrameName },
-  ): Promise<void> => {
+  ): Promise<boolean> => {
     this.loggerService.log("strategyConnectionService partialLoss", {
       symbol,
       context,
@@ -620,7 +626,7 @@ export class StrategyConnectionService implements TStrategy {
       backtest,
     });
     const strategy = this.getStrategy(symbol, context.strategyName, context.exchangeName, context.frameName, backtest);
-    await strategy.partialLoss(symbol, percentToClose, currentPrice, backtest);
+    return await strategy.partialLoss(symbol, percentToClose, currentPrice, backtest);
   };
 
   /**
