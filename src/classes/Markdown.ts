@@ -1,8 +1,9 @@
-import { compose, makeExtendable, memoize, singleshot } from "functools-kit";
-import backtest from "src/lib";
+import { compose, getErrorMessage, makeExtendable, memoize, singleshot, timeout, TIMEOUT_SYMBOL } from "functools-kit";
+import backtest from "../lib";
 import { createWriteStream, WriteStream } from "fs";
 import * as fs from "fs/promises";
 import { join, dirname } from "path";
+import { exitEmitter } from "../config/emitters";
 
 const MARKDOWN_METHOD_NAME_ENABLE = "MarkdownUtils.enable";
 const MARKDOWN_METHOD_NAME_USE_ADAPTER = "MarkdownAdapter.useMarkdownAdapter";
@@ -37,6 +38,7 @@ interface IMarkdownTarget {
 }
 
 const WAIT_FOR_INIT_SYMBOL = Symbol("wait-for-init");
+const WRITE_SAFE_SYMBOL = Symbol("write-safe");
 
 /**
  * Default configuration that enables all markdown services.
@@ -87,7 +89,18 @@ export const MarkdownFileBase = makeExtendable(
     [WAIT_FOR_INIT_SYMBOL] = singleshot(async (): Promise<void> => {
       await fs.mkdir(this._baseDir, { recursive: true });
       this._stream = createWriteStream(this._filePath, { flags: "a" });
+      this._stream.on('error', (err) => {
+        exitEmitter.next(new Error(`MarkdownFileAdapter stream error for markdownName=${this.markdownName} message=${getErrorMessage(err)}`))
+      });
     });
+
+    [WRITE_SAFE_SYMBOL] = timeout(async (line: string) => {
+      if (!this._stream.write(line)) {
+        await new Promise<void>((resolve) => {
+          this._stream!.once('drain', resolve);
+        });
+      }
+    }, 15_000);
 
     async waitForInit(): Promise<void> {
       await this[WAIT_FOR_INIT_SYMBOL]();
@@ -136,7 +149,10 @@ export const MarkdownFileBase = makeExtendable(
         timestamp: Date.now(),
       }) + "\n";
 
-      this._stream.write(line);
+      const status = await this[WRITE_SAFE_SYMBOL](line);
+      if (status === TIMEOUT_SYMBOL) {
+        throw new Error(`Timeout writing to report ${this.markdownName}`);
+      }
     }
   }
 );

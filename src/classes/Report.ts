@@ -2,7 +2,8 @@ import * as fs from "fs/promises";
 import { createWriteStream, WriteStream } from "fs";
 import { join } from "path";
 import lib from "../lib";
-import { compose, makeExtendable, memoize, singleshot } from "functools-kit";
+import { compose, getErrorMessage, makeExtendable, memoize, singleshot, timeout, TIMEOUT_SYMBOL } from "functools-kit";
+import { exitEmitter } from "../config/emitters";
 
 const REPORT_BASE_METHOD_NAME_CTOR = "ReportBase.CTOR";
 const REPORT_BASE_METHOD_NAME_WAIT_FOR_INIT = "ReportBase.waitForInit";
@@ -12,7 +13,8 @@ const REPORT_UTILS_METHOD_NAME_USE_REPORT_ADAPTER = "ReportUtils.useReportAdapte
 const REPORT_UTILS_METHOD_NAME_WRITE_DATA = "ReportUtils.writeReportData";
 const REPORT_UTILS_METHOD_NAME_ENABLE = "ReportUtils.enable";
 
-const BASE_WAIT_FOR_INIT_SYMBOL = Symbol("wait-for-init");
+const WAIT_FOR_INIT_SYMBOL = Symbol("wait-for-init");
+const WRITE_SAFE_SYMBOL = Symbol("write-safe");
 
 interface IReportTarget {
   risk: boolean;
@@ -51,17 +53,28 @@ export const ReportBase = makeExtendable(
       this._filePath = join(this.baseDir, `${this.reportName}.jsonl`);
     }
 
-    [BASE_WAIT_FOR_INIT_SYMBOL] = singleshot(async (): Promise<void> => {
+    [WAIT_FOR_INIT_SYMBOL] = singleshot(async (): Promise<void> => {
       await fs.mkdir(this.baseDir, { recursive: true });
       this._stream = createWriteStream(this._filePath, { flags: "a" });
+      this._stream.on('error', (err) => {
+        exitEmitter.next(new Error(`MarkdownFileAdapter stream error for reportName=${this.reportName} message=${getErrorMessage(err)}`))
+      });
     });
+
+    [WRITE_SAFE_SYMBOL] = timeout(async (line: string) => {
+      if (!this._stream.write(line)) {
+        await new Promise<void>((resolve) => {
+          this._stream!.once('drain', resolve);
+        });
+      }
+    }, 15_000);
 
     async waitForInit(initial: boolean): Promise<void> {
       lib.loggerService.debug(REPORT_BASE_METHOD_NAME_WAIT_FOR_INIT, {
         reportName: this.reportName,
         initial,
       });
-      await this[BASE_WAIT_FOR_INIT_SYMBOL]();
+      await this[WAIT_FOR_INIT_SYMBOL]();
     }
 
     async write<T = any>(data: T): Promise<void> {
@@ -74,7 +87,10 @@ export const ReportBase = makeExtendable(
         );
       }
       const line = JSON.stringify(data) + "\n";
-      this._stream.write(line);
+      const status = await this[WRITE_SAFE_SYMBOL](line);
+      if (status === TIMEOUT_SYMBOL) {
+        throw new Error(`Timeout writing to report ${this.reportName}`);
+      }
     }
   }
 );
