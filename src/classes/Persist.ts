@@ -29,6 +29,10 @@ const PERSIST_SIGNAL_UTILS_METHOD_NAME_READ_DATA =
   "PersistSignalUtils.readSignalData";
 const PERSIST_SIGNAL_UTILS_METHOD_NAME_WRITE_DATA =
   "PersistSignalUtils.writeSignalData";
+const PERSIST_SIGNAL_UTILS_METHOD_NAME_USE_JSON =
+  "PersistSignalUtils.useJson";
+const PERSIST_SIGNAL_UTILS_METHOD_NAME_USE_DUMMY =
+  "PersistSignalUtils.useDummy";
 
 const PERSIST_SCHEDULE_UTILS_METHOD_NAME_USE_PERSIST_SCHEDULE_ADAPTER =
   "PersistScheduleUtils.usePersistScheduleAdapter";
@@ -36,6 +40,10 @@ const PERSIST_SCHEDULE_UTILS_METHOD_NAME_READ_DATA =
   "PersistScheduleUtils.readScheduleData";
 const PERSIST_SCHEDULE_UTILS_METHOD_NAME_WRITE_DATA =
   "PersistScheduleUtils.writeScheduleData";
+const PERSIST_SCHEDULE_UTILS_METHOD_NAME_USE_JSON =
+  "PersistScheduleUtils.useJson";
+const PERSIST_SCHEDULE_UTILS_METHOD_NAME_USE_DUMMY =
+  "PersistScheduleUtils.useDummy";
 
 const PERSIST_PARTIAL_UTILS_METHOD_NAME_USE_PERSIST_PARTIAL_ADAPTER =
   "PersistPartialUtils.usePersistPartialAdapter";
@@ -43,6 +51,10 @@ const PERSIST_PARTIAL_UTILS_METHOD_NAME_READ_DATA =
   "PersistPartialUtils.readPartialData";
 const PERSIST_PARTIAL_UTILS_METHOD_NAME_WRITE_DATA =
   "PersistPartialUtils.writePartialData";
+const PERSIST_PARTIAL_UTILS_METHOD_NAME_USE_JSON =
+  "PersistPartialUtils.useJson";
+const PERSIST_PARTIAL_UTILS_METHOD_NAME_USE_DUMMY =
+  "PersistPartialUtils.useDummy";
 
 const PERSIST_BREAKEVEN_UTILS_METHOD_NAME_USE_PERSIST_BREAKEVEN_ADAPTER =
   "PersistBreakevenUtils.usePersistBreakevenAdapter";
@@ -50,6 +62,22 @@ const PERSIST_BREAKEVEN_UTILS_METHOD_NAME_READ_DATA =
   "PersistBreakevenUtils.readBreakevenData";
 const PERSIST_BREAKEVEN_UTILS_METHOD_NAME_WRITE_DATA =
   "PersistBreakevenUtils.writeBreakevenData";
+const PERSIST_BREAKEVEN_UTILS_METHOD_NAME_USE_JSON =
+  "PersistBreakevenUtils.useJson";
+const PERSIST_BREAKEVEN_UTILS_METHOD_NAME_USE_DUMMY =
+  "PersistBreakevenUtils.useDummy";
+
+const PERSIST_RISK_UTILS_METHOD_NAME_USE_PERSIST_RISK_ADAPTER =
+  "PersistRiskUtils.usePersistRiskAdapter";
+const PERSIST_RISK_UTILS_METHOD_NAME_READ_DATA =
+  "PersistRiskUtils.readPositionData";
+const PERSIST_RISK_UTILS_METHOD_NAME_WRITE_DATA =
+  "PersistRiskUtils.writePositionData";
+const PERSIST_RISK_UTILS_METHOD_NAME_USE_JSON =
+  "PersistRiskUtils.useJson";
+const PERSIST_RISK_UTILS_METHOD_NAME_USE_DUMMY =
+  "PersistRiskUtils.useDummy";
+
 
 const PERSIST_BASE_METHOD_NAME_CTOR = "PersistBase.CTOR";
 const PERSIST_BASE_METHOD_NAME_WAIT_FOR_INIT = "PersistBase.waitForInit";
@@ -517,6 +545,48 @@ export const PersistBase = makeExtendable(
 );
 
 /**
+ * Dummy persist adapter that discards all writes.
+ * Used for disabling persistence.
+ */
+export class PersistDummy implements IPersistBase {
+  /**
+   * No-op initialization function.
+   * @returns Promise that resolves immediately
+   */
+  async waitForInit() {
+    void 0;
+  }
+  /**
+   * No-op read function.
+   * @returns Promise that resolves with empty object
+   */
+  async readValue() {
+    return {} as any;
+  }
+  /**
+   * No-op has value check.
+   * @returns Promise that resolves to false
+   */
+  async hasValue() {
+    return false;
+  }
+  /**
+   * No-op write function.
+   * @returns Promise that resolves immediately
+   */
+  async writeValue() {
+    void 0;
+  }
+  /**
+   * No-op keys generator.
+   * @returns Empty async generator
+   */
+  async *keys() {
+    void 0;
+  }
+}
+
+/**
  * Utility class for managing signal persistence.
  *
  * Features:
@@ -620,6 +690,24 @@ export class PersistSignalUtils {
 
     await stateStorage.writeValue(symbol, signalRow);
   };
+
+  /**
+   * Switches to the default JSON persist adapter.
+   * All future persistence writes will use JSON storage.
+   */
+  public useJson() {
+    swarm.loggerService.log(PERSIST_SIGNAL_UTILS_METHOD_NAME_USE_JSON);
+    this.usePersistSignalAdapter(PersistBase);
+  }
+
+  /**
+   * Switches to a dummy persist adapter that discards all writes.
+   * All future persistence writes will be no-ops.
+   */
+  public useDummy() {
+    swarm.loggerService.log(PERSIST_SIGNAL_UTILS_METHOD_NAME_USE_DUMMY);
+    this.usePersistSignalAdapter(PersistDummy);
+  }
 }
 
 /**
@@ -645,13 +733,6 @@ export const PersistSignalAdapter = new PersistSignalUtils();
  * Stores Map entries as array of [key, value] tuples for JSON serialization.
  */
 export type RiskData = Array<[string, IRiskActivePosition]>;
-
-const PERSIST_RISK_UTILS_METHOD_NAME_USE_PERSIST_RISK_ADAPTER =
-  "PersistRiskUtils.usePersistRiskAdapter";
-const PERSIST_RISK_UTILS_METHOD_NAME_READ_DATA =
-  "PersistRiskUtils.readPositionData";
-const PERSIST_RISK_UTILS_METHOD_NAME_WRITE_DATA =
-  "PersistRiskUtils.writePositionData";
 
 /**
  * Utility class for managing risk active positions persistence.
@@ -754,6 +835,24 @@ export class PersistRiskUtils {
 
     await stateStorage.writeValue(RISK_STORAGE_KEY, riskRow);
   };
+
+  /**
+   * Switches to the default JSON persist adapter.
+   * All future persistence writes will use JSON storage.
+   */
+  public useJson() {
+    swarm.loggerService.log(PERSIST_RISK_UTILS_METHOD_NAME_USE_JSON);
+    this.usePersistRiskAdapter(PersistBase);
+  }
+
+  /**
+   * Switches to a dummy persist adapter that discards all writes.
+   * All future persistence writes will be no-ops.
+   */
+  public useDummy() {
+    swarm.loggerService.log(PERSIST_RISK_UTILS_METHOD_NAME_USE_DUMMY);
+    this.usePersistRiskAdapter(PersistDummy);
+  }
 }
 
 /**
@@ -884,6 +983,24 @@ export class PersistScheduleUtils {
 
     await stateStorage.writeValue(symbol, scheduledSignalRow);
   };
+
+  /**
+   * Switches to the default JSON persist adapter.
+   * All future persistence writes will use JSON storage.
+   */
+  public useJson() {
+    swarm.loggerService.log(PERSIST_SCHEDULE_UTILS_METHOD_NAME_USE_JSON);
+    this.usePersistScheduleAdapter(PersistBase);
+  }
+
+  /**
+   * Switches to a dummy persist adapter that discards all writes.
+   * All future persistence writes will be no-ops.
+   */
+  public useDummy() {
+    swarm.loggerService.log(PERSIST_SCHEDULE_UTILS_METHOD_NAME_USE_DUMMY);
+    this.usePersistScheduleAdapter(PersistDummy);
+  }
 }
 
 /**
@@ -1013,6 +1130,24 @@ export class PersistPartialUtils {
 
     await stateStorage.writeValue(signalId, partialData);
   };
+
+  /**
+   * Switches to the default JSON persist adapter.
+   * All future persistence writes will use JSON storage.
+   */
+  public useJson() {
+    swarm.loggerService.log(PERSIST_PARTIAL_UTILS_METHOD_NAME_USE_JSON);
+    this.usePersistPartialAdapter(PersistBase);
+  }
+
+  /**
+   * Switches to a dummy persist adapter that discards all writes.
+   * All future persistence writes will be no-ops.
+   */
+  public useDummy() {
+    swarm.loggerService.log(PERSIST_PARTIAL_UTILS_METHOD_NAME_USE_DUMMY);
+    this.usePersistPartialAdapter(PersistDummy);
+  }
 }
 
 /**
@@ -1171,6 +1306,24 @@ class PersistBreakevenUtils {
 
     await stateStorage.writeValue(signalId, breakevenData);
   };
+
+  /**
+   * Switches to the default JSON persist adapter.
+   * All future persistence writes will use JSON storage.
+   */
+  public useJson() {
+    swarm.loggerService.log(PERSIST_BREAKEVEN_UTILS_METHOD_NAME_USE_JSON);
+    this.usePersistBreakevenAdapter(PersistBase);
+  }
+
+  /**
+   * Switches to a dummy persist adapter that discards all writes.
+   * All future persistence writes will be no-ops.
+   */
+  public useDummy() {
+    swarm.loggerService.log(PERSIST_BREAKEVEN_UTILS_METHOD_NAME_USE_DUMMY);
+    this.usePersistBreakevenAdapter(PersistDummy);
+  }
 }
 
 /**

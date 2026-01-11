@@ -6242,6 +6242,16 @@ declare class PersistSignalUtils {
      * @returns Promise that resolves when write is complete
      */
     writeSignalData: (signalRow: ISignalRow | null, symbol: string, strategyName: StrategyName, exchangeName: ExchangeName) => Promise<void>;
+    /**
+     * Switches to the default JSON persist adapter.
+     * All future persistence writes will use JSON storage.
+     */
+    useJson(): void;
+    /**
+     * Switches to a dummy persist adapter that discards all writes.
+     * All future persistence writes will be no-ops.
+     */
+    useDummy(): void;
 }
 /**
  * Global singleton instance of PersistSignalUtils.
@@ -6317,6 +6327,16 @@ declare class PersistRiskUtils {
      * @returns Promise that resolves when write is complete
      */
     writePositionData: (riskRow: RiskData, riskName: RiskName, exchangeName: ExchangeName) => Promise<void>;
+    /**
+     * Switches to the default JSON persist adapter.
+     * All future persistence writes will use JSON storage.
+     */
+    useJson(): void;
+    /**
+     * Switches to a dummy persist adapter that discards all writes.
+     * All future persistence writes will be no-ops.
+     */
+    useDummy(): void;
 }
 /**
  * Global singleton instance of PersistRiskUtils.
@@ -6394,6 +6414,16 @@ declare class PersistScheduleUtils {
      * @returns Promise that resolves when write is complete
      */
     writeScheduleData: (scheduledSignalRow: IScheduledSignalRow | null, symbol: string, strategyName: StrategyName, exchangeName: ExchangeName) => Promise<void>;
+    /**
+     * Switches to the default JSON persist adapter.
+     * All future persistence writes will use JSON storage.
+     */
+    useJson(): void;
+    /**
+     * Switches to a dummy persist adapter that discards all writes.
+     * All future persistence writes will be no-ops.
+     */
+    useDummy(): void;
 }
 /**
  * Global singleton instance of PersistScheduleUtils.
@@ -6473,6 +6503,16 @@ declare class PersistPartialUtils {
      * @returns Promise that resolves when write is complete
      */
     writePartialData: (partialData: PartialData, symbol: string, strategyName: StrategyName, signalId: string, exchangeName: ExchangeName) => Promise<void>;
+    /**
+     * Switches to the default JSON persist adapter.
+     * All future persistence writes will use JSON storage.
+     */
+    useJson(): void;
+    /**
+     * Switches to a dummy persist adapter that discards all writes.
+     * All future persistence writes will be no-ops.
+     */
+    useDummy(): void;
 }
 /**
  * Global singleton instance of PersistPartialUtils.
@@ -6587,6 +6627,16 @@ declare class PersistBreakevenUtils {
      * @returns Promise that resolves when write is complete
      */
     writeBreakevenData: (breakevenData: BreakevenData, symbol: string, strategyName: StrategyName, signalId: string, exchangeName: ExchangeName) => Promise<void>;
+    /**
+     * Switches to the default JSON persist adapter.
+     * All future persistence writes will use JSON storage.
+     */
+    useJson(): void;
+    /**
+     * Switches to a dummy persist adapter that discards all writes.
+     * All future persistence writes will be no-ops.
+     */
+    useDummy(): void;
 }
 /**
  * Global singleton instance of PersistBreakevenUtils.
@@ -6825,6 +6875,16 @@ declare class ReportAdapter extends ReportUtils {
      * @internal - Automatically called by report services, not for direct use
      */
     writeData: <T = any>(reportName: ReportName, data: T, options: IReportDumpOptions) => Promise<void>;
+    /**
+     * Switches to a dummy report adapter that discards all writes.
+     * All future report writes will be no-ops.
+     */
+    useDummy(): void;
+    /**
+     * Switches to the default JSONL report adapter.
+     * All future report writes will use JSONL storage.
+     */
+    useJsonl(): void;
 }
 /**
  * Global singleton instance of ReportAdapter.
@@ -7101,6 +7161,11 @@ declare class MarkdownAdapter extends MarkdownUtils {
      * All dumps append to a single .jsonl file per markdown type.
      */
     useJsonl(): void;
+    /**
+     * Switches to a dummy markdown adapter that discards all writes.
+     * All future markdown writes will be no-ops.
+     */
+    useDummy(): void;
 }
 /**
  * Global singleton instance of MarkdownAdapter.
