@@ -307,6 +307,27 @@ export const MarkdownFolderBase = makeExtendable(
 );
 
 /**
+ * Dummy markdown adapter that discards all writes.
+ * Used for disabling markdown report generation.
+ */
+export class MarkdownDummy implements TMarkdownBase {
+  /**
+   * No-op dump function.
+   * @returns Promise that resolves immediately
+   */
+  async dump() {
+    void 0;
+  }
+  /**
+   * No-op initialization function.
+   * @returns Promise that resolves immediately
+   */
+  async waitForInit() {
+    void 0;
+  }
+}
+
+/**
  * Utility class for managing markdown report services.
  *
  * Provides methods to enable/disable markdown report generation across
@@ -484,6 +505,15 @@ export class MarkdownAdapter extends MarkdownUtils {
   public useJsonl() {
     backtest.loggerService.debug("MarkdownAdapter.useJsonl");
     this.useMarkdownAdapter(MarkdownFileBase);
+  }
+
+  /**
+   * Switches to a dummy markdown adapter that discards all writes.
+   * All future markdown writes will be no-ops.
+   */
+  public useDummy() {
+    backtest.loggerService.debug("MarkdownAdapter.useDummy");;
+    this.useMarkdownAdapter(MarkdownDummy);
   }
 }
 

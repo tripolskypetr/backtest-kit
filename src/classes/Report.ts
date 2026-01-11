@@ -12,6 +12,8 @@ const REPORT_BASE_METHOD_NAME_WRITE = "ReportBase.write";
 const REPORT_UTILS_METHOD_NAME_USE_REPORT_ADAPTER = "ReportUtils.useReportAdapter";
 const REPORT_UTILS_METHOD_NAME_WRITE_DATA = "ReportUtils.writeReportData";
 const REPORT_UTILS_METHOD_NAME_ENABLE = "ReportUtils.enable";
+const REPORT_UTILS_METHOD_NAME_USE_DUMMY = "ReportUtils.useDummy";
+const REPORT_UTILS_METHOD_NAME_USE_JSONL = "ReportUtils.useJsonl";
 
 const WAIT_FOR_INIT_SYMBOL = Symbol("wait-for-init");
 const WRITE_SAFE_SYMBOL = Symbol("write-safe");
@@ -114,7 +116,7 @@ export type TReportBaseCtor = new (reportName: ReportName, baseDir: string) => T
  * Use this adapter for event logging and post-processing analytics.
  */
 export const ReportBase = makeExtendable(
-  class {
+  class implements TReportBase {
     /** Absolute path to the JSONL file for this report type */
     _filePath: string;
 
@@ -242,6 +244,27 @@ export const ReportBase = makeExtendable(
     }
   }
 );
+
+/**
+ * Dummy report adapter that discards all writes.
+ * Used for disabling report logging.
+ */
+export class ReportDummy implements TReportBase {
+  /**
+   * No-op initialization function.
+   * @returns Promise that resolves immediately
+   */
+  async waitForInit() {
+    void 0;
+  }
+  /**
+   * No-op write function.
+   * @returns Promise that resolves immediately
+   */
+  async write() {
+    void 0;
+  }
+}
 
 /**
  * Default configuration that enables all report services.
@@ -419,6 +442,24 @@ export class ReportAdapter extends ReportUtils {
 
     await reportStorage.write(data, options);
   };
+
+  /**
+   * Switches to a dummy report adapter that discards all writes.
+   * All future report writes will be no-ops.
+   */
+  public useDummy() {
+    lib.loggerService.log(REPORT_UTILS_METHOD_NAME_USE_DUMMY)
+    this.useReportAdapter(ReportDummy);
+  }
+
+  /**
+   * Switches to the default JSONL report adapter.
+   * All future report writes will use JSONL storage.
+   */
+  public useJsonl() {
+    lib.loggerService.log(REPORT_UTILS_METHOD_NAME_USE_JSONL);
+    this.useReportAdapter(ReportBase);
+  }
 }
 
 /**
