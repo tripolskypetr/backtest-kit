@@ -3,6 +3,7 @@ import { inject } from "../../../lib/core/di";
 import { MessageModel } from "../../../model/Message.model";
 import LoggerService from "../base/LoggerService";
 import TYPES from "../../../lib/core/types";
+import { Markdown } from "../../../classes/Markdown";
 import { promises as fs } from "fs";
 import path from "path";
 
@@ -32,7 +33,7 @@ const DUMP_SIGNAL_FN = async <Data extends ISignalDto>(
   signalId: ResultId,
   history: MessageModel[],
   signal: Data,
-  outputDir = "./dump/strategy"
+  outputDir = "./dump/outline"
 ) => {
   // Extract system messages and system reminders from existing data
   const systemMessages = history.filter((m) => m.role === "system");
@@ -43,9 +44,10 @@ const DUMP_SIGNAL_FN = async <Data extends ISignalDto>(
     await fs.access(subfolderPath);
     return;
   } catch {
-    await fs.mkdir(subfolderPath, { recursive: true });
+    // Directory doesn't exist, proceed with creation
   }
 
+  // Generate system prompt markdown
   {
     let summary = "# Outline Result Summary\n";
 
@@ -72,16 +74,22 @@ const DUMP_SIGNAL_FN = async <Data extends ISignalDto>(
       });
     }
 
-    const summaryFile = path.join(subfolderPath, "00_system_prompt.md");
-    await fs.writeFile(summaryFile, summary, "utf8");
+    await Markdown.writeData("outline", summary, {
+      path: subfolderPath,
+      file: "00_system_prompt.md",
+      symbol: "",
+      strategyName: "",
+      exchangeName: "",
+      frameName: ""
+    });
   }
 
+  // Generate user messages
   {
     await Promise.all(
       Array.from(userMessages.entries()).map(async ([idx, message]) => {
         const messageNum = String(idx + 1).padStart(2, "0");
         const contentFileName = `${messageNum}_user_message.md`;
-        const contentFilePath = path.join(subfolderPath, contentFileName);
 
         {
           const messageSizeBytes = Buffer.byteLength(message.content, "utf8");
@@ -100,15 +108,22 @@ const DUMP_SIGNAL_FN = async <Data extends ISignalDto>(
         content += message.content;
         content += "\n";
 
-        await fs.writeFile(contentFilePath, content, "utf8");
+        await Markdown.writeData("outline", content, {
+          path: subfolderPath,
+          file: contentFileName,
+          symbol: "",
+          strategyName: "",
+          exchangeName: "",
+          frameName: ""
+        });
       })
     );
   }
 
+  // Generate LLM output
   {
     const messageNum = String(userMessages.length + 1).padStart(2, "0");
     const contentFileName = `${messageNum}_llm_output.md`;
-    const contentFilePath = path.join(subfolderPath, contentFileName);
 
     let content = "# Full Outline Result\n\n";
     content += `**ResultId**: ${String(signalId)}\n\n`;
@@ -120,7 +135,14 @@ const DUMP_SIGNAL_FN = async <Data extends ISignalDto>(
       content += "\n```\n";
     }
 
-    await fs.writeFile(contentFilePath, content, "utf8");
+    await Markdown.writeData("outline", content, {
+      path: subfolderPath,
+      file: contentFileName,
+      symbol: "",
+      strategyName: "",
+      exchangeName: "",
+      frameName: ""
+    });
   }
 };
 

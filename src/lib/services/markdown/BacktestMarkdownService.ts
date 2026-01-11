@@ -1,5 +1,3 @@
-import { writeFile, mkdir } from "fs/promises";
-import { join } from "path";
 import {
   IStrategyTickResult,
   IStrategyTickResultClosed,
@@ -15,6 +13,7 @@ import { ColumnModel } from "../../../model/Column.model";
 import { COLUMN_CONFIG } from "../../../config/columns";
 import { ExchangeName } from "../../../interfaces/Exchange.interface";
 import { FrameName } from "../../../interfaces/Frame.interface";
+import { Markdown } from "../../../classes/Markdown";
 
 /**
  * Type alias for column configuration used in backtest markdown reports.
@@ -73,6 +72,28 @@ const CREATE_KEY_FN = (
 };
 
 /**
+ * Creates a filename for markdown report based on memoization key components.
+ * Filename format: "symbol_strategyName_exchangeName_frameName-timestamp.md"
+ * @param symbol - Trading pair symbol
+ * @param strategyName - Name of the strategy
+ * @param exchangeName - Exchange name
+ * @param frameName - Frame name
+ * @param timestamp - Unix timestamp in milliseconds
+ * @returns Filename string
+ */
+const CREATE_FILE_NAME_FN = (
+  symbol: string,
+  strategyName: StrategyName,
+  exchangeName: ExchangeName,
+  frameName: FrameName,
+  timestamp: number
+): string => {
+  const parts = [symbol, strategyName, exchangeName];
+  if (frameName) parts.push(frameName);
+  return `${parts.join("_")}-${timestamp}.md`;
+};
+
+/**
  * Checks if a value is unsafe for display (not a number, NaN, or Infinity).
  *
  * @param value - Value to check
@@ -101,6 +122,13 @@ const MAX_EVENTS = 250;
 class ReportStorage {
   /** Internal list of all closed signals for this strategy */
   private _signalList: IStrategyTickResultClosed[] = [];
+
+  constructor(
+    readonly symbol: string,
+    readonly strategyName: StrategyName,
+    readonly exchangeName: ExchangeName,
+    readonly frameName: FrameName
+  ) {}
 
   /**
    * Adds a closed signal to the storage.
@@ -261,19 +289,16 @@ class ReportStorage {
     columns: Columns[] = COLUMN_CONFIG.backtest_columns
   ): Promise<void> {
     const markdown = await this.getReport(strategyName, columns);
-
-    try {
-      const dir = join(process.cwd(), path);
-      await mkdir(dir, { recursive: true });
-
-      const filename = `${strategyName}.md`;
-      const filepath = join(dir, filename);
-
-      await writeFile(filepath, markdown, "utf-8");
-      console.log(`Backtest report saved: ${filepath}`);
-    } catch (error) {
-      console.error(`Failed to save markdown report:`, error);
-    }
+    const timestamp = Date.now();
+    const filename = CREATE_FILE_NAME_FN(this.symbol, strategyName, this.exchangeName, this.frameName, timestamp);
+    await Markdown.writeData("backtest", markdown, {
+      path,
+      file: filename,
+      symbol: this.symbol,
+      strategyName: this.strategyName,
+      exchangeName: this.exchangeName,
+      frameName: this.frameName
+    });
   }
 }
 
@@ -314,7 +339,7 @@ export class BacktestMarkdownService {
    */
   private getStorage = memoize<(symbol: string, strategyName: StrategyName, exchangeName: ExchangeName, frameName: FrameName, backtest: boolean) => ReportStorage>(
     ([symbol, strategyName, exchangeName, frameName, backtest]) => CREATE_KEY_FN(symbol, strategyName, exchangeName, frameName, backtest),
-    () => new ReportStorage()
+    (symbol, strategyName, exchangeName, frameName) => new ReportStorage(symbol, strategyName, exchangeName, frameName)
   );
 
   /**

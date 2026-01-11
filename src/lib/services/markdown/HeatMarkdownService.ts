@@ -1,5 +1,4 @@
-import { writeFile, mkdir } from "fs/promises";
-import { join } from "path";
+import { Markdown } from "../../../classes/Markdown";
 import {
   IStrategyTickResult,
   IStrategyTickResultClosed,
@@ -69,6 +68,21 @@ const CREATE_KEY_FN = (
   return parts.join(":");
 };
 
+/**
+ * Creates a filename for markdown report based on memoization key components.
+ * Filename format: "strategyName_exchangeName_frameName-timestamp.md"
+ */
+const CREATE_FILE_NAME_FN = (
+  strategyName: StrategyName,
+  exchangeName: ExchangeName,
+  frameName: FrameName,
+  timestamp: number
+): string => {
+  const parts = [strategyName, exchangeName];
+  if (frameName) parts.push(frameName);
+  return `${parts.join("_")}-${timestamp}.md`;
+};
+
 const HEATMAP_METHOD_NAME_GET_DATA = "HeatMarkdownService.getData";
 const HEATMAP_METHOD_NAME_GET_REPORT = "HeatMarkdownService.getReport";
 const HEATMAP_METHOD_NAME_DUMP = "HeatMarkdownService.dump";
@@ -103,6 +117,12 @@ const MAX_EVENTS = 250;
 class HeatmapStorage {
   /** Internal storage of closed signals per symbol */
   private symbolData: Map<string, IStrategyTickResultClosed[]> = new Map();
+
+  constructor(
+    readonly exchangeName: ExchangeName,
+    readonly frameName: FrameName,
+    readonly backtest: boolean
+  ) {}
 
   /**
    * Adds a closed signal to the storage.
@@ -410,19 +430,16 @@ class HeatmapStorage {
     columns: Columns[] = COLUMN_CONFIG.heat_columns
   ): Promise<void> {
     const markdown = await this.getReport(strategyName, columns);
-
-    try {
-      const dir = join(process.cwd(), path);
-      await mkdir(dir, { recursive: true });
-
-      const filename = `${strategyName}.md`;
-      const filepath = join(dir, filename);
-
-      await writeFile(filepath, markdown, "utf-8");
-      console.log(`Heatmap report saved: ${filepath}`);
-    } catch (error) {
-      console.error(`Failed to save heatmap report:`, error);
-    }
+    const timestamp = Date.now();
+    const filename = CREATE_FILE_NAME_FN(strategyName, this.exchangeName, this.frameName, timestamp);
+    await Markdown.writeData("heat", markdown, {
+      path,
+      file: filename,
+      symbol: "",
+      strategyName: "",
+      exchangeName: this.exchangeName,
+      frameName: this.frameName
+    });
   }
 }
 
@@ -462,7 +479,7 @@ export class HeatMarkdownService {
    */
   private getStorage = memoize<(exchangeName: ExchangeName, frameName: FrameName, backtest: boolean) => HeatmapStorage>(
     ([exchangeName, frameName, backtest]) => CREATE_KEY_FN(exchangeName, frameName, backtest),
-    () => new HeatmapStorage()
+    (exchangeName, frameName, backtest) => new HeatmapStorage(exchangeName, frameName, backtest)
   );
 
   /**

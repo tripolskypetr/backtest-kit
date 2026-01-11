@@ -1,6 +1,5 @@
-import { writeFile, mkdir } from "fs/promises";
-import { join } from "path";
 import { StrategyName } from "../../../interfaces/Strategy.interface";
+import { Markdown } from "../../../classes/Markdown";
 import { inject } from "../../../lib/core/di";
 import LoggerService from "../base/LoggerService";
 import TYPES from "../../../lib/core/types";
@@ -68,6 +67,22 @@ const CREATE_KEY_FN = (
   return parts.join(":");
 };
 
+/**
+ * Creates a filename for markdown report based on memoization key components.
+ * Filename format: "symbol_strategyName_exchangeName_frameName-timestamp.md"
+ */
+const CREATE_FILE_NAME_FN = (
+  symbol: string,
+  strategyName: StrategyName,
+  exchangeName: ExchangeName,
+  frameName: FrameName,
+  timestamp: number
+): string => {
+  const parts = [symbol, strategyName, exchangeName];
+  if (frameName) parts.push(frameName);
+  return `${parts.join("_")}-${timestamp}.md`;
+};
+
 /** Maximum number of events to store in risk reports */
 const MAX_EVENTS = 250;
 
@@ -78,6 +93,13 @@ const MAX_EVENTS = 250;
 class ReportStorage {
   /** Internal list of all risk rejection events for this symbol */
   private _eventList: RiskEvent[] = [];
+
+  constructor(
+    readonly symbol: string,
+    readonly strategyName: StrategyName,
+    readonly exchangeName: ExchangeName,
+    readonly frameName: FrameName
+  ) {}
 
   /**
    * Adds a risk rejection event to the storage.
@@ -194,19 +216,16 @@ class ReportStorage {
     columns: Columns[] = COLUMN_CONFIG.risk_columns
   ): Promise<void> {
     const markdown = await this.getReport(symbol, strategyName, columns);
-
-    try {
-      const dir = join(process.cwd(), path);
-      await mkdir(dir, { recursive: true });
-
-      const filename = `${symbol}_${strategyName}.md`;
-      const filepath = join(dir, filename);
-
-      await writeFile(filepath, markdown, "utf-8");
-      console.log(`Risk rejection report saved: ${filepath}`);
-    } catch (error) {
-      console.error(`Failed to save markdown report:`, error);
-    }
+    const timestamp = Date.now();
+    const filename = CREATE_FILE_NAME_FN(this.symbol, strategyName, this.exchangeName, this.frameName, timestamp);
+    await Markdown.writeData("risk", markdown, {
+      path,
+      file: filename,
+      symbol: this.symbol,
+      strategyName: this.strategyName,
+      exchangeName: this.exchangeName,
+      frameName: this.frameName
+    });
   }
 }
 
@@ -241,7 +260,7 @@ export class RiskMarkdownService {
    */
   private getStorage = memoize<(symbol: string, strategyName: StrategyName, exchangeName: ExchangeName, frameName: FrameName, backtest: boolean) => ReportStorage>(
     ([symbol, strategyName, exchangeName, frameName, backtest]) => CREATE_KEY_FN(symbol, strategyName, exchangeName, frameName, backtest),
-    () => new ReportStorage()
+    (symbol, strategyName, exchangeName, frameName, backtest) => new ReportStorage(symbol, strategyName, exchangeName, frameName)
   );
 
   /**

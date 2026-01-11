@@ -1,7 +1,11 @@
-import { compose } from "functools-kit";
+import { compose, makeExtendable, memoize, singleshot } from "functools-kit";
 import backtest from "src/lib";
+import { createWriteStream, WriteStream } from "fs";
+import * as fs from "fs/promises";
+import { join, dirname } from "path";
 
 const MARKDOWN_METHOD_NAME_ENABLE = "MarkdownUtils.enable";
+const MARKDOWN_METHOD_NAME_USE_ADAPTER = "MarkdownAdapter.useMarkdownAdapter";
 
 /**
  * Configuration interface for selective markdown service enablement.
@@ -29,7 +33,10 @@ interface IMarkdownTarget {
   schedule: boolean;
   live: boolean;
   backtest: boolean;
+  outline: boolean;
 }
+
+const WAIT_FOR_INIT_SYMBOL = Symbol("wait-for-init");
 
 /**
  * Default configuration that enables all markdown services.
@@ -45,70 +52,105 @@ const WILDCARD_TARGET: IMarkdownTarget = {
   risk: true,
   schedule: true,
   walker: true,
+  outline: true,
 };
 
-/**
- * MarkdownUtils class provides centralized control for markdown report services.
- *
- * Manages subscription lifecycle for all markdown services, allowing selective
- * activation of report generation and automatic cleanup of resources.
- *
- * Features:
- * - Selective service activation (choose which reports to generate)
- * - Automatic subscription management
- * - Single unsubscribe function for all services
- * - Prevention of multiple subscriptions
- * - Memory leak prevention through proper cleanup
- *
- * @example
- * ```typescript
- * import { Markdown } from "backtest-kit";
- *
- * // Enable all markdown services
- * const unsubscribe = Markdown.enable();
- *
- * // Run backtest...
- *
- * // Cleanup when done
- * unsubscribe();
- * ```
- *
- * @example
- * ```typescript
- * import { Markdown } from "backtest-kit";
- *
- * // Enable only specific services
- * const unsubscribe = Markdown.enable({
- *   backtest: true,
- *   performance: true,
- *   heat: true
- * });
- *
- * // Run backtest...
- * // Only backtest, performance, and heat reports will be generated
- *
- * // Cleanup
- * unsubscribe();
- * ```
- *
- * @example
- * ```typescript
- * import { Markdown } from "backtest-kit";
- *
- * // Use in lifecycle hooks
- * async function runBacktest() {
- *   const unsubscribe = Markdown.enable();
- *
- *   try {
- *     // Run backtest
- *     await bt.backtest(...);
- *   } finally {
- *     // Always cleanup
- *     unsubscribe();
- *   }
- * }
- * ```
- */
+export type MarkdownName = keyof IMarkdownTarget;
+
+export interface IMarkdownDumpOptions {
+  path: string;
+  file: string;
+  symbol: string;
+  strategyName: string;
+  exchangeName: string;
+  frameName: string;
+}
+
+export type TMarkdownBase = {
+  waitForInit(initial: boolean): Promise<void>;
+  dump(content: string, options: IMarkdownDumpOptions): Promise<void>;
+};
+
+export type TMarkdownBaseCtor = new (markdownName: MarkdownName) => TMarkdownBase;
+
+export const MarkdownFileBase = makeExtendable(
+  class implements TMarkdownBase {
+    _filePath: string;
+    _stream: WriteStream | null = null;
+    _baseDir = join(process.cwd(), "./dump/markdown");
+
+    constructor(readonly markdownName: MarkdownName) {
+      this._filePath = join(this._baseDir, `${markdownName}.jsonl`);
+    }
+
+    [WAIT_FOR_INIT_SYMBOL] = singleshot(async (): Promise<void> => {
+      await fs.mkdir(this._baseDir, { recursive: true });
+      this._stream = createWriteStream(this._filePath, { flags: "a" });
+    });
+
+    async waitForInit(): Promise<void> {
+      await this[WAIT_FOR_INIT_SYMBOL]();
+    }
+
+    async dump(content: string, options: IMarkdownDumpOptions): Promise<void> {
+      backtest.loggerService.debug("MarkdownFileAdapter.dump", {
+        markdownName: this.markdownName,
+        options,
+      });
+
+      if (!this._stream) {
+        throw new Error(
+          `Stream not initialized for markdown ${this.markdownName}. Call waitForInit() first.`
+        );
+      }
+
+      const line = JSON.stringify({
+        markdownName: this.markdownName,
+        content,
+        options,
+        timestamp: Date.now(),
+      }) + "\n";
+
+      this._stream.write(line);
+    }
+  }
+);
+
+export const MarkdownFolderBase = makeExtendable(
+  class implements TMarkdownBase {
+    _baseDir: string;
+    _filePath: string;
+
+    constructor(readonly markdownName: MarkdownName) {
+      this._baseDir = join(process.cwd(), `./dump/${markdownName}`);
+      this._filePath = join(this._baseDir, `${markdownName}.md`);
+    }
+
+    [WAIT_FOR_INIT_SYMBOL] = singleshot(async (): Promise<void> => {
+      await fs.mkdir(this._baseDir, { recursive: true });
+    });
+
+    async waitForInit(): Promise<void> {
+      await this[WAIT_FOR_INIT_SYMBOL]();
+    }
+
+    async dump(content: string, options: IMarkdownDumpOptions): Promise<void> {
+      backtest.loggerService.debug("MarkdownFolderAdapter.dump", {
+        markdownName: this.markdownName,
+        options,
+      });
+
+      // Combine into full file path
+      const filePath = join(process.cwd(), options.path, options.file);
+
+      // Extract directory from file path
+      const dir = dirname(filePath);
+      await fs.mkdir(dir, { recursive: true });
+      await fs.writeFile(filePath, content, "utf8");
+    }
+  }
+);
+
 export class MarkdownUtils {
   /**
    * Enables markdown report services selectively.
@@ -192,7 +234,7 @@ export class MarkdownUtils {
     risk = false,
     schedule = false,
     walker = false,
-  }: Partial<IMarkdownTarget> = WILDCARD_TARGET) => {
+  }: Partial<Omit<IMarkdownTarget, "outline">> = WILDCARD_TARGET) => {
     backtest.loggerService.debug(MARKDOWN_METHOD_NAME_ENABLE, {
       backtest: bt,
       breakeven,
@@ -236,29 +278,37 @@ export class MarkdownUtils {
   };
 }
 
-/**
- * Singleton instance of MarkdownUtils for markdown service management.
- *
- * Provides centralized control over all markdown report generation services.
- * Use this instance to enable/disable markdown services throughout your application.
- *
- * @example
- * ```typescript
- * import { Markdown } from "backtest-kit";
- *
- * // Enable markdown services before backtesting
- * const unsubscribe = Markdown.enable();
- *
- * // Run your backtest
- * await bt.backtest(...);
- *
- * // Generate reports
- * await bt.Backtest.dump("BTCUSDT", "my-strategy");
- *
- * // Cleanup
- * unsubscribe();
- * ```
- *
- * @see MarkdownUtils for detailed API documentation
- */
-export const Markdown = new MarkdownUtils();
+export class MarkdownAdapter extends MarkdownUtils {
+  private MarkdownFactory: TMarkdownBaseCtor = MarkdownFolderBase;
+
+  private getMarkdownStorage = memoize(
+    ([markdownName]: [MarkdownName]): string => markdownName,
+    (markdownName: MarkdownName): TMarkdownBase =>
+      Reflect.construct(this.MarkdownFactory, [markdownName])
+  );
+
+  public useMarkdownAdapter(Ctor: TMarkdownBaseCtor): void {
+    backtest.loggerService.info(MARKDOWN_METHOD_NAME_USE_ADAPTER);
+    this.MarkdownFactory = Ctor;
+  }
+
+  public async writeData(
+    markdownName: MarkdownName,
+    content: string,
+    options: IMarkdownDumpOptions
+  ): Promise<void> {
+    backtest.loggerService.debug("MarkdownAdapter.writeData", {
+      markdownName,
+      options,
+    });
+
+
+    const isInitial = !this.getMarkdownStorage.has(markdownName);
+    const markdown = this.getMarkdownStorage(markdownName);
+    await markdown.waitForInit(isInitial);
+
+    await markdown.dump(content, options);
+  }
+}
+
+export const Markdown = new MarkdownAdapter();

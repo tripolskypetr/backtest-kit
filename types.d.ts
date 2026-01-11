@@ -11069,69 +11069,18 @@ interface IMarkdownTarget {
     schedule: boolean;
     live: boolean;
     backtest: boolean;
+    outline: boolean;
 }
-/**
- * MarkdownUtils class provides centralized control for markdown report services.
- *
- * Manages subscription lifecycle for all markdown services, allowing selective
- * activation of report generation and automatic cleanup of resources.
- *
- * Features:
- * - Selective service activation (choose which reports to generate)
- * - Automatic subscription management
- * - Single unsubscribe function for all services
- * - Prevention of multiple subscriptions
- * - Memory leak prevention through proper cleanup
- *
- * @example
- * ```typescript
- * import { Markdown } from "backtest-kit";
- *
- * // Enable all markdown services
- * const unsubscribe = Markdown.enable();
- *
- * // Run backtest...
- *
- * // Cleanup when done
- * unsubscribe();
- * ```
- *
- * @example
- * ```typescript
- * import { Markdown } from "backtest-kit";
- *
- * // Enable only specific services
- * const unsubscribe = Markdown.enable({
- *   backtest: true,
- *   performance: true,
- *   heat: true
- * });
- *
- * // Run backtest...
- * // Only backtest, performance, and heat reports will be generated
- *
- * // Cleanup
- * unsubscribe();
- * ```
- *
- * @example
- * ```typescript
- * import { Markdown } from "backtest-kit";
- *
- * // Use in lifecycle hooks
- * async function runBacktest() {
- *   const unsubscribe = Markdown.enable();
- *
- *   try {
- *     // Run backtest
- *     await bt.backtest(...);
- *   } finally {
- *     // Always cleanup
- *     unsubscribe();
- *   }
- * }
- * ```
- */
+type MarkdownName = keyof IMarkdownTarget;
+interface IMarkdownDumpOptions {
+    path: string;
+    file: string;
+}
+type TMarkdownBase = {
+    waitForInit(initial: boolean): Promise<void>;
+    dump(content: string, options: IMarkdownDumpOptions): Promise<void>;
+};
+type TMarkdownBaseCtor = new (markdownName: MarkdownName) => TMarkdownBase;
 declare class MarkdownUtils {
     /**
      * Enables markdown report services selectively.
@@ -11205,34 +11154,15 @@ declare class MarkdownUtils {
      * }
      * ```
      */
-    enable: ({ backtest: bt, breakeven, heat, live, partial, performance, risk, schedule, walker, }?: Partial<IMarkdownTarget>) => (...args: any[]) => any;
+    enable: ({ backtest: bt, breakeven, heat, live, partial, performance, risk, schedule, walker, }?: Partial<Omit<IMarkdownTarget, "outline">>) => (...args: any[]) => any;
 }
-/**
- * Singleton instance of MarkdownUtils for markdown service management.
- *
- * Provides centralized control over all markdown report generation services.
- * Use this instance to enable/disable markdown services throughout your application.
- *
- * @example
- * ```typescript
- * import { Markdown } from "backtest-kit";
- *
- * // Enable markdown services before backtesting
- * const unsubscribe = Markdown.enable();
- *
- * // Run your backtest
- * await bt.backtest(...);
- *
- * // Generate reports
- * await bt.Backtest.dump("BTCUSDT", "my-strategy");
- *
- * // Cleanup
- * unsubscribe();
- * ```
- *
- * @see MarkdownUtils for detailed API documentation
- */
-declare const Markdown: MarkdownUtils;
+declare class MarkdownAdapter extends MarkdownUtils {
+    private MarkdownFactory;
+    private getMarkdownStorage;
+    useMarkdownAdapter(Ctor: TMarkdownBaseCtor): void;
+    writeData(markdownName: MarkdownName, content: string, options: IMarkdownDumpOptions): Promise<void>;
+}
+declare const Markdown: MarkdownAdapter;
 
 /**
  * Contract for walker stop signal events.

@@ -1,5 +1,4 @@
-import { writeFile, mkdir } from "fs/promises";
-import { join } from "path";
+import { Markdown } from "../../../classes/Markdown";
 import {
   WalkerName,
   WalkerMetric,
@@ -88,6 +87,17 @@ export type StrategyColumn = ColumnModel<IStrategyResult>;
  * @see SignalData for the signal data structure
  */
 export type PnlColumn = ColumnModel<SignalData>;
+
+/**
+ * Creates a filename for markdown report based on walker name.
+ * Filename format: "walkerName-timestamp.md"
+ */
+const CREATE_FILE_NAME_FN = (
+  walkerName: WalkerName,
+  timestamp: number
+): string => {
+  return `${walkerName}-${timestamp}.md`;
+};
 
 /**
  * Checks if a value is unsafe for display (not a number, NaN, or Infinity).
@@ -373,19 +383,16 @@ class ReportStorage {
     pnlColumns: PnlColumn[] = COLUMN_CONFIG.walker_pnl_columns
   ): Promise<void> {
     const markdown = await this.getReport(symbol, metric, context, strategyColumns, pnlColumns);
-
-    try {
-      const dir = join(process.cwd(), path);
-      await mkdir(dir, { recursive: true });
-
-      const filename = `${this.walkerName}.md`;
-      const filepath = join(dir, filename);
-
-      await writeFile(filepath, markdown, "utf-8");
-      console.log(`Walker report saved: ${filepath}`);
-    } catch (error) {
-      console.error(`Failed to save walker report:`, error);
-    }
+    const timestamp = Date.now();
+    const filename = CREATE_FILE_NAME_FN(this.walkerName, timestamp);
+    await Markdown.writeData("walker", markdown, {
+      path,
+      file: filename,
+      symbol: "",
+      strategyName: "",
+      exchangeName: "",
+      frameName: ""
+    });
   }
 }
 
