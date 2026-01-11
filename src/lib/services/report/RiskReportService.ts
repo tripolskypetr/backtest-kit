@@ -28,6 +28,13 @@ export class RiskReportService {
       rejectionId: data.rejectionId,
       rejectionNote: data.rejectionNote,
       pendingSignal: data.pendingSignal,
+    }, {
+      symbol: data.symbol,
+      strategyName: data.strategyName,
+      exchangeName: data.exchangeName,
+      frameName: data.frameName,
+      signalId: "",
+      walkerName: "",
     });
   };
 

@@ -106,7 +106,7 @@ export const MarkdownFileBase = makeExtendable(
       await this[WAIT_FOR_INIT_SYMBOL]();
     }
 
-    async dump(content: string, options: IMarkdownDumpOptions): Promise<void> {
+    async dump(data: string, options: IMarkdownDumpOptions): Promise<void> {
       backtest.loggerService.debug("MarkdownFileAdapter.dump", {
         markdownName: this.markdownName,
         options,
@@ -144,14 +144,14 @@ export const MarkdownFileBase = makeExtendable(
 
       const line = JSON.stringify({
         markdownName: this.markdownName,
-        content,
+        data,
         ...searchFlags,
         timestamp: Date.now(),
       }) + "\n";
 
       const status = await this[WRITE_SAFE_SYMBOL](line);
       if (status === TIMEOUT_SYMBOL) {
-        throw new Error(`Timeout writing to report ${this.markdownName}`);
+        throw new Error(`Timeout writing to markdown ${this.markdownName}`);
       }
     }
   }

@@ -6024,7 +6024,7 @@ interface RiskStatisticsModel {
     byStrategy: Record<string, number>;
 }
 
-declare const BASE_WAIT_FOR_INIT_SYMBOL$1: unique symbol;
+declare const BASE_WAIT_FOR_INIT_SYMBOL: unique symbol;
 /**
  * Signal data stored in persistence layer.
  * Contains nullable signal for atomic updates.
@@ -6178,7 +6178,7 @@ declare const PersistBase: {
          * @returns AsyncGenerator yielding up to total entities
          */
         take<T extends IEntity = IEntity>(total: number, predicate?: (value: T) => boolean): AsyncGenerator<T>;
-        [BASE_WAIT_FOR_INIT_SYMBOL$1]: (() => Promise<void>) & functools_kit.ISingleshotClearable;
+        [BASE_WAIT_FOR_INIT_SYMBOL]: (() => Promise<void>) & functools_kit.ISingleshotClearable;
         /**
          * Async iterator implementation.
          * Delegates to values() generator.
@@ -6606,7 +6606,8 @@ declare class PersistBreakevenUtils {
  */
 declare const PersistBreakevenAdapter: PersistBreakevenUtils;
 
-declare const BASE_WAIT_FOR_INIT_SYMBOL: unique symbol;
+declare const WAIT_FOR_INIT_SYMBOL$1: unique symbol;
+declare const WRITE_SAFE_SYMBOL$1: unique symbol;
 interface IReportTarget {
     risk: boolean;
     breakeven: boolean;
@@ -6619,9 +6620,17 @@ interface IReportTarget {
     backtest: boolean;
 }
 type ReportName = keyof IReportTarget;
+interface IReportDumpOptions {
+    symbol: string;
+    strategyName: string;
+    exchangeName: string;
+    frameName: string;
+    signalId: string;
+    walkerName: string;
+}
 type TReportBase = {
     waitForInit(initial: boolean): Promise<void>;
-    write<T = any>(data: T): Promise<void>;
+    write<T = any>(data: T, options: Partial<IReportDumpOptions>): Promise<void>;
 };
 type TReportBaseCtor = new (reportName: ReportName, baseDir: string) => TReportBase;
 declare const ReportBase: {
@@ -6631,8 +6640,9 @@ declare const ReportBase: {
         readonly reportName: ReportName;
         readonly baseDir: string;
         waitForInit(initial: boolean): Promise<void>;
-        write<T = any>(data: T): Promise<void>;
-        [BASE_WAIT_FOR_INIT_SYMBOL]: (() => Promise<void>) & functools_kit.ISingleshotClearable;
+        write<T = any>(data: T, options: Partial<IReportDumpOptions>): Promise<void>;
+        [WAIT_FOR_INIT_SYMBOL$1]: (() => Promise<void>) & functools_kit.ISingleshotClearable;
+        [WRITE_SAFE_SYMBOL$1]: (line: string) => Promise<symbol | void>;
     };
 };
 declare class ReportUtils {
@@ -6642,9 +6652,156 @@ declare class ReportAdapter extends ReportUtils {
     private ReportFactory;
     private getReportStorage;
     useReportAdapter(Ctor: TReportBaseCtor): void;
-    writeData: <T = any>(reportName: ReportName, data: T) => Promise<void>;
+    writeData: <T = any>(reportName: ReportName, data: T, options: Partial<IReportDumpOptions>) => Promise<void>;
 }
 declare const Report: ReportAdapter;
+
+/**
+ * Configuration interface for selective markdown service enablement.
+ *
+ * Controls which markdown report services should be activated.
+ * Each property corresponds to a specific markdown service type.
+ *
+ * @property backtest - Enable backtest markdown reports (main strategy results)
+ * @property breakeven - Enable breakeven event tracking reports
+ * @property partial - Enable partial profit/loss event reports
+ * @property heat - Enable heatmap portfolio analysis reports
+ * @property walker - Enable walker optimization comparison reports
+ * @property performance - Enable performance metrics and bottleneck analysis
+ * @property risk - Enable risk rejection tracking reports
+ * @property schedule - Enable scheduled signal tracking reports
+ * @property live - Enable live trading event reports
+ */
+interface IMarkdownTarget {
+    risk: boolean;
+    breakeven: boolean;
+    partial: boolean;
+    heat: boolean;
+    walker: boolean;
+    performance: boolean;
+    schedule: boolean;
+    live: boolean;
+    backtest: boolean;
+    outline: boolean;
+}
+declare const WAIT_FOR_INIT_SYMBOL: unique symbol;
+declare const WRITE_SAFE_SYMBOL: unique symbol;
+type MarkdownName = keyof IMarkdownTarget;
+interface IMarkdownDumpOptions {
+    path: string;
+    file: string;
+    symbol: string;
+    strategyName: string;
+    exchangeName: string;
+    frameName: string;
+    signalId: string;
+}
+type TMarkdownBase = {
+    waitForInit(initial: boolean): Promise<void>;
+    dump(content: string, options: IMarkdownDumpOptions): Promise<void>;
+};
+type TMarkdownBaseCtor = new (markdownName: MarkdownName) => TMarkdownBase;
+declare const MarkdownFileBase: {
+    new (markdownName: MarkdownName): {
+        _filePath: string;
+        _stream: WriteStream | null;
+        _baseDir: string;
+        readonly markdownName: MarkdownName;
+        waitForInit(): Promise<void>;
+        dump(data: string, options: IMarkdownDumpOptions): Promise<void>;
+        [WAIT_FOR_INIT_SYMBOL]: (() => Promise<void>) & functools_kit.ISingleshotClearable;
+        [WRITE_SAFE_SYMBOL]: (line: string) => Promise<symbol | void>;
+    };
+};
+declare const MarkdownFolderBase: {
+    new (markdownName: MarkdownName): {
+        readonly markdownName: MarkdownName;
+        waitForInit(): Promise<void>;
+        dump(content: string, options: IMarkdownDumpOptions): Promise<void>;
+    };
+};
+declare class MarkdownUtils {
+    /**
+     * Enables markdown report services selectively.
+     *
+     * Subscribes to specified markdown services and returns a cleanup function
+     * that unsubscribes from all enabled services at once.
+     *
+     * Each enabled service will:
+     * - Start listening to relevant events
+     * - Accumulate data for reports
+     * - Generate markdown files when requested
+     *
+     * IMPORTANT: Always call the returned unsubscribe function to prevent memory leaks.
+     *
+     * @param config - Service configuration object. Defaults to enabling all services.
+     * @param config.backtest - Enable backtest result reports with full trade history
+     * @param config.breakeven - Enable breakeven event tracking (when stop loss moves to entry)
+     * @param config.partial - Enable partial profit/loss event tracking
+     * @param config.heat - Enable portfolio heatmap analysis across all symbols
+     * @param config.walker - Enable walker strategy comparison and optimization reports
+     * @param config.performance - Enable performance bottleneck analysis
+     * @param config.risk - Enable risk rejection tracking (signals blocked by risk limits)
+     * @param config.schedule - Enable scheduled signal tracking (signals waiting for trigger)
+     * @param config.live - Enable live trading event reports (all tick events)
+     *
+     * @returns Cleanup function that unsubscribes from all enabled services
+     *
+     * @example
+     * ```typescript
+     * // Enable all services (default behavior)
+     * const unsubscribe = Markdown.enable();
+     *
+     * // Run backtest
+     * await bt.backtest(...);
+     *
+     * // Generate reports
+     * await bt.Backtest.dump("BTCUSDT", "my-strategy");
+     * await bt.Performance.dump("BTCUSDT", "my-strategy");
+     *
+     * // Cleanup
+     * unsubscribe();
+     * ```
+     *
+     * @example
+     * ```typescript
+     * // Enable only essential services
+     * const unsubscribe = Markdown.enable({
+     *   backtest: true,    // Main results
+     *   performance: true, // Bottlenecks
+     *   risk: true        // Rejections
+     * });
+     *
+     * // Other services (breakeven, partial, heat, etc.) won't collect data
+     * ```
+     *
+     * @example
+     * ```typescript
+     * // Safe cleanup pattern
+     * let unsubscribe: Function;
+     *
+     * try {
+     *   unsubscribe = Markdown.enable({
+     *     backtest: true,
+     *     heat: true
+     *   });
+     *
+     *   await bt.backtest(...);
+     *   await bt.Backtest.dump("BTCUSDT", "my-strategy");
+     * } finally {
+     *   unsubscribe?.();
+     * }
+     * ```
+     */
+    enable: ({ backtest: bt, breakeven, heat, live, partial, performance, risk, schedule, walker, }?: Partial<Omit<IMarkdownTarget, "outline">>) => (...args: any[]) => any;
+}
+declare class MarkdownAdapter extends MarkdownUtils {
+    private MarkdownFactory;
+    private getMarkdownStorage;
+    useMarkdownAdapter(Ctor: TMarkdownBaseCtor): void;
+    writeData(markdownName: MarkdownName, content: string, options: IMarkdownDumpOptions): Promise<void>;
+}
+declare const Markdown: MarkdownAdapter;
 
 /**
  * Type alias for column configuration used in backtest markdown reports.
@@ -11044,127 +11201,6 @@ declare class BreakevenUtils {
 declare const Breakeven: BreakevenUtils;
 
 /**
- * Configuration interface for selective markdown service enablement.
- *
- * Controls which markdown report services should be activated.
- * Each property corresponds to a specific markdown service type.
- *
- * @property backtest - Enable backtest markdown reports (main strategy results)
- * @property breakeven - Enable breakeven event tracking reports
- * @property partial - Enable partial profit/loss event reports
- * @property heat - Enable heatmap portfolio analysis reports
- * @property walker - Enable walker optimization comparison reports
- * @property performance - Enable performance metrics and bottleneck analysis
- * @property risk - Enable risk rejection tracking reports
- * @property schedule - Enable scheduled signal tracking reports
- * @property live - Enable live trading event reports
- */
-interface IMarkdownTarget {
-    risk: boolean;
-    breakeven: boolean;
-    partial: boolean;
-    heat: boolean;
-    walker: boolean;
-    performance: boolean;
-    schedule: boolean;
-    live: boolean;
-    backtest: boolean;
-    outline: boolean;
-}
-type MarkdownName = keyof IMarkdownTarget;
-interface IMarkdownDumpOptions {
-    path: string;
-    file: string;
-}
-type TMarkdownBase = {
-    waitForInit(initial: boolean): Promise<void>;
-    dump(content: string, options: IMarkdownDumpOptions): Promise<void>;
-};
-type TMarkdownBaseCtor = new (markdownName: MarkdownName) => TMarkdownBase;
-declare class MarkdownUtils {
-    /**
-     * Enables markdown report services selectively.
-     *
-     * Subscribes to specified markdown services and returns a cleanup function
-     * that unsubscribes from all enabled services at once.
-     *
-     * Each enabled service will:
-     * - Start listening to relevant events
-     * - Accumulate data for reports
-     * - Generate markdown files when requested
-     *
-     * IMPORTANT: Always call the returned unsubscribe function to prevent memory leaks.
-     *
-     * @param config - Service configuration object. Defaults to enabling all services.
-     * @param config.backtest - Enable backtest result reports with full trade history
-     * @param config.breakeven - Enable breakeven event tracking (when stop loss moves to entry)
-     * @param config.partial - Enable partial profit/loss event tracking
-     * @param config.heat - Enable portfolio heatmap analysis across all symbols
-     * @param config.walker - Enable walker strategy comparison and optimization reports
-     * @param config.performance - Enable performance bottleneck analysis
-     * @param config.risk - Enable risk rejection tracking (signals blocked by risk limits)
-     * @param config.schedule - Enable scheduled signal tracking (signals waiting for trigger)
-     * @param config.live - Enable live trading event reports (all tick events)
-     *
-     * @returns Cleanup function that unsubscribes from all enabled services
-     *
-     * @example
-     * ```typescript
-     * // Enable all services (default behavior)
-     * const unsubscribe = Markdown.enable();
-     *
-     * // Run backtest
-     * await bt.backtest(...);
-     *
-     * // Generate reports
-     * await bt.Backtest.dump("BTCUSDT", "my-strategy");
-     * await bt.Performance.dump("BTCUSDT", "my-strategy");
-     *
-     * // Cleanup
-     * unsubscribe();
-     * ```
-     *
-     * @example
-     * ```typescript
-     * // Enable only essential services
-     * const unsubscribe = Markdown.enable({
-     *   backtest: true,    // Main results
-     *   performance: true, // Bottlenecks
-     *   risk: true        // Rejections
-     * });
-     *
-     * // Other services (breakeven, partial, heat, etc.) won't collect data
-     * ```
-     *
-     * @example
-     * ```typescript
-     * // Safe cleanup pattern
-     * let unsubscribe: Function;
-     *
-     * try {
-     *   unsubscribe = Markdown.enable({
-     *     backtest: true,
-     *     heat: true
-     *   });
-     *
-     *   await bt.backtest(...);
-     *   await bt.Backtest.dump("BTCUSDT", "my-strategy");
-     * } finally {
-     *   unsubscribe?.();
-     * }
-     * ```
-     */
-    enable: ({ backtest: bt, breakeven, heat, live, partial, performance, risk, schedule, walker, }?: Partial<Omit<IMarkdownTarget, "outline">>) => (...args: any[]) => any;
-}
-declare class MarkdownAdapter extends MarkdownUtils {
-    private MarkdownFactory;
-    private getMarkdownStorage;
-    useMarkdownAdapter(Ctor: TMarkdownBaseCtor): void;
-    writeData(markdownName: MarkdownName, content: string, options: IMarkdownDumpOptions): Promise<void>;
-}
-declare const Markdown: MarkdownAdapter;
-
-/**
  * Contract for walker stop signal events.
  *
  * Emitted when Walker.stop() is called to interrupt a running walker.
@@ -14985,4 +15021,4 @@ declare const backtest: {
     loggerService: LoggerService;
 };
 
-export { Backtest, type BacktestDoneNotification, type BacktestStatisticsModel, type BootstrapNotification, Breakeven, type BreakevenContract, type BreakevenData, Cache, type CandleInterval, type ColumnConfig, type ColumnModel, Constant, type CriticalErrorNotification, type DoneContract, type EntityId, Exchange, ExecutionContextService, type FrameInterval, type GlobalConfig, Heat, type HeatmapStatisticsModel, type ICandleData, type IExchangeSchema, type IFrameSchema, type IHeatmapRow, type IOptimizerCallbacks, type IOptimizerData, type IOptimizerFetchArgs, type IOptimizerFilterArgs, type IOptimizerRange, type IOptimizerSchema, type IOptimizerSource, type IOptimizerStrategy, type IOptimizerTemplate, type IPersistBase, type IPositionSizeATRParams, type IPositionSizeFixedPercentageParams, type IPositionSizeKellyParams, type IPublicSignalRow, type IRiskActivePosition, type IRiskCheckArgs, type IRiskSchema, type IRiskValidation, type IRiskValidationFn, type IRiskValidationPayload, type IScheduledSignalCancelRow, type IScheduledSignalRow, type ISignalDto, type ISignalRow, type ISizingCalculateParams, type ISizingCalculateParamsATR, type ISizingCalculateParamsFixedPercentage, type ISizingCalculateParamsKelly, type ISizingSchema, type ISizingSchemaATR, type ISizingSchemaFixedPercentage, type ISizingSchemaKelly, type IStrategyPnL, type IStrategyResult, type IStrategySchema, type IStrategyTickResult, type IStrategyTickResultActive, type IStrategyTickResultCancelled, type IStrategyTickResultClosed, type IStrategyTickResultIdle, type IStrategyTickResultOpened, type IStrategyTickResultScheduled, type IWalkerResults, type IWalkerSchema, type IWalkerStrategyResult, type InfoErrorNotification, Live, type LiveDoneNotification, type LiveStatisticsModel, Markdown, type MessageModel, type MessageRole, MethodContextService, type MetricStats, Notification, type NotificationModel, Optimizer, Partial$1 as Partial, type PartialData, type PartialEvent, type PartialLossContract, type PartialLossNotification, type PartialProfitContract, type PartialProfitNotification, type PartialStatisticsModel, Performance, type PerformanceContract, type PerformanceMetricType, type PerformanceStatisticsModel, PersistBase, PersistBreakevenAdapter, PersistPartialAdapter, PersistRiskAdapter, PersistScheduleAdapter, PersistSignalAdapter, type PingContract, PositionSize, type ProgressBacktestContract, type ProgressBacktestNotification, type ProgressOptimizerContract, type ProgressWalkerContract, Report, ReportBase, type ReportName, Risk, type RiskContract, type RiskData, type RiskEvent, type RiskRejectionNotification, type RiskStatisticsModel, Schedule, type ScheduleData, type ScheduleStatisticsModel, type ScheduledEvent, type SignalCancelledNotification, type SignalClosedNotification, type SignalData, type SignalInterval, type SignalOpenedNotification, type SignalScheduledNotification, type TPersistBase, type TPersistBaseCtor, type TReportBase, type TickEvent, type ValidationErrorNotification, Walker, type WalkerCompleteContract, type WalkerContract, type WalkerMetric, type SignalData$1 as WalkerSignalData, type WalkerStatisticsModel, addExchange, addFrame, addOptimizer, addRisk, addSizing, addStrategy, addWalker, breakeven, cancel, dumpSignal, emitters, formatPrice, formatQuantity, getAveragePrice, getCandles, getColumns, getConfig, getDate, getDefaultColumns, getDefaultConfig, getMode, hasTradeContext, backtest as lib, listExchanges, listFrames, listOptimizers, listRisks, listSizings, listStrategies, listWalkers, listenBacktestProgress, listenBreakeven, listenBreakevenOnce, listenDoneBacktest, listenDoneBacktestOnce, listenDoneLive, listenDoneLiveOnce, listenDoneWalker, listenDoneWalkerOnce, listenError, listenExit, listenOptimizerProgress, listenPartialLoss, listenPartialLossOnce, listenPartialProfit, listenPartialProfitOnce, listenPerformance, listenPing, listenPingOnce, listenRisk, listenRiskOnce, listenSignal, listenSignalBacktest, listenSignalBacktestOnce, listenSignalLive, listenSignalLiveOnce, listenSignalOnce, listenValidation, listenWalker, listenWalkerComplete, listenWalkerOnce, listenWalkerProgress, partialLoss, partialProfit, setColumns, setConfig, setLogger, stop, trailingStop, trailingTake, validate };
+export { Backtest, type BacktestDoneNotification, type BacktestStatisticsModel, type BootstrapNotification, Breakeven, type BreakevenContract, type BreakevenData, Cache, type CandleInterval, type ColumnConfig, type ColumnModel, Constant, type CriticalErrorNotification, type DoneContract, type EntityId, Exchange, ExecutionContextService, type FrameInterval, type GlobalConfig, Heat, type HeatmapStatisticsModel, type ICandleData, type IExchangeSchema, type IFrameSchema, type IHeatmapRow, type IOptimizerCallbacks, type IOptimizerData, type IOptimizerFetchArgs, type IOptimizerFilterArgs, type IOptimizerRange, type IOptimizerSchema, type IOptimizerSource, type IOptimizerStrategy, type IOptimizerTemplate, type IPersistBase, type IPositionSizeATRParams, type IPositionSizeFixedPercentageParams, type IPositionSizeKellyParams, type IPublicSignalRow, type IRiskActivePosition, type IRiskCheckArgs, type IRiskSchema, type IRiskValidation, type IRiskValidationFn, type IRiskValidationPayload, type IScheduledSignalCancelRow, type IScheduledSignalRow, type ISignalDto, type ISignalRow, type ISizingCalculateParams, type ISizingCalculateParamsATR, type ISizingCalculateParamsFixedPercentage, type ISizingCalculateParamsKelly, type ISizingSchema, type ISizingSchemaATR, type ISizingSchemaFixedPercentage, type ISizingSchemaKelly, type IStrategyPnL, type IStrategyResult, type IStrategySchema, type IStrategyTickResult, type IStrategyTickResultActive, type IStrategyTickResultCancelled, type IStrategyTickResultClosed, type IStrategyTickResultIdle, type IStrategyTickResultOpened, type IStrategyTickResultScheduled, type IWalkerResults, type IWalkerSchema, type IWalkerStrategyResult, type InfoErrorNotification, Live, type LiveDoneNotification, type LiveStatisticsModel, Markdown, MarkdownFileBase, MarkdownFolderBase, type MessageModel, type MessageRole, MethodContextService, type MetricStats, Notification, type NotificationModel, Optimizer, Partial$1 as Partial, type PartialData, type PartialEvent, type PartialLossContract, type PartialLossNotification, type PartialProfitContract, type PartialProfitNotification, type PartialStatisticsModel, Performance, type PerformanceContract, type PerformanceMetricType, type PerformanceStatisticsModel, PersistBase, PersistBreakevenAdapter, PersistPartialAdapter, PersistRiskAdapter, PersistScheduleAdapter, PersistSignalAdapter, type PingContract, PositionSize, type ProgressBacktestContract, type ProgressBacktestNotification, type ProgressOptimizerContract, type ProgressWalkerContract, Report, ReportBase, type ReportName, Risk, type RiskContract, type RiskData, type RiskEvent, type RiskRejectionNotification, type RiskStatisticsModel, Schedule, type ScheduleData, type ScheduleStatisticsModel, type ScheduledEvent, type SignalCancelledNotification, type SignalClosedNotification, type SignalData, type SignalInterval, type SignalOpenedNotification, type SignalScheduledNotification, type TMarkdownBase, type TPersistBase, type TPersistBaseCtor, type TReportBase, type TickEvent, type ValidationErrorNotification, Walker, type WalkerCompleteContract, type WalkerContract, type WalkerMetric, type SignalData$1 as WalkerSignalData, type WalkerStatisticsModel, addExchange, addFrame, addOptimizer, addRisk, addSizing, addStrategy, addWalker, breakeven, cancel, dumpSignal, emitters, formatPrice, formatQuantity, getAveragePrice, getCandles, getColumns, getConfig, getDate, getDefaultColumns, getDefaultConfig, getMode, hasTradeContext, backtest as lib, listExchanges, listFrames, listOptimizers, listRisks, listSizings, listStrategies, listWalkers, listenBacktestProgress, listenBreakeven, listenBreakevenOnce, listenDoneBacktest, listenDoneBacktestOnce, listenDoneLive, listenDoneLiveOnce, listenDoneWalker, listenDoneWalkerOnce, listenError, listenExit, listenOptimizerProgress, listenPartialLoss, listenPartialLossOnce, listenPartialProfit, listenPartialProfitOnce, listenPerformance, listenPing, listenPingOnce, listenRisk, listenRiskOnce, listenSignal, listenSignalBacktest, listenSignalBacktestOnce, listenSignalLive, listenSignalLiveOnce, listenSignalOnce, listenValidation, listenWalker, listenWalkerComplete, listenWalkerOnce, listenWalkerProgress, partialLoss, partialProfit, setColumns, setConfig, setLogger, stop, trailingStop, trailingTake, validate };

@@ -26,6 +26,13 @@ export class PerformanceReportService {
       frameName: event.frameName,
       backtest: event.backtest,
       previousTimestamp: event.previousTimestamp,
+    }, {
+      symbol: event.symbol,
+      strategyName: event.strategyName,
+      exchangeName: event.exchangeName,
+      frameName: event.frameName,
+      signalId: "",
+      walkerName: "",
     });
   };
 

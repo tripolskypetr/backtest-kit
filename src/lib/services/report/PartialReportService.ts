@@ -41,6 +41,13 @@ export class PartialReportService {
       position: data.data.position,
       currentPrice: data.currentPrice,
       level: data.level,
+    }, {
+      symbol: data.symbol,
+      strategyName: data.data.strategyName,
+      exchangeName: data.exchangeName,
+      frameName: data.frameName,
+      signalId: data.data.id,
+      walkerName: "",
     });
   };
 
@@ -68,6 +75,13 @@ export class PartialReportService {
       position: data.data.position,
       currentPrice: data.currentPrice,
       level: data.level,
+    }, {
+      symbol: data.symbol,
+      strategyName: data.data.strategyName,
+      exchangeName: data.exchangeName,
+      frameName: data.frameName,
+      signalId: data.data.id,
+      walkerName: "",
     });
   };
 

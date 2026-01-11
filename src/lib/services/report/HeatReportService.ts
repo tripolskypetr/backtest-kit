@@ -28,12 +28,19 @@ export class HeatReportService {
       exchangeName: data.exchangeName,
       frameName: data.frameName,
       backtest: data.backtest,
-      signalId: data.signal.id,
-      position: data.signal.position,
+      signalId: data.signal?.id,
+      position: data.signal?.position,
       pnl: data.pnl.pnlPercentage,
       closeReason: data.closeReason,
-      openTime: data.signal.pendingAt,
+      openTime: data.signal?.pendingAt,
       closeTime: data.closeTimestamp,
+    }, {
+      symbol: data.symbol,
+      strategyName: data.strategyName,
+      exchangeName: data.exchangeName,
+      frameName: data.frameName,
+      signalId: data.signal?.id,
+      walkerName: "",
     });
   };
 

@@ -37,6 +37,13 @@ export class BreakevenReportService {
       position: data.data.position,
       currentPrice: data.currentPrice,
       priceOpen: data.data.priceOpen,
+    }, {
+      symbol: data.symbol,
+      strategyName: data.data.strategyName,
+      exchangeName: data.exchangeName,
+      frameName: data.frameName,
+      signalId: data.data.id,
+      walkerName: "",
     });
   };
 

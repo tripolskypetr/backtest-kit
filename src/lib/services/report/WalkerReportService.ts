@@ -40,6 +40,13 @@ export class WalkerReportService {
       annualizedSharpeRatio: data.stats.annualizedSharpeRatio,
       certaintyRatio: data.stats.certaintyRatio,
       expectedYearlyReturns: data.stats.expectedYearlyReturns,
+    }, {
+      symbol: data.symbol,
+      strategyName: data.strategyName,
+      exchangeName: data.exchangeName,
+      frameName: data.frameName,
+      signalId: "",
+      walkerName: data.walkerName,
     });
   };
 

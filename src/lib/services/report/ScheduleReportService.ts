@@ -25,55 +25,64 @@ export class ScheduleReportService {
       currentPrice: data.currentPrice,
     };
 
+    const searchOptions = {
+      symbol: data.symbol,
+      strategyName: data.strategyName,
+      exchangeName: data.exchangeName,
+      frameName: data.frameName,
+      signalId: data.signal?.id,
+      walkerName: "",
+    };
+
     if (data.action === "scheduled") {
       await Report.writeData("schedule", {
-        timestamp: data.signal.scheduledAt,
+        timestamp: data.signal?.scheduledAt,
         action: "scheduled",
         ...baseEvent,
-        signalId: data.signal.id,
-        position: data.signal.position,
-        note: data.signal.note,
-        priceOpen: data.signal.priceOpen,
-        priceTakeProfit: data.signal.priceTakeProfit,
-        priceStopLoss: data.signal.priceStopLoss,
-      });
+        signalId: data.signal?.id,
+        position: data.signal?.position,
+        note: data.signal?.note,
+        priceOpen: data.signal?.priceOpen,
+        priceTakeProfit: data.signal?.priceTakeProfit,
+        priceStopLoss: data.signal?.priceStopLoss,
+      }, searchOptions);
     } else if (data.action === "opened") {
-      if (data.signal.scheduledAt !== data.signal.pendingAt) {
-        const durationMs = data.signal.pendingAt - data.signal.scheduledAt;
+      if (data.signal?.scheduledAt !== data.signal?.pendingAt) {
+        const durationMs = data.signal?.pendingAt - data.signal?.scheduledAt;
         const durationMin = Math.round(durationMs / 60000);
 
         await Report.writeData("schedule", {
-          timestamp: data.signal.pendingAt,
+          timestamp: data.signal?.pendingAt,
           action: "opened",
           ...baseEvent,
-          signalId: data.signal.id,
-          position: data.signal.position,
-          note: data.signal.note,
-          priceOpen: data.signal.priceOpen,
-          priceTakeProfit: data.signal.priceTakeProfit,
-          priceStopLoss: data.signal.priceStopLoss,
+          signalId: data.signal?.id,
+          position: data.signal?.position,
+          note: data.signal?.note,
+          priceOpen: data.signal?.priceOpen,
+          priceTakeProfit: data.signal?.priceTakeProfit,
+          priceStopLoss: data.signal?.priceStopLoss,
           duration: durationMin,
-        });
+        }, searchOptions);
       }
     } else if (data.action === "cancelled") {
-      const durationMs = data.closeTimestamp - data.signal.scheduledAt;
+      const durationMs = data.closeTimestamp - data.signal?.scheduledAt;
       const durationMin = Math.round(durationMs / 60000);
 
       await Report.writeData("schedule", {
         timestamp: data.closeTimestamp,
         action: "cancelled",
         ...baseEvent,
-        signalId: data.signal.id,
-        position: data.signal.position,
-        note: data.signal.note,
-        priceOpen: data.signal.priceOpen,
-        priceTakeProfit: data.signal.priceTakeProfit,
-        priceStopLoss: data.signal.priceStopLoss,
+        signalId: data.signal?.id,
+        position: data.signal?.position,
+        note: data.signal?.note,
+        priceOpen: data.signal?.priceOpen,
+        priceTakeProfit: data.signal?.priceTakeProfit,
+        priceStopLoss: data.signal?.priceStopLoss,
         closeTime: data.closeTimestamp,
         duration: durationMin,
         cancelReason: data.reason,
         cancelId: data.cancelId,
-      });
+      }, searchOptions);
     }
   };
 

@@ -30,9 +30,18 @@ interface IReportTarget {
 
 export type ReportName = keyof IReportTarget;
 
+export interface IReportDumpOptions {
+  symbol: string;
+  strategyName: string;
+  exchangeName: string;
+  frameName: string;
+  signalId: string;
+  walkerName: string;
+}
+
 export type TReportBase = {
     waitForInit(initial: boolean): Promise<void>;
-    write<T = any>(data: T): Promise<void>;
+    write<T = any>(data: T, options: Partial<IReportDumpOptions>): Promise<void>;
 }
 
 export type TReportBaseCtor = new (reportName: ReportName, baseDir: string) => TReportBase;
@@ -77,16 +86,50 @@ export const ReportBase = makeExtendable(
       await this[WAIT_FOR_INIT_SYMBOL]();
     }
 
-    async write<T = any>(data: T): Promise<void> {
+    async write<T = any>(data: T, options: Partial<IReportDumpOptions>): Promise<void> {
       lib.loggerService.debug(REPORT_BASE_METHOD_NAME_WRITE, {
         reportName: this.reportName,
+        options,
       });
       if (!this._stream) {
         throw new Error(
           `Stream not initialized for report ${this.reportName}. Call waitForInit() first.`
         );
       }
-      const line = JSON.stringify(data) + "\n";
+
+      const searchFlags: Partial<IReportDumpOptions> = {};
+
+      if (options.symbol) {
+        searchFlags.symbol = options.symbol;
+      }
+
+      if (options.strategyName) {
+        searchFlags.strategyName = options.strategyName;
+      }
+
+      if (options.exchangeName) {
+        searchFlags.exchangeName = options.exchangeName;
+      }
+
+      if (options.frameName) {
+        searchFlags.frameName = options.frameName;
+      }
+
+      if (options.signalId) {
+        searchFlags.signalId = options.signalId;
+      }
+
+      if (options.walkerName) {
+        searchFlags.walkerName = options.walkerName;
+      }
+
+      const line = JSON.stringify({
+        reportName: this.reportName,
+        data,
+        ...searchFlags,
+        timestamp: Date.now(),
+      }) + "\n";
+
       const status = await this[WRITE_SAFE_SYMBOL](line);
       if (status === TIMEOUT_SYMBOL) {
         throw new Error(`Timeout writing to report ${this.reportName}`);
@@ -178,19 +221,19 @@ export class ReportAdapter extends ReportUtils {
 
   public writeData = async <T = any>(
     reportName: ReportName,
-    data: T
+    data: T,
+    options: Partial<IReportDumpOptions>
   ): Promise<void> => {
-    lib.loggerService.info(REPORT_UTILS_METHOD_NAME_WRITE_DATA);
+    lib.loggerService.info(REPORT_UTILS_METHOD_NAME_WRITE_DATA, {
+      reportName,
+      options,
+    });
 
     const isInitial = !this.getReportStorage.has(reportName);
     const reportStorage = this.getReportStorage(reportName);
     await reportStorage.waitForInit(isInitial);
 
-    await reportStorage.write({
-        reportName,
-        data,
-        timestamp: Date.now(),
-    });
+    await reportStorage.write(data, options);
   };
 }
 
