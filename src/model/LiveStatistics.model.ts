@@ -23,6 +23,12 @@ export interface TickEvent {
   takeProfit?: number;
   /** Stop loss price (only for opened/active/closed) */
   stopLoss?: number;
+  /** Original take profit price before modifications (only for opened/active/closed) */
+  originalPriceTakeProfit?: number;
+  /** Original stop loss price before modifications (only for opened/active/closed) */
+  originalPriceStopLoss?: number;
+  /** Total executed percentage from partial closes (only for opened/active/closed) */
+  totalExecuted?: number;
   /** Percentage progress towards take profit (only for active) */
   percentTp?: number;
   /** Percentage progress towards stop loss (only for active) */

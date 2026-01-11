@@ -23,6 +23,12 @@ export interface ScheduledEvent {
   takeProfit: number;
   /** Stop loss price */
   stopLoss: number;
+  /** Original take profit price before modifications */
+  originalPriceTakeProfit?: number;
+  /** Original stop loss price before modifications */
+  originalPriceStopLoss?: number;
+  /** Total executed percentage from partial closes */
+  totalExecuted?: number;
   /** Close timestamp (only for cancelled) */
   closeTimestamp?: number;
   /** Duration in minutes (only for cancelled/opened) */

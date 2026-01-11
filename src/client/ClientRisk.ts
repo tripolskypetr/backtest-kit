@@ -69,7 +69,10 @@ const POSITION_NEED_FETCH = Symbol("risk-need-fetch");
 const TO_RISK_SIGNAL = <T extends ISignalRow>(signal: T, currentPrice: number): IRiskSignalRow => {
   const hasTrailingSL = "_trailingPriceStopLoss" in signal && signal._trailingPriceStopLoss !== undefined;
   const hasTrailingTP = "_trailingPriceTakeProfit" in signal && signal._trailingPriceTakeProfit !== undefined;
-  
+  const totalExecuted = ("_partial" in signal && Array.isArray(signal._partial))
+    ? signal._partial.reduce((sum, partial) => sum + partial.percent, 0)
+    : 0;
+
   return {
     ...structuredClone(signal) as ISignalRow,
     priceOpen: signal.priceOpen ?? currentPrice,
@@ -77,6 +80,7 @@ const TO_RISK_SIGNAL = <T extends ISignalRow>(signal: T, currentPrice: number): 
     priceTakeProfit: hasTrailingTP ? signal._trailingPriceTakeProfit : signal.priceTakeProfit,
     originalPriceStopLoss: signal.priceStopLoss,
     originalPriceTakeProfit: signal.priceTakeProfit,
+    totalExecuted,
   };
 };
 

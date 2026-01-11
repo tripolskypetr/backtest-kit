@@ -1237,6 +1237,13 @@ interface IPublicSignalRow extends ISignalRow {
      * Used for user visibility of initial TP parameters.
      */
     originalPriceTakeProfit: number;
+    /**
+     * Total executed percentage from partial closes.
+     * Sum of all percent values from _partial array (both profit and loss types).
+     * Represents the total portion of the position that has been closed through partial executions.
+     * Range: 0-100. Value of 0 means no partial closes, 100 means position fully closed through partials.
+     */
+    totalExecuted: number;
 }
 /**
  * Risk signal row for internal risk management.
@@ -5693,6 +5700,12 @@ interface TickEvent {
     takeProfit?: number;
     /** Stop loss price (only for opened/active/closed) */
     stopLoss?: number;
+    /** Original take profit price before modifications (only for opened/active/closed) */
+    originalPriceTakeProfit?: number;
+    /** Original stop loss price before modifications (only for opened/active/closed) */
+    originalPriceStopLoss?: number;
+    /** Total executed percentage from partial closes (only for opened/active/closed) */
+    totalExecuted?: number;
     /** Percentage progress towards take profit (only for active) */
     percentTp?: number;
     /** Percentage progress towards stop loss (only for active) */
@@ -5798,6 +5811,12 @@ interface ScheduledEvent {
     takeProfit: number;
     /** Stop loss price */
     stopLoss: number;
+    /** Original take profit price before modifications */
+    originalPriceTakeProfit?: number;
+    /** Original stop loss price before modifications */
+    originalPriceStopLoss?: number;
+    /** Total executed percentage from partial closes */
+    totalExecuted?: number;
     /** Close timestamp (only for cancelled) */
     closeTimestamp?: number;
     /** Duration in minutes (only for cancelled/opened) */
