@@ -106,6 +106,33 @@ export const risk_columns: ColumnModel<RiskEvent>[] = [
     isVisible: () => true,
   },
   {
+    key: "originalPriceTakeProfit",
+    label: "Original TP",
+    format: (data) =>
+      data.pendingSignal.originalPriceTakeProfit !== undefined
+        ? `${data.pendingSignal.originalPriceTakeProfit.toFixed(8)} USD`
+        : "N/A",
+    isVisible: () => true,
+  },
+  {
+    key: "originalPriceStopLoss",
+    label: "Original SL",
+    format: (data) =>
+      data.pendingSignal.originalPriceStopLoss !== undefined
+        ? `${data.pendingSignal.originalPriceStopLoss.toFixed(8)} USD`
+        : "N/A",
+    isVisible: () => true,
+  },
+  {
+    key: "totalExecuted",
+    label: "Total Executed",
+    format: (data) =>
+      data.pendingSignal.totalExecuted !== undefined
+        ? `${data.pendingSignal.totalExecuted.toFixed(1)}%`
+        : "N/A",
+    isVisible: () => true,
+  },
+  {
     key: "currentPrice",
     label: "Current Price",
     format: (data) => `${data.currentPrice.toFixed(8)} USD`,

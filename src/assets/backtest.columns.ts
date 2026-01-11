@@ -86,12 +86,30 @@ export const backtest_columns: ColumnModel<IStrategyTickResultClosed>[] = [
     isVisible: () => true,
   },
   {
+    key: "originalPriceTakeProfit",
+    label: "Original TP",
+    format: (data) => `${data.signal.originalPriceTakeProfit.toFixed(8)} USD`,
+    isVisible: () => true,
+  },
+  {
+    key: "originalPriceStopLoss",
+    label: "Original SL",
+    format: (data) => `${data.signal.originalPriceStopLoss.toFixed(8)} USD`,
+    isVisible: () => true,
+  },
+  {
     key: "pnl",
     label: "PNL (net)",
     format: (data) => {
       const pnlPercentage = data.pnl.pnlPercentage;
       return `${pnlPercentage > 0 ? "+" : ""}${pnlPercentage.toFixed(2)}%`;
     },
+    isVisible: () => true,
+  },
+  {
+    key: "totalExecuted",
+    label: "Total Executed",
+    format: (data) => `${data.signal.totalExecuted.toFixed(1)}%`,
     isVisible: () => true,
   },
   {

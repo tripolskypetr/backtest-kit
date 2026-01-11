@@ -37,6 +37,13 @@ export class BreakevenReportService {
       position: data.data.position,
       currentPrice: data.currentPrice,
       priceOpen: data.data.priceOpen,
+      priceTakeProfit: data.data.priceTakeProfit,
+      priceStopLoss: data.data.priceStopLoss,
+      _partial: data.data._partial,
+      note: data.data.note,
+      pendingAt: data.data.pendingAt,
+      scheduledAt: data.data.scheduledAt,
+      minuteEstimatedTime: data.data.minuteEstimatedTime,
     }, {
       symbol: data.symbol,
       strategyName: data.data.strategyName,

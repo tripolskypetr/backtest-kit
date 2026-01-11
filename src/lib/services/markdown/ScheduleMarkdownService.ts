@@ -131,6 +131,9 @@ class ReportStorage {
       priceOpen: data.signal.priceOpen,
       takeProfit: data.signal.priceTakeProfit,
       stopLoss: data.signal.priceStopLoss,
+      originalPriceTakeProfit: data.signal.originalPriceTakeProfit,
+      originalPriceStopLoss: data.signal.originalPriceStopLoss,
+      totalExecuted: data.signal.totalExecuted,
     });
 
     // Trim queue if exceeded MAX_EVENTS
@@ -159,6 +162,9 @@ class ReportStorage {
       priceOpen: data.signal.priceOpen,
       takeProfit: data.signal.priceTakeProfit,
       stopLoss: data.signal.priceStopLoss,
+      originalPriceTakeProfit: data.signal.originalPriceTakeProfit,
+      originalPriceStopLoss: data.signal.originalPriceStopLoss,
+      totalExecuted: data.signal.totalExecuted,
       duration: durationMin,
     };
 
@@ -190,6 +196,9 @@ class ReportStorage {
       priceOpen: data.signal.priceOpen,
       takeProfit: data.signal.priceTakeProfit,
       stopLoss: data.signal.priceStopLoss,
+      originalPriceTakeProfit: data.signal.originalPriceTakeProfit,
+      originalPriceStopLoss: data.signal.originalPriceStopLoss,
+      totalExecuted: data.signal.totalExecuted,
       closeTimestamp: data.closeTimestamp,
       duration: durationMin,
       cancelReason: data.reason,

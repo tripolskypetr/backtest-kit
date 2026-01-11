@@ -45,6 +45,11 @@ export class ScheduleReportService {
         priceOpen: data.signal?.priceOpen,
         priceTakeProfit: data.signal?.priceTakeProfit,
         priceStopLoss: data.signal?.priceStopLoss,
+        originalPriceTakeProfit: data.signal?.originalPriceTakeProfit,
+        originalPriceStopLoss: data.signal?.originalPriceStopLoss,
+        totalExecuted: data.signal?.totalExecuted,
+        pendingAt: data.signal?.pendingAt,
+        minuteEstimatedTime: data.signal?.minuteEstimatedTime,
       }, searchOptions);
     } else if (data.action === "opened") {
       if (data.signal?.scheduledAt !== data.signal?.pendingAt) {
@@ -61,6 +66,12 @@ export class ScheduleReportService {
           priceOpen: data.signal?.priceOpen,
           priceTakeProfit: data.signal?.priceTakeProfit,
           priceStopLoss: data.signal?.priceStopLoss,
+          originalPriceTakeProfit: data.signal?.originalPriceTakeProfit,
+          originalPriceStopLoss: data.signal?.originalPriceStopLoss,
+          totalExecuted: data.signal?.totalExecuted,
+          scheduledAt: data.signal?.scheduledAt,
+          pendingAt: data.signal?.pendingAt,
+          minuteEstimatedTime: data.signal?.minuteEstimatedTime,
           duration: durationMin,
         }, searchOptions);
       }
@@ -78,6 +89,12 @@ export class ScheduleReportService {
         priceOpen: data.signal?.priceOpen,
         priceTakeProfit: data.signal?.priceTakeProfit,
         priceStopLoss: data.signal?.priceStopLoss,
+        originalPriceTakeProfit: data.signal?.originalPriceTakeProfit,
+        originalPriceStopLoss: data.signal?.originalPriceStopLoss,
+        totalExecuted: data.signal?.totalExecuted,
+        scheduledAt: data.signal?.scheduledAt,
+        pendingAt: data.signal?.pendingAt,
+        minuteEstimatedTime: data.signal?.minuteEstimatedTime,
         closeTime: data.closeTimestamp,
         duration: durationMin,
         cancelReason: data.reason,

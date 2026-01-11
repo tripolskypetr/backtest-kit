@@ -107,6 +107,31 @@ export const schedule_columns: ColumnModel<ScheduledEvent>[] = [
     isVisible: () => true,
   },
   {
+    key: "originalPriceTakeProfit",
+    label: "Original TP",
+    format: (data) =>
+      data.originalPriceTakeProfit !== undefined
+        ? `${data.originalPriceTakeProfit.toFixed(8)} USD`
+        : "N/A",
+    isVisible: () => true,
+  },
+  {
+    key: "originalPriceStopLoss",
+    label: "Original SL",
+    format: (data) =>
+      data.originalPriceStopLoss !== undefined
+        ? `${data.originalPriceStopLoss.toFixed(8)} USD`
+        : "N/A",
+    isVisible: () => true,
+  },
+  {
+    key: "totalExecuted",
+    label: "Total Executed",
+    format: (data) =>
+      data.totalExecuted !== undefined ? `${data.totalExecuted.toFixed(1)}%` : "N/A",
+    isVisible: () => true,
+  },
+  {
     key: "duration",
     label: "Wait Time (min)",
     format: (data) =>
