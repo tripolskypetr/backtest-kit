@@ -118,20 +118,11 @@ export const MarkdownFileBase = makeExtendable(
 
 export const MarkdownFolderBase = makeExtendable(
   class implements TMarkdownBase {
-    _baseDir: string;
-    _filePath: string;
 
-    constructor(readonly markdownName: MarkdownName) {
-      this._baseDir = join(process.cwd(), `./dump/${markdownName}`);
-      this._filePath = join(this._baseDir, `${markdownName}.md`);
-    }
-
-    [WAIT_FOR_INIT_SYMBOL] = singleshot(async (): Promise<void> => {
-      await fs.mkdir(this._baseDir, { recursive: true });
-    });
+    constructor(readonly markdownName: MarkdownName) {}
 
     async waitForInit(): Promise<void> {
-      await this[WAIT_FOR_INIT_SYMBOL]();
+      void 0;
     }
 
     async dump(content: string, options: IMarkdownDumpOptions): Promise<void> {
@@ -301,7 +292,6 @@ export class MarkdownAdapter extends MarkdownUtils {
       markdownName,
       options,
     });
-
 
     const isInitial = !this.getMarkdownStorage.has(markdownName);
     const markdown = this.getMarkdownStorage(markdownName);

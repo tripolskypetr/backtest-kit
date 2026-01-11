@@ -40,13 +40,6 @@ const DUMP_SIGNAL_FN = async <Data extends ISignalDto>(
   const userMessages = history.filter((m) => m.role === "user");
   const subfolderPath = path.join(outputDir, String(signalId));
 
-  try {
-    await fs.access(subfolderPath);
-    return;
-  } catch {
-    // Directory doesn't exist, proceed with creation
-  }
-
   // Generate system prompt markdown
   {
     let summary = "# Outline Result Summary\n";
