@@ -1,6 +1,8 @@
 import { compose } from "functools-kit";
 import backtest from "src/lib";
 
+const MARKDOWN_METHOD_NAME_ENABLE = "MarkdownUtils.enable";
+
 /**
  * Configuration interface for selective markdown service enablement.
  *
@@ -191,6 +193,17 @@ export class MarkdownUtils {
     schedule = false,
     walker = false,
   }: Partial<IMarkdownTarget> = WILDCARD_TARGET) => {
+    backtest.loggerService.debug(MARKDOWN_METHOD_NAME_ENABLE, {
+      backtest: bt,
+      breakeven,
+      heat,
+      live,
+      partial,
+      performance,
+      risk,
+      schedule,
+      walker,
+    });
     const unList: Function[] = [];
     if (bt) {
       unList.push(backtest.backtestMarkdownService.subscribe());
