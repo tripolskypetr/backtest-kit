@@ -110,7 +110,7 @@ Logs operation at global service level, then delegates to BreakevenConnectionSer
 ### clear
 
 ```ts
-clear: (symbol: string, data: ISignalRow, priceClose: number, backtest: boolean) => Promise<void>
+clear: (symbol: string, data: IPublicSignalRow, priceClose: number, backtest: boolean) => Promise<void>
 ```
 
 Clears breakeven state when signal closes.

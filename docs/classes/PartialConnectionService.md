@@ -78,7 +78,7 @@ then delegates to ClientPartial.loss() method.
 ### clear
 
 ```ts
-clear: (symbol: string, data: ISignalRow, priceClose: number, backtest: boolean) => Promise<void>
+clear: (symbol: string, data: IPublicSignalRow, priceClose: number, backtest: boolean) => Promise<void>
 ```
 
 Clears partial profit/loss state when signal closes.

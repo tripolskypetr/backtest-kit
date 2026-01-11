@@ -58,11 +58,11 @@ Identifies which frame this breakeven event belongs to (empty string for live mo
 ### data
 
 ```ts
-data: ISignalRow
+data: IPublicSignalRow
 ```
 
-Complete signal row data.
-Contains all signal information: id, position, priceOpen, priceTakeProfit, priceStopLoss, etc.
+Complete signal row data with original prices.
+Contains all signal information including originalPriceStopLoss, originalPriceTakeProfit, and totalExecuted.
 
 ### currentPrice
 

@@ -67,7 +67,7 @@ then delegates to ClientBreakeven.check() method.
 ### clear
 
 ```ts
-clear: (symbol: string, data: ISignalRow, priceClose: number, backtest: boolean) => Promise<void>
+clear: (symbol: string, data: IPublicSignalRow, priceClose: number, backtest: boolean) => Promise<void>
 ```
 
 Clears breakeven state when signal closes.
