@@ -6676,7 +6676,7 @@ type TReportBase = {
      * @returns Promise that resolves when write is complete
      * @throws Error if write fails or stream is not initialized
      */
-    write<T = any>(data: T, options: Partial<IReportDumpOptions>): Promise<void>;
+    write<T = any>(data: T, options: IReportDumpOptions): Promise<void>;
 };
 /**
  * Constructor type for report storage adapters.
@@ -6727,7 +6727,7 @@ declare const ReportBase: {
          * @param options - Metadata options for filtering and search
          * @throws Error if stream not initialized or write timeout exceeded
          */
-        write<T = any>(data: T, options: Partial<IReportDumpOptions>): Promise<void>;
+        write<T = any>(data: T, options: IReportDumpOptions): Promise<void>;
         /**
          * Singleshot initialization function that creates directory and stream.
          * Protected by singleshot to ensure one-time execution.
@@ -6824,7 +6824,7 @@ declare class ReportAdapter extends ReportUtils {
      *
      * @internal - Automatically called by report services, not for direct use
      */
-    writeData: <T = any>(reportName: ReportName, data: T, options: Partial<IReportDumpOptions>) => Promise<void>;
+    writeData: <T = any>(reportName: ReportName, data: T, options: IReportDumpOptions) => Promise<void>;
 }
 /**
  * Global singleton instance of ReportAdapter.

@@ -88,7 +88,7 @@ export type TReportBase = {
    * @returns Promise that resolves when write is complete
    * @throws Error if write fails or stream is not initialized
    */
-  write<T = any>(data: T, options: Partial<IReportDumpOptions>): Promise<void>;
+  write<T = any>(data: T, options: IReportDumpOptions): Promise<void>;
 };
 
 /**
@@ -191,7 +191,7 @@ export const ReportBase = makeExtendable(
      * @param options - Metadata options for filtering and search
      * @throws Error if stream not initialized or write timeout exceeded
      */
-    async write<T = any>(data: T, options: Partial<IReportDumpOptions>): Promise<void> {
+    async write<T = any>(data: T, options: IReportDumpOptions): Promise<void> {
       lib.loggerService.debug(REPORT_BASE_METHOD_NAME_WRITE, {
         reportName: this.reportName,
         options,
@@ -406,7 +406,7 @@ export class ReportAdapter extends ReportUtils {
   public writeData = async <T = any>(
     reportName: ReportName,
     data: T,
-    options: Partial<IReportDumpOptions>
+    options: IReportDumpOptions
   ): Promise<void> => {
     lib.loggerService.info(REPORT_UTILS_METHOD_NAME_WRITE_DATA, {
       reportName,
