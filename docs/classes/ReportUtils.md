@@ -37,3 +37,22 @@ Each enabled service will:
 - Include metadata for filtering and analytics
 
 IMPORTANT: Always call the returned unsubscribe function to prevent memory leaks.
+
+### disable
+
+```ts
+disable: ({ backtest: bt, breakeven, heat, live, partial, performance, risk, schedule, walker, }?: Partial<IReportTarget>) => void
+```
+
+Disables report services selectively.
+
+Unsubscribes from specified report services to stop event logging.
+Use this method to stop JSONL logging for specific services while keeping others active.
+
+Each disabled service will:
+- Stop listening to events immediately
+- Stop writing to JSONL files
+- Free up event listener resources
+
+Unlike enable(), this method does NOT return an unsubscribe function.
+Services are unsubscribed immediately upon calling this method.

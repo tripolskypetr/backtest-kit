@@ -37,3 +37,23 @@ Each enabled service will:
 - Generate markdown files when requested
 
 IMPORTANT: Always call the returned unsubscribe function to prevent memory leaks.
+
+### disable
+
+```ts
+disable: ({ backtest: bt, breakeven, heat, live, partial, performance, risk, schedule, walker, }?: Partial<IMarkdownTarget>) => void
+```
+
+Disables markdown report services selectively.
+
+Unsubscribes from specified markdown services to stop report generation.
+Use this method to stop markdown report generation for specific services while keeping others active.
+
+Each disabled service will:
+- Stop listening to events immediately
+- Stop accumulating data for reports
+- Stop generating markdown files
+- Free up event listener and memory resources
+
+Unlike enable(), this method does NOT return an unsubscribe function.
+Services are unsubscribed immediately upon calling this method.
