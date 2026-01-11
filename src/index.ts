@@ -226,6 +226,13 @@ export {
   TReportBase,
 } from "./classes/Report";
 
+export { 
+  Markdown,
+  MarkdownFileBase,
+  MarkdownFolderBase,
+  TMarkdownBase
+} from "./classes/Markdown";
+
 export { Backtest } from "./classes/Backtest";
 export { Live } from "./classes/Live";
 export { Schedule } from "./classes/Schedule";
@@ -241,7 +248,6 @@ export { Exchange } from "./classes/Exchange";
 export { Cache } from "./classes/Cache";
 export { Notification } from "./classes/Notification";
 export { Breakeven } from "./classes/Breakeven";
-export { Markdown } from "./classes/Markdown";
 
 export { type TickEvent } from "./model/LiveStatistics.model";
 export { type PartialEvent } from "./model/PartialStatistics.model";
