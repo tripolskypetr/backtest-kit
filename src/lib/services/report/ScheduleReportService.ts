@@ -10,9 +10,47 @@ const SCHEDULE_REPORT_METHOD_NAME_SUBSCRIBE = "ScheduleReportService.subscribe";
 const SCHEDULE_REPORT_METHOD_NAME_UNSUBSCRIBE = "ScheduleReportService.unsubscribe";
 const SCHEDULE_REPORT_METHOD_NAME_TICK = "ScheduleReportService.tick";
 
+/**
+ * Service for logging scheduled signal events to SQLite database.
+ *
+ * Captures all scheduled signal lifecycle events (scheduled, opened, cancelled)
+ * and stores them in the Report database for tracking delayed order execution.
+ *
+ * Features:
+ * - Listens to signal events via signalEmitter
+ * - Logs scheduled, opened (from scheduled), and cancelled events
+ * - Calculates duration between scheduling and execution/cancellation
+ * - Stores events in Report.writeData() for schedule tracking
+ * - Protected against multiple subscriptions using singleshot
+ *
+ * @example
+ * ```typescript
+ * import { ScheduleReportService } from "backtest-kit";
+ *
+ * const reportService = new ScheduleReportService();
+ *
+ * // Subscribe to scheduled signal events
+ * const unsubscribe = reportService.subscribe();
+ *
+ * // Run strategy with scheduled orders...
+ * // Scheduled events are automatically logged
+ *
+ * // Later: unsubscribe
+ * await reportService.unsubscribe();
+ * ```
+ */
 export class ScheduleReportService {
+  /** Logger service for debug output */
   private readonly loggerService = inject<LoggerService>(TYPES.loggerService);
 
+  /**
+   * Processes signal tick events and logs scheduled signal lifecycle to the database.
+   * Handles scheduled, opened (from scheduled), and cancelled event types.
+   *
+   * @param data - Strategy tick result with signal lifecycle information
+   *
+   * @internal
+   */
   private tick = async (data: IStrategyTickResult) => {
     this.loggerService.log(SCHEDULE_REPORT_METHOD_NAME_TICK, { data });
 
@@ -103,6 +141,21 @@ export class ScheduleReportService {
     }
   };
 
+  /**
+   * Subscribes to signal emitter to receive scheduled signal events.
+   * Protected against multiple subscriptions.
+   * Returns an unsubscribe function to stop receiving events.
+   *
+   * @returns Unsubscribe function to stop receiving scheduled signal events
+   *
+   * @example
+   * ```typescript
+   * const service = new ScheduleReportService();
+   * const unsubscribe = service.subscribe();
+   * // ... later
+   * unsubscribe();
+   * ```
+   */
   public subscribe = singleshot(() => {
     this.loggerService.log(SCHEDULE_REPORT_METHOD_NAME_SUBSCRIBE);
     const unsubscribe = signalEmitter.subscribe(this.tick);
@@ -112,6 +165,19 @@ export class ScheduleReportService {
     };
   });
 
+  /**
+   * Unsubscribes from signal emitter to stop receiving events.
+   * Calls the unsubscribe function returned by subscribe().
+   * If not subscribed, does nothing.
+   *
+   * @example
+   * ```typescript
+   * const service = new ScheduleReportService();
+   * service.subscribe();
+   * // ... later
+   * await service.unsubscribe();
+   * ```
+   */
   public unsubscribe = async () => {
     this.loggerService.log(SCHEDULE_REPORT_METHOD_NAME_UNSUBSCRIBE);
     if (this.subscribe.hasValue()) {

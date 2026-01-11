@@ -10,9 +10,46 @@ const BACKTEST_REPORT_METHOD_NAME_SUBSCRIBE = "BacktestReportService.subscribe";
 const BACKTEST_REPORT_METHOD_NAME_UNSUBSCRIBE = "BacktestReportService.unsubscribe";
 const BACKTEST_REPORT_METHOD_NAME_TICK = "BacktestReportService.tick";
 
+/**
+ * Service for logging backtest strategy tick events to SQLite database.
+ *
+ * Captures all backtest signal lifecycle events (idle, opened, active, closed)
+ * and stores them in the Report database for analysis and debugging.
+ *
+ * Features:
+ * - Listens to backtest signal events via signalBacktestEmitter
+ * - Logs all tick event types with full signal details
+ * - Stores events in Report.writeData() for persistence
+ * - Protected against multiple subscriptions using singleshot
+ *
+ * @example
+ * ```typescript
+ * import { BacktestReportService } from "backtest-kit";
+ *
+ * const reportService = new BacktestReportService();
+ *
+ * // Subscribe to backtest events
+ * const unsubscribe = reportService.subscribe();
+ *
+ * // Run backtest...
+ * // Events are automatically logged
+ *
+ * // Later: unsubscribe
+ * await reportService.unsubscribe();
+ * ```
+ */
 export class BacktestReportService {
+  /** Logger service for debug output */
   private readonly loggerService = inject<LoggerService>(TYPES.loggerService);
 
+  /**
+   * Processes backtest tick events and logs them to the database.
+   * Handles all event types: idle, opened, active, closed.
+   *
+   * @param data - Backtest tick result with signal lifecycle information
+   *
+   * @internal
+   */
   private tick = async (data: IStrategyTickResult) => {
     this.loggerService.log(BACKTEST_REPORT_METHOD_NAME_TICK, { data });
 
@@ -105,6 +142,21 @@ export class BacktestReportService {
     }
   };
 
+  /**
+   * Subscribes to backtest signal emitter to receive tick events.
+   * Protected against multiple subscriptions.
+   * Returns an unsubscribe function to stop receiving events.
+   *
+   * @returns Unsubscribe function to stop receiving backtest events
+   *
+   * @example
+   * ```typescript
+   * const service = new BacktestReportService();
+   * const unsubscribe = service.subscribe();
+   * // ... later
+   * unsubscribe();
+   * ```
+   */
   public subscribe = singleshot(() => {
     this.loggerService.log(BACKTEST_REPORT_METHOD_NAME_SUBSCRIBE);
     const unsubscribe = signalBacktestEmitter.subscribe(this.tick);
@@ -114,6 +166,19 @@ export class BacktestReportService {
     };
   });
 
+  /**
+   * Unsubscribes from backtest signal emitter to stop receiving tick events.
+   * Calls the unsubscribe function returned by subscribe().
+   * If not subscribed, does nothing.
+   *
+   * @example
+   * ```typescript
+   * const service = new BacktestReportService();
+   * service.subscribe();
+   * // ... later
+   * await service.unsubscribe();
+   * ```
+   */
   public unsubscribe = async () => {
     this.loggerService.log(BACKTEST_REPORT_METHOD_NAME_UNSUBSCRIBE);
     if (this.subscribe.hasValue()) {

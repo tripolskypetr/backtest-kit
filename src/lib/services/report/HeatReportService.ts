@@ -10,9 +10,46 @@ const HEAT_REPORT_METHOD_NAME_SUBSCRIBE = "HeatReportService.subscribe";
 const HEAT_REPORT_METHOD_NAME_UNSUBSCRIBE = "HeatReportService.unsubscribe";
 const HEAT_REPORT_METHOD_NAME_TICK = "HeatReportService.tick";
 
+/**
+ * Service for logging heatmap (closed signals) events to SQLite database.
+ *
+ * Captures closed signal events across all symbols for portfolio-wide
+ * heatmap analysis and stores them in the Report database.
+ *
+ * Features:
+ * - Listens to signal events via signalEmitter
+ * - Logs only closed signals with PNL data
+ * - Stores events in Report.writeData() for heatmap generation
+ * - Protected against multiple subscriptions using singleshot
+ *
+ * @example
+ * ```typescript
+ * import { HeatReportService } from "backtest-kit";
+ *
+ * const reportService = new HeatReportService();
+ *
+ * // Subscribe to signal events
+ * const unsubscribe = reportService.subscribe();
+ *
+ * // Run strategy...
+ * // Closed signals are automatically logged
+ *
+ * // Later: unsubscribe
+ * await reportService.unsubscribe();
+ * ```
+ */
 export class HeatReportService {
+  /** Logger service for debug output */
   private readonly loggerService = inject<LoggerService>(TYPES.loggerService);
 
+  /**
+   * Processes signal tick events and logs closed signals to the database.
+   * Only processes closed signals - other actions are ignored.
+   *
+   * @param data - Strategy tick result with signal lifecycle information
+   *
+   * @internal
+   */
   private tick = async (data: IStrategyTickResult) => {
     this.loggerService.log(HEAT_REPORT_METHOD_NAME_TICK, { data });
 
@@ -45,6 +82,21 @@ export class HeatReportService {
     });
   };
 
+  /**
+   * Subscribes to signal emitter to receive closed signal events.
+   * Protected against multiple subscriptions.
+   * Returns an unsubscribe function to stop receiving events.
+   *
+   * @returns Unsubscribe function to stop receiving signal events
+   *
+   * @example
+   * ```typescript
+   * const service = new HeatReportService();
+   * const unsubscribe = service.subscribe();
+   * // ... later
+   * unsubscribe();
+   * ```
+   */
   public subscribe = singleshot(() => {
     this.loggerService.log(HEAT_REPORT_METHOD_NAME_SUBSCRIBE);
     const unsubscribe = signalEmitter.subscribe(this.tick);
@@ -54,6 +106,19 @@ export class HeatReportService {
     };
   });
 
+  /**
+   * Unsubscribes from signal emitter to stop receiving events.
+   * Calls the unsubscribe function returned by subscribe().
+   * If not subscribed, does nothing.
+   *
+   * @example
+   * ```typescript
+   * const service = new HeatReportService();
+   * service.subscribe();
+   * // ... later
+   * await service.unsubscribe();
+   * ```
+   */
   public unsubscribe = async () => {
     this.loggerService.log(HEAT_REPORT_METHOD_NAME_UNSUBSCRIBE);
     if (this.subscribe.hasValue()) {

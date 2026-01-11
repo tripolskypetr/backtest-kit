@@ -12,6 +12,7 @@ const REPORT_BASE_METHOD_NAME_WRITE = "ReportBase.write";
 const REPORT_UTILS_METHOD_NAME_USE_REPORT_ADAPTER = "ReportUtils.useReportAdapter";
 const REPORT_UTILS_METHOD_NAME_WRITE_DATA = "ReportUtils.writeReportData";
 const REPORT_UTILS_METHOD_NAME_ENABLE = "ReportUtils.enable";
+const REPORT_UTILS_METHOD_NAME_DISABLE = "ReportUtils.disable";
 const REPORT_UTILS_METHOD_NAME_USE_DUMMY = "ReportUtils.useDummy";
 const REPORT_UTILS_METHOD_NAME_USE_JSONL = "ReportUtils.useJsonl";
 
@@ -368,6 +369,93 @@ export class ReportUtils {
       unList.push(lib.walkerReportService.subscribe());
     }
     return compose(...unList.map((un) => () => void un()));
+  };
+
+  /**
+   * Disables report services selectively.
+   *
+   * Unsubscribes from specified report services to stop event logging.
+   * Use this method to stop JSONL logging for specific services while keeping others active.
+   *
+   * Each disabled service will:
+   * - Stop listening to events immediately
+   * - Stop writing to JSONL files
+   * - Free up event listener resources
+   *
+   * Unlike enable(), this method does NOT return an unsubscribe function.
+   * Services are unsubscribed immediately upon calling this method.
+   *
+   * @param config - Service configuration object specifying which services to disable. Defaults to disabling all services.
+   * @param config.backtest - Disable backtest closed signal logging
+   * @param config.breakeven - Disable breakeven event logging
+   * @param config.partial - Disable partial close event logging
+   * @param config.heat - Disable heatmap data logging
+   * @param config.walker - Disable walker iteration logging
+   * @param config.performance - Disable performance metrics logging
+   * @param config.risk - Disable risk rejection logging
+   * @param config.schedule - Disable scheduled signal logging
+   * @param config.live - Disable live trading event logging
+   *
+   * @example
+   * ```typescript
+   * import { Report } from "backtest-kit";
+   *
+   * // Disable specific services
+   * Report.disable({ backtest: true, live: true });
+   *
+   * // Disable all services
+   * Report.disable();
+   * ```
+   */
+  public disable = ({
+    backtest: bt = false,
+    breakeven = false,
+    heat = false,
+    live = false,
+    partial = false,
+    performance = false,
+    risk = false,
+    schedule = false,
+    walker = false,
+  }: Partial<IReportTarget> = WILDCARD_TARGET) => {
+    lib.loggerService.debug(REPORT_UTILS_METHOD_NAME_DISABLE, {
+      backtest: bt,
+      breakeven,
+      heat,
+      live,
+      partial,
+      performance,
+      risk,
+      schedule,
+      walker,
+    });
+    if (bt) {
+      lib.backtestReportService.unsubscribe();
+    }
+    if (breakeven) {
+      lib.breakevenReportService.unsubscribe();
+    }
+    if (heat) {
+      lib.heatReportService.unsubscribe();
+    }
+    if (live) {
+      lib.liveReportService.unsubscribe();
+    }
+    if (partial) {
+      lib.partialReportService.unsubscribe();
+    }
+    if (performance) {
+      lib.performanceReportService.unsubscribe();
+    }
+    if (risk) {
+      lib.riskReportService.unsubscribe();
+    }
+    if (schedule) {
+      lib.scheduleReportService.unsubscribe();
+    }
+    if (walker) {
+      lib.walkerReportService.unsubscribe();
+    }
   };
 }
 

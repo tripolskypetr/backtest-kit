@@ -6869,6 +6869,43 @@ declare class ReportUtils {
      * @returns Cleanup function that unsubscribes from all enabled services
      */
     enable: ({ backtest: bt, breakeven, heat, live, partial, performance, risk, schedule, walker, }?: Partial<IReportTarget>) => (...args: any[]) => any;
+    /**
+     * Disables report services selectively.
+     *
+     * Unsubscribes from specified report services to stop event logging.
+     * Use this method to stop JSONL logging for specific services while keeping others active.
+     *
+     * Each disabled service will:
+     * - Stop listening to events immediately
+     * - Stop writing to JSONL files
+     * - Free up event listener resources
+     *
+     * Unlike enable(), this method does NOT return an unsubscribe function.
+     * Services are unsubscribed immediately upon calling this method.
+     *
+     * @param config - Service configuration object specifying which services to disable. Defaults to disabling all services.
+     * @param config.backtest - Disable backtest closed signal logging
+     * @param config.breakeven - Disable breakeven event logging
+     * @param config.partial - Disable partial close event logging
+     * @param config.heat - Disable heatmap data logging
+     * @param config.walker - Disable walker iteration logging
+     * @param config.performance - Disable performance metrics logging
+     * @param config.risk - Disable risk rejection logging
+     * @param config.schedule - Disable scheduled signal logging
+     * @param config.live - Disable live trading event logging
+     *
+     * @example
+     * ```typescript
+     * import { Report } from "backtest-kit";
+     *
+     * // Disable specific services
+     * Report.disable({ backtest: true, live: true });
+     *
+     * // Disable all services
+     * Report.disable();
+     * ```
+     */
+    disable: ({ backtest: bt, breakeven, heat, live, partial, performance, risk, schedule, walker, }?: Partial<IReportTarget>) => void;
 }
 /**
  * Report adapter with pluggable storage backend and instance memoization.
@@ -7144,6 +7181,44 @@ declare class MarkdownUtils {
      * @returns Cleanup function that unsubscribes from all enabled services
      */
     enable: ({ backtest: bt, breakeven, heat, live, partial, performance, risk, schedule, walker, }?: Partial<IMarkdownTarget>) => (...args: any[]) => any;
+    /**
+     * Disables markdown report services selectively.
+     *
+     * Unsubscribes from specified markdown services to stop report generation.
+     * Use this method to stop markdown report generation for specific services while keeping others active.
+     *
+     * Each disabled service will:
+     * - Stop listening to events immediately
+     * - Stop accumulating data for reports
+     * - Stop generating markdown files
+     * - Free up event listener and memory resources
+     *
+     * Unlike enable(), this method does NOT return an unsubscribe function.
+     * Services are unsubscribed immediately upon calling this method.
+     *
+     * @param config - Service configuration object specifying which services to disable. Defaults to disabling all services.
+     * @param config.backtest - Disable backtest result reports with full trade history
+     * @param config.breakeven - Disable breakeven event tracking
+     * @param config.partial - Disable partial profit/loss event tracking
+     * @param config.heat - Disable portfolio heatmap analysis
+     * @param config.walker - Disable walker strategy comparison reports
+     * @param config.performance - Disable performance bottleneck analysis
+     * @param config.risk - Disable risk rejection tracking
+     * @param config.schedule - Disable scheduled signal tracking
+     * @param config.live - Disable live trading event reports
+     *
+     * @example
+     * ```typescript
+     * import { Markdown } from "backtest-kit";
+     *
+     * // Disable specific services
+     * Markdown.disable({ backtest: true, walker: true });
+     *
+     * // Disable all services
+     * Markdown.disable();
+     * ```
+     */
+    disable: ({ backtest: bt, breakeven, heat, live, partial, performance, risk, schedule, walker, }?: Partial<IMarkdownTarget>) => void;
 }
 /**
  * Markdown adapter with pluggable storage backend and instance memoization.
@@ -15321,67 +15396,657 @@ declare class ColumnValidationService {
     validate: () => void;
 }
 
+/**
+ * Service for logging backtest strategy tick events to SQLite database.
+ *
+ * Captures all backtest signal lifecycle events (idle, opened, active, closed)
+ * and stores them in the Report database for analysis and debugging.
+ *
+ * Features:
+ * - Listens to backtest signal events via signalBacktestEmitter
+ * - Logs all tick event types with full signal details
+ * - Stores events in Report.writeData() for persistence
+ * - Protected against multiple subscriptions using singleshot
+ *
+ * @example
+ * ```typescript
+ * import { BacktestReportService } from "backtest-kit";
+ *
+ * const reportService = new BacktestReportService();
+ *
+ * // Subscribe to backtest events
+ * const unsubscribe = reportService.subscribe();
+ *
+ * // Run backtest...
+ * // Events are automatically logged
+ *
+ * // Later: unsubscribe
+ * await reportService.unsubscribe();
+ * ```
+ */
 declare class BacktestReportService {
+    /** Logger service for debug output */
     private readonly loggerService;
+    /**
+     * Processes backtest tick events and logs them to the database.
+     * Handles all event types: idle, opened, active, closed.
+     *
+     * @param data - Backtest tick result with signal lifecycle information
+     *
+     * @internal
+     */
     private tick;
+    /**
+     * Subscribes to backtest signal emitter to receive tick events.
+     * Protected against multiple subscriptions.
+     * Returns an unsubscribe function to stop receiving events.
+     *
+     * @returns Unsubscribe function to stop receiving backtest events
+     *
+     * @example
+     * ```typescript
+     * const service = new BacktestReportService();
+     * const unsubscribe = service.subscribe();
+     * // ... later
+     * unsubscribe();
+     * ```
+     */
     subscribe: (() => () => void) & functools_kit.ISingleshotClearable;
+    /**
+     * Unsubscribes from backtest signal emitter to stop receiving tick events.
+     * Calls the unsubscribe function returned by subscribe().
+     * If not subscribed, does nothing.
+     *
+     * @example
+     * ```typescript
+     * const service = new BacktestReportService();
+     * service.subscribe();
+     * // ... later
+     * await service.unsubscribe();
+     * ```
+     */
     unsubscribe: () => Promise<void>;
 }
 
+/**
+ * Service for logging live trading strategy tick events to SQLite database.
+ *
+ * Captures all live trading signal lifecycle events (idle, opened, active, closed)
+ * and stores them in the Report database for real-time monitoring and analysis.
+ *
+ * Features:
+ * - Listens to live signal events via signalLiveEmitter
+ * - Logs all tick event types with full signal details
+ * - Stores events in Report.writeData() for persistence
+ * - Protected against multiple subscriptions using singleshot
+ *
+ * @example
+ * ```typescript
+ * import { LiveReportService } from "backtest-kit";
+ *
+ * const reportService = new LiveReportService();
+ *
+ * // Subscribe to live trading events
+ * const unsubscribe = reportService.subscribe();
+ *
+ * // Run live trading...
+ * // Events are automatically logged
+ *
+ * // Later: unsubscribe
+ * await reportService.unsubscribe();
+ * ```
+ */
 declare class LiveReportService {
+    /** Logger service for debug output */
     private readonly loggerService;
+    /**
+     * Processes live trading tick events and logs them to the database.
+     * Handles all event types: idle, opened, active, closed.
+     *
+     * @param data - Live trading tick result with signal lifecycle information
+     *
+     * @internal
+     */
     private tick;
+    /**
+     * Subscribes to live signal emitter to receive tick events.
+     * Protected against multiple subscriptions.
+     * Returns an unsubscribe function to stop receiving events.
+     *
+     * @returns Unsubscribe function to stop receiving live trading events
+     *
+     * @example
+     * ```typescript
+     * const service = new LiveReportService();
+     * const unsubscribe = service.subscribe();
+     * // ... later
+     * unsubscribe();
+     * ```
+     */
     subscribe: (() => () => void) & functools_kit.ISingleshotClearable;
+    /**
+     * Unsubscribes from live signal emitter to stop receiving tick events.
+     * Calls the unsubscribe function returned by subscribe().
+     * If not subscribed, does nothing.
+     *
+     * @example
+     * ```typescript
+     * const service = new LiveReportService();
+     * service.subscribe();
+     * // ... later
+     * await service.unsubscribe();
+     * ```
+     */
     unsubscribe: () => Promise<void>;
 }
 
+/**
+ * Service for logging scheduled signal events to SQLite database.
+ *
+ * Captures all scheduled signal lifecycle events (scheduled, opened, cancelled)
+ * and stores them in the Report database for tracking delayed order execution.
+ *
+ * Features:
+ * - Listens to signal events via signalEmitter
+ * - Logs scheduled, opened (from scheduled), and cancelled events
+ * - Calculates duration between scheduling and execution/cancellation
+ * - Stores events in Report.writeData() for schedule tracking
+ * - Protected against multiple subscriptions using singleshot
+ *
+ * @example
+ * ```typescript
+ * import { ScheduleReportService } from "backtest-kit";
+ *
+ * const reportService = new ScheduleReportService();
+ *
+ * // Subscribe to scheduled signal events
+ * const unsubscribe = reportService.subscribe();
+ *
+ * // Run strategy with scheduled orders...
+ * // Scheduled events are automatically logged
+ *
+ * // Later: unsubscribe
+ * await reportService.unsubscribe();
+ * ```
+ */
 declare class ScheduleReportService {
+    /** Logger service for debug output */
     private readonly loggerService;
+    /**
+     * Processes signal tick events and logs scheduled signal lifecycle to the database.
+     * Handles scheduled, opened (from scheduled), and cancelled event types.
+     *
+     * @param data - Strategy tick result with signal lifecycle information
+     *
+     * @internal
+     */
     private tick;
+    /**
+     * Subscribes to signal emitter to receive scheduled signal events.
+     * Protected against multiple subscriptions.
+     * Returns an unsubscribe function to stop receiving events.
+     *
+     * @returns Unsubscribe function to stop receiving scheduled signal events
+     *
+     * @example
+     * ```typescript
+     * const service = new ScheduleReportService();
+     * const unsubscribe = service.subscribe();
+     * // ... later
+     * unsubscribe();
+     * ```
+     */
     subscribe: (() => () => void) & functools_kit.ISingleshotClearable;
+    /**
+     * Unsubscribes from signal emitter to stop receiving events.
+     * Calls the unsubscribe function returned by subscribe().
+     * If not subscribed, does nothing.
+     *
+     * @example
+     * ```typescript
+     * const service = new ScheduleReportService();
+     * service.subscribe();
+     * // ... later
+     * await service.unsubscribe();
+     * ```
+     */
     unsubscribe: () => Promise<void>;
 }
 
+/**
+ * Service for logging performance metrics to SQLite database.
+ *
+ * Captures all performance timing events from strategy execution
+ * and stores them in the Report database for bottleneck analysis and optimization.
+ *
+ * Features:
+ * - Listens to performance events via performanceEmitter
+ * - Logs all timing metrics with duration and metadata
+ * - Stores events in Report.writeData() for performance analysis
+ * - Protected against multiple subscriptions using singleshot
+ *
+ * @example
+ * ```typescript
+ * import { PerformanceReportService } from "backtest-kit";
+ *
+ * const reportService = new PerformanceReportService();
+ *
+ * // Subscribe to performance events
+ * const unsubscribe = reportService.subscribe();
+ *
+ * // Run strategy...
+ * // Performance metrics are automatically logged
+ *
+ * // Later: unsubscribe
+ * await reportService.unsubscribe();
+ * ```
+ */
 declare class PerformanceReportService {
+    /** Logger service for debug output */
     private readonly loggerService;
+    /**
+     * Processes performance tracking events and logs them to the database.
+     *
+     * @param event - Performance contract with timing and metric information
+     *
+     * @internal
+     */
     private track;
+    /**
+     * Subscribes to performance emitter to receive timing events.
+     * Protected against multiple subscriptions.
+     * Returns an unsubscribe function to stop receiving events.
+     *
+     * @returns Unsubscribe function to stop receiving performance events
+     *
+     * @example
+     * ```typescript
+     * const service = new PerformanceReportService();
+     * const unsubscribe = service.subscribe();
+     * // ... later
+     * unsubscribe();
+     * ```
+     */
     subscribe: (() => () => void) & functools_kit.ISingleshotClearable;
+    /**
+     * Unsubscribes from performance emitter to stop receiving events.
+     * Calls the unsubscribe function returned by subscribe().
+     * If not subscribed, does nothing.
+     *
+     * @example
+     * ```typescript
+     * const service = new PerformanceReportService();
+     * service.subscribe();
+     * // ... later
+     * await service.unsubscribe();
+     * ```
+     */
     unsubscribe: () => Promise<void>;
 }
 
+/**
+ * Service for logging walker optimization progress to SQLite database.
+ *
+ * Captures walker strategy optimization results and stores them in the Report database
+ * for tracking parameter optimization and comparing strategy performance.
+ *
+ * Features:
+ * - Listens to walker events via walkerEmitter
+ * - Logs each strategy test result with metrics and statistics
+ * - Tracks best strategy and optimization progress
+ * - Stores events in Report.writeData() for optimization analysis
+ * - Protected against multiple subscriptions using singleshot
+ *
+ * @example
+ * ```typescript
+ * import { WalkerReportService } from "backtest-kit";
+ *
+ * const reportService = new WalkerReportService();
+ *
+ * // Subscribe to walker optimization events
+ * const unsubscribe = reportService.subscribe();
+ *
+ * // Run walker optimization...
+ * // Each strategy result is automatically logged
+ *
+ * // Later: unsubscribe
+ * await reportService.unsubscribe();
+ * ```
+ */
 declare class WalkerReportService {
+    /** Logger service for debug output */
     private readonly loggerService;
+    /**
+     * Processes walker optimization events and logs them to the database.
+     *
+     * @param data - Walker contract with strategy optimization results
+     *
+     * @internal
+     */
     private tick;
+    /**
+     * Subscribes to walker emitter to receive optimization progress events.
+     * Protected against multiple subscriptions.
+     * Returns an unsubscribe function to stop receiving events.
+     *
+     * @returns Unsubscribe function to stop receiving walker optimization events
+     *
+     * @example
+     * ```typescript
+     * const service = new WalkerReportService();
+     * const unsubscribe = service.subscribe();
+     * // ... later
+     * unsubscribe();
+     * ```
+     */
     subscribe: (() => () => void) & functools_kit.ISingleshotClearable;
+    /**
+     * Unsubscribes from walker emitter to stop receiving events.
+     * Calls the unsubscribe function returned by subscribe().
+     * If not subscribed, does nothing.
+     *
+     * @example
+     * ```typescript
+     * const service = new WalkerReportService();
+     * service.subscribe();
+     * // ... later
+     * await service.unsubscribe();
+     * ```
+     */
     unsubscribe: () => Promise<void>;
 }
 
+/**
+ * Service for logging heatmap (closed signals) events to SQLite database.
+ *
+ * Captures closed signal events across all symbols for portfolio-wide
+ * heatmap analysis and stores them in the Report database.
+ *
+ * Features:
+ * - Listens to signal events via signalEmitter
+ * - Logs only closed signals with PNL data
+ * - Stores events in Report.writeData() for heatmap generation
+ * - Protected against multiple subscriptions using singleshot
+ *
+ * @example
+ * ```typescript
+ * import { HeatReportService } from "backtest-kit";
+ *
+ * const reportService = new HeatReportService();
+ *
+ * // Subscribe to signal events
+ * const unsubscribe = reportService.subscribe();
+ *
+ * // Run strategy...
+ * // Closed signals are automatically logged
+ *
+ * // Later: unsubscribe
+ * await reportService.unsubscribe();
+ * ```
+ */
 declare class HeatReportService {
+    /** Logger service for debug output */
     private readonly loggerService;
+    /**
+     * Processes signal tick events and logs closed signals to the database.
+     * Only processes closed signals - other actions are ignored.
+     *
+     * @param data - Strategy tick result with signal lifecycle information
+     *
+     * @internal
+     */
     private tick;
+    /**
+     * Subscribes to signal emitter to receive closed signal events.
+     * Protected against multiple subscriptions.
+     * Returns an unsubscribe function to stop receiving events.
+     *
+     * @returns Unsubscribe function to stop receiving signal events
+     *
+     * @example
+     * ```typescript
+     * const service = new HeatReportService();
+     * const unsubscribe = service.subscribe();
+     * // ... later
+     * unsubscribe();
+     * ```
+     */
     subscribe: (() => () => void) & functools_kit.ISingleshotClearable;
+    /**
+     * Unsubscribes from signal emitter to stop receiving events.
+     * Calls the unsubscribe function returned by subscribe().
+     * If not subscribed, does nothing.
+     *
+     * @example
+     * ```typescript
+     * const service = new HeatReportService();
+     * service.subscribe();
+     * // ... later
+     * await service.unsubscribe();
+     * ```
+     */
     unsubscribe: () => Promise<void>;
 }
 
+/**
+ * Service for logging partial profit/loss events to SQLite database.
+ *
+ * Captures all partial position exit events (profit and loss levels)
+ * and stores them in the Report database for tracking partial closures.
+ *
+ * Features:
+ * - Listens to partial profit events via partialProfitSubject
+ * - Listens to partial loss events via partialLossSubject
+ * - Logs all partial exit events with level and price information
+ * - Stores events in Report.writeData() for persistence
+ * - Protected against multiple subscriptions using singleshot
+ *
+ * @example
+ * ```typescript
+ * import { PartialReportService } from "backtest-kit";
+ *
+ * const reportService = new PartialReportService();
+ *
+ * // Subscribe to partial events
+ * const unsubscribe = reportService.subscribe();
+ *
+ * // Run strategy with partial exits...
+ * // Partial events are automatically logged
+ *
+ * // Later: unsubscribe
+ * await reportService.unsubscribe();
+ * ```
+ */
 declare class PartialReportService {
+    /** Logger service for debug output */
     private readonly loggerService;
+    /**
+     * Processes partial profit events and logs them to the database.
+     *
+     * @param data - Partial profit event data with signal, level, and price information
+     *
+     * @internal
+     */
     private tickProfit;
+    /**
+     * Processes partial loss events and logs them to the database.
+     *
+     * @param data - Partial loss event data with signal, level, and price information
+     *
+     * @internal
+     */
     private tickLoss;
+    /**
+     * Subscribes to partial profit/loss emitters to receive partial exit events.
+     * Protected against multiple subscriptions.
+     * Returns an unsubscribe function to stop receiving events.
+     *
+     * @returns Unsubscribe function to stop receiving partial events
+     *
+     * @example
+     * ```typescript
+     * const service = new PartialReportService();
+     * const unsubscribe = service.subscribe();
+     * // ... later
+     * unsubscribe();
+     * ```
+     */
     subscribe: (() => () => void) & functools_kit.ISingleshotClearable;
+    /**
+     * Unsubscribes from partial profit/loss emitters to stop receiving events.
+     * Calls the unsubscribe function returned by subscribe().
+     * If not subscribed, does nothing.
+     *
+     * @example
+     * ```typescript
+     * const service = new PartialReportService();
+     * service.subscribe();
+     * // ... later
+     * await service.unsubscribe();
+     * ```
+     */
     unsubscribe: () => Promise<void>;
 }
 
+/**
+ * Service for logging breakeven events to SQLite database.
+ *
+ * Captures all breakeven events (when signal reaches breakeven point)
+ * and stores them in the Report database for analysis and tracking.
+ *
+ * Features:
+ * - Listens to breakeven events via breakevenSubject
+ * - Logs all breakeven achievements with full signal details
+ * - Stores events in Report.writeData() for persistence
+ * - Protected against multiple subscriptions using singleshot
+ *
+ * @example
+ * ```typescript
+ * import { BreakevenReportService } from "backtest-kit";
+ *
+ * const reportService = new BreakevenReportService();
+ *
+ * // Subscribe to breakeven events
+ * const unsubscribe = reportService.subscribe();
+ *
+ * // Run strategy...
+ * // Breakeven events are automatically logged
+ *
+ * // Later: unsubscribe
+ * await reportService.unsubscribe();
+ * ```
+ */
 declare class BreakevenReportService {
+    /** Logger service for debug output */
     private readonly loggerService;
+    /**
+     * Processes breakeven events and logs them to the database.
+     *
+     * @param data - Breakeven event data with signal and price information
+     *
+     * @internal
+     */
     private tickBreakeven;
+    /**
+     * Subscribes to breakeven signal emitter to receive breakeven events.
+     * Protected against multiple subscriptions.
+     * Returns an unsubscribe function to stop receiving events.
+     *
+     * @returns Unsubscribe function to stop receiving breakeven events
+     *
+     * @example
+     * ```typescript
+     * const service = new BreakevenReportService();
+     * const unsubscribe = service.subscribe();
+     * // ... later
+     * unsubscribe();
+     * ```
+     */
     subscribe: (() => () => void) & functools_kit.ISingleshotClearable;
+    /**
+     * Unsubscribes from breakeven signal emitter to stop receiving events.
+     * Calls the unsubscribe function returned by subscribe().
+     * If not subscribed, does nothing.
+     *
+     * @example
+     * ```typescript
+     * const service = new BreakevenReportService();
+     * service.subscribe();
+     * // ... later
+     * await service.unsubscribe();
+     * ```
+     */
     unsubscribe: () => Promise<void>;
 }
 
+/**
+ * Service for logging risk rejection events to SQLite database.
+ *
+ * Captures all signal rejection events from the risk management system
+ * and stores them in the Report database for risk analysis and auditing.
+ *
+ * Features:
+ * - Listens to risk rejection events via riskSubject
+ * - Logs all rejected signals with reason and pending signal details
+ * - Stores events in Report.writeData() for risk tracking
+ * - Protected against multiple subscriptions using singleshot
+ *
+ * @example
+ * ```typescript
+ * import { RiskReportService } from "backtest-kit";
+ *
+ * const reportService = new RiskReportService();
+ *
+ * // Subscribe to risk rejection events
+ * const unsubscribe = reportService.subscribe();
+ *
+ * // Run strategy with risk management...
+ * // Rejection events are automatically logged
+ *
+ * // Later: unsubscribe
+ * await reportService.unsubscribe();
+ * ```
+ */
 declare class RiskReportService {
+    /** Logger service for debug output */
     private readonly loggerService;
+    /**
+     * Processes risk rejection events and logs them to the database.
+     *
+     * @param data - Risk event with rejection reason and pending signal information
+     *
+     * @internal
+     */
     private tickRejection;
+    /**
+     * Subscribes to risk rejection emitter to receive rejection events.
+     * Protected against multiple subscriptions.
+     * Returns an unsubscribe function to stop receiving events.
+     *
+     * @returns Unsubscribe function to stop receiving risk rejection events
+     *
+     * @example
+     * ```typescript
+     * const service = new RiskReportService();
+     * const unsubscribe = service.subscribe();
+     * // ... later
+     * unsubscribe();
+     * ```
+     */
     subscribe: (() => () => void) & functools_kit.ISingleshotClearable;
+    /**
+     * Unsubscribes from risk rejection emitter to stop receiving events.
+     * Calls the unsubscribe function returned by subscribe().
+     * If not subscribed, does nothing.
+     *
+     * @example
+     * ```typescript
+     * const service = new RiskReportService();
+     * service.subscribe();
+     * // ... later
+     * await service.unsubscribe();
+     * ```
+     */
     unsubscribe: () => Promise<void>;
 }
 

@@ -6,6 +6,7 @@ import { join, dirname } from "path";
 import { exitEmitter } from "../config/emitters";
 
 const MARKDOWN_METHOD_NAME_ENABLE = "MarkdownUtils.enable";
+const MARKDOWN_METHOD_NAME_DISABLE = "MarkdownUtils.disable";
 const MARKDOWN_METHOD_NAME_USE_ADAPTER = "MarkdownAdapter.useMarkdownAdapter";
 
 /**
@@ -413,6 +414,94 @@ export class MarkdownUtils {
       unList.push(backtest.walkerMarkdownService.subscribe());
     }
     return compose(...unList.map((un) => () => void un()));
+  };
+
+  /**
+   * Disables markdown report services selectively.
+   *
+   * Unsubscribes from specified markdown services to stop report generation.
+   * Use this method to stop markdown report generation for specific services while keeping others active.
+   *
+   * Each disabled service will:
+   * - Stop listening to events immediately
+   * - Stop accumulating data for reports
+   * - Stop generating markdown files
+   * - Free up event listener and memory resources
+   *
+   * Unlike enable(), this method does NOT return an unsubscribe function.
+   * Services are unsubscribed immediately upon calling this method.
+   *
+   * @param config - Service configuration object specifying which services to disable. Defaults to disabling all services.
+   * @param config.backtest - Disable backtest result reports with full trade history
+   * @param config.breakeven - Disable breakeven event tracking
+   * @param config.partial - Disable partial profit/loss event tracking
+   * @param config.heat - Disable portfolio heatmap analysis
+   * @param config.walker - Disable walker strategy comparison reports
+   * @param config.performance - Disable performance bottleneck analysis
+   * @param config.risk - Disable risk rejection tracking
+   * @param config.schedule - Disable scheduled signal tracking
+   * @param config.live - Disable live trading event reports
+   *
+   * @example
+   * ```typescript
+   * import { Markdown } from "backtest-kit";
+   *
+   * // Disable specific services
+   * Markdown.disable({ backtest: true, walker: true });
+   *
+   * // Disable all services
+   * Markdown.disable();
+   * ```
+   */
+  public disable = ({
+    backtest: bt = false,
+    breakeven = false,
+    heat = false,
+    live = false,
+    partial = false,
+    performance = false,
+    risk = false,
+    schedule = false,
+    walker = false,
+  }: Partial<IMarkdownTarget> = WILDCARD_TARGET) => {
+    backtest.loggerService.debug(MARKDOWN_METHOD_NAME_DISABLE, {
+      backtest: bt,
+      breakeven,
+      heat,
+      live,
+      partial,
+      performance,
+      risk,
+      schedule,
+      walker,
+    });
+    if (bt) {
+      backtest.backtestMarkdownService.unsubscribe();
+    }
+    if (breakeven) {
+      backtest.breakevenMarkdownService.unsubscribe();
+    }
+    if (heat) {
+      backtest.heatMarkdownService.unsubscribe();
+    }
+    if (live) {
+      backtest.liveMarkdownService.unsubscribe();
+    }
+    if (partial) {
+      backtest.partialMarkdownService.unsubscribe();
+    }
+    if (performance) {
+      backtest.performanceMarkdownService.unsubscribe();
+    }
+    if (risk) {
+      backtest.riskMarkdownService.unsubscribe();
+    }
+    if (schedule) {
+      backtest.scheduleMarkdownService.unsubscribe();
+    }
+    if (walker) {
+      backtest.walkerMarkdownService.unsubscribe();
+    }
   };
 }
 

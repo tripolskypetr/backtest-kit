@@ -14,9 +14,46 @@ const PARTIAL_REPORT_METHOD_NAME_UNSUBSCRIBE = "PartialReportService.unsubscribe
 const PARTIAL_REPORT_METHOD_NAME_TICK_PROFIT = "PartialReportService.tickProfit";
 const PARTIAL_REPORT_METHOD_NAME_TICK_LOSS = "PartialReportService.tickLoss";
 
+/**
+ * Service for logging partial profit/loss events to SQLite database.
+ *
+ * Captures all partial position exit events (profit and loss levels)
+ * and stores them in the Report database for tracking partial closures.
+ *
+ * Features:
+ * - Listens to partial profit events via partialProfitSubject
+ * - Listens to partial loss events via partialLossSubject
+ * - Logs all partial exit events with level and price information
+ * - Stores events in Report.writeData() for persistence
+ * - Protected against multiple subscriptions using singleshot
+ *
+ * @example
+ * ```typescript
+ * import { PartialReportService } from "backtest-kit";
+ *
+ * const reportService = new PartialReportService();
+ *
+ * // Subscribe to partial events
+ * const unsubscribe = reportService.subscribe();
+ *
+ * // Run strategy with partial exits...
+ * // Partial events are automatically logged
+ *
+ * // Later: unsubscribe
+ * await reportService.unsubscribe();
+ * ```
+ */
 export class PartialReportService {
+  /** Logger service for debug output */
   private readonly loggerService = inject<LoggerService>(TYPES.loggerService);
 
+  /**
+   * Processes partial profit events and logs them to the database.
+   *
+   * @param data - Partial profit event data with signal, level, and price information
+   *
+   * @internal
+   */
   private tickProfit = async (data: {
     symbol: string;
     data: ISignalRow;
@@ -59,6 +96,13 @@ export class PartialReportService {
     });
   };
 
+  /**
+   * Processes partial loss events and logs them to the database.
+   *
+   * @param data - Partial loss event data with signal, level, and price information
+   *
+   * @internal
+   */
   private tickLoss = async (data: {
     symbol: string;
     data: ISignalRow;
@@ -101,6 +145,21 @@ export class PartialReportService {
     });
   };
 
+  /**
+   * Subscribes to partial profit/loss emitters to receive partial exit events.
+   * Protected against multiple subscriptions.
+   * Returns an unsubscribe function to stop receiving events.
+   *
+   * @returns Unsubscribe function to stop receiving partial events
+   *
+   * @example
+   * ```typescript
+   * const service = new PartialReportService();
+   * const unsubscribe = service.subscribe();
+   * // ... later
+   * unsubscribe();
+   * ```
+   */
   public subscribe = singleshot(() => {
     this.loggerService.log(PARTIAL_REPORT_METHOD_NAME_SUBSCRIBE);
     const unProfit = partialProfitSubject.subscribe(this.tickProfit);
@@ -112,6 +171,19 @@ export class PartialReportService {
     };
   });
 
+  /**
+   * Unsubscribes from partial profit/loss emitters to stop receiving events.
+   * Calls the unsubscribe function returned by subscribe().
+   * If not subscribed, does nothing.
+   *
+   * @example
+   * ```typescript
+   * const service = new PartialReportService();
+   * service.subscribe();
+   * // ... later
+   * await service.unsubscribe();
+   * ```
+   */
   public unsubscribe = async () => {
     this.loggerService.log(PARTIAL_REPORT_METHOD_NAME_UNSUBSCRIBE);
     if (this.subscribe.hasValue()) {

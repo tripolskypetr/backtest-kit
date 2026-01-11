@@ -10,9 +10,46 @@ const LIVE_REPORT_METHOD_NAME_SUBSCRIBE = "LiveReportService.subscribe";
 const LIVE_REPORT_METHOD_NAME_UNSUBSCRIBE = "LiveReportService.unsubscribe";
 const LIVE_REPORT_METHOD_NAME_TICK = "LiveReportService.tick";
 
+/**
+ * Service for logging live trading strategy tick events to SQLite database.
+ *
+ * Captures all live trading signal lifecycle events (idle, opened, active, closed)
+ * and stores them in the Report database for real-time monitoring and analysis.
+ *
+ * Features:
+ * - Listens to live signal events via signalLiveEmitter
+ * - Logs all tick event types with full signal details
+ * - Stores events in Report.writeData() for persistence
+ * - Protected against multiple subscriptions using singleshot
+ *
+ * @example
+ * ```typescript
+ * import { LiveReportService } from "backtest-kit";
+ *
+ * const reportService = new LiveReportService();
+ *
+ * // Subscribe to live trading events
+ * const unsubscribe = reportService.subscribe();
+ *
+ * // Run live trading...
+ * // Events are automatically logged
+ *
+ * // Later: unsubscribe
+ * await reportService.unsubscribe();
+ * ```
+ */
 export class LiveReportService {
+  /** Logger service for debug output */
   private readonly loggerService = inject<LoggerService>(TYPES.loggerService);
 
+  /**
+   * Processes live trading tick events and logs them to the database.
+   * Handles all event types: idle, opened, active, closed.
+   *
+   * @param data - Live trading tick result with signal lifecycle information
+   *
+   * @internal
+   */
   private tick = async (data: IStrategyTickResult) => {
     this.loggerService.log(LIVE_REPORT_METHOD_NAME_TICK, { data });
 
@@ -105,6 +142,21 @@ export class LiveReportService {
     }
   };
 
+  /**
+   * Subscribes to live signal emitter to receive tick events.
+   * Protected against multiple subscriptions.
+   * Returns an unsubscribe function to stop receiving events.
+   *
+   * @returns Unsubscribe function to stop receiving live trading events
+   *
+   * @example
+   * ```typescript
+   * const service = new LiveReportService();
+   * const unsubscribe = service.subscribe();
+   * // ... later
+   * unsubscribe();
+   * ```
+   */
   public subscribe = singleshot(() => {
     this.loggerService.log(LIVE_REPORT_METHOD_NAME_SUBSCRIBE);
     const unsubscribe = signalLiveEmitter.subscribe(this.tick);
@@ -114,6 +166,19 @@ export class LiveReportService {
     };
   });
 
+  /**
+   * Unsubscribes from live signal emitter to stop receiving tick events.
+   * Calls the unsubscribe function returned by subscribe().
+   * If not subscribed, does nothing.
+   *
+   * @example
+   * ```typescript
+   * const service = new LiveReportService();
+   * service.subscribe();
+   * // ... later
+   * await service.unsubscribe();
+   * ```
+   */
   public unsubscribe = async () => {
     this.loggerService.log(LIVE_REPORT_METHOD_NAME_UNSUBSCRIBE);
     if (this.subscribe.hasValue()) {

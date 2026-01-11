@@ -10,9 +10,46 @@ const WALKER_REPORT_METHOD_NAME_SUBSCRIBE = "WalkerReportService.subscribe";
 const WALKER_REPORT_METHOD_NAME_UNSUBSCRIBE = "WalkerReportService.unsubscribe";
 const WALKER_REPORT_METHOD_NAME_TICK = "WalkerReportService.tick";
 
+/**
+ * Service for logging walker optimization progress to SQLite database.
+ *
+ * Captures walker strategy optimization results and stores them in the Report database
+ * for tracking parameter optimization and comparing strategy performance.
+ *
+ * Features:
+ * - Listens to walker events via walkerEmitter
+ * - Logs each strategy test result with metrics and statistics
+ * - Tracks best strategy and optimization progress
+ * - Stores events in Report.writeData() for optimization analysis
+ * - Protected against multiple subscriptions using singleshot
+ *
+ * @example
+ * ```typescript
+ * import { WalkerReportService } from "backtest-kit";
+ *
+ * const reportService = new WalkerReportService();
+ *
+ * // Subscribe to walker optimization events
+ * const unsubscribe = reportService.subscribe();
+ *
+ * // Run walker optimization...
+ * // Each strategy result is automatically logged
+ *
+ * // Later: unsubscribe
+ * await reportService.unsubscribe();
+ * ```
+ */
 export class WalkerReportService {
+  /** Logger service for debug output */
   private readonly loggerService = inject<LoggerService>(TYPES.loggerService);
 
+  /**
+   * Processes walker optimization events and logs them to the database.
+   *
+   * @param data - Walker contract with strategy optimization results
+   *
+   * @internal
+   */
   private tick = async (data: WalkerContract) => {
     this.loggerService.log(WALKER_REPORT_METHOD_NAME_TICK, { data });
 
@@ -50,6 +87,21 @@ export class WalkerReportService {
     });
   };
 
+  /**
+   * Subscribes to walker emitter to receive optimization progress events.
+   * Protected against multiple subscriptions.
+   * Returns an unsubscribe function to stop receiving events.
+   *
+   * @returns Unsubscribe function to stop receiving walker optimization events
+   *
+   * @example
+   * ```typescript
+   * const service = new WalkerReportService();
+   * const unsubscribe = service.subscribe();
+   * // ... later
+   * unsubscribe();
+   * ```
+   */
   public subscribe = singleshot(() => {
     this.loggerService.log(WALKER_REPORT_METHOD_NAME_SUBSCRIBE);
     const unsubscribe = walkerEmitter.subscribe(this.tick);
@@ -59,6 +111,19 @@ export class WalkerReportService {
     };
   });
 
+  /**
+   * Unsubscribes from walker emitter to stop receiving events.
+   * Calls the unsubscribe function returned by subscribe().
+   * If not subscribed, does nothing.
+   *
+   * @example
+   * ```typescript
+   * const service = new WalkerReportService();
+   * service.subscribe();
+   * // ... later
+   * await service.unsubscribe();
+   * ```
+   */
   public unsubscribe = async () => {
     this.loggerService.log(WALKER_REPORT_METHOD_NAME_UNSUBSCRIBE);
     if (this.subscribe.hasValue()) {
