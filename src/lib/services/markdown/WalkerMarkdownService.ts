@@ -436,6 +436,7 @@ export class WalkerMarkdownService {
     const unsubscribe = walkerEmitter.subscribe(this.tick);
     return () => {
       this.subscribe.clear();
+      this.clear();
       unsubscribe();
     }
   });

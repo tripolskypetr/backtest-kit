@@ -313,6 +313,7 @@ export class PartialMarkdownService {
     const unLoss = partialLossSubject.subscribe(this.tickLoss);
     return () => {
       this.subscribe.clear();
+      this.clear();
       unProfit();
       unLoss();
     }

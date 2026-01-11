@@ -483,6 +483,7 @@ export class HeatMarkdownService {
     const unsubscribe = signalEmitter.subscribe(this.tick);
     return () => {
       this.subscribe.clear();
+      this.clear();
       unsubscribe();
     }
   });

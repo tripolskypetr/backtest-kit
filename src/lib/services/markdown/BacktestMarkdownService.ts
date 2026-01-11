@@ -519,6 +519,7 @@ export class BacktestMarkdownService {
     const unsubscribe = signalBacktestEmitter.subscribe(this.tick);
     return () => {
       this.subscribe.clear();
+      this.clear();
       unsubscribe();
     }
   });

@@ -262,6 +262,7 @@ export class RiskMarkdownService {
     const unsubscribe = riskSubject.subscribe(this.tickRejection);
     return () => {
       this.subscribe.clear();
+      this.clear();
       unsubscribe();
     }
   });

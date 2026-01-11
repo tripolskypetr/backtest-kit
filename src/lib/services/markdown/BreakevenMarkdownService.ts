@@ -264,6 +264,7 @@ export class BreakevenMarkdownService {
     const unBreakeven = breakevenSubject.subscribe(this.tickBreakeven);
     return () => {
       this.subscribe.clear();
+      this.clear();
       unBreakeven();
     }
   });

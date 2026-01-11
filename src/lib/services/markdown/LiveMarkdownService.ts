@@ -476,6 +476,7 @@ export class LiveMarkdownService {
     const unsubscribe = signalLiveEmitter.subscribe(this.tick);
     return () => {
       this.subscribe.clear();
+      this.clear();
       unsubscribe();
     }
   });

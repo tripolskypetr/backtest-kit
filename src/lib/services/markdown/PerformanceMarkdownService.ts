@@ -366,6 +366,7 @@ export class PerformanceMarkdownService {
     const unsubscribe = performanceEmitter.subscribe(this.track);
     return () => {
       this.subscribe.clear();
+      this.clear();
       unsubscribe();
     }
   });
