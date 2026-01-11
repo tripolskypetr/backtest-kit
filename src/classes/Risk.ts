@@ -29,7 +29,10 @@ const RISK_METHOD_NAME_DUMP = "RiskUtils.dump";
  * // Combine multiple risk profiles
  * const maxPositionsRisk = new MaxPositionsRisk(3);
  * const correlationRisk = new CorrelationRisk(0.7);
- * const mergedRisk = new MergeRisk([maxPositionsRisk, correlationRisk]);
+ * const mergedRisk = new MergeRisk({
+ *   "max-positions": maxPositionsRisk,
+ *   "correlation": correlationRisk
+ * });
  *
  * // Check if signal passes all risks
  * const canTrade = await mergedRisk.checkSignal({
@@ -47,9 +50,9 @@ export class MergeRisk implements IRisk {
   /**
    * Creates a merged risk profile from multiple risk instances.
    *
-   * @param _riskList - Array of IRisk instances to combine
+   * @param _riskMap - Object mapping RiskName to IRisk instances to combine
    */
-  constructor(readonly _riskList: IRisk[]) {}
+  constructor(readonly _riskMap: Record<RiskName, IRisk>) {}
 
   /**
    * Checks if signal passes all combined risk profiles.
@@ -64,8 +67,15 @@ export class MergeRisk implements IRisk {
     bt.loggerService.info("MergeRisk checkSignal", {
       params,
     });
-    for (const risk of this._riskList) {
-      if (await not(risk.checkSignal(params))) {
+    for (const [riskName, risk] of Object.entries(this._riskMap)) {
+      if (
+        await not(
+          risk.checkSignal({
+            ...params,
+            riskName,
+          })
+        )
+      ) {
         return false;
       }
     }
@@ -99,7 +109,9 @@ export class MergeRisk implements IRisk {
       context,
     });
     await Promise.all(
-      this._riskList.map(async (risk) => await risk.addSignal(symbol, context, positionData))
+      Object.entries(this._riskMap).map(async ([riskName, risk]) =>
+        await risk.addSignal(symbol, { ...context, riskName }, positionData)
+      )
     );
   }
 
@@ -122,8 +134,8 @@ export class MergeRisk implements IRisk {
       context,
     });
     await Promise.all(
-      this._riskList.map(
-        async (risk) => await risk.removeSignal(symbol, context)
+      Object.entries(this._riskMap).map(
+        async ([riskName, risk]) => await risk.removeSignal(symbol, { ...context, riskName })
       )
     );
   }

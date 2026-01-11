@@ -23,6 +23,8 @@ export interface IRiskCheckArgs {
   strategyName: StrategyName;
   /** Exchange name */
   exchangeName: ExchangeName;
+  /** Risk name */
+  riskName: RiskName;
   /** Frame name */
   frameName: FrameName;
   /** Current VWAP price */

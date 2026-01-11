@@ -1926,6 +1926,7 @@ const CALL_RISK_CHECK_SIGNAL_FN = trycatch(
         strategyName: self.params.method.context.strategyName,
         exchangeName: self.params.method.context.exchangeName,
         frameName: self.params.method.context.frameName,
+        riskName: self.params.riskName,
         currentPrice,
         timestamp,
       });

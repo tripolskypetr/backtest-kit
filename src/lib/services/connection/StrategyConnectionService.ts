@@ -30,6 +30,12 @@ import { TMethodContextService } from "../context/MethodContextService";
 import { FrameName } from "../../../interfaces/Frame.interface";
 
 /**
+ * Mapping of RiskName to IRisk instances.
+ * Used for constructing merged risks.
+ */
+type RiskMap = Record<RiskName, IRisk>;
+
+/**
  * No-operation IRisk implementation.
  * Always allows signals and performs no actions.
  */
@@ -74,19 +80,24 @@ const GET_RISK_FN = (
   // Есть только riskList (без riskName)
   if (!hasRiskName && hasRiskList) {
     return new MergeRisk(
-      dto.riskList.map((riskName) =>
-        self.riskConnectionService.getRisk(riskName, exchangeName, frameName, backtest)
-      )
+      dto.riskList.reduce<RiskMap>((acc, riskName) => {
+        acc[riskName] = self.riskConnectionService.getRisk(riskName, exchangeName, frameName, backtest);
+        return acc;
+      }, {})
     );
   }
 
   // Есть и riskName, и riskList - объединяем (riskName в начало)
-  return new MergeRisk([
-    self.riskConnectionService.getRisk(dto.riskName, exchangeName, frameName, backtest),
-    ...dto.riskList.map((riskName) =>
-      self.riskConnectionService.getRisk(riskName, exchangeName, frameName, backtest)
-    ),
-  ]);
+  return new MergeRisk({
+    [dto.riskName]: self.riskConnectionService.getRisk(dto.riskName, exchangeName, frameName, backtest),
+    ...dto.riskList.reduce<RiskMap>((acc, riskName) => {
+      if (riskName === dto.riskName) {
+        return acc;
+      }
+      acc[riskName] = self.riskConnectionService.getRisk(riskName, exchangeName, frameName, backtest);
+      return acc;
+    }, {})
+  });
 };
 
 /**
