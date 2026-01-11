@@ -59,12 +59,15 @@ export class OptimizerTemplateService implements IOptimizerTemplate {
       `    listenBacktestProgress,`,
       `    listenWalkerProgress,`,
       `    listenError,`,
+      `    Markdown,`,
       `} from "backtest-kit";`,
       `import { promises as fs } from "fs";`,
       `import { v4 as uuid } from "uuid";`,
       `import path from "path";`,
       ``,
-      `const WARN_KB = 100;`
+      `const WARN_KB = 100;`,
+      ``,
+      `Markdown.enable()`,
     ].join("\n");
   };
 

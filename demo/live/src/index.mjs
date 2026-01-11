@@ -17,11 +17,14 @@ import {
     listenBreakeven,
     dumpSignal,
     Breakeven,
+    Markdown,
 } from "backtest-kit";
 import { v4 as uuid } from "uuid";
 
 import { json } from "./utils/json.mjs";
 import { getMessages } from "./utils/messages.mjs";
+
+Markdown.enable();
 
 addExchange({
     exchangeName: "test_exchange",
