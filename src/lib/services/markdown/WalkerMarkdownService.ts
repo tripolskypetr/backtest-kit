@@ -388,11 +388,11 @@ class ReportStorage {
     await Markdown.writeData("walker", markdown, {
       path,
       file: filename,
-      symbol: "",
+      symbol: symbol,
       signalId: "",
       strategyName: "",
-      exchangeName: "",
-      frameName: ""
+      exchangeName: context.exchangeName,
+      frameName: context.frameName
     });
   }
 }
