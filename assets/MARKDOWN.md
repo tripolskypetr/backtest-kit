@@ -1,4 +1,4 @@
-# Markdown Report JSONL Files
+# MARKDOWN Report JSONL Files Documentation
 
 This document describes the markdown report JSONL logging system that tracks generated reports through the `Markdown.writeData()` method.
 
