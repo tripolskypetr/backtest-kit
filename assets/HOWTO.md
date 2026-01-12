@@ -13,6 +13,7 @@ dump/report/
 ├── heat.jsonl
 ├── partial.jsonl
 ├── breakeven.jsonl
+├── risk.jsonl
 ├── schedule.jsonl
 ├── performance.jsonl
 └── walker.jsonl
@@ -25,6 +26,8 @@ Each file contains newline-delimited JSON objects (JSONL format). Each line is a
 ## Report Types
 
 ### 1. backtest.jsonl
+
+> Search keys: `symbol`, `strategyName`, `exchangeName`, `frameName`, `signalId`
 
 **Purpose**: Complete lifecycle tracking of all signals during backtesting.
 
@@ -92,6 +95,8 @@ Each file contains newline-delimited JSON objects (JSONL format). Each line is a
 
 ### 2. live.jsonl
 
+> Search keys: `symbol`, `strategyName`, `exchangeName`, `frameName`, `signalId`
+
 **Purpose**: Real-time tracking of live trading signal lifecycle.
 
 **Source**: `LiveReportService` listening to `signalLiveEmitter`
@@ -109,6 +114,8 @@ Each file contains newline-delimited JSON objects (JSONL format). Each line is a
 ---
 
 ### 3. heat.jsonl
+
+> Search keys: `symbol`, `strategyName`, `exchangeName`, `frameName`, `signalId`
 
 **Purpose**: Portfolio-wide closed signal aggregation for heatmap analysis.
 
@@ -145,6 +152,8 @@ Each file contains newline-delimited JSON objects (JSONL format). Each line is a
 ---
 
 ### 4. partial.jsonl
+
+> Search keys: `symbol`, `strategyName`, `exchangeName`, `frameName`, `signalId`
 
 **Purpose**: Tracking partial position exits (both profit-taking and loss-cutting).
 
@@ -196,6 +205,8 @@ Each file contains newline-delimited JSON objects (JSONL format). Each line is a
 
 ### 5. breakeven.jsonl
 
+> Search keys: `symbol`, `strategyName`, `exchangeName`, `frameName`, `signalId`
+
 **Purpose**: Tracking stop-loss moves to breakeven (entry price).
 
 **Source**: `BreakevenReportService` listening to `breakevenSubject`
@@ -233,7 +244,53 @@ Each file contains newline-delimited JSON objects (JSONL format). Each line is a
 
 ---
 
-### 6. schedule.jsonl
+### 6. risk.jsonl
+
+> Search keys: `symbol`, `strategyName`, `exchangeName`, `frameName`
+
+**Purpose**: Tracking risk rejection events (signals blocked by risk management rules).
+
+**Source**: `RiskReportService` listening to `riskSubject`
+
+**Fields**:
+```typescript
+{
+  timestamp: number;
+  symbol: string;
+  strategyName: string;
+  exchangeName: string;
+  frameName: string;
+  backtest: boolean;
+  currentPrice: number;
+  activePositionCount: number;  // Number of active positions
+  rejectionId: string;           // Risk rule identifier
+  rejectionNote: string;         // Human-readable rejection reason
+  pendingSignal?: {              // Signal that was rejected
+    id: string;
+    position: string;
+    priceOpen: number;
+    priceTakeProfit: number;
+    priceStopLoss: number;
+    originalPriceTakeProfit: number;
+    originalPriceStopLoss: number;
+    totalExecuted: number;
+    note?: string;
+    minuteEstimatedTime: number;
+  };
+}
+```
+
+**Use Cases**:
+- Analyzing why signals were rejected
+- Monitoring risk rule effectiveness
+- Debugging position limits
+- Tracking lost opportunities due to risk constraints
+
+---
+
+### 7. schedule.jsonl
+
+> Search keys: `symbol`, `strategyName`, `exchangeName`, `frameName`, `signalId`
 
 **Purpose**: Tracking scheduled signal lifecycle (delayed order execution).
 
@@ -285,7 +342,9 @@ Each file contains newline-delimited JSON objects (JSONL format). Each line is a
 
 ---
 
-### 7. performance.jsonl
+### 8. performance.jsonl
+
+> Search keys: `symbol`, `strategyName`, `exchangeName`, `frameName`
 
 **Purpose**: Execution performance profiling and bottleneck analysis.
 
@@ -314,7 +373,9 @@ Each file contains newline-delimited JSON objects (JSONL format). Each line is a
 
 ---
 
-### 8. walker.jsonl
+### 9. walker.jsonl
+
+> Search keys: `symbol`, `strategyName`, `exchangeName`, `frameName`, `walkerName`
 
 **Purpose**: Strategy parameter optimization tracking (walker algorithm progress).
 
