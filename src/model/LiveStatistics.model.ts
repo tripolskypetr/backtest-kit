@@ -18,11 +18,11 @@ export interface TickEvent {
   /** Current price */
   currentPrice: number;
   /** Open price (only for opened/active/closed) */
-  openPrice?: number;
+  priceOpen?: number;
   /** Take profit price (only for opened/active/closed) */
-  takeProfit?: number;
+  priceTakeProfit?: number;
   /** Stop loss price (only for opened/active/closed) */
-  stopLoss?: number;
+  priceStopLoss?: number;
   /** Original take profit price before modifications (only for opened/active/closed) */
   originalPriceTakeProfit?: number;
   /** Original stop loss price before modifications (only for opened/active/closed) */

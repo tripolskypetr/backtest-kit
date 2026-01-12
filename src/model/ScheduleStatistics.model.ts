@@ -20,9 +20,9 @@ export interface ScheduledEvent {
   /** Scheduled entry price */
   priceOpen: number;
   /** Take profit price */
-  takeProfit: number;
+  priceTakeProfit: number;
   /** Stop loss price */
-  stopLoss: number;
+  priceStopLoss: number;
   /** Original take profit price before modifications */
   originalPriceTakeProfit?: number;
   /** Original stop loss price before modifications */
