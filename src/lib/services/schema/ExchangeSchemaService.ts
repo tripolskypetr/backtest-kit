@@ -56,18 +56,6 @@ export class ExchangeSchemaService {
         `exchange schema validation failed: missing getCandles for exchangeName=${exchangeSchema.exchangeName}`
       );
     }
-
-    if (typeof exchangeSchema.formatPrice !== "function") {
-      throw new Error(
-        `exchange schema validation failed: missing formatPrice for exchangeName=${exchangeSchema.exchangeName}`
-      );
-    }
-
-    if (typeof exchangeSchema.formatQuantity !== "function") {
-      throw new Error(
-        `exchange schema validation failed: missing formatQuantity for exchangeName=${exchangeSchema.exchangeName}`
-      );
-    }
   };
 
   /**

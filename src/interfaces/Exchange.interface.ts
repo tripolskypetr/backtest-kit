@@ -74,7 +74,7 @@ export interface IExchangeParams extends IExchangeSchema {
   /** Format price according to exchange precision rules (required, defaults applied) */
   formatPrice: (symbol: string, price: number) => Promise<string>;
   /** Fetch order book for a trading pair (required, defaults applied) */
-  getOrderBook: (symbol: string, when: Date) => Promise<IOrderBookData>;
+  getOrderBook: (symbol: string, from: Date, to: Date) => Promise<IOrderBookData>;
 }
 
 /**
@@ -141,10 +141,11 @@ export interface IExchangeSchema {
    * Optional. If not provided, throws an error when called.
    *
    * @param symbol - Trading pair symbol (e.g., "BTCUSDT")
-   * @param when - Date for fetching order book (used in backtest mode)
+   * @param from - Start of time range for order book snapshot
+   * @param to - End of time range for order book snapshot
    * @returns Promise resolving to order book data
    */
-  getOrderBook?: (symbol: string, when: Date) => Promise<IOrderBookData>;
+  getOrderBook?: (symbol: string, from: Date, to: Date) => Promise<IOrderBookData>;
   /** Optional lifecycle event callbacks (onCandleData) */
   callbacks?: Partial<IExchangeCallbacks>;
 }

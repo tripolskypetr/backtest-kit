@@ -498,11 +498,11 @@ export class ClientExchange implements IExchange {
       symbol,
     });
 
-    const when = new Date(
-      this.params.execution.context.when.getTime() -
-      GLOBAL_CONFIG.CC_ORDER_BOOK_TIME_OFFSET_MINUTES * 60 * 1_000
+    const to = new Date(this.params.execution.context.when.getTime());
+    const from = new Date(
+      to.getTime() - GLOBAL_CONFIG.CC_ORDER_BOOK_TIME_OFFSET_MINUTES * 60 * 1_000
     );
-    return await this.params.getOrderBook(symbol, when);
+    return await this.params.getOrderBook(symbol, from, to);
   }
 }
 

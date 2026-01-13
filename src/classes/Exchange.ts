@@ -37,7 +37,7 @@ const DEFAULT_FORMAT_PRICE_FN = async (_symbol: string, price: number): Promise<
  * Default implementation for getOrderBook.
  * Throws an error indicating the method is not implemented.
  */
-const DEFAULT_GET_ORDER_BOOK_FN = async (_symbol: string, _when: Date): Promise<IOrderBookData> => {
+const DEFAULT_GET_ORDER_BOOK_FN = async (_symbol: string, _from: Date, _to: Date): Promise<IOrderBookData> => {
   throw new Error(`getOrderBook is not implemented for this exchange`);
 };
 
@@ -338,8 +338,9 @@ export class ExchangeInstance {
       symbol,
     });
 
-    const when = new Date(Date.now() - GLOBAL_CONFIG.CC_ORDER_BOOK_TIME_OFFSET_MINUTES * 60 * 1_000);
-    return await this._methods.getOrderBook(symbol, when);
+    const to = new Date(Date.now());
+    const from = new Date(to.getTime() - GLOBAL_CONFIG.CC_ORDER_BOOK_TIME_OFFSET_MINUTES * 60 * 1_000);
+    return await this._methods.getOrderBook(symbol, from, to);
   };
 }
 
