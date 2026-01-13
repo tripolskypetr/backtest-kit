@@ -35,14 +35,14 @@ const commitHourHistory = trycatch(
       {
         role: "user",
         content: str.newline(
-          "=== 1-ЧАСОВЫЕ СВЕЧИ (последние 6 свечей) ===",
+          "=== HOURLY CANDLES HISTORY (LAST 6) ===",
           "",
           hourHistory
         ),
       },
       {
         role: "assistant",
-        content: "1-часовые свечи получены.",
+        content: "Hourly candles history received.",
       }
     );
   },
@@ -58,14 +58,14 @@ const commitThirtyMinuteHistory = trycatch(
       {
         role: "user",
         content: str.newline(
-          "=== 30-МИНУТНЫЕ СВЕЧИ (последние 6 свечей) ===",
+          "=== 30-MIN CANDLES HISTORY (LAST 6) ===",
           "",
           thirtyMinuteHistory
         ),
       },
       {
         role: "assistant",
-        content: "30-минутные свечи получены.",
+        content: "30-min candles history received.",
       }
     );
   },
@@ -81,14 +81,14 @@ const commitFifteenMinuteHistory = trycatch(
       {
         role: "user",
         content: str.newline(
-          "=== 15-МИНУТНЫЕ СВЕЧИ (последние 8 свечей) ===",
+          "=== 15-MINUTE CANDLES HISTORY (LAST 8) ===",
           "",
           fifteenMinuteHistory
         ),
       },
       {
         role: "assistant",
-        content: "15-минутные свечи получены.",
+        content: "15-minute candles history received.",
       }
     );
   },
@@ -104,14 +104,14 @@ const commitOneMinuteHistory = trycatch(
       {
         role: "user",
         content: str.newline(
-          "=== 1-МИНУТНЫЕ СВЕЧИ (последние 15 свечей) ===",
+          "=== ONE-MINUTE CANDLES HISTORY (LAST 15) ===",
           "",
           oneMinuteHistory
         ),
       },
       {
         role: "assistant",
-        content: "1-минутные свечи получены.",
+        content: "One-minute candles history received.",
       }
     );
   },

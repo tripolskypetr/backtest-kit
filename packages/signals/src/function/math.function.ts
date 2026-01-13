@@ -26,14 +26,14 @@ const commitMicroTermMath = trycatch(
       {
         role: "user",
         content: str.newline(
-          "=== ИСТОРИЧЕСКИЕ ДАННЫЕ 1-МИНУТНЫХ СВЕЧЕЙ ===",
+          "=== 1-MINUTE CANDLES TRADING ANALYSIS (HISTORICAL DATA) ===",
           "",
           microTermMath
         ),
       },
       {
         role: "assistant",
-        content: "Исторические данные 1-минутных свечей получены.",
+        content: "1-minute candles trading analysis received.",
       }
     );
   },
@@ -49,14 +49,14 @@ const commitLongTermMath = trycatch(
       {
         role: "user",
         content: str.newline(
-          "=== ИСТОРИЧЕСКИЕ ДАННЫЕ 1-ЧАСОВЫХ СВЕЧЕЙ ===",
+          "=== 1-HOUR CANDLES TRADING ANALYSIS (HISTORICAL DATA) ===",
           "",
           longTermMath
         ),
       },
       {
         role: "assistant",
-        content: "Исторические данные 1-часовых свечей получены.",
+        content: "1-hour candles trading analysis received.",
       }
     );
   },
@@ -72,14 +72,14 @@ const commitShortTermMath = trycatch(
       {
         role: "user",
         content: str.newline(
-          "=== ИСТОРИЧЕСКИЕ ДАННЫЕ 15-МИНУТНЫХ СВЕЧЕЙ ===",
+          "=== 15-MINUTE CANDLES TRADING ANALYSIS (HISTORICAL DATA) ===",
           "",
           shortTermMath
         ),
       },
       {
         role: "assistant",
-        content: "Исторические данные 15-минутных свечей получены.",
+        content: "15-minute candles trading analysis received.",
       }
     );
   },
@@ -95,14 +95,14 @@ const commitSwingTermMath = trycatch(
       {
         role: "user",
         content: str.newline(
-          "=== ИСТОРИЧЕСКИЕ ДАННЫЕ 30-МИНУТНЫХ СВЕЧЕЙ ===",
+          "=== 30-MIN CANDLES ANALYSIS (HISTORICAL DATA) ===",
           "",
           swingTermMath
         ),
       },
       {
         role: "assistant",
-        content: "Исторические данные 30-минутных свечей получены.",
+        content: "30-min candles analysis received.",
       }
     );
   },

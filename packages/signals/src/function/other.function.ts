@@ -20,7 +20,7 @@ const commitBookDataReport = trycatch(
       {
         role: "user",
         content: str.newline(
-          "=== АНАЛИЗ СТАКАНА ЗАЯВОК (Order Book Analysis: топ-20 самых крупных уровней по % объема, Best Bid/Ask, Mid Price, Spread, Depth Imbalance) ===",
+          "=== ORDER BOOK ANALYSIS (TOP 20 LARGEST LEVELS BY VOLUME %, BEST BID/ASK, MID PRICE, SPREAD, DEPTH IMBALANCE) ===",
           "",
           bookDataReport
         ),
@@ -28,7 +28,7 @@ const commitBookDataReport = trycatch(
       {
         role: "assistant",
         content:
-          "Анализ стакана заявок получен. Буду использовать для оценки краткосрочной ликвидности, направления давления рынка (depth imbalance) и крупных уровней поддержки/сопротивления.",
+          "Order book analysis received. Will use for short-term liquidity assessment, market pressure direction (depth imbalance), and major support/resistance levels.",
       }
     );
   },
