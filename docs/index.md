@@ -180,6 +180,8 @@ group: docs
 - [IExecutionContext](interfaces/IExecutionContext.md)
 - [ILogger](interfaces/ILogger.md)
 - [ICandleData](interfaces/ICandleData.md)
+- [IBidData](interfaces/IBidData.md)
+- [IOrderBookData](interfaces/IOrderBookData.md)
 - [IExchangeParams](interfaces/IExchangeParams.md)
 - [IExchangeCallbacks](interfaces/IExchangeCallbacks.md)
 - [IExchangeSchema](interfaces/IExchangeSchema.md)

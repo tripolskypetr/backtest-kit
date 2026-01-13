@@ -82,3 +82,11 @@ formatPrice(symbol: string, price: number): Promise<string>;
 
 Formats price according to exchange-specific rules for the given symbol.
 Applies proper decimal precision and rounding based on symbol's price filters.
+
+### getOrderBook
+
+```ts
+getOrderBook(symbol: string): Promise<IOrderBookData>;
+```
+
+Fetches order book for a trading pair.

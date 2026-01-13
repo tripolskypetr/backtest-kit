@@ -61,3 +61,11 @@ formatPrice: (symbol: string, price: number, context: { exchangeName: string; })
 ```
 
 Format price according to exchange precision rules.
+
+### getOrderBook
+
+```ts
+getOrderBook: (symbol: string, context: { exchangeName: string; }) => Promise<IOrderBookData>
+```
+
+Fetch order book for a trading pair.

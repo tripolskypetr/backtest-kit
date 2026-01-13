@@ -113,3 +113,13 @@ formatQuantity: (symbol: string, quantity: number) => Promise<string>
 Formats quantity according to exchange-specific precision rules.
 
 Ensures quantity meets exchange requirements for decimal places and lot size.
+
+### getOrderBook
+
+```ts
+getOrderBook: (symbol: string) => Promise<IOrderBookData>
+```
+
+Fetches order book for a trading pair using configured exchange.
+
+Routes to exchange determined by methodContextService.context.exchangeName.

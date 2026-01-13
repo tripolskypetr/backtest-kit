@@ -5,8 +5,14 @@ group: docs
 
 # IPersistBase
 
-Persistence interface for CRUD operations.
-Implemented by PersistBase.
+Persistence interface for custom adapters.
+Defines only the essential CRUD operations required for persistence.
+Custom adapters should implement this interface.
+
+Architecture:
+- IPersistBase: Public API for custom adapters (4 methods: waitForInit, readValue, hasValue, writeValue)
+- PersistBase: Default implementation with internal keys() method for validation
+- TPersistBaseCtor: Constructor type requiring IPersistBase
 
 ## Methods
 
@@ -42,11 +48,3 @@ writeValue: (entityId: EntityId, entity: Entity) => Promise<void>
 ```
 
 Write entity to storage with atomic file writes.
-
-### keys
-
-```ts
-keys: () => AsyncGenerator<EntityId, any, any>
-```
-
-Async generator yielding all entity IDs.

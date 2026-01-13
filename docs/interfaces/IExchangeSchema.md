@@ -42,6 +42,8 @@ formatQuantity: (symbol: string, quantity: number) => Promise<string>
 
 Format quantity according to exchange precision rules.
 
+Optional. If not provided, defaults to Bitcoin precision on Binance (8 decimal places).
+
 ### formatPrice
 
 ```ts
@@ -49,6 +51,18 @@ formatPrice: (symbol: string, price: number) => Promise<string>
 ```
 
 Format price according to exchange precision rules.
+
+Optional. If not provided, defaults to Bitcoin precision on Binance (2 decimal places).
+
+### getOrderBook
+
+```ts
+getOrderBook: (symbol: string, from: Date, to: Date) => Promise<IOrderBookData>
+```
+
+Fetch order book for a trading pair.
+
+Optional. If not provided, throws an error when called.
 
 ### callbacks
 

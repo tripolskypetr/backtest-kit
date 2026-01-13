@@ -95,3 +95,11 @@ formatQuantity: (symbol: string, quantity: number, when: Date, backtest: boolean
 ```
 
 Formats quantity with execution context.
+
+### getOrderBook
+
+```ts
+getOrderBook: (symbol: string, when: Date, backtest: boolean) => Promise<IOrderBookData>
+```
+
+Fetches order book with execution context.

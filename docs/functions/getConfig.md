@@ -23,6 +23,7 @@ declare function getConfig(): {
     CC_GET_CANDLES_MIN_CANDLES_FOR_MEDIAN: number;
     CC_REPORT_SHOW_SIGNAL_NOTE: boolean;
     CC_BREAKEVEN_THRESHOLD: number;
+    CC_ORDER_BOOK_TIME_OFFSET_MINUTES: number;
 };
 ```
 
