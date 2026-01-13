@@ -41,7 +41,7 @@
     "build": "rollup -c",
     "test": "npm run build && node ./test/index.mjs",
     "build:docs": "rimraf docs && mkdir docs && node ./scripts/dts-docs.cjs ./types.d.ts ./docs",
-    "docs:gpt": "npm run build && node ./scripts/gpt-docs.mjs",
+    "docs:gpt": "npm run build && node ./tools/gpt-docs/index.mjs",
     "docs:uml": "npm run build && node ./scripts/uml.mjs",
     "docs:www": "rimraf docs/wwwroot && typedoc && node ./tools/typedoc-yandex-metrica/index.mjs",
     "repl": "dotenv -e .env -- npm run build && node -e \"import('./scripts/repl.mjs')\" --interactive"
