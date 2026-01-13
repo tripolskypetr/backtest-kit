@@ -24,7 +24,7 @@ import {
   fetchApi,
 } from "functools-kit";
 import { ChatXAI } from "@langchain/xai";
-import { CC_ENABLE_DEBUG, CC_GROK_API_KEY } from "../config/params";
+import { CC_ENABLE_DEBUG } from "../config/params";
 import { jsonrepair } from "jsonrepair";
 import fs from "fs/promises";
 import { TContextService } from "../lib/services/base/ContextService";
@@ -39,9 +39,9 @@ class CustomChat extends ChatXAI {
   }
 }
 
-const getChat = (model: string) =>
+const getChat = (model: string, apiKey: string) =>
   new CustomChat({
-    apiKey: CC_GROK_API_KEY,
+    apiKey,
     model,
     streaming: true,
   });
@@ -119,7 +119,12 @@ export class GrokProvider implements IProvider {
   }
 
   public async getStreamCompletion(params: ISwarmCompletionArgs): Promise<ISwarmMessage> {
-    const chat = getChat(this.contextService.context.model);
+
+    if (Array.isArray(this.contextService.context.apiKey)) {
+      throw new Error("Grok provider does not support token rotation");
+    }
+
+    const chat = getChat(this.contextService.context.model, this.contextService.context.apiKey);
 
     const {
       agentName,
@@ -249,6 +254,10 @@ export class GrokProvider implements IProvider {
       context: this.contextService.context,
     });
 
+    if (Array.isArray(this.contextService.context.apiKey)) {
+      throw new Error("Grok provider does not support token rotation");
+    }
+
     const messages = rawMessages.map(
       ({ role, tool_call_id, tool_calls, content }) => ({
         role,
@@ -274,7 +283,7 @@ export class GrokProvider implements IProvider {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        Authorization: `Bearer ${CC_GROK_API_KEY}`,
+        Authorization: `Bearer ${this.contextService.context.apiKey}`,
       },
       body: JSON.stringify({
         messages,

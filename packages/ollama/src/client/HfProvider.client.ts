@@ -18,13 +18,14 @@ import {
 } from "@langchain/core/messages";
 import { ChatOpenAI } from "@langchain/openai";
 import { randomString } from "functools-kit";
-import { CC_ENABLE_DEBUG, CC_HF_API_KEY } from "../config/params";
+import { CC_ENABLE_DEBUG } from "../config/params";
 import { fetchApi, singleshot } from "functools-kit";
 import { jsonrepair } from "jsonrepair";
 import { get, set } from "lodash-es";
 import fs from "fs/promises";
 import { TContextService } from "../lib/services/base/ContextService";
 import { ILogger } from "../interface/Logger.interface";
+import engine from "src/lib";
 
 const MAX_ATTEMPTS = 5;
 
@@ -37,24 +38,28 @@ class HuggingFaceChat extends ChatOpenAI {
   }
 }
 
-const getChat = (model: string) =>
+const getChat = (model: string, apiKey: string) =>
   new HuggingFaceChat({
     configuration: {
       baseURL: "https://router.huggingface.co/v1",
-      apiKey: CC_HF_API_KEY,
+      apiKey,
     },
     model,
     streaming: true,
   });
 
-const getInference = () =>  new InferenceClient(CC_HF_API_KEY);
+const getInference = (apiKey: string) =>  new InferenceClient(apiKey);
 
 export class HfProvider implements IProvider {
   constructor(readonly contextService: TContextService, readonly logger: ILogger) {}
 
   public async getCompletion(params: ISwarmCompletionArgs): Promise<ISwarmMessage> {
 
-    const inference = getInference();
+    if (Array.isArray(this.contextService.context.apiKey)) {
+      throw new Error("Hf provider does not support token rotation");
+    }
+
+    const inference = getInference(this.contextService.context.apiKey);
 
     const { agentName, clientId, messages: rawMessages, mode, tools: rawTools } = params;
 
@@ -154,7 +159,12 @@ export class HfProvider implements IProvider {
   }
 
   public async getStreamCompletion(params: ISwarmCompletionArgs): Promise<ISwarmMessage> {
-    const chat = getChat(this.contextService.context.model);
+
+    if (Array.isArray(this.contextService.context.apiKey)) {
+      throw new Error("Hf provider does not support token rotation");
+    }
+
+    const chat = getChat(this.contextService.context.model, this.contextService.context.apiKey);
 
     const {
       agentName,
@@ -282,6 +292,10 @@ export class HfProvider implements IProvider {
       context: this.contextService.context,
     });
 
+    if (Array.isArray(this.contextService.context.apiKey)) {
+      throw new Error("Hf provider does not support token rotation");
+    }
+
     // Create tool definition based on format schema
     const schema =
       "json_schema" in format
@@ -336,7 +350,7 @@ export class HfProvider implements IProvider {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${CC_HF_API_KEY}`,
+          Authorization: `Bearer ${this.contextService.context.apiKey}`,
         },
         body: JSON.stringify({
           messages,

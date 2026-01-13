@@ -8,7 +8,7 @@ import {
 } from "agent-swarm-kit";
 
 import IProvider from "../interface/Provider.interface";
-import { CC_ALIBABA_API_KEY, CC_ENABLE_DEBUG } from "../config/params";
+import { CC_ENABLE_DEBUG } from "../config/params";
 import { jsonrepair } from "jsonrepair";
 import fs from "fs/promises";
 import { TContextService } from "../lib/services/base/ContextService";
@@ -34,6 +34,11 @@ export class AlibabaProvider implements IProvider {
       clientId,
       context: this.contextService.context,
     });
+
+    if (Array.isArray(this.contextService.context.apiKey)) {
+      throw new Error("Alibaba provider does not support token rotation");
+    }
+
 
     // Map raw messages to OpenAI format
     const messages = rawMessages.map(
@@ -74,7 +79,7 @@ export class AlibabaProvider implements IProvider {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        "Authorization": `Bearer ${CC_ALIBABA_API_KEY}`,
+        "Authorization": `Bearer ${this.contextService.context.apiKey}`,
       },
       body: JSON.stringify(requestBody),
     });
@@ -125,6 +130,10 @@ export class AlibabaProvider implements IProvider {
       context: this.contextService.context,
     });
 
+    if (Array.isArray(this.contextService.context.apiKey)) {
+      throw new Error("Alibaba provider does not support token rotation");
+    }
+
     // Map raw messages to OpenAI format
     const messages = rawMessages.map(
       ({ role, tool_call_id, tool_calls, content }) => ({
@@ -164,7 +173,7 @@ export class AlibabaProvider implements IProvider {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        "Authorization": `Bearer ${CC_ALIBABA_API_KEY}`,
+        "Authorization": `Bearer ${this.contextService.context.apiKey}`,
       },
       body: JSON.stringify(requestBody),
     });
@@ -218,6 +227,10 @@ export class AlibabaProvider implements IProvider {
     this.logger.log("alibabaProvider getOutlineCompletion", {
       context: this.contextService.context,
     });
+
+    if (Array.isArray(this.contextService.context.apiKey)) {
+      throw new Error("Alibaba provider does not support token rotation");
+    }
 
     // Create tool definition based on format schema
     const schema =
@@ -284,7 +297,7 @@ export class AlibabaProvider implements IProvider {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          "Authorization": `Bearer ${CC_ALIBABA_API_KEY}`,
+          "Authorization": `Bearer ${this.contextService.context.apiKey}`,
         },
         body: JSON.stringify(requestBody),
       });

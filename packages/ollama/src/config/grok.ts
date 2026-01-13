@@ -1,8 +1,15 @@
 import OpenAI from "openai";
-import { CC_GROK_API_KEY } from "./params";
 import { singleshot } from "functools-kit";
+import engine from "src/lib";
 
-export const getGrok = singleshot(() => new OpenAI({
-    baseURL: "https://api.x.ai/v1",
-    apiKey: CC_GROK_API_KEY,
-}));
+export const getGrok = singleshot(() => {
+    const apiKey = engine.contextService.context.apiKey;
+    if (Array.isArray(apiKey)) {
+        getGrok.clear();
+        throw new Error("Grok provider does not support token rotation");
+    }
+    return new OpenAI({
+        baseURL: "https://api.x.ai/v1",
+        apiKey: apiKey,
+    })
+});

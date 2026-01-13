@@ -1,13 +1,16 @@
 import { singleshot } from "functools-kit";
 import { ChatRequest, ChatResponse, Config, Ollama } from "ollama";
-
-import { CC_OLLAMA_API_KEY } from "./params";
 import { RoundRobin } from "agent-swarm-kit";
+import engine from "src/lib";
 
 class OllamaWrapper {
-  constructor(readonly _config: Partial<Config>) {}
+  constructor(readonly _config: Partial<Config>) {
+    if (!engine.contextService.context.apiKey) {
+      throw new Error("OllamaRotate required apiKey[] to process token rotation");
+    }
+  }
 
-  private chatFn = RoundRobin.create([CC_OLLAMA_API_KEY], (token) => {
+  private chatFn = RoundRobin.create(<string[]>engine.contextService.context.apiKey, (token) => {
     const ollama = new Ollama({
       ...this._config,
       headers: {
@@ -36,7 +39,7 @@ class OllamaWrapper {
   }
 }
 
-export const getOllama = singleshot(
+export const getOllamaRotate = singleshot(
   () =>
     new OllamaWrapper({
       host: "https://ollama.com",

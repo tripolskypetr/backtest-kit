@@ -1,8 +1,15 @@
 import OpenAI from "openai";
-import { CC_DEEPSEEK_API_KEY } from "./params";
 import { singleshot } from "functools-kit";
+import engine from "src/lib";
 
-export const getDeepseek = singleshot(() => new OpenAI({
-    baseURL: "https://api.deepseek.com",
-    apiKey: CC_DEEPSEEK_API_KEY,
-}));
+export const getDeepseek = singleshot(() => {
+    const apiKey = engine.contextService.context.apiKey;
+    if (Array.isArray(apiKey)) {
+        getDeepseek.clear();
+        throw new Error("Deepseek provider does not support token rotation");
+    }
+    return new OpenAI({
+        baseURL: "https://api.deepseek.com",
+        apiKey: apiKey,
+    })
+});

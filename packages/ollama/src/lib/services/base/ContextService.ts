@@ -4,6 +4,7 @@ import { InferenceName } from "../../../enum/InferenceName";
 export interface IContext {
     inference: InferenceName;
     model: string;
+    apiKey: string | string[];
 }
 
 export const ContextService = scoped(

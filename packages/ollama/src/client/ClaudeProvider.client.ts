@@ -26,7 +26,7 @@ import {
 } from "functools-kit";
 import { get, set } from "lodash-es";
 import { ChatOpenAI } from "@langchain/openai";
-import { CC_ENABLE_DEBUG, CC_CLAUDE_API_KEY } from "../config/params";
+import { CC_ENABLE_DEBUG } from "../config/params";
 import { jsonrepair } from "jsonrepair";
 import fs from "fs/promises";
 import { TContextService } from "../lib/services/base/ContextService";

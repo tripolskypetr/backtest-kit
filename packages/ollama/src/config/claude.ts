@@ -1,8 +1,15 @@
 import OpenAI from "openai";
-import { CC_CLAUDE_API_KEY } from "./params";
 import { singleshot } from "functools-kit";
+import engine from "src/lib";
 
-export const getClaude = singleshot(() => new OpenAI({
-    baseURL: "https://api.anthropic.com/v1/",
-    apiKey: CC_CLAUDE_API_KEY,
-}));
+export const getClaude = singleshot(() => {
+    const apiKey = engine.contextService.context.apiKey;
+    if (Array.isArray(apiKey)) {
+        getClaude.clear();
+        throw new Error("Claude provider does not support token rotation");
+    }
+    return new OpenAI({
+        baseURL: "https://api.anthropic.com/v1/",
+        apiKey,
+    })
+});
