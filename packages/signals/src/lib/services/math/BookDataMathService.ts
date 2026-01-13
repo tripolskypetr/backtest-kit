@@ -1,5 +1,5 @@
 import { ttl } from "functools-kit";
-import { formatPrice, formatQuantity } from "backtest-kit";
+import { formatPrice, formatQuantity, getOrderBook, IBidData } from "backtest-kit";
 import { inject } from "../../core/di";
 import { TYPES } from "../../core/types";
 import LoggerService from "../common/LoggerService";
@@ -17,19 +17,6 @@ function isUnsafe(value: number | null) {
   return false;
 }
 
-// Local type definitions for Binance API
-interface Bid {
-  price: string;
-  quantity: string;
-}
-
-interface OrderBook {
-  symbol: string;
-  bids: Bid[];
-  asks: Bid[];
-}
-
-const TTL_TIMEOUT = 5 * 60 * 1_000; // 5 minutes for order book data
 const MAX_DEPTH_LEVELS = 1000; // Maximum depth for more accurate metrics
 
 // Simple order book entry with percentage
@@ -51,7 +38,7 @@ export interface IBookDataAnalysis {
   depthImbalance: number; // (total_bid_volume - total_ask_volume) / (total_bid_volume + total_ask_volume)
 }
 
-function processOrderBookSide(orders: Bid[]): IOrderBookEntry[] {
+function processOrderBookSide(orders: IBidData[]): IOrderBookEntry[] {
   const entries = orders.map((order) => ({
     price: parseFloat(order.price),
     quantity: parseFloat(order.quantity),
@@ -183,18 +170,7 @@ export class BookDataMathService {
       symbol,
     });
 
-    const depthRaw = await exchange.fetchOrderBook(symbol, MAX_DEPTH_LEVELS);
-    const depth: OrderBook = {
-      symbol: depthRaw.symbol,
-      asks: depthRaw.asks.map(([price, quantity]) => ({
-        price: String(price),
-        quantity: String(quantity),
-      })),
-      bids: depthRaw.bids.map(([price, quantity]) => ({
-        price: String(price),
-        quantity: String(quantity),
-      })),
-    };
+    const depth = await getOrderBook(symbol, MAX_DEPTH_LEVELS);
 
     // Just process raw data - no calculations
     const bids = processOrderBookSide(

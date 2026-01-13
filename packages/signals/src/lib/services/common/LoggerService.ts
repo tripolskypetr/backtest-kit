@@ -1,4 +1,4 @@
-import { ILogger } from "src/interfaces/Logger.interface";
+import { ILogger } from "../../../interfaces/Logger.interface";
 
 const NOOP_LOGGER: ILogger = {
   log() {

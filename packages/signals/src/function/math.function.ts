@@ -2,6 +2,7 @@ import lib from "../lib";
 import History from "../contract/History.contract";
 import { str, trycatch } from "functools-kit";
 import { Cache } from "backtest-kit";
+import { ReportFn } from "../contract/ReportFn.contract";
 
 const fetchMicroTermMath = Cache.fn(lib.microTermMathService.getReport, {
   interval: "1m",
@@ -40,7 +41,7 @@ const commitMicroTermMath = trycatch(
   {
     fallback: () => Cache.clear(fetchMicroTermMath),
   }
-);
+) as ReportFn;
 
 const commitLongTermMath = trycatch(
   async (symbol: string, history: History) => {
@@ -63,7 +64,7 @@ const commitLongTermMath = trycatch(
   {
     fallback: () => Cache.clear(fetchLongTermMath),
   }
-);
+) as ReportFn;
 
 const commitShortTermMath = trycatch(
   async (symbol: string, history: History) => {
@@ -86,7 +87,7 @@ const commitShortTermMath = trycatch(
   {
     fallback: () => Cache.clear(fetchShortTermMath),
   }
-);
+) as ReportFn;
 
 const commitSwingTermMath = trycatch(
   async (symbol: string, history: History) => {
@@ -109,7 +110,7 @@ const commitSwingTermMath = trycatch(
   {
     fallback: () => Cache.clear(fetchSwingTermMath),
   }
-);
+) as ReportFn;
 
 export {
   commitLongTermMath,

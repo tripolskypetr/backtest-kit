@@ -2,6 +2,7 @@ import lib from "../lib";
 import History from "../contract/History.contract";
 import { str, trycatch } from "functools-kit";
 import { Cache } from "backtest-kit";
+import { ReportFn } from "../contract/ReportFn.contract";
 
 const fetchHourHistory = Cache.fn(lib.hourCandleHistoryService.getReport, {
   interval: "30m",
@@ -49,7 +50,7 @@ const commitHourHistory = trycatch(
   {
     fallback: () => Cache.clear(fetchHourHistory),
   }
-);
+) as ReportFn;
 
 const commitThirtyMinuteHistory = trycatch(
   async (symbol: string, history: History) => {
@@ -72,7 +73,7 @@ const commitThirtyMinuteHistory = trycatch(
   {
     fallback: () => Cache.clear(fetchThirtyMinuteHistory),
   }
-);
+) as ReportFn;
 
 const commitFifteenMinuteHistory = trycatch(
   async (symbol: string, history: History) => {
@@ -95,7 +96,7 @@ const commitFifteenMinuteHistory = trycatch(
   {
     fallback: () => Cache.clear(fetchFifteenMinuteHistory),
   }
-);
+) as ReportFn;
 
 const commitOneMinuteHistory = trycatch(
   async (symbol: string, history: History) => {
@@ -118,7 +119,7 @@ const commitOneMinuteHistory = trycatch(
   {
     fallback: () => Cache.clear(fetchOneMinuteHistory),
   }
-);
+) as ReportFn;
 
 export {
   commitFifteenMinuteHistory,

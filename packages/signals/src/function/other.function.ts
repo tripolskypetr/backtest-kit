@@ -4,6 +4,7 @@ import { str, trycatch } from "functools-kit";
 import { Cache, formatPrice, getAveragePrice, getDate, getMode } from "backtest-kit";
 import { commitFifteenMinuteHistory, commitHourHistory, commitOneMinuteHistory, commitThirtyMinuteHistory } from "./history.function";
 import { commitLongTermMath, commitMicroTermMath, commitShortTermMath, commitSwingTermMath } from "./math.function";
+import { ReportFn } from "../contract/ReportFn.contract";
 
 const fetchBookData = Cache.fn(lib.bookDataMathService.getReport, {
   interval: "5m",
@@ -35,10 +36,10 @@ const commitBookDataReport = trycatch(
   {
     fallback: () => Cache.clear(fetchBookData),
   }
-);
+) as ReportFn;
 
 const commitHistorySetup = async (symbol: string, history: History) => {
-  // Новости и стакан сделок
+  // Cтакан сделок
   await commitBookDataReport(symbol, history);
 
   // Данные свечей отдельными блоками
@@ -68,6 +69,5 @@ const commitHistorySetup = async (symbol: string, history: History) => {
     ),
   });
 };
-
 
 export { commitBookDataReport, commitHistorySetup };
