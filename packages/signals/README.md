@@ -4,6 +4,7 @@
 
 ![bots](https://raw.githubusercontent.com/tripolskypetr/backtest-kit/HEAD/assets/bots.png)
 
+[![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/tripolskypetr/backtest-kit)
 [![npm](https://img.shields.io/npm/v/@backtest-kit/signals.svg?style=flat-square)](https://npmjs.org/package/@backtest-kit/signals)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.0+-blue)]()
 
