@@ -1,6 +1,6 @@
 import { IOutlineMessage } from "agent-swarm-kit";
-import InferenceName from "src/enum/InferenceName";
-import engine from "src/lib";
+import InferenceName from "../enum/InferenceName";
+import engine from "../lib";
 
 export const ollama = async (
   messages: IOutlineMessage[],

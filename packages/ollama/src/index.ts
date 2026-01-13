@@ -1,4 +1,5 @@
-import "./logic/index";
+import "./logic";
+import "./main/bootstrap";
 
 export {
   alibaba,
@@ -16,3 +17,5 @@ export {
 export { 
   setLogger,
 } from "./function/setup.function";
+
+export { engine as lib } from "./lib";
