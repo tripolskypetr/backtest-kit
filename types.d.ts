@@ -6177,8 +6177,14 @@ type EntityId = string | number;
 interface IEntity {
 }
 /**
- * Persistence interface for CRUD operations.
- * Implemented by PersistBase.
+ * Persistence interface for custom adapters.
+ * Defines only the essential CRUD operations required for persistence.
+ * Custom adapters should implement this interface.
+ *
+ * Architecture:
+ * - IPersistBase: Public API for custom adapters (4 methods: waitForInit, readValue, hasValue, writeValue)
+ * - PersistBase: Default implementation with internal keys() method for validation
+ * - TPersistBaseCtor: Constructor type requiring IPersistBase
  */
 interface IPersistBase<Entity extends IEntity | null = IEntity> {
     /**
@@ -6245,69 +6251,19 @@ declare const PersistBase: {
          */
         _getFilePath(entityId: EntityId): string;
         waitForInit(initial: boolean): Promise<void>;
-        /**
-         * Returns count of persisted entities.
-         *
-         * @returns Promise resolving to number of .json files in directory
-         */
-        getCount(): Promise<number>;
         readValue<T extends IEntity = IEntity>(entityId: EntityId): Promise<T>;
         hasValue(entityId: EntityId): Promise<boolean>;
         writeValue<T extends IEntity = IEntity>(entityId: EntityId, entity: T): Promise<void>;
         /**
-         * Removes entity from storage.
-         *
-         * @param entityId - Entity identifier to remove
-         * @returns Promise that resolves when entity is deleted
-         * @throws Error if entity not found or deletion fails
-         */
-        removeValue(entityId: EntityId): Promise<void>;
-        /**
-         * Removes all entities from storage.
-         *
-         * @returns Promise that resolves when all entities are deleted
-         * @throws Error if deletion fails
-         */
-        removeAll(): Promise<void>;
-        /**
-         * Async generator yielding all entity values.
-         * Sorted alphanumerically by entity ID.
-         *
-         * @returns AsyncGenerator yielding entities
-         * @throws Error if reading fails
-         */
-        values<T extends IEntity = IEntity>(): AsyncGenerator<T>;
-        /**
          * Async generator yielding all entity IDs.
          * Sorted alphanumerically.
+         * Used internally by waitForInit for validation.
          *
          * @returns AsyncGenerator yielding entity IDs
          * @throws Error if reading fails
          */
         keys(): AsyncGenerator<EntityId>;
-        /**
-         * Filters entities by predicate function.
-         *
-         * @param predicate - Filter function
-         * @returns AsyncGenerator yielding filtered entities
-         */
-        filter<T extends IEntity = IEntity>(predicate: (value: T) => boolean): AsyncGenerator<T>;
-        /**
-         * Takes first N entities, optionally filtered.
-         *
-         * @param total - Maximum number of entities to yield
-         * @param predicate - Optional filter function
-         * @returns AsyncGenerator yielding up to total entities
-         */
-        take<T extends IEntity = IEntity>(total: number, predicate?: (value: T) => boolean): AsyncGenerator<T>;
         [BASE_WAIT_FOR_INIT_SYMBOL]: (() => Promise<void>) & functools_kit.ISingleshotClearable;
-        /**
-         * Async iterator implementation.
-         * Delegates to values() generator.
-         *
-         * @returns AsyncIterableIterator yielding entities
-         */
-        [Symbol.asyncIterator](): AsyncIterableIterator<any>;
     };
 };
 /**
