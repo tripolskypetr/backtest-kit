@@ -6213,12 +6213,6 @@ interface IPersistBase<Entity extends IEntity | null = IEntity> {
      * @throws Error if write fails
      */
     writeValue(entityId: EntityId, entity: Entity): Promise<void>;
-    /**
-     * Async generator yielding all entity IDs.
-     *
-     * @returns AsyncGenerator yielding entity IDs
-     */
-    keys(): AsyncGenerator<EntityId>;
 }
 /**
  * Base class for file-based persistence with atomic writes.

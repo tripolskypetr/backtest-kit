@@ -164,13 +164,6 @@ export interface IPersistBase<Entity extends IEntity | null = IEntity> {
    * @throws Error if write fails
    */
   writeValue(entityId: EntityId, entity: Entity): Promise<void>;
-
-  /**
-   * Async generator yielding all entity IDs.
-   *
-   * @returns AsyncGenerator yielding entity IDs
-   */
-  keys(): AsyncGenerator<EntityId>;
 }
 
 const BASE_WAIT_FOR_INIT_FN = async (self: TPersistBase): Promise<void> => {
@@ -575,13 +568,6 @@ export class PersistDummy implements IPersistBase {
    * @returns Promise that resolves immediately
    */
   async writeValue() {
-    void 0;
-  }
-  /**
-   * No-op keys generator.
-   * @returns Empty async generator
-   */
-  async *keys() {
     void 0;
   }
 }
