@@ -90,3 +90,7 @@ getOrderBook(symbol: string): Promise<IOrderBookData>;
 ```
 
 Fetches order book for a trading pair.
+
+Calculates time range based on execution context time (when) and
+CC_ORDER_BOOK_TIME_OFFSET_MINUTES, then delegates to the exchange
+schema implementation which may use or ignore the time range.
