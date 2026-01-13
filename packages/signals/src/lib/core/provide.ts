@@ -9,7 +9,11 @@ import ThirtyMinuteCandleHistoryService from "../services/history/ThirtyMinuteCa
 import BookDataMathService from "../services/math/BookDataMathService";
 import { provide } from "./di";
 import { TYPES } from "./types";
+import LoggerService from "../services/common/LoggerService";
 
+{
+  provide(TYPES.loggerService, () => new LoggerService());
+}
 
 {
   provide(TYPES.swingTermMathService, () => new SwingTermMathService());

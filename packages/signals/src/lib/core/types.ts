@@ -1,19 +1,24 @@
+const commonServices = {
+    loggerService: Symbol("loggerService"),
+}
+
 const mathServices = {
-    longTermMathService: Symbol.for('longTermMathService'),
-    swingTermMathService: Symbol.for('swingTermMathService'),
-    shortTermMathService: Symbol.for('shortTermMathService'),
-    microTermMathService: Symbol.for('microTermMathService'),
-    bookDataMathService: Symbol.for('bookDataMathService'),
+    longTermMathService: Symbol('longTermMathService'),
+    swingTermMathService: Symbol('swingTermMathService'),
+    shortTermMathService: Symbol('shortTermMathService'),
+    microTermMathService: Symbol('microTermMathService'),
+    bookDataMathService: Symbol('bookDataMathService'),
 }
 
 const historyServices = {
-    fifteenMinuteCandleHistoryService: Symbol.for('fifteenMinuteCandleHistoryService'),
-    hourCandleHistoryService: Symbol.for('hourCandleHistoryService'),
-    oneMinuteCandleHistoryService: Symbol.for('oneMinuteCandleHistoryService'),
-    thirtyMinuteCandleHistoryService: Symbol.for('thirtyMinuteCandleHistoryService'),
+    fifteenMinuteCandleHistoryService: Symbol('fifteenMinuteCandleHistoryService'),
+    hourCandleHistoryService: Symbol('hourCandleHistoryService'),
+    oneMinuteCandleHistoryService: Symbol('oneMinuteCandleHistoryService'),
+    thirtyMinuteCandleHistoryService: Symbol('thirtyMinuteCandleHistoryService'),
 }
 
 export const TYPES = {
+    ...commonServices,
     ...mathServices,
     ...historyServices,
 }

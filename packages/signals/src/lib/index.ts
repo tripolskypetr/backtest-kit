@@ -11,6 +11,11 @@ import HourCandleHistoryService from "./services/history/HourCandleHistoryServic
 import OneMinuteCandleHistoryService from "./services/history/OneMinuteCandleHistoryService";
 import ThirtyMinuteCandleHistoryService from "./services/history/ThirtyMinuteCandleHistoryService";
 import BookDataMathService from "./services/math/BookDataMathService";
+import LoggerService from "./services/common/LoggerService";
+
+const commonServices = {
+  loggerService: inject<LoggerService>(TYPES.loggerService),
+};
 
 const mathServices = {
   swingTermMathService: inject<SwingTermMathService>(
@@ -42,6 +47,7 @@ const historyServices = {
 };
 
 const signal = {
+  ...commonServices,
   ...mathServices,
   ...historyServices,
 };

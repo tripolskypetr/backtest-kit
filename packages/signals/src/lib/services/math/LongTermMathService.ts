@@ -13,8 +13,10 @@ import {
   FasterMOM as MOM,
   FasterStochasticRSI as StochasticRSI,
 } from "trading-signals";
-import { log } from "pinolog";
 import { Exchange, getCandles, ICandleData, formatPrice } from "backtest-kit";
+import { inject } from "../../core/di";
+import { TYPES } from "../../core/types";
+import LoggerService from "../common/LoggerService";
 
 const TABLE_ROWS_LIMIT = 48;
 
@@ -640,11 +642,13 @@ async function generateHistoryTable(
 }
 
 export class LongTermHistoryService {
+  private loggerService = inject<LoggerService>(TYPES.loggerService);
+
   public getData = async (
     symbol: string,
     candles: ICandleData[]
   ): Promise<ILongTermRow[]> => {
-    log("longTermHistoryService getData", {
+    this.loggerService.log("longTermHistoryService getData", {
       symbol,
       candles: candles.length,
     });
@@ -652,7 +656,7 @@ export class LongTermHistoryService {
   };
 
   public getReport = async (symbol: string): Promise<string> => {
-    log("longTermHistoryService getReport", { symbol });
+    this.loggerService.log("longTermHistoryService getReport", { symbol });
     const fullCandles: ICandleData[] = await getCandles(symbol, "1h", 100);
     // Use all candles for indicator warm-up, then filter to last TABLE_ROWS_LIMIT rows
     const allRows = await this.getData(symbol, fullCandles);
@@ -664,7 +668,7 @@ export class LongTermHistoryService {
     symbol: string,
     rows: ILongTermRow[]
   ): Promise<string> => {
-    log("longTermHistoryService generateHistoryTable", {
+    this.loggerService.log("longTermHistoryService generateHistoryTable", {
       symbol,
       rowCount: rows.length,
     });

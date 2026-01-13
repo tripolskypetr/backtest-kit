@@ -14,8 +14,10 @@ import {
   FasterWMA as WMA,
   FasterMOM as MOM,
 } from "trading-signals";
-import { log } from "pinolog";
 import { Exchange, getCandles, ICandleData, formatPrice } from "backtest-kit";
+import { inject } from "../../core/di";
+import { TYPES } from "../../core/types";
+import LoggerService from "../common/LoggerService";
 
 const TABLE_ROWS_LIMIT = 30;
 
@@ -740,11 +742,13 @@ async function generateHistoryTable(
 }
 
 export class SwingTermHistoryService {
+  private loggerService = inject<LoggerService>(TYPES.loggerService);
+
   public getData = async (
     symbol: string,
     candles: ICandleData[]
   ): Promise<ISwingTermRow[]> => {
-    log("swingTermHistoryService getData", {
+    this.loggerService.log("swingTermHistoryService getData", {
       symbol,
       candles: candles.length,
     });
@@ -752,7 +756,7 @@ export class SwingTermHistoryService {
   };
 
   public getReport = async (symbol: string): Promise<string> => {
-    log("swingTermHistoryService getReport", { symbol });
+    this.loggerService.log("swingTermHistoryService getReport", { symbol });
     const candles: ICandleData[] = await getCandles(symbol, "30m", 96);
     const rows = await this.getData(symbol, candles);
     return generateHistoryTable(rows, symbol);
@@ -762,7 +766,7 @@ export class SwingTermHistoryService {
     symbol: string,
     rows: ISwingTermRow[]
   ): Promise<string> => {
-    log("swingTermHistoryService generateHistoryTable", {
+    this.loggerService.log("swingTermHistoryService generateHistoryTable", {
       symbol,
       rowCount: rows.length,
     });

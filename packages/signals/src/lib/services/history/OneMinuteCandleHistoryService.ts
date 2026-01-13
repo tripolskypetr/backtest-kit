@@ -1,16 +1,20 @@
 import { Exchange, getCandles, ICandleData, formatPrice, formatQuantity } from "backtest-kit";
-import { log } from "pinolog";
+import { inject } from "../../core/di";
+import { TYPES } from "../../core/types";
+import LoggerService from "../common/LoggerService";
 
 const RECENT_CANDLES = 15;
 
 export class OneMinuteCandleHistoryService {
+  private loggerService = inject<LoggerService>(TYPES.loggerService);
+
   public getData = async (symbol: string): Promise<ICandleData[]> => {
-    log("oneMinuteCandleHistoryService getData", { symbol });
+    this.loggerService.log("oneMinuteCandleHistoryService getData", { symbol });
     return getCandles(symbol, "1m", RECENT_CANDLES);
   };
 
   public generateReport = (symbol: string, candles: ICandleData[]): string => {
-    log("oneMinuteCandleHistoryService generateReport", { symbol });
+    this.loggerService.log("oneMinuteCandleHistoryService generateReport", { symbol });
     let markdown = "";
 
     markdown += `## One-Minute Candles History (Last ${RECENT_CANDLES})\n`;
@@ -40,7 +44,7 @@ export class OneMinuteCandleHistoryService {
   };
 
   public getReport = async (symbol: string): Promise<string> => {
-    log("oneMinuteCandleHistoryService getReport", { symbol });
+    this.loggerService.log("oneMinuteCandleHistoryService getReport", { symbol });
     const candles = await this.getData(symbol);
     return this.generateReport(symbol, candles);
   };

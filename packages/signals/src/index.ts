@@ -17,4 +17,8 @@ export {
   commitHistorySetup,
 } from "./function/other.function";
 
+export {
+    setLogger,
+} from "./tools/setup.tool";
+
 export { signal as lib } from "./lib";

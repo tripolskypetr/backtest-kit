@@ -14,8 +14,10 @@ import {
   FasterMOM as MOM,
   FasterROC as ROC,
 } from "trading-signals";
-import { log } from "pinolog";
 import { Exchange, getCandles, ICandleData, formatPrice } from "backtest-kit";
+import { inject } from "../../core/di";
+import { TYPES } from "../../core/types";
+import LoggerService from "../common/LoggerService";
 
 const TABLE_ROWS_LIMIT = 48;
 
@@ -662,11 +664,13 @@ async function generateHistoryTable(
 }
 
 export class ShortTermHistoryService {
+  private loggerService = inject<LoggerService>(TYPES.loggerService);
+
   public getData = async (
     symbol: string,
     candles: ICandleData[]
   ): Promise<IShortTermRow[]> => {
-    log("shortTermHistoryService getData", {
+    this.loggerService.log("shortTermHistoryService getData", {
       symbol,
       candles: candles.length,
     });
@@ -674,7 +678,7 @@ export class ShortTermHistoryService {
   };
 
   public getReport = async (symbol: string): Promise<string> => {
-    log("shortTermHistoryService getReport", { symbol });
+    this.loggerService.log("shortTermHistoryService getReport", { symbol });
     const candles: ICandleData[] = await getCandles(symbol, "15m", 144);
     const rows = await this.getData(symbol, candles);
     return generateHistoryTable(rows, symbol);
@@ -684,7 +688,7 @@ export class ShortTermHistoryService {
     symbol: string,
     rows: IShortTermRow[]
   ): Promise<string> => {
-    log("shortTermHistoryService generateHistoryTable", {
+    this.loggerService.log("shortTermHistoryService generateHistoryTable", {
       symbol,
       rowCount: rows.length,
     });

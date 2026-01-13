@@ -14,8 +14,10 @@ import {
   FasterMOM as MOM,
   FasterROC as ROC,
 } from "trading-signals";
-import { log } from "pinolog";
 import { Exchange, getCandles, ICandleData, formatPrice } from "backtest-kit";
+import { inject } from "../../core/di";
+import { TYPES } from "../../core/types";
+import LoggerService from "../common/LoggerService";
 
 const WARMUP_PERIOD = 21;
 
@@ -948,11 +950,13 @@ async function generateHistoryTable(
 }
 
 export class MicroTermHistoryService {
+  private loggerService = inject<LoggerService>(TYPES.loggerService);
+
   public getData = async (
     symbol: string,
     candles: ICandleData[]
   ): Promise<IMicroTermRow[]> => {
-    log("microTermHistoryService getData", {
+    this.loggerService.log("microTermHistoryService getData", {
       symbol,
       candles: candles.length,
     });
@@ -960,7 +964,7 @@ export class MicroTermHistoryService {
   };
 
   public getReport = async (symbol: string): Promise<string> => {
-    log("microTermHistoryService getReport", { symbol });
+    this.loggerService.log("microTermHistoryService getReport", { symbol });
     const candles: ICandleData[] = await getCandles(symbol, "1m", 60);
     const rows = await this.getData(symbol, candles);
     return generateHistoryTable(rows, symbol);
@@ -970,7 +974,7 @@ export class MicroTermHistoryService {
     symbol: string,
     rows: IMicroTermRow[]
   ): Promise<string> => {
-    log("microTermHistoryService generateHistoryTable", {
+    this.loggerService.log("microTermHistoryService generateHistoryTable", {
       symbol,
       rowCount: rows.length,
     });

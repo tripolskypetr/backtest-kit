@@ -1,7 +1,9 @@
-import { log } from "pinolog";
 import { ttl } from "functools-kit";
 import { getExchange } from "../../../config/ccxt";
 import { Exchange, formatPrice, formatQuantity } from "backtest-kit";
+import { inject } from "../../core/di";
+import { TYPES } from "../../core/types";
+import LoggerService from "../common/LoggerService";
 
 function isUnsafe(value: number | null) {
   if (typeof value !== "number") {
@@ -157,18 +159,20 @@ const generateBookDataReport = async (
 };
 
 export class BookDataMathService {
+  private loggerService = inject<LoggerService>(TYPES.loggerService);
+
   public generateReport = async (
     symbol: string,
     bookData: IBookDataAnalysis
   ) => {
-    log("bookDataMathService generateReport", {
+    this.loggerService.log("bookDataMathService generateReport", {
       symbol,
     });
     return await generateBookDataReport(this, bookData);
   };
 
   public getReport = async (symbol: string) => {
-    log("bookDataMathService getReport", {
+    this.loggerService.log("bookDataMathService getReport", {
       symbol,
     });
     const bookData = await this.getData(symbol);
@@ -176,7 +180,7 @@ export class BookDataMathService {
   };
 
   public getData = async (symbol: string): Promise<IBookDataAnalysis> => {
-    log("bookDataMathService getBookDataAnalysis", {
+    this.loggerService.log("bookDataMathService getBookDataAnalysis", {
       symbol,
     });
 
