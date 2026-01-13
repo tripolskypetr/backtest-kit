@@ -38,10 +38,11 @@ const DEFAULT_FORMAT_PRICE_FN = async (_symbol: string, price: number): Promise<
  * Throws an error indicating the method is not implemented.
  *
  * @param _symbol - Trading pair symbol (unused)
+ * @param _depth - Maximum depth levels (unused)
  * @param _from - Start of time range (unused - can be ignored in live implementations)
  * @param _to - End of time range (unused - can be ignored in live implementations)
  */
-const DEFAULT_GET_ORDER_BOOK_FN = async (_symbol: string, _from: Date, _to: Date): Promise<IOrderBookData> => {
+const DEFAULT_GET_ORDER_BOOK_FN = async (_symbol: string, _depth: number, _from: Date, _to: Date): Promise<IOrderBookData> => {
   throw new Error(`getOrderBook is not implemented for this exchange`);
 };
 
@@ -330,6 +331,7 @@ export class ExchangeInstance {
    * the time range (backtest) or ignore it (live trading).
    *
    * @param symbol - Trading pair symbol
+   * @param depth - Maximum depth levels (default: CC_ORDER_BOOK_MAX_DEPTH_LEVELS)
    * @returns Promise resolving to order book data
    * @throws Error if getOrderBook is not implemented
    *
@@ -338,17 +340,19 @@ export class ExchangeInstance {
    * const instance = new ExchangeInstance("binance");
    * const orderBook = await instance.getOrderBook("BTCUSDT");
    * console.log(orderBook.bids); // [{ price: "50000.00", quantity: "0.5" }, ...]
+   * const deepOrderBook = await instance.getOrderBook("BTCUSDT", 100);
    * ```
    */
-  public getOrderBook = async (symbol: string): Promise<IOrderBookData> => {
+  public getOrderBook = async (symbol: string, depth: number = GLOBAL_CONFIG.CC_ORDER_BOOK_MAX_DEPTH_LEVELS): Promise<IOrderBookData> => {
     backtest.loggerService.info(EXCHANGE_METHOD_NAME_GET_ORDER_BOOK, {
       exchangeName: this.exchangeName,
       symbol,
+      depth,
     });
 
     const to = new Date(Date.now());
     const from = new Date(to.getTime() - GLOBAL_CONFIG.CC_ORDER_BOOK_TIME_OFFSET_MINUTES * 60 * 1_000);
-    return await this._methods.getOrderBook(symbol, from, to);
+    return await this._methods.getOrderBook(symbol, depth, from, to);
   };
 }
 
@@ -479,18 +483,20 @@ export class ExchangeUtils {
    *
    * @param symbol - Trading pair symbol
    * @param context - Execution context with exchange name
+   * @param depth - Maximum depth levels (default: CC_ORDER_BOOK_MAX_DEPTH_LEVELS)
    * @returns Promise resolving to order book data
    */
   public getOrderBook = async (
     symbol: string,
     context: {
       exchangeName: ExchangeName;
-    }
+    },
+    depth: number = GLOBAL_CONFIG.CC_ORDER_BOOK_MAX_DEPTH_LEVELS
   ): Promise<IOrderBookData> => {
     backtest.exchangeValidationService.validate(context.exchangeName, EXCHANGE_METHOD_NAME_GET_ORDER_BOOK);
 
     const instance = this._getInstance(context.exchangeName);
-    return await instance.getOrderBook(symbol);
+    return await instance.getOrderBook(symbol, depth);
   };
 }
 

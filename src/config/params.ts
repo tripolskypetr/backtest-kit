@@ -139,6 +139,13 @@ export const GLOBAL_CONFIG = {
    * Default: 10 minutes
    */
   CC_ORDER_BOOK_TIME_OFFSET_MINUTES: 10,
+  /**
+   * Maximum depth levels for order book fetching.
+   * Specifies how many price levels to fetch from both bids and asks.
+   *
+   * Default: 20 levels
+   */
+  CC_ORDER_BOOK_MAX_DEPTH_LEVELS: 1_000,
 };
 
 export const DEFAULT_CONFIG = Object.freeze({...GLOBAL_CONFIG});

@@ -225,6 +225,7 @@ export async function getMode(): Promise<"backtest" | "live"> {
  * or ignore them (live trading).
  *
  * @param symbol - Trading pair symbol (e.g., "BTCUSDT")
+ * @param depth - Maximum depth levels (default: CC_ORDER_BOOK_MAX_DEPTH_LEVELS)
  * @returns Promise resolving to order book data
  * @throws Error if execution or method context is missing
  *
@@ -233,11 +234,15 @@ export async function getMode(): Promise<"backtest" | "live"> {
  * const orderBook = await getOrderBook("BTCUSDT");
  * console.log(orderBook.bids); // [{ price: "50000.00", quantity: "0.5" }, ...]
  * console.log(orderBook.asks); // [{ price: "50001.00", quantity: "0.3" }, ...]
+ *
+ * // Fetch deeper order book
+ * const deepBook = await getOrderBook("BTCUSDT", 100);
  * ```
  */
-export async function getOrderBook(symbol: string): Promise<IOrderBookData> {
+export async function getOrderBook(symbol: string, depth?: number): Promise<IOrderBookData> {
   backtest.loggerService.info(GET_ORDER_BOOK_METHOD_NAME, {
     symbol,
+    depth,
   });
   if (!ExecutionContextService.hasContext()) {
     throw new Error("getOrderBook requires an execution context");
@@ -245,7 +250,7 @@ export async function getOrderBook(symbol: string): Promise<IOrderBookData> {
   if (!MethodContextService.hasContext()) {
     throw new Error("getOrderBook requires a method context");
   }
-  return await backtest.exchangeConnectionService.getOrderBook(symbol);
+  return await backtest.exchangeConnectionService.getOrderBook(symbol, depth);
 }
 
 export default { getCandles, getAveragePrice, getDate, getMode, hasTradeContext, getOrderBook };

@@ -74,6 +74,7 @@ export {
 export {
   getCandles,
   getAveragePrice,
+  getOrderBook,
   getDate,
   getMode,
   formatPrice,

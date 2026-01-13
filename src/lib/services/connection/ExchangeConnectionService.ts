@@ -43,10 +43,11 @@ const DEFAULT_FORMAT_PRICE_FN = async (_symbol: string, price: number): Promise<
  * Throws an error indicating the method is not implemented.
  *
  * @param _symbol - Trading pair symbol (unused)
+ * @param _depth - Maximum depth levels (unused)
  * @param _from - Start of time range (unused - can be ignored in live implementations)
  * @param _to - End of time range (unused - can be ignored in live implementations)
  */
-const DEFAULT_GET_ORDER_BOOK_FN = async (_symbol: string, _from: Date, _to: Date): Promise<IOrderBookData> => {
+const DEFAULT_GET_ORDER_BOOK_FN = async (_symbol: string, _depth: number, _from: Date, _to: Date): Promise<IOrderBookData> => {
   throw new Error(`getOrderBook is not implemented for this exchange`);
 };
 
@@ -231,15 +232,17 @@ export class ExchangeConnectionService implements IExchange {
    * implementation, which may use (backtest) or ignore (live) the parameters.
    *
    * @param symbol - Trading pair symbol (e.g., "BTCUSDT")
+   * @param depth - Maximum depth levels (default: CC_ORDER_BOOK_MAX_DEPTH_LEVELS)
    * @returns Promise resolving to order book data
    */
-  public getOrderBook = async (symbol: string): Promise<IOrderBookData> => {
+  public getOrderBook = async (symbol: string, depth?: number): Promise<IOrderBookData> => {
     this.loggerService.log("exchangeConnectionService getOrderBook", {
       symbol,
+      depth,
     });
     return await this.getExchange(
       this.methodContextService.context.exchangeName
-    ).getOrderBook(symbol);
+    ).getOrderBook(symbol, depth);
   };
 }
 

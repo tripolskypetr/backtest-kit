@@ -272,17 +272,20 @@ export class ExchangeCoreService implements TExchange {
    * @param symbol - Trading pair symbol
    * @param when - Timestamp for context
    * @param backtest - Whether running in backtest mode
+   * @param depth - Maximum depth levels (default: CC_ORDER_BOOK_MAX_DEPTH_LEVELS)
    * @returns Promise resolving to order book data
    */
   public getOrderBook = async (
     symbol: string,
     when: Date,
-    backtest: boolean
+    backtest: boolean,
+    depth?: number
   ): Promise<IOrderBookData> => {
     this.loggerService.log("exchangeCoreService getOrderBook", {
       symbol,
       when,
       backtest,
+      depth,
     });
     if (!MethodContextService.hasContext()) {
       throw new Error("exchangeCoreService getOrderBook requires a method context");
@@ -290,7 +293,7 @@ export class ExchangeCoreService implements TExchange {
     await this.validate(this.methodContextService.context.exchangeName);
     return await ExecutionContextService.runInContext(
       async () => {
-        return await this.exchangeConnectionService.getOrderBook(symbol);
+        return await this.exchangeConnectionService.getOrderBook(symbol, depth);
       },
       {
         symbol,

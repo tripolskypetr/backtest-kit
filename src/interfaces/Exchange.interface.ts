@@ -74,7 +74,7 @@ export interface IExchangeParams extends IExchangeSchema {
   /** Format price according to exchange precision rules (required, defaults applied) */
   formatPrice: (symbol: string, price: number) => Promise<string>;
   /** Fetch order book for a trading pair (required, defaults applied) */
-  getOrderBook: (symbol: string, from: Date, to: Date) => Promise<IOrderBookData>;
+  getOrderBook: (symbol: string, depth: number, from: Date, to: Date) => Promise<IOrderBookData>;
 }
 
 /**
@@ -141,6 +141,7 @@ export interface IExchangeSchema {
    * Optional. If not provided, throws an error when called.
    *
    * @param symbol - Trading pair symbol (e.g., "BTCUSDT")
+   * @param depth - Maximum depth levels for both bids and asks (default: CC_ORDER_BOOK_MAX_DEPTH_LEVELS)
    * @param from - Start of time range (used in backtest for historical data, can be ignored in live)
    * @param to - End of time range (used in backtest for historical data, can be ignored in live)
    * @returns Promise resolving to order book data
@@ -148,17 +149,17 @@ export interface IExchangeSchema {
    * @example
    * ```typescript
    * // Backtest implementation: returns historical order book for the time range
-   * const backtestOrderBook = async (symbol: string, from: Date, to: Date) => {
-   *   return await database.getOrderBookSnapshot(symbol, from, to);
+   * const backtestOrderBook = async (symbol: string, depth: number, from: Date, to: Date) => {
+   *   return await database.getOrderBookSnapshot(symbol, depth, from, to);
    * };
    *
    * // Live implementation: ignores from/to and returns current snapshot
-   * const liveOrderBook = async (symbol: string, _from: Date, _to: Date) => {
-   *   return await exchange.fetchOrderBook(symbol);
+   * const liveOrderBook = async (symbol: string, depth: number, _from: Date, _to: Date) => {
+   *   return await exchange.fetchOrderBook(symbol, depth);
    * };
    * ```
    */
-  getOrderBook?: (symbol: string, from: Date, to: Date) => Promise<IOrderBookData>;
+  getOrderBook?: (symbol: string, depth: number, from: Date, to: Date) => Promise<IOrderBookData>;
   /** Optional lifecycle event callbacks (onCandleData) */
   callbacks?: Partial<IExchangeCallbacks>;
 }
@@ -229,9 +230,10 @@ export interface IExchange {
    * Fetch order book for a trading pair.
    *
    * @param symbol - Trading pair symbol (e.g., "BTCUSDT")
+   * @param depth - Maximum depth levels (default: CC_ORDER_BOOK_MAX_DEPTH_LEVELS)
    * @returns Promise resolving to order book data
    */
-  getOrderBook: (symbol: string) => Promise<IOrderBookData>;
+  getOrderBook: (symbol: string, depth?: number) => Promise<IOrderBookData>;
 }
 
 /**

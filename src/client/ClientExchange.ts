@@ -494,19 +494,21 @@ export class ClientExchange implements IExchange {
    * schema implementation which may use or ignore the time range.
    *
    * @param symbol - Trading pair symbol
+   * @param depth - Maximum depth levels (default: CC_ORDER_BOOK_MAX_DEPTH_LEVELS)
    * @returns Promise resolving to order book data
    * @throws Error if getOrderBook is not implemented
    */
-  public async getOrderBook(symbol: string): Promise<IOrderBookData> {
+  public async getOrderBook(symbol: string, depth: number = GLOBAL_CONFIG.CC_ORDER_BOOK_MAX_DEPTH_LEVELS): Promise<IOrderBookData> {
     this.params.logger.debug("ClientExchange getOrderBook", {
       symbol,
+      depth,
     });
 
     const to = new Date(this.params.execution.context.when.getTime());
     const from = new Date(
       to.getTime() - GLOBAL_CONFIG.CC_ORDER_BOOK_TIME_OFFSET_MINUTES * 60 * 1_000
     );
-    return await this.params.getOrderBook(symbol, from, to);
+    return await this.params.getOrderBook(symbol, depth, from, to);
   }
 }
 

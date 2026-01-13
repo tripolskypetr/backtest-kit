@@ -460,7 +460,7 @@ interface IExchangeParams extends IExchangeSchema {
     /** Format price according to exchange precision rules (required, defaults applied) */
     formatPrice: (symbol: string, price: number) => Promise<string>;
     /** Fetch order book for a trading pair (required, defaults applied) */
-    getOrderBook: (symbol: string, from: Date, to: Date) => Promise<IOrderBookData>;
+    getOrderBook: (symbol: string, depth: number, from: Date, to: Date) => Promise<IOrderBookData>;
 }
 /**
  * Optional callbacks for exchange data events.
@@ -514,6 +514,7 @@ interface IExchangeSchema {
      * Optional. If not provided, throws an error when called.
      *
      * @param symbol - Trading pair symbol (e.g., "BTCUSDT")
+     * @param depth - Maximum depth levels for both bids and asks (default: CC_ORDER_BOOK_MAX_DEPTH_LEVELS)
      * @param from - Start of time range (used in backtest for historical data, can be ignored in live)
      * @param to - End of time range (used in backtest for historical data, can be ignored in live)
      * @returns Promise resolving to order book data
@@ -521,17 +522,17 @@ interface IExchangeSchema {
      * @example
      * ```typescript
      * // Backtest implementation: returns historical order book for the time range
-     * const backtestOrderBook = async (symbol: string, from: Date, to: Date) => {
-     *   return await database.getOrderBookSnapshot(symbol, from, to);
+     * const backtestOrderBook = async (symbol: string, depth: number, from: Date, to: Date) => {
+     *   return await database.getOrderBookSnapshot(symbol, depth, from, to);
      * };
      *
      * // Live implementation: ignores from/to and returns current snapshot
-     * const liveOrderBook = async (symbol: string, _from: Date, _to: Date) => {
-     *   return await exchange.fetchOrderBook(symbol);
+     * const liveOrderBook = async (symbol: string, depth: number, _from: Date, _to: Date) => {
+     *   return await exchange.fetchOrderBook(symbol, depth);
      * };
      * ```
      */
-    getOrderBook?: (symbol: string, from: Date, to: Date) => Promise<IOrderBookData>;
+    getOrderBook?: (symbol: string, depth: number, from: Date, to: Date) => Promise<IOrderBookData>;
     /** Optional lifecycle event callbacks (onCandleData) */
     callbacks?: Partial<IExchangeCallbacks>;
 }
@@ -588,9 +589,10 @@ interface IExchange {
      * Fetch order book for a trading pair.
      *
      * @param symbol - Trading pair symbol (e.g., "BTCUSDT")
+     * @param depth - Maximum depth levels (default: CC_ORDER_BOOK_MAX_DEPTH_LEVELS)
      * @returns Promise resolving to order book data
      */
-    getOrderBook: (symbol: string) => Promise<IOrderBookData>;
+    getOrderBook: (symbol: string, depth?: number) => Promise<IOrderBookData>;
 }
 /**
  * Unique exchange identifier.
@@ -2137,6 +2139,13 @@ declare const GLOBAL_CONFIG: {
      * Default: 10 minutes
      */
     CC_ORDER_BOOK_TIME_OFFSET_MINUTES: number;
+    /**
+     * Maximum depth levels for order book fetching.
+     * Specifies how many price levels to fetch from both bids and asks.
+     *
+     * Default: 20 levels
+     */
+    CC_ORDER_BOOK_MAX_DEPTH_LEVELS: number;
 };
 /**
  * Type for global configuration object.
@@ -2240,6 +2249,7 @@ declare function getConfig(): {
     CC_REPORT_SHOW_SIGNAL_NOTE: boolean;
     CC_BREAKEVEN_THRESHOLD: number;
     CC_ORDER_BOOK_TIME_OFFSET_MINUTES: number;
+    CC_ORDER_BOOK_MAX_DEPTH_LEVELS: number;
 };
 /**
  * Retrieves the default configuration object for the framework.
@@ -2273,6 +2283,7 @@ declare function getDefaultConfig(): Readonly<{
     CC_REPORT_SHOW_SIGNAL_NOTE: boolean;
     CC_BREAKEVEN_THRESHOLD: number;
     CC_ORDER_BOOK_TIME_OFFSET_MINUTES: number;
+    CC_ORDER_BOOK_MAX_DEPTH_LEVELS: number;
 }>;
 /**
  * Sets custom column configurations for markdown report generation.
@@ -5373,6 +5384,29 @@ declare function getDate(): Promise<Date>;
  * ```
  */
 declare function getMode(): Promise<"backtest" | "live">;
+/**
+ * Fetches order book for a trading pair from the registered exchange.
+ *
+ * Uses current execution context to determine timing. The underlying exchange
+ * implementation receives time range parameters but may use them (backtest)
+ * or ignore them (live trading).
+ *
+ * @param symbol - Trading pair symbol (e.g., "BTCUSDT")
+ * @param depth - Maximum depth levels (default: CC_ORDER_BOOK_MAX_DEPTH_LEVELS)
+ * @returns Promise resolving to order book data
+ * @throws Error if execution or method context is missing
+ *
+ * @example
+ * ```typescript
+ * const orderBook = await getOrderBook("BTCUSDT");
+ * console.log(orderBook.bids); // [{ price: "50000.00", quantity: "0.5" }, ...]
+ * console.log(orderBook.asks); // [{ price: "50001.00", quantity: "0.3" }, ...]
+ *
+ * // Fetch deeper order book
+ * const deepBook = await getOrderBook("BTCUSDT", 100);
+ * ```
+ */
+declare function getOrderBook(symbol: string, depth?: number): Promise<IOrderBookData>;
 
 /**
  * Dumps signal data and LLM conversation history to markdown files.
@@ -11157,11 +11191,12 @@ declare class ExchangeUtils {
      *
      * @param symbol - Trading pair symbol
      * @param context - Execution context with exchange name
+     * @param depth - Maximum depth levels (default: CC_ORDER_BOOK_MAX_DEPTH_LEVELS)
      * @returns Promise resolving to order book data
      */
     getOrderBook: (symbol: string, context: {
         exchangeName: ExchangeName;
-    }) => Promise<IOrderBookData>;
+    }, depth?: number) => Promise<IOrderBookData>;
 }
 /**
  * Singleton instance of ExchangeUtils for convenient exchange operations.
@@ -12079,10 +12114,11 @@ declare class ClientExchange implements IExchange {
      * schema implementation which may use or ignore the time range.
      *
      * @param symbol - Trading pair symbol
+     * @param depth - Maximum depth levels (default: CC_ORDER_BOOK_MAX_DEPTH_LEVELS)
      * @returns Promise resolving to order book data
      * @throws Error if getOrderBook is not implemented
      */
-    getOrderBook(symbol: string): Promise<IOrderBookData>;
+    getOrderBook(symbol: string, depth?: number): Promise<IOrderBookData>;
 }
 
 /**
@@ -12183,9 +12219,10 @@ declare class ExchangeConnectionService implements IExchange {
      * implementation, which may use (backtest) or ignore (live) the parameters.
      *
      * @param symbol - Trading pair symbol (e.g., "BTCUSDT")
+     * @param depth - Maximum depth levels (default: CC_ORDER_BOOK_MAX_DEPTH_LEVELS)
      * @returns Promise resolving to order book data
      */
-    getOrderBook: (symbol: string) => Promise<IOrderBookData>;
+    getOrderBook: (symbol: string, depth?: number) => Promise<IOrderBookData>;
 }
 
 /**
@@ -13252,9 +13289,10 @@ declare class ExchangeCoreService implements TExchange {
      * @param symbol - Trading pair symbol
      * @param when - Timestamp for context
      * @param backtest - Whether running in backtest mode
+     * @param depth - Maximum depth levels (default: CC_ORDER_BOOK_MAX_DEPTH_LEVELS)
      * @returns Promise resolving to order book data
      */
-    getOrderBook: (symbol: string, when: Date, backtest: boolean) => Promise<IOrderBookData>;
+    getOrderBook: (symbol: string, when: Date, backtest: boolean, depth?: number) => Promise<IOrderBookData>;
 }
 
 /**
@@ -16221,4 +16259,4 @@ declare const backtest: {
     loggerService: LoggerService;
 };
 
-export { Backtest, type BacktestDoneNotification, type BacktestStatisticsModel, type BootstrapNotification, Breakeven, type BreakevenContract, type BreakevenData, Cache, type CandleInterval, type ColumnConfig, type ColumnModel, Constant, type CriticalErrorNotification, type DoneContract, type EntityId, Exchange, ExecutionContextService, type FrameInterval, type GlobalConfig, Heat, type HeatmapStatisticsModel, type IBidData, type ICandleData, type IExchangeSchema, type IFrameSchema, type IHeatmapRow, type IMarkdownDumpOptions, type IOptimizerCallbacks, type IOptimizerData, type IOptimizerFetchArgs, type IOptimizerFilterArgs, type IOptimizerRange, type IOptimizerSchema, type IOptimizerSource, type IOptimizerStrategy, type IOptimizerTemplate, type IOrderBookData, type IPersistBase, type IPositionSizeATRParams, type IPositionSizeFixedPercentageParams, type IPositionSizeKellyParams, type IPublicSignalRow, type IReportDumpOptions, type IRiskActivePosition, type IRiskCheckArgs, type IRiskSchema, type IRiskValidation, type IRiskValidationFn, type IRiskValidationPayload, type IScheduledSignalCancelRow, type IScheduledSignalRow, type ISignalDto, type ISignalRow, type ISizingCalculateParams, type ISizingCalculateParamsATR, type ISizingCalculateParamsFixedPercentage, type ISizingCalculateParamsKelly, type ISizingSchema, type ISizingSchemaATR, type ISizingSchemaFixedPercentage, type ISizingSchemaKelly, type IStrategyPnL, type IStrategyResult, type IStrategySchema, type IStrategyTickResult, type IStrategyTickResultActive, type IStrategyTickResultCancelled, type IStrategyTickResultClosed, type IStrategyTickResultIdle, type IStrategyTickResultOpened, type IStrategyTickResultScheduled, type IWalkerResults, type IWalkerSchema, type IWalkerStrategyResult, type InfoErrorNotification, Live, type LiveDoneNotification, type LiveStatisticsModel, Markdown, MarkdownFileBase, MarkdownFolderBase, type MarkdownName, type MessageModel, type MessageRole, MethodContextService, type MetricStats, Notification, type NotificationModel, Optimizer, Partial$1 as Partial, type PartialData, type PartialEvent, type PartialLossContract, type PartialLossNotification, type PartialProfitContract, type PartialProfitNotification, type PartialStatisticsModel, Performance, type PerformanceContract, type PerformanceMetricType, type PerformanceStatisticsModel, PersistBase, PersistBreakevenAdapter, PersistPartialAdapter, PersistRiskAdapter, PersistScheduleAdapter, PersistSignalAdapter, type PingContract, PositionSize, type ProgressBacktestContract, type ProgressBacktestNotification, type ProgressOptimizerContract, type ProgressWalkerContract, Report, ReportBase, type ReportName, Risk, type RiskContract, type RiskData, type RiskEvent, type RiskRejectionNotification, type RiskStatisticsModel, Schedule, type ScheduleData, type ScheduleStatisticsModel, type ScheduledEvent, type SignalCancelledNotification, type SignalClosedNotification, type SignalData, type SignalInterval, type SignalOpenedNotification, type SignalScheduledNotification, type TMarkdownBase, type TPersistBase, type TPersistBaseCtor, type TReportBase, type TickEvent, type ValidationErrorNotification, Walker, type WalkerCompleteContract, type WalkerContract, type WalkerMetric, type SignalData$1 as WalkerSignalData, type WalkerStatisticsModel, addExchange, addFrame, addOptimizer, addRisk, addSizing, addStrategy, addWalker, breakeven, cancel, dumpSignal, emitters, formatPrice, formatQuantity, getAveragePrice, getCandles, getColumns, getConfig, getDate, getDefaultColumns, getDefaultConfig, getMode, hasTradeContext, backtest as lib, listExchanges, listFrames, listOptimizers, listRisks, listSizings, listStrategies, listWalkers, listenBacktestProgress, listenBreakeven, listenBreakevenOnce, listenDoneBacktest, listenDoneBacktestOnce, listenDoneLive, listenDoneLiveOnce, listenDoneWalker, listenDoneWalkerOnce, listenError, listenExit, listenOptimizerProgress, listenPartialLoss, listenPartialLossOnce, listenPartialProfit, listenPartialProfitOnce, listenPerformance, listenPing, listenPingOnce, listenRisk, listenRiskOnce, listenSignal, listenSignalBacktest, listenSignalBacktestOnce, listenSignalLive, listenSignalLiveOnce, listenSignalOnce, listenValidation, listenWalker, listenWalkerComplete, listenWalkerOnce, listenWalkerProgress, partialLoss, partialProfit, setColumns, setConfig, setLogger, stop, trailingStop, trailingTake, validate };
+export { Backtest, type BacktestDoneNotification, type BacktestStatisticsModel, type BootstrapNotification, Breakeven, type BreakevenContract, type BreakevenData, Cache, type CandleInterval, type ColumnConfig, type ColumnModel, Constant, type CriticalErrorNotification, type DoneContract, type EntityId, Exchange, ExecutionContextService, type FrameInterval, type GlobalConfig, Heat, type HeatmapStatisticsModel, type IBidData, type ICandleData, type IExchangeSchema, type IFrameSchema, type IHeatmapRow, type IMarkdownDumpOptions, type IOptimizerCallbacks, type IOptimizerData, type IOptimizerFetchArgs, type IOptimizerFilterArgs, type IOptimizerRange, type IOptimizerSchema, type IOptimizerSource, type IOptimizerStrategy, type IOptimizerTemplate, type IOrderBookData, type IPersistBase, type IPositionSizeATRParams, type IPositionSizeFixedPercentageParams, type IPositionSizeKellyParams, type IPublicSignalRow, type IReportDumpOptions, type IRiskActivePosition, type IRiskCheckArgs, type IRiskSchema, type IRiskValidation, type IRiskValidationFn, type IRiskValidationPayload, type IScheduledSignalCancelRow, type IScheduledSignalRow, type ISignalDto, type ISignalRow, type ISizingCalculateParams, type ISizingCalculateParamsATR, type ISizingCalculateParamsFixedPercentage, type ISizingCalculateParamsKelly, type ISizingSchema, type ISizingSchemaATR, type ISizingSchemaFixedPercentage, type ISizingSchemaKelly, type IStrategyPnL, type IStrategyResult, type IStrategySchema, type IStrategyTickResult, type IStrategyTickResultActive, type IStrategyTickResultCancelled, type IStrategyTickResultClosed, type IStrategyTickResultIdle, type IStrategyTickResultOpened, type IStrategyTickResultScheduled, type IWalkerResults, type IWalkerSchema, type IWalkerStrategyResult, type InfoErrorNotification, Live, type LiveDoneNotification, type LiveStatisticsModel, Markdown, MarkdownFileBase, MarkdownFolderBase, type MarkdownName, type MessageModel, type MessageRole, MethodContextService, type MetricStats, Notification, type NotificationModel, Optimizer, Partial$1 as Partial, type PartialData, type PartialEvent, type PartialLossContract, type PartialLossNotification, type PartialProfitContract, type PartialProfitNotification, type PartialStatisticsModel, Performance, type PerformanceContract, type PerformanceMetricType, type PerformanceStatisticsModel, PersistBase, PersistBreakevenAdapter, PersistPartialAdapter, PersistRiskAdapter, PersistScheduleAdapter, PersistSignalAdapter, type PingContract, PositionSize, type ProgressBacktestContract, type ProgressBacktestNotification, type ProgressOptimizerContract, type ProgressWalkerContract, Report, ReportBase, type ReportName, Risk, type RiskContract, type RiskData, type RiskEvent, type RiskRejectionNotification, type RiskStatisticsModel, Schedule, type ScheduleData, type ScheduleStatisticsModel, type ScheduledEvent, type SignalCancelledNotification, type SignalClosedNotification, type SignalData, type SignalInterval, type SignalOpenedNotification, type SignalScheduledNotification, type TMarkdownBase, type TPersistBase, type TPersistBaseCtor, type TReportBase, type TickEvent, type ValidationErrorNotification, Walker, type WalkerCompleteContract, type WalkerContract, type WalkerMetric, type SignalData$1 as WalkerSignalData, type WalkerStatisticsModel, addExchange, addFrame, addOptimizer, addRisk, addSizing, addStrategy, addWalker, breakeven, cancel, dumpSignal, emitters, formatPrice, formatQuantity, getAveragePrice, getCandles, getColumns, getConfig, getDate, getDefaultColumns, getDefaultConfig, getMode, getOrderBook, hasTradeContext, backtest as lib, listExchanges, listFrames, listOptimizers, listRisks, listSizings, listStrategies, listWalkers, listenBacktestProgress, listenBreakeven, listenBreakevenOnce, listenDoneBacktest, listenDoneBacktestOnce, listenDoneLive, listenDoneLiveOnce, listenDoneWalker, listenDoneWalkerOnce, listenError, listenExit, listenOptimizerProgress, listenPartialLoss, listenPartialLossOnce, listenPartialProfit, listenPartialProfitOnce, listenPerformance, listenPing, listenPingOnce, listenRisk, listenRiskOnce, listenSignal, listenSignalBacktest, listenSignalBacktestOnce, listenSignalLive, listenSignalLiveOnce, listenSignalOnce, listenValidation, listenWalker, listenWalkerComplete, listenWalkerOnce, listenWalkerProgress, partialLoss, partialProfit, setColumns, setConfig, setLogger, stop, trailingStop, trailingTake, validate };
