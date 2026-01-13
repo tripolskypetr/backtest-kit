@@ -1,7 +1,7 @@
 {
   "name": "@backtest-kit/signals",
   "version": "0.0.1",
-  "description": "A TypeScript library for trading system backtest",
+  "description": "Technical analysis and trading signal generation library for AI-powered trading systems. Computes 50+ indicators across 4 timeframes and generates markdown reports for LLM consumption.",
   "author": {
     "name": "Petr Tripolsky",
     "email": "tripolskypetr@gmail.com",
@@ -74,5 +74,8 @@
     "functools-kit": "^1.0.95",
     "trading-signals": "^6.9.1",
     "get-moment-stamp": "^1.1.1"
+  },
+  "publishConfig": {
+    "access": "public"
   }
 }
