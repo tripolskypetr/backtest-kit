@@ -36,14 +36,45 @@ export interface ICandleData {
 }
 
 /**
+ * Single bid or ask in order book.
+ */
+export interface IBidData {
+  /** Price level as string */
+  price: string;
+  /** Quantity at this price level as string */
+  quantity: string;
+}
+
+/**
+ * Order book data containing bids and asks.
+ */
+export interface IOrderBookData {
+  /** Trading pair symbol */
+  symbol: string;
+  /** Array of bid orders (buy orders) */
+  bids: IBidData[];
+  /** Array of ask orders (sell orders) */
+  asks: IBidData[];
+}
+
+/**
  * Exchange parameters passed to ClientExchange constructor.
  * Combines schema with runtime dependencies.
+ * Note: All exchange methods are required in params (defaults are applied during initialization).
  */
 export interface IExchangeParams extends IExchangeSchema {
   /** Logger service for debug output */
   logger: ILogger;
   /** Execution context service (symbol, when, backtest flag) */
   execution: TExecutionContextService;
+  /** Fetch candles from data source (required, defaults applied) */
+  getCandles: (symbol: string, interval: CandleInterval, since: Date, limit: number) => Promise<ICandleData[]>;
+  /** Format quantity according to exchange precision rules (required, defaults applied) */
+  formatQuantity: (symbol: string, quantity: number) => Promise<string>;
+  /** Format price according to exchange precision rules (required, defaults applied) */
+  formatPrice: (symbol: string, price: number) => Promise<string>;
+  /** Fetch order book for a trading pair (required, defaults applied) */
+  getOrderBook: (symbol: string, when: Date) => Promise<IOrderBookData>;
 }
 
 /**
@@ -87,19 +118,33 @@ export interface IExchangeSchema {
   /**
    * Format quantity according to exchange precision rules.
    *
+   * Optional. If not provided, defaults to Bitcoin precision on Binance (8 decimal places).
+   *
    * @param symbol - Trading pair symbol
    * @param quantity - Raw quantity value
    * @returns Promise resolving to formatted quantity string
    */
-  formatQuantity: (symbol: string, quantity: number) => Promise<string>;
+  formatQuantity?: (symbol: string, quantity: number) => Promise<string>;
   /**
    * Format price according to exchange precision rules.
+   *
+   * Optional. If not provided, defaults to Bitcoin precision on Binance (2 decimal places).
    *
    * @param symbol - Trading pair symbol
    * @param price - Raw price value
    * @returns Promise resolving to formatted price string
    */
-  formatPrice: (symbol: string, price: number) => Promise<string>;
+  formatPrice?: (symbol: string, price: number) => Promise<string>;
+  /**
+   * Fetch order book for a trading pair.
+   *
+   * Optional. If not provided, throws an error when called.
+   *
+   * @param symbol - Trading pair symbol (e.g., "BTCUSDT")
+   * @param when - Date for fetching order book (used in backtest mode)
+   * @returns Promise resolving to order book data
+   */
+  getOrderBook?: (symbol: string, when: Date) => Promise<IOrderBookData>;
   /** Optional lifecycle event callbacks (onCandleData) */
   callbacks?: Partial<IExchangeCallbacks>;
 }
@@ -165,6 +210,14 @@ export interface IExchange {
    * @returns Promise resolving to volume-weighted average price
    */
   getAveragePrice: (symbol: string) => Promise<number>;
+
+  /**
+   * Fetch order book for a trading pair.
+   *
+   * @param symbol - Trading pair symbol (e.g., "BTCUSDT")
+   * @returns Promise resolving to order book data
+   */
+  getOrderBook: (symbol: string) => Promise<IOrderBookData>;
 }
 
 /**

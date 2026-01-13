@@ -6,6 +6,7 @@ import {
   CandleInterval,
   ExchangeName,
   IExchange,
+  IOrderBookData,
 } from "../../../interfaces/Exchange.interface";
 import ExchangeConnectionService from "../connection/ExchangeConnectionService";
 import { TMethodContextService } from "../context/MethodContextService";
@@ -252,6 +253,40 @@ export class ExchangeCoreService implements TExchange {
           symbol,
           quantity
         );
+      },
+      {
+        symbol,
+        when,
+        backtest,
+      }
+    );
+  };
+
+  /**
+   * Fetches order book with execution context.
+   *
+   * @param symbol - Trading pair symbol
+   * @param when - Timestamp for context
+   * @param backtest - Whether running in backtest mode
+   * @returns Promise resolving to order book data
+   */
+  public getOrderBook = async (
+    symbol: string,
+    when: Date,
+    backtest: boolean
+  ): Promise<IOrderBookData> => {
+    this.loggerService.log("exchangeCoreService getOrderBook", {
+      symbol,
+      when,
+      backtest,
+    });
+    if (!MethodContextService.hasContext()) {
+      throw new Error("exchangeCoreService getOrderBook requires a method context");
+    }
+    await this.validate(this.methodContextService.context.exchangeName);
+    return await ExecutionContextService.runInContext(
+      async () => {
+        return await this.exchangeConnectionService.getOrderBook(symbol);
       },
       {
         symbol,

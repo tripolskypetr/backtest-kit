@@ -173,6 +173,12 @@ export class ConfigValidationService {
       );
     }
 
+    if (!Number.isInteger(GLOBAL_CONFIG.CC_ORDER_BOOK_TIME_OFFSET_MINUTES) || GLOBAL_CONFIG.CC_ORDER_BOOK_TIME_OFFSET_MINUTES < 0) {
+      errors.push(
+        `CC_ORDER_BOOK_TIME_OFFSET_MINUTES must be a non-negative integer, got ${GLOBAL_CONFIG.CC_ORDER_BOOK_TIME_OFFSET_MINUTES}`
+      );
+    }
+
     // Throw aggregated errors if any
     if (errors.length > 0) {
       const errorMessage = `GLOBAL_CONFIG validation failed:\n${errors.map((e, i) => `  ${i + 1}. ${e}`).join('\n')}`;

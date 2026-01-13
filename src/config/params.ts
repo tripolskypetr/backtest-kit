@@ -131,6 +131,14 @@ export const GLOBAL_CONFIG = {
    * Default: 0.2% (additional buffer above costs to ensure no loss when moving to breakeven)
    */
   CC_BREAKEVEN_THRESHOLD: 0.2,
+  /**
+   * Time offset in minutes for order book fetching.
+   * Subtracts this amount from the current time when fetching order book data.
+   * This helps get a more stable snapshot of the order book by avoiding real-time volatility.
+   *
+   * Default: 10 minutes
+   */
+  CC_ORDER_BOOK_TIME_OFFSET_MINUTES: 10,
 };
 
 export const DEFAULT_CONFIG = Object.freeze({...GLOBAL_CONFIG});

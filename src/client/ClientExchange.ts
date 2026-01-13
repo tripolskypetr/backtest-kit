@@ -3,6 +3,7 @@ import {
   ICandleData,
   IExchange,
   IExchangeParams,
+  type IOrderBookData,
 } from "../interfaces/Exchange.interface";
 import { GLOBAL_CONFIG } from "../config/params";
 import { errorData, getErrorMessage, sleep, trycatch } from "functools-kit";
@@ -483,6 +484,25 @@ export class ClientExchange implements IExchange {
       price,
     });
     return await this.params.formatPrice(symbol, price);
+  }
+
+  /**
+   * Fetches order book for a trading pair.
+   *
+   * @param symbol - Trading pair symbol
+   * @returns Promise resolving to order book data
+   * @throws Error if getOrderBook is not implemented
+   */
+  public async getOrderBook(symbol: string): Promise<IOrderBookData> {
+    this.params.logger.debug("ClientExchange getOrderBook", {
+      symbol,
+    });
+
+    const when = new Date(
+      this.params.execution.context.when.getTime() -
+      GLOBAL_CONFIG.CC_ORDER_BOOK_TIME_OFFSET_MINUTES * 60 * 1_000
+    );
+    return await this.params.getOrderBook(symbol, when);
   }
 }
 

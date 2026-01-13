@@ -85,6 +85,8 @@ export { dumpSignal } from "./function/dump";
 export {
   CandleInterval,
   ICandleData,
+  IBidData,
+  IOrderBookData,
   IExchangeSchema,
 } from "./interfaces/Exchange.interface";
 

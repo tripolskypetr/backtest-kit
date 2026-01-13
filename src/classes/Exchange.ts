@@ -1,5 +1,5 @@
 import backtest from "../lib";
-import { CandleInterval, ExchangeName, ICandleData, IExchangeSchema } from "../interfaces/Exchange.interface";
+import { CandleInterval, ExchangeName, ICandleData, IExchange, IExchangeSchema, IOrderBookData } from "../interfaces/Exchange.interface";
 import { memoize } from "functools-kit";
 import { GLOBAL_CONFIG } from "../config/params";
 
@@ -7,6 +7,39 @@ const EXCHANGE_METHOD_NAME_GET_CANDLES = "ExchangeUtils.getCandles";
 const EXCHANGE_METHOD_NAME_GET_AVERAGE_PRICE = "ExchangeUtils.getAveragePrice";
 const EXCHANGE_METHOD_NAME_FORMAT_QUANTITY = "ExchangeUtils.formatQuantity";
 const EXCHANGE_METHOD_NAME_FORMAT_PRICE = "ExchangeUtils.formatPrice";
+const EXCHANGE_METHOD_NAME_GET_ORDER_BOOK = "ExchangeUtils.getOrderBook";
+
+/**
+ * Default implementation for getCandles.
+ * Throws an error indicating the method is not implemented.
+ */
+const DEFAULT_GET_CANDLES_FN = async (_symbol: string, _interval: CandleInterval, _since: Date, _limit: number): Promise<ICandleData[]> => {
+  throw new Error(`getCandles is not implemented for this exchange`);
+};
+
+/**
+ * Default implementation for formatQuantity.
+ * Returns Bitcoin precision on Binance (8 decimal places).
+ */
+const DEFAULT_FORMAT_QUANTITY_FN = async (_symbol: string, quantity: number): Promise<string> => {
+  return quantity.toFixed(8);
+};
+
+/**
+ * Default implementation for formatPrice.
+ * Returns Bitcoin precision on Binance (2 decimal places).
+ */
+const DEFAULT_FORMAT_PRICE_FN = async (_symbol: string, price: number): Promise<string> => {
+  return price.toFixed(2);
+};
+
+/**
+ * Default implementation for getOrderBook.
+ * Throws an error indicating the method is not implemented.
+ */
+const DEFAULT_GET_ORDER_BOOK_FN = async (_symbol: string, _when: Date): Promise<IOrderBookData> => {
+  throw new Error(`getOrderBook is not implemented for this exchange`);
+};
 
 const INTERVAL_MINUTES: Record<CandleInterval, number> = {
   "1m": 1,
@@ -19,6 +52,43 @@ const INTERVAL_MINUTES: Record<CandleInterval, number> = {
   "4h": 240,
   "6h": 360,
   "8h": 480,
+};
+
+/**
+ * Type representing exchange methods with defaults applied.
+ *
+ * Extracts only the method fields from IExchangeSchema (getCandles, formatQuantity,
+ * formatPrice, getOrderBook) and makes them all required. Excludes metadata fields
+ * like exchangeName, note, and callbacks.
+ *
+ * Used as the return type for CREATE_EXCHANGE_INSTANCE_FN to ensure all methods
+ * are resolved with defaults applied during instance construction.
+ */
+type TExchange = Required<Omit<IExchangeSchema, keyof {
+  exchangeName: never;
+  note: never;
+  callbacks: never;
+}>>;
+
+/**
+ * Creates exchange instance with methods resolved once during construction.
+ * Applies default implementations where schema methods are not provided.
+ *
+ * @param schema - Exchange schema from registry
+ * @returns Object with resolved exchange methods
+ */
+const CREATE_EXCHANGE_INSTANCE_FN = (schema: IExchangeSchema): TExchange => {
+  const getCandles = schema.getCandles ?? DEFAULT_GET_CANDLES_FN;
+  const formatQuantity = schema.formatQuantity ?? DEFAULT_FORMAT_QUANTITY_FN;
+  const formatPrice = schema.formatPrice ?? DEFAULT_FORMAT_PRICE_FN;
+  const getOrderBook = schema.getOrderBook ?? DEFAULT_GET_ORDER_BOOK_FN;
+
+  return {
+    getCandles,
+    formatQuantity,
+    formatPrice,
+    getOrderBook,
+  };
 };
 
 /**
@@ -39,8 +109,8 @@ const INTERVAL_MINUTES: Record<CandleInterval, number> = {
  * ```
  */
 export class ExchangeInstance {
-  /** Cached exchange schema retrieved once during construction */
-  private _schema: IExchangeSchema;
+  /** Resolved exchange methods with defaults applied once during construction */
+  private _methods: ReturnType<typeof CREATE_EXCHANGE_INSTANCE_FN>;
 
   /**
    * Creates a new ExchangeInstance for a specific exchange.
@@ -48,7 +118,8 @@ export class ExchangeInstance {
    * @param exchangeName - Exchange name (e.g., "binance")
    */
   constructor(readonly exchangeName: ExchangeName) {
-    this._schema = backtest.exchangeSchemaService.get(this.exchangeName);
+    const schema = backtest.exchangeSchemaService.get(this.exchangeName);
+    this._methods = CREATE_EXCHANGE_INSTANCE_FN(schema);
   }
 
   /**
@@ -72,14 +143,16 @@ export class ExchangeInstance {
     symbol: string,
     interval: CandleInterval,
     limit: number
-  ) => {  
+  ) => {
     backtest.loggerService.info(EXCHANGE_METHOD_NAME_GET_CANDLES, {
       exchangeName: this.exchangeName,
       symbol,
       interval,
       limit,
     });
-  
+
+    const getCandles = this._methods.getCandles;
+
     const step = INTERVAL_MINUTES[interval];
     const adjust = step * limit - step;
 
@@ -101,7 +174,7 @@ export class ExchangeInstance {
 
       while (remaining > 0) {
         const chunkLimit = Math.min(remaining, GLOBAL_CONFIG.CC_MAX_CANDLES_PER_REQUEST);
-        const chunkData = await this._schema.getCandles(
+        const chunkData = await getCandles(
           symbol,
           interval,
           currentSince,
@@ -119,7 +192,7 @@ export class ExchangeInstance {
         }
       }
     } else {
-      allData = await this._schema.getCandles(symbol, interval, since, limit);
+      allData = await getCandles(symbol, interval, since, limit);
     }
 
     // Filter candles to strictly match the requested range
@@ -210,7 +283,7 @@ export class ExchangeInstance {
    * ```typescript
    * const instance = new ExchangeInstance("binance");
    * const formatted = await instance.formatQuantity("BTCUSDT", 0.001);
-   * console.log(formatted); // "0.001"
+   * console.log(formatted); // "0.00100000"
    * ```
    */
   public formatQuantity = async (symbol: string, quantity: number): Promise<string> => {
@@ -219,7 +292,7 @@ export class ExchangeInstance {
       symbol,
       quantity,
     });
-    return await this._schema.formatQuantity(symbol, quantity);
+    return await this._methods.formatQuantity(symbol, quantity);
   };
 
   /**
@@ -242,7 +315,31 @@ export class ExchangeInstance {
       symbol,
       price,
     });
-    return await this._schema.formatPrice(symbol, price);
+    return await this._methods.formatPrice(symbol, price);
+  };
+
+  /**
+   * Fetch order book for a trading pair.
+   *
+   * @param symbol - Trading pair symbol
+   * @returns Promise resolving to order book data
+   * @throws Error if getOrderBook is not implemented
+   *
+   * @example
+   * ```typescript
+   * const instance = new ExchangeInstance("binance");
+   * const orderBook = await instance.getOrderBook("BTCUSDT");
+   * console.log(orderBook.bids); // [{ price: "50000.00", quantity: "0.5" }, ...]
+   * ```
+   */
+  public getOrderBook = async (symbol: string): Promise<IOrderBookData> => {
+    backtest.loggerService.info(EXCHANGE_METHOD_NAME_GET_ORDER_BOOK, {
+      exchangeName: this.exchangeName,
+      symbol,
+    });
+
+    const when = new Date(Date.now() - GLOBAL_CONFIG.CC_ORDER_BOOK_TIME_OFFSET_MINUTES * 60 * 1_000);
+    return await this._methods.getOrderBook(symbol, when);
   };
 }
 
@@ -362,6 +459,25 @@ export class ExchangeUtils {
 
     const instance = this._getInstance(context.exchangeName);
     return await instance.formatPrice(symbol, price);
+  };
+
+  /**
+   * Fetch order book for a trading pair.
+   *
+   * @param symbol - Trading pair symbol
+   * @param context - Execution context with exchange name
+   * @returns Promise resolving to order book data
+   */
+  public getOrderBook = async (
+    symbol: string,
+    context: {
+      exchangeName: ExchangeName;
+    }
+  ): Promise<IOrderBookData> => {
+    backtest.exchangeValidationService.validate(context.exchangeName, EXCHANGE_METHOD_NAME_GET_ORDER_BOOK);
+
+    const instance = this._getInstance(context.exchangeName);
+    return await instance.getOrderBook(symbol);
   };
 }
 

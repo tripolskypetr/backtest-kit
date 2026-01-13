@@ -2,7 +2,7 @@ import backtest, {
   ExecutionContextService,
   MethodContextService,
 } from "../lib";
-import { CandleInterval, ICandleData } from "../interfaces/Exchange.interface";
+import { CandleInterval, ICandleData, IOrderBookData } from "../interfaces/Exchange.interface";
 
 const GET_CANDLES_METHOD_NAME = "exchange.getCandles";
 const GET_AVERAGE_PRICE_METHOD_NAME = "exchange.getAveragePrice";
@@ -11,6 +11,7 @@ const FORMAT_QUANTITY_METHOD_NAME = "exchange.formatQuantity";
 const GET_DATE_METHOD_NAME = "exchange.getDate";
 const GET_MODE_METHOD_NAME = "exchange.getMode";
 const HAS_TRADE_CONTEXT_METHOD_NAME = "exchange.hasTradeContext";
+const GET_ORDER_BOOK_METHOD_NAME = "exchange.getOrderBook";
 
 /**
  * Checks if trade context is active (execution and method contexts).
@@ -216,4 +217,30 @@ export async function getMode(): Promise<"backtest" | "live"> {
   return bt ? "backtest" : "live";
 }
 
-export default { getCandles, getAveragePrice, getDate, getMode, hasTradeContext };
+/**
+ * Fetches order book for a trading pair from the registered exchange.
+ *
+ * @param symbol - Trading pair symbol (e.g., "BTCUSDT")
+ * @returns Promise resolving to order book data
+ *
+ * @example
+ * ```typescript
+ * const orderBook = await getOrderBook("BTCUSDT");
+ * console.log(orderBook.bids); // [{ price: "50000.00", quantity: "0.5" }, ...]
+ * console.log(orderBook.asks); // [{ price: "50001.00", quantity: "0.3" }, ...]
+ * ```
+ */
+export async function getOrderBook(symbol: string): Promise<IOrderBookData> {
+  backtest.loggerService.info(GET_ORDER_BOOK_METHOD_NAME, {
+    symbol,
+  });
+  if (!ExecutionContextService.hasContext()) {
+    throw new Error("getOrderBook requires an execution context");
+  }
+  if (!MethodContextService.hasContext()) {
+    throw new Error("getOrderBook requires a method context");
+  }
+  return await backtest.exchangeConnectionService.getOrderBook(symbol);
+}
+
+export default { getCandles, getAveragePrice, getDate, getMode, hasTradeContext, getOrderBook };

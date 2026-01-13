@@ -7,11 +7,44 @@ import {
   ExchangeName,
   ICandleData,
   IExchange,
+  IOrderBookData,
 } from "../../../interfaces/Exchange.interface";
 import { memoize } from "functools-kit";
 import ClientExchange from "../../../client/ClientExchange";
 import ExchangeSchemaService from "../schema/ExchangeSchemaService";
 import { TMethodContextService } from "../context/MethodContextService";
+
+/**
+ * Default implementation for getCandles.
+ * Throws an error indicating the method is not implemented.
+ */
+const DEFAULT_GET_CANDLES_FN = async (_symbol: string, _interval: CandleInterval, _since: Date, _limit: number): Promise<ICandleData[]> => {
+  throw new Error(`getCandles is not implemented for this exchange`);
+};
+
+/**
+ * Default implementation for formatQuantity.
+ * Returns Bitcoin precision on Binance (8 decimal places).
+ */
+const DEFAULT_FORMAT_QUANTITY_FN = async (_symbol: string, quantity: number): Promise<string> => {
+  return quantity.toFixed(8);
+};
+
+/**
+ * Default implementation for formatPrice.
+ * Returns Bitcoin precision on Binance (2 decimal places).
+ */
+const DEFAULT_FORMAT_PRICE_FN = async (_symbol: string, price: number): Promise<string> => {
+  return price.toFixed(2);
+};
+
+/**
+ * Default implementation for getOrderBook.
+ * Throws an error indicating the method is not implemented.
+ */
+const DEFAULT_GET_ORDER_BOOK_FN = async (_symbol: string, _when: Date): Promise<IOrderBookData> => {
+  throw new Error(`getOrderBook is not implemented for this exchange`);
+};
 
 /**
  * Connection service routing exchange operations to correct ClientExchange instance.
@@ -59,8 +92,13 @@ export class ExchangeConnectionService implements IExchange {
   public getExchange = memoize(
     ([exchangeName]) => `${exchangeName}`,
     (exchangeName: ExchangeName) => {
-      const { getCandles, formatPrice, formatQuantity, callbacks } =
-        this.exchangeSchemaService.get(exchangeName);
+      const {
+        getCandles = DEFAULT_GET_CANDLES_FN,
+        formatPrice = DEFAULT_FORMAT_PRICE_FN,
+        formatQuantity = DEFAULT_FORMAT_QUANTITY_FN,
+        getOrderBook = DEFAULT_GET_ORDER_BOOK_FN,
+        callbacks
+      } = this.exchangeSchemaService.get(exchangeName);
       return new ClientExchange({
         execution: this.executionContextService,
         logger: this.loggerService,
@@ -68,6 +106,7 @@ export class ExchangeConnectionService implements IExchange {
         getCandles,
         formatPrice,
         formatQuantity,
+        getOrderBook,
         callbacks,
       });
     }
@@ -178,6 +217,23 @@ export class ExchangeConnectionService implements IExchange {
     return await this.getExchange(
       this.methodContextService.context.exchangeName
     ).formatQuantity(symbol, quantity);
+  };
+
+  /**
+   * Fetches order book for a trading pair using configured exchange.
+   *
+   * Routes to exchange determined by methodContextService.context.exchangeName.
+   *
+   * @param symbol - Trading pair symbol (e.g., "BTCUSDT")
+   * @returns Promise resolving to order book data
+   */
+  public getOrderBook = async (symbol: string): Promise<IOrderBookData> => {
+    this.loggerService.log("exchangeConnectionService getOrderBook", {
+      symbol,
+    });
+    return await this.getExchange(
+      this.methodContextService.context.exchangeName
+    ).getOrderBook(symbol);
   };
 }
 
