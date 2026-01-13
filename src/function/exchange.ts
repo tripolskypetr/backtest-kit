@@ -220,8 +220,13 @@ export async function getMode(): Promise<"backtest" | "live"> {
 /**
  * Fetches order book for a trading pair from the registered exchange.
  *
+ * Uses current execution context to determine timing. The underlying exchange
+ * implementation receives time range parameters but may use them (backtest)
+ * or ignore them (live trading).
+ *
  * @param symbol - Trading pair symbol (e.g., "BTCUSDT")
  * @returns Promise resolving to order book data
+ * @throws Error if execution or method context is missing
  *
  * @example
  * ```typescript

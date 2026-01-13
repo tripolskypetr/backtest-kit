@@ -69,3 +69,7 @@ getOrderBook: (symbol: string, context: { exchangeName: string; }) => Promise<IO
 ```
 
 Fetch order book for a trading pair.
+
+Delegates to ExchangeInstance which calculates time range and passes it
+to the exchange schema implementation. The from/to parameters may be used
+(backtest) or ignored (live) depending on the implementation.

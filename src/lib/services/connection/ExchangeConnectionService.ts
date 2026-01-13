@@ -41,6 +41,10 @@ const DEFAULT_FORMAT_PRICE_FN = async (_symbol: string, price: number): Promise<
 /**
  * Default implementation for getOrderBook.
  * Throws an error indicating the method is not implemented.
+ *
+ * @param _symbol - Trading pair symbol (unused)
+ * @param _from - Start of time range (unused - can be ignored in live implementations)
+ * @param _to - End of time range (unused - can be ignored in live implementations)
  */
 const DEFAULT_GET_ORDER_BOOK_FN = async (_symbol: string, _from: Date, _to: Date): Promise<IOrderBookData> => {
   throw new Error(`getOrderBook is not implemented for this exchange`);
@@ -223,6 +227,8 @@ export class ExchangeConnectionService implements IExchange {
    * Fetches order book for a trading pair using configured exchange.
    *
    * Routes to exchange determined by methodContextService.context.exchangeName.
+   * The ClientExchange will calculate time range and pass it to the schema
+   * implementation, which may use (backtest) or ignore (live) the parameters.
    *
    * @param symbol - Trading pair symbol (e.g., "BTCUSDT")
    * @returns Promise resolving to order book data

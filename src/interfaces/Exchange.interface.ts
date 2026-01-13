@@ -141,9 +141,22 @@ export interface IExchangeSchema {
    * Optional. If not provided, throws an error when called.
    *
    * @param symbol - Trading pair symbol (e.g., "BTCUSDT")
-   * @param from - Start of time range for order book snapshot
-   * @param to - End of time range for order book snapshot
+   * @param from - Start of time range (used in backtest for historical data, can be ignored in live)
+   * @param to - End of time range (used in backtest for historical data, can be ignored in live)
    * @returns Promise resolving to order book data
+   *
+   * @example
+   * ```typescript
+   * // Backtest implementation: returns historical order book for the time range
+   * const backtestOrderBook = async (symbol: string, from: Date, to: Date) => {
+   *   return await database.getOrderBookSnapshot(symbol, from, to);
+   * };
+   *
+   * // Live implementation: ignores from/to and returns current snapshot
+   * const liveOrderBook = async (symbol: string, _from: Date, _to: Date) => {
+   *   return await exchange.fetchOrderBook(symbol);
+   * };
+   * ```
    */
   getOrderBook?: (symbol: string, from: Date, to: Date) => Promise<IOrderBookData>;
   /** Optional lifecycle event callbacks (onCandleData) */

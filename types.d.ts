@@ -514,9 +514,22 @@ interface IExchangeSchema {
      * Optional. If not provided, throws an error when called.
      *
      * @param symbol - Trading pair symbol (e.g., "BTCUSDT")
-     * @param from - Start of time range for order book snapshot
-     * @param to - End of time range for order book snapshot
+     * @param from - Start of time range (used in backtest for historical data, can be ignored in live)
+     * @param to - End of time range (used in backtest for historical data, can be ignored in live)
      * @returns Promise resolving to order book data
+     *
+     * @example
+     * ```typescript
+     * // Backtest implementation: returns historical order book for the time range
+     * const backtestOrderBook = async (symbol: string, from: Date, to: Date) => {
+     *   return await database.getOrderBookSnapshot(symbol, from, to);
+     * };
+     *
+     * // Live implementation: ignores from/to and returns current snapshot
+     * const liveOrderBook = async (symbol: string, _from: Date, _to: Date) => {
+     *   return await exchange.fetchOrderBook(symbol);
+     * };
+     * ```
      */
     getOrderBook?: (symbol: string, from: Date, to: Date) => Promise<IOrderBookData>;
     /** Optional lifecycle event callbacks (onCandleData) */
@@ -11138,6 +11151,10 @@ declare class ExchangeUtils {
     /**
      * Fetch order book for a trading pair.
      *
+     * Delegates to ExchangeInstance which calculates time range and passes it
+     * to the exchange schema implementation. The from/to parameters may be used
+     * (backtest) or ignored (live) depending on the implementation.
+     *
      * @param symbol - Trading pair symbol
      * @param context - Execution context with exchange name
      * @returns Promise resolving to order book data
@@ -12057,6 +12074,10 @@ declare class ClientExchange implements IExchange {
     /**
      * Fetches order book for a trading pair.
      *
+     * Calculates time range based on execution context time (when) and
+     * CC_ORDER_BOOK_TIME_OFFSET_MINUTES, then delegates to the exchange
+     * schema implementation which may use or ignore the time range.
+     *
      * @param symbol - Trading pair symbol
      * @returns Promise resolving to order book data
      * @throws Error if getOrderBook is not implemented
@@ -12158,6 +12179,8 @@ declare class ExchangeConnectionService implements IExchange {
      * Fetches order book for a trading pair using configured exchange.
      *
      * Routes to exchange determined by methodContextService.context.exchangeName.
+     * The ClientExchange will calculate time range and pass it to the schema
+     * implementation, which may use (backtest) or ignore (live) the parameters.
      *
      * @param symbol - Trading pair symbol (e.g., "BTCUSDT")
      * @returns Promise resolving to order book data
@@ -13221,6 +13244,10 @@ declare class ExchangeCoreService implements TExchange {
     formatQuantity: (symbol: string, quantity: number, when: Date, backtest: boolean) => Promise<string>;
     /**
      * Fetches order book with execution context.
+     *
+     * Sets up execution context with the provided when/backtest parameters.
+     * The exchange implementation will receive time range parameters but may
+     * choose to use them (backtest) or ignore them (live).
      *
      * @param symbol - Trading pair symbol
      * @param when - Timestamp for context

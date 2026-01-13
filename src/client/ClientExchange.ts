@@ -489,6 +489,10 @@ export class ClientExchange implements IExchange {
   /**
    * Fetches order book for a trading pair.
    *
+   * Calculates time range based on execution context time (when) and
+   * CC_ORDER_BOOK_TIME_OFFSET_MINUTES, then delegates to the exchange
+   * schema implementation which may use or ignore the time range.
+   *
    * @param symbol - Trading pair symbol
    * @returns Promise resolving to order book data
    * @throws Error if getOrderBook is not implemented

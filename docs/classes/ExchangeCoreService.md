@@ -103,3 +103,7 @@ getOrderBook: (symbol: string, when: Date, backtest: boolean) => Promise<IOrderB
 ```
 
 Fetches order book with execution context.
+
+Sets up execution context with the provided when/backtest parameters.
+The exchange implementation will receive time range parameters but may
+choose to use them (backtest) or ignore them (live).

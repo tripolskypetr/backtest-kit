@@ -36,6 +36,10 @@ const DEFAULT_FORMAT_PRICE_FN = async (_symbol: string, price: number): Promise<
 /**
  * Default implementation for getOrderBook.
  * Throws an error indicating the method is not implemented.
+ *
+ * @param _symbol - Trading pair symbol (unused)
+ * @param _from - Start of time range (unused - can be ignored in live implementations)
+ * @param _to - End of time range (unused - can be ignored in live implementations)
  */
 const DEFAULT_GET_ORDER_BOOK_FN = async (_symbol: string, _from: Date, _to: Date): Promise<IOrderBookData> => {
   throw new Error(`getOrderBook is not implemented for this exchange`);
@@ -321,6 +325,10 @@ export class ExchangeInstance {
   /**
    * Fetch order book for a trading pair.
    *
+   * Calculates time range using CC_ORDER_BOOK_TIME_OFFSET_MINUTES (default 10 minutes)
+   * and passes it to the exchange schema implementation. The implementation may use
+   * the time range (backtest) or ignore it (live trading).
+   *
    * @param symbol - Trading pair symbol
    * @returns Promise resolving to order book data
    * @throws Error if getOrderBook is not implemented
@@ -464,6 +472,10 @@ export class ExchangeUtils {
 
   /**
    * Fetch order book for a trading pair.
+   *
+   * Delegates to ExchangeInstance which calculates time range and passes it
+   * to the exchange schema implementation. The from/to parameters may be used
+   * (backtest) or ignored (live) depending on the implementation.
    *
    * @param symbol - Trading pair symbol
    * @param context - Execution context with exchange name

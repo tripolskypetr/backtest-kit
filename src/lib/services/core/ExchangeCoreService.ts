@@ -265,6 +265,10 @@ export class ExchangeCoreService implements TExchange {
   /**
    * Fetches order book with execution context.
    *
+   * Sets up execution context with the provided when/backtest parameters.
+   * The exchange implementation will receive time range parameters but may
+   * choose to use them (backtest) or ignore them (live).
+   *
    * @param symbol - Trading pair symbol
    * @param when - Timestamp for context
    * @param backtest - Whether running in backtest mode
