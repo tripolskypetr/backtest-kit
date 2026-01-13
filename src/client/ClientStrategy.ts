@@ -34,6 +34,7 @@ import backtest, { ExecutionContextService } from "../lib";
 import { errorEmitter } from "../config/emitters";
 import { GLOBAL_CONFIG } from "../config/params";
 import toPlainString from "../helpers/toPlainString";
+import beginTime from "../utils/beginTime";
 
 const INTERVAL_MINUTES: Record<SignalInterval, number> = {
   "1m": 1,
@@ -1485,7 +1486,7 @@ const ACTIVATE_SCHEDULED_SIGNAL_FN = async (
 };
 
 const CALL_PING_CALLBACKS_FN = trycatch(
-  async (
+  beginTime(async (
     self: ClientStrategy,
     symbol: string,
     scheduled: IScheduledSignalRow,
@@ -1519,7 +1520,7 @@ const CALL_PING_CALLBACKS_FN = trycatch(
       symbol: symbol,
       backtest: backtest,
     })
-  },
+  }),
   {
     fallback: (error) => {
       const message = "ClientStrategy CALL_PING_CALLBACKS_FN thrown";
@@ -1535,7 +1536,7 @@ const CALL_PING_CALLBACKS_FN = trycatch(
 );
 
 const CALL_ACTIVE_CALLBACKS_FN = trycatch(
-  async (
+  beginTime(async (
     self: ClientStrategy,
     symbol: string,
     signal: ISignalRow,
@@ -1558,7 +1559,7 @@ const CALL_ACTIVE_CALLBACKS_FN = trycatch(
       symbol: symbol,
       backtest: backtest,
     });
-  },
+  }),
   {
     fallback: (error) => {
       const message = "ClientStrategy CALL_ACTIVE_CALLBACKS_FN thrown";
@@ -1574,7 +1575,7 @@ const CALL_ACTIVE_CALLBACKS_FN = trycatch(
 );
 
 const CALL_SCHEDULE_CALLBACKS_FN = trycatch(
-  async (
+  beginTime(async (
     self: ClientStrategy,
     symbol: string,
     signal: IScheduledSignalRow,
@@ -1597,7 +1598,7 @@ const CALL_SCHEDULE_CALLBACKS_FN = trycatch(
       symbol: symbol,
       backtest: backtest,
     });
-  },
+  }),
   {
     fallback: (error) => {
       const message = "ClientStrategy CALL_SCHEDULE_CALLBACKS_FN thrown";
@@ -1613,7 +1614,7 @@ const CALL_SCHEDULE_CALLBACKS_FN = trycatch(
 );
 
 const CALL_CANCEL_CALLBACKS_FN = trycatch(
-  async (
+  beginTime(async (
     self: ClientStrategy,
     symbol: string,
     signal: IScheduledSignalRow,
@@ -1636,7 +1637,7 @@ const CALL_CANCEL_CALLBACKS_FN = trycatch(
       symbol: symbol,
       backtest: backtest,
     });
-  },
+  }),
   {
     fallback: (error) => {
       const message = "ClientStrategy CALL_CANCEL_CALLBACKS_FN thrown";
@@ -1652,7 +1653,7 @@ const CALL_CANCEL_CALLBACKS_FN = trycatch(
 );
 
 const CALL_OPEN_CALLBACKS_FN = trycatch(
-  async (
+  beginTime(async (
     self: ClientStrategy,
     symbol: string,
     signal: ISignalRow,
@@ -1675,7 +1676,7 @@ const CALL_OPEN_CALLBACKS_FN = trycatch(
       symbol: symbol,
       backtest: backtest,
     });
-  },
+  }),
   {
     fallback: (error) => {
       const message = "ClientStrategy CALL_OPEN_CALLBACKS_FN thrown";
@@ -1691,7 +1692,7 @@ const CALL_OPEN_CALLBACKS_FN = trycatch(
 );
 
 const CALL_CLOSE_CALLBACKS_FN = trycatch(
-  async (
+  beginTime(async (
     self: ClientStrategy,
     symbol: string,
     signal: ISignalRow,
@@ -1714,7 +1715,7 @@ const CALL_CLOSE_CALLBACKS_FN = trycatch(
       symbol: symbol,
       backtest: backtest,
     });
-  },
+  }),
   {
     fallback: (error) => {
       const message = "ClientStrategy CALL_CLOSE_CALLBACKS_FN thrown";
@@ -1730,7 +1731,7 @@ const CALL_CLOSE_CALLBACKS_FN = trycatch(
 );
 
 const CALL_TICK_CALLBACKS_FN = trycatch(
-  async (
+  beginTime(async (
     self: ClientStrategy,
     symbol: string,
     result: IStrategyTickResult,
@@ -1750,7 +1751,7 @@ const CALL_TICK_CALLBACKS_FN = trycatch(
       symbol: symbol,
       backtest: backtest,
     });
-  },
+  }),
   {
     fallback: (error) => {
       const message = "ClientStrategy CALL_TICK_CALLBACKS_FN thrown";
@@ -1766,7 +1767,7 @@ const CALL_TICK_CALLBACKS_FN = trycatch(
 );
 
 const CALL_IDLE_CALLBACKS_FN = trycatch(
-  async (
+  beginTime(async (
     self: ClientStrategy,
     symbol: string,
     currentPrice: number,
@@ -1786,7 +1787,7 @@ const CALL_IDLE_CALLBACKS_FN = trycatch(
       symbol: symbol,
       backtest: backtest,
     });
-  },
+  }),
   {
     fallback: (error) => {
       const message = "ClientStrategy CALL_IDLE_CALLBACKS_FN thrown";
@@ -1802,7 +1803,7 @@ const CALL_IDLE_CALLBACKS_FN = trycatch(
 );
 
 const CALL_RISK_ADD_SIGNAL_FN = trycatch(
-  async (
+  beginTime(async (
     self: ClientStrategy,
     symbol: string,
     signal: ISignalRow,
@@ -1832,7 +1833,7 @@ const CALL_RISK_ADD_SIGNAL_FN = trycatch(
       symbol: symbol,
       backtest: backtest,
     });
-  },
+  }),
   {
     fallback: (error) => {
       const message = "ClientStrategy CALL_RISK_ADD_SIGNAL_FN thrown";
@@ -1848,7 +1849,7 @@ const CALL_RISK_ADD_SIGNAL_FN = trycatch(
 );
 
 const CALL_RISK_REMOVE_SIGNAL_FN = trycatch(
-  async (
+  beginTime(async (
     self: ClientStrategy,
     symbol: string,
     timestamp: number,
@@ -1866,7 +1867,7 @@ const CALL_RISK_REMOVE_SIGNAL_FN = trycatch(
       symbol: symbol,
       backtest: backtest,
     });
-  },
+  }),
   {
     fallback: (error) => {
       const message = "ClientStrategy CALL_RISK_REMOVE_SIGNAL_FN thrown";
@@ -1882,7 +1883,7 @@ const CALL_RISK_REMOVE_SIGNAL_FN = trycatch(
 );
 
 const CALL_PARTIAL_CLEAR_FN = trycatch(
-  async (
+  beginTime(async (
     self: ClientStrategy,
     symbol: string,
     signal: ISignalRow,
@@ -1903,7 +1904,7 @@ const CALL_PARTIAL_CLEAR_FN = trycatch(
       symbol: symbol,
       backtest: backtest,
     });
-  },
+  }),
   {
     fallback: (error) => {
       const message = "ClientStrategy CALL_PARTIAL_CLEAR_FN thrown";
@@ -1919,7 +1920,7 @@ const CALL_PARTIAL_CLEAR_FN = trycatch(
 );
 
 const CALL_RISK_CHECK_SIGNAL_FN = trycatch(
-  async (
+  beginTime(async (
     self: ClientStrategy,
     symbol: string,
     pendingSignal: ISignalDto | ISignalRow | IScheduledSignalRow,
@@ -1943,7 +1944,7 @@ const CALL_RISK_CHECK_SIGNAL_FN = trycatch(
       symbol: symbol,
       backtest: backtest,
     });
-  },
+  }),
   {
     defaultValue: false,
     fallback: (error) => {
@@ -1960,7 +1961,7 @@ const CALL_RISK_CHECK_SIGNAL_FN = trycatch(
 );
 
 const CALL_PARTIAL_PROFIT_CALLBACKS_FN = trycatch(
-  async (
+  beginTime(async (
     self: ClientStrategy,
     symbol: string,
     signal: ISignalRow,
@@ -1993,7 +1994,7 @@ const CALL_PARTIAL_PROFIT_CALLBACKS_FN = trycatch(
       symbol: symbol,
       backtest: backtest,
     });
-  },
+  }),
   {
     fallback: (error) => {
       const message = "ClientStrategy CALL_PARTIAL_PROFIT_CALLBACKS_FN thrown";
@@ -2009,7 +2010,7 @@ const CALL_PARTIAL_PROFIT_CALLBACKS_FN = trycatch(
 );
 
 const CALL_PARTIAL_LOSS_CALLBACKS_FN = trycatch(
-  async (
+  beginTime(async (
     self: ClientStrategy,
     symbol: string,
     signal: ISignalRow,
@@ -2042,7 +2043,7 @@ const CALL_PARTIAL_LOSS_CALLBACKS_FN = trycatch(
       symbol: symbol,
       backtest: backtest,
     });
-  },
+  }),
   {
     fallback: (error) => {
       const message = "ClientStrategy CALL_PARTIAL_LOSS_CALLBACKS_FN thrown";
@@ -2058,7 +2059,7 @@ const CALL_PARTIAL_LOSS_CALLBACKS_FN = trycatch(
 );
 
 const CALL_BREAKEVEN_CHECK_FN = trycatch(
-  async (
+  beginTime(async (
     self: ClientStrategy,
     symbol: string,
     signal: ISignalRow,
@@ -2088,7 +2089,7 @@ const CALL_BREAKEVEN_CHECK_FN = trycatch(
       symbol: symbol,
       backtest: backtest,
     });
-  },
+  }),
   {
     fallback: (error) => {
       const message = "ClientStrategy CALL_BREAKEVEN_CHECK_FN thrown";
@@ -2104,7 +2105,7 @@ const CALL_BREAKEVEN_CHECK_FN = trycatch(
 );
 
 const CALL_BREAKEVEN_CLEAR_FN = trycatch(
-  async (
+  beginTime(async (
     self: ClientStrategy,
     symbol: string,
     signal: ISignalRow,
@@ -2125,7 +2126,7 @@ const CALL_BREAKEVEN_CLEAR_FN = trycatch(
       symbol: symbol,
       backtest: backtest,
     });
-  },
+  }),
   {
     fallback: (error) => {
       const message = "ClientStrategy CALL_BREAKEVEN_CLEAR_FN thrown";
