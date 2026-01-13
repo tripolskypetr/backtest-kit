@@ -64,6 +64,8 @@
     "worker-testbed": "1.0.12"
   },
   "peerDependencies": {
+    "agent-swarm-kit": "^1.1.180",
+    "backtest-kit": "^1.11.8",
     "typescript": "^5.0.0"
   },
   "dependencies": {
