@@ -18,15 +18,105 @@ import { TContextService } from "../lib/services/base/ContextService";
 import { Message } from "ollama";
 import { ILogger } from "../interface/Logger.interface";
 
+/**
+ * Maximum number of retry attempts for outline completion when model fails to use tools correctly.
+ */
 const MAX_ATTEMPTS = 3;
 
+/**
+ * Ollama message type without image support.
+ * Excludes the images field from the base Ollama Message type.
+ */
 type OllamaMessage = Omit<Message, keyof {
   images: never;
 }>;
 
+/**
+ * Provider for Ollama LLM completions.
+ *
+ * Supports local and remote Ollama models with full tool calling capabilities.
+ * Provides both standard and streaming completion modes, as well as structured
+ * output through the outline completion method.
+ *
+ * Key features:
+ * - Native Ollama protocol support
+ * - Real-time streaming with token-by-token delivery
+ * - Tool calling with automatic retry logic
+ * - JSON schema validation for structured outputs
+ * - Optional thinking mode support (via CC_ENABLE_THINKING)
+ * - Debug logging when CC_ENABLE_DEBUG is enabled
+ *
+ * @example
+ * ```typescript
+ * const provider = new OllamaProvider(contextService, logger);
+ *
+ * // Standard completion
+ * const response = await provider.getCompletion({
+ *   agentName: "assistant",
+ *   messages: [{ role: "user", content: "Hello!" }],
+ *   mode: "direct",
+ *   tools: [],
+ *   clientId: "client-123"
+ * });
+ *
+ * // Streaming completion
+ * const streamResponse = await provider.getStreamCompletion({
+ *   agentName: "assistant",
+ *   messages: [{ role: "user", content: "Explain AI" }],
+ *   mode: "direct",
+ *   tools: [],
+ *   clientId: "client-123"
+ * });
+ *
+ * // Structured output with schema enforcement
+ * const outlineResponse = await provider.getOutlineCompletion({
+ *   messages: [{ role: "user", content: "Analyze sentiment" }],
+ *   format: {
+ *     type: "object",
+ *     properties: {
+ *       sentiment: { type: "string" },
+ *       confidence: { type: "number" }
+ *     }
+ *   }
+ * });
+ * ```
+ */
 export class OllamaProvider implements IProvider {
+  /**
+   * Creates a new OllamaProvider instance.
+   *
+   * @param contextService - Context service managing model configuration and API settings
+   * @param logger - Logger instance for tracking provider operations
+   */
   constructor(readonly contextService: TContextService, readonly logger: ILogger) {}
 
+  /**
+   * Performs a standard (non-streaming) completion request to Ollama.
+   *
+   * Sends messages and tools to the Ollama model and returns the complete response.
+   * Supports tool calling with automatic ID generation for tool calls.
+   *
+   * @param params - Completion parameters including messages, tools, and agent configuration
+   * @param params.agentName - Name of the agent making the request
+   * @param params.messages - Conversation history with roles and content
+   * @param params.mode - Completion mode (e.g., "direct", "delegated")
+   * @param params.tools - Available tools for the model to call
+   * @param params.clientId - Client identifier for tracking requests
+   * @returns Promise resolving to the assistant's response message with optional tool calls
+   *
+   * @example
+   * ```typescript
+   * const response = await provider.getCompletion({
+   *   agentName: "assistant",
+   *   messages: [
+   *     { role: "user", content: "What's the weather in Tokyo?" }
+   *   ],
+   *   mode: "direct",
+   *   tools: [weatherTool],
+   *   clientId: "client-123"
+   * });
+   * ```
+   */
   public async getCompletion(params: ISwarmCompletionArgs): Promise<ISwarmMessage> {
     const { agentName, messages: rawMessages, mode, tools, clientId } = params;
 
@@ -79,6 +169,35 @@ export class OllamaProvider implements IProvider {
     return result;
   }
 
+  /**
+   * Performs a streaming completion request to Ollama.
+   *
+   * Sends messages and tools to the Ollama model and streams the response token by token.
+   * Emits "llm-new-token" events for each token and "llm-completion" when finished.
+   * Accumulates tool calls and content chunks from the stream.
+   *
+   * @param params - Completion parameters including messages, tools, and agent configuration
+   * @param params.agentName - Name of the agent making the request
+   * @param params.messages - Conversation history with roles and content
+   * @param params.mode - Completion mode (e.g., "direct", "delegated")
+   * @param params.tools - Available tools for the model to call
+   * @param params.clientId - Client identifier for event emission
+   * @returns Promise resolving to the complete assistant's response after streaming finishes
+   *
+   * @example
+   * ```typescript
+   * const response = await provider.getStreamCompletion({
+   *   agentName: "assistant",
+   *   messages: [
+   *     { role: "user", content: "Explain quantum computing" }
+   *   ],
+   *   mode: "direct",
+   *   tools: [],
+   *   clientId: "client-123"
+   * });
+   * // Client receives "llm-new-token" events during generation
+   * ```
+   */
   public async getStreamCompletion(params: ISwarmCompletionArgs): Promise<ISwarmMessage> {
     const { agentName, messages: rawMessages, mode, tools, clientId } = params;
 
@@ -153,6 +272,40 @@ export class OllamaProvider implements IProvider {
     return result;
   }
 
+  /**
+   * Performs structured output completion using JSON schema enforcement via tool calling.
+   *
+   * Forces the model to use a specific tool ("provide_answer") to ensure response
+   * conforms to the provided JSON schema. Implements retry logic with up to MAX_ATTEMPTS
+   * attempts if the model fails to use the tool correctly or returns invalid JSON.
+   *
+   * Uses jsonrepair to fix malformed JSON and validates the output against the schema.
+   * Adds context information to the returned data structure.
+   *
+   * @param params - Outline completion parameters
+   * @param params.messages - Conversation history for context
+   * @param params.format - JSON schema or response format definition
+   * @returns Promise resolving to validated JSON string conforming to the schema
+   * @throws Error if model fails to use tool after MAX_ATTEMPTS attempts
+   *
+   * @example
+   * ```typescript
+   * const response = await provider.getOutlineCompletion({
+   *   messages: [
+   *     { role: "user", content: "Analyze: 'Great product!'" }
+   *   ],
+   *   format: {
+   *     type: "object",
+   *     properties: {
+   *       sentiment: { type: "string", enum: ["positive", "negative", "neutral"] },
+   *       confidence: { type: "number", minimum: 0, maximum: 1 }
+   *     },
+   *     required: ["sentiment", "confidence"]
+   *   }
+   * });
+   * // response.content = '{"sentiment":"positive","confidence":0.95,"_context":{...}}'
+   * ```
+   */
   public async getOutlineCompletion(
     params: IOutlineCompletionArgs
   ): Promise<IOutlineMessage> {

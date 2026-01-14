@@ -15,9 +15,47 @@ import OpenAI from "openai";
 import { str } from "functools-kit";
 import { ILogger } from "../interface/Logger.interface";
 
+/**
+ * Provider for Perplexity AI models via OpenAI-compatible API.
+ *
+ * Implements Perplexity API access with specialized message handling.
+ * Filters and merges consecutive messages to comply with API requirements.
+ * Note: getStreamCompletion returns error message as streaming is not supported.
+ *
+ * Key features:
+ * - OpenAI-compatible API endpoint
+ * - Message filtering (user/assistant/tool only)
+ * - System message aggregation
+ * - Consecutive message merging (prevents API errors)
+ * - Tool calling support (requires description field)
+ * - Outline completion via response_format
+ * - Streaming not supported (returns error message)
+ *
+ * @example
+ * ```typescript
+ * const provider = new PerplexityProvider(contextService, logger);
+ * const response = await provider.getCompletion({
+ *   agentName: "perplexity-assistant",
+ *   messages: [{ role: "user", content: "Latest AI research?" }],
+ *   mode: "direct",
+ *   tools: [searchTool],
+ *   clientId: "client-333"
+ * });
+ * ```
+ */
 export class PerplexityProvider implements IProvider {
+  /**
+   * Creates a new PerplexityProvider instance.
+   */
   constructor(readonly contextService: TContextService, readonly logger: ILogger) {}
 
+  /**
+   * Performs standard completion with message filtering and merging.
+   * Filters messages to user/assistant/tool only and merges consecutive messages.
+   *
+   * @param params - Completion parameters
+   * @returns Promise resolving to assistant's response
+   */
   public async getCompletion(params: ISwarmCompletionArgs): Promise<ISwarmMessage> {
     const perplexity = getPerplexity();
 
@@ -140,6 +178,13 @@ export class PerplexityProvider implements IProvider {
     return finalResult;
   }
 
+  /**
+   * Returns error message indicating streaming not supported.
+   * Perplexity provider does not implement token-by-token streaming.
+   *
+   * @param params - Completion parameters
+   * @returns Promise resolving to error message
+   */
   public async getStreamCompletion(
     params: ISwarmCompletionArgs
   ): Promise<ISwarmMessage> {
@@ -163,6 +208,14 @@ export class PerplexityProvider implements IProvider {
     return result;
   }
 
+  /**
+   * Performs structured output completion using response_format.
+   * Filters and merges messages before sending.
+   *
+   * @param params - Outline completion parameters
+   * @returns Promise resolving to validated JSON string
+   * @throws Error if model returns refusal
+   */
   public async getOutlineCompletion(
     params: IOutlineCompletionArgs
   ): Promise<IOutlineMessage> {

@@ -26,8 +26,15 @@ import fs from "fs/promises";
 import { TContextService } from "../lib/services/base/ContextService";
 import { ILogger } from "../interface/Logger.interface";
 
+/**
+ * Maximum number of retry attempts for outline completion.
+ */
 const MAX_ATTEMPTS = 5;
 
+/**
+ * Custom ChatOpenAI implementation for HuggingFace with simplified token counting.
+ * Routes requests to HuggingFace Router endpoint.
+ */
 class HuggingFaceChat extends ChatOpenAI {
   async getNumTokens(content: string) {
     if (typeof content !== "string") {
@@ -37,6 +44,9 @@ class HuggingFaceChat extends ChatOpenAI {
   }
 }
 
+/**
+ * Creates configured HuggingFaceChat instance for streaming.
+ */
 const getChat = (model: string, apiKey: string) =>
   new HuggingFaceChat({
     configuration: {
@@ -47,11 +57,51 @@ const getChat = (model: string, apiKey: string) =>
     streaming: true,
   });
 
+/**
+ * Creates HuggingFace InferenceClient for standard completion.
+ */
 const getInference = (apiKey: string) =>  new InferenceClient(apiKey);
 
+/**
+ * Provider for HuggingFace models via HuggingFace Router API.
+ *
+ * Implements HuggingFace API access using both InferenceClient (standard completion)
+ * and LangChain ChatOpenAI (streaming). Supports thinking mode via reasoning_content.
+ * Does NOT support token rotation (single API key only).
+ *
+ * Key features:
+ * - HuggingFace InferenceClient for standard completion
+ * - LangChain ChatOpenAI for true streaming
+ * - Tool calling support with proper message conversion
+ * - Reasoning/thinking content capture (_thinking field)
+ * - Direct API access for outline completion
+ * - No token rotation support
+ *
+ * @example
+ * ```typescript
+ * const provider = new HfProvider(contextService, logger);
+ * const response = await provider.getStreamCompletion({
+ *   agentName: "hf-assistant",
+ *   messages: [{ role: "user", content: "Explain attention mechanism" }],
+ *   mode: "direct",
+ *   tools: [codeTool],
+ *   clientId: "client-777"
+ * });
+ * ```
+ */
 export class HfProvider implements IProvider {
+  /**
+   * Creates a new HfProvider instance.
+   */
   constructor(readonly contextService: TContextService, readonly logger: ILogger) {}
 
+  /**
+   * Performs standard completion using HuggingFace InferenceClient.
+   *
+   * @param params - Completion parameters
+   * @returns Promise resolving to assistant's response
+   * @throws Error if token rotation attempted
+   */
   public async getCompletion(params: ISwarmCompletionArgs): Promise<ISwarmMessage> {
 
     if (Array.isArray(this.contextService.context.apiKey)) {
@@ -157,6 +207,14 @@ export class HfProvider implements IProvider {
     return result;
   }
 
+  /**
+   * Performs true streaming completion using LangChain ChatOpenAI.
+   * Emits tokens in real-time via callbacks.
+   *
+   * @param params - Completion parameters
+   * @returns Promise resolving to complete response after streaming
+   * @throws Error if token rotation attempted
+   */
   public async getStreamCompletion(params: ISwarmCompletionArgs): Promise<ISwarmMessage> {
 
     if (Array.isArray(this.contextService.context.apiKey)) {
@@ -282,6 +340,14 @@ export class HfProvider implements IProvider {
     return result;
   }
 
+  /**
+   * Performs structured output completion using tool calling with extended retry logic.
+   * Captures reasoning_content as _thinking field in response.
+   *
+   * @param params - Outline completion parameters
+   * @returns Promise resolving to validated JSON string with thinking
+   * @throws Error if model fails after 5 attempts or token rotation attempted
+   */
   public async getOutlineCompletion(
     params: IOutlineCompletionArgs
   ): Promise<IOutlineMessage> {

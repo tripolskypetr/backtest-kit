@@ -18,11 +18,59 @@ import { get, set } from "lodash-es";
 import { singleshot, str } from "functools-kit";
 import { ILogger } from "../interface/Logger.interface";
 
+/**
+ * Maximum number of retry attempts for outline completion.
+ */
 const MAX_ATTEMPTS = 3;
 
+/**
+ * Provider for Cohere AI models via OpenAI-compatible API.
+ *
+ * Implements Cohere API access with specialized message handling for tool calling.
+ * Unlike other providers, includes tool messages in conversation and does NOT merge
+ * consecutive assistant messages (required for proper tool calling flow).
+ *
+ * Key features:
+ * - OpenAI-compatible API endpoint
+ * - Message filtering (user/assistant/tool - includes tool messages)
+ * - System message aggregation
+ * - NO consecutive assistant message merging (breaks tool calling)
+ * - Tool calling support (requires description field)
+ * - Outline completion via response_format
+ * - Simulated streaming
+ *
+ * Important: Cohere requires strict tool_calls -> tool_responses sequence.
+ * Merging assistant messages breaks this flow.
+ *
+ * @example
+ * ```typescript
+ * const provider = new CohereProvider(contextService, logger);
+ * const response = await provider.getCompletion({
+ *   agentName: "cohere-assistant",
+ *   messages: [
+ *     { role: "user", content: "Search for AI papers" },
+ *     { role: "assistant", content: "", tool_calls: [searchCall] },
+ *     { role: "tool", content: "Results...", tool_call_id: "123" }
+ *   ],
+ *   mode: "direct",
+ *   tools: [searchTool],
+ *   clientId: "client-222"
+ * });
+ * ```
+ */
 export class CohereProvider implements IProvider {
+  /**
+   * Creates a new CohereProvider instance.
+   */
   constructor(readonly contextService: TContextService, readonly logger: ILogger) {}
 
+  /**
+   * Performs standard completion with Cohere-specific message handling.
+   * Includes tool messages and preserves assistant message sequence.
+   *
+   * @param params - Completion parameters
+   * @returns Promise resolving to assistant's response
+   */
   public async getCompletion(params: ISwarmCompletionArgs): Promise<ISwarmMessage> {
     const cohere = getCohere();
 
@@ -129,6 +177,12 @@ export class CohereProvider implements IProvider {
     return finalResult;
   }
 
+  /**
+   * Performs simulated streaming completion with Cohere-specific message handling.
+   *
+   * @param params - Completion parameters
+   * @returns Promise resolving to complete response
+   */
   public async getStreamCompletion(
     params: ISwarmCompletionArgs
   ): Promise<ISwarmMessage> {
@@ -246,6 +300,14 @@ export class CohereProvider implements IProvider {
     return result;
   }
 
+  /**
+   * Performs structured output completion using response_format.
+   * Filters and merges user messages only (preserves assistant sequence).
+   *
+   * @param params - Outline completion parameters
+   * @returns Promise resolving to validated JSON string
+   * @throws Error if model returns refusal
+   */
   public async getOutlineCompletion(
     params: IOutlineCompletionArgs
   ): Promise<IOutlineMessage> {

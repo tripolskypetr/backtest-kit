@@ -17,13 +17,56 @@ import { get, set } from "lodash-es";
 import { singleshot, fetchApi } from "functools-kit";
 import { ILogger } from "../interface/Logger.interface";
 
+/**
+ * Maximum number of retry attempts for outline completion.
+ */
 const MAX_ATTEMPTS = 3;
 
+/**
+ * Alibaba Cloud DashScope API base URL.
+ */
 const BASE_URL = "https://dashscope-intl.aliyuncs.com/compatible-mode/v1";
 
+/**
+ * Provider for Alibaba Cloud Qwen models via DashScope API.
+ *
+ * Implements Alibaba Cloud DashScope API access using fetchApi for HTTP requests.
+ * Supports thinking mode control via enable_thinking parameter.
+ * Does NOT support token rotation (single API key only).
+ *
+ * Key features:
+ * - DashScope OpenAI-compatible endpoint
+ * - Direct fetchApi HTTP requests (no SDK)
+ * - Thinking mode control (enable_thinking parameter)
+ * - Tool calling with conditional inclusion
+ * - Simulated streaming
+ * - No token rotation support
+ *
+ * @example
+ * ```typescript
+ * const provider = new AlibabaProvider(contextService, logger);
+ * const response = await provider.getCompletion({
+ *   agentName: "qwen-assistant",
+ *   messages: [{ role: "user", content: "Explain blockchain" }],
+ *   mode: "direct",
+ *   tools: [],
+ *   clientId: "client-111"
+ * });
+ * ```
+ */
 export class AlibabaProvider implements IProvider {
+  /**
+   * Creates a new AlibabaProvider instance.
+   */
   constructor(readonly contextService: TContextService, readonly logger: ILogger) {}
 
+  /**
+   * Performs standard completion request to Alibaba DashScope.
+   *
+   * @param params - Completion parameters
+   * @returns Promise resolving to assistant's response
+   * @throws Error if token rotation attempted
+   */
   public async getCompletion(params: ISwarmCompletionArgs): Promise<ISwarmMessage> {
 
     const { clientId, agentName, messages: rawMessages, mode, tools } = params;
@@ -117,6 +160,13 @@ export class AlibabaProvider implements IProvider {
     return result;
   }
 
+  /**
+   * Performs simulated streaming completion.
+   *
+   * @param params - Completion parameters
+   * @returns Promise resolving to complete response
+   * @throws Error if token rotation attempted
+   */
   public async getStreamCompletion(
     params: ISwarmCompletionArgs
   ): Promise<ISwarmMessage> {
@@ -219,6 +269,13 @@ export class AlibabaProvider implements IProvider {
     return result;
   }
 
+  /**
+   * Performs structured output completion using tool calling with retry logic.
+   *
+   * @param params - Outline completion parameters
+   * @returns Promise resolving to validated JSON string
+   * @throws Error if model fails after MAX_ATTEMPTS or token rotation attempted
+   */
   public async getOutlineCompletion(
     params: IOutlineCompletionArgs
   ): Promise<IOutlineMessage> {

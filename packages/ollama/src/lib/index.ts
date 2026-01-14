@@ -1,3 +1,42 @@
+/**
+ * Main library entry point for the Ollama package.
+ *
+ * Initializes the dependency injection container, registers all AI providers,
+ * and exports the engine object containing all services.
+ *
+ * The engine provides access to:
+ * - Common services (logger)
+ * - Base services (context)
+ * - Private services (runner and outline private services)
+ * - Public services (runner and outline public services)
+ *
+ * Registered AI providers:
+ * - Ollama (local and cloud)
+ * - OpenAI (GPT-5)
+ * - Claude (Anthropic)
+ * - Deepseek
+ * - Mistral
+ * - Perplexity
+ * - Cohere
+ * - Grok (xAI)
+ * - Alibaba
+ * - Hugging Face
+ *
+ * @example
+ * ```typescript
+ * import { engine } from "./lib";
+ *
+ * // Access logger
+ * engine.loggerService.info("Application started");
+ *
+ * // Use public service for AI completion
+ * const result = await engine.runnerPublicService.getCompletion(
+ *   { messages: [...] },
+ *   { inference: "claude", model: "claude-3-5-sonnet", apiKey: "..." }
+ * );
+ * ```
+ */
+
 import "./core/provide";
 
 import { init, inject } from "./core/di";
@@ -20,14 +59,23 @@ import LoggerService from "./services/common/LoggerService";
 import OutlinePrivateService from "./services/private/OutlinePrivateService";
 import OutlinePublicService from "./services/public/OutlinePublicService";
 
+/**
+ * Common service instances.
+ */
 const commonServices = {
   loggerService: inject<LoggerService>(TYPES.loggerService),
 }
 
+/**
+ * Base service instances.
+ */
 const baseServices = {
   contextService: inject<TContextService>(TYPES.contextService),
 };
 
+/**
+ * Private service instances.
+ */
 const privateServices = {
   runnerPrivateService: inject<RunnerPrivateService>(
     TYPES.runnerPrivateService
@@ -35,11 +83,18 @@ const privateServices = {
   outlinePrivateService: inject<OutlinePrivateService>(TYPES.outlinePrivateService),
 };
 
+/**
+ * Public service instances.
+ */
 const publicServices = {
   runnerPublicService: inject<RunnerPublicService>(TYPES.runnerPublicService),
   outlinePublicService: inject<OutlinePublicService>(TYPES.outlinePublicService),
 };
 
+/**
+ * Main engine object containing all services.
+ * Provides unified access to the entire service layer.
+ */
 const engine = {
   ...commonServices,
   ...baseServices,
@@ -47,8 +102,12 @@ const engine = {
   ...publicServices,
 };
 
+// Initialize DI container
 init();
 
+/**
+ * Register all AI provider implementations.
+ */
 {
   engine.runnerPrivateService.registerRunner(
     InferenceName.OllamaInference,
@@ -94,6 +153,7 @@ init();
 
 export { engine };
 
+// Make engine globally accessible for debugging
 Object.assign(globalThis, { engine });
 
 export default engine;

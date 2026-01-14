@@ -18,11 +18,51 @@ import { get, set } from "lodash-es";
 import { singleshot } from "functools-kit";
 import { ILogger } from "../interface/Logger.interface";
 
+/**
+ * Maximum number of retry attempts for outline completion.
+ */
 const MAX_ATTEMPTS = 3;
 
+/**
+ * Provider for Mistral AI models via OpenAI-compatible API.
+ *
+ * Implements Mistral API access through OpenAI-compatible endpoint.
+ * Supports tool calling, simulated streaming, and structured output.
+ *
+ * Key features:
+ * - Mistral AI API via OpenAI-compatible endpoint
+ * - Tool calling with conditional inclusion
+ * - Simulated streaming (complete response)
+ * - Schema enforcement via tool calling with retry
+ * - Debug logging support
+ *
+ * @example
+ * ```typescript
+ * const provider = new MistralProvider(contextService, logger);
+ * const response = await provider.getCompletion({
+ *   agentName: "mistral-assistant",
+ *   messages: [{ role: "user", content: "Summarize quantum physics" }],
+ *   mode: "direct",
+ *   tools: [],
+ *   clientId: "client-555"
+ * });
+ * ```
+ */
 export class MistralProvider implements IProvider {
+  /**
+   * Creates a new MistralProvider instance.
+   *
+   * @param contextService - Context service with model configuration
+   * @param logger - Logger for operation tracking
+   */
   constructor(readonly contextService: TContextService, readonly logger: ILogger) {}
 
+  /**
+   * Performs standard completion request to Mistral.
+   *
+   * @param params - Completion parameters
+   * @returns Promise resolving to assistant's response
+   */
   public async getCompletion(params: ISwarmCompletionArgs): Promise<ISwarmMessage> {
     const mistral = getMistral();
 
@@ -98,6 +138,12 @@ export class MistralProvider implements IProvider {
     return result;
   }
 
+  /**
+   * Performs simulated streaming completion.
+   *
+   * @param params - Completion parameters
+   * @returns Promise resolving to complete response
+   */
   public async getStreamCompletion(
     params: ISwarmCompletionArgs
   ): Promise<ISwarmMessage> {
@@ -184,6 +230,13 @@ export class MistralProvider implements IProvider {
     return result;
   }
 
+  /**
+   * Performs structured output completion with schema validation.
+   *
+   * @param params - Outline completion parameters
+   * @returns Promise resolving to validated JSON string
+   * @throws Error if model fails after MAX_ATTEMPTS
+   */
   public async getOutlineCompletion(
     params: IOutlineCompletionArgs
   ): Promise<IOutlineMessage> {

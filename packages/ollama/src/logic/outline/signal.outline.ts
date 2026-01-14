@@ -1,3 +1,44 @@
+/**
+ * Trading signal outline schema registration.
+ *
+ * Registers a structured outline for trading signal generation with comprehensive
+ * validation rules. This outline enforces a strict schema for AI-generated trading
+ * signals, ensuring all required fields are present and correctly formatted.
+ *
+ * Schema fields:
+ * - position: Trading direction ("long", "short", or "wait")
+ * - price_open: Entry price for the position
+ * - price_stop_loss: Stop-loss price level
+ * - price_take_profit: Take-profit price level
+ * - minute_estimated_time: Estimated time to reach TP (in minutes)
+ * - risk_note: Risk assessment and reasoning (markdown format)
+ *
+ * Validation rules:
+ * 1. All required fields must be present
+ * 2. Prices must be positive numbers
+ * 3. For LONG: SL < entry < TP
+ * 4. For SHORT: TP < entry < SL
+ * 5. Estimated time must be <= 360 minutes (6 hours)
+ * 6. Wait position skips price validations
+ *
+ * @example
+ * ```typescript
+ * import { json } from "agent-swarm-kit";
+ * import { OutlineName } from "./enum/OutlineName";
+ *
+ * const { data } = await json(OutlineName.SignalOutline, [
+ *   { role: "user", content: "Analyze BTC/USDT and decide position" }
+ * ]);
+ *
+ * if (data.position !== "wait") {
+ *   console.log(`Position: ${data.position}`);
+ *   console.log(`Entry: ${data.price_open}`);
+ *   console.log(`SL: ${data.price_stop_loss}`);
+ *   console.log(`TP: ${data.price_take_profit}`);
+ * }
+ * ```
+ */
+
 import { addOutline, IOutlineMessage } from "agent-swarm-kit";
 import { OutlineName } from "../../enum/OutlineName";
 import { CompletionName } from "../../enum/CompletionName";

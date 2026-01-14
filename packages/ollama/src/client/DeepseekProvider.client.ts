@@ -18,11 +18,51 @@ import { get, set } from "lodash-es";
 import { singleshot } from "functools-kit";
 import { ILogger } from "../interface/Logger.interface";
 
+/**
+ * Maximum number of retry attempts for outline completion.
+ */
 const MAX_ATTEMPTS = 3;
 
+/**
+ * Provider for Deepseek AI models via OpenAI-compatible API.
+ *
+ * Supports Deepseek models through OpenAI-compatible endpoint with tool calling.
+ * Features simulated streaming and structured output via tool-based schema enforcement.
+ *
+ * Key features:
+ * - OpenAI-compatible API endpoint
+ * - Tool calling with conditional inclusion (only if tools present)
+ * - Simulated streaming (returns complete response)
+ * - Schema enforcement via tool calling with retry logic
+ * - Debug logging support
+ *
+ * @example
+ * ```typescript
+ * const provider = new DeepseekProvider(contextService, logger);
+ * const response = await provider.getCompletion({
+ *   agentName: "deepseek-assistant",
+ *   messages: [{ role: "user", content: "Explain transformers" }],
+ *   mode: "direct",
+ *   tools: [],
+ *   clientId: "client-001"
+ * });
+ * ```
+ */
 export class DeepseekProvider implements IProvider {
+  /**
+   * Creates a new DeepseekProvider instance.
+   *
+   * @param contextService - Context service with model configuration
+   * @param logger - Logger for operation tracking
+   */
   constructor(readonly contextService: TContextService, readonly logger: ILogger) {}
 
+  /**
+   * Performs standard completion request to Deepseek.
+   *
+   * @param params - Completion parameters
+   * @returns Promise resolving to assistant's response
+   */
   public async getCompletion(params: ISwarmCompletionArgs): Promise<ISwarmMessage> {
     const deepseek = getDeepseek();
 
@@ -98,6 +138,12 @@ export class DeepseekProvider implements IProvider {
     return result;
   }
 
+  /**
+   * Performs simulated streaming completion.
+   *
+   * @param params - Completion parameters
+   * @returns Promise resolving to complete response
+   */
   public async getStreamCompletion(
     params: ISwarmCompletionArgs
   ): Promise<ISwarmMessage> {
@@ -184,6 +230,13 @@ export class DeepseekProvider implements IProvider {
     return result;
   }
 
+  /**
+   * Performs structured output completion with schema validation.
+   *
+   * @param params - Outline completion parameters
+   * @returns Promise resolving to validated JSON string
+   * @throws Error if model fails after MAX_ATTEMPTS
+   */
   public async getOutlineCompletion(
     params: IOutlineCompletionArgs
   ): Promise<IOutlineMessage> {

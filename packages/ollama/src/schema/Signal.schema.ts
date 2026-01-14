@@ -1,6 +1,35 @@
 import { str } from "functools-kit";
 import { z } from "zod";
 
+/**
+ * Zod schema for trading signal structured output.
+ *
+ * Defines the JSON schema used for LLM-generated trading signals with
+ * comprehensive field descriptions and validation rules. Used with outline
+ * completion to enforce structured output from language models.
+ *
+ * Fields:
+ * - position: Trading direction (long/short/wait)
+ * - price_open: Entry price in USD
+ * - price_stop_loss: Stop-loss price in USD
+ * - price_take_profit: Take-profit price in USD
+ * - minute_estimated_time: Estimated hold duration in minutes
+ * - risk_note: Detailed risk assessment with specific metrics
+ *
+ * @example
+ * ```typescript
+ * import { SignalSchema } from './schema/Signal.schema';
+ *
+ * const signal = SignalSchema.parse({
+ *   position: 'long',
+ *   price_open: 50000,
+ *   price_stop_loss: 49000,
+ *   price_take_profit: 52000,
+ *   minute_estimated_time: 120,
+ *   risk_note: 'RSI oversold at 32%, volume spike +45%'
+ * });
+ * ```
+ */
 export const SignalSchema = z.object({
   position: z
     .enum(["long", "short", "wait"])
@@ -69,8 +98,32 @@ export const SignalSchema = z.object({
     ),
 });
 
+/**
+ * Inferred type from SignalSchema zod definition.
+ * Internal type used for type transformation.
+ */
 type SignalSchemaInfer = z.infer<typeof SignalSchema>;
 
+/**
+ * Trading signal type with all fields required and non-nullable.
+ *
+ * Represents a validated trading signal returned by LLM providers.
+ * All optional/undefined types are excluded to ensure complete signals.
+ *
+ * @example
+ * ```typescript
+ * import { TSignalSchema } from '@backtest-kit/ollama';
+ *
+ * const signal: TSignalSchema = {
+ *   position: 'long',
+ *   price_open: 50000,
+ *   price_stop_loss: 49000,
+ *   price_take_profit: 52000,
+ *   minute_estimated_time: 120,
+ *   risk_note: 'Strong bullish momentum, RSI 68%, volume +32%'
+ * };
+ * ```
+ */
 export type TSignalSchema = {
   [K in keyof SignalSchemaInfer]-?: Exclude<SignalSchemaInfer[K], undefined>;
 };

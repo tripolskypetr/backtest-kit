@@ -33,11 +33,71 @@ import { TContextService } from "../lib/services/base/ContextService";
 import OpenAI from "openai";
 import { ILogger } from "../interface/Logger.interface";
 
+/**
+ * Maximum number of retry attempts for outline completion when model fails to use tools correctly.
+ */
 const MAX_ATTEMPTS = 5;
 
-export class GrokProvider implements IProvider {
+/**
+ * Provider for Anthropic Claude models via OpenAI-compatible API.
+ *
+ * Note: This file exports ClaudeProvider class name but implements Claude functionality.
+ * This appears to be a naming inconsistency that should be addressed.
+ *
+ * Implements Claude API access through OpenAI-compatible endpoint with full tool calling support.
+ * Supports both standard and simulated streaming modes, as well as structured output
+ * through tool-based schema enforcement.
+ *
+ * Key features:
+ * - Claude API via OpenAI-compatible endpoint
+ * - Tool calling with retry logic and validation
+ * - Simulated streaming (returns complete response)
+ * - JSON schema enforcement via tool calling
+ * - Conditional tool parameter (only adds if tools present)
+ * - Debug logging when CC_ENABLE_DEBUG is enabled
+ *
+ * @example
+ * ```typescript
+ * const provider = new ClaudeProvider(contextService, logger); // Note: Should be ClaudeProvider
+ *
+ * // Standard completion
+ * const response = await provider.getCompletion({
+ *   agentName: "claude-assistant",
+ *   messages: [{ role: "user", content: "Explain neural networks" }],
+ *   mode: "direct",
+ *   tools: [searchTool],
+ *   clientId: "client-789"
+ * });
+ *
+ * // Structured output with schema validation
+ * const structured = await provider.getOutlineCompletion({
+ *   messages: [{ role: "user", content: "Classify: 'Best purchase ever!'" }],
+ *   format: {
+ *     type: "object",
+ *     properties: {
+ *       category: { type: "string" },
+ *       confidence: { type: "number" }
+ *     }
+ *   }
+ * });
+ * ```
+ */
+export class ClaudeProvider implements IProvider {
+  /**
+   * Creates a new ClaudeProvider instance (implements Claude functionality).
+   *
+   * @param contextService - Context service managing model configuration and API key
+   * @param logger - Logger instance for tracking provider operations
+   */
   constructor(readonly contextService: TContextService, readonly logger: ILogger) {}
 
+  /**
+   * Performs a standard completion request to Claude via OpenAI-compatible API.
+   * Only adds tools parameter if tools array is non-empty.
+   *
+   * @param params - Completion parameters
+   * @returns Promise resolving to assistant's response message
+   */
   public async getCompletion(params: ISwarmCompletionArgs): Promise<ISwarmMessage> {
     const claude = getClaude();
 
@@ -112,6 +172,12 @@ export class GrokProvider implements IProvider {
     return result;
   }
 
+  /**
+   * Performs simulated streaming completion (returns complete response, emits completion event).
+   *
+   * @param params - Completion parameters
+   * @returns Promise resolving to complete assistant's response
+   */
   public async getStreamCompletion(
     params: ISwarmCompletionArgs
   ): Promise<ISwarmMessage> {
@@ -198,7 +264,14 @@ export class GrokProvider implements IProvider {
     return result;
   }
 
-
+  /**
+   * Performs structured output completion using tool calling with retry logic.
+   * Uses tool_choice to force model to use the provide_answer tool.
+   *
+   * @param params - Outline completion parameters
+   * @returns Promise resolving to validated JSON string
+   * @throws Error if model fails after MAX_ATTEMPTS attempts
+   */
   public async getOutlineCompletion(
     params: IOutlineCompletionArgs
   ): Promise<IOutlineMessage> {
@@ -343,4 +416,4 @@ export class GrokProvider implements IProvider {
   }
 }
 
-export default GrokProvider;
+export default ClaudeProvider;

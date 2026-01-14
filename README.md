@@ -24,7 +24,7 @@ Build reliable trading systems: backtest on historical data, deploy live bots wi
 - 📊 **Reports & Metrics**: Auto Markdown reports with PNL, Sharpe Ratio, win rate, and more.
 - 🛡️ **Risk Management**: Custom rules for position limits, time windows, and multi-strategy coordination.
 - 🔌 **Pluggable**: Custom data sources (CCXT), persistence (file/Redis), and sizing calculators.
-- 🧪 **Tested**: 300+ unit/integration tests for validation, recovery, and events.
+- 🧪 **Tested**: 350+ unit/integration tests for validation, recovery, and events.
 - 🔓 **Self hosted**: Zero dependency on third-party node_modules or platforms; run entirely in your own environment.
 
 ## 📋 Supported Order Types
@@ -293,7 +293,7 @@ npm install @backtest-kit/ollama agent-swarm-kit backtest-kit
 
 ## ✅ Tested & Reliable
 
-300+ tests cover validation, recovery, reports, and events.
+350+ tests cover validation, recovery, reports, and events.
 
 ## 🤝 Contribute
 

@@ -30,6 +30,10 @@ import fs from "fs/promises";
 import { TContextService } from "../lib/services/base/ContextService";
 import { ILogger } from "../interface/Logger.interface";
 
+/**
+ * Custom ChatXAI implementation with simplified token counting.
+ * Estimates tokens as content.length / 4 for compatibility.
+ */
 class CustomChat extends ChatXAI {
   async getNumTokens(content: string) {
     if (typeof content !== "string") {
@@ -39,6 +43,9 @@ class CustomChat extends ChatXAI {
   }
 }
 
+/**
+ * Creates configured ChatXAI instance for Grok streaming.
+ */
 const getChat = (model: string, apiKey: string) =>
   new CustomChat({
     apiKey,
@@ -46,11 +53,45 @@ const getChat = (model: string, apiKey: string) =>
     streaming: true,
   });
 
+/**
+ * Provider for xAI Grok models via LangChain ChatXAI.
+ *
+ * Uses LangChain's ChatXAI integration for xAI Grok models.
+ * Provides true token-by-token streaming via LangChain callbacks and OpenAI SDK for standard requests.
+ *
+ * Key features:
+ * - LangChain ChatXAI for true streaming
+ * - OpenAI SDK via getGrok() for standard completion
+ * - Direct xAI API access for outline completion
+ * - Tool calling via bindTools (streaming) or tools parameter (standard)
+ * - Real-time token emission via stream callbacks
+ * - No token rotation support (single API key only)
+ *
+ * @example
+ * ```typescript
+ * const provider = new GrokProvider(contextService, logger);
+ * const response = await provider.getStreamCompletion({
+ *   agentName: "grok",
+ *   messages: [{ role: "user", content: "Latest AI news?" }],
+ *   mode: "direct",
+ *   tools: [searchTool],
+ *   clientId: "client-888"
+ * });
+ * ```
+ */
 export class GrokProvider implements IProvider {
-
+  /**
+   * Creates a new GrokProvider instance.
+   */
   constructor(readonly contextService: TContextService, readonly logger: ILogger) {
   }
 
+  /**
+   * Performs standard completion request via OpenAI SDK.
+   *
+   * @param params - Completion parameters
+   * @returns Promise resolving to assistant's response
+   */
   public async getCompletion(params: ISwarmCompletionArgs): Promise<ISwarmMessage> {
     const grok = getGrok();
 
@@ -118,6 +159,14 @@ export class GrokProvider implements IProvider {
     return result;
   }
 
+  /**
+   * Performs true streaming completion via LangChain ChatXAI.
+   * Emits tokens in real-time as they are generated.
+   *
+   * @param params - Completion parameters
+   * @returns Promise resolving to complete response after streaming
+   * @throws Error if token rotation attempted
+   */
   public async getStreamCompletion(params: ISwarmCompletionArgs): Promise<ISwarmMessage> {
 
     if (Array.isArray(this.contextService.context.apiKey)) {
@@ -245,6 +294,14 @@ export class GrokProvider implements IProvider {
     return result;
   }
 
+  /**
+   * Performs structured output completion via direct xAI API.
+   * Uses response_format parameter for schema enforcement.
+   *
+   * @param params - Outline completion parameters
+   * @returns Promise resolving to validated JSON string
+   * @throws Error if model returns refusal or token rotation attempted
+   */
   public async getOutlineCompletion(
     params: IOutlineCompletionArgs
   ): Promise<IOutlineMessage> {
