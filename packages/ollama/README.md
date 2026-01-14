@@ -37,7 +37,7 @@ Transform technical analysis into trading decisions with multi-provider LLM supp
 | **Cohere** | `cohere()` | api.cohere.ai |
 | **Alibaba** | `alibaba()` | dashscope-intl.aliyuncs.com/compatible-mode/v1 |
 | **Hugging Face** | `hf()` | router.huggingface.co/v1 |
-| **Ollama** | `ollama()` | ollama.com |
+| **Ollama** | `ollama()` | cloud.ollama.com |
 
 **Output Schema:**
 

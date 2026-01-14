@@ -12,5 +12,3 @@ export const toLintMarkdown = async (content: string) => {
   const value = applyFixes(content, errors);
   return value ? value : content;
 };
-
-globalThis.toLintMarkdown = toLintMarkdown;
