@@ -1,9 +1,51 @@
+/**
+ * Order book analysis service for real-time market depth and liquidity assessment.
+ *
+ * Generates comprehensive order book reports including:
+ * - Top 20 bid/ask levels sorted by volume percentage
+ * - Best bid/ask prices
+ * - Mid price and spread
+ * - Depth imbalance (buy vs sell pressure indicator)
+ *
+ * Depth Imbalance Formula:
+ * (Total Bid Volume - Total Ask Volume) / (Total Bid Volume + Total Ask Volume)
+ * - Positive: Buy pressure (more bids)
+ * - Negative: Sell pressure (more asks)
+ * - Zero: Balanced market
+ *
+ * Used by commitBookDataReport() for LLM context injection.
+ * Only available in live mode (skipped in backtest mode).
+ */
+
 import { ttl } from "functools-kit";
 import { formatPrice, formatQuantity, getOrderBook, IBidData, getDate } from "backtest-kit";
 import { inject } from "../../core/di";
 import { TYPES } from "../../core/types";
 import LoggerService from "../common/LoggerService";
 
+/**
+ * Maximum order book depth levels to fetch for accurate metrics.
+ * Provides comprehensive liquidity view for depth imbalance calculation.
+ */
+const MAX_DEPTH_LEVELS = 1000;
+
+/**
+ * Validates whether a numeric value is safe for calculations.
+ *
+ * Checks if value is a valid finite number. Returns true if value is null,
+ * NaN, Infinity, or not a number type.
+ *
+ * @param value - Value to validate
+ * @returns True if value is unsafe (null/NaN/Infinity), false if valid number
+ *
+ * @example
+ * ```typescript
+ * isUnsafe(42) // false - valid number
+ * isUnsafe(null) // true - null value
+ * isUnsafe(NaN) // true - not a number
+ * isUnsafe(Infinity) // true - infinite value
+ * ```
+ */
 function isUnsafe(value: number | null) {
   if (typeof value !== "number") {
     return true;
@@ -17,27 +59,64 @@ function isUnsafe(value: number | null) {
   return false;
 }
 
-const MAX_DEPTH_LEVELS = 1000; // Maximum depth for more accurate metrics
-
-// Simple order book entry with percentage
+/**
+ * Order book entry with volume percentage.
+ */
 interface IOrderBookEntry {
+  /** Price level */
   price: number;
+  /** Total quantity at this price */
   quantity: number;
-  percentage: number; // % of total volume on this side
+  /** Percentage of total side volume */
+  percentage: number;
 }
 
+/**
+ * Complete order book analysis result.
+ */
 export interface IBookDataAnalysis {
+  /** Trading pair symbol */
   symbol: string;
+  /** Analysis timestamp */
   timestamp: string;
+  /** Bid (buy) levels with percentages */
   bids: IOrderBookEntry[];
+  /** Ask (sell) levels with percentages */
   asks: IOrderBookEntry[];
+  /** Highest bid price */
   bestBid: number;
+  /** Lowest ask price */
   bestAsk: number;
+  /** Mid price: (bestBid + bestAsk) / 2 */
   midPrice: number;
+  /** Spread: bestAsk - bestBid */
   spread: number;
-  depthImbalance: number; // (total_bid_volume - total_ask_volume) / (total_bid_volume + total_ask_volume)
+  /** Depth imbalance: (bidVol - askVol) / (bidVol + askVol) */
+  depthImbalance: number;
 }
 
+/**
+ * Processes one side of order book (bids or asks) and calculates volume percentages.
+ *
+ * Converts raw bid/ask data to structured entries with volume percentage calculations.
+ * Each entry's percentage represents its share of total side volume.
+ *
+ * @param orders - Raw order book entries from exchange API
+ * @returns Processed entries with price, quantity, and volume percentage
+ *
+ * @example
+ * ```typescript
+ * const rawBids = [
+ *   { price: "42000", quantity: "1.5" },
+ *   { price: "41999", quantity: "0.5" }
+ * ];
+ * const processed = processOrderBookSide(rawBids);
+ * // [
+ * //   { price: 42000, quantity: 1.5, percentage: 75.0 },
+ * //   { price: 41999, quantity: 0.5, percentage: 25.0 }
+ * // ]
+ * ```
+ */
 function processOrderBookSide(orders: IBidData[]): IOrderBookEntry[] {
   const entries = orders.map((order) => ({
     price: parseFloat(order.price),
@@ -55,7 +134,34 @@ function processOrderBookSide(orders: IBidData[]): IOrderBookEntry[] {
   return entries;
 }
 
-// Generate simple order book report
+/**
+ * Generates markdown-formatted order book report with depth analysis.
+ *
+ * Creates comprehensive markdown report including:
+ * - Order book summary (best bid/ask, mid price, spread, depth imbalance)
+ * - Top 20 bid levels sorted by volume percentage
+ * - Top 20 ask levels sorted by volume percentage
+ * - Formatted prices and quantities with proper USD notation
+ *
+ * Output is optimized for LLM consumption in trading signal generation.
+ *
+ * @param self - Service instance for logging context
+ * @param result - Order book analysis data with calculated metrics
+ * @returns Markdown-formatted order book report
+ *
+ * @example
+ * ```typescript
+ * const analysis = await service.getData('BTCUSDT');
+ * const report = await generateBookDataReport(service, analysis);
+ * console.log(report);
+ * // # Order Book Analysis for BTCUSDT
+ * // > Current time: 2025-01-14T10:30:00.000Z
+ * // ## Order Book Summary
+ * // - **Best Bid**: 42000.50 USD
+ * // - **Best Ask**: 42001.25 USD
+ * // - **Depth Imbalance**: 12.5%
+ * ```
+ */
 const generateBookDataReport = async (
   self: BookDataMathService,
   result: IBookDataAnalysis
@@ -145,9 +251,57 @@ const generateBookDataReport = async (
   return markdown;
 };
 
+/**
+ * Service for order book analysis and markdown report generation.
+ *
+ * Provides real-time order book depth analysis with market liquidity metrics
+ * including bid/ask levels, depth imbalance, spread, and volume distribution.
+ *
+ * Key features:
+ * - Fetches up to 1000 order book depth levels
+ * - Calculates best bid/ask, mid price, and spread
+ * - Computes depth imbalance (buy vs sell pressure)
+ * - Analyzes volume distribution with percentage calculations
+ * - Generates markdown reports with top 20 levels
+ * - Only available in live mode (skipped in backtest)
+ * - Dependency injection support
+ *
+ * @example
+ * ```typescript
+ * import { BookDataMathService } from '@backtest-kit/signals';
+ *
+ * const service = new BookDataMathService();
+ *
+ * // Get markdown report (fetches order book internally)
+ * const report = await service.getReport('BTCUSDT');
+ * console.log(report); // Markdown with top 20 bid/ask levels
+ *
+ * // Or analyze custom order book data
+ * const analysis = await service.getData('ETHUSDT');
+ * console.log(analysis.depthImbalance); // 0.125 (12.5% buy pressure)
+ * console.log(analysis.bestBid); // 2300.50
+ * ```
+ */
 export class BookDataMathService {
   private loggerService = inject<LoggerService>(TYPES.loggerService);
 
+  /**
+   * Converts order book analysis into markdown report format.
+   *
+   * Takes pre-calculated order book analysis and formats it as markdown
+   * with summary metrics and top 20 bid/ask levels sorted by volume.
+   *
+   * @param symbol - Trading pair symbol for header
+   * @param bookData - Order book analysis from getData()
+   * @returns Markdown-formatted order book report
+   *
+   * @example
+   * ```typescript
+   * const analysis = await service.getData('BTCUSDT');
+   * const report = await service.generateReport('BTCUSDT', analysis);
+   * console.log(report); // Markdown table with order book data
+   * ```
+   */
   public generateReport = async (
     symbol: string,
     bookData: IBookDataAnalysis
@@ -158,6 +312,31 @@ export class BookDataMathService {
     return await generateBookDataReport(this, bookData);
   };
 
+  /**
+   * Generates complete markdown order book report for a symbol.
+   *
+   * Fetches order book depth (up to 1000 levels) from exchange, calculates all metrics,
+   * and formats results as markdown report optimized for LLM consumption.
+   *
+   * @param symbol - Trading pair symbol (e.g., "BTCUSDT")
+   * @returns Markdown-formatted order book report with depth analysis
+   *
+   * @example
+   * ```typescript
+   * const report = await service.getReport('BTCUSDT');
+   * console.log(report);
+   * // # Order Book Analysis for BTCUSDT
+   * // > Current time: 2025-01-14T10:30:00.000Z
+   * //
+   * // ## Order Book Summary
+   * // - **Best Bid**: 42000.50 USD
+   * // - **Depth Imbalance**: 12.5%
+   * //
+   * // ## Top 20 Order Book Levels
+   * // ### Bids (Buy Orders)
+   * // | Price | Quantity | % of Total |
+   * ```
+   */
   public getReport = async (symbol: string) => {
     this.loggerService.log("bookDataMathService getReport", {
       symbol,
@@ -166,6 +345,26 @@ export class BookDataMathService {
     return await this.generateReport(symbol, bookData);
   };
 
+  /**
+   * Fetches and analyzes order book data with depth metrics.
+   *
+   * Retrieves up to 1000 depth levels from exchange, processes bid/ask data,
+   * calculates volume percentages, and computes market depth metrics including
+   * best bid/ask, mid price, spread, and depth imbalance.
+   *
+   * @param symbol - Trading pair symbol (e.g., "BTCUSDT")
+   * @returns Order book analysis with all calculated metrics
+   *
+   * @example
+   * ```typescript
+   * const analysis = await service.getData('BTCUSDT');
+   * console.log(analysis.bestBid); // 42000.50
+   * console.log(analysis.bestAsk); // 42001.25
+   * console.log(analysis.spread); // 0.75
+   * console.log(analysis.depthImbalance); // 0.125 (12.5% buy pressure)
+   * console.log(analysis.bids.length); // Up to 1000 levels
+   * ```
+   */
   public getData = async (symbol: string): Promise<IBookDataAnalysis> => {
     this.loggerService.log("bookDataMathService getBookDataAnalysis", {
       symbol,

@@ -1,3 +1,17 @@
+/**
+ * Service registration for signals library DI container.
+ *
+ * Registers all service factories with the dependency injection container.
+ * Services are lazily instantiated on first injection.
+ *
+ * Service categories:
+ * - Common: Logger service
+ * - Math: Technical analysis services (MicroTerm, ShortTerm, SwingTerm, LongTerm, OrderBook)
+ * - History: Candle history services (1m, 15m, 30m, 1h)
+ *
+ * @module lib/core/provide
+ */
+
 import LongTermMathService from "../services/math/LongTermMathService";
 import MicroTermMathService from "../services/math/MicroTermMathService";
 import ShortTermMathService from "../services/math/ShortTermMathService";
@@ -11,10 +25,12 @@ import { provide } from "./di";
 import { TYPES } from "./types";
 import LoggerService from "../services/common/LoggerService";
 
+// Register common services
 {
   provide(TYPES.loggerService, () => new LoggerService());
 }
 
+// Register technical analysis services
 {
   provide(TYPES.swingTermMathService, () => new SwingTermMathService());
   provide(TYPES.longTermMathService, () => new LongTermMathService());
@@ -23,6 +39,7 @@ import LoggerService from "../services/common/LoggerService";
   provide(TYPES.bookDataMathService, () => new BookDataMathService());
 }
 
+// Register candle history services
 {
   provide(
     TYPES.fifteenMinuteCandleHistoryService,

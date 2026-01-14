@@ -1,3 +1,16 @@
+/**
+ * LongTerm (1-hour) technical analysis service for trend trading.
+ *
+ * Generates 30+ indicators on 1-hour candles with 48-candle lookback (48 hours).
+ * Optimized for multi-day trend trading and position management.
+ *
+ * Indicators: RSI(14), StochRSI(14), MACD(12,26,9), Bollinger(20,2), Stochastic(14,3,3),
+ * ADX(14), ATR(14,20), CCI(20), Momentum(10), SMA(50), EMA(20,34), DEMA(21), WMA(20),
+ * Support/Resistance, Fibonacci levels, Volume trends.
+ *
+ * Used by commitLongTermMath().
+ */
+
 import {
   FasterRSI as RSI,
   FasterMACD as MACD,
@@ -18,8 +31,16 @@ import { inject } from "../../core/di";
 import { TYPES } from "../../core/types";
 import LoggerService from "../common/LoggerService";
 
+/**
+ * Maximum number of historical rows to return in analysis results.
+ * Limits memory usage and table size for markdown reports.
+ */
 const TABLE_ROWS_LIMIT = 48;
 
+/**
+ * Minimum number of candles required before generating analysis rows.
+ * Ensures all technical indicators (especially SMA(50)) have sufficient data.
+ */
 const WARMUP_PERIOD = 50;
 
 interface ILongTermRow {
@@ -270,6 +291,23 @@ const columns: Column[] = [
   },
 ];
 
+/**
+ * Validates whether a numeric value is safe for calculations.
+ *
+ * Checks if value is a valid finite number. Returns true if value is null,
+ * NaN, Infinity, or not a number type.
+ *
+ * @param value - Value to validate
+ * @returns True if value is unsafe (null/NaN/Infinity), false if valid number
+ *
+ * @example
+ * ```typescript
+ * isUnsafe(42) // false - valid number
+ * isUnsafe(null) // true - null value
+ * isUnsafe(NaN) // true - not a number
+ * isUnsafe(Infinity) // true - infinite value
+ * ```
+ */
 function isUnsafe(value: number | null) {
   if (typeof value !== "number") {
     return true;
@@ -283,6 +321,25 @@ function isUnsafe(value: number | null) {
   return false;
 }
 
+/**
+ * Calculates Fibonacci retracement levels and finds nearest level to current price.
+ *
+ * Computes standard Fibonacci levels (0%, 23.6%, 38.2%, 50%, 61.8%, 78.6%, 100%)
+ * plus extension levels (127.2%, 161.8%) based on high-low range over lookback period.
+ * Returns the level closest to current price with distance in USD.
+ *
+ * @param candles - Array of candle data
+ * @param endIndex - Index of current candle in array
+ * @returns Object with nearest level name, price, and distance in USD
+ *
+ * @example
+ * ```typescript
+ * const candles = await getCandles('BTCUSDT', '1h', 100);
+ * const fib = calculateFibonacciLevels(candles, 99);
+ * console.log(fib);
+ * // { level: "61.8%", price: 42500.50, distance: 125.30 }
+ * ```
+ */
 function calculateFibonacciLevels(
   candles: ICandleData[],
   endIndex: number
@@ -324,6 +381,31 @@ function calculateFibonacciLevels(
   return nearestLevel;
 }
 
+/**
+ * Generates comprehensive technical analysis for 1-hour candles (long-term trading).
+ *
+ * Calculates 30+ technical indicators per candle including:
+ * - Momentum: RSI(14), Stochastic RSI(14), MACD(12,26,9), Momentum(10)
+ * - Trend: SMA(50), EMA(20,34), DEMA(21), WMA(20), ADX(14), +DI/-DI
+ * - Volatility: ATR(14,20), Bollinger Bands(20,2.0), CCI(20)
+ * - Volume: Volume trend analysis
+ * - Support/Resistance: Pivot points, Fibonacci levels
+ *
+ * Skips first WARMUP_PERIOD (50) candles to ensure indicator stability.
+ * Returns last TABLE_ROWS_LIMIT (48) rows for memory efficiency.
+ *
+ * @param symbol - Trading pair symbol (e.g., "BTCUSDT")
+ * @param candles - Array of 1-hour candle data
+ * @returns Array of technical analysis rows with all indicators
+ *
+ * @example
+ * ```typescript
+ * const candles = await getCandles('BTCUSDT', '1h', 100);
+ * const analysis = generateAnalysis('BTCUSDT', candles);
+ * console.log(analysis[0].rsi14); // 52.45
+ * console.log(analysis[0].support); // 42000.50
+ * ```
+ */
 function generateAnalysis(
   symbol: string,
   candles: ICandleData[]
@@ -550,6 +632,32 @@ function generateAnalysis(
   return results;
 }
 
+/**
+ * Generates markdown table with long-term technical analysis history.
+ *
+ * Creates comprehensive markdown report with:
+ * - Formatted table of all technical indicators
+ * - Column headers with indicator names and parameters
+ * - Formatted values (prices in USD, percentages, decimals)
+ * - Data sources section explaining each indicator's calculation
+ * - Timeframe and lookback period documentation (1h candles, 48h lookback)
+ *
+ * Output is optimized for LLM consumption in long-term trading signal generation.
+ *
+ * @param indicators - Array of analysis rows from generateAnalysis()
+ * @param symbol - Trading pair symbol for price formatting
+ * @returns Markdown-formatted technical analysis report
+ *
+ * @example
+ * ```typescript
+ * const rows = await service.getData('BTCUSDT', candles);
+ * const markdown = await generateHistoryTable(rows, 'BTCUSDT');
+ * console.log(markdown);
+ * // # 1-Hour Candles Trading Analysis for BTCUSDT (Historical Data)
+ * // > Current time: 2025-01-14T10:30:00.000Z
+ * // | RSI(14) | MACD(12,26,9) | Support Level | ... |
+ * ```
+ */
 async function generateHistoryTable(
   indicators: ILongTermRow[],
   symbol: string
@@ -643,9 +751,61 @@ async function generateHistoryTable(
   return markdown;
 }
 
+/**
+ * Service for long-term (1-hour) technical analysis and markdown report generation.
+ *
+ * Provides comprehensive technical analysis for 1-hour candles with 30+ indicators
+ * including momentum (RSI, MACD), trend (EMA, SMA), volatility (ATR, Bollinger Bands),
+ * support/resistance levels, and Fibonacci retracements.
+ *
+ * Key features:
+ * - 30+ technical indicators (RSI, MACD, Bollinger Bands, Stochastic, ADX, etc.)
+ * - Support/resistance level detection
+ * - Fibonacci retracement analysis
+ * - Volume trend analysis
+ * - Markdown table generation for LLM consumption
+ * - Intelligent indicator warmup (skips first 50 candles)
+ * - Memory-efficient output (last 48 rows only)
+ * - Dependency injection support
+ *
+ * @example
+ * ```typescript
+ * import { LongTermHistoryService } from '@backtest-kit/signals';
+ *
+ * const service = new LongTermHistoryService();
+ *
+ * // Get markdown report for symbol (fetches candles internally)
+ * const report = await service.getReport('BTCUSDT');
+ * console.log(report); // Markdown table with all indicators
+ *
+ * // Or analyze custom candles
+ * const candles = await getCandles('ETHUSDT', '1h', 100);
+ * const rows = await service.getData('ETHUSDT', candles);
+ * console.log(rows[0].rsi14); // 52.45
+ * ```
+ */
 export class LongTermHistoryService {
   private loggerService = inject<LoggerService>(TYPES.loggerService);
 
+  /**
+   * Analyzes candle data and returns technical indicator rows.
+   *
+   * Calculates all technical indicators for provided candles, skips first WARMUP_PERIOD
+   * rows to ensure stability, and returns last TABLE_ROWS_LIMIT rows.
+   *
+   * @param symbol - Trading pair symbol (e.g., "BTCUSDT")
+   * @param candles - Array of 1-hour candle data
+   * @returns Array of technical analysis rows with all indicators
+   *
+   * @example
+   * ```typescript
+   * const candles = await getCandles('BTCUSDT', '1h', 100);
+   * const rows = await service.getData('BTCUSDT', candles);
+   * console.log(rows.length); // Up to 48 rows
+   * console.log(rows[0].rsi14); // 52.45
+   * console.log(rows[0].support); // 42000.50
+   * ```
+   */
   public getData = async (
     symbol: string,
     candles: ICandleData[]
@@ -657,6 +817,26 @@ export class LongTermHistoryService {
     return generateAnalysis(symbol, candles);
   };
 
+  /**
+   * Generates complete markdown technical analysis report for a symbol.
+   *
+   * Fetches 100 1-hour candles (100 hours) from exchange, calculates all indicators,
+   * and formats last 48 rows as markdown table optimized for LLM consumption.
+   *
+   * @param symbol - Trading pair symbol (e.g., "BTCUSDT")
+   * @returns Markdown-formatted technical analysis report with table and explanations
+   *
+   * @example
+   * ```typescript
+   * const report = await service.getReport('BTCUSDT');
+   * console.log(report);
+   * // # 1-Hour Candles Trading Analysis for BTCUSDT (Historical Data)
+   * // > Current time: 2025-01-14T10:30:00.000Z
+   * //
+   * // | RSI(14) | MACD(12,26,9) | Support Level | ...
+   * // | 52.45 | 0.0023 | 42000.50 USD | ...
+   * ```
+   */
   public getReport = async (symbol: string): Promise<string> => {
     this.loggerService.log("longTermHistoryService getReport", { symbol });
     const fullCandles: ICandleData[] = await getCandles(symbol, "1h", 100);
@@ -666,6 +846,24 @@ export class LongTermHistoryService {
     return generateHistoryTable(rows, symbol);
   };
 
+  /**
+   * Converts analysis rows into markdown table format.
+   *
+   * Takes pre-calculated indicator rows and formats them as markdown table
+   * with column headers, formatted values, and data source explanations.
+   *
+   * @param symbol - Trading pair symbol for price formatting
+   * @param rows - Array of technical analysis rows from getData()
+   * @returns Markdown-formatted table with all indicators
+   *
+   * @example
+   * ```typescript
+   * const candles = await getCandles('BTCUSDT', '1h', 100);
+   * const rows = await service.getData('BTCUSDT', candles);
+   * const markdown = await service.generateHistoryTable('BTCUSDT', rows);
+   * console.log(markdown); // Markdown table
+   * ```
+   */
   public generateHistoryTable = async (
     symbol: string,
     rows: ILongTermRow[]

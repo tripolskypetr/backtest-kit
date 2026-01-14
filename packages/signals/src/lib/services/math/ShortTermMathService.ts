@@ -19,8 +19,16 @@ import { inject } from "../../core/di";
 import { TYPES } from "../../core/types";
 import LoggerService from "../common/LoggerService";
 
+/**
+ * Maximum number of historical rows to return in analysis results.
+ * Limits memory usage and table size for markdown reports.
+ */
 const TABLE_ROWS_LIMIT = 48;
 
+/**
+ * Minimum number of candles required before generating analysis rows.
+ * Ensures all technical indicators (especially SMA(50)) have sufficient data.
+ */
 const WARMUP_PERIOD = 50;
 
 interface IShortTermRow {
@@ -274,6 +282,23 @@ const columns: Column[] = [
   },
 ];
 
+/**
+ * Validates whether a numeric value is safe for calculations.
+ *
+ * Checks if value is a valid finite number. Returns true if value is null,
+ * NaN, Infinity, or not a number type.
+ *
+ * @param value - Value to validate
+ * @returns True if value is unsafe (null/NaN/Infinity), false if valid number
+ *
+ * @example
+ * ```typescript
+ * isUnsafe(42) // false - valid number
+ * isUnsafe(null) // true - null value
+ * isUnsafe(NaN) // true - not a number
+ * isUnsafe(Infinity) // true - infinite value
+ * ```
+ */
 function isUnsafe(value: number | null) {
   if (typeof value !== "number") {
     return true;
@@ -287,6 +312,25 @@ function isUnsafe(value: number | null) {
   return false;
 }
 
+/**
+ * Calculates Fibonacci retracement levels and finds nearest level to current price.
+ *
+ * Computes standard Fibonacci levels (0%, 23.6%, 38.2%, 50%, 61.8%, 78.6%, 100%)
+ * plus extension levels (127.2%, 161.8%) based on high-low range over lookback period.
+ * Returns the level closest to current price with distance in USD.
+ *
+ * @param candles - Array of candle data
+ * @param endIndex - Index of current candle in array
+ * @returns Object with nearest level name, price, and distance in USD
+ *
+ * @example
+ * ```typescript
+ * const candles = await getCandles('BTCUSDT', '15m', 300);
+ * const fib = calculateFibonacciLevels(candles, 299);
+ * console.log(fib);
+ * // { level: "61.8%", price: 42500.50, distance: 125.30 }
+ * ```
+ */
 function calculateFibonacciLevels(
   candles: ICandleData[],
   endIndex: number
@@ -328,6 +372,24 @@ function calculateFibonacciLevels(
   return nearestLevel;
 }
 
+/**
+ * Analyzes volume trend by comparing recent vs older volume averages.
+ *
+ * Compares average volume of last 8 candles against previous 8 candles.
+ * Returns "increasing" if recent volume > 120% of older volume,
+ * "decreasing" if recent < 80% of older volume, otherwise "stable".
+ *
+ * @param candles - Array of candle data
+ * @param endIndex - Index of current candle in array
+ * @returns Volume trend: "increasing", "decreasing", or "stable"
+ *
+ * @example
+ * ```typescript
+ * const candles = await getCandles('ETHUSDT', '15m', 100);
+ * const trend = calculateVolumeTrend(candles, 99);
+ * console.log(trend); // "increasing" | "decreasing" | "stable"
+ * ```
+ */
 function calculateVolumeTrend(
   candles: ICandleData[],
   endIndex: number
@@ -351,6 +413,31 @@ function calculateVolumeTrend(
   return "stable";
 }
 
+/**
+ * Generates comprehensive technical analysis for 15-minute candles.
+ *
+ * Calculates 30+ technical indicators per candle including:
+ * - Momentum: RSI(9), Stochastic RSI(9), MACD(8,21,5), Momentum(8), ROC(5,10)
+ * - Trend: SMA(50), EMA(8,21), DEMA(21), WMA(20), ADX(14), +DI/-DI
+ * - Volatility: ATR(9), Bollinger Bands(10,2.0)
+ * - Volume: Volume trend analysis
+ * - Support/Resistance: Pivot points, Fibonacci levels
+ *
+ * Skips first WARMUP_PERIOD (50) candles to ensure indicator stability.
+ * Returns last TABLE_ROWS_LIMIT (48) rows for memory efficiency.
+ *
+ * @param symbol - Trading pair symbol (e.g., "BTCUSDT")
+ * @param candles - Array of 15-minute candle data
+ * @returns Array of technical analysis rows with all indicators
+ *
+ * @example
+ * ```typescript
+ * const candles = await getCandles('BTCUSDT', '15m', 144);
+ * const analysis = generateAnalysis('BTCUSDT', candles);
+ * console.log(analysis[0].rsi9); // 45.23
+ * console.log(analysis[0].support); // 42000.50
+ * ```
+ */
 function generateAnalysis(
   symbol: string,
   candles: ICandleData[]
@@ -570,6 +657,32 @@ function generateAnalysis(
   return results.slice(-TABLE_ROWS_LIMIT);
 }
 
+/**
+ * Generates markdown table with technical analysis history.
+ *
+ * Creates comprehensive markdown report with:
+ * - Formatted table of all technical indicators
+ * - Column headers with indicator names and parameters
+ * - Formatted values (prices in USD, percentages, decimals)
+ * - Data sources section explaining each indicator's calculation
+ * - Timeframe and lookback period documentation
+ *
+ * Output is optimized for LLM consumption in trading signal generation.
+ *
+ * @param indicators - Array of analysis rows from generateAnalysis()
+ * @param symbol - Trading pair symbol for price formatting
+ * @returns Markdown-formatted technical analysis report
+ *
+ * @example
+ * ```typescript
+ * const rows = await service.getData('BTCUSDT', candles);
+ * const markdown = await generateHistoryTable(rows, 'BTCUSDT');
+ * console.log(markdown);
+ * // # 15-Minute Candles Trading Analysis for BTCUSDT (Historical Data)
+ * // > Current time: 2025-01-14T10:30:00.000Z
+ * // | RSI(9) | MACD(8,21,5) | ... |
+ * ```
+ */
 async function generateHistoryTable(
   indicators: IShortTermRow[],
   symbol: string
@@ -665,9 +778,61 @@ async function generateHistoryTable(
   return markdown;
 }
 
+/**
+ * Service for short-term (15-minute) technical analysis and markdown report generation.
+ *
+ * Provides comprehensive technical analysis for 15-minute candles with 30+ indicators
+ * including momentum (RSI, MACD), trend (EMA, SMA), volatility (ATR, Bollinger Bands),
+ * support/resistance levels, and Fibonacci retracements.
+ *
+ * Key features:
+ * - 30+ technical indicators (RSI, MACD, Bollinger Bands, Stochastic, ADX, etc.)
+ * - Support/resistance level detection
+ * - Fibonacci retracement analysis
+ * - Volume trend analysis
+ * - Markdown table generation for LLM consumption
+ * - Intelligent indicator warmup (skips first 50 candles)
+ * - Memory-efficient output (last 48 rows only)
+ * - Dependency injection support
+ *
+ * @example
+ * ```typescript
+ * import { ShortTermHistoryService } from '@backtest-kit/signals';
+ *
+ * const service = new ShortTermHistoryService();
+ *
+ * // Get markdown report for symbol (fetches candles internally)
+ * const report = await service.getReport('BTCUSDT');
+ * console.log(report); // Markdown table with all indicators
+ *
+ * // Or analyze custom candles
+ * const candles = await getCandles('ETHUSDT', '15m', 144);
+ * const rows = await service.getData('ETHUSDT', candles);
+ * console.log(rows[0].rsi9); // 45.23
+ * ```
+ */
 export class ShortTermHistoryService {
   private loggerService = inject<LoggerService>(TYPES.loggerService);
 
+  /**
+   * Analyzes candle data and returns technical indicator rows.
+   *
+   * Calculates all technical indicators for provided candles, skips first WARMUP_PERIOD
+   * rows to ensure stability, and returns last TABLE_ROWS_LIMIT rows.
+   *
+   * @param symbol - Trading pair symbol (e.g., "BTCUSDT")
+   * @param candles - Array of 15-minute candle data
+   * @returns Array of technical analysis rows with all indicators
+   *
+   * @example
+   * ```typescript
+   * const candles = await getCandles('BTCUSDT', '15m', 144);
+   * const rows = await service.getData('BTCUSDT', candles);
+   * console.log(rows.length); // Up to 48 rows
+   * console.log(rows[0].rsi9); // 45.23
+   * console.log(rows[0].support); // 42000.50
+   * ```
+   */
   public getData = async (
     symbol: string,
     candles: ICandleData[]
@@ -679,6 +844,26 @@ export class ShortTermHistoryService {
     return generateAnalysis(symbol, candles);
   };
 
+  /**
+   * Generates complete markdown technical analysis report for a symbol.
+   *
+   * Fetches 144 15-minute candles (36 hours) from exchange, calculates all indicators,
+   * and formats results as markdown table optimized for LLM consumption.
+   *
+   * @param symbol - Trading pair symbol (e.g., "BTCUSDT")
+   * @returns Markdown-formatted technical analysis report with table and explanations
+   *
+   * @example
+   * ```typescript
+   * const report = await service.getReport('BTCUSDT');
+   * console.log(report);
+   * // # 15-Minute Candles Trading Analysis for BTCUSDT (Historical Data)
+   * // > Current time: 2025-01-14T10:30:00.000Z
+   * //
+   * // | RSI(9) | MACD(8,21,5) | Support Level | ...
+   * // | 45.23 | 0.0012 | 42000.50 USD | ...
+   * ```
+   */
   public getReport = async (symbol: string): Promise<string> => {
     this.loggerService.log("shortTermHistoryService getReport", { symbol });
     const candles: ICandleData[] = await getCandles(symbol, "15m", 144);
@@ -686,6 +871,24 @@ export class ShortTermHistoryService {
     return generateHistoryTable(rows, symbol);
   };
 
+  /**
+   * Converts analysis rows into markdown table format.
+   *
+   * Takes pre-calculated indicator rows and formats them as markdown table
+   * with column headers, formatted values, and data source explanations.
+   *
+   * @param symbol - Trading pair symbol for price formatting
+   * @param rows - Array of technical analysis rows from getData()
+   * @returns Markdown-formatted table with all indicators
+   *
+   * @example
+   * ```typescript
+   * const candles = await getCandles('BTCUSDT', '15m', 144);
+   * const rows = await service.getData('BTCUSDT', candles);
+   * const markdown = await service.generateHistoryTable('BTCUSDT', rows);
+   * console.log(markdown); // Markdown table
+   * ```
+   */
   public generateHistoryTable = async (
     symbol: string,
     rows: IShortTermRow[]

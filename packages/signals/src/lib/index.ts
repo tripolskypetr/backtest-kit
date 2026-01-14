@@ -1,3 +1,19 @@
+/**
+ * Service container initialization and export for signals library.
+ *
+ * Initializes the DI container, injects all registered services,
+ * and exports them as a unified 'signal' object for internal use.
+ *
+ * This module:
+ * 1. Imports service registrations from './core/provide'
+ * 2. Injects all services from DI container
+ * 3. Initializes DI container
+ * 4. Exports combined service object
+ * 5. Attaches to globalThis for debugging (non-production only)
+ *
+ * @module lib/index
+ */
+
 import "./core/provide";
 
 import { init, inject } from "./core/di";
@@ -13,10 +29,16 @@ import ThirtyMinuteCandleHistoryService from "./services/history/ThirtyMinuteCan
 import BookDataMathService from "./services/math/BookDataMathService";
 import LoggerService from "./services/common/LoggerService";
 
+/**
+ * Common services.
+ */
 const commonServices = {
   loggerService: inject<LoggerService>(TYPES.loggerService),
 };
 
+/**
+ * Technical analysis services.
+ */
 const mathServices = {
   swingTermMathService: inject<SwingTermMathService>(
     TYPES.swingTermMathService
@@ -31,6 +53,9 @@ const mathServices = {
   bookDataMathService: inject<BookDataMathService>(TYPES.bookDataMathService),
 };
 
+/**
+ * Candle history services.
+ */
 const historyServices = {
   fifteenMinuteCandleHistoryService: inject<FifteenMinuteCandleHistoryService>(
     TYPES.fifteenMinuteCandleHistoryService
@@ -46,16 +71,22 @@ const historyServices = {
   ),
 };
 
+/**
+ * Combined service container for internal library use.
+ * Contains all registered services: common, math, and history.
+ */
 const signal = {
   ...commonServices,
   ...mathServices,
   ...historyServices,
 };
 
+// Initialize DI container
 init();
 
 export { signal };
 
+// Attach to global for debugging (non-production)
 Object.assign(globalThis, { signal });
 
 export default signal;

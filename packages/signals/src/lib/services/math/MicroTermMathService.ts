@@ -1,3 +1,16 @@
+/**
+ * MicroTerm (1-minute) technical analysis service for scalping strategies.
+ *
+ * Generates 40+ indicators on 1-minute candles with 60-candle lookback.
+ * Optimized for high-frequency trading and sub-5 minute positions.
+ *
+ * Indicators: RSI(9,14), StochRSI(9,14), MACD(8,21,5), Bollinger(8,2), Stochastic(3,5),
+ * ADX(9), ATR(5,9), CCI(9), Momentum(5,10), ROC(1,3,5), EMA(3,8,13,21), SMA(8), DEMA(8),
+ * WMA(5), Support/Resistance, Volume analysis, Squeeze momentum.
+ *
+ * Used by commitMicroTermMath().
+ */
+
 import {
   FasterRSI as RSI,
   FasterMACD as MACD,
@@ -19,8 +32,16 @@ import { inject } from "../../core/di";
 import { TYPES } from "../../core/types";
 import LoggerService from "../common/LoggerService";
 
+/**
+ * Minimum number of candles required before generating analysis rows.
+ * Ensures all technical indicators (especially EMA(21)) have sufficient data.
+ */
 const WARMUP_PERIOD = 21;
 
+/**
+ * Maximum number of historical rows to return in analysis results.
+ * Limits memory usage and table size for markdown reports.
+ */
 const TABLE_ROWS_LIMIT = 40;
 
 interface IMicroTermRow {
@@ -382,6 +403,23 @@ const columns: Column[] = [
   },
 ];
 
+/**
+ * Validates whether a numeric value is safe for calculations.
+ *
+ * Checks if value is a valid finite number. Returns true if value is null,
+ * NaN, Infinity, or not a number type.
+ *
+ * @param value - Value to validate
+ * @returns True if value is unsafe (null/NaN/Infinity), false if valid number
+ *
+ * @example
+ * ```typescript
+ * isUnsafe(42) // false - valid number
+ * isUnsafe(null) // true - null value
+ * isUnsafe(NaN) // true - not a number
+ * isUnsafe(Infinity) // true - infinite value
+ * ```
+ */
 function isUnsafe(value: number | null) {
   if (typeof value !== "number") {
     return true;
@@ -395,6 +433,25 @@ function isUnsafe(value: number | null) {
   return false;
 }
 
+/**
+ * Calculates volume metrics including SMA, ratio, and trend.
+ *
+ * Computes volume SMA(5), current volume to average ratio, and volume trend
+ * by comparing recent 3 candles to previous 3 candles. Returns "increasing"
+ * if recent average > 120% of previous, "decreasing" if < 80%, else "stable".
+ *
+ * @param candles - Array of candle data
+ * @param endIndex - Index of current candle in array
+ * @returns Object with volumeSma5, volumeRatio, and volumeTrend
+ *
+ * @example
+ * ```typescript
+ * const candles = await getCandles('BTCUSDT', '1m', 60);
+ * const metrics = calculateVolumeMetrics(candles, 59);
+ * console.log(metrics);
+ * // { volumeSma5: 1500000, volumeRatio: 1.25, volumeTrend: "increasing" }
+ * ```
+ */
 function calculateVolumeMetrics(
   candles: ICandleData[],
   endIndex: number
@@ -434,6 +491,24 @@ function calculateVolumeMetrics(
   return { volumeSma5: avgVolume, volumeRatio, volumeTrend };
 }
 
+/**
+ * Calculates price change percentages over 1, 3, and 5 minute periods.
+ *
+ * Computes percentage price changes from current price to prices at
+ * 1, 3, and 5 candles ago. Returns null for periods with insufficient data.
+ *
+ * @param candles - Array of candle data
+ * @param endIndex - Index of current candle in array
+ * @returns Object with priceChange1m, priceChange3m, and priceChange5m percentages
+ *
+ * @example
+ * ```typescript
+ * const candles = await getCandles('BTCUSDT', '1m', 60);
+ * const changes = calculatePriceChanges(candles, 59);
+ * console.log(changes);
+ * // { priceChange1m: 0.05, priceChange3m: 0.12, priceChange5m: -0.08 }
+ * ```
+ */
 function calculatePriceChanges(
   candles: ICandleData[],
   endIndex: number
@@ -471,6 +546,26 @@ function calculatePriceChanges(
   return { priceChange1m, priceChange3m, priceChange5m };
 }
 
+/**
+ * Calculates support and resistance levels from recent high/low prices.
+ *
+ * Identifies support (minimum low) and resistance (maximum high) levels
+ * over last 30 candles. Uses minimum distance threshold (0.3% of current price)
+ * to filter significant levels. Falls back to current price if insufficient data.
+ *
+ * @param candles - Array of candle data
+ * @param endIndex - Index of current candle in array
+ * @param currentPrice - Current price for distance calculations
+ * @returns Object with support and resistance price levels
+ *
+ * @example
+ * ```typescript
+ * const candles = await getCandles('BTCUSDT', '1m', 60);
+ * const levels = calculateSupportResistance(candles, 59, 42500);
+ * console.log(levels);
+ * // { support: 42400.50, resistance: 42600.75 }
+ * ```
+ */
 function calculateSupportResistance(
   candles: ICandleData[],
   endIndex: number,
@@ -517,6 +612,32 @@ function calculateSupportResistance(
   return { support, resistance };
 }
 
+/**
+ * Generates comprehensive technical analysis for 1-minute candles (scalping).
+ *
+ * Calculates 40+ technical indicators per candle including:
+ * - Momentum: RSI(9,14), Stochastic RSI(9,14), MACD(8,21,5), Momentum(5,10), ROC(1,3,5)
+ * - Trend: EMA(3,8,13,21), SMA(8), DEMA(8), WMA(5), ADX(9), +DI/-DI
+ * - Volatility: ATR(5,9), Bollinger Bands(8,2.0), volatility(5), true range
+ * - Volume: Volume SMA(5), volume ratio, volume trend
+ * - Support/Resistance: Pivot points over 30 candles
+ * - Special: Squeeze momentum, pressure index, Bollinger position
+ *
+ * Skips first WARMUP_PERIOD (21) candles to ensure indicator stability.
+ * Returns last TABLE_ROWS_LIMIT (40) rows for memory efficiency.
+ *
+ * @param symbol - Trading pair symbol (e.g., "BTCUSDT")
+ * @param candles - Array of 1-minute candle data
+ * @returns Array of technical analysis rows with all indicators
+ *
+ * @example
+ * ```typescript
+ * const candles = await getCandles('BTCUSDT', '1m', 60);
+ * const analysis = generateAnalysis('BTCUSDT', candles);
+ * console.log(analysis[0].rsi9); // 45.23
+ * console.log(analysis[0].squeezeMomentum); // 1.25
+ * ```
+ */
 function generateAnalysis(
   symbol: string,
   candles: ICandleData[]
@@ -824,6 +945,32 @@ function generateAnalysis(
   return results.slice(-TABLE_ROWS_LIMIT);
 }
 
+/**
+ * Generates markdown table with micro-term technical analysis history.
+ *
+ * Creates comprehensive markdown report with:
+ * - Formatted table of all 40+ technical indicators
+ * - Column headers with indicator names and parameters
+ * - Formatted values (prices in USD, percentages, decimals)
+ * - Data sources section explaining each indicator's calculation
+ * - Timeframe and lookback period documentation (1m candles, 60m lookback)
+ *
+ * Output is optimized for LLM consumption in scalping signal generation.
+ *
+ * @param indicators - Array of analysis rows from generateAnalysis()
+ * @param symbol - Trading pair symbol for price formatting
+ * @returns Markdown-formatted technical analysis report
+ *
+ * @example
+ * ```typescript
+ * const rows = await service.getData('BTCUSDT', candles);
+ * const markdown = await generateHistoryTable(rows, 'BTCUSDT');
+ * console.log(markdown);
+ * // # 1-Minute Candles Trading Analysis for BTCUSDT (Historical Data)
+ * // > Current time: 2025-01-14T10:30:00.000Z
+ * // | RSI(9) | MACD(8,21,5) | Squeeze Momentum | ... |
+ * ```
+ */
 async function generateHistoryTable(
   indicators: IMicroTermRow[],
   symbol: string
@@ -951,9 +1098,64 @@ async function generateHistoryTable(
   return markdown;
 }
 
+/**
+ * Service for micro-term (1-minute) technical analysis and markdown report generation.
+ *
+ * Provides comprehensive technical analysis for 1-minute candles with 40+ indicators
+ * including momentum (RSI, MACD), trend (EMA, SMA), volatility (ATR, Bollinger Bands),
+ * support/resistance levels, volume analysis, and specialized scalping indicators.
+ *
+ * Key features:
+ * - 40+ technical indicators (RSI, MACD, Bollinger Bands, Stochastic, ADX, etc.)
+ * - Support/resistance level detection (30-candle lookback)
+ * - Volume analysis (SMA, ratio, trend)
+ * - Price change tracking (1m, 3m, 5m)
+ * - Specialized scalping indicators (squeeze momentum, pressure index, Bollinger position)
+ * - Volatility and true range calculations
+ * - Markdown table generation for LLM consumption
+ * - Intelligent indicator warmup (skips first 21 candles)
+ * - Memory-efficient output (last 40 rows only)
+ * - Dependency injection support
+ *
+ * @example
+ * ```typescript
+ * import { MicroTermHistoryService } from '@backtest-kit/signals';
+ *
+ * const service = new MicroTermHistoryService();
+ *
+ * // Get markdown report for symbol (fetches candles internally)
+ * const report = await service.getReport('BTCUSDT');
+ * console.log(report); // Markdown table with all indicators
+ *
+ * // Or analyze custom candles
+ * const candles = await getCandles('ETHUSDT', '1m', 60);
+ * const rows = await service.getData('ETHUSDT', candles);
+ * console.log(rows[0].rsi9); // 45.23
+ * console.log(rows[0].squeezeMomentum); // 1.25
+ * ```
+ */
 export class MicroTermHistoryService {
   private loggerService = inject<LoggerService>(TYPES.loggerService);
 
+  /**
+   * Analyzes candle data and returns technical indicator rows.
+   *
+   * Calculates all technical indicators for provided candles, skips first WARMUP_PERIOD
+   * rows to ensure stability, and returns last TABLE_ROWS_LIMIT rows.
+   *
+   * @param symbol - Trading pair symbol (e.g., "BTCUSDT")
+   * @param candles - Array of 1-minute candle data
+   * @returns Array of technical analysis rows with all indicators
+   *
+   * @example
+   * ```typescript
+   * const candles = await getCandles('BTCUSDT', '1m', 60);
+   * const rows = await service.getData('BTCUSDT', candles);
+   * console.log(rows.length); // Up to 40 rows
+   * console.log(rows[0].rsi9); // 45.23
+   * console.log(rows[0].volumeRatio); // 1.25
+   * ```
+   */
   public getData = async (
     symbol: string,
     candles: ICandleData[]
@@ -965,6 +1167,26 @@ export class MicroTermHistoryService {
     return generateAnalysis(symbol, candles);
   };
 
+  /**
+   * Generates complete markdown technical analysis report for a symbol.
+   *
+   * Fetches 60 1-minute candles (60 minutes) from exchange, calculates all indicators,
+   * and formats results as markdown table optimized for LLM consumption.
+   *
+   * @param symbol - Trading pair symbol (e.g., "BTCUSDT")
+   * @returns Markdown-formatted technical analysis report with table and explanations
+   *
+   * @example
+   * ```typescript
+   * const report = await service.getReport('BTCUSDT');
+   * console.log(report);
+   * // # 1-Minute Candles Trading Analysis for BTCUSDT (Historical Data)
+   * // > Current time: 2025-01-14T10:30:00.000Z
+   * //
+   * // | RSI(9) | MACD(8,21,5) | Squeeze Momentum | ...
+   * // | 45.23 | 0.0012 | 1.25 | ...
+   * ```
+   */
   public getReport = async (symbol: string): Promise<string> => {
     this.loggerService.log("microTermHistoryService getReport", { symbol });
     const candles: ICandleData[] = await getCandles(symbol, "1m", 60);
@@ -972,6 +1194,24 @@ export class MicroTermHistoryService {
     return generateHistoryTable(rows, symbol);
   };
 
+  /**
+   * Converts analysis rows into markdown table format.
+   *
+   * Takes pre-calculated indicator rows and formats them as markdown table
+   * with column headers, formatted values, and data source explanations.
+   *
+   * @param symbol - Trading pair symbol for price formatting
+   * @param rows - Array of technical analysis rows from getData()
+   * @returns Markdown-formatted table with all indicators
+   *
+   * @example
+   * ```typescript
+   * const candles = await getCandles('BTCUSDT', '1m', 60);
+   * const rows = await service.getData('BTCUSDT', candles);
+   * const markdown = await service.generateHistoryTable('BTCUSDT', rows);
+   * console.log(markdown); // Markdown table
+   * ```
+   */
   public generateHistoryTable = async (
     symbol: string,
     rows: IMicroTermRow[]

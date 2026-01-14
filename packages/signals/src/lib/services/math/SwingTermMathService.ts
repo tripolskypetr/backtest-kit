@@ -19,8 +19,16 @@ import { inject } from "../../core/di";
 import { TYPES } from "../../core/types";
 import LoggerService from "../common/LoggerService";
 
+/**
+ * Maximum number of historical rows to return in analysis results.
+ * Limits memory usage and table size for markdown reports.
+ */
 const TABLE_ROWS_LIMIT = 30;
 
+/**
+ * Minimum number of candles required before generating analysis rows.
+ * Ensures all technical indicators (especially EMA(34)) have sufficient data.
+ */
 const WARMUP_PERIOD = 34;
 
 interface ISwingTermRow {
@@ -286,6 +294,23 @@ const columns: Column[] = [
   },
 ];
 
+/**
+ * Validates whether a numeric value is safe for calculations.
+ *
+ * Checks if value is a valid finite number. Returns true if value is null,
+ * NaN, Infinity, or not a number type.
+ *
+ * @param value - Value to validate
+ * @returns True if value is unsafe (null/NaN/Infinity), false if valid number
+ *
+ * @example
+ * ```typescript
+ * isUnsafe(42) // false - valid number
+ * isUnsafe(null) // true - null value
+ * isUnsafe(NaN) // true - not a number
+ * isUnsafe(Infinity) // true - infinite value
+ * ```
+ */
 function isUnsafe(value: number | null) {
   if (typeof value !== "number") {
     return true;
@@ -299,6 +324,31 @@ function isUnsafe(value: number | null) {
   return false;
 }
 
+/**
+ * Calculates Fibonacci levels and determines nearest support/resistance levels.
+ *
+ * Computes Fibonacci retracement levels (0%, 23.6%, 38.2%, 50%, 61.8%, 78.6%, 100%)
+ * and extension levels (127.2%, 161.8%, 261.8%) over specified lookback period.
+ * Identifies current price position relative to Fibonacci levels and finds
+ * nearest support/resistance levels.
+ *
+ * @param candles - Array of candle data
+ * @param endIndex - Index of current candle in array
+ * @param period - Lookback period in candles (default: 48)
+ * @returns Object with nearest support/resistance prices and current level description
+ *
+ * @example
+ * ```typescript
+ * const candles = await getCandles('BTCUSDT', '30m', 96);
+ * const fib = calculateFibonacciLevels(candles, 95, 48);
+ * console.log(fib);
+ * // {
+ * //   nearestSupport: 42000.50,
+ * //   nearestResistance: 43500.25,
+ * //   currentLevel: "50.0% Retracement"
+ * // }
+ * ```
+ */
 function calculateFibonacciLevels(
   candles: ICandleData[],
   endIndex: number,
@@ -403,6 +453,25 @@ function calculateFibonacciLevels(
   };
 }
 
+/**
+ * Calculates support and resistance levels from recent high/low prices.
+ *
+ * Identifies support (minimum low) and resistance (maximum high) levels
+ * over specified window period. Falls back to current price if insufficient data.
+ *
+ * @param candles - Array of candle data
+ * @param endIndex - Index of current candle in array
+ * @param window - Lookback window in candles (default: 20)
+ * @returns Object with support and resistance price levels
+ *
+ * @example
+ * ```typescript
+ * const candles = await getCandles('ETHUSDT', '30m', 96);
+ * const levels = calculateSupportResistance(candles, 95, 20);
+ * console.log(levels);
+ * // { support: 2200.50, resistance: 2350.75 }
+ * ```
+ */
 function calculateSupportResistance(
   candles: ICandleData[],
   endIndex: number,
@@ -427,6 +496,31 @@ function calculateSupportResistance(
   return { support, resistance };
 }
 
+/**
+ * Generates comprehensive technical analysis for 30-minute candles (swing trading).
+ *
+ * Calculates 25+ technical indicators per candle including:
+ * - Momentum: RSI(14), Stochastic RSI(14), MACD(12,26,9), Momentum(8), Price Momentum(6)
+ * - Trend: SMA(20), EMA(13,34), DEMA(21), WMA(20), ADX(14), +DI/-DI
+ * - Volatility: ATR(14), Bollinger Bands(20,2.0), calculated volatility
+ * - Support/Resistance: Pivot points, Fibonacci levels with nearest support/resistance
+ * - Volume analysis
+ *
+ * Skips first WARMUP_PERIOD (34) candles to ensure indicator stability.
+ * Returns last TABLE_ROWS_LIMIT (30) rows for memory efficiency.
+ *
+ * @param symbol - Trading pair symbol (e.g., "BTCUSDT")
+ * @param candles - Array of 30-minute candle data
+ * @returns Array of technical analysis rows with all indicators
+ *
+ * @example
+ * ```typescript
+ * const candles = await getCandles('BTCUSDT', '30m', 96);
+ * const analysis = generateAnalysis('BTCUSDT', candles);
+ * console.log(analysis[0].rsi14); // 52.45
+ * console.log(analysis[0].fibonacciCurrentLevel); // "50.0% Retracement"
+ * ```
+ */
 function generateAnalysis(
   symbol: string,
   candles: ICandleData[]
@@ -646,6 +740,32 @@ function generateAnalysis(
   return results.slice(-TABLE_ROWS_LIMIT);
 }
 
+/**
+ * Generates markdown table with swing trading technical analysis history.
+ *
+ * Creates comprehensive markdown report with:
+ * - Formatted table of all technical indicators
+ * - Column headers with indicator names and parameters
+ * - Formatted values (prices in USD, percentages, decimals)
+ * - Data sources section explaining each indicator's calculation
+ * - Timeframe and lookback period documentation (30m candles, 48h lookback)
+ *
+ * Output is optimized for LLM consumption in swing trading signal generation.
+ *
+ * @param indicators - Array of analysis rows from generateAnalysis()
+ * @param symbol - Trading pair symbol for price formatting
+ * @returns Markdown-formatted technical analysis report
+ *
+ * @example
+ * ```typescript
+ * const rows = await service.getData('BTCUSDT', candles);
+ * const markdown = await generateHistoryTable(rows, 'BTCUSDT');
+ * console.log(markdown);
+ * // # 30-Min Candles Analysis for BTCUSDT (Historical Data)
+ * // > Current time: 2025-01-14T10:30:00.000Z
+ * // | RSI(14) | MACD(12,26,9) | Fibonacci Current Level | ... |
+ * ```
+ */
 async function generateHistoryTable(
   indicators: ISwingTermRow[],
   symbol: string
@@ -743,9 +863,63 @@ async function generateHistoryTable(
   return markdown;
 }
 
+/**
+ * Service for swing-term (30-minute) technical analysis and markdown report generation.
+ *
+ * Provides comprehensive technical analysis for 30-minute candles with 25+ indicators
+ * including momentum (RSI, MACD), trend (EMA, SMA), volatility (ATR, Bollinger Bands),
+ * support/resistance levels, and Fibonacci analysis with nearest support/resistance.
+ *
+ * Key features:
+ * - 25+ technical indicators (RSI, MACD, Bollinger Bands, Stochastic, ADX, etc.)
+ * - Support/resistance level detection
+ * - Fibonacci retracement and extension analysis with nearest levels
+ * - Volume and volatility analysis
+ * - Price momentum tracking
+ * - Markdown table generation for LLM consumption
+ * - Intelligent indicator warmup (skips first 34 candles)
+ * - Memory-efficient output (last 30 rows only)
+ * - Dependency injection support
+ *
+ * @example
+ * ```typescript
+ * import { SwingTermHistoryService } from '@backtest-kit/signals';
+ *
+ * const service = new SwingTermHistoryService();
+ *
+ * // Get markdown report for symbol (fetches candles internally)
+ * const report = await service.getReport('BTCUSDT');
+ * console.log(report); // Markdown table with all indicators
+ *
+ * // Or analyze custom candles
+ * const candles = await getCandles('ETHUSDT', '30m', 96);
+ * const rows = await service.getData('ETHUSDT', candles);
+ * console.log(rows[0].rsi14); // 52.45
+ * console.log(rows[0].fibonacciCurrentLevel); // "50.0% Retracement"
+ * ```
+ */
 export class SwingTermHistoryService {
   private loggerService = inject<LoggerService>(TYPES.loggerService);
 
+  /**
+   * Analyzes candle data and returns technical indicator rows.
+   *
+   * Calculates all technical indicators for provided candles, skips first WARMUP_PERIOD
+   * rows to ensure stability, and returns last TABLE_ROWS_LIMIT rows.
+   *
+   * @param symbol - Trading pair symbol (e.g., "BTCUSDT")
+   * @param candles - Array of 30-minute candle data
+   * @returns Array of technical analysis rows with all indicators
+   *
+   * @example
+   * ```typescript
+   * const candles = await getCandles('BTCUSDT', '30m', 96);
+   * const rows = await service.getData('BTCUSDT', candles);
+   * console.log(rows.length); // Up to 30 rows
+   * console.log(rows[0].rsi14); // 52.45
+   * console.log(rows[0].fibonacciNearestSupport); // 42000.50
+   * ```
+   */
   public getData = async (
     symbol: string,
     candles: ICandleData[]
@@ -757,6 +931,26 @@ export class SwingTermHistoryService {
     return generateAnalysis(symbol, candles);
   };
 
+  /**
+   * Generates complete markdown technical analysis report for a symbol.
+   *
+   * Fetches 96 30-minute candles (48 hours) from exchange, calculates all indicators,
+   * and formats results as markdown table optimized for LLM consumption.
+   *
+   * @param symbol - Trading pair symbol (e.g., "BTCUSDT")
+   * @returns Markdown-formatted technical analysis report with table and explanations
+   *
+   * @example
+   * ```typescript
+   * const report = await service.getReport('BTCUSDT');
+   * console.log(report);
+   * // # 30-Min Candles Analysis for BTCUSDT (Historical Data)
+   * // > Current time: 2025-01-14T10:30:00.000Z
+   * //
+   * // | RSI(14) | MACD(12,26,9) | Fibonacci Current Level | ...
+   * // | 52.45 | 0.0023 | 50.0% Retracement | ...
+   * ```
+   */
   public getReport = async (symbol: string): Promise<string> => {
     this.loggerService.log("swingTermHistoryService getReport", { symbol });
     const candles: ICandleData[] = await getCandles(symbol, "30m", 96);
@@ -764,6 +958,24 @@ export class SwingTermHistoryService {
     return generateHistoryTable(rows, symbol);
   };
 
+  /**
+   * Converts analysis rows into markdown table format.
+   *
+   * Takes pre-calculated indicator rows and formats them as markdown table
+   * with column headers, formatted values, and data source explanations.
+   *
+   * @param symbol - Trading pair symbol for price formatting
+   * @param rows - Array of technical analysis rows from getData()
+   * @returns Markdown-formatted table with all indicators
+   *
+   * @example
+   * ```typescript
+   * const candles = await getCandles('BTCUSDT', '30m', 96);
+   * const rows = await service.getData('BTCUSDT', candles);
+   * const markdown = await service.generateHistoryTable('BTCUSDT', rows);
+   * console.log(markdown); // Markdown table
+   * ```
+   */
   public generateHistoryTable = async (
     symbol: string,
     rows: ISwingTermRow[]
