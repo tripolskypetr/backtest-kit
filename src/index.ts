@@ -265,6 +265,10 @@ export { type SignalData as WalkerSignalData } from "./model/WalkerStatistics.mo
 
 export * as emitters from "./config/emitters";
 
+export { roundTicks } from "./utils/roundTicks";
+export { get } from "./utils/get";
+export { set } from "./utils/set";
+
 export { type GlobalConfig } from "./config/params";
 export { type ColumnConfig } from "./config/columns";
 

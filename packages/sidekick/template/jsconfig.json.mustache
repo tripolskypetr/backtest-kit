@@ -1,0 +1,24 @@
+{
+  "compilerOptions": {
+    "module": "ESNext",
+    "moduleResolution": "node",
+    "target": "ES2020",
+    "checkJs": true,
+    "allowSyntheticDefaultImports": true,
+    "ignoreDeprecations": "6.0",
+    "baseUrl": ".",
+    "paths": {
+      "*": ["node_modules/*"]
+    }
+  },
+  "include": [
+    "src/**/*",
+    "node_modules/functools-kit/types.d.ts",
+    "node_modules/backtest-kit/types.d.ts",
+    "node_modules/@backtest-kit/ollama/types.d.ts",
+    "node_modules/@backtest-kit/signals/types.d.ts"
+  ],
+  "exclude": [
+    "node_modules"
+  ]
+}

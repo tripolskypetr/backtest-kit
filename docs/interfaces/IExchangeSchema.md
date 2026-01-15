@@ -29,7 +29,7 @@ Optional developer note for documentation
 ### getCandles
 
 ```ts
-getCandles: (symbol: string, interval: CandleInterval, since: Date, limit: number) => Promise<ICandleData[]>
+getCandles: (symbol: string, interval: CandleInterval, since: Date, limit: number, backtest: boolean) => Promise<ICandleData[]>
 ```
 
 Fetch candles from data source (API or database).
@@ -37,7 +37,7 @@ Fetch candles from data source (API or database).
 ### formatQuantity
 
 ```ts
-formatQuantity: (symbol: string, quantity: number) => Promise<string>
+formatQuantity: (symbol: string, quantity: number, backtest: boolean) => Promise<string>
 ```
 
 Format quantity according to exchange precision rules.
@@ -47,7 +47,7 @@ Optional. If not provided, defaults to Bitcoin precision on Binance (8 decimal p
 ### formatPrice
 
 ```ts
-formatPrice: (symbol: string, price: number) => Promise<string>
+formatPrice: (symbol: string, price: number, backtest: boolean) => Promise<string>
 ```
 
 Format price according to exchange precision rules.
@@ -57,7 +57,7 @@ Optional. If not provided, defaults to Bitcoin precision on Binance (2 decimal p
 ### getOrderBook
 
 ```ts
-getOrderBook: (symbol: string, depth: number, from: Date, to: Date) => Promise<IOrderBookData>
+getOrderBook: (symbol: string, depth: number, from: Date, to: Date, backtest: boolean) => Promise<IOrderBookData>
 ```
 
 Fetch order book for a trading pair.
