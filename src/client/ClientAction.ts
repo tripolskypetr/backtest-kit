@@ -240,9 +240,10 @@ const CALL_INIT_CALLBACK_FN = trycatch(
     self: ClientAction,
     strategyName: StrategyName,
     frameName: FrameName,
+    backtest: boolean
   ): Promise<void> => {
     if (self.params.callbacks?.onInit) {
-      await self.params.callbacks.onInit(self.params.actionName, strategyName, frameName);
+      await self.params.callbacks.onInit(self.params.actionName, strategyName, frameName, backtest);
     }
   },
   {
@@ -264,10 +265,11 @@ const CALL_DISPOSE_CALLBACK_FN = trycatch(
   async (
     self: ClientAction,
     strategyName: StrategyName,
-    frameName: FrameName
+    frameName: FrameName,
+    backtest: boolean
   ): Promise<void> => {
     if (self.params.callbacks?.onDispose) {
-      await self.params.callbacks.onDispose(self.params.actionName, strategyName, frameName);
+      await self.params.callbacks.onDispose(self.params.actionName, strategyName, frameName, backtest);
     }
   },
   {
@@ -307,6 +309,7 @@ export const WAIT_FOR_INIT_FN = async (self: ClientAction): Promise<void> => {
     self,
     self.params.strategyName,
     self.params.frameName,
+    self.params.backtest
   );
 };
 
@@ -333,6 +336,48 @@ export class ClientAction implements IAction {
    */
   _handlerInstance: Partial<IAction> | null = null;
 
+  /**
+   * Creates a new ClientAction instance.
+   *
+   * @param params - Action parameters including handler, callbacks, and context
+   * @param params.actionName - Unique action identifier
+   * @param params.handler - Action handler constructor
+   * @param params.callbacks - Optional lifecycle and event callbacks
+   * @param params.logger - Logger service for debugging
+   * @param params.strategyName - Strategy identifier
+   * @param params.exchangeName - Exchange identifier
+   * @param params.frameName - Timeframe identifier
+   * @param params.backtest - Whether running in backtest mode
+   *
+   * @example
+   * ```typescript
+   * const actionClient = new ClientAction({
+   *   actionName: "telegram-notifier",
+   *   handler: TelegramNotifier,
+   *   callbacks: {
+   *     onInit: async (actionName, strategyName, frameName, backtest) => {
+   *       console.log(`Initialized ${actionName} for ${strategyName}/${frameName}`);
+   *     },
+   *     onSignal: (event, actionName, strategyName, frameName, backtest) => {
+   *       console.log(`Signal: ${event.action}`);
+   *     }
+   *   },
+   *   logger: loggerService,
+   *   strategyName: "rsi_divergence",
+   *   exchangeName: "binance",
+   *   frameName: "1h",
+   *   backtest: false
+   * });
+   *
+   * await actionClient.signal({
+   *   action: 'opened',
+   *   signal: { id: '123', side: 'long' },
+   *   backtest: false
+   * });
+   *
+   * await actionClient.dispose();
+   * ```
+   */
   constructor(readonly params: IActionParams) {}
 
   /**
@@ -600,6 +645,7 @@ export class ClientAction implements IAction {
       this,
       this.params.strategyName,
       this.params.frameName,
+      this.params.backtest
     );
 
     this._handlerInstance = null;

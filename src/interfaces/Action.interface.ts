@@ -117,8 +117,9 @@ export interface IActionCallbacks {
    * @param actionName - Action identifier
    * @param strategyName - Strategy identifier
    * @param frameName - Timeframe identifier
+   * @param backtest - True for backtest mode, false for live trading
    */
-  onInit(actionName: ActionName, strategyName: StrategyName, frameName: FrameName): void | Promise<void>;
+  onInit(actionName: ActionName, strategyName: StrategyName, frameName: FrameName, backtest: boolean): void | Promise<void>;
 
   /**
    * Called when action handler is disposed.
@@ -132,8 +133,9 @@ export interface IActionCallbacks {
    * @param actionName - Action identifier
    * @param strategyName - Strategy identifier
    * @param frameName - Timeframe identifier
+   * @param backtest - True for backtest mode, false for live trading
    */
-  onDispose(actionName: ActionName, strategyName: StrategyName, frameName: FrameName): void | Promise<void>;
+  onDispose(actionName: ActionName, strategyName: StrategyName, frameName: FrameName, backtest: boolean): void | Promise<void>;
 
   /**
    * Called on signal events from all modes (live + backtest).
