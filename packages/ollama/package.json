@@ -75,20 +75,27 @@
     "ts-morph": "27.0.2",
     "tslib": "2.7.0",
     "typedoc": "0.27.9",
+    "markdownlint": "0.38.0",
+    "worker-testbed": "1.0.12",
     "ollama": "0.6.0",
     "openai": "4.97.0",
     "jsonrepair": "3.12.0",
     "@langchain/core": "0.3.57",
-    "markdownlint": "0.38.0",
     "@langchain/xai": "0.0.2",
     "@huggingface/inference": "4.7.1",
-    "sanitize-html": "2.17.0",
-    "worker-testbed": "1.0.12"
+    "sanitize-html": "2.17.0"
   },
   "peerDependencies": {
     "agent-swarm-kit": "^1.1.180",
     "backtest-kit": "^1.11.10",
-    "typescript": "^5.0.0"
+    "typescript": "^5.0.0",
+    "ollama": "^0.6.0",
+    "openai": "^4.97.0",
+    "jsonrepair": "^3.12.0",
+    "@langchain/core": "^0.3.57",
+    "@langchain/xai": "^0.0.2",
+    "@huggingface/inference": "^4.7.1",
+    "sanitize-html": "^2.17.0"
   },
   "dependencies": {
     "di-kit": "^1.0.18",
