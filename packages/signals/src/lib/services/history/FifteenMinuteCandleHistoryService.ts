@@ -107,12 +107,6 @@ export class FifteenMinuteCandleHistoryService {
     candles: ICandleData[]
   ): Promise<string> => {
     this.loggerService.log("fifteenMinuteCandleHistoryService generateReport", { symbol });
-    const averageVolatility =
-      candles.reduce(
-        (sum, candle) =>
-          sum + ((candle.high - candle.low) / candle.close) * 100,
-        0
-      ) / candles.length;
     let report = "";
 
     const currentData = await getDate();
@@ -123,7 +117,6 @@ export class FifteenMinuteCandleHistoryService {
       const candle = candles[index];
       const volatilityPercent =
         ((candle.high - candle.low) / candle.close) * 100;
-      const isHighVolatility = volatilityPercent > averageVolatility * 1.5;
       const bodySize = Math.abs(candle.close - candle.open);
       const candleRange = candle.high - candle.low;
       const bodyPercent = candleRange > 0 ? (bodySize / candleRange) * 100 : 0;
@@ -136,16 +129,14 @@ export class FifteenMinuteCandleHistoryService {
 
       const formattedTime = new Date(candle.timestamp).toISOString();
 
-      report += `### 15m Candle ${index + 1} (${candleType}) ${
-        isHighVolatility ? "HIGH-VOLATILITY" : ""
-      }\n`;
+      report += `### 15m Candle ${index + 1} (${candleType})\n`;
       report += `- **Time**: ${formattedTime}\n`;
       report += `- **Open**: ${await formatPrice(symbol, candle.open)} USD\n`;
       report += `- **High**: ${await formatPrice(symbol, candle.high)} USD\n`;
       report += `- **Low**: ${await formatPrice(symbol, candle.low)} USD\n`;
       report += `- **Close**: ${await formatPrice(symbol, candle.close)} USD\n`;
       report += `- **Volume**: ${await formatQuantity(symbol, candle.volume)}\n`;
-      report += `- **15m Volatility**: ${volatilityPercent.toFixed(2)}\n`;
+      report += `- **15m Volatility**: ${volatilityPercent.toFixed(2)}%\n`;
       report += `- **Body Size**: ${bodyPercent.toFixed(1)}\n\n`;
     }
 
