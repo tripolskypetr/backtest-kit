@@ -454,13 +454,13 @@ interface IExchangeParams extends IExchangeSchema {
     /** Execution context service (symbol, when, backtest flag) */
     execution: TExecutionContextService;
     /** Fetch candles from data source (required, defaults applied) */
-    getCandles: (symbol: string, interval: CandleInterval, since: Date, limit: number) => Promise<ICandleData[]>;
+    getCandles: (symbol: string, interval: CandleInterval, since: Date, limit: number, backtest: boolean) => Promise<ICandleData[]>;
     /** Format quantity according to exchange precision rules (required, defaults applied) */
-    formatQuantity: (symbol: string, quantity: number) => Promise<string>;
+    formatQuantity: (symbol: string, quantity: number, backtest: boolean) => Promise<string>;
     /** Format price according to exchange precision rules (required, defaults applied) */
-    formatPrice: (symbol: string, price: number) => Promise<string>;
+    formatPrice: (symbol: string, price: number, backtest: boolean) => Promise<string>;
     /** Fetch order book for a trading pair (required, defaults applied) */
-    getOrderBook: (symbol: string, depth: number, from: Date, to: Date) => Promise<IOrderBookData>;
+    getOrderBook: (symbol: string, depth: number, from: Date, to: Date, backtest: boolean) => Promise<IOrderBookData>;
 }
 /**
  * Optional callbacks for exchange data events.
@@ -485,9 +485,10 @@ interface IExchangeSchema {
      * @param interval - Candle time interval (e.g., "1m", "1h")
      * @param since - Start date for candle fetching
      * @param limit - Maximum number of candles to fetch
+     * @param backtest - Whether running in backtest mode
      * @returns Promise resolving to array of OHLCV candle data
      */
-    getCandles: (symbol: string, interval: CandleInterval, since: Date, limit: number) => Promise<ICandleData[]>;
+    getCandles: (symbol: string, interval: CandleInterval, since: Date, limit: number, backtest: boolean) => Promise<ICandleData[]>;
     /**
      * Format quantity according to exchange precision rules.
      *
@@ -495,9 +496,10 @@ interface IExchangeSchema {
      *
      * @param symbol - Trading pair symbol
      * @param quantity - Raw quantity value
+     * @param backtest - Whether running in backtest mode
      * @returns Promise resolving to formatted quantity string
      */
-    formatQuantity?: (symbol: string, quantity: number) => Promise<string>;
+    formatQuantity?: (symbol: string, quantity: number, backtest: boolean) => Promise<string>;
     /**
      * Format price according to exchange precision rules.
      *
@@ -505,9 +507,10 @@ interface IExchangeSchema {
      *
      * @param symbol - Trading pair symbol
      * @param price - Raw price value
+     * @param backtest - Whether running in backtest mode
      * @returns Promise resolving to formatted price string
      */
-    formatPrice?: (symbol: string, price: number) => Promise<string>;
+    formatPrice?: (symbol: string, price: number, backtest: boolean) => Promise<string>;
     /**
      * Fetch order book for a trading pair.
      *
@@ -517,22 +520,26 @@ interface IExchangeSchema {
      * @param depth - Maximum depth levels for both bids and asks (default: CC_ORDER_BOOK_MAX_DEPTH_LEVELS)
      * @param from - Start of time range (used in backtest for historical data, can be ignored in live)
      * @param to - End of time range (used in backtest for historical data, can be ignored in live)
+     * @param backtest - Whether running in backtest mode
      * @returns Promise resolving to order book data
      *
      * @example
      * ```typescript
      * // Backtest implementation: returns historical order book for the time range
-     * const backtestOrderBook = async (symbol: string, depth: number, from: Date, to: Date) => {
-     *   return await database.getOrderBookSnapshot(symbol, depth, from, to);
+     * const backtestOrderBook = async (symbol: string, depth: number, from: Date, to: Date, backtest: boolean) => {
+     *   if (backtest) {
+     *     return await database.getOrderBookSnapshot(symbol, depth, from, to);
+     *   }
+     *   return await exchange.fetchOrderBook(symbol, depth);
      * };
      *
-     * // Live implementation: ignores from/to and returns current snapshot
-     * const liveOrderBook = async (symbol: string, depth: number, _from: Date, _to: Date) => {
+     * // Live implementation: ignores from/to when not in backtest mode
+     * const liveOrderBook = async (symbol: string, depth: number, _from: Date, _to: Date, backtest: boolean) => {
      *   return await exchange.fetchOrderBook(symbol, depth);
      * };
      * ```
      */
-    getOrderBook?: (symbol: string, depth: number, from: Date, to: Date) => Promise<IOrderBookData>;
+    getOrderBook?: (symbol: string, depth: number, from: Date, to: Date, backtest: boolean) => Promise<IOrderBookData>;
     /** Optional lifecycle event callbacks (onCandleData) */
     callbacks?: Partial<IExchangeCallbacks>;
 }

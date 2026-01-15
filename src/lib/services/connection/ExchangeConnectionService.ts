@@ -18,7 +18,7 @@ import { TMethodContextService } from "../context/MethodContextService";
  * Default implementation for getCandles.
  * Throws an error indicating the method is not implemented.
  */
-const DEFAULT_GET_CANDLES_FN = async (_symbol: string, _interval: CandleInterval, _since: Date, _limit: number): Promise<ICandleData[]> => {
+const DEFAULT_GET_CANDLES_FN = async (_symbol: string, _interval: CandleInterval, _since: Date, _limit: number, _backtest: boolean): Promise<ICandleData[]> => {
   throw new Error(`getCandles is not implemented for this exchange`);
 };
 
@@ -26,7 +26,7 @@ const DEFAULT_GET_CANDLES_FN = async (_symbol: string, _interval: CandleInterval
  * Default implementation for formatQuantity.
  * Returns Bitcoin precision on Binance (8 decimal places).
  */
-const DEFAULT_FORMAT_QUANTITY_FN = async (_symbol: string, quantity: number): Promise<string> => {
+const DEFAULT_FORMAT_QUANTITY_FN = async (_symbol: string, quantity: number, _backtest: boolean): Promise<string> => {
   return quantity.toFixed(8);
 };
 
@@ -34,7 +34,7 @@ const DEFAULT_FORMAT_QUANTITY_FN = async (_symbol: string, quantity: number): Pr
  * Default implementation for formatPrice.
  * Returns Bitcoin precision on Binance (2 decimal places).
  */
-const DEFAULT_FORMAT_PRICE_FN = async (_symbol: string, price: number): Promise<string> => {
+const DEFAULT_FORMAT_PRICE_FN = async (_symbol: string, price: number, _backtest: boolean): Promise<string> => {
   return price.toFixed(2);
 };
 
@@ -46,8 +46,9 @@ const DEFAULT_FORMAT_PRICE_FN = async (_symbol: string, price: number): Promise<
  * @param _depth - Maximum depth levels (unused)
  * @param _from - Start of time range (unused - can be ignored in live implementations)
  * @param _to - End of time range (unused - can be ignored in live implementations)
+ * @param _backtest - Whether running in backtest mode (unused)
  */
-const DEFAULT_GET_ORDER_BOOK_FN = async (_symbol: string, _depth: number, _from: Date, _to: Date): Promise<IOrderBookData> => {
+const DEFAULT_GET_ORDER_BOOK_FN = async (_symbol: string, _depth: number, _from: Date, _to: Date, _backtest: boolean): Promise<IOrderBookData> => {
   throw new Error(`getOrderBook is not implemented for this exchange`);
 };
 

@@ -130,7 +130,8 @@ const GET_CANDLES_FN = async (
         dto.symbol,
         dto.interval,
         since,
-        dto.limit
+        dto.limit,
+        self.params.execution.context.backtest
       );
 
       VALIDATE_NO_INCOMPLETE_CANDLES_FN(result);
@@ -467,7 +468,7 @@ export class ClientExchange implements IExchange {
       symbol,
       quantity,
     });
-    return await this.params.formatQuantity(symbol, quantity);
+    return await this.params.formatQuantity(symbol, quantity, this.params.execution.context.backtest);
   }
 
   /**
@@ -483,7 +484,7 @@ export class ClientExchange implements IExchange {
       symbol,
       price,
     });
-    return await this.params.formatPrice(symbol, price);
+    return await this.params.formatPrice(symbol, price, this.params.execution.context.backtest);
   }
 
   /**
@@ -508,7 +509,7 @@ export class ClientExchange implements IExchange {
     const from = new Date(
       to.getTime() - GLOBAL_CONFIG.CC_ORDER_BOOK_TIME_OFFSET_MINUTES * 60 * 1_000
     );
-    return await this.params.getOrderBook(symbol, depth, from, to);
+    return await this.params.getOrderBook(symbol, depth, from, to, this.params.execution.context.backtest);
   }
 }
 

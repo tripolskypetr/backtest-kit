@@ -1,4 +1,4 @@
-import backtest from "../lib";
+import backtest, { ExecutionContextService } from "../lib";
 import { CandleInterval, ExchangeName, ICandleData, IExchange, IExchangeSchema, IOrderBookData } from "../interfaces/Exchange.interface";
 import { memoize } from "functools-kit";
 import { GLOBAL_CONFIG } from "../config/params";
@@ -10,10 +10,21 @@ const EXCHANGE_METHOD_NAME_FORMAT_PRICE = "ExchangeUtils.formatPrice";
 const EXCHANGE_METHOD_NAME_GET_ORDER_BOOK = "ExchangeUtils.getOrderBook";
 
 /**
+ * Gets backtest mode flag from execution context if available.
+ * Returns false if no execution context exists (live mode).
+ */
+const GET_BACKTEST_FN = async () => {
+  if (ExecutionContextService.hasContext()) {
+    return backtest.executionContextService.context.backtest;
+  }
+  return false;
+};
+
+/**
  * Default implementation for getCandles.
  * Throws an error indicating the method is not implemented.
  */
-const DEFAULT_GET_CANDLES_FN = async (_symbol: string, _interval: CandleInterval, _since: Date, _limit: number): Promise<ICandleData[]> => {
+const DEFAULT_GET_CANDLES_FN = async (_symbol: string, _interval: CandleInterval, _since: Date, _limit: number, _backtest: boolean): Promise<ICandleData[]> => {
   throw new Error(`getCandles is not implemented for this exchange`);
 };
 
@@ -21,7 +32,7 @@ const DEFAULT_GET_CANDLES_FN = async (_symbol: string, _interval: CandleInterval
  * Default implementation for formatQuantity.
  * Returns Bitcoin precision on Binance (8 decimal places).
  */
-const DEFAULT_FORMAT_QUANTITY_FN = async (_symbol: string, quantity: number): Promise<string> => {
+const DEFAULT_FORMAT_QUANTITY_FN = async (_symbol: string, quantity: number, _backtest: boolean): Promise<string> => {
   return quantity.toFixed(8);
 };
 
@@ -29,7 +40,7 @@ const DEFAULT_FORMAT_QUANTITY_FN = async (_symbol: string, quantity: number): Pr
  * Default implementation for formatPrice.
  * Returns Bitcoin precision on Binance (2 decimal places).
  */
-const DEFAULT_FORMAT_PRICE_FN = async (_symbol: string, price: number): Promise<string> => {
+const DEFAULT_FORMAT_PRICE_FN = async (_symbol: string, price: number, _backtest: boolean): Promise<string> => {
   return price.toFixed(2);
 };
 
@@ -41,8 +52,9 @@ const DEFAULT_FORMAT_PRICE_FN = async (_symbol: string, price: number): Promise<
  * @param _depth - Maximum depth levels (unused)
  * @param _from - Start of time range (unused - can be ignored in live implementations)
  * @param _to - End of time range (unused - can be ignored in live implementations)
+ * @param _backtest - Whether running in backtest mode (unused)
  */
-const DEFAULT_GET_ORDER_BOOK_FN = async (_symbol: string, _depth: number, _from: Date, _to: Date): Promise<IOrderBookData> => {
+const DEFAULT_GET_ORDER_BOOK_FN = async (_symbol: string, _depth: number, _from: Date, _to: Date, _backtest: boolean): Promise<IOrderBookData> => {
   throw new Error(`getOrderBook is not implemented for this exchange`);
 };
 
@@ -176,6 +188,7 @@ export class ExchangeInstance {
     if (limit > GLOBAL_CONFIG.CC_MAX_CANDLES_PER_REQUEST) {
       let remaining = limit;
       let currentSince = new Date(since.getTime());
+      const isBacktest = await GET_BACKTEST_FN();
 
       while (remaining > 0) {
         const chunkLimit = Math.min(remaining, GLOBAL_CONFIG.CC_MAX_CANDLES_PER_REQUEST);
@@ -183,7 +196,8 @@ export class ExchangeInstance {
           symbol,
           interval,
           currentSince,
-          chunkLimit
+          chunkLimit,
+          isBacktest
         );
 
         allData.push(...chunkData);
@@ -197,7 +211,8 @@ export class ExchangeInstance {
         }
       }
     } else {
-      allData = await getCandles(symbol, interval, since, limit);
+      const isBacktest = await GET_BACKTEST_FN();
+      allData = await getCandles(symbol, interval, since, limit, isBacktest);
     }
 
     // Filter candles to strictly match the requested range
@@ -297,7 +312,8 @@ export class ExchangeInstance {
       symbol,
       quantity,
     });
-    return await this._methods.formatQuantity(symbol, quantity);
+    const isBacktest = await GET_BACKTEST_FN();
+    return await this._methods.formatQuantity(symbol, quantity, isBacktest);
   };
 
   /**
@@ -320,7 +336,8 @@ export class ExchangeInstance {
       symbol,
       price,
     });
-    return await this._methods.formatPrice(symbol, price);
+    const isBacktest = await GET_BACKTEST_FN();
+    return await this._methods.formatPrice(symbol, price, isBacktest);
   };
 
   /**
@@ -352,7 +369,8 @@ export class ExchangeInstance {
 
     const to = new Date(Date.now());
     const from = new Date(to.getTime() - GLOBAL_CONFIG.CC_ORDER_BOOK_TIME_OFFSET_MINUTES * 60 * 1_000);
-    return await this._methods.getOrderBook(symbol, depth, from, to);
+    const isBacktest = await GET_BACKTEST_FN();
+    return await this._methods.getOrderBook(symbol, depth, from, to, isBacktest);
   };
 }
 
