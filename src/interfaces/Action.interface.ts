@@ -313,11 +313,11 @@ export interface IActionSchema {
  * class ReduxStateManager implements IAction {
  *   constructor(private store: Store) {}
  *
- *   onSignal(event: IStrategyTickResult): void {
+ *   signal(event: IStrategyTickResult): void {
  *     this.store.dispatch({ type: 'SIGNAL', payload: event });
  *   }
  *
- *   onBreakeven(event: BreakevenContract): void {
+ *   breakeven(event: BreakevenContract): void {
  *     this.store.dispatch({ type: 'BREAKEVEN', payload: event });
  *   }
  *
