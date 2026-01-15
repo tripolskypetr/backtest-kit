@@ -7,15 +7,16 @@ import { spawn } from 'child_process';
 import pc from 'picocolors';
 import { glob } from 'glob';
 import Mustache from 'mustache';
+import logSymbols from 'log-symbols';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const log = {
-  info: (msg) => console.log(`${pc.cyan('ℹ')} ${msg}`),
-  success: (msg) => console.log(`${pc.green('✓')} ${msg}`),
-  error: (msg) => console.log(`${pc.red('✗')} ${msg}`),
-  warn: (msg) => console.log(`${pc.yellow('⚠')} ${msg}`),
+  info: (msg) => console.log(`${pc.cyan(logSymbols.info)} ${msg}`),
+  success: (msg) => console.log(`${pc.green(logSymbols.success)} ${msg}`),
+  error: (msg) => console.log(`${pc.red(logSymbols.error)} ${msg}`),
+  warn: (msg) => console.log(`${pc.yellow(logSymbols.warning)} ${msg}`),
 };
 
 /**
