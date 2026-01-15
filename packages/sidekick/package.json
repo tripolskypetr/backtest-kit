@@ -1,6 +1,6 @@
 {
   "name": "@backtest-kit/sidekick",
-  "version": "0.0.6",
+  "version": "0.0.7",
   "description": "The easiest way to create a new Backtest Kit trading bot project. Like create-react-app, but for algorithmic trading with LLM integration and technical analysis.",
   "author": {
     "name": "Petr Tripolsky",
