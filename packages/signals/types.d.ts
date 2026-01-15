@@ -504,7 +504,7 @@ interface ISwingTermRow {
     priceMomentum6: number | null;
     fibonacciNearestSupport: number | null;
     fibonacciNearestResistance: number | null;
-    fibonacciCurrentLevel: string;
+    fibonacciPositionPercent: number | null;
     bodySize: number;
     closePrice: number;
     date: Date;
@@ -649,7 +649,7 @@ interface ILongTermRow {
     currentPrice: number;
     support: number;
     resistance: number;
-    volumeTrend: string;
+    volumeTrendRatio: number | null;
     fibonacciNearestLevel: string;
     fibonacciNearestPrice: number;
     fibonacciDistance: number;
@@ -780,7 +780,7 @@ interface IShortTermRow {
     momentum8: number | null;
     roc5: number | null;
     roc10: number | null;
-    volumeTrend: string;
+    volumeTrendRatio: number | null;
     support: number;
     resistance: number;
     currentPrice: number;
@@ -940,7 +940,7 @@ interface IMicroTermRow {
     wma5: number | null;
     volumeSma5: number | null;
     volumeRatio: number | null;
-    volumeTrend: string;
+    volumeTrendRatio: number | null;
     currentPrice: number;
     priceChange1m: number | null;
     priceChange3m: number | null;

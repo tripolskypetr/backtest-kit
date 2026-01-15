@@ -56,7 +56,7 @@ interface IShortTermRow {
   momentum8: number | null;
   roc5: number | null;
   roc10: number | null;
-  volumeTrend: string;
+  volumeTrendRatio: number | null;
   support: number;
   resistance: number;
   currentPrice: number;
@@ -373,44 +373,41 @@ function calculateFibonacciLevels(
 }
 
 /**
- * Analyzes volume trend by comparing recent vs older volume averages.
+ * Calculates volume trend ratio by comparing recent vs older volume averages.
  *
  * Compares average volume of last 8 candles against previous 8 candles.
- * Returns "increasing" if recent volume > 120% of older volume,
- * "decreasing" if recent < 80% of older volume, otherwise "stable".
+ * Returns ratio of recent volume to older volume (e.g., 1.2 means 20% increase).
  *
  * @param candles - Array of candle data
  * @param endIndex - Index of current candle in array
- * @returns Volume trend: "increasing", "decreasing", or "stable"
+ * @returns Volume trend ratio (recent/older), or null if insufficient data
  *
  * @example
  * ```typescript
  * const candles = await getCandles('ETHUSDT', '15m', 100);
- * const trend = calculateVolumeTrend(candles, 99);
- * console.log(trend); // "increasing" | "decreasing" | "stable"
+ * const ratio = calculateVolumeTrendRatio(candles, 99);
+ * console.log(ratio); // 1.25 (25% increase)
  * ```
  */
-function calculateVolumeTrend(
+function calculateVolumeTrendRatio(
   candles: ICandleData[],
   endIndex: number
-): string {
+): number | null {
   const volumes = candles.slice(0, endIndex + 1).map((c) => Number(c.volume));
 
-  if (volumes.length < 16) return "stable";
+  if (volumes.length < 16) return null;
 
   const recentVolumes = volumes.slice(-8);
   const olderVolumes = volumes.slice(-16, -8);
 
-  if (recentVolumes.length < 4 || olderVolumes.length < 4) return "stable";
+  if (recentVolumes.length < 4 || olderVolumes.length < 4) return null;
 
   const recentAvg =
     recentVolumes.reduce((sum, vol) => sum + vol, 0) / recentVolumes.length;
   const olderAvg =
     olderVolumes.reduce((sum, vol) => sum + vol, 0) / olderVolumes.length;
 
-  if (recentAvg > olderAvg * 1.2) return "increasing";
-  if (recentAvg < olderAvg * 0.8) return "decreasing";
-  return "stable";
+  return olderAvg > 0 ? recentAvg / olderAvg : null;
 }
 
 /**
@@ -501,7 +498,7 @@ function generateAnalysis(
       return;
     }
 
-    const volumeTrend = calculateVolumeTrend(candles, i);
+    const volumeTrendRatio = calculateVolumeTrendRatio(candles, i);
 
     const pivotPeriod = Math.min(48, i + 1);
     const startIdx = i + 1 - pivotPeriod;
@@ -628,7 +625,7 @@ function generateAnalysis(
         roc10.getResult() != null && !isUnsafe(roc10.getResult())
           ? roc10.getResult()
           : null,
-      volumeTrend,
+      volumeTrendRatio,
       support:
         support != null && !isUnsafe(support)
           ? support

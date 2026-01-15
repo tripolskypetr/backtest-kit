@@ -62,7 +62,7 @@ interface ISwingTermRow {
   priceMomentum6: number | null;
   fibonacciNearestSupport: number | null;
   fibonacciNearestResistance: number | null;
-  fibonacciCurrentLevel: string;
+  fibonacciPositionPercent: number | null;
   bodySize: number;
   closePrice: number;
   date: Date;
@@ -271,9 +271,9 @@ const columns: Column[] = [
         : "N/A",
   },
   {
-    key: "fibonacciCurrentLevel",
-    label: "Fibonacci Current Level",
-    format: (v) => String(v),
+    key: "fibonacciPositionPercent",
+    label: "Fibonacci Position %",
+    format: (v) => (v !== null ? `${Number(v).toFixed(2)}%` : "N/A"),
   },
   {
     key: "bodySize",
@@ -356,13 +356,13 @@ function calculateFibonacciLevels(
 ): {
   nearestSupport: number | null;
   nearestResistance: number | null;
-  currentLevel: string;
+  fibonacciPositionPercent: number | null;
 } {
   if (endIndex + 1 < period) {
     return {
       nearestSupport: null,
       nearestResistance: null,
-      currentLevel: "insufficient data",
+      fibonacciPositionPercent: null,
     };
   }
 
@@ -379,7 +379,7 @@ function calculateFibonacciLevels(
     return {
       nearestSupport: null,
       nearestResistance: null,
-      currentLevel: "insufficient data",
+      fibonacciPositionPercent: null,
     };
   }
 
@@ -387,6 +387,9 @@ function calculateFibonacciLevels(
   const low = Math.min(...lows);
   const range = high - low;
   const currentPrice = Number(candles[endIndex].close);
+
+  // Calculate position as percentage from low to high (0% = low, 100% = high)
+  const fibonacciPositionPercent = range > 0 ? ((currentPrice - low) / range) * 100 : null;
 
   const retracement = {
     level0: high,
@@ -403,29 +406,6 @@ function calculateFibonacciLevels(
     level1618: high + range * 0.618,
     level2618: high + range * 1.618,
   };
-
-  const tolerance = range * 0.015;
-  let currentLevel: string = "between levels";
-
-  if (Math.abs(currentPrice - retracement.level0) < tolerance) {
-    currentLevel = "0.0% (High)";
-  } else if (Math.abs(currentPrice - retracement.level236) < tolerance) {
-    currentLevel = "23.6% Retracement";
-  } else if (Math.abs(currentPrice - retracement.level382) < tolerance) {
-    currentLevel = "38.2% Retracement";
-  } else if (Math.abs(currentPrice - retracement.level500) < tolerance) {
-    currentLevel = "50.0% Retracement";
-  } else if (Math.abs(currentPrice - retracement.level618) < tolerance) {
-    currentLevel = "61.8% Retracement";
-  } else if (Math.abs(currentPrice - retracement.level786) < tolerance) {
-    currentLevel = "78.6% Retracement";
-  } else if (Math.abs(currentPrice - retracement.level1000) < tolerance) {
-    currentLevel = "100% Retracement (Low)";
-  } else if (currentPrice > retracement.level0) {
-    currentLevel = "Above high";
-  } else if (currentPrice < retracement.level1000) {
-    currentLevel = "Below low";
-  }
 
   const allRetracementLevels = Object.values(retracement).filter(
     (level) => level !== null
@@ -449,7 +429,7 @@ function calculateFibonacciLevels(
   return {
     nearestSupport,
     nearestResistance,
-    currentLevel,
+    fibonacciPositionPercent,
   };
 }
 
@@ -728,7 +708,7 @@ function generateAnalysis(
           : null,
       fibonacciNearestSupport: fibonacci.nearestSupport,
       fibonacciNearestResistance: fibonacci.nearestResistance,
-      fibonacciCurrentLevel: fibonacci.currentLevel,
+      fibonacciPositionPercent: fibonacci.fibonacciPositionPercent,
       bodySize,
       closePrice: close,
       date: new Date(),
@@ -848,7 +828,7 @@ async function generateHistoryTable(
   markdown +=
     "- **Fibonacci Nearest Resistance**: nearest resistance level over 48 candles (24h on 30m timeframe) before row timestamp (Min: 0 USD, Max: +∞ USD)\n";
   markdown +=
-    "- **Fibonacci Current Level**: current level description before row timestamp\n";
+    "- **Fibonacci Position %**: price position in high-low range before row timestamp (Min: 0%, Max: 100%+)\n";
   markdown +=
     "- **Current Price**: close price at row timestamp (Min: 0 USD, Max: +∞ USD)\n";
   markdown +=

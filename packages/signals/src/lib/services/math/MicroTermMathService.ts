@@ -82,7 +82,7 @@ interface IMicroTermRow {
   wma5: number | null;
   volumeSma5: number | null;
   volumeRatio: number | null;
-  volumeTrend: string;
+  volumeTrendRatio: number | null;
   currentPrice: number;
   priceChange1m: number | null;
   priceChange3m: number | null;
@@ -458,12 +458,12 @@ function calculateVolumeMetrics(
 ): {
   volumeSma5: number | null;
   volumeRatio: number | null;
-  volumeTrend: string;
+  volumeTrendRatio: number | null;
 } {
   const volumes = candles.slice(0, endIndex + 1).map((c) => Number(c.volume));
 
   if (volumes.length < 5) {
-    return { volumeSma5: null, volumeRatio: null, volumeTrend: "stable" };
+    return { volumeSma5: null, volumeRatio: null, volumeTrendRatio: null };
   }
 
   const volumeSma5 = new SMA(5);
@@ -474,7 +474,7 @@ function calculateVolumeMetrics(
   const volumeRatio =
     avgVolume > 0 && !isUnsafe(currentVolume) ? currentVolume / avgVolume : 1;
 
-  let volumeTrend: "increasing" | "decreasing" | "stable" = "stable";
+  let volumeTrendRatio: number | null = null;
 
   if (volumes.length >= 6) {
     const recent3 = volumes.slice(-3);
@@ -483,12 +483,11 @@ function calculateVolumeMetrics(
       const recentAvg = recent3.reduce((a, b) => a + b, 0) / 3;
       const prevAvg = prev3.reduce((a, b) => a + b, 0) / 3;
 
-      if (recentAvg > prevAvg * 1.2) volumeTrend = "increasing";
-      else if (recentAvg < prevAvg * 0.8) volumeTrend = "decreasing";
+      volumeTrendRatio = prevAvg > 0 ? recentAvg / prevAvg : null;
     }
   }
 
-  return { volumeSma5: avgVolume, volumeRatio, volumeTrend };
+  return { volumeSma5: avgVolume, volumeRatio, volumeTrendRatio };
 }
 
 /**
@@ -913,7 +912,7 @@ function generateAnalysis(
           : null,
       volumeSma5: volumeMetrics.volumeSma5,
       volumeRatio: volumeMetrics.volumeRatio,
-      volumeTrend: volumeMetrics.volumeTrend,
+      volumeTrendRatio: volumeMetrics.volumeTrendRatio,
       currentPrice:
         currentPrice != null && !isUnsafe(currentPrice) ? currentPrice : null,
       priceChange1m: priceChanges.priceChange1m,

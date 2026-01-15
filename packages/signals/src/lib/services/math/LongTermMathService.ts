@@ -70,7 +70,7 @@ interface ILongTermRow {
   currentPrice: number;
   support: number;
   resistance: number;
-  volumeTrend: string;
+  volumeTrendRatio: number | null;
   fibonacciNearestLevel: string;
   fibonacciNearestPrice: number;
   fibonacciDistance: number;
@@ -494,14 +494,10 @@ function generateAnalysis(
     const prevVolume = !isUnsafe(prevVolumeRaw)
       ? prevVolumeRaw
       : volumes[Math.max(0, i - 6)];
-    const volumeTrend =
-      !isUnsafe(recentVolume) && !isUnsafe(prevVolume)
-        ? recentVolume > prevVolume * 1.1
-          ? "increasing"
-          : recentVolume < prevVolume * 0.9
-          ? "decreasing"
-          : "stable"
-        : "stable";
+    const volumeTrendRatio =
+      !isUnsafe(recentVolume) && !isUnsafe(prevVolume) && prevVolume > 0
+        ? recentVolume / prevVolume
+        : null;
 
     // Support/Resistance calculation
     const pivotPeriod = Math.min(4, i + 1);
@@ -604,7 +600,7 @@ function generateAnalysis(
         cci.getResult() != null && !isUnsafe(cci.getResult())
           ? cci.getResult()
           : null,
-      volumeTrend,
+      volumeTrendRatio,
       support:
         support != null && !isUnsafe(support)
           ? support
