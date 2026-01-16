@@ -9,6 +9,7 @@ import WalkerSchemaService from "../schema/WalkerSchemaService";
 import WalkerValidationService from "../validation/WalkerValidationService";
 import StrategySchemaService from "../schema/StrategySchemaService";
 import RiskValidationService from "../validation/RiskValidationService";
+import ActionValidationService from "../validation/ActionValidationService";
 import { ExchangeName } from "../../../interfaces/Exchange.interface";
 import { FrameName } from "../../../interfaces/Frame.interface";
 import { WalkerName } from "../../../interfaces/Walker.interface";
@@ -53,6 +54,9 @@ export class WalkerCommandService implements TWalkerLogicPublicService {
   private readonly riskValidationService = inject<RiskValidationService>(
     TYPES.riskValidationService
   );
+  private readonly actionValidationService = inject<ActionValidationService>(
+    TYPES.actionValidationService
+  );
 
   /**
    * Runs walker comparison for a symbol with context propagation.
@@ -86,10 +90,11 @@ export class WalkerCommandService implements TWalkerLogicPublicService {
     {
       const walkerSchema = this.walkerSchemaService.get(context.walkerName);
       for (const strategyName of walkerSchema.strategies) {
-        const { riskName, riskList } = this.strategySchemaService.get(strategyName);
+        const { riskName, riskList, actions } = this.strategySchemaService.get(strategyName);
         this.strategyValidationService.validate(strategyName, METHOD_NAME_RUN);
         riskName && this.riskValidationService.validate(riskName, METHOD_NAME_RUN);
         riskList && riskList.forEach((riskName) => this.riskValidationService.validate(riskName, METHOD_NAME_RUN));
+        actions && actions.forEach((actionName) => this.actionValidationService.validate(actionName, METHOD_NAME_RUN));
       }
     }
     return this.walkerLogicPublicService.run(symbol, context);

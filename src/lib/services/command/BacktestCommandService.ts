@@ -7,6 +7,7 @@ import ExchangeValidationService from "../validation/ExchangeValidationService";
 import FrameValidationService from "../validation/FrameValidationService";
 import StrategySchemaService from "../schema/StrategySchemaService";
 import RiskValidationService from "../validation/RiskValidationService";
+import ActionValidationService from "../validation/ActionValidationService";
 import { StrategyName } from "../../../interfaces/Strategy.interface";
 import { ExchangeName } from "../../../interfaces/Exchange.interface";
 import { FrameName } from "../../../interfaces/Frame.interface";
@@ -34,6 +35,9 @@ export class BacktestCommandService implements TBacktestLogicPublicService {
   );  
   private readonly riskValidationService = inject<RiskValidationService>(
     TYPES.riskValidationService
+  );
+  private readonly actionValidationService = inject<ActionValidationService>(
+    TYPES.actionValidationService
   );
   private readonly backtestLogicPublicService =
     inject<BacktestLogicPublicService>(TYPES.backtestLogicPublicService);
@@ -76,11 +80,12 @@ export class BacktestCommandService implements TBacktestLogicPublicService {
       this.frameValidationService.validate(context.frameName, METHOD_NAME_RUN);
     }
     {
-      const { riskName, riskList } = this.strategySchemaService.get(
+      const { riskName, riskList, actions } = this.strategySchemaService.get(
         context.strategyName
       );
       riskName && this.riskValidationService.validate(riskName, METHOD_NAME_RUN);
       riskList && riskList.forEach((riskName) => this.riskValidationService.validate(riskName, METHOD_NAME_RUN));
+      actions && actions.forEach((actionName) => this.actionValidationService.validate(actionName, METHOD_NAME_RUN));
     }
     return this.backtestLogicPublicService.run(symbol, context);
   };

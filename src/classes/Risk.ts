@@ -229,12 +229,16 @@ export class RiskUtils {
     );
 
     {
-      const { riskName, riskList } = bt.strategySchemaService.get(context.strategyName);
+      const { riskName, riskList, actions } = bt.strategySchemaService.get(context.strategyName);
       riskName &&
         bt.riskValidationService.validate(riskName, RISK_METHOD_NAME_GET_DATA);
       riskList &&
         riskList.forEach((riskName) =>
           bt.riskValidationService.validate(riskName, RISK_METHOD_NAME_GET_DATA)
+        );
+      actions &&
+        actions.forEach((actionName) =>
+          bt.actionValidationService.validate(actionName, RISK_METHOD_NAME_GET_DATA)
         );
     }
 
@@ -311,7 +315,7 @@ export class RiskUtils {
     );
 
     {
-      const { riskName, riskList } = bt.strategySchemaService.get(context.strategyName);
+      const { riskName, riskList, actions } = bt.strategySchemaService.get(context.strategyName);
       riskName &&
         bt.riskValidationService.validate(
           riskName,
@@ -321,6 +325,13 @@ export class RiskUtils {
         riskList.forEach((riskName) =>
           bt.riskValidationService.validate(
             riskName,
+            RISK_METHOD_NAME_GET_REPORT
+          )
+        );
+      actions &&
+        actions.forEach((actionName) =>
+          bt.actionValidationService.validate(
+            actionName,
             RISK_METHOD_NAME_GET_REPORT
           )
         );
@@ -390,12 +401,16 @@ export class RiskUtils {
     context.frameName && bt.frameValidationService.validate(context.frameName, RISK_METHOD_NAME_DUMP);
 
     {
-      const { riskName, riskList } = bt.strategySchemaService.get(context.strategyName);
+      const { riskName, riskList, actions } = bt.strategySchemaService.get(context.strategyName);
       riskName &&
         bt.riskValidationService.validate(riskName, RISK_METHOD_NAME_DUMP);
       riskList &&
         riskList.forEach((riskName) =>
           bt.riskValidationService.validate(riskName, RISK_METHOD_NAME_DUMP)
+        );
+      actions &&
+        actions.forEach((actionName) =>
+          bt.actionValidationService.validate(actionName, RISK_METHOD_NAME_DUMP)
         );
     }
 

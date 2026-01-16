@@ -88,9 +88,10 @@ export class HeatUtils {
     context.frameName && bt.frameValidationService.validate(context.frameName, HEAT_METHOD_NAME_GET_DATA);
 
     {
-      const { riskName, riskList } = bt.strategySchemaService.get(context.strategyName);
+      const { riskName, riskList, actions } = bt.strategySchemaService.get(context.strategyName);
       riskName && bt.riskValidationService.validate(riskName, HEAT_METHOD_NAME_GET_DATA);
       riskList && riskList.forEach((riskName) => bt.riskValidationService.validate(riskName, HEAT_METHOD_NAME_GET_DATA));
+      actions && actions.forEach((actionName) => bt.actionValidationService.validate(actionName, HEAT_METHOD_NAME_GET_DATA));
     }
 
     return await bt.heatMarkdownService.getData(context.exchangeName, context.frameName, backtest);
@@ -143,9 +144,10 @@ export class HeatUtils {
     context.frameName && bt.frameValidationService.validate(context.frameName, HEAT_METHOD_NAME_GET_REPORT);
 
     {
-      const { riskName, riskList } = bt.strategySchemaService.get(context.strategyName);
+      const { riskName, riskList, actions } = bt.strategySchemaService.get(context.strategyName);
       riskName && bt.riskValidationService.validate(riskName, HEAT_METHOD_NAME_GET_REPORT);
       riskList && riskList.forEach((riskName) => bt.riskValidationService.validate(riskName, HEAT_METHOD_NAME_GET_REPORT));
+      actions && actions.forEach((actionName) => bt.actionValidationService.validate(actionName, HEAT_METHOD_NAME_GET_REPORT));
     }
 
     return await bt.heatMarkdownService.getReport(context.strategyName, context.exchangeName, context.frameName, backtest, columns);
@@ -196,9 +198,10 @@ export class HeatUtils {
     context.frameName && bt.frameValidationService.validate(context.frameName, HEAT_METHOD_NAME_DUMP);
 
     {
-      const { riskName, riskList } = bt.strategySchemaService.get(context.strategyName);
+      const { riskName, riskList, actions } = bt.strategySchemaService.get(context.strategyName);
       riskName && bt.riskValidationService.validate(riskName, HEAT_METHOD_NAME_DUMP);
       riskList && riskList.forEach((riskName) => bt.riskValidationService.validate(riskName, HEAT_METHOD_NAME_DUMP));
+      actions && actions.forEach((actionName) => bt.actionValidationService.validate(actionName, HEAT_METHOD_NAME_DUMP));
     }
 
     await bt.heatMarkdownService.dump(context.strategyName, context.exchangeName, context.frameName, backtest, path, columns);

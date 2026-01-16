@@ -6,6 +6,7 @@ import StrategyValidationService from "../validation/StrategyValidationService";
 import ExchangeValidationService from "../validation/ExchangeValidationService";
 import StrategySchemaService from "../schema/StrategySchemaService";
 import RiskValidationService from "../validation/RiskValidationService";
+import ActionValidationService from "../validation/ActionValidationService";
 import { StrategyName } from "../../../interfaces/Strategy.interface";
 import { ExchangeName } from "../../../interfaces/Exchange.interface";
 
@@ -40,6 +41,9 @@ export class LiveCommandService implements TLiveLogicPublicService {
   private readonly riskValidationService = inject<RiskValidationService>(
     TYPES.riskValidationService
   );
+  private readonly actionValidationService = inject<ActionValidationService>(
+    TYPES.actionValidationService
+  );
 
   /**
    * Runs live trading for a symbol with context propagation.
@@ -72,11 +76,12 @@ export class LiveCommandService implements TLiveLogicPublicService {
       );
     }
     {
-      const { riskName, riskList } = this.strategySchemaService.get(
+      const { riskName, riskList, actions } = this.strategySchemaService.get(
         context.strategyName
       );
       riskName && this.riskValidationService.validate(riskName, METHOD_NAME_RUN);
       riskList && riskList.forEach((riskName) => this.riskValidationService.validate(riskName, METHOD_NAME_RUN));
+      actions && actions.forEach((actionName) => this.actionValidationService.validate(actionName, METHOD_NAME_RUN));
     }
     return this.liveLogicPublicService.run(symbol, context);
   };

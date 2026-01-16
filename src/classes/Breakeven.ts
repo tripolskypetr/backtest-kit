@@ -80,9 +80,10 @@ export class BreakevenUtils {
     context.frameName && bt.frameValidationService.validate(context.frameName, BREAKEVEN_METHOD_NAME_GET_DATA);
 
     {
-      const { riskName, riskList } = bt.strategySchemaService.get(context.strategyName);
+      const { riskName, riskList, actions } = bt.strategySchemaService.get(context.strategyName);
       riskName && bt.riskValidationService.validate(riskName, BREAKEVEN_METHOD_NAME_GET_DATA);
       riskList && riskList.forEach((riskName) => bt.riskValidationService.validate(riskName, BREAKEVEN_METHOD_NAME_GET_DATA));
+      actions && actions.forEach((actionName) => bt.actionValidationService.validate(actionName, BREAKEVEN_METHOD_NAME_GET_DATA));
     }
 
     return await bt.breakevenMarkdownService.getData(symbol, context.strategyName, context.exchangeName, context.frameName, backtest);
@@ -140,9 +141,10 @@ export class BreakevenUtils {
     context.frameName && bt.frameValidationService.validate(context.frameName, BREAKEVEN_METHOD_NAME_GET_REPORT);
 
     {
-      const { riskName, riskList } = bt.strategySchemaService.get(context.strategyName);
+      const { riskName, riskList, actions } = bt.strategySchemaService.get(context.strategyName);
       riskName && bt.riskValidationService.validate(riskName, BREAKEVEN_METHOD_NAME_GET_REPORT);
       riskList && riskList.forEach((riskName) => bt.riskValidationService.validate(riskName, BREAKEVEN_METHOD_NAME_GET_REPORT));
+      actions && actions.forEach((actionName) => bt.actionValidationService.validate(actionName, BREAKEVEN_METHOD_NAME_GET_REPORT));
     }
 
     return await bt.breakevenMarkdownService.getReport(symbol, context.strategyName, context.exchangeName, context.frameName, backtest, columns);
@@ -198,9 +200,10 @@ export class BreakevenUtils {
     context.frameName && bt.frameValidationService.validate(context.frameName, BREAKEVEN_METHOD_NAME_DUMP);
 
     {
-      const { riskName, riskList } = bt.strategySchemaService.get(context.strategyName);
+      const { riskName, riskList, actions } = bt.strategySchemaService.get(context.strategyName);
       riskName && bt.riskValidationService.validate(riskName, BREAKEVEN_METHOD_NAME_DUMP);
       riskList && riskList.forEach((riskName) => bt.riskValidationService.validate(riskName, BREAKEVEN_METHOD_NAME_DUMP));
+      actions && actions.forEach((actionName) => bt.actionValidationService.validate(actionName, BREAKEVEN_METHOD_NAME_DUMP));
     }
 
     await bt.breakevenMarkdownService.dump(symbol, context.strategyName, context.exchangeName, context.frameName, backtest, path, columns);
