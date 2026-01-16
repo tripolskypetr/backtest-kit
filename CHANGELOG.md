@@ -2,10 +2,9 @@
 
 > Github [release link](https://github.com/tripolskypetr/backtest-kit/releases/tag/1.13.1)
 
-
 **Event-Driven Action Handlers** 🔔⚡
 
-Revolutionary action system transforms backtest-kit into a true event bus for trading automation! The new `ActionBase` class provides extensible event handlers that react to all trading lifecycle events: signal state changes, breakeven milestones, partial profit/loss levels, scheduled signal monitoring, and risk rejections. Actions integrate seamlessly with state management (Redux, Zustand, MobX), real-time notifications (Telegram, Discord), logging systems, and analytics platforms. Each strategy can attach multiple actions with isolated context and guaranteed lifecycle management. 🚀✨
+Revolutionary action system transforms backtest-kit into a true event bus for trading automation! The new `ActionBase` class provides extensible event handlers that react to all trading lifecycle events: signal state changes, breakeven milestones, partial profit/loss levels, scheduled signal monitoring, and risk rejections. Actions integrate seamlessly with state management (Redux-like, [state-reducer pattern](https://ivanmontiel.medium.com/discovering-the-state-reducer-pattern-3f324bb1a4c4)), real-time notifications (Telegram, Discord), logging systems, and analytics platforms. Each strategy can attach multiple actions with isolated context and guaranteed lifecycle management. 🚀✨
 
 ```typescript
 import { ActionBase, addAction, addStrategy } from "backtest-kit";
