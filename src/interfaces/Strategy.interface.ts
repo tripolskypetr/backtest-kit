@@ -6,6 +6,7 @@ import { IRisk, RiskName } from "./Risk.interface";
 import { IPartial } from "./Partial.interface";
 import { IBreakeven } from "./Breakeven.interface";
 import { FrameName } from "./Frame.interface";
+import { ActionName } from "./Action.interface";
 
 /**
  * Signal generation interval for throttling.
@@ -260,6 +261,8 @@ export interface IStrategySchema {
   riskName?: RiskName;
   /** Optional several risk profile list for risk management (if multiple required) */
   riskList?: RiskName[];
+  /** Optional list of action identifiers to attach to this strategy */
+  actions?: ActionName[];
 }
 
 /**

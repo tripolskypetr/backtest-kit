@@ -36,6 +36,13 @@ export class StrategySchemaService {
    *
    * @param strategySchema - Strategy schema to validate
    * @throws Error if strategyName is missing or not a string
+   * @throws Error if riskName is provided but not a string
+   * @throws Error if riskList is provided but not an array
+   * @throws Error if riskList contains duplicate values
+   * @throws Error if riskList contains non-string values
+   * @throws Error if actions is provided but not an array
+   * @throws Error if actions contains duplicate values
+   * @throws Error if actions contains non-string values
    * @throws Error if interval is missing or not a valid SignalInterval
    * @throws Error if getSignal is missing or not a function
    */
@@ -74,6 +81,27 @@ export class StrategySchemaService {
     if (strategySchema.riskList?.some((value) => typeof value !== "string")) {
       throw new Error(
         `strategy schema validation failed: invalid riskList for strategyName=${strategySchema.strategyName} riskList=[${strategySchema.riskList}]`
+      );
+    }
+
+    if (strategySchema.actions && !Array.isArray(strategySchema.actions)) {
+      throw new Error(
+        `strategy schema validation failed: invalid actions for strategyName=${strategySchema.strategyName} actions=${strategySchema.actions}`
+      );
+    }
+
+    if (
+      strategySchema.actions &&
+      strategySchema.actions.length !== new Set(strategySchema.actions).size
+    ) {
+      throw new Error(
+        `strategy schema validation failed: found duplicate actions for strategyName=${strategySchema.strategyName} actions=[${strategySchema.actions}]`
+      );
+    }
+
+    if (strategySchema.actions?.some((value) => typeof value !== "string")) {
+      throw new Error(
+        `strategy schema validation failed: invalid actions for strategyName=${strategySchema.strategyName} actions=[${strategySchema.actions}]`
       );
     }
 

@@ -4,29 +4,35 @@ import TYPES from "../../core/types";
 import { StrategyName, IStrategySchema } from "../../../interfaces/Strategy.interface";
 import { memoize } from "functools-kit";
 import RiskValidationService from "./RiskValidationService";
+import ActionValidationService from "./ActionValidationService";
 
 /**
  * Service for managing and validating trading strategy configurations.
  *
  * Maintains a registry of all configured strategies, validates their existence
- * before operations, and ensures associated risk profiles are valid.
+ * before operations, and ensures associated risk profiles and actions are valid.
  * Uses memoization for performance.
  *
  * Key features:
  * - Registry management: addStrategy() to register new strategies
- * - Dual validation: validates both strategy existence and risk profile (if configured)
+ * - Multi-level validation: validates strategy existence, risk profiles, and actions (if configured)
  * - Memoization: validation results are cached for performance
  * - Listing: list() returns all registered strategies
  *
  * @throws {Error} If duplicate strategy name is added
  * @throws {Error} If unknown strategy is referenced
  * @throws {Error} If strategy's risk profile doesn't exist
+ * @throws {Error} If strategy's action doesn't exist
  *
  * @example
  * ```typescript
  * const strategyValidation = new StrategyValidationService();
- * strategyValidation.addStrategy("momentum-btc", { ...schema, riskName: "conservative" });
- * strategyValidation.validate("momentum-btc", "backtest"); // Validates strategy + risk
+ * strategyValidation.addStrategy("momentum-btc", {
+ *   ...schema,
+ *   riskName: "conservative",
+ *   actions: ["telegram-notifier", "redux-logger"]
+ * });
+ * strategyValidation.validate("momentum-btc", "backtest"); // Validates strategy + risk + actions
  * strategyValidation.validate("unknown", "live"); // Throws error
  * ```
  */
@@ -44,6 +50,13 @@ export class StrategyValidationService {
    * Injected risk validation service instance
    */
   private readonly riskValidationService = inject<RiskValidationService>(TYPES.riskValidationService);
+
+  /**
+   * @private
+   * @readonly
+   * Injected action validation service instance
+   */
+  private readonly actionValidationService = inject<ActionValidationService>(TYPES.actionValidationService);
 
   /**
    * @private
@@ -68,10 +81,12 @@ export class StrategyValidationService {
   };
 
   /**
-   * Validates the existence of a strategy and its risk profile (if configured)
+   * Validates the existence of a strategy and its associated configurations (risk profiles and actions)
    * @public
    * @throws {Error} If strategyName is not found
    * @throws {Error} If riskName is configured but not found
+   * @throws {Error} If riskList contains invalid risk names
+   * @throws {Error} If actions list contains invalid action names
    * Memoized function to cache validation results
    */
   public validate = memoize(
@@ -95,6 +110,11 @@ export class StrategyValidationService {
 
       if (strategy.riskList) {
         strategy.riskList.forEach((riskName) => this.riskValidationService.validate(riskName, source));
+      }
+
+      // Validate actions if configured
+      if (strategy.actions) {
+        strategy.actions.forEach((actionName) => this.actionValidationService.validate(actionName, source));
       }
 
       return true as never;
