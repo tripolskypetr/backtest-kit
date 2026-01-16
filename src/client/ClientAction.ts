@@ -288,6 +288,25 @@ const CALL_DISPOSE_CALLBACK_FN = trycatch(
 );
 
 /**
+ * Creates an action handler instance from the provided handler constructor or returns it directly if it's not a function.
+ * If the handler is a constructor function, it instantiates it with strategy name, frame name, and action name as arguments.
+ * Otherwise, assumes the handler is already an object and returns it as-is.
+ * 
+ * @param self - The ClientAction instance containing the handler parameters.
+ * @returns A partial implementation of IPublicAction representing the handler instance.
+ */
+const CREATE_HANDLER_FN = (self: ClientAction): Partial<IPublicAction> => {
+  if (typeof self.params.handler === "function") {
+    return Reflect.construct(self.params.handler, [
+      self.params.strategyName,
+      self.params.frameName,
+      self.params.actionName,
+    ]);
+  }
+  return self.params.handler;
+}
+
+/**
  * Initializes action handler instance.
  * Uses singleshot pattern to ensure it only runs once.
  * This function is exported for use in tests or other modules.
@@ -300,11 +319,7 @@ export const WAIT_FOR_INIT_FN = async (self: ClientAction): Promise<void> => {
   });
 
   // Create handler instance
-  self._handlerInstance = Reflect.construct(self.params.handler, [
-    self.params.strategyName,
-    self.params.frameName,
-    self.params.actionName,
-  ]) as Partial<IPublicAction>;
+  self._handlerInstance = CREATE_HANDLER_FN(self);
 
   // Call handler init() method if defined
   if (self._handlerInstance?.init) {
