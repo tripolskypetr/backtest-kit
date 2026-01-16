@@ -67,3 +67,11 @@ riskList: string[]
 ```
 
 Optional several risk profile list for risk management (if multiple required)
+
+### actions
+
+```ts
+actions: string[]
+```
+
+Optional list of action identifiers to attach to this strategy

@@ -56,6 +56,12 @@ strategySchemaService: any
 riskValidationService: any
 ```
 
+### actionValidationService
+
+```ts
+actionValidationService: any
+```
+
 ### run
 
 ```ts

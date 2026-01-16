@@ -44,6 +44,14 @@ RiskName: T
 
 Risk profile name enum to validate
 
+### ActionName
+
+```ts
+ActionName: T
+```
+
+Action handler name enum to validate
+
 ### SizingName
 
 ```ts

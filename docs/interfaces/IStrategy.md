@@ -255,3 +255,14 @@ Validations:
 - Throws if currentPrice is not a positive finite number
 
 Use case: User-controlled breakeven protection triggered from onPartialProfit callback.
+
+### dispose
+
+```ts
+dispose: () => Promise<void>
+```
+
+Disposes the strategy instance and cleans up resources.
+
+Called when the strategy is being removed from cache or shut down.
+Invokes the onDispose callback to notify external systems.

@@ -8,12 +8,12 @@ group: docs
 Service for managing and validating trading strategy configurations.
 
 Maintains a registry of all configured strategies, validates their existence
-before operations, and ensures associated risk profiles are valid.
+before operations, and ensures associated risk profiles and actions are valid.
 Uses memoization for performance.
 
 Key features:
 - Registry management: addStrategy() to register new strategies
-- Dual validation: validates both strategy existence and risk profile (if configured)
+- Multi-level validation: validates strategy existence, risk profiles, and actions (if configured)
 - Memoization: validation results are cached for performance
 - Listing: list() returns all registered strategies
 
@@ -37,6 +37,12 @@ loggerService: any
 riskValidationService: any
 ```
 
+### actionValidationService
+
+```ts
+actionValidationService: any
+```
+
 ### _strategyMap
 
 ```ts
@@ -57,7 +63,7 @@ Adds a strategy schema to the validation service
 validate: (strategyName: string, source: string) => void
 ```
 
-Validates the existence of a strategy and its risk profile (if configured)
+Validates the existence of a strategy and its associated configurations (risk profiles and actions)
 
 ### list
 

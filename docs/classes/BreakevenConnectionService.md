@@ -39,6 +39,14 @@ loggerService: any
 
 Logger service injected from DI container.
 
+### actionCoreService
+
+```ts
+actionCoreService: ActionCoreService
+```
+
+Action core service injected from DI container.
+
 ### getBreakeven
 
 ```ts

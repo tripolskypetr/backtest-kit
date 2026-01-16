@@ -164,6 +164,17 @@ Delegates to StrategyConnectionService.cancel() to clear scheduled signal
 and emit cancelled event through emitters.
 Does not require execution context.
 
+### dispose
+
+```ts
+dispose: (backtest: boolean, symbol: string, context: { strategyName: string; exchangeName: string; frameName: string; }) => Promise<void>
+```
+
+Disposes the ClientStrategy instance for the given context.
+
+Calls dispose on the strategy instance to clean up resources,
+then removes it from cache.
+
 ### clear
 
 ```ts
@@ -172,8 +183,8 @@ clear: (payload?: { symbol: string; strategyName: string; exchangeName: string; 
 
 Clears the memoized ClientStrategy instance from cache.
 
-Delegates to StrategyConnectionService.clear() to remove strategy from cache.
-Forces re-initialization of strategy on next operation.
+Delegates to StrategyConnectionService.dispose() if payload provided,
+otherwise clears all strategy instances.
 
 ### partialProfit
 

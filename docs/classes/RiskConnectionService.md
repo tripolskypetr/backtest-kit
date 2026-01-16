@@ -40,6 +40,14 @@ loggerService: any
 riskSchemaService: any
 ```
 
+### actionCoreService
+
+```ts
+actionCoreService: ActionCoreService
+```
+
+Action core service injected from DI container.
+
 ### getRisk
 
 ```ts

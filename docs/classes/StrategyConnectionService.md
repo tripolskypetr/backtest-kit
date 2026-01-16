@@ -75,6 +75,12 @@ partialConnectionService: PartialConnectionService
 breakevenConnectionService: BreakevenConnectionService
 ```
 
+### actionCoreService
+
+```ts
+actionCoreService: ActionCoreService
+```
+
 ### getStrategy
 
 ```ts
@@ -163,6 +169,16 @@ Stops the specified strategy from generating new signals.
 Delegates to ClientStrategy.stop() which sets internal flag to prevent
 getSignal from being called on subsequent ticks.
 
+### dispose
+
+```ts
+dispose: (backtest: boolean, symbol: string, context: { strategyName: string; exchangeName: string; frameName: string; }) => Promise<void>
+```
+
+Disposes the ClientStrategy instance for the given context.
+
+Calls dispose callback, then removes strategy from cache.
+
 ### clear
 
 ```ts
@@ -171,8 +187,8 @@ clear: (payload?: { symbol: string; strategyName: string; exchangeName: string; 
 
 Clears the memoized ClientStrategy instance from cache.
 
-Forces re-initialization of strategy on next getStrategy call.
-Useful for resetting strategy state or releasing resources.
+If payload is provided, disposes the specific strategy instance.
+If no payload is provided, clears all strategy instances.
 
 ### cancel
 
