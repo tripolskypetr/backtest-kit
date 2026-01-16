@@ -1,6 +1,6 @@
 {
   "name": "@backtest-kit/ollama",
-  "version": "0.0.5",
+  "version": "0.0.6",
   "description": "Multi-provider LLM inference library for AI-powered trading strategies. Supports 10+ providers including OpenAI, Claude, DeepSeek, Grok, Mistral with unified API and automatic token rotation.",
   "author": {
     "name": "Petr Tripolsky",
@@ -100,7 +100,7 @@
     "markdownlint": "^0.38.0",
     "sanitize-html": "^2.17.0",
     "get-moment-stamp": "^1.1.1",
-    "agent-swarm-kit": "^1.1.180"
+    "agent-swarm-kit": "^1.1.181"
   },
   "publishConfig": {
     "access": "public"
