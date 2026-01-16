@@ -423,7 +423,7 @@ export class ClientAction implements IAction {
    * Initializes handler instance using singleshot pattern.
    * Ensures initialization happens exactly once.
    */
-  private waitForInit = singleshot(async () => await WAIT_FOR_INIT_FN(this));
+  public waitForInit = singleshot(async () => await WAIT_FOR_INIT_FN(this));
 
   /**
    * Handles signal events from all modes (live + backtest).

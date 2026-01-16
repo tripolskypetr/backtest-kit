@@ -110,6 +110,26 @@ export class ActionConnectionService implements TAction {
   );
 
   /**
+   * Initializes the ClientAction instance for the given action name.
+   *
+   * Calls waitForInit() on the action instance to load persisted state.
+   *
+   * @param backtest - Whether running in backtest mode
+   * @param context - Execution context with action name, strategy name, exchange name, frame name
+   */
+  public init = async (
+    backtest: boolean,
+    context: { actionName: ActionName; strategyName: StrategyName; exchangeName: ExchangeName; frameName: FrameName }
+  ): Promise<void> => {
+    this.loggerService.log("actionConnectionService init", {
+      backtest,
+      context,
+    });
+    const action = this.getAction(context.actionName, context.strategyName, context.exchangeName, context.frameName, backtest);
+    await action.waitForInit();
+  };
+
+  /**
    * Routes signal event to appropriate ClientAction instance.
    *
    * @param event - Signal event data
@@ -126,7 +146,8 @@ export class ActionConnectionService implements TAction {
       backtest,
       context,
     });
-    await this.getAction(context.actionName, context.strategyName, context.exchangeName, context.frameName, backtest).signal(event);
+    const action = this.getAction(context.actionName, context.strategyName, context.exchangeName, context.frameName, backtest)
+    await action.signal(event);
   };
 
   /**
@@ -146,7 +167,8 @@ export class ActionConnectionService implements TAction {
       backtest,
       context,
     });
-    await this.getAction(context.actionName, context.strategyName, context.exchangeName, context.frameName, backtest).signalLive(event);
+    const action = this.getAction(context.actionName, context.strategyName, context.exchangeName, context.frameName, backtest)
+    await action.signalLive(event);
   };
 
   /**
@@ -166,7 +188,8 @@ export class ActionConnectionService implements TAction {
       backtest,
       context,
     });
-    await this.getAction(context.actionName, context.strategyName, context.exchangeName, context.frameName, backtest).signalBacktest(event);
+    const action = this.getAction(context.actionName, context.strategyName, context.exchangeName, context.frameName, backtest);
+    await action.signalBacktest(event);
   };
 
   /**
@@ -185,7 +208,8 @@ export class ActionConnectionService implements TAction {
       backtest,
       context,
     });
-    await this.getAction(context.actionName, context.strategyName, context.exchangeName, context.frameName, backtest).breakeven(event);
+    const action = this.getAction(context.actionName, context.strategyName, context.exchangeName, context.frameName, backtest)
+    await action.breakeven(event);
   };
 
   /**
@@ -204,7 +228,8 @@ export class ActionConnectionService implements TAction {
       backtest,
       context,
     });
-    await this.getAction(context.actionName, context.strategyName, context.exchangeName, context.frameName, backtest).partialProfit(event);
+    const action = this.getAction(context.actionName, context.strategyName, context.exchangeName, context.frameName, backtest)
+    await action.partialProfit(event);
   };
 
   /**
@@ -223,7 +248,8 @@ export class ActionConnectionService implements TAction {
       backtest,
       context,
     });
-    await this.getAction(context.actionName, context.strategyName, context.exchangeName, context.frameName, backtest).partialLoss(event);
+    const action = this.getAction(context.actionName, context.strategyName, context.exchangeName, context.frameName, backtest)
+    await action.partialLoss(event);
   };
 
   /**
@@ -242,7 +268,8 @@ export class ActionConnectionService implements TAction {
       backtest,
       context,
     });
-    await this.getAction(context.actionName, context.strategyName, context.exchangeName, context.frameName, backtest).ping(event);
+    const action = this.getAction(context.actionName, context.strategyName, context.exchangeName, context.frameName, backtest)
+    await action.ping(event);
   };
 
   /**
@@ -261,7 +288,8 @@ export class ActionConnectionService implements TAction {
       backtest,
       context,
     });
-    await this.getAction(context.actionName, context.strategyName, context.exchangeName, context.frameName, backtest).riskRejection(event);
+    const action = this.getAction(context.actionName, context.strategyName, context.exchangeName, context.frameName, backtest)
+    await action.riskRejection(event);
   };
 
   /**

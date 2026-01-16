@@ -13851,7 +13851,7 @@ declare class ClientAction implements IAction {
      * Initializes handler instance using singleshot pattern.
      * Ensures initialization happens exactly once.
      */
-    private waitForInit;
+    waitForInit: (() => Promise<void>) & functools_kit.ISingleshotClearable;
     /**
      * Handles signal events from all modes (live + backtest).
      */
@@ -13943,6 +13943,20 @@ declare class ActionConnectionService implements TAction$1 {
      * @returns Configured ClientAction instance
      */
     getAction: ((actionName: ActionName, strategyName: StrategyName, exchangeName: ExchangeName, frameName: FrameName, backtest: boolean) => ClientAction) & functools_kit.IClearableMemoize<string> & functools_kit.IControlMemoize<string, ClientAction>;
+    /**
+     * Initializes the ClientAction instance for the given action name.
+     *
+     * Calls waitForInit() on the action instance to load persisted state.
+     *
+     * @param backtest - Whether running in backtest mode
+     * @param context - Execution context with action name, strategy name, exchange name, frame name
+     */
+    init: (backtest: boolean, context: {
+        actionName: ActionName;
+        strategyName: StrategyName;
+        exchangeName: ExchangeName;
+        frameName: FrameName;
+    }) => Promise<void>;
     /**
      * Routes signal event to appropriate ClientAction instance.
      *
@@ -14734,6 +14748,21 @@ declare class ActionCoreService implements TAction {
      * @returns Promise that resolves when all validations complete
      */
     private validate;
+    /**
+     * Initializes all ClientAction instances for the strategy.
+     *
+     * Retrieves action list from strategy schema (IStrategySchema.actions)
+     * and invokes the init handler on each ClientAction instance sequentially.
+     * Calls waitForInit() on each action to load persisted state.
+     *
+     * @param backtest - Whether running in backtest mode (true) or live mode (false)
+     * @param context - Strategy execution context with strategyName, exchangeName, frameName
+     */
+    init: (backtest: boolean, context: {
+        strategyName: StrategyName;
+        exchangeName: ExchangeName;
+        frameName: FrameName;
+    }) => Promise<void>;
     /**
      * Routes signal event to all registered actions for the strategy.
      *

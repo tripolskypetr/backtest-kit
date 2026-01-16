@@ -105,6 +105,34 @@ export class ActionCoreService implements TAction {
   );
 
   /**
+   * Initializes all ClientAction instances for the strategy.
+   *
+   * Retrieves action list from strategy schema (IStrategySchema.actions)
+   * and invokes the init handler on each ClientAction instance sequentially.
+   * Calls waitForInit() on each action to load persisted state.
+   *
+   * @param backtest - Whether running in backtest mode (true) or live mode (false)
+   * @param context - Strategy execution context with strategyName, exchangeName, frameName
+   */
+  public init = async (
+    backtest: boolean,
+    context: { strategyName: StrategyName; exchangeName: ExchangeName; frameName: FrameName }
+  ): Promise<void> => {
+    this.loggerService.log("actionCoreService init", {
+      backtest,
+      context,
+    });
+
+    await this.validate(context);
+
+    const { actions = [] } = this.strategySchemaService.get(context.strategyName);
+
+    for (const actionName of actions) {
+      await this.actionConnectionService.init(backtest, { actionName, ...context });
+    }
+  };
+
+  /**
    * Routes signal event to all registered actions for the strategy.
    *
    * Retrieves action list from strategy schema (IStrategySchema.actions)
