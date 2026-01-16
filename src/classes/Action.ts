@@ -23,6 +23,8 @@ const METHOD_NAME_PING = "ActionBase.ping";
 const METHOD_NAME_RISK_REJECTION = "ActionBase.riskRejection";
 const METHOD_NAME_DISPOSE = "ActionBase.dispose";
 
+const DEFAULT_SOURCE = "default";
+
 /**
  * Base class for custom action handlers.
  *
@@ -163,8 +165,10 @@ class ActionBase implements IPublicAction {
    * }
    * ```
    */
-  public init(): void | Promise<void> {
-    backtest.loggerService.info(METHOD_NAME_INIT);
+  public init(source = DEFAULT_SOURCE): void | Promise<void> {
+    backtest.loggerService.info(METHOD_NAME_INIT, {
+      source,
+    });
   }
 
   /**
@@ -193,9 +197,10 @@ class ActionBase implements IPublicAction {
    * }
    * ```
    */
-  public signal(event: IStrategyTickResult): void | Promise<void> {
+  public signal(event: IStrategyTickResult, source = DEFAULT_SOURCE): void | Promise<void> {
     backtest.loggerService.info(METHOD_NAME_EVENT, {
       event,
+      source,
     });
   }
 
@@ -223,9 +228,10 @@ class ActionBase implements IPublicAction {
    * }
    * ```
    */
-  public signalLive(event: IStrategyTickResult): void | Promise<void> {
+  public signalLive(event: IStrategyTickResult, source = DEFAULT_SOURCE): void | Promise<void> {
     backtest.loggerService.info(METHOD_NAME_SIGNAL_LIVE, {
       event,
+      source,
     });
   }
 
@@ -252,9 +258,10 @@ class ActionBase implements IPublicAction {
    * }
    * ```
    */
-  public signalBacktest(event: IStrategyTickResult): void | Promise<void> {
+  public signalBacktest(event: IStrategyTickResult, source = DEFAULT_SOURCE): void | Promise<void> {
     backtest.loggerService.info(METHOD_NAME_SIGNAL_BACKTEST, {
       event,
+      source,
     });
   }
 
@@ -282,9 +289,10 @@ class ActionBase implements IPublicAction {
    * }
    * ```
    */
-  public breakeven(event: BreakevenContract): void | Promise<void> {
+  public breakeven(event: BreakevenContract, source = DEFAULT_SOURCE): void | Promise<void> {
     backtest.loggerService.info(METHOD_NAME_BREAKEVEN, {
       event,
+      source,
     });
   }
 
@@ -313,9 +321,10 @@ class ActionBase implements IPublicAction {
    * }
    * ```
    */
-  public partialProfit(event: PartialProfitContract): void | Promise<void> {
+  public partialProfit(event: PartialProfitContract, source = DEFAULT_SOURCE): void | Promise<void> {
     backtest.loggerService.info(METHOD_NAME_PARTIAL_PROFIT, {
       event,
+      source,
     });
   }
 
@@ -344,9 +353,10 @@ class ActionBase implements IPublicAction {
    * }
    * ```
    */
-  public partialLoss(event: PartialLossContract): void | Promise<void> {
+  public partialLoss(event: PartialLossContract, source = DEFAULT_SOURCE): void | Promise<void> {
     backtest.loggerService.info(METHOD_NAME_PARTIAL_LOSS, {
       event,
+      source,
     });
   }
 
@@ -373,9 +383,10 @@ class ActionBase implements IPublicAction {
    * }
    * ```
    */
-  public ping(event: PingContract): void | Promise<void> {
+  public ping(event: PingContract, source = DEFAULT_SOURCE): void | Promise<void> {
     backtest.loggerService.info(METHOD_NAME_PING, {
       event,
+      source,
     });
   }
 
@@ -405,9 +416,10 @@ class ActionBase implements IPublicAction {
    * }
    * ```
    */
-  public riskRejection(event: RiskContract): void | Promise<void> {
+  public riskRejection(event: RiskContract, source = DEFAULT_SOURCE): void | Promise<void> {
     backtest.loggerService.info(METHOD_NAME_RISK_REJECTION, {
       event,
+      source,
     });
   }
 
@@ -437,8 +449,10 @@ class ActionBase implements IPublicAction {
    * }
    * ```
    */
-  public dispose(): void | Promise<void> {
-    backtest.loggerService.info(METHOD_NAME_DISPOSE);
+  public dispose(source = DEFAULT_SOURCE): void | Promise<void> {
+    backtest.loggerService.info(METHOD_NAME_DISPOSE, {
+      source,
+    });
   }
 }
 

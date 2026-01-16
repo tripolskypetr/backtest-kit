@@ -12971,7 +12971,7 @@ declare class ActionBase implements IPublicAction {
      * }
      * ```
      */
-    init(): void | Promise<void>;
+    init(source?: string): void | Promise<void>;
     /**
      * Handles signal events from all modes (live + backtest).
      *
@@ -12998,7 +12998,7 @@ declare class ActionBase implements IPublicAction {
      * }
      * ```
      */
-    signal(event: IStrategyTickResult): void | Promise<void>;
+    signal(event: IStrategyTickResult, source?: string): void | Promise<void>;
     /**
      * Handles signal events from live trading only.
      *
@@ -13023,7 +13023,7 @@ declare class ActionBase implements IPublicAction {
      * }
      * ```
      */
-    signalLive(event: IStrategyTickResult): void | Promise<void>;
+    signalLive(event: IStrategyTickResult, source?: string): void | Promise<void>;
     /**
      * Handles signal events from backtest only.
      *
@@ -13047,7 +13047,7 @@ declare class ActionBase implements IPublicAction {
      * }
      * ```
      */
-    signalBacktest(event: IStrategyTickResult): void | Promise<void>;
+    signalBacktest(event: IStrategyTickResult, source?: string): void | Promise<void>;
     /**
      * Handles breakeven events when stop-loss is moved to entry price.
      *
@@ -13072,7 +13072,7 @@ declare class ActionBase implements IPublicAction {
      * }
      * ```
      */
-    breakeven(event: BreakevenContract): void | Promise<void>;
+    breakeven(event: BreakevenContract, source?: string): void | Promise<void>;
     /**
      * Handles partial profit level events (10%, 20%, 30%, etc).
      *
@@ -13098,7 +13098,7 @@ declare class ActionBase implements IPublicAction {
      * }
      * ```
      */
-    partialProfit(event: PartialProfitContract): void | Promise<void>;
+    partialProfit(event: PartialProfitContract, source?: string): void | Promise<void>;
     /**
      * Handles partial loss level events (-10%, -20%, -30%, etc).
      *
@@ -13124,7 +13124,7 @@ declare class ActionBase implements IPublicAction {
      * }
      * ```
      */
-    partialLoss(event: PartialLossContract): void | Promise<void>;
+    partialLoss(event: PartialLossContract, source?: string): void | Promise<void>;
     /**
      * Handles ping events during scheduled signal monitoring.
      *
@@ -13148,7 +13148,7 @@ declare class ActionBase implements IPublicAction {
      * }
      * ```
      */
-    ping(event: PingContract): void | Promise<void>;
+    ping(event: PingContract, source?: string): void | Promise<void>;
     /**
      * Handles risk rejection events when signals fail risk validation.
      *
@@ -13175,7 +13175,7 @@ declare class ActionBase implements IPublicAction {
      * }
      * ```
      */
-    riskRejection(event: RiskContract): void | Promise<void>;
+    riskRejection(event: RiskContract, source?: string): void | Promise<void>;
     /**
      * Cleans up resources and subscriptions when action handler is disposed.
      *
@@ -13202,7 +13202,7 @@ declare class ActionBase implements IPublicAction {
      * }
      * ```
      */
-    dispose(): void | Promise<void>;
+    dispose(source?: string): void | Promise<void>;
 }
 
 /**
