@@ -129,7 +129,7 @@ export class ActionCoreService implements TAction {
     const { actions = [] } = this.strategySchemaService.get(context.strategyName);
 
     for (const actionName of actions) {
-      await this.actionConnectionService.signal(event, { actionName, backtest, ...context });
+      await this.actionConnectionService.signal(event, backtest, { actionName, ...context });
     }
   };
 
@@ -158,7 +158,7 @@ export class ActionCoreService implements TAction {
     const { actions = [] } = this.strategySchemaService.get(context.strategyName);
 
     for (const actionName of actions) {
-      await this.actionConnectionService.signalLive(event, { actionName, backtest, ...context });
+      await this.actionConnectionService.signalLive(event, backtest, { actionName, ...context });
     }
   };
 
@@ -187,7 +187,7 @@ export class ActionCoreService implements TAction {
     const { actions = [] } = this.strategySchemaService.get(context.strategyName);
 
     for (const actionName of actions) {
-      await this.actionConnectionService.signalBacktest(event, { actionName, backtest, ...context });
+      await this.actionConnectionService.signalBacktest(event, backtest, { actionName, ...context });
     }
   };
 
@@ -215,7 +215,7 @@ export class ActionCoreService implements TAction {
     const { actions = [] } = this.strategySchemaService.get(context.strategyName);
 
     for (const actionName of actions) {
-      await this.actionConnectionService.breakeven(event, { actionName, backtest, ...context });
+      await this.actionConnectionService.breakeven(event, backtest, { actionName, ...context });
     }
   };
 
@@ -243,7 +243,7 @@ export class ActionCoreService implements TAction {
     const { actions = [] } = this.strategySchemaService.get(context.strategyName);
 
     for (const actionName of actions) {
-      await this.actionConnectionService.partialProfit(event, { actionName, backtest, ...context });
+      await this.actionConnectionService.partialProfit(event, backtest, { actionName, ...context });
     }
   };
 
@@ -271,7 +271,7 @@ export class ActionCoreService implements TAction {
     const { actions = [] } = this.strategySchemaService.get(context.strategyName);
 
     for (const actionName of actions) {
-      await this.actionConnectionService.partialLoss(event, { actionName, backtest, ...context });
+      await this.actionConnectionService.partialLoss(event, backtest, { actionName, ...context });
     }
   };
 
@@ -300,7 +300,7 @@ export class ActionCoreService implements TAction {
     const { actions = [] } = this.strategySchemaService.get(context.strategyName);
 
     for (const actionName of actions) {
-      await this.actionConnectionService.ping(event, { actionName, backtest, ...context });
+      await this.actionConnectionService.ping(event, backtest, { actionName, ...context });
     }
   };
 
@@ -329,7 +329,7 @@ export class ActionCoreService implements TAction {
     const { actions = [] } = this.strategySchemaService.get(context.strategyName);
 
     for (const actionName of actions) {
-      await this.actionConnectionService.riskRejection(event, { actionName, backtest, ...context });
+      await this.actionConnectionService.riskRejection(event, backtest, { actionName, ...context });
     }
   };
 
@@ -356,7 +356,7 @@ export class ActionCoreService implements TAction {
     const { actions = [] } = this.strategySchemaService.get(context.strategyName);
 
     for (const actionName of actions) {
-      await this.actionConnectionService.dispose({ actionName, backtest, ...context });
+      await this.actionConnectionService.dispose(backtest, { actionName, ...context });
     }
   };
 

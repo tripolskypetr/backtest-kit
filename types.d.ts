@@ -13924,117 +13924,117 @@ declare class ActionConnectionService implements TAction$1 {
      * Routes signal event to appropriate ClientAction instance.
      *
      * @param event - Signal event data
-     * @param payload - Execution payload with action name, strategy name, exchange name, frame name and backtest mode
+     * @param backtest - Whether running in backtest mode
+     * @param context - Execution context with action name, strategy name, exchange name, frame name
      */
-    signal: (event: IStrategyTickResult, payload: {
+    signal: (event: IStrategyTickResult, backtest: boolean, context: {
         actionName: ActionName;
         strategyName: StrategyName;
         exchangeName: ExchangeName;
         frameName: FrameName;
-        backtest: boolean;
     }) => Promise<void>;
     /**
      * Routes signalLive event to appropriate ClientAction instance.
      *
      * @param event - Signal event data from live trading
-     * @param payload - Execution payload with action name, strategy name, exchange name, frame name and backtest mode
+     * @param backtest - Whether running in backtest mode
+     * @param context - Execution context with action name, strategy name, exchange name, frame name
      */
-    signalLive: (event: IStrategyTickResult, payload: {
+    signalLive: (event: IStrategyTickResult, backtest: boolean, context: {
         actionName: ActionName;
         strategyName: StrategyName;
         exchangeName: ExchangeName;
         frameName: FrameName;
-        backtest: boolean;
     }) => Promise<void>;
     /**
      * Routes signalBacktest event to appropriate ClientAction instance.
      *
      * @param event - Signal event data from backtest
-     * @param payload - Execution payload with action name, strategy name, exchange name, frame name and backtest mode
+     * @param backtest - Whether running in backtest mode
+     * @param context - Execution context with action name, strategy name, exchange name, frame name
      */
-    signalBacktest: (event: IStrategyTickResult, payload: {
+    signalBacktest: (event: IStrategyTickResult, backtest: boolean, context: {
         actionName: ActionName;
         strategyName: StrategyName;
         exchangeName: ExchangeName;
         frameName: FrameName;
-        backtest: boolean;
     }) => Promise<void>;
     /**
      * Routes breakeven event to appropriate ClientAction instance.
      *
      * @param event - Breakeven event data
-     * @param payload - Execution payload with action name, strategy name, exchange name, frame name and backtest mode
+     * @param backtest - Whether running in backtest mode
+     * @param context - Execution context with action name, strategy name, exchange name, frame name
      */
-    breakeven: (event: BreakevenContract, payload: {
+    breakeven: (event: BreakevenContract, backtest: boolean, context: {
         actionName: ActionName;
         strategyName: StrategyName;
         exchangeName: ExchangeName;
         frameName: FrameName;
-        backtest: boolean;
     }) => Promise<void>;
     /**
      * Routes partialProfit event to appropriate ClientAction instance.
      *
      * @param event - Partial profit event data
-     * @param payload - Execution payload with action name, strategy name, exchange name, frame name and backtest mode
+     * @param backtest - Whether running in backtest mode
+     * @param context - Execution context with action name, strategy name, exchange name, frame name
      */
-    partialProfit: (event: PartialProfitContract, payload: {
+    partialProfit: (event: PartialProfitContract, backtest: boolean, context: {
         actionName: ActionName;
         strategyName: StrategyName;
         exchangeName: ExchangeName;
         frameName: FrameName;
-        backtest: boolean;
     }) => Promise<void>;
     /**
      * Routes partialLoss event to appropriate ClientAction instance.
      *
      * @param event - Partial loss event data
-     * @param payload - Execution payload with action name, strategy name, exchange name, frame name and backtest mode
+     * @param backtest - Whether running in backtest mode
+     * @param context - Execution context with action name, strategy name, exchange name, frame name
      */
-    partialLoss: (event: PartialLossContract, payload: {
+    partialLoss: (event: PartialLossContract, backtest: boolean, context: {
         actionName: ActionName;
         strategyName: StrategyName;
         exchangeName: ExchangeName;
         frameName: FrameName;
-        backtest: boolean;
     }) => Promise<void>;
     /**
      * Routes ping event to appropriate ClientAction instance.
      *
      * @param event - Ping event data
-     * @param payload - Execution payload with action name, strategy name, exchange name, frame name and backtest mode
+     * @param backtest - Whether running in backtest mode
+     * @param context - Execution context with action name, strategy name, exchange name, frame name
      */
-    ping: (event: PingContract, payload: {
+    ping: (event: PingContract, backtest: boolean, context: {
         actionName: ActionName;
         strategyName: StrategyName;
         exchangeName: ExchangeName;
         frameName: FrameName;
-        backtest: boolean;
     }) => Promise<void>;
     /**
      * Routes riskRejection event to appropriate ClientAction instance.
      *
      * @param event - Risk rejection event data
-     * @param payload - Execution payload with action name, strategy name, exchange name, frame name and backtest mode
+     * @param backtest - Whether running in backtest mode
+     * @param context - Execution context with action name, strategy name, exchange name, frame name
      */
-    riskRejection: (event: RiskContract, payload: {
+    riskRejection: (event: RiskContract, backtest: boolean, context: {
         actionName: ActionName;
         strategyName: StrategyName;
         exchangeName: ExchangeName;
         frameName: FrameName;
-        backtest: boolean;
     }) => Promise<void>;
     /**
      * Disposes the ClientAction instance for the given action name.
      *
-     * @param payload - Execution payload with action name, strategy name, exchange name, frame name and backtest mode
+     * @param backtest - Whether running in backtest mode
+     * @param context - Execution context with action name, strategy name, exchange name, frame name
      */
-    dispose: (payload: {
+    dispose: (backtest: boolean, context: {
         actionName: ActionName;
         strategyName: StrategyName;
         exchangeName: ExchangeName;
         frameName: FrameName;
-        backtest: boolean;
     }) => Promise<void>;
     /**
      * Clears the cached ClientAction instance for the given action name.

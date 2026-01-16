@@ -113,145 +113,172 @@ export class ActionConnectionService implements TAction {
    * Routes signal event to appropriate ClientAction instance.
    *
    * @param event - Signal event data
-   * @param payload - Execution payload with action name, strategy name, exchange name, frame name and backtest mode
+   * @param backtest - Whether running in backtest mode
+   * @param context - Execution context with action name, strategy name, exchange name, frame name
    */
   public signal = async (
     event: IStrategyTickResult,
-    payload: { actionName: ActionName; strategyName: StrategyName; exchangeName: ExchangeName; frameName: FrameName; backtest: boolean }
+    backtest: boolean,
+    context: { actionName: ActionName; strategyName: StrategyName; exchangeName: ExchangeName; frameName: FrameName }
   ) => {
     this.loggerService.log("actionConnectionService signal", {
       action: event.action,
-      payload,
+      backtest,
+      context,
     });
-    await this.getAction(payload.actionName, payload.strategyName, payload.exchangeName, payload.frameName, payload.backtest).signal(event);
+    await this.getAction(context.actionName, context.strategyName, context.exchangeName, context.frameName, backtest).signal(event);
   };
 
   /**
    * Routes signalLive event to appropriate ClientAction instance.
    *
    * @param event - Signal event data from live trading
-   * @param payload - Execution payload with action name, strategy name, exchange name, frame name and backtest mode
+   * @param backtest - Whether running in backtest mode
+   * @param context - Execution context with action name, strategy name, exchange name, frame name
    */
   public signalLive = async (
     event: IStrategyTickResult,
-    payload: { actionName: ActionName; strategyName: StrategyName; exchangeName: ExchangeName; frameName: FrameName; backtest: boolean }
+    backtest: boolean,
+    context: { actionName: ActionName; strategyName: StrategyName; exchangeName: ExchangeName; frameName: FrameName }
   ) => {
     this.loggerService.log("actionConnectionService signalLive", {
       action: event.action,
-      payload,
+      backtest,
+      context,
     });
-    await this.getAction(payload.actionName, payload.strategyName, payload.exchangeName, payload.frameName, payload.backtest).signalLive(event);
+    await this.getAction(context.actionName, context.strategyName, context.exchangeName, context.frameName, backtest).signalLive(event);
   };
 
   /**
    * Routes signalBacktest event to appropriate ClientAction instance.
    *
    * @param event - Signal event data from backtest
-   * @param payload - Execution payload with action name, strategy name, exchange name, frame name and backtest mode
+   * @param backtest - Whether running in backtest mode
+   * @param context - Execution context with action name, strategy name, exchange name, frame name
    */
   public signalBacktest = async (
     event: IStrategyTickResult,
-    payload: { actionName: ActionName; strategyName: StrategyName; exchangeName: ExchangeName; frameName: FrameName; backtest: boolean }
+    backtest: boolean,
+    context: { actionName: ActionName; strategyName: StrategyName; exchangeName: ExchangeName; frameName: FrameName }
   ) => {
     this.loggerService.log("actionConnectionService signalBacktest", {
       action: event.action,
-      payload,
+      backtest,
+      context,
     });
-    await this.getAction(payload.actionName, payload.strategyName, payload.exchangeName, payload.frameName, payload.backtest).signalBacktest(event);
+    await this.getAction(context.actionName, context.strategyName, context.exchangeName, context.frameName, backtest).signalBacktest(event);
   };
 
   /**
    * Routes breakeven event to appropriate ClientAction instance.
    *
    * @param event - Breakeven event data
-   * @param payload - Execution payload with action name, strategy name, exchange name, frame name and backtest mode
+   * @param backtest - Whether running in backtest mode
+   * @param context - Execution context with action name, strategy name, exchange name, frame name
    */
   public breakeven = async (
     event: BreakevenContract,
-    payload: { actionName: ActionName; strategyName: StrategyName; exchangeName: ExchangeName; frameName: FrameName; backtest: boolean }
+    backtest: boolean,
+    context: { actionName: ActionName; strategyName: StrategyName; exchangeName: ExchangeName; frameName: FrameName }
   ) => {
     this.loggerService.log("actionConnectionService breakeven", {
-      payload,
+      backtest,
+      context,
     });
-    await this.getAction(payload.actionName, payload.strategyName, payload.exchangeName, payload.frameName, payload.backtest).breakeven(event);
+    await this.getAction(context.actionName, context.strategyName, context.exchangeName, context.frameName, backtest).breakeven(event);
   };
 
   /**
    * Routes partialProfit event to appropriate ClientAction instance.
    *
    * @param event - Partial profit event data
-   * @param payload - Execution payload with action name, strategy name, exchange name, frame name and backtest mode
+   * @param backtest - Whether running in backtest mode
+   * @param context - Execution context with action name, strategy name, exchange name, frame name
    */
   public partialProfit = async (
     event: PartialProfitContract,
-    payload: { actionName: ActionName; strategyName: StrategyName; exchangeName: ExchangeName; frameName: FrameName; backtest: boolean }
+    backtest: boolean,
+    context: { actionName: ActionName; strategyName: StrategyName; exchangeName: ExchangeName; frameName: FrameName }
   ) => {
     this.loggerService.log("actionConnectionService partialProfit", {
-      payload,
+      backtest,
+      context,
     });
-    await this.getAction(payload.actionName, payload.strategyName, payload.exchangeName, payload.frameName, payload.backtest).partialProfit(event);
+    await this.getAction(context.actionName, context.strategyName, context.exchangeName, context.frameName, backtest).partialProfit(event);
   };
 
   /**
    * Routes partialLoss event to appropriate ClientAction instance.
    *
    * @param event - Partial loss event data
-   * @param payload - Execution payload with action name, strategy name, exchange name, frame name and backtest mode
+   * @param backtest - Whether running in backtest mode
+   * @param context - Execution context with action name, strategy name, exchange name, frame name
    */
   public partialLoss = async (
     event: PartialLossContract,
-    payload: { actionName: ActionName; strategyName: StrategyName; exchangeName: ExchangeName; frameName: FrameName; backtest: boolean }
+    backtest: boolean,
+    context: { actionName: ActionName; strategyName: StrategyName; exchangeName: ExchangeName; frameName: FrameName }
   ) => {
     this.loggerService.log("actionConnectionService partialLoss", {
-      payload,
+      backtest,
+      context,
     });
-    await this.getAction(payload.actionName, payload.strategyName, payload.exchangeName, payload.frameName, payload.backtest).partialLoss(event);
+    await this.getAction(context.actionName, context.strategyName, context.exchangeName, context.frameName, backtest).partialLoss(event);
   };
 
   /**
    * Routes ping event to appropriate ClientAction instance.
    *
    * @param event - Ping event data
-   * @param payload - Execution payload with action name, strategy name, exchange name, frame name and backtest mode
+   * @param backtest - Whether running in backtest mode
+   * @param context - Execution context with action name, strategy name, exchange name, frame name
    */
   public ping = async (
     event: PingContract,
-    payload: { actionName: ActionName; strategyName: StrategyName; exchangeName: ExchangeName; frameName: FrameName; backtest: boolean }
+    backtest: boolean,
+    context: { actionName: ActionName; strategyName: StrategyName; exchangeName: ExchangeName; frameName: FrameName }
   ) => {
     this.loggerService.log("actionConnectionService ping", {
-      payload,
+      backtest,
+      context,
     });
-    await this.getAction(payload.actionName, payload.strategyName, payload.exchangeName, payload.frameName, payload.backtest).ping(event);
+    await this.getAction(context.actionName, context.strategyName, context.exchangeName, context.frameName, backtest).ping(event);
   };
 
   /**
    * Routes riskRejection event to appropriate ClientAction instance.
    *
    * @param event - Risk rejection event data
-   * @param payload - Execution payload with action name, strategy name, exchange name, frame name and backtest mode
+   * @param backtest - Whether running in backtest mode
+   * @param context - Execution context with action name, strategy name, exchange name, frame name
    */
   public riskRejection = async (
     event: RiskContract,
-    payload: { actionName: ActionName; strategyName: StrategyName; exchangeName: ExchangeName; frameName: FrameName; backtest: boolean }
+    backtest: boolean,
+    context: { actionName: ActionName; strategyName: StrategyName; exchangeName: ExchangeName; frameName: FrameName }
   ) => {
     this.loggerService.log("actionConnectionService riskRejection", {
-      payload,
+      backtest,
+      context,
     });
-    await this.getAction(payload.actionName, payload.strategyName, payload.exchangeName, payload.frameName, payload.backtest).riskRejection(event);
+    await this.getAction(context.actionName, context.strategyName, context.exchangeName, context.frameName, backtest).riskRejection(event);
   };
 
   /**
    * Disposes the ClientAction instance for the given action name.
    *
-   * @param payload - Execution payload with action name, strategy name, exchange name, frame name and backtest mode
+   * @param backtest - Whether running in backtest mode
+   * @param context - Execution context with action name, strategy name, exchange name, frame name
    */
   public dispose = async (
-    payload: { actionName: ActionName; strategyName: StrategyName; exchangeName: ExchangeName; frameName: FrameName; backtest: boolean }
+    backtest: boolean,
+    context: { actionName: ActionName; strategyName: StrategyName; exchangeName: ExchangeName; frameName: FrameName }
   ): Promise<void> => {
     this.loggerService.log("actionConnectionService dispose", {
-      payload,
+      backtest,
+      context,
     });
-    await this.clear(payload);
+    await this.clear({ ...context, backtest });
   };
 
   /**
