@@ -11,7 +11,7 @@ import {
   ActionBase,
 } from "../../build/index.mjs";
 
-import { Subject } from "functools-kit";
+import { Subject, sleep } from "functools-kit";
 
 /**
  * ACTION ТЕСТ #1: ActionBase.signal() вызывается для всех событий сигнала
@@ -21,12 +21,7 @@ test("ACTION: ActionBase.signal() receives all signal events in backtest", async
 
   class TestActionSignal extends ActionBase {
     signal(event) {
-      super.signal(event); // Call parent for logging
-      console.log("[TEST] Action.signal() called:", {
-        action: event.action,
-        state: event.state,
-        reason: event.reason,
-      });
+      super.signal(event);
       signalEvents.push({
         action: event.action,
         state: event.state,
@@ -40,19 +35,17 @@ test("ACTION: ActionBase.signal() receives all signal events in backtest", async
   const startTime = new Date("2024-01-01T00:00:00Z").getTime();
   const intervalMs = 60000;
   const basePrice = 95000;
-  const bufferMinutes = 4;
-  const bufferStartTime = startTime - bufferMinutes * intervalMs;
 
   let allCandles = [];
   let signalGenerated = false;
 
-  // Предзаполняем минимум 5 свечей с учетом буфера
+  // Предзаполняем минимум 5 свечей для immediate activation
   for (let i = 0; i < 5; i++) {
     allCandles.push({
-      timestamp: bufferStartTime + i * intervalMs,
+      timestamp: startTime + i * intervalMs,
       open: basePrice,
       high: basePrice + 100,
-      low: basePrice - 50,
+      low: basePrice - 100,
       close: basePrice,
       volume: 100,
     });
@@ -61,7 +54,7 @@ test("ACTION: ActionBase.signal() receives all signal events in backtest", async
   addExchange({
     exchangeName: "binance-action-signal",
     getCandles: async (_symbol, _interval, since, limit) => {
-      const sinceIndex = Math.floor((since.getTime() - bufferStartTime) / intervalMs);
+      const sinceIndex = Math.floor((since.getTime() - startTime) / intervalMs);
       const result = allCandles.slice(sinceIndex, sinceIndex + limit);
       return result.length > 0 ? result : allCandles.slice(0, Math.min(limit, allCandles.length));
     },
@@ -74,10 +67,6 @@ test("ACTION: ActionBase.signal() receives all signal events in backtest", async
     handler: TestActionSignal,
   });
 
-  console.log("[TEST] Action registered: test-action-signal");
-
-  console.log("[TEST] Registering strategy with actions:", ["test-action-signal"]);
-
   addStrategy({
     strategyName: "test-strategy-action-signal",
     interval: "1m",
@@ -88,38 +77,27 @@ test("ACTION: ActionBase.signal() receives all signal events in backtest", async
 
       allCandles = [];
 
-      // Буферные свечи (4 минуты ДО startTime)
-      for (let i = 0; i < bufferMinutes; i++) {
-        allCandles.push({
-          timestamp: bufferStartTime + i * intervalMs,
-          open: basePrice,
-          high: basePrice + 50,
-          low: basePrice - 50,
-          close: basePrice,
-          volume: 100,
-        });
-      }
-
-      // Основные свечи (от startTime)
-      for (let i = 0; i < 15; i++) {
+      // Генерируем свечи для immediate activation (как в sequence.test.mjs Тест #3)
+      for (let i = 0; i < 30; i++) {
         const timestamp = startTime + i * intervalMs;
 
-        // Immediate activation: цена = basePrice (VWAP будет = basePrice)
-        if (i < 5) {
-          allCandles.push({ timestamp, open: basePrice, high: basePrice + 50, low: basePrice - 50, close: basePrice, volume: 100 });
+        // Фаза 1: Ожидание (0-9) - цена ВЫШЕ basePrice
+        if (i < 10) {
+          allCandles.push({ timestamp, open: basePrice + 500, high: basePrice + 600, low: basePrice + 400, close: basePrice + 500, volume: 100 });
         }
-        // TP (5-14)
+        // Фаза 2: Активация (10-14) - цена НА basePrice
+        else if (i >= 10 && i < 15) {
+          allCandles.push({ timestamp, open: basePrice, high: basePrice + 100, low: basePrice - 100, close: basePrice, volume: 100 });
+        }
+        // Фаза 3: TP (15-29) - цена достигает TP
         else {
-          const tpPrice = basePrice + 1000;
-          allCandles.push({ timestamp, open: tpPrice, high: tpPrice + 50, low: tpPrice - 50, close: tpPrice, volume: 100 });
+          allCandles.push({ timestamp, open: basePrice + 1000, high: basePrice + 1100, low: basePrice + 900, close: basePrice + 1000, volume: 100 });
         }
       }
-
-      console.log("[TEST] Generating signal with priceOpen =", basePrice);
 
       return {
         position: "long",
-        priceOpen: basePrice,  // VWAP = basePrice → immediate activation
+        priceOpen: basePrice,  // НА текущей цене → immediate activation
         priceTakeProfit: basePrice + 1000,
         priceStopLoss: basePrice - 1000,
         minuteEstimatedTime: 60,
@@ -128,10 +106,10 @@ test("ACTION: ActionBase.signal() receives all signal events in backtest", async
   });
 
   addFrame({
-    frameName: "15m-action-signal",
+    frameName: "30m-action-signal",
     interval: "1m",
     startDate: new Date("2024-01-01T00:00:00Z"),
-    endDate: new Date("2024-01-01T00:15:00Z"),
+    endDate: new Date("2024-01-01T00:30:00Z"),
   });
 
   const awaitSubject = new Subject();
@@ -143,19 +121,15 @@ test("ACTION: ActionBase.signal() receives all signal events in backtest", async
     awaitSubject.next();
   });
 
-  console.log("[TEST] Starting backtest...");
-
   Backtest.background("BTCUSDT", {
     strategyName: "test-strategy-action-signal",
     exchangeName: "binance-action-signal",
-    frameName: "15m-action-signal",
+    frameName: "30m-action-signal",
   });
 
   await awaitSubject.toPromise();
+  await sleep(1000);
   unsubscribeError();
-
-  console.log("[TEST] Backtest finished. signalEvents.length =", signalEvents.length);
-  console.log("[TEST] signalEvents:", signalEvents);
 
   if (errorCaught) {
     fail(`Error: ${errorCaught.message || errorCaught}`);
@@ -173,7 +147,7 @@ test("ACTION: ActionBase.signal() receives all signal events in backtest", async
     return;
   }
 
-  if (!signalEvents.every(e => e.frameName === "15m-action-signal")) {
+  if (!signalEvents.every(e => e.frameName === "30m-action-signal")) {
     fail("Action frameName incorrect");
     return;
   }
