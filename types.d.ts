@@ -2929,6 +2929,15 @@ interface IStrategy {
      * ```
      */
     breakeven: (symbol: string, currentPrice: number, backtest: boolean) => Promise<boolean>;
+    /**
+     * Disposes the strategy instance and cleans up resources.
+     *
+     * Called when the strategy is being removed from cache or shut down.
+     * Invokes the onDispose callback to notify external systems.
+     *
+     * @returns Promise that resolves when disposal is complete
+     */
+    dispose: () => Promise<void>;
 }
 /**
  * Unique strategy identifier.
@@ -13397,10 +13406,24 @@ declare class StrategyConnectionService implements TStrategy$1 {
         frameName: FrameName;
     }) => Promise<void>;
     /**
+     * Disposes the ClientStrategy instance for the given context.
+     *
+     * Calls dispose callback, then removes strategy from cache.
+     *
+     * @param backtest - Whether running in backtest mode
+     * @param symbol - Trading pair symbol
+     * @param context - Execution context with strategyName, exchangeName, frameName
+     */
+    dispose: (backtest: boolean, symbol: string, context: {
+        strategyName: StrategyName;
+        exchangeName: ExchangeName;
+        frameName: FrameName;
+    }) => Promise<void>;
+    /**
      * Clears the memoized ClientStrategy instance from cache.
      *
-     * Forces re-initialization of strategy on next getStrategy call.
-     * Useful for resetting strategy state or releasing resources.
+     * If payload is provided, disposes the specific strategy instance.
+     * If no payload is provided, clears all strategy instances.
      *
      * @param payload - Optional payload with symbol, context and backtest flag (clears all if not provided)
      */
@@ -14331,10 +14354,25 @@ declare class StrategyCoreService implements TStrategy {
         frameName: FrameName;
     }, cancelId?: string) => Promise<void>;
     /**
+     * Disposes the ClientStrategy instance for the given context.
+     *
+     * Calls dispose on the strategy instance to clean up resources,
+     * then removes it from cache.
+     *
+     * @param backtest - Whether running in backtest mode
+     * @param symbol - Trading pair symbol
+     * @param context - Execution context with strategyName, exchangeName, frameName
+     */
+    dispose: (backtest: boolean, symbol: string, context: {
+        strategyName: StrategyName;
+        exchangeName: ExchangeName;
+        frameName: FrameName;
+    }) => Promise<void>;
+    /**
      * Clears the memoized ClientStrategy instance from cache.
      *
-     * Delegates to StrategyConnectionService.clear() to remove strategy from cache.
-     * Forces re-initialization of strategy on next operation.
+     * Delegates to StrategyConnectionService.dispose() if payload provided,
+     * otherwise clears all strategy instances.
      *
      * @param payload - Optional payload with symbol, context and backtest flag (clears all if not provided)
      */

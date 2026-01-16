@@ -4862,6 +4862,25 @@ export class ClientStrategy implements IStrategy {
 
     return true;
   }
+
+  /**
+   * Disposes the strategy instance and cleans up resources.
+   *
+   * Calls the onDispose callback to notify external systems that this strategy
+   * instance is being removed from cache.
+   *
+   * @returns Promise that resolves when disposal is complete
+   */
+  public async dispose(): Promise<void> {
+    this.params.logger.debug("ClientStrategy dispose");
+    await this.params.onDispose(
+      this.params.symbol,
+      this.params.strategyName,
+      this.params.exchangeName,
+      this.params.frameName,
+      this.params.backtest
+    );
+  }
 }
 
 export default ClientStrategy;

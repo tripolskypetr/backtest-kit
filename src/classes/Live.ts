@@ -197,7 +197,7 @@ export class LiveInstance {
     }
 
     {
-      const { riskName, riskList } = backtest.strategySchemaService.get(
+      const { riskName, riskList, actions } = backtest.strategySchemaService.get(
         context.strategyName
       );
       riskName && backtest.riskGlobalService.clear({
@@ -208,6 +208,13 @@ export class LiveInstance {
       });
       riskList && riskList.forEach((riskName) => backtest.riskGlobalService.clear({
         riskName,
+        exchangeName: context.exchangeName,
+        frameName: "",
+        backtest: false
+      }));
+      actions && actions.forEach((actionName) => backtest.actionCoreService.clear({
+        actionName,
+        strategyName: context.strategyName,
         exchangeName: context.exchangeName,
         frameName: "",
         backtest: false

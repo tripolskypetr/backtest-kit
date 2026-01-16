@@ -215,7 +215,7 @@ export class WalkerInstance {
       }
 
       {
-        const { riskName, riskList } =
+        const { riskName, riskList, actions } =
           backtest.strategySchemaService.get(strategyName);
         riskName && backtest.riskGlobalService.clear({
           riskName,
@@ -227,6 +227,16 @@ export class WalkerInstance {
           riskList.forEach((riskName) =>
             backtest.riskGlobalService.clear({
               riskName,
+              exchangeName: walkerSchema.exchangeName,
+              frameName: walkerSchema.frameName,
+              backtest: true
+            })
+          );
+        actions &&
+          actions.forEach((actionName) =>
+            backtest.actionCoreService.clear({
+              actionName,
+              strategyName,
               exchangeName: walkerSchema.exchangeName,
               frameName: walkerSchema.frameName,
               backtest: true

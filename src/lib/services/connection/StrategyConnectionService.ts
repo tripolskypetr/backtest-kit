@@ -154,6 +154,28 @@ const COMMIT_PING_FN = async (
   });
 
 /**
+ * Callback function for emitting dispose events to disposeSubject.
+ *
+ * Called by ClientStrategy when it is being disposed.
+ *
+ * @param symbol - Trading pair symbol
+ * @param strategyName - Strategy name being disposed
+ * @param exchangeName - Exchange name
+ * @param frameName - Frame name
+ * @param backtest - True if backtest mode
+ */
+const COMMIT_DISPOSE_FN = async (
+  symbol: string,
+  strategyName: StrategyName,
+  exchangeName: ExchangeName,
+  frameName: FrameName,
+  backtest: boolean
+) => {
+  // Placeholder for future dispose subject implementation
+  // await disposeSubject.next({ symbol, strategyName, exchangeName, frameName, backtest });
+};
+
+/**
  * Type definition for strategy methods.
  * Maps all keys of IStrategy to any type.
  * Used for dynamic method routing in StrategyConnectionService.
@@ -232,6 +254,8 @@ export class StrategyConnectionService implements TStrategy {
         symbol,
         interval,
         exchangeName,
+        frameName,
+        backtest,
         execution: this.executionContextService,
         method: this.methodContextService,
         logger: this.loggerService,
@@ -253,6 +277,7 @@ export class StrategyConnectionService implements TStrategy {
         getSignal,
         callbacks,
         onPing: COMMIT_PING_FN,
+        onDispose: COMMIT_DISPOSE_FN,
       });
     }
   );
@@ -476,10 +501,32 @@ export class StrategyConnectionService implements TStrategy {
   };
 
   /**
+   * Disposes the ClientStrategy instance for the given context.
+   *
+   * Calls dispose callback, then removes strategy from cache.
+   *
+   * @param backtest - Whether running in backtest mode
+   * @param symbol - Trading pair symbol
+   * @param context - Execution context with strategyName, exchangeName, frameName
+   */
+  public dispose = async (
+    backtest: boolean,
+    symbol: string,
+    context: { strategyName: StrategyName; exchangeName: ExchangeName; frameName: FrameName }
+  ): Promise<void> => {
+    this.loggerService.log("strategyConnectionService dispose", {
+      symbol,
+      context,
+      backtest,
+    });
+    await this.clear({ symbol, ...context, backtest });
+  };
+
+  /**
    * Clears the memoized ClientStrategy instance from cache.
    *
-   * Forces re-initialization of strategy on next getStrategy call.
-   * Useful for resetting strategy state or releasing resources.
+   * If payload is provided, disposes the specific strategy instance.
+   * If no payload is provided, clears all strategy instances.
    *
    * @param payload - Optional payload with symbol, context and backtest flag (clears all if not provided)
    */
@@ -495,12 +542,23 @@ export class StrategyConnectionService implements TStrategy {
     this.loggerService.log("strategyConnectionService clear", {
       payload,
     });
-    if (payload) {
-      const key = CREATE_KEY_FN(payload.symbol, payload.strategyName, payload.exchangeName, payload.frameName, payload.backtest);
-      this.getStrategy.clear(key);
-    } else {
+    if (!payload) {
+      const strategies = this.getStrategy.values();
       this.getStrategy.clear();
+      // Dispose all strategies
+      for (const strategy of strategies) {
+        await strategy.dispose();
+      }
+      return;
     }
+    const key = CREATE_KEY_FN(payload.symbol, payload.strategyName, payload.exchangeName, payload.frameName, payload.backtest);
+    if (!this.getStrategy.has(key)) {
+      return;
+    }
+    const strategy = this.getStrategy(payload.symbol, payload.strategyName, payload.exchangeName, payload.frameName, payload.backtest);
+    this.getStrategy.clear(key);
+    // Call dispose on strategy instance
+    await strategy.dispose();
   };
 
   /**

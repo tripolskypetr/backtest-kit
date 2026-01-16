@@ -328,10 +328,34 @@ export class StrategyCoreService implements TStrategy {
   };
 
   /**
+   * Disposes the ClientStrategy instance for the given context.
+   *
+   * Calls dispose on the strategy instance to clean up resources,
+   * then removes it from cache.
+   *
+   * @param backtest - Whether running in backtest mode
+   * @param symbol - Trading pair symbol
+   * @param context - Execution context with strategyName, exchangeName, frameName
+   */
+  public dispose = async (
+    backtest: boolean,
+    symbol: string,
+    context: { strategyName: StrategyName; exchangeName: ExchangeName; frameName: FrameName }
+  ): Promise<void> => {
+    this.loggerService.log("strategyCoreService dispose", {
+      symbol,
+      context,
+      backtest,
+    });
+    await this.validate(context);
+    return await this.strategyConnectionService.dispose(backtest, symbol, context);
+  };
+
+  /**
    * Clears the memoized ClientStrategy instance from cache.
    *
-   * Delegates to StrategyConnectionService.clear() to remove strategy from cache.
-   * Forces re-initialization of strategy on next operation.
+   * Delegates to StrategyConnectionService.dispose() if payload provided,
+   * otherwise clears all strategy instances.
    *
    * @param payload - Optional payload with symbol, context and backtest flag (clears all if not provided)
    */
