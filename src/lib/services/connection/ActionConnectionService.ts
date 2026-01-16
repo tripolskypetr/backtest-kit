@@ -251,7 +251,7 @@ export class ActionConnectionService implements TAction {
     this.loggerService.log("actionConnectionService dispose", {
       payload,
     });
-    await this.getAction(payload.actionName, payload.strategyName, payload.exchangeName, payload.frameName, payload.backtest).dispose();
+    await this.clear(payload);
   };
 
   /**
@@ -265,12 +265,19 @@ export class ActionConnectionService implements TAction {
     this.loggerService.log("actionConnectionService clear", {
       payload,
     });
-    if (payload) {
-      const key = CREATE_KEY_FN(payload.actionName, payload.strategyName, payload.exchangeName, payload.frameName, payload.backtest);
-      this.getAction.clear(key);
-    } else {
+    if (!payload) {
+      const actions = this.getAction.values();
       this.getAction.clear();
+      await Promise.all(actions.map(async (action) => await action.dispose()));
+      return;
     }
+    const key = CREATE_KEY_FN(payload.actionName, payload.strategyName, payload.exchangeName, payload.frameName, payload.backtest);
+    if (!this.getAction.has(key)) {
+      return;
+    }
+    const action = this.getAction(payload.actionName, payload.strategyName, payload.exchangeName, payload.frameName, payload.backtest);
+    this.getAction.clear(key);
+    await action.dispose();
   };
 }
 
