@@ -19,7 +19,7 @@ import StrategyCoreService from "./services/core/StrategyCoreService";
 import FrameCoreService from "./services/core/FrameCoreService";
 import SizingGlobalService from "./services/global/SizingGlobalService";
 import RiskGlobalService from "./services/global/RiskGlobalService";
-import ActionGlobalService from "./services/global/ActionGlobalService";
+import ActionCoreService from "./services/core/ActionCoreService";
 import WalkerCommandService from "./services/command/WalkerCommandService";
 import ExchangeSchemaService from "./services/schema/ExchangeSchemaService";
 import StrategySchemaService from "./services/schema/StrategySchemaService";
@@ -137,13 +137,13 @@ const schemaServices = {
 const coreServices = {
   exchangeCoreService: inject<ExchangeCoreService>(TYPES.exchangeCoreService),
   strategyCoreService: inject<StrategyCoreService>(TYPES.strategyCoreService),
+  actionCoreService: inject<ActionCoreService>(TYPES.actionCoreService),
   frameCoreService: inject<FrameCoreService>(TYPES.frameCoreService),
 };
 
 const globalServices = {
   sizingGlobalService: inject<SizingGlobalService>(TYPES.sizingGlobalService),
   riskGlobalService: inject<RiskGlobalService>(TYPES.riskGlobalService),
-  actionGlobalService: inject<ActionGlobalService>(TYPES.actionGlobalService),
   optimizerGlobalService: inject<OptimizerGlobalService>(
     TYPES.optimizerGlobalService
   ),

@@ -33,13 +33,13 @@ const schemaServices = {
 const coreServices = {
     exchangeCoreService: Symbol('exchangeCoreService'),
     strategyCoreService: Symbol('strategyCoreService'),
+    actionCoreService: Symbol('actionCoreService'),
     frameCoreService: Symbol('frameCoreService'),
 }
 
 const globalServices = {
     sizingGlobalService: Symbol('sizingGlobalService'),
     riskGlobalService: Symbol('riskGlobalService'),
-    actionGlobalService: Symbol('actionGlobalService'),
     optimizerGlobalService: Symbol('optimizerGlobalService'),
     partialGlobalService: Symbol('partialGlobalService'),
     breakevenGlobalService: Symbol('breakevenGlobalService'),

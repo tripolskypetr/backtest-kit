@@ -12,7 +12,7 @@ import StrategyCoreService from "../services/core/StrategyCoreService";
 import FrameCoreService from "../services/core/FrameCoreService";
 import SizingGlobalService from "../services/global/SizingGlobalService";
 import RiskGlobalService from "../services/global/RiskGlobalService";
-import ActionGlobalService from "../services/global/ActionGlobalService";
+import ActionCoreService from "../services/core/ActionCoreService";
 import ExchangeSchemaService from "../services/schema/ExchangeSchemaService";
 import StrategySchemaService from "../services/schema/StrategySchemaService";
 import FrameSchemaService from "../services/schema/FrameSchemaService";
@@ -104,13 +104,13 @@ import RiskReportService from "../services/report/RiskReportService";
 {
     provide(TYPES.exchangeCoreService, () => new ExchangeCoreService());
     provide(TYPES.strategyCoreService, () => new StrategyCoreService());
+    provide(TYPES.actionCoreService, () => new ActionCoreService());
     provide(TYPES.frameCoreService, () => new FrameCoreService());
 }
 
 {
     provide(TYPES.sizingGlobalService, () => new SizingGlobalService());
     provide(TYPES.riskGlobalService, () => new RiskGlobalService());
-    provide(TYPES.actionGlobalService, () => new ActionGlobalService());
     provide(TYPES.optimizerGlobalService, () => new OptimizerGlobalService());
     provide(TYPES.partialGlobalService, () => new PartialGlobalService());
     provide(TYPES.breakevenGlobalService, () => new BreakevenGlobalService());

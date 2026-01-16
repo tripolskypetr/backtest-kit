@@ -20,12 +20,12 @@ import StrategySchemaService from "../schema/StrategySchemaService";
 import StrategyValidationService from "../validation/StrategyValidationService";
 import RiskValidationService from "../validation/RiskValidationService";
 
-const METHOD_NAME_VALIDATE = "actionGlobalService validate";
+const METHOD_NAME_VALIDATE = "actionCoreService validate";
 
 /**
  * Type definition for action methods.
  * Maps all keys of IAction to any type.
- * Used for dynamic method routing in ActionGlobalService.
+ * Used for dynamic method routing in ActionCoreService.
  */
 type TAction = {
   [key in keyof IAction]: any;
@@ -45,7 +45,7 @@ type TAction = {
  *
  * Used internally by strategy execution and public API.
  */
-export class ActionGlobalService implements TAction {
+export class ActionCoreService implements TAction {
   private readonly loggerService = inject<LoggerService>(TYPES.loggerService);
   private readonly actionConnectionService = inject<ActionConnectionService>(
     TYPES.actionConnectionService
@@ -119,7 +119,7 @@ export class ActionGlobalService implements TAction {
     event: IStrategyTickResult,
     context: { strategyName: StrategyName; exchangeName: ExchangeName; frameName: FrameName }
   ) => {
-    this.loggerService.log("actionGlobalService signal", {
+    this.loggerService.log("actionCoreService signal", {
       action: event.action,
       context,
     });
@@ -148,7 +148,7 @@ export class ActionGlobalService implements TAction {
     event: IStrategyTickResult,
     context: { strategyName: StrategyName; exchangeName: ExchangeName; frameName: FrameName }
   ) => {
-    this.loggerService.log("actionGlobalService signalLive", {
+    this.loggerService.log("actionCoreService signalLive", {
       action: event.action,
       context,
     });
@@ -177,7 +177,7 @@ export class ActionGlobalService implements TAction {
     event: IStrategyTickResult,
     context: { strategyName: StrategyName; exchangeName: ExchangeName; frameName: FrameName }
   ) => {
-    this.loggerService.log("actionGlobalService signalBacktest", {
+    this.loggerService.log("actionCoreService signalBacktest", {
       action: event.action,
       context,
     });
@@ -206,7 +206,7 @@ export class ActionGlobalService implements TAction {
     event: BreakevenContract,
     context: { strategyName: StrategyName; exchangeName: ExchangeName; frameName: FrameName }
   ) => {
-    this.loggerService.log("actionGlobalService breakeven", {
+    this.loggerService.log("actionCoreService breakeven", {
       context,
     });
 
@@ -234,7 +234,7 @@ export class ActionGlobalService implements TAction {
     event: PartialProfitContract,
     context: { strategyName: StrategyName; exchangeName: ExchangeName; frameName: FrameName }
   ) => {
-    this.loggerService.log("actionGlobalService partialProfit", {
+    this.loggerService.log("actionCoreService partialProfit", {
       context,
     });
 
@@ -262,7 +262,7 @@ export class ActionGlobalService implements TAction {
     event: PartialLossContract,
     context: { strategyName: StrategyName; exchangeName: ExchangeName; frameName: FrameName }
   ) => {
-    this.loggerService.log("actionGlobalService partialLoss", {
+    this.loggerService.log("actionCoreService partialLoss", {
       context,
     });
 
@@ -291,7 +291,7 @@ export class ActionGlobalService implements TAction {
     event: PingContract,
     context: { strategyName: StrategyName; exchangeName: ExchangeName; frameName: FrameName }
   ) => {
-    this.loggerService.log("actionGlobalService ping", {
+    this.loggerService.log("actionCoreService ping", {
       context,
     });
 
@@ -320,7 +320,7 @@ export class ActionGlobalService implements TAction {
     event: RiskContract,
     context: { strategyName: StrategyName; exchangeName: ExchangeName; frameName: FrameName }
   ) => {
-    this.loggerService.log("actionGlobalService riskRejection", {
+    this.loggerService.log("actionCoreService riskRejection", {
       context,
     });
 
@@ -347,7 +347,7 @@ export class ActionGlobalService implements TAction {
     backtest: boolean,
     context: { strategyName: StrategyName; exchangeName: ExchangeName; frameName: FrameName }
   ): Promise<void> => {
-    this.loggerService.log("actionGlobalService dispose", {
+    this.loggerService.log("actionCoreService dispose", {
       context,
     });
 
@@ -371,7 +371,7 @@ export class ActionGlobalService implements TAction {
   public clear = async (
     payload?: { actionName: ActionName; strategyName: StrategyName; exchangeName: ExchangeName; frameName: FrameName; backtest: boolean }
   ): Promise<void> => {
-    this.loggerService.log("actionGlobalService clear", {
+    this.loggerService.log("actionCoreService clear", {
       payload,
     });
     if (payload) {
@@ -381,4 +381,4 @@ export class ActionGlobalService implements TAction {
   };
 }
 
-export default ActionGlobalService;
+export default ActionCoreService;
