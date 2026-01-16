@@ -2,14 +2,23 @@ import * as fs from "fs/promises";
 import { createWriteStream, WriteStream } from "fs";
 import { join } from "path";
 import lib from "../lib";
-import { compose, getErrorMessage, makeExtendable, memoize, singleshot, timeout, TIMEOUT_SYMBOL } from "functools-kit";
+import {
+  compose,
+  getErrorMessage,
+  makeExtendable,
+  memoize,
+  singleshot,
+  timeout,
+  TIMEOUT_SYMBOL,
+} from "functools-kit";
 import { exitEmitter } from "../config/emitters";
 
 const REPORT_BASE_METHOD_NAME_CTOR = "ReportBase.CTOR";
 const REPORT_BASE_METHOD_NAME_WAIT_FOR_INIT = "ReportBase.waitForInit";
 const REPORT_BASE_METHOD_NAME_WRITE = "ReportBase.write";
 
-const REPORT_UTILS_METHOD_NAME_USE_REPORT_ADAPTER = "ReportUtils.useReportAdapter";
+const REPORT_UTILS_METHOD_NAME_USE_REPORT_ADAPTER =
+  "ReportUtils.useReportAdapter";
 const REPORT_UTILS_METHOD_NAME_WRITE_DATA = "ReportUtils.writeReportData";
 const REPORT_UTILS_METHOD_NAME_ENABLE = "ReportUtils.enable";
 const REPORT_UTILS_METHOD_NAME_DISABLE = "ReportUtils.disable";
@@ -98,7 +107,10 @@ export type TReportBase = {
  * Constructor type for report storage adapters.
  * Used for custom report storage implementations.
  */
-export type TReportBaseCtor = new (reportName: ReportName, baseDir: string) => TReportBase;
+export type TReportBaseCtor = new (
+  reportName: ReportName,
+  baseDir: string
+) => TReportBase;
 
 /**
  * JSONL-based report adapter with append-only writes.
@@ -116,135 +128,143 @@ export type TReportBaseCtor = new (reportName: ReportName, baseDir: string) => T
  *
  * Use this adapter for event logging and post-processing analytics.
  */
-export const ReportBase = makeExtendable(
-  class implements TReportBase {
-    /** Absolute path to the JSONL file for this report type */
-    _filePath: string;
+class ReportBase implements TReportBase {
+  /** Absolute path to the JSONL file for this report type */
+  _filePath: string;
 
-    /** WriteStream instance for append-only writes, null until initialized */
-    _stream: WriteStream | null = null;
+  /** WriteStream instance for append-only writes, null until initialized */
+  _stream: WriteStream | null = null;
 
-    /**
-     * Creates a new JSONL report adapter instance.
-     *
-     * @param reportName - Type of report (backtest, live, walker, etc.)
-     * @param baseDir - Base directory for report files, defaults to ./dump/report
-     */
-    constructor(
-      readonly reportName: ReportName,
-      readonly baseDir = join(process.cwd(), "./dump/report")
-    ) {
-      lib.loggerService.debug(REPORT_BASE_METHOD_NAME_CTOR, {
-        reportName: this.reportName,
-        baseDir,
-      });
-      this._filePath = join(this.baseDir, `${this.reportName}.jsonl`);
-    }
-
-    /**
-     * Singleshot initialization function that creates directory and stream.
-     * Protected by singleshot to ensure one-time execution.
-     * Sets up error handler that emits to exitEmitter.
-     */
-    [WAIT_FOR_INIT_SYMBOL] = singleshot(async (): Promise<void> => {
-      await fs.mkdir(this.baseDir, { recursive: true });
-      this._stream = createWriteStream(this._filePath, { flags: "a" });
-      this._stream.on('error', (err) => {
-        exitEmitter.next(new Error(`ReportBase stream error for reportName=${this.reportName} message=${getErrorMessage(err)}`))
-      });
+  /**
+   * Creates a new JSONL report adapter instance.
+   *
+   * @param reportName - Type of report (backtest, live, walker, etc.)
+   * @param baseDir - Base directory for report files, defaults to ./dump/report
+   */
+  constructor(
+    readonly reportName: ReportName,
+    readonly baseDir = join(process.cwd(), "./dump/report")
+  ) {
+    lib.loggerService.debug(REPORT_BASE_METHOD_NAME_CTOR, {
+      reportName: this.reportName,
+      baseDir,
     });
+    this._filePath = join(this.baseDir, `${this.reportName}.jsonl`);
+  }
 
-    /**
-     * Timeout-protected write function with backpressure handling.
-     * Waits for drain event if write buffer is full.
-     * Times out after 15 seconds and returns TIMEOUT_SYMBOL.
-     */
-    [WRITE_SAFE_SYMBOL] = timeout(async (line: string) => {
-      if (!this._stream.write(line)) {
-        await new Promise<void>((resolve) => {
-          this._stream!.once('drain', resolve);
-        });
-      }
-    }, 15_000);
+  /**
+   * Singleshot initialization function that creates directory and stream.
+   * Protected by singleshot to ensure one-time execution.
+   * Sets up error handler that emits to exitEmitter.
+   */
+  [WAIT_FOR_INIT_SYMBOL] = singleshot(async (): Promise<void> => {
+    await fs.mkdir(this.baseDir, { recursive: true });
+    this._stream = createWriteStream(this._filePath, { flags: "a" });
+    this._stream.on("error", (err) => {
+      exitEmitter.next(
+        new Error(
+          `ReportBase stream error for reportName=${
+            this.reportName
+          } message=${getErrorMessage(err)}`
+        )
+      );
+    });
+  });
 
-    /**
-     * Initializes the JSONL file and write stream.
-     * Safe to call multiple times - singleshot ensures one-time execution.
-     *
-     * @param initial - Whether this is the first initialization (informational only)
-     * @returns Promise that resolves when initialization is complete
-     */
-    async waitForInit(initial: boolean): Promise<void> {
-      lib.loggerService.debug(REPORT_BASE_METHOD_NAME_WAIT_FOR_INIT, {
-        reportName: this.reportName,
-        initial,
+  /**
+   * Timeout-protected write function with backpressure handling.
+   * Waits for drain event if write buffer is full.
+   * Times out after 15 seconds and returns TIMEOUT_SYMBOL.
+   */
+  [WRITE_SAFE_SYMBOL] = timeout(async (line: string) => {
+    if (!this._stream.write(line)) {
+      await new Promise<void>((resolve) => {
+        this._stream!.once("drain", resolve);
       });
-      await this[WAIT_FOR_INIT_SYMBOL]();
+    }
+  }, 15_000);
+
+  /**
+   * Initializes the JSONL file and write stream.
+   * Safe to call multiple times - singleshot ensures one-time execution.
+   *
+   * @param initial - Whether this is the first initialization (informational only)
+   * @returns Promise that resolves when initialization is complete
+   */
+  async waitForInit(initial: boolean): Promise<void> {
+    lib.loggerService.debug(REPORT_BASE_METHOD_NAME_WAIT_FOR_INIT, {
+      reportName: this.reportName,
+      initial,
+    });
+    await this[WAIT_FOR_INIT_SYMBOL]();
+  }
+
+  /**
+   * Writes event data to JSONL file with metadata.
+   * Appends a single line with JSON object containing:
+   * - reportName: Type of report
+   * - data: Event data object
+   * - Search flags: symbol, strategyName, exchangeName, frameName, signalId, walkerName
+   * - timestamp: Current timestamp in milliseconds
+   *
+   * @param data - Event data object to write
+   * @param options - Metadata options for filtering and search
+   * @throws Error if stream not initialized or write timeout exceeded
+   */
+  async write<T = any>(data: T, options: IReportDumpOptions): Promise<void> {
+    lib.loggerService.debug(REPORT_BASE_METHOD_NAME_WRITE, {
+      reportName: this.reportName,
+      options,
+    });
+    if (!this._stream) {
+      throw new Error(
+        `Stream not initialized for report ${this.reportName}. Call waitForInit() first.`
+      );
     }
 
-    /**
-     * Writes event data to JSONL file with metadata.
-     * Appends a single line with JSON object containing:
-     * - reportName: Type of report
-     * - data: Event data object
-     * - Search flags: symbol, strategyName, exchangeName, frameName, signalId, walkerName
-     * - timestamp: Current timestamp in milliseconds
-     *
-     * @param data - Event data object to write
-     * @param options - Metadata options for filtering and search
-     * @throws Error if stream not initialized or write timeout exceeded
-     */
-    async write<T = any>(data: T, options: IReportDumpOptions): Promise<void> {
-      lib.loggerService.debug(REPORT_BASE_METHOD_NAME_WRITE, {
-        reportName: this.reportName,
-        options,
-      });
-      if (!this._stream) {
-        throw new Error(
-          `Stream not initialized for report ${this.reportName}. Call waitForInit() first.`
-        );
-      }
+    const searchFlags: Partial<IReportDumpOptions> = {};
 
-      const searchFlags: Partial<IReportDumpOptions> = {};
+    if (options.symbol) {
+      searchFlags.symbol = options.symbol;
+    }
 
-      if (options.symbol) {
-        searchFlags.symbol = options.symbol;
-      }
+    if (options.strategyName) {
+      searchFlags.strategyName = options.strategyName;
+    }
 
-      if (options.strategyName) {
-        searchFlags.strategyName = options.strategyName;
-      }
+    if (options.exchangeName) {
+      searchFlags.exchangeName = options.exchangeName;
+    }
 
-      if (options.exchangeName) {
-        searchFlags.exchangeName = options.exchangeName;
-      }
+    if (options.frameName) {
+      searchFlags.frameName = options.frameName;
+    }
 
-      if (options.frameName) {
-        searchFlags.frameName = options.frameName;
-      }
+    if (options.signalId) {
+      searchFlags.signalId = options.signalId;
+    }
 
-      if (options.signalId) {
-        searchFlags.signalId = options.signalId;
-      }
+    if (options.walkerName) {
+      searchFlags.walkerName = options.walkerName;
+    }
 
-      if (options.walkerName) {
-        searchFlags.walkerName = options.walkerName;
-      }
-
-      const line = JSON.stringify({
+    const line =
+      JSON.stringify({
         reportName: this.reportName,
         data,
         ...searchFlags,
         timestamp: Date.now(),
       }) + "\n";
 
-      const status = await this[WRITE_SAFE_SYMBOL](line);
-      if (status === TIMEOUT_SYMBOL) {
-        throw new Error(`Timeout writing to report ${this.reportName}`);
-      }
+    const status = await this[WRITE_SAFE_SYMBOL](line);
+    if (status === TIMEOUT_SYMBOL) {
+      throw new Error(`Timeout writing to report ${this.reportName}`);
     }
   }
-);
+}
+
+// @ts-ignore
+ReportBase = makeExtendable(ReportBase);
 
 /**
  * Dummy report adapter that discards all writes.
@@ -536,7 +556,7 @@ export class ReportAdapter extends ReportUtils {
    * All future report writes will be no-ops.
    */
   public useDummy() {
-    lib.loggerService.log(REPORT_UTILS_METHOD_NAME_USE_DUMMY)
+    lib.loggerService.log(REPORT_UTILS_METHOD_NAME_USE_DUMMY);
     this.useReportAdapter(ReportDummy);
   }
 
@@ -555,3 +575,5 @@ export class ReportAdapter extends ReportUtils {
  * Provides JSONL event logging with pluggable storage backends.
  */
 export const Report = new ReportAdapter();
+
+export { ReportBase }

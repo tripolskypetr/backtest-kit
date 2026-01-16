@@ -7302,35 +7302,40 @@ interface IPersistBase<Entity extends IEntity | null = IEntity> {
  * const value = await persist.readValue("key1");
  * ```
  */
-declare const PersistBase: {
-    new <EntityName extends string = string>(entityName: EntityName, baseDir?: string): {
-        /** Computed directory path for entity storage */
-        _directory: string;
-        readonly entityName: EntityName;
-        readonly baseDir: string;
-        /**
-         * Computes file path for entity ID.
-         *
-         * @param entityId - Entity identifier
-         * @returns Full file path to entity JSON file
-         */
-        _getFilePath(entityId: EntityId): string;
-        waitForInit(initial: boolean): Promise<void>;
-        readValue<T extends IEntity = IEntity>(entityId: EntityId): Promise<T>;
-        hasValue(entityId: EntityId): Promise<boolean>;
-        writeValue<T extends IEntity = IEntity>(entityId: EntityId, entity: T): Promise<void>;
-        /**
-         * Async generator yielding all entity IDs.
-         * Sorted alphanumerically.
-         * Used internally by waitForInit for validation.
-         *
-         * @returns AsyncGenerator yielding entity IDs
-         * @throws Error if reading fails
-         */
-        keys(): AsyncGenerator<EntityId>;
-        [BASE_WAIT_FOR_INIT_SYMBOL]: (() => Promise<void>) & functools_kit.ISingleshotClearable;
-    };
-};
+declare class PersistBase<EntityName extends string = string> implements IPersistBase {
+    readonly entityName: EntityName;
+    readonly baseDir: string;
+    /** Computed directory path for entity storage */
+    _directory: string;
+    /**
+     * Creates new persistence instance.
+     *
+     * @param entityName - Unique entity type identifier
+     * @param baseDir - Base directory for all entities (default: ./dump/data)
+     */
+    constructor(entityName: EntityName, baseDir?: string);
+    /**
+     * Computes file path for entity ID.
+     *
+     * @param entityId - Entity identifier
+     * @returns Full file path to entity JSON file
+     */
+    _getFilePath(entityId: EntityId): string;
+    [BASE_WAIT_FOR_INIT_SYMBOL]: (() => Promise<void>) & functools_kit.ISingleshotClearable;
+    waitForInit(initial: boolean): Promise<void>;
+    readValue<T extends IEntity = IEntity>(entityId: EntityId): Promise<T>;
+    hasValue(entityId: EntityId): Promise<boolean>;
+    writeValue<T extends IEntity = IEntity>(entityId: EntityId, entity: T): Promise<void>;
+    /**
+     * Async generator yielding all entity IDs.
+     * Sorted alphanumerically.
+     * Used internally by waitForInit for validation.
+     *
+     * @returns AsyncGenerator yielding entity IDs
+     * @throws Error if reading fails
+     */
+    keys(): AsyncGenerator<EntityId>;
+}
 /**
  * Utility class for managing signal persistence.
  *
@@ -7892,49 +7897,54 @@ type TReportBaseCtor = new (reportName: ReportName, baseDir: string) => TReportB
  *
  * Use this adapter for event logging and post-processing analytics.
  */
-declare const ReportBase: {
-    new (reportName: ReportName, baseDir?: string): {
-        /** Absolute path to the JSONL file for this report type */
-        _filePath: string;
-        /** WriteStream instance for append-only writes, null until initialized */
-        _stream: WriteStream | null;
-        readonly reportName: ReportName;
-        readonly baseDir: string;
-        /**
-         * Initializes the JSONL file and write stream.
-         * Safe to call multiple times - singleshot ensures one-time execution.
-         *
-         * @param initial - Whether this is the first initialization (informational only)
-         * @returns Promise that resolves when initialization is complete
-         */
-        waitForInit(initial: boolean): Promise<void>;
-        /**
-         * Writes event data to JSONL file with metadata.
-         * Appends a single line with JSON object containing:
-         * - reportName: Type of report
-         * - data: Event data object
-         * - Search flags: symbol, strategyName, exchangeName, frameName, signalId, walkerName
-         * - timestamp: Current timestamp in milliseconds
-         *
-         * @param data - Event data object to write
-         * @param options - Metadata options for filtering and search
-         * @throws Error if stream not initialized or write timeout exceeded
-         */
-        write<T = any>(data: T, options: IReportDumpOptions): Promise<void>;
-        /**
-         * Singleshot initialization function that creates directory and stream.
-         * Protected by singleshot to ensure one-time execution.
-         * Sets up error handler that emits to exitEmitter.
-         */
-        [WAIT_FOR_INIT_SYMBOL$1]: (() => Promise<void>) & functools_kit.ISingleshotClearable;
-        /**
-         * Timeout-protected write function with backpressure handling.
-         * Waits for drain event if write buffer is full.
-         * Times out after 15 seconds and returns TIMEOUT_SYMBOL.
-         */
-        [WRITE_SAFE_SYMBOL$1]: (line: string) => Promise<symbol | void>;
-    };
-};
+declare class ReportBase implements TReportBase {
+    readonly reportName: ReportName;
+    readonly baseDir: string;
+    /** Absolute path to the JSONL file for this report type */
+    _filePath: string;
+    /** WriteStream instance for append-only writes, null until initialized */
+    _stream: WriteStream | null;
+    /**
+     * Creates a new JSONL report adapter instance.
+     *
+     * @param reportName - Type of report (backtest, live, walker, etc.)
+     * @param baseDir - Base directory for report files, defaults to ./dump/report
+     */
+    constructor(reportName: ReportName, baseDir?: string);
+    /**
+     * Singleshot initialization function that creates directory and stream.
+     * Protected by singleshot to ensure one-time execution.
+     * Sets up error handler that emits to exitEmitter.
+     */
+    [WAIT_FOR_INIT_SYMBOL$1]: (() => Promise<void>) & functools_kit.ISingleshotClearable;
+    /**
+     * Timeout-protected write function with backpressure handling.
+     * Waits for drain event if write buffer is full.
+     * Times out after 15 seconds and returns TIMEOUT_SYMBOL.
+     */
+    [WRITE_SAFE_SYMBOL$1]: (line: string) => Promise<symbol | void>;
+    /**
+     * Initializes the JSONL file and write stream.
+     * Safe to call multiple times - singleshot ensures one-time execution.
+     *
+     * @param initial - Whether this is the first initialization (informational only)
+     * @returns Promise that resolves when initialization is complete
+     */
+    waitForInit(initial: boolean): Promise<void>;
+    /**
+     * Writes event data to JSONL file with metadata.
+     * Appends a single line with JSON object containing:
+     * - reportName: Type of report
+     * - data: Event data object
+     * - Search flags: symbol, strategyName, exchangeName, frameName, signalId, walkerName
+     * - timestamp: Current timestamp in milliseconds
+     *
+     * @param data - Event data object to write
+     * @param options - Metadata options for filtering and search
+     * @throws Error if stream not initialized or write timeout exceeded
+     */
+    write<T = any>(data: T, options: IReportDumpOptions): Promise<void>;
+}
 /**
  * Utility class for managing report services.
  *
@@ -8167,49 +8177,53 @@ type TMarkdownBaseCtor = new (markdownName: MarkdownName) => TMarkdownBase;
  *
  * Use this adapter for centralized logging and post-processing with JSONL tools.
  */
-declare const MarkdownFileBase: {
-    new (markdownName: MarkdownName): {
-        /** Absolute path to the JSONL file for this markdown type */
-        _filePath: string;
-        /** WriteStream instance for append-only writes, null until initialized */
-        _stream: WriteStream | null;
-        /** Base directory for all JSONL markdown files */
-        _baseDir: string;
-        readonly markdownName: MarkdownName;
-        /**
-         * Initializes the JSONL file and write stream.
-         * Safe to call multiple times - singleshot ensures one-time execution.
-         *
-         * @returns Promise that resolves when initialization is complete
-         */
-        waitForInit(): Promise<void>;
-        /**
-         * Writes markdown content to JSONL file with metadata.
-         * Appends a single line with JSON object containing:
-         * - markdownName: Type of report
-         * - data: Markdown content
-         * - Search flags: symbol, strategyName, exchangeName, frameName, signalId
-         * - timestamp: Current timestamp in milliseconds
-         *
-         * @param data - Markdown content to write
-         * @param options - Path and metadata options
-         * @throws Error if stream not initialized or write timeout exceeded
-         */
-        dump(data: string, options: IMarkdownDumpOptions): Promise<void>;
-        /**
-         * Singleshot initialization function that creates directory and stream.
-         * Protected by singleshot to ensure one-time execution.
-         * Sets up error handler that emits to exitEmitter.
-         */
-        [WAIT_FOR_INIT_SYMBOL]: (() => Promise<void>) & functools_kit.ISingleshotClearable;
-        /**
-         * Timeout-protected write function with backpressure handling.
-         * Waits for drain event if write buffer is full.
-         * Times out after 15 seconds and returns TIMEOUT_SYMBOL.
-         */
-        [WRITE_SAFE_SYMBOL]: (line: string) => Promise<symbol | void>;
-    };
-};
+declare class MarkdownFileBase implements TMarkdownBase {
+    readonly markdownName: MarkdownName;
+    /** Absolute path to the JSONL file for this markdown type */
+    _filePath: string;
+    /** WriteStream instance for append-only writes, null until initialized */
+    _stream: WriteStream | null;
+    /** Base directory for all JSONL markdown files */
+    _baseDir: string;
+    /**
+     * Creates a new JSONL markdown adapter instance.
+     *
+     * @param markdownName - Type of markdown report (backtest, live, walker, etc.)
+     */
+    constructor(markdownName: MarkdownName);
+    /**
+     * Singleshot initialization function that creates directory and stream.
+     * Protected by singleshot to ensure one-time execution.
+     * Sets up error handler that emits to exitEmitter.
+     */
+    [WAIT_FOR_INIT_SYMBOL]: (() => Promise<void>) & functools_kit.ISingleshotClearable;
+    /**
+     * Timeout-protected write function with backpressure handling.
+     * Waits for drain event if write buffer is full.
+     * Times out after 15 seconds and returns TIMEOUT_SYMBOL.
+     */
+    [WRITE_SAFE_SYMBOL]: (line: string) => Promise<symbol | void>;
+    /**
+     * Initializes the JSONL file and write stream.
+     * Safe to call multiple times - singleshot ensures one-time execution.
+     *
+     * @returns Promise that resolves when initialization is complete
+     */
+    waitForInit(): Promise<void>;
+    /**
+     * Writes markdown content to JSONL file with metadata.
+     * Appends a single line with JSON object containing:
+     * - markdownName: Type of report
+     * - data: Markdown content
+     * - Search flags: symbol, strategyName, exchangeName, frameName, signalId
+     * - timestamp: Current timestamp in milliseconds
+     *
+     * @param data - Markdown content to write
+     * @param options - Path and metadata options
+     * @throws Error if stream not initialized or write timeout exceeded
+     */
+    dump(data: string, options: IMarkdownDumpOptions): Promise<void>;
+}
 /**
  * Folder-based markdown adapter with separate files per report.
  *
@@ -8225,28 +8239,32 @@ declare const MarkdownFileBase: {
  *
  * Use this adapter (default) for organized report directories and manual review.
  */
-declare const MarkdownFolderBase: {
-    new (markdownName: MarkdownName): {
-        readonly markdownName: MarkdownName;
-        /**
-         * No-op initialization for folder adapter.
-         * This adapter doesn't need initialization since it uses direct writeFile.
-         *
-         * @returns Promise that resolves immediately
-         */
-        waitForInit(): Promise<void>;
-        /**
-         * Writes markdown content to a separate file.
-         * Creates directory structure automatically.
-         * File path is determined by options.path and options.file.
-         *
-         * @param content - Markdown content to write
-         * @param options - Path and file options for the dump
-         * @throws Error if directory creation or file write fails
-         */
-        dump(content: string, options: IMarkdownDumpOptions): Promise<void>;
-    };
-};
+declare class MarkdownFolderBase implements TMarkdownBase {
+    readonly markdownName: MarkdownName;
+    /**
+     * Creates a new folder-based markdown adapter instance.
+     *
+     * @param markdownName - Type of markdown report (backtest, live, walker, etc.)
+     */
+    constructor(markdownName: MarkdownName);
+    /**
+     * No-op initialization for folder adapter.
+     * This adapter doesn't need initialization since it uses direct writeFile.
+     *
+     * @returns Promise that resolves immediately
+     */
+    waitForInit(): Promise<void>;
+    /**
+     * Writes markdown content to a separate file.
+     * Creates directory structure automatically.
+     * File path is determined by options.path and options.file.
+     *
+     * @param content - Markdown content to write
+     * @param options - Path and file options for the dump
+     * @throws Error if directory creation or file write fails
+     */
+    dump(content: string, options: IMarkdownDumpOptions): Promise<void>;
+}
 /**
  * Utility class for managing markdown report services.
  *
@@ -12921,265 +12939,271 @@ declare const Breakeven: BreakevenUtils;
  * }
  * ```
  */
-declare const ActionBase: {
-    new (strategyName: StrategyName, frameName: FrameName, actionName: ActionName): {
-        readonly strategyName: StrategyName;
-        readonly frameName: FrameName;
-        readonly actionName: ActionName;
-        /**
-         * Initializes the action handler.
-         *
-         * Called once after construction. Override to perform async initialization:
-         * - Establish database connections
-         * - Initialize API clients
-         * - Load configuration files
-         * - Open file handles or network sockets
-         *
-         * Default implementation: Logs initialization event.
-         *
-         * @example
-         * ```typescript
-         * async init() {
-         *   super.init(); // Keep parent logging
-         *   this.db = await connectToDatabase();
-         *   this.telegram = new TelegramBot(process.env.TOKEN);
-         * }
-         * ```
-         */
-        init(): void | Promise<void>;
-        /**
-         * Handles signal events from all modes (live + backtest).
-         *
-         * Called every tick/candle when strategy is evaluated.
-         * Receives all signal states: idle, scheduled, opened, active, closed, cancelled.
-         *
-         * Triggered by: ActionCoreService.signal() via StrategyConnectionService
-         * Source: signalEmitter.next() in tick() and backtest() methods
-         * Frequency: Every tick/candle
-         *
-         * Default implementation: Logs signal event.
-         *
-         * @param event - Signal state result with action, state, signal data, and context
-         *
-         * @example
-         * ```typescript
-         * signal(event: IStrategyTickResult) {
-         *   if (event.action === 'opened') {
-         *     console.log(`Signal opened: ${event.signal.side} at ${event.signal.priceOpen}`);
-         *   }
-         *   if (event.action === 'closed') {
-         *     console.log(`Signal closed: PNL ${event.signal.revenue}%`);
-         *   }
-         * }
-         * ```
-         */
-        signal(event: IStrategyTickResult): void | Promise<void>;
-        /**
-         * Handles signal events from live trading only.
-         *
-         * Called every tick in live mode.
-         * Use for actions that should only run in production (e.g., sending real notifications).
-         *
-         * Triggered by: ActionCoreService.signalLive() via StrategyConnectionService
-         * Source: signalLiveEmitter.next() in tick() and backtest() methods when backtest=false
-         * Frequency: Every tick in live mode
-         *
-         * Default implementation: Logs live signal event.
-         *
-         * @param event - Signal state result from live trading
-         *
-         * @example
-         * ```typescript
-         * async signalLive(event: IStrategyTickResult) {
-         *   if (event.action === 'opened') {
-         *     await this.telegram.send('Real trade opened!');
-         *     await this.placeRealOrder(event.signal);
-         *   }
-         * }
-         * ```
-         */
-        signalLive(event: IStrategyTickResult): void | Promise<void>;
-        /**
-         * Handles signal events from backtest only.
-         *
-         * Called every candle in backtest mode.
-         * Use for actions specific to backtesting (e.g., collecting test metrics).
-         *
-         * Triggered by: ActionCoreService.signalBacktest() via StrategyConnectionService
-         * Source: signalBacktestEmitter.next() in tick() and backtest() methods when backtest=true
-         * Frequency: Every candle in backtest mode
-         *
-         * Default implementation: Logs backtest signal event.
-         *
-         * @param event - Signal state result from backtest
-         *
-         * @example
-         * ```typescript
-         * signalBacktest(event: IStrategyTickResult) {
-         *   if (event.action === 'closed') {
-         *     this.backtestMetrics.recordTrade(event.signal);
-         *   }
-         * }
-         * ```
-         */
-        signalBacktest(event: IStrategyTickResult): void | Promise<void>;
-        /**
-         * Handles breakeven events when stop-loss is moved to entry price.
-         *
-         * Called once per signal when price moves far enough to cover fees and slippage.
-         * Breakeven threshold: (CC_PERCENT_SLIPPAGE + CC_PERCENT_FEE) * 2 + CC_BREAKEVEN_THRESHOLD
-         *
-         * Triggered by: ActionCoreService.breakeven() via BreakevenConnectionService
-         * Source: breakevenSubject.next() in CREATE_COMMIT_BREAKEVEN_FN callback
-         * Frequency: Once per signal when threshold reached
-         *
-         * Default implementation: Logs breakeven event.
-         *
-         * @param event - Breakeven milestone data with signal info, current price, timestamp
-         *
-         * @example
-         * ```typescript
-         * async breakeven(event: BreakevenContract) {
-         *   await this.telegram.send(
-         *     `[${event.strategyName}] Breakeven reached! ` +
-         *     `Signal: ${event.data.side} @ ${event.currentPrice}`
-         *   );
-         * }
-         * ```
-         */
-        breakeven(event: BreakevenContract): void | Promise<void>;
-        /**
-         * Handles partial profit level events (10%, 20%, 30%, etc).
-         *
-         * Called once per profit level per signal (deduplicated).
-         * Use to track profit milestones and adjust position management.
-         *
-         * Triggered by: ActionCoreService.partialProfit() via PartialConnectionService
-         * Source: partialProfitSubject.next() in CREATE_COMMIT_PROFIT_FN callback
-         * Frequency: Once per profit level per signal
-         *
-         * Default implementation: Logs partial profit event.
-         *
-         * @param event - Profit milestone data with signal info, level (10, 20, 30...), price, timestamp
-         *
-         * @example
-         * ```typescript
-         * async partialProfit(event: PartialProfitContract) {
-         *   await this.telegram.send(
-         *     `[${event.strategyName}] Profit ${event.level}% reached! ` +
-         *     `Current price: ${event.currentPrice}`
-         *   );
-         *   // Optionally tighten stop-loss or take partial profit
-         * }
-         * ```
-         */
-        partialProfit(event: PartialProfitContract): void | Promise<void>;
-        /**
-         * Handles partial loss level events (-10%, -20%, -30%, etc).
-         *
-         * Called once per loss level per signal (deduplicated).
-         * Use to track loss milestones and implement risk management actions.
-         *
-         * Triggered by: ActionCoreService.partialLoss() via PartialConnectionService
-         * Source: partialLossSubject.next() in CREATE_COMMIT_LOSS_FN callback
-         * Frequency: Once per loss level per signal
-         *
-         * Default implementation: Logs partial loss event.
-         *
-         * @param event - Loss milestone data with signal info, level (-10, -20, -30...), price, timestamp
-         *
-         * @example
-         * ```typescript
-         * async partialLoss(event: PartialLossContract) {
-         *   await this.telegram.send(
-         *     `[${event.strategyName}] Loss ${event.level}% reached! ` +
-         *     `Current price: ${event.currentPrice}`
-         *   );
-         *   // Optionally adjust risk management
-         * }
-         * ```
-         */
-        partialLoss(event: PartialLossContract): void | Promise<void>;
-        /**
-         * Handles ping events during scheduled signal monitoring.
-         *
-         * Called every minute while a scheduled signal is waiting for activation.
-         * Use to monitor pending signals and track wait time.
-         *
-         * Triggered by: ActionCoreService.ping() via StrategyConnectionService
-         * Source: pingSubject.next() in CREATE_COMMIT_PING_FN callback
-         * Frequency: Every minute while scheduled signal is waiting
-         *
-         * Default implementation: Logs ping event.
-         *
-         * @param event - Scheduled signal monitoring data with symbol, strategy info, signal data, timestamp
-         *
-         * @example
-         * ```typescript
-         * ping(event: PingContract) {
-         *   const waitTime = Date.now() - event.data.timestampScheduled;
-         *   const waitMinutes = Math.floor(waitTime / 60000);
-         *   console.log(`Scheduled signal waiting ${waitMinutes} minutes`);
-         * }
-         * ```
-         */
-        ping(event: PingContract): void | Promise<void>;
-        /**
-         * Handles risk rejection events when signals fail risk validation.
-         *
-         * Called only when signal is rejected (not emitted for allowed signals).
-         * Use to track rejected signals and analyze risk management effectiveness.
-         *
-         * Triggered by: ActionCoreService.riskRejection() via RiskConnectionService
-         * Source: riskSubject.next() in CREATE_COMMIT_REJECTION_FN callback
-         * Frequency: Only when signal fails risk validation
-         *
-         * Default implementation: Logs risk rejection event.
-         *
-         * @param event - Risk rejection data with symbol, pending signal, rejection reason, timestamp
-         *
-         * @example
-         * ```typescript
-         * async riskRejection(event: RiskContract) {
-         *   await this.telegram.send(
-         *     `[${event.strategyName}] Signal rejected!\n` +
-         *     `Reason: ${event.rejectionNote}\n` +
-         *     `Active positions: ${event.activePositionCount}`
-         *   );
-         *   this.metrics.recordRejection(event.rejectionId);
-         * }
-         * ```
-         */
-        riskRejection(event: RiskContract): void | Promise<void>;
-        /**
-         * Cleans up resources and subscriptions when action handler is disposed.
-         *
-         * Called once when strategy execution ends.
-         * Guaranteed to run exactly once via singleshot pattern.
-         *
-         * Override to:
-         * - Close database connections
-         * - Disconnect from external services
-         * - Flush buffers
-         * - Save state to disk
-         * - Unsubscribe from observables
-         *
-         * Default implementation: Logs dispose event.
-         *
-         * @example
-         * ```typescript
-         * async dispose() {
-         *   super.dispose(); // Keep parent logging
-         *   await this.db?.disconnect();
-         *   await this.telegram?.close();
-         *   await this.cache?.quit();
-         *   console.log('Action disposed successfully');
-         * }
-         * ```
-         */
-        dispose(): void | Promise<void>;
-    };
-};
+declare class ActionBase implements IPublicAction {
+    readonly strategyName: StrategyName;
+    readonly frameName: FrameName;
+    readonly actionName: ActionName;
+    /**
+     * Creates a new ActionBase instance.
+     *
+     * @param strategyName - Strategy identifier this action is attached to
+     * @param frameName - Timeframe identifier this action is attached to
+     * @param actionName - Action identifier
+     */
+    constructor(strategyName: StrategyName, frameName: FrameName, actionName: ActionName);
+    /**
+     * Initializes the action handler.
+     *
+     * Called once after construction. Override to perform async initialization:
+     * - Establish database connections
+     * - Initialize API clients
+     * - Load configuration files
+     * - Open file handles or network sockets
+     *
+     * Default implementation: Logs initialization event.
+     *
+     * @example
+     * ```typescript
+     * async init() {
+     *   super.init(); // Keep parent logging
+     *   this.db = await connectToDatabase();
+     *   this.telegram = new TelegramBot(process.env.TOKEN);
+     * }
+     * ```
+     */
+    init(): void | Promise<void>;
+    /**
+     * Handles signal events from all modes (live + backtest).
+     *
+     * Called every tick/candle when strategy is evaluated.
+     * Receives all signal states: idle, scheduled, opened, active, closed, cancelled.
+     *
+     * Triggered by: ActionCoreService.signal() via StrategyConnectionService
+     * Source: signalEmitter.next() in tick() and backtest() methods
+     * Frequency: Every tick/candle
+     *
+     * Default implementation: Logs signal event.
+     *
+     * @param event - Signal state result with action, state, signal data, and context
+     *
+     * @example
+     * ```typescript
+     * signal(event: IStrategyTickResult) {
+     *   if (event.action === 'opened') {
+     *     console.log(`Signal opened: ${event.signal.side} at ${event.signal.priceOpen}`);
+     *   }
+     *   if (event.action === 'closed') {
+     *     console.log(`Signal closed: PNL ${event.signal.revenue}%`);
+     *   }
+     * }
+     * ```
+     */
+    signal(event: IStrategyTickResult): void | Promise<void>;
+    /**
+     * Handles signal events from live trading only.
+     *
+     * Called every tick in live mode.
+     * Use for actions that should only run in production (e.g., sending real notifications).
+     *
+     * Triggered by: ActionCoreService.signalLive() via StrategyConnectionService
+     * Source: signalLiveEmitter.next() in tick() and backtest() methods when backtest=false
+     * Frequency: Every tick in live mode
+     *
+     * Default implementation: Logs live signal event.
+     *
+     * @param event - Signal state result from live trading
+     *
+     * @example
+     * ```typescript
+     * async signalLive(event: IStrategyTickResult) {
+     *   if (event.action === 'opened') {
+     *     await this.telegram.send('Real trade opened!');
+     *     await this.placeRealOrder(event.signal);
+     *   }
+     * }
+     * ```
+     */
+    signalLive(event: IStrategyTickResult): void | Promise<void>;
+    /**
+     * Handles signal events from backtest only.
+     *
+     * Called every candle in backtest mode.
+     * Use for actions specific to backtesting (e.g., collecting test metrics).
+     *
+     * Triggered by: ActionCoreService.signalBacktest() via StrategyConnectionService
+     * Source: signalBacktestEmitter.next() in tick() and backtest() methods when backtest=true
+     * Frequency: Every candle in backtest mode
+     *
+     * Default implementation: Logs backtest signal event.
+     *
+     * @param event - Signal state result from backtest
+     *
+     * @example
+     * ```typescript
+     * signalBacktest(event: IStrategyTickResult) {
+     *   if (event.action === 'closed') {
+     *     this.backtestMetrics.recordTrade(event.signal);
+     *   }
+     * }
+     * ```
+     */
+    signalBacktest(event: IStrategyTickResult): void | Promise<void>;
+    /**
+     * Handles breakeven events when stop-loss is moved to entry price.
+     *
+     * Called once per signal when price moves far enough to cover fees and slippage.
+     * Breakeven threshold: (CC_PERCENT_SLIPPAGE + CC_PERCENT_FEE) * 2 + CC_BREAKEVEN_THRESHOLD
+     *
+     * Triggered by: ActionCoreService.breakeven() via BreakevenConnectionService
+     * Source: breakevenSubject.next() in CREATE_COMMIT_BREAKEVEN_FN callback
+     * Frequency: Once per signal when threshold reached
+     *
+     * Default implementation: Logs breakeven event.
+     *
+     * @param event - Breakeven milestone data with signal info, current price, timestamp
+     *
+     * @example
+     * ```typescript
+     * async breakeven(event: BreakevenContract) {
+     *   await this.telegram.send(
+     *     `[${event.strategyName}] Breakeven reached! ` +
+     *     `Signal: ${event.data.side} @ ${event.currentPrice}`
+     *   );
+     * }
+     * ```
+     */
+    breakeven(event: BreakevenContract): void | Promise<void>;
+    /**
+     * Handles partial profit level events (10%, 20%, 30%, etc).
+     *
+     * Called once per profit level per signal (deduplicated).
+     * Use to track profit milestones and adjust position management.
+     *
+     * Triggered by: ActionCoreService.partialProfit() via PartialConnectionService
+     * Source: partialProfitSubject.next() in CREATE_COMMIT_PROFIT_FN callback
+     * Frequency: Once per profit level per signal
+     *
+     * Default implementation: Logs partial profit event.
+     *
+     * @param event - Profit milestone data with signal info, level (10, 20, 30...), price, timestamp
+     *
+     * @example
+     * ```typescript
+     * async partialProfit(event: PartialProfitContract) {
+     *   await this.telegram.send(
+     *     `[${event.strategyName}] Profit ${event.level}% reached! ` +
+     *     `Current price: ${event.currentPrice}`
+     *   );
+     *   // Optionally tighten stop-loss or take partial profit
+     * }
+     * ```
+     */
+    partialProfit(event: PartialProfitContract): void | Promise<void>;
+    /**
+     * Handles partial loss level events (-10%, -20%, -30%, etc).
+     *
+     * Called once per loss level per signal (deduplicated).
+     * Use to track loss milestones and implement risk management actions.
+     *
+     * Triggered by: ActionCoreService.partialLoss() via PartialConnectionService
+     * Source: partialLossSubject.next() in CREATE_COMMIT_LOSS_FN callback
+     * Frequency: Once per loss level per signal
+     *
+     * Default implementation: Logs partial loss event.
+     *
+     * @param event - Loss milestone data with signal info, level (-10, -20, -30...), price, timestamp
+     *
+     * @example
+     * ```typescript
+     * async partialLoss(event: PartialLossContract) {
+     *   await this.telegram.send(
+     *     `[${event.strategyName}] Loss ${event.level}% reached! ` +
+     *     `Current price: ${event.currentPrice}`
+     *   );
+     *   // Optionally adjust risk management
+     * }
+     * ```
+     */
+    partialLoss(event: PartialLossContract): void | Promise<void>;
+    /**
+     * Handles ping events during scheduled signal monitoring.
+     *
+     * Called every minute while a scheduled signal is waiting for activation.
+     * Use to monitor pending signals and track wait time.
+     *
+     * Triggered by: ActionCoreService.ping() via StrategyConnectionService
+     * Source: pingSubject.next() in CREATE_COMMIT_PING_FN callback
+     * Frequency: Every minute while scheduled signal is waiting
+     *
+     * Default implementation: Logs ping event.
+     *
+     * @param event - Scheduled signal monitoring data with symbol, strategy info, signal data, timestamp
+     *
+     * @example
+     * ```typescript
+     * ping(event: PingContract) {
+     *   const waitTime = Date.now() - event.data.timestampScheduled;
+     *   const waitMinutes = Math.floor(waitTime / 60000);
+     *   console.log(`Scheduled signal waiting ${waitMinutes} minutes`);
+     * }
+     * ```
+     */
+    ping(event: PingContract): void | Promise<void>;
+    /**
+     * Handles risk rejection events when signals fail risk validation.
+     *
+     * Called only when signal is rejected (not emitted for allowed signals).
+     * Use to track rejected signals and analyze risk management effectiveness.
+     *
+     * Triggered by: ActionCoreService.riskRejection() via RiskConnectionService
+     * Source: riskSubject.next() in CREATE_COMMIT_REJECTION_FN callback
+     * Frequency: Only when signal fails risk validation
+     *
+     * Default implementation: Logs risk rejection event.
+     *
+     * @param event - Risk rejection data with symbol, pending signal, rejection reason, timestamp
+     *
+     * @example
+     * ```typescript
+     * async riskRejection(event: RiskContract) {
+     *   await this.telegram.send(
+     *     `[${event.strategyName}] Signal rejected!\n` +
+     *     `Reason: ${event.rejectionNote}\n` +
+     *     `Active positions: ${event.activePositionCount}`
+     *   );
+     *   this.metrics.recordRejection(event.rejectionId);
+     * }
+     * ```
+     */
+    riskRejection(event: RiskContract): void | Promise<void>;
+    /**
+     * Cleans up resources and subscriptions when action handler is disposed.
+     *
+     * Called once when strategy execution ends.
+     * Guaranteed to run exactly once via singleshot pattern.
+     *
+     * Override to:
+     * - Close database connections
+     * - Disconnect from external services
+     * - Flush buffers
+     * - Save state to disk
+     * - Unsubscribe from observables
+     *
+     * Default implementation: Logs dispose event.
+     *
+     * @example
+     * ```typescript
+     * async dispose() {
+     *   super.dispose(); // Keep parent logging
+     *   await this.db?.disconnect();
+     *   await this.telegram?.close();
+     *   await this.cache?.quit();
+     *   console.log('Action disposed successfully');
+     * }
+     * ```
+     */
+    dispose(): void | Promise<void>;
+}
 
 /**
  * Contract for walker stop signal events.

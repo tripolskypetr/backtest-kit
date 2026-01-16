@@ -1,4 +1,12 @@
-import { compose, getErrorMessage, makeExtendable, memoize, singleshot, timeout, TIMEOUT_SYMBOL } from "functools-kit";
+import {
+  compose,
+  getErrorMessage,
+  makeExtendable,
+  memoize,
+  singleshot,
+  timeout,
+  TIMEOUT_SYMBOL,
+} from "functools-kit";
 import backtest from "../lib";
 import { createWriteStream, WriteStream } from "fs";
 import * as fs from "fs/promises";
@@ -109,7 +117,9 @@ export type TMarkdownBase = {
  * Constructor type for markdown storage adapters.
  * Used for custom markdown storage implementations.
  */
-export type TMarkdownBaseCtor = new (markdownName: MarkdownName) => TMarkdownBase;
+export type TMarkdownBaseCtor = new (
+  markdownName: MarkdownName
+) => TMarkdownBase;
 
 /**
  * JSONL-based markdown adapter with append-only writes.
@@ -127,124 +137,132 @@ export type TMarkdownBaseCtor = new (markdownName: MarkdownName) => TMarkdownBas
  *
  * Use this adapter for centralized logging and post-processing with JSONL tools.
  */
-export const MarkdownFileBase = makeExtendable(
-  class implements TMarkdownBase {
-    /** Absolute path to the JSONL file for this markdown type */
-    _filePath: string;
+class MarkdownFileBase implements TMarkdownBase {
+  /** Absolute path to the JSONL file for this markdown type */
+  _filePath: string;
 
-    /** WriteStream instance for append-only writes, null until initialized */
-    _stream: WriteStream | null = null;
+  /** WriteStream instance for append-only writes, null until initialized */
+  _stream: WriteStream | null = null;
 
-    /** Base directory for all JSONL markdown files */
-    _baseDir = join(process.cwd(), "./dump/markdown");
+  /** Base directory for all JSONL markdown files */
+  _baseDir = join(process.cwd(), "./dump/markdown");
 
-    /**
-     * Creates a new JSONL markdown adapter instance.
-     *
-     * @param markdownName - Type of markdown report (backtest, live, walker, etc.)
-     */
-    constructor(readonly markdownName: MarkdownName) {
-      this._filePath = join(this._baseDir, `${markdownName}.jsonl`);
-    }
+  /**
+   * Creates a new JSONL markdown adapter instance.
+   *
+   * @param markdownName - Type of markdown report (backtest, live, walker, etc.)
+   */
+  constructor(readonly markdownName: MarkdownName) {
+    this._filePath = join(this._baseDir, `${markdownName}.jsonl`);
+  }
 
-    /**
-     * Singleshot initialization function that creates directory and stream.
-     * Protected by singleshot to ensure one-time execution.
-     * Sets up error handler that emits to exitEmitter.
-     */
-    [WAIT_FOR_INIT_SYMBOL] = singleshot(async (): Promise<void> => {
-      await fs.mkdir(this._baseDir, { recursive: true });
-      this._stream = createWriteStream(this._filePath, { flags: "a" });
-      this._stream.on('error', (err) => {
-        exitEmitter.next(new Error(`MarkdownFileAdapter stream error for markdownName=${this.markdownName} message=${getErrorMessage(err)}`))
+  /**
+   * Singleshot initialization function that creates directory and stream.
+   * Protected by singleshot to ensure one-time execution.
+   * Sets up error handler that emits to exitEmitter.
+   */
+  [WAIT_FOR_INIT_SYMBOL] = singleshot(async (): Promise<void> => {
+    await fs.mkdir(this._baseDir, { recursive: true });
+    this._stream = createWriteStream(this._filePath, { flags: "a" });
+    this._stream.on("error", (err) => {
+      exitEmitter.next(
+        new Error(
+          `MarkdownFileAdapter stream error for markdownName=${
+            this.markdownName
+          } message=${getErrorMessage(err)}`
+        )
+      );
+    });
+  });
+
+  /**
+   * Timeout-protected write function with backpressure handling.
+   * Waits for drain event if write buffer is full.
+   * Times out after 15 seconds and returns TIMEOUT_SYMBOL.
+   */
+  [WRITE_SAFE_SYMBOL] = timeout(async (line: string) => {
+    if (!this._stream.write(line)) {
+      await new Promise<void>((resolve) => {
+        this._stream!.once("drain", resolve);
       });
+    }
+  }, 15_000);
+
+  /**
+   * Initializes the JSONL file and write stream.
+   * Safe to call multiple times - singleshot ensures one-time execution.
+   *
+   * @returns Promise that resolves when initialization is complete
+   */
+  async waitForInit(): Promise<void> {
+    await this[WAIT_FOR_INIT_SYMBOL]();
+  }
+
+  /**
+   * Writes markdown content to JSONL file with metadata.
+   * Appends a single line with JSON object containing:
+   * - markdownName: Type of report
+   * - data: Markdown content
+   * - Search flags: symbol, strategyName, exchangeName, frameName, signalId
+   * - timestamp: Current timestamp in milliseconds
+   *
+   * @param data - Markdown content to write
+   * @param options - Path and metadata options
+   * @throws Error if stream not initialized or write timeout exceeded
+   */
+  async dump(data: string, options: IMarkdownDumpOptions): Promise<void> {
+    backtest.loggerService.debug("MarkdownFileAdapter.dump", {
+      markdownName: this.markdownName,
+      options,
     });
 
-    /**
-     * Timeout-protected write function with backpressure handling.
-     * Waits for drain event if write buffer is full.
-     * Times out after 15 seconds and returns TIMEOUT_SYMBOL.
-     */
-    [WRITE_SAFE_SYMBOL] = timeout(async (line: string) => {
-      if (!this._stream.write(line)) {
-        await new Promise<void>((resolve) => {
-          this._stream!.once('drain', resolve);
-        });
-      }
-    }, 15_000);
-
-    /**
-     * Initializes the JSONL file and write stream.
-     * Safe to call multiple times - singleshot ensures one-time execution.
-     *
-     * @returns Promise that resolves when initialization is complete
-     */
-    async waitForInit(): Promise<void> {
-      await this[WAIT_FOR_INIT_SYMBOL]();
+    if (!this._stream) {
+      throw new Error(
+        `Stream not initialized for markdown ${this.markdownName}. Call waitForInit() first.`
+      );
     }
 
-    /**
-     * Writes markdown content to JSONL file with metadata.
-     * Appends a single line with JSON object containing:
-     * - markdownName: Type of report
-     * - data: Markdown content
-     * - Search flags: symbol, strategyName, exchangeName, frameName, signalId
-     * - timestamp: Current timestamp in milliseconds
-     *
-     * @param data - Markdown content to write
-     * @param options - Path and metadata options
-     * @throws Error if stream not initialized or write timeout exceeded
-     */
-    async dump(data: string, options: IMarkdownDumpOptions): Promise<void> {
-      backtest.loggerService.debug("MarkdownFileAdapter.dump", {
-        markdownName: this.markdownName,
-        options,
-      });
+    const searchFlags: Partial<IMarkdownDumpOptions> = {};
 
-      if (!this._stream) {
-        throw new Error(
-          `Stream not initialized for markdown ${this.markdownName}. Call waitForInit() first.`
-        );
+    {
+      if (options.symbol) {
+        searchFlags.symbol = options.symbol;
       }
 
-      const searchFlags: Partial<IMarkdownDumpOptions> = {};
-
-      {
-        if (options.symbol) {
-          searchFlags.symbol = options.symbol;
-        }
-
-        if (options.strategyName) {
-          searchFlags.strategyName = options.strategyName;
-        }
-
-        if (options.exchangeName) {
-          searchFlags.exchangeName = options.exchangeName;
-        }
-
-        if (options.frameName) {
-          searchFlags.frameName = options.frameName;
-        }
-
-        if (options.signalId) {
-          searchFlags.signalId = options.signalId;
-        }
+      if (options.strategyName) {
+        searchFlags.strategyName = options.strategyName;
       }
 
-      const line = JSON.stringify({
+      if (options.exchangeName) {
+        searchFlags.exchangeName = options.exchangeName;
+      }
+
+      if (options.frameName) {
+        searchFlags.frameName = options.frameName;
+      }
+
+      if (options.signalId) {
+        searchFlags.signalId = options.signalId;
+      }
+    }
+
+    const line =
+      JSON.stringify({
         markdownName: this.markdownName,
         data,
         ...searchFlags,
         timestamp: Date.now(),
       }) + "\n";
 
-      const status = await this[WRITE_SAFE_SYMBOL](line);
-      if (status === TIMEOUT_SYMBOL) {
-        throw new Error(`Timeout writing to markdown ${this.markdownName}`);
-      }
+    const status = await this[WRITE_SAFE_SYMBOL](line);
+    if (status === TIMEOUT_SYMBOL) {
+      throw new Error(`Timeout writing to markdown ${this.markdownName}`);
     }
   }
-);
+}
+
+//@ts-ignore
+MarkdownFileBase = makeExtendable(MarkdownFileBase);
 
 /**
  * Folder-based markdown adapter with separate files per report.
@@ -261,51 +279,51 @@ export const MarkdownFileBase = makeExtendable(
  *
  * Use this adapter (default) for organized report directories and manual review.
  */
-export const MarkdownFolderBase = makeExtendable(
-  class implements TMarkdownBase {
+class MarkdownFolderBase implements TMarkdownBase {
+  /**
+   * Creates a new folder-based markdown adapter instance.
+   *
+   * @param markdownName - Type of markdown report (backtest, live, walker, etc.)
+   */
+  constructor(readonly markdownName: MarkdownName) {}
 
-    /**
-     * Creates a new folder-based markdown adapter instance.
-     *
-     * @param markdownName - Type of markdown report (backtest, live, walker, etc.)
-     */
-    constructor(readonly markdownName: MarkdownName) {}
-
-    /**
-     * No-op initialization for folder adapter.
-     * This adapter doesn't need initialization since it uses direct writeFile.
-     *
-     * @returns Promise that resolves immediately
-     */
-    async waitForInit(): Promise<void> {
-      void 0;
-    }
-
-    /**
-     * Writes markdown content to a separate file.
-     * Creates directory structure automatically.
-     * File path is determined by options.path and options.file.
-     *
-     * @param content - Markdown content to write
-     * @param options - Path and file options for the dump
-     * @throws Error if directory creation or file write fails
-     */
-    async dump(content: string, options: IMarkdownDumpOptions): Promise<void> {
-      backtest.loggerService.debug("MarkdownFolderAdapter.dump", {
-        markdownName: this.markdownName,
-        options,
-      });
-
-      // Combine into full file path
-      const filePath = join(process.cwd(), options.path, options.file);
-
-      // Extract directory from file path
-      const dir = dirname(filePath);
-      await fs.mkdir(dir, { recursive: true });
-      await fs.writeFile(filePath, content, "utf8");
-    }
+  /**
+   * No-op initialization for folder adapter.
+   * This adapter doesn't need initialization since it uses direct writeFile.
+   *
+   * @returns Promise that resolves immediately
+   */
+  async waitForInit(): Promise<void> {
+    void 0;
   }
-);
+
+  /**
+   * Writes markdown content to a separate file.
+   * Creates directory structure automatically.
+   * File path is determined by options.path and options.file.
+   *
+   * @param content - Markdown content to write
+   * @param options - Path and file options for the dump
+   * @throws Error if directory creation or file write fails
+   */
+  async dump(content: string, options: IMarkdownDumpOptions): Promise<void> {
+    backtest.loggerService.debug("MarkdownFolderAdapter.dump", {
+      markdownName: this.markdownName,
+      options,
+    });
+
+    // Combine into full file path
+    const filePath = join(process.cwd(), options.path, options.file);
+
+    // Extract directory from file path
+    const dir = dirname(filePath);
+    await fs.mkdir(dir, { recursive: true });
+    await fs.writeFile(filePath, content, "utf8");
+  }
+}
+
+// @ts-ignore
+MarkdownFolderBase = makeExtendable(MarkdownFolderBase);
 
 /**
  * Dummy markdown adapter that discards all writes.
@@ -601,7 +619,7 @@ export class MarkdownAdapter extends MarkdownUtils {
    * All future markdown writes will be no-ops.
    */
   public useDummy() {
-    backtest.loggerService.debug("MarkdownAdapter.useDummy");;
+    backtest.loggerService.debug("MarkdownAdapter.useDummy");
     this.useMarkdownAdapter(MarkdownDummy);
   }
 }
@@ -611,3 +629,5 @@ export class MarkdownAdapter extends MarkdownUtils {
  * Provides markdown report generation with pluggable storage backends.
  */
 export const Markdown = new MarkdownAdapter();
+
+export { MarkdownFileBase, MarkdownFolderBase }

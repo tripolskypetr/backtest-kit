@@ -29,8 +29,7 @@ const PERSIST_SIGNAL_UTILS_METHOD_NAME_READ_DATA =
   "PersistSignalUtils.readSignalData";
 const PERSIST_SIGNAL_UTILS_METHOD_NAME_WRITE_DATA =
   "PersistSignalUtils.writeSignalData";
-const PERSIST_SIGNAL_UTILS_METHOD_NAME_USE_JSON =
-  "PersistSignalUtils.useJson";
+const PERSIST_SIGNAL_UTILS_METHOD_NAME_USE_JSON = "PersistSignalUtils.useJson";
 const PERSIST_SIGNAL_UTILS_METHOD_NAME_USE_DUMMY =
   "PersistSignalUtils.useDummy";
 
@@ -73,11 +72,8 @@ const PERSIST_RISK_UTILS_METHOD_NAME_READ_DATA =
   "PersistRiskUtils.readPositionData";
 const PERSIST_RISK_UTILS_METHOD_NAME_WRITE_DATA =
   "PersistRiskUtils.writePositionData";
-const PERSIST_RISK_UTILS_METHOD_NAME_USE_JSON =
-  "PersistRiskUtils.useJson";
-const PERSIST_RISK_UTILS_METHOD_NAME_USE_DUMMY =
-  "PersistRiskUtils.useDummy";
-
+const PERSIST_RISK_UTILS_METHOD_NAME_USE_JSON = "PersistRiskUtils.useJson";
+const PERSIST_RISK_UTILS_METHOD_NAME_USE_DUMMY = "PersistRiskUtils.useDummy";
 
 const PERSIST_BASE_METHOD_NAME_CTOR = "PersistBase.CTOR";
 const PERSIST_BASE_METHOD_NAME_WAIT_FOR_INIT = "PersistBase.waitForInit";
@@ -233,151 +229,148 @@ const BASE_WAIT_FOR_INIT_UNLINK_FN = async (filePath: string) =>
  * const value = await persist.readValue("key1");
  * ```
  */
-export const PersistBase = makeExtendable(
-  class<EntityName extends string = string> implements IPersistBase {
-    /** Computed directory path for entity storage */
-    _directory: string;
+class PersistBase<EntityName extends string = string> implements IPersistBase {
+  /** Computed directory path for entity storage */
+  _directory: string;
 
-    /**
-     * Creates new persistence instance.
-     *
-     * @param entityName - Unique entity type identifier
-     * @param baseDir - Base directory for all entities (default: ./dump/data)
-     */
-    constructor(
-      readonly entityName: EntityName,
-      readonly baseDir = join(process.cwd(), "logs/data")
-    ) {
-      swarm.loggerService.debug(PERSIST_BASE_METHOD_NAME_CTOR, {
-        entityName: this.entityName,
-        baseDir,
-      });
-      this._directory = join(this.baseDir, this.entityName);
-    }
+  /**
+   * Creates new persistence instance.
+   *
+   * @param entityName - Unique entity type identifier
+   * @param baseDir - Base directory for all entities (default: ./dump/data)
+   */
+  constructor(
+    readonly entityName: EntityName,
+    readonly baseDir = join(process.cwd(), "logs/data")
+  ) {
+    swarm.loggerService.debug(PERSIST_BASE_METHOD_NAME_CTOR, {
+      entityName: this.entityName,
+      baseDir,
+    });
+    this._directory = join(this.baseDir, this.entityName);
+  }
 
-    /**
-     * Computes file path for entity ID.
-     *
-     * @param entityId - Entity identifier
-     * @returns Full file path to entity JSON file
-     */
-    _getFilePath(entityId: EntityId): string {
-      return join(this.baseDir, this.entityName, `${entityId}.json`);
-    }
+  /**
+   * Computes file path for entity ID.
+   *
+   * @param entityId - Entity identifier
+   * @returns Full file path to entity JSON file
+   */
+  _getFilePath(entityId: EntityId): string {
+    return join(this.baseDir, this.entityName, `${entityId}.json`);
+  }
 
-    [BASE_WAIT_FOR_INIT_SYMBOL] = singleshot(
-      async (): Promise<void> => await BASE_WAIT_FOR_INIT_FN(this)
-    );
+  [BASE_WAIT_FOR_INIT_SYMBOL] = singleshot(
+    async (): Promise<void> => await BASE_WAIT_FOR_INIT_FN(this)
+  );
 
-    async waitForInit(initial: boolean): Promise<void> {
-      swarm.loggerService.debug(PERSIST_BASE_METHOD_NAME_WAIT_FOR_INIT, {
-        entityName: this.entityName,
-        initial,
-      });
-      await this[BASE_WAIT_FOR_INIT_SYMBOL]();
-    }
+  async waitForInit(initial: boolean): Promise<void> {
+    swarm.loggerService.debug(PERSIST_BASE_METHOD_NAME_WAIT_FOR_INIT, {
+      entityName: this.entityName,
+      initial,
+    });
+    await this[BASE_WAIT_FOR_INIT_SYMBOL]();
+  }
 
-    async readValue<T extends IEntity = IEntity>(
-      entityId: EntityId
-    ): Promise<T> {
-      swarm.loggerService.debug(PERSIST_BASE_METHOD_NAME_READ_VALUE, {
-        entityName: this.entityName,
-        entityId,
-      });
-      try {
-        const filePath = this._getFilePath(entityId);
-        const fileContent = await fs.readFile(filePath, "utf-8");
-        return JSON.parse(fileContent) as T;
-      } catch (error: any) {
-        if (error?.code === "ENOENT") {
-          throw new Error(`Entity ${this.entityName}:${entityId} not found`);
-        }
-        throw new Error(
-          `Failed to read entity ${
-            this.entityName
-          }:${entityId}: ${getErrorMessage(error)}`
-        );
+  async readValue<T extends IEntity = IEntity>(entityId: EntityId): Promise<T> {
+    swarm.loggerService.debug(PERSIST_BASE_METHOD_NAME_READ_VALUE, {
+      entityName: this.entityName,
+      entityId,
+    });
+    try {
+      const filePath = this._getFilePath(entityId);
+      const fileContent = await fs.readFile(filePath, "utf-8");
+      return JSON.parse(fileContent) as T;
+    } catch (error: any) {
+      if (error?.code === "ENOENT") {
+        throw new Error(`Entity ${this.entityName}:${entityId} not found`);
       }
-    }
-
-    async hasValue(entityId: EntityId): Promise<boolean> {
-      swarm.loggerService.debug(PERSIST_BASE_METHOD_NAME_HAS_VALUE, {
-        entityName: this.entityName,
-        entityId,
-      });
-      try {
-        const filePath = this._getFilePath(entityId);
-        await fs.access(filePath);
-        return true;
-      } catch (error: any) {
-        if (error?.code === "ENOENT") {
-          return false;
-        }
-        throw new Error(
-          `Failed to check existence of entity ${
-            this.entityName
-          }:${entityId}: ${getErrorMessage(error)}`
-        );
-      }
-    }
-
-    async writeValue<T extends IEntity = IEntity>(
-      entityId: EntityId,
-      entity: T
-    ): Promise<void> {
-      swarm.loggerService.debug(PERSIST_BASE_METHOD_NAME_WRITE_VALUE, {
-        entityName: this.entityName,
-        entityId,
-      });
-      try {
-        const filePath = this._getFilePath(entityId);
-        const serializedData = JSON.stringify(entity);
-        await writeFileAtomic(filePath, serializedData, "utf-8");
-      } catch (error) {
-        throw new Error(
-          `Failed to write entity ${
-            this.entityName
-          }:${entityId}: ${getErrorMessage(error)}`
-        );
-      }
-    }
-
-    /**
-     * Async generator yielding all entity IDs.
-     * Sorted alphanumerically.
-     * Used internally by waitForInit for validation.
-     *
-     * @returns AsyncGenerator yielding entity IDs
-     * @throws Error if reading fails
-     */
-    async *keys(): AsyncGenerator<EntityId> {
-      swarm.loggerService.debug(PERSIST_BASE_METHOD_NAME_KEYS, {
-        entityName: this.entityName,
-      });
-      try {
-        const files = await fs.readdir(this._directory);
-        const entityIds = files
-          .filter((file) => file.endsWith(".json"))
-          .map((file) => file.slice(0, -5))
-          .sort((a, b) =>
-            a.localeCompare(b, undefined, {
-              numeric: true,
-              sensitivity: "base",
-            })
-          );
-        for (const entityId of entityIds) {
-          yield entityId;
-        }
-      } catch (error) {
-        throw new Error(
-          `Failed to read keys for ${this.entityName}: ${getErrorMessage(
-            error
-          )}`
-        );
-      }
+      throw new Error(
+        `Failed to read entity ${
+          this.entityName
+        }:${entityId}: ${getErrorMessage(error)}`
+      );
     }
   }
-);
+
+  async hasValue(entityId: EntityId): Promise<boolean> {
+    swarm.loggerService.debug(PERSIST_BASE_METHOD_NAME_HAS_VALUE, {
+      entityName: this.entityName,
+      entityId,
+    });
+    try {
+      const filePath = this._getFilePath(entityId);
+      await fs.access(filePath);
+      return true;
+    } catch (error: any) {
+      if (error?.code === "ENOENT") {
+        return false;
+      }
+      throw new Error(
+        `Failed to check existence of entity ${
+          this.entityName
+        }:${entityId}: ${getErrorMessage(error)}`
+      );
+    }
+  }
+
+  async writeValue<T extends IEntity = IEntity>(
+    entityId: EntityId,
+    entity: T
+  ): Promise<void> {
+    swarm.loggerService.debug(PERSIST_BASE_METHOD_NAME_WRITE_VALUE, {
+      entityName: this.entityName,
+      entityId,
+    });
+    try {
+      const filePath = this._getFilePath(entityId);
+      const serializedData = JSON.stringify(entity);
+      await writeFileAtomic(filePath, serializedData, "utf-8");
+    } catch (error) {
+      throw new Error(
+        `Failed to write entity ${
+          this.entityName
+        }:${entityId}: ${getErrorMessage(error)}`
+      );
+    }
+  }
+
+  /**
+   * Async generator yielding all entity IDs.
+   * Sorted alphanumerically.
+   * Used internally by waitForInit for validation.
+   *
+   * @returns AsyncGenerator yielding entity IDs
+   * @throws Error if reading fails
+   */
+  async *keys(): AsyncGenerator<EntityId> {
+    swarm.loggerService.debug(PERSIST_BASE_METHOD_NAME_KEYS, {
+      entityName: this.entityName,
+    });
+    try {
+      const files = await fs.readdir(this._directory);
+      const entityIds = files
+        .filter((file) => file.endsWith(".json"))
+        .map((file) => file.slice(0, -5))
+        .sort((a, b) =>
+          a.localeCompare(b, undefined, {
+            numeric: true,
+            sensitivity: "base",
+          })
+        );
+      for (const entityId of entityIds) {
+        yield entityId;
+      }
+    } catch (error) {
+      throw new Error(
+        `Failed to read keys for ${this.entityName}: ${getErrorMessage(error)}`
+      );
+    }
+  }
+}
+
+// @ts-ignore
+PersistBase = makeExtendable(PersistBase);
 
 /**
  * Dummy persist adapter that discards all writes.
@@ -430,8 +423,16 @@ export class PersistSignalUtils {
     PersistBase;
 
   private getSignalStorage = memoize(
-    ([symbol, strategyName, exchangeName]: [string, StrategyName, ExchangeName]): string => `${symbol}:${strategyName}:${exchangeName}`,
-    (symbol: string, strategyName: StrategyName, exchangeName: ExchangeName): IPersistBase<SignalData> =>
+    ([symbol, strategyName, exchangeName]: [
+      string,
+      StrategyName,
+      ExchangeName
+    ]): string => `${symbol}:${strategyName}:${exchangeName}`,
+    (
+      symbol: string,
+      strategyName: StrategyName,
+      exchangeName: ExchangeName
+    ): IPersistBase<SignalData> =>
       Reflect.construct(this.PersistSignalFactory, [
         `${symbol}_${strategyName}_${exchangeName}`,
         `./dump/data/signal/`,
@@ -481,7 +482,11 @@ export class PersistSignalUtils {
 
     const key = `${symbol}:${strategyName}:${exchangeName}`;
     const isInitial = !this.getSignalStorage.has(key);
-    const stateStorage = this.getSignalStorage(symbol, strategyName, exchangeName);
+    const stateStorage = this.getSignalStorage(
+      symbol,
+      strategyName,
+      exchangeName
+    );
     await stateStorage.waitForInit(isInitial);
 
     if (await stateStorage.hasValue(symbol)) {
@@ -513,7 +518,11 @@ export class PersistSignalUtils {
 
     const key = `${symbol}:${strategyName}:${exchangeName}`;
     const isInitial = !this.getSignalStorage.has(key);
-    const stateStorage = this.getSignalStorage(symbol, strategyName, exchangeName);
+    const stateStorage = this.getSignalStorage(
+      symbol,
+      strategyName,
+      exchangeName
+    );
     await stateStorage.waitForInit(isInitial);
 
     await stateStorage.writeValue(symbol, signalRow);
@@ -578,7 +587,8 @@ export class PersistRiskUtils {
     PersistBase;
 
   private getRiskStorage = memoize(
-    ([riskName, exchangeName]: [RiskName, ExchangeName]): string => `${riskName}:${exchangeName}`,
+    ([riskName, exchangeName]: [RiskName, ExchangeName]): string =>
+      `${riskName}:${exchangeName}`,
     (riskName: RiskName, exchangeName: ExchangeName): IPersistBase<RiskData> =>
       Reflect.construct(this.PersistRiskFactory, [
         `${riskName}_${exchangeName}`,
@@ -619,7 +629,10 @@ export class PersistRiskUtils {
    * @param exchangeName - Exchange identifier
    * @returns Promise resolving to Map of active positions
    */
-  public readPositionData = async (riskName: RiskName, exchangeName: ExchangeName): Promise<RiskData> => {
+  public readPositionData = async (
+    riskName: RiskName,
+    exchangeName: ExchangeName
+  ): Promise<RiskData> => {
     swarm.loggerService.info(PERSIST_RISK_UTILS_METHOD_NAME_READ_DATA);
 
     const key = `${riskName}:${exchangeName}`;
@@ -723,8 +736,16 @@ export class PersistScheduleUtils {
     PersistBase;
 
   private getScheduleStorage = memoize(
-    ([symbol, strategyName, exchangeName]: [string, StrategyName, ExchangeName]): string => `${symbol}:${strategyName}:${exchangeName}`,
-    (symbol: string, strategyName: StrategyName, exchangeName: ExchangeName): IPersistBase<ScheduleData> =>
+    ([symbol, strategyName, exchangeName]: [
+      string,
+      StrategyName,
+      ExchangeName
+    ]): string => `${symbol}:${strategyName}:${exchangeName}`,
+    (
+      symbol: string,
+      strategyName: StrategyName,
+      exchangeName: ExchangeName
+    ): IPersistBase<ScheduleData> =>
       Reflect.construct(this.PersistScheduleFactory, [
         `${symbol}_${strategyName}_${exchangeName}`,
         `./dump/data/schedule/`,
@@ -774,7 +795,11 @@ export class PersistScheduleUtils {
 
     const key = `${symbol}:${strategyName}:${exchangeName}`;
     const isInitial = !this.getScheduleStorage.has(key);
-    const stateStorage = this.getScheduleStorage(symbol, strategyName, exchangeName);
+    const stateStorage = this.getScheduleStorage(
+      symbol,
+      strategyName,
+      exchangeName
+    );
     await stateStorage.waitForInit(isInitial);
 
     if (await stateStorage.hasValue(symbol)) {
@@ -806,7 +831,11 @@ export class PersistScheduleUtils {
 
     const key = `${symbol}:${strategyName}:${exchangeName}`;
     const isInitial = !this.getScheduleStorage.has(key);
-    const stateStorage = this.getScheduleStorage(symbol, strategyName, exchangeName);
+    const stateStorage = this.getScheduleStorage(
+      symbol,
+      strategyName,
+      exchangeName
+    );
     await stateStorage.waitForInit(isInitial);
 
     await stateStorage.writeValue(symbol, scheduledSignalRow);
@@ -871,8 +900,16 @@ export class PersistPartialUtils {
     PersistBase;
 
   private getPartialStorage = memoize(
-    ([symbol, strategyName, exchangeName]: [string, StrategyName, ExchangeName]): string => `${symbol}:${strategyName}:${exchangeName}`,
-    (symbol: string, strategyName: StrategyName, exchangeName: ExchangeName): IPersistBase<PartialData> =>
+    ([symbol, strategyName, exchangeName]: [
+      string,
+      StrategyName,
+      ExchangeName
+    ]): string => `${symbol}:${strategyName}:${exchangeName}`,
+    (
+      symbol: string,
+      strategyName: StrategyName,
+      exchangeName: ExchangeName
+    ): IPersistBase<PartialData> =>
       Reflect.construct(this.PersistPartialFactory, [
         `${symbol}_${strategyName}_${exchangeName}`,
         `./dump/data/partial/`,
@@ -914,12 +951,21 @@ export class PersistPartialUtils {
    * @param exchangeName - Exchange identifier
    * @returns Promise resolving to partial data record
    */
-  public readPartialData = async (symbol: string, strategyName: StrategyName, signalId: string, exchangeName: ExchangeName): Promise<PartialData> => {
+  public readPartialData = async (
+    symbol: string,
+    strategyName: StrategyName,
+    signalId: string,
+    exchangeName: ExchangeName
+  ): Promise<PartialData> => {
     swarm.loggerService.info(PERSIST_PARTIAL_UTILS_METHOD_NAME_READ_DATA);
 
     const key = `${symbol}:${strategyName}:${exchangeName}`;
     const isInitial = !this.getPartialStorage.has(key);
-    const stateStorage = this.getPartialStorage(symbol, strategyName, exchangeName);
+    const stateStorage = this.getPartialStorage(
+      symbol,
+      strategyName,
+      exchangeName
+    );
     await stateStorage.waitForInit(isInitial);
 
     if (await stateStorage.hasValue(signalId)) {
@@ -953,7 +999,11 @@ export class PersistPartialUtils {
 
     const key = `${symbol}:${strategyName}:${exchangeName}`;
     const isInitial = !this.getPartialStorage.has(key);
-    const stateStorage = this.getPartialStorage(symbol, strategyName, exchangeName);
+    const stateStorage = this.getPartialStorage(
+      symbol,
+      strategyName,
+      exchangeName
+    );
     await stateStorage.waitForInit(isInitial);
 
     await stateStorage.writeValue(signalId, partialData);
@@ -1052,8 +1102,16 @@ class PersistBreakevenUtils {
    * @returns PersistBase instance for this symbol-strategy-exchange combination
    */
   private getBreakevenStorage = memoize(
-    ([symbol, strategyName, exchangeName]: [string, StrategyName, ExchangeName]): string => `${symbol}:${strategyName}:${exchangeName}`,
-    (symbol: string, strategyName: StrategyName, exchangeName: ExchangeName): IPersistBase<BreakevenData> =>
+    ([symbol, strategyName, exchangeName]: [
+      string,
+      StrategyName,
+      ExchangeName
+    ]): string => `${symbol}:${strategyName}:${exchangeName}`,
+    (
+      symbol: string,
+      strategyName: StrategyName,
+      exchangeName: ExchangeName
+    ): IPersistBase<BreakevenData> =>
       Reflect.construct(this.PersistBreakevenFactory, [
         `${symbol}_${strategyName}_${exchangeName}`,
         `./dump/data/breakeven/`,
@@ -1095,12 +1153,21 @@ class PersistBreakevenUtils {
    * @param exchangeName - Exchange identifier
    * @returns Promise resolving to breakeven data record
    */
-  public readBreakevenData = async (symbol: string, strategyName: StrategyName, signalId: string, exchangeName: ExchangeName): Promise<BreakevenData> => {
+  public readBreakevenData = async (
+    symbol: string,
+    strategyName: StrategyName,
+    signalId: string,
+    exchangeName: ExchangeName
+  ): Promise<BreakevenData> => {
     swarm.loggerService.info(PERSIST_BREAKEVEN_UTILS_METHOD_NAME_READ_DATA);
 
     const key = `${symbol}:${strategyName}:${exchangeName}`;
     const isInitial = !this.getBreakevenStorage.has(key);
-    const stateStorage = this.getBreakevenStorage(symbol, strategyName, exchangeName);
+    const stateStorage = this.getBreakevenStorage(
+      symbol,
+      strategyName,
+      exchangeName
+    );
     await stateStorage.waitForInit(isInitial);
 
     if (await stateStorage.hasValue(signalId)) {
@@ -1124,12 +1191,22 @@ class PersistBreakevenUtils {
    * @param exchangeName - Exchange identifier
    * @returns Promise that resolves when write is complete
    */
-  public writeBreakevenData = async (breakevenData: BreakevenData, symbol: string, strategyName: StrategyName, signalId: string, exchangeName: ExchangeName): Promise<void> => {
+  public writeBreakevenData = async (
+    breakevenData: BreakevenData,
+    symbol: string,
+    strategyName: StrategyName,
+    signalId: string,
+    exchangeName: ExchangeName
+  ): Promise<void> => {
     swarm.loggerService.info(PERSIST_BREAKEVEN_UTILS_METHOD_NAME_WRITE_DATA);
 
     const key = `${symbol}:${strategyName}:${exchangeName}`;
     const isInitial = !this.getBreakevenStorage.has(key);
-    const stateStorage = this.getBreakevenStorage(symbol, strategyName, exchangeName);
+    const stateStorage = this.getBreakevenStorage(
+      symbol,
+      strategyName,
+      exchangeName
+    );
     await stateStorage.waitForInit(isInitial);
 
     await stateStorage.writeValue(signalId, breakevenData);
@@ -1172,3 +1249,4 @@ class PersistBreakevenUtils {
  */
 export const PersistBreakevenAdapter = new PersistBreakevenUtils();
 
+export { PersistBase }
