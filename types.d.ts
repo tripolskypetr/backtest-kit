@@ -1952,7 +1952,7 @@ interface IActionSchema {
     /** Action handler constructor (instantiated per strategy-frame pair) */
     handler: TActionCtor | Partial<IPublicAction>;
     /** Optional lifecycle and event callbacks */
-    callbacks: Partial<IActionCallbacks>;
+    callbacks?: Partial<IActionCallbacks>;
 }
 /**
  * Public action interface for custom action handler implementations.
