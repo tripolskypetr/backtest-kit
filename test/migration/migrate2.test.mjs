@@ -39,7 +39,7 @@ import { Subject, sleep } from "functools-kit";
 // TODO: Исправить эти тесты
 // #10, #11, #13, #17, #18, #19, #20, #26, #27, #31
 // Test #10
-test("Cancel scheduled signal after 5 onPing calls in backtest", async ({ pass, fail }) => {
+test("Cancel scheduled signal after 5 onSchedulePing calls in backtest", async ({ pass, fail }) => {
 
   let scheduledCount = 0;
   let cancelledCount = 0;
@@ -144,7 +144,7 @@ test("Cancel scheduled signal after 5 onPing calls in backtest", async ({ pass, 
       onOpen: () => {
         openedCount++;
       },
-      onPing: async (_symbol, _data, when, _backtest) => {
+      onSchedulePing: async (_symbol, _data, when, _backtest) => {
         pingCount++;
         pingTimestamps.push(when.getTime());
 
@@ -205,9 +205,9 @@ test("Cancel scheduled signal after 5 onPing calls in backtest", async ({ pass, 
     return;
   }
 
-  // Проверяем что было ровно 5 вызовов onPing
+  // Проверяем что было ровно 5 вызовов onSchedulePing
   if (pingCount !== 5) {
-    fail(`Expected exactly 5 onPing calls, got ${pingCount}`);
+    fail(`Expected exactly 5 onSchedulePing calls, got ${pingCount}`);
     return;
   }
 
@@ -222,7 +222,7 @@ test("Cancel scheduled signal after 5 onPing calls in backtest", async ({ pass, 
 
   // Проверяем что был создан scheduled сигнал и получено cancelled событие
   if (scheduledCount >= 1 && cancelledEvents >= 1 && openedCount === 0) {
-    pass(`Scheduled signal cancelled after 5 onPing calls: ${pingCount} pings, ${scheduledCount} scheduled, ${cancelledEvents} cancelled events`);
+    pass(`Scheduled signal cancelled after 5 onSchedulePing calls: ${pingCount} pings, ${scheduledCount} scheduled, ${cancelledEvents} cancelled events`);
     return;
   }
 
