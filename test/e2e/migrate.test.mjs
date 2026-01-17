@@ -1620,8 +1620,8 @@ test("Cancel scheduled signal after 5 onPing calls in backtest", async ({ pass, 
           });
         }
 
-        // Генерируем 30 минут свечей (достаточно для 5 ping + отмена)
-        for (let minuteIndex = 0; minuteIndex < 30; minuteIndex++) {
+        // Генерируем свечи: требуется минимум 125 для minuteEstimatedTime=120
+        for (let minuteIndex = 0; minuteIndex < 130; minuteIndex++) {
           const timestamp = startTime + minuteIndex * intervalMs;
 
           // Все свечи ВЫШЕ priceOpen - чтобы сигнал точно был scheduled
@@ -1669,7 +1669,7 @@ test("Cancel scheduled signal after 5 onPing calls in backtest", async ({ pass, 
           await Backtest.commitCancel("BTCUSDT", {
             strategyName: "test-strategy-cancel-ping",
             exchangeName: "binance-cancel-ping-test",
-            frameName: "30m-cancel-ping-test",
+            frameName: "130m-cancel-ping-test",
           });
         }
       },
@@ -1677,10 +1677,10 @@ test("Cancel scheduled signal after 5 onPing calls in backtest", async ({ pass, 
   });
 
   addFrameSchema({
-    frameName: "30m-cancel-ping-test",
+    frameName: "130m-cancel-ping-test",
     interval: "1m",
     startDate: new Date("2024-01-01T00:00:00Z"),
-    endDate: new Date("2024-01-01T00:30:00Z"),
+    endDate: new Date("2024-01-01T02:10:00Z"),  // 130 минут
   });
 
   const awaitSubject = new Subject();
@@ -1710,7 +1710,7 @@ test("Cancel scheduled signal after 5 onPing calls in backtest", async ({ pass, 
   Backtest.background("BTCUSDT", {
     strategyName: "test-strategy-cancel-ping",
     exchangeName: "binance-cancel-ping-test",
-    frameName: "30m-cancel-ping-test",
+    frameName: "130m-cancel-ping-test",
   });
 
   await awaitSubject.toPromise();
@@ -2004,8 +2004,8 @@ test("CACHE: getDate cached for 1m interval - returns same timestamp within inte
         });
       }
 
-      // Генерируем 10 минут свечей для теста
-      for (let minuteIndex = 0; minuteIndex < 10; minuteIndex++) {
+      // Генерируем свечи: требуется минимум 125 для minuteEstimatedTime=120
+      for (let minuteIndex = 0; minuteIndex < 130; minuteIndex++) {
         const timestamp = startTime + minuteIndex * intervalMs;
 
         // Все свечи одинаковые - для простоты
@@ -2044,10 +2044,10 @@ test("CACHE: getDate cached for 1m interval - returns same timestamp within inte
   });
 
   addFrameSchema({
-    frameName: "10m-cache-test",
+    frameName: "130m-cache-test",
     interval: "1m",
     startDate: new Date("2024-01-01T00:00:00Z"),
-    endDate: new Date("2024-01-01T00:10:00Z"),
+    endDate: new Date("2024-01-01T02:10:00Z"),  // 130 минут
   });
 
   const awaitSubject = new Subject();
@@ -2065,7 +2065,7 @@ test("CACHE: getDate cached for 1m interval - returns same timestamp within inte
   Backtest.background("BTCUSDT", {
     strategyName: "test-strategy-cache",
     exchangeName: "binance-cache-test",
-    frameName: "10m-cache-test",
+    frameName: "130m-cache-test",
   });
 
   await awaitSubject.toPromise();
