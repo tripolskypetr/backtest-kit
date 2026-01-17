@@ -91,7 +91,8 @@ test("ACTION: ActionBase.signal() receives all signal events in backtest", async
       allCandles = [];
 
       // Генерируем свечи для immediate activation (как в sequence.test.mjs Тест #3)
-      for (let i = 0; i < 30; i++) {
+      // Требуется минимум 65 свечей для minuteEstimatedTime=60 (60 + 4 buffer + 1)
+      for (let i = 0; i < 70; i++) {
         const timestamp = startTime + i * intervalMs;
 
         // Фаза 1: Ожидание (0-9) - цена ВЫШЕ basePrice
@@ -102,7 +103,7 @@ test("ACTION: ActionBase.signal() receives all signal events in backtest", async
         else if (i >= 10 && i < 15) {
           allCandles.push({ timestamp, open: basePrice, high: basePrice + 100, low: basePrice - 100, close: basePrice, volume: 100 });
         }
-        // Фаза 3: TP (15-29) - цена достигает TP
+        // Фаза 3: TP (15-69) - цена достигает TP
         else {
           allCandles.push({ timestamp, open: basePrice + 1000, high: basePrice + 1100, low: basePrice + 900, close: basePrice + 1000, volume: 100 });
         }
@@ -119,10 +120,10 @@ test("ACTION: ActionBase.signal() receives all signal events in backtest", async
   });
 
   addFrameSchema({
-    frameName: "30m-action-signal",
+    frameName: "70m-action-signal",
     interval: "1m",
     startDate: new Date("2024-01-01T00:00:00Z"),
-    endDate: new Date("2024-01-01T00:30:00Z"),
+    endDate: new Date("2024-01-01T01:10:00Z"),  // 70 минут
   });
 
   const awaitSubject = new Subject();
@@ -137,7 +138,7 @@ test("ACTION: ActionBase.signal() receives all signal events in backtest", async
   Backtest.background("BTCUSDT", {
     strategyName: "test-strategy-action-signal",
     exchangeName: "binance-action-signal",
-    frameName: "30m-action-signal",
+    frameName: "70m-action-signal",
   });
 
   await awaitSubject.toPromise();
@@ -160,7 +161,7 @@ test("ACTION: ActionBase.signal() receives all signal events in backtest", async
     return;
   }
 
-  if (!signalEvents.every(e => e.frameName === "30m-action-signal")) {
+  if (!signalEvents.every(e => e.frameName === "70m-action-signal")) {
     fail("Action frameName incorrect");
     return;
   }
@@ -259,19 +260,22 @@ test("ACTION: ActionBase.breakeven() called when breakeven reached", async ({ pa
         });
       }
 
-      for (let i = 0; i < 30; i++) {
+      // Требуется минимум 125 свечей для minuteEstimatedTime=120 (120 + 4 buffer + 1)
+      for (let i = 0; i < 130; i++) {
         const timestamp = startTime + i * intervalMs;
 
         // Активация (0-4)
         if (i < 5) {
           allCandles.push({ timestamp, open: basePrice, high: basePrice + 100, low: basePrice - 100, close: basePrice, volume: 100 });
         }
-        // Рост до 3% для breakeven (5-9)
-        else if (i >= 5 && i < 10) {
-          const price = basePrice + 3000;
+        // Рост до 20% для breakeven (5-14) - threshold ~19% (30% от пути к TP 63%)
+        else if (i >= 5 && i < 15) {
+          const progress = (i - 4) / 10; // 0.1, 0.2, ..., 1.0
+          const targetPrice = basePrice + 19000; // +20%
+          const price = basePrice + (targetPrice - basePrice) * progress;
           allCandles.push({ timestamp, open: price, high: price + 100, low: price - 100, close: price, volume: 100 });
         }
-        // Дальнейший рост до TP (10-29)
+        // Дальнейший рост до TP (15-129)
         else {
           const tpPrice = basePrice + 60000;
           allCandles.push({ timestamp, open: tpPrice, high: tpPrice + 100, low: tpPrice - 100, close: tpPrice, volume: 100 });
@@ -289,10 +293,10 @@ test("ACTION: ActionBase.breakeven() called when breakeven reached", async ({ pa
   });
 
   addFrameSchema({
-    frameName: "30m-action-breakeven",
+    frameName: "130m-action-breakeven",
     interval: "1m",
     startDate: new Date("2024-01-01T00:00:00Z"),
-    endDate: new Date("2024-01-01T00:30:00Z"),
+    endDate: new Date("2024-01-01T02:10:00Z"),  // 130 минут
   });
 
   const awaitSubject = new Subject();
@@ -307,10 +311,11 @@ test("ACTION: ActionBase.breakeven() called when breakeven reached", async ({ pa
   Backtest.background("BTCUSDT", {
     strategyName: "test-strategy-action-breakeven",
     exchangeName: "binance-action-breakeven",
-    frameName: "30m-action-breakeven",
+    frameName: "130m-action-breakeven",
   });
 
   await awaitSubject.toPromise();
+  await sleep(1000);  // Даем время для обработки событий
   unsubscribeError();
 
   if (errorCaught) {
@@ -318,6 +323,7 @@ test("ACTION: ActionBase.breakeven() called when breakeven reached", async ({ pa
     return;
   }
 
+  console.log(`DEBUG: breakevenEvents.length = ${breakevenEvents.length}`);
   if (breakevenEvents.length === 0) {
     fail("breakeven() was NOT called");
     return;
@@ -416,7 +422,8 @@ test("ACTION: ActionBase.partialProfit() called on profit levels", async ({ pass
         });
       }
 
-      for (let i = 0; i < 30; i++) {
+      // Требуется минимум 125 свечей для minuteEstimatedTime=120 (120 + 4 buffer + 1)
+      for (let i = 0; i < 130; i++) {
         const timestamp = startTime + i * intervalMs;
 
         // Активация (0-4)
@@ -429,7 +436,7 @@ test("ACTION: ActionBase.partialProfit() called on profit levels", async ({ pass
           const price = basePrice + increment;
           allCandles.push({ timestamp, open: price, high: price + 100, low: price - 100, close: price, volume: 100 });
         }
-        // TP (15-29)
+        // TP (15-129)
         else {
           const tpPrice = basePrice + 60000;
           allCandles.push({ timestamp, open: tpPrice, high: tpPrice + 100, low: tpPrice - 100, close: tpPrice, volume: 100 });
@@ -447,10 +454,10 @@ test("ACTION: ActionBase.partialProfit() called on profit levels", async ({ pass
   });
 
   addFrameSchema({
-    frameName: "30m-action-partial-profit",
+    frameName: "130m-action-partial-profit",
     interval: "1m",
     startDate: new Date("2024-01-01T00:00:00Z"),
-    endDate: new Date("2024-01-01T00:30:00Z"),
+    endDate: new Date("2024-01-01T02:10:00Z"),  // 130 минут
   });
 
   const awaitSubject = new Subject();
@@ -465,10 +472,11 @@ test("ACTION: ActionBase.partialProfit() called on profit levels", async ({ pass
   Backtest.background("BTCUSDT", {
     strategyName: "test-strategy-action-partial-profit",
     exchangeName: "binance-action-partial-profit",
-    frameName: "30m-action-partial-profit",
+    frameName: "130m-action-partial-profit",
   });
 
   await awaitSubject.toPromise();
+  await sleep(1000);  // Даем время для обработки событий
   unsubscribeError();
 
   if (errorCaught) {
@@ -476,6 +484,7 @@ test("ACTION: ActionBase.partialProfit() called on profit levels", async ({ pass
     return;
   }
 
+  console.log(`DEBUG partialProfit: events.length = ${partialProfitEvents.length}`);
   if (partialProfitEvents.length === 0) {
     fail("partialProfit() was NOT called");
     return;
@@ -575,7 +584,8 @@ test("ACTION: ActionBase.partialLoss() called on loss levels", async ({ pass, fa
         });
       }
 
-      for (let i = 0; i < 30; i++) {
+      // Требуется минимум 125 свечей для minuteEstimatedTime=120 (120 + 4 buffer + 1)
+      for (let i = 0; i < 130; i++) {
         const timestamp = startTime + i * intervalMs;
 
         // Активация (0-4)
@@ -588,7 +598,7 @@ test("ACTION: ActionBase.partialLoss() called on loss levels", async ({ pass, fa
           const price = basePrice - decrement;
           allCandles.push({ timestamp, open: price, high: price + 100, low: price - 100, close: price, volume: 100 });
         }
-        // SL (15-29)
+        // SL (15-129)
         else {
           const slPrice = basePrice - 50000;
           allCandles.push({ timestamp, open: slPrice, high: slPrice + 100, low: slPrice - 100, close: slPrice, volume: 100 });
@@ -606,10 +616,10 @@ test("ACTION: ActionBase.partialLoss() called on loss levels", async ({ pass, fa
   });
 
   addFrameSchema({
-    frameName: "30m-action-partial-loss",
+    frameName: "130m-action-partial-loss",
     interval: "1m",
     startDate: new Date("2024-01-01T00:00:00Z"),
-    endDate: new Date("2024-01-01T00:30:00Z"),
+    endDate: new Date("2024-01-01T02:10:00Z"),  // 130 минут
   });
 
   const awaitSubject = new Subject();
@@ -624,10 +634,11 @@ test("ACTION: ActionBase.partialLoss() called on loss levels", async ({ pass, fa
   Backtest.background("BTCUSDT", {
     strategyName: "test-strategy-action-partial-loss",
     exchangeName: "binance-action-partial-loss",
-    frameName: "30m-action-partial-loss",
+    frameName: "130m-action-partial-loss",
   });
 
   await awaitSubject.toPromise();
+  await sleep(1000);  // Даем время для обработки событий
   unsubscribeError();
 
   if (errorCaught) {
@@ -635,6 +646,7 @@ test("ACTION: ActionBase.partialLoss() called on loss levels", async ({ pass, fa
     return;
   }
 
+  console.log(`DEBUG partialLoss: events.length = ${partialLossEvents.length}`);
   if (partialLossEvents.length === 0) {
     fail("partialLoss() was NOT called");
     return;
@@ -717,7 +729,8 @@ test("BREAKEVEN BACKTEST: Backtest.getBreakeven API with listenBreakeven", async
         });
       }
 
-      for (let i = 0; i < 30; i++) {
+      // Требуется минимум 65 свечей для minuteEstimatedTime=60 (60 + 4 buffer + 1)
+      for (let i = 0; i < 70; i++) {
         const timestamp = startTime + i * intervalMs;
 
         // Активация (0-4)
@@ -746,7 +759,7 @@ test("BREAKEVEN BACKTEST: Backtest.getBreakeven API with listenBreakeven", async
             volume: 100,
           });
         }
-        // Превышение threshold (15-29)
+        // Превышение threshold (15-69)
         else {
           allCandles.push({
             timestamp,
@@ -773,7 +786,7 @@ test("BREAKEVEN BACKTEST: Backtest.getBreakeven API with listenBreakeven", async
     frameName: "test-frame-breakeven-api",
     interval: "1m",
     startDate: new Date(startTime),
-    endDate: new Date(startTime + 30 * intervalMs),
+    endDate: new Date(startTime + 70 * intervalMs),  // 70 минут
   });
 
   // Подписываемся на события breakeven ПЕРЕД запуском backtest
@@ -926,7 +939,8 @@ test("BREAKEVEN BACKTEST: NO event if threshold NOT reached", async ({ pass, fai
       }
 
       // Все свечи остаются вблизи entry - НЕ достигаем threshold
-      for (let i = 0; i < 30; i++) {
+      // Требуется минимум 65 свечей для minuteEstimatedTime=60 (60 + 4 buffer + 1)
+      for (let i = 0; i < 70; i++) {
         const timestamp = startTime + i * intervalMs;
 
         if (i < 5) {
@@ -963,10 +977,10 @@ test("BREAKEVEN BACKTEST: NO event if threshold NOT reached", async ({ pass, fai
   });
 
   addFrameSchema({
-    frameName: "30m-breakeven-5",
+    frameName: "70m-breakeven-5",
     interval: "1m",
     startDate: new Date("2024-01-01T00:00:00Z"),
-    endDate: new Date("2024-01-01T00:30:00Z"),
+    endDate: new Date("2024-01-01T01:10:00Z"),  // 70 минут
   });
 
   const unsubscribeBreakeven = listenBreakevenAvailable((event) => {
@@ -990,7 +1004,7 @@ test("BREAKEVEN BACKTEST: NO event if threshold NOT reached", async ({ pass, fai
   Backtest.background("BTCUSDT", {
     strategyName: "test-breakeven-5",
     exchangeName: "binance-breakeven-5",
-    frameName: "30m-breakeven-5",
+    frameName: "70m-breakeven-5",
   });
 
   await awaitSubject.toPromise();
@@ -1068,7 +1082,8 @@ test("BREAKEVEN CALLBACK: onBreakeven NOT called if threshold not reached", asyn
       }
 
       // Цена колеблется ±0.3% (ниже threshold 0.6%)
-      for (let i = 0; i < 30; i++) {
+      // Требуется минимум 65 свечей для minuteEstimatedTime=60 (60 + 4 buffer + 1)
+      for (let i = 0; i < 70; i++) {
         const timestamp = startTime + i * intervalMs;
 
         if (i < 5) {
@@ -1114,10 +1129,10 @@ test("BREAKEVEN CALLBACK: onBreakeven NOT called if threshold not reached", asyn
   });
 
   addFrameSchema({
-    frameName: "30m-breakeven-8",
+    frameName: "70m-breakeven-8",
     interval: "1m",
     startDate: new Date("2024-01-01T00:00:00Z"),
-    endDate: new Date("2024-01-01T00:30:00Z"),
+    endDate: new Date("2024-01-01T01:10:00Z"),  // 70 минут
   });
 
   const awaitSubject = new Subject();
@@ -1132,7 +1147,7 @@ test("BREAKEVEN CALLBACK: onBreakeven NOT called if threshold not reached", asyn
   Backtest.background("BTCUSDT", {
     strategyName: "test-breakeven-8",
     exchangeName: "binance-breakeven-8",
-    frameName: "30m-breakeven-8",
+    frameName: "70m-breakeven-8",
   });
 
   await awaitSubject.toPromise();
