@@ -3852,8 +3852,8 @@ export class ClientStrategy implements IStrategy {
           // In real backtest flow this won't happen as we process all candles at once
           // This indicates incorrect usage of backtest() - throw error instead of returning partial result
           const bufferCandlesCount = GLOBAL_CONFIG.CC_AVG_PRICE_CANDLES_COUNT - 1;
-          // For scheduled signal: buffer + wait + lifetime (second buffer reuses scheduled phase candles via slice)
-          const requiredCandlesCount = bufferCandlesCount + GLOBAL_CONFIG.CC_SCHEDULE_AWAIT_MINUTES + scheduled.minuteEstimatedTime;
+          // For scheduled signal that has NOT activated: buffer + wait time only (no lifetime yet)
+          const requiredCandlesCount = bufferCandlesCount + GLOBAL_CONFIG.CC_SCHEDULE_AWAIT_MINUTES;
           throw new Error(
             str.newline(
               `ClientStrategy backtest: Insufficient candle data for scheduled signal (not yet activated). ` +
@@ -3863,11 +3863,10 @@ export class ClientStrategy implements IStrategy {
               `Provided ${candles.length} candles, but need at least ${requiredCandlesCount} candles. ` +
               `\nBreakdown: ` +
               `${bufferCandlesCount} buffer (VWAP) + ` +
-              `${GLOBAL_CONFIG.CC_SCHEDULE_AWAIT_MINUTES} wait (for activation) + ` +
-              `${scheduled.minuteEstimatedTime} lifetime = ${requiredCandlesCount} total. ` +
+              `${GLOBAL_CONFIG.CC_SCHEDULE_AWAIT_MINUTES} wait (for activation) = ${requiredCandlesCount} total. ` +
               `\nBuffer explanation: VWAP calculation requires ${GLOBAL_CONFIG.CC_AVG_PRICE_CANDLES_COUNT} candles, ` +
               `so first ${bufferCandlesCount} candles are skipped. After activation, buffer is reused from scheduled phase. ` +
-              `Provide complete candle range: [scheduledAt - ${bufferCandlesCount}min, scheduledAt + ${GLOBAL_CONFIG.CC_SCHEDULE_AWAIT_MINUTES + scheduled.minuteEstimatedTime}min].`
+              `Provide complete candle range: [scheduledAt - ${bufferCandlesCount}min, scheduledAt + ${GLOBAL_CONFIG.CC_SCHEDULE_AWAIT_MINUTES}min].`
             )
           );
         }
