@@ -192,7 +192,7 @@ export interface IActionCallbacks {
    * @param frameName - Timeframe identifier
    * @param backtest - True for backtest mode, false for live trading
    */
-  onBreakeven(event: BreakevenContract, actionName: ActionName, strategyName: StrategyName, frameName: FrameName, backtest: boolean): void | Promise<void>;
+  onBreakevenAvailable(event: BreakevenContract, actionName: ActionName, strategyName: StrategyName, frameName: FrameName, backtest: boolean): void | Promise<void>;
 
   /**
    * Called when partial profit level is reached (10%, 20%, 30%, etc).
@@ -206,7 +206,7 @@ export interface IActionCallbacks {
    * @param frameName - Timeframe identifier
    * @param backtest - True for backtest mode, false for live trading
    */
-  onPartialProfit(event: PartialProfitContract, actionName: ActionName, strategyName: StrategyName, frameName: FrameName, backtest: boolean): void | Promise<void>;
+  onPartialProfitAvailable(event: PartialProfitContract, actionName: ActionName, strategyName: StrategyName, frameName: FrameName, backtest: boolean): void | Promise<void>;
 
   /**
    * Called when partial loss level is reached (-10%, -20%, -30%, etc).
@@ -220,7 +220,7 @@ export interface IActionCallbacks {
    * @param frameName - Timeframe identifier
    * @param backtest - True for backtest mode, false for live trading
    */
-  onPartialLoss(event: PartialLossContract, actionName: ActionName, strategyName: StrategyName, frameName: FrameName, backtest: boolean): void | Promise<void>;
+  onPartialLossAvailable(event: PartialLossContract, actionName: ActionName, strategyName: StrategyName, frameName: FrameName, backtest: boolean): void | Promise<void>;
 
   /**
    * Called during scheduled signal monitoring (every minute while waiting for activation).
@@ -266,7 +266,7 @@ export interface IActionCallbacks {
 }
 
 /**
- * Action schema registered via addAction().
+ * Action schema registered via addActionSchema().
  * Defines event handler implementation and lifecycle callbacks for state management integration.
  *
  * Actions provide a way to attach custom event handlers to strategies for:
@@ -281,7 +281,7 @@ export interface IActionCallbacks {
  *
  * @example
  * ```typescript
- * import { addAction } from "backtest-kit";
+ * import { addActionSchema } from "backtest-kit";
  *
  * // Define action handler class
  * class TelegramNotifier implements Partial<IAction> {
@@ -303,7 +303,7 @@ export interface IActionCallbacks {
  * }
  *
  * // Register action schema
- * addAction({
+ * addActionSchema({
  *   actionName: "telegram-notifier",
  *   handler: TelegramNotifier,
  *   callbacks: {
@@ -320,6 +320,8 @@ export interface IActionCallbacks {
 export interface IActionSchema {
   /** Unique action identifier for registration */
   actionName: ActionName;
+  /** Optional developer note for documentation */
+  note?: string;
   /** Action handler constructor (instantiated per strategy-frame pair) */
   handler: TActionCtor | Partial<IPublicAction>;
   /** Optional lifecycle and event callbacks */
@@ -492,7 +494,7 @@ export interface IAction {
    *
    * @param event - Breakeven milestone data
    */
-  breakeven(event: BreakevenContract): void | Promise<void>;
+  breakevenAvailable(event: BreakevenContract): void | Promise<void>;
 
   /**
    * Handles partial profit level events (10%, 20%, 30%, etc).
@@ -503,7 +505,7 @@ export interface IAction {
    *
    * @param event - Profit milestone data with level and price
    */
-  partialProfit(event: PartialProfitContract): void | Promise<void>;
+  partialProfitAvailable(event: PartialProfitContract): void | Promise<void>;
 
   /**
    * Handles partial loss level events (-10%, -20%, -30%, etc).
@@ -514,7 +516,7 @@ export interface IAction {
    *
    * @param event - Loss milestone data with level and price
    */
-  partialLoss(event: PartialLossContract): void | Promise<void>;
+  partialLossAvailable(event: PartialLossContract): void | Promise<void>;
 
   /**
    * Handles scheduled ping events during scheduled signal monitoring.

@@ -51,7 +51,7 @@ const CREATE_COMMIT_BREAKEVEN_FN = (self: BreakevenConnectionService) => async (
     timestamp,
   };
   await breakevenSubject.next(event);
-  await self.actionCoreService.breakeven(backtest, event, { strategyName, exchangeName, frameName });
+  await self.actionCoreService.breakevenAvailable(backtest, event, { strategyName, exchangeName, frameName });
 };
 
 /**

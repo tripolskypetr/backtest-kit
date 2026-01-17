@@ -17,9 +17,9 @@ const METHOD_NAME_INIT = "ActionBase.init";
 const METHOD_NAME_EVENT = "ActionBase.event";
 const METHOD_NAME_SIGNAL_LIVE = "ActionBase.signalLive";
 const METHOD_NAME_SIGNAL_BACKTEST = "ActionBase.signalBacktest";
-const METHOD_NAME_BREAKEVEN = "ActionBase.breakeven";
-const METHOD_NAME_PARTIAL_PROFIT = "ActionBase.partialProfit";
-const METHOD_NAME_PARTIAL_LOSS = "ActionBase.partialLoss";
+const METHOD_NAME_BREAKEVEN_AVAILABLE = "ActionBase.breakevenAvailable";
+const METHOD_NAME_PARTIAL_PROFIT_AVAILABLE = "ActionBase.partialProfitAvailable";
+const METHOD_NAME_PARTIAL_LOSS_AVAILABLE = "ActionBase.partialLossAvailable";
 const METHOD_NAME_PING_SCHEDULED = "ActionBase.pingScheduled";
 const METHOD_NAME_PING_ACTIVE = "ActionBase.pingActive";
 const METHOD_NAME_RISK_REJECTION = "ActionBase.riskRejection";
@@ -54,9 +54,9 @@ const DEFAULT_SOURCE = "default";
  * - signal() - Called on every tick/candle (all modes)
  * - signalLive() - Called only in live mode
  * - signalBacktest() - Called only in backtest mode
- * - breakeven() - Called when SL moved to entry
- * - partialProfit() - Called on profit milestones (10%, 20%, etc.)
- * - partialLoss() - Called on loss milestones (-10%, -20%, etc.)
+ * - breakevenAvailable() - Called when SL moved to entry
+ * - partialProfitAvailable() - Called on profit milestones (10%, 20%, etc.)
+ * - partialLossAvailable() - Called on loss milestones (-10%, -20%, etc.)
  * - pingScheduled() - Called every minute during scheduled signal monitoring
  * - pingActive() - Called every minute during active pending signal monitoring
  * - riskRejection() - Called when signal rejected by risk management
@@ -99,7 +99,7 @@ const DEFAULT_SOURCE = "default";
  * }
  *
  * // Register the action
- * addAction({
+ * addActionSchema({
  *   actionName: "telegram-notifier",
  *   handler: TelegramNotifier
  * });
@@ -274,7 +274,7 @@ class ActionBase implements IPublicAction {
    * Called once per signal when price moves far enough to cover fees and slippage.
    * Breakeven threshold: (CC_PERCENT_SLIPPAGE + CC_PERCENT_FEE) * 2 + CC_BREAKEVEN_THRESHOLD
    *
-   * Triggered by: ActionCoreService.breakeven() via BreakevenConnectionService
+   * Triggered by: ActionCoreService.breakevenAvailable() via BreakevenConnectionService
    * Source: breakevenSubject.next() in CREATE_COMMIT_BREAKEVEN_FN callback
    * Frequency: Once per signal when threshold reached
    *
@@ -284,7 +284,7 @@ class ActionBase implements IPublicAction {
    *
    * @example
    * ```typescript
-   * async breakeven(event: BreakevenContract) {
+   * async breakevenAvailable(event: BreakevenContract) {
    *   await this.telegram.send(
    *     `[${event.strategyName}] Breakeven reached! ` +
    *     `Signal: ${event.data.side} @ ${event.currentPrice}`
@@ -292,8 +292,8 @@ class ActionBase implements IPublicAction {
    * }
    * ```
    */
-  public breakeven(event: BreakevenContract, source = DEFAULT_SOURCE): void | Promise<void> {
-    backtest.loggerService.info(METHOD_NAME_BREAKEVEN, {
+  public breakevenAvailable(event: BreakevenContract, source = DEFAULT_SOURCE): void | Promise<void> {
+    backtest.loggerService.info(METHOD_NAME_BREAKEVEN_AVAILABLE, {
       event,
       source,
     });
@@ -305,7 +305,7 @@ class ActionBase implements IPublicAction {
    * Called once per profit level per signal (deduplicated).
    * Use to track profit milestones and adjust position management.
    *
-   * Triggered by: ActionCoreService.partialProfit() via PartialConnectionService
+   * Triggered by: ActionCoreService.partialProfitAvailable() via PartialConnectionService
    * Source: partialProfitSubject.next() in CREATE_COMMIT_PROFIT_FN callback
    * Frequency: Once per profit level per signal
    *
@@ -315,7 +315,7 @@ class ActionBase implements IPublicAction {
    *
    * @example
    * ```typescript
-   * async partialProfit(event: PartialProfitContract) {
+   * async partialProfitAvailable(event: PartialProfitContract) {
    *   await this.telegram.send(
    *     `[${event.strategyName}] Profit ${event.level}% reached! ` +
    *     `Current price: ${event.currentPrice}`
@@ -324,8 +324,8 @@ class ActionBase implements IPublicAction {
    * }
    * ```
    */
-  public partialProfit(event: PartialProfitContract, source = DEFAULT_SOURCE): void | Promise<void> {
-    backtest.loggerService.info(METHOD_NAME_PARTIAL_PROFIT, {
+  public partialProfitAvailable(event: PartialProfitContract, source = DEFAULT_SOURCE): void | Promise<void> {
+    backtest.loggerService.info(METHOD_NAME_PARTIAL_PROFIT_AVAILABLE, {
       event,
       source,
     });
@@ -337,7 +337,7 @@ class ActionBase implements IPublicAction {
    * Called once per loss level per signal (deduplicated).
    * Use to track loss milestones and implement risk management actions.
    *
-   * Triggered by: ActionCoreService.partialLoss() via PartialConnectionService
+   * Triggered by: ActionCoreService.partialLossAvailable() via PartialConnectionService
    * Source: partialLossSubject.next() in CREATE_COMMIT_LOSS_FN callback
    * Frequency: Once per loss level per signal
    *
@@ -347,7 +347,7 @@ class ActionBase implements IPublicAction {
    *
    * @example
    * ```typescript
-   * async partialLoss(event: PartialLossContract) {
+   * async partialLossAvailable(event: PartialLossContract) {
    *   await this.telegram.send(
    *     `[${event.strategyName}] Loss ${event.level}% reached! ` +
    *     `Current price: ${event.currentPrice}`
@@ -356,8 +356,8 @@ class ActionBase implements IPublicAction {
    * }
    * ```
    */
-  public partialLoss(event: PartialLossContract, source = DEFAULT_SOURCE): void | Promise<void> {
-    backtest.loggerService.info(METHOD_NAME_PARTIAL_LOSS, {
+  public partialLossAvailable(event: PartialLossContract, source = DEFAULT_SOURCE): void | Promise<void> {
+    backtest.loggerService.info(METHOD_NAME_PARTIAL_LOSS_AVAILABLE, {
       event,
       source,
     });

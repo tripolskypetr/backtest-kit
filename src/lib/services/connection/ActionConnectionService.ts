@@ -200,17 +200,17 @@ export class ActionConnectionService implements TAction {
    * @param backtest - Whether running in backtest mode
    * @param context - Execution context with action name, strategy name, exchange name, frame name
    */
-  public breakeven = async (
+  public breakevenAvailable = async (
     event: BreakevenContract,
     backtest: boolean,
     context: { actionName: ActionName; strategyName: StrategyName; exchangeName: ExchangeName; frameName: FrameName }
   ) => {
-    this.loggerService.log("actionConnectionService breakeven", {
+    this.loggerService.log("actionConnectionService breakevenAvailable", {
       backtest,
       context,
     });
     const action = this.getAction(context.actionName, context.strategyName, context.exchangeName, context.frameName, backtest)
-    await action.breakeven(event);
+    await action.breakevenAvailable(event);
   };
 
   /**
@@ -220,17 +220,17 @@ export class ActionConnectionService implements TAction {
    * @param backtest - Whether running in backtest mode
    * @param context - Execution context with action name, strategy name, exchange name, frame name
    */
-  public partialProfit = async (
+  public partialProfitAvailable = async (
     event: PartialProfitContract,
     backtest: boolean,
     context: { actionName: ActionName; strategyName: StrategyName; exchangeName: ExchangeName; frameName: FrameName }
   ) => {
-    this.loggerService.log("actionConnectionService partialProfit", {
+    this.loggerService.log("actionConnectionService partialProfitAvailable", {
       backtest,
       context,
     });
     const action = this.getAction(context.actionName, context.strategyName, context.exchangeName, context.frameName, backtest)
-    await action.partialProfit(event);
+    await action.partialProfitAvailable(event);
   };
 
   /**
@@ -240,17 +240,17 @@ export class ActionConnectionService implements TAction {
    * @param backtest - Whether running in backtest mode
    * @param context - Execution context with action name, strategy name, exchange name, frame name
    */
-  public partialLoss = async (
+  public partialLossAvailable = async (
     event: PartialLossContract,
     backtest: boolean,
     context: { actionName: ActionName; strategyName: StrategyName; exchangeName: ExchangeName; frameName: FrameName }
   ) => {
-    this.loggerService.log("actionConnectionService partialLoss", {
+    this.loggerService.log("actionConnectionService partialLossAvailable", {
       backtest,
       context,
     });
     const action = this.getAction(context.actionName, context.strategyName, context.exchangeName, context.frameName, backtest)
-    await action.partialLoss(event);
+    await action.partialLossAvailable(event);
   };
 
   /**

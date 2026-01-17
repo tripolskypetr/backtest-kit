@@ -2482,7 +2482,7 @@ interface IActionCallbacks {
      * @param frameName - Timeframe identifier
      * @param backtest - True for backtest mode, false for live trading
      */
-    onBreakeven(event: BreakevenContract, actionName: ActionName, strategyName: StrategyName, frameName: FrameName, backtest: boolean): void | Promise<void>;
+    onBreakevenAvailable(event: BreakevenContract, actionName: ActionName, strategyName: StrategyName, frameName: FrameName, backtest: boolean): void | Promise<void>;
     /**
      * Called when partial profit level is reached (10%, 20%, 30%, etc).
      *
@@ -2495,7 +2495,7 @@ interface IActionCallbacks {
      * @param frameName - Timeframe identifier
      * @param backtest - True for backtest mode, false for live trading
      */
-    onPartialProfit(event: PartialProfitContract, actionName: ActionName, strategyName: StrategyName, frameName: FrameName, backtest: boolean): void | Promise<void>;
+    onPartialProfitAvailable(event: PartialProfitContract, actionName: ActionName, strategyName: StrategyName, frameName: FrameName, backtest: boolean): void | Promise<void>;
     /**
      * Called when partial loss level is reached (-10%, -20%, -30%, etc).
      *
@@ -2508,7 +2508,7 @@ interface IActionCallbacks {
      * @param frameName - Timeframe identifier
      * @param backtest - True for backtest mode, false for live trading
      */
-    onPartialLoss(event: PartialLossContract, actionName: ActionName, strategyName: StrategyName, frameName: FrameName, backtest: boolean): void | Promise<void>;
+    onPartialLossAvailable(event: PartialLossContract, actionName: ActionName, strategyName: StrategyName, frameName: FrameName, backtest: boolean): void | Promise<void>;
     /**
      * Called during scheduled signal monitoring (every minute while waiting for activation).
      *
@@ -2550,7 +2550,7 @@ interface IActionCallbacks {
     onRiskRejection(event: RiskContract, actionName: ActionName, strategyName: StrategyName, frameName: FrameName, backtest: boolean): void | Promise<void>;
 }
 /**
- * Action schema registered via addAction().
+ * Action schema registered via addActionSchema().
  * Defines event handler implementation and lifecycle callbacks for state management integration.
  *
  * Actions provide a way to attach custom event handlers to strategies for:
@@ -2565,7 +2565,7 @@ interface IActionCallbacks {
  *
  * @example
  * ```typescript
- * import { addAction } from "backtest-kit";
+ * import { addActionSchema } from "backtest-kit";
  *
  * // Define action handler class
  * class TelegramNotifier implements Partial<IAction> {
@@ -2587,7 +2587,7 @@ interface IActionCallbacks {
  * }
  *
  * // Register action schema
- * addAction({
+ * addActionSchema({
  *   actionName: "telegram-notifier",
  *   handler: TelegramNotifier,
  *   callbacks: {
@@ -2604,6 +2604,8 @@ interface IActionCallbacks {
 interface IActionSchema {
     /** Unique action identifier for registration */
     actionName: ActionName;
+    /** Optional developer note for documentation */
+    note?: string;
     /** Action handler constructor (instantiated per strategy-frame pair) */
     handler: TActionCtor | Partial<IPublicAction>;
     /** Optional lifecycle and event callbacks */
@@ -2771,7 +2773,7 @@ interface IAction {
      *
      * @param event - Breakeven milestone data
      */
-    breakeven(event: BreakevenContract): void | Promise<void>;
+    breakevenAvailable(event: BreakevenContract): void | Promise<void>;
     /**
      * Handles partial profit level events (10%, 20%, 30%, etc).
      *
@@ -2781,7 +2783,7 @@ interface IAction {
      *
      * @param event - Profit milestone data with level and price
      */
-    partialProfit(event: PartialProfitContract): void | Promise<void>;
+    partialProfitAvailable(event: PartialProfitContract): void | Promise<void>;
     /**
      * Handles partial loss level events (-10%, -20%, -30%, etc).
      *
@@ -2791,7 +2793,7 @@ interface IAction {
      *
      * @param event - Loss milestone data with level and price
      */
-    partialLoss(event: PartialLossContract): void | Promise<void>;
+    partialLossAvailable(event: PartialLossContract): void | Promise<void>;
     /**
      * Handles scheduled ping events during scheduled signal monitoring.
      *
@@ -13182,9 +13184,9 @@ declare const Breakeven: BreakevenUtils;
  * - signal() - Called on every tick/candle (all modes)
  * - signalLive() - Called only in live mode
  * - signalBacktest() - Called only in backtest mode
- * - breakeven() - Called when SL moved to entry
- * - partialProfit() - Called on profit milestones (10%, 20%, etc.)
- * - partialLoss() - Called on loss milestones (-10%, -20%, etc.)
+ * - breakevenAvailable() - Called when SL moved to entry
+ * - partialProfitAvailable() - Called on profit milestones (10%, 20%, etc.)
+ * - partialLossAvailable() - Called on loss milestones (-10%, -20%, etc.)
  * - pingScheduled() - Called every minute during scheduled signal monitoring
  * - pingActive() - Called every minute during active pending signal monitoring
  * - riskRejection() - Called when signal rejected by risk management
@@ -13227,7 +13229,7 @@ declare const Breakeven: BreakevenUtils;
  * }
  *
  * // Register the action
- * addAction({
+ * addActionSchema({
  *   actionName: "telegram-notifier",
  *   handler: TelegramNotifier
  * });
@@ -13377,7 +13379,7 @@ declare class ActionBase implements IPublicAction {
      * Called once per signal when price moves far enough to cover fees and slippage.
      * Breakeven threshold: (CC_PERCENT_SLIPPAGE + CC_PERCENT_FEE) * 2 + CC_BREAKEVEN_THRESHOLD
      *
-     * Triggered by: ActionCoreService.breakeven() via BreakevenConnectionService
+     * Triggered by: ActionCoreService.breakevenAvailable() via BreakevenConnectionService
      * Source: breakevenSubject.next() in CREATE_COMMIT_BREAKEVEN_FN callback
      * Frequency: Once per signal when threshold reached
      *
@@ -13387,7 +13389,7 @@ declare class ActionBase implements IPublicAction {
      *
      * @example
      * ```typescript
-     * async breakeven(event: BreakevenContract) {
+     * async breakevenAvailable(event: BreakevenContract) {
      *   await this.telegram.send(
      *     `[${event.strategyName}] Breakeven reached! ` +
      *     `Signal: ${event.data.side} @ ${event.currentPrice}`
@@ -13395,14 +13397,14 @@ declare class ActionBase implements IPublicAction {
      * }
      * ```
      */
-    breakeven(event: BreakevenContract, source?: string): void | Promise<void>;
+    breakevenAvailable(event: BreakevenContract, source?: string): void | Promise<void>;
     /**
      * Handles partial profit level events (10%, 20%, 30%, etc).
      *
      * Called once per profit level per signal (deduplicated).
      * Use to track profit milestones and adjust position management.
      *
-     * Triggered by: ActionCoreService.partialProfit() via PartialConnectionService
+     * Triggered by: ActionCoreService.partialProfitAvailable() via PartialConnectionService
      * Source: partialProfitSubject.next() in CREATE_COMMIT_PROFIT_FN callback
      * Frequency: Once per profit level per signal
      *
@@ -13412,7 +13414,7 @@ declare class ActionBase implements IPublicAction {
      *
      * @example
      * ```typescript
-     * async partialProfit(event: PartialProfitContract) {
+     * async partialProfitAvailable(event: PartialProfitContract) {
      *   await this.telegram.send(
      *     `[${event.strategyName}] Profit ${event.level}% reached! ` +
      *     `Current price: ${event.currentPrice}`
@@ -13421,14 +13423,14 @@ declare class ActionBase implements IPublicAction {
      * }
      * ```
      */
-    partialProfit(event: PartialProfitContract, source?: string): void | Promise<void>;
+    partialProfitAvailable(event: PartialProfitContract, source?: string): void | Promise<void>;
     /**
      * Handles partial loss level events (-10%, -20%, -30%, etc).
      *
      * Called once per loss level per signal (deduplicated).
      * Use to track loss milestones and implement risk management actions.
      *
-     * Triggered by: ActionCoreService.partialLoss() via PartialConnectionService
+     * Triggered by: ActionCoreService.partialLossAvailable() via PartialConnectionService
      * Source: partialLossSubject.next() in CREATE_COMMIT_LOSS_FN callback
      * Frequency: Once per loss level per signal
      *
@@ -13438,7 +13440,7 @@ declare class ActionBase implements IPublicAction {
      *
      * @example
      * ```typescript
-     * async partialLoss(event: PartialLossContract) {
+     * async partialLossAvailable(event: PartialLossContract) {
      *   await this.telegram.send(
      *     `[${event.strategyName}] Loss ${event.level}% reached! ` +
      *     `Current price: ${event.currentPrice}`
@@ -13447,7 +13449,7 @@ declare class ActionBase implements IPublicAction {
      * }
      * ```
      */
-    partialLoss(event: PartialLossContract, source?: string): void | Promise<void>;
+    partialLossAvailable(event: PartialLossContract, source?: string): void | Promise<void>;
     /**
      * Handles scheduled ping events during scheduled signal monitoring.
      *
@@ -14262,13 +14264,13 @@ declare class ActionCoreService implements TAction$1 {
      * Routes breakeven event to all registered actions for the strategy.
      *
      * Retrieves action list from strategy schema (IStrategySchema.actions)
-     * and invokes the breakeven handler on each ClientAction instance sequentially.
+     * and invokes the breakevenAvailable handler on each ClientAction instance sequentially.
      *
      * @param backtest - Whether running in backtest mode (true) or live mode (false)
      * @param event - Breakeven milestone data (stop-loss moved to entry price)
      * @param context - Strategy execution context with strategyName, exchangeName, frameName
      */
-    breakeven: (backtest: boolean, event: BreakevenContract, context: {
+    breakevenAvailable: (backtest: boolean, event: BreakevenContract, context: {
         strategyName: StrategyName;
         exchangeName: ExchangeName;
         frameName: FrameName;
@@ -14277,13 +14279,13 @@ declare class ActionCoreService implements TAction$1 {
      * Routes partial profit event to all registered actions for the strategy.
      *
      * Retrieves action list from strategy schema (IStrategySchema.actions)
-     * and invokes the partialProfit handler on each ClientAction instance sequentially.
+     * and invokes the partialProfitAvailable handler on each ClientAction instance sequentially.
      *
      * @param backtest - Whether running in backtest mode (true) or live mode (false)
      * @param event - Profit milestone data with level (10%, 20%, etc.) and price
      * @param context - Strategy execution context with strategyName, exchangeName, frameName
      */
-    partialProfit: (backtest: boolean, event: PartialProfitContract, context: {
+    partialProfitAvailable: (backtest: boolean, event: PartialProfitContract, context: {
         strategyName: StrategyName;
         exchangeName: ExchangeName;
         frameName: FrameName;
@@ -14292,13 +14294,13 @@ declare class ActionCoreService implements TAction$1 {
      * Routes partial loss event to all registered actions for the strategy.
      *
      * Retrieves action list from strategy schema (IStrategySchema.actions)
-     * and invokes the partialLoss handler on each ClientAction instance sequentially.
+     * and invokes the partialLossAvailable handler on each ClientAction instance sequentially.
      *
      * @param backtest - Whether running in backtest mode (true) or live mode (false)
      * @param event - Loss milestone data with level (-10%, -20%, etc.) and price
      * @param context - Strategy execution context with strategyName, exchangeName, frameName
      */
-    partialLoss: (backtest: boolean, event: PartialLossContract, context: {
+    partialLossAvailable: (backtest: boolean, event: PartialLossContract, context: {
         strategyName: StrategyName;
         exchangeName: ExchangeName;
         frameName: FrameName;
@@ -15344,15 +15346,15 @@ declare class ClientAction implements IAction {
     /**
      * Handles breakeven events when stop-loss is moved to entry price.
      */
-    breakeven(event: BreakevenContract): Promise<void>;
+    breakevenAvailable(event: BreakevenContract): Promise<void>;
     /**
      * Handles partial profit level events (10%, 20%, 30%, etc).
      */
-    partialProfit(event: PartialProfitContract): Promise<void>;
+    partialProfitAvailable(event: PartialProfitContract): Promise<void>;
     /**
      * Handles partial loss level events (-10%, -20%, -30%, etc).
      */
-    partialLoss(event: PartialLossContract): Promise<void>;
+    partialLossAvailable(event: PartialLossContract): Promise<void>;
     /**
      * Handles scheduled ping events during scheduled signal monitoring.
      */
@@ -15484,7 +15486,7 @@ declare class ActionConnectionService implements TAction {
      * @param backtest - Whether running in backtest mode
      * @param context - Execution context with action name, strategy name, exchange name, frame name
      */
-    breakeven: (event: BreakevenContract, backtest: boolean, context: {
+    breakevenAvailable: (event: BreakevenContract, backtest: boolean, context: {
         actionName: ActionName;
         strategyName: StrategyName;
         exchangeName: ExchangeName;
@@ -15497,7 +15499,7 @@ declare class ActionConnectionService implements TAction {
      * @param backtest - Whether running in backtest mode
      * @param context - Execution context with action name, strategy name, exchange name, frame name
      */
-    partialProfit: (event: PartialProfitContract, backtest: boolean, context: {
+    partialProfitAvailable: (event: PartialProfitContract, backtest: boolean, context: {
         actionName: ActionName;
         strategyName: StrategyName;
         exchangeName: ExchangeName;
@@ -15510,7 +15512,7 @@ declare class ActionConnectionService implements TAction {
      * @param backtest - Whether running in backtest mode
      * @param context - Execution context with action name, strategy name, exchange name, frame name
      */
-    partialLoss: (event: PartialLossContract, backtest: boolean, context: {
+    partialLossAvailable: (event: PartialLossContract, backtest: boolean, context: {
         actionName: ActionName;
         strategyName: StrategyName;
         exchangeName: ExchangeName;

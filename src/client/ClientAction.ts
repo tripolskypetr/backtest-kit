@@ -110,8 +110,8 @@ const CALL_BREAKEVEN_CALLBACK_FN = trycatch(
     frameName: FrameName,
     backtest: boolean
   ): Promise<void> => {
-    if (self.params.callbacks?.onBreakeven) {
-      await self.params.callbacks.onBreakeven(event, self.params.actionName, strategyName, frameName, backtest);
+    if (self.params.callbacks?.onBreakevenAvailable) {
+      await self.params.callbacks.onBreakevenAvailable(event, self.params.actionName, strategyName, frameName, backtest);
     }
   },
   {
@@ -137,8 +137,8 @@ const CALL_PARTIAL_PROFIT_CALLBACK_FN = trycatch(
     frameName: FrameName,
     backtest: boolean
   ): Promise<void> => {
-    if (self.params.callbacks?.onPartialProfit) {
-      await self.params.callbacks.onPartialProfit(event, self.params.actionName, strategyName, frameName, backtest);
+    if (self.params.callbacks?.onPartialProfitAvailable) {
+      await self.params.callbacks.onPartialProfitAvailable(event, self.params.actionName, strategyName, frameName, backtest);
     }
   },
   {
@@ -164,8 +164,8 @@ const CALL_PARTIAL_LOSS_CALLBACK_FN = trycatch(
     frameName: FrameName,
     backtest: boolean
   ): Promise<void> => {
-    if (self.params.callbacks?.onPartialLoss) {
-      await self.params.callbacks.onPartialLoss(event, self.params.actionName, strategyName, frameName, backtest);
+    if (self.params.callbacks?.onPartialLossAvailable) {
+      await self.params.callbacks.onPartialLossAvailable(event, self.params.actionName, strategyName, frameName, backtest);
     }
   },
   {
@@ -561,8 +561,8 @@ export class ClientAction implements IAction {
   /**
    * Handles breakeven events when stop-loss is moved to entry price.
    */
-  public async breakeven(event: BreakevenContract): Promise<void> {
-    this.params.logger.debug("ClientAction breakeven", {
+  public async breakevenAvailable(event: BreakevenContract): Promise<void> {
+    this.params.logger.debug("ClientAction breakevenAvailable", {
       actionName: this.params.actionName,
       strategyName: this.params.strategyName,
       frameName: this.params.frameName,
@@ -573,8 +573,8 @@ export class ClientAction implements IAction {
     }
 
     // Call handler method if defined
-    if (this._handlerInstance?.breakeven) {
-      await this._handlerInstance.breakeven(event);
+    if (this._handlerInstance?.breakevenAvailable) {
+      await this._handlerInstance.breakevenAvailable(event);
     }
 
     // Call callback if defined
@@ -590,8 +590,8 @@ export class ClientAction implements IAction {
   /**
    * Handles partial profit level events (10%, 20%, 30%, etc).
    */
-  public async partialProfit(event: PartialProfitContract): Promise<void> {
-    this.params.logger.debug("ClientAction partialProfit", {
+  public async partialProfitAvailable(event: PartialProfitContract): Promise<void> {
+    this.params.logger.debug("ClientAction partialProfitAvailable", {
       actionName: this.params.actionName,
       strategyName: this.params.strategyName,
       frameName: this.params.frameName,
@@ -602,8 +602,8 @@ export class ClientAction implements IAction {
     }
 
     // Call handler method if defined
-    if (this._handlerInstance?.partialProfit) {
-      await this._handlerInstance.partialProfit(event);
+    if (this._handlerInstance?.partialProfitAvailable) {
+      await this._handlerInstance.partialProfitAvailable(event);
     }
 
     // Call callback if defined
@@ -619,8 +619,8 @@ export class ClientAction implements IAction {
   /**
    * Handles partial loss level events (-10%, -20%, -30%, etc).
    */
-  public async partialLoss(event: PartialLossContract): Promise<void> {
-    this.params.logger.debug("ClientAction partialLoss", {
+  public async partialLossAvailable(event: PartialLossContract): Promise<void> {
+    this.params.logger.debug("ClientAction partialLossAvailable", {
       actionName: this.params.actionName,
       strategyName: this.params.strategyName,
       frameName: this.params.frameName,
@@ -631,8 +631,8 @@ export class ClientAction implements IAction {
     }
 
     // Call handler method if defined
-    if (this._handlerInstance?.partialLoss) {
-      await this._handlerInstance.partialLoss(event);
+    if (this._handlerInstance?.partialLossAvailable) {
+      await this._handlerInstance.partialLossAvailable(event);
     }
 
     // Call callback if defined

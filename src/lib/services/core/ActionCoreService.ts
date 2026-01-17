@@ -238,18 +238,18 @@ export class ActionCoreService implements TAction {
    * Routes breakeven event to all registered actions for the strategy.
    *
    * Retrieves action list from strategy schema (IStrategySchema.actions)
-   * and invokes the breakeven handler on each ClientAction instance sequentially.
+   * and invokes the breakevenAvailable handler on each ClientAction instance sequentially.
    *
    * @param backtest - Whether running in backtest mode (true) or live mode (false)
    * @param event - Breakeven milestone data (stop-loss moved to entry price)
    * @param context - Strategy execution context with strategyName, exchangeName, frameName
    */
-  public breakeven = async (
+  public breakevenAvailable = async (
     backtest: boolean,
     event: BreakevenContract,
     context: { strategyName: StrategyName; exchangeName: ExchangeName; frameName: FrameName }
   ) => {
-    this.loggerService.log("actionCoreService breakeven", {
+    this.loggerService.log("actionCoreService breakevenAvailable", {
       context,
     });
 
@@ -258,7 +258,7 @@ export class ActionCoreService implements TAction {
     const { actions = [] } = this.strategySchemaService.get(context.strategyName);
 
     for (const actionName of actions) {
-      await this.actionConnectionService.breakeven(event, backtest, { actionName, ...context });
+      await this.actionConnectionService.breakevenAvailable(event, backtest, { actionName, ...context });
     }
   };
 
@@ -266,18 +266,18 @@ export class ActionCoreService implements TAction {
    * Routes partial profit event to all registered actions for the strategy.
    *
    * Retrieves action list from strategy schema (IStrategySchema.actions)
-   * and invokes the partialProfit handler on each ClientAction instance sequentially.
+   * and invokes the partialProfitAvailable handler on each ClientAction instance sequentially.
    *
    * @param backtest - Whether running in backtest mode (true) or live mode (false)
    * @param event - Profit milestone data with level (10%, 20%, etc.) and price
    * @param context - Strategy execution context with strategyName, exchangeName, frameName
    */
-  public partialProfit = async (
+  public partialProfitAvailable = async (
     backtest: boolean,
     event: PartialProfitContract,
     context: { strategyName: StrategyName; exchangeName: ExchangeName; frameName: FrameName }
   ) => {
-    this.loggerService.log("actionCoreService partialProfit", {
+    this.loggerService.log("actionCoreService partialProfitAvailable", {
       context,
     });
 
@@ -286,7 +286,7 @@ export class ActionCoreService implements TAction {
     const { actions = [] } = this.strategySchemaService.get(context.strategyName);
 
     for (const actionName of actions) {
-      await this.actionConnectionService.partialProfit(event, backtest, { actionName, ...context });
+      await this.actionConnectionService.partialProfitAvailable(event, backtest, { actionName, ...context });
     }
   };
 
@@ -294,18 +294,18 @@ export class ActionCoreService implements TAction {
    * Routes partial loss event to all registered actions for the strategy.
    *
    * Retrieves action list from strategy schema (IStrategySchema.actions)
-   * and invokes the partialLoss handler on each ClientAction instance sequentially.
+   * and invokes the partialLossAvailable handler on each ClientAction instance sequentially.
    *
    * @param backtest - Whether running in backtest mode (true) or live mode (false)
    * @param event - Loss milestone data with level (-10%, -20%, etc.) and price
    * @param context - Strategy execution context with strategyName, exchangeName, frameName
    */
-  public partialLoss = async (
+  public partialLossAvailable = async (
     backtest: boolean,
     event: PartialLossContract,
     context: { strategyName: StrategyName; exchangeName: ExchangeName; frameName: FrameName }
   ) => {
-    this.loggerService.log("actionCoreService partialLoss", {
+    this.loggerService.log("actionCoreService partialLossAvailable", {
       context,
     });
 
@@ -314,7 +314,7 @@ export class ActionCoreService implements TAction {
     const { actions = [] } = this.strategySchemaService.get(context.strategyName);
 
     for (const actionName of actions) {
-      await this.actionConnectionService.partialLoss(event, backtest, { actionName, ...context });
+      await this.actionConnectionService.partialLossAvailable(event, backtest, { actionName, ...context });
     }
   };
 
