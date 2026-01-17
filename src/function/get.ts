@@ -8,14 +8,14 @@ import { OptimizerName } from "../interfaces/Optimizer.interface";
 import { ActionName } from "../interfaces/Action.interface";
 import backtest from "../lib";
 
-const GET_STRATEGY_METHOD_NAME = "get.getStrategy";
-const GET_EXCHANGE_METHOD_NAME = "get.getExchange";
-const GET_FRAME_METHOD_NAME = "get.getFrame";
-const GET_WALKER_METHOD_NAME = "get.getWalker";
-const GET_SIZING_METHOD_NAME = "get.getSizing";
-const GET_RISK_METHOD_NAME = "get.getRisk";
-const GET_OPTIMIZER_METHOD_NAME = "get.getOptimizer";
-const GET_ACTION_METHOD_NAME = "get.getAction";
+const GET_STRATEGY_METHOD_NAME = "get.getStrategySchema";
+const GET_EXCHANGE_METHOD_NAME = "get.getExchangeSchema";
+const GET_FRAME_METHOD_NAME = "get.getFrameSchema";
+const GET_WALKER_METHOD_NAME = "get.getWalkerSchema";
+const GET_SIZING_METHOD_NAME = "get.getSizingSchema";
+const GET_RISK_METHOD_NAME = "get.getRiskSchema";
+const GET_OPTIMIZER_METHOD_NAME = "get.getOptimizerSchema";
+const GET_ACTION_METHOD_NAME = "get.getActionSchema";
 
 /**
  * Retrieves a registered strategy schema by name.
@@ -31,7 +31,7 @@ const GET_ACTION_METHOD_NAME = "get.getAction";
  * console.log(strategy.getSignal); // async function
  * ```
  */
-export function getStrategy(strategyName: StrategyName) {
+export function getStrategySchema(strategyName: StrategyName) {
   backtest.loggerService.log(GET_STRATEGY_METHOD_NAME, {
     strategyName,
   });
@@ -58,7 +58,7 @@ export function getStrategy(strategyName: StrategyName) {
  * console.log(exchange.formatPrice); // async function
  * ```
  */
-export function getExchange(exchangeName: ExchangeName) {
+export function getExchangeSchema(exchangeName: ExchangeName) {
   backtest.loggerService.log(GET_EXCHANGE_METHOD_NAME, {
     exchangeName,
   });
@@ -86,7 +86,7 @@ export function getExchange(exchangeName: ExchangeName) {
  * console.log(frame.endDate); // Date object
  * ```
  */
-export function getFrame(frameName: FrameName) {
+export function getFrameSchema(frameName: FrameName) {
   backtest.loggerService.log(GET_FRAME_METHOD_NAME, {
     frameName,
   });
@@ -115,7 +115,7 @@ export function getFrame(frameName: FrameName) {
  * console.log(walker.metric); // "sharpeRatio"
  * ```
  */
-export function getWalker(walkerName: WalkerName) {
+export function getWalkerSchema(walkerName: WalkerName) {
   backtest.loggerService.log(GET_WALKER_METHOD_NAME, {
     walkerName,
   });
@@ -143,7 +143,7 @@ export function getWalker(walkerName: WalkerName) {
  * console.log(sizing.maxPositionPercentage); // 10
  * ```
  */
-export function getSizing(sizingName: SizingName) {
+export function getSizingSchema(sizingName: SizingName) {
   backtest.loggerService.log(GET_SIZING_METHOD_NAME, {
     sizingName,
   });
@@ -170,7 +170,7 @@ export function getSizing(sizingName: SizingName) {
  * console.log(risk.validations); // Array of validation functions
  * ```
  */
-export function getRisk(riskName: RiskName) {
+export function getRiskSchema(riskName: RiskName) {
   backtest.loggerService.log(GET_RISK_METHOD_NAME, {
     riskName,
   });
@@ -199,7 +199,7 @@ export function getRisk(riskName: RiskName) {
  * console.log(optimizer.getPrompt); // async function
  * ```
  */
-export function getOptimizer(optimizerName: OptimizerName) {
+export function getOptimizerSchema(optimizerName: OptimizerName) {
   backtest.loggerService.log(GET_OPTIMIZER_METHOD_NAME, {
     optimizerName,
   });
@@ -226,7 +226,7 @@ export function getOptimizer(optimizerName: OptimizerName) {
  * console.log(action.callbacks); // Optional lifecycle callbacks
  * ```
  */
-export function getAction(actionName: ActionName) {
+export function getActionSchema(actionName: ActionName) {
   backtest.loggerService.log(GET_ACTION_METHOD_NAME, {
     actionName,
   });

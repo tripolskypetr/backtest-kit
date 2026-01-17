@@ -19,7 +19,8 @@ import {
   signalEmitter,
   signalBacktestEmitter,
   signalLiveEmitter,
-  pingSubject,
+  schedulePingSubject,
+  activePingSubject,
 } from "../../../config/emitters";
 import { IRisk, RiskName } from "../../../interfaces/Risk.interface";
 import RiskConnectionService from "./RiskConnectionService";
@@ -125,15 +126,15 @@ const CREATE_KEY_FN = (
 };
 
 /**
- * Creates a callback function for emitting ping events to pingSubject.
+ * Creates a callback function for emitting schedule ping events to pingSubject.
  *
  * Called by ClientStrategy when a scheduled signal is being monitored every minute.
  * Emits PingContract event to all subscribers and calls ActionCoreService.
  *
  * @param self - Reference to StrategyConnectionService instance
- * @returns Callback function for ping events
+ * @returns Callback function for schedule ping events
  */
-const CREATE_COMMIT_PING_FN = (self: StrategyConnectionService) => async (
+const CREATE_COMMIT_SCHEDULE_PING_FN = (self: StrategyConnectionService) => async (
   symbol: string,
   strategyName: StrategyName,
   exchangeName: ExchangeName,
@@ -149,8 +150,37 @@ const CREATE_COMMIT_PING_FN = (self: StrategyConnectionService) => async (
     backtest,
     timestamp,
   };
-  await pingSubject.next(event);
-  await self.actionCoreService.ping(backtest, event, { strategyName, exchangeName, frameName: data.frameName });
+  await schedulePingSubject.next(event);
+  await self.actionCoreService.pingScheduled(backtest, event, { strategyName, exchangeName, frameName: data.frameName });
+};
+
+/**
+ * Creates a callback function for emitting active ping events.
+ *
+ * Called by ClientStrategy when an active pending signal is being monitored every minute.
+ * Placeholder for future activePingSubject implementation.
+ *
+ * @param self - Reference to StrategyConnectionService instance
+ * @returns Callback function for active ping events
+ */
+const CREATE_COMMIT_ACTIVE_PING_FN = (self: StrategyConnectionService) => async (
+  symbol: string,
+  strategyName: StrategyName,
+  exchangeName: ExchangeName,
+  data: ISignalRow,
+  backtest: boolean,
+  timestamp: number
+) => {
+  const event = {
+    symbol,
+    strategyName,
+    exchangeName,
+    data,
+    backtest,
+    timestamp,
+  };
+  await activePingSubject.next(event);
+  await self.actionCoreService.pingActive(backtest, event, { strategyName, exchangeName, frameName: data.frameName });
 };
 
 /**
@@ -300,7 +330,8 @@ export class StrategyConnectionService implements TStrategy {
         getSignal,
         callbacks,
         onInit: CREATE_COMMIT_INIT_FN(this),
-        onPing: CREATE_COMMIT_PING_FN(this),
+        onSchedulePing: CREATE_COMMIT_SCHEDULE_PING_FN(this),
+        onActivePing: CREATE_COMMIT_ACTIVE_PING_FN(this),
         onDispose: CREATE_COMMIT_DISPOSE_FN(this),
       });
     }

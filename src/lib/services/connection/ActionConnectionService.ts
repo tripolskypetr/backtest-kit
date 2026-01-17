@@ -12,7 +12,8 @@ import { IStrategyTickResult } from "../../../interfaces/Strategy.interface";
 import { BreakevenContract } from "../../../contract/Breakeven.contract";
 import { PartialProfitContract } from "../../../contract/PartialProfit.contract";
 import { PartialLossContract } from "../../../contract/PartialLoss.contract";
-import { PingContract } from "../../../contract/Ping.contract";
+import { SchedulePingContract } from "../../../contract/SchedulePing.contract";
+import { ActivePingContract } from "../../../contract/ActivePing.contract";
 import { RiskContract } from "../../../contract/Risk.contract";
 
 /**
@@ -253,23 +254,43 @@ export class ActionConnectionService implements TAction {
   };
 
   /**
-   * Routes ping event to appropriate ClientAction instance.
+   * Routes scheduled ping event to appropriate ClientAction instance.
    *
-   * @param event - Ping event data
+   * @param event - Scheduled ping event data
    * @param backtest - Whether running in backtest mode
    * @param context - Execution context with action name, strategy name, exchange name, frame name
    */
-  public ping = async (
-    event: PingContract,
+  public pingScheduled = async (
+    event: SchedulePingContract,
     backtest: boolean,
     context: { actionName: ActionName; strategyName: StrategyName; exchangeName: ExchangeName; frameName: FrameName }
   ) => {
-    this.loggerService.log("actionConnectionService ping", {
+    this.loggerService.log("actionConnectionService pingScheduled", {
       backtest,
       context,
     });
     const action = this.getAction(context.actionName, context.strategyName, context.exchangeName, context.frameName, backtest)
-    await action.ping(event);
+    await action.pingScheduled(event);
+  };
+
+  /**
+   * Routes active ping event to appropriate ClientAction instance.
+   *
+   * @param event - Active ping event data
+   * @param backtest - Whether running in backtest mode
+   * @param context - Execution context with action name, strategy name, exchange name, frame name
+   */
+  public pingActive = async (
+    event: ActivePingContract,
+    backtest: boolean,
+    context: { actionName: ActionName; strategyName: StrategyName; exchangeName: ExchangeName; frameName: FrameName }
+  ) => {
+    this.loggerService.log("actionConnectionService pingActive", {
+      backtest,
+      context,
+    });
+    const action = this.getAction(context.actionName, context.strategyName, context.exchangeName, context.frameName, backtest)
+    await action.pingActive(event);
   };
 
   /**

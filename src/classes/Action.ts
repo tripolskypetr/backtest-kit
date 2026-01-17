@@ -1,7 +1,8 @@
 import BreakevenContract from "../contract/Breakeven.contract";
 import PartialLossContract from "../contract/PartialLoss.contract";
 import PartialProfitContract from "../contract/PartialProfit.contract";
-import PingContract from "../contract/Ping.contract";
+import SchedulePingContract from "../contract/SchedulePing.contract";
+import ActivePingContract from "../contract/ActivePing.contract";
 import RiskContract from "../contract/Risk.contract";
 import {
   IStrategyTickResult,
@@ -19,7 +20,8 @@ const METHOD_NAME_SIGNAL_BACKTEST = "ActionBase.signalBacktest";
 const METHOD_NAME_BREAKEVEN = "ActionBase.breakeven";
 const METHOD_NAME_PARTIAL_PROFIT = "ActionBase.partialProfit";
 const METHOD_NAME_PARTIAL_LOSS = "ActionBase.partialLoss";
-const METHOD_NAME_PING = "ActionBase.ping";
+const METHOD_NAME_PING_SCHEDULED = "ActionBase.pingScheduled";
+const METHOD_NAME_PING_ACTIVE = "ActionBase.pingActive";
 const METHOD_NAME_RISK_REJECTION = "ActionBase.riskRejection";
 const METHOD_NAME_DISPOSE = "ActionBase.dispose";
 
@@ -55,7 +57,8 @@ const DEFAULT_SOURCE = "default";
  * - breakeven() - Called when SL moved to entry
  * - partialProfit() - Called on profit milestones (10%, 20%, etc.)
  * - partialLoss() - Called on loss milestones (-10%, -20%, etc.)
- * - ping() - Called every minute during scheduled signal monitoring
+ * - pingScheduled() - Called every minute during scheduled signal monitoring
+ * - pingActive() - Called every minute during active pending signal monitoring
  * - riskRejection() - Called when signal rejected by risk management
  *
  * @example
@@ -361,30 +364,60 @@ class ActionBase implements IPublicAction {
   }
 
   /**
-   * Handles ping events during scheduled signal monitoring.
+   * Handles scheduled ping events during scheduled signal monitoring.
    *
    * Called every minute while a scheduled signal is waiting for activation.
    * Use to monitor pending signals and track wait time.
    *
-   * Triggered by: ActionCoreService.ping() via StrategyConnectionService
-   * Source: pingSubject.next() in CREATE_COMMIT_PING_FN callback
+   * Triggered by: ActionCoreService.pingScheduled() via StrategyConnectionService
+   * Source: schedulePingSubject.next() in CREATE_COMMIT_SCHEDULE_PING_FN callback
    * Frequency: Every minute while scheduled signal is waiting
    *
-   * Default implementation: Logs ping event.
+   * Default implementation: Logs scheduled ping event.
    *
    * @param event - Scheduled signal monitoring data with symbol, strategy info, signal data, timestamp
    *
    * @example
    * ```typescript
-   * ping(event: PingContract) {
+   * pingScheduled(event: SchedulePingContract) {
    *   const waitTime = Date.now() - event.data.timestampScheduled;
    *   const waitMinutes = Math.floor(waitTime / 60000);
    *   console.log(`Scheduled signal waiting ${waitMinutes} minutes`);
    * }
    * ```
    */
-  public ping(event: PingContract, source = DEFAULT_SOURCE): void | Promise<void> {
-    backtest.loggerService.info(METHOD_NAME_PING, {
+  public pingScheduled(event: SchedulePingContract, source = DEFAULT_SOURCE): void | Promise<void> {
+    backtest.loggerService.info(METHOD_NAME_PING_SCHEDULED, {
+      event,
+      source,
+    });
+  }
+
+  /**
+   * Handles active ping events during active pending signal monitoring.
+   *
+   * Called every minute while a pending signal is active (position open).
+   * Use to monitor active positions and track lifecycle.
+   *
+   * Triggered by: ActionCoreService.pingActive() via StrategyConnectionService
+   * Source: activePingSubject.next() in CREATE_COMMIT_ACTIVE_PING_FN callback
+   * Frequency: Every minute while pending signal is active
+   *
+   * Default implementation: Logs active ping event.
+   *
+   * @param event - Active pending signal monitoring data with symbol, strategy info, signal data, timestamp
+   *
+   * @example
+   * ```typescript
+   * pingActive(event: ActivePingContract) {
+   *   const holdTime = Date.now() - event.data.pendingAt;
+   *   const holdMinutes = Math.floor(holdTime / 60000);
+   *   console.log(`Active signal holding ${holdMinutes} minutes`);
+   * }
+   * ```
+   */
+  public pingActive(event: ActivePingContract, source = DEFAULT_SOURCE): void | Promise<void> {
+    backtest.loggerService.info(METHOD_NAME_PING_ACTIVE, {
       event,
       source,
     });

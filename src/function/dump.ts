@@ -70,7 +70,7 @@ const DUMP_SIGNAL_METHOD_NAME = "dump.dumpSignal";
  * //          ./dump/strategy/{uuid}/06_llm_output.md (final signal)
  * ```
  */
-export async function dumpSignal(
+export async function dumpSignalData(
   signalId: string | number,
   history: MessageModel[],
   signal: ISignalDto,

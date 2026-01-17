@@ -1,38 +1,38 @@
 import { ExchangeName } from "../interfaces/Exchange.interface";
-import { IScheduledSignalRow, StrategyName } from "../interfaces/Strategy.interface";
+import { ISignalRow, StrategyName } from "../interfaces/Strategy.interface";
 
 /**
- * Contract for ping events during scheduled signal monitoring.
+ * Contract for active ping events during active pending signal monitoring.
  *
- * Emitted by pingSubject every minute when a scheduled signal is being monitored.
- * Used for tracking scheduled signal lifecycle and custom monitoring logic.
+ * Emitted by activePingSubject every minute when an active pending signal is being monitored.
+ * Used for tracking active signal lifecycle and custom dynamic management logic.
  *
- * Events are emitted only when scheduled signal is active (not cancelled, not activated).
- * Allows users to implement custom cancellation logic via onPing callback.
+ * Events are emitted only when pending signal is active (not closed yet).
+ * Allows users to implement custom management logic via onActivePing callback.
  *
  * Consumers:
- * - User callbacks via listenPing() / listenPingOnce()
+ * - User callbacks via listenActivePing() / listenActivePingOnce()
  *
  * @example
  * ```typescript
- * import { listenPing } from "backtest-kit";
+ * import { listenActivePing } from "backtest-kit";
  *
- * // Listen to all ping events
- * listenPing((event) => {
- *   console.log(`[${event.backtest ? "Backtest" : "Live"}] Ping for ${event.symbol}`);
+ * // Listen to all active ping events
+ * listenActivePing((event) => {
+ *   console.log(`[${event.backtest ? "Backtest" : "Live"}] Active Ping for ${event.symbol}`);
  *   console.log(`Strategy: ${event.strategyName}, Exchange: ${event.exchangeName}`);
- *   console.log(`Signal ID: ${event.data.id}, priceOpen: ${event.data.priceOpen}`);
+ *   console.log(`Signal ID: ${event.data.id}, Position: ${event.data.position}`);
  *   console.log(`Timestamp: ${new Date(event.timestamp).toISOString()}`);
  * });
  *
- * // Wait for specific ping
- * listenPingOnce(
+ * // Wait for specific active ping
+ * listenActivePingOnce(
  *   (event) => event.symbol === "BTCUSDT",
- *   (event) => console.log("BTCUSDT ping received:", event.timestamp)
+ *   (event) => console.log("BTCUSDT active ping received:", event.timestamp)
  * );
  * ```
  */
-export interface PingContract {
+export interface ActivePingContract {
   /**
    * Trading pair symbol (e.g., "BTCUSDT").
    * Identifies which market this ping event belongs to.
@@ -40,22 +40,22 @@ export interface PingContract {
   symbol: string;
 
   /**
-   * Strategy name that is monitoring this scheduled signal.
+   * Strategy name that is monitoring this active pending signal.
    * Identifies which strategy execution this ping event belongs to.
    */
   strategyName: StrategyName;
 
   /**
-   * Exchange name where this scheduled signal is being monitored.
+   * Exchange name where this active pending signal is being monitored.
    * Identifies which exchange this ping event belongs to.
    */
   exchangeName: ExchangeName;
 
   /**
-   * Complete scheduled signal row data.
+   * Complete pending signal row data.
    * Contains all signal information: id, position, priceOpen, priceTakeProfit, priceStopLoss, etc.
    */
-  data: IScheduledSignalRow;
+  data: ISignalRow;
 
   /**
    * Execution mode flag.
@@ -74,10 +74,10 @@ export interface PingContract {
    * @example
    * ```typescript
    * const eventDate = new Date(event.timestamp);
-   * console.log(`Ping at: ${eventDate.toISOString()}`);
+   * console.log(`Active Ping at: ${eventDate.toISOString()}`);
    * ```
    */
   timestamp: number;
 }
 
-export default PingContract;
+export default ActivePingContract;

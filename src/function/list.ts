@@ -7,13 +7,13 @@ import { ISizingSchema } from "../interfaces/Sizing.interface";
 import { IRiskSchema } from "../interfaces/Risk.interface";
 import { IOptimizerSchema } from "../interfaces/Optimizer.interface";
 
-const LIST_EXCHANGES_METHOD_NAME = "list.listExchanges";
-const LIST_STRATEGIES_METHOD_NAME = "list.listStrategies";
-const LIST_FRAMES_METHOD_NAME = "list.listFrames";
-const LIST_WALKERS_METHOD_NAME = "list.listWalkers";
-const LIST_SIZINGS_METHOD_NAME = "list.listSizings";
-const LIST_RISKS_METHOD_NAME = "list.listRisks";
-const LIST_OPTIMIZERS_METHOD_NAME = "list.listOptimizers";
+const LIST_EXCHANGES_METHOD_NAME = "list.listExchangeSchema";
+const LIST_STRATEGIES_METHOD_NAME = "list.listStrategySchema";
+const LIST_FRAMES_METHOD_NAME = "list.listFrameSchema";
+const LIST_WALKERS_METHOD_NAME = "list.listWalkerSchema";
+const LIST_SIZINGS_METHOD_NAME = "list.listSizingSchema";
+const LIST_RISKS_METHOD_NAME = "list.listRiskSchema";
+const LIST_OPTIMIZERS_METHOD_NAME = "list.listOptimizerSchema";
 
 /**
  * Returns a list of all registered exchange schemas.
@@ -40,7 +40,7 @@ const LIST_OPTIMIZERS_METHOD_NAME = "list.listOptimizers";
  * // [{ exchangeName: "binance", note: "Binance cryptocurrency exchange", ... }]
  * ```
  */
-export async function listExchanges(): Promise<IExchangeSchema[]> {
+export async function listExchangeSchema(): Promise<IExchangeSchema[]> {
   backtest.loggerService.log(LIST_EXCHANGES_METHOD_NAME);
   return await backtest.exchangeValidationService.list();
 }
@@ -75,7 +75,7 @@ export async function listExchanges(): Promise<IExchangeSchema[]> {
  * // [{ strategyName: "my-strategy", note: "Simple moving average...", ... }]
  * ```
  */
-export async function listStrategies(): Promise<IStrategySchema[]> {
+export async function listStrategySchema(): Promise<IStrategySchema[]> {
   backtest.loggerService.log(LIST_STRATEGIES_METHOD_NAME);
   return await backtest.strategyValidationService.list();
 }
@@ -105,7 +105,7 @@ export async function listStrategies(): Promise<IStrategySchema[]> {
  * // [{ frameName: "1d-backtest", note: "One day backtest...", ... }]
  * ```
  */
-export async function listFrames(): Promise<IFrameSchema[]> {
+export async function listFrameSchema(): Promise<IFrameSchema[]> {
   backtest.loggerService.log(LIST_FRAMES_METHOD_NAME);
   return await backtest.frameValidationService.list();
 }
@@ -136,7 +136,7 @@ export async function listFrames(): Promise<IFrameSchema[]> {
  * // [{ walkerName: "llm-prompt-optimizer", note: "Compare LLM...", ... }]
  * ```
  */
-export async function listWalkers(): Promise<IWalkerSchema[]> {
+export async function listWalkerSchema(): Promise<IWalkerSchema[]> {
   backtest.loggerService.log(LIST_WALKERS_METHOD_NAME);
   return await backtest.walkerValidationService.list();
 }
@@ -176,7 +176,7 @@ export async function listWalkers(): Promise<IWalkerSchema[]> {
  * // ]
  * ```
  */
-export async function listSizings(): Promise<ISizingSchema[]> {
+export async function listSizingSchema(): Promise<ISizingSchema[]> {
   backtest.loggerService.log(LIST_SIZINGS_METHOD_NAME);
   return await backtest.sizingValidationService.list();
 }
@@ -213,7 +213,7 @@ export async function listSizings(): Promise<ISizingSchema[]> {
  * // ]
  * ```
  */
-export async function listRisks(): Promise<IRiskSchema[]> {
+export async function listRiskSchema(): Promise<IRiskSchema[]> {
   backtest.loggerService.log(LIST_RISKS_METHOD_NAME);
   return await backtest.riskValidationService.list();
 }
@@ -254,7 +254,7 @@ export async function listRisks(): Promise<IRiskSchema[]> {
  * // [{ optimizerName: "llm-strategy-generator", note: "Generates...", ... }]
  * ```
  */
-export async function listOptimizers(): Promise<IOptimizerSchema[]> {
+export async function listOptimizerSchema(): Promise<IOptimizerSchema[]> {
   backtest.loggerService.log(LIST_OPTIMIZERS_METHOD_NAME);
   return await backtest.optimizerValidationService.list();
 }

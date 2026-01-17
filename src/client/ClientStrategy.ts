@@ -1505,7 +1505,7 @@ const ACTIVATE_SCHEDULED_SIGNAL_FN = async (
   return result;
 };
 
-const CALL_PING_CALLBACKS_FN = trycatch(
+const CALL_SCHEDULE_PING_CALLBACKS_FN = trycatch(
   beginTime(async (
     self: ClientStrategy,
     symbol: string,
@@ -1516,8 +1516,8 @@ const CALL_PING_CALLBACKS_FN = trycatch(
     await ExecutionContextService.runInContext(async () => {
       const publicSignal = TO_PUBLIC_SIGNAL(scheduled);
 
-      // Call system onPing callback first (emits to pingSubject)
-      await self.params.onPing(
+      // Call system onSchedulePing callback first (emits to pingSubject)
+      await self.params.onSchedulePing(
         self.params.execution.context.symbol,
         self.params.method.context.strategyName,
         self.params.method.context.exchangeName,
@@ -1526,9 +1526,9 @@ const CALL_PING_CALLBACKS_FN = trycatch(
         timestamp
       );
 
-      // Call user onPing callback only if signal is still active (not cancelled, not activated)
-      if (self.params.callbacks?.onPing) {
-        await self.params.callbacks.onPing(
+      // Call user onSchedulePing callback only if signal is still active (not cancelled, not activated)
+      if (self.params.callbacks?.onSchedulePing) {
+        await self.params.callbacks.onSchedulePing(
           self.params.execution.context.symbol,
           publicSignal,
           new Date(timestamp),
@@ -1543,7 +1543,57 @@ const CALL_PING_CALLBACKS_FN = trycatch(
   }),
   {
     fallback: (error) => {
-      const message = "ClientStrategy CALL_PING_CALLBACKS_FN thrown";
+      const message = "ClientStrategy CALL_SCHEDULE_PING_CALLBACKS_FN thrown";
+      const payload = {
+        error: errorData(error),
+        message: getErrorMessage(error),
+      };
+      backtest.loggerService.warn(message, payload);
+      console.warn(message, payload);
+      errorEmitter.next(error);
+    },
+  }
+);
+
+const CALL_ACTIVE_PING_CALLBACKS_FN = trycatch(
+  beginTime(async (
+    self: ClientStrategy,
+    symbol: string,
+    pending: ISignalRow,
+    timestamp: number,
+    backtest: boolean,
+  ): Promise<void> => {
+    await ExecutionContextService.runInContext(async () => {
+      const publicSignal = TO_PUBLIC_SIGNAL(pending);
+
+      // Call system onActivePing callback first (emits to activePingSubject)
+      await self.params.onActivePing(
+        self.params.execution.context.symbol,
+        self.params.method.context.strategyName,
+        self.params.method.context.exchangeName,
+        publicSignal,
+        self.params.execution.context.backtest,
+        timestamp
+      );
+
+      // Call user onActivePing callback only if signal is still active (not closed)
+      if (self.params.callbacks?.onActivePing) {
+        await self.params.callbacks.onActivePing(
+          self.params.execution.context.symbol,
+          publicSignal,
+          new Date(timestamp),
+          self.params.execution.context.backtest
+        );
+      }
+    }, {
+      when: new Date(timestamp),
+      symbol: symbol,
+      backtest: backtest,
+    })
+  }),
+  {
+    fallback: (error) => {
+      const message = "ClientStrategy CALL_ACTIVE_PING_CALLBACKS_FN thrown";
       const payload = {
         error: errorData(error),
         message: getErrorMessage(error),
@@ -2000,8 +2050,8 @@ const CALL_PARTIAL_PROFIT_CALLBACKS_FN = trycatch(
         backtest,
         new Date(timestamp),
       );
-      if (self.params.callbacks?.onPartialProfit) {
-        await self.params.callbacks.onPartialProfit(
+      if (self.params.callbacks?.onPartialProfitAvailable) {
+        await self.params.callbacks.onPartialProfitAvailable(
           symbol,
           publicSignal,
           currentPrice,
@@ -2049,8 +2099,8 @@ const CALL_PARTIAL_LOSS_CALLBACKS_FN = trycatch(
         backtest,
         new Date(timestamp)
       );
-      if (self.params.callbacks?.onPartialLoss) {
-        await self.params.callbacks.onPartialLoss(
+      if (self.params.callbacks?.onPartialLossAvailable) {
+        await self.params.callbacks.onPartialLossAvailable(
           symbol,
           publicSignal,
           currentPrice,
@@ -2096,8 +2146,8 @@ const CALL_BREAKEVEN_CHECK_FN = trycatch(
         backtest,
         new Date(timestamp)
       );
-      if (self.params.callbacks?.onBreakeven) {
-        isBreakeven && await self.params.callbacks.onBreakeven(
+      if (self.params.callbacks?.onBreakevenAvailable) {
+        isBreakeven && await self.params.callbacks.onBreakevenAvailable(
           symbol,
           publicSignal,
           currentPrice,
@@ -2168,7 +2218,7 @@ const RETURN_SCHEDULED_SIGNAL_ACTIVE_FN = async (
 ): Promise<IStrategyTickResultActive> => {
   const currentTime = self.params.execution.context.when.getTime();
 
-  await CALL_PING_CALLBACKS_FN(
+  await CALL_SCHEDULE_PING_CALLBACKS_FN(
     self,
     self.params.execution.context.symbol,
     scheduled,
@@ -2467,6 +2517,14 @@ const RETURN_PENDING_SIGNAL_ACTIVE_FN = async (
   let percentSl = 0;
 
   const currentTime = self.params.execution.context.when.getTime();
+
+  await CALL_ACTIVE_PING_CALLBACKS_FN(
+    self,
+    self.params.execution.context.symbol,
+    signal,
+    currentTime,
+    self.params.execution.context.backtest
+  );
 
   // Calculate percentage of path to TP/SL for partial fill/loss callbacks
   {
@@ -2894,7 +2952,7 @@ const PROCESS_SCHEDULED_SIGNAL_CANDLES_FN = async (
 
     // КРИТИЧНО: Проверяем был ли сигнал отменен пользователем через cancel()
     if (self._cancelledSignal) {
-      // Сигнал был отменен через cancel() в onPing
+      // Сигнал был отменен через cancel() в onSchedulePing
       const result = await CANCEL_SCHEDULED_SIGNAL_IN_BACKTEST_FN(
         self,
         scheduled,
@@ -2976,7 +3034,7 @@ const PROCESS_SCHEDULED_SIGNAL_CANDLES_FN = async (
       };
     }
 
-    await CALL_PING_CALLBACKS_FN(self, self.params.execution.context.symbol, scheduled, candle.timestamp, true);
+    await CALL_SCHEDULE_PING_CALLBACKS_FN(self, self.params.execution.context.symbol, scheduled, candle.timestamp, true);
   }
 
   return {
@@ -3011,6 +3069,8 @@ const PROCESS_PENDING_SIGNAL_CANDLES_FN = async (
     const startIndex = Math.max(0, i - (candlesCount - 1));
     const recentCandles = candles.slice(startIndex, i + 1);
     const averagePrice = GET_AVG_PRICE_FN(recentCandles);
+
+    await CALL_ACTIVE_PING_CALLBACKS_FN(self, self.params.execution.context.symbol, signal, currentCandleTimestamp, true);
 
     let shouldClose = false;
     let closeReason: "time_expired" | "take_profit" | "stop_loss" | undefined;

@@ -8,14 +8,14 @@ import { IRiskSchema } from "../interfaces/Risk.interface";
 import { IOptimizerSchema } from "../interfaces/Optimizer.interface";
 import { IActionSchema } from "../interfaces/Action.interface";
 
-const ADD_STRATEGY_METHOD_NAME = "add.addStrategy";
-const ADD_EXCHANGE_METHOD_NAME = "add.addExchange";
-const ADD_FRAME_METHOD_NAME = "add.addFrame";
-const ADD_WALKER_METHOD_NAME = "add.addWalker";
-const ADD_SIZING_METHOD_NAME = "add.addSizing";
-const ADD_RISK_METHOD_NAME = "add.addRisk";
-const ADD_OPTIMIZER_METHOD_NAME = "add.addOptimizer";
-const ADD_ACTION_METHOD_NAME = "add.addAction";
+const ADD_STRATEGY_METHOD_NAME = "add.addStrategySchema";
+const ADD_EXCHANGE_METHOD_NAME = "add.addExchangeSchema";
+const ADD_FRAME_METHOD_NAME = "add.addFrameSchema";
+const ADD_WALKER_METHOD_NAME = "add.addWalkerSchema";
+const ADD_SIZING_METHOD_NAME = "add.addSizingSchema";
+const ADD_RISK_METHOD_NAME = "add.addRiskSchema";
+const ADD_OPTIMIZER_METHOD_NAME = "add.addOptimizerSchema";
+const ADD_ACTION_METHOD_NAME = "add.addActionSchema";
 
 /**
  * Registers a trading strategy in the framework.
@@ -51,7 +51,7 @@ const ADD_ACTION_METHOD_NAME = "add.addAction";
  * });
  * ```
  */
-export function addStrategy(strategySchema: IStrategySchema) {
+export function addStrategySchema(strategySchema: IStrategySchema) {
   backtest.loggerService.info(ADD_STRATEGY_METHOD_NAME, {
     strategySchema,
   });
@@ -100,7 +100,7 @@ export function addStrategy(strategySchema: IStrategySchema) {
  * });
  * ```
  */
-export function addExchange(exchangeSchema: IExchangeSchema) {
+export function addExchangeSchema(exchangeSchema: IExchangeSchema) {
   backtest.loggerService.info(ADD_EXCHANGE_METHOD_NAME, {
     exchangeSchema,
   });
@@ -144,7 +144,7 @@ export function addExchange(exchangeSchema: IExchangeSchema) {
  * });
  * ```
  */
-export function addFrame(frameSchema: IFrameSchema) {
+export function addFrameSchema(frameSchema: IFrameSchema) {
   backtest.loggerService.info(ADD_FRAME_METHOD_NAME, {
     frameSchema,
   });
@@ -189,7 +189,7 @@ export function addFrame(frameSchema: IFrameSchema) {
  * });
  * ```
  */
-export function addWalker(walkerSchema: IWalkerSchema) {
+export function addWalkerSchema(walkerSchema: IWalkerSchema) {
   backtest.loggerService.info(ADD_WALKER_METHOD_NAME, {
     walkerSchema,
   });
@@ -255,7 +255,7 @@ export function addWalker(walkerSchema: IWalkerSchema) {
  * });
  * ```
  */
-export function addSizing(sizingSchema: ISizingSchema) {
+export function addSizingSchema(sizingSchema: ISizingSchema) {
   backtest.loggerService.info(ADD_SIZING_METHOD_NAME, {
     sizingSchema,
   });
@@ -330,7 +330,7 @@ export function addSizing(sizingSchema: ISizingSchema) {
  * });
  * ```
  */
-export function addRisk(riskSchema: IRiskSchema) {
+export function addRiskSchema(riskSchema: IRiskSchema) {
   backtest.loggerService.info(ADD_RISK_METHOD_NAME, {
     riskSchema,
   });
@@ -431,7 +431,7 @@ export function addRisk(riskSchema: IRiskSchema) {
  * });
  * ```
  */
-export function addOptimizer(optimizerSchema: IOptimizerSchema) {
+export function addOptimizerSchema(optimizerSchema: IOptimizerSchema) {
   backtest.loggerService.info(ADD_OPTIMIZER_METHOD_NAME, {
     optimizerSchema,
   });
@@ -513,7 +513,7 @@ export function addOptimizer(optimizerSchema: IOptimizerSchema) {
  * });
  * ```
  */
-export function addAction(actionSchema: IActionSchema) {
+export function addActionSchema(actionSchema: IActionSchema) {
   backtest.loggerService.info(ADD_ACTION_METHOD_NAME, {
     actionSchema,
   });

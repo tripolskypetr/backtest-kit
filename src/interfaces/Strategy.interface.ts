@@ -204,8 +204,10 @@ export interface IStrategyParams extends IStrategySchema {
   method: TMethodContextService;
   /** System callback for init events (emits to initSubject) */
   onInit: (symbol: string, strategyName: StrategyName, exchangeName: ExchangeName, frameName: FrameName, backtest: boolean) => Promise<void>;
-  /** System callback for ping events (emits to pingSubject) */
-  onPing: (symbol: string, strategyName: StrategyName, exchangeName: ExchangeName, data: IPublicSignalRow, backtest: boolean, timestamp: number) => Promise<void>;
+  /** System callback for schedule ping events (emits to pingSubject) */
+  onSchedulePing: (symbol: string, strategyName: StrategyName, exchangeName: ExchangeName, data: IPublicSignalRow, backtest: boolean, timestamp: number) => Promise<void>;
+  /** System callback for active ping events (emits to activePingSubject) */
+  onActivePing: (symbol: string, strategyName: StrategyName, exchangeName: ExchangeName, data: IPublicSignalRow, backtest: boolean, timestamp: number) => Promise<void>;
   /** System callback for dispose events (emits to disposeSubject) */
   onDispose: (symbol: string, strategyName: StrategyName, exchangeName: ExchangeName, frameName: FrameName, backtest: boolean) => Promise<void>;
 }
@@ -237,13 +239,15 @@ export interface IStrategyCallbacks {
   /** Called when signal is written to persist storage (for testing) */
   onWrite: (symbol: string, data: IPublicSignalRow | null, backtest: boolean) => void;
   /** Called when signal is in partial profit state (price moved favorably but not reached TP yet) */
-  onPartialProfit: (symbol: string, data: IPublicSignalRow, currentPrice: number, revenuePercent: number, backtest: boolean) => void | Promise<void>;
+  onPartialProfitAvailable: (symbol: string, data: IPublicSignalRow, currentPrice: number, revenuePercent: number, backtest: boolean) => void | Promise<void>;
   /** Called when signal is in partial loss state (price moved against position but not hit SL yet) */
-  onPartialLoss: (symbol: string, data: IPublicSignalRow, currentPrice: number, lossPercent: number, backtest: boolean) => void | Promise<void>;
+  onPartialLossAvailable: (symbol: string, data: IPublicSignalRow, currentPrice: number, lossPercent: number, backtest: boolean) => void | Promise<void>;
   /** Called when signal reaches breakeven (stop-loss moved to entry price to protect capital) */
-  onBreakeven: (symbol: string, data: IPublicSignalRow, currentPrice: number, backtest: boolean) => void | Promise<void>;
-  /** Called every minute regardless of strategy interval (for custom monitoring like checking if signal should be cancelled) */
-  onPing: (symbol: string, data: IPublicSignalRow, when: Date, backtest: boolean) => void | Promise<void>;
+  onBreakevenAvailable: (symbol: string, data: IPublicSignalRow, currentPrice: number, backtest: boolean) => void | Promise<void>;
+  /** Called every minute for scheduled signals regardless of strategy interval (for custom monitoring like checking if signal should be cancelled) */
+  onSchedulePing: (symbol: string, data: IPublicSignalRow, when: Date, backtest: boolean) => void | Promise<void>;
+  /** Called every minute for active pending signals regardless of strategy interval (for custom monitoring and dynamic management) */
+  onActivePing: (symbol: string, data: IPublicSignalRow, when: Date, backtest: boolean) => void | Promise<void>;
 }
 
 /**

@@ -2,7 +2,8 @@ import { IStrategyTickResult, StrategyName } from "./Strategy.interface";
 import { BreakevenContract } from "../contract/Breakeven.contract";
 import { PartialProfitContract } from "../contract/PartialProfit.contract";
 import { PartialLossContract } from "../contract/PartialLoss.contract";
-import { PingContract } from "../contract/Ping.contract";
+import { SchedulePingContract } from "../contract/SchedulePing.contract";
+import { ActivePingContract } from "../contract/ActivePing.contract";
 import { RiskContract } from "../contract/Risk.contract";
 import { FrameName } from "./Frame.interface";
 import { ILogger } from "./Logger.interface";
@@ -224,7 +225,7 @@ export interface IActionCallbacks {
   /**
    * Called during scheduled signal monitoring (every minute while waiting for activation).
    *
-   * Triggered by: StrategyConnectionService via pingSubject
+   * Triggered by: StrategyConnectionService via schedulePingSubject
    * Frequency: Every minute while scheduled signal is waiting
    *
    * @param event - Scheduled signal monitoring data
@@ -233,7 +234,21 @@ export interface IActionCallbacks {
    * @param frameName - Timeframe identifier
    * @param backtest - True for backtest mode, false for live trading
    */
-  onPing(event: PingContract, actionName: ActionName, strategyName: StrategyName, frameName: FrameName, backtest: boolean): void | Promise<void>;
+  onPingScheduled(event: SchedulePingContract, actionName: ActionName, strategyName: StrategyName, frameName: FrameName, backtest: boolean): void | Promise<void>;
+
+  /**
+   * Called during active pending signal monitoring (every minute while position is active).
+   *
+   * Triggered by: StrategyConnectionService via activePingSubject
+   * Frequency: Every minute while pending signal is active
+   *
+   * @param event - Active pending signal monitoring data
+   * @param actionName - Action identifier
+   * @param strategyName - Strategy identifier
+   * @param frameName - Timeframe identifier
+   * @param backtest - True for backtest mode, false for live trading
+   */
+  onPingActive(event: ActivePingContract, actionName: ActionName, strategyName: StrategyName, frameName: FrameName, backtest: boolean): void | Promise<void>;
 
   /**
    * Called when signal is rejected by risk management.
@@ -502,15 +517,26 @@ export interface IAction {
   partialLoss(event: PartialLossContract): void | Promise<void>;
 
   /**
-   * Handles ping events during scheduled signal monitoring.
+   * Handles scheduled ping events during scheduled signal monitoring.
    *
-   * Emitted by: StrategyConnectionService via pingSubject
-   * Source: COMMIT_PING_FN callback in StrategyConnectionService
+   * Emitted by: StrategyConnectionService via schedulePingSubject
+   * Source: CREATE_COMMIT_SCHEDULE_PING_FN callback in StrategyConnectionService
    * Frequency: Every minute while scheduled signal is waiting for activation
    *
    * @param event - Scheduled signal monitoring data
    */
-  ping(event: PingContract): void | Promise<void>;
+  pingScheduled(event: SchedulePingContract): void | Promise<void>;
+
+  /**
+   * Handles active ping events during active pending signal monitoring.
+   *
+   * Emitted by: StrategyConnectionService via activePingSubject
+   * Source: CREATE_COMMIT_ACTIVE_PING_FN callback in StrategyConnectionService
+   * Frequency: Every minute while pending signal is active
+   *
+   * @param event - Active pending signal monitoring data
+   */
+  pingActive(event: ActivePingContract): void | Promise<void>;
 
   /**
    * Handles risk rejection events when signals fail risk validation.

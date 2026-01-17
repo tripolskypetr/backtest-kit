@@ -14,7 +14,8 @@ import { IStrategyTickResult } from "../../../interfaces/Strategy.interface";
 import { BreakevenContract } from "../../../contract/Breakeven.contract";
 import { PartialProfitContract } from "../../../contract/PartialProfit.contract";
 import { PartialLossContract } from "../../../contract/PartialLoss.contract";
-import { PingContract } from "../../../contract/Ping.contract";
+import { SchedulePingContract } from "../../../contract/SchedulePing.contract";
+import { ActivePingContract } from "../../../contract/ActivePing.contract";
 import { RiskContract } from "../../../contract/Risk.contract";
 import StrategySchemaService from "../schema/StrategySchemaService";
 import StrategyValidationService from "../validation/StrategyValidationService";
@@ -318,22 +319,22 @@ export class ActionCoreService implements TAction {
   };
 
   /**
-   * Routes ping event to all registered actions for the strategy.
+   * Routes scheduled ping event to all registered actions for the strategy.
    *
    * Retrieves action list from strategy schema (IStrategySchema.actions)
-   * and invokes the ping handler on each ClientAction instance sequentially.
+   * and invokes the pingScheduled handler on each ClientAction instance sequentially.
    * Called every minute during scheduled signal monitoring.
    *
    * @param backtest - Whether running in backtest mode (true) or live mode (false)
    * @param event - Scheduled signal monitoring data
    * @param context - Strategy execution context with strategyName, exchangeName, frameName
    */
-  public ping = async (
+  public pingScheduled = async (
     backtest: boolean,
-    event: PingContract,
+    event: SchedulePingContract,
     context: { strategyName: StrategyName; exchangeName: ExchangeName; frameName: FrameName }
   ) => {
-    this.loggerService.log("actionCoreService ping", {
+    this.loggerService.log("actionCoreService pingScheduled", {
       context,
     });
 
@@ -342,7 +343,36 @@ export class ActionCoreService implements TAction {
     const { actions = [] } = this.strategySchemaService.get(context.strategyName);
 
     for (const actionName of actions) {
-      await this.actionConnectionService.ping(event, backtest, { actionName, ...context });
+      await this.actionConnectionService.pingScheduled(event, backtest, { actionName, ...context });
+    }
+  };
+
+  /**
+   * Routes active ping event to all registered actions for the strategy.
+   *
+   * Retrieves action list from strategy schema (IStrategySchema.actions)
+   * and invokes the pingActive handler on each ClientAction instance sequentially.
+   * Called every minute during active pending signal monitoring.
+   *
+   * @param backtest - Whether running in backtest mode (true) or live mode (false)
+   * @param event - Active pending signal monitoring data
+   * @param context - Strategy execution context with strategyName, exchangeName, frameName
+   */
+  public pingActive = async (
+    backtest: boolean,
+    event: ActivePingContract,
+    context: { strategyName: StrategyName; exchangeName: ExchangeName; frameName: FrameName }
+  ) => {
+    this.loggerService.log("actionCoreService pingActive", {
+      context,
+    });
+
+    await this.validate(context);
+
+    const { actions = [] } = this.strategySchemaService.get(context.strategyName);
+
+    for (const actionName of actions) {
+      await this.actionConnectionService.pingActive(event, backtest, { actionName, ...context });
     }
   };
 

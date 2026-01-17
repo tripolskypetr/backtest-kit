@@ -9,7 +9,7 @@ import { WriteStream } from 'fs';
  * @returns Promise resolving to array of Date objects representing tick timestamps
  * @throws Error if called outside of backtest execution context
  */
-declare function getCurrentTimeframe(symbol: string): Promise<Date[]>;
+declare function getBacktestTimeframe(symbol: string): Promise<Date[]>;
 
 /**
  * Type alias for enum objects with string key-value pairs
@@ -1164,13 +1164,15 @@ interface IStrategyCallbacks {
     /** Called when signal is written to persist storage (for testing) */
     onWrite: (symbol: string, data: IPublicSignalRow | null, backtest: boolean) => void;
     /** Called when signal is in partial profit state (price moved favorably but not reached TP yet) */
-    onPartialProfit: (symbol: string, data: IPublicSignalRow, currentPrice: number, revenuePercent: number, backtest: boolean) => void | Promise<void>;
+    onPartialProfitAvailable: (symbol: string, data: IPublicSignalRow, currentPrice: number, revenuePercent: number, backtest: boolean) => void | Promise<void>;
     /** Called when signal is in partial loss state (price moved against position but not hit SL yet) */
-    onPartialLoss: (symbol: string, data: IPublicSignalRow, currentPrice: number, lossPercent: number, backtest: boolean) => void | Promise<void>;
+    onPartialLossAvailable: (symbol: string, data: IPublicSignalRow, currentPrice: number, lossPercent: number, backtest: boolean) => void | Promise<void>;
     /** Called when signal reaches breakeven (stop-loss moved to entry price to protect capital) */
-    onBreakeven: (symbol: string, data: IPublicSignalRow, currentPrice: number, backtest: boolean) => void | Promise<void>;
-    /** Called every minute regardless of strategy interval (for custom monitoring like checking if signal should be cancelled) */
-    onPing: (symbol: string, data: IPublicSignalRow, when: Date, backtest: boolean) => void | Promise<void>;
+    onBreakevenAvailable: (symbol: string, data: IPublicSignalRow, currentPrice: number, backtest: boolean) => void | Promise<void>;
+    /** Called every minute for scheduled signals regardless of strategy interval (for custom monitoring like checking if signal should be cancelled) */
+    onSchedulePing: (symbol: string, data: IPublicSignalRow, when: Date, backtest: boolean) => void | Promise<void>;
+    /** Called every minute for active pending signals regardless of strategy interval (for custom monitoring and dynamic management) */
+    onActivePing: (symbol: string, data: IPublicSignalRow, when: Date, backtest: boolean) => void | Promise<void>;
 }
 /**
  * Strategy schema registered via addStrategy().
@@ -2052,37 +2054,37 @@ interface PartialLossContract {
 }
 
 /**
- * Contract for ping events during scheduled signal monitoring.
+ * Contract for schedule ping events during scheduled signal monitoring.
  *
- * Emitted by pingSubject every minute when a scheduled signal is being monitored.
+ * Emitted by schedulePingSubject every minute when a scheduled signal is being monitored.
  * Used for tracking scheduled signal lifecycle and custom monitoring logic.
  *
  * Events are emitted only when scheduled signal is active (not cancelled, not activated).
- * Allows users to implement custom cancellation logic via onPing callback.
+ * Allows users to implement custom cancellation logic via onSchedulePing callback.
  *
  * Consumers:
- * - User callbacks via listenPing() / listenPingOnce()
+ * - User callbacks via listenSchedulePing() / listenSchedulePingOnce()
  *
  * @example
  * ```typescript
- * import { listenPing } from "backtest-kit";
+ * import { listenSchedulePing } from "backtest-kit";
  *
- * // Listen to all ping events
- * listenPing((event) => {
- *   console.log(`[${event.backtest ? "Backtest" : "Live"}] Ping for ${event.symbol}`);
+ * // Listen to all schedule ping events
+ * listenSchedulePing((event) => {
+ *   console.log(`[${event.backtest ? "Backtest" : "Live"}] Schedule Ping for ${event.symbol}`);
  *   console.log(`Strategy: ${event.strategyName}, Exchange: ${event.exchangeName}`);
  *   console.log(`Signal ID: ${event.data.id}, priceOpen: ${event.data.priceOpen}`);
  *   console.log(`Timestamp: ${new Date(event.timestamp).toISOString()}`);
  * });
  *
- * // Wait for specific ping
- * listenPingOnce(
+ * // Wait for specific schedule ping
+ * listenSchedulePingOnce(
  *   (event) => event.symbol === "BTCUSDT",
- *   (event) => console.log("BTCUSDT ping received:", event.timestamp)
+ *   (event) => console.log("BTCUSDT schedule ping received:", event.timestamp)
  * );
  * ```
  */
-interface PingContract {
+interface SchedulePingContract {
     /**
      * Trading pair symbol (e.g., "BTCUSDT").
      * Identifies which market this ping event belongs to.
@@ -2120,6 +2122,80 @@ interface PingContract {
      * ```typescript
      * const eventDate = new Date(event.timestamp);
      * console.log(`Ping at: ${eventDate.toISOString()}`);
+     * ```
+     */
+    timestamp: number;
+}
+
+/**
+ * Contract for active ping events during active pending signal monitoring.
+ *
+ * Emitted by activePingSubject every minute when an active pending signal is being monitored.
+ * Used for tracking active signal lifecycle and custom dynamic management logic.
+ *
+ * Events are emitted only when pending signal is active (not closed yet).
+ * Allows users to implement custom management logic via onActivePing callback.
+ *
+ * Consumers:
+ * - User callbacks via listenActivePing() / listenActivePingOnce()
+ *
+ * @example
+ * ```typescript
+ * import { listenActivePing } from "backtest-kit";
+ *
+ * // Listen to all active ping events
+ * listenActivePing((event) => {
+ *   console.log(`[${event.backtest ? "Backtest" : "Live"}] Active Ping for ${event.symbol}`);
+ *   console.log(`Strategy: ${event.strategyName}, Exchange: ${event.exchangeName}`);
+ *   console.log(`Signal ID: ${event.data.id}, Position: ${event.data.position}`);
+ *   console.log(`Timestamp: ${new Date(event.timestamp).toISOString()}`);
+ * });
+ *
+ * // Wait for specific active ping
+ * listenActivePingOnce(
+ *   (event) => event.symbol === "BTCUSDT",
+ *   (event) => console.log("BTCUSDT active ping received:", event.timestamp)
+ * );
+ * ```
+ */
+interface ActivePingContract {
+    /**
+     * Trading pair symbol (e.g., "BTCUSDT").
+     * Identifies which market this ping event belongs to.
+     */
+    symbol: string;
+    /**
+     * Strategy name that is monitoring this active pending signal.
+     * Identifies which strategy execution this ping event belongs to.
+     */
+    strategyName: StrategyName;
+    /**
+     * Exchange name where this active pending signal is being monitored.
+     * Identifies which exchange this ping event belongs to.
+     */
+    exchangeName: ExchangeName;
+    /**
+     * Complete pending signal row data.
+     * Contains all signal information: id, position, priceOpen, priceTakeProfit, priceStopLoss, etc.
+     */
+    data: ISignalRow;
+    /**
+     * Execution mode flag.
+     * - true: Event from backtest execution (historical candle data)
+     * - false: Event from live trading (real-time tick)
+     */
+    backtest: boolean;
+    /**
+     * Event timestamp in milliseconds since Unix epoch.
+     *
+     * Timing semantics:
+     * - Live mode: when.getTime() at the moment of ping
+     * - Backtest mode: candle.timestamp of the candle being processed
+     *
+     * @example
+     * ```typescript
+     * const eventDate = new Date(event.timestamp);
+     * console.log(`Active Ping at: ${eventDate.toISOString()}`);
      * ```
      */
     timestamp: number;
@@ -2436,7 +2512,7 @@ interface IActionCallbacks {
     /**
      * Called during scheduled signal monitoring (every minute while waiting for activation).
      *
-     * Triggered by: StrategyConnectionService via pingSubject
+     * Triggered by: StrategyConnectionService via schedulePingSubject
      * Frequency: Every minute while scheduled signal is waiting
      *
      * @param event - Scheduled signal monitoring data
@@ -2445,7 +2521,20 @@ interface IActionCallbacks {
      * @param frameName - Timeframe identifier
      * @param backtest - True for backtest mode, false for live trading
      */
-    onPing(event: PingContract, actionName: ActionName, strategyName: StrategyName, frameName: FrameName, backtest: boolean): void | Promise<void>;
+    onPingScheduled(event: SchedulePingContract, actionName: ActionName, strategyName: StrategyName, frameName: FrameName, backtest: boolean): void | Promise<void>;
+    /**
+     * Called during active pending signal monitoring (every minute while position is active).
+     *
+     * Triggered by: StrategyConnectionService via activePingSubject
+     * Frequency: Every minute while pending signal is active
+     *
+     * @param event - Active pending signal monitoring data
+     * @param actionName - Action identifier
+     * @param strategyName - Strategy identifier
+     * @param frameName - Timeframe identifier
+     * @param backtest - True for backtest mode, false for live trading
+     */
+    onPingActive(event: ActivePingContract, actionName: ActionName, strategyName: StrategyName, frameName: FrameName, backtest: boolean): void | Promise<void>;
     /**
      * Called when signal is rejected by risk management.
      *
@@ -2704,15 +2793,25 @@ interface IAction {
      */
     partialLoss(event: PartialLossContract): void | Promise<void>;
     /**
-     * Handles ping events during scheduled signal monitoring.
+     * Handles scheduled ping events during scheduled signal monitoring.
      *
-     * Emitted by: StrategyConnectionService via pingSubject
-     * Source: COMMIT_PING_FN callback in StrategyConnectionService
+     * Emitted by: StrategyConnectionService via schedulePingSubject
+     * Source: CREATE_COMMIT_SCHEDULE_PING_FN callback in StrategyConnectionService
      * Frequency: Every minute while scheduled signal is waiting for activation
      *
      * @param event - Scheduled signal monitoring data
      */
-    ping(event: PingContract): void | Promise<void>;
+    pingScheduled(event: SchedulePingContract): void | Promise<void>;
+    /**
+     * Handles active ping events during active pending signal monitoring.
+     *
+     * Emitted by: StrategyConnectionService via activePingSubject
+     * Source: CREATE_COMMIT_ACTIVE_PING_FN callback in StrategyConnectionService
+     * Frequency: Every minute while pending signal is active
+     *
+     * @param event - Active pending signal monitoring data
+     */
+    pingActive(event: ActivePingContract): void | Promise<void>;
     /**
      * Handles risk rejection events when signals fail risk validation.
      *
@@ -3518,7 +3617,7 @@ type OptimizerName = string;
  * console.log(strategy.getSignal); // async function
  * ```
  */
-declare function getStrategy(strategyName: StrategyName): IStrategySchema;
+declare function getStrategySchema(strategyName: StrategyName): IStrategySchema;
 /**
  * Retrieves a registered exchange schema by name.
  *
@@ -3533,7 +3632,7 @@ declare function getStrategy(strategyName: StrategyName): IStrategySchema;
  * console.log(exchange.formatPrice); // async function
  * ```
  */
-declare function getExchange(exchangeName: ExchangeName): IExchangeSchema;
+declare function getExchangeSchema(exchangeName: ExchangeName): IExchangeSchema;
 /**
  * Retrieves a registered frame schema by name.
  *
@@ -3549,7 +3648,7 @@ declare function getExchange(exchangeName: ExchangeName): IExchangeSchema;
  * console.log(frame.endDate); // Date object
  * ```
  */
-declare function getFrame(frameName: FrameName): IFrameSchema;
+declare function getFrameSchema(frameName: FrameName): IFrameSchema;
 /**
  * Retrieves a registered walker schema by name.
  *
@@ -3566,7 +3665,7 @@ declare function getFrame(frameName: FrameName): IFrameSchema;
  * console.log(walker.metric); // "sharpeRatio"
  * ```
  */
-declare function getWalker(walkerName: WalkerName): IWalkerSchema;
+declare function getWalkerSchema(walkerName: WalkerName): IWalkerSchema;
 /**
  * Retrieves a registered sizing schema by name.
  *
@@ -3582,7 +3681,7 @@ declare function getWalker(walkerName: WalkerName): IWalkerSchema;
  * console.log(sizing.maxPositionPercentage); // 10
  * ```
  */
-declare function getSizing(sizingName: SizingName): ISizingSchema;
+declare function getSizingSchema(sizingName: SizingName): ISizingSchema;
 /**
  * Retrieves a registered risk schema by name.
  *
@@ -3597,7 +3696,7 @@ declare function getSizing(sizingName: SizingName): ISizingSchema;
  * console.log(risk.validations); // Array of validation functions
  * ```
  */
-declare function getRisk(riskName: RiskName): IRiskSchema;
+declare function getRiskSchema(riskName: RiskName): IRiskSchema;
 /**
  * Retrieves a registered optimizer schema by name.
  *
@@ -3614,7 +3713,7 @@ declare function getRisk(riskName: RiskName): IRiskSchema;
  * console.log(optimizer.getPrompt); // async function
  * ```
  */
-declare function getOptimizer(optimizerName: OptimizerName): IOptimizerSchema;
+declare function getOptimizerSchema(optimizerName: OptimizerName): IOptimizerSchema;
 /**
  * Retrieves a registered action schema by name.
  *
@@ -3629,7 +3728,7 @@ declare function getOptimizer(optimizerName: OptimizerName): IOptimizerSchema;
  * console.log(action.callbacks); // Optional lifecycle callbacks
  * ```
  */
-declare function getAction(actionName: ActionName): IActionSchema;
+declare function getActionSchema(actionName: ActionName): IActionSchema;
 
 /**
  * Stops the strategy from generating new signals.
@@ -4298,7 +4397,7 @@ declare function getDefaultColumns(): Readonly<{
  * });
  * ```
  */
-declare function addStrategy(strategySchema: IStrategySchema): void;
+declare function addStrategySchema(strategySchema: IStrategySchema): void;
 /**
  * Registers an exchange data source in the framework.
  *
@@ -4334,7 +4433,7 @@ declare function addStrategy(strategySchema: IStrategySchema): void;
  * });
  * ```
  */
-declare function addExchange(exchangeSchema: IExchangeSchema): void;
+declare function addExchangeSchema(exchangeSchema: IExchangeSchema): void;
 /**
  * Registers a timeframe generator for backtesting.
  *
@@ -4365,7 +4464,7 @@ declare function addExchange(exchangeSchema: IExchangeSchema): void;
  * });
  * ```
  */
-declare function addFrame(frameSchema: IFrameSchema): void;
+declare function addFrameSchema(frameSchema: IFrameSchema): void;
 /**
  * Registers a walker for strategy comparison.
  *
@@ -4403,7 +4502,7 @@ declare function addFrame(frameSchema: IFrameSchema): void;
  * });
  * ```
  */
-declare function addWalker(walkerSchema: IWalkerSchema): void;
+declare function addWalkerSchema(walkerSchema: IWalkerSchema): void;
 /**
  * Registers a position sizing configuration in the framework.
  *
@@ -4456,7 +4555,7 @@ declare function addWalker(walkerSchema: IWalkerSchema): void;
  * });
  * ```
  */
-declare function addSizing(sizingSchema: ISizingSchema): void;
+declare function addSizingSchema(sizingSchema: ISizingSchema): void;
 /**
  * Registers a risk management configuration in the framework.
  *
@@ -4518,7 +4617,7 @@ declare function addSizing(sizingSchema: ISizingSchema): void;
  * });
  * ```
  */
-declare function addRisk(riskSchema: IRiskSchema): void;
+declare function addRiskSchema(riskSchema: IRiskSchema): void;
 /**
  * Registers an optimizer configuration in the framework.
  *
@@ -4606,7 +4705,7 @@ declare function addRisk(riskSchema: IRiskSchema): void;
  * });
  * ```
  */
-declare function addOptimizer(optimizerSchema: IOptimizerSchema): void;
+declare function addOptimizerSchema(optimizerSchema: IOptimizerSchema): void;
 /**
  * Registers an action handler in the framework.
  *
@@ -4675,7 +4774,7 @@ declare function addOptimizer(optimizerSchema: IOptimizerSchema): void;
  * });
  * ```
  */
-declare function addAction(actionSchema: IActionSchema): void;
+declare function addActionSchema(actionSchema: IActionSchema): void;
 
 /**
  * Partial strategy schema for override operations.
@@ -4892,7 +4991,7 @@ type TActionSchema = {
  * });
  * ```
  */
-declare function overrideStrategy(strategySchema: TStrategySchema): Promise<IStrategySchema>;
+declare function overrideStrategySchema(strategySchema: TStrategySchema): Promise<IStrategySchema>;
 /**
  * Overrides an existing exchange data source in the framework.
  *
@@ -4914,7 +5013,7 @@ declare function overrideStrategy(strategySchema: TStrategySchema): Promise<IStr
  * });
  * ```
  */
-declare function overrideExchange(exchangeSchema: TExchangeSchema): Promise<IExchangeSchema>;
+declare function overrideExchangeSchema(exchangeSchema: TExchangeSchema): Promise<IExchangeSchema>;
 /**
  * Overrides an existing timeframe configuration for backtesting.
  *
@@ -4936,7 +5035,7 @@ declare function overrideExchange(exchangeSchema: TExchangeSchema): Promise<IExc
  * });
  * ```
  */
-declare function overrideFrame(frameSchema: TFrameSchema): Promise<IFrameSchema>;
+declare function overrideFrameSchema(frameSchema: TFrameSchema): Promise<IFrameSchema>;
 /**
  * Overrides an existing walker configuration for strategy comparison.
  *
@@ -4959,7 +5058,7 @@ declare function overrideFrame(frameSchema: TFrameSchema): Promise<IFrameSchema>
  * });
  * ```
  */
-declare function overrideWalker(walkerSchema: TWalkerSchema): Promise<IWalkerSchema>;
+declare function overrideWalkerSchema(walkerSchema: TWalkerSchema): Promise<IWalkerSchema>;
 /**
  * Overrides an existing position sizing configuration in the framework.
  *
@@ -4985,7 +5084,7 @@ declare function overrideWalker(walkerSchema: TWalkerSchema): Promise<IWalkerSch
  * });
  * ```
  */
-declare function overrideSizing(sizingSchema: TSizingSchema): Promise<ISizingSchema>;
+declare function overrideSizingSchema(sizingSchema: TSizingSchema): Promise<ISizingSchema>;
 /**
  * Overrides an existing risk management configuration in the framework.
  *
@@ -5006,7 +5105,7 @@ declare function overrideSizing(sizingSchema: TSizingSchema): Promise<ISizingSch
  * });
  * ```
  */
-declare function overrideRisk(riskSchema: TRiskSchema): Promise<IRiskSchema>;
+declare function overrideRiskSchema(riskSchema: TRiskSchema): Promise<IRiskSchema>;
 /**
  * Overrides an existing optimizer configuration in the framework.
  *
@@ -5034,7 +5133,7 @@ declare function overrideRisk(riskSchema: TRiskSchema): Promise<IRiskSchema>;
  * });
  * ```
  */
-declare function overrideOptimizer(optimizerSchema: TOptimizerSchema): Promise<IOptimizerSchema>;
+declare function overrideOptimizerSchema(optimizerSchema: TOptimizerSchema): Promise<IOptimizerSchema>;
 /**
  * Overrides an existing action handler configuration in the framework.
  *
@@ -5095,7 +5194,7 @@ declare function overrideOptimizer(optimizerSchema: TOptimizerSchema): Promise<I
  * });
  * ```
  */
-declare function overrideAction(actionSchema: TActionSchema): Promise<IActionSchema>;
+declare function overrideActionSchema(actionSchema: TActionSchema): Promise<IActionSchema>;
 
 /**
  * Returns a list of all registered exchange schemas.
@@ -5122,7 +5221,7 @@ declare function overrideAction(actionSchema: TActionSchema): Promise<IActionSch
  * // [{ exchangeName: "binance", note: "Binance cryptocurrency exchange", ... }]
  * ```
  */
-declare function listExchanges(): Promise<IExchangeSchema[]>;
+declare function listExchangeSchema(): Promise<IExchangeSchema[]>;
 /**
  * Returns a list of all registered strategy schemas.
  *
@@ -5153,7 +5252,7 @@ declare function listExchanges(): Promise<IExchangeSchema[]>;
  * // [{ strategyName: "my-strategy", note: "Simple moving average...", ... }]
  * ```
  */
-declare function listStrategies(): Promise<IStrategySchema[]>;
+declare function listStrategySchema(): Promise<IStrategySchema[]>;
 /**
  * Returns a list of all registered frame schemas.
  *
@@ -5179,7 +5278,7 @@ declare function listStrategies(): Promise<IStrategySchema[]>;
  * // [{ frameName: "1d-backtest", note: "One day backtest...", ... }]
  * ```
  */
-declare function listFrames(): Promise<IFrameSchema[]>;
+declare function listFrameSchema(): Promise<IFrameSchema[]>;
 /**
  * Returns a list of all registered walker schemas.
  *
@@ -5206,7 +5305,7 @@ declare function listFrames(): Promise<IFrameSchema[]>;
  * // [{ walkerName: "llm-prompt-optimizer", note: "Compare LLM...", ... }]
  * ```
  */
-declare function listWalkers(): Promise<IWalkerSchema[]>;
+declare function listWalkerSchema(): Promise<IWalkerSchema[]>;
 /**
  * Returns a list of all registered sizing schemas.
  *
@@ -5242,7 +5341,7 @@ declare function listWalkers(): Promise<IWalkerSchema[]>;
  * // ]
  * ```
  */
-declare function listSizings(): Promise<ISizingSchema[]>;
+declare function listSizingSchema(): Promise<ISizingSchema[]>;
 /**
  * Returns a list of all registered risk schemas.
  *
@@ -5275,7 +5374,7 @@ declare function listSizings(): Promise<ISizingSchema[]>;
  * // ]
  * ```
  */
-declare function listRisks(): Promise<IRiskSchema[]>;
+declare function listRiskSchema(): Promise<IRiskSchema[]>;
 /**
  * Returns a list of all registered optimizer schemas.
  *
@@ -5312,7 +5411,7 @@ declare function listRisks(): Promise<IRiskSchema[]>;
  * // [{ optimizerName: "llm-strategy-generator", note: "Generates...", ... }]
  * ```
  */
-declare function listOptimizers(): Promise<IOptimizerSchema[]>;
+declare function listOptimizerSchema(): Promise<IOptimizerSchema[]>;
 
 /**
  * Contract for background execution completion events.
@@ -6151,7 +6250,7 @@ declare function listenValidation(fn: (error: Error) => void): () => void;
  * unsubscribe();
  * ```
  */
-declare function listenPartialProfit(fn: (event: PartialProfitContract) => void): () => void;
+declare function listenPartialProfitAvailable(fn: (event: PartialProfitContract) => void): () => void;
 /**
  * Subscribes to filtered partial profit level events with one-time execution.
  *
@@ -6182,7 +6281,7 @@ declare function listenPartialProfit(fn: (event: PartialProfitContract) => void)
  * cancel();
  * ```
  */
-declare function listenPartialProfitOnce(filterFn: (event: PartialProfitContract) => boolean, fn: (event: PartialProfitContract) => void): () => void;
+declare function listenPartialProfitAvailableOnce(filterFn: (event: PartialProfitContract) => boolean, fn: (event: PartialProfitContract) => void): () => void;
 /**
  * Subscribes to partial loss level events with queued async processing.
  *
@@ -6207,7 +6306,7 @@ declare function listenPartialProfitOnce(filterFn: (event: PartialProfitContract
  * unsubscribe();
  * ```
  */
-declare function listenPartialLoss(fn: (event: PartialLossContract) => void): () => void;
+declare function listenPartialLossAvailable(fn: (event: PartialLossContract) => void): () => void;
 /**
  * Subscribes to filtered partial loss level events with one-time execution.
  *
@@ -6238,7 +6337,7 @@ declare function listenPartialLoss(fn: (event: PartialLossContract) => void): ()
  * cancel();
  * ```
  */
-declare function listenPartialLossOnce(filterFn: (event: PartialLossContract) => boolean, fn: (event: PartialLossContract) => void): () => void;
+declare function listenPartialLossAvailableOnce(filterFn: (event: PartialLossContract) => boolean, fn: (event: PartialLossContract) => void): () => void;
 /**
  * Subscribes to breakeven protection events with queued async processing.
  *
@@ -6265,7 +6364,7 @@ declare function listenPartialLossOnce(filterFn: (event: PartialLossContract) =>
  * unsubscribe();
  * ```
  */
-declare function listenBreakeven(fn: (event: BreakevenContract) => void): () => void;
+declare function listenBreakevenAvailable(fn: (event: BreakevenContract) => void): () => void;
 /**
  * Subscribes to filtered breakeven protection events with one-time execution.
  *
@@ -6296,7 +6395,7 @@ declare function listenBreakeven(fn: (event: BreakevenContract) => void): () => 
  * cancel();
  * ```
  */
-declare function listenBreakevenOnce(filterFn: (event: BreakevenContract) => boolean, fn: (event: BreakevenContract) => void): () => void;
+declare function listenBreakevenAvailableOnce(filterFn: (event: BreakevenContract) => boolean, fn: (event: BreakevenContract) => void): () => void;
 /**
  * Subscribes to risk rejection events with queued async processing.
  *
@@ -6383,7 +6482,7 @@ declare function listenRiskOnce(filterFn: (event: RiskContract) => boolean, fn: 
  * unsubscribe();
  * ```
  */
-declare function listenPing(fn: (event: PingContract) => void): () => void;
+declare function listenSchedulePing(fn: (event: SchedulePingContract) => void): () => void;
 /**
  * Subscribes to filtered ping events with one-time execution.
  *
@@ -6414,7 +6513,66 @@ declare function listenPing(fn: (event: PingContract) => void): () => void;
  * cancel();
  * ```
  */
-declare function listenPingOnce(filterFn: (event: PingContract) => boolean, fn: (event: PingContract) => void): () => void;
+declare function listenSchedulePingOnce(filterFn: (event: SchedulePingContract) => boolean, fn: (event: SchedulePingContract) => void): () => void;
+/**
+ * Subscribes to active ping events with queued async processing.
+ *
+ * Listens for active pending signal monitoring events emitted every minute.
+ * Useful for tracking active signal lifecycle and implementing dynamic management logic.
+ *
+ * Events are processed sequentially in order received, even if callback is async.
+ * Uses queued wrapper to prevent concurrent execution of the callback.
+ *
+ * @param fn - Callback function to handle active ping events
+ * @returns Unsubscribe function to stop listening
+ *
+ * @example
+ * ```typescript
+ * import { listenActivePing } from "./function/event";
+ *
+ * const unsubscribe = listenActivePing((event) => {
+ *   console.log(`[${event.backtest ? "Backtest" : "Live"}] Active Ping`);
+ *   console.log(`Symbol: ${event.symbol}, Strategy: ${event.strategyName}`);
+ *   console.log(`Signal ID: ${event.data.id}, Position: ${event.data.position}`);
+ *   console.log(`Timestamp: ${new Date(event.timestamp).toISOString()}`);
+ * });
+ *
+ * // Later: stop listening
+ * unsubscribe();
+ * ```
+ */
+declare function listenActivePing(fn: (event: ActivePingContract) => void): () => void;
+/**
+ * Subscribes to filtered active ping events with one-time execution.
+ *
+ * Listens for events matching the filter predicate, then executes callback once
+ * and automatically unsubscribes. Useful for waiting for specific active ping conditions.
+ *
+ * @param filterFn - Predicate to filter which events trigger the callback
+ * @param fn - Callback function to handle the filtered event (called only once)
+ * @returns Unsubscribe function to cancel the listener before it fires
+ *
+ * @example
+ * ```typescript
+ * import { listenActivePingOnce } from "./function/event";
+ *
+ * // Wait for first active ping on BTCUSDT
+ * listenActivePingOnce(
+ *   (event) => event.symbol === "BTCUSDT",
+ *   (event) => console.log("First BTCUSDT active ping received")
+ * );
+ *
+ * // Wait for active ping in backtest mode
+ * const cancel = listenActivePingOnce(
+ *   (event) => event.backtest === true,
+ *   (event) => console.log("Backtest active ping received at", new Date(event.timestamp))
+ * );
+ *
+ * // Cancel if needed before event fires
+ * cancel();
+ * ```
+ */
+declare function listenActivePingOnce(filterFn: (event: ActivePingContract) => boolean, fn: (event: ActivePingContract) => void): () => void;
 
 /**
  * Checks if trade context is active (execution and method contexts).
@@ -6656,7 +6814,7 @@ declare function getOrderBook(symbol: string, depth?: number): Promise<IOrderBoo
  * //          ./dump/strategy/{uuid}/06_llm_output.md (final signal)
  * ```
  */
-declare function dumpSignal(signalId: string | number, history: MessageModel[], signal: ISignalDto, outputDir?: string): Promise<void>;
+declare function dumpSignalData(signalId: string | number, history: MessageModel[], signal: ISignalDto, outputDir?: string): Promise<void>;
 
 /**
  * Portfolio heatmap statistics for a single symbol.
@@ -13027,7 +13185,8 @@ declare const Breakeven: BreakevenUtils;
  * - breakeven() - Called when SL moved to entry
  * - partialProfit() - Called on profit milestones (10%, 20%, etc.)
  * - partialLoss() - Called on loss milestones (-10%, -20%, etc.)
- * - ping() - Called every minute during scheduled signal monitoring
+ * - pingScheduled() - Called every minute during scheduled signal monitoring
+ * - pingActive() - Called every minute during active pending signal monitoring
  * - riskRejection() - Called when signal rejected by risk management
  *
  * @example
@@ -13290,29 +13449,53 @@ declare class ActionBase implements IPublicAction {
      */
     partialLoss(event: PartialLossContract, source?: string): void | Promise<void>;
     /**
-     * Handles ping events during scheduled signal monitoring.
+     * Handles scheduled ping events during scheduled signal monitoring.
      *
      * Called every minute while a scheduled signal is waiting for activation.
      * Use to monitor pending signals and track wait time.
      *
-     * Triggered by: ActionCoreService.ping() via StrategyConnectionService
-     * Source: pingSubject.next() in CREATE_COMMIT_PING_FN callback
+     * Triggered by: ActionCoreService.pingScheduled() via StrategyConnectionService
+     * Source: schedulePingSubject.next() in CREATE_COMMIT_SCHEDULE_PING_FN callback
      * Frequency: Every minute while scheduled signal is waiting
      *
-     * Default implementation: Logs ping event.
+     * Default implementation: Logs scheduled ping event.
      *
      * @param event - Scheduled signal monitoring data with symbol, strategy info, signal data, timestamp
      *
      * @example
      * ```typescript
-     * ping(event: PingContract) {
+     * pingScheduled(event: SchedulePingContract) {
      *   const waitTime = Date.now() - event.data.timestampScheduled;
      *   const waitMinutes = Math.floor(waitTime / 60000);
      *   console.log(`Scheduled signal waiting ${waitMinutes} minutes`);
      * }
      * ```
      */
-    ping(event: PingContract, source?: string): void | Promise<void>;
+    pingScheduled(event: SchedulePingContract, source?: string): void | Promise<void>;
+    /**
+     * Handles active ping events during active pending signal monitoring.
+     *
+     * Called every minute while a pending signal is active (position open).
+     * Use to monitor active positions and track lifecycle.
+     *
+     * Triggered by: ActionCoreService.pingActive() via StrategyConnectionService
+     * Source: activePingSubject.next() in CREATE_COMMIT_ACTIVE_PING_FN callback
+     * Frequency: Every minute while pending signal is active
+     *
+     * Default implementation: Logs active ping event.
+     *
+     * @param event - Active pending signal monitoring data with symbol, strategy info, signal data, timestamp
+     *
+     * @example
+     * ```typescript
+     * pingActive(event: ActivePingContract) {
+     *   const holdTime = Date.now() - event.data.pendingAt;
+     *   const holdMinutes = Math.floor(holdTime / 60000);
+     *   console.log(`Active signal holding ${holdMinutes} minutes`);
+     * }
+     * ```
+     */
+    pingActive(event: ActivePingContract, source?: string): void | Promise<void>;
     /**
      * Handles risk rejection events when signals fail risk validation.
      *
@@ -13504,12 +13687,19 @@ declare const breakevenSubject: Subject<BreakevenContract>;
  */
 declare const riskSubject: Subject<RiskContract>;
 /**
- * Ping emitter for scheduled signal monitoring events.
+ * Schedule ping emitter for scheduled signal monitoring events.
  * Emits every minute when a scheduled signal is being monitored (waiting for activation).
  * Allows users to track scheduled signal lifecycle and implement custom cancellation logic.
  */
-declare const pingSubject: Subject<PingContract>;
+declare const schedulePingSubject: Subject<SchedulePingContract>;
+/**
+ * Active ping emitter for active pending signal monitoring events.
+ * Emits every minute when an active pending signal is being monitored.
+ * Allows users to track active signal lifecycle and implement custom dynamic management logic.
+ */
+declare const activePingSubject: Subject<ActivePingContract>;
 
+declare const emitters_activePingSubject: typeof activePingSubject;
 declare const emitters_breakevenSubject: typeof breakevenSubject;
 declare const emitters_doneBacktestSubject: typeof doneBacktestSubject;
 declare const emitters_doneLiveSubject: typeof doneLiveSubject;
@@ -13519,11 +13709,11 @@ declare const emitters_exitEmitter: typeof exitEmitter;
 declare const emitters_partialLossSubject: typeof partialLossSubject;
 declare const emitters_partialProfitSubject: typeof partialProfitSubject;
 declare const emitters_performanceEmitter: typeof performanceEmitter;
-declare const emitters_pingSubject: typeof pingSubject;
 declare const emitters_progressBacktestEmitter: typeof progressBacktestEmitter;
 declare const emitters_progressOptimizerEmitter: typeof progressOptimizerEmitter;
 declare const emitters_progressWalkerEmitter: typeof progressWalkerEmitter;
 declare const emitters_riskSubject: typeof riskSubject;
+declare const emitters_schedulePingSubject: typeof schedulePingSubject;
 declare const emitters_signalBacktestEmitter: typeof signalBacktestEmitter;
 declare const emitters_signalEmitter: typeof signalEmitter;
 declare const emitters_signalLiveEmitter: typeof signalLiveEmitter;
@@ -13532,7 +13722,7 @@ declare const emitters_walkerCompleteSubject: typeof walkerCompleteSubject;
 declare const emitters_walkerEmitter: typeof walkerEmitter;
 declare const emitters_walkerStopSubject: typeof walkerStopSubject;
 declare namespace emitters {
-  export { emitters_breakevenSubject as breakevenSubject, emitters_doneBacktestSubject as doneBacktestSubject, emitters_doneLiveSubject as doneLiveSubject, emitters_doneWalkerSubject as doneWalkerSubject, emitters_errorEmitter as errorEmitter, emitters_exitEmitter as exitEmitter, emitters_partialLossSubject as partialLossSubject, emitters_partialProfitSubject as partialProfitSubject, emitters_performanceEmitter as performanceEmitter, emitters_pingSubject as pingSubject, emitters_progressBacktestEmitter as progressBacktestEmitter, emitters_progressOptimizerEmitter as progressOptimizerEmitter, emitters_progressWalkerEmitter as progressWalkerEmitter, emitters_riskSubject as riskSubject, emitters_signalBacktestEmitter as signalBacktestEmitter, emitters_signalEmitter as signalEmitter, emitters_signalLiveEmitter as signalLiveEmitter, emitters_validationSubject as validationSubject, emitters_walkerCompleteSubject as walkerCompleteSubject, emitters_walkerEmitter as walkerEmitter, emitters_walkerStopSubject as walkerStopSubject };
+  export { emitters_activePingSubject as activePingSubject, emitters_breakevenSubject as breakevenSubject, emitters_doneBacktestSubject as doneBacktestSubject, emitters_doneLiveSubject as doneLiveSubject, emitters_doneWalkerSubject as doneWalkerSubject, emitters_errorEmitter as errorEmitter, emitters_exitEmitter as exitEmitter, emitters_partialLossSubject as partialLossSubject, emitters_partialProfitSubject as partialProfitSubject, emitters_performanceEmitter as performanceEmitter, emitters_progressBacktestEmitter as progressBacktestEmitter, emitters_progressOptimizerEmitter as progressOptimizerEmitter, emitters_progressWalkerEmitter as progressWalkerEmitter, emitters_riskSubject as riskSubject, emitters_schedulePingSubject as schedulePingSubject, emitters_signalBacktestEmitter as signalBacktestEmitter, emitters_signalEmitter as signalEmitter, emitters_signalLiveEmitter as signalLiveEmitter, emitters_validationSubject as validationSubject, emitters_walkerCompleteSubject as walkerCompleteSubject, emitters_walkerEmitter as walkerEmitter, emitters_walkerStopSubject as walkerStopSubject };
 }
 
 /**
@@ -14114,17 +14304,33 @@ declare class ActionCoreService implements TAction$1 {
         frameName: FrameName;
     }) => Promise<void>;
     /**
-     * Routes ping event to all registered actions for the strategy.
+     * Routes scheduled ping event to all registered actions for the strategy.
      *
      * Retrieves action list from strategy schema (IStrategySchema.actions)
-     * and invokes the ping handler on each ClientAction instance sequentially.
+     * and invokes the pingScheduled handler on each ClientAction instance sequentially.
      * Called every minute during scheduled signal monitoring.
      *
      * @param backtest - Whether running in backtest mode (true) or live mode (false)
      * @param event - Scheduled signal monitoring data
      * @param context - Strategy execution context with strategyName, exchangeName, frameName
      */
-    ping: (backtest: boolean, event: PingContract, context: {
+    pingScheduled: (backtest: boolean, event: SchedulePingContract, context: {
+        strategyName: StrategyName;
+        exchangeName: ExchangeName;
+        frameName: FrameName;
+    }) => Promise<void>;
+    /**
+     * Routes active ping event to all registered actions for the strategy.
+     *
+     * Retrieves action list from strategy schema (IStrategySchema.actions)
+     * and invokes the pingActive handler on each ClientAction instance sequentially.
+     * Called every minute during active pending signal monitoring.
+     *
+     * @param backtest - Whether running in backtest mode (true) or live mode (false)
+     * @param event - Active pending signal monitoring data
+     * @param context - Strategy execution context with strategyName, exchangeName, frameName
+     */
+    pingActive: (backtest: boolean, event: ActivePingContract, context: {
         strategyName: StrategyName;
         exchangeName: ExchangeName;
         frameName: FrameName;
@@ -15148,9 +15354,13 @@ declare class ClientAction implements IAction {
      */
     partialLoss(event: PartialLossContract): Promise<void>;
     /**
-     * Handles ping events during scheduled signal monitoring.
+     * Handles scheduled ping events during scheduled signal monitoring.
      */
-    ping(event: PingContract): Promise<void>;
+    pingScheduled(event: SchedulePingContract): Promise<void>;
+    /**
+     * Handles active ping events during active pending signal monitoring.
+     */
+    pingActive(event: ActivePingContract): Promise<void>;
     /**
      * Handles risk rejection events when signals fail risk validation.
      */
@@ -15307,13 +15517,26 @@ declare class ActionConnectionService implements TAction {
         frameName: FrameName;
     }) => Promise<void>;
     /**
-     * Routes ping event to appropriate ClientAction instance.
+     * Routes scheduled ping event to appropriate ClientAction instance.
      *
-     * @param event - Ping event data
+     * @param event - Scheduled ping event data
      * @param backtest - Whether running in backtest mode
      * @param context - Execution context with action name, strategy name, exchange name, frame name
      */
-    ping: (event: PingContract, backtest: boolean, context: {
+    pingScheduled: (event: SchedulePingContract, backtest: boolean, context: {
+        actionName: ActionName;
+        strategyName: StrategyName;
+        exchangeName: ExchangeName;
+        frameName: FrameName;
+    }) => Promise<void>;
+    /**
+     * Routes active ping event to appropriate ClientAction instance.
+     *
+     * @param event - Active ping event data
+     * @param backtest - Whether running in backtest mode
+     * @param context - Execution context with action name, strategy name, exchange name, frame name
+     */
+    pingActive: (event: ActivePingContract, backtest: boolean, context: {
         actionName: ActionName;
         strategyName: StrategyName;
         exchangeName: ExchangeName;
@@ -18557,4 +18780,4 @@ declare const backtest: {
     loggerService: LoggerService;
 };
 
-export { ActionBase, Backtest, type BacktestDoneNotification, type BacktestStatisticsModel, type BootstrapNotification, Breakeven, type BreakevenContract, type BreakevenData, Cache, type CandleInterval, type ColumnConfig, type ColumnModel, Constant, type CriticalErrorNotification, type DoneContract, type EntityId, Exchange, ExecutionContextService, type FrameInterval, type GlobalConfig, Heat, type HeatmapStatisticsModel, type IBidData, type ICandleData, type IExchangeSchema, type IFrameSchema, type IHeatmapRow, type IMarkdownDumpOptions, type IOptimizerCallbacks, type IOptimizerData, type IOptimizerFetchArgs, type IOptimizerFilterArgs, type IOptimizerRange, type IOptimizerSchema, type IOptimizerSource, type IOptimizerStrategy, type IOptimizerTemplate, type IOrderBookData, type IPersistBase, type IPositionSizeATRParams, type IPositionSizeFixedPercentageParams, type IPositionSizeKellyParams, type IPublicSignalRow, type IReportDumpOptions, type IRiskActivePosition, type IRiskCheckArgs, type IRiskSchema, type IRiskValidation, type IRiskValidationFn, type IRiskValidationPayload, type IScheduledSignalCancelRow, type IScheduledSignalRow, type ISignalDto, type ISignalRow, type ISizingCalculateParams, type ISizingCalculateParamsATR, type ISizingCalculateParamsFixedPercentage, type ISizingCalculateParamsKelly, type ISizingSchema, type ISizingSchemaATR, type ISizingSchemaFixedPercentage, type ISizingSchemaKelly, type IStrategyPnL, type IStrategyResult, type IStrategySchema, type IStrategyTickResult, type IStrategyTickResultActive, type IStrategyTickResultCancelled, type IStrategyTickResultClosed, type IStrategyTickResultIdle, type IStrategyTickResultOpened, type IStrategyTickResultScheduled, type IWalkerResults, type IWalkerSchema, type IWalkerStrategyResult, type InfoErrorNotification, Live, type LiveDoneNotification, type LiveStatisticsModel, Markdown, MarkdownFileBase, MarkdownFolderBase, type MarkdownName, type MessageModel, type MessageRole, MethodContextService, type MetricStats, Notification, type NotificationModel, Optimizer, Partial$1 as Partial, type PartialData, type PartialEvent, type PartialLossContract, type PartialLossNotification, type PartialProfitContract, type PartialProfitNotification, type PartialStatisticsModel, Performance, type PerformanceContract, type PerformanceMetricType, type PerformanceStatisticsModel, PersistBase, PersistBreakevenAdapter, PersistPartialAdapter, PersistRiskAdapter, PersistScheduleAdapter, PersistSignalAdapter, type PingContract, PositionSize, type ProgressBacktestContract, type ProgressBacktestNotification, type ProgressOptimizerContract, type ProgressWalkerContract, Report, ReportBase, type ReportName, Risk, type RiskContract, type RiskData, type RiskEvent, type RiskRejectionNotification, type RiskStatisticsModel, Schedule, type ScheduleData, type ScheduleStatisticsModel, type ScheduledEvent, type SignalCancelledNotification, type SignalClosedNotification, type SignalData, type SignalInterval, type SignalOpenedNotification, type SignalScheduledNotification, type TMarkdownBase, type TPersistBase, type TPersistBaseCtor, type TReportBase, type TickEvent, type ValidationErrorNotification, Walker, type WalkerCompleteContract, type WalkerContract, type WalkerMetric, type SignalData$1 as WalkerSignalData, type WalkerStatisticsModel, addAction, addExchange, addFrame, addOptimizer, addRisk, addSizing, addStrategy, addWalker, breakeven, cancel, dumpSignal, emitters, formatPrice, formatQuantity, get, getAction, getAveragePrice, getCandles, getColumns, getConfig, getContext, getCurrentTimeframe, getDate, getDefaultColumns, getDefaultConfig, getExchange, getFrame, getMode, getOptimizer, getOrderBook, getRisk, getSizing, getStrategy, getSymbol, getWalker, hasTradeContext, backtest as lib, listExchanges, listFrames, listOptimizers, listRisks, listSizings, listStrategies, listWalkers, listenBacktestProgress, listenBreakeven, listenBreakevenOnce, listenDoneBacktest, listenDoneBacktestOnce, listenDoneLive, listenDoneLiveOnce, listenDoneWalker, listenDoneWalkerOnce, listenError, listenExit, listenOptimizerProgress, listenPartialLoss, listenPartialLossOnce, listenPartialProfit, listenPartialProfitOnce, listenPerformance, listenPing, listenPingOnce, listenRisk, listenRiskOnce, listenSignal, listenSignalBacktest, listenSignalBacktestOnce, listenSignalLive, listenSignalLiveOnce, listenSignalOnce, listenValidation, listenWalker, listenWalkerComplete, listenWalkerOnce, listenWalkerProgress, overrideAction, overrideExchange, overrideFrame, overrideOptimizer, overrideRisk, overrideSizing, overrideStrategy, overrideWalker, partialLoss, partialProfit, roundTicks, set, setColumns, setConfig, setLogger, stop, trailingStop, trailingTake, validate };
+export { ActionBase, type ActivePingContract, Backtest, type BacktestDoneNotification, type BacktestStatisticsModel, type BootstrapNotification, Breakeven, type BreakevenContract, type BreakevenData, Cache, type CandleInterval, type ColumnConfig, type ColumnModel, Constant, type CriticalErrorNotification, type DoneContract, type EntityId, Exchange, ExecutionContextService, type FrameInterval, type GlobalConfig, Heat, type HeatmapStatisticsModel, type IBidData, type ICandleData, type IExchangeSchema, type IFrameSchema, type IHeatmapRow, type IMarkdownDumpOptions, type IOptimizerCallbacks, type IOptimizerData, type IOptimizerFetchArgs, type IOptimizerFilterArgs, type IOptimizerRange, type IOptimizerSchema, type IOptimizerSource, type IOptimizerStrategy, type IOptimizerTemplate, type IOrderBookData, type IPersistBase, type IPositionSizeATRParams, type IPositionSizeFixedPercentageParams, type IPositionSizeKellyParams, type IPublicSignalRow, type IReportDumpOptions, type IRiskActivePosition, type IRiskCheckArgs, type IRiskSchema, type IRiskValidation, type IRiskValidationFn, type IRiskValidationPayload, type IScheduledSignalCancelRow, type IScheduledSignalRow, type ISignalDto, type ISignalRow, type ISizingCalculateParams, type ISizingCalculateParamsATR, type ISizingCalculateParamsFixedPercentage, type ISizingCalculateParamsKelly, type ISizingSchema, type ISizingSchemaATR, type ISizingSchemaFixedPercentage, type ISizingSchemaKelly, type IStrategyPnL, type IStrategyResult, type IStrategySchema, type IStrategyTickResult, type IStrategyTickResultActive, type IStrategyTickResultCancelled, type IStrategyTickResultClosed, type IStrategyTickResultIdle, type IStrategyTickResultOpened, type IStrategyTickResultScheduled, type IWalkerResults, type IWalkerSchema, type IWalkerStrategyResult, type InfoErrorNotification, Live, type LiveDoneNotification, type LiveStatisticsModel, Markdown, MarkdownFileBase, MarkdownFolderBase, type MarkdownName, type MessageModel, type MessageRole, MethodContextService, type MetricStats, Notification, type NotificationModel, Optimizer, Partial$1 as Partial, type PartialData, type PartialEvent, type PartialLossContract, type PartialLossNotification, type PartialProfitContract, type PartialProfitNotification, type PartialStatisticsModel, Performance, type PerformanceContract, type PerformanceMetricType, type PerformanceStatisticsModel, PersistBase, PersistBreakevenAdapter, PersistPartialAdapter, PersistRiskAdapter, PersistScheduleAdapter, PersistSignalAdapter, PositionSize, type ProgressBacktestContract, type ProgressBacktestNotification, type ProgressOptimizerContract, type ProgressWalkerContract, Report, ReportBase, type ReportName, Risk, type RiskContract, type RiskData, type RiskEvent, type RiskRejectionNotification, type RiskStatisticsModel, Schedule, type ScheduleData, type SchedulePingContract, type ScheduleStatisticsModel, type ScheduledEvent, type SignalCancelledNotification, type SignalClosedNotification, type SignalData, type SignalInterval, type SignalOpenedNotification, type SignalScheduledNotification, type TMarkdownBase, type TPersistBase, type TPersistBaseCtor, type TReportBase, type TickEvent, type ValidationErrorNotification, Walker, type WalkerCompleteContract, type WalkerContract, type WalkerMetric, type SignalData$1 as WalkerSignalData, type WalkerStatisticsModel, addActionSchema, addExchangeSchema, addFrameSchema, addOptimizerSchema, addRiskSchema, addSizingSchema, addStrategySchema, addWalkerSchema, breakeven, cancel, dumpSignalData, emitters, formatPrice, formatQuantity, get, getActionSchema, getAveragePrice, getBacktestTimeframe, getCandles, getColumns, getConfig, getContext, getDate, getDefaultColumns, getDefaultConfig, getExchangeSchema, getFrameSchema, getMode, getOptimizerSchema, getOrderBook, getRiskSchema, getSizingSchema, getStrategySchema, getSymbol, getWalkerSchema, hasTradeContext, backtest as lib, listExchangeSchema, listFrameSchema, listOptimizerSchema, listRiskSchema, listSizingSchema, listStrategySchema, listWalkerSchema, listenActivePing, listenActivePingOnce, listenBacktestProgress, listenBreakevenAvailable, listenBreakevenAvailableOnce, listenDoneBacktest, listenDoneBacktestOnce, listenDoneLive, listenDoneLiveOnce, listenDoneWalker, listenDoneWalkerOnce, listenError, listenExit, listenOptimizerProgress, listenPartialLossAvailable, listenPartialLossAvailableOnce, listenPartialProfitAvailable, listenPartialProfitAvailableOnce, listenPerformance, listenRisk, listenRiskOnce, listenSchedulePing, listenSchedulePingOnce, listenSignal, listenSignalBacktest, listenSignalBacktestOnce, listenSignalLive, listenSignalLiveOnce, listenSignalOnce, listenValidation, listenWalker, listenWalkerComplete, listenWalkerOnce, listenWalkerProgress, overrideActionSchema, overrideExchangeSchema, overrideFrameSchema, overrideOptimizerSchema, overrideRiskSchema, overrideSizingSchema, overrideStrategySchema, overrideWalkerSchema, partialLoss, partialProfit, roundTicks, set, setColumns, setConfig, setLogger, stop, trailingStop, trailingTake, validate };

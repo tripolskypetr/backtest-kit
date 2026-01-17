@@ -1,5 +1,5 @@
 import backtest from "../lib";
-import { signalEmitter, signalLiveEmitter, signalBacktestEmitter, errorEmitter, exitEmitter, doneLiveSubject, doneBacktestSubject, doneWalkerSubject, progressBacktestEmitter, progressWalkerEmitter, progressOptimizerEmitter, performanceEmitter, walkerEmitter, walkerCompleteSubject, validationSubject, partialProfitSubject, partialLossSubject, breakevenSubject, riskSubject, pingSubject } from "../config/emitters";
+import { signalEmitter, signalLiveEmitter, signalBacktestEmitter, errorEmitter, exitEmitter, doneLiveSubject, doneBacktestSubject, doneWalkerSubject, progressBacktestEmitter, progressWalkerEmitter, progressOptimizerEmitter, performanceEmitter, walkerEmitter, walkerCompleteSubject, validationSubject, partialProfitSubject, partialLossSubject, breakevenSubject, riskSubject, schedulePingSubject, activePingSubject } from "../config/emitters";
 import { IStrategyTickResult } from "../interfaces/Strategy.interface";
 import { DoneContract } from "../contract/Done.contract";
 import { ProgressBacktestContract } from "../contract/ProgressBacktest.contract";
@@ -12,7 +12,8 @@ import { PartialProfitContract } from "../contract/PartialProfit.contract";
 import { PartialLossContract } from "../contract/PartialLoss.contract";
 import { BreakevenContract } from "../contract/Breakeven.contract";
 import { RiskContract } from "../contract/Risk.contract";
-import { PingContract } from "../contract/Ping.contract";
+import { SchedulePingContract } from "../contract/SchedulePing.contract";
+import { ActivePingContract } from "../contract/ActivePing.contract";
 import { queued } from "functools-kit";
 
 const LISTEN_SIGNAL_METHOD_NAME = "event.listenSignal";
@@ -45,8 +46,10 @@ const LISTEN_BREAKEVEN_METHOD_NAME = "event.listenBreakeven";
 const LISTEN_BREAKEVEN_ONCE_METHOD_NAME = "event.listenBreakevenOnce";
 const LISTEN_RISK_METHOD_NAME = "event.listenRisk";
 const LISTEN_RISK_ONCE_METHOD_NAME = "event.listenRiskOnce";
-const LISTEN_PING_METHOD_NAME = "event.listenPing";
-const LISTEN_PING_ONCE_METHOD_NAME = "event.listenPingOnce";
+const LISTEN_SCHEDULE_PING_METHOD_NAME = "event.listenSchedulePing";
+const LISTEN_SCHEDULE_PING_ONCE_METHOD_NAME = "event.listenSchedulePingOnce";
+const LISTEN_ACTIVE_PING_METHOD_NAME = "event.listenActivePing";
+const LISTEN_ACTIVE_PING_ONCE_METHOD_NAME = "event.listenActivePingOnce";
 
 /**
  * Subscribes to all signal events with queued async processing.
@@ -789,7 +792,7 @@ export function listenValidation(fn: (error: Error) => void) {
  * unsubscribe();
  * ```
  */
-export function listenPartialProfit(fn: (event: PartialProfitContract) => void) {
+export function listenPartialProfitAvailable(fn: (event: PartialProfitContract) => void) {
   backtest.loggerService.log(LISTEN_PARTIAL_PROFIT_METHOD_NAME);
   return partialProfitSubject.subscribe(queued(async (event) => fn(event)));
 }
@@ -824,7 +827,7 @@ export function listenPartialProfit(fn: (event: PartialProfitContract) => void) 
  * cancel();
  * ```
  */
-export function listenPartialProfitOnce(
+export function listenPartialProfitAvailableOnce(
   filterFn: (event: PartialProfitContract) => boolean,
   fn: (event: PartialProfitContract) => void
 ) {
@@ -856,7 +859,7 @@ export function listenPartialProfitOnce(
  * unsubscribe();
  * ```
  */
-export function listenPartialLoss(fn: (event: PartialLossContract) => void) {
+export function listenPartialLossAvailable(fn: (event: PartialLossContract) => void) {
   backtest.loggerService.log(LISTEN_PARTIAL_LOSS_METHOD_NAME);
   return partialLossSubject.subscribe(queued(async (event) => fn(event)));
 }
@@ -891,7 +894,7 @@ export function listenPartialLoss(fn: (event: PartialLossContract) => void) {
  * cancel();
  * ```
  */
-export function listenPartialLossOnce(
+export function listenPartialLossAvailableOnce(
   filterFn: (event: PartialLossContract) => boolean,
   fn: (event: PartialLossContract) => void
 ) {
@@ -925,7 +928,7 @@ export function listenPartialLossOnce(
  * unsubscribe();
  * ```
  */
-export function listenBreakeven(fn: (event: BreakevenContract) => void) {
+export function listenBreakevenAvailable(fn: (event: BreakevenContract) => void) {
   backtest.loggerService.log(LISTEN_BREAKEVEN_METHOD_NAME);
   return breakevenSubject.subscribe(queued(async (event) => fn(event)));
 }
@@ -960,7 +963,7 @@ export function listenBreakeven(fn: (event: BreakevenContract) => void) {
  * cancel();
  * ```
  */
-export function listenBreakevenOnce(
+export function listenBreakevenAvailableOnce(
   filterFn: (event: BreakevenContract) => boolean,
   fn: (event: BreakevenContract) => void
 ) {
@@ -1065,9 +1068,9 @@ export function listenRiskOnce(
  * unsubscribe();
  * ```
  */
-export function listenPing(fn: (event: PingContract) => void) {
-  backtest.loggerService.log(LISTEN_PING_METHOD_NAME);
-  return pingSubject.subscribe(queued(async (event) => fn(event)));
+export function listenSchedulePing(fn: (event: SchedulePingContract) => void) {
+  backtest.loggerService.log(LISTEN_SCHEDULE_PING_METHOD_NAME);
+  return schedulePingSubject.subscribe(queued(async (event) => fn(event)));
 }
 
 /**
@@ -1100,10 +1103,80 @@ export function listenPing(fn: (event: PingContract) => void) {
  * cancel();
  * ```
  */
-export function listenPingOnce(
-  filterFn: (event: PingContract) => boolean,
-  fn: (event: PingContract) => void
+export function listenSchedulePingOnce(
+  filterFn: (event: SchedulePingContract) => boolean,
+  fn: (event: SchedulePingContract) => void
 ) {
-  backtest.loggerService.log(LISTEN_PING_ONCE_METHOD_NAME);
-  return pingSubject.filter(filterFn).once(fn);
+  backtest.loggerService.log(LISTEN_SCHEDULE_PING_ONCE_METHOD_NAME);
+  return schedulePingSubject.filter(filterFn).once(fn);
+}
+
+/**
+ * Subscribes to active ping events with queued async processing.
+ *
+ * Listens for active pending signal monitoring events emitted every minute.
+ * Useful for tracking active signal lifecycle and implementing dynamic management logic.
+ *
+ * Events are processed sequentially in order received, even if callback is async.
+ * Uses queued wrapper to prevent concurrent execution of the callback.
+ *
+ * @param fn - Callback function to handle active ping events
+ * @returns Unsubscribe function to stop listening
+ *
+ * @example
+ * ```typescript
+ * import { listenActivePing } from "./function/event";
+ *
+ * const unsubscribe = listenActivePing((event) => {
+ *   console.log(`[${event.backtest ? "Backtest" : "Live"}] Active Ping`);
+ *   console.log(`Symbol: ${event.symbol}, Strategy: ${event.strategyName}`);
+ *   console.log(`Signal ID: ${event.data.id}, Position: ${event.data.position}`);
+ *   console.log(`Timestamp: ${new Date(event.timestamp).toISOString()}`);
+ * });
+ *
+ * // Later: stop listening
+ * unsubscribe();
+ * ```
+ */
+export function listenActivePing(fn: (event: ActivePingContract) => void) {
+  backtest.loggerService.log(LISTEN_ACTIVE_PING_METHOD_NAME);
+  return activePingSubject.subscribe(queued(async (event) => fn(event)));
+}
+
+/**
+ * Subscribes to filtered active ping events with one-time execution.
+ *
+ * Listens for events matching the filter predicate, then executes callback once
+ * and automatically unsubscribes. Useful for waiting for specific active ping conditions.
+ *
+ * @param filterFn - Predicate to filter which events trigger the callback
+ * @param fn - Callback function to handle the filtered event (called only once)
+ * @returns Unsubscribe function to cancel the listener before it fires
+ *
+ * @example
+ * ```typescript
+ * import { listenActivePingOnce } from "./function/event";
+ *
+ * // Wait for first active ping on BTCUSDT
+ * listenActivePingOnce(
+ *   (event) => event.symbol === "BTCUSDT",
+ *   (event) => console.log("First BTCUSDT active ping received")
+ * );
+ *
+ * // Wait for active ping in backtest mode
+ * const cancel = listenActivePingOnce(
+ *   (event) => event.backtest === true,
+ *   (event) => console.log("Backtest active ping received at", new Date(event.timestamp))
+ * );
+ *
+ * // Cancel if needed before event fires
+ * cancel();
+ * ```
+ */
+export function listenActivePingOnce(
+  filterFn: (event: ActivePingContract) => boolean,
+  fn: (event: ActivePingContract) => void
+) {
+  backtest.loggerService.log(LISTEN_ACTIVE_PING_ONCE_METHOD_NAME);
+  return activePingSubject.filter(filterFn).once(fn);
 }
