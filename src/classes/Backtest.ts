@@ -13,7 +13,7 @@ import { FrameName } from "../interfaces/Frame.interface";
 
 const BACKTEST_METHOD_NAME_RUN = "BacktestUtils.run";
 const BACKTEST_METHOD_NAME_BACKGROUND = "BacktestUtils.background";
-const BACKTEST_METHOD_NAME_STOP = "BacktestUtils.stop";
+const BACKTEST_METHOD_NAME_STOP = "BacktestUtils.commitStop";
 const BACKTEST_METHOD_NAME_GET_REPORT = "BacktestUtils.getReport";
 const BACKTEST_METHOD_NAME_DUMP = "BacktestUtils.dump";
 const BACKTEST_METHOD_NAME_TASK = "BacktestUtils.task";
@@ -23,11 +23,12 @@ const BACKTEST_METHOD_NAME_GET_PENDING_SIGNAL =
 const BACKTEST_METHOD_NAME_GET_SCHEDULED_SIGNAL =
   "BacktestUtils.getScheduledSignal";
 const BACKTEST_METHOD_NAME_GET_BREAKEVEN = "BacktestUtils.getBreakeven";
-const BACKTEST_METHOD_NAME_CANCEL = "BacktestUtils.cancel";
-const BACKTEST_METHOD_NAME_PARTIAL_PROFIT = "BacktestUtils.partialProfit";
-const BACKTEST_METHOD_NAME_PARTIAL_LOSS = "BacktestUtils.partialLoss";
-const BACKTEST_METHOD_NAME_TRAILING_STOP = "BacktestUtils.trailingStop";
-const BACKTEST_METHOD_NAME_TRAILING_PROFIT = "BacktestUtils.trailingTake";
+const BACKTEST_METHOD_NAME_BREAKEVEN = "Backtest.commitBreakeven";
+const BACKTEST_METHOD_NAME_CANCEL = "BacktestUtils.commitCancel";
+const BACKTEST_METHOD_NAME_PARTIAL_PROFIT = "BacktestUtils.commitPartialProfit";
+const BACKTEST_METHOD_NAME_PARTIAL_LOSS = "BacktestUtils.commitPartialLoss";
+const BACKTEST_METHOD_NAME_TRAILING_STOP = "BacktestUtils.commitTrailingStop";
+const BACKTEST_METHOD_NAME_TRAILING_PROFIT = "BacktestUtils.commitTrailingTake";
 const BACKTEST_METHOD_NAME_GET_DATA = "BacktestUtils.getData";
 
 /**
@@ -1300,18 +1301,18 @@ export class BacktestUtils {
       frameName: FrameName;
     }
   ): Promise<boolean> => {
-    backtest.loggerService.info("Backtest.breakeven", {
+    backtest.loggerService.info(BACKTEST_METHOD_NAME_BREAKEVEN, {
       symbol,
       currentPrice,
       context,
     });
     backtest.strategyValidationService.validate(
       context.strategyName,
-      "Backtest.breakeven"
+      BACKTEST_METHOD_NAME_BREAKEVEN
     );
     backtest.exchangeValidationService.validate(
       context.exchangeName,
-      "Backtest.breakeven"
+      BACKTEST_METHOD_NAME_BREAKEVEN
     );
 
     {
@@ -1320,20 +1321,20 @@ export class BacktestUtils {
       riskName &&
         backtest.riskValidationService.validate(
           riskName,
-          "Backtest.breakeven"
+          BACKTEST_METHOD_NAME_BREAKEVEN
         );
       riskList &&
         riskList.forEach((riskName) =>
           backtest.riskValidationService.validate(
             riskName,
-            "Backtest.breakeven"
+            BACKTEST_METHOD_NAME_BREAKEVEN
           )
         );
       actions &&
         actions.forEach((actionName) =>
           backtest.actionValidationService.validate(
             actionName,
-            "Backtest.breakeven"
+            BACKTEST_METHOD_NAME_BREAKEVEN
           )
         );
     }

@@ -11,7 +11,7 @@ import { ExchangeName } from "../interfaces/Exchange.interface";
 
 const LIVE_METHOD_NAME_RUN = "LiveUtils.run";
 const LIVE_METHOD_NAME_BACKGROUND = "LiveUtils.background";
-const LIVE_METHOD_NAME_STOP = "LiveUtils.stop";
+const LIVE_METHOD_NAME_STOP = "LiveUtils.commitStop";
 const LIVE_METHOD_NAME_GET_REPORT = "LiveUtils.getReport";
 const LIVE_METHOD_NAME_GET_DATA = "LiveUtils.getData";
 const LIVE_METHOD_NAME_DUMP = "LiveUtils.dump";
@@ -20,11 +20,12 @@ const LIVE_METHOD_NAME_GET_STATUS = "LiveUtils.getStatus";
 const LIVE_METHOD_NAME_GET_PENDING_SIGNAL = "LiveUtils.getPendingSignal";
 const LIVE_METHOD_NAME_GET_SCHEDULED_SIGNAL = "LiveUtils.getScheduledSignal";
 const LIVE_METHOD_NAME_GET_BREAKEVEN = "LiveUtils.getBreakeven";
-const LIVE_METHOD_NAME_CANCEL = "LiveUtils.cancel";
-const LIVE_METHOD_NAME_PARTIAL_PROFIT = "LiveUtils.partialProfit";
-const LIVE_METHOD_NAME_PARTIAL_LOSS = "LiveUtils.partialLoss";
-const LIVE_METHOD_NAME_TRAILING_STOP = "LiveUtils.trailingStop";
-const LIVE_METHOD_NAME_TRAILING_PROFIT = "LiveUtils.trailingTake";
+const LIVE_METHOD_NAME_BREAKEVEN = "Live.commitBreakeven";
+const LIVE_METHOD_NAME_CANCEL = "LiveUtils.commitCancel";
+const LIVE_METHOD_NAME_PARTIAL_PROFIT = "LiveUtils.commitPartialProfit";
+const LIVE_METHOD_NAME_PARTIAL_LOSS = "LiveUtils.commitPartialLoss";
+const LIVE_METHOD_NAME_TRAILING_STOP = "LiveUtils.commitTrailingStop";
+const LIVE_METHOD_NAME_TRAILING_PROFIT = "LiveUtils.commitTrailingTake";
 
 /**
  * Internal task function that runs live trading and handles completion.
@@ -939,19 +940,19 @@ export class LiveUtils {
       exchangeName: ExchangeName;
     }
   ): Promise<boolean> => {
-    backtest.loggerService.info("Live.breakeven", {
+    backtest.loggerService.info(LIVE_METHOD_NAME_BREAKEVEN, {
       symbol,
       currentPrice,
       context,
     });
-    backtest.strategyValidationService.validate(context.strategyName, "Live.breakeven");
-    backtest.exchangeValidationService.validate(context.exchangeName, "Live.breakeven");
+    backtest.strategyValidationService.validate(context.strategyName, LIVE_METHOD_NAME_BREAKEVEN);
+    backtest.exchangeValidationService.validate(context.exchangeName, LIVE_METHOD_NAME_BREAKEVEN);
 
     {
       const { riskName, riskList, actions } = backtest.strategySchemaService.get(context.strategyName);
-      riskName && backtest.riskValidationService.validate(riskName, "Live.breakeven");
-      riskList && riskList.forEach((riskName) => backtest.riskValidationService.validate(riskName, "Live.breakeven"));
-      actions && actions.forEach((actionName) => backtest.actionValidationService.validate(actionName, "Live.breakeven"));
+      riskName && backtest.riskValidationService.validate(riskName, LIVE_METHOD_NAME_BREAKEVEN);
+      riskList && riskList.forEach((riskName) => backtest.riskValidationService.validate(riskName, LIVE_METHOD_NAME_BREAKEVEN));
+      actions && actions.forEach((actionName) => backtest.actionValidationService.validate(actionName, LIVE_METHOD_NAME_BREAKEVEN));
     }
 
     return await backtest.strategyCoreService.breakeven(false, symbol, currentPrice, {
