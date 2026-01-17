@@ -15,13 +15,13 @@ export {
   getActionSchema,
 } from "./function/get";
 export {
-  stop,
-  cancel,
-  partialLoss,
-  partialProfit,
-  trailingStop,
-  trailingTake,
-  breakeven,
+  commitStop,
+  commitCancel,
+  commitPartialLoss,
+  commitPartialProfit,
+  commitTrailingStop,
+  commitTrailingTake,
+  commitBreakeven,
 } from "./function/strategy";
 export {
   setLogger,
@@ -109,7 +109,9 @@ export {
   formatQuantity,
   hasTradeContext,
 } from "./function/exchange";
-export { dumpSignalData } from "./function/dump";
+export { 
+  dumpSignalData
+} from "./function/dump";
 
 export {
   CandleInterval,

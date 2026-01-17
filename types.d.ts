@@ -1266,6 +1266,35 @@ interface IStrategyTickResultScheduled {
     backtest: boolean;
 }
 /**
+ * Tick result: scheduled signal is waiting for price to reach entry point.
+ * This is returned on subsequent ticks while monitoring a scheduled signal.
+ * Different from "scheduled" which is only returned once when signal is first created.
+ */
+interface IStrategyTickResultWaiting {
+    /** Discriminator for type-safe union */
+    action: "waiting";
+    /** Scheduled signal waiting for activation */
+    signal: IPublicSignalRow;
+    /** Current VWAP price for monitoring */
+    currentPrice: number;
+    /** Strategy name for tracking */
+    strategyName: StrategyName;
+    /** Exchange name for tracking */
+    exchangeName: ExchangeName;
+    /** Time frame name for tracking (e.g., "1m", "5m") */
+    frameName: FrameName;
+    /** Trading pair symbol (e.g., "BTCUSDT") */
+    symbol: string;
+    /** Percentage progress towards take profit (always 0 for waiting scheduled signals) */
+    percentTp: number;
+    /** Percentage progress towards stop loss (always 0 for waiting scheduled signals) */
+    percentSl: number;
+    /** Unrealized PNL for scheduled position (theoretical, not yet activated) */
+    pnl: IStrategyPnL;
+    /** Whether this event is from backtest mode (true) or live mode (false) */
+    backtest: boolean;
+}
+/**
  * Tick result: new signal just created.
  * Triggered after getSignal validation and persistence.
  */
@@ -1375,7 +1404,7 @@ interface IStrategyTickResultCancelled {
  * Discriminated union of all tick results.
  * Use type guards: `result.action === "closed"` for type safety.
  */
-type IStrategyTickResult = IStrategyTickResultIdle | IStrategyTickResultScheduled | IStrategyTickResultOpened | IStrategyTickResultActive | IStrategyTickResultClosed | IStrategyTickResultCancelled;
+type IStrategyTickResult = IStrategyTickResultIdle | IStrategyTickResultScheduled | IStrategyTickResultWaiting | IStrategyTickResultOpened | IStrategyTickResultActive | IStrategyTickResultClosed | IStrategyTickResultCancelled;
 /**
  * Backtest returns closed result (TP/SL or time_expired) or cancelled result (scheduled signal never activated).
  */
@@ -3753,7 +3782,7 @@ declare function getActionSchema(actionName: ActionName): IActionSchema;
  * await stop("BTCUSDT", "my-strategy");
  * ```
  */
-declare function stop(symbol: string): Promise<void>;
+declare function commitStop(symbol: string): Promise<void>;
 /**
  * Cancels the scheduled signal without stopping the strategy.
  *
@@ -3776,7 +3805,7 @@ declare function stop(symbol: string): Promise<void>;
  * await cancel("BTCUSDT", "my-strategy", "manual-cancel-001");
  * ```
  */
-declare function cancel(symbol: string, cancelId?: string): Promise<void>;
+declare function commitCancel(symbol: string, cancelId?: string): Promise<void>;
 /**
  * Executes partial close at profit level (moving toward TP).
  *
@@ -3804,7 +3833,7 @@ declare function cancel(symbol: string, cancelId?: string): Promise<void>;
  * }
  * ```
  */
-declare function partialProfit(symbol: string, percentToClose: number): Promise<boolean>;
+declare function commitPartialProfit(symbol: string, percentToClose: number): Promise<boolean>;
 /**
  * Executes partial close at loss level (moving toward SL).
  *
@@ -3832,7 +3861,7 @@ declare function partialProfit(symbol: string, percentToClose: number): Promise<
  * }
  * ```
  */
-declare function partialLoss(symbol: string, percentToClose: number): Promise<boolean>;
+declare function commitPartialLoss(symbol: string, percentToClose: number): Promise<boolean>;
 /**
  * Adjusts the trailing stop-loss distance for an active pending signal.
  *
@@ -3876,7 +3905,7 @@ declare function partialLoss(symbol: string, percentToClose: number): Promise<bo
  * // success3 = true (ACCEPTED: newDistance = 10% - 7% = 3%, newSL = 97 > 95, better protection)
  * ```
  */
-declare function trailingStop(symbol: string, percentShift: number, currentPrice: number): Promise<boolean>;
+declare function commitTrailingStop(symbol: string, percentShift: number, currentPrice: number): Promise<boolean>;
 /**
  * Adjusts the trailing take-profit distance for an active pending signal.
  *
@@ -3920,7 +3949,7 @@ declare function trailingStop(symbol: string, percentShift: number, currentPrice
  * // success3 = true (ACCEPTED: newDistance = 10% - 5% = 5%, newTP = 105 < 107, more conservative)
  * ```
  */
-declare function trailingTake(symbol: string, percentShift: number, currentPrice: number): Promise<boolean>;
+declare function commitTrailingTake(symbol: string, percentShift: number, currentPrice: number): Promise<boolean>;
 /**
  * Moves stop-loss to breakeven when price reaches threshold.
  *
@@ -3946,7 +3975,7 @@ declare function trailingTake(symbol: string, percentShift: number, currentPrice
  * }
  * ```
  */
-declare function breakeven(symbol: string): Promise<boolean>;
+declare function commitBreakeven(symbol: string): Promise<boolean>;
 
 /**
  * Unified breakeven event data for report generation.
@@ -7144,40 +7173,42 @@ type NotificationModel = SignalOpenedNotification | SignalClosedNotification | P
  * Contains all information about a tick event regardless of action type.
  */
 interface TickEvent {
-    /** Event timestamp in milliseconds (pendingAt for opened/closed events) */
+    /** Event timestamp in milliseconds (scheduledAt for scheduled events, pendingAt for opened/closed events) */
     timestamp: number;
     /** Event action type */
-    action: "idle" | "opened" | "active" | "closed";
+    action: "idle" | "scheduled" | "waiting" | "opened" | "active" | "closed" | "cancelled";
     /** Trading pair symbol (only for non-idle events) */
     symbol?: string;
-    /** Signal ID (only for opened/active/closed) */
+    /** Signal ID (only for scheduled/waiting/opened/active/closed/cancelled) */
     signalId?: string;
-    /** Position type (only for opened/active/closed) */
+    /** Position type (only for scheduled/waiting/opened/active/closed/cancelled) */
     position?: string;
-    /** Signal note (only for opened/active/closed) */
+    /** Signal note (only for scheduled/waiting/opened/active/closed/cancelled) */
     note?: string;
     /** Current price */
     currentPrice: number;
-    /** Open price (only for opened/active/closed) */
+    /** Open price (only for scheduled/waiting/opened/active/closed/cancelled) */
     priceOpen?: number;
-    /** Take profit price (only for opened/active/closed) */
+    /** Take profit price (only for scheduled/waiting/opened/active/closed/cancelled) */
     priceTakeProfit?: number;
-    /** Stop loss price (only for opened/active/closed) */
+    /** Stop loss price (only for scheduled/waiting/opened/active/closed/cancelled) */
     priceStopLoss?: number;
-    /** Original take profit price before modifications (only for opened/active/closed) */
+    /** Original take profit price before modifications (only for scheduled/waiting/opened/active/closed/cancelled) */
     originalPriceTakeProfit?: number;
-    /** Original stop loss price before modifications (only for opened/active/closed) */
+    /** Original stop loss price before modifications (only for scheduled/waiting/opened/active/closed/cancelled) */
     originalPriceStopLoss?: number;
-    /** Total executed percentage from partial closes (only for opened/active/closed) */
+    /** Total executed percentage from partial closes (only for scheduled/waiting/opened/active/closed/cancelled) */
     totalExecuted?: number;
-    /** Percentage progress towards take profit (only for active) */
+    /** Percentage progress towards take profit (only for active/waiting) */
     percentTp?: number;
-    /** Percentage progress towards stop loss (only for active) */
+    /** Percentage progress towards stop loss (only for active/waiting) */
     percentSl?: number;
-    /** PNL percentage (for active: unrealized, for closed: realized) */
+    /** PNL percentage (for active/waiting: unrealized, for closed: realized) */
     pnl?: number;
     /** Close reason (only for closed) */
     closeReason?: string;
+    /** Cancel reason (only for cancelled) */
+    cancelReason?: string;
     /** Duration in minutes (only for closed) */
     duration?: number;
 }
@@ -9088,14 +9119,14 @@ declare class BacktestUtils {
      * @example
      * ```typescript
      * // Stop strategy after some condition
-     * await Backtest.stop("BTCUSDT", "my-strategy", {
+     * await Backtest.commitStop("BTCUSDT", "my-strategy", {
      *   exchangeName: "binance",
      *   frameName: "frame1",
      *   strategyName: "my-strategy"
      * });
      * ```
      */
-    stop: (symbol: string, context: {
+    commitStop: (symbol: string, context: {
         strategyName: StrategyName;
         exchangeName: ExchangeName;
         frameName: FrameName;
@@ -9116,14 +9147,14 @@ declare class BacktestUtils {
      * @example
      * ```typescript
      * // Cancel scheduled signal with custom ID
-     * await Backtest.cancel("BTCUSDT", "my-strategy", {
+     * await Backtest.commitCancel("BTCUSDT", "my-strategy", {
      *   exchangeName: "binance",
      *   frameName: "frame1",
      *   strategyName: "my-strategy"
      * }, "manual-cancel-001");
      * ```
      */
-    cancel: (symbol: string, context: {
+    commitCancel: (symbol: string, context: {
         strategyName: StrategyName;
         exchangeName: ExchangeName;
         frameName: FrameName;
@@ -9147,7 +9178,7 @@ declare class BacktestUtils {
      * @example
      * ```typescript
      * // Close 30% of LONG position at profit
-     * const success = await Backtest.partialProfit("BTCUSDT", 30, 45000, {
+     * const success = await Backtest.commitPartialProfit("BTCUSDT", 30, 45000, {
      *   exchangeName: "binance",
      *   frameName: "frame1",
      *   strategyName: "my-strategy"
@@ -9157,7 +9188,7 @@ declare class BacktestUtils {
      * }
      * ```
      */
-    partialProfit: (symbol: string, percentToClose: number, currentPrice: number, context: {
+    commitPartialProfit: (symbol: string, percentToClose: number, currentPrice: number, context: {
         strategyName: StrategyName;
         exchangeName: ExchangeName;
         frameName: FrameName;
@@ -9181,7 +9212,7 @@ declare class BacktestUtils {
      * @example
      * ```typescript
      * // Close 40% of LONG position at loss
-     * const success = await Backtest.partialLoss("BTCUSDT", 40, 38000, {
+     * const success = await Backtest.commitPartialLoss("BTCUSDT", 40, 38000, {
      *   exchangeName: "binance",
      *   frameName: "frame1",
      *   strategyName: "my-strategy"
@@ -9191,7 +9222,7 @@ declare class BacktestUtils {
      * }
      * ```
      */
-    partialLoss: (symbol: string, percentToClose: number, currentPrice: number, context: {
+    commitPartialLoss: (symbol: string, percentToClose: number, currentPrice: number, context: {
         strategyName: StrategyName;
         exchangeName: ExchangeName;
         frameName: FrameName;
@@ -9224,7 +9255,7 @@ declare class BacktestUtils {
      * // LONG: entry=100, originalSL=90, distance=10%, currentPrice=102
      *
      * // First call: tighten by 5%
-     * await Backtest.trailingStop("BTCUSDT", -5, 102, {
+     * await Backtest.commitTrailingStop("BTCUSDT", -5, 102, {
      *   exchangeName: "binance",
      *   frameName: "frame1",
      *   strategyName: "my-strategy"
@@ -9232,15 +9263,15 @@ declare class BacktestUtils {
      * // newDistance = 10% - 5% = 5%, newSL = 95
      *
      * // Second call: try weaker protection (smaller percentShift)
-     * await Backtest.trailingStop("BTCUSDT", -3, 102, context);
+     * await Backtest.commitTrailingStop("BTCUSDT", -3, 102, context);
      * // SKIPPED: newSL=97 < 95 (worse protection, larger % absorbs smaller)
      *
      * // Third call: stronger protection (larger percentShift)
-     * await Backtest.trailingStop("BTCUSDT", -7, 102, context);
+     * await Backtest.commitTrailingStop("BTCUSDT", -7, 102, context);
      * // ACCEPTED: newDistance = 10% - 7% = 3%, newSL = 97 > 95 (better protection)
      * ```
      */
-    trailingStop: (symbol: string, percentShift: number, currentPrice: number, context: {
+    commitTrailingStop: (symbol: string, percentShift: number, currentPrice: number, context: {
         strategyName: StrategyName;
         exchangeName: ExchangeName;
         frameName: FrameName;
@@ -9273,7 +9304,7 @@ declare class BacktestUtils {
      * // LONG: entry=100, originalTP=110, distance=10%, currentPrice=102
      *
      * // First call: bring TP closer by 3%
-     * await Backtest.trailingTake("BTCUSDT", -3, 102, {
+     * await Backtest.commitTrailingTake("BTCUSDT", -3, 102, {
      *   exchangeName: "binance",
      *   frameName: "frame1",
      *   strategyName: "my-strategy"
@@ -9281,15 +9312,15 @@ declare class BacktestUtils {
      * // newDistance = 10% - 3% = 7%, newTP = 107
      *
      * // Second call: try to move TP further (less conservative)
-     * await Backtest.trailingTake("BTCUSDT", 2, 102, context);
+     * await Backtest.commitTrailingTake("BTCUSDT", 2, 102, context);
      * // SKIPPED: newTP=112 > 107 (less conservative, larger % absorbs smaller)
      *
      * // Third call: even more conservative
-     * await Backtest.trailingTake("BTCUSDT", -5, 102, context);
+     * await Backtest.commitTrailingTake("BTCUSDT", -5, 102, context);
      * // ACCEPTED: newDistance = 10% - 5% = 5%, newTP = 105 < 107 (more conservative)
      * ```
      */
-    trailingTake: (symbol: string, percentShift: number, currentPrice: number, context: {
+    commitTrailingTake: (symbol: string, percentShift: number, currentPrice: number, context: {
         strategyName: StrategyName;
         exchangeName: ExchangeName;
         frameName: FrameName;
@@ -9307,7 +9338,7 @@ declare class BacktestUtils {
      *
      * @example
      * ```typescript
-     * const moved = await Backtest.breakeven(
+     * const moved = await Backtest.commitBreakeven(
      *   "BTCUSDT",
      *   112,
      *   { strategyName: "my-strategy", exchangeName: "binance", frameName: "1h" }
@@ -9315,7 +9346,7 @@ declare class BacktestUtils {
      * console.log(moved); // true (SL moved to entry price)
      * ```
      */
-    breakeven: (symbol: string, currentPrice: number, context: {
+    commitBreakeven: (symbol: string, currentPrice: number, context: {
         strategyName: StrategyName;
         exchangeName: ExchangeName;
         frameName: FrameName;
@@ -9699,7 +9730,7 @@ declare class LiveUtils {
     run: (symbol: string, context: {
         strategyName: StrategyName;
         exchangeName: ExchangeName;
-    }) => AsyncGenerator<IStrategyTickResultOpened | IStrategyTickResultClosed, void, unknown>;
+    }) => AsyncGenerator<IStrategyTickResultOpened | IStrategyTickResultClosed | IStrategyTickResultCancelled, void, unknown>;
     /**
      * Runs live trading in background without yielding results.
      *
@@ -9806,10 +9837,10 @@ declare class LiveUtils {
      * @example
      * ```typescript
      * // Stop live trading gracefully
-     * await Live.stop("BTCUSDT", "my-strategy");
+     * await Live.commitStop("BTCUSDT", "my-strategy");
      * ```
      */
-    stop: (symbol: string, context: {
+    commitStop: (symbol: string, context: {
         strategyName: StrategyName;
         exchangeName: ExchangeName;
     }) => Promise<void>;
@@ -9829,14 +9860,14 @@ declare class LiveUtils {
      * @example
      * ```typescript
      * // Cancel scheduled signal in live trading with custom ID
-     * await Live.cancel("BTCUSDT", "my-strategy", {
+     * await Live.commitCancel("BTCUSDT", "my-strategy", {
      *   exchangeName: "binance",
      *   frameName: "",
      *   strategyName: "my-strategy"
      * }, "manual-cancel-001");
      * ```
      */
-    cancel: (symbol: string, context: {
+    commitCancel: (symbol: string, context: {
         strategyName: StrategyName;
         exchangeName: ExchangeName;
     }, cancelId?: string) => Promise<void>;
@@ -9859,7 +9890,7 @@ declare class LiveUtils {
      * @example
      * ```typescript
      * // Close 30% of LONG position at profit
-     * const success = await Live.partialProfit("BTCUSDT", 30, 45000, {
+     * const success = await Live.commitPartialProfit("BTCUSDT", 30, 45000, {
      *   exchangeName: "binance",
      *   strategyName: "my-strategy"
      * });
@@ -9868,7 +9899,7 @@ declare class LiveUtils {
      * }
      * ```
      */
-    partialProfit: (symbol: string, percentToClose: number, currentPrice: number, context: {
+    commitPartialProfit: (symbol: string, percentToClose: number, currentPrice: number, context: {
         strategyName: StrategyName;
         exchangeName: ExchangeName;
     }) => Promise<boolean>;
@@ -9891,7 +9922,7 @@ declare class LiveUtils {
      * @example
      * ```typescript
      * // Close 40% of LONG position at loss
-     * const success = await Live.partialLoss("BTCUSDT", 40, 38000, {
+     * const success = await Live.commitPartialLoss("BTCUSDT", 40, 38000, {
      *   exchangeName: "binance",
      *   strategyName: "my-strategy"
      * });
@@ -9900,7 +9931,7 @@ declare class LiveUtils {
      * }
      * ```
      */
-    partialLoss: (symbol: string, percentToClose: number, currentPrice: number, context: {
+    commitPartialLoss: (symbol: string, percentToClose: number, currentPrice: number, context: {
         strategyName: StrategyName;
         exchangeName: ExchangeName;
     }) => Promise<boolean>;
@@ -9932,22 +9963,22 @@ declare class LiveUtils {
      * // LONG: entry=100, originalSL=90, distance=10%, currentPrice=102
      *
      * // First call: tighten by 5%
-     * const success1 = await Live.trailingStop("BTCUSDT", -5, 102, {
+     * const success1 = await Live.commitTrailingStop("BTCUSDT", -5, 102, {
      *   exchangeName: "binance",
      *   strategyName: "my-strategy"
      * });
      * // success1 = true, newDistance = 10% - 5% = 5%, newSL = 95
      *
      * // Second call: try weaker protection (smaller percentShift)
-     * const success2 = await Live.trailingStop("BTCUSDT", -3, 102, context);
+     * const success2 = await Live.commitTrailingStop("BTCUSDT", -3, 102, context);
      * // success2 = false (SKIPPED: newSL=97 < 95, worse protection, larger % absorbs smaller)
      *
      * // Third call: stronger protection (larger percentShift)
-     * const success3 = await Live.trailingStop("BTCUSDT", -7, 102, context);
+     * const success3 = await Live.commitTrailingStop("BTCUSDT", -7, 102, context);
      * // success3 = true (ACCEPTED: newDistance = 10% - 7% = 3%, newSL = 97 > 95, better protection)
      * ```
      */
-    trailingStop: (symbol: string, percentShift: number, currentPrice: number, context: {
+    commitTrailingStop: (symbol: string, percentShift: number, currentPrice: number, context: {
         strategyName: StrategyName;
         exchangeName: ExchangeName;
     }) => Promise<boolean>;
@@ -9979,22 +10010,22 @@ declare class LiveUtils {
      * // LONG: entry=100, originalTP=110, distance=10%, currentPrice=102
      *
      * // First call: bring TP closer by 3%
-     * const success1 = await Live.trailingTake("BTCUSDT", -3, 102, {
+     * const success1 = await Live.commitTrailingTake("BTCUSDT", -3, 102, {
      *   exchangeName: "binance",
      *   strategyName: "my-strategy"
      * });
      * // success1 = true, newDistance = 10% - 3% = 7%, newTP = 107
      *
      * // Second call: try to move TP further (less conservative)
-     * const success2 = await Live.trailingTake("BTCUSDT", 2, 102, context);
+     * const success2 = await Live.commitTrailingTake("BTCUSDT", 2, 102, context);
      * // success2 = false (SKIPPED: newTP=112 > 107, less conservative, larger % absorbs smaller)
      *
      * // Third call: even more conservative
-     * const success3 = await Live.trailingTake("BTCUSDT", -5, 102, context);
+     * const success3 = await Live.commitTrailingTake("BTCUSDT", -5, 102, context);
      * // success3 = true (ACCEPTED: newDistance = 10% - 5% = 5%, newTP = 105 < 107, more conservative)
      * ```
      */
-    trailingTake: (symbol: string, percentShift: number, currentPrice: number, context: {
+    commitTrailingTake: (symbol: string, percentShift: number, currentPrice: number, context: {
         strategyName: StrategyName;
         exchangeName: ExchangeName;
     }) => Promise<boolean>;
@@ -10011,7 +10042,7 @@ declare class LiveUtils {
      *
      * @example
      * ```typescript
-     * const moved = await Live.breakeven(
+     * const moved = await Live.commitBreakeven(
      *   "BTCUSDT",
      *   112,
      *   { strategyName: "my-strategy", exchangeName: "binance" }
@@ -10019,7 +10050,7 @@ declare class LiveUtils {
      * console.log(moved); // true (SL moved to entry price)
      * ```
      */
-    breakeven: (symbol: string, currentPrice: number, context: {
+    commitBreakeven: (symbol: string, currentPrice: number, context: {
         strategyName: StrategyName;
         exchangeName: ExchangeName;
     }) => Promise<boolean>;
@@ -16710,7 +16741,7 @@ declare class LiveLogicPrivateService {
      * }
      * ```
      */
-    run(symbol: string): AsyncGenerator<IStrategyTickResultOpened | IStrategyTickResultClosed, void, unknown>;
+    run(symbol: string): AsyncGenerator<IStrategyTickResultOpened | IStrategyTickResultClosed | IStrategyTickResultCancelled, void, unknown>;
 }
 
 /**
@@ -16839,7 +16870,7 @@ declare class LiveLogicPublicService implements TLiveLogicPrivateService {
     run: (symbol: string, context: {
         strategyName: StrategyName;
         exchangeName: ExchangeName;
-    }) => AsyncGenerator<IStrategyTickResultOpened | IStrategyTickResultClosed, void, unknown>;
+    }) => AsyncGenerator<IStrategyTickResultOpened | IStrategyTickResultClosed | IStrategyTickResultCancelled, void, unknown>;
 }
 
 /**
@@ -16875,7 +16906,7 @@ declare class LiveCommandService implements TLiveLogicPublicService {
     run: (symbol: string, context: {
         strategyName: StrategyName;
         exchangeName: ExchangeName;
-    }) => AsyncGenerator<IStrategyTickResultOpened | IStrategyTickResultClosed, void, unknown>;
+    }) => AsyncGenerator<IStrategyTickResultOpened | IStrategyTickResultClosed | IStrategyTickResultCancelled, void, unknown>;
 }
 
 /**
@@ -18784,4 +18815,4 @@ declare const backtest: {
     loggerService: LoggerService;
 };
 
-export { ActionBase, type ActivePingContract, Backtest, type BacktestDoneNotification, type BacktestStatisticsModel, type BootstrapNotification, Breakeven, type BreakevenContract, type BreakevenData, Cache, type CandleInterval, type ColumnConfig, type ColumnModel, Constant, type CriticalErrorNotification, type DoneContract, type EntityId, Exchange, ExecutionContextService, type FrameInterval, type GlobalConfig, Heat, type HeatmapStatisticsModel, type IBidData, type ICandleData, type IExchangeSchema, type IFrameSchema, type IHeatmapRow, type IMarkdownDumpOptions, type IOptimizerCallbacks, type IOptimizerData, type IOptimizerFetchArgs, type IOptimizerFilterArgs, type IOptimizerRange, type IOptimizerSchema, type IOptimizerSource, type IOptimizerStrategy, type IOptimizerTemplate, type IOrderBookData, type IPersistBase, type IPositionSizeATRParams, type IPositionSizeFixedPercentageParams, type IPositionSizeKellyParams, type IPublicSignalRow, type IReportDumpOptions, type IRiskActivePosition, type IRiskCheckArgs, type IRiskSchema, type IRiskValidation, type IRiskValidationFn, type IRiskValidationPayload, type IScheduledSignalCancelRow, type IScheduledSignalRow, type ISignalDto, type ISignalRow, type ISizingCalculateParams, type ISizingCalculateParamsATR, type ISizingCalculateParamsFixedPercentage, type ISizingCalculateParamsKelly, type ISizingSchema, type ISizingSchemaATR, type ISizingSchemaFixedPercentage, type ISizingSchemaKelly, type IStrategyPnL, type IStrategyResult, type IStrategySchema, type IStrategyTickResult, type IStrategyTickResultActive, type IStrategyTickResultCancelled, type IStrategyTickResultClosed, type IStrategyTickResultIdle, type IStrategyTickResultOpened, type IStrategyTickResultScheduled, type IWalkerResults, type IWalkerSchema, type IWalkerStrategyResult, type InfoErrorNotification, Live, type LiveDoneNotification, type LiveStatisticsModel, Markdown, MarkdownFileBase, MarkdownFolderBase, type MarkdownName, type MessageModel, type MessageRole, MethodContextService, type MetricStats, Notification, type NotificationModel, Optimizer, Partial$1 as Partial, type PartialData, type PartialEvent, type PartialLossContract, type PartialLossNotification, type PartialProfitContract, type PartialProfitNotification, type PartialStatisticsModel, Performance, type PerformanceContract, type PerformanceMetricType, type PerformanceStatisticsModel, PersistBase, PersistBreakevenAdapter, PersistPartialAdapter, PersistRiskAdapter, PersistScheduleAdapter, PersistSignalAdapter, PositionSize, type ProgressBacktestContract, type ProgressBacktestNotification, type ProgressOptimizerContract, type ProgressWalkerContract, Report, ReportBase, type ReportName, Risk, type RiskContract, type RiskData, type RiskEvent, type RiskRejectionNotification, type RiskStatisticsModel, Schedule, type ScheduleData, type SchedulePingContract, type ScheduleStatisticsModel, type ScheduledEvent, type SignalCancelledNotification, type SignalClosedNotification, type SignalData, type SignalInterval, type SignalOpenedNotification, type SignalScheduledNotification, type TMarkdownBase, type TPersistBase, type TPersistBaseCtor, type TReportBase, type TickEvent, type ValidationErrorNotification, Walker, type WalkerCompleteContract, type WalkerContract, type WalkerMetric, type SignalData$1 as WalkerSignalData, type WalkerStatisticsModel, addActionSchema, addExchangeSchema, addFrameSchema, addOptimizerSchema, addRiskSchema, addSizingSchema, addStrategySchema, addWalkerSchema, breakeven, cancel, dumpSignalData, emitters, formatPrice, formatQuantity, get, getActionSchema, getAveragePrice, getBacktestTimeframe, getCandles, getColumns, getConfig, getContext, getDate, getDefaultColumns, getDefaultConfig, getExchangeSchema, getFrameSchema, getMode, getOptimizerSchema, getOrderBook, getRiskSchema, getSizingSchema, getStrategySchema, getSymbol, getWalkerSchema, hasTradeContext, backtest as lib, listExchangeSchema, listFrameSchema, listOptimizerSchema, listRiskSchema, listSizingSchema, listStrategySchema, listWalkerSchema, listenActivePing, listenActivePingOnce, listenBacktestProgress, listenBreakevenAvailable, listenBreakevenAvailableOnce, listenDoneBacktest, listenDoneBacktestOnce, listenDoneLive, listenDoneLiveOnce, listenDoneWalker, listenDoneWalkerOnce, listenError, listenExit, listenOptimizerProgress, listenPartialLossAvailable, listenPartialLossAvailableOnce, listenPartialProfitAvailable, listenPartialProfitAvailableOnce, listenPerformance, listenRisk, listenRiskOnce, listenSchedulePing, listenSchedulePingOnce, listenSignal, listenSignalBacktest, listenSignalBacktestOnce, listenSignalLive, listenSignalLiveOnce, listenSignalOnce, listenValidation, listenWalker, listenWalkerComplete, listenWalkerOnce, listenWalkerProgress, overrideActionSchema, overrideExchangeSchema, overrideFrameSchema, overrideOptimizerSchema, overrideRiskSchema, overrideSizingSchema, overrideStrategySchema, overrideWalkerSchema, partialLoss, partialProfit, roundTicks, set, setColumns, setConfig, setLogger, stop, trailingStop, trailingTake, validate };
+export { ActionBase, type ActivePingContract, Backtest, type BacktestDoneNotification, type BacktestStatisticsModel, type BootstrapNotification, Breakeven, type BreakevenContract, type BreakevenData, Cache, type CandleInterval, type ColumnConfig, type ColumnModel, Constant, type CriticalErrorNotification, type DoneContract, type EntityId, Exchange, ExecutionContextService, type FrameInterval, type GlobalConfig, Heat, type HeatmapStatisticsModel, type IBidData, type ICandleData, type IExchangeSchema, type IFrameSchema, type IHeatmapRow, type IMarkdownDumpOptions, type IOptimizerCallbacks, type IOptimizerData, type IOptimizerFetchArgs, type IOptimizerFilterArgs, type IOptimizerRange, type IOptimizerSchema, type IOptimizerSource, type IOptimizerStrategy, type IOptimizerTemplate, type IOrderBookData, type IPersistBase, type IPositionSizeATRParams, type IPositionSizeFixedPercentageParams, type IPositionSizeKellyParams, type IPublicSignalRow, type IReportDumpOptions, type IRiskActivePosition, type IRiskCheckArgs, type IRiskSchema, type IRiskValidation, type IRiskValidationFn, type IRiskValidationPayload, type IScheduledSignalCancelRow, type IScheduledSignalRow, type ISignalDto, type ISignalRow, type ISizingCalculateParams, type ISizingCalculateParamsATR, type ISizingCalculateParamsFixedPercentage, type ISizingCalculateParamsKelly, type ISizingSchema, type ISizingSchemaATR, type ISizingSchemaFixedPercentage, type ISizingSchemaKelly, type IStrategyPnL, type IStrategyResult, type IStrategySchema, type IStrategyTickResult, type IStrategyTickResultActive, type IStrategyTickResultCancelled, type IStrategyTickResultClosed, type IStrategyTickResultIdle, type IStrategyTickResultOpened, type IStrategyTickResultScheduled, type IWalkerResults, type IWalkerSchema, type IWalkerStrategyResult, type InfoErrorNotification, Live, type LiveDoneNotification, type LiveStatisticsModel, Markdown, MarkdownFileBase, MarkdownFolderBase, type MarkdownName, type MessageModel, type MessageRole, MethodContextService, type MetricStats, Notification, type NotificationModel, Optimizer, Partial$1 as Partial, type PartialData, type PartialEvent, type PartialLossContract, type PartialLossNotification, type PartialProfitContract, type PartialProfitNotification, type PartialStatisticsModel, Performance, type PerformanceContract, type PerformanceMetricType, type PerformanceStatisticsModel, PersistBase, PersistBreakevenAdapter, PersistPartialAdapter, PersistRiskAdapter, PersistScheduleAdapter, PersistSignalAdapter, PositionSize, type ProgressBacktestContract, type ProgressBacktestNotification, type ProgressOptimizerContract, type ProgressWalkerContract, Report, ReportBase, type ReportName, Risk, type RiskContract, type RiskData, type RiskEvent, type RiskRejectionNotification, type RiskStatisticsModel, Schedule, type ScheduleData, type SchedulePingContract, type ScheduleStatisticsModel, type ScheduledEvent, type SignalCancelledNotification, type SignalClosedNotification, type SignalData, type SignalInterval, type SignalOpenedNotification, type SignalScheduledNotification, type TMarkdownBase, type TPersistBase, type TPersistBaseCtor, type TReportBase, type TickEvent, type ValidationErrorNotification, Walker, type WalkerCompleteContract, type WalkerContract, type WalkerMetric, type SignalData$1 as WalkerSignalData, type WalkerStatisticsModel, addActionSchema, addExchangeSchema, addFrameSchema, addOptimizerSchema, addRiskSchema, addSizingSchema, addStrategySchema, addWalkerSchema, commitBreakeven, commitCancel, commitPartialLoss, commitPartialProfit, commitStop, commitTrailingStop, commitTrailingTake, dumpSignalData, emitters, formatPrice, formatQuantity, get, getActionSchema, getAveragePrice, getBacktestTimeframe, getCandles, getColumns, getConfig, getContext, getDate, getDefaultColumns, getDefaultConfig, getExchangeSchema, getFrameSchema, getMode, getOptimizerSchema, getOrderBook, getRiskSchema, getSizingSchema, getStrategySchema, getSymbol, getWalkerSchema, hasTradeContext, backtest as lib, listExchangeSchema, listFrameSchema, listOptimizerSchema, listRiskSchema, listSizingSchema, listStrategySchema, listWalkerSchema, listenActivePing, listenActivePingOnce, listenBacktestProgress, listenBreakevenAvailable, listenBreakevenAvailableOnce, listenDoneBacktest, listenDoneBacktestOnce, listenDoneLive, listenDoneLiveOnce, listenDoneWalker, listenDoneWalkerOnce, listenError, listenExit, listenOptimizerProgress, listenPartialLossAvailable, listenPartialLossAvailableOnce, listenPartialProfitAvailable, listenPartialProfitAvailableOnce, listenPerformance, listenRisk, listenRiskOnce, listenSchedulePing, listenSchedulePingOnce, listenSignal, listenSignalBacktest, listenSignalBacktestOnce, listenSignalLive, listenSignalLiveOnce, listenSignalOnce, listenValidation, listenWalker, listenWalkerComplete, listenWalkerOnce, listenWalkerProgress, overrideActionSchema, overrideExchangeSchema, overrideFrameSchema, overrideOptimizerSchema, overrideRiskSchema, overrideSizingSchema, overrideStrategySchema, overrideWalkerSchema, roundTicks, set, setColumns, setConfig, setLogger, validate };

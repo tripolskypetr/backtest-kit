@@ -4,13 +4,13 @@ import backtest, {
 } from "../lib";
 import { getAveragePrice } from "./exchange";
 
-const STOP_METHOD_NAME = "strategy.stop";
-const CANCEL_METHOD_NAME = "strategy.cancel";
-const PARTIAL_PROFIT_METHOD_NAME = "strategy.partialProfit";
-const PARTIAL_LOSS_METHOD_NAME = "strategy.partialLoss";
-const TRAILING_STOP_METHOD_NAME = "strategy.trailingStop";
-const TRAILING_PROFIT_METHOD_NAME = "strategy.trailingTake";
-const BREAKEVEN_METHOD_NAME = "strategy.breakeven";
+const STOP_METHOD_NAME = "strategy.commitStop";
+const CANCEL_METHOD_NAME = "strategy.commitCancel";
+const PARTIAL_PROFIT_METHOD_NAME = "strategy.commitPartialProfit";
+const PARTIAL_LOSS_METHOD_NAME = "strategy.commitPartialLoss";
+const TRAILING_STOP_METHOD_NAME = "strategy.commitTrailingStop";
+const TRAILING_PROFIT_METHOD_NAME = "strategy.commitTrailingTake";
+const BREAKEVEN_METHOD_NAME = "strategy.commitBreakeven";
 
 /**
  * Stops the strategy from generating new signals.
@@ -33,7 +33,7 @@ const BREAKEVEN_METHOD_NAME = "strategy.breakeven";
  * await stop("BTCUSDT", "my-strategy");
  * ```
  */
-export async function stop(symbol: string): Promise<void> {
+export async function commitStop(symbol: string): Promise<void> {
   backtest.loggerService.info(STOP_METHOD_NAME, {
     symbol,
   });
@@ -75,7 +75,7 @@ export async function stop(symbol: string): Promise<void> {
  * await cancel("BTCUSDT", "my-strategy", "manual-cancel-001");
  * ```
  */
-export async function cancel(symbol: string, cancelId?: string): Promise<void> {
+export async function commitCancel(symbol: string, cancelId?: string): Promise<void> {
   backtest.loggerService.info(CANCEL_METHOD_NAME, {
     symbol,
     cancelId,
@@ -124,7 +124,7 @@ export async function cancel(symbol: string, cancelId?: string): Promise<void> {
  * }
  * ```
  */
-export async function partialProfit(
+export async function commitPartialProfit(
   symbol: string,
   percentToClose: number,
 ): Promise<boolean> {
@@ -178,7 +178,7 @@ export async function partialProfit(
  * }
  * ```
  */
-export async function partialLoss(
+export async function commitPartialLoss(
   symbol: string,
   percentToClose: number,
 ): Promise<boolean> {
@@ -248,7 +248,7 @@ export async function partialLoss(
  * // success3 = true (ACCEPTED: newDistance = 10% - 7% = 3%, newSL = 97 > 95, better protection)
  * ```
  */
-export async function trailingStop(
+export async function commitTrailingStop(
   symbol: string,
   percentShift: number,
   currentPrice: number,
@@ -319,7 +319,7 @@ export async function trailingStop(
  * // success3 = true (ACCEPTED: newDistance = 10% - 5% = 5%, newTP = 105 < 107, more conservative)
  * ```
  */
-export async function trailingTake(
+export async function commitTrailingTake(
   symbol: string,
   percentShift: number,
   currentPrice: number,
@@ -372,7 +372,7 @@ export async function trailingTake(
  * }
  * ```
  */
-export async function breakeven(symbol: string): Promise<boolean> {
+export async function commitBreakeven(symbol: string): Promise<boolean> {
   backtest.loggerService.info(BREAKEVEN_METHOD_NAME, {
     symbol,
   });
@@ -393,5 +393,3 @@ export async function breakeven(symbol: string): Promise<boolean> {
     { exchangeName, frameName, strategyName }
   );
 }
-
-export default { stop, cancel, partialProfit, partialLoss, trailingStop, trailingTake, breakeven };
