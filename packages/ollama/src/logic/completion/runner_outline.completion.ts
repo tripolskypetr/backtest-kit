@@ -3,7 +3,7 @@ import { CompletionName } from "../../enum/CompletionName";
 import { engine } from "../../lib";
 import { timeout } from "functools-kit";
 
-const INFERENCE_TIMEOUT = 30_000;
+const INFERENCE_TIMEOUT = 35_000;
 
 const LOCAL_RUNNER_FN = timeout(async (params: IOutlineCompletionArgs) => {
   return await engine.runnerPrivateService.getOutlineCompletion(params);

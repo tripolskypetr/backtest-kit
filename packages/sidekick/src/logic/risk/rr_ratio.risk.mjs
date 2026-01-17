@@ -1,7 +1,7 @@
-import { addRisk } from "backtest-kit";
+import { addRiskSchema } from "backtest-kit";
 import RiskName from "../../enum/RiskName.mjs";
 
-addRisk({
+addRiskSchema({
   riskName: RiskName.RiskRewardRatioRisk,
   validations: [
     {
