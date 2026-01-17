@@ -3810,7 +3810,15 @@ export class ClientStrategy implements IStrategy {
       }
 
       if (activated) {
-        const remainingCandles = candles.slice(activationIndex + 1);
+        // КРИТИЧНО: activationIndex - индекс свечи активации в массиве candles
+        // BacktestLogicPrivateService включил буфер в начало массива, поэтому перед activationIndex достаточно свечей
+        // PROCESS_PENDING_SIGNAL_CANDLES_FN пропустит первые bufferCandlesCount свечей для VWAP
+        // Чтобы обработка началась со СЛЕДУЮЩЕЙ свечи после активации (activationIndex + 1),
+        // нужно взять срез начиная с (activationIndex + 1 - bufferCandlesCount)
+        // Это даст буфер ИЗ scheduled фазы + свеча после активации как первая обрабатываемая
+        const bufferCandlesCount = GLOBAL_CONFIG.CC_AVG_PRICE_CANDLES_COUNT - 1;
+        const sliceStart = Math.max(0, activationIndex + 1 - bufferCandlesCount);
+        const remainingCandles = candles.slice(sliceStart);
 
         if (remainingCandles.length === 0) {
           const candlesCount = GLOBAL_CONFIG.CC_AVG_PRICE_CANDLES_COUNT;
@@ -3844,18 +3852,22 @@ export class ClientStrategy implements IStrategy {
           // In real backtest flow this won't happen as we process all candles at once
           // This indicates incorrect usage of backtest() - throw error instead of returning partial result
           const bufferCandlesCount = GLOBAL_CONFIG.CC_AVG_PRICE_CANDLES_COUNT - 1;
-          const requiredCandlesCount = Math.ceil(maxTimeToWait / 60000) + bufferCandlesCount;
+          // For scheduled signal: buffer + wait + lifetime (second buffer reuses scheduled phase candles via slice)
+          const requiredCandlesCount = bufferCandlesCount + GLOBAL_CONFIG.CC_SCHEDULE_AWAIT_MINUTES + scheduled.minuteEstimatedTime;
           throw new Error(
             str.newline(
-              `ClientStrategy backtest: Insufficient candle data for scheduled signal. ` +
+              `ClientStrategy backtest: Insufficient candle data for scheduled signal (not yet activated). ` +
               `Signal scheduled at ${new Date(scheduled.scheduledAt).toISOString()}, ` +
               `last candle at ${new Date(lastCandleTimestamp).toISOString()}. ` +
-              `Elapsed: ${Math.floor(elapsedTime / 60000)}min of ${GLOBAL_CONFIG.CC_SCHEDULE_AWAIT_MINUTES}min required. ` +
+              `Elapsed: ${Math.floor(elapsedTime / 60000)}min of ${GLOBAL_CONFIG.CC_SCHEDULE_AWAIT_MINUTES}min wait time. ` +
               `Provided ${candles.length} candles, but need at least ${requiredCandlesCount} candles. ` +
-              `\nBreakdown: ${Math.ceil(maxTimeToWait / 60000)} candles for signal lifetime + ${bufferCandlesCount} buffer candles. ` +
+              `\nBreakdown: ` +
+              `${bufferCandlesCount} buffer (VWAP) + ` +
+              `${GLOBAL_CONFIG.CC_SCHEDULE_AWAIT_MINUTES} wait (for activation) + ` +
+              `${scheduled.minuteEstimatedTime} lifetime = ${requiredCandlesCount} total. ` +
               `\nBuffer explanation: VWAP calculation requires ${GLOBAL_CONFIG.CC_AVG_PRICE_CANDLES_COUNT} candles, ` +
-              `so first ${bufferCandlesCount} candles are skipped to ensure accurate price averaging. ` +
-              `Provide complete candle range: [scheduledAt - ${bufferCandlesCount}min, scheduledAt + ${GLOBAL_CONFIG.CC_SCHEDULE_AWAIT_MINUTES}min].`
+              `so first ${bufferCandlesCount} candles are skipped. After activation, buffer is reused from scheduled phase. ` +
+              `Provide complete candle range: [scheduledAt - ${bufferCandlesCount}min, scheduledAt + ${GLOBAL_CONFIG.CC_SCHEDULE_AWAIT_MINUTES + scheduled.minuteEstimatedTime}min].`
             )
           );
         }
