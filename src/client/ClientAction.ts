@@ -329,6 +329,7 @@ const CREATE_HANDLER_FN = (self: ClientAction): Partial<IPublicAction> => {
       self.params.strategyName,
       self.params.frameName,
       self.params.actionName,
+      self.params.backtest,
     ]);
   }
   return self.params.handler;

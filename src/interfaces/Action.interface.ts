@@ -36,7 +36,7 @@ import { ExchangeName } from "./Exchange.interface";
  * const actionCtors: TActionCtor[] = [TelegramNotifier, ReduxLogger];
  * ```
  */
-export type TActionCtor = new (strategyName: StrategyName, frameName: FrameName, actionName: ActionName) => Partial<IPublicAction>;
+export type TActionCtor = new (strategyName: StrategyName, frameName: FrameName, actionName: ActionName, backtest: boolean) => Partial<IPublicAction>;
 
 /**
  * Action parameters passed to ClientAction constructor.

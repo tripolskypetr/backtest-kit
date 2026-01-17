@@ -2333,7 +2333,7 @@ interface RiskContract {
  * const actionCtors: TActionCtor[] = [TelegramNotifier, ReduxLogger];
  * ```
  */
-type TActionCtor = new (strategyName: StrategyName, frameName: FrameName, actionName: ActionName) => Partial<IPublicAction>;
+type TActionCtor = new (strategyName: StrategyName, frameName: FrameName, actionName: ActionName, backtest: boolean) => Partial<IPublicAction>;
 /**
  * Action parameters passed to ClientAction constructor.
  * Combines schema with runtime dependencies and execution context.
@@ -13268,14 +13268,16 @@ declare class ActionBase implements IPublicAction {
     readonly strategyName: StrategyName;
     readonly frameName: FrameName;
     readonly actionName: ActionName;
+    readonly backtest: boolean;
     /**
      * Creates a new ActionBase instance.
      *
      * @param strategyName - Strategy identifier this action is attached to
      * @param frameName - Timeframe identifier this action is attached to
      * @param actionName - Action identifier
+     * @param backtest - If running in backtest
      */
-    constructor(strategyName: StrategyName, frameName: FrameName, actionName: ActionName);
+    constructor(strategyName: StrategyName, frameName: FrameName, actionName: ActionName, backtest: boolean);
     /**
      * Initializes the action handler.
      *

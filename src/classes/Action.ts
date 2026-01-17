@@ -141,11 +141,13 @@ class ActionBase implements IPublicAction {
    * @param strategyName - Strategy identifier this action is attached to
    * @param frameName - Timeframe identifier this action is attached to
    * @param actionName - Action identifier
+   * @param backtest - If running in backtest
    */
   constructor(
     public readonly strategyName: StrategyName,
     public readonly frameName: FrameName,
-    public readonly actionName: ActionName
+    public readonly actionName: ActionName,
+    public readonly backtest: boolean
   ) {}
 
   /**
