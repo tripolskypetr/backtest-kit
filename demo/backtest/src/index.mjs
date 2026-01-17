@@ -1,9 +1,9 @@
 import ccxt from "ccxt";
 import {
-    addExchange,
-    addStrategy,
-    addFrame,
-    addRisk,
+    addExchangeSchema,
+    addStrategySchema,
+    addFrameSchema,
+    addRiskSchema,
     Backtest,
     Partial,
     Risk,
@@ -12,9 +12,9 @@ import {
     listenBacktestProgress,
     listenError,
     listenRisk,
-    listenPartialLoss,
-    listenPartialProfit,
-    dumpSignal,
+    listenPartialLossAvailable,
+    listenPartialProfitAvailable,
+    dumpSignalData,
     Markdown,
 } from "backtest-kit";
 import { v4 as uuid } from "uuid";
@@ -24,7 +24,7 @@ import { getMessages } from "./utils/messages.mjs";
 
 Markdown.enable();
 
-addExchange({
+addExchangeSchema({
     exchangeName: "test_exchange",
     getCandles: async (symbol, interval, since, limit) => {
         const exchange = new ccxt.binance();
@@ -37,7 +37,7 @@ addExchange({
     formatQuantity: async (symbol, quantity) => quantity.toFixed(8),
 });
 
-addRisk({
+addRiskSchema({
     riskName: "demo_risk",
     validations: [
         {
@@ -84,14 +84,14 @@ addRisk({
     ],
 });
 
-addFrame({
+addFrameSchema({
     frameName: "test_frame",
     interval: "1m",
     startDate: new Date("2025-12-01T00:00:00.000Z"),
     endDate: new Date("2025-12-01T23:59:59.000Z"),
 });
 
-addStrategy({
+addStrategySchema({
     strategyName: "test_strategy",
     interval: "5m",
     riskName: "demo_risk",
@@ -101,7 +101,7 @@ addStrategy({
 
         const resultId = uuid();
         const result = await json(messages);
-        await dumpSignal(resultId, messages, result);
+        await dumpSignalData(resultId, messages, result);
 
         result.id = resultId;
 
@@ -141,7 +141,7 @@ listenRisk(async (event) => {
     });
 });
 
-listenPartialLoss(async (event) => {
+listenPartialLossAvailable(async (event) => {
     await Partial.dump(event.symbol, {
         strategyName: event.strategyName,
         exchangeName: event.exchangeName,
@@ -149,7 +149,7 @@ listenPartialLoss(async (event) => {
     });
 });
 
-listenPartialProfit(async (event) => {
+listenPartialProfitAvailable(async (event) => {
     await Partial.dump(event.symbol, {
         strategyName: event.strategyName,
         exchangeName: event.exchangeName,

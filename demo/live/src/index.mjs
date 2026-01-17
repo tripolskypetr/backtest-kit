@@ -1,21 +1,21 @@
 import ccxt from "ccxt";
 import {
-    addExchange,
-    addStrategy,
-    addFrame,
-    addRisk,
+    addExchangeSchema,
+    addStrategySchema,
+    addFrameSchema,
+    addRiskSchema,
     Live,
     Partial,
     Schedule,
     Risk,
     Constant,
     listenSignalLive,
-    listenPartialProfit,
-    listenPartialLoss,
+    listenPartialProfitAvailable,
+    listenPartialLossAvailable,
     listenError,
     listenRisk,
-    listenBreakeven,
-    dumpSignal,
+    listenBreakevenAvailable,
+    dumpSignalData,
     Breakeven,
     Markdown,
 } from "backtest-kit";
@@ -26,7 +26,7 @@ import { getMessages } from "./utils/messages.mjs";
 
 Markdown.enable();
 
-addExchange({
+addExchangeSchema ({
     exchangeName: "test_exchange",
     getCandles: async (symbol, interval, since, limit) => {
         const exchange = new ccxt.binance();
@@ -39,7 +39,7 @@ addExchange({
     formatQuantity: async (symbol, quantity) => quantity.toFixed(8),
 });
 
-addRisk({
+addRiskSchema({
     riskName: "demo_risk",
     validations: [
         {
@@ -82,14 +82,14 @@ addRisk({
     ],
 });
 
-addFrame({
+addFrameSchema({
     frameName: "test_frame",
     interval: "1m",
     startDate: new Date("2025-12-01T00:00:00.000Z"),
     endDate: new Date("2025-12-01T23:59:59.000Z"),
 });
 
-addStrategy({
+addStrategySchema({
     strategyName: "test_strategy",
     interval: "5m",
     riskName: "demo_risk",
@@ -99,7 +99,7 @@ addStrategy({
 
         const resultId = uuid();
         const result = await json(messages);
-        await dumpSignal(resultId, messages, result);
+        await dumpSignalData(resultId, messages, result);
 
         result.id = resultId;
 
@@ -149,7 +149,7 @@ listenSignalLive(async (event) => {
     console.log(event);
 });
 
-listenBreakeven(async (event) => {
+listenBreakevenAvailable(async (event) => {
     await Breakeven.dump(event.symbol, {
         strategyName: event.strategyName,
         exchangeName: event.exchangeName,
@@ -169,7 +169,7 @@ listenError((error) => {
     console.error("Error occurred:", error);
 });
 
-listenPartialProfit(({ symbol, price, level }) => {
+listenPartialProfitAvailable(({ symbol, price, level }) => {
   console.log(`${symbol} reached ${level}% profit at ${price}`);
   if (level === Constant.TP_LEVEL3) {
     console.log("Close 33% at 90% profit");
@@ -182,7 +182,7 @@ listenPartialProfit(({ symbol, price, level }) => {
   }
 });
 
-listenPartialLoss(({ symbol, price, level }) => {
+listenPartialLossAvailable(({ symbol, price, level }) => {
   console.log(`${symbol} reached -${level}% loss at ${price}`);
 
   // Scale out at stop levels

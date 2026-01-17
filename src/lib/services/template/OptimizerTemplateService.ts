@@ -46,10 +46,10 @@ export class OptimizerTemplateService implements IOptimizerTemplate {
       `import { Ollama } from "ollama";`,
       `import ccxt from "ccxt";`,
       `import {`,
-      `    addExchange,`,
-      `    addStrategy,`,
-      `    addFrame,`,
-      `    addWalker,`,
+      `    addExchangeSchema,`,
+      `    addStrategySchema,`,
+      `    addFrameSchema,`,
+      `    addWalkerSchema,`,
       `    Walker,`,
       `    Backtest,`,
       `    getCandles,`,
@@ -153,7 +153,7 @@ export class OptimizerTemplateService implements IOptimizerTemplate {
     );
 
     return [
-      `addWalker({`,
+      `addWalkerSchema({`,
       `    walkerName: "${escapedWalkerName}",`,
       `    exchangeName: "${escapedExchangeName}",`,
       `    frameName: "${escapedFrameName}",`,
@@ -198,7 +198,7 @@ export class OptimizerTemplateService implements IOptimizerTemplate {
       .replace(/\$/g, '\\$');
 
     return [
-      `addStrategy({`,
+      `addStrategySchema({`,
       `    strategyName: "${escapedStrategyName}",`,
       `    interval: "${escapedInterval}",`,
       `    getSignal: async (symbol) => {`,
@@ -332,7 +332,7 @@ export class OptimizerTemplateService implements IOptimizerTemplate {
       .replace(/"/g, '\\"');
 
     return [
-      `addExchange({`,
+      `addExchangeSchema({`,
       `    exchangeName: "${escapedExchangeName}",`,
       `    getCandles: async (symbol, interval, since, limit) => {`,
       `        const exchange = new ccxt.binance();`,
@@ -381,7 +381,7 @@ export class OptimizerTemplateService implements IOptimizerTemplate {
       .replace(/"/g, '\\"');
 
     return [
-      `addFrame({`,
+      `addFrameSchema({`,
       `    frameName: "${escapedFrameName}",`,
       `    interval: "${escapedInterval}",`,
       `    startDate: new Date("${startDate.toISOString()}"),`,
