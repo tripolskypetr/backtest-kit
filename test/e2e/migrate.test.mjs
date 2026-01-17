@@ -193,13 +193,19 @@ test("ACTION: ActionBase.breakeven() called when breakeven reached", async ({ pa
   const breakevenEvents = [];
 
   class TestActionBreakeven extends ActionBase {
-    breakeven(event) {
-      super.breakeven(event);
+    breakevenAvailable(event) {
+      console.log("[TestActionBreakeven] breakevenAvailable() called!", { symbol: event.symbol, currentPrice: event.currentPrice });
+      super.breakevenAvailable(event);
       breakevenEvents.push({
         symbol: event.symbol,
         currentPrice: event.currentPrice,
         strategyName: event.strategyName,
       });
+    }
+
+    signal(event) {
+      console.log("[TestActionBreakeven] signal() called!", { action: event.action, state: event.state });
+      super.signal(event);
     }
   }
 
@@ -354,8 +360,8 @@ test("ACTION: ActionBase.partialProfit() called on profit levels", async ({ pass
   const partialProfitEvents = [];
 
   class TestActionPartialProfit extends ActionBase {
-    partialProfit(event) {
-      super.partialProfit(event);
+    partialProfitAvailable(event) {
+      super.partialProfitAvailable(event);
       partialProfitEvents.push({
         symbol: event.symbol,
         level: event.level,
@@ -516,8 +522,8 @@ test("ACTION: ActionBase.partialLoss() called on loss levels", async ({ pass, fa
   const partialLossEvents = [];
 
   class TestActionPartialLoss extends ActionBase {
-    partialLoss(event) {
-      super.partialLoss(event);
+    partialLossAvailable(event) {
+      super.partialLossAvailable(event);
       partialLossEvents.push({
         symbol: event.symbol,
         level: event.level,
