@@ -1864,7 +1864,7 @@ test("Cancel scheduled signal after 5 listenPing events in backtest", async ({ p
     frameName: "30m-listen-ping-test",
     interval: "1m",
     startDate: new Date("2024-01-01T00:00:00Z"),
-    endDate: new Date("2024-01-01T00:30:00Z"),
+    endDate: new Date("2024-01-01T01:10:00Z"),
   });
 
   const awaitSubject = new Subject();
@@ -2162,8 +2162,8 @@ test("SHUTDOWN: Backtest.stop() during active signal - signal completes first", 
           });
         }
 
-        // Generate candles for full test duration (120 minutes = 2 hours)
-        for (let i = 0; i < 120; i++) {
+        // Generate candles for full test duration (минимум 125 для minuteEstimatedTime=120)
+        for (let i = 0; i < 130; i++) {
           const timestamp = startTime + i * intervalMs;
 
           if (i < 3) {
@@ -2232,10 +2232,10 @@ test("SHUTDOWN: Backtest.stop() during active signal - signal completes first", 
   });
 
   addFrameSchema({
-    frameName: "60m-shutdown-1",
+    frameName: "130m-shutdown-1",
     interval: "1m",
     startDate: new Date("2024-01-01T00:00:00Z"),
-    endDate: new Date("2024-01-01T02:00:00Z"), // 120 minutes - enough time to stop during active signal
+    endDate: new Date("2024-01-01T02:10:00Z"), // 130 minutes
   });
 
   const awaitSubject = new Subject();
@@ -2251,7 +2251,7 @@ test("SHUTDOWN: Backtest.stop() during active signal - signal completes first", 
   Backtest.background("BTCUSDT", {
     strategyName: "test-shutdown-1",
     exchangeName: "binance-shutdown-1",
-    frameName: "60m-shutdown-1",
+    frameName: "130m-shutdown-1",
   });
 
   // console.log("[TEST #1] Waiting for awaitSubject.toPromise()");
@@ -2339,7 +2339,7 @@ test("SHUTDOWN: Walker.stop() - all strategies stop", async ({ pass, fail }) => 
         if (allCandles.length === 5) {
           allCandles = [];
 
-          for (let i = 0; i < 30; i++) {
+          for (let i = 0; i < 70; i++) {
             const timestamp = startTime + i * intervalMs;
 
             if (i < 5) {
@@ -2371,10 +2371,10 @@ test("SHUTDOWN: Walker.stop() - all strategies stop", async ({ pass, fail }) => 
   }
 
   addFrameSchema({
-    frameName: "30m-shutdown-6",
+    frameName: "70m-shutdown-6",
     interval: "1m",
     startDate: new Date("2024-01-01T00:00:00Z"),
-    endDate: new Date("2024-01-01T00:30:00Z"),
+    endDate: new Date("2024-01-01T01:10:00Z"),
   });
 
   const awaitSubject = new Subject();
@@ -2383,7 +2383,7 @@ test("SHUTDOWN: Walker.stop() - all strategies stop", async ({ pass, fail }) => 
   addWalkerSchema({
     walkerName: "test-walker-shutdown",
     exchangeName: "binance-shutdown-6",
-    frameName: "30m-shutdown-6",
+    frameName: "70m-shutdown-6",
     strategies: ["test-shutdown-walker-1", "test-shutdown-walker-2", "test-shutdown-walker-3"],
     callbacks: {
       onStrategyComplete: async (strategyName) => {
@@ -2498,7 +2498,7 @@ test("SHUTDOWN: Two walkers on same symbol - stop one doesn't affect other", asy
         if (allCandles.length === 5) {
           allCandles = [];
 
-          for (let i = 0; i < 30; i++) {
+          for (let i = 0; i < 70; i++) {
             const timestamp = startTime + i * intervalMs;
             allCandles.push({ timestamp, open: basePrice, high: basePrice + 100, low: basePrice - 100, close: basePrice, volume: 100 });
           }
@@ -2548,10 +2548,10 @@ test("SHUTDOWN: Two walkers on same symbol - stop one doesn't affect other", asy
   }
 
   addFrameSchema({
-    frameName: "30m-shutdown-7",
+    frameName: "70m-shutdown-7",
     interval: "1m",
     startDate: new Date("2024-01-01T00:00:00Z"),
-    endDate: new Date("2024-01-01T00:30:00Z"),
+    endDate: new Date("2024-01-01T01:10:00Z"),
   });
 
   let walkerAStopCalled = false;
@@ -2559,7 +2559,7 @@ test("SHUTDOWN: Two walkers on same symbol - stop one doesn't affect other", asy
   addWalkerSchema({
     walkerName: "test-walkerA",
     exchangeName: "binance-shutdown-7",
-    frameName: "30m-shutdown-7",
+    frameName: "70m-shutdown-7",
     strategies: ["test-shutdown-walkerA-1", "test-shutdown-walkerA-2"],
     callbacks: {
       onStrategyComplete: async (strategyName) => {
@@ -2577,7 +2577,7 @@ test("SHUTDOWN: Two walkers on same symbol - stop one doesn't affect other", asy
   addWalkerSchema({
     walkerName: "test-walkerB",
     exchangeName: "binance-shutdown-7",
-    frameName: "30m-shutdown-7",
+    frameName: "70m-shutdown-7",
     strategies: ["test-shutdown-walkerB-1", "test-shutdown-walkerB-2"],
   });
 
@@ -5745,7 +5745,7 @@ test("PARTIAL FUNCTION: partialProfit() works for SHORT position", async ({ pass
         });
       }
 
-      for (let i = 0; i < 130; i++) {
+      for (let i = 0; i < 135; i++) {
         const timestamp = startTime + i * intervalMs;
 
         if (i < 5) {
@@ -6085,7 +6085,7 @@ test("DEFEND: Extreme volatility - price crosses both TP and SL in single candle
     frameName: "30m-defend-extreme-volatility",
     interval: "1m",
     startDate: new Date("2024-01-01T00:00:00Z"),
-    endDate: new Date("2024-01-01T00:30:00Z"),
+    endDate: new Date("2024-01-01T01:10:00Z"),
   });
 
   const awaitSubject = new Subject();
