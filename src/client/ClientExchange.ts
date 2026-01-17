@@ -298,9 +298,20 @@ export class ClientExchange implements IExchange {
         candle.timestamp >= sinceTimestamp && candle.timestamp <= whenTimestamp
     );
 
-    if (filteredData.length < limit) {
+    // Apply distinct by timestamp to remove duplicates
+    const uniqueData = Array.from(
+      new Map(filteredData.map((candle) => [candle.timestamp, candle])).values()
+    );
+
+    if (filteredData.length !== uniqueData.length) {
       this.params.logger.warn(
-        `ClientExchange Expected ${limit} candles, got ${filteredData.length}`
+        `ClientExchange Removed ${filteredData.length - uniqueData.length} duplicate candles by timestamp`
+      );
+    }
+
+    if (uniqueData.length < limit) {
+      this.params.logger.warn(
+        `ClientExchange Expected ${limit} candles, got ${uniqueData.length}`
       );
     }
 
@@ -310,10 +321,10 @@ export class ClientExchange implements IExchange {
       interval,
       since,
       limit,
-      filteredData
+      uniqueData
     );
 
-    return filteredData;
+    return uniqueData;
   }
 
   /**
@@ -386,9 +397,20 @@ export class ClientExchange implements IExchange {
         candle.timestamp >= sinceTimestamp && candle.timestamp <= endTime
     );
 
-    if (filteredData.length < limit) {
+    // Apply distinct by timestamp to remove duplicates
+    const uniqueData = Array.from(
+      new Map(filteredData.map((candle) => [candle.timestamp, candle])).values()
+    );
+
+    if (filteredData.length !== uniqueData.length) {
       this.params.logger.warn(
-        `ClientExchange getNextCandles: Expected ${limit} candles, got ${filteredData.length}`
+        `ClientExchange getNextCandles: Removed ${filteredData.length - uniqueData.length} duplicate candles by timestamp`
+      );
+    }
+
+    if (uniqueData.length < limit) {
+      this.params.logger.warn(
+        `ClientExchange getNextCandles: Expected ${limit} candles, got ${uniqueData.length}`
       );
     }
 
@@ -398,10 +420,10 @@ export class ClientExchange implements IExchange {
       interval,
       since,
       limit,
-      filteredData
+      uniqueData
     );
 
-    return filteredData;
+    return uniqueData;
   }
 
   /**
