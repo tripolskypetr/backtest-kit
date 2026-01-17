@@ -17,6 +17,10 @@ import {
   listenBreakevenAvailable,
   ActionBase,
   getAveragePrice,
+  Schedule,
+  Heat,
+  Performance,
+  Partial,
   getDate,
 } from "../../build/index.mjs";
 
@@ -2704,9 +2708,9 @@ test("MARKDOWN PARALLEL: All markdown services work with multi-symbol isolation"
         if (btcSignalGenerated) return null;
         btcSignalGenerated = true;
 
-        // Генерируем свечи для BTC
+        // Генерируем свечи для BTC (минимум 65 для minuteEstimatedTime=60)
         btcCandles = [];
-        for (let i = 0; i < 60; i++) {
+        for (let i = 0; i < 190; i++) {
           const timestamp = startTime + i * intervalMs;
 
           // Фаза 1: Ожидание scheduled (0-9)
@@ -2782,9 +2786,9 @@ test("MARKDOWN PARALLEL: All markdown services work with multi-symbol isolation"
         if (ethSignalGenerated) return null;
         ethSignalGenerated = true;
 
-        // Генерируем свечи для ETH
+        // Генерируем свечи для ETH (минимум 65 для minuteEstimatedTime=60)
         ethCandles = [];
-        for (let i = 0; i < 60; i++) {
+        for (let i = 0; i < 190; i++) {
           const timestamp = startTime + i * intervalMs;
 
           // Фаза 1: Ожидание scheduled (0-9)
@@ -2860,10 +2864,10 @@ test("MARKDOWN PARALLEL: All markdown services work with multi-symbol isolation"
   });
 
   addFrameSchema({
-    frameName: "1h-markdown-parallel",
+    frameName: "190m-markdown-parallel",
     interval: "1m",
     startDate: new Date("2024-01-01T00:00:00Z"),
-    endDate: new Date("2024-01-01T01:00:00Z"),
+    endDate: new Date("2024-01-01T03:10:00Z"),
   });
 
   let btcDone = false;
@@ -2892,13 +2896,13 @@ test("MARKDOWN PARALLEL: All markdown services work with multi-symbol isolation"
   Backtest.background("BTCUSDT", {
     strategyName: "test-markdown-parallel",
     exchangeName: "binance-markdown-parallel",
-    frameName: "1h-markdown-parallel",
+    frameName: "190m-markdown-parallel",
   });
 
   Backtest.background("ETHUSDT", {
     strategyName: "test-markdown-parallel",
     exchangeName: "binance-markdown-parallel",
-    frameName: "1h-markdown-parallel",
+    frameName: "190m-markdown-parallel",
   });
 
   await awaitSubject.toPromise();
@@ -2920,12 +2924,12 @@ test("MARKDOWN PARALLEL: All markdown services work with multi-symbol isolation"
     const btcBacktestData = await Backtest.getData("BTCUSDT", {
       strategyName: "test-markdown-parallel",
       exchangeName: "binance-markdown-parallel",
-      frameName: "1h-markdown-parallel",
+      frameName: "190m-markdown-parallel",
     });
     const ethBacktestData = await Backtest.getData("ETHUSDT", {
       strategyName: "test-markdown-parallel",
       exchangeName: "binance-markdown-parallel",
-      frameName: "1h-markdown-parallel",
+      frameName: "190m-markdown-parallel",
     });
 
     // Verify data exists and has valid structure
@@ -2943,12 +2947,12 @@ test("MARKDOWN PARALLEL: All markdown services work with multi-symbol isolation"
     const btcBacktestReport = await Backtest.getReport("BTCUSDT", {
       strategyName: "test-markdown-parallel",
       exchangeName: "binance-markdown-parallel",
-      frameName: "1h-markdown-parallel",
+      frameName: "190m-markdown-parallel",
     });
     const ethBacktestReport = await Backtest.getReport("ETHUSDT", {
       strategyName: "test-markdown-parallel",
       exchangeName: "binance-markdown-parallel",
-      frameName: "1h-markdown-parallel",
+      frameName: "190m-markdown-parallel",
     });
 
     if (typeof btcBacktestReport !== "string" || btcBacktestReport.length === 0) {
@@ -2981,12 +2985,12 @@ test("MARKDOWN PARALLEL: All markdown services work with multi-symbol isolation"
     const btcScheduleData = await Schedule.getData("BTCUSDT", {
       strategyName: "test-markdown-parallel",
       exchangeName: "binance-markdown-parallel",
-      frameName: "1h-markdown-parallel",
+      frameName: "190m-markdown-parallel",
     }, true);
     const ethScheduleData = await Schedule.getData("ETHUSDT", {
       strategyName: "test-markdown-parallel",
       exchangeName: "binance-markdown-parallel",
-      frameName: "1h-markdown-parallel",
+      frameName: "190m-markdown-parallel",
     }, true);
 
     if (btcScheduleData.totalScheduled === 0) {
@@ -3022,12 +3026,12 @@ test("MARKDOWN PARALLEL: All markdown services work with multi-symbol isolation"
     const btcPerfData = await Performance.getData("BTCUSDT", {
       strategyName: "test-markdown-parallel",
       exchangeName: "binance-markdown-parallel",
-      frameName: "1h-markdown-parallel",
+      frameName: "190m-markdown-parallel",
     }, true);
     const ethPerfData = await Performance.getData("ETHUSDT", {
       strategyName: "test-markdown-parallel",
       exchangeName: "binance-markdown-parallel",
-      frameName: "1h-markdown-parallel",
+      frameName: "190m-markdown-parallel",
     }, true);
 
     if (btcPerfData.totalEvents === 0) {
@@ -3063,12 +3067,12 @@ test("MARKDOWN PARALLEL: All markdown services work with multi-symbol isolation"
     const btcPartialData = await Partial.getData("BTCUSDT", {
       strategyName: "test-markdown-parallel",
       exchangeName: "binance-markdown-parallel",
-      frameName: "1h-markdown-parallel",
+      frameName: "190m-markdown-parallel",
     }, true);
     const ethPartialData = await Partial.getData("ETHUSDT", {
       strategyName: "test-markdown-parallel",
       exchangeName: "binance-markdown-parallel",
-      frameName: "1h-markdown-parallel",
+      frameName: "190m-markdown-parallel",
     }, true);
 
     // Partial может быть пустым если не было partial profit/loss событий
@@ -3098,12 +3102,12 @@ test("MARKDOWN PARALLEL: All markdown services work with multi-symbol isolation"
     const btcHeatData = await Heat.getData({
       strategyName: "test-markdown-parallel",
       exchangeName: "binance-markdown-parallel",
-      frameName: "1h-markdown-parallel",
+      frameName: "190m-markdown-parallel",
     }, true);
     const ethHeatData = await Heat.getData({
       strategyName: "test-markdown-parallel",
       exchangeName: "binance-markdown-parallel",
-      frameName: "1h-markdown-parallel",
+      frameName: "190m-markdown-parallel",
     }, true);
 
     // Heat может быть пустым, но проверяем что вызов не падает
