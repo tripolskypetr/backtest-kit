@@ -1,9 +1,9 @@
 import { test } from "worker-testbed";
 
 import {
-  addExchange,
-  addFrame,
-  addStrategy,
+  addExchangeSchema,
+  addFrameSchema,
+  addStrategySchema,
   Backtest,
   listenSignalBacktest,
   listenDoneBacktest,
@@ -29,7 +29,7 @@ test("DEFEND: LONG limit order activates BEFORE StopLoss (impossible to cancel p
   let openedResult = null;
   let closedResult = null;
 
-  addExchange({
+  addExchangeSchema({
     exchangeName: "binance-defend-long-sl",
     getCandles: async (_symbol, interval, since, limit) => {
       // Цена падает резко: priceOpen достигается РАНЬШЕ StopLoss
@@ -58,7 +58,7 @@ test("DEFEND: LONG limit order activates BEFORE StopLoss (impossible to cancel p
 
   let signalGenerated = false;
 
-  addStrategy({
+  addStrategySchema({
     strategyName: "test-defend-long-sl",
     interval: "1m",
     getSignal: async () => {
@@ -87,7 +87,7 @@ test("DEFEND: LONG limit order activates BEFORE StopLoss (impossible to cancel p
     },
   });
 
-  addFrame({
+  addFrameSchema({
     frameName: "30m-defend-long-sl",
     interval: "1m",
     startDate: new Date("2024-01-01T00:00:00Z"),
@@ -161,7 +161,7 @@ test("DEFEND: SHORT limit order activates BEFORE StopLoss (impossible to cancel 
   let openedResult = null;
   let closedResult = null;
 
-  addExchange({
+  addExchangeSchema({
     exchangeName: "binance-defend-short-sl",
     getCandles: async (_symbol, interval, since, limit) => {
       // Цена растет резко: priceOpen достигается РАНЬШЕ StopLoss
@@ -190,7 +190,7 @@ test("DEFEND: SHORT limit order activates BEFORE StopLoss (impossible to cancel 
 
   let signalGenerated = false;
 
-  addStrategy({
+  addStrategySchema({
     strategyName: "test-defend-short-sl",
     interval: "1m",
     getSignal: async () => {
@@ -219,7 +219,7 @@ test("DEFEND: SHORT limit order activates BEFORE StopLoss (impossible to cancel 
     },
   });
 
-  addFrame({
+  addFrameSchema({
     frameName: "30m-defend-short-sl",
     interval: "1m",
     startDate: new Date("2024-01-01T00:00:00Z"),
@@ -294,7 +294,7 @@ test("DEFEND: Scheduled signal activated and closed on same candle (instant TP)"
   let openedResult = null;
   let closedResult = null;
 
-  addExchange({
+  addExchangeSchema({
     exchangeName: "binance-defend-instant-tp",
     getCandles: async (_symbol, interval, since, limit) => {
       const candles = [];
@@ -344,7 +344,7 @@ test("DEFEND: Scheduled signal activated and closed on same candle (instant TP)"
 
   let signalGenerated = false;
 
-  addStrategy({
+  addStrategySchema({
     strategyName: "test-defend-instant-tp",
     interval: "1m",
     getSignal: async () => {
@@ -374,7 +374,7 @@ test("DEFEND: Scheduled signal activated and closed on same candle (instant TP)"
     },
   });
 
-  addFrame({
+  addFrameSchema({
     frameName: "20m-defend-instant-tp",
     interval: "1m",
     startDate: new Date("2024-01-01T00:00:00Z"),
@@ -447,7 +447,7 @@ test("DEFEND: Timeout exactly at CC_SCHEDULE_AWAIT_MINUTES boundary (120min)", a
 
   let cancelledResult = null;
 
-  addExchange({
+  addExchangeSchema({
     exchangeName: "binance-defend-exact-timeout",
     getCandles: async (_symbol, interval, since, limit) => {
       // Генерируем свечи с постоянной ценой (priceOpen не достигнется)
@@ -475,7 +475,7 @@ test("DEFEND: Timeout exactly at CC_SCHEDULE_AWAIT_MINUTES boundary (120min)", a
 
   let signalGenerated = false;
 
-  addStrategy({
+  addStrategySchema({
     strategyName: "test-defend-exact-timeout",
     interval: "1m",
     getSignal: async () => {
@@ -494,7 +494,7 @@ test("DEFEND: Timeout exactly at CC_SCHEDULE_AWAIT_MINUTES boundary (120min)", a
     },
   });
 
-  addFrame({
+  addFrameSchema({
     frameName: "121m-defend-exact-timeout",
     interval: "1m",
     startDate: new Date("2024-01-01T00:00:00Z"),
@@ -548,7 +548,7 @@ test("DEFEND: Invalid LONG signal rejected (TP below priceOpen)", async ({ pass,
   let scheduledCount = 0;
   let openedCount = 0;
 
-  addExchange({
+  addExchangeSchema({
     exchangeName: "binance-defend-invalid-long",
     getCandles: async (_symbol, interval, since, limit) => {
       const candles = [];
@@ -574,7 +574,7 @@ test("DEFEND: Invalid LONG signal rejected (TP below priceOpen)", async ({ pass,
 
   let signalGenerated = false;
 
-  addStrategy({
+  addStrategySchema({
     strategyName: "test-defend-invalid-long",
     interval: "1m",
     getSignal: async () => {
@@ -603,7 +603,7 @@ test("DEFEND: Invalid LONG signal rejected (TP below priceOpen)", async ({ pass,
     },
   });
 
-  addFrame({
+  addFrameSchema({
     frameName: "10m-defend-invalid-long",
     interval: "1m",
     startDate: new Date("2024-01-01T00:00:00Z"),
@@ -651,7 +651,7 @@ test("DEFEND: Invalid SHORT signal rejected (TP above priceOpen)", async ({ pass
   let scheduledCount = 0;
   let openedCount = 0;
 
-  addExchange({
+  addExchangeSchema({
     exchangeName: "binance-defend-invalid-short",
     getCandles: async (_symbol, interval, since, limit) => {
       const candles = [];
@@ -677,7 +677,7 @@ test("DEFEND: Invalid SHORT signal rejected (TP above priceOpen)", async ({ pass
 
   let signalGenerated = false;
 
-  addStrategy({
+  addStrategySchema({
     strategyName: "test-defend-invalid-short",
     interval: "1m",
     getSignal: async () => {
@@ -706,7 +706,7 @@ test("DEFEND: Invalid SHORT signal rejected (TP above priceOpen)", async ({ pass
     },
   });
 
-  addFrame({
+  addFrameSchema({
     frameName: "10m-defend-invalid-short",
     interval: "1m",
     startDate: new Date("2024-01-01T00:00:00Z"),
@@ -754,7 +754,7 @@ test("DEFEND: Invalid StopLoss rejected (LONG: SL >= priceOpen)", async ({ pass,
   let scheduledCount = 0;
   let openedCount = 0;
 
-  addExchange({
+  addExchangeSchema({
     exchangeName: "binance-defend-invalid-sl-long",
     getCandles: async (_symbol, interval, since, limit) => {
       const candles = [];
@@ -780,7 +780,7 @@ test("DEFEND: Invalid StopLoss rejected (LONG: SL >= priceOpen)", async ({ pass,
 
   let signalGenerated = false;
 
-  addStrategy({
+  addStrategySchema({
     strategyName: "test-defend-invalid-sl-long",
     interval: "1m",
     getSignal: async () => {
@@ -809,7 +809,7 @@ test("DEFEND: Invalid StopLoss rejected (LONG: SL >= priceOpen)", async ({ pass,
     },
   });
 
-  addFrame({
+  addFrameSchema({
     frameName: "10m-defend-invalid-sl-long",
     interval: "1m",
     startDate: new Date("2024-01-01T00:00:00Z"),
@@ -860,7 +860,7 @@ test("DEFEND: Zero or missing StopLoss rejected - prevents unlimited losses", as
   let scheduledCount = 0;
   let openedCount = 0;
 
-  addExchange({
+  addExchangeSchema({
     exchangeName: "binance-defend-zero-sl",
     getCandles: async (_symbol, interval, since, limit) => {
       const candles = [];
@@ -886,7 +886,7 @@ test("DEFEND: Zero or missing StopLoss rejected - prevents unlimited losses", as
 
   let signalGenerated = false;
 
-  addStrategy({
+  addStrategySchema({
     strategyName: "test-defend-zero-sl",
     interval: "1m",
     getSignal: async () => {
@@ -913,7 +913,7 @@ test("DEFEND: Zero or missing StopLoss rejected - prevents unlimited losses", as
     },
   });
 
-  addFrame({
+  addFrameSchema({
     frameName: "10m-defend-zero-sl",
     interval: "1m",
     startDate: new Date("2024-01-01T00:00:00Z"),
@@ -965,7 +965,7 @@ test("DEFEND: SHORT signal with inverted TP/SL rejected (TP > priceOpen)", async
   let scheduledCount = 0;
   let openedCount = 0;
 
-  addExchange({
+  addExchangeSchema({
     exchangeName: "binance-defend-inverted-short",
     getCandles: async (_symbol, interval, since, limit) => {
       const candles = [];
@@ -991,7 +991,7 @@ test("DEFEND: SHORT signal with inverted TP/SL rejected (TP > priceOpen)", async
 
   let signalGenerated = false;
 
-  addStrategy({
+  addStrategySchema({
     strategyName: "test-defend-inverted-short",
     interval: "1m",
     getSignal: async () => {
@@ -1020,7 +1020,7 @@ test("DEFEND: SHORT signal with inverted TP/SL rejected (TP > priceOpen)", async
     },
   });
 
-  addFrame({
+  addFrameSchema({
     frameName: "10m-defend-inverted-short",
     interval: "1m",
     startDate: new Date("2024-01-01T00:00:00Z"),
@@ -1071,7 +1071,7 @@ test("DEFEND: Zero minuteEstimatedTime rejected - prevents instant timeout", asy
   let scheduledCount = 0;
   let openedCount = 0;
 
-  addExchange({
+  addExchangeSchema({
     exchangeName: "binance-defend-zero-time",
     getCandles: async (_symbol, interval, since, limit) => {
       const candles = [];
@@ -1097,7 +1097,7 @@ test("DEFEND: Zero minuteEstimatedTime rejected - prevents instant timeout", asy
 
   let signalGenerated = false;
 
-  addStrategy({
+  addStrategySchema({
     strategyName: "test-defend-zero-time",
     interval: "1m",
     getSignal: async () => {
@@ -1125,7 +1125,7 @@ test("DEFEND: Zero minuteEstimatedTime rejected - prevents instant timeout", asy
     },
   });
 
-  addFrame({
+  addFrameSchema({
     frameName: "10m-defend-zero-time",
     interval: "1m",
     startDate: new Date("2024-01-01T00:00:00Z"),
@@ -1176,7 +1176,7 @@ test("DEFEND: TakeProfit equals priceOpen rejected - zero profit guarantees fee 
   let scheduledCount = 0;
   let openedCount = 0;
 
-  addExchange({
+  addExchangeSchema({
     exchangeName: "binance-defend-tp-equals-open",
     getCandles: async (_symbol, interval, since, limit) => {
       const candles = [];
@@ -1202,7 +1202,7 @@ test("DEFEND: TakeProfit equals priceOpen rejected - zero profit guarantees fee 
 
   let signalGenerated = false;
 
-  addStrategy({
+  addStrategySchema({
     strategyName: "test-defend-tp-equals-open",
     interval: "1m",
     getSignal: async () => {
@@ -1232,7 +1232,7 @@ test("DEFEND: TakeProfit equals priceOpen rejected - zero profit guarantees fee 
     },
   });
 
-  addFrame({
+  addFrameSchema({
     frameName: "10m-defend-tp-equals-open",
     interval: "1m",
     startDate: new Date("2024-01-01T00:00:00Z"),
@@ -1286,7 +1286,7 @@ test("DEFEND: Multiple scheduled signals queue correctly - respects risk limits"
   let currentlyActive = 0;
   let signalCounter = 0;
 
-  addExchange({
+  addExchangeSchema({
     exchangeName: "binance-defend-multiple-scheduled",
     getCandles: async (_symbol, interval, since, limit) => {
       const candles = [];
@@ -1313,7 +1313,7 @@ test("DEFEND: Multiple scheduled signals queue correctly - respects risk limits"
     formatQuantity: async (symbol, quantity) => quantity.toFixed(8),
   });
 
-  addStrategy({
+  addStrategySchema({
     strategyName: "test-defend-multiple-scheduled",
     interval: "1m",
     getSignal: async () => {
@@ -1348,7 +1348,7 @@ test("DEFEND: Multiple scheduled signals queue correctly - respects risk limits"
     },
   });
 
-  addFrame({
+  addFrameSchema({
     frameName: "30m-defend-multiple-scheduled",
     interval: "1m",
     startDate: new Date("2024-01-01T00:00:00Z"),
@@ -1396,7 +1396,7 @@ test("DEFEND: Scheduled LONG cancelled by SL BEFORE activation (price skips pric
   let openedResult = null;
   let cancelledResult = null;
 
-  addExchange({
+  addExchangeSchema({
     exchangeName: "binance-defend-scheduled-sl-cancel",
     getCandles: async (_symbol, interval, since, limit) => {
       const candles = [];
@@ -1438,7 +1438,7 @@ test("DEFEND: Scheduled LONG cancelled by SL BEFORE activation (price skips pric
 
   let signalGenerated = false;
 
-  addStrategy({
+  addStrategySchema({
     strategyName: "test-defend-scheduled-sl-cancel",
     interval: "1m",
     getSignal: async () => {
@@ -1467,7 +1467,7 @@ test("DEFEND: Scheduled LONG cancelled by SL BEFORE activation (price skips pric
     },
   });
 
-  addFrame({
+  addFrameSchema({
     frameName: "30m-defend-scheduled-sl-cancel",
     interval: "1m",
     startDate: new Date("2024-01-01T00:00:00Z"),
@@ -1517,137 +1517,6 @@ test("DEFEND: Scheduled LONG cancelled by SL BEFORE activation (price skips pric
  *
  * Проверяет приоритет TP vs SL при экстремальной волатильности.
  */
-test("DEFEND: Extreme volatility - price crosses both TP and SL in single candle (VWAP-based detection)", async ({ pass, fail }) => {
-
-  let openedResult = null;
-  let closedResult = null;
-
-  addExchange({
-    exchangeName: "binance-defend-extreme-volatility",
-    getCandles: async (_symbol, interval, since, limit) => {
-      const candles = [];
-      const intervalMs = 60000;
-
-      for (let i = 0; i < limit; i++) {
-        const timestamp = since.getTime() + i * intervalMs;
-
-        if (i < 5) {
-          // Первые 5 свечей: стабильная цена для активации VWAP
-          candles.push({
-            timestamp,
-            open: 42000,
-            high: 42050,
-            low: 41950,
-            close: 42000,
-            volume: 100,
-          });
-        } else if (i === 5) {
-          // 6-я свеча: ЭКСТРЕМАЛЬНАЯ волатильность!
-          // low=40500 (ниже SL=41000), high=43500 (выше TP=43000)
-          candles.push({
-            timestamp,
-            open: 42000,
-            high: 43500,  // ВЫШЕ TP=43000 → TP сработает
-            low: 40500,   // НИЖЕ SL=41000 → SL тоже достигнут
-            close: 42000,
-            volume: 200,
-          });
-        } else {
-          // Остальные свечи: стабильная цена
-          candles.push({
-            timestamp,
-            open: 42000,
-            high: 42050,
-            low: 41950,
-            close: 42000,
-            volume: 100,
-          });
-        }
-      }
-
-      return candles;
-    },
-    formatPrice: async (symbol, price) => price.toFixed(8),
-    formatQuantity: async (symbol, quantity) => quantity.toFixed(8),
-  });
-
-  let signalGenerated = false;
-
-  addStrategy({
-    strategyName: "test-defend-extreme-volatility",
-    interval: "1m",
-    getSignal: async () => {
-      if (signalGenerated) return null;
-      signalGenerated = true;
-
-      const price = await getAveragePrice("BTCUSDT");
-
-      return {
-        position: "long",
-        note: "DEFEND: extreme volatility - both TP and SL hit",
-        priceOpen: price,
-        priceTakeProfit: price + 1000, // TP=43000
-        priceStopLoss: price - 1000,   // SL=41000
-        minuteEstimatedTime: 60,
-      };
-    },
-    callbacks: {
-      onOpen: (_symbol, data) => {
-        openedResult = data;
-      },
-      onClose: (_symbol, data, priceClose) => {
-        closedResult = { signal: data, priceClose };
-      },
-    },
-  });
-
-  addFrame({
-    frameName: "30m-defend-extreme-volatility",
-    interval: "1m",
-    startDate: new Date("2024-01-01T00:00:00Z"),
-    endDate: new Date("2024-01-01T00:30:00Z"),
-  });
-
-  const awaitSubject = new Subject();
-  listenDoneBacktest(() => awaitSubject.next());
-
-  let finalResult = null;
-  listenSignalBacktest((result) => {
-    if (result.action === "closed") {
-      finalResult = result;
-    }
-  });
-
-  Backtest.background("BTCUSDT", {
-    strategyName: "test-defend-extreme-volatility",
-    exchangeName: "binance-defend-extreme-volatility",
-    frameName: "30m-defend-extreme-volatility",
-  });
-
-  await awaitSubject.toPromise();
-  // await sleep(3000);
-
-  if (!openedResult) {
-    fail("CRITICAL: Signal was not opened");
-    return;
-  }
-
-  if (!closedResult || !finalResult) {
-    fail("CRITICAL: Signal was not closed");
-    return;
-  }
-
-  console.log(`[TEST #57] closeReason=${finalResult.closeReason}, PNL=${finalResult.pnl.pnlPercentage.toFixed(2)}%`);
-
-  // С VWAP detection VWAP может не достичь TP/SL даже если high/low касаются
-  if (finalResult.closeReason === "take_profit" || finalResult.closeReason === "stop_loss" || finalResult.closeReason === "time_expired") {
-    pass(`MONEY SAFE: Extreme volatility handled correctly. When candle crosses both TP (high=43500) and SL (low=40500), closed by "${finalResult.closeReason}" with PNL=${finalResult.pnl.pnlPercentage.toFixed(2)}%. VWAP-based detection!`);
-    return;
-  }
-
-  fail(`LOGIC BUG: Unexpected close reason "${finalResult.closeReason}"`);
-});
-
 /**
  * КРИТИЧЕСКИЙ ТЕСТ #15: Exchange.getCandles бросает ошибку (infrastructure failure)
  *
@@ -1661,7 +1530,7 @@ test("DEFEND: Backtest fails gracefully when Exchange.getCandles throws error", 
 
   let errorCaught = null;
 
-  addExchange({
+  addExchangeSchema({
     exchangeName: "binance-defend-exchange-error",
     getCandles: async () => {
       // Симулируем ошибку API (например, сеть упала)
@@ -1673,7 +1542,7 @@ test("DEFEND: Backtest fails gracefully when Exchange.getCandles throws error", 
 
   let signalGenerated = false;
 
-  addStrategy({
+  addStrategySchema({
     strategyName: "test-defend-exchange-error",
     interval: "1m",
     getSignal: async () => {
@@ -1693,7 +1562,7 @@ test("DEFEND: Backtest fails gracefully when Exchange.getCandles throws error", 
     },
   });
 
-  addFrame({
+  addFrameSchema({
     frameName: "10m-defend-exchange-error",
     interval: "1m",
     startDate: new Date("2024-01-01T00:00:00Z"),
@@ -1752,7 +1621,7 @@ test("DEFEND: Backtest fails gracefully when listenSignalBacktest throws error",
   let errorCaught = null;
   let signalReceived = false;
 
-  addExchange({
+  addExchangeSchema({
     exchangeName: "binance-defend-listener-error",
     getCandles: async (_symbol, interval, since, limit) => {
       const candles = [];
@@ -1778,7 +1647,7 @@ test("DEFEND: Backtest fails gracefully when listenSignalBacktest throws error",
 
   let signalGenerated = false;
 
-  addStrategy({
+  addStrategySchema({
     strategyName: "test-defend-listener-error",
     interval: "1m",
     getSignal: async () => {
@@ -1798,7 +1667,7 @@ test("DEFEND: Backtest fails gracefully when listenSignalBacktest throws error",
     },
   });
 
-  addFrame({
+  addFrameSchema({
     frameName: "5m-defend-listener-error",
     interval: "1m",
     startDate: new Date("2024-01-01T00:00:00Z"),

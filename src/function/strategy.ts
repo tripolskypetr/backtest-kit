@@ -4,54 +4,12 @@ import backtest, {
 } from "../lib";
 import { getAveragePrice } from "./exchange";
 
-const STOP_METHOD_NAME = "strategy.stop";
-const CANCEL_METHOD_NAME = "strategy.cancel";
-const PARTIAL_PROFIT_METHOD_NAME = "strategy.partialProfit";
-const PARTIAL_LOSS_METHOD_NAME = "strategy.partialLoss";
-const TRAILING_STOP_METHOD_NAME = "strategy.trailingStop";
-const TRAILING_PROFIT_METHOD_NAME = "strategy.trailingTake";
-const BREAKEVEN_METHOD_NAME = "strategy.breakeven";
-
-/**
- * Stops the strategy from generating new signals.
- *
- * Sets internal flag to prevent strategy from opening new signals.
- * Current active signal (if any) will complete normally.
- * Backtest/Live mode will stop at the next safe point (idle state or after signal closes).
- *
- * Automatically detects backtest/live mode from execution context.
- *
- * @param symbol - Trading pair symbol
- * @param strategyName - Strategy name to stop
- * @returns Promise that resolves when stop flag is set
- *
- * @example
- * ```typescript
- * import { stop } from "backtest-kit";
- *
- * // Stop strategy after some condition
- * await stop("BTCUSDT", "my-strategy");
- * ```
- */
-export async function stop(symbol: string): Promise<void> {
-  backtest.loggerService.info(STOP_METHOD_NAME, {
-    symbol,
-  });
-  if (!ExecutionContextService.hasContext()) {
-    throw new Error("stop requires an execution context");
-  }
-  if (!MethodContextService.hasContext()) {
-    throw new Error("stop requires a method context");
-  }
-  const { backtest: isBacktest } = backtest.executionContextService.context;
-  const { exchangeName, frameName, strategyName } =
-    backtest.methodContextService.context;
-  await backtest.strategyCoreService.stop(isBacktest, symbol, {
-    exchangeName,
-    frameName,
-    strategyName,
-  });
-}
+const CANCEL_METHOD_NAME = "strategy.commitCancel";
+const PARTIAL_PROFIT_METHOD_NAME = "strategy.commitPartialProfit";
+const PARTIAL_LOSS_METHOD_NAME = "strategy.commitPartialLoss";
+const TRAILING_STOP_METHOD_NAME = "strategy.commitTrailingStop";
+const TRAILING_PROFIT_METHOD_NAME = "strategy.commitTrailingTake";
+const BREAKEVEN_METHOD_NAME = "strategy.commitBreakeven";
 
 /**
  * Cancels the scheduled signal without stopping the strategy.
@@ -75,7 +33,7 @@ export async function stop(symbol: string): Promise<void> {
  * await cancel("BTCUSDT", "my-strategy", "manual-cancel-001");
  * ```
  */
-export async function cancel(symbol: string, cancelId?: string): Promise<void> {
+export async function commitCancel(symbol: string, cancelId?: string): Promise<void> {
   backtest.loggerService.info(CANCEL_METHOD_NAME, {
     symbol,
     cancelId,
@@ -124,7 +82,7 @@ export async function cancel(symbol: string, cancelId?: string): Promise<void> {
  * }
  * ```
  */
-export async function partialProfit(
+export async function commitPartialProfit(
   symbol: string,
   percentToClose: number,
 ): Promise<boolean> {
@@ -178,7 +136,7 @@ export async function partialProfit(
  * }
  * ```
  */
-export async function partialLoss(
+export async function commitPartialLoss(
   symbol: string,
   percentToClose: number,
 ): Promise<boolean> {
@@ -248,7 +206,7 @@ export async function partialLoss(
  * // success3 = true (ACCEPTED: newDistance = 10% - 7% = 3%, newSL = 97 > 95, better protection)
  * ```
  */
-export async function trailingStop(
+export async function commitTrailingStop(
   symbol: string,
   percentShift: number,
   currentPrice: number,
@@ -319,7 +277,7 @@ export async function trailingStop(
  * // success3 = true (ACCEPTED: newDistance = 10% - 5% = 5%, newTP = 105 < 107, more conservative)
  * ```
  */
-export async function trailingTake(
+export async function commitTrailingTake(
   symbol: string,
   percentShift: number,
   currentPrice: number,
@@ -372,7 +330,7 @@ export async function trailingTake(
  * }
  * ```
  */
-export async function breakeven(symbol: string): Promise<boolean> {
+export async function commitBreakeven(symbol: string): Promise<boolean> {
   backtest.loggerService.info(BREAKEVEN_METHOD_NAME, {
     symbol,
   });
@@ -393,5 +351,3 @@ export async function breakeven(symbol: string): Promise<boolean> {
     { exchangeName, frameName, strategyName }
   );
 }
-
-export default { stop, cancel, partialProfit, partialLoss, trailingStop, trailingTake, breakeven };

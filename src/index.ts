@@ -1,28 +1,30 @@
 export {
-  getCurrentTimeframe,
+  getBacktestTimeframe,
 } from "./function/timeframe";
 export {
   validate,
 } from "./function/validate";
 export {
-  getStrategy,
-  getExchange,
-  getFrame,
-  getWalker,
-  getSizing,
-  getRisk,
-  getOptimizer,
-  getAction,
+  getStrategySchema,
+  getExchangeSchema,
+  getFrameSchema,
+  getWalkerSchema,
+  getSizingSchema,
+  getRiskSchema,
+  getOptimizerSchema,
+  getActionSchema,
 } from "./function/get";
 export {
-  stop,
-  cancel,
-  partialLoss,
-  partialProfit,
-  trailingStop,
-  trailingTake,
-  breakeven,
+  commitCancel,
+  commitPartialLoss,
+  commitPartialProfit,
+  commitTrailingStop,
+  commitTrailingTake,
+  commitBreakeven,
 } from "./function/strategy";
+export {
+  stop,
+} from "./function/control";
 export {
   setLogger,
   setConfig,
@@ -33,33 +35,33 @@ export {
   getDefaultColumns,
 } from "./function/setup";
 export {
-  addAction,
-  addExchange,
-  addStrategy,
-  addFrame,
-  addWalker,
-  addSizing,
-  addRisk,
-  addOptimizer,
+  addActionSchema,
+  addExchangeSchema,
+  addStrategySchema,
+  addFrameSchema,
+  addWalkerSchema,
+  addSizingSchema,
+  addRiskSchema,
+  addOptimizerSchema,
 } from "./function/add";
 export {
-  overrideAction,
-  overrideExchange,
-  overrideFrame,
-  overrideOptimizer,
-  overrideRisk,
-  overrideSizing,
-  overrideStrategy,
-  overrideWalker,
+  overrideActionSchema,
+  overrideExchangeSchema,
+  overrideFrameSchema,
+  overrideOptimizerSchema,
+  overrideRiskSchema,
+  overrideSizingSchema,
+  overrideStrategySchema,
+  overrideWalkerSchema,
 } from "./function/override";
 export {
-  listExchanges,
-  listStrategies,
-  listFrames,
-  listWalkers,
-  listSizings,
-  listRisks,
-  listOptimizers,
+  listExchangeSchema,
+  listStrategySchema,
+  listFrameSchema,
+  listWalkerSchema,
+  listSizingSchema,
+  listRiskSchema,
+  listOptimizerSchema,
 } from "./function/list";
 export {
   listenSignal,
@@ -82,18 +84,20 @@ export {
   listenWalkerOnce,
   listenWalkerComplete,
   listenValidation,
-  listenPartialLoss,
-  listenPartialLossOnce,
-  listenPartialProfit,
-  listenPartialProfitOnce,
-  listenBreakeven,
-  listenBreakevenOnce,
+  listenPartialLossAvailable,
+  listenPartialLossAvailableOnce,
+  listenPartialProfitAvailable,
+  listenPartialProfitAvailableOnce,
+  listenBreakevenAvailable,
+  listenBreakevenAvailableOnce,
   listenWalkerProgress,
   listenOptimizerProgress,
   listenRisk,
   listenRiskOnce,
-  listenPing,
-  listenPingOnce,
+  listenSchedulePing,
+  listenSchedulePingOnce,
+  listenActivePing,
+  listenActivePingOnce,
 } from "./function/event";
 export {
   getCandles,
@@ -107,7 +111,9 @@ export {
   formatQuantity,
   hasTradeContext,
 } from "./function/exchange";
-export { dumpSignal } from "./function/dump";
+export { 
+  dumpSignalData
+} from "./function/dump";
 
 export {
   CandleInterval,
@@ -220,7 +226,8 @@ export { ProgressOptimizerContract } from "./contract/ProgressOptimizer.contract
 export { DoneContract } from "./contract/Done.contract";
 export { RiskContract } from "./contract/Risk.contract";
 export { ProgressBacktestContract } from "./contract/ProgressBacktest.contract";
-export { PingContract } from "./contract/Ping.contract";
+export { SchedulePingContract } from "./contract/SchedulePing.contract";
+export { ActivePingContract } from "./contract/ActivePing.contract";
 export { BreakevenContract } from "./contract/Breakeven.contract";
 export {
   PerformanceContract,

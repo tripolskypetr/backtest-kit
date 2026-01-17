@@ -16,12 +16,12 @@ Contains all information about a tick event regardless of action type.
 timestamp: number
 ```
 
-Event timestamp in milliseconds (pendingAt for opened/closed events)
+Event timestamp in milliseconds (scheduledAt for scheduled events, pendingAt for opened/closed events)
 
 ### action
 
 ```ts
-action: "idle" | "opened" | "active" | "closed"
+action: "idle" | "scheduled" | "waiting" | "opened" | "active" | "closed" | "cancelled"
 ```
 
 Event action type
@@ -40,7 +40,7 @@ Trading pair symbol (only for non-idle events)
 signalId: string
 ```
 
-Signal ID (only for opened/active/closed)
+Signal ID (only for scheduled/waiting/opened/active/closed/cancelled)
 
 ### position
 
@@ -48,7 +48,7 @@ Signal ID (only for opened/active/closed)
 position: string
 ```
 
-Position type (only for opened/active/closed)
+Position type (only for scheduled/waiting/opened/active/closed/cancelled)
 
 ### note
 
@@ -56,7 +56,7 @@ Position type (only for opened/active/closed)
 note: string
 ```
 
-Signal note (only for opened/active/closed)
+Signal note (only for scheduled/waiting/opened/active/closed/cancelled)
 
 ### currentPrice
 
@@ -72,7 +72,7 @@ Current price
 priceOpen: number
 ```
 
-Open price (only for opened/active/closed)
+Open price (only for scheduled/waiting/opened/active/closed/cancelled)
 
 ### priceTakeProfit
 
@@ -80,7 +80,7 @@ Open price (only for opened/active/closed)
 priceTakeProfit: number
 ```
 
-Take profit price (only for opened/active/closed)
+Take profit price (only for scheduled/waiting/opened/active/closed/cancelled)
 
 ### priceStopLoss
 
@@ -88,7 +88,7 @@ Take profit price (only for opened/active/closed)
 priceStopLoss: number
 ```
 
-Stop loss price (only for opened/active/closed)
+Stop loss price (only for scheduled/waiting/opened/active/closed/cancelled)
 
 ### originalPriceTakeProfit
 
@@ -96,7 +96,7 @@ Stop loss price (only for opened/active/closed)
 originalPriceTakeProfit: number
 ```
 
-Original take profit price before modifications (only for opened/active/closed)
+Original take profit price before modifications (only for scheduled/waiting/opened/active/closed/cancelled)
 
 ### originalPriceStopLoss
 
@@ -104,7 +104,7 @@ Original take profit price before modifications (only for opened/active/closed)
 originalPriceStopLoss: number
 ```
 
-Original stop loss price before modifications (only for opened/active/closed)
+Original stop loss price before modifications (only for scheduled/waiting/opened/active/closed/cancelled)
 
 ### totalExecuted
 
@@ -112,7 +112,7 @@ Original stop loss price before modifications (only for opened/active/closed)
 totalExecuted: number
 ```
 
-Total executed percentage from partial closes (only for opened/active/closed)
+Total executed percentage from partial closes (only for scheduled/waiting/opened/active/closed/cancelled)
 
 ### percentTp
 
@@ -120,7 +120,7 @@ Total executed percentage from partial closes (only for opened/active/closed)
 percentTp: number
 ```
 
-Percentage progress towards take profit (only for active)
+Percentage progress towards take profit (only for active/waiting)
 
 ### percentSl
 
@@ -128,7 +128,7 @@ Percentage progress towards take profit (only for active)
 percentSl: number
 ```
 
-Percentage progress towards stop loss (only for active)
+Percentage progress towards stop loss (only for active/waiting)
 
 ### pnl
 
@@ -136,7 +136,7 @@ Percentage progress towards stop loss (only for active)
 pnl: number
 ```
 
-PNL percentage (for active: unrealized, for closed: realized)
+PNL percentage (for active/waiting: unrealized, for closed: realized)
 
 ### closeReason
 
@@ -145,6 +145,14 @@ closeReason: string
 ```
 
 Close reason (only for closed)
+
+### cancelReason
+
+```ts
+cancelReason: string
+```
+
+Cancel reason (only for cancelled)
 
 ### duration
 

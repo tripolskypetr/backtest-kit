@@ -1,4 +1,4 @@
-import { addStrategy } from "backtest-kit";
+import { addStrategySchema } from "backtest-kit";
 import { ollama } from "@backtest-kit/ollama";
 
 import { commitHistorySetup } from "../../func/market.func.mjs";
@@ -6,7 +6,7 @@ import { commitHistorySetup } from "../../func/market.func.mjs";
 import StrategyName from "../../enum/StrategyName.mjs";
 import RiskName from "../../enum/RiskName.mjs";
 
-addStrategy({
+addStrategySchema({
   strategyName: StrategyName.MainStrategy,
   interval: "5m",
   getSignal: async (symbol) => {

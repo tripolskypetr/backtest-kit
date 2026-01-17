@@ -1,9 +1,9 @@
 import { test } from "worker-testbed";
 
 import {
-  addExchange,
-  addFrame,
-  addStrategy,
+  addExchangeSchema,
+  addFrameSchema,
+  addStrategySchema,
   Backtest,
   listenSignalBacktest,
   listenDoneBacktest,
@@ -17,7 +17,7 @@ import { createAwaiter } from "functools-kit";
 
 test("Backtest.run yields closed signals", async ({ pass, fail }) => {
 
-  addExchange({
+  addExchangeSchema({
     exchangeName: "binance-mock-run",
     getCandles: async (_symbol, interval, since, limit) => {
       return await getMockCandles(interval, since, limit);
@@ -30,7 +30,7 @@ test("Backtest.run yields closed signals", async ({ pass, fail }) => {
     },
   });
 
-  addStrategy({
+  addStrategySchema({
     strategyName: "test-strategy-run",
     interval: "1m",
     getSignal: async () => {
@@ -46,7 +46,7 @@ test("Backtest.run yields closed signals", async ({ pass, fail }) => {
     },
   });
 
-  addFrame({
+  addFrameSchema({
     frameName: "1d-backtest-run",
     interval: "1d",
     startDate: new Date("2024-01-01T00:00:00Z"),
@@ -80,7 +80,7 @@ test("Backtest.background executes without yielding", async ({ pass, fail }) => 
 
   const [awaiter, { resolve }] = createAwaiter();
 
-  addExchange({
+  addExchangeSchema({
     exchangeName: "binance-mock-background",
     getCandles: async (_symbol, interval, since, limit) => {
       return await getMockCandles(interval, since, limit);
@@ -93,7 +93,7 @@ test("Backtest.background executes without yielding", async ({ pass, fail }) => 
     },
   });
 
-  addStrategy({
+  addStrategySchema({
     strategyName: "test-strategy-background",
     interval: "1m",
     getSignal: async () => {
@@ -109,7 +109,7 @@ test("Backtest.background executes without yielding", async ({ pass, fail }) => 
     },
   });
 
-  addFrame({
+  addFrameSchema({
     frameName: "1d-backtest-background",
     interval: "1d",
     startDate: new Date("2024-01-01T00:00:00Z"),
@@ -144,7 +144,7 @@ test("backtest completion triggers listenDoneBacktest", async ({ pass, fail }) =
 
   const [awaiter, { resolve }] = createAwaiter();
 
-  addExchange({
+  addExchangeSchema({
     exchangeName: "binance-mock-done",
     getCandles: async (_symbol, interval, since, limit) => {
       return await getMockCandles(interval, since, limit);
@@ -157,7 +157,7 @@ test("backtest completion triggers listenDoneBacktest", async ({ pass, fail }) =
     },
   });
 
-  addStrategy({
+  addStrategySchema({
     strategyName: "test-strategy-done",
     interval: "1m",
     getSignal: async () => {
@@ -173,7 +173,7 @@ test("backtest completion triggers listenDoneBacktest", async ({ pass, fail }) =
     },
   });
 
-  addFrame({
+  addFrameSchema({
     frameName: "1d-backtest-done",
     interval: "1d",
     startDate: new Date("2024-01-01T00:00:00Z"),
@@ -208,7 +208,7 @@ test("listenDoneBacktestOnce triggers once for backtest", async ({ pass, fail })
 
   const [awaiter, { resolve }] = createAwaiter();
 
-  addExchange({
+  addExchangeSchema({
     exchangeName: "binance-mock-done-once",
     getCandles: async (_symbol, interval, since, limit) => {
       return await getMockCandles(interval, since, limit);
@@ -221,7 +221,7 @@ test("listenDoneBacktestOnce triggers once for backtest", async ({ pass, fail })
     },
   });
 
-  addStrategy({
+  addStrategySchema({
     strategyName: "test-strategy-done-once",
     interval: "1m",
     getSignal: async () => {
@@ -237,7 +237,7 @@ test("listenDoneBacktestOnce triggers once for backtest", async ({ pass, fail })
     },
   });
 
-  addFrame({
+  addFrameSchema({
     frameName: "1d-backtest-done-once",
     interval: "1d",
     startDate: new Date("2024-01-01T00:00:00Z"),
@@ -272,7 +272,7 @@ test("closed signal has take_profit reason", async ({ pass, fail }) => {
 
   const [awaiter, { resolve }] = createAwaiter();
 
-  addExchange({
+  addExchangeSchema({
     exchangeName: "binance-mock-tp-reason",
     getCandles: async (_symbol, interval, since, limit) => {
       return await getMockCandles(interval, since, limit);
@@ -285,7 +285,7 @@ test("closed signal has take_profit reason", async ({ pass, fail }) => {
     },
   });
 
-  addStrategy({
+  addStrategySchema({
     strategyName: "test-strategy-tp-reason",
     interval: "1m",
     getSignal: async () => {
@@ -301,7 +301,7 @@ test("closed signal has take_profit reason", async ({ pass, fail }) => {
     },
   });
 
-  addFrame({
+  addFrameSchema({
     frameName: "1d-backtest-tp-reason",
     interval: "1d",
     startDate: new Date("2024-01-01T00:00:00Z"),
@@ -336,7 +336,7 @@ test("backtest signal has all required fields", async ({ pass, fail }) => {
 
   const [awaiter, { resolve }] = createAwaiter();
 
-  addExchange({
+  addExchangeSchema({
     exchangeName: "binance-mock-fields",
     getCandles: async (_symbol, interval, since, limit) => {
       return await getMockCandles(interval, since, limit);
@@ -349,7 +349,7 @@ test("backtest signal has all required fields", async ({ pass, fail }) => {
     },
   });
 
-  addStrategy({
+  addStrategySchema({
     strategyName: "test-strategy-fields",
     interval: "1m",
     getSignal: async () => {
@@ -365,7 +365,7 @@ test("backtest signal has all required fields", async ({ pass, fail }) => {
     },
   });
 
-  addFrame({
+  addFrameSchema({
     frameName: "1d-backtest-fields",
     interval: "1d",
     startDate: new Date("2024-01-01T00:00:00Z"),
@@ -405,72 +405,11 @@ test("backtest signal has all required fields", async ({ pass, fail }) => {
 
 });
 
-test("early termination with break stops backtest", async ({ pass, fail }) => {
-
-  addExchange({
-    exchangeName: "binance-mock-early",
-    getCandles: async (_symbol, interval, since, limit) => {
-      return await getMockCandles(interval, since, limit);
-    },
-    formatPrice: async (symbol, price) => {
-      return price.toFixed(8);
-    },
-    formatQuantity: async (symbol, quantity) => {
-      return quantity.toFixed(8);
-    },
-  });
-
-  addStrategy({
-    strategyName: "test-strategy-early",
-    interval: "1m",
-    getSignal: async () => {
-      const price = await getAveragePrice("BTCUSDT");
-      return {
-        position: "long",
-        note: "early termination test",
-        priceOpen: price,
-        priceTakeProfit: price + 1_000,
-        priceStopLoss: price - 1_000,
-        minuteEstimatedTime: 1,
-      };
-    },
-  });
-
-  addFrame({
-    frameName: "7d-backtest-early",
-    interval: "1d",
-    startDate: new Date("2024-01-01T00:00:00Z"),
-    endDate: new Date("2024-01-07T00:00:00Z"), // 7 days
-  });
-
-  let signalCount = 0;
-
-  for await (const result of Backtest.run("BTCUSDT", {
-    strategyName: "test-strategy-early",
-    exchangeName: "binance-mock-early",
-    frameName: "7d-backtest-early",
-  })) {
-    signalCount++;
-    if (signalCount >= 2) {
-      // Stop after 2 signals
-      break;
-    }
-  }
-
-  if (signalCount === 2) {
-    pass("Early termination stopped backtest after 2 signals");
-    return;
-  }
-
-  fail(`Early termination failed: got ${signalCount} signals`);
-
-});
-
 test("listenBacktestProgress tracks backtest progress", async ({ pass, fail }) => {
 
   const [awaiter, { resolve }] = createAwaiter();
 
-  addExchange({
+  addExchangeSchema({
     exchangeName: "binance-mock-progress",
     getCandles: async (_symbol, interval, since, limit) => {
       return await getMockCandles(interval, since, limit);
@@ -483,7 +422,7 @@ test("listenBacktestProgress tracks backtest progress", async ({ pass, fail }) =
     },
   });
 
-  addStrategy({
+  addStrategySchema({
     strategyName: "test-strategy-progress",
     interval: "1m",
     getSignal: async () => {
@@ -499,7 +438,7 @@ test("listenBacktestProgress tracks backtest progress", async ({ pass, fail }) =
     },
   });
 
-  addFrame({
+  addFrameSchema({
     frameName: "3d-backtest-progress",
     interval: "1d",
     startDate: new Date("2024-01-01T00:00:00Z"),

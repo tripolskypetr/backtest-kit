@@ -1,9 +1,9 @@
 import { test } from "worker-testbed";
 
 import {
-  addExchange,
-  addFrame,
-  addStrategy,
+  addExchangeSchema,
+  addFrameSchema,
+  addStrategySchema,
   Backtest,
   listenSignalBacktest,
   listenDoneBacktest,
@@ -27,7 +27,7 @@ test("EDGE: Scheduled SHORT cancelled by SL BEFORE activation (price skips price
   let openedResult = null;
   let cancelledResult = null;
 
-  addExchange({
+  addExchangeSchema({
     exchangeName: "binance-edge-scheduled-short-sl-cancel",
     getCandles: async (_symbol, interval, since, limit) => {
       const candles = [];
@@ -69,7 +69,7 @@ test("EDGE: Scheduled SHORT cancelled by SL BEFORE activation (price skips price
 
   let signalGenerated = false;
 
-  addStrategy({
+  addStrategySchema({
     strategyName: "test-edge-scheduled-short-sl-cancel",
     interval: "1m",
     getSignal: async () => {
@@ -98,7 +98,7 @@ test("EDGE: Scheduled SHORT cancelled by SL BEFORE activation (price skips price
     },
   });
 
-  addFrame({
+  addFrameSchema({
     frameName: "30m-edge-scheduled-short-sl-cancel",
     interval: "1m",
     startDate: new Date("2024-01-01T00:00:00Z"),
@@ -151,7 +151,7 @@ test("EDGE: getAveragePrice works with zero volume (fallback to simple average)"
   let openedResult = null;
   let closedResult = null;
 
-  addExchange({
+  addExchangeSchema({
     exchangeName: "binance-edge-zero-volume",
     getCandles: async (_symbol, _interval, since, limit) => {
       const candles = [];
@@ -201,7 +201,7 @@ test("EDGE: getAveragePrice works with zero volume (fallback to simple average)"
 
   let signalGenerated = false;
 
-  addStrategy({
+  addStrategySchema({
     strategyName: "test-edge-zero-volume",
     interval: "1m",
     getSignal: async () => {
@@ -233,7 +233,7 @@ test("EDGE: getAveragePrice works with zero volume (fallback to simple average)"
     },
   });
 
-  addFrame({
+  addFrameSchema({
     frameName: "30m-edge-zero-volume",
     interval: "1m",
     startDate: new Date("2024-01-01T00:00:00Z"),
@@ -296,7 +296,7 @@ test("EDGE: Very large profit (>100%) passes validation and yields huge profit",
   let openedResult = null;
   let closedResult = null;
 
-  addExchange({
+  addExchangeSchema({
     exchangeName: "binance-edge-huge-profit",
     getCandles: async (_symbol, _interval, since, limit) => {
       const candles = [];
@@ -346,7 +346,7 @@ test("EDGE: Very large profit (>100%) passes validation and yields huge profit",
 
   let signalGenerated = false;
 
-  addStrategy({
+  addStrategySchema({
     strategyName: "test-edge-huge-profit",
     interval: "1m",
     getSignal: async () => {
@@ -375,7 +375,7 @@ test("EDGE: Very large profit (>100%) passes validation and yields huge profit",
     },
   });
 
-  addFrame({
+  addFrameSchema({
     frameName: "30m-edge-huge-profit",
     interval: "1m",
     startDate: new Date("2024-01-01T00:00:00Z"),
@@ -469,7 +469,7 @@ test("EDGE: Multiple signals with different results (TP, SL, time_expired) - que
     });
   }
 
-  addExchange({
+  addExchangeSchema({
     exchangeName: "binance-edge-multiple-signals",
     getCandles: async (_symbol, _interval, since, limit) => {
       const sinceIndex = Math.floor((since.getTime() - startTime) / intervalMs);
@@ -482,7 +482,7 @@ test("EDGE: Multiple signals with different results (TP, SL, time_expired) - que
 
   let signalCount = 0;
 
-  addStrategy({
+  addStrategySchema({
     strategyName: "test-edge-multiple-signals",
     interval: "1m",
     getSignal: async () => {
@@ -552,7 +552,7 @@ test("EDGE: Multiple signals with different results (TP, SL, time_expired) - que
     },
   });
 
-  addFrame({
+  addFrameSchema({
     frameName: "90m-edge-multiple-signals",
     interval: "1m",
     startDate: new Date("2024-01-01T00:00:00Z"),

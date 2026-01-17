@@ -1,9 +1,9 @@
 import { test } from "worker-testbed";
 
 import {
-  addExchange,
-  addFrame,
-  addStrategy,
+  addExchangeSchema,
+  addFrameSchema,
+  addStrategySchema,
   Backtest,
   listenSignalBacktest,
   listenDoneBacktest,
@@ -24,7 +24,7 @@ test("setConfig changes CC_SCHEDULE_AWAIT_MINUTES", async ({ pass, fail }) => {
 
   let signalCancelled = false;
 
-  addExchange({
+  addExchangeSchema({
     exchangeName: "binance-config-schedule-await",
     getCandles: async (_symbol, interval, since, limit) => {
       return await getMockCandles(interval, since, limit);
@@ -33,7 +33,7 @@ test("setConfig changes CC_SCHEDULE_AWAIT_MINUTES", async ({ pass, fail }) => {
     formatQuantity: async (symbol, quantity) => quantity.toFixed(8),
   });
 
-  addStrategy({
+  addStrategySchema({
     strategyName: "test-strategy-schedule-await",
     interval: "1m",
     getSignal: async () => {
@@ -54,7 +54,7 @@ test("setConfig changes CC_SCHEDULE_AWAIT_MINUTES", async ({ pass, fail }) => {
     },
   });
 
-  addFrame({
+  addFrameSchema({
     frameName: "2d-schedule-await",
     interval: "1d",
     startDate: new Date("2024-01-01T00:00:00Z"),
@@ -97,7 +97,7 @@ test("setConfig with partial update preserves other values", async ({ pass, fail
   // Both should work after partial update
   let signalOpened = false;
 
-  addExchange({
+  addExchangeSchema({
     exchangeName: "binance-config-partial",
     getCandles: async (_symbol, interval, since, limit) => {
       return await getMockCandles(interval, since, limit);
@@ -106,7 +106,7 @@ test("setConfig with partial update preserves other values", async ({ pass, fail
     formatQuantity: async (symbol, quantity) => quantity.toFixed(8),
   });
 
-  addStrategy({
+  addStrategySchema({
     strategyName: "test-strategy-partial",
     interval: "1m",
     getSignal: async () => {
@@ -126,7 +126,7 @@ test("setConfig with partial update preserves other values", async ({ pass, fail
     },
   });
 
-  addFrame({
+  addFrameSchema({
     frameName: "1d-partial",
     interval: "1d",
     startDate: new Date("2024-01-01T00:00:00Z"),
@@ -168,7 +168,7 @@ test("setConfig before backtest run applies configuration", async ({ pass, fail 
 
   let priceCalculated = false;
 
-  addExchange({
+  addExchangeSchema({
     exchangeName: "binance-config-before-run",
     getCandles: async (_symbol, interval, since, limit) => {
       return await getMockCandles(interval, since, limit);
@@ -177,7 +177,7 @@ test("setConfig before backtest run applies configuration", async ({ pass, fail 
     formatQuantity: async (symbol, quantity) => quantity.toFixed(8),
   });
 
-  addStrategy({
+  addStrategySchema({
     strategyName: "test-strategy-before-run",
     interval: "1m",
     getSignal: async () => {
@@ -195,7 +195,7 @@ test("setConfig before backtest run applies configuration", async ({ pass, fail 
     },
   });
 
-  addFrame({
+  addFrameSchema({
     frameName: "1d-before-run",
     interval: "1d",
     startDate: new Date("2024-01-01T00:00:00Z"),

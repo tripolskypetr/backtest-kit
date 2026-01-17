@@ -1,10 +1,10 @@
-import { addExchange, roundTicks } from "backtest-kit";
+import { addExchangeSchema, roundTicks } from "backtest-kit";
 import { getExchange } from "../../config/ccxt.mjs";
 import ExchangeName from "../../enum/ExchangeName.mjs";
 
 const MAX_DEPTH_LEVELS = 1_000;
 
-addExchange({
+addExchangeSchema({
   exchangeName: ExchangeName.BinanceExchange,
   getCandles: async (symbol, interval, since, limit) => {
     const exchange = await getExchange();

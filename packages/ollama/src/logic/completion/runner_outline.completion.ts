@@ -1,3 +1,14 @@
+import { addCompletion, IOutlineCompletionArgs } from "agent-swarm-kit";
+import { CompletionName } from "../../enum/CompletionName";
+import { engine } from "../../lib";
+import { timeout } from "functools-kit";
+
+const INFERENCE_TIMEOUT = 35_000;
+
+const LOCAL_RUNNER_FN = timeout(async (params: IOutlineCompletionArgs) => {
+  return await engine.runnerPrivateService.getOutlineCompletion(params);
+}, INFERENCE_TIMEOUT);
+
 /**
  * Outline runner completion handler registration.
  *
@@ -26,18 +37,16 @@
  * // Returns structured data validated against schema
  * ```
  */
-
-import {
-  addCompletion,
-  IOutlineCompletionArgs,
-} from "agent-swarm-kit";
-import { CompletionName } from "../../enum/CompletionName";
-import { engine } from "../../lib";
-
 addCompletion({
   completionName: CompletionName.RunnerOutlineCompletion,
   getCompletion: async (params: IOutlineCompletionArgs) => {
-    return await engine.runnerPrivateService.getOutlineCompletion(params);
+    const result = await LOCAL_RUNNER_FN(params);
+    if (typeof result === "symbol") {
+      throw new Error(
+        `${CompletionName.RunnerOutlineCompletion} inference timeout`
+      );
+    }
+    return result;
   },
   json: true,
 });

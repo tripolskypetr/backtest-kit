@@ -8,14 +8,14 @@ import { IOptimizerSchema } from "../interfaces/Optimizer.interface";
 import { IActionSchema } from "../interfaces/Action.interface";
 import backtest from "../lib/index";
 
-const METHOD_NAME_OVERRIDE_STRATEGY = "function.override.overrideStrategy";
-const METHOD_NAME_OVERRIDE_EXCHANGE = "function.override.overrideExchange";
-const METHOD_NAME_OVERRIDE_FRAME = "function.override.overrideFrame";
-const METHOD_NAME_OVERRIDE_WALKER = "function.override.overrideWalker";
-const METHOD_NAME_OVERRIDE_SIZING = "function.override.overrideSizing";
-const METHOD_NAME_OVERRIDE_RISK = "function.override.overrideRisk";
-const METHOD_NAME_OVERRIDE_OPTIMIZER = "function.override.overrideOptimizer";
-const METHOD_NAME_OVERRIDE_ACTION = "function.override.overrideAction";
+const METHOD_NAME_OVERRIDE_STRATEGY = "function.override.overrideStrategySchema";
+const METHOD_NAME_OVERRIDE_EXCHANGE = "function.override.overrideExchangeSchema";
+const METHOD_NAME_OVERRIDE_FRAME = "function.override.overrideFrameSchema";
+const METHOD_NAME_OVERRIDE_WALKER = "function.override.overrideWalkerSchema";
+const METHOD_NAME_OVERRIDE_SIZING = "function.override.overrideSizingSchema";
+const METHOD_NAME_OVERRIDE_RISK = "function.override.overrideRiskSchema";
+const METHOD_NAME_OVERRIDE_OPTIMIZER = "function.override.overrideOptimizerSchema";
+const METHOD_NAME_OVERRIDE_ACTION = "function.override.overrideActionSchema";
 
 /**
  * Partial strategy schema for override operations.
@@ -240,7 +240,7 @@ type TActionSchema = {
  * });
  * ```
  */
-export async function overrideStrategy(strategySchema: TStrategySchema) {
+export async function overrideStrategySchema(strategySchema: TStrategySchema) {
   backtest.loggerService.log(METHOD_NAME_OVERRIDE_STRATEGY, {
     strategySchema,
   });
@@ -277,7 +277,7 @@ export async function overrideStrategy(strategySchema: TStrategySchema) {
  * });
  * ```
  */
-export async function overrideExchange(exchangeSchema: TExchangeSchema) {
+export async function overrideExchangeSchema(exchangeSchema: TExchangeSchema) {
   backtest.loggerService.log(METHOD_NAME_OVERRIDE_EXCHANGE, {
     exchangeSchema,
   });
@@ -314,7 +314,7 @@ export async function overrideExchange(exchangeSchema: TExchangeSchema) {
  * });
  * ```
  */
-export async function overrideFrame(frameSchema: TFrameSchema) {
+export async function overrideFrameSchema(frameSchema: TFrameSchema) {
   backtest.loggerService.log(METHOD_NAME_OVERRIDE_FRAME, {
     frameSchema,
   });
@@ -352,7 +352,7 @@ export async function overrideFrame(frameSchema: TFrameSchema) {
  * });
  * ```
  */
-export async function overrideWalker(walkerSchema: TWalkerSchema) {
+export async function overrideWalkerSchema(walkerSchema: TWalkerSchema) {
   backtest.loggerService.log(METHOD_NAME_OVERRIDE_WALKER, {
     walkerSchema,
   });
@@ -393,7 +393,7 @@ export async function overrideWalker(walkerSchema: TWalkerSchema) {
  * });
  * ```
  */
-export async function overrideSizing(sizingSchema: TSizingSchema) {
+export async function overrideSizingSchema(sizingSchema: TSizingSchema) {
   backtest.loggerService.log(METHOD_NAME_OVERRIDE_SIZING, {
     sizingSchema,
   });
@@ -429,7 +429,7 @@ export async function overrideSizing(sizingSchema: TSizingSchema) {
  * });
  * ```
  */
-export async function overrideRisk(riskSchema: TRiskSchema) {
+export async function overrideRiskSchema(riskSchema: TRiskSchema) {
   backtest.loggerService.log(METHOD_NAME_OVERRIDE_RISK, {
     riskSchema,
   });
@@ -472,7 +472,7 @@ export async function overrideRisk(riskSchema: TRiskSchema) {
  * });
  * ```
  */
-export async function overrideOptimizer(optimizerSchema: TOptimizerSchema) {
+export async function overrideOptimizerSchema(optimizerSchema: TOptimizerSchema) {
   backtest.loggerService.log(METHOD_NAME_OVERRIDE_OPTIMIZER, {
     optimizerSchema,
   });
@@ -548,7 +548,7 @@ export async function overrideOptimizer(optimizerSchema: TOptimizerSchema) {
  * });
  * ```
  */
-export async function overrideAction(actionSchema: TActionSchema) {
+export async function overrideActionSchema(actionSchema: TActionSchema) {
   backtest.loggerService.log(METHOD_NAME_OVERRIDE_ACTION, {
     actionSchema,
   });

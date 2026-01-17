@@ -1,16 +1,16 @@
 import { test } from "worker-testbed";
 
 import {
-  addRisk,
-  addExchange,
+  addRiskSchema,
+  addExchangeSchema,
   lib,
   PersistRiskAdapter,
-  addStrategy,
+  addStrategySchema,
 } from "../../build/index.mjs";
 import internal from "stream";
 
 test("addRisk registers risk profile successfully", async ({ pass, fail }) => {
-  addRisk({
+  addRiskSchema({
     riskName: "test-basic-risk",
     note: "Basic risk profile for testing",
   });
@@ -19,12 +19,12 @@ test("addRisk registers risk profile successfully", async ({ pass, fail }) => {
 });
 
 test("addRisk throws on duplicate risk name", async ({ pass, fail }) => {
-  addRisk({
+  addRiskSchema({
     riskName: "test-duplicate-risk",
   });
 
   try {
-    addRisk({
+    addRiskSchema({
       riskName: "test-duplicate-risk",
     });
     fail("Did not throw error on duplicate risk name");
@@ -44,7 +44,7 @@ test("Risk validation rejects signal when activePositionCount exceeds limit", as
   let rejectedSymbol = null;
   let rejectedReason = null;
 
-  addRisk({
+  addRiskSchema({
     riskName: "test-max-positions",
     validations: [
       {
@@ -64,14 +64,14 @@ test("Risk validation rejects signal when activePositionCount exceeds limit", as
     },
   });
   
-  addStrategy({
+  addStrategySchema({
     strategyName: "test-strategy-4",
     getSignal: async () => null,
     interval: "5m",
   })
 
   // Add mock exchange for all tests
-  addExchange({
+  addExchangeSchema({
     exchangeName: "binance",
     getCandles: async () => [],
     formatPrice: async (_symbol, p) => p.toFixed(8),
@@ -166,7 +166,7 @@ test("Risk validation allows signal when within limits", async ({
 }) => {
   let allowedSymbol = null;
 
-  addRisk({
+  addRiskSchema({
     riskName: "test-allow-positions",
     validations: [
       {
@@ -186,7 +186,7 @@ test("Risk validation allows signal when within limits", async ({
   });
 
   // Add mock exchange for all tests
-  addExchange({
+  addExchangeSchema({
     exchangeName: "binance",
     getCandles: async () => [],
     formatPrice: async (_symbol, p) => p.toFixed(8),
@@ -259,7 +259,7 @@ test("Risk addSignal and removeSignal update activePositionCount", async ({
 }) => {
   let finalCount = -1;
 
-  addRisk({
+  addRiskSchema({
     riskName: "test-count-tracking",
     validations: [
       {
@@ -272,7 +272,7 @@ test("Risk addSignal and removeSignal update activePositionCount", async ({
   });
 
   // Add mock exchange for all tests
-  addExchange({
+  addExchangeSchema({
     exchangeName: "binance",
     getCandles: async () => [],
     formatPrice: async (_symbol, p) => p.toFixed(8),
@@ -389,7 +389,7 @@ test("Risk validation with function (not object) works", async ({
 }) => {
   let validationCalled = false;
 
-  addRisk({
+  addRiskSchema({
     riskName: "test-function-validation",
     validations: [
       async ({ symbol, activePositionCount }) => {
@@ -402,7 +402,7 @@ test("Risk validation with function (not object) works", async ({
   });
 
   // Add mock exchange for all tests
-  addExchange({
+  addExchangeSchema({
     exchangeName: "binance",
     getCandles: async () => [],
     formatPrice: async (_symbol, p) => p.toFixed(8),
@@ -457,7 +457,7 @@ test("Risk validation receives all IRiskCheckArgs fields", async ({
 }) => {
   let receivedPayload = null;
 
-  addRisk({
+  addRiskSchema({
     riskName: "test-payload-fields",
     validations: [
       async (payload) => {
@@ -467,7 +467,7 @@ test("Risk validation receives all IRiskCheckArgs fields", async ({
   });
 
   // Add mock exchange for all tests
-  addExchange({
+  addExchangeSchema({
     exchangeName: "binance",
     getCandles: async () => [],
     formatPrice: async (_symbol, p) => p.toFixed(8),
@@ -513,7 +513,7 @@ test("Risk validation receives all IRiskCheckArgs fields", async ({
 test("Risk validation can reject based on symbol", async ({ pass, fail }) => {
   let rejectedSymbol = null;
 
-  addRisk({
+  addRiskSchema({
     riskName: "test-symbol-filter",
     validations: [
       ({ symbol }) => {
@@ -530,20 +530,20 @@ test("Risk validation can reject based on symbol", async ({ pass, fail }) => {
   });
 
   // Add mock exchange for all tests
-  addExchange({
+  addExchangeSchema({
     exchangeName: "binance",
     getCandles: async () => [],
     formatPrice: async (_symbol, p) => p.toFixed(8),
     formatQuantity: async (_symbol, quantity) => quantity.toFixed(8),
   });
 
-  addStrategy({
+  addStrategySchema({
     strategyName: "test-strategy-4",
     getSignal: async () => null,
     interval: "5m",
   })
 
-  addStrategy({
+  addStrategySchema({
     strategyName: "test-strategy",
     getSignal: async () => null,
     interval: "5m",
@@ -601,12 +601,12 @@ test("Risk with no validations always allows signals", async ({
   pass,
   fail,
 }) => {
-  addRisk({
+  addRiskSchema({
     riskName: "test-no-validations",
   });
 
   // Add mock exchange for all tests
-  addExchange({
+  addExchangeSchema({
     exchangeName: "binance",
     getCandles: async () => [],
     formatPrice: async (_symbol, p) => p.toFixed(8),
@@ -647,7 +647,7 @@ test("Risk activePositionCount is isolated per riskName", async ({
   let risk1Count = -1;
   let risk2Count = -1;
 
-  addRisk({
+  addRiskSchema({
     riskName: "test-isolation-1",
     validations: [
       ({ activePositionCount }) => {
@@ -656,7 +656,7 @@ test("Risk activePositionCount is isolated per riskName", async ({
     ],
   });
 
-  addRisk({
+  addRiskSchema({
     riskName: "test-isolation-2",
     validations: [
       ({ activePositionCount }) => {
@@ -666,7 +666,7 @@ test("Risk activePositionCount is isolated per riskName", async ({
   });
 
   // Add mock exchange for all tests
-  addExchange({
+  addExchangeSchema({
     exchangeName: "binance",
     getCandles: async () => [],
     formatPrice: async (_symbol, p) => p.toFixed(8),
@@ -773,7 +773,7 @@ test("Risk removeSignal with same strategyName:symbol key", async ({
 }) => {
   let finalCount = -1;
 
-  addRisk({
+  addRiskSchema({
     riskName: "test-remove-by-key",
     validations: [
       ({ activePositionCount }) => {
@@ -783,7 +783,7 @@ test("Risk removeSignal with same strategyName:symbol key", async ({
   });
 
   // Add mock exchange for all tests
-  addExchange({
+  addExchangeSchema({
     exchangeName: "binance",
     getCandles: async () => [],
     formatPrice: async (_symbol, p) => p.toFixed(8),

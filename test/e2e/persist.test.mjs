@@ -1,9 +1,9 @@
 import { test } from "worker-testbed";
 
 import {
-  addExchange,
-  addFrame,
-  addStrategy,
+  addExchangeSchema,
+  addFrameSchema,
+  addStrategySchema,
   Backtest,
   listenDoneBacktest,
   Live,
@@ -56,7 +56,7 @@ test("PERSIST: LONG signal closes by TP after restart", async ({ pass, fail }) =
     async deleteValue() {}
   });
 
-  addExchange({
+  addExchangeSchema({
     exchangeName: "binance-persist-1",
     getCandles: async (_symbol, _interval, since, limit) => {
       const candles = [];
@@ -80,7 +80,7 @@ test("PERSIST: LONG signal closes by TP after restart", async ({ pass, fail }) =
     formatQuantity: async (_symbol, quantity) => quantity.toFixed(8),
   });
 
-  addStrategy({
+  addStrategySchema({
     strategyName: "persist-strategy-1",
     interval: "1m",
     getSignal: async () => null,
@@ -149,7 +149,7 @@ test("PERSIST: SHORT signal closes by SL after restart", async ({ pass, fail }) 
     async deleteValue() {}
   });
 
-  addExchange({
+  addExchangeSchema({
     exchangeName: "binance-persist-2",
     getCandles: async (_symbol, _interval, since, limit) => {
       const candles = [];
@@ -173,7 +173,7 @@ test("PERSIST: SHORT signal closes by SL after restart", async ({ pass, fail }) 
     formatQuantity: async (_symbol, quantity) => quantity.toFixed(8),
   });
 
-  addStrategy({
+  addStrategySchema({
     strategyName: "persist-strategy-2",
     interval: "1m",
     getSignal: async () => null,
@@ -235,7 +235,7 @@ test("PERSIST: Scheduled signal is NOT written to storage", async ({ pass, fail 
     async deleteValue() {}
   });
 
-  addExchange({
+  addExchangeSchema({
     exchangeName: "binance-persist-3",
     getCandles: async (_symbol, _interval, since, limit) => {
       const candles = [];
@@ -259,7 +259,7 @@ test("PERSIST: Scheduled signal is NOT written to storage", async ({ pass, fail 
     formatQuantity: async (_symbol, quantity) => quantity.toFixed(8),
   });
 
-  addStrategy({
+  addStrategySchema({
     strategyName: "persist-strategy-3",
     interval: "1m",
     getSignal: async () => {
@@ -352,7 +352,7 @@ test("PERSIST: LONG signal expires by time after restart", async ({ pass, fail }
     async deleteValue() {}
   });
 
-  addExchange({
+  addExchangeSchema({
     exchangeName: "binance-persist-4",
     getCandles: async (_symbol, _interval, since, limit) => {
       const candles = [];
@@ -376,7 +376,7 @@ test("PERSIST: LONG signal expires by time after restart", async ({ pass, fail }
     formatQuantity: async (_symbol, quantity) => quantity.toFixed(8),
   });
 
-  addStrategy({
+  addStrategySchema({
     strategyName: "persist-strategy-4",
     interval: "1m",
     getSignal: async () => null,
@@ -445,7 +445,7 @@ test("PERSIST: SHORT signal closes by TP after long downtime", async ({ pass, fa
     async deleteValue() {}
   });
 
-  addExchange({
+  addExchangeSchema({
     exchangeName: "binance-persist-5",
     getCandles: async (_symbol, _interval, since, limit) => {
       const candles = [];
@@ -470,7 +470,7 @@ test("PERSIST: SHORT signal closes by TP after long downtime", async ({ pass, fa
     formatQuantity: async (_symbol, quantity) => quantity.toFixed(8),
   });
 
-  addStrategy({
+  addStrategySchema({
     strategyName: "persist-strategy-5",
     interval: "1m",
     getSignal: async () => null,
@@ -539,7 +539,7 @@ test("PERSIST: Signal restored successfully", async ({ pass, fail }) => {
     async deleteValue() {}
   });
 
-  addExchange({
+  addExchangeSchema({
     exchangeName: "binance-persist-6",
     getCandles: async (_symbol, _interval, since, limit) => {
       const candles = [];
@@ -564,7 +564,7 @@ test("PERSIST: Signal restored successfully", async ({ pass, fail }) => {
     formatQuantity: async (_symbol, quantity) => quantity.toFixed(8),
   });
 
-  addStrategy({
+  addStrategySchema({
     strategyName: "persist-strategy-6",
     interval: "1m",
     getSignal: async () => null,
@@ -621,7 +621,7 @@ test("PERSIST SEQUENCE: Track writeValue content - 2 LONG signals (TP, SL)", asy
     });
   }
 
-  addExchange({
+  addExchangeSchema({
     exchangeName: "binance-persist-seq-1",
     getCandles: async (_symbol, _interval, since, limit) => {
       const sinceIndex = Math.floor((since.getTime() - startTime) / intervalMs);
@@ -634,7 +634,7 @@ test("PERSIST SEQUENCE: Track writeValue content - 2 LONG signals (TP, SL)", asy
 
   let signalCount = 0;
 
-  addStrategy({
+  addStrategySchema({
     strategyName: "persist-seq-strategy-1",
     interval: "1m",
     getSignal: async () => {
@@ -705,7 +705,7 @@ test("PERSIST SEQUENCE: Track writeValue content - 2 LONG signals (TP, SL)", asy
     },
   });
 
-  addFrame({
+  addFrameSchema({
     frameName: "60m-test",
     interval: "1m",
     startDate: new Date("2024-01-01T00:00:00Z"),
@@ -798,7 +798,7 @@ test("PERSIST SEQUENCE: Verify all signal fields in writeValue", async ({ pass, 
     });
   }
 
-  addExchange({
+  addExchangeSchema({
     exchangeName: "binance-persist-seq-2",
     getCandles: async (_symbol, _interval, since, limit) => {
       const sinceIndex = Math.floor((since.getTime() - startTime) / intervalMs);
@@ -811,7 +811,7 @@ test("PERSIST SEQUENCE: Verify all signal fields in writeValue", async ({ pass, 
 
   let signalGenerated = false;
 
-  addStrategy({
+  addStrategySchema({
     strategyName: "persist-seq-strategy-2",
     interval: "1m",
     getSignal: async () => {
@@ -853,7 +853,7 @@ test("PERSIST SEQUENCE: Verify all signal fields in writeValue", async ({ pass, 
     },
   });
 
-  addFrame({
+  addFrameSchema({
     frameName: "20m-test",
     interval: "1m",
     startDate: new Date("2024-01-01T00:00:00Z"),
@@ -951,7 +951,7 @@ test("PERSIST SEQUENCE: SHORT signal lifecycle tracking", async ({ pass, fail })
     });
   }
 
-  addExchange({
+  addExchangeSchema({
     exchangeName: "binance-persist-seq-3",
     getCandles: async (_symbol, _interval, since, limit) => {
       const sinceIndex = Math.floor((since.getTime() - startTime) / intervalMs);
@@ -964,7 +964,7 @@ test("PERSIST SEQUENCE: SHORT signal lifecycle tracking", async ({ pass, fail })
 
   let signalGenerated = false;
 
-  addStrategy({
+  addStrategySchema({
     strategyName: "persist-seq-strategy-3",
     interval: "1m",
     getSignal: async () => {
@@ -1013,7 +1013,7 @@ test("PERSIST SEQUENCE: SHORT signal lifecycle tracking", async ({ pass, fail })
     },
   });
 
-  addFrame({
+  addFrameSchema({
     frameName: "20m-test-short",
     interval: "1m",
     startDate: new Date("2024-01-01T00:00:00Z"),
@@ -1107,7 +1107,7 @@ test("PERSIST SEQUENCE: Multiple signals (TP, SL, cancelled) - verify onWrite li
     });
   }
 
-  addExchange({
+  addExchangeSchema({
     exchangeName: "binance-persist-seq-4",
     getCandles: async (_symbol, _interval, since, limit) => {
       const sinceIndex = Math.floor((since.getTime() - startTime) / intervalMs);
@@ -1120,7 +1120,7 @@ test("PERSIST SEQUENCE: Multiple signals (TP, SL, cancelled) - verify onWrite li
 
   let signalCount = 0;
 
-  addStrategy({
+  addStrategySchema({
     strategyName: "persist-seq-strategy-4",
     interval: "1m",
     getSignal: async () => {
@@ -1199,7 +1199,7 @@ test("PERSIST SEQUENCE: Multiple signals (TP, SL, cancelled) - verify onWrite li
     },
   });
 
-  addFrame({
+  addFrameSchema({
     frameName: "120m-test",
     interval: "1m",
     startDate: new Date("2024-01-01T00:00:00Z"),
@@ -1302,7 +1302,7 @@ test("PERSIST SEQUENCE: onWrite(null) called AFTER onClose - correct lifecycle o
     });
   }
 
-  addExchange({
+  addExchangeSchema({
     exchangeName: "binance-persist-seq-5",
     getCandles: async (_symbol, _interval, since, limit) => {
       const sinceIndex = Math.floor((since.getTime() - startTime) / intervalMs);
@@ -1315,7 +1315,7 @@ test("PERSIST SEQUENCE: onWrite(null) called AFTER onClose - correct lifecycle o
 
   let signalGenerated = false;
 
-  addStrategy({
+  addStrategySchema({
     strategyName: "persist-seq-strategy-5",
     interval: "1m",
     getSignal: async () => {
@@ -1368,7 +1368,7 @@ test("PERSIST SEQUENCE: onWrite(null) called AFTER onClose - correct lifecycle o
     },
   });
 
-  addFrame({
+  addFrameSchema({
     frameName: "30m-test-order",
     interval: "1m",
     startDate: new Date("2024-01-01T00:00:00Z"),

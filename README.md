@@ -82,10 +82,10 @@ setConfig({
 ### 🔧 Register Components
 ```typescript
 import ccxt from 'ccxt';
-import { addExchange, addStrategy, addFrame, addRisk } from 'backtest-kit';
+import { addExchangeSchema, addStrategySchema, addFrameSchema, addRiskSchema } from 'backtest-kit';
 
 // Exchange (data source)
-addExchange({
+addExchangeSchema({
   exchangeName: 'binance',
   getCandles: async (symbol, interval, since, limit) => {
     const exchange = new ccxt.binance();
@@ -97,7 +97,7 @@ addExchange({
 });
 
 // Risk profile
-addRisk({
+addRiskSchema({
   riskName: 'demo',
   validations: [
     // TP at least 1%
@@ -117,7 +117,7 @@ addRisk({
 });
 
 // Time frame
-addFrame({
+addFrameSchema({
   frameName: '1d-test',
   interval: '1m',
   startDate: new Date('2025-12-01'),
@@ -128,11 +128,11 @@ addFrame({
 ### 💡 Example Strategy (with LLM)
 ```typescript
 import { v4 as uuid } from 'uuid';
-import { addStrategy, dumpSignal, getCandles } from 'backtest-kit';
+import { addStrategySchema, dumpSignalData, getCandles } from 'backtest-kit';
 import { json } from './utils/json.mjs';  // LLM wrapper
 import { getMessages } from './utils/messages.mjs';  // Market data prep
 
-addStrategy({
+addStrategySchema({
   strategyName: 'llm-strategy',
   interval: '5m',
   riskName: 'demo',
@@ -149,10 +149,10 @@ addStrategy({
       candles5m,
       candles1m,
     });  // Calculate indicators / Fetch news
-  
+
     const resultId = uuid();
     const signal = await json(messages);  // LLM generates signal
-    await dumpSignal(resultId, messages, signal);  // Log
+    await dumpSignalData(resultId, messages, signal);  // Log
 
     return { ...signal, id: resultId };
   },

@@ -1,9 +1,9 @@
 import { test } from "worker-testbed";
 
 import {
-  addExchange,
-  addFrame,
-  addStrategy,
+  addExchangeSchema,
+  addFrameSchema,
+  addStrategySchema,
   Backtest,
   listenSignalBacktest,
   getAveragePrice,
@@ -16,7 +16,7 @@ test("PNL is being calculated", async ({ pass, fail }) => {
 
   const [awaiter, { resolve }] = createAwaiter();
 
-  addExchange({
+  addExchangeSchema({
     exchangeName: "binance-mock-costs",
     getCandles: async (_symbol, interval, since, limit) => {
       return await getMockCandles(interval, since, limit);
@@ -29,7 +29,7 @@ test("PNL is being calculated", async ({ pass, fail }) => {
     },
   });
 
-  addStrategy({
+  addStrategySchema({
     strategyName: "test-strategy-costs",
     interval: "1m",
     getSignal: async () => {
@@ -44,7 +44,7 @@ test("PNL is being calculated", async ({ pass, fail }) => {
     },
   });
 
-  addFrame({
+  addFrameSchema({
     frameName: "1d-backtest-costs",
     interval: "1d",
     startDate: new Date("2024-01-01T00:00:00Z"),
@@ -79,7 +79,7 @@ test("getData returns BacktestStatistics structure", async ({ pass, fail }) => {
 
   const [awaiter, { resolve }] = createAwaiter();
 
-  addExchange({
+  addExchangeSchema({
     exchangeName: "binance-mock-stats",
     getCandles: async (_symbol, interval, since, limit) => {
       return await getMockCandles(interval, since, limit);
@@ -92,7 +92,7 @@ test("getData returns BacktestStatistics structure", async ({ pass, fail }) => {
     },
   });
 
-  addStrategy({
+  addStrategySchema({
     strategyName: "test-strategy-stats",
     interval: "1m",
     getSignal: async () => {
@@ -107,7 +107,7 @@ test("getData returns BacktestStatistics structure", async ({ pass, fail }) => {
     },
   });
 
-  addFrame({
+  addFrameSchema({
     frameName: "1d-backtest-stats",
     interval: "1d",
     startDate: new Date("2024-01-01T00:00:00Z"),
@@ -164,7 +164,7 @@ test("getData calculates all statistical metrics", async ({ pass, fail }) => {
 
   const [awaiter, { resolve }] = createAwaiter();
 
-  addExchange({
+  addExchangeSchema({
     exchangeName: "binance-mock-metrics",
     getCandles: async (_symbol, interval, since, limit) => {
       return await getMockCandles(interval, since, limit);
@@ -177,7 +177,7 @@ test("getData calculates all statistical metrics", async ({ pass, fail }) => {
     },
   });
 
-  addStrategy({
+  addStrategySchema({
     strategyName: "test-strategy-metrics",
     interval: "1m",
     getSignal: async () => {
@@ -192,7 +192,7 @@ test("getData calculates all statistical metrics", async ({ pass, fail }) => {
     },
   });
 
-  addFrame({
+  addFrameSchema({
     frameName: "1d-backtest-metrics",
     interval: "1d",
     startDate: new Date("2024-01-01T00:00:00Z"),
@@ -249,7 +249,7 @@ test("getData calculates all statistical metrics", async ({ pass, fail }) => {
 
 test("getData returns null for invalid metrics with safe math", async ({ pass, fail }) => {
 
-  addExchange({
+  addExchangeSchema({
     exchangeName: "binance-mock-safemath",
     getCandles: async (_symbol, interval, since, limit) => {
       return await getMockCandles(interval, since, limit);
@@ -262,7 +262,7 @@ test("getData returns null for invalid metrics with safe math", async ({ pass, f
     },
   });
 
-  addStrategy({
+  addStrategySchema({
     strategyName: "test-strategy-safemath",
     interval: "1m",
     getSignal: async () => {
@@ -270,7 +270,7 @@ test("getData returns null for invalid metrics with safe math", async ({ pass, f
     },
   });
 
-  addFrame({
+  addFrameSchema({
     frameName: "1d-backtest-safemath",
     interval: "1d",
     startDate: new Date("2024-01-01T00:00:00Z"),
@@ -317,7 +317,7 @@ test("getData includes signalList with all closed trades", async ({ pass, fail }
   const [awaiter, { resolve }] = createAwaiter();
   let closedCount = 0;
 
-  addExchange({
+  addExchangeSchema({
     exchangeName: "binance-mock-signallist",
     getCandles: async (_symbol, interval, since, limit) => {
       return await getMockCandles(interval, since, limit);
@@ -330,7 +330,7 @@ test("getData includes signalList with all closed trades", async ({ pass, fail }
     },
   });
 
-  addStrategy({
+  addStrategySchema({
     strategyName: "test-strategy-signallist",
     interval: "1m",
     getSignal: async () => {
@@ -345,7 +345,7 @@ test("getData includes signalList with all closed trades", async ({ pass, fail }
     },
   });
 
-  addFrame({
+  addFrameSchema({
     frameName: "1d-backtest-signallist",
     interval: "1d",
     startDate: new Date("2024-01-01T00:00:00Z"),
@@ -404,7 +404,7 @@ test("Statistical metrics are calculated correctly", async ({ pass, fail }) => {
   const [awaiter, { resolve }] = createAwaiter();
   let closedCount = 0;
 
-  addExchange({
+  addExchangeSchema({
     exchangeName: "binance-mock-calculation",
     getCandles: async (_symbol, interval, since, limit) => {
       return await getMockCandles(interval, since, limit);
@@ -417,7 +417,7 @@ test("Statistical metrics are calculated correctly", async ({ pass, fail }) => {
     },
   });
 
-  addStrategy({
+  addStrategySchema({
     strategyName: "test-strategy-calculation",
     interval: "1m",
     getSignal: async () => {
@@ -432,7 +432,7 @@ test("Statistical metrics are calculated correctly", async ({ pass, fail }) => {
     },
   });
 
-  addFrame({
+  addFrameSchema({
     frameName: "1d-backtest-calculation",
     interval: "1d",
     startDate: new Date("2024-01-01T00:00:00Z"),

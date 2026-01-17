@@ -14,7 +14,8 @@ import { IStrategyTickResult } from "../../../interfaces/Strategy.interface";
 import { BreakevenContract } from "../../../contract/Breakeven.contract";
 import { PartialProfitContract } from "../../../contract/PartialProfit.contract";
 import { PartialLossContract } from "../../../contract/PartialLoss.contract";
-import { PingContract } from "../../../contract/Ping.contract";
+import { SchedulePingContract } from "../../../contract/SchedulePing.contract";
+import { ActivePingContract } from "../../../contract/ActivePing.contract";
 import { RiskContract } from "../../../contract/Risk.contract";
 import StrategySchemaService from "../schema/StrategySchemaService";
 import StrategyValidationService from "../validation/StrategyValidationService";
@@ -237,18 +238,18 @@ export class ActionCoreService implements TAction {
    * Routes breakeven event to all registered actions for the strategy.
    *
    * Retrieves action list from strategy schema (IStrategySchema.actions)
-   * and invokes the breakeven handler on each ClientAction instance sequentially.
+   * and invokes the breakevenAvailable handler on each ClientAction instance sequentially.
    *
    * @param backtest - Whether running in backtest mode (true) or live mode (false)
    * @param event - Breakeven milestone data (stop-loss moved to entry price)
    * @param context - Strategy execution context with strategyName, exchangeName, frameName
    */
-  public breakeven = async (
+  public breakevenAvailable = async (
     backtest: boolean,
     event: BreakevenContract,
     context: { strategyName: StrategyName; exchangeName: ExchangeName; frameName: FrameName }
   ) => {
-    this.loggerService.log("actionCoreService breakeven", {
+    this.loggerService.log("actionCoreService breakevenAvailable", {
       context,
     });
 
@@ -257,7 +258,7 @@ export class ActionCoreService implements TAction {
     const { actions = [] } = this.strategySchemaService.get(context.strategyName);
 
     for (const actionName of actions) {
-      await this.actionConnectionService.breakeven(event, backtest, { actionName, ...context });
+      await this.actionConnectionService.breakevenAvailable(event, backtest, { actionName, ...context });
     }
   };
 
@@ -265,18 +266,18 @@ export class ActionCoreService implements TAction {
    * Routes partial profit event to all registered actions for the strategy.
    *
    * Retrieves action list from strategy schema (IStrategySchema.actions)
-   * and invokes the partialProfit handler on each ClientAction instance sequentially.
+   * and invokes the partialProfitAvailable handler on each ClientAction instance sequentially.
    *
    * @param backtest - Whether running in backtest mode (true) or live mode (false)
    * @param event - Profit milestone data with level (10%, 20%, etc.) and price
    * @param context - Strategy execution context with strategyName, exchangeName, frameName
    */
-  public partialProfit = async (
+  public partialProfitAvailable = async (
     backtest: boolean,
     event: PartialProfitContract,
     context: { strategyName: StrategyName; exchangeName: ExchangeName; frameName: FrameName }
   ) => {
-    this.loggerService.log("actionCoreService partialProfit", {
+    this.loggerService.log("actionCoreService partialProfitAvailable", {
       context,
     });
 
@@ -285,7 +286,7 @@ export class ActionCoreService implements TAction {
     const { actions = [] } = this.strategySchemaService.get(context.strategyName);
 
     for (const actionName of actions) {
-      await this.actionConnectionService.partialProfit(event, backtest, { actionName, ...context });
+      await this.actionConnectionService.partialProfitAvailable(event, backtest, { actionName, ...context });
     }
   };
 
@@ -293,18 +294,18 @@ export class ActionCoreService implements TAction {
    * Routes partial loss event to all registered actions for the strategy.
    *
    * Retrieves action list from strategy schema (IStrategySchema.actions)
-   * and invokes the partialLoss handler on each ClientAction instance sequentially.
+   * and invokes the partialLossAvailable handler on each ClientAction instance sequentially.
    *
    * @param backtest - Whether running in backtest mode (true) or live mode (false)
    * @param event - Loss milestone data with level (-10%, -20%, etc.) and price
    * @param context - Strategy execution context with strategyName, exchangeName, frameName
    */
-  public partialLoss = async (
+  public partialLossAvailable = async (
     backtest: boolean,
     event: PartialLossContract,
     context: { strategyName: StrategyName; exchangeName: ExchangeName; frameName: FrameName }
   ) => {
-    this.loggerService.log("actionCoreService partialLoss", {
+    this.loggerService.log("actionCoreService partialLossAvailable", {
       context,
     });
 
@@ -313,27 +314,27 @@ export class ActionCoreService implements TAction {
     const { actions = [] } = this.strategySchemaService.get(context.strategyName);
 
     for (const actionName of actions) {
-      await this.actionConnectionService.partialLoss(event, backtest, { actionName, ...context });
+      await this.actionConnectionService.partialLossAvailable(event, backtest, { actionName, ...context });
     }
   };
 
   /**
-   * Routes ping event to all registered actions for the strategy.
+   * Routes scheduled ping event to all registered actions for the strategy.
    *
    * Retrieves action list from strategy schema (IStrategySchema.actions)
-   * and invokes the ping handler on each ClientAction instance sequentially.
+   * and invokes the pingScheduled handler on each ClientAction instance sequentially.
    * Called every minute during scheduled signal monitoring.
    *
    * @param backtest - Whether running in backtest mode (true) or live mode (false)
    * @param event - Scheduled signal monitoring data
    * @param context - Strategy execution context with strategyName, exchangeName, frameName
    */
-  public ping = async (
+  public pingScheduled = async (
     backtest: boolean,
-    event: PingContract,
+    event: SchedulePingContract,
     context: { strategyName: StrategyName; exchangeName: ExchangeName; frameName: FrameName }
   ) => {
-    this.loggerService.log("actionCoreService ping", {
+    this.loggerService.log("actionCoreService pingScheduled", {
       context,
     });
 
@@ -342,7 +343,36 @@ export class ActionCoreService implements TAction {
     const { actions = [] } = this.strategySchemaService.get(context.strategyName);
 
     for (const actionName of actions) {
-      await this.actionConnectionService.ping(event, backtest, { actionName, ...context });
+      await this.actionConnectionService.pingScheduled(event, backtest, { actionName, ...context });
+    }
+  };
+
+  /**
+   * Routes active ping event to all registered actions for the strategy.
+   *
+   * Retrieves action list from strategy schema (IStrategySchema.actions)
+   * and invokes the pingActive handler on each ClientAction instance sequentially.
+   * Called every minute during active pending signal monitoring.
+   *
+   * @param backtest - Whether running in backtest mode (true) or live mode (false)
+   * @param event - Active pending signal monitoring data
+   * @param context - Strategy execution context with strategyName, exchangeName, frameName
+   */
+  public pingActive = async (
+    backtest: boolean,
+    event: ActivePingContract,
+    context: { strategyName: StrategyName; exchangeName: ExchangeName; frameName: FrameName }
+  ) => {
+    this.loggerService.log("actionCoreService pingActive", {
+      context,
+    });
+
+    await this.validate(context);
+
+    const { actions = [] } = this.strategySchemaService.get(context.strategyName);
+
+    for (const actionName of actions) {
+      await this.actionConnectionService.pingActive(event, backtest, { actionName, ...context });
     }
   };
 

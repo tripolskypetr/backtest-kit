@@ -1,8 +1,8 @@
 import { test } from "worker-testbed";
 
 import {
-  addExchange,
-  addStrategy,
+  addExchangeSchema,
+  addStrategySchema,
   Live,
   PersistSignalAdapter,
   PersistScheduleAdapter,
@@ -56,7 +56,7 @@ test("RESTORE: Pending signal is restored after crash", async ({ pass, fail }) =
     async deleteValue() {}
   });
 
-  addExchange({
+  addExchangeSchema({
     exchangeName: "binance-restore-pending",
     getCandles: async (_symbol, _interval, since, limit) => {
       const candles = [];
@@ -80,7 +80,7 @@ test("RESTORE: Pending signal is restored after crash", async ({ pass, fail }) =
     formatQuantity: async (_symbol, quantity) => quantity.toFixed(8),
   });
 
-  addStrategy({
+  addStrategySchema({
     strategyName: "restore-pending-strategy",
     interval: "1m",
     getSignal: async () => null,
@@ -174,7 +174,7 @@ test("RESTORE: Scheduled signal is restored after crash", async ({ pass, fail })
     async deleteValue() {}
   });
 
-  addExchange({
+  addExchangeSchema({
     exchangeName: "binance-restore-scheduled",
     getCandles: async (_symbol, _interval, since, limit) => {
       const candles = [];
@@ -198,7 +198,7 @@ test("RESTORE: Scheduled signal is restored after crash", async ({ pass, fail })
     formatQuantity: async (_symbol, quantity) => quantity.toFixed(8),
   });
 
-  addStrategy({
+  addStrategySchema({
     strategyName: "restore-scheduled-strategy",
     interval: "1m",
     getSignal: async () => null,
@@ -282,7 +282,7 @@ test("RESTORE: Ignore signal if exchange name mismatches", async ({ pass, fail }
     async deleteValue() {}
   });
 
-  addExchange({
+  addExchangeSchema({
     exchangeName: "bybit",
     getCandles: async (_symbol, _interval, since, limit) => {
       const candles = [];
@@ -306,7 +306,7 @@ test("RESTORE: Ignore signal if exchange name mismatches", async ({ pass, fail }
     formatQuantity: async (_symbol, quantity) => quantity.toFixed(8),
   });
 
-  addStrategy({
+  addStrategySchema({
     strategyName: "restore-exchange-mismatch",
     interval: "1m",
     getSignal: async () => null,
@@ -374,7 +374,7 @@ test("RESTORE: Ignore signal if strategy name mismatches", async ({ pass, fail }
     async deleteValue() {}
   });
 
-  addExchange({
+  addExchangeSchema({
     exchangeName: "binance",
     getCandles: async (_symbol, _interval, since, limit) => {
       const candles = [];
@@ -398,7 +398,7 @@ test("RESTORE: Ignore signal if strategy name mismatches", async ({ pass, fail }
     formatQuantity: async (_symbol, quantity) => quantity.toFixed(8),
   });
 
-  addStrategy({
+  addStrategySchema({
     strategyName: "strategy-b",
     interval: "1m",
     getSignal: async () => null,
@@ -463,7 +463,7 @@ test("RESTORE: Handle empty storage gracefully on restart", async ({ pass, fail 
     async deleteValue() {}
   });
 
-  addExchange({
+  addExchangeSchema({
     exchangeName: "binance-empty",
     getCandles: async (_symbol, _interval, since, limit) => {
       const candles = [];
@@ -487,7 +487,7 @@ test("RESTORE: Handle empty storage gracefully on restart", async ({ pass, fail 
     formatQuantity: async (_symbol, quantity) => quantity.toFixed(8),
   });
 
-  addStrategy({
+  addStrategySchema({
     strategyName: "restore-empty",
     interval: "1m",
     getSignal: async () => {

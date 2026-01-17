@@ -46,6 +46,9 @@ import "./spec/optimizer.test.mjs"
 import "./spec/config.test.mjs"
 import "./spec/columns.test.mjs"
 
+import "./migration/migrate1.test.mjs"
+import "./migration/migrate2.test.mjs"
+
 run(import.meta.url, () => {
     console.log("All tests are finished");
     process.exit(-1);

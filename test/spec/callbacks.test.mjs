@@ -1,9 +1,9 @@
 import { test } from "worker-testbed";
 
 import {
-  addExchange,
-  addFrame,
-  addStrategy,
+  addExchangeSchema,
+  addFrameSchema,
+  addStrategySchema,
   Backtest,
   Live,
   PersistSignalAdapter,
@@ -17,7 +17,7 @@ test("onOpen callback is called when signal opens", async ({ pass, fail }) => {
 
   const [awaiter, { resolve }] = createAwaiter();
 
-  addExchange({
+  addExchangeSchema({
     exchangeName: "binance-mock-onopen",
     getCandles: async (_symbol, interval, since, limit) => {
       return await getMockCandles(interval, since, limit);
@@ -30,7 +30,7 @@ test("onOpen callback is called when signal opens", async ({ pass, fail }) => {
     },
   });
 
-  addStrategy({
+  addStrategySchema({
     strategyName: "test-strategy-onopen",
     interval: "1m",
     getSignal: async () => {
@@ -55,7 +55,7 @@ test("onOpen callback is called when signal opens", async ({ pass, fail }) => {
     },
   });
 
-  addFrame({
+  addFrameSchema({
     frameName: "1d-backtest-onopen",
     interval: "1d",
     startDate: new Date("2024-01-01T00:00:00Z"),
@@ -84,7 +84,7 @@ test("onClose callback is called when signal closes", async ({ pass, fail }) => 
 
   const [awaiter, { resolve }] = createAwaiter();
 
-  addExchange({
+  addExchangeSchema({
     exchangeName: "binance-mock-onclose",
     getCandles: async (_symbol, interval, since, limit) => {
       return await getMockCandles(interval, since, limit);
@@ -97,7 +97,7 @@ test("onClose callback is called when signal closes", async ({ pass, fail }) => 
     },
   });
 
-  addStrategy({
+  addStrategySchema({
     strategyName: "test-strategy-onclose",
     interval: "1m",
     getSignal: async () => {
@@ -123,7 +123,7 @@ test("onClose callback is called when signal closes", async ({ pass, fail }) => 
     },
   });
 
-  addFrame({
+  addFrameSchema({
     frameName: "1d-backtest-onclose",
     interval: "1d",
     startDate: new Date("2024-01-01T00:00:00Z"),
@@ -153,7 +153,7 @@ test("onTimeframe callback is called in frame", async ({ pass, fail }) => {
 
   const [awaiter, { resolve }] = createAwaiter();
 
-  addExchange({
+  addExchangeSchema({
     exchangeName: "binance-mock-timeframe",
     getCandles: async (_symbol, interval, since, limit) => {
       return await getMockCandles(interval, since, limit);
@@ -166,7 +166,7 @@ test("onTimeframe callback is called in frame", async ({ pass, fail }) => {
     },
   });
 
-  addStrategy({
+  addStrategySchema({
     strategyName: "test-strategy-timeframe",
     interval: "1m",
     getSignal: async () => {
@@ -174,7 +174,7 @@ test("onTimeframe callback is called in frame", async ({ pass, fail }) => {
     },
   });
 
-  addFrame({
+  addFrameSchema({
     frameName: "1d-backtest-timeframe",
     interval: "1d",
     startDate: new Date("2024-01-01T00:00:00Z"),
@@ -214,7 +214,7 @@ test("callbacks receive backtest=true in backtest mode", async ({ pass, fail }) 
 
   const [awaiter, { resolve }] = createAwaiter();
 
-  addExchange({
+  addExchangeSchema({
     exchangeName: "binance-mock-backtest-mode",
     getCandles: async (_symbol, interval, since, limit) => {
       return await getMockCandles(interval, since, limit);
@@ -227,7 +227,7 @@ test("callbacks receive backtest=true in backtest mode", async ({ pass, fail }) 
     },
   });
 
-  addStrategy({
+  addStrategySchema({
     strategyName: "test-strategy-backtest-mode",
     interval: "1m",
     getSignal: async () => {
@@ -248,7 +248,7 @@ test("callbacks receive backtest=true in backtest mode", async ({ pass, fail }) 
     },
   });
 
-  addFrame({
+  addFrameSchema({
     frameName: "1d-backtest-mode",
     interval: "1d",
     startDate: new Date("2024-01-01T00:00:00Z"),
@@ -276,7 +276,7 @@ test("callbacks receive correct signal object", async ({ pass, fail }) => {
 
   const [awaiter, { resolve }] = createAwaiter();
 
-  addExchange({
+  addExchangeSchema({
     exchangeName: "binance-mock-signal-obj",
     getCandles: async (_symbol, interval, since, limit) => {
       return await getMockCandles(interval, since, limit);
@@ -291,7 +291,7 @@ test("callbacks receive correct signal object", async ({ pass, fail }) => {
 
   let testSignal;
 
-  addStrategy({
+  addStrategySchema({
     strategyName: "test-strategy-signal-obj",
     interval: "1m",
     getSignal: async () => {
@@ -319,7 +319,7 @@ test("callbacks receive correct signal object", async ({ pass, fail }) => {
     },
   });
 
-  addFrame({
+  addFrameSchema({
     frameName: "1d-backtest-signal-obj",
     interval: "1d",
     startDate: new Date("2024-01-01T00:00:00Z"),
@@ -348,7 +348,7 @@ test("onTick callback is called when signal closes in backtest", async ({ pass, 
 
   const [awaiter, { resolve }] = createAwaiter();
 
-  addExchange({
+  addExchangeSchema({
     exchangeName: "binance-mock-ontick",
     getCandles: async (_symbol, interval, since, limit) => {
       return await getMockCandles(interval, since, limit);
@@ -361,7 +361,7 @@ test("onTick callback is called when signal closes in backtest", async ({ pass, 
     },
   });
 
-  addStrategy({
+  addStrategySchema({
     strategyName: "test-strategy-ontick",
     interval: "1m",
     getSignal: async () => {
@@ -384,7 +384,7 @@ test("onTick callback is called when signal closes in backtest", async ({ pass, 
     },
   });
 
-  addFrame({
+  addFrameSchema({
     frameName: "1d-backtest-ontick",
     interval: "1d",
     startDate: new Date("2024-01-01T00:00:00Z"),
@@ -438,7 +438,7 @@ test("onActive callback is called in live mode when signal is active", async ({ 
     }
   });
 
-  addExchange({
+  addExchangeSchema({
     exchangeName: "binance-mock-live-active",
     getCandles: async (_symbol, interval, since, limit) => {
       return await getMockCandles(interval, since, limit);
@@ -451,7 +451,7 @@ test("onActive callback is called in live mode when signal is active", async ({ 
     },
   });
 
-  addStrategy({
+  addStrategySchema({
     strategyName: "test-strategy-live-active",
     interval: "1m",
     getSignal: async () => {
@@ -489,7 +489,7 @@ test("onIdle callback is called in live mode when no signal is active", async ({
 
   const [awaiter, { resolve }] = createAwaiter();
 
-  addExchange({
+  addExchangeSchema({
     exchangeName: "binance-mock-live-idle",
     getCandles: async (_symbol, interval, since, limit) => {
       return await getMockCandles(interval, since, limit);
@@ -502,7 +502,7 @@ test("onIdle callback is called in live mode when no signal is active", async ({
     },
   });
 
-  addStrategy({
+  addStrategySchema({
     strategyName: "test-strategy-live-idle",
     interval: "1m",
     getSignal: async () => {

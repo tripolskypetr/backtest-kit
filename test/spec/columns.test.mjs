@@ -1,9 +1,9 @@
 import { test } from "worker-testbed";
 
 import {
-  addExchange,
-  addFrame,
-  addStrategy,
+  addExchangeSchema,
+  addFrameSchema,
+  addStrategySchema,
   Backtest,
   listenDoneBacktest,
   getAveragePrice,
@@ -15,7 +15,7 @@ import { createAwaiter } from "functools-kit";
 test("Backtest.getReport accepts custom columns", async ({ pass, fail }) => {
   const [awaiter, { resolve }] = createAwaiter();
 
-  addExchange({
+  addExchangeSchema({
     exchangeName: "binance-mock-custom-cols",
     getCandles: async (_symbol, interval, since, limit) => {
       return await getMockCandles(interval, since, limit);
@@ -28,7 +28,7 @@ test("Backtest.getReport accepts custom columns", async ({ pass, fail }) => {
     },
   });
 
-  addStrategy({
+  addStrategySchema({
     strategyName: "test-strategy-custom-cols",
     interval: "1m",
     getSignal: async () => {
@@ -44,7 +44,7 @@ test("Backtest.getReport accepts custom columns", async ({ pass, fail }) => {
     },
   });
 
-  addFrame({
+  addFrameSchema({
     frameName: "1d-backtest-custom-cols",
     interval: "1d",
     startDate: new Date("2024-01-01T00:00:00Z"),
@@ -118,7 +118,7 @@ test("Backtest.getReport accepts custom columns", async ({ pass, fail }) => {
 test("Custom columns preserve table structure", async ({ pass, fail }) => {
   const [awaiter, { resolve }] = createAwaiter();
 
-  addExchange({
+  addExchangeSchema({
     exchangeName: "binance-mock-structure",
     getCandles: async (_symbol, interval, since, limit) => {
       return await getMockCandles(interval, since, limit);
@@ -131,7 +131,7 @@ test("Custom columns preserve table structure", async ({ pass, fail }) => {
     },
   });
 
-  addStrategy({
+  addStrategySchema({
     strategyName: "test-strategy-structure",
     interval: "1m",
     getSignal: async () => {
@@ -147,7 +147,7 @@ test("Custom columns preserve table structure", async ({ pass, fail }) => {
     },
   });
 
-  addFrame({
+  addFrameSchema({
     frameName: "1d-backtest-structure",
     interval: "1d",
     startDate: new Date("2024-01-01T00:00:00Z"),
@@ -217,7 +217,7 @@ test("Custom columns preserve table structure", async ({ pass, fail }) => {
 test("Default columns are used when no custom columns provided", async ({ pass, fail }) => {
   const [awaiter, { resolve }] = createAwaiter();
 
-  addExchange({
+  addExchangeSchema({
     exchangeName: "binance-mock-default-cols",
     getCandles: async (_symbol, interval, since, limit) => {
       return await getMockCandles(interval, since, limit);
@@ -230,7 +230,7 @@ test("Default columns are used when no custom columns provided", async ({ pass, 
     },
   });
 
-  addStrategy({
+  addStrategySchema({
     strategyName: "test-strategy-default-cols",
     interval: "1m",
     getSignal: async () => {
@@ -246,7 +246,7 @@ test("Default columns are used when no custom columns provided", async ({ pass, 
     },
   });
 
-  addFrame({
+  addFrameSchema({
     frameName: "1d-backtest-default-cols",
     interval: "1d",
     startDate: new Date("2024-01-01T00:00:00Z"),

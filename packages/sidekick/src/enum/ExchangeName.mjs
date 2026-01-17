@@ -1,3 +1,3 @@
 export default {
-    BinanceExchange: "binance_exchange",
-}
+  BinanceExchange: "binance_exchange",
+};

@@ -20,11 +20,12 @@ const LIVE_METHOD_NAME_GET_STATUS = "LiveUtils.getStatus";
 const LIVE_METHOD_NAME_GET_PENDING_SIGNAL = "LiveUtils.getPendingSignal";
 const LIVE_METHOD_NAME_GET_SCHEDULED_SIGNAL = "LiveUtils.getScheduledSignal";
 const LIVE_METHOD_NAME_GET_BREAKEVEN = "LiveUtils.getBreakeven";
-const LIVE_METHOD_NAME_CANCEL = "LiveUtils.cancel";
-const LIVE_METHOD_NAME_PARTIAL_PROFIT = "LiveUtils.partialProfit";
-const LIVE_METHOD_NAME_PARTIAL_LOSS = "LiveUtils.partialLoss";
-const LIVE_METHOD_NAME_TRAILING_STOP = "LiveUtils.trailingStop";
-const LIVE_METHOD_NAME_TRAILING_PROFIT = "LiveUtils.trailingTake";
+const LIVE_METHOD_NAME_BREAKEVEN = "Live.commitBreakeven";
+const LIVE_METHOD_NAME_CANCEL = "LiveUtils.commitCancel";
+const LIVE_METHOD_NAME_PARTIAL_PROFIT = "LiveUtils.commitPartialProfit";
+const LIVE_METHOD_NAME_PARTIAL_LOSS = "LiveUtils.commitPartialLoss";
+const LIVE_METHOD_NAME_TRAILING_STOP = "LiveUtils.commitTrailingStop";
+const LIVE_METHOD_NAME_TRAILING_PROFIT = "LiveUtils.commitTrailingTake";
 
 /**
  * Internal task function that runs live trading and handles completion.
@@ -603,14 +604,14 @@ export class LiveUtils {
    * @example
    * ```typescript
    * // Cancel scheduled signal in live trading with custom ID
-   * await Live.cancel("BTCUSDT", "my-strategy", {
+   * await Live.commitCancel("BTCUSDT", "my-strategy", {
    *   exchangeName: "binance",
    *   frameName: "",
    *   strategyName: "my-strategy"
    * }, "manual-cancel-001");
    * ```
    */
-  public cancel = async (
+  public commitCancel = async (
     symbol: string,
     context: {
       strategyName: StrategyName;
@@ -659,7 +660,7 @@ export class LiveUtils {
    * @example
    * ```typescript
    * // Close 30% of LONG position at profit
-   * const success = await Live.partialProfit("BTCUSDT", 30, 45000, {
+   * const success = await Live.commitPartialProfit("BTCUSDT", 30, 45000, {
    *   exchangeName: "binance",
    *   strategyName: "my-strategy"
    * });
@@ -668,7 +669,7 @@ export class LiveUtils {
    * }
    * ```
    */
-  public partialProfit = async (
+  public commitPartialProfit = async (
     symbol: string,
     percentToClose: number,
     currentPrice: number,
@@ -719,7 +720,7 @@ export class LiveUtils {
    * @example
    * ```typescript
    * // Close 40% of LONG position at loss
-   * const success = await Live.partialLoss("BTCUSDT", 40, 38000, {
+   * const success = await Live.commitPartialLoss("BTCUSDT", 40, 38000, {
    *   exchangeName: "binance",
    *   strategyName: "my-strategy"
    * });
@@ -728,7 +729,7 @@ export class LiveUtils {
    * }
    * ```
    */
-  public partialLoss = async (
+  public commitPartialLoss = async (
     symbol: string,
     percentToClose: number,
     currentPrice: number,
@@ -788,22 +789,22 @@ export class LiveUtils {
    * // LONG: entry=100, originalSL=90, distance=10%, currentPrice=102
    *
    * // First call: tighten by 5%
-   * const success1 = await Live.trailingStop("BTCUSDT", -5, 102, {
+   * const success1 = await Live.commitTrailingStop("BTCUSDT", -5, 102, {
    *   exchangeName: "binance",
    *   strategyName: "my-strategy"
    * });
    * // success1 = true, newDistance = 10% - 5% = 5%, newSL = 95
    *
    * // Second call: try weaker protection (smaller percentShift)
-   * const success2 = await Live.trailingStop("BTCUSDT", -3, 102, context);
+   * const success2 = await Live.commitTrailingStop("BTCUSDT", -3, 102, context);
    * // success2 = false (SKIPPED: newSL=97 < 95, worse protection, larger % absorbs smaller)
    *
    * // Third call: stronger protection (larger percentShift)
-   * const success3 = await Live.trailingStop("BTCUSDT", -7, 102, context);
+   * const success3 = await Live.commitTrailingStop("BTCUSDT", -7, 102, context);
    * // success3 = true (ACCEPTED: newDistance = 10% - 7% = 3%, newSL = 97 > 95, better protection)
    * ```
    */
-  public trailingStop = async (
+  public commitTrailingStop = async (
     symbol: string,
     percentShift: number,
     currentPrice: number,
@@ -863,22 +864,22 @@ export class LiveUtils {
    * // LONG: entry=100, originalTP=110, distance=10%, currentPrice=102
    *
    * // First call: bring TP closer by 3%
-   * const success1 = await Live.trailingTake("BTCUSDT", -3, 102, {
+   * const success1 = await Live.commitTrailingTake("BTCUSDT", -3, 102, {
    *   exchangeName: "binance",
    *   strategyName: "my-strategy"
    * });
    * // success1 = true, newDistance = 10% - 3% = 7%, newTP = 107
    *
    * // Second call: try to move TP further (less conservative)
-   * const success2 = await Live.trailingTake("BTCUSDT", 2, 102, context);
+   * const success2 = await Live.commitTrailingTake("BTCUSDT", 2, 102, context);
    * // success2 = false (SKIPPED: newTP=112 > 107, less conservative, larger % absorbs smaller)
    *
    * // Third call: even more conservative
-   * const success3 = await Live.trailingTake("BTCUSDT", -5, 102, context);
+   * const success3 = await Live.commitTrailingTake("BTCUSDT", -5, 102, context);
    * // success3 = true (ACCEPTED: newDistance = 10% - 5% = 5%, newTP = 105 < 107, more conservative)
    * ```
    */
-  public trailingTake = async (
+  public commitTrailingTake = async (
     symbol: string,
     percentShift: number,
     currentPrice: number,
@@ -923,7 +924,7 @@ export class LiveUtils {
    *
    * @example
    * ```typescript
-   * const moved = await Live.breakeven(
+   * const moved = await Live.commitBreakeven(
    *   "BTCUSDT",
    *   112,
    *   { strategyName: "my-strategy", exchangeName: "binance" }
@@ -931,7 +932,7 @@ export class LiveUtils {
    * console.log(moved); // true (SL moved to entry price)
    * ```
    */
-  public breakeven = async (
+  public commitBreakeven = async (
     symbol: string,
     currentPrice: number,
     context: {
@@ -939,19 +940,19 @@ export class LiveUtils {
       exchangeName: ExchangeName;
     }
   ): Promise<boolean> => {
-    backtest.loggerService.info("Live.breakeven", {
+    backtest.loggerService.info(LIVE_METHOD_NAME_BREAKEVEN, {
       symbol,
       currentPrice,
       context,
     });
-    backtest.strategyValidationService.validate(context.strategyName, "Live.breakeven");
-    backtest.exchangeValidationService.validate(context.exchangeName, "Live.breakeven");
+    backtest.strategyValidationService.validate(context.strategyName, LIVE_METHOD_NAME_BREAKEVEN);
+    backtest.exchangeValidationService.validate(context.exchangeName, LIVE_METHOD_NAME_BREAKEVEN);
 
     {
       const { riskName, riskList, actions } = backtest.strategySchemaService.get(context.strategyName);
-      riskName && backtest.riskValidationService.validate(riskName, "Live.breakeven");
-      riskList && riskList.forEach((riskName) => backtest.riskValidationService.validate(riskName, "Live.breakeven"));
-      actions && actions.forEach((actionName) => backtest.actionValidationService.validate(actionName, "Live.breakeven"));
+      riskName && backtest.riskValidationService.validate(riskName, LIVE_METHOD_NAME_BREAKEVEN);
+      riskList && riskList.forEach((riskName) => backtest.riskValidationService.validate(riskName, LIVE_METHOD_NAME_BREAKEVEN));
+      actions && actions.forEach((actionName) => backtest.actionValidationService.validate(actionName, LIVE_METHOD_NAME_BREAKEVEN));
     }
 
     return await backtest.strategyCoreService.breakeven(false, symbol, currentPrice, {

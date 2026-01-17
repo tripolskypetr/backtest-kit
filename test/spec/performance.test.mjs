@@ -1,9 +1,9 @@
 import { test } from "worker-testbed";
 
 import {
-  addExchange,
-  addFrame,
-  addStrategy,
+  addExchangeSchema,
+  addFrameSchema,
+  addStrategySchema,
   Backtest,
   Performance,
   listenPerformance,
@@ -16,7 +16,7 @@ import { createAwaiter } from "functools-kit";
 test("listenPerformance receives performance events", async ({ pass, fail }) => {
   const [awaiter, { resolve }] = createAwaiter();
 
-  addExchange({
+  addExchangeSchema({
     exchangeName: "binance-perf-events",
     getCandles: async (_symbol, interval, since, limit) => {
       return await getMockCandles(interval, since, limit);
@@ -29,7 +29,7 @@ test("listenPerformance receives performance events", async ({ pass, fail }) => 
     },
   });
 
-  addStrategy({
+  addStrategySchema({
     strategyName: "test-strategy-perf-events",
     interval: "1m",
     getSignal: async () => {
@@ -45,7 +45,7 @@ test("listenPerformance receives performance events", async ({ pass, fail }) => 
     },
   });
 
-  addFrame({
+  addFrameSchema({
     frameName: "1d-perf-events",
     interval: "1d",
     startDate: new Date("2024-01-01T00:00:00Z"),
@@ -87,7 +87,7 @@ test("listenPerformance receives performance events", async ({ pass, fail }) => 
 test("Performance events have required fields", async ({ pass, fail }) => {
   const [awaiter, { resolve }] = createAwaiter();
 
-  addExchange({
+  addExchangeSchema({
     exchangeName: "binance-perf-fields",
     getCandles: async (_symbol, interval, since, limit) => {
       return await getMockCandles(interval, since, limit);
@@ -100,7 +100,7 @@ test("Performance events have required fields", async ({ pass, fail }) => {
     },
   });
 
-  addStrategy({
+  addStrategySchema({
     strategyName: "test-strategy-perf-fields",
     interval: "1m",
     getSignal: async () => {
@@ -116,7 +116,7 @@ test("Performance events have required fields", async ({ pass, fail }) => {
     },
   });
 
-  addFrame({
+  addFrameSchema({
     frameName: "1d-perf-fields",
     interval: "1d",
     startDate: new Date("2024-01-01T00:00:00Z"),
@@ -166,7 +166,7 @@ test("Performance events have required fields", async ({ pass, fail }) => {
 });
 
 test("Performance.getData returns statistics", async ({ pass, fail }) => {
-  addExchange({
+  addExchangeSchema({
     exchangeName: "binance-perf-data",
     getCandles: async (_symbol, interval, since, limit) => {
       return await getMockCandles(interval, since, limit);
@@ -179,7 +179,7 @@ test("Performance.getData returns statistics", async ({ pass, fail }) => {
     },
   });
 
-  addStrategy({
+  addStrategySchema({
     strategyName: "test-strategy-perf-data",
     interval: "1m",
     getSignal: async () => {
@@ -195,7 +195,7 @@ test("Performance.getData returns statistics", async ({ pass, fail }) => {
     },
   });
 
-  addFrame({
+  addFrameSchema({
     frameName: "1d-perf-data",
     interval: "1d",
     startDate: new Date("2024-01-01T00:00:00Z"),
@@ -234,7 +234,7 @@ test("Performance.getData returns statistics", async ({ pass, fail }) => {
 test("Performance statistics include metric types", async ({ pass, fail }) => {
   const [awaiter, { resolve }] = createAwaiter();
 
-  addExchange({
+  addExchangeSchema({
     exchangeName: "binance-perf-metrics",
     getCandles: async (_symbol, interval, since, limit) => {
       return await getMockCandles(interval, since, limit);
@@ -247,7 +247,7 @@ test("Performance statistics include metric types", async ({ pass, fail }) => {
     },
   });
 
-  addStrategy({
+  addStrategySchema({
     strategyName: "test-strategy-perf-metrics",
     interval: "1m",
     getSignal: async () => {
@@ -263,7 +263,7 @@ test("Performance statistics include metric types", async ({ pass, fail }) => {
     },
   });
 
-  addFrame({
+  addFrameSchema({
     frameName: "1d-perf-metrics",
     interval: "1d",
     startDate: new Date("2024-01-01T00:00:00Z"),
@@ -309,7 +309,7 @@ test("Performance statistics include metric types", async ({ pass, fail }) => {
 });
 
 test("Performance.getReport returns markdown string", async ({ pass, fail }) => {
-  addExchange({
+  addExchangeSchema({
     exchangeName: "binance-perf-report",
     getCandles: async (_symbol, interval, since, limit) => {
       return await getMockCandles(interval, since, limit);
@@ -322,7 +322,7 @@ test("Performance.getReport returns markdown string", async ({ pass, fail }) => 
     },
   });
 
-  addStrategy({
+  addStrategySchema({
     strategyName: "test-strategy-perf-report",
     interval: "1m",
     getSignal: async () => {
@@ -338,7 +338,7 @@ test("Performance.getReport returns markdown string", async ({ pass, fail }) => 
     },
   });
 
-  addFrame({
+  addFrameSchema({
     frameName: "1d-perf-report",
     interval: "1d",
     startDate: new Date("2024-01-01T00:00:00Z"),

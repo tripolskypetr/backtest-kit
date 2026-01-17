@@ -1,5 +1,7 @@
 import "./exchange/binance.exchange.mjs";
 
+import "./action/partial_profit_taking.action.mjs";
+
 import "./frame/dec_2025.frame.mjs";
 import "./frame/nov_2025.frame.mjs";
 import "./frame/oct_2025.frame.mjs";

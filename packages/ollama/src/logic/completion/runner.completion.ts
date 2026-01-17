@@ -1,3 +1,21 @@
+import {
+  addCompletion,
+  type ISwarmCompletionArgs,
+  type ISwarmMessage,
+} from "agent-swarm-kit";
+import { CompletionName } from "../../enum/CompletionName";
+import { engine } from "../../lib";
+import { timeout } from "functools-kit";
+
+const INFERENCE_TIMEOUT = 35_000;
+
+const LOCAL_RUNNER_FN = timeout(
+  async (params: ISwarmCompletionArgs): Promise<ISwarmMessage> => {
+    return await engine.runnerPrivateService.getCompletion(params);
+  },
+  INFERENCE_TIMEOUT
+);
+
 /**
  * Standard runner completion handler registration.
  *
@@ -24,18 +42,15 @@
  * });
  * ```
  */
-
-import {
-  addCompletion,
-  type ISwarmCompletionArgs,
-  type ISwarmMessage,
-} from "agent-swarm-kit";
-import { CompletionName } from "../../enum/CompletionName";
-import { engine } from "../../lib";
-
 addCompletion({
   completionName: CompletionName.RunnerCompletion,
-  getCompletion: async (params: ISwarmCompletionArgs): Promise<ISwarmMessage> => {
-    return await engine.runnerPrivateService.getCompletion(params);
+  getCompletion: async (
+    params: ISwarmCompletionArgs
+  ): Promise<ISwarmMessage> => {
+    const result = await LOCAL_RUNNER_FN(params);
+    if (typeof result === "symbol") {
+      throw new Error(`${CompletionName.RunnerCompletion} inference timeout`);
+    }
+    return result;
   },
 });

@@ -1,8 +1,8 @@
 import { test } from "worker-testbed";
 
 import {
-  addExchange,
-  addStrategy,
+  addExchangeSchema,
+  addStrategySchema,
   Live,
   listenSignalLive,
   listenSignalLiveOnce,
@@ -16,7 +16,7 @@ test("listenSignalLive receives live events", async ({ pass, fail }) => {
 
   const [awaiter, { resolve }] = createAwaiter();
 
-  addExchange({
+  addExchangeSchema({
     exchangeName: "binance-mock-live",
     getCandles: async (_symbol, interval, since, limit) => {
       return await getMockCandles(interval, since, limit);
@@ -29,7 +29,7 @@ test("listenSignalLive receives live events", async ({ pass, fail }) => {
     },
   });
 
-  addStrategy({
+  addStrategySchema({
     strategyName: "test-strategy-live",
     interval: "1m",
     getSignal: async () => {
@@ -71,7 +71,7 @@ test("listenSignalLiveOnce triggers once with filter", async ({ pass, fail }) =>
 
   const [awaiter, { resolve }] = createAwaiter();
 
-  addExchange({
+  addExchangeSchema({
     exchangeName: "binance-mock-live-once",
     getCandles: async (_symbol, interval, since, limit) => {
       return await getMockCandles(interval, since, limit);
@@ -86,7 +86,7 @@ test("listenSignalLiveOnce triggers once with filter", async ({ pass, fail }) =>
 
   let callCount = 0;
 
-  addStrategy({
+  addStrategySchema({
     strategyName: "test-strategy-live-once",
     interval: "1m",
     getSignal: async () => {

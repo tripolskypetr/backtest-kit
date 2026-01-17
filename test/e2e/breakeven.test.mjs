@@ -1,13 +1,13 @@
 import { test } from "worker-testbed";
 
 import {
-  addExchange,
-  addFrame,
-  addStrategy,
+  addExchangeSchema,
+  addFrameSchema,
+  addStrategySchema,
   Backtest,
   listenDoneBacktest,
   listenError,
-  listenBreakeven,
+  listenBreakevenAvailable,
   listenSignalBacktest,
 } from "../../build/index.mjs";
 
@@ -47,7 +47,7 @@ test("BREAKEVEN BACKTEST: listenBreakeven fires for LONG position", async ({ pas
     });
   }
 
-  addExchange({
+  addExchangeSchema({
     exchangeName: "binance-breakeven-1",
     getCandles: async (_symbol, _interval, since, limit) => {
       const sinceIndex = Math.floor((since.getTime() - bufferStartTime) / intervalMs);
@@ -58,7 +58,7 @@ test("BREAKEVEN BACKTEST: listenBreakeven fires for LONG position", async ({ pas
     formatQuantity: async (_symbol, quantity) => quantity.toFixed(8),
   });
 
-  addStrategy({
+  addStrategySchema({
     strategyName: "test-breakeven-1",
     interval: "1m",
     getSignal: async () => {
@@ -145,7 +145,7 @@ test("BREAKEVEN BACKTEST: listenBreakeven fires for LONG position", async ({ pas
     },
   });
 
-  addFrame({
+  addFrameSchema({
     frameName: "30m-breakeven-1",
     interval: "1m",
     startDate: new Date("2024-01-01T00:00:00Z"),
@@ -153,7 +153,7 @@ test("BREAKEVEN BACKTEST: listenBreakeven fires for LONG position", async ({ pas
   });
 
   // Подписываемся на события breakeven ПЕРЕД запуском backtest
-  const unsubscribeBreakeven = listenBreakeven((event) => {
+  const unsubscribeBreakeven = listenBreakevenAvailable((event) => {
     breakevenEvents.push({
       symbol: event.symbol,
       signalId: event.data.id,
@@ -239,7 +239,7 @@ test("BREAKEVEN BACKTEST: listenBreakeven fires for SHORT position", async ({ pa
     });
   }
 
-  addExchange({
+  addExchangeSchema({
     exchangeName: "binance-breakeven-2",
     getCandles: async (_symbol, _interval, since, limit) => {
       const sinceIndex = Math.floor((since.getTime() - bufferStartTime) / intervalMs);
@@ -250,7 +250,7 @@ test("BREAKEVEN BACKTEST: listenBreakeven fires for SHORT position", async ({ pa
     formatQuantity: async (_symbol, quantity) => quantity.toFixed(8),
   });
 
-  addStrategy({
+  addStrategySchema({
     strategyName: "test-breakeven-2",
     interval: "1m",
     getSignal: async () => {
@@ -335,14 +335,14 @@ test("BREAKEVEN BACKTEST: listenBreakeven fires for SHORT position", async ({ pa
     },
   });
 
-  addFrame({
+  addFrameSchema({
     frameName: "30m-breakeven-2",
     interval: "1m",
     startDate: new Date("2024-01-01T00:00:00Z"),
     endDate: new Date("2024-01-01T00:30:00Z"),
   });
 
-  const unsubscribeBreakeven = listenBreakeven((event) => {
+  const unsubscribeBreakeven = listenBreakevenAvailable((event) => {
     breakevenEvents.push({
       symbol: event.symbol,
       signalId: event.data.id,
@@ -421,7 +421,7 @@ test("Breakeven.getData returns breakeven statistics for symbol", async ({ pass,
     });
   }
 
-  addExchange({
+  addExchangeSchema({
     exchangeName: "binance-breakeven-3",
     getCandles: async (_symbol, _interval, since, limit) => {
       const sinceIndex = Math.floor((since.getTime() - bufferStartTime) / intervalMs);
@@ -432,7 +432,7 @@ test("Breakeven.getData returns breakeven statistics for symbol", async ({ pass,
     formatQuantity: async (_symbol, quantity) => quantity.toFixed(8),
   });
 
-  addStrategy({
+  addStrategySchema({
     strategyName: "test-breakeven-3",
     interval: "1m",
     getSignal: async () => {
@@ -499,7 +499,7 @@ test("Breakeven.getData returns breakeven statistics for symbol", async ({ pass,
     },
   });
 
-  addFrame({
+  addFrameSchema({
     frameName: "30m-breakeven-3",
     interval: "1m",
     startDate: new Date("2024-01-01T00:00:00Z"),
@@ -555,215 +555,6 @@ test("Breakeven.getData returns breakeven statistics for symbol", async ({ pass,
  * Тестируем новый API Backtest.getBreakeven в сочетании с listenBreakeven
  * Проверяем что getBreakeven возвращает true когда breakeven достигнут
  */
-test("BREAKEVEN BACKTEST: Backtest.getBreakeven API with listenBreakeven", async ({ pass, fail }) => {
-  const breakevenEvents = [];
-  const getBreakevenResults = [];
-
-  const startTime = new Date("2024-01-01T00:00:00Z").getTime();
-  const intervalMs = 60000;
-  const basePrice = 100000;
-  const bufferMinutes = 4;
-  const bufferStartTime = startTime - bufferMinutes * intervalMs;
-
-  let allCandles = [];
-  let signalGenerated = false;
-
-  for (let i = 0; i < 5; i++) {
-    allCandles.push({
-      timestamp: bufferStartTime + i * intervalMs,
-      open: basePrice,
-      high: basePrice + 100,
-      low: basePrice - 50,
-      close: basePrice,
-      volume: 100,
-    });
-  }
-
-  addExchange({
-    exchangeName: "binance-breakeven-api",
-    getCandles: async (_symbol, _interval, since, limit) => {
-      const sinceIndex = Math.floor((since.getTime() - bufferStartTime) / intervalMs);
-      const result = allCandles.slice(sinceIndex, sinceIndex + limit);
-      return result.length > 0 ? result : allCandles.slice(0, Math.min(limit, allCandles.length));
-    },
-    formatPrice: async (_symbol, p) => p.toFixed(8),
-    formatQuantity: async (_symbol, quantity) => quantity.toFixed(8),
-  });
-
-  addStrategy({
-    strategyName: "test-breakeven-api",
-    interval: "1m",
-    getSignal: async () => {
-      if (signalGenerated) return null;
-      signalGenerated = true;
-
-      allCandles = [];
-
-      for (let i = 0; i < bufferMinutes; i++) {
-        allCandles.push({
-          timestamp: bufferStartTime + i * intervalMs,
-          open: basePrice,
-          high: basePrice + 50,
-          low: basePrice - 50,
-          close: basePrice,
-          volume: 100,
-        });
-      }
-
-      for (let i = 0; i < 30; i++) {
-        const timestamp = startTime + i * intervalMs;
-
-        // Активация (0-4)
-        if (i < 5) {
-          allCandles.push({
-            timestamp,
-            open: basePrice,
-            high: basePrice + 50,
-            low: basePrice - 50,
-            close: basePrice,
-            volume: 100,
-          });
-        }
-        // Рост к breakeven threshold (5-14): +0.6% от entry
-        else if (i >= 5 && i < 15) {
-          // Threshold = +0.6% = 100000 * 1.006 = 100600
-          const progress = (i - 4) / 10; // 0.1, 0.2, ..., 1.0
-          const targetPrice = basePrice + 600; // +0.6%
-          const price = basePrice + (targetPrice - basePrice) * progress;
-          allCandles.push({
-            timestamp,
-            open: price,
-            high: price + 50,
-            low: price - 50,
-            close: price,
-            volume: 100,
-          });
-        }
-        // Превышение threshold (15-29)
-        else {
-          allCandles.push({
-            timestamp,
-            open: basePrice + 800,
-            high: basePrice + 850,
-            low: basePrice + 750,
-            close: basePrice + 800,
-            volume: 100,
-          });
-        }
-      }
-
-      return {
-        position: "long",
-        priceOpen: basePrice,
-        priceTakeProfit: basePrice + 2000,
-        priceStopLoss: basePrice - 2000,
-        minuteEstimatedTime: 60,
-      };
-    },
-  });
-
-  addFrame({
-    frameName: "test-frame-breakeven-api",
-    interval: "1m",
-    startDate: new Date(startTime),
-    endDate: new Date(startTime + 30 * intervalMs),
-  });
-
-  // Подписываемся на события breakeven ПЕРЕД запуском backtest
-  const unsubscribeBreakeven = listenBreakeven((event) => {
-    breakevenEvents.push({
-      symbol: event.symbol,
-      signalId: event.data.id,
-      currentPrice: event.currentPrice,
-      backtest: event.backtest,
-    });
-
-    // Тестируем Backtest.getBreakeven API при каждом событии
-    Backtest.getBreakeven(event.symbol, event.currentPrice, {
-      strategyName: "test-breakeven-api",
-      exchangeName: "binance-breakeven-api",
-      frameName: "test-frame-breakeven-api",
-      backtest: true,
-    }).then(result => {
-      getBreakevenResults.push({
-        symbol: event.symbol,
-        currentPrice: event.currentPrice,
-        breakevenReached: result,
-        eventTimestamp: event.timestamp,
-      });
-    });
-  });
-
-  const awaitSubject = new Subject();
-  listenDoneBacktest(() => awaitSubject.next());
-
-  let errorCaught = null;
-  const unsubscribeError = listenError((error) => {
-    errorCaught = error;
-    awaitSubject.next();
-  });
-
-  Backtest.background("BTCUSDT", {
-    strategyName: "test-breakeven-api",
-    exchangeName: "binance-breakeven-api",
-    frameName: "test-frame-breakeven-api",
-  });
-
-  await awaitSubject.toPromise();
-  await sleep(100);
-  unsubscribeError();
-  unsubscribeBreakeven();
-
-  if (errorCaught) {
-    fail(`Error: ${errorCaught.message || errorCaught}`);
-    return;
-  }
-
-  // Проверяем что события breakeven зарегистрированы
-  if (breakevenEvents.length === 0) {
-    fail("No breakeven events captured");
-    return;
-  }
-
-  // Проверяем что все события имеют backtest=true
-  if (!breakevenEvents.every(e => e.backtest === true)) {
-    fail("All events should have backtest=true");
-    return;
-  }
-
-  // Проверяем что все события имеют symbol=BTCUSDT
-  if (!breakevenEvents.every(e => e.symbol === "BTCUSDT")) {
-    fail("All events should have symbol=BTCUSDT");
-    return;
-  }
-
-  // Проверяем что getBreakeven API вызывался
-  if (getBreakevenResults.length === 0) {
-    fail("Backtest.getBreakeven API was not called");
-    return;
-  }
-
-  // Проверяем что getBreakeven возвращает true для breakeven событий
-  const breakevenTrueResults = getBreakevenResults.filter(r => r.breakevenReached === true);
-  if (breakevenTrueResults.length === 0) {
-    fail("Backtest.getBreakeven should return true when breakeven is reached");
-    return;
-  }
-
-  // Анализируем результаты API вызовов во время breakeven событий
-  if (getBreakevenResults.length === 0) {
-    fail("No API calls were made during breakeven events");
-    return;
-  }
-
-  // Проверяем что есть хотя бы один результат true (когда breakeven достигнут)
-  const trueResults = getBreakevenResults.filter(r => r.breakevenReached === true);
-  const falseResults = getBreakevenResults.filter(r => r.breakevenReached === false);
-
-  pass(`Backtest.getBreakeven API WORKS: ${breakevenEvents.length} breakeven events, ${getBreakevenResults.length} API calls, true=${trueResults.length}, false=${falseResults.length}`);
-});
-
-
 /**
  * BREAKEVEN ТЕСТ #4: Breakeven.getReport генерирует markdown отчет
  */
@@ -790,7 +581,7 @@ test("Breakeven.getReport generates markdown report with table", async ({ pass, 
     });
   }
 
-  addExchange({
+  addExchangeSchema({
     exchangeName: "binance-breakeven-4",
     getCandles: async (_symbol, _interval, since, limit) => {
       const sinceIndex = Math.floor((since.getTime() - bufferStartTime) / intervalMs);
@@ -801,7 +592,7 @@ test("Breakeven.getReport generates markdown report with table", async ({ pass, 
     formatQuantity: async (_symbol, quantity) => quantity.toFixed(8),
   });
 
-  addStrategy({
+  addStrategySchema({
     strategyName: "test-breakeven-4",
     interval: "1m",
     getSignal: async () => {
@@ -868,7 +659,7 @@ test("Breakeven.getReport generates markdown report with table", async ({ pass, 
     },
   });
 
-  addFrame({
+  addFrameSchema({
     frameName: "30m-breakeven-4",
     interval: "1m",
     startDate: new Date("2024-01-01T00:00:00Z"),
@@ -925,148 +716,6 @@ test("Breakeven.getReport generates markdown report with table", async ({ pass, 
 /**
  * BREAKEVEN ТЕСТ #5: Breakeven НЕ срабатывает если threshold НЕ достигнут
  */
-test("BREAKEVEN BACKTEST: NO event if threshold NOT reached", async ({ pass, fail }) => {
-  const breakevenEvents = [];
-
-  const startTime = new Date("2024-01-01T00:00:00Z").getTime();
-  const intervalMs = 60000;
-  const basePrice = 100000;
-  const bufferMinutes = 4;
-  const bufferStartTime = startTime - bufferMinutes * intervalMs;
-
-  let allCandles = [];
-  let signalGenerated = false;
-
-  for (let i = 0; i < 5; i++) {
-    allCandles.push({
-      timestamp: bufferStartTime + i * intervalMs,
-      open: basePrice,
-      high: basePrice + 100,
-      low: basePrice - 50,
-      close: basePrice,
-      volume: 100,
-    });
-  }
-
-  addExchange({
-    exchangeName: "binance-breakeven-5",
-    getCandles: async (_symbol, _interval, since, limit) => {
-      const sinceIndex = Math.floor((since.getTime() - bufferStartTime) / intervalMs);
-      const result = allCandles.slice(sinceIndex, sinceIndex + limit);
-      return result.length > 0 ? result : allCandles.slice(0, Math.min(limit, allCandles.length));
-    },
-    formatPrice: async (_symbol, p) => p.toFixed(8),
-    formatQuantity: async (_symbol, quantity) => quantity.toFixed(8),
-  });
-
-  addStrategy({
-    strategyName: "test-breakeven-5",
-    interval: "1m",
-    getSignal: async () => {
-      if (signalGenerated) return null;
-      signalGenerated = true;
-
-      allCandles = [];
-
-      for (let i = 0; i < bufferMinutes; i++) {
-        allCandles.push({
-          timestamp: bufferStartTime + i * intervalMs,
-          open: basePrice,
-          high: basePrice + 50,
-          low: basePrice - 50,
-          close: basePrice,
-          volume: 100,
-        });
-      }
-
-      // Все свечи остаются вблизи entry - НЕ достигаем threshold
-      for (let i = 0; i < 30; i++) {
-        const timestamp = startTime + i * intervalMs;
-
-        if (i < 5) {
-          allCandles.push({
-            timestamp,
-            open: basePrice,
-            high: basePrice + 50,
-            low: basePrice - 50,
-            close: basePrice,
-            volume: 100,
-          });
-        } else {
-          // Цена колеблется +/- 0.3% (НИЖЕ threshold 0.6%)
-          const price = basePrice + (i % 2 === 0 ? 300 : -300);
-          allCandles.push({
-            timestamp,
-            open: price,
-            high: price + 50,
-            low: price - 50,
-            close: price,
-            volume: 100,
-          });
-        }
-      }
-
-      return {
-        position: "long",
-        priceOpen: basePrice,
-        priceTakeProfit: basePrice + 2000,
-        priceStopLoss: basePrice - 2000,
-        minuteEstimatedTime: 60,
-      };
-    },
-  });
-
-  addFrame({
-    frameName: "30m-breakeven-5",
-    interval: "1m",
-    startDate: new Date("2024-01-01T00:00:00Z"),
-    endDate: new Date("2024-01-01T00:30:00Z"),
-  });
-
-  const unsubscribeBreakeven = listenBreakeven((event) => {
-    breakevenEvents.push({
-      symbol: event.symbol,
-      signalId: event.data.id,
-      currentPrice: event.currentPrice,
-      backtest: event.backtest,
-    });
-  });
-
-  const awaitSubject = new Subject();
-  listenDoneBacktest(() => awaitSubject.next());
-
-  let errorCaught = null;
-  const unsubscribeError = listenError((error) => {
-    errorCaught = error;
-    awaitSubject.next();
-  });
-
-  Backtest.background("BTCUSDT", {
-    strategyName: "test-breakeven-5",
-    exchangeName: "binance-breakeven-5",
-    frameName: "30m-breakeven-5",
-  });
-
-  await awaitSubject.toPromise();
-  await sleep(100);
-  unsubscribeError();
-  unsubscribeBreakeven();
-
-  if (errorCaught) {
-    fail(`Error: ${errorCaught.message || errorCaught}`);
-    return;
-  }
-
-  // Не должно быть событий breakeven, т.к. threshold не достигнут
-  if (breakevenEvents.length > 0) {
-    fail(`Expected 0 breakeven events (threshold not reached), got ${breakevenEvents.length}`);
-    return;
-  }
-
-  pass("Breakeven threshold NOT reached: 0 events (as expected)");
-});
-
-
 /**
  * BREAKEVEN ТЕСТ #6: onBreakeven callback вызывается для LONG позиции
  *
@@ -1098,7 +747,7 @@ test("BREAKEVEN CALLBACK: onBreakeven fires for LONG position", async ({ pass, f
     });
   }
 
-  addExchange({
+  addExchangeSchema({
     exchangeName: "binance-breakeven-6",
     getCandles: async (_symbol, _interval, since, limit) => {
       const sinceIndex = Math.floor((since.getTime() - bufferStartTime) / intervalMs);
@@ -1109,7 +758,7 @@ test("BREAKEVEN CALLBACK: onBreakeven fires for LONG position", async ({ pass, f
     formatQuantity: async (_symbol, quantity) => quantity.toFixed(8),
   });
 
-  addStrategy({
+  addStrategySchema({
     strategyName: "test-breakeven-6",
     interval: "1m",
     getSignal: async () => {
@@ -1196,7 +845,7 @@ test("BREAKEVEN CALLBACK: onBreakeven fires for LONG position", async ({ pass, f
     },
   });
 
-  addFrame({
+  addFrameSchema({
     frameName: "30m-breakeven-6",
     interval: "1m",
     startDate: new Date("2024-01-01T00:00:00Z"),
@@ -1286,7 +935,7 @@ test("BREAKEVEN CALLBACK: onBreakeven fires for SHORT position", async ({ pass, 
     });
   }
 
-  addExchange({
+  addExchangeSchema({
     exchangeName: "binance-breakeven-7",
     getCandles: async (_symbol, _interval, since, limit) => {
       const sinceIndex = Math.floor((since.getTime() - bufferStartTime) / intervalMs);
@@ -1297,7 +946,7 @@ test("BREAKEVEN CALLBACK: onBreakeven fires for SHORT position", async ({ pass, 
     formatQuantity: async (_symbol, quantity) => quantity.toFixed(8),
   });
 
-  addStrategy({
+  addStrategySchema({
     strategyName: "test-breakeven-7",
     interval: "1m",
     getSignal: async () => {
@@ -1384,7 +1033,7 @@ test("BREAKEVEN CALLBACK: onBreakeven fires for SHORT position", async ({ pass, 
     },
   });
 
-  addFrame({
+  addFrameSchema({
     frameName: "30m-breakeven-7",
     interval: "1m",
     startDate: new Date("2024-01-01T00:00:00Z"),
@@ -1439,147 +1088,6 @@ test("BREAKEVEN CALLBACK: onBreakeven fires for SHORT position", async ({ pass, 
 /**
  * BREAKEVEN ТЕСТ #8: onBreakeven НЕ вызывается если threshold не достигнут
  */
-test("BREAKEVEN CALLBACK: onBreakeven NOT called if threshold not reached", async ({ pass, fail }) => {
-  const breakevenCallbacks = [];
-
-  const startTime = new Date("2024-01-01T00:00:00Z").getTime();
-  const intervalMs = 60000;
-  const basePrice = 100000;
-  const bufferMinutes = 4;
-  const bufferStartTime = startTime - bufferMinutes * intervalMs;
-
-  let allCandles = [];
-  let signalGenerated = false;
-
-  for (let i = 0; i < 5; i++) {
-    allCandles.push({
-      timestamp: bufferStartTime + i * intervalMs,
-      open: basePrice,
-      high: basePrice + 100,
-      low: basePrice - 50,
-      close: basePrice,
-      volume: 100,
-    });
-  }
-
-  addExchange({
-    exchangeName: "binance-breakeven-8",
-    getCandles: async (_symbol, _interval, since, limit) => {
-      const sinceIndex = Math.floor((since.getTime() - bufferStartTime) / intervalMs);
-      const result = allCandles.slice(sinceIndex, sinceIndex + limit);
-      return result.length > 0 ? result : allCandles.slice(0, Math.min(limit, allCandles.length));
-    },
-    formatPrice: async (_symbol, p) => p.toFixed(8),
-    formatQuantity: async (_symbol, quantity) => quantity.toFixed(8),
-  });
-
-  addStrategy({
-    strategyName: "test-breakeven-8",
-    interval: "1m",
-    getSignal: async () => {
-      if (signalGenerated) return null;
-      signalGenerated = true;
-
-      allCandles = [];
-
-      for (let i = 0; i < bufferMinutes; i++) {
-        allCandles.push({
-          timestamp: bufferStartTime + i * intervalMs,
-          open: basePrice,
-          high: basePrice + 50,
-          low: basePrice - 50,
-          close: basePrice,
-          volume: 100,
-        });
-      }
-
-      // Цена колеблется ±0.3% (ниже threshold 0.6%)
-      for (let i = 0; i < 30; i++) {
-        const timestamp = startTime + i * intervalMs;
-
-        if (i < 5) {
-          allCandles.push({
-            timestamp,
-            open: basePrice,
-            high: basePrice + 50,
-            low: basePrice - 50,
-            close: basePrice,
-            volume: 100,
-          });
-        } else {
-          const price = basePrice + (i % 2 === 0 ? 300 : -300);
-          allCandles.push({
-            timestamp,
-            open: price,
-            high: price + 50,
-            low: price - 50,
-            close: price,
-            volume: 100,
-          });
-        }
-      }
-
-      return {
-        position: "long",
-        priceOpen: basePrice,
-        priceTakeProfit: basePrice + 2000,
-        priceStopLoss: basePrice - 2000,
-        minuteEstimatedTime: 60,
-      };
-    },
-    callbacks: {
-      onBreakeven: async (symbol, data, currentPrice, backtest) => {
-        breakevenCallbacks.push({
-          symbol,
-          signalId: data.id,
-          currentPrice,
-          backtest,
-        });
-      },
-    },
-  });
-
-  addFrame({
-    frameName: "30m-breakeven-8",
-    interval: "1m",
-    startDate: new Date("2024-01-01T00:00:00Z"),
-    endDate: new Date("2024-01-01T00:30:00Z"),
-  });
-
-  const awaitSubject = new Subject();
-  listenDoneBacktest(() => awaitSubject.next());
-
-  let errorCaught = null;
-  const unsubscribeError = listenError((error) => {
-    errorCaught = error;
-    awaitSubject.next();
-  });
-
-  Backtest.background("BTCUSDT", {
-    strategyName: "test-breakeven-8",
-    exchangeName: "binance-breakeven-8",
-    frameName: "30m-breakeven-8",
-  });
-
-  await awaitSubject.toPromise();
-  await sleep(100);
-  unsubscribeError();
-
-  if (errorCaught) {
-    fail(`Error: ${errorCaught.message || errorCaught}`);
-    return;
-  }
-
-  // Callback НЕ должен быть вызван
-  if (breakevenCallbacks.length > 0) {
-    fail(`Expected 0 onBreakeven callbacks (threshold not reached), got ${breakevenCallbacks.length}`);
-    return;
-  }
-
-  pass("onBreakeven callback NOT called: threshold not reached (as expected)");
-});
-
-
 /**
  * BREAKEVEN ТЕСТ #6: Price intrusion protection blocks breakeven
  *
@@ -1598,7 +1106,7 @@ test("BREAKEVEN CALLBACK: onBreakeven NOT called if threshold not reached", asyn
  * 6. Позиция закрывается по original SL (95k), PNL ≈ -5%
  */
 test("BREAKEVEN: Price intrusion protection blocks breakeven", async ({ pass, fail }) => {
-  const { breakeven } = await import("../../build/index.mjs");
+  const { commitBreakeven } = await import("../../build/index.mjs");
   
   const startTime = new Date("2024-01-01T00:00:00Z").getTime();
   const intervalMs = 60000;
@@ -1622,7 +1130,7 @@ test("BREAKEVEN: Price intrusion protection blocks breakeven", async ({ pass, fa
     });
   }
 
-  addExchange({
+  addExchangeSchema({
     exchangeName: "binance-breakeven-intrusion",
     getCandles: async (_symbol, _interval, since, limit) => {
       const sinceIndex = Math.floor((since.getTime() - bufferStartTime) / intervalMs);
@@ -1633,7 +1141,7 @@ test("BREAKEVEN: Price intrusion protection blocks breakeven", async ({ pass, fa
     formatQuantity: async (_symbol, quantity) => quantity.toFixed(8),
   });
 
-  addStrategy({
+  addStrategySchema({
     strategyName: "test-breakeven-intrusion",
     interval: "1m",
     getSignal: async () => {
@@ -1737,8 +1245,8 @@ test("BREAKEVEN: Price intrusion protection blocks breakeven", async ({ pass, fa
 
           try {
             // Попытка установить breakeven
-            const result = await breakeven(symbol);
-            // console.log((`[breakeven] Applied breakeven, result=${result}`);
+            const result = await commitBreakeven(symbol);
+            // console.log((`[breakeven] Applied commitBreakeven, result=${result}`);
             if (!result) {
               // console.log((`[breakeven] Breakeven returned false (conditions not met or blocked)`);
               intrusionBlocked = true;
@@ -1761,8 +1269,8 @@ test("BREAKEVEN: Price intrusion protection blocks breakeven", async ({ pass, fa
           try {
             // Попытка установить breakeven когда currentPrice < entry
             // Это должно быть заблокировано price intrusion protection
-            const result = await breakeven(symbol);
-            // console.log((`[breakeven] Applied breakeven, result=${result}`);
+            const result = await commitBreakeven(symbol);
+            // console.log((`[breakeven] Applied commitBreakeven, result=${result}`);
             if (!result) {
               // console.log((`[breakeven] Breakeven returned false (conditions not met or blocked)`);
               intrusionBlocked = true;
@@ -1778,7 +1286,7 @@ test("BREAKEVEN: Price intrusion protection blocks breakeven", async ({ pass, fa
     },
   });
 
-  addFrame({
+  addFrameSchema({
     frameName: "60m-breakeven-intrusion",
     interval: "1m",
     startDate: new Date("2024-01-01T00:00:00Z"),

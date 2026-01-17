@@ -89,37 +89,45 @@ signalBacktest(event: IStrategyTickResult): Promise<void>;
 
 Handles signal events from backtest only.
 
-### breakeven
+### breakevenAvailable
 
 ```ts
-breakeven(event: BreakevenContract): Promise<void>;
+breakevenAvailable(event: BreakevenContract): Promise<void>;
 ```
 
 Handles breakeven events when stop-loss is moved to entry price.
 
-### partialProfit
+### partialProfitAvailable
 
 ```ts
-partialProfit(event: PartialProfitContract): Promise<void>;
+partialProfitAvailable(event: PartialProfitContract): Promise<void>;
 ```
 
 Handles partial profit level events (10%, 20%, 30%, etc).
 
-### partialLoss
+### partialLossAvailable
 
 ```ts
-partialLoss(event: PartialLossContract): Promise<void>;
+partialLossAvailable(event: PartialLossContract): Promise<void>;
 ```
 
 Handles partial loss level events (-10%, -20%, -30%, etc).
 
-### ping
+### pingScheduled
 
 ```ts
-ping(event: PingContract): Promise<void>;
+pingScheduled(event: SchedulePingContract): Promise<void>;
 ```
 
-Handles ping events during scheduled signal monitoring.
+Handles scheduled ping events during scheduled signal monitoring.
+
+### pingActive
+
+```ts
+pingActive(event: ActivePingContract): Promise<void>;
+```
+
+Handles active ping events during active pending signal monitoring.
 
 ### riskRejection
 

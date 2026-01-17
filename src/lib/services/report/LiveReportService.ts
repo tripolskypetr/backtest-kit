@@ -75,6 +75,41 @@ export class LiveReportService {
 
     if (data.action === "idle") {
       await Report.writeData("live", baseEvent, searchOptions);
+    } else if (data.action === "scheduled") {
+      await Report.writeData("live", {
+        ...baseEvent,
+        signalId: data.signal?.id,
+        position: data.signal?.position,
+        note: data.signal?.note,
+        priceOpen: data.signal?.priceOpen,
+        priceTakeProfit: data.signal?.priceTakeProfit,
+        priceStopLoss: data.signal?.priceStopLoss,
+        originalPriceTakeProfit: data.signal?.originalPriceTakeProfit,
+        originalPriceStopLoss: data.signal?.originalPriceStopLoss,
+        totalExecuted: data.signal?.totalExecuted,
+        scheduledAt: data.signal?.scheduledAt,
+        minuteEstimatedTime: data.signal?.minuteEstimatedTime,
+      }, { ...searchOptions, signalId: data.signal?.id });
+    } else if (data.action === "waiting") {
+      await Report.writeData("live", {
+        ...baseEvent,
+        signalId: data.signal?.id,
+        position: data.signal?.position,
+        note: data.signal?.note,
+        priceOpen: data.signal?.priceOpen,
+        priceTakeProfit: data.signal?.priceTakeProfit,
+        priceStopLoss: data.signal?.priceStopLoss,
+        originalPriceTakeProfit: data.signal?.originalPriceTakeProfit,
+        originalPriceStopLoss: data.signal?.originalPriceStopLoss,
+        totalExecuted: data.signal?.totalExecuted,
+        scheduledAt: data.signal?.scheduledAt,
+        minuteEstimatedTime: data.signal?.minuteEstimatedTime,
+        percentTp: data.percentTp,
+        percentSl: data.percentSl,
+        pnl: data.pnl.pnlPercentage,
+        pnlPriceOpen: data.pnl.priceOpen,
+        pnlPriceClose: data.pnl.priceClose,
+      }, { ...searchOptions, signalId: data.signal?.id });
     } else if (data.action === "opened") {
       await Report.writeData("live", {
         ...baseEvent,
@@ -137,6 +172,23 @@ export class LiveReportService {
         pnlPriceClose: data.pnl.priceClose,
         closeReason: data.closeReason,
         duration: durationMin,
+        closeTime: data.closeTimestamp,
+      }, { ...searchOptions, signalId: data.signal?.id });
+    } else if (data.action === "cancelled") {
+      await Report.writeData("live", {
+        ...baseEvent,
+        signalId: data.signal?.id,
+        position: data.signal?.position,
+        note: data.signal?.note,
+        priceOpen: data.signal?.priceOpen,
+        priceTakeProfit: data.signal?.priceTakeProfit,
+        priceStopLoss: data.signal?.priceStopLoss,
+        originalPriceTakeProfit: data.signal?.originalPriceTakeProfit,
+        originalPriceStopLoss: data.signal?.originalPriceStopLoss,
+        totalExecuted: data.signal?.totalExecuted,
+        scheduledAt: data.signal?.scheduledAt,
+        minuteEstimatedTime: data.signal?.minuteEstimatedTime,
+        cancelReason: data.reason,
         closeTime: data.closeTimestamp,
       }, { ...searchOptions, signalId: data.signal?.id });
     }

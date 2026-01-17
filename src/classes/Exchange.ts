@@ -224,13 +224,24 @@ export class ExchangeInstance {
         candle.timestamp >= sinceTimestamp && candle.timestamp <= whenTimestamp
     );
 
-    if (filteredData.length < limit) {
+    // Apply distinct by timestamp to remove duplicates
+    const uniqueData = Array.from(
+      new Map(filteredData.map((candle) => [candle.timestamp, candle])).values()
+    );
+
+    if (filteredData.length !== uniqueData.length) {
       backtest.loggerService.warn(
-        `ExchangeInstance Expected ${limit} candles, got ${filteredData.length}`
+        `ExchangeInstance Removed ${filteredData.length - uniqueData.length} duplicate candles by timestamp`
       );
     }
 
-    return filteredData;
+    if (uniqueData.length < limit) {
+      backtest.loggerService.warn(
+        `ExchangeInstance Expected ${limit} candles, got ${uniqueData.length}`
+      );
+    }
+
+    return uniqueData;
   };
 
   /**

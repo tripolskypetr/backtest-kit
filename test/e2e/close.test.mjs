@@ -1,9 +1,9 @@
 import { test } from "worker-testbed";
 
 import {
-  addExchange,
-  addFrame,
-  addStrategy,
+  addExchangeSchema,
+  addFrameSchema,
+  addStrategySchema,
   Backtest,
   listenSignalBacktest,
   listenDoneBacktest,
@@ -27,7 +27,7 @@ test("CLOSE: Position closes by time_expired when neither TP nor SL reached", as
   let openedResult = null;
   let closedResult = null;
 
-  addExchange({
+  addExchangeSchema({
     exchangeName: "binance-close-time-expired",
     getCandles: async (_symbol, _interval, since, limit) => {
       const candles = [];
@@ -68,7 +68,7 @@ test("CLOSE: Position closes by time_expired when neither TP nor SL reached", as
 
   let signalGenerated = false;
 
-  addStrategy({
+  addStrategySchema({
     strategyName: "test-close-time-expired",
     interval: "1m",
     getSignal: async () => {
@@ -97,7 +97,7 @@ test("CLOSE: Position closes by time_expired when neither TP nor SL reached", as
     },
   });
 
-  addFrame({
+  addFrameSchema({
     frameName: "30m-close-time-expired",
     interval: "1m",
     startDate: new Date("2024-01-01T00:00:00Z"),
@@ -163,7 +163,7 @@ test("CLOSE: Scheduled signal cancelled by time_expired when priceOpen not reach
   let openedResult = null;
   let cancelledResult = null;
 
-  addExchange({
+  addExchangeSchema({
     exchangeName: "binance-close-scheduled-time-cancel",
     getCandles: async (_symbol, _interval, since, limit) => {
       const candles = [];
@@ -191,7 +191,7 @@ test("CLOSE: Scheduled signal cancelled by time_expired when priceOpen not reach
 
   let signalGenerated = false;
 
-  addStrategy({
+  addStrategySchema({
     strategyName: "test-close-scheduled-time-cancel",
     interval: "1m",
     getSignal: async () => {
@@ -220,7 +220,7 @@ test("CLOSE: Scheduled signal cancelled by time_expired when priceOpen not reach
     },
   });
 
-  addFrame({
+  addFrameSchema({
     frameName: "30m-close-scheduled-time-cancel",
     interval: "1m",
     startDate: new Date("2024-01-01T00:00:00Z"),
@@ -274,7 +274,7 @@ test("CLOSE: SHORT position closes by stop_loss when price rises above SL", asyn
   let openedResult = null;
   let closedResult = null;
 
-  addExchange({
+  addExchangeSchema({
     exchangeName: "binance-close-short-sl",
     getCandles: async (_symbol, _interval, since, limit) => {
       const candles = [];
@@ -324,7 +324,7 @@ test("CLOSE: SHORT position closes by stop_loss when price rises above SL", asyn
 
   let signalGenerated = false;
 
-  addStrategy({
+  addStrategySchema({
     strategyName: "test-close-short-sl",
     interval: "1m",
     getSignal: async () => {
@@ -353,7 +353,7 @@ test("CLOSE: SHORT position closes by stop_loss when price rises above SL", asyn
     },
   });
 
-  addFrame({
+  addFrameSchema({
     frameName: "30m-close-short-sl",
     interval: "1m",
     startDate: new Date("2024-01-01T00:00:00Z"),
@@ -424,7 +424,7 @@ test("CLOSE: LONG activates when candle.low exactly equals priceOpen", async ({ 
   let openedResult = null;
   let closedResult = null;
 
-  addExchange({
+  addExchangeSchema({
     exchangeName: "binance-close-exact-price",
     getCandles: async (_symbol, _interval, since, limit) => {
       const candles = [];
@@ -474,7 +474,7 @@ test("CLOSE: LONG activates when candle.low exactly equals priceOpen", async ({ 
 
   let signalGenerated = false;
 
-  addStrategy({
+  addStrategySchema({
     strategyName: "test-close-exact-price",
     interval: "1m",
     getSignal: async () => {
@@ -503,7 +503,7 @@ test("CLOSE: LONG activates when candle.low exactly equals priceOpen", async ({ 
     },
   });
 
-  addFrame({
+  addFrameSchema({
     frameName: "30m-close-exact-price",
     interval: "1m",
     startDate: new Date("2024-01-01T00:00:00Z"),
@@ -563,7 +563,7 @@ test("CLOSE: Small profit (0.5%) passes validation and yields profit", async ({ 
   let openedResult = null;
   let closedResult = null;
 
-  addExchange({
+  addExchangeSchema({
     exchangeName: "binance-close-small-profit",
     getCandles: async (_symbol, _interval, since, limit) => {
       const candles = [];
@@ -613,7 +613,7 @@ test("CLOSE: Small profit (0.5%) passes validation and yields profit", async ({ 
 
   let signalGenerated = false;
 
-  addStrategy({
+  addStrategySchema({
     strategyName: "test-close-small-profit",
     interval: "1m",
     getSignal: async () => {
@@ -642,7 +642,7 @@ test("CLOSE: Small profit (0.5%) passes validation and yields profit", async ({ 
     },
   });
 
-  addFrame({
+  addFrameSchema({
     frameName: "30m-close-small-profit",
     interval: "1m",
     startDate: new Date("2024-01-01T00:00:00Z"),
@@ -715,7 +715,7 @@ test("CLOSE: LONG position closes by stop_loss when price falls below SL", async
   let openedResult = null;
   let closedResult = null;
 
-  addExchange({
+  addExchangeSchema({
     exchangeName: "binance-close-long-sl",
     getCandles: async (_symbol, _interval, since, limit) => {
       const candles = [];
@@ -765,7 +765,7 @@ test("CLOSE: LONG position closes by stop_loss when price falls below SL", async
 
   let signalGenerated = false;
 
-  addStrategy({
+  addStrategySchema({
     strategyName: "test-close-long-sl",
     interval: "1m",
     getSignal: async () => {
@@ -794,7 +794,7 @@ test("CLOSE: LONG position closes by stop_loss when price falls below SL", async
     },
   });
 
-  addFrame({
+  addFrameSchema({
     frameName: "30m-close-long-sl",
     interval: "1m",
     startDate: new Date("2024-01-01T00:00:00Z"),

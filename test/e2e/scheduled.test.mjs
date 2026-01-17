@@ -1,9 +1,9 @@
 import { test } from "worker-testbed";
 
 import {
-  addExchange,
-  addFrame,
-  addStrategy,
+  addExchangeSchema,
+  addFrameSchema,
+  addStrategySchema,
   Backtest,
   listenSignalBacktest,
   listenDoneBacktest,
@@ -43,7 +43,7 @@ test("Scheduled signal is created and activated when price is reached", async ({
     });
   }
 
-  addExchange({
+  addExchangeSchema({
     exchangeName: "binance-scheduled-activate",
     getCandles: async (_symbol, _interval, since, limit) => {
       const sinceIndex = Math.floor((since.getTime() - bufferStartTime) / intervalMs);
@@ -54,7 +54,7 @@ test("Scheduled signal is created and activated when price is reached", async ({
     formatQuantity: async (symbol, quantity) => quantity.toFixed(8),
   });
 
-  addStrategy({
+  addStrategySchema({
     strategyName: "test-strategy-scheduled-activate",
     interval: "1m",
     getSignal: async () => {
@@ -156,7 +156,7 @@ test("Scheduled signal is created and activated when price is reached", async ({
     },
   });
 
-  addFrame({
+  addFrameSchema({
     frameName: "10m-scheduled-activate",
     interval: "1m",
     startDate: new Date("2024-01-01T00:00:00Z"),
@@ -224,7 +224,7 @@ test("Scheduled signal is cancelled when price never reaches entry point", async
   let cancelledCount = 0;
   let openedCount = 0;
 
-  addExchange({
+  addExchangeSchema({
     exchangeName: "binance-scheduled-cancel",
     getCandles: async (_symbol, interval, since, limit) => {
       return await getMockCandles(interval, since, limit);
@@ -233,7 +233,7 @@ test("Scheduled signal is cancelled when price never reaches entry point", async
     formatQuantity: async (symbol, quantity) => quantity.toFixed(8),
   });
 
-  addStrategy({
+  addStrategySchema({
     strategyName: "test-strategy-scheduled-cancel",
     interval: "1m",
     getSignal: async () => {
@@ -260,7 +260,7 @@ test("Scheduled signal is cancelled when price never reaches entry point", async
     },
   });
 
-  addFrame({
+  addFrameSchema({
     frameName: "3d-scheduled-cancel",
     interval: "1d",
     startDate: new Date("2024-01-01T00:00:00Z"),
@@ -329,7 +329,7 @@ test("Multiple scheduled signals queue and activate sequentially (VWAP-aware)", 
     });
   }
 
-  addExchange({
+  addExchangeSchema({
     exchangeName: "binance-scheduled-queue",
     getCandles: async (_symbol, _interval, since, limit) => {
       const sinceIndex = Math.floor((since.getTime() - bufferStartTime) / intervalMs);
@@ -340,7 +340,7 @@ test("Multiple scheduled signals queue and activate sequentially (VWAP-aware)", 
     formatQuantity: async (symbol, quantity) => quantity.toFixed(8),
   });
 
-  addStrategy({
+  addStrategySchema({
     strategyName: "test-strategy-scheduled-queue",
     interval: "1m",
     getSignal: async () => {
@@ -414,7 +414,7 @@ test("Multiple scheduled signals queue and activate sequentially (VWAP-aware)", 
     },
   });
 
-  addFrame({
+  addFrameSchema({
     frameName: "20m-scheduled-queue",
     interval: "1m",
     startDate: new Date("2024-01-01T00:00:00Z"),
@@ -462,7 +462,7 @@ test("Scheduled signal with stop loss hit before activation gets cancelled", asy
   let cancelledCount = 0;
   let openedCount = 0;
 
-  addExchange({
+  addExchangeSchema({
     exchangeName: "binance-scheduled-sl-cancel",
     getCandles: async (_symbol, interval, since, limit) => {
       return await getMockCandles(interval, since, limit);
@@ -471,7 +471,7 @@ test("Scheduled signal with stop loss hit before activation gets cancelled", asy
     formatQuantity: async (symbol, quantity) => quantity.toFixed(8),
   });
 
-  addStrategy({
+  addStrategySchema({
     strategyName: "test-strategy-scheduled-sl-cancel",
     interval: "1m",
     getSignal: async () => {
@@ -498,7 +498,7 @@ test("Scheduled signal with stop loss hit before activation gets cancelled", asy
     },
   });
 
-  addFrame({
+  addFrameSchema({
     frameName: "3d-scheduled-sl-cancel",
     interval: "1d",
     startDate: new Date("2024-01-01T00:00:00Z"),
@@ -538,7 +538,7 @@ test("Scheduled signal events emit correct action types", async ({ pass, fail })
   const eventTypes = new Set();
   let index = 0;
 
-  addExchange({
+  addExchangeSchema({
     exchangeName: "binance-scheduled-events",
     getCandles: async (_symbol, interval, since, limit) => {
       return await getMockCandles(interval, since, limit);
@@ -547,7 +547,7 @@ test("Scheduled signal events emit correct action types", async ({ pass, fail })
     formatQuantity: async (symbol, quantity) => quantity.toFixed(8),
   });
 
-  addStrategy({
+  addStrategySchema({
     strategyName: "test-strategy-scheduled-events",
     interval: "1m",
     getSignal: async () => {
@@ -576,7 +576,7 @@ test("Scheduled signal events emit correct action types", async ({ pass, fail })
     },
   });
 
-  addFrame({
+  addFrameSchema({
     frameName: "5d-scheduled-events",
     interval: "1d",
     startDate: new Date("2024-01-01T00:00:00Z"),

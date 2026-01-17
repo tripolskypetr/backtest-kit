@@ -1,9 +1,9 @@
 import { test } from "worker-testbed";
 
 import {
-  addExchange,
-  addFrame,
-  addStrategy,
+  addExchangeSchema,
+  addFrameSchema,
+  addStrategySchema,
   Backtest,
   Schedule,
   getAveragePrice,
@@ -14,7 +14,7 @@ import { createAwaiter, sleep } from "functools-kit";
 
 test("Schedule.getData returns ScheduleStatistics structure", async ({ pass, fail }) => {
 
-  addExchange({
+  addExchangeSchema({
     exchangeName: "binance-mock-schedule-getdata",
     getCandles: async (_symbol, interval, since, limit) => {
       return await getMockCandles(interval, since, limit);
@@ -29,7 +29,7 @@ test("Schedule.getData returns ScheduleStatistics structure", async ({ pass, fai
 
   let signalCount = 0;
 
-  addStrategy({
+  addStrategySchema({
     strategyName: "test-strategy-schedule-getdata",
     interval: "1m",
     getSignal: async () => {
@@ -49,7 +49,7 @@ test("Schedule.getData returns ScheduleStatistics structure", async ({ pass, fai
     },
   });
 
-  addFrame({
+  addFrameSchema({
     frameName: "1d-schedule-getdata",
     interval: "1d",
     startDate: new Date("2024-01-01T00:00:00Z"),
@@ -87,7 +87,7 @@ test("Schedule.getData returns ScheduleStatistics structure", async ({ pass, fai
 
 test("Schedule.getData calculates cancellation rate", async ({ pass, fail }) => {
 
-  addExchange({
+  addExchangeSchema({
     exchangeName: "binance-mock-schedule-metrics",
     getCandles: async (_symbol, interval, since, limit) => {
       return await getMockCandles(interval, since, limit);
@@ -102,7 +102,7 @@ test("Schedule.getData calculates cancellation rate", async ({ pass, fail }) => 
 
   let signalCount = 0;
 
-  addStrategy({
+  addStrategySchema({
     strategyName: "test-strategy-schedule-metrics",
     interval: "1m",
     getSignal: async () => {
@@ -122,7 +122,7 @@ test("Schedule.getData calculates cancellation rate", async ({ pass, fail }) => 
     },
   });
 
-  addFrame({
+  addFrameSchema({
     frameName: "1d-schedule-metrics",
     interval: "1d",
     startDate: new Date("2024-01-01T00:00:00Z"),
@@ -163,7 +163,7 @@ test("Schedule.getData calculates cancellation rate", async ({ pass, fail }) => 
 
 test("Schedule.getData returns null for cancellation rate with empty data", async ({ pass, fail }) => {
 
-  addExchange({
+  addExchangeSchema({
     exchangeName: "binance-mock-schedule-safe",
     getCandles: async (_symbol, interval, since, limit) => {
       return await getMockCandles(interval, since, limit);
@@ -176,7 +176,7 @@ test("Schedule.getData returns null for cancellation rate with empty data", asyn
     },
   });
 
-  addStrategy({
+  addStrategySchema({
     strategyName: "test-strategy-schedule-safe",
     interval: "1m",
     getSignal: async () => {
@@ -184,7 +184,7 @@ test("Schedule.getData returns null for cancellation rate with empty data", asyn
     },
   });
 
-  addFrame({
+  addFrameSchema({
     frameName: "1d-schedule-safe",
     interval: "1d",
     startDate: new Date("2024-01-01T00:00:00Z"),
@@ -244,7 +244,7 @@ test("Schedule.getData tracks scheduled signal lifecycle", async ({ pass, fail }
     });
   }
 
-  addExchange({
+  addExchangeSchema({
     exchangeName: "binance-mock-schedule-lifecycle",
     getCandles: async (_symbol, _interval, since, limit) => {
       const sinceIndex = Math.floor((since.getTime() - bufferStartTime) / intervalMs);
@@ -262,7 +262,7 @@ test("Schedule.getData tracks scheduled signal lifecycle", async ({ pass, fail }
   let signalCount = 0;
   let scheduledCount = 0;
 
-  addStrategy({
+  addStrategySchema({
     strategyName: "test-strategy-schedule-lifecycle",
     interval: "1m",
     getSignal: async () => {
@@ -341,7 +341,7 @@ test("Schedule.getData tracks scheduled signal lifecycle", async ({ pass, fail }
     },
   });
 
-  addFrame({
+  addFrameSchema({
     frameName: "1d-schedule-lifecycle",
     interval: "1m",
     startDate: new Date("2024-01-01T00:00:00Z"),

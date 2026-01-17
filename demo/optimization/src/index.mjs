@@ -1,4 +1,4 @@
-import { addOptimizer, Optimizer, listenOptimizerProgress, Markdown } from "backtest-kit";
+import { addOptimizerSchema, Optimizer, listenOptimizerProgress, Markdown } from "backtest-kit";
 import { fetchApi, str } from "functools-kit";
 import { Ollama } from "ollama";
 import fs from "fs/promises";
@@ -360,7 +360,7 @@ async function text(symbol, messages) {
     .replace(/'/g, "\\'");
 }
 
-addOptimizer({
+addOptimizerSchema({
   optimizerName: "btc-optimizer",
 
   rangeTrain: TRAIN_RANGE,

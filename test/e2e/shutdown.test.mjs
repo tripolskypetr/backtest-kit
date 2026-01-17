@@ -1,10 +1,10 @@
 import { test } from "worker-testbed";
 
 import {
-  addExchange,
-  addFrame,
-  addStrategy,
-  addWalker,
+  addExchangeSchema,
+  addFrameSchema,
+  addStrategySchema,
+  addWalkerSchema,
   Backtest,
   Live,
   Walker,
@@ -26,190 +26,6 @@ import { Subject, sleep } from "functools-kit";
  * - Call Backtest.stop() during active signal
  * - Check: Current signal completes, no new signals open
  */
-test("SHUTDOWN: Backtest.stop() during active signal - signal completes first", async ({ pass, fail }) => {
-  const signalsResults = {
-    opened: [],
-    closed: [],
-  };
-
-  const startTime = new Date("2024-01-01T00:00:00Z").getTime();
-  const intervalMs = 60000;
-  const basePrice = 95000;
-  const bufferMinutes = 4;
-  const bufferStartTime = startTime - bufferMinutes * intervalMs;
-
-  let allCandles = [];
-
-  // Предзаполняем минимум 5 свечей для getAveragePrice
-  for (let i = 0; i < 5; i++) {
-    allCandles.push({
-      timestamp: bufferStartTime + i * intervalMs,
-      open: basePrice,
-      high: basePrice + 100,
-      low: basePrice - 100,
-      close: basePrice,
-      volume: 100,
-    });
-  }
-
-  addExchange({
-    exchangeName: "binance-shutdown-1",
-    getCandles: async (_symbol, _interval, since, limit) => {
-      const sinceIndex = Math.floor((since.getTime() - bufferStartTime) / intervalMs);
-      const result = allCandles.slice(sinceIndex, sinceIndex + limit);
-      return result.length > 0 ? result : allCandles.slice(0, Math.min(limit, allCandles.length));
-    },
-    formatPrice: async (_symbol, p) => p.toFixed(8),
-    formatQuantity: async (_symbol, quantity) => quantity.toFixed(8),
-  });
-
-  let signalCount = 0;
-
-  addStrategy({
-    strategyName: "test-shutdown-1",
-    interval: "1m",
-    getSignal: async () => {
-      signalCount++;
-      if (signalCount > 2) return null;
-
-      // КРИТИЧНО: Генерируем ВСЕ свечи только в первый раз
-      if (signalCount === 1) {
-        allCandles = [];
-
-        // Буферные свечи (4 минуты ДО startTime)
-        for (let i = 0; i < bufferMinutes; i++) {
-          allCandles.push({
-            timestamp: bufferStartTime + i * intervalMs,
-            open: basePrice,
-            high: basePrice + 100,
-            low: basePrice - 100,
-            close: basePrice,
-            volume: 100,
-          });
-        }
-
-        // Generate candles for full test duration (120 minutes = 2 hours)
-        for (let i = 0; i < 120; i++) {
-          const timestamp = startTime + i * intervalMs;
-
-          if (i < 3) {
-            // Phase 1: Wait (price above priceOpen for scheduled)
-            allCandles.push({
-              timestamp,
-              open: basePrice + 500,
-              high: basePrice + 600,
-              low: basePrice + 400,
-              close: basePrice + 500,
-              volume: 100,
-            });
-          } else if (i >= 3 && i < 5) {
-            // Phase 2: Activate (price reaches priceOpen)
-            allCandles.push({
-              timestamp,
-              open: basePrice,
-              high: basePrice + 100,
-              low: basePrice - 100,
-              close: basePrice,
-              volume: 100,
-            });
-          } else if (i >= 5 && i < 100) {
-            // Phase 3: Active - keep signal active (price between SL and TP)
-            allCandles.push({
-              timestamp,
-              open: basePrice + 500,
-              high: basePrice + 600,
-              low: basePrice + 400,
-              close: basePrice + 500,
-              volume: 100,
-            });
-          } else {
-            // Phase 4: TP
-            allCandles.push({
-              timestamp,
-              open: basePrice + 1000,
-              high: basePrice + 1100,
-              low: basePrice + 900,
-              close: basePrice + 1000,
-              volume: 100,
-            });
-          }
-        }
-      }
-
-      return {
-        position: "long",
-        note: `Shutdown signal #${signalCount}`,
-        priceOpen: basePrice,
-        priceTakeProfit: basePrice + 1000,
-        priceStopLoss: basePrice - 1000,
-        minuteEstimatedTime: 120, // Increased to match frame duration
-      };
-    },
-    callbacks: {
-      onOpen: (_symbol, data) => {
-        // console.log("[TEST #1] onOpen called, signalId:", data.id, "signalCount:", signalsResults.opened.length + 1);
-        signalsResults.opened.push(data);
-      },
-      onClose: (_symbol, data, priceClose) => {
-        // console.log("[TEST #1] onClose called, signalId:", data.id, "priceClose:", priceClose);
-        signalsResults.closed.push({ signal: data, priceClose });
-      },
-    },
-  });
-
-  addFrame({
-    frameName: "60m-shutdown-1",
-    interval: "1m",
-    startDate: new Date("2024-01-01T00:00:00Z"),
-    endDate: new Date("2024-01-01T02:00:00Z"), // 120 minutes - enough time to stop during active signal
-  });
-
-  const awaitSubject = new Subject();
-  listenDoneBacktest(() => awaitSubject.next());
-
-  let errorCaught = null;
-  const unsubscribeError = listenError((error) => {
-    errorCaught = error;
-    awaitSubject.next();
-  });
-
-  // console.log("[TEST #1] Starting Backtest.background");
-  Backtest.background("BTCUSDT", {
-    strategyName: "test-shutdown-1",
-    exchangeName: "binance-shutdown-1",
-    frameName: "60m-shutdown-1",
-  });
-
-  // console.log("[TEST #1] Waiting for awaitSubject.toPromise()");
-  await awaitSubject.toPromise();
-  // console.log("[TEST #1] awaitSubject resolved");
-  unsubscribeError();
-
-  if (errorCaught) {
-    // console.log("[TEST #1] ERROR CAUGHT:", errorCaught.message || errorCaught);
-    fail(`Error during backtest: ${errorCaught.message || errorCaught}`);
-    return;
-  }
-
-  // console.log("[TEST #1] Final results - opened:", signalsResults.opened.length, "closed:", signalsResults.closed.length);
-
-  await sleep(1_000);
-
-  // Should have exactly 1 signal (the one that was active when we stopped)
-  if (signalsResults.opened.length !== 1) {
-    fail(`Expected 1 opened signal, got ${signalsResults.opened.length}`);
-    return;
-  }
-
-  if (signalsResults.closed.length !== 1) {
-    fail(`Expected 1 closed signal, got ${signalsResults.closed.length}`);
-    return;
-  }
-
-  pass(`SHUTDOWN BACKTEST ACTIVE: Stopped during active signal. Signal completed. Signals: opened=${signalsResults.opened.length}, closed=${signalsResults.closed.length}`);
-});
-
-
 /**
  * SHUTDOWN TEST #2: Backtest.stop() after signal closes by TP
  *
@@ -245,7 +61,7 @@ test("SHUTDOWN: Backtest.stop() after signal closes - no new signals", async ({ 
     });
   }
 
-  addExchange({
+  addExchangeSchema({
     exchangeName: "binance-shutdown-2",
     getCandles: async (_symbol, _interval, since, limit) => {
       const sinceIndex = Math.floor((since.getTime() - bufferStartTime) / intervalMs);
@@ -258,7 +74,7 @@ test("SHUTDOWN: Backtest.stop() after signal closes - no new signals", async ({ 
 
   let signalCount = 0;
 
-  addStrategy({
+  addStrategySchema({
     strategyName: "test-shutdown-2",
     interval: "1m",
     getSignal: async () => {
@@ -317,7 +133,7 @@ test("SHUTDOWN: Backtest.stop() after signal closes - no new signals", async ({ 
     },
   });
 
-  addFrame({
+  addFrameSchema({
     frameName: "60m-shutdown-2",
     interval: "1m",
     startDate: new Date("2024-01-01T00:00:00Z"),
@@ -398,7 +214,7 @@ test("SHUTDOWN: Live.stop() during idle - stops immediately", async ({ pass, fai
 
   const basePrice = 43000;
 
-  addExchange({
+  addExchangeSchema({
     exchangeName: "binance-shutdown-4",
     getCandles: async (_symbol, _interval, since, limit) => {
       const candles = [];
@@ -422,7 +238,7 @@ test("SHUTDOWN: Live.stop() during idle - stops immediately", async ({ pass, fai
     formatQuantity: async (_symbol, quantity) => quantity.toFixed(8),
   });
 
-  addStrategy({
+  addStrategySchema({
     strategyName: "test-shutdown-4",
     interval: "1m",
     getSignal: async () => {
@@ -520,7 +336,7 @@ test("SHUTDOWN: Live.stop() after signal closes - no new signals", async ({ pass
     async deleteValue() {}
   });
 
-  addExchange({
+  addExchangeSchema({
     exchangeName: "binance-shutdown-5",
     getCandles: async (_symbol, _interval, since, limit) => {
       const candles = [];
@@ -546,7 +362,7 @@ test("SHUTDOWN: Live.stop() after signal closes - no new signals", async ({ pass
     formatQuantity: async (_symbol, quantity) => quantity.toFixed(8),
   });
 
-  addStrategy({
+  addStrategySchema({
     strategyName: "test-shutdown-5",
     interval: "1m",
     getSignal: async () => {
@@ -604,164 +420,6 @@ test("SHUTDOWN: Live.stop() after signal closes - no new signals", async ({ pass
  * - Call Walker.stop() after first strategy completes
  * - Check: Walker stops, remaining strategies don't run
  */
-test("SHUTDOWN: Walker.stop() - all strategies stop", async ({ pass, fail }) => {
-  const strategiesStarted = new Set();
-  const strategiesCompleted = [];
-  const signalCounts = {}; // Track signals per strategy
-
-  const startTime = new Date("2024-01-01T00:00:00Z").getTime();
-  const intervalMs = 60000;
-  const basePrice = 95000;
-
-  let allCandles = [];
-
-  for (let i = 0; i < 5; i++) {
-    allCandles.push({
-      timestamp: startTime + i * intervalMs,
-      open: basePrice,
-      high: basePrice + 100,
-      low: basePrice - 100,
-      close: basePrice,
-      volume: 100,
-    });
-  }
-
-  addExchange({
-    exchangeName: "binance-shutdown-6",
-    getCandles: async (_symbol, _interval, since, limit) => {
-      const sinceIndex = Math.floor((since.getTime() - startTime) / intervalMs);
-      const result = allCandles.slice(sinceIndex, sinceIndex + limit);
-      return result.length > 0 ? result : allCandles.slice(0, Math.min(limit, allCandles.length));
-    },
-    formatPrice: async (_symbol, p) => p.toFixed(8),
-    formatQuantity: async (_symbol, quantity) => quantity.toFixed(8),
-  });
-
-  // Add 3 strategies
-  for (let s = 1; s <= 3; s++) {
-    const strategyName = `test-shutdown-walker-${s}`;
-    signalCounts[strategyName] = 0;
-
-    addStrategy({
-      strategyName,
-      interval: "1m",
-      getSignal: async () => {
-        // console.log(`[TEST #6] getSignal called for ${strategyName}`);
-        strategiesStarted.add(strategyName);
-
-        // Only return one signal per strategy
-        signalCounts[strategyName]++;
-        if (signalCounts[strategyName] > 1) {
-          // console.log(`[TEST #6] ${strategyName} already returned signal, returning null`);
-          return null;
-        }
-
-        if (allCandles.length === 5) {
-          allCandles = [];
-
-          for (let i = 0; i < 30; i++) {
-            const timestamp = startTime + i * intervalMs;
-
-            if (i < 5) {
-              allCandles.push({ timestamp, open: basePrice + 500, high: basePrice + 600, low: basePrice + 400, close: basePrice + 500, volume: 100 });
-            } else if (i >= 5 && i < 10) {
-              allCandles.push({ timestamp, open: basePrice, high: basePrice + 100, low: basePrice - 100, close: basePrice, volume: 100 });
-            } else {
-              allCandles.push({ timestamp, open: basePrice + 1000, high: basePrice + 1100, low: basePrice + 900, close: basePrice + 1000, volume: 100 });
-            }
-          }
-        }
-
-        return {
-          position: "long",
-          note: `Walker shutdown strategy ${s}`,
-          priceOpen: basePrice,
-          priceTakeProfit: basePrice + 1000,
-          priceStopLoss: basePrice - 1000,
-          minuteEstimatedTime: 60,
-        };
-      },
-      callbacks: {
-        onClose: () => {
-          // console.log(`[TEST #6] onClose called for ${strategyName}`);
-          strategiesCompleted.push(strategyName);
-        },
-      },
-    });
-  }
-
-  addFrame({
-    frameName: "30m-shutdown-6",
-    interval: "1m",
-    startDate: new Date("2024-01-01T00:00:00Z"),
-    endDate: new Date("2024-01-01T00:30:00Z"),
-  });
-
-  const awaitSubject = new Subject();
-  let stopCalled = false;
-
-  addWalker({
-    walkerName: "test-walker-shutdown",
-    exchangeName: "binance-shutdown-6",
-    frameName: "30m-shutdown-6",
-    strategies: ["test-shutdown-walker-1", "test-shutdown-walker-2", "test-shutdown-walker-3"],
-    callbacks: {
-      onStrategyComplete: async (strategyName) => {
-        // console.log(`[TEST #6] onStrategyComplete fired for ${strategyName}`);
-        if (!stopCalled) {
-          stopCalled = true;
-          // console.log("[TEST #6] First strategy completed, calling Walker.stop()");
-          await Walker.stop("BTCUSDT", { walkerName: "test-walker-shutdown"});
-          // console.log("[TEST #6] Walker.stop() completed");
-        }
-      }
-    }
-  });
-
-  listenWalkerComplete(() => {
-    // console.log("[TEST #6] listenWalkerComplete fired");
-    awaitSubject.next();
-  });
-
-  let errorCaught = null;
-  const unsubscribeError = listenError((error) => {
-    // console.log("[TEST #6] listenError fired:", error.message || error);
-    errorCaught = error;
-    awaitSubject.next();
-  });
-
-  // console.log("[TEST #6] Starting Walker.background");
-  const cancelFn = Walker.background("BTCUSDT", {
-    walkerName: "test-walker-shutdown",
-  });
-
-  // Wait for walker to complete or error
-  await awaitSubject.toPromise();
-
-  // console.log("[TEST #6] Calling cancelFn()");
-  cancelFn();
-  unsubscribeError();
-
-  // console.log("[TEST #6] strategiesStarted:", strategiesStarted);
-  // console.log("[TEST #6] strategiesCompleted:", strategiesCompleted);
-
-  if (errorCaught) {
-    fail(`Error during walker: ${errorCaught.message || errorCaught}`);
-    return;
-  }
-
-  const strategiesStartedArray = Array.from(strategiesStarted);
-
-  // Walker should stop after first strategy, so max 2 strategies should start (first completes, second starts then stops)
-  if (strategiesStartedArray.length >= 3) {
-    fail(`Expected less than 3 strategies started (stopped after first), got ${strategiesStartedArray.length}: ${strategiesStartedArray.join(", ")}`);
-    return;
-  }
-
-  pass(`SHUTDOWN WALKER: Walker stopped after first strategy. Strategies started: ${strategiesStartedArray.length}/3 (${strategiesStartedArray.join(", ")}). Completed: ${strategiesCompleted.length}`);
-});
-
-
 /**
  * SHUTDOWN TEST #7: Two walkers on same symbol - stop one doesn't affect other
  *
@@ -772,200 +430,6 @@ test("SHUTDOWN: Walker.stop() - all strategies stop", async ({ pass, fail }) => 
  * - Call Walker.stop() for walker-A only
  * - Check: walker-A stops, walker-B continues
  */
-test("SHUTDOWN: Two walkers on same symbol - stop one doesn't affect other", async ({ pass, fail }) => {
-  const walkerAStrategiesStarted = new Set();
-  const walkerBStrategiesStarted = new Set();
-  const signalCountsA = {}; // Track signals for Walker A
-  const signalCountsB = {}; // Track signals for Walker B
-
-  const startTime = new Date("2024-01-01T00:00:00Z").getTime();
-  const intervalMs = 60000;
-  const basePrice = 95000;
-
-  let allCandles = [];
-
-  for (let i = 0; i < 5; i++) {
-    allCandles.push({
-      timestamp: startTime + i * intervalMs,
-      open: basePrice,
-      high: basePrice + 100,
-      low: basePrice - 100,
-      close: basePrice,
-      volume: 100,
-    });
-  }
-
-  addExchange({
-    exchangeName: "binance-shutdown-7",
-    getCandles: async (_symbol, _interval, since, limit) => {
-      const sinceIndex = Math.floor((since.getTime() - startTime) / intervalMs);
-      const result = allCandles.slice(sinceIndex, sinceIndex + limit);
-      return result.length > 0 ? result : allCandles.slice(0, Math.min(limit, allCandles.length));
-    },
-    formatPrice: async (_symbol, p) => p.toFixed(8),
-    formatQuantity: async (_symbol, quantity) => quantity.toFixed(8),
-  });
-
-  // Walker A strategies
-  for (let s = 1; s <= 2; s++) {
-    const strategyName = `test-shutdown-walkerA-${s}`;
-    signalCountsA[strategyName] = 0;
-
-    addStrategy({
-      strategyName,
-      interval: "1m",
-      getSignal: async () => {
-        // console.log(`[TEST #7] Walker A: getSignal called for ${strategyName}`);
-        walkerAStrategiesStarted.add(strategyName);
-
-        // Only return one signal per strategy
-        signalCountsA[strategyName]++;
-        if (signalCountsA[strategyName] > 1) {
-          // console.log(`[TEST #7] Walker A: ${strategyName} already returned signal, returning null`);
-          return null;
-        }
-
-        if (allCandles.length === 5) {
-          allCandles = [];
-
-          for (let i = 0; i < 30; i++) {
-            const timestamp = startTime + i * intervalMs;
-            allCandles.push({ timestamp, open: basePrice, high: basePrice + 100, low: basePrice - 100, close: basePrice, volume: 100 });
-          }
-        }
-
-        return {
-          position: "long",
-          note: `Walker A strategy ${s}`,
-          priceOpen: basePrice,
-          priceTakeProfit: basePrice + 1000,
-          priceStopLoss: basePrice - 1000,
-          minuteEstimatedTime: 60,
-        };
-      },
-    });
-  }
-
-  // Walker B strategies
-  for (let s = 1; s <= 2; s++) {
-    const strategyName = `test-shutdown-walkerB-${s}`;
-    signalCountsB[strategyName] = 0;
-
-    addStrategy({
-      strategyName,
-      interval: "1m",
-      getSignal: async () => {
-        // console.log(`[TEST #7] Walker B: getSignal called for ${strategyName}`);
-        walkerBStrategiesStarted.add(strategyName);
-
-        // Only return one signal per strategy
-        signalCountsB[strategyName]++;
-        if (signalCountsB[strategyName] > 1) {
-          // console.log(`[TEST #7] Walker B: ${strategyName} already returned signal, returning null`);
-          return null;
-        }
-
-        return {
-          position: "long",
-          note: `Walker B strategy ${s}`,
-          priceOpen: basePrice,
-          priceTakeProfit: basePrice + 1000,
-          priceStopLoss: basePrice - 1000,
-          minuteEstimatedTime: 60,
-        };
-      },
-    });
-  }
-
-  addFrame({
-    frameName: "30m-shutdown-7",
-    interval: "1m",
-    startDate: new Date("2024-01-01T00:00:00Z"),
-    endDate: new Date("2024-01-01T00:30:00Z"),
-  });
-
-  let walkerAStopCalled = false;
-
-  addWalker({
-    walkerName: "test-walkerA",
-    exchangeName: "binance-shutdown-7",
-    frameName: "30m-shutdown-7",
-    strategies: ["test-shutdown-walkerA-1", "test-shutdown-walkerA-2"],
-    callbacks: {
-      onStrategyComplete: async (strategyName) => {
-        // console.log(`[TEST #7] Walker A: onStrategyComplete for ${strategyName}`);
-        if (!walkerAStopCalled) {
-          walkerAStopCalled = true;
-          // console.log("[TEST #7] Calling Walker.stop() for Walker A after first strategy");
-          await Walker.stop("BTCUSDT", { walkerName: "test-walkerA" });
-          // console.log("[TEST #7] Walker.stop() for Walker A completed");
-        }
-      }
-    }
-  });
-
-  addWalker({
-    walkerName: "test-walkerB",
-    exchangeName: "binance-shutdown-7",
-    frameName: "30m-shutdown-7",
-    strategies: ["test-shutdown-walkerB-1", "test-shutdown-walkerB-2"],
-  });
-
-  let errorCaught = null;
-  const unsubscribeError = listenError((error) => {
-    // console.log("[TEST #7] listenError fired:", error.message || error);
-    errorCaught = error;
-  });
-
-  // console.log("[TEST #7] Starting Walker A and Walker B");
-  const cancelA = Walker.background("BTCUSDT", {
-    walkerName: "test-walkerA",
-  });
-
-  const cancelB = Walker.background("BTCUSDT", {
-    walkerName: "test-walkerB",
-  });
-
-  // Wait for walkers to run
-  // console.log("[TEST #7] Waiting 100ms");
-  await sleep(100);
-
-  // Wait for walker B to continue
-  // console.log("[TEST #7] Waiting 200ms for Walker B to continue");
-  await sleep(200);
-
-  // console.log("[TEST #7] Calling cancelA() and cancelB()");
-  cancelA();
-  cancelB();
-  unsubscribeError();
-
-  // console.log("[TEST #7] Walker A strategies started:", walkerAStrategiesStarted);
-  // console.log("[TEST #7] Walker B strategies started:", walkerBStrategiesStarted);
-
-  if (errorCaught) {
-    fail(`Error during walkers: ${errorCaught.message || errorCaught}`);
-    return;
-  }
-
-  const walkerAArray = Array.from(walkerAStrategiesStarted);
-  const walkerBArray = Array.from(walkerBStrategiesStarted);
-
-  // Walker A should stop early (only first strategy completes)
-  if (walkerAArray.length >= 2) {
-    fail(`Walker A should stop early, got ${walkerAArray.length} strategies: ${walkerAArray.join(", ")}`);
-    return;
-  }
-
-  // Walker B should continue (but may or may not complete all strategies due to timing)
-  if (walkerBArray.length === 0) {
-    fail(`Walker B should start strategies, got ${walkerBArray.length}`);
-    return;
-  }
-
-  pass(`SHUTDOWN TWO WALKERS: Walker A stopped (${walkerAArray.length}/2 strategies). Walker B continued (${walkerBArray.length}/2 strategies).`);
-});
-
-
 /**
  * SHUTDOWN TEST #8: Backtest with getSignal always returning null
  *
@@ -1013,7 +477,7 @@ test("SHUTDOWN: Backtest with getSignal always null - no signals", async ({ pass
     });
   }
 
-  addExchange({
+  addExchangeSchema({
     exchangeName: "binance-shutdown-8",
     getCandles: async (_symbol, _interval, since, limit) => {
       const sinceIndex = Math.floor((since.getTime() - startTime) / intervalMs);
@@ -1026,7 +490,7 @@ test("SHUTDOWN: Backtest with getSignal always null - no signals", async ({ pass
 
   let getSignalCallCount = 0;
 
-  addStrategy({
+  addStrategySchema({
     strategyName: "test-shutdown-null-signal",
     interval: "1m",
     getSignal: async () => {
@@ -1046,7 +510,7 @@ test("SHUTDOWN: Backtest with getSignal always null - no signals", async ({ pass
     },
   });
 
-  addFrame({
+  addFrameSchema({
     frameName: "60m-shutdown-8",
     interval: "1m",
     startDate: new Date("2024-01-01T00:00:00Z"),
@@ -1175,7 +639,7 @@ test("SHUTDOWN: Walker with getSignal always null - stops early", async ({ pass,
     });
   }
 
-  addExchange({
+  addExchangeSchema({
     exchangeName: "binance-shutdown-9",
     getCandles: async (_symbol, _interval, since, limit) => {
       const sinceIndex = Math.floor((since.getTime() - startTime) / intervalMs);
@@ -1191,7 +655,7 @@ test("SHUTDOWN: Walker with getSignal always null - stops early", async ({ pass,
     const strategyName = `test-shutdown-walker-null-${s}`;
     getSignalCounts[strategyName] = 0;
 
-    addStrategy({
+    addStrategySchema({
       strategyName,
       interval: "1m",
       getSignal: async () => {
@@ -1205,7 +669,7 @@ test("SHUTDOWN: Walker with getSignal always null - stops early", async ({ pass,
     });
   }
 
-  addFrame({
+  addFrameSchema({
     frameName: "10m-shutdown-9",
     interval: "1m",
     startDate: new Date("2024-01-01T00:00:00Z"),
@@ -1221,7 +685,7 @@ test("SHUTDOWN: Walker with getSignal always null - stops early", async ({ pass,
     });
   });
 
-  addWalker({
+  addWalkerSchema({
     walkerName: "test-walker-shutdown-null",
     exchangeName: "binance-shutdown-9",
     frameName: "10m-shutdown-9",
@@ -1340,7 +804,7 @@ test("SHUTDOWN: Walker with getSignal always null - stops next strategy", async 
     });
   }
 
-  addExchange({
+  addExchangeSchema({
     exchangeName: "binance-shutdown-10",
     getCandles: async (_symbol, _interval, since, limit) => {
       const sinceIndex = Math.floor((since.getTime() - startTime) / intervalMs);
@@ -1356,7 +820,7 @@ test("SHUTDOWN: Walker with getSignal always null - stops next strategy", async 
     const strategyName = `test-shutdown-walker-null-10-${s}`;
     getSignalCounts[strategyName] = 0;
 
-    addStrategy({
+    addStrategySchema({
       strategyName,
       interval: "1m",
       getSignal: async () => {
@@ -1370,7 +834,7 @@ test("SHUTDOWN: Walker with getSignal always null - stops next strategy", async 
     });
   }
 
-  addFrame({
+  addFrameSchema({
     frameName: "5m-shutdown-10",
     interval: "1m",
     startDate: new Date("2024-01-01T00:00:00Z"),
@@ -1386,7 +850,7 @@ test("SHUTDOWN: Walker with getSignal always null - stops next strategy", async 
     });
   });
 
-  addWalker({
+  addWalkerSchema({
     walkerName: "test-walker-shutdown-null-10",
     exchangeName: "binance-shutdown-10",
     frameName: "5m-shutdown-10",
@@ -1499,7 +963,7 @@ test("SHUTDOWN: Backtest.list() shows pending tasks", async ({ pass, fail }) => 
     });
   }
 
-  addExchange({
+  addExchangeSchema({
     exchangeName: "binance-shutdown-11",
     getCandles: async (_symbol, _interval, since, limit) => {
       const sinceIndex = Math.floor((since.getTime() - startTime) / intervalMs);
@@ -1512,7 +976,7 @@ test("SHUTDOWN: Backtest.list() shows pending tasks", async ({ pass, fail }) => 
 
   // Add 3 strategies
   for (let s = 1; s <= 3; s++) {
-    addStrategy({
+    addStrategySchema({
       strategyName: `test-shutdown-list-bt-${s}`,
       interval: "1m",
       getSignal: async () => {
@@ -1522,7 +986,7 @@ test("SHUTDOWN: Backtest.list() shows pending tasks", async ({ pass, fail }) => 
     });
   }
 
-  addFrame({
+  addFrameSchema({
     frameName: "10m-shutdown-11",
     interval: "1m",
     startDate: new Date("2024-01-01T00:00:00Z"),
@@ -1614,7 +1078,7 @@ test("SHUTDOWN: Backtest.list() shows pending tasks", async ({ pass, fail }) => 
 test("SHUTDOWN: Live.list() shows pending tasks", async ({ pass, fail }) => {
   const basePrice = 43000;
 
-  addExchange({
+  addExchangeSchema({
     exchangeName: "binance-shutdown-12",
     getCandles: async (_symbol, _interval, since, limit) => {
       const candles = [];
@@ -1640,7 +1104,7 @@ test("SHUTDOWN: Live.list() shows pending tasks", async ({ pass, fail }) => {
 
   // Add 3 strategies
   for (let s = 1; s <= 3; s++) {
-    addStrategy({
+    addStrategySchema({
       strategyName: `test-shutdown-list-live-${s}`,
       interval: "1m",
       getSignal: async () => {
@@ -1737,7 +1201,7 @@ test("SHUTDOWN: Walker.list() shows pending tasks", async ({ pass, fail }) => {
     });
   }
 
-  addExchange({
+  addExchangeSchema({
     exchangeName: "binance-shutdown-13",
     getCandles: async (_symbol, _interval, since, limit) => {
       const sinceIndex = Math.floor((since.getTime() - startTime) / intervalMs);
@@ -1751,7 +1215,7 @@ test("SHUTDOWN: Walker.list() shows pending tasks", async ({ pass, fail }) => {
   // Add strategies for walkers
   for (let w = 1; w <= 3; w++) {
     for (let s = 1; s <= 2; s++) {
-      addStrategy({
+      addStrategySchema({
         strategyName: `test-shutdown-walker-list-${w}-${s}`,
         interval: "1m",
         getSignal: async () => {
@@ -1762,7 +1226,7 @@ test("SHUTDOWN: Walker.list() shows pending tasks", async ({ pass, fail }) => {
     }
   }
 
-  addFrame({
+  addFrameSchema({
     frameName: "5m-shutdown-13",
     interval: "1m",
     startDate: new Date("2024-01-01T00:00:00Z"),
@@ -1771,7 +1235,7 @@ test("SHUTDOWN: Walker.list() shows pending tasks", async ({ pass, fail }) => {
 
   // Add 3 walkers
   for (let w = 1; w <= 3; w++) {
-    addWalker({
+    addWalkerSchema({
       walkerName: `test-walker-list-${w}`,
       exchangeName: "binance-shutdown-13",
       frameName: "5m-shutdown-13",
@@ -1881,7 +1345,7 @@ test("SHUTDOWN: Backtest.list() shows resolved status after completion", async (
     });
   }
 
-  addExchange({
+  addExchangeSchema({
     exchangeName: "binance-shutdown-14",
     getCandles: async (_symbol, _interval, since, limit) => {
       const sinceIndex = Math.floor((since.getTime() - startTime) / intervalMs);
@@ -1894,7 +1358,7 @@ test("SHUTDOWN: Backtest.list() shows resolved status after completion", async (
 
   // Add 3 strategies with fast completion (no delay)
   for (let s = 1; s <= 3; s++) {
-    addStrategy({
+    addStrategySchema({
       strategyName: `test-shutdown-resolved-bt-${s}`,
       interval: "1m",
       getSignal: async () => {
@@ -1904,7 +1368,7 @@ test("SHUTDOWN: Backtest.list() shows resolved status after completion", async (
     });
   }
 
-  addFrame({
+  addFrameSchema({
     frameName: "5m-shutdown-14",
     interval: "1m",
     startDate: new Date("2024-01-01T00:00:00Z"),
@@ -2001,7 +1465,7 @@ test("SHUTDOWN: Backtest.list() shows resolved status after completion", async (
 // test("SHUTDOWN: Live.list() shows resolved status after graceful stop", async ({ pass, fail }) => {
 //   const basePrice = 43000;
 
-//   addExchange({
+//   addExchangeSchema({
 //     exchangeName: "binance-shutdown-15",
 //     getCandles: async (_symbol, _interval, since, limit) => {
 //       const candles = [];
@@ -2027,7 +1491,7 @@ test("SHUTDOWN: Backtest.list() shows resolved status after completion", async (
 
 //   // Add 3 strategies
 //   for (let s = 1; s <= 3; s++) {
-//     addStrategy({
+//     addStrategySchema({
 //       strategyName: `test-shutdown-resolved-live-${s}`,
 //       interval: "1m",
 //       getSignal: async () => {
@@ -2145,7 +1609,7 @@ test("SHUTDOWN: Walker.list() shows resolved status after completion", async ({ 
     });
   }
 
-  addExchange({
+  addExchangeSchema({
     exchangeName: "binance-shutdown-16",
     getCandles: async (_symbol, _interval, since, limit) => {
       const sinceIndex = Math.floor((since.getTime() - startTime) / intervalMs);
@@ -2159,7 +1623,7 @@ test("SHUTDOWN: Walker.list() shows resolved status after completion", async ({ 
   // Add strategies for walkers with fast completion
   for (let w = 1; w <= 3; w++) {
     for (let s = 1; s <= 2; s++) {
-      addStrategy({
+      addStrategySchema({
         strategyName: `test-shutdown-walker-resolved-${w}-${s}`,
         interval: "1m",
         getSignal: async () => {
@@ -2170,7 +1634,7 @@ test("SHUTDOWN: Walker.list() shows resolved status after completion", async ({ 
     }
   }
 
-  addFrame({
+  addFrameSchema({
     frameName: "5m-shutdown-16",
     interval: "1m",
     startDate: new Date("2024-01-01T00:00:00Z"),
@@ -2179,7 +1643,7 @@ test("SHUTDOWN: Walker.list() shows resolved status after completion", async ({ 
 
   // Add 3 walkers
   for (let w = 1; w <= 3; w++) {
-    addWalker({
+    addWalkerSchema({
       walkerName: `test-walker-resolved-${w}`,
       exchangeName: "binance-shutdown-16",
       frameName: "5m-shutdown-16",

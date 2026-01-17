@@ -9,6 +9,7 @@ import {
   IStrategyTickResult,
   IStrategyTickResultClosed,
   IStrategyTickResultOpened,
+  IStrategyTickResultCancelled,
 } from "../../../../interfaces/Strategy.interface";
 
 const TICK_TTL = 1 * 60 * 1_000 + 1;
@@ -158,8 +159,13 @@ export class LiveLogicPrivateService {
         continue;
       }
 
-      // Yield opened, closed results
-      yield result as IStrategyTickResultClosed | IStrategyTickResultOpened;
+      if (result.action === "waiting") {
+        await sleep(TICK_TTL);
+        continue;
+      }
+
+      // Yield opened, closed, cancelled results
+      yield result as IStrategyTickResultClosed | IStrategyTickResultOpened | IStrategyTickResultCancelled;
 
       // Check if strategy should stop after signal is closed
       if (result.action === "closed") {

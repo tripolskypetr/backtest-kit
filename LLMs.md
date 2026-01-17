@@ -101,9 +101,9 @@ Here's a taste of what `backtest-kit` can do—create a simple moving average cr
 
 ```typescript
 import {
-  addExchange,
-  addStrategy,
-  addFrame,
+  addExchangeSchema,
+  addStrategySchema,
+  addFrameSchema,
   Backtest,
   listenSignalBacktest,
   listenError,
@@ -112,7 +112,7 @@ import {
 import ccxt from "ccxt";
 
 // 1. Register exchange data source
-addExchange({
+addExchangeSchema({
   exchangeName: "binance",
   getCandles: async (symbol, interval, since, limit) => {
     const exchange = new ccxt.binance();
@@ -126,7 +126,7 @@ addExchange({
 });
 
 // 2. Register trading strategy
-addStrategy({
+addStrategySchema({
   strategyName: "sma-crossover",
   interval: "5m", // Throttling: signals generated max once per 5 minutes
   getSignal: async (symbol) => {
@@ -160,7 +160,7 @@ addStrategy({
 });
 
 // 3. Add timeframe generator
-addFrame({
+addFrameSchema({
   frameName: "1d-backtest",
   interval: "1m",
   startDate: new Date("2024-01-01T00:00:00Z"),
@@ -208,7 +208,7 @@ export enum FrameName {
 
 // ...
 
-addStrategy({
+addStrategySchema({
   strategyName: StrategyName.SMACrossover,
   interval: "5m",
   // ...
@@ -248,9 +248,9 @@ Backtest.background("BTCUSDT", {
 
 ## 📖 API Highlights
 
-- 🛠️ **`addExchange`**: Define exchange data sources (CCXT, database, API). 📡
-- 🤖 **`addStrategy`**: Create trading strategies with custom signals and callbacks. 💡
-- 🌐 **`addFrame`**: Configure timeframes for backtesting. 📅
+- 🛠️ **`addExchangeSchema`**: Define exchange data sources (CCXT, database, API). 📡
+- 🤖 **`addStrategySchema`**: Create trading strategies with custom signals and callbacks. 💡
+- 🌐 **`addFrameSchema`**: Configure timeframes for backtesting. 📅
 - 🔄 **`Backtest` / `Live`**: Run strategies in backtest or live mode (generator or background). ⚡
 - 🛑 **`Backtest.stop()` / `Live.stop()` / `Walker.stop()`**: Gracefully stop running strategies—current signals complete, no forced exits. ⏹️
 - 📋 **`Backtest.list()` / `Live.list()` / `Walker.list()`**: Monitor all running instances with status tracking (`ready`, `pending`, `fulfilled`, `rejected`). 📊
@@ -260,7 +260,7 @@ Backtest.background("BTCUSDT", {
 - 🏃 **`Walker`**: Compare multiple strategies in parallel with ranking. 🏆
 - 🔥 **`Heat`**: Portfolio-wide performance analysis across multiple symbols. 📊
 - 💰 **`PositionSize`**: Calculate position sizes with Fixed %, Kelly Criterion, or ATR-based methods. 💵
-- 🛡️ **`addRisk`**: Portfolio-level risk management with custom validation logic. 🔐
+- 🛡️ **`addRiskSchema`**: Portfolio-level risk management with custom validation logic. 🔐
 - 💾 **`PersistBase`**: Base class for custom persistence adapters (Redis, MongoDB, PostgreSQL).
 - 🔌 **`PersistSignalAdapter` / `PersistScheduleAdapter` / `PersistRiskAdapter` / `PersistPartialAdapter`**: Register custom adapters for signal, scheduled signal, risk, and partial state persistence.
 - 🤖 **`Optimizer`**: AI-powered strategy generation with LLM integration. Auto-generate strategies from historical data and export executable code. 🧠
@@ -276,11 +276,11 @@ Check out the sections below for detailed examples! 📚
 You can plug any data source: CCXT for live data or a database for faster backtesting:
 
 ```typescript
-import { addExchange } from "backtest-kit";
+import { addExchangeSchema } from "backtest-kit";
 import ccxt from "ccxt";
 
 // Option 1: CCXT (live or historical)
-addExchange({
+addExchangeSchema({
   exchangeName: "binance",
   getCandles: async (symbol, interval, since, limit) => {
     const exchange = new ccxt.binance();
@@ -296,7 +296,7 @@ addExchange({
 // Option 2: Database (faster backtesting)
 import { db } from "./database";
 
-addExchange({
+addExchangeSchema({
   exchangeName: "binance-db",
   getCandles: async (symbol, interval, since, limit) => {
     return await db.query(`
@@ -317,9 +317,9 @@ addExchange({
 Define your signal generation logic with automatic validation:
 
 ```typescript
-import { addStrategy } from "backtest-kit";
+import { addStrategySchema } from "backtest-kit";
 
-addStrategy({
+addStrategySchema({
   strategyName: "my-strategy",
   interval: "5m", // Throttling: signals generated max once per 5 minutes
   getSignal: async (symbol) => {
@@ -430,10 +430,10 @@ cancelFn();
 Walker runs multiple strategies in parallel and ranks them by a selected metric:
 
 ```typescript
-import { addWalker, Walker, listenWalkerComplete } from "backtest-kit";
+import { addWalkerSchema, Walker, listenWalkerComplete } from "backtest-kit";
 
 // Register walker schema
-addWalker({
+addWalkerSchema({
   walkerName: "btc-walker",
   exchangeName: "binance",
   frameName: "1d-backtest",
@@ -676,10 +676,10 @@ console.log(`Position size: ${quantity3} BTC`);
 Risk Management provides portfolio-level risk controls across strategies:
 
 ```typescript
-import { addRisk } from "backtest-kit";
+import { addRiskSchema } from "backtest-kit";
 
 // Simple concurrent position limit
-addRisk({
+addRiskSchema({
   riskName: "conservative",
   note: "Conservative risk profile with max 3 concurrent positions",
   validations: [
@@ -700,7 +700,7 @@ addRisk({
 });
 
 // Symbol-based filtering
-addRisk({
+addRiskSchema({
   riskName: "no-meme-coins",
   note: "Block meme coins from trading",
   validations: [
@@ -714,7 +714,7 @@ addRisk({
 });
 
 // Time-based trading windows
-addRisk({
+addRiskSchema({
   riskName: "trading-hours",
   note: "Only trade during market hours (9 AM - 5 PM UTC)",
   validations: [
@@ -730,7 +730,7 @@ addRisk({
 });
 
 // Multi-strategy coordination with position inspection
-addRisk({
+addRiskSchema({
   riskName: "strategy-coordinator",
   note: "Limit exposure per strategy and inspect active positions",
   validations: [
@@ -757,7 +757,7 @@ addRisk({
 });
 
 // Use risk profile in strategy
-addStrategy({
+addStrategySchema({
   strategyName: "my-strategy",
   interval: "5m",
   riskName: "conservative", // Apply risk profile
@@ -1116,15 +1116,15 @@ The system automatically monitors profit/loss milestones and emits events when s
 
 ```typescript
 import {
-  listenPartialProfit,
-  listenPartialLoss,
-  listenPartialProfitOnce,
-  listenPartialLossOnce,
+  listenPartialProfitAvailable,
+  listenPartialLossAvailable,
+  listenPartialProfitAvailableOnce,
+  listenPartialLossAvailableOnce,
   Constant
 } from "backtest-kit";
 
 // Listen to all profit levels (10%, 20%, 30%, 40%, 50%, 60%, 70%, 80%, 90%, 100%)
-listenPartialProfit(({ symbol, signal, price, level, backtest }) => {
+listenPartialProfitAvailable(({ symbol, signal, price, level, backtest }) => {
   console.log(`${symbol} profit: ${level}% at ${price}`);
 
   // Close portions at Kelly-optimized levels
@@ -1140,7 +1140,7 @@ listenPartialProfit(({ symbol, signal, price, level, backtest }) => {
 });
 
 // Listen to all loss levels (10%, 20%, 30%, 40%, 50%, 60%, 70%, 80%, 90%, 100%)
-listenPartialLoss(({ symbol, signal, price, level, backtest }) => {
+listenPartialLossAvailable(({ symbol, signal, price, level, backtest }) => {
   console.log(`${symbol} loss: -${level}% at ${price}`);
 
   // Close portions at stop levels
@@ -1153,7 +1153,7 @@ listenPartialLoss(({ symbol, signal, price, level, backtest }) => {
 });
 
 // Listen once to first profit level reached
-listenPartialProfitOnce(
+listenPartialProfitAvailableOnce(
   () => true, // Accept any profit event
   ({ symbol, signal, price, level, backtest }) => {
     console.log(`First profit milestone: ${level}%`);
@@ -1161,7 +1161,7 @@ listenPartialProfitOnce(
 );
 
 // Listen once to first loss level reached
-listenPartialLossOnce(
+listenPartialLossAvailableOnce(
   () => true, // Accept any loss event
   ({ symbol, signal, price, level, backtest }) => {
     console.log(`First loss milestone: -${level}%`);
@@ -1190,7 +1190,7 @@ console.log(Constant.SL_LEVEL2); // 50%  (standard stop)
 
 ```typescript
 // Strategy: Close position in 3 tranches at optimal levels
-listenPartialProfit(({ symbol, signal, price, level, backtest }) => {
+listenPartialProfitAvailable(({ symbol, signal, price, level, backtest }) => {
   if (level === Constant.TP_LEVEL3) {
     // Close 33% at 25% profit (secure early gains)
     executePartialClose(symbol, signal.id, 0.33);
@@ -1268,9 +1268,9 @@ await Partial.dump("BTCUSDT", "./reports/partial");
 Partial profit/loss callbacks can also be configured at the strategy level:
 
 ```typescript
-import { addStrategy } from "backtest-kit";
+import { addStrategySchema } from "backtest-kit";
 
-addStrategy({
+addStrategySchema({
   strategyName: "my-strategy",
   interval: "5m",
   getSignal: async (symbol) => { /* ... */ },
@@ -1336,14 +1336,14 @@ Each level is emitted **exactly once per signal**:
 1. **Use Constant for Kelly-Optimized Levels** - Don't hardcode profit/loss levels
 2. **Scale Out Gradually** - Close positions in tranches (25%, 50%, 100%)
 3. **Monitor Partial Statistics** - Use `Partial.getData()` to track scaling effectiveness
-4. **Filter Events** - Use `listenPartialProfitOnce` for first-level-only logic
+4. **Filter Events** - Use `listenPartialProfitAvailableOnce` for first-level-only logic
 5. **Combine with Position Sizing** - Scale out inversely to volatility
 
 ```typescript
-import { Constant, listenPartialProfit } from "backtest-kit";
+import { Constant, listenPartialProfitAvailable } from "backtest-kit";
 
 // Advanced: Dynamic scaling based on level
-listenPartialProfit(({ symbol, signal, price, level, backtest }) => {
+listenPartialProfitAvailable(({ symbol, signal, price, level, backtest }) => {
   const percentToClose =
     level === Constant.TP_LEVEL3 ? 0.25 : // 25% at first level
     level === Constant.TP_LEVEL2 ? 0.35 : // 35% at second level
@@ -1455,9 +1455,9 @@ listenDoneLive((event) => {
 Walker shutdown is particularly useful for early termination when comparing strategies:
 
 ```typescript
-import { addWalker, Walker, listenWalkerComplete } from "backtest-kit";
+import { addWalkerSchema, Walker, listenWalkerComplete } from "backtest-kit";
 
-addWalker({
+addWalkerSchema({
   walkerName: "btc-walker",
   exchangeName: "binance",
   frameName: "1d-backtest",
@@ -1831,7 +1831,7 @@ PersistScheduleAdapter.usePersistScheduleAdapter(RedisSchedulePersist);
 6. **Monitor persistence operations** - Use callbacks to track storage operations:
 
 ```typescript
-addStrategy({
+addStrategySchema({
   strategyName: "my-strategy",
   interval: "5m",
   getSignal: async (symbol) => { /* ... */ },
@@ -1866,10 +1866,10 @@ The Optimizer uses LLM (Large Language Models) to generate trading strategies fr
 ### Basic Example
 
 ```typescript
-import { addOptimizer, Optimizer } from "backtest-kit";
+import { addOptimizerSchema, Optimizer } from "backtest-kit";
 
 // Register optimizer configuration
-addOptimizer({
+addOptimizerSchema({
   optimizerName: "btc-optimizer",
 
   // Training periods (multiple strategies generated)
@@ -1966,7 +1966,7 @@ The Optimizer auto-generates a complete executable file with:
 Override default LLM message formatting:
 
 ```typescript
-addOptimizer({
+addOptimizerSchema({
   optimizerName: "custom-optimizer",
   rangeTrain: [...],
   rangeTest: {...},
@@ -1990,7 +1990,7 @@ addOptimizer({
 Monitor optimizer operations:
 
 ```typescript
-addOptimizer({
+addOptimizerSchema({
   optimizerName: "monitored-optimizer",
   rangeTrain: [...],
   rangeTest: {...},
@@ -2019,7 +2019,7 @@ addOptimizer({
 Combine different data types for comprehensive analysis:
 
 ```typescript
-addOptimizer({
+addOptimizerSchema({
   optimizerName: "multi-source-optimizer",
   rangeTrain: [...],
   rangeTest: {...},
@@ -2161,7 +2161,7 @@ Validation errors include detailed messages for debugging.
 Prevent signal spam with automatic throttling:
 
 ```typescript
-addStrategy({
+addStrategySchema({
   strategyName: "my-strategy",
   interval: "5m", // Signals generated max once per 5 minutes
   getSignal: async (symbol) => {
@@ -2311,15 +2311,15 @@ listenSignal((event) => {
 
 ```typescript
 import {
-  listenPartialProfit,
-  listenPartialLoss,
-  listenPartialProfitOnce,
-  listenPartialLossOnce,
+  listenPartialProfitAvailable,
+  listenPartialLossAvailable,
+  listenPartialProfitAvailableOnce,
+  listenPartialLossAvailableOnce,
   Constant
 } from "backtest-kit";
 
 // Listen to all profit milestones
-listenPartialProfit(({ symbol, signal, price, level, backtest }) => {
+listenPartialProfitAvailable(({ symbol, signal, price, level, backtest }) => {
   console.log(`${symbol} reached ${level}% profit at ${price}`);
 
   // Scale out at Kelly-optimized levels
@@ -2335,7 +2335,7 @@ listenPartialProfit(({ symbol, signal, price, level, backtest }) => {
 });
 
 // Listen to all loss milestones
-listenPartialLoss(({ symbol, signal, price, level, backtest }) => {
+listenPartialLossAvailable(({ symbol, signal, price, level, backtest }) => {
   console.log(`${symbol} reached -${level}% loss at ${price}`);
 
   // Scale out at stop levels
@@ -2348,7 +2348,7 @@ listenPartialLoss(({ symbol, signal, price, level, backtest }) => {
 });
 
 // Listen once to first profit level
-listenPartialProfitOnce(
+listenPartialProfitAvailableOnce(
   () => true, // Accept any profit event
   ({ symbol, signal, price, level, backtest }) => {
     console.log(`First profit milestone: ${level}%`);
@@ -2356,7 +2356,7 @@ listenPartialProfitOnce(
 );
 
 // Listen once to first loss level
-listenPartialLossOnce(
+listenPartialLossAvailableOnce(
   () => true, // Accept any loss event
   ({ symbol, signal, price, level, backtest }) => {
     console.log(`First loss milestone: -${level}%`);

@@ -98,10 +98,18 @@ onBreakeven: (symbol: string, data: IPublicSignalRow, currentPrice: number, back
 
 Called when signal reaches breakeven (stop-loss moved to entry price to protect capital)
 
-### onPing
+### onSchedulePing
 
 ```ts
-onPing: (symbol: string, data: IPublicSignalRow, when: Date, backtest: boolean) => void | Promise<void>
+onSchedulePing: (symbol: string, data: IPublicSignalRow, when: Date, backtest: boolean) => void | Promise<void>
 ```
 
-Called every minute regardless of strategy interval (for custom monitoring like checking if signal should be cancelled)
+Called every minute for scheduled signals regardless of strategy interval (for custom monitoring like checking if signal should be cancelled)
+
+### onActivePing
+
+```ts
+onActivePing: (symbol: string, data: IPublicSignalRow, when: Date, backtest: boolean) => void | Promise<void>
+```
+
+Called every minute for active pending signals regardless of strategy interval (for custom monitoring and dynamic management)

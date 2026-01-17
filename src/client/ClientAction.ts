@@ -13,7 +13,8 @@ import { IStrategyTickResult, StrategyName } from "../interfaces/Strategy.interf
 import { BreakevenContract } from "../contract/Breakeven.contract";
 import { PartialProfitContract } from "../contract/PartialProfit.contract";
 import { PartialLossContract } from "../contract/PartialLoss.contract";
-import { PingContract } from "../contract/Ping.contract";
+import { SchedulePingContract } from "../contract/SchedulePing.contract";
+import { ActivePingContract } from "../contract/ActivePing.contract";
 import { RiskContract } from "../contract/Risk.contract";
 import backtest from "../lib";
 import { errorEmitter } from "../config/emitters";
@@ -109,8 +110,8 @@ const CALL_BREAKEVEN_CALLBACK_FN = trycatch(
     frameName: FrameName,
     backtest: boolean
   ): Promise<void> => {
-    if (self.params.callbacks?.onBreakeven) {
-      await self.params.callbacks.onBreakeven(event, self.params.actionName, strategyName, frameName, backtest);
+    if (self.params.callbacks?.onBreakevenAvailable) {
+      await self.params.callbacks.onBreakevenAvailable(event, self.params.actionName, strategyName, frameName, backtest);
     }
   },
   {
@@ -136,8 +137,8 @@ const CALL_PARTIAL_PROFIT_CALLBACK_FN = trycatch(
     frameName: FrameName,
     backtest: boolean
   ): Promise<void> => {
-    if (self.params.callbacks?.onPartialProfit) {
-      await self.params.callbacks.onPartialProfit(event, self.params.actionName, strategyName, frameName, backtest);
+    if (self.params.callbacks?.onPartialProfitAvailable) {
+      await self.params.callbacks.onPartialProfitAvailable(event, self.params.actionName, strategyName, frameName, backtest);
     }
   },
   {
@@ -163,8 +164,8 @@ const CALL_PARTIAL_LOSS_CALLBACK_FN = trycatch(
     frameName: FrameName,
     backtest: boolean
   ): Promise<void> => {
-    if (self.params.callbacks?.onPartialLoss) {
-      await self.params.callbacks.onPartialLoss(event, self.params.actionName, strategyName, frameName, backtest);
+    if (self.params.callbacks?.onPartialLossAvailable) {
+      await self.params.callbacks.onPartialLossAvailable(event, self.params.actionName, strategyName, frameName, backtest);
     }
   },
   {
@@ -181,22 +182,49 @@ const CALL_PARTIAL_LOSS_CALLBACK_FN = trycatch(
   }
 );
 
-/** Wrapper to call ping callback with error handling */
-const CALL_PING_CALLBACK_FN = trycatch(
+/** Wrapper to call scheduled ping callback with error handling */
+const CALL_PING_SCHEDULED_CALLBACK_FN = trycatch(
   async (
     self: ClientAction,
-    event: PingContract,
+    event: SchedulePingContract,
     strategyName: StrategyName,
     frameName: FrameName,
     backtest: boolean
   ): Promise<void> => {
-    if (self.params.callbacks?.onPing) {
-      await self.params.callbacks.onPing(event, self.params.actionName, strategyName, frameName, backtest);
+    if (self.params.callbacks?.onPingScheduled) {
+      await self.params.callbacks.onPingScheduled(event, self.params.actionName, strategyName, frameName, backtest);
     }
   },
   {
     fallback: (error) => {
-      const message = "ClientAction CALL_PING_CALLBACK_FN thrown";
+      const message = "ClientAction CALL_PING_SCHEDULED_CALLBACK_FN thrown";
+      const payload = {
+        error: errorData(error),
+        message: getErrorMessage(error),
+      };
+      backtest.loggerService.warn(message, payload);
+      console.warn(message, payload);
+      errorEmitter.next(error);
+    },
+  }
+);
+
+/** Wrapper to call active ping callback with error handling */
+const CALL_PING_ACTIVE_CALLBACK_FN = trycatch(
+  async (
+    self: ClientAction,
+    event: ActivePingContract,
+    strategyName: StrategyName,
+    frameName: FrameName,
+    backtest: boolean
+  ): Promise<void> => {
+    if (self.params.callbacks?.onPingActive) {
+      await self.params.callbacks.onPingActive(event, self.params.actionName, strategyName, frameName, backtest);
+    }
+  },
+  {
+    fallback: (error) => {
+      const message = "ClientAction CALL_PING_ACTIVE_CALLBACK_FN thrown";
       const payload = {
         error: errorData(error),
         message: getErrorMessage(error),
@@ -301,6 +329,7 @@ const CREATE_HANDLER_FN = (self: ClientAction): Partial<IPublicAction> => {
       self.params.strategyName,
       self.params.frameName,
       self.params.actionName,
+      self.params.backtest,
     ]);
   }
   return self.params.handler;
@@ -533,8 +562,8 @@ export class ClientAction implements IAction {
   /**
    * Handles breakeven events when stop-loss is moved to entry price.
    */
-  public async breakeven(event: BreakevenContract): Promise<void> {
-    this.params.logger.debug("ClientAction breakeven", {
+  public async breakevenAvailable(event: BreakevenContract): Promise<void> {
+    this.params.logger.debug("ClientAction breakevenAvailable", {
       actionName: this.params.actionName,
       strategyName: this.params.strategyName,
       frameName: this.params.frameName,
@@ -545,8 +574,8 @@ export class ClientAction implements IAction {
     }
 
     // Call handler method if defined
-    if (this._handlerInstance?.breakeven) {
-      await this._handlerInstance.breakeven(event);
+    if (this._handlerInstance?.breakevenAvailable) {
+      await this._handlerInstance.breakevenAvailable(event);
     }
 
     // Call callback if defined
@@ -562,8 +591,8 @@ export class ClientAction implements IAction {
   /**
    * Handles partial profit level events (10%, 20%, 30%, etc).
    */
-  public async partialProfit(event: PartialProfitContract): Promise<void> {
-    this.params.logger.debug("ClientAction partialProfit", {
+  public async partialProfitAvailable(event: PartialProfitContract): Promise<void> {
+    this.params.logger.debug("ClientAction partialProfitAvailable", {
       actionName: this.params.actionName,
       strategyName: this.params.strategyName,
       frameName: this.params.frameName,
@@ -574,8 +603,8 @@ export class ClientAction implements IAction {
     }
 
     // Call handler method if defined
-    if (this._handlerInstance?.partialProfit) {
-      await this._handlerInstance.partialProfit(event);
+    if (this._handlerInstance?.partialProfitAvailable) {
+      await this._handlerInstance.partialProfitAvailable(event);
     }
 
     // Call callback if defined
@@ -591,8 +620,8 @@ export class ClientAction implements IAction {
   /**
    * Handles partial loss level events (-10%, -20%, -30%, etc).
    */
-  public async partialLoss(event: PartialLossContract): Promise<void> {
-    this.params.logger.debug("ClientAction partialLoss", {
+  public async partialLossAvailable(event: PartialLossContract): Promise<void> {
+    this.params.logger.debug("ClientAction partialLossAvailable", {
       actionName: this.params.actionName,
       strategyName: this.params.strategyName,
       frameName: this.params.frameName,
@@ -603,8 +632,8 @@ export class ClientAction implements IAction {
     }
 
     // Call handler method if defined
-    if (this._handlerInstance?.partialLoss) {
-      await this._handlerInstance.partialLoss(event);
+    if (this._handlerInstance?.partialLossAvailable) {
+      await this._handlerInstance.partialLossAvailable(event);
     }
 
     // Call callback if defined
@@ -618,10 +647,10 @@ export class ClientAction implements IAction {
   };
 
   /**
-   * Handles ping events during scheduled signal monitoring.
+   * Handles scheduled ping events during scheduled signal monitoring.
    */
-  public async ping(event: PingContract): Promise<void> {
-    this.params.logger.debug("ClientAction ping", {
+  public async pingScheduled(event: SchedulePingContract): Promise<void> {
+    this.params.logger.debug("ClientAction pingScheduled", {
       actionName: this.params.actionName,
       strategyName: this.params.strategyName,
       frameName: this.params.frameName,
@@ -632,12 +661,41 @@ export class ClientAction implements IAction {
     }
 
     // Call handler method if defined
-    if (this._handlerInstance?.ping) {
-      await this._handlerInstance.ping(event);
+    if (this._handlerInstance?.pingScheduled) {
+      await this._handlerInstance.pingScheduled(event);
     }
 
     // Call callback if defined
-    await CALL_PING_CALLBACK_FN(
+    await CALL_PING_SCHEDULED_CALLBACK_FN(
+      this,
+      event,
+      this.params.strategyName,
+      this.params.frameName,
+      event.backtest
+    );
+  };
+
+  /**
+   * Handles active ping events during active pending signal monitoring.
+   */
+  public async pingActive(event: ActivePingContract): Promise<void> {
+    this.params.logger.debug("ClientAction pingActive", {
+      actionName: this.params.actionName,
+      strategyName: this.params.strategyName,
+      frameName: this.params.frameName,
+    });
+
+    if (!this._handlerInstance) {
+      await this.waitForInit();
+    }
+
+    // Call handler method if defined
+    if (this._handlerInstance?.pingActive) {
+      await this._handlerInstance.pingActive(event);
+    }
+
+    // Call callback if defined
+    await CALL_PING_ACTIVE_CALLBACK_FN(
       this,
       event,
       this.params.strategyName,

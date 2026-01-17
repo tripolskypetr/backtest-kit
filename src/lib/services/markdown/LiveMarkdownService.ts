@@ -1,9 +1,12 @@
 import { Markdown } from "../../../classes/Markdown";
 import {
   IStrategyTickResult,
+  IStrategyTickResultScheduled,
+  IStrategyTickResultWaiting,
   IStrategyTickResultOpened,
   IStrategyTickResultActive,
   IStrategyTickResultClosed,
+  IStrategyTickResultCancelled,
   StrategyName,
 } from "../../../interfaces/Strategy.interface";
 import { inject } from "../../../lib/core/di";
@@ -271,6 +274,109 @@ class ReportStorage {
     };
 
     this._eventList.unshift(newEvent);
+
+    // Trim queue if exceeded MAX_EVENTS
+    if (this._eventList.length > MAX_EVENTS) {
+      this._eventList.pop();
+    }
+  }
+
+  /**
+   * Adds a scheduled event to the storage.
+   *
+   * @param data - Scheduled tick result
+   */
+  public addScheduledEvent(data: IStrategyTickResultScheduled) {
+    this._eventList.unshift({
+      timestamp: data.signal.scheduledAt,
+      action: "scheduled",
+      symbol: data.signal.symbol,
+      signalId: data.signal.id,
+      position: data.signal.position,
+      note: data.signal.note,
+      currentPrice: data.currentPrice,
+      priceOpen: data.signal.priceOpen,
+      priceTakeProfit: data.signal.priceTakeProfit,
+      priceStopLoss: data.signal.priceStopLoss,
+      originalPriceTakeProfit: data.signal.originalPriceTakeProfit,
+      originalPriceStopLoss: data.signal.originalPriceStopLoss,
+      totalExecuted: data.signal.totalExecuted,
+    });
+
+    // Trim queue if exceeded MAX_EVENTS
+    if (this._eventList.length > MAX_EVENTS) {
+      this._eventList.pop();
+    }
+  }
+
+  /**
+   * Adds a waiting event to the storage.
+   * Replaces the last waiting event with the same signalId.
+   *
+   * @param data - Waiting tick result
+   */
+  public addWaitingEvent(data: IStrategyTickResultWaiting) {
+    const newEvent: TickEvent = {
+      timestamp: Date.now(),
+      action: "waiting",
+      symbol: data.signal.symbol,
+      signalId: data.signal.id,
+      position: data.signal.position,
+      note: data.signal.note,
+      currentPrice: data.currentPrice,
+      priceOpen: data.signal.priceOpen,
+      priceTakeProfit: data.signal.priceTakeProfit,
+      priceStopLoss: data.signal.priceStopLoss,
+      originalPriceTakeProfit: data.signal.originalPriceTakeProfit,
+      originalPriceStopLoss: data.signal.originalPriceStopLoss,
+      totalExecuted: data.signal.totalExecuted,
+      percentTp: data.percentTp,
+      percentSl: data.percentSl,
+      pnl: data.pnl.pnlPercentage,
+    };
+
+    // Find the last waiting event with the same signalId
+    const lastWaitingIndex = this._eventList.findLastIndex(
+      (event) => event.action === "waiting" && event.signalId === data.signal.id
+    );
+
+    // Replace the last waiting event with the same signalId
+    if (lastWaitingIndex !== -1) {
+      this._eventList[lastWaitingIndex] = newEvent;
+      return;
+    }
+
+    // If no previous waiting event found, add new event
+    this._eventList.unshift(newEvent);
+
+    // Trim queue if exceeded MAX_EVENTS
+    if (this._eventList.length > MAX_EVENTS) {
+      this._eventList.pop();
+    }
+  }
+
+  /**
+   * Adds a cancelled event to the storage.
+   *
+   * @param data - Cancelled tick result
+   */
+  public addCancelledEvent(data: IStrategyTickResultCancelled) {
+    this._eventList.unshift({
+      timestamp: data.closeTimestamp,
+      action: "cancelled",
+      symbol: data.signal.symbol,
+      signalId: data.signal.id,
+      position: data.signal.position,
+      note: data.signal.note,
+      currentPrice: data.currentPrice,
+      priceOpen: data.signal.priceOpen,
+      priceTakeProfit: data.signal.priceTakeProfit,
+      priceStopLoss: data.signal.priceStopLoss,
+      originalPriceTakeProfit: data.signal.originalPriceTakeProfit,
+      originalPriceStopLoss: data.signal.originalPriceStopLoss,
+      totalExecuted: data.signal.totalExecuted,
+      cancelReason: data.reason,
+    });
 
     // Trim queue if exceeded MAX_EVENTS
     if (this._eventList.length > MAX_EVENTS) {
@@ -569,12 +675,18 @@ export class LiveMarkdownService {
 
     if (data.action === "idle") {
       storage.addIdleEvent(data.currentPrice);
+    } else if (data.action === "scheduled") {
+      storage.addScheduledEvent(data);
+    } else if (data.action === "waiting") {
+      storage.addWaitingEvent(data);
     } else if (data.action === "opened") {
       storage.addOpenedEvent(data);
     } else if (data.action === "active") {
       storage.addActiveEvent(data);
     } else if (data.action === "closed") {
       storage.addClosedEvent(data);
+    } else if (data.action === "cancelled") {
+      storage.addCancelledEvent(data);
     }
   };
 

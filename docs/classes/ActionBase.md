@@ -33,16 +33,17 @@ Event flow:
 - signal() - Called on every tick/candle (all modes)
 - signalLive() - Called only in live mode
 - signalBacktest() - Called only in backtest mode
-- breakeven() - Called when SL moved to entry
-- partialProfit() - Called on profit milestones (10%, 20%, etc.)
-- partialLoss() - Called on loss milestones (-10%, -20%, etc.)
-- ping() - Called every minute during scheduled signal monitoring
+- breakevenAvailable() - Called when SL moved to entry
+- partialProfitAvailable() - Called on profit milestones (10%, 20%, etc.)
+- partialLossAvailable() - Called on loss milestones (-10%, -20%, etc.)
+- pingScheduled() - Called every minute during scheduled signal monitoring
+- pingActive() - Called every minute during active pending signal monitoring
 - riskRejection() - Called when signal rejected by risk management
 
 ## Constructor
 
 ```ts
-constructor(strategyName: string, frameName: string, actionName: string);
+constructor(strategyName: string, frameName: string, actionName: string, backtest: boolean);
 ```
 
 ## Properties
@@ -63,6 +64,12 @@ frameName: string
 
 ```ts
 actionName: string
+```
+
+### backtest
+
+```ts
+backtest: boolean
 ```
 
 ## Methods
@@ -134,10 +141,10 @@ Frequency: Every candle in backtest mode
 
 Default implementation: Logs backtest signal event.
 
-### breakeven
+### breakevenAvailable
 
 ```ts
-breakeven(event: BreakevenContract, source?: string): void | Promise<void>;
+breakevenAvailable(event: BreakevenContract, source?: string): void | Promise<void>;
 ```
 
 Handles breakeven events when stop-loss is moved to entry price.
@@ -145,16 +152,16 @@ Handles breakeven events when stop-loss is moved to entry price.
 Called once per signal when price moves far enough to cover fees and slippage.
 Breakeven threshold: (CC_PERCENT_SLIPPAGE + CC_PERCENT_FEE) * 2 + CC_BREAKEVEN_THRESHOLD
 
-Triggered by: ActionCoreService.breakeven() via BreakevenConnectionService
+Triggered by: ActionCoreService.breakevenAvailable() via BreakevenConnectionService
 Source: breakevenSubject.next() in CREATE_COMMIT_BREAKEVEN_FN callback
 Frequency: Once per signal when threshold reached
 
 Default implementation: Logs breakeven event.
 
-### partialProfit
+### partialProfitAvailable
 
 ```ts
-partialProfit(event: PartialProfitContract, source?: string): void | Promise<void>;
+partialProfitAvailable(event: PartialProfitContract, source?: string): void | Promise<void>;
 ```
 
 Handles partial profit level events (10%, 20%, 30%, etc).
@@ -162,16 +169,16 @@ Handles partial profit level events (10%, 20%, 30%, etc).
 Called once per profit level per signal (deduplicated).
 Use to track profit milestones and adjust position management.
 
-Triggered by: ActionCoreService.partialProfit() via PartialConnectionService
+Triggered by: ActionCoreService.partialProfitAvailable() via PartialConnectionService
 Source: partialProfitSubject.next() in CREATE_COMMIT_PROFIT_FN callback
 Frequency: Once per profit level per signal
 
 Default implementation: Logs partial profit event.
 
-### partialLoss
+### partialLossAvailable
 
 ```ts
-partialLoss(event: PartialLossContract, source?: string): void | Promise<void>;
+partialLossAvailable(event: PartialLossContract, source?: string): void | Promise<void>;
 ```
 
 Handles partial loss level events (-10%, -20%, -30%, etc).
@@ -179,28 +186,45 @@ Handles partial loss level events (-10%, -20%, -30%, etc).
 Called once per loss level per signal (deduplicated).
 Use to track loss milestones and implement risk management actions.
 
-Triggered by: ActionCoreService.partialLoss() via PartialConnectionService
+Triggered by: ActionCoreService.partialLossAvailable() via PartialConnectionService
 Source: partialLossSubject.next() in CREATE_COMMIT_LOSS_FN callback
 Frequency: Once per loss level per signal
 
 Default implementation: Logs partial loss event.
 
-### ping
+### pingScheduled
 
 ```ts
-ping(event: PingContract, source?: string): void | Promise<void>;
+pingScheduled(event: SchedulePingContract, source?: string): void | Promise<void>;
 ```
 
-Handles ping events during scheduled signal monitoring.
+Handles scheduled ping events during scheduled signal monitoring.
 
 Called every minute while a scheduled signal is waiting for activation.
 Use to monitor pending signals and track wait time.
 
-Triggered by: ActionCoreService.ping() via StrategyConnectionService
-Source: pingSubject.next() in CREATE_COMMIT_PING_FN callback
+Triggered by: ActionCoreService.pingScheduled() via StrategyConnectionService
+Source: schedulePingSubject.next() in CREATE_COMMIT_SCHEDULE_PING_FN callback
 Frequency: Every minute while scheduled signal is waiting
 
-Default implementation: Logs ping event.
+Default implementation: Logs scheduled ping event.
+
+### pingActive
+
+```ts
+pingActive(event: ActivePingContract, source?: string): void | Promise<void>;
+```
+
+Handles active ping events during active pending signal monitoring.
+
+Called every minute while a pending signal is active (position open).
+Use to monitor active positions and track lifecycle.
+
+Triggered by: ActionCoreService.pingActive() via StrategyConnectionService
+Source: activePingSubject.next() in CREATE_COMMIT_ACTIVE_PING_FN callback
+Frequency: Every minute while pending signal is active
+
+Default implementation: Logs active ping event.
 
 ### riskRejection
 

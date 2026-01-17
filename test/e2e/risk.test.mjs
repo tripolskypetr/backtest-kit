@@ -1,10 +1,10 @@
 import { test } from "worker-testbed";
 
 import {
-  addExchange,
-  addFrame,
-  addStrategy,
-  addRisk,
+  addExchangeSchema,
+  addFrameSchema,
+  addStrategySchema,
+  addRiskSchema,
   Backtest,
   listenSignal,
   listenSignalBacktest,
@@ -23,7 +23,7 @@ test("Risk rejects signals based on custom symbol filter", async ({ pass, fail }
   let btcRejected = false;
   let ethAllowed = false;
 
-  addExchange({
+  addExchangeSchema({
     exchangeName: "binance-integration-symbol-filter",
     getCandles: async (_symbol, interval, since, limit) => {
       return await getMockCandles(interval, since, limit);
@@ -32,7 +32,7 @@ test("Risk rejects signals based on custom symbol filter", async ({ pass, fail }
     formatQuantity: async (symbol, quantity) => quantity.toFixed(8),
   });
 
-  addRisk({
+  addRiskSchema({
     riskName: "no-btc",
     validations: [
       ({ symbol }) => {
@@ -55,7 +55,7 @@ test("Risk rejects signals based on custom symbol filter", async ({ pass, fail }
     },
   });
 
-  addStrategy({
+  addStrategySchema({
     strategyName: "test-strategy-symbol-filter",
     interval: "1m",
     riskName: "no-btc",
@@ -70,7 +70,7 @@ test("Risk rejects signals based on custom symbol filter", async ({ pass, fail }
     },
   });
 
-  addFrame({
+  addFrameSchema({
     frameName: "1d-symbol-filter",
     interval: "1d",
     startDate: new Date("2024-01-01T00:00:00Z"),
@@ -132,7 +132,7 @@ test("Risk validation with price-based logic", async ({ pass, fail }) => {
   let lowPriceRejected = 0;
   let highPriceAllowed = 0;
 
-  addExchange({
+  addExchangeSchema({
     exchangeName: "binance-integration-price-filter",
     getCandles: async (_symbol, interval, since, limit) => {
       return await getMockCandles(interval, since, limit);
@@ -141,7 +141,7 @@ test("Risk validation with price-based logic", async ({ pass, fail }) => {
     formatQuantity: async (symbol, quantity) => quantity.toFixed(8),
   });
 
-  addRisk({
+  addRiskSchema({
     riskName: "min-price-filter",
     validations: [
       ({ currentPrice }) => {
@@ -160,7 +160,7 @@ test("Risk validation with price-based logic", async ({ pass, fail }) => {
     },
   });
 
-  addStrategy({
+  addStrategySchema({
     strategyName: "test-strategy-price-filter",
     interval: "1m",
     riskName: "min-price-filter",
@@ -175,7 +175,7 @@ test("Risk validation with price-based logic", async ({ pass, fail }) => {
     },
   });
 
-  addFrame({
+  addFrameSchema({
     frameName: "1d-price-filter",
     interval: "1d",
     startDate: new Date("2024-01-01T00:00:00Z"),
@@ -214,7 +214,7 @@ test("Multiple strategies share same risk profile with concurrent positions", as
   let totalOpen = 0;
   let totalFinished = 0;
 
-  addExchange({
+  addExchangeSchema({
     exchangeName: "binance-integration-shared-risk",
     getCandles: async (_symbol, interval, since, limit) => {
       return await getMockCandles(interval, since, limit);
@@ -223,7 +223,7 @@ test("Multiple strategies share same risk profile with concurrent positions", as
     formatQuantity: async (symbol, quantity) => quantity.toFixed(8),
   });
 
-  addRisk({
+  addRiskSchema({
     riskName: "shared-max-1",
     validations: [
       ({ activePositionCount }) => {
@@ -234,7 +234,7 @@ test("Multiple strategies share same risk profile with concurrent positions", as
     ],
   });
 
-  addStrategy({
+  addStrategySchema({
     strategyName: "shared-strategy-1",
     interval: "1m",
     riskName: "shared-max-1",
@@ -259,7 +259,7 @@ test("Multiple strategies share same risk profile with concurrent positions", as
     }
   });
 
-  addStrategy({
+  addStrategySchema({
     strategyName: "shared-strategy-2",
     interval: "1m",
     riskName: "shared-max-1",
@@ -276,7 +276,7 @@ test("Multiple strategies share same risk profile with concurrent positions", as
     },
   });
 
-  addFrame({
+  addFrameSchema({
     frameName: "1d-shared-risk",
     interval: "1d",
     startDate: new Date("2024-01-01T00:00:00Z"),
@@ -321,7 +321,7 @@ test("Risk validation with activePositions array access", async ({ pass, fail })
   let validationCalledWithPositions = false;
   let maxActivePositionsObserved = 0;
 
-  addExchange({
+  addExchangeSchema({
     exchangeName: "binance-integration-active-positions",
     getCandles: async (_symbol, interval, since, limit) => {
       return await getMockCandles(interval, since, limit);
@@ -330,7 +330,7 @@ test("Risk validation with activePositions array access", async ({ pass, fail })
     formatQuantity: async (symbol, quantity) => quantity.toFixed(8),
   });
 
-  addRisk({
+  addRiskSchema({
     riskName: "check-active-positions",
     validations: [
       ({ activePositions, activePositionCount }) => {
@@ -342,7 +342,7 @@ test("Risk validation with activePositions array access", async ({ pass, fail })
     ],
   });
 
-  addStrategy({
+  addStrategySchema({
     strategyName: "test-strategy-active-positions",
     interval: "1m",
     riskName: "check-active-positions",
@@ -357,7 +357,7 @@ test("Risk validation with activePositions array access", async ({ pass, fail })
     },
   });
 
-  addFrame({
+  addFrameSchema({
     frameName: "3d-active-positions",
     interval: "1d",
     startDate: new Date("2024-01-01T00:00:00Z"),
@@ -389,7 +389,7 @@ test("Risk validation with timestamp-based logic", async ({ pass, fail }) => {
   let rejectedByTime = false;
   let allowedSignals = 0;
 
-  addExchange({
+  addExchangeSchema({
     exchangeName: "binance-integration-timestamp-filter",
     getCandles: async (_symbol, interval, since, limit) => {
       return await getMockCandles(interval, since, limit);
@@ -401,7 +401,7 @@ test("Risk validation with timestamp-based logic", async ({ pass, fail }) => {
   // Only allow trading after January 2nd
   const cutoffTime = new Date("2024-01-02T00:00:00Z").getTime();
 
-  addRisk({
+  addRiskSchema({
     riskName: "time-filter",
     validations: [
       ({ timestamp }) => {
@@ -420,7 +420,7 @@ test("Risk validation with timestamp-based logic", async ({ pass, fail }) => {
     },
   });
 
-  addStrategy({
+  addStrategySchema({
     strategyName: "test-strategy-timestamp-filter",
     interval: "1m",
     riskName: "time-filter",
@@ -435,7 +435,7 @@ test("Risk validation with timestamp-based logic", async ({ pass, fail }) => {
     },
   });
 
-  addFrame({
+  addFrameSchema({
     frameName: "3d-timestamp-filter",
     interval: "1d",
     startDate: new Date("2024-01-01T00:00:00Z"),
@@ -467,7 +467,7 @@ test("Risk rejects all signals with max positions set to 0", async ({ pass, fail
   let rejectedCount = 0;
   let allowedCount = 0;
 
-  addExchange({
+  addExchangeSchema({
     exchangeName: "binance-integration-zero-positions",
     getCandles: async (_symbol, interval, since, limit) => {
       return await getMockCandles(interval, since, limit);
@@ -476,7 +476,7 @@ test("Risk rejects all signals with max positions set to 0", async ({ pass, fail
     formatQuantity: async (symbol, quantity) => quantity.toFixed(8),
   });
 
-  addRisk({
+  addRiskSchema({
     riskName: "no-trading",
     validations: [
       () => {
@@ -493,7 +493,7 @@ test("Risk rejects all signals with max positions set to 0", async ({ pass, fail
     },
   });
 
-  addStrategy({
+  addStrategySchema({
     strategyName: "test-strategy-zero-positions",
     interval: "1m",
     riskName: "no-trading",
@@ -508,7 +508,7 @@ test("Risk rejects all signals with max positions set to 0", async ({ pass, fail
     },
   });
 
-  addFrame({
+  addFrameSchema({
     frameName: "3d-zero-positions",
     interval: "1d",
     startDate: new Date("2024-01-01T00:00:00Z"),
@@ -547,7 +547,7 @@ test("Risk validation with strategyName and exchangeName checks", async ({ pass,
   let correctStrategyName = false;
   let correctExchangeName = false;
 
-  addExchange({
+  addExchangeSchema({
     exchangeName: "binance-integration-metadata",
     getCandles: async (_symbol, interval, since, limit) => {
       return await getMockCandles(interval, since, limit);
@@ -556,7 +556,7 @@ test("Risk validation with strategyName and exchangeName checks", async ({ pass,
     formatQuantity: async (symbol, quantity) => quantity.toFixed(8),
   });
 
-  addRisk({
+  addRiskSchema({
     riskName: "metadata-check",
     validations: [
       ({ strategyName, exchangeName }) => {
@@ -570,7 +570,7 @@ test("Risk validation with strategyName and exchangeName checks", async ({ pass,
     ],
   });
 
-  addStrategy({
+  addStrategySchema({
     strategyName: "test-strategy-metadata",
     interval: "1m",
     riskName: "metadata-check",
@@ -585,7 +585,7 @@ test("Risk validation with strategyName and exchangeName checks", async ({ pass,
     },
   });
 
-  addFrame({
+  addFrameSchema({
     frameName: "1d-metadata",
     interval: "1d",
     startDate: new Date("2024-01-01T00:00:00Z"),
@@ -618,7 +618,7 @@ test("Multiple validations execute in order and fail fast", async ({ pass, fail 
   let validation2Called = false;
   let validation3Called = false;
 
-  addExchange({
+  addExchangeSchema({
     exchangeName: "binance-integration-fail-fast",
     getCandles: async (_symbol, interval, since, limit) => {
       return await getMockCandles(interval, since, limit);
@@ -627,7 +627,7 @@ test("Multiple validations execute in order and fail fast", async ({ pass, fail 
     formatQuantity: async (symbol, quantity) => quantity.toFixed(8),
   });
 
-  addRisk({
+  addRiskSchema({
     riskName: "fail-fast-check",
     validations: [
       () => {
@@ -645,7 +645,7 @@ test("Multiple validations execute in order and fail fast", async ({ pass, fail 
     ],
   });
 
-  addStrategy({
+  addStrategySchema({
     strategyName: "test-strategy-fail-fast",
     interval: "1m",
     riskName: "fail-fast-check",
@@ -660,7 +660,7 @@ test("Multiple validations execute in order and fail fast", async ({ pass, fail 
     },
   });
 
-  addFrame({
+  addFrameSchema({
     frameName: "1d-fail-fast",
     interval: "1d",
     startDate: new Date("2024-01-01T00:00:00Z"),
@@ -691,7 +691,7 @@ test("listenRisk captures rejection events with correct data", async ({ pass, fa
 
   const rejectionEvents = [];
 
-  addExchange({
+  addExchangeSchema({
     exchangeName: "binance-integration-listen-risk",
     getCandles: async (_symbol, interval, since, limit) => {
       return await getMockCandles(interval, since, limit);
@@ -700,7 +700,7 @@ test("listenRisk captures rejection events with correct data", async ({ pass, fa
     formatQuantity: async (symbol, quantity) => quantity.toFixed(8),
   });
 
-  addRisk({
+  addRiskSchema({
     riskName: "max-2-positions",
     validations: [
       {
@@ -744,7 +744,7 @@ test("listenRisk captures rejection events with correct data", async ({ pass, fa
   });
 
   // Strategy 1 - will open position 1
-  addStrategy({
+  addStrategySchema({
     strategyName: "test-strategy-listen-risk-1",
     interval: "1m",
     riskName: "max-2-positions",
@@ -761,7 +761,7 @@ test("listenRisk captures rejection events with correct data", async ({ pass, fa
   });
 
   // Strategy 2 - will open position 2
-  addStrategy({
+  addStrategySchema({
     strategyName: "test-strategy-listen-risk-2",
     interval: "1m",
     riskName: "max-2-positions",
@@ -778,7 +778,7 @@ test("listenRisk captures rejection events with correct data", async ({ pass, fa
   });
 
   // Strategy 3 - will try to open position 3 and get rejected
-  addStrategy({
+  addStrategySchema({
     strategyName: "test-strategy-listen-risk-3",
     interval: "1m",
     riskName: "max-2-positions",
@@ -794,7 +794,7 @@ test("listenRisk captures rejection events with correct data", async ({ pass, fa
     },
   });
 
-  addFrame({
+  addFrameSchema({
     frameName: "3d-listen-risk",
     interval: "1d",
     startDate: new Date("2024-01-01T00:00:00Z"),
@@ -889,7 +889,7 @@ test("listenRiskOnce with filter for specific rejection condition", async ({ pas
   let btcRejectionCaptured = false;
   let ethRejectionCaptured = false;
 
-  addExchange({
+  addExchangeSchema({
     exchangeName: "binance-integration-listen-once",
     getCandles: async (_symbol, interval, since, limit) => {
       return await getMockCandles(interval, since, limit);
@@ -898,7 +898,7 @@ test("listenRiskOnce with filter for specific rejection condition", async ({ pas
     formatQuantity: async (symbol, quantity) => quantity.toFixed(8),
   });
 
-  addRisk({
+  addRiskSchema({
     riskName: "reject-btc-eth",
     validations: [
       {
@@ -928,7 +928,7 @@ test("listenRiskOnce with filter for specific rejection condition", async ({ pas
     }
   );
 
-  addStrategy({
+  addStrategySchema({
     strategyName: "test-strategy-listen-once",
     interval: "1m",
     riskName: "reject-btc-eth",
@@ -942,7 +942,7 @@ test("listenRiskOnce with filter for specific rejection condition", async ({ pas
     },
   });
 
-  addFrame({
+  addFrameSchema({
     frameName: "1d-listen-once",
     interval: "1d",
     startDate: new Date("2024-01-01T00:00:00Z"),
@@ -983,7 +983,7 @@ test("listenRiskOnce with filter for specific rejection condition", async ({ pas
 
 test("Risk.getData returns correct statistics after rejections", async ({ pass, fail }) => {
 
-  addExchange({
+  addExchangeSchema({
     exchangeName: "binance-integration-get-data",
     getCandles: async (_symbol, interval, since, limit) => {
       return await getMockCandles(interval, since, limit);
@@ -992,7 +992,7 @@ test("Risk.getData returns correct statistics after rejections", async ({ pass, 
     formatQuantity: async (symbol, quantity) => quantity.toFixed(8),
   });
 
-  addRisk({
+  addRiskSchema({
     riskName: "max-1-position-data",
     validations: [
       {
@@ -1007,7 +1007,7 @@ test("Risk.getData returns correct statistics after rejections", async ({ pass, 
   });
 
   // Strategy 1 - will open position
-  addStrategy({
+  addStrategySchema({
     strategyName: "test-strategy-get-data-1",
     interval: "1m",
     riskName: "max-1-position-data",
@@ -1024,7 +1024,7 @@ test("Risk.getData returns correct statistics after rejections", async ({ pass, 
   });
 
   // Strategy 2 - will be rejected
-  addStrategy({
+  addStrategySchema({
     strategyName: "test-strategy-get-data-2",
     interval: "1m",
     riskName: "max-1-position-data",
@@ -1040,7 +1040,7 @@ test("Risk.getData returns correct statistics after rejections", async ({ pass, 
     },
   });
 
-  addFrame({
+  addFrameSchema({
     frameName: "3d-get-data",
     interval: "1d",
     startDate: new Date("2024-01-01T00:00:00Z"),
@@ -1094,7 +1094,7 @@ test("Risk.getData returns correct statistics after rejections", async ({ pass, 
 
 test("Risk.getReport generates markdown with correct table structure", async ({ pass, fail }) => {
 
-  addExchange({
+  addExchangeSchema({
     exchangeName: "binance-integration-get-report",
     getCandles: async (_symbol, interval, since, limit) => {
       return await getMockCandles(interval, since, limit);
@@ -1103,7 +1103,7 @@ test("Risk.getReport generates markdown with correct table structure", async ({ 
     formatQuantity: async (symbol, quantity) => quantity.toFixed(8),
   });
 
-  addRisk({
+  addRiskSchema({
     riskName: "max-1-position-report",
     validations: [
       {
@@ -1118,7 +1118,7 @@ test("Risk.getReport generates markdown with correct table structure", async ({ 
   });
 
   // Strategy 1 - will open position
-  addStrategy({
+  addStrategySchema({
     strategyName: "test-strategy-get-report-1",
     interval: "1m",
     riskName: "max-1-position-report",
@@ -1135,7 +1135,7 @@ test("Risk.getReport generates markdown with correct table structure", async ({ 
   });
 
   // Strategy 2 - will be rejected
-  addStrategy({
+  addStrategySchema({
     strategyName: "test-strategy-get-report-2",
     interval: "1m",
     riskName: "max-1-position-report",
@@ -1151,7 +1151,7 @@ test("Risk.getReport generates markdown with correct table structure", async ({ 
     },
   });
 
-  addFrame({
+  addFrameSchema({
     frameName: "2d-get-report",
     interval: "1d",
     startDate: new Date("2024-01-01T00:00:00Z"),
@@ -1211,7 +1211,7 @@ test("RejectionNote field captures validation note in rejection events", async (
 
   const rejectionNotes = [];
 
-  addExchange({
+  addExchangeSchema({
     exchangeName: "binance-integration-rejection-note-field",
     getCandles: async (_symbol, interval, since, limit) => {
       return await getMockCandles(interval, since, limit);
@@ -1220,7 +1220,7 @@ test("RejectionNote field captures validation note in rejection events", async (
     formatQuantity: async (symbol, quantity) => quantity.toFixed(8),
   });
 
-  addRisk({
+  addRiskSchema({
     riskName: "comment-capture-risk",
     validations: [
       {
@@ -1239,7 +1239,7 @@ test("RejectionNote field captures validation note in rejection events", async (
   });
 
   // Strategy 1 - will open position
-  addStrategy({
+  addStrategySchema({
     strategyName: "test-strategy-comment-field-1",
     interval: "1m",
     riskName: "comment-capture-risk",
@@ -1256,7 +1256,7 @@ test("RejectionNote field captures validation note in rejection events", async (
   });
 
   // Strategy 2 - will be rejected
-  addStrategy({
+  addStrategySchema({
     strategyName: "test-strategy-comment-field-2",
     interval: "1m",
     riskName: "comment-capture-risk",
@@ -1272,7 +1272,7 @@ test("RejectionNote field captures validation note in rejection events", async (
     },
   });
 
-  addFrame({
+  addFrameSchema({
     frameName: "2d-comment-field",
     interval: "1d",
     startDate: new Date("2024-01-01T00:00:00Z"),
@@ -1318,7 +1318,7 @@ test("No events emitted for allowed signals (anti-spam)", async ({ pass, fail })
   let allowedCount = 0;
   let eventCount = 0;
 
-  addExchange({
+  addExchangeSchema({
     exchangeName: "binance-integration-no-spam",
     getCandles: async (_symbol, interval, since, limit) => {
       return await getMockCandles(interval, since, limit);
@@ -1327,7 +1327,7 @@ test("No events emitted for allowed signals (anti-spam)", async ({ pass, fail })
     formatQuantity: async (symbol, quantity) => quantity.toFixed(8),
   });
 
-  addRisk({
+  addRiskSchema({
     riskName: "no-spam-risk",
     validations: [
       {
@@ -1354,7 +1354,7 @@ test("No events emitted for allowed signals (anti-spam)", async ({ pass, fail })
     eventCount++;
   });
 
-  addStrategy({
+  addStrategySchema({
     strategyName: "test-strategy-no-spam",
     interval: "1m",
     riskName: "no-spam-risk",
@@ -1368,7 +1368,7 @@ test("No events emitted for allowed signals (anti-spam)", async ({ pass, fail })
     },
   });
 
-  addFrame({
+  addFrameSchema({
     frameName: "3d-no-spam",
     interval: "1d",
     startDate: new Date("2024-01-01T00:00:00Z"),
@@ -1399,7 +1399,7 @@ test("No events emitted for allowed signals (anti-spam)", async ({ pass, fail })
 
 test("Multiple rejection tracking with bySymbol and byStrategy statistics", async ({ pass, fail }) => {
 
-  addExchange({
+  addExchangeSchema({
     exchangeName: "binance-integration-multi-stats",
     getCandles: async (_symbol, interval, since, limit) => {
       return await getMockCandles(interval, since, limit);
@@ -1408,7 +1408,7 @@ test("Multiple rejection tracking with bySymbol and byStrategy statistics", asyn
     formatQuantity: async (symbol, quantity) => quantity.toFixed(8),
   });
 
-  addRisk({
+  addRiskSchema({
     riskName: "shared-limit-stats",
     validations: [
       {
@@ -1423,7 +1423,7 @@ test("Multiple rejection tracking with bySymbol and byStrategy statistics", asyn
   });
 
   // Strategy 1 - will open position
-  addStrategy({
+  addStrategySchema({
     strategyName: "test-strategy-stats-1",
     interval: "1m",
     riskName: "shared-limit-stats",
@@ -1440,7 +1440,7 @@ test("Multiple rejection tracking with bySymbol and byStrategy statistics", asyn
   });
 
   // Strategy 2 - will be rejected
-  addStrategy({
+  addStrategySchema({
     strategyName: "test-strategy-stats-2",
     interval: "1m",
     riskName: "shared-limit-stats",
@@ -1456,7 +1456,7 @@ test("Multiple rejection tracking with bySymbol and byStrategy statistics", asyn
     },
   });
 
-  addFrame({
+  addFrameSchema({
     frameName: "3d-multi-stats",
     interval: "1d",
     startDate: new Date("2024-01-01T00:00:00Z"),
@@ -1557,7 +1557,7 @@ test("Strategy with riskList combines multiple risk profiles (AND logic)", async
   let totalRejections = 0;
   let totalAllowed = 0;
 
-  addExchange({
+  addExchangeSchema({
     exchangeName: "binance-integration-risk-list",
     getCandles: async (_symbol, interval, since, limit) => {
       return await getMockCandles(interval, since, limit);
@@ -1567,7 +1567,7 @@ test("Strategy with riskList combines multiple risk profiles (AND logic)", async
   });
 
   // Risk 1 - allows max 5 positions
-  addRisk({
+  addRiskSchema({
     riskName: "max-5-positions",
     validations: [
       {
@@ -1583,7 +1583,7 @@ test("Strategy with riskList combines multiple risk profiles (AND logic)", async
   });
 
   // Risk 2 - blocks BTC trading
-  addRisk({
+  addRiskSchema({
     riskName: "no-btc-trading",
     validations: [
       {
@@ -1607,7 +1607,7 @@ test("Strategy with riskList combines multiple risk profiles (AND logic)", async
   });
 
   // Strategy with riskList (both risks must pass)
-  addStrategy({
+  addStrategySchema({
     strategyName: "test-strategy-risk-list",
     interval: "1m",
     riskList: ["max-5-positions", "no-btc-trading"],
@@ -1621,7 +1621,7 @@ test("Strategy with riskList combines multiple risk profiles (AND logic)", async
     },
   });
 
-  addFrame({
+  addFrameSchema({
     frameName: "1d-risk-list",
     interval: "1d",
     startDate: new Date("2024-01-01T00:00:00Z"),
@@ -1678,7 +1678,7 @@ test("Strategy with both riskName and riskList merges all risks", async ({ pass,
   let listRisk1Checked = 0;
   let listRisk2Checked = 0;
 
-  addExchange({
+  addExchangeSchema({
     exchangeName: "binance-integration-risk-merge",
     getCandles: async (_symbol, interval, since, limit) => {
       return await getMockCandles(interval, since, limit);
@@ -1688,7 +1688,7 @@ test("Strategy with both riskName and riskList merges all risks", async ({ pass,
   });
 
   // Main risk
-  addRisk({
+  addRiskSchema({
     riskName: "main-risk",
     validations: [
       ({ activePositionCount }) => {
@@ -1701,7 +1701,7 @@ test("Strategy with both riskName and riskList merges all risks", async ({ pass,
   });
 
   // Additional risk 1
-  addRisk({
+  addRiskSchema({
     riskName: "additional-risk-1",
     validations: [
       ({ symbol }) => {
@@ -1714,7 +1714,7 @@ test("Strategy with both riskName and riskList merges all risks", async ({ pass,
   });
 
   // Additional risk 2
-  addRisk({
+  addRiskSchema({
     riskName: "additional-risk-2",
     validations: [
       ({ currentPrice }) => {
@@ -1727,7 +1727,7 @@ test("Strategy with both riskName and riskList merges all risks", async ({ pass,
   });
 
   // Strategy with both riskName and riskList
-  addStrategy({
+  addStrategySchema({
     strategyName: "test-strategy-merged-risks",
     interval: "1m",
     riskName: "main-risk",
@@ -1742,7 +1742,7 @@ test("Strategy with both riskName and riskList merges all risks", async ({ pass,
     },
   });
 
-  addFrame({
+  addFrameSchema({
     frameName: "1d-merged-risks",
     interval: "1d",
     startDate: new Date("2024-01-01T00:00:00Z"),
@@ -1775,7 +1775,7 @@ test("riskList with multiple validations - first rejection stops execution", asy
   let risk1ValidationOrder = [];
   let risk2ValidationOrder = [];
 
-  addExchange({
+  addExchangeSchema({
     exchangeName: "binance-integration-risk-list-order",
     getCandles: async (_symbol, interval, since, limit) => {
       return await getMockCandles(interval, since, limit);
@@ -1785,7 +1785,7 @@ test("riskList with multiple validations - first rejection stops execution", asy
   });
 
   // Risk 1 - will pass
-  addRisk({
+  addRiskSchema({
     riskName: "risk-order-1",
     validations: [
       () => {
@@ -1798,7 +1798,7 @@ test("riskList with multiple validations - first rejection stops execution", asy
   });
 
   // Risk 2 - will fail on second check
-  addRisk({
+  addRiskSchema({
     riskName: "risk-order-2",
     validations: [
       () => {
@@ -1814,7 +1814,7 @@ test("riskList with multiple validations - first rejection stops execution", asy
     ],
   });
 
-  addStrategy({
+  addStrategySchema({
     strategyName: "test-strategy-risk-order",
     interval: "1m",
     riskList: ["risk-order-1", "risk-order-2"],
@@ -1828,7 +1828,7 @@ test("riskList with multiple validations - first rejection stops execution", asy
     },
   });
 
-  addFrame({
+  addFrameSchema({
     frameName: "1d-risk-order",
     interval: "1d",
     startDate: new Date("2024-01-01T00:00:00Z"),
@@ -1864,7 +1864,7 @@ test("riskList with shared position counting across multiple risks", async ({ pa
   let risk1ActiveCount = [];
   let risk2ActiveCount = [];
 
-  addExchange({
+  addExchangeSchema({
     exchangeName: "binance-integration-risk-list-shared",
     getCandles: async (_symbol, interval, since, limit) => {
       return await getMockCandles(interval, since, limit);
@@ -1874,7 +1874,7 @@ test("riskList with shared position counting across multiple risks", async ({ pa
   });
 
   // Both risks track the same activePositionCount
-  addRisk({
+  addRiskSchema({
     riskName: "shared-count-1",
     validations: [
       ({ activePositionCount }) => {
@@ -1886,7 +1886,7 @@ test("riskList with shared position counting across multiple risks", async ({ pa
     ],
   });
 
-  addRisk({
+  addRiskSchema({
     riskName: "shared-count-2",
     validations: [
       ({ activePositionCount }) => {
@@ -1898,7 +1898,7 @@ test("riskList with shared position counting across multiple risks", async ({ pa
     ],
   });
 
-  addStrategy({
+  addStrategySchema({
     strategyName: "test-strategy-shared-count-1",
     interval: "1m",
     riskList: ["shared-count-1", "shared-count-2"],
@@ -1914,7 +1914,7 @@ test("riskList with shared position counting across multiple risks", async ({ pa
     },
   });
 
-  addStrategy({
+  addStrategySchema({
     strategyName: "test-strategy-shared-count-2",
     interval: "1m",
     riskList: ["shared-count-1", "shared-count-2"],
@@ -1930,7 +1930,7 @@ test("riskList with shared position counting across multiple risks", async ({ pa
     },
   });
 
-  addFrame({
+  addFrameSchema({
     frameName: "3d-shared-count",
     interval: "1d",
     startDate: new Date("2024-01-01T00:00:00Z"),

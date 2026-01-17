@@ -1,9 +1,9 @@
 import { test } from "worker-testbed";
 
 import {
-  addExchange,
-  addFrame,
-  addStrategy,
+  addExchangeSchema,
+  addFrameSchema,
+  addStrategySchema,
   Backtest,
   listenError,
 } from "../../build/index.mjs";
@@ -15,7 +15,7 @@ test("valid long signal passes validation", async ({ pass, fail }) => {
 
   const [awaiter, { resolve }] = createAwaiter();
 
-  addExchange({
+  addExchangeSchema({
     exchangeName: "binance-mock-valid-long",
     getCandles: async (_symbol, interval, since, limit) => {
       return await getMockCandles(interval, since, limit);
@@ -28,7 +28,7 @@ test("valid long signal passes validation", async ({ pass, fail }) => {
     },
   });
 
-  addStrategy({
+  addStrategySchema({
     strategyName: "test-strategy-valid-long",
     interval: "1m",
     getSignal: async () => {
@@ -44,7 +44,7 @@ test("valid long signal passes validation", async ({ pass, fail }) => {
     },
   });
 
-  addFrame({
+  addFrameSchema({
     frameName: "1d-backtest-valid-long",
     interval: "1d",
     startDate: new Date("2024-01-01T00:00:00Z"),
@@ -72,7 +72,7 @@ test("valid short signal passes validation", async ({ pass, fail }) => {
 
   const [awaiter, { resolve }] = createAwaiter();
 
-  addExchange({
+  addExchangeSchema({
     exchangeName: "binance-mock-valid-short",
     getCandles: async (_symbol, interval, since, limit) => {
       return await getMockCandles(interval, since, limit);
@@ -85,7 +85,7 @@ test("valid short signal passes validation", async ({ pass, fail }) => {
     },
   });
 
-  addStrategy({
+  addStrategySchema({
     strategyName: "test-strategy-valid-short",
     interval: "1m",
     getSignal: async () => {
@@ -101,7 +101,7 @@ test("valid short signal passes validation", async ({ pass, fail }) => {
     },
   });
 
-  addFrame({
+  addFrameSchema({
     frameName: "1d-backtest-valid-short",
     interval: "1d",
     startDate: new Date("2024-01-01T00:00:00Z"),
@@ -129,7 +129,7 @@ test("invalid long signal - TP lower than Open", async ({ pass, fail }) => {
 
   const [awaiter, { resolve }] = createAwaiter();
 
-  addExchange({
+  addExchangeSchema({
     exchangeName: "binance-mock-invalid-long-tp",
     getCandles: async (_symbol, interval, since, limit) => {
       return await getMockCandles(interval, since, limit);
@@ -142,7 +142,7 @@ test("invalid long signal - TP lower than Open", async ({ pass, fail }) => {
     },
   });
 
-  addStrategy({
+  addStrategySchema({
     strategyName: "test-strategy-invalid-long-tp",
     interval: "1m",
     getSignal: async () => {
@@ -157,7 +157,7 @@ test("invalid long signal - TP lower than Open", async ({ pass, fail }) => {
     },
   });
 
-  addFrame({
+  addFrameSchema({
     frameName: "1d-backtest-invalid-long-tp",
     interval: "1d",
     startDate: new Date("2024-01-01T00:00:00Z"),
@@ -193,7 +193,7 @@ test("invalid long signal - SL higher than Open", async ({ pass, fail }) => {
 
   const [awaiter, { resolve }] = createAwaiter();
 
-  addExchange({
+  addExchangeSchema({
     exchangeName: "binance-mock-invalid-long-sl",
     getCandles: async (_symbol, interval, since, limit) => {
       return await getMockCandles(interval, since, limit);
@@ -206,7 +206,7 @@ test("invalid long signal - SL higher than Open", async ({ pass, fail }) => {
     },
   });
 
-  addStrategy({
+  addStrategySchema({
     strategyName: "test-strategy-invalid-long-sl",
     interval: "1m",
     getSignal: async () => {
@@ -221,7 +221,7 @@ test("invalid long signal - SL higher than Open", async ({ pass, fail }) => {
     },
   });
 
-  addFrame({
+  addFrameSchema({
     frameName: "1d-backtest-invalid-long-sl",
     interval: "1d",
     startDate: new Date("2024-01-01T00:00:00Z"),
@@ -256,7 +256,7 @@ test("invalid short signal - TP higher than Open", async ({ pass, fail }) => {
 
   const [awaiter, { resolve }] = createAwaiter();
 
-  addExchange({
+  addExchangeSchema({
     exchangeName: "binance-mock-invalid-short-tp",
     getCandles: async (_symbol, interval, since, limit) => {
       return await getMockCandles(interval, since, limit);
@@ -269,7 +269,7 @@ test("invalid short signal - TP higher than Open", async ({ pass, fail }) => {
     },
   });
 
-  addStrategy({
+  addStrategySchema({
     strategyName: "test-strategy-invalid-short-tp",
     interval: "1m",
     getSignal: async () => {
@@ -284,7 +284,7 @@ test("invalid short signal - TP higher than Open", async ({ pass, fail }) => {
     },
   });
 
-  addFrame({
+  addFrameSchema({
     frameName: "1d-backtest-invalid-short-tp",
     interval: "1d",
     startDate: new Date("2024-01-01T00:00:00Z"),
@@ -319,7 +319,7 @@ test("invalid short signal - SL lower than Open", async ({ pass, fail }) => {
 
   const [awaiter, { resolve }] = createAwaiter();
 
-  addExchange({
+  addExchangeSchema({
     exchangeName: "binance-mock-invalid-short-sl",
     getCandles: async (_symbol, interval, since, limit) => {
       return await getMockCandles(interval, since, limit);
@@ -332,7 +332,7 @@ test("invalid short signal - SL lower than Open", async ({ pass, fail }) => {
     },
   });
 
-  addStrategy({
+  addStrategySchema({
     strategyName: "test-strategy-invalid-short-sl",
     interval: "1m",
     getSignal: async () => {
@@ -347,7 +347,7 @@ test("invalid short signal - SL lower than Open", async ({ pass, fail }) => {
     },
   });
 
-  addFrame({
+  addFrameSchema({
     frameName: "1d-backtest-invalid-short-sl",
     interval: "1d",
     startDate: new Date("2024-01-01T00:00:00Z"),
@@ -382,7 +382,7 @@ test("negative priceOpen fails validation", async ({ pass, fail }) => {
 
   const [awaiter, { resolve }] = createAwaiter();
 
-  addExchange({
+  addExchangeSchema({
     exchangeName: "binance-mock-negative-price",
     getCandles: async (_symbol, interval, since, limit) => {
       return await getMockCandles(interval, since, limit);
@@ -395,7 +395,7 @@ test("negative priceOpen fails validation", async ({ pass, fail }) => {
     },
   });
 
-  addStrategy({
+  addStrategySchema({
     strategyName: "test-strategy-negative-price",
     interval: "1m",
     getSignal: async () => {
@@ -410,7 +410,7 @@ test("negative priceOpen fails validation", async ({ pass, fail }) => {
     },
   });
 
-  addFrame({
+  addFrameSchema({
     frameName: "1d-backtest-negative-price",
     interval: "1d",
     startDate: new Date("2024-01-01T00:00:00Z"),
@@ -445,7 +445,7 @@ test("negative minuteEstimatedTime fails validation", async ({ pass, fail }) => 
 
   const [awaiter, { resolve }] = createAwaiter();
 
-  addExchange({
+  addExchangeSchema({
     exchangeName: "binance-mock-negative-time",
     getCandles: async (_symbol, interval, since, limit) => {
       return await getMockCandles(interval, since, limit);
@@ -458,7 +458,7 @@ test("negative minuteEstimatedTime fails validation", async ({ pass, fail }) => 
     },
   });
 
-  addStrategy({
+  addStrategySchema({
     strategyName: "test-strategy-negative-time",
     interval: "1m",
     getSignal: async () => {
@@ -473,7 +473,7 @@ test("negative minuteEstimatedTime fails validation", async ({ pass, fail }) => 
     },
   });
 
-  addFrame({
+  addFrameSchema({
     frameName: "1d-backtest-negative-time",
     interval: "1d",
     startDate: new Date("2024-01-01T00:00:00Z"),

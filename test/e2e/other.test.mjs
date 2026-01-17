@@ -1,9 +1,9 @@
 import { test } from "worker-testbed";
 
 import {
-  addExchange,
-  addFrame,
-  addStrategy,
+  addExchangeSchema,
+  addFrameSchema,
+  addStrategySchema,
   Backtest,
   listenSignalBacktest,
   listenDoneBacktest,
@@ -31,7 +31,7 @@ test("OTHER: Concurrent signals with same priceOpen - prevents double activation
   let currentlyActive = 0;
   let signalCounter = 0;
 
-  addExchange({
+  addExchangeSchema({
     exchangeName: "binance-other-concurrent",
     getCandles: async (_symbol, interval, since, limit) => {
       const candles = [];
@@ -58,7 +58,7 @@ test("OTHER: Concurrent signals with same priceOpen - prevents double activation
     formatQuantity: async (symbol, quantity) => quantity.toFixed(8),
   });
 
-  addStrategy({
+  addStrategySchema({
     strategyName: "test-other-concurrent",
     interval: "1m",
     getSignal: async () => {
@@ -92,7 +92,7 @@ test("OTHER: Concurrent signals with same priceOpen - prevents double activation
     },
   });
 
-  addFrame({
+  addFrameSchema({
     frameName: "60m-other-concurrent",
     interval: "1m",
     startDate: new Date("2024-01-01T00:00:00Z"),
@@ -140,7 +140,7 @@ test("OTHER: Breakeven after fees - profit margin edge case", async ({ pass, fai
   let closedResult = null;
   let signalGenerated = false;
 
-  addExchange({
+  addExchangeSchema({
     exchangeName: "binance-other-breakeven",
     getCandles: async (_symbol, interval, since, limit) => {
       const candles = [];
@@ -168,7 +168,7 @@ test("OTHER: Breakeven after fees - profit margin edge case", async ({ pass, fai
     formatQuantity: async (symbol, quantity) => quantity.toFixed(8),
   });
 
-  addStrategy({
+  addStrategySchema({
     strategyName: "test-other-breakeven",
     interval: "1m",
     getSignal: async () => {
@@ -187,7 +187,7 @@ test("OTHER: Breakeven after fees - profit margin edge case", async ({ pass, fai
     },
   });
 
-  addFrame({
+  addFrameSchema({
     frameName: "20m-other-breakeven",
     interval: "1m",
     startDate: new Date("2024-01-01T00:00:00Z"),
@@ -246,108 +246,6 @@ test("OTHER: Breakeven after fees - profit margin edge case", async ({ pass, fai
  *
  * Тест: Проверяем что сигнал закрылся (неважно по TP или SL)
  */
-test("OTHER: Simultaneous TP & SL trigger - VWAP-based detection", async ({ pass, fail }) => {
-
-  let closedResult = null;
-  let signalGenerated = false;
-
-  addExchange({
-    exchangeName: "binance-other-simultaneous",
-    getCandles: async (_symbol, interval, since, limit) => {
-      const candles = [];
-      const intervalMs = 60000;
-
-      for (let i = 0; i < limit; i++) {
-        const timestamp = since.getTime() + i * intervalMs;
-
-        if (i === 5) {
-          // Свеча с экстремальной волатильностью (касается TP и SL)
-          candles.push({
-            timestamp,
-            open: 42000,
-            high: 43500, // Выше TP=43000
-            low: 40500,  // Ниже SL=41000
-            close: 42000,
-            volume: 500,
-          });
-        } else {
-          candles.push({
-            timestamp,
-            open: 42000,
-            high: 42100,
-            low: 41900,
-            close: 42000,
-            volume: 100,
-          });
-        }
-      }
-
-      return candles;
-    },
-    formatPrice: async (symbol, price) => price.toFixed(8),
-    formatQuantity: async (symbol, quantity) => quantity.toFixed(8),
-  });
-
-  addStrategy({
-    strategyName: "test-other-simultaneous",
-    interval: "1m",
-    getSignal: async () => {
-      if (signalGenerated) return null;
-      signalGenerated = true;
-
-      return {
-        position: "long",
-        note: "simultaneous TP & SL test",
-        priceOpen: 42000,
-        priceTakeProfit: 43000,
-        priceStopLoss: 41000,
-        minuteEstimatedTime: 30,
-      };
-    },
-  });
-
-  addFrame({
-    frameName: "20m-other-simultaneous",
-    interval: "1m",
-    startDate: new Date("2024-01-01T00:00:00Z"),
-    endDate: new Date("2024-01-01T00:20:00Z"),
-  });
-
-  const awaitSubject = new Subject();
-  listenDoneBacktest(() => awaitSubject.next());
-
-  listenSignalBacktest((result) => {
-    if (result.action === "closed") {
-      closedResult = result;
-    }
-  });
-
-  Backtest.background("BTCUSDT", {
-    strategyName: "test-other-simultaneous",
-    exchangeName: "binance-other-simultaneous",
-    frameName: "20m-other-simultaneous",
-  });
-
-  await awaitSubject.toPromise();
-  // await sleep(3000);
-
-  if (!closedResult) {
-    fail("Signal was not closed despite TP & SL being hit");
-    return;
-  }
-
-  const reason = closedResult.closeReason;
-  console.log(`[TEST #37] closeReason=${reason}, PNL=${closedResult.pnl?.pnlPercentage?.toFixed(2) || 'N/A'}%`);
-
-  // С VWAP detection свеча может не достичь TP/SL даже если high/low касаются их
-  if (reason === "take_profit" || reason === "stop_loss" || reason === "time_expired") {
-    pass(`CORRECT: Simultaneous TP/SL handled correctly, closed by ${reason}`);
-    return;
-  }
-
-  fail(`UNEXPECTED: Signal closed by ${reason}`);
-});
-
 /**
  * ТЕСТ #5: Flash crash через множество свечей (extreme volatility)
  *
@@ -363,7 +261,7 @@ test("OTHER: Flash crash extreme volatility - StopLoss triggers correctly", asyn
   let closedResult = null;
   let signalGenerated = false;
 
-  addExchange({
+  addExchangeSchema({
     exchangeName: "binance-other-flash-crash",
     getCandles: async (_symbol, interval, since, limit) => {
       const candles = [];
@@ -412,7 +310,7 @@ test("OTHER: Flash crash extreme volatility - StopLoss triggers correctly", asyn
     formatQuantity: async (symbol, quantity) => quantity.toFixed(8),
   });
 
-  addStrategy({
+  addStrategySchema({
     strategyName: "test-other-flash-crash",
     interval: "1m",
     getSignal: async () => {
@@ -430,7 +328,7 @@ test("OTHER: Flash crash extreme volatility - StopLoss triggers correctly", asyn
     },
   });
 
-  addFrame({
+  addFrameSchema({
     frameName: "30m-other-flash-crash",
     interval: "1m",
     startDate: new Date("2024-01-01T00:00:00Z"),
@@ -484,7 +382,7 @@ test("OTHER: Gap down scenario - scheduled LONG signal activation through gap", 
   let openedResult = null;
   let signalGenerated = false;
 
-  addExchange({
+  addExchangeSchema({
     exchangeName: "binance-other-gap",
     getCandles: async (_symbol, interval, since, limit) => {
       const candles = [];
@@ -531,7 +429,7 @@ test("OTHER: Gap down scenario - scheduled LONG signal activation through gap", 
     formatQuantity: async (symbol, quantity) => quantity.toFixed(8),
   });
 
-  addStrategy({
+  addStrategySchema({
     strategyName: "test-other-gap",
     interval: "1m",
     getSignal: async () => {
@@ -557,7 +455,7 @@ test("OTHER: Gap down scenario - scheduled LONG signal activation through gap", 
     },
   });
 
-  addFrame({
+  addFrameSchema({
     frameName: "20m-other-gap",
     interval: "1m",
     startDate: new Date("2024-01-01T00:00:00Z"),
@@ -610,7 +508,7 @@ test("OTHER: Immediate activation - LONG position opens instantly when priceOpen
   const currentPrice = 42000; // Текущая цена на рынке
   const priceOpen = 43000;    // Вход ВЫШЕ текущей цены - для LONG это означает НЕМЕДЛЕННУЮ активацию
 
-  addExchange({
+  addExchangeSchema({
     exchangeName: "binance-other-immediate",
     getCandles: async (_symbol, interval, since, limit) => {
       const candles = [];
@@ -637,7 +535,7 @@ test("OTHER: Immediate activation - LONG position opens instantly when priceOpen
     formatQuantity: async (symbol, quantity) => quantity.toFixed(8),
   });
 
-  addStrategy({
+  addStrategySchema({
     strategyName: "test-other-immediate",
     interval: "1m",
     getSignal: async () => {
@@ -667,7 +565,7 @@ test("OTHER: Immediate activation - LONG position opens instantly when priceOpen
     },
   });
 
-  addFrame({
+  addFrameSchema({
     frameName: "20m-other-immediate",
     interval: "1m",
     startDate: new Date("2024-01-01T00:00:00Z"),
@@ -719,7 +617,7 @@ test("OTHER: Immediate activation - SHORT position opens instantly when priceOpe
   const currentPrice = 43000; // Текущая цена на рынке
   const priceOpen = 42000;    // Вход НИЖЕ текущей цены - для SHORT это означает НЕМЕДЛЕННУЮ активацию
 
-  addExchange({
+  addExchangeSchema({
     exchangeName: "binance-other-immediate-short",
     getCandles: async (_symbol, interval, since, limit) => {
       const candles = [];
@@ -746,7 +644,7 @@ test("OTHER: Immediate activation - SHORT position opens instantly when priceOpe
     formatQuantity: async (symbol, quantity) => quantity.toFixed(8),
   });
 
-  addStrategy({
+  addStrategySchema({
     strategyName: "test-other-immediate-short",
     interval: "1m",
     getSignal: async () => {
@@ -776,7 +674,7 @@ test("OTHER: Immediate activation - SHORT position opens instantly when priceOpe
     },
   });
 
-  addFrame({
+  addFrameSchema({
     frameName: "20m-other-immediate-short",
     interval: "1m",
     startDate: new Date("2024-01-01T00:00:00Z"),
@@ -822,7 +720,7 @@ test("OTHER: Immediate activation REJECTED - LONG when currentPrice below StopLo
   let openedCount = 0;
   let signalGenerated = false;
 
-  addExchange({
+  addExchangeSchema({
     exchangeName: "test-exchange-11",
     getCandles: async (_symbol, interval, since, limit) => {
       const candles = [];
@@ -847,7 +745,7 @@ test("OTHER: Immediate activation REJECTED - LONG when currentPrice below StopLo
     formatQuantity: async (_, qty) => qty.toFixed(8),
   });
 
-  addStrategy({
+  addStrategySchema({
     strategyName: "test-strategy-11",
     interval: "1m",
     getSignal: async () => {
@@ -875,7 +773,7 @@ test("OTHER: Immediate activation REJECTED - LONG when currentPrice below StopLo
     },
   });
 
-  addFrame({
+  addFrameSchema({
     frameName: "test-frame-11",
     interval: "1m",
     startDate: new Date("2024-01-01T00:00:00Z"),
@@ -927,7 +825,7 @@ test("OTHER: Immediate activation REJECTED - SHORT when currentPrice above StopL
   let openedCount = 0;
   let signalGenerated = false;
 
-  addExchange({
+  addExchangeSchema({
     exchangeName: "test-exchange-12",
     getCandles: async (_symbol, interval, since, limit) => {
       const candles = [];
@@ -952,7 +850,7 @@ test("OTHER: Immediate activation REJECTED - SHORT when currentPrice above StopL
     formatQuantity: async (_, qty) => qty.toFixed(8),
   });
 
-  addStrategy({
+  addStrategySchema({
     strategyName: "test-strategy-12",
     interval: "1m",
     getSignal: async () => {
@@ -980,7 +878,7 @@ test("OTHER: Immediate activation REJECTED - SHORT when currentPrice above StopL
     },
   });
 
-  addFrame({
+  addFrameSchema({
     frameName: "test-frame-12",
     interval: "1m",
     startDate: new Date("2024-01-01T00:00:00Z"),

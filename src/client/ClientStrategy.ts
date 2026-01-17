@@ -5,6 +5,7 @@ import {
   randomString,
   singleshot,
   sleep,
+  str,
   trycatch,
 } from "functools-kit";
 import {
@@ -18,6 +19,7 @@ import {
   IStrategyTickResult,
   IStrategyTickResultIdle,
   IStrategyTickResultScheduled,
+  IStrategyTickResultWaiting,
   IStrategyTickResultOpened,
   IStrategyTickResultActive,
   IStrategyTickResultClosed,
@@ -1505,7 +1507,7 @@ const ACTIVATE_SCHEDULED_SIGNAL_FN = async (
   return result;
 };
 
-const CALL_PING_CALLBACKS_FN = trycatch(
+const CALL_SCHEDULE_PING_CALLBACKS_FN = trycatch(
   beginTime(async (
     self: ClientStrategy,
     symbol: string,
@@ -1516,8 +1518,8 @@ const CALL_PING_CALLBACKS_FN = trycatch(
     await ExecutionContextService.runInContext(async () => {
       const publicSignal = TO_PUBLIC_SIGNAL(scheduled);
 
-      // Call system onPing callback first (emits to pingSubject)
-      await self.params.onPing(
+      // Call system onSchedulePing callback first (emits to pingSubject)
+      await self.params.onSchedulePing(
         self.params.execution.context.symbol,
         self.params.method.context.strategyName,
         self.params.method.context.exchangeName,
@@ -1526,9 +1528,9 @@ const CALL_PING_CALLBACKS_FN = trycatch(
         timestamp
       );
 
-      // Call user onPing callback only if signal is still active (not cancelled, not activated)
-      if (self.params.callbacks?.onPing) {
-        await self.params.callbacks.onPing(
+      // Call user onSchedulePing callback only if signal is still active (not cancelled, not activated)
+      if (self.params.callbacks?.onSchedulePing) {
+        await self.params.callbacks.onSchedulePing(
           self.params.execution.context.symbol,
           publicSignal,
           new Date(timestamp),
@@ -1543,7 +1545,57 @@ const CALL_PING_CALLBACKS_FN = trycatch(
   }),
   {
     fallback: (error) => {
-      const message = "ClientStrategy CALL_PING_CALLBACKS_FN thrown";
+      const message = "ClientStrategy CALL_SCHEDULE_PING_CALLBACKS_FN thrown";
+      const payload = {
+        error: errorData(error),
+        message: getErrorMessage(error),
+      };
+      backtest.loggerService.warn(message, payload);
+      console.warn(message, payload);
+      errorEmitter.next(error);
+    },
+  }
+);
+
+const CALL_ACTIVE_PING_CALLBACKS_FN = trycatch(
+  beginTime(async (
+    self: ClientStrategy,
+    symbol: string,
+    pending: ISignalRow,
+    timestamp: number,
+    backtest: boolean,
+  ): Promise<void> => {
+    await ExecutionContextService.runInContext(async () => {
+      const publicSignal = TO_PUBLIC_SIGNAL(pending);
+
+      // Call system onActivePing callback first (emits to activePingSubject)
+      await self.params.onActivePing(
+        self.params.execution.context.symbol,
+        self.params.method.context.strategyName,
+        self.params.method.context.exchangeName,
+        publicSignal,
+        self.params.execution.context.backtest,
+        timestamp
+      );
+
+      // Call user onActivePing callback only if signal is still active (not closed)
+      if (self.params.callbacks?.onActivePing) {
+        await self.params.callbacks.onActivePing(
+          self.params.execution.context.symbol,
+          publicSignal,
+          new Date(timestamp),
+          self.params.execution.context.backtest
+        );
+      }
+    }, {
+      when: new Date(timestamp),
+      symbol: symbol,
+      backtest: backtest,
+    })
+  }),
+  {
+    fallback: (error) => {
+      const message = "ClientStrategy CALL_ACTIVE_PING_CALLBACKS_FN thrown";
       const payload = {
         error: errorData(error),
         message: getErrorMessage(error),
@@ -2165,10 +2217,10 @@ const RETURN_SCHEDULED_SIGNAL_ACTIVE_FN = async (
   self: ClientStrategy,
   scheduled: IScheduledSignalRow,
   currentPrice: number
-): Promise<IStrategyTickResultActive> => {
+): Promise<IStrategyTickResultWaiting> => {
   const currentTime = self.params.execution.context.when.getTime();
 
-  await CALL_PING_CALLBACKS_FN(
+  await CALL_SCHEDULE_PING_CALLBACKS_FN(
     self,
     self.params.execution.context.symbol,
     scheduled,
@@ -2178,8 +2230,8 @@ const RETURN_SCHEDULED_SIGNAL_ACTIVE_FN = async (
 
   const pnl = toProfitLossDto(scheduled, currentPrice);
 
-  const result: IStrategyTickResultActive = {
-    action: "active",
+  const result: IStrategyTickResultWaiting = {
+    action: "waiting",
     signal: TO_PUBLIC_SIGNAL(scheduled),
     currentPrice: currentPrice,
     strategyName: self.params.method.context.strategyName,
@@ -2467,6 +2519,14 @@ const RETURN_PENDING_SIGNAL_ACTIVE_FN = async (
   let percentSl = 0;
 
   const currentTime = self.params.execution.context.when.getTime();
+
+  await CALL_ACTIVE_PING_CALLBACKS_FN(
+    self,
+    self.params.execution.context.symbol,
+    signal,
+    currentTime,
+    self.params.execution.context.backtest
+  );
 
   // Calculate percentage of path to TP/SL for partial fill/loss callbacks
   {
@@ -2894,7 +2954,7 @@ const PROCESS_SCHEDULED_SIGNAL_CANDLES_FN = async (
 
     // КРИТИЧНО: Проверяем был ли сигнал отменен пользователем через cancel()
     if (self._cancelledSignal) {
-      // Сигнал был отменен через cancel() в onPing
+      // Сигнал был отменен через cancel() в onSchedulePing
       const result = await CANCEL_SCHEDULED_SIGNAL_IN_BACKTEST_FN(
         self,
         scheduled,
@@ -2976,7 +3036,7 @@ const PROCESS_SCHEDULED_SIGNAL_CANDLES_FN = async (
       };
     }
 
-    await CALL_PING_CALLBACKS_FN(self, self.params.execution.context.symbol, scheduled, candle.timestamp, true);
+    await CALL_SCHEDULE_PING_CALLBACKS_FN(self, self.params.execution.context.symbol, scheduled, candle.timestamp, true);
   }
 
   return {
@@ -3011,6 +3071,8 @@ const PROCESS_PENDING_SIGNAL_CANDLES_FN = async (
     const startIndex = Math.max(0, i - (candlesCount - 1));
     const recentCandles = candles.slice(startIndex, i + 1);
     const averagePrice = GET_AVG_PRICE_FN(recentCandles);
+
+    await CALL_ACTIVE_PING_CALLBACKS_FN(self, self.params.execution.context.symbol, signal, currentCandleTimestamp, true);
 
     let shouldClose = false;
     let closeReason: "time_expired" | "take_profit" | "stop_loss" | undefined;
@@ -3748,7 +3810,15 @@ export class ClientStrategy implements IStrategy {
       }
 
       if (activated) {
-        const remainingCandles = candles.slice(activationIndex + 1);
+        // КРИТИЧНО: activationIndex - индекс свечи активации в массиве candles
+        // BacktestLogicPrivateService включил буфер в начало массива, поэтому перед activationIndex достаточно свечей
+        // PROCESS_PENDING_SIGNAL_CANDLES_FN пропустит первые bufferCandlesCount свечей для VWAP
+        // Чтобы обработка началась со СЛЕДУЮЩЕЙ свечи после активации (activationIndex + 1),
+        // нужно взять срез начиная с (activationIndex + 1 - bufferCandlesCount)
+        // Это даст буфер ИЗ scheduled фазы + свеча после активации как первая обрабатываемая
+        const bufferCandlesCount = GLOBAL_CONFIG.CC_AVG_PRICE_CANDLES_COUNT - 1;
+        const sliceStart = Math.max(0, activationIndex + 1 - bufferCandlesCount);
+        const remainingCandles = candles.slice(sliceStart);
 
         if (remainingCandles.length === 0) {
           const candlesCount = GLOBAL_CONFIG.CC_AVG_PRICE_CANDLES_COUNT;
@@ -3778,42 +3848,27 @@ export class ClientStrategy implements IStrategy {
         const elapsedTime = lastCandleTimestamp - scheduled.scheduledAt;
 
         if (elapsedTime < maxTimeToWait) {
-          // Timeout NOT reached yet - signal is still active (waiting for price)
-          // Return active result to continue monitoring in next backtest() call
-          const candlesCount = GLOBAL_CONFIG.CC_AVG_PRICE_CANDLES_COUNT;
-          const lastCandles = candles.slice(-candlesCount);
-          const lastPrice = GET_AVG_PRICE_FN(lastCandles);
-
-          this.params.logger.debug(
-            "ClientStrategy backtest scheduled signal still waiting (not expired)",
-            {
-              symbol: this.params.execution.context.symbol,
-              signalId: scheduled.id,
-              elapsedMinutes: Math.floor(elapsedTime / 60000),
-              maxMinutes: GLOBAL_CONFIG.CC_SCHEDULE_AWAIT_MINUTES,
-            }
+          // EDGE CASE: backtest() called with partial candle data (should never happen in production)
+          // In real backtest flow this won't happen as we process all candles at once
+          // This indicates incorrect usage of backtest() - throw error instead of returning partial result
+          const bufferCandlesCount = GLOBAL_CONFIG.CC_AVG_PRICE_CANDLES_COUNT - 1;
+          // For scheduled signal that has NOT activated: buffer + wait time only (no lifetime yet)
+          const requiredCandlesCount = bufferCandlesCount + GLOBAL_CONFIG.CC_SCHEDULE_AWAIT_MINUTES + 1;
+          throw new Error(
+            str.newline(
+              `ClientStrategy backtest: Insufficient candle data for scheduled signal (not yet activated). ` +
+              `Signal scheduled at ${new Date(scheduled.scheduledAt).toISOString()}, ` +
+              `last candle at ${new Date(lastCandleTimestamp).toISOString()}. ` +
+              `Elapsed: ${Math.floor(elapsedTime / 60000)}min of ${GLOBAL_CONFIG.CC_SCHEDULE_AWAIT_MINUTES}min wait time. ` +
+              `Provided ${candles.length} candles, but need at least ${requiredCandlesCount} candles. ` +
+              `\nBreakdown: ` +
+              `${bufferCandlesCount} buffer (VWAP) + ` +
+              `${GLOBAL_CONFIG.CC_SCHEDULE_AWAIT_MINUTES} wait (for activation) = ${requiredCandlesCount} total. ` +
+              `\nBuffer explanation: VWAP calculation requires ${GLOBAL_CONFIG.CC_AVG_PRICE_CANDLES_COUNT} candles, ` +
+              `so first ${bufferCandlesCount} candles are skipped during scheduled phase processing. ` +
+              `Provide complete candle range: [scheduledAt - ${bufferCandlesCount}min, scheduledAt + ${GLOBAL_CONFIG.CC_SCHEDULE_AWAIT_MINUTES}min].`
+            )
           );
-
-          // Don't cancel - just return last active state
-          // In real backtest flow this won't happen as we process all candles at once,
-          // but this is correct behavior if someone calls backtest() with partial data
-          const pnl = toProfitLossDto(scheduled, lastPrice);
-
-          const result: IStrategyTickResultActive = {
-            action: "active",
-            signal: TO_PUBLIC_SIGNAL(scheduled),
-            currentPrice: lastPrice,
-            percentSl: 0,
-            percentTp: 0,
-            pnl,
-            strategyName: this.params.method.context.strategyName,
-            exchangeName: this.params.method.context.exchangeName,
-            frameName: this.params.method.context.frameName,
-            symbol: this.params.execution.context.symbol,
-            backtest: this.params.execution.context.backtest,
-          };
-
-          return result as any; // Cast to IStrategyBacktestResult (which includes Active)
         }
 
         // Timeout reached - cancel the scheduled signal
@@ -3869,11 +3924,36 @@ export class ClientStrategy implements IStrategy {
       return closedResult;
     }
 
+    // Signal didn't close during candle processing - check if we have enough data
     const lastCandles = candles.slice(-GLOBAL_CONFIG.CC_AVG_PRICE_CANDLES_COUNT);
     const lastPrice = GET_AVG_PRICE_FN(lastCandles);
-    const closeTimestamp =
-      lastCandles[lastCandles.length - 1].timestamp;
+    const closeTimestamp = lastCandles[lastCandles.length - 1].timestamp;
 
+    const signalTime = signal.pendingAt;
+    const maxTimeToWait = signal.minuteEstimatedTime * 60 * 1000;
+    const elapsedTime = closeTimestamp - signalTime;
+
+    // Check if we actually reached time expiration or just ran out of candles
+    if (elapsedTime < maxTimeToWait) {
+      // EDGE CASE: backtest() called with insufficient candle data
+      const bufferCandlesCount = GLOBAL_CONFIG.CC_AVG_PRICE_CANDLES_COUNT - 1;
+      const requiredCandlesCount = signal.minuteEstimatedTime + bufferCandlesCount + 1;
+      throw new Error(
+        str.newline(
+          `ClientStrategy backtest: Insufficient candle data for pending signal. ` +
+          `Signal opened at ${new Date(signal.pendingAt).toISOString()}, ` +
+          `last candle at ${new Date(closeTimestamp).toISOString()}. ` +
+          `Elapsed: ${Math.floor(elapsedTime / 60000)}min of ${signal.minuteEstimatedTime}min required. ` +
+          `Provided ${candles.length} candles, but need at least ${requiredCandlesCount} candles. ` +
+          `\nBreakdown: ${signal.minuteEstimatedTime} candles for signal lifetime + ${bufferCandlesCount} buffer candles. ` +
+          `\nBuffer explanation: VWAP calculation requires ${GLOBAL_CONFIG.CC_AVG_PRICE_CANDLES_COUNT} candles, ` +
+          `so first ${bufferCandlesCount} candles are skipped to ensure accurate price averaging. ` +
+          `Provide complete candle range: [pendingAt - ${bufferCandlesCount}min, pendingAt + ${signal.minuteEstimatedTime}min].`
+        )
+      );
+    }
+
+    // Time actually expired - close with time_expired
     return await CLOSE_PENDING_SIGNAL_IN_BACKTEST_FN(
       this,
       signal,

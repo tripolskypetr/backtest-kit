@@ -23,11 +23,12 @@ const BACKTEST_METHOD_NAME_GET_PENDING_SIGNAL =
 const BACKTEST_METHOD_NAME_GET_SCHEDULED_SIGNAL =
   "BacktestUtils.getScheduledSignal";
 const BACKTEST_METHOD_NAME_GET_BREAKEVEN = "BacktestUtils.getBreakeven";
-const BACKTEST_METHOD_NAME_CANCEL = "BacktestUtils.cancel";
-const BACKTEST_METHOD_NAME_PARTIAL_PROFIT = "BacktestUtils.partialProfit";
-const BACKTEST_METHOD_NAME_PARTIAL_LOSS = "BacktestUtils.partialLoss";
-const BACKTEST_METHOD_NAME_TRAILING_STOP = "BacktestUtils.trailingStop";
-const BACKTEST_METHOD_NAME_TRAILING_PROFIT = "BacktestUtils.trailingTake";
+const BACKTEST_METHOD_NAME_BREAKEVEN = "Backtest.commitBreakeven";
+const BACKTEST_METHOD_NAME_CANCEL = "BacktestUtils.commitCancel";
+const BACKTEST_METHOD_NAME_PARTIAL_PROFIT = "BacktestUtils.commitPartialProfit";
+const BACKTEST_METHOD_NAME_PARTIAL_LOSS = "BacktestUtils.commitPartialLoss";
+const BACKTEST_METHOD_NAME_TRAILING_STOP = "BacktestUtils.commitTrailingStop";
+const BACKTEST_METHOD_NAME_TRAILING_PROFIT = "BacktestUtils.commitTrailingTake";
 const BACKTEST_METHOD_NAME_GET_DATA = "BacktestUtils.getData";
 
 /**
@@ -830,14 +831,14 @@ export class BacktestUtils {
    * @example
    * ```typescript
    * // Cancel scheduled signal with custom ID
-   * await Backtest.cancel("BTCUSDT", "my-strategy", {
+   * await Backtest.commitCancel("BTCUSDT", "my-strategy", {
    *   exchangeName: "binance",
    *   frameName: "frame1",
    *   strategyName: "my-strategy"
    * }, "manual-cancel-001");
    * ```
    */
-  public cancel = async (
+  public commitCancel = async (
     symbol: string,
     context: {
       strategyName: StrategyName;
@@ -911,7 +912,7 @@ export class BacktestUtils {
    * @example
    * ```typescript
    * // Close 30% of LONG position at profit
-   * const success = await Backtest.partialProfit("BTCUSDT", 30, 45000, {
+   * const success = await Backtest.commitPartialProfit("BTCUSDT", 30, 45000, {
    *   exchangeName: "binance",
    *   frameName: "frame1",
    *   strategyName: "my-strategy"
@@ -921,7 +922,7 @@ export class BacktestUtils {
    * }
    * ```
    */
-  public partialProfit = async (
+  public commitPartialProfit = async (
     symbol: string,
     percentToClose: number,
     currentPrice: number,
@@ -998,7 +999,7 @@ export class BacktestUtils {
    * @example
    * ```typescript
    * // Close 40% of LONG position at loss
-   * const success = await Backtest.partialLoss("BTCUSDT", 40, 38000, {
+   * const success = await Backtest.commitPartialLoss("BTCUSDT", 40, 38000, {
    *   exchangeName: "binance",
    *   frameName: "frame1",
    *   strategyName: "my-strategy"
@@ -1008,7 +1009,7 @@ export class BacktestUtils {
    * }
    * ```
    */
-  public partialLoss = async (
+  public commitPartialLoss = async (
     symbol: string,
     percentToClose: number,
     currentPrice: number,
@@ -1094,7 +1095,7 @@ export class BacktestUtils {
    * // LONG: entry=100, originalSL=90, distance=10%, currentPrice=102
    *
    * // First call: tighten by 5%
-   * await Backtest.trailingStop("BTCUSDT", -5, 102, {
+   * await Backtest.commitTrailingStop("BTCUSDT", -5, 102, {
    *   exchangeName: "binance",
    *   frameName: "frame1",
    *   strategyName: "my-strategy"
@@ -1102,15 +1103,15 @@ export class BacktestUtils {
    * // newDistance = 10% - 5% = 5%, newSL = 95
    *
    * // Second call: try weaker protection (smaller percentShift)
-   * await Backtest.trailingStop("BTCUSDT", -3, 102, context);
+   * await Backtest.commitTrailingStop("BTCUSDT", -3, 102, context);
    * // SKIPPED: newSL=97 < 95 (worse protection, larger % absorbs smaller)
    *
    * // Third call: stronger protection (larger percentShift)
-   * await Backtest.trailingStop("BTCUSDT", -7, 102, context);
+   * await Backtest.commitTrailingStop("BTCUSDT", -7, 102, context);
    * // ACCEPTED: newDistance = 10% - 7% = 3%, newSL = 97 > 95 (better protection)
    * ```
    */
-  public trailingStop = async (
+  public commitTrailingStop = async (
     symbol: string,
     percentShift: number,
     currentPrice: number,
@@ -1196,7 +1197,7 @@ export class BacktestUtils {
    * // LONG: entry=100, originalTP=110, distance=10%, currentPrice=102
    *
    * // First call: bring TP closer by 3%
-   * await Backtest.trailingTake("BTCUSDT", -3, 102, {
+   * await Backtest.commitTrailingTake("BTCUSDT", -3, 102, {
    *   exchangeName: "binance",
    *   frameName: "frame1",
    *   strategyName: "my-strategy"
@@ -1204,15 +1205,15 @@ export class BacktestUtils {
    * // newDistance = 10% - 3% = 7%, newTP = 107
    *
    * // Second call: try to move TP further (less conservative)
-   * await Backtest.trailingTake("BTCUSDT", 2, 102, context);
+   * await Backtest.commitTrailingTake("BTCUSDT", 2, 102, context);
    * // SKIPPED: newTP=112 > 107 (less conservative, larger % absorbs smaller)
    *
    * // Third call: even more conservative
-   * await Backtest.trailingTake("BTCUSDT", -5, 102, context);
+   * await Backtest.commitTrailingTake("BTCUSDT", -5, 102, context);
    * // ACCEPTED: newDistance = 10% - 5% = 5%, newTP = 105 < 107 (more conservative)
    * ```
    */
-  public trailingTake = async (
+  public commitTrailingTake = async (
     symbol: string,
     percentShift: number,
     currentPrice: number,
@@ -1283,7 +1284,7 @@ export class BacktestUtils {
    *
    * @example
    * ```typescript
-   * const moved = await Backtest.breakeven(
+   * const moved = await Backtest.commitBreakeven(
    *   "BTCUSDT",
    *   112,
    *   { strategyName: "my-strategy", exchangeName: "binance", frameName: "1h" }
@@ -1291,7 +1292,7 @@ export class BacktestUtils {
    * console.log(moved); // true (SL moved to entry price)
    * ```
    */
-  public breakeven = async (
+  public commitBreakeven = async (
     symbol: string,
     currentPrice: number,
     context: {
@@ -1300,18 +1301,18 @@ export class BacktestUtils {
       frameName: FrameName;
     }
   ): Promise<boolean> => {
-    backtest.loggerService.info("Backtest.breakeven", {
+    backtest.loggerService.info(BACKTEST_METHOD_NAME_BREAKEVEN, {
       symbol,
       currentPrice,
       context,
     });
     backtest.strategyValidationService.validate(
       context.strategyName,
-      "Backtest.breakeven"
+      BACKTEST_METHOD_NAME_BREAKEVEN
     );
     backtest.exchangeValidationService.validate(
       context.exchangeName,
-      "Backtest.breakeven"
+      BACKTEST_METHOD_NAME_BREAKEVEN
     );
 
     {
@@ -1320,20 +1321,20 @@ export class BacktestUtils {
       riskName &&
         backtest.riskValidationService.validate(
           riskName,
-          "Backtest.breakeven"
+          BACKTEST_METHOD_NAME_BREAKEVEN
         );
       riskList &&
         riskList.forEach((riskName) =>
           backtest.riskValidationService.validate(
             riskName,
-            "Backtest.breakeven"
+            BACKTEST_METHOD_NAME_BREAKEVEN
           )
         );
       actions &&
         actions.forEach((actionName) =>
           backtest.actionValidationService.validate(
             actionName,
-            "Backtest.breakeven"
+            BACKTEST_METHOD_NAME_BREAKEVEN
           )
         );
     }

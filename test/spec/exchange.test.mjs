@@ -1,9 +1,9 @@
 import { test } from "worker-testbed";
 
 import {
-  addExchange,
-  addFrame,
-  addStrategy,
+  addExchangeSchema,
+  addFrameSchema,
+  addStrategySchema,
   Backtest,
   getCandles,
   getAveragePrice,
@@ -20,7 +20,7 @@ test("getCandles returns correct candle data", async ({ pass, fail }) => {
 
   const [awaiter, { resolve }] = createAwaiter();
 
-  addExchange({
+  addExchangeSchema({
     exchangeName: "binance-mock",
     getCandles: async (_symbol, interval, since, limit) => {
       // Generate mock candles dynamically based on interval, since and limit
@@ -34,7 +34,7 @@ test("getCandles returns correct candle data", async ({ pass, fail }) => {
     },
   });
 
-  addStrategy({
+  addStrategySchema({
     strategyName: "test-strategy",
     interval: "1m",
     getSignal: async () => {
@@ -43,7 +43,7 @@ test("getCandles returns correct candle data", async ({ pass, fail }) => {
     },
   });
 
-  addFrame({
+  addFrameSchema({
     frameName: "1d-backtest",
     interval: "1d",
     startDate: new Date("2024-01-01T00:00:00Z"),
@@ -71,7 +71,7 @@ test("getAveragePrice returns VWAP from last 5 1m candles", async ({ pass, fail 
 
   const [awaiter, { resolve }] = createAwaiter();
 
-  addExchange({
+  addExchangeSchema({
     exchangeName: "binance-mock-vwap",
     getCandles: async (_symbol, interval, since, limit) => {
       return await getMockCandles(interval, since, limit);
@@ -84,7 +84,7 @@ test("getAveragePrice returns VWAP from last 5 1m candles", async ({ pass, fail 
     },
   });
 
-  addStrategy({
+  addStrategySchema({
     strategyName: "test-strategy-vwap",
     interval: "1m",
     getSignal: async () => {
@@ -93,7 +93,7 @@ test("getAveragePrice returns VWAP from last 5 1m candles", async ({ pass, fail 
     },
   });
 
-  addFrame({
+  addFrameSchema({
     frameName: "1d-backtest-vwap",
     interval: "1d",
     startDate: new Date("2024-01-01T00:00:00Z"),
@@ -121,7 +121,7 @@ test("getDate returns frame timestamp in backtest mode", async ({ pass, fail }) 
 
   const [awaiter, { resolve }] = createAwaiter();
 
-  addExchange({
+  addExchangeSchema({
     exchangeName: "binance-mock-date",
     getCandles: async (_symbol, interval, since, limit) => {
       return await getMockCandles(interval, since, limit);
@@ -134,7 +134,7 @@ test("getDate returns frame timestamp in backtest mode", async ({ pass, fail }) 
     },
   });
 
-  addStrategy({
+  addStrategySchema({
     strategyName: "test-strategy-date",
     interval: "1m",
     getSignal: async () => {
@@ -143,7 +143,7 @@ test("getDate returns frame timestamp in backtest mode", async ({ pass, fail }) 
     },
   });
 
-  addFrame({
+  addFrameSchema({
     frameName: "1d-backtest-date",
     interval: "1d",
     startDate: new Date("2024-01-01T00:00:00Z"),
@@ -171,7 +171,7 @@ test("getMode returns 'backtest' in backtest mode", async ({ pass, fail }) => {
 
   const [awaiter, { resolve }] = createAwaiter();
 
-  addExchange({
+  addExchangeSchema({
     exchangeName: "binance-mock-mode",
     getCandles: async (_symbol, interval, since, limit) => {
       return await getMockCandles(interval, since, limit);
@@ -184,7 +184,7 @@ test("getMode returns 'backtest' in backtest mode", async ({ pass, fail }) => {
     },
   });
 
-  addStrategy({
+  addStrategySchema({
     strategyName: "test-strategy-mode",
     interval: "1m",
     getSignal: async () => {
@@ -193,7 +193,7 @@ test("getMode returns 'backtest' in backtest mode", async ({ pass, fail }) => {
     },
   });
 
-  addFrame({
+  addFrameSchema({
     frameName: "1d-backtest-mode",
     interval: "1d",
     startDate: new Date("2024-01-01T00:00:00Z"),
@@ -221,7 +221,7 @@ test("formatPrice formats price to exchange precision", async ({ pass, fail }) =
 
   const [awaiter, { resolve }] = createAwaiter();
 
-  addExchange({
+  addExchangeSchema({
     exchangeName: "binance-mock-format",
     getCandles: async (_symbol, interval, since, limit) => {
       return await getMockCandles(interval, since, limit);
@@ -234,7 +234,7 @@ test("formatPrice formats price to exchange precision", async ({ pass, fail }) =
     },
   });
 
-  addStrategy({
+  addStrategySchema({
     strategyName: "test-strategy-format",
     interval: "1m",
     getSignal: async () => {
@@ -243,7 +243,7 @@ test("formatPrice formats price to exchange precision", async ({ pass, fail }) =
     },
   });
 
-  addFrame({
+  addFrameSchema({
     frameName: "1d-backtest-format",
     interval: "1d",
     startDate: new Date("2024-01-01T00:00:00Z"),
@@ -271,7 +271,7 @@ test("formatQuantity formats quantity to exchange precision", async ({ pass, fai
 
   const [awaiter, { resolve }] = createAwaiter();
 
-  addExchange({
+  addExchangeSchema({
     exchangeName: "binance-mock-quantity",
     getCandles: async (_symbol, interval, since, limit) => {
       return await getMockCandles(interval, since, limit);
@@ -284,7 +284,7 @@ test("formatQuantity formats quantity to exchange precision", async ({ pass, fai
     },
   });
 
-  addStrategy({
+  addStrategySchema({
     strategyName: "test-strategy-quantity",
     interval: "1m",
     getSignal: async () => {
@@ -293,7 +293,7 @@ test("formatQuantity formats quantity to exchange precision", async ({ pass, fai
     },
   });
 
-  addFrame({
+  addFrameSchema({
     frameName: "1d-backtest-quantity",
     interval: "1d",
     startDate: new Date("2024-01-01T00:00:00Z"),

@@ -1,7 +1,7 @@
 import { test } from "worker-testbed";
 
 import {
-  addOptimizer,
+  addOptimizerSchema,
   Optimizer,
 } from "../../build/index.mjs";
 
@@ -9,7 +9,7 @@ import { createAwaiter } from "functools-kit";
 
 test("Optimizer.getData returns strategy data", async ({ pass, fail }) => {
 
-  addOptimizer({
+  addOptimizerSchema({
     optimizerName: "test-optimizer-data",
     rangeTrain: [
       {
@@ -52,7 +52,7 @@ test("Optimizer.getData returns strategy data", async ({ pass, fail }) => {
 
 test("Optimizer.getCode generates executable code", async ({ pass, fail }) => {
 
-  addOptimizer({
+  addOptimizerSchema({
     optimizerName: "test-optimizer-code",
     rangeTrain: [
       {
@@ -100,7 +100,7 @@ test("Optimizer.getCode generates executable code", async ({ pass, fail }) => {
 
 test("Optimizer with custom template overrides", async ({ pass, fail }) => {
 
-  addOptimizer({
+  addOptimizerSchema({
     optimizerName: "test-optimizer-custom",
     rangeTrain: [
       {
@@ -154,7 +154,7 @@ test("Optimizer with custom template overrides", async ({ pass, fail }) => {
 
 test("Optimizer with multiple training ranges", async ({ pass, fail }) => {
 
-  addOptimizer({
+  addOptimizerSchema({
     optimizerName: "test-optimizer-multi-range",
     rangeTrain: [
       {
@@ -210,7 +210,7 @@ test("Optimizer with callbacks", async ({ pass, fail }) => {
   let dataCallbackCalled = false;
   let codeCallbackCalled = false;
 
-  addOptimizer({
+  addOptimizerSchema({
     optimizerName: "test-optimizer-callbacks",
     rangeTrain: [
       {
@@ -266,7 +266,7 @@ test("Optimizer with callbacks", async ({ pass, fail }) => {
 
 test("Optimizer with multiple sources", async ({ pass, fail }) => {
 
-  addOptimizer({
+  addOptimizerSchema({
     optimizerName: "test-optimizer-multi-source",
     rangeTrain: [
       {
@@ -337,7 +337,7 @@ test("Optimizer error handling for missing optimizer", async ({ pass, fail }) =>
 
 test("Optimizer pagination with large dataset", async ({ pass, fail }) => {
 
-  addOptimizer({
+  addOptimizerSchema({
     optimizerName: "test-optimizer-pagination",
     rangeTrain: [
       {

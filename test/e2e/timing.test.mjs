@@ -1,9 +1,9 @@
 import { test } from "worker-testbed";
 
 import {
-  addExchange,
-  addFrame,
-  addStrategy,
+  addExchangeSchema,
+  addFrameSchema,
+  addStrategySchema,
   Backtest,
   listenSignalBacktest,
   listenDoneBacktest,
@@ -58,7 +58,7 @@ test("Scheduled signal minuteEstimatedTime counts from pendingAt (activation tim
     });
   }
 
-  addExchange({
+  addExchangeSchema({
     exchangeName: "binance-scheduled-timing-bug",
     getCandles: async (_symbol, _interval, since, limit) => {
       const sinceIndex = Math.floor((since.getTime() - bufferStartTime) / intervalMs);
@@ -69,7 +69,7 @@ test("Scheduled signal minuteEstimatedTime counts from pendingAt (activation tim
     formatQuantity: async (symbol, quantity) => quantity.toFixed(8),
   });
 
-  addStrategy({
+  addStrategySchema({
     strategyName: "test-strategy-scheduled-timing-bug",
     interval: "1m",
     getSignal: async () => {
@@ -134,7 +134,7 @@ test("Scheduled signal minuteEstimatedTime counts from pendingAt (activation tim
   // КРИТИЧНО: Frame должен быть достаточно большим чтобы последний сигнал успел закрыться
   // Сигнал живёт 1440 минут + ждёт активации до 120 минут = 1560 минут максимум
   // Добавляем запас: 4 дня = 5760 минут
-  addFrame({
+  addFrameSchema({
     frameName: "4d-scheduled-timing",
     interval: "1m",
     startDate: new Date("2024-01-01T00:00:00Z"),
@@ -208,7 +208,7 @@ test("Immediate signal (no priceOpen) has scheduledAt = pendingAt", async ({ pas
 
   let signalData = null;
 
-  addExchange({
+  addExchangeSchema({
     exchangeName: "binance-immediate-timing",
     getCandles: async (_symbol, interval, since, limit) => {
       return await getMockCandles(interval, since, limit);
@@ -217,7 +217,7 @@ test("Immediate signal (no priceOpen) has scheduledAt = pendingAt", async ({ pas
     formatQuantity: async (symbol, quantity) => quantity.toFixed(8),
   });
 
-  addStrategy({
+  addStrategySchema({
     strategyName: "test-strategy-immediate-timing",
     interval: "1m",
     getSignal: async () => {
@@ -240,7 +240,7 @@ test("Immediate signal (no priceOpen) has scheduledAt = pendingAt", async ({ pas
     },
   });
 
-  addFrame({
+  addFrameSchema({
     frameName: "1h-immediate-timing",
     interval: "1m",
     startDate: new Date("2024-01-01T00:00:00Z"),
@@ -301,7 +301,7 @@ test("Signal has both scheduledAt and pendingAt fields", async ({ pass, fail }) 
     });
   }
 
-  addExchange({
+  addExchangeSchema({
     exchangeName: "binance-fields-check",
     getCandles: async (_symbol, _interval, since, limit) => {
       const sinceIndex = Math.floor((since.getTime() - bufferStartTime) / intervalMs);
@@ -312,7 +312,7 @@ test("Signal has both scheduledAt and pendingAt fields", async ({ pass, fail }) 
     formatQuantity: async (symbol, quantity) => quantity.toFixed(8),
   });
 
-  addStrategy({
+  addStrategySchema({
     strategyName: "test-strategy-fields-check",
     interval: "1m",
     getSignal: async () => {
@@ -369,7 +369,7 @@ test("Signal has both scheduledAt and pendingAt fields", async ({ pass, fail }) 
     },
   });
 
-  addFrame({
+  addFrameSchema({
     frameName: "2d-fields-check",
     interval: "1m",
     startDate: new Date("2024-01-01T00:00:00Z"),
@@ -451,7 +451,7 @@ test("Restored pending signal preserves 24h timing from pendingAt", async ({ pas
     }
   });
 
-  addExchange({
+  addExchangeSchema({
     exchangeName: "binance-restore-pending",
     getCandles: async (_symbol, interval, since, limit) => {
       return await getMockCandles(interval, since, limit);
@@ -460,7 +460,7 @@ test("Restored pending signal preserves 24h timing from pendingAt", async ({ pas
     formatQuantity: async (symbol, quantity) => quantity.toFixed(8),
   });
 
-  addStrategy({
+  addStrategySchema({
     strategyName: "test-strategy-restore-pending",
     interval: "1m",
     getSignal: async () => null, // Не генерируем новые сигналы
@@ -525,7 +525,7 @@ test("Scheduled signal closes by timeout when price never reaches priceOpen", as
   let cancelledResult = null;
   let signalGenerated = false; // Флаг чтобы сгенерировать сигнал только один раз
 
-  addExchange({
+  addExchangeSchema({
     exchangeName: "binance-scheduled-timeout",
     getCandles: async (_symbol, interval, since, limit) => {
       return await getMockCandles(interval, since, limit);
@@ -534,7 +534,7 @@ test("Scheduled signal closes by timeout when price never reaches priceOpen", as
     formatQuantity: async (symbol, quantity) => quantity.toFixed(8),
   });
 
-  addStrategy({
+  addStrategySchema({
     strategyName: "test-strategy-scheduled-timeout",
     interval: "1m",
     getSignal: async () => {
@@ -569,7 +569,7 @@ test("Scheduled signal closes by timeout when price never reaches priceOpen", as
   });
 
   // Frame: 3 часа (180 минут) - больше чем CC_SCHEDULE_AWAIT_MINUTES (120 минут)
-  addFrame({
+  addFrameSchema({
     frameName: "3h-scheduled-timeout",
     interval: "1m",
     startDate: new Date("2024-01-01T00:00:00Z"),

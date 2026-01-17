@@ -234,7 +234,7 @@ export async function getMode(): Promise<"backtest" | "live"> {
 export async function getSymbol() {
   backtest.loggerService.info(GET_SYMBOL_METHOD_NAME);
   if (!ExecutionContextService.hasContext()) {
-    throw new Error("getMode requires an execution context");
+    throw new Error("getSymbol requires an execution context");
   }
   const { symbol } = backtest.executionContextService.context;
   return symbol;
@@ -298,5 +298,3 @@ export async function getOrderBook(symbol: string, depth?: number): Promise<IOrd
   }
   return await backtest.exchangeConnectionService.getOrderBook(symbol, depth);
 }
-
-export default { getCandles, getAveragePrice, getDate, getMode, hasTradeContext, getOrderBook };

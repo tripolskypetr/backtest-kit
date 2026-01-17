@@ -9,6 +9,9 @@ import { FrameName } from "../interfaces/Frame.interface";
 const RISK_METHOD_NAME_GET_DATA = "RiskUtils.getData";
 const RISK_METHOD_NAME_GET_REPORT = "RiskUtils.getReport";
 const RISK_METHOD_NAME_DUMP = "RiskUtils.dump";
+const RISK_METHOD_NAME_CHECK_SIGNAL = "MergeRisk.checkSignal";
+const RISK_METHOD_NAME_ADD_SIGNAL = "MergeRisk.addSignal";
+const RISK_METHOD_NAME_REMOVE_SIGNAL = "MergeRisk.removeSignal";
 
 /**
  * Composite risk management class that combines multiple risk profiles.
@@ -64,7 +67,7 @@ export class MergeRisk implements IRisk {
    * @returns Promise resolving to true if all risks approve, false if any risk rejects
    */
   public async checkSignal(params: IRiskCheckArgs): Promise<boolean> {
-    bt.loggerService.info("MergeRisk checkSignal", {
+    bt.loggerService.info(RISK_METHOD_NAME_CHECK_SIGNAL, {
       params,
     });
     for (const [riskName, risk] of Object.entries(this._riskMap)) {
@@ -104,7 +107,7 @@ export class MergeRisk implements IRisk {
       openTimestamp: number;
     }
   ) {
-    bt.loggerService.info("MergeRisk addSignal", {
+    bt.loggerService.info(RISK_METHOD_NAME_ADD_SIGNAL, {
       symbol,
       context,
     });
@@ -129,7 +132,7 @@ export class MergeRisk implements IRisk {
     symbol: string,
     context: { strategyName: StrategyName; riskName: RiskName; exchangeName: ExchangeName; frameName: FrameName }
   ) {
-    bt.loggerService.info("MergeRisk removeSignal", {
+    bt.loggerService.info(RISK_METHOD_NAME_REMOVE_SIGNAL, {
       symbol,
       context,
     });

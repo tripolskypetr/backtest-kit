@@ -83,37 +83,45 @@ signalBacktest: (event: IStrategyTickResult, backtest: boolean, context: { actio
 
 Routes signalBacktest event to appropriate ClientAction instance.
 
-### breakeven
+### breakevenAvailable
 
 ```ts
-breakeven: (event: BreakevenContract, backtest: boolean, context: { actionName: string; strategyName: string; exchangeName: string; frameName: string; }) => Promise<void>
+breakevenAvailable: (event: BreakevenContract, backtest: boolean, context: { actionName: string; strategyName: string; exchangeName: string; frameName: string; }) => Promise<void>
 ```
 
 Routes breakeven event to appropriate ClientAction instance.
 
-### partialProfit
+### partialProfitAvailable
 
 ```ts
-partialProfit: (event: PartialProfitContract, backtest: boolean, context: { actionName: string; strategyName: string; exchangeName: string; frameName: string; }) => Promise<void>
+partialProfitAvailable: (event: PartialProfitContract, backtest: boolean, context: { actionName: string; strategyName: string; exchangeName: string; frameName: string; }) => Promise<void>
 ```
 
 Routes partialProfit event to appropriate ClientAction instance.
 
-### partialLoss
+### partialLossAvailable
 
 ```ts
-partialLoss: (event: PartialLossContract, backtest: boolean, context: { actionName: string; strategyName: string; exchangeName: string; frameName: string; }) => Promise<void>
+partialLossAvailable: (event: PartialLossContract, backtest: boolean, context: { actionName: string; strategyName: string; exchangeName: string; frameName: string; }) => Promise<void>
 ```
 
 Routes partialLoss event to appropriate ClientAction instance.
 
-### ping
+### pingScheduled
 
 ```ts
-ping: (event: PingContract, backtest: boolean, context: { actionName: string; strategyName: string; exchangeName: string; frameName: string; }) => Promise<void>
+pingScheduled: (event: SchedulePingContract, backtest: boolean, context: { actionName: string; strategyName: string; exchangeName: string; frameName: string; }) => Promise<void>
 ```
 
-Routes ping event to appropriate ClientAction instance.
+Routes scheduled ping event to appropriate ClientAction instance.
+
+### pingActive
+
+```ts
+pingActive: (event: ActivePingContract, backtest: boolean, context: { actionName: string; strategyName: string; exchangeName: string; frameName: string; }) => Promise<void>
+```
+
+Routes active ping event to appropriate ClientAction instance.
 
 ### riskRejection
 

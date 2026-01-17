@@ -87,10 +87,10 @@ Sets internal flag to prevent strategy from opening new signals.
 Current active signal (if any) will complete normally.
 Backtest will stop at the next safe point (idle state or after signal closes).
 
-### cancel
+### commitCancel
 
 ```ts
-cancel: (symbol: string, context: { strategyName: string; exchangeName: string; frameName: string; }, cancelId?: string) => Promise<void>
+commitCancel: (symbol: string, context: { strategyName: string; exchangeName: string; frameName: string; }, cancelId?: string) => Promise<void>
 ```
 
 Cancels the scheduled signal without stopping the strategy.
@@ -99,10 +99,10 @@ Clears the scheduled signal (waiting for priceOpen activation).
 Does NOT affect active pending signals or strategy operation.
 Does NOT set stop flag - strategy can continue generating new signals.
 
-### partialProfit
+### commitPartialProfit
 
 ```ts
-partialProfit: (symbol: string, percentToClose: number, currentPrice: number, context: { strategyName: string; exchangeName: string; frameName: string; }) => Promise<boolean>
+commitPartialProfit: (symbol: string, percentToClose: number, currentPrice: number, context: { strategyName: string; exchangeName: string; frameName: string; }) => Promise<boolean>
 ```
 
 Executes partial close at profit level (moving toward TP).
@@ -110,10 +110,10 @@ Executes partial close at profit level (moving toward TP).
 Closes a percentage of the active pending position at profit.
 Price must be moving toward take profit (in profit direction).
 
-### partialLoss
+### commitPartialLoss
 
 ```ts
-partialLoss: (symbol: string, percentToClose: number, currentPrice: number, context: { strategyName: string; exchangeName: string; frameName: string; }) => Promise<boolean>
+commitPartialLoss: (symbol: string, percentToClose: number, currentPrice: number, context: { strategyName: string; exchangeName: string; frameName: string; }) => Promise<boolean>
 ```
 
 Executes partial close at loss level (moving toward SL).
@@ -121,10 +121,10 @@ Executes partial close at loss level (moving toward SL).
 Closes a percentage of the active pending position at loss.
 Price must be moving toward stop loss (in loss direction).
 
-### trailingStop
+### commitTrailingStop
 
 ```ts
-trailingStop: (symbol: string, percentShift: number, currentPrice: number, context: { strategyName: string; exchangeName: string; frameName: string; }) => Promise<boolean>
+commitTrailingStop: (symbol: string, percentShift: number, currentPrice: number, context: { strategyName: string; exchangeName: string; frameName: string; }) => Promise<boolean>
 ```
 
 Adjusts the trailing stop-loss distance for an active pending signal.
@@ -143,10 +143,10 @@ Absorption behavior:
 - For LONG: only accepts HIGHER SL (never moves down, closer to entry wins)
 - For SHORT: only accepts LOWER SL (never moves up, closer to entry wins)
 
-### trailingTake
+### commitTrailingTake
 
 ```ts
-trailingTake: (symbol: string, percentShift: number, currentPrice: number, context: { strategyName: string; exchangeName: string; frameName: string; }) => Promise<boolean>
+commitTrailingTake: (symbol: string, percentShift: number, currentPrice: number, context: { strategyName: string; exchangeName: string; frameName: string; }) => Promise<boolean>
 ```
 
 Adjusts the trailing take-profit distance for an active pending signal.
@@ -165,10 +165,10 @@ Absorption behavior:
 - For LONG: only accepts LOWER TP (never moves up, closer to entry wins)
 - For SHORT: only accepts HIGHER TP (never moves down, closer to entry wins)
 
-### breakeven
+### commitBreakeven
 
 ```ts
-breakeven: (symbol: string, currentPrice: number, context: { strategyName: string; exchangeName: string; frameName: string; }) => Promise<boolean>
+commitBreakeven: (symbol: string, currentPrice: number, context: { strategyName: string; exchangeName: string; frameName: string; }) => Promise<boolean>
 ```
 
 Moves stop-loss to breakeven when price reaches threshold.

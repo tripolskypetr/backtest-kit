@@ -1,10 +1,10 @@
 import { test } from "worker-testbed";
 
 import {
-  addExchange,
-  addFrame,
-  addStrategy,
-  addWalker,
+  addExchangeSchema,
+  addFrameSchema,
+  addStrategySchema,
+  addWalkerSchema,
   Walker,
   listenWalker,
   listenWalkerOnce,
@@ -20,7 +20,7 @@ test("listenWalker receives progress events for each strategy", async ({ pass, f
 
   const [awaiter, { resolve }] = createAwaiter();
 
-  addExchange({
+  addExchangeSchema({
     exchangeName: "binance-mock-walker-progress",
     getCandles: async (_symbol, interval, since, limit) => {
       return await getMockCandles(interval, since, limit);
@@ -33,7 +33,7 @@ test("listenWalker receives progress events for each strategy", async ({ pass, f
     },
   });
 
-  addStrategy({
+  addStrategySchema({
     strategyName: "test-strategy-walker-1",
     interval: "1m",
     getSignal: async () => {
@@ -49,7 +49,7 @@ test("listenWalker receives progress events for each strategy", async ({ pass, f
     },
   });
 
-  addStrategy({
+  addStrategySchema({
     strategyName: "test-strategy-walker-2",
     interval: "1m",
     getSignal: async () => {
@@ -65,14 +65,14 @@ test("listenWalker receives progress events for each strategy", async ({ pass, f
     },
   });
 
-  addFrame({
+  addFrameSchema({
     frameName: "1d-backtest-walker-progress",
     interval: "1d",
     startDate: new Date("2024-01-01T00:00:00Z"),
     endDate: new Date("2024-01-02T00:00:00Z"),
   });
 
-  addWalker({
+  addWalkerSchema({
     walkerName: "test-walker-progress",
     exchangeName: "binance-mock-walker-progress",
     frameName: "1d-backtest-walker-progress",
@@ -109,7 +109,7 @@ test("listenWalkerOnce triggers once with filter", async ({ pass, fail }) => {
 
   const [awaiter, { resolve }] = createAwaiter();
 
-  addExchange({
+  addExchangeSchema({
     exchangeName: "binance-mock-walker-once",
     getCandles: async (_symbol, interval, since, limit) => {
       return await getMockCandles(interval, since, limit);
@@ -122,7 +122,7 @@ test("listenWalkerOnce triggers once with filter", async ({ pass, fail }) => {
     },
   });
 
-  addStrategy({
+  addStrategySchema({
     strategyName: "test-strategy-walker-once-1",
     interval: "1m",
     getSignal: async () => {
@@ -138,7 +138,7 @@ test("listenWalkerOnce triggers once with filter", async ({ pass, fail }) => {
     },
   });
 
-  addStrategy({
+  addStrategySchema({
     strategyName: "test-strategy-walker-once-2",
     interval: "1m",
     getSignal: async () => {
@@ -154,14 +154,14 @@ test("listenWalkerOnce triggers once with filter", async ({ pass, fail }) => {
     },
   });
 
-  addFrame({
+  addFrameSchema({
     frameName: "1d-backtest-walker-once",
     interval: "1d",
     startDate: new Date("2024-01-01T00:00:00Z"),
     endDate: new Date("2024-01-02T00:00:00Z"),
   });
 
-  addWalker({
+  addWalkerSchema({
     walkerName: "test-walker-once",
     exchangeName: "binance-mock-walker-once",
     frameName: "1d-backtest-walker-once",
@@ -196,7 +196,7 @@ test("listenWalkerComplete receives final results", async ({ pass, fail }) => {
 
   const [awaiter, { resolve, reject }] = createAwaiter();
 
-  addExchange({
+  addExchangeSchema({
     exchangeName: "binance-mock-walker-complete",
     getCandles: async (_symbol, interval, since, limit) => {
       return await getMockCandles(interval, since, limit);
@@ -209,7 +209,7 @@ test("listenWalkerComplete receives final results", async ({ pass, fail }) => {
     },
   });
 
-  addStrategy({
+  addStrategySchema({
     strategyName: "test-strategy-walker-complete-1",
     interval: "1m",
     getSignal: async () => {
@@ -225,7 +225,7 @@ test("listenWalkerComplete receives final results", async ({ pass, fail }) => {
     },
   });
 
-  addStrategy({
+  addStrategySchema({
     strategyName: "test-strategy-walker-complete-2",
     interval: "1m",
     getSignal: async () => {
@@ -241,14 +241,14 @@ test("listenWalkerComplete receives final results", async ({ pass, fail }) => {
     },
   });
 
-  addFrame({
+  addFrameSchema({
     frameName: "1d-backtest-walker-complete",
     interval: "1d",
     startDate: new Date("2024-01-01T00:00:00Z"),
     endDate: new Date("2024-01-02T00:00:00Z"),
   });
 
-  addWalker({
+  addWalkerSchema({
     walkerName: "test-walker-complete",
     exchangeName: "binance-mock-walker-complete",
     frameName: "1d-backtest-walker-complete",
@@ -294,7 +294,7 @@ test("Walker progress events include strategy stats", async ({ pass, fail }) => 
 
   const [awaiter, { resolve, reject }] = createAwaiter();
 
-  addExchange({
+  addExchangeSchema({
     exchangeName: "binance-mock-walker-stats",
     getCandles: async (_symbol, interval, since, limit) => {
       return await getMockCandles(interval, since, limit);
@@ -307,7 +307,7 @@ test("Walker progress events include strategy stats", async ({ pass, fail }) => 
     },
   });
 
-  addStrategy({
+  addStrategySchema({
     strategyName: "test-strategy-walker-stats-1",
     interval: "1m",
     getSignal: async () => {
@@ -323,14 +323,14 @@ test("Walker progress events include strategy stats", async ({ pass, fail }) => 
     },
   });
 
-  addFrame({
+  addFrameSchema({
     frameName: "1d-backtest-walker-stats",
     interval: "1d",
     startDate: new Date("2024-01-01T00:00:00Z"),
     endDate: new Date("2024-01-02T00:00:00Z"),
   });
 
-  addWalker({
+  addWalkerSchema({
     walkerName: "test-walker-stats",
     exchangeName: "binance-mock-walker-stats",
     frameName: "1d-backtest-walker-stats",
@@ -375,7 +375,7 @@ test("Walker callbacks are called in correct order", async ({ pass, fail }) => {
 
   const [awaiter, { resolve, reject }] = createAwaiter();
 
-  addExchange({
+  addExchangeSchema({
     exchangeName: "binance-mock-walker-callbacks",
     getCandles: async (_symbol, interval, since, limit) => {
       return await getMockCandles(interval, since, limit);
@@ -388,7 +388,7 @@ test("Walker callbacks are called in correct order", async ({ pass, fail }) => {
     },
   });
 
-  addStrategy({
+  addStrategySchema({
     strategyName: "test-strategy-walker-cb-1",
     interval: "1m",
     getSignal: async () => {
@@ -404,7 +404,7 @@ test("Walker callbacks are called in correct order", async ({ pass, fail }) => {
     },
   });
 
-  addStrategy({
+  addStrategySchema({
     strategyName: "test-strategy-walker-cb-2",
     interval: "1m",
     getSignal: async () => {
@@ -420,7 +420,7 @@ test("Walker callbacks are called in correct order", async ({ pass, fail }) => {
     },
   });
 
-  addFrame({
+  addFrameSchema({
     frameName: "1d-backtest-walker-callbacks",
     interval: "1d",
     startDate: new Date("2024-01-01T00:00:00Z"),
@@ -429,7 +429,7 @@ test("Walker callbacks are called in correct order", async ({ pass, fail }) => {
 
   const callbackSequence = [];
 
-  addWalker({
+  addWalkerSchema({
     walkerName: "test-walker-callbacks",
     exchangeName: "binance-mock-walker-callbacks",
     frameName: "1d-backtest-walker-callbacks",
@@ -477,7 +477,7 @@ test("Walker.getData returns accumulated results", async ({ pass, fail }) => {
 
   const [awaiter, { resolve, reject }] = createAwaiter();
 
-  addExchange({
+  addExchangeSchema({
     exchangeName: "binance-mock-walker-getdata",
     getCandles: async (_symbol, interval, since, limit) => {
       return await getMockCandles(interval, since, limit);
@@ -490,7 +490,7 @@ test("Walker.getData returns accumulated results", async ({ pass, fail }) => {
     },
   });
 
-  addStrategy({
+  addStrategySchema({
     strategyName: "test-strategy-walker-getdata-1",
     interval: "1m",
     getSignal: async () => {
@@ -506,7 +506,7 @@ test("Walker.getData returns accumulated results", async ({ pass, fail }) => {
     },
   });
 
-  addStrategy({
+  addStrategySchema({
     strategyName: "test-strategy-walker-getdata-2",
     interval: "1m",
     getSignal: async () => {
@@ -522,14 +522,14 @@ test("Walker.getData returns accumulated results", async ({ pass, fail }) => {
     },
   });
 
-  addFrame({
+  addFrameSchema({
     frameName: "1d-backtest-walker-getdata",
     interval: "1d",
     startDate: new Date("2024-01-01T00:00:00Z"),
     endDate: new Date("2024-01-02T00:00:00Z"),
   });
 
-  addWalker({
+  addWalkerSchema({
     walkerName: "test-walker-getdata",
     exchangeName: "binance-mock-walker-getdata",
     frameName: "1d-backtest-walker-getdata",
@@ -579,7 +579,7 @@ test("Walker tracks best strategy correctly", async ({ pass, fail }) => {
 
   const [awaiter, { resolve, reject }] = createAwaiter();
 
-  addExchange({
+  addExchangeSchema({
     exchangeName: "binance-mock-walker-best",
     getCandles: async (_symbol, interval, since, limit) => {
       return await getMockCandles(interval, since, limit);
@@ -592,7 +592,7 @@ test("Walker tracks best strategy correctly", async ({ pass, fail }) => {
     },
   });
 
-  addStrategy({
+  addStrategySchema({
     strategyName: "test-strategy-walker-best-1",
     interval: "1m",
     getSignal: async () => {
@@ -608,7 +608,7 @@ test("Walker tracks best strategy correctly", async ({ pass, fail }) => {
     },
   });
 
-  addStrategy({
+  addStrategySchema({
     strategyName: "test-strategy-walker-best-2",
     interval: "1m",
     getSignal: async () => {
@@ -624,14 +624,14 @@ test("Walker tracks best strategy correctly", async ({ pass, fail }) => {
     },
   });
 
-  addFrame({
+  addFrameSchema({
     frameName: "1d-backtest-walker-best",
     interval: "1d",
     startDate: new Date("2024-01-01T00:00:00Z"),
     endDate: new Date("2024-01-02T00:00:00Z"),
   });
 
-  addWalker({
+  addWalkerSchema({
     walkerName: "test-walker-best",
     exchangeName: "binance-mock-walker-best",
     frameName: "1d-backtest-walker-best",
@@ -692,7 +692,7 @@ test("Walker.getReport generates markdown report", async ({ pass, fail }) => {
 
   const [awaiter, { resolve, reject }] = createAwaiter();
 
-  addExchange({
+  addExchangeSchema({
     exchangeName: "binance-mock-walker-report",
     getCandles: async (_symbol, interval, since, limit) => {
       return await getMockCandles(interval, since, limit);
@@ -705,7 +705,7 @@ test("Walker.getReport generates markdown report", async ({ pass, fail }) => {
     },
   });
 
-  addStrategy({
+  addStrategySchema({
     strategyName: "test-strategy-walker-report-1",
     interval: "1m",
     getSignal: async () => {
@@ -721,14 +721,14 @@ test("Walker.getReport generates markdown report", async ({ pass, fail }) => {
     },
   });
 
-  addFrame({
+  addFrameSchema({
     frameName: "1d-backtest-walker-report",
     interval: "1d",
     startDate: new Date("2024-01-01T00:00:00Z"),
     endDate: new Date("2024-01-02T00:00:00Z"),
   });
 
-  addWalker({
+  addWalkerSchema({
     walkerName: "test-walker-report",
     exchangeName: "binance-mock-walker-report",
     frameName: "1d-backtest-walker-report",
@@ -775,7 +775,7 @@ test("Walker.getReport generates markdown report", async ({ pass, fail }) => {
 
 test("doneWalkerSubject.toPromise() resolves after Walker.background", async ({ pass, fail }) => {
 
-  addExchange({
+  addExchangeSchema({
     exchangeName: "binance-mock-walker-done-promise",
     getCandles: async (_symbol, interval, since, limit) => {
       return await getMockCandles(interval, since, limit);
@@ -788,7 +788,7 @@ test("doneWalkerSubject.toPromise() resolves after Walker.background", async ({ 
     },
   });
 
-  addStrategy({
+  addStrategySchema({
     strategyName: "test-strategy-walker-done-promise-1",
     interval: "1m",
     getSignal: async () => {
@@ -804,14 +804,14 @@ test("doneWalkerSubject.toPromise() resolves after Walker.background", async ({ 
     },
   });
 
-  addFrame({
+  addFrameSchema({
     frameName: "1d-backtest-walker-done-promise",
     interval: "1d",
     startDate: new Date("2024-01-01T00:00:00Z"),
     endDate: new Date("2024-01-02T00:00:00Z"),
   });
 
-  addWalker({
+  addWalkerSchema({
     walkerName: "test-walker-done-promise",
     exchangeName: "binance-mock-walker-done-promise",
     frameName: "1d-backtest-walker-done-promise",

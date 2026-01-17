@@ -1,8 +1,8 @@
 import { test } from "worker-testbed";
 
 import {
-  addExchange,
-  addStrategy,
+  addExchangeSchema,
+  addStrategySchema,
   Live,
   PersistSignalAdapter,
 } from "../../build/index.mjs";
@@ -43,7 +43,7 @@ test("Live.getData returns LiveStatistics structure", async ({ pass, fail }) => 
     async writeValue() {}
   });
 
-  addExchange({
+  addExchangeSchema({
     exchangeName: "binance-mock-live-getdata",
     getCandles: async (_symbol, interval, since, limit) => {
       return await getMockCandles(interval, since, limit);
@@ -56,7 +56,7 @@ test("Live.getData returns LiveStatistics structure", async ({ pass, fail }) => 
     },
   });
 
-  addStrategy({
+  addStrategySchema({
     strategyName: "test-strategy-live-getdata",
     interval: "1m",
     getSignal: async () => {
@@ -128,7 +128,7 @@ test("Live.getData calculates all statistical metrics", async ({ pass, fail }) =
     async writeValue() {}
   });
 
-  addExchange({
+  addExchangeSchema({
     exchangeName: "binance-mock-live-metrics",
     getCandles: async (_symbol, interval, since, limit) => {
       return await getMockCandles(interval, since, limit);
@@ -141,7 +141,7 @@ test("Live.getData calculates all statistical metrics", async ({ pass, fail }) =
     },
   });
 
-  addStrategy({
+  addStrategySchema({
     strategyName: "test-strategy-live-metrics",
     interval: "1m",
     getSignal: async () => {
@@ -197,7 +197,7 @@ test("Live.getData returns null for invalid metrics with safe math", async ({ pa
 
   const [awaiter, { resolve }] = createAwaiter();
 
-  addExchange({
+  addExchangeSchema({
     exchangeName: "binance-mock-live-safe",
     getCandles: async (_symbol, interval, since, limit) => {
       return await getMockCandles(interval, since, limit);
@@ -210,7 +210,7 @@ test("Live.getData returns null for invalid metrics with safe math", async ({ pa
     },
   });
 
-  addStrategy({
+  addStrategySchema({
     strategyName: "test-strategy-live-safe",
     interval: "1m",
     getSignal: async () => {

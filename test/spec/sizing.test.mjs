@@ -1,13 +1,13 @@
 import { test } from "worker-testbed";
 
 import {
-  addSizing,
+  addSizingSchema,
   PositionSize,
 } from "../../build/index.mjs";
 
 test("PositionSize.fixedPercentage calculates position size", async ({ pass, fail }) => {
 
-  addSizing({
+  addSizingSchema({
     sizingName: "test-fixed-percentage",
     method: "fixed-percentage",
     riskPercentage: 2,
@@ -32,7 +32,7 @@ test("PositionSize.fixedPercentage calculates position size", async ({ pass, fai
 
 test("PositionSize.kellyCriterion calculates position size", async ({ pass, fail }) => {
 
-  addSizing({
+  addSizingSchema({
     sizingName: "test-kelly",
     method: "kelly-criterion",
     kellyMultiplier: 0.25,
@@ -58,7 +58,7 @@ test("PositionSize.kellyCriterion calculates position size", async ({ pass, fail
 
 test("PositionSize.atrBased calculates position size", async ({ pass, fail }) => {
 
-  addSizing({
+  addSizingSchema({
     sizingName: "test-atr",
     method: "atr-based",
     riskPercentage: 2,
@@ -84,7 +84,7 @@ test("PositionSize.atrBased calculates position size", async ({ pass, fail }) =>
 
 test("PositionSize.fixedPercentage throws on method mismatch", async ({ pass, fail }) => {
 
-  addSizing({
+  addSizingSchema({
     sizingName: "test-mismatch",
     method: "kelly-criterion",
     kellyMultiplier: 0.25,
@@ -132,7 +132,7 @@ test("PositionSize.fixedPercentage throws on missing sizing", async ({ pass, fai
 
 test("PositionSize.fixedPercentage respects maxPositionPercentage", async ({ pass, fail }) => {
 
-  addSizing({
+  addSizingSchema({
     sizingName: "test-max-percentage",
     method: "fixed-percentage",
     riskPercentage: 50, // High risk to trigger max constraint
@@ -161,7 +161,7 @@ test("PositionSize.fixedPercentage respects maxPositionPercentage", async ({ pas
 
 test("PositionSize.fixedPercentage respects minPositionSize", async ({ pass, fail }) => {
 
-  addSizing({
+  addSizingSchema({
     sizingName: "test-min-size",
     method: "fixed-percentage",
     riskPercentage: 0.01, // Very low risk to trigger min constraint
@@ -187,7 +187,7 @@ test("PositionSize.fixedPercentage respects minPositionSize", async ({ pass, fai
 
 test("PositionSize.fixedPercentage respects maxPositionSize", async ({ pass, fail }) => {
 
-  addSizing({
+  addSizingSchema({
     sizingName: "test-max-size",
     method: "fixed-percentage",
     riskPercentage: 50, // High risk to trigger max constraint
@@ -213,7 +213,7 @@ test("PositionSize.fixedPercentage respects maxPositionSize", async ({ pass, fai
 
 test("PositionSize.kellyCriterion with zero kellyMultiplier", async ({ pass, fail }) => {
 
-  addSizing({
+  addSizingSchema({
     sizingName: "test-kelly-zero",
     method: "kelly-criterion",
     kellyMultiplier: 0, // Zero multiplier
@@ -239,14 +239,14 @@ test("PositionSize.kellyCriterion with zero kellyMultiplier", async ({ pass, fai
 
 test("addSizing throws on duplicate sizing name", async ({ pass, fail }) => {
 
-  addSizing({
+  addSizingSchema({
     sizingName: "test-duplicate",
     method: "fixed-percentage",
     riskPercentage: 2,
   });
 
   try {
-    addSizing({
+    addSizingSchema({
       sizingName: "test-duplicate",
       method: "kelly-criterion",
       kellyMultiplier: 0.25,
@@ -267,7 +267,7 @@ test("PositionSize.fixedPercentage with callback", async ({ pass, fail }) => {
   let callbackCalled = false;
   let callbackQuantity = null;
 
-  addSizing({
+  addSizingSchema({
     sizingName: "test-callback",
     method: "fixed-percentage",
     riskPercentage: 2,
@@ -318,7 +318,7 @@ test("PositionSize integration with mock Binance workflow", async ({ pass, fail 
   };
 
   // Register sizing schema
-  addSizing({
+  addSizingSchema({
     sizingName: "test-binance-integration",
     method: "fixed-percentage",
     riskPercentage: 2,

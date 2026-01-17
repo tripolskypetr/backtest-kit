@@ -79,10 +79,10 @@ Called on signal events from backtest only.
 Triggered by: StrategyConnectionService via signalBacktestEmitter
 Frequency: Every candle in backtest mode
 
-### onBreakeven
+### onBreakevenAvailable
 
 ```ts
-onBreakeven: (event: BreakevenContract, actionName: string, strategyName: string, frameName: string, backtest: boolean) => void | Promise<void>
+onBreakevenAvailable: (event: BreakevenContract, actionName: string, strategyName: string, frameName: string, backtest: boolean) => void | Promise<void>
 ```
 
 Called when breakeven is triggered (stop-loss moved to entry price).
@@ -90,10 +90,10 @@ Called when breakeven is triggered (stop-loss moved to entry price).
 Triggered by: BreakevenConnectionService via breakevenSubject
 Frequency: Once per signal when breakeven threshold is reached
 
-### onPartialProfit
+### onPartialProfitAvailable
 
 ```ts
-onPartialProfit: (event: PartialProfitContract, actionName: string, strategyName: string, frameName: string, backtest: boolean) => void | Promise<void>
+onPartialProfitAvailable: (event: PartialProfitContract, actionName: string, strategyName: string, frameName: string, backtest: boolean) => void | Promise<void>
 ```
 
 Called when partial profit level is reached (10%, 20%, 30%, etc).
@@ -101,10 +101,10 @@ Called when partial profit level is reached (10%, 20%, 30%, etc).
 Triggered by: PartialConnectionService via partialProfitSubject
 Frequency: Once per profit level per signal (deduplicated)
 
-### onPartialLoss
+### onPartialLossAvailable
 
 ```ts
-onPartialLoss: (event: PartialLossContract, actionName: string, strategyName: string, frameName: string, backtest: boolean) => void | Promise<void>
+onPartialLossAvailable: (event: PartialLossContract, actionName: string, strategyName: string, frameName: string, backtest: boolean) => void | Promise<void>
 ```
 
 Called when partial loss level is reached (-10%, -20%, -30%, etc).
@@ -112,16 +112,27 @@ Called when partial loss level is reached (-10%, -20%, -30%, etc).
 Triggered by: PartialConnectionService via partialLossSubject
 Frequency: Once per loss level per signal (deduplicated)
 
-### onPing
+### onPingScheduled
 
 ```ts
-onPing: (event: PingContract, actionName: string, strategyName: string, frameName: string, backtest: boolean) => void | Promise<void>
+onPingScheduled: (event: SchedulePingContract, actionName: string, strategyName: string, frameName: string, backtest: boolean) => void | Promise<void>
 ```
 
 Called during scheduled signal monitoring (every minute while waiting for activation).
 
-Triggered by: StrategyConnectionService via pingSubject
+Triggered by: StrategyConnectionService via schedulePingSubject
 Frequency: Every minute while scheduled signal is waiting
+
+### onPingActive
+
+```ts
+onPingActive: (event: ActivePingContract, actionName: string, strategyName: string, frameName: string, backtest: boolean) => void | Promise<void>
+```
+
+Called during active pending signal monitoring (every minute while position is active).
+
+Triggered by: StrategyConnectionService via activePingSubject
+Frequency: Every minute while pending signal is active
 
 ### onRiskRejection
 

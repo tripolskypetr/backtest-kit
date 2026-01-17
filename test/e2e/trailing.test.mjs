@@ -1,17 +1,17 @@
 import { test } from "worker-testbed";
 
 import {
-  addExchange,
-  addFrame,
-  addStrategy,
+  addExchangeSchema,
+  addFrameSchema,
+  addStrategySchema,
   Backtest,
   listenDoneBacktest,
   listenError,
   listenSignalBacktest,
-  listenPartialProfit,
-  listenPartialLoss,
-  trailingStop,
-  trailingTake,
+  listenPartialProfitAvailable,
+  listenPartialLossAvailable,
+  commitTrailingStop,
+  commitTrailingTake,
 } from "../../build/index.mjs";
 
 import { Subject, sleep } from "functools-kit";
@@ -27,7 +27,7 @@ import { Subject, sleep } from "functools-kit";
  * Сценарий:
  * 1. LONG позиция открывается: entry=100k, originalSL=98k (distance=2%)
  * 2. Цена растет до +15%
- * 3. Вызываем trailingStop(-1) → newDistance = 2% + (-1%) = 1% → newSL = 99k
+ * 3. ВызываемcommitTrailingStop(-1) → newDistance = 2% + (-1%) = 1% → newSL = 99k
  * 4. Цена падает до 98.5k
  * 5. Позиция закрывается по trailing SL (99k), а не по original SL (98k)
  */
@@ -54,7 +54,7 @@ test("TRAILING STOP: Tightens SL for LONG position with negative shift", async (
     });
   }
 
-  addExchange({
+  addExchangeSchema({
     exchangeName: "binance-trailing-tighten",
     getCandles: async (_symbol, _interval, since, limit) => {
       const sinceIndex = Math.floor((since.getTime() - bufferStartTime) / intervalMs);
@@ -65,7 +65,7 @@ test("TRAILING STOP: Tightens SL for LONG position with negative shift", async (
     formatQuantity: async (_symbol, quantity) => quantity.toFixed(8),
   });
 
-  addStrategy({
+  addStrategySchema({
     strategyName: "test-trailing-tighten",
     interval: "1m",
     getSignal: async () => {
@@ -153,7 +153,7 @@ test("TRAILING STOP: Tightens SL for LONG position with negative shift", async (
           // console.log(`[onPartialProfit] Applying trailing stop: revenuePercent=${revenuePercent.toFixed(2)}%`);
 
           // percentShift = -1% → newDistance = 2% + (-1%) = 1% → newSL = 99k
-          await trailingStop(symbol, -1, currentPrice);
+          await commitTrailingStop(symbol, -1, currentPrice);
           trailingApplied = true;
 
           // console.log(`[trailingStop] Applied shift=-1%, original SL distance=2%, new distance=1%`);
@@ -162,7 +162,7 @@ test("TRAILING STOP: Tightens SL for LONG position with negative shift", async (
     },
   });
 
-  addFrame({
+  addFrameSchema({
     frameName: "50m-trailing-tighten",
     interval: "1m",
     startDate: new Date("2024-01-01T00:00:00Z"),
@@ -242,7 +242,7 @@ test("TRAILING STOP: Tightens SL for LONG position with negative shift", async (
  * Сценарий:
  * 1. SHORT позиция: entry=100k, originalSL=102k (distance=2%)
  * 2. Цена падает до -15%
- * 3. Вызываем trailingStop(-1) → newDistance = 2% + (-1%) = 1% → newSL = 101k
+ * 3. ВызываемcommitTrailingStop(-1) → newDistance = 2% + (-1%) = 1% → newSL = 101k
  * 4. Цена растет до 101.5k
  * 5. Позиция закрывается по trailing SL (101k)
  */
@@ -268,7 +268,7 @@ test("TRAILING STOP: Tightens SL for SHORT position", async ({ pass, fail }) => 
     });
   }
 
-  addExchange({
+  addExchangeSchema({
     exchangeName: "binance-trailing-short",
     getCandles: async (_symbol, _interval, since, limit) => {
       const sinceIndex = Math.floor((since.getTime() - bufferStartTime) / intervalMs);
@@ -279,7 +279,7 @@ test("TRAILING STOP: Tightens SL for SHORT position", async ({ pass, fail }) => 
     formatQuantity: async (_symbol, quantity) => quantity.toFixed(8),
   });
 
-  addStrategy({
+  addStrategySchema({
     strategyName: "test-trailing-short",
     interval: "1m",
     getSignal: async () => {
@@ -364,7 +364,7 @@ test("TRAILING STOP: Tightens SL for SHORT position", async ({ pass, fail }) => 
           // console.log(`[onPartialProfit SHORT] Applying trailing stop: revenuePercent=${revenuePercent.toFixed(2)}%`);
 
           // percentShift = -1% → newDistance = 2% + (-1%) = 1% → newSL = 101k
-          await trailingStop(symbol, -1, currentPrice);
+          await commitTrailingStop(symbol, -1, currentPrice);
           trailingApplied = true;
 
           // console.log(`[trailingStop SHORT] Applied shift=-1%, original SL distance=2%, new distance=1%`);
@@ -373,7 +373,7 @@ test("TRAILING STOP: Tightens SL for SHORT position", async ({ pass, fail }) => 
     },
   });
 
-  addFrame({
+  addFrameSchema({
     frameName: "50m-trailing-short",
     interval: "1m",
     startDate: new Date("2024-01-01T00:00:00Z"),
@@ -454,7 +454,7 @@ test("TRAILING STOP: Tightens SL for SHORT position", async ({ pass, fail }) => 
  * Сценарий:
  * 1. LONG позиция: entry=100k, originalSL=98k (distance=2%)
  * 2. Цена растет, достигая partial profit events на уровнях 10%, 20%, 30%...
- * 3. При достижении 20% profit применяем trailingStop(-1%) → newSL=99k
+ * 3. При достижении 20% profit применяемcommitTrailingStop(-1%) → newSL=99k
  * 4. Цена падает до 98.7k
  * 5. Позиция закрывается по trailing SL (99k)
  */
@@ -482,7 +482,7 @@ test("TRAILING STOP: Apply on listenPartialProfit events", async ({ pass, fail }
     });
   }
 
-  addExchange({
+  addExchangeSchema({
     exchangeName: "binance-trailing-listen-profit",
     getCandles: async (_symbol, _interval, since, limit) => {
       const sinceIndex = Math.floor((since.getTime() - bufferStartTime) / intervalMs);
@@ -493,7 +493,7 @@ test("TRAILING STOP: Apply on listenPartialProfit events", async ({ pass, fail }
     formatQuantity: async (_symbol, quantity) => quantity.toFixed(8),
   });
 
-  addStrategy({
+  addStrategySchema({
     strategyName: "test-trailing-listen-profit",
     interval: "1m",
     getSignal: async () => {
@@ -574,7 +574,7 @@ test("TRAILING STOP: Apply on listenPartialProfit events", async ({ pass, fail }
     },
   });
 
-  addFrame({
+  addFrameSchema({
     frameName: "60m-trailing-listen-profit",
     interval: "1m",
     startDate: new Date("2024-01-01T00:00:00Z"),
@@ -582,7 +582,7 @@ test("TRAILING STOP: Apply on listenPartialProfit events", async ({ pass, fail }
   });
 
   // Subscribe to partial profit events and apply trailing stop at 20% level
-  const unsubscribeProfit = listenPartialProfit(async ({ symbol, level, backtest }) => {
+  const unsubscribeProfit = listenPartialProfitAvailable(async ({ symbol, level, backtest }) => {
     profitEvents.push(level);
     // console.log(`[listenPartialProfit] Level: ${level}%`);
 
@@ -592,7 +592,7 @@ test("TRAILING STOP: Apply on listenPartialProfit events", async ({ pass, fail }
       
       // Нужно получить текущую цену, используем приблизительную для теста
       const currentPrice = basePrice + 25000; // ~25% profit level price
-      await trailingStop(symbol, -1, currentPrice);
+      await commitTrailingStop(symbol, -1, currentPrice);
       trailingApplied = true;
     }
   });
@@ -704,7 +704,7 @@ test("TRAILING STOP: Multiple adjustments on progressive profit with onPartialPr
     });
   }
 
-  addExchange({
+  addExchangeSchema({
     exchangeName: "binance-trailing-multiple",
     getCandles: async (_symbol, _interval, since, limit) => {
       const sinceIndex = Math.floor((since.getTime() - bufferStartTime) / intervalMs);
@@ -715,7 +715,7 @@ test("TRAILING STOP: Multiple adjustments on progressive profit with onPartialPr
     formatQuantity: async (_symbol, quantity) => quantity.toFixed(8),
   });
 
-  addStrategy({
+  addStrategySchema({
     strategyName: "test-trailing-multiple",
     interval: "1m",
     getSignal: async () => {
@@ -782,20 +782,20 @@ test("TRAILING STOP: Multiple adjustments on progressive profit with onPartialPr
         const level = Math.round(revenuePercent / 10) * 10;
 
         if (level === 10 && !trailingAdjustments.includes(10)) {
-          await trailingStop(symbol, -0.5, currentPrice);  // -0.5%: distance = 2% - 0.5% = 1.5%
+          await commitTrailingStop(symbol, -0.5, currentPrice);  // -0.5%: distance = 2% - 0.5% = 1.5%
           trailingAdjustments.push(10);
         } else if (level === 20 && !trailingAdjustments.includes(20)) {
-          await trailingStop(symbol, -1.0, currentPrice);  // -1.0%: distance = 2% - 1.0% = 1.0% (поглощает -0.5%)
+          await commitTrailingStop(symbol, -1.0, currentPrice);  // -1.0%: distance = 2% - 1.0% = 1.0% (поглощает -0.5%)
           trailingAdjustments.push(20);
         } else if (level === 30 && !trailingAdjustments.includes(30)) {
-          await trailingStop(symbol, -1.5, currentPrice);  // -1.5%: distance = 2% - 1.5% = 0.5% (поглощает -1.0%)
+          await commitTrailingStop(symbol, -1.5, currentPrice);  // -1.5%: distance = 2% - 1.5% = 0.5% (поглощает -1.0%)
           trailingAdjustments.push(30);
         }
       },
     },
   });
 
-  addFrame({
+  addFrameSchema({
     frameName: "50m-trailing-multiple",
     interval: "1m",
     startDate: new Date("2024-01-01T00:00:00Z"),
@@ -884,8 +884,8 @@ test("TRAILING STOP: Multiple adjustments on progressive profit with onPartialPr
  * Сценарий:
  * 1. LONG позиция: entry=100k, originalSL=98k (distance=2%)
  * 2. Цена падает, достигая partial loss событий (10%, 20%)
- * 3. При 10% loss пытаемся применить trailingStop(-0.5%) → newSL=98.5k (улучшение)
- * 4. При 20% loss пытаемся применить trailingStop(-0.5%) → newSL=99k (улучшение)
+ * 3. При 10% loss пытаемся применитьcommitTrailingStop(-0.5%) → newSL=98.5k (улучшение)
+ * 4. При 20% loss пытаемся применитьcommitTrailingStop(-0.5%) → newSL=99k (улучшение)
  * 5. Цена падает до 98.7k
  * 6. Позиция закрывается по trailing SL (99k), а не по original SL (98k)
  */
@@ -913,7 +913,7 @@ test("TRAILING STOP: Apply on listenPartialLoss events for loss protection", asy
     });
   }
 
-  addExchange({
+  addExchangeSchema({
     exchangeName: "binance-trailing-loss",
     getCandles: async (_symbol, _interval, since, limit) => {
       const sinceIndex = Math.floor((since.getTime() - bufferStartTime) / intervalMs);
@@ -924,7 +924,7 @@ test("TRAILING STOP: Apply on listenPartialLoss events for loss protection", asy
     formatQuantity: async (_symbol, quantity) => quantity.toFixed(8),
   });
 
-  addStrategy({
+  addStrategySchema({
     strategyName: "test-trailing-loss",
     interval: "1m",
     getSignal: async () => {
@@ -987,7 +987,7 @@ test("TRAILING STOP: Apply on listenPartialLoss events for loss protection", asy
     },
   });
 
-  addFrame({
+  addFrameSchema({
     frameName: "60m-trailing-loss",
     interval: "1m",
     startDate: new Date("2024-01-01T00:00:00Z"),
@@ -995,18 +995,18 @@ test("TRAILING STOP: Apply on listenPartialLoss events for loss protection", asy
   });
 
   // Subscribe to partial loss events and apply trailing stop at specific loss levels
-  const unsubscribeLoss = listenPartialLoss(async ({ symbol, level, data, currentPrice }) => {
+  const unsubscribeLoss = listenPartialLossAvailable(async ({ symbol, level, data, currentPrice }) => {
     lossEvents.push(level);
     // console.log(`[listenPartialLoss] Level: ${level}%, currentPrice=${currentPrice}, SL=${data.priceStopLoss}`);
 
     // Apply trailing stop at 10% and 20% loss levels (подтягиваем SL вверх)
     if (level === 10 && !trailingAdjustments.includes(10)) {
       // console.log(`[trailingStop at loss 10%] shift=-0.5%`);
-      await trailingStop(symbol, -0.5, currentPrice);
+      await commitTrailingStop(symbol, -0.5, currentPrice);
       trailingAdjustments.push(10);
     } else if (level === 20 && !trailingAdjustments.includes(20)) {
       // console.log(`[trailingStop at loss 20%] shift=-0.5%`);
-      await trailingStop(symbol, -0.5, currentPrice);
+      await commitTrailingStop(symbol, -0.5, currentPrice);
       trailingAdjustments.push(20);
     }
   });
@@ -1089,8 +1089,8 @@ test("TRAILING STOP: Apply on listenPartialLoss events for loss protection", asy
  *
  * Сценарий:
  * 1. LONG позиция: entry=100k, originalSL=99k (distance=1%)
- * 2. Первый вызов trailingStop(-0.5) → newSL=99.5k (направление UP установлено)
- * 3. Второй вызов trailingStop(+1) → система ОТКЛОНЯЕТ (пытается двигать вниз, а направление UP)
+ * 2. Первый вызовcommitTrailingStop(-0.5) → newSL=99.5k (направление UP установлено)
+ * 3. Второй вызовcommitTrailingStop(+1) → система ОТКЛОНЯЕТ (пытается двигать вниз, а направление UP)
  * 4. Цена падает до 99.3k
  * 5. Позиция закрывается по первому trailing SL (99.5k), а НЕ по попытке в другую сторону
  */
@@ -1117,7 +1117,7 @@ test("TRAILING STOP: Rejects wrong direction for LONG position", async ({ pass, 
     });
   }
 
-  addExchange({
+  addExchangeSchema({
     exchangeName: "binance-trailing-reject-dir",
     getCandles: async (_symbol, _interval, since, limit) => {
       const sinceIndex = Math.floor((since.getTime() - bufferStartTime) / intervalMs);
@@ -1128,7 +1128,7 @@ test("TRAILING STOP: Rejects wrong direction for LONG position", async ({ pass, 
     formatQuantity: async (_symbol, quantity) => quantity.toFixed(8),
   });
 
-  addStrategy({
+  addStrategySchema({
     strategyName: "test-trailing-reject-dir",
     interval: "1m",
     getSignal: async () => {
@@ -1226,7 +1226,7 @@ test("TRAILING STOP: Rejects wrong direction for LONG position", async ({ pass, 
         // Первый вызов: устанавливает направление UP
         // percentShift = -0.5% → newDistance = 1% + (-0.5%) = 0.5% → newSL = 99.5k
         // Направление: UP (99.5k > 99k)
-        await trailingStop(symbol, -0.5, priceOpen);
+        await commitTrailingStop(symbol, -0.5, priceOpen);
         firstTrailingApplied = true;
 
         // console.log(`[trailingStop #1] Applied shift=-0.5%, direction set to UP (99.5k > 99k)`);
@@ -1238,7 +1238,7 @@ test("TRAILING STOP: Rejects wrong direction for LONG position", async ({ pass, 
 
           // percentShift = +1% → newDistance = 1% + 1% = 2% → newSL = 98k
           // Направление: DOWN (98k < 99.5k) - ОТКЛОНЯЕТСЯ системой, т.к. изначальное направление UP
-          await trailingStop(symbol, +1, currentPrice);
+          await commitTrailingStop(symbol, +1, currentPrice);
           secondTrailingApplied = true;
 
           // console.log(`[trailingStop #2] Attempted shift=+1%, but should be REJECTED (wrong direction)`);
@@ -1247,7 +1247,7 @@ test("TRAILING STOP: Rejects wrong direction for LONG position", async ({ pass, 
     },
   });
 
-  addFrame({
+  addFrameSchema({
     frameName: "50m-trailing-reject-dir",
     interval: "1m",
     startDate: new Date("2024-01-01T00:00:00Z"),
@@ -1331,9 +1331,9 @@ test("TRAILING STOP: Rejects wrong direction for LONG position", async ({ pass, 
  *
  * Сценарий:
  * 1. LONG позиция: entry=100k, originalSL=98k (distance=2%)
- * 2. Первый вызов trailingStop(+1) → newSL=97k (направление DOWN установлено, ослабляем защиту)
- * 3. Второй вызов trailingStop(-3) → система ОТКЛОНЯЕТ (пытается двигать вверх, улучшая защиту, но направление DOWN)
- * 4. Третий вызов trailingStop(+2) → ПРИНИМАЕТСЯ (направление DOWN, продолжаем движение вниз, newSL=96k)
+ * 2. Первый вызовcommitTrailingStop(+1) → newSL=97k (направление DOWN установлено, ослабляем защиту)
+ * 3. Второй вызовcommitTrailingStop(-3) → система ОТКЛОНЯЕТ (пытается двигать вверх, улучшая защиту, но направление DOWN)
+ * 4. Третий вызовcommitTrailingStop(+2) → ПРИНИМАЕТСЯ (направление DOWN, продолжаем движение вниз, newSL=96k)
  * 5. Цена падает до 96.5k
  * 6. Позиция закрывается по финальному trailing SL (96k)
  */
@@ -1361,7 +1361,7 @@ test("TRAILING STOP: Cannot change direction once set", async ({ pass, fail }) =
     });
   }
 
-  addExchange({
+  addExchangeSchema({
     exchangeName: "binance-trailing-no-direction-change",
     getCandles: async (_symbol, _interval, since, limit) => {
       const sinceIndex = Math.floor((since.getTime() - bufferStartTime) / intervalMs);
@@ -1372,7 +1372,7 @@ test("TRAILING STOP: Cannot change direction once set", async ({ pass, fail }) =
     formatQuantity: async (_symbol, quantity) => quantity.toFixed(8),
   });
 
-  addStrategy({
+  addStrategySchema({
     strategyName: "test-trailing-no-direction-change",
     interval: "1m",
     getSignal: async () => {
@@ -1468,7 +1468,7 @@ test("TRAILING STOP: Cannot change direction once set", async ({ pass, fail }) =
         // Первый вызов: устанавливает базовый trailing SL (подтягиваем на 1%)
         // Original SL: 98000, distance = 2%
         // percentShift = -1% → newDistance = 2% - 1% = 1% → newSL = 99000
-        await trailingStop(symbol, -1, priceOpen);
+        await commitTrailingStop(symbol, -1, priceOpen);
         firstTrailingApplied = true;
       },
       onPartialProfit: async (symbol, _signal, _currentPrice, revenuePercent, _backtest) => {
@@ -1476,7 +1476,7 @@ test("TRAILING STOP: Cannot change direction once set", async ({ pass, fail }) =
         if (firstTrailingApplied && !secondTrailingAttempted && revenuePercent >= 3 && revenuePercent < 5) {
           // percentShift = -0.5% → newDistance = 2% - 0.5% = 1.5% → newSL = 98500
           // ОТКЛОНЯЕТСЯ: 98500 < 99000 (worse protection for LONG, smaller percentShift absorbed by larger)
-          await trailingStop(symbol, -0.5, _currentPrice);
+          await commitTrailingStop(symbol, -0.5, _currentPrice);
           secondTrailingAttempted = true;
         }
 
@@ -1484,14 +1484,14 @@ test("TRAILING STOP: Cannot change direction once set", async ({ pass, fail }) =
         if (secondTrailingAttempted && !thirdTrailingApplied && revenuePercent >= 5) {
           // percentShift = -1.5% → newDistance = 2% - 1.5% = 0.5% → newSL = 99500
           // ПРИНИМАЕТСЯ: 99500 > 99000 (better protection for LONG, larger percentShift absorbs smaller)
-          await trailingStop(symbol, -1.5, _currentPrice);
+          await commitTrailingStop(symbol, -1.5, _currentPrice);
           thirdTrailingApplied = true;
         }
       },
     },
   });
 
-  addFrame({
+  addFrameSchema({
     frameName: "50m-trailing-no-direction-change",
     interval: "1m",
     startDate: new Date("2024-01-01T00:00:00Z"),
@@ -1590,7 +1590,7 @@ test("TRAILING STOP: Cannot change direction once set", async ({ pass, fail }) =
  * 2. Цена растет до +10% (110k)
  * 3. Используем getPendingSignal() для получения данных позиции
  * 4. Вычисляем percentShift для безубытка: shift = -2% (distance 2% → 0%)
- * 5. Применяем trailingStop(-2) → newSL=100k (breakeven)
+ * 5. ПрименяемcommitTrailingStop(-2) → newSL=100k (breakeven)
  * 6. Цена откатывает к 100k
  * 7. Позиция закрывается с PNL=0%
  */
@@ -1616,7 +1616,7 @@ test("TRAILING STOP: Move to breakeven using getPendingSignal", async ({ pass, f
     });
   }
 
-  addExchange({
+  addExchangeSchema({
     exchangeName: "binance-trailing-breakeven",
     getCandles: async (_symbol, _interval, since, limit) => {
       const sinceIndex = Math.floor((since.getTime() - bufferStartTime) / intervalMs);
@@ -1627,7 +1627,7 @@ test("TRAILING STOP: Move to breakeven using getPendingSignal", async ({ pass, f
     formatQuantity: async (_symbol, quantity) => quantity.toFixed(8),
   });
 
-  addStrategy({
+  addStrategySchema({
     strategyName: "test-trailing-breakeven",
     interval: "1m",
     getSignal: async () => {
@@ -1736,7 +1736,7 @@ test("TRAILING STOP: Move to breakeven using getPendingSignal", async ({ pass, f
           // console.log(`[Calculate] percentShift for breakeven: ${percentShift.toFixed(2)}%`);
 
           // Применяем trailing stop для безубытка
-          await trailingStop(symbol, percentShift, _currentPrice);
+          await commitTrailingStop(symbol, percentShift, _currentPrice);
           breakevenApplied = true;
 
           // console.log(`[trailingStop] Applied shift=${percentShift.toFixed(2)}%, SL moved to breakeven (${pendingSignal.priceOpen})`);
@@ -1745,7 +1745,7 @@ test("TRAILING STOP: Move to breakeven using getPendingSignal", async ({ pass, f
     },
   });
 
-  addFrame({
+  addFrameSchema({
     frameName: "50m-trailing-breakeven",
     interval: "1m",
     startDate: new Date("2024-01-01T00:00:00Z"),
@@ -1826,7 +1826,7 @@ test("TRAILING STOP: Move to breakeven using getPendingSignal", async ({ pass, f
  * Сценарий:
  * 1. LONG позиция: entry=100k, originalSL=98k (distance=2%)
  * 2. Цена падает до 97.5k (уже ниже того SL который хотим установить)
- * 3. Пытаемся применить trailingStop(-0.5%) → newSL=99.5k
+ * 3. Пытаемся применитьcommitTrailingStop(-0.5%) → newSL=99.5k
  * 4. Система блокирует: currentPrice=97.5k < newSL=99.5k (price intrusion!)
  * 5. Позиция закрывается по original SL (98k), PNL ≈ -2%
  */
@@ -1853,7 +1853,7 @@ test("TRAILING STOP: Price intrusion protection blocks trailing stop", async ({ 
     });
   }
 
-  addExchange({
+  addExchangeSchema({
     exchangeName: "binance-trailing-intrusion",
     getCandles: async (_symbol, _interval, since, limit) => {
       const sinceIndex = Math.floor((since.getTime() - bufferStartTime) / intervalMs);
@@ -1864,7 +1864,7 @@ test("TRAILING STOP: Price intrusion protection blocks trailing stop", async ({ 
     formatQuantity: async (_symbol, quantity) => quantity.toFixed(8),
   });
 
-  addStrategy({
+  addStrategySchema({
     strategyName: "test-trailing-intrusion",
     interval: "1m",
     getSignal: async () => {
@@ -1964,7 +1964,7 @@ test("TRAILING STOP: Price intrusion protection blocks trailing stop", async ({ 
           try {
             // percentShift = -0.5% → newDistance = 2% + (-0.5%) = 1.5% → newSL = 98.5k
             // Но currentPrice=97.5k < newSL=98.5k → price intrusion!
-            await trailingStop(symbol, -0.5, currentPrice);
+            await commitTrailingStop(symbol, -0.5, currentPrice);
             // console.log(`[trailingStop] Applied shift=-0.5%, newSL should be ~98.5k`);
           } catch (error) {
             // console.log(`[trailingStop] BLOCKED by price intrusion: ${error.message}`);
@@ -1977,7 +1977,7 @@ test("TRAILING STOP: Price intrusion protection blocks trailing stop", async ({ 
     },
   });
 
-  addFrame({
+  addFrameSchema({
     frameName: "50m-trailing-intrusion",
     interval: "1m",
     startDate: new Date("2024-01-01T00:00:00Z"),
@@ -2065,7 +2065,7 @@ test("TRAILING STOP: Price intrusion protection blocks trailing stop", async ({ 
  * Сценарий:
  * 1. LONG позиция открывается: entry=100k, originalTP=130k (distance=30%)
  * 2. Цена растет до +15%
- * 3. Вызываем trailingTake(-10) → newDistance = 30% + (-10%) = 20% → newTP = 120k
+ * 3. ВызываемcommitTrailingTake(-10) → newDistance = 30% + (-10%) = 20% → newTP = 120k
  * 4. Цена растет до 121k
  * 5. Позиция закрывается по trailing TP (120k), а не по original TP (130k)
  */
@@ -2092,7 +2092,7 @@ test("TRAILING PROFIT: Tightens TP for LONG position with negative shift", async
     });
   }
 
-  addExchange({
+  addExchangeSchema({
     exchangeName: "binance-trailing-profit-tighten",
     getCandles: async (_symbol, _interval, since, limit) => {
       const sinceIndex = Math.floor((since.getTime() - bufferStartTime) / intervalMs);
@@ -2103,7 +2103,7 @@ test("TRAILING PROFIT: Tightens TP for LONG position with negative shift", async
     formatQuantity: async (_symbol, quantity) => quantity.toFixed(8),
   });
 
-  addStrategy({
+  addStrategySchema({
     strategyName: "test-trailing-profit-tighten",
     interval: "1m",
     getSignal: async () => {
@@ -2192,7 +2192,7 @@ test("TRAILING PROFIT: Tightens TP for LONG position with negative shift", async
 
           try {
             // percentShift = -10% → newDistance = 30% + (-10%) = 20% → newTP = 120k
-            await trailingTake(symbol, -10, currentPrice);
+            await commitTrailingTake(symbol, -10, currentPrice);
             trailingApplied = true;
             // console.log(`[trailingTake] Applied shift=-10%, original TP distance=30%, new distance=20%`);
           } catch (error) {
@@ -2203,7 +2203,7 @@ test("TRAILING PROFIT: Tightens TP for LONG position with negative shift", async
     },
   });
 
-  addFrame({
+  addFrameSchema({
     frameName: "50m-trailing-profit-tighten",
     interval: "1m",
     startDate: new Date("2024-01-01T00:00:00Z"),
@@ -2287,7 +2287,7 @@ test("TRAILING PROFIT: Tightens TP for LONG position with negative shift", async
  * Сценарий:
  * 1. SHORT позиция: entry=100k, originalTP=70k (distance=30%)
  * 2. Цена падает до -15%
- * 3. Вызываем trailingTake(-10) → newDistance = 30% + (-10%) = 20% → newTP = 80k
+ * 3. ВызываемcommitTrailingTake(-10) → newDistance = 30% + (-10%) = 20% → newTP = 80k
  * 4. Цена падает до 79k
  * 5. Позиция закрывается по trailing TP (80k)
  */
@@ -2313,7 +2313,7 @@ test("TRAILING PROFIT: Tightens TP for SHORT position", async ({ pass, fail }) =
     });
   }
 
-  addExchange({
+  addExchangeSchema({
     exchangeName: "binance-trailing-profit-short",
     getCandles: async (_symbol, _interval, since, limit) => {
       const sinceIndex = Math.floor((since.getTime() - bufferStartTime) / intervalMs);
@@ -2324,7 +2324,7 @@ test("TRAILING PROFIT: Tightens TP for SHORT position", async ({ pass, fail }) =
     formatQuantity: async (_symbol, quantity) => quantity.toFixed(8),
   });
 
-  addStrategy({
+  addStrategySchema({
     strategyName: "test-trailing-profit-short",
     interval: "1m",
     getSignal: async () => {
@@ -2410,7 +2410,7 @@ test("TRAILING PROFIT: Tightens TP for SHORT position", async ({ pass, fail }) =
 
           try {
             // percentShift = -10% → newDistance = 30% + (-10%) = 20% → newTP = 80k
-            await trailingTake(symbol, -10, currentPrice);
+            await commitTrailingTake(symbol, -10, currentPrice);
             trailingApplied = true;
             // console.log(`[trailingTake SHORT] Applied shift=-10%, original TP distance=30%, new distance=20%`);
           } catch (error) {
@@ -2421,7 +2421,7 @@ test("TRAILING PROFIT: Tightens TP for SHORT position", async ({ pass, fail }) =
     },
   });
 
-  addFrame({
+  addFrameSchema({
     frameName: "50m-trailing-profit-short",
     interval: "1m",
     startDate: new Date("2024-01-01T00:00:00Z"),
@@ -2502,9 +2502,9 @@ test("TRAILING PROFIT: Tightens TP for SHORT position", async ({ pass, fail }) =
  *
  * Сценарий:
  * 1. LONG позиция: entry=100k, originalTP=120k (distance=20%)
- * 2. Первый вызов trailingTake(-5) → newTP=115k (направление CLOSER установлено)
- * 3. Второй вызов trailingTake(+3) → система ОТКЛОНЯЕТ (пытается двигать дальше от entry)
- * 4. Третий вызов trailingTake(-3) → ПРИНИМАЕТСЯ (направление CLOSER продолжается)
+ * 2. Первый вызовcommitTrailingTake(-5) → newTP=115k (направление CLOSER установлено)
+ * 3. Второй вызовcommitTrailingTake(+3) → система ОТКЛОНЯЕТ (пытается двигать дальше от entry)
+ * 4. Третий вызовcommitTrailingTake(-3) → ПРИНИМАЕТСЯ (направление CLOSER продолжается)
  * 5. Позиция закрывается по финальному trailing TP
  */
 test("TRAILING PROFIT: Direction-based validation for LONG position", async ({ pass, fail }) => {
@@ -2531,7 +2531,7 @@ test("TRAILING PROFIT: Direction-based validation for LONG position", async ({ p
     });
   }
 
-  addExchange({
+  addExchangeSchema({
     exchangeName: "binance-trailing-profit-direction",
     getCandles: async (_symbol, _interval, since, limit) => {
       const sinceIndex = Math.floor((since.getTime() - bufferStartTime) / intervalMs);
@@ -2542,7 +2542,7 @@ test("TRAILING PROFIT: Direction-based validation for LONG position", async ({ p
     formatQuantity: async (_symbol, quantity) => quantity.toFixed(8),
   });
 
-  addStrategy({
+  addStrategySchema({
     strategyName: "test-trailing-profit-direction",
     interval: "1m",
     getSignal: async () => {
@@ -2639,7 +2639,7 @@ test("TRAILING PROFIT: Direction-based validation for LONG position", async ({ p
           // Первый вызов: устанавливает базовый trailing TP (подтягиваем на 5% ближе к entry)
           // Original TP: 120000, distance = 20%
           // percentShift = -5% → newDistance = 20% - 5% = 15% → newTP = 115000
-          await trailingTake(symbol, -5, priceOpen);
+          await commitTrailingTake(symbol, -5, priceOpen);
           firstTrailingApplied = true;
         } catch (error) {
           // Unexpected error
@@ -2651,7 +2651,7 @@ test("TRAILING PROFIT: Direction-based validation for LONG position", async ({ p
           try {
             // percentShift = -3% → newDistance = 20% - 3% = 17% → newTP = 117000
             // ОТКЛОНЯЕТСЯ: 117000 > 115000 (less conservative for LONG, smaller percentShift absorbed)
-            await trailingTake(symbol, -3, _currentPrice);
+            await commitTrailingTake(symbol, -3, _currentPrice);
           } catch (error) {
             // Expected to be rejected silently by absorption logic
           }
@@ -2663,7 +2663,7 @@ test("TRAILING PROFIT: Direction-based validation for LONG position", async ({ p
           try {
             // percentShift = -8% → newDistance = 20% - 8% = 12% → newTP = 112000
             // ПРИНИМАЕТСЯ: 112000 < 115000 (more conservative for LONG, larger percentShift absorbs smaller)
-            await trailingTake(symbol, -8, _currentPrice);
+            await commitTrailingTake(symbol, -8, _currentPrice);
             thirdTrailingApplied = true;
           } catch (error) {
             // Unexpected error
@@ -2673,7 +2673,7 @@ test("TRAILING PROFIT: Direction-based validation for LONG position", async ({ p
     },
   });
 
-  addFrame({
+  addFrameSchema({
     frameName: "50m-trailing-profit-direction",
     interval: "1m",
     startDate: new Date("2024-01-01T00:00:00Z"),
@@ -2766,8 +2766,8 @@ test("TRAILING PROFIT: Direction-based validation for LONG position", async ({ p
  *
  * Сценарий:
  * 1. LONG позиция: entry=100k, originalTP=120k, originalSL=98k
- * 2. Применяем trailingTake(-5) → newTP=115k
- * 3. Пытаемся применить trailingStop(-0.5) → система ОТКЛОНЯЕТ (conflict)
+ * 2. ПрименяемcommitTrailingTake(-5) → newTP=115k
+ * 3. Пытаемся применитьcommitTrailingStop(-0.5) → система ОТКЛОНЯЕТ (conflict)
  * 4. Позиция закрывается по trailing TP
  */
 test("TRAILING PROFIT: Cross-validation with trailing stop conflict", async ({ pass, fail }) => {
@@ -2794,7 +2794,7 @@ test("TRAILING PROFIT: Cross-validation with trailing stop conflict", async ({ p
     });
   }
 
-  addExchange({
+  addExchangeSchema({
     exchangeName: "binance-trailing-profit-conflict",
     getCandles: async (_symbol, _interval, since, limit) => {
       const sinceIndex = Math.floor((since.getTime() - bufferStartTime) / intervalMs);
@@ -2805,7 +2805,7 @@ test("TRAILING PROFIT: Cross-validation with trailing stop conflict", async ({ p
     formatQuantity: async (_symbol, quantity) => quantity.toFixed(8),
   });
 
-  addStrategy({
+  addStrategySchema({
     strategyName: "test-trailing-profit-conflict",
     interval: "1m",
     getSignal: async () => {
@@ -2902,7 +2902,7 @@ test("TRAILING PROFIT: Cross-validation with trailing stop conflict", async ({ p
         if (!trailingTakeApplied && revenuePercent >= 10 && revenuePercent < 15) {
           // console.log(`[onPartialProfit] Applying trailing profit at ${revenuePercent.toFixed(2)}%`);
 
-          await trailingTake(symbol, -5, currentPrice);
+          await commitTrailingTake(symbol, -5, currentPrice);
           trailingTakeApplied = true;
 
           // console.log(`[trailingTake] Applied, trailing profit is now active`);
@@ -2913,7 +2913,7 @@ test("TRAILING PROFIT: Cross-validation with trailing stop conflict", async ({ p
           // console.log(`[onPartialProfit] Attempting trailing stop at ${revenuePercent.toFixed(2)}% (should be blocked)`);
 
           try {
-            await trailingStop(symbol, -0.5, currentPrice);
+            await commitTrailingStop(symbol, -0.5, currentPrice);
             // console.log(`[trailingStop] Applied (unexpected!)`);
           } catch (error) {
             // console.log(`[trailingStop] BLOCKED by conflict validation: ${error.message}`);
@@ -2926,7 +2926,7 @@ test("TRAILING PROFIT: Cross-validation with trailing stop conflict", async ({ p
     },
   });
 
-  addFrame({
+  addFrameSchema({
     frameName: "40m-trailing-profit-conflict",
     interval: "1m",
     startDate: new Date("2024-01-01T00:00:00Z"),
@@ -3017,7 +3017,7 @@ test("TRAILING PROFIT: Cross-validation with trailing stop conflict", async ({ p
  * Сценарий:
  * 1. LONG позиция: entry=100k, originalTP=120k (distance=20%)
  * 2. Цена растет до 118k (уже выше того TP который хотим установить)
- * 3. Пытаемся применить trailingTake(-5%) → newTP=115k
+ * 3. Пытаемся применитьcommitTrailingTake(-5%) → newTP=115k
  * 4. Система блокирует: currentPrice=118k > newTP=115k (price intrusion!)
  * 5. Позиция закрывается по original TP (120k), PNL ≈ +20%
  */
@@ -3044,7 +3044,7 @@ test("TRAILING PROFIT: Price intrusion protection blocks trailing profit", async
     });
   }
 
-  addExchange({
+  addExchangeSchema({
     exchangeName: "binance-trailing-profit-intrusion",
     getCandles: async (_symbol, _interval, since, limit) => {
       const sinceIndex = Math.floor((since.getTime() - bufferStartTime) / intervalMs);
@@ -3055,7 +3055,7 @@ test("TRAILING PROFIT: Price intrusion protection blocks trailing profit", async
     formatQuantity: async (_symbol, quantity) => quantity.toFixed(8),
   });
 
-  addStrategy({
+  addStrategySchema({
     strategyName: "test-trailing-profit-intrusion",
     interval: "1m",
     getSignal: async () => {
@@ -3155,7 +3155,7 @@ test("TRAILING PROFIT: Price intrusion protection blocks trailing profit", async
           try {
             // percentShift = -5% → newDistance = 20% + (-5%) = 15% → newTP = 115k
             // При 90% прогресса currentPrice≈118k > newTP=115k → price intrusion!
-            await trailingTake(symbol, -5, currentPrice);
+            await commitTrailingTake(symbol, -5, currentPrice);
             // console.log(`[trailingTake] Applied shift=-5%, newTP should be ~115k`);
           } catch (error) {
             // console.log(`[trailingTake] BLOCKED by price intrusion: ${error.message}`);
@@ -3168,7 +3168,7 @@ test("TRAILING PROFIT: Price intrusion protection blocks trailing profit", async
     },
   });
 
-  addFrame({
+  addFrameSchema({
     frameName: "40m-trailing-profit-intrusion",
     interval: "1m",
     startDate: new Date("2024-01-01T00:00:00Z"),

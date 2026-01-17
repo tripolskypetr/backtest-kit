@@ -1,3 +1,3 @@
 export default {
-    MainStrategy: "main_strategy",
-}
+  MainStrategy: "main_strategy",
+};

@@ -3,40 +3,42 @@
  * Contains all information about a tick event regardless of action type.
  */
 export interface TickEvent {
-  /** Event timestamp in milliseconds (pendingAt for opened/closed events) */
+  /** Event timestamp in milliseconds (scheduledAt for scheduled events, pendingAt for opened/closed events) */
   timestamp: number;
   /** Event action type */
-  action: "idle" | "opened" | "active" | "closed";
+  action: "idle" | "scheduled" | "waiting" | "opened" | "active" | "closed" | "cancelled";
   /** Trading pair symbol (only for non-idle events) */
   symbol?: string;
-  /** Signal ID (only for opened/active/closed) */
+  /** Signal ID (only for scheduled/waiting/opened/active/closed/cancelled) */
   signalId?: string;
-  /** Position type (only for opened/active/closed) */
+  /** Position type (only for scheduled/waiting/opened/active/closed/cancelled) */
   position?: string;
-  /** Signal note (only for opened/active/closed) */
+  /** Signal note (only for scheduled/waiting/opened/active/closed/cancelled) */
   note?: string;
   /** Current price */
   currentPrice: number;
-  /** Open price (only for opened/active/closed) */
+  /** Open price (only for scheduled/waiting/opened/active/closed/cancelled) */
   priceOpen?: number;
-  /** Take profit price (only for opened/active/closed) */
+  /** Take profit price (only for scheduled/waiting/opened/active/closed/cancelled) */
   priceTakeProfit?: number;
-  /** Stop loss price (only for opened/active/closed) */
+  /** Stop loss price (only for scheduled/waiting/opened/active/closed/cancelled) */
   priceStopLoss?: number;
-  /** Original take profit price before modifications (only for opened/active/closed) */
+  /** Original take profit price before modifications (only for scheduled/waiting/opened/active/closed/cancelled) */
   originalPriceTakeProfit?: number;
-  /** Original stop loss price before modifications (only for opened/active/closed) */
+  /** Original stop loss price before modifications (only for scheduled/waiting/opened/active/closed/cancelled) */
   originalPriceStopLoss?: number;
-  /** Total executed percentage from partial closes (only for opened/active/closed) */
+  /** Total executed percentage from partial closes (only for scheduled/waiting/opened/active/closed/cancelled) */
   totalExecuted?: number;
-  /** Percentage progress towards take profit (only for active) */
+  /** Percentage progress towards take profit (only for active/waiting) */
   percentTp?: number;
-  /** Percentage progress towards stop loss (only for active) */
+  /** Percentage progress towards stop loss (only for active/waiting) */
   percentSl?: number;
-  /** PNL percentage (for active: unrealized, for closed: realized) */
+  /** PNL percentage (for active/waiting: unrealized, for closed: realized) */
   pnl?: number;
   /** Close reason (only for closed) */
   closeReason?: string;
+  /** Cancel reason (only for cancelled) */
+  cancelReason?: string;
   /** Duration in minutes (only for closed) */
   duration?: number;
 }

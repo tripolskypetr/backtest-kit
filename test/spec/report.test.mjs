@@ -1,13 +1,14 @@
 import { test } from "worker-testbed";
 
 import {
-  addExchange,
-  addFrame,
-  addStrategy,
+  addExchangeSchema,
+  addFrameSchema,
+  addStrategySchema,
   Backtest,
   Live,
   listenDoneBacktest,
   listenDoneLive,
+  commitCancel,
   getAveragePrice,
 } from "../../build/index.mjs";
 
@@ -19,7 +20,7 @@ test("Backtest.getReport returns markdown string", async ({ pass, fail }) => {
 
   const [awaiter, { resolve }] = createAwaiter();
 
-  addExchange({
+  addExchangeSchema({
     exchangeName: "binance-mock-bt-report",
     getCandles: async (_symbol, interval, since, limit) => {
       return await getMockCandles(interval, since, limit);
@@ -32,7 +33,7 @@ test("Backtest.getReport returns markdown string", async ({ pass, fail }) => {
     },
   });
 
-  addStrategy({
+  addStrategySchema({
     strategyName: "test-strategy-bt-report",
     interval: "1m",
     getSignal: async () => {
@@ -48,7 +49,7 @@ test("Backtest.getReport returns markdown string", async ({ pass, fail }) => {
     },
   });
 
-  addFrame({
+  addFrameSchema({
     frameName: "1d-backtest-bt-report",
     interval: "1d",
     startDate: new Date("2024-01-01T00:00:00Z"),
@@ -89,7 +90,7 @@ test("Backtest report includes win rate statistics", async ({ pass, fail }) => {
 
   const [awaiter, { resolve }] = createAwaiter();
 
-  addExchange({
+  addExchangeSchema({
     exchangeName: "binance-mock-bt-stats",
     getCandles: async (_symbol, interval, since, limit) => {
       return await getMockCandles(interval, since, limit);
@@ -102,7 +103,7 @@ test("Backtest report includes win rate statistics", async ({ pass, fail }) => {
     },
   });
 
-  addStrategy({
+  addStrategySchema({
     strategyName: "test-strategy-bt-stats",
     interval: "1m",
     getSignal: async () => {
@@ -118,7 +119,7 @@ test("Backtest report includes win rate statistics", async ({ pass, fail }) => {
     },
   });
 
-  addFrame({
+  addFrameSchema({
     frameName: "1d-backtest-bt-stats",
     interval: "1d",
     startDate: new Date("2024-01-01T00:00:00Z"),
@@ -164,7 +165,7 @@ test("Live.getReport returns markdown string", async ({ pass, fail }) => {
 
   const [awaiter, { resolve }] = createAwaiter();
 
-  addExchange({
+  addExchangeSchema({
     exchangeName: "binance-mock-live-report",
     getCandles: async (_symbol, interval, since, limit) => {
       return await getMockCandles(interval, since, limit);
@@ -177,7 +178,7 @@ test("Live.getReport returns markdown string", async ({ pass, fail }) => {
     },
   });
 
-  addStrategy({
+  addStrategySchema({
     strategyName: "test-strategy-live-report",
     interval: "1m",
     getSignal: async () => {
@@ -224,7 +225,7 @@ test("Backtest report includes signal details table", async ({ pass, fail }) => 
 
   const [awaiter, { resolve }] = createAwaiter();
 
-  addExchange({
+  addExchangeSchema({
     exchangeName: "binance-mock-bt-table",
     getCandles: async (_symbol, interval, since, limit) => {
       return await getMockCandles(interval, since, limit);
@@ -237,7 +238,7 @@ test("Backtest report includes signal details table", async ({ pass, fail }) => 
     },
   });
 
-  addStrategy({
+  addStrategySchema({
     strategyName: "test-strategy-bt-table",
     interval: "1m",
     getSignal: async () => {
@@ -253,7 +254,7 @@ test("Backtest report includes signal details table", async ({ pass, fail }) => 
     },
   });
 
-  addFrame({
+  addFrameSchema({
     frameName: "1d-backtest-bt-table",
     interval: "1d",
     startDate: new Date("2024-01-01T00:00:00Z"),

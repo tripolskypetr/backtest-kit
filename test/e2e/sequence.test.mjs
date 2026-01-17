@@ -1,9 +1,9 @@
 import { test } from "worker-testbed";
 
 import {
-  addExchange,
-  addFrame,
-  addStrategy,
+  addExchangeSchema,
+  addFrameSchema,
+  addStrategySchema,
   Backtest,
   Live,
   listenSignalBacktest,
@@ -55,7 +55,7 @@ test("SEQUENCE: 5 signals with mixed results (TP, SL, cancelled, TP, SL) - VWAP-
     });
   }
 
-  addExchange({
+  addExchangeSchema({
     exchangeName: "binance-sequence-5signals",
     getCandles: async (_symbol, _interval, since, limit) => {
       const sinceIndex = Math.floor((since.getTime() - bufferStartTime) / intervalMs);
@@ -68,7 +68,7 @@ test("SEQUENCE: 5 signals with mixed results (TP, SL, cancelled, TP, SL) - VWAP-
 
   let signalCount = 0;
 
-  addStrategy({
+  addStrategySchema({
     strategyName: "test-sequence-5signals",
     interval: "1m",
     getSignal: async () => {
@@ -177,7 +177,7 @@ test("SEQUENCE: 5 signals with mixed results (TP, SL, cancelled, TP, SL) - VWAP-
     },
   });
 
-  addFrame({
+  addFrameSchema({
     frameName: "150m-sequence-5signals",
     interval: "1m",
     startDate: new Date("2024-01-01T00:00:00Z"),
@@ -289,7 +289,7 @@ test("SEQUENCE: 3 consecutive TP signals (winning streak)", async ({ pass, fail 
     });
   }
 
-  addExchange({
+  addExchangeSchema({
     exchangeName: "binance-sequence-3tp",
     getCandles: async (_symbol, _interval, since, limit) => {
       const sinceIndex = Math.floor((since.getTime() - startTime) / intervalMs);
@@ -302,7 +302,7 @@ test("SEQUENCE: 3 consecutive TP signals (winning streak)", async ({ pass, fail 
 
   let signalCount = 0;
 
-  addStrategy({
+  addStrategySchema({
     strategyName: "test-sequence-3tp",
     interval: "1m",
     getSignal: async () => {
@@ -351,7 +351,7 @@ test("SEQUENCE: 3 consecutive TP signals (winning streak)", async ({ pass, fail 
     },
   });
 
-  addFrame({
+  addFrameSchema({
     frameName: "90m-sequence-3tp",
     interval: "1m",
     startDate: new Date("2024-01-01T00:00:00Z"),
@@ -440,7 +440,7 @@ test("SEQUENCE: 3 consecutive SL signals (losing streak)", async ({ pass, fail }
     });
   }
 
-  addExchange({
+  addExchangeSchema({
     exchangeName: "binance-sequence-3sl",
     getCandles: async (_symbol, _interval, since, limit) => {
       const sinceIndex = Math.floor((since.getTime() - startTime) / intervalMs);
@@ -453,7 +453,7 @@ test("SEQUENCE: 3 consecutive SL signals (losing streak)", async ({ pass, fail }
 
   let signalCount = 0;
 
-  addStrategy({
+  addStrategySchema({
     strategyName: "test-sequence-3sl",
     interval: "1m",
     getSignal: async () => {
@@ -501,7 +501,7 @@ test("SEQUENCE: 3 consecutive SL signals (losing streak)", async ({ pass, fail }
     },
   });
 
-  addFrame({
+  addFrameSchema({
     frameName: "90m-sequence-3sl",
     interval: "1m",
     startDate: new Date("2024-01-01T00:00:00Z"),
@@ -599,7 +599,7 @@ test("SEQUENCE: 3 fast signals (5 min each) - TP, time_expired, SL", async ({ pa
     });
   }
 
-  addExchange({
+  addExchangeSchema({
     exchangeName: "binance-sequence-fast",
     getCandles: async (_symbol, _interval, since, limit) => {
       const sinceIndex = Math.floor((since.getTime() - startTime) / intervalMs);
@@ -612,7 +612,7 @@ test("SEQUENCE: 3 fast signals (5 min each) - TP, time_expired, SL", async ({ pa
 
   let signalCount = 0;
 
-  addStrategy({
+  addStrategySchema({
     strategyName: "test-sequence-fast",
     interval: "1m",
     getSignal: async () => {
@@ -681,7 +681,7 @@ test("SEQUENCE: 3 fast signals (5 min each) - TP, time_expired, SL", async ({ pa
     },
   });
 
-  addFrame({
+  addFrameSchema({
     frameName: "45m-sequence-fast",
     interval: "1m",
     startDate: new Date("2024-01-01T00:00:00Z"),
@@ -768,7 +768,7 @@ test("SEQUENCE: 2 long signals (120 min each) - slow TP, slow SL", async ({ pass
     });
   }
 
-  addExchange({
+  addExchangeSchema({
     exchangeName: "binance-sequence-long",
     getCandles: async (_symbol, _interval, since, limit) => {
       const sinceIndex = Math.floor((since.getTime() - startTime) / intervalMs);
@@ -781,7 +781,7 @@ test("SEQUENCE: 2 long signals (120 min each) - slow TP, slow SL", async ({ pass
 
   let signalCount = 0;
 
-  addStrategy({
+  addStrategySchema({
     strategyName: "test-sequence-long",
     interval: "1m",
     getSignal: async () => {
@@ -845,7 +845,7 @@ test("SEQUENCE: 2 long signals (120 min each) - slow TP, slow SL", async ({ pass
     },
   });
 
-  addFrame({
+  addFrameSchema({
     frameName: "240m-sequence-long",
     interval: "1m",
     startDate: new Date("2024-01-01T00:00:00Z"),
@@ -927,7 +927,7 @@ test("SEQUENCE: Alternating LONG and SHORT positions (TP, TP, SL, SL)", async ({
     });
   }
 
-  addExchange({
+  addExchangeSchema({
     exchangeName: "binance-sequence-alternating",
     getCandles: async (_symbol, _interval, since, limit) => {
       const sinceIndex = Math.floor((since.getTime() - startTime) / intervalMs);
@@ -940,7 +940,7 @@ test("SEQUENCE: Alternating LONG and SHORT positions (TP, TP, SL, SL)", async ({
 
   let signalCount = 0;
 
-  addStrategy({
+  addStrategySchema({
     strategyName: "test-sequence-alternating",
     interval: "1m",
     getSignal: async () => {
@@ -1021,7 +1021,7 @@ test("SEQUENCE: Alternating LONG and SHORT positions (TP, TP, SL, SL)", async ({
     },
   });
 
-  addFrame({
+  addFrameSchema({
     frameName: "120m-sequence-alternating",
     interval: "1m",
     startDate: new Date("2024-01-01T00:00:00Z"),
@@ -1114,7 +1114,7 @@ test("SEQUENCE: 2 quick signals - fast TP, fast SL", async ({ pass, fail }) => {
     });
   }
 
-  addExchange({
+  addExchangeSchema({
     exchangeName: "binance-sequence-quick",
     getCandles: async (_symbol, _interval, since, limit) => {
       const sinceIndex = Math.floor((since.getTime() - startTime) / intervalMs);
@@ -1127,7 +1127,7 @@ test("SEQUENCE: 2 quick signals - fast TP, fast SL", async ({ pass, fail }) => {
 
   let signalCount = 0;
 
-  addStrategy({
+  addStrategySchema({
     strategyName: "test-sequence-quick",
     interval: "1m",
     getSignal: async () => {
@@ -1187,7 +1187,7 @@ test("SEQUENCE: 2 quick signals - fast TP, fast SL", async ({ pass, fail }) => {
     },
   });
 
-  addFrame({
+  addFrameSchema({
     frameName: "40m-sequence-quick",
     interval: "1m",
     startDate: new Date("2024-01-01T00:00:00Z"),
@@ -1270,7 +1270,7 @@ test("SEQUENCE: 2 quick SHORT signals - fast TP, fast SL", async ({ pass, fail }
     });
   }
 
-  addExchange({
+  addExchangeSchema({
     exchangeName: "binance-sequence-quick-short",
     getCandles: async (_symbol, _interval, since, limit) => {
       const sinceIndex = Math.floor((since.getTime() - startTime) / intervalMs);
@@ -1283,7 +1283,7 @@ test("SEQUENCE: 2 quick SHORT signals - fast TP, fast SL", async ({ pass, fail }
 
   let signalCount = 0;
 
-  addStrategy({
+  addStrategySchema({
     strategyName: "test-sequence-quick-short",
     interval: "1m",
     getSignal: async () => {
@@ -1343,7 +1343,7 @@ test("SEQUENCE: 2 quick SHORT signals - fast TP, fast SL", async ({ pass, fail }
     },
   });
 
-  addFrame({
+  addFrameSchema({
     frameName: "40m-sequence-quick-short",
     interval: "1m",
     startDate: new Date("2024-01-01T00:00:00Z"),
@@ -1435,7 +1435,7 @@ test("PERSIST: LONG signal closes by TP after system restart - onClose called", 
     async deleteValue() {}
   });
 
-  addExchange({
+  addExchangeSchema({
     exchangeName: "binance-persist-long-tp",
     getCandles: async (_symbol, _interval, since, limit) => {
       const candles = [];
@@ -1461,7 +1461,7 @@ test("PERSIST: LONG signal closes by TP after system restart - onClose called", 
     formatQuantity: async (_symbol, quantity) => quantity.toFixed(8),
   });
 
-  addStrategy({
+  addStrategySchema({
     strategyName: "persist-strategy-long-tp",
     interval: "1m",
     getSignal: async () => {
@@ -1538,7 +1538,7 @@ test("PERSIST: SHORT signal closes by SL after system restart - onClose called",
     async deleteValue() {}
   });
 
-  addExchange({
+  addExchangeSchema({
     exchangeName: "binance-persist-short-sl",
     getCandles: async (_symbol, _interval, since, limit) => {
       const candles = [];
@@ -1564,7 +1564,7 @@ test("PERSIST: SHORT signal closes by SL after system restart - onClose called",
     formatQuantity: async (_symbol, quantity) => quantity.toFixed(8),
   });
 
-  addStrategy({
+  addStrategySchema({
     strategyName: "persist-strategy-short-sl",
     interval: "1m",
     getSignal: async () => {
@@ -1634,7 +1634,7 @@ test("PERSIST: Scheduled signal is NOT written to persist storage", async ({ pas
     async deleteValue() {}
   });
 
-  addExchange({
+  addExchangeSchema({
     exchangeName: "binance-persist-write-scheduled",
     getCandles: async (_symbol, _interval, since, limit) => {
       const candles = [];
@@ -1666,7 +1666,7 @@ test("PERSIST: Scheduled signal is NOT written to persist storage", async ({ pas
     formatQuantity: async (_symbol, quantity) => quantity.toFixed(8),
   });
 
-  addStrategy({
+  addStrategySchema({
     strategyName: "persist-write-scheduled",
     interval: "1m",
     getSignal: async () => {
@@ -1760,7 +1760,7 @@ test("PERSIST: Only active signals persist, scheduled signals do not", async ({ 
     async deleteValue() {}
   });
 
-  addExchange({
+  addExchangeSchema({
     exchangeName: "binance-persist-lifecycle",
     getCandles: async (_symbol, _interval, since, limit) => {
       const candles = [];
@@ -1791,7 +1791,7 @@ test("PERSIST: Only active signals persist, scheduled signals do not", async ({ 
     formatQuantity: async (_symbol, quantity) => quantity.toFixed(8),
   });
 
-  addStrategy({
+  addStrategySchema({
     strategyName: "persist-lifecycle",
     interval: "1m",
     getSignal: async () => {

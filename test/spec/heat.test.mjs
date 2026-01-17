@@ -1,9 +1,9 @@
 import { test } from "worker-testbed";
 
 import {
-  addExchange,
-  addFrame,
-  addStrategy,
+  addExchangeSchema,
+  addFrameSchema,
+  addStrategySchema,
   Backtest,
   Heat,
   getAveragePrice,
@@ -13,7 +13,7 @@ import getMockCandles from "../mock/getMockCandles.mjs";
 
 test("Heat.getData returns heatmap statistics for strategy", async ({ pass, fail }) => {
 
-  addExchange({
+  addExchangeSchema({
     exchangeName: "binance-mock-heat-1",
     getCandles: async (_symbol, interval, since, limit) => {
       return await getMockCandles(interval, since, limit);
@@ -26,7 +26,7 @@ test("Heat.getData returns heatmap statistics for strategy", async ({ pass, fail
     },
   });
 
-  addStrategy({
+  addStrategySchema({
     strategyName: "test-strategy-heat-1",
     interval: "1m",
     getSignal: async () => {
@@ -42,7 +42,7 @@ test("Heat.getData returns heatmap statistics for strategy", async ({ pass, fail
     },
   });
 
-  addFrame({
+  addFrameSchema({
     frameName: "1d-backtest-heat-1",
     interval: "1d",
     startDate: new Date("2024-01-01T00:00:00Z"),
@@ -89,7 +89,7 @@ test("Heat.getData returns heatmap statistics for strategy", async ({ pass, fail
 
 test("Heat heatmap includes per-symbol statistics", async ({ pass, fail }) => {
 
-  addExchange({
+  addExchangeSchema({
     exchangeName: "binance-mock-heat-2",
     getCandles: async (_symbol, interval, since, limit) => {
       return await getMockCandles(interval, since, limit);
@@ -102,7 +102,7 @@ test("Heat heatmap includes per-symbol statistics", async ({ pass, fail }) => {
     },
   });
 
-  addStrategy({
+  addStrategySchema({
     strategyName: "test-strategy-heat-2",
     interval: "1m",
     getSignal: async () => {
@@ -118,7 +118,7 @@ test("Heat heatmap includes per-symbol statistics", async ({ pass, fail }) => {
     },
   });
 
-  addFrame({
+  addFrameSchema({
     frameName: "1d-backtest-heat-2",
     interval: "1d",
     startDate: new Date("2024-01-01T00:00:00Z"),
@@ -169,7 +169,7 @@ test("Heat heatmap includes per-symbol statistics", async ({ pass, fail }) => {
 
 test("Heat.getReport generates markdown report", async ({ pass, fail }) => {
 
-  addExchange({
+  addExchangeSchema({
     exchangeName: "binance-mock-heat-3",
     getCandles: async (_symbol, interval, since, limit) => {
       return await getMockCandles(interval, since, limit);
@@ -182,7 +182,7 @@ test("Heat.getReport generates markdown report", async ({ pass, fail }) => {
     },
   });
 
-  addStrategy({
+  addStrategySchema({
     strategyName: "test-strategy-heat-3",
     interval: "1m",
     getSignal: async () => {
@@ -198,7 +198,7 @@ test("Heat.getReport generates markdown report", async ({ pass, fail }) => {
     },
   });
 
-  addFrame({
+  addFrameSchema({
     frameName: "1d-backtest-heat-3",
     interval: "1d",
     startDate: new Date("2024-01-01T00:00:00Z"),
@@ -247,7 +247,7 @@ test("Heat.getReport generates markdown report", async ({ pass, fail }) => {
 
 test("Heat calculates portfolio-wide metrics", async ({ pass, fail }) => {
 
-  addExchange({
+  addExchangeSchema({
     exchangeName: "binance-mock-heat-4",
     getCandles: async (_symbol, interval, since, limit) => {
       return await getMockCandles(interval, since, limit);
@@ -260,7 +260,7 @@ test("Heat calculates portfolio-wide metrics", async ({ pass, fail }) => {
     },
   });
 
-  addStrategy({
+  addStrategySchema({
     strategyName: "test-strategy-heat-4",
     interval: "1m",
     getSignal: async () => {
@@ -276,7 +276,7 @@ test("Heat calculates portfolio-wide metrics", async ({ pass, fail }) => {
     },
   });
 
-  addFrame({
+  addFrameSchema({
     frameName: "1d-backtest-heat-4",
     interval: "1d",
     startDate: new Date("2024-01-01T00:00:00Z"),
@@ -331,7 +331,7 @@ test("Heat calculates portfolio-wide metrics", async ({ pass, fail }) => {
 
 test("Heat calculates extended metrics correctly", async ({ pass, fail }) => {
 
-  addExchange({
+  addExchangeSchema({
     exchangeName: "binance-mock-heat-extended",
     getCandles: async (_symbol, interval, since, limit) => {
       return await getMockCandles(interval, since, limit);
@@ -344,7 +344,7 @@ test("Heat calculates extended metrics correctly", async ({ pass, fail }) => {
     },
   });
 
-  addStrategy({
+  addStrategySchema({
     strategyName: "test-strategy-heat-extended",
     interval: "1m",
     getSignal: async () => {
@@ -360,7 +360,7 @@ test("Heat calculates extended metrics correctly", async ({ pass, fail }) => {
     },
   });
 
-  addFrame({
+  addFrameSchema({
     frameName: "1d-backtest-heat-extended",
     interval: "1d",
     startDate: new Date("2024-01-01T00:00:00Z"),
@@ -402,7 +402,7 @@ test("Heat calculates extended metrics correctly", async ({ pass, fail }) => {
 
 test("Heat sorts symbols by Sharpe Ratio descending", async ({ pass, fail }) => {
 
-  addExchange({
+  addExchangeSchema({
     exchangeName: "binance-mock-heat-6",
     getCandles: async (_symbol, interval, since, limit) => {
       return await getMockCandles(interval, since, limit);
@@ -415,7 +415,7 @@ test("Heat sorts symbols by Sharpe Ratio descending", async ({ pass, fail }) => 
     },
   });
 
-  addStrategy({
+  addStrategySchema({
     strategyName: "test-strategy-heat-6",
     interval: "1m",
     getSignal: async () => {
@@ -431,7 +431,7 @@ test("Heat sorts symbols by Sharpe Ratio descending", async ({ pass, fail }) => 
     },
   });
 
-  addFrame({
+  addFrameSchema({
     frameName: "1d-backtest-heat-6",
     interval: "1d",
     startDate: new Date("2024-01-01T00:00:00Z"),

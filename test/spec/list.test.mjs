@@ -1,14 +1,14 @@
 import { test } from "worker-testbed";
 
 import {
-  addExchange,
-  addFrame,
-  addStrategy,
-  addSizing,
-  listExchanges,
-  listFrames,
-  listStrategies,
-  listSizings,
+  addExchangeSchema,
+  addFrameSchema,
+  addStrategySchema,
+  addSizingSchema,
+  listExchangeSchema,
+  listFrameSchema,
+  listStrategySchema,
+  listSizingSchema,
   getAveragePrice,
 } from "../../build/index.mjs";
 
@@ -16,7 +16,7 @@ import getMockCandles from "../mock/getMockCandles.mjs";
 
 test("listExchanges returns all registered exchanges", async ({ pass, fail }) => {
 
-  addExchange({
+  addExchangeSchema({
     exchangeName: "binance-list-test-1",
     note: "First test exchange",
     getCandles: async (_symbol, interval, since, limit) => {
@@ -30,7 +30,7 @@ test("listExchanges returns all registered exchanges", async ({ pass, fail }) =>
     },
   });
 
-  addExchange({
+  addExchangeSchema({
     exchangeName: "binance-list-test-2",
     note: "Second test exchange",
     getCandles: async (_symbol, interval, since, limit) => {
@@ -44,7 +44,7 @@ test("listExchanges returns all registered exchanges", async ({ pass, fail }) =>
     },
   });
 
-  const exchanges = await listExchanges();
+  const exchanges = await listExchangeSchema();
 
   const testExchanges = exchanges.filter(e =>
     e.exchangeName.startsWith("binance-list-test")
@@ -74,7 +74,7 @@ test("listExchanges returns all registered exchanges", async ({ pass, fail }) =>
 
 test("listStrategies returns all registered strategies", async ({ pass, fail }) => {
 
-  addStrategy({
+  addStrategySchema({
     strategyName: "test-strategy-list-1",
     note: "First test strategy for list",
     interval: "1m",
@@ -91,7 +91,7 @@ test("listStrategies returns all registered strategies", async ({ pass, fail }) 
     },
   });
 
-  addStrategy({
+  addStrategySchema({
     strategyName: "test-strategy-list-2",
     note: "Second test strategy for list",
     interval: "5m",
@@ -108,7 +108,7 @@ test("listStrategies returns all registered strategies", async ({ pass, fail }) 
     },
   });
 
-  const strategies = await listStrategies();
+  const strategies = await listStrategySchema();
 
   const testStrategies = strategies.filter(s =>
     s.strategyName.startsWith("test-strategy-list")
@@ -151,7 +151,7 @@ test("listStrategies returns all registered strategies", async ({ pass, fail }) 
 
 test("listFrames returns all registered frames", async ({ pass, fail }) => {
 
-  addFrame({
+  addFrameSchema({
     frameName: "1d-backtest-list-1",
     note: "First test frame for list",
     interval: "1d",
@@ -159,7 +159,7 @@ test("listFrames returns all registered frames", async ({ pass, fail }) => {
     endDate: new Date("2024-01-02T00:00:00Z"),
   });
 
-  addFrame({
+  addFrameSchema({
     frameName: "1d-backtest-list-2",
     note: "Second test frame for list",
     interval: "1h",
@@ -167,7 +167,7 @@ test("listFrames returns all registered frames", async ({ pass, fail }) => {
     endDate: new Date("2024-02-02T00:00:00Z"),
   });
 
-  const frames = await listFrames();
+  const frames = await listFrameSchema();
 
   const testFrames = frames.filter(f =>
     f.frameName.startsWith("1d-backtest-list")
@@ -214,9 +214,9 @@ test("list functions return empty arrays when nothing registered", async ({ pass
   // This test relies on the fact that we're using unique names for test items
   // So items registered in other tests won't interfere
 
-  const exchanges = await listExchanges();
-  const strategies = await listStrategies();
-  const frames = await listFrames();
+  const exchanges = await listExchangeSchema();
+  const strategies = await listStrategySchema();
+  const frames = await listFrameSchema();
 
   // Check that they return arrays (not null/undefined)
   const allArrays =
@@ -237,7 +237,7 @@ test("listExchanges includes note field when provided", async ({ pass, fail }) =
 
   const testNote = "Exchange with detailed note for testing";
 
-  addExchange({
+  addExchangeSchema({
     exchangeName: "binance-note-test",
     note: testNote,
     getCandles: async (_symbol, interval, since, limit) => {
@@ -251,7 +251,7 @@ test("listExchanges includes note field when provided", async ({ pass, fail }) =
     },
   });
 
-  const exchanges = await listExchanges();
+  const exchanges = await listExchangeSchema();
   const testExchange = exchanges.find(e => e.exchangeName === "binance-note-test");
 
   if (testExchange && testExchange.note === testNote) {
@@ -272,7 +272,7 @@ test("listStrategies includes note field when provided", async ({ pass, fail }) 
 
   const testNote = "Strategy with detailed note for testing";
 
-  addStrategy({
+  addStrategySchema({
     strategyName: "test-strategy-note",
     note: testNote,
     interval: "1m",
@@ -288,7 +288,7 @@ test("listStrategies includes note field when provided", async ({ pass, fail }) 
     },
   });
 
-  const strategies = await listStrategies();
+  const strategies = await listStrategySchema();
   const testStrategy = strategies.find(s => s.strategyName === "test-strategy-note");
 
   if (testStrategy && testStrategy.note === testNote) {
@@ -309,7 +309,7 @@ test("listFrames includes note field when provided", async ({ pass, fail }) => {
 
   const testNote = "Frame with detailed note for testing";
 
-  addFrame({
+  addFrameSchema({
     frameName: "1d-backtest-note",
     note: testNote,
     interval: "1d",
@@ -317,7 +317,7 @@ test("listFrames includes note field when provided", async ({ pass, fail }) => {
     endDate: new Date("2024-03-02T00:00:00Z"),
   });
 
-  const frames = await listFrames();
+  const frames = await listFrameSchema();
   const testFrame = frames.find(f => f.frameName === "1d-backtest-note");
 
   if (testFrame && testFrame.note === testNote) {
@@ -336,7 +336,7 @@ test("listFrames includes note field when provided", async ({ pass, fail }) => {
 
 test("listStrategies includes callbacks when provided", async ({ pass, fail }) => {
 
-  addStrategy({
+  addStrategySchema({
     strategyName: "test-strategy-with-callbacks",
     note: "Strategy with callbacks for testing",
     interval: "1m",
@@ -356,7 +356,7 @@ test("listStrategies includes callbacks when provided", async ({ pass, fail }) =
     },
   });
 
-  const strategies = await listStrategies();
+  const strategies = await listStrategySchema();
   const testStrategy = strategies.find(s => s.strategyName === "test-strategy-with-callbacks");
 
   if (!testStrategy) {
@@ -380,7 +380,7 @@ test("listStrategies includes callbacks when provided", async ({ pass, fail }) =
 
 test("listFrames includes callbacks when provided", async ({ pass, fail }) => {
 
-  addFrame({
+  addFrameSchema({
     frameName: "1d-backtest-with-callbacks",
     note: "Frame with callbacks for testing",
     interval: "1d",
@@ -391,7 +391,7 @@ test("listFrames includes callbacks when provided", async ({ pass, fail }) => {
     },
   });
 
-  const frames = await listFrames();
+  const frames = await listFrameSchema();
   const testFrame = frames.find(f => f.frameName === "1d-backtest-with-callbacks");
 
   if (!testFrame) {
@@ -414,21 +414,21 @@ test("listFrames includes callbacks when provided", async ({ pass, fail }) => {
 
 test("listSizings returns all registered sizing schemas", async ({ pass, fail }) => {
 
-  addSizing({
+  addSizingSchema({
     sizingName: "test-sizing-list-1",
     note: "First test sizing for list",
     method: "fixed-percentage",
     riskPercentage: 2,
   });
 
-  addSizing({
+  addSizingSchema({
     sizingName: "test-sizing-list-2",
     note: "Second test sizing for list",
     method: "kelly-criterion",
     kellyMultiplier: 0.25,
   });
 
-  addSizing({
+  addSizingSchema({
     sizingName: "test-sizing-list-3",
     note: "Third test sizing for list",
     method: "atr-based",
@@ -436,7 +436,7 @@ test("listSizings returns all registered sizing schemas", async ({ pass, fail })
     atrMultiplier: 2,
   });
 
-  const sizings = await listSizings();
+  const sizings = await listSizingSchema();
 
   const testSizings = sizings.filter(s =>
     s.sizingName.startsWith("test-sizing-list")
@@ -479,7 +479,7 @@ test("listSizings returns all registered sizing schemas", async ({ pass, fail })
 
 test("listSizings includes callbacks when provided", async ({ pass, fail }) => {
 
-  addSizing({
+  addSizingSchema({
     sizingName: "test-sizing-with-callbacks",
     note: "Sizing with callbacks for testing",
     method: "fixed-percentage",
@@ -489,7 +489,7 @@ test("listSizings includes callbacks when provided", async ({ pass, fail }) => {
     },
   });
 
-  const sizings = await listSizings();
+  const sizings = await listSizingSchema();
   const testSizing = sizings.find(s => s.sizingName === "test-sizing-with-callbacks");
 
   if (!testSizing) {

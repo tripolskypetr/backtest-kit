@@ -5,7 +5,7 @@ group: docs
 
 # IActionSchema
 
-Action schema registered via addAction().
+Action schema registered via addActionSchema().
 Defines event handler implementation and lifecycle callbacks for state management integration.
 
 Actions provide a way to attach custom event handlers to strategies for:
@@ -27,6 +27,14 @@ actionName: string
 ```
 
 Unique action identifier for registration
+
+### note
+
+```ts
+note: string
+```
+
+Optional developer note for documentation
 
 ### handler
 

@@ -6,7 +6,7 @@ group: docs
 # TActionCtor
 
 ```ts
-type TActionCtor = new (strategyName: StrategyName, frameName: FrameName, actionName: ActionName) => Partial<IPublicAction>;
+type TActionCtor = new (strategyName: StrategyName, frameName: FrameName, actionName: ActionName, backtest: boolean) => Partial<IPublicAction>;
 ```
 
 Constructor type for action handlers with strategy context.

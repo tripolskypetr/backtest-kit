@@ -137,50 +137,62 @@ Routes signal event from backtest to all registered actions.
 Retrieves action list from strategy schema (IStrategySchema.actions)
 and invokes the signalBacktest handler on each ClientAction instance sequentially.
 
-### breakeven
+### breakevenAvailable
 
 ```ts
-breakeven: (backtest: boolean, event: BreakevenContract, context: { strategyName: string; exchangeName: string; frameName: string; }) => Promise<void>
+breakevenAvailable: (backtest: boolean, event: BreakevenContract, context: { strategyName: string; exchangeName: string; frameName: string; }) => Promise<void>
 ```
 
 Routes breakeven event to all registered actions for the strategy.
 
 Retrieves action list from strategy schema (IStrategySchema.actions)
-and invokes the breakeven handler on each ClientAction instance sequentially.
+and invokes the breakevenAvailable handler on each ClientAction instance sequentially.
 
-### partialProfit
+### partialProfitAvailable
 
 ```ts
-partialProfit: (backtest: boolean, event: PartialProfitContract, context: { strategyName: string; exchangeName: string; frameName: string; }) => Promise<void>
+partialProfitAvailable: (backtest: boolean, event: PartialProfitContract, context: { strategyName: string; exchangeName: string; frameName: string; }) => Promise<void>
 ```
 
 Routes partial profit event to all registered actions for the strategy.
 
 Retrieves action list from strategy schema (IStrategySchema.actions)
-and invokes the partialProfit handler on each ClientAction instance sequentially.
+and invokes the partialProfitAvailable handler on each ClientAction instance sequentially.
 
-### partialLoss
+### partialLossAvailable
 
 ```ts
-partialLoss: (backtest: boolean, event: PartialLossContract, context: { strategyName: string; exchangeName: string; frameName: string; }) => Promise<void>
+partialLossAvailable: (backtest: boolean, event: PartialLossContract, context: { strategyName: string; exchangeName: string; frameName: string; }) => Promise<void>
 ```
 
 Routes partial loss event to all registered actions for the strategy.
 
 Retrieves action list from strategy schema (IStrategySchema.actions)
-and invokes the partialLoss handler on each ClientAction instance sequentially.
+and invokes the partialLossAvailable handler on each ClientAction instance sequentially.
 
-### ping
+### pingScheduled
 
 ```ts
-ping: (backtest: boolean, event: PingContract, context: { strategyName: string; exchangeName: string; frameName: string; }) => Promise<void>
+pingScheduled: (backtest: boolean, event: SchedulePingContract, context: { strategyName: string; exchangeName: string; frameName: string; }) => Promise<void>
 ```
 
-Routes ping event to all registered actions for the strategy.
+Routes scheduled ping event to all registered actions for the strategy.
 
 Retrieves action list from strategy schema (IStrategySchema.actions)
-and invokes the ping handler on each ClientAction instance sequentially.
+and invokes the pingScheduled handler on each ClientAction instance sequentially.
 Called every minute during scheduled signal monitoring.
+
+### pingActive
+
+```ts
+pingActive: (backtest: boolean, event: ActivePingContract, context: { strategyName: string; exchangeName: string; frameName: string; }) => Promise<void>
+```
+
+Routes active ping event to all registered actions for the strategy.
+
+Retrieves action list from strategy schema (IStrategySchema.actions)
+and invokes the pingActive handler on each ClientAction instance sequentially.
+Called every minute during active pending signal monitoring.
 
 ### riskRejection
 

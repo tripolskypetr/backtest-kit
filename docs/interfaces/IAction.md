@@ -54,10 +54,10 @@ Emitted by: StrategyConnectionService via signalBacktestEmitter
 Source: StrategyConnectionService.backtest() when backtest=true
 Frequency: Every candle in backtest mode
 
-### breakeven
+### breakevenAvailable
 
 ```ts
-breakeven: (event: BreakevenContract) => void | Promise<void>
+breakevenAvailable: (event: BreakevenContract) => void | Promise<void>
 ```
 
 Handles breakeven events when stop-loss is moved to entry price.
@@ -66,10 +66,10 @@ Emitted by: BreakevenConnectionService via breakevenSubject
 Source: COMMIT_BREAKEVEN_FN callback in BreakevenConnectionService
 Frequency: Once per signal when breakeven threshold is reached
 
-### partialProfit
+### partialProfitAvailable
 
 ```ts
-partialProfit: (event: PartialProfitContract) => void | Promise<void>
+partialProfitAvailable: (event: PartialProfitContract) => void | Promise<void>
 ```
 
 Handles partial profit level events (10%, 20%, 30%, etc).
@@ -78,10 +78,10 @@ Emitted by: PartialConnectionService via partialProfitSubject
 Source: COMMIT_PROFIT_FN callback in PartialConnectionService
 Frequency: Once per profit level per signal (deduplicated)
 
-### partialLoss
+### partialLossAvailable
 
 ```ts
-partialLoss: (event: PartialLossContract) => void | Promise<void>
+partialLossAvailable: (event: PartialLossContract) => void | Promise<void>
 ```
 
 Handles partial loss level events (-10%, -20%, -30%, etc).
@@ -90,17 +90,29 @@ Emitted by: PartialConnectionService via partialLossSubject
 Source: COMMIT_LOSS_FN callback in PartialConnectionService
 Frequency: Once per loss level per signal (deduplicated)
 
-### ping
+### pingScheduled
 
 ```ts
-ping: (event: PingContract) => void | Promise<void>
+pingScheduled: (event: SchedulePingContract) => void | Promise<void>
 ```
 
-Handles ping events during scheduled signal monitoring.
+Handles scheduled ping events during scheduled signal monitoring.
 
-Emitted by: StrategyConnectionService via pingSubject
-Source: COMMIT_PING_FN callback in StrategyConnectionService
+Emitted by: StrategyConnectionService via schedulePingSubject
+Source: CREATE_COMMIT_SCHEDULE_PING_FN callback in StrategyConnectionService
 Frequency: Every minute while scheduled signal is waiting for activation
+
+### pingActive
+
+```ts
+pingActive: (event: ActivePingContract) => void | Promise<void>
+```
+
+Handles active ping events during active pending signal monitoring.
+
+Emitted by: StrategyConnectionService via activePingSubject
+Source: CREATE_COMMIT_ACTIVE_PING_FN callback in StrategyConnectionService
+Frequency: Every minute while pending signal is active
 
 ### riskRejection
 
