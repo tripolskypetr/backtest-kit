@@ -79,7 +79,13 @@ export class SignalPromptService {
     frameName: FrameName,
     backtest: boolean
   ) => {
-    this.loggerService.log("signalPromptService getSystemPrompt");
+    this.loggerService.log("signalPromptService getSystemPrompt", {
+      symbol,
+      strategyName,
+      exchangeName,
+      frameName,
+      backtest,
+    });
     const { system } = GET_PROMPT_FN();
     if (Array.isArray(system)) {
       return system;
@@ -107,7 +113,13 @@ export class SignalPromptService {
     frameName: FrameName,
     backtest: boolean
   ) => {
-    this.loggerService.log("signalPromptService getUserPrompt");
+    this.loggerService.log("signalPromptService getUserPrompt", {
+      symbol,
+      strategyName,
+      exchangeName,
+      frameName,
+      backtest,
+    });
     const { user } = GET_PROMPT_FN();
     if (typeof user === "string") {
       return user;

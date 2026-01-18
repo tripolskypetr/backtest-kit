@@ -81,7 +81,13 @@ export class PartialProfitPromptService {
     frameName: FrameName,
     backtest: boolean
   ) => {
-    this.loggerService.log("[PartialProfitPromptService] getSystemPrompt");
+    this.loggerService.log("partialProfitPromptService getSystemPrompt", {
+      symbol,
+      strategyName,
+      exchangeName,
+      frameName,
+      backtest,
+    });
     const { system } = GET_PROMPT_FN();
     if (Array.isArray(system)) {
       return system;
@@ -109,7 +115,13 @@ export class PartialProfitPromptService {
     frameName: FrameName,
     backtest: boolean
   ) => {
-    this.loggerService.log("[PartialProfitPromptService] getUserPrompt");
+    this.loggerService.log("partialProfitPromptService getUserPrompt", {
+      symbol,
+      strategyName,
+      exchangeName,
+      frameName,
+      backtest,
+    });
     const { user } = GET_PROMPT_FN();
     if (typeof user === "string") {
       return user;

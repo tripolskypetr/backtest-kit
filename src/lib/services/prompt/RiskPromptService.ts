@@ -81,7 +81,13 @@ export class RiskPromptService {
     frameName: FrameName,
     backtest: boolean
   ) => {
-    this.loggerService.log("[RiskPromptService] getSystemPrompt");
+    this.loggerService.log("riskPromptService getSystemPrompt", {
+      symbol,
+      strategyName,
+      exchangeName,
+      frameName,
+      backtest,
+    });
     const { system } = GET_PROMPT_FN();
     if (Array.isArray(system)) {
       return system;
@@ -109,7 +115,13 @@ export class RiskPromptService {
     frameName: FrameName,
     backtest: boolean
   ) => {
-    this.loggerService.log("[RiskPromptService] getUserPrompt");
+    this.loggerService.log("riskPromptService getUserPrompt", {
+      symbol,
+      strategyName,
+      exchangeName,
+      frameName,
+      backtest,
+    });
     const { user } = GET_PROMPT_FN();
     if (typeof user === "string") {
       return user;

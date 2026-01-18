@@ -81,7 +81,13 @@ export class ScheduleCancelPromptService {
     frameName: FrameName,
     backtest: boolean
   ) => {
-    this.loggerService.log("[ScheduleCancelPromptService] getSystemPrompt");
+    this.loggerService.log("scheduleCancelPromptService getSystemPrompt", {
+      symbol,
+      strategyName,
+      exchangeName,
+      frameName,
+      backtest,
+    });
     const { system } = GET_PROMPT_FN();
     if (Array.isArray(system)) {
       return system;
@@ -109,7 +115,13 @@ export class ScheduleCancelPromptService {
     frameName: FrameName,
     backtest: boolean
   ) => {
-    this.loggerService.log("[ScheduleCancelPromptService] getUserPrompt");
+    this.loggerService.log("scheduleCancelPromptService getUserPrompt", {
+      symbol,
+      strategyName,
+      exchangeName,
+      frameName,
+      backtest,
+    });
     const { user } = GET_PROMPT_FN();
     if (typeof user === "string") {
       return user;

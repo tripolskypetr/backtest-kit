@@ -80,7 +80,13 @@ export class TrailingStopPromptService {
     frameName: FrameName,
     backtest: boolean
   ) => {
-    this.loggerService.log("[TrailingStopPromptService] getSystemPrompt");
+    this.loggerService.log("trailingStopPromptService getSystemPrompt", {
+      symbol,
+      strategyName,
+      exchangeName,
+      frameName,
+      backtest,
+    });
     const { system } = GET_PROMPT_FN();
     if (Array.isArray(system)) {
       return system;
@@ -108,7 +114,13 @@ export class TrailingStopPromptService {
     frameName: FrameName,
     backtest: boolean
   ) => {
-    this.loggerService.log("[TrailingStopPromptService] getUserPrompt");
+    this.loggerService.log("trailingStopPromptService getUserPrompt", {
+      symbol,
+      strategyName,
+      exchangeName,
+      frameName,
+      backtest,
+    });
     const { user } = GET_PROMPT_FN();
     if (typeof user === "string") {
       return user;

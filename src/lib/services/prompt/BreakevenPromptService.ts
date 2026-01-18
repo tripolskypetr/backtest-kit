@@ -81,7 +81,13 @@ export class BreakevenPromptService {
     frameName: FrameName,
     backtest: boolean
   ) => {
-    this.loggerService.log("[BreakevenPromptService] getSystemPrompt");
+    this.loggerService.log("breakevenPromptService getSystemPrompt", {
+      symbol,
+      strategyName,
+      exchangeName,
+      frameName,
+      backtest,
+    });
     const { system } = GET_PROMPT_FN();
     if (Array.isArray(system)) {
       return system;
@@ -109,7 +115,13 @@ export class BreakevenPromptService {
     frameName: FrameName,
     backtest: boolean
   ) => {
-    this.loggerService.log("[BreakevenPromptService] getUserPrompt");
+    this.loggerService.log("breakevenPromptService getUserPrompt", {
+      symbol,
+      strategyName,
+      exchangeName,
+      frameName,
+      backtest,
+    });
     const { user } = GET_PROMPT_FN();
     if (typeof user === "string") {
       return user;

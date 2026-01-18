@@ -81,7 +81,13 @@ export class PartialLossPromptService {
     frameName: FrameName,
     backtest: boolean
   ) => {
-    this.loggerService.log("[PartialLossPromptService] getSystemPrompt");
+    this.loggerService.log("partialLossPromptService getSystemPrompt", {
+      symbol,
+      strategyName,
+      exchangeName,
+      frameName,
+      backtest,
+    });
     const { system } = GET_PROMPT_FN();
     if (Array.isArray(system)) {
       return system;
@@ -109,7 +115,13 @@ export class PartialLossPromptService {
     frameName: FrameName,
     backtest: boolean
   ) => {
-    this.loggerService.log("[PartialLossPromptService] getUserPrompt");
+    this.loggerService.log("partialLossPromptService getUserPrompt", {
+      symbol,
+      strategyName,
+      exchangeName,
+      frameName,
+      backtest,
+    });
     const { user } = GET_PROMPT_FN();
     if (typeof user === "string") {
       return user;

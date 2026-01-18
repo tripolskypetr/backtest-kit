@@ -80,7 +80,13 @@ export class TrailingTakePromptService {
     frameName: FrameName,
     backtest: boolean
   ) => {
-    this.loggerService.log("[TrailingTakePromptService] getSystemPrompt");
+    this.loggerService.log("trailingTakePromptService getSystemPrompt", {
+      symbol,
+      strategyName,
+      exchangeName,
+      frameName,
+      backtest,
+    });
     const { system } = GET_PROMPT_FN();
     if (Array.isArray(system)) {
       return system;
@@ -108,7 +114,13 @@ export class TrailingTakePromptService {
     frameName: FrameName,
     backtest: boolean
   ) => {
-    this.loggerService.log("[TrailingTakePromptService] getUserPrompt");
+    this.loggerService.log("trailingTakePromptService getUserPrompt", {
+      symbol,
+      strategyName,
+      exchangeName,
+      frameName,
+      backtest,
+    });
     const { user } = GET_PROMPT_FN();
     if (typeof user === "string") {
       return user;
