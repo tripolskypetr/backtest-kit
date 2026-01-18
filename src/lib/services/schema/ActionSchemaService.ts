@@ -7,7 +7,7 @@ import {
 import { inject } from "../../../lib/core/di";
 import LoggerService from "../base/LoggerService";
 import TYPES from "../../../lib/core/types";
-import { isObject, str, ToolRegistry } from "functools-kit";
+import { isObject, str, ToolRegistry, typo } from "functools-kit";
 
 /**
  * Type alias for valid public action method names.
@@ -173,9 +173,9 @@ const VALIDATE_CLASS_METHODS = (
       ];
 
       if (suggestions.length > 0) {
-        lines.push("");
+        lines.push(typo.nbsp);
         lines.push(`Do you mean: ${suggestions.join(", ")}?`);
-        lines.push("");
+        lines.push(typo.nbsp);
       }
 
       lines.push(`If you want to keep this property name use one of these patterns: _${methodName} or #${methodName}`);
@@ -225,9 +225,9 @@ const VALIDATE_OBJECT_METHODS = (
       ];
 
       if (suggestions.length > 0) {
-        lines.push("");
+        lines.push(typo.nbsp);
         lines.push(`Do you mean: ${suggestions.join(", ")}?`);
-        lines.push("");
+        lines.push(typo.nbsp);
       }
 
       lines.push(`If you want to keep this property name use one of these patterns: _${methodName} or #${methodName}`);
