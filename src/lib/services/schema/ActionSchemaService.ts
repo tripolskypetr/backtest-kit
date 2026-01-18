@@ -31,9 +31,12 @@ const VALIDATE_CLASS_METHODS = (
   self: ActionSchemaService,
 ) => {
   // Get all method names from prototype (for classes)
+  // Note: Private fields with # are not visible via Object.getOwnPropertyNames()
+  // and don't need validation as they're truly private and inaccessible
   const prototypeProps = Object.getOwnPropertyNames(handler.prototype);
 
   for (const methodName of prototypeProps) {
+    // Skip constructor and conventionally private methods (starting with _)
     if (methodName === "constructor" || methodName.startsWith("_")) {
       continue;
     }
@@ -48,7 +51,7 @@ const VALIDATE_CLASS_METHODS = (
       const msg = str.newline(
         `ActionSchema ${actionName} contains invalid method "${methodName}". `,
         `Valid methods are: ${VALID_METHOD_NAMES.join(", ")}`,
-        `If you want to keep this property name it following the next patterm: _${methodName}`,
+        `If you want to keep this property name use one of these patterns: _${methodName} or #${methodName}`,
       );
       self.loggerService.log(`actionValidationService exception thrown`, {
         msg,
@@ -79,7 +82,7 @@ const VALIDATE_OBJECT_METHODS = (
       const msg = str.newline(
         `ActionSchema ${actionName} contains invalid method "${methodName}". `,
         `Valid methods are: ${VALID_METHOD_NAMES.join(", ")}`,
-        `If you want to keep this property name it following the next patterm: _${methodName}`,
+        `If you want to keep this property name use one of these patterns: _${methodName} or #${methodName}`,
       );
       self.loggerService.log(`actionValidationService exception thrown`, {
         msg,
