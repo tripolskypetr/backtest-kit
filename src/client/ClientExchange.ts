@@ -248,7 +248,7 @@ export class ClientExchange implements IExchange {
     });
 
     const step = INTERVAL_MINUTES[interval];
-    const adjust = step * limit - step;
+    const adjust = step * limit;
 
     if (!adjust) {
       throw new Error(
@@ -292,10 +292,11 @@ export class ClientExchange implements IExchange {
     // Filter candles to strictly match the requested range
     const whenTimestamp = this.params.execution.context.when.getTime();
     const sinceTimestamp = since.getTime();
+    const stepMs = step * 60 * 1_000;
 
     const filteredData = allData.filter(
       (candle) =>
-        candle.timestamp >= sinceTimestamp && candle.timestamp <= whenTimestamp
+        candle.timestamp >= sinceTimestamp && candle.timestamp < whenTimestamp + stepMs
     );
 
     // Apply distinct by timestamp to remove duplicates
@@ -394,7 +395,7 @@ export class ClientExchange implements IExchange {
 
     const filteredData = allData.filter(
       (candle) =>
-        candle.timestamp >= sinceTimestamp && candle.timestamp <= endTime
+        candle.timestamp >= sinceTimestamp && candle.timestamp < endTime
     );
 
     // Apply distinct by timestamp to remove duplicates
@@ -403,15 +404,16 @@ export class ClientExchange implements IExchange {
     );
 
     if (filteredData.length !== uniqueData.length) {
-      this.params.logger.warn(
-        `ClientExchange getNextCandles: Removed ${filteredData.length - uniqueData.length} duplicate candles by timestamp`
-      );
+      const msg =
+        `ClientExchange getNextCandles: Removed ${filteredData.length - uniqueData.length} duplicate candles by timestamp`;
+      this.params.logger.warn(msg);
+      console.warn(msg);
     }
 
     if (uniqueData.length < limit) {
-      this.params.logger.warn(
-        `ClientExchange getNextCandles: Expected ${limit} candles, got ${uniqueData.length}`
-      );
+      const msg = `ClientExchange getNextCandles: Expected ${limit} candles, got ${uniqueData.length}`;
+      this.params.logger.warn(msg);
+      console.warn(msg)
     }
 
     await CALL_CANDLE_DATA_CALLBACKS_FN(

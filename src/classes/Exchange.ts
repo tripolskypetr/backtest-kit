@@ -171,7 +171,7 @@ export class ExchangeInstance {
     const getCandles = this._methods.getCandles;
 
     const step = INTERVAL_MINUTES[interval];
-    const adjust = step * limit - step;
+    const adjust = step * limit;
 
     if (!adjust) {
       throw new Error(
@@ -216,12 +216,13 @@ export class ExchangeInstance {
     }
 
     // Filter candles to strictly match the requested range
-    const whenTimestamp = when.getTime();
     const sinceTimestamp = since.getTime();
+    const whenTimestamp = when.getTime();
+    const stepMs = step * 60 * 1_000;
 
     const filteredData = allData.filter(
       (candle) =>
-        candle.timestamp >= sinceTimestamp && candle.timestamp <= whenTimestamp
+        candle.timestamp >= sinceTimestamp && candle.timestamp < whenTimestamp + stepMs
     );
 
     // Apply distinct by timestamp to remove duplicates
