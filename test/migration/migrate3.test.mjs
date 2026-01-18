@@ -38,6 +38,7 @@ test("SEQUENCE: 5 signals with mixed results (TP, SL, cancelled, TP, SL) - VWAP-
   const bufferMinutes = 4;
   const bufferStartTime = startTime - bufferMinutes * intervalMs;
   const priceOpen = basePrice - 500; // НИЖЕ текущей цены для LONG → scheduled
+  const priceStopLoss = priceOpen - 1000; // 93500
 
   let allCandles = [];
 
@@ -71,6 +72,7 @@ test("SEQUENCE: 5 signals with mixed results (TP, SL, cancelled, TP, SL) - VWAP-
     interval: "1m",
     getSignal: async () => {
       signalCount++;
+      console.log(`[TEST1] getSignal called, signalCount=${signalCount}`);
       if (signalCount > 5) return null;
 
       // Генерируем свечи только в первый раз
@@ -89,7 +91,7 @@ test("SEQUENCE: 5 signals with mixed results (TP, SL, cancelled, TP, SL) - VWAP-
           });
         }
 
-        for (let i = 0; i < 180; i++) {
+        for (let i = 0; i < 250; i++) {
           const timestamp = startTime + i * intervalMs;
 
           // Сигнал #1: TP (минуты 0-9: ожидание, 10-14: активация, 15-19: TP)
@@ -107,21 +109,11 @@ test("SEQUENCE: 5 signals with mixed results (TP, SL, cancelled, TP, SL) - VWAP-
           } else if (i >= 30 && i < 35) {
             allCandles.push({ timestamp, open: priceOpen, high: priceOpen + 100, low: priceOpen - 100, close: priceOpen, volume: 100 });
           } else if (i >= 35 && i < 40) {
-            allCandles.push({ timestamp, open: priceOpen - 1000, high: priceOpen - 900, low: priceOpen - 1100, close: priceOpen - 1000, volume: 100 });
+            allCandles.push({ timestamp, open: priceOpen - 1600, high: priceOpen - 1500, low: priceOpen - 1700, close: priceOpen - 1600, volume: 100 });
           }
 
-          // Восстановление цены после SL (минуты 40-49: цена возвращается ВЫШЕ basePrice для VWAP)
-          else if (i >= 40 && i < 50) {
-            allCandles.push({ timestamp, open: basePrice + 500, high: basePrice + 600, low: basePrice + 400, close: basePrice + 500, volume: 100 });
-          }
-
-          // Сигнал #3: Cancelled (минуты 50-54: цена уходит вниз, отмена по SL до активации)
-          else if (i >= 50 && i < 55) {
-            allCandles.push({ timestamp, open: priceOpen - 1500, high: priceOpen - 1400, low: priceOpen - 1600, close: priceOpen - 1500, volume: 100 });
-          }
-
-          // Восстановление цены после cancelled (минуты 55-59: цена возвращается ВЫШЕ basePrice)
-          else if (i >= 55 && i < 60) {
+          // Сигнал #3: Cancelled (минуты 40-59: цена остается выше priceOpen, истекает время)
+          else if (i >= 40 && i < 60) {
             allCandles.push({ timestamp, open: basePrice + 500, high: basePrice + 600, low: basePrice + 400, close: basePrice + 500, volume: 100 });
           }
 
@@ -140,7 +132,7 @@ test("SEQUENCE: 5 signals with mixed results (TP, SL, cancelled, TP, SL) - VWAP-
           } else if (i >= 90 && i < 95) {
             allCandles.push({ timestamp, open: priceOpen, high: priceOpen + 100, low: priceOpen - 100, close: priceOpen, volume: 100 });
           } else if (i >= 95 && i < 100) {
-            allCandles.push({ timestamp, open: priceOpen - 1000, high: priceOpen - 900, low: priceOpen - 1100, close: priceOpen - 1000, volume: 100 });
+            allCandles.push({ timestamp, open: priceOpen - 1600, high: priceOpen - 1500, low: priceOpen - 1700, close: priceOpen - 1600, volume: 100 });
           }
 
           // Восстановление цены после SL (минуты 100+: цена возвращается ВЫШЕ basePrice)
@@ -150,12 +142,15 @@ test("SEQUENCE: 5 signals with mixed results (TP, SL, cancelled, TP, SL) - VWAP-
         }
       }
 
+      // Adjust stop loss for later signals to avoid conflicts with price movements
+      const stopLossOffset = signalCount >= 3 ? 2500 : 1500;
+
       return {
         position: "long",
         note: `SEQUENCE: signal #${signalCount}`,
         priceOpen: priceOpen,
         priceTakeProfit: priceOpen + 1000,
-        priceStopLoss: priceOpen - 1000,
+        priceStopLoss: priceOpen - stopLossOffset,
         minuteEstimatedTime: 60,
       };
     },
@@ -179,7 +174,7 @@ test("SEQUENCE: 5 signals with mixed results (TP, SL, cancelled, TP, SL) - VWAP-
     frameName: "150m-sequence-5signals",
     interval: "1m",
     startDate: new Date("2024-01-01T00:00:00Z"),
-    endDate: new Date("2024-01-01T03:00:00Z"),  // Увеличиваем до 3 часов (180 минут)
+    endDate: new Date("2024-01-01T04:10:00Z"),  // 250 минут для всех сигналов
   });
 
   const awaitSubject = new Subject();
@@ -187,12 +182,14 @@ test("SEQUENCE: 5 signals with mixed results (TP, SL, cancelled, TP, SL) - VWAP-
 
   let errorCaught = null;
   const unsubscribeError = listenError((error) => {
+    console.log(`[TEST1] Error caught:`, error);
     errorCaught = error;
     awaitSubject.next();
   });
 
   const allSignalEvents = [];
   listenSignalBacktest((result) => {
+    console.log(`[TEST1] Signal event:`, result.action, result);
     allSignalEvents.push(result);
   });
 
@@ -274,6 +271,8 @@ test("EDGE: Multiple signals with different results (TP, SL, time_expired) - que
   const startTime = new Date("2024-01-01T00:00:00Z").getTime();
   const intervalMs = 60000;
   const basePrice = 95000;  // Базовая цена для теста
+  const bufferMinutes = 4;
+  const bufferStartTime = startTime - bufferMinutes * intervalMs;
 
   let allCandles = [];  // Будет заполнено в getSignal
 
@@ -292,8 +291,9 @@ test("EDGE: Multiple signals with different results (TP, SL, time_expired) - que
   addExchangeSchema({
     exchangeName: "binance-edge-multiple-signals",
     getCandles: async (_symbol, _interval, since, limit) => {
-      const sinceIndex = Math.floor((since.getTime() - startTime) / intervalMs);
+      const sinceIndex = Math.floor((since.getTime() - bufferStartTime) / intervalMs);
       const result = allCandles.slice(sinceIndex, sinceIndex + limit);
+      console.log(`[TEST2] getCandles: since=${new Date(since.getTime()).toISOString()}, limit=${limit}, sinceIndex=${sinceIndex}, result.length=${result.length}`);
       return result.length > 0 ? result : allCandles.slice(0, Math.min(limit, allCandles.length));
     },
     formatPrice: async (_symbol, p) => p.toFixed(8),
@@ -311,8 +311,20 @@ test("EDGE: Multiple signals with different results (TP, SL, time_expired) - que
 
       // КРИТИЧНО: Генерируем свечи только в первый раз
       if (signalCount === 1) {
-        // Очищаем начальные свечи и создаем полный набор на 90 минут
+        // Очищаем начальные свечи и создаем полный набор на 90 минут + буфер
         allCandles = [];
+
+        // Буферные свечи (4 минуты ДО startTime)
+        for (let i = 0; i < bufferMinutes; i++) {
+          allCandles.push({
+            timestamp: bufferStartTime + i * intervalMs,
+            open: basePrice + 500,
+            high: basePrice + 600,
+            low: basePrice + 400,
+            close: basePrice + 500,
+            volume: 100,
+          });
+        }
 
         for (let i = 0; i < 90; i++) {
           const timestamp = startTime + i * intervalMs;
@@ -332,13 +344,16 @@ test("EDGE: Multiple signals with different results (TP, SL, time_expired) - que
           } else if (i >= 30 && i < 35) {
             allCandles.push({ timestamp, open: basePrice - 500, high: basePrice - 400, low: basePrice - 600, close: basePrice - 500, volume: 100 });
           } else if (i >= 35 && i < 40) {
-            allCandles.push({ timestamp, open: basePrice - 1500, high: basePrice - 1400, low: basePrice - 1600, close: basePrice - 1500, volume: 100 });
+            allCandles.push({ timestamp, open: basePrice - 2200, high: basePrice - 2100, low: basePrice - 2300, close: basePrice - 2200, volume: 100 });
           }
 
-          // Сигнал #3: Минуты 40-49: выше priceOpen, 50-54: активация, 55+: стабильная цена (time_expired)
+          // Восстановление после SL (минуты 40-49: цена возвращается ВЫШЕ basePrice)
           else if (i >= 40 && i < 50) {
             allCandles.push({ timestamp, open: basePrice + 500, high: basePrice + 600, low: basePrice + 400, close: basePrice + 500, volume: 100 });
-          } else if (i >= 50 && i < 55) {
+          }
+
+          // Сигнал #3: Минуты 50-54: активация, 55+: стабильная цена (time_expired)
+          else if (i >= 50 && i < 55) {
             allCandles.push({ timestamp, open: basePrice - 500, high: basePrice - 400, low: basePrice - 600, close: basePrice - 500, volume: 100 });
           } else {
             allCandles.push({ timestamp, open: basePrice + 100, high: basePrice + 200, low: basePrice, close: basePrice + 100, volume: 100 });
@@ -346,13 +361,15 @@ test("EDGE: Multiple signals with different results (TP, SL, time_expired) - que
         }
       }
 
-      // Все сигналы на одном ценовом уровне
+      // Adjust stop loss for signal #3 to avoid conflicts with price movements after SL
+      const stopLossOffset = signalCount === 3 ? 2500 : 2000;
+
       return {
         position: "long",
         note: `EDGE: multiple signals test #${signalCount}`,
         priceOpen: basePrice - 500, // НИЖЕ текущей цены для LONG → scheduled
         priceTakeProfit: basePrice + 500,
-        priceStopLoss: basePrice - 1500,
+        priceStopLoss: basePrice - stopLossOffset,
         minuteEstimatedTime: signalCount === 3 ? 10 : 60,  // #3 истекает быстрее
       };
     },
@@ -382,8 +399,16 @@ test("EDGE: Multiple signals with different results (TP, SL, time_expired) - que
   const awaitSubject = new Subject();
   listenDoneBacktest(() => awaitSubject.next());
 
+  let errorCaught = null;
+  const unsubscribeError = listenError((error) => {
+    console.log(`[TEST2] Error caught:`, error);
+    errorCaught = error;
+    awaitSubject.next();
+  });
+
   const allSignalEvents = [];
   listenSignalBacktest((result) => {
+    console.log(`[TEST2] Signal event:`, result.action, result);
     allSignalEvents.push(result);
   });
 
@@ -395,13 +420,27 @@ test("EDGE: Multiple signals with different results (TP, SL, time_expired) - que
 
   await awaitSubject.toPromise();
   await sleep(1000);
+  unsubscribeError();
 
-  if (signalsResults.scheduled.length !== 2) {
-    fail(`Expected 2 scheduled signals, got ${signalsResults.scheduled.length}`);
+  console.log(`[TEST2] Results:`, {
+    scheduled: signalsResults.scheduled.length,
+    opened: signalsResults.opened.length,
+    closed: signalsResults.closed.length,
+    cancelled: signalsResults.cancelled.length,
+  });
+
+  if (errorCaught) {
+    fail(`Error during backtest: ${errorCaught.message || errorCaught}`);
     return;
   }
 
-  // Проверяем что сигналы открылись (с immediate activation может быть 3)
+  // С исправленной математикой все 3 сигнала должны быть scheduled
+  if (signalsResults.scheduled.length !== 3) {
+    fail(`Expected 3 scheduled signals, got ${signalsResults.scheduled.length}`);
+    return;
+  }
+
+  // Проверяем что все 3 сигнала открылись
   if (signalsResults.opened.length !== 3) {
     fail(`Expected 3 opened signals, got ${signalsResults.opened.length}`);
     return;
