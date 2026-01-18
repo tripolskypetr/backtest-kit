@@ -4,7 +4,7 @@ import { ActionBase, Constant, commitPartialProfit } from "backtest-kit";
  * Scale out at Kelly-optimized levels
  */
 export class PartialProfitTakingAction extends ActionBase {
-  async partialProfit({ symbol, level }) {
+  async partialProfitAvailable({ symbol, level }) {
     if (level === Constant.TP_LEVEL3) {
       await commitPartialProfit(symbol, 33);
     }
