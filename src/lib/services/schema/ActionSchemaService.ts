@@ -1,8 +1,93 @@
-import { ActionName, IActionSchema } from "../../../interfaces/Action.interface";
+import {
+  ActionName,
+  IActionSchema,
+  IPublicAction,
+  TActionCtor,
+} from "../../../interfaces/Action.interface";
 import { inject } from "../../../lib/core/di";
 import LoggerService from "../base/LoggerService";
 import TYPES from "../../../lib/core/types";
-import { isObject, ToolRegistry } from "functools-kit";
+import { isObject, str, ToolRegistry } from "functools-kit";
+
+type Key = keyof IPublicAction;
+
+const VALID_METHOD_NAMES: Key[] = [
+  "init",
+  "signal",
+  "signalLive",
+  "signalBacktest",
+  "breakevenAvailable",
+  "partialProfitAvailable",
+  "partialLossAvailable",
+  "pingScheduled",
+  "pingActive",
+  "riskRejection",
+  "dispose",
+];
+
+const VALIDATE_CLASS_METHODS = (
+  actionName: ActionName,
+  handler: TActionCtor,
+  self: ActionSchemaService,
+) => {
+  // Get all method names from prototype (for classes)
+  const prototypeProps = Object.getOwnPropertyNames(handler.prototype);
+
+  for (const methodName of prototypeProps) {
+    if (methodName === "constructor" || methodName.startsWith("_")) {
+      continue;
+    }
+
+    const descriptor = Object.getOwnPropertyDescriptor(
+      handler.prototype,
+      methodName,
+    );
+    const isMethod = descriptor && typeof descriptor.value === "function";
+
+    if (isMethod && !VALID_METHOD_NAMES.includes(<Key>methodName)) {
+      const msg = str.newline(
+        `ActionSchema ${actionName} contains invalid method "${methodName}". `,
+        `Valid methods are: ${VALID_METHOD_NAMES.join(", ")}`,
+        `If you want to keep this property name it following the next patterm: _${methodName}`,
+      );
+      self.loggerService.log(`actionValidationService exception thrown`, {
+        msg,
+      });
+      throw new Error(msg);
+    }
+  }
+};
+
+const VALIDATE_OBJECT_METHODS = (
+  actionName: ActionName,
+  handler: Partial<IPublicAction>,
+  self: ActionSchemaService,
+) => {
+  // For plain objects (Partial<IPublicAction>)
+  const methodNames = Object.keys(handler);
+
+  for (const methodName of methodNames) {
+    // Skip private properties (starting with _)
+    if (methodName.startsWith("_")) {
+      continue;
+    }
+
+    if (
+      typeof handler[methodName] === "function" &&
+      !VALID_METHOD_NAMES.includes(<Key>methodName)
+    ) {
+      const msg = str.newline(
+        `ActionSchema ${actionName} contains invalid method "${methodName}". `,
+        `Valid methods are: ${VALID_METHOD_NAMES.join(", ")}`,
+        `If you want to keep this property name it following the next patterm: _${methodName}`,
+      );
+      self.loggerService.log(`actionValidationService exception thrown`, {
+        msg,
+      });
+      throw new Error(msg);
+    }
+  }
+};
 
 /**
  * Service for managing action schema registry.
@@ -14,7 +99,7 @@ export class ActionSchemaService {
   readonly loggerService = inject<LoggerService>(TYPES.loggerService);
 
   private _registry = new ToolRegistry<Record<ActionName, IActionSchema>>(
-    "actionSchema"
+    "actionSchema",
   );
 
   /**
@@ -48,17 +133,23 @@ export class ActionSchemaService {
     if (typeof actionSchema.actionName !== "string") {
       throw new Error(`action schema validation failed: missing actionName`);
     }
-    if (typeof actionSchema.handler !== "function" && !isObject(actionSchema.handler)) {
-      throw new Error(
-        `action schema validation failed: handler is not a function or plain object for actionName=${actionSchema.actionName}`
-      );
-    }
     if (
-      actionSchema.callbacks &&
-      !isObject(actionSchema.callbacks)
+      typeof actionSchema.handler !== "function" &&
+      !isObject(actionSchema.handler)
     ) {
       throw new Error(
-        `action schema validation failed: callbacks is not an object for actionName=${actionSchema.actionName}`
+        `action schema validation failed: handler is not a function or plain object for actionName=${actionSchema.actionName}`,
+      );
+    }
+    if (typeof actionSchema.handler === "function" && actionSchema.handler.prototype) {
+      VALIDATE_CLASS_METHODS(actionSchema.actionName, actionSchema.handler, this);
+    }
+    if (typeof actionSchema.handler === "object" && actionSchema.handler !== null) {
+      VALIDATE_OBJECT_METHODS(actionSchema.actionName, actionSchema.handler, this);
+    }
+    if (actionSchema.callbacks && !isObject(actionSchema.callbacks)) {
+      throw new Error(
+        `action schema validation failed: callbacks is not an object for actionName=${actionSchema.actionName}`,
       );
     }
   };
