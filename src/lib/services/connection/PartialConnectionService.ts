@@ -4,14 +4,16 @@ import TYPES from "../../../lib/core/types";
 import { IPublicSignalRow, StrategyName } from "../../../interfaces/Strategy.interface";
 import { IPartial, PartialLevel } from "../../../interfaces/Partial.interface";
 import ClientPartial from "../../../client/ClientPartial";
-import { memoize } from "functools-kit";
+import { memoize, trycatch, errorData, getErrorMessage } from "functools-kit";
 import {
   partialProfitSubject,
   partialLossSubject,
+  errorEmitter,
 } from "../../../config/emitters";
 import { ExchangeName } from "../../../interfaces/Exchange.interface";
 import { FrameName } from "../../../interfaces/Frame.interface";
 import ActionCoreService from "../core/ActionCoreService";
+import backtest from "../../../lib";
 
 /**
  * Creates a unique key for memoizing ClientPartial instances.
@@ -33,31 +35,45 @@ const CREATE_KEY_FN = (signalId: string, backtest: boolean) =>
  * @param self - Reference to PartialConnectionService instance
  * @returns Callback function for profit events
  */
-const CREATE_COMMIT_PROFIT_FN = (self: PartialConnectionService) => async (
-  symbol: string,
-  strategyName: StrategyName,
-  exchangeName: ExchangeName,
-  frameName: FrameName,
-  data: IPublicSignalRow,
-  currentPrice: number,
-  level: PartialLevel,
-  backtest: boolean,
-  timestamp: number
-) => {
-  const event = {
-    symbol,
-    strategyName,
-    exchangeName,
-    frameName,
-    data,
-    currentPrice,
-    level,
-    backtest,
-    timestamp,
-  };
-  await partialProfitSubject.next(event);
-  await self.actionCoreService.partialProfitAvailable(backtest, event, { strategyName, exchangeName, frameName });
-};
+const CREATE_COMMIT_PROFIT_FN = (self: PartialConnectionService) => trycatch(
+  async (
+    symbol: string,
+    strategyName: StrategyName,
+    exchangeName: ExchangeName,
+    frameName: FrameName,
+    data: IPublicSignalRow,
+    currentPrice: number,
+    level: PartialLevel,
+    backtest: boolean,
+    timestamp: number
+  ): Promise<void> => {
+    const event = {
+      symbol,
+      strategyName,
+      exchangeName,
+      frameName,
+      data,
+      currentPrice,
+      level,
+      backtest,
+      timestamp,
+    };
+    await partialProfitSubject.next(event);
+    await self.actionCoreService.partialProfitAvailable(backtest, event, { strategyName, exchangeName, frameName });
+  },
+  {
+    fallback: (error) => {
+      const message = "PartialConnectionService CREATE_COMMIT_PROFIT_FN thrown";
+      const payload = {
+        error: errorData(error),
+        message: getErrorMessage(error),
+      };
+      backtest.loggerService.warn(message, payload);
+      console.warn(message, payload);
+      errorEmitter.next(error);
+    },
+  }
+);
 
 /**
  * Creates a callback function for emitting loss events to partialLossSubject.
@@ -68,31 +84,45 @@ const CREATE_COMMIT_PROFIT_FN = (self: PartialConnectionService) => async (
  * @param self - Reference to PartialConnectionService instance
  * @returns Callback function for loss events
  */
-const CREATE_COMMIT_LOSS_FN = (self: PartialConnectionService) => async (
-  symbol: string,
-  strategyName: StrategyName,
-  exchangeName: ExchangeName,
-  frameName: FrameName,
-  data: IPublicSignalRow,
-  currentPrice: number,
-  level: PartialLevel,
-  backtest: boolean,
-  timestamp: number
-) => {
-  const event = {
-    symbol,
-    strategyName,
-    exchangeName,
-    frameName,
-    data,
-    currentPrice,
-    level,
-    backtest,
-    timestamp,
-  };
-  await partialLossSubject.next(event);
-  await self.actionCoreService.partialLossAvailable(backtest, event, { strategyName, exchangeName, frameName });
-};
+const CREATE_COMMIT_LOSS_FN = (self: PartialConnectionService) => trycatch(
+  async (
+    symbol: string,
+    strategyName: StrategyName,
+    exchangeName: ExchangeName,
+    frameName: FrameName,
+    data: IPublicSignalRow,
+    currentPrice: number,
+    level: PartialLevel,
+    backtest: boolean,
+    timestamp: number
+  ): Promise<void> => {
+    const event = {
+      symbol,
+      strategyName,
+      exchangeName,
+      frameName,
+      data,
+      currentPrice,
+      level,
+      backtest,
+      timestamp,
+    };
+    await partialLossSubject.next(event);
+    await self.actionCoreService.partialLossAvailable(backtest, event, { strategyName, exchangeName, frameName });
+  },
+  {
+    fallback: (error) => {
+      const message = "PartialConnectionService CREATE_COMMIT_LOSS_FN thrown";
+      const payload = {
+        error: errorData(error),
+        message: getErrorMessage(error),
+      };
+      backtest.loggerService.warn(message, payload);
+      console.warn(message, payload);
+      errorEmitter.next(error);
+    },
+  }
+);
 
 /**
  * Connection service for partial profit/loss tracking.

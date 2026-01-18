@@ -3,7 +3,7 @@ import LoggerService from "../base/LoggerService";
 import TYPES from "../../core/types";
 import { TExecutionContextService } from "../context/ExecutionContextService";
 import { ExchangeName, ICandleData } from "../../../interfaces/Exchange.interface";
-import { memoize } from "functools-kit";
+import { memoize, trycatch, errorData, getErrorMessage } from "functools-kit";
 import ClientStrategy from "../../../client/ClientStrategy";
 import {
   ISignalRow,
@@ -21,6 +21,7 @@ import {
   signalLiveEmitter,
   schedulePingSubject,
   activePingSubject,
+  errorEmitter,
 } from "../../../config/emitters";
 import { IRisk, RiskName } from "../../../interfaces/Risk.interface";
 import RiskConnectionService from "./RiskConnectionService";
@@ -30,6 +31,7 @@ import { MergeRisk } from "../../../classes/Risk";
 import { TMethodContextService } from "../context/MethodContextService";
 import { FrameName } from "../../../interfaces/Frame.interface";
 import ActionCoreService from "../core/ActionCoreService";
+import backtest from "../../../lib";
 
 /**
  * Mapping of RiskName to IRisk instances.
@@ -134,25 +136,40 @@ const CREATE_KEY_FN = (
  * @param self - Reference to StrategyConnectionService instance
  * @returns Callback function for schedule ping events
  */
-const CREATE_COMMIT_SCHEDULE_PING_FN = (self: StrategyConnectionService) => async (
-  symbol: string,
-  strategyName: StrategyName,
-  exchangeName: ExchangeName,
-  data: IScheduledSignalRow,
-  backtest: boolean,
-  timestamp: number
-) => {
-  const event = {
-    symbol,
-    strategyName,
-    exchangeName,
-    data,
-    backtest,
-    timestamp,
-  };
-  await schedulePingSubject.next(event);
-  await self.actionCoreService.pingScheduled(backtest, event, { strategyName, exchangeName, frameName: data.frameName });
-};
+const CREATE_COMMIT_SCHEDULE_PING_FN = (self: StrategyConnectionService) => trycatch(
+  async (
+    symbol: string,
+    strategyName: StrategyName,
+    exchangeName: ExchangeName,
+    data: IScheduledSignalRow,
+    backtest: boolean,
+    timestamp: number
+  ): Promise<void> => {
+    const event = {
+      symbol,
+      strategyName,
+      exchangeName,
+      data,
+      backtest,
+      timestamp,
+    };
+    await schedulePingSubject.next(event);
+    await self.actionCoreService.pingScheduled(backtest, event, { strategyName, exchangeName, frameName: data.frameName });
+  },
+  {
+    fallback: (error) => {
+      const message = "StrategyConnectionService CREATE_COMMIT_SCHEDULE_PING_FN thrown";
+      const payload = {
+        error: errorData(error),
+        message: getErrorMessage(error),
+      };
+      backtest.loggerService.warn(message, payload);
+      console.warn(message, payload);
+      errorEmitter.next(error);
+    },
+    defaultValue: null,
+  }
+);
 
 /**
  * Creates a callback function for emitting active ping events.
@@ -163,25 +180,40 @@ const CREATE_COMMIT_SCHEDULE_PING_FN = (self: StrategyConnectionService) => asyn
  * @param self - Reference to StrategyConnectionService instance
  * @returns Callback function for active ping events
  */
-const CREATE_COMMIT_ACTIVE_PING_FN = (self: StrategyConnectionService) => async (
-  symbol: string,
-  strategyName: StrategyName,
-  exchangeName: ExchangeName,
-  data: ISignalRow,
-  backtest: boolean,
-  timestamp: number
-) => {
-  const event = {
-    symbol,
-    strategyName,
-    exchangeName,
-    data,
-    backtest,
-    timestamp,
-  };
-  await activePingSubject.next(event);
-  await self.actionCoreService.pingActive(backtest, event, { strategyName, exchangeName, frameName: data.frameName });
-};
+const CREATE_COMMIT_ACTIVE_PING_FN = (self: StrategyConnectionService) => trycatch(
+  async (
+    symbol: string,
+    strategyName: StrategyName,
+    exchangeName: ExchangeName,
+    data: ISignalRow,
+    backtest: boolean,
+    timestamp: number
+  ): Promise<void> => {
+    const event = {
+      symbol,
+      strategyName,
+      exchangeName,
+      data,
+      backtest,
+      timestamp,
+    };
+    await activePingSubject.next(event);
+    await self.actionCoreService.pingActive(backtest, event, { strategyName, exchangeName, frameName: data.frameName });
+  },
+  {
+    fallback: (error) => {
+      const message = "StrategyConnectionService CREATE_COMMIT_ACTIVE_PING_FN thrown";
+      const payload = {
+        error: errorData(error),
+        message: getErrorMessage(error),
+      };
+      backtest.loggerService.warn(message, payload);
+      console.warn(message, payload);
+      errorEmitter.next(error);
+    },
+    defaultValue: null,
+  }
+);
 
 /**
  * Creates a callback function for emitting init events.
@@ -192,17 +224,32 @@ const CREATE_COMMIT_ACTIVE_PING_FN = (self: StrategyConnectionService) => async 
  * @param self - Reference to StrategyConnectionService instance
  * @returns Callback function for init events
  */
-const CREATE_COMMIT_INIT_FN = (self: StrategyConnectionService) => async (
-  symbol: string,
-  strategyName: StrategyName,
-  exchangeName: ExchangeName,
-  frameName: FrameName,
-  backtest: boolean
-) => {
-  // Placeholder for future init subject implementation
-  // await initSubject.next({ symbol, strategyName, exchangeName, frameName, backtest });
-  await self.actionCoreService.initFn(backtest, symbol, { strategyName, exchangeName, frameName });
-};
+const CREATE_COMMIT_INIT_FN = (self: StrategyConnectionService) => trycatch(
+  async (
+    symbol: string,
+    strategyName: StrategyName,
+    exchangeName: ExchangeName,
+    frameName: FrameName,
+    backtest: boolean
+  ): Promise<void> => {
+    // Placeholder for future init subject implementation
+    // await initSubject.next({ symbol, strategyName, exchangeName, frameName, backtest });
+    await self.actionCoreService.initFn(backtest, symbol, { strategyName, exchangeName, frameName });
+  },
+  {
+    fallback: (error) => {
+      const message = "StrategyConnectionService CREATE_COMMIT_INIT_FN thrown";
+      const payload = {
+        error: errorData(error),
+        message: getErrorMessage(error),
+      };
+      backtest.loggerService.warn(message, payload);
+      console.warn(message, payload);
+      errorEmitter.next(error);
+    },
+    defaultValue: null,
+  }
+);
 
 /**
  * Creates a callback function for emitting dispose events.
@@ -213,17 +260,32 @@ const CREATE_COMMIT_INIT_FN = (self: StrategyConnectionService) => async (
  * @param self - Reference to StrategyConnectionService instance
  * @returns Callback function for dispose events
  */
-const CREATE_COMMIT_DISPOSE_FN = (self: StrategyConnectionService) => async (
-  symbol: string,
-  strategyName: StrategyName,
-  exchangeName: ExchangeName,
-  frameName: FrameName,
-  backtest: boolean
-) => {
-  // Placeholder for future dispose subject implementation
-  // await disposeSubject.next({ symbol, strategyName, exchangeName, frameName, backtest });
-  await self.actionCoreService.dispose(backtest, symbol, { strategyName, exchangeName, frameName });
-};
+const CREATE_COMMIT_DISPOSE_FN = (self: StrategyConnectionService) => trycatch(
+  async (
+    symbol: string,
+    strategyName: StrategyName,
+    exchangeName: ExchangeName,
+    frameName: FrameName,
+    backtest: boolean
+  ): Promise<void> => {
+    // Placeholder for future dispose subject implementation
+    // await disposeSubject.next({ symbol, strategyName, exchangeName, frameName, backtest });
+    await self.actionCoreService.dispose(backtest, symbol, { strategyName, exchangeName, frameName });
+  },
+  {
+    fallback: (error) => {
+      const message = "StrategyConnectionService CREATE_COMMIT_DISPOSE_FN thrown";
+      const payload = {
+        error: errorData(error),
+        message: getErrorMessage(error),
+      };
+      backtest.loggerService.warn(message, payload);
+      console.warn(message, payload);
+      errorEmitter.next(error);
+    },
+    defaultValue: null,
+  }
+);
 
 /**
  * Type definition for strategy methods.

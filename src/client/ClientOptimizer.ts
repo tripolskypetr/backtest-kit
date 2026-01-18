@@ -2,6 +2,9 @@ import {
   distinctDocuments,
   iterateDocuments,
   resolveDocuments,
+  trycatch,
+  errorData,
+  getErrorMessage,
 } from "functools-kit";
 import {
   IOptimizer,
@@ -15,11 +18,128 @@ import { MessageModel } from "../model/Message.model";
 import { writeFile, mkdir } from "fs/promises";
 import { join } from "path";
 import ProgressOptimizerContract from "../contract/ProgressOptimizer.contract";
+import backtest from "../lib";
+import { errorEmitter } from "../config/emitters";
 
 const ITERATION_LIMIT = 25;
 const DEFAULT_SOURCE_NAME = "unknown";
 
 const CREATE_PREFIX_FN = () => (Math.random() + 1).toString(36).substring(7);
+
+/**
+ * Wrapper to call onSourceData callback with error handling.
+ * Catches and logs any errors thrown by the user-provided callback.
+ */
+const CALL_SOURCE_DATA_CALLBACKS_FN = trycatch(
+  async (
+    self: ClientOptimizer,
+    symbol: string,
+    name: string,
+    data: IOptimizerData[],
+    startDate: Date,
+    endDate: Date
+  ): Promise<void> => {
+    if (self.params.callbacks?.onSourceData) {
+      await self.params.callbacks.onSourceData(symbol, name, data, startDate, endDate);
+    }
+  },
+  {
+    fallback: (error) => {
+      const message = "ClientOptimizer CALL_SOURCE_DATA_CALLBACKS_FN thrown";
+      const payload = {
+        error: errorData(error),
+        message: getErrorMessage(error),
+      };
+      backtest.loggerService.warn(message, payload);
+      console.warn(message, payload);
+      errorEmitter.next(error);
+    },
+  }
+);
+
+/**
+ * Wrapper to call onData callback with error handling.
+ * Catches and logs any errors thrown by the user-provided callback.
+ */
+const CALL_DATA_CALLBACKS_FN = trycatch(
+  async (
+    self: ClientOptimizer,
+    symbol: string,
+    strategyList: IOptimizerStrategy[]
+  ): Promise<void> => {
+    if (self.params.callbacks?.onData) {
+      await self.params.callbacks.onData(symbol, strategyList);
+    }
+  },
+  {
+    fallback: (error) => {
+      const message = "ClientOptimizer CALL_DATA_CALLBACKS_FN thrown";
+      const payload = {
+        error: errorData(error),
+        message: getErrorMessage(error),
+      };
+      backtest.loggerService.warn(message, payload);
+      console.warn(message, payload);
+      errorEmitter.next(error);
+    },
+  }
+);
+
+/**
+ * Wrapper to call onCode callback with error handling.
+ * Catches and logs any errors thrown by the user-provided callback.
+ */
+const CALL_CODE_CALLBACKS_FN = trycatch(
+  async (
+    self: ClientOptimizer,
+    symbol: string,
+    code: string
+  ): Promise<void> => {
+    if (self.params.callbacks?.onCode) {
+      await self.params.callbacks.onCode(symbol, code);
+    }
+  },
+  {
+    fallback: (error) => {
+      const message = "ClientOptimizer CALL_CODE_CALLBACKS_FN thrown";
+      const payload = {
+        error: errorData(error),
+        message: getErrorMessage(error),
+      };
+      backtest.loggerService.warn(message, payload);
+      console.warn(message, payload);
+      errorEmitter.next(error);
+    },
+  }
+);
+
+/**
+ * Wrapper to call onDump callback with error handling.
+ * Catches and logs any errors thrown by the user-provided callback.
+ */
+const CALL_DUMP_CALLBACKS_FN = trycatch(
+  async (
+    self: ClientOptimizer,
+    symbol: string,
+    filepath: string
+  ): Promise<void> => {
+    if (self.params.callbacks?.onDump) {
+      await self.params.callbacks.onDump(symbol, filepath);
+    }
+  },
+  {
+    fallback: (error) => {
+      const message = "ClientOptimizer CALL_DUMP_CALLBACKS_FN thrown";
+      const payload = {
+        error: errorData(error),
+        message: getErrorMessage(error),
+      };
+      backtest.loggerService.warn(message, payload);
+      console.warn(message, payload);
+      errorEmitter.next(error);
+    },
+  }
+);
 
 /**
  * Default user message formatter.
@@ -119,15 +239,14 @@ const GET_STRATEGY_DATA_FN = async (symbol: string, self: ClientOptimizer) => {
           endDate,
         });
 
-        if (self.params.callbacks?.onSourceData) {
-          await self.params.callbacks.onSourceData(
-            symbol,
-            DEFAULT_SOURCE_NAME,
-            data,
-            startDate,
-            endDate
-          );
-        }
+        await CALL_SOURCE_DATA_CALLBACKS_FN(
+          self,
+          symbol,
+          DEFAULT_SOURCE_NAME,
+          data,
+          startDate,
+          endDate
+        );
 
         const [userContent, assistantContent] = await Promise.all([
           DEFAULT_USER_FN(symbol, data, DEFAULT_SOURCE_NAME, self),
@@ -158,15 +277,14 @@ const GET_STRATEGY_DATA_FN = async (symbol: string, self: ClientOptimizer) => {
           endDate,
         });
 
-        if (self.params.callbacks?.onSourceData) {
-          await self.params.callbacks.onSourceData(
-            symbol,
-            name,
-            data,
-            startDate,
-            endDate
-          );
-        }
+        await CALL_SOURCE_DATA_CALLBACKS_FN(
+          self,
+          symbol,
+          name,
+          data,
+          startDate,
+          endDate
+        );
 
         const [userContent, assistantContent] = await Promise.all([
           user(symbol, data, name, self),
@@ -207,9 +325,7 @@ const GET_STRATEGY_DATA_FN = async (symbol: string, self: ClientOptimizer) => {
     progress: 1.0,
   });
 
-  if (self.params.callbacks?.onData) {
-    await self.params.callbacks.onData(symbol, strategyList);
-  }
+  await CALL_DATA_CALLBACKS_FN(self, symbol, strategyList);
 
   return strategyList;
 };
@@ -342,9 +458,7 @@ const GET_STRATEGY_CODE_FN = async (symbol: string, self: ClientOptimizer) => {
 
   const code = sections.join("\n");
 
-  if (self.params.callbacks?.onCode) {
-    await self.params.callbacks.onCode(symbol, code);
-  }
+  await CALL_CODE_CALLBACKS_FN(self, symbol, code);
 
   return code;
 };
@@ -374,9 +488,7 @@ const GET_STRATEGY_DUMP_FN = async (
     await writeFile(filepath, report, "utf-8");
     self.params.logger.info(`Optimizer report saved: ${filepath}`);
 
-    if (self.params.callbacks?.onDump) {
-      await self.params.callbacks.onDump(symbol, filepath);
-    }
+    await CALL_DUMP_CALLBACKS_FN(self, symbol, filepath);
   } catch (error) {
     self.params.logger.warn(`Failed to save optimizer report:`, error);
     throw error;

@@ -4,11 +4,12 @@ import TYPES from "../../../lib/core/types";
 import { IPublicSignalRow, StrategyName } from "../../../interfaces/Strategy.interface";
 import { IBreakeven } from "../../../interfaces/Breakeven.interface";
 import ClientBreakeven from "../../../client/ClientBreakeven";
-import { memoize } from "functools-kit";
-import { breakevenSubject } from "../../../config/emitters";
+import { memoize, trycatch, errorData, getErrorMessage } from "functools-kit";
+import { breakevenSubject, errorEmitter } from "../../../config/emitters";
 import { ExchangeName } from "../../../interfaces/Exchange.interface";
 import { FrameName } from "../../../interfaces/Frame.interface";
 import ActionCoreService from "../core/ActionCoreService";
+import backtest from "../../../lib";
 
 /**
  * Creates a unique key for memoizing ClientBreakeven instances.
@@ -30,29 +31,43 @@ const CREATE_KEY_FN = (signalId: string, backtest: boolean) =>
  * @param self - Reference to BreakevenConnectionService instance
  * @returns Callback function for breakeven events
  */
-const CREATE_COMMIT_BREAKEVEN_FN = (self: BreakevenConnectionService) => async (
-  symbol: string,
-  strategyName: StrategyName,
-  exchangeName: ExchangeName,
-  frameName: FrameName,
-  data: IPublicSignalRow,
-  currentPrice: number,
-  backtest: boolean,
-  timestamp: number
-) => {
-  const event = {
-    symbol,
-    strategyName,
-    exchangeName,
-    frameName,
-    data,
-    currentPrice,
-    backtest,
-    timestamp,
-  };
-  await breakevenSubject.next(event);
-  await self.actionCoreService.breakevenAvailable(backtest, event, { strategyName, exchangeName, frameName });
-};
+const CREATE_COMMIT_BREAKEVEN_FN = (self: BreakevenConnectionService) => trycatch(
+  async (
+    symbol: string,
+    strategyName: StrategyName,
+    exchangeName: ExchangeName,
+    frameName: FrameName,
+    data: IPublicSignalRow,
+    currentPrice: number,
+    backtest: boolean,
+    timestamp: number
+  ): Promise<void> => {
+    const event = {
+      symbol,
+      strategyName,
+      exchangeName,
+      frameName,
+      data,
+      currentPrice,
+      backtest,
+      timestamp,
+    };
+    await breakevenSubject.next(event);
+    await self.actionCoreService.breakevenAvailable(backtest, event, { strategyName, exchangeName, frameName });
+  },
+  {
+    fallback: (error) => {
+      const message = "BreakevenConnectionService CREATE_COMMIT_BREAKEVEN_FN thrown";
+      const payload = {
+        error: errorData(error),
+        message: getErrorMessage(error),
+      };
+      backtest.loggerService.warn(message, payload);
+      console.warn(message, payload);
+      errorEmitter.next(error);
+    },
+  }
+);
 
 /**
  * Connection service for breakeven tracking.

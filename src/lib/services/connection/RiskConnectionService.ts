@@ -2,14 +2,15 @@ import { inject } from "../../core/di";
 import LoggerService from "../base/LoggerService";
 import TYPES from "../../core/types";
 import { RiskName, IRiskCheckArgs, IRiskRejectionResult, IRisk } from "../../../interfaces/Risk.interface";
-import { memoize } from "functools-kit";
+import { memoize, trycatch, errorData, getErrorMessage } from "functools-kit";
 import ClientRisk from "../../../client/ClientRisk";
 import RiskSchemaService from "../schema/RiskSchemaService";
-import { riskSubject } from "../../../config/emitters";
+import { riskSubject, errorEmitter } from "../../../config/emitters";
 import { ExchangeName } from "../../../interfaces/Exchange.interface";
 import { FrameName } from "../../../interfaces/Frame.interface";
 import { StrategyName } from "../../../interfaces/Strategy.interface";
 import ActionCoreService from "../core/ActionCoreService";
+import backtest from "../../../lib";
 
 /**
  * Creates a unique key for memoizing ClientRisk instances.
@@ -47,30 +48,45 @@ const CREATE_COMMIT_REJECTION_FN = (
   self: RiskConnectionService,
   exchangeName: ExchangeName,
   frameName: FrameName
-) => async (
-  symbol: string,
-  params: IRiskCheckArgs,
-  activePositionCount: number,
-  rejectionResult: IRiskRejectionResult,
-  timestamp: number,
-  backtest: boolean
-) => {
-  const event = {
-    symbol,
-    pendingSignal: params.pendingSignal,
-    strategyName: params.strategyName,
-    exchangeName,
-    currentPrice: params.currentPrice,
-    activePositionCount,
-    rejectionId: rejectionResult.id,
-    rejectionNote: rejectionResult.note,
-    frameName,
-    timestamp,
-    backtest,
-  };
-  await riskSubject.next(event);
-  await self.actionCoreService.riskRejection(backtest, event, { strategyName: params.strategyName, exchangeName, frameName });
-};
+) => trycatch(
+  async (
+    symbol: string,
+    params: IRiskCheckArgs,
+    activePositionCount: number,
+    rejectionResult: IRiskRejectionResult,
+    timestamp: number,
+    backtest: boolean
+  ): Promise<void> => {
+    const event = {
+      symbol,
+      pendingSignal: params.pendingSignal,
+      strategyName: params.strategyName,
+      exchangeName,
+      currentPrice: params.currentPrice,
+      activePositionCount,
+      rejectionId: rejectionResult.id,
+      rejectionNote: rejectionResult.note,
+      frameName,
+      timestamp,
+      backtest,
+    };
+    await riskSubject.next(event);
+    await self.actionCoreService.riskRejection(backtest, event, { strategyName: params.strategyName, exchangeName, frameName });
+  },
+  {
+    fallback: (error) => {
+      const message = "RiskConnectionService CREATE_COMMIT_REJECTION_FN thrown";
+      const payload = {
+        error: errorData(error),
+        message: getErrorMessage(error),
+      };
+      backtest.loggerService.warn(message, payload);
+      console.warn(message, payload);
+      errorEmitter.next(error);
+    },
+    defaultValue: null,
+  }
+);
 
 /**
  * Type definition for risk methods.
