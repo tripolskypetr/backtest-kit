@@ -13401,6 +13401,200 @@ declare class BreakevenUtils {
 declare const Breakeven: BreakevenUtils;
 
 /**
+ * Proxy wrapper for user-defined action handlers with automatic error handling.
+ *
+ * Wraps all IPublicAction methods with trycatch to prevent user code errors from crashing the system.
+ * All errors are logged, sent to errorEmitter, and returned as null (non-breaking).
+ *
+ * Key features:
+ * - Automatic error catching and logging for all action methods
+ * - Safe execution of partial user implementations (missing methods return null)
+ * - Consistent error handling across all action lifecycle events
+ * - Non-breaking failure mode (errors logged but execution continues)
+ *
+ * Architecture:
+ * - Private constructor enforces factory pattern via fromInstance()
+ * - Each method checks if target implements the method before calling
+ * - Errors caught with fallback handler (warn log + errorEmitter)
+ * - Returns null on error to prevent undefined behavior
+ *
+ * Used by:
+ * - ClientAction to wrap user-provided action handlers
+ * - ActionCoreService to safely invoke action callbacks
+ *
+ * @example
+ * ```typescript
+ * // Create proxy from user implementation
+ * const userAction = {
+ *   signal: async (event) => {
+ *     // User code that might throw
+ *     throw new Error('User error');
+ *   }
+ * };
+ *
+ * const proxy = ActionProxy.fromInstance(userAction);
+ *
+ * // Error is caught and logged, execution continues
+ * await proxy.signal(event); // Logs error, returns null
+ * await proxy.dispose(); // Safe call even though not implemented
+ * ```
+ *
+ * @example
+ * ```typescript
+ * // Partial implementation is safe
+ * const partialAction = {
+ *   init: async () => console.log('Initialized'),
+ *   // Other methods not implemented
+ * };
+ *
+ * const proxy = ActionProxy.fromInstance(partialAction);
+ * await proxy.init(); // Works
+ * await proxy.signal(event); // Returns null (not implemented)
+ * ```
+ */
+declare class ActionProxy implements IPublicAction {
+    readonly _target: Partial<IPublicAction>;
+    /**
+     * Creates a new ActionProxy instance.
+     *
+     * @param _target - Partial action implementation to wrap with error handling
+     * @private Use ActionProxy.fromInstance() instead
+     */
+    private constructor();
+    /**
+     * Initializes the action handler with error handling.
+     *
+     * Wraps the user's init() method in trycatch to prevent initialization errors from crashing the system.
+     * If the target doesn't implement init(), this method safely returns undefined.
+     *
+     * @returns Promise resolving to user's init() result or undefined if not implemented
+     */
+    init: () => any;
+    /**
+     * Handles signal events from all modes with error handling.
+     *
+     * Wraps the user's signal() method to catch and log any errors.
+     * Called on every tick/candle when strategy is evaluated.
+     *
+     * @param event - Signal state result with action, state, signal data, and context
+     * @returns Promise resolving to user's signal() result or null on error
+     */
+    signal: (event: IStrategyTickResult) => any;
+    /**
+     * Handles signal events from live trading only with error handling.
+     *
+     * Wraps the user's signalLive() method to catch and log any errors.
+     * Called every tick in live mode.
+     *
+     * @param event - Signal state result from live trading
+     * @returns Promise resolving to user's signalLive() result or null on error
+     */
+    signalLive: (event: IStrategyTickResult) => any;
+    /**
+     * Handles signal events from backtest only with error handling.
+     *
+     * Wraps the user's signalBacktest() method to catch and log any errors.
+     * Called every candle in backtest mode.
+     *
+     * @param event - Signal state result from backtest
+     * @returns Promise resolving to user's signalBacktest() result or null on error
+     */
+    signalBacktest: (event: IStrategyTickResult) => any;
+    /**
+     * Handles breakeven events with error handling.
+     *
+     * Wraps the user's breakevenAvailable() method to catch and log any errors.
+     * Called once per signal when stop-loss is moved to entry price.
+     *
+     * @param event - Breakeven milestone data with signal info, current price, timestamp
+     * @returns Promise resolving to user's breakevenAvailable() result or null on error
+     */
+    breakevenAvailable: (event: BreakevenContract) => any;
+    /**
+     * Handles partial profit level events with error handling.
+     *
+     * Wraps the user's partialProfitAvailable() method to catch and log any errors.
+     * Called once per profit level per signal (10%, 20%, 30%, etc).
+     *
+     * @param event - Profit milestone data with signal info, level, price, timestamp
+     * @returns Promise resolving to user's partialProfitAvailable() result or null on error
+     */
+    partialProfitAvailable: (event: PartialProfitContract) => any;
+    /**
+     * Handles partial loss level events with error handling.
+     *
+     * Wraps the user's partialLossAvailable() method to catch and log any errors.
+     * Called once per loss level per signal (-10%, -20%, -30%, etc).
+     *
+     * @param event - Loss milestone data with signal info, level, price, timestamp
+     * @returns Promise resolving to user's partialLossAvailable() result or null on error
+     */
+    partialLossAvailable: (event: PartialLossContract) => any;
+    /**
+     * Handles scheduled ping events with error handling.
+     *
+     * Wraps the user's pingScheduled() method to catch and log any errors.
+     * Called every minute while a scheduled signal is waiting for activation.
+     *
+     * @param event - Scheduled signal monitoring data with symbol, strategy info, signal data, timestamp
+     * @returns Promise resolving to user's pingScheduled() result or null on error
+     */
+    pingScheduled: (event: SchedulePingContract) => any;
+    /**
+     * Handles active ping events with error handling.
+     *
+     * Wraps the user's pingActive() method to catch and log any errors.
+     * Called every minute while a pending signal is active (position open).
+     *
+     * @param event - Active pending signal monitoring data with symbol, strategy info, signal data, timestamp
+     * @returns Promise resolving to user's pingActive() result or null on error
+     */
+    pingActive: (event: ActivePingContract) => any;
+    /**
+     * Handles risk rejection events with error handling.
+     *
+     * Wraps the user's riskRejection() method to catch and log any errors.
+     * Called only when signal is rejected by risk management validation.
+     *
+     * @param event - Risk rejection data with symbol, pending signal, rejection reason, timestamp
+     * @returns Promise resolving to user's riskRejection() result or null on error
+     */
+    riskRejection: (event: RiskContract) => any;
+    /**
+     * Cleans up resources with error handling.
+     *
+     * Wraps the user's dispose() method to catch and log any errors.
+     * Called once when strategy execution ends.
+     *
+     * @returns Promise resolving to user's dispose() result or null on error
+     */
+    dispose: () => any;
+    /**
+     * Creates a new ActionProxy instance wrapping a user-provided action handler.
+     *
+     * Factory method enforcing the private constructor pattern.
+     * Wraps all methods of the provided instance with error handling.
+     *
+     * @param instance - Partial action implementation to wrap
+     * @returns New ActionProxy instance with error-safe method wrappers
+     *
+     * @example
+     * ```typescript
+     * const userAction = {
+     *   signal: async (event) => {
+     *     console.log('Signal received:', event);
+     *   },
+     *   dispose: async () => {
+     *     console.log('Cleanup complete');
+     *   }
+     * };
+     *
+     * const proxy = ActionProxy.fromInstance(userAction);
+     * ```
+     */
+    static fromInstance: (instance: Partial<IPublicAction>) => ActionProxy;
+}
+/**
  * Base class for custom action handlers.
  *
  * Provides default implementations for all IPublicAction methods that log events.
@@ -15593,7 +15787,7 @@ declare class ClientAction implements IAction {
      * Handler instance created from params.handler constructor.
      * Starts as null, gets initialized on first use.
      */
-    _handlerInstance: Partial<IPublicAction> | null;
+    _handlerInstance: ActionProxy | null;
     /**
      * Creates a new ClientAction instance.
      *

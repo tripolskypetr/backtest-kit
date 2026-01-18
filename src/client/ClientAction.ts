@@ -19,6 +19,7 @@ import { RiskContract } from "../contract/Risk.contract";
 import backtest from "../lib";
 import { errorEmitter } from "../config/emitters";
 import { FrameName } from "../interfaces/Frame.interface";
+import { ActionProxy } from "../classes/Action";
 
 /** Wrapper to call signal callback with error handling */
 const CALL_SIGNAL_CALLBACK_FN = trycatch(
@@ -348,7 +349,10 @@ export const WAIT_FOR_INIT_FN = async (self: ClientAction): Promise<void> => {
   });
 
   // Create handler instance
-  self._handlerInstance = CREATE_HANDLER_FN(self);
+  {
+    const instance = CREATE_HANDLER_FN(self);
+    self._handlerInstance = ActionProxy.fromInstance(instance);
+  }
 
   // Call handler init() method if defined
   if (self._handlerInstance?.init) {
@@ -417,7 +421,7 @@ export class ClientAction implements IAction {
    * Handler instance created from params.handler constructor.
    * Starts as null, gets initialized on first use.
    */
-  _handlerInstance: Partial<IPublicAction> | null = null;
+  _handlerInstance: ActionProxy | null = null;
 
   /**
    * Creates a new ClientAction instance.
@@ -484,10 +488,7 @@ export class ClientAction implements IAction {
       await this.waitForInit();
     }
 
-    // Call handler method if defined
-    if (this._handlerInstance?.signal) {
-      await this._handlerInstance.signal(event);
-    }
+    await this._handlerInstance?.signal(event);
 
     // Call callback if defined
     await CALL_SIGNAL_CALLBACK_FN(
@@ -515,9 +516,7 @@ export class ClientAction implements IAction {
     }
 
     // Call handler method if defined
-    if (this._handlerInstance?.signalLive) {
-      await this._handlerInstance.signalLive(event);
-    }
+    await this._handlerInstance?.signalLive(event);
 
     // Call callback if defined
     await CALL_SIGNAL_LIVE_CALLBACK_FN(
@@ -545,9 +544,7 @@ export class ClientAction implements IAction {
     }
 
     // Call handler method if defined
-    if (this._handlerInstance?.signalBacktest) {
-      await this._handlerInstance.signalBacktest(event);
-    }
+    await this._handlerInstance?.signalBacktest(event);
 
     // Call callback if defined
     await CALL_SIGNAL_BACKTEST_CALLBACK_FN(
@@ -574,9 +571,7 @@ export class ClientAction implements IAction {
     }
 
     // Call handler method if defined
-    if (this._handlerInstance?.breakevenAvailable) {
-      await this._handlerInstance.breakevenAvailable(event);
-    }
+    await this._handlerInstance?.breakevenAvailable(event);
 
     // Call callback if defined
     await CALL_BREAKEVEN_CALLBACK_FN(
@@ -603,9 +598,7 @@ export class ClientAction implements IAction {
     }
 
     // Call handler method if defined
-    if (this._handlerInstance?.partialProfitAvailable) {
-      await this._handlerInstance.partialProfitAvailable(event);
-    }
+    await this._handlerInstance?.partialProfitAvailable(event);
 
     // Call callback if defined
     await CALL_PARTIAL_PROFIT_CALLBACK_FN(
@@ -632,9 +625,7 @@ export class ClientAction implements IAction {
     }
 
     // Call handler method if defined
-    if (this._handlerInstance?.partialLossAvailable) {
-      await this._handlerInstance.partialLossAvailable(event);
-    }
+    await this._handlerInstance?.partialLossAvailable(event);
 
     // Call callback if defined
     await CALL_PARTIAL_LOSS_CALLBACK_FN(
@@ -661,9 +652,7 @@ export class ClientAction implements IAction {
     }
 
     // Call handler method if defined
-    if (this._handlerInstance?.pingScheduled) {
-      await this._handlerInstance.pingScheduled(event);
-    }
+    await this._handlerInstance?.pingScheduled(event);
 
     // Call callback if defined
     await CALL_PING_SCHEDULED_CALLBACK_FN(
@@ -690,9 +679,7 @@ export class ClientAction implements IAction {
     }
 
     // Call handler method if defined
-    if (this._handlerInstance?.pingActive) {
-      await this._handlerInstance.pingActive(event);
-    }
+    await this._handlerInstance?.pingActive(event);
 
     // Call callback if defined
     await CALL_PING_ACTIVE_CALLBACK_FN(
@@ -719,9 +706,7 @@ export class ClientAction implements IAction {
     }
 
     // Call handler method if defined
-    if (this._handlerInstance?.riskRejection) {
-      await this._handlerInstance.riskRejection(event);
-    }
+    await this._handlerInstance?.riskRejection(event);
 
     // Call callback if defined
     await CALL_RISK_REJECTION_CALLBACK_FN(

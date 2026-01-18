@@ -8,17 +8,22 @@ import {
   IStrategyTickResult,
   StrategyName,
 } from "../interfaces/Strategy.interface";
-import { ActionName, IPublicAction } from "../interfaces/Action.interface";
+import {
+  ActionName,
+  IPublicAction,
+} from "../interfaces/Action.interface";
 import { FrameName } from "../interfaces/Frame.interface";
 import backtest from "../lib";
-import { makeExtendable } from "functools-kit";
+import { makeExtendable, trycatch, errorData, getErrorMessage } from "functools-kit";
+import { errorEmitter } from "../config/emitters";
 
 const METHOD_NAME_INIT = "ActionBase.init";
 const METHOD_NAME_EVENT = "ActionBase.event";
 const METHOD_NAME_SIGNAL_LIVE = "ActionBase.signalLive";
 const METHOD_NAME_SIGNAL_BACKTEST = "ActionBase.signalBacktest";
 const METHOD_NAME_BREAKEVEN_AVAILABLE = "ActionBase.breakevenAvailable";
-const METHOD_NAME_PARTIAL_PROFIT_AVAILABLE = "ActionBase.partialProfitAvailable";
+const METHOD_NAME_PARTIAL_PROFIT_AVAILABLE =
+  "ActionBase.partialProfitAvailable";
 const METHOD_NAME_PARTIAL_LOSS_AVAILABLE = "ActionBase.partialLossAvailable";
 const METHOD_NAME_PING_SCHEDULED = "ActionBase.pingScheduled";
 const METHOD_NAME_PING_ACTIVE = "ActionBase.pingActive";
@@ -26,6 +31,413 @@ const METHOD_NAME_RISK_REJECTION = "ActionBase.riskRejection";
 const METHOD_NAME_DISPOSE = "ActionBase.dispose";
 
 const DEFAULT_SOURCE = "default";
+
+/**
+ * Proxy wrapper for user-defined action handlers with automatic error handling.
+ *
+ * Wraps all IPublicAction methods with trycatch to prevent user code errors from crashing the system.
+ * All errors are logged, sent to errorEmitter, and returned as null (non-breaking).
+ *
+ * Key features:
+ * - Automatic error catching and logging for all action methods
+ * - Safe execution of partial user implementations (missing methods return null)
+ * - Consistent error handling across all action lifecycle events
+ * - Non-breaking failure mode (errors logged but execution continues)
+ *
+ * Architecture:
+ * - Private constructor enforces factory pattern via fromInstance()
+ * - Each method checks if target implements the method before calling
+ * - Errors caught with fallback handler (warn log + errorEmitter)
+ * - Returns null on error to prevent undefined behavior
+ *
+ * Used by:
+ * - ClientAction to wrap user-provided action handlers
+ * - ActionCoreService to safely invoke action callbacks
+ *
+ * @example
+ * ```typescript
+ * // Create proxy from user implementation
+ * const userAction = {
+ *   signal: async (event) => {
+ *     // User code that might throw
+ *     throw new Error('User error');
+ *   }
+ * };
+ *
+ * const proxy = ActionProxy.fromInstance(userAction);
+ *
+ * // Error is caught and logged, execution continues
+ * await proxy.signal(event); // Logs error, returns null
+ * await proxy.dispose(); // Safe call even though not implemented
+ * ```
+ *
+ * @example
+ * ```typescript
+ * // Partial implementation is safe
+ * const partialAction = {
+ *   init: async () => console.log('Initialized'),
+ *   // Other methods not implemented
+ * };
+ *
+ * const proxy = ActionProxy.fromInstance(partialAction);
+ * await proxy.init(); // Works
+ * await proxy.signal(event); // Returns null (not implemented)
+ * ```
+ */
+class ActionProxy implements IPublicAction {
+  /**
+   * Creates a new ActionProxy instance.
+   *
+   * @param _target - Partial action implementation to wrap with error handling
+   * @private Use ActionProxy.fromInstance() instead
+   */
+  private constructor(readonly _target: Partial<IPublicAction>) {}
+
+  /**
+   * Initializes the action handler with error handling.
+   *
+   * Wraps the user's init() method in trycatch to prevent initialization errors from crashing the system.
+   * If the target doesn't implement init(), this method safely returns undefined.
+   *
+   * @returns Promise resolving to user's init() result or undefined if not implemented
+   */
+  public init = trycatch(
+    async () => {
+      if (this._target.init) {
+        return await this._target.init();
+      }
+    },
+    {
+      fallback: (error) => {
+        const message = "ActionProxy.init thrown";
+        const payload = {
+          error: errorData(error),
+          message: getErrorMessage(error),
+        };
+        backtest.loggerService.warn(message, payload);
+        console.warn(message, payload);
+        errorEmitter.next(error);
+      },
+      defaultValue: null,
+    },
+  );
+  /**
+   * Handles signal events from all modes with error handling.
+   *
+   * Wraps the user's signal() method to catch and log any errors.
+   * Called on every tick/candle when strategy is evaluated.
+   *
+   * @param event - Signal state result with action, state, signal data, and context
+   * @returns Promise resolving to user's signal() result or null on error
+   */
+  public signal = trycatch(
+    async (event: IStrategyTickResult) => {
+      if (this._target.signal) {
+        return await this._target.signal(event);
+      }
+    },
+    {
+      fallback: (error) => {
+        const message = "ActionProxy.signal thrown";
+        const payload = {
+          error: errorData(error),
+          message: getErrorMessage(error),
+        };
+        backtest.loggerService.warn(message, payload);
+        console.warn(message, payload);
+        errorEmitter.next(error);
+      },
+      defaultValue: null,
+    },
+  );
+  /**
+   * Handles signal events from live trading only with error handling.
+   *
+   * Wraps the user's signalLive() method to catch and log any errors.
+   * Called every tick in live mode.
+   *
+   * @param event - Signal state result from live trading
+   * @returns Promise resolving to user's signalLive() result or null on error
+   */
+  public signalLive = trycatch(
+    async (event: IStrategyTickResult) => {
+      if (this._target.signalLive) {
+        return await this._target.signalLive(event);
+      }
+    },
+    {
+      fallback: (error) => {
+        const message = "ActionProxy.signalLive thrown";
+        const payload = {
+          error: errorData(error),
+          message: getErrorMessage(error),
+        };
+        backtest.loggerService.warn(message, payload);
+        console.warn(message, payload);
+        errorEmitter.next(error);
+      },
+      defaultValue: null,
+    },
+  );
+  /**
+   * Handles signal events from backtest only with error handling.
+   *
+   * Wraps the user's signalBacktest() method to catch and log any errors.
+   * Called every candle in backtest mode.
+   *
+   * @param event - Signal state result from backtest
+   * @returns Promise resolving to user's signalBacktest() result or null on error
+   */
+  public signalBacktest = trycatch(
+    async (event: IStrategyTickResult) => {
+      if (this._target.signalBacktest) {
+        return await this._target.signalBacktest(event);
+      }
+    },
+    {
+      fallback: (error) => {
+        const message = "ActionProxy.signalBacktest thrown";
+        const payload = {
+          error: errorData(error),
+          message: getErrorMessage(error),
+        };
+        backtest.loggerService.warn(message, payload);
+        console.warn(message, payload);
+        errorEmitter.next(error);
+      },
+      defaultValue: null,
+    },
+  );
+  /**
+   * Handles breakeven events with error handling.
+   *
+   * Wraps the user's breakevenAvailable() method to catch and log any errors.
+   * Called once per signal when stop-loss is moved to entry price.
+   *
+   * @param event - Breakeven milestone data with signal info, current price, timestamp
+   * @returns Promise resolving to user's breakevenAvailable() result or null on error
+   */
+  public breakevenAvailable = trycatch(
+    async (event: BreakevenContract) => {
+      if (this._target.breakevenAvailable) {
+        return await this._target.breakevenAvailable(event);
+      }
+    },
+    {
+      fallback: (error) => {
+        const message = "ActionProxy.breakevenAvailable thrown";
+        const payload = {
+          error: errorData(error),
+          message: getErrorMessage(error),
+        };
+        backtest.loggerService.warn(message, payload);
+        console.warn(message, payload);
+        errorEmitter.next(error);
+      },
+      defaultValue: null,
+    },
+  );
+  /**
+   * Handles partial profit level events with error handling.
+   *
+   * Wraps the user's partialProfitAvailable() method to catch and log any errors.
+   * Called once per profit level per signal (10%, 20%, 30%, etc).
+   *
+   * @param event - Profit milestone data with signal info, level, price, timestamp
+   * @returns Promise resolving to user's partialProfitAvailable() result or null on error
+   */
+  public partialProfitAvailable = trycatch(
+    async (event: PartialProfitContract) => {
+      if (this._target.partialProfitAvailable) {
+        return await this._target.partialProfitAvailable(event);
+      }
+    },
+    {
+      fallback: (error) => {
+        const message = "ActionProxy.partialProfitAvailable thrown";
+        const payload = {
+          error: errorData(error),
+          message: getErrorMessage(error),
+        };
+        backtest.loggerService.warn(message, payload);
+        console.warn(message, payload);
+        errorEmitter.next(error);
+      },
+      defaultValue: null,
+    },
+  );
+  /**
+   * Handles partial loss level events with error handling.
+   *
+   * Wraps the user's partialLossAvailable() method to catch and log any errors.
+   * Called once per loss level per signal (-10%, -20%, -30%, etc).
+   *
+   * @param event - Loss milestone data with signal info, level, price, timestamp
+   * @returns Promise resolving to user's partialLossAvailable() result or null on error
+   */
+  public partialLossAvailable = trycatch(
+    async (event: PartialLossContract) => {
+      if (this._target.partialLossAvailable) {
+        return await this._target.partialLossAvailable(event);
+      }
+    },
+    {
+      fallback: (error) => {
+        const message = "ActionProxy.partialLossAvailable thrown";
+        const payload = {
+          error: errorData(error),
+          message: getErrorMessage(error),
+        };
+        backtest.loggerService.warn(message, payload);
+        console.warn(message, payload);
+        errorEmitter.next(error);
+      },
+      defaultValue: null,
+    },
+  );
+  /**
+   * Handles scheduled ping events with error handling.
+   *
+   * Wraps the user's pingScheduled() method to catch and log any errors.
+   * Called every minute while a scheduled signal is waiting for activation.
+   *
+   * @param event - Scheduled signal monitoring data with symbol, strategy info, signal data, timestamp
+   * @returns Promise resolving to user's pingScheduled() result or null on error
+   */
+  public pingScheduled = trycatch(
+    async (event: SchedulePingContract) => {
+      if (this._target.pingScheduled) {
+        return await this._target.pingScheduled(event);
+      }
+    },
+    {
+      fallback: (error) => {
+        const message = "ActionProxy.pingScheduled thrown";
+        const payload = {
+          error: errorData(error),
+          message: getErrorMessage(error),
+        };
+        backtest.loggerService.warn(message, payload);
+        console.warn(message, payload);
+        errorEmitter.next(error);
+      },
+      defaultValue: null,
+    },
+  );
+  /**
+   * Handles active ping events with error handling.
+   *
+   * Wraps the user's pingActive() method to catch and log any errors.
+   * Called every minute while a pending signal is active (position open).
+   *
+   * @param event - Active pending signal monitoring data with symbol, strategy info, signal data, timestamp
+   * @returns Promise resolving to user's pingActive() result or null on error
+   */
+  public pingActive = trycatch(
+    async (event: ActivePingContract) => {
+      if (this._target.pingActive) {
+        return await this._target.pingActive(event);
+      }
+    },
+    {
+      fallback: (error) => {
+        const message = "ActionProxy.pingActive thrown";
+        const payload = {
+          error: errorData(error),
+          message: getErrorMessage(error),
+        };
+        backtest.loggerService.warn(message, payload);
+        console.warn(message, payload);
+        errorEmitter.next(error);
+      },
+      defaultValue: null,
+    },
+  );
+  /**
+   * Handles risk rejection events with error handling.
+   *
+   * Wraps the user's riskRejection() method to catch and log any errors.
+   * Called only when signal is rejected by risk management validation.
+   *
+   * @param event - Risk rejection data with symbol, pending signal, rejection reason, timestamp
+   * @returns Promise resolving to user's riskRejection() result or null on error
+   */
+  public riskRejection = trycatch(
+    async (event: RiskContract) => {
+      if (this._target.riskRejection) {
+        return await this._target.riskRejection(event);
+      }
+    },
+    {
+      fallback: (error) => {
+        const message = "ActionProxy.riskRejection thrown";
+        const payload = {
+          error: errorData(error),
+          message: getErrorMessage(error),
+        };
+        backtest.loggerService.warn(message, payload);
+        console.warn(message, payload);
+        errorEmitter.next(error);
+      },
+      defaultValue: null,
+    },
+  );
+  /**
+   * Cleans up resources with error handling.
+   *
+   * Wraps the user's dispose() method to catch and log any errors.
+   * Called once when strategy execution ends.
+   *
+   * @returns Promise resolving to user's dispose() result or null on error
+   */
+  public dispose = trycatch(
+    async () => {
+      if (this._target.dispose) {
+        return await this._target.dispose();
+      }
+    },
+    {
+      fallback: (error) => {
+        const message = "ActionProxy.dispose thrown";
+        const payload = {
+          error: errorData(error),
+          message: getErrorMessage(error),
+        };
+        backtest.loggerService.warn(message, payload);
+        console.warn(message, payload);
+        errorEmitter.next(error);
+      },
+      defaultValue: null,
+    },
+  );
+
+  /**
+   * Creates a new ActionProxy instance wrapping a user-provided action handler.
+   *
+   * Factory method enforcing the private constructor pattern.
+   * Wraps all methods of the provided instance with error handling.
+   *
+   * @param instance - Partial action implementation to wrap
+   * @returns New ActionProxy instance with error-safe method wrappers
+   *
+   * @example
+   * ```typescript
+   * const userAction = {
+   *   signal: async (event) => {
+   *     console.log('Signal received:', event);
+   *   },
+   *   dispose: async () => {
+   *     console.log('Cleanup complete');
+   *   }
+   * };
+   *
+   * const proxy = ActionProxy.fromInstance(userAction);
+   * ```
+   */
+  public static fromInstance = (instance: Partial<IPublicAction>) => {
+    return new ActionProxy(instance);
+  };
+}
 
 /**
  * Base class for custom action handlers.
@@ -147,7 +559,7 @@ class ActionBase implements IPublicAction {
     public readonly strategyName: StrategyName,
     public readonly frameName: FrameName,
     public readonly actionName: ActionName,
-    public readonly backtest: boolean
+    public readonly backtest: boolean,
   ) {}
 
   /**
@@ -202,7 +614,10 @@ class ActionBase implements IPublicAction {
    * }
    * ```
    */
-  public signal(event: IStrategyTickResult, source = DEFAULT_SOURCE): void | Promise<void> {
+  public signal(
+    event: IStrategyTickResult,
+    source = DEFAULT_SOURCE,
+  ): void | Promise<void> {
     backtest.loggerService.info(METHOD_NAME_EVENT, {
       event,
       source,
@@ -233,7 +648,10 @@ class ActionBase implements IPublicAction {
    * }
    * ```
    */
-  public signalLive(event: IStrategyTickResult, source = DEFAULT_SOURCE): void | Promise<void> {
+  public signalLive(
+    event: IStrategyTickResult,
+    source = DEFAULT_SOURCE,
+  ): void | Promise<void> {
     backtest.loggerService.info(METHOD_NAME_SIGNAL_LIVE, {
       event,
       source,
@@ -263,7 +681,10 @@ class ActionBase implements IPublicAction {
    * }
    * ```
    */
-  public signalBacktest(event: IStrategyTickResult, source = DEFAULT_SOURCE): void | Promise<void> {
+  public signalBacktest(
+    event: IStrategyTickResult,
+    source = DEFAULT_SOURCE,
+  ): void | Promise<void> {
     backtest.loggerService.info(METHOD_NAME_SIGNAL_BACKTEST, {
       event,
       source,
@@ -294,7 +715,10 @@ class ActionBase implements IPublicAction {
    * }
    * ```
    */
-  public breakevenAvailable(event: BreakevenContract, source = DEFAULT_SOURCE): void | Promise<void> {
+  public breakevenAvailable(
+    event: BreakevenContract,
+    source = DEFAULT_SOURCE,
+  ): void | Promise<void> {
     backtest.loggerService.info(METHOD_NAME_BREAKEVEN_AVAILABLE, {
       event,
       source,
@@ -326,7 +750,10 @@ class ActionBase implements IPublicAction {
    * }
    * ```
    */
-  public partialProfitAvailable(event: PartialProfitContract, source = DEFAULT_SOURCE): void | Promise<void> {
+  public partialProfitAvailable(
+    event: PartialProfitContract,
+    source = DEFAULT_SOURCE,
+  ): void | Promise<void> {
     backtest.loggerService.info(METHOD_NAME_PARTIAL_PROFIT_AVAILABLE, {
       event,
       source,
@@ -358,7 +785,10 @@ class ActionBase implements IPublicAction {
    * }
    * ```
    */
-  public partialLossAvailable(event: PartialLossContract, source = DEFAULT_SOURCE): void | Promise<void> {
+  public partialLossAvailable(
+    event: PartialLossContract,
+    source = DEFAULT_SOURCE,
+  ): void | Promise<void> {
     backtest.loggerService.info(METHOD_NAME_PARTIAL_LOSS_AVAILABLE, {
       event,
       source,
@@ -388,7 +818,10 @@ class ActionBase implements IPublicAction {
    * }
    * ```
    */
-  public pingScheduled(event: SchedulePingContract, source = DEFAULT_SOURCE): void | Promise<void> {
+  public pingScheduled(
+    event: SchedulePingContract,
+    source = DEFAULT_SOURCE,
+  ): void | Promise<void> {
     backtest.loggerService.info(METHOD_NAME_PING_SCHEDULED, {
       event,
       source,
@@ -418,7 +851,10 @@ class ActionBase implements IPublicAction {
    * }
    * ```
    */
-  public pingActive(event: ActivePingContract, source = DEFAULT_SOURCE): void | Promise<void> {
+  public pingActive(
+    event: ActivePingContract,
+    source = DEFAULT_SOURCE,
+  ): void | Promise<void> {
     backtest.loggerService.info(METHOD_NAME_PING_ACTIVE, {
       event,
       source,
@@ -451,7 +887,10 @@ class ActionBase implements IPublicAction {
    * }
    * ```
    */
-  public riskRejection(event: RiskContract, source = DEFAULT_SOURCE): void | Promise<void> {
+  public riskRejection(
+    event: RiskContract,
+    source = DEFAULT_SOURCE,
+  ): void | Promise<void> {
     backtest.loggerService.info(METHOD_NAME_RISK_REJECTION, {
       event,
       source,
@@ -494,4 +933,4 @@ class ActionBase implements IPublicAction {
 // @ts-ignore
 ActionBase = makeExtendable(ActionBase);
 
-export { ActionBase }
+export { ActionBase, ActionProxy };
