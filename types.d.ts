@@ -16569,8 +16569,35 @@ declare class RiskSchemaService {
 /**
  * Service for managing action schema registry.
  *
+ * Manages registration, validation and retrieval of action schemas.
  * Uses ToolRegistry from functools-kit for type-safe schema storage.
- * Action handlers are registered via addAction() and retrieved by name.
+ * Validates that action handlers only contain allowed public methods
+ * from the IPublicAction interface.
+ *
+ * Key features:
+ * - Type-safe action schema registration
+ * - Method name validation for class and object handlers
+ * - Private method support (methods starting with _ or #)
+ * - Schema override capabilities
+ *
+ * @example
+ * ```typescript
+ * // Register a class-based action
+ * actionSchemaService.register("telegram-notifier", {
+ *   actionName: "telegram-notifier",
+ *   handler: TelegramNotifierAction,
+ *   callbacks: { ... }
+ * });
+ *
+ * // Register an object-based action
+ * actionSchemaService.register("logger", {
+ *   actionName: "logger",
+ *   handler: {
+ *     signal: async (event) => { ... },
+ *     dispose: async () => { ... }
+ *   }
+ * });
+ * ```
  */
 declare class ActionSchemaService {
     readonly loggerService: LoggerService;
@@ -16578,9 +16605,13 @@ declare class ActionSchemaService {
     /**
      * Registers a new action schema.
      *
-     * @param key - Unique action name
-     * @param value - Action schema configuration
-     * @throws Error if action name already exists
+     * Validates the schema structure and method names before registration.
+     * Throws an error if the action name already exists in the registry.
+     *
+     * @param key - Unique action name identifier
+     * @param value - Action schema configuration with handler and optional callbacks
+     * @throws Error if action name already exists in registry
+     * @throws Error if validation fails (missing required fields, invalid handler, invalid method names)
      */
     register: (key: ActionName, value: IActionSchema) => void;
     /**
@@ -16588,28 +16619,36 @@ declare class ActionSchemaService {
      *
      * Performs shallow validation to ensure all required properties exist
      * and have correct types before registration in the registry.
+     * Also validates that all public methods in the handler are allowed.
      *
      * @param actionSchema - Action schema to validate
      * @throws Error if actionName is missing or not a string
-     * @throws Error if handler is missing or not a function
-     * @throws Error if callbacks is not an object
+     * @throws Error if handler is not a function or plain object
+     * @throws Error if handler contains invalid public method names
+     * @throws Error if callbacks is provided but not an object
      */
     private validateShallow;
     /**
      * Overrides an existing action schema with partial updates.
      *
+     * Merges provided partial schema updates with the existing schema.
+     * Useful for modifying handler or callbacks without re-registering the entire schema.
+     *
      * @param key - Action name to override
-     * @param value - Partial schema updates
-     * @returns Updated action schema
-     * @throws Error if action name doesn't exist
+     * @param value - Partial schema updates to merge
+     * @returns Updated action schema after override
+     * @throws Error if action name doesn't exist in registry
      */
     override: (key: ActionName, value: Partial<IActionSchema>) => IActionSchema;
     /**
      * Retrieves an action schema by name.
      *
-     * @param key - Action name
+     * Returns the complete action schema configuration including handler and callbacks.
+     * Used internally by ActionConnectionService to instantiate ClientAction instances.
+     *
+     * @param key - Action name identifier
      * @returns Action schema configuration
-     * @throws Error if action name doesn't exist
+     * @throws Error if action name doesn't exist in registry
      */
     get: (key: ActionName) => IActionSchema;
 }
