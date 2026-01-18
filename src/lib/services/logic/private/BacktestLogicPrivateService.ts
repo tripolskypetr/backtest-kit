@@ -341,7 +341,7 @@ export class BacktestLogicPrivateService {
         // Запрашиваем minuteEstimatedTime + буфер свечей одним запросом
         const bufferMinutes = GLOBAL_CONFIG.CC_AVG_PRICE_CANDLES_COUNT - 1;
         const bufferStartTime = new Date(when.getTime() - bufferMinutes * 60 * 1000);
-        const totalCandles = signal.minuteEstimatedTime + bufferMinutes + 1;
+        const totalCandles = signal.minuteEstimatedTime + GLOBAL_CONFIG.CC_AVG_PRICE_CANDLES_COUNT;
 
         let candles: ICandleData[];
         try {
