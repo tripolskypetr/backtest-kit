@@ -35,6 +35,102 @@ const VALID_METHOD_NAMES: Key[] = [
 ];
 
 /**
+ * Calculates the Levenshtein distance between two strings.
+ *
+ * Levenshtein distance is the minimum number of single-character edits
+ * (insertions, deletions, or substitutions) required to change one string into another.
+ * Used to find typos and similar method names in validation.
+ *
+ * @param str1 - First string to compare
+ * @param str2 - Second string to compare
+ * @returns Number of edits needed to transform str1 into str2
+ */
+const LEVENSHTEIN_DISTANCE = (str1: string, str2: string): number => {
+  const len1 = str1.length;
+  const len2 = str2.length;
+
+  // Create a 2D array for dynamic programming
+  const matrix: number[][] = Array.from({ length: len1 + 1 }, () =>
+    Array(len2 + 1).fill(0)
+  );
+
+  // Initialize first column and row
+  for (let i = 0; i <= len1; i++) {
+    matrix[i][0] = i;
+  }
+  for (let j = 0; j <= len2; j++) {
+    matrix[0][j] = j;
+  }
+
+  // Fill the matrix
+  for (let i = 1; i <= len1; i++) {
+    for (let j = 1; j <= len2; j++) {
+      const cost = str1[i - 1] === str2[j - 1] ? 0 : 1;
+      matrix[i][j] = Math.min(
+        matrix[i - 1][j] + 1, // deletion
+        matrix[i][j - 1] + 1, // insertion
+        matrix[i - 1][j - 1] + cost // substitution
+      );
+    }
+  }
+
+  return matrix[len1][len2];
+};
+
+/**
+ * Finds suggestions for a method name based on similarity scoring.
+ *
+ * Uses Levenshtein distance and partial string matching to find similar method names.
+ * Returns suggestions sorted by similarity (most similar first).
+ * Used to provide helpful "Did you mean?" suggestions in validation error messages.
+ *
+ * @param methodName - The invalid method name to find suggestions for
+ * @param validNames - List of valid method names to search through
+ * @param maxDistance - Maximum Levenshtein distance to consider (default: 3)
+ * @returns Array of suggested method names sorted by similarity
+ */
+const FIND_SUGGESTIONS = (
+  methodName: string,
+  validNames: readonly string[],
+  maxDistance: number = 3,
+): string[] => {
+  const lowerMethodName = methodName.toLowerCase();
+
+  // Calculate similarity score for each valid name
+  const suggestions = validNames
+    .map((validName) => {
+      const lowerValidName = validName.toLowerCase();
+      const distance = LEVENSHTEIN_DISTANCE(lowerMethodName, lowerValidName);
+
+      // Check for partial matches
+      const hasPartialMatch =
+        lowerValidName.includes(lowerMethodName) ||
+        lowerMethodName.includes(lowerValidName);
+
+      return {
+        name: validName,
+        distance,
+        hasPartialMatch,
+      };
+    })
+    .filter(
+      (item) =>
+        item.distance <= maxDistance || item.hasPartialMatch
+    )
+    .sort((a, b) => {
+      // Prioritize partial matches
+      if (a.hasPartialMatch && !b.hasPartialMatch) return -1;
+      if (!a.hasPartialMatch && b.hasPartialMatch) return 1;
+      // Then sort by distance
+      return a.distance - b.distance;
+    })
+    .slice(0, 3) // Limit to top 3 suggestions
+    .map((item) => item.name);
+
+  return suggestions;
+};
+
+/**
  * Validates that all public methods in a class-based action handler are in the allowed list.
  *
  * Inspects the class prototype to find all method names and ensures they match
@@ -70,11 +166,21 @@ const VALIDATE_CLASS_METHODS = (
     const isMethod = descriptor && typeof descriptor.value === "function";
 
     if (isMethod && !VALID_METHOD_NAMES.includes(<Key>methodName)) {
-      const msg = str.newline(
+      const suggestions = FIND_SUGGESTIONS(methodName, VALID_METHOD_NAMES);
+      const lines = [
         `ActionSchema ${actionName} contains invalid method "${methodName}". `,
         `Valid methods are: ${VALID_METHOD_NAMES.join(", ")}`,
-        `If you want to keep this property name use one of these patterns: _${methodName} or #${methodName}`,
-      );
+      ];
+
+      if (suggestions.length > 0) {
+        lines.push("");
+        lines.push(`Do you mean: ${suggestions.join(", ")}?`);
+        lines.push("");
+      }
+
+      lines.push(`If you want to keep this property name use one of these patterns: _${methodName} or #${methodName}`);
+
+      const msg = str.newline(lines);
       self.loggerService.log(`actionValidationService exception thrown`, {
         msg,
       });
@@ -112,11 +218,21 @@ const VALIDATE_OBJECT_METHODS = (
       typeof handler[methodName] === "function" &&
       !VALID_METHOD_NAMES.includes(<Key>methodName)
     ) {
-      const msg = str.newline(
+      const suggestions = FIND_SUGGESTIONS(methodName, VALID_METHOD_NAMES);
+      const lines = [
         `ActionSchema ${actionName} contains invalid method "${methodName}". `,
         `Valid methods are: ${VALID_METHOD_NAMES.join(", ")}`,
-        `If you want to keep this property name use one of these patterns: _${methodName} or #${methodName}`,
-      );
+      ];
+
+      if (suggestions.length > 0) {
+        lines.push("");
+        lines.push(`Do you mean: ${suggestions.join(", ")}?`);
+        lines.push("");
+      }
+
+      lines.push(`If you want to keep this property name use one of these patterns: _${methodName} or #${methodName}`);
+
+      const msg = str.newline(lines);
       self.loggerService.log(`actionValidationService exception thrown`, {
         msg,
       });
