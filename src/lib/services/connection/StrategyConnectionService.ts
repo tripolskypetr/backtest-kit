@@ -232,8 +232,6 @@ const CREATE_COMMIT_INIT_FN = (self: StrategyConnectionService) => trycatch(
     frameName: FrameName,
     backtest: boolean
   ): Promise<void> => {
-    // Placeholder for future init subject implementation
-    // await initSubject.next({ symbol, strategyName, exchangeName, frameName, backtest });
     await self.actionCoreService.initFn(backtest, symbol, { strategyName, exchangeName, frameName });
   },
   {
@@ -268,8 +266,6 @@ const CREATE_COMMIT_DISPOSE_FN = (self: StrategyConnectionService) => trycatch(
     frameName: FrameName,
     backtest: boolean
   ): Promise<void> => {
-    // Placeholder for future dispose subject implementation
-    // await disposeSubject.next({ symbol, strategyName, exchangeName, frameName, backtest });
     await self.actionCoreService.dispose(backtest, symbol, { strategyName, exchangeName, frameName });
   },
   {

@@ -13469,7 +13469,7 @@ declare class ActionProxy implements IPublicAction {
      *
      * @returns Promise resolving to user's init() result or undefined if not implemented
      */
-    init: () => any;
+    init(): Promise<any>;
     /**
      * Handles signal events from all modes with error handling.
      *
@@ -13479,7 +13479,7 @@ declare class ActionProxy implements IPublicAction {
      * @param event - Signal state result with action, state, signal data, and context
      * @returns Promise resolving to user's signal() result or null on error
      */
-    signal: (event: IStrategyTickResult) => any;
+    signal(event: IStrategyTickResult): Promise<any>;
     /**
      * Handles signal events from live trading only with error handling.
      *
@@ -13489,7 +13489,7 @@ declare class ActionProxy implements IPublicAction {
      * @param event - Signal state result from live trading
      * @returns Promise resolving to user's signalLive() result or null on error
      */
-    signalLive: (event: IStrategyTickResult) => any;
+    signalLive(event: IStrategyTickResult): Promise<any>;
     /**
      * Handles signal events from backtest only with error handling.
      *
@@ -13499,7 +13499,7 @@ declare class ActionProxy implements IPublicAction {
      * @param event - Signal state result from backtest
      * @returns Promise resolving to user's signalBacktest() result or null on error
      */
-    signalBacktest: (event: IStrategyTickResult) => any;
+    signalBacktest(event: IStrategyTickResult): Promise<any>;
     /**
      * Handles breakeven events with error handling.
      *
@@ -13509,7 +13509,7 @@ declare class ActionProxy implements IPublicAction {
      * @param event - Breakeven milestone data with signal info, current price, timestamp
      * @returns Promise resolving to user's breakevenAvailable() result or null on error
      */
-    breakevenAvailable: (event: BreakevenContract) => any;
+    breakevenAvailable(event: BreakevenContract): Promise<any>;
     /**
      * Handles partial profit level events with error handling.
      *
@@ -13519,7 +13519,7 @@ declare class ActionProxy implements IPublicAction {
      * @param event - Profit milestone data with signal info, level, price, timestamp
      * @returns Promise resolving to user's partialProfitAvailable() result or null on error
      */
-    partialProfitAvailable: (event: PartialProfitContract) => any;
+    partialProfitAvailable(event: PartialProfitContract): Promise<any>;
     /**
      * Handles partial loss level events with error handling.
      *
@@ -13529,7 +13529,7 @@ declare class ActionProxy implements IPublicAction {
      * @param event - Loss milestone data with signal info, level, price, timestamp
      * @returns Promise resolving to user's partialLossAvailable() result or null on error
      */
-    partialLossAvailable: (event: PartialLossContract) => any;
+    partialLossAvailable(event: PartialLossContract): Promise<any>;
     /**
      * Handles scheduled ping events with error handling.
      *
@@ -13539,7 +13539,7 @@ declare class ActionProxy implements IPublicAction {
      * @param event - Scheduled signal monitoring data with symbol, strategy info, signal data, timestamp
      * @returns Promise resolving to user's pingScheduled() result or null on error
      */
-    pingScheduled: (event: SchedulePingContract) => any;
+    pingScheduled(event: SchedulePingContract): Promise<any>;
     /**
      * Handles active ping events with error handling.
      *
@@ -13549,7 +13549,7 @@ declare class ActionProxy implements IPublicAction {
      * @param event - Active pending signal monitoring data with symbol, strategy info, signal data, timestamp
      * @returns Promise resolving to user's pingActive() result or null on error
      */
-    pingActive: (event: ActivePingContract) => any;
+    pingActive(event: ActivePingContract): Promise<any>;
     /**
      * Handles risk rejection events with error handling.
      *
@@ -13559,7 +13559,7 @@ declare class ActionProxy implements IPublicAction {
      * @param event - Risk rejection data with symbol, pending signal, rejection reason, timestamp
      * @returns Promise resolving to user's riskRejection() result or null on error
      */
-    riskRejection: (event: RiskContract) => any;
+    riskRejection(event: RiskContract): Promise<any>;
     /**
      * Cleans up resources with error handling.
      *
@@ -13568,7 +13568,7 @@ declare class ActionProxy implements IPublicAction {
      *
      * @returns Promise resolving to user's dispose() result or null on error
      */
-    dispose: () => any;
+    dispose(): Promise<any>;
     /**
      * Creates a new ActionProxy instance wrapping a user-provided action handler.
      *
@@ -13592,7 +13592,7 @@ declare class ActionProxy implements IPublicAction {
      * const proxy = ActionProxy.fromInstance(userAction);
      * ```
      */
-    static fromInstance: (instance: Partial<IPublicAction>) => ActionProxy;
+    static fromInstance(instance: Partial<IPublicAction>): ActionProxy;
 }
 /**
  * Base class for custom action handlers.
