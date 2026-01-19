@@ -21,7 +21,7 @@ Trading pair symbol (e.g., "BTCUSDT", "ETHUSDT")
 ### strategyName
 
 ```ts
-strategyName: StrategyName$1
+strategyName: string
 ```
 
 Name of the trading strategy to execute
@@ -29,7 +29,7 @@ Name of the trading strategy to execute
 ### exchangeName
 
 ```ts
-exchangeName: ExchangeName$1
+exchangeName: string
 ```
 
 Name of the exchange to connect to (e.g., "binance", "bybit")
@@ -37,7 +37,7 @@ Name of the exchange to connect to (e.g., "binance", "bybit")
 ### frameName
 
 ```ts
-frameName: FrameName$1
+frameName: string
 ```
 
 Timeframe for candle data (e.g., "1h", "15m", "1d")
