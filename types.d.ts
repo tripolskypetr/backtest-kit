@@ -2,9 +2,6 @@ import * as di_scoped from 'di-scoped';
 import * as functools_kit from 'functools-kit';
 import { Subject } from 'functools-kit';
 import { WriteStream } from 'fs';
-import { ExchangeName as ExchangeName$1 } from 'src/interfaces/Exchange.interface';
-import { FrameName as FrameName$1 } from 'src/interfaces/Frame.interface';
-import { StrategyName as StrategyName$1 } from 'src/interfaces/Strategy.interface';
 
 /**
  * Retrieves current backtest timeframe for given symbol.
@@ -14005,11 +14002,11 @@ interface IParseArgsParams {
     /** Trading pair symbol (e.g., "BTCUSDT", "ETHUSDT") */
     symbol: string;
     /** Name of the trading strategy to execute */
-    strategyName: StrategyName$1;
+    strategyName: StrategyName;
     /** Name of the exchange to connect to (e.g., "binance", "bybit") */
-    exchangeName: ExchangeName$1;
+    exchangeName: ExchangeName;
     /** Timeframe for candle data (e.g., "1h", "15m", "1d") */
-    frameName: FrameName$1;
+    frameName: FrameName;
 }
 /**
  * Result of parseArgs function.
