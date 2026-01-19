@@ -112,14 +112,7 @@ export {
   hasTradeContext,
 } from "./function/exchange";
 export {
-  commitBreakevenPromptHistory,
-  commitPartialLossPromptHistory,
-  commitPartialProfitPromptHistory,
-  commitRiskPromptHistory,
-  commitScheduleCancelPromptHistory,
   commitSignalPromptHistory,
-  commitTrailingStopPromptHistory,
-  commitTrailingTakePromptHistory,
 } from "./function/history";
 export { 
   dumpSignalData

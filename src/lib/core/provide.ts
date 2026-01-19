@@ -69,13 +69,6 @@ import PartialReportService from "../services/report/PartialReportService";
 import BreakevenReportService from "../services/report/BreakevenReportService";
 import RiskReportService from "../services/report/RiskReportService";
 import SignalPromptService from "../services/prompt/SignalPromptService";
-import RiskPromptService from "../services/prompt/RiskPromptService";
-import TrailingTakePromptService from "../services/prompt/TrailingTakePromptService";
-import TrailingStopPromptService from "../services/prompt/TrailingStopPromptService";
-import PartialProfitPromptService from "../services/prompt/PartialProfitPromptService";
-import PartialLossPromptService from "../services/prompt/PartialLossPromptService";
-import BreakevenPromptService from "../services/prompt/BreakevenPromptService";
-import ScheduleCancelPromptService from "../services/prompt/ScheduleCancelPromptService";
 
 {
     provide(TYPES.loggerService, () => new LoggerService());
@@ -186,11 +179,4 @@ import ScheduleCancelPromptService from "../services/prompt/ScheduleCancelPrompt
 
 {
     provide(TYPES.signalPromptService, () => new SignalPromptService());
-    provide(TYPES.riskPromptService, () => new RiskPromptService());
-    provide(TYPES.trailingTakePromptService, () => new TrailingTakePromptService());
-    provide(TYPES.trailingStopPromptService, () => new TrailingStopPromptService());
-    provide(TYPES.partialProfitPromptService, () => new PartialProfitPromptService());
-    provide(TYPES.partialLossPromptService, () => new PartialLossPromptService());
-    provide(TYPES.breakevenPromptService, () => new BreakevenPromptService());
-    provide(TYPES.scheduleCancelPromptService, () => new ScheduleCancelPromptService());
 }
