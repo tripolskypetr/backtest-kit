@@ -110,13 +110,6 @@ group: docs
 - [BreakevenReportService](classes/BreakevenReportService.md)
 - [RiskReportService](classes/RiskReportService.md)
 - [SignalPromptService](classes/SignalPromptService.md)
-- [RiskPromptService](classes/RiskPromptService.md)
-- [TrailingTakePromptService](classes/TrailingTakePromptService.md)
-- [TrailingStopPromptService](classes/TrailingStopPromptService.md)
-- [PartialProfitPromptService](classes/PartialProfitPromptService.md)
-- [PartialLossPromptService](classes/PartialLossPromptService.md)
-- [BreakevenPromptService](classes/BreakevenPromptService.md)
-- [ScheduleCancelPromptService](classes/ScheduleCancelPromptService.md)
 
 ## Enums
 
@@ -215,13 +208,6 @@ group: docs
 - [getContext](functions/getContext.md)
 - [getOrderBook](functions/getOrderBook.md)
 - [commitSignalPromptHistory](functions/commitSignalPromptHistory.md)
-- [commitRiskPromptHistory](functions/commitRiskPromptHistory.md)
-- [commitTrailingTakePromptHistory](functions/commitTrailingTakePromptHistory.md)
-- [commitTrailingStopPromptHistory](functions/commitTrailingStopPromptHistory.md)
-- [commitPartialProfitPromptHistory](functions/commitPartialProfitPromptHistory.md)
-- [commitPartialLossPromptHistory](functions/commitPartialLossPromptHistory.md)
-- [commitBreakevenPromptHistory](functions/commitBreakevenPromptHistory.md)
-- [commitScheduleCancelPromptHistory](functions/commitScheduleCancelPromptHistory.md)
 - [dumpSignalData](functions/dumpSignalData.md)
 
 ## Interfaces
