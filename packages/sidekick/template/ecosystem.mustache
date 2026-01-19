@@ -25,7 +25,7 @@ const apps = [
     cron_restart: "0 0 * * *",
     max_memory_restart: "4096M",
     script: "./src/index.mjs",
-    args: ["--backtest"],
+    args: ["--paper"],
     interpreter: getPath("~/.bun/bin/bun"),
     env: readConfig(),
     out_file: "./logs/pm2/{{PROJECT_NAME}}-out.log",
