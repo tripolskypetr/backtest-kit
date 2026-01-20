@@ -7,8 +7,7 @@ group: docs
 
 Public facade for notification operations.
 
-Automatically calls waitForInit on each userspace method call.
-Provides simplified access to notification instance methods.
+Automatically subscribes on first use and provides simplified access to notification instance methods.
 
 ## Constructor
 
@@ -35,6 +34,7 @@ getData(): Promise<NotificationModel[]>;
 ```
 
 Returns all notifications in chronological order (newest first).
+Automatically subscribes to emitters if not already subscribed.
 
 ### clear
 
@@ -43,3 +43,22 @@ clear(): Promise<void>;
 ```
 
 Clears all notification history.
+Automatically subscribes to emitters if not already subscribed.
+
+### enable
+
+```ts
+enable(): Promise<void>;
+```
+
+Unsubscribes from all notification emitters.
+Call this when you no longer need to collect notifications.
+
+### disable
+
+```ts
+disable(): Promise<void>;
+```
+
+Unsubscribes from all notification emitters.
+Call this when you no longer need to collect notifications.
