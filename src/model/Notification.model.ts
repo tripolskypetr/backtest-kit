@@ -225,17 +225,6 @@ export interface ProgressBacktestNotification {
 }
 
 /**
- * Bootstrap notification.
- * Emitted when the notification system is initialized.
- * Marks the beginning of notification tracking session.
- */
-export interface BootstrapNotification {
-  type: "bootstrap";
-  id: string;
-  timestamp: number;
-}
-
-/**
  * Root discriminated union of all notification types.
  * Type discrimination is done via the `type` field.
  *
@@ -274,7 +263,6 @@ export type NotificationModel =
   | InfoErrorNotification
   | CriticalErrorNotification
   | ValidationErrorNotification
-  | ProgressBacktestNotification
-  | BootstrapNotification;
+  | ProgressBacktestNotification;
 
 export default NotificationModel;

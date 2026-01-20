@@ -1,4 +1,4 @@
-import { singleshot, randomString, errorData, getErrorMessage } from "functools-kit";
+import { singleshot, randomString, errorData, getErrorMessage, compose } from "functools-kit";
 import {
   signalEmitter,
   partialProfitSubject,
@@ -343,53 +343,82 @@ export class NotificationInstance {
   }
 
   /**
-   * Initializes notification system by subscribing to all emitters.
-   * Uses singleshot to ensure initialization happens only once.
-   * Automatically called on first use.
+   * Subscribes to all notification emitters and returns an unsubscribe function.
+   * Protected against multiple subscriptions using singleshot.
+   *
+   * @returns Unsubscribe function to stop receiving all notification events
+   *
+   * @example
+   * ```typescript
+   * const instance = new NotificationInstance();
+   * const unsubscribe = instance.subscribe();
+   * // ... later
+   * unsubscribe();
+   * ```
    */
-  public waitForInit = singleshot(async () => {
-    // Add bootstrap notification to mark initialization
-    this._addNotification({
-      type: "bootstrap",
-      id: CREATE_KEY_FN(),
-      timestamp: Date.now(),
-    });
+  public enable = singleshot(() => {
 
-    // Signal events
-    signalEmitter.subscribe(this._handleSignal);
+    const unSignal = signalEmitter.subscribe(this._handleSignal);
+    const unProfit = partialProfitSubject.subscribe(this._handlePartialProfit);
+    const unLoss = partialLossSubject.subscribe(this._handlePartialLoss);
+    const unRisk = riskSubject.subscribe(this._handleRisk);
+    const unDoneLine = doneLiveSubject.subscribe(this._handleDoneLive);
+    const unDoneBacktest = doneBacktestSubject.subscribe(this._handleDoneBacktest);
+    const unError = errorEmitter.subscribe(this._handleError);
+    const unExit = exitEmitter.subscribe(this._handleCriticalError);
+    const unValidation = validationSubject.subscribe(this._handleValidationError);
+    const unProgressBacktest = progressBacktestEmitter.subscribe(this._handleProgressBacktest);
 
-    // Partial profit/loss events
-    partialProfitSubject.subscribe(this._handlePartialProfit);
-    partialLossSubject.subscribe(this._handlePartialLoss);
-
-    // Risk events
-    riskSubject.subscribe(this._handleRisk);
-
-    // Done events
-    doneLiveSubject.subscribe(this._handleDoneLive);
-    doneBacktestSubject.subscribe(this._handleDoneBacktest);
-
-    // Error events
-    errorEmitter.subscribe(this._handleError);
-    exitEmitter.subscribe(this._handleCriticalError);
-    validationSubject.subscribe(this._handleValidationError);
-
-    // Progress events
-    progressBacktestEmitter.subscribe(this._handleProgressBacktest);
+    const disposeFn = compose(
+      () => unSignal(),
+      () => unProfit(),
+      () => unLoss(),
+      () => unRisk(),
+      () => unDoneLine(),
+      () => unDoneBacktest(),
+      () => unError(),
+      () => unExit(),
+      () => unValidation(),      
+      () => unProgressBacktest(),
+    );
+    
+    return () => {
+      disposeFn();
+      this.enable.clear();
+    };
   });
+
+  /**
+   * Unsubscribes from all notification emitters to stop receiving events.
+   * Calls the unsubscribe function returned by subscribe().
+   * If not subscribed, does nothing.
+   *
+   * @example
+   * ```typescript
+   * const instance = new NotificationInstance();
+   * instance.subscribe();
+   * // ... later
+   * instance.unsubscribe();
+   * ```
+   */
+  public disable(): void {
+    if (this.enable.hasValue()) {
+      const unsubscribeFn = this.enable();
+      unsubscribeFn();
+    }
+  }
 }
 
 /**
  * Public facade for notification operations.
  *
- * Automatically calls waitForInit on each userspace method call.
- * Provides simplified access to notification instance methods.
+ * Automatically subscribes on first use and provides simplified access to notification instance methods.
  *
  * @example
  * ```typescript
  * import { Notification } from "./classes/Notification";
  *
- * // Get all notifications
+ * // Get all notifications (auto-subscribes if not subscribed)
  * const all = await Notification.getData();
  *
  * // Process notifications with type discrimination
@@ -411,6 +440,9 @@ export class NotificationInstance {
  *
  * // Clear history
  * await Notification.clear();
+ *
+ * // Unsubscribe when done
+ * await Notification.unsubscribe();
  * ```
  */
 export class NotificationUtils {
@@ -419,6 +451,7 @@ export class NotificationUtils {
 
   /**
    * Returns all notifications in chronological order (newest first).
+   * Automatically subscribes to emitters if not already subscribed.
    *
    * @returns Array of strongly-typed notification objects
    *
@@ -441,12 +474,15 @@ export class NotificationUtils {
    * ```
    */
   public async getData(): Promise<NotificationModel[]> {
-    await this._instance.waitForInit();
+    if (!this._instance.enable.hasValue()) {
+      throw new Error("Notification not initialized. Call enable() before getting data.");
+    }
     return this._instance.getData();
   }
 
   /**
    * Clears all notification history.
+   * Automatically subscribes to emitters if not already subscribed.
    *
    * @example
    * ```typescript
@@ -454,8 +490,35 @@ export class NotificationUtils {
    * ```
    */
   public async clear(): Promise<void> {
-    await this._instance.waitForInit();
+    if (!this._instance.enable.hasValue()) {
+      throw new Error("Notification not initialized. Call enable() before clearing data.");
+    }
     this._instance.clear();
+  }
+
+  /**
+   * Unsubscribes from all notification emitters.
+   * Call this when you no longer need to collect notifications.
+   *
+   * @example
+   * ```typescript
+   * await Notification.unsubscribe();
+   * ```
+   */
+  public async enable(): Promise<void> {
+    this._instance.enable();
+  }
+
+  /**
+   * Unsubscribes from all notification emitters.
+   * Call this when you no longer need to collect notifications.
+   * @example
+   * ```typescript
+   * await Notification.unsubscribe();
+   * ```
+   */
+  public async disable(): Promise<void> {
+    this._instance.disable();
   }
 }
 
