@@ -1,4 +1,4 @@
 export default {
   TakeProfitDistanceRisk: "tp_distance_risk",
-  RiskRewardRatioRisk: "rr_ratio_risk",
+  StopLossDistanceRisk: "sl_distance_risk",
 };

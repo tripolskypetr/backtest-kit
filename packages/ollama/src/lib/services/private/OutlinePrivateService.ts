@@ -79,7 +79,7 @@ export class OutlinePrivateService {
       priceStopLoss: +data.price_stop_loss,
       priceTakeProfit: +data.price_take_profit,
       note: await toPlainString(data.risk_note),
-      priceOpen: +data.price_open,
+      priceOpen: data.price_open ? +data.price_open : undefined,
     };
   };
 }

@@ -36,6 +36,6 @@ addStrategySchema({
   },
   riskList: [
     RiskName.TakeProfitDistanceRisk, 
-    RiskName.RiskRewardRatioRisk
+    RiskName.StopLossDistanceRisk,
   ],
 });
