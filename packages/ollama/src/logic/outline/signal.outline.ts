@@ -71,13 +71,16 @@ addOutline<TSignalSchema, IOutlineMessage[]>({
     },
     {
       validate: ({ data }) => {
-        if (!data.price_open || data.price_open <= 0) {
+        if (
+          data.position !== "wait" &&
+          (!data.price_open || data.price_open <= 0)
+        ) {
           throw new Error(
-            "The price_open field must contain a positive price"
+            "When position='long' or 'short', the price_open field is required and must be positive"
           );
         }
       },
-      docDescription: "Validates that opening price is specified and positive.",
+      docDescription: "Validates that opening price is specified and positive when opening a position.",
     },
     {
       validate: ({ data }) => {
@@ -107,7 +110,7 @@ addOutline<TSignalSchema, IOutlineMessage[]>({
     },
     {
       validate: ({ data }) => {
-        if (data.position === "long") {
+        if (data.position === "long" && data.price_open && data.price_stop_loss && data.price_take_profit) {
           if (data.price_stop_loss >= data.price_open) {
             throw new Error(
               "For LONG position, price_stop_loss must be below price_open"
@@ -124,7 +127,7 @@ addOutline<TSignalSchema, IOutlineMessage[]>({
     },
     {
       validate: ({ data }) => {
-        if (data.position === "short") {
+        if (data.position === "short" && data.price_open && data.price_stop_loss && data.price_take_profit) {
           if (data.price_stop_loss <= data.price_open) {
             throw new Error(
               "For SHORT position, price_stop_loss must be above price_open"
