@@ -1,6 +1,6 @@
 {
   "name": "@backtest-kit/signals",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "Technical analysis and trading signal generation library for AI-powered trading systems. Computes 50+ indicators across 4 timeframes and generates markdown reports for LLM consumption.",
   "author": {
     "name": "Petr Tripolsky",

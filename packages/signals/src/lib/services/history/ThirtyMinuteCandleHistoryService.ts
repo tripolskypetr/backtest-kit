@@ -120,10 +120,10 @@ export class ThirtyMinuteCandleHistoryService {
       report += `### 30m Candle ${index + 1}\n`;
       report += `- **Price Change**: ${priceChangePercent.toFixed(3)}%\n`;
       report += `- **Time**: ${formattedTime}\n`;
-      report += `- **Open**: ${formatPrice(symbol, candle.open)} USD\n`;
-      report += `- **High**: ${formatPrice(symbol, candle.high)} USD\n`;
-      report += `- **Low**: ${formatPrice(symbol, candle.low)} USD\n`;
-      report += `- **Close**: ${formatPrice(symbol, candle.close)} USD\n`;
+      report += `- **Open**: ${await formatPrice(symbol, candle.open)} USD\n`;
+      report += `- **High**: ${await formatPrice(symbol, candle.high)} USD\n`;
+      report += `- **Low**: ${await formatPrice(symbol, candle.low)} USD\n`;
+      report += `- **Close**: ${await formatPrice(symbol, candle.close)} USD\n`;
       report += `- **Volume**: ${formatQuantity(symbol, candle.volume)}\n`;
       report += `- **30m Volatility**: ${volatilityPercent.toFixed(2)}%\n`;
       report += `- **Body Size**: ${bodyPercent.toFixed(1)}%\n\n`;
