@@ -3,7 +3,7 @@ import backtest, {
   MethodContextService,
 } from "../lib";
 
-const STOP_METHOD_NAME = "control.stop";
+const STOP_STRATEGY_METHOD_NAME = "control.stopStrategy";
 
 /**
  * Stops the strategy from generating new signals.
@@ -26,8 +26,8 @@ const STOP_METHOD_NAME = "control.stop";
  * await stop("BTCUSDT", "my-strategy");
  * ```
  */
-export async function stop(symbol: string): Promise<void> {
-  backtest.loggerService.info(STOP_METHOD_NAME, {
+export async function stopStrategy(symbol: string): Promise<void> {
+  backtest.loggerService.info(STOP_STRATEGY_METHOD_NAME, {
     symbol,
   });
   if (!ExecutionContextService.hasContext()) {
@@ -39,7 +39,7 @@ export async function stop(symbol: string): Promise<void> {
   const { backtest: isBacktest } = backtest.executionContextService.context;
   const { exchangeName, frameName, strategyName } =
     backtest.methodContextService.context;
-  await backtest.strategyCoreService.stop(isBacktest, symbol, {
+  await backtest.strategyCoreService.stopStrategy(isBacktest, symbol, {
     exchangeName,
     frameName,
     strategyName,

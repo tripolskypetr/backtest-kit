@@ -633,7 +633,7 @@ export interface IStrategy {
    * await cancel();
    * ```
    */
-  stop: (symbol: string, backtest: boolean) => Promise<void>;
+  stopStrategy: (symbol: string, backtest: boolean) => Promise<void>;
 
   /**
    * Cancels the scheduled signal without stopping the strategy.
@@ -651,11 +651,11 @@ export interface IStrategy {
    * @example
    * ```typescript
    * // Cancel scheduled signal without stopping strategy
-   * await strategy.cancel("BTCUSDT");
+   * await strategy.cancelScheduled("BTCUSDT");
    * // Strategy continues, can generate new signals
    * ```
    */
-  cancel: (symbol: string, backtest: boolean, cancelId?: string) => Promise<void>;
+  cancelScheduled: (symbol: string, backtest: boolean, cancelId?: string) => Promise<void>;
 
   /**
    * Closes the pending signal without stopping the strategy.
@@ -674,11 +674,11 @@ export interface IStrategy {
    * @example
    * ```typescript
    * // Close pending signal without stopping strategy
-   * await strategy.close("BTCUSDT", false, "user-close-123");
+   * await strategy.closePending("BTCUSDT", false, "user-close-123");
    * // Strategy continues, can generate new signals
    * ```
    */
-  close: (symbol: string, backtest: boolean, closeId?: string) => Promise<void>;
+  closePending: (symbol: string, backtest: boolean, closeId?: string) => Promise<void>;
 
   /**
    * Executes partial close at profit level (moving toward TP).

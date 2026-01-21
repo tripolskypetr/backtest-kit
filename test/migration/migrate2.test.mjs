@@ -150,7 +150,7 @@ test("Cancel scheduled signal after 5 onSchedulePing calls in backtest", async (
 
         // Отменяем после 5-го ping
         if (pingCount === 5) {
-          await Backtest.commitCancel("BTCUSDT", {
+          await Backtest.commitCancelScheduled("BTCUSDT", {
             strategyName: "test-strategy-cancel-ping",
             exchangeName: "binance-cancel-ping-test",
             frameName: "250m-cancel-ping-test",
@@ -380,7 +380,7 @@ test("Cancel scheduled signal after 5 listenPing events in backtest", async ({ p
 
       // Отменяем после 5-го ping события
       if (pingEventCount === 5) {
-        await Backtest.commitCancel("BTCUSDT", {
+        await Backtest.commitCancelScheduled("BTCUSDT", {
           strategyName: "test-strategy-listen-ping",
           exchangeName: "binance-listen-ping-test",
           frameName: "130m-listen-ping-test",

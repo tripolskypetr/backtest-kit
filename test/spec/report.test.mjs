@@ -8,7 +8,7 @@ import {
   Live,
   listenDoneBacktest,
   listenDoneLive,
-  commitCancel,
+  commitCancelScheduled,
   getAveragePrice,
 } from "../../build/index.mjs";
 

@@ -4,7 +4,8 @@ import backtest, {
 } from "../lib";
 import { getAveragePrice } from "./exchange";
 
-const CANCEL_METHOD_NAME = "strategy.commitCancel";
+const CANCEL_SCHEDULED_METHOD_NAME = "strategy.commitCancelScheduled";
+const CLOSE_PENDING_METHOD_NAME = "strategy.commitClosePending";
 const PARTIAL_PROFIT_METHOD_NAME = "strategy.commitPartialProfit";
 const PARTIAL_LOSS_METHOD_NAME = "strategy.commitPartialLoss";
 const TRAILING_STOP_METHOD_NAME = "strategy.commitTrailingStop";
@@ -27,27 +28,27 @@ const BREAKEVEN_METHOD_NAME = "strategy.commitBreakeven";
  *
  * @example
  * ```typescript
- * import { cancel } from "backtest-kit";
+ * import { commitCancelScheduled } from "backtest-kit";
  *
  * // Cancel scheduled signal with custom ID
- * await cancel("BTCUSDT", "my-strategy", "manual-cancel-001");
+ * await commitCancelScheduled("BTCUSDT", "manual-cancel-001");
  * ```
  */
-export async function commitCancel(symbol: string, cancelId?: string): Promise<void> {
-  backtest.loggerService.info(CANCEL_METHOD_NAME, {
+export async function commitCancelScheduled(symbol: string, cancelId?: string): Promise<void> {
+  backtest.loggerService.info(CANCEL_SCHEDULED_METHOD_NAME, {
     symbol,
     cancelId,
   });
   if (!ExecutionContextService.hasContext()) {
-    throw new Error("cancel requires an execution context");
+    throw new Error("commitCancelScheduled requires an execution context");
   }
   if (!MethodContextService.hasContext()) {
-    throw new Error("cancel requires a method context");
+    throw new Error("commitCancelScheduled requires a method context");
   }
   const { backtest: isBacktest } = backtest.executionContextService.context;
   const { exchangeName, frameName, strategyName } =
     backtest.methodContextService.context;
-  await backtest.strategyCoreService.cancel(
+  await backtest.strategyCoreService.cancelScheduled(
     isBacktest,
     symbol,
     { exchangeName, frameName, strategyName },
@@ -70,27 +71,27 @@ export async function commitCancel(symbol: string, cancelId?: string): Promise<v
  *
  * @example
  * ```typescript
- * import { commitClose } from "backtest-kit";
+ * import { commitClosePending } from "backtest-kit";
  *
  * // Close pending signal with custom ID
- * await commitClose("BTCUSDT", "manual-close-001");
+ * await commitClosePending("BTCUSDT", "manual-close-001");
  * ```
  */
-export async function commitClose(symbol: string, closeId?: string): Promise<void> {
-  backtest.loggerService.info("commitClose", {
+export async function commitClosePending(symbol: string, closeId?: string): Promise<void> {
+  backtest.loggerService.info(CLOSE_PENDING_METHOD_NAME, {
     symbol,
     closeId,
   });
   if (!ExecutionContextService.hasContext()) {
-    throw new Error("commitClose requires an execution context");
+    throw new Error("commitClosePending requires an execution context");
   }
   if (!MethodContextService.hasContext()) {
-    throw new Error("commitClose requires a method context");
+    throw new Error("commitClosePending requires a method context");
   }
   const { backtest: isBacktest } = backtest.executionContextService.context;
   const { exchangeName, frameName, strategyName } =
     backtest.methodContextService.context;
-  await backtest.strategyCoreService.close(
+  await backtest.strategyCoreService.closePending(
     isBacktest,
     symbol,
     { exchangeName, frameName, strategyName },

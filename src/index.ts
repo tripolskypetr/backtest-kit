@@ -15,8 +15,8 @@ export {
   getActionSchema,
 } from "./function/get";
 export {
-  commitCancel,
-  commitClose,
+  commitCancelScheduled,
+  commitClosePending,
   commitPartialLoss,
   commitPartialProfit,
   commitTrailingStop,
@@ -24,7 +24,7 @@ export {
   commitBreakeven,
 } from "./function/strategy";
 export {
-  stop,
+  stopStrategy,
 } from "./function/control";
 export {
   setLogger,

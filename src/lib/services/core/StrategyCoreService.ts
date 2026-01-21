@@ -305,20 +305,20 @@ export class StrategyCoreService implements TStrategy {
    * @param ctx - Context with strategyName, exchangeName, frameName
    * @returns Promise that resolves when stop flag is set
    */
-  public stop = async (backtest: boolean, symbol: string, context: { strategyName: StrategyName; exchangeName: ExchangeName; frameName: FrameName }): Promise<void> => {
-    this.loggerService.log("strategyCoreService stop", {
+  public stopStrategy = async (backtest: boolean, symbol: string, context: { strategyName: StrategyName; exchangeName: ExchangeName; frameName: FrameName }): Promise<void> => {
+    this.loggerService.log("strategyCoreService stopStrategy", {
       symbol,
       context,
       backtest,
     });
     await this.validate(context);
-    return await this.strategyConnectionService.stop(backtest, symbol, context);
+    return await this.strategyConnectionService.stopStrategy(backtest, symbol, context);
   };
 
   /**
    * Cancels the scheduled signal without stopping the strategy.
    *
-   * Delegates to StrategyConnectionService.cancel() to clear scheduled signal
+   * Delegates to StrategyConnectionService.cancelScheduled() to clear scheduled signal
    * and emit cancelled event through emitters.
    * Does not require execution context.
    *
@@ -328,15 +328,15 @@ export class StrategyCoreService implements TStrategy {
    * @param cancelId - Optional cancellation ID for user-initiated cancellations
    * @returns Promise that resolves when scheduled signal is cancelled
    */
-  public cancel = async (backtest: boolean, symbol: string, context: { strategyName: StrategyName; exchangeName: ExchangeName; frameName: FrameName }, cancelId?: string): Promise<void> => {
-    this.loggerService.log("strategyCoreService cancel", {
+  public cancelScheduled = async (backtest: boolean, symbol: string, context: { strategyName: StrategyName; exchangeName: ExchangeName; frameName: FrameName }, cancelId?: string): Promise<void> => {
+    this.loggerService.log("strategyCoreService cancelScheduled", {
       symbol,
       context,
       backtest,
       cancelId,
     });
     await this.validate(context);
-    return await this.strategyConnectionService.cancel(backtest, symbol, context, cancelId);
+    return await this.strategyConnectionService.cancelScheduled(backtest, symbol, context, cancelId);
   };
 
   /**
@@ -346,7 +346,7 @@ export class StrategyCoreService implements TStrategy {
    * Does NOT affect scheduled signals or strategy operation.
    * Does NOT set stop flag - strategy can continue generating new signals.
    *
-   * Delegates to StrategyConnectionService.close() to clear pending signal
+   * Delegates to StrategyConnectionService.closePending() to clear pending signal
    * and emit closed event through emitters.
    * Does not require execution context.
    *
@@ -356,15 +356,15 @@ export class StrategyCoreService implements TStrategy {
    * @param closeId - Optional close ID for user-initiated closes
    * @returns Promise that resolves when pending signal is closed
    */
-  public close = async (backtest: boolean, symbol: string, context: { strategyName: StrategyName; exchangeName: ExchangeName; frameName: FrameName }, closeId?: string): Promise<void> => {
-    this.loggerService.log("strategyCoreService close", {
+  public closePending = async (backtest: boolean, symbol: string, context: { strategyName: StrategyName; exchangeName: ExchangeName; frameName: FrameName }, closeId?: string): Promise<void> => {
+    this.loggerService.log("strategyCoreService closePending", {
       symbol,
       context,
       backtest,
       closeId,
     });
     await this.validate(context);
-    return await this.strategyConnectionService.close(backtest, symbol, context, closeId);
+    return await this.strategyConnectionService.closePending(backtest, symbol, context, closeId);
   };
 
   /**

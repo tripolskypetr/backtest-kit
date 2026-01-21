@@ -1179,8 +1179,8 @@ test("BREAKEVEN CALLBACK: onBreakeven NOT called if threshold not reached", asyn
   pass("onBreakeven callback NOT called: threshold not reached (as expected)");
 });
 
-// Scheduled signal is cancelled via Backtest.commitCancel() in onTimeframe
-test("Scheduled signal is cancelled via Backtest.commitCancel() in onTimeframe", async ({ pass, fail }) => {
+// Scheduled signal is cancelled via Backtest.commitCancelScheduled() in onTimeframe
+test("Scheduled signal is cancelled via Backtest.commitCancelScheduled() in onTimeframe", async ({ pass, fail }) => {
 
   let scheduledCount = 0;
   let cancelledCount = 0;
@@ -1286,13 +1286,13 @@ test("Scheduled signal is cancelled via Backtest.commitCancel() in onTimeframe",
         // Отменяем первый scheduled сигнал
         if (scheduledCount === 1 && !cancelCalled) {
           cancelCalled = true;
-          // console.log(`[TEST] Calling Backtest.commitCancel from onSchedule...`);
-          await Backtest.commitCancel("BTCUSDT", {
+          // console.log(`[TEST] Calling Backtest.commitCancelScheduled from onSchedule...`);
+          await Backtest.commitCancelScheduled("BTCUSDT", {
             strategyName: "test-strategy-cancel",
             exchangeName: "binance-cancel-test",
             frameName: "250m-cancel-test",
           });
-          // console.log(`[TEST] Backtest.commitCancel() completed`);
+          // console.log(`[TEST] Backtest.commitCancelScheduled() completed`);
         }
       },
       onCancel: () => {
@@ -1373,7 +1373,7 @@ test("Scheduled signal is cancelled via Backtest.commitCancel() in onTimeframe",
 
   // Проверяем что был создан scheduled сигнал и получено cancelled событие
   if (scheduledCount >= 1 && cancelledEvents >= 1 && openedCount === 0) {
-    pass(`Scheduled signal cancelled via Backtest.commitCancel(): ${scheduledCount} scheduled, ${cancelledEvents} cancelled events, ${openedCount} opened`);
+    pass(`Scheduled signal cancelled via Backtest.commitCancelScheduled(): ${scheduledCount} scheduled, ${cancelledEvents} cancelled events, ${openedCount} opened`);
     return;
   }
 
@@ -1500,13 +1500,13 @@ test("Multiple scheduled signals - cancel only first one via onSchedule", async 
         // Отменяем только первый scheduled сигнал
         if (scheduledCount === 1 && !cancelCalled) {
           cancelCalled = true;
-          // console.log(`[TEST] Calling Backtest.commitCancel for first signal...`);
-          await Backtest.commitCancel("BTCUSDT", {
+          // console.log(`[TEST] Calling Backtest.commitCancelScheduled for first signal...`);
+          await Backtest.commitCancelScheduled("BTCUSDT", {
             strategyName: "test-strategy-cancel-multiple",
             exchangeName: "binance-cancel-multiple",
             frameName: "20m-cancel-multiple",
           });
-          // console.log(`[TEST] First signal cancelled via Backtest.commitCancel()`);
+          // console.log(`[TEST] First signal cancelled via Backtest.commitCancelScheduled()`);
         }
       },
       onOpen: () => {

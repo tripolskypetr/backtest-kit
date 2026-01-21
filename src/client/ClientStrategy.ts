@@ -4125,12 +4125,12 @@ export class ClientStrategy implements IStrategy {
    * @example
    * ```typescript
    * // In Live.background() cancellation
-   * await strategy.stop();
+   * await strategy.stopStrategy();
    * // Existing signal will continue until natural close
    * ```
    */
-  public async stop(symbol: string, backtest: boolean): Promise<void> {
-    this.params.logger.debug("ClientStrategy stop", {
+  public async stopStrategy(symbol: string, backtest: boolean): Promise<void> {
+    this.params.logger.debug("ClientStrategy stopStrategy", {
       symbol,
       hasPendingSignal: this._pendingSignal !== null,
       hasScheduledSignal: this._scheduledSignal !== null,
@@ -4174,12 +4174,12 @@ export class ClientStrategy implements IStrategy {
    * @example
    * ```typescript
    * // Cancel scheduled signal without stopping strategy
-   * await strategy.cancel("BTCUSDT", "my-strategy", false);
+   * await strategy.cancelScheduled("BTCUSDT", "my-strategy", false);
    * // Strategy continues, can generate new signals
    * ```
    */
-  public async cancel(symbol: string, backtest: boolean, cancelId?: string): Promise<void> {
-    this.params.logger.debug("ClientStrategy cancel", {
+  public async cancelScheduled(symbol: string, backtest: boolean, cancelId?: string): Promise<void> {
+    this.params.logger.debug("ClientStrategy cancelScheduled", {
       symbol,
       hasScheduledSignal: this._scheduledSignal !== null,
       cancelId,
@@ -4222,12 +4222,12 @@ export class ClientStrategy implements IStrategy {
    * @example
    * ```typescript
    * // Close pending signal without stopping strategy
-   * await strategy.close("BTCUSDT", false, "user-close-123");
+   * await strategy.closePending("BTCUSDT", false, "user-close-123");
    * // Strategy continues, can generate new signals
    * ```
    */
-  public async close(symbol: string, backtest: boolean, closeId?: string): Promise<void> {
-    this.params.logger.debug("ClientStrategy close", {
+  public async closePending(symbol: string, backtest: boolean, closeId?: string): Promise<void> {
+    this.params.logger.debug("ClientStrategy closePending", {
       symbol,
       hasPendingSignal: this._pendingSignal !== null,
       closeId,

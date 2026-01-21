@@ -24,8 +24,8 @@ const BACKTEST_METHOD_NAME_GET_SCHEDULED_SIGNAL =
   "BacktestUtils.getScheduledSignal";
 const BACKTEST_METHOD_NAME_GET_BREAKEVEN = "BacktestUtils.getBreakeven";
 const BACKTEST_METHOD_NAME_BREAKEVEN = "Backtest.commitBreakeven";
-const BACKTEST_METHOD_NAME_CANCEL = "BacktestUtils.commitCancel";
-const BACKTEST_METHOD_NAME_CLOSE = "BacktestUtils.commitClose";
+const BACKTEST_METHOD_NAME_CANCEL_SCHEDULED = "Backtest.commitCancelScheduled";
+const BACKTEST_METHOD_NAME_CLOSE_PENDING = "Backtest.commitClosePending";
 const BACKTEST_METHOD_NAME_PARTIAL_PROFIT = "BacktestUtils.commitPartialProfit";
 const BACKTEST_METHOD_NAME_PARTIAL_LOSS = "BacktestUtils.commitPartialLoss";
 const BACKTEST_METHOD_NAME_TRAILING_STOP = "BacktestUtils.commitTrailingStop";
@@ -324,7 +324,7 @@ export class BacktestInstance {
       exitEmitter.next(new Error(getErrorMessage(error)))
     );
     return () => {
-      backtest.strategyCoreService.stop(true, symbol, {
+      backtest.strategyCoreService.stopStrategy(true, symbol, {
         strategyName: context.strategyName,
         exchangeName: context.exchangeName,
         frameName: context.frameName,
@@ -813,7 +813,7 @@ export class BacktestUtils {
         );
     }
 
-    await backtest.strategyCoreService.stop(true, symbol, context);
+    await backtest.strategyCoreService.stopStrategy(true, symbol, context);
   };
 
   /**
@@ -839,7 +839,7 @@ export class BacktestUtils {
    * }, "manual-cancel-001");
    * ```
    */
-  public commitCancel = async (
+  public commitCancelScheduled = async (
     symbol: string,
     context: {
       strategyName: StrategyName;
@@ -848,18 +848,18 @@ export class BacktestUtils {
     },
     cancelId?: string
   ): Promise<void> => {
-    backtest.loggerService.info(BACKTEST_METHOD_NAME_CANCEL, {
+    backtest.loggerService.info(BACKTEST_METHOD_NAME_CANCEL_SCHEDULED, {
       symbol,
       context,
       cancelId,
     });
     backtest.strategyValidationService.validate(
       context.strategyName,
-      BACKTEST_METHOD_NAME_CANCEL
+      BACKTEST_METHOD_NAME_CANCEL_SCHEDULED
     );
     backtest.exchangeValidationService.validate(
       context.exchangeName,
-      BACKTEST_METHOD_NAME_CANCEL
+      BACKTEST_METHOD_NAME_CANCEL_SCHEDULED
     );
 
     {
@@ -868,25 +868,25 @@ export class BacktestUtils {
       riskName &&
         backtest.riskValidationService.validate(
           riskName,
-          BACKTEST_METHOD_NAME_CANCEL
+          BACKTEST_METHOD_NAME_CANCEL_SCHEDULED
         );
       riskList &&
         riskList.forEach((riskName) =>
           backtest.riskValidationService.validate(
             riskName,
-            BACKTEST_METHOD_NAME_CANCEL
+            BACKTEST_METHOD_NAME_CANCEL_SCHEDULED
           )
         );
       actions &&
         actions.forEach((actionName) =>
           backtest.actionValidationService.validate(
             actionName,
-            BACKTEST_METHOD_NAME_CANCEL
+            BACKTEST_METHOD_NAME_CANCEL_SCHEDULED
           )
         );
     }
 
-    await backtest.strategyCoreService.cancel(
+    await backtest.strategyCoreService.cancelScheduled(
       true,
       symbol,
       context,
@@ -916,7 +916,7 @@ export class BacktestUtils {
    * }, "manual-close-001");
    * ```
    */
-  static commitClose = async (
+  public commitClosePending = async (
     symbol: string,
     context: {
       strategyName: StrategyName;
@@ -925,18 +925,18 @@ export class BacktestUtils {
     },
     closeId?: string
   ): Promise<void> => {
-    backtest.loggerService.info(BACKTEST_METHOD_NAME_CLOSE, {
+    backtest.loggerService.info(BACKTEST_METHOD_NAME_CLOSE_PENDING, {
       symbol,
       context,
       closeId,
     });
     backtest.strategyValidationService.validate(
       context.strategyName,
-      BACKTEST_METHOD_NAME_CLOSE
+      BACKTEST_METHOD_NAME_CLOSE_PENDING
     );
     backtest.exchangeValidationService.validate(
       context.exchangeName,
-      BACKTEST_METHOD_NAME_CLOSE
+      BACKTEST_METHOD_NAME_CLOSE_PENDING
     );
 
     {
@@ -945,25 +945,25 @@ export class BacktestUtils {
       riskName &&
         backtest.riskValidationService.validate(
           riskName,
-          BACKTEST_METHOD_NAME_CLOSE
+          BACKTEST_METHOD_NAME_CLOSE_PENDING
         );
       riskList &&
         riskList.forEach((riskName) =>
           backtest.riskValidationService.validate(
             riskName,
-            BACKTEST_METHOD_NAME_CLOSE
+            BACKTEST_METHOD_NAME_CLOSE_PENDING
           )
         );
       actions &&
         actions.forEach((actionName) =>
           backtest.actionValidationService.validate(
             actionName,
-            BACKTEST_METHOD_NAME_CLOSE
+            BACKTEST_METHOD_NAME_CLOSE_PENDING
           )
         );
     }
 
-    await backtest.strategyCoreService.close(
+    await backtest.strategyCoreService.closePending(
       true,
       symbol,
       context,

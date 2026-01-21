@@ -295,7 +295,7 @@ export class WalkerInstance {
     );
     return () => {
       for (const strategyName of walkerSchema.strategies) {
-        backtest.strategyCoreService.stop(true, symbol, {
+        backtest.strategyCoreService.stopStrategy(true, symbol, {
           strategyName,
           exchangeName: walkerSchema.exchangeName,
           frameName: walkerSchema.frameName
@@ -556,7 +556,7 @@ export class WalkerUtils {
 
     for (const strategyName of walkerSchema.strategies) {
       await walkerStopSubject.next({ symbol, strategyName, walkerName: context.walkerName });
-      await backtest.strategyCoreService.stop(true, symbol, {
+      await backtest.strategyCoreService.stopStrategy(true, symbol, {
         strategyName,
         exchangeName: walkerSchema.exchangeName,
         frameName: walkerSchema.frameName

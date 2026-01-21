@@ -21,8 +21,8 @@ const LIVE_METHOD_NAME_GET_PENDING_SIGNAL = "LiveUtils.getPendingSignal";
 const LIVE_METHOD_NAME_GET_SCHEDULED_SIGNAL = "LiveUtils.getScheduledSignal";
 const LIVE_METHOD_NAME_GET_BREAKEVEN = "LiveUtils.getBreakeven";
 const LIVE_METHOD_NAME_BREAKEVEN = "Live.commitBreakeven";
-const LIVE_METHOD_NAME_CANCEL = "LiveUtils.commitCancel";
-const LIVE_METHOD_NAME_CLOSE = "LiveUtils.commitClose";
+const LIVE_METHOD_NAME_CANCEL_SCHEDULED = "Live.cancelScheduled";
+const LIVE_METHOD_NAME_CLOSE_PENDING = "Live.closePending";
 const LIVE_METHOD_NAME_PARTIAL_PROFIT = "LiveUtils.commitPartialProfit";
 const LIVE_METHOD_NAME_PARTIAL_LOSS = "LiveUtils.commitPartialLoss";
 const LIVE_METHOD_NAME_TRAILING_STOP = "LiveUtils.commitTrailingStop";
@@ -270,7 +270,7 @@ export class LiveInstance {
       exitEmitter.next(new Error(getErrorMessage(error)))
     );
     return () => {
-      backtest.strategyCoreService.stop(false, symbol, {
+      backtest.strategyCoreService.stopStrategy(false, symbol, {
         strategyName: context.strategyName,
         exchangeName: context.exchangeName,
         frameName: ""
@@ -582,7 +582,7 @@ export class LiveUtils {
       actions && actions.forEach((actionName) => backtest.actionValidationService.validate(actionName, LIVE_METHOD_NAME_STOP));
     }
 
-    await backtest.strategyCoreService.stop(false, symbol, {
+    await backtest.strategyCoreService.stopStrategy(false, symbol, {
       strategyName: context.strategyName,
       exchangeName: context.exchangeName,
       frameName: "",
@@ -612,7 +612,7 @@ export class LiveUtils {
    * }, "manual-cancel-001");
    * ```
    */
-  public commitCancel = async (
+  public commitCancelScheduled = async (
     symbol: string,
     context: {
       strategyName: StrategyName;
@@ -620,22 +620,22 @@ export class LiveUtils {
     },
     cancelId?: string
   ): Promise<void> => {
-    backtest.loggerService.info(LIVE_METHOD_NAME_CANCEL, {
+    backtest.loggerService.info(LIVE_METHOD_NAME_CANCEL_SCHEDULED, {
       symbol,
       context,
       cancelId,
     });
-    backtest.strategyValidationService.validate(context.strategyName, LIVE_METHOD_NAME_CANCEL);
-    backtest.exchangeValidationService.validate(context.exchangeName, LIVE_METHOD_NAME_CANCEL);
+    backtest.strategyValidationService.validate(context.strategyName, LIVE_METHOD_NAME_CANCEL_SCHEDULED);
+    backtest.exchangeValidationService.validate(context.exchangeName, LIVE_METHOD_NAME_CANCEL_SCHEDULED);
 
     {
       const { riskName, riskList, actions } = backtest.strategySchemaService.get(context.strategyName);
-      riskName && backtest.riskValidationService.validate(riskName, LIVE_METHOD_NAME_CANCEL);
-      riskList && riskList.forEach((riskName) => backtest.riskValidationService.validate(riskName, LIVE_METHOD_NAME_CANCEL));
-      actions && actions.forEach((actionName) => backtest.actionValidationService.validate(actionName, LIVE_METHOD_NAME_CANCEL));
+      riskName && backtest.riskValidationService.validate(riskName, LIVE_METHOD_NAME_CANCEL_SCHEDULED);
+      riskList && riskList.forEach((riskName) => backtest.riskValidationService.validate(riskName, LIVE_METHOD_NAME_CANCEL_SCHEDULED));
+      actions && actions.forEach((actionName) => backtest.actionValidationService.validate(actionName, LIVE_METHOD_NAME_CANCEL_SCHEDULED));
     }
 
-    await backtest.strategyCoreService.cancel(false, symbol, {
+    await backtest.strategyCoreService.cancelScheduled(false, symbol, {
       strategyName: context.strategyName,
       exchangeName: context.exchangeName,
       frameName: "",
@@ -663,7 +663,7 @@ export class LiveUtils {
    * }, "manual-close-001");
    * ```
    */
-  static commitClose = async (
+  public commitClosePending = async (
     symbol: string,
     context: {
       strategyName: StrategyName;
@@ -671,22 +671,22 @@ export class LiveUtils {
     },
     closeId?: string
   ): Promise<void> => {
-    backtest.loggerService.info(LIVE_METHOD_NAME_CLOSE, {
+    backtest.loggerService.info(LIVE_METHOD_NAME_CLOSE_PENDING, {
       symbol,
       context,
       closeId,
     });
-    backtest.strategyValidationService.validate(context.strategyName, LIVE_METHOD_NAME_CLOSE);
-    backtest.exchangeValidationService.validate(context.exchangeName, LIVE_METHOD_NAME_CLOSE);
+    backtest.strategyValidationService.validate(context.strategyName, LIVE_METHOD_NAME_CLOSE_PENDING);
+    backtest.exchangeValidationService.validate(context.exchangeName, LIVE_METHOD_NAME_CLOSE_PENDING);
 
     {
       const { riskName, riskList, actions } = backtest.strategySchemaService.get(context.strategyName);
-      riskName && backtest.riskValidationService.validate(riskName, LIVE_METHOD_NAME_CLOSE);
-      riskList && riskList.forEach((riskName) => backtest.riskValidationService.validate(riskName, LIVE_METHOD_NAME_CLOSE));
-      actions && actions.forEach((actionName) => backtest.actionValidationService.validate(actionName, LIVE_METHOD_NAME_CLOSE));
+      riskName && backtest.riskValidationService.validate(riskName, LIVE_METHOD_NAME_CLOSE_PENDING);
+      riskList && riskList.forEach((riskName) => backtest.riskValidationService.validate(riskName, LIVE_METHOD_NAME_CLOSE_PENDING));
+      actions && actions.forEach((actionName) => backtest.actionValidationService.validate(actionName, LIVE_METHOD_NAME_CLOSE_PENDING));
     }
 
-    await backtest.strategyCoreService.close(false, symbol, {
+    await backtest.strategyCoreService.closePending(false, symbol, {
       strategyName: context.strategyName,
       exchangeName: context.exchangeName,
       frameName: "",
