@@ -1,12 +1,12 @@
 ---
-title: docs/function/stop
+title: docs/function/stopStrategy
 group: docs
 ---
 
-# stop
+# stopStrategy
 
 ```ts
-declare function stop(symbol: string): Promise<void>;
+declare function stopStrategy(symbol: string): Promise<void>;
 ```
 
 Stops the strategy from generating new signals.

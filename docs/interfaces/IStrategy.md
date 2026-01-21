@@ -87,10 +87,10 @@ Iterates through candles, calculates VWAP, checks TP/SL on each candle.
 For scheduled signals: first monitors activation/cancellation,
 then if activated continues with TP/SL monitoring.
 
-### stop
+### stopStrategy
 
 ```ts
-stop: (symbol: string, backtest: boolean) => Promise<void>
+stopStrategy: (symbol: string, backtest: boolean) => Promise<void>
 ```
 
 Stops the strategy from generating new signals.
@@ -100,10 +100,10 @@ Does NOT force-close active pending signals - they continue monitoring until nat
 
 Use case: Graceful shutdown in live trading mode without abandoning open positions.
 
-### cancel
+### cancelScheduled
 
 ```ts
-cancel: (symbol: string, backtest: boolean, cancelId?: string) => Promise<void>
+cancelScheduled: (symbol: string, backtest: boolean, cancelId?: string) => Promise<void>
 ```
 
 Cancels the scheduled signal without stopping the strategy.
@@ -113,6 +113,20 @@ Does NOT affect active pending signals or strategy operation.
 Does NOT set stop flag - strategy can continue generating new signals.
 
 Use case: Cancel a scheduled entry that is no longer desired without stopping the entire strategy.
+
+### closePending
+
+```ts
+closePending: (symbol: string, backtest: boolean, closeId?: string) => Promise<void>
+```
+
+Closes the pending signal without stopping the strategy.
+
+Clears the pending signal (active position).
+Does NOT affect scheduled signals or strategy operation.
+Does NOT set stop flag - strategy can continue generating new signals.
+
+Use case: Close an active position that is no longer desired without stopping the entire strategy.
 
 ### partialProfit
 

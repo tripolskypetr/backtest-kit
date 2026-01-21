@@ -40,7 +40,7 @@ Final VWAP price at close
 closeReason: StrategyCloseReason
 ```
 
-Why signal closed (time_expired &vert; take_profit | stop_loss)
+Why signal closed (time_expired &vert; take_profit | stop_loss | closed)
 
 ### closeTimestamp
 
@@ -97,3 +97,11 @@ backtest: boolean
 ```
 
 Whether this event is from backtest mode (true) or live mode (false)
+
+### closeId
+
+```ts
+closeId: string
+```
+
+Close ID (only for user-initiated closes with reason "closed")

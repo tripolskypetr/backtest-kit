@@ -1,12 +1,12 @@
 ---
-title: docs/function/commitCancel
+title: docs/function/commitCancelScheduled
 group: docs
 ---
 
-# commitCancel
+# commitCancelScheduled
 
 ```ts
-declare function commitCancel(symbol: string, cancelId?: string): Promise<void>;
+declare function commitCancelScheduled(symbol: string, cancelId?: string): Promise<void>;
 ```
 
 Cancels the scheduled signal without stopping the strategy.

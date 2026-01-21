@@ -141,10 +141,10 @@ Runs fast backtest against candle array.
 Wraps strategy backtest() with execution context containing symbol,
 timestamp, and backtest mode flag.
 
-### stop
+### stopStrategy
 
 ```ts
-stop: (backtest: boolean, symbol: string, context: { strategyName: string; exchangeName: string; frameName: string; }) => Promise<void>
+stopStrategy: (backtest: boolean, symbol: string, context: { strategyName: string; exchangeName: string; frameName: string; }) => Promise<void>
 ```
 
 Stops the strategy from generating new signals.
@@ -152,16 +152,32 @@ Stops the strategy from generating new signals.
 Delegates to StrategyConnectionService.stop() to set internal flag.
 Does not require execution context.
 
-### cancel
+### cancelScheduled
 
 ```ts
-cancel: (backtest: boolean, symbol: string, context: { strategyName: string; exchangeName: string; frameName: string; }, cancelId?: string) => Promise<void>
+cancelScheduled: (backtest: boolean, symbol: string, context: { strategyName: string; exchangeName: string; frameName: string; }, cancelId?: string) => Promise<void>
 ```
 
 Cancels the scheduled signal without stopping the strategy.
 
-Delegates to StrategyConnectionService.cancel() to clear scheduled signal
+Delegates to StrategyConnectionService.cancelScheduled() to clear scheduled signal
 and emit cancelled event through emitters.
+Does not require execution context.
+
+### closePending
+
+```ts
+closePending: (backtest: boolean, symbol: string, context: { strategyName: string; exchangeName: string; frameName: string; }, closeId?: string) => Promise<void>
+```
+
+Closes the pending signal without stopping the strategy.
+
+Clears the pending signal (active position).
+Does NOT affect scheduled signals or strategy operation.
+Does NOT set stop flag - strategy can continue generating new signals.
+
+Delegates to StrategyConnectionService.closePending() to clear pending signal
+and emit closed event through emitters.
 Does not require execution context.
 
 ### dispose

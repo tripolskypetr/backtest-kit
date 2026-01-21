@@ -87,16 +87,28 @@ Sets internal flag to prevent strategy from opening new signals.
 Current active signal (if any) will complete normally.
 Backtest will stop at the next safe point (idle state or after signal closes).
 
-### commitCancel
+### commitCancelScheduled
 
 ```ts
-commitCancel: (symbol: string, context: { strategyName: string; exchangeName: string; frameName: string; }, cancelId?: string) => Promise<void>
+commitCancelScheduled: (symbol: string, context: { strategyName: string; exchangeName: string; frameName: string; }, cancelId?: string) => Promise<void>
 ```
 
 Cancels the scheduled signal without stopping the strategy.
 
 Clears the scheduled signal (waiting for priceOpen activation).
 Does NOT affect active pending signals or strategy operation.
+Does NOT set stop flag - strategy can continue generating new signals.
+
+### commitClosePending
+
+```ts
+commitClosePending: (symbol: string, context: { strategyName: string; exchangeName: string; frameName: string; }, closeId?: string) => Promise<void>
+```
+
+Closes the pending signal without stopping the strategy.
+
+Clears the pending signal (active position).
+Does NOT affect scheduled signals or strategy operation.
 Does NOT set stop flag - strategy can continue generating new signals.
 
 ### commitPartialProfit

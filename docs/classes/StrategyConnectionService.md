@@ -158,15 +158,15 @@ Executes backtest for current strategy with provided candles.
 Waits for strategy initialization before processing candles.
 Evaluates strategy signals against historical data.
 
-### stop
+### stopStrategy
 
 ```ts
-stop: (backtest: boolean, symbol: string, context: { strategyName: string; exchangeName: string; frameName: string; }) => Promise<void>
+stopStrategy: (backtest: boolean, symbol: string, context: { strategyName: string; exchangeName: string; frameName: string; }) => Promise<void>
 ```
 
 Stops the specified strategy from generating new signals.
 
-Delegates to ClientStrategy.stop() which sets internal flag to prevent
+Delegates to ClientStrategy.stopStrategy() which sets internal flag to prevent
 getSignal from being called on subsequent ticks.
 
 ### dispose
@@ -190,19 +190,34 @@ Clears the memoized ClientStrategy instance from cache.
 If payload is provided, disposes the specific strategy instance.
 If no payload is provided, clears all strategy instances.
 
-### cancel
+### cancelScheduled
 
 ```ts
-cancel: (backtest: boolean, symbol: string, context: { strategyName: string; exchangeName: string; frameName: string; }, cancelId?: string) => Promise<void>
+cancelScheduled: (backtest: boolean, symbol: string, context: { strategyName: string; exchangeName: string; frameName: string; }, cancelId?: string) => Promise<void>
 ```
 
 Cancels the scheduled signal for the specified strategy.
 
-Delegates to ClientStrategy.cancel() which clears the scheduled signal
+Delegates to ClientStrategy.cancelScheduled() which clears the scheduled signal
 without stopping the strategy or affecting pending signals.
 
 Note: Cancelled event will be emitted on next tick() call when strategy
 detects the scheduled signal was cancelled.
+
+### closePending
+
+```ts
+closePending: (backtest: boolean, symbol: string, context: { strategyName: string; exchangeName: string; frameName: string; }, closeId?: string) => Promise<void>
+```
+
+Closes the pending signal without stopping the strategy.
+
+Clears the pending signal (active position).
+Does NOT affect scheduled signals or strategy operation.
+Does NOT set stop flag - strategy can continue generating new signals.
+
+Note: Closed event will be emitted on next tick() call when strategy
+detects the pending signal was closed.
 
 ### partialProfit
 
