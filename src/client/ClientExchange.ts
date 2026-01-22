@@ -429,12 +429,11 @@ export class ClientExchange implements IExchange {
     // Filter candles to strictly match the requested range
     const whenTimestamp = this.params.execution.context.when.getTime();
     const sinceTimestamp = since.getTime();
-    const stepMs = step * 60 * 1_000;
 
     const filteredData = allData.filter(
       (candle) =>
         candle.timestamp >= sinceTimestamp &&
-        candle.timestamp < whenTimestamp + stepMs,
+        candle.timestamp < whenTimestamp,
     );
 
     // Apply distinct by timestamp to remove duplicates
@@ -535,11 +534,10 @@ export class ClientExchange implements IExchange {
 
     // Filter candles to strictly match the requested range
     const sinceTimestamp = since.getTime();
-    const stepMs = step * 60 * 1_000;
 
     const filteredData = allData.filter(
       (candle) =>
-        candle.timestamp >= sinceTimestamp && candle.timestamp < endTime + stepMs,
+        candle.timestamp >= sinceTimestamp && candle.timestamp < endTime,
     );
 
     // Apply distinct by timestamp to remove duplicates
@@ -831,7 +829,7 @@ export class ClientExchange implements IExchange {
     const filteredData = allData.filter(
       (candle) =>
         candle.timestamp >= startTimestamp &&
-        candle.timestamp < endTimestamp + stepMs,
+        candle.timestamp < endTimestamp,
     );
 
     // Apply distinct by timestamp to remove duplicates
