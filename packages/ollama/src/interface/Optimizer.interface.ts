@@ -1,10 +1,31 @@
-import { CandleInterval, ExchangeName } from "./Exchange.interface";
 import { ILogger } from "./Logger.interface";
 import { MessageModel } from "../model/Message.model";
 import ProgressOptimizerContract from "../contract/ProgressOptimizer.contract";
-import { FrameName } from "./Frame.interface";
-import { WalkerName } from "./Walker.interface";
-import { StrategyName } from "./Strategy.interface";
+
+/**
+ * Candle interval type for trading timeframes.
+ */
+export type CandleInterval = "1m" | "3m" | "5m" | "15m" | "30m" | "1h" | "2h" | "4h" | "6h" | "8h" | "12h" | "1d" | "3d" | "1w" | "1M";
+
+/**
+ * Unique string identifier for registered exchanges.
+ */
+export type ExchangeName = string;
+
+/**
+ * Unique string identifier for registered frames.
+ */
+export type FrameName = string;
+
+/**
+ * Unique string identifier for registered walkers.
+ */
+export type WalkerName = string;
+
+/**
+ * Unique string identifier for registered strategies.
+ */
+export type StrategyName = string;
 
 /**
  * Unique identifier for data rows in optimizer sources.

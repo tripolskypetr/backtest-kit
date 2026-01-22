@@ -46,6 +46,14 @@ const markdownServices = {
     outlineMarkdownService: Symbol('outlineMarkdownService'),
 }
 
+const optimizerServices = {
+    optimizerTemplateService: Symbol('optimizerTemplateService'),
+    optimizerSchemaService: Symbol('optimizerSchemaService'),
+    optimizerValidationService: Symbol('optimizerValidationService'),
+    optimizerConnectionService: Symbol('optimizerConnectionService'),
+    optimizerGlobalService: Symbol('optimizerGlobalService'),
+}
+
 /**
  * Service type identifier registry for dependency injection.
  *
@@ -66,6 +74,7 @@ export const TYPES = {
     ...baseServices,
     ...promptServices,
     ...markdownServices,
+    ...optimizerServices,
     ...privateServices,
     ...publicServices,
 }

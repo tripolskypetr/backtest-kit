@@ -58,12 +58,6 @@ interface ValidateArgs<T = Enum> {
   SizingName?: T;
 
   /**
-   * Optimizer name enum to validate
-   * @example { GRID_SEARCH: "grid-search" }
-   */
-  OptimizerName?: T;
-
-  /**
    * Walker (parameter sweep) name enum to validate
    * @example { RSI_SWEEP: "rsi-sweep" }
    */
@@ -149,19 +143,6 @@ const getSizingMap = async () => {
 };
 
 /**
- * Retrieves all registered optimizers as a map
- * @private
- * @returns Map of optimizer names
- */
-const getOptimizerMap = async () => {
-  const optimizerMap: Record<string, string> = {};
-  for (const { optimizerName } of await lib.optimizerValidationService.list()) {
-    Object.assign(optimizerMap, { [optimizerName]: optimizerName });
-  }
-  return optimizerMap;
-};
-
-/**
  * Retrieves all registered walkers as a map
  * @private
  * @returns Map of walker names
@@ -195,7 +176,6 @@ const validateInternal = async (args: ValidateArgs<Enum>) => {
     RiskName = await getRiskMap(),
     ActionName = await getActionMap(),
     SizingName = await getSizingMap(),
-    OptimizerName = await getOptimizerMap(),
     WalkerName = await getWalkerMap(),
   } = args;
 
@@ -217,9 +197,6 @@ const validateInternal = async (args: ValidateArgs<Enum>) => {
   for (const sizingName of Object.values(SizingName)) {
     lib.sizingValidationService.validate(sizingName, METHOD_NAME);
   }
-  for (const optimizerName of Object.values(OptimizerName)) {
-    lib.optimizerValidationService.validate(optimizerName, METHOD_NAME);
-  }
   for (const walkerName of Object.values(WalkerName)) {
     lib.walkerValidationService.validate(walkerName, METHOD_NAME);
   }
@@ -229,7 +206,7 @@ const validateInternal = async (args: ValidateArgs<Enum>) => {
  * Validates the existence of all provided entity names across validation services.
  *
  * This function accepts enum objects for various entity types (exchanges, frames,
- * strategies, risks, sizings, optimizers, walkers) and validates that each entity
+ * strategies, risks, sizings, walkers) and validates that each entity
  * name exists in its respective registry. Validation results are memoized for performance.
  *
  * If no arguments are provided (or specific entity types are omitted), the function

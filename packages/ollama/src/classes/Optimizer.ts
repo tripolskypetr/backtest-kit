@@ -1,5 +1,5 @@
-import { OptimizerName } from "../interfaces/Optimizer.interface";
-import backtest from "../lib";
+import { OptimizerName } from "../interface/Optimizer.interface";
+import engine from "../lib";
 
 const OPTIMIZER_METHOD_NAME_GET_DATA = "OptimizerUtils.getData";
 const OPTIMIZER_METHOD_NAME_GET_CODE = "OptimizerUtils.getCode";
@@ -11,7 +11,7 @@ const OPTIMIZER_METHOD_NAME_DUMP = "OptimizerUtils.dump";
  *
  * Usage:
  * ```typescript
- * import { Optimizer } from "backtest-kit";
+ * import { Optimizer } from "@backtest-kit/ollama";
  *
  * // Get strategy data
  * const strategies = await Optimizer.getData("BTCUSDT", {
@@ -45,14 +45,14 @@ export class OptimizerUtils {
       optimizerName: OptimizerName;
     }
   ) => {
-    backtest.loggerService.info(OPTIMIZER_METHOD_NAME_GET_DATA, {
+    engine.loggerService.info(OPTIMIZER_METHOD_NAME_GET_DATA, {
       symbol,
       context,
     });
 
-    backtest.optimizerValidationService.validate(context.optimizerName, OPTIMIZER_METHOD_NAME_GET_DATA);
+    engine.optimizerValidationService.validate(context.optimizerName, OPTIMIZER_METHOD_NAME_GET_DATA);
 
-    return await backtest.optimizerGlobalService.getData(
+    return await engine.optimizerGlobalService.getData(
       symbol,
       context.optimizerName
     );
@@ -73,14 +73,14 @@ export class OptimizerUtils {
       optimizerName: OptimizerName;
     }
   ): Promise<string> => {
-    backtest.loggerService.info(OPTIMIZER_METHOD_NAME_GET_CODE, {
+    engine.loggerService.info(OPTIMIZER_METHOD_NAME_GET_CODE, {
       symbol,
       context,
     });
 
-    backtest.optimizerValidationService.validate(context.optimizerName, OPTIMIZER_METHOD_NAME_GET_CODE);
+    engine.optimizerValidationService.validate(context.optimizerName, OPTIMIZER_METHOD_NAME_GET_CODE);
 
-    return await backtest.optimizerGlobalService.getCode(
+    return await engine.optimizerGlobalService.getCode(
       symbol,
       context.optimizerName
     );
@@ -104,15 +104,15 @@ export class OptimizerUtils {
     },
     path?: string
   ): Promise<void> => {
-    backtest.loggerService.info(OPTIMIZER_METHOD_NAME_DUMP, {
+    engine.loggerService.info(OPTIMIZER_METHOD_NAME_DUMP, {
       symbol,
       context,
       path,
     });
 
-    backtest.optimizerValidationService.validate(context.optimizerName, OPTIMIZER_METHOD_NAME_DUMP);
+    engine.optimizerValidationService.validate(context.optimizerName, OPTIMIZER_METHOD_NAME_DUMP);
 
-    await backtest.optimizerGlobalService.dump(
+    await engine.optimizerGlobalService.dump(
       symbol,
       context.optimizerName,
       path
@@ -126,7 +126,7 @@ export class OptimizerUtils {
  *
  * @example
  * ```typescript
- * import { Optimizer } from "backtest-kit";
+ * import { Optimizer } from "@backtest-kit/ollama";
  *
  * await Optimizer.dump("BTCUSDT", { optimizerName: "my-optimizer" });
  * ```

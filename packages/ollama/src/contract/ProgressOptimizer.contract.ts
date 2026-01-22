@@ -6,7 +6,7 @@
  *
  * @example
  * ```typescript
- * import { listenOptimizerProgress } from "backtest-kit";
+ * import { listenOptimizerProgress } from "@backtest-kit/ollama";
  *
  * listenOptimizerProgress((event) => {
  *   console.log(`Progress: ${(event.progress * 100).toFixed(2)}%`);

@@ -10,7 +10,7 @@ import {
   ISwarmMessage,
   IOutlineMessage,
 } from "agent-swarm-kit";
-import LoggerService from "../common/LoggerService";
+import LoggerService from "../base/LoggerService";
 import { ILogger } from "../../../interface/Logger.interface";
 
 /**

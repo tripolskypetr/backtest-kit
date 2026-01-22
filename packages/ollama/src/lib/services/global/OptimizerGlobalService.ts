@@ -1,9 +1,9 @@
 import { inject } from "../../core/di";
 import LoggerService from "../base/LoggerService";
-import TYPES from "../../core/types";
+import { TYPES } from "../../core/types";
 import OptimizerConnectionService from "../connection/OptimizerConnectionService";
 import OptimizerValidationService from "../validation/OptimizerValidationService";
-import { IOptimizer, IOptimizerStrategy } from "../../../interfaces/Optimizer.interface";
+import { IOptimizer, IOptimizerStrategy } from "../../../interface/Optimizer.interface";
 
 const METHOD_NAME_GET_DATA = "optimizerGlobalService getData";
 const METHOD_NAME_GET_CODE = "optimizerGlobalService getCode";

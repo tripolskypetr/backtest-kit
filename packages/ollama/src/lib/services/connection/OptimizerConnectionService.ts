@@ -1,14 +1,14 @@
 import { inject } from "../../core/di";
 import LoggerService from "../base/LoggerService";
-import TYPES from "../../core/types";
+import { TYPES } from "../../core/types";
 import {
   OptimizerName,
   IOptimizer,
   IOptimizerTemplate,
   IOptimizerStrategy,
-} from "../../../interfaces/Optimizer.interface";
+} from "../../../interface/Optimizer.interface";
 import { memoize } from "functools-kit";
-import ClientOptimizer from "../../../client/ClientOptimizer";
+import ClientOptimizer from "../../../common/ClientOptimizer";
 import OptimizerSchemaService from "../schema/OptimizerSchemaService";
 import OptimizerTemplateService from "../template/OptimizerTemplateService";
 import ProgressOptimizerContract from "../../../contract/ProgressOptimizer.contract";

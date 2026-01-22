@@ -2,7 +2,7 @@ import { singleshot } from "functools-kit";
 import { createRequire } from "module";
 import path from "path";
 import { inject } from "../../../lib/core/di";
-import LoggerService from "../common/LoggerService";
+import LoggerService from "../base/LoggerService";
 import { TYPES } from "../../../lib/core/types";
 import { PromptModel } from "../../../model/Prompt.model";
 

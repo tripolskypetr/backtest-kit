@@ -11,7 +11,6 @@ export {
   getWalkerSchema,
   getSizingSchema,
   getRiskSchema,
-  getOptimizerSchema,
   getActionSchema,
 } from "./function/get";
 export {
@@ -43,13 +42,11 @@ export {
   addWalkerSchema,
   addSizingSchema,
   addRiskSchema,
-  addOptimizerSchema,
 } from "./function/add";
 export {
   overrideActionSchema,
   overrideExchangeSchema,
   overrideFrameSchema,
-  overrideOptimizerSchema,
   overrideRiskSchema,
   overrideSizingSchema,
   overrideStrategySchema,
@@ -62,7 +59,6 @@ export {
   listWalkerSchema,
   listSizingSchema,
   listRiskSchema,
-  listOptimizerSchema,
 } from "./function/list";
 export {
   listenSignal,
@@ -92,7 +88,6 @@ export {
   listenBreakevenAvailable,
   listenBreakevenAvailableOnce,
   listenWalkerProgress,
-  listenOptimizerProgress,
   listenRisk,
   listenRiskOnce,
   listenSchedulePing,
@@ -174,19 +169,6 @@ export {
 
 export { IHeatmapRow } from "./interfaces/Heatmap.interface";
 
-export {
-  IOptimizerCallbacks,
-  IOptimizerData,
-  IOptimizerFetchArgs,
-  IOptimizerFilterArgs,
-  IOptimizerRange,
-  IOptimizerSchema,
-  IOptimizerSource,
-  IOptimizerStrategy,
-  IOptimizerTemplate,
-} from "./interfaces/Optimizer.interface";
-
-export { MessageModel, MessageRole } from "./model/Message.model";
 export { ColumnModel } from "./model/Column.model";
 
 export {
@@ -220,7 +202,6 @@ export { PartialProfitContract } from "./contract/PartialProfit.contract";
 export { WalkerContract } from "./contract/Walker.contract";
 export { WalkerCompleteContract } from "./contract/WalkerComplete.contract";
 export { ProgressWalkerContract } from "./contract/ProgressWalker.contract";
-export { ProgressOptimizerContract } from "./contract/ProgressOptimizer.contract";
 export { DoneContract } from "./contract/Done.contract";
 export { RiskContract } from "./contract/Risk.contract";
 export { ProgressBacktestContract } from "./contract/ProgressBacktest.contract";
@@ -279,7 +260,6 @@ export { Performance } from "./classes/Performance";
 export { Walker } from "./classes/Walker";
 export { Heat } from "./classes/Heat";
 export { PositionSize } from "./classes/PositionSize";
-export { Optimizer } from "./classes/Optimizer";
 export { Partial } from "./classes/Partial";
 export { Constant } from "./classes/Constant";
 export { Risk } from "./classes/Risk";

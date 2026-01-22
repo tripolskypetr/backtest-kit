@@ -1,18 +1,16 @@
-import { inject } from "../../../lib/core/di";
+import { inject } from "../../core/di";
 import {
   IOptimizerData,
   IOptimizerTemplate,
-} from "../../../interfaces/Optimizer.interface";
-import LoggerService from "../base/LoggerService";
-import TYPES from "../../../lib/core/types";
-import {
   CandleInterval,
   ExchangeName,
-} from "../../../interfaces/Exchange.interface";
+  FrameName,
+  StrategyName,
+  WalkerName,
+} from "../../../interface/Optimizer.interface";
+import LoggerService from "../base/LoggerService";
+import { TYPES } from "../../core/types";
 import { toPlainString } from "../../../helpers/toPlainString";
-import { FrameName } from "../../../interfaces/Frame.interface";
-import { StrategyName } from "../../../interfaces/Strategy.interface";
-import { WalkerName } from "../../../interfaces/Walker.interface";
 
 /**
  * Default template service for generating optimizer code snippets.
@@ -183,7 +181,7 @@ export class OptimizerTemplateService implements IOptimizerTemplate {
     });
 
     // Convert prompt to plain text first
-    const plainPrompt = toPlainString(prompt);
+    const plainPrompt = await toPlainString(prompt);
 
     // Escape special characters to prevent code injection
     const escapedStrategyName = String(strategyName)

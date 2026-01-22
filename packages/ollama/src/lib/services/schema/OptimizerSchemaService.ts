@@ -1,8 +1,8 @@
-import { OptimizerName, IOptimizerSchema } from "../../../interfaces/Optimizer.interface";
-import { inject } from "../../../lib/core/di";
+import { OptimizerName, IOptimizerSchema } from "../../../interface/Optimizer.interface";
+import { inject } from "../../core/di";
 import LoggerService from "../base/LoggerService";
-import TYPES from "../../../lib/core/types";
-import { isObject, ToolRegistry } from "functools-kit";
+import { TYPES } from "../../core/types";
+import { ToolRegistry } from "functools-kit";
 
 /**
  * Service for managing optimizer schema registration and retrieval.

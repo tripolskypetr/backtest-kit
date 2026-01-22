@@ -8,7 +8,7 @@ import ContextService, { IContext } from "../base/ContextService";
 import { inject } from "../../core/di";
 import RunnerPrivateService from "../private/RunnerPrivateService";
 import { TYPES } from "../../core/types";
-import LoggerService from "../common/LoggerService";
+import LoggerService from "../base/LoggerService";
 
 /**
  * Public-facing service for AI inference operations with context management.

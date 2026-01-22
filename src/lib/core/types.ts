@@ -14,7 +14,6 @@ const connectionServices = {
     sizingConnectionService: Symbol('sizingConnectionService'),
     riskConnectionService: Symbol('riskConnectionService'),
     actionConnectionService: Symbol('actionConnectionService'),
-    optimizerConnectionService: Symbol('optimizerConnectionService'),
     partialConnectionService: Symbol('partialConnectionService'),
     breakevenConnectionService: Symbol('breakevenConnectionService'),
 };
@@ -27,7 +26,6 @@ const schemaServices = {
     sizingSchemaService: Symbol('sizingSchemaService'),
     riskSchemaService: Symbol('riskSchemaService'),
     actionSchemaService: Symbol('actionSchemaService'),
-    optimizerSchemaService: Symbol('optimizerSchemaService'),
 }
 
 const coreServices = {
@@ -40,7 +38,6 @@ const coreServices = {
 const globalServices = {
     sizingGlobalService: Symbol('sizingGlobalService'),
     riskGlobalService: Symbol('riskGlobalService'),
-    optimizerGlobalService: Symbol('optimizerGlobalService'),
     partialGlobalService: Symbol('partialGlobalService'),
     breakevenGlobalService: Symbol('breakevenGlobalService'),
 }
@@ -96,13 +93,8 @@ const validationServices = {
     sizingValidationService: Symbol('sizingValidationService'),
     riskValidationService: Symbol('riskValidationService'),
     actionValidationService: Symbol('actionValidationService'),
-    optimizerValidationService: Symbol('optimizerValidationService'),
     configValidationService: Symbol('configValidationService'),
     columnValidationService: Symbol('columnValidationService'),
-}
-
-const templateServices = {
-    optimizerTemplateService: Symbol('optimizerTemplateService'),
 }
 
 export const TYPES = {
@@ -118,7 +110,6 @@ export const TYPES = {
     ...markdownServices,
     ...reportServices,
     ...validationServices,
-    ...templateServices,
 }
 
 export default TYPES;

@@ -4,7 +4,6 @@ import { IFrameSchema } from "../interfaces/Frame.interface";
 import { IWalkerSchema } from "../interfaces/Walker.interface";
 import { ISizingSchema } from "../interfaces/Sizing.interface";
 import { IRiskSchema } from "../interfaces/Risk.interface";
-import { IOptimizerSchema } from "../interfaces/Optimizer.interface";
 import { IActionSchema } from "../interfaces/Action.interface";
 import backtest from "../lib/index";
 
@@ -14,7 +13,6 @@ const METHOD_NAME_OVERRIDE_FRAME = "function.override.overrideFrameSchema";
 const METHOD_NAME_OVERRIDE_WALKER = "function.override.overrideWalkerSchema";
 const METHOD_NAME_OVERRIDE_SIZING = "function.override.overrideSizingSchema";
 const METHOD_NAME_OVERRIDE_RISK = "function.override.overrideRiskSchema";
-const METHOD_NAME_OVERRIDE_OPTIMIZER = "function.override.overrideOptimizerSchema";
 const METHOD_NAME_OVERRIDE_ACTION = "function.override.overrideActionSchema";
 
 /**
@@ -163,36 +161,6 @@ type TSizingSchema = {
 type TRiskSchema = {
   riskName: IRiskSchema["riskName"];
 } & Partial<IRiskSchema>;
-
-/**
- * Partial optimizer schema for override operations.
- *
- * Requires only the optimizer name identifier, all other fields are optional.
- * Used by overrideOptimizer() to perform partial updates without replacing entire configuration.
- *
- * @property optimizerName - Required: Unique optimizer identifier (must exist in registry)
- * @property rangeTrain - Optional: Updated training time ranges
- * @property rangeTest - Optional: Updated testing time range
- * @property source - Optional: Updated data sources array
- * @property getPrompt - Optional: New prompt generation function
- * @property template - Optional: Updated template overrides
- * @property callbacks - Optional: Updated optimizer callbacks
- *
- * @example
- * ```typescript
- * const partialUpdate: TOptimizerSchema = {
- *   optimizerName: "llm-strategy-gen",
- *   rangeTest: {
- *     note: "Extended test period",
- *     startDate: new Date("2024-04-01"),
- *     endDate: new Date("2024-06-30")
- *   }
- * };
- * ```
- */
-type TOptimizerSchema = {
-  optimizerName: IOptimizerSchema["optimizerName"];
-} & Partial<IOptimizerSchema>;
 
 /**
  * Partial action schema for override operations.
@@ -442,49 +410,6 @@ export async function overrideRiskSchema(riskSchema: TRiskSchema) {
   return backtest.riskSchemaService.override(
     riskSchema.riskName,
     riskSchema
-  );
-}
-
-/**
- * Overrides an existing optimizer configuration in the framework.
- *
- * This function partially updates a previously registered optimizer with new configuration.
- * Only the provided fields will be updated, other fields remain unchanged.
- *
- * @param optimizerSchema - Partial optimizer configuration object
- * @param optimizerSchema.optimizerName - Unique optimizer identifier (must exist)
- * @param optimizerSchema.rangeTrain - Optional: Array of training time ranges
- * @param optimizerSchema.rangeTest - Optional: Testing time range
- * @param optimizerSchema.source - Optional: Array of data sources
- * @param optimizerSchema.getPrompt - Optional: Function to generate strategy prompt
- * @param optimizerSchema.template - Optional: Custom template overrides
- * @param optimizerSchema.callbacks - Optional: Lifecycle callbacks
- *
- * @example
- * ```typescript
- * overrideOptimizer({
- *   optimizerName: "llm-strategy-generator",
- *   rangeTest: {
- *     note: "Updated validation period",
- *     startDate: new Date("2024-04-01"),
- *     endDate: new Date("2024-04-30"),
- *   },
- * });
- * ```
- */
-export async function overrideOptimizerSchema(optimizerSchema: TOptimizerSchema) {
-  backtest.loggerService.log(METHOD_NAME_OVERRIDE_OPTIMIZER, {
-    optimizerSchema,
-  });
-
-  await backtest.optimizerValidationService.validate(
-    optimizerSchema.optimizerName,
-    METHOD_NAME_OVERRIDE_OPTIMIZER
-  );
-
-  return backtest.optimizerSchemaService.override(
-    optimizerSchema.optimizerName,
-    optimizerSchema
   );
 }
 

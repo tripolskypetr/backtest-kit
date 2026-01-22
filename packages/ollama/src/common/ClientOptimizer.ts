@@ -13,12 +13,12 @@ import {
   IOptimizerParams,
   IOptimizerSourceFn,
   IOptimizerStrategy,
-} from "../interfaces/Optimizer.interface";
+} from "../interface/Optimizer.interface";
 import { MessageModel } from "../model/Message.model";
 import { writeFile, mkdir } from "fs/promises";
 import { join } from "path";
 import ProgressOptimizerContract from "../contract/ProgressOptimizer.contract";
-import backtest from "../lib";
+import engine from "../lib";
 import { errorEmitter } from "../config/emitters";
 
 const ITERATION_LIMIT = 25;
@@ -50,7 +50,7 @@ const CALL_SOURCE_DATA_CALLBACKS_FN = trycatch(
         error: errorData(error),
         message: getErrorMessage(error),
       };
-      backtest.loggerService.warn(message, payload);
+      engine.loggerService.warn(message, payload);
       console.warn(message, payload);
       errorEmitter.next(error);
     },
@@ -78,7 +78,7 @@ const CALL_DATA_CALLBACKS_FN = trycatch(
         error: errorData(error),
         message: getErrorMessage(error),
       };
-      backtest.loggerService.warn(message, payload);
+      engine.loggerService.warn(message, payload);
       console.warn(message, payload);
       errorEmitter.next(error);
     },
@@ -106,7 +106,7 @@ const CALL_CODE_CALLBACKS_FN = trycatch(
         error: errorData(error),
         message: getErrorMessage(error),
       };
-      backtest.loggerService.warn(message, payload);
+      engine.loggerService.warn(message, payload);
       console.warn(message, payload);
       errorEmitter.next(error);
     },
@@ -134,7 +134,7 @@ const CALL_DUMP_CALLBACKS_FN = trycatch(
         error: errorData(error),
         message: getErrorMessage(error),
       };
-      backtest.loggerService.warn(message, payload);
+      engine.loggerService.warn(message, payload);
       console.warn(message, payload);
       errorEmitter.next(error);
     },

@@ -94,8 +94,65 @@ export {
 } from "./function/dump";
 
 export {
+  validate,
+} from "./function/validate.function";
+
+export {
   commitSignalPromptHistory,
 } from "./function/history";
+
+/**
+ * Optimizer schema registration.
+ */
+export {
+  addOptimizerSchema,
+} from "./function/add.function";
+
+/**
+ * Event listeners for optimizer progress.
+ */
+export {
+  listenOptimizerProgress,
+  listenError,
+} from "./function/event.function";
+
+export {
+  getOptimizerSchema,
+} from "./function/get.function";
+
+export {
+  listOptimizerSchema,
+} from "./function/list.function";
+
+/**
+ * Optimizer class for strategy generation and code export.
+ */
+export { Optimizer } from "./classes/Optimizer";
+
+/**
+ * Message model types for LLM conversation context.
+ */
+export { MessageModel, MessageRole } from "./model/Message.model";
+
+/**
+ * Optimizer interface types.
+ */
+export {
+  IOptimizerCallbacks,
+  IOptimizerData,
+  IOptimizerFetchArgs,
+  IOptimizerFilterArgs,
+  IOptimizerRange,
+  IOptimizerSchema,
+  IOptimizerSource,
+  IOptimizerStrategy,
+  IOptimizerTemplate,
+} from "./interface/Optimizer.interface";
+
+/**
+ * Contract types.
+ */
+export { ProgressOptimizerContract } from "./contract/ProgressOptimizer.contract";
 
 /**
  * Advanced engine library for direct service access.

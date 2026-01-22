@@ -1,5 +1,5 @@
 import { inject } from "../../../lib/core/di";
-import LoggerService from "../common/LoggerService";
+import LoggerService from "../base/LoggerService";
 import { TYPES } from "../../../lib/core/types";
 import { IOutlineMessage, json } from "agent-swarm-kit";
 import TSignalSchema from "../../../schema/Signal.schema";

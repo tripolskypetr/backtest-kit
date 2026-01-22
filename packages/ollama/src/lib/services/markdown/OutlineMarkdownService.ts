@@ -1,6 +1,6 @@
 import { inject } from "../../../lib/core/di";
 import { MessageModel } from "../../../model/Message.model";
-import LoggerService from "../common/LoggerService";
+import LoggerService from "../base/LoggerService";
 import { TYPES } from "../../../lib/core/types";
 import { Markdown, ISignalDto } from "backtest-kit";
 import path from "path";

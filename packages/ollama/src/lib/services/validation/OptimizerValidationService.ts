@@ -1,7 +1,7 @@
 import { inject } from "../../core/di";
 import LoggerService from "../base/LoggerService";
-import TYPES from "../../core/types";
-import { OptimizerName, IOptimizerSchema } from "../../../interfaces/Optimizer.interface";
+import { TYPES } from "../../core/types";
+import { OptimizerName, IOptimizerSchema } from "../../../interface/Optimizer.interface";
 import { memoize } from "functools-kit";
 
 /**

@@ -44,11 +44,6 @@ import WalkerValidationService from "../services/validation/WalkerValidationServ
 import SizingValidationService from "../services/validation/SizingValidationService";
 import RiskValidationService from "../services/validation/RiskValidationService";
 import ActionValidationService from "../services/validation/ActionValidationService";
-import OptimizerTemplateService from "../services/template/OptimizerTemplateService";
-import OptimizerSchemaService from "../services/schema/OptimizerSchemaService";
-import OptimizerValidationService from "../services/validation/OptimizerValidationService";
-import OptimizerGlobalService from "../services/global/OptimizerGlobalService";
-import OptimizerConnectionService from "../services/connection/OptimizerConnectionService";
 import { PartialConnectionService } from "../services/connection/PartialConnectionService";
 import PartialMarkdownService from "../services/markdown/PartialMarkdownService";
 import PartialGlobalService from "../services/global/PartialGlobalService";
@@ -84,7 +79,6 @@ import RiskReportService from "../services/report/RiskReportService";
     provide(TYPES.sizingConnectionService, () => new SizingConnectionService());
     provide(TYPES.riskConnectionService, () => new RiskConnectionService());
     provide(TYPES.actionConnectionService, () => new ActionConnectionService());
-    provide(TYPES.optimizerConnectionService, () => new OptimizerConnectionService());
     provide(TYPES.partialConnectionService, () => new PartialConnectionService());
     provide(TYPES.breakevenConnectionService, () => new BreakevenConnectionService());
 }
@@ -97,7 +91,6 @@ import RiskReportService from "../services/report/RiskReportService";
     provide(TYPES.sizingSchemaService, () => new SizingSchemaService());
     provide(TYPES.riskSchemaService, () => new RiskSchemaService());
     provide(TYPES.actionSchemaService, () => new ActionSchemaService());
-    provide(TYPES.optimizerSchemaService, () => new OptimizerSchemaService());
 }
 
 {
@@ -110,7 +103,6 @@ import RiskReportService from "../services/report/RiskReportService";
 {
     provide(TYPES.sizingGlobalService, () => new SizingGlobalService());
     provide(TYPES.riskGlobalService, () => new RiskGlobalService());
-    provide(TYPES.optimizerGlobalService, () => new OptimizerGlobalService());
     provide(TYPES.partialGlobalService, () => new PartialGlobalService());
     provide(TYPES.breakevenGlobalService, () => new BreakevenGlobalService());
 }
@@ -165,11 +157,6 @@ import RiskReportService from "../services/report/RiskReportService";
     provide(TYPES.sizingValidationService, () => new SizingValidationService());
     provide(TYPES.riskValidationService, () => new RiskValidationService());
     provide(TYPES.actionValidationService, () => new ActionValidationService());
-    provide(TYPES.optimizerValidationService, () => new OptimizerValidationService());
     provide(TYPES.configValidationService, () => new ConfigValidationService());
     provide(TYPES.columnValidationService, () => new ColumnValidationService());
-}
-
-{
-    provide(TYPES.optimizerTemplateService, () => new OptimizerTemplateService());
 }

@@ -49,11 +49,6 @@ import WalkerValidationService from "./services/validation/WalkerValidationServi
 import SizingValidationService from "./services/validation/SizingValidationService";
 import RiskValidationService from "./services/validation/RiskValidationService";
 import ActionValidationService from "./services/validation/ActionValidationService";
-import OptimizerTemplateService from "./services/template/OptimizerTemplateService";
-import OptimizerSchemaService from "./services/schema/OptimizerSchemaService";
-import OptimizerValidationService from "./services/validation/OptimizerValidationService";
-import OptimizerConnectionService from "./services/connection/OptimizerConnectionService";
-import OptimizerGlobalService from "./services/global/OptimizerGlobalService";
 import PartialConnectionService from "./services/connection/PartialConnectionService";
 import PartialMarkdownService from "./services/markdown/PartialMarkdownService";
 import PartialGlobalService from "./services/global/PartialGlobalService";
@@ -105,9 +100,6 @@ const connectionServices = {
   actionConnectionService: inject<ActionConnectionService>(
     TYPES.actionConnectionService
   ),
-  optimizerConnectionService: inject<OptimizerConnectionService>(
-    TYPES.optimizerConnectionService
-  ),
   partialConnectionService: inject<PartialConnectionService>(
     TYPES.partialConnectionService
   ),
@@ -128,9 +120,6 @@ const schemaServices = {
   sizingSchemaService: inject<SizingSchemaService>(TYPES.sizingSchemaService),
   riskSchemaService: inject<RiskSchemaService>(TYPES.riskSchemaService),
   actionSchemaService: inject<ActionSchemaService>(TYPES.actionSchemaService),
-  optimizerSchemaService: inject<OptimizerSchemaService>(
-    TYPES.optimizerSchemaService
-  ),
 };
 
 const coreServices = {
@@ -143,9 +132,6 @@ const coreServices = {
 const globalServices = {
   sizingGlobalService: inject<SizingGlobalService>(TYPES.sizingGlobalService),
   riskGlobalService: inject<RiskGlobalService>(TYPES.riskGlobalService),
-  optimizerGlobalService: inject<OptimizerGlobalService>(
-    TYPES.optimizerGlobalService
-  ),
   partialGlobalService: inject<PartialGlobalService>(
     TYPES.partialGlobalService
   ),
@@ -258,20 +244,11 @@ const validationServices = {
   actionValidationService: inject<ActionValidationService>(
     TYPES.actionValidationService
   ),
-  optimizerValidationService: inject<OptimizerValidationService>(
-    TYPES.optimizerValidationService
-  ),
   configValidationService: inject<ConfigValidationService>(
     TYPES.configValidationService
   ),
   columnValidationService: inject<ColumnValidationService>(
     TYPES.columnValidationService
-  ),
-};
-
-const templateServices = {
-  optimizerTemplateService: inject<OptimizerTemplateService>(
-    TYPES.optimizerTemplateService
   ),
 };
 
@@ -288,7 +265,6 @@ export const backtest = {
   ...markdownServices,
   ...reportServices,
   ...validationServices,
-  ...templateServices,
 };
 
 init();

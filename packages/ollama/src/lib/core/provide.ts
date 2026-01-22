@@ -16,13 +16,18 @@
  */
 
 import ContextService from "../services/base/ContextService";
-import LoggerService from "../services/common/LoggerService";
+import LoggerService from "../services/base/LoggerService";
 import OutlineMarkdownService from "../services/markdown/OutlineMarkdownService";
 import OutlinePrivateService from "../services/private/OutlinePrivateService";
 import RunnerPrivateService from "../services/private/RunnerPrivateService";
 import SignalPromptService from "../services/prompt/SignalPromptService";
 import OutlinePublicService from "../services/public/OutlinePublicService";
 import RunnerPublicService from "../services/public/RunnerPublicService";
+import OptimizerTemplateService from "../services/template/OptimizerTemplateService";
+import OptimizerSchemaService from "../services/schema/OptimizerSchemaService";
+import OptimizerValidationService from "../services/validation/OptimizerValidationService";
+import OptimizerConnectionService from "../services/connection/OptimizerConnectionService";
+import OptimizerGlobalService from "../services/global/OptimizerGlobalService";
 import { provide } from "./di";
 import { TYPES } from "./types";
 
@@ -62,4 +67,15 @@ import { TYPES } from "./types";
 
 {
   provide(TYPES.outlineMarkdownService, () => new OutlineMarkdownService());
+}
+
+/**
+ * Register optimizer services.
+ */
+{
+  provide(TYPES.optimizerTemplateService, () => new OptimizerTemplateService());
+  provide(TYPES.optimizerSchemaService, () => new OptimizerSchemaService());
+  provide(TYPES.optimizerValidationService, () => new OptimizerValidationService());
+  provide(TYPES.optimizerConnectionService, () => new OptimizerConnectionService());
+  provide(TYPES.optimizerGlobalService, () => new OptimizerGlobalService());
 }

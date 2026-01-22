@@ -56,11 +56,16 @@ import PerplexityProvider from "../client/PerplexityProvider.client";
 import CohereProvider from "../client/CohereProvider.client";
 import AlibabaProvider from "../client/AlibabaProvider.client";
 import GLM4Provider from "../client/GLM4Provider.client";
-import LoggerService from "./services/common/LoggerService";
+import LoggerService from "./services/base/LoggerService";
 import OutlinePrivateService from "./services/private/OutlinePrivateService";
 import OutlinePublicService from "./services/public/OutlinePublicService";
 import SignalPromptService from "./services/prompt/SignalPromptService";
 import OutlineMarkdownService from "./services/markdown/OutlineMarkdownService";
+import OptimizerTemplateService from "./services/template/OptimizerTemplateService";
+import OptimizerSchemaService from "./services/schema/OptimizerSchemaService";
+import OptimizerValidationService from "./services/validation/OptimizerValidationService";
+import OptimizerConnectionService from "./services/connection/OptimizerConnectionService";
+import OptimizerGlobalService from "./services/global/OptimizerGlobalService";
 
 /**
  * Common service instances.
@@ -102,6 +107,14 @@ const markdownServices = {
   outlineMarkdownService: inject<OutlineMarkdownService>(TYPES.outlineMarkdownService),
 }
 
+const optimizerServices = {
+  optimizerTemplateService: inject<OptimizerTemplateService>(TYPES.optimizerTemplateService),
+  optimizerSchemaService: inject<OptimizerSchemaService>(TYPES.optimizerSchemaService),
+  optimizerValidationService: inject<OptimizerValidationService>(TYPES.optimizerValidationService),
+  optimizerConnectionService: inject<OptimizerConnectionService>(TYPES.optimizerConnectionService),
+  optimizerGlobalService: inject<OptimizerGlobalService>(TYPES.optimizerGlobalService),
+}
+
 /**
  * Main engine object containing all services.
  * Provides unified access to the entire service layer.
@@ -113,6 +126,7 @@ const engine = {
   ...publicServices,
   ...promptServices,
   ...markdownServices,
+  ...optimizerServices,
 };
 
 // Initialize DI container

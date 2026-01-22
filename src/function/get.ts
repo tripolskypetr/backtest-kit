@@ -4,7 +4,6 @@ import { FrameName } from "../interfaces/Frame.interface";
 import { WalkerName } from "../interfaces/Walker.interface";
 import { SizingName } from "../interfaces/Sizing.interface";
 import { RiskName } from "../interfaces/Risk.interface";
-import { OptimizerName } from "../interfaces/Optimizer.interface";
 import { ActionName } from "../interfaces/Action.interface";
 import backtest from "../lib";
 
@@ -14,7 +13,6 @@ const GET_FRAME_METHOD_NAME = "get.getFrameSchema";
 const GET_WALKER_METHOD_NAME = "get.getWalkerSchema";
 const GET_SIZING_METHOD_NAME = "get.getSizingSchema";
 const GET_RISK_METHOD_NAME = "get.getRiskSchema";
-const GET_OPTIMIZER_METHOD_NAME = "get.getOptimizerSchema";
 const GET_ACTION_METHOD_NAME = "get.getActionSchema";
 
 /**
@@ -181,35 +179,6 @@ export function getRiskSchema(riskName: RiskName) {
   );
 
   return backtest.riskSchemaService.get(riskName);
-}
-
-/**
- * Retrieves a registered optimizer schema by name.
- *
- * @param optimizerName - Unique optimizer identifier
- * @returns The optimizer schema configuration object
- * @throws Error if optimizer is not registered
- *
- * @example
- * ```typescript
- * const optimizer = getOptimizer("llm-strategy-generator");
- * console.log(optimizer.rangeTrain); // Array of training ranges
- * console.log(optimizer.rangeTest); // Testing range
- * console.log(optimizer.source); // Array of data sources
- * console.log(optimizer.getPrompt); // async function
- * ```
- */
-export function getOptimizerSchema(optimizerName: OptimizerName) {
-  backtest.loggerService.log(GET_OPTIMIZER_METHOD_NAME, {
-    optimizerName,
-  });
-
-  backtest.optimizerValidationService.validate(
-    optimizerName,
-    GET_OPTIMIZER_METHOD_NAME
-  );
-
-  return backtest.optimizerSchemaService.get(optimizerName);
 }
 
 /**
