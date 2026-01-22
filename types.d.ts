@@ -8264,7 +8264,7 @@ declare class PersistCandleUtils {
      * @param exchangeName - Exchange identifier
      * @param limit - Number of candles requested
      * @param sinceTimestamp - Start timestamp (inclusive)
-     * @param untilTimestamp - End timestamp (exclusive, but includes candles that open before untilTimestamp + stepMs)
+     * @param untilTimestamp - End timestamp (exclusive)
      * @returns Promise resolving to array of candles or null if cache is incomplete
      */
     readCandlesData: (symbol: string, interval: CandleInterval, exchangeName: ExchangeName, limit: number, sinceTimestamp: number, untilTimestamp: number) => Promise<CandleData[] | null>;
