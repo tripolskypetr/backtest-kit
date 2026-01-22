@@ -32,17 +32,11 @@ import { provide } from "./di";
 import { TYPES } from "./types";
 
 /**
- * Register common services.
- */
-{
-  provide(TYPES.loggerService, () => new LoggerService());
-}
-
-/**
  * Register base services.
  */
 {
   provide(TYPES.contextService, () => new ContextService());
+  provide(TYPES.loggerService, () => new LoggerService());
 }
 
 /**
@@ -70,12 +64,36 @@ import { TYPES } from "./types";
 }
 
 /**
- * Register optimizer services.
+ * Register template services.
  */
 {
   provide(TYPES.optimizerTemplateService, () => new OptimizerTemplateService());
+}
+
+/**
+ * Register schema services.
+ */
+{
   provide(TYPES.optimizerSchemaService, () => new OptimizerSchemaService());
+}
+
+/**
+ * Register validation services.
+ */
+{
   provide(TYPES.optimizerValidationService, () => new OptimizerValidationService());
+}
+
+/**
+ * Register connection services.
+ */
+{
   provide(TYPES.optimizerConnectionService, () => new OptimizerConnectionService());
+}
+
+/**
+ * Register global services.
+ */
+{
   provide(TYPES.optimizerGlobalService, () => new OptimizerGlobalService());
 }

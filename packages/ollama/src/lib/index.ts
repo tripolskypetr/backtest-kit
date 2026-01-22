@@ -68,17 +68,11 @@ import OptimizerConnectionService from "./services/connection/OptimizerConnectio
 import OptimizerGlobalService from "./services/global/OptimizerGlobalService";
 
 /**
- * Common service instances.
- */
-const commonServices = {
-  loggerService: inject<LoggerService>(TYPES.loggerService),
-}
-
-/**
  * Base service instances.
  */
 const baseServices = {
   contextService: inject<TContextService>(TYPES.contextService),
+  loggerService: inject<LoggerService>(TYPES.loggerService),
 };
 
 /**
@@ -107,11 +101,23 @@ const markdownServices = {
   outlineMarkdownService: inject<OutlineMarkdownService>(TYPES.outlineMarkdownService),
 }
 
-const optimizerServices = {
+const templateServices = {
   optimizerTemplateService: inject<OptimizerTemplateService>(TYPES.optimizerTemplateService),
+}
+
+const schemaServices = {
   optimizerSchemaService: inject<OptimizerSchemaService>(TYPES.optimizerSchemaService),
+}
+
+const validationServices = {
   optimizerValidationService: inject<OptimizerValidationService>(TYPES.optimizerValidationService),
+}
+
+const connectionServices = {
   optimizerConnectionService: inject<OptimizerConnectionService>(TYPES.optimizerConnectionService),
+}
+
+const globalServices = {
   optimizerGlobalService: inject<OptimizerGlobalService>(TYPES.optimizerGlobalService),
 }
 
@@ -120,13 +126,16 @@ const optimizerServices = {
  * Provides unified access to the entire service layer.
  */
 const engine = {
-  ...commonServices,
   ...baseServices,
   ...privateServices,
   ...publicServices,
   ...promptServices,
   ...markdownServices,
-  ...optimizerServices,
+  ...templateServices,
+  ...schemaServices,
+  ...validationServices,
+  ...connectionServices,
+  ...globalServices,
 };
 
 // Initialize DI container

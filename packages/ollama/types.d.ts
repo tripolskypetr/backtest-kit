@@ -2376,11 +2376,11 @@ declare class OptimizerGlobalService implements TOptimizer {
  * Provides unified access to the entire service layer.
  */
 declare const engine: {
-    optimizerTemplateService: OptimizerTemplateService;
-    optimizerSchemaService: OptimizerSchemaService;
-    optimizerValidationService: OptimizerValidationService;
-    optimizerConnectionService: OptimizerConnectionService;
     optimizerGlobalService: OptimizerGlobalService;
+    optimizerConnectionService: OptimizerConnectionService;
+    optimizerValidationService: OptimizerValidationService;
+    optimizerSchemaService: OptimizerSchemaService;
+    optimizerTemplateService: OptimizerTemplateService;
     outlineMarkdownService: OutlineMarkdownService;
     signalPromptService: SignalPromptService;
     runnerPublicService: RunnerPublicService;
