@@ -495,7 +495,7 @@ export class ClientExchange implements IExchange {
 
     // Вычисляем конечное время запроса
     const step = INTERVAL_MINUTES[interval];
-    const endTime = since.getTime() + limit * step * 60 * 1000;
+    const endTime = since.getTime() + limit * step * MS_PER_MINUTE;
 
     // Проверяем что запрошенный период не заходит за Date.now()
     if (endTime > now) {
