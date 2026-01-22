@@ -107,3 +107,11 @@ Fetches order book with execution context.
 Sets up execution context with the provided when/backtest parameters.
 The exchange implementation will receive time range parameters but may
 choose to use them (backtest) or ignore them (live).
+
+### getRawCandles
+
+```ts
+getRawCandles: (symbol: string, interval: CandleInterval, when: Date, backtest: boolean, limit?: number, sDate?: number, eDate?: number) => Promise<ICandleData[]>
+```
+
+Fetches raw candles with flexible date/limit parameters and execution context.

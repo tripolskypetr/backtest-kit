@@ -125,3 +125,13 @@ Fetches order book for a trading pair using configured exchange.
 Routes to exchange determined by methodContextService.context.exchangeName.
 The ClientExchange will calculate time range and pass it to the schema
 implementation, which may use (backtest) or ignore (live) the parameters.
+
+### getRawCandles
+
+```ts
+getRawCandles: (symbol: string, interval: CandleInterval, limit?: number, sDate?: number, eDate?: number) => Promise<ICandleData[]>
+```
+
+Fetches raw candles with flexible date/limit parameters.
+
+Routes to exchange determined by methodContextService.context.exchangeName.

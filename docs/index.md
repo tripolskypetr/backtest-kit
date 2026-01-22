@@ -13,6 +13,7 @@ group: docs
 - [PersistScheduleUtils](classes/PersistScheduleUtils.md)
 - [PersistPartialUtils](classes/PersistPartialUtils.md)
 - [PersistBreakevenUtils](classes/PersistBreakevenUtils.md)
+- [PersistCandleUtils](classes/PersistCandleUtils.md)
 - [ReportBase](classes/ReportBase.md)
 - [ReportUtils](classes/ReportUtils.md)
 - [ReportAdapter](classes/ReportAdapter.md)
@@ -208,6 +209,7 @@ group: docs
 - [getSymbol](functions/getSymbol.md)
 - [getContext](functions/getContext.md)
 - [getOrderBook](functions/getOrderBook.md)
+- [getRawCandles](functions/getRawCandles.md)
 - [commitSignalPromptHistory](functions/commitSignalPromptHistory.md)
 - [dumpSignalData](functions/dumpSignalData.md)
 
@@ -402,6 +404,7 @@ group: docs
 - [ScheduleData](types/ScheduleData.md)
 - [PartialData](types/PartialData.md)
 - [BreakevenData](types/BreakevenData.md)
+- [CandleData](types/CandleData.md)
 - [ReportName](types/ReportName.md)
 - [TReportBase](types/TReportBase.md)
 - [TReportBaseCtor](types/TReportBaseCtor.md)

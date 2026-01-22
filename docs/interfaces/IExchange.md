@@ -60,3 +60,20 @@ getOrderBook: (symbol: string, depth?: number) => Promise<IOrderBookData>
 ```
 
 Fetch order book for a trading pair.
+
+### getRawCandles
+
+```ts
+getRawCandles: (symbol: string, interval: CandleInterval, limit?: number, sDate?: number, eDate?: number) => Promise<ICandleData[]>
+```
+
+Fetch raw candles with flexible date/limit parameters.
+
+All modes respect execution context and prevent look-ahead bias.
+
+Parameter combinations:
+1. sDate + eDate + limit: fetches with explicit parameters, validates eDate &lt;= when
+2. sDate + eDate: calculates limit from date range, validates eDate &lt;= when
+3. eDate + limit: calculates sDate backward, validates eDate &lt;= when
+4. sDate + limit: fetches forward, validates calculated endTimestamp <= when
+5. Only limit: uses execution.context.when as reference (backward)

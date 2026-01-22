@@ -83,6 +83,28 @@ formatPrice(symbol: string, price: number): Promise<string>;
 Formats price according to exchange-specific rules for the given symbol.
 Applies proper decimal precision and rounding based on symbol's price filters.
 
+### getRawCandles
+
+```ts
+getRawCandles(symbol: string, interval: CandleInterval, limit?: number, sDate?: number, eDate?: number): Promise<ICandleData[]>;
+```
+
+Fetches raw candles with flexible date/limit parameters.
+
+All modes respect execution context and prevent look-ahead bias.
+
+Parameter combinations:
+1. sDate + eDate + limit: fetches with explicit parameters, validates eDate &lt;= when
+2. sDate + eDate: calculates limit from date range, validates eDate &lt;= when
+3. eDate + limit: calculates sDate backward, validates eDate &lt;= when
+4. sDate + limit: fetches forward, validates calculated endTimestamp <= when
+5. Only limit: uses execution.context.when as reference (backward)
+
+Edge cases:
+- If calculated limit is 0 or negative: throws error
+- If sDate &gt;= eDate: throws error
+- If eDate &gt; when: throws error to prevent look-ahead bias
+
 ### getOrderBook
 
 ```ts

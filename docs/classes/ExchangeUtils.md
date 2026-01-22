@@ -30,7 +30,7 @@ Each exchange gets its own isolated instance.
 ### getCandles
 
 ```ts
-getCandles: (symbol: string, interval: CandleInterval, limit: number, context: { exchangeName: string; }) => Promise<ICandleData[]>
+getCandles: (symbol: string, interval: CandleInterval, limit: number, context: { exchangeName: string; }) => Promise<any>
 ```
 
 Fetch candles from data source (API or database).
@@ -73,3 +73,13 @@ Fetch order book for a trading pair.
 Delegates to ExchangeInstance which calculates time range and passes it
 to the exchange schema implementation. The from/to parameters may be used
 (backtest) or ignored (live) depending on the implementation.
+
+### getRawCandles
+
+```ts
+getRawCandles: (symbol: string, interval: CandleInterval, context: { exchangeName: string; }, limit?: number, sDate?: number, eDate?: number) => Promise<ICandleData[]>
+```
+
+Fetches raw candles with flexible date/limit parameters.
+
+Uses Date.now() instead of execution context when for look-ahead bias protection.
