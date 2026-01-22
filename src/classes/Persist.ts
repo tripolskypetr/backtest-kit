@@ -21,6 +21,19 @@ import { IPartialData } from "../interfaces/Partial.interface";
 import { IBreakevenData } from "../interfaces/Breakeven.interface";
 import { ExchangeName, CandleInterval, ICandleData } from "../interfaces/Exchange.interface";
 
+const INTERVAL_MINUTES: Record<CandleInterval, number> = {
+  "1m": 1,
+  "3m": 3,
+  "5m": 5,
+  "15m": 15,
+  "30m": 30,
+  "1h": 60,
+  "2h": 120,
+  "4h": 240,
+  "6h": 360,
+  "8h": 480,
+};
+
 const BASE_WAIT_FOR_INIT_SYMBOL = Symbol("wait-for-init");
 
 const PERSIST_SIGNAL_UTILS_METHOD_NAME_USE_PERSIST_SIGNAL_ADAPTER =
@@ -1322,7 +1335,7 @@ export class PersistCandleUtils {
    * @param exchangeName - Exchange identifier
    * @param limit - Number of candles requested
    * @param sinceTimestamp - Start timestamp (inclusive)
-   * @param untilTimestamp - End timestamp (exclusive)
+   * @param untilTimestamp - End timestamp (exclusive, but includes candles that open before untilTimestamp + stepMs)
    * @returns Promise resolving to array of candles or null if cache is incomplete
    */
   public readCandlesData = async (
@@ -1347,12 +1360,17 @@ export class PersistCandleUtils {
     const stateStorage = this.getCandlesStorage(symbol, interval, exchangeName);
     await stateStorage.waitForInit(isInitial);
 
+    // Calculate stepMs to match ClientExchange logic
+    const step = INTERVAL_MINUTES[interval];
+    const stepMs = step * 60 * 1_000;
+
     // Collect all cached candles within the time range
     const cachedCandles: CandleData[] = [];
 
     for await (const timestamp of stateStorage.keys()) {
       const ts = Number(timestamp);
-      if (ts >= sinceTimestamp && ts < untilTimestamp) {
+      // Use same logic as ClientExchange: include candles that open before untilTimestamp + stepMs
+      if (ts >= sinceTimestamp && ts < untilTimestamp + stepMs) {
         try {
           const candle = await stateStorage.readValue(timestamp);
           cachedCandles.push(candle);

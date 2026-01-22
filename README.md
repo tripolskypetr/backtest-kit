@@ -206,7 +206,7 @@ Backtest Kit is **not a data-processing library** - it is a **time execution eng
 ### 🔍 How getCandles Works
 
 backtest-kit uses Node.js `AsyncLocalStorage` to automatically provide 
-temporal time context to your strategies.
+temporal time context to your strategies. Exclusive (aka `[startTime, endTime + stepMs)`) candle limit being used
 
 ### 💭 What this means:
 - `getCandles()` always returns data UP TO the current backtest timestamp using `async_hooks`

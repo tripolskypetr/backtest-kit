@@ -14419,6 +14419,35 @@ declare class ClientExchange implements IExchange {
      */
     formatPrice(symbol: string, price: number): Promise<string>;
     /**
+     * Fetches raw candles with flexible date/limit parameters.
+     *
+     * Compatibility layer that:
+     * - RAW MODE (sDate + eDate + limit): fetches exactly as specified, NO look-ahead bias protection
+     * - Other modes: respects execution context and prevents look-ahead bias
+     *
+     * Parameter combinations:
+     * 1. sDate + eDate + limit: RAW MODE - fetches exactly as specified, no validation against when
+     * 2. sDate + eDate: calculates limit from date range, validates endTimestamp <= when
+     * 3. eDate + limit: calculates sDate backward, validates endTimestamp <= when
+     * 4. sDate + limit: fetches forward, validates endTimestamp <= when
+     * 5. Only limit: uses execution.context.when as reference (backward)
+     *
+     * Edge cases:
+     * - If calculated limit is 0 or negative: throws error
+     * - If sDate >= eDate: throws error
+     * - If startTimestamp >= endTimestamp: throws error
+     * - If endTimestamp > when (non-RAW modes only): throws error to prevent look-ahead bias
+     *
+     * @param symbol - Trading pair symbol
+     * @param interval - Candle interval
+     * @param limit - Optional number of candles to fetch
+     * @param sDate - Optional start date in milliseconds
+     * @param eDate - Optional end date in milliseconds
+     * @returns Promise resolving to array of candles
+     * @throws Error if parameters are invalid or conflicting
+     */
+    getRawCandles(symbol: string, interval: CandleInterval, limit?: number, sDate?: number, eDate?: number): Promise<ICandleData[]>;
+    /**
      * Fetches order book for a trading pair.
      *
      * Calculates time range based on execution context time (when) and
