@@ -1866,7 +1866,7 @@ The Optimizer uses LLM (Large Language Models) to generate trading strategies fr
 ### Basic Example
 
 ```typescript
-import { addOptimizerSchema, Optimizer } from "backtest-kit";
+import { addOptimizerSchema, Optimizer } from "@backtest-kit/ollama";
 
 // Register optimizer configuration
 addOptimizerSchema({
