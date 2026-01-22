@@ -17,6 +17,8 @@ import backtest from "../lib";
 import { errorEmitter } from "../config/emitters";
 import { PersistCandleAdapter } from "../classes/Persist";
 
+const MS_PER_MINUTE = 60_000;
+
 const INTERVAL_MINUTES: Record<CandleInterval, number> = {
   "1m": 1,
   "3m": 3,
@@ -242,7 +244,7 @@ const GET_CANDLES_FN = async (
 ) => {
   const step = INTERVAL_MINUTES[dto.interval];
   const sinceTimestamp = since.getTime();
-  const untilTimestamp = sinceTimestamp + dto.limit * step * 60 * 1_000;
+  const untilTimestamp = sinceTimestamp + dto.limit * step * MS_PER_MINUTE;
 
   // Try to read from cache first
   const cachedCandles = await READ_CANDLES_CACHE_FN(
@@ -391,7 +393,7 @@ export class ClientExchange implements IExchange {
     }
 
     const since = new Date(
-      this.params.execution.context.when.getTime() - adjust * 60 * 1_000,
+      this.params.execution.context.when.getTime() - adjust * MS_PER_MINUTE,
     );
 
     let allData: ICandleData[] = [];
@@ -418,7 +420,7 @@ export class ClientExchange implements IExchange {
         if (remaining > 0) {
           // Move currentSince forward by the number of candles fetched
           currentSince = new Date(
-            currentSince.getTime() + chunkLimit * step * 60 * 1_000,
+            currentSince.getTime() + chunkLimit * step * MS_PER_MINUTE,
           );
         }
       }
@@ -524,7 +526,7 @@ export class ClientExchange implements IExchange {
         if (remaining > 0) {
           // Move currentSince forward by the number of candles fetched
           currentSince = new Date(
-            currentSince.getTime() + chunkLimit * step * 60 * 1_000,
+            currentSince.getTime() + chunkLimit * step * MS_PER_MINUTE,
           );
         }
       }
@@ -744,7 +746,7 @@ export class ClientExchange implements IExchange {
       }
       sinceTimestamp = sDate;
       untilTimestamp = eDate;
-      calculatedLimit = Math.ceil((eDate - sDate) / (step * 60 * 1_000));
+      calculatedLimit = Math.ceil((eDate - sDate) / (step * MS_PER_MINUTE));
       if (calculatedLimit <= 0) {
         throw new Error(
           `ClientExchange getRawCandles: calculated limit is ${calculatedLimit}, must be > 0`,
@@ -759,13 +761,13 @@ export class ClientExchange implements IExchange {
         );
       }
       untilTimestamp = eDate;
-      sinceTimestamp = eDate - limit * step * 60 * 1_000;
+      sinceTimestamp = eDate - limit * step * MS_PER_MINUTE;
       calculatedLimit = limit;
     }
     // Case 4: sDate + limit (no eDate) - calculate eDate forward from sDate
     else if (sDate !== undefined && eDate === undefined && limit !== undefined) {
       sinceTimestamp = sDate;
-      untilTimestamp = sDate + limit * step * 60 * 1_000;
+      untilTimestamp = sDate + limit * step * MS_PER_MINUTE;
       if (untilTimestamp > whenTimestamp) {
         throw new Error(
           `ClientExchange getRawCandles: calculated endTimestamp (${untilTimestamp}) exceeds execution context when (${whenTimestamp}). Look-ahead bias protection.`,
@@ -776,7 +778,7 @@ export class ClientExchange implements IExchange {
     // Case 5: Only limit - use execution.context.when as reference (backward like getCandles)
     else if (sDate === undefined && eDate === undefined && limit !== undefined) {
       untilTimestamp = whenTimestamp;
-      sinceTimestamp = whenTimestamp - limit * step * 60 * 1_000;
+      sinceTimestamp = whenTimestamp - limit * step * MS_PER_MINUTE;
       calculatedLimit = limit;
     }
     // Invalid: no parameters or only sDate or only eDate
@@ -812,7 +814,7 @@ export class ClientExchange implements IExchange {
         remaining -= chunkLimit;
         if (remaining > 0) {
           currentSince = new Date(
-            currentSince.getTime() + chunkLimit * step * 60 * 1_000,
+            currentSince.getTime() + chunkLimit * step * MS_PER_MINUTE,
           );
         }
       }
@@ -840,6 +842,12 @@ export class ClientExchange implements IExchange {
 
     if (filteredData.length !== uniqueData.length) {
       const msg = `ClientExchange getRawCandles: Removed ${filteredData.length - uniqueData.length} duplicate candles by timestamp`;
+      this.params.logger.warn(msg);
+      console.warn(msg);
+    }
+
+    if (uniqueData.length < calculatedLimit) {
+      const msg = `ClientExchange getRawCandles: Expected ${calculatedLimit} candles, got ${uniqueData.length}`;
       this.params.logger.warn(msg);
       console.warn(msg);
     }
@@ -880,7 +888,7 @@ export class ClientExchange implements IExchange {
     const to = new Date(this.params.execution.context.when.getTime());
     const from = new Date(
       to.getTime() -
-        GLOBAL_CONFIG.CC_ORDER_BOOK_TIME_OFFSET_MINUTES * 60 * 1_000,
+        GLOBAL_CONFIG.CC_ORDER_BOOK_TIME_OFFSET_MINUTES * MS_PER_MINUTE,
     );
     return await this.params.getOrderBook(
       symbol,
