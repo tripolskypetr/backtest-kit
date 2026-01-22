@@ -361,7 +361,7 @@ export class ExchangeInstance {
     }
 
     // Write to cache after successful fetch
-    WRITE_CANDLES_CACHE_FN(
+    await WRITE_CANDLES_CACHE_FN(
       uniqueData,
       { symbol, interval, limit },
       this.exchangeName,
