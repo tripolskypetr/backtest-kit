@@ -1,10 +1,7 @@
-import { Markdown } from "backtest-kit";
 import { addOptimizerSchema, Optimizer, listenOptimizerProgress } from "@backtest-kit/ollama";
 import { fetchApi, str } from "functools-kit";
 import { Ollama } from "ollama";
 import fs from "fs/promises";
-
-Markdown.enable();
 
 function arrayToMarkdownTable(data) {
   if (!data.length) return "";

@@ -7,6 +7,7 @@ import {
   retry,
   singleshot,
   trycatch,
+  errorData,
 } from "functools-kit";
 import { join } from "path";
 import { writeFileAtomic } from "../utils/writeFileAtomic";
@@ -16,6 +17,7 @@ import {
   IScheduledSignalRow,
   StrategyName,
 } from "../interfaces/Strategy.interface";
+import { errorEmitter } from "../config/emitters";
 import { IRiskActivePosition, RiskName } from "../interfaces/Risk.interface";
 import { IPartialData } from "../interfaces/Partial.interface";
 import { IBreakevenData } from "../interfaces/Breakeven.interface";
@@ -1369,8 +1371,15 @@ export class PersistCandleUtils {
         try {
           const candle = await stateStorage.readValue(timestamp);
           cachedCandles.push(candle);
-        } catch {
-          // Skip invalid candles
+        } catch (error) {
+          const message = `PersistCandleUtils.readCandlesData found invalid candle symbol=${symbol} interval=${interval} timestamp=${timestamp}`;
+          const payload = {
+            error: errorData(error),
+            message: getErrorMessage(error),
+          };
+          swarm.loggerService.warn(message, payload);
+          console.warn(message, payload);
+          errorEmitter.next(error);
           continue;
         }
       }
