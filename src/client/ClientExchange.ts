@@ -706,95 +706,94 @@ export class ClientExchange implements IExchange {
     });
 
     const step = INTERVAL_MINUTES[interval];
-    const stepMs = step * 60 * 1_000;
-    const when = this.params.execution.context.when.getTime();
+    if (!step) {
+      throw new Error(
+        `ClientExchange getRawCandles: unknown interval=${interval}`,
+      );
+    }
 
-    let startTimestamp: number;
-    let endTimestamp: number;
-    let candleLimit: number;
-    let isRawMode = false;
+    const whenTimestamp = this.params.execution.context.when.getTime();
 
-    // Case 1: sDate + eDate + limit - RAW MODE (no look-ahead bias protection)
-    if (
-      sDate !== undefined &&
-      eDate !== undefined &&
-      limit !== undefined
-    ) {
-      isRawMode = true;
+    let sinceTimestamp: number;
+    let untilTimestamp: number;
+    let calculatedLimit: number;
+
+    // Case 1: RAW MODE - all three parameters provided
+    // No look-ahead bias protection, fetches exactly as specified
+    if (sDate !== undefined && eDate !== undefined && limit !== undefined) {
       if (sDate >= eDate) {
         throw new Error(
-          `ClientExchange getRawCandles: sDate (${sDate}) must be less than eDate (${eDate})`,
+          `ClientExchange getRawCandles: sDate (${sDate}) must be < eDate (${eDate})`,
         );
       }
-      startTimestamp = sDate;
-      endTimestamp = eDate;
-      candleLimit = limit;
+      sinceTimestamp = sDate;
+      untilTimestamp = eDate;
+      calculatedLimit = limit;
     }
-    // Case 2: sDate + eDate - calculate limit, respect backtest context
+    // Case 2: sDate + eDate (no limit) - calculate limit from date range
     else if (sDate !== undefined && eDate !== undefined && limit === undefined) {
       if (sDate >= eDate) {
         throw new Error(
-          `ClientExchange getRawCandles: sDate (${sDate}) must be less than eDate (${eDate})`,
+          `ClientExchange getRawCandles: sDate (${sDate}) must be < eDate (${eDate})`,
         );
       }
-      startTimestamp = sDate;
-      endTimestamp = eDate;
-
-      const rangeDuration = endTimestamp - startTimestamp;
-      candleLimit = Math.floor(rangeDuration / stepMs);
-
-      if (candleLimit <= 0) {
+      if (eDate > whenTimestamp) {
         throw new Error(
-          `ClientExchange getRawCandles: calculated limit is ${candleLimit} for range [${sDate}, ${eDate}]`,
+          `ClientExchange getRawCandles: eDate (${eDate}) exceeds execution context when (${whenTimestamp}). Look-ahead bias protection.`,
+        );
+      }
+      sinceTimestamp = sDate;
+      untilTimestamp = eDate;
+      calculatedLimit = Math.ceil((eDate - sDate) / (step * 60 * 1_000));
+      if (calculatedLimit <= 0) {
+        throw new Error(
+          `ClientExchange getRawCandles: calculated limit is ${calculatedLimit}, must be > 0`,
         );
       }
     }
-    // Case 3: eDate + limit - calculate sDate backward, respect backtest context
-    else if (eDate !== undefined && limit !== undefined && sDate === undefined) {
-      endTimestamp = eDate;
-      startTimestamp = eDate - limit * stepMs;
-      candleLimit = limit;
+    // Case 3: eDate + limit (no sDate) - calculate sDate backward from eDate
+    else if (sDate === undefined && eDate !== undefined && limit !== undefined) {
+      if (eDate > whenTimestamp) {
+        throw new Error(
+          `ClientExchange getRawCandles: eDate (${eDate}) exceeds execution context when (${whenTimestamp}). Look-ahead bias protection.`,
+        );
+      }
+      untilTimestamp = eDate;
+      sinceTimestamp = eDate - limit * step * 60 * 1_000;
+      calculatedLimit = limit;
     }
-    // Case 4: sDate + limit - fetch forward, respect backtest context
-    else if (sDate !== undefined && limit !== undefined && eDate === undefined) {
-      startTimestamp = sDate;
-      endTimestamp = sDate + limit * stepMs;
-      candleLimit = limit;
+    // Case 4: sDate + limit (no eDate) - calculate eDate forward from sDate
+    else if (sDate !== undefined && eDate === undefined && limit !== undefined) {
+      sinceTimestamp = sDate;
+      untilTimestamp = sDate + limit * step * 60 * 1_000;
+      if (untilTimestamp > whenTimestamp) {
+        throw new Error(
+          `ClientExchange getRawCandles: calculated endTimestamp (${untilTimestamp}) exceeds execution context when (${whenTimestamp}). Look-ahead bias protection.`,
+        );
+      }
+      calculatedLimit = limit;
     }
-    // Case 5: Only limit - use execution context (backward from when)
-    else if (limit !== undefined && sDate === undefined && eDate === undefined) {
-      endTimestamp = when;
-      startTimestamp = when - limit * stepMs;
-      candleLimit = limit;
+    // Case 5: Only limit - use execution.context.when as reference (backward like getCandles)
+    else if (sDate === undefined && eDate === undefined && limit !== undefined) {
+      untilTimestamp = whenTimestamp;
+      sinceTimestamp = whenTimestamp - limit * step * 60 * 1_000;
+      calculatedLimit = limit;
     }
-    // Invalid combination
+    // Invalid: no parameters or only sDate or only eDate
     else {
       throw new Error(
-        `ClientExchange getRawCandles: invalid parameter combination. Must provide either (limit), (eDate+limit), (sDate+limit), (sDate+eDate), or (sDate+eDate+limit)`,
+        `ClientExchange getRawCandles: invalid parameter combination. ` +
+        `Provide one of: (sDate+eDate+limit), (sDate+eDate), (eDate+limit), (sDate+limit), or (limit only). ` +
+        `Got: sDate=${sDate}, eDate=${eDate}, limit=${limit}`,
       );
     }
 
-    // Validate timestamps
-    if (startTimestamp >= endTimestamp) {
-      throw new Error(
-        `ClientExchange getRawCandles: startTimestamp (${startTimestamp}) >= endTimestamp (${endTimestamp})`,
-      );
-    }
-
-    // Check if trying to fetch future data (prevent look-ahead bias)
-    // ONLY for non-RAW modes - RAW MODE bypasses this check
-    if (!isRawMode && endTimestamp > when) {
-      throw new Error(
-        `ClientExchange getRawCandles: endTimestamp (${endTimestamp}) is beyond execution context when (${when}) - look-ahead bias prevented`,
-      );
-    }
-
-    const since = new Date(startTimestamp);
+    // Fetch candles using existing logic
+    const since = new Date(sinceTimestamp);
     let allData: ICandleData[] = [];
 
-    // Fetch data in chunks if limit exceeds max per request
-    if (candleLimit > GLOBAL_CONFIG.CC_MAX_CANDLES_PER_REQUEST) {
-      let remaining = candleLimit;
+    if (calculatedLimit > GLOBAL_CONFIG.CC_MAX_CANDLES_PER_REQUEST) {
+      let remaining = calculatedLimit;
       let currentSince = new Date(since.getTime());
 
       while (remaining > 0) {
@@ -813,13 +812,13 @@ export class ClientExchange implements IExchange {
         remaining -= chunkLimit;
         if (remaining > 0) {
           currentSince = new Date(
-            currentSince.getTime() + chunkLimit * stepMs,
+            currentSince.getTime() + chunkLimit * step * 60 * 1_000,
           );
         }
       }
     } else {
       allData = await GET_CANDLES_FN(
-        { symbol, interval, limit: candleLimit },
+        { symbol, interval, limit: calculatedLimit },
         since,
         this,
       );
@@ -828,8 +827,8 @@ export class ClientExchange implements IExchange {
     // Filter candles to strictly match the requested range
     const filteredData = allData.filter(
       (candle) =>
-        candle.timestamp >= startTimestamp &&
-        candle.timestamp < endTimestamp,
+        candle.timestamp >= sinceTimestamp &&
+        candle.timestamp < untilTimestamp,
     );
 
     // Apply distinct by timestamp to remove duplicates
@@ -845,18 +844,12 @@ export class ClientExchange implements IExchange {
       console.warn(msg);
     }
 
-    if (uniqueData.length < candleLimit) {
-      const msg = `ClientExchange getRawCandles: Expected ${candleLimit} candles, got ${uniqueData.length}`;
-      this.params.logger.warn(msg);
-      console.warn(msg);
-    }
-
     await CALL_CANDLE_DATA_CALLBACKS_FN(
       this,
       symbol,
       interval,
       since,
-      candleLimit,
+      calculatedLimit,
       uniqueData,
     );
 
