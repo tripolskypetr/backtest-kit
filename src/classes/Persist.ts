@@ -1335,7 +1335,7 @@ export class PersistCandleUtils {
    * @param exchangeName - Exchange identifier
    * @param limit - Number of candles requested
    * @param sinceTimestamp - Start timestamp (inclusive)
-   * @param untilTimestamp - End timestamp (exclusive, but includes candles that open before untilTimestamp + stepMs)
+   * @param untilTimestamp - End timestamp (exclusive)
    * @returns Promise resolving to array of candles or null if cache is incomplete
    */
   public readCandlesData = async (
@@ -1360,17 +1360,12 @@ export class PersistCandleUtils {
     const stateStorage = this.getCandlesStorage(symbol, interval, exchangeName);
     await stateStorage.waitForInit(isInitial);
 
-    // Calculate stepMs to match ClientExchange logic
-    const step = INTERVAL_MINUTES[interval];
-    const stepMs = step * 60 * 1_000;
-
     // Collect all cached candles within the time range
     const cachedCandles: CandleData[] = [];
 
     for await (const timestamp of stateStorage.keys()) {
       const ts = Number(timestamp);
-      // Use same logic as ClientExchange: include candles that open before untilTimestamp + stepMs
-      if (ts >= sinceTimestamp && ts < untilTimestamp + stepMs) {
+      if (ts >= sinceTimestamp && ts < untilTimestamp) {
         try {
           const candle = await stateStorage.readValue(timestamp);
           cachedCandles.push(candle);
