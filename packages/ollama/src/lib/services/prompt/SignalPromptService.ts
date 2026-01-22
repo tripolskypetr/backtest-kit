@@ -2,14 +2,15 @@ import { singleshot } from "functools-kit";
 import { createRequire } from "module";
 import path from "path";
 import { inject } from "../../../lib/core/di";
-import LoggerService from "../base/LoggerService";
-import TYPES from "../../../lib/core/types";
+import LoggerService from "../common/LoggerService";
+import { TYPES } from "../../../lib/core/types";
 import { PromptModel } from "../../../model/Prompt.model";
-import { StrategyName } from "../../../interfaces/Strategy.interface";
-import { ExchangeName } from "../../../interfaces/Exchange.interface";
-import { FrameName } from "../../../interfaces/Frame.interface";
 
 const require = createRequire(import.meta.url);
+
+type StrategyName = string;
+type ExchangeName = string;
+type FrameName = string;
 
 /**
  * Default fallback prompt configuration.

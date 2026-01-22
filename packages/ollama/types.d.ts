@@ -1,5 +1,6 @@
 import { IOutlineMessage, ISwarmCompletionArgs, ISwarmMessage, IOutlineCompletionArgs } from 'agent-swarm-kit';
 import { ZodType } from 'zod';
+import { ISignalDto } from 'backtest-kit';
 import * as di_scoped from 'di-scoped';
 
 /**
@@ -423,6 +424,124 @@ declare const setLogger: (logger: ILogger) => void;
  * @see {@link OutlineName.SignalOutline} - Outline being overridden
  */
 declare function overrideSignalFormat<ZodInput extends ZodType>(format: ZodInput): void;
+
+/**
+ * Message role type for LLM conversation context.
+ * Defines the sender of a message in a chat-based interaction.
+ */
+type MessageRole = "assistant" | "system" | "user";
+/**
+ * Message model for LLM conversation history.
+ * Used in Optimizer to build prompts and maintain conversation context.
+ */
+interface MessageModel {
+    /**
+     * The sender of the message.
+     * - "system": System instructions and context
+     * - "user": User input and questions
+     * - "assistant": LLM responses
+     */
+    role: MessageRole;
+    /**
+     * The text content of the message.
+     * Contains the actual message text sent or received.
+     */
+    content: string;
+}
+
+/**
+ * Dumps signal data and LLM conversation history to markdown files.
+ * Used by AI-powered strategies to save debug logs for analysis.
+ *
+ * Creates a directory structure with:
+ * - 00_system_prompt.md - System messages and output summary
+ * - XX_user_message.md - Each user message in separate file (numbered)
+ * - XX_llm_output.md - Final LLM output with signal data
+ *
+ * Skips if directory already exists to avoid overwriting previous results.
+ *
+ * @param signalId - Unique identifier for the result (used as directory name, e.g., UUID)
+ * @param history - Array of message models from LLM conversation
+ * @param signal - Signal DTO returned by LLM (position, priceOpen, TP, SL, etc.)
+ * @param outputDir - Output directory path (default: "./dump/strategy")
+ * @returns Promise that resolves when all files are written
+ *
+ * @example
+ * ```typescript
+ * import { dumpSignal, getCandles } from "backtest-kit";
+ * import { v4 as uuid } from "uuid";
+ *
+ * addStrategy({
+ *   strategyName: "llm-strategy",
+ *   interval: "5m",
+ *   getSignal: async (symbol) => {
+ *     const messages = [];
+ *
+ *     // Build multi-timeframe analysis conversation
+ *     const candles1h = await getCandles(symbol, "1h", 24);
+ *     messages.push(
+ *       { role: "user", content: `Analyze 1h trend:\n${formatCandles(candles1h)}` },
+ *       { role: "assistant", content: "Trend analyzed" }
+ *     );
+ *
+ *     const candles5m = await getCandles(symbol, "5m", 24);
+ *     messages.push(
+ *       { role: "user", content: `Analyze 5m structure:\n${formatCandles(candles5m)}` },
+ *       { role: "assistant", content: "Structure analyzed" }
+ *     );
+ *
+ *     // Request signal
+ *     messages.push({
+ *       role: "user",
+ *       content: "Generate trading signal. Use position: 'wait' if uncertain."
+ *     });
+ *
+ *     const resultId = uuid();
+ *     const signal = await llmRequest(messages);
+ *
+ *     // Save conversation and result for debugging
+ *     await dumpSignal(resultId, messages, signal);
+ *
+ *     return signal;
+ *   }
+ * });
+ *
+ * // Creates: ./dump/strategy/{uuid}/00_system_prompt.md
+ * //          ./dump/strategy/{uuid}/01_user_message.md (1h analysis)
+ * //          ./dump/strategy/{uuid}/02_assistant_message.md
+ * //          ./dump/strategy/{uuid}/03_user_message.md (5m analysis)
+ * //          ./dump/strategy/{uuid}/04_assistant_message.md
+ * //          ./dump/strategy/{uuid}/05_user_message.md (signal request)
+ * //          ./dump/strategy/{uuid}/06_llm_output.md (final signal)
+ * ```
+ */
+declare function dumpSignalData(signalId: string | number, history: MessageModel[], signal: ISignalDto, outputDir?: string): Promise<void>;
+
+/**
+ * Commits signal prompt history to the message array.
+ *
+ * Extracts trading context from ExecutionContext and MethodContext,
+ * then adds signal-specific system prompts at the beginning and user prompt
+ * at the end of the history array if they are not empty.
+ *
+ * Context extraction:
+ * - symbol: Provided as parameter for debugging convenience
+ * - backtest mode: From ExecutionContext
+ * - strategyName, exchangeName, frameName: From MethodContext
+ *
+ * @param symbol - Trading symbol (e.g., "BTCUSDT") for debugging convenience
+ * @param history - Message array to append prompts to
+ * @returns Promise that resolves when prompts are added
+ * @throws Error if ExecutionContext or MethodContext is not active
+ *
+ * @example
+ * ```typescript
+ * const messages: MessageModel[] = [];
+ * await commitSignalPromptHistory("BTCUSDT", messages);
+ * // messages now contains system prompts at start and user prompt at end
+ * ```
+ */
+declare function commitSignalPromptHistory(symbol: string, history: MessageModel[]): Promise<void>;
 
 /**
  * Enumeration of supported LLM inference providers.
@@ -1026,11 +1145,109 @@ declare class OutlinePublicService {
     }>;
 }
 
+type StrategyName = string;
+type ExchangeName = string;
+type FrameName = string;
+/**
+ * Service for managing signal prompts for AI/LLM integrations.
+ *
+ * Provides access to system and user prompts configured in signal.prompt.cjs.
+ * Supports both static prompt arrays and dynamic prompt functions.
+ *
+ * Key responsibilities:
+ * - Lazy-loads prompt configuration from config/prompt/signal.prompt.cjs
+ * - Resolves system prompts (static arrays or async functions)
+ * - Provides user prompt strings
+ * - Falls back to empty prompts if configuration is missing
+ *
+ * Used for AI-powered signal analysis and strategy recommendations.
+ */
+declare class SignalPromptService {
+    private readonly loggerService;
+    /**
+     * Retrieves system prompts for AI context.
+     *
+     * System prompts can be:
+     * - Static array of strings (returned directly)
+     * - Async/sync function returning string array (executed and awaited)
+     * - Undefined (returns empty array)
+     *
+     * @param symbol - Trading symbol (e.g., "BTCUSDT")
+     * @param strategyName - Strategy identifier
+     * @param exchangeName - Exchange identifier
+     * @param frameName - Timeframe identifier
+     * @param backtest - Whether running in backtest mode
+     * @returns Promise resolving to array of system prompt strings
+     */
+    getSystemPrompt: (symbol: string, strategyName: StrategyName, exchangeName: ExchangeName, frameName: FrameName, backtest: boolean) => Promise<string[]>;
+    /**
+     * Retrieves user prompt string for AI input.
+     *
+     * @param symbol - Trading symbol (e.g., "BTCUSDT")
+     * @param strategyName - Strategy identifier
+     * @param exchangeName - Exchange identifier
+     * @param frameName - Timeframe identifier
+     * @param backtest - Whether running in backtest mode
+     * @returns Promise resolving to user prompt string
+     */
+    getUserPrompt: (symbol: string, strategyName: StrategyName, exchangeName: ExchangeName, frameName: FrameName, backtest: boolean) => Promise<string>;
+}
+
+/**
+ * Unique identifier for outline result.
+ * Can be string or number for flexible ID formats.
+ */
+type ResultId = string | number;
+/**
+ * Service for generating markdown documentation from LLM outline results.
+ * Used by AI Strategy Optimizer to save debug logs and conversation history.
+ *
+ * Creates directory structure:
+ * - ./dump/strategy/{signalId}/00_system_prompt.md - System messages and output data
+ * - ./dump/strategy/{signalId}/01_user_message.md - First user input
+ * - ./dump/strategy/{signalId}/02_user_message.md - Second user input
+ * - ./dump/strategy/{signalId}/XX_llm_output.md - Final LLM output
+ */
+declare class OutlineMarkdownService {
+    /** Logger service injected via DI */
+    private readonly loggerService;
+    /**
+     * Dumps signal data and conversation history to markdown files.
+     * Skips if directory already exists to avoid overwriting previous results.
+     *
+     * Generated files:
+     * - 00_system_prompt.md - System messages and output summary
+     * - XX_user_message.md - Each user message in separate file (numbered)
+     * - XX_llm_output.md - Final LLM output with signal data
+     *
+     * @param signalId - Unique identifier for the result (used as directory name)
+     * @param history - Array of message models from LLM conversation
+     * @param signal - Signal DTO with trade parameters (priceOpen, TP, SL, etc.)
+     * @param outputDir - Output directory path (default: "./dump/strategy")
+     * @returns Promise that resolves when all files are written
+     *
+     * @example
+     * ```typescript
+     * await outlineService.dumpSignal(
+     *   "strategy-1",
+     *   conversationHistory,
+     *   { position: "long", priceTakeProfit: 51000, priceStopLoss: 49000, minuteEstimatedTime: 60 }
+     * );
+     * // Creates: ./dump/strategy/strategy-1/00_system_prompt.md
+     * //          ./dump/strategy/strategy-1/01_user_message.md
+     * //          ./dump/strategy/strategy-1/02_llm_output.md
+     * ```
+     */
+    dumpSignal: (signalId: ResultId, history: MessageModel[], signal: ISignalDto, outputDir?: string) => Promise<void>;
+}
+
 /**
  * Main engine object containing all services.
  * Provides unified access to the entire service layer.
  */
 declare const engine: {
+    outlineMarkdownService: OutlineMarkdownService;
+    signalPromptService: SignalPromptService;
     runnerPublicService: RunnerPublicService;
     outlinePublicService: OutlinePublicService;
     runnerPrivateService: RunnerPrivateService;
@@ -1041,4 +1258,4 @@ declare const engine: {
     loggerService: LoggerService;
 };
 
-export { alibaba, claude, cohere, deepseek, glm4, gpt5, grok, hf, engine as lib, mistral, ollama, overrideSignalFormat, perplexity, setLogger };
+export { alibaba, claude, cohere, commitSignalPromptHistory, deepseek, dumpSignalData, glm4, gpt5, grok, hf, engine as lib, mistral, ollama, overrideSignalFormat, perplexity, setLogger };

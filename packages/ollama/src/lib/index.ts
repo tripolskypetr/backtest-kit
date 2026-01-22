@@ -59,6 +59,8 @@ import GLM4Provider from "../client/GLM4Provider.client";
 import LoggerService from "./services/common/LoggerService";
 import OutlinePrivateService from "./services/private/OutlinePrivateService";
 import OutlinePublicService from "./services/public/OutlinePublicService";
+import SignalPromptService from "./services/prompt/SignalPromptService";
+import OutlineMarkdownService from "./services/markdown/OutlineMarkdownService";
 
 /**
  * Common service instances.
@@ -92,6 +94,14 @@ const publicServices = {
   outlinePublicService: inject<OutlinePublicService>(TYPES.outlinePublicService),
 };
 
+const promptServices = {
+  signalPromptService: inject<SignalPromptService>(TYPES.signalPromptService),
+}
+
+const markdownServices = {
+  outlineMarkdownService: inject<OutlineMarkdownService>(TYPES.outlineMarkdownService),
+}
+
 /**
  * Main engine object containing all services.
  * Provides unified access to the entire service layer.
@@ -101,6 +111,8 @@ const engine = {
   ...baseServices,
   ...privateServices,
   ...publicServices,
+  ...promptServices,
+  ...markdownServices,
 };
 
 // Initialize DI container

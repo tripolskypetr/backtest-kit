@@ -60,7 +60,6 @@ import PartialGlobalService from "./services/global/PartialGlobalService";
 import BreakevenConnectionService from "./services/connection/BreakevenConnectionService";
 import BreakevenMarkdownService from "./services/markdown/BreakevenMarkdownService";
 import BreakevenGlobalService from "./services/global/BreakevenGlobalService";
-import OutlineMarkdownService from "./services/markdown/OutlineMarkdownService";
 import ConfigValidationService from "./services/validation/ConfigValidationService";
 import RiskMarkdownService from "./services/markdown/RiskMarkdownService";
 import ColumnValidationService from "./services/validation/ColumnValidationService";
@@ -73,7 +72,6 @@ import HeatReportService from "./services/report/HeatReportService";
 import PartialReportService from "./services/report/PartialReportService";
 import BreakevenReportService from "./services/report/BreakevenReportService";
 import RiskReportService from "./services/report/RiskReportService";
-import SignalPromptService from "./services/prompt/SignalPromptService";
 
 const baseServices = {
   loggerService: inject<LoggerService>(TYPES.loggerService),
@@ -211,9 +209,6 @@ const markdownServices = {
   breakevenMarkdownService: inject<BreakevenMarkdownService>(
     TYPES.breakevenMarkdownService
   ),
-  outlineMarkdownService: inject<OutlineMarkdownService>(
-    TYPES.outlineMarkdownService
-  ),
   riskMarkdownService: inject<RiskMarkdownService>(TYPES.riskMarkdownService),
 };
 
@@ -280,10 +275,6 @@ const templateServices = {
   ),
 };
 
-const promptServices = {
-  signalPromptService: inject<SignalPromptService>(TYPES.signalPromptService),
-}
-
 export const backtest = {
   ...baseServices,
   ...contextServices,
@@ -298,7 +289,6 @@ export const backtest = {
   ...reportServices,
   ...validationServices,
   ...templateServices,
-  ...promptServices,
 };
 
 init();

@@ -1,17 +1,8 @@
 import { MessageModel } from "../model/Message.model";
-import backtest, {
-  ExecutionContextService,
-  MethodContextService,
-} from "../lib/index";
+import engine from "../lib";
+import { getContext, getMode } from "backtest-kit";
 
 const METHOD_NAME_SIGNAL = "history.commitSignalPromptHistory";
-const METHOD_NAME_RISK = "history.commitRiskPromptHistory";
-const METHOD_NAME_TRAILING_TAKE = "history.commitTrailingTakePromptHistory";
-const METHOD_NAME_TRAILING_STOP = "history.commitTrailingStopPromptHistory";
-const METHOD_NAME_PARTIAL_PROFIT = "history.commitPartialProfitPromptHistory";
-const METHOD_NAME_PARTIAL_LOSS = "history.commitPartialLossPromptHistory";
-const METHOD_NAME_BREAKEVEN = "history.commitBreakevenPromptHistory";
-const METHOD_NAME_SCHEDULE_CANCEL = "history.commitScheduleCancelPromptHistory";
 
 /**
  * Commits signal prompt history to the message array.
@@ -41,29 +32,23 @@ export async function commitSignalPromptHistory(
   symbol: string,
   history: MessageModel[],
 ): Promise<void> {
-  backtest.loggerService.log(METHOD_NAME_SIGNAL, {
+  engine.loggerService.log(METHOD_NAME_SIGNAL, {
     symbol,
   });
 
-  if (!ExecutionContextService.hasContext()) {
-    throw new Error("commitSignalPromptHistory requires an execution context");
-  }
-  if (!MethodContextService.hasContext()) {
-    throw new Error("commitSignalPromptHistory requires a method context");
-  }
+  const { strategyName, exchangeName, frameName } = await getContext();
+  const mode = await getMode();
 
-  const { backtest: isBacktest } = backtest.executionContextService.context;
-  const { strategyName, exchangeName, frameName } =
-    backtest.methodContextService.context;
+  const isBacktest = mode === "backtest";
 
-  const systemPrompts = await backtest.signalPromptService.getSystemPrompt(
+  const systemPrompts = await engine.signalPromptService.getSystemPrompt(
     symbol,
     strategyName,
     exchangeName,
     frameName,
     isBacktest,
   );
-  const userPrompt = await backtest.signalPromptService.getUserPrompt(
+  const userPrompt = await engine.signalPromptService.getUserPrompt(
     symbol,
     strategyName,
     exchangeName,

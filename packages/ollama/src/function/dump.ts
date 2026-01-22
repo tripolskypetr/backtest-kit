@@ -1,5 +1,5 @@
-import backtest from "../lib/index";
-import { ISignalDto } from "../interfaces/Strategy.interface";
+import engine from "../lib";
+import { ISignalDto } from "backtest-kit";
 import { MessageModel } from "../model/Message.model";
 
 const DUMP_SIGNAL_METHOD_NAME = "dump.dumpSignal";
@@ -76,13 +76,13 @@ export async function dumpSignalData(
   signal: ISignalDto,
   outputDir = "./dump/strategy"
 ): Promise<void> {
-  backtest.loggerService.info(DUMP_SIGNAL_METHOD_NAME, {
+  engine.loggerService.info(DUMP_SIGNAL_METHOD_NAME, {
     signalId,
     history,
     signal,
     outputDir,
   });
-  return await backtest.outlineMarkdownService.dumpSignal(
+  return await engine.outlineMarkdownService.dumpSignal(
     signalId,
     history,
     signal,

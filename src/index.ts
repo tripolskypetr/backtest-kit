@@ -113,12 +113,6 @@ export {
   formatQuantity,
   hasTradeContext,
 } from "./function/exchange";
-export {
-  commitSignalPromptHistory,
-} from "./function/history";
-export { 
-  dumpSignalData
-} from "./function/dump";
 
 export {
   CandleInterval,

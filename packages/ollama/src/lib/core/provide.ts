@@ -17,8 +17,10 @@
 
 import ContextService from "../services/base/ContextService";
 import LoggerService from "../services/common/LoggerService";
+import OutlineMarkdownService from "../services/markdown/OutlineMarkdownService";
 import OutlinePrivateService from "../services/private/OutlinePrivateService";
 import RunnerPrivateService from "../services/private/RunnerPrivateService";
+import SignalPromptService from "../services/prompt/SignalPromptService";
 import OutlinePublicService from "../services/public/OutlinePublicService";
 import RunnerPublicService from "../services/public/RunnerPublicService";
 import { provide } from "./di";
@@ -52,4 +54,12 @@ import { TYPES } from "./types";
 {
   provide(TYPES.runnerPublicService, () => new RunnerPublicService());
   provide(TYPES.outlinePublicService, () => new OutlinePublicService());
+}
+
+{
+  provide(TYPES.signalPromptService, () => new SignalPromptService());
+}
+
+{
+  provide(TYPES.outlineMarkdownService, () => new OutlineMarkdownService());
 }

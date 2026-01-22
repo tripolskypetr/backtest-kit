@@ -89,6 +89,14 @@ export {
   overrideSignalFormat,
 } from "./function/override.function";
 
+export {
+  dumpSignalData,
+} from "./function/dump";
+
+export {
+  commitSignalPromptHistory,
+} from "./function/history";
+
 /**
  * Advanced engine library for direct service access.
  * Use this for custom integrations and low-level operations.

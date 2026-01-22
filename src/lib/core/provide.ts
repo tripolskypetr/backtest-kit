@@ -55,7 +55,6 @@ import PartialGlobalService from "../services/global/PartialGlobalService";
 import { BreakevenConnectionService } from "../services/connection/BreakevenConnectionService";
 import BreakevenMarkdownService from "../services/markdown/BreakevenMarkdownService";
 import BreakevenGlobalService from "../services/global/BreakevenGlobalService";
-import OutlineMarkdownService from "../services/markdown/OutlineMarkdownService";
 import ConfigValidationService from "../services/validation/ConfigValidationService";
 import RiskMarkdownService from "../services/markdown/RiskMarkdownService";
 import ColumnValidationService from "../services/validation/ColumnValidationService";
@@ -68,7 +67,6 @@ import HeatReportService from "../services/report/HeatReportService";
 import PartialReportService from "../services/report/PartialReportService";
 import BreakevenReportService from "../services/report/BreakevenReportService";
 import RiskReportService from "../services/report/RiskReportService";
-import SignalPromptService from "../services/prompt/SignalPromptService";
 
 {
     provide(TYPES.loggerService, () => new LoggerService());
@@ -144,7 +142,6 @@ import SignalPromptService from "../services/prompt/SignalPromptService";
     provide(TYPES.heatMarkdownService, () => new HeatMarkdownService());
     provide(TYPES.partialMarkdownService, () => new PartialMarkdownService());
     provide(TYPES.breakevenMarkdownService, () => new BreakevenMarkdownService());
-    provide(TYPES.outlineMarkdownService, () => new OutlineMarkdownService());
     provide(TYPES.riskMarkdownService, () => new RiskMarkdownService());
 }
 
@@ -175,8 +172,4 @@ import SignalPromptService from "../services/prompt/SignalPromptService";
 
 {
     provide(TYPES.optimizerTemplateService, () => new OptimizerTemplateService());
-}
-
-{
-    provide(TYPES.signalPromptService, () => new SignalPromptService());
 }

@@ -105,10 +105,6 @@ const templateServices = {
     optimizerTemplateService: Symbol('optimizerTemplateService'),
 }
 
-const promptServices = {
-    signalPromptService: Symbol('signalPromptService'),
-}
-
 export const TYPES = {
     ...baseServices,
     ...contextServices,
@@ -123,7 +119,6 @@ export const TYPES = {
     ...reportServices,
     ...validationServices,
     ...templateServices,
-    ...promptServices,
 }
 
 export default TYPES;

@@ -1,6 +1,7 @@
-import { ExchangeName } from "../interfaces/Exchange.interface";
-import { StrategyName } from "../interfaces/Strategy.interface";
-import { FrameName } from "../interfaces/Frame.interface";
+
+type StrategyName = string;
+type ExchangeName = string;
+type FrameName = string;
 
 /**
  * Function type for generating dynamic system prompts.

@@ -38,6 +38,14 @@ const publicServices = {
     outlinePublicService: Symbol('outlinePublicService'),
 };
 
+const promptServices = {
+    signalPromptService: Symbol('signalPromptService'),
+}
+
+const markdownServices = {
+    outlineMarkdownService: Symbol('outlineMarkdownService'),
+}
+
 /**
  * Service type identifier registry for dependency injection.
  *
@@ -56,6 +64,8 @@ const publicServices = {
 export const TYPES = {
     ...commonServices,
     ...baseServices,
+    ...promptServices,
+    ...markdownServices,
     ...privateServices,
     ...publicServices,
 }
