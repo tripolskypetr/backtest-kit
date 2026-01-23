@@ -96,6 +96,12 @@ interface IProvider {
     getSymbolInfo(tickerId: string): Promise<any>;
 }
 
+type TPineCtor = (source: IProvider, tickerId: string, timeframe: string, limit: number) => IPine;
+interface IPine {
+    ready(): Promise<void>;
+    run(code: string): Promise<PlotRecord>;
+}
+
 declare const AXIS_SYMBOL = "_AXIS";
 declare class AxisProviderService implements IProvider {
     private readonly loggerService;
@@ -116,12 +122,6 @@ declare class CandleProviderService implements IProvider {
     private readonly loggerService;
     getMarketData(tickerId: string, timeframe: string, limit?: number, sDate?: number, eDate?: number): Promise<any[]>;
     getSymbolInfo(tickerId: string): Promise<any>;
-}
-
-type TPineCtor = (source: IProvider, tickerId: string, timeframe: string, limit: number) => IPine;
-interface IPine {
-    ready(): Promise<void>;
-    run(code: string): Promise<PlotRecord>;
 }
 
 declare class PineConnectionService {
@@ -156,4 +156,4 @@ declare const pine: {
     loggerService: LoggerService;
 };
 
-export { AXIS_SYMBOL, type CandleModel, Code, File, type PlotExtractConfig, type PlotMapping, type PlotModel, type SymbolInfoModel, getSignal, pine as lib, run, setLogger, usePine };
+export { AXIS_SYMBOL, type CandleModel, Code, File, type ILogger, type IPine, type IProvider, type PlotExtractConfig, type PlotMapping, type PlotModel, type PlotRecord, type SymbolInfoModel, type TPineCtor, getSignal, pine as lib, run, setLogger, usePine };

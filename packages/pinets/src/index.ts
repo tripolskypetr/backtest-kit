@@ -10,8 +10,12 @@ export { type PlotExtractConfig } from "./lib/services/data/PineDataService";
 export { type PlotMapping } from "./lib/services/data/PineDataService";
 
 export { CandleModel } from "./model/Candle.model";
-export { PlotModel } from "./model/Plot.model";
+export { PlotModel, PlotRecord } from "./model/Plot.model";
 export { SymbolInfoModel } from "./model/SymbolInfo.model";
+
+export { ILogger } from "./interface/Logger.interface";
+export { IPine, TPineCtor } from "./interface/Pine.interface";
+export { IProvider} from "./interface/Provider.interface";
 
 export { AXIS_SYMBOL } from "./lib/services/provider/AxisProviderService";
 
