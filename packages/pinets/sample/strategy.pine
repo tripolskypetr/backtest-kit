@@ -1,0 +1,25 @@
+//@version=5
+indicator("Signal Strategy")
+
+// Индикаторы
+rsi = ta.rsi(close, 14)
+atr = ta.atr(14)
+ema_fast = ta.ema(close, 9)
+ema_slow = ta.ema(close, 21)
+
+// Условия
+long_cond = ta.crossover(ema_fast, ema_slow) and rsi < 70
+short_cond = ta.crossunder(ema_fast, ema_slow) and rsi > 30
+
+// Уровни
+sl_long = close - atr * 2
+tp_long = close + atr * 3
+sl_short = close + atr * 2
+tp_short = close - atr * 3
+
+// Plots для экстракции
+plot(close, "Close")
+plot(long_cond ? 1 : short_cond ? -1 : 0, "Signal")
+plot(long_cond ? sl_long : sl_short, "StopLoss")
+plot(long_cond ? tp_long : tp_short, "TakeProfit")
+plot(240, "EstimatedTime")  // 4 часа в минутах

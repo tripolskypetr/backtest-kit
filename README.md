@@ -256,25 +256,25 @@ Unlike cloud-based platforms, backtest-kit runs entirely in your environment. Yo
 
 The `backtest-kit` ecosystem extends beyond the core library, offering complementary packages and tools to enhance your trading system development experience:
 
-### @backtest-kit/signals
+### @backtest-kit/pinets
 
-> **[Explore on NPM](https://www.npmjs.com/package/@backtest-kit/signals)** 📊
+> **[Explore on NPM](https://www.npmjs.com/package/@backtest-kit/pinets)** 📜
 
-The **@backtest-kit/signals** package is a technical analysis and trading signal generation library designed for AI-powered trading systems. It computes 50+ indicators across 4 timeframes and generates markdown reports optimized for LLM consumption.
+The **@backtest-kit/pinets** package lets you run TradingView Pine Script strategies directly in Node.js. Port your existing Pine Script indicators to backtest-kit with zero rewrite using the [PineTS](https://github.com/QuantForgeOrg/PineTS) runtime.
 
 #### Key Features
-- 📈 **Multi-Timeframe Analysis**: 1m, 15m, 30m, 1h with synchronized indicator computation
-- 🎯 **50+ Technical Indicators**: RSI, MACD, Bollinger Bands, Stochastic, ADX, ATR, CCI, Fibonacci, Support/Resistance
-- 📊 **Order Book Analysis**: Bid/ask depth, spread, liquidity imbalance, top 20 levels
-- 🤖 **AI-Ready Output**: Markdown reports formatted for LLM context injection
-- ⚡ **Performance Optimized**: Intelligent caching with configurable TTL per timeframe
+- 📜 **Pine Script v5/v6**: Native TradingView syntax with 1:1 compatibility
+- 🎯 **60+ Indicators**: SMA, EMA, RSI, MACD, Bollinger Bands, ATR, Stochastic built-in
+- 📁 **File or Code**: Load `.pine` files or pass code strings directly
+- 🗺️ **Plot Extraction**: Flexible mapping from Pine `plot()` outputs to structured signals
+- ⚡ **Cached Execution**: Memoized file reads for repeated strategy runs
 
 #### Use Case
-Perfect for injecting comprehensive market context into your LLM-powered strategies. Instead of manually calculating indicators, `@backtest-kit/signals` provides a single function call that adds all technical analysis to your message context. Works seamlessly with `getSignal` function in backtest-kit strategies.
+Perfect for traders who already have working TradingView strategies. Instead of rewriting your Pine Script logic in JavaScript, simply copy your `.pine` file and use `getSignal()` to extract trading signals. Works seamlessly with backtest-kit's temporal context - no look-ahead bias possible.
 
 #### Get Started
 ```bash
-npm install @backtest-kit/signals backtest-kit
+npm install @backtest-kit/pinets pinets backtest-kit
 ```
 
 ### @backtest-kit/ollama
@@ -297,6 +297,28 @@ Ideal for building multi-provider LLM strategies with fallback chains and ensemb
 #### Get Started
 ```bash
 npm install @backtest-kit/ollama agent-swarm-kit backtest-kit
+```
+
+
+### @backtest-kit/signals
+
+> **[Explore on NPM](https://www.npmjs.com/package/@backtest-kit/signals)** 📊
+
+The **@backtest-kit/signals** package is a technical analysis and trading signal generation library designed for AI-powered trading systems. It computes 50+ indicators across 4 timeframes and generates markdown reports optimized for LLM consumption.
+
+#### Key Features
+- 📈 **Multi-Timeframe Analysis**: 1m, 15m, 30m, 1h with synchronized indicator computation
+- 🎯 **50+ Technical Indicators**: RSI, MACD, Bollinger Bands, Stochastic, ADX, ATR, CCI, Fibonacci, Support/Resistance
+- 📊 **Order Book Analysis**: Bid/ask depth, spread, liquidity imbalance, top 20 levels
+- 🤖 **AI-Ready Output**: Markdown reports formatted for LLM context injection
+- ⚡ **Performance Optimized**: Intelligent caching with configurable TTL per timeframe
+
+#### Use Case
+Perfect for injecting comprehensive market context into your LLM-powered strategies. Instead of manually calculating indicators, `@backtest-kit/signals` provides a single function call that adds all technical analysis to your message context. Works seamlessly with `getSignal` function in backtest-kit strategies.
+
+#### Get Started
+```bash
+npm install @backtest-kit/signals backtest-kit
 ```
 
 ## 🤖 Are you a robot?

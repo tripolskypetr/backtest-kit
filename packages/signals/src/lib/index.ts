@@ -86,7 +86,4 @@ init();
 
 export { signal };
 
-// Attach to global for debugging (non-production)
-Object.assign(globalThis, { signal });
-
 export default signal;
