@@ -39,7 +39,7 @@ const SIGNAL_SCHEMA = {
   priceStopLoss: "StopLoss",
   minuteEstimatedTime: {
     plot: "EstimatedTime",
-    transform: (v) => v || DEFAULT_ESTIMATED_TIME,
+    transform: (v): number => v || DEFAULT_ESTIMATED_TIME,
   },
 } as const;
 
