@@ -19,10 +19,15 @@ const cacheServices = {
     pineCacheService: Symbol("pineCacheService"),
 }
 
+const connectionServices = {
+    pineConnectionService: Symbol("pineConnectionService"),
+}
+
 export const TYPES = {
     ...baseServices,
     ...providerServices,
     ...jobServices,
     ...dataServices,
     ...cacheServices,
+    ...connectionServices,
 }

@@ -1,5 +1,3 @@
-import { PineTS } from "pinets";
-1;
 import { IProvider } from "../../../interface/Provider.interface";
 import { inject } from "../../core/di";
 import { TYPES } from "../../core/types";
@@ -9,6 +7,9 @@ import AxisProviderService, {
 import CandleProviderService from "../provider/CandleProviderService";
 import { singleshot } from "functools-kit";
 import LoggerService from "../base/LoggerService";
+import PineConnectionService from "../connection/PineConnectionService";
+import { CandleInterval } from "backtest-kit";
+import { Code } from "../../../classes/Code";
 
 const CREATE_PROVIDER_FN = singleshot(
   (self: PineJobService): IProvider => ({
@@ -47,9 +48,14 @@ const CREATE_RUNNER_FN = async (
   limit: number,
 ) => {
   const provider: IProvider = CREATE_PROVIDER_FN(self);
-  const pineTS = new PineTS(provider, tickerId, timeframe, limit);
-  await pineTS.ready();
-  return pineTS;
+  const instance = await self.pineConnectionService.getInstance(
+    provider,
+    tickerId,
+    timeframe,
+    limit,
+  );
+  await instance.ready();
+  return instance;
 };
 
 export class PineJobService {
@@ -60,15 +66,18 @@ export class PineJobService {
   readonly candleProviderService = inject<CandleProviderService>(
     TYPES.candleProviderService,
   );
+  readonly pineConnectionService = inject<PineConnectionService>(
+    TYPES.pineConnectionService,
+  );
 
   public run = async (
-    script: string | Function,
+    code: Code,
     tickerId: string,
-    timeframe: string = "1m",
+    timeframe: CandleInterval = "1m",
     limit: number = 100,
   ) => {
     this.loggerService.log("pineJobService run", {
-      script,
+      script: code.source,
       tickerId,
       timeframe,
       limit,
@@ -76,7 +85,7 @@ export class PineJobService {
 
     const runner = await CREATE_RUNNER_FN(this, tickerId, timeframe, limit);
 
-    return await runner.run(script);
+    return await runner.run(code.source);
   };
 }
 

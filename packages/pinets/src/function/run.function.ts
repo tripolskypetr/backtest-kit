@@ -11,10 +11,11 @@ const METHOD_NAME_RUN = "run.run";
 
 const GET_SOURCE_FN = async (source: File | Code) => {
   if (File.isFile(source)) {
-    return await lib.pineCacheService.readFile(source.path, source.baseDir);
+    const code = await lib.pineCacheService.readFile(source.path, source.baseDir);
+    return Code.fromString(code);
   }
   if (Code.isCode(source)) {
-    return source.source;
+    return source;
   }
   throw new Error("Source must be a File or Code instance");
 };

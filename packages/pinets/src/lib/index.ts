@@ -9,6 +9,7 @@ import CandleProviderService from "./services/provider/CandleProviderService";
 import PineJobService from "./services/job/PineJobService";
 import PineDataService from "./services/data/PineDataService";
 import PineCacheService from "./services/cache/PineCacheService";
+import PineConnectionService from "./services/connection/PineConnectionService";
 
 const commonServices = {
   loggerService: inject<LoggerService>(TYPES.loggerService),
@@ -31,12 +32,17 @@ const cacheServices = {
   pineCacheService: inject<PineCacheService>(TYPES.pineCacheService),
 };
 
+const connectionServices = {
+  pineConnectionService: inject<PineConnectionService>(TYPES.pineConnectionService),
+};
+
 const pine = {
   ...commonServices,
   ...providerServices,
   ...jobServices,
   ...dataServices,
   ...cacheServices,
+  ...connectionServices,
 };
 
 init();

@@ -66,7 +66,6 @@
     "ts-morph": "27.0.2",
     "tslib": "2.7.0",
     "typedoc": "0.27.9",
-    "pinets": "0.8.3",
     "worker-testbed": "1.0.12"
   },
   "peerDependencies": {

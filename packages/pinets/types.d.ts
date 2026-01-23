@@ -1,5 +1,5 @@
+import { TPineCtor as TPineCtor$1 } from 'src/interface/Pine.interface';
 import { CandleInterval, ISignalDto } from 'backtest-kit';
-import * as pinets from 'pinets';
 
 declare class Code {
     readonly source: string;
@@ -18,6 +18,8 @@ declare class File {
     static isFile: (value: unknown) => value is File;
 }
 
+declare function usePine<T = TPineCtor$1>(ctor: T): void;
+
 type PlotData = {
     time: number;
     value: number;
@@ -26,6 +28,9 @@ type PlotEntry = {
     data: PlotData[];
 };
 type PlotModel = Record<string, PlotEntry>;
+type PlotRecord = {
+    plots: PlotModel;
+};
 
 type PlotExtractConfig<T = number> = {
     plot: string;
@@ -113,11 +118,26 @@ declare class CandleProviderService implements IProvider {
     getSymbolInfo(tickerId: string): Promise<any>;
 }
 
+type TPineCtor = (source: IProvider, tickerId: string, timeframe: string, limit: number) => IPine;
+interface IPine {
+    ready(): Promise<void>;
+    run(code: string): Promise<PlotRecord>;
+}
+
+declare class PineConnectionService {
+    private readonly loggerService;
+    private PineFactory;
+    getInstance: (...args: Parameters<TPineCtor>) => Promise<IPine>;
+    usePine: (ctor: TPineCtor) => void;
+    clear: () => void;
+}
+
 declare class PineJobService {
     readonly loggerService: LoggerService;
     readonly axisProviderService: AxisProviderService;
     readonly candleProviderService: CandleProviderService;
-    run: (script: string | Function, tickerId: string, timeframe?: string, limit?: number) => Promise<pinets.Context>;
+    readonly pineConnectionService: PineConnectionService;
+    run: (code: Code, tickerId: string, timeframe?: CandleInterval, limit?: number) => Promise<PlotRecord>;
 }
 
 declare class PineCacheService {
@@ -127,6 +147,7 @@ declare class PineCacheService {
 }
 
 declare const pine: {
+    pineConnectionService: PineConnectionService;
     pineCacheService: PineCacheService;
     pineDataService: PineDataService;
     pineJobService: PineJobService;
@@ -135,4 +156,4 @@ declare const pine: {
     loggerService: LoggerService;
 };
 
-export { AXIS_SYMBOL, type CandleModel, Code, File, type PlotExtractConfig, type PlotMapping, type PlotModel, type SymbolInfoModel, getSignal, pine as lib, run, setLogger };
+export { AXIS_SYMBOL, type CandleModel, Code, File, type PlotExtractConfig, type PlotMapping, type PlotModel, type SymbolInfoModel, getSignal, pine as lib, run, setLogger, usePine };

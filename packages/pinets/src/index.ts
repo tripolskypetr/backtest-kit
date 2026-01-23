@@ -1,6 +1,7 @@
 export { Code } from "./classes/Code";
 export { File } from "./classes/File";
 
+export { usePine } from "./function/pine.function";
 export { run } from "./function/run.function";
 export { setLogger } from "./function/setup.function";
 export { getSignal } from "./function/strategy.function";

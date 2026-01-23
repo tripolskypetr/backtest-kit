@@ -8,3 +8,7 @@ type PlotEntry = {
 };
 
 export type PlotModel = Record<string, PlotEntry>;
+
+export type PlotRecord = {
+  plots: PlotModel;
+}
