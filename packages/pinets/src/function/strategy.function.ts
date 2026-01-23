@@ -1,7 +1,7 @@
 import { CandleInterval, ISignalDto } from "backtest-kit";
-import { Code } from "src/classes/Code";
-import { File } from "src/classes/File";
-import lib from "src/lib";
+import { Code } from "../classes/Code";
+import { File } from "../classes/File";
+import lib from "../lib";
 
 const METHOD_NAME_RUN = "strategy.getSignal";
 

@@ -1,10 +1,10 @@
 import { CandleInterval, getRawCandles } from "backtest-kit";
-import { IProvider } from "src/interface/Provider.interface";
-import { inject } from "src/lib/core/di";
-import { CandleModel } from "src/model/Candle.model";
-import { SymbolInfoModel } from "src/model/SymbolInfo.model";
+import { IProvider } from "../../../interface/Provider.interface";
+import { inject } from "../../core/di";
+import { CandleModel } from "../../../model/Candle.model";
+import { SymbolInfoModel } from "../../../model/SymbolInfo.model";
 import LoggerService from "../base/LoggerService";
-import { TYPES } from "src/lib/core/types";
+import { TYPES } from "../../core/types";
 
 export class CandleProviderService implements IProvider {
 

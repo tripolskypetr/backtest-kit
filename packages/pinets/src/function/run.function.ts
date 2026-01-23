@@ -1,11 +1,11 @@
 import { CandleInterval } from "backtest-kit";
-import lib from "src/lib";
-import { Code } from "src/classes/Code";
-import { File } from "src/classes/File";
+import lib from "../lib";
+import { Code } from "../classes/Code";
+import { File } from "../classes/File";
 import {
   ExtractedData,
   PlotMapping,
-} from "src/lib/services/data/PineDataService";
+} from "../lib/services/data/PineDataService";
 
 const METHOD_NAME_RUN = "run.run";
 

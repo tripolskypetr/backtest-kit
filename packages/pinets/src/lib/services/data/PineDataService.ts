@@ -1,7 +1,7 @@
-import { inject } from "src/lib/core/di";
-import { PlotModel } from "src/model/Plot.model";
+import { inject } from "../../core/di";
+import { PlotModel } from "../../../model/Plot.model";
 import LoggerService from "../base/LoggerService";
-import { TYPES } from "src/lib/core/types";
+import { TYPES } from "../../core/types";
 
 export type PlotExtractConfig<T = number> = {
   plot: string;

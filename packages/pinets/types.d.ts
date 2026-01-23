@@ -1,9 +1,4 @@
 import { CandleInterval, ISignalDto } from 'backtest-kit';
-import { Code as Code$1 } from 'src/classes/Code';
-import { File as File$1 } from 'src/classes/File';
-import { PlotMapping as PlotMapping$1, ExtractedData as ExtractedData$1 } from 'src/lib/services/data/PineDataService';
-import { PlotModel as PlotModel$1 } from 'src/model/Plot.model';
-import { IProvider } from 'src/interface/Provider.interface';
 import * as pinets from 'pinets';
 
 declare class Code {
@@ -23,13 +18,38 @@ declare class File {
     static isFile: (value: unknown) => value is File;
 }
 
-interface IRunParams<M extends PlotMapping$1> {
+type PlotData = {
+    time: number;
+    value: number;
+};
+type PlotEntry = {
+    data: PlotData[];
+};
+type PlotModel = Record<string, PlotEntry>;
+
+type PlotExtractConfig<T = number> = {
+    plot: string;
+    barsBack?: number;
+    transform?: (value: number) => T;
+};
+type PlotMapping = {
+    [key: string]: string | PlotExtractConfig<any>;
+};
+type ExtractedData<M extends PlotMapping> = {
+    [K in keyof M]: M[K] extends PlotExtractConfig<infer R> ? R : M[K] extends string ? number : never;
+};
+declare class PineDataService {
+    private readonly loggerService;
+    extract<M extends PlotMapping>(plots: PlotModel, mapping: M): ExtractedData<M>;
+}
+
+interface IRunParams<M extends PlotMapping> {
     symbol: string;
     timeframe: CandleInterval;
     limit: number;
     mapping: M;
 }
-declare function run<M extends PlotMapping$1>(source: File$1 | Code$1, { symbol, timeframe, mapping, limit }: IRunParams<M>): Promise<ExtractedData$1<M>>;
+declare function run<M extends PlotMapping>(source: File | Code, { symbol, timeframe, mapping, limit }: IRunParams<M>): Promise<ExtractedData<M>>;
 
 interface ILogger {
     log(topic: string, ...args: any[]): void;
@@ -45,23 +65,7 @@ interface IParams {
     timeframe: CandleInterval;
     limit: number;
 }
-declare function getSignal(source: File$1 | Code$1, { symbol, timeframe, limit }: IParams): Promise<ISignalDto | null>;
-
-type PlotExtractConfig<T = number> = {
-    plot: string;
-    barsBack?: number;
-    transform?: (value: number) => T;
-};
-type PlotMapping = {
-    [key: string]: string | PlotExtractConfig<any>;
-};
-type ExtractedData<M extends PlotMapping> = {
-    [K in keyof M]: M[K] extends PlotExtractConfig<infer R> ? R : M[K] extends string ? number : never;
-};
-declare class PineDataService {
-    private readonly loggerService;
-    extract<M extends PlotMapping>(plots: PlotModel$1, mapping: M): ExtractedData<M>;
-}
+declare function getSignal(source: File | Code, { symbol, timeframe, limit }: IParams): Promise<ISignalDto | null>;
 
 interface CandleModel {
     openTime: number;
@@ -72,15 +76,6 @@ interface CandleModel {
     volume: number;
 }
 
-type PlotData = {
-    time: number;
-    value: number;
-};
-type PlotEntry = {
-    data: PlotData[];
-};
-type PlotModel = Record<string, PlotEntry>;
-
 interface SymbolInfoModel {
     ticker: string;
     tickerid: string;
@@ -89,6 +84,11 @@ interface SymbolInfoModel {
     basecurrency: string;
     currency: string;
     timezone: string;
+}
+
+interface IProvider {
+    getMarketData(tickerId: string, timeframe: string, limit?: number, sDate?: number, eDate?: number): Promise<any>;
+    getSymbolInfo(tickerId: string): Promise<any>;
 }
 
 declare const AXIS_SYMBOL = "_AXIS";

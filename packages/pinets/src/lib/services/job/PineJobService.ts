@@ -1,8 +1,8 @@
 import { PineTS } from "pinets";
 1;
 import { IProvider } from "../../../interface/Provider.interface";
-import { inject } from "src/lib/core/di";
-import { TYPES } from "src/lib/core/types";
+import { inject } from "../../core/di";
+import { TYPES } from "../../core/types";
 import AxisProviderService, {
   AXIS_SYMBOL,
 } from "../provider/AxisProviderService";
