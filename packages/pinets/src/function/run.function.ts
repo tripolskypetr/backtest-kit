@@ -32,6 +32,10 @@ export async function run<M extends PlotMapping>(
 ): Promise<ExtractedData<M>> {
   lib.loggerService.info(METHOD_NAME_RUN, {
     source,
+    symbol,
+    timeframe,
+    mapping,
+    limit,
   });
   const script = await GET_SOURCE_FN(source);
   const { plots } = await lib.pineJobService.run(
@@ -42,3 +46,5 @@ export async function run<M extends PlotMapping>(
   );
   return lib.pineDataService.extract(plots, mapping);
 }
+
+

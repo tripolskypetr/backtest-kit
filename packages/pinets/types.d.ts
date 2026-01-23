@@ -1,4 +1,4 @@
-import { CandleInterval } from 'backtest-kit';
+import { CandleInterval, ISignalDto } from 'backtest-kit';
 import { Code as Code$1 } from 'src/classes/Code';
 import { File as File$1 } from 'src/classes/File';
 import { PlotMapping as PlotMapping$1, ExtractedData as ExtractedData$1 } from 'src/lib/services/data/PineDataService';
@@ -39,6 +39,13 @@ interface ILogger {
 }
 
 declare function setLogger(logger: ILogger): void;
+
+interface IParams {
+    symbol: string;
+    timeframe: CandleInterval;
+    limit: number;
+}
+declare function getSignal(source: File$1 | Code$1, { symbol, timeframe, limit }: IParams): Promise<ISignalDto | null>;
 
 type PlotExtractConfig<T = number> = {
     plot: string;
@@ -128,4 +135,4 @@ declare const pine: {
     loggerService: LoggerService;
 };
 
-export { AXIS_SYMBOL, type CandleModel, Code, File, type PlotExtractConfig, type PlotMapping, type PlotModel, type SymbolInfoModel, pine as lib, run, setLogger };
+export { AXIS_SYMBOL, type CandleModel, Code, File, type PlotExtractConfig, type PlotMapping, type PlotModel, type SymbolInfoModel, getSignal, pine as lib, run, setLogger };
