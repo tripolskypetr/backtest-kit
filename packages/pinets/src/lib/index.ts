@@ -8,6 +8,7 @@ import AxisProviderService from "./services/provider/AxisProviderService";
 import CandleProviderService from "./services/provider/CandleProviderService";
 import PineJobService from "./services/job/PineJobService";
 import PineDataService from "./services/data/PineDataService";
+import PineCacheService from "./services/cache/PineCacheService";
 
 const commonServices = {
   loggerService: inject<LoggerService>(TYPES.loggerService),
@@ -26,11 +27,16 @@ const dataServices = {
   pineDataService: inject<PineDataService>(TYPES.pineDataService),
 };
 
+const cacheServices = {
+  pineCacheService: inject<PineCacheService>(TYPES.pineCacheService),
+};
+
 const pine = {
   ...commonServices,
   ...providerServices,
   ...jobServices,
   ...dataServices,
+  ...cacheServices,
 };
 
 init();

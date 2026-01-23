@@ -3,6 +3,7 @@ import AxisProviderService from "../services/provider/AxisProviderService";
 import CandleProviderService from "../services/provider/CandleProviderService";
 import PineJobService from "../services/job/PineJobService";
 import PineDataService from "../services/data/PineDataService";
+import PineCacheService from "../services/cache/PineCacheService";
 import { provide } from "./di";
 import { TYPES } from "./types";
 
@@ -21,4 +22,8 @@ import { TYPES } from "./types";
 
 {
     provide(TYPES.pineDataService, () => new PineDataService());
+}
+
+{
+    provide(TYPES.pineCacheService, () => new PineCacheService());
 }

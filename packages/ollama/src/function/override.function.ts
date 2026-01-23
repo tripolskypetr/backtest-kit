@@ -1,6 +1,6 @@
 import { overrideOutline } from "agent-swarm-kit";
 import { zodResponseFormat } from "openai/helpers/zod";
-import OutlineName from "src/enum/OutlineName";
+import OutlineName from "../enum/OutlineName";
 import { type ZodType } from "zod";
 
 /**

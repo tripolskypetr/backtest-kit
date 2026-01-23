@@ -15,9 +15,14 @@ const dataServices = {
     pineDataService: Symbol("pineDataService"),
 }
 
+const cacheServices = {
+    pineCacheService: Symbol("pineCacheService"),
+}
+
 export const TYPES = {
     ...baseServices,
     ...providerServices,
     ...jobServices,
     ...dataServices,
+    ...cacheServices,
 }
