@@ -70,7 +70,7 @@
     "worker-testbed": "1.0.12"
   },
   "peerDependencies": {
-    "backtest-kit": "^2.0.7",
+    "backtest-kit": "^2.2.1",
     "pinets": "^0.8.3",
     "typescript": "^5.0.0"
   },
