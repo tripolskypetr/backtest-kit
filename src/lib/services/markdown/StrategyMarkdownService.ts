@@ -2,9 +2,6 @@ import { inject } from "../../core/di";
 import LoggerService from "../base/LoggerService";
 import TYPES from "../../core/types";
 import { singleshot } from "functools-kit";
-import MethodContextService, {
-  TMethodContextService,
-} from "../context/MethodContextService";
 import ExecutionContextService, {
   TExecutionContextService,
 } from "../context/ExecutionContextService";
@@ -25,9 +22,6 @@ const GET_EXECUTION_CONTEXT_FN = (self: StrategyMarkdownService) => {
 
 export class StrategyMarkdownService {
   readonly loggerService = inject<LoggerService>(TYPES.loggerService);
-  readonly methodContextService = inject<TMethodContextService>(
-    TYPES.methodContextService,
-  );
   readonly executionContextService = inject<TExecutionContextService>(
     TYPES.executionContextService,
   );
