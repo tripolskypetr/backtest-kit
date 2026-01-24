@@ -11,6 +11,8 @@ export { dumpPlotData } from "./function/dump.function";
 export { type PlotExtractConfig } from "./lib/services/data/PineDataService";
 export { type PlotMapping } from "./lib/services/data/PineDataService";
 
+export { toSignalDto } from "./helpers/toSignalDto";
+
 export { CandleModel } from "./model/Candle.model";
 export { PlotModel, PlotRecord } from "./model/Plot.model";
 export { SymbolInfoModel } from "./model/SymbolInfo.model";

@@ -86,6 +86,18 @@ declare function getSignal(source: File | Code, { symbol, timeframe, limit }: IP
 type ResultId$1 = string | number;
 declare function dumpPlotData(signalId: ResultId$1, plots: PlotModel, taName: string, outputDir?: string): Promise<void>;
 
+interface SignalData {
+    position: number;
+    priceOpen: number;
+    priceTakeProfit: number;
+    priceStopLoss: number;
+    minuteEstimatedTime: number;
+}
+interface Signal extends ISignalDto {
+    id: string;
+}
+declare function toSignalDto(data: SignalData): Signal | null;
+
 interface CandleModel {
     openTime: number;
     open: number;
@@ -172,4 +184,4 @@ declare const pine: {
     loggerService: LoggerService;
 };
 
-export { AXIS_SYMBOL, type CandleModel, Code, File, type ILogger, type IPine, type IProvider, type PlotExtractConfig, type PlotMapping, type PlotModel, type PlotRecord, type SymbolInfoModel, type TPineCtor, dumpPlotData, extract, getSignal, pine as lib, run, setLogger, usePine };
+export { AXIS_SYMBOL, type CandleModel, Code, File, type ILogger, type IPine, type IProvider, type PlotExtractConfig, type PlotMapping, type PlotModel, type PlotRecord, type SymbolInfoModel, type TPineCtor, dumpPlotData, extract, getSignal, pine as lib, run, setLogger, toSignalDto, usePine };
