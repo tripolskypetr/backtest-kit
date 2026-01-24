@@ -7880,6 +7880,8 @@ declare const Report: ReportAdapter;
  * Controls which markdown report services should be activated.
  */
 interface IMarkdownTarget {
+    /** Enable strategy event tracking reports (entry/exit signals) */
+    strategy: boolean;
     /** Enable risk rejection tracking reports (signals blocked by risk limits) */
     risk: boolean;
     /** Enable breakeven event tracking reports (when stop loss moves to entry) */
@@ -8093,7 +8095,7 @@ declare class MarkdownUtils {
      *
      * @returns Cleanup function that unsubscribes from all enabled services
      */
-    enable: ({ backtest: bt, breakeven, heat, live, partial, performance, risk, schedule, walker, }?: Partial<IMarkdownTarget>) => (...args: any[]) => any;
+    enable: ({ backtest: bt, breakeven, heat, live, partial, performance, strategy, risk, schedule, walker, }?: Partial<IMarkdownTarget>) => (...args: any[]) => any;
     /**
      * Disables markdown report services selectively.
      *
@@ -8131,7 +8133,7 @@ declare class MarkdownUtils {
      * Markdown.disable();
      * ```
      */
-    disable: ({ backtest: bt, breakeven, heat, live, partial, performance, risk, schedule, walker, }?: Partial<IMarkdownTarget>) => void;
+    disable: ({ backtest: bt, breakeven, heat, live, partial, performance, risk, strategy, schedule, walker, }?: Partial<IMarkdownTarget>) => void;
 }
 /**
  * Markdown adapter with pluggable storage backend and instance memoization.
@@ -15515,6 +15517,8 @@ declare class StrategyCoreService implements TStrategy {
     private readonly strategyValidationService;
     private readonly exchangeValidationService;
     private readonly frameValidationService;
+    private readonly strategyMarkdownService;
+    private readonly strategyReportService;
     /**
      * Validates strategy and associated risk configuration.
      *
@@ -18176,20 +18180,45 @@ declare class RiskReportService {
 
 declare class StrategyReportService {
     readonly loggerService: LoggerService;
-    readonly methodContextService: {
-        readonly context: IMethodContext;
-    };
     readonly executionContextService: {
         readonly context: IExecutionContext;
     };
     readonly strategyCoreService: StrategyCoreService;
-    cancelScheduled: (symbol: string, isBacktest: boolean, cancelId?: string) => Promise<void>;
-    closePending: (symbol: string, isBacktest: boolean, closeId?: string) => Promise<void>;
-    partialProfit: (symbol: string, percentToClose: number, currentPrice: number, isBacktest: boolean) => Promise<void>;
-    partialLoss: (symbol: string, percentToClose: number, currentPrice: number, isBacktest: boolean) => Promise<void>;
-    trailingStop: (symbol: string, percentShift: number, currentPrice: number, isBacktest: boolean) => Promise<void>;
-    trailingTake: (symbol: string, percentShift: number, currentPrice: number, isBacktest: boolean) => Promise<void>;
-    breakeven: (symbol: string, currentPrice: number, isBacktest: boolean) => Promise<void>;
+    cancelScheduled: (symbol: string, isBacktest: boolean, context: {
+        strategyName: StrategyName;
+        exchangeName: ExchangeName;
+        frameName: FrameName;
+    }, cancelId?: string) => Promise<void>;
+    closePending: (symbol: string, isBacktest: boolean, context: {
+        strategyName: StrategyName;
+        exchangeName: ExchangeName;
+        frameName: FrameName;
+    }, closeId?: string) => Promise<void>;
+    partialProfit: (symbol: string, percentToClose: number, currentPrice: number, isBacktest: boolean, context: {
+        strategyName: StrategyName;
+        exchangeName: ExchangeName;
+        frameName: FrameName;
+    }) => Promise<void>;
+    partialLoss: (symbol: string, percentToClose: number, currentPrice: number, isBacktest: boolean, context: {
+        strategyName: StrategyName;
+        exchangeName: ExchangeName;
+        frameName: FrameName;
+    }) => Promise<void>;
+    trailingStop: (symbol: string, percentShift: number, currentPrice: number, isBacktest: boolean, context: {
+        strategyName: StrategyName;
+        exchangeName: ExchangeName;
+        frameName: FrameName;
+    }) => Promise<void>;
+    trailingTake: (symbol: string, percentShift: number, currentPrice: number, isBacktest: boolean, context: {
+        strategyName: StrategyName;
+        exchangeName: ExchangeName;
+        frameName: FrameName;
+    }) => Promise<void>;
+    breakeven: (symbol: string, currentPrice: number, isBacktest: boolean, context: {
+        strategyName: StrategyName;
+        exchangeName: ExchangeName;
+        frameName: FrameName;
+    }) => Promise<void>;
     subscribe: (() => () => void) & functools_kit.ISingleshotClearable;
     unsubscribe: () => Promise<void>;
 }
@@ -18203,13 +18232,41 @@ declare class StrategyMarkdownService {
         readonly context: IExecutionContext;
     };
     readonly strategyCoreService: StrategyCoreService;
-    cancelScheduled: (symbol: string, isBacktest: boolean, cancelId?: string) => Promise<void>;
-    closePending: (symbol: string, isBacktest: boolean, closeId?: string) => Promise<void>;
-    partialProfit: (symbol: string, percentToClose: number, currentPrice: number, isBacktest: boolean) => Promise<void>;
-    partialLoss: (symbol: string, percentToClose: number, currentPrice: number, isBacktest: boolean) => Promise<void>;
-    trailingStop: (symbol: string, percentShift: number, currentPrice: number, isBacktest: boolean) => Promise<void>;
-    trailingTake: (symbol: string, percentShift: number, currentPrice: number, isBacktest: boolean) => Promise<void>;
-    breakeven: (symbol: string, currentPrice: number, isBacktest: boolean) => Promise<void>;
+    cancelScheduled: (symbol: string, isBacktest: boolean, context: {
+        strategyName: StrategyName;
+        exchangeName: ExchangeName;
+        frameName: FrameName;
+    }, cancelId?: string) => Promise<void>;
+    closePending: (symbol: string, isBacktest: boolean, context: {
+        strategyName: StrategyName;
+        exchangeName: ExchangeName;
+        frameName: FrameName;
+    }, closeId?: string) => Promise<void>;
+    partialProfit: (symbol: string, percentToClose: number, currentPrice: number, isBacktest: boolean, context: {
+        strategyName: StrategyName;
+        exchangeName: ExchangeName;
+        frameName: FrameName;
+    }) => Promise<void>;
+    partialLoss: (symbol: string, percentToClose: number, currentPrice: number, isBacktest: boolean, context: {
+        strategyName: StrategyName;
+        exchangeName: ExchangeName;
+        frameName: FrameName;
+    }) => Promise<void>;
+    trailingStop: (symbol: string, percentShift: number, currentPrice: number, isBacktest: boolean, context: {
+        strategyName: StrategyName;
+        exchangeName: ExchangeName;
+        frameName: FrameName;
+    }) => Promise<void>;
+    trailingTake: (symbol: string, percentShift: number, currentPrice: number, isBacktest: boolean, context: {
+        strategyName: StrategyName;
+        exchangeName: ExchangeName;
+        frameName: FrameName;
+    }) => Promise<void>;
+    breakeven: (symbol: string, currentPrice: number, isBacktest: boolean, context: {
+        strategyName: StrategyName;
+        exchangeName: ExchangeName;
+        frameName: FrameName;
+    }) => Promise<void>;
     subscribe: (() => () => void) & functools_kit.ISingleshotClearable;
     unsubscribe: () => Promise<void>;
 }

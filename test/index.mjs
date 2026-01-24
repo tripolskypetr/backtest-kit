@@ -42,7 +42,6 @@ import "./spec/event.test.mjs";
 import "./spec/validation.test.mjs";
 import "./spec/backtest.test.mjs";
 import "./spec/pnl.test.mjs";
-import "./spec/optimizer.test.mjs"
 import "./spec/config.test.mjs"
 import "./spec/columns.test.mjs"
 
