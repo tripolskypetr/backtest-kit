@@ -880,6 +880,7 @@ export class StrategyMarkdownService {
     this.loggerService.log("strategyMarkdownService subscribe");
     return () => {
       this.subscribe.clear();
+      this.clear();
     };
   });
 
@@ -894,6 +895,7 @@ export class StrategyMarkdownService {
     this.loggerService.log("strategyMarkdownService unsubscribe");
     if (this.subscribe.hasValue()) {
       this.subscribe.clear();
+      this.clear();
     }
   };
 }
