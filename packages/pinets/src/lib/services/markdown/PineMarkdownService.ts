@@ -91,6 +91,9 @@ export class PineMarkdownService {
   private readonly loggerService = inject<LoggerService>(TYPES.loggerService);
 
   public getData = (plots: PlotModel) => {
+    this.loggerService.log("pineMarkdownService getReport", {
+      plotCount: Object.keys(plots).length,
+    });
     const keys = Object.keys(plots);
 
     if (keys.length === 0) {
@@ -126,6 +129,10 @@ export class PineMarkdownService {
   };
 
   public getReport = (signalId: ResultId, plots: PlotModel) => {
+    this.loggerService.log("pineMarkdownService getReport", {
+      signalId,
+      plotCount: Object.keys(plots).length,
+    });
     const rows = this.getData(plots);
     const keys = Object.keys(plots);
     return generateMarkdownTable(rows, keys, signalId);
