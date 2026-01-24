@@ -22,7 +22,9 @@ import {
   schedulePingSubject,
   activePingSubject,
   errorEmitter,
+  strategyCommitSubject,
 } from "../../../config/emitters";
+import { StrategyCommitContract } from "../../../contract/StrategyCommit.contract";
 import { IRisk, RiskName } from "../../../interfaces/Risk.interface";
 import RiskConnectionService from "./RiskConnectionService";
 import { PartialConnectionService } from "./PartialConnectionService";
@@ -271,6 +273,30 @@ const CREATE_COMMIT_DISPOSE_FN = (self: StrategyConnectionService) => trycatch(
   {
     fallback: (error) => {
       const message = "StrategyConnectionService CREATE_COMMIT_DISPOSE_FN thrown";
+      const payload = {
+        error: errorData(error),
+        message: getErrorMessage(error),
+      };
+      backtest.loggerService.warn(message, payload);
+      console.warn(message, payload);
+      errorEmitter.next(error);
+    },
+    defaultValue: null,
+  }
+);
+
+/**
+ * Broadcasts StrategyCommitContract event to strategyCommitSubject.
+ *
+ * @param event - The signal commit event to broadcast
+ */
+const CALL_STRATEGY_BROADCAST_FN = trycatch(
+  async (event: StrategyCommitContract): Promise<void> => {
+    await strategyCommitSubject.next(event);
+  },
+  {
+    fallback: (error) => {
+      const message = "StrategyConnectionService CALL_STRATEGY_BROADCAST_FN thrown";
       const payload = {
         error: errorData(error),
         message: getErrorMessage(error),
@@ -706,6 +732,15 @@ export class StrategyConnectionService implements TStrategy {
       context,
       cancelId,
     });
+    await CALL_STRATEGY_BROADCAST_FN({
+      action: "cancel-scheduled",
+      symbol,
+      strategyName: context.strategyName,
+      exchangeName: context.exchangeName,
+      frameName: context.frameName,
+      backtest,
+      cancelId,
+    });
     const strategy = this.getStrategy(symbol, context.strategyName, context.exchangeName, context.frameName, backtest);
     await strategy.cancelScheduled(symbol, backtest, cancelId);
   };
@@ -735,6 +770,15 @@ export class StrategyConnectionService implements TStrategy {
     this.loggerService.log("strategyConnectionService closePending", {
       symbol,
       context,
+      closeId,
+    });
+    await CALL_STRATEGY_BROADCAST_FN({
+      action: "close-pending",
+      symbol,
+      strategyName: context.strategyName,
+      exchangeName: context.exchangeName,
+      frameName: context.frameName,
+      backtest,
       closeId,
     });
     const strategy = this.getStrategy(symbol, context.strategyName, context.exchangeName, context.frameName, backtest);
@@ -785,6 +829,16 @@ export class StrategyConnectionService implements TStrategy {
       currentPrice,
       backtest,
     });
+    await CALL_STRATEGY_BROADCAST_FN({
+      action: "partial-profit",
+      symbol,
+      strategyName: context.strategyName,
+      exchangeName: context.exchangeName,
+      frameName: context.frameName,
+      backtest,
+      percentToClose,
+      currentPrice,
+    });
     const strategy = this.getStrategy(symbol, context.strategyName, context.exchangeName, context.frameName, backtest);
     return await strategy.partialProfit(symbol, percentToClose, currentPrice, backtest);
   };
@@ -833,6 +887,16 @@ export class StrategyConnectionService implements TStrategy {
       currentPrice,
       backtest,
     });
+    await CALL_STRATEGY_BROADCAST_FN({
+      action: "partial-loss",
+      symbol,
+      strategyName: context.strategyName,
+      exchangeName: context.exchangeName,
+      frameName: context.frameName,
+      backtest,
+      percentToClose,
+      currentPrice,
+    });
     const strategy = this.getStrategy(symbol, context.strategyName, context.exchangeName, context.frameName, backtest);
     return await strategy.partialLoss(symbol, percentToClose, currentPrice, backtest);
   };
@@ -878,6 +942,16 @@ export class StrategyConnectionService implements TStrategy {
       percentShift,
       currentPrice,
       backtest,
+    });
+    await CALL_STRATEGY_BROADCAST_FN({
+      action: "trailing-stop",
+      symbol,
+      strategyName: context.strategyName,
+      exchangeName: context.exchangeName,
+      frameName: context.frameName,
+      backtest,
+      percentShift,
+      currentPrice,
     });
     const strategy = this.getStrategy(symbol, context.strategyName, context.exchangeName, context.frameName, backtest);
     return await strategy.trailingStop(symbol, percentShift, currentPrice, backtest);
@@ -925,6 +999,16 @@ export class StrategyConnectionService implements TStrategy {
       currentPrice,
       backtest,
     });
+    await CALL_STRATEGY_BROADCAST_FN({
+      action: "trailing-take",
+      symbol,
+      strategyName: context.strategyName,
+      exchangeName: context.exchangeName,
+      frameName: context.frameName,
+      backtest,
+      percentShift,
+      currentPrice,
+    });
     const strategy = this.getStrategy(symbol, context.strategyName, context.exchangeName, context.frameName, backtest);
     return await strategy.trailingTake(symbol, percentShift, currentPrice, backtest);
   };
@@ -962,6 +1046,15 @@ export class StrategyConnectionService implements TStrategy {
       context,
       currentPrice,
       backtest,
+    });
+    await CALL_STRATEGY_BROADCAST_FN({
+      action: "breakeven",
+      symbol,
+      strategyName: context.strategyName,
+      exchangeName: context.exchangeName,
+      frameName: context.frameName,
+      backtest,
+      currentPrice,
     });
     const strategy = this.getStrategy(symbol, context.strategyName, context.exchangeName, context.frameName, backtest);
     return await strategy.breakeven(symbol, currentPrice, backtest);

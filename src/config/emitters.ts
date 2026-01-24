@@ -13,6 +13,7 @@ import { WalkerStopContract } from "../contract/WalkerStop.contract";
 import { RiskContract } from "../contract/Risk.contract";
 import { SchedulePingContract } from "../contract/SchedulePing.contract";
 import { ActivePingContract } from "../contract/ActivePing.contract";
+import { StrategyCommitContract } from "../contract/StrategyCommit.contract";
 
 /**
  * Global signal emitter for all trading events (live + backtest).
@@ -145,4 +146,19 @@ export const schedulePingSubject = new Subject<SchedulePingContract>();
  * Allows users to track active signal lifecycle and implement custom dynamic management logic.
  */
 export const activePingSubject = new Subject<ActivePingContract>();
+
+/**
+ * Strategy management signal emitter.
+ * Emits when strategy management actions are executed:
+ * - cancel-scheduled: Scheduled signal cancelled
+ * - close-pending: Pending signal closed
+ * - partial-profit: Partial close at profit level
+ * - partial-loss: Partial close at loss level
+ * - trailing-stop: Stop-loss adjusted
+ * - trailing-take: Take-profit adjusted
+ * - breakeven: Stop-loss moved to entry price
+ *
+ * Used by StrategyReportService and StrategyMarkdownService for event logging and reporting.
+ */
+export const strategyCommitSubject = new Subject<StrategyCommitContract>();
 

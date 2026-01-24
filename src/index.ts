@@ -94,6 +94,8 @@ export {
   listenSchedulePingOnce,
   listenActivePing,
   listenActivePingOnce,
+  listenStrategyCommit,
+  listenStrategyCommitOnce,
 } from "./function/event";
 export {
   getCandles,
@@ -213,6 +215,7 @@ export {
   PerformanceContract,
   PerformanceMetricType,
 } from "./contract/Performance.contract";
+export { StrategyCommitContract } from "./contract/StrategyCommit.contract";
 
 export { ExecutionContextService } from "./lib/services/context/ExecutionContextService";
 export { MethodContextService } from "./lib/services/context/MethodContextService";

@@ -10,6 +10,8 @@ import ExecutionContextService, {
 import { FrameName } from "../../../interfaces/Frame.interface";
 import { ExchangeName } from "../../../interfaces/Exchange.interface";
 import { StrategyName } from "../../../interfaces/Strategy.interface";
+import { strategyCommitSubject } from "../../../config/emitters";
+import { StrategyCommitContract } from "../../../contract/StrategyCommit.contract";
 
 /**
  * Extracts execution context timestamp for strategy event logging.
@@ -481,6 +483,48 @@ export class StrategyReportService {
   };
 
   /**
+   * Handles incoming signal management events from strategyCommitSubject.
+   * Routes events to appropriate handler methods based on action type.
+   *
+   * @param event - The signal management event
+   */
+  private handleSignalEvent = async (event: StrategyCommitContract) => {
+    this.loggerService.log("strategyReportService handleSignalEvent", {
+      action: event.action,
+      symbol: event.symbol,
+      backtest: event.backtest,
+    });
+    const context = {
+      strategyName: event.strategyName,
+      exchangeName: event.exchangeName,
+      frameName: event.frameName,
+    };
+    switch (event.action) {
+      case "cancel-scheduled":
+        await this.cancelScheduled(event.symbol, event.backtest, context, event.cancelId);
+        break;
+      case "close-pending":
+        await this.closePending(event.symbol, event.backtest, context, event.closeId);
+        break;
+      case "partial-profit":
+        await this.partialProfit(event.symbol, event.percentToClose, event.currentPrice, event.backtest, context);
+        break;
+      case "partial-loss":
+        await this.partialLoss(event.symbol, event.percentToClose, event.currentPrice, event.backtest, context);
+        break;
+      case "trailing-stop":
+        await this.trailingStop(event.symbol, event.percentShift, event.currentPrice, event.backtest, context);
+        break;
+      case "trailing-take":
+        await this.trailingTake(event.symbol, event.percentShift, event.currentPrice, event.backtest, context);
+        break;
+      case "breakeven":
+        await this.breakeven(event.symbol, event.currentPrice, event.backtest, context);
+        break;
+    }
+  };
+
+  /**
    * Initializes the service for event logging.
    *
    * Must be called before any events can be logged. Uses singleshot pattern
@@ -490,8 +534,10 @@ export class StrategyReportService {
    */
   public subscribe = singleshot(() => {
     this.loggerService.log("strategyReportService subscribe");
+    const unsubscribe = strategyCommitSubject.subscribe(this.handleSignalEvent);
     return () => {
       this.subscribe.clear();
+      unsubscribe();
     };
   });
 

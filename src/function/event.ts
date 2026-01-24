@@ -1,5 +1,5 @@
 import backtest from "../lib";
-import { signalEmitter, signalLiveEmitter, signalBacktestEmitter, errorEmitter, exitEmitter, doneLiveSubject, doneBacktestSubject, doneWalkerSubject, progressBacktestEmitter, progressWalkerEmitter, performanceEmitter, walkerEmitter, walkerCompleteSubject, validationSubject, partialProfitSubject, partialLossSubject, breakevenSubject, riskSubject, schedulePingSubject, activePingSubject } from "../config/emitters";
+import { signalEmitter, signalLiveEmitter, signalBacktestEmitter, errorEmitter, exitEmitter, doneLiveSubject, doneBacktestSubject, doneWalkerSubject, progressBacktestEmitter, progressWalkerEmitter, performanceEmitter, walkerEmitter, walkerCompleteSubject, validationSubject, partialProfitSubject, partialLossSubject, breakevenSubject, riskSubject, schedulePingSubject, activePingSubject, strategyCommitSubject } from "../config/emitters";
 import { IStrategyTickResult } from "../interfaces/Strategy.interface";
 import { DoneContract } from "../contract/Done.contract";
 import { ProgressBacktestContract } from "../contract/ProgressBacktest.contract";
@@ -13,6 +13,7 @@ import { BreakevenContract } from "../contract/Breakeven.contract";
 import { RiskContract } from "../contract/Risk.contract";
 import { SchedulePingContract } from "../contract/SchedulePing.contract";
 import { ActivePingContract } from "../contract/ActivePing.contract";
+import { StrategyCommitContract } from "../contract/StrategyCommit.contract";
 import { queued } from "functools-kit";
 
 const LISTEN_SIGNAL_METHOD_NAME = "event.listenSignal";
@@ -48,6 +49,8 @@ const LISTEN_SCHEDULE_PING_METHOD_NAME = "event.listenSchedulePing";
 const LISTEN_SCHEDULE_PING_ONCE_METHOD_NAME = "event.listenSchedulePingOnce";
 const LISTEN_ACTIVE_PING_METHOD_NAME = "event.listenActivePing";
 const LISTEN_ACTIVE_PING_ONCE_METHOD_NAME = "event.listenActivePingOnce";
+const LISTEN_STRATEGY_COMMIT_METHOD_NAME = "event.listenStrategyCommit";
+const LISTEN_STRATEGY_COMMIT_ONCE_METHOD_NAME = "event.listenStrategyCommitOnce";
 
 /**
  * Subscribes to all signal events with queued async processing.
@@ -1148,4 +1151,81 @@ export function listenActivePingOnce(
 ) {
   backtest.loggerService.log(LISTEN_ACTIVE_PING_ONCE_METHOD_NAME);
   return activePingSubject.filter(filterFn).once(fn);
+}
+
+/**
+ * Subscribes to strategy management events with queued async processing.
+ *
+ * Emits when strategy management actions are executed:
+ * - cancel-scheduled: Scheduled signal cancelled
+ * - close-pending: Pending signal closed
+ * - partial-profit: Partial close at profit level
+ * - partial-loss: Partial close at loss level
+ * - trailing-stop: Stop-loss adjusted
+ * - trailing-take: Take-profit adjusted
+ * - breakeven: Stop-loss moved to entry price
+ *
+ * Events are processed sequentially in order received, even if callback is async.
+ * Uses queued wrapper to prevent concurrent execution of the callback.
+ *
+ * @param fn - Callback function to handle strategy commit events
+ * @returns Unsubscribe function to stop listening
+ *
+ * @example
+ * ```typescript
+ * import { listenStrategyCommit } from "./function/event";
+ *
+ * const unsubscribe = listenStrategyCommit((event) => {
+ *   console.log(`[${event.action}] ${event.symbol}`);
+ *   console.log(`Strategy: ${event.strategyName}, Exchange: ${event.exchangeName}`);
+ *   if (event.action === "partial-profit") {
+ *     console.log(`Closed ${event.percentToClose}% at ${event.currentPrice}`);
+ *   }
+ * });
+ *
+ * // Later: stop listening
+ * unsubscribe();
+ * ```
+ */
+export function listenStrategyCommit(fn: (event: StrategyCommitContract) => void) {
+  backtest.loggerService.log(LISTEN_STRATEGY_COMMIT_METHOD_NAME);
+  return strategyCommitSubject.subscribe(queued(async (event) => fn(event)));
+}
+
+/**
+ * Subscribes to filtered strategy management events with one-time execution.
+ *
+ * Listens for events matching the filter predicate, then executes callback once
+ * and automatically unsubscribes. Useful for waiting for specific strategy actions.
+ *
+ * @param filterFn - Predicate to filter which events trigger the callback
+ * @param fn - Callback function to handle the filtered event (called only once)
+ * @returns Unsubscribe function to cancel the listener before it fires
+ *
+ * @example
+ * ```typescript
+ * import { listenStrategyCommitOnce } from "./function/event";
+ *
+ * // Wait for first trailing stop adjustment
+ * listenStrategyCommitOnce(
+ *   (event) => event.action === "trailing-stop",
+ *   (event) => console.log("Trailing stop adjusted:", event.symbol)
+ * );
+ *
+ * // Wait for breakeven on BTCUSDT
+ * const cancel = listenStrategyCommitOnce(
+ *   (event) => event.action === "breakeven" && event.symbol === "BTCUSDT",
+ *   (event) => console.log("BTCUSDT moved to breakeven at", event.currentPrice)
+ * );
+ *
+ * // Cancel if needed before event fires
+ * cancel();
+ * ```
+ */
+export function listenStrategyCommitOnce(
+  filterFn: (event: StrategyCommitContract) => boolean,
+  fn: (event: StrategyCommitContract) => void
+) {
+  backtest.loggerService.log(LISTEN_STRATEGY_COMMIT_ONCE_METHOD_NAME);
+  return strategyCommitSubject.filter(filterFn).once(fn);
 }
