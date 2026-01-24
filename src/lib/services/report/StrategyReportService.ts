@@ -1,28 +1,15 @@
 import { inject } from "../../core/di";
 import LoggerService from "../base/LoggerService";
 import TYPES from "../../core/types";
-import MethodContextService, {
-  TMethodContextService,
-} from "../context/MethodContextService";
 import StrategyCoreService from "../core/StrategyCoreService";
-import { Report, ReportName } from "../../../classes/Report";
+import { Report } from "../../../classes/Report";
 import { singleshot } from "functools-kit";
 import ExecutionContextService, {
   TExecutionContextService,
 } from "../context/ExecutionContextService";
-
-const GET_METHOD_CONTEXT_FN = (self: StrategyReportService) => {
-  if (MethodContextService.hasContext()) {
-    const { exchangeName, frameName, strategyName } =
-      self.methodContextService.context;
-    return { exchangeName, frameName, strategyName };
-  }
-  return {
-    strategyName: "",
-    exchangeName: "",
-    frameName: "",
-  };
-};
+import { FrameName } from "../../../interfaces/Frame.interface";
+import { ExchangeName } from "../../../interfaces/Exchange.interface";
+import { StrategyName } from "../../../interfaces/Strategy.interface";
 
 const GET_EXECUTION_CONTEXT_FN = (self: StrategyReportService) => {
   if (ExecutionContextService.hasContext()) {
@@ -36,9 +23,6 @@ const GET_EXECUTION_CONTEXT_FN = (self: StrategyReportService) => {
 
 export class StrategyReportService {
   readonly loggerService = inject<LoggerService>(TYPES.loggerService);
-  readonly methodContextService = inject<TMethodContextService>(
-    TYPES.methodContextService,
-  );
   readonly executionContextService = inject<TExecutionContextService>(
     TYPES.executionContextService,
   );
@@ -49,6 +33,7 @@ export class StrategyReportService {
   public cancelScheduled = async (
     symbol: string,
     isBacktest: boolean,
+    context: { strategyName: StrategyName; exchangeName: ExchangeName; frameName: FrameName },
     cancelId?: string,
   ) => {
     this.loggerService.log("strategyReportService cancelScheduled", {
@@ -59,16 +44,14 @@ export class StrategyReportService {
     if (!this.subscribe.hasValue()) {
       return;
     }
-    const { exchangeName, frameName, strategyName } =
-      GET_METHOD_CONTEXT_FN(this);
     const { when: createdAt } = GET_EXECUTION_CONTEXT_FN(this);
     const scheduledRow = await this.strategyCoreService.getScheduledSignal(
       isBacktest,
       symbol,
       {
-        exchangeName,
-        strategyName,
-        frameName,
+        exchangeName: context.exchangeName,
+        strategyName: context.strategyName,
+        frameName: context.frameName,
       },
     );
     if (!scheduledRow) {
@@ -84,9 +67,9 @@ export class StrategyReportService {
       },
       {
         signalId: scheduledRow.id,
-        exchangeName,
-        frameName,
-        strategyName,
+        exchangeName: context.exchangeName,
+        frameName: context.frameName,
+        strategyName: context.strategyName,
         symbol,
         walkerName: "",
       },
@@ -96,6 +79,7 @@ export class StrategyReportService {
   public closePending = async (
     symbol: string,
     isBacktest: boolean,
+    context: { strategyName: StrategyName; exchangeName: ExchangeName; frameName: FrameName },
     closeId?: string,
   ) => {
     this.loggerService.log("strategyReportService closePending", {
@@ -106,16 +90,14 @@ export class StrategyReportService {
     if (!this.subscribe.hasValue()) {
       return;
     }
-    const { exchangeName, frameName, strategyName } =
-      GET_METHOD_CONTEXT_FN(this);
     const { when: createdAt } = GET_EXECUTION_CONTEXT_FN(this);
     const pendingRow = await this.strategyCoreService.getPendingSignal(
       isBacktest,
       symbol,
       {
-        exchangeName,
-        strategyName,
-        frameName,
+        exchangeName: context.exchangeName,
+        strategyName: context.strategyName,
+        frameName: context.frameName,
       },
     );
     if (!pendingRow) {
@@ -131,9 +113,9 @@ export class StrategyReportService {
       },
       {
         signalId: pendingRow.id,
-        exchangeName,
-        frameName,
-        strategyName,
+        exchangeName: context.exchangeName,
+        frameName: context.frameName,
+        strategyName: context.strategyName,
         symbol,
         walkerName: "",
       },
@@ -145,6 +127,7 @@ export class StrategyReportService {
     percentToClose: number,
     currentPrice: number,
     isBacktest: boolean,
+    context: { strategyName: StrategyName; exchangeName: ExchangeName; frameName: FrameName },
   ) => {
     this.loggerService.log("strategyReportService partialProfit", {
       symbol,
@@ -155,16 +138,14 @@ export class StrategyReportService {
     if (!this.subscribe.hasValue()) {
       return;
     }
-    const { exchangeName, frameName, strategyName } =
-      GET_METHOD_CONTEXT_FN(this);
     const { when: createdAt } = GET_EXECUTION_CONTEXT_FN(this);
     const pendingRow = await this.strategyCoreService.getPendingSignal(
       isBacktest,
       symbol,
       {
-        exchangeName,
-        strategyName,
-        frameName,
+        exchangeName: context.exchangeName,
+        strategyName: context.strategyName,
+        frameName: context.frameName,
       },
     );
     if (!pendingRow) {
@@ -181,9 +162,9 @@ export class StrategyReportService {
       },
       {
         signalId: pendingRow.id,
-        exchangeName,
-        frameName,
-        strategyName,
+        exchangeName: context.exchangeName,
+        frameName: context.frameName,
+        strategyName: context.strategyName,
         symbol,
         walkerName: "",
       },
@@ -195,6 +176,7 @@ export class StrategyReportService {
     percentToClose: number,
     currentPrice: number,
     isBacktest: boolean,
+    context: { strategyName: StrategyName; exchangeName: ExchangeName; frameName: FrameName },
   ) => {
     this.loggerService.log("strategyReportService partialLoss", {
       symbol,
@@ -205,16 +187,14 @@ export class StrategyReportService {
     if (!this.subscribe.hasValue()) {
       return;
     }
-    const { exchangeName, frameName, strategyName } =
-      GET_METHOD_CONTEXT_FN(this);
     const { when: createdAt } = GET_EXECUTION_CONTEXT_FN(this);
     const pendingRow = await this.strategyCoreService.getPendingSignal(
       isBacktest,
       symbol,
       {
-        exchangeName,
-        strategyName,
-        frameName,
+        exchangeName: context.exchangeName,
+        strategyName: context.strategyName,
+        frameName: context.frameName,
       },
     );
     if (!pendingRow) {
@@ -231,9 +211,9 @@ export class StrategyReportService {
       },
       {
         signalId: pendingRow.id,
-        exchangeName,
-        frameName,
-        strategyName,
+        exchangeName: context.exchangeName,
+        frameName: context.frameName,
+        strategyName: context.strategyName,
         symbol,
         walkerName: "",
       },
@@ -245,6 +225,7 @@ export class StrategyReportService {
     percentShift: number,
     currentPrice: number,
     isBacktest: boolean,
+    context: { strategyName: StrategyName; exchangeName: ExchangeName; frameName: FrameName },
   ) => {
     this.loggerService.log("strategyReportService trailingStop", {
       symbol,
@@ -255,16 +236,14 @@ export class StrategyReportService {
     if (!this.subscribe.hasValue()) {
       return;
     }
-    const { exchangeName, frameName, strategyName } =
-      GET_METHOD_CONTEXT_FN(this);
     const { when: createdAt } = GET_EXECUTION_CONTEXT_FN(this);
     const pendingRow = await this.strategyCoreService.getPendingSignal(
       isBacktest,
       symbol,
       {
-        exchangeName,
-        strategyName,
-        frameName,
+        exchangeName: context.exchangeName,
+        strategyName: context.strategyName,
+        frameName: context.frameName,
       },
     );
     if (!pendingRow) {
@@ -281,9 +260,9 @@ export class StrategyReportService {
       },
       {
         signalId: pendingRow.id,
-        exchangeName,
-        frameName,
-        strategyName,
+        exchangeName: context.exchangeName,
+        frameName: context.frameName,
+        strategyName: context.strategyName,
         symbol,
         walkerName: "",
       },
@@ -295,6 +274,7 @@ export class StrategyReportService {
     percentShift: number,
     currentPrice: number,
     isBacktest: boolean,
+    context: { strategyName: StrategyName; exchangeName: ExchangeName; frameName: FrameName },
   ) => {
     this.loggerService.log("strategyReportService trailingTake", {
       symbol,
@@ -305,16 +285,14 @@ export class StrategyReportService {
     if (!this.subscribe.hasValue()) {
       return;
     }
-    const { exchangeName, frameName, strategyName } =
-      GET_METHOD_CONTEXT_FN(this);
     const { when: createdAt } = GET_EXECUTION_CONTEXT_FN(this);
     const pendingRow = await this.strategyCoreService.getPendingSignal(
       isBacktest,
       symbol,
       {
-        exchangeName,
-        strategyName,
-        frameName,
+        exchangeName: context.exchangeName,
+        strategyName: context.strategyName,
+        frameName: context.frameName,
       },
     );
     if (!pendingRow) {
@@ -331,9 +309,9 @@ export class StrategyReportService {
       },
       {
         signalId: pendingRow.id,
-        exchangeName,
-        frameName,
-        strategyName,
+        exchangeName: context.exchangeName,
+        frameName: context.frameName,
+        strategyName: context.strategyName,
         symbol,
         walkerName: "",
       },
@@ -344,6 +322,7 @@ export class StrategyReportService {
     symbol: string,
     currentPrice: number,
     isBacktest: boolean,
+    context: { strategyName: StrategyName; exchangeName: ExchangeName; frameName: FrameName }
   ) => {
     this.loggerService.log("strategyReportService breakeven", {
       symbol,
@@ -353,16 +332,14 @@ export class StrategyReportService {
     if (!this.subscribe.hasValue()) {
       return;
     }
-    const { exchangeName, frameName, strategyName } =
-      GET_METHOD_CONTEXT_FN(this);
     const { when: createdAt } = GET_EXECUTION_CONTEXT_FN(this);
     const pendingRow = await this.strategyCoreService.getPendingSignal(
       isBacktest,
       symbol,
       {
-        exchangeName,
-        strategyName,
-        frameName,
+        exchangeName: context.exchangeName,
+        strategyName: context.strategyName,
+        frameName: context.frameName,
       },
     );
     if (!pendingRow) {
@@ -378,9 +355,9 @@ export class StrategyReportService {
       },
       {
         signalId: pendingRow.id,
-        exchangeName,
-        frameName,
-        strategyName,
+        exchangeName: context.exchangeName,
+        frameName: context.frameName,
+        strategyName: context.strategyName,
         symbol,
         walkerName: "",
       },

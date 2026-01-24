@@ -19,6 +19,8 @@ import StrategyValidationService from "../validation/StrategyValidationService";
 import ExchangeValidationService from "../validation/ExchangeValidationService";
 import FrameValidationService from "../validation/FrameValidationService";
 import { FrameName } from "../../../interfaces/Frame.interface";
+import StrategyMarkdownService from "../markdown/StrategyMarkdownService";
+import StrategyReportService from "../report/StrategyReportService";
 
 const METHOD_NAME_VALIDATE = "strategyCoreService validate";
 
@@ -68,6 +70,12 @@ export class StrategyCoreService implements TStrategy {
   );
   private readonly frameValidationService = inject<FrameValidationService>(
     TYPES.frameValidationService
+  );
+  private readonly strategyMarkdownService = inject<StrategyMarkdownService>(
+    TYPES.strategyMarkdownService
+  );
+  private readonly strategyReportService = inject<StrategyReportService>(
+    TYPES.strategyReportService
   );
 
   /**
@@ -336,7 +344,12 @@ export class StrategyCoreService implements TStrategy {
       cancelId,
     });
     await this.validate(context);
-    return await this.strategyConnectionService.cancelScheduled(backtest, symbol, context, cancelId);
+    const result = await this.strategyConnectionService.cancelScheduled(backtest, symbol, context, cancelId);
+    {
+      this.strategyMarkdownService.cancelScheduled(symbol, backtest, context, cancelId);
+      this.strategyReportService.cancelScheduled(symbol, backtest, context, cancelId);
+    }
+    return result;
   };
 
   /**
@@ -364,7 +377,12 @@ export class StrategyCoreService implements TStrategy {
       closeId,
     });
     await this.validate(context);
-    return await this.strategyConnectionService.closePending(backtest, symbol, context, closeId);
+    const result = await this.strategyConnectionService.closePending(backtest, symbol, context, closeId);
+    {
+      this.strategyMarkdownService.closePending(symbol, backtest, context,closeId);
+      this.strategyReportService.closePending(symbol, backtest, context, closeId);
+    }
+    return result;
   };
 
   /**
@@ -458,7 +476,12 @@ export class StrategyCoreService implements TStrategy {
       backtest,
     });
     await this.validate(context);
-    return await this.strategyConnectionService.partialProfit(backtest, symbol, percentToClose, currentPrice, context);
+    const result = await this.strategyConnectionService.partialProfit(backtest, symbol, percentToClose, currentPrice, context);
+    if (result) {
+      this.strategyMarkdownService.partialProfit(symbol, percentToClose, currentPrice, backtest, context);
+      this.strategyReportService.partialProfit(symbol, percentToClose, currentPrice, backtest, context);
+    }
+    return result;
   };
 
   /**
@@ -506,7 +529,12 @@ export class StrategyCoreService implements TStrategy {
       backtest,
     });
     await this.validate(context);
-    return await this.strategyConnectionService.partialLoss(backtest, symbol, percentToClose, currentPrice, context);
+    const result = await this.strategyConnectionService.partialLoss(backtest, symbol, percentToClose, currentPrice, context);
+    if (result) {
+      this.strategyMarkdownService.partialLoss(symbol, percentToClose, currentPrice, backtest, context);
+      this.strategyReportService.partialLoss(symbol, percentToClose, currentPrice, backtest, context);
+    }
+    return result;
   };
 
   /**
@@ -552,7 +580,12 @@ export class StrategyCoreService implements TStrategy {
       backtest,
     });
     await this.validate(context);
-    return await this.strategyConnectionService.trailingStop(backtest, symbol, percentShift, currentPrice, context);
+    const result = await this.strategyConnectionService.trailingStop(backtest, symbol, percentShift, currentPrice, context);
+    if (result) {
+      this.strategyMarkdownService.trailingStop(symbol, percentShift, currentPrice, backtest, context);
+      this.strategyReportService.trailingStop(symbol, percentShift, currentPrice, backtest, context);
+    }
+    return result;
   };
 
   /**
@@ -594,7 +627,12 @@ export class StrategyCoreService implements TStrategy {
       backtest,
     });
     await this.validate(context);
-    return await this.strategyConnectionService.trailingTake(backtest, symbol, percentShift, currentPrice, context);
+    const result = await this.strategyConnectionService.trailingTake(backtest, symbol, percentShift, currentPrice, context);
+    if (result) {
+      this.strategyMarkdownService.trailingTake(symbol, percentShift, currentPrice, backtest, context);
+      this.strategyReportService.trailingTake(symbol, percentShift, currentPrice, backtest, context);
+    }
+    return result;
   };
 
   /**
@@ -630,7 +668,12 @@ export class StrategyCoreService implements TStrategy {
       backtest,
     });
     await this.validate(context);
-    return await this.strategyConnectionService.breakeven(backtest, symbol, currentPrice, context);
+    const result = await this.strategyConnectionService.breakeven(backtest, symbol, currentPrice, context);
+    if (result) {
+      this.strategyMarkdownService.breakeven(symbol, currentPrice, backtest, context);
+      this.strategyReportService.breakeven(symbol, currentPrice, backtest, context);
+    }
+    return result;
   };
 }
 
