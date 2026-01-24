@@ -35,7 +35,7 @@ Gets statistical data from all scheduled signal events for a symbol-strategy pai
 ### getReport
 
 ```ts
-getReport: (symbol: string, context: { strategyName: string; exchangeName: string; frameName: string; }, backtest?: boolean, columns?: Columns$5[]) => Promise<string>
+getReport: (symbol: string, context: { strategyName: string; exchangeName: string; frameName: string; }, backtest?: boolean, columns?: Columns$6[]) => Promise<string>
 ```
 
 Generates markdown report with all scheduled events for a symbol-strategy pair.
@@ -43,7 +43,7 @@ Generates markdown report with all scheduled events for a symbol-strategy pair.
 ### dump
 
 ```ts
-dump: (symbol: string, context: { strategyName: string; exchangeName: string; frameName: string; }, backtest?: boolean, path?: string, columns?: Columns$5[]) => Promise<void>
+dump: (symbol: string, context: { strategyName: string; exchangeName: string; frameName: string; }, backtest?: boolean, path?: string, columns?: Columns$6[]) => Promise<void>
 ```
 
 Saves strategy report to disk.

@@ -6,10 +6,10 @@ group: docs
 # Columns$7
 
 ```ts
-type Columns$7 = ColumnModel<IStrategyTickResultClosed>;
+type Columns$7 = ColumnModel<TickEvent>;
 ```
 
-Type alias for column configuration used in backtest markdown reports.
+Type alias for column configuration used in live trading markdown reports.
 
 Represents a column model specifically designed to format and display
-closed backtest signals in markdown tables.
+real-time trading events in markdown tables.

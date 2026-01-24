@@ -15,6 +15,7 @@ declare function getColumns(): {
     performance_columns: ColumnModel<MetricStats>[];
     risk_columns: ColumnModel<RiskEvent>[];
     schedule_columns: ColumnModel<ScheduledEvent>[];
+    strategy_columns: ColumnModel<StrategyEvent>[];
     walker_pnl_columns: ColumnModel<SignalData$1>[];
     walker_strategy_columns: ColumnModel<IStrategyResult>[];
 };

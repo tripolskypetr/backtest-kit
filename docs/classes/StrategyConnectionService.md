@@ -5,7 +5,7 @@ group: docs
 
 # StrategyConnectionService
 
-Implements `TStrategy$1`
+Implements `TStrategy`
 
 Connection service routing strategy operations to correct ClientStrategy instance.
 

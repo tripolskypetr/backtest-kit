@@ -5,7 +5,7 @@ group: docs
 
 # StrategyCoreService
 
-Implements `TStrategy`
+Implements `TStrategy$1`
 
 Global service for strategy operations with execution context injection.
 
@@ -62,6 +62,18 @@ exchangeValidationService: any
 
 ```ts
 frameValidationService: any
+```
+
+### strategyMarkdownService
+
+```ts
+strategyMarkdownService: any
+```
+
+### strategyReportService
+
+```ts
+strategyReportService: any
 ```
 
 ### validate

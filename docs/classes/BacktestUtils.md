@@ -199,7 +199,7 @@ Gets statistical data from all closed signals for a symbol-strategy pair.
 ### getReport
 
 ```ts
-getReport: (symbol: string, context: { strategyName: string; exchangeName: string; frameName: string; }, columns?: Columns$7[]) => Promise<string>
+getReport: (symbol: string, context: { strategyName: string; exchangeName: string; frameName: string; }, columns?: Columns$8[]) => Promise<string>
 ```
 
 Generates markdown report with all closed signals for a symbol-strategy pair.
@@ -207,7 +207,7 @@ Generates markdown report with all closed signals for a symbol-strategy pair.
 ### dump
 
 ```ts
-dump: (symbol: string, context: { strategyName: string; exchangeName: string; frameName: string; }, path?: string, columns?: Columns$7[]) => Promise<void>
+dump: (symbol: string, context: { strategyName: string; exchangeName: string; frameName: string; }, path?: string, columns?: Columns$8[]) => Promise<void>
 ```
 
 Saves strategy report to disk.

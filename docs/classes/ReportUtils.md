@@ -23,7 +23,7 @@ constructor();
 ### enable
 
 ```ts
-enable: ({ backtest: bt, breakeven, heat, live, partial, performance, risk, schedule, walker, }?: Partial<IReportTarget>) => (...args: any[]) => any
+enable: ({ backtest: bt, breakeven, heat, live, partial, performance, risk, schedule, walker, strategy, }?: Partial<IReportTarget>) => (...args: any[]) => any
 ```
 
 Enables report services selectively.
@@ -41,7 +41,7 @@ IMPORTANT: Always call the returned unsubscribe function to prevent memory leaks
 ### disable
 
 ```ts
-disable: ({ backtest: bt, breakeven, heat, live, partial, performance, risk, schedule, walker, }?: Partial<IReportTarget>) => void
+disable: ({ backtest: bt, breakeven, heat, live, partial, performance, risk, schedule, walker, strategy, }?: Partial<IReportTarget>) => void
 ```
 
 Disables report services selectively.

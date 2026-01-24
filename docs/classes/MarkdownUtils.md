@@ -23,7 +23,7 @@ constructor();
 ### enable
 
 ```ts
-enable: ({ backtest: bt, breakeven, heat, live, partial, performance, risk, schedule, walker, }?: Partial<IMarkdownTarget>) => (...args: any[]) => any
+enable: ({ backtest: bt, breakeven, heat, live, partial, performance, strategy, risk, schedule, walker, }?: Partial<IMarkdownTarget>) => (...args: any[]) => any
 ```
 
 Enables markdown report services selectively.
@@ -41,7 +41,7 @@ IMPORTANT: Always call the returned unsubscribe function to prevent memory leaks
 ### disable
 
 ```ts
-disable: ({ backtest: bt, breakeven, heat, live, partial, performance, risk, schedule, walker, }?: Partial<IMarkdownTarget>) => void
+disable: ({ backtest: bt, breakeven, heat, live, partial, performance, risk, strategy, schedule, walker, }?: Partial<IMarkdownTarget>) => void
 ```
 
 Disables markdown report services selectively.

@@ -6,10 +6,10 @@ group: docs
 # Columns$1
 
 ```ts
-type Columns$1 = ColumnModel<RiskEvent>;
+type Columns$1 = ColumnModel<BreakevenEvent>;
 ```
 
-Type alias for column configuration used in risk management markdown reports.
+Type alias for column configuration used in breakeven markdown reports.
 
 Represents a column model specifically designed to format and display
-risk rejection events in markdown tables.
+breakeven events in markdown tables.

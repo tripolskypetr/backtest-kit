@@ -10,6 +10,14 @@ Controls which report services should be activated for JSONL event logging.
 
 ## Properties
 
+### strategy
+
+```ts
+strategy: boolean
+```
+
+Enable strategy commit actions
+
 ### risk
 
 ```ts

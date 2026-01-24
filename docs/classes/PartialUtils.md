@@ -42,7 +42,7 @@ Returns aggregated metrics calculated from all profit and loss events.
 ### getReport
 
 ```ts
-getReport: (symbol: string, context: { strategyName: string; exchangeName: string; frameName: string; }, backtest?: boolean, columns?: Columns$2[]) => Promise<string>
+getReport: (symbol: string, context: { strategyName: string; exchangeName: string; frameName: string; }, backtest?: boolean, columns?: Columns$3[]) => Promise<string>
 ```
 
 Generates markdown report with all partial profit/loss events for a symbol-strategy pair.
@@ -63,7 +63,7 @@ Also includes summary statistics at the end.
 ### dump
 
 ```ts
-dump: (symbol: string, context: { strategyName: string; exchangeName: string; frameName: string; }, backtest?: boolean, path?: string, columns?: Columns$2[]) => Promise<void>
+dump: (symbol: string, context: { strategyName: string; exchangeName: string; frameName: string; }, backtest?: boolean, path?: string, columns?: Columns$3[]) => Promise<void>
 ```
 
 Generates and saves markdown report to file.

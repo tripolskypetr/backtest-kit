@@ -10,6 +10,14 @@ Controls which markdown report services should be activated.
 
 ## Properties
 
+### strategy
+
+```ts
+strategy: boolean
+```
+
+Enable strategy event tracking reports (entry/exit signals)
+
 ### risk
 
 ```ts
