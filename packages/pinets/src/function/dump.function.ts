@@ -5,7 +5,7 @@ type ResultId = string | number;
 
 const DUMP_SIGNAL_METHOD_NAME = "dump.dumpSignal";
 
-export async function dumpPineData(
+export async function dumpPlotData(
   signalId: ResultId,
   plots: PlotModel,
   taName: string,

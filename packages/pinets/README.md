@@ -131,28 +131,29 @@ const signal = await getSignal(source, {
 For advanced use cases, extract any Pine `plot()` with custom mapping:
 
 ```typescript
-import { File, run } from '@backtest-kit/pinets';
+import { File, run, extract } from '@backtest-kit/pinets';
 
 const source = File.fromPath('indicators.pine');
 
-const data = await run(source, {
+const plots = await run(source, {
   symbol: 'ETHUSDT',
   timeframe: '1h',
   limit: 200,
-  mapping: {
-    // Simple: plot name -> number
-    rsi: 'RSI',
-    macd: 'MACD',
+});
 
-    // Advanced: with transform and lookback
-    prevRsi: {
-      plot: 'RSI',
-      barsBack: 1,  // Previous bar value
-    },
-    trendStrength: {
-      plot: 'ADX',
-      transform: (v) => v > 25 ? 'strong' : 'weak',
-    },
+const data = extract(plots, {
+  // Simple: plot name -> number
+  rsi: 'RSI',
+  macd: 'MACD',
+
+  // Advanced: with transform and lookback
+  prevRsi: {
+    plot: 'RSI',
+    barsBack: 1,  // Previous bar value
+  },
+  trendStrength: {
+    plot: 'ADX',
+    transform: (v) => v > 25 ? 'strong' : 'weak',
   },
 });
 

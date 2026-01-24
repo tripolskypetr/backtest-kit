@@ -129,14 +129,14 @@ export class PineMarkdownService {
     const keys = Object.keys(plots);
 
     if (keys.length === 0) {
-      return;
+      return [];
     }
 
     const firstPlot = plots[keys[0]];
     const dataLength = firstPlot?.data?.length ?? 0;
 
     if (dataLength === 0) {
-      return;
+      return [];
     }
 
     const rows: IPlotRow[] = [];

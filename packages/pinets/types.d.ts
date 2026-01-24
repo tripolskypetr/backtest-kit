@@ -42,6 +42,13 @@ interface IPine {
 
 declare function usePine<T = TPineCtor>(ctor: T): void;
 
+interface IRunParams {
+    symbol: string;
+    timeframe: CandleInterval;
+    limit: number;
+}
+declare function run(source: File | Code, { symbol, timeframe, limit }: IRunParams): Promise<PlotModel>;
+
 type PlotExtractConfig<T = number> = {
     plot: string;
     barsBack?: number;
@@ -58,13 +65,7 @@ declare class PineDataService {
     extract<M extends PlotMapping>(plots: PlotModel, mapping: M): ExtractedData<M>;
 }
 
-interface IRunParams<M extends PlotMapping> {
-    symbol: string;
-    timeframe: CandleInterval;
-    limit: number;
-    mapping: M;
-}
-declare function run<M extends PlotMapping>(source: File | Code, { symbol, timeframe, mapping, limit }: IRunParams<M>): Promise<ExtractedData<M>>;
+declare function extract<M extends PlotMapping>(plots: PlotModel, mapping: M): Promise<ExtractedData<M>>;
 
 interface ILogger {
     log(topic: string, ...args: any[]): void;
@@ -83,7 +84,7 @@ interface IParams {
 declare function getSignal(source: File | Code, { symbol, timeframe, limit }: IParams): Promise<ISignalDto | null>;
 
 type ResultId$1 = string | number;
-declare function dumpPineData(signalId: ResultId$1, plots: PlotModel, taName: string, outputDir?: string): Promise<void>;
+declare function dumpPlotData(signalId: ResultId$1, plots: PlotModel, taName: string, outputDir?: string): Promise<void>;
 
 interface CandleModel {
     openTime: number;
@@ -171,4 +172,4 @@ declare const pine: {
     loggerService: LoggerService;
 };
 
-export { AXIS_SYMBOL, type CandleModel, Code, File, type ILogger, type IPine, type IProvider, type PlotExtractConfig, type PlotMapping, type PlotModel, type PlotRecord, type SymbolInfoModel, type TPineCtor, dumpPineData, getSignal, pine as lib, run, setLogger, usePine };
+export { AXIS_SYMBOL, type CandleModel, Code, File, type ILogger, type IPine, type IProvider, type PlotExtractConfig, type PlotMapping, type PlotModel, type PlotRecord, type SymbolInfoModel, type TPineCtor, dumpPlotData, extract, getSignal, pine as lib, run, setLogger, usePine };
