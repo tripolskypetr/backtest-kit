@@ -124,6 +124,8 @@ export {
   ISignalDto,
   ISignalRow,
   IPublicSignalRow,
+  IStorageSignalRow,
+  IRiskSignalRow,
   IScheduledSignalCancelRow,
   IScheduledSignalRow,
   IStrategySchema,
@@ -134,6 +136,9 @@ export {
   IStrategyTickResultOpened,
   IStrategyTickResultScheduled,
   IStrategyTickResultCancelled,
+  IStrategyTickResultWaiting,
+  StrategyCancelReason,
+  StrategyCloseReason,
   IStrategyPnL,
 } from "./interfaces/Strategy.interface";
 

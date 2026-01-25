@@ -1466,7 +1466,7 @@ export const PersistCandleAdapter = new PersistCandleUtils();
 
 /**
  * Type for persisted signal storage data.
- * Stores signals as array for JSON serialization.
+ * Each signal is stored as a separate file keyed by its id.
  */
 export type StorageData = IStorageSignalRow[];
 
@@ -1478,17 +1478,18 @@ export type StorageData = IStorageSignalRow[];
  * - Memoized storage instances
  * - Custom adapter support
  * - Atomic read/write operations for StorageData
+ * - Each signal stored as separate file keyed by id
  * - Crash-safe signal state management
  *
  * Used by SignalLiveUtils for live mode persistence of signals.
  */
 export class PersistStorageUtils {
-  private PersistStorageFactory: TPersistBaseCtor<string, StorageData> =
+  private PersistStorageFactory: TPersistBaseCtor<string, IStorageSignalRow> =
     PersistBase;
 
   private getStorageStorage = memoize(
     (): string => `signals`,
-    (): IPersistBase<StorageData> =>
+    (): IPersistBase<IStorageSignalRow> =>
       Reflect.construct(this.PersistStorageFactory, [
         `signals`,
         `./dump/data/signal-storage/`,
@@ -1501,7 +1502,7 @@ export class PersistStorageUtils {
    * @param Ctor - Custom PersistBase constructor
    */
   public usePersistStorageAdapter(
-    Ctor: TPersistBaseCtor<string, StorageData>
+    Ctor: TPersistBaseCtor<string, IStorageSignalRow>
   ): void {
     swarm.loggerService.info(
       PERSIST_STORAGE_UTILS_METHOD_NAME_USE_PERSIST_STORAGE_ADAPTER
@@ -1513,6 +1514,7 @@ export class PersistStorageUtils {
    * Reads persisted signals data.
    *
    * Called by SignalLiveUtils.waitForInit() to restore state.
+   * Uses keys() from PersistBase to iterate over all stored signals.
    * Returns empty array if no signals exist.
    *
    * @returns Promise resolving to array of signal entries
@@ -1525,22 +1527,24 @@ export class PersistStorageUtils {
     const stateStorage = this.getStorageStorage();
     await stateStorage.waitForInit(isInitial);
 
-    const STORAGE_KEY = "signals";
+    const signals: IStorageSignalRow[] = [];
 
-    if (await stateStorage.hasValue(STORAGE_KEY)) {
-      return await stateStorage.readValue(STORAGE_KEY);
+    for await (const signalId of stateStorage.keys()) {
+      const signal = await stateStorage.readValue(signalId);
+      signals.push(signal);
     }
 
-    return [];
+    return signals;
   };
 
   /**
-   * Writes signals data to disk with atomic file writes.
+   * Writes signal data to disk with atomic file writes.
    *
    * Called by SignalLiveUtils after signal changes to persist state.
+   * Uses signal.id as the storage key for individual file storage.
    * Uses atomic writes to prevent corruption on crashes.
    *
-   * @param signalData - Array of signal entries
+   * @param signalData - Signal entry to persist
    * @returns Promise that resolves when write is complete
    */
   public writeStorageData = async (
@@ -1553,9 +1557,9 @@ export class PersistStorageUtils {
     const stateStorage = this.getStorageStorage();
     await stateStorage.waitForInit(isInitial);
 
-    const STORAGE_KEY = "signals";
-
-    await stateStorage.writeValue(STORAGE_KEY, signalData);
+    for (const signal of signalData) {
+      await stateStorage.writeValue(signal.id, signal);
+    }
   };
 
   /**

@@ -152,7 +152,7 @@ export interface IPublicSignalRow extends ISignalRow {
  */
 export interface IStorageSignalRow extends IPublicSignalRow {
   /** Creation timestamp taken from IStrategyTickResult */
-  createdAt: number;
+  updatedAt: number;
   /** Current status of the signal */
   status: "opened" | "scheduled" | "closed" | "cancelled";
 }
