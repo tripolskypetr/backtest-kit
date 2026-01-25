@@ -246,6 +246,7 @@ export class BacktestLogicPrivateService {
           unScheduleOpen = backtestScheduleOpenSubject.filter((event) => {
             let isOk = true;
             {
+              isOk = isOk && event.action === "opened";
               isOk = isOk && event.strategyName === strategyName;
               isOk = isOk && event.exchangeName === exchangeName;
               isOk = isOk && event.frameName === frameName;
