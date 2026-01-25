@@ -16,6 +16,7 @@ import {
 } from "../../../../config/emitters";
 import { GLOBAL_CONFIG } from "../../../../config/params";
 import { and, errorData, getErrorMessage } from "functools-kit";
+import ActionCoreService from "../../core/ActionCoreService";
 
 /**
  * Private service for backtest orchestration using async generators.
@@ -43,6 +44,9 @@ export class BacktestLogicPrivateService {
   );
   private readonly methodContextService = inject<TMethodContextService>(
     TYPES.methodContextService
+  );
+  private readonly actionCoreService = inject<ActionCoreService>(
+    TYPES.actionCoreService
   );
 
   /**
@@ -248,9 +252,14 @@ export class BacktestLogicPrivateService {
               isOk = isOk && event.symbol === symbol;
             }
             return isOk;
-          }).connect(async (tick) => 
-            await signalBacktestEmitter.next(tick)
-          );
+          }).connect(async (tick) => {
+            await signalBacktestEmitter.next(tick);
+            await this.actionCoreService.signalBacktest(true, tick, {
+              strategyName, 
+              exchangeName,
+              frameName, 
+            });
+          });
         }
 
         try {

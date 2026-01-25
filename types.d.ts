@@ -17436,6 +17436,7 @@ declare class BacktestLogicPrivateService {
     private readonly exchangeCoreService;
     private readonly frameCoreService;
     private readonly methodContextService;
+    private readonly actionCoreService;
     /**
      * Runs backtest for a symbol, streaming closed signals as async generator.
      *

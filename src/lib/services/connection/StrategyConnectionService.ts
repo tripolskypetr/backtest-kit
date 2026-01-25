@@ -1,7 +1,7 @@
 import { inject } from "../../core/di";
 import LoggerService from "../base/LoggerService";
 import TYPES from "../../core/types";
-import { TExecutionContextService } from "../context/ExecutionContextService";
+import ExecutionContextService, { TExecutionContextService } from "../context/ExecutionContextService";
 import { ExchangeName, ICandleData } from "../../../interfaces/Exchange.interface";
 import { memoize, trycatch, errorData, getErrorMessage } from "functools-kit";
 import ClientStrategy from "../../../client/ClientStrategy";
@@ -34,6 +34,51 @@ import { TMethodContextService } from "../context/MethodContextService";
 import { FrameName } from "../../../interfaces/Frame.interface";
 import ActionCoreService from "../core/ActionCoreService";
 import backtest from "../../../lib";
+import beginTime from "../../../utils/beginTime";
+
+/**
+ * Emits signal tick results with correct execution context timestamp.
+ * Wraps emitter calls in ExecutionContextService.runInContext to preserve
+ * the temporal context from the tick's createdAt timestamp.
+ */
+const CALL_SIGNAL_EMIT_FN = trycatch(
+  beginTime(async (
+    self: StrategyConnectionService,
+    tick: IStrategyTickResult | IStrategyBacktestResult,
+    context: { strategyName: StrategyName; exchangeName: ExchangeName; frameName: FrameName },
+    isBacktest: boolean,
+    symbol: string
+  ): Promise<void> => {
+    await ExecutionContextService.runInContext(async () => {
+      if (isBacktest) {
+        await signalBacktestEmitter.next(tick);
+        await self.actionCoreService.signalBacktest(isBacktest, tick, context);
+      }
+      if (!isBacktest) {
+        await signalLiveEmitter.next(tick);
+        await self.actionCoreService.signalLive(isBacktest, tick, context);
+      }
+      await signalEmitter.next(tick);
+      await self.actionCoreService.signal(isBacktest, tick, context);
+    }, {
+      when: new Date(tick.createdAt),
+      symbol: symbol,
+      backtest: isBacktest,
+    });
+  }),
+  {
+    fallback: (error) => {
+      const message = "StrategyConnectionService CALL_SIGNAL_EMIT_FN thrown";
+      const payload = {
+        error: errorData(error),
+        message: getErrorMessage(error),
+      };
+      backtest.loggerService.warn(message, payload);
+      console.warn(message, payload);
+      errorEmitter.next(error);
+    },
+  }
+);
 
 /**
  * Mapping of RiskName to IRisk instances.
@@ -542,16 +587,7 @@ export class StrategyConnectionService implements TStrategy {
     await strategy.waitForInit();
     const tick = await strategy.tick(symbol, context.strategyName);
     {
-      if (this.executionContextService.context.backtest) {
-        await signalBacktestEmitter.next(tick);
-        await this.actionCoreService.signalBacktest(backtest, tick, context);
-      }
-      if (!this.executionContextService.context.backtest) {
-        await signalLiveEmitter.next(tick);
-        await this.actionCoreService.signalLive(backtest, tick, context);
-      }
-      await signalEmitter.next(tick);
-      await this.actionCoreService.signal(backtest, tick, context);
+      await CALL_SIGNAL_EMIT_FN(this, tick, context, backtest, symbol);
     }
     return tick;
   };
@@ -583,16 +619,7 @@ export class StrategyConnectionService implements TStrategy {
     await strategy.waitForInit();
     const tick = await strategy.backtest(symbol, context.strategyName, candles);
     {
-      if (this.executionContextService.context.backtest) {
-        await signalBacktestEmitter.next(tick);
-        await this.actionCoreService.signalBacktest(backtest, tick, context);
-      }
-      if (!this.executionContextService.context.backtest) {
-        await signalLiveEmitter.next(tick);
-        await this.actionCoreService.signalLive(backtest, tick, context);
-      }
-      await signalEmitter.next(tick);
-      await this.actionCoreService.signal(backtest, tick, context);
+      await CALL_SIGNAL_EMIT_FN(this, tick, context, backtest, symbol);
     }
     return tick;
   };
