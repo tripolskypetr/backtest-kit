@@ -5,7 +5,7 @@ type ResultId = string | number;
 
 interface SignalData {
   position: number;
-  priceOpen: number;
+  priceOpen?: number;
   priceTakeProfit: number;
   priceStopLoss: number;
   minuteEstimatedTime: number;
@@ -15,27 +15,37 @@ interface Signal extends ISignalDto {
   id: string;
 }
 
-export function toSignalDto(id: ResultId, data: SignalData): Signal | null {
+export function toSignalDto(
+  id: ResultId,
+  data: SignalData,
+  priceOpen: number | null | undefined = data.priceOpen,
+): Signal | null {
   if (data.position === 1) {
-    return {
+    const result: Signal = {
       id: String(id),
       position: "long",
-      priceOpen: data.priceOpen,
       priceTakeProfit: data.priceTakeProfit,
       priceStopLoss: data.priceStopLoss,
       minuteEstimatedTime: data.minuteEstimatedTime,
     };
+    if (priceOpen) {
+      Object.assign(result, { priceOpen });
+    }
+    return result;
   }
 
   if (data.position === -1) {
-    return {
+    const result: Signal = {
       id: String(id),
       position: "short",
-      priceOpen: data.priceOpen,
       priceTakeProfit: data.priceTakeProfit,
       priceStopLoss: data.priceStopLoss,
       minuteEstimatedTime: data.minuteEstimatedTime,
     };
+    if (priceOpen) {
+      Object.assign(result, { priceOpen });
+    }
+    return result;
   }
 
   return null;

@@ -19,11 +19,9 @@ import StrategyValidationService from "../validation/StrategyValidationService";
 import ExchangeValidationService from "../validation/ExchangeValidationService";
 import FrameValidationService from "../validation/FrameValidationService";
 import { FrameName } from "../../../interfaces/Frame.interface";
-import StrategyMarkdownService from "../markdown/StrategyMarkdownService";
-import StrategyReportService from "../report/StrategyReportService";
-import StrategyCommitContract from "src/contract/StrategyCommit.contract";
-import { errorEmitter, strategyCommitSubject } from "src/config/emitters";
-import backtest from "src/lib";
+import StrategyCommitContract from "../../../contract/StrategyCommit.contract";
+import { errorEmitter, strategyCommitSubject } from "../../../config/emitters";
+import backtest from "../../../lib";
 
 const METHOD_NAME_VALIDATE = "strategyCoreService validate";
 

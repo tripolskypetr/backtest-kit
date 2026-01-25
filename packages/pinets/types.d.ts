@@ -89,7 +89,7 @@ declare function dumpPlotData(signalId: ResultId$2, plots: PlotModel, taName: st
 type ResultId$1 = string | number;
 interface SignalData {
     position: number;
-    priceOpen: number;
+    priceOpen?: number;
     priceTakeProfit: number;
     priceStopLoss: number;
     minuteEstimatedTime: number;
@@ -97,7 +97,7 @@ interface SignalData {
 interface Signal extends ISignalDto {
     id: string;
 }
-declare function toSignalDto(id: ResultId$1, data: SignalData): Signal | null;
+declare function toSignalDto(id: ResultId$1, data: SignalData, priceOpen?: number | null | undefined): Signal | null;
 
 interface CandleModel {
     openTime: number;
