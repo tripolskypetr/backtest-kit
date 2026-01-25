@@ -331,6 +331,8 @@ export interface IStrategyTickResultIdle {
   currentPrice: number;
   /** Whether this event is from backtest mode (true) or live mode (false) */
   backtest: boolean;
+  /** Unix timestamp in milliseconds when this tick result was created (from candle timestamp in backtest or execution context when in live) */
+  createdAt: number;
 }
 
 /**
@@ -354,6 +356,8 @@ export interface IStrategyTickResultScheduled {
   currentPrice: number;
   /** Whether this event is from backtest mode (true) or live mode (false) */
   backtest: boolean;
+  /** Unix timestamp in milliseconds when this tick result was created (from candle timestamp in backtest or execution context when in live) */
+  createdAt: number;
 }
 
 /**
@@ -384,6 +388,8 @@ export interface IStrategyTickResultWaiting {
   pnl: IStrategyPnL;
   /** Whether this event is from backtest mode (true) or live mode (false) */
   backtest: boolean;
+  /** Unix timestamp in milliseconds when this tick result was created (from candle timestamp in backtest or execution context when in live) */
+  createdAt: number;
 }
 
 /**
@@ -407,6 +413,8 @@ export interface IStrategyTickResultOpened {
   currentPrice: number;
   /** Whether this event is from backtest mode (true) or live mode (false) */
   backtest: boolean;
+  /** Unix timestamp in milliseconds when this tick result was created (from candle timestamp in backtest or execution context when in live) */
+  createdAt: number;
 }
 
 /**
@@ -436,6 +444,8 @@ export interface IStrategyTickResultActive {
   pnl: IStrategyPnL;
   /** Whether this event is from backtest mode (true) or live mode (false) */
   backtest: boolean;
+  /** Unix timestamp in milliseconds when this tick result was created (from candle timestamp in backtest or execution context when in live) */
+  createdAt: number;
 }
 
 /**
@@ -467,6 +477,8 @@ export interface IStrategyTickResultClosed {
   backtest: boolean;
   /** Close ID (only for user-initiated closes with reason "closed") */
   closeId?: string;
+  /** Unix timestamp in milliseconds when this tick result was created (from candle timestamp in backtest or execution context when in live) */
+  createdAt: number;
 }
 
 /**
@@ -496,6 +508,8 @@ export interface IStrategyTickResultCancelled {
   reason: StrategyCancelReason;
   /** Optional cancellation ID (provided when user calls Backtest.cancel() or Live.cancel()) */
   cancelId?: string;
+  /** Unix timestamp in milliseconds when this tick result was created (from candle timestamp in backtest or execution context when in live) */
+  createdAt: number;
 }
 
 /**
