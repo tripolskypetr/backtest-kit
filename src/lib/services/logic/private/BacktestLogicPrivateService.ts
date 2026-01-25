@@ -239,7 +239,7 @@ export class BacktestLogicPrivateService {
         let backtestResult: IStrategyBacktestResult;
 
         let unScheduleOpen: Function;
-        let scheduleOpen: IStrategyTickResultOpened;
+        let scheduleOpenResult: IStrategyTickResultOpened;
 
         {
           const { strategyName, exchangeName, frameName } = this.methodContextService.context;
@@ -255,7 +255,7 @@ export class BacktestLogicPrivateService {
             }
             return isOk;
           }).connect(async (tick) => {
-            scheduleOpen = tick;
+            scheduleOpenResult = tick;
             await signalBacktestEmitter.next(tick);
             await this.actionCoreService.signalBacktest(true, tick, {
               strategyName, 
@@ -332,8 +332,8 @@ export class BacktestLogicPrivateService {
           i++;
         }
 
-        if (scheduleOpen) {
-          yield scheduleOpen;
+        if (scheduleOpenResult) {
+          yield scheduleOpenResult;
         }
 
         yield backtestResult;
