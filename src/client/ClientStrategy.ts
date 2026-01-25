@@ -34,7 +34,7 @@ import toProfitLossDto from "../helpers/toProfitLossDto";
 import { ICandleData } from "../interfaces/Exchange.interface";
 import { PersistSignalAdapter, PersistScheduleAdapter } from "../classes/Persist";
 import backtest, { ExecutionContextService } from "../lib";
-import { errorEmitter } from "../config/emitters";
+import { errorEmitter, backtestScheduleOpenSubject } from "../config/emitters";
 import { GLOBAL_CONFIG } from "../config/params";
 import toPlainString from "../helpers/toPlainString";
 import beginTime from "../utils/beginTime";
@@ -2217,6 +2217,46 @@ const CALL_BREAKEVEN_CLEAR_FN = trycatch(
   }
 );
 
+const CALL_BACKTEST_SCHEDULE_OPEN_FN = trycatch(
+  beginTime(async (
+    self: ClientStrategy,
+    symbol: string,
+    signal: ISignalRow,
+    timestamp: number,
+    backtest: boolean
+  ): Promise<void> => {
+    await ExecutionContextService.runInContext(async () => {
+      backtestScheduleOpenSubject.next({
+        action: "opened",
+        signal: TO_PUBLIC_SIGNAL(signal),
+        strategyName: self.params.method.context.strategyName,
+        exchangeName: self.params.method.context.exchangeName,
+        frameName: self.params.method.context.frameName,
+        symbol: symbol,
+        currentPrice: signal.priceOpen,
+        backtest: true,
+        createdAt: timestamp,
+      });
+    }, {
+      when: new Date(timestamp),
+      symbol: symbol,
+      backtest: backtest,
+    });
+  }),
+  {
+    fallback: (error) => {
+      const message = "ClientStrategy CALL_BACKTEST_SCHEDULE_OPEN_FN thrown";
+      const payload = {
+        error: errorData(error),
+        message: getErrorMessage(error),
+      };
+      backtest.loggerService.warn(message, payload);
+      console.warn(message, payload);
+      errorEmitter.next(error);
+    },
+  }
+);
+
 const RETURN_SCHEDULED_SIGNAL_ACTIVE_FN = async (
   self: ClientStrategy,
   scheduled: IScheduledSignalRow,
@@ -2833,6 +2873,14 @@ const ACTIVATE_SCHEDULED_SIGNAL_IN_BACKTEST_FN = async (
     self.params.execution.context.symbol,
     activatedSignal,
     activatedSignal.priceOpen,
+    activationTime,
+    self.params.execution.context.backtest
+  );
+
+  await CALL_BACKTEST_SCHEDULE_OPEN_FN(
+    self,
+    self.params.execution.context.symbol,
+    activatedSignal,
     activationTime,
     self.params.execution.context.backtest
   );

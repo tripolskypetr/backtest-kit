@@ -6,13 +6,13 @@ import { ICandleData } from "../../../../interfaces/Exchange.interface";
 import StrategyCoreService from "../../core/StrategyCoreService";
 import ExchangeCoreService from "../../core/ExchangeCoreService";
 import FrameCoreService from "../../core/FrameCoreService";
-import MethodContextService, {
-  TMethodContextService,
-} from "../../context/MethodContextService";
+import { TMethodContextService } from "../../context/MethodContextService";
 import {
   progressBacktestEmitter,
   performanceEmitter,
   errorEmitter,
+  backtestScheduleOpenSubject,
+  signalBacktestEmitter,
 } from "../../../../config/emitters";
 import { GLOBAL_CONFIG } from "../../../../config/params";
 import { and, errorData, getErrorMessage } from "functools-kit";
@@ -233,6 +233,26 @@ export class BacktestLogicPrivateService {
         // backtest() сам обработает scheduled signal: найдет активацию/отмену
         // и если активируется - продолжит с TP/SL мониторингом
         let backtestResult: IStrategyBacktestResult;
+
+        let unScheduleOpen: Function;
+
+        {
+          const { strategyName, exchangeName, frameName } = this.methodContextService.context;
+
+          unScheduleOpen = backtestScheduleOpenSubject.filter((event) => {
+            let isOk = true;
+            {
+              isOk = isOk && event.strategyName === strategyName;
+              isOk = isOk && event.exchangeName === exchangeName;
+              isOk = isOk && event.frameName === frameName;
+              isOk = isOk && event.symbol === symbol;
+            }
+            return isOk;
+          }).connect(async (tick) => 
+            await signalBacktestEmitter.next(tick)
+          );
+        }
+
         try {
           backtestResult = await this.strategyCoreService.backtest(
             symbol,
@@ -258,6 +278,8 @@ export class BacktestLogicPrivateService {
           await errorEmitter.next(error);
           i++;
           continue;
+        } finally {
+          unScheduleOpen && unScheduleOpen();
         }
 
         this.loggerService.info(

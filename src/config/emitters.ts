@@ -1,5 +1,5 @@
 import { Subject } from "functools-kit";
-import { IStrategyTickResult } from "../interfaces/Strategy.interface";
+import { IStrategyTickResult, IStrategyTickResultOpened } from "../interfaces/Strategy.interface";
 import { DoneContract } from "../contract/Done.contract";
 import { ProgressBacktestContract } from "../contract/ProgressBacktest.contract";
 import { ProgressWalkerContract } from "../contract/ProgressWalker.contract";
@@ -162,3 +162,11 @@ export const activePingSubject = new Subject<ActivePingContract>();
  */
 export const strategyCommitSubject = new Subject<StrategyCommitContract>();
 
+/**
+ * ClientStrategy::backtest using return instead of async iterator emitter.
+ * If signal was scheduled to open, emits when the signal is actually opened.
+ * 
+ * Allows to yield IStrategyTickResultOpened in addition to IStrategyTickResultClosed | IStrategyTickResultCancelled for
+ * BacktestLogicPrivateService::*run
+ */
+export const backtestScheduleOpenSubject = new Subject<IStrategyTickResultOpened>();
