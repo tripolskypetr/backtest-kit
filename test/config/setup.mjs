@@ -16,14 +16,8 @@ import {
 Markdown.enable();
 Report.enable();
 
-Report.useReportAdapter(class {
-  async waitForInit() {
-    void 0;
-  }
-  async write() {
-    void 0;
-  }
-})
+Report.useDummy();
+Markdown.useDummy();
 
 PersistSignalAdapter.useDummy();
 
