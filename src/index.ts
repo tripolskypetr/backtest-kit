@@ -241,6 +241,8 @@ export {
   PersistBreakevenAdapter,
   CandleData,
   PersistCandleAdapter,
+  StorageData,
+  PersistStorageAdapter,
 } from "./classes/Persist";
 
 export {

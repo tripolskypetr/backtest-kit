@@ -147,6 +147,17 @@ export interface IPublicSignalRow extends ISignalRow {
 }
 
 /**
+ * Storage signal row with creation timestamp taken from IStrategyTickResult.
+ * Used for persisting signals with accurate creation time.
+ */
+export interface IStorageSignalRow extends IPublicSignalRow {
+  /** Creation timestamp taken from IStrategyTickResult */
+  createdAt: number;
+  /** Current status of the signal */
+  status: "opened" | "scheduled" | "closed" | "cancelled";
+}
+
+/**
  * Risk signal row for internal risk management.
  * Extends ISignalDto to include priceOpen, originalPriceStopLoss and originalPriceTakeProfit.
  * Used in risk validation to access entry price and original SL/TP.
