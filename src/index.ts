@@ -272,6 +272,7 @@ export { PositionSize } from "./classes/PositionSize";
 export { Partial } from "./classes/Partial";
 export { Constant } from "./classes/Constant";
 export { Risk } from "./classes/Risk";
+export { Storage } from "./classes/Storage";
 export { Exchange } from "./classes/Exchange";
 export { Cache } from "./classes/Cache";
 export { Notification } from "./classes/Notification";

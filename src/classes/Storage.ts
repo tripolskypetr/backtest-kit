@@ -5,15 +5,15 @@ import { PersistStorageAdapter } from "./Persist";
 
 const MAX_SIGNALS = 250;
 
-type SignalId = IStorageSignalRow["id"];
+type StorageId = IStorageSignalRow["id"];
 
-export class SignalBacktestUtils {
+export class StorageBacktestUtils {
 
-  private readonly _signals = new Map<SignalId, IStorageSignalRow>();
+  private readonly _signals = new Map<StorageId, IStorageSignalRow>();
 
   public handleOpened = async (tick: IStrategyTickResultOpened) => {
-    const lastSignal = this._signals.get(tick.signal.id);
-    if (lastSignal && lastSignal.createdAt > tick.createdAt) {
+    const lastStorage = this._signals.get(tick.signal.id);
+    if (lastStorage && lastStorage.createdAt > tick.createdAt) {
       return;
     }
     this._signals.set(tick.signal.id, {
@@ -25,8 +25,8 @@ export class SignalBacktestUtils {
   }
 
   public handleClosed = async (tick: IStrategyTickResultClosed) => {
-    const lastSignal = this._signals.get(tick.signal.id);
-    if (lastSignal && lastSignal.createdAt > tick.createdAt) {
+    const lastStorage = this._signals.get(tick.signal.id);
+    if (lastStorage && lastStorage.createdAt > tick.createdAt) {
       return;
     }
     this._signals.set(tick.signal.id, {
@@ -37,8 +37,8 @@ export class SignalBacktestUtils {
   }
   
   public handleScheduled = async (tick: IStrategyTickResultScheduled) => {
-    const lastSignal = this._signals.get(tick.signal.id);
-    if (lastSignal && lastSignal.createdAt > tick.createdAt) {
+    const lastStorage = this._signals.get(tick.signal.id);
+    if (lastStorage && lastStorage.createdAt > tick.createdAt) {
       return;
     }
     this._signals.set(tick.signal.id, {
@@ -49,8 +49,8 @@ export class SignalBacktestUtils {
   }
 
   public handleCancelled = async (tick: IStrategyTickResultCancelled) => {
-    const lastSignal = this._signals.get(tick.signal.id);
-    if (lastSignal && lastSignal.createdAt > tick.createdAt) {
+    const lastStorage = this._signals.get(tick.signal.id);
+    if (lastStorage && lastStorage.createdAt > tick.createdAt) {
       return;
     }
     this._signals.set(tick.signal.id, {
@@ -59,20 +59,24 @@ export class SignalBacktestUtils {
       createdAt: tick.createdAt,
     });
   }
+
+  public findById = async (id: StorageId): Promise<IStorageSignalRow | null> => {
+    return this._signals.get(id) ?? null;
+  }
 }
 
-export class SignalLiveUtils {
+export class StorageLiveUtils {
 
-  private _signals: Map<SignalId, IStorageSignalRow>;
+  private _signals: Map<StorageId, IStorageSignalRow>;
 
   private waitForInit = singleshot(async () => {
-    const persistedSignals = await PersistStorageAdapter.readStorageData();
-    this._signals = new Map(persistedSignals.map((signal) => [signal.id, signal]));
+    const persistedStorages = await PersistStorageAdapter.readStorageData();
+    this._signals = new Map(persistedStorages.map((signal) => [signal.id, signal]));
   });
 
   private async _updateStorage(): Promise<void> {
     if (!this._signals) {
-      throw new Error("SignalLiveUtils not initialized. Call waitForInit first.");
+      throw new Error("StorageLiveUtils not initialized. Call waitForInit first.");
     }
     const signalList = Array.from(this._signals.values());
     signalList.sort((a, b) => a.createdAt - b.createdAt);
@@ -83,8 +87,8 @@ export class SignalLiveUtils {
 
   public handleOpened = async (tick: IStrategyTickResultOpened) => {
     await this.waitForInit();
-    const lastSignal = this._signals.get(tick.signal.id);
-    if (lastSignal && lastSignal.createdAt > tick.createdAt) {
+    const lastStorage = this._signals.get(tick.signal.id);
+    if (lastStorage && lastStorage.createdAt > tick.createdAt) {
       return;
     }
     this._signals.set(tick.signal.id, {
@@ -97,8 +101,8 @@ export class SignalLiveUtils {
 
   public handleClosed = async (tick: IStrategyTickResultClosed) => {
     await this.waitForInit();
-    const lastSignal = this._signals.get(tick.signal.id);
-    if (lastSignal && lastSignal.createdAt > tick.createdAt) {
+    const lastStorage = this._signals.get(tick.signal.id);
+    if (lastStorage && lastStorage.createdAt > tick.createdAt) {
       return;
     }
     this._signals.set(tick.signal.id, {
@@ -111,8 +115,8 @@ export class SignalLiveUtils {
 
   public handleScheduled = async (tick: IStrategyTickResultScheduled) => {
     await this.waitForInit();
-    const lastSignal = this._signals.get(tick.signal.id);
-    if (lastSignal && lastSignal.createdAt > tick.createdAt) {
+    const lastStorage = this._signals.get(tick.signal.id);
+    if (lastStorage && lastStorage.createdAt > tick.createdAt) {
       return;
     }
     this._signals.set(tick.signal.id, {
@@ -125,8 +129,8 @@ export class SignalLiveUtils {
 
   public handleCancelled = async (tick: IStrategyTickResultCancelled) => {
     await this.waitForInit();
-    const lastSignal = this._signals.get(tick.signal.id);
-    if (lastSignal && lastSignal.createdAt > tick.createdAt) {
+    const lastStorage = this._signals.get(tick.signal.id);
+    if (lastStorage && lastStorage.createdAt > tick.createdAt) {
       return;
     }
     this._signals.set(tick.signal.id, {
@@ -136,12 +140,17 @@ export class SignalLiveUtils {
     });
     await this._updateStorage();
   }
+
+  public findById = async (id: StorageId): Promise<IStorageSignalRow | null> => {
+    await this.waitForInit();
+    return this._signals.get(id) ?? null;
+  }
 }
 
-export class SignalAdapter {
+export class StorageAdapter {
 
-  _signalLiveUtils = new SignalLiveUtils();
-  _signalBacktestUtils = new SignalBacktestUtils();
+  _signalLiveUtils = new StorageLiveUtils();
+  _signalBacktestUtils = new StorageBacktestUtils();
 
   public enable = singleshot(() => {
 
@@ -211,6 +220,17 @@ export class SignalAdapter {
       lastSubscription();
     }
   };
+
+  public findById = async (id: StorageId): Promise<IStorageSignalRow | null> => {
+    let result: IStorageSignalRow | null = null;
+    if (result = await this._signalBacktestUtils.findById(id)) {
+      return result;
+    }
+    if (result = await this._signalLiveUtils.findById(id)) {
+      return result;
+    }
+    throw new Error(`Storage signal with id ${id} not found`);
+  };
 }
 
-export const Signal = new SignalAdapter();
+export const Storage = new StorageAdapter();
