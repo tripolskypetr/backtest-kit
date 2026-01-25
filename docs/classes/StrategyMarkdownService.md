@@ -184,15 +184,6 @@ Clears accumulated events from storage.
 
 Can clear either a specific symbol-strategy pair or all stored data.
 
-### handleSignalEvent
-
-```ts
-handleSignalEvent: any
-```
-
-Handles incoming signal management events from strategyCommitSubject.
-Routes events to appropriate handler methods based on action type.
-
 ### subscribe
 
 ```ts

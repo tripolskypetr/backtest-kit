@@ -97,3 +97,11 @@ cancelId: string
 ```
 
 Optional cancellation ID (provided when user calls Backtest.cancel() or Live.cancel())
+
+### createdAt
+
+```ts
+createdAt: number
+```
+
+Unix timestamp in milliseconds when this tick result was created (from candle timestamp in backtest or execution context when in live)

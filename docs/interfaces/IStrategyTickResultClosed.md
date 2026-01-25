@@ -105,3 +105,11 @@ closeId: string
 ```
 
 Close ID (only for user-initiated closes with reason "closed")
+
+### createdAt
+
+```ts
+createdAt: number
+```
+
+Unix timestamp in milliseconds when this tick result was created (from candle timestamp in backtest or execution context when in live)

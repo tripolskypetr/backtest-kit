@@ -16,11 +16,15 @@ Emitted when a new trading position is opened.
 type: "signal.opened"
 ```
 
+Discriminator for type-safe union
+
 ### id
 
 ```ts
 id: string
 ```
+
+Unique notification identifier
 
 ### timestamp
 
@@ -28,11 +32,15 @@ id: string
 timestamp: number
 ```
 
+Unix timestamp in milliseconds when signal was opened (pendingAt)
+
 ### backtest
 
 ```ts
 backtest: boolean
 ```
+
+Whether this notification is from backtest mode (true) or live mode (false)
 
 ### symbol
 
@@ -40,11 +48,15 @@ backtest: boolean
 symbol: string
 ```
 
+Trading pair symbol (e.g., "BTCUSDT")
+
 ### strategyName
 
 ```ts
 strategyName: string
 ```
+
+Strategy name that generated this signal
 
 ### exchangeName
 
@@ -52,11 +64,15 @@ strategyName: string
 exchangeName: string
 ```
 
+Exchange name where signal was executed
+
 ### signalId
 
 ```ts
 signalId: string
 ```
+
+Unique signal identifier (UUID v4)
 
 ### position
 
@@ -64,11 +80,15 @@ signalId: string
 position: "long" | "short"
 ```
 
+Trade direction: "long" (buy) or "short" (sell)
+
 ### priceOpen
 
 ```ts
 priceOpen: number
 ```
+
+Entry price for the position
 
 ### priceTakeProfit
 
@@ -76,14 +96,28 @@ priceOpen: number
 priceTakeProfit: number
 ```
 
+Take profit target price
+
 ### priceStopLoss
 
 ```ts
 priceStopLoss: number
 ```
 
+Stop loss exit price
+
 ### note
 
 ```ts
 note: string
 ```
+
+Optional human-readable description of signal reason
+
+### createdAt
+
+```ts
+createdAt: number
+```
+
+Unix timestamp in milliseconds when the tick result was created (from candle timestamp in backtest or execution context when in live)

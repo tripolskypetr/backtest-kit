@@ -16,11 +16,15 @@ Emitted when a trading position is closed (TP/SL hit).
 type: "signal.closed"
 ```
 
+Discriminator for type-safe union
+
 ### id
 
 ```ts
 id: string
 ```
+
+Unique notification identifier
 
 ### timestamp
 
@@ -28,11 +32,15 @@ id: string
 timestamp: number
 ```
 
+Unix timestamp in milliseconds when signal was closed (closeTimestamp)
+
 ### backtest
 
 ```ts
 backtest: boolean
 ```
+
+Whether this notification is from backtest mode (true) or live mode (false)
 
 ### symbol
 
@@ -40,11 +48,15 @@ backtest: boolean
 symbol: string
 ```
 
+Trading pair symbol (e.g., "BTCUSDT")
+
 ### strategyName
 
 ```ts
 strategyName: string
 ```
+
+Strategy name that generated this signal
 
 ### exchangeName
 
@@ -52,11 +64,15 @@ strategyName: string
 exchangeName: string
 ```
 
+Exchange name where signal was executed
+
 ### signalId
 
 ```ts
 signalId: string
 ```
+
+Unique signal identifier (UUID v4)
 
 ### position
 
@@ -64,11 +80,15 @@ signalId: string
 position: "long" | "short"
 ```
 
+Trade direction: "long" (buy) or "short" (sell)
+
 ### priceOpen
 
 ```ts
 priceOpen: number
 ```
+
+Entry price for the position
 
 ### priceClose
 
@@ -76,11 +96,15 @@ priceOpen: number
 priceClose: number
 ```
 
+Exit price when position was closed
+
 ### pnlPercentage
 
 ```ts
 pnlPercentage: number
 ```
+
+Profit/loss as percentage (e.g., 1.5 for +1.5%, -2.3 for -2.3%)
 
 ### closeReason
 
@@ -88,14 +112,28 @@ pnlPercentage: number
 closeReason: string
 ```
 
+Why signal closed (time_expired &vert; take_profit | stop_loss | closed)
+
 ### duration
 
 ```ts
 duration: number
 ```
 
+Duration of position in minutes (from pendingAt to closeTimestamp)
+
 ### note
 
 ```ts
 note: string
 ```
+
+Optional human-readable description of signal reason
+
+### createdAt
+
+```ts
+createdAt: number
+```
+
+Unix timestamp in milliseconds when the tick result was created (from candle timestamp in backtest or execution context when in live)

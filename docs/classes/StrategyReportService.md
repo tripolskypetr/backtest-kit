@@ -117,15 +117,6 @@ Logs a breakeven event when the stop-loss is moved to entry price.
 
 Records the current price when breakeven protection is activated.
 
-### handleSignalEvent
-
-```ts
-handleSignalEvent: any
-```
-
-Handles incoming signal management events from strategyCommitSubject.
-Routes events to appropriate handler methods based on action type.
-
 ### subscribe
 
 ```ts

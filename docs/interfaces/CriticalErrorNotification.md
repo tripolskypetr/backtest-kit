@@ -16,11 +16,15 @@ Emitted for fatal errors requiring process termination.
 type: "error.critical"
 ```
 
+Discriminator for type-safe union
+
 ### id
 
 ```ts
 id: string
 ```
+
+Unique notification identifier
 
 ### error
 
@@ -28,11 +32,15 @@ id: string
 error: object
 ```
 
+Serialized error object with stack trace and metadata
+
 ### message
 
 ```ts
 message: string
 ```
+
+Human-readable error message
 
 ### timestamp
 
@@ -40,8 +48,12 @@ message: string
 timestamp: number
 ```
 
+Unix timestamp in milliseconds when critical error occurred
+
 ### backtest
 
 ```ts
 backtest: boolean
 ```
+
+Always false for error notifications (errors are from live context)
