@@ -13,6 +13,7 @@ import {
   errorEmitter,
   backtestScheduleOpenSubject,
   signalBacktestEmitter,
+  signalEmitter,
 } from "../../../../config/emitters";
 import { GLOBAL_CONFIG } from "../../../../config/params";
 import { and, errorData, getErrorMessage } from "functools-kit";
@@ -256,6 +257,7 @@ export class BacktestLogicPrivateService {
             return isOk;
           }).connect(async (tick) => {
             scheduleOpenResult = tick;
+            await signalEmitter.next(tick);
             await signalBacktestEmitter.next(tick);
             await this.actionCoreService.signalBacktest(true, tick, {
               strategyName, 

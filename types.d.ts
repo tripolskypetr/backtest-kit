@@ -8899,7 +8899,7 @@ declare class BacktestUtils {
         strategyName: StrategyName;
         exchangeName: ExchangeName;
         frameName: FrameName;
-    }) => AsyncGenerator<IStrategyBacktestResult, void, unknown>;
+    }) => AsyncGenerator<IStrategyTickResultOpened | IStrategyBacktestResult, void, unknown>;
     /**
      * Runs backtest in background without yielding results.
      *
@@ -17451,7 +17451,7 @@ declare class BacktestLogicPrivateService {
      * }
      * ```
      */
-    run(symbol: string): AsyncGenerator<IStrategyBacktestResult, void, unknown>;
+    run(symbol: string): AsyncGenerator<IStrategyTickResultOpened | IStrategyBacktestResult, void, unknown>;
 }
 
 /**
@@ -17558,7 +17558,7 @@ declare class BacktestLogicPublicService implements TBacktestLogicPrivateService
         strategyName: StrategyName;
         exchangeName: ExchangeName;
         frameName: FrameName;
-    }) => AsyncGenerator<IStrategyBacktestResult, void, unknown>;
+    }) => AsyncGenerator<IStrategyTickResultOpened | IStrategyBacktestResult, void, unknown>;
 }
 
 /**
@@ -17697,7 +17697,7 @@ declare class BacktestCommandService implements TBacktestLogicPublicService {
         strategyName: StrategyName;
         exchangeName: ExchangeName;
         frameName: FrameName;
-    }) => AsyncGenerator<IStrategyBacktestResult, void, unknown>;
+    }) => AsyncGenerator<IStrategyTickResultOpened | IStrategyBacktestResult, void, unknown>;
 }
 
 /**

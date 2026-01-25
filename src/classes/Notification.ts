@@ -77,6 +77,7 @@ export class NotificationInstance {
 
   /**
    * Processes signal events and creates appropriate notifications.
+   * Sorts signal notifications by createdAt to maintain chronological order.
    */
   private _handleSignal = async (data: IStrategyTickResult) => {
     if (data.action === "opened") {
@@ -154,6 +155,13 @@ export class NotificationInstance {
         createdAt: data.createdAt,
       });
     }
+
+    // Sort signal notifications by createdAt (newest first)
+    this._notifications.sort((a, b) => {
+      const aCreatedAt = "createdAt" in a ? a.createdAt : 0;
+      const bCreatedAt = "createdAt" in b ? b.createdAt : 0;
+      return bCreatedAt - aCreatedAt;
+    });
   };
 
   /**
