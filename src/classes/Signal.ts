@@ -75,7 +75,7 @@ export class SignalLiveUtils {
       throw new Error("SignalLiveUtils not initialized. Call waitForInit first.");
     }
     const signalList = Array.from(this._signals.values());
-    signalList.sort((a, b) => b.createdAt - a.createdAt);
+    signalList.sort((a, b) => a.createdAt - b.createdAt);
     await PersistStorageAdapter.writeStorageData(
       signalList.slice(-MAX_SIGNALS)
     );
