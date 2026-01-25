@@ -230,7 +230,7 @@ export class StorageAdapter {
     }
   };
 
-  public findById = async (id: StorageId): Promise<IStorageSignalRow | null> => {
+  public findSignalById = async (id: StorageId): Promise<IStorageSignalRow | null> => {
     let result: IStorageSignalRow | null = null;
     if (result = await this._signalBacktestUtils.findById(id)) {
       return result;
