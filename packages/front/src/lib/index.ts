@@ -28,7 +28,7 @@ const viewServices = {
   exchangeViewService: inject<ExchangeViewService>(TYPES.exchangeViewService),
 };
 
-const signal = {
+const ioc = {
   ...baseServices,
   ...mockServices,
   ...viewServices,
@@ -36,6 +36,6 @@ const signal = {
 
 init();
 
-export { signal };
+export { ioc };
 
-export default signal;
+export default ioc;
