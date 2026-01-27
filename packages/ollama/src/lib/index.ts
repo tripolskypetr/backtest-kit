@@ -57,6 +57,7 @@ import CohereProvider from "../client/CohereProvider.client";
 import AlibabaProvider from "../client/AlibabaProvider.client";
 import GLM4Provider from "../client/GLM4Provider.client";
 import LoggerService from "./services/base/LoggerService";
+import PromptCacheService from "./services/cache/PromptCacheService";
 import SignalPromptService from "./services/prompt/SignalPromptService";
 import OutlineMarkdownService from "./services/markdown/OutlineMarkdownService";
 import OptimizerTemplateService from "./services/template/OptimizerTemplateService";
@@ -93,6 +94,10 @@ const promptServices = {
   signalPromptService: inject<SignalPromptService>(TYPES.signalPromptService),
 }
 
+const cacheServices = {
+  promptCacheService: inject<PromptCacheService>(TYPES.promptCacheService),
+}
+
 const markdownServices = {
   outlineMarkdownService: inject<OutlineMarkdownService>(TYPES.outlineMarkdownService),
 }
@@ -126,6 +131,7 @@ const engine = {
   ...privateServices,
   ...publicServices,
   ...promptServices,
+  ...cacheServices,
   ...markdownServices,
   ...templateServices,
   ...schemaServices,

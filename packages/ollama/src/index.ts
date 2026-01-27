@@ -53,6 +53,10 @@ export {
 
 export { Optimizer } from "./classes/Optimizer";
 
+export { Prompt } from "./classes/Prompt";
+
+export { Code } from "./classes/Code";
+
 export { MessageModel, MessageRole } from "./model/Message.model";
 
 export {

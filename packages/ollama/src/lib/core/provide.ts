@@ -17,6 +17,7 @@
 
 import ContextService from "../services/base/ContextService";
 import LoggerService from "../services/base/LoggerService";
+import PromptCacheService from "../services/cache/PromptCacheService";
 import OutlineMarkdownService from "../services/markdown/OutlineMarkdownService";
 import RunnerPrivateService from "../services/private/RunnerPrivateService";
 import SignalPromptService from "../services/prompt/SignalPromptService";
@@ -53,6 +54,10 @@ import { TYPES } from "./types";
 
 {
   provide(TYPES.signalPromptService, () => new SignalPromptService());
+}
+
+{
+  provide(TYPES.promptCacheService, () => new PromptCacheService());
 }
 
 {

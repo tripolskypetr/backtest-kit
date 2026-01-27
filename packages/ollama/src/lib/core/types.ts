@@ -30,6 +30,10 @@ const promptServices = {
     signalPromptService: Symbol('signalPromptService'),
 }
 
+const cacheServices = {
+    promptCacheService: Symbol('promptCacheService'),
+}
+
 const markdownServices = {
     outlineMarkdownService: Symbol('outlineMarkdownService'),
 }
@@ -72,6 +76,7 @@ const globalServices = {
 export const TYPES = {
     ...baseServices,
     ...promptServices,
+    ...cacheServices,
     ...markdownServices,
     ...templateServices,
     ...schemaServices,

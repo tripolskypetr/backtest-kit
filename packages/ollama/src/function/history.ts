@@ -1,6 +1,7 @@
 import { MessageModel } from "../model/Message.model";
 import engine from "../lib";
-import { getContext, getMode } from "backtest-kit";
+import { getContext, getMode, getSymbol } from "backtest-kit";
+import { Prompt } from "../classes/Prompt";
 
 const METHOD_NAME_SIGNAL = "history.commitSignalPromptHistory";
 
@@ -12,11 +13,11 @@ const METHOD_NAME_SIGNAL = "history.commitSignalPromptHistory";
  * at the end of the history array if they are not empty.
  *
  * Context extraction:
- * - symbol: Provided as parameter for debugging convenience
- * - backtest mode: From ExecutionContext
- * - strategyName, exchangeName, frameName: From MethodContext
+ * - symbol: From getSymbol()
+ * - backtest mode: From getMode()
+ * - strategyName, exchangeName, frameName: From getContext()
  *
- * @param symbol - Trading symbol (e.g., "BTCUSDT") for debugging convenience
+ * @param source - Prompt object containing path to .cjs module
  * @param history - Message array to append prompts to
  * @returns Promise that resolves when prompts are added
  * @throws Error if ExecutionContext or MethodContext is not active
@@ -24,24 +25,28 @@ const METHOD_NAME_SIGNAL = "history.commitSignalPromptHistory";
  * @example
  * ```typescript
  * const messages: MessageModel[] = [];
- * await commitSignalPromptHistory("BTCUSDT", messages);
+ * const prompt = Prompt.fromPath("signal.prompt.cjs");
+ * await commitSignalPromptHistory(prompt, messages);
  * // messages now contains system prompts at start and user prompt at end
  * ```
  */
 export async function commitSignalPromptHistory(
-  symbol: string,
+  source: Prompt,
   history: MessageModel[],
 ): Promise<void> {
   engine.loggerService.log(METHOD_NAME_SIGNAL, {
-    symbol,
+    source,
   });
 
+  const symbol = await getSymbol();
   const { strategyName, exchangeName, frameName } = await getContext();
   const mode = await getMode();
-
   const isBacktest = mode === "backtest";
 
+  const code = engine.promptCacheService.readModule(source);
+
   const systemPrompts = await engine.signalPromptService.getSystemPrompt(
+    code,
     symbol,
     strategyName,
     exchangeName,
@@ -49,6 +54,7 @@ export async function commitSignalPromptHistory(
     isBacktest,
   );
   const userPrompt = await engine.signalPromptService.getUserPrompt(
+    code,
     symbol,
     strategyName,
     exchangeName,

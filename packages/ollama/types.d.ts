@@ -495,6 +495,15 @@ interface ValidateArgs<T = Enum> {
  */
 declare function validate(args?: Partial<Args>): Promise<void>;
 
+declare class Prompt {
+    readonly path: string;
+    readonly baseDir: string;
+    private readonly __type__;
+    private constructor();
+    static fromPath: (path: string, baseDir?: string) => Prompt;
+    static isPrompt: (value: unknown) => value is Prompt;
+}
+
 /**
  * Commits signal prompt history to the message array.
  *
@@ -503,11 +512,11 @@ declare function validate(args?: Partial<Args>): Promise<void>;
  * at the end of the history array if they are not empty.
  *
  * Context extraction:
- * - symbol: Provided as parameter for debugging convenience
- * - backtest mode: From ExecutionContext
- * - strategyName, exchangeName, frameName: From MethodContext
+ * - symbol: From getSymbol()
+ * - backtest mode: From getMode()
+ * - strategyName, exchangeName, frameName: From getContext()
  *
- * @param symbol - Trading symbol (e.g., "BTCUSDT") for debugging convenience
+ * @param source - Prompt object containing path to .cjs module
  * @param history - Message array to append prompts to
  * @returns Promise that resolves when prompts are added
  * @throws Error if ExecutionContext or MethodContext is not active
@@ -515,11 +524,12 @@ declare function validate(args?: Partial<Args>): Promise<void>;
  * @example
  * ```typescript
  * const messages: MessageModel[] = [];
- * await commitSignalPromptHistory("BTCUSDT", messages);
+ * const prompt = Prompt.fromPath("signal.prompt.cjs");
+ * await commitSignalPromptHistory(prompt, messages);
  * // messages now contains system prompts at start and user prompt at end
  * ```
  */
-declare function commitSignalPromptHistory(symbol: string, history: MessageModel[]): Promise<void>;
+declare function commitSignalPromptHistory(source: Prompt, history: MessageModel[]): Promise<void>;
 
 /**
  * Candle interval type for trading timeframes.
@@ -528,11 +538,11 @@ type CandleInterval = "1m" | "3m" | "5m" | "15m" | "30m" | "1h" | "2h" | "4h" | 
 /**
  * Unique string identifier for registered exchanges.
  */
-type ExchangeName$1 = string;
+type ExchangeName$2 = string;
 /**
  * Unique string identifier for registered frames.
  */
-type FrameName$1 = string;
+type FrameName$2 = string;
 /**
  * Unique string identifier for registered walkers.
  */
@@ -540,7 +550,7 @@ type WalkerName = string;
 /**
  * Unique string identifier for registered strategies.
  */
-type StrategyName$1 = string;
+type StrategyName$2 = string;
 /**
  * Unique identifier for data rows in optimizer sources.
  * Can be either a string or numeric ID.
@@ -771,7 +781,7 @@ interface IOptimizerTemplate {
      * @param strategies - Array of strategy names to compare
      * @returns Generated addWalker() call
      */
-    getWalkerTemplate(walkerName: WalkerName, exchangeName: ExchangeName$1, frameName: FrameName$1, strategies: string[]): string | Promise<string>;
+    getWalkerTemplate(walkerName: WalkerName, exchangeName: ExchangeName$2, frameName: FrameName$2, strategies: string[]): string | Promise<string>;
     /**
      * Generates Exchange configuration code.
      *
@@ -779,7 +789,7 @@ interface IOptimizerTemplate {
      * @param exchangeName - Unique exchange identifier
      * @returns Generated addExchange() call with CCXT integration
      */
-    getExchangeTemplate(symbol: string, exchangeName: ExchangeName$1): string | Promise<string>;
+    getExchangeTemplate(symbol: string, exchangeName: ExchangeName$2): string | Promise<string>;
     /**
      * Generates Frame (timeframe) configuration code.
      *
@@ -790,7 +800,7 @@ interface IOptimizerTemplate {
      * @param endDate - Frame end date
      * @returns Generated addFrame() call
      */
-    getFrameTemplate(symbol: string, frameName: FrameName$1, interval: CandleInterval, startDate: Date, endDate: Date): string | Promise<string>;
+    getFrameTemplate(symbol: string, frameName: FrameName$2, interval: CandleInterval, startDate: Date, endDate: Date): string | Promise<string>;
     /**
      * Generates Strategy configuration code with LLM integration.
      *
@@ -799,7 +809,7 @@ interface IOptimizerTemplate {
      * @param prompt - Strategy logic prompt from getPrompt()
      * @returns Generated addStrategy() call with getSignal() function
      */
-    getStrategyTemplate(strategyName: StrategyName$1, interval: CandleInterval, prompt: string): string | Promise<string>;
+    getStrategyTemplate(strategyName: StrategyName$2, interval: CandleInterval, prompt: string): string | Promise<string>;
     /**
      * Generates launcher code to run Walker and listen to events.
      *
@@ -1213,6 +1223,120 @@ declare class OptimizerUtils {
  * ```
  */
 declare const Optimizer: OptimizerUtils;
+
+type StrategyName$1 = string;
+type ExchangeName$1 = string;
+type FrameName$1 = string;
+/**
+ * Function type for generating dynamic system prompts.
+ *
+ * System prompt functions enable context-aware AI prompt generation based on:
+ * - Trading symbol and market conditions
+ * - Strategy-specific requirements
+ * - Exchange platform characteristics
+ * - Timeframe considerations
+ * - Execution mode (backtest vs live)
+ *
+ * @param symbol - Trading symbol (e.g., "BTCUSDT", "ETHUSDT")
+ * @param strategyName - Strategy identifier for configuration lookup
+ * @param exchangeName - Exchange platform identifier
+ * @param frameName - Timeframe identifier (e.g., "1m", "5m", "1h")
+ * @param backtest - Whether running in backtest mode (true) or live trading (false)
+ * @returns Promise resolving to array of system prompt strings, or array directly
+ *
+ * @example
+ * ```typescript
+ * const systemPromptFn: SystemPromptFn = async (symbol, strategyName, exchangeName, frameName, backtest) => {
+ *   return [
+ *     `You are analyzing ${symbol} on ${exchangeName}`,
+ *     `Strategy: ${strategyName}, Timeframe: ${frameName}`,
+ *     backtest ? "Running in backtest mode" : "Running in live mode"
+ *   ];
+ * };
+ * ```
+ */
+type SystemPromptFn = (symbol: string, strategyName: StrategyName$1, exchangeName: ExchangeName$1, frameName: FrameName$1, backtest: boolean) => Promise<string[]> | string[];
+/**
+ * Function type for generating dynamic user prompts.
+ *
+ * User prompt functions enable context-aware AI query generation based on:
+ * - Trading symbol and market conditions
+ * - Strategy-specific requirements
+ * - Exchange platform characteristics
+ * - Timeframe considerations
+ * - Execution mode (backtest vs live)
+ *
+ * @param symbol - Trading symbol (e.g., "BTCUSDT", "ETHUSDT")
+ * @param strategyName - Strategy identifier for configuration lookup
+ * @param exchangeName - Exchange platform identifier
+ * @param frameName - Timeframe identifier (e.g., "1m", "5m", "1h")
+ * @param backtest - Whether running in backtest mode (true) or live trading (false)
+ * @returns Promise resolving to user prompt string, or string directly
+ *
+ * @example
+ * ```typescript
+ * const userPromptFn: UserPromptFn = async (symbol, strategyName, exchangeName, frameName, backtest) => {
+ *   return `Analyze ${symbol} for ${strategyName} strategy on ${frameName} timeframe`;
+ * };
+ * ```
+ */
+type UserPromptFn = (symbol: string, strategyName: StrategyName$1, exchangeName: ExchangeName$1, frameName: FrameName$1, backtest: boolean) => Promise<string> | string;
+/**
+ * Prompt configuration model for AI/LLM integrations.
+ *
+ * Defines the structure for AI prompts used in trading strategy analysis.
+ * Supports both static prompts and dynamic functions for context-aware generation.
+ *
+ * Key features:
+ * - System prompts: Provide AI context and instructions (optional)
+ * - User prompts: Define specific queries or tasks (required)
+ * - Static values: Use fixed strings/arrays for consistent prompts
+ * - Dynamic functions: Generate prompts based on runtime context
+ *
+ * Used by PromptService implementations to load and process prompt configurations
+ * from config/prompt/*.prompt.cjs files.
+ *
+ * @example
+ * ```typescript
+ * // Static prompts
+ * const staticPrompt: PromptModel = {
+ *   system: ["You are a trading analyst", "Focus on risk management"],
+ *   user: "Should I enter this trade?"
+ * };
+ *
+ * // Dynamic prompts
+ * const dynamicPrompt: PromptModel = {
+ *   system: async (symbol, strategy, exchange, frame, backtest) => [
+ *     `Analyzing ${symbol} on ${exchange}`,
+ *     `Strategy: ${strategy}, Timeframe: ${frame}`
+ *   ],
+ *   user: async (symbol, strategy, exchange, frame, backtest) =>
+ *     `Evaluate ${symbol} for ${strategy} strategy`
+ * };
+ * ```
+ */
+interface PromptModel {
+    /**
+     * System prompts for AI context.
+     * Can be static array of strings or dynamic function returning string array.
+     * Used to set AI behavior, constraints, and domain knowledge.
+     */
+    system?: string[] | SystemPromptFn;
+    /**
+     * User prompt for AI input.
+     * Can be static string or dynamic function returning string.
+     * Defines the specific question or task for the AI to perform.
+     */
+    user: string | UserPromptFn;
+}
+
+declare class Code {
+    readonly source: PromptModel;
+    private readonly __type__;
+    private constructor();
+    static fromCode: (source: PromptModel) => Code;
+    static isCode: (value: unknown) => value is Code;
+}
 
 /**
  * Enumeration of supported LLM inference providers.
@@ -1676,20 +1800,24 @@ declare class LoggerService implements ILogger {
     setLogger: (logger: ILogger) => void;
 }
 
+declare class PromptCacheService {
+    private readonly loggerService;
+    readModule: (prompt: Prompt) => Code;
+    clear: (prompt?: Prompt) => void;
+}
+
 type StrategyName = string;
 type ExchangeName = string;
 type FrameName = string;
 /**
  * Service for managing signal prompts for AI/LLM integrations.
  *
- * Provides access to system and user prompts configured in signal.prompt.cjs.
+ * Provides access to system and user prompts from Code.
  * Supports both static prompt arrays and dynamic prompt functions.
  *
  * Key responsibilities:
- * - Lazy-loads prompt configuration from config/prompt/signal.prompt.cjs
  * - Resolves system prompts (static arrays or async functions)
  * - Provides user prompt strings
- * - Falls back to empty prompts if configuration is missing
  *
  * Used for AI-powered signal analysis and strategy recommendations.
  */
@@ -1703,6 +1831,7 @@ declare class SignalPromptService {
      * - Async/sync function returning string array (executed and awaited)
      * - Undefined (returns empty array)
      *
+     * @param code - Code containing the loaded module
      * @param symbol - Trading symbol (e.g., "BTCUSDT")
      * @param strategyName - Strategy identifier
      * @param exchangeName - Exchange identifier
@@ -1710,10 +1839,11 @@ declare class SignalPromptService {
      * @param backtest - Whether running in backtest mode
      * @returns Promise resolving to array of system prompt strings
      */
-    getSystemPrompt: (symbol: string, strategyName: StrategyName, exchangeName: ExchangeName, frameName: FrameName, backtest: boolean) => Promise<string[]>;
+    getSystemPrompt: (code: Code, symbol: string, strategyName: StrategyName, exchangeName: ExchangeName, frameName: FrameName, backtest: boolean) => Promise<string[]>;
     /**
      * Retrieves user prompt string for AI input.
      *
+     * @param code - Code containing the loaded module
      * @param symbol - Trading symbol (e.g., "BTCUSDT")
      * @param strategyName - Strategy identifier
      * @param exchangeName - Exchange identifier
@@ -1721,7 +1851,7 @@ declare class SignalPromptService {
      * @param backtest - Whether running in backtest mode
      * @returns Promise resolving to user prompt string
      */
-    getUserPrompt: (symbol: string, strategyName: StrategyName, exchangeName: ExchangeName, frameName: FrameName, backtest: boolean) => Promise<string>;
+    getUserPrompt: (code: Code, symbol: string, strategyName: StrategyName, exchangeName: ExchangeName, frameName: FrameName, backtest: boolean) => Promise<string>;
 }
 
 /**
@@ -1824,7 +1954,7 @@ declare class OptimizerTemplateService implements IOptimizerTemplate {
      * @param strategies - Array of strategy names to compare
      * @returns Generated addWalker() call
      */
-    getWalkerTemplate: (walkerName: WalkerName, exchangeName: ExchangeName$1, frameName: FrameName$1, strategies: string[]) => Promise<string>;
+    getWalkerTemplate: (walkerName: WalkerName, exchangeName: ExchangeName$2, frameName: FrameName$2, strategies: string[]) => Promise<string>;
     /**
      * Generates Strategy configuration with LLM integration.
      * Includes multi-timeframe analysis and signal generation.
@@ -1834,7 +1964,7 @@ declare class OptimizerTemplateService implements IOptimizerTemplate {
      * @param prompt - Strategy logic from getPrompt()
      * @returns Generated addStrategy() call with getSignal() function
      */
-    getStrategyTemplate: (strategyName: StrategyName$1, interval: CandleInterval, prompt: string) => Promise<string>;
+    getStrategyTemplate: (strategyName: StrategyName$2, interval: CandleInterval, prompt: string) => Promise<string>;
     /**
      * Generates Exchange configuration code.
      * Uses CCXT Binance with standard formatters.
@@ -1843,7 +1973,7 @@ declare class OptimizerTemplateService implements IOptimizerTemplate {
      * @param exchangeName - Unique exchange identifier
      * @returns Generated addExchange() call with CCXT integration
      */
-    getExchangeTemplate: (symbol: string, exchangeName: ExchangeName$1) => Promise<string>;
+    getExchangeTemplate: (symbol: string, exchangeName: ExchangeName$2) => Promise<string>;
     /**
      * Generates Frame (timeframe) configuration code.
      *
@@ -1854,7 +1984,7 @@ declare class OptimizerTemplateService implements IOptimizerTemplate {
      * @param endDate - Frame end date
      * @returns Generated addFrame() call
      */
-    getFrameTemplate: (symbol: string, frameName: FrameName$1, interval: CandleInterval, startDate: Date, endDate: Date) => Promise<string>;
+    getFrameTemplate: (symbol: string, frameName: FrameName$2, interval: CandleInterval, startDate: Date, endDate: Date) => Promise<string>;
     /**
      * Generates launcher code to run Walker with event listeners.
      * Includes progress tracking and completion handlers.
@@ -2141,6 +2271,7 @@ declare const engine: {
     optimizerSchemaService: OptimizerSchemaService;
     optimizerTemplateService: OptimizerTemplateService;
     outlineMarkdownService: OutlineMarkdownService;
+    promptCacheService: PromptCacheService;
     signalPromptService: SignalPromptService;
     runnerPublicService: RunnerPublicService;
     runnerPrivateService: RunnerPrivateService;
@@ -2150,4 +2281,4 @@ declare const engine: {
     loggerService: LoggerService;
 };
 
-export { CompletionName, type IOptimizerCallbacks, type IOptimizerData, type IOptimizerFetchArgs, type IOptimizerFilterArgs, type IOptimizerRange, type IOptimizerSchema, type IOptimizerSource, type IOptimizerStrategy, type IOptimizerTemplate, type MessageModel, type MessageRole, Optimizer, type ProgressOptimizerContract, addOptimizerSchema, alibaba, claude, cohere, commitSignalPromptHistory, deepseek, dumpSignalData, getOptimizerSchema, glm4, gpt5, grok, hf, engine as lib, listOptimizerSchema, listenError, listenOptimizerProgress, mistral, ollama, perplexity, setLogger, validate };
+export { Code, CompletionName, type IOptimizerCallbacks, type IOptimizerData, type IOptimizerFetchArgs, type IOptimizerFilterArgs, type IOptimizerRange, type IOptimizerSchema, type IOptimizerSource, type IOptimizerStrategy, type IOptimizerTemplate, type MessageModel, type MessageRole, Optimizer, type ProgressOptimizerContract, Prompt, addOptimizerSchema, alibaba, claude, cohere, commitSignalPromptHistory, deepseek, dumpSignalData, getOptimizerSchema, glm4, gpt5, grok, hf, engine as lib, listOptimizerSchema, listenError, listenOptimizerProgress, mistral, ollama, perplexity, setLogger, validate };
