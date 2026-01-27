@@ -1,5 +1,7 @@
 build/*
 !build/.gitkeep
+public/*
+!public/.gitkeep
 node_modules
 .DS_Store
 wwwroot

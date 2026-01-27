@@ -16,6 +16,7 @@
   ],
   "files": [
     "build",
+    "public",
     "types.d.ts",
     "README.md"
   ],
