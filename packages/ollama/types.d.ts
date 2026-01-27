@@ -1393,7 +1393,7 @@ interface IContext {
     /** Model name/identifier for the provider */
     model: string;
     /** API key or array of keys for token rotation */
-    apiKey: string | string[];
+    apiKey?: string | string[];
 }
 /**
  * Scoped context service for isolated execution contexts.
