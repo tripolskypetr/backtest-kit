@@ -1,14 +1,33 @@
-# @backtest-kit/ollama
+# 🤖 @backtest-kit/ollama
 
 > Multi-provider LLM context wrapper for trading strategies. Supports 10+ providers with unified HOF API.
 
-## Installation
+![bots](https://raw.githubusercontent.com/tripolskypetr/backtest-kit/HEAD/assets/bots.png)
+
+[![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/tripolskypetr/backtest-kit)
+[![npm](https://img.shields.io/npm/v/@backtest-kit/ollama.svg?style=flat-square)](https://npmjs.org/package/@backtest-kit/ollama)
+[![TypeScript](https://img.shields.io/badge/TypeScript-5.0+-blue)]()
+
+Transform technical analysis into trading decisions with multi-provider LLM support, structured output, and built-in risk management.
+
+📚 **[Backtest Kit Docs](https://backtest-kit.github.io/documents/example_02_first_backtest.html)** | 🌟 **[GitHub](https://github.com/tripolskypetr/backtest-kit)**
+
+## ✨ Features
+
+- 🔌 10+ LLM Providers: OpenAI, Claude, DeepSeek, Grok, Mistral, Perplexity, Cohere, Alibaba, Hugging Face, Ollama, GLM-4
+- ⚡ Higher-Order Functions: Wrap async functions with inference context via `di-scoped`
+- 📝 Userspace Prompts: Load prompts from `.cjs` modules in `config/prompt/`
+- 🎯 Userspace Schema: Define your own Zod or JSON schema with `addOutline` / `addOutlineSchema`
+- 🔄 Token Rotation: Pass array of API keys for automatic rotation
+- 🗄️ Memoized Cache: Prompt modules cached with `memoize` from `functools-kit`
+
+## 📦 Installation
 
 ```bash
 npm install @backtest-kit/ollama backtest-kit agent-swarm-kit
 ```
 
-## Usage
+## 🚀 Usage
 
 ### Signal Schema (userspace)
 
@@ -221,7 +240,7 @@ import { ollama } from '@backtest-kit/ollama';
 const wrappedFn = ollama(myFn, 'llama3.3:70b', ['key1', 'key2', 'key3']);
 ```
 
-## Providers
+## 🔌 Providers
 
 | Provider | Function | Base URL |
 |----------|----------|----------|
@@ -237,7 +256,7 @@ const wrappedFn = ollama(myFn, 'llama3.3:70b', ['key1', 'key2', 'key3']);
 | Ollama | `ollama()` | `http://localhost:11434/` |
 | Zhipu AI | `glm4()` | `https://open.bigmodel.cn/api/paas/v4/` |
 
-## API
+## 📖 API
 
 ### Provider HOF
 
@@ -266,8 +285,6 @@ Prompt.fromPrompt(source: PromptModel): Prompt
 async function commitPrompt(source: Module | Prompt, history: MessageModel[]): Promise<void>
 ```
 
-Context from `backtest-kit`: `getSymbol()`, `getContext()`, `getMode()`
-
 ### PromptModel
 
 ```typescript
@@ -293,6 +310,47 @@ type UserPromptFn = (
 ) => Promise<string> | string;
 ```
 
-## License
+## 💡 Why Use @backtest-kit/ollama?
 
-MIT
+Instead of manually integrating LLM SDKs:
+
+**❌ Without ollama (manual work)**
+
+```typescript
+import OpenAI from 'openai';
+import Anthropic from '@anthropic-ai/sdk';
+
+const openai = new OpenAI({ apiKey: process.env.OPENAI_KEY });
+const response = await openai.chat.completions.create({
+  model: 'gpt-4o',
+  messages,
+  response_format: { type: 'json_object' }
+});
+const signal = JSON.parse(response.choices[0].message.content);
+// ... manual schema validation
+// ... manual error handling
+// ... no fallback
+```
+
+**✅ With ollama (one line)**
+
+```typescript
+const signal = await gpt5(messages, 'gpt-4o');
+```
+
+**🔥 Benefits:**
+
+- ⚡ Unified API across 10+ providers
+- 🎯 Enforced JSON schema (no parsing errors)
+- 🔄 Built-in token rotation (Ollama)
+- 🔑 Context-based API keys
+- 🛡️ Type-safe TypeScript interfaces
+- 📊 Trading-specific output format
+
+## 🤝 Contribute
+
+Fork/PR on [GitHub](https://github.com/tripolskypetr/backtest-kit).
+
+## 📜 License
+
+MIT © [tripolskypetr](https://github.com/tripolskypetr)
