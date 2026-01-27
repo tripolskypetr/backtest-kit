@@ -1,5 +1,5 @@
 {
-  "name": "@backtest-kit/front",
+  "name": "@backtest-kit/ui",
   "version": "0.0.1",
   "author": {
     "name": "Petr Tripolsky",
@@ -57,7 +57,7 @@
     "worker-testbed": "1.0.12"
   },
   "peerDependencies": {
-    "backtest-kit": "^2.2.1",
+    "backtest-kit": "^2.2.13",
     "typescript": "^5.0.0"
   },
   "dependencies": {
