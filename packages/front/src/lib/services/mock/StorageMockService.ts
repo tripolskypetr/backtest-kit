@@ -1,4 +1,4 @@
-import { IStorageSignalRow, Storage } from "backtest-kit";
+import { IStorageSignalRow } from "backtest-kit";
 import { inject } from "../../../lib/core/di";
 import LoggerService from "../base/LoggerService";
 import { TYPES } from "../../../lib/core/types";
