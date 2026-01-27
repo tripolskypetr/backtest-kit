@@ -19,7 +19,7 @@ type FrameName = string;
  *
  * Used for AI-powered signal analysis and strategy recommendations.
  */
-export class SignalPromptService {
+export class ResolvePromptService {
 
   private readonly loggerService = inject<LoggerService>(TYPES.loggerService);
 
@@ -47,7 +47,7 @@ export class SignalPromptService {
     frameName: FrameName,
     backtest: boolean
   ) => {
-    this.loggerService.log("signalPromptService getSystemPrompt", {
+    this.loggerService.log("resolvePromptService getSystemPrompt", {
       symbol,
       strategyName,
       exchangeName,
@@ -83,7 +83,7 @@ export class SignalPromptService {
     frameName: FrameName,
     backtest: boolean
   ) => {
-    this.loggerService.log("signalPromptService getUserPrompt", {
+    this.loggerService.log("resolvePromptService getUserPrompt", {
       symbol,
       strategyName,
       exchangeName,
@@ -101,4 +101,4 @@ export class SignalPromptService {
   };
 }
 
-export default SignalPromptService;
+export default ResolvePromptService;

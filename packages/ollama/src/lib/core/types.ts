@@ -27,7 +27,7 @@ const publicServices = {
 };
 
 const promptServices = {
-    signalPromptService: Symbol('signalPromptService'),
+    resolvePromptService: Symbol('resolvePromptService'),
 }
 
 const cacheServices = {

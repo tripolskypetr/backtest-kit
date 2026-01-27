@@ -45,7 +45,7 @@ export async function commitSignalPromptHistory(
 
   const code = engine.promptCacheService.readModule(source);
 
-  const systemPrompts = await engine.signalPromptService.getSystemPrompt(
+  const systemPrompts = await engine.resolvePromptService.getSystemPrompt(
     code,
     symbol,
     strategyName,
@@ -53,7 +53,7 @@ export async function commitSignalPromptHistory(
     frameName,
     isBacktest,
   );
-  const userPrompt = await engine.signalPromptService.getUserPrompt(
+  const userPrompt = await engine.resolvePromptService.getUserPrompt(
     code,
     symbol,
     strategyName,

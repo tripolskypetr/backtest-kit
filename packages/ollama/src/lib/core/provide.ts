@@ -20,7 +20,7 @@ import LoggerService from "../services/base/LoggerService";
 import PromptCacheService from "../services/cache/PromptCacheService";
 import OutlineMarkdownService from "../services/markdown/OutlineMarkdownService";
 import RunnerPrivateService from "../services/private/RunnerPrivateService";
-import SignalPromptService from "../services/prompt/SignalPromptService";
+import ResolvePromptService from "../services/prompt/ResolvePromptService";
 import RunnerPublicService from "../services/public/RunnerPublicService";
 import OptimizerTemplateService from "../services/template/OptimizerTemplateService";
 import OptimizerSchemaService from "../services/schema/OptimizerSchemaService";
@@ -53,7 +53,7 @@ import { TYPES } from "./types";
 }
 
 {
-  provide(TYPES.signalPromptService, () => new SignalPromptService());
+  provide(TYPES.resolvePromptService, () => new ResolvePromptService());
 }
 
 {

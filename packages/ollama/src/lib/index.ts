@@ -58,7 +58,7 @@ import AlibabaProvider from "../client/AlibabaProvider.client";
 import GLM4Provider from "../client/GLM4Provider.client";
 import LoggerService from "./services/base/LoggerService";
 import PromptCacheService from "./services/cache/PromptCacheService";
-import SignalPromptService from "./services/prompt/SignalPromptService";
+import ResolvePromptService from "./services/prompt/ResolvePromptService";
 import OutlineMarkdownService from "./services/markdown/OutlineMarkdownService";
 import OptimizerTemplateService from "./services/template/OptimizerTemplateService";
 import OptimizerSchemaService from "./services/schema/OptimizerSchemaService";
@@ -91,7 +91,7 @@ const publicServices = {
 };
 
 const promptServices = {
-  signalPromptService: inject<SignalPromptService>(TYPES.signalPromptService),
+  resolvePromptService: inject<ResolvePromptService>(TYPES.resolvePromptService),
 }
 
 const cacheServices = {
