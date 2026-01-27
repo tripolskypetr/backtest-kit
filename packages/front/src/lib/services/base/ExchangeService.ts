@@ -18,7 +18,7 @@ const INTERVAL_MINUTES: Record<CandleInterval, number> = {
   "8h": 480,
 };
 
-const STEP_ADJUST_TICKS: Record<CandleInterval, number> = {
+const STEP_TICKS: Record<CandleInterval, number> = {
   "1m": 960,
   "3m": 320,
   "5m": 192,
@@ -45,7 +45,7 @@ export class ExchangeService {
     });
 
     const step = INTERVAL_MINUTES[dto.interval];
-    const tick = STEP_ADJUST_TICKS[dto.interval];
+    const tick = STEP_TICKS[dto.interval];
 
     if (!step || !tick) {
       throw new Error(`Unsupported interval: ${dto.interval}`);
