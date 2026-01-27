@@ -17,7 +17,7 @@ Transform technical analysis into trading decisions with multi-provider LLM supp
 - 🔌 10+ LLM Providers: OpenAI, Claude, DeepSeek, Grok, Mistral, Perplexity, Cohere, Alibaba, Hugging Face, Ollama, GLM-4
 - ⚡ Higher-Order Functions: Wrap async functions with inference context via `di-scoped`
 - 📝 Userspace Prompts: Load prompts from `.cjs` modules in `config/prompt/`
-- 🎯 Userspace Schema: Define your own Zod or JSON schema with `addOutline` / `addOutlineSchema`
+- 🎯 Userspace Schema: Define your own Zod or JSON schema with `addOutline`
 - 🔄 Token Rotation: Pass array of API keys for automatic rotation
 - 🗄️ Memoized Cache: Prompt modules cached with `memoize` from `functools-kit`
 
@@ -117,7 +117,7 @@ addOutline<TSignalSchema>({
 
 ```typescript
 // outline/signal.outline.ts
-import { addOutlineSchema, IOutlineFormat } from 'agent-swarm-kit';
+import { addOutline, IOutlineFormat } from 'agent-swarm-kit';
 import { CompletionName } from '@backtest-kit/ollama';
 
 const format: IOutlineFormat = {
@@ -131,7 +131,7 @@ const format: IOutlineFormat = {
   required: ['take_profit_price', 'stop_loss_price', 'description', 'reasoning'],
 };
 
-addOutlineSchema({
+addOutline({
   outlineName: 'SignalOutline',
   format,
   prompt: 'Generate crypto trading signals based on price and volume indicators in JSON format.',
