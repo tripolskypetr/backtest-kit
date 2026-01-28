@@ -23,17 +23,17 @@ export class ExchangeMockService {
     if (!signal) {
       throw new Error(`Signal with ID ${signalId} not found`);
     }
-    const {
+   const {
       pendingAt,
       scheduledAt,
       createdAt = pendingAt || scheduledAt,
       updatedAt,
     } = signal;
-    const currentTime = Math.max(createdAt, updatedAt);
     return await this.exchangeService.getCandles({
       symbol: signal.symbol,
       exchangeName: signal.exchangeName,
-      currentTime,
+      signalStartTime: createdAt,
+      signalStopTime: updatedAt,
       interval,
     });
   };

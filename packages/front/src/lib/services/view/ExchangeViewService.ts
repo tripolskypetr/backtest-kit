@@ -29,11 +29,11 @@ export class ExchangeViewService {
       createdAt = pendingAt || scheduledAt,
       updatedAt,
     } = signal;
-    const currentTime = Math.max(createdAt, updatedAt);
     return await this.exchangeService.getCandles({
       symbol: signal.symbol,
       exchangeName: signal.exchangeName,
-      currentTime,
+      signalStartTime: createdAt,
+      signalStopTime: updatedAt,
       interval,
     });
   };

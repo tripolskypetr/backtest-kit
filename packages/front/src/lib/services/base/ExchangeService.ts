@@ -38,7 +38,8 @@ export class ExchangeService {
     symbol: string;
     interval: CandleInterval;
     exchangeName: ExchangeName;
-    currentTime: number;
+    signalStartTime: number;
+    signalStopTime: number;
   }) => {
     this.loggerService.log("exchangeService getCandles", {
       dto,
@@ -53,8 +54,8 @@ export class ExchangeService {
 
     const offsetMs = tick * step * 60 * 1000;
 
-    const sDate = dto.currentTime - offsetMs;
-    const eDate = Math.min(dto.currentTime + offsetMs, Date.now() - 1);
+    const sDate = dto.signalStartTime - offsetMs;
+    const eDate = Math.min(dto.signalStopTime + offsetMs, Date.now() - 1);
 
     return await Exchange.getRawCandles(
       dto.symbol,
