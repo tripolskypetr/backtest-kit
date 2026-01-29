@@ -1,5 +1,25 @@
 [
   {
+    "type": "risk.rejection",
+    "id": "a1b2c3d4-5678-4000-b9e0-f1a2b3c4d500",
+    "timestamp": 1708876000000,
+    "backtest": true,
+    "symbol": "ETHUSDT",
+    "strategyName": "main_strategy",
+    "exchangeName": "binance_exchange",
+    "rejectionNote": "Maximum active positions limit reached (3/3)",
+    "rejectionId": "max_positions_limit",
+    "activePositionCount": 3,
+    "currentPrice": 3245.67,
+    "pendingSignal": {
+      "symbol": "ETHUSDT",
+      "position": "long",
+      "priceOpen": 3245.67,
+      "priceTakeProfit": 3342.64,
+      "priceStopLoss": 3180.76
+    }
+  },
+  {
     "type": "signal.closed",
     "id": "7be1a050-132d-4000-a5e5-ea1fdf197000",
     "timestamp": 1708875300000,

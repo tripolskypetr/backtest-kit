@@ -29,8 +29,8 @@
     "url": "https://github.com/tripolskypetr/backtest-kit/issues"
   },
   "scripts": {
-    "start": "npm run build && npm run serve",
-    "serve": "cross-env NODE_ENV=development CC_ENABLE_MOCK=1 node -e \"import('./build/index.mjs').then(m => m.serve())\"",
+    "start": "npm run build && cross-env NODE_ENV=development CC_ENABLE_MOCK=1 npm run serve",
+    "serve": "node -e \"import('./build/index.mjs').then(m => m.serve())\"",
     "build": "rollup -c"
   },
   "main": "build/index.cjs",
