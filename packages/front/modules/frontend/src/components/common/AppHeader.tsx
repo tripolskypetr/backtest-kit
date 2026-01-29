@@ -135,7 +135,7 @@ export const AppHeader = ({ loading }: IAppHeaderProps) => {
         <Box className={classes.root}>
             <Box className={classes.container}>
                 <Center
-                    onClick={() => ioc.routerService.push("/dashboard")}
+                    onClick={() => ioc.routerService.push("/main")}
                     className={cx(classes.logo, LOGO_CLASS)}
                 >
                     <Avatar
@@ -145,7 +145,7 @@ export const AppHeader = ({ loading }: IAppHeaderProps) => {
                 </Center>
                 <Typography
                     variant="h4"
-                    onClick={() => ioc.routerService.push("/dashboard")}
+                    onClick={() => ioc.routerService.push("/main")}
                     className={cx(classes.title, LOGO_CLASS)}
                     sx={{ display: { xs: "none", sm: "flex" } }}
                 >
