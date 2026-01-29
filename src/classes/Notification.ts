@@ -174,6 +174,7 @@ export class NotificationInstance {
       currentPrice: data.currentPrice,
       priceOpen: data.data.priceOpen,
       position: data.data.position,
+      createdAt: data.timestamp,
     });
   };
 
@@ -194,6 +195,7 @@ export class NotificationInstance {
       currentPrice: data.currentPrice,
       priceOpen: data.data.priceOpen,
       position: data.data.position,
+      createdAt: data.timestamp,
     });
   };
 
@@ -213,6 +215,7 @@ export class NotificationInstance {
       currentPrice: data.currentPrice,
       priceOpen: data.data.priceOpen,
       position: data.data.position,
+      createdAt: data.timestamp,
     });
   };
 
@@ -231,6 +234,7 @@ export class NotificationInstance {
         exchangeName: data.exchangeName,
         percentToClose: data.percentToClose,
         currentPrice: data.currentPrice,
+        createdAt: Date.now(),
       });
     } else if (data.action === "partial-loss") {
       this._addNotification({
@@ -243,6 +247,7 @@ export class NotificationInstance {
         exchangeName: data.exchangeName,
         percentToClose: data.percentToClose,
         currentPrice: data.currentPrice,
+        createdAt: Date.now(),
       });
     } else if (data.action === "breakeven") {
       this._addNotification({
@@ -254,6 +259,7 @@ export class NotificationInstance {
         strategyName: data.strategyName,
         exchangeName: data.exchangeName,
         currentPrice: data.currentPrice,
+        createdAt: Date.now(),
       });
     } else if (data.action === "trailing-stop") {
       this._addNotification({
@@ -266,6 +272,7 @@ export class NotificationInstance {
         exchangeName: data.exchangeName,
         percentShift: data.percentShift,
         currentPrice: data.currentPrice,
+        createdAt: Date.now(),
       });
     } else if (data.action === "trailing-take") {
       this._addNotification({
@@ -278,6 +285,7 @@ export class NotificationInstance {
         exchangeName: data.exchangeName,
         percentShift: data.percentShift,
         currentPrice: data.currentPrice,
+        createdAt: Date.now(),
       });
     }
   };
@@ -299,6 +307,7 @@ export class NotificationInstance {
       activePositionCount: data.activePositionCount,
       currentPrice: data.currentPrice,
       pendingSignal: data.pendingSignal,
+      createdAt: data.timestamp,
     });
   };
 
@@ -309,7 +318,6 @@ export class NotificationInstance {
     this._addNotification({
       type: "error.info",
       id: CREATE_KEY_FN(),
-      timestamp: Date.now(),
       error: errorData(error),
       message: getErrorMessage(error),
       backtest: false,
@@ -323,7 +331,6 @@ export class NotificationInstance {
     this._addNotification({
       type: "error.critical",
       id: CREATE_KEY_FN(),
-      timestamp: Date.now(),
       error: errorData(error),
       message: getErrorMessage(error),
       backtest: false,
@@ -337,7 +344,6 @@ export class NotificationInstance {
     this._addNotification({
       type: "error.validation",
       id: CREATE_KEY_FN(),
-      timestamp: Date.now(),
       error: errorData(error),
       message: getErrorMessage(error),
       backtest: false,

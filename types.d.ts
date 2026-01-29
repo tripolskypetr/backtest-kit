@@ -1004,6 +1004,86 @@ interface IBreakeven {
 }
 
 /**
+ * Base fields for all signal commit events.
+ */
+interface SignalCommitBase {
+    symbol: string;
+    strategyName: StrategyName;
+    exchangeName: ExchangeName;
+    frameName: FrameName;
+    backtest: boolean;
+    /** Timestamp from execution context (tick's when or backtest candle timestamp) */
+    timestamp: number;
+}
+/**
+ * Cancel scheduled signal event.
+ */
+interface CancelScheduledCommit extends SignalCommitBase {
+    action: "cancel-scheduled";
+    cancelId?: string;
+}
+/**
+ * Close pending signal event.
+ */
+interface ClosePendingCommit extends SignalCommitBase {
+    action: "close-pending";
+    closeId?: string;
+}
+/**
+ * Partial profit event.
+ */
+interface PartialProfitCommit extends SignalCommitBase {
+    action: "partial-profit";
+    percentToClose: number;
+    currentPrice: number;
+}
+/**
+ * Partial loss event.
+ */
+interface PartialLossCommit extends SignalCommitBase {
+    action: "partial-loss";
+    percentToClose: number;
+    currentPrice: number;
+}
+/**
+ * Trailing stop event.
+ */
+interface TrailingStopCommit extends SignalCommitBase {
+    action: "trailing-stop";
+    percentShift: number;
+    currentPrice: number;
+}
+/**
+ * Trailing take event.
+ */
+interface TrailingTakeCommit extends SignalCommitBase {
+    action: "trailing-take";
+    percentShift: number;
+    currentPrice: number;
+}
+/**
+ * Breakeven event.
+ */
+interface BreakevenCommit extends SignalCommitBase {
+    action: "breakeven";
+    currentPrice: number;
+}
+/**
+ * Discriminated union for strategy management signal events.
+ *
+ * Emitted by strategyCommitSubject when strategy management actions are executed.
+ *
+ * Consumers:
+ * - StrategyReportService: Persists events to JSON files
+ * - StrategyMarkdownService: Accumulates events for markdown reports
+ *
+ * Note: Signal data (IPublicSignalRow) is NOT included in this contract.
+ * Consumers must retrieve signal data from StrategyCoreService using
+ * getPendingSignal() or getScheduledSignal() methods.
+ */
+type StrategyCommitContract = CancelScheduledCommit | ClosePendingCommit | PartialProfitCommit | PartialLossCommit | TrailingStopCommit | TrailingTakeCommit | BreakevenCommit;
+
+/**
  * Signal generation interval for throttling.
  * Enforces minimum time between getSignal calls.
  */
@@ -5104,84 +5184,6 @@ interface WalkerContract {
 }
 
 /**
- * Base fields for all signal commit events.
- */
-interface SignalCommitBase {
-    symbol: string;
-    strategyName: StrategyName;
-    exchangeName: ExchangeName;
-    frameName: FrameName;
-    backtest: boolean;
-}
-/**
- * Cancel scheduled signal event.
- */
-interface CancelScheduledCommit extends SignalCommitBase {
-    action: "cancel-scheduled";
-    cancelId?: string;
-}
-/**
- * Close pending signal event.
- */
-interface ClosePendingCommit extends SignalCommitBase {
-    action: "close-pending";
-    closeId?: string;
-}
-/**
- * Partial profit event.
- */
-interface PartialProfitCommit extends SignalCommitBase {
-    action: "partial-profit";
-    percentToClose: number;
-    currentPrice: number;
-}
-/**
- * Partial loss event.
- */
-interface PartialLossCommit extends SignalCommitBase {
-    action: "partial-loss";
-    percentToClose: number;
-    currentPrice: number;
-}
-/**
- * Trailing stop event.
- */
-interface TrailingStopCommit extends SignalCommitBase {
-    action: "trailing-stop";
-    percentShift: number;
-    currentPrice: number;
-}
-/**
- * Trailing take event.
- */
-interface TrailingTakeCommit extends SignalCommitBase {
-    action: "trailing-take";
-    percentShift: number;
-    currentPrice: number;
-}
-/**
- * Breakeven event.
- */
-interface BreakevenCommit extends SignalCommitBase {
-    action: "breakeven";
-    currentPrice: number;
-}
-/**
- * Discriminated union for strategy management signal events.
- *
- * Emitted by strategyCommitSubject when strategy management actions are executed.
- *
- * Consumers:
- * - StrategyReportService: Persists events to JSON files
- * - StrategyMarkdownService: Accumulates events for markdown reports
- *
- * Note: Signal data (IPublicSignalRow) is NOT included in this contract.
- * Consumers must retrieve signal data from StrategyCoreService using
- * getPendingSignal() or getScheduledSignal() methods.
- */
-type StrategyCommitContract = CancelScheduledCommit | ClosePendingCommit | PartialProfitCommit | PartialLossCommit | TrailingStopCommit | TrailingTakeCommit | BreakevenCommit;
-
-/**
  * Subscribes to all signal events with queued async processing.
  *
  * Events are processed sequentially in order received, even if callback is async.
@@ -6560,6 +6562,8 @@ interface PartialProfitAvailableNotification {
     priceOpen: number;
     /** Trade direction: "long" (buy) or "short" (sell) */
     position: "long" | "short";
+    /** Unix timestamp in milliseconds when the notification was created */
+    createdAt: number;
 }
 /**
  * Partial loss notification.
@@ -6590,6 +6594,8 @@ interface PartialLossAvailableNotification {
     priceOpen: number;
     /** Trade direction: "long" (buy) or "short" (sell) */
     position: "long" | "short";
+    /** Unix timestamp in milliseconds when the notification was created */
+    createdAt: number;
 }
 /**
  * Breakeven available notification.
@@ -6618,6 +6624,8 @@ interface BreakevenAvailableNotification {
     priceOpen: number;
     /** Trade direction: "long" (buy) or "short" (sell) */
     position: "long" | "short";
+    /** Unix timestamp in milliseconds when the notification was created */
+    createdAt: number;
 }
 /**
  * Partial profit commit notification.
@@ -6642,6 +6650,8 @@ interface PartialProfitCommitNotification {
     percentToClose: number;
     /** Current market price when partial was executed */
     currentPrice: number;
+    /** Unix timestamp in milliseconds when the notification was created */
+    createdAt: number;
 }
 /**
  * Partial loss commit notification.
@@ -6666,6 +6676,8 @@ interface PartialLossCommitNotification {
     percentToClose: number;
     /** Current market price when partial was executed */
     currentPrice: number;
+    /** Unix timestamp in milliseconds when the notification was created */
+    createdAt: number;
 }
 /**
  * Breakeven commit notification.
@@ -6688,6 +6700,8 @@ interface BreakevenCommitNotification {
     exchangeName: ExchangeName;
     /** Current market price when breakeven was executed */
     currentPrice: number;
+    /** Unix timestamp in milliseconds when the notification was created */
+    createdAt: number;
 }
 /**
  * Trailing stop commit notification.
@@ -6712,6 +6726,8 @@ interface TrailingStopCommitNotification {
     percentShift: number;
     /** Current market price when trailing stop was executed */
     currentPrice: number;
+    /** Unix timestamp in milliseconds when the notification was created */
+    createdAt: number;
 }
 /**
  * Trailing take commit notification.
@@ -6736,6 +6752,8 @@ interface TrailingTakeCommitNotification {
     percentShift: number;
     /** Current market price when trailing take was executed */
     currentPrice: number;
+    /** Unix timestamp in milliseconds when the notification was created */
+    createdAt: number;
 }
 /**
  * Risk rejection notification.
@@ -6766,6 +6784,8 @@ interface RiskRejectionNotification {
     currentPrice: number;
     /** The signal that was rejected */
     pendingSignal: ISignalDto;
+    /** Unix timestamp in milliseconds when the notification was created */
+    createdAt: number;
 }
 /**
  * Scheduled signal notification.
@@ -6844,8 +6864,6 @@ interface InfoErrorNotification {
     error: object;
     /** Human-readable error message */
     message: string;
-    /** Unix timestamp in milliseconds when error occurred */
-    timestamp: number;
     /** Always false for error notifications (errors are from live context) */
     backtest: boolean;
 }
@@ -6862,8 +6880,6 @@ interface CriticalErrorNotification {
     error: object;
     /** Human-readable error message */
     message: string;
-    /** Unix timestamp in milliseconds when critical error occurred */
-    timestamp: number;
     /** Always false for error notifications (errors are from live context) */
     backtest: boolean;
 }
@@ -6880,8 +6896,6 @@ interface ValidationErrorNotification {
     error: object;
     /** Human-readable validation error message */
     message: string;
-    /** Unix timestamp in milliseconds when validation error occurred */
-    timestamp: number;
     /** Always false for error notifications (errors are from live context) */
     backtest: boolean;
 }

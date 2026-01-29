@@ -299,6 +299,35 @@ const CREATE_COMMIT_INIT_FN = (self: StrategyConnectionService) => trycatch(
 );
 
 /**
+ * Creates a callback function for emitting commit events to strategyCommitSubject.
+ *
+ * Called by ClientStrategy when strategy management actions are executed
+ * (partialProfit, partialLoss, trailingStop, trailingTake, breakeven, cancelScheduled, closePending).
+ * Emits StrategyCommitContract event to all subscribers.
+ *
+ * @param self - Reference to StrategyConnectionService instance
+ * @returns Callback function for commit events
+ */
+const CREATE_COMMIT_FN = (self: StrategyConnectionService) => trycatch(
+  async (event: StrategyCommitContract): Promise<void> => {
+    await strategyCommitSubject.next(event);
+  },
+  {
+    fallback: (error) => {
+      const message = "StrategyConnectionService CREATE_COMMIT_FN thrown";
+      const payload = {
+        error: errorData(error),
+        message: getErrorMessage(error),
+      };
+      backtest.loggerService.warn(message, payload);
+      console.warn(message, payload);
+      errorEmitter.next(error);
+    },
+    defaultValue: null,
+  }
+);
+
+/**
  * Creates a callback function for emitting dispose events.
  *
  * Called by ClientStrategy when it is being disposed.
@@ -440,6 +469,7 @@ export class StrategyConnectionService implements TStrategy {
         onSchedulePing: CREATE_COMMIT_SCHEDULE_PING_FN(this),
         onActivePing: CREATE_COMMIT_ACTIVE_PING_FN(this),
         onDispose: CREATE_COMMIT_DISPOSE_FN(this),
+        onCommit: CREATE_COMMIT_FN(this),
       });
     }
   );

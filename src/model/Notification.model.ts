@@ -106,6 +106,8 @@ export interface PartialProfitAvailableNotification {
   priceOpen: number;
   /** Trade direction: "long" (buy) or "short" (sell) */
   position: "long" | "short";
+  /** Unix timestamp in milliseconds when the notification was created */
+  createdAt: number;
 }
 
 /**
@@ -137,6 +139,8 @@ export interface PartialLossAvailableNotification {
   priceOpen: number;
   /** Trade direction: "long" (buy) or "short" (sell) */
   position: "long" | "short";
+  /** Unix timestamp in milliseconds when the notification was created */
+  createdAt: number;
 }
 
 /**
@@ -166,6 +170,8 @@ export interface BreakevenAvailableNotification {
   priceOpen: number;
   /** Trade direction: "long" (buy) or "short" (sell) */
   position: "long" | "short";
+  /** Unix timestamp in milliseconds when the notification was created */
+  createdAt: number;
 }
 
 /**
@@ -191,6 +197,8 @@ export interface PartialProfitCommitNotification {
   percentToClose: number;
   /** Current market price when partial was executed */
   currentPrice: number;
+  /** Unix timestamp in milliseconds when the notification was created */
+  createdAt: number;
 }
 
 /**
@@ -216,6 +224,8 @@ export interface PartialLossCommitNotification {
   percentToClose: number;
   /** Current market price when partial was executed */
   currentPrice: number;
+  /** Unix timestamp in milliseconds when the notification was created */
+  createdAt: number;
 }
 
 /**
@@ -239,6 +249,8 @@ export interface BreakevenCommitNotification {
   exchangeName: ExchangeName;
   /** Current market price when breakeven was executed */
   currentPrice: number;
+  /** Unix timestamp in milliseconds when the notification was created */
+  createdAt: number;
 }
 
 /**
@@ -264,6 +276,8 @@ export interface TrailingStopCommitNotification {
   percentShift: number;
   /** Current market price when trailing stop was executed */
   currentPrice: number;
+  /** Unix timestamp in milliseconds when the notification was created */
+  createdAt: number;
 }
 
 /**
@@ -289,6 +303,8 @@ export interface TrailingTakeCommitNotification {
   percentShift: number;
   /** Current market price when trailing take was executed */
   currentPrice: number;
+  /** Unix timestamp in milliseconds when the notification was created */
+  createdAt: number;
 }
 
 /**
@@ -320,6 +336,8 @@ export interface RiskRejectionNotification {
   currentPrice: number;
   /** The signal that was rejected */
   pendingSignal: ISignalDto;
+  /** Unix timestamp in milliseconds when the notification was created */
+  createdAt: number;
 }
 
 /**
@@ -401,8 +419,6 @@ export interface InfoErrorNotification {
   error: object;
   /** Human-readable error message */
   message: string;
-  /** Unix timestamp in milliseconds when error occurred */
-  timestamp: number;
   /** Always false for error notifications (errors are from live context) */
   backtest: boolean;
 }
@@ -420,8 +436,6 @@ export interface CriticalErrorNotification {
   error: object;
   /** Human-readable error message */
   message: string;
-  /** Unix timestamp in milliseconds when critical error occurred */
-  timestamp: number;
   /** Always false for error notifications (errors are from live context) */
   backtest: boolean;
 }
@@ -439,8 +453,6 @@ export interface ValidationErrorNotification {
   error: object;
   /** Human-readable validation error message */
   message: string;
-  /** Unix timestamp in milliseconds when validation error occurred */
-  timestamp: number;
   /** Always false for error notifications (errors are from live context) */
   backtest: boolean;
 }

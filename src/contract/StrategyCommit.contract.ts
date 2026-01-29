@@ -11,6 +11,8 @@ interface SignalCommitBase {
   exchangeName: ExchangeName;
   frameName: FrameName;
   backtest: boolean;
+  /** Timestamp from execution context (tick's when or backtest candle timestamp) */
+  timestamp: number;
 }
 
 /**
