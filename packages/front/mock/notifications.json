@@ -17,7 +17,8 @@
       "priceOpen": 3245.67,
       "priceTakeProfit": 3342.64,
       "priceStopLoss": 3180.76
-    }
+    },
+    "createdAt": 1708876000000
   },
   {
     "type": "signal.closed",
@@ -36,6 +37,109 @@
     "duration": 60,
     "note": "",
     "createdAt": 1708875300000
+  },
+  {
+    "type": "partial_profit.commit",
+    "id": "c1d2e3f4-1111-4000-b1c2-d3e4f5a6b7c8",
+    "timestamp": 1708872000000,
+    "backtest": true,
+    "symbol": "BTCUSDT",
+    "strategyName": "main_strategy",
+    "exchangeName": "binance_exchange",
+    "percentToClose": 25,
+    "currentPrice": 51850.5,
+    "createdAt": 1708872000000
+  },
+  {
+    "type": "partial_profit.available",
+    "id": "a2b3c4d5-2222-4000-a1b2-c3d4e5f6a7b8",
+    "timestamp": 1708872000000,
+    "backtest": true,
+    "symbol": "BTCUSDT",
+    "strategyName": "main_strategy",
+    "exchangeName": "binance_exchange",
+    "signalId": "d56caee8-46c7-4000-a77f-cb0434f35000",
+    "level": 1,
+    "currentPrice": 51850.5,
+    "priceOpen": 51754,
+    "position": "long",
+    "createdAt": 1708872000000
+  },
+  {
+    "type": "breakeven.commit",
+    "id": "b3c4d5e6-3333-4000-b2c3-d4e5f6a7b8c9",
+    "timestamp": 1708872300000,
+    "backtest": true,
+    "symbol": "BTCUSDT",
+    "strategyName": "main_strategy",
+    "exchangeName": "binance_exchange",
+    "currentPrice": 51900.25,
+    "createdAt": 1708872300000
+  },
+  {
+    "type": "breakeven.available",
+    "id": "c4d5e6f7-4444-4000-c3d4-e5f6a7b8c9d0",
+    "timestamp": 1708872300000,
+    "backtest": true,
+    "symbol": "BTCUSDT",
+    "strategyName": "main_strategy",
+    "exchangeName": "binance_exchange",
+    "signalId": "d56caee8-46c7-4000-a77f-cb0434f35000",
+    "currentPrice": 51900.25,
+    "priceOpen": 51754,
+    "position": "long",
+    "createdAt": 1708872300000
+  },
+  {
+    "type": "trailing_stop.commit",
+    "id": "d5e6f7a8-5555-4000-d4e5-f6a7b8c9d0e1",
+    "timestamp": 1708872600000,
+    "backtest": true,
+    "symbol": "BTCUSDT",
+    "strategyName": "main_strategy",
+    "exchangeName": "binance_exchange",
+    "percentShift": 0.5,
+    "currentPrice": 51950.75,
+    "createdAt": 1708872600000
+  },
+  {
+    "type": "trailing_take.commit",
+    "id": "e6f7a8b9-6666-4000-e5f6-a7b8c9d0e1f2",
+    "timestamp": 1708872900000,
+    "backtest": true,
+    "symbol": "BTCUSDT",
+    "strategyName": "main_strategy",
+    "exchangeName": "binance_exchange",
+    "percentShift": 0.3,
+    "currentPrice": 52000,
+    "createdAt": 1708872900000
+  },
+  {
+    "type": "partial_loss.commit",
+    "id": "f7a8b9c0-7777-4000-f6a7-b8c9d0e1f2a3",
+    "timestamp": 1708873200000,
+    "backtest": true,
+    "symbol": "BTCUSDT",
+    "strategyName": "main_strategy",
+    "exchangeName": "binance_exchange",
+    "percentToClose": 15,
+    "currentPrice": 51700,
+    "createdAt": 1708873200000
+  },
+  {
+    "type": "partial_loss.available",
+    "id": "a8b9c0d1-8888-4000-a7b8-c9d0e1f2a3b4",
+    "timestamp": 1708873200000,
+    "backtest": true,
+    "symbol": "BTCUSDT",
+    "strategyName": "main_strategy",
+    "exchangeName": "binance_exchange",
+    "signalId": "d56caee8-46c7-4000-a77f-cb0434f35000",
+    "level": 1,
+    "currentPrice": 51700,
+    "priceOpen": 51754,
+    "position": "long",
+    "createdAt": 1708873200000
   },
   {
     "type": "signal.opened",
@@ -1563,7 +1667,8 @@
     "level": 10,
     "currentPrice": 51582.65415952071,
     "priceOpen": 51695.22,
-    "position": "long"
+    "position": "long",
+    "createdAt": 1708828860000
   },
   {
     "type": "partial_profit.available",
@@ -1577,7 +1682,8 @@
     "level": 10,
     "currentPrice": 51784.55981361557,
     "priceOpen": 51619.48,
-    "position": "long"
+    "position": "long",
+    "createdAt": 1708825200000
   },
   {
     "type": "partial_loss.available",
@@ -1591,7 +1697,8 @@
     "level": 10,
     "currentPrice": 51515.3246377242,
     "priceOpen": 51619.48,
-    "position": "long"
+    "position": "long",
+    "createdAt": 1708825200000
   },
   {
     "type": "partial_profit.available",
@@ -1605,7 +1712,8 @@
     "level": 10,
     "currentPrice": 50800.19241163556,
     "priceOpen": 50977.99,
-    "position": "short"
+    "position": "short",
+    "createdAt": 1708702740000
   },
   {
     "type": "partial_loss.available",
@@ -1619,7 +1727,8 @@
     "level": 30,
     "currentPrice": 51232.98823845023,
     "priceOpen": 50916.01,
-    "position": "short"
+    "position": "short",
+    "createdAt": 1708699080000
   },
   {
     "type": "partial_loss.available",
@@ -1633,7 +1742,8 @@
     "level": 20,
     "currentPrice": 51232.98823845023,
     "priceOpen": 50916.01,
-    "position": "short"
+    "position": "short",
+    "createdAt": 1708699080000
   },
   {
     "type": "partial_loss.available",
@@ -1647,7 +1757,8 @@
     "level": 10,
     "currentPrice": 51232.98823845023,
     "priceOpen": 50916.01,
-    "position": "short"
+    "position": "short",
+    "createdAt": 1708699080000
   },
   {
     "type": "partial_profit.available",
@@ -1661,7 +1772,8 @@
     "level": 10,
     "currentPrice": 51776.13314720883,
     "priceOpen": 51616.71,
-    "position": "long"
+    "position": "long",
+    "createdAt": 1708582920000
   },
   {
     "type": "partial_loss.available",
@@ -1675,7 +1787,8 @@
     "level": 10,
     "currentPrice": 51497.72660877685,
     "priceOpen": 51620.87,
-    "position": "long"
+    "position": "long",
+    "createdAt": 1708579260000
   },
   {
     "type": "partial_loss.available",
@@ -1689,7 +1802,8 @@
     "level": 10,
     "currentPrice": 51488.71366372467,
     "priceOpen": 51385.34,
-    "position": "short"
+    "position": "short",
+    "createdAt": 1708553100000
   },
   {
     "type": "partial_loss.available",
@@ -1703,7 +1817,8 @@
     "level": 30,
     "currentPrice": 51265.80381142919,
     "priceOpen": 50957.94,
-    "position": "short"
+    "position": "short",
+    "createdAt": 1708548900000
   },
   {
     "type": "partial_loss.available",
@@ -1717,7 +1832,8 @@
     "level": 20,
     "currentPrice": 51184.31465517547,
     "priceOpen": 50957.94,
-    "position": "short"
+    "position": "short",
+    "createdAt": 1708548900000
   },
   {
     "type": "partial_loss.available",
@@ -1731,7 +1847,8 @@
     "level": 10,
     "currentPrice": 51074.460187261786,
     "priceOpen": 50957.94,
-    "position": "short"
+    "position": "short",
+    "createdAt": 1708548900000
   },
   {
     "type": "partial_profit.available",
@@ -1745,7 +1862,8 @@
     "level": 10,
     "currentPrice": 51629.19460888641,
     "priceOpen": 51800,
-    "position": "short"
+    "position": "short",
+    "createdAt": 1708388640000
   },
   {
     "type": "partial_loss.available",
@@ -1759,7 +1877,8 @@
     "level": 10,
     "currentPrice": 51947.95924540789,
     "priceOpen": 51822.13,
-    "position": "short"
+    "position": "short",
+    "createdAt": 1708384980000
   },
   {
     "type": "partial_loss.available",
@@ -1773,7 +1892,8 @@
     "level": 10,
     "currentPrice": 52237.10842426467,
     "priceOpen": 52427.32,
-    "position": "long"
+    "position": "long",
+    "createdAt": 1708339020000
   },
   {
     "type": "partial_loss.available",
@@ -1787,7 +1907,8 @@
     "level": 10,
     "currentPrice": 52251.403048889675,
     "priceOpen": 52357.01,
-    "position": "long"
+    "position": "long",
+    "createdAt": 1708335360000
   },
   {
     "type": "partial_profit.available",
@@ -1801,7 +1922,8 @@
     "level": 10,
     "currentPrice": 52237.88281979302,
     "priceOpen": 52078,
-    "position": "long"
+    "position": "long",
+    "createdAt": 1707989100000
   },
   {
     "type": "partial_profit.available",
@@ -1815,7 +1937,8 @@
     "level": 10,
     "currentPrice": 49723.87861223433,
     "priceOpen": 49568.01,
-    "position": "long"
+    "position": "long",
+    "createdAt": 1707893280000
   },
   {
     "type": "partial_loss.available",
@@ -1829,7 +1952,8 @@
     "level": 10,
     "currentPrice": 47987.58254913077,
     "priceOpen": 47880.92,
-    "position": "short"
+    "position": "short",
+    "createdAt": 1707731520000
   },
   {
     "type": "partial_loss.available",
@@ -1843,7 +1967,8 @@
     "level": 20,
     "currentPrice": 48404.513339379286,
     "priceOpen": 48604,
-    "position": "long"
+    "position": "long",
+    "createdAt": 1707699300000
   },
   {
     "type": "partial_loss.available",
@@ -1857,7 +1982,8 @@
     "level": 10,
     "currentPrice": 48504.481680080266,
     "priceOpen": 48604,
-    "position": "long"
+    "position": "long",
+    "createdAt": 1707699300000
   },
   {
     "type": "partial_profit.available",
@@ -1871,7 +1997,8 @@
     "level": 20,
     "currentPrice": 48591.647004992425,
     "priceOpen": 48299.99,
-    "position": "long"
+    "position": "long",
+    "createdAt": 1707695640000
   },
   {
     "type": "breakeven.available",
@@ -1884,7 +2011,8 @@
     "signalId": "a777d156-986c-4000-adfc-a4cd8a71a000",
     "currentPrice": 48591.647004992425,
     "priceOpen": 48299.99,
-    "position": "long"
+    "position": "long",
+    "createdAt": 1707695640000
   },
   {
     "type": "partial_profit.available",
@@ -1898,7 +2026,8 @@
     "level": 10,
     "currentPrice": 48480.640286992624,
     "priceOpen": 48299.99,
-    "position": "long"
+    "position": "long",
+    "createdAt": 1707695640000
   },
   {
     "type": "partial_loss.available",
@@ -1912,7 +2041,8 @@
     "level": 10,
     "currentPrice": 48167.01001433432,
     "priceOpen": 48299.99,
-    "position": "long"
+    "position": "long",
+    "createdAt": 1707695640000
   },
   {
     "type": "partial_loss.available",
@@ -1926,7 +2056,8 @@
     "level": 10,
     "currentPrice": 48180.51668356712,
     "priceOpen": 48284,
-    "position": "long"
+    "position": "long",
+    "createdAt": 1707681120000
   },
   {
     "type": "partial_loss.available",
@@ -1940,7 +2071,8 @@
     "level": 10,
     "currentPrice": 48165.432533539046,
     "priceOpen": 48282.22,
-    "position": "long"
+    "position": "long",
+    "createdAt": 1707677460000
   },
   {
     "type": "partial_profit.available",
@@ -1954,7 +2086,8 @@
     "level": 20,
     "currentPrice": 47700.222651160446,
     "priceOpen": 47377.98,
-    "position": "long"
+    "position": "long",
+    "createdAt": 1707498600000
   },
   {
     "type": "breakeven.available",
@@ -1967,7 +2100,8 @@
     "signalId": "ce1cd29d-888a-4000-a612-36b1338b9000",
     "currentPrice": 47700.222651160446,
     "priceOpen": 47377.98,
-    "position": "long"
+    "position": "long",
+    "createdAt": 1707498600000
   },
   {
     "type": "partial_profit.available",
@@ -1981,7 +2115,8 @@
     "level": 10,
     "currentPrice": 47521.97894283117,
     "priceOpen": 47377.98,
-    "position": "long"
+    "position": "long",
+    "createdAt": 1707498600000
   },
   {
     "type": "partial_loss.available",
@@ -1995,7 +2130,8 @@
     "level": 10,
     "currentPrice": 47249.33259419059,
     "priceOpen": 47377.98,
-    "position": "long"
+    "position": "long",
+    "createdAt": 1707498600000
   },
   {
     "type": "partial_loss.available",
@@ -2009,7 +2145,8 @@
     "level": 10,
     "currentPrice": 47202.518127277806,
     "priceOpen": 47378.01,
-    "position": "long"
+    "position": "long",
+    "createdAt": 1707494940000
   },
   {
     "type": "partial_loss.available",
@@ -2023,7 +2160,8 @@
     "level": 20,
     "currentPrice": 44970.67899904455,
     "priceOpen": 45181.99,
-    "position": "long"
+    "position": "long",
+    "createdAt": 1707401280000
   },
   {
     "type": "partial_loss.available",
@@ -2037,7 +2175,8 @@
     "level": 10,
     "currentPrice": 44970.67899904455,
     "priceOpen": 45181.99,
-    "position": "long"
+    "position": "long",
+    "createdAt": 1707401280000
   },
   {
     "type": "partial_profit.available",
@@ -2051,7 +2190,8 @@
     "level": 10,
     "currentPrice": 44947.87126421306,
     "priceOpen": 44799.45,
-    "position": "long"
+    "position": "long",
+    "createdAt": 1707397620000
   },
   {
     "type": "partial_loss.available",
@@ -2065,7 +2205,8 @@
     "level": 10,
     "currentPrice": 44700.93075689441,
     "priceOpen": 44799.45,
-    "position": "long"
+    "position": "long",
+    "createdAt": 1707397620000
   },
   {
     "type": "partial_loss.available",
@@ -2079,6 +2220,7 @@
     "level": 10,
     "currentPrice": 43027.803603820954,
     "priceOpen": 42939.71,
-    "position": "short"
+    "position": "short",
+    "createdAt": 1707308400000
   }
 ]
