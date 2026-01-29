@@ -33,12 +33,6 @@ constructor();
 loggerService: LoggerService
 ```
 
-### executionContextService
-
-```ts
-executionContextService: { readonly context: IExecutionContext; }
-```
-
 ### strategyCoreService
 
 ```ts
@@ -48,74 +42,58 @@ strategyCoreService: StrategyCoreService
 ### cancelScheduled
 
 ```ts
-cancelScheduled: (symbol: string, isBacktest: boolean, context: { strategyName: string; exchangeName: string; frameName: string; }, cancelId?: string) => Promise<void>
+cancelScheduled: (symbol: string, isBacktest: boolean, context: { strategyName: string; exchangeName: string; frameName: string; }, timestamp: number, cancelId?: string) => Promise<void>
 ```
 
 Logs a cancel-scheduled event when a scheduled signal is cancelled.
 
-Retrieves the scheduled signal from StrategyCoreService and writes
-the cancellation event to the report file.
-
 ### closePending
 
 ```ts
-closePending: (symbol: string, isBacktest: boolean, context: { strategyName: string; exchangeName: string; frameName: string; }, closeId?: string) => Promise<void>
+closePending: (symbol: string, isBacktest: boolean, context: { strategyName: string; exchangeName: string; frameName: string; }, timestamp: number, closeId?: string) => Promise<void>
 ```
 
 Logs a close-pending event when a pending signal is closed.
 
-Retrieves the pending signal from StrategyCoreService and writes
-the close event to the report file.
-
 ### partialProfit
 
 ```ts
-partialProfit: (symbol: string, percentToClose: number, currentPrice: number, isBacktest: boolean, context: { strategyName: string; exchangeName: string; frameName: string; }) => Promise<void>
+partialProfit: (symbol: string, percentToClose: number, currentPrice: number, isBacktest: boolean, context: { strategyName: string; exchangeName: string; frameName: string; }, timestamp: number) => Promise<...>
 ```
 
 Logs a partial-profit event when a portion of the position is closed at profit.
 
-Records the percentage closed and current price when partial profit-taking occurs.
-
 ### partialLoss
 
 ```ts
-partialLoss: (symbol: string, percentToClose: number, currentPrice: number, isBacktest: boolean, context: { strategyName: string; exchangeName: string; frameName: string; }) => Promise<void>
+partialLoss: (symbol: string, percentToClose: number, currentPrice: number, isBacktest: boolean, context: { strategyName: string; exchangeName: string; frameName: string; }, timestamp: number) => Promise<...>
 ```
 
 Logs a partial-loss event when a portion of the position is closed at loss.
 
-Records the percentage closed and current price when partial loss-cutting occurs.
-
 ### trailingStop
 
 ```ts
-trailingStop: (symbol: string, percentShift: number, currentPrice: number, isBacktest: boolean, context: { strategyName: string; exchangeName: string; frameName: string; }) => Promise<void>
+trailingStop: (symbol: string, percentShift: number, currentPrice: number, isBacktest: boolean, context: { strategyName: string; exchangeName: string; frameName: string; }, timestamp: number) => Promise<...>
 ```
 
 Logs a trailing-stop event when the stop-loss is adjusted.
 
-Records the percentage shift and current price when trailing stop moves.
-
 ### trailingTake
 
 ```ts
-trailingTake: (symbol: string, percentShift: number, currentPrice: number, isBacktest: boolean, context: { strategyName: string; exchangeName: string; frameName: string; }) => Promise<void>
+trailingTake: (symbol: string, percentShift: number, currentPrice: number, isBacktest: boolean, context: { strategyName: string; exchangeName: string; frameName: string; }, timestamp: number) => Promise<...>
 ```
 
 Logs a trailing-take event when the take-profit is adjusted.
 
-Records the percentage shift and current price when trailing take-profit moves.
-
 ### breakeven
 
 ```ts
-breakeven: (symbol: string, currentPrice: number, isBacktest: boolean, context: { strategyName: string; exchangeName: string; frameName: string; }) => Promise<void>
+breakeven: (symbol: string, currentPrice: number, isBacktest: boolean, context: { strategyName: string; exchangeName: string; frameName: string; }, timestamp: number) => Promise<void>
 ```
 
 Logs a breakeven event when the stop-loss is moved to entry price.
-
-Records the current price when breakeven protection is activated.
 
 ### subscribe
 

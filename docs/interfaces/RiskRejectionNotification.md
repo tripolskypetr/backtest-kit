@@ -105,3 +105,11 @@ pendingSignal: ISignalDto
 ```
 
 The signal that was rejected
+
+### createdAt
+
+```ts
+createdAt: number
+```
+
+Unix timestamp in milliseconds when the notification was created

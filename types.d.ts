@@ -13913,9 +13913,6 @@ type Columns = ColumnModel<StrategyEvent>;
  */
 declare class StrategyMarkdownService {
     readonly loggerService: LoggerService;
-    readonly executionContextService: {
-        readonly context: IExecutionContext;
-    };
     readonly strategyCoreService: StrategyCoreService;
     /**
      * Memoized factory for ReportStorage instances.
@@ -13929,114 +13926,105 @@ declare class StrategyMarkdownService {
     /**
      * Records a cancel-scheduled event when a scheduled signal is cancelled.
      *
-     * Retrieves the scheduled signal from StrategyCoreService and stores
-     * the cancellation event in the appropriate ReportStorage.
-     *
      * @param symbol - Trading pair symbol (e.g., "BTCUSDT")
      * @param isBacktest - Whether this is a backtest or live trading event
      * @param context - Strategy context with strategyName, exchangeName, frameName
+     * @param timestamp - Timestamp from StrategyCommitContract (execution context time)
      * @param cancelId - Optional identifier for the cancellation reason
      */
     cancelScheduled: (symbol: string, isBacktest: boolean, context: {
         strategyName: StrategyName;
         exchangeName: ExchangeName;
         frameName: FrameName;
-    }, cancelId?: string) => Promise<void>;
+    }, timestamp: number, cancelId?: string) => Promise<void>;
     /**
      * Records a close-pending event when a pending signal is closed.
-     *
-     * Retrieves the pending signal from StrategyCoreService and stores
-     * the close event in the appropriate ReportStorage.
      *
      * @param symbol - Trading pair symbol (e.g., "BTCUSDT")
      * @param isBacktest - Whether this is a backtest or live trading event
      * @param context - Strategy context with strategyName, exchangeName, frameName
+     * @param timestamp - Timestamp from StrategyCommitContract (execution context time)
      * @param closeId - Optional identifier for the close reason
      */
     closePending: (symbol: string, isBacktest: boolean, context: {
         strategyName: StrategyName;
         exchangeName: ExchangeName;
         frameName: FrameName;
-    }, closeId?: string) => Promise<void>;
+    }, timestamp: number, closeId?: string) => Promise<void>;
     /**
      * Records a partial-profit event when a portion of the position is closed at profit.
-     *
-     * Stores the percentage closed and current price when partial profit-taking occurs.
      *
      * @param symbol - Trading pair symbol (e.g., "BTCUSDT")
      * @param percentToClose - Percentage of position to close (0-100)
      * @param currentPrice - Current market price at time of partial close
      * @param isBacktest - Whether this is a backtest or live trading event
      * @param context - Strategy context with strategyName, exchangeName, frameName
+     * @param timestamp - Timestamp from StrategyCommitContract (execution context time)
      */
     partialProfit: (symbol: string, percentToClose: number, currentPrice: number, isBacktest: boolean, context: {
         strategyName: StrategyName;
         exchangeName: ExchangeName;
         frameName: FrameName;
-    }) => Promise<void>;
+    }, timestamp: number) => Promise<void>;
     /**
      * Records a partial-loss event when a portion of the position is closed at loss.
-     *
-     * Stores the percentage closed and current price when partial loss-cutting occurs.
      *
      * @param symbol - Trading pair symbol (e.g., "BTCUSDT")
      * @param percentToClose - Percentage of position to close (0-100)
      * @param currentPrice - Current market price at time of partial close
      * @param isBacktest - Whether this is a backtest or live trading event
      * @param context - Strategy context with strategyName, exchangeName, frameName
+     * @param timestamp - Timestamp from StrategyCommitContract (execution context time)
      */
     partialLoss: (symbol: string, percentToClose: number, currentPrice: number, isBacktest: boolean, context: {
         strategyName: StrategyName;
         exchangeName: ExchangeName;
         frameName: FrameName;
-    }) => Promise<void>;
+    }, timestamp: number) => Promise<void>;
     /**
      * Records a trailing-stop event when the stop-loss is adjusted.
-     *
-     * Stores the percentage shift and current price when trailing stop moves.
      *
      * @param symbol - Trading pair symbol (e.g., "BTCUSDT")
      * @param percentShift - Percentage the stop-loss was shifted
      * @param currentPrice - Current market price at time of adjustment
      * @param isBacktest - Whether this is a backtest or live trading event
      * @param context - Strategy context with strategyName, exchangeName, frameName
+     * @param timestamp - Timestamp from StrategyCommitContract (execution context time)
      */
     trailingStop: (symbol: string, percentShift: number, currentPrice: number, isBacktest: boolean, context: {
         strategyName: StrategyName;
         exchangeName: ExchangeName;
         frameName: FrameName;
-    }) => Promise<void>;
+    }, timestamp: number) => Promise<void>;
     /**
      * Records a trailing-take event when the take-profit is adjusted.
-     *
-     * Stores the percentage shift and current price when trailing take-profit moves.
      *
      * @param symbol - Trading pair symbol (e.g., "BTCUSDT")
      * @param percentShift - Percentage the take-profit was shifted
      * @param currentPrice - Current market price at time of adjustment
      * @param isBacktest - Whether this is a backtest or live trading event
      * @param context - Strategy context with strategyName, exchangeName, frameName
+     * @param timestamp - Timestamp from StrategyCommitContract (execution context time)
      */
     trailingTake: (symbol: string, percentShift: number, currentPrice: number, isBacktest: boolean, context: {
         strategyName: StrategyName;
         exchangeName: ExchangeName;
         frameName: FrameName;
-    }) => Promise<void>;
+    }, timestamp: number) => Promise<void>;
     /**
      * Records a breakeven event when the stop-loss is moved to entry price.
-     *
-     * Stores the current price when breakeven protection is activated.
      *
      * @param symbol - Trading pair symbol (e.g., "BTCUSDT")
      * @param currentPrice - Current market price at time of breakeven activation
      * @param isBacktest - Whether this is a backtest or live trading event
      * @param context - Strategy context with strategyName, exchangeName, frameName
+     * @param timestamp - Timestamp from StrategyCommitContract (execution context time)
      */
     breakeven: (symbol: string, currentPrice: number, isBacktest: boolean, context: {
         strategyName: StrategyName;
         exchangeName: ExchangeName;
         frameName: FrameName;
-    }) => Promise<void>;
+    }, timestamp: number) => Promise<void>;
     /**
      * Retrieves aggregated statistics from accumulated strategy events.
      *
@@ -19411,141 +19399,114 @@ declare class RiskReportService {
  * - Events are written via Report.writeData() with "strategy" category
  * - Call unsubscribe() to disable event logging
  *
- * @example
- * ```typescript
- * // Service is typically used internally by strategy management classes
- * strategyReportService.subscribe();
- *
- * // Events are logged automatically when strategy actions occur
- * await strategyReportService.partialProfit("BTCUSDT", 50, 50100, false, {
- *   strategyName: "my-strategy",
- *   exchangeName: "binance",
- *   frameName: "1h"
- * });
- *
- * strategyReportService.unsubscribe();
- * ```
- *
  * @see StrategyMarkdownService for in-memory event accumulation and markdown report generation
  * @see Report for the underlying persistence mechanism
  */
 declare class StrategyReportService {
     readonly loggerService: LoggerService;
-    readonly executionContextService: {
-        readonly context: IExecutionContext;
-    };
     readonly strategyCoreService: StrategyCoreService;
     /**
      * Logs a cancel-scheduled event when a scheduled signal is cancelled.
      *
-     * Retrieves the scheduled signal from StrategyCoreService and writes
-     * the cancellation event to the report file.
-     *
      * @param symbol - Trading pair symbol (e.g., "BTCUSDT")
      * @param isBacktest - Whether this is a backtest or live trading event
      * @param context - Strategy context with strategyName, exchangeName, frameName
+     * @param timestamp - Timestamp from StrategyCommitContract (execution context time)
      * @param cancelId - Optional identifier for the cancellation reason
      */
     cancelScheduled: (symbol: string, isBacktest: boolean, context: {
         strategyName: StrategyName;
         exchangeName: ExchangeName;
         frameName: FrameName;
-    }, cancelId?: string) => Promise<void>;
+    }, timestamp: number, cancelId?: string) => Promise<void>;
     /**
      * Logs a close-pending event when a pending signal is closed.
-     *
-     * Retrieves the pending signal from StrategyCoreService and writes
-     * the close event to the report file.
      *
      * @param symbol - Trading pair symbol (e.g., "BTCUSDT")
      * @param isBacktest - Whether this is a backtest or live trading event
      * @param context - Strategy context with strategyName, exchangeName, frameName
+     * @param timestamp - Timestamp from StrategyCommitContract (execution context time)
      * @param closeId - Optional identifier for the close reason
      */
     closePending: (symbol: string, isBacktest: boolean, context: {
         strategyName: StrategyName;
         exchangeName: ExchangeName;
         frameName: FrameName;
-    }, closeId?: string) => Promise<void>;
+    }, timestamp: number, closeId?: string) => Promise<void>;
     /**
      * Logs a partial-profit event when a portion of the position is closed at profit.
-     *
-     * Records the percentage closed and current price when partial profit-taking occurs.
      *
      * @param symbol - Trading pair symbol (e.g., "BTCUSDT")
      * @param percentToClose - Percentage of position to close (0-100)
      * @param currentPrice - Current market price at time of partial close
      * @param isBacktest - Whether this is a backtest or live trading event
      * @param context - Strategy context with strategyName, exchangeName, frameName
+     * @param timestamp - Timestamp from StrategyCommitContract (execution context time)
      */
     partialProfit: (symbol: string, percentToClose: number, currentPrice: number, isBacktest: boolean, context: {
         strategyName: StrategyName;
         exchangeName: ExchangeName;
         frameName: FrameName;
-    }) => Promise<void>;
+    }, timestamp: number) => Promise<void>;
     /**
      * Logs a partial-loss event when a portion of the position is closed at loss.
-     *
-     * Records the percentage closed and current price when partial loss-cutting occurs.
      *
      * @param symbol - Trading pair symbol (e.g., "BTCUSDT")
      * @param percentToClose - Percentage of position to close (0-100)
      * @param currentPrice - Current market price at time of partial close
      * @param isBacktest - Whether this is a backtest or live trading event
      * @param context - Strategy context with strategyName, exchangeName, frameName
+     * @param timestamp - Timestamp from StrategyCommitContract (execution context time)
      */
     partialLoss: (symbol: string, percentToClose: number, currentPrice: number, isBacktest: boolean, context: {
         strategyName: StrategyName;
         exchangeName: ExchangeName;
         frameName: FrameName;
-    }) => Promise<void>;
+    }, timestamp: number) => Promise<void>;
     /**
      * Logs a trailing-stop event when the stop-loss is adjusted.
-     *
-     * Records the percentage shift and current price when trailing stop moves.
      *
      * @param symbol - Trading pair symbol (e.g., "BTCUSDT")
      * @param percentShift - Percentage the stop-loss was shifted
      * @param currentPrice - Current market price at time of adjustment
      * @param isBacktest - Whether this is a backtest or live trading event
      * @param context - Strategy context with strategyName, exchangeName, frameName
+     * @param timestamp - Timestamp from StrategyCommitContract (execution context time)
      */
     trailingStop: (symbol: string, percentShift: number, currentPrice: number, isBacktest: boolean, context: {
         strategyName: StrategyName;
         exchangeName: ExchangeName;
         frameName: FrameName;
-    }) => Promise<void>;
+    }, timestamp: number) => Promise<void>;
     /**
      * Logs a trailing-take event when the take-profit is adjusted.
-     *
-     * Records the percentage shift and current price when trailing take-profit moves.
      *
      * @param symbol - Trading pair symbol (e.g., "BTCUSDT")
      * @param percentShift - Percentage the take-profit was shifted
      * @param currentPrice - Current market price at time of adjustment
      * @param isBacktest - Whether this is a backtest or live trading event
      * @param context - Strategy context with strategyName, exchangeName, frameName
+     * @param timestamp - Timestamp from StrategyCommitContract (execution context time)
      */
     trailingTake: (symbol: string, percentShift: number, currentPrice: number, isBacktest: boolean, context: {
         strategyName: StrategyName;
         exchangeName: ExchangeName;
         frameName: FrameName;
-    }) => Promise<void>;
+    }, timestamp: number) => Promise<void>;
     /**
      * Logs a breakeven event when the stop-loss is moved to entry price.
-     *
-     * Records the current price when breakeven protection is activated.
      *
      * @param symbol - Trading pair symbol (e.g., "BTCUSDT")
      * @param currentPrice - Current market price at time of breakeven activation
      * @param isBacktest - Whether this is a backtest or live trading event
      * @param context - Strategy context with strategyName, exchangeName, frameName
+     * @param timestamp - Timestamp from StrategyCommitContract (execution context time)
      */
     breakeven: (symbol: string, currentPrice: number, isBacktest: boolean, context: {
         strategyName: StrategyName;
         exchangeName: ExchangeName;
         frameName: FrameName;
-    }) => Promise<void>;
+    }, timestamp: number) => Promise<void>;
     /**
      * Initializes the service for event logging.
      *

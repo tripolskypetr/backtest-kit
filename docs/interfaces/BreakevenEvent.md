@@ -98,10 +98,10 @@ originalPriceStopLoss: number
 
 Original stop loss price set at signal creation
 
-### totalExecuted
+### partialExecuted
 
 ```ts
-totalExecuted: number
+partialExecuted: number
 ```
 
 Total executed percentage from partial closes

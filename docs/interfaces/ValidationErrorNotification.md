@@ -42,14 +42,6 @@ message: string
 
 Human-readable validation error message
 
-### timestamp
-
-```ts
-timestamp: number
-```
-
-Unix timestamp in milliseconds when validation error occurred
-
 ### backtest
 
 ```ts

@@ -10,6 +10,14 @@ Used for persisting signals with accurate creation time.
 
 ## Properties
 
+### createdAt
+
+```ts
+createdAt: number
+```
+
+Creation timestamp taken from IStrategyTickResult
+
 ### updatedAt
 
 ```ts
