@@ -17,6 +17,7 @@ import NotificationViewService from "./services/view/NotificationViewService";
 import StorageViewService from "./services/view/StorageViewService";
 
 import TYPES from "./core/TYPES";
+import SymbolViewService from "./services/view/SymbolViewService";
 
 const baseServices = {
   errorService: inject<ErrorService>(TYPES.errorService),
@@ -36,6 +37,7 @@ const viewServices = {
   exchangeViewService: inject<ExchangeViewService>(TYPES.exchangeViewService),
   notificationViewService: inject<NotificationViewService>(TYPES.notificationViewService),
   storageViewService: inject<StorageViewService>(TYPES.storageViewService),
+  symbolViewService: inject<SymbolViewService>(TYPES.symbolViewService),
 };
 
 export const ioc = {

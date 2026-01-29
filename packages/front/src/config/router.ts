@@ -7,6 +7,7 @@ import health from "../routes/health";
 import mock from "../routes/mock";
 import view from "../routes/view";
 import icon from "../routes/icon";
+import dict from "../routes/dict";
 
 import { CC_WWWROOT_PATH } from "./params";
 
@@ -28,6 +29,10 @@ router.all("/api/v1/view/*", (req, res) => {
 
 router.all("/api/v1/icon/*", (req, res) => {
   return icon(req, res, finalhandler(req, res));
+});
+
+router.all("/api/v1/dict/*", (req, res) => {
+  return dict(req, res, finalhandler(req, res));
 });
 
 router.get("/*", (req, res) =>

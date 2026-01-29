@@ -56,23 +56,6 @@ export class SymbolConnectionService {
     return symbolList;
   });
 
-  public getSymbol = memoize(
-    ([symbol]) => `${symbol}`,
-    async (symbol: string) => {
-      this.loggerService.log("symbolConnectionService getSymbol", {
-        symbol,
-      });
-      const symbolList = await this.getSymbolList();
-      const target = symbolList.find((item) => item.symbol === symbol);
-      if (!target) {
-        throw new Error(
-          `symbolConnectionService getSymbol no item found symbol=${symbol}`
-        );
-      }
-      return target;
-    }
-  );
-
   protected init = singleshot(async () => {
     this.loggerService.log("symbolConnectionService init");
     getSymbolList();

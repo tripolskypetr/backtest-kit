@@ -98,6 +98,14 @@ declare class SymbolConnectionService {
         displayName: string;
         index: number;
     }[]>) & functools_kit.ISingleshotClearable;
+    protected init: (() => Promise<void>) & functools_kit.ISingleshotClearable;
+}
+
+declare class SymbolMetaService {
+    private readonly symbolConnectionService;
+    private readonly loggerService;
+    getSymbolList: (() => Promise<string[]>) & functools_kit.ISingleshotClearable;
+    getSymbolMap: (() => Promise<{}>) & functools_kit.ISingleshotClearable;
     getSymbol: ((symbol: string) => Promise<{
         color: string;
         description: string;
@@ -117,7 +125,6 @@ declare class SymbolConnectionService {
         displayName: string;
         index: number;
     }>>;
-    protected init: (() => Promise<void>) & functools_kit.ISingleshotClearable;
 }
 
 declare const ioc: {
@@ -127,6 +134,7 @@ declare const ioc: {
     notificationMockService: NotificationMockService;
     storageMockService: StorageMockService;
     exchangeMockService: ExchangeMockService;
+    symbolMetaService: SymbolMetaService;
     symbolConnectionService: SymbolConnectionService;
     loggerService: LoggerService;
     exchangeService: ExchangeService;

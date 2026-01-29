@@ -16,6 +16,7 @@ const viewServices = {
   exchangeViewService: Symbol("exchangeViewService"),
   notificationViewService: Symbol("notificationViewService"),
   storageViewService: Symbol("storageViewService"),
+  symbolViewService: Symbol("symbolViewService"),
 };
 
 export const TYPES = {

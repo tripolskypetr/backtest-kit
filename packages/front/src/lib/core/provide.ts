@@ -9,6 +9,7 @@ import ExchangeViewService from "../services/view/ExchangeViewService";
 import { provide } from "./di";
 import { TYPES } from "./types";
 import SymbolConnectionService from "../services/connection/SymbolConnectionService";
+import SymbolMetaService from "../services/meta/SymbolMetaService";
 
 {
   provide(TYPES.loggerService, () => new LoggerService());
@@ -17,6 +18,10 @@ import SymbolConnectionService from "../services/connection/SymbolConnectionServ
 
 {
   provide(TYPES.symbolConnectionService, () => new SymbolConnectionService());
+}
+
+{
+  provide(TYPES.symbolMetaService, () => new SymbolMetaService());
 }
 
 {
