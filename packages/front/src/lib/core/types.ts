@@ -3,6 +3,10 @@ const baseServices = {
     exchangeService: Symbol('exchangeService'),
 };
 
+const connectionServices = {
+    symbolConnectionService: Symbol("symbolConnectionService"),
+}
+
 const mockServices = {
     notificationMockService: Symbol("notificationMockService"),
     storageMockService: Symbol("storageMockService"),
@@ -17,6 +21,7 @@ const viewServices = {
 
 export const TYPES = {
     ...baseServices,
+    ...connectionServices,
     ...mockServices,
     ...viewServices,
 }

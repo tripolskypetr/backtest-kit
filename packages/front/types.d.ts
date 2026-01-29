@@ -15,6 +15,16 @@ interface ILogger {
 
 declare const setLogger: (logger: ILogger) => void;
 
+interface SymbolModel {
+    icon: string;
+    logo: string;
+    symbol: string;
+    displayName: string;
+    color: string;
+    priority: number;
+    description: string;
+}
+
 declare class LoggerService implements ILogger {
     private _commonLogger;
     log: (topic: string, ...args: any[]) => Promise<void>;
@@ -76,6 +86,40 @@ declare class ExchangeViewService {
     getCandles: (signalId: string, interval: CandleInterval) => Promise<backtest_kit.ICandleData[]>;
 }
 
+declare class SymbolConnectionService {
+    private readonly loggerService;
+    getSymbolList: (() => Promise<{
+        color: string;
+        description: string;
+        symbol: string;
+        icon: string;
+        logo: string;
+        priority: number;
+        displayName: string;
+        index: number;
+    }[]>) & functools_kit.ISingleshotClearable;
+    getSymbol: ((symbol: string) => Promise<{
+        color: string;
+        description: string;
+        symbol: string;
+        icon: string;
+        logo: string;
+        priority: number;
+        displayName: string;
+        index: number;
+    }>) & functools_kit.IClearableMemoize<string> & functools_kit.IControlMemoize<string, Promise<{
+        color: string;
+        description: string;
+        symbol: string;
+        icon: string;
+        logo: string;
+        priority: number;
+        displayName: string;
+        index: number;
+    }>>;
+    protected init: (() => Promise<void>) & functools_kit.ISingleshotClearable;
+}
+
 declare const ioc: {
     notificationViewService: NotificationViewService;
     storageViewService: StorageViewService;
@@ -83,8 +127,9 @@ declare const ioc: {
     notificationMockService: NotificationMockService;
     storageMockService: StorageMockService;
     exchangeMockService: ExchangeMockService;
+    symbolConnectionService: SymbolConnectionService;
     loggerService: LoggerService;
     exchangeService: ExchangeService;
 };
 
-export { getRouter, ioc as lib, serve, setLogger };
+export { type SymbolModel, getRouter, ioc as lib, serve, setLogger };
