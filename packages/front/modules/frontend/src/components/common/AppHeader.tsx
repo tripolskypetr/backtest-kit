@@ -13,6 +13,7 @@ import {
     Center,
     FieldType,
     IOption,
+    openBlank,
     reloadPage,
     sleep,
     TypedField,
@@ -24,6 +25,7 @@ import {
 import {
     AccountBalance,
     Announcement,
+    GitHub,
     Logout,
     MonetizationOn,
     Newspaper,
@@ -35,7 +37,6 @@ import { ioc } from "../../lib";
 import IconWrapper from "./IconWrapper";
 import { defaultSlots } from "../OneSlotFactory";
 import NotificationView from "./NotificationView";
-import { reloadSubject } from "../../config/emitters";
 
 const LOADER_HEIGHT = 4;
 
@@ -116,9 +117,9 @@ interface IAppHeaderProps {
 
 const actions: IOption[] = [
     {
-        action: "reload-action",
-        icon: () => <IconWrapper icon={Refresh} color="#4caf50" />,
-        label: "Refresh",
+        action: "github-action",
+        icon: () => <IconWrapper icon={GitHub} color="#101411" />,
+        label: "Open GitHub",
     },
 ];
 
@@ -127,7 +128,7 @@ export const AppHeader = ({ loading }: IAppHeaderProps) => {
 
     const handleAction = async (action: string) => {
         if (action === "reload-action") {
-            await reloadSubject.next();
+            openBlank("https://github.com/tripolskypetr/backtest-kit");
         }
     };
 
@@ -135,7 +136,11 @@ export const AppHeader = ({ loading }: IAppHeaderProps) => {
         <Box className={classes.root}>
             <Box className={classes.container}>
                 <Center
-                    onClick={() => ioc.routerService.push("/main")}
+                    onClick={() =>
+                        openBlank(
+                            "https://github.com/tripolskypetr/backtest-kit",
+                        )
+                    }
                     className={cx(classes.logo, LOGO_CLASS)}
                 >
                     <Avatar
@@ -145,16 +150,30 @@ export const AppHeader = ({ loading }: IAppHeaderProps) => {
                 </Center>
                 <Typography
                     variant="h4"
-                    onClick={() => ioc.routerService.push("/main")}
+                    onClick={() =>
+                        openBlank(
+                            "https://github.com/tripolskypetr/backtest-kit",
+                        )
+                    }
                     className={cx(classes.title, LOGO_CLASS)}
                     sx={{ display: { xs: "none", sm: "flex" } }}
                 >
-                    BacktestKit
+                    Backtest Kit
                 </Typography>
                 <div className={classes.stretch} />
                 <NotificationView />
                 <ActionMenu
                     className={classes.actionMenu}
+                    sx={{
+                        ml: {
+                            xs: 1,
+                            md: 2,
+                        },
+                        mr: {
+                            xs: 1,
+                            sm: 2,
+                        },
+                    }}
                     transparent
                     onAction={handleAction}
                     options={actions}
