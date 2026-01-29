@@ -4,9 +4,6 @@ import TYPES from "../../core/types";
 import StrategyCoreService from "../core/StrategyCoreService";
 import { Report } from "../../../classes/Report";
 import { compose, singleshot } from "functools-kit";
-import ExecutionContextService, {
-  TExecutionContextService,
-} from "../context/ExecutionContextService";
 import { FrameName } from "../../../interfaces/Frame.interface";
 import { ExchangeName } from "../../../interfaces/Exchange.interface";
 import { StrategyName } from "../../../interfaces/Strategy.interface";
@@ -17,27 +14,9 @@ import {
   ClosePendingCommit,
   PartialLossCommit,
   PartialProfitCommit,
-  StrategyCommitContract,
   TrailingStopCommit,
   TrailingTakeCommit,
 } from "../../../contract/StrategyCommit.contract";
-
-/**
- * Extracts execution context timestamp for strategy event logging.
- *
- * @param self - The StrategyReportService instance to extract context from
- * @returns Object containing ISO 8601 formatted timestamp, or empty string if no context
- * @internal
- */
-const GET_EXECUTION_CONTEXT_FN = (self: StrategyReportService) => {
-  if (ExecutionContextService.hasContext()) {
-    const { when } = self.executionContextService.context;
-    return { when: when.toISOString() };
-  }
-  return {
-    when: "",
-  };
-};
 
 /**
  * Service for persisting strategy management events to JSON report files.
@@ -54,29 +33,11 @@ const GET_EXECUTION_CONTEXT_FN = (self: StrategyReportService) => {
  * - Events are written via Report.writeData() with "strategy" category
  * - Call unsubscribe() to disable event logging
  *
- * @example
- * ```typescript
- * // Service is typically used internally by strategy management classes
- * strategyReportService.subscribe();
- *
- * // Events are logged automatically when strategy actions occur
- * await strategyReportService.partialProfit("BTCUSDT", 50, 50100, false, {
- *   strategyName: "my-strategy",
- *   exchangeName: "binance",
- *   frameName: "1h"
- * });
- *
- * strategyReportService.unsubscribe();
- * ```
- *
  * @see StrategyMarkdownService for in-memory event accumulation and markdown report generation
  * @see Report for the underlying persistence mechanism
  */
 export class StrategyReportService {
   readonly loggerService = inject<LoggerService>(TYPES.loggerService);
-  readonly executionContextService = inject<TExecutionContextService>(
-    TYPES.executionContextService,
-  );
   readonly strategyCoreService = inject<StrategyCoreService>(
     TYPES.strategyCoreService,
   );
@@ -84,12 +45,10 @@ export class StrategyReportService {
   /**
    * Logs a cancel-scheduled event when a scheduled signal is cancelled.
    *
-   * Retrieves the scheduled signal from StrategyCoreService and writes
-   * the cancellation event to the report file.
-   *
    * @param symbol - Trading pair symbol (e.g., "BTCUSDT")
    * @param isBacktest - Whether this is a backtest or live trading event
    * @param context - Strategy context with strategyName, exchangeName, frameName
+   * @param timestamp - Timestamp from StrategyCommitContract (execution context time)
    * @param cancelId - Optional identifier for the cancellation reason
    */
   public cancelScheduled = async (
@@ -100,6 +59,7 @@ export class StrategyReportService {
       exchangeName: ExchangeName;
       frameName: FrameName;
     },
+    timestamp: number,
     cancelId?: string,
   ) => {
     this.loggerService.log("strategyReportService cancelScheduled", {
@@ -110,7 +70,6 @@ export class StrategyReportService {
     if (!this.subscribe.hasValue()) {
       return;
     }
-    const { when: createdAt } = GET_EXECUTION_CONTEXT_FN(this);
     const scheduledRow = await this.strategyCoreService.getScheduledSignal(
       isBacktest,
       symbol,
@@ -123,12 +82,14 @@ export class StrategyReportService {
     if (!scheduledRow) {
       return;
     }
+    const createdAt = new Date(timestamp).toISOString();
     await Report.writeData(
       "strategy",
       {
         action: "cancel-scheduled",
         cancelId,
         symbol,
+        timestamp,
         createdAt,
       },
       {
@@ -145,12 +106,10 @@ export class StrategyReportService {
   /**
    * Logs a close-pending event when a pending signal is closed.
    *
-   * Retrieves the pending signal from StrategyCoreService and writes
-   * the close event to the report file.
-   *
    * @param symbol - Trading pair symbol (e.g., "BTCUSDT")
    * @param isBacktest - Whether this is a backtest or live trading event
    * @param context - Strategy context with strategyName, exchangeName, frameName
+   * @param timestamp - Timestamp from StrategyCommitContract (execution context time)
    * @param closeId - Optional identifier for the close reason
    */
   public closePending = async (
@@ -161,6 +120,7 @@ export class StrategyReportService {
       exchangeName: ExchangeName;
       frameName: FrameName;
     },
+    timestamp: number,
     closeId?: string,
   ) => {
     this.loggerService.log("strategyReportService closePending", {
@@ -171,7 +131,6 @@ export class StrategyReportService {
     if (!this.subscribe.hasValue()) {
       return;
     }
-    const { when: createdAt } = GET_EXECUTION_CONTEXT_FN(this);
     const pendingRow = await this.strategyCoreService.getPendingSignal(
       isBacktest,
       symbol,
@@ -184,12 +143,14 @@ export class StrategyReportService {
     if (!pendingRow) {
       return;
     }
+    const createdAt = new Date(timestamp).toISOString();
     await Report.writeData(
       "strategy",
       {
         action: "close-pending",
         closeId,
         symbol,
+        timestamp,
         createdAt,
       },
       {
@@ -206,13 +167,12 @@ export class StrategyReportService {
   /**
    * Logs a partial-profit event when a portion of the position is closed at profit.
    *
-   * Records the percentage closed and current price when partial profit-taking occurs.
-   *
    * @param symbol - Trading pair symbol (e.g., "BTCUSDT")
    * @param percentToClose - Percentage of position to close (0-100)
    * @param currentPrice - Current market price at time of partial close
    * @param isBacktest - Whether this is a backtest or live trading event
    * @param context - Strategy context with strategyName, exchangeName, frameName
+   * @param timestamp - Timestamp from StrategyCommitContract (execution context time)
    */
   public partialProfit = async (
     symbol: string,
@@ -224,6 +184,7 @@ export class StrategyReportService {
       exchangeName: ExchangeName;
       frameName: FrameName;
     },
+    timestamp: number,
   ) => {
     this.loggerService.log("strategyReportService partialProfit", {
       symbol,
@@ -234,7 +195,6 @@ export class StrategyReportService {
     if (!this.subscribe.hasValue()) {
       return;
     }
-    const { when: createdAt } = GET_EXECUTION_CONTEXT_FN(this);
     const pendingRow = await this.strategyCoreService.getPendingSignal(
       isBacktest,
       symbol,
@@ -247,6 +207,7 @@ export class StrategyReportService {
     if (!pendingRow) {
       return;
     }
+    const createdAt = new Date(timestamp).toISOString();
     await Report.writeData(
       "strategy",
       {
@@ -254,6 +215,7 @@ export class StrategyReportService {
         percentToClose,
         currentPrice,
         symbol,
+        timestamp,
         createdAt,
       },
       {
@@ -270,13 +232,12 @@ export class StrategyReportService {
   /**
    * Logs a partial-loss event when a portion of the position is closed at loss.
    *
-   * Records the percentage closed and current price when partial loss-cutting occurs.
-   *
    * @param symbol - Trading pair symbol (e.g., "BTCUSDT")
    * @param percentToClose - Percentage of position to close (0-100)
    * @param currentPrice - Current market price at time of partial close
    * @param isBacktest - Whether this is a backtest or live trading event
    * @param context - Strategy context with strategyName, exchangeName, frameName
+   * @param timestamp - Timestamp from StrategyCommitContract (execution context time)
    */
   public partialLoss = async (
     symbol: string,
@@ -288,6 +249,7 @@ export class StrategyReportService {
       exchangeName: ExchangeName;
       frameName: FrameName;
     },
+    timestamp: number,
   ) => {
     this.loggerService.log("strategyReportService partialLoss", {
       symbol,
@@ -298,7 +260,6 @@ export class StrategyReportService {
     if (!this.subscribe.hasValue()) {
       return;
     }
-    const { when: createdAt } = GET_EXECUTION_CONTEXT_FN(this);
     const pendingRow = await this.strategyCoreService.getPendingSignal(
       isBacktest,
       symbol,
@@ -311,6 +272,7 @@ export class StrategyReportService {
     if (!pendingRow) {
       return;
     }
+    const createdAt = new Date(timestamp).toISOString();
     await Report.writeData(
       "strategy",
       {
@@ -318,6 +280,7 @@ export class StrategyReportService {
         percentToClose,
         currentPrice,
         symbol,
+        timestamp,
         createdAt,
       },
       {
@@ -334,13 +297,12 @@ export class StrategyReportService {
   /**
    * Logs a trailing-stop event when the stop-loss is adjusted.
    *
-   * Records the percentage shift and current price when trailing stop moves.
-   *
    * @param symbol - Trading pair symbol (e.g., "BTCUSDT")
    * @param percentShift - Percentage the stop-loss was shifted
    * @param currentPrice - Current market price at time of adjustment
    * @param isBacktest - Whether this is a backtest or live trading event
    * @param context - Strategy context with strategyName, exchangeName, frameName
+   * @param timestamp - Timestamp from StrategyCommitContract (execution context time)
    */
   public trailingStop = async (
     symbol: string,
@@ -352,6 +314,7 @@ export class StrategyReportService {
       exchangeName: ExchangeName;
       frameName: FrameName;
     },
+    timestamp: number,
   ) => {
     this.loggerService.log("strategyReportService trailingStop", {
       symbol,
@@ -362,7 +325,6 @@ export class StrategyReportService {
     if (!this.subscribe.hasValue()) {
       return;
     }
-    const { when: createdAt } = GET_EXECUTION_CONTEXT_FN(this);
     const pendingRow = await this.strategyCoreService.getPendingSignal(
       isBacktest,
       symbol,
@@ -375,6 +337,7 @@ export class StrategyReportService {
     if (!pendingRow) {
       return;
     }
+    const createdAt = new Date(timestamp).toISOString();
     await Report.writeData(
       "strategy",
       {
@@ -382,6 +345,7 @@ export class StrategyReportService {
         percentShift,
         currentPrice,
         symbol,
+        timestamp,
         createdAt,
       },
       {
@@ -398,13 +362,12 @@ export class StrategyReportService {
   /**
    * Logs a trailing-take event when the take-profit is adjusted.
    *
-   * Records the percentage shift and current price when trailing take-profit moves.
-   *
    * @param symbol - Trading pair symbol (e.g., "BTCUSDT")
    * @param percentShift - Percentage the take-profit was shifted
    * @param currentPrice - Current market price at time of adjustment
    * @param isBacktest - Whether this is a backtest or live trading event
    * @param context - Strategy context with strategyName, exchangeName, frameName
+   * @param timestamp - Timestamp from StrategyCommitContract (execution context time)
    */
   public trailingTake = async (
     symbol: string,
@@ -416,6 +379,7 @@ export class StrategyReportService {
       exchangeName: ExchangeName;
       frameName: FrameName;
     },
+    timestamp: number,
   ) => {
     this.loggerService.log("strategyReportService trailingTake", {
       symbol,
@@ -426,7 +390,6 @@ export class StrategyReportService {
     if (!this.subscribe.hasValue()) {
       return;
     }
-    const { when: createdAt } = GET_EXECUTION_CONTEXT_FN(this);
     const pendingRow = await this.strategyCoreService.getPendingSignal(
       isBacktest,
       symbol,
@@ -439,6 +402,7 @@ export class StrategyReportService {
     if (!pendingRow) {
       return;
     }
+    const createdAt = new Date(timestamp).toISOString();
     await Report.writeData(
       "strategy",
       {
@@ -446,6 +410,7 @@ export class StrategyReportService {
         percentShift,
         currentPrice,
         symbol,
+        timestamp,
         createdAt,
       },
       {
@@ -462,12 +427,11 @@ export class StrategyReportService {
   /**
    * Logs a breakeven event when the stop-loss is moved to entry price.
    *
-   * Records the current price when breakeven protection is activated.
-   *
    * @param symbol - Trading pair symbol (e.g., "BTCUSDT")
    * @param currentPrice - Current market price at time of breakeven activation
    * @param isBacktest - Whether this is a backtest or live trading event
    * @param context - Strategy context with strategyName, exchangeName, frameName
+   * @param timestamp - Timestamp from StrategyCommitContract (execution context time)
    */
   public breakeven = async (
     symbol: string,
@@ -478,6 +442,7 @@ export class StrategyReportService {
       exchangeName: ExchangeName;
       frameName: FrameName;
     },
+    timestamp: number,
   ) => {
     this.loggerService.log("strategyReportService breakeven", {
       symbol,
@@ -487,7 +452,6 @@ export class StrategyReportService {
     if (!this.subscribe.hasValue()) {
       return;
     }
-    const { when: createdAt } = GET_EXECUTION_CONTEXT_FN(this);
     const pendingRow = await this.strategyCoreService.getPendingSignal(
       isBacktest,
       symbol,
@@ -500,12 +464,14 @@ export class StrategyReportService {
     if (!pendingRow) {
       return;
     }
+    const createdAt = new Date(timestamp).toISOString();
     await Report.writeData(
       "strategy",
       {
         action: "breakeven",
         currentPrice,
         symbol,
+        timestamp,
         createdAt,
       },
       {
@@ -532,7 +498,7 @@ export class StrategyReportService {
 
     const unCancelSchedule = strategyCommitSubject
       .filter(({ action }) => action === "cancel-scheduled")
-      .connect(async (event: CancelScheduledCommit) => 
+      .connect(async (event: CancelScheduledCommit) =>
         await this.cancelScheduled(
           event.symbol,
           event.backtest,
@@ -541,6 +507,7 @@ export class StrategyReportService {
             frameName: event.frameName,
             strategyName: event.strategyName,
           },
+          event.timestamp,
           event.cancelId,
         )
       );
@@ -556,6 +523,7 @@ export class StrategyReportService {
             frameName: event.frameName,
             strategyName: event.strategyName,
           },
+          event.timestamp,
           event.closeId,
         )
       );
@@ -573,6 +541,7 @@ export class StrategyReportService {
             frameName: event.frameName,
             strategyName: event.strategyName,
           },
+          event.timestamp,
         )
       );
 
@@ -589,6 +558,7 @@ export class StrategyReportService {
             frameName: event.frameName,
             strategyName: event.strategyName,
           },
+          event.timestamp,
         )
       );
 
@@ -605,22 +575,24 @@ export class StrategyReportService {
             frameName: event.frameName,
             strategyName: event.strategyName,
           },
+          event.timestamp,
         )
       );
-    
+
     const unTrailingTake = strategyCommitSubject
       .filter(({ action }) => action === "trailing-take")
       .connect(async (event: TrailingTakeCommit) =>
         await this.trailingTake(
           event.symbol,
           event.percentShift,
-          event.currentPrice, 
+          event.currentPrice,
           event.backtest,
           {
             exchangeName: event.exchangeName,
             frameName: event.frameName,
             strategyName: event.strategyName,
           },
+          event.timestamp,
         )
       );
 
@@ -636,6 +608,7 @@ export class StrategyReportService {
             frameName: event.frameName,
             strategyName: event.strategyName,
           },
+          event.timestamp,
         )
       );
 
