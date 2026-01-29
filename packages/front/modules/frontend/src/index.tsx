@@ -51,6 +51,7 @@ import LayoutModalProvider from "./components/LayoutModalProvider";
 
 import { ioc } from "./lib";
 import MobileBodyRow from "./slots/MobileBodyRow";
+import App from "./components/App";
 
 const container = document.getElementById("root")!;
 
@@ -117,7 +118,7 @@ const AppBootstrap = () => {
                                         <ErrorProvider>
                                             <LayoutModalProvider>
                                                 <AlertProvider>
-                                                    <p>123</p>
+                                                    <App />
                                                 </AlertProvider>
                                             </LayoutModalProvider>
                                         </ErrorProvider>
