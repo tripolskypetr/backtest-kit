@@ -155,13 +155,6 @@ export class NotificationInstance {
         createdAt: data.createdAt,
       });
     }
-
-    // Sort signal notifications by createdAt (newest first)
-    this._notifications.sort((a, b) => {
-      const aCreatedAt = "createdAt" in a ? a.createdAt : 0;
-      const bCreatedAt = "createdAt" in b ? b.createdAt : 0;
-      return bCreatedAt - aCreatedAt;
-    });
   };
 
   /**
