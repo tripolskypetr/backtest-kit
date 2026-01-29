@@ -6,9 +6,22 @@ const baseServices = {
   routerService: Symbol("routerService"),
 };
 
+const mockServices = {
+  exchangeMockService: Symbol("exchangeMockService"),
+  notificationMockService: Symbol("notificationMockService"),
+  storageMockService: Symbol("storageMockService"),
+};
+
+const viewServices = {
+  exchangeViewService: Symbol("exchangeViewService"),
+  notificationViewService: Symbol("notificationViewService"),
+  storageViewService: Symbol("storageViewService"),
+};
 
 export const TYPES = {
-    ...baseServices,
-}
+  ...baseServices,
+  ...mockServices,
+  ...viewServices,
+};
 
 export default TYPES;

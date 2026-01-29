@@ -1,4 +1,4 @@
-import { ISize } from "react-declarative";
+import { ISize, randomString } from "react-declarative";
 
 export const CC_ENABLE_MOCK = !!process.env.CC_ENABLE_MOCK || false;
 
@@ -22,6 +22,9 @@ export const CC_FULLSCREEN_SIZE_REQUEST = ({ height, width }: ISize) => ({
 
 export const CC_DAYJS_LOCALE = process.env.CC_DAYJS_LOCALE || "RU";
 
-export const CC_SERVICE_NAME = "frontend";
+export const CC_SERVICE_NAME = "backtest-kit";
 
-export const CC_WEBHOOK_JWT_SECRET = process.env.CC_WEBHOOK_JWT_SECRET || "TradeGPT";
+export const CC_USER_ID = randomString();;
+
+export const CC_CLIENT_ID = "ui"
+
