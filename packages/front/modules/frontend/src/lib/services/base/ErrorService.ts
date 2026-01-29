@@ -3,7 +3,7 @@ import { Subject, inject } from "react-declarative";
 import RouterService from "./RouterService";
 import LoggerService from "./LoggerService";
 
-import TYPES from "../../config/TYPES";
+import TYPES from "../../core/TYPES";
 
 export class ErrorService {
     private readonly routerService = inject<RouterService>(TYPES.routerService);

@@ -1,5 +1,7 @@
 import { ISize } from "react-declarative";
 
+export const CC_ENABLE_MOCK = !!process.env.CC_ENABLE_MOCK || false;
+
 export const CC_LIST_BUFFER_SIZE = parseInt(process.env.CC_LIST_BUFFER_SIZE) || 25;
 
 export const CC_FORCE_BROWSER_HISTORY =
