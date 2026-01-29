@@ -312,9 +312,9 @@ export const NotificationView = () => {
                                   handler={() => getNotificationTitle(item)}
                                 />
                               }
-                              secondary={dayjs(item.timestamp).format(
+                              secondary={"timestamp" in item ? dayjs(item.timestamp).format(
                                 "HH:mm DD/MM/YYYY"
-                              )}
+                              ) : "N/A"}
                             />
                             <IconButton disableRipple>
                               <ArrowForwardIcon />
@@ -371,9 +371,9 @@ export const NotificationView = () => {
                                   handler={() => getNotificationTitle(item)}
                                 />
                               }
-                              secondary={dayjs(item.timestamp).format(
+                              secondary={"timestamp" in item ? dayjs(item.timestamp).format(
                                 "HH:mm DD/MM/YYYY"
-                              )}
+                              ) : "N/A"}
                             />
                             <IconButton disableRipple>
                               <ArrowForwardIcon />
