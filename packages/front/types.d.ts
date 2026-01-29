@@ -25,6 +25,10 @@ interface SymbolModel {
     description: string;
 }
 
+declare function getModulesPath(): string;
+
+declare function getPublicPath(): string;
+
 declare class LoggerService implements ILogger {
     private _commonLogger;
     log: (topic: string, ...args: any[]) => Promise<void>;
@@ -145,4 +149,4 @@ declare const ioc: {
     exchangeService: ExchangeService;
 };
 
-export { type SymbolModel, getRouter, ioc as lib, serve, setLogger };
+export { type SymbolModel, getModulesPath, getPublicPath, getRouter, ioc as lib, serve, setLogger };

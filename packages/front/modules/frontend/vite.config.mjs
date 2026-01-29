@@ -40,6 +40,11 @@ export default defineConfig({
                 changeOrigin: true,
                 secure: false,
             },
+            '/icon': {
+                target: 'http://localhost:60050',
+                changeOrigin: true,
+                secure: false,
+            },
         }
     },
     resolve: {

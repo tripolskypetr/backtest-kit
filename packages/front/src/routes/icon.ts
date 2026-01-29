@@ -30,7 +30,7 @@ const cache128 = new Map<string, Buffer>();
 const cache32 = new Map<string, Buffer>();
 const cacheSvg = new Map<string, Buffer>();
 
-router.get("/api/v1/icon/128/:filename", async (req, res) => {
+router.get("/icon/128/:filename", async (req, res) => {
   const filename = req.params.filename;
 
   // Check cache first
@@ -49,7 +49,7 @@ router.get("/api/v1/icon/128/:filename", async (req, res) => {
   return await micro.send(res, 404, "File not found (128)");
 });
 
-router.get("/api/v1/icon/32/:filename", async (req, res) => {
+router.get("/icon/32/:filename", async (req, res) => {
   const filename = req.params.filename;
 
   // Check cache first
@@ -68,7 +68,7 @@ router.get("/api/v1/icon/32/:filename", async (req, res) => {
   return await micro.send(res, 404, "File not found (32)");
 });
 
-router.get("/api/v1/icon/svg/:filename", async (req, res) => {
+router.get("/icon/svg/:filename", async (req, res) => {
   const filename = req.params.filename;
 
   // Check cache first
@@ -87,7 +87,7 @@ router.get("/api/v1/icon/svg/:filename", async (req, res) => {
   return await micro.send(res, 404, "File not found (svg)");
 });
 
-router.get("/api/v1/icon/:filename", async (req, res) => {
+router.get("/icon/:filename", async (req, res) => {
   const filename = req.params.filename;
 
   // Check cache first

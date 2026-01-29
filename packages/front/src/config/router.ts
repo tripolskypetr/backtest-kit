@@ -29,7 +29,7 @@ router.all("/api/v1/view/*", (req, res) => {
   return view(req, res, finalhandler(req, res));
 });
 
-router.all("/api/v1/icon/*", (req, res) => {
+router.all("/icon/*", (req, res) => {
   return icon(req, res, finalhandler(req, res));
 });
 
