@@ -221,7 +221,7 @@ export const ListView = ({
                                         </Box>
                                         {formatAmount(item.priceStopLoss)}$
                                     </Typography>
-                                    {item.pnl && (
+                                    {"pnl" in item && (
                                         <Typography
                                             variant="body2"
                                             component="span"

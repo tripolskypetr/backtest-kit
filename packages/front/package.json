@@ -60,7 +60,7 @@
     "worker-testbed": "1.0.12"
   },
   "peerDependencies": {
-    "backtest-kit": "^2.2.15",
+    "backtest-kit": "^2.2.16",
     "typescript": "^5.0.0"
   },
   "dependencies": {
