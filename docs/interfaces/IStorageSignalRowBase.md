@@ -1,11 +1,11 @@
 ---
-title: docs/interface/IStorageSignalRow
+title: docs/interface/IStorageSignalRowBase
 group: docs
 ---
 
-# IStorageSignalRow
+# IStorageSignalRowBase
 
-Storage signal row with creation timestamp taken from IStrategyTickResult.
+Base storage signal row fields shared by all status variants.
 Used for persisting signals with accurate creation time.
 
 ## Properties
@@ -33,11 +33,3 @@ priority: number
 ```
 
 Storage adapter rewrite priority. Equal to Date.now for live and backtest both
-
-### status
-
-```ts
-status: "opened" | "scheduled" | "closed" | "cancelled"
-```
-
-Current status of the signal

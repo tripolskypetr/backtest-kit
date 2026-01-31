@@ -9,4 +9,5 @@ group: docs
 type StorageId = IStorageSignalRow["id"];
 ```
 
-
+Type alias for signal storage row identifier.
+Extracted from IStorageSignalRow for type safety and reusability.
