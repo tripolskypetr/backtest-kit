@@ -1,5 +1,6 @@
 import * as React from "react";
 import { useRef, useState, useLayoutEffect } from "react";
+import { ICandleData } from "backtest-kit"
 import {
   DeepPartial,
   ChartOptions,
@@ -15,17 +16,11 @@ import { colors } from "@mui/material";
 
 declare function parseFloat(value: unknown): number;
 
-interface IStockItem {
-  closeTime: string | number;
-  close: string | number;
-  time?: string; // time может быть undefined
-}
-
 interface IChartProps {
   source: "1m" | "15m" | "1h";
   height: number;
   width: number;
-  items: IStockItem[];
+  items: ICandleData[];
   lines: {
     buyPrice: number;
     date: string;
@@ -144,18 +139,18 @@ export const StockChart = ({ source, height, width, items, lines }: IChartProps)
 
     // Map items to chart data
     const candles = items
-      .map(({ close, closeTime: originalTime }, idx) => {
+      .map(({ close, timestamp }, idx) => {
         let momentStamp: number;
         let time: Time;
         let date: dayjs.Dayjs;
         let formattedOriginalTime: string;
 
-        // Проверяем closeTime
-        if (originalTime && dayjs(originalTime).isValid()) {
-          date = dayjs(originalTime);
+        // Проверяем timestamp (Unix timestamp в миллисекундах)
+        if (timestamp && dayjs(timestamp).isValid()) {
+          date = dayjs(timestamp);
           formattedOriginalTime = date.format("YYYY-MM-DD HH:mm:ss");
         } else {
-          // Если closeTime невалидно, используем fromMomentStamp
+          // Если timestamp невалидно, используем fromMomentStamp
           if (source === "1m") {
             momentStamp = MOMENT_STAMP_OFFSET + idx;
             date = fromMomentStamp(momentStamp, "minute");
@@ -171,7 +166,7 @@ export const StockChart = ({ source, height, width, items, lines }: IChartProps)
           }
           formattedOriginalTime = date.format("YYYY-MM-DD HH:mm:ss");
           console.warn(
-            `Invalid closeTime at index ${idx}: ${originalTime}, using fromMomentStamp: ${formattedOriginalTime}`
+            `Invalid timestamp at index ${idx}: ${timestamp}, using fromMomentStamp: ${formattedOriginalTime}`
           );
         }
 
@@ -199,7 +194,7 @@ export const StockChart = ({ source, height, width, items, lines }: IChartProps)
 
         // Отладочный вывод
         console.debug(
-          `Index: ${idx}, closeTime: ${originalTime}, momentStamp: ${momentStamp}, time: ${time}, date: ${date.format("YYYY-MM-DD HH:mm:ss")}`
+          `Index: ${idx}, timestamp: ${timestamp}, momentStamp: ${momentStamp}, time: ${time}, date: ${date.format("YYYY-MM-DD HH:mm:ss")}`
         );
 
         return {
