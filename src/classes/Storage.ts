@@ -827,7 +827,7 @@ export class StorageDummyLiveUtils implements IStorageUtils {
  */
 export class StorageBacktestAdapter implements IStorageUtils {
   /** Internal storage utils instance */
-  private _signalBacktestUtils: IStorageUtils = new StoragePersistBacktestUtils();
+  private _signalBacktestUtils: IStorageUtils = new StorageMemoryBacktestUtils();
 
   /**
    * Handles signal opened event.
