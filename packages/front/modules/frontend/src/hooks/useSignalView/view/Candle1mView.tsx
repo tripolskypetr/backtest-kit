@@ -16,6 +16,8 @@ export const Candle1mView = ({ data, formState }: IOutletModalProps) => {
         priceOpen,
         priceTakeProfit,
         priceStopLoss,
+        originalPriceStopLoss,
+        originalPriceTakeProfit,
     } = useMemo(() => {
         const {
             position,
@@ -25,6 +27,8 @@ export const Candle1mView = ({ data, formState }: IOutletModalProps) => {
             priceStopLoss,
             pendingAt,
             scheduledAt,
+            originalPriceStopLoss,
+            originalPriceTakeProfit,
             createdAt = pendingAt || scheduledAt,
             updatedAt,
         } = formState.data.main as IStorageSignalRow;
@@ -35,11 +39,11 @@ export const Candle1mView = ({ data, formState }: IOutletModalProps) => {
             priceOpen,
             priceTakeProfit,
             priceStopLoss,
+            originalPriceStopLoss,
+            originalPriceTakeProfit,
             status,
         };
     }, [formState.data.main]);
-
-    console.log(formState);
 
     return (
         <Box sx={{ height: "100%", width: "100%", pt: 1 }}>
@@ -53,7 +57,9 @@ export const Candle1mView = ({ data, formState }: IOutletModalProps) => {
                         priceOpen={priceOpen}
                         priceTakeProfit={priceTakeProfit}
                         priceStopLoss={priceStopLoss}
-                        status=""
+                        originalPriceTakeProfit={originalPriceTakeProfit}
+                        originalPriceStopLoss={originalPriceStopLoss}
+                        status={status}
                         height={height}
                         width={width}
                         source="1m"

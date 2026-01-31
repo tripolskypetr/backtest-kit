@@ -3,38 +3,71 @@ import { AutoSizer, IOutletModalProps, useAsyncValue } from "react-declarative";
 import StockChart from "../../../widgets/StockChart/StockChart";
 import { useMemo } from "react";
 import { fetchPriceCandles } from "../api/fetchPriceCandles";
-
-const arr = [];
+import { IStorageSignalRow } from "backtest-kit";
 
 export const Candle1hView = ({ data, formState }: IOutletModalProps) => {
+    const {
+        position,
+        createdAt,
+        updatedAt,
+        status,
+        priceOpen,
+        priceTakeProfit,
+        priceStopLoss,
 
-  /*
-  const lines = useMemo(() => {
-    const { position, createDate, buyPrice } = formState.data.main;
-    const priceLine = {
-      buyPrice,
-      date: createDate,
-      position,
-    };
-    return [priceLine];
-  }, [formState.data.main]);
-  */
+        originalPriceStopLoss,
+        originalPriceTakeProfit,
+    } = useMemo(() => {
+        const {
+            position,
+            status,
+            priceOpen,
+            priceTakeProfit,
+            priceStopLoss,
+            pendingAt,
+            scheduledAt,
+            createdAt = pendingAt || scheduledAt,
 
-  return (
-    <Box sx={{ height: "100%", width: "100%", pt: 1 }}>
-      <AutoSizer payload={data}>
-        {({ height, width }) => (
-          <StockChart
-            items={data}
-            lines={arr}
-            height={height}
-            width={width}
-            source="1h"
-          />
-        )}
-      </AutoSizer>
-    </Box>
-  );
+            originalPriceStopLoss,
+            originalPriceTakeProfit,
+            updatedAt,
+        } = formState.data.main as IStorageSignalRow;
+        return {
+            position,
+            createdAt: new Date(createdAt).toISOString(),
+            updatedAt: new Date(updatedAt).toISOString(),
+            priceOpen,
+            priceTakeProfit,
+            priceStopLoss,
+            originalPriceStopLoss,
+            originalPriceTakeProfit,
+            status,
+        };
+    }, [formState.data.main]);
+
+    return (
+        <Box sx={{ height: "100%", width: "100%", pt: 1 }}>
+            <AutoSizer payload={data}>
+                {({ height, width }) => (
+                    <StockChart
+                        items={data}
+                        createdAt={createdAt}
+                        updatedAt={updatedAt}
+                        position={position}
+                        priceOpen={priceOpen}
+                        priceTakeProfit={priceTakeProfit}
+                        priceStopLoss={priceStopLoss}
+                        originalPriceTakeProfit={originalPriceTakeProfit}
+                        originalPriceStopLoss={originalPriceStopLoss}
+                        status={status}
+                        height={height}
+                        width={width}
+                        source="1h"
+                    />
+                )}
+            </AutoSizer>
+        </Box>
+    );
 };
 
 export default Candle1hView;

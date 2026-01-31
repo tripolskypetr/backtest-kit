@@ -85,7 +85,7 @@ export const useSignalView = () => {
     withStaticAction: true,
     onTabChange: handleTabChange,
     animation: "none",
-    title: "Детали сигнала",
+    title: "Signal details",
     sizeRequest: CC_FULLSCREEN_SIZE_REQUEST,
     history,
     routes,

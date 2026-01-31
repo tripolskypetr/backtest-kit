@@ -27,6 +27,8 @@ interface IChartProps {
   priceOpen: number;
   priceStopLoss: number;
   priceTakeProfit: number;
+  originalPriceStopLoss?: number;
+  originalPriceTakeProfit?: number;
   status: "opened" | "closed" | "scheduled" | "cancelled";
 }
 
@@ -142,6 +144,8 @@ export const StockChart = ({
   priceOpen,
   priceStopLoss,
   priceTakeProfit,
+  originalPriceStopLoss,
+  originalPriceTakeProfit,
   status,
 }: IChartProps) => {
   const { classes } = useStyles();
@@ -279,25 +283,49 @@ export const StockChart = ({
       title: `${positionLabel} Entry`,
     });
 
-    // Stop Loss line
+    // Stop Loss line (current/trailing)
     lineSeries.createPriceLine({
       price: priceStopLoss,
       color: colors.red[500],
       lineWidth: 2,
-      lineStyle: LineStyle.Dashed,
+      lineStyle: LineStyle.Solid,
       axisLabelVisible: true,
       title: "SL",
     });
 
-    // Take Profit line
+    // Original Stop Loss line (if trailing changed it)
+    if (originalPriceStopLoss != null && originalPriceStopLoss !== priceStopLoss) {
+      lineSeries.createPriceLine({
+        price: originalPriceStopLoss,
+        color: colors.red[500],
+        lineWidth: 1,
+        lineStyle: LineStyle.Dashed,
+        axisLabelVisible: true,
+        title: "Original SL",
+      });
+    }
+
+    // Take Profit line (current/trailing)
     lineSeries.createPriceLine({
       price: priceTakeProfit,
       color: colors.green[500],
       lineWidth: 2,
-      lineStyle: LineStyle.Dashed,
+      lineStyle: LineStyle.Solid,
       axisLabelVisible: true,
       title: "TP",
     });
+
+    // Original Take Profit line (if trailing changed it)
+    if (originalPriceTakeProfit != null && originalPriceTakeProfit !== priceTakeProfit) {
+      lineSeries.createPriceLine({
+        price: originalPriceTakeProfit,
+        color: colors.green[500],
+        lineWidth: 1,
+        lineStyle: LineStyle.Dashed,
+        axisLabelVisible: true,
+        title: "Original TP",
+      });
+    }
 
     // Markers for entry and exit points
     const markers: SeriesMarker<Time>[] = [];
@@ -354,6 +382,8 @@ export const StockChart = ({
       }
     }
 
+    // Markers must be sorted by time for lightweight-charts
+    markers.sort((a, b) => Number(a.time) - Number(b.time));
     lineSeries.setMarkers(markers);
 
     chart.subscribeCrosshairMove((param) => {
@@ -378,7 +408,7 @@ export const StockChart = ({
     return () => {
       chart.remove();
     };
-  }, [source, height, width, items, position, createdAt, updatedAt, priceOpen, priceStopLoss, priceTakeProfit, status]);
+  }, [source, height, width, items, position, createdAt, updatedAt, priceOpen, priceStopLoss, priceTakeProfit, originalPriceStopLoss, originalPriceTakeProfit, status]);
 
   return (
     <div ref={elementRef} className={classes.root}>
