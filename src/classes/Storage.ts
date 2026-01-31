@@ -30,6 +30,20 @@ const STORAGE_LIVE_METHOD_NAME_HANDLE_CANCELLED = "StoragePersistLiveUtils.handl
 const STORAGE_LIVE_METHOD_NAME_FIND_BY_ID = "StoragePersistLiveUtils.findById";
 const STORAGE_LIVE_METHOD_NAME_LIST = "StoragePersistLiveUtils.list";
 
+const STORAGE_MEMORY_BACKTEST_METHOD_NAME_HANDLE_OPENED = "StorageMemoryBacktestUtils.handleOpened";
+const STORAGE_MEMORY_BACKTEST_METHOD_NAME_HANDLE_CLOSED = "StorageMemoryBacktestUtils.handleClosed";
+const STORAGE_MEMORY_BACKTEST_METHOD_NAME_HANDLE_SCHEDULED = "StorageMemoryBacktestUtils.handleScheduled";
+const STORAGE_MEMORY_BACKTEST_METHOD_NAME_HANDLE_CANCELLED = "StorageMemoryBacktestUtils.handleCancelled";
+const STORAGE_MEMORY_BACKTEST_METHOD_NAME_FIND_BY_ID = "StorageMemoryBacktestUtils.findById";
+const STORAGE_MEMORY_BACKTEST_METHOD_NAME_LIST = "StorageMemoryBacktestUtils.list";
+
+const STORAGE_MEMORY_LIVE_METHOD_NAME_HANDLE_OPENED = "StorageMemoryLiveUtils.handleOpened";
+const STORAGE_MEMORY_LIVE_METHOD_NAME_HANDLE_CLOSED = "StorageMemoryLiveUtils.handleClosed";
+const STORAGE_MEMORY_LIVE_METHOD_NAME_HANDLE_SCHEDULED = "StorageMemoryLiveUtils.handleScheduled";
+const STORAGE_MEMORY_LIVE_METHOD_NAME_HANDLE_CANCELLED = "StorageMemoryLiveUtils.handleCancelled";
+const STORAGE_MEMORY_LIVE_METHOD_NAME_FIND_BY_ID = "StorageMemoryLiveUtils.findById";
+const STORAGE_MEMORY_LIVE_METHOD_NAME_LIST = "StorageMemoryLiveUtils.list";
+
 const STORAGE_ADAPTER_METHOD_NAME_ENABLE = "StorageAdapter.enable";
 const STORAGE_ADAPTER_METHOD_NAME_DISABLE = "StorageAdapter.disable";
 const STORAGE_ADAPTER_METHOD_NAME_FIND_SIGNAL_BY_ID = "StorageAdapter.findSignalById";
@@ -184,6 +198,9 @@ export class StorageMemoryBacktestUtils implements IStorageUtils {
   private _signals: Map<StorageId, IStorageSignalRow> = new Map();
 
   public handleOpened = async (tick: IStrategyTickResultOpened): Promise<void> => {
+    backtest.loggerService.info(STORAGE_MEMORY_BACKTEST_METHOD_NAME_HANDLE_OPENED, {
+      signalId: tick.signal.id,
+    });
     const lastStorage = this._signals.get(tick.signal.id);
     if (lastStorage && lastStorage.updatedAt > tick.createdAt) {
       return;
@@ -198,6 +215,9 @@ export class StorageMemoryBacktestUtils implements IStorageUtils {
   };
 
   public handleClosed = async (tick: IStrategyTickResultClosed): Promise<void> => {
+    backtest.loggerService.info(STORAGE_MEMORY_BACKTEST_METHOD_NAME_HANDLE_CLOSED, {
+      signalId: tick.signal.id,
+    });
     const lastStorage = this._signals.get(tick.signal.id);
     if (lastStorage && lastStorage.updatedAt > tick.createdAt) {
       return;
@@ -213,6 +233,9 @@ export class StorageMemoryBacktestUtils implements IStorageUtils {
   };
 
   public handleScheduled = async (tick: IStrategyTickResultScheduled): Promise<void> => {
+    backtest.loggerService.info(STORAGE_MEMORY_BACKTEST_METHOD_NAME_HANDLE_SCHEDULED, {
+      signalId: tick.signal.id,
+    });
     const lastStorage = this._signals.get(tick.signal.id);
     if (lastStorage && lastStorage.updatedAt > tick.createdAt) {
       return;
@@ -227,6 +250,9 @@ export class StorageMemoryBacktestUtils implements IStorageUtils {
   };
 
   public handleCancelled = async (tick: IStrategyTickResultCancelled): Promise<void> => {
+    backtest.loggerService.info(STORAGE_MEMORY_BACKTEST_METHOD_NAME_HANDLE_CANCELLED, {
+      signalId: tick.signal.id,
+    });
     const lastStorage = this._signals.get(tick.signal.id);
     if (lastStorage && lastStorage.updatedAt > tick.createdAt) {
       return;
@@ -241,10 +267,12 @@ export class StorageMemoryBacktestUtils implements IStorageUtils {
   };
 
   public findById = async (id: StorageId): Promise<IStorageSignalRow | null> => {
+    backtest.loggerService.info(STORAGE_MEMORY_BACKTEST_METHOD_NAME_FIND_BY_ID, { id });
     return this._signals.get(id) ?? null;
   };
 
   public list = async (): Promise<IStorageSignalRow[]> => {
+    backtest.loggerService.info(STORAGE_MEMORY_BACKTEST_METHOD_NAME_LIST);
     return Array.from(this._signals.values());
   };
 }
@@ -400,6 +428,9 @@ export class StorageMemoryLiveUtils implements IStorageUtils {
   private _signals: Map<StorageId, IStorageSignalRow> = new Map();
 
   public handleOpened = async (tick: IStrategyTickResultOpened): Promise<void> => {
+    backtest.loggerService.info(STORAGE_MEMORY_LIVE_METHOD_NAME_HANDLE_OPENED, {
+      signalId: tick.signal.id,
+    });
     const lastStorage = this._signals.get(tick.signal.id);
     if (lastStorage && lastStorage.updatedAt > tick.createdAt) {
       return;
@@ -414,6 +445,9 @@ export class StorageMemoryLiveUtils implements IStorageUtils {
   };
 
   public handleClosed = async (tick: IStrategyTickResultClosed): Promise<void> => {
+    backtest.loggerService.info(STORAGE_MEMORY_LIVE_METHOD_NAME_HANDLE_CLOSED, {
+      signalId: tick.signal.id,
+    });
     const lastStorage = this._signals.get(tick.signal.id);
     if (lastStorage && lastStorage.updatedAt > tick.createdAt) {
       return;
@@ -429,6 +463,9 @@ export class StorageMemoryLiveUtils implements IStorageUtils {
   };
 
   public handleScheduled = async (tick: IStrategyTickResultScheduled): Promise<void> => {
+    backtest.loggerService.info(STORAGE_MEMORY_LIVE_METHOD_NAME_HANDLE_SCHEDULED, {
+      signalId: tick.signal.id,
+    });
     const lastStorage = this._signals.get(tick.signal.id);
     if (lastStorage && lastStorage.updatedAt > tick.createdAt) {
       return;
@@ -443,6 +480,9 @@ export class StorageMemoryLiveUtils implements IStorageUtils {
   };
 
   public handleCancelled = async (tick: IStrategyTickResultCancelled): Promise<void> => {
+    backtest.loggerService.info(STORAGE_MEMORY_LIVE_METHOD_NAME_HANDLE_CANCELLED, {
+      signalId: tick.signal.id,
+    });
     const lastStorage = this._signals.get(tick.signal.id);
     if (lastStorage && lastStorage.updatedAt > tick.createdAt) {
       return;
@@ -457,10 +497,12 @@ export class StorageMemoryLiveUtils implements IStorageUtils {
   };
 
   public findById = async (id: StorageId): Promise<IStorageSignalRow | null> => {
+    backtest.loggerService.info(STORAGE_MEMORY_LIVE_METHOD_NAME_FIND_BY_ID, { id });
     return this._signals.get(id) ?? null;
   };
 
   public list = async (): Promise<IStorageSignalRow[]> => {
+    backtest.loggerService.info(STORAGE_MEMORY_LIVE_METHOD_NAME_LIST);
     return Array.from(this._signals.values());
   };
 }
