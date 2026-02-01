@@ -293,6 +293,9 @@ export const NotificationView = () => {
                         >
                           <ListItemButton
                             onClick={() => {
+                              if (item.type === "risk.rejection") {
+                                ioc.layoutService.pickRisk(item.id);
+                              }
                               setAnchorEl(null);
                             }}
                           >
@@ -352,6 +355,9 @@ export const NotificationView = () => {
                         >
                           <ListItemButton
                             onClick={() => {
+                              if (item.type === "risk.rejection") {
+                                ioc.layoutService.pickRisk(item.id);
+                              }
                               setAnchorEl(null);
                             }}
                           >

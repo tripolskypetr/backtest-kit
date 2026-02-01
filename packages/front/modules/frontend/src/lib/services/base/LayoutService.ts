@@ -5,6 +5,7 @@ export class LayoutService {
     public readonly modalSubject = new Subject<boolean>();
 
     public readonly pickSignalSubject = new Subject<string>();
+    public readonly pickRiskSubject = new Subject<string>();
 
     public readonly reloadOutletSubject = new Subject<void>();
 
@@ -91,6 +92,10 @@ export class LayoutService {
     pickSignal = async (signalId: string) => {
         await this.pickSignalSubject.next(signalId);
     };
+
+    pickRisk = async (notificationId: string) => {
+        await this.pickRiskSubject.next(notificationId);
+    }
 }
 
 export default LayoutService;
