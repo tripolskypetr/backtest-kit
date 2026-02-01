@@ -1,5 +1,66 @@
 [
   {
+    "type": "trailing_take.available",
+    "id": "a5cf40a2-7dc4-4d1a-91c9-ec1eafd39e8d",
+    "timestamp": 1708876800000,
+    "backtest": true,
+    "symbol": "BTCUSDT",
+    "strategyName": "main_strategy",
+    "exchangeName": "binance_exchange",
+    "signalId": "d56caee8-46c7-4000-a77f-cb0434f35000",
+    "position": "long",
+    "priceOpen": 51754,
+    "currentPrice": 52850.75,
+    "priceTakeProfit": 53306.62,
+    "priceStopLoss": 50718.92,
+    "originalPriceTakeProfit": 53306.62,
+    "originalPriceStopLoss": 50718.92,
+    "createdAt": 1708876800000,
+    "scheduledAt": 1708876799000,
+    "pendingAt": 1708876799500
+  },
+  {
+    "type": "trailing_stop.available",
+    "id": "2e1d6ccc-2087-4ac0-ab71-ae9e217934fd",
+    "timestamp": 1708876700000,
+    "backtest": true,
+    "symbol": "BTCUSDT",
+    "strategyName": "main_strategy",
+    "exchangeName": "binance_exchange",
+    "signalId": "d56caee8-46c7-4000-a77f-cb0434f35000",
+    "position": "long",
+    "priceOpen": 51754,
+    "currentPrice": 52100.5,
+    "priceTakeProfit": 53306.62,
+    "priceStopLoss": 50718.92,
+    "originalPriceTakeProfit": 53306.62,
+    "originalPriceStopLoss": 50718.92,
+    "createdAt": 1708876700000,
+    "scheduledAt": 1708876699000,
+    "pendingAt": 1708876699500
+  },
+  {
+    "type": "signal.cancelled",
+    "id": "8e6a911f-e184-468a-a034-b64bbd3ec66e",
+    "timestamp": 1708876600000,
+    "backtest": true,
+    "symbol": "ETHUSDT",
+    "strategyName": "main_strategy",
+    "exchangeName": "binance_exchange",
+    "signalId": "e36ffa2f-8e9f-46f8-85ce-1b2a2fbdb556",
+    "position": "short",
+    "priceOpen": 3280.5,
+    "priceTakeProfit": 3198.49,
+    "priceStopLoss": 3346.11,
+    "originalPriceTakeProfit": 3198.49,
+    "originalPriceStopLoss": 3346.11,
+    "cancelReason": "user_cancelled",
+    "note": "Cancelled due to market conditions",
+    "createdAt": 1708876600000,
+    "scheduledAt": 1708876599000,
+    "pendingAt": 1708876599500
+  },
+  {
     "type": "risk.rejection",
     "id": "a1b2c3d4-5678-4000-b9e0-f1a2b3c4d500",
     "timestamp": 1708876000000,
@@ -35,7 +96,11 @@
     "note": "",
     "createdAt": 1708875300000,
     "scheduledAt": 1708875240000,
-    "pendingAt": 1708871700000
+    "pendingAt": 1708871700000,
+    "priceTakeProfit": 53306.62,
+    "priceStopLoss": 50718.92,
+    "originalPriceTakeProfit": 53306.62,
+    "originalPriceStopLoss": 50718.92
   },
   {
     "type": "partial_loss.commit",
@@ -55,7 +120,8 @@
     "originalPriceTakeProfit": 53306.62,
     "originalPriceStopLoss": 50718.92,
     "scheduledAt": 1708873140000,
-    "pendingAt": 1708873170000
+    "pendingAt": 1708873170000,
+    "signalId": "1a95ee20-68d5-42be-a876-3e1fe948bd0b"
   },
   {
     "type": "partial_loss.available",
@@ -96,7 +162,8 @@
     "originalPriceTakeProfit": 53306.62,
     "originalPriceStopLoss": 50718.92,
     "scheduledAt": 1708872840000,
-    "pendingAt": 1708872870000
+    "pendingAt": 1708872870000,
+    "signalId": "7fd557d2-b764-4e8b-bef1-dfc6b4a74b6e"
   },
   {
     "type": "trailing_stop.commit",
@@ -116,7 +183,8 @@
     "originalPriceTakeProfit": 53306.62,
     "originalPriceStopLoss": 50718.92,
     "scheduledAt": 1708872540000,
-    "pendingAt": 1708872570000
+    "pendingAt": 1708872570000,
+    "signalId": "11a786c9-611b-44ed-a570-cdd7e1864b27"
   },
   {
     "type": "breakeven.commit",
@@ -214,7 +282,9 @@
     "note": "",
     "createdAt": 1708871700000,
     "scheduledAt": 1708871640000,
-    "pendingAt": 1708871700000
+    "pendingAt": 1708871700000,
+    "originalPriceTakeProfit": 53306.62,
+    "originalPriceStopLoss": 50718.92
   },
   {
     "type": "signal.closed",
@@ -234,7 +304,11 @@
     "note": "",
     "createdAt": 1708871640000,
     "scheduledAt": 1708871580000,
-    "pendingAt": 1708868040000
+    "pendingAt": 1708868040000,
+    "priceTakeProfit": 53306.62,
+    "priceStopLoss": 50718.92,
+    "originalPriceTakeProfit": 53306.62,
+    "originalPriceStopLoss": 50718.92
   },
   {
     "type": "signal.opened",
@@ -252,7 +326,9 @@
     "note": "",
     "createdAt": 1708868040000,
     "scheduledAt": 1708867980000,
-    "pendingAt": 1708868040000
+    "pendingAt": 1708868040000,
+    "originalPriceTakeProfit": 53227.3306,
+    "originalPriceStopLoss": 50643.4796
   },
   {
     "type": "signal.closed",
@@ -272,7 +348,11 @@
     "note": "",
     "createdAt": 1708840080000,
     "scheduledAt": 1708840020000,
-    "pendingAt": 1708836480000
+    "pendingAt": 1708836480000,
+    "priceTakeProfit": 53306.62,
+    "priceStopLoss": 50718.92,
+    "originalPriceTakeProfit": 53306.62,
+    "originalPriceStopLoss": 50718.92
   },
   {
     "type": "signal.opened",
@@ -290,7 +370,9 @@
     "note": "",
     "createdAt": 1708836480000,
     "scheduledAt": 1708836420000,
-    "pendingAt": 1708836480000
+    "pendingAt": 1708836480000,
+    "originalPriceTakeProfit": 53166.0868,
+    "originalPriceStopLoss": 50585.2088
   },
   {
     "type": "signal.closed",
@@ -310,7 +392,11 @@
     "note": "",
     "createdAt": 1708836420000,
     "scheduledAt": 1708836360000,
-    "pendingAt": 1708832820000
+    "pendingAt": 1708832820000,
+    "priceTakeProfit": 53306.62,
+    "priceStopLoss": 50718.92,
+    "originalPriceTakeProfit": 53306.62,
+    "originalPriceStopLoss": 50718.92
   },
   {
     "type": "signal.opened",
@@ -328,7 +414,9 @@
     "note": "",
     "createdAt": 1708832820000,
     "scheduledAt": 1708832760000,
-    "pendingAt": 1708832820000
+    "pendingAt": 1708832820000,
+    "originalPriceTakeProfit": 53173.7397,
+    "originalPriceStopLoss": 50592.4902
   },
   {
     "type": "signal.closed",
@@ -348,25 +436,11 @@
     "note": "",
     "createdAt": 1708832460000,
     "scheduledAt": 1708832400000,
-    "pendingAt": 1708828860000
-  },
-  {
-    "type": "signal.opened",
-    "id": "a708522e-f210-4000-aa35-5f6a720aa000",
-    "timestamp": 1708828860000,
-    "backtest": true,
-    "symbol": "BTCUSDT",
-    "strategyName": "main_strategy",
-    "exchangeName": "binance_exchange",
-    "signalId": "6fb27af5-0abb-4000-afac-d16e38446000",
-    "position": "long",
-    "priceOpen": 51695.22,
-    "priceTakeProfit": 53246.0766,
-    "priceStopLoss": 50661.3156,
-    "note": "",
-    "createdAt": 1708828860000,
-    "scheduledAt": 1708828800000,
-    "pendingAt": 1708828860000
+    "pendingAt": 1708828860000,
+    "priceTakeProfit": 53306.62,
+    "priceStopLoss": 50718.92,
+    "originalPriceTakeProfit": 53306.62,
+    "originalPriceStopLoss": 50718.92
   },
   {
     "type": "partial_loss.available",
@@ -390,6 +464,26 @@
     "pendingAt": 1708829670000
   },
   {
+    "type": "signal.opened",
+    "id": "a708522e-f210-4000-aa35-5f6a720aa000",
+    "timestamp": 1708828860000,
+    "backtest": true,
+    "symbol": "BTCUSDT",
+    "strategyName": "main_strategy",
+    "exchangeName": "binance_exchange",
+    "signalId": "6fb27af5-0abb-4000-afac-d16e38446000",
+    "position": "long",
+    "priceOpen": 51695.22,
+    "priceTakeProfit": 53246.0766,
+    "priceStopLoss": 50661.3156,
+    "note": "",
+    "createdAt": 1708828860000,
+    "scheduledAt": 1708828800000,
+    "pendingAt": 1708828860000,
+    "originalPriceTakeProfit": 53246.0766,
+    "originalPriceStopLoss": 50661.3156
+  },
+  {
     "type": "signal.scheduled",
     "id": "d8756db0-d78c-4000-a804-6fbfbb117000",
     "timestamp": 1708828560000,
@@ -402,7 +496,11 @@
     "priceOpen": 51695.22,
     "scheduledAt": 1708828560000,
     "currentPrice": 51755.37138327176,
-    "createdAt": 1708828560000
+    "createdAt": 1708828560000,
+    "priceTakeProfit": 53306.62,
+    "priceStopLoss": 50718.92,
+    "originalPriceTakeProfit": 53306.62,
+    "originalPriceStopLoss": 50718.92
   },
   {
     "type": "signal.closed",
@@ -422,7 +520,11 @@
     "note": "",
     "createdAt": 1708828500000,
     "scheduledAt": 1708828440000,
-    "pendingAt": 1708824900000
+    "pendingAt": 1708824900000,
+    "priceTakeProfit": 53306.62,
+    "priceStopLoss": 50718.92,
+    "originalPriceTakeProfit": 53306.62,
+    "originalPriceStopLoss": 50718.92
   },
   {
     "type": "partial_profit.available",
@@ -482,7 +584,9 @@
     "note": "",
     "createdAt": 1708824900000,
     "scheduledAt": 1708824840000,
-    "pendingAt": 1708824900000
+    "pendingAt": 1708824900000,
+    "originalPriceTakeProfit": 53168.0644,
+    "originalPriceStopLoss": 50587.0904
   },
   {
     "type": "signal.closed",
@@ -502,7 +606,11 @@
     "note": "",
     "createdAt": 1708787640000,
     "scheduledAt": 1708787580000,
-    "pendingAt": 1708784040000
+    "pendingAt": 1708784040000,
+    "priceTakeProfit": 53306.62,
+    "priceStopLoss": 50718.92,
+    "originalPriceTakeProfit": 53306.62,
+    "originalPriceStopLoss": 50718.92
   },
   {
     "type": "signal.opened",
@@ -520,7 +628,9 @@
     "note": "",
     "createdAt": 1708784040000,
     "scheduledAt": 1708783980000,
-    "pendingAt": 1708784040000
+    "pendingAt": 1708784040000,
+    "originalPriceTakeProfit": 52620.64,
+    "originalPriceStopLoss": 50066.24
   },
   {
     "type": "signal.scheduled",
@@ -535,7 +645,11 @@
     "priceOpen": 51088,
     "scheduledAt": 1708783560000,
     "currentPrice": 51123.376318928415,
-    "createdAt": 1708783560000
+    "createdAt": 1708783560000,
+    "priceTakeProfit": 53306.62,
+    "priceStopLoss": 50718.92,
+    "originalPriceTakeProfit": 53306.62,
+    "originalPriceStopLoss": 50718.92
   },
   {
     "type": "signal.closed",
@@ -555,7 +669,11 @@
     "note": "",
     "createdAt": 1708783500000,
     "scheduledAt": 1708783440000,
-    "pendingAt": 1708779900000
+    "pendingAt": 1708779900000,
+    "priceTakeProfit": 53306.62,
+    "priceStopLoss": 50718.92,
+    "originalPriceTakeProfit": 53306.62,
+    "originalPriceStopLoss": 50718.92
   },
   {
     "type": "signal.opened",
@@ -573,7 +691,9 @@
     "note": "",
     "createdAt": 1708779900000,
     "scheduledAt": 1708779840000,
-    "pendingAt": 1708779900000
+    "pendingAt": 1708779900000,
+    "originalPriceTakeProfit": 52627.355599999995,
+    "originalPriceStopLoss": 50072.62959999999
   },
   {
     "type": "signal.closed",
@@ -593,7 +713,11 @@
     "note": "",
     "createdAt": 1708706040000,
     "scheduledAt": 1708705980000,
-    "pendingAt": 1708702440000
+    "pendingAt": 1708702440000,
+    "priceTakeProfit": 53306.62,
+    "priceStopLoss": 50718.92,
+    "originalPriceTakeProfit": 53306.62,
+    "originalPriceStopLoss": 50718.92
   },
   {
     "type": "partial_profit.available",
@@ -632,7 +756,9 @@
     "note": "",
     "createdAt": 1708702440000,
     "scheduledAt": 1708702380000,
-    "pendingAt": 1708702440000
+    "pendingAt": 1708702440000,
+    "originalPriceTakeProfit": 49448.650299999994,
+    "originalPriceStopLoss": 51997.5498
   },
   {
     "type": "signal.scheduled",
@@ -647,7 +773,11 @@
     "priceOpen": 50977.99,
     "scheduledAt": 1708702440000,
     "currentPrice": 50918.45105553351,
-    "createdAt": 1708702440000
+    "createdAt": 1708702440000,
+    "priceTakeProfit": 53306.62,
+    "priceStopLoss": 50718.92,
+    "originalPriceTakeProfit": 53306.62,
+    "originalPriceStopLoss": 50718.92
   },
   {
     "type": "signal.closed",
@@ -667,7 +797,11 @@
     "note": "",
     "createdAt": 1708702380000,
     "scheduledAt": 1708702320000,
-    "pendingAt": 1708698780000
+    "pendingAt": 1708698780000,
+    "priceTakeProfit": 53306.62,
+    "priceStopLoss": 50718.92,
+    "originalPriceTakeProfit": 53306.62,
+    "originalPriceStopLoss": 50718.92
   },
   {
     "type": "partial_loss.available",
@@ -748,7 +882,9 @@
     "note": "",
     "createdAt": 1708698780000,
     "scheduledAt": 1708698720000,
-    "pendingAt": 1708698780000
+    "pendingAt": 1708698780000,
+    "originalPriceTakeProfit": 49388.5297,
+    "originalPriceStopLoss": 51934.330200000004
   },
   {
     "type": "signal.closed",
@@ -768,7 +904,11 @@
     "note": "",
     "createdAt": 1708586220000,
     "scheduledAt": 1708586160000,
-    "pendingAt": 1708582620000
+    "pendingAt": 1708582620000,
+    "priceTakeProfit": 53306.62,
+    "priceStopLoss": 50718.92,
+    "originalPriceTakeProfit": 53306.62,
+    "originalPriceStopLoss": 50718.92
   },
   {
     "type": "partial_profit.available",
@@ -807,7 +947,9 @@
     "note": "",
     "createdAt": 1708582620000,
     "scheduledAt": 1708582560000,
-    "pendingAt": 1708582620000
+    "pendingAt": 1708582620000,
+    "originalPriceTakeProfit": 53165.2113,
+    "originalPriceStopLoss": 50584.3758
   },
   {
     "type": "signal.closed",
@@ -827,7 +969,11 @@
     "note": "",
     "createdAt": 1708582560000,
     "scheduledAt": 1708582500000,
-    "pendingAt": 1708578960000
+    "pendingAt": 1708578960000,
+    "priceTakeProfit": 53306.62,
+    "priceStopLoss": 50718.92,
+    "originalPriceTakeProfit": 53306.62,
+    "originalPriceStopLoss": 50718.92
   },
   {
     "type": "partial_loss.available",
@@ -866,7 +1012,9 @@
     "note": "",
     "createdAt": 1708578960000,
     "scheduledAt": 1708578900000,
-    "pendingAt": 1708578960000
+    "pendingAt": 1708578960000,
+    "originalPriceTakeProfit": 53169.496100000004,
+    "originalPriceStopLoss": 50588.452600000004
   },
   {
     "type": "signal.closed",
@@ -886,7 +1034,11 @@
     "note": "",
     "createdAt": 1708556400000,
     "scheduledAt": 1708556340000,
-    "pendingAt": 1708552800000
+    "pendingAt": 1708552800000,
+    "priceTakeProfit": 53306.62,
+    "priceStopLoss": 50718.92,
+    "originalPriceTakeProfit": 53306.62,
+    "originalPriceStopLoss": 50718.92
   },
   {
     "type": "partial_loss.available",
@@ -925,7 +1077,9 @@
     "note": "",
     "createdAt": 1708552800000,
     "scheduledAt": 1708552740000,
-    "pendingAt": 1708552800000
+    "pendingAt": 1708552800000,
+    "originalPriceTakeProfit": 49843.7798,
+    "originalPriceStopLoss": 52413.0468
   },
   {
     "type": "signal.scheduled",
@@ -940,7 +1094,11 @@
     "priceOpen": 51385.34,
     "scheduledAt": 1708552800000,
     "currentPrice": 51363.58111709624,
-    "createdAt": 1708552800000
+    "createdAt": 1708552800000,
+    "priceTakeProfit": 53306.62,
+    "priceStopLoss": 50718.92,
+    "originalPriceTakeProfit": 53306.62,
+    "originalPriceStopLoss": 50718.92
   },
   {
     "type": "signal.closed",
@@ -960,25 +1118,11 @@
     "note": "",
     "createdAt": 1708552740000,
     "scheduledAt": 1708552680000,
-    "pendingAt": 1708549140000
-  },
-  {
-    "type": "signal.opened",
-    "id": "3f7b36ef-3922-4000-acab-2000a4648000",
-    "timestamp": 1708549140000,
-    "backtest": true,
-    "symbol": "BTCUSDT",
-    "strategyName": "main_strategy",
-    "exchangeName": "binance_exchange",
-    "signalId": "724f8c3c-8b8d-4000-a694-f8c99a049000",
-    "position": "short",
-    "priceOpen": 50957.94,
-    "priceTakeProfit": 49429.2018,
-    "priceStopLoss": 51977.0988,
-    "note": "",
-    "createdAt": 1708549140000,
-    "scheduledAt": 1708549080000,
-    "pendingAt": 1708549140000
+    "pendingAt": 1708549140000,
+    "priceTakeProfit": 53306.62,
+    "priceStopLoss": 50718.92,
+    "originalPriceTakeProfit": 53306.62,
+    "originalPriceStopLoss": 50718.92
   },
   {
     "type": "partial_loss.available",
@@ -1044,6 +1188,26 @@
     "pendingAt": 1708549710000
   },
   {
+    "type": "signal.opened",
+    "id": "3f7b36ef-3922-4000-acab-2000a4648000",
+    "timestamp": 1708549140000,
+    "backtest": true,
+    "symbol": "BTCUSDT",
+    "strategyName": "main_strategy",
+    "exchangeName": "binance_exchange",
+    "signalId": "724f8c3c-8b8d-4000-a694-f8c99a049000",
+    "position": "short",
+    "priceOpen": 50957.94,
+    "priceTakeProfit": 49429.2018,
+    "priceStopLoss": 51977.0988,
+    "note": "",
+    "createdAt": 1708549140000,
+    "scheduledAt": 1708549080000,
+    "pendingAt": 1708549140000,
+    "originalPriceTakeProfit": 49429.2018,
+    "originalPriceStopLoss": 51977.0988
+  },
+  {
     "type": "signal.scheduled",
     "id": "fb65e15f-7d7f-4000-a382-62dce62b1000",
     "timestamp": 1708548600000,
@@ -1056,7 +1220,11 @@
     "priceOpen": 50957.94,
     "scheduledAt": 1708548600000,
     "currentPrice": 50940.64023284996,
-    "createdAt": 1708548600000
+    "createdAt": 1708548600000,
+    "priceTakeProfit": 53306.62,
+    "priceStopLoss": 50718.92,
+    "originalPriceTakeProfit": 53306.62,
+    "originalPriceStopLoss": 50718.92
   },
   {
     "type": "signal.closed",
@@ -1076,7 +1244,11 @@
     "note": "",
     "createdAt": 1708391940000,
     "scheduledAt": 1708391880000,
-    "pendingAt": 1708388340000
+    "pendingAt": 1708388340000,
+    "priceTakeProfit": 53306.62,
+    "priceStopLoss": 50718.92,
+    "originalPriceTakeProfit": 53306.62,
+    "originalPriceStopLoss": 50718.92
   },
   {
     "type": "partial_profit.available",
@@ -1115,7 +1287,9 @@
     "note": "",
     "createdAt": 1708388340000,
     "scheduledAt": 1708388280000,
-    "pendingAt": 1708388340000
+    "pendingAt": 1708388340000,
+    "originalPriceTakeProfit": 50246,
+    "originalPriceStopLoss": 52836
   },
   {
     "type": "signal.scheduled",
@@ -1130,7 +1304,11 @@
     "priceOpen": 51800,
     "scheduledAt": 1708388340000,
     "currentPrice": 51790.73439011578,
-    "createdAt": 1708388340000
+    "createdAt": 1708388340000,
+    "priceTakeProfit": 53306.62,
+    "priceStopLoss": 50718.92,
+    "originalPriceTakeProfit": 53306.62,
+    "originalPriceStopLoss": 50718.92
   },
   {
     "type": "signal.closed",
@@ -1150,7 +1328,11 @@
     "note": "",
     "createdAt": 1708388280000,
     "scheduledAt": 1708388220000,
-    "pendingAt": 1708384680000
+    "pendingAt": 1708384680000,
+    "priceTakeProfit": 53306.62,
+    "priceStopLoss": 50718.92,
+    "originalPriceTakeProfit": 53306.62,
+    "originalPriceStopLoss": 50718.92
   },
   {
     "type": "partial_loss.available",
@@ -1189,7 +1371,9 @@
     "note": "",
     "createdAt": 1708384680000,
     "scheduledAt": 1708384620000,
-    "pendingAt": 1708384680000
+    "pendingAt": 1708384680000,
+    "originalPriceTakeProfit": 50267.4661,
+    "originalPriceStopLoss": 52858.5726
   },
   {
     "type": "signal.closed",
@@ -1209,7 +1393,11 @@
     "note": "",
     "createdAt": 1708342320000,
     "scheduledAt": 1708342260000,
-    "pendingAt": 1708338720000
+    "pendingAt": 1708338720000,
+    "priceTakeProfit": 53306.62,
+    "priceStopLoss": 50718.92,
+    "originalPriceTakeProfit": 53306.62,
+    "originalPriceStopLoss": 50718.92
   },
   {
     "type": "partial_loss.available",
@@ -1248,7 +1436,9 @@
     "note": "",
     "createdAt": 1708338720000,
     "scheduledAt": 1708338660000,
-    "pendingAt": 1708338720000
+    "pendingAt": 1708338720000,
+    "originalPriceTakeProfit": 54000.1396,
+    "originalPriceStopLoss": 51378.7736
   },
   {
     "type": "signal.closed",
@@ -1268,7 +1458,11 @@
     "note": "",
     "createdAt": 1708338660000,
     "scheduledAt": 1708338600000,
-    "pendingAt": 1708335060000
+    "pendingAt": 1708335060000,
+    "priceTakeProfit": 53306.62,
+    "priceStopLoss": 50718.92,
+    "originalPriceTakeProfit": 53306.62,
+    "originalPriceStopLoss": 50718.92
   },
   {
     "type": "partial_loss.available",
@@ -1307,7 +1501,9 @@
     "note": "",
     "createdAt": 1708335060000,
     "scheduledAt": 1708335000000,
-    "pendingAt": 1708335060000
+    "pendingAt": 1708335060000,
+    "originalPriceTakeProfit": 53927.7203,
+    "originalPriceStopLoss": 51309.8698
   },
   {
     "type": "signal.closed",
@@ -1327,7 +1523,11 @@
     "note": "",
     "createdAt": 1707996600000,
     "scheduledAt": 1707996540000,
-    "pendingAt": 1707993000000
+    "pendingAt": 1707993000000,
+    "priceTakeProfit": 53306.62,
+    "priceStopLoss": 50718.92,
+    "originalPriceTakeProfit": 53306.62,
+    "originalPriceStopLoss": 50718.92
   },
   {
     "type": "signal.opened",
@@ -1345,7 +1545,9 @@
     "note": "",
     "createdAt": 1707993000000,
     "scheduledAt": 1707992940000,
-    "pendingAt": 1707993000000
+    "pendingAt": 1707993000000,
+    "originalPriceTakeProfit": 53766.0103,
+    "originalPriceStopLoss": 51156.0098
   },
   {
     "type": "signal.scheduled",
@@ -1360,7 +1562,11 @@
     "priceOpen": 52200.01,
     "scheduledAt": 1707993000000,
     "currentPrice": 52214.10540623115,
-    "createdAt": 1707993000000
+    "createdAt": 1707993000000,
+    "priceTakeProfit": 53306.62,
+    "priceStopLoss": 50718.92,
+    "originalPriceTakeProfit": 53306.62,
+    "originalPriceStopLoss": 50718.92
   },
   {
     "type": "signal.closed",
@@ -1380,25 +1586,11 @@
     "note": "",
     "createdAt": 1707992940000,
     "scheduledAt": 1707992880000,
-    "pendingAt": 1707989340000
-  },
-  {
-    "type": "signal.opened",
-    "id": "60cb4192-e9c8-4000-a630-169145856000",
-    "timestamp": 1707989340000,
-    "backtest": true,
-    "symbol": "BTCUSDT",
-    "strategyName": "main_strategy",
-    "exchangeName": "binance_exchange",
-    "signalId": "e251b95d-9290-4000-aa88-20211576e000",
-    "position": "long",
-    "priceOpen": 52078,
-    "priceTakeProfit": 53640.340000000004,
-    "priceStopLoss": 51036.44,
-    "note": "",
-    "createdAt": 1707989340000,
-    "scheduledAt": 1707989280000,
-    "pendingAt": 1707989340000
+    "pendingAt": 1707989340000,
+    "priceTakeProfit": 53306.62,
+    "priceStopLoss": 50718.92,
+    "originalPriceTakeProfit": 53306.62,
+    "originalPriceStopLoss": 50718.92
   },
   {
     "type": "partial_profit.available",
@@ -1422,6 +1614,26 @@
     "pendingAt": 1707991950000
   },
   {
+    "type": "signal.opened",
+    "id": "60cb4192-e9c8-4000-a630-169145856000",
+    "timestamp": 1707989340000,
+    "backtest": true,
+    "symbol": "BTCUSDT",
+    "strategyName": "main_strategy",
+    "exchangeName": "binance_exchange",
+    "signalId": "e251b95d-9290-4000-aa88-20211576e000",
+    "position": "long",
+    "priceOpen": 52078,
+    "priceTakeProfit": 53640.340000000004,
+    "priceStopLoss": 51036.44,
+    "note": "",
+    "createdAt": 1707989340000,
+    "scheduledAt": 1707989280000,
+    "pendingAt": 1707989340000,
+    "originalPriceTakeProfit": 53640.340000000004,
+    "originalPriceStopLoss": 51036.44
+  },
+  {
     "type": "signal.scheduled",
     "id": "f7e67b9e-7ffd-4000-ae59-8ae66f8fa000",
     "timestamp": 1707988800000,
@@ -1434,7 +1646,11 @@
     "priceOpen": 52078,
     "scheduledAt": 1707988800000,
     "currentPrice": 52128.187391537096,
-    "createdAt": 1707988800000
+    "createdAt": 1707988800000,
+    "priceTakeProfit": 53306.62,
+    "priceStopLoss": 50718.92,
+    "originalPriceTakeProfit": 53306.62,
+    "originalPriceStopLoss": 50718.92
   },
   {
     "type": "signal.closed",
@@ -1454,7 +1670,11 @@
     "note": "",
     "createdAt": 1707896640000,
     "scheduledAt": 1707896580000,
-    "pendingAt": 1707893040000
+    "pendingAt": 1707893040000,
+    "priceTakeProfit": 53306.62,
+    "priceStopLoss": 50718.92,
+    "originalPriceTakeProfit": 53306.62,
+    "originalPriceStopLoss": 50718.92
   },
   {
     "type": "partial_profit.available",
@@ -1493,7 +1713,9 @@
     "note": "",
     "createdAt": 1707893040000,
     "scheduledAt": 1707892980000,
-    "pendingAt": 1707893040000
+    "pendingAt": 1707893040000,
+    "originalPriceTakeProfit": 51055.0503,
+    "originalPriceStopLoss": 48576.6498
   },
   {
     "type": "signal.scheduled",
@@ -1508,7 +1730,11 @@
     "priceOpen": 49568.01,
     "scheduledAt": 1707892980000,
     "currentPrice": 49606.85203357287,
-    "createdAt": 1707892980000
+    "createdAt": 1707892980000,
+    "priceTakeProfit": 53306.62,
+    "priceStopLoss": 50718.92,
+    "originalPriceTakeProfit": 53306.62,
+    "originalPriceStopLoss": 50718.92
   },
   {
     "type": "signal.closed",
@@ -1528,7 +1754,11 @@
     "note": "",
     "createdAt": 1707892920000,
     "scheduledAt": 1707892860000,
-    "pendingAt": 1707889320000
+    "pendingAt": 1707889320000,
+    "priceTakeProfit": 53306.62,
+    "priceStopLoss": 50718.92,
+    "originalPriceTakeProfit": 53306.62,
+    "originalPriceStopLoss": 50718.92
   },
   {
     "type": "signal.opened",
@@ -1546,7 +1776,9 @@
     "note": "",
     "createdAt": 1707889320000,
     "scheduledAt": 1707889260000,
-    "pendingAt": 1707889320000
+    "pendingAt": 1707889320000,
+    "originalPriceTakeProfit": 51010.3792,
+    "originalPriceStopLoss": 48534.1472
   },
   {
     "type": "signal.scheduled",
@@ -1561,7 +1793,11 @@
     "priceOpen": 49524.64,
     "scheduledAt": 1707888780000,
     "currentPrice": 49526.347967362584,
-    "createdAt": 1707888780000
+    "createdAt": 1707888780000,
+    "priceTakeProfit": 53306.62,
+    "priceStopLoss": 50718.92,
+    "originalPriceTakeProfit": 53306.62,
+    "originalPriceStopLoss": 50718.92
   },
   {
     "type": "signal.closed",
@@ -1581,7 +1817,11 @@
     "note": "",
     "createdAt": 1707734820000,
     "scheduledAt": 1707734760000,
-    "pendingAt": 1707731220000
+    "pendingAt": 1707731220000,
+    "priceTakeProfit": 53306.62,
+    "priceStopLoss": 50718.92,
+    "originalPriceTakeProfit": 53306.62,
+    "originalPriceStopLoss": 50718.92
   },
   {
     "type": "partial_loss.available",
@@ -1620,7 +1860,9 @@
     "note": "",
     "createdAt": 1707731220000,
     "scheduledAt": 1707731160000,
-    "pendingAt": 1707731220000
+    "pendingAt": 1707731220000,
+    "originalPriceTakeProfit": 46444.492399999996,
+    "originalPriceStopLoss": 48838.5384
   },
   {
     "type": "signal.closed",
@@ -1640,7 +1882,11 @@
     "note": "",
     "createdAt": 1707731160000,
     "scheduledAt": 1707731100000,
-    "pendingAt": 1707727560000
+    "pendingAt": 1707727560000,
+    "priceTakeProfit": 53306.62,
+    "priceStopLoss": 50718.92,
+    "originalPriceTakeProfit": 53306.62,
+    "originalPriceStopLoss": 50718.92
   },
   {
     "type": "signal.opened",
@@ -1658,7 +1904,9 @@
     "note": "",
     "createdAt": 1707727560000,
     "scheduledAt": 1707727500000,
-    "pendingAt": 1707727560000
+    "pendingAt": 1707727560000,
+    "originalPriceTakeProfit": 46670.589700000004,
+    "originalPriceStopLoss": 49076.2902
   },
   {
     "type": "signal.closed",
@@ -1678,7 +1926,11 @@
     "note": "",
     "createdAt": 1707702600000,
     "scheduledAt": 1707702540000,
-    "pendingAt": 1707699000000
+    "pendingAt": 1707699000000,
+    "priceTakeProfit": 53306.62,
+    "priceStopLoss": 50718.92,
+    "originalPriceTakeProfit": 53306.62,
+    "originalPriceStopLoss": 50718.92
   },
   {
     "type": "partial_loss.available",
@@ -1738,7 +1990,9 @@
     "note": "",
     "createdAt": 1707699000000,
     "scheduledAt": 1707698940000,
-    "pendingAt": 1707699000000
+    "pendingAt": 1707699000000,
+    "originalPriceTakeProfit": 50062.12,
+    "originalPriceStopLoss": 47631.92
   },
   {
     "type": "signal.scheduled",
@@ -1753,7 +2007,11 @@
     "priceOpen": 48604,
     "scheduledAt": 1707699000000,
     "currentPrice": 48615.39414973843,
-    "createdAt": 1707699000000
+    "createdAt": 1707699000000,
+    "priceTakeProfit": 53306.62,
+    "priceStopLoss": 50718.92,
+    "originalPriceTakeProfit": 53306.62,
+    "originalPriceStopLoss": 50718.92
   },
   {
     "type": "signal.closed",
@@ -1773,7 +2031,11 @@
     "note": "",
     "createdAt": 1707698940000,
     "scheduledAt": 1707698880000,
-    "pendingAt": 1707695340000
+    "pendingAt": 1707695340000,
+    "priceTakeProfit": 53306.62,
+    "priceStopLoss": 50718.92,
+    "originalPriceTakeProfit": 53306.62,
+    "originalPriceStopLoss": 50718.92
   },
   {
     "type": "partial_profit.available",
@@ -1874,7 +2136,9 @@
     "note": "",
     "createdAt": 1707695340000,
     "scheduledAt": 1707695280000,
-    "pendingAt": 1707695340000
+    "pendingAt": 1707695340000,
+    "originalPriceTakeProfit": 49748.9897,
+    "originalPriceStopLoss": 47333.9902
   },
   {
     "type": "signal.closed",
@@ -1894,7 +2158,11 @@
     "note": "",
     "createdAt": 1707684480000,
     "scheduledAt": 1707684420000,
-    "pendingAt": 1707680880000
+    "pendingAt": 1707680880000,
+    "priceTakeProfit": 53306.62,
+    "priceStopLoss": 50718.92,
+    "originalPriceTakeProfit": 53306.62,
+    "originalPriceStopLoss": 50718.92
   },
   {
     "type": "partial_loss.available",
@@ -1933,7 +2201,9 @@
     "note": "",
     "createdAt": 1707680880000,
     "scheduledAt": 1707680820000,
-    "pendingAt": 1707680880000
+    "pendingAt": 1707680880000,
+    "originalPriceTakeProfit": 49732.520000000004,
+    "originalPriceStopLoss": 47318.32
   },
   {
     "type": "signal.scheduled",
@@ -1948,7 +2218,11 @@
     "priceOpen": 48284,
     "scheduledAt": 1707680820000,
     "currentPrice": 48299.63674674899,
-    "createdAt": 1707680820000
+    "createdAt": 1707680820000,
+    "priceTakeProfit": 53306.62,
+    "priceStopLoss": 50718.92,
+    "originalPriceTakeProfit": 53306.62,
+    "originalPriceStopLoss": 50718.92
   },
   {
     "type": "signal.closed",
@@ -1968,7 +2242,11 @@
     "note": "",
     "createdAt": 1707680760000,
     "scheduledAt": 1707680700000,
-    "pendingAt": 1707677160000
+    "pendingAt": 1707677160000,
+    "priceTakeProfit": 53306.62,
+    "priceStopLoss": 50718.92,
+    "originalPriceTakeProfit": 53306.62,
+    "originalPriceStopLoss": 50718.92
   },
   {
     "type": "partial_loss.available",
@@ -2007,7 +2285,9 @@
     "note": "",
     "createdAt": 1707677160000,
     "scheduledAt": 1707677100000,
-    "pendingAt": 1707677160000
+    "pendingAt": 1707677160000,
+    "originalPriceTakeProfit": 49730.6866,
+    "originalPriceStopLoss": 47316.575600000004
   },
   {
     "type": "signal.closed",
@@ -2027,7 +2307,11 @@
     "note": "",
     "createdAt": 1707501900000,
     "scheduledAt": 1707501840000,
-    "pendingAt": 1707498300000
+    "pendingAt": 1707498300000,
+    "priceTakeProfit": 53306.62,
+    "priceStopLoss": 50718.92,
+    "originalPriceTakeProfit": 53306.62,
+    "originalPriceStopLoss": 50718.92
   },
   {
     "type": "partial_profit.available",
@@ -2128,7 +2412,9 @@
     "note": "",
     "createdAt": 1707498300000,
     "scheduledAt": 1707498240000,
-    "pendingAt": 1707498300000
+    "pendingAt": 1707498300000,
+    "originalPriceTakeProfit": 48799.31940000001,
+    "originalPriceStopLoss": 46430.4204
   },
   {
     "type": "signal.closed",
@@ -2148,7 +2434,11 @@
     "note": "",
     "createdAt": 1707498240000,
     "scheduledAt": 1707498180000,
-    "pendingAt": 1707494640000
+    "pendingAt": 1707494640000,
+    "priceTakeProfit": 53306.62,
+    "priceStopLoss": 50718.92,
+    "originalPriceTakeProfit": 53306.62,
+    "originalPriceStopLoss": 50718.92
   },
   {
     "type": "partial_loss.available",
@@ -2187,7 +2477,9 @@
     "note": "",
     "createdAt": 1707494640000,
     "scheduledAt": 1707494580000,
-    "pendingAt": 1707494640000
+    "pendingAt": 1707494640000,
+    "originalPriceTakeProfit": 48799.350300000006,
+    "originalPriceStopLoss": 46430.4498
   },
   {
     "type": "signal.closed",
@@ -2207,7 +2499,11 @@
     "note": "",
     "createdAt": 1707404580000,
     "scheduledAt": 1707404520000,
-    "pendingAt": 1707400980000
+    "pendingAt": 1707400980000,
+    "priceTakeProfit": 53306.62,
+    "priceStopLoss": 50718.92,
+    "originalPriceTakeProfit": 53306.62,
+    "originalPriceStopLoss": 50718.92
   },
   {
     "type": "partial_loss.available",
@@ -2267,7 +2563,9 @@
     "note": "",
     "createdAt": 1707400980000,
     "scheduledAt": 1707400920000,
-    "pendingAt": 1707400980000
+    "pendingAt": 1707400980000,
+    "originalPriceTakeProfit": 46537.4497,
+    "originalPriceStopLoss": 44278.3502
   },
   {
     "type": "signal.closed",
@@ -2287,7 +2585,11 @@
     "note": "",
     "createdAt": 1707400920000,
     "scheduledAt": 1707400860000,
-    "pendingAt": 1707397320000
+    "pendingAt": 1707397320000,
+    "priceTakeProfit": 53306.62,
+    "priceStopLoss": 50718.92,
+    "originalPriceTakeProfit": 53306.62,
+    "originalPriceStopLoss": 50718.92
   },
   {
     "type": "partial_profit.available",
@@ -2347,7 +2649,9 @@
     "note": "",
     "createdAt": 1707397320000,
     "scheduledAt": 1707397260000,
-    "pendingAt": 1707397320000
+    "pendingAt": 1707397320000,
+    "originalPriceTakeProfit": 46143.4335,
+    "originalPriceStopLoss": 43903.460999999996
   },
   {
     "type": "signal.closed",
@@ -2367,7 +2671,11 @@
     "note": "",
     "createdAt": 1707387060000,
     "scheduledAt": 1707387000000,
-    "pendingAt": 1707383460000
+    "pendingAt": 1707383460000,
+    "priceTakeProfit": 53306.62,
+    "priceStopLoss": 50718.92,
+    "originalPriceTakeProfit": 53306.62,
+    "originalPriceStopLoss": 50718.92
   },
   {
     "type": "signal.opened",
@@ -2385,7 +2693,9 @@
     "note": "",
     "createdAt": 1707383460000,
     "scheduledAt": 1707383400000,
-    "pendingAt": 1707383460000
+    "pendingAt": 1707383460000,
+    "originalPriceTakeProfit": 45962.874500000005,
+    "originalPriceStopLoss": 43731.667
   },
   {
     "type": "signal.scheduled",
@@ -2400,7 +2710,11 @@
     "priceOpen": 44624.15,
     "scheduledAt": 1707382920000,
     "currentPrice": 44718.045209230186,
-    "createdAt": 1707382920000
+    "createdAt": 1707382920000,
+    "priceTakeProfit": 53306.62,
+    "priceStopLoss": 50718.92,
+    "originalPriceTakeProfit": 53306.62,
+    "originalPriceStopLoss": 50718.92
   },
   {
     "type": "signal.closed",
@@ -2420,7 +2734,11 @@
     "note": "",
     "createdAt": 1707382860000,
     "scheduledAt": 1707382800000,
-    "pendingAt": 1707379260000
+    "pendingAt": 1707379260000,
+    "priceTakeProfit": 53306.62,
+    "priceStopLoss": 50718.92,
+    "originalPriceTakeProfit": 53306.62,
+    "originalPriceStopLoss": 50718.92
   },
   {
     "type": "signal.opened",
@@ -2438,7 +2756,9 @@
     "note": "",
     "createdAt": 1707379260000,
     "scheduledAt": 1707379200000,
-    "pendingAt": 1707379260000
+    "pendingAt": 1707379260000,
+    "originalPriceTakeProfit": 45952.9144,
+    "originalPriceStopLoss": 43722.1904
   },
   {
     "type": "signal.closed",
@@ -2458,7 +2778,11 @@
     "note": "",
     "createdAt": 1707311700000,
     "scheduledAt": 1707311640000,
-    "pendingAt": 1707308100000
+    "pendingAt": 1707308100000,
+    "priceTakeProfit": 53306.62,
+    "priceStopLoss": 50718.92,
+    "originalPriceTakeProfit": 53306.62,
+    "originalPriceStopLoss": 50718.92
   },
   {
     "type": "partial_loss.available",
@@ -2497,7 +2821,9 @@
     "note": "",
     "createdAt": 1707308100000,
     "scheduledAt": 1707308040000,
-    "pendingAt": 1707308100000
+    "pendingAt": 1707308100000,
+    "originalPriceTakeProfit": 41651.5187,
+    "originalPriceStopLoss": 43798.5042
   },
   {
     "type": "signal.scheduled",
@@ -2512,7 +2838,11 @@
     "priceOpen": 42939.71,
     "scheduledAt": 1707308100000,
     "currentPrice": 42917.28753843722,
-    "createdAt": 1707308100000
+    "createdAt": 1707308100000,
+    "priceTakeProfit": 53306.62,
+    "priceStopLoss": 50718.92,
+    "originalPriceTakeProfit": 53306.62,
+    "originalPriceStopLoss": 50718.92
   },
   {
     "type": "signal.closed",
@@ -2532,7 +2862,11 @@
     "note": "",
     "createdAt": 1707308040000,
     "scheduledAt": 1707307980000,
-    "pendingAt": 1707304440000
+    "pendingAt": 1707304440000,
+    "priceTakeProfit": 53306.62,
+    "priceStopLoss": 50718.92,
+    "originalPriceTakeProfit": 53306.62,
+    "originalPriceStopLoss": 50718.92
   },
   {
     "type": "signal.opened",
@@ -2550,7 +2884,9 @@
     "note": "",
     "createdAt": 1707304440000,
     "scheduledAt": 1707304380000,
-    "pendingAt": 1707304440000
+    "pendingAt": 1707304440000,
+    "originalPriceTakeProfit": 41680.7642,
+    "originalPriceStopLoss": 43829.2572
   },
   {
     "type": "signal.scheduled",
@@ -2565,7 +2901,11 @@
     "priceOpen": 42969.86,
     "scheduledAt": 1707303720000,
     "currentPrice": 42880.56728618986,
-    "createdAt": 1707303720000
+    "createdAt": 1707303720000,
+    "priceTakeProfit": 53306.62,
+    "priceStopLoss": 50718.92,
+    "originalPriceTakeProfit": 53306.62,
+    "originalPriceStopLoss": 50718.92
   },
   {
     "type": "signal.closed",
@@ -2585,7 +2925,11 @@
     "note": "",
     "createdAt": 1706878260000,
     "scheduledAt": 1706878200000,
-    "pendingAt": 1706874660000
+    "pendingAt": 1706874660000,
+    "priceTakeProfit": 53306.62,
+    "priceStopLoss": 50718.92,
+    "originalPriceTakeProfit": 53306.62,
+    "originalPriceStopLoss": 50718.92
   },
   {
     "type": "signal.opened",
@@ -2603,7 +2947,9 @@
     "note": "",
     "createdAt": 1706874660000,
     "scheduledAt": 1706874600000,
-    "pendingAt": 1706874660000
+    "pendingAt": 1706874660000,
+    "originalPriceTakeProfit": 44442.86230000001,
+    "originalPriceStopLoss": 42285.4418
   },
   {
     "type": "signal.scheduled",
@@ -2618,7 +2964,11 @@
     "priceOpen": 43148.41,
     "scheduledAt": 1706874660000,
     "currentPrice": 43157.55515625796,
-    "createdAt": 1706874660000
+    "createdAt": 1706874660000,
+    "priceTakeProfit": 53306.62,
+    "priceStopLoss": 50718.92,
+    "originalPriceTakeProfit": 53306.62,
+    "originalPriceStopLoss": 50718.92
   },
   {
     "type": "signal.closed",
@@ -2638,7 +2988,11 @@
     "note": "",
     "createdAt": 1706874600000,
     "scheduledAt": 1706874540000,
-    "pendingAt": 1706871000000
+    "pendingAt": 1706871000000,
+    "priceTakeProfit": 53306.62,
+    "priceStopLoss": 50718.92,
+    "originalPriceTakeProfit": 53306.62,
+    "originalPriceStopLoss": 50718.92
   },
   {
     "type": "signal.opened",
@@ -2656,6 +3010,8 @@
     "note": "",
     "createdAt": 1706871000000,
     "scheduledAt": 1706870940000,
-    "pendingAt": 1706871000000
+    "pendingAt": 1706871000000,
+    "originalPriceTakeProfit": 44416.15440000001,
+    "originalPriceStopLoss": 42260.0304
   }
 ]
