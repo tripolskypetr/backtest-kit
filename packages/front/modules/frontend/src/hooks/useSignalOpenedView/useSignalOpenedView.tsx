@@ -31,7 +31,7 @@ const fetchData = async (id: string) => {
   }
 
   return {
-    signalOpened: signalOpenedData,
+    signal_opened: signalOpenedData,
     candle_1m: await ioc.exchangeViewService.getPointCandles({
       currentTime: signalOpenedData.timestamp,
       exchangeName: signalOpenedData.exchangeName,
@@ -54,33 +54,33 @@ const fetchData = async (id: string) => {
 };
 
 const handleDownload = async (pathname: string, id: string) => {
-  const { candle_15m, candle_1h, candle_1m, signalOpened } = await fetchData(id);
+  const { candle_15m, candle_1h, candle_1m, signal_opened } = await fetchData(id);
 
   if (pathname.includes("/signal_opened")) {
-    const blob = new Blob([JSON.stringify(signalOpened, null, 2)], { type: "application/json" });
+    const blob = new Blob([JSON.stringify(signal_opened, null, 2)], { type: "application/json" });
     const url = URL.createObjectURL(blob);
-    ioc.layoutService.downloadFile(url, `signal_opened_${signalOpened.signalId || "unknown"}.json`);
+    ioc.layoutService.downloadFile(url, `signal_opened_${signal_opened.signalId || "unknown"}.json`);
     return;
   }
 
   if (pathname.includes("/candle_1m")) {
     const blob = new Blob([JSON.stringify(candle_1m, null, 2)], { type: "application/json" });
     const url = URL.createObjectURL(blob);
-    ioc.layoutService.downloadFile(url, `candles_1m_${signalOpened.signalId || "unknown"}.json`);
+    ioc.layoutService.downloadFile(url, `candles_1m_${signal_opened.signalId || "unknown"}.json`);
     return;
   }
 
   if (pathname.includes("/candle_15m")) {
     const blob = new Blob([JSON.stringify(candle_15m, null, 2)], { type: "application/json" });
     const url = URL.createObjectURL(blob);
-    ioc.layoutService.downloadFile(url, `candles_15m_${signalOpened.signalId || "unknown"}.json`);
+    ioc.layoutService.downloadFile(url, `candles_15m_${signal_opened.signalId || "unknown"}.json`);
     return;
   }
 
   if (pathname.includes("/candle_1h")) {
     const blob = new Blob([JSON.stringify(candle_1h, null, 2)], { type: "application/json" });
     const url = URL.createObjectURL(blob);
-    ioc.layoutService.downloadFile(url, `candles_1h_${signalOpened.signalId || "unknown"}.json`);
+    ioc.layoutService.downloadFile(url, `candles_1h_${signal_opened.signalId || "unknown"}.json`);
     return;
   }
 };
