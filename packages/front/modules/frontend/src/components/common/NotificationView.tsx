@@ -198,26 +198,40 @@ const handleNotificationClick = (item: NotificationModel) => {
       ioc.layoutService.pickRisk(item.id);
       break;
     case "signal.opened":
+      ioc.layoutService.pickSignalOpened(item.id);
+      break;
     case "signal.closed":
+      ioc.layoutService.pickSignalClosed(item.id);
+      break;
     case "signal.scheduled":
+      ioc.layoutService.pickSignalScheduled(item.id);
+      break;
     case "signal.cancelled":
-      ioc.layoutService.pickSignalNotification(item.id);
+      ioc.layoutService.pickSignalCancelled(item.id);
       break;
     case "partial_profit.available":
+      ioc.layoutService.pickPartialProfitAvailable(item.id);
+      break;
     case "partial_profit.commit":
-      ioc.layoutService.pickPartialProfit(item.id);
+      ioc.layoutService.pickPartialProfitCommit(item.id);
       break;
     case "partial_loss.available":
+      ioc.layoutService.pickPartialLossAvailable(item.id);
+      break;
     case "partial_loss.commit":
-      ioc.layoutService.pickPartialLoss(item.id);
+      ioc.layoutService.pickPartialLossCommit(item.id);
       break;
     case "breakeven.available":
+      ioc.layoutService.pickBreakevenAvailable(item.id);
+      break;
     case "breakeven.commit":
-      ioc.layoutService.pickBreakeven(item.id);
+      ioc.layoutService.pickBreakevenCommit(item.id);
       break;
     case "trailing_stop.commit":
+      ioc.layoutService.pickTrailingStop(item.id);
+      break;
     case "trailing_take.commit":
-      ioc.layoutService.pickTrailing(item.id);
+      ioc.layoutService.pickTrailingTake(item.id);
       break;
   }
 };
