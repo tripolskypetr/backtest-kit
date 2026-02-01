@@ -8,7 +8,7 @@ export const Candle1hView = ({ data, formState }: IOutletModalProps) => {
     const {
         position,
         pendingAt,
-        closedAt,
+        createdAt,
         priceOpen,
         priceStopLoss,
         priceTakeProfit,
@@ -19,7 +19,7 @@ export const Candle1hView = ({ data, formState }: IOutletModalProps) => {
         return {
             position: notification.position,
             pendingAt: new Date(notification.pendingAt || notification.scheduledAt).toISOString(),
-            closedAt: new Date(notification.pendingAt || notification.scheduledAt).toISOString(),
+            createdAt: new Date(notification.createdAt).toISOString(),
             priceOpen: notification.priceOpen,
             priceStopLoss: notification.priceStopLoss,
             priceTakeProfit: notification.priceTakeProfit,
@@ -35,14 +35,13 @@ export const Candle1hView = ({ data, formState }: IOutletModalProps) => {
                     <StockChart
                         items={data}
                         pendingAt={pendingAt}
-                        closedAt={closedAt}
+                        eventAt={createdAt}
                         position={position}
                         priceOpen={priceOpen}
                         priceStopLoss={priceStopLoss}
                         priceTakeProfit={priceTakeProfit}
                         originalPriceStopLoss={originalPriceStopLoss}
                         originalPriceTakeProfit={originalPriceTakeProfit}
-                        status="opened"
                         height={height}
                         width={width}
                         source="1h"

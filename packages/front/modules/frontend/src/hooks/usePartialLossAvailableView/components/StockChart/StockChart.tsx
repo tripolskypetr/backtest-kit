@@ -8,6 +8,8 @@ import {
   Time,
   LineStyle,
   SeriesMarker,
+  IChartApi,
+  ISeriesApi,
 } from "lightweight-charts";
 import { createChart } from "lightweight-charts";
 import { makeStyles } from "../../../../styles";
@@ -16,6 +18,94 @@ import { colors } from "@mui/material";
 
 declare function parseFloat(value: unknown): number;
 
+interface IVertLineOptions {
+  showLabel?: boolean;
+  labelText?: string;
+  color?: string;
+  width?: number;
+}
+
+class VertLine {
+  private _chart: IChartApi;
+  private _time: Time;
+  private _options: Required<IVertLineOptions>;
+  private _div: HTMLDivElement | null = null;
+
+  constructor(
+    chart: IChartApi,
+    _series: ISeriesApi<"Line">,
+    time: Time,
+    options: IVertLineOptions = {}
+  ) {
+    this._chart = chart;
+    this._time = time;
+    this._options = {
+      showLabel: options.showLabel ?? true,
+      labelText: options.labelText ?? "",
+      color: options.color ?? "blue",
+      width: options.width ?? 2,
+    };
+    this._createDiv();
+    this._updatePosition();
+    this._chart.timeScale().subscribeVisibleTimeRangeChange(() => this._updatePosition());
+  }
+
+  private _createDiv() {
+    const chartElement = (this._chart as unknown as { _container?: HTMLElement })._container
+      ?? document.querySelector(".tv-lightweight-charts");
+    if (!chartElement) return;
+
+    const container = chartElement.parentElement;
+    if (!container) return;
+
+    this._div = document.createElement("div");
+    this._div.style.position = "absolute";
+    this._div.style.zIndex = "10";
+    this._div.style.pointerEvents = "none";
+    this._div.style.width = `${this._options.width}px`;
+    this._div.style.backgroundColor = this._options.color;
+    this._div.style.top = "0";
+    this._div.style.bottom = "0";
+
+    if (this._options.showLabel && this._options.labelText) {
+      const label = document.createElement("div");
+      label.textContent = this._options.labelText;
+      label.style.position = "absolute";
+      label.style.top = "5px";
+      label.style.left = "5px";
+      label.style.backgroundColor = this._options.color;
+      label.style.color = "white";
+      label.style.padding = "2px 6px";
+      label.style.borderRadius = "3px";
+      label.style.fontSize = "11px";
+      label.style.fontWeight = "bold";
+      label.style.whiteSpace = "nowrap";
+      this._div.appendChild(label);
+    }
+
+    container.style.position = "relative";
+    container.appendChild(this._div);
+  }
+
+  private _updatePosition() {
+    if (!this._div) return;
+    const x = this._chart.timeScale().timeToCoordinate(this._time);
+    if (x === null) {
+      this._div.style.display = "none";
+    } else {
+      this._div.style.display = "block";
+      this._div.style.left = `${x}px`;
+    }
+  }
+
+  destroy() {
+    if (this._div && this._div.parentElement) {
+      this._div.parentElement.removeChild(this._div);
+    }
+    this._div = null;
+  }
+}
+
 interface IChartProps {
   source: "1m" | "15m" | "1h";
   height: number;
@@ -23,13 +113,12 @@ interface IChartProps {
   items: ICandleData[];
   position: "long" | "short";
   pendingAt: string;
-  closedAt: string;
   priceOpen: number;
   priceStopLoss: number;
   priceTakeProfit: number;
   originalPriceStopLoss?: number;
   originalPriceTakeProfit?: number;
-  status: "opened" | "closed" | "scheduled" | "cancelled";
+  eventAt?: string;
 }
 
 
@@ -50,15 +139,10 @@ const getColorByIndex = (index: number) => {
   return COLOR_LIST[index % COLOR_LIST.length];
 };
 
-/**
- * Получить цвет для позиции на основе типа
- * @param position - тип позиции (long/short)
- * @param index - индекс для fallback цвета
- */
 const getPositionColor = (position: "long" | "short", index: number): string => {
-  if (position === "long") return colors.blue[700];  // 🔵 LONG - синий
-  if (position === "short") return colors.orange[700]; // 🟠 SHORT - оранжевый
-  return getColorByIndex(index); // Fallback
+  if (position === "long") return colors.blue[700];
+  if (position === "short") return colors.orange[700];
+  return getColorByIndex(index);
 };
 
 const formatAmount = (value: number | string, scale = 2, separator = ",") => {
@@ -125,7 +209,6 @@ const chartOptions: DeepPartial<ChartOptions> = {
   },
 };
 
-// Базовая дата в UTC для MOMENT_STAMP_OFFSET
 const MOMENT_STAMP_OFFSET = getMomentStamp(
   dayjs("2025-07-26T00:00:00Z"),
   "minute"
@@ -140,13 +223,12 @@ export const StockChart = ({
   items,
   position,
   pendingAt,
-  closedAt,
   priceOpen,
   priceStopLoss,
   priceTakeProfit,
   originalPriceStopLoss,
   originalPriceTakeProfit,
-  status,
+  eventAt,
 }: IChartProps) => {
   const { classes } = useStyles();
   const elementRef: Ref = useRef<HTMLDivElement>(undefined as never);
@@ -155,7 +237,6 @@ export const StockChart = ({
   useLayoutEffect(() => {
     const { current: chartElement } = elementRef;
 
-    // Map items to chart data
     const candles = items
       .map(({ close, timestamp }, idx) => {
         let momentStamp: number;
@@ -163,12 +244,10 @@ export const StockChart = ({
         let date: dayjs.Dayjs;
         let formattedOriginalTime: string;
 
-        // Проверяем timestamp (Unix timestamp в миллисекундах)
         if (timestamp && dayjs(timestamp).isValid()) {
           date = dayjs(timestamp);
           formattedOriginalTime = date.format("YYYY-MM-DD HH:mm:ss");
         } else {
-          // Если timestamp невалидно, используем fromMomentStamp
           if (source === "1m") {
             momentStamp = MOMENT_STAMP_OFFSET + idx;
             date = fromMomentStamp(momentStamp, "minute");
@@ -178,7 +257,7 @@ export const StockChart = ({
             const minute = Math.floor(date.minute() / 15) * 15;
             date = date.startOf("hour").add(minute, "minute");
           } else if (source === "1h") {
-            momentStamp = MOMENT_STAMP_OFFSET + Math.floor(idx / 60); // 1 час = 60 минут
+            momentStamp = MOMENT_STAMP_OFFSET + Math.floor(idx / 60);
             date = fromMomentStamp(momentStamp, "hour");
             date = date.startOf("hour");
           }
@@ -188,7 +267,6 @@ export const StockChart = ({
           );
         }
 
-        // Формируем momentStamp для валидной даты
         if (source === "1m") {
           momentStamp = getMomentStamp(date, "minute");
           time = momentStamp as Time;
@@ -210,7 +288,6 @@ export const StockChart = ({
           return null;
         }
 
-        // Отладочный вывод
         console.debug(
           `Index: ${idx}, timestamp: ${timestamp}, momentStamp: ${momentStamp}, time: ${time}, date: ${date.format("YYYY-MM-DD HH:mm:ss")}`
         );
@@ -242,7 +319,6 @@ export const StockChart = ({
         timeVisible: true,
         secondsVisible: source === "1m",
         tickMarkFormatter: (time: Time) => {
-          // Поиск свечи по momentStamp
           const candle =
             candles.find((c) => c.momentStamp === Number(time)) || candles[0];
           if (!candle || !candle.originalTime) {
@@ -269,11 +345,9 @@ export const StockChart = ({
 
     lineSeries.setData(candles);
 
-    // Price lines for position
     const positionLabel = position === "long" ? "LONG" : "SHORT";
     const positionColor = getPositionColor(position, 0);
 
-    // Entry price line
     lineSeries.createPriceLine({
       price: priceOpen,
       color: positionColor,
@@ -283,7 +357,6 @@ export const StockChart = ({
       title: `${positionLabel} Entry`,
     });
 
-    // Stop Loss line (current/trailing)
     lineSeries.createPriceLine({
       price: priceStopLoss,
       color: colors.red[500],
@@ -293,7 +366,6 @@ export const StockChart = ({
       title: "SL",
     });
 
-    // Original Stop Loss line (if trailing changed it)
     if (originalPriceStopLoss != null && originalPriceStopLoss !== priceStopLoss) {
       lineSeries.createPriceLine({
         price: originalPriceStopLoss,
@@ -305,7 +377,6 @@ export const StockChart = ({
       });
     }
 
-    // Take Profit line (current/trailing)
     lineSeries.createPriceLine({
       price: priceTakeProfit,
       color: colors.green[500],
@@ -315,7 +386,6 @@ export const StockChart = ({
       title: "TP",
     });
 
-    // Original Take Profit line (if trailing changed it)
     if (originalPriceTakeProfit != null && originalPriceTakeProfit !== priceTakeProfit) {
       lineSeries.createPriceLine({
         price: originalPriceTakeProfit,
@@ -327,7 +397,6 @@ export const StockChart = ({
       });
     }
 
-    // Markers for entry and exit points
     const markers: SeriesMarker<Time>[] = [];
 
     // Entry marker (pendingAt)
@@ -355,33 +424,6 @@ export const StockChart = ({
       });
     }
 
-    // Exit marker (closedAt) - only for closed positions
-    if (status === "closed") {
-      const exitDate = dayjs(closedAt);
-      if (exitDate.isValid()) {
-        let exitTime: Time;
-        if (source === "1m") {
-          exitTime = getMomentStamp(exitDate, "minute") as Time;
-        } else if (source === "15m") {
-          const minute = Math.floor(exitDate.minute() / 15) * 15;
-          const alignedDate = exitDate.startOf("hour").add(minute, "minute");
-          exitTime = getMomentStamp(alignedDate, "minute") as Time;
-        } else {
-          const alignedDate = exitDate.startOf("hour");
-          exitTime = getMomentStamp(alignedDate, "hour") as Time;
-        }
-
-        markers.push({
-          time: exitTime,
-          position: position === "short" ? "belowBar" : "aboveBar",
-          color: colors.grey[500],
-          shape: "circle",
-          size: 1,
-          text: "Exit",
-        });
-      }
-    }
-
     // Markers must be sorted by time for lightweight-charts
     markers.sort((a, b) => Number(a.time) - Number(b.time));
     lineSeries.setMarkers(markers);
@@ -403,12 +445,41 @@ export const StockChart = ({
       }
     });
 
+    // Event vertical line
+    let vertLine: VertLine | null = null;
+    if (eventAt) {
+      const eventDate = dayjs(eventAt);
+      if (eventDate.isValid()) {
+        let eventTime: Time;
+        if (source === "1m") {
+          eventTime = getMomentStamp(eventDate, "minute") as Time;
+        } else if (source === "15m") {
+          const minute = Math.floor(eventDate.minute() / 15) * 15;
+          const alignedDate = eventDate.startOf("hour").add(minute, "minute");
+          eventTime = getMomentStamp(alignedDate, "minute") as Time;
+        } else {
+          const alignedDate = eventDate.startOf("hour");
+          eventTime = getMomentStamp(alignedDate, "hour") as Time;
+        }
+
+        vertLine = new VertLine(chart, lineSeries, eventTime, {
+          showLabel: true,
+          labelText: "Event",
+          color: colors.blue[500],
+          width: 2,
+        });
+      }
+    }
+
     chart.timeScale().fitContent();
 
     return () => {
+      if (vertLine) {
+        vertLine.destroy();
+      }
       chart.remove();
     };
-  }, [source, height, width, items, position, pendingAt, closedAt, priceOpen, priceStopLoss, priceTakeProfit, originalPriceStopLoss, originalPriceTakeProfit, status]);
+  }, [source, height, width, items, position, pendingAt, priceOpen, priceStopLoss, priceTakeProfit, originalPriceStopLoss, originalPriceTakeProfit, eventAt]);
 
   return (
     <div ref={elementRef} className={classes.root}>

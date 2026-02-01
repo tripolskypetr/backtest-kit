@@ -89,7 +89,7 @@ export const partial_loss_available_fields: TypedField[] = [
                         title: "Signal ID",
                         readonly: true,
                         trailingIcon: ArrowForward,
-                        trailingIconClick: (signalId: string) => signalId && ioc.layoutService.pickSignal(signalId),
+                        click: ({}, {}, { signalId }) => signalId && ioc.layoutService.pickSignal(signalId),
                         isVisible: (obj) => !!obj.signalId,
                         compute: (obj) => obj.signalId || "Not specified",
                     },
