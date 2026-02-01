@@ -44,6 +44,7 @@ import "./spec/backtest.test.mjs";
 import "./spec/pnl.test.mjs";
 import "./spec/config.test.mjs"
 import "./spec/columns.test.mjs"
+import "./spec/lookahead.test.mjs";
 
 import "./migration/migrate1.test.mjs"
 import "./migration/migrate2.test.mjs"
