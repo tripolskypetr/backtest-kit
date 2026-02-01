@@ -6,16 +6,22 @@ import { SignalCancelledNotification } from "backtest-kit";
 
 export const Candle1hView = ({ data, formState }: IOutletModalProps) => {
     const {
-        cancelReason,
+        position,
         createdAt,
+        updatedAt,
+        priceOpen,
+        priceStopLoss,
+        priceTakeProfit,
     } = useMemo(() => {
-        const {
-            cancelReason,
-            createdAt,
-        } = formState.data.main as SignalCancelledNotification;
+        const notification = formState.data.main as SignalCancelledNotification;
+        const createdAtDate = new Date(notification.createdAt).toISOString();
         return {
-            cancelReason,
-            createdAt: new Date(createdAt).toUTCString(),
+            position: notification.position,
+            createdAt: createdAtDate,
+            updatedAt: new Date(notification.timestamp).toISOString(),
+            priceOpen: 0,
+            priceStopLoss: 0,
+            priceTakeProfit: 0,
         };
     }, [formState.data.main]);
 
@@ -26,7 +32,12 @@ export const Candle1hView = ({ data, formState }: IOutletModalProps) => {
                     <StockChart
                         items={data}
                         createdAt={createdAt}
-                        cancelReason={cancelReason}
+                        updatedAt={updatedAt}
+                        position={position}
+                        priceOpen={priceOpen}
+                        priceStopLoss={priceStopLoss}
+                        priceTakeProfit={priceTakeProfit}
+                        status="cancelled"
                         height={height}
                         width={width}
                         source="1h"

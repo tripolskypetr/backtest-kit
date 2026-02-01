@@ -6,19 +6,22 @@ import { SignalScheduledNotification } from "backtest-kit";
 
 export const Candle15mView = ({ data, formState }: IOutletModalProps) => {
     const {
-        priceOpen,
-        currentPrice,
+        position,
         createdAt,
+        updatedAt,
+        priceOpen,
+        priceStopLoss,
+        priceTakeProfit,
     } = useMemo(() => {
-        const {
-            priceOpen,
-            currentPrice,
-            createdAt,
-        } = formState.data.main as SignalScheduledNotification;
+        const notification = formState.data.main as SignalScheduledNotification;
+        const scheduledAtDate = new Date(notification.scheduledAt).toISOString();
         return {
-            priceOpen,
-            currentPrice,
-            createdAt: new Date(createdAt).toUTCString(),
+            position: notification.position,
+            createdAt: scheduledAtDate,
+            updatedAt: new Date(notification.createdAt).toISOString(),
+            priceOpen: notification.priceOpen,
+            priceStopLoss: notification.priceOpen,
+            priceTakeProfit: notification.priceOpen,
         };
     }, [formState.data.main]);
 
@@ -29,8 +32,12 @@ export const Candle15mView = ({ data, formState }: IOutletModalProps) => {
                     <StockChart
                         items={data}
                         createdAt={createdAt}
+                        updatedAt={updatedAt}
+                        position={position}
                         priceOpen={priceOpen}
-                        currentPrice={currentPrice}
+                        priceStopLoss={priceStopLoss}
+                        priceTakeProfit={priceTakeProfit}
+                        status="scheduled"
                         height={height}
                         width={width}
                         source="15m"

@@ -6,15 +6,25 @@ import { TrailingTakeCommitNotification } from "backtest-kit";
 
 export const Candle1mView = ({ data, formState }: IOutletModalProps) => {
     const {
-        currentPrice,
-        percentShift,
+        position,
         createdAt,
+        updatedAt,
+        priceOpen,
+        priceStopLoss,
+        priceTakeProfit,
+        originalPriceStopLoss,
+        originalPriceTakeProfit,
     } = useMemo(() => {
-        const trailingTake = formState.data.main as TrailingTakeCommitNotification;
+        const notification = formState.data.main as TrailingTakeCommitNotification;
         return {
-            currentPrice: trailingTake.currentPrice,
-            percentShift: trailingTake.percentShift,
-            createdAt: new Date(trailingTake.createdAt).toUTCString(),
+            position: notification.position,
+            createdAt: new Date(notification.pendingAt).toISOString(),
+            updatedAt: new Date(notification.createdAt).toISOString(),
+            priceOpen: notification.priceOpen,
+            priceStopLoss: notification.priceStopLoss,
+            priceTakeProfit: notification.priceTakeProfit,
+            originalPriceStopLoss: notification.originalPriceStopLoss,
+            originalPriceTakeProfit: notification.originalPriceTakeProfit,
         };
     }, [formState.data.main]);
 
@@ -25,8 +35,14 @@ export const Candle1mView = ({ data, formState }: IOutletModalProps) => {
                     <StockChart
                         items={data}
                         createdAt={createdAt}
-                        currentPrice={currentPrice}
-                        percentShift={percentShift}
+                        updatedAt={updatedAt}
+                        position={position}
+                        priceOpen={priceOpen}
+                        priceStopLoss={priceStopLoss}
+                        priceTakeProfit={priceTakeProfit}
+                        originalPriceStopLoss={originalPriceStopLoss}
+                        originalPriceTakeProfit={originalPriceTakeProfit}
+                        status="opened"
                         height={height}
                         width={width}
                         source="1m"

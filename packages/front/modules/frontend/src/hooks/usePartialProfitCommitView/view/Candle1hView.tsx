@@ -6,15 +6,25 @@ import { PartialProfitCommitNotification } from "backtest-kit";
 
 export const Candle1hView = ({ data, formState }: IOutletModalProps) => {
     const {
-        currentPrice,
-        percentToClose,
+        position,
         createdAt,
+        updatedAt,
+        priceOpen,
+        priceStopLoss,
+        priceTakeProfit,
+        originalPriceStopLoss,
+        originalPriceTakeProfit,
     } = useMemo(() => {
-        const partialProfitCommit = formState.data.main as PartialProfitCommitNotification;
+        const notification = formState.data.main as PartialProfitCommitNotification;
         return {
-            currentPrice: partialProfitCommit.currentPrice,
-            percentToClose: partialProfitCommit.percentToClose,
-            createdAt: new Date(partialProfitCommit.createdAt).toUTCString(),
+            position: notification.position,
+            createdAt: new Date(notification.pendingAt).toISOString(),
+            updatedAt: new Date(notification.createdAt).toISOString(),
+            priceOpen: notification.priceOpen,
+            priceStopLoss: notification.priceStopLoss,
+            priceTakeProfit: notification.priceTakeProfit,
+            originalPriceStopLoss: notification.originalPriceStopLoss,
+            originalPriceTakeProfit: notification.originalPriceTakeProfit,
         };
     }, [formState.data.main]);
 
@@ -25,8 +35,14 @@ export const Candle1hView = ({ data, formState }: IOutletModalProps) => {
                     <StockChart
                         items={data}
                         createdAt={createdAt}
-                        currentPrice={currentPrice}
-                        percentToClose={percentToClose}
+                        updatedAt={updatedAt}
+                        position={position}
+                        priceOpen={priceOpen}
+                        priceStopLoss={priceStopLoss}
+                        priceTakeProfit={priceTakeProfit}
+                        originalPriceStopLoss={originalPriceStopLoss}
+                        originalPriceTakeProfit={originalPriceTakeProfit}
+                        status="opened"
                         height={height}
                         width={width}
                         source="1h"
