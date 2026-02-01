@@ -21,6 +21,7 @@ import {
     useAsyncValue,
     useElementSize,
     useOnce,
+    wordForm,
 } from "react-declarative";
 import React from "react";
 import ioc from "../../../../lib";
@@ -326,11 +327,11 @@ export const ListView = ({
                         return (
                             <ListItem>
                                 <ListItemText
-                                    primary="Нет сигналов"
+                                    primary="No signals yet"
                                     secondary={
                                         type === "live"
-                                            ? "Live сигналы будут отображены здесь"
-                                            : "Backtest сигналы будут отображены здесь"
+                                            ? "Live signals will be displayed here"
+                                            : "Backtest signals will be displayed here"
                                     }
                                 />
                             </ListItem>
@@ -339,6 +340,7 @@ export const ListView = ({
 
                     return symbolList.map((symbol) => {
                         const color = symbolMap[symbol]?.color;
+                        const count = signalsBySymbol[symbol]?.length || 0;
                         return (
                             <li key={`section-${symbol}`}>
                                 <ul>
@@ -369,9 +371,7 @@ export const ListView = ({
                                             variant="body2"
                                             sx={{ fontWeight: "medium" }}
                                         >
-                                            {signalsBySymbol[symbol]?.length ||
-                                                0}{" "}
-                                            сигнал(ов)
+                                            {wordForm(count, { one: "Signal", two: "Signals", many: "Signals" })}
                                         </Typography>
                                     </ListSubheader>
                                     <Box
