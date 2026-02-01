@@ -25,13 +25,14 @@ export const Candle1mView = ({ data, formState }: IOutletModalProps) => {
             priceTakeProfit,
             priceStopLoss,
             pendingAt,
+            scheduledAt,
             createdAt,
             originalPriceStopLoss,
             originalPriceTakeProfit,
         } = formState.data.main as IStorageSignalRow;
         return {
             position,
-            pendingAt: new Date(pendingAt).toISOString(),
+            pendingAt: new Date(pendingAt || scheduledAt).toISOString(),
             closedAt: new Date(createdAt).toISOString(),
             priceOpen,
             priceTakeProfit,
