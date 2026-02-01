@@ -95,6 +95,8 @@ export class NotificationInstance {
         priceTakeProfit: data.signal.priceTakeProfit,
         priceStopLoss: data.signal.priceStopLoss,
         note: data.signal.note,
+        scheduledAt: data.signal.scheduledAt,
+        pendingAt: data.signal.pendingAt,
         createdAt: data.createdAt,
       });
     } else if (data.action === "closed") {
@@ -117,6 +119,8 @@ export class NotificationInstance {
         closeReason: data.closeReason,
         duration: durationMin,
         note: data.signal.note,
+        scheduledAt: data.signal.scheduledAt,
+        pendingAt: data.signal.pendingAt,
         createdAt: data.createdAt,
       });
     } else if (data.action === "scheduled") {
