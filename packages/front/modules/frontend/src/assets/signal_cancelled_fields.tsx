@@ -1,8 +1,8 @@
 import { TypedField, FieldType, dayjs, CopyButton } from "react-declarative";
 
-const formatDuration = (durationMs: number): string => {
-    if (durationMs == null) return "N/A";
-    const totalSeconds = Math.floor(durationMs / 1000);
+const formatDuration = (durationMinutes: number): string => {
+    if (durationMinutes == null) return "N/A";
+    const totalSeconds = Math.floor(durationMinutes * 60);
     const hours = Math.floor(totalSeconds / 3600);
     const minutes = Math.floor((totalSeconds % 3600) / 60);
     const seconds = totalSeconds % 60;
