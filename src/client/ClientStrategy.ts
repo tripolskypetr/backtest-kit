@@ -117,7 +117,7 @@ const TO_PUBLIC_SIGNAL = <T extends ISignalDto | ISignalRow | IScheduledSignalRo
 const VALIDATE_SIGNAL_FN = (signal: ISignalRow, currentPrice: number, isScheduled: boolean): void => {
   const errors: string[] = [];
 
-  // ПРОВЕРКА ОБЯЗАТЕЛЬНЫХ ПОЛЕЙ ISignalRow
+  // CHECK OF REQUIRED FIELDS ISignalRow
   {
     if (signal.id === undefined || signal.id === null || signal.id === '') {
       errors.push('id is required and must be a non-empty string');
@@ -142,7 +142,7 @@ const VALIDATE_SIGNAL_FN = (signal: ISignalRow, currentPrice: number, isSchedule
     }
   }
 
-  // ЗАЩИТА ОТ NaN/Infinity: currentPrice должна быть конечным числом
+  // PROTECTION FROM NaN/Infinity: currentPrice must be a finite number
   {
     if (typeof currentPrice !== "number") {
       errors.push(
@@ -159,7 +159,7 @@ const VALIDATE_SIGNAL_FN = (signal: ISignalRow, currentPrice: number, isSchedule
     }
   }
 
-  // ЗАЩИТА ОТ NaN/Infinity: все цены должны быть конечными числами
+  // PROTECTION FROM NaN/Infinity: all prices must be finite numbers
   {
     if (typeof signal.priceOpen !== "number") {
       errors.push(
@@ -193,7 +193,7 @@ const VALIDATE_SIGNAL_FN = (signal: ISignalRow, currentPrice: number, isSchedule
     }
   }
 
-  // Валидация цен (только если они конечные)
+  // Validation of prices (only if they are finite)
   {
     if (isFinite(signal.priceOpen) && signal.priceOpen <= 0) {
       errors.push(`priceOpen must be positive, got ${signal.priceOpen}`);
@@ -208,9 +208,9 @@ const VALIDATE_SIGNAL_FN = (signal: ISignalRow, currentPrice: number, isSchedule
     }
   }
 
-  // Валидация для long позиции
+  // Validation for long position
   if (signal.position === "long") {
-    // Проверка соотношения цен для long
+    // Check price relation for long
     {
       if (signal.priceTakeProfit <= signal.priceOpen) {
         errors.push(
@@ -224,49 +224,49 @@ const VALIDATE_SIGNAL_FN = (signal: ISignalRow, currentPrice: number, isSchedule
       }
     }
 
-    // ЗАЩИТА ОТ МОМЕНТАЛЬНОГО ЗАКРЫТИЯ: проверяем что позиция не закроется сразу после открытия
+    // PROTECTION FROM IMMEDIATE CLOSING: check that position will not close immediately after opening
     {
       if (!isScheduled && isFinite(currentPrice)) {
-        // LONG: currentPrice должна быть МЕЖДУ SL и TP (не пробита ни одна граница)
+        // LONG: currentPrice must be BETWEEN SL and TP (neither boundary breached)
         // SL < currentPrice < TP
         if (currentPrice <= signal.priceStopLoss) {
           errors.push(
             `Long immediate: currentPrice (${currentPrice}) <= priceStopLoss (${signal.priceStopLoss}). ` +
-              `Signal would be immediately closed by stop loss. Cannot open position that is already stopped out.`
+            `Signal would be immediately closed by stop loss. Cannot open position that is already stopped out.`
           );
         }
 
         if (currentPrice >= signal.priceTakeProfit) {
           errors.push(
             `Long immediate: currentPrice (${currentPrice}) >= priceTakeProfit (${signal.priceTakeProfit}). ` +
-              `Signal would be immediately closed by take profit. The profit opportunity has already passed.`
+            `Signal would be immediately closed by take profit. The profit opportunity has already passed.`
           );
         }
       }
     }
 
-    // ЗАЩИТА ОТ МОМЕНТАЛЬНОГО ЗАКРЫТИЯ scheduled сигналов
+    // PROTECTION FROM IMMEDIATE CLOSING of scheduled signals
     {
       if (isScheduled && isFinite(signal.priceOpen)) {
-        // LONG scheduled: priceOpen должен быть МЕЖДУ SL и TP
+        // LONG scheduled: priceOpen must be BETWEEN SL and TP
         // SL < priceOpen < TP
         if (signal.priceOpen <= signal.priceStopLoss) {
           errors.push(
             `Long scheduled: priceOpen (${signal.priceOpen}) <= priceStopLoss (${signal.priceStopLoss}). ` +
-              `Signal would be immediately cancelled on activation. Cannot activate position that is already stopped out.`
+            `Signal would be immediately cancelled on activation. Cannot activate position that is already stopped out.`
           );
         }
 
         if (signal.priceOpen >= signal.priceTakeProfit) {
           errors.push(
             `Long scheduled: priceOpen (${signal.priceOpen}) >= priceTakeProfit (${signal.priceTakeProfit}). ` +
-              `Signal would close immediately on activation. This is logically impossible for LONG position.`
+            `Signal would close immediately on activation. This is logically impossible for LONG position.`
           );
         }
       }
     }
 
-    // ЗАЩИТА ОТ МИКРО-ПРОФИТА: TakeProfit должен быть достаточно далеко, чтобы покрыть комиссии
+    // PROTECTION FROM MICRO-PROFIT: TakeProfit must be far enough to cover fees
     {
       if (GLOBAL_CONFIG.CC_MIN_TAKEPROFIT_DISTANCE_PERCENT) {
         const tpDistancePercent =
@@ -274,14 +274,14 @@ const VALIDATE_SIGNAL_FN = (signal: ISignalRow, currentPrice: number, isSchedule
         if (tpDistancePercent < GLOBAL_CONFIG.CC_MIN_TAKEPROFIT_DISTANCE_PERCENT) {
           errors.push(
             `Long: TakeProfit too close to priceOpen (${tpDistancePercent.toFixed(3)}%). ` +
-              `Minimum distance: ${GLOBAL_CONFIG.CC_MIN_TAKEPROFIT_DISTANCE_PERCENT}% to cover trading fees. ` +
-              `Current: TP=${signal.priceTakeProfit}, Open=${signal.priceOpen}`
+            `Minimum distance: ${GLOBAL_CONFIG.CC_MIN_TAKEPROFIT_DISTANCE_PERCENT}% to cover trading fees. ` +
+            `Current: TP=${signal.priceTakeProfit}, Open=${signal.priceOpen}`
           );
         }
       }
     }
 
-    // ЗАЩИТА ОТ СЛИШКОМ УЗКОГО STOPLOSS: минимальный буфер для избежания моментального закрытия
+    // PROTECTION FROM TOO TIGHT STOPLOSS: minimum buffer to avoid immediate closing
     {
       if (GLOBAL_CONFIG.CC_MIN_STOPLOSS_DISTANCE_PERCENT) {
         const slDistancePercent =
@@ -289,14 +289,14 @@ const VALIDATE_SIGNAL_FN = (signal: ISignalRow, currentPrice: number, isSchedule
         if (slDistancePercent < GLOBAL_CONFIG.CC_MIN_STOPLOSS_DISTANCE_PERCENT) {
           errors.push(
             `Long: StopLoss too close to priceOpen (${slDistancePercent.toFixed(3)}%). ` +
-              `Minimum distance: ${GLOBAL_CONFIG.CC_MIN_STOPLOSS_DISTANCE_PERCENT}% to avoid instant stop out on market volatility. ` +
-              `Current: SL=${signal.priceStopLoss}, Open=${signal.priceOpen}`
+            `Minimum distance: ${GLOBAL_CONFIG.CC_MIN_STOPLOSS_DISTANCE_PERCENT}% to avoid instant stop out on market volatility. ` +
+            `Current: SL=${signal.priceStopLoss}, Open=${signal.priceOpen}`
           );
         }
       }
     }
 
-    // ЗАЩИТА ОТ ЭКСТРЕМАЛЬНОГО STOPLOSS: ограничиваем максимальный убыток
+    // PROTECTION FROM EXTREME STOPLOSS: limit maximum loss
     {
       if (GLOBAL_CONFIG.CC_MAX_STOPLOSS_DISTANCE_PERCENT) {
         const slDistancePercent =
@@ -304,17 +304,17 @@ const VALIDATE_SIGNAL_FN = (signal: ISignalRow, currentPrice: number, isSchedule
         if (slDistancePercent > GLOBAL_CONFIG.CC_MAX_STOPLOSS_DISTANCE_PERCENT) {
           errors.push(
             `Long: StopLoss too far from priceOpen (${slDistancePercent.toFixed(3)}%). ` +
-              `Maximum distance: ${GLOBAL_CONFIG.CC_MAX_STOPLOSS_DISTANCE_PERCENT}% to protect capital. ` +
-              `Current: SL=${signal.priceStopLoss}, Open=${signal.priceOpen}`
+            `Maximum distance: ${GLOBAL_CONFIG.CC_MAX_STOPLOSS_DISTANCE_PERCENT}% to protect capital. ` +
+            `Current: SL=${signal.priceStopLoss}, Open=${signal.priceOpen}`
           );
         }
       }
     }
   }
 
-  // Валидация для short позиции
+  // Validation for short position
   if (signal.position === "short") {
-    // Проверка соотношения цен для short
+    // Check price relation for short
     {
       if (signal.priceTakeProfit >= signal.priceOpen) {
         errors.push(
@@ -328,49 +328,49 @@ const VALIDATE_SIGNAL_FN = (signal: ISignalRow, currentPrice: number, isSchedule
       }
     }
 
-    // ЗАЩИТА ОТ МОМЕНТАЛЬНОГО ЗАКРЫТИЯ: проверяем что позиция не закроется сразу после открытия
+    // PROTECTION FROM IMMEDIATE CLOSING: check that position will not close immediately after opening
     {
       if (!isScheduled && isFinite(currentPrice)) {
-        // SHORT: currentPrice должна быть МЕЖДУ TP и SL (не пробита ни одна граница)
+        // SHORT: currentPrice must be BETWEEN TP and SL (neither boundary breached)
         // TP < currentPrice < SL
         if (currentPrice >= signal.priceStopLoss) {
           errors.push(
             `Short immediate: currentPrice (${currentPrice}) >= priceStopLoss (${signal.priceStopLoss}). ` +
-              `Signal would be immediately closed by stop loss. Cannot open position that is already stopped out.`
+            `Signal would be immediately closed by stop loss. Cannot open position that is already stopped out.`
           );
         }
 
         if (currentPrice <= signal.priceTakeProfit) {
           errors.push(
             `Short immediate: currentPrice (${currentPrice}) <= priceTakeProfit (${signal.priceTakeProfit}). ` +
-              `Signal would be immediately closed by take profit. The profit opportunity has already passed.`
+            `Signal would be immediately closed by take profit. The profit opportunity has already passed.`
           );
         }
       }
     }
 
-    // ЗАЩИТА ОТ МОМЕНТАЛЬНОГО ЗАКРЫТИЯ scheduled сигналов
+    // PROTECTION FROM IMMEDIATE CLOSING of scheduled signals
     {
       if (isScheduled && isFinite(signal.priceOpen)) {
-        // SHORT scheduled: priceOpen должен быть МЕЖДУ TP и SL
+        // SHORT scheduled: priceOpen must be BETWEEN TP and SL
         // TP < priceOpen < SL
         if (signal.priceOpen >= signal.priceStopLoss) {
           errors.push(
             `Short scheduled: priceOpen (${signal.priceOpen}) >= priceStopLoss (${signal.priceStopLoss}). ` +
-              `Signal would be immediately cancelled on activation. Cannot activate position that is already stopped out.`
+            `Signal would be immediately cancelled on activation. Cannot activate position that is already stopped out.`
           );
         }
 
         if (signal.priceOpen <= signal.priceTakeProfit) {
           errors.push(
             `Short scheduled: priceOpen (${signal.priceOpen}) <= priceTakeProfit (${signal.priceTakeProfit}). ` +
-              `Signal would close immediately on activation. This is logically impossible for SHORT position.`
+            `Signal would close immediately on activation. This is logically impossible for SHORT position.`
           );
         }
       }
     }
 
-    // ЗАЩИТА ОТ МИКРО-ПРОФИТА: TakeProfit должен быть достаточно далеко, чтобы покрыть комиссии
+    // PROTECTION FROM MICRO-PROFIT: TakeProfit must be far enough to cover fees
     {
       if (GLOBAL_CONFIG.CC_MIN_TAKEPROFIT_DISTANCE_PERCENT) {
         const tpDistancePercent =
@@ -378,14 +378,14 @@ const VALIDATE_SIGNAL_FN = (signal: ISignalRow, currentPrice: number, isSchedule
         if (tpDistancePercent < GLOBAL_CONFIG.CC_MIN_TAKEPROFIT_DISTANCE_PERCENT) {
           errors.push(
             `Short: TakeProfit too close to priceOpen (${tpDistancePercent.toFixed(3)}%). ` +
-              `Minimum distance: ${GLOBAL_CONFIG.CC_MIN_TAKEPROFIT_DISTANCE_PERCENT}% to cover trading fees. ` +
-              `Current: TP=${signal.priceTakeProfit}, Open=${signal.priceOpen}`
+            `Minimum distance: ${GLOBAL_CONFIG.CC_MIN_TAKEPROFIT_DISTANCE_PERCENT}% to cover trading fees. ` +
+            `Current: TP=${signal.priceTakeProfit}, Open=${signal.priceOpen}`
           );
         }
       }
     }
 
-    // ЗАЩИТА ОТ СЛИШКОМ УЗКОГО STOPLOSS: минимальный буфер для избежания моментального закрытия
+    // PROTECTION FROM TOO TIGHT STOPLOSS: minimum buffer to avoid immediate closing
     {
       if (GLOBAL_CONFIG.CC_MIN_STOPLOSS_DISTANCE_PERCENT) {
         const slDistancePercent =
@@ -393,14 +393,14 @@ const VALIDATE_SIGNAL_FN = (signal: ISignalRow, currentPrice: number, isSchedule
         if (slDistancePercent < GLOBAL_CONFIG.CC_MIN_STOPLOSS_DISTANCE_PERCENT) {
           errors.push(
             `Short: StopLoss too close to priceOpen (${slDistancePercent.toFixed(3)}%). ` +
-              `Minimum distance: ${GLOBAL_CONFIG.CC_MIN_STOPLOSS_DISTANCE_PERCENT}% to avoid instant stop out on market volatility. ` +
-              `Current: SL=${signal.priceStopLoss}, Open=${signal.priceOpen}`
+            `Minimum distance: ${GLOBAL_CONFIG.CC_MIN_STOPLOSS_DISTANCE_PERCENT}% to avoid instant stop out on market volatility. ` +
+            `Current: SL=${signal.priceStopLoss}, Open=${signal.priceOpen}`
           );
         }
       }
     }
 
-    // ЗАЩИТА ОТ ЭКСТРЕМАЛЬНОГО STOPLOSS: ограничиваем максимальный убыток
+    // PROTECTION FROM EXTREME STOPLOSS: limit maximum loss
     {
       if (GLOBAL_CONFIG.CC_MAX_STOPLOSS_DISTANCE_PERCENT) {
         const slDistancePercent =
@@ -408,15 +408,15 @@ const VALIDATE_SIGNAL_FN = (signal: ISignalRow, currentPrice: number, isSchedule
         if (slDistancePercent > GLOBAL_CONFIG.CC_MAX_STOPLOSS_DISTANCE_PERCENT) {
           errors.push(
             `Short: StopLoss too far from priceOpen (${slDistancePercent.toFixed(3)}%). ` +
-              `Maximum distance: ${GLOBAL_CONFIG.CC_MAX_STOPLOSS_DISTANCE_PERCENT}% to protect capital. ` +
-              `Current: SL=${signal.priceStopLoss}, Open=${signal.priceOpen}`
+            `Maximum distance: ${GLOBAL_CONFIG.CC_MAX_STOPLOSS_DISTANCE_PERCENT}% to protect capital. ` +
+            `Current: SL=${signal.priceStopLoss}, Open=${signal.priceOpen}`
           );
         }
       }
     }
   }
 
-  // Валидация временных параметров
+  // Validation of time parameters
   {
     if (typeof signal.minuteEstimatedTime !== "number") {
       errors.push(
@@ -440,7 +440,7 @@ const VALIDATE_SIGNAL_FN = (signal: ISignalRow, currentPrice: number, isSchedule
     }
   }
 
-  // ЗАЩИТА ОТ ВЕЧНЫХ СИГНАЛОВ: ограничиваем максимальное время жизни сигнала
+  // PROTECTION FROM ETERNAL SIGNALS: limit maximum signal lifetime
   {
     if (GLOBAL_CONFIG.CC_MAX_SIGNAL_LIFETIME_MINUTES && GLOBAL_CONFIG.CC_MAX_SIGNAL_LIFETIME_MINUTES) {
       if (signal.minuteEstimatedTime > GLOBAL_CONFIG.CC_MAX_SIGNAL_LIFETIME_MINUTES) {
@@ -448,14 +448,14 @@ const VALIDATE_SIGNAL_FN = (signal: ISignalRow, currentPrice: number, isSchedule
         const maxDays = (GLOBAL_CONFIG.CC_MAX_SIGNAL_LIFETIME_MINUTES / 60 / 24).toFixed(0);
         errors.push(
           `minuteEstimatedTime too large (${signal.minuteEstimatedTime} minutes = ${days} days). ` +
-            `Maximum: ${GLOBAL_CONFIG.CC_MAX_SIGNAL_LIFETIME_MINUTES} minutes (${maxDays} days) to prevent strategy deadlock. ` +
-            `Eternal signals block risk limits and prevent new trades.`
+          `Maximum: ${GLOBAL_CONFIG.CC_MAX_SIGNAL_LIFETIME_MINUTES} minutes (${maxDays} days) to prevent strategy deadlock. ` +
+          `Eternal signals block risk limits and prevent new trades.`
         );
       }
     }
   }
 
-  // Валидация временных меток
+  // Validation of timestamps
   {
     if (typeof signal.scheduledAt !== "number") {
       errors.push(
@@ -475,7 +475,7 @@ const VALIDATE_SIGNAL_FN = (signal: ISignalRow, currentPrice: number, isSchedule
     }
   }
 
-  // Кидаем ошибку если есть проблемы
+  // Throw error if there are problems
   if (errors.length > 0) {
     throw new Error(
       `Invalid signal for ${signal.position} position:\n${errors.join("\n")}`
@@ -495,7 +495,7 @@ const GET_SIGNAL_FN = trycatch(
       const intervalMinutes = INTERVAL_MINUTES[self.params.interval];
       const intervalMs = intervalMinutes * 60 * 1000;
 
-      // Проверяем что прошел нужный интервал с последнего getSignal
+      // Check that required interval passed since last getSignal
       if (
         self._lastSignalTimestamp !== null &&
         currentTime - self._lastSignalTimestamp < intervalMs
@@ -539,21 +539,21 @@ const GET_SIGNAL_FN = trycatch(
     ) {
       return null;
     }
-    // Если priceOpen указан - проверяем нужно ли ждать активации или открыть сразу
+    // If priceOpen is specified - check whether to wait for activation or open immediately
     if (signal.priceOpen !== undefined) {
-      // КРИТИЧЕСКАЯ ПРОВЕРКА: достигнут ли priceOpen?
-      // LONG: если currentPrice <= priceOpen - цена уже упала достаточно, открываем сразу
-      // SHORT: если currentPrice >= priceOpen - цена уже выросла достаточно, открываем сразу
+      // CRITICAL CHECK: is priceOpen reached?
+      // LONG: if currentPrice <= priceOpen - price already fell enough, open immediately
+      // SHORT: if currentPrice >= priceOpen - price already rose enough, open immediately
       const shouldActivateImmediately =
         (signal.position === "long" && currentPrice <= signal.priceOpen) ||
         (signal.position === "short" && currentPrice >= signal.priceOpen);
 
       if (shouldActivateImmediately) {
-        // НЕМЕДЛЕННАЯ АКТИВАЦИЯ: priceOpen уже достигнут
-        // Создаем активный сигнал напрямую (БЕЗ scheduled фазы)
+        // IMMEDIATE ACTIVATION: priceOpen already reached
+        // Create active signal directly (WITHOUT scheduled phase)
         const signalRow: ISignalRow = {
           id: signal.id || randomString(),
-          priceOpen: signal.priceOpen, // Используем priceOpen из сигнала
+          priceOpen: signal.priceOpen, // Use priceOpen from signal
           position: signal.position,
           note: toPlainString(signal.note),
           priceTakeProfit: signal.priceTakeProfit,
@@ -564,17 +564,17 @@ const GET_SIGNAL_FN = trycatch(
           strategyName: self.params.method.context.strategyName,
           frameName: self.params.method.context.frameName,
           scheduledAt: currentTime,
-          pendingAt: currentTime, // Для immediate signal оба времени одинаковые
+          pendingAt: currentTime, // For immediate signal both times are equal
           _isScheduled: false,
         };
 
-        // Валидируем сигнал перед возвратом
+        // Validate signal before return
         VALIDATE_SIGNAL_FN(signalRow, currentPrice, false);
 
         return signalRow;
       }
 
-      // ОЖИДАНИЕ АКТИВАЦИИ: создаем scheduled signal (risk check при активации)
+      // AWAITING ACTIVATION: create scheduled signal (risk check on activation)
       const scheduledSignalRow: IScheduledSignalRow = {
         id: signal.id || randomString(),
         priceOpen: signal.priceOpen,
@@ -588,11 +588,11 @@ const GET_SIGNAL_FN = trycatch(
         strategyName: self.params.method.context.strategyName,
         frameName: self.params.method.context.frameName,
         scheduledAt: currentTime,
-        pendingAt: currentTime, // Временно, обновится при активации
+        pendingAt: currentTime, // Temporary, will be updated on activation
         _isScheduled: true,
       };
 
-      // Валидируем сигнал перед возвратом
+      // Validate signal before return
       VALIDATE_SIGNAL_FN(scheduledSignalRow, currentPrice, true);
 
       return scheduledSignalRow;
@@ -608,11 +608,11 @@ const GET_SIGNAL_FN = trycatch(
       strategyName: self.params.method.context.strategyName,
       frameName: self.params.method.context.frameName,
       scheduledAt: currentTime,
-      pendingAt: currentTime, // Для immediate signal оба времени одинаковые
+      pendingAt: currentTime, // For immediate signal both times are equal
       _isScheduled: false,
     };
 
-    // Валидируем сигнал перед возвратом
+    // Validate signal before return
     VALIDATE_SIGNAL_FN(signalRow, currentPrice, false);
 
     return signalRow;
@@ -1269,7 +1269,7 @@ const CHECK_SCHEDULED_SIGNAL_TIMEOUT_FN = async (
   currentPrice: number
 ): Promise<IStrategyTickResultCancelled | null> => {
   const currentTime = self.params.execution.context.when.getTime();
-  const signalTime = scheduled.scheduledAt; // Таймаут для scheduled signal считается от scheduledAt
+  const signalTime = scheduled.scheduledAt; // Timeout for scheduled signal is counted from scheduledAt
   const maxTimeToWait = GLOBAL_CONFIG.CC_SCHEDULE_AWAIT_MINUTES * 60 * 1000;
   const elapsedTime = currentTime - signalTime;
 
@@ -1331,26 +1331,26 @@ const CHECK_SCHEDULED_SIGNAL_PRICE_ACTIVATION_FN = (
   let shouldCancel = false;
 
   if (scheduled.position === "long") {
-    // КРИТИЧНО: Сначала проверяем StopLoss (отмена приоритетнее активации)
-    // Отмена если цена упала СЛИШКОМ низко (ниже SL)
+    // CRITICAL: First check StopLoss (cancellation priority over activation)
+    // Cancel if price fell TOO low (below SL)
     if (currentPrice <= scheduled.priceStopLoss) {
       shouldCancel = true;
     }
-    // Long = покупаем дешевле, ждем падения цены ДО priceOpen
-    // Активируем только если НЕ пробит StopLoss
+    // Long = buy lower, wait for price drop TO priceOpen
+    // Activate only if StopLoss NOT breached
     else if (currentPrice <= scheduled.priceOpen) {
       shouldActivate = true;
     }
   }
 
   if (scheduled.position === "short") {
-    // КРИТИЧНО: Сначала проверяем StopLoss (отмена приоритетнее активации)
-    // Отмена если цена выросла СЛИШКОМ высоко (выше SL)
+    // CRITICAL: First check StopLoss (cancellation priority over activation)
+    // Cancel if price rose TOO high (above SL)
     if (currentPrice >= scheduled.priceStopLoss) {
       shouldCancel = true;
     }
-    // Short = продаем дороже, ждем роста цены ДО priceOpen
-    // Активируем только если НЕ пробит StopLoss
+    // Short = sell higher, wait for price rise TO priceOpen
+    // Activate only if StopLoss NOT breached
     else if (currentPrice >= scheduled.priceOpen) {
       shouldActivate = true;
     }
@@ -1425,10 +1425,10 @@ const ACTIVATE_SCHEDULED_SIGNAL_FN = async (
     return null;
   }
 
-  // В LIVE режиме activationTimestamp - это текущее время при tick()
-  // В отличие от BACKTEST (где используется candle.timestamp + 60s),
-  // здесь мы не знаем ТОЧНОЕ время достижения priceOpen,
-  // поэтому используем время обнаружения активации
+  // In LIVE mode activationTimestamp is the current time at tick()
+  // Unlike BACKTEST (where candle.timestamp + 60s is used),
+  // here we do not know the EXACT time priceOpen was reached,
+  // so we use the time when activation was detected
   const activationTime = activationTimestamp;
 
   self.params.logger.info("ClientStrategy scheduled signal activation begin", {
@@ -1462,7 +1462,7 @@ const ACTIVATE_SCHEDULED_SIGNAL_FN = async (
 
   await self.setScheduledSignal(null);
 
-  // КРИТИЧЕСКИ ВАЖНО: обновляем pendingAt при активации
+  // CRITICAL: update pendingAt on activation
   const activatedSignal: ISignalRow = {
     ...scheduled,
     pendingAt: activationTime,
@@ -2417,7 +2417,7 @@ const CHECK_PENDING_SIGNAL_COMPLETION_FN = async (
   averagePrice: number
 ): Promise<IStrategyTickResultClosed | null> => {
   const currentTime = self.params.execution.context.when.getTime();
-  const signalTime = signal.pendingAt; // КРИТИЧНО: используем pendingAt, а не scheduledAt!
+  const signalTime = signal.pendingAt; // CRITICAL: use pendingAt, not scheduledAt!
   const maxTimeToWait = signal.minuteEstimatedTime * 60 * 1000;
   const elapsedTime = currentTime - signalTime;
 
@@ -2438,7 +2438,7 @@ const CHECK_PENDING_SIGNAL_COMPLETION_FN = async (
     return await CLOSE_PENDING_SIGNAL_FN(
       self,
       signal,
-      effectiveTakeProfit, // КРИТИЧНО: используем точную цену TP
+      effectiveTakeProfit, // CRITICAL: use exact TP price
       "take_profit"
     );
   }
@@ -2447,7 +2447,7 @@ const CHECK_PENDING_SIGNAL_COMPLETION_FN = async (
     return await CLOSE_PENDING_SIGNAL_FN(
       self,
       signal,
-      effectiveTakeProfit, // КРИТИЧНО: используем точную цену TP
+      effectiveTakeProfit, // CRITICAL: use exact TP price
       "take_profit"
     );
   }
@@ -2459,7 +2459,7 @@ const CHECK_PENDING_SIGNAL_COMPLETION_FN = async (
     return await CLOSE_PENDING_SIGNAL_FN(
       self,
       signal,
-      effectiveStopLoss, // КРИТИЧНО: используем точную цену SL (trailing or original)
+      effectiveStopLoss, // CRITICAL: use exact SL price (trailing or original)
       "stop_loss"
     );
   }
@@ -2468,7 +2468,7 @@ const CHECK_PENDING_SIGNAL_COMPLETION_FN = async (
     return await CLOSE_PENDING_SIGNAL_FN(
       self,
       signal,
-      effectiveStopLoss, // КРИТИЧНО: используем точную цену SL (trailing or original)
+      effectiveStopLoss, // CRITICAL: use exact SL price (trailing or original)
       "stop_loss"
     );
   }
@@ -2503,7 +2503,7 @@ const CLOSE_PENDING_SIGNAL_FN = async (
     self.params.execution.context.backtest
   );
 
-  // КРИТИЧНО: Очищаем состояние ClientPartial при закрытии позиции
+  // CRITICAL: Clear ClientPartial state when closing position
   await CALL_PARTIAL_CLEAR_FN(
     self,
     self.params.execution.context.symbol,
@@ -2513,7 +2513,7 @@ const CLOSE_PENDING_SIGNAL_FN = async (
     self.params.execution.context.backtest
   );
 
-  // КРИТИЧНО: Очищаем состояние ClientBreakeven при закрытии позиции
+  // CRITICAL: Clear ClientBreakeven state when closing position
   await CALL_BREAKEVEN_CLEAR_FN(
     self,
     self.params.execution.context.symbol,
@@ -2813,9 +2813,9 @@ const ACTIVATE_SCHEDULED_SIGNAL_IN_BACKTEST_FN = async (
     return false;
   }
 
-  // В BACKTEST режиме activationTimestamp - это candle.timestamp + 60*1000
-  // (timestamp СЛЕДУЮЩЕЙ свечи после достижения priceOpen)
-  // Это обеспечивает точный расчёт minuteEstimatedTime от момента активации
+  // In BACKTEST mode activationTimestamp is candle.timestamp + 60*1000
+  // (timestamp of NEXT candle after reaching priceOpen)
+  // This ensures precise minuteEstimatedTime calculation from activation moment
   const activationTime = activationTimestamp;
 
   self.params.logger.info(
@@ -2851,7 +2851,7 @@ const ACTIVATE_SCHEDULED_SIGNAL_IN_BACKTEST_FN = async (
 
   await self.setScheduledSignal(null);
 
-  // КРИТИЧЕСКИ ВАЖНО: обновляем pendingAt при активации в backtest
+  // CRITICAL: update pendingAt on activation in backtest
   const activatedSignal: ISignalRow = {
     ...scheduled,
     pendingAt: activationTime,
@@ -2931,7 +2931,7 @@ const CLOSE_PENDING_SIGNAL_IN_BACKTEST_FN = async (
     self.params.execution.context.backtest
   );
 
-  // КРИТИЧНО: Очищаем состояние ClientPartial при закрытии позиции
+  // CRITICAL: Clear ClientPartial state when closing position
   await CALL_PARTIAL_CLEAR_FN(
     self,
     self.params.execution.context.symbol,
@@ -2941,7 +2941,7 @@ const CLOSE_PENDING_SIGNAL_IN_BACKTEST_FN = async (
     self.params.execution.context.backtest
   );
 
-  // КРИТИЧНО: Очищаем состояние ClientBreakeven при закрытии позиции
+  // CRITICAL: Clear ClientBreakeven state when closing position
   await CALL_BREAKEVEN_CLEAR_FN(
     self,
     self.params.execution.context.symbol,
@@ -3003,8 +3003,8 @@ const PROCESS_SCHEDULED_SIGNAL_CANDLES_FN = async (
   for (let i = 0; i < candles.length; i++) {
     const candle = candles[i];
 
-    // КРИТИЧНО: Пропускаем первые bufferCandlesCount свечей (буфер для VWAP)
-    // BacktestLogicPrivateService запросил свечи начиная с (when - bufferMinutes)
+    // CRITICAL: Skip first bufferCandlesCount candles (buffer for VWAP)
+    // BacktestLogicPrivateService requested candles starting from (when - bufferMinutes)
     if (i < bufferCandlesCount) {
       continue;
     }
@@ -3012,9 +3012,9 @@ const PROCESS_SCHEDULED_SIGNAL_CANDLES_FN = async (
     const recentCandles = candles.slice(Math.max(0, i - (candlesCount - 1)), i + 1);
     const averagePrice = GET_AVG_PRICE_FN(recentCandles);
 
-    // КРИТИЧНО: Проверяем был ли сигнал отменен пользователем через cancel()
+    // CRITICAL: Check if signal was cancelled by user via cancel()
     if (self._cancelledSignal) {
-      // Сигнал был отменен через cancel() в onSchedulePing
+      // Signal was cancelled via cancel() in onSchedulePing
       const result = await CANCEL_SCHEDULED_SIGNAL_IN_BACKTEST_FN(
         self,
         scheduled,
@@ -3025,7 +3025,7 @@ const PROCESS_SCHEDULED_SIGNAL_CANDLES_FN = async (
       return { activated: false, cancelled: true, activationIndex: i, result };
     }
 
-    // КРИТИЧНО: Проверяем timeout ПЕРЕД проверкой цены
+    // CRITICAL: Check timeout BEFORE checking price
     const elapsedTime = candle.timestamp - scheduled.scheduledAt;
     if (elapsedTime >= maxTimeToWait) {
       const result = await CANCEL_SCHEDULED_SIGNAL_IN_BACKTEST_FN(
@@ -3042,14 +3042,14 @@ const PROCESS_SCHEDULED_SIGNAL_CANDLES_FN = async (
     let shouldCancel = false;
 
     if (scheduled.position === "long") {
-      // КРИТИЧНО для LONG:
-      // - priceOpen > priceStopLoss (по валидации)
-      // - Активация: low <= priceOpen (цена упала до входа)
-      // - Отмена: low <= priceStopLoss (цена пробила SL)
+      // CRITICAL for LONG:
+      // - priceOpen > priceStopLoss (validated)
+      // - Activation: low <= priceOpen (price dropped to entry)
+      // - Cancellation: low <= priceStopLoss (price breached SL)
       //
-      // EDGE CASE: если low <= priceStopLoss И low <= priceOpen на ОДНОЙ свече:
-      // => Отмена имеет ПРИОРИТЕТ! (SL пробит ДО или ВМЕСТЕ с активацией)
-      // Сигнал НЕ открывается, сразу отменяется
+      // EDGE CASE: if low <= priceStopLoss AND low <= priceOpen on SAME candle:
+      // => Cancellation has PRIORITY! (SL breached BEFORE or WITH activation)
+      // Signal does NOT open, cancels immediately
 
       if (candle.low <= scheduled.priceStopLoss) {
         shouldCancel = true;
@@ -3059,14 +3059,14 @@ const PROCESS_SCHEDULED_SIGNAL_CANDLES_FN = async (
     }
 
     if (scheduled.position === "short") {
-      // КРИТИЧНО для SHORT:
-      // - priceOpen < priceStopLoss (по валидации)
-      // - Активация: high >= priceOpen (цена выросла до входа)
-      // - Отмена: high >= priceStopLoss (цена пробила SL)
+      // CRITICAL for SHORT:
+      // - priceOpen < priceStopLoss (validated)
+      // - Activation: high >= priceOpen (price rose to entry)
+      // - Cancellation: high >= priceStopLoss (price breached SL)
       //
-      // EDGE CASE: если high >= priceStopLoss И high >= priceOpen на ОДНОЙ свече:
-      // => Отмена имеет ПРИОРИТЕТ! (SL пробит ДО или ВМЕСТЕ с активацией)
-      // Сигнал НЕ открывается, сразу отменяется
+      // EDGE CASE: if high >= priceStopLoss AND high >= priceOpen on SAME candle:
+      // => Cancellation has PRIORITY! (SL breached BEFORE or WITH activation)
+      // Signal does NOT open, cancels immediately
 
       if (candle.high >= scheduled.priceStopLoss) {
         shouldCancel = true;
@@ -3115,19 +3115,19 @@ const PROCESS_PENDING_SIGNAL_CANDLES_FN = async (
   const candlesCount = GLOBAL_CONFIG.CC_AVG_PRICE_CANDLES_COUNT;
   const bufferCandlesCount = candlesCount - 1;
 
-  // КРИТИЧНО: проверяем TP/SL на КАЖДОЙ свече начиная после буфера
-  // Первые bufferCandlesCount свечей - это буфер для VWAP
+  // CRITICAL: check TP/SL on EACH candle starting after buffer
+  // First bufferCandlesCount candles are buffer for VWAP
   for (let i = 0; i < candles.length; i++) {
     const currentCandle = candles[i];
     const currentCandleTimestamp = currentCandle.timestamp;
 
-    // КРИТИЧНО: Пропускаем первые bufferCandlesCount свечей (буфер для VWAP)
-    // BacktestLogicPrivateService запросил свечи начиная с (when - bufferMinutes)
+    // CRITICAL: Skip first bufferCandlesCount candles (buffer for VWAP)
+    // BacktestLogicPrivateService requested candles starting from (when - bufferMinutes)
     if (i < bufferCandlesCount) {
       continue;
     }
 
-    // Берем последние candlesCount свечей для VWAP (включая буфер)
+    // Take last candlesCount candles for VWAP (including buffer)
     const startIndex = Math.max(0, i - (candlesCount - 1));
     const recentCandles = candles.slice(startIndex, i + 1);
     const averagePrice = GET_AVG_PRICE_FN(recentCandles);
@@ -3137,7 +3137,7 @@ const PROCESS_PENDING_SIGNAL_CANDLES_FN = async (
     let shouldClose = false;
     let closeReason: "time_expired" | "take_profit" | "stop_loss" | undefined;
 
-    // Check time expiration FIRST (КРИТИЧНО!)
+    // Check time expiration FIRST (CRITICAL!)
     const signalTime = signal.pendingAt;
     const maxTimeToWait = signal.minuteEstimatedTime * 60 * 1000;
     const elapsedTime = currentCandleTimestamp - signalTime;
@@ -3148,13 +3148,13 @@ const PROCESS_PENDING_SIGNAL_CANDLES_FN = async (
     }
 
     // Check TP/SL only if not expired
-    // КРИТИЧНО: используем averagePrice (VWAP) для проверки достижения TP/SL (как в live mode)
-    // КРИТИЧНО: используем trailing SL и TP если установлены
+    // CRITICAL: use averagePrice (VWAP) to check TP/SL hit (same as live mode)
+    // CRITICAL: use trailing SL and TP if set
     const effectiveStopLoss = signal._trailingPriceStopLoss ?? signal.priceStopLoss;
     const effectiveTakeProfit = signal._trailingPriceTakeProfit ?? signal.priceTakeProfit;
 
     if (!shouldClose && signal.position === "long") {
-      // Для LONG: TP срабатывает если VWAP >= TP, SL если VWAP <= SL
+      // For LONG: TP hit if VWAP >= TP, SL if VWAP <= SL
       if (averagePrice >= effectiveTakeProfit) {
         shouldClose = true;
         closeReason = "take_profit";
@@ -3165,7 +3165,7 @@ const PROCESS_PENDING_SIGNAL_CANDLES_FN = async (
     }
 
     if (!shouldClose && signal.position === "short") {
-      // Для SHORT: TP срабатывает если VWAP <= TP, SL если VWAP >= SL
+      // For SHORT: TP hit if VWAP <= TP, SL if VWAP >= SL
       if (averagePrice <= effectiveTakeProfit) {
         shouldClose = true;
         closeReason = "take_profit";
@@ -3176,10 +3176,10 @@ const PROCESS_PENDING_SIGNAL_CANDLES_FN = async (
     }
 
     if (shouldClose) {
-      // КРИТИЧНО: используем точную цену TP/SL для закрытия (как в live mode)
+      // CRITICAL: use exact TP/SL price (same as live mode)
       let closePrice: number;
       if (closeReason === "take_profit") {
-        closePrice = effectiveTakeProfit; // используем trailing TP если установлен
+        closePrice = effectiveTakeProfit; // use trailing TP if set
       } else if (closeReason === "stop_loss") {
         closePrice = effectiveStopLoss;
       } else {
@@ -3335,7 +3335,7 @@ export class ClientStrategy implements IStrategy {
   _cancelledSignal: IScheduledSignalCancelRow | null = null;
   _closedSignal: ISignalCloseRow | null = null;
 
-  constructor(readonly params: IStrategyParams) {}
+  constructor(readonly params: IStrategyParams) { }
 
   /**
    * Initializes strategy state by loading persisted signal from disk.
@@ -3363,8 +3363,8 @@ export class ClientStrategy implements IStrategy {
     });
     this._pendingSignal = pendingSignal;
 
-    // КРИТИЧНО: Всегда вызываем коллбек onWrite для тестирования persist storage
-    // даже в backtest режиме, чтобы тесты могли перехватывать вызовы через mock adapter
+    // CRITICAL: Always call onWrite callback to test persist storage
+    // even in backtest mode, so tests can intercept calls via mock adapter
     if (this.params.callbacks?.onWrite) {
       const publicSignal = this._pendingSignal ? TO_PUBLIC_SIGNAL(this._pendingSignal) : null;
       this.params.callbacks.onWrite(
@@ -3613,7 +3613,7 @@ export class ClientStrategy implements IStrategy {
       strategyName,
     });
 
-    // Получаем текущее время в начале tick для консистентности
+    // Get current time at start of tick for consistency
     const currentTime = this.params.execution.context.when.getTime();
 
     // Early return if strategy was stopped
@@ -3698,7 +3698,7 @@ export class ClientStrategy implements IStrategy {
         this.params.execution.context.backtest
       );
 
-      // КРИТИЧНО: Очищаем состояние ClientPartial при закрытии позиции
+      // CRITICAL: Clear ClientPartial state when closing position
       await CALL_PARTIAL_CLEAR_FN(
         this,
         this.params.execution.context.symbol,
@@ -3708,7 +3708,7 @@ export class ClientStrategy implements IStrategy {
         this.params.execution.context.backtest
       );
 
-      // КРИТИЧНО: Очищаем состояние ClientBreakeven при закрытии позиции
+      // CRITICAL: Clear ClientBreakeven state when closing position
       await CALL_BREAKEVEN_CLEAR_FN(
         this,
         this.params.execution.context.symbol,
@@ -3964,7 +3964,7 @@ export class ClientStrategy implements IStrategy {
         this.params.execution.context.backtest
       );
 
-      // КРИТИЧНО: Очищаем состояние ClientPartial при закрытии позиции
+      // CRITICAL: Clear ClientPartial state when closing position
       await CALL_PARTIAL_CLEAR_FN(
         this,
         this.params.execution.context.symbol,
@@ -3974,7 +3974,7 @@ export class ClientStrategy implements IStrategy {
         this.params.execution.context.backtest
       );
 
-      // КРИТИЧНО: Очищаем состояние ClientBreakeven при закрытии позиции
+      // CRITICAL: Clear ClientBreakeven state when closing position
       await CALL_BREAKEVEN_CLEAR_FN(
         this,
         this.params.execution.context.symbol,
@@ -4045,12 +4045,12 @@ export class ClientStrategy implements IStrategy {
       }
 
       if (activated) {
-        // КРИТИЧНО: activationIndex - индекс свечи активации в массиве candles
-        // BacktestLogicPrivateService включил буфер в начало массива, поэтому перед activationIndex достаточно свечей
-        // PROCESS_PENDING_SIGNAL_CANDLES_FN пропустит первые bufferCandlesCount свечей для VWAP
-        // Чтобы обработка началась со СЛЕДУЮЩЕЙ свечи после активации (activationIndex + 1),
-        // нужно взять срез начиная с (activationIndex + 1 - bufferCandlesCount)
-        // Это даст буфер ИЗ scheduled фазы + свеча после активации как первая обрабатываемая
+        // CRITICAL: activationIndex - index of activation candle in candles array
+        // BacktestLogicPrivateService included buffer at start of array, so there are enough candles before activationIndex
+        // PROCESS_PENDING_SIGNAL_CANDLES_FN will skip first bufferCandlesCount candles for VWAP
+        // To start processing from NEXT candle after activation (activationIndex + 1),
+        // we need to take slice starting from (activationIndex + 1 - bufferCandlesCount)
+        // This gives buffer FROM scheduled phase + candle after activation as first processed candle
         const bufferCandlesCount = GLOBAL_CONFIG.CC_AVG_PRICE_CANDLES_COUNT - 1;
         const sliceStart = Math.max(0, activationIndex + 1 - bufferCandlesCount);
         const remainingCandles = candles.slice(sliceStart);

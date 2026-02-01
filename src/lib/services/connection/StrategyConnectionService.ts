@@ -120,17 +120,17 @@ const GET_RISK_FN = (
   const hasRiskName = !!dto.riskName;
   const hasRiskList = !!dto.riskList?.length;
 
-  // Нет ни riskName, ни riskList
+  // Neither riskName nor riskList
   if (!hasRiskName && !hasRiskList) {
     return NOOP_RISK;
   }
 
-  // Есть только riskName (без riskList)
+  // Only riskName (no riskList)
   if (hasRiskName && !hasRiskList) {
     return self.riskConnectionService.getRisk(dto.riskName, exchangeName, frameName, backtest);
   }
 
-  // Есть только riskList (без riskName)
+  // Only riskList (no riskName)
   if (!hasRiskName && hasRiskList) {
     return new MergeRisk(
       dto.riskList.reduce<RiskMap>((acc, riskName) => {
@@ -140,7 +140,7 @@ const GET_RISK_FN = (
     );
   }
 
-  // Есть и riskName, и riskList - объединяем (riskName в начало)
+  // Both riskName and riskList - merge (riskName first)
   return new MergeRisk({
     [dto.riskName]: self.riskConnectionService.getRisk(dto.riskName, exchangeName, frameName, backtest),
     ...dto.riskList.reduce<RiskMap>((acc, riskName) => {

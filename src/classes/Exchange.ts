@@ -413,7 +413,7 @@ export class ExchangeInstance {
     }
 
     // VWAP (Volume Weighted Average Price)
-    // Используем типичную цену (typical price) = (high + low + close) / 3
+    // Use typical price = (high + low + close) / 3
     const sumPriceVolume = candles.reduce((acc, candle) => {
       const typicalPrice = (candle.high + candle.low + candle.close) / 3;
       return acc + typicalPrice * candle.volume;
@@ -422,7 +422,7 @@ export class ExchangeInstance {
     const totalVolume = candles.reduce((acc, candle) => acc + candle.volume, 0);
 
     if (totalVolume === 0) {
-      // Если объем нулевой, возвращаем простое среднее close цен
+      // If volume is zero, return simple average of close prices
       const sum = candles.reduce((acc, candle) => acc + candle.close, 0);
       return sum / candles.length;
     }

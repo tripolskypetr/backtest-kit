@@ -109,8 +109,8 @@ const VALIDATE_NO_INCOMPLETE_CANDLES_FN = (candles: ICandleData[]): void => {
     ) {
       throw new Error(
         `VALIDATE_NO_INCOMPLETE_CANDLES_FN: candle[${i}] has anomalously low price. ` +
-          `OHLC: [${candle.open}, ${candle.high}, ${candle.low}, ${candle.close}], ` +
-          `reference: ${referencePrice}, threshold: ${minValidPrice}`,
+        `OHLC: [${candle.open}, ${candle.high}, ${candle.low}, ${candle.close}], ` +
+        `reference: ${referencePrice}, threshold: ${minValidPrice}`,
       );
     }
   }
@@ -362,7 +362,7 @@ const CALL_CANDLE_DATA_CALLBACKS_FN = trycatch(
  * ```
  */
 export class ClientExchange implements IExchange {
-  constructor(readonly params: IExchangeParams) {}
+  constructor(readonly params: IExchangeParams) { }
 
   /**
    * Fetches historical candles backwards from execution context time.
@@ -493,11 +493,11 @@ export class ClientExchange implements IExchange {
     const since = new Date(this.params.execution.context.when.getTime());
     const now = Date.now();
 
-    // Вычисляем конечное время запроса
+    // Calculate request end time
     const step = INTERVAL_MINUTES[interval];
     const endTime = since.getTime() + limit * step * MS_PER_MINUTE;
 
-    // Проверяем что запрошенный период не заходит за Date.now()
+    // Check that requested period does not exceed Date.now()
     if (endTime > now) {
       return [];
     }
@@ -605,7 +605,7 @@ export class ClientExchange implements IExchange {
     }
 
     // VWAP (Volume Weighted Average Price)
-    // Используем типичную цену (typical price) = (high + low + close) / 3
+    // Use typical price = (high + low + close) / 3
     const sumPriceVolume = candles.reduce((acc, candle) => {
       const typicalPrice = (candle.high + candle.low + candle.close) / 3;
       return acc + typicalPrice * candle.volume;
@@ -614,7 +614,7 @@ export class ClientExchange implements IExchange {
     const totalVolume = candles.reduce((acc, candle) => acc + candle.volume, 0);
 
     if (totalVolume === 0) {
-      // Если объем нулевой, возвращаем простое среднее close цен
+      // If volume is zero, return simple average of close prices
       const sum = candles.reduce((acc, candle) => acc + candle.close, 0);
       return sum / candles.length;
     }
@@ -889,7 +889,7 @@ export class ClientExchange implements IExchange {
     const to = new Date(this.params.execution.context.when.getTime());
     const from = new Date(
       to.getTime() -
-        GLOBAL_CONFIG.CC_ORDER_BOOK_TIME_OFFSET_MINUTES * MS_PER_MINUTE,
+      GLOBAL_CONFIG.CC_ORDER_BOOK_TIME_OFFSET_MINUTES * MS_PER_MINUTE,
     );
     return await this.params.getOrderBook(
       symbol,

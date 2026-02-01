@@ -169,7 +169,7 @@ export class BacktestLogicPrivateService {
         break;
       }
 
-      // Если scheduled signal создан - обрабатываем через backtest()
+      // If scheduled signal created - process via backtest()
       if (result.action === "scheduled") {
         const signalStartTime = performance.now();
         const signal = result.signal;
@@ -186,12 +186,12 @@ export class BacktestLogicPrivateService {
           }
         );
 
-        // Запрашиваем минутные свечи для мониторинга активации/отмены
-        // КРИТИЧНО: запрашиваем:
-        // - CC_AVG_PRICE_CANDLES_COUNT-1 для буфера VWAP (ДО when)
-        // - CC_SCHEDULE_AWAIT_MINUTES для ожидания активации
-        // - minuteEstimatedTime для работы сигнала ПОСЛЕ активации
-        // - +1 потому что when включается как первая свеча
+        // Request minute candles for monitoring activation/cancellation
+        // CRITICAL: request:
+        // - CC_AVG_PRICE_CANDLES_COUNT-1 for VWAP buffer (BEFORE when)
+        // - CC_SCHEDULE_AWAIT_MINUTES for awaiting activation
+        // - minuteEstimatedTime for signal operation AFTER activation
+        // - +1 because when is included as first candle
         const bufferMinutes = GLOBAL_CONFIG.CC_AVG_PRICE_CANDLES_COUNT - 1;
         const bufferStartTime = new Date(when.getTime() - bufferMinutes * 60 * 1000);
         const candlesNeeded = bufferMinutes + GLOBAL_CONFIG.CC_SCHEDULE_AWAIT_MINUTES + signal.minuteEstimatedTime + 1;
@@ -237,8 +237,8 @@ export class BacktestLogicPrivateService {
           }
         );
 
-        // backtest() сам обработает scheduled signal: найдет активацию/отмену
-        // и если активируется - продолжит с TP/SL мониторингом
+        // backtest() itself will handle scheduled signal: find activation/cancellation
+        // and if activated - continue with TP/SL monitoring
         let backtestResult: IStrategyBacktestResult;
 
         let unScheduleOpen: Function;
@@ -262,9 +262,9 @@ export class BacktestLogicPrivateService {
             await signalEmitter.next(tick);
             await signalBacktestEmitter.next(tick);
             await this.actionCoreService.signalBacktest(true, tick, {
-              strategyName, 
+              strategyName,
               exchangeName,
-              frameName, 
+              frameName,
             });
           });
         }
@@ -328,7 +328,7 @@ export class BacktestLogicPrivateService {
         });
         previousEventTimestamp = currentTimestamp;
 
-        // Пропускаем timeframes до closeTimestamp
+        // Skip timeframes until closeTimestamp
         while (
           i < timeframes.length &&
           timeframes[i].getTime() < backtestResult.closeTimestamp
@@ -367,7 +367,7 @@ export class BacktestLogicPrivateService {
         }
       }
 
-      // Если обычный сигнал открыт, вызываем backtest
+      // If normal signal opened, call backtest
       if (result.action === "opened") {
         const signalStartTime = performance.now();
         const signal = result.signal;
@@ -380,9 +380,9 @@ export class BacktestLogicPrivateService {
           minuteEstimatedTime: signal.minuteEstimatedTime,
         });
 
-        // КРИТИЧНО: Получаем свечи включая буфер для VWAP
-        // Сдвигаем начало назад на CC_AVG_PRICE_CANDLES_COUNT-1 минут для буфера VWAP
-        // Запрашиваем minuteEstimatedTime + буфер свечей одним запросом
+        // CRITICAL: Get candles including buffer for VWAP
+        // Shift start back by CC_AVG_PRICE_CANDLES_COUNT-1 minutes for VWAP buffer
+        // Request minuteEstimatedTime + buffer candles in one request
         const bufferMinutes = GLOBAL_CONFIG.CC_AVG_PRICE_CANDLES_COUNT - 1;
         const bufferStartTime = new Date(when.getTime() - bufferMinutes * 60 * 1000);
         const totalCandles = signal.minuteEstimatedTime + GLOBAL_CONFIG.CC_AVG_PRICE_CANDLES_COUNT;
@@ -424,7 +424,7 @@ export class BacktestLogicPrivateService {
           candlesCount: candles.length,
         });
 
-        // Вызываем backtest - всегда возвращает closed
+        // Call backtest - always returns closed
         let backtestResult: IStrategyBacktestResult;
         try {
           backtestResult = await this.strategyCoreService.backtest(
@@ -475,7 +475,7 @@ export class BacktestLogicPrivateService {
         });
         previousEventTimestamp = currentTimestamp;
 
-        // Пропускаем timeframes до closeTimestamp
+        // Skip timeframes until closeTimestamp
         while (
           i < timeframes.length &&
           timeframes[i].getTime() < backtestResult.closeTimestamp

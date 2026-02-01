@@ -141,35 +141,35 @@ export const toProfitLossDto = (
   let priceCloseWithSlippage: number;
 
   if (signal.position === "long") {
-    // LONG: покупаем дороже, продаем дешевле
+    // LONG: buy higher, sell lower
     priceOpenWithSlippage = priceOpen * (1 + GLOBAL_CONFIG.CC_PERCENT_SLIPPAGE / 100);
     priceCloseWithSlippage = priceClose * (1 - GLOBAL_CONFIG.CC_PERCENT_SLIPPAGE / 100);
   } else {
-    // SHORT: продаем дешевле, покупаем дороже
+    // SHORT: sell lower, buy higher
     priceOpenWithSlippage = priceOpen * (1 - GLOBAL_CONFIG.CC_PERCENT_SLIPPAGE / 100);
     priceCloseWithSlippage = priceClose * (1 + GLOBAL_CONFIG.CC_PERCENT_SLIPPAGE / 100);
   }
 
-  // Применяем комиссию дважды (при открытии и закрытии)
+  // Apply fee twice (on open and close)
   const totalFee = GLOBAL_CONFIG.CC_PERCENT_FEE * 2;
 
   let pnlPercentage: number;
 
   if (signal.position === "long") {
-    // LONG: прибыль при росте цены
+    // LONG: profit when price rises
     pnlPercentage =
       ((priceCloseWithSlippage - priceOpenWithSlippage) /
         priceOpenWithSlippage) *
       100;
   } else {
-    // SHORT: прибыль при падении цены
+    // SHORT: profit when price falls
     pnlPercentage =
       ((priceOpenWithSlippage - priceCloseWithSlippage) /
         priceOpenWithSlippage) *
       100;
   }
 
-  // Вычитаем комиссии
+  // Subtract fees
   pnlPercentage -= totalFee;
 
   return {
