@@ -8,6 +8,8 @@ import {
   Time,
   LineStyle,
   SeriesMarker,
+  IChartApi,
+  ISeriesApi,
 } from "lightweight-charts";
 import { createChart } from "lightweight-charts";
 import { makeStyles } from "../../../../styles";
@@ -16,6 +18,94 @@ import { colors } from "@mui/material";
 
 declare function parseFloat(value: unknown): number;
 
+interface IVertLineOptions {
+  showLabel?: boolean;
+  labelText?: string;
+  color?: string;
+  width?: number;
+}
+
+class VertLine {
+  private _chart: IChartApi;
+  private _time: Time;
+  private _options: Required<IVertLineOptions>;
+  private _div: HTMLDivElement | null = null;
+
+  constructor(
+    chart: IChartApi,
+    _series: ISeriesApi<"Line">,
+    time: Time,
+    options: IVertLineOptions = {}
+  ) {
+    this._chart = chart;
+    this._time = time;
+    this._options = {
+      showLabel: options.showLabel ?? true,
+      labelText: options.labelText ?? "",
+      color: options.color ?? "blue",
+      width: options.width ?? 2,
+    };
+    this._createDiv();
+    this._updatePosition();
+    this._chart.timeScale().subscribeVisibleTimeRangeChange(() => this._updatePosition());
+  }
+
+  private _createDiv() {
+    const chartElement = (this._chart as unknown as { _container?: HTMLElement })._container
+      ?? document.querySelector(".tv-lightweight-charts");
+    if (!chartElement) return;
+
+    const container = chartElement.parentElement;
+    if (!container) return;
+
+    this._div = document.createElement("div");
+    this._div.style.position = "absolute";
+    this._div.style.zIndex = "10";
+    this._div.style.pointerEvents = "none";
+    this._div.style.width = `${this._options.width}px`;
+    this._div.style.backgroundColor = this._options.color;
+    this._div.style.top = "0";
+    this._div.style.bottom = "0";
+
+    if (this._options.showLabel && this._options.labelText) {
+      const label = document.createElement("div");
+      label.textContent = this._options.labelText;
+      label.style.position = "absolute";
+      label.style.top = "5px";
+      label.style.left = "5px";
+      label.style.backgroundColor = this._options.color;
+      label.style.color = "white";
+      label.style.padding = "2px 6px";
+      label.style.borderRadius = "3px";
+      label.style.fontSize = "11px";
+      label.style.fontWeight = "bold";
+      label.style.whiteSpace = "nowrap";
+      this._div.appendChild(label);
+    }
+
+    container.style.position = "relative";
+    container.appendChild(this._div);
+  }
+
+  private _updatePosition() {
+    if (!this._div) return;
+    const x = this._chart.timeScale().timeToCoordinate(this._time);
+    if (x === null) {
+      this._div.style.display = "none";
+    } else {
+      this._div.style.display = "block";
+      this._div.style.left = `${x}px`;
+    }
+  }
+
+  destroy() {
+    if (this._div && this._div.parentElement) {
+      this._div.parentElement.removeChild(this._div);
+    }
+    this._div = null;
+  }
+}
+
 interface IChartProps {
   source: "1m" | "15m" | "1h";
   height: number;
@@ -23,13 +113,12 @@ interface IChartProps {
   items: ICandleData[];
   position: "long" | "short";
   pendingAt: string;
-  closedAt: string;
   priceOpen: number;
   priceStopLoss: number;
   priceTakeProfit: number;
   originalPriceStopLoss?: number;
   originalPriceTakeProfit?: number;
-  status: "opened" | "closed" | "scheduled" | "cancelled";
+  eventAt?: string;
 }
 
 
@@ -140,13 +229,12 @@ export const StockChart = ({
   items,
   position,
   pendingAt,
-  closedAt,
   priceOpen,
   priceStopLoss,
   priceTakeProfit,
   originalPriceStopLoss,
   originalPriceTakeProfit,
-  status,
+  eventAt,
 }: IChartProps) => {
   const { classes } = useStyles();
   const elementRef: Ref = useRef<HTMLDivElement>(undefined as never);
@@ -355,33 +443,6 @@ export const StockChart = ({
       });
     }
 
-    // Exit marker (closedAt) - only for closed positions
-    if (status === "closed") {
-      const exitDate = dayjs(closedAt);
-      if (exitDate.isValid()) {
-        let exitTime: Time;
-        if (source === "1m") {
-          exitTime = getMomentStamp(exitDate, "minute") as Time;
-        } else if (source === "15m") {
-          const minute = Math.floor(exitDate.minute() / 15) * 15;
-          const alignedDate = exitDate.startOf("hour").add(minute, "minute");
-          exitTime = getMomentStamp(alignedDate, "minute") as Time;
-        } else {
-          const alignedDate = exitDate.startOf("hour");
-          exitTime = getMomentStamp(alignedDate, "hour") as Time;
-        }
-
-        markers.push({
-          time: exitTime,
-          position: position === "short" ? "belowBar" : "aboveBar",
-          color: colors.grey[500],
-          shape: "circle",
-          size: 1,
-          text: "Exit",
-        });
-      }
-    }
-
     // Markers must be sorted by time for lightweight-charts
     markers.sort((a, b) => Number(a.time) - Number(b.time));
     lineSeries.setMarkers(markers);
@@ -403,12 +464,41 @@ export const StockChart = ({
       }
     });
 
+    // Event vertical line
+    let vertLine: VertLine | null = null;
+    if (eventAt) {
+      const eventDate = dayjs(eventAt);
+      if (eventDate.isValid()) {
+        let eventTime: Time;
+        if (source === "1m") {
+          eventTime = getMomentStamp(eventDate, "minute") as Time;
+        } else if (source === "15m") {
+          const minute = Math.floor(eventDate.minute() / 15) * 15;
+          const alignedDate = eventDate.startOf("hour").add(minute, "minute");
+          eventTime = getMomentStamp(alignedDate, "minute") as Time;
+        } else {
+          const alignedDate = eventDate.startOf("hour");
+          eventTime = getMomentStamp(alignedDate, "hour") as Time;
+        }
+
+        vertLine = new VertLine(chart, lineSeries, eventTime, {
+          showLabel: true,
+          labelText: "Event",
+          color: colors.blue[500],
+          width: 2,
+        });
+      }
+    }
+
     chart.timeScale().fitContent();
 
     return () => {
+      if (vertLine) {
+        vertLine.destroy();
+      }
       chart.remove();
     };
-  }, [source, height, width, items, position, pendingAt, closedAt, priceOpen, priceStopLoss, priceTakeProfit, originalPriceStopLoss, originalPriceTakeProfit, status]);
+  }, [source, height, width, items, position, pendingAt, priceOpen, priceStopLoss, priceTakeProfit, originalPriceStopLoss, originalPriceTakeProfit, eventAt]);
 
   return (
     <div ref={elementRef} className={classes.root}>
