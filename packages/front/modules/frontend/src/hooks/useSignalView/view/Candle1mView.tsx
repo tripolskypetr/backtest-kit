@@ -2,7 +2,6 @@ import { Box, Typography } from "@mui/material";
 import { AutoSizer, IOutletModalProps, useAsyncValue } from "react-declarative";
 import StockChart from "../../../widgets/StockChart/StockChart";
 import { useMemo } from "react";
-import { fetchPriceCandles } from "../api/fetchPriceCandles";
 import { IStorageSignalRow } from "backtest-kit";
 
 const arr = [];

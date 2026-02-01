@@ -2,7 +2,6 @@ import { Box, Typography } from "@mui/material";
 import { AutoSizer, IOutletModalProps, useAsyncValue } from "react-declarative";
 import StockChart from "../../../widgets/StockChart/StockChart";
 import { useMemo } from "react";
-import { fetchPriceCandles } from "../api/fetchPriceCandles";
 import { IStorageSignalRow } from "backtest-kit";
 
 export const Candle15mView = ({ data, formState }: IOutletModalProps) => {
@@ -14,7 +13,6 @@ export const Candle15mView = ({ data, formState }: IOutletModalProps) => {
         priceOpen,
         priceTakeProfit,
         priceStopLoss,
-
         originalPriceStopLoss,
         originalPriceTakeProfit,
     } = useMemo(() => {
@@ -28,7 +26,6 @@ export const Candle15mView = ({ data, formState }: IOutletModalProps) => {
             scheduledAt,
             createdAt = pendingAt || scheduledAt,
             updatedAt,
-
             originalPriceStopLoss,
             originalPriceTakeProfit,
         } = formState.data.main as IStorageSignalRow;
