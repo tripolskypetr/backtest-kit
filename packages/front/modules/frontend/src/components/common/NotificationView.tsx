@@ -51,6 +51,7 @@ import NotificationIcon from "@mui/icons-material/Notifications";
 import ioc from "../../lib";
 import { NotificationModel } from "backtest-kit";
 import { t } from "../../i18n";
+import { get } from "lodash";
 
 const reloadSubject = new Subject<void>();
 
@@ -188,7 +189,7 @@ const getNotificationTitle = (item: NotificationModel): string => {
     case "error.critical":
       return `${t("Critical")}: ${item.message}`;
     default:
-      return t("Unknown");
+      return `${t("Unknown")} ${get(item, "type")}`;
   }
 };
 

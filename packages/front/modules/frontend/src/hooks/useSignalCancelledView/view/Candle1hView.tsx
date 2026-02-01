@@ -19,9 +19,9 @@ export const Candle1hView = ({ data, formState }: IOutletModalProps) => {
             position: notification.position,
             pendingAt: pendingAtDate,
             closedAt: new Date(notification.createdAt).toISOString(),
-            priceOpen: 0,
-            priceStopLoss: 0,
-            priceTakeProfit: 0,
+            priceOpen: notification.priceOpen,
+            priceStopLoss: notification.priceStopLoss,
+            priceTakeProfit: notification.priceTakeProfit,
         };
     }, [formState.data.main]);
 

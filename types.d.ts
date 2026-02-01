@@ -7156,6 +7156,8 @@ interface SignalCancelledNotification {
     priceTakeProfit: number;
     /** Stop loss exit price */
     priceStopLoss: number;
+    /** Entry price for the position */
+    priceOpen: number;
     /** Original take profit price before any trailing adjustments */
     originalPriceTakeProfit: number;
     /** Original stop loss price before any trailing adjustments */

@@ -1,4 +1,6 @@
+import { ArrowForward } from "@mui/icons-material";
 import { TypedField, FieldType, dayjs, CopyButton } from "react-declarative";
+import ioc from "../lib";
 
 export const partial_loss_commit_fields: TypedField[] = [
     {
@@ -67,6 +69,20 @@ export const partial_loss_commit_fields: TypedField[] = [
                         name: "percentToClose",
                         title: "Percent Closed",
                         compute: ({ percentToClose }) => `Closed: ${percentToClose}%`,
+                    },
+                    {
+                        type: FieldType.Text,
+                        outlined: false,
+                        desktopColumns: "4",
+                        tabletColumns: "4",
+                        phoneColumns: "12",
+                        name: "signalId",
+                        title: "Signal ID",
+                        readonly: true,
+                        trailingIcon: ArrowForward,
+                        trailingIconClick: (signalId: string) => signalId && ioc.layoutService.pickSignal(signalId),
+                        isVisible: (obj) => !!obj.signalId,
+                        compute: (obj) => obj.signalId || "Not specified",
                     },
                 ],
             },
@@ -274,7 +290,7 @@ export const partial_loss_commit_fields: TypedField[] = [
                         isVisible: (obj) => !!obj.signalId,
                         element: ({ signalId }) => (
                             <CopyButton
-                                label={`Signal ID: ${signalId}`}
+                                label="Signal ID"
                                 content={signalId}
                             />
                         ),

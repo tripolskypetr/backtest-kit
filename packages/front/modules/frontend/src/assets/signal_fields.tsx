@@ -369,7 +369,7 @@ export const signal_fields: TypedField[] = [
                         type: FieldType.Component,
                         element: ({ id }) => (
                             <CopyButton
-                                label={`Signal id: ${id}`}
+                                label="Signal ID"
                                 content={id}
                             />
                         ),

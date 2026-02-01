@@ -163,6 +163,7 @@ export class NotificationInstance {
         exchangeName: data.exchangeName,
         signalId: data.signal.id,
         position: data.signal.position,
+        priceOpen: data.signal.priceOpen,
         priceTakeProfit: data.signal.priceTakeProfit,
         priceStopLoss: data.signal.priceStopLoss,
         originalPriceTakeProfit: data.signal.originalPriceTakeProfit,

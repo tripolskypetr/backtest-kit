@@ -1,4 +1,6 @@
+import { ArrowForward } from "@mui/icons-material";
 import { TypedField, FieldType, dayjs, CopyButton } from "react-declarative";
+import ioc from "../lib";
 
 const formatDuration = (durationMinutes: number): string => {
     if (durationMinutes == null) return "N/A";
@@ -88,6 +90,20 @@ export const signal_cancelled_fields: TypedField[] = [
                         title: "Mode",
                         readonly: true,
                         compute: (obj) => (obj.backtest ? "Backtest" : "Live"),
+                    },
+                    {
+                        type: FieldType.Text,
+                        outlined: false,
+                        desktopColumns: "4",
+                        tabletColumns: "4",
+                        phoneColumns: "12",
+                        name: "signalId",
+                        title: "Signal ID",
+                        readonly: true,
+                        trailingIcon: ArrowForward,
+                        trailingIconClick: (signalId: string) => signalId && ioc.layoutService.pickSignal(signalId),
+                        isVisible: (obj) => !!obj.signalId,
+                        compute: (obj) => obj.signalId || "Not specified",
                     },
                 ],
             },
@@ -187,6 +203,20 @@ export const signal_cancelled_fields: TypedField[] = [
                         desktopColumns: "4",
                         tabletColumns: "4",
                         phoneColumns: "12",
+                        name: "priceOpen",
+                        title: "Entry Price",
+                        readonly: true,
+                        compute: (obj) =>
+                            obj.priceOpen != null
+                                ? `${obj.priceOpen.toFixed(6)}$`
+                                : "Not specified",
+                    },
+                    {
+                        type: FieldType.Text,
+                        outlined: false,
+                        desktopColumns: "4",
+                        tabletColumns: "4",
+                        phoneColumns: "12",
                         name: "priceTakeProfit",
                         title: "Take Profit",
                         readonly: true,
@@ -278,7 +308,7 @@ export const signal_cancelled_fields: TypedField[] = [
                         isVisible: (obj) => !!obj.signalId,
                         element: ({ signalId }) => (
                             <CopyButton
-                                label={`Signal ID: ${signalId}`}
+                                label="Signal ID"
                                 content={signalId}
                             />
                         ),
@@ -301,7 +331,7 @@ export const signal_cancelled_fields: TypedField[] = [
                         isVisible: (obj) => !!obj.cancelId,
                         element: ({ cancelId }) => (
                             <CopyButton
-                                label={`Cancel ID: ${cancelId}`}
+                                label="Cancel ID"
                                 content={cancelId}
                             />
                         ),

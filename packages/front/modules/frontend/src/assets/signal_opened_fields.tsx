@@ -1,5 +1,7 @@
+import { ArrowForward } from "@mui/icons-material";
 import { TypedField, FieldType, dayjs, CopyButton } from "react-declarative";
 import { Box } from "@mui/material";
+import ioc from "../lib";
 import Markdown from "../components/common/Markdown";
 
 export const signal_opened_fields: TypedField[] = [
@@ -75,6 +77,20 @@ export const signal_opened_fields: TypedField[] = [
                         title: "Mode",
                         readonly: true,
                         compute: (obj) => (obj.backtest ? "Backtest" : "Live"),
+                    },
+                    {
+                        type: FieldType.Text,
+                        outlined: false,
+                        desktopColumns: "4",
+                        tabletColumns: "4",
+                        phoneColumns: "12",
+                        name: "signalId",
+                        title: "Signal ID",
+                        readonly: true,
+                        trailingIcon: ArrowForward,
+                        trailingIconClick: (signalId: string) => signalId && ioc.layoutService.pickSignal(signalId),
+                        isVisible: (obj) => !!obj.signalId,
+                        compute: (obj) => obj.signalId || "Not specified",
                     },
                 ],
             },
@@ -268,7 +284,7 @@ export const signal_opened_fields: TypedField[] = [
                         isVisible: (obj) => !!obj.signalId,
                         element: ({ signalId }) => (
                             <CopyButton
-                                label={`Signal ID: ${signalId}`}
+                                label="Signal ID"
                                 content={signalId}
                             />
                         ),
