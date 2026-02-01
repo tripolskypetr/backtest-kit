@@ -41,12 +41,18 @@ declare class LoggerService implements ILogger {
 type ExchangeName = string;
 declare class ExchangeService {
     private readonly loggerService;
-    getCandles: (dto: {
+    getRangeCandles: (dto: {
         symbol: string;
         interval: CandleInterval;
         exchangeName: ExchangeName;
         signalStartTime: number;
         signalStopTime: number;
+    }) => Promise<backtest_kit.ICandleData[]>;
+    getPointCandles: (dto: {
+        symbol: string;
+        interval: CandleInterval;
+        exchangeName: ExchangeName;
+        currentTime: number;
     }) => Promise<backtest_kit.ICandleData[]>;
 }
 
@@ -67,7 +73,7 @@ declare class ExchangeMockService {
     private readonly loggerService;
     private readonly storageMockService;
     private readonly exchangeService;
-    getCandles: (signalId: string, interval: CandleInterval) => Promise<backtest_kit.ICandleData[]>;
+    getSignalCandles: (signalId: string, interval: CandleInterval) => Promise<backtest_kit.ICandleData[]>;
 }
 
 declare class NotificationViewService {
@@ -92,7 +98,7 @@ declare class ExchangeViewService {
     private readonly storageViewService;
     private readonly exchangeService;
     private readonly exchangeMockService;
-    getCandles: (signalId: string, interval: CandleInterval) => Promise<backtest_kit.ICandleData[]>;
+    getSignalCandles: (signalId: string, interval: CandleInterval) => Promise<backtest_kit.ICandleData[]>;
 }
 
 declare class SymbolConnectionService {

@@ -34,14 +34,14 @@ const STEP_TICKS: Record<CandleInterval, number> = {
 export class ExchangeService {
   private readonly loggerService = inject<LoggerService>(TYPES.loggerService);
 
-  public getCandles = async (dto: {
+  public getRangeCandles = async (dto: {
     symbol: string;
     interval: CandleInterval;
     exchangeName: ExchangeName;
     signalStartTime: number;
     signalStopTime: number;
   }) => {
-    this.loggerService.log("exchangeService getCandles", {
+    this.loggerService.log("exchangeService getRangeCandles", {
       dto,
     });
 
@@ -68,6 +68,40 @@ export class ExchangeService {
       eDate,
     );
   };
+
+  public getPointCandles = async (dto: {
+    symbol: string;
+    interval: CandleInterval;
+    exchangeName: ExchangeName;
+    currentTime: number;
+  }) => {
+    this.loggerService.log("exchangeService getPointCandles", {
+      dto,
+    });
+
+    const step = INTERVAL_MINUTES[dto.interval];
+    const tick = STEP_TICKS[dto.interval];
+
+    if (!step || !tick) {
+      throw new Error(`Unsupported interval: ${dto.interval}`);
+    }
+
+    const offsetMs = tick * step * 60 * 1000;
+
+    const sDate = dto.currentTime - offsetMs;
+    const eDate = Math.min(dto.currentTime + offsetMs, Date.now() - 1);
+
+    return await Exchange.getRawCandles(
+      dto.symbol,
+      dto.interval,
+      {
+        exchangeName: dto.exchangeName,
+      },
+      undefined,
+      sDate,
+      eDate,
+    );
+  }
 }
 
 export default ExchangeService;

@@ -11,13 +11,24 @@ const router = Router({
   params: true,
 });
 
-interface CandlesRequest {
+interface SignalCandlesRequest {
   clientId: string;
   serviceName: string;
   userId: string;
   requestId: string;
   signalId: string;
   interval: CandleInterval;
+}
+
+interface PointCandlesRequest {
+  clientId: string;
+  serviceName: string;
+  userId: string;
+  requestId: string;
+  currentTime: number;
+  interval: CandleInterval;
+  symbol: string;
+  exchangeName: string;
 }
 
 interface NotificationListRequest {
@@ -49,11 +60,11 @@ interface StorageListRequest {
 }
 
 // ExchangeMockService endpoints
-router.post("/api/v1/mock/candles", async (req, res) => {
+router.post("/api/v1/mock/candles_signal", async (req, res) => {
   try {
-    const request = <CandlesRequest>await micro.json(req);
+    const request = <SignalCandlesRequest>await micro.json(req);
     const { signalId, interval, requestId, serviceName } = request;
-    const data = await ioc.exchangeMockService.getCandles(signalId, interval);
+    const data = await ioc.exchangeMockService.getSignalCandles(signalId, interval);
     const result = {
       data,
       status: "ok",
@@ -61,13 +72,47 @@ router.post("/api/v1/mock/candles", async (req, res) => {
       requestId,
       serviceName,
     };
-    ioc.loggerService.log("/api/v1/mock/candles ok", {
+    ioc.loggerService.log("/api/v1/mock/candles_signal ok", {
       request,
       result: omit(result, "data"),
     });
     return await micro.send(res, 200, result);
   } catch (error) {
-    ioc.loggerService.log("/api/v1/mock/candles error", {
+    ioc.loggerService.log("/api/v1/mock/candles_signal error", {
+      error: errorData(error),
+    });
+    return await micro.send(res, 200, {
+      status: "error",
+      error: getErrorMessage(error),
+    });
+  }
+});
+
+
+router.post("/api/v1/mock/candles_point", async (req, res) => {
+  try {
+    const request = <PointCandlesRequest>await micro.json(req);
+    const { currentTime, interval, requestId, serviceName, symbol, exchangeName } = request;
+    const data = await ioc.exchangeService.getPointCandles({
+      currentTime,
+      interval,
+      symbol,
+      exchangeName,
+    });
+    const result = {
+      data,
+      status: "ok",
+      error: "",
+      requestId,
+      serviceName,
+    };
+    ioc.loggerService.log("/api/v1/mock/candles_point ok", {
+      request,
+      result: omit(result, "data"),
+    });
+    return await micro.send(res, 200, result);
+  } catch (error) {
+    ioc.loggerService.log("/api/v1/mock/candles_point error", {
       error: errorData(error),
     });
     return await micro.send(res, 200, {

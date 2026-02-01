@@ -17,13 +17,13 @@ export class ExchangeViewService {
   );
   private readonly exchangeMockService = inject<ExchangeMockService>(TYPES.exchangeMockService);
 
-  public getCandles = async (signalId: string, interval: CandleInterval) => {
+  public getSignalCandles = async (signalId: string, interval: CandleInterval) => {
     this.loggerService.log("exchangeViewService getCandles", {
       signalId,
       interval,
     });
     if (CC_ENABLE_MOCK) {
-      return await this.exchangeMockService.getCandles(signalId, interval);
+      return await this.exchangeMockService.getSignalCandles(signalId, interval);
     }
     const signal = await this.storageViewService.findSignalById(signalId);
     if (!signal) {
@@ -35,7 +35,7 @@ export class ExchangeViewService {
       createdAt = pendingAt || scheduledAt,
       updatedAt,
     } = signal;
-    return await this.exchangeService.getCandles({
+    return await this.exchangeService.getRangeCandles({
       symbol: signal.symbol,
       exchangeName: signal.exchangeName,
       signalStartTime: createdAt,

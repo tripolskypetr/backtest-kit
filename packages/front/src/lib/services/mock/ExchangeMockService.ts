@@ -14,8 +14,8 @@ export class ExchangeMockService {
     TYPES.exchangeService,
   );
 
-  public getCandles = async (signalId: string, interval: CandleInterval) => {
-    this.loggerService.log("exchangeMockService getCandles", {
+  public getSignalCandles = async (signalId: string, interval: CandleInterval) => {
+    this.loggerService.log("exchangeMockService getSignalCandles", {
       signalId,
       interval,
     });
@@ -29,7 +29,7 @@ export class ExchangeMockService {
       createdAt = pendingAt || scheduledAt,
       updatedAt,
     } = signal;
-    return await this.exchangeService.getCandles({
+    return await this.exchangeService.getRangeCandles({
       symbol: signal.symbol,
       exchangeName: signal.exchangeName,
       signalStartTime: createdAt,

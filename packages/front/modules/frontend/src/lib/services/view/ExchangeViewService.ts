@@ -16,21 +16,21 @@ export class ExchangeViewService {
         TYPES.exchangeMockService,
     );
 
-    public getCandles = async (
+    public getSignalCandles = async (
         signalId: string,
         interval: CandleInterval,
     ): Promise<ICandleData> => {
-        this.loggerService.log("exchangeViewService getCandles", {
+        this.loggerService.log("exchangeViewService getSignalCandles", {
             signalId,
             interval,
         });
         if (CC_ENABLE_MOCK) {
-            return await this.exchangeMockService.getCandles(
+            return await this.exchangeMockService.getSignalCandles(
                 signalId,
                 interval,
             );
         }
-        const { data, error } = await fetchApi("/api/v1/view/candles", {
+        const { data, error } = await fetchApi("/api/v1/view/candles_signal", {
             method: "POST",
             body: JSON.stringify({
                 clientId: CC_CLIENT_ID,
@@ -39,6 +39,34 @@ export class ExchangeViewService {
                 requestId: randomString(),
                 signalId,
                 interval,
+            }),
+        });
+        if (error) {
+            throw new Error(error);
+        }
+        return data;
+    };
+
+    public getPointCandles = async (dto: {
+        currentTime: number;
+        interval: CandleInterval;
+        symbol: string;
+        exchangeName: string;
+    }): Promise<ICandleData> => {
+        this.loggerService.log("exchangeViewService getPointCandles", {
+            dto,
+        });
+        if (CC_ENABLE_MOCK) {
+            return await this.exchangeMockService.getPointCandles(dto);
+        }
+        const { data, error } = await fetchApi("/api/v1/view/candles_point", {
+            method: "POST",
+            body: JSON.stringify({
+                clientId: CC_CLIENT_ID,
+                serviceName: CC_SERVICE_NAME,
+                userId: CC_USER_ID,
+                requestId: randomString(),
+                ...dto,
             }),
         });
         if (error) {

@@ -21,9 +21,9 @@ const history = createMemoryHistory();
 const fetchData = async (id: string) => {
   return {
     signal: await ioc.storageViewService.findSignalById(id),
-    candle_1m: await ioc.exchangeViewService.getCandles(id, "1m"),
-    candle_15m: await ioc.exchangeViewService.getCandles(id, "15m"),
-    candle_1h: await ioc.exchangeViewService.getCandles(id, "1h"),
+    candle_1m: await ioc.exchangeViewService.getSignalCandles(id, "1m"),
+    candle_15m: await ioc.exchangeViewService.getSignalCandles(id, "15m"),
+    candle_1h: await ioc.exchangeViewService.getSignalCandles(id, "1h"),
   };
 };
 
