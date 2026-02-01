@@ -31,6 +31,10 @@ export interface SignalOpenedNotification {
   priceTakeProfit: number;
   /** Stop loss exit price */
   priceStopLoss: number;
+  /** Original take profit price before any trailing adjustments */
+  originalPriceTakeProfit: number;
+  /** Original stop loss price before any trailing adjustments */
+  originalPriceStopLoss: number;
   /** Optional human-readable description of signal reason */
   note?: string;
   /** Signal creation timestamp in milliseconds (when signal was first created/scheduled) */
@@ -68,6 +72,14 @@ export interface SignalClosedNotification {
   priceOpen: number;
   /** Exit price when position was closed */
   priceClose: number;
+  /** Take profit target price */
+  priceTakeProfit: number;
+  /** Stop loss exit price */
+  priceStopLoss: number;
+  /** Original take profit price before any trailing adjustments */
+  originalPriceTakeProfit: number;
+  /** Original stop loss price before any trailing adjustments */
+  originalPriceStopLoss: number;
   /** Profit/loss as percentage (e.g., 1.5 for +1.5%, -2.3 for -2.3%) */
   pnlPercentage: number;
   /** Why signal closed (time_expired | take_profit | stop_loss | closed) */
@@ -236,6 +248,8 @@ export interface PartialProfitCommitNotification {
   strategyName: StrategyName;
   /** Exchange name where signal was executed */
   exchangeName: ExchangeName;
+  /** Unique signal identifier (UUID v4) */
+  signalId: string;
   /** Percentage of position closed (0-100) */
   percentToClose: number;
   /** Current market price when partial was executed */
@@ -279,6 +293,8 @@ export interface PartialLossCommitNotification {
   strategyName: StrategyName;
   /** Exchange name where signal was executed */
   exchangeName: ExchangeName;
+  /** Unique signal identifier (UUID v4) */
+  signalId: string;
   /** Percentage of position closed (0-100) */
   percentToClose: number;
   /** Current market price when partial was executed */
@@ -322,6 +338,8 @@ export interface BreakevenCommitNotification {
   strategyName: StrategyName;
   /** Exchange name where signal was executed */
   exchangeName: ExchangeName;
+  /** Unique signal identifier (UUID v4) */
+  signalId: string;
   /** Current market price when breakeven was executed */
   currentPrice: number;
   /** Trade direction: "long" (buy) or "short" (sell) */
@@ -363,6 +381,8 @@ export interface TrailingStopCommitNotification {
   strategyName: StrategyName;
   /** Exchange name where signal was executed */
   exchangeName: ExchangeName;
+  /** Unique signal identifier (UUID v4) */
+  signalId: string;
   /** Percentage shift of original SL distance (-100 to 100) */
   percentShift: number;
   /** Current market price when trailing stop was executed */
@@ -406,6 +426,8 @@ export interface TrailingTakeCommitNotification {
   strategyName: StrategyName;
   /** Exchange name where signal was executed */
   exchangeName: ExchangeName;
+  /** Unique signal identifier (UUID v4) */
+  signalId: string;
   /** Percentage shift of original TP distance (-100 to 100) */
   percentShift: number;
   /** Current market price when trailing take was executed */
@@ -500,6 +522,14 @@ export interface SignalScheduledNotification {
   position: "long" | "short";
   /** Target entry price for activation */
   priceOpen: number;
+  /** Take profit target price */
+  priceTakeProfit: number;
+  /** Stop loss exit price */
+  priceStopLoss: number;
+  /** Original take profit price before any trailing adjustments */
+  originalPriceTakeProfit: number;
+  /** Original stop loss price before any trailing adjustments */
+  originalPriceStopLoss: number;
   /** Unix timestamp in milliseconds when signal was scheduled */
   scheduledAt: number;
   /** Current market price when signal was scheduled */
@@ -531,6 +561,14 @@ export interface SignalCancelledNotification {
   signalId: string;
   /** Trade direction: "long" (buy) or "short" (sell) */
   position: "long" | "short";
+  /** Take profit target price */
+  priceTakeProfit: number;
+  /** Stop loss exit price */
+  priceStopLoss: number;
+  /** Original take profit price before any trailing adjustments */
+  originalPriceTakeProfit: number;
+  /** Original stop loss price before any trailing adjustments */
+  originalPriceStopLoss: number;
   /** Why signal was cancelled (timeout | price_reject | user) */
   cancelReason: string;
   /** Optional cancellation identifier (provided when user calls cancel()) */

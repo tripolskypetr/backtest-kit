@@ -11,6 +11,8 @@ interface SignalCommitBase {
   exchangeName: ExchangeName;
   frameName: FrameName;
   backtest: boolean;
+  /** Unique signal identifier (UUID v4) */
+  signalId: string;
   /** Timestamp from execution context (tick's when or backtest candle timestamp) */
   timestamp: number;
 }
