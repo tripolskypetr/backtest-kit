@@ -40,7 +40,7 @@ router.all("/api/v1/dict/*", (req, res) => {
 router.get("/*", (req, res) =>
   serveHandler(req, res, {
     public: CC_ENABLE_MOCK
-      ? CC_WWWROOT_PATH || "./public"
+      ? CC_WWWROOT_PATH || "./build/modules/frontend/build"
       : CC_WWWROOT_PATH || getPublicPath(),
   }),
 );
