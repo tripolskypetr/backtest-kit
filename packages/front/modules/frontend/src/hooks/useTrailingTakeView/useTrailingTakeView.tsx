@@ -119,7 +119,7 @@ export const useTrailingTakeView = () => {
     withStaticAction: true,
     onTabChange: handleTabChange,
     animation: "none",
-    title: "Trailing Take details",
+    title: "Trailing Take Commit Details",
     sizeRequest: CC_FULLSCREEN_SIZE_REQUEST,
     history,
     routes,

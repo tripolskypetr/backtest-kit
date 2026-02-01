@@ -119,7 +119,7 @@ export const useBreakevenAvailableView = () => {
     withStaticAction: true,
     onTabChange: handleTabChange,
     animation: "none",
-    title: "Breakeven Available details",
+    title: "Breakeven Available Details",
     sizeRequest: CC_FULLSCREEN_SIZE_REQUEST,
     history,
     routes,

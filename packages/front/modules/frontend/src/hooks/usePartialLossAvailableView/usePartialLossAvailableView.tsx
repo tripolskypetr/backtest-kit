@@ -119,7 +119,7 @@ export const usePartialLossAvailableView = () => {
     withStaticAction: true,
     onTabChange: handleTabChange,
     animation: "none",
-    title: "Partial Loss Available details",
+    title: "Partial Loss Available Details",
     sizeRequest: CC_FULLSCREEN_SIZE_REQUEST,
     history,
     routes,

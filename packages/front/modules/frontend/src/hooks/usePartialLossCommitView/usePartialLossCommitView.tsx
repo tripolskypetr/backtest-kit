@@ -119,7 +119,7 @@ export const usePartialLossCommitView = () => {
     withStaticAction: true,
     onTabChange: handleTabChange,
     animation: "none",
-    title: "Partial Loss Commit details",
+    title: "Partial Loss Commit Details",
     sizeRequest: CC_FULLSCREEN_SIZE_REQUEST,
     history,
     routes,

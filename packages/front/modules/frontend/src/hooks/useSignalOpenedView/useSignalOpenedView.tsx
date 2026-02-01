@@ -116,7 +116,7 @@ export const useSignalOpenedView = () => {
     withStaticAction: true,
     onTabChange: handleTabChange,
     animation: "none",
-    title: "Signal Opened details",
+    title: "Signal Opened Details",
     sizeRequest: CC_FULLSCREEN_SIZE_REQUEST,
     history,
     routes,

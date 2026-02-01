@@ -119,7 +119,7 @@ export const usePartialProfitAvailableView = () => {
     withStaticAction: true,
     onTabChange: handleTabChange,
     animation: "none",
-    title: "Partial Profit Available details",
+    title: "Partial Profit Available Details",
     sizeRequest: CC_FULLSCREEN_SIZE_REQUEST,
     history,
     routes,

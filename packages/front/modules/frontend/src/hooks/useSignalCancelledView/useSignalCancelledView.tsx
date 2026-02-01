@@ -119,7 +119,7 @@ export const useSignalCancelledView = () => {
     withStaticAction: true,
     onTabChange: handleTabChange,
     animation: "none",
-    title: "Signal Cancelled details",
+    title: "Signal Cancelled Details",
     sizeRequest: CC_FULLSCREEN_SIZE_REQUEST,
     history,
     routes,

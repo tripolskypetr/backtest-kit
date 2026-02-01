@@ -119,7 +119,7 @@ export const usePartialProfitCommitView = () => {
     withStaticAction: true,
     onTabChange: handleTabChange,
     animation: "none",
-    title: "Partial Profit Commit details",
+    title: "Partial Profit Commit Details",
     sizeRequest: CC_FULLSCREEN_SIZE_REQUEST,
     history,
     routes,

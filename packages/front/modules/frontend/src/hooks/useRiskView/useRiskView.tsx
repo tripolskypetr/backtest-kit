@@ -119,7 +119,7 @@ export const useRiskView = () => {
     withStaticAction: true,
     onTabChange: handleTabChange,
     animation: "none",
-    title: "Risk details",
+    title: "Risk Rejection Details",
     sizeRequest: CC_FULLSCREEN_SIZE_REQUEST,
     history,
     routes,

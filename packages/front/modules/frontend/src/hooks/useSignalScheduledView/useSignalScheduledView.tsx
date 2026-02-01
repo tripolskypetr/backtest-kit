@@ -119,7 +119,7 @@ export const useSignalScheduledView = () => {
     withStaticAction: true,
     onTabChange: handleTabChange,
     animation: "none",
-    title: "Signal Scheduled details",
+    title: "Signal Scheduled Details",
     sizeRequest: CC_FULLSCREEN_SIZE_REQUEST,
     history,
     routes,

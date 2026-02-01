@@ -119,7 +119,7 @@ export const useBreakevenCommitView = () => {
     withStaticAction: true,
     onTabChange: handleTabChange,
     animation: "none",
-    title: "Breakeven Commit details",
+    title: "Breakeven Commit Details",
     sizeRequest: CC_FULLSCREEN_SIZE_REQUEST,
     history,
     routes,

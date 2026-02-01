@@ -119,7 +119,7 @@ export const useSignalClosedView = () => {
     withStaticAction: true,
     onTabChange: handleTabChange,
     animation: "none",
-    title: "Signal Closed details",
+    title: "Signal Closed Details",
     sizeRequest: CC_FULLSCREEN_SIZE_REQUEST,
     history,
     routes,

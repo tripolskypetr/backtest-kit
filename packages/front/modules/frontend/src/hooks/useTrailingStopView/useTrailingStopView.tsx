@@ -119,7 +119,7 @@ export const useTrailingStopView = () => {
     withStaticAction: true,
     onTabChange: handleTabChange,
     animation: "none",
-    title: "Trailing Stop details",
+    title: "Trailing Stop Commit Details",
     sizeRequest: CC_FULLSCREEN_SIZE_REQUEST,
     history,
     routes,
