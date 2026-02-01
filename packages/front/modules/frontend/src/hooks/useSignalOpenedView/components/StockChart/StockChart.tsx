@@ -16,8 +16,6 @@ import { colors } from "@mui/material";
 
 declare function parseFloat(value: unknown): number;
 
-const SIGNAL_BLUE = "#2196f3";
-
 interface IChartProps {
   source: "1m" | "15m" | "1h";
   height: number;
@@ -25,10 +23,12 @@ interface IChartProps {
   items: ICandleData[];
   position: "long" | "short";
   priceOpen: number;
-  priceTakeProfit?: number;
-  priceStopLoss?: number;
+  priceTakeProfit: number;
+  priceStopLoss: number;
+  minuteEstimatedTime?: number;
   createdAt: string;
 }
+
 
 const COLOR_LIST = [
   colors.purple[900],
@@ -48,14 +48,14 @@ const getColorByIndex = (index: number) => {
 };
 
 /**
- * Get color for position based on type
- * @param position - position type (long/short)
- * @param index - fallback color index
+ * Получить цвет для позиции на основе типа
+ * @param position - тип позиции (long/short)
+ * @param index - индекс для fallback цвета
  */
 const getPositionColor = (position: "long" | "short", index: number): string => {
-  if (position === "long") return SIGNAL_BLUE;
-  if (position === "short") return colors.orange[700];
-  return getColorByIndex(index);
+  if (position === "long") return colors.blue[700];  // 🔵 LONG - синий
+  if (position === "short") return colors.orange[700]; // 🟠 SHORT - оранжевый
+  return getColorByIndex(index); // Fallback
 };
 
 const formatAmount = (value: number | string, scale = 2, separator = ",") => {
@@ -122,7 +122,7 @@ const chartOptions: DeepPartial<ChartOptions> = {
   },
 };
 
-// Base UTC date for MOMENT_STAMP_OFFSET
+// Базовая дата в UTC для MOMENT_STAMP_OFFSET
 const MOMENT_STAMP_OFFSET = getMomentStamp(
   dayjs("2025-07-26T00:00:00Z"),
   "minute"
@@ -139,6 +139,7 @@ export const StockChart = ({
   priceOpen,
   priceTakeProfit,
   priceStopLoss,
+  minuteEstimatedTime,
   createdAt,
 }: IChartProps) => {
   const { classes } = useStyles();
@@ -156,12 +157,12 @@ export const StockChart = ({
         let date: dayjs.Dayjs;
         let formattedOriginalTime: string;
 
-        // Check timestamp (Unix timestamp in milliseconds)
+        // Проверяем timestamp (Unix timestamp в миллисекундах)
         if (timestamp && dayjs(timestamp).isValid()) {
           date = dayjs(timestamp);
           formattedOriginalTime = date.format("YYYY-MM-DD HH:mm:ss");
         } else {
-          // If timestamp is invalid, use fromMomentStamp
+          // Если timestamp невалидно, используем fromMomentStamp
           if (source === "1m") {
             momentStamp = MOMENT_STAMP_OFFSET + idx;
             date = fromMomentStamp(momentStamp, "minute");
@@ -171,7 +172,7 @@ export const StockChart = ({
             const minute = Math.floor(date.minute() / 15) * 15;
             date = date.startOf("hour").add(minute, "minute");
           } else if (source === "1h") {
-            momentStamp = MOMENT_STAMP_OFFSET + Math.floor(idx / 60);
+            momentStamp = MOMENT_STAMP_OFFSET + Math.floor(idx / 60); // 1 час = 60 минут
             date = fromMomentStamp(momentStamp, "hour");
             date = date.startOf("hour");
           }
@@ -181,7 +182,7 @@ export const StockChart = ({
           );
         }
 
-        // Create momentStamp for valid date
+        // Формируем momentStamp для валидной даты
         if (source === "1m") {
           momentStamp = getMomentStamp(date, "minute");
           time = momentStamp as Time;
@@ -203,7 +204,7 @@ export const StockChart = ({
           return null;
         }
 
-        // Debug output
+        // Отладочный вывод
         console.debug(
           `Index: ${idx}, timestamp: ${timestamp}, momentStamp: ${momentStamp}, time: ${time}, date: ${date.format("YYYY-MM-DD HH:mm:ss")}`
         );
@@ -235,7 +236,7 @@ export const StockChart = ({
         timeVisible: true,
         secondsVisible: source === "1m",
         tickMarkFormatter: (time: Time) => {
-          // Find candle by momentStamp
+          // Поиск свечи по momentStamp
           const candle =
             candles.find((c) => c.momentStamp === Number(time)) || candles[0];
           if (!candle || !candle.originalTime) {
@@ -276,31 +277,27 @@ export const StockChart = ({
       title: `${positionLabel} Entry`,
     });
 
-    // Stop Loss line
-    if (priceStopLoss != null) {
-      lineSeries.createPriceLine({
-        price: priceStopLoss,
-        color: colors.red[500],
-        lineWidth: 2,
-        lineStyle: LineStyle.Solid,
-        axisLabelVisible: true,
-        title: "SL",
-      });
-    }
+    // Stop Loss line (current/trailing)
+    lineSeries.createPriceLine({
+      price: priceStopLoss,
+      color: colors.red[500],
+      lineWidth: 2,
+      lineStyle: LineStyle.Solid,
+      axisLabelVisible: true,
+      title: "SL",
+    });
 
     // Take Profit line
-    if (priceTakeProfit != null) {
-      lineSeries.createPriceLine({
-        price: priceTakeProfit,
-        color: colors.green[500],
-        lineWidth: 2,
-        lineStyle: LineStyle.Solid,
-        axisLabelVisible: true,
-        title: "TP",
-      });
-    }
+    lineSeries.createPriceLine({
+      price: priceTakeProfit,
+      color: colors.green[500],
+      lineWidth: 2,
+      lineStyle: LineStyle.Solid,
+      axisLabelVisible: true,
+      title: "TP",
+    });
 
-    // Markers for entry point
+    // Markers for entry and estimated exit points
     const markers: SeriesMarker<Time>[] = [];
 
     // Entry marker (createdAt)
@@ -326,6 +323,31 @@ export const StockChart = ({
         size: 1,
         text: "Entry",
       });
+
+      // Estimated exit marker (createdAt + minuteEstimatedTime)
+      if (minuteEstimatedTime != null && minuteEstimatedTime > 0) {
+        const estimatedExitDate = entryDate.add(minuteEstimatedTime, "minute");
+        let estimatedExitTime: Time;
+        if (source === "1m") {
+          estimatedExitTime = getMomentStamp(estimatedExitDate, "minute") as Time;
+        } else if (source === "15m") {
+          const minute = Math.floor(estimatedExitDate.minute() / 15) * 15;
+          const alignedDate = estimatedExitDate.startOf("hour").add(minute, "minute");
+          estimatedExitTime = getMomentStamp(alignedDate, "minute") as Time;
+        } else {
+          const alignedDate = estimatedExitDate.startOf("hour");
+          estimatedExitTime = getMomentStamp(alignedDate, "hour") as Time;
+        }
+
+        markers.push({
+          time: estimatedExitTime,
+          position: position === "short" ? "belowBar" : "aboveBar",
+          color: colors.purple[500],
+          shape: "circle",
+          size: 1,
+          text: "Est. Exit",
+        });
+      }
     }
 
     // Markers must be sorted by time for lightweight-charts
@@ -354,7 +376,7 @@ export const StockChart = ({
     return () => {
       chart.remove();
     };
-  }, [source, height, width, items, position, priceOpen, priceTakeProfit, priceStopLoss, createdAt]);
+  }, [source, height, width, items, position, priceOpen, priceTakeProfit, priceStopLoss, minuteEstimatedTime, createdAt]);
 
   return (
     <div ref={elementRef} className={classes.root}>

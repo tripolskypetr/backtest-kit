@@ -12,6 +12,7 @@ import {
 import { createChart } from "lightweight-charts";
 import { makeStyles } from "../../../../styles";
 import { dayjs, fromMomentStamp, getMomentStamp } from "react-declarative";
+import { colors } from "@mui/material";
 
 declare function parseFloat(value: unknown): number;
 
@@ -20,11 +21,42 @@ interface IChartProps {
   height: number;
   width: number;
   items: ICandleData[];
-  currentPrice: number;
+  position: "long" | "short";
+  priceOpen: number;
+  priceTakeProfit: number;
+  priceStopLoss: number;
+  minuteEstimatedTime?: number;
   createdAt: string;
 }
 
-const CYAN_COLOR = "#00BCD4";
+
+const COLOR_LIST = [
+  colors.purple[900],
+  colors.red[900],
+  colors.purple[300],
+  colors.yellow[900],
+  colors.blue[500],
+  colors.blue[900],
+  colors.yellow[500],
+  colors.orange[900],
+  colors.cyan[500],
+  colors.red[200],
+];
+
+const getColorByIndex = (index: number) => {
+  return COLOR_LIST[index % COLOR_LIST.length];
+};
+
+/**
+ * Получить цвет для позиции на основе типа
+ * @param position - тип позиции (long/short)
+ * @param index - индекс для fallback цвета
+ */
+const getPositionColor = (position: "long" | "short", index: number): string => {
+  if (position === "long") return colors.blue[700];  // 🔵 LONG - синий
+  if (position === "short") return colors.orange[700]; // 🟠 SHORT - оранжевый
+  return getColorByIndex(index); // Fallback
+};
 
 const formatAmount = (value: number | string, scale = 2, separator = ",") => {
   const num = typeof value === "string" ? Number(value) : value;
@@ -90,6 +122,7 @@ const chartOptions: DeepPartial<ChartOptions> = {
   },
 };
 
+// Базовая дата в UTC для MOMENT_STAMP_OFFSET
 const MOMENT_STAMP_OFFSET = getMomentStamp(
   dayjs("2025-07-26T00:00:00Z"),
   "minute"
@@ -102,7 +135,11 @@ export const StockChart = ({
   height,
   width,
   items,
-  currentPrice,
+  position,
+  priceOpen,
+  priceTakeProfit,
+  priceStopLoss,
+  minuteEstimatedTime,
   createdAt,
 }: IChartProps) => {
   const { classes } = useStyles();
@@ -112,6 +149,7 @@ export const StockChart = ({
   useLayoutEffect(() => {
     const { current: chartElement } = elementRef;
 
+    // Map items to chart data
     const candles = items
       .map(({ close, timestamp }, idx) => {
         let momentStamp: number;
@@ -119,10 +157,12 @@ export const StockChart = ({
         let date: dayjs.Dayjs;
         let formattedOriginalTime: string;
 
+        // Проверяем timestamp (Unix timestamp в миллисекундах)
         if (timestamp && dayjs(timestamp).isValid()) {
           date = dayjs(timestamp);
           formattedOriginalTime = date.format("YYYY-MM-DD HH:mm:ss");
         } else {
+          // Если timestamp невалидно, используем fromMomentStamp
           if (source === "1m") {
             momentStamp = MOMENT_STAMP_OFFSET + idx;
             date = fromMomentStamp(momentStamp, "minute");
@@ -132,7 +172,7 @@ export const StockChart = ({
             const minute = Math.floor(date.minute() / 15) * 15;
             date = date.startOf("hour").add(minute, "minute");
           } else if (source === "1h") {
-            momentStamp = MOMENT_STAMP_OFFSET + Math.floor(idx / 60);
+            momentStamp = MOMENT_STAMP_OFFSET + Math.floor(idx / 60); // 1 час = 60 минут
             date = fromMomentStamp(momentStamp, "hour");
             date = date.startOf("hour");
           }
@@ -142,6 +182,7 @@ export const StockChart = ({
           );
         }
 
+        // Формируем momentStamp для валидной даты
         if (source === "1m") {
           momentStamp = getMomentStamp(date, "minute");
           time = momentStamp as Time;
@@ -163,6 +204,7 @@ export const StockChart = ({
           return null;
         }
 
+        // Отладочный вывод
         console.debug(
           `Index: ${idx}, timestamp: ${timestamp}, momentStamp: ${momentStamp}, time: ${time}, date: ${date.format("YYYY-MM-DD HH:mm:ss")}`
         );
@@ -194,6 +236,7 @@ export const StockChart = ({
         timeVisible: true,
         secondsVisible: source === "1m",
         tickMarkFormatter: (time: Time) => {
+          // Поиск свечи по momentStamp
           const candle =
             candles.find((c) => c.momentStamp === Number(time)) || candles[0];
           if (!candle || !candle.originalTime) {
@@ -216,46 +259,98 @@ export const StockChart = ({
 
     const lineSeries = chart.addLineSeries({
       lastValueVisible: false,
-      color: CYAN_COLOR,
     });
 
     lineSeries.setData(candles);
 
+    // Price lines for position
+    const positionLabel = position === "long" ? "LONG" : "SHORT";
+    const positionColor = getPositionColor(position, 0);
+
+    // Entry price line
     lineSeries.createPriceLine({
-      price: currentPrice,
-      color: CYAN_COLOR,
+      price: priceOpen,
+      color: positionColor,
       lineWidth: 2,
       lineStyle: LineStyle.Solid,
       axisLabelVisible: true,
-      title: "Breakeven Committed",
+      title: `${positionLabel} Entry`,
     });
 
+    // Stop Loss line (current/trailing)
+    lineSeries.createPriceLine({
+      price: priceStopLoss,
+      color: colors.red[500],
+      lineWidth: 2,
+      lineStyle: LineStyle.Solid,
+      axisLabelVisible: true,
+      title: "SL",
+    });
+
+    // Take Profit line
+    lineSeries.createPriceLine({
+      price: priceTakeProfit,
+      color: colors.green[500],
+      lineWidth: 2,
+      lineStyle: LineStyle.Solid,
+      axisLabelVisible: true,
+      title: "TP",
+    });
+
+    // Markers for entry and estimated exit points
     const markers: SeriesMarker<Time>[] = [];
 
-    const commitDate = dayjs(createdAt);
-    if (commitDate.isValid()) {
-      let commitTime: Time;
+    // Entry marker (createdAt)
+    const entryDate = dayjs(createdAt);
+    if (entryDate.isValid()) {
+      let entryTime: Time;
       if (source === "1m") {
-        commitTime = getMomentStamp(commitDate, "minute") as Time;
+        entryTime = getMomentStamp(entryDate, "minute") as Time;
       } else if (source === "15m") {
-        const minute = Math.floor(commitDate.minute() / 15) * 15;
-        const alignedDate = commitDate.startOf("hour").add(minute, "minute");
-        commitTime = getMomentStamp(alignedDate, "minute") as Time;
+        const minute = Math.floor(entryDate.minute() / 15) * 15;
+        const alignedDate = entryDate.startOf("hour").add(minute, "minute");
+        entryTime = getMomentStamp(alignedDate, "minute") as Time;
       } else {
-        const alignedDate = commitDate.startOf("hour");
-        commitTime = getMomentStamp(alignedDate, "hour") as Time;
+        const alignedDate = entryDate.startOf("hour");
+        entryTime = getMomentStamp(alignedDate, "hour") as Time;
       }
 
       markers.push({
-        time: commitTime,
-        position: "aboveBar",
-        color: CYAN_COLOR,
-        shape: "circle",
+        time: entryTime,
+        position: position === "short" ? "aboveBar" : "belowBar",
+        color: positionColor,
+        shape: position === "short" ? "arrowDown" : "arrowUp",
         size: 1,
-        text: "Committed",
+        text: "Entry",
       });
+
+      // Estimated exit marker (createdAt + minuteEstimatedTime)
+      if (minuteEstimatedTime != null && minuteEstimatedTime > 0) {
+        const estimatedExitDate = entryDate.add(minuteEstimatedTime, "minute");
+        let estimatedExitTime: Time;
+        if (source === "1m") {
+          estimatedExitTime = getMomentStamp(estimatedExitDate, "minute") as Time;
+        } else if (source === "15m") {
+          const minute = Math.floor(estimatedExitDate.minute() / 15) * 15;
+          const alignedDate = estimatedExitDate.startOf("hour").add(minute, "minute");
+          estimatedExitTime = getMomentStamp(alignedDate, "minute") as Time;
+        } else {
+          const alignedDate = estimatedExitDate.startOf("hour");
+          estimatedExitTime = getMomentStamp(alignedDate, "hour") as Time;
+        }
+
+        markers.push({
+          time: estimatedExitTime,
+          position: position === "short" ? "belowBar" : "aboveBar",
+          color: colors.purple[500],
+          shape: "circle",
+          size: 1,
+          text: "Est. Exit",
+        });
+      }
     }
 
+    // Markers must be sorted by time for lightweight-charts
     markers.sort((a, b) => Number(a.time) - Number(b.time));
     lineSeries.setMarkers(markers);
 
@@ -281,7 +376,7 @@ export const StockChart = ({
     return () => {
       chart.remove();
     };
-  }, [source, height, width, items, currentPrice, createdAt]);
+  }, [source, height, width, items, position, priceOpen, priceTakeProfit, priceStopLoss, minuteEstimatedTime, createdAt]);
 
   return (
     <div ref={elementRef} className={classes.root}>
