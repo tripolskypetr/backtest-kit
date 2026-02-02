@@ -255,7 +255,7 @@ temporal time context to your strategies.
 
 All methods use **strict exclusive boundaries** - candles at exact boundary times are excluded. This prevents accidental inclusion of boundary conditions in backtest logic and ensures consistent behavior across cache and runtime.
 
-According to this `timestamp` of a candle in backtest-kit is exactly the `openTime`, not `closeTime`
+According to this `timestamp` of a candle in backtest-kit is exactly the `openTime`, not ~~`closeTime`~~
 
 **Key principle:** A candle is included only if it **fully closed** before the upper boundary.
 
