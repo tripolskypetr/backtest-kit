@@ -5,11 +5,13 @@ group: docs
 
 # StorageAdapter
 
-Main storage adapter for signal history management.
+Main storage adapter that manages both backtest and live signal storage.
 
-Provides unified interface for accessing backtest and live signal history
-for admin dashboard. Subscribes to signal emitters and automatically
-updates history on signal events.
+Features:
+- Subscribes to signal emitters for automatic storage updates
+- Provides unified access to both backtest and live signals
+- Singleshot enable pattern prevents duplicate subscriptions
+- Cleanup function for proper unsubscription
 
 ## Constructor
 
@@ -19,25 +21,14 @@ constructor();
 
 ## Properties
 
-### _signalLiveUtils
-
-```ts
-_signalLiveUtils: StorageLiveUtils
-```
-
-### _signalBacktestUtils
-
-```ts
-_signalBacktestUtils: StorageBacktestUtils
-```
-
 ### enable
 
 ```ts
 enable: (() => () => void) & ISingleshotClearable
 ```
 
-Enables signal history tracking by subscribing to emitters.
+Enables signal storage by subscribing to signal emitters.
+Uses singleshot to ensure one-time subscription.
 
 ### disable
 
@@ -45,7 +36,8 @@ Enables signal history tracking by subscribing to emitters.
 disable: () => void
 ```
 
-Disables signal history tracking by unsubscribing from emitters.
+Disables signal storage by unsubscribing from all emitters.
+Safe to call multiple times.
 
 ### findSignalById
 
@@ -53,7 +45,7 @@ Disables signal history tracking by unsubscribing from emitters.
 findSignalById: (id: string) => Promise<IStorageSignalRow>
 ```
 
-Finds a signal by ID across both backtest and live history.
+Finds a signal by ID across both backtest and live storage.
 
 ### listSignalBacktest
 
@@ -61,7 +53,7 @@ Finds a signal by ID across both backtest and live history.
 listSignalBacktest: () => Promise<IStorageSignalRow[]>
 ```
 
-Lists all backtest signal history.
+Lists all backtest signals from storage.
 
 ### listSignalLive
 
@@ -69,4 +61,4 @@ Lists all backtest signal history.
 listSignalLive: () => Promise<IStorageSignalRow[]>
 ```
 
-Lists all live signal history.
+Lists all live signals from storage.

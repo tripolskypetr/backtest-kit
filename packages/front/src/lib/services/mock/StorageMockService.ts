@@ -9,7 +9,7 @@ import { join } from "path";
 const MOCK_PATH = "./mock/db";
 
 const READ_BACKTEST_STORAGE_FN = singleshot(async () => {
-  const dbPath = join(__dirname, MOCK_PATH);
+  const dbPath = join(process.cwd(), MOCK_PATH);
   const files = await readdir(dbPath);
 
   const signals: IStorageSignalRow[] = [];

@@ -97,3 +97,11 @@ position: "long" | "short"
 ```
 
 Trade direction: "long" (buy) or "short" (sell)
+
+### createdAt
+
+```ts
+createdAt: number
+```
+
+Unix timestamp in milliseconds when the notification was created

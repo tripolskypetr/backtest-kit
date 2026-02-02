@@ -7,6 +7,7 @@ import { IPartial } from "./Partial.interface";
 import { IBreakeven } from "./Breakeven.interface";
 import { FrameName } from "./Frame.interface";
 import { ActionName } from "./Action.interface";
+import { StrategyCommitContract } from "../contract/StrategyCommit.contract";
 
 /**
  * Signal generation interval for throttling.
@@ -147,19 +148,62 @@ export interface IPublicSignalRow extends ISignalRow {
 }
 
 /**
- * Storage signal row with creation timestamp taken from IStrategyTickResult.
+ * Base storage signal row fields shared by all status variants.
  * Used for persisting signals with accurate creation time.
  */
-export interface IStorageSignalRow extends IPublicSignalRow {
+interface IStorageSignalRowBase extends IPublicSignalRow {
   /** Creation timestamp taken from IStrategyTickResult */
   createdAt: number;
   /** Creation timestamp taken from IStrategyTickResult */
   updatedAt: number;
   /** Storage adapter rewrite priority. Equal to Date.now for live and backtest both */
   priority: number;
-  /** Current status of the signal */
-  status: "opened" | "scheduled" | "closed" | "cancelled";
 }
+
+/**
+ * Storage signal row for opened status.
+ */
+interface IStorageSignalRowOpened extends IStorageSignalRowBase {
+  /** Current status of the signal */
+  status: "opened";
+}
+
+/**
+ * Storage signal row for scheduled status.
+ */
+interface IStorageSignalRowScheduled extends IStorageSignalRowBase {
+  /** Current status of the signal */
+  status: "scheduled";
+}
+
+/**
+ * Storage signal row for closed status.
+ * Only closed signals have PNL data.
+ */
+interface IStorageSignalRowClosed extends IStorageSignalRowBase {
+  /** Current status of the signal */
+  status: "closed";
+  /** Profit and loss value for the signal when closed */
+  pnl: IStrategyPnL;
+}
+
+/**
+ * Storage signal row for cancelled status.
+ */
+interface IStorageSignalRowCancelled extends IStorageSignalRowBase {
+  /** Current status of the signal */
+  status: "cancelled";
+}
+
+/**
+ * Discriminated union of storage signal rows.
+ * Use type guards: `row.status === "closed"` for type-safe access to pnl.
+ */
+export type IStorageSignalRow =
+  | IStorageSignalRowOpened
+  | IStorageSignalRowScheduled
+  | IStorageSignalRowClosed
+  | IStorageSignalRowCancelled;
 
 /**
  * Risk signal row for internal risk management.
@@ -200,6 +244,86 @@ export interface ISignalCloseRow extends ISignalRow {
 }
 
 /**
+ * Base interface for queued commit events.
+ * Used to defer commit emission until proper execution context is available.
+ */
+interface ICommitRowBase {
+  /** Trading pair symbol */
+  symbol: string;
+  /** Whether running in backtest mode */
+  backtest: boolean;
+}
+
+/**
+ * Queued partial profit commit.
+ */
+export interface IPartialProfitCommitRow extends ICommitRowBase {
+  /** Discriminator */
+  action: "partial-profit";
+  /** Percentage of position closed */
+  percentToClose: number;
+  /** Price at which partial was executed */
+  currentPrice: number;
+}
+
+/**
+ * Queued partial loss commit.
+ */
+export interface IPartialLossCommitRow extends ICommitRowBase {
+  /** Discriminator */
+  action: "partial-loss";
+  /** Percentage of position closed */
+  percentToClose: number;
+  /** Price at which partial was executed */
+  currentPrice: number;
+}
+
+/**
+ * Queued breakeven commit.
+ */
+export interface IBreakevenCommitRow extends ICommitRowBase {
+  /** Discriminator */
+  action: "breakeven";
+  /** Price at which breakeven was set */
+  currentPrice: number;
+}
+
+/**
+ * Queued trailing stop commit.
+ */
+export interface ITrailingStopCommitRow extends ICommitRowBase {
+  /** Discriminator */
+  action: "trailing-stop";
+  /** Percentage shift applied */
+  percentShift: number;
+  /** Price at which trailing was set */
+  currentPrice: number;
+}
+
+/**
+ * Queued trailing take commit.
+ */
+export interface ITrailingTakeCommitRow extends ICommitRowBase {
+  /** Discriminator */
+  action: "trailing-take";
+  /** Percentage shift applied */
+  percentShift: number;
+  /** Price at which trailing was set */
+  currentPrice: number;
+}
+
+/**
+ * Discriminated union of all queued commit events.
+ * These are stored in _commitQueue and processed in tick()/backtest().
+ */
+export type ICommitRow =
+  | IPartialProfitCommitRow
+  | IPartialLossCommitRow
+  | IBreakevenCommitRow
+  | ITrailingStopCommitRow
+  | ITrailingTakeCommitRow;
+
+/**
  * Strategy parameters passed to ClientStrategy constructor.
  * Combines schema with runtime dependencies.
  */
@@ -234,6 +358,8 @@ export interface IStrategyParams extends IStrategySchema {
   onActivePing: (symbol: string, strategyName: StrategyName, exchangeName: ExchangeName, data: IPublicSignalRow, backtest: boolean, timestamp: number) => Promise<void>;
   /** System callback for dispose events (emits to disposeSubject) */
   onDispose: (symbol: string, strategyName: StrategyName, exchangeName: ExchangeName, frameName: FrameName, backtest: boolean) => Promise<void>;
+  /** System callback for commit events (emits to strategyCommitSubject) */
+  onCommit: (event: StrategyCommitContract) => Promise<void>;
 }
 
 /**

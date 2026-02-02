@@ -2,9 +2,6 @@ import { inject } from "../../core/di";
 import LoggerService from "../base/LoggerService";
 import TYPES from "../../core/types";
 import { compose, memoize, singleshot } from "functools-kit";
-import ExecutionContextService, {
-  TExecutionContextService,
-} from "../context/ExecutionContextService";
 import StrategyCoreService from "../core/StrategyCoreService";
 import { StrategyName } from "../../../interfaces/Strategy.interface";
 import { ExchangeName } from "../../../interfaces/Exchange.interface";
@@ -34,23 +31,6 @@ import {
  * @see StrategyEvent for the event data structure
  */
 export type Columns = ColumnModel<StrategyEvent>;
-
-/**
- * Extracts execution context timestamp for strategy event logging.
- *
- * @param self - The StrategyMarkdownService instance to extract context from
- * @returns Object containing ISO 8601 formatted timestamp, or empty string if no context
- * @internal
- */
-const GET_EXECUTION_CONTEXT_FN = (self: StrategyMarkdownService) => {
-  if (ExecutionContextService.hasContext()) {
-    const { when } = self.executionContextService.context;
-    return { when: when.toISOString() };
-  }
-  return {
-    when: "",
-  };
-};
 
 /**
  * Creates a unique key for memoizing ReportStorage instances.
@@ -332,9 +312,6 @@ class ReportStorage {
  */
 export class StrategyMarkdownService {
   readonly loggerService = inject<LoggerService>(TYPES.loggerService);
-  readonly executionContextService = inject<TExecutionContextService>(
-    TYPES.executionContextService,
-  );
   readonly strategyCoreService = inject<StrategyCoreService>(
     TYPES.strategyCoreService,
   );
@@ -355,18 +332,17 @@ export class StrategyMarkdownService {
   /**
    * Records a cancel-scheduled event when a scheduled signal is cancelled.
    *
-   * Retrieves the scheduled signal from StrategyCoreService and stores
-   * the cancellation event in the appropriate ReportStorage.
-   *
    * @param symbol - Trading pair symbol (e.g., "BTCUSDT")
    * @param isBacktest - Whether this is a backtest or live trading event
    * @param context - Strategy context with strategyName, exchangeName, frameName
+   * @param timestamp - Timestamp from StrategyCommitContract (execution context time)
    * @param cancelId - Optional identifier for the cancellation reason
    */
   public cancelScheduled = async (
     symbol: string,
     isBacktest: boolean,
     context: { strategyName: StrategyName; exchangeName: ExchangeName; frameName: FrameName },
+    timestamp: number,
     cancelId?: string,
   ) => {
     this.loggerService.log("strategyMarkdownService cancelScheduled", {
@@ -377,7 +353,6 @@ export class StrategyMarkdownService {
     if (!this.subscribe.hasValue()) {
       return;
     }
-    const { when: createdAt } = GET_EXECUTION_CONTEXT_FN(this);
     const scheduledRow = await this.strategyCoreService.getScheduledSignal(
       isBacktest,
       symbol,
@@ -390,9 +365,10 @@ export class StrategyMarkdownService {
     if (!scheduledRow) {
       return;
     }
+    const createdAt = new Date(timestamp).toISOString();
     const storage = this.getStorage(symbol, context.strategyName, context.exchangeName, context.frameName, isBacktest);
     storage.addEvent({
-      timestamp: Date.now(),
+      timestamp,
       symbol,
       strategyName: context.strategyName,
       exchangeName: context.exchangeName,
@@ -408,18 +384,17 @@ export class StrategyMarkdownService {
   /**
    * Records a close-pending event when a pending signal is closed.
    *
-   * Retrieves the pending signal from StrategyCoreService and stores
-   * the close event in the appropriate ReportStorage.
-   *
    * @param symbol - Trading pair symbol (e.g., "BTCUSDT")
    * @param isBacktest - Whether this is a backtest or live trading event
    * @param context - Strategy context with strategyName, exchangeName, frameName
+   * @param timestamp - Timestamp from StrategyCommitContract (execution context time)
    * @param closeId - Optional identifier for the close reason
    */
   public closePending = async (
     symbol: string,
     isBacktest: boolean,
     context: { strategyName: StrategyName; exchangeName: ExchangeName; frameName: FrameName },
+    timestamp: number,
     closeId?: string,
   ) => {
     this.loggerService.log("strategyMarkdownService closePending", {
@@ -430,7 +405,6 @@ export class StrategyMarkdownService {
     if (!this.subscribe.hasValue()) {
       return;
     }
-    const { when: createdAt } = GET_EXECUTION_CONTEXT_FN(this);
     const pendingRow = await this.strategyCoreService.getPendingSignal(
       isBacktest,
       symbol,
@@ -443,9 +417,10 @@ export class StrategyMarkdownService {
     if (!pendingRow) {
       return;
     }
+    const createdAt = new Date(timestamp).toISOString();
     const storage = this.getStorage(symbol, context.strategyName, context.exchangeName, context.frameName, isBacktest);
     storage.addEvent({
-      timestamp: Date.now(),
+      timestamp,
       symbol,
       strategyName: context.strategyName,
       exchangeName: context.exchangeName,
@@ -461,13 +436,20 @@ export class StrategyMarkdownService {
   /**
    * Records a partial-profit event when a portion of the position is closed at profit.
    *
-   * Stores the percentage closed and current price when partial profit-taking occurs.
-   *
    * @param symbol - Trading pair symbol (e.g., "BTCUSDT")
    * @param percentToClose - Percentage of position to close (0-100)
    * @param currentPrice - Current market price at time of partial close
    * @param isBacktest - Whether this is a backtest or live trading event
    * @param context - Strategy context with strategyName, exchangeName, frameName
+   * @param timestamp - Timestamp from StrategyCommitContract (execution context time)
+   * @param position - Trade direction: "long" or "short"
+   * @param priceOpen - Entry price for the position
+   * @param priceTakeProfit - Effective take profit price
+   * @param priceStopLoss - Effective stop loss price
+   * @param originalPriceTakeProfit - Original take profit before trailing
+   * @param originalPriceStopLoss - Original stop loss before trailing
+   * @param scheduledAt - Signal creation timestamp in milliseconds
+   * @param pendingAt - Pending timestamp in milliseconds
    */
   public partialProfit = async (
     symbol: string,
@@ -475,6 +457,15 @@ export class StrategyMarkdownService {
     currentPrice: number,
     isBacktest: boolean,
     context: { strategyName: StrategyName; exchangeName: ExchangeName; frameName: FrameName },
+    timestamp: number,
+    position: "long" | "short",
+    priceOpen: number,
+    priceTakeProfit: number,
+    priceStopLoss: number,
+    originalPriceTakeProfit: number,
+    originalPriceStopLoss: number,
+    scheduledAt: number,
+    pendingAt: number,
   ) => {
     this.loggerService.log("strategyMarkdownService partialProfit", {
       symbol,
@@ -485,7 +476,6 @@ export class StrategyMarkdownService {
     if (!this.subscribe.hasValue()) {
       return;
     }
-    const { when: createdAt } = GET_EXECUTION_CONTEXT_FN(this);
     const pendingRow = await this.strategyCoreService.getPendingSignal(
       isBacktest,
       symbol,
@@ -498,9 +488,10 @@ export class StrategyMarkdownService {
     if (!pendingRow) {
       return;
     }
+    const createdAt = new Date(timestamp).toISOString();
     const storage = this.getStorage(symbol, context.strategyName, context.exchangeName, context.frameName, isBacktest);
     storage.addEvent({
-      timestamp: Date.now(),
+      timestamp,
       symbol,
       strategyName: context.strategyName,
       exchangeName: context.exchangeName,
@@ -511,19 +502,34 @@ export class StrategyMarkdownService {
       currentPrice,
       createdAt,
       backtest: isBacktest,
+      position,
+      priceOpen,
+      priceTakeProfit,
+      priceStopLoss,
+      originalPriceTakeProfit,
+      originalPriceStopLoss,
+      scheduledAt,
+      pendingAt,
     });
   };
 
   /**
    * Records a partial-loss event when a portion of the position is closed at loss.
    *
-   * Stores the percentage closed and current price when partial loss-cutting occurs.
-   *
    * @param symbol - Trading pair symbol (e.g., "BTCUSDT")
    * @param percentToClose - Percentage of position to close (0-100)
    * @param currentPrice - Current market price at time of partial close
    * @param isBacktest - Whether this is a backtest or live trading event
    * @param context - Strategy context with strategyName, exchangeName, frameName
+   * @param timestamp - Timestamp from StrategyCommitContract (execution context time)
+   * @param position - Trade direction: "long" or "short"
+   * @param priceOpen - Entry price for the position
+   * @param priceTakeProfit - Effective take profit price
+   * @param priceStopLoss - Effective stop loss price
+   * @param originalPriceTakeProfit - Original take profit before trailing
+   * @param originalPriceStopLoss - Original stop loss before trailing
+   * @param scheduledAt - Signal creation timestamp in milliseconds
+   * @param pendingAt - Pending timestamp in milliseconds
    */
   public partialLoss = async (
     symbol: string,
@@ -531,6 +537,15 @@ export class StrategyMarkdownService {
     currentPrice: number,
     isBacktest: boolean,
     context: { strategyName: StrategyName; exchangeName: ExchangeName; frameName: FrameName },
+    timestamp: number,
+    position: "long" | "short",
+    priceOpen: number,
+    priceTakeProfit: number,
+    priceStopLoss: number,
+    originalPriceTakeProfit: number,
+    originalPriceStopLoss: number,
+    scheduledAt: number,
+    pendingAt: number,
   ) => {
     this.loggerService.log("strategyMarkdownService partialLoss", {
       symbol,
@@ -541,7 +556,6 @@ export class StrategyMarkdownService {
     if (!this.subscribe.hasValue()) {
       return;
     }
-    const { when: createdAt } = GET_EXECUTION_CONTEXT_FN(this);
     const pendingRow = await this.strategyCoreService.getPendingSignal(
       isBacktest,
       symbol,
@@ -554,9 +568,10 @@ export class StrategyMarkdownService {
     if (!pendingRow) {
       return;
     }
+    const createdAt = new Date(timestamp).toISOString();
     const storage = this.getStorage(symbol, context.strategyName, context.exchangeName, context.frameName, isBacktest);
     storage.addEvent({
-      timestamp: Date.now(),
+      timestamp,
       symbol,
       strategyName: context.strategyName,
       exchangeName: context.exchangeName,
@@ -567,19 +582,34 @@ export class StrategyMarkdownService {
       currentPrice,
       createdAt,
       backtest: isBacktest,
+      position,
+      priceOpen,
+      priceTakeProfit,
+      priceStopLoss,
+      originalPriceTakeProfit,
+      originalPriceStopLoss,
+      scheduledAt,
+      pendingAt,
     });
   };
 
   /**
    * Records a trailing-stop event when the stop-loss is adjusted.
    *
-   * Stores the percentage shift and current price when trailing stop moves.
-   *
    * @param symbol - Trading pair symbol (e.g., "BTCUSDT")
    * @param percentShift - Percentage the stop-loss was shifted
    * @param currentPrice - Current market price at time of adjustment
    * @param isBacktest - Whether this is a backtest or live trading event
    * @param context - Strategy context with strategyName, exchangeName, frameName
+   * @param timestamp - Timestamp from StrategyCommitContract (execution context time)
+   * @param position - Trade direction: "long" or "short"
+   * @param priceOpen - Entry price for the position
+   * @param priceTakeProfit - Effective take profit price
+   * @param priceStopLoss - Effective stop loss price
+   * @param originalPriceTakeProfit - Original take profit before trailing
+   * @param originalPriceStopLoss - Original stop loss before trailing
+   * @param scheduledAt - Signal creation timestamp in milliseconds
+   * @param pendingAt - Pending timestamp in milliseconds
    */
   public trailingStop = async (
     symbol: string,
@@ -587,6 +617,15 @@ export class StrategyMarkdownService {
     currentPrice: number,
     isBacktest: boolean,
     context: { strategyName: StrategyName; exchangeName: ExchangeName; frameName: FrameName },
+    timestamp: number,
+    position: "long" | "short",
+    priceOpen: number,
+    priceTakeProfit: number,
+    priceStopLoss: number,
+    originalPriceTakeProfit: number,
+    originalPriceStopLoss: number,
+    scheduledAt: number,
+    pendingAt: number,
   ) => {
     this.loggerService.log("strategyMarkdownService trailingStop", {
       symbol,
@@ -597,7 +636,6 @@ export class StrategyMarkdownService {
     if (!this.subscribe.hasValue()) {
       return;
     }
-    const { when: createdAt } = GET_EXECUTION_CONTEXT_FN(this);
     const pendingRow = await this.strategyCoreService.getPendingSignal(
       isBacktest,
       symbol,
@@ -610,9 +648,10 @@ export class StrategyMarkdownService {
     if (!pendingRow) {
       return;
     }
+    const createdAt = new Date(timestamp).toISOString();
     const storage = this.getStorage(symbol, context.strategyName, context.exchangeName, context.frameName, isBacktest);
     storage.addEvent({
-      timestamp: Date.now(),
+      timestamp,
       symbol,
       strategyName: context.strategyName,
       exchangeName: context.exchangeName,
@@ -623,19 +662,34 @@ export class StrategyMarkdownService {
       currentPrice,
       createdAt,
       backtest: isBacktest,
+      position,
+      priceOpen,
+      priceTakeProfit,
+      priceStopLoss,
+      originalPriceTakeProfit,
+      originalPriceStopLoss,
+      scheduledAt,
+      pendingAt,
     });
   };
 
   /**
    * Records a trailing-take event when the take-profit is adjusted.
    *
-   * Stores the percentage shift and current price when trailing take-profit moves.
-   *
    * @param symbol - Trading pair symbol (e.g., "BTCUSDT")
    * @param percentShift - Percentage the take-profit was shifted
    * @param currentPrice - Current market price at time of adjustment
    * @param isBacktest - Whether this is a backtest or live trading event
    * @param context - Strategy context with strategyName, exchangeName, frameName
+   * @param timestamp - Timestamp from StrategyCommitContract (execution context time)
+   * @param position - Trade direction: "long" or "short"
+   * @param priceOpen - Entry price for the position
+   * @param priceTakeProfit - Effective take profit price
+   * @param priceStopLoss - Effective stop loss price
+   * @param originalPriceTakeProfit - Original take profit before trailing
+   * @param originalPriceStopLoss - Original stop loss before trailing
+   * @param scheduledAt - Signal creation timestamp in milliseconds
+   * @param pendingAt - Pending timestamp in milliseconds
    */
   public trailingTake = async (
     symbol: string,
@@ -643,6 +697,15 @@ export class StrategyMarkdownService {
     currentPrice: number,
     isBacktest: boolean,
     context: { strategyName: StrategyName; exchangeName: ExchangeName; frameName: FrameName },
+    timestamp: number,
+    position: "long" | "short",
+    priceOpen: number,
+    priceTakeProfit: number,
+    priceStopLoss: number,
+    originalPriceTakeProfit: number,
+    originalPriceStopLoss: number,
+    scheduledAt: number,
+    pendingAt: number,
   ) => {
     this.loggerService.log("strategyMarkdownService trailingTake", {
       symbol,
@@ -653,7 +716,6 @@ export class StrategyMarkdownService {
     if (!this.subscribe.hasValue()) {
       return;
     }
-    const { when: createdAt } = GET_EXECUTION_CONTEXT_FN(this);
     const pendingRow = await this.strategyCoreService.getPendingSignal(
       isBacktest,
       symbol,
@@ -666,9 +728,10 @@ export class StrategyMarkdownService {
     if (!pendingRow) {
       return;
     }
+    const createdAt = new Date(timestamp).toISOString();
     const storage = this.getStorage(symbol, context.strategyName, context.exchangeName, context.frameName, isBacktest);
     storage.addEvent({
-      timestamp: Date.now(),
+      timestamp,
       symbol,
       strategyName: context.strategyName,
       exchangeName: context.exchangeName,
@@ -679,24 +742,48 @@ export class StrategyMarkdownService {
       currentPrice,
       createdAt,
       backtest: isBacktest,
+      position,
+      priceOpen,
+      priceTakeProfit,
+      priceStopLoss,
+      originalPriceTakeProfit,
+      originalPriceStopLoss,
+      scheduledAt,
+      pendingAt,
     });
   };
 
   /**
    * Records a breakeven event when the stop-loss is moved to entry price.
    *
-   * Stores the current price when breakeven protection is activated.
-   *
    * @param symbol - Trading pair symbol (e.g., "BTCUSDT")
    * @param currentPrice - Current market price at time of breakeven activation
    * @param isBacktest - Whether this is a backtest or live trading event
    * @param context - Strategy context with strategyName, exchangeName, frameName
+   * @param timestamp - Timestamp from StrategyCommitContract (execution context time)
+   * @param position - Trade direction: "long" or "short"
+   * @param priceOpen - Entry price for the position
+   * @param priceTakeProfit - Effective take profit price
+   * @param priceStopLoss - Effective stop loss price
+   * @param originalPriceTakeProfit - Original take profit before trailing
+   * @param originalPriceStopLoss - Original stop loss before trailing
+   * @param scheduledAt - Signal creation timestamp in milliseconds
+   * @param pendingAt - Pending timestamp in milliseconds
    */
   public breakeven = async (
     symbol: string,
     currentPrice: number,
     isBacktest: boolean,
     context: { strategyName: StrategyName; exchangeName: ExchangeName; frameName: FrameName },
+    timestamp: number,
+    position: "long" | "short",
+    priceOpen: number,
+    priceTakeProfit: number,
+    priceStopLoss: number,
+    originalPriceTakeProfit: number,
+    originalPriceStopLoss: number,
+    scheduledAt: number,
+    pendingAt: number,
   ) => {
     this.loggerService.log("strategyMarkdownService breakeven", {
       symbol,
@@ -706,7 +793,6 @@ export class StrategyMarkdownService {
     if (!this.subscribe.hasValue()) {
       return;
     }
-    const { when: createdAt } = GET_EXECUTION_CONTEXT_FN(this);
     const pendingRow = await this.strategyCoreService.getPendingSignal(
       isBacktest,
       symbol,
@@ -719,9 +805,10 @@ export class StrategyMarkdownService {
     if (!pendingRow) {
       return;
     }
+    const createdAt = new Date(timestamp).toISOString();
     const storage = this.getStorage(symbol, context.strategyName, context.exchangeName, context.frameName, isBacktest);
     storage.addEvent({
-      timestamp: Date.now(),
+      timestamp,
       symbol,
       strategyName: context.strategyName,
       exchangeName: context.exchangeName,
@@ -731,6 +818,14 @@ export class StrategyMarkdownService {
       currentPrice,
       createdAt,
       backtest: isBacktest,
+      position,
+      priceOpen,
+      priceTakeProfit,
+      priceStopLoss,
+      originalPriceTakeProfit,
+      originalPriceStopLoss,
+      scheduledAt,
+      pendingAt,
     });
   };
 
@@ -900,6 +995,7 @@ export class StrategyMarkdownService {
             frameName: event.frameName,
             strategyName: event.strategyName,
           },
+          event.timestamp,
           event.cancelId,
         )
       );
@@ -915,6 +1011,7 @@ export class StrategyMarkdownService {
             frameName: event.frameName,
             strategyName: event.strategyName,
           },
+          event.timestamp,
           event.closeId,
         )
       );
@@ -932,6 +1029,15 @@ export class StrategyMarkdownService {
             frameName: event.frameName,
             strategyName: event.strategyName,
           },
+          event.timestamp,
+          event.position,
+          event.priceOpen,
+          event.priceTakeProfit,
+          event.priceStopLoss,
+          event.originalPriceTakeProfit,
+          event.originalPriceStopLoss,
+          event.scheduledAt,
+          event.pendingAt,
         )
       );
 
@@ -948,6 +1054,15 @@ export class StrategyMarkdownService {
             frameName: event.frameName,
             strategyName: event.strategyName,
           },
+          event.timestamp,
+          event.position,
+          event.priceOpen,
+          event.priceTakeProfit,
+          event.priceStopLoss,
+          event.originalPriceTakeProfit,
+          event.originalPriceStopLoss,
+          event.scheduledAt,
+          event.pendingAt,
         )
       );
 
@@ -964,6 +1079,15 @@ export class StrategyMarkdownService {
             frameName: event.frameName,
             strategyName: event.strategyName,
           },
+          event.timestamp,
+          event.position,
+          event.priceOpen,
+          event.priceTakeProfit,
+          event.priceStopLoss,
+          event.originalPriceTakeProfit,
+          event.originalPriceStopLoss,
+          event.scheduledAt,
+          event.pendingAt,
         )
       );
 
@@ -980,6 +1104,15 @@ export class StrategyMarkdownService {
             frameName: event.frameName,
             strategyName: event.strategyName,
           },
+          event.timestamp,
+          event.position,
+          event.priceOpen,
+          event.priceTakeProfit,
+          event.priceStopLoss,
+          event.originalPriceTakeProfit,
+          event.originalPriceStopLoss,
+          event.scheduledAt,
+          event.pendingAt,
         )
       );
 
@@ -995,6 +1128,15 @@ export class StrategyMarkdownService {
             frameName: event.frameName,
             strategyName: event.strategyName,
           },
+          event.timestamp,
+          event.position,
+          event.priceOpen,
+          event.priceTakeProfit,
+          event.priceStopLoss,
+          event.originalPriceTakeProfit,
+          event.originalPriceStopLoss,
+          event.scheduledAt,
+          event.pendingAt,
         )
       );
 

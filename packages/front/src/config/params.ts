@@ -1,13 +1,7 @@
-import { createRequire } from "module";
-import { join } from "path";
+declare function parseInt(value: unknown): number;
 
-const require = createRequire(import.meta.url);
+export const CC_WWWROOT_PATH = process.env.CC_WWWROOT_PATH || "";
+export const CC_WWWROOT_HOST = process.env.CC_WWWROOT_HOST || "0.0.0.0";
+export const CC_WWWROOT_PORT = parseInt(process.env.CC_WWWROOT_PORT) || 60050;
 
-function getPublicPath() {
-    const modulePath = require.resolve('@backtest-kit/ui');
-    return join(modulePath, "../public");
-}
-
-export const CC_WWWROOT_PATH = "./public"; // getPublicPath()
-export const CC_WWWROOT_HOST = "0.0.0.0";
-export const CC_WWWROOT_PORT = 60050;
+export const CC_ENABLE_MOCK = !!parseInt(process.env.CC_ENABLE_MOCK) || false;

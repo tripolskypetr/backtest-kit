@@ -29,6 +29,7 @@ import {
   SignalInterval,
   StrategyName,
   StrategyCancelReason,
+  ICommitRow,
 } from "../interfaces/Strategy.interface";
 import toProfitLossDto from "../helpers/toProfitLossDto";
 import { ICandleData } from "../interfaces/Exchange.interface";
@@ -38,6 +39,7 @@ import { errorEmitter, backtestScheduleOpenSubject } from "../config/emitters";
 import { GLOBAL_CONFIG } from "../config/params";
 import toPlainString from "../helpers/toPlainString";
 import beginTime from "../utils/beginTime";
+import { StrategyCommitContract } from "../contract/StrategyCommit.contract";
 
 const INTERVAL_MINUTES: Record<SignalInterval, number> = {
   "1m": 1,
@@ -48,7 +50,192 @@ const INTERVAL_MINUTES: Record<SignalInterval, number> = {
   "1h": 60,
 };
 
+/**
+ * Mock value for scheduled signal pendingAt timestamp.
+ * Used to indicate that the actual pendingAt will be set upon activation.
+ */
+const SCHEDULED_SIGNAL_PENDING_MOCK = 0;
+
 const TIMEOUT_SYMBOL = Symbol('timeout');
+
+/**
+ * Calls onCommit callback with strategy commit event.
+ *
+ * Wraps the callback in trycatch to prevent errors from breaking the flow.
+ * Used by ClientStrategy methods that modify signal state (partial, trailing, breakeven, cancel, close).
+ *
+ * @param self - ClientStrategy instance
+ * @param event - Strategy commit event to emit
+ */
+const CALL_COMMIT_FN = trycatch(
+  async (
+    self: ClientStrategy,
+    event: StrategyCommitContract
+  ): Promise<void> => {
+    await self.params.onCommit(event);
+  },
+  {
+    fallback: (error) => {
+      const message = "ClientStrategy CALL_COMMIT_FN thrown";
+      const payload = {
+        error: errorData(error),
+        message: getErrorMessage(error),
+      };
+      backtest.loggerService.warn(message, payload);
+      console.warn(message, payload);
+      errorEmitter.next(error);
+    },
+  }
+);
+
+/**
+ * Processes queued commit events with proper execution context timestamp.
+ *
+ * Commit events from partialProfit, partialLoss, breakeven, trailingStop, trailingTake
+ * are queued in _commitQueue and processed here with correct timestamp from
+ * execution context (tick's when or backtest candle timestamp).
+ *
+ * @param self - ClientStrategy instance
+ * @param timestamp - Timestamp from execution context
+ */
+const PROCESS_COMMIT_QUEUE_FN = async (
+  self: ClientStrategy,
+  timestamp: number
+): Promise<void> => {
+  if (self._commitQueue.length === 0) {
+    return;
+  }
+
+  const queue = self._commitQueue;
+
+  {
+    self._commitQueue = [];
+  }
+
+  if (!self._pendingSignal) {
+    return;
+  }
+
+  // Get public signal data for commit events (contains effective and original SL/TP)
+  const publicSignal = TO_PUBLIC_SIGNAL(self._pendingSignal);
+
+  for (const commit of queue) {
+    if (commit.action === "partial-profit") {
+      await CALL_COMMIT_FN(self, {
+        action: "partial-profit",
+        symbol: commit.symbol,
+        strategyName: self.params.strategyName,
+        exchangeName: self.params.exchangeName,
+        frameName: self.params.frameName,
+        backtest: commit.backtest,
+        percentToClose: commit.percentToClose,
+        currentPrice: commit.currentPrice,
+        timestamp,
+        position: publicSignal.position,
+        priceOpen: publicSignal.priceOpen,
+        signalId: publicSignal.id,
+        priceTakeProfit: publicSignal.priceTakeProfit,
+        priceStopLoss: publicSignal.priceStopLoss,
+        originalPriceTakeProfit: publicSignal.originalPriceTakeProfit,
+        originalPriceStopLoss: publicSignal.originalPriceStopLoss,
+        scheduledAt: publicSignal.scheduledAt,
+        pendingAt: publicSignal.pendingAt,
+      });
+      continue
+    }
+    if (commit.action === "partial-loss") {
+      await CALL_COMMIT_FN(self, {
+        action: "partial-loss",
+        symbol: commit.symbol,
+        strategyName: self.params.strategyName,
+        exchangeName: self.params.exchangeName,
+        frameName: self.params.frameName,
+        backtest: commit.backtest,
+        percentToClose: commit.percentToClose,
+        currentPrice: commit.currentPrice,
+        timestamp,
+        position: publicSignal.position,
+        priceOpen: publicSignal.priceOpen,
+        signalId: publicSignal.id,
+        priceTakeProfit: publicSignal.priceTakeProfit,
+        priceStopLoss: publicSignal.priceStopLoss,
+        originalPriceTakeProfit: publicSignal.originalPriceTakeProfit,
+        originalPriceStopLoss: publicSignal.originalPriceStopLoss,
+        scheduledAt: publicSignal.scheduledAt,
+        pendingAt: publicSignal.pendingAt,
+      });
+      continue
+    }
+    if (commit.action === "breakeven") {
+      await CALL_COMMIT_FN(self, {
+        action: "breakeven",
+        symbol: commit.symbol,
+        strategyName: self.params.strategyName,
+        exchangeName: self.params.exchangeName,
+        frameName: self.params.frameName,
+        backtest: commit.backtest,
+        currentPrice: commit.currentPrice,
+        timestamp,
+        signalId: publicSignal.id,
+        position: publicSignal.position,
+        priceOpen: publicSignal.priceOpen,
+        priceTakeProfit: publicSignal.priceTakeProfit,
+        priceStopLoss: publicSignal.priceStopLoss,
+        originalPriceTakeProfit: publicSignal.originalPriceTakeProfit,
+        originalPriceStopLoss: publicSignal.originalPriceStopLoss,
+        scheduledAt: publicSignal.scheduledAt,
+        pendingAt: publicSignal.pendingAt,
+      });
+      continue
+    }
+    if (commit.action === "trailing-stop") {
+      await CALL_COMMIT_FN(self, {
+        action: "trailing-stop",
+        symbol: commit.symbol,
+        strategyName: self.params.strategyName,
+        exchangeName: self.params.exchangeName,
+        frameName: self.params.frameName,
+        backtest: commit.backtest,
+        percentShift: commit.percentShift,
+        currentPrice: commit.currentPrice,
+        timestamp,
+        signalId: publicSignal.id,
+        position: publicSignal.position,
+        priceOpen: publicSignal.priceOpen,
+        priceTakeProfit: publicSignal.priceTakeProfit,
+        priceStopLoss: publicSignal.priceStopLoss,
+        originalPriceTakeProfit: publicSignal.originalPriceTakeProfit,
+        originalPriceStopLoss: publicSignal.originalPriceStopLoss,
+        scheduledAt: publicSignal.scheduledAt,
+        pendingAt: publicSignal.pendingAt,
+      });
+      continue;
+    }
+    if (commit.action === "trailing-take") {
+      await CALL_COMMIT_FN(self, {
+        action: "trailing-take",
+        symbol: commit.symbol,
+        strategyName: self.params.strategyName,
+        exchangeName: self.params.exchangeName,
+        frameName: self.params.frameName,
+        backtest: commit.backtest,
+        percentShift: commit.percentShift,
+        currentPrice: commit.currentPrice,
+        timestamp,
+        signalId: publicSignal.id,
+        position: publicSignal.position,
+        priceOpen: publicSignal.priceOpen,
+        priceTakeProfit: publicSignal.priceTakeProfit,
+        priceStopLoss: publicSignal.priceStopLoss,
+        originalPriceTakeProfit: publicSignal.originalPriceTakeProfit,
+        originalPriceStopLoss: publicSignal.originalPriceStopLoss,
+        scheduledAt: publicSignal.scheduledAt,
+        pendingAt: publicSignal.pendingAt,
+      });
+      continue;
+    }
+  }
+};
 
 /**
  * Converts internal signal to public API format.
@@ -470,7 +657,7 @@ const VALIDATE_SIGNAL_FN = (signal: ISignalRow, currentPrice: number, isSchedule
         `pendingAt must be a number type, got ${signal.pendingAt} (${typeof signal.pendingAt})`
       );
     }
-    if (signal.pendingAt <= 0) {
+    if (signal.pendingAt <= 0 && !isScheduled) {
       errors.push(`pendingAt must be positive, got ${signal.pendingAt}`);
     }
   }
@@ -588,7 +775,7 @@ const GET_SIGNAL_FN = trycatch(
         strategyName: self.params.method.context.strategyName,
         frameName: self.params.method.context.frameName,
         scheduledAt: currentTime,
-        pendingAt: currentTime, // Временно, обновится при активации
+        pendingAt: SCHEDULED_SIGNAL_PENDING_MOCK, // Временно, обновится при активации
         _isScheduled: true,
       };
 
@@ -2006,7 +2193,7 @@ const CALL_RISK_CHECK_SIGNAL_FN = trycatch(
   ): Promise<boolean> => {
     return await ExecutionContextService.runInContext(async () => {
       return await self.params.risk.checkSignal({
-        pendingSignal: TO_PUBLIC_SIGNAL(pendingSignal),
+        currentSignal: TO_PUBLIC_SIGNAL(pendingSignal),
         symbol: symbol,
         strategyName: self.params.method.context.strategyName,
         exchangeName: self.params.method.context.exchangeName,
@@ -3097,6 +3284,9 @@ const PROCESS_SCHEDULED_SIGNAL_CANDLES_FN = async (
     }
 
     await CALL_SCHEDULE_PING_CALLBACKS_FN(self, self.params.execution.context.symbol, scheduled, candle.timestamp, true);
+
+    // Process queued commit events with candle timestamp
+    await PROCESS_COMMIT_QUEUE_FN(self, candle.timestamp);
   }
 
   return {
@@ -3293,6 +3483,9 @@ const PROCESS_PENDING_SIGNAL_CANDLES_FN = async (
         }
       }
     }
+
+    // Process queued commit events with candle timestamp
+    await PROCESS_COMMIT_QUEUE_FN(self, currentCandleTimestamp);
   }
 
   return null;
@@ -3334,6 +3527,9 @@ export class ClientStrategy implements IStrategy {
   _scheduledSignal: IScheduledSignalRow | null = null;
   _cancelledSignal: IScheduledSignalCancelRow | null = null;
   _closedSignal: ISignalCloseRow | null = null;
+
+  /** Queue for commit events to be processed in tick()/backtest() with proper timestamp */
+  _commitQueue: ICommitRow[] = [];
 
   constructor(readonly params: IStrategyParams) {}
 
@@ -3615,6 +3811,9 @@ export class ClientStrategy implements IStrategy {
 
     // Получаем текущее время в начале tick для консистентности
     const currentTime = this.params.execution.context.when.getTime();
+
+    // Process queued commit events with proper timestamp
+    await PROCESS_COMMIT_QUEUE_FN(this, currentTime);
 
     // Early return if strategy was stopped
     if (this._isStopped) {
@@ -4273,6 +4472,7 @@ export class ClientStrategy implements IStrategy {
     });
 
     // Save cancelled signal for next tick to emit cancelled event
+    const hadScheduledSignal = this._scheduledSignal !== null;
     if (this._scheduledSignal) {
       this._cancelledSignal = Object.assign({}, this._scheduledSignal, {
         cancelId,
@@ -4281,6 +4481,20 @@ export class ClientStrategy implements IStrategy {
     }
 
     if (backtest) {
+      // Emit commit event only if signal was actually cancelled
+      if (hadScheduledSignal) {
+        await CALL_COMMIT_FN(this, {
+          action: "cancel-scheduled",
+          symbol,
+          strategyName: this.params.strategyName,
+          exchangeName: this.params.exchangeName,
+          frameName: this.params.frameName,
+          signalId: this._cancelledSignal!.id,
+          backtest,
+          cancelId,
+          timestamp: this.params.execution.context.when.getTime(),
+        });
+      }
       return;
     }
 
@@ -4290,6 +4504,21 @@ export class ClientStrategy implements IStrategy {
       this.params.method.context.strategyName,
       this.params.method.context.exchangeName,
     );
+
+    // Emit commit event only if signal was actually cancelled
+    if (hadScheduledSignal) {
+      await CALL_COMMIT_FN(this, {
+        action: "cancel-scheduled",
+        symbol,
+        strategyName: this.params.strategyName,
+        exchangeName: this.params.exchangeName,
+        frameName: this.params.frameName,
+        signalId: this._cancelledSignal!.id,
+        backtest,
+        cancelId,
+        timestamp: this.params.execution.context.when.getTime(),
+      });
+    }
   }
 
   /**
@@ -4321,6 +4550,7 @@ export class ClientStrategy implements IStrategy {
     });
 
     // Save closed signal for next tick to emit closed event
+    const hadPendingSignal = this._pendingSignal !== null;
     if (this._pendingSignal) {
       this._closedSignal = Object.assign({}, this._pendingSignal, {
         closeId,
@@ -4329,6 +4559,20 @@ export class ClientStrategy implements IStrategy {
     }
 
     if (backtest) {
+      // Emit commit event only if signal was actually closed
+      if (hadPendingSignal) {
+        await CALL_COMMIT_FN(this, {
+          action: "close-pending",
+          symbol,
+          strategyName: this.params.strategyName,
+          exchangeName: this.params.exchangeName,
+          frameName: this.params.frameName,
+          signalId: this._closedSignal!.id,
+          backtest,
+          closeId,
+          timestamp: this.params.execution.context.when.getTime(),
+        });
+      }
       return;
     }
 
@@ -4338,6 +4582,21 @@ export class ClientStrategy implements IStrategy {
       this.params.strategyName,
       this.params.exchangeName,
     );
+
+    // Emit commit event only if signal was actually closed
+    if (hadPendingSignal) {
+      await CALL_COMMIT_FN(this, {
+        action: "close-pending",
+        symbol,
+        strategyName: this.params.strategyName,
+        exchangeName: this.params.exchangeName,
+        frameName: this.params.frameName,
+        signalId: this._closedSignal!.id,
+        backtest,
+        closeId,
+        timestamp: this.params.execution.context.when.getTime(),
+      });
+    }
   }
 
   /**
@@ -4503,6 +4762,15 @@ export class ClientStrategy implements IStrategy {
         this.params.exchangeName,
       );
     }
+
+    // Queue commit event for processing in tick()/backtest() with proper timestamp
+    this._commitQueue.push({
+      action: "partial-profit",
+      symbol,
+      backtest,
+      percentToClose,
+      currentPrice,
+    });
 
     return true;
   }
@@ -4671,6 +4939,15 @@ export class ClientStrategy implements IStrategy {
       );
     }
 
+    // Queue commit event for processing in tick()/backtest() with proper timestamp
+    this._commitQueue.push({
+      action: "partial-loss",
+      symbol,
+      backtest,
+      percentToClose,
+      currentPrice,
+    });
+
     return true;
   }
 
@@ -4814,6 +5091,14 @@ export class ClientStrategy implements IStrategy {
         this.params.exchangeName,
       );
     }
+
+    // Queue commit event for processing in tick()/backtest() with proper timestamp
+    this._commitQueue.push({
+      action: "breakeven",
+      symbol,
+      backtest,
+      currentPrice,
+    });
 
     return true;
   }
@@ -5036,6 +5321,15 @@ export class ClientStrategy implements IStrategy {
       );
     }
 
+    // Queue commit event for processing in tick()/backtest() with proper timestamp
+    this._commitQueue.push({
+      action: "trailing-stop",
+      symbol,
+      backtest,
+      percentShift,
+      currentPrice,
+    });
+
     return true;
   }
 
@@ -5242,6 +5536,15 @@ export class ClientStrategy implements IStrategy {
         this.params.exchangeName
       );
     }
+
+    // Queue commit event for processing in tick()/backtest() with proper timestamp
+    this._commitQueue.push({
+      action: "trailing-take",
+      symbol,
+      backtest,
+      percentShift,
+      currentPrice,
+    });
 
     return true;
   }

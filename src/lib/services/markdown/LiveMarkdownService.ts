@@ -191,6 +191,8 @@ class ReportStorage {
       originalPriceTakeProfit: data.signal.originalPriceTakeProfit,
       originalPriceStopLoss: data.signal.originalPriceStopLoss,
       partialExecuted: data.signal.partialExecuted,
+      pendingAt: data.signal.pendingAt,
+      scheduledAt: data.signal.scheduledAt,
     });
 
     // Trim queue if exceeded MAX_EVENTS
@@ -223,6 +225,8 @@ class ReportStorage {
       percentTp: data.percentTp,
       percentSl: data.percentSl,
       pnl: data.pnl.pnlPercentage,
+      pendingAt: data.signal.pendingAt,
+      scheduledAt: data.signal.scheduledAt,
     };
 
     // Find the last active event with the same signalId
@@ -271,6 +275,8 @@ class ReportStorage {
       pnl: data.pnl.pnlPercentage,
       closeReason: data.closeReason,
       duration: durationMin,
+      pendingAt: data.signal.pendingAt,
+      scheduledAt: data.signal.scheduledAt,
     };
 
     this._eventList.unshift(newEvent);
@@ -301,6 +307,7 @@ class ReportStorage {
       originalPriceTakeProfit: data.signal.originalPriceTakeProfit,
       originalPriceStopLoss: data.signal.originalPriceStopLoss,
       partialExecuted: data.signal.partialExecuted,
+      scheduledAt: data.signal.scheduledAt,
     });
 
     // Trim queue if exceeded MAX_EVENTS
@@ -333,6 +340,7 @@ class ReportStorage {
       percentTp: data.percentTp,
       percentSl: data.percentSl,
       pnl: data.pnl.pnlPercentage,
+      scheduledAt: data.signal.scheduledAt,
     };
 
     // Find the last waiting event with the same signalId
@@ -376,6 +384,7 @@ class ReportStorage {
       originalPriceStopLoss: data.signal.originalPriceStopLoss,
       partialExecuted: data.signal.partialExecuted,
       cancelReason: data.reason,
+      scheduledAt: data.signal.scheduledAt,
     });
 
     // Trim queue if exceeded MAX_EVENTS

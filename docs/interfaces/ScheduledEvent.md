@@ -106,10 +106,10 @@ originalPriceStopLoss: number
 
 Original stop loss price before modifications
 
-### totalExecuted
+### partialExecuted
 
 ```ts
-totalExecuted: number
+partialExecuted: number
 ```
 
 Total executed percentage from partial closes

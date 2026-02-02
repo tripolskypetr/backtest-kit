@@ -14,8 +14,8 @@ export class ExchangeMockService {
     TYPES.exchangeService,
   );
 
-  public getCandles = async (signalId: string, interval: CandleInterval) => {
-    this.loggerService.log("exchangeMockService getCandles", {
+  public getSignalCandles = async (signalId: string, interval: CandleInterval) => {
+    this.loggerService.log("exchangeMockService getSignalCandles", {
       signalId,
       interval,
     });
@@ -23,17 +23,17 @@ export class ExchangeMockService {
     if (!signal) {
       throw new Error(`Signal with ID ${signalId} not found`);
     }
-    const {
+   const {
       pendingAt,
       scheduledAt,
       createdAt = pendingAt || scheduledAt,
       updatedAt,
     } = signal;
-    const currentTime = Math.max(createdAt, updatedAt);
-    return await this.exchangeService.getCandles({
+    return await this.exchangeService.getRangeCandles({
       symbol: signal.symbol,
       exchangeName: signal.exchangeName,
-      currentTime,
+      signalStartTime: createdAt,
+      signalStopTime: updatedAt,
       interval,
     });
   };

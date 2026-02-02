@@ -73,3 +73,11 @@ currentPrice: number
 ```
 
 Current market price when breakeven was executed
+
+### createdAt
+
+```ts
+createdAt: number
+```
+
+Unix timestamp in milliseconds when the notification was created

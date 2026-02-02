@@ -1,0 +1,23 @@
+{
+  "name": "BacktestKit",
+  "theme_color": "#6974b0",
+  "background_color": "#6974b0",
+  "icons": [
+    {
+      "purpose": "maskable",
+      "sizes": "512x512",
+      "src": "/logo/icon512_maskable.png",
+      "type": "image/png"
+    },
+    {
+      "purpose": "any",
+      "sizes": "512x512",
+      "src": "/logo/icon512_rounded.png",
+      "type": "image/png"
+    }
+  ],
+  "orientation": "any",
+  "display": "standalone",
+  "dir": "ltr",
+  "lang": "ru-RU"
+}

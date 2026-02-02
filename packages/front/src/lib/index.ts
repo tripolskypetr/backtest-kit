@@ -10,11 +10,21 @@ import ExchangeMockService from "./services/mock/ExchangeMockService";
 import NotificationViewService from "./services/view/NotificationViewService";
 import StorageViewService from "./services/view/StorageViewService";
 import ExchangeViewService from "./services/view/ExchangeViewService";
+import SymbolConnectionService from "./services/connection/SymbolConnectionService";
+import SymbolMetaService from "./services/meta/SymbolMetaService";
 
 const baseServices = {
   loggerService: inject<LoggerService>(TYPES.loggerService),
   exchangeService: inject<ExchangeService>(TYPES.exchangeService),
 };
+
+const connectionServices = {
+  symbolConnectionService: inject<SymbolConnectionService>(TYPES.symbolConnectionService),
+}
+
+const metaServices = {
+  symbolMetaService: inject<SymbolMetaService>(TYPES.symbolMetaService),
+}
 
 const mockServices = {
   notificationMockService: inject<NotificationMockService>(TYPES.notificationMockService),
@@ -30,6 +40,8 @@ const viewServices = {
 
 const ioc = {
   ...baseServices,
+  ...connectionServices,
+  ...metaServices,
   ...mockServices,
   ...viewServices,
 };

@@ -57,19 +57,19 @@ export const risk_columns: ColumnModel<RiskEvent>[] = [
   {
     key: "signalId",
     label: "Signal ID",
-    format: (data) => data.pendingSignal.id || "N/A",
+    format: (data) => data.currentSignal.id || "N/A",
     isVisible: () => true,
   },
   {
     key: "note",
     label: "Note",
-    format: (data) => toPlainString(data.pendingSignal.note ?? "N/A"),
+    format: (data) => toPlainString(data.currentSignal.note ?? "N/A"),
     isVisible: () => GLOBAL_CONFIG.CC_REPORT_SHOW_SIGNAL_NOTE,
   },
   {
     key: "position",
     label: "Position",
-    format: (data) => data.pendingSignal.position.toUpperCase(),
+    format: (data) => data.currentSignal.position.toUpperCase(),
     isVisible: () => true,
   },
   {
@@ -82,8 +82,8 @@ export const risk_columns: ColumnModel<RiskEvent>[] = [
     key: "openPrice",
     label: "Open Price",
     format: (data) =>
-      data.pendingSignal.priceOpen !== undefined
-        ? `${data.pendingSignal.priceOpen.toFixed(8)} USD`
+      data.currentSignal.priceOpen !== undefined
+        ? `${data.currentSignal.priceOpen.toFixed(8)} USD`
         : "N/A",
     isVisible: () => true,
   },
@@ -91,8 +91,8 @@ export const risk_columns: ColumnModel<RiskEvent>[] = [
     key: "takeProfit",
     label: "Take Profit",
     format: (data) =>
-      data.pendingSignal.priceTakeProfit !== undefined
-        ? `${data.pendingSignal.priceTakeProfit.toFixed(8)} USD`
+      data.currentSignal.priceTakeProfit !== undefined
+        ? `${data.currentSignal.priceTakeProfit.toFixed(8)} USD`
         : "N/A",
     isVisible: () => true,
   },
@@ -100,8 +100,8 @@ export const risk_columns: ColumnModel<RiskEvent>[] = [
     key: "stopLoss",
     label: "Stop Loss",
     format: (data) =>
-      data.pendingSignal.priceStopLoss !== undefined
-        ? `${data.pendingSignal.priceStopLoss.toFixed(8)} USD`
+      data.currentSignal.priceStopLoss !== undefined
+        ? `${data.currentSignal.priceStopLoss.toFixed(8)} USD`
         : "N/A",
     isVisible: () => true,
   },
@@ -109,8 +109,8 @@ export const risk_columns: ColumnModel<RiskEvent>[] = [
     key: "originalPriceTakeProfit",
     label: "Original TP",
     format: (data) =>
-      data.pendingSignal.originalPriceTakeProfit !== undefined
-        ? `${data.pendingSignal.originalPriceTakeProfit.toFixed(8)} USD`
+      data.currentSignal.originalPriceTakeProfit !== undefined
+        ? `${data.currentSignal.originalPriceTakeProfit.toFixed(8)} USD`
         : "N/A",
     isVisible: () => true,
   },
@@ -118,8 +118,8 @@ export const risk_columns: ColumnModel<RiskEvent>[] = [
     key: "originalPriceStopLoss",
     label: "Original SL",
     format: (data) =>
-      data.pendingSignal.originalPriceStopLoss !== undefined
-        ? `${data.pendingSignal.originalPriceStopLoss.toFixed(8)} USD`
+      data.currentSignal.originalPriceStopLoss !== undefined
+        ? `${data.currentSignal.originalPriceStopLoss.toFixed(8)} USD`
         : "N/A",
     isVisible: () => true,
   },
@@ -127,8 +127,8 @@ export const risk_columns: ColumnModel<RiskEvent>[] = [
     key: "partialExecuted",
     label: "Partial Executed %",
     format: (data) =>
-      data.pendingSignal.partialExecuted !== undefined
-        ? `${data.pendingSignal.partialExecuted.toFixed(1)}%`
+      data.currentSignal.partialExecuted !== undefined
+        ? `${data.currentSignal.partialExecuted.toFixed(1)}%`
         : "N/A",
     isVisible: () => true,
   },
@@ -154,6 +154,24 @@ export const risk_columns: ColumnModel<RiskEvent>[] = [
     key: "rejectionNote",
     label: "Rejection Reason",
     format: (data) => data.rejectionNote,
+    isVisible: () => true,
+  },
+  {
+    key: "pendingAt",
+    label: "Pending At",
+    format: (data) =>
+      data.currentSignal.pendingAt !== undefined
+        ? new Date(data.currentSignal.pendingAt).toISOString()
+        : "N/A",
+    isVisible: () => true,
+  },
+  {
+    key: "scheduledAt",
+    label: "Scheduled At",
+    format: (data) =>
+      data.currentSignal.scheduledAt !== undefined
+        ? new Date(data.currentSignal.scheduledAt).toISOString()
+        : "N/A",
     isVisible: () => true,
   },
   {

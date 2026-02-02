@@ -94,7 +94,11 @@ export class NotificationInstance {
         priceOpen: data.signal.priceOpen,
         priceTakeProfit: data.signal.priceTakeProfit,
         priceStopLoss: data.signal.priceStopLoss,
+        originalPriceTakeProfit: data.signal.originalPriceTakeProfit,
+        originalPriceStopLoss: data.signal.originalPriceStopLoss,
         note: data.signal.note,
+        scheduledAt: data.signal.scheduledAt,
+        pendingAt: data.signal.pendingAt,
         createdAt: data.createdAt,
       });
     } else if (data.action === "closed") {
@@ -113,10 +117,16 @@ export class NotificationInstance {
         position: data.signal.position,
         priceOpen: data.signal.priceOpen,
         priceClose: data.currentPrice,
+        priceTakeProfit: data.signal.priceTakeProfit,
+        priceStopLoss: data.signal.priceStopLoss,
+        originalPriceTakeProfit: data.signal.originalPriceTakeProfit,
+        originalPriceStopLoss: data.signal.originalPriceStopLoss,
         pnlPercentage: data.pnl.pnlPercentage,
         closeReason: data.closeReason,
         duration: durationMin,
         note: data.signal.note,
+        scheduledAt: data.signal.scheduledAt,
+        pendingAt: data.signal.pendingAt,
         createdAt: data.createdAt,
       });
     } else if (data.action === "scheduled") {
@@ -131,6 +141,10 @@ export class NotificationInstance {
         signalId: data.signal.id,
         position: data.signal.position,
         priceOpen: data.signal.priceOpen,
+        priceTakeProfit: data.signal.priceTakeProfit,
+        priceStopLoss: data.signal.priceStopLoss,
+        originalPriceTakeProfit: data.signal.originalPriceTakeProfit,
+        originalPriceStopLoss: data.signal.originalPriceStopLoss,
         scheduledAt: data.signal.scheduledAt,
         currentPrice: data.currentPrice,
         createdAt: data.createdAt,
@@ -149,19 +163,19 @@ export class NotificationInstance {
         exchangeName: data.exchangeName,
         signalId: data.signal.id,
         position: data.signal.position,
+        priceOpen: data.signal.priceOpen,
+        priceTakeProfit: data.signal.priceTakeProfit,
+        priceStopLoss: data.signal.priceStopLoss,
+        originalPriceTakeProfit: data.signal.originalPriceTakeProfit,
+        originalPriceStopLoss: data.signal.originalPriceStopLoss,
         cancelReason: data.reason,
         cancelId: data.cancelId,
         duration: durationMin,
+        scheduledAt: data.signal.scheduledAt,
+        pendingAt: data.signal.pendingAt,
         createdAt: data.createdAt,
       });
     }
-
-    // Sort signal notifications by createdAt (newest first)
-    this._notifications.sort((a, b) => {
-      const aCreatedAt = "createdAt" in a ? a.createdAt : 0;
-      const bCreatedAt = "createdAt" in b ? b.createdAt : 0;
-      return bCreatedAt - aCreatedAt;
-    });
   };
 
   /**
@@ -181,6 +195,13 @@ export class NotificationInstance {
       currentPrice: data.currentPrice,
       priceOpen: data.data.priceOpen,
       position: data.data.position,
+      priceTakeProfit: data.data.priceTakeProfit,
+      priceStopLoss: data.data.priceStopLoss,
+      originalPriceTakeProfit: data.data.originalPriceTakeProfit,
+      originalPriceStopLoss: data.data.originalPriceStopLoss,
+      scheduledAt: data.data.scheduledAt,
+      pendingAt: data.data.pendingAt,
+      createdAt: data.timestamp,
     });
   };
 
@@ -201,6 +222,13 @@ export class NotificationInstance {
       currentPrice: data.currentPrice,
       priceOpen: data.data.priceOpen,
       position: data.data.position,
+      priceTakeProfit: data.data.priceTakeProfit,
+      priceStopLoss: data.data.priceStopLoss,
+      originalPriceTakeProfit: data.data.originalPriceTakeProfit,
+      originalPriceStopLoss: data.data.originalPriceStopLoss,
+      scheduledAt: data.data.scheduledAt,
+      pendingAt: data.data.pendingAt,
+      createdAt: data.timestamp,
     });
   };
 
@@ -220,6 +248,13 @@ export class NotificationInstance {
       currentPrice: data.currentPrice,
       priceOpen: data.data.priceOpen,
       position: data.data.position,
+      priceTakeProfit: data.data.priceTakeProfit,
+      priceStopLoss: data.data.priceStopLoss,
+      originalPriceTakeProfit: data.data.originalPriceTakeProfit,
+      originalPriceStopLoss: data.data.originalPriceStopLoss,
+      scheduledAt: data.data.scheduledAt,
+      pendingAt: data.data.pendingAt,
+      createdAt: data.timestamp,
     });
   };
 
@@ -231,60 +266,110 @@ export class NotificationInstance {
       this._addNotification({
         type: "partial_profit.commit",
         id: CREATE_KEY_FN(),
-        timestamp: Date.now(),
+        timestamp: data.timestamp,
         backtest: data.backtest,
         symbol: data.symbol,
         strategyName: data.strategyName,
         exchangeName: data.exchangeName,
+        signalId: data.signalId,
         percentToClose: data.percentToClose,
         currentPrice: data.currentPrice,
+        position: data.position,
+        priceOpen: data.priceOpen,
+        priceTakeProfit: data.priceTakeProfit,
+        priceStopLoss: data.priceStopLoss,
+        originalPriceTakeProfit: data.originalPriceTakeProfit,
+        originalPriceStopLoss: data.originalPriceStopLoss,
+        scheduledAt: data.scheduledAt,
+        pendingAt: data.pendingAt,
+        createdAt: data.timestamp,
       });
     } else if (data.action === "partial-loss") {
       this._addNotification({
         type: "partial_loss.commit",
         id: CREATE_KEY_FN(),
-        timestamp: Date.now(),
+        timestamp: data.timestamp,
         backtest: data.backtest,
         symbol: data.symbol,
         strategyName: data.strategyName,
         exchangeName: data.exchangeName,
+        signalId: data.signalId,
         percentToClose: data.percentToClose,
         currentPrice: data.currentPrice,
+        position: data.position,
+        priceOpen: data.priceOpen,
+        priceTakeProfit: data.priceTakeProfit,
+        priceStopLoss: data.priceStopLoss,
+        originalPriceTakeProfit: data.originalPriceTakeProfit,
+        originalPriceStopLoss: data.originalPriceStopLoss,
+        scheduledAt: data.scheduledAt,
+        pendingAt: data.pendingAt,
+        createdAt: data.timestamp,
       });
     } else if (data.action === "breakeven") {
       this._addNotification({
         type: "breakeven.commit",
         id: CREATE_KEY_FN(),
-        timestamp: Date.now(),
+        timestamp: data.timestamp,
         backtest: data.backtest,
         symbol: data.symbol,
         strategyName: data.strategyName,
         exchangeName: data.exchangeName,
+        signalId: data.signalId,
         currentPrice: data.currentPrice,
+        position: data.position,
+        priceOpen: data.priceOpen,
+        priceTakeProfit: data.priceTakeProfit,
+        priceStopLoss: data.priceStopLoss,
+        originalPriceTakeProfit: data.originalPriceTakeProfit,
+        originalPriceStopLoss: data.originalPriceStopLoss,
+        scheduledAt: data.scheduledAt,
+        pendingAt: data.pendingAt,
+        createdAt: data.timestamp,
       });
     } else if (data.action === "trailing-stop") {
       this._addNotification({
         type: "trailing_stop.commit",
         id: CREATE_KEY_FN(),
-        timestamp: Date.now(),
+        timestamp: data.timestamp,
         backtest: data.backtest,
         symbol: data.symbol,
         strategyName: data.strategyName,
         exchangeName: data.exchangeName,
+        signalId: data.signalId,
         percentShift: data.percentShift,
         currentPrice: data.currentPrice,
+        position: data.position,
+        priceOpen: data.priceOpen,
+        priceTakeProfit: data.priceTakeProfit,
+        priceStopLoss: data.priceStopLoss,
+        originalPriceTakeProfit: data.originalPriceTakeProfit,
+        originalPriceStopLoss: data.originalPriceStopLoss,
+        scheduledAt: data.scheduledAt,
+        pendingAt: data.pendingAt,
+        createdAt: data.timestamp,
       });
     } else if (data.action === "trailing-take") {
       this._addNotification({
         type: "trailing_take.commit",
         id: CREATE_KEY_FN(),
-        timestamp: Date.now(),
+        timestamp: data.timestamp,
         backtest: data.backtest,
         symbol: data.symbol,
         strategyName: data.strategyName,
         exchangeName: data.exchangeName,
+        signalId: data.signalId,
         percentShift: data.percentShift,
         currentPrice: data.currentPrice,
+        position: data.position,
+        priceOpen: data.priceOpen,
+        priceTakeProfit: data.priceTakeProfit,
+        priceStopLoss: data.priceStopLoss,
+        originalPriceTakeProfit: data.originalPriceTakeProfit,
+        originalPriceStopLoss: data.originalPriceStopLoss,
+        scheduledAt: data.scheduledAt,
+        pendingAt: data.pendingAt,
+        createdAt: data.timestamp,
       });
     }
   };
@@ -305,7 +390,14 @@ export class NotificationInstance {
       rejectionId: data.rejectionId,
       activePositionCount: data.activePositionCount,
       currentPrice: data.currentPrice,
-      pendingSignal: data.pendingSignal,
+      signalId: data.currentSignal.id,
+      position: data.currentSignal.position,
+      priceOpen: data.currentSignal.priceOpen,
+      priceTakeProfit: data.currentSignal.priceTakeProfit,
+      priceStopLoss: data.currentSignal.priceStopLoss,
+      minuteEstimatedTime: data.currentSignal.minuteEstimatedTime,
+      signalNote: data.currentSignal.note,
+      createdAt: data.timestamp,
     });
   };
 
@@ -316,7 +408,6 @@ export class NotificationInstance {
     this._addNotification({
       type: "error.info",
       id: CREATE_KEY_FN(),
-      timestamp: Date.now(),
       error: errorData(error),
       message: getErrorMessage(error),
       backtest: false,
@@ -330,7 +421,6 @@ export class NotificationInstance {
     this._addNotification({
       type: "error.critical",
       id: CREATE_KEY_FN(),
-      timestamp: Date.now(),
       error: errorData(error),
       message: getErrorMessage(error),
       backtest: false,
@@ -344,7 +434,6 @@ export class NotificationInstance {
     this._addNotification({
       type: "error.validation",
       id: CREATE_KEY_FN(),
-      timestamp: Date.now(),
       error: errorData(error),
       message: getErrorMessage(error),
       backtest: false,

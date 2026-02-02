@@ -1,0 +1,16 @@
+{
+  "compilerOptions": {
+      "outDir": "./build",
+      "noImplicitAny": false,
+      "lib": [
+        "ES2024",
+        "DOM"
+      ],
+      "allowSyntheticDefaultImports": true,
+      "module": "es2020",
+      "target": "es5",
+      "jsx": "react-jsx",
+      "allowJs": true,
+      "moduleResolution": "bundler"
+  }
+}

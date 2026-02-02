@@ -38,3 +38,11 @@ frameName: string
 ```ts
 backtest: boolean
 ```
+
+### timestamp
+
+```ts
+timestamp: number
+```
+
+Timestamp from execution context (tick's when or backtest candle timestamp)

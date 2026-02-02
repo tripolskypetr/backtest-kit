@@ -1,9 +1,5 @@
-export {
-  getBacktestTimeframe,
-} from "./function/timeframe";
-export {
-  validate,
-} from "./function/validate";
+export { getBacktestTimeframe } from "./function/timeframe";
+export { validate } from "./function/validate";
 export {
   getStrategySchema,
   getExchangeSchema,
@@ -22,9 +18,7 @@ export {
   commitTrailingTake,
   commitBreakeven,
 } from "./function/strategy";
-export {
-  stopStrategy,
-} from "./function/control";
+export { stopStrategy } from "./function/control";
 export {
   setLogger,
   setConfig,
@@ -142,6 +136,15 @@ export {
   IStrategyPnL,
 } from "./interfaces/Strategy.interface";
 
+export {
+  ICommitRow,
+  IPartialProfitCommitRow,
+  IPartialLossCommitRow,
+  IBreakevenCommitRow,
+  ITrailingStopCommitRow,
+  ITrailingTakeCommitRow,
+} from "./interfaces/Strategy.interface";
+
 export { FrameInterval, IFrameSchema } from "./interfaces/Frame.interface";
 
 export {
@@ -156,6 +159,13 @@ export {
   IPositionSizeFixedPercentageParams,
   IPositionSizeKellyParams,
   IPositionSizeATRParams,
+} from "./interfaces/Sizing.interface";
+
+export {
+  ISizingParams,
+  ISizingParamsFixedPercentage,
+  ISizingParamsKelly,
+  ISizingParamsATR,
 } from "./interfaces/Sizing.interface";
 
 export {
@@ -206,7 +216,11 @@ export { PerformanceStatisticsModel } from "./model/PerformanceStatistics.model"
 export { WalkerStatisticsModel } from "./model/WalkerStatistics.model";
 export { PartialStatisticsModel } from "./model/PartialStatistics.model";
 export { RiskStatisticsModel } from "./model/RiskStatistics.model";
-export { StrategyStatisticsModel, StrategyEvent, StrategyActionType } from "./model/StrategyStatistics.model";
+export {
+  StrategyStatisticsModel,
+  StrategyEvent,
+  StrategyActionType,
+} from "./model/StrategyStatistics.model";
 
 export { PartialLossContract } from "./contract/PartialLoss.contract";
 export { PartialProfitContract } from "./contract/PartialProfit.contract";
@@ -219,11 +233,22 @@ export { ProgressBacktestContract } from "./contract/ProgressBacktest.contract";
 export { SchedulePingContract } from "./contract/SchedulePing.contract";
 export { ActivePingContract } from "./contract/ActivePing.contract";
 export { BreakevenContract } from "./contract/Breakeven.contract";
+
 export {
   PerformanceContract,
   PerformanceMetricType,
 } from "./contract/Performance.contract";
-export { StrategyCommitContract } from "./contract/StrategyCommit.contract";
+
+export {
+  StrategyCommitContract,
+  CancelScheduledCommit,
+  ClosePendingCommit,
+  PartialProfitCommit,
+  PartialLossCommit,
+  TrailingStopCommit,
+  TrailingTakeCommit,
+  BreakevenCommit,
+} from "./contract/StrategyCommit.contract";
 
 export { ExecutionContextService } from "./lib/services/context/ExecutionContextService";
 export { MethodContextService } from "./lib/services/context/MethodContextService";
@@ -258,7 +283,7 @@ export {
   IReportDumpOptions,
 } from "./classes/Report";
 
-export { 
+export {
   Markdown,
   MarkdownFileBase,
   MarkdownFolderBase,
@@ -277,7 +302,13 @@ export { PositionSize } from "./classes/PositionSize";
 export { Partial } from "./classes/Partial";
 export { Constant } from "./classes/Constant";
 export { Risk } from "./classes/Risk";
-export { Storage } from "./classes/Storage";
+export {
+  Storage,
+  StorageLive,
+  StorageBacktest,
+  IStorageUtils,
+  TStorageUtilsCtor,
+} from "./classes/Storage";
 export { Exchange } from "./classes/Exchange";
 export { Cache } from "./classes/Cache";
 export { Notification } from "./classes/Notification";

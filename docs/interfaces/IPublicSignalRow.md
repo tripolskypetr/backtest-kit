@@ -35,10 +35,10 @@ Original take-profit price set at signal creation.
 Remains unchanged even if trailing take-profit modifies effective TP.
 Used for user visibility of initial TP parameters.
 
-### totalExecuted
+### partialExecuted
 
 ```ts
-totalExecuted: number
+partialExecuted: number
 ```
 
 Total executed percentage from partial closes.

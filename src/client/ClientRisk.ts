@@ -329,8 +329,8 @@ export class ClientRisk implements IRisk {
 
     const payload: IRiskValidationPayload = {
       ...params,
-      pendingSignal: TO_RISK_SIGNAL(
-        params.pendingSignal,
+      currentSignal: TO_RISK_SIGNAL(
+        params.currentSignal,
         params.currentPrice
       ),
       activePositionCount: riskMap.size,

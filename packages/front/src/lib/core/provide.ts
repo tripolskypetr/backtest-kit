@@ -8,10 +8,20 @@ import StorageViewService from "../services/view/StorageViewService";
 import ExchangeViewService from "../services/view/ExchangeViewService";
 import { provide } from "./di";
 import { TYPES } from "./types";
+import SymbolConnectionService from "../services/connection/SymbolConnectionService";
+import SymbolMetaService from "../services/meta/SymbolMetaService";
 
 {
   provide(TYPES.loggerService, () => new LoggerService());
   provide(TYPES.exchangeService, () => new ExchangeService());
+}
+
+{
+  provide(TYPES.symbolConnectionService, () => new SymbolConnectionService());
+}
+
+{
+  provide(TYPES.symbolMetaService, () => new SymbolMetaService());
 }
 
 {

@@ -559,7 +559,7 @@ interface IRiskCheckArgs {
     /** Trading pair symbol (e.g., "BTCUSDT") */
     symbol: string;
     /** Pending signal to apply */
-    pendingSignal: IPublicSignalRow;
+    currentSignal: IPublicSignalRow;
     /** Strategy name requesting to open a position */
     strategyName: StrategyName;
     /** Exchange name */
@@ -612,8 +612,8 @@ interface IRiskCallbacks {
  * Extends IRiskCheckArgs with portfolio state data.
  */
 interface IRiskValidationPayload extends IRiskCheckArgs {
-    /** Pending signal to apply (IRiskSignalRow is calculated internally so priceOpen always exist) */
-    pendingSignal: IRiskSignalRow;
+    /** Current signal being validated (IRiskSignalRow is calculated internally so priceOpen always exist) */
+    currentSignal: IRiskSignalRow;
     /** Number of currently active positions across all strategies */
     activePositionCount: number;
     /** List of currently active positions across all strategies */
@@ -1004,6 +1004,128 @@ interface IBreakeven {
 }
 
 /**
+ * Base fields for all signal commit events.
+ */
+interface SignalCommitBase {
+    symbol: string;
+    strategyName: StrategyName;
+    exchangeName: ExchangeName;
+    frameName: FrameName;
+    backtest: boolean;
+    /** Unique signal identifier (UUID v4) */
+    signalId: string;
+    /** Timestamp from execution context (tick's when or backtest candle timestamp) */
+    timestamp: number;
+}
+/**
+ * Cancel scheduled signal event.
+ */
+interface CancelScheduledCommit extends SignalCommitBase {
+    action: "cancel-scheduled";
+    cancelId?: string;
+}
+/**
+ * Close pending signal event.
+ */
+interface ClosePendingCommit extends SignalCommitBase {
+    action: "close-pending";
+    closeId?: string;
+}
+/**
+ * Partial profit event.
+ */
+interface PartialProfitCommit extends SignalCommitBase {
+    action: "partial-profit";
+    percentToClose: number;
+    currentPrice: number;
+    position: "long" | "short";
+    priceOpen: number;
+    priceTakeProfit: number;
+    priceStopLoss: number;
+    originalPriceTakeProfit: number;
+    originalPriceStopLoss: number;
+    scheduledAt: number;
+    pendingAt: number;
+}
+/**
+ * Partial loss event.
+ */
+interface PartialLossCommit extends SignalCommitBase {
+    action: "partial-loss";
+    percentToClose: number;
+    currentPrice: number;
+    position: "long" | "short";
+    priceOpen: number;
+    priceTakeProfit: number;
+    priceStopLoss: number;
+    originalPriceTakeProfit: number;
+    originalPriceStopLoss: number;
+    scheduledAt: number;
+    pendingAt: number;
+}
+/**
+ * Trailing stop event.
+ */
+interface TrailingStopCommit extends SignalCommitBase {
+    action: "trailing-stop";
+    percentShift: number;
+    currentPrice: number;
+    position: "long" | "short";
+    priceOpen: number;
+    priceTakeProfit: number;
+    priceStopLoss: number;
+    originalPriceTakeProfit: number;
+    originalPriceStopLoss: number;
+    scheduledAt: number;
+    pendingAt: number;
+}
+/**
+ * Trailing take event.
+ */
+interface TrailingTakeCommit extends SignalCommitBase {
+    action: "trailing-take";
+    percentShift: number;
+    currentPrice: number;
+    position: "long" | "short";
+    priceOpen: number;
+    priceTakeProfit: number;
+    priceStopLoss: number;
+    originalPriceTakeProfit: number;
+    originalPriceStopLoss: number;
+    scheduledAt: number;
+    pendingAt: number;
+}
+/**
+ * Breakeven event.
+ */
+interface BreakevenCommit extends SignalCommitBase {
+    action: "breakeven";
+    currentPrice: number;
+    position: "long" | "short";
+    priceOpen: number;
+    priceTakeProfit: number;
+    priceStopLoss: number;
+    originalPriceTakeProfit: number;
+    originalPriceStopLoss: number;
+    scheduledAt: number;
+    pendingAt: number;
+}
+/**
+ * Discriminated union for strategy management signal events.
+ *
+ * Emitted by strategyCommitSubject when strategy management actions are executed.
+ *
+ * Consumers:
+ * - StrategyReportService: Persists events to JSON files
+ * - StrategyMarkdownService: Accumulates events for markdown reports
+ *
+ * Note: Signal data (IPublicSignalRow) is NOT included in this contract.
+ * Consumers must retrieve signal data from StrategyCoreService using
+ * getPendingSignal() or getScheduledSignal() methods.
+ */
+type StrategyCommitContract = CancelScheduledCommit | ClosePendingCommit | PartialProfitCommit | PartialLossCommit | TrailingStopCommit | TrailingTakeCommit | BreakevenCommit;
+
+/**
  * Signal generation interval for throttling.
  * Enforces minimum time between getSignal calls.
  */
@@ -1131,19 +1253,53 @@ interface IPublicSignalRow extends ISignalRow {
     partialExecuted: number;
 }
 /**
- * Storage signal row with creation timestamp taken from IStrategyTickResult.
+ * Base storage signal row fields shared by all status variants.
  * Used for persisting signals with accurate creation time.
  */
-interface IStorageSignalRow extends IPublicSignalRow {
+interface IStorageSignalRowBase extends IPublicSignalRow {
     /** Creation timestamp taken from IStrategyTickResult */
     createdAt: number;
     /** Creation timestamp taken from IStrategyTickResult */
     updatedAt: number;
     /** Storage adapter rewrite priority. Equal to Date.now for live and backtest both */
     priority: number;
-    /** Current status of the signal */
-    status: "opened" | "scheduled" | "closed" | "cancelled";
 }
+/**
+ * Storage signal row for opened status.
+ */
+interface IStorageSignalRowOpened extends IStorageSignalRowBase {
+    /** Current status of the signal */
+    status: "opened";
+}
+/**
+ * Storage signal row for scheduled status.
+ */
+interface IStorageSignalRowScheduled extends IStorageSignalRowBase {
+    /** Current status of the signal */
+    status: "scheduled";
+}
+/**
+ * Storage signal row for closed status.
+ * Only closed signals have PNL data.
+ */
+interface IStorageSignalRowClosed extends IStorageSignalRowBase {
+    /** Current status of the signal */
+    status: "closed";
+    /** Profit and loss value for the signal when closed */
+    pnl: IStrategyPnL;
+}
+/**
+ * Storage signal row for cancelled status.
+ */
+interface IStorageSignalRowCancelled extends IStorageSignalRowBase {
+    /** Current status of the signal */
+    status: "cancelled";
+}
+/**
+ * Discriminated union of storage signal rows.
+ * Use type guards: `row.status === "closed"` for type-safe access to pnl.
+ */
+type IStorageSignalRow = IStorageSignalRowOpened | IStorageSignalRowScheduled | IStorageSignalRowClosed | IStorageSignalRowCancelled;
 /**
  * Risk signal row for internal risk management.
  * Extends ISignalDto to include priceOpen, originalPriceStopLoss and originalPriceTakeProfit.
@@ -1171,6 +1327,74 @@ interface IScheduledSignalCancelRow extends IScheduledSignalRow {
     /** Cancellation ID (only for user-initiated cancellations) */
     cancelId?: string;
 }
+/**
+ * Base interface for queued commit events.
+ * Used to defer commit emission until proper execution context is available.
+ */
+interface ICommitRowBase {
+    /** Trading pair symbol */
+    symbol: string;
+    /** Whether running in backtest mode */
+    backtest: boolean;
+}
+/**
+ * Queued partial profit commit.
+ */
+interface IPartialProfitCommitRow extends ICommitRowBase {
+    /** Discriminator */
+    action: "partial-profit";
+    /** Percentage of position closed */
+    percentToClose: number;
+    /** Price at which partial was executed */
+    currentPrice: number;
+}
+/**
+ * Queued partial loss commit.
+ */
+interface IPartialLossCommitRow extends ICommitRowBase {
+    /** Discriminator */
+    action: "partial-loss";
+    /** Percentage of position closed */
+    percentToClose: number;
+    /** Price at which partial was executed */
+    currentPrice: number;
+}
+/**
+ * Queued breakeven commit.
+ */
+interface IBreakevenCommitRow extends ICommitRowBase {
+    /** Discriminator */
+    action: "breakeven";
+    /** Price at which breakeven was set */
+    currentPrice: number;
+}
+/**
+ * Queued trailing stop commit.
+ */
+interface ITrailingStopCommitRow extends ICommitRowBase {
+    /** Discriminator */
+    action: "trailing-stop";
+    /** Percentage shift applied */
+    percentShift: number;
+    /** Price at which trailing was set */
+    currentPrice: number;
+}
+/**
+ * Queued trailing take commit.
+ */
+interface ITrailingTakeCommitRow extends ICommitRowBase {
+    /** Discriminator */
+    action: "trailing-take";
+    /** Percentage shift applied */
+    percentShift: number;
+    /** Price at which trailing was set */
+    currentPrice: number;
+}
+/**
+ * Discriminated union of all queued commit events.
+ * These are stored in _commitQueue and processed in tick()/backtest().
+ */
+type ICommitRow = IPartialProfitCommitRow | IPartialLossCommitRow | IBreakevenCommitRow | ITrailingStopCommitRow | ITrailingTakeCommitRow;
 /**
  * Optional lifecycle callbacks for signal events.
  * Called when signals are opened, active, idle, closed, scheduled, or cancelled.
@@ -2341,7 +2565,7 @@ interface RiskContract {
      * Pending signal to apply.
      * Contains signal details (position, priceOpen, priceTakeProfit, priceStopLoss, etc).
      */
-    pendingSignal: ISignalDto;
+    currentSignal: ISignalDto;
     /**
      * Strategy name requesting to open a position.
      * Identifies which strategy attempted to create the signal.
@@ -3669,6 +3893,10 @@ interface BreakevenEvent {
     partialExecuted?: number;
     /** Human-readable description of signal reason */
     note?: string;
+    /** Timestamp when position became active (ms) */
+    pendingAt?: number;
+    /** Timestamp when signal was created/scheduled (ms) */
+    scheduledAt?: number;
     /** True if backtest mode, false if live mode */
     backtest: boolean;
 }
@@ -5104,84 +5332,6 @@ interface WalkerContract {
 }
 
 /**
- * Base fields for all signal commit events.
- */
-interface SignalCommitBase {
-    symbol: string;
-    strategyName: StrategyName;
-    exchangeName: ExchangeName;
-    frameName: FrameName;
-    backtest: boolean;
-}
-/**
- * Cancel scheduled signal event.
- */
-interface CancelScheduledCommit extends SignalCommitBase {
-    action: "cancel-scheduled";
-    cancelId?: string;
-}
-/**
- * Close pending signal event.
- */
-interface ClosePendingCommit extends SignalCommitBase {
-    action: "close-pending";
-    closeId?: string;
-}
-/**
- * Partial profit event.
- */
-interface PartialProfitCommit extends SignalCommitBase {
-    action: "partial-profit";
-    percentToClose: number;
-    currentPrice: number;
-}
-/**
- * Partial loss event.
- */
-interface PartialLossCommit extends SignalCommitBase {
-    action: "partial-loss";
-    percentToClose: number;
-    currentPrice: number;
-}
-/**
- * Trailing stop event.
- */
-interface TrailingStopCommit extends SignalCommitBase {
-    action: "trailing-stop";
-    percentShift: number;
-    currentPrice: number;
-}
-/**
- * Trailing take event.
- */
-interface TrailingTakeCommit extends SignalCommitBase {
-    action: "trailing-take";
-    percentShift: number;
-    currentPrice: number;
-}
-/**
- * Breakeven event.
- */
-interface BreakevenCommit extends SignalCommitBase {
-    action: "breakeven";
-    currentPrice: number;
-}
-/**
- * Discriminated union for strategy management signal events.
- *
- * Emitted by strategyCommitSubject when strategy management actions are executed.
- *
- * Consumers:
- * - StrategyReportService: Persists events to JSON files
- * - StrategyMarkdownService: Accumulates events for markdown reports
- *
- * Note: Signal data (IPublicSignalRow) is NOT included in this contract.
- * Consumers must retrieve signal data from StrategyCoreService using
- * getPendingSignal() or getScheduledSignal() methods.
- */
-type StrategyCommitContract = CancelScheduledCommit | ClosePendingCommit | PartialProfitCommit | PartialLossCommit | TrailingStopCommit | TrailingTakeCommit | BreakevenCommit;
-
-/**
  * Subscribes to all signal events with queued async processing.
  *
  * Events are processed sequentially in order received, even if callback is async.
@@ -6488,8 +6638,16 @@ interface SignalOpenedNotification {
     priceTakeProfit: number;
     /** Stop loss exit price */
     priceStopLoss: number;
+    /** Original take profit price before any trailing adjustments */
+    originalPriceTakeProfit: number;
+    /** Original stop loss price before any trailing adjustments */
+    originalPriceStopLoss: number;
     /** Optional human-readable description of signal reason */
     note?: string;
+    /** Signal creation timestamp in milliseconds (when signal was first created/scheduled) */
+    scheduledAt: number;
+    /** Pending timestamp in milliseconds (when position became pending/active at priceOpen) */
+    pendingAt: number;
     /** Unix timestamp in milliseconds when the tick result was created (from candle timestamp in backtest or execution context when in live) */
     createdAt: number;
 }
@@ -6520,6 +6678,14 @@ interface SignalClosedNotification {
     priceOpen: number;
     /** Exit price when position was closed */
     priceClose: number;
+    /** Take profit target price */
+    priceTakeProfit: number;
+    /** Stop loss exit price */
+    priceStopLoss: number;
+    /** Original take profit price before any trailing adjustments */
+    originalPriceTakeProfit: number;
+    /** Original stop loss price before any trailing adjustments */
+    originalPriceStopLoss: number;
     /** Profit/loss as percentage (e.g., 1.5 for +1.5%, -2.3 for -2.3%) */
     pnlPercentage: number;
     /** Why signal closed (time_expired | take_profit | stop_loss | closed) */
@@ -6528,6 +6694,10 @@ interface SignalClosedNotification {
     duration: number;
     /** Optional human-readable description of signal reason */
     note?: string;
+    /** Signal creation timestamp in milliseconds (when signal was first created/scheduled) */
+    scheduledAt: number;
+    /** Pending timestamp in milliseconds (when position became pending/active at priceOpen) */
+    pendingAt: number;
     /** Unix timestamp in milliseconds when the tick result was created (from candle timestamp in backtest or execution context when in live) */
     createdAt: number;
 }
@@ -6560,6 +6730,20 @@ interface PartialProfitAvailableNotification {
     priceOpen: number;
     /** Trade direction: "long" (buy) or "short" (sell) */
     position: "long" | "short";
+    /** Effective take profit price (with trailing if set) */
+    priceTakeProfit: number;
+    /** Effective stop loss price (with trailing if set) */
+    priceStopLoss: number;
+    /** Original take profit price before any trailing adjustments */
+    originalPriceTakeProfit: number;
+    /** Original stop loss price before any trailing adjustments */
+    originalPriceStopLoss: number;
+    /** Signal creation timestamp in milliseconds (when signal was first created/scheduled) */
+    scheduledAt: number;
+    /** Pending timestamp in milliseconds (when position became pending/active at priceOpen) */
+    pendingAt: number;
+    /** Unix timestamp in milliseconds when the notification was created */
+    createdAt: number;
 }
 /**
  * Partial loss notification.
@@ -6590,6 +6774,20 @@ interface PartialLossAvailableNotification {
     priceOpen: number;
     /** Trade direction: "long" (buy) or "short" (sell) */
     position: "long" | "short";
+    /** Effective take profit price (with trailing if set) */
+    priceTakeProfit: number;
+    /** Effective stop loss price (with trailing if set) */
+    priceStopLoss: number;
+    /** Original take profit price before any trailing adjustments */
+    originalPriceTakeProfit: number;
+    /** Original stop loss price before any trailing adjustments */
+    originalPriceStopLoss: number;
+    /** Signal creation timestamp in milliseconds (when signal was first created/scheduled) */
+    scheduledAt: number;
+    /** Pending timestamp in milliseconds (when position became pending/active at priceOpen) */
+    pendingAt: number;
+    /** Unix timestamp in milliseconds when the notification was created */
+    createdAt: number;
 }
 /**
  * Breakeven available notification.
@@ -6618,6 +6816,20 @@ interface BreakevenAvailableNotification {
     priceOpen: number;
     /** Trade direction: "long" (buy) or "short" (sell) */
     position: "long" | "short";
+    /** Effective take profit price (with trailing if set) */
+    priceTakeProfit: number;
+    /** Effective stop loss price (with trailing if set) */
+    priceStopLoss: number;
+    /** Original take profit price before any trailing adjustments */
+    originalPriceTakeProfit: number;
+    /** Original stop loss price before any trailing adjustments */
+    originalPriceStopLoss: number;
+    /** Signal creation timestamp in milliseconds (when signal was first created/scheduled) */
+    scheduledAt: number;
+    /** Pending timestamp in milliseconds (when position became pending/active at priceOpen) */
+    pendingAt: number;
+    /** Unix timestamp in milliseconds when the notification was created */
+    createdAt: number;
 }
 /**
  * Partial profit commit notification.
@@ -6638,10 +6850,30 @@ interface PartialProfitCommitNotification {
     strategyName: StrategyName;
     /** Exchange name where signal was executed */
     exchangeName: ExchangeName;
+    /** Unique signal identifier (UUID v4) */
+    signalId: string;
     /** Percentage of position closed (0-100) */
     percentToClose: number;
     /** Current market price when partial was executed */
     currentPrice: number;
+    /** Trade direction: "long" (buy) or "short" (sell) */
+    position: "long" | "short";
+    /** Entry price for the position */
+    priceOpen: number;
+    /** Effective take profit price (with trailing if set) */
+    priceTakeProfit: number;
+    /** Effective stop loss price (with trailing if set) */
+    priceStopLoss: number;
+    /** Original take profit price before any trailing adjustments */
+    originalPriceTakeProfit: number;
+    /** Original stop loss price before any trailing adjustments */
+    originalPriceStopLoss: number;
+    /** Signal creation timestamp in milliseconds (when signal was first created/scheduled) */
+    scheduledAt: number;
+    /** Pending timestamp in milliseconds (when position became pending/active at priceOpen) */
+    pendingAt: number;
+    /** Unix timestamp in milliseconds when the notification was created */
+    createdAt: number;
 }
 /**
  * Partial loss commit notification.
@@ -6662,10 +6894,30 @@ interface PartialLossCommitNotification {
     strategyName: StrategyName;
     /** Exchange name where signal was executed */
     exchangeName: ExchangeName;
+    /** Unique signal identifier (UUID v4) */
+    signalId: string;
     /** Percentage of position closed (0-100) */
     percentToClose: number;
     /** Current market price when partial was executed */
     currentPrice: number;
+    /** Trade direction: "long" (buy) or "short" (sell) */
+    position: "long" | "short";
+    /** Entry price for the position */
+    priceOpen: number;
+    /** Effective take profit price (with trailing if set) */
+    priceTakeProfit: number;
+    /** Effective stop loss price (with trailing if set) */
+    priceStopLoss: number;
+    /** Original take profit price before any trailing adjustments */
+    originalPriceTakeProfit: number;
+    /** Original stop loss price before any trailing adjustments */
+    originalPriceStopLoss: number;
+    /** Signal creation timestamp in milliseconds (when signal was first created/scheduled) */
+    scheduledAt: number;
+    /** Pending timestamp in milliseconds (when position became pending/active at priceOpen) */
+    pendingAt: number;
+    /** Unix timestamp in milliseconds when the notification was created */
+    createdAt: number;
 }
 /**
  * Breakeven commit notification.
@@ -6686,8 +6938,28 @@ interface BreakevenCommitNotification {
     strategyName: StrategyName;
     /** Exchange name where signal was executed */
     exchangeName: ExchangeName;
+    /** Unique signal identifier (UUID v4) */
+    signalId: string;
     /** Current market price when breakeven was executed */
     currentPrice: number;
+    /** Trade direction: "long" (buy) or "short" (sell) */
+    position: "long" | "short";
+    /** Entry price for the position */
+    priceOpen: number;
+    /** Effective take profit price (with trailing if set) */
+    priceTakeProfit: number;
+    /** Effective stop loss price (with trailing if set, after breakeven this equals priceOpen) */
+    priceStopLoss: number;
+    /** Original take profit price before any trailing adjustments */
+    originalPriceTakeProfit: number;
+    /** Original stop loss price before any trailing adjustments */
+    originalPriceStopLoss: number;
+    /** Signal creation timestamp in milliseconds (when signal was first created/scheduled) */
+    scheduledAt: number;
+    /** Pending timestamp in milliseconds (when position became pending/active at priceOpen) */
+    pendingAt: number;
+    /** Unix timestamp in milliseconds when the notification was created */
+    createdAt: number;
 }
 /**
  * Trailing stop commit notification.
@@ -6708,10 +6980,30 @@ interface TrailingStopCommitNotification {
     strategyName: StrategyName;
     /** Exchange name where signal was executed */
     exchangeName: ExchangeName;
+    /** Unique signal identifier (UUID v4) */
+    signalId: string;
     /** Percentage shift of original SL distance (-100 to 100) */
     percentShift: number;
     /** Current market price when trailing stop was executed */
     currentPrice: number;
+    /** Trade direction: "long" (buy) or "short" (sell) */
+    position: "long" | "short";
+    /** Entry price for the position */
+    priceOpen: number;
+    /** Effective take profit price (with trailing if set) */
+    priceTakeProfit: number;
+    /** Effective stop loss price after trailing adjustment */
+    priceStopLoss: number;
+    /** Original take profit price before any trailing adjustments */
+    originalPriceTakeProfit: number;
+    /** Original stop loss price before any trailing adjustments */
+    originalPriceStopLoss: number;
+    /** Signal creation timestamp in milliseconds (when signal was first created/scheduled) */
+    scheduledAt: number;
+    /** Pending timestamp in milliseconds (when position became pending/active at priceOpen) */
+    pendingAt: number;
+    /** Unix timestamp in milliseconds when the notification was created */
+    createdAt: number;
 }
 /**
  * Trailing take commit notification.
@@ -6732,10 +7024,30 @@ interface TrailingTakeCommitNotification {
     strategyName: StrategyName;
     /** Exchange name where signal was executed */
     exchangeName: ExchangeName;
+    /** Unique signal identifier (UUID v4) */
+    signalId: string;
     /** Percentage shift of original TP distance (-100 to 100) */
     percentShift: number;
     /** Current market price when trailing take was executed */
     currentPrice: number;
+    /** Trade direction: "long" (buy) or "short" (sell) */
+    position: "long" | "short";
+    /** Entry price for the position */
+    priceOpen: number;
+    /** Effective take profit price after trailing adjustment */
+    priceTakeProfit: number;
+    /** Effective stop loss price (with trailing if set) */
+    priceStopLoss: number;
+    /** Original take profit price before any trailing adjustments */
+    originalPriceTakeProfit: number;
+    /** Original stop loss price before any trailing adjustments */
+    originalPriceStopLoss: number;
+    /** Signal creation timestamp in milliseconds (when signal was first created/scheduled) */
+    scheduledAt: number;
+    /** Pending timestamp in milliseconds (when position became pending/active at priceOpen) */
+    pendingAt: number;
+    /** Unix timestamp in milliseconds when the notification was created */
+    createdAt: number;
 }
 /**
  * Risk rejection notification.
@@ -6764,8 +7076,22 @@ interface RiskRejectionNotification {
     activePositionCount: number;
     /** Current market price when rejection occurred */
     currentPrice: number;
-    /** The signal that was rejected */
-    pendingSignal: ISignalDto;
+    /** Unique signal identifier from pending signal (may be undefined if not provided) */
+    signalId: string | undefined;
+    /** Trade direction: "long" (buy) or "short" (sell) */
+    position: "long" | "short";
+    /** Entry price for the position (may be undefined if not provided) */
+    priceOpen: number | undefined;
+    /** Take profit target price */
+    priceTakeProfit: number;
+    /** Stop loss exit price */
+    priceStopLoss: number;
+    /** Expected duration in minutes before time_expired */
+    minuteEstimatedTime: number;
+    /** Optional human-readable description of signal reason */
+    signalNote?: string;
+    /** Unix timestamp in milliseconds when the notification was created */
+    createdAt: number;
 }
 /**
  * Scheduled signal notification.
@@ -6792,6 +7118,14 @@ interface SignalScheduledNotification {
     position: "long" | "short";
     /** Target entry price for activation */
     priceOpen: number;
+    /** Take profit target price */
+    priceTakeProfit: number;
+    /** Stop loss exit price */
+    priceStopLoss: number;
+    /** Original take profit price before any trailing adjustments */
+    originalPriceTakeProfit: number;
+    /** Original stop loss price before any trailing adjustments */
+    originalPriceStopLoss: number;
     /** Unix timestamp in milliseconds when signal was scheduled */
     scheduledAt: number;
     /** Current market price when signal was scheduled */
@@ -6822,12 +7156,26 @@ interface SignalCancelledNotification {
     signalId: string;
     /** Trade direction: "long" (buy) or "short" (sell) */
     position: "long" | "short";
+    /** Take profit target price */
+    priceTakeProfit: number;
+    /** Stop loss exit price */
+    priceStopLoss: number;
+    /** Entry price for the position */
+    priceOpen: number;
+    /** Original take profit price before any trailing adjustments */
+    originalPriceTakeProfit: number;
+    /** Original stop loss price before any trailing adjustments */
+    originalPriceStopLoss: number;
     /** Why signal was cancelled (timeout | price_reject | user) */
     cancelReason: string;
     /** Optional cancellation identifier (provided when user calls cancel()) */
     cancelId: string;
     /** Duration in minutes from scheduledAt to cancellation */
     duration: number;
+    /** Signal creation timestamp in milliseconds (when signal was first created/scheduled) */
+    scheduledAt: number;
+    /** Pending timestamp in milliseconds (when position became pending/active at priceOpen) */
+    pendingAt: number;
     /** Unix timestamp in milliseconds when the tick result was created (from candle timestamp in backtest or execution context when in live) */
     createdAt: number;
 }
@@ -6844,8 +7192,6 @@ interface InfoErrorNotification {
     error: object;
     /** Human-readable error message */
     message: string;
-    /** Unix timestamp in milliseconds when error occurred */
-    timestamp: number;
     /** Always false for error notifications (errors are from live context) */
     backtest: boolean;
 }
@@ -6862,8 +7208,6 @@ interface CriticalErrorNotification {
     error: object;
     /** Human-readable error message */
     message: string;
-    /** Unix timestamp in milliseconds when critical error occurred */
-    timestamp: number;
     /** Always false for error notifications (errors are from live context) */
     backtest: boolean;
 }
@@ -6880,8 +7224,6 @@ interface ValidationErrorNotification {
     error: object;
     /** Human-readable validation error message */
     message: string;
-    /** Unix timestamp in milliseconds when validation error occurred */
-    timestamp: number;
     /** Always false for error notifications (errors are from live context) */
     backtest: boolean;
 }
@@ -6956,6 +7298,10 @@ interface TickEvent {
     cancelReason?: string;
     /** Duration in minutes (only for closed) */
     duration?: number;
+    /** Timestamp when position became active (only for opened/active/closed) */
+    pendingAt?: number;
+    /** Timestamp when signal was created/scheduled (only for scheduled/waiting/opened/active/closed/cancelled) */
+    scheduledAt?: number;
 }
 /**
  * Statistical data calculated from live trading results.
@@ -7065,6 +7411,10 @@ interface ScheduledEvent {
     cancelReason?: "timeout" | "price_reject" | "user";
     /** Cancellation ID (only for user-initiated cancellations) */
     cancelId?: string;
+    /** Timestamp when position became active (only for opened events) */
+    pendingAt?: number;
+    /** Timestamp when signal was created/scheduled (for all events) */
+    scheduledAt?: number;
 }
 /**
  * Statistical data calculated from scheduled signals.
@@ -7237,6 +7587,10 @@ interface PartialEvent {
     partialExecuted?: number;
     /** Human-readable description of signal reason */
     note?: string;
+    /** Timestamp when position became active (ms) */
+    pendingAt?: number;
+    /** Timestamp when signal was created/scheduled (ms) */
+    scheduledAt?: number;
     /** True if backtest mode, false if live mode */
     backtest: boolean;
 }
@@ -7275,7 +7629,7 @@ interface RiskEvent {
     /** Trading pair symbol */
     symbol: string;
     /** Pending signal details */
-    pendingSignal: IRiskSignalRow;
+    currentSignal: IRiskSignalRow;
     /** Strategy name */
     strategyName: StrategyName;
     /** Exchange name */
@@ -7355,6 +7709,22 @@ interface StrategyEvent {
     createdAt: string;
     /** True if backtest mode, false if live mode */
     backtest: boolean;
+    /** Trade direction: "long" (buy) or "short" (sell) */
+    position?: "long" | "short";
+    /** Entry price for the position */
+    priceOpen?: number;
+    /** Effective take profit price (with trailing if set) */
+    priceTakeProfit?: number;
+    /** Effective stop loss price (with trailing if set) */
+    priceStopLoss?: number;
+    /** Original take profit price before any trailing adjustments */
+    originalPriceTakeProfit?: number;
+    /** Original stop loss price before any trailing adjustments */
+    originalPriceStopLoss?: number;
+    /** Signal creation timestamp in milliseconds (when signal was first created/scheduled) */
+    scheduledAt?: number;
+    /** Pending timestamp in milliseconds (when position became pending/active at priceOpen) */
+    pendingAt?: number;
 }
 /**
  * Statistical data calculated from strategy events.
@@ -12446,219 +12816,258 @@ declare class RiskUtils {
  */
 declare const Risk: RiskUtils;
 
+/**
+ * Type alias for signal storage row identifier.
+ * Extracted from IStorageSignalRow for type safety and reusability.
+ */
 type StorageId = IStorageSignalRow["id"];
 /**
- * Utility class for managing backtest signal history.
- *
- * Stores trading signal history for admin dashboard display during backtesting
- * with automatic initialization, deduplication, and storage limits.
- *
- * @example
- * ```typescript
- * import { StorageBacktestUtils } from "./classes/Storage";
- *
- * const storage = new StorageBacktestUtils();
- *
- * // Handle signal events
- * await storage.handleOpened(tickResult);
- * await storage.handleClosed(tickResult);
- *
- * // Query signals
- * const signal = await storage.findById("signal-123");
- * const allSignals = await storage.list();
- * ```
+ * Base interface for storage adapters.
+ * All storage adapters must implement this interface.
  */
-declare class StorageBacktestUtils {
-    private _signals;
-    /**
-     * Initializes storage by loading existing signal history from persist layer.
-     * Uses singleshot to ensure initialization happens only once.
-     */
-    private waitForInit;
-    /**
-     * Persists current signal history to storage.
-     * Sorts by priority and limits to MAX_SIGNALS entries.
-     *
-     * @throws Error if storage not initialized
-     */
-    private _updateStorage;
+interface IStorageUtils {
     /**
      * Handles signal opened event.
-     *
-     * @param tick - Tick result containing opened signal data
-     * @returns Promise resolving when storage is updated
+     * @param tick - The opened signal tick data
+     */
+    handleOpened(tick: IStrategyTickResultOpened): Promise<void>;
+    /**
+     * Handles signal closed event.
+     * @param tick - The closed signal tick data
+     */
+    handleClosed(tick: IStrategyTickResultClosed): Promise<void>;
+    /**
+     * Handles signal scheduled event.
+     * @param tick - The scheduled signal tick data
+     */
+    handleScheduled(tick: IStrategyTickResultScheduled): Promise<void>;
+    /**
+     * Handles signal cancelled event.
+     * @param tick - The cancelled signal tick data
+     */
+    handleCancelled(tick: IStrategyTickResultCancelled): Promise<void>;
+    /**
+     * Finds a signal by its ID.
+     * @param id - The signal ID to search for
+     * @returns The signal row or null if not found
+     */
+    findById(id: StorageId): Promise<IStorageSignalRow | null>;
+    /**
+     * Lists all stored signals.
+     * @returns Array of all signal rows
+     */
+    list(): Promise<IStorageSignalRow[]>;
+}
+/**
+ * Constructor type for storage adapters.
+ * Used for custom storage implementations.
+ */
+type TStorageUtilsCtor = new () => IStorageUtils;
+/**
+ * Backtest storage adapter with pluggable storage backend.
+ *
+ * Features:
+ * - Adapter pattern for swappable storage implementations
+ * - Default adapter: StoragePersistBacktestUtils (persistent storage)
+ * - Alternative adapters: StorageMemoryBacktestUtils, StorageDummyBacktestUtils
+ * - Convenience methods: usePersist(), useMemory(), useDummy()
+ */
+declare class StorageBacktestAdapter implements IStorageUtils {
+    /** Internal storage utils instance */
+    private _signalBacktestUtils;
+    /**
+     * Handles signal opened event.
+     * Proxies call to the underlying storage adapter.
+     * @param tick - The opened signal tick data
      */
     handleOpened: (tick: IStrategyTickResultOpened) => Promise<void>;
     /**
      * Handles signal closed event.
-     *
-     * @param tick - Tick result containing closed signal data
-     * @returns Promise resolving when storage is updated
+     * Proxies call to the underlying storage adapter.
+     * @param tick - The closed signal tick data
      */
     handleClosed: (tick: IStrategyTickResultClosed) => Promise<void>;
     /**
      * Handles signal scheduled event.
-     *
-     * @param tick - Tick result containing scheduled signal data
-     * @returns Promise resolving when storage is updated
+     * Proxies call to the underlying storage adapter.
+     * @param tick - The scheduled signal tick data
      */
     handleScheduled: (tick: IStrategyTickResultScheduled) => Promise<void>;
     /**
      * Handles signal cancelled event.
-     *
-     * @param tick - Tick result containing cancelled signal data
-     * @returns Promise resolving when storage is updated
+     * Proxies call to the underlying storage adapter.
+     * @param tick - The cancelled signal tick data
      */
     handleCancelled: (tick: IStrategyTickResultCancelled) => Promise<void>;
     /**
-     * Finds a signal by its unique identifier.
-     *
-     * @param id - Signal identifier
-     * @returns Promise resolving to signal row or null if not found
+     * Finds a signal by its ID.
+     * Proxies call to the underlying storage adapter.
+     * @param id - The signal ID to search for
+     * @returns The signal row or null if not found
      */
     findById: (id: StorageId) => Promise<IStorageSignalRow | null>;
     /**
-     * Lists all stored backtest signals.
-     *
-     * @returns Promise resolving to array of signal rows
+     * Lists all stored signals.
+     * Proxies call to the underlying storage adapter.
+     * @returns Array of all signal rows
      */
     list: () => Promise<IStorageSignalRow[]>;
+    /**
+     * Sets the storage adapter constructor.
+     * All future storage operations will use this adapter.
+     *
+     * @param Ctor - Constructor for storage adapter
+     */
+    useStorageAdapter: (Ctor: TStorageUtilsCtor) => void;
+    /**
+     * Switches to dummy storage adapter.
+     * All future storage writes will be no-ops.
+     */
+    useDummy: () => void;
+    /**
+     * Switches to persistent storage adapter (default).
+     * Signals will be persisted to disk.
+     */
+    usePersist: () => void;
+    /**
+     * Switches to in-memory storage adapter.
+     * Signals will be stored in memory only.
+     */
+    useMemory: () => void;
 }
 /**
- * Utility class for managing live trading signal history.
+ * Live trading storage adapter with pluggable storage backend.
  *
- * Stores trading signal history for admin dashboard display during live trading
- * with automatic initialization, deduplication, and storage limits.
- *
- * @example
- * ```typescript
- * import { StorageLiveUtils } from "./classes/Storage";
- *
- * const storage = new StorageLiveUtils();
- *
- * // Handle signal events
- * await storage.handleOpened(tickResult);
- * await storage.handleClosed(tickResult);
- *
- * // Query signals
- * const signal = await storage.findById("signal-123");
- * const allSignals = await storage.list();
- * ```
+ * Features:
+ * - Adapter pattern for swappable storage implementations
+ * - Default adapter: StoragePersistLiveUtils (persistent storage)
+ * - Alternative adapters: StorageMemoryLiveUtils, StorageDummyLiveUtils
+ * - Convenience methods: usePersist(), useMemory(), useDummy()
  */
-declare class StorageLiveUtils {
-    private _signals;
-    /**
-     * Initializes storage by loading existing signal history from persist layer.
-     * Uses singleshot to ensure initialization happens only once.
-     */
-    private waitForInit;
-    /**
-     * Persists current signal history to storage.
-     * Sorts by priority and limits to MAX_SIGNALS entries.
-     *
-     * @throws Error if storage not initialized
-     */
-    private _updateStorage;
+declare class StorageLiveAdapter implements IStorageUtils {
+    /** Internal storage utils instance */
+    private _signalLiveUtils;
     /**
      * Handles signal opened event.
-     *
-     * @param tick - Tick result containing opened signal data
-     * @returns Promise resolving when history is updated
+     * Proxies call to the underlying storage adapter.
+     * @param tick - The opened signal tick data
      */
     handleOpened: (tick: IStrategyTickResultOpened) => Promise<void>;
     /**
      * Handles signal closed event.
-     *
-     * @param tick - Tick result containing closed signal data
-     * @returns Promise resolving when history is updated
+     * Proxies call to the underlying storage adapter.
+     * @param tick - The closed signal tick data
      */
     handleClosed: (tick: IStrategyTickResultClosed) => Promise<void>;
     /**
      * Handles signal scheduled event.
-     *
-     * @param tick - Tick result containing scheduled signal data
-     * @returns Promise resolving when history is updated
+     * Proxies call to the underlying storage adapter.
+     * @param tick - The scheduled signal tick data
      */
     handleScheduled: (tick: IStrategyTickResultScheduled) => Promise<void>;
     /**
      * Handles signal cancelled event.
-     *
-     * @param tick - Tick result containing cancelled signal data
-     * @returns Promise resolving when history is updated
+     * Proxies call to the underlying storage adapter.
+     * @param tick - The cancelled signal tick data
      */
     handleCancelled: (tick: IStrategyTickResultCancelled) => Promise<void>;
     /**
-     * Finds a signal by its unique identifier.
-     *
-     * @param id - Signal identifier
-     * @returns Promise resolving to signal row or null if not found
+     * Finds a signal by its ID.
+     * Proxies call to the underlying storage adapter.
+     * @param id - The signal ID to search for
+     * @returns The signal row or null if not found
      */
     findById: (id: StorageId) => Promise<IStorageSignalRow | null>;
     /**
-     * Lists all stored live signals.
-     *
-     * @returns Promise resolving to array of signal rows
+     * Lists all stored signals.
+     * Proxies call to the underlying storage adapter.
+     * @returns Array of all signal rows
      */
     list: () => Promise<IStorageSignalRow[]>;
+    /**
+     * Sets the storage adapter constructor.
+     * All future storage operations will use this adapter.
+     *
+     * @param Ctor - Constructor for storage adapter
+     */
+    useStorageAdapter: (Ctor: TStorageUtilsCtor) => void;
+    /**
+     * Switches to dummy storage adapter.
+     * All future storage writes will be no-ops.
+     */
+    useDummy: () => void;
+    /**
+     * Switches to persistent storage adapter (default).
+     * Signals will be persisted to disk.
+     */
+    usePersist: () => void;
+    /**
+     * Switches to in-memory storage adapter.
+     * Signals will be stored in memory only.
+     */
+    useMemory: () => void;
 }
 /**
- * Main storage adapter for signal history management.
+ * Main storage adapter that manages both backtest and live signal storage.
  *
- * Provides unified interface for accessing backtest and live signal history
- * for admin dashboard. Subscribes to signal emitters and automatically
- * updates history on signal events.
- *
- * @example
- * ```typescript
- * import { Storage } from "./classes/Storage";
- *
- * // Enable signal history tracking
- * const unsubscribe = Storage.enable();
- *
- * // Query signals
- * const backtestSignals = await Storage.listSignalBacktest();
- * const liveSignals = await Storage.listSignalLive();
- * const signal = await Storage.findSignalById("signal-123");
- *
- * // Disable tracking
- * Storage.disable();
- * ```
+ * Features:
+ * - Subscribes to signal emitters for automatic storage updates
+ * - Provides unified access to both backtest and live signals
+ * - Singleshot enable pattern prevents duplicate subscriptions
+ * - Cleanup function for proper unsubscription
  */
 declare class StorageAdapter {
-    _signalLiveUtils: StorageLiveUtils;
-    _signalBacktestUtils: StorageBacktestUtils;
     /**
-     * Enables signal history tracking by subscribing to emitters.
+     * Enables signal storage by subscribing to signal emitters.
+     * Uses singleshot to ensure one-time subscription.
      *
-     * @returns Cleanup function to unsubscribe from all emitters
+     * @returns Cleanup function that unsubscribes from all emitters
      */
     enable: (() => () => void) & functools_kit.ISingleshotClearable;
     /**
-     * Disables signal history tracking by unsubscribing from emitters.
+     * Disables signal storage by unsubscribing from all emitters.
+     * Safe to call multiple times.
      */
     disable: () => void;
     /**
-     * Finds a signal by ID across both backtest and live history.
+     * Finds a signal by ID across both backtest and live storage.
      *
-     * @param id - Signal identifier
-     * @returns Promise resolving to signal row
-     * @throws Error if signal not found in either storage
+     * @param id - The signal ID to search for
+     * @returns The signal row or throws if not found
+     * @throws Error if StorageAdapter is not enabled
+     * @throws Error if signal is not found in either storage
      */
     findSignalById: (id: StorageId) => Promise<IStorageSignalRow | null>;
     /**
-     * Lists all backtest signal history.
+     * Lists all backtest signals from storage.
      *
-     * @returns Promise resolving to array of backtest signal rows
+     * @returns Array of all backtest signal rows
+     * @throws Error if StorageAdapter is not enabled
      */
     listSignalBacktest: () => Promise<IStorageSignalRow[]>;
     /**
-     * Lists all live signal history.
+     * Lists all live signals from storage.
      *
-     * @returns Promise resolving to array of live signal rows
+     * @returns Array of all live signal rows
+     * @throws Error if StorageAdapter is not enabled
      */
     listSignalLive: () => Promise<IStorageSignalRow[]>;
 }
+/**
+ * Global singleton instance of StorageAdapter.
+ * Provides unified signal storage management for backtest and live trading.
+ */
 declare const Storage: StorageAdapter;
+/**
+ * Global singleton instance of StorageLiveAdapter.
+ * Provides live trading signal storage with pluggable backends.
+ */
+declare const StorageLive: StorageLiveAdapter;
+/**
+ * Global singleton instance of StorageBacktestAdapter.
+ * Provides backtest signal storage with pluggable backends.
+ */
+declare const StorageBacktest: StorageBacktestAdapter;
 
 /**
  * Utility class for exchange operations.
@@ -13899,9 +14308,6 @@ type Columns = ColumnModel<StrategyEvent>;
  */
 declare class StrategyMarkdownService {
     readonly loggerService: LoggerService;
-    readonly executionContextService: {
-        readonly context: IExecutionContext;
-    };
     readonly strategyCoreService: StrategyCoreService;
     /**
      * Memoized factory for ReportStorage instances.
@@ -13915,114 +14321,145 @@ declare class StrategyMarkdownService {
     /**
      * Records a cancel-scheduled event when a scheduled signal is cancelled.
      *
-     * Retrieves the scheduled signal from StrategyCoreService and stores
-     * the cancellation event in the appropriate ReportStorage.
-     *
      * @param symbol - Trading pair symbol (e.g., "BTCUSDT")
      * @param isBacktest - Whether this is a backtest or live trading event
      * @param context - Strategy context with strategyName, exchangeName, frameName
+     * @param timestamp - Timestamp from StrategyCommitContract (execution context time)
      * @param cancelId - Optional identifier for the cancellation reason
      */
     cancelScheduled: (symbol: string, isBacktest: boolean, context: {
         strategyName: StrategyName;
         exchangeName: ExchangeName;
         frameName: FrameName;
-    }, cancelId?: string) => Promise<void>;
+    }, timestamp: number, cancelId?: string) => Promise<void>;
     /**
      * Records a close-pending event when a pending signal is closed.
-     *
-     * Retrieves the pending signal from StrategyCoreService and stores
-     * the close event in the appropriate ReportStorage.
      *
      * @param symbol - Trading pair symbol (e.g., "BTCUSDT")
      * @param isBacktest - Whether this is a backtest or live trading event
      * @param context - Strategy context with strategyName, exchangeName, frameName
+     * @param timestamp - Timestamp from StrategyCommitContract (execution context time)
      * @param closeId - Optional identifier for the close reason
      */
     closePending: (symbol: string, isBacktest: boolean, context: {
         strategyName: StrategyName;
         exchangeName: ExchangeName;
         frameName: FrameName;
-    }, closeId?: string) => Promise<void>;
+    }, timestamp: number, closeId?: string) => Promise<void>;
     /**
      * Records a partial-profit event when a portion of the position is closed at profit.
-     *
-     * Stores the percentage closed and current price when partial profit-taking occurs.
      *
      * @param symbol - Trading pair symbol (e.g., "BTCUSDT")
      * @param percentToClose - Percentage of position to close (0-100)
      * @param currentPrice - Current market price at time of partial close
      * @param isBacktest - Whether this is a backtest or live trading event
      * @param context - Strategy context with strategyName, exchangeName, frameName
+     * @param timestamp - Timestamp from StrategyCommitContract (execution context time)
+     * @param position - Trade direction: "long" or "short"
+     * @param priceOpen - Entry price for the position
+     * @param priceTakeProfit - Effective take profit price
+     * @param priceStopLoss - Effective stop loss price
+     * @param originalPriceTakeProfit - Original take profit before trailing
+     * @param originalPriceStopLoss - Original stop loss before trailing
+     * @param scheduledAt - Signal creation timestamp in milliseconds
+     * @param pendingAt - Pending timestamp in milliseconds
      */
     partialProfit: (symbol: string, percentToClose: number, currentPrice: number, isBacktest: boolean, context: {
         strategyName: StrategyName;
         exchangeName: ExchangeName;
         frameName: FrameName;
-    }) => Promise<void>;
+    }, timestamp: number, position: "long" | "short", priceOpen: number, priceTakeProfit: number, priceStopLoss: number, originalPriceTakeProfit: number, originalPriceStopLoss: number, scheduledAt: number, pendingAt: number) => Promise<void>;
     /**
      * Records a partial-loss event when a portion of the position is closed at loss.
-     *
-     * Stores the percentage closed and current price when partial loss-cutting occurs.
      *
      * @param symbol - Trading pair symbol (e.g., "BTCUSDT")
      * @param percentToClose - Percentage of position to close (0-100)
      * @param currentPrice - Current market price at time of partial close
      * @param isBacktest - Whether this is a backtest or live trading event
      * @param context - Strategy context with strategyName, exchangeName, frameName
+     * @param timestamp - Timestamp from StrategyCommitContract (execution context time)
+     * @param position - Trade direction: "long" or "short"
+     * @param priceOpen - Entry price for the position
+     * @param priceTakeProfit - Effective take profit price
+     * @param priceStopLoss - Effective stop loss price
+     * @param originalPriceTakeProfit - Original take profit before trailing
+     * @param originalPriceStopLoss - Original stop loss before trailing
+     * @param scheduledAt - Signal creation timestamp in milliseconds
+     * @param pendingAt - Pending timestamp in milliseconds
      */
     partialLoss: (symbol: string, percentToClose: number, currentPrice: number, isBacktest: boolean, context: {
         strategyName: StrategyName;
         exchangeName: ExchangeName;
         frameName: FrameName;
-    }) => Promise<void>;
+    }, timestamp: number, position: "long" | "short", priceOpen: number, priceTakeProfit: number, priceStopLoss: number, originalPriceTakeProfit: number, originalPriceStopLoss: number, scheduledAt: number, pendingAt: number) => Promise<void>;
     /**
      * Records a trailing-stop event when the stop-loss is adjusted.
-     *
-     * Stores the percentage shift and current price when trailing stop moves.
      *
      * @param symbol - Trading pair symbol (e.g., "BTCUSDT")
      * @param percentShift - Percentage the stop-loss was shifted
      * @param currentPrice - Current market price at time of adjustment
      * @param isBacktest - Whether this is a backtest or live trading event
      * @param context - Strategy context with strategyName, exchangeName, frameName
+     * @param timestamp - Timestamp from StrategyCommitContract (execution context time)
+     * @param position - Trade direction: "long" or "short"
+     * @param priceOpen - Entry price for the position
+     * @param priceTakeProfit - Effective take profit price
+     * @param priceStopLoss - Effective stop loss price
+     * @param originalPriceTakeProfit - Original take profit before trailing
+     * @param originalPriceStopLoss - Original stop loss before trailing
+     * @param scheduledAt - Signal creation timestamp in milliseconds
+     * @param pendingAt - Pending timestamp in milliseconds
      */
     trailingStop: (symbol: string, percentShift: number, currentPrice: number, isBacktest: boolean, context: {
         strategyName: StrategyName;
         exchangeName: ExchangeName;
         frameName: FrameName;
-    }) => Promise<void>;
+    }, timestamp: number, position: "long" | "short", priceOpen: number, priceTakeProfit: number, priceStopLoss: number, originalPriceTakeProfit: number, originalPriceStopLoss: number, scheduledAt: number, pendingAt: number) => Promise<void>;
     /**
      * Records a trailing-take event when the take-profit is adjusted.
-     *
-     * Stores the percentage shift and current price when trailing take-profit moves.
      *
      * @param symbol - Trading pair symbol (e.g., "BTCUSDT")
      * @param percentShift - Percentage the take-profit was shifted
      * @param currentPrice - Current market price at time of adjustment
      * @param isBacktest - Whether this is a backtest or live trading event
      * @param context - Strategy context with strategyName, exchangeName, frameName
+     * @param timestamp - Timestamp from StrategyCommitContract (execution context time)
+     * @param position - Trade direction: "long" or "short"
+     * @param priceOpen - Entry price for the position
+     * @param priceTakeProfit - Effective take profit price
+     * @param priceStopLoss - Effective stop loss price
+     * @param originalPriceTakeProfit - Original take profit before trailing
+     * @param originalPriceStopLoss - Original stop loss before trailing
+     * @param scheduledAt - Signal creation timestamp in milliseconds
+     * @param pendingAt - Pending timestamp in milliseconds
      */
     trailingTake: (symbol: string, percentShift: number, currentPrice: number, isBacktest: boolean, context: {
         strategyName: StrategyName;
         exchangeName: ExchangeName;
         frameName: FrameName;
-    }) => Promise<void>;
+    }, timestamp: number, position: "long" | "short", priceOpen: number, priceTakeProfit: number, priceStopLoss: number, originalPriceTakeProfit: number, originalPriceStopLoss: number, scheduledAt: number, pendingAt: number) => Promise<void>;
     /**
      * Records a breakeven event when the stop-loss is moved to entry price.
-     *
-     * Stores the current price when breakeven protection is activated.
      *
      * @param symbol - Trading pair symbol (e.g., "BTCUSDT")
      * @param currentPrice - Current market price at time of breakeven activation
      * @param isBacktest - Whether this is a backtest or live trading event
      * @param context - Strategy context with strategyName, exchangeName, frameName
+     * @param timestamp - Timestamp from StrategyCommitContract (execution context time)
+     * @param position - Trade direction: "long" or "short"
+     * @param priceOpen - Entry price for the position
+     * @param priceTakeProfit - Effective take profit price
+     * @param priceStopLoss - Effective stop loss price
+     * @param originalPriceTakeProfit - Original take profit before trailing
+     * @param originalPriceStopLoss - Original stop loss before trailing
+     * @param scheduledAt - Signal creation timestamp in milliseconds
+     * @param pendingAt - Pending timestamp in milliseconds
      */
     breakeven: (symbol: string, currentPrice: number, isBacktest: boolean, context: {
         strategyName: StrategyName;
         exchangeName: ExchangeName;
         frameName: FrameName;
-    }) => Promise<void>;
+    }, timestamp: number, position: "long" | "short", priceOpen: number, priceTakeProfit: number, priceStopLoss: number, originalPriceTakeProfit: number, originalPriceStopLoss: number, scheduledAt: number, pendingAt: number) => Promise<void>;
     /**
      * Retrieves aggregated statistics from accumulated strategy events.
      *
@@ -19397,141 +19834,154 @@ declare class RiskReportService {
  * - Events are written via Report.writeData() with "strategy" category
  * - Call unsubscribe() to disable event logging
  *
- * @example
- * ```typescript
- * // Service is typically used internally by strategy management classes
- * strategyReportService.subscribe();
- *
- * // Events are logged automatically when strategy actions occur
- * await strategyReportService.partialProfit("BTCUSDT", 50, 50100, false, {
- *   strategyName: "my-strategy",
- *   exchangeName: "binance",
- *   frameName: "1h"
- * });
- *
- * strategyReportService.unsubscribe();
- * ```
- *
  * @see StrategyMarkdownService for in-memory event accumulation and markdown report generation
  * @see Report for the underlying persistence mechanism
  */
 declare class StrategyReportService {
     readonly loggerService: LoggerService;
-    readonly executionContextService: {
-        readonly context: IExecutionContext;
-    };
     readonly strategyCoreService: StrategyCoreService;
     /**
      * Logs a cancel-scheduled event when a scheduled signal is cancelled.
      *
-     * Retrieves the scheduled signal from StrategyCoreService and writes
-     * the cancellation event to the report file.
-     *
      * @param symbol - Trading pair symbol (e.g., "BTCUSDT")
      * @param isBacktest - Whether this is a backtest or live trading event
      * @param context - Strategy context with strategyName, exchangeName, frameName
+     * @param timestamp - Timestamp from StrategyCommitContract (execution context time)
      * @param cancelId - Optional identifier for the cancellation reason
      */
     cancelScheduled: (symbol: string, isBacktest: boolean, context: {
         strategyName: StrategyName;
         exchangeName: ExchangeName;
         frameName: FrameName;
-    }, cancelId?: string) => Promise<void>;
+    }, timestamp: number, cancelId?: string) => Promise<void>;
     /**
      * Logs a close-pending event when a pending signal is closed.
-     *
-     * Retrieves the pending signal from StrategyCoreService and writes
-     * the close event to the report file.
      *
      * @param symbol - Trading pair symbol (e.g., "BTCUSDT")
      * @param isBacktest - Whether this is a backtest or live trading event
      * @param context - Strategy context with strategyName, exchangeName, frameName
+     * @param timestamp - Timestamp from StrategyCommitContract (execution context time)
      * @param closeId - Optional identifier for the close reason
      */
     closePending: (symbol: string, isBacktest: boolean, context: {
         strategyName: StrategyName;
         exchangeName: ExchangeName;
         frameName: FrameName;
-    }, closeId?: string) => Promise<void>;
+    }, timestamp: number, closeId?: string) => Promise<void>;
     /**
      * Logs a partial-profit event when a portion of the position is closed at profit.
-     *
-     * Records the percentage closed and current price when partial profit-taking occurs.
      *
      * @param symbol - Trading pair symbol (e.g., "BTCUSDT")
      * @param percentToClose - Percentage of position to close (0-100)
      * @param currentPrice - Current market price at time of partial close
      * @param isBacktest - Whether this is a backtest or live trading event
      * @param context - Strategy context with strategyName, exchangeName, frameName
+     * @param timestamp - Timestamp from StrategyCommitContract (execution context time)
+     * @param position - Trade direction: "long" or "short"
+     * @param priceOpen - Entry price for the position
+     * @param priceTakeProfit - Effective take profit price
+     * @param priceStopLoss - Effective stop loss price
+     * @param originalPriceTakeProfit - Original take profit before trailing
+     * @param originalPriceStopLoss - Original stop loss before trailing
+     * @param scheduledAt - Signal creation timestamp in milliseconds
+     * @param pendingAt - Pending timestamp in milliseconds
      */
     partialProfit: (symbol: string, percentToClose: number, currentPrice: number, isBacktest: boolean, context: {
         strategyName: StrategyName;
         exchangeName: ExchangeName;
         frameName: FrameName;
-    }) => Promise<void>;
+    }, timestamp: number, position: "long" | "short", priceOpen: number, priceTakeProfit: number, priceStopLoss: number, originalPriceTakeProfit: number, originalPriceStopLoss: number, scheduledAt: number, pendingAt: number) => Promise<void>;
     /**
      * Logs a partial-loss event when a portion of the position is closed at loss.
-     *
-     * Records the percentage closed and current price when partial loss-cutting occurs.
      *
      * @param symbol - Trading pair symbol (e.g., "BTCUSDT")
      * @param percentToClose - Percentage of position to close (0-100)
      * @param currentPrice - Current market price at time of partial close
      * @param isBacktest - Whether this is a backtest or live trading event
      * @param context - Strategy context with strategyName, exchangeName, frameName
+     * @param timestamp - Timestamp from StrategyCommitContract (execution context time)
+     * @param position - Trade direction: "long" or "short"
+     * @param priceOpen - Entry price for the position
+     * @param priceTakeProfit - Effective take profit price
+     * @param priceStopLoss - Effective stop loss price
+     * @param originalPriceTakeProfit - Original take profit before trailing
+     * @param originalPriceStopLoss - Original stop loss before trailing
+     * @param scheduledAt - Signal creation timestamp in milliseconds
+     * @param pendingAt - Pending timestamp in milliseconds
      */
     partialLoss: (symbol: string, percentToClose: number, currentPrice: number, isBacktest: boolean, context: {
         strategyName: StrategyName;
         exchangeName: ExchangeName;
         frameName: FrameName;
-    }) => Promise<void>;
+    }, timestamp: number, position: "long" | "short", priceOpen: number, priceTakeProfit: number, priceStopLoss: number, originalPriceTakeProfit: number, originalPriceStopLoss: number, scheduledAt: number, pendingAt: number) => Promise<void>;
     /**
      * Logs a trailing-stop event when the stop-loss is adjusted.
-     *
-     * Records the percentage shift and current price when trailing stop moves.
      *
      * @param symbol - Trading pair symbol (e.g., "BTCUSDT")
      * @param percentShift - Percentage the stop-loss was shifted
      * @param currentPrice - Current market price at time of adjustment
      * @param isBacktest - Whether this is a backtest or live trading event
      * @param context - Strategy context with strategyName, exchangeName, frameName
+     * @param timestamp - Timestamp from StrategyCommitContract (execution context time)
+     * @param position - Trade direction: "long" or "short"
+     * @param priceOpen - Entry price for the position
+     * @param priceTakeProfit - Effective take profit price
+     * @param priceStopLoss - Effective stop loss price
+     * @param originalPriceTakeProfit - Original take profit before trailing
+     * @param originalPriceStopLoss - Original stop loss before trailing
+     * @param scheduledAt - Signal creation timestamp in milliseconds
+     * @param pendingAt - Pending timestamp in milliseconds
      */
     trailingStop: (symbol: string, percentShift: number, currentPrice: number, isBacktest: boolean, context: {
         strategyName: StrategyName;
         exchangeName: ExchangeName;
         frameName: FrameName;
-    }) => Promise<void>;
+    }, timestamp: number, position: "long" | "short", priceOpen: number, priceTakeProfit: number, priceStopLoss: number, originalPriceTakeProfit: number, originalPriceStopLoss: number, scheduledAt: number, pendingAt: number) => Promise<void>;
     /**
      * Logs a trailing-take event when the take-profit is adjusted.
-     *
-     * Records the percentage shift and current price when trailing take-profit moves.
      *
      * @param symbol - Trading pair symbol (e.g., "BTCUSDT")
      * @param percentShift - Percentage the take-profit was shifted
      * @param currentPrice - Current market price at time of adjustment
      * @param isBacktest - Whether this is a backtest or live trading event
      * @param context - Strategy context with strategyName, exchangeName, frameName
+     * @param timestamp - Timestamp from StrategyCommitContract (execution context time)
+     * @param position - Trade direction: "long" or "short"
+     * @param priceOpen - Entry price for the position
+     * @param priceTakeProfit - Effective take profit price
+     * @param priceStopLoss - Effective stop loss price
+     * @param originalPriceTakeProfit - Original take profit before trailing
+     * @param originalPriceStopLoss - Original stop loss before trailing
+     * @param scheduledAt - Signal creation timestamp in milliseconds
+     * @param pendingAt - Pending timestamp in milliseconds
      */
     trailingTake: (symbol: string, percentShift: number, currentPrice: number, isBacktest: boolean, context: {
         strategyName: StrategyName;
         exchangeName: ExchangeName;
         frameName: FrameName;
-    }) => Promise<void>;
+    }, timestamp: number, position: "long" | "short", priceOpen: number, priceTakeProfit: number, priceStopLoss: number, originalPriceTakeProfit: number, originalPriceStopLoss: number, scheduledAt: number, pendingAt: number) => Promise<void>;
     /**
      * Logs a breakeven event when the stop-loss is moved to entry price.
-     *
-     * Records the current price when breakeven protection is activated.
      *
      * @param symbol - Trading pair symbol (e.g., "BTCUSDT")
      * @param currentPrice - Current market price at time of breakeven activation
      * @param isBacktest - Whether this is a backtest or live trading event
      * @param context - Strategy context with strategyName, exchangeName, frameName
+     * @param timestamp - Timestamp from StrategyCommitContract (execution context time)
+     * @param position - Trade direction: "long" or "short"
+     * @param priceOpen - Entry price for the position
+     * @param priceTakeProfit - Effective take profit price
+     * @param priceStopLoss - Effective stop loss price
+     * @param originalPriceTakeProfit - Original take profit before trailing
+     * @param originalPriceStopLoss - Original stop loss before trailing
+     * @param scheduledAt - Signal creation timestamp in milliseconds
+     * @param pendingAt - Pending timestamp in milliseconds
      */
     breakeven: (symbol: string, currentPrice: number, isBacktest: boolean, context: {
         strategyName: StrategyName;
         exchangeName: ExchangeName;
         frameName: FrameName;
-    }) => Promise<void>;
+    }, timestamp: number, position: "long" | "short", priceOpen: number, priceTakeProfit: number, priceStopLoss: number, originalPriceTakeProfit: number, originalPriceStopLoss: number, scheduledAt: number, pendingAt: number) => Promise<void>;
     /**
      * Initializes the service for event logging.
      *
@@ -19620,4 +20070,4 @@ declare const backtest: {
     loggerService: LoggerService;
 };
 
-export { ActionBase, type ActivePingContract, Backtest, type BacktestStatisticsModel, Breakeven, type BreakevenAvailableNotification, type BreakevenCommitNotification, type BreakevenContract, type BreakevenData, Cache, type CandleData, type CandleInterval, type ColumnConfig, type ColumnModel, Constant, type CriticalErrorNotification, type DoneContract, type EntityId, Exchange, ExecutionContextService, type FrameInterval, type GlobalConfig, Heat, type HeatmapStatisticsModel, type IBidData, type ICandleData, type IExchangeSchema, type IFrameSchema, type IHeatmapRow, type IMarkdownDumpOptions, type IOrderBookData, type IPersistBase, type IPositionSizeATRParams, type IPositionSizeFixedPercentageParams, type IPositionSizeKellyParams, type IPublicSignalRow, type IReportDumpOptions, type IRiskActivePosition, type IRiskCheckArgs, type IRiskSchema, type IRiskSignalRow, type IRiskValidation, type IRiskValidationFn, type IRiskValidationPayload, type IScheduledSignalCancelRow, type IScheduledSignalRow, type ISignalDto, type ISignalRow, type ISizingCalculateParams, type ISizingCalculateParamsATR, type ISizingCalculateParamsFixedPercentage, type ISizingCalculateParamsKelly, type ISizingSchema, type ISizingSchemaATR, type ISizingSchemaFixedPercentage, type ISizingSchemaKelly, type IStorageSignalRow, type IStrategyPnL, type IStrategyResult, type IStrategySchema, type IStrategyTickResult, type IStrategyTickResultActive, type IStrategyTickResultCancelled, type IStrategyTickResultClosed, type IStrategyTickResultIdle, type IStrategyTickResultOpened, type IStrategyTickResultScheduled, type IStrategyTickResultWaiting, type IWalkerResults, type IWalkerSchema, type IWalkerStrategyResult, type InfoErrorNotification, Live, type LiveStatisticsModel, Markdown, MarkdownFileBase, MarkdownFolderBase, type MarkdownName, MethodContextService, type MetricStats, Notification, type NotificationModel, Partial$1 as Partial, type PartialData, type PartialEvent, type PartialLossAvailableNotification, type PartialLossCommitNotification, type PartialLossContract, type PartialProfitAvailableNotification, type PartialProfitCommitNotification, type PartialProfitContract, type PartialStatisticsModel, Performance, type PerformanceContract, type PerformanceMetricType, type PerformanceStatisticsModel, PersistBase, PersistBreakevenAdapter, PersistCandleAdapter, PersistPartialAdapter, PersistRiskAdapter, PersistScheduleAdapter, PersistSignalAdapter, PersistStorageAdapter, PositionSize, type ProgressBacktestContract, type ProgressWalkerContract, Report, ReportBase, type ReportName, Risk, type RiskContract, type RiskData, type RiskEvent, type RiskRejectionNotification, type RiskStatisticsModel, Schedule, type ScheduleData, type SchedulePingContract, type ScheduleStatisticsModel, type ScheduledEvent, type SignalCancelledNotification, type SignalClosedNotification, type SignalData, type SignalInterval, type SignalOpenedNotification, type SignalScheduledNotification, Storage, type StorageData, Strategy, type StrategyActionType, type StrategyCancelReason, type StrategyCloseReason, type StrategyCommitContract, type StrategyEvent, type StrategyStatisticsModel, type TMarkdownBase, type TPersistBase, type TPersistBaseCtor, type TReportBase, type TickEvent, type TrailingStopCommitNotification, type TrailingTakeCommitNotification, type ValidationErrorNotification, Walker, type WalkerCompleteContract, type WalkerContract, type WalkerMetric, type SignalData$1 as WalkerSignalData, type WalkerStatisticsModel, addActionSchema, addExchangeSchema, addFrameSchema, addRiskSchema, addSizingSchema, addStrategySchema, addWalkerSchema, commitBreakeven, commitCancelScheduled, commitClosePending, commitPartialLoss, commitPartialProfit, commitTrailingStop, commitTrailingTake, emitters, formatPrice, formatQuantity, get, getActionSchema, getAveragePrice, getBacktestTimeframe, getCandles, getColumns, getConfig, getContext, getDate, getDefaultColumns, getDefaultConfig, getExchangeSchema, getFrameSchema, getMode, getOrderBook, getRawCandles, getRiskSchema, getSizingSchema, getStrategySchema, getSymbol, getWalkerSchema, hasTradeContext, backtest as lib, listExchangeSchema, listFrameSchema, listRiskSchema, listSizingSchema, listStrategySchema, listWalkerSchema, listenActivePing, listenActivePingOnce, listenBacktestProgress, listenBreakevenAvailable, listenBreakevenAvailableOnce, listenDoneBacktest, listenDoneBacktestOnce, listenDoneLive, listenDoneLiveOnce, listenDoneWalker, listenDoneWalkerOnce, listenError, listenExit, listenPartialLossAvailable, listenPartialLossAvailableOnce, listenPartialProfitAvailable, listenPartialProfitAvailableOnce, listenPerformance, listenRisk, listenRiskOnce, listenSchedulePing, listenSchedulePingOnce, listenSignal, listenSignalBacktest, listenSignalBacktestOnce, listenSignalLive, listenSignalLiveOnce, listenSignalOnce, listenStrategyCommit, listenStrategyCommitOnce, listenValidation, listenWalker, listenWalkerComplete, listenWalkerOnce, listenWalkerProgress, overrideActionSchema, overrideExchangeSchema, overrideFrameSchema, overrideRiskSchema, overrideSizingSchema, overrideStrategySchema, overrideWalkerSchema, parseArgs, roundTicks, set, setColumns, setConfig, setLogger, stopStrategy, validate };
+export { ActionBase, type ActivePingContract, Backtest, type BacktestStatisticsModel, Breakeven, type BreakevenAvailableNotification, type BreakevenCommit, type BreakevenCommitNotification, type BreakevenContract, type BreakevenData, Cache, type CancelScheduledCommit, type CandleData, type CandleInterval, type ClosePendingCommit, type ColumnConfig, type ColumnModel, Constant, type CriticalErrorNotification, type DoneContract, type EntityId, Exchange, ExecutionContextService, type FrameInterval, type GlobalConfig, Heat, type HeatmapStatisticsModel, type IBidData, type IBreakevenCommitRow, type ICandleData, type ICommitRow, type IExchangeSchema, type IFrameSchema, type IHeatmapRow, type IMarkdownDumpOptions, type IOrderBookData, type IPartialLossCommitRow, type IPartialProfitCommitRow, type IPersistBase, type IPositionSizeATRParams, type IPositionSizeFixedPercentageParams, type IPositionSizeKellyParams, type IPublicSignalRow, type IReportDumpOptions, type IRiskActivePosition, type IRiskCheckArgs, type IRiskSchema, type IRiskSignalRow, type IRiskValidation, type IRiskValidationFn, type IRiskValidationPayload, type IScheduledSignalCancelRow, type IScheduledSignalRow, type ISignalDto, type ISignalRow, type ISizingCalculateParams, type ISizingCalculateParamsATR, type ISizingCalculateParamsFixedPercentage, type ISizingCalculateParamsKelly, type ISizingParams, type ISizingParamsATR, type ISizingParamsFixedPercentage, type ISizingParamsKelly, type ISizingSchema, type ISizingSchemaATR, type ISizingSchemaFixedPercentage, type ISizingSchemaKelly, type IStorageSignalRow, type IStorageUtils, type IStrategyPnL, type IStrategyResult, type IStrategySchema, type IStrategyTickResult, type IStrategyTickResultActive, type IStrategyTickResultCancelled, type IStrategyTickResultClosed, type IStrategyTickResultIdle, type IStrategyTickResultOpened, type IStrategyTickResultScheduled, type IStrategyTickResultWaiting, type ITrailingStopCommitRow, type ITrailingTakeCommitRow, type IWalkerResults, type IWalkerSchema, type IWalkerStrategyResult, type InfoErrorNotification, Live, type LiveStatisticsModel, Markdown, MarkdownFileBase, MarkdownFolderBase, type MarkdownName, MethodContextService, type MetricStats, Notification, type NotificationModel, Partial$1 as Partial, type PartialData, type PartialEvent, type PartialLossAvailableNotification, type PartialLossCommit, type PartialLossCommitNotification, type PartialLossContract, type PartialProfitAvailableNotification, type PartialProfitCommit, type PartialProfitCommitNotification, type PartialProfitContract, type PartialStatisticsModel, Performance, type PerformanceContract, type PerformanceMetricType, type PerformanceStatisticsModel, PersistBase, PersistBreakevenAdapter, PersistCandleAdapter, PersistPartialAdapter, PersistRiskAdapter, PersistScheduleAdapter, PersistSignalAdapter, PersistStorageAdapter, PositionSize, type ProgressBacktestContract, type ProgressWalkerContract, Report, ReportBase, type ReportName, Risk, type RiskContract, type RiskData, type RiskEvent, type RiskRejectionNotification, type RiskStatisticsModel, Schedule, type ScheduleData, type SchedulePingContract, type ScheduleStatisticsModel, type ScheduledEvent, type SignalCancelledNotification, type SignalClosedNotification, type SignalData, type SignalInterval, type SignalOpenedNotification, type SignalScheduledNotification, Storage, StorageBacktest, type StorageData, StorageLive, Strategy, type StrategyActionType, type StrategyCancelReason, type StrategyCloseReason, type StrategyCommitContract, type StrategyEvent, type StrategyStatisticsModel, type TMarkdownBase, type TPersistBase, type TPersistBaseCtor, type TReportBase, type TStorageUtilsCtor, type TickEvent, type TrailingStopCommit, type TrailingStopCommitNotification, type TrailingTakeCommit, type TrailingTakeCommitNotification, type ValidationErrorNotification, Walker, type WalkerCompleteContract, type WalkerContract, type WalkerMetric, type SignalData$1 as WalkerSignalData, type WalkerStatisticsModel, addActionSchema, addExchangeSchema, addFrameSchema, addRiskSchema, addSizingSchema, addStrategySchema, addWalkerSchema, commitBreakeven, commitCancelScheduled, commitClosePending, commitPartialLoss, commitPartialProfit, commitTrailingStop, commitTrailingTake, emitters, formatPrice, formatQuantity, get, getActionSchema, getAveragePrice, getBacktestTimeframe, getCandles, getColumns, getConfig, getContext, getDate, getDefaultColumns, getDefaultConfig, getExchangeSchema, getFrameSchema, getMode, getOrderBook, getRawCandles, getRiskSchema, getSizingSchema, getStrategySchema, getSymbol, getWalkerSchema, hasTradeContext, backtest as lib, listExchangeSchema, listFrameSchema, listRiskSchema, listSizingSchema, listStrategySchema, listWalkerSchema, listenActivePing, listenActivePingOnce, listenBacktestProgress, listenBreakevenAvailable, listenBreakevenAvailableOnce, listenDoneBacktest, listenDoneBacktestOnce, listenDoneLive, listenDoneLiveOnce, listenDoneWalker, listenDoneWalkerOnce, listenError, listenExit, listenPartialLossAvailable, listenPartialLossAvailableOnce, listenPartialProfitAvailable, listenPartialProfitAvailableOnce, listenPerformance, listenRisk, listenRiskOnce, listenSchedulePing, listenSchedulePingOnce, listenSignal, listenSignalBacktest, listenSignalBacktestOnce, listenSignalLive, listenSignalLiveOnce, listenSignalOnce, listenStrategyCommit, listenStrategyCommitOnce, listenValidation, listenWalker, listenWalkerComplete, listenWalkerOnce, listenWalkerProgress, overrideActionSchema, overrideExchangeSchema, overrideFrameSchema, overrideRiskSchema, overrideSizingSchema, overrideStrategySchema, overrideWalkerSchema, parseArgs, roundTicks, set, setColumns, setConfig, setLogger, stopStrategy, validate };

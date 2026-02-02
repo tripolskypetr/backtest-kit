@@ -166,4 +166,18 @@ export const live_columns: ColumnModel<TickEvent>[] = [
       data.duration !== undefined ? `${data.duration}` : "N/A",
     isVisible: () => true,
   },
+  {
+    key: "pendingAt",
+    label: "Pending At",
+    format: (data) =>
+      data.pendingAt !== undefined ? new Date(data.pendingAt).toISOString() : "N/A",
+    isVisible: () => true,
+  },
+  {
+    key: "scheduledAt",
+    label: "Scheduled At",
+    format: (data) =>
+      data.scheduledAt !== undefined ? new Date(data.scheduledAt).toISOString() : "N/A",
+    isVisible: () => true,
+  },
 ];

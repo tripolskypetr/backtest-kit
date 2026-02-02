@@ -42,14 +42,6 @@ message: string
 
 Human-readable error message
 
-### timestamp
-
-```ts
-timestamp: number
-```
-
-Unix timestamp in milliseconds when critical error occurred
-
 ### backtest
 
 ```ts

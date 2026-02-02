@@ -1,0 +1,154 @@
+<!doctype html>
+<html lang="ru" translate="no">
+    <head>
+        <meta charset="utf-8" />
+        <title>BacktestKit</title>
+        <meta
+            name="viewport"
+            content="width=device-width, user-scalable=no, initial-scale=1, maximum-scale=1, minimal-ui"
+        />
+        <meta name="apple-mobile-web-app-status-bar-style" content="black" />
+        <meta name="apple-mobile-web-app-title" content="TradeGPT" />
+        <meta name="apple-mobile-web-app-capable" content="yes" />
+        <meta name="mobile-web-app-capable" content="yes" />
+        <link
+            rel="apple-touch-icon"
+            sizes="512x512"
+            href="/logo/icon512_maskable.png"
+        />
+        <link
+            rel="icon"
+            type="image/png"
+            sizes="512x512"
+            href="/logo/icon512_maskable.png"
+        />
+        <link rel="manifest" href="/manifest.json" />
+        <link
+            rel="prefetch"
+            href="/images/cubes.png"
+            as="image"
+            type="image/png"
+        />
+        <link
+            rel="prefetch"
+            href="/images/snow.png"
+            as="image"
+            type="image/png"
+        />
+        <link
+            rel="prefetch"
+            href="/images/square.png"
+            as="image"
+            type="image/png"
+        />
+        <link
+            rel="prefetch"
+            href="/images/triangle.png"
+            as="image"
+            type="image/png"
+        />
+        <link
+            rel="prefetch"
+            href="/images/dots.png"
+            as="image"
+            type="image/png"
+        />
+        <link
+            rel="prefetch"
+            href="/logo/icon512_maskable.png"
+            as="image/png"
+        />
+        <style>
+            html,
+            body {
+                margin: 0;
+                padding: 0;
+                height: 100dvh;
+                width: 100dvw;
+                overflow-x: hidden;
+                scrollbar-width: none;
+                background: #eee !important;
+            }
+        </style>
+        <style>
+            .loader_wraper {
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                height: 100vh;
+                width: 100vw;
+            }
+
+            .loader,
+            .loader:after {
+                border-radius: 50%;
+                width: 10em;
+                height: 10em;
+            }
+
+            .loader {
+                margin: 60px auto;
+                font-size: 10px;
+                position: relative;
+                text-indent: -9999em;
+                border-top: 1.1em solid transparent;
+                border-right: 1.1em solid transparent;
+                border-bottom: 1.1em solid transparent;
+                border-left: 1.1em solid #1f497a;
+                -webkit-transform: translateZ(0);
+                -ms-transform: translateZ(0);
+                transform: translateZ(0);
+                -webkit-animation: load8 1.1s infinite linear;
+                animation: load8 1.1s infinite linear;
+            }
+
+            @-webkit-keyframes load8 {
+                0% {
+                    -webkit-transform: rotate(0deg);
+                    transform: rotate(0deg);
+                }
+
+                100% {
+                    -webkit-transform: rotate(360deg);
+                    transform: rotate(360deg);
+                }
+            }
+
+            @keyframes load8 {
+                0% {
+                    -webkit-transform: rotate(0deg);
+                    transform: rotate(0deg);
+                }
+
+                100% {
+                    -webkit-transform: rotate(360deg);
+                    transform: rotate(360deg);
+                }
+            }
+
+            .react-declarative__listContentMark,
+            .react-declarative__listPaperMark {
+                overflow: visible !important;
+            }
+
+            * {
+                font-family: "Roboto", sans-serif !important;
+                overscroll-behavior: none;
+            }
+        </style>
+        <link
+            href="https://fonts.googleapis.com/css2?family=Roboto:ital,wght@0,100;0,300;0,400;0,500;0,700;0,900;1,100;1,300;1,400;1,500;1,700;1,900&display=swap"
+            rel="stylesheet"
+        />
+    </head>
+
+    <body>
+        <div id="root">
+            <div class="loader_wraper">
+                <div class="loader"></div>
+            </div>
+        </div>
+        <noscript>You need to enable JavaScript to run this app.</noscript>
+        <script type="module" src="/src/index.tsx"></script>
+    </body>
+</html>

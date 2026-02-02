@@ -15,6 +15,20 @@ interface ILogger {
 
 declare const setLogger: (logger: ILogger) => void;
 
+interface SymbolModel {
+    icon: string;
+    logo: string;
+    symbol: string;
+    displayName: string;
+    color: string;
+    priority: number;
+    description: string;
+}
+
+declare function getModulesPath(): string;
+
+declare function getPublicPath(): string;
+
 declare class LoggerService implements ILogger {
     private _commonLogger;
     log: (topic: string, ...args: any[]) => Promise<void>;
@@ -27,7 +41,14 @@ declare class LoggerService implements ILogger {
 type ExchangeName = string;
 declare class ExchangeService {
     private readonly loggerService;
-    getCandles: (dto: {
+    getRangeCandles: (dto: {
+        symbol: string;
+        interval: CandleInterval;
+        exchangeName: ExchangeName;
+        signalStartTime: number;
+        signalStopTime: number;
+    }) => Promise<backtest_kit.ICandleData[]>;
+    getPointCandles: (dto: {
         symbol: string;
         interval: CandleInterval;
         exchangeName: ExchangeName;
@@ -37,7 +58,8 @@ declare class ExchangeService {
 
 declare class NotificationMockService {
     private readonly loggerService;
-    getData: () => Promise<NotificationModel[]>;
+    getList: () => Promise<NotificationModel[]>;
+    getOne: (id: string) => Promise<NotificationModel>;
 }
 
 declare class StorageMockService {
@@ -51,17 +73,20 @@ declare class ExchangeMockService {
     private readonly loggerService;
     private readonly storageMockService;
     private readonly exchangeService;
-    getCandles: (signalId: string, interval: CandleInterval) => Promise<backtest_kit.ICandleData[]>;
+    getSignalCandles: (signalId: string, interval: CandleInterval) => Promise<backtest_kit.ICandleData[]>;
 }
 
 declare class NotificationViewService {
     private readonly loggerService;
-    getData: () => Promise<backtest_kit.NotificationModel[]>;
+    private readonly notificationMockService;
+    getList: () => Promise<backtest_kit.NotificationModel[]>;
+    getOne: (id: string) => Promise<backtest_kit.NotificationModel>;
     protected init: (() => Promise<void>) & functools_kit.ISingleshotClearable;
 }
 
 declare class StorageViewService {
     private readonly loggerService;
+    private readonly storageMockService;
     findSignalById: (signalId: string) => Promise<backtest_kit.IStorageSignalRow>;
     listSignalLive: () => Promise<backtest_kit.IStorageSignalRow[]>;
     listSignalBacktest: () => Promise<backtest_kit.IStorageSignalRow[]>;
@@ -72,7 +97,49 @@ declare class ExchangeViewService {
     private readonly loggerService;
     private readonly storageViewService;
     private readonly exchangeService;
-    getCandles: (signalId: string, interval: CandleInterval) => Promise<backtest_kit.ICandleData[]>;
+    private readonly exchangeMockService;
+    getSignalCandles: (signalId: string, interval: CandleInterval) => Promise<backtest_kit.ICandleData[]>;
+}
+
+declare class SymbolConnectionService {
+    private readonly loggerService;
+    getSymbolList: (() => Promise<{
+        color: string;
+        description: string;
+        symbol: string;
+        icon: string;
+        logo: string;
+        priority: number;
+        displayName: string;
+        index: number;
+    }[]>) & functools_kit.ISingleshotClearable;
+    protected init: (() => Promise<void>) & functools_kit.ISingleshotClearable;
+}
+
+declare class SymbolMetaService {
+    private readonly symbolConnectionService;
+    private readonly loggerService;
+    getSymbolList: (() => Promise<string[]>) & functools_kit.ISingleshotClearable;
+    getSymbolMap: (() => Promise<{}>) & functools_kit.ISingleshotClearable;
+    getSymbol: ((symbol: string) => Promise<{
+        color: string;
+        description: string;
+        symbol: string;
+        icon: string;
+        logo: string;
+        priority: number;
+        displayName: string;
+        index: number;
+    }>) & functools_kit.IClearableMemoize<string> & functools_kit.IControlMemoize<string, Promise<{
+        color: string;
+        description: string;
+        symbol: string;
+        icon: string;
+        logo: string;
+        priority: number;
+        displayName: string;
+        index: number;
+    }>>;
 }
 
 declare const ioc: {
@@ -82,8 +149,10 @@ declare const ioc: {
     notificationMockService: NotificationMockService;
     storageMockService: StorageMockService;
     exchangeMockService: ExchangeMockService;
+    symbolMetaService: SymbolMetaService;
+    symbolConnectionService: SymbolConnectionService;
     loggerService: LoggerService;
     exchangeService: ExchangeService;
 };
 
-export { getRouter, ioc as lib, serve, setLogger };
+export { type SymbolModel, getModulesPath, getPublicPath, getRouter, ioc as lib, serve, setLogger };
