@@ -14,6 +14,11 @@ import {
 
 import { Subject, sleep } from "functools-kit";
 
+const alignTimestamp = (timestampMs, intervalMinutes) => {
+  const intervalMs = intervalMinutes * 60 * 1000;
+  return Math.floor(timestampMs / intervalMs) * intervalMs;
+};
+
 /**
  * SEQUENCE ТЕСТ #2: Последовательность из 3 TP сигналов подряд
  *
@@ -37,7 +42,7 @@ test("SEQUENCE: 3 consecutive TP signals (winning streak)", async ({ pass, fail 
   let allCandles = [];
 
   // Начальные свечи ВЫШЕ priceOpen для scheduled состояния
-  for (let i = 0; i < 5; i++) {
+  for (let i = 0; i < 6; i++) {
     allCandles.push({
       timestamp: startTime + i * intervalMs,
       open: basePrice,
@@ -51,9 +56,25 @@ test("SEQUENCE: 3 consecutive TP signals (winning streak)", async ({ pass, fail 
   addExchangeSchema({
     exchangeName: "binance-sequence-3tp",
     getCandles: async (_symbol, _interval, since, limit) => {
-      const sinceIndex = Math.floor((since.getTime() - startTime) / intervalMs);
-      const result = allCandles.slice(sinceIndex, sinceIndex + limit);
-      return result.length > 0 ? result : allCandles.slice(0, Math.min(limit, allCandles.length));
+      const alignedSince = alignTimestamp(since.getTime(), 1);
+      const result = [];
+      for (let i = 0; i < limit; i++) {
+        const timestamp = alignedSince + i * intervalMs;
+        const existingCandle = allCandles.find((c) => c.timestamp === timestamp);
+        if (existingCandle) {
+          result.push(existingCandle);
+        } else {
+          result.push({
+            timestamp,
+            open: basePrice,
+            high: basePrice + 100,
+            low: basePrice - 50,
+            close: basePrice,
+            volume: 100,
+          });
+        }
+      }
+      return result;
     },
     formatPrice: async (_symbol, p) => p.toFixed(8),
     formatQuantity: async (_symbol, quantity) => quantity.toFixed(8),
@@ -188,7 +209,7 @@ test("SEQUENCE: 3 consecutive SL signals (losing streak)", async ({ pass, fail }
 
   let allCandles = [];
 
-  for (let i = 0; i < 5; i++) {
+  for (let i = 0; i < 6; i++) {
     allCandles.push({
       timestamp: startTime + i * intervalMs,
       open: basePrice,
@@ -202,9 +223,25 @@ test("SEQUENCE: 3 consecutive SL signals (losing streak)", async ({ pass, fail }
   addExchangeSchema({
     exchangeName: "binance-sequence-3sl",
     getCandles: async (_symbol, _interval, since, limit) => {
-      const sinceIndex = Math.floor((since.getTime() - startTime) / intervalMs);
-      const result = allCandles.slice(sinceIndex, sinceIndex + limit);
-      return result.length > 0 ? result : allCandles.slice(0, Math.min(limit, allCandles.length));
+      const alignedSince = alignTimestamp(since.getTime(), 1);
+      const result = [];
+      for (let i = 0; i < limit; i++) {
+        const timestamp = alignedSince + i * intervalMs;
+        const existingCandle = allCandles.find((c) => c.timestamp === timestamp);
+        if (existingCandle) {
+          result.push(existingCandle);
+        } else {
+          result.push({
+            timestamp,
+            open: basePrice,
+            high: basePrice + 100,
+            low: basePrice - 100,
+            close: basePrice,
+            volume: 100,
+          });
+        }
+      }
+      return result;
     },
     formatPrice: async (_symbol, p) => p.toFixed(8),
     formatQuantity: async (_symbol, quantity) => quantity.toFixed(8),
@@ -347,7 +384,7 @@ test("SEQUENCE: 3 fast signals (5 min each) - TP, time_expired, SL", async ({ pa
 
   let allCandles = [];
 
-  for (let i = 0; i < 5; i++) {
+  for (let i = 0; i < 6; i++) {
     allCandles.push({
       timestamp: startTime + i * intervalMs,
       open: basePrice,
@@ -361,9 +398,25 @@ test("SEQUENCE: 3 fast signals (5 min each) - TP, time_expired, SL", async ({ pa
   addExchangeSchema({
     exchangeName: "binance-sequence-fast",
     getCandles: async (_symbol, _interval, since, limit) => {
-      const sinceIndex = Math.floor((since.getTime() - startTime) / intervalMs);
-      const result = allCandles.slice(sinceIndex, sinceIndex + limit);
-      return result.length > 0 ? result : allCandles.slice(0, Math.min(limit, allCandles.length));
+      const alignedSince = alignTimestamp(since.getTime(), 1);
+      const result = [];
+      for (let i = 0; i < limit; i++) {
+        const timestamp = alignedSince + i * intervalMs;
+        const existingCandle = allCandles.find((c) => c.timestamp === timestamp);
+        if (existingCandle) {
+          result.push(existingCandle);
+        } else {
+          result.push({
+            timestamp,
+            open: basePrice,
+            high: basePrice + 100,
+            low: basePrice - 100,
+            close: basePrice,
+            volume: 100,
+          });
+        }
+      }
+      return result;
     },
     formatPrice: async (_symbol, p) => p.toFixed(8),
     formatQuantity: async (_symbol, quantity) => quantity.toFixed(8),
@@ -516,7 +569,7 @@ test("SEQUENCE: 2 long signals (120 min each) - slow TP, slow SL", async ({ pass
 
   let allCandles = [];
 
-  for (let i = 0; i < 5; i++) {
+  for (let i = 0; i < 6; i++) {
     allCandles.push({
       timestamp: startTime + i * intervalMs,
       open: basePrice,
@@ -530,9 +583,25 @@ test("SEQUENCE: 2 long signals (120 min each) - slow TP, slow SL", async ({ pass
   addExchangeSchema({
     exchangeName: "binance-sequence-long",
     getCandles: async (_symbol, _interval, since, limit) => {
-      const sinceIndex = Math.floor((since.getTime() - startTime) / intervalMs);
-      const result = allCandles.slice(sinceIndex, sinceIndex + limit);
-      return result.length > 0 ? result : allCandles.slice(0, Math.min(limit, allCandles.length));
+      const alignedSince = alignTimestamp(since.getTime(), 1);
+      const result = [];
+      for (let i = 0; i < limit; i++) {
+        const timestamp = alignedSince + i * intervalMs;
+        const existingCandle = allCandles.find((c) => c.timestamp === timestamp);
+        if (existingCandle) {
+          result.push(existingCandle);
+        } else {
+          result.push({
+            timestamp,
+            open: basePrice,
+            high: basePrice + 100,
+            low: basePrice - 100,
+            close: basePrice,
+            volume: 100,
+          });
+        }
+      }
+      return result;
     },
     formatPrice: async (_symbol, p) => p.toFixed(8),
     formatQuantity: async (_symbol, quantity) => quantity.toFixed(8),
@@ -675,7 +744,7 @@ test("SEQUENCE: Alternating LONG and SHORT positions (TP, TP, SL, SL)", async ({
 
   let allCandles = [];
 
-  for (let i = 0; i < 5; i++) {
+  for (let i = 0; i < 6; i++) {
     allCandles.push({
       timestamp: startTime + i * intervalMs,
       open: basePrice,
@@ -689,9 +758,25 @@ test("SEQUENCE: Alternating LONG and SHORT positions (TP, TP, SL, SL)", async ({
   addExchangeSchema({
     exchangeName: "binance-sequence-alternating",
     getCandles: async (_symbol, _interval, since, limit) => {
-      const sinceIndex = Math.floor((since.getTime() - startTime) / intervalMs);
-      const result = allCandles.slice(sinceIndex, sinceIndex + limit);
-      return result.length > 0 ? result : allCandles.slice(0, Math.min(limit, allCandles.length));
+      const alignedSince = alignTimestamp(since.getTime(), 1);
+      const result = [];
+      for (let i = 0; i < limit; i++) {
+        const timestamp = alignedSince + i * intervalMs;
+        const existingCandle = allCandles.find((c) => c.timestamp === timestamp);
+        if (existingCandle) {
+          result.push(existingCandle);
+        } else {
+          result.push({
+            timestamp,
+            open: basePrice,
+            high: basePrice + 100,
+            low: basePrice - 100,
+            close: basePrice,
+            volume: 100,
+          });
+        }
+      }
+      return result;
     },
     formatPrice: async (_symbol, p) => p.toFixed(8),
     formatQuantity: async (_symbol, quantity) => quantity.toFixed(8),
@@ -862,7 +947,7 @@ test("SEQUENCE: 2 quick signals - fast TP, fast SL", async ({ pass, fail }) => {
 
   let allCandles = [];
 
-  for (let i = 0; i < 5; i++) {
+  for (let i = 0; i < 6; i++) {
     allCandles.push({
       timestamp: startTime + i * intervalMs,
       open: basePrice,
@@ -876,9 +961,25 @@ test("SEQUENCE: 2 quick signals - fast TP, fast SL", async ({ pass, fail }) => {
   addExchangeSchema({
     exchangeName: "binance-sequence-quick",
     getCandles: async (_symbol, _interval, since, limit) => {
-      const sinceIndex = Math.floor((since.getTime() - startTime) / intervalMs);
-      const result = allCandles.slice(sinceIndex, sinceIndex + limit);
-      return result.length > 0 ? result : allCandles.slice(0, Math.min(limit, allCandles.length));
+      const alignedSince = alignTimestamp(since.getTime(), 1);
+      const result = [];
+      for (let i = 0; i < limit; i++) {
+        const timestamp = alignedSince + i * intervalMs;
+        const existingCandle = allCandles.find((c) => c.timestamp === timestamp);
+        if (existingCandle) {
+          result.push(existingCandle);
+        } else {
+          result.push({
+            timestamp,
+            open: basePrice,
+            high: basePrice + 100,
+            low: basePrice - 100,
+            close: basePrice,
+            volume: 100,
+          });
+        }
+      }
+      return result;
     },
     formatPrice: async (_symbol, p) => p.toFixed(8),
     formatQuantity: async (_symbol, quantity) => quantity.toFixed(8),
@@ -1018,7 +1119,7 @@ test("SEQUENCE: 2 quick SHORT signals - fast TP, fast SL", async ({ pass, fail }
 
   let allCandles = [];
 
-  for (let i = 0; i < 5; i++) {
+  for (let i = 0; i < 6; i++) {
     allCandles.push({
       timestamp: startTime + i * intervalMs,
       open: basePrice,
@@ -1032,9 +1133,25 @@ test("SEQUENCE: 2 quick SHORT signals - fast TP, fast SL", async ({ pass, fail }
   addExchangeSchema({
     exchangeName: "binance-sequence-quick-short",
     getCandles: async (_symbol, _interval, since, limit) => {
-      const sinceIndex = Math.floor((since.getTime() - startTime) / intervalMs);
-      const result = allCandles.slice(sinceIndex, sinceIndex + limit);
-      return result.length > 0 ? result : allCandles.slice(0, Math.min(limit, allCandles.length));
+      const alignedSince = alignTimestamp(since.getTime(), 1);
+      const result = [];
+      for (let i = 0; i < limit; i++) {
+        const timestamp = alignedSince + i * intervalMs;
+        const existingCandle = allCandles.find((c) => c.timestamp === timestamp);
+        if (existingCandle) {
+          result.push(existingCandle);
+        } else {
+          result.push({
+            timestamp,
+            open: basePrice,
+            high: basePrice + 100,
+            low: basePrice - 100,
+            close: basePrice,
+            volume: 100,
+          });
+        }
+      }
+      return result;
     },
     formatPrice: async (_symbol, p) => p.toFixed(8),
     formatQuantity: async (_symbol, quantity) => quantity.toFixed(8),
@@ -1199,9 +1316,10 @@ test("PERSIST: LONG signal closes by TP after system restart - onClose called", 
     getCandles: async (_symbol, _interval, since, limit) => {
       const candles = [];
       const intervalMs = 60000;
+      const alignedSince = alignTimestamp(since.getTime(), 1);
 
       for (let i = 0; i < limit; i++) {
-        const timestamp = since.getTime() + i * intervalMs;
+        const timestamp = alignedSince + i * intervalMs;
 
         // Все свечи на уровне TP - позиция немедленно закроется
         candles.push({
@@ -1302,9 +1420,10 @@ test("PERSIST: SHORT signal closes by SL after system restart - onClose called",
     getCandles: async (_symbol, _interval, since, limit) => {
       const candles = [];
       const intervalMs = 60000;
+      const alignedSince = alignTimestamp(since.getTime(), 1);
 
       for (let i = 0; i < limit; i++) {
-        const timestamp = since.getTime() + i * intervalMs;
+        const timestamp = alignedSince + i * intervalMs;
 
         // Все свечи на уровне SL - позиция немедленно закроется по SL
         candles.push({
@@ -1398,9 +1517,10 @@ test("PERSIST: Scheduled signal is NOT written to persist storage", async ({ pas
     getCandles: async (_symbol, _interval, since, limit) => {
       const candles = [];
       const intervalMs = 60000;
+      const alignedSince = alignTimestamp(since.getTime(), 1);
 
       for (let i = 0; i < limit; i++) {
-        const timestamp = since.getTime() + i * intervalMs;
+        const timestamp = alignedSince + i * intervalMs;
 
         // Все свечи НИЖЕ priceOpen=44000 - сигнал остается scheduled
         // basePrice=43000, priceOpen=44000
@@ -1524,9 +1644,10 @@ test("PERSIST: Only active signals persist, scheduled signals do not", async ({ 
     getCandles: async (_symbol, _interval, since, limit) => {
       const candles = [];
       const intervalMs = 60000;
+      const alignedSince = alignTimestamp(since.getTime(), 1);
 
       for (let i = 0; i < limit; i++) {
-        const timestamp = since.getTime() + i * intervalMs;
+        const timestamp = alignedSince + i * intervalMs;
 
         // Все свечи НИЖЕ priceOpen=44000 - сигнал остается scheduled
         // basePrice=43000, priceOpen=44000

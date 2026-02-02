@@ -1,5 +1,10 @@
 import { test } from "worker-testbed";
 
+const alignTimestamp = (timestampMs, intervalMinutes) => {
+  const intervalMs = intervalMinutes * 60 * 1000;
+  return Math.floor(timestampMs / intervalMs) * intervalMs;
+};
+
 import {
   addExchangeSchema,
   addFrameSchema,
@@ -29,28 +34,50 @@ test("DEFEND: LONG limit order activates BEFORE StopLoss (impossible to cancel p
   let openedResult = null;
   let closedResult = null;
 
+  const startTime = new Date("2024-01-01T00:00:00Z").getTime();
+  const intervalMs = 60000;
+  const bufferMinutes = 5;
+  const bufferStartTime = startTime - bufferMinutes * intervalMs;
+
+  let allCandles = [];
+  // Initialize buffer candles
+  for (let i = 0; i < 6; i++) {
+    const basePrice = 43000;
+    allCandles.push({
+      timestamp: bufferStartTime + i * intervalMs,
+      open: basePrice,
+      high: basePrice + 50,
+      low: basePrice - 50,
+      close: basePrice,
+      volume: 100,
+    });
+  }
+
   addExchangeSchema({
     exchangeName: "binance-defend-long-sl",
-    getCandles: async (_symbol, interval, since, limit) => {
-      // Цена падает резко: priceOpen достигается РАНЬШЕ StopLoss
-      const candles = [];
-      const intervalMs = 60000;
-
+    getCandles: async (_symbol, _interval, since, limit) => {
+      const alignedSince = alignTimestamp(since.getTime(), 1);
+      const result = [];
       for (let i = 0; i < limit; i++) {
-        const timestamp = since.getTime() + i * intervalMs;
-        const basePrice = 43000 - i * 200; // Падение на 200 каждую минуту
-
-        candles.push({
-          timestamp,
-          open: basePrice,
-          high: basePrice + 50,
-          low: basePrice - 50,  // i=10: low=40950 (активация), i=15: low=39950 (SL)
-          close: basePrice - 25,
-          volume: 100,
-        });
+        const timestamp = alignedSince + i * intervalMs;
+        const existingCandle = allCandles.find((c) => c.timestamp === timestamp);
+        if (existingCandle) {
+          result.push(existingCandle);
+        } else {
+          // Цена падает резко: priceOpen достигается РАНЬШЕ StopLoss
+          const candleIndex = Math.floor((timestamp - startTime) / intervalMs);
+          const basePrice = 43000 - candleIndex * 200; // Падение на 200 каждую минуту
+          result.push({
+            timestamp,
+            open: basePrice,
+            high: basePrice + 50,
+            low: basePrice - 50,  // i=10: low=40950 (активация), i=15: low=39950 (SL)
+            close: basePrice - 25,
+            volume: 100,
+          });
+        }
       }
-
-      return candles;
+      return result;
     },
     formatPrice: async (symbol, price) => price.toFixed(8),
     formatQuantity: async (symbol, quantity) => quantity.toFixed(8),
@@ -161,28 +188,50 @@ test("DEFEND: SHORT limit order activates BEFORE StopLoss (impossible to cancel 
   let openedResult = null;
   let closedResult = null;
 
+  const startTime = new Date("2024-01-01T00:00:00Z").getTime();
+  const intervalMs = 60000;
+  const bufferMinutes = 5;
+  const bufferStartTime = startTime - bufferMinutes * intervalMs;
+
+  let allCandles = [];
+  // Initialize buffer candles
+  for (let i = 0; i < 6; i++) {
+    const basePrice = 41000;
+    allCandles.push({
+      timestamp: bufferStartTime + i * intervalMs,
+      open: basePrice,
+      high: basePrice + 50,
+      low: basePrice - 50,
+      close: basePrice,
+      volume: 100,
+    });
+  }
+
   addExchangeSchema({
     exchangeName: "binance-defend-short-sl",
-    getCandles: async (_symbol, interval, since, limit) => {
-      // Цена растет резко: priceOpen достигается РАНЬШЕ StopLoss
-      const candles = [];
-      const intervalMs = 60000;
-
+    getCandles: async (_symbol, _interval, since, limit) => {
+      const alignedSince = alignTimestamp(since.getTime(), 1);
+      const result = [];
       for (let i = 0; i < limit; i++) {
-        const timestamp = since.getTime() + i * intervalMs;
-        const basePrice = 41000 + i * 200; // Рост на 200 каждую минуту
-
-        candles.push({
-          timestamp,
-          open: basePrice,
-          high: basePrice + 50,  // i=10: high=43050 (активация), i=15: high=44050 (SL)
-          low: basePrice - 50,
-          close: basePrice + 25,
-          volume: 100,
-        });
+        const timestamp = alignedSince + i * intervalMs;
+        const existingCandle = allCandles.find((c) => c.timestamp === timestamp);
+        if (existingCandle) {
+          result.push(existingCandle);
+        } else {
+          // Цена растет резко: priceOpen достигается РАНЬШЕ StopLoss
+          const candleIndex = Math.floor((timestamp - startTime) / intervalMs);
+          const basePrice = 41000 + candleIndex * 200; // Рост на 200 каждую минуту
+          result.push({
+            timestamp,
+            open: basePrice,
+            high: basePrice + 50,  // i=10: high=43050 (активация), i=15: high=44050 (SL)
+            low: basePrice - 50,
+            close: basePrice + 25,
+            volume: 100,
+          });
+        }
       }
-
-      return candles;
+      return result;
     },
     formatPrice: async (symbol, price) => price.toFixed(8),
     formatQuantity: async (symbol, quantity) => quantity.toFixed(8),
@@ -294,49 +343,71 @@ test("DEFEND: Scheduled signal activated and closed on same candle (instant TP)"
   let openedResult = null;
   let closedResult = null;
 
+  const startTime = new Date("2024-01-01T00:00:00Z").getTime();
+  const intervalMs = 60000;
+  const basePrice = 43000;
+  const bufferMinutes = 5;
+  const bufferStartTime = startTime - bufferMinutes * intervalMs;
+
+  let allCandles = [];
+  // Initialize buffer candles
+  for (let i = 0; i < 6; i++) {
+    allCandles.push({
+      timestamp: bufferStartTime + i * intervalMs,
+      open: basePrice,
+      high: basePrice + 100,
+      low: basePrice - 100,
+      close: basePrice,
+      volume: 100,
+    });
+  }
+
   addExchangeSchema({
     exchangeName: "binance-defend-instant-tp",
-    getCandles: async (_symbol, interval, since, limit) => {
-      const candles = [];
-      const intervalMs = 60000;
-
+    getCandles: async (_symbol, _interval, since, limit) => {
+      const alignedSince = alignTimestamp(since.getTime(), 1);
+      const result = [];
       for (let i = 0; i < limit; i++) {
-        const timestamp = since.getTime() + i * intervalMs;
-
-        if (i < 5) {
-          // Первые 5 свечей: цена высокая, scheduled signal ждет
-          candles.push({
-            timestamp,
-            open: 43000,
-            high: 43100,
-            low: 42900,
-            close: 43000,
-            volume: 100,
-          });
-        } else if (i === 5) {
-          // 6-я свеча: Падение для активации, потом рост для TP на той же свече!
-          candles.push({
-            timestamp,
-            open: 43000,
-            high: 43000,  // Максимум 43000 (выше TP=42000)
-            low: 40500,  // Падение до 40500 - активирует priceOpen=41000
-            close: 42500,  // Закрывается выше TP=42000 - сигнал закроется по TP
-            volume: 200,
-          });
+        const timestamp = alignedSince + i * intervalMs;
+        const existingCandle = allCandles.find((c) => c.timestamp === timestamp);
+        if (existingCandle) {
+          result.push(existingCandle);
         } else {
-          // Остальные свечи: цена остается высокой
-          candles.push({
-            timestamp,
-            open: 42500,
-            high: 42600,
-            low: 42400,
-            close: 42500,
-            volume: 100,
-          });
+          const candleIndex = Math.floor((timestamp - startTime) / intervalMs);
+          if (candleIndex < 5) {
+            // Первые 5 свечей: цена высокая, scheduled signal ждет
+            result.push({
+              timestamp,
+              open: 43000,
+              high: 43100,
+              low: 42900,
+              close: 43000,
+              volume: 100,
+            });
+          } else if (candleIndex === 5) {
+            // 6-я свеча: Падение для активации, потом рост для TP на той же свече!
+            result.push({
+              timestamp,
+              open: 43000,
+              high: 43000,  // Максимум 43000 (выше TP=42000)
+              low: 40500,  // Падение до 40500 - активирует priceOpen=41000
+              close: 42500,  // Закрывается выше TP=42000 - сигнал закроется по TP
+              volume: 200,
+            });
+          } else {
+            // Остальные свечи: цена остается высокой
+            result.push({
+              timestamp,
+              open: 42500,
+              high: 42600,
+              low: 42400,
+              close: 42500,
+              volume: 100,
+            });
+          }
         }
       }
-
-      return candles;
+      return result;
     },
     formatPrice: async (symbol, price) => price.toFixed(8),
     formatQuantity: async (symbol, quantity) => quantity.toFixed(8),
@@ -447,27 +518,47 @@ test("DEFEND: Timeout exactly at CC_SCHEDULE_AWAIT_MINUTES boundary (120min)", a
 
   let cancelledResult = null;
 
+  const startTime = new Date("2024-01-01T00:00:00Z").getTime();
+  const intervalMs = 60000;
+  const basePrice = 42000;
+  const bufferMinutes = 5;
+  const bufferStartTime = startTime - bufferMinutes * intervalMs;
+
+  let allCandles = [];
+  // Initialize buffer candles
+  for (let i = 0; i < 6; i++) {
+    allCandles.push({
+      timestamp: bufferStartTime + i * intervalMs,
+      open: basePrice,
+      high: basePrice + 100,
+      low: basePrice - 100,
+      close: basePrice,
+      volume: 100,
+    });
+  }
+
   addExchangeSchema({
     exchangeName: "binance-defend-exact-timeout",
-    getCandles: async (_symbol, interval, since, limit) => {
-      // Генерируем свечи с постоянной ценой (priceOpen не достигнется)
-      const candles = [];
-      const intervalMs = 60000;
-
+    getCandles: async (_symbol, _interval, since, limit) => {
+      const alignedSince = alignTimestamp(since.getTime(), 1);
+      const result = [];
       for (let i = 0; i < limit; i++) {
-        const timestamp = since.getTime() + i * intervalMs;
-
-        candles.push({
-          timestamp,
-          open: 42000,
-          high: 42100,
-          low: 41900,
-          close: 42000,
-          volume: 100,
-        });
+        const timestamp = alignedSince + i * intervalMs;
+        const existingCandle = allCandles.find((c) => c.timestamp === timestamp);
+        if (existingCandle) {
+          result.push(existingCandle);
+        } else {
+          result.push({
+            timestamp,
+            open: basePrice,
+            high: basePrice + 100,
+            low: basePrice - 100,
+            close: basePrice,
+            volume: 100,
+          });
+        }
       }
-
-      return candles;
+      return result;
     },
     formatPrice: async (symbol, price) => price.toFixed(8),
     formatQuantity: async (symbol, quantity) => quantity.toFixed(8),
@@ -548,25 +639,47 @@ test("DEFEND: Invalid LONG signal rejected (TP below priceOpen)", async ({ pass,
   let scheduledCount = 0;
   let openedCount = 0;
 
+  const startTime = new Date("2024-01-01T00:00:00Z").getTime();
+  const intervalMs = 60000;
+  const basePrice = 42000;
+  const bufferMinutes = 5;
+  const bufferStartTime = startTime - bufferMinutes * intervalMs;
+
+  let allCandles = [];
+  // Initialize buffer candles
+  for (let i = 0; i < 6; i++) {
+    allCandles.push({
+      timestamp: bufferStartTime + i * intervalMs,
+      open: basePrice,
+      high: basePrice + 100,
+      low: basePrice - 100,
+      close: basePrice,
+      volume: 100,
+    });
+  }
+
   addExchangeSchema({
     exchangeName: "binance-defend-invalid-long",
-    getCandles: async (_symbol, interval, since, limit) => {
-      const candles = [];
-      const intervalMs = 60000;
-
+    getCandles: async (_symbol, _interval, since, limit) => {
+      const alignedSince = alignTimestamp(since.getTime(), 1);
+      const result = [];
       for (let i = 0; i < limit; i++) {
-        const timestamp = since.getTime() + i * intervalMs;
-        candles.push({
-          timestamp,
-          open: 42000,
-          high: 42100,
-          low: 41900,
-          close: 42000,
-          volume: 100,
-        });
+        const timestamp = alignedSince + i * intervalMs;
+        const existingCandle = allCandles.find((c) => c.timestamp === timestamp);
+        if (existingCandle) {
+          result.push(existingCandle);
+        } else {
+          result.push({
+            timestamp,
+            open: basePrice,
+            high: basePrice + 100,
+            low: basePrice - 100,
+            close: basePrice,
+            volume: 100,
+          });
+        }
       }
-
-      return candles;
+      return result;
     },
     formatPrice: async (symbol, price) => price.toFixed(8),
     formatQuantity: async (symbol, quantity) => quantity.toFixed(8),
@@ -651,25 +764,47 @@ test("DEFEND: Invalid SHORT signal rejected (TP above priceOpen)", async ({ pass
   let scheduledCount = 0;
   let openedCount = 0;
 
+  const startTime = new Date("2024-01-01T00:00:00Z").getTime();
+  const intervalMs = 60000;
+  const basePrice = 42000;
+  const bufferMinutes = 5;
+  const bufferStartTime = startTime - bufferMinutes * intervalMs;
+
+  let allCandles = [];
+  // Initialize buffer candles
+  for (let i = 0; i < 6; i++) {
+    allCandles.push({
+      timestamp: bufferStartTime + i * intervalMs,
+      open: basePrice,
+      high: basePrice + 100,
+      low: basePrice - 100,
+      close: basePrice,
+      volume: 100,
+    });
+  }
+
   addExchangeSchema({
     exchangeName: "binance-defend-invalid-short",
-    getCandles: async (_symbol, interval, since, limit) => {
-      const candles = [];
-      const intervalMs = 60000;
-
+    getCandles: async (_symbol, _interval, since, limit) => {
+      const alignedSince = alignTimestamp(since.getTime(), 1);
+      const result = [];
       for (let i = 0; i < limit; i++) {
-        const timestamp = since.getTime() + i * intervalMs;
-        candles.push({
-          timestamp,
-          open: 42000,
-          high: 42100,
-          low: 41900,
-          close: 42000,
-          volume: 100,
-        });
+        const timestamp = alignedSince + i * intervalMs;
+        const existingCandle = allCandles.find((c) => c.timestamp === timestamp);
+        if (existingCandle) {
+          result.push(existingCandle);
+        } else {
+          result.push({
+            timestamp,
+            open: basePrice,
+            high: basePrice + 100,
+            low: basePrice - 100,
+            close: basePrice,
+            volume: 100,
+          });
+        }
       }
-
-      return candles;
+      return result;
     },
     formatPrice: async (symbol, price) => price.toFixed(8),
     formatQuantity: async (symbol, quantity) => quantity.toFixed(8),
@@ -754,25 +889,47 @@ test("DEFEND: Invalid StopLoss rejected (LONG: SL >= priceOpen)", async ({ pass,
   let scheduledCount = 0;
   let openedCount = 0;
 
+  const startTime = new Date("2024-01-01T00:00:00Z").getTime();
+  const intervalMs = 60000;
+  const basePrice = 42000;
+  const bufferMinutes = 5;
+  const bufferStartTime = startTime - bufferMinutes * intervalMs;
+
+  let allCandles = [];
+  // Initialize buffer candles
+  for (let i = 0; i < 6; i++) {
+    allCandles.push({
+      timestamp: bufferStartTime + i * intervalMs,
+      open: basePrice,
+      high: basePrice + 100,
+      low: basePrice - 100,
+      close: basePrice,
+      volume: 100,
+    });
+  }
+
   addExchangeSchema({
     exchangeName: "binance-defend-invalid-sl-long",
-    getCandles: async (_symbol, interval, since, limit) => {
-      const candles = [];
-      const intervalMs = 60000;
-
+    getCandles: async (_symbol, _interval, since, limit) => {
+      const alignedSince = alignTimestamp(since.getTime(), 1);
+      const result = [];
       for (let i = 0; i < limit; i++) {
-        const timestamp = since.getTime() + i * intervalMs;
-        candles.push({
-          timestamp,
-          open: 42000,
-          high: 42100,
-          low: 41900,
-          close: 42000,
-          volume: 100,
-        });
+        const timestamp = alignedSince + i * intervalMs;
+        const existingCandle = allCandles.find((c) => c.timestamp === timestamp);
+        if (existingCandle) {
+          result.push(existingCandle);
+        } else {
+          result.push({
+            timestamp,
+            open: basePrice,
+            high: basePrice + 100,
+            low: basePrice - 100,
+            close: basePrice,
+            volume: 100,
+          });
+        }
       }
-
-      return candles;
+      return result;
     },
     formatPrice: async (symbol, price) => price.toFixed(8),
     formatQuantity: async (symbol, quantity) => quantity.toFixed(8),
@@ -860,25 +1017,47 @@ test("DEFEND: Zero or missing StopLoss rejected - prevents unlimited losses", as
   let scheduledCount = 0;
   let openedCount = 0;
 
+  const startTime = new Date("2024-01-01T00:00:00Z").getTime();
+  const intervalMs = 60000;
+  const basePrice = 42000;
+  const bufferMinutes = 5;
+  const bufferStartTime = startTime - bufferMinutes * intervalMs;
+
+  let allCandles = [];
+  // Initialize buffer candles
+  for (let i = 0; i < 6; i++) {
+    allCandles.push({
+      timestamp: bufferStartTime + i * intervalMs,
+      open: basePrice,
+      high: basePrice + 100,
+      low: basePrice - 100,
+      close: basePrice,
+      volume: 100,
+    });
+  }
+
   addExchangeSchema({
     exchangeName: "binance-defend-zero-sl",
-    getCandles: async (_symbol, interval, since, limit) => {
-      const candles = [];
-      const intervalMs = 60000;
-
+    getCandles: async (_symbol, _interval, since, limit) => {
+      const alignedSince = alignTimestamp(since.getTime(), 1);
+      const result = [];
       for (let i = 0; i < limit; i++) {
-        const timestamp = since.getTime() + i * intervalMs;
-        candles.push({
-          timestamp,
-          open: 42000,
-          high: 42100,
-          low: 41900,
-          close: 42000,
-          volume: 100,
-        });
+        const timestamp = alignedSince + i * intervalMs;
+        const existingCandle = allCandles.find((c) => c.timestamp === timestamp);
+        if (existingCandle) {
+          result.push(existingCandle);
+        } else {
+          result.push({
+            timestamp,
+            open: basePrice,
+            high: basePrice + 100,
+            low: basePrice - 100,
+            close: basePrice,
+            volume: 100,
+          });
+        }
       }
-
-      return candles;
+      return result;
     },
     formatPrice: async (symbol, price) => price.toFixed(8),
     formatQuantity: async (symbol, quantity) => quantity.toFixed(8),
@@ -965,25 +1144,47 @@ test("DEFEND: SHORT signal with inverted TP/SL rejected (TP > priceOpen)", async
   let scheduledCount = 0;
   let openedCount = 0;
 
+  const startTime = new Date("2024-01-01T00:00:00Z").getTime();
+  const intervalMs = 60000;
+  const basePrice = 42000;
+  const bufferMinutes = 5;
+  const bufferStartTime = startTime - bufferMinutes * intervalMs;
+
+  let allCandles = [];
+  // Initialize buffer candles
+  for (let i = 0; i < 6; i++) {
+    allCandles.push({
+      timestamp: bufferStartTime + i * intervalMs,
+      open: basePrice,
+      high: basePrice + 100,
+      low: basePrice - 100,
+      close: basePrice,
+      volume: 100,
+    });
+  }
+
   addExchangeSchema({
     exchangeName: "binance-defend-inverted-short",
-    getCandles: async (_symbol, interval, since, limit) => {
-      const candles = [];
-      const intervalMs = 60000;
-
+    getCandles: async (_symbol, _interval, since, limit) => {
+      const alignedSince = alignTimestamp(since.getTime(), 1);
+      const result = [];
       for (let i = 0; i < limit; i++) {
-        const timestamp = since.getTime() + i * intervalMs;
-        candles.push({
-          timestamp,
-          open: 42000,
-          high: 42100,
-          low: 41900,
-          close: 42000,
-          volume: 100,
-        });
+        const timestamp = alignedSince + i * intervalMs;
+        const existingCandle = allCandles.find((c) => c.timestamp === timestamp);
+        if (existingCandle) {
+          result.push(existingCandle);
+        } else {
+          result.push({
+            timestamp,
+            open: basePrice,
+            high: basePrice + 100,
+            low: basePrice - 100,
+            close: basePrice,
+            volume: 100,
+          });
+        }
       }
-
-      return candles;
+      return result;
     },
     formatPrice: async (symbol, price) => price.toFixed(8),
     formatQuantity: async (symbol, quantity) => quantity.toFixed(8),
@@ -1071,25 +1272,47 @@ test("DEFEND: Zero minuteEstimatedTime rejected - prevents instant timeout", asy
   let scheduledCount = 0;
   let openedCount = 0;
 
+  const startTime = new Date("2024-01-01T00:00:00Z").getTime();
+  const intervalMs = 60000;
+  const basePrice = 42000;
+  const bufferMinutes = 5;
+  const bufferStartTime = startTime - bufferMinutes * intervalMs;
+
+  let allCandles = [];
+  // Initialize buffer candles
+  for (let i = 0; i < 6; i++) {
+    allCandles.push({
+      timestamp: bufferStartTime + i * intervalMs,
+      open: basePrice,
+      high: basePrice + 100,
+      low: basePrice - 100,
+      close: basePrice,
+      volume: 100,
+    });
+  }
+
   addExchangeSchema({
     exchangeName: "binance-defend-zero-time",
-    getCandles: async (_symbol, interval, since, limit) => {
-      const candles = [];
-      const intervalMs = 60000;
-
+    getCandles: async (_symbol, _interval, since, limit) => {
+      const alignedSince = alignTimestamp(since.getTime(), 1);
+      const result = [];
       for (let i = 0; i < limit; i++) {
-        const timestamp = since.getTime() + i * intervalMs;
-        candles.push({
-          timestamp,
-          open: 42000,
-          high: 42100,
-          low: 41900,
-          close: 42000,
-          volume: 100,
-        });
+        const timestamp = alignedSince + i * intervalMs;
+        const existingCandle = allCandles.find((c) => c.timestamp === timestamp);
+        if (existingCandle) {
+          result.push(existingCandle);
+        } else {
+          result.push({
+            timestamp,
+            open: basePrice,
+            high: basePrice + 100,
+            low: basePrice - 100,
+            close: basePrice,
+            volume: 100,
+          });
+        }
       }
-
-      return candles;
+      return result;
     },
     formatPrice: async (symbol, price) => price.toFixed(8),
     formatQuantity: async (symbol, quantity) => quantity.toFixed(8),
@@ -1176,25 +1399,47 @@ test("DEFEND: TakeProfit equals priceOpen rejected - zero profit guarantees fee 
   let scheduledCount = 0;
   let openedCount = 0;
 
+  const startTime = new Date("2024-01-01T00:00:00Z").getTime();
+  const intervalMs = 60000;
+  const basePrice = 42000;
+  const bufferMinutes = 5;
+  const bufferStartTime = startTime - bufferMinutes * intervalMs;
+
+  let allCandles = [];
+  // Initialize buffer candles
+  for (let i = 0; i < 6; i++) {
+    allCandles.push({
+      timestamp: bufferStartTime + i * intervalMs,
+      open: basePrice,
+      high: basePrice + 100,
+      low: basePrice - 100,
+      close: basePrice,
+      volume: 100,
+    });
+  }
+
   addExchangeSchema({
     exchangeName: "binance-defend-tp-equals-open",
-    getCandles: async (_symbol, interval, since, limit) => {
-      const candles = [];
-      const intervalMs = 60000;
-
+    getCandles: async (_symbol, _interval, since, limit) => {
+      const alignedSince = alignTimestamp(since.getTime(), 1);
+      const result = [];
       for (let i = 0; i < limit; i++) {
-        const timestamp = since.getTime() + i * intervalMs;
-        candles.push({
-          timestamp,
-          open: 42000,
-          high: 42100,
-          low: 41900,
-          close: 42000,
-          volume: 100,
-        });
+        const timestamp = alignedSince + i * intervalMs;
+        const existingCandle = allCandles.find((c) => c.timestamp === timestamp);
+        if (existingCandle) {
+          result.push(existingCandle);
+        } else {
+          result.push({
+            timestamp,
+            open: basePrice,
+            high: basePrice + 100,
+            low: basePrice - 100,
+            close: basePrice,
+            volume: 100,
+          });
+        }
       }
-
-      return candles;
+      return result;
     },
     formatPrice: async (symbol, price) => price.toFixed(8),
     formatQuantity: async (symbol, quantity) => quantity.toFixed(8),
@@ -1286,28 +1531,50 @@ test("DEFEND: Multiple scheduled signals queue correctly - respects risk limits"
   let currentlyActive = 0;
   let signalCounter = 0;
 
+  const startTime = new Date("2024-01-01T00:00:00Z").getTime();
+  const intervalMs = 60000;
+  const basePrice = 43000;
+  const bufferMinutes = 5;
+  const bufferStartTime = startTime - bufferMinutes * intervalMs;
+
+  let allCandles = [];
+  // Initialize buffer candles
+  for (let i = 0; i < 6; i++) {
+    allCandles.push({
+      timestamp: bufferStartTime + i * intervalMs,
+      open: basePrice,
+      high: basePrice + 50,
+      low: basePrice - 50,
+      close: basePrice,
+      volume: 100,
+    });
+  }
+
   addExchangeSchema({
     exchangeName: "binance-defend-multiple-scheduled",
-    getCandles: async (_symbol, interval, since, limit) => {
-      const candles = [];
-      const intervalMs = 60000;
-
+    getCandles: async (_symbol, _interval, since, limit) => {
+      const alignedSince = alignTimestamp(since.getTime(), 1);
+      const result = [];
       for (let i = 0; i < limit; i++) {
-        const timestamp = since.getTime() + i * intervalMs;
-        // Цена падает медленно, чтобы активировать scheduled сигналы
-        const basePrice = 43000 - i * 10;
-
-        candles.push({
-          timestamp,
-          open: basePrice,
-          high: basePrice + 50,
-          low: basePrice - 50,
-          close: basePrice,
-          volume: 100,
-        });
+        const timestamp = alignedSince + i * intervalMs;
+        const existingCandle = allCandles.find((c) => c.timestamp === timestamp);
+        if (existingCandle) {
+          result.push(existingCandle);
+        } else {
+          // Цена падает медленно, чтобы активировать scheduled сигналы
+          const candleIndex = Math.floor((timestamp - startTime) / intervalMs);
+          const candlePrice = basePrice - candleIndex * 10;
+          result.push({
+            timestamp,
+            open: candlePrice,
+            high: candlePrice + 50,
+            low: candlePrice - 50,
+            close: candlePrice,
+            volume: 100,
+          });
+        }
       }
-
-      return candles;
+      return result;
     },
     formatPrice: async (symbol, price) => price.toFixed(8),
     formatQuantity: async (symbol, quantity) => quantity.toFixed(8),
@@ -1396,41 +1663,63 @@ test("DEFEND: Scheduled LONG cancelled by SL BEFORE activation (price skips pric
   let openedResult = null;
   let cancelledResult = null;
 
+  const startTime = new Date("2024-01-01T00:00:00Z").getTime();
+  const intervalMs = 60000;
+  const basePrice = 45000;
+  const bufferMinutes = 5;
+  const bufferStartTime = startTime - bufferMinutes * intervalMs;
+
+  let allCandles = [];
+  // Initialize buffer candles
+  for (let i = 0; i < 6; i++) {
+    allCandles.push({
+      timestamp: bufferStartTime + i * intervalMs,
+      open: basePrice,
+      high: basePrice + 100,
+      low: basePrice - 100,
+      close: basePrice,
+      volume: 100,
+    });
+  }
+
   addExchangeSchema({
     exchangeName: "binance-defend-scheduled-sl-cancel",
-    getCandles: async (_symbol, interval, since, limit) => {
-      const candles = [];
-      const intervalMs = 60000;
-
+    getCandles: async (_symbol, _interval, since, limit) => {
+      const alignedSince = alignTimestamp(since.getTime(), 1);
+      const result = [];
       for (let i = 0; i < limit; i++) {
-        const timestamp = since.getTime() + i * intervalMs;
-
-        if (i < 5) {
-          // Первые 5 свечей: цена высокая (45000), scheduled ждет
-          candles.push({
-            timestamp,
-            open: 45000,
-            high: 45100,
-            low: 44900,
-            close: 45000,
-            volume: 100,
-          });
+        const timestamp = alignedSince + i * intervalMs;
+        const existingCandle = allCandles.find((c) => c.timestamp === timestamp);
+        if (existingCandle) {
+          result.push(existingCandle);
         } else {
-          // С 6-й свечи: РЕЗКОЕ падение, МИНУЯ priceOpen=42000!
-          // Цена падает от 45000 сразу до 39000 (ниже SL=40000)
-          const basePrice = 39000; // Ниже SL=40000, НЕ достигает priceOpen=42000
-          candles.push({
-            timestamp,
-            open: basePrice,
-            high: basePrice + 100,
-            low: basePrice - 100,
-            close: basePrice,
-            volume: 100,
-          });
+          const candleIndex = Math.floor((timestamp - startTime) / intervalMs);
+          if (candleIndex < 5) {
+            // Первые 5 свечей: цена высокая (45000), scheduled ждет
+            result.push({
+              timestamp,
+              open: 45000,
+              high: 45100,
+              low: 44900,
+              close: 45000,
+              volume: 100,
+            });
+          } else {
+            // С 6-й свечи: РЕЗКОЕ падение, МИНУЯ priceOpen=42000!
+            // Цена падает от 45000 сразу до 39000 (ниже SL=40000)
+            const fallPrice = 39000; // Ниже SL=40000, НЕ достигает priceOpen=42000
+            result.push({
+              timestamp,
+              open: fallPrice,
+              high: fallPrice + 100,
+              low: fallPrice - 100,
+              close: fallPrice,
+              volume: 100,
+            });
+          }
         }
       }
-
-      return candles;
+      return result;
     },
     formatPrice: async (symbol, price) => price.toFixed(8),
     formatQuantity: async (symbol, quantity) => quantity.toFixed(8),
@@ -1621,25 +1910,47 @@ test("DEFEND: Backtest fails gracefully when listenSignalBacktest throws error",
   let errorCaught = null;
   let signalReceived = false;
 
+  const startTime = new Date("2024-01-01T00:00:00Z").getTime();
+  const intervalMs = 60000;
+  const basePrice = 42000;
+  const bufferMinutes = 5;
+  const bufferStartTime = startTime - bufferMinutes * intervalMs;
+
+  let allCandles = [];
+  // Initialize buffer candles
+  for (let i = 0; i < 6; i++) {
+    allCandles.push({
+      timestamp: bufferStartTime + i * intervalMs,
+      open: basePrice,
+      high: basePrice + 100,
+      low: basePrice - 100,
+      close: basePrice,
+      volume: 100,
+    });
+  }
+
   addExchangeSchema({
     exchangeName: "binance-defend-listener-error",
-    getCandles: async (_symbol, interval, since, limit) => {
-      const candles = [];
-      const intervalMs = 60000;
-
+    getCandles: async (_symbol, _interval, since, limit) => {
+      const alignedSince = alignTimestamp(since.getTime(), 1);
+      const result = [];
       for (let i = 0; i < limit; i++) {
-        const timestamp = since.getTime() + i * intervalMs;
-        candles.push({
-          timestamp,
-          open: 42000,
-          high: 42100,
-          low: 41900,
-          close: 42000,
-          volume: 100,
-        });
+        const timestamp = alignedSince + i * intervalMs;
+        const existingCandle = allCandles.find((c) => c.timestamp === timestamp);
+        if (existingCandle) {
+          result.push(existingCandle);
+        } else {
+          result.push({
+            timestamp,
+            open: basePrice,
+            high: basePrice + 100,
+            low: basePrice - 100,
+            close: basePrice,
+            volume: 100,
+          });
+        }
       }
-
-      return candles;
+      return result;
     },
     formatPrice: async (_symbol, price) => price.toFixed(8),
     formatQuantity: async (_symbol, quantity) => quantity.toFixed(8),

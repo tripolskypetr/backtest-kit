@@ -1,5 +1,10 @@
 import { test } from "worker-testbed";
 
+const alignTimestamp = (timestampMs, intervalMinutes) => {
+  const intervalMs = intervalMinutes * 60 * 1000;
+  return Math.floor(timestampMs / intervalMs) * intervalMs;
+};
+
 import {
   addExchangeSchema,
   addFrameSchema,
@@ -606,13 +611,15 @@ test("PERSIST SEQUENCE: Track writeValue content - 2 LONG signals (TP, SL)", asy
   const intervalMs = 60000;
   const basePrice = 95000;
   const priceOpen = basePrice - 500; // НИЖЕ текущей цены для LONG → scheduled
+  const bufferMinutes = 5;
+  const bufferStartTime = startTime - bufferMinutes * intervalMs;
 
   let allCandles = [];
 
   // Предзаполняем начальные свечи для getAveragePrice - ВЫШЕ priceOpen для scheduled состояния
-  for (let i = 0; i < 5; i++) {
+  for (let i = 0; i < 6; i++) {
     allCandles.push({
-      timestamp: startTime + i * intervalMs,
+      timestamp: bufferStartTime + i * intervalMs,
       open: basePrice,
       high: basePrice + 100,
       low: basePrice - 100, // Не падает до priceOpen
@@ -624,9 +631,25 @@ test("PERSIST SEQUENCE: Track writeValue content - 2 LONG signals (TP, SL)", asy
   addExchangeSchema({
     exchangeName: "binance-persist-seq-1",
     getCandles: async (_symbol, _interval, since, limit) => {
-      const sinceIndex = Math.floor((since.getTime() - startTime) / intervalMs);
-      const result = allCandles.slice(sinceIndex, sinceIndex + limit);
-      return result.length > 0 ? result : allCandles.slice(0, Math.min(limit, allCandles.length));
+      const alignedSince = alignTimestamp(since.getTime(), 1);
+      const result = [];
+      for (let i = 0; i < limit; i++) {
+        const timestamp = alignedSince + i * intervalMs;
+        const existingCandle = allCandles.find((c) => c.timestamp === timestamp);
+        if (existingCandle) {
+          result.push(existingCandle);
+        } else {
+          result.push({
+            timestamp,
+            open: basePrice,
+            high: basePrice + 100,
+            low: basePrice - 50,
+            close: basePrice,
+            volume: 100,
+          });
+        }
+      }
+      return result;
     },
     formatPrice: async (_symbol, p) => p.toFixed(8),
     formatQuantity: async (_symbol, quantity) => quantity.toFixed(8),
@@ -783,13 +806,15 @@ test("PERSIST SEQUENCE: Verify all signal fields in writeValue", async ({ pass, 
   const intervalMs = 60000;
   const basePrice = 95000;
   const priceOpen = basePrice - 500; // НИЖЕ текущей цены для LONG → scheduled
+  const bufferMinutes = 5;
+  const bufferStartTime = startTime - bufferMinutes * intervalMs;
 
   let allCandles = [];
 
   // Начальные свечи ВЫШЕ priceOpen для scheduled состояния
-  for (let i = 0; i < 5; i++) {
+  for (let i = 0; i < 6; i++) {
     allCandles.push({
-      timestamp: startTime + i * intervalMs,
+      timestamp: bufferStartTime + i * intervalMs,
       open: basePrice,
       high: basePrice + 100,
       low: basePrice - 100, // Не падает до priceOpen
@@ -801,9 +826,25 @@ test("PERSIST SEQUENCE: Verify all signal fields in writeValue", async ({ pass, 
   addExchangeSchema({
     exchangeName: "binance-persist-seq-2",
     getCandles: async (_symbol, _interval, since, limit) => {
-      const sinceIndex = Math.floor((since.getTime() - startTime) / intervalMs);
-      const result = allCandles.slice(sinceIndex, sinceIndex + limit);
-      return result.length > 0 ? result : allCandles.slice(0, Math.min(limit, allCandles.length));
+      const alignedSince = alignTimestamp(since.getTime(), 1);
+      const result = [];
+      for (let i = 0; i < limit; i++) {
+        const timestamp = alignedSince + i * intervalMs;
+        const existingCandle = allCandles.find((c) => c.timestamp === timestamp);
+        if (existingCandle) {
+          result.push(existingCandle);
+        } else {
+          result.push({
+            timestamp,
+            open: basePrice,
+            high: basePrice + 100,
+            low: basePrice - 50,
+            close: basePrice,
+            volume: 100,
+          });
+        }
+      }
+      return result;
     },
     formatPrice: async (_symbol, p) => p.toFixed(8),
     formatQuantity: async (_symbol, quantity) => quantity.toFixed(8),
@@ -937,12 +978,14 @@ test("PERSIST SEQUENCE: SHORT signal lifecycle tracking", async ({ pass, fail })
   const startTime = new Date("2024-01-01T00:00:00Z").getTime();
   const intervalMs = 60000;
   const basePrice = 95000;
+  const bufferMinutes = 5;
+  const bufferStartTime = startTime - bufferMinutes * intervalMs;
 
   let allCandles = [];
 
-  for (let i = 0; i < 5; i++) {
+  for (let i = 0; i < 6; i++) {
     allCandles.push({
-      timestamp: startTime + i * intervalMs,
+      timestamp: bufferStartTime + i * intervalMs,
       open: basePrice,
       high: basePrice + 100,
       low: basePrice - 100,
@@ -954,9 +997,25 @@ test("PERSIST SEQUENCE: SHORT signal lifecycle tracking", async ({ pass, fail })
   addExchangeSchema({
     exchangeName: "binance-persist-seq-3",
     getCandles: async (_symbol, _interval, since, limit) => {
-      const sinceIndex = Math.floor((since.getTime() - startTime) / intervalMs);
-      const result = allCandles.slice(sinceIndex, sinceIndex + limit);
-      return result.length > 0 ? result : allCandles.slice(0, Math.min(limit, allCandles.length));
+      const alignedSince = alignTimestamp(since.getTime(), 1);
+      const result = [];
+      for (let i = 0; i < limit; i++) {
+        const timestamp = alignedSince + i * intervalMs;
+        const existingCandle = allCandles.find((c) => c.timestamp === timestamp);
+        if (existingCandle) {
+          result.push(existingCandle);
+        } else {
+          result.push({
+            timestamp,
+            open: basePrice,
+            high: basePrice + 100,
+            low: basePrice - 50,
+            close: basePrice,
+            volume: 100,
+          });
+        }
+      }
+      return result;
     },
     formatPrice: async (_symbol, p) => p.toFixed(8),
     formatQuantity: async (_symbol, quantity) => quantity.toFixed(8),
@@ -1092,13 +1151,15 @@ test("PERSIST SEQUENCE: Multiple signals (TP, SL, cancelled) - verify onWrite li
   const intervalMs = 60000;
   const basePrice = 95000;
   const priceOpen = basePrice - 500; // НИЖЕ текущей цены для LONG → scheduled
+  const bufferMinutes = 5;
+  const bufferStartTime = startTime - bufferMinutes * intervalMs;
 
   let allCandles = [];
 
   // Начальные свечи ВЫШЕ priceOpen для scheduled состояния
-  for (let i = 0; i < 5; i++) {
+  for (let i = 0; i < 6; i++) {
     allCandles.push({
-      timestamp: startTime + i * intervalMs,
+      timestamp: bufferStartTime + i * intervalMs,
       open: basePrice,
       high: basePrice + 100,
       low: basePrice - 50,
@@ -1110,9 +1171,25 @@ test("PERSIST SEQUENCE: Multiple signals (TP, SL, cancelled) - verify onWrite li
   addExchangeSchema({
     exchangeName: "binance-persist-seq-4",
     getCandles: async (_symbol, _interval, since, limit) => {
-      const sinceIndex = Math.floor((since.getTime() - startTime) / intervalMs);
-      const result = allCandles.slice(sinceIndex, sinceIndex + limit);
-      return result.length > 0 ? result : allCandles.slice(0, Math.min(limit, allCandles.length));
+      const alignedSince = alignTimestamp(since.getTime(), 1);
+      const result = [];
+      for (let i = 0; i < limit; i++) {
+        const timestamp = alignedSince + i * intervalMs;
+        const existingCandle = allCandles.find((c) => c.timestamp === timestamp);
+        if (existingCandle) {
+          result.push(existingCandle);
+        } else {
+          result.push({
+            timestamp,
+            open: basePrice,
+            high: basePrice + 100,
+            low: basePrice - 50,
+            close: basePrice,
+            volume: 100,
+          });
+        }
+      }
+      return result;
     },
     formatPrice: async (_symbol, p) => p.toFixed(8),
     formatQuantity: async (_symbol, quantity) => quantity.toFixed(8),
@@ -1287,13 +1364,15 @@ test("PERSIST SEQUENCE: onWrite(null) called AFTER onClose - correct lifecycle o
   const intervalMs = 60000;
   const basePrice = 95000;
   const priceOpen = basePrice - 500; // НИЖЕ текущей цены для LONG → scheduled
+  const bufferMinutes = 5;
+  const bufferStartTime = startTime - bufferMinutes * intervalMs;
 
   let allCandles = [];
 
   // Начальные свечи ВЫШЕ priceOpen для scheduled состояния
-  for (let i = 0; i < 5; i++) {
+  for (let i = 0; i < 6; i++) {
     allCandles.push({
-      timestamp: startTime + i * intervalMs,
+      timestamp: bufferStartTime + i * intervalMs,
       open: basePrice,
       high: basePrice + 100,
       low: basePrice - 100, // Не падает до priceOpen
@@ -1305,9 +1384,25 @@ test("PERSIST SEQUENCE: onWrite(null) called AFTER onClose - correct lifecycle o
   addExchangeSchema({
     exchangeName: "binance-persist-seq-5",
     getCandles: async (_symbol, _interval, since, limit) => {
-      const sinceIndex = Math.floor((since.getTime() - startTime) / intervalMs);
-      const result = allCandles.slice(sinceIndex, sinceIndex + limit);
-      return result.length > 0 ? result : allCandles.slice(0, Math.min(limit, allCandles.length));
+      const alignedSince = alignTimestamp(since.getTime(), 1);
+      const result = [];
+      for (let i = 0; i < limit; i++) {
+        const timestamp = alignedSince + i * intervalMs;
+        const existingCandle = allCandles.find((c) => c.timestamp === timestamp);
+        if (existingCandle) {
+          result.push(existingCandle);
+        } else {
+          result.push({
+            timestamp,
+            open: basePrice,
+            high: basePrice + 100,
+            low: basePrice - 50,
+            close: basePrice,
+            volume: 100,
+          });
+        }
+      }
+      return result;
     },
     formatPrice: async (_symbol, p) => p.toFixed(8),
     formatQuantity: async (_symbol, quantity) => quantity.toFixed(8),

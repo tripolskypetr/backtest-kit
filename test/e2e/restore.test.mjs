@@ -10,6 +10,11 @@ import {
 
 import { sleep } from "functools-kit";
 
+const alignTimestamp = (timestampMs, intervalMinutes) => {
+  const intervalMs = intervalMinutes * 60 * 1000;
+  return Math.floor(timestampMs / intervalMs) * intervalMs;
+};
+
 /**
  * RESTORE TEST #1: Pending signal restore after crash
  *
@@ -61,9 +66,10 @@ test("RESTORE: Pending signal is restored after crash", async ({ pass, fail }) =
     getCandles: async (_symbol, _interval, since, limit) => {
       const candles = [];
       const intervalMs = 60000;
+      const alignedSince = alignTimestamp(since.getTime(), 1);
 
       for (let i = 0; i < limit; i++) {
-        const timestamp = since.getTime() + i * intervalMs;
+        const timestamp = alignedSince + i * intervalMs;
         candles.push({
           timestamp,
           open: basePrice + 500,
@@ -179,9 +185,10 @@ test("RESTORE: Scheduled signal is restored after crash", async ({ pass, fail })
     getCandles: async (_symbol, _interval, since, limit) => {
       const candles = [];
       const intervalMs = 60000;
+      const alignedSince = alignTimestamp(since.getTime(), 1);
 
       for (let i = 0; i < limit; i++) {
-        const timestamp = since.getTime() + i * intervalMs;
+        const timestamp = alignedSince + i * intervalMs;
         candles.push({
           timestamp,
           open: 3200,
@@ -287,9 +294,10 @@ test("RESTORE: Ignore signal if exchange name mismatches", async ({ pass, fail }
     getCandles: async (_symbol, _interval, since, limit) => {
       const candles = [];
       const intervalMs = 60000;
+      const alignedSince = alignTimestamp(since.getTime(), 1);
 
       for (let i = 0; i < limit; i++) {
-        const timestamp = since.getTime() + i * intervalMs;
+        const timestamp = alignedSince + i * intervalMs;
         candles.push({
           timestamp,
           open: basePrice,
@@ -379,9 +387,10 @@ test("RESTORE: Ignore signal if strategy name mismatches", async ({ pass, fail }
     getCandles: async (_symbol, _interval, since, limit) => {
       const candles = [];
       const intervalMs = 60000;
+      const alignedSince = alignTimestamp(since.getTime(), 1);
 
       for (let i = 0; i < limit; i++) {
-        const timestamp = since.getTime() + i * intervalMs;
+        const timestamp = alignedSince + i * intervalMs;
         candles.push({
           timestamp,
           open: basePrice,
@@ -468,9 +477,10 @@ test("RESTORE: Handle empty storage gracefully on restart", async ({ pass, fail 
     getCandles: async (_symbol, _interval, since, limit) => {
       const candles = [];
       const intervalMs = 60000;
+      const alignedSince = alignTimestamp(since.getTime(), 1);
 
       for (let i = 0; i < limit; i++) {
-        const timestamp = since.getTime() + i * intervalMs;
+        const timestamp = alignedSince + i * intervalMs;
         candles.push({
           timestamp,
           open: basePrice,

@@ -1,5 +1,10 @@
 import { test } from "worker-testbed";
 
+const alignTimestamp = (timestampMs, intervalMinutes) => {
+  const intervalMs = intervalMinutes * 60 * 1000;
+  return Math.floor(timestampMs / intervalMs) * intervalMs;
+};
+
 import {
   addExchangeSchema,
   addFrameSchema,
@@ -31,28 +36,48 @@ test("OTHER: Concurrent signals with same priceOpen - prevents double activation
   let currentlyActive = 0;
   let signalCounter = 0;
 
+  const startTime = new Date("2024-01-01T00:00:00Z").getTime();
+  const intervalMs = 60000;
+  const basePrice = 43000;
+  const bufferMinutes = 5;
+  const bufferStartTime = startTime - bufferMinutes * intervalMs;
+
+  let allCandles = [];
+  for (let i = 0; i < 6; i++) {
+    allCandles.push({
+      timestamp: bufferStartTime + i * intervalMs,
+      open: basePrice,
+      high: basePrice + 100,
+      low: basePrice - 50,
+      close: basePrice,
+      volume: 100,
+    });
+  }
+
   addExchangeSchema({
     exchangeName: "binance-other-concurrent",
-    getCandles: async (_symbol, interval, since, limit) => {
-      const candles = [];
-      const intervalMs = 60000;
-
+    getCandles: async (_symbol, _interval, since, limit) => {
+      const alignedSince = alignTimestamp(since.getTime(), 1);
+      const result = [];
       for (let i = 0; i < limit; i++) {
-        const timestamp = since.getTime() + i * intervalMs;
-        // Цена падает медленно для активации
-        const basePrice = 43000 - i * 50;
-
-        candles.push({
-          timestamp,
-          open: basePrice,
-          high: basePrice + 50,
-          low: basePrice - 50,
-          close: basePrice,
-          volume: 100,
-        });
+        const timestamp = alignedSince + i * intervalMs;
+        const existingCandle = allCandles.find((c) => c.timestamp === timestamp);
+        if (existingCandle) {
+          result.push(existingCandle);
+        } else {
+          // Цена падает медленно для активации
+          const candlePrice = basePrice - i * 50;
+          result.push({
+            timestamp,
+            open: candlePrice,
+            high: candlePrice + 50,
+            low: candlePrice - 50,
+            close: candlePrice,
+            volume: 100,
+          });
+        }
       }
-
-      return candles;
+      return result;
     },
     formatPrice: async (symbol, price) => price.toFixed(8),
     formatQuantity: async (symbol, quantity) => quantity.toFixed(8),
@@ -140,29 +165,48 @@ test("OTHER: Breakeven after fees - profit margin edge case", async ({ pass, fai
   let closedResult = null;
   let signalGenerated = false;
 
+  const startTime = new Date("2024-01-01T00:00:00Z").getTime();
+  const intervalMs = 60000;
+  const basePrice = 42000;
+  const bufferMinutes = 5;
+  const bufferStartTime = startTime - bufferMinutes * intervalMs;
+
+  let allCandles = [];
+  for (let i = 0; i < 6; i++) {
+    allCandles.push({
+      timestamp: bufferStartTime + i * intervalMs,
+      open: basePrice,
+      high: basePrice + 100,
+      low: basePrice - 50,
+      close: basePrice,
+      volume: 100,
+    });
+  }
+
   addExchangeSchema({
     exchangeName: "binance-other-breakeven",
-    getCandles: async (_symbol, interval, since, limit) => {
-      const candles = [];
-      const intervalMs = 60000;
-
+    getCandles: async (_symbol, _interval, since, limit) => {
+      const alignedSince = alignTimestamp(since.getTime(), 1);
+      const result = [];
       for (let i = 0; i < limit; i++) {
-        const timestamp = since.getTime() + i * intervalMs;
-
-        // i=5: цена достигает TP=42084
-        const price = i < 5 ? 42000 : 42100;
-
-        candles.push({
-          timestamp,
-          open: price,
-          high: price + 50,
-          low: price - 50,
-          close: price,
-          volume: 100,
-        });
+        const timestamp = alignedSince + i * intervalMs;
+        const existingCandle = allCandles.find((c) => c.timestamp === timestamp);
+        if (existingCandle) {
+          result.push(existingCandle);
+        } else {
+          // i=5: цена достигает TP=42084
+          const price = i < 6 ? basePrice : 42100;
+          result.push({
+            timestamp,
+            open: price,
+            high: price + 50,
+            low: price - 50,
+            close: price,
+            volume: 100,
+          });
+        }
       }
-
-      return candles;
+      return result;
     },
     formatPrice: async (symbol, price) => price.toFixed(8),
     formatQuantity: async (symbol, quantity) => quantity.toFixed(8),
@@ -261,50 +305,72 @@ test("OTHER: Flash crash extreme volatility - StopLoss triggers correctly", asyn
   let closedResult = null;
   let signalGenerated = false;
 
+  const startTime = new Date("2024-01-01T00:00:00Z").getTime();
+  const intervalMs = 60000;
+  const basePrice = 42000;
+  const bufferMinutes = 5;
+  const bufferStartTime = startTime - bufferMinutes * intervalMs;
+
+  let allCandles = [];
+  for (let i = 0; i < 6; i++) {
+    allCandles.push({
+      timestamp: bufferStartTime + i * intervalMs,
+      open: basePrice,
+      high: basePrice + 100,
+      low: basePrice - 50,
+      close: basePrice,
+      volume: 100,
+    });
+  }
+
   addExchangeSchema({
     exchangeName: "binance-other-flash-crash",
-    getCandles: async (_symbol, interval, since, limit) => {
-      const candles = [];
-      const intervalMs = 60000;
-
+    getCandles: async (_symbol, _interval, since, limit) => {
+      const alignedSince = alignTimestamp(since.getTime(), 1);
+      const result = [];
       for (let i = 0; i < limit; i++) {
-        const timestamp = since.getTime() + i * intervalMs;
-
-        if (i >= 5 && i <= 10) {
-          // Flash crash: -30% за 5 минут
-          const crashPrice = 42000 * (1 - 0.3 * ((i - 5) / 5));
-          candles.push({
-            timestamp,
-            open: i === 5 ? 42000 : crashPrice + 1000,
-            high: i === 5 ? 42000 : crashPrice + 1000,
-            low: crashPrice,
-            close: crashPrice,
-            volume: 10000, // Огромный объем
-          });
-        } else if (i > 10) {
-          // Восстановление после краша
-          candles.push({
-            timestamp,
-            open: 40000,
-            high: 41000,
-            low: 39500,
-            close: 40500,
-            volume: 1000,
-          });
+        const timestamp = alignedSince + i * intervalMs;
+        const existingCandle = allCandles.find((c) => c.timestamp === timestamp);
+        if (existingCandle) {
+          result.push(existingCandle);
         } else {
-          // Нормальная торговля до краша
-          candles.push({
-            timestamp,
-            open: 42000,
-            high: 42100,
-            low: 41900,
-            close: 42000,
-            volume: 100,
-          });
+          // Calculate index relative to start for crash logic
+          const relativeIdx = Math.floor((timestamp - startTime) / intervalMs);
+          if (relativeIdx >= 5 && relativeIdx <= 10) {
+            // Flash crash: -30% за 5 минут
+            const crashPrice = basePrice * (1 - 0.3 * ((relativeIdx - 5) / 5));
+            result.push({
+              timestamp,
+              open: relativeIdx === 5 ? basePrice : crashPrice + 1000,
+              high: relativeIdx === 5 ? basePrice : crashPrice + 1000,
+              low: crashPrice,
+              close: crashPrice,
+              volume: 10000,
+            });
+          } else if (relativeIdx > 10) {
+            // Восстановление после краша
+            result.push({
+              timestamp,
+              open: 40000,
+              high: 41000,
+              low: 39500,
+              close: 40500,
+              volume: 1000,
+            });
+          } else {
+            // Нормальная торговля до краша
+            result.push({
+              timestamp,
+              open: basePrice,
+              high: basePrice + 100,
+              low: basePrice - 100,
+              close: basePrice,
+              volume: 100,
+            });
+          }
         }
       }
-
-      return candles;
+      return result;
     },
     formatPrice: async (symbol, price) => price.toFixed(8),
     formatQuantity: async (symbol, quantity) => quantity.toFixed(8),
@@ -382,48 +448,70 @@ test("OTHER: Gap down scenario - scheduled LONG signal activation through gap", 
   let openedResult = null;
   let signalGenerated = false;
 
+  const startTime = new Date("2024-01-01T00:00:00Z").getTime();
+  const intervalMs = 60000;
+  const basePrice = 45000;
+  const bufferMinutes = 5;
+  const bufferStartTime = startTime - bufferMinutes * intervalMs;
+
+  let allCandles = [];
+  for (let i = 0; i < 6; i++) {
+    allCandles.push({
+      timestamp: bufferStartTime + i * intervalMs,
+      open: basePrice,
+      high: basePrice + 100,
+      low: basePrice - 50,
+      close: basePrice,
+      volume: 100,
+    });
+  }
+
   addExchangeSchema({
     exchangeName: "binance-other-gap",
-    getCandles: async (_symbol, interval, since, limit) => {
-      const candles = [];
-      const intervalMs = 60000;
-
+    getCandles: async (_symbol, _interval, since, limit) => {
+      const alignedSince = alignTimestamp(since.getTime(), 1);
+      const result = [];
       for (let i = 0; i < limit; i++) {
-        const timestamp = since.getTime() + i * intervalMs;
-
-        if (i === 5) {
-          // Gap down: цена падает с 45000 до 42000
-          candles.push({
-            timestamp,
-            open: 42000, // Gap! Пропускаем priceOpen=43000
-            high: 42500,
-            low: 41500,
-            close: 42000,
-            volume: 5000,
-          });
-        } else if (i < 5) {
-          // Начальная цена ВЫШЕ priceOpen - сигнал будет scheduled
-          candles.push({
-            timestamp,
-            open: 45000,
-            high: 45100,
-            low: 44900,
-            close: 45000,
-            volume: 100,
-          });
+        const timestamp = alignedSince + i * intervalMs;
+        const existingCandle = allCandles.find((c) => c.timestamp === timestamp);
+        if (existingCandle) {
+          result.push(existingCandle);
         } else {
-          candles.push({
-            timestamp,
-            open: 42000,
-            high: 42100,
-            low: 41900,
-            close: 42000,
-            volume: 100,
-          });
+          // Calculate index relative to start for gap logic
+          const relativeIdx = Math.floor((timestamp - startTime) / intervalMs);
+          if (relativeIdx === 5) {
+            // Gap down: цена падает с 45000 до 42000
+            result.push({
+              timestamp,
+              open: 42000, // Gap! Пропускаем priceOpen=43000
+              high: 42500,
+              low: 41500,
+              close: 42000,
+              volume: 5000,
+            });
+          } else if (relativeIdx < 5) {
+            // Начальная цена ВЫШЕ priceOpen - сигнал будет scheduled
+            result.push({
+              timestamp,
+              open: basePrice,
+              high: basePrice + 100,
+              low: basePrice - 100,
+              close: basePrice,
+              volume: 100,
+            });
+          } else {
+            result.push({
+              timestamp,
+              open: 42000,
+              high: 42100,
+              low: 41900,
+              close: 42000,
+              volume: 100,
+            });
+          }
         }
       }
-
-      return candles;
+      return result;
     },
     formatPrice: async (symbol, price) => price.toFixed(8),
     formatQuantity: async (symbol, quantity) => quantity.toFixed(8),
@@ -508,28 +596,48 @@ test("OTHER: Immediate activation - LONG position opens instantly when priceOpen
   const currentPrice = 42000; // Текущая цена на рынке
   const priceOpen = 43000;    // Вход ВЫШЕ текущей цены - для LONG это означает НЕМЕДЛЕННУЮ активацию
 
+  const startTime = new Date("2024-01-01T00:00:00Z").getTime();
+  const intervalMs = 60000;
+  const basePrice = currentPrice;
+  const bufferMinutes = 5;
+  const bufferStartTime = startTime - bufferMinutes * intervalMs;
+
+  let allCandles = [];
+  for (let i = 0; i < 6; i++) {
+    allCandles.push({
+      timestamp: bufferStartTime + i * intervalMs,
+      open: basePrice,
+      high: basePrice + 100,
+      low: basePrice - 50,
+      close: basePrice,
+      volume: 100,
+    });
+  }
+
   addExchangeSchema({
     exchangeName: "binance-other-immediate",
-    getCandles: async (_symbol, interval, since, limit) => {
-      const candles = [];
-      const intervalMs = 60000;
-
+    getCandles: async (_symbol, _interval, since, limit) => {
+      const alignedSince = alignTimestamp(since.getTime(), 1);
+      const result = [];
       for (let i = 0; i < limit; i++) {
-        const timestamp = since.getTime() + i * intervalMs;
-
-        // Все свечи на уровне currentPrice (НИЖЕ priceOpen для LONG)
-        // Это означает что позиция должна активироваться СРАЗУ
-        candles.push({
-          timestamp,
-          open: currentPrice,
-          high: currentPrice + 100,
-          low: currentPrice - 100,
-          close: currentPrice,
-          volume: 100,
-        });
+        const timestamp = alignedSince + i * intervalMs;
+        const existingCandle = allCandles.find((c) => c.timestamp === timestamp);
+        if (existingCandle) {
+          result.push(existingCandle);
+        } else {
+          // Все свечи на уровне currentPrice (НИЖЕ priceOpen для LONG)
+          // Это означает что позиция должна активироваться СРАЗУ
+          result.push({
+            timestamp,
+            open: basePrice,
+            high: basePrice + 100,
+            low: basePrice - 100,
+            close: basePrice,
+            volume: 100,
+          });
+        }
       }
-
-      return candles;
+      return result;
     },
     formatPrice: async (symbol, price) => price.toFixed(8),
     formatQuantity: async (symbol, quantity) => quantity.toFixed(8),
@@ -617,28 +725,48 @@ test("OTHER: Immediate activation - SHORT position opens instantly when priceOpe
   const currentPrice = 43000; // Текущая цена на рынке
   const priceOpen = 42000;    // Вход НИЖЕ текущей цены - для SHORT это означает НЕМЕДЛЕННУЮ активацию
 
+  const startTime = new Date("2024-01-01T00:00:00Z").getTime();
+  const intervalMs = 60000;
+  const basePrice = currentPrice;
+  const bufferMinutes = 5;
+  const bufferStartTime = startTime - bufferMinutes * intervalMs;
+
+  let allCandles = [];
+  for (let i = 0; i < 6; i++) {
+    allCandles.push({
+      timestamp: bufferStartTime + i * intervalMs,
+      open: basePrice,
+      high: basePrice + 100,
+      low: basePrice - 50,
+      close: basePrice,
+      volume: 100,
+    });
+  }
+
   addExchangeSchema({
     exchangeName: "binance-other-immediate-short",
-    getCandles: async (_symbol, interval, since, limit) => {
-      const candles = [];
-      const intervalMs = 60000;
-
+    getCandles: async (_symbol, _interval, since, limit) => {
+      const alignedSince = alignTimestamp(since.getTime(), 1);
+      const result = [];
       for (let i = 0; i < limit; i++) {
-        const timestamp = since.getTime() + i * intervalMs;
-
-        // Все свечи на уровне currentPrice (ВЫШЕ priceOpen для SHORT)
-        // Это означает что позиция должна активироваться СРАЗУ
-        candles.push({
-          timestamp,
-          open: currentPrice,
-          high: currentPrice + 100,
-          low: currentPrice - 100,
-          close: currentPrice,
-          volume: 100,
-        });
+        const timestamp = alignedSince + i * intervalMs;
+        const existingCandle = allCandles.find((c) => c.timestamp === timestamp);
+        if (existingCandle) {
+          result.push(existingCandle);
+        } else {
+          // Все свечи на уровне currentPrice (ВЫШЕ priceOpen для SHORT)
+          // Это означает что позиция должна активироваться СРАЗУ
+          result.push({
+            timestamp,
+            open: basePrice,
+            high: basePrice + 100,
+            low: basePrice - 100,
+            close: basePrice,
+            volume: 100,
+          });
+        }
       }
-
-      return candles;
+      return result;
     },
     formatPrice: async (symbol, price) => price.toFixed(8),
     formatQuantity: async (symbol, quantity) => quantity.toFixed(8),
@@ -720,26 +848,47 @@ test("OTHER: Immediate activation REJECTED - LONG when currentPrice below StopLo
   let openedCount = 0;
   let signalGenerated = false;
 
+  const startTime = new Date("2024-01-01T00:00:00Z").getTime();
+  const intervalMs = 60000;
+  const basePrice = currentPrice;
+  const bufferMinutes = 5;
+  const bufferStartTime = startTime - bufferMinutes * intervalMs;
+
+  let allCandles = [];
+  for (let i = 0; i < 6; i++) {
+    allCandles.push({
+      timestamp: bufferStartTime + i * intervalMs,
+      open: basePrice,
+      high: basePrice + 100,
+      low: basePrice - 50,
+      close: basePrice,
+      volume: 100,
+    });
+  }
+
   addExchangeSchema({
     exchangeName: "test-exchange-11",
-    getCandles: async (_symbol, interval, since, limit) => {
-      const candles = [];
-      const intervalMs = 60000;
-
-      // 10 свечей с ценой около 40000 (ниже StopLoss)
+    getCandles: async (_symbol, _interval, since, limit) => {
+      const alignedSince = alignTimestamp(since.getTime(), 1);
+      const result = [];
       for (let i = 0; i < limit; i++) {
-        const timestamp = since.getTime() + i * intervalMs;
-        candles.push({
-          timestamp,
-          open: currentPrice,
-          high: currentPrice + 100,
-          low: currentPrice - 100,
-          close: currentPrice,
-          volume: 100,
-        });
+        const timestamp = alignedSince + i * intervalMs;
+        const existingCandle = allCandles.find((c) => c.timestamp === timestamp);
+        if (existingCandle) {
+          result.push(existingCandle);
+        } else {
+          // 10 свечей с ценой около 40000 (ниже StopLoss)
+          result.push({
+            timestamp,
+            open: basePrice,
+            high: basePrice + 100,
+            low: basePrice - 100,
+            close: basePrice,
+            volume: 100,
+          });
+        }
       }
-
-      return candles;
+      return result;
     },
     formatPrice: async (_, price) => price.toFixed(8),
     formatQuantity: async (_, qty) => qty.toFixed(8),
@@ -825,26 +974,47 @@ test("OTHER: Immediate activation REJECTED - SHORT when currentPrice above StopL
   let openedCount = 0;
   let signalGenerated = false;
 
+  const startTime = new Date("2024-01-01T00:00:00Z").getTime();
+  const intervalMs = 60000;
+  const basePrice = currentPrice;
+  const bufferMinutes = 5;
+  const bufferStartTime = startTime - bufferMinutes * intervalMs;
+
+  let allCandles = [];
+  for (let i = 0; i < 6; i++) {
+    allCandles.push({
+      timestamp: bufferStartTime + i * intervalMs,
+      open: basePrice,
+      high: basePrice + 100,
+      low: basePrice - 50,
+      close: basePrice,
+      volume: 100,
+    });
+  }
+
   addExchangeSchema({
     exchangeName: "test-exchange-12",
-    getCandles: async (_symbol, interval, since, limit) => {
-      const candles = [];
-      const intervalMs = 60000;
-
-      // 10 свечей с ценой около 45000 (выше StopLoss)
+    getCandles: async (_symbol, _interval, since, limit) => {
+      const alignedSince = alignTimestamp(since.getTime(), 1);
+      const result = [];
       for (let i = 0; i < limit; i++) {
-        const timestamp = since.getTime() + i * intervalMs;
-        candles.push({
-          timestamp,
-          open: currentPrice,
-          high: currentPrice + 100,
-          low: currentPrice - 100,
-          close: currentPrice,
-          volume: 100,
-        });
+        const timestamp = alignedSince + i * intervalMs;
+        const existingCandle = allCandles.find((c) => c.timestamp === timestamp);
+        if (existingCandle) {
+          result.push(existingCandle);
+        } else {
+          // 10 свечей с ценой около 45000 (выше StopLoss)
+          result.push({
+            timestamp,
+            open: basePrice,
+            high: basePrice + 100,
+            low: basePrice - 100,
+            close: basePrice,
+            volume: 100,
+          });
+        }
       }
-
-      return candles;
+      return result;
     },
     formatPrice: async (_, price) => price.toFixed(8),
     formatQuantity: async (_, qty) => qty.toFixed(8),
