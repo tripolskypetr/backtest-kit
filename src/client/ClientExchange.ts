@@ -549,10 +549,12 @@ export class ClientExchange implements IExchange {
 
     // Filter candles to strictly match the requested range
     const sinceTimestamp = since.getTime();
+    const stepMs = step * MS_PER_MINUTE;
 
     const filteredData = allData.filter(
       (candle) =>
-        candle.timestamp >= sinceTimestamp && candle.timestamp < endTime,
+        candle.timestamp > sinceTimestamp &&
+        candle.timestamp + stepMs < endTime,
     );
 
     // Apply distinct by timestamp to remove duplicates

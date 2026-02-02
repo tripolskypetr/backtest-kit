@@ -1367,7 +1367,7 @@ export class PersistCandleUtils {
 
     for await (const timestamp of stateStorage.keys()) {
       const ts = Number(timestamp);
-      if (ts >= sinceTimestamp && ts < untilTimestamp) {
+      if (ts > sinceTimestamp && ts < untilTimestamp) {
         try {
           const candle = await stateStorage.readValue(timestamp);
           cachedCandles.push(candle);

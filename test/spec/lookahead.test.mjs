@@ -444,14 +444,17 @@ test("getNextCandles prevents lookahead bias and only returns future candles", a
 
   const errors = [];
 
-  // Test 1: next1m - should return 5 candles starting from T_10_24
-  if (!next1m || next1m.length !== 5) {
-    errors.push(`Test1 (next1m): Expected 5 candles, got ${next1m?.length || 0}`);
+  // Test 1: next1m - with exclusive boundaries (when, when+limit*interval)
+  // (10:24, 10:29) means candles where timestamp > 10:24 AND close < 10:29
+  // Only 10:25 (closes 10:26), 10:26 (closes 10:27), 10:27 (closes 10:28) fit
+  // 10:28 closes at 10:29 which is NOT < 10:29, so excluded
+  if (!next1m || next1m.length !== 3) {
+    errors.push(`Test1 (next1m): Expected 3 candles, got ${next1m?.length || 0}`);
   } else {
     const first = next1m[0];
     const last = next1m[next1m.length - 1];
-    const expectedFirst = new Date("2024-01-01T10:24:00Z").getTime();
-    const expectedLast = new Date("2024-01-01T10:28:00Z").getTime();
+    const expectedFirst = new Date("2024-01-01T10:25:00Z").getTime();
+    const expectedLast = new Date("2024-01-01T10:27:00Z").getTime();
 
     if (first.timestamp !== expectedFirst) {
       errors.push(
@@ -476,15 +479,18 @@ test("getNextCandles prevents lookahead bias and only returns future candles", a
     }
   }
 
-  // Test 2: next15m - should return 3 15m candles starting from T_10_30 (next 15m boundary)
-  if (!next15m || next15m.length !== 3) {
-    errors.push(`Test2 (next15m): Expected 3 candles, got ${next15m?.length || 0}`);
+  // Test 2: next15m - with exclusive boundaries (when, when+limit*interval)
+  // (10:24, 11:09) means candles where timestamp > 10:24 AND close < 11:09
+  // 15m candles: 10:30 (closes 10:45), 10:45 (closes 11:00) fit
+  // 11:00 closes at 11:15 which is NOT < 11:09, so excluded
+  if (!next15m || next15m.length !== 2) {
+    errors.push(`Test2 (next15m): Expected 2 candles, got ${next15m?.length || 0}`);
   } else {
     const first = next15m[0];
     const last = next15m[next15m.length - 1];
     // Next 15m boundary after 10:24 is 10:30
     const expectedFirst = new Date("2024-01-01T10:30:00Z").getTime();
-    const expectedLast = new Date("2024-01-01T11:00:00Z").getTime();
+    const expectedLast = new Date("2024-01-01T10:45:00Z").getTime();
 
     if (first.timestamp !== expectedFirst) {
       errors.push(
