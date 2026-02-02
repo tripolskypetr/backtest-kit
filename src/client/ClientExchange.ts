@@ -432,6 +432,8 @@ export class ClientExchange implements IExchange {
     const whenTimestamp = this.params.execution.context.when.getTime();
     const sinceTimestamp = since.getTime();
 
+    const stepMs = step * MS_PER_MINUTE;
+
     const filteredData = allData.filter((candle) => {
       // Basic timestamp check (must be within requested range start)
       if (candle.timestamp < sinceTimestamp) {
@@ -439,18 +441,8 @@ export class ClientExchange implements IExchange {
       }
 
       // Check against current time (when)
-      if (this.params.execution.context.backtest) {
-        // In backtest mode: STRICTLY prevent lookahead bias
-        // Only allow candles that have fully CLOSED before "when"
-        // Candle closes at: timestamp + interval_duration
-        // const duration = step * MS_PER_MINUTE;
-        const duration = step * MS_PER_MINUTE;
-        return candle.timestamp + duration <= whenTimestamp;
-      } else {
-        // In live mode: Allow current forming candle
-        // Candle must have started before "when"
-        return candle.timestamp < whenTimestamp;
-      }
+      // Only allow candles that have fully CLOSED before "when"
+      return candle.timestamp + stepMs <= whenTimestamp;
     });
 
     // Apply distinct by timestamp to remove duplicates

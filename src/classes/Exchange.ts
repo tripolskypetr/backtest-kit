@@ -288,9 +288,9 @@ export class ExchangeInstance {
     }
 
     const when = new Date(Date.now());
-    const since = new Date(when.getTime() - adjust * 60 * 1_000);
+    const since = new Date(when.getTime() - adjust * MS_PER_MINUTE);
     const sinceTimestamp = since.getTime();
-    const untilTimestamp = sinceTimestamp + limit * step * 60 * 1_000;
+    const untilTimestamp = sinceTimestamp + limit * step * MS_PER_MINUTE;
 
     // Try to read from cache first
     const cachedCandles = await READ_CANDLES_CACHE_FN(
@@ -328,7 +328,7 @@ export class ExchangeInstance {
         if (remaining > 0) {
           // Move currentSince forward by the number of candles fetched
           currentSince = new Date(
-            currentSince.getTime() + chunkLimit * step * 60 * 1_000
+            currentSince.getTime() + chunkLimit * step * MS_PER_MINUTE
           );
         }
       }
@@ -339,12 +339,18 @@ export class ExchangeInstance {
 
     // Filter candles to strictly match the requested range
     const whenTimestamp = when.getTime();
-    const stepMs = step * 60 * 1_000;
+    const stepMs = step * MS_PER_MINUTE;
 
-    const filteredData = allData.filter(
-      (candle) =>
-        candle.timestamp >= sinceTimestamp && candle.timestamp < whenTimestamp + stepMs
-    );
+    const filteredData = allData.filter((candle) => {
+      // Basic timestamp check (must be within requested range start)
+      if (candle.timestamp < sinceTimestamp) {
+        return false;
+      }
+
+      // Check against current time (when)
+      // Only allow candles that have fully CLOSED before "when"
+      return candle.timestamp + stepMs < whenTimestamp;
+    });
 
     // Apply distinct by timestamp to remove duplicates
     const uniqueData = Array.from(
@@ -508,7 +514,7 @@ export class ExchangeInstance {
     });
 
     const to = new Date(Date.now());
-    const from = new Date(to.getTime() - GLOBAL_CONFIG.CC_ORDER_BOOK_TIME_OFFSET_MINUTES * 60 * 1_000);
+    const from = new Date(to.getTime() - GLOBAL_CONFIG.CC_ORDER_BOOK_TIME_OFFSET_MINUTES * MS_PER_MINUTE);
     const isBacktest = await GET_BACKTEST_FN();
     return await this._methods.getOrderBook(symbol, depth, from, to, isBacktest);
   };
