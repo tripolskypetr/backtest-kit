@@ -1450,8 +1450,30 @@ export class PersistCandleUtils {
     const stateStorage = this.getCandlesStorage(symbol, interval, exchangeName);
     await stateStorage.waitForInit(isInitial);
 
-    // Write each candle as a separate file
+    // Calculate step in milliseconds to determine candle close time
+    const stepMs = INTERVAL_MINUTES[interval] * MS_PER_MINUTE;
+    const now = Date.now();
+
+    // Write each candle as a separate file, skipping incomplete candles
     for (const candle of candles) {
+      // Skip incomplete candles: candle is complete when closeTime <= now
+      // closeTime = timestamp + stepMs
+      const candleCloseTime = candle.timestamp + stepMs;
+      if (candleCloseTime > now) {
+        swarm.loggerService.debug(
+          "PersistCandleUtils.writeCandlesData: skipping incomplete candle",
+          {
+            symbol,
+            interval,
+            exchangeName,
+            timestamp: candle.timestamp,
+            closeTime: candleCloseTime,
+            now,
+          }
+        );
+        continue;
+      }
+
       if (await not(stateStorage.hasValue(String(candle.timestamp)))) {
         await stateStorage.writeValue(String(candle.timestamp), candle);
       }
