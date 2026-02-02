@@ -14,6 +14,11 @@ import {
 import getMockCandles from "../mock/getMockCandles.mjs";
 import { Subject, sleep } from "functools-kit";
 
+const alignTimestamp = (timestampMs, intervalMinutes) => {
+  const intervalMs = intervalMinutes * 60 * 1000;
+  return Math.floor(timestampMs / intervalMs) * intervalMs;
+};
+
 test("Scheduled signal is created and activated when price is reached", async ({ pass, fail }) => {
 
   let scheduledCount = 0;
@@ -26,13 +31,13 @@ test("Scheduled signal is created and activated when price is reached", async ({
   const intervalMs = 60 * 1000; // 1 minute
   const basePrice = 42000;
 
-  // КРИТИЧНО: создаем свечи с учетом буфера (4 свечи ДО startTime)
-  const bufferMinutes = 4;
+  // КРИТИЧНО: создаем свечи с учетом буфера (5 свечей ДО startTime)
+  const bufferMinutes = 5;
   const bufferStartTime = startTime - bufferMinutes * intervalMs;
   let allCandles = [];
 
-  // Предзаполняем минимум 5 свечей ДО первого вызова getSignal (для getAveragePrice)
-  for (let i = 0; i < 5; i++) {
+  // Предзаполняем минимум 6 свечей ДО первого вызова getSignal (для getAveragePrice)
+  for (let i = 0; i < 6; i++) {
     allCandles.push({
       timestamp: bufferStartTime + i * intervalMs,
       open: basePrice,
@@ -46,9 +51,25 @@ test("Scheduled signal is created and activated when price is reached", async ({
   addExchangeSchema({
     exchangeName: "binance-scheduled-activate",
     getCandles: async (_symbol, _interval, since, limit) => {
-      const sinceIndex = Math.floor((since.getTime() - bufferStartTime) / intervalMs);
-      const result = allCandles.slice(sinceIndex, sinceIndex + limit);
-      return result.length > 0 ? result : allCandles.slice(0, Math.min(limit, allCandles.length));
+      const alignedSince = alignTimestamp(since.getTime(), 1);
+      const result = [];
+      for (let i = 0; i < limit; i++) {
+        const timestamp = alignedSince + i * intervalMs;
+        const existingCandle = allCandles.find((c) => c.timestamp === timestamp);
+        if (existingCandle) {
+          result.push(existingCandle);
+        } else {
+          result.push({
+            timestamp,
+            open: basePrice,
+            high: basePrice + 100,
+            low: basePrice - 50,
+            close: basePrice,
+            volume: 100,
+          });
+        }
+      }
+      return result;
     },
     formatPrice: async (symbol, price) => price.toFixed(8),
     formatQuantity: async (symbol, quantity) => quantity.toFixed(8),
@@ -313,12 +334,12 @@ test("Multiple scheduled signals queue and activate sequentially (VWAP-aware)", 
   const startTime = new Date("2024-01-01T00:00:00Z").getTime();
   const intervalMs = 60 * 1000; // 1 minute
   const basePrice = 42000;
-  const bufferMinutes = 4;
+  const bufferMinutes = 5;
   const bufferStartTime = startTime - bufferMinutes * intervalMs;
   let allCandles = [];
 
-  // Предзаполняем минимум 5 свечей
-  for (let i = 0; i < 5; i++) {
+  // Предзаполняем минимум 6 свечей
+  for (let i = 0; i < 6; i++) {
     allCandles.push({
       timestamp: bufferStartTime + i * intervalMs,
       open: basePrice,
@@ -332,9 +353,25 @@ test("Multiple scheduled signals queue and activate sequentially (VWAP-aware)", 
   addExchangeSchema({
     exchangeName: "binance-scheduled-queue",
     getCandles: async (_symbol, _interval, since, limit) => {
-      const sinceIndex = Math.floor((since.getTime() - bufferStartTime) / intervalMs);
-      const result = allCandles.slice(sinceIndex, sinceIndex + limit);
-      return result.length > 0 ? result : allCandles.slice(0, Math.min(limit, allCandles.length));
+      const alignedSince = alignTimestamp(since.getTime(), 1);
+      const result = [];
+      for (let i = 0; i < limit; i++) {
+        const timestamp = alignedSince + i * intervalMs;
+        const existingCandle = allCandles.find((c) => c.timestamp === timestamp);
+        if (existingCandle) {
+          result.push(existingCandle);
+        } else {
+          result.push({
+            timestamp,
+            open: basePrice,
+            high: basePrice + 100,
+            low: basePrice - 50,
+            close: basePrice,
+            volume: 100,
+          });
+        }
+      }
+      return result;
     },
     formatPrice: async (symbol, price) => price.toFixed(8),
     formatQuantity: async (symbol, quantity) => quantity.toFixed(8),

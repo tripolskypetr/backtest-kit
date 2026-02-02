@@ -1,5 +1,10 @@
 import { test } from "worker-testbed";
 
+const alignTimestamp = (timestampMs, intervalMinutes) => {
+  const intervalMs = intervalMinutes * 60 * 1000;
+  return Math.floor(timestampMs / intervalMs) * intervalMs;
+};
+
 import {
   addExchangeSchema,
   addFrameSchema,
@@ -27,44 +32,51 @@ test("EDGE: Scheduled SHORT cancelled by SL BEFORE activation (price skips price
   let openedResult = null;
   let cancelledResult = null;
 
+  const startTime = new Date("2024-01-01T00:00:00Z").getTime();
+  const intervalMs = 60000;
+  const basePrice = 40000;
+  const bufferMinutes = 5;
+  const bufferStartTime = startTime - bufferMinutes * intervalMs;
+
+  let allCandles = [];
+
+  // Initial candles for buffer period (price low at 40000)
+  for (let i = 0; i < 6; i++) {
+    allCandles.push({
+      timestamp: bufferStartTime + i * intervalMs,
+      open: basePrice,
+      high: basePrice + 100,
+      low: basePrice - 100,
+      close: basePrice,
+      volume: 100,
+    });
+  }
+
   addExchangeSchema({
     exchangeName: "binance-edge-scheduled-short-sl-cancel",
-    getCandles: async (_symbol, interval, since, limit) => {
-      const candles = [];
-      const intervalMs = 60000;
-
+    getCandles: async (_symbol, _interval, since, limit) => {
+      const alignedSince = alignTimestamp(since.getTime(), 1);
+      const result = [];
       for (let i = 0; i < limit; i++) {
-        const timestamp = since.getTime() + i * intervalMs;
-
-        if (i < 5) {
-          // Первые 5 свечей: цена низкая (40000), scheduled ждет
-          candles.push({
-            timestamp,
-            open: 40000,
-            high: 40100,
-            low: 39900,
-            close: 40000,
-            volume: 100,
-          });
+        const timestamp = alignedSince + i * intervalMs;
+        const existingCandle = allCandles.find((c) => c.timestamp === timestamp);
+        if (existingCandle) {
+          result.push(existingCandle);
         } else {
-          // С 6-й свечи: РЕЗКИЙ РОСТ, МИНУЯ priceOpen=42000!
-          // Цена растёт от 40000 сразу до 45000 (выше SL=44000)
-          const basePrice = 45000; // Выше SL=44000, НЕ достигает priceOpen=42000
-          candles.push({
+          result.push({
             timestamp,
             open: basePrice,
             high: basePrice + 100,
-            low: basePrice - 100,
+            low: basePrice - 50,
             close: basePrice,
             volume: 100,
           });
         }
       }
-
-      return candles;
+      return result;
     },
-    formatPrice: async (symbol, price) => price.toFixed(8),
-    formatQuantity: async (symbol, quantity) => quantity.toFixed(8),
+    formatPrice: async (_symbol, price) => price.toFixed(8),
+    formatQuantity: async (_symbol, quantity) => quantity.toFixed(8),
   });
 
   let signalGenerated = false;
@@ -75,6 +87,50 @@ test("EDGE: Scheduled SHORT cancelled by SL BEFORE activation (price skips price
     getSignal: async () => {
       if (signalGenerated) return null;
       signalGenerated = true;
+
+      // Reset candles and set up the scenario
+      allCandles = [];
+
+      // Buffer candles (price low at 40000)
+      for (let i = 0; i < bufferMinutes; i++) {
+        allCandles.push({
+          timestamp: bufferStartTime + i * intervalMs,
+          open: basePrice,
+          high: basePrice + 100,
+          low: basePrice - 100,
+          close: basePrice,
+          volume: 100,
+        });
+      }
+
+      // After signal: first 5 candles at low price (scheduled waiting)
+      for (let i = 0; i < 15; i++) {
+        const timestamp = startTime + i * intervalMs;
+
+        if (i < 5) {
+          // Первые 5 свечей: цена низкая (40000), scheduled ждет
+          allCandles.push({
+            timestamp,
+            open: basePrice,
+            high: basePrice + 100,
+            low: basePrice - 100,
+            close: basePrice,
+            volume: 100,
+          });
+        } else {
+          // С 6-й свечи: РЕЗКИЙ РОСТ, МИНУЯ priceOpen=42000!
+          // Цена растёт от 40000 сразу до 45000 (выше SL=44000)
+          const slPrice = 45000; // Выше SL=44000, НЕ достигает priceOpen=42000
+          allCandles.push({
+            timestamp,
+            open: slPrice,
+            high: slPrice + 100,
+            low: slPrice - 100,
+            close: slPrice,
+            volume: 100,
+          });
+        }
+      }
 
       return {
         position: "short",
@@ -151,49 +207,48 @@ test("EDGE: getAveragePrice works with zero volume (fallback to simple average)"
   let openedResult = null;
   let closedResult = null;
 
+  const startTime = new Date("2024-01-01T00:00:00Z").getTime();
+  const intervalMs = 60000;
+  const basePrice = 42000;
+  const bufferMinutes = 5;
+  const bufferStartTime = startTime - bufferMinutes * intervalMs;
+
+  let allCandles = [];
+
+  // Initial candles for buffer period (zero volume)
+  for (let i = 0; i < 6; i++) {
+    allCandles.push({
+      timestamp: bufferStartTime + i * intervalMs,
+      open: basePrice,
+      high: basePrice + 100,
+      low: basePrice - 100,
+      close: basePrice,
+      volume: 0,  // НУЛЕВОЙ VOLUME!
+    });
+  }
+
   addExchangeSchema({
     exchangeName: "binance-edge-zero-volume",
     getCandles: async (_symbol, _interval, since, limit) => {
-      const candles = [];
-      const intervalMs = 60000;
-
+      const alignedSince = alignTimestamp(since.getTime(), 1);
+      const result = [];
       for (let i = 0; i < limit; i++) {
-        const timestamp = since.getTime() + i * intervalMs;
-
-        if (i < 5) {
-          // Первые 5 свечей: volume=0, цена ВЫСОКАЯ (scheduled waiting)
-          candles.push({
-            timestamp,
-            open: 42000,
-            high: 42100,
-            low: 41900,
-            close: 42000,
-            volume: 0,  // НУЛЕВОЙ VOLUME!
-          });
-        } else if (i >= 5 && i < 10) {
-          // Следующие 5: активация (цена падает до priceOpen = 41500)
-          candles.push({
-            timestamp,
-            open: 41500,
-            high: 41600,
-            low: 41400,
-            close: 41500,
-            volume: 0,
-          });
+        const timestamp = alignedSince + i * intervalMs;
+        const existingCandle = allCandles.find((c) => c.timestamp === timestamp);
+        if (existingCandle) {
+          result.push(existingCandle);
         } else {
-          // TP достигнут (цена растет выше)
-          candles.push({
+          result.push({
             timestamp,
-            open: 43000,
-            high: 43100,
-            low: 42900,
-            close: 43000,
+            open: basePrice,
+            high: basePrice + 100,
+            low: basePrice - 50,
+            close: basePrice,
             volume: 0,
           });
         }
       }
-
-      return candles;
+      return result;
     },
     formatPrice: async (_symbol, price) => price.toFixed(8),
     formatQuantity: async (_symbol, quantity) => quantity.toFixed(8),
@@ -210,6 +265,60 @@ test("EDGE: getAveragePrice works with zero volume (fallback to simple average)"
 
       // КРИТИЧНО: getAveragePrice должен работать с volume=0
       const price = await getAveragePrice("BTCUSDT");
+
+      // Reset candles and set up the scenario
+      allCandles = [];
+
+      // Buffer candles (zero volume)
+      for (let i = 0; i < bufferMinutes; i++) {
+        allCandles.push({
+          timestamp: bufferStartTime + i * intervalMs,
+          open: basePrice,
+          high: basePrice + 100,
+          low: basePrice - 100,
+          close: basePrice,
+          volume: 0,
+        });
+      }
+
+      // After signal: scenario with zero volume
+      for (let i = 0; i < 15; i++) {
+        const timestamp = startTime + i * intervalMs;
+
+        if (i < 5) {
+          // Первые 5 свечей: volume=0, цена ВЫСОКАЯ (scheduled waiting)
+          allCandles.push({
+            timestamp,
+            open: basePrice,
+            high: basePrice + 100,
+            low: basePrice - 100,
+            close: basePrice,
+            volume: 0,
+          });
+        } else if (i >= 5 && i < 10) {
+          // Следующие 5: активация (цена падает до priceOpen = 41500)
+          const openPrice = price - 500;
+          allCandles.push({
+            timestamp,
+            open: openPrice,
+            high: openPrice + 100,
+            low: openPrice - 100,
+            close: openPrice,
+            volume: 0,
+          });
+        } else {
+          // TP достигнут (цена растет выше)
+          const tpPrice = price + 1000;
+          allCandles.push({
+            timestamp,
+            open: tpPrice,
+            high: tpPrice + 100,
+            low: tpPrice - 100,
+            close: tpPrice,
+            volume: 0,
+          });
+        }
+      }
 
       return {
         position: "long",
@@ -296,49 +405,48 @@ test("EDGE: Very large profit (>100%) passes validation and yields huge profit",
   let openedResult = null;
   let closedResult = null;
 
+  const startTime = new Date("2024-01-01T00:00:00Z").getTime();
+  const intervalMs = 60000;
+  const basePrice = 43000;
+  const bufferMinutes = 5;
+  const bufferStartTime = startTime - bufferMinutes * intervalMs;
+
+  let allCandles = [];
+
+  // Initial candles for buffer period
+  for (let i = 0; i < 6; i++) {
+    allCandles.push({
+      timestamp: bufferStartTime + i * intervalMs,
+      open: basePrice,
+      high: basePrice + 100,
+      low: basePrice - 100,
+      close: basePrice,
+      volume: 100,
+    });
+  }
+
   addExchangeSchema({
     exchangeName: "binance-edge-huge-profit",
     getCandles: async (_symbol, _interval, since, limit) => {
-      const candles = [];
-      const intervalMs = 60000;
-
+      const alignedSince = alignTimestamp(since.getTime(), 1);
+      const result = [];
       for (let i = 0; i < limit; i++) {
-        const timestamp = since.getTime() + i * intervalMs;
-
-        if (i < 5) {
-          // Фаза 1: Ждем активации
-          candles.push({
-            timestamp,
-            open: 43000,
-            high: 43100,
-            low: 42900,
-            close: 43000,
-            volume: 100,
-          });
-        } else if (i >= 5 && i < 10) {
-          // Фаза 2: Активация
-          candles.push({
-            timestamp,
-            open: 42000,
-            high: 42100,
-            low: 41900,
-            close: 42000,
-            volume: 100,
-          });
+        const timestamp = alignedSince + i * intervalMs;
+        const existingCandle = allCandles.find((c) => c.timestamp === timestamp);
+        if (existingCandle) {
+          result.push(existingCandle);
         } else {
-          // Фаза 3: TP достигнут (огромный профит >100%)
-          candles.push({
+          result.push({
             timestamp,
-            open: 90000,
-            high: 90100,
-            low: 89900,
-            close: 90000,
+            open: basePrice,
+            high: basePrice + 100,
+            low: basePrice - 50,
+            close: basePrice,
             volume: 100,
           });
         }
       }
-
-      return candles;
+      return result;
     },
     formatPrice: async (_symbol, price) => price.toFixed(8),
     formatQuantity: async (_symbol, quantity) => quantity.toFixed(8),
@@ -352,6 +460,60 @@ test("EDGE: Very large profit (>100%) passes validation and yields huge profit",
     getSignal: async () => {
       if (signalGenerated) return null;
       signalGenerated = true;
+
+      // Reset candles and set up the scenario
+      allCandles = [];
+
+      // Buffer candles
+      for (let i = 0; i < bufferMinutes; i++) {
+        allCandles.push({
+          timestamp: bufferStartTime + i * intervalMs,
+          open: basePrice,
+          high: basePrice + 100,
+          low: basePrice - 100,
+          close: basePrice,
+          volume: 100,
+        });
+      }
+
+      // After signal: scenario for huge profit
+      for (let i = 0; i < 15; i++) {
+        const timestamp = startTime + i * intervalMs;
+
+        if (i < 5) {
+          // Фаза 1: Ждем активации
+          allCandles.push({
+            timestamp,
+            open: basePrice,
+            high: basePrice + 100,
+            low: basePrice - 100,
+            close: basePrice,
+            volume: 100,
+          });
+        } else if (i >= 5 && i < 10) {
+          // Фаза 2: Активация (цена падает до priceOpen = 42000)
+          const openPrice = 42000;
+          allCandles.push({
+            timestamp,
+            open: openPrice,
+            high: openPrice + 100,
+            low: openPrice - 100,
+            close: openPrice,
+            volume: 100,
+          });
+        } else {
+          // Фаза 3: TP достигнут (огромный профит >100%)
+          const tpPrice = 90000;
+          allCandles.push({
+            timestamp,
+            open: tpPrice,
+            high: tpPrice + 100,
+            low: tpPrice - 100,
+            close: tpPrice,
+            volume: 100,
+          });
+        }
+      }
 
       return {
         position: "long",

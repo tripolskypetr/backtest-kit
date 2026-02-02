@@ -1,5 +1,10 @@
 import { test } from "worker-testbed";
 
+const alignTimestamp = (timestampMs, intervalMinutes) => {
+  const intervalMs = intervalMinutes * 60 * 1000;
+  return Math.floor(timestampMs / intervalMs) * intervalMs;
+};
+
 import {
   addExchangeSchema,
   addFrameSchema,
@@ -34,25 +39,26 @@ test("SANITIZE: Micro-profit eaten by fees - TP too close to priceOpen rejected"
   let scheduledCount = 0;
   let openedCount = 0;
 
+  const intervalMs = 60000;
+  const basePrice = 42000;
+
   addExchangeSchema({
     exchangeName: "binance-sanitize-micro-profit",
-    getCandles: async (_symbol, interval, since, limit) => {
-      const candles = [];
-      const intervalMs = 60000;
-
+    getCandles: async (_symbol, _interval, since, limit) => {
+      const alignedSince = alignTimestamp(since.getTime(), 1);
+      const result = [];
       for (let i = 0; i < limit; i++) {
-        const timestamp = since.getTime() + i * intervalMs;
-        candles.push({
+        const timestamp = alignedSince + i * intervalMs;
+        result.push({
           timestamp,
-          open: 42000,
-          high: 42100,
-          low: 41900,
-          close: 42000,
+          open: basePrice,
+          high: basePrice + 100,
+          low: basePrice - 100,
+          close: basePrice,
           volume: 100,
         });
       }
-
-      return candles;
+      return result;
     },
     formatPrice: async (symbol, price) => price.toFixed(8),
     formatQuantity: async (symbol, quantity) => quantity.toFixed(8),
@@ -141,25 +147,26 @@ test("SANITIZE: Extreme StopLoss rejected (>20% loss) - protects capital", async
   let scheduledCount = 0;
   let openedCount = 0;
 
+  const intervalMs = 60000;
+  const basePrice = 42000;
+
   addExchangeSchema({
     exchangeName: "binance-sanitize-extreme-sl",
-    getCandles: async (_symbol, interval, since, limit) => {
-      const candles = [];
-      const intervalMs = 60000;
-
+    getCandles: async (_symbol, _interval, since, limit) => {
+      const alignedSince = alignTimestamp(since.getTime(), 1);
+      const result = [];
       for (let i = 0; i < limit; i++) {
-        const timestamp = since.getTime() + i * intervalMs;
-        candles.push({
+        const timestamp = alignedSince + i * intervalMs;
+        result.push({
           timestamp,
-          open: 42000,
-          high: 42100,
-          low: 41900,
-          close: 42000,
+          open: basePrice,
+          high: basePrice + 100,
+          low: basePrice - 100,
+          close: basePrice,
           volume: 100,
         });
       }
-
-      return candles;
+      return result;
     },
     formatPrice: async (symbol, price) => price.toFixed(8),
     formatQuantity: async (symbol, quantity) => quantity.toFixed(8),
@@ -248,25 +255,26 @@ test("SANITIZE: Excessive minuteEstimatedTime rejected (>30 days) - prevents ete
   let scheduledCount = 0;
   let openedCount = 0;
 
+  const intervalMs = 60000;
+  const basePrice = 42000;
+
   addExchangeSchema({
     exchangeName: "binance-sanitize-excessive-time",
-    getCandles: async (_symbol, interval, since, limit) => {
-      const candles = [];
-      const intervalMs = 60000;
-
+    getCandles: async (_symbol, _interval, since, limit) => {
+      const alignedSince = alignTimestamp(since.getTime(), 1);
+      const result = [];
       for (let i = 0; i < limit; i++) {
-        const timestamp = since.getTime() + i * intervalMs;
-        candles.push({
+        const timestamp = alignedSince + i * intervalMs;
+        result.push({
           timestamp,
-          open: 42000,
-          high: 42100,
-          low: 41900,
-          close: 42000,
+          open: basePrice,
+          high: basePrice + 100,
+          low: basePrice - 100,
+          close: basePrice,
           volume: 100,
         });
       }
-
-      return candles;
+      return result;
     },
     formatPrice: async (symbol, price) => price.toFixed(8),
     formatQuantity: async (symbol, quantity) => quantity.toFixed(8),
@@ -353,25 +361,26 @@ test("SANITIZE: Negative prices rejected - prevents impossible trades", async ({
   let scheduledCount = 0;
   let openedCount = 0;
 
+  const intervalMs = 60000;
+  const basePrice = 42000;
+
   addExchangeSchema({
     exchangeName: "binance-sanitize-negative-prices",
-    getCandles: async (_symbol, interval, since, limit) => {
-      const candles = [];
-      const intervalMs = 60000;
-
+    getCandles: async (_symbol, _interval, since, limit) => {
+      const alignedSince = alignTimestamp(since.getTime(), 1);
+      const result = [];
       for (let i = 0; i < limit; i++) {
-        const timestamp = since.getTime() + i * intervalMs;
-        candles.push({
+        const timestamp = alignedSince + i * intervalMs;
+        result.push({
           timestamp,
-          open: 42000,
-          high: 42100,
-          low: 41900,
-          close: 42000,
+          open: basePrice,
+          high: basePrice + 100,
+          low: basePrice - 100,
+          close: basePrice,
           volume: 100,
         });
       }
-
-      return candles;
+      return result;
     },
     formatPrice: async (symbol, price) => price.toFixed(8),
     formatQuantity: async (symbol, quantity) => quantity.toFixed(8),
@@ -457,25 +466,26 @@ test("SANITIZE: NaN/Infinity prices rejected - prevents calculation explosions",
   let scheduledCount = 0;
   let openedCount = 0;
 
+  const intervalMs = 60000;
+  const basePrice = 42000;
+
   addExchangeSchema({
     exchangeName: "binance-sanitize-nan-prices",
-    getCandles: async (_symbol, interval, since, limit) => {
-      const candles = [];
-      const intervalMs = 60000;
-
+    getCandles: async (_symbol, _interval, since, limit) => {
+      const alignedSince = alignTimestamp(since.getTime(), 1);
+      const result = [];
       for (let i = 0; i < limit; i++) {
-        const timestamp = since.getTime() + i * intervalMs;
-        candles.push({
+        const timestamp = alignedSince + i * intervalMs;
+        result.push({
           timestamp,
-          open: 42000,
-          high: 42100,
-          low: 41900,
-          close: 42000,
+          open: basePrice,
+          high: basePrice + 100,
+          low: basePrice - 100,
+          close: basePrice,
           volume: 100,
         });
       }
-
-      return candles;
+      return result;
     },
     formatPrice: async (symbol, price) => price.toFixed(8),
     formatQuantity: async (symbol, quantity) => quantity.toFixed(8),
@@ -561,25 +571,26 @@ test("SANITIZE: Infinity prices rejected - prevents overflow", async ({ pass, fa
   let scheduledCount = 0;
   let openedCount = 0;
 
+  const intervalMs = 60000;
+  const basePrice = 42000;
+
   addExchangeSchema({
     exchangeName: "binance-sanitize-infinity-prices",
-    getCandles: async (_symbol, interval, since, limit) => {
-      const candles = [];
-      const intervalMs = 60000;
-
+    getCandles: async (_symbol, _interval, since, limit) => {
+      const alignedSince = alignTimestamp(since.getTime(), 1);
+      const result = [];
       for (let i = 0; i < limit; i++) {
-        const timestamp = since.getTime() + i * intervalMs;
-        candles.push({
+        const timestamp = alignedSince + i * intervalMs;
+        result.push({
           timestamp,
-          open: 42000,
-          high: 42100,
-          low: 41900,
-          close: 42000,
+          open: basePrice,
+          high: basePrice + 100,
+          low: basePrice - 100,
+          close: basePrice,
           volume: 100,
         });
       }
-
-      return candles;
+      return result;
     },
     formatPrice: async (symbol, price) => price.toFixed(8),
     formatQuantity: async (symbol, quantity) => quantity.toFixed(8),
@@ -667,21 +678,42 @@ test("SANITIZE: Incomplete Binance candles rejected (anomalous prices) - prevent
 
   let errorCaught = null;
 
+  const intervalMs = 60000;
+  const basePrice = 42000;
+  const startTime = new Date("2024-01-01T00:00:00Z").getTime();
+  const bufferMinutes = 5;
+  const bufferStartTime = startTime - bufferMinutes * intervalMs;
+
+  // Pre-create anomalous candle at a specific timestamp
+  const anomalyTimestamp = startTime + 3 * intervalMs;
+
+  let allCandles = [];
+  for (let i = 0; i < 6; i++) {
+    allCandles.push({
+      timestamp: bufferStartTime + i * intervalMs,
+      open: basePrice,
+      high: basePrice + 100,
+      low: basePrice - 100,
+      close: basePrice,
+      volume: 100,
+    });
+  }
+
   addExchangeSchema({
     exchangeName: "binance-sanitize-incomplete-candles",
     getCandles: async (_symbol, _interval, since, limit) => {
-      const candles = [];
-      const intervalMs = 60000;
-
+      const alignedSince = alignTimestamp(since.getTime(), 1);
+      const result = [];
       for (let i = 0; i < limit; i++) {
-        const timestamp = since.getTime() + i * intervalMs;
+        const timestamp = alignedSince + i * intervalMs;
 
-        if (i === 3) {
+        // Check if this is the anomaly candle
+        if (timestamp === anomalyTimestamp) {
           // 4-я свеча: НЕЗАВЕРШЕННАЯ (incomplete) - аномально низкая цена
           // Нормальная цена: 42000
           // Незавершенная: 0.1 (в 420,000 раз меньше!)
           // Это реальный баг Binance API
-          candles.push({
+          result.push({
             timestamp,
             open: 0.1,      // АНОМАЛИЯ! Должно быть ~42000
             high: 0.12,     // АНОМАЛИЯ!
@@ -690,19 +722,22 @@ test("SANITIZE: Incomplete Binance candles rejected (anomalous prices) - prevent
             volume: 0,      // Возможно нулевой объем
           });
         } else {
-          // Остальные свечи: нормальные цены
-          candles.push({
-            timestamp,
-            open: 42000,
-            high: 42100,
-            low: 41900,
-            close: 42000,
-            volume: 100,
-          });
+          const existingCandle = allCandles.find((c) => c.timestamp === timestamp);
+          if (existingCandle) {
+            result.push(existingCandle);
+          } else {
+            result.push({
+              timestamp,
+              open: basePrice,
+              high: basePrice + 100,
+              low: basePrice - 100,
+              close: basePrice,
+              volume: 100,
+            });
+          }
         }
       }
-
-      return candles;
+      return result;
     },
     formatPrice: async (_symbol, price) => price.toFixed(8),
     formatQuantity: async (_symbol, quantity) => quantity.toFixed(8),
@@ -803,51 +838,76 @@ test("SANITIZE: Basic trading works - system can open and close positions", asyn
   let openedResult = null;
   let closedResult = null;
 
+  const startTime = new Date("2024-01-01T00:00:00Z").getTime();
+  const intervalMs = 60000;
+  const basePrice = 42000;
+  const bufferMinutes = 5;
+  const bufferStartTime = startTime - bufferMinutes * intervalMs;
+
+  let allCandles = [];
+
+  // Buffer candles (before startTime)
+  for (let i = 0; i < 6; i++) {
+    allCandles.push({
+      timestamp: bufferStartTime + i * intervalMs,
+      open: 43000,
+      high: 43100,
+      low: 42900,
+      close: 43000,
+      volume: 100,
+    });
+  }
+
   addExchangeSchema({
     exchangeName: "binance-sanitize-basic-trading",
     getCandles: async (_symbol, _interval, since, limit) => {
-      const candles = [];
-      const intervalMs = 60000;
-
+      const alignedSince = alignTimestamp(since.getTime(), 1);
+      const result = [];
       for (let i = 0; i < limit; i++) {
-        const timestamp = since.getTime() + i * intervalMs;
-
-        if (i < 5) {
-          // Первые 5 свечей: цена выше priceOpen (сигнал ждет активации)
-          // ВАЖНО: low должен быть ВЫШЕ StopLoss=41000!
-          candles.push({
-            timestamp,
-            open: 43000,
-            high: 43100,
-            low: 42900,  // Выше SL=41000, выше priceOpen=42000
-            close: 43000,
-            volume: 100,
-          });
-        } else if (i >= 5 && i < 10) {
-          // Следующие 5 свечей: цена достигает priceOpen=42000 (сигнал активируется)
-          // low=41900 <= priceOpen=42000 → активация!
-          candles.push({
-            timestamp,
-            open: 42000,
-            high: 42100,
-            low: 41900,  // Ниже priceOpen=42000, но выше SL=41000
-            close: 42000,
-            volume: 100,
-          });
+        const timestamp = alignedSince + i * intervalMs;
+        const existingCandle = allCandles.find((c) => c.timestamp === timestamp);
+        if (existingCandle) {
+          result.push(existingCandle);
         } else {
-          // Остальные свечи: цена достигает TP=43000 (сигнал закрывается)
-          candles.push({
-            timestamp,
-            open: 43000,
-            high: 43100,
-            low: 42900,
-            close: 43000,
-            volume: 100,
-          });
+          // Calculate candle index relative to startTime
+          const candleIndex = Math.floor((timestamp - startTime) / intervalMs);
+
+          if (candleIndex < 5) {
+            // Первые 5 свечей: цена выше priceOpen (сигнал ждет активации)
+            // ВАЖНО: low должен быть ВЫШЕ StopLoss=41000!
+            result.push({
+              timestamp,
+              open: 43000,
+              high: 43100,
+              low: 42900,  // Выше SL=41000, выше priceOpen=42000
+              close: 43000,
+              volume: 100,
+            });
+          } else if (candleIndex >= 5 && candleIndex < 10) {
+            // Следующие 5 свечей: цена достигает priceOpen=42000 (сигнал активируется)
+            // low=41900 <= priceOpen=42000 → активация!
+            result.push({
+              timestamp,
+              open: basePrice,
+              high: basePrice + 100,
+              low: basePrice - 100,  // Ниже priceOpen=42000, но выше SL=41000
+              close: basePrice,
+              volume: 100,
+            });
+          } else {
+            // Остальные свечи: цена достигает TP=43000 (сигнал закрывается)
+            result.push({
+              timestamp,
+              open: 43000,
+              high: 43100,
+              low: 42900,
+              close: 43000,
+              volume: 100,
+            });
+          }
         }
       }
-
-      return candles;
+      return result;
     },
     formatPrice: async (_symbol, price) => price.toFixed(8),
     formatQuantity: async (_symbol, quantity) => quantity.toFixed(8),
@@ -970,52 +1030,77 @@ test("SANITIZE: Basic SHORT trading works - system can open and close SHORT posi
   let openedResult = null;
   let closedResult = null;
 
+  const startTime = new Date("2024-01-01T00:00:00Z").getTime();
+  const intervalMs = 60000;
+  const basePrice = 42000;
+  const bufferMinutes = 5;
+  const bufferStartTime = startTime - bufferMinutes * intervalMs;
+
+  let allCandles = [];
+
+  // Buffer candles (before startTime)
+  for (let i = 0; i < 6; i++) {
+    allCandles.push({
+      timestamp: bufferStartTime + i * intervalMs,
+      open: 41000,
+      high: 41100,
+      low: 40900,
+      close: 41000,
+      volume: 100,
+    });
+  }
+
   addExchangeSchema({
     exchangeName: "binance-sanitize-basic-short",
     getCandles: async (_symbol, _interval, since, limit) => {
-      const candles = [];
-      const intervalMs = 60000;
-
+      const alignedSince = alignTimestamp(since.getTime(), 1);
+      const result = [];
       for (let i = 0; i < limit; i++) {
-        const timestamp = since.getTime() + i * intervalMs;
-
-        if (i < 5) {
-          // Фаза 1: Ждем активации (цена НИЖЕ priceOpen)
-          // ВАЖНО: high должен быть НИЖЕ StopLoss=43000!
-          candles.push({
-            timestamp,
-            open: 41000,
-            high: 41100,  // Ниже SL=43000, ниже priceOpen=42000
-            low: 40900,
-            close: 41000,
-            volume: 100,
-          });
-        } else if (i >= 5 && i < 10) {
-          // Фаза 2: Активация (цена РАСТЕТ до priceOpen)
-          // high=42100 >= priceOpen=42000 → активация!
-          candles.push({
-            timestamp,
-            open: 42000,
-            high: 42100,  // Выше priceOpen=42000, но ниже SL=43000
-            low: 41900,
-            close: 42000,
-            volume: 100,
-          });
+        const timestamp = alignedSince + i * intervalMs;
+        const existingCandle = allCandles.find((c) => c.timestamp === timestamp);
+        if (existingCandle) {
+          result.push(existingCandle);
         } else {
-          // Фаза 3: Закрытие (цена ПАДАЕТ до TP)
-          // low=40900 <= TP=41000 → закрытие по TP!
-          candles.push({
-            timestamp,
-            open: 41000,
-            high: 41100,
-            low: 40900,
-            close: 41000,
-            volume: 100,
-          });
+          // Calculate candle index relative to startTime
+          const candleIndex = Math.floor((timestamp - startTime) / intervalMs);
+
+          if (candleIndex < 5) {
+            // Фаза 1: Ждем активации (цена НИЖЕ priceOpen)
+            // ВАЖНО: high должен быть НИЖЕ StopLoss=43000!
+            result.push({
+              timestamp,
+              open: 41000,
+              high: 41100,  // Ниже SL=43000, ниже priceOpen=42000
+              low: 40900,
+              close: 41000,
+              volume: 100,
+            });
+          } else if (candleIndex >= 5 && candleIndex < 10) {
+            // Фаза 2: Активация (цена РАСТЕТ до priceOpen)
+            // high=42100 >= priceOpen=42000 → активация!
+            result.push({
+              timestamp,
+              open: basePrice,
+              high: basePrice + 100,  // Выше priceOpen=42000, но ниже SL=43000
+              low: basePrice - 100,
+              close: basePrice,
+              volume: 100,
+            });
+          } else {
+            // Фаза 3: Закрытие (цена ПАДАЕТ до TP)
+            // low=40900 <= TP=41000 → закрытие по TP!
+            result.push({
+              timestamp,
+              open: 41000,
+              high: 41100,
+              low: 40900,
+              close: 41000,
+              volume: 100,
+            });
+          }
         }
       }
-
-      return candles;
+      return result;
     },
     formatPrice: async (_symbol, price) => price.toFixed(8),
     formatQuantity: async (_symbol, quantity) => quantity.toFixed(8),
@@ -1163,14 +1248,14 @@ test("EDGE CASE: SL hit on activation candle - signal cancelled BEFORE open", as
 
   let allCandles = [];
 
-  // КРИТИЧНО: BacktestLogicPrivateService запрашивает свечи начиная с (when - 4 минуты)
-  // Поэтому создаем свечи начиная с (startTime - 4 минуты) чтобы покрыть буфер
-  const bufferMinutes = 4;
+  // КРИТИЧНО: BacktestLogicPrivateService запрашивает свечи начиная с (when - 5 минуты)
+  // Поэтому создаем свечи начиная с (startTime - 5 минуты) чтобы покрыть буфер
+  const bufferMinutes = 5;
   const bufferStartTime = startTime - bufferMinutes * intervalMs;
 
-  // Буферные свечи (минуты -4, -3, -2, -1)
+  // Буферные свечи (минуты -5, -4, -3, -2, -1, 0)
   // Для LONG сигнала: держим цены ВЫСОКИМИ чтобы избежать immediate activation
-  for (let i = 0; i < bufferMinutes; i++) {
+  for (let i = 0; i < 6; i++) {
     allCandles.push({
       timestamp: bufferStartTime + i * intervalMs,
       open: basePrice + 2000,  // 44000 - ВЫШЕ priceOpen
@@ -1185,7 +1270,7 @@ test("EDGE CASE: SL hit on activation candle - signal cancelled BEFORE open", as
   // ВАЖНО: Для LONG сигнала с priceOpen=42000:
   // - Чтобы НЕ активировать сразу: candle.low > priceOpen (low > 42000)
   // - VWAP должен быть ВЫШЕ priceOpen чтобы избежать immediate activation
-  for (let i = 0; i < 5; i++) {
+  for (let i = 0; i < 6; i++) {
     allCandles.push({
       timestamp: startTime + i * intervalMs,
       open: basePrice + 2000,  // 44000 - ВЫШЕ priceOpen
@@ -1238,10 +1323,25 @@ test("EDGE CASE: SL hit on activation candle - signal cancelled BEFORE open", as
   addExchangeSchema({
     exchangeName: "binance-edge-sl-before-open",
     getCandles: async (_symbol, _interval, since, limit) => {
-      // КРИТИЧНО: используем bufferStartTime для расчета индекса, так как allCandles начинается с буфера
-      const sinceIndex = Math.floor((since.getTime() - bufferStartTime) / intervalMs);
-      const result = allCandles.slice(sinceIndex, sinceIndex + limit);
-      return result.length > 0 ? result : allCandles.slice(0, Math.min(limit, allCandles.length));
+      const alignedSince = alignTimestamp(since.getTime(), 1);
+      const result = [];
+      for (let i = 0; i < limit; i++) {
+        const timestamp = alignedSince + i * intervalMs;
+        const existingCandle = allCandles.find((c) => c.timestamp === timestamp);
+        if (existingCandle) {
+          result.push(existingCandle);
+        } else {
+          result.push({
+            timestamp,
+            open: basePrice + 2000,
+            high: basePrice + 2100,
+            low: basePrice + 1900,
+            close: basePrice + 2000,
+            volume: 100,
+          });
+        }
+      }
+      return result;
     },
     formatPrice: async (_symbol, price) => price.toFixed(8),
     formatQuantity: async (_symbol, quantity) => quantity.toFixed(8),
@@ -1352,9 +1452,9 @@ test("SEQUENCE: 2 rapid LONG signals (VWAP-aware)", async ({ pass, fail }) => {
     allCandles.push({ timestamp: startTime + i * intervalMs, open: basePrice, high: basePrice + 100, low: basePrice - 50, close: basePrice, volume: 100 });
   }
 
-  // Предзаполняем начальные свечи для getAveragePrice (минимум 5)
+  // Предзаполняем начальные свечи для getAveragePrice (минимум 6)
   // ВАЖНО: low/high НЕ должны активировать LONG сигналы (low > priceOpen=basePrice-500)
-  for (let i = 0; i < 5; i++) {
+  for (let i = 0; i < 6; i++) {
     allCandles.push({
       timestamp: startTime + i * intervalMs,
       open: basePrice + 500,
@@ -1435,11 +1535,25 @@ test("SEQUENCE: 2 rapid LONG signals (VWAP-aware)", async ({ pass, fail }) => {
   addExchangeSchema({
     exchangeName: "binance-sequence-rapid",
     getCandles: async (_symbol, _interval, since, limit) => {
-      const timeIndex = Math.floor((since.getTime() - startTime) / intervalMs);
-      // КРИТИЧНО: allCandles начинается с i=-10, поэтому arrayIndex = timeIndex + 10
-      const arrayIndex = timeIndex + 10;
-      const result = allCandles.slice(arrayIndex, arrayIndex + limit);
-      return result.length > 0 ? result : [];
+      const alignedSince = alignTimestamp(since.getTime(), 1);
+      const result = [];
+      for (let i = 0; i < limit; i++) {
+        const timestamp = alignedSince + i * intervalMs;
+        const existingCandle = allCandles.find((c) => c.timestamp === timestamp);
+        if (existingCandle) {
+          result.push(existingCandle);
+        } else {
+          result.push({
+            timestamp,
+            open: basePrice,
+            high: basePrice + 100,
+            low: basePrice - 50,
+            close: basePrice,
+            volume: 100,
+          });
+        }
+      }
+      return result;
     },
     formatPrice: async (_symbol, price) => price.toFixed(8),
     formatQuantity: async (_symbol, quantity) => quantity.toFixed(8),
@@ -1537,10 +1651,10 @@ test("SEQUENCE: Mixed LONG/SHORT positions - 3 signals", async ({ pass, fail }) 
     allCandles.push({ timestamp: startTime + i * intervalMs, open: basePrice, high: basePrice + 100, low: basePrice - 50, close: basePrice, volume: 100 });
   }
 
-  // Предзаполняем начальные свечи для getAveragePrice (минимум 5)
+  // Предзаполняем начальные свечи для getAveragePrice (минимум 6)
   // ВАЖНО: для MIXED LONG/SHORT сигналов, цена должна быть около basePrice
   // LONG priceOpen = basePrice-500, SHORT priceOpen = basePrice+500
-  for (let i = 0; i < 5; i++) {
+  for (let i = 0; i < 6; i++) {
     allCandles.push({ timestamp: startTime + i * intervalMs, open: basePrice, high: basePrice + 100, low: basePrice - 50, close: basePrice, volume: 100 });
   }
 
@@ -1591,11 +1705,25 @@ test("SEQUENCE: Mixed LONG/SHORT positions - 3 signals", async ({ pass, fail }) 
   addExchangeSchema({
     exchangeName: "binance-sequence-mixed-positions",
     getCandles: async (_symbol, _interval, since, limit) => {
-      const timeIndex = Math.floor((since.getTime() - startTime) / intervalMs);
-      // КРИТИЧНО: allCandles начинается с i=-10, поэтому arrayIndex = timeIndex + 10
-      const arrayIndex = timeIndex + 10;
-      const result = allCandles.slice(arrayIndex, arrayIndex + limit);
-      return result.length > 0 ? result : [];
+      const alignedSince = alignTimestamp(since.getTime(), 1);
+      const result = [];
+      for (let i = 0; i < limit; i++) {
+        const timestamp = alignedSince + i * intervalMs;
+        const existingCandle = allCandles.find((c) => c.timestamp === timestamp);
+        if (existingCandle) {
+          result.push(existingCandle);
+        } else {
+          result.push({
+            timestamp,
+            open: basePrice,
+            high: basePrice + 100,
+            low: basePrice - 50,
+            close: basePrice,
+            volume: 100,
+          });
+        }
+      }
+      return result;
     },
     formatPrice: async (_symbol, price) => price.toFixed(8),
     formatQuantity: async (_symbol, quantity) => quantity.toFixed(8),

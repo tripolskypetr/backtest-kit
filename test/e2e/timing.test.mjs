@@ -15,6 +15,11 @@ import {
 import getMockCandles from "../mock/getMockCandles.mjs";
 import { Subject, createAwaiter, sleep } from "functools-kit";
 
+const alignTimestamp = (timestampMs, intervalMinutes) => {
+  const intervalMs = intervalMinutes * 60 * 1000;
+  return Math.floor(timestampMs / intervalMs) * intervalMs;
+};
+
 /**
  * КРИТИЧЕСКАЯ ПРОБЛЕМА: Scheduled signal преждевременно закрывается по time_expired
  *
@@ -41,13 +46,13 @@ test("Scheduled signal minuteEstimatedTime counts from pendingAt (activation tim
   const startTime = new Date("2024-01-01T00:00:00Z").getTime();
   const intervalMs = 60 * 1000;
   const basePrice = 42000;
-  const bufferMinutes = 4;
+  const bufferMinutes = 5;
   const bufferStartTime = startTime - bufferMinutes * intervalMs;
   let allCandles = [];
   let index = 0;
 
-  // Предзаполняем 5 свечей
-  for (let i = 0; i < 5; i++) {
+  // Предзаполняем 6 свечей
+  for (let i = 0; i < 6; i++) {
     allCandles.push({
       timestamp: bufferStartTime + i * intervalMs,
       open: basePrice,
@@ -61,9 +66,25 @@ test("Scheduled signal minuteEstimatedTime counts from pendingAt (activation tim
   addExchangeSchema({
     exchangeName: "binance-scheduled-timing-bug",
     getCandles: async (_symbol, _interval, since, limit) => {
-      const sinceIndex = Math.floor((since.getTime() - bufferStartTime) / intervalMs);
-      const result = allCandles.slice(sinceIndex, sinceIndex + limit);
-      return result.length > 0 ? result : allCandles.slice(0, Math.min(limit, allCandles.length));
+      const alignedSince = alignTimestamp(since.getTime(), 1);
+      const result = [];
+      for (let i = 0; i < limit; i++) {
+        const timestamp = alignedSince + i * intervalMs;
+        const existingCandle = allCandles.find((c) => c.timestamp === timestamp);
+        if (existingCandle) {
+          result.push(existingCandle);
+        } else {
+          result.push({
+            timestamp,
+            open: basePrice,
+            high: basePrice + 100,
+            low: basePrice - 50,
+            close: basePrice,
+            volume: 100,
+          });
+        }
+      }
+      return result;
     },
     formatPrice: async (symbol, price) => price.toFixed(8),
     formatQuantity: async (symbol, quantity) => quantity.toFixed(8),
@@ -208,10 +229,47 @@ test("Immediate signal (no priceOpen) has scheduledAt = pendingAt", async ({ pas
 
   let signalData = null;
 
+  const intervalMs = 60 * 1000;
+  const basePrice = 42000;
+  const bufferMinutes = 5;
+  const startTime = new Date("2024-01-01T00:00:00Z").getTime();
+  const bufferStartTime = startTime - bufferMinutes * intervalMs;
+  let allCandles = [];
+
+  // Предзаполняем 6 свечей
+  for (let i = 0; i < 6; i++) {
+    allCandles.push({
+      timestamp: bufferStartTime + i * intervalMs,
+      open: basePrice,
+      high: basePrice + 100,
+      low: basePrice - 100,
+      close: basePrice,
+      volume: 100,
+    });
+  }
+
   addExchangeSchema({
     exchangeName: "binance-immediate-timing",
-    getCandles: async (_symbol, interval, since, limit) => {
-      return await getMockCandles(interval, since, limit);
+    getCandles: async (_symbol, _interval, since, limit) => {
+      const alignedSince = alignTimestamp(since.getTime(), 1);
+      const result = [];
+      for (let i = 0; i < limit; i++) {
+        const timestamp = alignedSince + i * intervalMs;
+        const existingCandle = allCandles.find((c) => c.timestamp === timestamp);
+        if (existingCandle) {
+          result.push(existingCandle);
+        } else {
+          result.push({
+            timestamp,
+            open: basePrice,
+            high: basePrice + 100,
+            low: basePrice - 50,
+            close: basePrice,
+            volume: 100,
+          });
+        }
+      }
+      return result;
     },
     formatPrice: async (symbol, price) => price.toFixed(8),
     formatQuantity: async (symbol, quantity) => quantity.toFixed(8),
@@ -284,13 +342,13 @@ test("Signal has both scheduledAt and pendingAt fields", async ({ pass, fail }) 
   const startTime = new Date("2024-01-01T00:00:00Z").getTime();
   const intervalMs = 60 * 1000;
   const basePrice = 42000;
-  const bufferMinutes = 4;
+  const bufferMinutes = 5;
   const bufferStartTime = startTime - bufferMinutes * intervalMs;
   let allCandles = [];
   let index = 0;
 
-  // Предзаполняем 5 свечей
-  for (let i = 0; i < 5; i++) {
+  // Предзаполняем 6 свечей
+  for (let i = 0; i < 6; i++) {
     allCandles.push({
       timestamp: bufferStartTime + i * intervalMs,
       open: basePrice,
@@ -304,9 +362,25 @@ test("Signal has both scheduledAt and pendingAt fields", async ({ pass, fail }) 
   addExchangeSchema({
     exchangeName: "binance-fields-check",
     getCandles: async (_symbol, _interval, since, limit) => {
-      const sinceIndex = Math.floor((since.getTime() - bufferStartTime) / intervalMs);
-      const result = allCandles.slice(sinceIndex, sinceIndex + limit);
-      return result.length > 0 ? result : allCandles.slice(0, Math.min(limit, allCandles.length));
+      const alignedSince = alignTimestamp(since.getTime(), 1);
+      const result = [];
+      for (let i = 0; i < limit; i++) {
+        const timestamp = alignedSince + i * intervalMs;
+        const existingCandle = allCandles.find((c) => c.timestamp === timestamp);
+        if (existingCandle) {
+          result.push(existingCandle);
+        } else {
+          result.push({
+            timestamp,
+            open: basePrice,
+            high: basePrice + 100,
+            low: basePrice - 50,
+            close: basePrice,
+            volume: 100,
+          });
+        }
+      }
+      return result;
     },
     formatPrice: async (symbol, price) => price.toFixed(8),
     formatQuantity: async (symbol, quantity) => quantity.toFixed(8),
@@ -451,10 +525,47 @@ test("Restored pending signal preserves 24h timing from pendingAt", async ({ pas
     }
   });
 
+  const intervalMs = 60 * 1000;
+  const basePrice = 42000;
+  const bufferMinutes = 5;
+  const restoreStartTime = Date.now();
+  const bufferStartTime = restoreStartTime - bufferMinutes * intervalMs;
+  let allCandles = [];
+
+  // Предзаполняем 6 свечей
+  for (let i = 0; i < 6; i++) {
+    allCandles.push({
+      timestamp: bufferStartTime + i * intervalMs,
+      open: basePrice,
+      high: basePrice + 100,
+      low: basePrice - 100,
+      close: basePrice,
+      volume: 100,
+    });
+  }
+
   addExchangeSchema({
     exchangeName: "binance-restore-pending",
-    getCandles: async (_symbol, interval, since, limit) => {
-      return await getMockCandles(interval, since, limit);
+    getCandles: async (_symbol, _interval, since, limit) => {
+      const alignedSince = alignTimestamp(since.getTime(), 1);
+      const result = [];
+      for (let i = 0; i < limit; i++) {
+        const timestamp = alignedSince + i * intervalMs;
+        const existingCandle = allCandles.find((c) => c.timestamp === timestamp);
+        if (existingCandle) {
+          result.push(existingCandle);
+        } else {
+          result.push({
+            timestamp,
+            open: basePrice,
+            high: basePrice + 100,
+            low: basePrice - 50,
+            close: basePrice,
+            volume: 100,
+          });
+        }
+      }
+      return result;
     },
     formatPrice: async (symbol, price) => price.toFixed(8),
     formatQuantity: async (symbol, quantity) => quantity.toFixed(8),
@@ -525,10 +636,47 @@ test("Scheduled signal closes by timeout when price never reaches priceOpen", as
   let cancelledResult = null;
   let signalGenerated = false; // Флаг чтобы сгенерировать сигнал только один раз
 
+  const intervalMs = 60 * 1000;
+  const basePrice = 42000;
+  const bufferMinutes = 5;
+  const startTime = new Date("2024-01-01T00:00:00Z").getTime();
+  const bufferStartTime = startTime - bufferMinutes * intervalMs;
+  let allCandles = [];
+
+  // Предзаполняем 6 свечей
+  for (let i = 0; i < 6; i++) {
+    allCandles.push({
+      timestamp: bufferStartTime + i * intervalMs,
+      open: basePrice,
+      high: basePrice + 100,
+      low: basePrice - 100,
+      close: basePrice,
+      volume: 100,
+    });
+  }
+
   addExchangeSchema({
     exchangeName: "binance-scheduled-timeout",
-    getCandles: async (_symbol, interval, since, limit) => {
-      return await getMockCandles(interval, since, limit);
+    getCandles: async (_symbol, _interval, since, limit) => {
+      const alignedSince = alignTimestamp(since.getTime(), 1);
+      const result = [];
+      for (let i = 0; i < limit; i++) {
+        const timestamp = alignedSince + i * intervalMs;
+        const existingCandle = allCandles.find((c) => c.timestamp === timestamp);
+        if (existingCandle) {
+          result.push(existingCandle);
+        } else {
+          result.push({
+            timestamp,
+            open: basePrice,
+            high: basePrice + 100,
+            low: basePrice - 50,
+            close: basePrice,
+            volume: 100,
+          });
+        }
+      }
+      return result;
     },
     formatPrice: async (symbol, price) => price.toFixed(8),
     formatQuantity: async (symbol, quantity) => quantity.toFixed(8),

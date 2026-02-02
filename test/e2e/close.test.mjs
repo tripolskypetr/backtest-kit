@@ -1,5 +1,10 @@
 import { test } from "worker-testbed";
 
+const alignTimestamp = (timestampMs, intervalMinutes) => {
+  const intervalMs = intervalMinutes * 60 * 1000;
+  return Math.floor(timestampMs / intervalMs) * intervalMs;
+};
+
 import {
   addExchangeSchema,
   addFrameSchema,
@@ -27,18 +32,83 @@ test("CLOSE: Position closes by time_expired when neither TP nor SL reached", as
   let openedResult = null;
   let closedResult = null;
 
+  const startTime = new Date("2024-01-01T00:00:00Z").getTime();
+  const intervalMs = 60000;
+  const basePrice = 42000;
+  const bufferMinutes = 5;
+  const bufferStartTime = startTime - bufferMinutes * intervalMs;
+
+  let allCandles = [];
+  let signalGenerated = false;
+
+  // Initial candles (buffer period)
+  for (let i = 0; i < 6; i++) {
+    allCandles.push({
+      timestamp: bufferStartTime + i * intervalMs,
+      open: 43000,
+      high: 43100,
+      low: 42900,
+      close: 43000,
+      volume: 100,
+    });
+  }
+
   addExchangeSchema({
     exchangeName: "binance-close-time-expired",
     getCandles: async (_symbol, _interval, since, limit) => {
-      const candles = [];
-      const intervalMs = 60000;
-
+      const alignedSince = alignTimestamp(since.getTime(), 1);
+      const result = [];
       for (let i = 0; i < limit; i++) {
-        const timestamp = since.getTime() + i * intervalMs;
+        const timestamp = alignedSince + i * intervalMs;
+        const existingCandle = allCandles.find((c) => c.timestamp === timestamp);
+        if (existingCandle) {
+          result.push(existingCandle);
+        } else {
+          result.push({
+            timestamp,
+            open: basePrice,
+            high: basePrice + 100,
+            low: basePrice - 100,
+            close: basePrice,
+            volume: 100,
+          });
+        }
+      }
+      return result;
+    },
+    formatPrice: async (_symbol, price) => price.toFixed(8),
+    formatQuantity: async (_symbol, quantity) => quantity.toFixed(8),
+  });
+
+  addStrategySchema({
+    strategyName: "test-close-time-expired",
+    interval: "1m",
+    getSignal: async () => {
+      if (signalGenerated) return null;
+      signalGenerated = true;
+
+      // Reset candles for signal processing
+      allCandles = [];
+
+      // Buffer candles
+      for (let i = 0; i < bufferMinutes; i++) {
+        allCandles.push({
+          timestamp: bufferStartTime + i * intervalMs,
+          open: 43000,
+          high: 43100,
+          low: 42900,
+          close: 43000,
+          volume: 100,
+        });
+      }
+
+      // Phase candles after signal
+      for (let i = 0; i < 15; i++) {
+        const timestamp = startTime + i * intervalMs;
 
         if (i < 5) {
-          // Фаза 1: Ждем активации (цена выше priceOpen)
-          candles.push({
+          // Phase 1: Wait for activation (price above priceOpen)
+          allCandles.push({
             timestamp,
             open: 43000,
             high: 43100,
@@ -47,33 +117,17 @@ test("CLOSE: Position closes by time_expired when neither TP nor SL reached", as
             volume: 100,
           });
         } else {
-          // Фаза 2+3: Активация + цена СТАБИЛЬНА (не достигает ни TP=43000, ни SL=41000)
-          // Цена держится ~42000, позиция должна закрыться по времени
-          candles.push({
+          // Phase 2+3: Activation + stable price (doesn't reach TP=43000 or SL=41000)
+          allCandles.push({
             timestamp,
-            open: 42000,
-            high: 42100,
-            low: 41900,
-            close: 42000,
+            open: basePrice,
+            high: basePrice + 100,
+            low: basePrice - 100,
+            close: basePrice,
             volume: 100,
           });
         }
       }
-
-      return candles;
-    },
-    formatPrice: async (_symbol, price) => price.toFixed(8),
-    formatQuantity: async (_symbol, quantity) => quantity.toFixed(8),
-  });
-
-  let signalGenerated = false;
-
-  addStrategySchema({
-    strategyName: "test-close-time-expired",
-    interval: "1m",
-    getSignal: async () => {
-      if (signalGenerated) return null;
-      signalGenerated = true;
 
       return {
         position: "long",
@@ -163,33 +217,54 @@ test("CLOSE: Scheduled signal cancelled by time_expired when priceOpen not reach
   let openedResult = null;
   let cancelledResult = null;
 
+  const startTime = new Date("2024-01-01T00:00:00Z").getTime();
+  const intervalMs = 60000;
+  const basePrice = 43000;
+  const bufferMinutes = 5;
+  const bufferStartTime = startTime - bufferMinutes * intervalMs;
+
+  let allCandles = [];
+  let signalGenerated = false;
+
+  // Initial candles (buffer period) - all above priceOpen
+  for (let i = 0; i < 6; i++) {
+    allCandles.push({
+      timestamp: bufferStartTime + i * intervalMs,
+      open: basePrice,
+      high: basePrice + 100,
+      low: basePrice - 100,
+      close: basePrice,
+      volume: 100,
+    });
+  }
+
   addExchangeSchema({
     exchangeName: "binance-close-scheduled-time-cancel",
     getCandles: async (_symbol, _interval, since, limit) => {
-      const candles = [];
-      const intervalMs = 60000;
-
+      const alignedSince = alignTimestamp(since.getTime(), 1);
+      const result = [];
       for (let i = 0; i < limit; i++) {
-        const timestamp = since.getTime() + i * intervalMs;
-
-        // ВСЕ свечи: цена ВЫШЕ priceOpen=42000 (сигнал никогда не активируется)
-        candles.push({
-          timestamp,
-          open: 43000,
-          high: 43100,
-          low: 42900,  // Выше priceOpen=42000
-          close: 43000,
-          volume: 100,
-        });
+        const timestamp = alignedSince + i * intervalMs;
+        const existingCandle = allCandles.find((c) => c.timestamp === timestamp);
+        if (existingCandle) {
+          result.push(existingCandle);
+        } else {
+          // All candles: price ABOVE priceOpen=42000 (signal never activates)
+          result.push({
+            timestamp,
+            open: basePrice,
+            high: basePrice + 100,
+            low: basePrice - 100,  // Above priceOpen=42000
+            close: basePrice,
+            volume: 100,
+          });
+        }
       }
-
-      return candles;
+      return result;
     },
     formatPrice: async (_symbol, price) => price.toFixed(8),
     formatQuantity: async (_symbol, quantity) => quantity.toFixed(8),
   });
-
-  let signalGenerated = false;
 
   addStrategySchema({
     strategyName: "test-close-scheduled-time-cancel",
@@ -274,55 +349,53 @@ test("CLOSE: SHORT position closes by stop_loss when price rises above SL", asyn
   let openedResult = null;
   let closedResult = null;
 
+  const startTime = new Date("2024-01-01T00:00:00Z").getTime();
+  const intervalMs = 60000;
+  const basePrice = 41000;
+  const bufferMinutes = 5;
+  const bufferStartTime = startTime - bufferMinutes * intervalMs;
+
+  let allCandles = [];
+  let signalGenerated = false;
+
+  // Initial candles (buffer period) - below priceOpen for SHORT
+  for (let i = 0; i < 6; i++) {
+    allCandles.push({
+      timestamp: bufferStartTime + i * intervalMs,
+      open: basePrice,
+      high: basePrice + 100,
+      low: basePrice - 100,
+      close: basePrice,
+      volume: 100,
+    });
+  }
+
   addExchangeSchema({
     exchangeName: "binance-close-short-sl",
     getCandles: async (_symbol, _interval, since, limit) => {
-      const candles = [];
-      const intervalMs = 60000;
-
+      const alignedSince = alignTimestamp(since.getTime(), 1);
+      const result = [];
       for (let i = 0; i < limit; i++) {
-        const timestamp = since.getTime() + i * intervalMs;
-
-        if (i < 5) {
-          // Фаза 1: Ждем активации (цена НИЖЕ priceOpen)
-          candles.push({
-            timestamp,
-            open: 41000,
-            high: 41100,
-            low: 40900,
-            close: 41000,
-            volume: 100,
-          });
-        } else if (i >= 5 && i < 10) {
-          // Фаза 2: Активация (цена РАСТЕТ до priceOpen)
-          candles.push({
-            timestamp,
-            open: 42000,
-            high: 42100,
-            low: 41900,
-            close: 42000,
-            volume: 100,
-          });
+        const timestamp = alignedSince + i * intervalMs;
+        const existingCandle = allCandles.find((c) => c.timestamp === timestamp);
+        if (existingCandle) {
+          result.push(existingCandle);
         } else {
-          // Фаза 3: Цена РАСТЕТ выше SL=43000 (SHORT закрывается по SL)
-          candles.push({
+          result.push({
             timestamp,
-            open: 43000,
-            high: 43100,  // >= SL=43000 → закрытие по SL!
-            low: 42900,
-            close: 43000,
+            open: basePrice,
+            high: basePrice + 100,
+            low: basePrice - 100,
+            close: basePrice,
             volume: 100,
           });
         }
       }
-
-      return candles;
+      return result;
     },
     formatPrice: async (_symbol, price) => price.toFixed(8),
     formatQuantity: async (_symbol, quantity) => quantity.toFixed(8),
   });
-
-  let signalGenerated = false;
 
   addStrategySchema({
     strategyName: "test-close-short-sl",
@@ -331,12 +404,64 @@ test("CLOSE: SHORT position closes by stop_loss when price rises above SL", asyn
       if (signalGenerated) return null;
       signalGenerated = true;
 
+      // Reset candles for signal processing
+      allCandles = [];
+
+      // Buffer candles
+      for (let i = 0; i < bufferMinutes; i++) {
+        allCandles.push({
+          timestamp: bufferStartTime + i * intervalMs,
+          open: basePrice,
+          high: basePrice + 100,
+          low: basePrice - 100,
+          close: basePrice,
+          volume: 100,
+        });
+      }
+
+      // Phase candles after signal
+      for (let i = 0; i < 15; i++) {
+        const timestamp = startTime + i * intervalMs;
+
+        if (i < 5) {
+          // Phase 1: Wait for activation (price BELOW priceOpen)
+          allCandles.push({
+            timestamp,
+            open: basePrice,
+            high: basePrice + 100,
+            low: basePrice - 100,
+            close: basePrice,
+            volume: 100,
+          });
+        } else if (i >= 5 && i < 10) {
+          // Phase 2: Activation (price rises to priceOpen)
+          allCandles.push({
+            timestamp,
+            open: 42000,
+            high: 42100,
+            low: 41900,
+            close: 42000,
+            volume: 100,
+          });
+        } else {
+          // Phase 3: Price rises above SL=43000 (SHORT closes by SL)
+          allCandles.push({
+            timestamp,
+            open: 43000,
+            high: 43100,  // >= SL=43000 -> close by SL!
+            low: 42900,
+            close: 43000,
+            volume: 100,
+          });
+        }
+      }
+
       return {
         position: "short",
         note: "CLOSE: SHORT stop_loss test",
         priceOpen: 42000,
-        priceTakeProfit: 41000,  // SHORT: TP ниже priceOpen
-        priceStopLoss: 43000,    // SHORT: SL выше priceOpen
+        priceTakeProfit: 41000,  // SHORT: TP below priceOpen
+        priceStopLoss: 43000,    // SHORT: SL above priceOpen
         minuteEstimatedTime: 60,
       };
     },
@@ -424,55 +549,53 @@ test("CLOSE: LONG activates when candle.low exactly equals priceOpen", async ({ 
   let openedResult = null;
   let closedResult = null;
 
+  const startTime = new Date("2024-01-01T00:00:00Z").getTime();
+  const intervalMs = 60000;
+  const basePrice = 43000;
+  const bufferMinutes = 5;
+  const bufferStartTime = startTime - bufferMinutes * intervalMs;
+
+  let allCandles = [];
+  let signalGenerated = false;
+
+  // Initial candles (buffer period) - above priceOpen
+  for (let i = 0; i < 6; i++) {
+    allCandles.push({
+      timestamp: bufferStartTime + i * intervalMs,
+      open: basePrice,
+      high: basePrice + 100,
+      low: basePrice - 100,
+      close: basePrice,
+      volume: 100,
+    });
+  }
+
   addExchangeSchema({
     exchangeName: "binance-close-exact-price",
     getCandles: async (_symbol, _interval, since, limit) => {
-      const candles = [];
-      const intervalMs = 60000;
-
+      const alignedSince = alignTimestamp(since.getTime(), 1);
+      const result = [];
       for (let i = 0; i < limit; i++) {
-        const timestamp = since.getTime() + i * intervalMs;
-
-        if (i < 5) {
-          // Фаза 1: Ждем активации (цена выше priceOpen)
-          candles.push({
-            timestamp,
-            open: 43000,
-            high: 43100,
-            low: 42900,
-            close: 43000,
-            volume: 100,
-          });
-        } else if (i === 5) {
-          // Фаза 2: Активация с ТОЧНЫМ совпадением low=priceOpen
-          candles.push({
-            timestamp,
-            open: 42100,
-            high: 42200,
-            low: 42000,  // ТОЧНО равно priceOpen=42000!
-            close: 42100,
-            volume: 100,
-          });
+        const timestamp = alignedSince + i * intervalMs;
+        const existingCandle = allCandles.find((c) => c.timestamp === timestamp);
+        if (existingCandle) {
+          result.push(existingCandle);
         } else {
-          // Фаза 3: TP достигнут
-          candles.push({
+          result.push({
             timestamp,
-            open: 43000,
-            high: 43100,
-            low: 42900,
-            close: 43000,
+            open: basePrice,
+            high: basePrice + 100,
+            low: basePrice - 100,
+            close: basePrice,
             volume: 100,
           });
         }
       }
-
-      return candles;
+      return result;
     },
     formatPrice: async (_symbol, price) => price.toFixed(8),
     formatQuantity: async (_symbol, quantity) => quantity.toFixed(8),
   });
-
-  let signalGenerated = false;
 
   addStrategySchema({
     strategyName: "test-close-exact-price",
@@ -480,6 +603,58 @@ test("CLOSE: LONG activates when candle.low exactly equals priceOpen", async ({ 
     getSignal: async () => {
       if (signalGenerated) return null;
       signalGenerated = true;
+
+      // Reset candles for signal processing
+      allCandles = [];
+
+      // Buffer candles
+      for (let i = 0; i < bufferMinutes; i++) {
+        allCandles.push({
+          timestamp: bufferStartTime + i * intervalMs,
+          open: basePrice,
+          high: basePrice + 100,
+          low: basePrice - 100,
+          close: basePrice,
+          volume: 100,
+        });
+      }
+
+      // Phase candles after signal
+      for (let i = 0; i < 15; i++) {
+        const timestamp = startTime + i * intervalMs;
+
+        if (i < 5) {
+          // Phase 1: Wait for activation (price above priceOpen)
+          allCandles.push({
+            timestamp,
+            open: basePrice,
+            high: basePrice + 100,
+            low: basePrice - 100,
+            close: basePrice,
+            volume: 100,
+          });
+        } else if (i === 5) {
+          // Phase 2: Activation with EXACT match low=priceOpen
+          allCandles.push({
+            timestamp,
+            open: 42100,
+            high: 42200,
+            low: 42000,  // EXACTLY equals priceOpen=42000!
+            close: 42100,
+            volume: 100,
+          });
+        } else {
+          // Phase 3: TP reached
+          allCandles.push({
+            timestamp,
+            open: basePrice,
+            high: basePrice + 100,
+            low: basePrice - 100,
+            close: basePrice,
+            volume: 100,
+          });
+        }
+      }
 
       return {
         position: "long",
@@ -563,28 +738,93 @@ test("CLOSE: Small profit (0.5%) passes validation and yields profit", async ({ 
   let openedResult = null;
   let closedResult = null;
 
+  const startTime = new Date("2024-01-01T00:00:00Z").getTime();
+  const intervalMs = 60000;
+  const basePrice = 43000;
+  const bufferMinutes = 5;
+  const bufferStartTime = startTime - bufferMinutes * intervalMs;
+
+  let allCandles = [];
+  let signalGenerated = false;
+
+  // Initial candles (buffer period) - above priceOpen
+  for (let i = 0; i < 6; i++) {
+    allCandles.push({
+      timestamp: bufferStartTime + i * intervalMs,
+      open: basePrice,
+      high: basePrice + 100,
+      low: basePrice - 100,
+      close: basePrice,
+      volume: 100,
+    });
+  }
+
   addExchangeSchema({
     exchangeName: "binance-close-small-profit",
     getCandles: async (_symbol, _interval, since, limit) => {
-      const candles = [];
-      const intervalMs = 60000;
-
+      const alignedSince = alignTimestamp(since.getTime(), 1);
+      const result = [];
       for (let i = 0; i < limit; i++) {
-        const timestamp = since.getTime() + i * intervalMs;
+        const timestamp = alignedSince + i * intervalMs;
+        const existingCandle = allCandles.find((c) => c.timestamp === timestamp);
+        if (existingCandle) {
+          result.push(existingCandle);
+        } else {
+          result.push({
+            timestamp,
+            open: basePrice,
+            high: basePrice + 100,
+            low: basePrice - 100,
+            close: basePrice,
+            volume: 100,
+          });
+        }
+      }
+      return result;
+    },
+    formatPrice: async (_symbol, price) => price.toFixed(8),
+    formatQuantity: async (_symbol, quantity) => quantity.toFixed(8),
+  });
+
+  addStrategySchema({
+    strategyName: "test-close-small-profit",
+    interval: "1m",
+    getSignal: async () => {
+      if (signalGenerated) return null;
+      signalGenerated = true;
+
+      // Reset candles for signal processing
+      allCandles = [];
+
+      // Buffer candles
+      for (let i = 0; i < bufferMinutes; i++) {
+        allCandles.push({
+          timestamp: bufferStartTime + i * intervalMs,
+          open: basePrice,
+          high: basePrice + 100,
+          low: basePrice - 100,
+          close: basePrice,
+          volume: 100,
+        });
+      }
+
+      // Phase candles after signal
+      for (let i = 0; i < 15; i++) {
+        const timestamp = startTime + i * intervalMs;
 
         if (i < 5) {
-          // Фаза 1: Ждем активации
-          candles.push({
+          // Phase 1: Wait for activation
+          allCandles.push({
             timestamp,
-            open: 43000,
-            high: 43100,
-            low: 42900,
-            close: 43000,
+            open: basePrice,
+            high: basePrice + 100,
+            low: basePrice - 100,
+            close: basePrice,
             volume: 100,
           });
         } else if (i >= 5 && i < 10) {
-          // Фаза 2: Активация
-          candles.push({
+          // Phase 2: Activation
+          allCandles.push({
             timestamp,
             open: 42000,
             high: 42100,
@@ -593,8 +833,8 @@ test("CLOSE: Small profit (0.5%) passes validation and yields profit", async ({ 
             volume: 100,
           });
         } else {
-          // Фаза 3: TP достигнут (маленький профит 0.5%)
-          candles.push({
+          // Phase 3: TP reached (small profit 0.5%)
+          allCandles.push({
             timestamp,
             open: 42210,
             high: 42250,
@@ -605,26 +845,11 @@ test("CLOSE: Small profit (0.5%) passes validation and yields profit", async ({ 
         }
       }
 
-      return candles;
-    },
-    formatPrice: async (_symbol, price) => price.toFixed(8),
-    formatQuantity: async (_symbol, quantity) => quantity.toFixed(8),
-  });
-
-  let signalGenerated = false;
-
-  addStrategySchema({
-    strategyName: "test-close-small-profit",
-    interval: "1m",
-    getSignal: async () => {
-      if (signalGenerated) return null;
-      signalGenerated = true;
-
       return {
         position: "long",
         note: "CLOSE: small profit test",
         priceOpen: 42000,
-        priceTakeProfit: 42210,  // 0.5% профит
+        priceTakeProfit: 42210,  // 0.5% profit
         priceStopLoss: 41000,
         minuteEstimatedTime: 60,
       };
@@ -715,55 +940,53 @@ test("CLOSE: LONG position closes by stop_loss when price falls below SL", async
   let openedResult = null;
   let closedResult = null;
 
+  const startTime = new Date("2024-01-01T00:00:00Z").getTime();
+  const intervalMs = 60000;
+  const basePrice = 43000;
+  const bufferMinutes = 5;
+  const bufferStartTime = startTime - bufferMinutes * intervalMs;
+
+  let allCandles = [];
+  let signalGenerated = false;
+
+  // Initial candles (buffer period) - above priceOpen
+  for (let i = 0; i < 6; i++) {
+    allCandles.push({
+      timestamp: bufferStartTime + i * intervalMs,
+      open: basePrice,
+      high: basePrice + 100,
+      low: basePrice - 100,
+      close: basePrice,
+      volume: 100,
+    });
+  }
+
   addExchangeSchema({
     exchangeName: "binance-close-long-sl",
     getCandles: async (_symbol, _interval, since, limit) => {
-      const candles = [];
-      const intervalMs = 60000;
-
+      const alignedSince = alignTimestamp(since.getTime(), 1);
+      const result = [];
       for (let i = 0; i < limit; i++) {
-        const timestamp = since.getTime() + i * intervalMs;
-
-        if (i < 5) {
-          // Фаза 1: Ждем активации (цена выше priceOpen)
-          candles.push({
-            timestamp,
-            open: 43000,
-            high: 43100,
-            low: 42900,
-            close: 43000,
-            volume: 100,
-          });
-        } else if (i >= 5 && i < 10) {
-          // Фаза 2: Активация (цена достигает priceOpen)
-          candles.push({
-            timestamp,
-            open: 42000,
-            high: 42100,
-            low: 41900,
-            close: 42000,
-            volume: 100,
-          });
+        const timestamp = alignedSince + i * intervalMs;
+        const existingCandle = allCandles.find((c) => c.timestamp === timestamp);
+        if (existingCandle) {
+          result.push(existingCandle);
         } else {
-          // Фаза 3: Цена ПАДАЕТ ниже SL=41000 (LONG закрывается по SL)
-          candles.push({
+          result.push({
             timestamp,
-            open: 41000,
-            high: 41100,
-            low: 40900,  // <= SL=41000 → закрытие по SL!
-            close: 41000,
+            open: basePrice,
+            high: basePrice + 100,
+            low: basePrice - 100,
+            close: basePrice,
             volume: 100,
           });
         }
       }
-
-      return candles;
+      return result;
     },
     formatPrice: async (_symbol, price) => price.toFixed(8),
     formatQuantity: async (_symbol, quantity) => quantity.toFixed(8),
   });
-
-  let signalGenerated = false;
 
   addStrategySchema({
     strategyName: "test-close-long-sl",
@@ -772,12 +995,64 @@ test("CLOSE: LONG position closes by stop_loss when price falls below SL", async
       if (signalGenerated) return null;
       signalGenerated = true;
 
+      // Reset candles for signal processing
+      allCandles = [];
+
+      // Buffer candles
+      for (let i = 0; i < bufferMinutes; i++) {
+        allCandles.push({
+          timestamp: bufferStartTime + i * intervalMs,
+          open: basePrice,
+          high: basePrice + 100,
+          low: basePrice - 100,
+          close: basePrice,
+          volume: 100,
+        });
+      }
+
+      // Phase candles after signal
+      for (let i = 0; i < 15; i++) {
+        const timestamp = startTime + i * intervalMs;
+
+        if (i < 5) {
+          // Phase 1: Wait for activation (price above priceOpen)
+          allCandles.push({
+            timestamp,
+            open: basePrice,
+            high: basePrice + 100,
+            low: basePrice - 100,
+            close: basePrice,
+            volume: 100,
+          });
+        } else if (i >= 5 && i < 10) {
+          // Phase 2: Activation (price reaches priceOpen)
+          allCandles.push({
+            timestamp,
+            open: 42000,
+            high: 42100,
+            low: 41900,
+            close: 42000,
+            volume: 100,
+          });
+        } else {
+          // Phase 3: Price FALLS below SL=41000 (LONG closes by SL)
+          allCandles.push({
+            timestamp,
+            open: 41000,
+            high: 41100,
+            low: 40900,  // <= SL=41000 -> close by SL!
+            close: 41000,
+            volume: 100,
+          });
+        }
+      }
+
       return {
         position: "long",
         note: "CLOSE: LONG stop_loss test",
         priceOpen: 42000,
-        priceTakeProfit: 43000,  // LONG: TP выше priceOpen
-        priceStopLoss: 41000,    // LONG: SL ниже priceOpen
+        priceTakeProfit: 43000,  // LONG: TP above priceOpen
+        priceStopLoss: 41000,    // LONG: SL below priceOpen
         minuteEstimatedTime: 60,
       };
     },
