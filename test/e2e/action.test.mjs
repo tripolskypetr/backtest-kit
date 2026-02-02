@@ -1,5 +1,10 @@
 import { test } from "worker-testbed";
 
+const alignTimestamp = (timestampMs, intervalMinutes) => {
+  const intervalMs = intervalMinutes * 60 * 1000;
+  return Math.floor(timestampMs / intervalMs) * intervalMs;
+};
+
 import {
   addExchangeSchema,
   addFrameSchema,
@@ -39,13 +44,13 @@ test("ACTION: ActionBase.signalBacktest() called only in backtest", async ({ pas
   const startTime = new Date("2024-01-01T00:00:00Z").getTime();
   const intervalMs = 60000;
   const basePrice = 95000;
-  const bufferMinutes = 4;
+  const bufferMinutes = 5;
   const bufferStartTime = startTime - bufferMinutes * intervalMs;
 
   let allCandles = [];
   let signalGenerated = false;
 
-  for (let i = 0; i < 5; i++) {
+  for (let i = 0; i < 6; i++) {
     allCandles.push({
       timestamp: bufferStartTime + i * intervalMs,
       open: basePrice,
@@ -59,9 +64,25 @@ test("ACTION: ActionBase.signalBacktest() called only in backtest", async ({ pas
   addExchangeSchema({
     exchangeName: "binance-action-backtest",
     getCandles: async (_symbol, _interval, since, limit) => {
-      const sinceIndex = Math.floor((since.getTime() - bufferStartTime) / intervalMs);
-      const result = allCandles.slice(sinceIndex, sinceIndex + limit);
-      return result.length > 0 ? result : allCandles.slice(0, Math.min(limit, allCandles.length));
+      const alignedSince = alignTimestamp(since.getTime(), 1);
+      const result = [];
+      for (let i = 0; i < limit; i++) {
+        const timestamp = alignedSince + i * intervalMs;
+        const existingCandle = allCandles.find((c) => c.timestamp === timestamp);
+        if (existingCandle) {
+          result.push(existingCandle);
+        } else {
+          result.push({
+            timestamp,
+            open: basePrice,
+            high: basePrice + 100,
+            low: basePrice - 50,
+            close: basePrice,
+            volume: 100,
+          });
+        }
+      }
+      return result;
     },
     formatPrice: async (_symbol, p) => p.toFixed(8),
     formatQuantity: async (_symbol, q) => q.toFixed(8),
@@ -187,12 +208,12 @@ test("ACTION: ActionBase.riskRejection() called when signal rejected by risk", a
   const startTime = new Date("2024-01-01T00:00:00Z").getTime();
   const intervalMs = 60000;
   const basePrice = 95000;
-  const bufferMinutes = 4;
+  const bufferMinutes = 5;
   const bufferStartTime = startTime - bufferMinutes * intervalMs;
 
   let allCandles = [];
 
-  for (let i = 0; i < 5; i++) {
+  for (let i = 0; i < 6; i++) {
     allCandles.push({
       timestamp: bufferStartTime + i * intervalMs,
       open: basePrice,
@@ -206,7 +227,8 @@ test("ACTION: ActionBase.riskRejection() called when signal rejected by risk", a
   addExchangeSchema({
     exchangeName: "binance-action-risk-rejection",
     getCandles: async (_symbol, _interval, since, limit) => {
-      const sinceIndex = Math.floor((since.getTime() - bufferStartTime) / intervalMs);
+      const alignedSince = alignTimestamp(since.getTime(), 1);
+      const sinceIndex = Math.floor((alignedSince - bufferStartTime) / intervalMs);
       const result = allCandles.slice(sinceIndex, sinceIndex + limit);
       return result.length > 0 ? result : allCandles.slice(0, Math.min(limit, allCandles.length));
     },
