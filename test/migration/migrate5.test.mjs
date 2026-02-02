@@ -575,8 +575,8 @@ test("PERSIST: onWrite called EXACTLY ONCE per signal open", async ({ pass, fail
     });
   }
 
-  // Свечи от startTime (i=0-69)
-  for (let i = 0; i < 70; i++) {
+  // Свечи от startTime (i=0-71) - добавляем +2 для exclusive boundaries
+  for (let i = 0; i < 72; i++) {
     const timestamp = startTime + i * intervalMs;
     if (i < 10) {
       // Ожидание активации (цена выше priceOpen)
@@ -605,8 +605,11 @@ test("PERSIST: onWrite called EXACTLY ONCE per signal open", async ({ pass, fail
     exchangeName: "binance-persist-write-once",
     getCandles: async (_symbol, _interval, since, limit) => {
       const sinceIndex = Math.floor((since.getTime() - bufferStartTime) / intervalMs);
-      const result = allCandles.slice(sinceIndex, sinceIndex + limit);
-      return result.length > 0 ? result : allCandles.slice(0, Math.min(limit, allCandles.length));
+      // Handle negative index - return from beginning
+      const startIndex = Math.max(0, sinceIndex);
+      // Return +4 extra candles to account for exclusive boundaries filtering
+      const result = allCandles.slice(startIndex, startIndex + limit + 4);
+      return result;
     },
     formatPrice: async (_symbol, price) => price.toFixed(8),
     formatQuantity: async (_symbol, quantity) => quantity.toFixed(8),
@@ -755,8 +758,11 @@ test("PERSIST: onWrite(null) called EXACTLY ONCE per signal close", async ({ pas
     exchangeName: "binance-persist-delete-once",
     getCandles: async (_symbol, _interval, since, limit) => {
       const sinceIndex = Math.floor((since.getTime() - bufferStartTime) / intervalMs);
-      const result = allCandles.slice(sinceIndex, sinceIndex + limit);
-      return result.length > 0 ? result : allCandles.slice(0, Math.min(limit, allCandles.length));
+      // Handle negative index - return from beginning
+      const startIndex = Math.max(0, sinceIndex);
+      // Return +4 extra candles to account for exclusive boundaries filtering
+      const result = allCandles.slice(startIndex, startIndex + limit + 4);
+      return result;
     },
     formatPrice: async (_symbol, price) => price.toFixed(8),
     formatQuantity: async (_symbol, quantity) => quantity.toFixed(8),
