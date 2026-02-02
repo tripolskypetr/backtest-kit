@@ -563,8 +563,8 @@ test("PERSIST: onWrite called EXACTLY ONCE per signal open", async ({ pass, fail
 
   let allCandles = [];
 
-  // Предзаполняем начальные свечи для getAveragePrice (минимум 5)
-  for (let i = 0; i < 5; i++) {
+  // Буферные свечи (4 минуты ДО startTime)
+  for (let i = 0; i < bufferMinutes; i++) {
     allCandles.push({
       timestamp: bufferStartTime + i * intervalMs,
       open: basePrice,
@@ -575,7 +575,8 @@ test("PERSIST: onWrite called EXACTLY ONCE per signal open", async ({ pass, fail
     });
   }
 
-  for (let i = 5; i < 70; i++) {
+  // Свечи от startTime (i=0-69)
+  for (let i = 0; i < 70; i++) {
     const timestamp = startTime + i * intervalMs;
     if (i < 10) {
       // Ожидание активации (цена выше priceOpen)
@@ -702,8 +703,8 @@ test("PERSIST: onWrite(null) called EXACTLY ONCE per signal close", async ({ pas
 
   let allCandles = [];
 
-  // Предзаполняем начальные свечи для getAveragePrice (минимум 5)
-  for (let i = 0; i < 5; i++) {
+  // Буферные свечи (4 минуты ДО startTime)
+  for (let i = 0; i < bufferMinutes; i++) {
     allCandles.push({
       timestamp: bufferStartTime + i * intervalMs,
       open: basePrice,
@@ -714,7 +715,8 @@ test("PERSIST: onWrite(null) called EXACTLY ONCE per signal close", async ({ pas
     });
   }
 
-  for (let i = 5; i < 70; i++) {
+  // Свечи от startTime (i=0-69)
+  for (let i = 0; i < 70; i++) {
     const timestamp = startTime + i * intervalMs;
     if (i < 10) {
       // Ожидание активации
