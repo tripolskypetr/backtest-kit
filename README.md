@@ -208,47 +208,54 @@ Backtest Kit is **not a data-processing library** - it is a **time execution eng
 backtest-kit uses Node.js `AsyncLocalStorage` to automatically provide
 temporal time context to your strategies.
 
-**Boundary Semantics:**
+  <details>
+    <summary>
+      The Math
+    </summary>
+      
+    For a candle with:
+    - `timestamp` = candle open time
+    - `stepMs` = interval duration (e.g., 60000ms for "1m")
+    - Candle close time = `timestamp + stepMs`
+
+    The candle is included if: `timestamp + stepMs < upperBoundary`
+
+    - `getCandles(symbol, interval, limit)` - Returns data in range `(when - limit*interval, when)`
+      - Fetches historical candles backwards from execution context time
+      - Only fully closed candles are included (candle must close before `when`)
+      - Lower bound: `candle.timestamp > sinceTimestamp` (exclusive)
+      - Upper bound: `candle.timestamp + stepMs < when` (exclusive)
+      - Example: `getCandles("BTCUSDT", "1m", 100)` returns 100 candles ending before current time
+
+    - `getNextCandles(symbol, interval, limit)` - Returns data in range `(when, when + limit*interval)`
+      - Fetches future candles forwards from execution context time (backtest only)
+      - Only fully closed candles are included
+      - Lower bound: `candle.timestamp > when` (exclusive)
+      - Upper bound: `candle.timestamp + stepMs < endTime` (exclusive)
+      - Throws error in live mode to prevent look-ahead bias
+      - Example: `getNextCandles("BTCUSDT", "1m", 10)` returns next 10 candles after current time
+
+    - `getRawCandles(symbol, interval, limit?, sDate?, eDate?)` - Flexible parameter combinations:
+      - `(limit)` - Returns data in range `(now - limit*interval, now)`
+      - `(limit, sDate)` - Returns data in range `(sDate, sDate + limit*interval)`
+      - `(limit, undefined, eDate)` - Returns data in range `(eDate - limit*interval, eDate)`
+      - `(undefined, sDate, eDate)` - Returns data in range `(sDate, eDate)`, limit calculated from range
+      - `(limit, sDate, eDate)` - Returns data in range `(sDate, eDate)`, limit used only for fetch size
+      - All combinations use: `candle.timestamp > sDate && candle.timestamp + stepMs < eDate`
+      - All combinations respect exclusive boundaries and look-ahead bias protection
+
+    **Persistent Cache:**
+    - Candle cache uses identical boundary semantics: `timestamp > sinceTimestamp && timestamp + stepMs < untilTimestamp`
+    - Cache and runtime filters are synchronized to prevent inconsistencies
+    - Cache returns only candles that match the requested time range exactly
+
+  </details>
+
+#### Boundary Semantics:
 
 All methods use **strict exclusive boundaries** - candles at exact boundary times are excluded. This prevents accidental inclusion of boundary conditions in backtest logic and ensures consistent behavior across cache and runtime.
 
 **Key principle:** A candle is included only if it **fully closed** before the upper boundary.
-
-For a candle with:
-- `timestamp` = candle open time
-- `stepMs` = interval duration (e.g., 60000ms for "1m")
-- Candle close time = `timestamp + stepMs`
-
-The candle is included if: `timestamp + stepMs < upperBoundary`
-
-- `getCandles(symbol, interval, limit)` - Returns data in range `(when - limit*interval, when)`
-  - Fetches historical candles backwards from execution context time
-  - Only fully closed candles are included (candle must close before `when`)
-  - Lower bound: `candle.timestamp > sinceTimestamp` (exclusive)
-  - Upper bound: `candle.timestamp + stepMs < when` (exclusive)
-  - Example: `getCandles("BTCUSDT", "1m", 100)` returns 100 candles ending before current time
-
-- `getNextCandles(symbol, interval, limit)` - Returns data in range `(when, when + limit*interval)`
-  - Fetches future candles forwards from execution context time (backtest only)
-  - Only fully closed candles are included
-  - Lower bound: `candle.timestamp > when` (exclusive)
-  - Upper bound: `candle.timestamp + stepMs < endTime` (exclusive)
-  - Throws error in live mode to prevent look-ahead bias
-  - Example: `getNextCandles("BTCUSDT", "1m", 10)` returns next 10 candles after current time
-
-- `getRawCandles(symbol, interval, limit?, sDate?, eDate?)` - Flexible parameter combinations:
-  - `(limit)` - Returns data in range `(now - limit*interval, now)`
-  - `(limit, sDate)` - Returns data in range `(sDate, sDate + limit*interval)`
-  - `(limit, undefined, eDate)` - Returns data in range `(eDate - limit*interval, eDate)`
-  - `(undefined, sDate, eDate)` - Returns data in range `(sDate, eDate)`, limit calculated from range
-  - `(limit, sDate, eDate)` - Returns data in range `(sDate, eDate)`, limit used only for fetch size
-  - All combinations use: `candle.timestamp > sDate && candle.timestamp + stepMs < eDate`
-  - All combinations respect exclusive boundaries and look-ahead bias protection
-
-**Persistent Cache:**
-- Candle cache uses identical boundary semantics: `timestamp > sinceTimestamp && timestamp + stepMs < untilTimestamp`
-- Cache and runtime filters are synchronized to prevent inconsistencies
-- Cache returns only candles that match the requested time range exactly
 
 ### 🔬 Technical Details: The `+ stepMs` Check
 
