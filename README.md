@@ -212,83 +212,95 @@ temporal time context to your strategies.
     <summary>
       The Math
     </summary>
-      
+
     For a candle with:
-    - `timestamp` = candle open time
+    - `timestamp` = candle open time (openTime)
     - `stepMs` = interval duration (e.g., 60000ms for "1m")
     - Candle close time = `timestamp + stepMs`
 
-    The candle is included if: `timestamp + stepMs < upperBoundary`
+    **Alignment:** All timestamps are aligned down to interval boundary.
+    For example, for 15m interval: 00:17 → 00:15, 00:44 → 00:30
 
-    - `getCandles(symbol, interval, limit)` - Returns data in range `(when - limit*interval, when)`
-      - Fetches historical candles backwards from execution context time
-      - Only fully closed candles are included (candle must close before `when`)
-      - Lower bound: `candle.timestamp > sinceTimestamp` (exclusive)
-      - Upper bound: `candle.timestamp + stepMs < when` (exclusive)
-      - Example: `getCandles("BTCUSDT", "1m", 100)` returns 100 candles ending before current time
+    **Adapter contract:**
+    - First candle.timestamp must equal aligned `since`
+    - Adapter must return exactly `limit` candles
+    - Sequential timestamps: `since + i * stepMs` for i = 0..limit-1
 
-    - `getNextCandles(symbol, interval, limit)` - Returns data in range `(when, when + limit*interval)`
-      - Fetches future candles forwards from execution context time (backtest only)
-      - Only fully closed candles are included
-      - Lower bound: `candle.timestamp > when` (exclusive)
-      - Upper bound: `candle.timestamp + stepMs < endTime` (exclusive)
+    - `getCandles(symbol, interval, limit)` - Returns exactly `limit` candles
+      - Aligns `when` down to interval boundary
+      - Calculates `since = alignedWhen - limit * stepMs`
+      - First candle.timestamp === since
+      - Example: `getCandles("BTCUSDT", "1m", 100)` returns 100 candles ending at aligned when
+
+    - `getNextCandles(symbol, interval, limit)` - Returns exactly `limit` candles (backtest only)
+      - Aligns `when` down to interval boundary
+      - `since = alignedWhen` (starts from aligned when, going forward)
+      - First candle.timestamp === since
       - Throws error in live mode to prevent look-ahead bias
-      - Example: `getNextCandles("BTCUSDT", "1m", 10)` returns next 10 candles after current time
+      - Example: `getNextCandles("BTCUSDT", "1m", 10)` returns next 10 candles after aligned when
 
     - `getRawCandles(symbol, interval, limit?, sDate?, eDate?)` - Flexible parameter combinations:
-      - `(limit)` - Returns data in range `(now - limit*interval, now)`
-      - `(limit, sDate)` - Returns data in range `(sDate, sDate + limit*interval)`
-      - `(limit, undefined, eDate)` - Returns data in range `(eDate - limit*interval, eDate)`
-      - `(undefined, sDate, eDate)` - Returns data in range `(sDate, eDate)`, limit calculated from range
-      - `(limit, sDate, eDate)` - Returns data in range `(sDate, eDate)`, limit used only for fetch size
-      - All combinations use: `candle.timestamp > sDate && candle.timestamp + stepMs < eDate`
-      - All combinations respect exclusive boundaries and look-ahead bias protection
+      - `(limit)` - since = alignedWhen - limit * stepMs
+      - `(limit, sDate)` - since = align(sDate), returns `limit` candles forward
+      - `(limit, undefined, eDate)` - since = align(eDate) - limit * stepMs
+      - `(undefined, sDate, eDate)` - since = align(sDate), limit calculated from range
+      - `(limit, sDate, eDate)` - since = align(sDate), returns `limit` candles
+      - All combinations respect look-ahead bias protection (eDate/endTime <= when)
 
     **Persistent Cache:**
-    - Candle cache uses identical boundary semantics: `timestamp > sinceTimestamp && timestamp + stepMs < untilTimestamp`
-    - Cache and runtime filters are synchronized to prevent inconsistencies
-    - Cache returns only candles that match the requested time range exactly
+    - Cache lookup calculates expected timestamps: `since + i * stepMs` for i = 0..limit-1
+    - Returns all candles if found, null if any missing (cache miss)
+    - Cache and runtime use identical timestamp calculation logic
 
   </details>
 
-#### Boundary Semantics:
-
-All methods use **strict exclusive boundaries** - candles at exact boundary times are excluded. This prevents accidental inclusion of boundary conditions in backtest logic and ensures consistent behavior across cache and runtime.
+#### Candle Timestamp Convention:
 
 According to this `timestamp` of a candle in backtest-kit is exactly the `openTime`, not ~~`closeTime`~~
 
-**Key principle:** A candle is included only if it **fully closed** before the upper boundary.
+**Key principles:**
+- All timestamps are aligned down to interval boundary
+- First candle.timestamp must equal aligned `since`
+- Adapter must return exactly `limit` candles
+- Sequential timestamps: `since + i * stepMs`
 
-### 🔬 Technical Details: The `+ stepMs` Check
+### 🔬 Technical Details: Timestamp Alignment
 
-**Why check `candle.timestamp + stepMs < upperBoundary` instead of just `candle.timestamp < upperBoundary`?**
+**Why align timestamps to interval boundaries?**
 
-Because a candle's **timestamp is when it opens**, not when it closes:
+Because candle APIs return data starting from exact interval boundaries:
 
 ```typescript
-// 1-minute candle example:
-timestamp = 1000      // Candle opens at 1000ms
-stepMs = 60000        // Duration: 60 seconds
-// Candle closes at: 1000 + 60000 = 61000ms
+// 15-minute interval example:
+when = 1704067920000       // 00:12:00
+step = 15                  // 15 minutes
+stepMs = 15 * 60000        // 900000ms
 
-// Without + stepMs (WRONG):
-candle.timestamp < 61000
-1000 < 61000  // TRUE - includes candle that hasn't finished yet!
+// Alignment: round down to nearest interval boundary
+alignedWhen = Math.floor(when / stepMs) * stepMs
+// = Math.floor(1704067920000 / 900000) * 900000
+// = 1704067200000 (00:00:00)
 
-// With + stepMs (CORRECT):
-candle.timestamp + stepMs < 61000
-1000 + 60000 < 61000
-61000 < 61000  // FALSE - correctly excludes unclosed candle
+// Calculate since for 4 candles backwards:
+since = alignedWhen - 4 * stepMs
+// = 1704067200000 - 4 * 900000
+// = 1704063600000 (23:00:00 previous day)
+
+// Expected candles:
+// [0] timestamp = 1704063600000 (23:00)
+// [1] timestamp = 1704064500000 (23:15)
+// [2] timestamp = 1704065400000 (23:30)
+// [3] timestamp = 1704066300000 (23:45)
 ```
 
-**This check is applied consistently across:**
-- ✅ `getCandles()` filtering
-- ✅ `getNextCandles()` filtering
-- ✅ `getRawCandles()` filtering (all parameter combinations)
-- ✅ Cache read operations
-- ✅ Cache write operations
+**Validation is applied consistently across:**
+- ✅ `getCandles()` - validates first timestamp and count
+- ✅ `getNextCandles()` - validates first timestamp and count
+- ✅ `getRawCandles()` - validates first timestamp and count
+- ✅ Cache read - calculates exact expected timestamps
+- ✅ Cache write - stores validated candles
 
-**Result:** Zero chance of including incomplete or "forming" candles in your strategy logic.
+**Result:** Deterministic candle retrieval with exact timestamp matching.
 
 ### 💭 What this means:
 - `getCandles()` always returns data UP TO the current backtest timestamp using `async_hooks`
