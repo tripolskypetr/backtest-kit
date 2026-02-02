@@ -60,6 +60,7 @@
     "@rollup/plugin-typescript": "11.1.6",
     "@types/node": "22.9.0",
     "glob": "11.0.1",
+    "plantuml": "0.0.2",
     "rimraf": "6.0.1",
     "rollup": "3.29.5",
     "rollup-plugin-dts": "6.1.1",
@@ -67,11 +68,8 @@
     "ts-morph": "27.0.2",
     "tslib": "2.7.0",
     "typedoc": "0.27.9",
-    "plantuml": "0.0.2",
+    "typescript": "^5.0.0",
     "worker-testbed": "1.0.12"
-  },
-  "peerDependencies": {
-    "typescript": "^5.0.0"
   },
   "dependencies": {
     "di-kit": "^1.0.18",
