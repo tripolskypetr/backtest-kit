@@ -12,6 +12,11 @@ import {
 
 import { Subject, sleep } from "functools-kit";
 
+const alignTimestamp = (timestampMs, intervalMinutes) => {
+  const intervalMs = intervalMinutes * 60 * 1000;
+  return Math.floor(timestampMs / intervalMs) * intervalMs;
+};
+
 /**
  * SEQUENCE ТЕСТ #1: Последовательность из 5 сигналов с разными результатами
  *
@@ -35,7 +40,7 @@ test("SEQUENCE: 5 signals with mixed results (TP, SL, cancelled, TP, SL) - VWAP-
   const startTime = new Date("2024-01-01T00:00:00Z").getTime();
   const intervalMs = 60000;
   const basePrice = 95000;
-  const bufferMinutes = 4;
+  const bufferMinutes = 5;
   const bufferStartTime = startTime - bufferMinutes * intervalMs;
   const priceOpen = basePrice - 500; // НИЖЕ текущей цены для LONG → scheduled
   const priceStopLoss = priceOpen - 1000; // 93500
@@ -43,7 +48,7 @@ test("SEQUENCE: 5 signals with mixed results (TP, SL, cancelled, TP, SL) - VWAP-
   let allCandles = [];
 
   // Создаем начальные свечи ВЫШЕ priceOpen для scheduled состояния с буфером
-  for (let i = 0; i < 5; i++) {
+  for (let i = 0; i < 6; i++) {
     allCandles.push({
       timestamp: bufferStartTime + i * intervalMs,
       open: basePrice,
@@ -57,9 +62,25 @@ test("SEQUENCE: 5 signals with mixed results (TP, SL, cancelled, TP, SL) - VWAP-
   addExchangeSchema({
     exchangeName: "binance-sequence-5signals",
     getCandles: async (_symbol, _interval, since, limit) => {
-      const sinceIndex = Math.floor((since.getTime() - bufferStartTime) / intervalMs);
-      const result = allCandles.slice(sinceIndex, sinceIndex + limit);
-      return result.length > 0 ? result : allCandles.slice(0, Math.min(limit, allCandles.length));
+      const alignedSince = alignTimestamp(since.getTime(), 1);
+      const result = [];
+      for (let i = 0; i < limit; i++) {
+        const timestamp = alignedSince + i * intervalMs;
+        const existingCandle = allCandles.find((c) => c.timestamp === timestamp);
+        if (existingCandle) {
+          result.push(existingCandle);
+        } else {
+          result.push({
+            timestamp,
+            open: basePrice,
+            high: basePrice + 100,
+            low: basePrice - 50,
+            close: basePrice,
+            volume: 100,
+          });
+        }
+      }
+      return result;
     },
     formatPrice: async (_symbol, p) => p.toFixed(8),
     formatQuantity: async (_symbol, quantity) => quantity.toFixed(8),

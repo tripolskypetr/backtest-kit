@@ -30,6 +30,11 @@ import {
 
 import { Subject, sleep } from "functools-kit";
 
+const alignTimestamp = (timestampMs, intervalMinutes) => {
+  const intervalMs = intervalMinutes * 60 * 1000;
+  return Math.floor(timestampMs / intervalMs) * intervalMs;
+};
+
 // Test #18
 test("PARALLEL: Single strategy trading two symbols (BTCUSDT + ETHUSDT)", async ({ pass, fail }) => {
   const btcSignals = {
@@ -48,7 +53,7 @@ test("PARALLEL: Single strategy trading two symbols (BTCUSDT + ETHUSDT)", async 
 
   const startTime = new Date("2024-01-01T00:00:00Z").getTime();
   const intervalMs = 60000;
-  const bufferMinutes = 4;
+  const bufferMinutes = 5;
   const bufferStartTime = startTime - bufferMinutes * intervalMs;
 
   // BTC: base price 95000
@@ -62,7 +67,7 @@ test("PARALLEL: Single strategy trading two symbols (BTCUSDT + ETHUSDT)", async 
   let ethCandles = [];
 
   // Предзаполняем начальные свечи для обоих символов
-  for (let i = 0; i < 5; i++) {
+  for (let i = 0; i < 6; i++) {
     btcCandles.push({
       timestamp: bufferStartTime + i * intervalMs,
       open: btcBasePrice,
@@ -85,19 +90,27 @@ test("PARALLEL: Single strategy trading two symbols (BTCUSDT + ETHUSDT)", async 
   addExchangeSchema({
     exchangeName: "binance-parallel-multi",
     getCandles: async (symbol, _interval, since, limit) => {
-      const sinceIndex = Math.floor((since.getTime() - bufferStartTime) / intervalMs);
-
-      if (symbol === "BTCUSDT") {
-        const result = btcCandles.slice(sinceIndex, sinceIndex + limit);
-        return result.length > 0 ? result : btcCandles.slice(0, Math.min(limit, btcCandles.length));
+      const alignedSince = alignTimestamp(since.getTime(), 1);
+      const candles = symbol === "BTCUSDT" ? btcCandles : symbol === "ETHUSDT" ? ethCandles : [];
+      const basePrice = symbol === "BTCUSDT" ? btcBasePrice : ethBasePrice;
+      const result = [];
+      for (let i = 0; i < limit; i++) {
+        const timestamp = alignedSince + i * intervalMs;
+        const existingCandle = candles.find((c) => c.timestamp === timestamp);
+        if (existingCandle) {
+          result.push(existingCandle);
+        } else {
+          result.push({
+            timestamp,
+            open: basePrice,
+            high: basePrice + 100,
+            low: basePrice - 50,
+            close: basePrice,
+            volume: 100,
+          });
+        }
       }
-
-      if (symbol === "ETHUSDT") {
-        const result = ethCandles.slice(sinceIndex, sinceIndex + limit);
-        return result.length > 0 ? result : ethCandles.slice(0, Math.min(limit, ethCandles.length));
-      }
-
-      return [];
+      return result;
     },
     formatPrice: async (_symbol, p) => p.toFixed(8),
     formatQuantity: async (_symbol, quantity) => quantity.toFixed(8),
@@ -411,13 +424,13 @@ test("EDGE: Multiple signals with different results (TP, SL, time_expired) - que
   const startTime = new Date("2024-01-01T00:00:00Z").getTime();
   const intervalMs = 60000;
   const basePrice = 95000;  // Базовая цена для теста
-  const bufferMinutes = 4;
+  const bufferMinutes = 5;
   const bufferStartTime = startTime - bufferMinutes * intervalMs;
 
   let allCandles = [];  // Будет заполнено в getSignal
 
   // Создаем начальные свечи для getAveragePrice (минимум 5 свечей)
-  for (let i = 0; i < 5; i++) {
+  for (let i = 0; i < 6; i++) {
     allCandles.push({
       timestamp: bufferStartTime + i * intervalMs,
       open: basePrice,
@@ -431,10 +444,25 @@ test("EDGE: Multiple signals with different results (TP, SL, time_expired) - que
   addExchangeSchema({
     exchangeName: "binance-edge-multiple-signals",
     getCandles: async (_symbol, _interval, since, limit) => {
-      const sinceIndex = Math.floor((since.getTime() - bufferStartTime) / intervalMs);
-      const result = allCandles.slice(sinceIndex, sinceIndex + limit);
-      // console.log(`[TEST2] getCandles: since=${new Date(since.getTime()).toISOString()}, limit=${limit}, sinceIndex=${sinceIndex}, result.length=${result.length}`);
-      return result.length > 0 ? result : allCandles.slice(0, Math.min(limit, allCandles.length));
+      const alignedSince = alignTimestamp(since.getTime(), 1);
+      const result = [];
+      for (let i = 0; i < limit; i++) {
+        const timestamp = alignedSince + i * intervalMs;
+        const existingCandle = allCandles.find((c) => c.timestamp === timestamp);
+        if (existingCandle) {
+          result.push(existingCandle);
+        } else {
+          result.push({
+            timestamp,
+            open: basePrice,
+            high: basePrice + 100,
+            low: basePrice - 50,
+            close: basePrice,
+            volume: 100,
+          });
+        }
+      }
+      return result;
     },
     formatPrice: async (_symbol, p) => p.toFixed(8),
     formatQuantity: async (_symbol, quantity) => quantity.toFixed(8),
@@ -641,7 +669,7 @@ test("EDGE: Multiple signals with different results (TP, SL, time_expired) - que
 test("MARKDOWN PARALLEL: All markdown services work with multi-symbol isolation", async ({ pass, fail }) => {
   const startTime = new Date("2024-01-01T00:00:00Z").getTime();
   const intervalMs = 60000;
-  const bufferMinutes = 4;
+  const bufferMinutes = 5;
   const bufferStartTime = startTime - bufferMinutes * intervalMs;
 
   // BTC: базовая цена 95000, TP scenario с partial profit
@@ -655,7 +683,7 @@ test("MARKDOWN PARALLEL: All markdown services work with multi-symbol isolation"
   let ethCandles = [];
 
   // Предзаполняем начальные свечи
-  for (let i = 0; i < 5; i++) {
+  for (let i = 0; i < 6; i++) {
     btcCandles.push({
       timestamp: bufferStartTime + i * intervalMs,
       open: btcBasePrice,
@@ -678,19 +706,27 @@ test("MARKDOWN PARALLEL: All markdown services work with multi-symbol isolation"
   addExchangeSchema({
     exchangeName: "binance-markdown-parallel",
     getCandles: async (symbol, _interval, since, limit) => {
-      const sinceIndex = Math.floor((since.getTime() - bufferStartTime) / intervalMs);
-
-      if (symbol === "BTCUSDT") {
-        const result = btcCandles.slice(sinceIndex, sinceIndex + limit);
-        return result.length > 0 ? result : btcCandles.slice(0, Math.min(limit, btcCandles.length));
+      const alignedSince = alignTimestamp(since.getTime(), 1);
+      const candles = symbol === "BTCUSDT" ? btcCandles : symbol === "ETHUSDT" ? ethCandles : [];
+      const basePrice = symbol === "BTCUSDT" ? btcBasePrice : ethBasePrice;
+      const result = [];
+      for (let i = 0; i < limit; i++) {
+        const timestamp = alignedSince + i * intervalMs;
+        const existingCandle = candles.find((c) => c.timestamp === timestamp);
+        if (existingCandle) {
+          result.push(existingCandle);
+        } else {
+          result.push({
+            timestamp,
+            open: basePrice,
+            high: basePrice + 100,
+            low: basePrice - 50,
+            close: basePrice,
+            volume: 100,
+          });
+        }
       }
-
-      if (symbol === "ETHUSDT") {
-        const result = ethCandles.slice(sinceIndex, sinceIndex + limit);
-        return result.length > 0 ? result : ethCandles.slice(0, Math.min(limit, ethCandles.length));
-      }
-
-      return [];
+      return result;
     },
     formatPrice: async (_symbol, p) => p.toFixed(8),
     formatQuantity: async (_symbol, quantity) => quantity.toFixed(8),
@@ -1164,7 +1200,7 @@ test("MARKDOWN PARALLEL: All markdown services work with multi-symbol isolation"
 test("FACADES PARALLEL: All public facades isolate data by (symbol, strategyName)", async ({ pass, fail }) => {
   const startTime = new Date("2024-01-01T00:00:00Z").getTime();
   const intervalMs = 60000;
-  const bufferMinutes = 4;
+  const bufferMinutes = 5;
   const bufferStartTime = startTime - bufferMinutes * intervalMs;
 
   // BTC: базовая цена 95000, TP scenario
@@ -1178,7 +1214,7 @@ test("FACADES PARALLEL: All public facades isolate data by (symbol, strategyName
   let ethCandles = [];
 
   // Предзаполняем начальные свечи
-  for (let i = 0; i < 5; i++) {
+  for (let i = 0; i < 6; i++) {
     btcCandles.push({
       timestamp: bufferStartTime + i * intervalMs,
       open: btcBasePrice,
@@ -1201,19 +1237,27 @@ test("FACADES PARALLEL: All public facades isolate data by (symbol, strategyName
   addExchangeSchema({
     exchangeName: "binance-facades-parallel",
     getCandles: async (symbol, _interval, since, limit) => {
-      const sinceIndex = Math.floor((since.getTime() - bufferStartTime) / intervalMs);
-
-      if (symbol === "BTCUSDT") {
-        const result = btcCandles.slice(sinceIndex, sinceIndex + limit);
-        return result.length > 0 ? result : btcCandles.slice(0, Math.min(limit, btcCandles.length));
+      const alignedSince = alignTimestamp(since.getTime(), 1);
+      const candles = symbol === "BTCUSDT" ? btcCandles : symbol === "ETHUSDT" ? ethCandles : [];
+      const basePrice = symbol === "BTCUSDT" ? btcBasePrice : ethBasePrice;
+      const result = [];
+      for (let i = 0; i < limit; i++) {
+        const timestamp = alignedSince + i * intervalMs;
+        const existingCandle = candles.find((c) => c.timestamp === timestamp);
+        if (existingCandle) {
+          result.push(existingCandle);
+        } else {
+          result.push({
+            timestamp,
+            open: basePrice,
+            high: basePrice + 100,
+            low: basePrice - 50,
+            close: basePrice,
+            volume: 100,
+          });
+        }
       }
-
-      if (symbol === "ETHUSDT") {
-        const result = ethCandles.slice(sinceIndex, sinceIndex + limit);
-        return result.length > 0 ? result : ethCandles.slice(0, Math.min(limit, ethCandles.length));
-      }
-
-      return [];
+      return result;
     },
     formatPrice: async (_symbol, p) => p.toFixed(8),
     formatQuantity: async (_symbol, quantity) => quantity.toFixed(8),

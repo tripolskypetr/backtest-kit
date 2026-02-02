@@ -33,6 +33,11 @@ import {
 
 import { Subject, sleep } from "functools-kit";
 
+const alignTimestamp = (timestampMs, intervalMinutes) => {
+  const intervalMs = intervalMinutes * 60 * 1000;
+  return Math.floor(timestampMs / intervalMs) * intervalMs;
+};
+
 // Проблемные тесты, требующие дополнительной отладки
 // Эти тесты вынесены из migrate.test.mjs для изоляции
 
@@ -52,12 +57,12 @@ test("Cancel scheduled signal after 5 onSchedulePing calls in backtest", async (
   const intervalMs = 60 * 1000; // 1 minute
   const basePrice = 42000;
 
-  const bufferMinutes = 4;
+  const bufferMinutes = 5;
   const bufferStartTime = startTime - bufferMinutes * intervalMs;
   let allCandles = [];
 
-  // Предзаполняем минимум 5 свечей ДО первого вызова getSignal
-  for (let i = 0; i < 5; i++) {
+  // Предзаполняем минимум 6 свечей ДО первого вызова getSignal
+  for (let i = 0; i < 6; i++) {
     allCandles.push({
       timestamp: bufferStartTime + i * intervalMs,
       open: basePrice,
@@ -71,9 +76,25 @@ test("Cancel scheduled signal after 5 onSchedulePing calls in backtest", async (
   addExchangeSchema({
     exchangeName: "binance-cancel-ping-test",
     getCandles: async (_symbol, _interval, since, limit) => {
-      const sinceIndex = Math.floor((since.getTime() - bufferStartTime) / intervalMs);
-      const result = allCandles.slice(sinceIndex, sinceIndex + limit);
-      return result.length > 0 ? result : allCandles.slice(0, Math.min(limit, allCandles.length));
+      const alignedSince = alignTimestamp(since.getTime(), 1);
+      const result = [];
+      for (let i = 0; i < limit; i++) {
+        const timestamp = alignedSince + i * intervalMs;
+        const existingCandle = allCandles.find((c) => c.timestamp === timestamp);
+        if (existingCandle) {
+          result.push(existingCandle);
+        } else {
+          result.push({
+            timestamp,
+            open: basePrice,
+            high: basePrice + 100,
+            low: basePrice - 50,
+            close: basePrice,
+            volume: 100,
+          });
+        }
+      }
+      return result;
     },
     formatPrice: async (symbol, price) => price.toFixed(8),
     formatQuantity: async (symbol, quantity) => quantity.toFixed(8),
@@ -244,12 +265,12 @@ test("Cancel scheduled signal after 5 listenPing events in backtest", async ({ p
   const intervalMs = 60 * 1000; // 1 minute
   const basePrice = 42000;
 
-  const bufferMinutes = 4;
+  const bufferMinutes = 5;
   const bufferStartTime = startTime - bufferMinutes * intervalMs;
   let allCandles = [];
 
-  // Предзаполняем минимум 5 свечей ДО первого вызова getSignal
-  for (let i = 0; i < 5; i++) {
+  // Предзаполняем минимум 6 свечей ДО первого вызова getSignal
+  for (let i = 0; i < 6; i++) {
     allCandles.push({
       timestamp: bufferStartTime + i * intervalMs,
       open: basePrice,
@@ -263,9 +284,25 @@ test("Cancel scheduled signal after 5 listenPing events in backtest", async ({ p
   addExchangeSchema({
     exchangeName: "binance-listen-ping-test",
     getCandles: async (_symbol, _interval, since, limit) => {
-      const sinceIndex = Math.floor((since.getTime() - bufferStartTime) / intervalMs);
-      const result = allCandles.slice(sinceIndex, sinceIndex + limit);
-      return result.length > 0 ? result : allCandles.slice(0, Math.min(limit, allCandles.length));
+      const alignedSince = alignTimestamp(since.getTime(), 1);
+      const result = [];
+      for (let i = 0; i < limit; i++) {
+        const timestamp = alignedSince + i * intervalMs;
+        const existingCandle = allCandles.find((c) => c.timestamp === timestamp);
+        if (existingCandle) {
+          result.push(existingCandle);
+        } else {
+          result.push({
+            timestamp,
+            open: basePrice,
+            high: basePrice + 100,
+            low: basePrice - 50,
+            close: basePrice,
+            volume: 100,
+          });
+        }
+      }
+      return result;
     },
     formatPrice: async (symbol, price) => price.toFixed(8),
     formatQuantity: async (symbol, quantity) => quantity.toFixed(8),
@@ -440,13 +477,13 @@ test("SHUTDOWN: Backtest.stop() during active signal - signal completes first", 
   const startTime = new Date("2024-01-01T00:00:00Z").getTime();
   const intervalMs = 60000;
   const basePrice = 95000;
-  const bufferMinutes = 4;
+  const bufferMinutes = 5;
   const bufferStartTime = startTime - bufferMinutes * intervalMs;
 
   let allCandles = [];
 
-  // Предзаполняем минимум 5 свечей для getAveragePrice
-  for (let i = 0; i < 5; i++) {
+  // Предзаполняем минимум 6 свечей для getAveragePrice
+  for (let i = 0; i < 6; i++) {
     allCandles.push({
       timestamp: bufferStartTime + i * intervalMs,
       open: basePrice,
@@ -460,9 +497,25 @@ test("SHUTDOWN: Backtest.stop() during active signal - signal completes first", 
   addExchangeSchema({
     exchangeName: "binance-shutdown-1",
     getCandles: async (_symbol, _interval, since, limit) => {
-      const sinceIndex = Math.floor((since.getTime() - bufferStartTime) / intervalMs);
-      const result = allCandles.slice(sinceIndex, sinceIndex + limit);
-      return result.length > 0 ? result : allCandles.slice(0, Math.min(limit, allCandles.length));
+      const alignedSince = alignTimestamp(since.getTime(), 1);
+      const result = [];
+      for (let i = 0; i < limit; i++) {
+        const timestamp = alignedSince + i * intervalMs;
+        const existingCandle = allCandles.find((c) => c.timestamp === timestamp);
+        if (existingCandle) {
+          result.push(existingCandle);
+        } else {
+          result.push({
+            timestamp,
+            open: basePrice,
+            high: basePrice + 100,
+            low: basePrice - 50,
+            close: basePrice,
+            volume: 100,
+          });
+        }
+      }
+      return result;
     },
     formatPrice: async (_symbol, p) => p.toFixed(8),
     formatQuantity: async (_symbol, quantity) => quantity.toFixed(8),
@@ -638,20 +691,20 @@ test("PARTIAL PROGRESS: Percentage calculation during TP achievement", async ({ 
   const priceTakeProfit = priceOpen + 1000; // 100500
   const priceStopLoss = priceOpen - 1000; // 98500
   const tpDistance = priceTakeProfit - priceOpen; // 1000
-  const bufferMinutes = 4;
+  const bufferMinutes = 5;
   const bufferStartTime = startTime - bufferMinutes * intervalMs;
 
   let allCandles = [];
   let signalGenerated = false;
 
-  // CRITICAL: Pre-fill initial candles for getAveragePrice (min 5 candles)
+  // CRITICAL: Pre-fill initial candles for getAveragePrice (min 6 candles)
   // Candles must be ABOVE priceOpen to ensure scheduled state (not immediate activation)
-  for (let i = 0; i < 5; i++) {
+  for (let i = 0; i < 6; i++) {
     allCandles.push({
       timestamp: bufferStartTime + i * intervalMs,
       open: basePrice,
       high: basePrice + 100,
-      low: basePrice - 50, // 99950 > priceOpen (99500) ✓
+      low: basePrice - 50, // 99950 > priceOpen (99500)
       close: basePrice,
       volume: 100,
     });
@@ -660,9 +713,25 @@ test("PARTIAL PROGRESS: Percentage calculation during TP achievement", async ({ 
   addExchangeSchema({
     exchangeName: "binance-partial-progress",
     getCandles: async (_symbol, _interval, since, limit) => {
-      const sinceIndex = Math.floor((since.getTime() - bufferStartTime) / intervalMs);
-      const result = allCandles.slice(sinceIndex, sinceIndex + limit);
-      return result.length > 0 ? result : allCandles.slice(0, Math.min(limit, allCandles.length));
+      const alignedSince = alignTimestamp(since.getTime(), 1);
+      const result = [];
+      for (let i = 0; i < limit; i++) {
+        const timestamp = alignedSince + i * intervalMs;
+        const existingCandle = allCandles.find((c) => c.timestamp === timestamp);
+        if (existingCandle) {
+          result.push(existingCandle);
+        } else {
+          result.push({
+            timestamp,
+            open: basePrice,
+            high: basePrice + 100,
+            low: basePrice - 50,
+            close: basePrice,
+            volume: 100,
+          });
+        }
+      }
+      return result;
     },
     formatPrice: async (_symbol, p) => p.toFixed(8),
     formatQuantity: async (_symbol, quantity) => quantity.toFixed(8),
@@ -873,14 +942,14 @@ test("PARTIAL FUNCTION: partialProfit() works for SHORT position", async ({ pass
   const startTime = new Date("2024-01-01T00:00:00Z").getTime();
   const intervalMs = 60000;
   const basePrice = 100000;
-  const bufferMinutes = 4;
+  const bufferMinutes = 5;
   const bufferStartTime = startTime - bufferMinutes * intervalMs;
 
   let allCandles = [];
   let signalGenerated = false;
   let partialCalled = false;
 
-  for (let i = 0; i < 5; i++) {
+  for (let i = 0; i < 6; i++) {
     allCandles.push({
       timestamp: bufferStartTime + i * intervalMs,
       open: basePrice,
@@ -894,9 +963,25 @@ test("PARTIAL FUNCTION: partialProfit() works for SHORT position", async ({ pass
   addExchangeSchema({
     exchangeName: "binance-function-short-profit",
     getCandles: async (_symbol, _interval, since, limit) => {
-      const sinceIndex = Math.floor((since.getTime() - bufferStartTime) / intervalMs);
-      const result = allCandles.slice(sinceIndex, sinceIndex + limit);
-      return result.length > 0 ? result : allCandles.slice(0, Math.min(limit, allCandles.length));
+      const alignedSince = alignTimestamp(since.getTime(), 1);
+      const result = [];
+      for (let i = 0; i < limit; i++) {
+        const timestamp = alignedSince + i * intervalMs;
+        const existingCandle = allCandles.find((c) => c.timestamp === timestamp);
+        if (existingCandle) {
+          result.push(existingCandle);
+        } else {
+          result.push({
+            timestamp,
+            open: basePrice,
+            high: basePrice + 100,
+            low: basePrice - 50,
+            close: basePrice,
+            volume: 100,
+          });
+        }
+      }
+      return result;
     },
     formatPrice: async (_symbol, p) => p.toFixed(8),
     formatQuantity: async (_symbol, quantity) => quantity.toFixed(8),
@@ -1088,9 +1173,10 @@ test("OTHER: Simultaneous TP & SL trigger - VWAP-based detection", async ({ pass
     getCandles: async (_symbol, interval, since, limit) => {
       const candles = [];
       const intervalMs = 60000;
+      const alignedSince = alignTimestamp(since.getTime(), 1);
 
       for (let i = 0; i < limit; i++) {
-        const timestamp = since.getTime() + i * intervalMs;
+        const timestamp = alignedSince + i * intervalMs;
 
         if (i === 5) {
           // Свеча с экстремальной волатильностью (касается TP и SL)
