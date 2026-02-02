@@ -134,6 +134,7 @@ class ReportStorage {
       originalPriceTakeProfit: data.signal.originalPriceTakeProfit,
       originalPriceStopLoss: data.signal.originalPriceStopLoss,
       partialExecuted: data.signal.partialExecuted,
+      scheduledAt: data.signal.scheduledAt,
     });
 
     // Trim queue if exceeded MAX_EVENTS
@@ -166,6 +167,8 @@ class ReportStorage {
       originalPriceStopLoss: data.signal.originalPriceStopLoss,
       partialExecuted: data.signal.partialExecuted,
       duration: durationMin,
+      pendingAt: data.signal.pendingAt,
+      scheduledAt: data.signal.scheduledAt,
     };
 
     this._eventList.unshift(newEvent);
@@ -203,6 +206,7 @@ class ReportStorage {
       duration: durationMin,
       cancelReason: data.reason,
       cancelId: data.cancelId,
+      scheduledAt: data.signal.scheduledAt,
     };
 
     this._eventList.unshift(newEvent);

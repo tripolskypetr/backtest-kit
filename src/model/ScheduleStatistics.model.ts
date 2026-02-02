@@ -37,6 +37,10 @@ export interface ScheduledEvent {
   cancelReason?: "timeout" | "price_reject" | "user";
   /** Cancellation ID (only for user-initiated cancellations) */
   cancelId?: string;
+  /** Timestamp when position became active (only for opened events) */
+  pendingAt?: number;
+  /** Timestamp when signal was created/scheduled (for all events) */
+  scheduledAt?: number;
 }
 
 /**

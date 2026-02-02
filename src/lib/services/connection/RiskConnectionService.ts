@@ -59,7 +59,7 @@ const CREATE_COMMIT_REJECTION_FN = (
   ): Promise<void> => {
     const event = {
       symbol,
-      pendingSignal: params.pendingSignal,
+      currentSignal: params.currentSignal,
       strategyName: params.strategyName,
       exchangeName,
       currentPrice: params.currentPrice,

@@ -41,6 +41,10 @@ export interface TickEvent {
   cancelReason?: string;
   /** Duration in minutes (only for closed) */
   duration?: number;
+  /** Timestamp when position became active (only for opened/active/closed) */
+  pendingAt?: number;
+  /** Timestamp when signal was created/scheduled (only for scheduled/waiting/opened/active/closed/cancelled) */
+  scheduledAt?: number;
 }
 
 /**

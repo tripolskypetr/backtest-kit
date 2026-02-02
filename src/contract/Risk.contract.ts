@@ -47,7 +47,7 @@ export interface RiskContract {
    * Pending signal to apply.
    * Contains signal details (position, priceOpen, priceTakeProfit, priceStopLoss, etc).
    */
-  pendingSignal: ISignalDto;
+  currentSignal: ISignalDto;
 
   /**
    * Strategy name requesting to open a position.

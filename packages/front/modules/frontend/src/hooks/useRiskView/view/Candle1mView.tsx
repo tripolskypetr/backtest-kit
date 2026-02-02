@@ -1,5 +1,5 @@
-import { Box, Typography } from "@mui/material";
-import { AutoSizer, IOutletModalProps, useAsyncValue } from "react-declarative";
+import { Box } from "@mui/material";
+import { AutoSizer, IOutletModalProps } from "react-declarative";
 import StockChart from "../components/StockChart/StockChart";
 import { useMemo } from "react";
 import { RiskRejectionNotification } from "backtest-kit";
@@ -7,29 +7,21 @@ import { RiskRejectionNotification } from "backtest-kit";
 export const Candle1mView = ({ data, formState }: IOutletModalProps) => {
     const {
         position,
+        pendingAt,
+        closedAt,
         priceOpen,
         priceStopLoss,
         priceTakeProfit,
-        minuteEstimatedTime,
-        createdAt,
     } = useMemo(() => {
-        const {
-            pendingSignal: {
-                position,
-                priceOpen,
-                priceTakeProfit,
-                priceStopLoss,
-                minuteEstimatedTime,
-            },
-            createdAt,
-        } = formState.data.main as RiskRejectionNotification;
+        const notification = formState.data.main as RiskRejectionNotification;
+        const pendingAtDate = new Date(notification.createdAt).toISOString();
         return {
-            position,
-            priceOpen,
-            priceStopLoss,
-            priceTakeProfit,
-            minuteEstimatedTime,
-            createdAt: new Date(createdAt).toUTCString(),
+            position: notification.position,
+            pendingAt: pendingAtDate,
+            closedAt: pendingAtDate,
+            priceOpen: notification.priceOpen ?? notification.currentPrice,
+            priceStopLoss: notification.priceStopLoss,
+            priceTakeProfit: notification.priceTakeProfit,
         };
     }, [formState.data.main]);
 
@@ -39,12 +31,13 @@ export const Candle1mView = ({ data, formState }: IOutletModalProps) => {
                 {({ height, width }) => (
                     <StockChart
                         items={data}
-                        createdAt={createdAt}
+                        pendingAt={pendingAt}
+                        closedAt={closedAt}
                         position={position}
                         priceOpen={priceOpen}
                         priceStopLoss={priceStopLoss}
                         priceTakeProfit={priceTakeProfit}
-                        minuteEstimatedTime={minuteEstimatedTime}
+                        status="cancelled"
                         height={height}
                         width={width}
                         source="1m"

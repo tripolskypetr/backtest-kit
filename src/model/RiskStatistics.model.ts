@@ -12,7 +12,7 @@ export interface RiskEvent {
   /** Trading pair symbol */
   symbol: string;
   /** Pending signal details */
-  pendingSignal: IRiskSignalRow;
+  currentSignal: IRiskSignalRow;
   /** Strategy name */
   strategyName: StrategyName;
   /** Exchange name */

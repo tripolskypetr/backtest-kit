@@ -36,6 +36,10 @@ export interface PartialEvent {
   partialExecuted?: number;
   /** Human-readable description of signal reason */
   note?: string;
+  /** Timestamp when position became active (ms) */
+  pendingAt?: number;
+  /** Timestamp when signal was created/scheduled (ms) */
+  scheduledAt?: number;
   /** True if backtest mode, false if live mode */
   backtest: boolean;
 }

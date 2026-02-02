@@ -859,8 +859,8 @@ test("listenRisk captures rejection events with correct data", async ({ pass, fa
       typeof event.currentPrice === "number" &&
       typeof event.timestamp === "number" &&
       (typeof event.rejectionId === "string" || event.rejectionId === null) &&
-      event.pendingSignal &&
-      (event.pendingSignal.position === "long" || event.pendingSignal.position === "short")
+      event.currentSignal &&
+      (event.currentSignal.position === "long" || event.currentSignal.position === "short")
     ) {
       pass(`listenRisk captured ${rejectionEvents.length} rejection events with correct data`);
       return;
@@ -876,8 +876,8 @@ test("listenRisk captures rejection events with correct data", async ({ pass, fa
     // console.log("  currentPrice type:", typeof event.currentPrice);
     // console.log("  timestamp type:", typeof event.timestamp);
     // console.log("  rejectionId type:", typeof event.rejectionId);
-    // console.log("  has pendingSignal:", !!event.pendingSignal);
-    // console.log("  position:", event.pendingSignal?.position);
+    // console.log("  has currentSignal:", !!event.currentSignal);
+    // console.log("  position:", event.currentSignal?.position);
   }
 
   fail(`Expected rejection events with correct structure, got ${rejectionEvents.length} events`);

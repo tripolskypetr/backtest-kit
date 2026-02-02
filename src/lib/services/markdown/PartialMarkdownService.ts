@@ -140,6 +140,8 @@ class ReportStorage {
       originalPriceStopLoss: data.originalPriceStopLoss,
       partialExecuted: data.partialExecuted,
       note: data.note,
+      pendingAt: data.pendingAt,
+      scheduledAt: data.scheduledAt,
       backtest,
     });
 
@@ -180,6 +182,8 @@ class ReportStorage {
       originalPriceStopLoss: data.originalPriceStopLoss,
       partialExecuted: data.partialExecuted,
       note: data.note,
+      pendingAt: data.pendingAt,
+      scheduledAt: data.scheduledAt,
       backtest,
     });
 

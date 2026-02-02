@@ -10,8 +10,7 @@ export const signal_fields: TypedField[] = [
         fields: [
             {
                 type: FieldType.Typography,
-                style: { color: "#2196f3" },
-                typoVariant: "h6",
+                                typoVariant: "h6",
                 placeholder: "General Information",
             },
             {
@@ -104,8 +103,7 @@ export const signal_fields: TypedField[] = [
             },
             {
                 type: FieldType.Typography,
-                style: { color: "#2196f3" },
-                typoVariant: "h6",
+                                typoVariant: "h6",
                 placeholder: "Timestamps",
             },
             {
@@ -176,14 +174,13 @@ export const signal_fields: TypedField[] = [
                                 ? dayjs(obj.pendingAt).format(
                                       "DD/MM/YYYY HH:mm:ss",
                                   )
-                                : "",
+                                : "N/A",
                     },
                 ],
             },
             {
                 type: FieldType.Typography,
-                style: { color: "#2196f3" },
-                typoVariant: "h6",
+                                typoVariant: "h6",
                 placeholder: "Price Levels",
             },
             {
@@ -283,8 +280,7 @@ export const signal_fields: TypedField[] = [
             },
             {
                 type: FieldType.Typography,
-                style: { color: "#2196f3" },
-                typoVariant: "h6",
+                                typoVariant: "h6",
                 placeholder: "Result (PNL)",
                 isVisible: (data) => data.status === "closed" && data.pnl,
             },
@@ -341,8 +337,7 @@ export const signal_fields: TypedField[] = [
             },
             {
                 type: FieldType.Typography,
-                style: { color: "#2196f3" },
-                typoVariant: "h6",
+                                typoVariant: "h6",
                 placeholder: "Note",
                 isVisible: (data) => !!data.note,
             },
@@ -374,7 +369,7 @@ export const signal_fields: TypedField[] = [
                         type: FieldType.Component,
                         element: ({ id }) => (
                             <CopyButton
-                                label={`Signal id: ${id}`}
+                                label="Signal ID"
                                 content={id}
                             />
                         ),

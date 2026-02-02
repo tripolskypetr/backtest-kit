@@ -61,28 +61,28 @@ const handleDownload = async (pathname: string, id: string) => {
   if (pathname.includes("/risk")) {
     const blob = new Blob([JSON.stringify(risk, null, 2)], { type: "application/json" });
     const url = URL.createObjectURL(blob);
-    ioc.layoutService.downloadFile(url, `risk_${risk.pendingSignal.id || "unknown"}.json`);
+    ioc.layoutService.downloadFile(url, `risk_${risk.signalId || "unknown"}.json`);
     return;
   } 
   
   if (pathname.includes("/candle_1m")) {
     const blob = new Blob([JSON.stringify(candle_1m, null, 2)], { type: "application/json" });
     const url = URL.createObjectURL(blob);
-    ioc.layoutService.downloadFile(url, `candles_1m_${risk.pendingSignal.id || "unknown"}.json`);
+    ioc.layoutService.downloadFile(url, `candles_1m_${risk.signalId || "unknown"}.json`);
     return;
   } 
   
   if (pathname.includes("/candle_15m")) {
     const blob = new Blob([JSON.stringify(candle_15m, null, 2)], { type: "application/json" });
     const url = URL.createObjectURL(blob);
-    ioc.layoutService.downloadFile(url, `candles_15m_${risk.pendingSignal.id || "unknown"}.json`);
+    ioc.layoutService.downloadFile(url, `candles_15m_${risk.signalId || "unknown"}.json`);
     return;
   } 
   
   if (pathname.includes("/candle_1h")) {
     const blob = new Blob([JSON.stringify(candle_1h, null, 2)], { type: "application/json" });
     const url = URL.createObjectURL(blob);
-    ioc.layoutService.downloadFile(url, `candles_1h_${risk.pendingSignal.id || "unknown"}.json`);
+    ioc.layoutService.downloadFile(url, `candles_1h_${risk.signalId || "unknown"}.json`);
     return;
   }
 };
@@ -119,7 +119,7 @@ export const useRiskView = () => {
     withStaticAction: true,
     onTabChange: handleTabChange,
     animation: "none",
-    title: "Risk details",
+    title: "Risk Rejection Details",
     sizeRequest: CC_FULLSCREEN_SIZE_REQUEST,
     history,
     routes,

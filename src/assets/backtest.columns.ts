@@ -136,6 +136,7 @@ export const backtest_columns: ColumnModel<IStrategyTickResultClosed>[] = [
     key: "duration",
     label: "Duration (min)",
     format: (data) => {
+      if (!data.closeTimestamp || !data.signal.pendingAt) return "N/A";
       const durationMs = data.closeTimestamp - data.signal.pendingAt;
       const durationMin = Math.round(durationMs / 60000);
       return `${durationMin}`;
@@ -145,7 +146,7 @@ export const backtest_columns: ColumnModel<IStrategyTickResultClosed>[] = [
   {
     key: "openTimestamp",
     label: "Open Time",
-    format: (data) => new Date(data.signal.pendingAt).toISOString(),
+    format: (data) => data.signal.pendingAt ? new Date(data.signal.pendingAt).toISOString() : "N/A",
     isVisible: () => true,
   },
   {

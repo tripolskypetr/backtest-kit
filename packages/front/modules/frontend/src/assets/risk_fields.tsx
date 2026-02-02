@@ -10,8 +10,7 @@ export const risk_fields: TypedField[] = [
         fields: [
             {
                 type: FieldType.Typography,
-                style: { color: "#2196f3" },
-                typoVariant: "h6",
+                                typoVariant: "h6",
                 placeholder: "General Information",
             },
             {
@@ -92,8 +91,7 @@ export const risk_fields: TypedField[] = [
             },
             {
                 type: FieldType.Typography,
-                style: { color: "#2196f3" },
-                typoVariant: "h6",
+                                typoVariant: "h6",
                 placeholder: "Timestamps",
             },
             {
@@ -162,14 +160,11 @@ export const risk_fields: TypedField[] = [
             },
             {
                 type: FieldType.Typography,
-                style: { color: "#2196f3" },
                 typoVariant: "h6",
-                placeholder: "Pending Signal",
-                isVisible: (data) => !!data.pendingSignal,
+                placeholder: "Signal Details",
             },
             {
                 type: FieldType.Outline,
-                isVisible: (data) => !!data.pendingSignal,
                 sx: { mb: 3 },
                 fields: [
                     {
@@ -178,13 +173,12 @@ export const risk_fields: TypedField[] = [
                         desktopColumns: "4",
                         tabletColumns: "4",
                         phoneColumns: "12",
-                        name: "pendingSignal.position",
+                        name: "position",
                         title: "Position",
                         readonly: true,
                         compute: (obj) => {
-                            const position = obj.pendingSignal?.position;
-                            if (position === "long") return "LONG";
-                            if (position === "short") return "SHORT";
+                            if (obj.position === "long") return "LONG";
+                            if (obj.position === "short") return "SHORT";
                             return "Not specified";
                         },
                     },
@@ -194,12 +188,12 @@ export const risk_fields: TypedField[] = [
                         desktopColumns: "4",
                         tabletColumns: "4",
                         phoneColumns: "12",
-                        name: "pendingSignal.priceOpen",
+                        name: "priceOpen",
                         title: "Entry Price",
                         readonly: true,
                         compute: (obj) =>
-                            obj.pendingSignal?.priceOpen != null
-                                ? `${obj.pendingSignal.priceOpen.toFixed(6)}$`
+                            obj.priceOpen != null
+                                ? `${obj.priceOpen.toFixed(6)}$`
                                 : "Not specified",
                     },
                     {
@@ -208,12 +202,12 @@ export const risk_fields: TypedField[] = [
                         desktopColumns: "4",
                         tabletColumns: "4",
                         phoneColumns: "12",
-                        name: "pendingSignal.priceTakeProfit",
+                        name: "priceTakeProfit",
                         title: "Take Profit",
                         readonly: true,
                         compute: (obj) =>
-                            obj.pendingSignal?.priceTakeProfit != null
-                                ? `${obj.pendingSignal.priceTakeProfit.toFixed(6)}$`
+                            obj.priceTakeProfit != null
+                                ? `${obj.priceTakeProfit.toFixed(6)}$`
                                 : "Not specified",
                     },
                     {
@@ -222,12 +216,12 @@ export const risk_fields: TypedField[] = [
                         desktopColumns: "4",
                         tabletColumns: "4",
                         phoneColumns: "12",
-                        name: "pendingSignal.priceStopLoss",
+                        name: "priceStopLoss",
                         title: "Stop Loss",
                         readonly: true,
                         compute: (obj) =>
-                            obj.pendingSignal?.priceStopLoss != null
-                                ? `${obj.pendingSignal.priceStopLoss.toFixed(6)}$`
+                            obj.priceStopLoss != null
+                                ? `${obj.priceStopLoss.toFixed(6)}$`
                                 : "Not specified",
                     },
                     {
@@ -236,13 +230,12 @@ export const risk_fields: TypedField[] = [
                         desktopColumns: "4",
                         tabletColumns: "4",
                         phoneColumns: "12",
-                        name: "pendingSignal.minuteEstimatedTime",
+                        name: "minuteEstimatedTime",
                         title: "Estimated Time (min)",
                         readonly: true,
-                        isVisible: (obj) =>
-                            obj.pendingSignal?.minuteEstimatedTime != null,
+                        isVisible: (obj) => obj.minuteEstimatedTime != null,
                         compute: (obj) =>
-                            obj.pendingSignal?.minuteEstimatedTime?.toString() ||
+                            obj.minuteEstimatedTime?.toString() ||
                             "Not specified",
                     },
                 ],
@@ -280,11 +273,11 @@ export const risk_fields: TypedField[] = [
                 fields: [
                     {
                         type: FieldType.Component,
-                        isVisible: (obj) => !!obj.pendingSignal?.id,
-                        element: ({ pendingSignal }) => (
+                        isVisible: (obj) => !!obj.signalId,
+                        element: ({ signalId }) => (
                             <CopyButton
-                                label={`Signal ID: ${pendingSignal.id}`}
-                                content={pendingSignal.id}
+                                label={`Signal ID: ${signalId}`}
+                                content={signalId}
                             />
                         ),
                     },

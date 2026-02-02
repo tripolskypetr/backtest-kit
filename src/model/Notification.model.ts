@@ -1,7 +1,6 @@
 import { StrategyName } from "../interfaces/Strategy.interface";
 import { PartialLevel } from "../interfaces/Partial.interface";
 import { ExchangeName } from "../interfaces/Exchange.interface";
-import { ISignalDto } from "../interfaces/Strategy.interface";
 
 /**
  * Signal opened notification.
@@ -32,8 +31,16 @@ export interface SignalOpenedNotification {
   priceTakeProfit: number;
   /** Stop loss exit price */
   priceStopLoss: number;
+  /** Original take profit price before any trailing adjustments */
+  originalPriceTakeProfit: number;
+  /** Original stop loss price before any trailing adjustments */
+  originalPriceStopLoss: number;
   /** Optional human-readable description of signal reason */
   note?: string;
+  /** Signal creation timestamp in milliseconds (when signal was first created/scheduled) */
+  scheduledAt: number;
+  /** Pending timestamp in milliseconds (when position became pending/active at priceOpen) */
+  pendingAt: number;
   /** Unix timestamp in milliseconds when the tick result was created (from candle timestamp in backtest or execution context when in live) */
   createdAt: number;
 }
@@ -65,6 +72,14 @@ export interface SignalClosedNotification {
   priceOpen: number;
   /** Exit price when position was closed */
   priceClose: number;
+  /** Take profit target price */
+  priceTakeProfit: number;
+  /** Stop loss exit price */
+  priceStopLoss: number;
+  /** Original take profit price before any trailing adjustments */
+  originalPriceTakeProfit: number;
+  /** Original stop loss price before any trailing adjustments */
+  originalPriceStopLoss: number;
   /** Profit/loss as percentage (e.g., 1.5 for +1.5%, -2.3 for -2.3%) */
   pnlPercentage: number;
   /** Why signal closed (time_expired | take_profit | stop_loss | closed) */
@@ -73,6 +88,10 @@ export interface SignalClosedNotification {
   duration: number;
   /** Optional human-readable description of signal reason */
   note?: string;
+  /** Signal creation timestamp in milliseconds (when signal was first created/scheduled) */
+  scheduledAt: number;
+  /** Pending timestamp in milliseconds (when position became pending/active at priceOpen) */
+  pendingAt: number;
   /** Unix timestamp in milliseconds when the tick result was created (from candle timestamp in backtest or execution context when in live) */
   createdAt: number;
 }
@@ -106,6 +125,18 @@ export interface PartialProfitAvailableNotification {
   priceOpen: number;
   /** Trade direction: "long" (buy) or "short" (sell) */
   position: "long" | "short";
+  /** Effective take profit price (with trailing if set) */
+  priceTakeProfit: number;
+  /** Effective stop loss price (with trailing if set) */
+  priceStopLoss: number;
+  /** Original take profit price before any trailing adjustments */
+  originalPriceTakeProfit: number;
+  /** Original stop loss price before any trailing adjustments */
+  originalPriceStopLoss: number;
+  /** Signal creation timestamp in milliseconds (when signal was first created/scheduled) */
+  scheduledAt: number;
+  /** Pending timestamp in milliseconds (when position became pending/active at priceOpen) */
+  pendingAt: number;
   /** Unix timestamp in milliseconds when the notification was created */
   createdAt: number;
 }
@@ -139,6 +170,18 @@ export interface PartialLossAvailableNotification {
   priceOpen: number;
   /** Trade direction: "long" (buy) or "short" (sell) */
   position: "long" | "short";
+  /** Effective take profit price (with trailing if set) */
+  priceTakeProfit: number;
+  /** Effective stop loss price (with trailing if set) */
+  priceStopLoss: number;
+  /** Original take profit price before any trailing adjustments */
+  originalPriceTakeProfit: number;
+  /** Original stop loss price before any trailing adjustments */
+  originalPriceStopLoss: number;
+  /** Signal creation timestamp in milliseconds (when signal was first created/scheduled) */
+  scheduledAt: number;
+  /** Pending timestamp in milliseconds (when position became pending/active at priceOpen) */
+  pendingAt: number;
   /** Unix timestamp in milliseconds when the notification was created */
   createdAt: number;
 }
@@ -170,6 +213,18 @@ export interface BreakevenAvailableNotification {
   priceOpen: number;
   /** Trade direction: "long" (buy) or "short" (sell) */
   position: "long" | "short";
+  /** Effective take profit price (with trailing if set) */
+  priceTakeProfit: number;
+  /** Effective stop loss price (with trailing if set) */
+  priceStopLoss: number;
+  /** Original take profit price before any trailing adjustments */
+  originalPriceTakeProfit: number;
+  /** Original stop loss price before any trailing adjustments */
+  originalPriceStopLoss: number;
+  /** Signal creation timestamp in milliseconds (when signal was first created/scheduled) */
+  scheduledAt: number;
+  /** Pending timestamp in milliseconds (when position became pending/active at priceOpen) */
+  pendingAt: number;
   /** Unix timestamp in milliseconds when the notification was created */
   createdAt: number;
 }
@@ -193,10 +248,28 @@ export interface PartialProfitCommitNotification {
   strategyName: StrategyName;
   /** Exchange name where signal was executed */
   exchangeName: ExchangeName;
+  /** Unique signal identifier (UUID v4) */
+  signalId: string;
   /** Percentage of position closed (0-100) */
   percentToClose: number;
   /** Current market price when partial was executed */
   currentPrice: number;
+  /** Trade direction: "long" (buy) or "short" (sell) */
+  position: "long" | "short";
+  /** Entry price for the position */
+  priceOpen: number;
+  /** Effective take profit price (with trailing if set) */
+  priceTakeProfit: number;
+  /** Effective stop loss price (with trailing if set) */
+  priceStopLoss: number;
+  /** Original take profit price before any trailing adjustments */
+  originalPriceTakeProfit: number;
+  /** Original stop loss price before any trailing adjustments */
+  originalPriceStopLoss: number;
+  /** Signal creation timestamp in milliseconds (when signal was first created/scheduled) */
+  scheduledAt: number;
+  /** Pending timestamp in milliseconds (when position became pending/active at priceOpen) */
+  pendingAt: number;
   /** Unix timestamp in milliseconds when the notification was created */
   createdAt: number;
 }
@@ -220,10 +293,28 @@ export interface PartialLossCommitNotification {
   strategyName: StrategyName;
   /** Exchange name where signal was executed */
   exchangeName: ExchangeName;
+  /** Unique signal identifier (UUID v4) */
+  signalId: string;
   /** Percentage of position closed (0-100) */
   percentToClose: number;
   /** Current market price when partial was executed */
   currentPrice: number;
+  /** Trade direction: "long" (buy) or "short" (sell) */
+  position: "long" | "short";
+  /** Entry price for the position */
+  priceOpen: number;
+  /** Effective take profit price (with trailing if set) */
+  priceTakeProfit: number;
+  /** Effective stop loss price (with trailing if set) */
+  priceStopLoss: number;
+  /** Original take profit price before any trailing adjustments */
+  originalPriceTakeProfit: number;
+  /** Original stop loss price before any trailing adjustments */
+  originalPriceStopLoss: number;
+  /** Signal creation timestamp in milliseconds (when signal was first created/scheduled) */
+  scheduledAt: number;
+  /** Pending timestamp in milliseconds (when position became pending/active at priceOpen) */
+  pendingAt: number;
   /** Unix timestamp in milliseconds when the notification was created */
   createdAt: number;
 }
@@ -247,8 +338,26 @@ export interface BreakevenCommitNotification {
   strategyName: StrategyName;
   /** Exchange name where signal was executed */
   exchangeName: ExchangeName;
+  /** Unique signal identifier (UUID v4) */
+  signalId: string;
   /** Current market price when breakeven was executed */
   currentPrice: number;
+  /** Trade direction: "long" (buy) or "short" (sell) */
+  position: "long" | "short";
+  /** Entry price for the position */
+  priceOpen: number;
+  /** Effective take profit price (with trailing if set) */
+  priceTakeProfit: number;
+  /** Effective stop loss price (with trailing if set, after breakeven this equals priceOpen) */
+  priceStopLoss: number;
+  /** Original take profit price before any trailing adjustments */
+  originalPriceTakeProfit: number;
+  /** Original stop loss price before any trailing adjustments */
+  originalPriceStopLoss: number;
+  /** Signal creation timestamp in milliseconds (when signal was first created/scheduled) */
+  scheduledAt: number;
+  /** Pending timestamp in milliseconds (when position became pending/active at priceOpen) */
+  pendingAt: number;
   /** Unix timestamp in milliseconds when the notification was created */
   createdAt: number;
 }
@@ -272,10 +381,28 @@ export interface TrailingStopCommitNotification {
   strategyName: StrategyName;
   /** Exchange name where signal was executed */
   exchangeName: ExchangeName;
+  /** Unique signal identifier (UUID v4) */
+  signalId: string;
   /** Percentage shift of original SL distance (-100 to 100) */
   percentShift: number;
   /** Current market price when trailing stop was executed */
   currentPrice: number;
+  /** Trade direction: "long" (buy) or "short" (sell) */
+  position: "long" | "short";
+  /** Entry price for the position */
+  priceOpen: number;
+  /** Effective take profit price (with trailing if set) */
+  priceTakeProfit: number;
+  /** Effective stop loss price after trailing adjustment */
+  priceStopLoss: number;
+  /** Original take profit price before any trailing adjustments */
+  originalPriceTakeProfit: number;
+  /** Original stop loss price before any trailing adjustments */
+  originalPriceStopLoss: number;
+  /** Signal creation timestamp in milliseconds (when signal was first created/scheduled) */
+  scheduledAt: number;
+  /** Pending timestamp in milliseconds (when position became pending/active at priceOpen) */
+  pendingAt: number;
   /** Unix timestamp in milliseconds when the notification was created */
   createdAt: number;
 }
@@ -299,10 +426,28 @@ export interface TrailingTakeCommitNotification {
   strategyName: StrategyName;
   /** Exchange name where signal was executed */
   exchangeName: ExchangeName;
+  /** Unique signal identifier (UUID v4) */
+  signalId: string;
   /** Percentage shift of original TP distance (-100 to 100) */
   percentShift: number;
   /** Current market price when trailing take was executed */
   currentPrice: number;
+  /** Trade direction: "long" (buy) or "short" (sell) */
+  position: "long" | "short";
+  /** Entry price for the position */
+  priceOpen: number;
+  /** Effective take profit price after trailing adjustment */
+  priceTakeProfit: number;
+  /** Effective stop loss price (with trailing if set) */
+  priceStopLoss: number;
+  /** Original take profit price before any trailing adjustments */
+  originalPriceTakeProfit: number;
+  /** Original stop loss price before any trailing adjustments */
+  originalPriceStopLoss: number;
+  /** Signal creation timestamp in milliseconds (when signal was first created/scheduled) */
+  scheduledAt: number;
+  /** Pending timestamp in milliseconds (when position became pending/active at priceOpen) */
+  pendingAt: number;
   /** Unix timestamp in milliseconds when the notification was created */
   createdAt: number;
 }
@@ -334,8 +479,20 @@ export interface RiskRejectionNotification {
   activePositionCount: number;
   /** Current market price when rejection occurred */
   currentPrice: number;
-  /** The signal that was rejected */
-  pendingSignal: ISignalDto;
+  /** Unique signal identifier from pending signal (may be undefined if not provided) */
+  signalId: string | undefined;
+  /** Trade direction: "long" (buy) or "short" (sell) */
+  position: "long" | "short";
+  /** Entry price for the position (may be undefined if not provided) */
+  priceOpen: number | undefined;
+  /** Take profit target price */
+  priceTakeProfit: number;
+  /** Stop loss exit price */
+  priceStopLoss: number;
+  /** Expected duration in minutes before time_expired */
+  minuteEstimatedTime: number;
+  /** Optional human-readable description of signal reason */
+  signalNote?: string;
   /** Unix timestamp in milliseconds when the notification was created */
   createdAt: number;
 }
@@ -365,6 +522,14 @@ export interface SignalScheduledNotification {
   position: "long" | "short";
   /** Target entry price for activation */
   priceOpen: number;
+  /** Take profit target price */
+  priceTakeProfit: number;
+  /** Stop loss exit price */
+  priceStopLoss: number;
+  /** Original take profit price before any trailing adjustments */
+  originalPriceTakeProfit: number;
+  /** Original stop loss price before any trailing adjustments */
+  originalPriceStopLoss: number;
   /** Unix timestamp in milliseconds when signal was scheduled */
   scheduledAt: number;
   /** Current market price when signal was scheduled */
@@ -396,12 +561,26 @@ export interface SignalCancelledNotification {
   signalId: string;
   /** Trade direction: "long" (buy) or "short" (sell) */
   position: "long" | "short";
+  /** Take profit target price */
+  priceTakeProfit: number;
+  /** Stop loss exit price */
+  priceStopLoss: number;
+  /** Entry price for the position */
+  priceOpen: number;
+  /** Original take profit price before any trailing adjustments */
+  originalPriceTakeProfit: number;
+  /** Original stop loss price before any trailing adjustments */
+  originalPriceStopLoss: number;
   /** Why signal was cancelled (timeout | price_reject | user) */
   cancelReason: string;
   /** Optional cancellation identifier (provided when user calls cancel()) */
   cancelId: string;
   /** Duration in minutes from scheduledAt to cancellation */
   duration: number;
+  /** Signal creation timestamp in milliseconds (when signal was first created/scheduled) */
+  scheduledAt: number;
+  /** Pending timestamp in milliseconds (when position became pending/active at priceOpen) */
+  pendingAt: number;
   /** Unix timestamp in milliseconds when the tick result was created (from candle timestamp in backtest or execution context when in live) */
   createdAt: number;
 }

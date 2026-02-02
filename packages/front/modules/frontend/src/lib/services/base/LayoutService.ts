@@ -7,6 +7,28 @@ export class LayoutService {
     public readonly pickSignalSubject = new Subject<string>();
     public readonly pickRiskSubject = new Subject<string>();
 
+    // Signal notification subjects (4 types)
+    public readonly pickSignalOpenedSubject = new Subject<string>();
+    public readonly pickSignalClosedSubject = new Subject<string>();
+    public readonly pickSignalScheduledSubject = new Subject<string>();
+    public readonly pickSignalCancelledSubject = new Subject<string>();
+
+    // Partial profit subjects (2 types)
+    public readonly pickPartialProfitAvailableSubject = new Subject<string>();
+    public readonly pickPartialProfitCommitSubject = new Subject<string>();
+
+    // Partial loss subjects (2 types)
+    public readonly pickPartialLossAvailableSubject = new Subject<string>();
+    public readonly pickPartialLossCommitSubject = new Subject<string>();
+
+    // Breakeven subjects (2 types)
+    public readonly pickBreakevenAvailableSubject = new Subject<string>();
+    public readonly pickBreakevenCommitSubject = new Subject<string>();
+
+    // Trailing subjects (2 types)
+    public readonly pickTrailingStopSubject = new Subject<string>();
+    public readonly pickTrailingTakeSubject = new Subject<string>();
+
     public readonly reloadOutletSubject = new Subject<void>();
 
     public readonly openDocumentSubject = new Subject<{
@@ -95,7 +117,60 @@ export class LayoutService {
 
     pickRisk = async (notificationId: string) => {
         await this.pickRiskSubject.next(notificationId);
-    }
+    };
+
+    // Signal notification methods (4 types)
+    pickSignalOpened = async (notificationId: string) => {
+        await this.pickSignalOpenedSubject.next(notificationId);
+    };
+
+    pickSignalClosed = async (notificationId: string) => {
+        await this.pickSignalClosedSubject.next(notificationId);
+    };
+
+    pickSignalScheduled = async (notificationId: string) => {
+        await this.pickSignalScheduledSubject.next(notificationId);
+    };
+
+    pickSignalCancelled = async (notificationId: string) => {
+        await this.pickSignalCancelledSubject.next(notificationId);
+    };
+
+    // Partial profit methods (2 types)
+    pickPartialProfitAvailable = async (notificationId: string) => {
+        await this.pickPartialProfitAvailableSubject.next(notificationId);
+    };
+
+    pickPartialProfitCommit = async (notificationId: string) => {
+        await this.pickPartialProfitCommitSubject.next(notificationId);
+    };
+
+    // Partial loss methods (2 types)
+    pickPartialLossAvailable = async (notificationId: string) => {
+        await this.pickPartialLossAvailableSubject.next(notificationId);
+    };
+
+    pickPartialLossCommit = async (notificationId: string) => {
+        await this.pickPartialLossCommitSubject.next(notificationId);
+    };
+
+    // Breakeven methods (2 types)
+    pickBreakevenAvailable = async (notificationId: string) => {
+        await this.pickBreakevenAvailableSubject.next(notificationId);
+    };
+
+    pickBreakevenCommit = async (notificationId: string) => {
+        await this.pickBreakevenCommitSubject.next(notificationId);
+    };
+
+    // Trailing methods (2 types)
+    pickTrailingStop = async (notificationId: string) => {
+        await this.pickTrailingStopSubject.next(notificationId);
+    };
+
+    pickTrailingTake = async (notificationId: string) => {
+        await this.pickTrailingTakeSubject.next(notificationId);
+    };
 }
 
 export default LayoutService;

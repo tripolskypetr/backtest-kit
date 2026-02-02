@@ -111,6 +111,18 @@ export const breakeven_columns: ColumnModel<BreakevenEvent>[] = [
     isVisible: () => GLOBAL_CONFIG.CC_REPORT_SHOW_SIGNAL_NOTE,
   },
   {
+    key: "pendingAt",
+    label: "Pending At",
+    format: (data) => (data.pendingAt ? new Date(data.pendingAt).toISOString() : "N/A"),
+    isVisible: () => true,
+  },
+  {
+    key: "scheduledAt",
+    label: "Scheduled At",
+    format: (data) => (data.scheduledAt ? new Date(data.scheduledAt).toISOString() : "N/A"),
+    isVisible: () => true,
+  },
+  {
     key: "timestamp",
     label: "Timestamp",
     format: (data) => new Date(data.timestamp).toISOString(),

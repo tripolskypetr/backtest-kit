@@ -35,7 +35,7 @@ const useStyles = makeStyles()((theme) => ({
 }));
 
 const ERROR_LABEL =
-  "Во время работы приложения произошла ошибка. Информация об ошибке передана в отдел разработки";
+  "Данные устарели. Обновите страницу";
 const OFFLINE_LABEL = "Отключен от сервера";
 
 interface IErrorViewProps {

@@ -51,6 +51,7 @@ import NotificationIcon from "@mui/icons-material/Notifications";
 import ioc from "../../lib";
 import { NotificationModel } from "backtest-kit";
 import { t } from "../../i18n";
+import { get } from "lodash";
 
 const reloadSubject = new Subject<void>();
 
@@ -180,7 +181,7 @@ const getNotificationTitle = (item: NotificationModel): string => {
     case "trailing_take.commit":
       return `${t("Trailing take")} ${item.symbol}`;
     case "risk.rejection":
-      return `${t("Rejected")} ${item.symbol}`;
+      return `${t("Rejected")} ${item.position.toUpperCase()} ${item.symbol}`;
     case "error.info":
       return `${t("Error")}: ${item.message}`;
     case "error.validation":
@@ -188,7 +189,51 @@ const getNotificationTitle = (item: NotificationModel): string => {
     case "error.critical":
       return `${t("Critical")}: ${item.message}`;
     default:
-      return t("Unknown");
+      return `${t("Unknown")} ${get(item, "type")}`;
+  }
+};
+
+const handleNotificationClick = (item: NotificationModel) => {
+  switch (item.type) {
+    case "risk.rejection":
+      ioc.layoutService.pickRisk(item.id);
+      break;
+    case "signal.opened":
+      ioc.layoutService.pickSignalOpened(item.id);
+      break;
+    case "signal.closed":
+      ioc.layoutService.pickSignalClosed(item.id);
+      break;
+    case "signal.scheduled":
+      ioc.layoutService.pickSignalScheduled(item.id);
+      break;
+    case "signal.cancelled":
+      ioc.layoutService.pickSignalCancelled(item.id);
+      break;
+    case "partial_profit.available":
+      ioc.layoutService.pickPartialProfitAvailable(item.id);
+      break;
+    case "partial_profit.commit":
+      ioc.layoutService.pickPartialProfitCommit(item.id);
+      break;
+    case "partial_loss.available":
+      ioc.layoutService.pickPartialLossAvailable(item.id);
+      break;
+    case "partial_loss.commit":
+      ioc.layoutService.pickPartialLossCommit(item.id);
+      break;
+    case "breakeven.available":
+      ioc.layoutService.pickBreakevenAvailable(item.id);
+      break;
+    case "breakeven.commit":
+      ioc.layoutService.pickBreakevenCommit(item.id);
+      break;
+    case "trailing_stop.commit":
+      ioc.layoutService.pickTrailingStop(item.id);
+      break;
+    case "trailing_take.commit":
+      ioc.layoutService.pickTrailingTake(item.id);
+      break;
   }
 };
 
@@ -293,9 +338,7 @@ export const NotificationView = () => {
                         >
                           <ListItemButton
                             onClick={() => {
-                              if (item.type === "risk.rejection") {
-                                ioc.layoutService.pickRisk(item.id);
-                              }
+                              handleNotificationClick(item);
                               setAnchorEl(null);
                             }}
                           >
@@ -355,9 +398,7 @@ export const NotificationView = () => {
                         >
                           <ListItemButton
                             onClick={() => {
-                              if (item.type === "risk.rejection") {
-                                ioc.layoutService.pickRisk(item.id);
-                              }
+                              handleNotificationClick(item);
                               setAnchorEl(null);
                             }}
                           >
