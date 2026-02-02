@@ -252,6 +252,37 @@ The candle is included if: `timestamp + stepMs < upperBoundary`
 - Cache and runtime filters are synchronized to prevent inconsistencies
 - Cache returns only candles that match the requested time range exactly
 
+### 🔬 Technical Details: The `+ stepMs` Check
+
+**Why check `candle.timestamp + stepMs < upperBoundary` instead of just `candle.timestamp < upperBoundary`?**
+
+Because a candle's **timestamp is when it opens**, not when it closes:
+
+```typescript
+// 1-minute candle example:
+timestamp = 1000      // Candle opens at 1000ms
+stepMs = 60000        // Duration: 60 seconds
+// Candle closes at: 1000 + 60000 = 61000ms
+
+// Without + stepMs (WRONG):
+candle.timestamp < 61000
+1000 < 61000  // TRUE - includes candle that hasn't finished yet!
+
+// With + stepMs (CORRECT):
+candle.timestamp + stepMs < 61000
+1000 + 60000 < 61000
+61000 < 61000  // FALSE - correctly excludes unclosed candle
+```
+
+**This check is applied consistently across:**
+- ✅ `getCandles()` filtering
+- ✅ `getNextCandles()` filtering
+- ✅ `getRawCandles()` filtering (all parameter combinations)
+- ✅ Cache read operations
+- ✅ Cache write operations
+
+**Result:** Zero chance of including incomplete or "forming" candles in your strategy logic.
+
 ### 💭 What this means:
 - `getCandles()` always returns data UP TO the current backtest timestamp using `async_hooks`
 - Multi-timeframe data is automatically synchronized
