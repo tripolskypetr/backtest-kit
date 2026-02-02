@@ -293,6 +293,8 @@ since = alignedWhen - 4 * stepMs
 // [3] timestamp = 1704066300000 (23:45)
 ```
 
+**Pending candle exclusion:** The candle at `00:00:00` (alignedWhen) is NOT included in the result. At `when=00:12:00`, this candle covers the period `[00:00, 00:15)` and is still open (pending). Pending candles have incomplete OHLCV data that would distort technical indicators. Only fully closed candles are returned.
+
 **Validation is applied consistently across:**
 - ✅ `getCandles()` - validates first timestamp and count
 - ✅ `getNextCandles()` - validates first timestamp and count
