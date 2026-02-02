@@ -94,6 +94,7 @@ export {
 export {
   getCandles,
   getRawCandles,
+  getNextCandles,
   getAveragePrice,
   getOrderBook,
   getDate,
