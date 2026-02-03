@@ -43,6 +43,7 @@ import {
   NotificationImportant,
   SwapVert,
   Timeline,
+  PlayArrow,
 } from "@mui/icons-material";
 import sanitize from "../../config/sanitize";
 import { makeStyles } from "../../styles";
@@ -104,6 +105,8 @@ const getNotificationColor = (item: NotificationModel): string | undefined => {
     case "breakeven.available":
     case "breakeven.commit":
       return "#00BCD4";
+    case "activate_scheduled.commit":
+      return "#4CAF50";
     case "trailing_stop.commit":
     case "trailing_take.commit":
       return "#673AB7";
@@ -139,6 +142,8 @@ const getNotificationIcon = (item: NotificationModel) => {
     case "breakeven.available":
     case "breakeven.commit":
       return <SwapVert sx={sx} />;
+    case "activate_scheduled.commit":
+      return <PlayArrow sx={sx} />;
     case "trailing_stop.commit":
     case "trailing_take.commit":
       return <Timeline sx={sx} />;
@@ -176,6 +181,8 @@ const getNotificationTitle = (item: NotificationModel): string => {
       return `${t("Breakeven available")} ${item.symbol}`;
     case "breakeven.commit":
       return `${t("Breakeven set")} ${item.symbol}`;
+    case "activate_scheduled.commit":
+      return `${t("Activated")} ${item.position.toUpperCase()} ${item.symbol}`;
     case "trailing_stop.commit":
       return `${t("Trailing stop")} ${item.symbol}`;
     case "trailing_take.commit":
@@ -233,6 +240,9 @@ const handleNotificationClick = (item: NotificationModel) => {
       break;
     case "trailing_take.commit":
       ioc.layoutService.pickTrailingTake(item.id);
+      break;
+    case "activate_scheduled.commit":
+      ioc.layoutService.pickActivateScheduled(item.id);
       break;
   }
 };

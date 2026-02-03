@@ -29,6 +29,9 @@ export class LayoutService {
     public readonly pickTrailingStopSubject = new Subject<string>();
     public readonly pickTrailingTakeSubject = new Subject<string>();
 
+    // Activate scheduled subject
+    public readonly pickActivateScheduledSubject = new Subject<string>();
+
     public readonly reloadOutletSubject = new Subject<void>();
 
     public readonly openDocumentSubject = new Subject<{
@@ -170,6 +173,11 @@ export class LayoutService {
 
     pickTrailingTake = async (notificationId: string) => {
         await this.pickTrailingTakeSubject.next(notificationId);
+    };
+
+    // Activate scheduled method
+    pickActivateScheduled = async (notificationId: string) => {
+        await this.pickActivateScheduledSubject.next(notificationId);
     };
 }
 

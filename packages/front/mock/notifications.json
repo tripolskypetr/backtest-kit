@@ -1,5 +1,26 @@
 [
   {
+    "type": "activate_scheduled.commit",
+    "id": "c5d6e7f8-9999-4000-c4d5-e6f7a8b9c0d1",
+    "timestamp": 1708876700000,
+    "backtest": true,
+    "symbol": "BTCUSDT",
+    "strategyName": "main_strategy",
+    "exchangeName": "binance_exchange",
+    "signalId": "a1b2c3d4-5678-4000-a0b1-c2d3e4f5a6b7",
+    "activateId": "manual-activate-001",
+    "currentPrice": 51820.5,
+    "position": "long",
+    "priceOpen": 51900,
+    "priceTakeProfit": 53457,
+    "priceStopLoss": 50862,
+    "originalPriceTakeProfit": 53457,
+    "originalPriceStopLoss": 50862,
+    "scheduledAt": 1708876600000,
+    "pendingAt": 1708876700000,
+    "createdAt": 1708876700000
+  },
+  {
     "type": "signal.cancelled",
     "id": "8e6a911f-e184-468a-a034-b64bbd3ec66e",
     "timestamp": 1708876600000,
