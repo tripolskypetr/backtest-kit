@@ -227,25 +227,34 @@ temporal time context to your strategies.
     - Adapter must return exactly `limit` candles
     - Sequential timestamps: `since + i * stepMs` for i = 0..limit-1
 
+    **Boundary semantics (inclusive/exclusive):**
+    - `since` is always **inclusive** — first candle has `timestamp === since`
+    - Exactly `limit` candles are returned
+    - Last candle has `timestamp === since + (limit - 1) * stepMs` — **inclusive**
+    - `alignedWhen` (current execution time aligned down) and `eDate` are **exclusive** — candle at that timestamp is NOT included (it's a pending/incomplete candle)
+
     - `getCandles(symbol, interval, limit)` - Returns exactly `limit` candles
       - Aligns `when` down to interval boundary
       - Calculates `since = alignedWhen - limit * stepMs`
-      - First candle.timestamp === since
-      - Example: `getCandles("BTCUSDT", "1m", 100)` returns 100 candles ending at aligned when
+      - **since — inclusive**, first candle.timestamp === since
+      - **alignedWhen — exclusive**, candle at alignedWhen is NOT returned
+      - Range: `[since, alignedWhen)` — half-open interval
+      - Example: `getCandles("BTCUSDT", "1m", 100)` returns 100 candles ending before aligned when
 
     - `getNextCandles(symbol, interval, limit)` - Returns exactly `limit` candles (backtest only)
       - Aligns `when` down to interval boundary
       - `since = alignedWhen` (starts from aligned when, going forward)
-      - First candle.timestamp === since
+      - **since — inclusive**, first candle.timestamp === since
+      - Range: `[alignedWhen, alignedWhen + limit * stepMs)` — half-open interval
       - Throws error in live mode to prevent look-ahead bias
-      - Example: `getNextCandles("BTCUSDT", "1m", 10)` returns next 10 candles after aligned when
+      - Example: `getNextCandles("BTCUSDT", "1m", 10)` returns next 10 candles starting from aligned when
 
     - `getRawCandles(symbol, interval, limit?, sDate?, eDate?)` - Flexible parameter combinations:
-      - `(limit)` - since = alignedWhen - limit * stepMs
-      - `(limit, sDate)` - since = align(sDate), returns `limit` candles forward
-      - `(limit, undefined, eDate)` - since = align(eDate) - limit * stepMs
-      - `(undefined, sDate, eDate)` - since = align(sDate), limit calculated from range
-      - `(limit, sDate, eDate)` - since = align(sDate), returns `limit` candles
+      - `(limit)` - since = alignedWhen - limit * stepMs, range `[since, alignedWhen)`
+      - `(limit, sDate)` - since = align(sDate), returns `limit` candles forward, range `[since, since + limit * stepMs)`
+      - `(limit, undefined, eDate)` - since = align(eDate) - limit * stepMs, **eDate — exclusive**, range `[since, eDate)`
+      - `(undefined, sDate, eDate)` - since = align(sDate), limit calculated from range, **sDate — inclusive, eDate — exclusive**, range `[sDate, eDate)`
+      - `(limit, sDate, eDate)` - since = align(sDate), returns `limit` candles, **sDate — inclusive**
       - All combinations respect look-ahead bias protection (eDate/endTime <= when)
 
     **Persistent Cache:**
