@@ -3239,10 +3239,77 @@ const PROCESS_SCHEDULED_SIGNAL_CANDLES_FN = async (
     }
 
     // КРИТИЧНО: Проверяем был ли сигнал активирован пользователем через activateScheduled()
+    // Обрабатываем inline (как в tick()) с риск-проверкой по averagePrice
     if (self._activatedSignal) {
-      // Сигнал был активирован через activateScheduled() в onSchedulePing
-      await ACTIVATE_SCHEDULED_SIGNAL_IN_BACKTEST_FN(self, scheduled, candle.timestamp);
-      self._activatedSignal = null; // Clear after using
+      const activatedSignal = self._activatedSignal;
+      self._activatedSignal = null;
+
+      // Check if strategy was stopped
+      if (self._isStopped) {
+        self.params.logger.info("ClientStrategy backtest user-activated signal cancelled (stopped)", {
+          symbol: self.params.execution.context.symbol,
+          signalId: activatedSignal.id,
+        });
+        await self.setScheduledSignal(null);
+        return { activated: false, cancelled: false, activationIndex: i, result: null };
+      }
+
+      // Риск-проверка по averagePrice (симметрия с LIVE tick())
+      if (
+        await not(
+          CALL_RISK_CHECK_SIGNAL_FN(
+            self,
+            self.params.execution.context.symbol,
+            activatedSignal,
+            averagePrice,
+            candle.timestamp,
+            self.params.execution.context.backtest
+          )
+        )
+      ) {
+        self.params.logger.info("ClientStrategy backtest user-activated signal rejected by risk", {
+          symbol: self.params.execution.context.symbol,
+          signalId: activatedSignal.id,
+        });
+        await self.setScheduledSignal(null);
+        return { activated: false, cancelled: false, activationIndex: i, result: null };
+      }
+
+      await self.setScheduledSignal(null);
+
+      const pendingSignal: ISignalRow = {
+        ...activatedSignal,
+        pendingAt: candle.timestamp,
+        _isScheduled: false,
+      };
+
+      await self.setPendingSignal(pendingSignal);
+
+      await CALL_RISK_ADD_SIGNAL_FN(
+        self,
+        self.params.execution.context.symbol,
+        pendingSignal,
+        candle.timestamp,
+        self.params.execution.context.backtest
+      );
+
+      await CALL_OPEN_CALLBACKS_FN(
+        self,
+        self.params.execution.context.symbol,
+        pendingSignal,
+        pendingSignal.priceOpen,
+        candle.timestamp,
+        self.params.execution.context.backtest
+      );
+
+      await CALL_BACKTEST_SCHEDULE_OPEN_FN(
+        self,
+        self.params.execution.context.symbol,
+        pendingSignal,
+        candle.timestamp,
+        self.params.execution.context.backtest
+      );
+
       return {
         activated: true,
         cancelled: false,
