@@ -13,7 +13,8 @@ export type StrategyActionType =
   | "partial-loss"
   | "trailing-stop"
   | "trailing-take"
-  | "breakeven";
+  | "breakeven"
+  | "activate-scheduled";
 
 /**
  * Unified strategy event data for markdown report generation.
@@ -44,6 +45,8 @@ export interface StrategyEvent {
   cancelId?: string;
   /** Close ID for close-pending action */
   closeId?: string;
+  /** Activate ID for activate-scheduled action */
+  activateId?: string;
   /** ISO timestamp string when action was created */
   createdAt: string;
   /** True if backtest mode, false if live mode */
@@ -106,4 +109,7 @@ export interface StrategyStatisticsModel {
 
   /** Count of breakeven events */
   breakevenCount: number;
+
+  /** Count of activate-scheduled events */
+  activateScheduledCount: number;
 }

@@ -27,6 +27,7 @@ const LIVE_METHOD_NAME_PARTIAL_PROFIT = "LiveUtils.commitPartialProfit";
 const LIVE_METHOD_NAME_PARTIAL_LOSS = "LiveUtils.commitPartialLoss";
 const LIVE_METHOD_NAME_TRAILING_STOP = "LiveUtils.commitTrailingStop";
 const LIVE_METHOD_NAME_TRAILING_PROFIT = "LiveUtils.commitTrailingTake";
+const LIVE_METHOD_NAME_ACTIVATE_SCHEDULED = "Live.commitActivateScheduled";
 
 /**
  * Internal task function that runs live trading and handles completion.
@@ -1012,6 +1013,56 @@ export class LiveUtils {
       exchangeName: context.exchangeName,
       frameName: "",
     });
+  };
+
+  /**
+   * Activates a scheduled signal early without waiting for price to reach priceOpen.
+   *
+   * Sets the activation flag on the scheduled signal. The actual activation
+   * happens on the next tick() when strategy detects the flag.
+   *
+   * @param symbol - Trading pair symbol
+   * @param context - Execution context with strategyName and exchangeName
+   * @param activateId - Optional activation ID for tracking user-initiated activations
+   * @returns Promise that resolves when activation flag is set
+   *
+   * @example
+   * ```typescript
+   * // Activate scheduled signal early with custom ID
+   * await Live.commitActivateScheduled("BTCUSDT", {
+   *   strategyName: "my-strategy",
+   *   exchangeName: "binance"
+   * }, "manual-activate-001");
+   * ```
+   */
+  public commitActivateScheduled = async (
+    symbol: string,
+    context: {
+      strategyName: StrategyName;
+      exchangeName: ExchangeName;
+    },
+    activateId?: string
+  ): Promise<void> => {
+    backtest.loggerService.info(LIVE_METHOD_NAME_ACTIVATE_SCHEDULED, {
+      symbol,
+      context,
+      activateId,
+    });
+    backtest.strategyValidationService.validate(context.strategyName, LIVE_METHOD_NAME_ACTIVATE_SCHEDULED);
+    backtest.exchangeValidationService.validate(context.exchangeName, LIVE_METHOD_NAME_ACTIVATE_SCHEDULED);
+
+    {
+      const { riskName, riskList, actions } = backtest.strategySchemaService.get(context.strategyName);
+      riskName && backtest.riskValidationService.validate(riskName, LIVE_METHOD_NAME_ACTIVATE_SCHEDULED);
+      riskList && riskList.forEach((riskName) => backtest.riskValidationService.validate(riskName, LIVE_METHOD_NAME_ACTIVATE_SCHEDULED));
+      actions && actions.forEach((actionName) => backtest.actionValidationService.validate(actionName, LIVE_METHOD_NAME_ACTIVATE_SCHEDULED));
+    }
+
+    await backtest.strategyCoreService.activateScheduled(false, symbol, {
+      strategyName: context.strategyName,
+      exchangeName: context.exchangeName,
+      frameName: "",
+    }, activateId);
   };
 
   /**

@@ -30,6 +30,7 @@ const BACKTEST_METHOD_NAME_PARTIAL_PROFIT = "BacktestUtils.commitPartialProfit";
 const BACKTEST_METHOD_NAME_PARTIAL_LOSS = "BacktestUtils.commitPartialLoss";
 const BACKTEST_METHOD_NAME_TRAILING_STOP = "BacktestUtils.commitTrailingStop";
 const BACKTEST_METHOD_NAME_TRAILING_PROFIT = "BacktestUtils.commitTrailingTake";
+const BACKTEST_METHOD_NAME_ACTIVATE_SCHEDULED = "Backtest.commitActivateScheduled";
 const BACKTEST_METHOD_NAME_GET_DATA = "BacktestUtils.getData";
 
 /**
@@ -1422,6 +1423,82 @@ export class BacktestUtils {
       symbol,
       currentPrice,
       context
+    );
+  };
+
+  /**
+   * Activates a scheduled signal early without waiting for price to reach priceOpen.
+   *
+   * Sets the activation flag on the scheduled signal. The actual activation
+   * happens on the next tick() when strategy detects the flag.
+   *
+   * @param symbol - Trading pair symbol
+   * @param context - Execution context with strategyName, exchangeName, and frameName
+   * @param activateId - Optional activation ID for tracking user-initiated activations
+   * @returns Promise that resolves when activation flag is set
+   *
+   * @example
+   * ```typescript
+   * // Activate scheduled signal early with custom ID
+   * await Backtest.commitActivateScheduled("BTCUSDT", {
+   *   strategyName: "my-strategy",
+   *   exchangeName: "binance",
+   *   frameName: "1h"
+   * }, "manual-activate-001");
+   * ```
+   */
+  public commitActivateScheduled = async (
+    symbol: string,
+    context: {
+      strategyName: StrategyName;
+      exchangeName: ExchangeName;
+      frameName: FrameName;
+    },
+    activateId?: string
+  ): Promise<void> => {
+    backtest.loggerService.info(BACKTEST_METHOD_NAME_ACTIVATE_SCHEDULED, {
+      symbol,
+      context,
+      activateId,
+    });
+    backtest.strategyValidationService.validate(
+      context.strategyName,
+      BACKTEST_METHOD_NAME_ACTIVATE_SCHEDULED
+    );
+    backtest.exchangeValidationService.validate(
+      context.exchangeName,
+      BACKTEST_METHOD_NAME_ACTIVATE_SCHEDULED
+    );
+
+    {
+      const { riskName, riskList, actions } =
+        backtest.strategySchemaService.get(context.strategyName);
+      riskName &&
+        backtest.riskValidationService.validate(
+          riskName,
+          BACKTEST_METHOD_NAME_ACTIVATE_SCHEDULED
+        );
+      riskList &&
+        riskList.forEach((riskName) =>
+          backtest.riskValidationService.validate(
+            riskName,
+            BACKTEST_METHOD_NAME_ACTIVATE_SCHEDULED
+          )
+        );
+      actions &&
+        actions.forEach((actionName) =>
+          backtest.actionValidationService.validate(
+            actionName,
+            BACKTEST_METHOD_NAME_ACTIVATE_SCHEDULED
+          )
+        );
+    }
+
+    await backtest.strategyCoreService.activateScheduled(
+      true,
+      symbol,
+      context,
+      activateId
     );
   };
 

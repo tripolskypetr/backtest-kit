@@ -1027,6 +1027,45 @@ export class StrategyConnectionService implements TStrategy {
     const strategy = this.getStrategy(symbol, context.strategyName, context.exchangeName, context.frameName, backtest);
     return await strategy.breakeven(symbol, currentPrice, backtest);
   };
+
+  /**
+   * Activates a scheduled signal early without waiting for price to reach priceOpen.
+   *
+   * Delegates to ClientStrategy.activateScheduled() which sets _activatedSignal flag.
+   * The actual activation happens on next tick() when strategy detects the flag.
+   *
+   * @param backtest - Whether running in backtest mode
+   * @param symbol - Trading pair symbol
+   * @param context - Execution context with strategyName, exchangeName, frameName
+   * @param activateId - Optional identifier for the activation reason
+   * @returns Promise that resolves when activation flag is set
+   *
+   * @example
+   * ```typescript
+   * // Activate scheduled signal early
+   * await strategyConnectionService.activateScheduled(
+   *   false,
+   *   "BTCUSDT",
+   *   { strategyName: "my-strategy", exchangeName: "binance", frameName: "" },
+   *   "manual-activation"
+   * );
+   * ```
+   */
+  public activateScheduled = async (
+    backtest: boolean,
+    symbol: string,
+    context: { strategyName: StrategyName; exchangeName: ExchangeName; frameName: FrameName },
+    activateId?: string
+  ): Promise<void> => {
+    this.loggerService.log("strategyConnectionService activateScheduled", {
+      symbol,
+      context,
+      backtest,
+      activateId,
+    });
+    const strategy = this.getStrategy(symbol, context.strategyName, context.exchangeName, context.frameName, backtest);
+    return await strategy.activateScheduled(symbol, backtest, activateId);
+  };
 }
 
 export default StrategyConnectionService;

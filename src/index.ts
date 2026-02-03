@@ -17,6 +17,7 @@ export {
   commitTrailingStop,
   commitTrailingTake,
   commitBreakeven,
+  commitActivateScheduled,
 } from "./function/strategy";
 export { stopStrategy } from "./function/control";
 export {
@@ -200,6 +201,7 @@ export {
   PartialProfitCommitNotification,
   PartialLossCommitNotification,
   BreakevenCommitNotification,
+  ActivateScheduledCommitNotification,
   TrailingStopCommitNotification,
   TrailingTakeCommitNotification,
   RiskRejectionNotification,

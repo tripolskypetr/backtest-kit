@@ -11,6 +11,7 @@ const PARTIAL_LOSS_METHOD_NAME = "strategy.commitPartialLoss";
 const TRAILING_STOP_METHOD_NAME = "strategy.commitTrailingStop";
 const TRAILING_PROFIT_METHOD_NAME = "strategy.commitTrailingTake";
 const BREAKEVEN_METHOD_NAME = "strategy.commitBreakeven";
+const ACTIVATE_SCHEDULED_METHOD_NAME = "strategy.commitActivateScheduled";
 
 /**
  * Cancels the scheduled signal without stopping the strategy.
@@ -393,5 +394,47 @@ export async function commitBreakeven(symbol: string): Promise<boolean> {
     symbol,
     currentPrice,
     { exchangeName, frameName, strategyName }
+  );
+}
+
+/**
+ * Activates a scheduled signal early without waiting for price to reach priceOpen.
+ *
+ * Sets the activation flag on the scheduled signal. The actual activation
+ * happens on the next tick() when strategy detects the flag.
+ *
+ * Automatically detects backtest/live mode from execution context.
+ *
+ * @param symbol - Trading pair symbol
+ * @param activateId - Optional activation ID for tracking user-initiated activations
+ * @returns Promise that resolves when activation flag is set
+ *
+ * @example
+ * ```typescript
+ * import { commitActivateScheduled } from "backtest-kit";
+ *
+ * // Activate scheduled signal early with custom ID
+ * await commitActivateScheduled("BTCUSDT", "manual-activate-001");
+ * ```
+ */
+export async function commitActivateScheduled(symbol: string, activateId?: string): Promise<void> {
+  backtest.loggerService.info(ACTIVATE_SCHEDULED_METHOD_NAME, {
+    symbol,
+    activateId,
+  });
+  if (!ExecutionContextService.hasContext()) {
+    throw new Error("commitActivateScheduled requires an execution context");
+  }
+  if (!MethodContextService.hasContext()) {
+    throw new Error("commitActivateScheduled requires a method context");
+  }
+  const { backtest: isBacktest } = backtest.executionContextService.context;
+  const { exchangeName, frameName, strategyName } =
+    backtest.methodContextService.context;
+  await backtest.strategyCoreService.activateScheduled(
+    isBacktest,
+    symbol,
+    { exchangeName, frameName, strategyName },
+    activateId
   );
 }

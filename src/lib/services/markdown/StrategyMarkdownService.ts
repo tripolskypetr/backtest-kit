@@ -15,6 +15,7 @@ import { ColumnModel } from "../../../model/Column.model";
 import { COLUMN_CONFIG } from "../../../config/columns";
 import { strategyCommitSubject } from "../../../config/emitters";
 import {
+  ActivateScheduledCommit,
   BreakevenCommit,
   CancelScheduledCommit,
   ClosePendingCommit,
@@ -155,6 +156,7 @@ class ReportStorage {
         trailingStopCount: 0,
         trailingTakeCount: 0,
         breakevenCount: 0,
+        activateScheduledCount: 0,
       };
     }
 
@@ -168,6 +170,7 @@ class ReportStorage {
       trailingStopCount: this._eventList.filter(e => e.action === "trailing-stop").length,
       trailingTakeCount: this._eventList.filter(e => e.action === "trailing-take").length,
       breakevenCount: this._eventList.filter(e => e.action === "breakeven").length,
+      activateScheduledCount: this._eventList.filter(e => e.action === "activate-scheduled").length,
     };
   }
 
@@ -229,6 +232,7 @@ class ReportStorage {
       `- Trailing stop: ${stats.trailingStopCount}`,
       `- Trailing take: ${stats.trailingTakeCount}`,
       `- Breakeven: ${stats.breakevenCount}`,
+      `- Activate scheduled: ${stats.activateScheduledCount}`,
     ].join("\n");
   }
 
@@ -830,6 +834,86 @@ export class StrategyMarkdownService {
   };
 
   /**
+   * Records an activate-scheduled event when a scheduled signal is activated early.
+   *
+   * @param symbol - Trading pair symbol (e.g., "BTCUSDT")
+   * @param currentPrice - Current market price at time of activation
+   * @param isBacktest - Whether this is a backtest or live trading event
+   * @param context - Strategy context with strategyName, exchangeName, frameName
+   * @param timestamp - Timestamp from StrategyCommitContract (execution context time)
+   * @param position - Trade direction: "long" or "short"
+   * @param priceOpen - Entry price for the position
+   * @param priceTakeProfit - Effective take profit price
+   * @param priceStopLoss - Effective stop loss price
+   * @param originalPriceTakeProfit - Original take profit before trailing
+   * @param originalPriceStopLoss - Original stop loss before trailing
+   * @param scheduledAt - Signal creation timestamp in milliseconds
+   * @param pendingAt - Pending timestamp in milliseconds
+   * @param activateId - Optional identifier for the activation reason
+   */
+  public activateScheduled = async (
+    symbol: string,
+    currentPrice: number,
+    isBacktest: boolean,
+    context: { strategyName: StrategyName; exchangeName: ExchangeName; frameName: FrameName },
+    timestamp: number,
+    position: "long" | "short",
+    priceOpen: number,
+    priceTakeProfit: number,
+    priceStopLoss: number,
+    originalPriceTakeProfit: number,
+    originalPriceStopLoss: number,
+    scheduledAt: number,
+    pendingAt: number,
+    activateId?: string,
+  ) => {
+    this.loggerService.log("strategyMarkdownService activateScheduled", {
+      symbol,
+      currentPrice,
+      isBacktest,
+      activateId,
+    });
+    if (!this.subscribe.hasValue()) {
+      return;
+    }
+    const scheduledRow = await this.strategyCoreService.getScheduledSignal(
+      isBacktest,
+      symbol,
+      {
+        exchangeName: context.exchangeName,
+        strategyName: context.strategyName,
+        frameName: context.frameName,
+      },
+    );
+    if (!scheduledRow) {
+      return;
+    }
+    const createdAt = new Date(timestamp).toISOString();
+    const storage = this.getStorage(symbol, context.strategyName, context.exchangeName, context.frameName, isBacktest);
+    storage.addEvent({
+      timestamp,
+      symbol,
+      strategyName: context.strategyName,
+      exchangeName: context.exchangeName,
+      frameName: context.frameName,
+      signalId: scheduledRow.id,
+      action: "activate-scheduled",
+      activateId,
+      currentPrice,
+      createdAt,
+      backtest: isBacktest,
+      position,
+      priceOpen,
+      priceTakeProfit,
+      priceStopLoss,
+      originalPriceTakeProfit,
+      originalPriceStopLoss,
+      scheduledAt,
+      pendingAt,
+    });
+  };
+
+  /**
    * Retrieves aggregated statistics from accumulated strategy events.
    *
    * Returns counts for each action type and the full event list from the
@@ -1140,6 +1224,31 @@ export class StrategyMarkdownService {
         )
       );
 
+    const unActivateScheduled = strategyCommitSubject
+      .filter(({ action }) => action === "activate-scheduled")
+      .connect(async (event: ActivateScheduledCommit) =>
+        await this.activateScheduled(
+          event.symbol,
+          event.currentPrice,
+          event.backtest,
+          {
+            exchangeName: event.exchangeName,
+            frameName: event.frameName,
+            strategyName: event.strategyName,
+          },
+          event.timestamp,
+          event.position,
+          event.priceOpen,
+          event.priceTakeProfit,
+          event.priceStopLoss,
+          event.originalPriceTakeProfit,
+          event.originalPriceStopLoss,
+          event.scheduledAt,
+          event.pendingAt,
+          event.activateId,
+        )
+      );
+
     const disposeFn = compose(
       () => unCancelSchedule(),
       () => unClosePending(),
@@ -1148,6 +1257,7 @@ export class StrategyMarkdownService {
       () => unTrailingStop(),
       () => unTrailingTake(),
       () => unBreakeven(),
+      () => unActivateScheduled(),
     );
 
     return () => {

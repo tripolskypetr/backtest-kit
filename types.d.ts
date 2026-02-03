@@ -1111,6 +1111,22 @@ interface BreakevenCommit extends SignalCommitBase {
     pendingAt: number;
 }
 /**
+ * Activate scheduled signal event.
+ */
+interface ActivateScheduledCommit extends SignalCommitBase {
+    action: "activate-scheduled";
+    activateId?: string;
+    currentPrice: number;
+    position: "long" | "short";
+    priceOpen: number;
+    priceTakeProfit: number;
+    priceStopLoss: number;
+    originalPriceTakeProfit: number;
+    originalPriceStopLoss: number;
+    scheduledAt: number;
+    pendingAt: number;
+}
+/**
  * Discriminated union for strategy management signal events.
  *
  * Emitted by strategyCommitSubject when strategy management actions are executed.
@@ -1123,7 +1139,7 @@ interface BreakevenCommit extends SignalCommitBase {
  * Consumers must retrieve signal data from StrategyCoreService using
  * getPendingSignal() or getScheduledSignal() methods.
  */
-type StrategyCommitContract = CancelScheduledCommit | ClosePendingCommit | PartialProfitCommit | PartialLossCommit | TrailingStopCommit | TrailingTakeCommit | BreakevenCommit;
+type StrategyCommitContract = CancelScheduledCommit | ClosePendingCommit | PartialProfitCommit | PartialLossCommit | TrailingStopCommit | TrailingTakeCommit | BreakevenCommit | ActivateScheduledCommit;
 
 /**
  * Signal generation interval for throttling.
@@ -1391,10 +1407,21 @@ interface ITrailingTakeCommitRow extends ICommitRowBase {
     currentPrice: number;
 }
 /**
+ * Queued activate scheduled commit.
+ */
+interface IActivateScheduledCommitRow extends ICommitRowBase {
+    /** Discriminator */
+    action: "activate-scheduled";
+    /** Signal ID being activated */
+    signalId: string;
+    /** Activation ID (optional, for user-initiated activations) */
+    activateId?: string;
+}
+/**
  * Discriminated union of all queued commit events.
  * These are stored in _commitQueue and processed in tick()/backtest().
  */
-type ICommitRow = IPartialProfitCommitRow | IPartialLossCommitRow | IBreakevenCommitRow | ITrailingStopCommitRow | ITrailingTakeCommitRow;
+type ICommitRow = IPartialProfitCommitRow | IPartialLossCommitRow | IBreakevenCommitRow | ITrailingStopCommitRow | ITrailingTakeCommitRow | IActivateScheduledCommitRow;
 /**
  * Optional lifecycle callbacks for signal events.
  * Called when signals are opened, active, idle, closed, scheduled, or cancelled.
@@ -1811,6 +1838,28 @@ interface IStrategy {
      * ```
      */
     cancelScheduled: (symbol: string, backtest: boolean, cancelId?: string) => Promise<void>;
+    /**
+     * Activates the scheduled signal without waiting for price to reach priceOpen.
+     *
+     * Forces immediate activation of the scheduled signal at the current price.
+     * Does NOT affect active pending signals or strategy operation.
+     * Does NOT set stop flag - strategy can continue generating new signals.
+     *
+     * Use case: User-initiated early activation of a scheduled entry.
+     *
+     * @param symbol - Trading pair symbol (e.g., "BTCUSDT")
+     * @param backtest - Whether running in backtest mode
+     * @param activateId - Optional identifier for this activation operation
+     * @returns Promise that resolves when scheduled signal is activated
+     *
+     * @example
+     * ```typescript
+     * // Activate scheduled signal without waiting for priceOpen
+     * await strategy.activateScheduled("BTCUSDT", false, "user-activate-123");
+     * // Scheduled signal becomes pending signal immediately
+     * ```
+     */
+    activateScheduled: (symbol: string, backtest: boolean, activateId?: string) => Promise<void>;
     /**
      * Closes the pending signal without stopping the strategy.
      *
@@ -3838,6 +3887,27 @@ declare function commitTrailingTake(symbol: string, percentShift: number, curren
  * ```
  */
 declare function commitBreakeven(symbol: string): Promise<boolean>;
+/**
+ * Activates a scheduled signal early without waiting for price to reach priceOpen.
+ *
+ * Sets the activation flag on the scheduled signal. The actual activation
+ * happens on the next tick() when strategy detects the flag.
+ *
+ * Automatically detects backtest/live mode from execution context.
+ *
+ * @param symbol - Trading pair symbol
+ * @param activateId - Optional activation ID for tracking user-initiated activations
+ * @returns Promise that resolves when activation flag is set
+ *
+ * @example
+ * ```typescript
+ * import { commitActivateScheduled } from "backtest-kit";
+ *
+ * // Activate scheduled signal early with custom ID
+ * await commitActivateScheduled("BTCUSDT", "manual-activate-001");
+ * ```
+ */
+declare function commitActivateScheduled(symbol: string, activateId?: string): Promise<void>;
 
 /**
  * Stops the strategy from generating new signals.
@@ -6973,6 +7043,50 @@ interface BreakevenCommitNotification {
     createdAt: number;
 }
 /**
+ * Activate scheduled commit notification.
+ * Emitted when a scheduled signal is activated by user (without waiting for priceOpen).
+ */
+interface ActivateScheduledCommitNotification {
+    /** Discriminator for type-safe union */
+    type: "activate_scheduled.commit";
+    /** Unique notification identifier */
+    id: string;
+    /** Unix timestamp in milliseconds when activation was committed */
+    timestamp: number;
+    /** Whether this notification is from backtest mode (true) or live mode (false) */
+    backtest: boolean;
+    /** Trading pair symbol (e.g., "BTCUSDT") */
+    symbol: string;
+    /** Strategy name that generated this signal */
+    strategyName: StrategyName;
+    /** Exchange name where signal was executed */
+    exchangeName: ExchangeName;
+    /** Unique signal identifier (UUID v4) */
+    signalId: string;
+    /** Optional activation identifier (provided when user calls activateScheduled()) */
+    activateId?: string;
+    /** Trade direction: "long" (buy) or "short" (sell) */
+    position: "long" | "short";
+    /** Entry price for the position */
+    priceOpen: number;
+    /** Effective take profit price */
+    priceTakeProfit: number;
+    /** Effective stop loss price */
+    priceStopLoss: number;
+    /** Original take profit price before any trailing adjustments */
+    originalPriceTakeProfit: number;
+    /** Original stop loss price before any trailing adjustments */
+    originalPriceStopLoss: number;
+    /** Signal creation timestamp in milliseconds (when signal was first created/scheduled) */
+    scheduledAt: number;
+    /** Pending timestamp in milliseconds (when position became pending/active at priceOpen) */
+    pendingAt: number;
+    /** Current market price when activation was executed */
+    currentPrice: number;
+    /** Unix timestamp in milliseconds when the notification was created */
+    createdAt: number;
+}
+/**
  * Trailing stop commit notification.
  * Emitted when trailing stop action is executed.
  */
@@ -7264,7 +7378,7 @@ interface ValidationErrorNotification {
  * }
  * ```
  */
-type NotificationModel = SignalOpenedNotification | SignalClosedNotification | PartialProfitAvailableNotification | PartialLossAvailableNotification | BreakevenAvailableNotification | PartialProfitCommitNotification | PartialLossCommitNotification | BreakevenCommitNotification | TrailingStopCommitNotification | TrailingTakeCommitNotification | RiskRejectionNotification | SignalScheduledNotification | SignalCancelledNotification | InfoErrorNotification | CriticalErrorNotification | ValidationErrorNotification;
+type NotificationModel = SignalOpenedNotification | SignalClosedNotification | PartialProfitAvailableNotification | PartialLossAvailableNotification | BreakevenAvailableNotification | PartialProfitCommitNotification | PartialLossCommitNotification | BreakevenCommitNotification | ActivateScheduledCommitNotification | TrailingStopCommitNotification | TrailingTakeCommitNotification | RiskRejectionNotification | SignalScheduledNotification | SignalCancelledNotification | InfoErrorNotification | CriticalErrorNotification | ValidationErrorNotification;
 
 /**
  * Unified tick event data for report generation.
@@ -7686,7 +7800,7 @@ interface RiskStatisticsModel {
  * Action types for strategy events.
  * Represents all possible strategy management actions.
  */
-type StrategyActionType = "cancel-scheduled" | "close-pending" | "partial-profit" | "partial-loss" | "trailing-stop" | "trailing-take" | "breakeven";
+type StrategyActionType = "cancel-scheduled" | "close-pending" | "partial-profit" | "partial-loss" | "trailing-stop" | "trailing-take" | "breakeven" | "activate-scheduled";
 /**
  * Unified strategy event data for markdown report generation.
  * Contains all information about strategy management actions.
@@ -7716,6 +7830,8 @@ interface StrategyEvent {
     cancelId?: string;
     /** Close ID for close-pending action */
     closeId?: string;
+    /** Activate ID for activate-scheduled action */
+    activateId?: string;
     /** ISO timestamp string when action was created */
     createdAt: string;
     /** True if backtest mode, false if live mode */
@@ -7769,6 +7885,8 @@ interface StrategyStatisticsModel {
     trailingTakeCount: number;
     /** Count of breakeven events */
     breakevenCount: number;
+    /** Count of activate-scheduled events */
+    activateScheduledCount: number;
 }
 
 declare const BASE_WAIT_FOR_INIT_SYMBOL: unique symbol;
@@ -9743,6 +9861,32 @@ declare class BacktestUtils {
         frameName: FrameName;
     }) => Promise<boolean>;
     /**
+     * Activates a scheduled signal early without waiting for price to reach priceOpen.
+     *
+     * Sets the activation flag on the scheduled signal. The actual activation
+     * happens on the next tick() when strategy detects the flag.
+     *
+     * @param symbol - Trading pair symbol
+     * @param context - Execution context with strategyName, exchangeName, and frameName
+     * @param activateId - Optional activation ID for tracking user-initiated activations
+     * @returns Promise that resolves when activation flag is set
+     *
+     * @example
+     * ```typescript
+     * // Activate scheduled signal early with custom ID
+     * await Backtest.commitActivateScheduled("BTCUSDT", {
+     *   strategyName: "my-strategy",
+     *   exchangeName: "binance",
+     *   frameName: "1h"
+     * }, "manual-activate-001");
+     * ```
+     */
+    commitActivateScheduled: (symbol: string, context: {
+        strategyName: StrategyName;
+        exchangeName: ExchangeName;
+        frameName: FrameName;
+    }, activateId?: string) => Promise<void>;
+    /**
      * Gets statistical data from all closed signals for a symbol-strategy pair.
      *
      * @param symbol - Trading pair symbol
@@ -10470,6 +10614,30 @@ declare class LiveUtils {
         strategyName: StrategyName;
         exchangeName: ExchangeName;
     }) => Promise<boolean>;
+    /**
+     * Activates a scheduled signal early without waiting for price to reach priceOpen.
+     *
+     * Sets the activation flag on the scheduled signal. The actual activation
+     * happens on the next tick() when strategy detects the flag.
+     *
+     * @param symbol - Trading pair symbol
+     * @param context - Execution context with strategyName and exchangeName
+     * @param activateId - Optional activation ID for tracking user-initiated activations
+     * @returns Promise that resolves when activation flag is set
+     *
+     * @example
+     * ```typescript
+     * // Activate scheduled signal early with custom ID
+     * await Live.commitActivateScheduled("BTCUSDT", {
+     *   strategyName: "my-strategy",
+     *   exchangeName: "binance"
+     * }, "manual-activate-001");
+     * ```
+     */
+    commitActivateScheduled: (symbol: string, context: {
+        strategyName: StrategyName;
+        exchangeName: ExchangeName;
+    }, activateId?: string) => Promise<void>;
     /**
      * Gets statistical data from all live trading events for a symbol-strategy pair.
      *
@@ -14273,6 +14441,34 @@ declare class StrategyCoreService implements TStrategy$1 {
         exchangeName: ExchangeName;
         frameName: FrameName;
     }) => Promise<boolean>;
+    /**
+     * Activates a scheduled signal early without waiting for price to reach priceOpen.
+     *
+     * Validates strategy existence and delegates to connection service
+     * to set the activation flag. The actual activation happens on next tick().
+     *
+     * @param backtest - Whether running in backtest mode
+     * @param symbol - Trading pair symbol
+     * @param context - Execution context with strategyName, exchangeName, frameName
+     * @param activateId - Optional identifier for the activation reason
+     * @returns Promise that resolves when activation flag is set
+     *
+     * @example
+     * ```typescript
+     * // Activate scheduled signal early
+     * await strategyCoreService.activateScheduled(
+     *   false,
+     *   "BTCUSDT",
+     *   { strategyName: "my-strategy", exchangeName: "binance", frameName: "" },
+     *   "manual-activation"
+     * );
+     * ```
+     */
+    activateScheduled: (backtest: boolean, symbol: string, context: {
+        strategyName: StrategyName;
+        exchangeName: ExchangeName;
+        frameName: FrameName;
+    }, activateId?: string) => Promise<void>;
 }
 
 /**
@@ -14482,6 +14678,29 @@ declare class StrategyMarkdownService {
         exchangeName: ExchangeName;
         frameName: FrameName;
     }, timestamp: number, position: "long" | "short", priceOpen: number, priceTakeProfit: number, priceStopLoss: number, originalPriceTakeProfit: number, originalPriceStopLoss: number, scheduledAt: number, pendingAt: number) => Promise<void>;
+    /**
+     * Records an activate-scheduled event when a scheduled signal is activated early.
+     *
+     * @param symbol - Trading pair symbol (e.g., "BTCUSDT")
+     * @param currentPrice - Current market price at time of activation
+     * @param isBacktest - Whether this is a backtest or live trading event
+     * @param context - Strategy context with strategyName, exchangeName, frameName
+     * @param timestamp - Timestamp from StrategyCommitContract (execution context time)
+     * @param position - Trade direction: "long" or "short"
+     * @param priceOpen - Entry price for the position
+     * @param priceTakeProfit - Effective take profit price
+     * @param priceStopLoss - Effective stop loss price
+     * @param originalPriceTakeProfit - Original take profit before trailing
+     * @param originalPriceStopLoss - Original stop loss before trailing
+     * @param scheduledAt - Signal creation timestamp in milliseconds
+     * @param pendingAt - Pending timestamp in milliseconds
+     * @param activateId - Optional identifier for the activation reason
+     */
+    activateScheduled: (symbol: string, currentPrice: number, isBacktest: boolean, context: {
+        strategyName: StrategyName;
+        exchangeName: ExchangeName;
+        frameName: FrameName;
+    }, timestamp: number, position: "long" | "short", priceOpen: number, priceTakeProfit: number, priceStopLoss: number, originalPriceTakeProfit: number, originalPriceStopLoss: number, scheduledAt: number, pendingAt: number, activateId?: string) => Promise<void>;
     /**
      * Retrieves aggregated statistics from accumulated strategy events.
      *
@@ -16976,6 +17195,34 @@ declare class StrategyConnectionService implements TStrategy {
         exchangeName: ExchangeName;
         frameName: FrameName;
     }) => Promise<boolean>;
+    /**
+     * Activates a scheduled signal early without waiting for price to reach priceOpen.
+     *
+     * Delegates to ClientStrategy.activateScheduled() which sets _activatedSignal flag.
+     * The actual activation happens on next tick() when strategy detects the flag.
+     *
+     * @param backtest - Whether running in backtest mode
+     * @param symbol - Trading pair symbol
+     * @param context - Execution context with strategyName, exchangeName, frameName
+     * @param activateId - Optional identifier for the activation reason
+     * @returns Promise that resolves when activation flag is set
+     *
+     * @example
+     * ```typescript
+     * // Activate scheduled signal early
+     * await strategyConnectionService.activateScheduled(
+     *   false,
+     *   "BTCUSDT",
+     *   { strategyName: "my-strategy", exchangeName: "binance", frameName: "" },
+     *   "manual-activation"
+     * );
+     * ```
+     */
+    activateScheduled: (backtest: boolean, symbol: string, context: {
+        strategyName: StrategyName;
+        exchangeName: ExchangeName;
+        frameName: FrameName;
+    }, activateId?: string) => Promise<void>;
 }
 
 /**
@@ -20025,6 +20272,29 @@ declare class StrategyReportService {
         frameName: FrameName;
     }, timestamp: number, position: "long" | "short", priceOpen: number, priceTakeProfit: number, priceStopLoss: number, originalPriceTakeProfit: number, originalPriceStopLoss: number, scheduledAt: number, pendingAt: number) => Promise<void>;
     /**
+     * Logs an activate-scheduled event when a scheduled signal is activated early.
+     *
+     * @param symbol - Trading pair symbol (e.g., "BTCUSDT")
+     * @param currentPrice - Current market price at time of activation
+     * @param isBacktest - Whether this is a backtest or live trading event
+     * @param context - Strategy context with strategyName, exchangeName, frameName
+     * @param timestamp - Timestamp from StrategyCommitContract (execution context time)
+     * @param position - Trade direction: "long" or "short"
+     * @param priceOpen - Entry price for the position
+     * @param priceTakeProfit - Effective take profit price
+     * @param priceStopLoss - Effective stop loss price
+     * @param originalPriceTakeProfit - Original take profit before trailing
+     * @param originalPriceStopLoss - Original stop loss before trailing
+     * @param scheduledAt - Signal creation timestamp in milliseconds
+     * @param pendingAt - Pending timestamp in milliseconds
+     * @param activateId - Optional identifier for the activation reason
+     */
+    activateScheduled: (symbol: string, currentPrice: number, isBacktest: boolean, context: {
+        strategyName: StrategyName;
+        exchangeName: ExchangeName;
+        frameName: FrameName;
+    }, timestamp: number, position: "long" | "short", priceOpen: number, priceTakeProfit: number, priceStopLoss: number, originalPriceTakeProfit: number, originalPriceStopLoss: number, scheduledAt: number, pendingAt: number, activateId?: string) => Promise<void>;
+    /**
      * Initializes the service for event logging.
      *
      * Must be called before any events can be logged. Uses singleshot pattern
@@ -20112,4 +20382,4 @@ declare const backtest: {
     loggerService: LoggerService;
 };
 
-export { ActionBase, type ActivePingContract, Backtest, type BacktestStatisticsModel, Breakeven, type BreakevenAvailableNotification, type BreakevenCommit, type BreakevenCommitNotification, type BreakevenContract, type BreakevenData, Cache, type CancelScheduledCommit, type CandleData, type CandleInterval, type ClosePendingCommit, type ColumnConfig, type ColumnModel, Constant, type CriticalErrorNotification, type DoneContract, type EntityId, Exchange, ExecutionContextService, type FrameInterval, type GlobalConfig, Heat, type HeatmapStatisticsModel, type IBidData, type IBreakevenCommitRow, type ICandleData, type ICommitRow, type IExchangeSchema, type IFrameSchema, type IHeatmapRow, type IMarkdownDumpOptions, type IOrderBookData, type IPartialLossCommitRow, type IPartialProfitCommitRow, type IPersistBase, type IPositionSizeATRParams, type IPositionSizeFixedPercentageParams, type IPositionSizeKellyParams, type IPublicSignalRow, type IReportDumpOptions, type IRiskActivePosition, type IRiskCheckArgs, type IRiskSchema, type IRiskSignalRow, type IRiskValidation, type IRiskValidationFn, type IRiskValidationPayload, type IScheduledSignalCancelRow, type IScheduledSignalRow, type ISignalDto, type ISignalRow, type ISizingCalculateParams, type ISizingCalculateParamsATR, type ISizingCalculateParamsFixedPercentage, type ISizingCalculateParamsKelly, type ISizingParams, type ISizingParamsATR, type ISizingParamsFixedPercentage, type ISizingParamsKelly, type ISizingSchema, type ISizingSchemaATR, type ISizingSchemaFixedPercentage, type ISizingSchemaKelly, type IStorageSignalRow, type IStorageUtils, type IStrategyPnL, type IStrategyResult, type IStrategySchema, type IStrategyTickResult, type IStrategyTickResultActive, type IStrategyTickResultCancelled, type IStrategyTickResultClosed, type IStrategyTickResultIdle, type IStrategyTickResultOpened, type IStrategyTickResultScheduled, type IStrategyTickResultWaiting, type ITrailingStopCommitRow, type ITrailingTakeCommitRow, type IWalkerResults, type IWalkerSchema, type IWalkerStrategyResult, type InfoErrorNotification, Live, type LiveStatisticsModel, Markdown, MarkdownFileBase, MarkdownFolderBase, type MarkdownName, MethodContextService, type MetricStats, Notification, type NotificationModel, Partial$1 as Partial, type PartialData, type PartialEvent, type PartialLossAvailableNotification, type PartialLossCommit, type PartialLossCommitNotification, type PartialLossContract, type PartialProfitAvailableNotification, type PartialProfitCommit, type PartialProfitCommitNotification, type PartialProfitContract, type PartialStatisticsModel, Performance, type PerformanceContract, type PerformanceMetricType, type PerformanceStatisticsModel, PersistBase, PersistBreakevenAdapter, PersistCandleAdapter, PersistPartialAdapter, PersistRiskAdapter, PersistScheduleAdapter, PersistSignalAdapter, PersistStorageAdapter, PositionSize, type ProgressBacktestContract, type ProgressWalkerContract, Report, ReportBase, type ReportName, Risk, type RiskContract, type RiskData, type RiskEvent, type RiskRejectionNotification, type RiskStatisticsModel, Schedule, type ScheduleData, type SchedulePingContract, type ScheduleStatisticsModel, type ScheduledEvent, type SignalCancelledNotification, type SignalClosedNotification, type SignalData, type SignalInterval, type SignalOpenedNotification, type SignalScheduledNotification, Storage, StorageBacktest, type StorageData, StorageLive, Strategy, type StrategyActionType, type StrategyCancelReason, type StrategyCloseReason, type StrategyCommitContract, type StrategyEvent, type StrategyStatisticsModel, type TMarkdownBase, type TPersistBase, type TPersistBaseCtor, type TReportBase, type TStorageUtilsCtor, type TickEvent, type TrailingStopCommit, type TrailingStopCommitNotification, type TrailingTakeCommit, type TrailingTakeCommitNotification, type ValidationErrorNotification, Walker, type WalkerCompleteContract, type WalkerContract, type WalkerMetric, type SignalData$1 as WalkerSignalData, type WalkerStatisticsModel, addActionSchema, addExchangeSchema, addFrameSchema, addRiskSchema, addSizingSchema, addStrategySchema, addWalkerSchema, commitBreakeven, commitCancelScheduled, commitClosePending, commitPartialLoss, commitPartialProfit, commitTrailingStop, commitTrailingTake, emitters, formatPrice, formatQuantity, get, getActionSchema, getAveragePrice, getBacktestTimeframe, getCandles, getColumns, getConfig, getContext, getDate, getDefaultColumns, getDefaultConfig, getExchangeSchema, getFrameSchema, getMode, getNextCandles, getOrderBook, getRawCandles, getRiskSchema, getSizingSchema, getStrategySchema, getSymbol, getWalkerSchema, hasTradeContext, backtest as lib, listExchangeSchema, listFrameSchema, listRiskSchema, listSizingSchema, listStrategySchema, listWalkerSchema, listenActivePing, listenActivePingOnce, listenBacktestProgress, listenBreakevenAvailable, listenBreakevenAvailableOnce, listenDoneBacktest, listenDoneBacktestOnce, listenDoneLive, listenDoneLiveOnce, listenDoneWalker, listenDoneWalkerOnce, listenError, listenExit, listenPartialLossAvailable, listenPartialLossAvailableOnce, listenPartialProfitAvailable, listenPartialProfitAvailableOnce, listenPerformance, listenRisk, listenRiskOnce, listenSchedulePing, listenSchedulePingOnce, listenSignal, listenSignalBacktest, listenSignalBacktestOnce, listenSignalLive, listenSignalLiveOnce, listenSignalOnce, listenStrategyCommit, listenStrategyCommitOnce, listenValidation, listenWalker, listenWalkerComplete, listenWalkerOnce, listenWalkerProgress, overrideActionSchema, overrideExchangeSchema, overrideFrameSchema, overrideRiskSchema, overrideSizingSchema, overrideStrategySchema, overrideWalkerSchema, parseArgs, roundTicks, set, setColumns, setConfig, setLogger, stopStrategy, validate };
+export { ActionBase, type ActivateScheduledCommit, type ActivateScheduledCommitNotification, type ActivePingContract, Backtest, type BacktestStatisticsModel, Breakeven, type BreakevenAvailableNotification, type BreakevenCommit, type BreakevenCommitNotification, type BreakevenContract, type BreakevenData, Cache, type CancelScheduledCommit, type CandleData, type CandleInterval, type ClosePendingCommit, type ColumnConfig, type ColumnModel, Constant, type CriticalErrorNotification, type DoneContract, type EntityId, Exchange, ExecutionContextService, type FrameInterval, type GlobalConfig, Heat, type HeatmapStatisticsModel, type IActivateScheduledCommitRow, type IBidData, type IBreakevenCommitRow, type ICandleData, type ICommitRow, type IExchangeSchema, type IFrameSchema, type IHeatmapRow, type IMarkdownDumpOptions, type IOrderBookData, type IPartialLossCommitRow, type IPartialProfitCommitRow, type IPersistBase, type IPositionSizeATRParams, type IPositionSizeFixedPercentageParams, type IPositionSizeKellyParams, type IPublicSignalRow, type IReportDumpOptions, type IRiskActivePosition, type IRiskCheckArgs, type IRiskSchema, type IRiskSignalRow, type IRiskValidation, type IRiskValidationFn, type IRiskValidationPayload, type IScheduledSignalCancelRow, type IScheduledSignalRow, type ISignalDto, type ISignalRow, type ISizingCalculateParams, type ISizingCalculateParamsATR, type ISizingCalculateParamsFixedPercentage, type ISizingCalculateParamsKelly, type ISizingParams, type ISizingParamsATR, type ISizingParamsFixedPercentage, type ISizingParamsKelly, type ISizingSchema, type ISizingSchemaATR, type ISizingSchemaFixedPercentage, type ISizingSchemaKelly, type IStorageSignalRow, type IStorageUtils, type IStrategyPnL, type IStrategyResult, type IStrategySchema, type IStrategyTickResult, type IStrategyTickResultActive, type IStrategyTickResultCancelled, type IStrategyTickResultClosed, type IStrategyTickResultIdle, type IStrategyTickResultOpened, type IStrategyTickResultScheduled, type IStrategyTickResultWaiting, type ITrailingStopCommitRow, type ITrailingTakeCommitRow, type IWalkerResults, type IWalkerSchema, type IWalkerStrategyResult, type InfoErrorNotification, Live, type LiveStatisticsModel, Markdown, MarkdownFileBase, MarkdownFolderBase, type MarkdownName, MethodContextService, type MetricStats, Notification, type NotificationModel, Partial$1 as Partial, type PartialData, type PartialEvent, type PartialLossAvailableNotification, type PartialLossCommit, type PartialLossCommitNotification, type PartialLossContract, type PartialProfitAvailableNotification, type PartialProfitCommit, type PartialProfitCommitNotification, type PartialProfitContract, type PartialStatisticsModel, Performance, type PerformanceContract, type PerformanceMetricType, type PerformanceStatisticsModel, PersistBase, PersistBreakevenAdapter, PersistCandleAdapter, PersistPartialAdapter, PersistRiskAdapter, PersistScheduleAdapter, PersistSignalAdapter, PersistStorageAdapter, PositionSize, type ProgressBacktestContract, type ProgressWalkerContract, Report, ReportBase, type ReportName, Risk, type RiskContract, type RiskData, type RiskEvent, type RiskRejectionNotification, type RiskStatisticsModel, Schedule, type ScheduleData, type SchedulePingContract, type ScheduleStatisticsModel, type ScheduledEvent, type SignalCancelledNotification, type SignalClosedNotification, type SignalData, type SignalInterval, type SignalOpenedNotification, type SignalScheduledNotification, Storage, StorageBacktest, type StorageData, StorageLive, Strategy, type StrategyActionType, type StrategyCancelReason, type StrategyCloseReason, type StrategyCommitContract, type StrategyEvent, type StrategyStatisticsModel, type TMarkdownBase, type TPersistBase, type TPersistBaseCtor, type TReportBase, type TStorageUtilsCtor, type TickEvent, type TrailingStopCommit, type TrailingStopCommitNotification, type TrailingTakeCommit, type TrailingTakeCommitNotification, type ValidationErrorNotification, Walker, type WalkerCompleteContract, type WalkerContract, type WalkerMetric, type SignalData$1 as WalkerSignalData, type WalkerStatisticsModel, addActionSchema, addExchangeSchema, addFrameSchema, addRiskSchema, addSizingSchema, addStrategySchema, addWalkerSchema, commitActivateScheduled, commitBreakeven, commitCancelScheduled, commitClosePending, commitPartialLoss, commitPartialProfit, commitTrailingStop, commitTrailingTake, emitters, formatPrice, formatQuantity, get, getActionSchema, getAveragePrice, getBacktestTimeframe, getCandles, getColumns, getConfig, getContext, getDate, getDefaultColumns, getDefaultConfig, getExchangeSchema, getFrameSchema, getMode, getNextCandles, getOrderBook, getRawCandles, getRiskSchema, getSizingSchema, getStrategySchema, getSymbol, getWalkerSchema, hasTradeContext, backtest as lib, listExchangeSchema, listFrameSchema, listRiskSchema, listSizingSchema, listStrategySchema, listWalkerSchema, listenActivePing, listenActivePingOnce, listenBacktestProgress, listenBreakevenAvailable, listenBreakevenAvailableOnce, listenDoneBacktest, listenDoneBacktestOnce, listenDoneLive, listenDoneLiveOnce, listenDoneWalker, listenDoneWalkerOnce, listenError, listenExit, listenPartialLossAvailable, listenPartialLossAvailableOnce, listenPartialProfitAvailable, listenPartialProfitAvailableOnce, listenPerformance, listenRisk, listenRiskOnce, listenSchedulePing, listenSchedulePingOnce, listenSignal, listenSignalBacktest, listenSignalBacktestOnce, listenSignalLive, listenSignalLiveOnce, listenSignalOnce, listenStrategyCommit, listenStrategyCommitOnce, listenValidation, listenWalker, listenWalkerComplete, listenWalkerOnce, listenWalkerProgress, overrideActionSchema, overrideExchangeSchema, overrideFrameSchema, overrideRiskSchema, overrideSizingSchema, overrideStrategySchema, overrideWalkerSchema, parseArgs, roundTicks, set, setColumns, setConfig, setLogger, stopStrategy, validate };

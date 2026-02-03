@@ -9,6 +9,7 @@ import { ExchangeName } from "../../../interfaces/Exchange.interface";
 import { StrategyName } from "../../../interfaces/Strategy.interface";
 import { strategyCommitSubject } from "../../../config/emitters";
 import {
+  ActivateScheduledCommit,
   BreakevenCommit,
   CancelScheduledCommit,
   ClosePendingCommit,
@@ -606,6 +607,95 @@ export class StrategyReportService {
   };
 
   /**
+   * Logs an activate-scheduled event when a scheduled signal is activated early.
+   *
+   * @param symbol - Trading pair symbol (e.g., "BTCUSDT")
+   * @param currentPrice - Current market price at time of activation
+   * @param isBacktest - Whether this is a backtest or live trading event
+   * @param context - Strategy context with strategyName, exchangeName, frameName
+   * @param timestamp - Timestamp from StrategyCommitContract (execution context time)
+   * @param position - Trade direction: "long" or "short"
+   * @param priceOpen - Entry price for the position
+   * @param priceTakeProfit - Effective take profit price
+   * @param priceStopLoss - Effective stop loss price
+   * @param originalPriceTakeProfit - Original take profit before trailing
+   * @param originalPriceStopLoss - Original stop loss before trailing
+   * @param scheduledAt - Signal creation timestamp in milliseconds
+   * @param pendingAt - Pending timestamp in milliseconds
+   * @param activateId - Optional identifier for the activation reason
+   */
+  public activateScheduled = async (
+    symbol: string,
+    currentPrice: number,
+    isBacktest: boolean,
+    context: {
+      strategyName: StrategyName;
+      exchangeName: ExchangeName;
+      frameName: FrameName;
+    },
+    timestamp: number,
+    position: "long" | "short",
+    priceOpen: number,
+    priceTakeProfit: number,
+    priceStopLoss: number,
+    originalPriceTakeProfit: number,
+    originalPriceStopLoss: number,
+    scheduledAt: number,
+    pendingAt: number,
+    activateId?: string,
+  ) => {
+    this.loggerService.log("strategyReportService activateScheduled", {
+      symbol,
+      currentPrice,
+      isBacktest,
+      activateId,
+    });
+    if (!this.subscribe.hasValue()) {
+      return;
+    }
+    const scheduledRow = await this.strategyCoreService.getScheduledSignal(
+      isBacktest,
+      symbol,
+      {
+        exchangeName: context.exchangeName,
+        strategyName: context.strategyName,
+        frameName: context.frameName,
+      },
+    );
+    if (!scheduledRow) {
+      return;
+    }
+    const createdAt = new Date(timestamp).toISOString();
+    await Report.writeData(
+      "strategy",
+      {
+        action: "activate-scheduled",
+        activateId,
+        currentPrice,
+        symbol,
+        timestamp,
+        createdAt,
+        position,
+        priceOpen,
+        priceTakeProfit,
+        priceStopLoss,
+        originalPriceTakeProfit,
+        originalPriceStopLoss,
+        scheduledAt,
+        pendingAt,
+      },
+      {
+        signalId: scheduledRow.id,
+        exchangeName: context.exchangeName,
+        frameName: context.frameName,
+        strategyName: context.strategyName,
+        symbol,
+        walkerName: "",
+      },
+    );
+  };
+
+  /**
    * Initializes the service for event logging.
    *
    * Must be called before any events can be logged. Uses singleshot pattern
@@ -772,6 +862,31 @@ export class StrategyReportService {
         )
       );
 
+    const unActivateScheduled = strategyCommitSubject
+      .filter(({ action }) => action === "activate-scheduled")
+      .connect(async (event: ActivateScheduledCommit) =>
+        await this.activateScheduled(
+          event.symbol,
+          event.currentPrice,
+          event.backtest,
+          {
+            exchangeName: event.exchangeName,
+            frameName: event.frameName,
+            strategyName: event.strategyName,
+          },
+          event.timestamp,
+          event.position,
+          event.priceOpen,
+          event.priceTakeProfit,
+          event.priceStopLoss,
+          event.originalPriceTakeProfit,
+          event.originalPriceStopLoss,
+          event.scheduledAt,
+          event.pendingAt,
+          event.activateId,
+        )
+      );
+
     const disposeFn = compose(
       () => unCancelSchedule(),
       () => unClosePending(),
@@ -780,6 +895,7 @@ export class StrategyReportService {
       () => unTrailingStop(),
       () => unTrailingTake(),
       () => unBreakeven(),
+      () => unActivateScheduled(),
     );
 
     return () => {
