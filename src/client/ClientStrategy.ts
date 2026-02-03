@@ -14,6 +14,7 @@ import {
   ISignalDto,
   IScheduledSignalRow,
   IScheduledSignalCancelRow,
+  IScheduledSignalActivateRow,
   ISignalCloseRow,
   IPublicSignalRow,
   IStrategyParams,
@@ -112,6 +113,31 @@ const PROCESS_COMMIT_QUEUE_FN = async (
     self._commitQueue = [];
   }
 
+  // Process activate-scheduled commits first (before pendingSignal check)
+  // because these don't require pendingSignal to exist yet
+  for (const commit of queue) {
+    if (commit.action === "activate-scheduled") {
+      await CALL_COMMIT_FN(self, {
+        action: "activate-scheduled",
+        symbol: commit.symbol,
+        strategyName: self.params.strategyName,
+        exchangeName: self.params.exchangeName,
+        frameName: self.params.frameName,
+        backtest: commit.backtest,
+        signalId: commit.signalId,
+        activateId: commit.activateId,
+        timestamp,
+      });
+    }
+  }
+
+  // Filter out already processed activate-scheduled commits
+  const remainingQueue = queue.filter(commit => commit.action !== "activate-scheduled");
+
+  if (remainingQueue.length === 0) {
+    return;
+  }
+
   if (!self._pendingSignal) {
     return;
   }
@@ -119,7 +145,7 @@ const PROCESS_COMMIT_QUEUE_FN = async (
   // Get public signal data for commit events (contains effective and original SL/TP)
   const publicSignal = TO_PUBLIC_SIGNAL(self._pendingSignal);
 
-  for (const commit of queue) {
+  for (const commit of remainingQueue) {
     if (commit.action === "partial-profit") {
       await CALL_COMMIT_FN(self, {
         action: "partial-profit",
@@ -3212,6 +3238,19 @@ const PROCESS_SCHEDULED_SIGNAL_CANDLES_FN = async (
       return { activated: false, cancelled: true, activationIndex: i, result };
     }
 
+    // КРИТИЧНО: Проверяем был ли сигнал активирован пользователем через activateScheduled()
+    if (self._activatedSignal) {
+      // Сигнал был активирован через activateScheduled() в onSchedulePing
+      await ACTIVATE_SCHEDULED_SIGNAL_IN_BACKTEST_FN(self, scheduled, candle.timestamp);
+      self._activatedSignal = null; // Clear after using
+      return {
+        activated: true,
+        cancelled: false,
+        activationIndex: i,
+        result: null,
+      };
+    }
+
     // КРИТИЧНО: Проверяем timeout ПЕРЕД проверкой цены
     const elapsedTime = candle.timestamp - scheduled.scheduledAt;
     if (elapsedTime >= maxTimeToWait) {
@@ -3527,6 +3566,7 @@ export class ClientStrategy implements IStrategy {
   _scheduledSignal: IScheduledSignalRow | null = null;
   _cancelledSignal: IScheduledSignalCancelRow | null = null;
   _closedSignal: ISignalCloseRow | null = null;
+  _activatedSignal: IScheduledSignalActivateRow | null = null;
 
   /** Queue for commit events to be processed in tick()/backtest() with proper timestamp */
   _commitQueue: ICommitRow[] = [];
@@ -3939,6 +3979,90 @@ export class ClientStrategy implements IStrategy {
         symbol: this.params.execution.context.symbol,
         backtest: this.params.execution.context.backtest,
         closeId: closedSignal.closeId,
+        createdAt: currentTime,
+      };
+
+      await CALL_TICK_CALLBACKS_FN(
+        this,
+        this.params.execution.context.symbol,
+        result,
+        currentTime,
+        this.params.execution.context.backtest
+      );
+
+      return result;
+    }
+
+    // Check if scheduled signal was activated - emit opened event once
+    if (this._activatedSignal) {
+      const currentPrice = await this.params.exchange.getAveragePrice(
+        this.params.execution.context.symbol
+      );
+
+      const activatedSignal = this._activatedSignal;
+      this._activatedSignal = null; // Clear after emitting
+
+      this.params.logger.info("ClientStrategy tick: scheduled signal was activated", {
+        symbol: this.params.execution.context.symbol,
+        signalId: activatedSignal.id,
+      });
+
+      // Check risk before activation
+      if (
+        await not(
+          CALL_RISK_CHECK_SIGNAL_FN(
+            this,
+            this.params.execution.context.symbol,
+            activatedSignal,
+            currentPrice,
+            currentTime,
+            this.params.execution.context.backtest
+          )
+        )
+      ) {
+        this.params.logger.info("ClientStrategy tick: activated signal rejected by risk", {
+          symbol: this.params.execution.context.symbol,
+          signalId: activatedSignal.id,
+        });
+        return await RETURN_IDLE_FN(this, currentPrice);
+      }
+
+      // КРИТИЧЕСКИ ВАЖНО: обновляем pendingAt при активации
+      const pendingSignal: ISignalRow = {
+        ...activatedSignal,
+        pendingAt: currentTime,
+        _isScheduled: false,
+      };
+
+      await this.setPendingSignal(pendingSignal);
+
+      await CALL_RISK_ADD_SIGNAL_FN(
+        this,
+        this.params.execution.context.symbol,
+        pendingSignal,
+        currentTime,
+        this.params.execution.context.backtest
+      );
+
+      // Call onOpen callback
+      await CALL_OPEN_CALLBACKS_FN(
+        this,
+        this.params.execution.context.symbol,
+        pendingSignal,
+        currentPrice,
+        currentTime,
+        this.params.execution.context.backtest
+      );
+
+      const result: IStrategyTickResultOpened = {
+        action: "opened",
+        signal: TO_PUBLIC_SIGNAL(pendingSignal),
+        strategyName: this.params.method.context.strategyName,
+        exchangeName: this.params.method.context.exchangeName,
+        frameName: this.params.method.context.frameName,
+        symbol: this.params.execution.context.symbol,
+        currentPrice,
+        backtest: this.params.execution.context.backtest,
         createdAt: currentTime,
       };
 
@@ -4517,6 +4641,76 @@ export class ClientStrategy implements IStrategy {
         backtest,
         cancelId,
         timestamp: this.params.execution.context.when.getTime(),
+      });
+    }
+  }
+
+  /**
+   * Activates the scheduled signal without waiting for price to reach priceOpen.
+   *
+   * Forces immediate activation of the scheduled signal at the current price.
+   * Does NOT affect active pending signals or strategy operation.
+   * Does NOT set stop flag - strategy can continue generating new signals.
+   *
+   * Use case: User-initiated early activation of a scheduled entry.
+   *
+   * @param symbol - Trading pair symbol (e.g., "BTCUSDT")
+   * @param backtest - Whether running in backtest mode
+   * @param activateId - Optional identifier for this activation operation
+   * @returns Promise that resolves when scheduled signal is activated
+   *
+   * @example
+   * ```typescript
+   * // Activate scheduled signal without waiting for priceOpen
+   * await strategy.activateScheduled("BTCUSDT", false, "user-activate-123");
+   * // Scheduled signal becomes pending signal immediately
+   * ```
+   */
+  public async activateScheduled(symbol: string, backtest: boolean, activateId?: string): Promise<void> {
+    this.params.logger.debug("ClientStrategy activateScheduled", {
+      symbol,
+      hasScheduledSignal: this._scheduledSignal !== null,
+      activateId,
+    });
+
+    // Save activated signal for next tick to emit opened event
+    const hadScheduledSignal = this._scheduledSignal !== null;
+    if (this._scheduledSignal) {
+      this._activatedSignal = Object.assign({}, this._scheduledSignal, {
+        activateId,
+      });
+      this._scheduledSignal = null;
+    }
+
+    if (backtest) {
+      // Emit commit event only if signal was actually activated
+      if (hadScheduledSignal) {
+        this._commitQueue.push({
+          action: "activate-scheduled",
+          symbol,
+          backtest,
+          signalId: this._activatedSignal!.id,
+          activateId,
+        });
+      }
+      return;
+    }
+
+    await PersistScheduleAdapter.writeScheduleData(
+      this._scheduledSignal,
+      symbol,
+      this.params.method.context.strategyName,
+      this.params.method.context.exchangeName,
+    );
+
+    // Emit commit event only if signal was actually activated
+    if (hadScheduledSignal) {
+      this._commitQueue.push({
+        action: "activate-scheduled",
+        symbol,
+        backtest,
+        signalId: this._activatedSignal!.id,
+        activateId,
       });
     }
   }

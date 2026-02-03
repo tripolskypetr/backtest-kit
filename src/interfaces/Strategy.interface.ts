@@ -244,6 +244,15 @@ export interface ISignalCloseRow extends ISignalRow {
 }
 
 /**
+ * Scheduled signal row with activation ID.
+ * Extends IScheduledSignalRow to include optional activateId for user-initiated activations.
+ */
+export interface IScheduledSignalActivateRow extends IScheduledSignalRow {
+  /** Activation ID (only for user-initiated activations) */
+  activateId?: string;
+}
+
+/**
  * Base interface for queued commit events.
  * Used to defer commit emission until proper execution context is available.
  */
@@ -313,6 +322,18 @@ export interface ITrailingTakeCommitRow extends ICommitRowBase {
 }
 
 /**
+ * Queued activate scheduled commit.
+ */
+export interface IActivateScheduledCommitRow extends ICommitRowBase {
+  /** Discriminator */
+  action: "activate-scheduled";
+  /** Signal ID being activated */
+  signalId: string;
+  /** Activation ID (optional, for user-initiated activations) */
+  activateId?: string;
+}
+
+/**
  * Discriminated union of all queued commit events.
  * These are stored in _commitQueue and processed in tick()/backtest().
  */
@@ -321,7 +342,8 @@ export type ICommitRow =
   | IPartialLossCommitRow
   | IBreakevenCommitRow
   | ITrailingStopCommitRow
-  | ITrailingTakeCommitRow;
+  | ITrailingTakeCommitRow
+  | IActivateScheduledCommitRow;
 
 /**
  * Strategy parameters passed to ClientStrategy constructor.
