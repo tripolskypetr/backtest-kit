@@ -4118,6 +4118,16 @@ export class ClientStrategy implements IStrategy {
         signalId: activatedSignal.id,
       });
 
+      // Check if strategy was stopped (symmetry with backtest PROCESS_SCHEDULED_SIGNAL_CANDLES_FN)
+      if (this._isStopped) {
+        this.params.logger.info("ClientStrategy tick: user-activated signal cancelled (stopped)", {
+          symbol: this.params.execution.context.symbol,
+          signalId: activatedSignal.id,
+        });
+        await this.setScheduledSignal(null);
+        return await RETURN_IDLE_FN(this, currentPrice);
+      }
+
       // Check risk before activation
       if (
         await not(
