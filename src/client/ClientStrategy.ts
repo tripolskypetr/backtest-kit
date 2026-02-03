@@ -4684,9 +4684,18 @@ export class ClientStrategy implements IStrategy {
       symbol,
       hasPendingSignal: this._pendingSignal !== null,
       hasScheduledSignal: this._scheduledSignal !== null,
+      hasActivatedSignal: this._activatedSignal !== null,
+      hasCancelledSignal: this._cancelledSignal !== null,
+      hasClosedSignal: this._closedSignal !== null,
     });
 
     this._isStopped = true;
+
+    // КРИТИЧНО: Очищаем все pending флаги чтобы исключить утечку состояния
+    // Эти флаги не будут обработаны в tick() из-за _isStopped check
+    this._activatedSignal = null;
+    this._cancelledSignal = null;
+    this._closedSignal = null;
 
     // Clear scheduled signal if exists
     if (!this._scheduledSignal) {
