@@ -227,11 +227,18 @@ temporal time context to your strategies.
     - Adapter must return exactly `limit` candles
     - Sequential timestamps: `since + i * stepMs` for i = 0..limit-1
 
+    **How `since` is calculated from `when`:**
+    - `when` = current execution context time (from AsyncLocalStorage)
+    - `alignedWhen` = `Math.floor(when / stepMs) * stepMs` (aligned down to interval boundary)
+    - `since` = `alignedWhen - limit * stepMs` (go back `limit` candles from aligned when)
+
     **Boundary semantics (inclusive/exclusive):**
     - `since` is always **inclusive** — first candle has `timestamp === since`
     - Exactly `limit` candles are returned
     - Last candle has `timestamp === since + (limit - 1) * stepMs` — **inclusive**
-    - `alignedWhen` (current execution time aligned down) and `eDate` are **exclusive** — candle at that timestamp is NOT included (it's a pending/incomplete candle)
+    - For `getCandles`: `alignedWhen` is **exclusive** — candle at that timestamp is NOT included (it's a pending/incomplete candle)
+    - For `getRawCandles`: `eDate` is **exclusive** — candle at that timestamp is NOT included (it's a pending/incomplete candle)
+    - For `getNextCandles`: `alignedWhen` is **inclusive** — first candle starts at `alignedWhen` (it's the current candle for backtest, already closed in historical data)
 
     - `getCandles(symbol, interval, limit)` - Returns exactly `limit` candles
       - Aligns `when` down to interval boundary
