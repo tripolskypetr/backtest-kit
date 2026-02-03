@@ -2,22 +2,7 @@ import { ArrowForward } from "@mui/icons-material";
 import { TypedField, FieldType, dayjs, CopyButton } from "react-declarative";
 import ioc from "../lib";
 
-const formatDuration = (durationMinutes: number): string => {
-    if (durationMinutes == null) return "N/A";
-    const totalSeconds = Math.floor(durationMinutes * 60);
-    const hours = Math.floor(totalSeconds / 3600);
-    const minutes = Math.floor((totalSeconds % 3600) / 60);
-    const seconds = totalSeconds % 60;
-
-    const parts: string[] = [];
-    if (hours > 0) parts.push(`${hours}h`);
-    if (minutes > 0) parts.push(`${minutes}m`);
-    if (seconds > 0 || parts.length === 0) parts.push(`${seconds}s`);
-
-    return parts.join(" ");
-};
-
-export const signal_closed_fields: TypedField[] = [
+export const activate_scheduled_fields: TypedField[] = [
     {
         type: FieldType.Paper,
         transparentPaper: true,
@@ -25,7 +10,7 @@ export const signal_closed_fields: TypedField[] = [
         fields: [
             {
                 type: FieldType.Typography,
-                                typoVariant: "h6",
+                typoVariant: "h6",
                 placeholder: "General Information",
             },
             {
@@ -71,14 +56,10 @@ export const signal_closed_fields: TypedField[] = [
                         desktopColumns: "4",
                         tabletColumns: "4",
                         phoneColumns: "12",
-                        name: "position",
-                        title: "Position",
+                        name: "backtest",
+                        title: "Mode",
                         readonly: true,
-                        compute: (obj) => {
-                            if (obj.position === "long") return "LONG";
-                            if (obj.position === "short") return "SHORT";
-                            return "Not specified";
-                        },
+                        compute: (obj) => (obj.backtest ? "Backtest" : "Live"),
                     },
                     {
                         type: FieldType.Text,
@@ -86,10 +67,13 @@ export const signal_closed_fields: TypedField[] = [
                         desktopColumns: "4",
                         tabletColumns: "4",
                         phoneColumns: "12",
-                        name: "backtest",
-                        title: "Mode",
+                        name: "currentPrice",
+                        title: "Current Price",
                         readonly: true,
-                        compute: (obj) => (obj.backtest ? "Backtest" : "Live"),
+                        compute: (obj) =>
+                            obj.currentPrice != null
+                                ? `${obj.currentPrice.toFixed(6)}$`
+                                : "Not specified",
                     },
                     {
                         type: FieldType.Text,
@@ -109,7 +93,7 @@ export const signal_closed_fields: TypedField[] = [
             },
             {
                 type: FieldType.Typography,
-                                typoVariant: "h6",
+                typoVariant: "h6",
                 placeholder: "Timestamps",
             },
             {
@@ -123,11 +107,13 @@ export const signal_closed_fields: TypedField[] = [
                         tabletColumns: "6",
                         phoneColumns: "12",
                         name: "timestamp",
-                        title: "Event Time",
+                        title: "Timestamp",
                         readonly: true,
                         compute: (obj) =>
                             obj.timestamp
-                                ? dayjs(obj.timestamp).format("DD/MM/YYYY HH:mm:ss")
+                                ? dayjs(obj.timestamp).format(
+                                      "DD/MM/YYYY HH:mm:ss",
+                                  )
                                 : "",
                     },
                     {
@@ -141,20 +127,10 @@ export const signal_closed_fields: TypedField[] = [
                         readonly: true,
                         compute: (obj) =>
                             obj.createdAt
-                                ? dayjs(obj.createdAt).format("DD/MM/YYYY HH:mm:ss")
+                                ? dayjs(obj.createdAt).format(
+                                      "DD/MM/YYYY HH:mm:ss",
+                                  )
                                 : "",
-                    },
-                    {
-                        type: FieldType.Text,
-                        outlined: false,
-                        desktopColumns: "6",
-                        tabletColumns: "6",
-                        phoneColumns: "12",
-                        name: "duration",
-                        title: "Duration",
-                        readonly: true,
-                        isVisible: (obj) => obj.duration != null,
-                        compute: (obj) => formatDuration(obj.duration),
                     },
                     {
                         type: FieldType.Text,
@@ -168,7 +144,9 @@ export const signal_closed_fields: TypedField[] = [
                         isVisible: (obj) => obj.scheduledAt != null,
                         compute: (obj) =>
                             obj.scheduledAt
-                                ? dayjs(obj.scheduledAt).format("DD/MM/YYYY HH:mm:ss")
+                                ? dayjs(obj.scheduledAt).format(
+                                      "DD/MM/YYYY HH:mm:ss",
+                                  )
                                 : "",
                     },
                     {
@@ -183,20 +161,50 @@ export const signal_closed_fields: TypedField[] = [
                         isVisible: (obj) => obj.pendingAt != null,
                         compute: (obj) =>
                             obj.pendingAt
-                                ? dayjs(obj.pendingAt).format("DD/MM/YYYY HH:mm:ss")
+                                ? dayjs(obj.pendingAt).format(
+                                      "DD/MM/YYYY HH:mm:ss",
+                                  )
                                 : "",
                     },
                 ],
             },
             {
                 type: FieldType.Typography,
-                                typoVariant: "h6",
-                placeholder: "Price Levels",
+                typoVariant: "h6",
+                placeholder: "Activation Details",
             },
             {
                 type: FieldType.Outline,
                 sx: { mb: 3 },
                 fields: [
+                    {
+                        type: FieldType.Text,
+                        outlined: false,
+                        desktopColumns: "4",
+                        tabletColumns: "4",
+                        phoneColumns: "12",
+                        name: "position",
+                        title: "Position",
+                        readonly: true,
+                        compute: (obj) => {
+                            const position = obj.position;
+                            if (position === "long") return "LONG";
+                            if (position === "short") return "SHORT";
+                            return "Not specified";
+                        },
+                    },
+                    {
+                        type: FieldType.Text,
+                        outlined: false,
+                        desktopColumns: "4",
+                        tabletColumns: "4",
+                        phoneColumns: "12",
+                        name: "activateId",
+                        title: "Activate ID",
+                        readonly: true,
+                        isVisible: (obj) => !!obj.activateId,
+                        compute: (obj) => obj.activateId || "Not specified",
+                    },
                     {
                         type: FieldType.Text,
                         outlined: false,
@@ -209,36 +217,6 @@ export const signal_closed_fields: TypedField[] = [
                         compute: (obj) =>
                             obj.priceOpen != null
                                 ? `${obj.priceOpen.toFixed(6)}$`
-                                : "Not specified",
-                    },
-                    {
-                        type: FieldType.Text,
-                        outlined: false,
-                        desktopColumns: "4",
-                        tabletColumns: "4",
-                        phoneColumns: "12",
-                        name: "priceClose",
-                        title: "Close Price",
-                        readonly: true,
-                        isVisible: (obj) => obj.priceClose != null,
-                        compute: (obj) =>
-                            obj.priceClose != null
-                                ? `${obj.priceClose.toFixed(6)}$`
-                                : "Not specified",
-                    },
-                    {
-                        type: FieldType.Text,
-                        outlined: false,
-                        desktopColumns: "4",
-                        tabletColumns: "4",
-                        phoneColumns: "12",
-                        name: "priceTakeProfit",
-                        title: "Take Profit",
-                        readonly: true,
-                        isVisible: (obj) => obj.priceTakeProfit != null,
-                        compute: (obj) =>
-                            obj.priceTakeProfit != null
-                                ? `${obj.priceTakeProfit.toFixed(6)}$`
                                 : "Not specified",
                     },
                     {
@@ -262,13 +240,13 @@ export const signal_closed_fields: TypedField[] = [
                         desktopColumns: "4",
                         tabletColumns: "4",
                         phoneColumns: "12",
-                        name: "originalPriceTakeProfit",
-                        title: "Original Take Profit",
+                        name: "priceTakeProfit",
+                        title: "Take Profit",
                         readonly: true,
-                        isVisible: (obj) => obj.originalPriceTakeProfit != null,
+                        isVisible: (obj) => obj.priceTakeProfit != null,
                         compute: (obj) =>
-                            obj.originalPriceTakeProfit != null
-                                ? `${obj.originalPriceTakeProfit.toFixed(6)}$`
+                            obj.priceTakeProfit != null
+                                ? `${obj.priceTakeProfit.toFixed(6)}$`
                                 : "Not specified",
                     },
                     {
@@ -286,55 +264,20 @@ export const signal_closed_fields: TypedField[] = [
                                 ? `${obj.originalPriceStopLoss.toFixed(6)}$`
                                 : "Not specified",
                     },
-                ],
-            },
-            {
-                type: FieldType.Typography,
-                                typoVariant: "h6",
-                placeholder: "Result (PNL)",
-                isVisible: (obj) => obj.pnlPercentage != null,
-            },
-            {
-                type: FieldType.Outline,
-                sx: { mb: 3 },
-                isVisible: (obj) => obj.pnlPercentage != null,
-                fields: [
                     {
                         type: FieldType.Text,
                         outlined: false,
                         desktopColumns: "4",
                         tabletColumns: "4",
                         phoneColumns: "12",
-                        name: "pnlPercentage",
-                        title: "PNL %",
+                        name: "originalPriceTakeProfit",
+                        title: "Original Take Profit",
                         readonly: true,
-                        compute: (obj) => {
-                            const pnl = obj.pnlPercentage;
-                            if (pnl == null) return "N/A";
-                            const sign = pnl >= 0 ? "+" : "";
-                            return `${sign}${pnl.toFixed(2)}%`;
-                        },
-                    },
-                    {
-                        type: FieldType.Text,
-                        outlined: false,
-                        desktopColumns: "4",
-                        tabletColumns: "4",
-                        phoneColumns: "12",
-                        name: "closeReason",
-                        title: "Close Reason",
-                        readonly: true,
-                        isVisible: (obj) => !!obj.closeReason,
-                        compute: (obj) => {
-                            const reasonMap: Record<string, string> = {
-                                "take_profit": "Take Profit",
-                                "stop_loss": "Stop Loss",
-                                "manual": "Manual Close",
-                                "trailing_stop": "Trailing Stop",
-                                "timeout": "Timeout",
-                            };
-                            return reasonMap[obj.closeReason] || obj.closeReason || "Unknown";
-                        },
+                        isVisible: (obj) => obj.originalPriceTakeProfit != null,
+                        compute: (obj) =>
+                            obj.originalPriceTakeProfit != null
+                                ? `${obj.originalPriceTakeProfit.toFixed(6)}$`
+                                : "Not specified",
                     },
                 ],
             },
@@ -371,11 +314,11 @@ export const signal_closed_fields: TypedField[] = [
                 fields: [
                     {
                         type: FieldType.Component,
-                        isVisible: (obj) => !!obj.closeId,
-                        element: ({ closeId }) => (
+                        isVisible: (obj) => !!obj.activateId,
+                        element: ({ activateId }) => (
                             <CopyButton
-                                label="Close ID"
-                                content={closeId}
+                                label="Activate ID"
+                                content={activateId}
                             />
                         ),
                     },
@@ -388,4 +331,4 @@ export const signal_closed_fields: TypedField[] = [
     },
 ];
 
-export default signal_closed_fields;
+export default activate_scheduled_fields;

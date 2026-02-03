@@ -31,6 +31,9 @@ import useBreakevenCommitView from "../hooks/useBreakevenCommitView";
 import useTrailingStopView from "../hooks/useTrailingStopView";
 import useTrailingTakeView from "../hooks/useTrailingTakeView";
 
+// Activate scheduled hook
+import useActivateScheduledView from "../hooks/useActivateScheduledView";
+
 interface ILayoutModalProviderProps {
     children: React.ReactNode;
 }
@@ -95,6 +98,9 @@ export const LayoutModalProvider = ({
     const pickTrailingStop = useTrailingStopView();
     const pickTrailingTake = useTrailingTakeView();
 
+    // Activate scheduled hook
+    const pickActivateScheduled = useActivateScheduledView();
+
     useOnce(() =>
         ioc.layoutService.promptOutgoing.subscribe(async ({ title, value }) => {
             const result = await pickPrompt({ title, value }).toPromise();
@@ -141,6 +147,9 @@ export const LayoutModalProvider = ({
     // Trailing subscriptions (2 types)
     useOnce(() => ioc.layoutService.pickTrailingStopSubject.subscribe(pickTrailingStop));
     useOnce(() => ioc.layoutService.pickTrailingTakeSubject.subscribe(pickTrailingTake));
+
+    // Activate scheduled subscription
+    useOnce(() => ioc.layoutService.pickActivateScheduledSubject.subscribe(pickActivateScheduled));
 
     return (
         <>
