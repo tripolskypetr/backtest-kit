@@ -607,7 +607,7 @@ export class NotificationMemoryBacktestUtils implements INotificationUtils {
    */
   public handleSignal = async (data: IStrategyTickResult): Promise<void> => {
     backtest.loggerService.info(NOTIFICATION_MEMORY_BACKTEST_METHOD_NAME_HANDLE_SIGNAL, {
-      signalId: data.signal.id,
+      signalId: data.signal?.id,
       action: data.action,
     });
     const notification = CREATE_SIGNAL_NOTIFICATION_FN(data);
@@ -898,7 +898,7 @@ export class NotificationPersistBacktestUtils implements INotificationUtils {
    */
   public handleSignal = async (data: IStrategyTickResult): Promise<void> => {
     backtest.loggerService.info(NOTIFICATION_PERSIST_BACKTEST_METHOD_NAME_HANDLE_SIGNAL, {
-      signalId: data.signal.id,
+      signalId: data.signal?.id,
       action: data.action,
     });
     await this.waitForInit();
@@ -1076,7 +1076,7 @@ export class NotificationMemoryLiveUtils implements INotificationUtils {
    */
   public handleSignal = async (data: IStrategyTickResult): Promise<void> => {
     backtest.loggerService.info(NOTIFICATION_MEMORY_LIVE_METHOD_NAME_HANDLE_SIGNAL, {
-      signalId: data.signal.id,
+      signalId: data.signal?.id,
       action: data.action,
     });
     const notification = CREATE_SIGNAL_NOTIFICATION_FN(data);
@@ -1370,7 +1370,7 @@ export class NotificationPersistLiveUtils implements INotificationUtils {
    */
   public handleSignal = async (data: IStrategyTickResult): Promise<void> => {
     backtest.loggerService.info(NOTIFICATION_PERSIST_LIVE_METHOD_NAME_HANDLE_SIGNAL, {
-      signalId: data.signal.id,
+      signalId: data.signal?.id,
       action: data.action,
     });
     await this.waitForInit();
