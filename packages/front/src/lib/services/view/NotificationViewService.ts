@@ -62,7 +62,14 @@ export class NotificationViewService {
     if (CC_ENABLE_MOCK) {
       return await this.notificationMockService.getList();
     }
-    return await Notification.getData();
+    const notificationList: NotificationModel[] = [];
+    for (const notification of await Notification.getData(false)) {
+      notificationList.push(notification);
+    }
+    for (const notification of await Notification.getData(true)) {
+      notificationList.push(notification);
+    }
+    return notificationList;
   };
 
   public getOne = async (id: string) => {
@@ -72,7 +79,7 @@ export class NotificationViewService {
     if (CC_ENABLE_MOCK) {
       return await this.notificationMockService.getOne(id);
     }
-    const notificationList = await Notification.getData();
+    const notificationList = await this.getList();
     return notificationList.find((item) => item.id === id) ?? null;
   };
 
