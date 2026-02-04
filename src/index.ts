@@ -278,6 +278,8 @@ export {
   PersistCandleAdapter,
   StorageData,
   PersistStorageAdapter,
+  NotificationData,
+  PersistNotificationAdapter,
 } from "./classes/Persist";
 
 export {
