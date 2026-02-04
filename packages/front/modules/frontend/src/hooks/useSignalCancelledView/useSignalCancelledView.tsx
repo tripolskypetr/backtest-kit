@@ -5,6 +5,7 @@ import {
   History,
   useActualRef,
   ActionIcon,
+  ttl,
 } from "react-declarative";
 import { ArrowBack, Close, Download } from "@mui/icons-material";
 import { createMemoryHistory } from "history";
@@ -16,10 +17,11 @@ import ioc from "../../lib";
 import { SignalCancelledNotification } from "backtest-kit";
 
 const DEFAULT_PATH = "/signal_cancelled";
+const CACHE_TTL = 45_000;
 
 const history = createMemoryHistory();
 
-const fetchData = async (id: string) => {
+const fetchData = ttl(async (id: string) => {
 
   const signalCancelledData = await ioc.notificationViewService.getOne(id) as SignalCancelledNotification;
 
@@ -52,7 +54,10 @@ const fetchData = async (id: string) => {
       symbol: signalCancelledData.symbol,
     }),
   };
-};
+}, {
+  timeout: CACHE_TTL,
+  key: ([id]) => `${id}`,
+});
 
 const handleDownload = async (pathname: string, id: string) => {
 

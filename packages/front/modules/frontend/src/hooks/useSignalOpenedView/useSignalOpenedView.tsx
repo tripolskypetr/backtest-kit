@@ -5,6 +5,7 @@ import {
   History,
   useActualRef,
   ActionIcon,
+  ttl,
 } from "react-declarative";
 import { ArrowBack, Close, Download } from "@mui/icons-material";
 import { createMemoryHistory } from "history";
@@ -16,10 +17,11 @@ import ioc from "../../lib";
 import { SignalOpenedNotification } from "backtest-kit";
 
 const DEFAULT_PATH = "/signal_opened";
+const CACHE_TTL = 45_000;
 
 const history = createMemoryHistory();
 
-const fetchData = async (id: string) => {
+const fetchData = ttl(async (id: string) => {
   const signalOpenedData = await ioc.notificationViewService.getOne(id) as SignalOpenedNotification;
 
   if (!signalOpenedData) {
@@ -51,7 +53,10 @@ const fetchData = async (id: string) => {
       symbol: signalOpenedData.symbol,
     }),
   };
-};
+}, {
+  timeout: CACHE_TTL,
+  key: ([id]) => `${id}`,
+});
 
 const handleDownload = async (pathname: string, id: string) => {
   const { candle_15m, candle_1h, candle_1m, signal_opened } = await fetchData(id);

@@ -5,6 +5,7 @@ import {
   History,
   useActualRef,
   ActionIcon,
+  ttl,
 } from "react-declarative";
 import { ArrowBack, Close, Download } from "@mui/icons-material";
 import { createMemoryHistory } from "history";
@@ -16,10 +17,11 @@ import ioc from "../../lib";
 import { ActivateScheduledCommitNotification } from "backtest-kit";
 
 const DEFAULT_PATH = "/activate_scheduled";
+const CACHE_TTL = 45_000;
 
 const history = createMemoryHistory();
 
-const fetchData = async (id: string) => {
+const fetchData = ttl(async (id: string) => {
 
   const activateScheduledData = await ioc.notificationViewService.getOne(id) as ActivateScheduledCommitNotification;
 
@@ -52,7 +54,10 @@ const fetchData = async (id: string) => {
       symbol: activateScheduledData.symbol,
     }),
   };
-};
+}, {
+  timeout: CACHE_TTL,
+  key: ([id]) => `${id}`,
+});
 
 const handleDownload = async (pathname: string, id: string) => {
 

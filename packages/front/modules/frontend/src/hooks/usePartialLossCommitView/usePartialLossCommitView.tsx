@@ -5,6 +5,7 @@ import {
   History,
   useActualRef,
   ActionIcon,
+  ttl,
 } from "react-declarative";
 import { ArrowBack, Close, Download } from "@mui/icons-material";
 import { createMemoryHistory } from "history";
@@ -16,10 +17,11 @@ import ioc from "../../lib";
 import { PartialLossCommitNotification } from "backtest-kit";
 
 const DEFAULT_PATH = "/partial_loss_commit";
+const CACHE_TTL = 45_000;
 
 const history = createMemoryHistory();
 
-const fetchData = async (id: string) => {
+const fetchData = ttl(async (id: string) => {
 
   const partialLossCommitData = await ioc.notificationViewService.getOne(id) as PartialLossCommitNotification;
 
@@ -52,7 +54,10 @@ const fetchData = async (id: string) => {
       symbol: partialLossCommitData.symbol,
     }),
   };
-};
+}, {
+  timeout: CACHE_TTL,
+  key: ([id]) => `${id}`,
+});
 
 const handleDownload = async (pathname: string, id: string) => {
 

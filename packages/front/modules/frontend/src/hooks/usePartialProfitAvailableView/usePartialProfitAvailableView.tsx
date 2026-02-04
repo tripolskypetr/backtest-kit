@@ -5,6 +5,7 @@ import {
   History,
   useActualRef,
   ActionIcon,
+  ttl,
 } from "react-declarative";
 import { ArrowBack, Close, Download } from "@mui/icons-material";
 import { createMemoryHistory } from "history";
@@ -16,10 +17,11 @@ import ioc from "../../lib";
 import { PartialProfitAvailableNotification } from "backtest-kit";
 
 const DEFAULT_PATH = "/partial_profit_available";
+const CACHE_TTL = 45_000;
 
 const history = createMemoryHistory();
 
-const fetchData = async (id: string) => {
+const fetchData = ttl(async (id: string) => {
 
   const partialProfitAvailableData = await ioc.notificationViewService.getOne(id) as PartialProfitAvailableNotification;
 
@@ -52,7 +54,10 @@ const fetchData = async (id: string) => {
       symbol: partialProfitAvailableData.symbol,
     }),
   };
-};
+}, {
+  timeout: CACHE_TTL,
+  key: ([id]) => `${id}`,
+});
 
 const handleDownload = async (pathname: string, id: string) => {
 

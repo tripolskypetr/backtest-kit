@@ -5,6 +5,7 @@ import {
   History,
   useActualRef,
   ActionIcon,
+  ttl,
 } from "react-declarative";
 import { ArrowBack, Close, Download } from "@mui/icons-material";
 import { createMemoryHistory } from "history";
@@ -15,10 +16,11 @@ import { Box, Stack } from "@mui/material";
 import ioc from "../../lib";
 
 const DEFAULT_PATH = "/signal";
+const CACHE_TTL = 45_000;
 
 const history = createMemoryHistory();
 
-const fetchData = async (id: string) => {
+const fetchData = ttl(async (id: string) => {
   return {
     signal: await ioc.storageViewService.findSignalById(id),
     notification: await ioc.notificationViewService.findByFilter({ signalId: id }),
@@ -26,7 +28,10 @@ const fetchData = async (id: string) => {
     candle_15m: await ioc.exchangeViewService.getSignalCandles(id, "15m"),
     candle_1h: await ioc.exchangeViewService.getSignalCandles(id, "1h"),
   };
-};
+}, {
+  timeout: CACHE_TTL,
+  key: ([id]) => `${id}`,
+});
 
 const handleDownload = async (pathname: string, id: string) => {
 
