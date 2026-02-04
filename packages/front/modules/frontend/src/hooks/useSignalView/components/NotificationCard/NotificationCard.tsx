@@ -335,15 +335,21 @@ export const NotificationCard = forwardRef(
           variant="outlined"
           onClick={() => handleNotificationClick(item)}
           sx={{
-            position: "relative",
             transition: "box-shadow 0.2s ease",
             cursor: "pointer",
+            display: "flex",
+            alignItems: "stretch",
+            justifyContent: "stretch",
             "&:hover": {
               boxShadow: 4,
             },
             ...sx,
           }}
         >
+          <Box sx={{
+            flex: 1,
+            position: "relative", overflow: "hidden", height: "100%", width: "100%", borderRadius: "12px"
+          }}>
             <Stack direction="row" spacing={2} sx={{ p: 2 }}>
               <Avatar
                 sx={{
@@ -507,17 +513,19 @@ export const NotificationCard = forwardRef(
               </Box>
             )}
 
-          <Box
-            sx={{
-              position: "absolute",
-              top: 0,
-              left: 0,
-              bottom: 0,
-              width: 6,
-              zIndex: 1,
-              background: color,
-            }}
-          />
+            <Box
+              sx={{
+                position: "absolute",
+                top: 0,
+                left: 0,
+                bottom: 0,
+                width: 6,
+                zIndex: 1,
+                background: color,
+              }}
+            />
+          </Box>
+
         </Paper>
       </div>
     );
