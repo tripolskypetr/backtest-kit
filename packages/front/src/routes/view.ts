@@ -38,6 +38,16 @@ interface NotificationListRequest {
   requestId: string;
 }
 
+interface NotificationFilterRequest {
+  clientId: string;
+  serviceName: string;
+  userId: string;
+  requestId: string;
+  filterData: Record<string, string>;
+  limit?: number;
+  offset?: number;
+}
+
 interface NotificationOneRequest {
   clientId: string;
   serviceName: string;
@@ -170,6 +180,34 @@ router.post("/api/v1/view/notification_one/:id", async (req, res) => {
     return await micro.send(res, 200, result);
   } catch (error) {
     ioc.loggerService.log("/api/v1/view/notification_one/:id error", {
+      error: errorData(error),
+    });
+    return await micro.send(res, 200, {
+      status: "error",
+      error: getErrorMessage(error),
+    });
+  }
+});
+
+router.post("/api/v1/view/notification_filter", async (req, res) => {
+  try {
+    const request = <NotificationFilterRequest>await micro.json(req);
+    const { requestId, serviceName, filterData, limit, offset } = request;
+    const data = await ioc.notificationViewService.findByFilter(filterData, limit, offset);
+    const result = {
+      data,
+      status: "ok",
+      error: "",
+      requestId,
+      serviceName,
+    };
+    ioc.loggerService.log("/api/v1/view/notification_filter ok", {
+      request,
+      result: omit(result, "data"),
+    });
+    return await micro.send(res, 200, result);
+  } catch (error) {
+    ioc.loggerService.log("/api/v1/view/notification_filter error", {
       error: errorData(error),
     });
     return await micro.send(res, 200, {
