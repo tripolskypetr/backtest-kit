@@ -855,7 +855,8 @@ export class NotificationPersistLiveUtils implements INotificationLiveUtils {
         "NotificationPersistLiveUtils not initialized. Call waitForInit first.",
       );
     }
-    const notificationList = Array.from(this._notifications.values());
+    const notificationList = Array.from(this._notifications.values())
+      .filter(({ type }) => !type.startsWith("error."));
     notificationList.sort((a, b) => {
       const aTime = 'createdAt' in a ? a.createdAt : 0;
       const bTime = 'createdAt' in b ? b.createdAt : 0;
@@ -948,7 +949,6 @@ export class NotificationPersistLiveUtils implements INotificationLiveUtils {
     });
     await this.waitForInit();
     this._addNotification(CREATE_ERROR_NOTIFICATION_FN(error));
-    await this._updateNotifications();
   };
 
   public handleCriticalError = async (error: Error): Promise<void> => {
@@ -957,7 +957,6 @@ export class NotificationPersistLiveUtils implements INotificationLiveUtils {
     });
     await this.waitForInit();
     this._addNotification(CREATE_CRITICAL_ERROR_NOTIFICATION_FN(error));
-    await this._updateNotifications();
   };
 
   public handleValidationError = async (error: Error): Promise<void> => {
@@ -966,7 +965,6 @@ export class NotificationPersistLiveUtils implements INotificationLiveUtils {
     });
     await this.waitForInit();
     this._addNotification(CREATE_VALIDATION_ERROR_NOTIFICATION_FN(error));
-    await this._updateNotifications();
   };
 
   public getData = async (): Promise<NotificationModel[]> => {
