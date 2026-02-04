@@ -23,6 +23,7 @@ import { IPartialData } from "../interfaces/Partial.interface";
 import { IBreakevenData } from "../interfaces/Breakeven.interface";
 import { ExchangeName, CandleInterval, ICandleData } from "../interfaces/Exchange.interface";
 import { IStorageSignalRow } from "../interfaces/Strategy.interface";
+import { NotificationModel } from "../model/Notification.model";
 
 
 const BASE_WAIT_FOR_INIT_SYMBOL = Symbol("wait-for-init");
@@ -112,6 +113,17 @@ const PERSIST_STORAGE_UTILS_METHOD_NAME_USE_DUMMY =
   "PersistStorageUtils.useDummy";
 const PERSIST_STORAGE_UTILS_METHOD_NAME_USE_PERSIST_STORAGE_ADAPTER =
   "PersistStorageUtils.usePersistStorageAdapter";
+
+const PERSIST_NOTIFICATION_UTILS_METHOD_NAME_READ_DATA =
+  "PersistNotificationUtils.readNotificationData";
+const PERSIST_NOTIFICATION_UTILS_METHOD_NAME_WRITE_DATA =
+  "PersistNotificationUtils.writeNotificationData";
+const PERSIST_NOTIFICATION_UTILS_METHOD_NAME_USE_JSON =
+  "PersistNotificationUtils.useJson";
+const PERSIST_NOTIFICATION_UTILS_METHOD_NAME_USE_DUMMY =
+  "PersistNotificationUtils.useDummy";
+const PERSIST_NOTIFICATION_UTILS_METHOD_NAME_USE_PERSIST_NOTIFICATION_ADAPTER =
+  "PersistNotificationUtils.usePersistNotificationAdapter";
 
 const BASE_WAIT_FOR_INIT_FN_METHOD_NAME = "PersistBase.waitForInitFn";
 
@@ -1642,5 +1654,130 @@ export class PersistStorageUtils {
  * Used by SignalLiveUtils for signal storage persistence.
  */
 export const PersistStorageAdapter = new PersistStorageUtils();
+
+/**
+ * Type for persisted notification data.
+ * Each notification is stored as a separate file keyed by its id.
+ */
+export type NotificationData = NotificationModel[];
+
+/**
+ * Utility class for managing notification persistence.
+ *
+ * Features:
+ * - Memoized storage instances
+ * - Custom adapter support
+ * - Atomic read/write operations for NotificationData
+ * - Each notification stored as separate file keyed by id
+ * - Crash-safe notification state management
+ *
+ * Used by NotificationPersistLiveUtils/NotificationPersistBacktestUtils for persistence.
+ */
+export class PersistNotificationUtils {
+  private PersistNotificationFactory: TPersistBaseCtor<string, NotificationModel> =
+    PersistBase;
+
+  private getNotificationStorage = memoize(
+    ([backtest]): string => backtest ? `backtest` : `live`,
+    (backtest: boolean): IPersistBase<NotificationModel> =>
+      Reflect.construct(this.PersistNotificationFactory, [
+        backtest ? `backtest` : `live`,
+        `./dump/data/notification/`,
+      ])
+  );
+
+  /**
+   * Registers a custom persistence adapter.
+   *
+   * @param Ctor - Custom PersistBase constructor
+   */
+  public usePersistNotificationAdapter(
+    Ctor: TPersistBaseCtor<string, NotificationModel>
+  ): void {
+    swarm.loggerService.info(
+      PERSIST_NOTIFICATION_UTILS_METHOD_NAME_USE_PERSIST_NOTIFICATION_ADAPTER
+    );
+    this.PersistNotificationFactory = Ctor;
+  }
+
+  /**
+   * Reads persisted notifications data.
+   *
+   * Called by NotificationPersistLiveUtils/NotificationPersistBacktestUtils.waitForInit() to restore state.
+   * Uses keys() from PersistBase to iterate over all stored notifications.
+   * Returns empty array if no notifications exist.
+   *
+   * @param backtest - If true, reads from backtest storage; otherwise from live storage
+   * @returns Promise resolving to array of notification entries
+   */
+  public readNotificationData = async (backtest: boolean): Promise<NotificationData> => {
+    swarm.loggerService.info(PERSIST_NOTIFICATION_UTILS_METHOD_NAME_READ_DATA);
+
+    const key = backtest ? `backtest` : `live`;
+    const isInitial = !this.getNotificationStorage.has(key);
+    const stateStorage = this.getNotificationStorage(backtest);
+    await stateStorage.waitForInit(isInitial);
+
+    const notifications: NotificationModel[] = [];
+
+    for await (const notificationId of stateStorage.keys()) {
+      const notification = await stateStorage.readValue(notificationId);
+      notifications.push(notification);
+    }
+
+    return notifications;
+  };
+
+  /**
+   * Writes notification data to disk with atomic file writes.
+   *
+   * Called by NotificationPersistLiveUtils/NotificationPersistBacktestUtils after notification changes to persist state.
+   * Uses notification.id as the storage key for individual file storage.
+   * Uses atomic writes to prevent corruption on crashes.
+   *
+   * @param notificationData - Notification entries to persist
+   * @param backtest - If true, writes to backtest storage; otherwise to live storage
+   * @returns Promise that resolves when write is complete
+   */
+  public writeNotificationData = async (
+    notificationData: NotificationData,
+    backtest: boolean
+  ): Promise<void> => {
+    swarm.loggerService.info(PERSIST_NOTIFICATION_UTILS_METHOD_NAME_WRITE_DATA);
+
+    const key = backtest ? `backtest` : `live`;
+    const isInitial = !this.getNotificationStorage.has(key);
+    const stateStorage = this.getNotificationStorage(backtest);
+    await stateStorage.waitForInit(isInitial);
+
+    for (const notification of notificationData) {
+      await stateStorage.writeValue(notification.id, notification);
+    }
+  };
+
+  /**
+   * Switches to the default JSON persist adapter.
+   * All future persistence writes will use JSON storage.
+   */
+  public useJson() {
+    swarm.loggerService.log(PERSIST_NOTIFICATION_UTILS_METHOD_NAME_USE_JSON);
+    this.usePersistNotificationAdapter(PersistBase);
+  }
+
+  /**
+   * Switches to a dummy persist adapter that discards all writes.
+   * All future persistence writes will be no-ops.
+   */
+  public useDummy() {
+    swarm.loggerService.log(PERSIST_NOTIFICATION_UTILS_METHOD_NAME_USE_DUMMY);
+    this.usePersistNotificationAdapter(PersistDummy);
+  }
+}
+
+/**
+ * Global singleton instance of PersistNotificationUtils.
+ * Used by NotificationPersistLiveUtils/NotificationPersistBacktestUtils for notification persistence.
+ */
+export const PersistNotificationAdapter = new PersistNotificationUtils();
 
 export { PersistBase }

@@ -19,6 +19,7 @@ import { BreakevenContract } from "../contract/Breakeven.contract";
 import { RiskContract } from "../contract/Risk.contract";
 import { StrategyCommitContract } from "../contract/StrategyCommit.contract";
 import backtest from "../lib";
+import { PersistNotificationAdapter } from "./Persist";
 
 const MAX_NOTIFICATIONS = 250;
 
@@ -402,10 +403,37 @@ const NOTIFICATION_ADAPTER_METHOD_NAME_CLEAR_LIVE = "NotificationAdapter.clearLi
 const NOTIFICATION_BACKTEST_ADAPTER_METHOD_NAME_USE_ADAPTER = "NotificationBacktestAdapter.useNotificationAdapter";
 const NOTIFICATION_BACKTEST_ADAPTER_METHOD_NAME_USE_DUMMY = "NotificationBacktestAdapter.useDummy";
 const NOTIFICATION_BACKTEST_ADAPTER_METHOD_NAME_USE_MEMORY = "NotificationBacktestAdapter.useMemory";
+const NOTIFICATION_BACKTEST_ADAPTER_METHOD_NAME_USE_PERSIST = "NotificationBacktestAdapter.usePersist";
 
 const NOTIFICATION_LIVE_ADAPTER_METHOD_NAME_USE_ADAPTER = "NotificationLiveAdapter.useNotificationAdapter";
 const NOTIFICATION_LIVE_ADAPTER_METHOD_NAME_USE_DUMMY = "NotificationLiveAdapter.useDummy";
 const NOTIFICATION_LIVE_ADAPTER_METHOD_NAME_USE_MEMORY = "NotificationLiveAdapter.useMemory";
+const NOTIFICATION_LIVE_ADAPTER_METHOD_NAME_USE_PERSIST = "NotificationLiveAdapter.usePersist";
+
+const NOTIFICATION_PERSIST_BACKTEST_METHOD_NAME_WAIT_FOR_INIT = "NotificationPersistBacktestUtils.waitForInit";
+const NOTIFICATION_PERSIST_BACKTEST_METHOD_NAME_UPDATE_NOTIFICATIONS = "NotificationPersistBacktestUtils._updateNotifications";
+const NOTIFICATION_PERSIST_BACKTEST_METHOD_NAME_HANDLE_SIGNAL = "NotificationPersistBacktestUtils.handleSignal";
+const NOTIFICATION_PERSIST_BACKTEST_METHOD_NAME_HANDLE_PARTIAL_PROFIT = "NotificationPersistBacktestUtils.handlePartialProfit";
+const NOTIFICATION_PERSIST_BACKTEST_METHOD_NAME_HANDLE_PARTIAL_LOSS = "NotificationPersistBacktestUtils.handlePartialLoss";
+const NOTIFICATION_PERSIST_BACKTEST_METHOD_NAME_HANDLE_BREAKEVEN = "NotificationPersistBacktestUtils.handleBreakeven";
+const NOTIFICATION_PERSIST_BACKTEST_METHOD_NAME_HANDLE_STRATEGY_COMMIT = "NotificationPersistBacktestUtils.handleStrategyCommit";
+const NOTIFICATION_PERSIST_BACKTEST_METHOD_NAME_HANDLE_RISK = "NotificationPersistBacktestUtils.handleRisk";
+const NOTIFICATION_PERSIST_BACKTEST_METHOD_NAME_GET_DATA = "NotificationPersistBacktestUtils.getData";
+const NOTIFICATION_PERSIST_BACKTEST_METHOD_NAME_CLEAR = "NotificationPersistBacktestUtils.clear";
+
+const NOTIFICATION_PERSIST_LIVE_METHOD_NAME_WAIT_FOR_INIT = "NotificationPersistLiveUtils.waitForInit";
+const NOTIFICATION_PERSIST_LIVE_METHOD_NAME_UPDATE_NOTIFICATIONS = "NotificationPersistLiveUtils._updateNotifications";
+const NOTIFICATION_PERSIST_LIVE_METHOD_NAME_HANDLE_SIGNAL = "NotificationPersistLiveUtils.handleSignal";
+const NOTIFICATION_PERSIST_LIVE_METHOD_NAME_HANDLE_PARTIAL_PROFIT = "NotificationPersistLiveUtils.handlePartialProfit";
+const NOTIFICATION_PERSIST_LIVE_METHOD_NAME_HANDLE_PARTIAL_LOSS = "NotificationPersistLiveUtils.handlePartialLoss";
+const NOTIFICATION_PERSIST_LIVE_METHOD_NAME_HANDLE_BREAKEVEN = "NotificationPersistLiveUtils.handleBreakeven";
+const NOTIFICATION_PERSIST_LIVE_METHOD_NAME_HANDLE_STRATEGY_COMMIT = "NotificationPersistLiveUtils.handleStrategyCommit";
+const NOTIFICATION_PERSIST_LIVE_METHOD_NAME_HANDLE_RISK = "NotificationPersistLiveUtils.handleRisk";
+const NOTIFICATION_PERSIST_LIVE_METHOD_NAME_HANDLE_ERROR = "NotificationPersistLiveUtils.handleError";
+const NOTIFICATION_PERSIST_LIVE_METHOD_NAME_HANDLE_CRITICAL_ERROR = "NotificationPersistLiveUtils.handleCriticalError";
+const NOTIFICATION_PERSIST_LIVE_METHOD_NAME_HANDLE_VALIDATION_ERROR = "NotificationPersistLiveUtils.handleValidationError";
+const NOTIFICATION_PERSIST_LIVE_METHOD_NAME_GET_DATA = "NotificationPersistLiveUtils.getData";
+const NOTIFICATION_PERSIST_LIVE_METHOD_NAME_CLEAR = "NotificationPersistLiveUtils.clear";
 
 export interface INotificationUtils {
   handleSignal(data: IStrategyTickResult): Promise<void>;
@@ -532,6 +560,132 @@ export class NotificationDummyBacktestUtils implements INotificationUtils {
 
   public clear = async (): Promise<void> => {
     void 0;
+  };
+}
+
+export class NotificationPersistBacktestUtils implements INotificationUtils {
+  private _notifications: Map<string, NotificationModel>;
+
+  private waitForInit = singleshot(async () => {
+    backtest.loggerService.info(NOTIFICATION_PERSIST_BACKTEST_METHOD_NAME_WAIT_FOR_INIT);
+    const notificationList = await PersistNotificationAdapter.readNotificationData(true);
+    notificationList.sort((a, b) => {
+      const aTime = 'createdAt' in a ? a.createdAt : 0;
+      const bTime = 'createdAt' in b ? b.createdAt : 0;
+      return aTime - bTime;
+    });
+    this._notifications = new Map(
+      notificationList
+        .slice(-MAX_NOTIFICATIONS)
+        .map((notification) => [notification.id, notification]),
+    );
+  });
+
+  private async _updateNotifications(): Promise<void> {
+    backtest.loggerService.info(NOTIFICATION_PERSIST_BACKTEST_METHOD_NAME_UPDATE_NOTIFICATIONS);
+    if (!this._notifications) {
+      throw new Error(
+        "NotificationPersistBacktestUtils not initialized. Call waitForInit first.",
+      );
+    }
+    const notificationList = Array.from(this._notifications.values());
+    notificationList.sort((a, b) => {
+      const aTime = 'createdAt' in a ? a.createdAt : 0;
+      const bTime = 'createdAt' in b ? b.createdAt : 0;
+      return aTime - bTime;
+    });
+    await PersistNotificationAdapter.writeNotificationData(
+      notificationList.slice(-MAX_NOTIFICATIONS),
+      true,
+    );
+  }
+
+  private _addNotification(notification: NotificationModel): void {
+    this._notifications.set(notification.id, notification);
+    if (this._notifications.size > MAX_NOTIFICATIONS) {
+      const firstKey = this._notifications.keys().next().value;
+      if (firstKey) {
+        this._notifications.delete(firstKey);
+      }
+    }
+  }
+
+  public handleSignal = async (data: IStrategyTickResult): Promise<void> => {
+    backtest.loggerService.info(NOTIFICATION_PERSIST_BACKTEST_METHOD_NAME_HANDLE_SIGNAL, {
+      signalId: data.signal.id,
+      action: data.action,
+    });
+    await this.waitForInit();
+    const notification = CREATE_SIGNAL_NOTIFICATION_FN(data);
+    if (notification) {
+      this._addNotification(notification);
+      await this._updateNotifications();
+    }
+  };
+
+  public handlePartialProfit = async (data: PartialProfitContract): Promise<void> => {
+    backtest.loggerService.info(NOTIFICATION_PERSIST_BACKTEST_METHOD_NAME_HANDLE_PARTIAL_PROFIT, {
+      signalId: data.data.id,
+      level: data.level,
+    });
+    await this.waitForInit();
+    this._addNotification(CREATE_PARTIAL_PROFIT_NOTIFICATION_FN(data));
+    await this._updateNotifications();
+  };
+
+  public handlePartialLoss = async (data: PartialLossContract): Promise<void> => {
+    backtest.loggerService.info(NOTIFICATION_PERSIST_BACKTEST_METHOD_NAME_HANDLE_PARTIAL_LOSS, {
+      signalId: data.data.id,
+      level: data.level,
+    });
+    await this.waitForInit();
+    this._addNotification(CREATE_PARTIAL_LOSS_NOTIFICATION_FN(data));
+    await this._updateNotifications();
+  };
+
+  public handleBreakeven = async (data: BreakevenContract): Promise<void> => {
+    backtest.loggerService.info(NOTIFICATION_PERSIST_BACKTEST_METHOD_NAME_HANDLE_BREAKEVEN, {
+      signalId: data.data.id,
+    });
+    await this.waitForInit();
+    this._addNotification(CREATE_BREAKEVEN_NOTIFICATION_FN(data));
+    await this._updateNotifications();
+  };
+
+  public handleStrategyCommit = async (data: StrategyCommitContract): Promise<void> => {
+    backtest.loggerService.info(NOTIFICATION_PERSIST_BACKTEST_METHOD_NAME_HANDLE_STRATEGY_COMMIT, {
+      signalId: data.signalId,
+      action: data.action,
+    });
+    await this.waitForInit();
+    const notification = CREATE_STRATEGY_COMMIT_NOTIFICATION_FN(data);
+    if (notification) {
+      this._addNotification(notification);
+      await this._updateNotifications();
+    }
+  };
+
+  public handleRisk = async (data: RiskContract): Promise<void> => {
+    backtest.loggerService.info(NOTIFICATION_PERSIST_BACKTEST_METHOD_NAME_HANDLE_RISK, {
+      signalId: data.currentSignal.id,
+      rejectionId: data.rejectionId,
+    });
+    await this.waitForInit();
+    this._addNotification(CREATE_RISK_NOTIFICATION_FN(data));
+    await this._updateNotifications();
+  };
+
+  public getData = async (): Promise<NotificationModel[]> => {
+    backtest.loggerService.info(NOTIFICATION_PERSIST_BACKTEST_METHOD_NAME_GET_DATA);
+    await this.waitForInit();
+    return Array.from(this._notifications.values());
+  };
+
+  public clear = async (): Promise<void> => {
+    backtest.loggerService.info(NOTIFICATION_PERSIST_BACKTEST_METHOD_NAME_CLEAR);
+    await this.waitForInit();
+    this._notifications.clear();
+    await this._updateNotifications();
   };
 }
 
@@ -676,6 +830,159 @@ export class NotificationDummyLiveUtils implements INotificationLiveUtils {
   };
 }
 
+export class NotificationPersistLiveUtils implements INotificationLiveUtils {
+  private _notifications: Map<string, NotificationModel>;
+
+  private waitForInit = singleshot(async () => {
+    backtest.loggerService.info(NOTIFICATION_PERSIST_LIVE_METHOD_NAME_WAIT_FOR_INIT);
+    const notificationList = await PersistNotificationAdapter.readNotificationData(false);
+    notificationList.sort((a, b) => {
+      const aTime = 'createdAt' in a ? a.createdAt : 0;
+      const bTime = 'createdAt' in b ? b.createdAt : 0;
+      return aTime - bTime;
+    });
+    this._notifications = new Map(
+      notificationList
+        .slice(-MAX_NOTIFICATIONS)
+        .map((notification) => [notification.id, notification]),
+    );
+  });
+
+  private async _updateNotifications(): Promise<void> {
+    backtest.loggerService.info(NOTIFICATION_PERSIST_LIVE_METHOD_NAME_UPDATE_NOTIFICATIONS);
+    if (!this._notifications) {
+      throw new Error(
+        "NotificationPersistLiveUtils not initialized. Call waitForInit first.",
+      );
+    }
+    const notificationList = Array.from(this._notifications.values());
+    notificationList.sort((a, b) => {
+      const aTime = 'createdAt' in a ? a.createdAt : 0;
+      const bTime = 'createdAt' in b ? b.createdAt : 0;
+      return aTime - bTime;
+    });
+    await PersistNotificationAdapter.writeNotificationData(
+      notificationList.slice(-MAX_NOTIFICATIONS),
+      false,
+    );
+  }
+
+  private _addNotification(notification: NotificationModel): void {
+    this._notifications.set(notification.id, notification);
+    if (this._notifications.size > MAX_NOTIFICATIONS) {
+      const firstKey = this._notifications.keys().next().value;
+      if (firstKey) {
+        this._notifications.delete(firstKey);
+      }
+    }
+  }
+
+  public handleSignal = async (data: IStrategyTickResult): Promise<void> => {
+    backtest.loggerService.info(NOTIFICATION_PERSIST_LIVE_METHOD_NAME_HANDLE_SIGNAL, {
+      signalId: data.signal.id,
+      action: data.action,
+    });
+    await this.waitForInit();
+    const notification = CREATE_SIGNAL_NOTIFICATION_FN(data);
+    if (notification) {
+      this._addNotification(notification);
+      await this._updateNotifications();
+    }
+  };
+
+  public handlePartialProfit = async (data: PartialProfitContract): Promise<void> => {
+    backtest.loggerService.info(NOTIFICATION_PERSIST_LIVE_METHOD_NAME_HANDLE_PARTIAL_PROFIT, {
+      signalId: data.data.id,
+      level: data.level,
+    });
+    await this.waitForInit();
+    this._addNotification(CREATE_PARTIAL_PROFIT_NOTIFICATION_FN(data));
+    await this._updateNotifications();
+  };
+
+  public handlePartialLoss = async (data: PartialLossContract): Promise<void> => {
+    backtest.loggerService.info(NOTIFICATION_PERSIST_LIVE_METHOD_NAME_HANDLE_PARTIAL_LOSS, {
+      signalId: data.data.id,
+      level: data.level,
+    });
+    await this.waitForInit();
+    this._addNotification(CREATE_PARTIAL_LOSS_NOTIFICATION_FN(data));
+    await this._updateNotifications();
+  };
+
+  public handleBreakeven = async (data: BreakevenContract): Promise<void> => {
+    backtest.loggerService.info(NOTIFICATION_PERSIST_LIVE_METHOD_NAME_HANDLE_BREAKEVEN, {
+      signalId: data.data.id,
+    });
+    await this.waitForInit();
+    this._addNotification(CREATE_BREAKEVEN_NOTIFICATION_FN(data));
+    await this._updateNotifications();
+  };
+
+  public handleStrategyCommit = async (data: StrategyCommitContract): Promise<void> => {
+    backtest.loggerService.info(NOTIFICATION_PERSIST_LIVE_METHOD_NAME_HANDLE_STRATEGY_COMMIT, {
+      signalId: data.signalId,
+      action: data.action,
+    });
+    await this.waitForInit();
+    const notification = CREATE_STRATEGY_COMMIT_NOTIFICATION_FN(data);
+    if (notification) {
+      this._addNotification(notification);
+      await this._updateNotifications();
+    }
+  };
+
+  public handleRisk = async (data: RiskContract): Promise<void> => {
+    backtest.loggerService.info(NOTIFICATION_PERSIST_LIVE_METHOD_NAME_HANDLE_RISK, {
+      signalId: data.currentSignal.id,
+      rejectionId: data.rejectionId,
+    });
+    await this.waitForInit();
+    this._addNotification(CREATE_RISK_NOTIFICATION_FN(data));
+    await this._updateNotifications();
+  };
+
+  public handleError = async (error: Error): Promise<void> => {
+    backtest.loggerService.info(NOTIFICATION_PERSIST_LIVE_METHOD_NAME_HANDLE_ERROR, {
+      message: getErrorMessage(error),
+    });
+    await this.waitForInit();
+    this._addNotification(CREATE_ERROR_NOTIFICATION_FN(error));
+    await this._updateNotifications();
+  };
+
+  public handleCriticalError = async (error: Error): Promise<void> => {
+    backtest.loggerService.info(NOTIFICATION_PERSIST_LIVE_METHOD_NAME_HANDLE_CRITICAL_ERROR, {
+      message: getErrorMessage(error),
+    });
+    await this.waitForInit();
+    this._addNotification(CREATE_CRITICAL_ERROR_NOTIFICATION_FN(error));
+    await this._updateNotifications();
+  };
+
+  public handleValidationError = async (error: Error): Promise<void> => {
+    backtest.loggerService.info(NOTIFICATION_PERSIST_LIVE_METHOD_NAME_HANDLE_VALIDATION_ERROR, {
+      message: getErrorMessage(error),
+    });
+    await this.waitForInit();
+    this._addNotification(CREATE_VALIDATION_ERROR_NOTIFICATION_FN(error));
+    await this._updateNotifications();
+  };
+
+  public getData = async (): Promise<NotificationModel[]> => {
+    backtest.loggerService.info(NOTIFICATION_PERSIST_LIVE_METHOD_NAME_GET_DATA);
+    await this.waitForInit();
+    return Array.from(this._notifications.values());
+  };
+
+  public clear = async (): Promise<void> => {
+    backtest.loggerService.info(NOTIFICATION_PERSIST_LIVE_METHOD_NAME_CLEAR);
+    await this.waitForInit();
+    this._notifications.clear();
+    await this._updateNotifications();
+  };
+}
+
 export class NotificationBacktestAdapter implements INotificationUtils {
   private _notificationBacktestUtils: INotificationUtils = new NotificationMemoryBacktestUtils();
 
@@ -724,6 +1031,11 @@ export class NotificationBacktestAdapter implements INotificationUtils {
   useMemory = (): void => {
     backtest.loggerService.info(NOTIFICATION_BACKTEST_ADAPTER_METHOD_NAME_USE_MEMORY);
     this._notificationBacktestUtils = new NotificationMemoryBacktestUtils();
+  };
+
+  usePersist = (): void => {
+    backtest.loggerService.info(NOTIFICATION_BACKTEST_ADAPTER_METHOD_NAME_USE_PERSIST);
+    this._notificationBacktestUtils = new NotificationPersistBacktestUtils();
   };
 }
 
@@ -787,6 +1099,11 @@ export class NotificationLiveAdapter implements INotificationLiveUtils {
   useMemory = (): void => {
     backtest.loggerService.info(NOTIFICATION_LIVE_ADAPTER_METHOD_NAME_USE_MEMORY);
     this._notificationLiveUtils = new NotificationMemoryLiveUtils();
+  };
+
+  usePersist = (): void => {
+    backtest.loggerService.info(NOTIFICATION_LIVE_ADAPTER_METHOD_NAME_USE_PERSIST);
+    this._notificationLiveUtils = new NotificationPersistLiveUtils();
   };
 }
 
