@@ -12,13 +12,14 @@ export const NotificationView = ({ data }: IOutletModalProps) => {
                 {(size) => (
                     <VirtualView
                         sx={{ height: size.height }}
+                        withScrollbar
                         minHeight={72}
                         bufferSize={25}
                     >
                         {data.map((item) => (
                             <NotificationCard
                                 sx={{
-                                    maxWidth: Math.max(size.width - 40, 0),
+                                    maxWidth: Math.max(size.width - 16, 0),
                                     mb: 1,
                                 }}
                                 key={item.$id}

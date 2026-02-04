@@ -2,7 +2,6 @@ import { HtmlView, dayjs } from "react-declarative";
 import {
   Avatar,
   Box,
-  ButtonBase,
   Chip,
   Divider,
   Paper,
@@ -333,24 +332,17 @@ export const NotificationCard = forwardRef(
     return (
       <div className={className} style={style} ref={ref}>
         <Paper
+          onClick={() => handleNotificationClick(item)}
           sx={{
             position: "relative",
-            overflow: "hidden",
             transition: "box-shadow 0.2s ease",
+            cursor: "pointer",
             "&:hover": {
               boxShadow: 4,
             },
             ...sx,
           }}
         >
-          <ButtonBase
-            onClick={() => handleNotificationClick(item)}
-            sx={{
-              width: "100%",
-              display: "block",
-              textAlign: "left",
-            }}
-          >
             <Stack direction="row" spacing={2} sx={{ p: 2 }}>
               <Avatar
                 sx={{
@@ -513,7 +505,6 @@ export const NotificationCard = forwardRef(
                 </Typography>
               </Box>
             )}
-          </ButtonBase>
 
           <Box
             sx={{
