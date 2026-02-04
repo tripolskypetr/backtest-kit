@@ -141,6 +141,18 @@ export class StoragePersistBacktestUtils implements IStorageUtils {
   });
 
   /**
+   * Removes oldest signal if limit is exceeded.
+   */
+  private _enforceLimit(): void {
+    if (this._signals.size > GLOBAL_CONFIG.CC_MAX_SIGNALS) {
+      const firstKey = this._signals.keys().next().value;
+      if (firstKey) {
+        this._signals.delete(firstKey);
+      }
+    }
+  }
+
+  /**
    * Persists the current signal map to disk storage.
    * Sorts signals by priority and keeps only the most recent MAX_SIGNALS.
    * @throws Error if not initialized
@@ -181,6 +193,7 @@ export class StoragePersistBacktestUtils implements IStorageUtils {
       createdAt: lastStorage ? lastStorage.createdAt : tick.createdAt,
       updatedAt: tick.createdAt,
     });
+    this._enforceLimit();
     await this._updateStorage();
   };
 
@@ -206,6 +219,7 @@ export class StoragePersistBacktestUtils implements IStorageUtils {
       createdAt: lastStorage ? lastStorage.createdAt : tick.createdAt,
       updatedAt: tick.createdAt,
     });
+    this._enforceLimit();
     await this._updateStorage();
   };
 
@@ -230,6 +244,7 @@ export class StoragePersistBacktestUtils implements IStorageUtils {
       createdAt: lastStorage ? lastStorage.createdAt : tick.createdAt,
       updatedAt: tick.createdAt,
     });
+    this._enforceLimit();
     await this._updateStorage();
   };
 
@@ -254,6 +269,7 @@ export class StoragePersistBacktestUtils implements IStorageUtils {
       createdAt: lastStorage ? lastStorage.createdAt : tick.createdAt,
       updatedAt: tick.createdAt,
     });
+    this._enforceLimit();
     await this._updateStorage();
   };
 
@@ -510,6 +526,18 @@ export class StoragePersistLiveUtils implements IStorageUtils {
   });
 
   /**
+   * Removes oldest signal if limit is exceeded.
+   */
+  private _enforceLimit(): void {
+    if (this._signals.size > GLOBAL_CONFIG.CC_MAX_SIGNALS) {
+      const firstKey = this._signals.keys().next().value;
+      if (firstKey) {
+        this._signals.delete(firstKey);
+      }
+    }
+  }
+
+  /**
    * Persists the current signal map to disk storage.
    * Sorts signals by priority and keeps only the most recent MAX_SIGNALS.
    * @throws Error if not initialized
@@ -550,6 +578,7 @@ export class StoragePersistLiveUtils implements IStorageUtils {
       createdAt: lastStorage ? lastStorage.createdAt : tick.createdAt,
       updatedAt: tick.createdAt,
     });
+    this._enforceLimit();
     await this._updateStorage();
   };
 
@@ -575,6 +604,7 @@ export class StoragePersistLiveUtils implements IStorageUtils {
       createdAt: lastStorage ? lastStorage.createdAt : tick.createdAt,
       updatedAt: tick.createdAt,
     });
+    this._enforceLimit();
     await this._updateStorage();
   };
 
@@ -599,6 +629,7 @@ export class StoragePersistLiveUtils implements IStorageUtils {
       createdAt: lastStorage ? lastStorage.createdAt : tick.createdAt,
       updatedAt: tick.createdAt,
     });
+    this._enforceLimit();
     await this._updateStorage();
   };
 
@@ -623,6 +654,7 @@ export class StoragePersistLiveUtils implements IStorageUtils {
       createdAt: lastStorage ? lastStorage.createdAt : tick.createdAt,
       updatedAt: tick.createdAt,
     });
+    this._enforceLimit();
     await this._updateStorage();
   };
 
