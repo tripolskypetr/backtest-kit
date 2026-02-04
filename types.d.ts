@@ -4209,6 +4209,20 @@ declare const GLOBAL_CONFIG: {
      * Default: 20 levels
      */
     CC_ORDER_BOOK_MAX_DEPTH_LEVELS: number;
+    /**
+     * Maximum number of notifications to keep in storage.
+     * Older notifications are removed when this limit is exceeded.
+     *
+     * Default: 500 notifications
+     */
+    CC_MAX_NOTIFICATIONS: number;
+    /**
+     * Maximum number of signals to keep in storage.
+     * Older signals are removed when this limit is exceeded.
+     *
+     * Default: 50 signals
+     */
+    CC_MAX_SIGNALS: number;
 };
 /**
  * Type for global configuration object.
@@ -4315,6 +4329,8 @@ declare function getConfig(): {
     CC_BREAKEVEN_THRESHOLD: number;
     CC_ORDER_BOOK_TIME_OFFSET_MINUTES: number;
     CC_ORDER_BOOK_MAX_DEPTH_LEVELS: number;
+    CC_MAX_NOTIFICATIONS: number;
+    CC_MAX_SIGNALS: number;
 };
 /**
  * Retrieves the default configuration object for the framework.
@@ -4349,6 +4365,8 @@ declare function getDefaultConfig(): Readonly<{
     CC_BREAKEVEN_THRESHOLD: number;
     CC_ORDER_BOOK_TIME_OFFSET_MINUTES: number;
     CC_ORDER_BOOK_MAX_DEPTH_LEVELS: number;
+    CC_MAX_NOTIFICATIONS: number;
+    CC_MAX_SIGNALS: number;
 }>;
 /**
  * Sets custom column configurations for markdown report generation.

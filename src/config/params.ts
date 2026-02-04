@@ -150,16 +150,16 @@ export const GLOBAL_CONFIG = {
    * Maximum number of notifications to keep in storage.
    * Older notifications are removed when this limit is exceeded.
    *
-   * Default: 250 notifications
+   * Default: 500 notifications
    */
-  CC_MAX_NOTIFICATIONS: 250,
+  CC_MAX_NOTIFICATIONS: 500,
   /**
    * Maximum number of signals to keep in storage.
    * Older signals are removed when this limit is exceeded.
    *
-   * Default: 25 signals
+   * Default: 50 signals
    */
-  CC_MAX_SIGNALS: 25,
+  CC_MAX_SIGNALS: 50,
 };
 
 export const DEFAULT_CONFIG = Object.freeze({...GLOBAL_CONFIG});
