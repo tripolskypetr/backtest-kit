@@ -83,8 +83,11 @@ interface IParams {
 }
 declare function getSignal(source: File | Code, { symbol, timeframe, limit }: IParams): Promise<ISignalDto | null>;
 
+type ResultId$3 = string | number;
+declare function dumpPlotData<M extends PlotMapping>(signalId: ResultId$3, plots: PlotModel, mapping: M, taName: string, outputDir?: string): Promise<void>;
+
 type ResultId$2 = string | number;
-declare function dumpPlotData<M extends PlotMapping>(signalId: ResultId$2, plots: PlotModel, mapping: M, taName: string, outputDir?: string): Promise<void>;
+declare function toMarkdown<M extends PlotMapping>(signalId: ResultId$2, plots: PlotModel, mapping: M): Promise<string>;
 
 type ResultId$1 = string | number;
 interface SignalData {
@@ -185,4 +188,4 @@ declare const pine: {
     loggerService: LoggerService;
 };
 
-export { AXIS_SYMBOL, type CandleModel, Code, File, type ILogger, type IPine, type IProvider, type PlotExtractConfig, type PlotMapping, type PlotModel, type PlotRecord, type SymbolInfoModel, type TPineCtor, dumpPlotData, extract, getSignal, pine as lib, run, setLogger, toSignalDto, usePine };
+export { AXIS_SYMBOL, type CandleModel, Code, File, type ILogger, type IPine, type IProvider, type PlotExtractConfig, type PlotMapping, type PlotModel, type PlotRecord, type SymbolInfoModel, type TPineCtor, dumpPlotData, extract, getSignal, pine as lib, run, setLogger, toMarkdown, toSignalDto, usePine };

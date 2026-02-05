@@ -7,6 +7,7 @@ export { extract } from "./function/extract.function";
 export { setLogger } from "./function/setup.function";
 export { getSignal } from "./function/strategy.function";
 export { dumpPlotData } from "./function/dump.function";
+export { toMarkdown } from "./function/markdown.function";
 
 export { type PlotExtractConfig } from "./lib/services/data/PineDataService";
 export { type PlotMapping } from "./lib/services/data/PineDataService";
