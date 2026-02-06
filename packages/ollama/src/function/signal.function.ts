@@ -1,5 +1,5 @@
 import InferenceName from "../enum/InferenceName";
-import ContextService from "src/lib/services/base/ContextService";
+import ContextService from "../lib/services/base/ContextService";
 
 /**
  * Wrap async function with Ollama inference context.
