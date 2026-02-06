@@ -30,7 +30,7 @@ Each function gets its own isolated cache instance.
 ### fn
 
 ```ts
-fn: <T extends Function>(run: T, context: { interval: CandleInterval; }) => T
+fn: <T extends Function, K = symbol>(run: T, context: { interval: CandleInterval; key?: (args: Parameters<T>) => K; }) => T
 ```
 
 Wrap a function with caching based on timeframe intervals.
@@ -74,3 +74,16 @@ This only clears the cache for the current execution context, not all contexts.
 Use `flush()` to remove the entire CacheInstance across all contexts.
 
 Requires active execution context (strategy, exchange, backtest mode) and method context.
+
+### gc
+
+```ts
+gc: <T extends Function>(run: T) => number
+```
+
+Garbage collect expired cache entries for a specific function.
+
+Removes all cached entries whose interval has expired (not aligned with current time).
+Call this periodically to free memory from stale cache entries.
+
+Requires active execution context to get current time.
