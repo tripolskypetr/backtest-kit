@@ -13991,6 +13991,29 @@ declare class CacheUtils {
      * ```
      */
     clear: <T extends Function>(run: T) => void;
+    /**
+     * Garbage collect expired cache entries for a specific function.
+     *
+     * Removes all cached entries whose interval has expired (not aligned with current time).
+     * Call this periodically to free memory from stale cache entries.
+     *
+     * Requires active execution context to get current time.
+     *
+     * @template T - Function type
+     * @param run - Function whose expired cache entries should be removed
+     * @returns Number of entries removed
+     *
+     * @example
+     * ```typescript
+     * const cachedFn = Cache.fn(calculateIndicator, { interval: "1h" });
+     *
+     * cachedFn("BTCUSDT", 14); // Cached at 10:00
+     * cachedFn("ETHUSDT", 14); // Cached at 10:00
+     * // Time passes to 11:00
+     * const removed = Cache.gc(calculateIndicator); // Returns 2
+     * ```
+     */
+    gc: <T extends Function>(run: T) => number;
 }
 /**
  * Singleton instance of CacheUtils for convenient function caching.
