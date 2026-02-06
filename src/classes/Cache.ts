@@ -447,6 +447,14 @@ export class CacheUtils {
     backtest.loggerService.info(CACHE_METHOD_NAME_CLEAR, {
       run,
     });
+    if (!MethodContextService.hasContext()) {
+      console.warn(`${CACHE_METHOD_NAME_CLEAR} called without method context, skipping clear`);
+      return;
+    }
+    if (!ExecutionContextService.hasContext()) {
+      console.warn(`${CACHE_METHOD_NAME_CLEAR} called without execution context, skipping clear`);
+      return;
+    }
     this._getInstance.get(run).clear();
   };
 
@@ -476,7 +484,7 @@ export class CacheUtils {
     backtest.loggerService.info(CACHE_METHOD_NAME_GC, {
       run,
     });
-    if (ExecutionContextService.hasContext()) {
+    if (!ExecutionContextService.hasContext()) {
       console.warn(`${CACHE_METHOD_NAME_GC} called without execution context, skipping garbage collection`);
       return;
     }
