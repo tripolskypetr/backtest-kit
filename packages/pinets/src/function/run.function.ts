@@ -38,9 +38,7 @@ const CREATE_INFERENCE_FN = (
   exchangeName?: ExchangeName,
   when?: Date,
 ) => {
-  let fn = () => BASE_RUNNER_FN(
-    script, symbol, timeframe, limit
-  );
+  let fn = () => BASE_RUNNER_FN(script, symbol, timeframe, limit);
 
   if (exchangeName) {
     fn = ExchangeContextService.runWithContext(fn, { exchangeName });
@@ -65,7 +63,14 @@ const RUN_INFERENCE_FN = async (
   exchangeName?: ExchangeName,
   when?: Date,
 ) => {
-  const inference = CREATE_INFERENCE_FN(script, symbol, timeframe, limit, exchangeName, when);
+  const inference = CREATE_INFERENCE_FN(
+    script,
+    symbol,
+    timeframe,
+    limit,
+    exchangeName,
+    when,
+  );
   return await inference();
 };
 

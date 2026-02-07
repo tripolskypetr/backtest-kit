@@ -77,7 +77,7 @@ function generateMarkdownTable(
 export class PineMarkdownService {
   private readonly loggerService = inject<LoggerService>(TYPES.loggerService);
 
-  public getData = <M extends PlotMapping>(plots: PlotModel, mapping: M): IPlotRow[] => {
+  public getData = <M extends PlotMapping>(plots: PlotModel, mapping: M, limit = TABLE_ROWS_LIMIT): IPlotRow[] => {
     this.loggerService.log("pineMarkdownService getData", {
       plotCount: Object.keys(plots).length,
     });
@@ -113,16 +113,16 @@ export class PineMarkdownService {
       }
     }
 
-    return rows.slice(-TABLE_ROWS_LIMIT);
+    return rows.slice(-limit);
   };
 
-  public getReport = <M extends PlotMapping>(signalId: ResultId, plots: PlotModel, mapping: M) => {
+  public getReport = <M extends PlotMapping>(signalId: ResultId, plots: PlotModel, mapping: M, limit = TABLE_ROWS_LIMIT) => {
     this.loggerService.log("pineMarkdownService getReport", {
       signalId,
       plotCount: Object.keys(plots).length,
     });
     const keys = Object.keys(mapping);
-    const rows = this.getData(plots, mapping);
+    const rows = this.getData(plots, mapping, limit);
     return generateMarkdownTable(rows, keys, signalId);
   };
 

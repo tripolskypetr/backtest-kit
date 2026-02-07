@@ -92,7 +92,7 @@ type ResultId$3 = string | number;
 declare function dumpPlotData<M extends PlotMapping>(signalId: ResultId$3, plots: PlotModel, mapping: M, taName: string, outputDir?: string): Promise<void>;
 
 type ResultId$2 = string | number;
-declare function toMarkdown<M extends PlotMapping>(signalId: ResultId$2, plots: PlotModel, mapping: M): Promise<string>;
+declare function toMarkdown<M extends PlotMapping>(signalId: ResultId$2, plots: PlotModel, mapping: M, limit?: number): Promise<string>;
 
 type ResultId$1 = string | number;
 interface SignalData {
@@ -180,8 +180,8 @@ interface IPlotRow {
 }
 declare class PineMarkdownService {
     private readonly loggerService;
-    getData: <M extends PlotMapping>(plots: PlotModel, mapping: M) => IPlotRow[];
-    getReport: <M extends PlotMapping>(signalId: ResultId, plots: PlotModel, mapping: M) => string;
+    getData: <M extends PlotMapping>(plots: PlotModel, mapping: M, limit?: number) => IPlotRow[];
+    getReport: <M extends PlotMapping>(signalId: ResultId, plots: PlotModel, mapping: M, limit?: number) => string;
     dump: <M extends PlotMapping>(signalId: ResultId, plots: PlotModel, mapping: M, taName: string, outputDir?: string) => Promise<void>;
 }
 

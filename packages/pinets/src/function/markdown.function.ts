@@ -11,11 +11,13 @@ export async function toMarkdown<M extends PlotMapping>(
   signalId: ResultId,
   plots: PlotModel,
   mapping: M,
+  limit = Number.POSITIVE_INFINITY,
 ): Promise<string> {
   pine.loggerService.log(TO_MARKDOWN_METHOD_NAME, {
     signalId,
     plotCount: Object.keys(plots).length,
     mapping,
+    limit,
   });
-  return await pine.pineMarkdownService.getReport(signalId, plots, mapping);
+  return await pine.pineMarkdownService.getReport(signalId, plots, mapping, limit);
 }
