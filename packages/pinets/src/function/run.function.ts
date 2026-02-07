@@ -1,11 +1,11 @@
-import { CandleInterval } from "backtest-kit";
+import { CandleInterval, ExecutionContextService } from "backtest-kit";
 import lib from "../lib";
 import { Code } from "../classes/Code";
 import { File } from "../classes/File";
 import { PlotModel } from "../model/Plot.model";
-import ContextService, {
+import ExchangeContextService, {
   ExchangeName,
-} from "../lib/services/base/ContextService";
+} from "../lib/services/context/ExchangeContextService";
 
 const METHOD_NAME_RUN = "run.run";
 
@@ -23,21 +23,45 @@ const GET_SOURCE_FN = async (source: File | Code) => {
   throw new Error("Source must be a File or Code instance");
 };
 
+const BASE_RUNNER_FN = async (
+  script: Code,
+  symbol: string,
+  timeframe: CandleInterval,
+  limit: number,
+) => await lib.pineJobService.run(script, symbol, timeframe, limit);
+
+const CREATE_INFERENCE_FN = (
+  symbol: string,
+  exchangeName?: ExchangeName,
+  when?: Date,
+) => {
+  let fn = () => BASE_RUNNER_FN;
+
+  if (exchangeName) {
+    fn = ExchangeContextService.runWithContext(fn, { exchangeName });
+  }
+
+  if (when) {
+    fn = ExecutionContextService.runWithContext(fn, {
+      when,
+      symbol,
+      backtest: true,
+    });
+  }
+
+  return fn();
+};
+
 const RUN_INFERENCE_FN = async (
   script: Code,
   symbol: string,
   timeframe: CandleInterval,
   limit: number,
   exchangeName?: ExchangeName,
+  when?: Date,
 ) => {
-  if (exchangeName) {
-    return await ContextService.runInContext(
-      async () =>
-        await lib.pineJobService.run(script, symbol, timeframe, limit),
-      { exchangeName },
-    );
-  }
-  return await lib.pineJobService.run(script, symbol, timeframe, limit);
+  const inference = CREATE_INFERENCE_FN(symbol, exchangeName, when);
+  return await inference(script, symbol, timeframe, limit);
 };
 
 interface IRunParams {
@@ -50,6 +74,7 @@ export async function run(
   source: File | Code,
   { symbol, timeframe, limit }: IRunParams,
   exchangeName?: ExchangeName,
+  when?: Date,
 ): Promise<PlotModel> {
   lib.loggerService.info(METHOD_NAME_RUN, {
     source,
@@ -64,6 +89,7 @@ export async function run(
     timeframe,
     limit,
     exchangeName,
+    when,
   );
   return plots;
 }

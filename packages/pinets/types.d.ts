@@ -43,7 +43,7 @@ interface IPine {
 declare function usePine<T = TPineCtor>(ctor: T): void;
 
 type ExchangeName = string;
-interface IContext {
+interface IExchangeContext {
     exchangeName: ExchangeName;
 }
 
@@ -52,7 +52,7 @@ interface IRunParams {
     timeframe: CandleInterval;
     limit: number;
 }
-declare function run(source: File | Code, { symbol, timeframe, limit }: IRunParams, exchangeName?: ExchangeName): Promise<PlotModel>;
+declare function run(source: File | Code, { symbol, timeframe, limit }: IRunParams, exchangeName?: ExchangeName, when?: Date): Promise<PlotModel>;
 
 type PlotExtractConfig<T = number> = {
     plot: string;
@@ -144,8 +144,8 @@ declare class LoggerService implements ILogger {
 
 declare class CandleProviderService implements IProvider {
     readonly loggerService: LoggerService;
-    readonly contextService: {
-        readonly context: IContext;
+    readonly exchangeContextService: {
+        readonly context: IExchangeContext;
     };
     getMarketData(tickerId: string, timeframe: string, limit?: number, sDate?: number, eDate?: number): Promise<any[]>;
     getSymbolInfo(tickerId: string): Promise<any>;
@@ -194,8 +194,8 @@ declare const pine: {
     axisProviderService: AxisProviderService;
     candleProviderService: CandleProviderService;
     loggerService: LoggerService;
-    contextService: {
-        readonly context: IContext;
+    exchangeContextService: {
+        readonly context: IExchangeContext;
     };
 };
 

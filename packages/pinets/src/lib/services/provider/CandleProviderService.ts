@@ -11,7 +11,7 @@ import { CandleModel } from "../../../model/Candle.model";
 import { SymbolInfoModel } from "../../../model/SymbolInfo.model";
 import LoggerService from "../base/LoggerService";
 import { TYPES } from "../../core/types";
-import ContextService, { TContextService } from "../base/ContextService";
+import ExchangeContextService, { TExchangeContextService } from "../context/ExchangeContextService";
 
 const GET_RAW_CANDLES_FN = async (
   self: CandleProviderService,
@@ -21,11 +21,11 @@ const GET_RAW_CANDLES_FN = async (
   sDate?: number,
   eDate?: number,
 ) => {
-  if (ContextService.hasContext()) {
+  if (ExchangeContextService.hasContext()) {
     return await Exchange.getRawCandles(
       symbol,
       interval,
-      self.contextService.context,
+      self.exchangeContextService.context,
       limit,
       sDate,
       eDate,
@@ -46,7 +46,7 @@ const GET_RAW_CANDLES_FN = async (
 
 export class CandleProviderService implements IProvider {
   readonly loggerService = inject<LoggerService>(TYPES.loggerService);
-  readonly contextService = inject<TContextService>(TYPES.contextService);
+  readonly exchangeContextService = inject<TExchangeContextService>(TYPES.exchangeContextService);
 
   async getMarketData(
     tickerId: string,

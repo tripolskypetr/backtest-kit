@@ -1,6 +1,9 @@
 const baseServices = {
     loggerService: Symbol("loggerService"),
-    contextService: Symbol("contextService"),
+}
+
+const contextServices = {
+    exchangeContextService: Symbol("exchangeContextService"),
 }
 
 const providerServices = {
@@ -30,6 +33,7 @@ const markdownServices = {
 
 export const TYPES = {
     ...baseServices,
+    ...contextServices,
     ...providerServices,
     ...jobServices,
     ...dataServices,

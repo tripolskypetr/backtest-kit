@@ -11,12 +11,15 @@ import PineDataService from "./services/data/PineDataService";
 import PineCacheService from "./services/cache/PineCacheService";
 import PineConnectionService from "./services/connection/PineConnectionService";
 import PineMarkdownService from "./services/markdown/PineMarkdownService";
-import { TContextService } from "./services/base/ContextService";
+import { TExchangeContextService } from "./services/context/ExchangeContextService";
 
-const commonServices = {
+const baseServices = {
   loggerService: inject<LoggerService>(TYPES.loggerService),
-  contextService: inject<TContextService>(TYPES.contextService),
 };
+
+const contextServices = {
+  exchangeContextService: inject<TExchangeContextService>(TYPES.exchangeContextService),
+}
 
 const providerServices = {
   axisProviderService: inject<AxisProviderService>(TYPES.axisProviderService),
@@ -44,7 +47,8 @@ const markdownServices = {
 };
 
 const pine = {
-  ...commonServices,
+  ...contextServices,
+  ...baseServices,
   ...providerServices,
   ...jobServices,
   ...dataServices,
