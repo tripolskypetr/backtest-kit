@@ -569,8 +569,13 @@ export class ExchangeInstance {
       depth,
     });
 
-    const to = await GET_TIMESTAMP_FN();
-    const from = new Date(to.getTime() - GLOBAL_CONFIG.CC_ORDER_BOOK_TIME_OFFSET_MINUTES * MS_PER_MINUTE);
+    const when = await GET_TIMESTAMP_FN();
+    const alignedTo = ALIGN_TO_INTERVAL_FN(
+      when.getTime(),
+      GLOBAL_CONFIG.CC_ORDER_BOOK_TIME_OFFSET_MINUTES,
+    );
+    const to = new Date(alignedTo);
+    const from = new Date(alignedTo - GLOBAL_CONFIG.CC_ORDER_BOOK_TIME_OFFSET_MINUTES * MS_PER_MINUTE);
     const isBacktest = await GET_BACKTEST_FN();
     return await this._methods.getOrderBook(symbol, depth, from, to, isBacktest);
   };

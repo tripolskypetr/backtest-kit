@@ -1000,9 +1000,14 @@ export class ClientExchange implements IExchange {
       depth,
     });
 
-    const to = new Date(this.params.execution.context.when.getTime());
+    const whenTimestamp = this.params.execution.context.when.getTime();
+    const alignedTo = ALIGN_TO_INTERVAL_FN(
+      whenTimestamp,
+      GLOBAL_CONFIG.CC_ORDER_BOOK_TIME_OFFSET_MINUTES,
+    );
+    const to = new Date(alignedTo);
     const from = new Date(
-      to.getTime() -
+      alignedTo -
         GLOBAL_CONFIG.CC_ORDER_BOOK_TIME_OFFSET_MINUTES * MS_PER_MINUTE,
     );
     return await this.params.getOrderBook(
