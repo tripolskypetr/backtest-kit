@@ -321,6 +321,30 @@ since = alignedWhen - 4 * stepMs
 
 **Result:** Deterministic candle retrieval with exact timestamp matching.
 
+### 🕐 Timezone Warning: Candle Boundaries Are UTC-Based
+
+All candle timestamp alignment uses UTC (Unix epoch). For intervals like `4h`, boundaries are `00:00, 04:00, 08:00, 12:00, 16:00, 20:00 UTC`. If your local timezone offset is not a multiple of the interval, the `since` timestamps will look "uneven" in local time.
+
+For example, in UTC+5 the same 4h candle request logs as:
+
+```
+since: Sat Sep 20 2025 13:00:00 GMT+0500  ← looks uneven (13:00)
+since: Sat Sep 20 2025 17:00:00 GMT+0500  ← looks uneven (17:00)
+since: Sat Sep 20 2025 21:00:00 GMT+0500  ← looks uneven (21:00)
+since: Sun Sep 21 2025 05:00:00 GMT+0500  ← looks uneven (05:00)
+```
+
+But in UTC these are perfectly aligned 4h boundaries:
+
+```
+since: Sat, 20 Sep 2025 08:00:00 GMT  ← 08:00 UTC ✓
+since: Sat, 20 Sep 2025 12:00:00 GMT  ← 12:00 UTC ✓
+since: Sat, 20 Sep 2025 16:00:00 GMT  ← 16:00 UTC ✓
+since: Sun, 21 Sep 2025 00:00:00 GMT  ← 00:00 UTC ✓
+```
+
+Use `toUTCString()` or `toISOString()` in callbacks to see the actual aligned UTC times.
+
 ### 💭 What this means:
 - `getCandles()` always returns data UP TO the current backtest timestamp using `async_hooks`
 - Multi-timeframe data is automatically synchronized
