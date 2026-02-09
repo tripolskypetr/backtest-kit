@@ -1,3 +1,8 @@
+---
+title: article/03_claude_trader
+group: article
+---
+
 # How AI Got Hands for Stock Trading
 
 > The source code discussed in the article is [available at this link](https://github.com/tripolskypetr/backtest-kit)
