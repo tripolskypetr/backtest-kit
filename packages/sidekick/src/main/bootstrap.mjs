@@ -11,7 +11,7 @@ const beginBacktest = async () => {
     strategyName,
     actions: [
       ActionName.BacktestPartialProfitTakingAction,
-      ActionName.BacktestTightenStopOnBreakevenAction,
+      ActionName.BacktestLowerStopOnBreakevenAction,
       ActionName.BacktestPositionMonitorAction,
     ],
   });

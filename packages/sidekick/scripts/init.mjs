@@ -110,6 +110,7 @@ async function main() {
 
   const projectPath = path.resolve(process.cwd(), projectName);
   const srcTemplatePath = path.resolve(__dirname, '..', 'src');
+  const contentPath = path.resolve(__dirname, '..', 'content');
   const templateDir = path.resolve(__dirname, '..', 'template');
 
   // Template data for Mustache
@@ -140,25 +141,32 @@ async function main() {
 
     // Copy source template files using glob
     {
-      log.info('Copying template files...');
+      log.info('Copying source files...');
       await copyFiles(srcTemplatePath, path.join(projectPath, 'src'));
-      log.success('Copied template files');
+      log.success('Copied source files');
     }
 
-    // Create types/types.d.ts from template
+    // Copy content files (config/, scripts/, docker/)
     {
-      log.info('Creating types/types.d.ts...');
+      log.info('Copying content files...');
+      await copyFiles(contentPath, projectPath);
+      log.success('Copied content files');
+    }
+
+    // Create types/backtest-kit.d.ts from template
+    {
+      log.info('Creating types/backtest-kit.d.ts...');
       await fs.mkdir(path.join(projectPath, 'types'), { recursive: true });
       const typesContent = await renderTemplate(
         path.join(templateDir, 'types.mustache'),
         templateData
       );
       await fs.writeFile(
-        path.join(projectPath, 'types', 'types.d.ts'),
+        path.join(projectPath, 'types', 'backtest-kit.d.ts'),
         typesContent,
         'utf-8'
       );
-      log.success('Created types/types.d.ts');
+      log.success('Created types/backtest-kit.d.ts');
     }
 
     // Create package.json from template
@@ -224,7 +232,6 @@ async function main() {
         'utf-8'
       );
       log.success('Created README.md');
-      console.log();
     }
 
     // Create jsconfig.json from template
@@ -242,120 +249,20 @@ async function main() {
       log.success('Created jsconfig.json');
     }
 
-    // Create config directory and ecosystem.config.cjs from template
+    // Create CLAUDE.md from template
     {
-      log.info('Creating ecosystem.config.cjs...');
-      await fs.mkdir(path.join(projectPath, 'config'), { recursive: true });
-      const ecosystemContent = await renderTemplate(
-        path.join(templateDir, 'ecosystem.mustache'),
+      log.info('Creating CLAUDE.md...');
+      const claudeContent = await renderTemplate(
+        path.join(templateDir, 'CLAUDE.mustache'),
         templateData
       );
       await fs.writeFile(
-        path.join(projectPath, 'config', 'ecosystem.config.cjs'),
-        ecosystemContent,
+        path.join(projectPath, 'CLAUDE.md'),
+        claudeContent,
         'utf-8'
       );
-      log.success('Created ecosystem.config.cjs');
-    }
-
-    // Create config/prompt/signal.prompt.cjs from template
-    {
-      log.info('Creating config/prompt/signal.prompt.cjs...');
-      await fs.mkdir(path.join(projectPath, 'config', 'prompt'), { recursive: true });
-      const signalPromptContent = await renderTemplate(
-        path.join(templateDir, 'signal_prompt.mustache'),
-        templateData
-      );
-      await fs.writeFile(
-        path.join(projectPath, 'config', 'prompt', 'signal.prompt.cjs'),
-        signalPromptContent,
-        'utf-8'
-      );
-      log.success('Created config/prompt/signal.prompt.cjs');
-    }
-
-    // Create config/docker/docker-compose.yaml from template
-    {
-      log.info('Creating config/docker/docker-compose.yaml...');
-      await fs.mkdir(path.join(projectPath, 'config', 'docker'), { recursive: true });
-      const dockerComposeContent = await renderTemplate(
-        path.join(templateDir, 'docker-compose.mustache'),
-        templateData
-      );
-      await fs.writeFile(
-        path.join(projectPath, 'config', 'docker', 'docker-compose.yaml'),
-        dockerComposeContent,
-        'utf-8'
-      );
-      log.success('Created config/docker/docker-compose.yaml');
-    }
-
-    // Create index.cjs from template
-    {
-      log.info('Creating index.cjs...');
-      const indexContent = await renderTemplate(
-        path.join(templateDir, 'index.mustache'),
-        templateData
-      );
-      await fs.writeFile(
-        path.join(projectPath, 'index.cjs'),
-        indexContent,
-        'utf-8'
-      );
-      log.success('Created index.cjs');
-    }
-
-    // Create Dockerfile from template
-    {
-      log.info('Creating Dockerfile...');
-      const dockerfileContent = await renderTemplate(
-        path.join(templateDir, 'Dockerfile.mustache'),
-        templateData
-      );
-      await fs.writeFile(
-        path.join(projectPath, 'Dockerfile'),
-        dockerfileContent,
-        'utf-8'
-      );
-      log.success('Created Dockerfile');
-    }
-
-    // Create scripts/linux/publish.sh from template
-    {
-      log.info('Creating scripts/linux/publish.sh...');
-      await fs.mkdir(path.join(projectPath, 'scripts', 'linux'), { recursive: true });
-      const publishShContent = await renderTemplate(
-        path.join(templateDir, 'publish_sh.mustache'),
-        templateData
-      );
-      await fs.writeFile(
-        path.join(projectPath, 'scripts', 'linux', 'publish.sh'),
-        publishShContent,
-        'utf-8'
-      );
-      // Make the script executable on Unix-like systems
-      try {
-        await fs.chmod(path.join(projectPath, 'scripts', 'linux', 'publish.sh'), 0o755);
-      } catch (err) {
-        // Ignore chmod errors on Windows
-      }
-      log.success('Created scripts/linux/publish.sh');
-    }
-
-    // Create scripts/win/publish.bat from template
-    {
-      log.info('Creating scripts/win/publish.bat...');
-      await fs.mkdir(path.join(projectPath, 'scripts', 'win'), { recursive: true });
-      const publishBatContent = await renderTemplate(
-        path.join(templateDir, 'publish_bat.mustache'),
-        templateData
-      );
-      await fs.writeFile(
-        path.join(projectPath, 'scripts', 'win', 'publish.bat'),
-        publishBatContent,
-        'utf-8'
-      );
-      log.success('Created scripts/win/publish.bat');
+      log.success('Created CLAUDE.md');
+      console.log();
     }
 
     // Install dependencies
@@ -373,7 +280,7 @@ async function main() {
       console.log('Inside that directory, you can run several commands:');
       console.log();
       console.log(`  ${pc.cyan('npm start')}`);
-      console.log('    Starts the trading bot.');
+      console.log('    Runs the default backtest.');
       console.log();
       console.log('We suggest that you begin by typing:');
       console.log();

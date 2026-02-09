@@ -1,48 +1,256 @@
 # {{PROJECT_NAME}}
 
-A trading bot project powered by [Backtest Kit](https://github.com/tripolskypetr/backtest-kit).
+> Multi-timeframe crypto trading strategy built on [backtest-kit](https://libraries.io/npm/backtest-kit) with Pine Script indicators via [PineTS](https://github.com/QuantForgeOrg/PineTS) runtime. Uses a 4H trend filter + 15m signal generator to open long/short positions on Binance spot market with partial profit taking, breakeven trailing stops, and risk validation.
 
-## 🚀 Getting Started
+![screenshot](https://raw.githubusercontent.com/tripolskypetr/backtest-kit/HEAD/assets/screenshots/screenshot8.png)
 
-### Configure API Keys
+[![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/tripolskypetr/backtest-kit)
+[![npm](https://img.shields.io/npm/v/backtest-kit.svg?style=flat-square)](https://npmjs.org/package/backtest-kit)
+[![TypeScript](https://img.shields.io/badge/TypeScript-5.0+-blue)]()
+[![Build](https://github.com/tripolskypetr/backtest-kit/actions/workflows/webpack.yml/badge.svg)](https://github.com/tripolskypetr/backtest-kit/actions/workflows/webpack.yml)
 
-Edit `.env` file and add your API keys:
+## ✨ Features
 
-```bash
-# For live trading
-CC_BINANCE_API_KEY=your_api_key_here
-CC_BINANCE_API_SECRET=your_api_secret_here
+- 📊 **Multi-timeframe analysis** — 4H daily trend filter (RSI + MACD + ADX) combined with 15m entry signals (EMA crossover + volume spike + momentum)
+- 📜 **Pine Script indicators** — strategies written in TradingView Pine Script v5, executed locally via `@backtest-kit/pinets`
+- 🛡️ **Risk management** — SL/TP distance validation, Kelly-optimized partial profit taking (33/33/34%), breakeven trailing stop
+- 🔄 **Position lifecycle** — full monitoring with scheduled/opened/closed/cancelled event logging
+- 🔌 **Binance integration** — OHLCV candles, order book depth, tick-precise price/quantity formatting via CCXT
+- 🕐 **Historical frames** — predefined backtest periods covering bull runs, sharp drops, and sideways markets
+- 🎨 **Web UI dashboard** — interactive charting via `@backtest-kit/ui`
+- 💾 **Persistent storage** — crash-safe state with atomic persistence for both backtest and live modes
 
-# For AI strategies
-CC_OPENAI_API_KEY=your_openai_key_here
+## 🏗️ Architecture
+
+```
+src/
+├── index.mjs                  # Entry point — loads config, logic, bootstrap
+├── main/bootstrap.mjs         # Mode dispatcher (backtest / paper / live)
+├── config/
+│   ├── setup.mjs              # Logger, storage, notifications, UI server
+│   ├── validate.mjs           # Schema validation for all enums
+│   ├── params.mjs             # Environment variables (Ollama API key)
+│   └── ccxt.mjs               # Binance exchange singleton via CCXT
+├── logic/
+│   ├── strategy/main.strategy.mjs    # Main strategy — multi-TF signal logic
+│   ├── exchange/binance.exchange.mjs # Exchange schema — candles, order book, formatting
+│   ├── frame/*.frame.mjs             # Backtest time frames (Feb 2024, Oct–Dec 2025)
+│   ├── risk/sl_distance.risk.mjs     # Stop-loss distance validation (≥0.2%)
+│   ├── risk/tp_distance.risk.mjs     # Take-profit distance validation (≥0.2%)
+│   └── action/
+│       ├── backtest_partial_profit_taking.action.mjs
+│       ├── backtest_lower_stop_on_breakeven.action.mjs
+│       └── backtest_position_monitor.action.mjs
+├── classes/
+│   ├── BacktestPartialProfitTakingAction.mjs  # Scale out at 3 TP levels
+│   ├── BacktestLowerStopOnBreakevenAction.mjs # Trailing stop on breakeven
+│   └── BacktestPositionMonitorAction.mjs      # Position event logger
+├── math/
+│   ├── timeframe_4h.math.mjs   # 4H trend data — RSI, MACD, ADX, DI+/DI-
+│   └── timeframe_15m.math.mjs  # 15m signal data — EMA, ATR, volume, momentum
+├── enum/                        # String constants for type-safe schema refs
+│   ├── ExchangeName.mjs
+│   ├── StrategyName.mjs
+│   ├── FrameName.mjs
+│   ├── RiskName.mjs
+│   └── ActionName.mjs
+└── utils/getArgs.mjs            # CLI argument parser with defaults
+
+config/source/
+├── timeframe_4h.pine    # Pine Script v5 — Daily Trend Filter (RSI/MACD/ADX)
+└── timeframe_15m.pine   # Pine Script v5 — Signal Strategy (EMA/ATR/Volume)
+
+scripts/
+├── run_timeframe_15m.mjs # Standalone 15m Pine Script runner — outputs signal markdown
+├── run_timeframe_4h.mjs  # Standalone 4H Pine Script runner — outputs trend markdown
+└── cache/
+    ├── cache_candles.mjs     # Pre-download OHLCV candles (1m/15m/4h) for a date range
+    ├── validate_candles.mjs  # Verify cached candle data integrity and completeness
+    └── cache_model.mjs       # Pull Ollama LLM model (glm-4.7-flash:q4_K_M) with progress bar
 ```
 
-### Run the Bot
+## 💡 Strategy Overview
+
+### 🎯 4H Trend Filter (`timeframe_4h.pine`)
+
+Determines the market regime using three indicators:
+
+| Regime | Condition |
+|--------|-----------|
+| **AllowLong** | ADX > 25, MACD histogram > 0, DI+ > DI-, RSI > 50 |
+| **AllowShort** | ADX > 25, MACD histogram < 0, DI- > DI+, RSI < 50 |
+| **AllowBoth** | Strong trend but no clear bull/bear regime |
+| **NoTrades** | ADX ≤ 25 (weak trend) |
+
+### ⚡ 15m Signal Generator (`timeframe_15m.pine`)
+
+Generates entry signals with EMA crossover confirmed by volume and momentum:
+
+- **Long**: EMA(5) crosses above EMA(13), RSI 40–65, price above EMA(50), volume spike (>1.5x MA), positive momentum
+- **Short**: EMA(5) crosses below EMA(13), RSI 35–60, price below EMA(50), volume spike, negative momentum
+- **SL/TP**: Static 2%/3% from entry price
+- **Signal expiry**: 5 bars
+
+### 🛡️ Risk Filters
+
+- Reject signals where SL distance < 0.2% (slippage protection)
+- Reject signals where TP distance < 0.2% (slippage protection)
+- Trend alignment: long signals rejected in bear regime, short signals rejected in bull regime
+
+### 💹 Position Management
+
+- **Partial profit taking**: Scale out at 3 levels — 33% at TP3, 33% at TP2, 34% at TP1
+- **Breakeven trailing stop**: When breakeven is reached, lower trailing stop by 3 points
+
+## 🕐 Backtest Frames
+
+| Frame | Period | Market Note |
+|-------|--------|-------------|
+| `February2024` | Feb 1–29, 2024 | Bull run |
+| `October2025` | Oct 1–31, 2025 | Sharp drop Oct 9–11 |
+| `November2025` | Nov 1–30, 2025 | Sideways with downtrend |
+| `December2025` | Dec 1–31, 2025 | Sideways, no clear direction |
+
+## 📦 Cache Utilities
+
+Standalone scripts in `scripts/cache/` for preparing data before running backtests:
+
+```bash
+# Download 1m, 15m, 4h candles for BTCUSDT (Feb 2024) from Binance
+node scripts/cache/cache_candles.mjs
+
+# Validate downloaded candle data — check for gaps and missing intervals
+node scripts/cache/validate_candles.mjs
+
+# Pull the Ollama LLM model (glm-4.7-flash:q4_K_M) with progress bar
+node scripts/cache/cache_model.mjs
+```
+
+`cache_candles.mjs` and `validate_candles.mjs` register a temporary `ccxt-exchange` schema and call `warmCandles` / `checkCandles` from `backtest-kit` to populate and verify the local candle cache. `cache_model.mjs` pulls the `glm-4.7-flash:q4_K_M` model to a local Ollama instance at `http://127.0.0.1:11434`.
+
+## 🔬 Debug Scripts
+
+Standalone scripts in `scripts/` for testing Pine Script indicators outside of backtest mode:
+
+```bash
+# Run 15m signal strategy on BTCUSDT and print markdown output
+node scripts/run_timeframe_15m.mjs
+
+# Run 4H trend filter on BTCUSDT and print markdown output
+node scripts/run_timeframe_4h.mjs
+```
+
+Both scripts register a temporary Binance exchange, execute the corresponding `.pine` file via `@backtest-kit/pinets`, and output a markdown table with all indicator values (RSI, EMA, MACD, ADX, volume, momentum, etc.) for a fixed historical timestamp. Useful for verifying indicator logic and signal schema mapping without running a full backtest.
+
+## 📂 Dump Directory Structure
+
+After running a backtest, all output is written to the `dump/` directory:
+
+```
+dump/
+├── data/
+│   ├── candle/{exchange}/{symbol}/{timeframe}/   # Cached OHLCV candles
+│   │   └── {timestamp_ms}.json                   # One candle per file
+│   ├── notification/backtest/                     # Trading event notifications
+│   │   └── {uuid}.json
+│   └── storage/backtest/                          # Signal/position state
+│       └── {signalId}.json
+├── report/                                        # JSONL event logs
+│   ├── backtest.jsonl
+│   ├── performance.jsonl
+│   ├── schedule.jsonl
+│   ├── heat.jsonl
+│   ├── breakeven.jsonl
+│   └── partial.jsonl
+└── ta/                                            # Technical analysis markdown
+    ├── math_15m/{signalId}.md
+    └── math_4h/{signalId}.md
+```
+
+### JSONL Reports (`dump/report/`)
+
+Each JSONL file is an append-only event log — one JSON object per line with a `reportName`, `data`, and context metadata (`symbol`, `strategyName`, `exchangeName`, `frameName`, `timestamp`).
+
+| File | Content |
+|------|---------|
+| `backtest.jsonl` | Strategy execution events (`idle`, `signal`, etc.) with `currentPrice` |
+| `performance.jsonl` | Execution timing metrics (`metricType`, `duration`) |
+| `schedule.jsonl` | Trade scheduling — `signalId`, `position`, `priceOpen`, SL/TP levels |
+| `heat.jsonl` | Position closures — `closeReason` (`time_expired`, `stop_loss`, `take_profit`), `pnl` |
+| `breakeven.jsonl` | Breakeven events — triggered when price reaches entry level |
+| `partial.jsonl` | Partial profit taking — `level`, `partialExecuted`, `action` (`profit`/`loss`) |
+
+### Markdown TA Dumps (`dump/ta/`)
+
+Generated by `dumpPlotData()` from `@backtest-kit/pinets`. Each file is a markdown table with all Pine Script indicator values for the corresponding timeframe:
+
+- `dump/ta/math_15m/{signalId}.md` — 15m signal indicators (EMA, ATR, Volume, Momentum)
+- `dump/ta/math_4h/{signalId}.md` — 4H trend filter indicators (RSI, MACD, ADX, DI+/DI-)
+
+## 📦 Installation
+
+```bash
+npm install
+```
+
+## ⚙️ Configuration
+
+Copy `.env.example` to `.env` and fill in the required values:
+
+```bash
+cp .env.example .env
+```
+
+```env
+# Ollama Configuration (for AI strategies)
+CC_OLLAMA_API_KEY=your_ollama_key_here
+```
+
+## 🚀 Usage
+
+### 🧪 Run Backtest
 
 ```bash
 npm start
 ```
 
-## 📚 Documentation
+This runs the default backtest with:
+- **Symbol**: BTCUSDT
+- **Exchange**: Binance
+- **Strategy**: MainStrategy
+- **Frame**: October 2025
 
-- [Backtest Kit Docs](https://backtest-kit.github.io/documents/example_02_first_backtest.html)
-- [GitHub Repository](https://github.com/tripolskypetr/backtest-kit)
+### 🔧 CLI Arguments
 
-## 📁 Project Structure
+Override defaults via command-line flags (parsed by `backtest-kit`):
 
-```
-{{PROJECT_NAME}}/
-├── src/
-│   ├── index.mjs          # Main entry point
-│   └── utils/             # Utility functions
-├── .env                   # Environment variables
-├── .gitignore             # Git ignore rules
-└── package.json           # Dependencies
+```bash
+node ./src/index.mjs --backtest --symbol ETHUSDT --frameName nov_2025_frame
 ```
 
-## 🤝 Contributing
+| Flag | Default | Description |
+|------|---------|-------------|
+| `--backtest` | — | Run in backtest mode |
+| `--paper` | — | Run in paper trading mode (not yet implemented) |
+| `--live` | — | Run in live trading mode (not yet implemented) |
+| `--symbol` | `BTCUSDT` | Trading pair |
+| `--strategyName` | `main_strategy` | Strategy to use |
+| `--frameName` | `oct_2025_frame` | Backtest time frame |
+| `--exchangeName` | `binance_exchange` | Exchange connector |
 
-Feel free to submit issues and pull requests!
+## 📋 Dependencies
+
+| Package | Purpose |
+|---------|---------|
+| [backtest-kit](https://libraries.io/npm/backtest-kit) | Core backtesting/trading framework |
+| [@backtest-kit/pinets](https://github.com/QuantForgeOrg/PineTS) | Pine Script v5 runtime for Node.js |
+| [@backtest-kit/ui](https://libraries.io/npm/backtest-kit) | Interactive charting dashboard |
+| [@backtest-kit/ollama](https://libraries.io/npm/backtest-kit) | LLM inference integration |
+| [ccxt](https://github.com/ccxt/ccxt) | Binance exchange connectivity |
+| [functools-kit](https://www.npmjs.com/package/functools-kit) | `singleshot`, `randomString` utilities |
+| [pinolog](https://www.npmjs.com/package/pinolog) | File-based structured logging |
+| [openai](https://www.npmjs.com/package/openai) | OpenAI API client |
+| [ollama](https://www.npmjs.com/package/ollama) | Ollama local LLM client |
 
 ## 📜 License
 

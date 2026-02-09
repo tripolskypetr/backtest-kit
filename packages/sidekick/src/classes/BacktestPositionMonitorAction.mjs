@@ -2,8 +2,12 @@ import { ActionBase } from "backtest-kit";
 
 /**
  * Monitors position lifecycle and logs open/close events in backtest mode
+ * @implements {bt.IPublicAction}
  */
 export class BacktestPositionMonitorAction extends ActionBase {
+  /**
+   * @param {bt.IStrategyTickResult} event 
+   */
   async signalBacktest(event) {
     switch (event.action) {
       case "scheduled":

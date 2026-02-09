@@ -1,41 +1,48 @@
-import { addStrategySchema, commitSignalPromptHistory, dumpSignalData } from "backtest-kit";
-import { ollama } from "@backtest-kit/ollama";
+import { addStrategySchema } from "backtest-kit";
+import { randomString } from "functools-kit";
 
-import { commitHistorySetup } from "../../func/market.func.mjs";
+import * as math_15m from "../../math/timeframe_15m.math.mjs";
+import * as math_4h from "../../math/timeframe_4h.math.mjs";
 
 import StrategyName from "../../enum/StrategyName.mjs";
 import RiskName from "../../enum/RiskName.mjs";
-
-import { CC_OLLAMA_API_KEY } from "../../config/params.mjs";
 
 addStrategySchema({
   strategyName: StrategyName.MainStrategy,
   interval: "5m",
   getSignal: async (symbol) => {
-    const messages = [];
 
-    {
-      await commitHistorySetup(symbol, messages);
-    }
+    const signalId = randomString();
+    
+    const data_4h = await math_4h.getData(signalId, symbol);
 
-    await commitSignalPromptHistory(symbol, messages);
-
-    const signalData = await ollama(
-      messages,
-      "glm-4.6:cloud",
-      CC_OLLAMA_API_KEY
-    );
-
-    if (!signalData) {
+    if (data_4h.noTrades) {
       return null;
     }
 
-    dumpSignalData(signalData.id, messages, signalData);
+    const data_15m = await math_15m.getData(signalId, symbol);
 
-    return signalData;
+    if (data_15m.position === 0) {
+      return null;
+    }
+
+    if (data_4h.allowShort && data_15m.position === 1) {
+      return null;
+    }
+
+    if (data_4h.allowLong && data_15m.position === -1) {
+      return null;
+    }
+
+    {
+      math_15m.dumpPlot(signalId, symbol);
+      math_4h.dumpPlot(signalId, symbol);
+    }
+
+    return await math_15m.getSignal(signalId, symbol);
   },
   riskList: [
     RiskName.TakeProfitDistanceRisk, 
-    RiskName.StopLossDistanceRisk,
+    RiskName.StopLossDistanceRisk
   ],
 });

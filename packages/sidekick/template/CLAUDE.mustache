@@ -1,0 +1,421 @@
+# CLAUDE.md — AI Strategy Development Guide
+
+This project is an **AI-in-the-loop trading strategy development environment**. You (Claude) write Pine Script indicators, run backtests, read JSONL reports, analyze results, and iterate. The human provides direction; you do the research, coding, and optimization.
+
+## Project Overview
+
+- **Framework**: `backtest-kit` with `@backtest-kit/pinets` (Pine Script runtime for Node.js)
+- **Exchange**: Binance spot via CCXT
+- **Strategy**: Multi-timeframe — 4H trend filter + 15m signal generator
+- **Entry point**: `node ./src/index.mjs --backtest`
+- **Output**: `dump/report/*.jsonl` + `dump/ta/*.md`
+
+## Iteration Cycle
+
+```
+1. Read current Pine Script indicators   → config/source/*.pine
+2. Read current backtest results          → dump/report/*.jsonl
+3. Analyze PnL, win rate, close reasons   → write Node.js analysis script
+4. Identify problems                      → e.g. "all trades expire, TP too far"
+5. Modify Pine Script or strategy code    → config/source/*.pine, src/logic/**
+6. Run backtest                           → npm start
+7. Compare results with previous run      → write diff analysis script
+8. Repeat from step 2
+```
+
+## Key Files to Read and Modify
+
+### Pine Script Indicators (your main editing targets)
+
+- `config/source/timeframe_4h.pine` — 4H trend filter (RSI, MACD, ADX). Outputs: `AllowLong`, `AllowShort`, `AllowBoth`, `NoTrades`
+- `config/source/timeframe_15m.pine` — 15m signal generator (EMA crossover, ATR, volume, momentum). Outputs: `Signal`, `Close`, `TakeProfit`, `StopLoss`, `EstimatedTime`
+
+### Strategy Logic
+
+- `src/logic/strategy/main.strategy.mjs` — Combines 4H filter + 15m signal. Edit to change timeframe interaction logic
+- `src/math/timeframe_4h.math.mjs` — SIGNAL_SCHEMA mapping for 4H Pine outputs
+- `src/math/timeframe_15m.math.mjs` — SIGNAL_SCHEMA mapping for 15m Pine outputs
+
+### Risk Management
+
+- `src/logic/risk/sl_distance.risk.mjs` — SL distance threshold (currently 0.2%)
+- `src/logic/risk/tp_distance.risk.mjs` — TP distance threshold (currently 0.2%)
+
+### Position Actions
+
+- `src/classes/BacktestPartialProfitTakingAction.mjs` — Partial profit levels (33/33/34%)
+- `src/classes/BacktestLowerStopOnBreakevenAction.mjs` — Trailing stop on breakeven (-3 points)
+- `src/classes/BacktestPositionMonitorAction.mjs` — Position lifecycle logger
+
+### Backtest Frames
+
+- `src/logic/frame/*.frame.mjs` — Time periods. Edit date ranges or add new frames
+- Available: `feb_2024_frame` (bull), `oct_2025_frame` (drop), `nov_2025_frame` (sideways), `dec_2025_frame` (flat)
+
+## Reading Backtest Results
+
+### JSONL Report Files
+
+All in `dump/report/`. One JSON object per line. Key files:
+
+**`heat.jsonl`** — Most important. One line per closed position:
+```json
+{
+  "data": {
+    "action": "closed",
+    "position": "long",
+    "priceOpen": 120385.76,
+    "pnl": 0.9596,
+    "closeReason": "time_expired",
+    "openTime": 1759501800000,
+    "closeTime": 1759588200000
+  }
+}
+```
+
+**`schedule.jsonl`** — Signal entries:
+```json
+{
+  "data": {
+    "action": "scheduled",
+    "position": "long",
+    "priceOpen": 118659.16,
+    "priceTakeProfit": 122218.93,
+    "priceStopLoss": 116285.97,
+    "minuteEstimatedTime": 1440
+  }
+}
+```
+
+**`partial.jsonl`** — Partial profit/loss at each level (10, 20, 30 ... 90):
+```json
+{
+  "data": {
+    "action": "profit",
+    "level": 40,
+    "partialExecuted": 34,
+    "currentPrice": 120084.69,
+    "priceOpen": 118659.16,
+    "_partial": [{"type": "profit", "percent": 34, "price": 119666.13}]
+  }
+}
+```
+
+**`breakeven.jsonl`** — Breakeven trigger events (price returned to entry level)
+
+**`performance.jsonl`** — Execution timing per timeframe step (duration in ms)
+
+**`backtest.jsonl`** — Every strategy tick. Large file (25MB+). Use `offset`/`limit` or grep for `"action":"signal"` lines
+
+### TA Markdown Dumps
+
+- `dump/ta/math_15m/{signalId}.md` — Full indicator table for 15m timeframe at signal time
+- `dump/ta/math_4h/{signalId}.md` — Full indicator table for 4H timeframe at signal time
+
+These contain 100 rows of indicator data (one per candle) with all Pine Script plot values. The last row with `position != 0` is the actual signal. Cross-reference `signalId` across all files.
+
+### Storage State
+
+- `dump/data/storage/backtest/{signalId}.json` — Final signal state including `_partial` array, `pnl`, `status`, `closeReason`
+
+## Writing Analysis Scripts
+
+When analyzing backtest results, write standalone Node.js scripts (ESM, `.mjs`) in the `scripts/` directory. These scripts should read JSONL files, compute metrics, and print results.
+
+### Example: PnL Summary
+
+```javascript
+// scripts/analyze_pnl.mjs
+import { readFileSync } from "fs";
+
+const lines = readFileSync("dump/report/heat.jsonl", "utf-8")
+  .trim()
+  .split("\n")
+  .filter(Boolean)
+  .map(JSON.parse);
+
+const trades = lines.filter((l) => l.data.action === "closed");
+
+const totalPnl = trades.reduce((sum, t) => sum + t.data.pnl, 0);
+const avgPnl = totalPnl / trades.length;
+const wins = trades.filter((t) => t.data.pnl > 0);
+const losses = trades.filter((t) => t.data.pnl <= 0);
+
+const byReason = {};
+for (const t of trades) {
+  const reason = t.data.closeReason;
+  byReason[reason] = byReason[reason] || { count: 0, pnl: 0 };
+  byReason[reason].count++;
+  byReason[reason].pnl += t.data.pnl;
+}
+
+console.log(`=== PnL Summary ===`);
+console.log(`Total trades: ${trades.length}`);
+console.log(`Win rate: ${((wins.length / trades.length) * 100).toFixed(1)}%`);
+console.log(`Total PnL: ${totalPnl.toFixed(4)}%`);
+console.log(`Average PnL: ${avgPnl.toFixed(4)}%`);
+console.log(`Best trade: ${Math.max(...trades.map((t) => t.data.pnl)).toFixed(4)}%`);
+console.log(`Worst trade: ${Math.min(...trades.map((t) => t.data.pnl)).toFixed(4)}%`);
+console.log(`\n=== By Close Reason ===`);
+for (const [reason, data] of Object.entries(byReason)) {
+  console.log(`${reason}: ${data.count} trades, PnL ${data.pnl.toFixed(4)}%`);
+}
+```
+
+### Example: Trade Duration Analysis
+
+```javascript
+// scripts/analyze_duration.mjs
+import { readFileSync } from "fs";
+
+const lines = readFileSync("dump/report/heat.jsonl", "utf-8")
+  .trim()
+  .split("\n")
+  .filter(Boolean)
+  .map(JSON.parse);
+
+const trades = lines.filter((l) => l.data.action === "closed");
+
+console.log(`=== Trade Duration Analysis ===\n`);
+for (const t of trades) {
+  const durationMs = t.data.closeTime - t.data.openTime;
+  const durationH = (durationMs / 3600000).toFixed(1);
+  const pnl = t.data.pnl.toFixed(4);
+  const reason = t.data.closeReason;
+  const date = new Date(t.data.openTime).toISOString().slice(0, 10);
+  console.log(
+    `${date} | ${t.data.position.padEnd(5)} | ${durationH}h | PnL ${pnl}% | ${reason}`
+  );
+}
+```
+
+### Example: Partial Profit Execution Analysis
+
+```javascript
+// scripts/analyze_partials.mjs
+import { readFileSync } from "fs";
+
+const lines = readFileSync("dump/report/partial.jsonl", "utf-8")
+  .trim()
+  .split("\n")
+  .filter(Boolean)
+  .map(JSON.parse);
+
+// Group by signalId
+const bySignal = {};
+for (const l of lines) {
+  const id = l.signalId;
+  bySignal[id] = bySignal[id] || [];
+  bySignal[id].push(l.data);
+}
+
+console.log(`=== Partial Profit Analysis ===\n`);
+for (const [signalId, events] of Object.entries(bySignal)) {
+  const maxLevel = Math.max(...events.map((e) => e.level));
+  const executed = events.filter((e) => e.partialExecuted > 0);
+  const maxExecuted = Math.max(...events.map((e) => e.partialExecuted), 0);
+  console.log(
+    `${signalId.slice(0, 8)}... | max level: ${maxLevel}% | executed: ${maxExecuted}%`
+  );
+}
+```
+
+### Example: Compare Two Backtest Runs
+
+```javascript
+// scripts/compare_runs.mjs
+// Usage: node scripts/compare_runs.mjs dump/report/heat.jsonl dump_prev/report/heat.jsonl
+import { readFileSync } from "fs";
+
+const parse = (path) =>
+  readFileSync(path, "utf-8")
+    .trim()
+    .split("\n")
+    .filter(Boolean)
+    .map(JSON.parse)
+    .filter((l) => l.data.action === "closed");
+
+const [, , current, previous] = process.argv;
+
+if (!current || !previous) {
+  console.log("Usage: node scripts/compare_runs.mjs <current.jsonl> <previous.jsonl>");
+  process.exit(1);
+}
+
+const cur = parse(current);
+const prev = parse(previous);
+
+const stats = (trades) => ({
+  count: trades.length,
+  totalPnl: trades.reduce((s, t) => s + t.data.pnl, 0),
+  winRate: trades.filter((t) => t.data.pnl > 0).length / trades.length,
+  avgPnl: trades.reduce((s, t) => s + t.data.pnl, 0) / trades.length,
+  byReason: trades.reduce((acc, t) => {
+    acc[t.data.closeReason] = (acc[t.data.closeReason] || 0) + 1;
+    return acc;
+  }, {}),
+});
+
+const c = stats(cur);
+const p = stats(prev);
+
+const delta = (a, b) => {
+  const diff = a - b;
+  return diff >= 0 ? `+${diff.toFixed(4)}` : diff.toFixed(4);
+};
+
+console.log(`=== Run Comparison ===`);
+console.log(`Metric          | Previous       | Current        | Delta`);
+console.log(`----------------|----------------|----------------|-------`);
+console.log(
+  `Trades          | ${String(p.count).padEnd(14)} | ${String(c.count).padEnd(14)} | ${delta(c.count, p.count)}`
+);
+console.log(
+  `Total PnL       | ${p.totalPnl.toFixed(4).padEnd(14)} | ${c.totalPnl.toFixed(4).padEnd(14)} | ${delta(c.totalPnl, p.totalPnl)}`
+);
+console.log(
+  `Win Rate        | ${(p.winRate * 100).toFixed(1).padEnd(13)}% | ${(c.winRate * 100).toFixed(1).padEnd(13)}% | ${delta(c.winRate * 100, p.winRate * 100)}%`
+);
+console.log(
+  `Avg PnL         | ${p.avgPnl.toFixed(4).padEnd(14)} | ${c.avgPnl.toFixed(4).padEnd(14)} | ${delta(c.avgPnl, p.avgPnl)}`
+);
+console.log(`\n=== Close Reasons ===`);
+const allReasons = new Set([
+  ...Object.keys(c.byReason),
+  ...Object.keys(p.byReason),
+]);
+for (const reason of allReasons) {
+  const pc = p.byReason[reason] || 0;
+  const cc = c.byReason[reason] || 0;
+  console.log(
+    `${reason.padEnd(16)}| ${String(pc).padEnd(14)} | ${String(cc).padEnd(14)} | ${delta(cc, pc)}`
+  );
+}
+```
+
+### Example: TA Indicator Snapshot at Signal Time
+
+```javascript
+// scripts/analyze_signal_ta.mjs
+// Reads TA markdown dump for a specific signal to understand what indicators looked like at entry
+import { readFileSync, readdirSync } from "fs";
+
+const taDir15m = "dump/ta/math_15m";
+const taDir4h = "dump/ta/math_4h";
+
+const files = readdirSync(taDir15m).filter((f) => f.endsWith(".md"));
+
+for (const file of files) {
+  const signalId = file.replace(".md", "");
+  const content15m = readFileSync(`${taDir15m}/${file}`, "utf-8");
+  const content4h = readFileSync(`${taDir4h}/${file}`, "utf-8");
+
+  // Extract last row (the actual signal row)
+  const rows15m = content15m.split("\n").filter((l) => l.startsWith("|") && !l.includes("---"));
+  const lastRow = rows15m[rows15m.length - 1];
+
+  const rows4h = content4h.split("\n").filter((l) => l.startsWith("|") && !l.includes("---"));
+  const lastRow4h = rows4h[rows4h.length - 1];
+
+  console.log(`\n=== Signal: ${signalId} ===`);
+  console.log(`15m signal row: ${lastRow}`);
+  console.log(`4H  regime row: ${lastRow4h}`);
+}
+```
+
+## Strategy Modification Checklist
+
+When modifying the strategy, follow this order:
+
+### Changing Pine Script Indicators
+
+1. Edit `config/source/timeframe_15m.pine` or `config/source/timeframe_4h.pine`
+2. If you add/remove `plot()` outputs, update the corresponding SIGNAL_SCHEMA in:
+   - `src/math/timeframe_15m.math.mjs` (key = JS field name, value = Pine plot title)
+   - `src/math/timeframe_4h.math.mjs`
+3. Run `node scripts/run_timeframe_15m.mjs` or `node scripts/run_timeframe_4h.mjs` to verify output
+4. Run `npm start` for full backtest
+
+### Changing Risk Parameters
+
+1. Edit `src/logic/risk/sl_distance.risk.mjs` or `tp_distance.risk.mjs`
+2. Adjust `SLIPPAGE_THRESHOLD` constant
+3. Run backtest and check if more/fewer signals pass validation
+
+### Changing Position Management
+
+1. Edit `src/classes/BacktestPartialProfitTakingAction.mjs` — change percentages at TP levels
+2. Edit `src/classes/BacktestLowerStopOnBreakevenAction.mjs` — change trailing stop offset
+3. Run backtest and analyze `partial.jsonl` and `breakeven.jsonl`
+
+### Adding a New Backtest Frame
+
+1. Create `src/logic/frame/new_name.frame.mjs`:
+   ```javascript
+   import { addFrameSchema } from "backtest-kit";
+   import FrameName from "../../enum/FrameName.mjs";
+   addFrameSchema({
+     frameName: FrameName.NewName,
+     interval: "1m",
+     startDate: new Date("2025-01-01T00:00:00Z"),
+     endDate: new Date("2025-01-31T23:59:59Z"),
+     note: "Description of market conditions",
+   });
+   ```
+2. Add enum value in `src/enum/FrameName.mjs`
+3. Import in `src/logic/index.mjs`
+4. Run: `node ./src/index.mjs --backtest --frameName new_name_frame`
+
+## Common Analysis Patterns
+
+### "All trades close by time_expired"
+
+**Diagnosis**: TP too far from entry, or `minuteEstimatedTime` too short.
+**Fix options**:
+- Reduce TP multiplier in `timeframe_15m.pine` (e.g. `close * 1.02` instead of `close * 1.03`)
+- Increase `EstimatedTime` plot value (e.g. 2880 = 48h instead of 1440 = 24h)
+- Switch from static SL/TP to ATR-based (uncomment lines 72-73 in `timeframe_15m.pine`)
+
+### "Too few signals generated"
+
+**Diagnosis**: Entry conditions too strict.
+**Fix options**:
+- Relax RSI range in `timeframe_15m.pine` (e.g. `rsi > 35 and rsi < 70` for longs)
+- Lower volume spike threshold (e.g. `volume > vol_ma * 1.2` instead of `* 1.5`)
+- Reduce `signal_valid_bars` expiry
+
+### "Signals but all stopped out"
+
+**Diagnosis**: SL too tight or entry timing poor.
+**Fix options**:
+- Increase SL multiplier in ATR-based mode
+- Add additional confirmation (e.g. require 2 consecutive momentum bars)
+- Check if 4H filter is allowing trades in wrong regime
+
+### "Good PnL but low win rate"
+
+**Diagnosis**: Few big winners compensate many small losers. May be acceptable.
+**Check**: Analyze `partial.jsonl` — are partial profits being taken? If `partialExecuted` stays at 0 for most trades, partials aren't triggering.
+
+## Before Running Backtest
+
+1. **Clear previous dump** (optional): `rm -rf dump/report dump/ta` to get clean results
+2. **Cache candles** (if new date range): `node scripts/cache/cache_candles.mjs`
+3. **Validate cache**: `node scripts/cache/validate_candles.mjs`
+4. **Run**: `npm start` or `node ./src/index.mjs --backtest --frameName <frame>`
+
+## After Running Backtest
+
+1. **Quick check**: Read last 10 lines of `dump/report/heat.jsonl` — see PnL and close reasons
+2. **Write analysis script**: Create `scripts/analyze_*.mjs` to compute metrics
+3. **Read TA dumps**: Check `dump/ta/math_15m/*.md` to see indicator state at signal time
+4. **Cross-reference**: Use `signalId` to link storage state, TA snapshots, and JSONL events
+5. **Save previous run**: Copy `dump/report/` to `dump_prev/report/` before next run for comparison
+
+## Important Constraints
+
+- **Never look-ahead**: `backtest-kit` enforces this via `AsyncLocalStorage`, but Pine Script logic must also avoid future data
+- **Pine Script v5**: Use `@version=5` syntax. Supported built-ins: `ta.rsi`, `ta.ema`, `ta.sma`, `ta.macd`, `ta.dmi`, `ta.atr`, `ta.mom`, `ta.crossover`, `ta.crossunder`, etc.
+- **SIGNAL_SCHEMA sync**: Every `plot()` in Pine that you want in JS must have a matching key in SIGNAL_SCHEMA. The plot title (2nd argument) must match the schema value exactly
+- **Append-only JSONL**: Reports accumulate across runs. Clear `dump/report/` between experiments for clean data
+- **ESM modules**: All `.mjs` files use ES module syntax (`import`/`export`)

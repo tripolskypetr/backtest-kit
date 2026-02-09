@@ -1,4 +1,15 @@
-import { Markdown, Report, setLogger } from "backtest-kit"
+import {
+  Markdown,
+  Report,
+  Notification,
+  Storage,
+  setLogger,
+  StorageLive,
+  StorageBacktest,
+  NotificationLive,
+  NotificationBacktest,
+} from "backtest-kit";
+import { serve } from "@backtest-kit/ui";
 import { createLogger } from "pinolog";
 
 {
@@ -12,8 +23,23 @@ import { createLogger } from "pinolog";
 }
 
 {
+  Storage.enable();
+  Notification.enable();
+}
+
+{
   Markdown.disable();
   Report.enable();
 }
 
+{
+  StorageLive.usePersist();
+  StorageBacktest.usePersist();
+}
 
+{
+  NotificationLive.usePersist();
+  NotificationBacktest.usePersist();
+}
+
+serve();

@@ -12,8 +12,13 @@ addExchangeSchema({
       symbol,
       interval,
       since.getTime(),
-      limit
+      limit,
     );
+    if (
+      candles.flatMap((candle) => candle).some((value) => value === undefined)
+    ) {
+      throw new Error("Invalid candles found");
+    }
     return candles.map(([timestamp, open, high, low, close, volume]) => ({
       timestamp,
       open,
@@ -55,5 +60,10 @@ addExchangeSchema({
         quantity: String(quantity),
       })),
     };
-  }
+  },
+  callbacks: {
+    onCandleData(symbol, interval, since) {
+      console.log(`Received candle data for symbol: ${symbol}, interval: ${interval}, since: ${since.toUTCString()}`);
+    }
+  },
 });

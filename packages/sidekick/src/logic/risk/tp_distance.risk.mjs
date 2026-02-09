@@ -1,16 +1,18 @@
 import { addRiskSchema } from "backtest-kit";
 import RiskName from "../../enum/RiskName.mjs";
 
+const SLIPPAGE_THRESHOLD = 0.2;
+
 addRiskSchema({
   riskName: RiskName.TakeProfitDistanceRisk,
   validations: [
     {
-      validate: ({ pendingSignal, currentPrice }) => {
+      validate: ({ currentSignal, currentPrice }) => {
         const {
           priceOpen = currentPrice,
           priceTakeProfit,
           position,
-        } = pendingSignal;
+        } = currentSignal;
         if (!priceOpen) {
           return;
         }
@@ -20,7 +22,7 @@ addRiskSchema({
             ? ((priceTakeProfit - priceOpen) / priceOpen) * 100
             : ((priceOpen - priceTakeProfit) / priceOpen) * 100;
 
-        if (tpDistance < 1) {
+        if (tpDistance < SLIPPAGE_THRESHOLD) {
           throw new Error(`TP distance ${tpDistance.toFixed(2)}% < 1%`);
         }
       },

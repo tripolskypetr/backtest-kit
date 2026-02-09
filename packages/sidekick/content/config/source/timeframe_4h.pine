@@ -1,0 +1,57 @@
+//@version=5
+indicator("Daily Trend Filter", overlay=true)
+
+plotcandle(open, high, low, close, 
+     color=close > open ? color.new(color.green, 70) : color.new(color.red, 70),
+     wickcolor=color.new(color.gray, 70),
+     bordercolor=color.new(color.gray, 70))
+
+// === INPUTS ===
+rsi_len = input.int(14, "RSI Length", minval=2)
+macd_fast = input.int(12, "MACD Fast", minval=1)
+macd_slow = input.int(26, "MACD Slow", minval=1)
+macd_signal = input.int(9, "MACD Signal", minval=1)
+adx_len = input.int(14, "ADX Length", minval=1)
+adx_threshold = input.int(25, "ADX Threshold", minval=10)
+
+rsi_bull_threshold = input.int(50, "RSI Bull Threshold", minval=50, maxval=70)
+rsi_bear_threshold = input.int(50, "RSI Bear Threshold", minval=30, maxval=50)
+
+// === INDICATORS ===
+rsi = ta.rsi(close, rsi_len)
+[macd_line, signal_line, macd_hist] = ta.macd(close, macd_fast, macd_slow, macd_signal)
+[di_plus, di_minus, adx] = ta.dmi(adx_len, adx_len)
+
+// === TREND FILTER LOGIC ===
+strong_trend = adx > adx_threshold
+
+bull_regime = strong_trend and macd_hist > 0 and di_plus > di_minus and rsi > rsi_bull_threshold
+
+bear_regime = strong_trend and macd_hist < 0 and di_minus > di_plus and rsi < rsi_bear_threshold
+
+both_allowed = strong_trend and not bull_regime and not bear_regime
+no_trades = not strong_trend
+
+// === VISUALIZATION ===
+line_color = bull_regime ? color.green : 
+             bear_regime ? color.red : 
+             both_allowed ? color.gray :
+             color.orange
+
+plot(close, "Active Signal", color=line_color, linewidth=6)
+
+// === OUTPUTS FOR BOT ===
+plot(bull_regime ? 1 : 0, "AllowLong", display=display.data_window)
+plot(bear_regime ? 1 : 0, "AllowShort", display=display.data_window)
+plot(both_allowed ? 1 : 0, "AllowBoth", display=display.data_window)
+plot(no_trades ? 1 : 0, "NoTrades", display=display.data_window)
+plot(rsi, "RSI", display=display.data_window)
+plot(adx, "ADX", display=display.data_window)
+
+// === DEBUG: INDICATOR DUMP ===
+plot(macd_line, "d_MACDLine", display=display.data_window)
+plot(signal_line, "d_SignalLine", display=display.data_window)
+plot(macd_hist, "d_MACDHist", display=display.data_window)
+plot(di_plus, "d_DIPlus", display=display.data_window)
+plot(di_minus, "d_DIMinus", display=display.data_window)
+plot(strong_trend ? 1 : 0, "d_StrongTrend", display=display.data_window)

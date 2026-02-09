@@ -1,0 +1,114 @@
+//@version=5
+indicator("Signal Strategy 15m v1", overlay=true)
+
+plotcandle(open, high, low, close, 
+     color=close > open ? color.new(color.green, 70) : color.new(color.red, 70),
+     wickcolor=color.new(color.gray, 70),
+     bordercolor=color.new(color.gray, 70))
+
+
+// === INPUTS ===
+rsi_len = input.int(7, "RSI Length", minval=2)
+ema_fast_len = input.int(5, "EMA Fast", minval=1)
+ema_slow_len = input.int(13, "EMA Slow", minval=1)
+ema_trend_len = input.int(50, "EMA Trend", minval=1)
+atr_len = input.int(14, "ATR Length", minval=1)
+vol_ma_len = input.int(20, "Volume MA Length", minval=1)
+
+sl_mult = input.float(1.5, "SL ATR Multiplier", minval=0.5, step=0.1)
+tp_mult = input.float(2.5, "TP ATR Multiplier", minval=0.5, step=0.1)
+signal_valid_bars = input.int(5, "Signal Valid Bars", minval=1)
+
+// === INDICATORS ===
+rsi = ta.rsi(close, rsi_len)
+ema_fast = ta.ema(close, ema_fast_len)
+ema_slow = ta.ema(close, ema_slow_len)
+ema_trend = ta.ema(close, ema_trend_len)
+atr = ta.atr(atr_len)
+
+// Volume filter - выше среднего
+vol_ma = ta.sma(volume, vol_ma_len)
+vol_spike = volume > vol_ma * 1.5
+
+// Momentum confirmation
+mom = ta.mom(close, 3)
+mom_up = mom > 0
+mom_down = mom < 0
+
+// === TREND FILTER ===
+trend_up = close > ema_trend and ema_fast > ema_trend
+trend_down = close < ema_trend and ema_fast < ema_trend
+
+// === ENTRY CONDITIONS ===
+// Long: пересечение + RSI не перекуплен + тренд вверх + объём + momentum
+long_cond = ta.crossover(ema_fast, ema_slow) and rsi > 40 and rsi < 65 and trend_up and vol_spike and mom_up
+
+// Short: пересечение + RSI не перепродан + тренд вниз + объём + momentum  
+short_cond = ta.crossunder(ema_fast, ema_slow) and rsi < 60 and rsi > 35 and trend_down and vol_spike and mom_down
+
+// === SIGNAL MANAGEMENT ===
+var int bars_since_signal = 0
+var int last_signal = 0
+var float entry_price = na
+var float signal_atr = na
+
+if long_cond
+    last_signal := 1
+    bars_since_signal := 0
+    entry_price := close
+    signal_atr := atr
+else if short_cond
+    last_signal := -1
+    bars_since_signal := 0
+    entry_price := close
+    signal_atr := atr
+else
+    bars_since_signal += 1
+
+// Signal expires faster on 15m
+active_signal = bars_since_signal <= signal_valid_bars ? last_signal : 0
+
+// === DYNAMIC SL/TP based on ATR ===
+// sl = last_signal == 1 ? entry_price - signal_atr * sl_mult : last_signal == -1 ? entry_price + signal_atr * sl_mult : na
+// tp = last_signal == 1 ? entry_price + signal_atr * tp_mult : last_signal == -1 ? entry_price - signal_atr * tp_mult : na
+
+// === STATIC SL/TP for watch strategy ==
+sl = last_signal == -1 ? close * 1.02 : close * 0.98
+tp = last_signal == -1 ? close * 0.97 : close * 1.03
+
+// === VISUALIZATION ===
+line_color = active_signal == 1 ? color.green : active_signal == -1 ? color.red : color.gray
+
+plot(ema_fast, "EMA Fast", color=color.new(color.blue, 50), linewidth=1)
+plot(ema_slow, "EMA Slow", color=color.new(color.orange, 50), linewidth=1)
+plot(ema_trend, "EMA Trend", color=color.new(color.white, 70), linewidth=2)
+
+plotshape(long_cond, "Long", shape.triangleup, location.belowbar, color.green, size=size.small)
+plotshape(short_cond, "Short", shape.triangledown, location.abovebar, color.red, size=size.small)
+
+plot(close, "Active Signal", color=line_color, linewidth=6)
+
+// === OUTPUTS FOR BOT ===
+plot(close, "Close", display=display.data_window)
+plot(active_signal, "Signal", display=display.data_window)
+plot(sl, "StopLoss", display=display.data_window)
+plot(tp, "TakeProfit", display=display.data_window)
+plot(1440, "EstimatedTime", display=display.data_window)  // 24 hour for 15m TF
+
+// === DEBUG: INDICATOR DUMP ===
+plot(rsi, "d_RSI", display=display.data_window)
+plot(ema_fast, "d_EmaFast", display=display.data_window)
+plot(ema_slow, "d_EmaSlow", display=display.data_window)
+plot(ema_trend, "d_EmaTrend", display=display.data_window)
+plot(atr, "d_ATR", display=display.data_window)
+plot(volume, "d_Volume", display=display.data_window)
+plot(vol_ma, "d_VolMA", display=display.data_window)
+plot(vol_spike ? 1 : 0, "d_VolSpike", display=display.data_window)
+plot(mom, "d_Mom", display=display.data_window)
+plot(mom_up ? 1 : 0, "d_MomUp", display=display.data_window)
+plot(mom_down ? 1 : 0, "d_MomDown", display=display.data_window)
+plot(trend_up ? 1 : 0, "d_TrendUp", display=display.data_window)
+plot(trend_down ? 1 : 0, "d_TrendDown", display=display.data_window)
+plot(long_cond ? 1 : 0, "d_LongCond", display=display.data_window)
+plot(short_cond ? 1 : 0, "d_ShortCond", display=display.data_window)
+plot(bars_since_signal, "d_BarsSinceSignal", display=display.data_window)
