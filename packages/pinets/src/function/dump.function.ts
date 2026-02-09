@@ -12,7 +12,7 @@ export async function dumpPlotData<M extends PlotMapping>(
   plots: PlotModel,
   mapping: M,
   taName: string,
-  outputDir = "./dump/ta",
+  outputDir = `./dump/ta/${taName}`,
 ): Promise<void> {
   pine.loggerService.log(DUMP_SIGNAL_METHOD_NAME, {
     signalId,
