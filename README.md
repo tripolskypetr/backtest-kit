@@ -320,7 +320,7 @@ Order book fetching uses the same temporal alignment as candles, but with a conf
 
 #### Order Book Timestamp Convention:
 
-The `from`/`to` range is a **lookback window**. The adapter selects the closest snapshot to `to` in backtest mode, or returns real-time data in live mode. Unlike candles, most exchanges (e.g. Binance `GET /api/v3/depth`) only expose the **current** order book with no historical query support — for backtest you must provide your own snapshot storage.
+Unlike candles, most exchanges (e.g. Binance `GET /api/v3/depth`) only expose the **current** order book with no historical query support — for backtest you must provide your own snapshot storage.
 
 **Key principles:**
 - Time range is aligned down to `CC_ORDER_BOOK_TIME_OFFSET_MINUTES` boundary
