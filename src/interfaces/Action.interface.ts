@@ -390,37 +390,9 @@ export interface IActionSchema {
  * @see TActionCtor for constructor signature requirements
  * @see ClientAction for internal wrapper that manages lifecycle
  */
-export interface IPublicAction extends IAction {
-  /**
-   * Async initialization method called once after construction.
-   *
-   * Use this method to:
-   * - Establish database connections
-   * - Initialize API clients
-   * - Load configuration files
-   * - Open file handles or network sockets
-   * - Perform any async setup required before handling events
-   *
-   * Guaranteed to:
-   * - Run exactly once per action handler instance
-   * - Complete before any event methods are called
-   * - Run after constructor but before first event
-   *
-   * @returns Promise that resolves when initialization is complete
-   * @throws Error if initialization fails (will prevent strategy execution)
-   *
-   * @example
-   * ```typescript
-   * async init() {
-   *   this.db = await connectToDatabase();
-   *   this.cache = new Redis(process.env.REDIS_URL);
-   *   await this.cache.connect();
-   *   console.log('Action initialized');
-   * }
-   * ```
-   */
-  init(): void | Promise<void>;
-}
+export type IPublicAction = {
+  [key in keyof IAction]?: IAction[key];
+} & { init?(): void | Promise<void>; }
 
 /**
  * Action interface for state manager integration.

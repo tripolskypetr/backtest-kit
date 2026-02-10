@@ -1,9 +1,17 @@
 ---
-title: docs/interface/IPublicAction
+title: docs/type/IPublicAction
 group: docs
 ---
 
 # IPublicAction
+
+```ts
+type IPublicAction = {
+    [key in keyof IAction]?: IAction[key];
+} & {
+    init?(): void | Promise<void>;
+};
+```
 
 Public action interface for custom action handler implementations.
 
@@ -27,25 +35,3 @@ Common use cases:
 - Logging: Custom event tracking and monitoring
 - Analytics: Metrics collection and reporting
 - External systems: Database writes, API calls, file operations
-
-## Methods
-
-### init
-
-```ts
-init: () => void | Promise<void>
-```
-
-Async initialization method called once after construction.
-
-Use this method to:
-- Establish database connections
-- Initialize API clients
-- Load configuration files
-- Open file handles or network sockets
-- Perform any async setup required before handling events
-
-Guaranteed to:
-- Run exactly once per action handler instance
-- Complete before any event methods are called
-- Run after constructor but before first event
