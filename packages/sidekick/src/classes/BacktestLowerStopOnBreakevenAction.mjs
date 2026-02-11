@@ -6,7 +6,6 @@ import { ActionBase, commitTrailingStop } from "backtest-kit";
  */
 export class BacktestLowerStopOnBreakevenAction extends ActionBase {
   /**
-   * 
    * @param {bt.BreakevenContract} param0 
    */
   async breakevenAvailable({ symbol, currentPrice }) {

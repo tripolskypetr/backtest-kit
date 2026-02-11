@@ -6,7 +6,6 @@ import { ActionBase, Constant, commitPartialProfit } from "backtest-kit";
  */
 export class BacktestPartialProfitTakingAction extends ActionBase {
   /**
-   * 
    * @param {bt.PartialProfitContract} param0 
    */
   async partialProfitAvailable({ symbol, level }) {

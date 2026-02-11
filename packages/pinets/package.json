@@ -1,6 +1,6 @@
 {
   "name": "@backtest-kit/pinets",
-  "version": "3.0.12",
+  "version": "3.0.13",
   "description": "Run TradingView Pine Script strategies in Node.js self hosted environment. Execute existing Pine Script indicators and generate trading signals with 1:1 syntax compatibility via PineTS runtime.",
   "author": {
     "name": "Petr Tripolsky",
@@ -72,7 +72,7 @@
     "worker-testbed": "1.0.12"
   },
   "peerDependencies": {
-    "backtest-kit": "^3.0.15",
+    "backtest-kit": "^3.0.17",
     "pinets": "^0.8.6",
     "typescript": "^5.0.0"
   },
