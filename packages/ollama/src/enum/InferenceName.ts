@@ -34,6 +34,8 @@ export enum InferenceName {
     CohereInference = "cohere_inference",
     /** Alibaba Cloud provider (dashscope-intl.aliyuncs.com) */
     AlibabaInference = "alibaba_inference",
+    /** Groq provider (api.groq.com) */
+    GroqInference = "groq_inference",
 }
 
 export default InferenceName;

@@ -56,6 +56,7 @@ import PerplexityProvider from "../client/PerplexityProvider.client";
 import CohereProvider from "../client/CohereProvider.client";
 import AlibabaProvider from "../client/AlibabaProvider.client";
 import GLM4Provider from "../client/GLM4Provider.client";
+import GroqProvider from "../client/GroqProvider.client";
 import LoggerService from "./services/base/LoggerService";
 import PromptCacheService from "./services/cache/PromptCacheService";
 import ResolvePromptService from "./services/prompt/ResolvePromptService";
@@ -190,6 +191,10 @@ init();
   engine.runnerPrivateService.registerRunner(
     InferenceName.GLM4Inference,
     GLM4Provider,
+  );
+  engine.runnerPrivateService.registerRunner(
+    InferenceName.GroqInference,
+    GroqProvider,
   );
 }
 

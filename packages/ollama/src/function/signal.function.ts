@@ -431,6 +431,47 @@ export const alibaba = <T extends (...args: any[]) => Promise<any>>(
  * const result = await wrappedFn(args);
  * ```
  */
+/**
+ * Wrap async function with Groq inference context.
+ *
+ * Creates a higher-order function that executes the provided async function
+ * within a Groq inference context.
+ *
+ * @template T - Async function type
+ * @param fn - Async function to wrap
+ * @param model - Groq model name (e.g., "llama-3.3-70b-versatile")
+ * @param apiKey - Single API key or array of keys
+ * @returns Wrapped function with same signature as input
+ *
+ * @example
+ * ```typescript
+ * import { groq } from '@backtest-kit/ollama';
+ *
+ * const wrappedFn = groq(myAsyncFn, 'llama-3.3-70b-versatile', process.env.GROQ_API_KEY);
+ * const result = await wrappedFn(args);
+ * ```
+ */
+export const groq = <T extends (...args: any[]) => Promise<any>>(
+  fn: T,
+  model: string,
+  apiKey?: string | string[],
+): T => {
+  const wrappedFn = async (args: Parameters<T>) => {
+    return await ContextService.runInContext(
+      async () => {
+        return await fn(...args);
+      },
+      {
+        apiKey,
+        inference: InferenceName.GroqInference,
+        model,
+      },
+    );
+  };
+
+  return <T>wrappedFn;
+};
+
 export const glm4 = <T extends (...args: any[]) => Promise<any>>(
   fn: T,
   model: string,

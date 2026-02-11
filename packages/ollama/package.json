@@ -1,6 +1,6 @@
 {
   "name": "@backtest-kit/ollama",
-  "version": "3.0.6",
+  "version": "3.0.7",
   "description": "Multi-provider LLM inference library for AI-powered trading strategies. Supports 10+ providers including OpenAI, Claude, DeepSeek, Grok, Mistral with unified API and automatic token rotation.",
   "author": {
     "name": "Petr Tripolsky",
@@ -65,9 +65,15 @@
     "default": "./build/index.cjs"
   },
   "devDependencies": {
+    "@huggingface/inference": "4.7.1",
+    "@langchain/core": "0.3.57",
+    "@langchain/xai": "0.0.2",
     "@rollup/plugin-typescript": "11.1.6",
     "@types/node": "22.9.0",
     "glob": "11.0.1",
+    "ollama": "0.6.0",
+    "openai": "4.97.0",
+    "groq-sdk": "0.37.0",
     "rimraf": "6.0.1",
     "rollup": "3.29.5",
     "rollup-plugin-dts": "6.1.1",
@@ -75,32 +81,28 @@
     "ts-morph": "27.0.2",
     "tslib": "2.7.0",
     "typedoc": "0.27.9",
-    "worker-testbed": "1.0.12",
-    "ollama": "0.6.0",
-    "openai": "4.97.0",
-    "@langchain/core": "0.3.57",
-    "@langchain/xai": "0.0.2",
-    "@huggingface/inference": "4.7.1"
+    "worker-testbed": "1.0.12"
   },
   "peerDependencies": {
-    "backtest-kit": "^3.0.15",
-    "typescript": "^5.0.0",
-    "ollama": "^0.6.0",
-    "openai": "^4.97.0",
+    "@huggingface/inference": "^4.7.1",
     "@langchain/core": "^0.3.57",
     "@langchain/xai": "^0.0.2",
-    "@huggingface/inference": "^4.7.1"
+    "backtest-kit": "^3.0.17",
+    "groq-sdk": "^0.37.0",
+    "ollama": "^0.6.0",
+    "openai": "^4.97.0",
+    "typescript": "^5.0.0"
   },
   "dependencies": {
+    "agent-swarm-kit": "^1.2.4",
     "di-kit": "^1.0.18",
     "di-scoped": "^1.0.21",
     "functools-kit": "^1.0.95",
+    "get-moment-stamp": "^1.1.1",
     "jsonrepair": "^3.12.0",
     "markdown-it": "^14.1.0",
     "markdownlint": "^0.38.0",
     "sanitize-html": "^2.17.0",
-    "get-moment-stamp": "^1.1.1",
-    "agent-swarm-kit": "^1.2.4",
     "zod": "^3.25.76"
   },
   "publishConfig": {

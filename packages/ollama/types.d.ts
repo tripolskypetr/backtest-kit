@@ -233,6 +233,27 @@ declare const alibaba: <T extends (...args: any[]) => Promise<any>>(fn: T, model
  * const result = await wrappedFn(args);
  * ```
  */
+/**
+ * Wrap async function with Groq inference context.
+ *
+ * Creates a higher-order function that executes the provided async function
+ * within a Groq inference context.
+ *
+ * @template T - Async function type
+ * @param fn - Async function to wrap
+ * @param model - Groq model name (e.g., "llama-3.3-70b-versatile")
+ * @param apiKey - Single API key or array of keys
+ * @returns Wrapped function with same signature as input
+ *
+ * @example
+ * ```typescript
+ * import { groq } from '@backtest-kit/ollama';
+ *
+ * const wrappedFn = groq(myAsyncFn, 'llama-3.3-70b-versatile', process.env.GROQ_API_KEY);
+ * const result = await wrappedFn(args);
+ * ```
+ */
+declare const groq: <T extends (...args: any[]) => Promise<any>>(fn: T, model: string, apiKey?: string | string[]) => T;
 declare const glm4: <T extends (...args: any[]) => Promise<any>>(fn: T, model: string, apiKey?: string | string[]) => T;
 
 /**
@@ -1367,7 +1388,9 @@ declare enum InferenceName {
     /** Cohere provider (api.cohere.ai) */
     CohereInference = "cohere_inference",
     /** Alibaba Cloud provider (dashscope-intl.aliyuncs.com) */
-    AlibabaInference = "alibaba_inference"
+    AlibabaInference = "alibaba_inference",
+    /** Groq provider (api.groq.com) */
+    GroqInference = "groq_inference"
 }
 
 /**
@@ -2275,4 +2298,4 @@ declare const engine: {
     loggerService: LoggerService;
 };
 
-export { CompletionName, type IOptimizerCallbacks, type IOptimizerData, type IOptimizerFetchArgs, type IOptimizerFilterArgs, type IOptimizerRange, type IOptimizerSchema, type IOptimizerSource, type IOptimizerStrategy, type IOptimizerTemplate, type MessageModel, type MessageRole, Module, Optimizer, type ProgressOptimizerContract, Prompt, type PromptModel, addOptimizerSchema, alibaba, claude, cohere, commitPrompt, deepseek, dumpSignalData, getOptimizerSchema, glm4, gpt5, grok, hf, engine as lib, listOptimizerSchema, listenError, listenOptimizerProgress, mistral, ollama, perplexity, setLogger, validate };
+export { CompletionName, type IOptimizerCallbacks, type IOptimizerData, type IOptimizerFetchArgs, type IOptimizerFilterArgs, type IOptimizerRange, type IOptimizerSchema, type IOptimizerSource, type IOptimizerStrategy, type IOptimizerTemplate, type MessageModel, type MessageRole, Module, Optimizer, type ProgressOptimizerContract, Prompt, type PromptModel, addOptimizerSchema, alibaba, claude, cohere, commitPrompt, deepseek, dumpSignalData, getOptimizerSchema, glm4, gpt5, grok, groq, hf, engine as lib, listOptimizerSchema, listenError, listenOptimizerProgress, mistral, ollama, perplexity, setLogger, validate };

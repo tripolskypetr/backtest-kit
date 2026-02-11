@@ -7,6 +7,7 @@ export {
   deepseek,
   gpt5,
   grok,
+  groq,
   hf,
   mistral,
   ollama,
