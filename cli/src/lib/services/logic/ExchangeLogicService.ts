@@ -10,8 +10,6 @@ import {
 import { getExchange } from "../../../config/ccxt";
 import ExchangeName from "../../../enum/ExchangeName";
 
-const MAX_DEPTH_LEVELS = 1_000;
-
 const ADD_EXCHANGE_FN = (self: ExchangeLogicService) => {
   self.loggerService.log("Adding CCXT Binance as a default exchange schema");
   console.warn("Warning: The default exchange schema is set to CCXT Binance. Please make sure to update it according to your needs using --exchange cli param.");
@@ -55,9 +53,12 @@ const ADD_EXCHANGE_FN = (self: ExchangeLogicService) => {
       }
       return exchange.amountToPrecision(symbol, quantity);
     },
-    getOrderBook: async (symbol) => {
+    getOrderBook: async (symbol, depth, from, to, backtest) => {
+      if (backtest) {
+        throw new Error("Order book fetching is not supported in backtest mode for the default exchange schema. Please implement it according to your needs.");
+      }
       const exchange = await getExchange();
-      const bookData = await exchange.fetchOrderBook(symbol, MAX_DEPTH_LEVELS);
+      const bookData = await exchange.fetchOrderBook(symbol, depth);
       return {
         symbol,
         asks: bookData.asks.map(([price, quantity]) => ({
