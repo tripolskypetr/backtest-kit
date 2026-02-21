@@ -2,7 +2,7 @@ import { singleshot } from "functools-kit";
 import { inject } from "../../core/di";
 import LoggerService from "../base/LoggerService";
 import TYPES from "../../core/types";
-import { getArgs } from "src/helpers/getArgs";
+import { getArgs } from "../../../helpers/getArgs";
 
 export class SymbolSchemaService {
   public readonly loggerService = inject<LoggerService>(TYPES.loggerService);
