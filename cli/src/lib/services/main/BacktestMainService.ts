@@ -14,6 +14,7 @@ import FrameLogicService from "../logic/FrameLogicService";
 import ResolveService from "../base/ResolveService";
 import FrontendProviderService from "../provider/FrontendProviderService";
 import TelegramProviderService from "../provider/TelegramProviderService";
+import CacheLogicService from "../logic/CacheLogicService";
 
 export class BacktestMainService {
   private loggerService = inject<LoggerService>(TYPES.loggerService);
@@ -24,6 +25,9 @@ export class BacktestMainService {
   private frameLogicService = inject<FrameLogicService>(
     TYPES.frameLogicService,
   );
+  private cacheLogicService = inject<CacheLogicService>(
+    TYPES.cacheLogicService,
+  )
 
   private resolveService = inject<ResolveService>(TYPES.resolveService);
   private frontendProviderService = inject<FrontendProviderService>(TYPES.frontendProviderService);
@@ -81,6 +85,12 @@ export class BacktestMainService {
     if (!frameName) {
       throw new Error("Frame name is required");
     }
+
+    await this.cacheLogicService.cacheCandles({
+        exchangeName,
+        frameName,
+        symbol,
+    });
 
     Backtest.background(symbol, {
       strategyName,

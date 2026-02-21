@@ -12,6 +12,7 @@ import ErrorService from "./services/base/ErrorService";
 import SymbolLogicService from "./services/logic/SymbolLogicService";
 import FrontendProviderService from "./services/provider/FrontendProviderService";
 import TelegramProviderService from "./services/provider/TelegramProviderService";
+import CacheLogicService from "./services/logic/CacheLogicService";
 
 const baseServices = {
   errorService: inject<ErrorService>(TYPES.errorService),
@@ -29,6 +30,7 @@ const logicServices = {
   exchangeLogicService: inject<ExchangeLogicService>(TYPES.exchangeLogicService),
   symbolLogicService: inject<SymbolLogicService>(TYPES.symbolLogicService),
   frameLogicService: inject<FrameLogicService>(TYPES.frameLogicService),
+  cacheLogicService: inject<CacheLogicService>(TYPES.cacheLogicService),
 }
 
 const providerServices = {
