@@ -5,6 +5,7 @@ import { inject } from "../../../lib/core/di";
 import LoggerService from "../base/LoggerService";
 import TYPES from "../../../lib/core/types";
 import ExchangeLogicService from "../logic/ExchangeLogicService";
+import ResolveService from "../base/ResolveService";
 
 export class PaperMainService {
 
@@ -12,12 +13,10 @@ export class PaperMainService {
 
   private exchangeLogicService = inject<ExchangeLogicService>(TYPES.exchangeLogicService);
 
+  private resolveService = inject<ResolveService>(TYPES.resolveService);
+
   protected init = singleshot(async () => {
     this.loggerService.log("paperMainService init");
-
-    {
-        this.exchangeLogicService.init();
-    }
 
     const { values, positionals } = getArgs();
 
@@ -29,6 +28,12 @@ export class PaperMainService {
 
     if (!entryPoint) {
       throw new Error("Entry point is required");
+    }
+
+    await this.resolveService.attachEntryPoint(entryPoint);
+
+    {
+        this.exchangeLogicService.init();
     }
 
     const [defaultStrategyName = null] = await listStrategySchema();

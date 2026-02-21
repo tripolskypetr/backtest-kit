@@ -1,5 +1,6 @@
 const baseServices = {
     loggerService: Symbol('loggerService'),
+    resolveService: Symbol('resolveService'),
 };
 
 const mainServices = {

@@ -7,9 +7,11 @@ import LiveMainService from "./services/main/LiveMainService";
 import BacktestMainService from "./services/main/BacktestMainService";
 import ExchangeLogicService from "./services/logic/ExchangeLogicService";
 import FrameLogicService from "./services/logic/FrameLogicService";
+import ResolveService from "./services/base/ResolveService";
 
 const baseServices = {
   loggerService: inject<LoggerService>(TYPES.loggerService),
+  resolveService: inject<ResolveService>(TYPES.resolveService),
 };
 
 const mainServices = {
