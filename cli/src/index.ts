@@ -1,3 +1,2 @@
 import "./config/setup";
-
-export {}
+import "./lib";
