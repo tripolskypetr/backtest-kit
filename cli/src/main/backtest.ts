@@ -6,10 +6,11 @@ import {
 } from "backtest-kit";
 import { getArgs } from "../helpers/getArgs";
 import { singleshot } from "functools-kit";
+import notifyShutdown from "../utils/notifyShutdown";
 
 const BEFORE_EXIT_FN = singleshot(async () => {
   process.off("SIGINT", BEFORE_EXIT_FN);
-  console.log("Graceful shutdown initiated. Press Ctrl+C again to force quit.");
+  notifyShutdown();
   const { values } = getArgs();
   const symbol = <string>values.symbol || "BTCUSDT";
   const [defaultStrategyName = null] = await listStrategySchema();

@@ -10,6 +10,8 @@ import FrameLogicService from "./services/logic/FrameLogicService";
 import ResolveService from "./services/base/ResolveService";
 import ErrorService from "./services/base/ErrorService";
 import SymbolLogicService from "./services/logic/SymbolLogicService";
+import FrontendProviderService from "./services/provider/FrontendProviderService";
+import TelegramProviderService from "./services/provider/TelegramProviderService";
 
 const baseServices = {
   errorService: inject<ErrorService>(TYPES.errorService),
@@ -29,12 +31,18 @@ const logicServices = {
   frameLogicService: inject<FrameLogicService>(TYPES.frameLogicService),
 }
 
-export const backtest = {
+const providerServices = {
+  frontendProviderService: inject<FrontendProviderService>(TYPES.frontendProviderService),
+  telegramProviderService: inject<TelegramProviderService>(TYPES.telegramProviderService),
+}
+
+export const cli = {
   ...baseServices,
   ...mainServices,
   ...logicServices,
+  ...providerServices,
 };
 
 init();
 
-export default backtest;
+export default cli;

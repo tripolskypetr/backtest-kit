@@ -16,10 +16,16 @@ const logicServices = {
     frameLogicService: Symbol('frameLogicService'),
 }
 
+const providerServices = {
+    frontendProviderService: Symbol('frontendProviderService'),
+    telegramProviderService: Symbol('telegramProviderService'),
+}
+
 export const TYPES = {
     ...baseServices,
     ...mainServices,
     ...logicServices,
+    ...providerServices,
 }
 
 export default TYPES;

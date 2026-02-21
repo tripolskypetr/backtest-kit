@@ -7,6 +7,8 @@ import SymbolLogicService from "../services/logic/SymbolLogicService";
 import BacktestMainService from "../services/main/BacktestMainService";
 import LiveMainService from "../services/main/LiveMainService";
 import PaperMainService from "../services/main/PaperMainService";
+import FrontendProviderService from "../services/provider/FrontendProviderService";
+import TelegramProviderService from "../services/provider/TelegramProviderService";
 import { provide } from "./di";
 import TYPES from "./types";
 
@@ -26,4 +28,9 @@ import TYPES from "./types";
     provide(TYPES.exchangeLogicService, () => new ExchangeLogicService());
     provide(TYPES.symbolLogicService, () => new SymbolLogicService());
     provide(TYPES.frameLogicService, () => new FrameLogicService());
+}
+
+{
+    provide(TYPES.telegramProviderService, () => new TelegramProviderService());
+    provide(TYPES.frontendProviderService, () => new FrontendProviderService());
 }

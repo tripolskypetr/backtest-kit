@@ -7,21 +7,17 @@ import { getArgs } from "../../../helpers/getArgs";
 import { entrySubject } from "../../../config/emitters";
 import { getEnv } from "../../../helpers/getEnv";
 
-export class FrontendProviderService {
+export class TelegramProviderService {
   private readonly loggerService = inject<LoggerService>(TYPES.loggerService);
 
   public enable = singleshot(() => {
-    this.loggerService.log("frontendProviderService enable");
-    const { CC_WWWROOT_HOST, CC_WWWROOT_PORT } = getEnv();
-    const unServer = serve(CC_WWWROOT_HOST, CC_WWWROOT_PORT);
+    this.loggerService.log("telegramProviderService enable");
     return () => {
-      unServer();
-      this.enable.clear();
     };
   });
 
   public disable = () => {
-    this.loggerService.log("frontendProviderService disable");
+    this.loggerService.log("telegramProviderService disable");
     if (this.enable.hasValue()) {
       const lastSubscription = this.enable();
       lastSubscription();
@@ -29,12 +25,12 @@ export class FrontendProviderService {
   };
 
   public init = singleshot(async () => {
-    this.loggerService.log("frontendProviderService init");
-    if (!getArgs().values.ui) {
+    this.loggerService.log("telegramProviderService init");
+    if (!getArgs().values.telegram) {
       return;
     }
     entrySubject.subscribe(this.enable);
   });
 }
 
-export default FrontendProviderService;
+export default TelegramProviderService;

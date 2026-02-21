@@ -28,10 +28,12 @@ export class ResolveService {
         const absolutePath = path.resolve(entryPoint);
         await access(absolutePath, constants.F_OK | constants.R_OK);
         const moduleRoot = path.dirname(absolutePath);
-        process.chdir(moduleRoot);
-        dotenv.config({ path: path.join(moduleRoot, '.env') });
-        await import(pathToFileURL(absolutePath).href);
-        await entrySubject.next(absolutePath);
+        {
+            process.chdir(moduleRoot);
+            dotenv.config({ path: path.join(moduleRoot, '.env') });
+            await import(pathToFileURL(absolutePath).href);
+            await entrySubject.next(absolutePath);
+        }
         _is_launched = true;
     }
 
