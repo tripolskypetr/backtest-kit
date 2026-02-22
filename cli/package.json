@@ -43,6 +43,8 @@
   "devDependencies": {
     "@backtest-kit/ui": "3.1.0",
     "@rollup/plugin-typescript": "11.1.6",
+    "@types/image-size": "0.7.0",
+    "@types/jsdom": "21.1.7",
     "@types/node": "22.9.0",
     "@types/stack-trace": "0.0.33",
     "backtest-kit": "3.1.0",
@@ -60,13 +62,20 @@
     "typescript": "^5.0.0"
   },
   "dependencies": {
-    "ccxt": "^4.5.39",
-    "di-kit": "^1.0.18",
-    "di-scoped": "^1.0.21",
-    "dotenv": "^17.3.1",
-    "functools-kit": "^1.0.95",
-    "get-moment-stamp": "^1.1.1",
-    "stack-trace": "^0.0.10"
+    "ccxt": "4.5.39",
+    "di-kit": "1.0.18",
+    "di-scoped": "1.0.21",
+    "dotenv": "17.3.1",
+    "functools-kit": "1.0.95",
+    "get-moment-stamp": "1.1.1",
+    "image-size": "1.1.1",
+    "jsdom": "26.1.0",
+    "markdownlint": "0.38.0",
+    "quickchart-js": "3.1.3",
+    "resize-image-buffer": "1.0.0",
+    "sanitize-html": "2.17.0",
+    "stack-trace": "0.0.10",
+    "telegraf": "4.15.3"
   },
   "publishConfig": {
     "access": "public"

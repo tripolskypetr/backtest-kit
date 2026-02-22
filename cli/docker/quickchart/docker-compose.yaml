@@ -1,0 +1,9 @@
+version: '3.8'
+
+services:
+  quickchart:
+    image: ianw/quickchart
+    container_name: quickchart
+    ports:
+      - "8080:3400"
+    restart: unless-stopped

@@ -1,3 +1,4 @@
+import "./config/polyfill";
 import "./config/setup";
 import "./lib";
 
