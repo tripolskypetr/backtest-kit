@@ -14,6 +14,8 @@ import TYPES from "./types";
 import QuickchartApiService from "../services/api/QuickchartApiService";
 import TelegramApiService from "../services/api/TelegramApiService";
 import TelegramWebService from "../services/web/TelegramWebService";
+import CacheLogicService from "../services/logic/CacheLogicService";
+import TelegramLogicService from "../services/logic/TelegramLogicService";
 
 {
     provide(TYPES.quickchartApiService, () => new QuickchartApiService());
@@ -30,6 +32,11 @@ import TelegramWebService from "../services/web/TelegramWebService";
     provide(TYPES.backtestMainService, () => new BacktestMainService());
     provide(TYPES.paperMainService, () => new PaperMainService());
     provide(TYPES.liveMainService, () => new LiveMainService());
+}
+
+{
+    provide(TYPES.cacheLogicService, () => new CacheLogicService());
+    provide(TYPES.telegramLogicService, () => new TelegramLogicService());
 }
 
 {

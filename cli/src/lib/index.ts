@@ -16,6 +16,7 @@ import CacheLogicService from "./services/logic/CacheLogicService";
 import TelegramApiService from "./services/api/TelegramApiService";
 import QuickchartApiService from "./services/api/QuickchartApiService";
 import TelegramWebService from "./services/web/TelegramWebService";
+import TelegramLogicService from "./services/logic/TelegramLogicService";
 
 const apiServices = {
   telegramApiService: inject<TelegramApiService>(TYPES.telegramApiService),
@@ -35,10 +36,14 @@ const mainServices = {
 }
 
 const logicServices = {
+  cacheLogicService: inject<CacheLogicService>(TYPES.cacheLogicService),
+  telegramLogicService: inject<TelegramLogicService>(TYPES.telegramLogicService),
+}
+
+const schemaServices = {
   exchangeSchemaService: inject<ExchangeSchemaService>(TYPES.exchangeSchemaService),
   symbolSchemaService: inject<SymbolSchemaService>(TYPES.symbolSchemaService),
   frameSchemaService: inject<FrameSchemaService>(TYPES.frameSchemaService),
-  cacheLogicService: inject<CacheLogicService>(TYPES.cacheLogicService),
 }
 
 const providerServices = {
@@ -55,6 +60,7 @@ export const cli = {
   ...baseServices,
   ...mainServices,
   ...logicServices,
+  ...schemaServices,
   ...providerServices,
   ...webServices,
 };

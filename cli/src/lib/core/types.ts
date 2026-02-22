@@ -16,10 +16,14 @@ const mainServices = {
 }
 
 const logicServices = {
+    cacheLogicService: Symbol('cacheLogicService'),
+    telegramLogicService: Symbol('telegramLogicService'),
+}
+
+const schemaServices = {
     exchangeSchemaService: Symbol('exchangeSchemaService'),
     symbolSchemaService: Symbol('symbolSchemaService'),
     frameSchemaService: Symbol('frameSchemaService'),
-    cacheLogicService: Symbol('cacheLogicService'),
 }
 
 const providerServices = {
@@ -36,6 +40,7 @@ export const TYPES = {
     ...baseServices,
     ...mainServices,
     ...logicServices,
+    ...schemaServices,
     ...providerServices,
     ...webServices,
 }

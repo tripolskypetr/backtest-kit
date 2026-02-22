@@ -3,6 +3,7 @@ import {
   listExchangeSchema,
   listFrameSchema,
   listStrategySchema,
+  overrideExchangeSchema,
 } from "backtest-kit";
 import { singleshot } from "functools-kit";
 import { getArgs } from "../../../helpers/getArgs";
@@ -15,6 +16,7 @@ import ResolveService from "../base/ResolveService";
 import FrontendProviderService from "../provider/FrontendProviderService";
 import TelegramProviderService from "../provider/TelegramProviderService";
 import CacheLogicService from "../logic/CacheLogicService";
+import notifyFinish from "../../../utils/notifyFinish";
 
 export class BacktestMainService {
   private loggerService = inject<LoggerService>(TYPES.loggerService);
@@ -92,11 +94,26 @@ export class BacktestMainService {
         symbol,
     });
 
+    if (values.verbose) {
+      overrideExchangeSchema({
+        exchangeName,
+        callbacks: {
+          onCandleData(symbol, interval, since) {
+            console.log(
+              `Received candle data for symbol: ${symbol}, interval: ${interval}, since: ${since.toUTCString()}`,
+            );
+          },
+        },
+      });
+    }
+
     Backtest.background(symbol, {
       strategyName,
       frameName,
       exchangeName,
     });
+
+    notifyFinish();
   });
 }
 

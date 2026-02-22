@@ -10,7 +10,7 @@ import {
 import { getErrorMessage, retry } from "functools-kit";
 import { getArgs } from "../../../helpers/getArgs";
 
-const DEFAULT_TIMEFRAME_LIST: CandleInterval[] = ["1m", "15m", "30m", "4h"];
+const DEFAULT_TIMEFRAME_LIST: CandleInterval[] = ["1m", "15m", "30m", "1h", "4h"];
 
 const GET_TIMEFRAME_LIST_FN = async () => {
   const { values } = getArgs();

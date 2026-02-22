@@ -1,4 +1,4 @@
-import { listExchangeSchema, listStrategySchema, Live } from "backtest-kit";
+import { listExchangeSchema, listStrategySchema, Live, overrideExchangeSchema } from "backtest-kit";
 import { singleshot } from "functools-kit";
 import { getArgs } from "../../../helpers/getArgs";
 import { inject } from "../../../lib/core/di";
@@ -8,6 +8,7 @@ import ExchangeSchemaService from "../schema/ExchangeSchemaService";
 import ResolveService from "../base/ResolveService";
 import FrontendProviderService from "../provider/FrontendProviderService";
 import TelegramProviderService from "../provider/TelegramProviderService";
+import notifyFinish from "../../../utils/notifyFinish";
 
 export class PaperMainService {
 
@@ -64,10 +65,25 @@ export class PaperMainService {
       throw new Error("Exchange name is required");
     }
 
+    if (values.verbose) {
+      overrideExchangeSchema({
+        exchangeName,
+        callbacks: {
+          onCandleData(symbol, interval, since) {
+            console.log(
+              `Received candle data for symbol: ${symbol}, interval: ${interval}, since: ${since.toUTCString()}`,
+            );
+          },
+        },
+      });
+    }
+
     Live.background(symbol, {
       strategyName,
       exchangeName,
     });
+
+    notifyFinish();
   });
 }
 
