@@ -16,6 +16,7 @@ import TelegramApiService from "../services/api/TelegramApiService";
 import TelegramWebService from "../services/web/TelegramWebService";
 import CacheLogicService from "../services/logic/CacheLogicService";
 import TelegramLogicService from "../services/logic/TelegramLogicService";
+import TelegramTemplateService from "../services/template/TelegramTemplateService";
 
 {
     provide(TYPES.quickchartApiService, () => new QuickchartApiService());
@@ -52,4 +53,8 @@ import TelegramLogicService from "../services/logic/TelegramLogicService";
 
 {
     provide(TYPES.telegramWebService, () => new TelegramWebService());
+}
+
+{
+    provide(TYPES.telegramTemplateService, () => new TelegramTemplateService());
 }

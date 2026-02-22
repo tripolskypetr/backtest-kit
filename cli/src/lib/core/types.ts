@@ -35,6 +35,10 @@ const webServices = {
     telegramWebService: Symbol('telegramWebService'),
 };
 
+const templateServices = {
+    telegramTemplateService: Symbol('telegramTemplateService'),
+};
+
 export const TYPES = {
     ...apiServices,
     ...baseServices,
@@ -43,6 +47,7 @@ export const TYPES = {
     ...schemaServices,
     ...providerServices,
     ...webServices,
+    ...templateServices,
 }
 
 export default TYPES;

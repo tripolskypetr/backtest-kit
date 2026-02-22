@@ -16,6 +16,8 @@ import {
   TrailingStopCommit,
   TrailingTakeCommit,
 } from "backtest-kit";
+import TelegramTemplateService from "../template/TelegramTemplateService";
+import TelegramWebService from "../web/TelegramWebService";
 
 const STOP_BOT_FN = singleshot(async () => {
   const { stopBot } = await getTelegram();
@@ -25,23 +27,120 @@ const STOP_BOT_FN = singleshot(async () => {
 export class TelegramLogicService {
   private readonly loggerService = inject<LoggerService>(TYPES.loggerService);
 
-  private notifyTrailingTake = async (event: TrailingTakeCommit) => {};
+  private readonly telegramTemplateService = inject<TelegramTemplateService>(
+    TYPES.telegramTemplateService,
+  );
+  private readonly telegramWebService = inject<TelegramWebService>(
+    TYPES.telegramWebService,
+  );
 
-  private notifyTrailingStop = async (event: TrailingStopCommit) => {};
+  private notifyTrailingTake = async (event: TrailingTakeCommit) => {
+    this.loggerService.log("telegramLogicService notifyTrailingTake", {
+      event,
+    });
+    const markdown =
+      await this.telegramTemplateService.getTrailingTakeMarkdown(event);
+    await this.telegramWebService.publishNotify({
+      symbol: event.symbol,
+      markdown,
+    });
+  };
 
-  private notifyBreakeven = async (event: BreakevenCommit) => {};
+  private notifyTrailingStop = async (event: TrailingStopCommit) => {
+    this.loggerService.log("telegramLogicService notifyTrailingStop", {
+      event,
+    });
+    const markdown =
+      await this.telegramTemplateService.getTrailingStopMarkdown(event);
+    await this.telegramWebService.publishNotify({
+      symbol: event.symbol,
+      markdown,
+    });
+  };
 
-  private notifyPartialProfit = async (event: PartialProfitCommit) => {};
+  private notifyBreakeven = async (event: BreakevenCommit) => {
+    this.loggerService.log("telegramLogicService notifyBreakeven", {
+      event,
+    });
+    const markdown =
+      await this.telegramTemplateService.getBreakevenMarkdown(event);
+    await this.telegramWebService.publishNotify({
+      symbol: event.symbol,
+      markdown,
+    });
+  };
 
-  private notifyPartialLoss = async (event: PartialLossCommit) => {};
+  private notifyPartialProfit = async (event: PartialProfitCommit) => {
+    this.loggerService.log("telegramLogicService notifyPartialProfit", {
+      event,
+    });
+    const markdown =
+      await this.telegramTemplateService.getPartialProfitMarkdown(event);
+    await this.telegramWebService.publishNotify({
+      symbol: event.symbol,
+      markdown,
+    });
+  };
 
-  private notifyScheduled = async (event: IStrategyTickResultScheduled) => {};
+  private notifyPartialLoss = async (event: PartialLossCommit) => {
+    this.loggerService.log("telegramLogicService notifyPartialLoss", {
+      event,
+    });
+    const markdown =
+      await this.telegramTemplateService.getPartialLossMarkdown(event);
+    await this.telegramWebService.publishNotify({
+      symbol: event.symbol,
+      markdown,
+    });
+  };
 
-  private notifyCancelled = async (event: IStrategyTickResultCancelled) => {};
+  private notifyScheduled = async (event: IStrategyTickResultScheduled) => {
+    this.loggerService.log("telegramLogicService notifyScheduled", {
+      event,
+    });
+    const markdown =
+      await this.telegramTemplateService.getScheduledMarkdown(event);
+    await this.telegramWebService.publishNotify({
+      symbol: event.symbol,
+      markdown,
+    });
+  };
 
-  private notifyOpened = async (event: IStrategyTickResultOpened) => {};
+  private notifyCancelled = async (event: IStrategyTickResultCancelled) => {
+    this.loggerService.log("telegramLogicService notifyCancelled", {
+      event,
+    });
+    const markdown =
+      await this.telegramTemplateService.getCancelledMarkdown(event);
+    await this.telegramWebService.publishNotify({
+      symbol: event.symbol,
+      markdown,
+    });
+  };
 
-  private notifyClosed = async (event: IStrategyTickResultClosed) => {};
+  private notifyOpened = async (event: IStrategyTickResultOpened) => {
+    this.loggerService.log("telegramLogicService notifyOpened", {
+      event,
+    });
+    const markdown =
+      await this.telegramTemplateService.getOpenedMarkdown(event);
+    await this.telegramWebService.publishNotify({
+      symbol: event.symbol,
+      markdown,
+    });
+  };
+
+  private notifyClosed = async (event: IStrategyTickResultClosed) => {
+    this.loggerService.log("telegramLogicService notifyClosed", {
+      event,
+    });
+    const markdown =
+      await this.telegramTemplateService.getClosedMarkdown(event);
+    await this.telegramWebService.publishNotify({
+      symbol: event.symbol,
+      markdown,
+    });
+  };
 
   public connect = singleshot(() => {
     this.loggerService.log("telegramLogicService connect");
