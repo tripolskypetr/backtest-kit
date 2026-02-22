@@ -9,10 +9,12 @@ import {
   IStrategyTickResultClosed,
   IStrategyTickResultOpened,
   IStrategyTickResultScheduled,
+  listenRisk,
   listenSignal,
   listenStrategyCommit,
   PartialLossCommit,
   PartialProfitCommit,
+  RiskContract,
   TrailingStopCommit,
   TrailingTakeCommit,
 } from "backtest-kit";
@@ -142,8 +144,23 @@ export class TelegramLogicService {
     });
   };
 
+  private notifyRisk = async (event: RiskContract) => {
+    this.loggerService.log("telegramLogicService notifyClosed", {
+      event,
+    });
+    const markdown = await this.telegramTemplateService.getRiskMarkdown(event);
+    await this.telegramWebService.publishNotify({
+      symbol: event.symbol,
+      markdown,
+    });
+  };
+
   public connect = singleshot(() => {
     this.loggerService.log("telegramLogicService connect");
+
+    const unRisk = listenRisk(async (event) => {
+      await this.notifyRisk(event);
+    });
 
     const unSignal = listenSignal(async (event) => {
       if (event.action === "scheduled") {
@@ -188,6 +205,7 @@ export class TelegramLogicService {
     });
 
     const unListen = compose(
+      () => unRisk(),
       () => unSignal(),
       () => unCommit(),
     );
