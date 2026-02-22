@@ -153,7 +153,26 @@ declare class TelegramTemplateService {
     getRiskMarkdown: (event: RiskContract) => Promise<string>;
 }
 
-declare class LiveConnectionService {
+interface ILiveModule {
+    onTrailingTake(event: TrailingTakeCommit): Promise<void> | void;
+    onTrailingStop(event: TrailingStopCommit): Promise<void> | void;
+    onBreakeven(event: BreakevenCommit): Promise<void> | void;
+    onPartialProfit(event: PartialProfitCommit): Promise<void> | void;
+    onPartialLoss(event: PartialLossCommit): Promise<void> | void;
+    onScheduled(event: IStrategyTickResultScheduled): Promise<void> | void;
+    onCancelled(event: IStrategyTickResultCancelled): Promise<void> | void;
+    onOpened(event: IStrategyTickResultOpened): Promise<void> | void;
+    onClosed(event: IStrategyTickResultClosed): Promise<void> | void;
+    onRisk(event: RiskContract): Promise<void> | void;
+}
+type LiveModule = Partial<ILiveModule>;
+type BaseModule = LiveModule;
+type TBaseModuleCtor = new () => BaseModule;
+
+declare class ModuleConnectionService {
+    readonly loggerService: LoggerService;
+    readonly resolveService: ResolveService;
+    getInstance: ((fileName: string) => Promise<BaseModule>) & functools_kit.IClearableMemoize<string> & functools_kit.IControlMemoize<string, Promise<Partial<ILiveModule>>>;
 }
 
 declare const cli: {
@@ -169,7 +188,7 @@ declare const cli: {
     backtestMainService: BacktestMainService;
     paperMainService: PaperMainService;
     liveMainService: LiveMainService;
-    liveConnectionService: LiveConnectionService;
+    moduleConnectionService: ModuleConnectionService;
     errorService: ErrorService;
     loggerService: LoggerService;
     resolveService: ResolveService;
@@ -187,4 +206,4 @@ declare enum FrameName {
 
 declare function setLogger(logger: ILogger): void;
 
-export { ExchangeName, FrameName, cli, setLogger };
+export { type BaseModule, ExchangeName, FrameName, type ILiveModule, type ILogger, type LiveModule, type TBaseModuleCtor, cli, setLogger };

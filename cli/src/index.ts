@@ -9,8 +9,11 @@ import "./main/live";
 import "./main/frontend";
 import "./main/telegram";
 
-export { ExchangeName } from "./enum/ExchangeName";
-export { FrameName } from "./enum/FrameName";
+export type { BaseModule, ILiveModule, LiveModule, TBaseModuleCtor } from "./interfaces/Module.interface";
+export type { ILogger } from "./interfaces/Logger.interface";
+
+export { type ExchangeName } from "./enum/ExchangeName";
+export { type FrameName } from "./enum/FrameName";
 
 export { setLogger } from "./functions/setup";
 

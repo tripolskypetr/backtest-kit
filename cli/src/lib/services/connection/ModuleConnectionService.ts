@@ -1,4 +1,3 @@
-import { IPublicAction } from "backtest-kit";
 import { memoize } from "functools-kit";
 import { createRequire } from "module";
 import { inject } from "../../../lib/core/di";
@@ -8,10 +7,12 @@ import ResolveService from "../base/ResolveService";
 import fs from "fs/promises";
 import { constants } from "fs";
 import path from "path";
+import {
+  BaseModule,
+  TBaseModuleCtor,
+} from "../../../interfaces/Module.interface";
 
 const require = createRequire(import.meta.url);
-
-type TPublicActionCtor = new () => IPublicAction;
 
 const getExtVariants = (fileName: string): string[] => {
   const ext = path.extname(fileName);
@@ -21,7 +22,7 @@ const getExtVariants = (fileName: string): string[] => {
 
 const REQUIRE_MODULE_FACTORY = (
   fileName: string,
-): TPublicActionCtor | IPublicAction | null => {
+): TBaseModuleCtor | BaseModule | null => {
   for (const variant of getExtVariants(fileName)) {
     try {
       return require(variant);
@@ -34,7 +35,7 @@ const REQUIRE_MODULE_FACTORY = (
 
 const IMPORT_MODULE_FACTORY = async (
   fileName: string,
-): Promise<TPublicActionCtor | IPublicAction | null> => {
+): Promise<TBaseModuleCtor | BaseModule | null> => {
   for (const variant of getExtVariants(fileName)) {
     try {
       return await import(variant);
@@ -48,17 +49,13 @@ const IMPORT_MODULE_FACTORY = async (
 const LOAD_MODULE_MODULE_FN = async (
   fileName: string,
   self: ModuleConnectionService,
-): Promise<IPublicAction> => {
-  let Ctor: TPublicActionCtor | IPublicAction | null = null;
+): Promise<BaseModule> => {
+  let Ctor: TBaseModuleCtor | BaseModule | null = null;
   const overridePath = path.join(
     self.resolveService.OVERRIDE_MODULES_DIR,
     fileName,
   );
-  const targetPath = path.join(
-    process.cwd(),
-    "modules",
-    fileName,
-  );
+  const targetPath = path.join(process.cwd(), "modules", fileName);
   const hasOverride = await fs
     .access(overridePath, constants.F_OK | constants.R_OK)
     .then(() => true)
@@ -74,13 +71,12 @@ const LOAD_MODULE_MODULE_FN = async (
 };
 
 export class ModuleConnectionService {
-
   readonly loggerService = inject<LoggerService>(TYPES.loggerService);
   readonly resolveService = inject<ResolveService>(TYPES.resolveService);
 
   public getInstance = memoize(
     ([fileName]) => `${fileName}`,
-    async (fileName: string): Promise<IPublicAction> => {
+    async (fileName: string): Promise<BaseModule> => {
       this.loggerService.log("moduleConnectionService getInstance", {
         fileName,
       });
