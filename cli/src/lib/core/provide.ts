@@ -11,6 +11,14 @@ import FrontendProviderService from "../services/provider/FrontendProviderServic
 import TelegramProviderService from "../services/provider/TelegramProviderService";
 import { provide } from "./di";
 import TYPES from "./types";
+import QuickchartApiService from "../services/api/QuickchartApiService";
+import TelegramApiService from "../services/api/TelegramApiService";
+import TelegramWebService from "../services/web/TelegramWebService";
+
+{
+    provide(TYPES.quickchartApiService, () => new QuickchartApiService());
+    provide(TYPES.telegramApiService, () => new TelegramApiService());
+}
 
 {
     provide(TYPES.errorService, () => new ErrorService());
@@ -33,4 +41,8 @@ import TYPES from "./types";
 {
     provide(TYPES.telegramProviderService, () => new TelegramProviderService());
     provide(TYPES.frontendProviderService, () => new FrontendProviderService());
+}
+
+{
+    provide(TYPES.telegramWebService, () => new TelegramWebService());
 }

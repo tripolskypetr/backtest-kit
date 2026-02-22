@@ -13,6 +13,14 @@ import SymbolSchemaService from "./services/schema/SymbolSchemaService";
 import FrontendProviderService from "./services/provider/FrontendProviderService";
 import TelegramProviderService from "./services/provider/TelegramProviderService";
 import CacheLogicService from "./services/logic/CacheLogicService";
+import TelegramApiService from "./services/api/TelegramApiService";
+import QuickchartApiService from "./services/api/QuickchartApiService";
+import TelegramWebService from "./services/web/TelegramWebService";
+
+const apiServices = {
+  telegramApiService: inject<TelegramApiService>(TYPES.telegramApiService),
+  quickchartApiService: inject<QuickchartApiService>(TYPES.quickchartApiService),
+};
 
 const baseServices = {
   errorService: inject<ErrorService>(TYPES.errorService),
@@ -38,11 +46,17 @@ const providerServices = {
   telegramProviderService: inject<TelegramProviderService>(TYPES.telegramProviderService),
 }
 
+const webServices = {
+  telegramWebService: inject<TelegramWebService>(TYPES.telegramWebService),
+}
+
 export const cli = {
+  ...apiServices,
   ...baseServices,
   ...mainServices,
   ...logicServices,
   ...providerServices,
+  ...webServices,
 };
 
 init();

@@ -1,3 +1,8 @@
+const apiServices = {
+    telegramApiService: Symbol('telegramApiService'),
+    quickchartApiService: Symbol('quickchartApiService'),
+};
+
 const baseServices = {
     errorService: Symbol('errorService'),
     loggerService: Symbol('loggerService'),
@@ -22,11 +27,17 @@ const providerServices = {
     telegramProviderService: Symbol('telegramProviderService'),
 }
 
+const webServices = {
+    telegramWebService: Symbol('telegramWebService'),
+};
+
 export const TYPES = {
+    ...apiServices,
     ...baseServices,
     ...mainServices,
     ...logicServices,
     ...providerServices,
+    ...webServices,
 }
 
 export default TYPES;
