@@ -15,7 +15,6 @@ type TPublicActionCtor = new () => IPublicAction;
 
 const REQUIRE_MODULE_FACTORY = (
   fileName: string,
-  self: ModuleConnectionService,
 ): TPublicActionCtor | IPublicAction | null => {
   try {
     return require(fileName);
@@ -26,7 +25,6 @@ const REQUIRE_MODULE_FACTORY = (
 
 const IMPORT_MODULE_FACTORY = async (
   fileName: string,
-  self: ModuleConnectionService,
 ): Promise<TPublicActionCtor | IPublicAction | null> => {
   try {
     return await import(fileName);
@@ -54,10 +52,10 @@ const LOAD_MODULE_MODULE_FN = async (
     .then(() => true)
     .catch(() => false);
   const resolvedFile = hasOverride ? overridePath : targetPath;
-  if ((Ctor = REQUIRE_MODULE_FACTORY(resolvedFile, self))) {
+  if ((Ctor = REQUIRE_MODULE_FACTORY(resolvedFile))) {
     return typeof Ctor === "function" ? new Ctor() : Ctor;
   }
-  if ((Ctor = await IMPORT_MODULE_FACTORY(resolvedFile, self))) {
+  if ((Ctor = await IMPORT_MODULE_FACTORY(resolvedFile))) {
     return typeof Ctor === "function" ? new Ctor() : Ctor;
   }
   throw new Error(`Module module import failed for file: ${resolvedFile}`);
