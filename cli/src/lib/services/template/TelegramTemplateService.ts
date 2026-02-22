@@ -17,6 +17,7 @@ import {
 import ResolveService from "../base/ResolveService";
 import { memoize } from "functools-kit";
 import fs from "fs/promises";
+import { constants } from "fs";
 import path from "path";
 
 type Data =
@@ -34,11 +35,22 @@ type Data =
 const READ_TEMPLATE_FN = memoize(
   ([fileName]) => `${fileName}`,
   async (fileName: string, self: TelegramTemplateService) => {
-    const templatePath = path.join(
+    const overridePath = path.join(
+      self.resolveService.OVERRIDE_TEMPLATE_DIR,
+      fileName,
+    );
+    const hasOverride = await fs
+      .access(overridePath, constants.F_OK | constants.R_OK)
+      .then(() => true)
+      .catch(() => false);
+    if (hasOverride) {
+      return await fs.readFile(overridePath, "utf-8");
+    }
+    const defaultPath = path.join(
       self.resolveService.DEFAULT_TEMPLATE_DIR,
       fileName,
     );
-    return await fs.readFile(templatePath, "utf-8");
+    return await fs.readFile(defaultPath, "utf-8");
   },
 );
 
