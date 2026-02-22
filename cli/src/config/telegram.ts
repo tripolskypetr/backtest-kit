@@ -4,8 +4,13 @@ import { getEnv } from "../helpers/getEnv";
 
 const HEALTH_CHECK_DELAY = 60_000;
 
+let _is_stopped = false;
+
 const handleHealthCheck = singleshot(async (bot: Telegraf) => {
   const fn = async () => {
+    if (_is_stopped) {
+        return;
+    }
     try {
       await bot.telegram.getMe();
       setTimeout(fn, HEALTH_CHECK_DELAY);
@@ -73,5 +78,10 @@ export const getTelegram = singleshot(async () => {
     return message_id;
   };
 
-  return { bot, sendMessage, removeMessage, sendDocument };
+  const stopBot = () => {
+    bot.stop();
+    _is_stopped = true;
+  }
+
+  return { bot, sendMessage, removeMessage, sendDocument, stopBot };
 });
