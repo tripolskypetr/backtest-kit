@@ -441,6 +441,30 @@ Unlike cloud-based platforms, backtest-kit runs entirely in your environment. Yo
 
 The `backtest-kit` ecosystem extends beyond the core library, offering complementary packages and tools to enhance your trading system development experience:
 
+
+### @backtest-kit/cli
+
+> **[Explore on NPM](https://www.npmjs.com/package/@backtest-kit/cli)** 📟
+
+The **@backtest-kit/cli** package is a zero-boilerplate CLI runner for backtest-kit strategies. Point it at your strategy file and run backtests, paper trading, or live bots — no infrastructure code required.
+
+#### Key Features
+- 🚀 **Zero Config**: Run a backtest with one command — no setup code needed
+- 🔄 **Three Modes**: `--backtest`, `--paper`, `--live` with graceful SIGINT shutdown
+- 💾 **Auto Cache**: Warms OHLCV candle cache for all intervals before the backtest starts
+- 🌐 **Web Dashboard**: Launch `@backtest-kit/ui` with a single `--ui` flag
+- 📬 **Telegram Alerts**: Formatted trade notifications with price charts via `--telegram`
+- 🗂️ **Monorepo Ready**: Each strategy's `dump/`, `modules/`, and `template/` are automatically isolated by entry point directory
+
+#### Use Case
+The fastest way to run any backtest-kit strategy from the command line. Instead of writing boilerplate for storage, notifications, candle caching, and signal logging, add one dependency and wire up your `package.json` scripts. Works equally well for a single-strategy project or a monorepo with dozens of strategies in separate subdirectories.
+
+#### Get Started
+```bash
+npx -y @backtest-kit/cli --init
+```
+
+
 ### @backtest-kit/pinets
 
 > **[Explore on NPM](https://www.npmjs.com/package/@backtest-kit/pinets)** 📜
@@ -531,30 +555,6 @@ npm install @backtest-kit/signals backtest-kit
 ```
 
 
-### @backtest-kit/sidekick
-
-> **[Explore on NPM](https://www.npmjs.com/package/@backtest-kit/sidekick)** 🧿
-
-The **@backtest-kit/sidekick** package is the easiest way to create a new Backtest Kit trading bot project. Like create-react-app, but for algorithmic trading.
-
-#### Key Features
-- 🚀 **Zero Config**: Get started with one command - no setup required
-- 📦 **Complete Template**: Includes backtest strategy, risk management, and LLM integration
-- 🤖 **AI-Powered**: Pre-configured with DeepSeek, Claude, and GPT-5 fallback chain
-- 📊 **Technical Analysis**: Built-in 50+ indicators via @backtest-kit/signals
-- 🔑 **Environment Setup**: Auto-generated .env with all API key placeholders
-- 📝 **Best Practices**: Production-ready code structure with examples
-
-#### Use Case
-The fastest way to bootstrap a new trading bot project. Instead of manually setting up dependencies, configurations, and boilerplate code, simply run one command and get a working project with LLM-powered strategy, multi-timeframe technical analysis, and risk management validation.
-
-#### Get Started
-```bash
-npx -y @backtest-kit/sidekick my-trading-bot
-cd my-trading-bot
-npm start
-```
-
 
 ### @backtest-kit/graph
 
@@ -576,6 +576,32 @@ Perfect for multi-timeframe strategies where multiple Pine Script or indicator c
 ```bash
 npm install @backtest-kit/graph backtest-kit
 ```
+
+
+### @backtest-kit/sidekick
+
+> **[Explore on NPM](https://www.npmjs.com/package/@backtest-kit/sidekick)** 🚀
+
+The **@backtest-kit/sidekick** package is the easiest way to create a new Backtest Kit trading bot project. Like create-react-app, but for algorithmic trading.
+
+#### Key Features
+- 🚀 **Zero Config**: Get started with one command - no setup required
+- 📦 **Complete Template**: Includes backtest strategy, risk management, and LLM integration
+- 🤖 **AI-Powered**: Pre-configured with DeepSeek, Claude, and GPT-5 fallback chain
+- 📊 **Technical Analysis**: Built-in 50+ indicators via @backtest-kit/signals
+- 🔑 **Environment Setup**: Auto-generated .env with all API key placeholders
+- 📝 **Best Practices**: Production-ready code structure with examples
+
+#### Use Case
+The fastest way to bootstrap a new trading bot project. Instead of manually setting up dependencies, configurations, and boilerplate code, simply run one command and get a working project with LLM-powered strategy, multi-timeframe technical analysis, and risk management validation.
+
+#### Get Started
+```bash
+npx -y @backtest-kit/sidekick my-trading-bot
+cd my-trading-bot
+npm start
+```
+
 
 ## 🤖 Are you a robot?
 

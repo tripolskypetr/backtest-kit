@@ -205,6 +205,74 @@ Deploys a real trading bot. Requires exchange API keys configured in your `.env`
 npm start
 ```
 
+## 🗂️ Monorepo Usage
+
+`@backtest-kit/cli` works out of the box in a monorepo where each strategy lives in its own subdirectory. When the CLI loads your entry point file, it automatically changes the working directory to the file's location — so all relative paths (`dump/`, `modules/`, `template/`) resolve inside that strategy's folder, not the project root.
+
+### How It Works
+
+Internally, `ResolveService` does the following before executing your entry point:
+
+```
+process.chdir(path.dirname(entryPoint))  // cwd → strategy directory
+dotenv.config({ path: rootDir + '/.env' })            // load root .env first
+dotenv.config({ path: strategyDir + '/.env', override: true })  // strategy .env overrides
+```
+
+Everything that follows — candle cache warming, report generation, module loading, template resolution — uses the new cwd automatically.
+
+### Project Structure
+
+```
+monorepo/
+├── package.json              # root scripts (one per strategy)
+├── .env                      # shared API keys (exchange, Telegram, etc.)
+└── strategies/
+    ├── oct_2025/
+    │   ├── index.mjs         # entry point — registers exchange/frame/strategy schemas
+    │   ├── .env              # overrides root .env for this strategy (optional)
+    │   ├── modules/          # live.module.mjs specific to this strategy
+    │   ├── template/         # custom Mustache templates (optional)
+    │   └── dump/             # auto-created: candle cache + backtest reports
+    └── dec_2025/
+        ├── index.mjs
+        ├── .env
+        └── dump/
+```
+
+### Root `package.json`
+
+```json
+{
+  "scripts": {
+    "backtest:oct": "@backtest-kit/cli --backtest ./strategies/oct_2025/index.mjs",
+    "backtest:dec": "@backtest-kit/cli --backtest ./strategies/dec_2025/index.mjs"
+  },
+  "dependencies": {
+    "@backtest-kit/cli": "latest",
+    "backtest-kit": "latest",
+    "ccxt": "latest"
+  }
+}
+```
+
+```bash
+npm run backtest:oct
+npm run backtest:dec
+```
+
+### Isolated Resources Per Strategy
+
+| Resource | Path (relative to strategy dir) | Isolated |
+|----------|----------------------------------|---------|
+| Candle cache | `./dump/data/candle/` | ✅ per-strategy |
+| Backtest reports | `./dump/` | ✅ per-strategy |
+| Live module | `./modules/live.module.mjs` | ✅ per-strategy |
+| Telegram templates | `./template/*.mustache` | ✅ per-strategy |
+| Environment variables | `./.env` (overrides root) | ✅ per-strategy |
+
+Each strategy run produces its own `dump/` directory, making it straightforward to compare results across time periods — both by inspection and by pointing an AI agent at a specific strategy folder.
+
 ## 🔔 Integrations
 
 ### Web Dashboard (`--ui`)
@@ -324,68 +392,6 @@ When your strategy module does not register an exchange, frame, or strategy name
 | **Cache intervals** | `1m, 15m, 30m, 4h` | Shown if `--cache` not provided |
 
 > **Note:** The default exchange schema **does not support order book fetching in backtest mode**. If your strategy calls `getOrderBook()` during backtest, you must register a custom exchange schema with your own snapshot storage.
-
-## 🔧 Programmatic API
-
-The CLI package also exports its internal service container for advanced use cases:
-
-### setLogger
-
-Override the built-in no-op logger from inside your strategy module:
-
-```typescript
-import { setLogger } from '@backtest-kit/cli';
-
-setLogger({
-  log: console.log,
-  debug: console.debug,
-  info: console.info,
-  warn: console.warn,
-});
-```
-
-### cli object
-
-Access all internal services:
-
-```typescript
-import { cli } from '@backtest-kit/cli';
-
-// Access specific services
-cli.backtestMainService
-cli.paperMainService
-cli.liveMainService
-cli.frontendProviderService
-cli.telegramProviderService
-cli.liveProviderService
-cli.cacheLogicService
-cli.telegramLogicService
-cli.exchangeSchemaService
-cli.frameSchemaService
-cli.symbolSchemaService
-cli.moduleConnectionService
-cli.telegramApiService
-cli.quickchartApiService
-cli.telegramWebService
-cli.telegramTemplateService
-cli.loggerService
-cli.errorService
-cli.resolveService
-```
-
-### TypeScript Types
-
-```typescript
-import type {
-  ILiveModule,     // Full interface with all 10 event handlers
-  LiveModule,      // Partial<ILiveModule> — implement only what you need
-  BaseModule,      // Alias for LiveModule
-  TBaseModuleCtor, // Constructor type: new () => BaseModule
-  ILogger,         // { log, debug, info, warn }
-  ExchangeName,    // Enum: ExchangeName.DefaultExchange
-  FrameName,       // Enum: FrameName.DefaultFrame
-} from '@backtest-kit/cli';
-```
 
 ## 💡 Why Use @backtest-kit/cli?
 
