@@ -9,6 +9,10 @@ const baseServices = {
     resolveService: Symbol('resolveService'),
 };
 
+const connectionServices = {
+    moduleConnectionService: Symbol('moduleConnectionService'),
+}
+
 const mainServices = {
     backtestMainService: Symbol('backtestMainService'),
     paperMainService: Symbol('paperMainService'),
@@ -42,6 +46,7 @@ const templateServices = {
 export const TYPES = {
     ...apiServices,
     ...baseServices,
+    ...connectionServices,
     ...mainServices,
     ...logicServices,
     ...schemaServices,

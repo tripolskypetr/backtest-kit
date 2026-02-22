@@ -18,6 +18,7 @@ import QuickchartApiService from "./services/api/QuickchartApiService";
 import TelegramWebService from "./services/web/TelegramWebService";
 import TelegramLogicService from "./services/logic/TelegramLogicService";
 import TelegramTemplateService from "./services/template/TelegramTemplateService";
+import ModuleConnectionService from "./services/connection/ModuleConnectionService";
 
 const apiServices = {
   telegramApiService: inject<TelegramApiService>(TYPES.telegramApiService),
@@ -28,6 +29,10 @@ const baseServices = {
   errorService: inject<ErrorService>(TYPES.errorService),
   loggerService: inject<LoggerService>(TYPES.loggerService),
   resolveService: inject<ResolveService>(TYPES.resolveService),
+};
+
+const connectionServices = {
+  moduleConnectionService: inject<ModuleConnectionService>(TYPES.moduleConnectionService),
 };
 
 const mainServices = {
@@ -63,6 +68,7 @@ const templateServices = {
 export const cli = {
   ...apiServices,
   ...baseServices,
+  ...connectionServices,
   ...mainServices,
   ...logicServices,
   ...schemaServices,
