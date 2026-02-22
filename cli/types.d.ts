@@ -175,11 +175,30 @@ declare class ModuleConnectionService {
     getInstance: ((fileName: string) => Promise<BaseModule>) & functools_kit.IClearableMemoize<string> & functools_kit.IControlMemoize<string, Promise<Partial<ILiveModule>>>;
 }
 
+declare class LiveProviderService {
+    readonly loggerService: LoggerService;
+    readonly moduleConnectionService: ModuleConnectionService;
+    private handleTrailingTake;
+    private handleTrailingStop;
+    private handleBreakeven;
+    private handlePartialProfit;
+    private handlePartialLoss;
+    private handleScheduled;
+    private handleCancelled;
+    private handleOpened;
+    private handleClosed;
+    private handleRisk;
+    enable: (() => (...args: any[]) => any) & functools_kit.ISingleshotClearable;
+    disable: () => void;
+    init: (() => Promise<void>) & functools_kit.ISingleshotClearable;
+}
+
 declare const cli: {
     telegramTemplateService: TelegramTemplateService;
     telegramWebService: TelegramWebService;
     frontendProviderService: FrontendProviderService;
     telegramProviderService: TelegramProviderService;
+    liveProviderService: LiveProviderService;
     exchangeSchemaService: ExchangeSchemaService;
     symbolSchemaService: SymbolSchemaService;
     frameSchemaService: FrameSchemaService;

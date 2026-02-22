@@ -2,7 +2,7 @@ import { inject } from "../../../lib/core/di";
 import LoggerService from "../base/LoggerService";
 import TYPES from "../../../lib/core/types";
 import { compose, singleshot } from "functools-kit";
-import { getTelegram } from "src/config/telegram";
+import { getTelegram } from "../../../config/telegram";
 import {
   BreakevenCommit,
   IStrategyTickResultCancelled,

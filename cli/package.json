@@ -1,6 +1,6 @@
 {
   "name": "@backtest-kit/cli",
-  "version": "3.1.0",
+  "version": "0.0.1",
   "description": "The CLI for launching backtests without a boilerplate",
   "author": {
     "name": "Petr Tripolsky",

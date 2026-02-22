@@ -14,20 +14,22 @@ import {
   TrailingStopCommit,
   TrailingTakeCommit,
 } from "backtest-kit";
-import { inject } from "../../../lib/core/di";
+import { inject } from "../../core/di";
 import LoggerService from "../base/LoggerService";
-import TYPES from "../../../lib/core/types";
+import TYPES from "../../core/types";
 import ModuleConnectionService from "../connection/ModuleConnectionService";
-import { LiveModule } from "src/interfaces/Module.interface";
+import { LiveModule } from "../../../interfaces/Module.interface";
+import { getArgs } from "../../../helpers/getArgs";
+import { entrySubject } from "../../../config/emitters";
 
-const LOAD_INSTANCE_FN = singleshot(async (self: LiveLogicService) => {
-    const module = <LiveModule>(
-      await self.moduleConnectionService.getInstance("./live.module")
-    );
-    return module;
+const LOAD_INSTANCE_FN = singleshot(async (self: LiveProviderService) => {
+  const module = <LiveModule>(
+    await self.moduleConnectionService.getInstance("./live.module")
+  );
+  return module;
 });
 
-export class LiveLogicService {
+export class LiveProviderService {
   readonly loggerService = inject<LoggerService>(TYPES.loggerService);
 
   readonly moduleConnectionService = inject<ModuleConnectionService>(
@@ -35,107 +37,107 @@ export class LiveLogicService {
   );
 
   private handleTrailingTake = async (event: TrailingTakeCommit) => {
-    this.loggerService.log("liveLogicService handleTrailingTake", {
+    this.loggerService.log("liveProviderService handleTrailingTake", {
       event,
     });
     const instance = await LOAD_INSTANCE_FN(this);
     if (instance.onTrailingTake) {
-        await instance.onTrailingTake(event);
+      await instance.onTrailingTake(event);
     }
   };
 
   private handleTrailingStop = async (event: TrailingStopCommit) => {
-    this.loggerService.log("liveLogicService handleTrailingStop", {
+    this.loggerService.log("liveProviderService handleTrailingStop", {
       event,
     });
     const instance = await LOAD_INSTANCE_FN(this);
     if (instance.onTrailingStop) {
-        await instance.onTrailingStop(event);
+      await instance.onTrailingStop(event);
     }
   };
 
   private handleBreakeven = async (event: BreakevenCommit) => {
-    this.loggerService.log("liveLogicService handleBreakeven", {
+    this.loggerService.log("liveProviderService handleBreakeven", {
       event,
     });
     const instance = await LOAD_INSTANCE_FN(this);
     if (instance.onBreakeven) {
-        await instance.onBreakeven(event);
+      await instance.onBreakeven(event);
     }
   };
 
   private handlePartialProfit = async (event: PartialProfitCommit) => {
-    this.loggerService.log("liveLogicService handlePartialProfit", {
+    this.loggerService.log("liveProviderService handlePartialProfit", {
       event,
     });
     const instance = await LOAD_INSTANCE_FN(this);
     if (instance.onPartialProfit) {
-        await instance.onPartialProfit(event);
+      await instance.onPartialProfit(event);
     }
   };
 
   private handlePartialLoss = async (event: PartialLossCommit) => {
-    this.loggerService.log("liveLogicService handlePartialLoss", {
+    this.loggerService.log("liveProviderService handlePartialLoss", {
       event,
     });
     const instance = await LOAD_INSTANCE_FN(this);
     if (instance.onPartialLoss) {
-        await instance.onPartialLoss(event);
+      await instance.onPartialLoss(event);
     }
   };
 
   private handleScheduled = async (event: IStrategyTickResultScheduled) => {
-    this.loggerService.log("liveLogicService handleScheduled", {
+    this.loggerService.log("liveProviderService handleScheduled", {
       event,
     });
     const instance = await LOAD_INSTANCE_FN(this);
     if (instance.onScheduled) {
-        await instance.onScheduled(event);
+      await instance.onScheduled(event);
     }
   };
 
   private handleCancelled = async (event: IStrategyTickResultCancelled) => {
-    this.loggerService.log("liveLogicService handleCancelled", {
+    this.loggerService.log("liveProviderService handleCancelled", {
       event,
     });
     const instance = await LOAD_INSTANCE_FN(this);
     if (instance.onCancelled) {
-        await instance.onCancelled(event);
+      await instance.onCancelled(event);
     }
   };
 
   private handleOpened = async (event: IStrategyTickResultOpened) => {
-    this.loggerService.log("liveLogicService handleOpened", {
+    this.loggerService.log("liveProviderService handleOpened", {
       event,
     });
     const instance = await LOAD_INSTANCE_FN(this);
     if (instance.onOpened) {
-        await instance.onOpened(event);
+      await instance.onOpened(event);
     }
   };
 
   private handleClosed = async (event: IStrategyTickResultClosed) => {
-    this.loggerService.log("liveLogicService handleClosed", {
+    this.loggerService.log("liveProviderService handleClosed", {
       event,
     });
     const instance = await LOAD_INSTANCE_FN(this);
     if (instance.onClosed) {
-        await instance.onClosed(event);
+      await instance.onClosed(event);
     }
   };
 
   private handleRisk = async (event: RiskContract) => {
-    this.loggerService.log("liveLogicService handleClosed", {
+    this.loggerService.log("liveProviderService handleClosed", {
       event,
     });
     const instance = await LOAD_INSTANCE_FN(this);
     if (instance.onRisk) {
-        await instance.onRisk(event);
+      await instance.onRisk(event);
     }
   };
 
-  public connect = singleshot(() => {
-    this.loggerService.log("liveLogicService connect");
+  public enable = singleshot(() => {
+    this.loggerService.log("liveProviderService enable");
 
     const unRisk = listenRisk(async (event) => {
       await this.handleRisk(event);
@@ -189,6 +191,22 @@ export class LiveLogicService {
       () => unCommit(),
     );
   });
+
+  public disable = () => {
+    this.loggerService.log("liveProviderService disable");
+    if (this.enable.hasValue()) {
+      const lastSubscription = this.enable();
+      lastSubscription();
+    }
+  };
+
+  public init = singleshot(async () => {
+    this.loggerService.log("liveProviderService init");
+    if (!getArgs().values.live) {
+      return;
+    }
+    entrySubject.subscribe(this.enable);
+  });
 }
 
-export default LiveLogicService;
+export default LiveProviderService;

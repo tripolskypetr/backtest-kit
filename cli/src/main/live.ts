@@ -1,9 +1,8 @@
-import {
-  Live,
-} from "backtest-kit";
+import { listenDoneLive, Live } from "backtest-kit";
 import { getArgs } from "../helpers/getArgs";
 import { singleshot } from "functools-kit";
 import notifyShutdown from "../utils/notifyShutdown";
+import cli from "../lib";
 
 const BEFORE_EXIT_FN = singleshot(async () => {
   process.off("SIGINT", BEFORE_EXIT_FN);
@@ -26,6 +25,8 @@ const BEFORE_EXIT_FN = singleshot(async () => {
     exchangeName,
     strategyName,
   });
+
+  listenDoneLive(cli.liveProviderService.disable);
 });
 
 export const main = async () => {
