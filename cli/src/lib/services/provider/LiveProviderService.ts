@@ -1,4 +1,4 @@
-import { compose, singleshot } from "functools-kit";
+import { compose, singleshot, trycatch } from "functools-kit";
 import {
   BreakevenCommit,
   IStrategyTickResultCancelled,
@@ -22,12 +22,17 @@ import { LiveModule } from "../../../interfaces/Module.interface";
 import { getArgs } from "../../../helpers/getArgs";
 import { entrySubject } from "../../../config/emitters";
 
-const LOAD_INSTANCE_FN = singleshot(async (self: LiveProviderService) => {
-  const module = <LiveModule>(
-    await self.moduleConnectionService.getInstance("./live.module")
-  );
-  return module;
-});
+const LOAD_INSTANCE_FN = singleshot(
+  trycatch(
+    async (self: LiveProviderService) => {
+      const module = <LiveModule>(
+        await self.moduleConnectionService.getInstance("./live.module")
+      );
+      return module;
+    },
+    { defaultValue: null },
+  ),
+);
 
 export class LiveProviderService {
   readonly loggerService = inject<LoggerService>(TYPES.loggerService);
@@ -41,7 +46,7 @@ export class LiveProviderService {
       event,
     });
     const instance = await LOAD_INSTANCE_FN(this);
-    if (instance.onTrailingTake) {
+    if (instance?.onTrailingTake) {
       await instance.onTrailingTake(event);
     }
   };
@@ -51,7 +56,7 @@ export class LiveProviderService {
       event,
     });
     const instance = await LOAD_INSTANCE_FN(this);
-    if (instance.onTrailingStop) {
+    if (instance?.onTrailingStop) {
       await instance.onTrailingStop(event);
     }
   };
@@ -61,7 +66,7 @@ export class LiveProviderService {
       event,
     });
     const instance = await LOAD_INSTANCE_FN(this);
-    if (instance.onBreakeven) {
+    if (instance?.onBreakeven) {
       await instance.onBreakeven(event);
     }
   };
@@ -71,7 +76,7 @@ export class LiveProviderService {
       event,
     });
     const instance = await LOAD_INSTANCE_FN(this);
-    if (instance.onPartialProfit) {
+    if (instance?.onPartialProfit) {
       await instance.onPartialProfit(event);
     }
   };
@@ -81,7 +86,7 @@ export class LiveProviderService {
       event,
     });
     const instance = await LOAD_INSTANCE_FN(this);
-    if (instance.onPartialLoss) {
+    if (instance?.onPartialLoss) {
       await instance.onPartialLoss(event);
     }
   };
@@ -91,7 +96,7 @@ export class LiveProviderService {
       event,
     });
     const instance = await LOAD_INSTANCE_FN(this);
-    if (instance.onScheduled) {
+    if (instance?.onScheduled) {
       await instance.onScheduled(event);
     }
   };
@@ -101,7 +106,7 @@ export class LiveProviderService {
       event,
     });
     const instance = await LOAD_INSTANCE_FN(this);
-    if (instance.onCancelled) {
+    if (instance?.onCancelled) {
       await instance.onCancelled(event);
     }
   };
@@ -111,7 +116,7 @@ export class LiveProviderService {
       event,
     });
     const instance = await LOAD_INSTANCE_FN(this);
-    if (instance.onOpened) {
+    if (instance?.onOpened) {
       await instance.onOpened(event);
     }
   };
@@ -121,7 +126,7 @@ export class LiveProviderService {
       event,
     });
     const instance = await LOAD_INSTANCE_FN(this);
-    if (instance.onClosed) {
+    if (instance?.onClosed) {
       await instance.onClosed(event);
     }
   };
@@ -131,7 +136,7 @@ export class LiveProviderService {
       event,
     });
     const instance = await LOAD_INSTANCE_FN(this);
-    if (instance.onRisk) {
+    if (instance?.onRisk) {
       await instance.onRisk(event);
     }
   };
@@ -139,11 +144,18 @@ export class LiveProviderService {
   public enable = singleshot(() => {
     this.loggerService.log("liveProviderService enable");
 
-    LOAD_INSTANCE_FN(this)
-      .catch(() => {
-        console.log("No ./modules/live.module.mjs found, live trading failed to initialize");
-        process.exit(-1);
-      })
+    LOAD_INSTANCE_FN(this).then((module) => {
+      if (module) {
+        this.loggerService.log(
+          "Live trading initialized successfully with ./modules/live.module.mjs",
+        );
+        return;
+      }
+      console.log(
+        "No ./modules/live.module.mjs found, live trading failed to initialize",
+      );
+      process.exit(-1);
+    });
 
     const unRisk = listenRisk(async (event) => {
       await this.handleRisk(event);
