@@ -27,6 +27,7 @@ declare function getDefaultConfig(): Readonly<{
     CC_ORDER_BOOK_MAX_DEPTH_LEVELS: number;
     CC_MAX_NOTIFICATIONS: number;
     CC_MAX_SIGNALS: number;
+    CC_ENABLE_CANDLE_FETCH_MUTEX: boolean;
 }>;
 ```
 

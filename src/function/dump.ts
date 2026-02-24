@@ -9,7 +9,7 @@ const WARN_KB = 30;
 
 const DUMP_MESSAGES_METHOD_NAME = "dump.dumpMessages";
 
-/** Role of the message sender in the chat history. */
+/** Role of the message sender in LLM chat history. */
 type BaseRole = "assistant" | "system" | "user";
 
 /**

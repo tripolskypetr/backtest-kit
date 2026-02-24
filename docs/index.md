@@ -212,6 +212,7 @@ group: docs
 - [getOrderBook](functions/getOrderBook.md)
 - [getRawCandles](functions/getRawCandles.md)
 - [getNextCandles](functions/getNextCandles.md)
+- [dumpMessages](functions/dumpMessages.md)
 
 ## Interfaces
 
@@ -323,6 +324,7 @@ group: docs
 - [ProgressWalkerContract](interfaces/ProgressWalkerContract.md)
 - [PerformanceContract](interfaces/PerformanceContract.md)
 - [WalkerContract](interfaces/WalkerContract.md)
+- [Message](interfaces/Message.md)
 - [IHeatmapRow](interfaces/IHeatmapRow.md)
 - [ColumnModel](interfaces/ColumnModel.md)
 - [SignalOpenedNotification](interfaces/SignalOpenedNotification.md)
@@ -410,6 +412,8 @@ group: docs
 - [TRiskSchema](types/TRiskSchema.md)
 - [TActionSchema](types/TActionSchema.md)
 - [PerformanceMetricType](types/PerformanceMetricType.md)
+- [ResultId](types/ResultId.md)
+- [BaseRole](types/BaseRole.md)
 - [NotificationModel](types/NotificationModel.md)
 - [StrategyActionType](types/StrategyActionType.md)
 - [SignalData](types/SignalData.md)
