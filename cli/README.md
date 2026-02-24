@@ -137,11 +137,12 @@ npm start -- --symbol BTCUSDT --ui
 | `--ui`                    | boolean | Start web UI dashboard (default: `false`)                          |
 | `--telegram`              | boolean | Enable Telegram notifications (default: `false`)                   |
 | `--verbose`               | boolean | Log each candle fetch (default: `false`)                           |
+| `--noCache`               | boolean | Skip candle cache warming before backtest (default: `false`)       |
 | `--symbol`                | string  | Trading pair (default: `"BTCUSDT"`)                                |
 | `--strategy`              | string  | Strategy name (default: first registered)                          |
 | `--exchange`              | string  | Exchange name (default: first registered)                          |
 | `--frame`                 | string  | Backtest frame name (default: first registered)                    |
-| `--cache`                 | string  | Intervals to pre-cache before backtest (default: `"1m, 15m, 30m, 4h"`) |
+| `--cacheInterval`         | string  | Intervals to pre-cache before backtest (default: `"1m, 15m, 30m, 4h"`) |
 
 **Positional argument (required):** path to your strategy entry point file (set once in `package.json` scripts).
 
@@ -162,7 +163,7 @@ Runs the strategy against historical candle data using a registered `FrameSchema
 ```json
 {
   "scripts": {
-    "backtest": "@backtest-kit/cli --backtest --symbol ETHUSDT --strategy my-strategy --exchange binance --frame feb-2024 --cache \"1m, 15m, 1h, 4h\" ./src/index.mjs"
+    "backtest": "@backtest-kit/cli --backtest --symbol ETHUSDT --strategy my-strategy --exchange binance --frame feb-2024 --cacheInterval \"1m, 15m, 1h, 4h\" ./src/index.mjs"
   }
 }
 ```
@@ -171,7 +172,7 @@ Runs the strategy against historical candle data using a registered `FrameSchema
 npm run backtest
 ```
 
-Before running, the CLI warms the candle cache for every interval in `--cache`. On the next run, cached data is used directly — no API calls needed.
+Before running, the CLI warms the candle cache for every interval in `--cacheInterval`. On the next run, cached data is used directly — no API calls needed. Pass `--noCache` to skip this step entirely.
 
 ### Paper Trading
 
@@ -389,7 +390,7 @@ When your strategy module does not register an exchange, frame, or strategy name
 | **Exchange** | CCXT Binance (`default_exchange`) | `Warning: The default exchange schema is set to CCXT Binance...`       |
 | **Frame**    | February 2024 (`default_frame`)   | `Warning: The default frame schema is set to February 2024...`         |
 | **Symbol**   | `BTCUSDT`                         | —                                                                      |
-| **Cache intervals** | `1m, 15m, 30m, 4h`         | Shown if `--cache` not provided                                        |
+| **Cache intervals** | `1m, 15m, 30m, 4h`         | Used if `--cacheInterval` not provided; skip entirely with `--noCache` |
 
 > **Note:** The default exchange schema **does not support order book fetching in backtest mode**. If your strategy calls `getOrderBook()` during backtest, you must register a custom exchange schema with your own snapshot storage.
 
@@ -424,7 +425,8 @@ await run(mode, args);
 | `strategy` | `string` | Strategy name (default: first registered) |
 | `exchange` | `string` | Exchange name (default: first registered) |
 | `frame` | `string` | Frame name (default: first registered) |
-| `cacheList` | `CandleInterval[]` | Intervals to pre-cache (default: `["1m","15m","30m","1h","4h"]`) |
+| `cacheInterval` | `CandleInterval[]` | Intervals to pre-cache (default: `["1m","15m","30m","1h","4h"]`) |
+| `noCache` | `boolean` | Skip candle cache warming (default: `false`) |
 | `verbose` | `boolean` | Log each candle fetch (default: `false`) |
 
 **Paper** and **Live** (`mode: "paper"` / `mode: "live"`):
@@ -448,7 +450,7 @@ await run('backtest', {
   entryPoint: './src/index.mjs',
   symbol: 'ETHUSDT',
   frame: 'feb-2024',
-  cacheList: ['1m', '15m', '1h'],
+  cacheInterval: ['1m', '15m', '1h'],
   verbose: true,
 });
 ```

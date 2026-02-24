@@ -24,15 +24,12 @@ import notifyVerbose from "../../../utils/notifyVerbose";
 
 const DEFAULT_CACHE_LIST: CandleInterval[] = ["1m", "15m", "30m", "1h", "4h"];
 
-const GET_CACHE_LIST_FN = () => {
+const GET_CACHE_INTERVAL_LIST_FN = () => {
   const { values } = getArgs();
-  if (!values.cache) {
-    console.warn(
-      `Warning: No cache timeframes provided. Using default timeframes: ${DEFAULT_CACHE_LIST.join(", ")}`,
-    );
+  if (!values.cacheInterval) {
     return DEFAULT_CACHE_LIST;
   }
-  return String(values.cache)
+  return String(values.cacheInterval)
     .split(",")
     .map((timeframe) => <CandleInterval>timeframe.trim());
 };
@@ -69,8 +66,9 @@ export class BacktestMainService {
       strategy: string;
       exchange: string;
       frame: string;
-      cacheList: string[];
+      cacheInterval: string[];
       verbose: boolean;
+      noCache: boolean;
     }) => {
       this.loggerService.log("backtestMainService run", {
         payload,
@@ -115,9 +113,9 @@ export class BacktestMainService {
         throw new Error("Frame name is required");
       }
 
-      {
+      if (!payload.noCache) {
         await this.cacheLogicService.execute(
-          <CandleInterval[]>payload.cacheList,
+          <CandleInterval[]>payload.cacheInterval,
           {
             exchangeName,
             frameName,
@@ -169,16 +167,17 @@ export class BacktestMainService {
       throw new Error("Entry point is required");
     }
 
-    const cacheList = GET_CACHE_LIST_FN();
+    const cacheInterval = GET_CACHE_INTERVAL_LIST_FN();
 
     return await this.run({
       symbol: <string>values.symbol,
       entryPoint,
-      cacheList,
+      cacheInterval,
       exchange: <string>values.exchange,
       frame: <string>values.frame,
       strategy: <string>values.strategy,
       verbose: <boolean>values.verbose,
+      noCache: <boolean>values.noCache,
     });
   });
 }
