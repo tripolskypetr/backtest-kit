@@ -19,6 +19,7 @@ import TelegramProviderService from "../provider/TelegramProviderService";
 import CacheLogicService from "../logic/CacheLogicService";
 import notifyFinish from "../../../utils/notifyFinish";
 import SymbolSchemaService from "../schema/SymbolSchemaService";
+import getEntry from "../../../helpers/getEntry";
 
 const DEFAULT_CACHE_LIST: CandleInterval[] = ["1m", "15m", "30m", "1h", "4h"];
 
@@ -149,6 +150,10 @@ export class BacktestMainService {
 
   protected init = singleshot(async () => {
     this.loggerService.log("backtestMainService init");
+
+    if (!getEntry(import.meta.url)) {
+      return;
+    }
 
     const { values, positionals } = getArgs();
 

@@ -15,6 +15,7 @@ import FrontendProviderService from "../provider/FrontendProviderService";
 import TelegramProviderService from "../provider/TelegramProviderService";
 import notifyFinish from "../../../utils/notifyFinish";
 import SymbolSchemaService from "../schema/SymbolSchemaService";
+import getEntry from "../../../helpers/getEntry";
 
 export class PaperMainService {
   private loggerService = inject<LoggerService>(TYPES.loggerService);
@@ -99,6 +100,10 @@ export class PaperMainService {
 
   protected init = singleshot(async () => {
     this.loggerService.log("paperMainService init");
+
+    if (!getEntry(import.meta.url)) {
+      return;
+    }
 
     const { values, positionals } = getArgs();
 
