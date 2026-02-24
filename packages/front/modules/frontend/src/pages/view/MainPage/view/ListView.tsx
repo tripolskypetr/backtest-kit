@@ -18,6 +18,7 @@ import {
     Async,
     formatAmount,
     ITabsOutletProps,
+    useActualValue,
     useAsyncValue,
     useElementSize,
     useOnce,
@@ -81,10 +82,18 @@ export const ListView = ({
         },
     );
 
+    const signals$ = useActualValue(signals);
+    const type$ = useActualValue(type);
+
     useOnce(() =>
         actionSubject.subscribe((action) => {
             if (action === "update-now") {
                 execute();
+            }
+            if (action === "download-action") {
+                const blob = new Blob([JSON.stringify(signals$.current, null, 2)], { type: "application/json" });
+                const url = URL.createObjectURL(blob);
+                ioc.layoutService.downloadFile(url, `signals_${type$.current}_${Date.now()}.json`);
             }
         }),
     );

@@ -6,6 +6,7 @@ import {
 } from "react-declarative";
 import actionSubject from "../config/actionSubject";
 import {
+    Download,
     Refresh,
 } from "@mui/icons-material";
 import IconWrapper from "../../../../components/common/IconWrapper";
@@ -28,6 +29,14 @@ const actions: IBreadcrumbs2Action[] = [
         action: "update-now",
         label: "Refresh",
         icon: () => <IconWrapper icon={Refresh} color="#4caf50" />,
+    },
+    {
+        divider: true,
+    },
+    {
+        action: "download-action",
+        label: "Download",
+        icon: () => <IconWrapper icon={Download} color="#4caf50" />,
     },
 ];
 
