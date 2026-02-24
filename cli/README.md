@@ -30,13 +30,13 @@ Point the CLI at your strategy file, choose a mode, and it handles exchange conn
 
 `@backtest-kit/cli` wraps the `backtest-kit` engine and resolves all scaffolding automatically:
 
-| Mode             | Flag          | Description                                  |
-|------------------|---------------|----------------------------------------------|
-| **Backtest**     | `--backtest`  | Run strategy on historical candle data       |
-| **Paper**        | `--paper`     | Live prices, no real orders                  |
-| **Live**         | `--live`      | Real trades via exchange API                 |
-| **UI Dashboard** | `--ui`        | Web dashboard at `http://localhost:60050`    |
-| **Telegram**     | `--telegram`  | Trade notifications with price charts        |
+| Mode             | Command Line Args          | Description                                  |
+|------------------|----------------------------|----------------------------------------------|
+| **Backtest**     | `--backtest`               | Run strategy on historical candle data       |
+| **Paper**        | `--paper`                  | Live prices, no real orders                  |
+| **Live**         | `--live`                   | Real trades via exchange API                 |
+| **UI Dashboard** | `--ui`                     | Web dashboard at `http://localhost:60050`    |
+| **Telegram**     | `--telegram`               | Trade notifications with price charts        |
 
 ## 🚀 Installation
 
@@ -129,19 +129,19 @@ npm start -- --symbol BTCUSDT --ui
 
 ## 🎛️ CLI Flags
 
-| Flag          | Type    | Description                                                        |
-|---------------|---------|--------------------------------------------------------------------|
-| `--backtest`  | boolean | Run historical backtest (default: `false`)                         |
-| `--paper`     | boolean | Paper trading (live prices, no orders) (default: `false`)          |
-| `--live`      | boolean | Run live trading (default: `false`)                                |
-| `--ui`        | boolean | Start web UI dashboard (default: `false`)                          |
-| `--telegram`  | boolean | Enable Telegram notifications (default: `false`)                   |
-| `--verbose`   | boolean | Log each candle fetch (default: `false`)                           |
-| `--symbol`    | string  | Trading pair (default: `"BTCUSDT"`)                                |
-| `--strategy`  | string  | Strategy name (default: first registered)                          |
-| `--exchange`  | string  | Exchange name (default: first registered)                          |
-| `--frame`     | string  | Backtest frame name (default: first registered)                    |
-| `--cache`     | string  | Intervals to pre-cache before backtest (default: `"1m, 15m, 30m, 4h"`) |
+|     Command Line Args     | Type    | Description                                                        |
+|---------------------------|---------|--------------------------------------------------------------------|
+| `--backtest`              | boolean | Run historical backtest (default: `false`)                         |
+| `--paper`                 | boolean | Paper trading (live prices, no orders) (default: `false`)          |
+| `--live`                  | boolean | Run live trading (default: `false`)                                |
+| `--ui`                    | boolean | Start web UI dashboard (default: `false`)                          |
+| `--telegram`              | boolean | Enable Telegram notifications (default: `false`)                   |
+| `--verbose`               | boolean | Log each candle fetch (default: `false`)                           |
+| `--symbol`                | string  | Trading pair (default: `"BTCUSDT"`)                                |
+| `--strategy`              | string  | Strategy name (default: first registered)                          |
+| `--exchange`              | string  | Exchange name (default: first registered)                          |
+| `--frame`                 | string  | Backtest frame name (default: first registered)                    |
+| `--cache`                 | string  | Intervals to pre-cache before backtest (default: `"1m, 15m, 30m, 4h"`) |
 
 **Positional argument (required):** path to your strategy entry point file (set once in `package.json` scripts).
 
