@@ -148,8 +148,8 @@ export class BacktestMainService {
     },
   );
 
-  protected init = singleshot(async () => {
-    this.loggerService.log("backtestMainService init");
+  public connect = singleshot(async () => {
+    this.loggerService.log("backtestMainService connect");
 
     if (!getEntry(import.meta.url)) {
       return;

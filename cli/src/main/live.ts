@@ -30,6 +30,10 @@ const BEFORE_EXIT_FN = singleshot(async () => {
   listenDoneLive(cli.liveProviderService.disable);
 });
 
+export const listenGracefulShutdown = singleshot(() => {
+  process.on("SIGINT", BEFORE_EXIT_FN);
+})
+
 export const main = async () => {
   if (!getEntry(import.meta.url)) {
     return;
@@ -38,7 +42,8 @@ export const main = async () => {
   if (!values.live) {
     return;
   }
-  process.on("SIGINT", BEFORE_EXIT_FN);
+  await cli.liveMainService.connect();
+  listenGracefulShutdown();
 };
 
 main();

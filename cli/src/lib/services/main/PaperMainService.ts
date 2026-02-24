@@ -98,8 +98,8 @@ export class PaperMainService {
     },
   );
 
-  protected init = singleshot(async () => {
-    this.loggerService.log("paperMainService init");
+  public connect = singleshot(async () => {
+    this.loggerService.log("paperMainService connect");
 
     if (!getEntry(import.meta.url)) {
       return;

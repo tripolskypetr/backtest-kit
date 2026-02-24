@@ -32,7 +32,7 @@ declare class PaperMainService {
         exchange: string;
         verbose: boolean;
     }) => Promise<void>) & functools_kit.ISingleshotClearable;
-    protected init: (() => Promise<void>) & functools_kit.ISingleshotClearable;
+    connect: (() => Promise<void>) & functools_kit.ISingleshotClearable;
 }
 
 declare class LiveMainService {
@@ -50,7 +50,7 @@ declare class LiveMainService {
         exchange: string;
         verbose: boolean;
     }) => Promise<void>) & functools_kit.ISingleshotClearable;
-    protected init: (() => Promise<void>) & functools_kit.ISingleshotClearable;
+    connect: (() => Promise<void>) & functools_kit.ISingleshotClearable;
 }
 
 declare class BacktestMainService {
@@ -71,7 +71,7 @@ declare class BacktestMainService {
         cacheList: string[];
         verbose: boolean;
     }) => Promise<void>) & functools_kit.ISingleshotClearable;
-    protected init: (() => Promise<void>) & functools_kit.ISingleshotClearable;
+    connect: (() => Promise<void>) & functools_kit.ISingleshotClearable;
 }
 
 declare class ExchangeSchemaService {

@@ -1,5 +1,9 @@
 import cli from "../lib";
 
+import * as backtest from "../main/backtest";
+import * as paper from "../main/paper";
+import * as live from "../main/live";
+
 type PayloadBacktest = Parameters<typeof cli.backtestMainService.run>[0];
 type PayloadPaper = Parameters<typeof cli.paperMainService.run>[0];
 type PayloadLive = Parameters<typeof cli.liveMainService.run>[0];
@@ -21,13 +25,19 @@ export async function run(mode: Mode, args: Args) {
     _is_started = true;
   }
   if (mode === "backtest") {
-    return await cli.backtestMainService.run(<PayloadBacktest>args);
+    await cli.backtestMainService.run(<PayloadBacktest>args);
+    backtest.listenGracefulShutdown();
+    return;
   }
   if (mode === "paper") {
-    return await cli.paperMainService.run(<PayloadPaper>args);
+    await cli.paperMainService.run(<PayloadPaper>args);
+    paper.listenGracefulShutdown();
+    return;
   }
   if (mode === "live") {
-    return await cli.liveMainService.run(<PayloadLive>args);
+    await cli.liveMainService.run(<PayloadLive>args);
+    live.listenGracefulShutdown();
+    return;
   }
   throw new Error(`Invalid mode: ${mode}`);
 }

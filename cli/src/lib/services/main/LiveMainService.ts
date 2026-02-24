@@ -101,8 +101,8 @@ export class LiveMainService {
     notifyFinish();
   });
 
-  protected init = singleshot(async () => {
-    this.loggerService.log("liveMainService init");
+  public connect = singleshot(async () => {
+    this.loggerService.log("liveMainService connect");
 
     if (!getEntry(import.meta.url)) {
       return;

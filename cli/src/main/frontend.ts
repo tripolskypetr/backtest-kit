@@ -10,6 +10,10 @@ const BEFORE_EXIT_FN = singleshot(async () => {
   cli.frontendProviderService.disable();
 });
 
+export const listenGracefulShutdown = singleshot(() => {
+  process.on("SIGINT", BEFORE_EXIT_FN);
+})
+
 export const main = async () => {
   if (!getEntry(import.meta.url)) {
     return;
@@ -18,7 +22,7 @@ export const main = async () => {
   if (!values.ui) {
     return;
   }
-  process.on("SIGINT", BEFORE_EXIT_FN);
+  listenGracefulShutdown();
 };
 
 main();
