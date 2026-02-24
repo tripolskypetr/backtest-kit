@@ -16,6 +16,7 @@ import TelegramProviderService from "../provider/TelegramProviderService";
 import notifyFinish from "../../../utils/notifyFinish";
 import SymbolSchemaService from "../schema/SymbolSchemaService";
 import getEntry from "../../../helpers/getEntry";
+import notifyVerbose from "../../../utils/notifyVerbose";
 
 export class PaperMainService {
   private loggerService = inject<LoggerService>(TYPES.loggerService);
@@ -87,6 +88,7 @@ export class PaperMainService {
             },
           },
         });
+        notifyVerbose();
       }
 
       Live.background(symbol, {

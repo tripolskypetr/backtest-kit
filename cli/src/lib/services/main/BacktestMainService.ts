@@ -20,6 +20,7 @@ import CacheLogicService from "../logic/CacheLogicService";
 import notifyFinish from "../../../utils/notifyFinish";
 import SymbolSchemaService from "../schema/SymbolSchemaService";
 import getEntry from "../../../helpers/getEntry";
+import notifyVerbose from "../../../utils/notifyVerbose";
 
 const DEFAULT_CACHE_LIST: CandleInterval[] = ["1m", "15m", "30m", "1h", "4h"];
 
@@ -136,6 +137,7 @@ export class BacktestMainService {
             },
           },
         });
+        notifyVerbose();
       }
 
       Backtest.background(symbol, {

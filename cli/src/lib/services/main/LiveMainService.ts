@@ -17,6 +17,7 @@ import notifyFinish from "../../../utils/notifyFinish";
 import SymbolSchemaService from "../schema/SymbolSchemaService";
 import LiveProviderService from "../provider/LiveProviderService";
 import getEntry from "../../../helpers/getEntry";
+import notifyVerbose from "../../../utils/notifyVerbose";
 
 export class LiveMainService {
   private loggerService = inject<LoggerService>(TYPES.loggerService);
@@ -91,6 +92,7 @@ export class LiveMainService {
           },
         },
       });
+      notifyVerbose();
     }
 
     Live.background(symbol, {
