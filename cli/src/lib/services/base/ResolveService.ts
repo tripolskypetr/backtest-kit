@@ -1,4 +1,5 @@
 import { fileURLToPath, pathToFileURL } from 'url';
+import { createRequire } from 'module';
 import path from "path";
 import { access } from "fs/promises";
 import { constants } from "fs";
@@ -10,6 +11,27 @@ import { entrySubject } from '../../../config/emitters';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
+
+const require = createRequire(import.meta.url);
+
+const REQUIRE_ENTRY_FACTORY = (filePath: string): boolean => {
+    try {
+        require(filePath);
+        return true;
+    } catch {
+        return false;
+    }
+};
+
+const IMPORT_ENTRY_FACTORY = async (filePath: string): Promise<void> => {
+    await import(pathToFileURL(filePath).href);
+};
+
+const LOAD_ENTRY_FN = async (filePath: string): Promise<void> => {
+    if (!REQUIRE_ENTRY_FACTORY(filePath)) {
+        await IMPORT_ENTRY_FACTORY(filePath);
+    }
+};
 
 let _is_launched = false;
 
@@ -34,7 +56,7 @@ export class ResolveService {
             process.chdir(moduleRoot);
             dotenv.config({ path: path.join(cwd, '.env'), override: true, quiet: true });
             dotenv.config({ path: path.join(moduleRoot, '.env'), override: true, quiet: true });
-            await import(pathToFileURL(absolutePath).href);
+            await LOAD_ENTRY_FN(absolutePath);
             await entrySubject.next(absolutePath);
         }
         _is_launched = true;
