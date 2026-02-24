@@ -8,7 +8,9 @@ import { CC_ENABLE_MOCK } from "../../../config/params";
 
 export class StorageViewService {
   private readonly loggerService = inject<LoggerService>(TYPES.loggerService);
-  private readonly storageMockService = inject<StorageMockService>(TYPES.storageMockService);
+  private readonly storageMockService = inject<StorageMockService>(
+    TYPES.storageMockService,
+  );
 
   public findSignalById = async (signalId: string) => {
     this.loggerService.log("storageViewService findSignalById", {
@@ -25,16 +27,44 @@ export class StorageViewService {
     if (CC_ENABLE_MOCK) {
       return await this.storageMockService.listSignalLive();
     }
-    return await Storage.listSignalLive();
-  }
+    const signalList = await Storage.listSignalLive();
+    signalList.sort((a, b) => {
+      const aHasTime = "createdAt" in a;
+      const bHasTime = "createdAt" in b;
+      if (!aHasTime && bHasTime) {
+        return -1;
+      }
+      if (aHasTime && !bHasTime) {
+        return 1;
+      }
+      const aTime = aHasTime ? a.createdAt : 0;
+      const bTime = bHasTime ? b.createdAt : 0;
+      return bTime - aTime;
+    });
+    return signalList;
+  };
 
   public listSignalBacktest = async () => {
     this.loggerService.log("storageViewService listSignalBacktest");
     if (CC_ENABLE_MOCK) {
       return await this.storageMockService.listSignalBacktest();
     }
-    return await Storage.listSignalBacktest();
-  }
+    const signalList = await Storage.listSignalBacktest();
+    signalList.sort((a, b) => {
+      const aHasTime = "createdAt" in a;
+      const bHasTime = "createdAt" in b;
+      if (!aHasTime && bHasTime) {
+        return -1;
+      }
+      if (aHasTime && !bHasTime) {
+        return 1;
+      }
+      const aTime = aHasTime ? a.createdAt : 0;
+      const bTime = bHasTime ? b.createdAt : 0;
+      return bTime - aTime;
+    });
+    return signalList;
+  };
 
   protected init = singleshot(async () => {
     this.loggerService.log("storageViewService init");
