@@ -2,14 +2,20 @@ import fs from "fs/promises";
 import path from "path";
 import backtest from "../lib";
 
+/** Unique identifier for a dump result. Can be a string or numeric ID. */
 type ResultId = string | number;
 
 const WARN_KB = 30;
 
 const DUMP_MESSAGES_METHOD_NAME = "dump.dumpMessages";
 
+/** Role of the message sender in the chat history. */
 type BaseRole = "assistant" | "system" | "user";
 
+/**
+ * A single message in the chat history.
+ * Used to represent system instructions, user input, or LLM responses.
+ */
 interface Message<Role extends BaseRole = BaseRole> {
   /**
    * The sender of the message.
@@ -116,6 +122,9 @@ export async function dumpMessages<Data extends object = any>(
           const messageSizeBytes = Buffer.byteLength(message.content, "utf8");
           const messageSizeKb = Math.floor(messageSizeBytes / 1024);
           if (messageSizeKb > WARN_KB) {
+            console.warn(
+              `User message ${idx + 1} is ${messageSizeBytes} bytes (${messageSizeKb}kb), which exceeds warning limit`,
+            );
             backtest.loggerService.warn(DUMP_MESSAGES_METHOD_NAME, {
               resultId,
               messageIndex: idx + 1,

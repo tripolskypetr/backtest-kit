@@ -107,6 +107,9 @@ export {
   formatQuantity,
   hasTradeContext,
 } from "./function/exchange";
+export {
+  dumpMessages,
+} from "./function/dump";
 
 export {
   CandleInterval,
