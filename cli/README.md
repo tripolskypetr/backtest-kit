@@ -393,6 +393,89 @@ When your strategy module does not register an exchange, frame, or strategy name
 
 > **Note:** The default exchange schema **does not support order book fetching in backtest mode**. If your strategy calls `getOrderBook()` during backtest, you must register a custom exchange schema with your own snapshot storage.
 
+
+## 🔧 Programmatic API
+
+In addition to the CLI, `@backtest-kit/cli` can be used as a library — call `run()` directly from your own script without spawning a child process or parsing CLI flags.
+
+### `run(mode, args)`
+
+```typescript
+import { run } from '@backtest-kit/cli';
+
+await run(mode, args);
+```
+
+| Parameter | Description |
+|-----------|-------------|
+| `mode` | `"backtest" \| "paper" \| "live"` — Execution mode |
+| `args` | Mode-specific options (all optional — same defaults as CLI) |
+
+`run()` can be called **only once per process**. A second call throws `"Should be called only once"`.
+
+### Payload fields
+
+**Backtest** (`mode: "backtest"`):
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `entryPoint` | `string` | Path to strategy entry point file |
+| `symbol` | `string` | Trading pair (default: `"BTCUSDT"`) |
+| `strategy` | `string` | Strategy name (default: first registered) |
+| `exchange` | `string` | Exchange name (default: first registered) |
+| `frame` | `string` | Frame name (default: first registered) |
+| `cacheList` | `CandleInterval[]` | Intervals to pre-cache (default: `["1m","15m","30m","1h","4h"]`) |
+| `verbose` | `boolean` | Log each candle fetch (default: `false`) |
+
+**Paper** and **Live** (`mode: "paper"` / `mode: "live"`):
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `entryPoint` | `string` | Path to strategy entry point file |
+| `symbol` | `string` | Trading pair (default: `"BTCUSDT"`) |
+| `strategy` | `string` | Strategy name (default: first registered) |
+| `exchange` | `string` | Exchange name (default: first registered) |
+| `verbose` | `boolean` | Log each candle fetch (default: `false`) |
+
+### Examples
+
+**Backtest:**
+
+```typescript
+import { run } from '@backtest-kit/cli';
+
+await run('backtest', {
+  entryPoint: './src/index.mjs',
+  symbol: 'ETHUSDT',
+  frame: 'feb-2024',
+  cacheList: ['1m', '15m', '1h'],
+  verbose: true,
+});
+```
+
+**Paper trading:**
+
+```typescript
+import { run } from '@backtest-kit/cli';
+
+await run('paper', {
+  entryPoint: './src/index.mjs',
+  symbol: 'BTCUSDT',
+});
+```
+
+**Live trading:**
+
+```typescript
+import { run } from '@backtest-kit/cli';
+
+await run('live', {
+  entryPoint: './src/index.mjs',
+  symbol: 'BTCUSDT',
+  verbose: true,
+});
+```
+
 ## 💡 Why Use @backtest-kit/cli?
 
 Instead of writing infrastructure code for every project:
