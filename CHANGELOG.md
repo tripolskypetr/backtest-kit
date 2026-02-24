@@ -2,7 +2,7 @@
 
 > Github [release link](https://github.com/tripolskypetr/backtest-kit/releases/tag/3.1.1)
 
-# @backtest-kit/cli 📟
+## @backtest-kit/cli 📟
 
 New `@backtest-kit/cli` package — a zero-boilerplate command-line runner for backtest-kit strategies. Point it at your strategy entry point and run backtests, paper trading, or live bots without writing any infrastructure code.
 
