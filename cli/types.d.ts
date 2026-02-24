@@ -95,7 +95,7 @@ declare class ResolveService {
 declare class ErrorService {
     handleGlobalError: (error: Error) => Promise<void>;
     private _listenForError;
-    protected init: () => void;
+    protected init: (() => void) & functools_kit.ISingleshotClearable;
 }
 
 declare class SymbolSchemaService {
