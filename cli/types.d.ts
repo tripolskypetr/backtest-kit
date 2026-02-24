@@ -68,8 +68,9 @@ declare class BacktestMainService {
         strategy: string;
         exchange: string;
         frame: string;
-        cacheList: string[];
+        cacheInterval: string[];
         verbose: boolean;
+        noCache: boolean;
     }) => Promise<void>) & functools_kit.ISingleshotClearable;
     connect: (() => Promise<void>) & functools_kit.ISingleshotClearable;
 }
