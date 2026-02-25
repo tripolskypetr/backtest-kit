@@ -54,7 +54,7 @@ const options: IBreadcrumbs2Option[] = [
   {
     type: Breadcrumbs2Type.Link,
     action: "back-action",
-    label: "KPI",
+    compute: (payload) => `KPI ${String(payload).toUpperCase()}`,
   },
 ];
 
@@ -206,7 +206,7 @@ export const DashboardPage = ({
 
   return (
     <Container>
-      <Breadcrumbs2 items={options} actions={actions} onAction={handleAction} />
+      <Breadcrumbs2 items={options} actions={actions} payload={mode} onAction={handleAction} />
       {renderInner()}
     </Container>
   );

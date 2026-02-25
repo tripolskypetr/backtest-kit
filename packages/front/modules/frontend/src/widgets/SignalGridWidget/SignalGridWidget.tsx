@@ -119,28 +119,6 @@ const columns: IGridColumn<GridItem>[] = [
     format: ({ buyPrice }) => `${formatAmount(buyPrice)}$`,
   },
   {
-    field: "quantity",
-    label: "Количество",
-    minWidth: 125,
-    width: () => 125,
-    format: ({ quantity }) => Number(quantity).toFixed(6),
-  },
-  {
-    field: "profitLoss",
-    label: "П/У",
-    minWidth: 100,
-    width: () => 100,
-    format: ({ profitLoss }) => {
-      const isProfit = profitLoss >= 0;
-      return (
-        <span style={{ color: isProfit ? "green" : "red" }}>
-          {isProfit ? "+" : ""}
-          {formatAmount(profitLoss)}$
-        </span>
-      );
-    },
-  },
-  {
     field: "profitLossPercentage",
     label: "%",
     minWidth: 80,
@@ -201,43 +179,8 @@ const signal_fields: TypedField[] = [
     desktopColumns: "12",
     tabletColumns: "12",
     phoneColumns: "12",
-    name: "profitLoss",
-    title: "Прибыль/Убыток",
-    readonly: true,
-    trailingIcon: ({ data }) => {
-      if (data.profitLoss < 0) {
-        return (
-          <ArrowCircleDown
-            sx={{
-              color: "red",
-            }}
-          />
-        );
-      }
-      return (
-        <ArrowCircleUp
-          sx={{
-            color: "green",
-          }}
-        />
-      );
-    },
-    compute: (obj) => {
-      if (obj.profitLoss !== undefined) {
-        const isProfit = obj.profitLoss >= 0;
-        return `${isProfit ? "+" : ""}${formatAmount(obj.profitLoss)}$`;
-      }
-      return "Не указан";
-    },
-  },
-  {
-    type: FieldType.Text,
-    outlined: false,
-    desktopColumns: "12",
-    tabletColumns: "12",
-    phoneColumns: "12",
     name: "profitLossPercentage",
-    title: "Прибыль/Убыток (%)",
+    title: "Прибыль/Убыток",
     readonly: true,
     trailingIcon: ({ data }) => {
       if (data.profitLoss < 0) {
@@ -278,20 +221,10 @@ const signal_fields: TypedField[] = [
       obj.buyPrice ? `${formatAmount(obj.buyPrice)}$` : "Не указана",
   },
   {
-    type: FieldType.Text,
-    outlined: false,
-    desktopColumns: "12",
-    tabletColumns: "12",
-    phoneColumns: "12",
-    fieldBottomMargin: "5",
-    name: "quantity",
-    title: "Количество",
-    readonly: true,
-    compute: (obj) =>
-      obj.quantity ? Number(obj.quantity).toFixed(6) : "Не указано",
-  },
-  {
     type: FieldType.Component,
+    sx: {
+      mt: 2,
+    },
     element: ({ status, payload }) => (
       <Button
         variant="contained"
@@ -501,7 +434,7 @@ export const SignalGridWidget = ({
 
   const handleRowAction = (action: string, row: any) => {
     if (action === "open-action") {
-      pickData(row.id);
+      ioc.layoutService.pickSignal(row.id);
     }
   };
 
