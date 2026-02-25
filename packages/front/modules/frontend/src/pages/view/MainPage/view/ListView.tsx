@@ -127,8 +127,8 @@ export const ListView = ({
                                 maxWidth: "435px",
                             },
                         }}
-                        primary="Нет сигналов"
-                        secondary="Сигналы будут отображены здесь после появления"
+                        primary="No signals"
+                        secondary="Signals will be displayed here after they appear"
                     />
                 </ListItem>
             );

@@ -35,7 +35,7 @@ const INITIAL_TRADE_PERFOMANCE: ITradePerfomance = {
 const actions: IBreadcrumbs2Action[] = [
   {
     action: "update-now",
-    label: "Обновить",
+    label: "Refresh manually",
     icon: () => <IconWrapper icon={Refresh} color="#4caf50" />,
   },
 ];
@@ -49,7 +49,7 @@ const options: IBreadcrumbs2Option[] = [
   {
     type: Breadcrumbs2Type.Link,
     action: "back-action",
-    label: "Дэшборд",
+    label: "Dashboard",
   },
   {
     type: Breadcrumbs2Type.Link,

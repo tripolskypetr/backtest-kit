@@ -34,12 +34,11 @@ const dashboard_fields: TypedField<IMeasure>[] = [
           backgroundColor={backgroundColor}
           backgroundMode={BackgroundMode.Semi}
           valueUnit="USDT"
-          headerLabel="31 день"
-          footerLabel="Прибыль за 31 день"
+          headerLabel="31 days"
+          footerLabel="Profit for 31 days"
           caption={`${count} ${wordForm(count, {
-            one: "сделка",
-            two: "сделки",
-            many: "сделок",
+            one: "trade",
+            many: "trades",
           })}`}
         />
       );
@@ -68,12 +67,11 @@ const dashboard_fields: TypedField<IMeasure>[] = [
           backgroundColor={backgroundColor}
           backgroundMode={BackgroundMode.Semi}
           valueUnit="USDT"
-          headerLabel="7 дней"
-          footerLabel="Прибыль за 7 дней"
+          headerLabel="7 days"
+          footerLabel="Profit for 7 days"
           caption={`${count} ${wordForm(count, {
-            one: "сделка",
-            two: "сделки",
-            many: "сделок",
+            one: "trade",
+            many: "trades",
           })}`}
         />
       );
@@ -102,12 +100,11 @@ const dashboard_fields: TypedField<IMeasure>[] = [
           backgroundColor={backgroundColor}
           backgroundMode={BackgroundMode.Semi}
           valueUnit="USDT"
-          headerLabel="Вчера"
-          footerLabel="Прибыль за вчера"
+          headerLabel="Yesterday"
+          footerLabel="Yesterday's profit"
           caption={`${count} ${wordForm(count, {
-            one: "сделка",
-            two: "сделки",
-            many: "сделок",
+            one: "trade",
+            many: "trades",
           })}`}
         />
       );
@@ -136,12 +133,11 @@ const dashboard_fields: TypedField<IMeasure>[] = [
           backgroundColor={backgroundColor}
           backgroundMode={BackgroundMode.Semi}
           valueUnit="USDT"
-          headerLabel="Сегодня"
-          footerLabel="Прибыль за сегодня"
+          headerLabel="Today"
+          footerLabel="Today's profit"
           caption={`${count} ${wordForm(count, {
-            one: "сделка",
-            two: "сделки",
-            many: "сделок",
+            one: "trade",
+            many: "trades",
           })}`}
         />
       );
@@ -158,13 +154,13 @@ const dashboard_fields: TypedField<IMeasure>[] = [
       const items = [
         {
           color: "#DD4049",
-          label: "Неудачно",
+          label: "Failed",
           maxValue: Math.max(tradePerfomance.rejectedCount + 1, 1),
           value: () => tradePerfomance.rejectedCount,
         },
         {
           color: "#2EA96F",
-          label: "Удачно",
+          label: "Successful",
           maxValue: Math.max(
             tradePerfomance.rejectedCount + tradePerfomance.resolvedCount + 2,
             2
@@ -173,7 +169,7 @@ const dashboard_fields: TypedField<IMeasure>[] = [
         },
         {
           color: "#F3A43A",
-          label: "Всего",
+          label: "Total",
           hidden: true,
           maxValue: Math.max(tradePerfomance.total + 3, 3),
           value: () => tradePerfomance.total,
@@ -185,9 +181,8 @@ const dashboard_fields: TypedField<IMeasure>[] = [
           style={{ height: "max(calc((100dvh - 100px) / 2), 450px)" }}
           items={items}
           valueUnit={wordForm(Math.abs(tradePerfomance.resolvedCount), {
-            one: "Удачный cигнал",
-            two: "Удачных cигнала",
-            many: "Удачных cигналов",
+            one: "Successful signal",
+            many: "Successful signals",
           })}
           value={tradePerfomance.resolvedCount}
         />

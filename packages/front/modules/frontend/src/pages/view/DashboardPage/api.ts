@@ -23,10 +23,10 @@ const fetchSignals = ttl(
     },
 );
 
-/** Сбросить кэш перед принудительным обновлением */
+/** Clear cache before a forced refresh */
 export const clearSignalCache = () => fetchSignals.clear();
 
-// ── Символы ──────────────────────────────────────────────────────────────────
+// ── Symbols ───────────────────────────────────────────────────────────────────
 
 export const fetchSymbolList = (): Promise<string[]> =>
     ioc.symbolGlobalService.getSymbolList();
@@ -34,7 +34,7 @@ export const fetchSymbolList = (): Promise<string[]> =>
 export const fetchSymbolMap = (): Promise<Record<string, any>> =>
     ioc.symbolGlobalService.getSymbolMap();
 
-// ── Вспомогательные ──────────────────────────────────────────────────────────
+// ── Helpers ───────────────────────────────────────────────────────────────────
 
 const getClosedBySymbol = async (
     symbol: string,
@@ -46,7 +46,7 @@ const getClosedBySymbol = async (
     );
 };
 
-// ── Метрики ──────────────────────────────────────────────────────────────────
+// ── Metrics ───────────────────────────────────────────────────────────────────
 
 export const fetchTradePerfomanceMeasure = async (
     symbol: string,
@@ -66,7 +66,7 @@ export const fetchSuccessRateMeasure = async (
 ): Promise<ISuccessRate> => {
     const closed = await getClosedBySymbol(symbol, mode);
 
-    // Допуск 0.5% на slippage и комиссии при сравнении с TP/SL
+    // 0.5% tolerance for slippage and fees when comparing against TP/SL
     const TOLERANCE = 0.005;
 
     const isAtTP = (s: ClosedSignal): boolean =>
@@ -127,9 +127,9 @@ export const fetchRevenueCountMeasure = async (
 ): Promise<IRevenueCount> => {
     const closed = await getClosedBySymbol(symbol, mode);
 
-    // Точка отсчёта «сегодня» — начало дня самого последнего сигнала.
-    // Для бектеста это позволяет корректно считать окна (сегодня/вчера/7д/31д)
-    // относительно конца прогона, а не текущей реальной даты.
+    // "Today" anchor — start of the day of the most recent signal.
+    // For backtests this ensures windows (today/yesterday/7d/31d) are computed
+    // relative to the end of the run, not the current wall-clock date.
     const latestUpdatedAt = closed.length
         ? Math.max(...closed.map((s) => s.updatedAt))
         : Date.now();

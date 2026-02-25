@@ -76,7 +76,7 @@ const columns: IGridColumn<GridItem>[] = [
   },
   {
     field: "symbol",
-    label: "Символ",
+    label: "Symbol",
     minWidth: 115,
     width: (fullWidth) =>
       Math.max(fullWidth - 100 - 100 - 100 - 80 - 45 - 100 - 90, 45),
@@ -84,7 +84,7 @@ const columns: IGridColumn<GridItem>[] = [
   },
   {
     field: "position",
-    label: "Позиция",
+    label: "Position",
     minWidth: 90,
     width: () => 90,
     format: ({ position }) => {
@@ -106,7 +106,7 @@ const columns: IGridColumn<GridItem>[] = [
   },
   {
     field: "buyPrice",
-    label: "Цена покупки",
+    label: "Buy price",
     minWidth: 145,
     width: () => 145,
     format: ({ buyPrice }) => `${formatAmount(buyPrice)}$`,
@@ -136,9 +136,9 @@ const signal_fields: TypedField[] = [
     tabletColumns: "12",
     phoneColumns: "12",
     name: "symbol",
-    title: "Символ",
+    title: "Symbol",
     readonly: true,
-    compute: (obj) => obj.symbol || "Не указан",
+    compute: (obj) => obj.symbol || "N/A",
   },
   {
     type: FieldType.Text,
@@ -147,11 +147,11 @@ const signal_fields: TypedField[] = [
     tabletColumns: "12",
     phoneColumns: "12",
     name: "position",
-    title: "Позиция",
+    title: "Position",
     readonly: true,
     compute: (obj) => {
       const isLong = obj.position === "long";
-      return isLong ? "🔵 LONG (прибыль при росте)" : "🟠 SHORT (прибыль при падении)";
+      return isLong ? "🔵 LONG (profit on rise)" : "🟠 SHORT (profit on fall)";
     },
   },
   {
@@ -161,7 +161,7 @@ const signal_fields: TypedField[] = [
     tabletColumns: "12",
     phoneColumns: "12",
     name: "date",
-    title: "Дата",
+    title: "Date",
     readonly: true,
     compute: (obj) =>
       obj.date ? dayjs(obj.date).format("DD/MM/YYYY HH:mm") : "",
@@ -173,7 +173,7 @@ const signal_fields: TypedField[] = [
     tabletColumns: "12",
     phoneColumns: "12",
     name: "profitLossPercentage",
-    title: "Прибыль/Убыток",
+    title: "Profit/Loss",
     readonly: true,
     trailingIcon: ({ data }) => {
       if (data.profitLoss < 0) {
@@ -198,7 +198,7 @@ const signal_fields: TypedField[] = [
         const isProfit = obj.profitLossPercentage >= 0;
         return `${isProfit ? "+" : ""}${obj.profitLossPercentage.toFixed(2)}%`;
       }
-      return "Не указан";
+      return "N/A";
     },
   },
   {
@@ -211,7 +211,7 @@ const signal_fields: TypedField[] = [
     title: "Entry",
     readonly: true,
     compute: (obj) =>
-      obj.buyPrice ? `${formatAmount(obj.buyPrice)}$` : "Не указана",
+      obj.buyPrice ? `${formatAmount(obj.buyPrice)}$` : "N/A",
   },
   {
     type: FieldType.Text,
@@ -223,7 +223,7 @@ const signal_fields: TypedField[] = [
     title: "Take Profit",
     readonly: true,
     compute: (obj) =>
-      obj.takeProfitPrice ? `${formatAmount(obj.takeProfitPrice)}$` : "Не указана",
+      obj.takeProfitPrice ? `${formatAmount(obj.takeProfitPrice)}$` : "N/A",
   },
   {
     type: FieldType.Text,
@@ -235,7 +235,7 @@ const signal_fields: TypedField[] = [
     title: "Stop Loss",
     readonly: true,
     compute: (obj) =>
-      obj.stopLossPrice ? `${formatAmount(obj.stopLossPrice)}$` : "Не указана",
+      obj.stopLossPrice ? `${formatAmount(obj.stopLossPrice)}$` : "N/A",
   },
   {
     type: FieldType.Component,
@@ -247,7 +247,7 @@ const signal_fields: TypedField[] = [
         variant="outlined"
         onClick={payload.handleClose}
       >
-        Назад
+        Back
       </Button>
     ),
   },
@@ -255,7 +255,7 @@ const signal_fields: TypedField[] = [
 
 const row_actions: IGridAction[] = [
   {
-    label: "Детали",
+    label: "Details",
     icon: () => <IconWrapper icon={AutoFixHigh} color="#4caf50" />,
     action: "open-action",
   }
@@ -272,7 +272,7 @@ export const SignalGridWidget = ({
   );
 
   const { pickData, setOpen, render } = useActionModal({
-    title: "Информация",
+    title: "Info",
     AfterTitle: ({ onClose }) => (
       <Stack direction="row" gap={2}>
         <IconButton size="small" onClick={onClose}>

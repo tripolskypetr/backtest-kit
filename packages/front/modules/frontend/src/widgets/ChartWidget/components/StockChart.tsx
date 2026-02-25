@@ -17,6 +17,7 @@ import { createChart } from 'lightweight-charts';
 import IStockItem from '../model/StockItem.model';
 import { AutoSizer } from 'react-declarative';
 import wordForm from '../../../utils/wordForm';
+import { t } from '../../../i18n';
 
 interface IChartProps {
     height: number;
@@ -127,7 +128,7 @@ const Chart = ({
                 const item = items.find(({ time }) => time.day === day && time.month === month && time.year === year);
                 if (item) {
                     const count = Math.round(Math.round(item.value * 100) / 100);
-                    tooltipElement.innerHTML = `Всего: ${count}, Выполнено: ${item.resolved}, Отклонено: ${item.rejected}`;
+                    tooltipElement.innerHTML = `${t("Total")}: ${count}, ${t("Resolved")}: ${item.resolved}, ${t("Rejected")}: ${item.rejected}`;
                 } else {
                     tooltipElement.innerHTML = '';
                 }
