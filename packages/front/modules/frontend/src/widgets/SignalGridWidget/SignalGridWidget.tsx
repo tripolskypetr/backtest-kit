@@ -176,7 +176,7 @@ const signal_fields: TypedField[] = [
     title: "Profit/Loss",
     readonly: true,
     trailingIcon: ({ data }) => {
-      if (data.profitLoss < 0) {
+      if (data.profitLossPercentage < 0) {
         return (
           <ArrowCircleDown
             sx={{
