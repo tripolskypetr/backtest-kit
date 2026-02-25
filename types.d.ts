@@ -6741,7 +6741,7 @@ declare function getNextCandles(symbol: string, interval: CandleInterval, limit:
 
 /** Unique identifier for a dump result. Can be a string or numeric ID. */
 type ResultId = string | number;
-/** Role of the message sender in the chat history. */
+/** Role of the message sender in LLM chat history. */
 type BaseRole = "assistant" | "system" | "user";
 /**
  * A single message in the chat history.
