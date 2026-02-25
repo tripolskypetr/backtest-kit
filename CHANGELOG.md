@@ -1,3 +1,107 @@
+# Analytics Dashboard (v3.2.0, 25/02/2026)
+
+> Github [release link](https://github.com/tripolskypetr/backtest-kit/releases/tag/3.2.0)
+
+
+## @backtest-kit/ui — Dashboard Page 📊
+
+<img width="1920" height="1348" alt="image" src="https://github.com/user-attachments/assets/9a8e226e-99cc-4084-bbe3-a07b3102b5f6" />
+
+
+New `/dashboard/:mode` page that gives a trader a complete, at-a-glance picture of strategy performance — without writing a single query or opening a spreadsheet. Supports two modes: **`live`** (real-time positions and account metrics) and **`backtest`** (historical simulation results). Switch between them from the dashboard's own toolbar.
+
+The page aggregates data across **all registered symbols in parallel**, so multi-symbol strategies are covered automatically. A manual **Refresh** button clears the 45-second cache and forces a full reload. Signals can also be **exported to JSON** straight from the toolbar.
+
+---
+
+### Widget 1 — Revenue Cards (P&L Snapshot)
+
+Four side-by-side cards, each showing accumulated profit/loss for a fixed time window: **Today**, **Yesterday**, **Last 7 days**, **Last 31 days**.
+
+**What a trader reads instantly:**
+- Is today green or red? The card background changes automatically — green for profit, red for loss, orange for flat.
+- How does this week compare to last month? Two numbers, zero mental math.
+- If a strategy degraded after a recent parameter tweak, the 7-day card turns red while the 31-day card is still green — a clear signal to investigate.
+
+**Under the hood:** all P&L values are summed in the quote currency (USDT) across every symbol. Each card also shows the number of trades that contributed to the result, so a suspiciously large profit on one trade versus 50 small ones is immediately visible.
+
+---
+
+### Widget 2 — Trade Performance Gauge (SpeedDonut)
+
+A half-circle gauge (speedometer style) that shows **total trades**, **profitable trades**, and **loss trades** as arc segments. A needle points to the current success ratio, and its color mirrors the segment it lands on — green for good, red for bad, orange in between.
+
+**What a trader reads instantly:**
+- Overall win rate at a glance — no numbers needed, the needle says it all.
+- Whether the strategy is drifting toward more losses (needle creeps left over refresh cycles).
+- If resolved and rejected counts are nearly equal, the orange zone triggers a review of entry conditions.
+
+**Under the hood:** trades are classified as resolved (PnL > 0) or rejected (PnL ≤ 0). The arc segments are scaled proportionally to their max values, so the gauge stays readable regardless of total trade count.
+
+---
+
+### Widget 3 — Daily Trades Chart
+
+A time-series line chart (powered by TradingView's `lightweight-charts`) showing **total trade count per day** over the full history of the dataset.
+
+**What a trader reads instantly:**
+- Activity spikes — days with unusually high trade counts often correlate with volatile market sessions or strategy misfires.
+- Dead zones — stretches of zero trades may indicate missed opportunities or an overly restrictive filter.
+- Trend direction — is the strategy becoming more or less active over time?
+
+**On hover:** a tooltip shows the exact **Total / Resolved / Rejected** breakdown for that day, so a high-activity day with mostly red trades is immediately distinguishable from one with mostly green.
+
+---
+
+### Widget 4 — Success Rate Breakdown (per Symbol)
+
+A scrollable list showing every symbol that has at least one completed trade, with four colored counters per row:
+
+| Color | Meaning |
+|-------|---------|
+| 🟢 Green | Closed profitably **at Take Profit** price (TP hit within 0.5% tolerance) |
+| 🔴 Red | Closed at a loss **at Stop Loss** price (SL hit within 0.5% tolerance) |
+| 🔵 Blue | Closed profitably, but **not at TP** (early exit, manual close, partial fill) |
+| 🟠 Orange | Closed at a loss, but **not at SL** (force-closed, liquidation, manual stop) |
+
+**What a trader reads instantly:**
+- Which symbols are generating clean TP hits versus messy exits — a high orange count means orders aren't reaching their targets.
+- Whether stop losses are executing cleanly (high red) or getting overridden (high orange) — the difference matters for risk management.
+- Which symbols to tune first: the one with 2 green and 40 orange gets attention before the one with 30 green and 5 red.
+
+**Symbols are color-coded** with the same palette used across all other widgets, making cross-widget correlation trivial.
+
+---
+
+### Widget 5 — Signal Grid (Trade Log)
+
+A paginated, infinite-scroll table of all individual signals, newest first. **Opened (pending) positions are pinned to the top** and highlighted in yellow so they stand out from completed trades.
+
+**Columns per row:**
+- Colored dot (symbol identifier)
+- Symbol name
+- Position direction: **LONG** (blue) or **SHORT** (orange)
+- Entry price
+- P&L % — green for profit, red for loss
+
+**What a trader reads instantly:**
+- Which positions are currently open and whether they are in profit or loss right now.
+- The exact entry price and unrealized P&L for live positions (calculated in real time with slippage and fees).
+- A quick scan of recent trades to spot patterns — e.g., all SHORT positions losing, all LONGs winning.
+
+**Clicking any row** opens a detail panel with: symbol, position direction, open datetime, entry price, take profit, stop loss, and final P&L. No navigation away, no page reload.
+
+**Unrealized P&L formula (live mode):** accounts for 0.1% slippage on entry and exit plus 0.1% maker/taker fee per leg. Partial closes are weighted correctly — a position closed 30% at one price and 70% at another is not averaged naively.
+
+---
+
+### Layout
+
+The dashboard uses a responsive 12-column grid. On desktop all four P&L cards sit in a single row. The gauge, chart, success rate list, and signal grid each take half the screen width below. On tablet cards collapse to two per row; on mobile everything stacks to a single column. Heights scale to viewport so the key widgets are always fully visible without scrolling on a standard 1080p monitor.
+
+
+
+
 # CLI Runner (v3.1.1, 24/02/2026)
 
 > Github [release link](https://github.com/tripolskypetr/backtest-kit/releases/tag/3.1.1)
