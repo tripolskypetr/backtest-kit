@@ -10,5 +10,5 @@ export interface ISignal {
     buyPrice: number;
     quantity: number;
     date: string;
-    status: "finished";
+    status: "finished" | "pending";
 }

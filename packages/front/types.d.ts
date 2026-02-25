@@ -38,20 +38,20 @@ declare class LoggerService implements ILogger {
     setLogger: (logger: ILogger) => void;
 }
 
-type ExchangeName = string;
+type ExchangeName$1 = string;
 declare class ExchangeService {
     private readonly loggerService;
     getRangeCandles: (dto: {
         symbol: string;
         interval: CandleInterval;
-        exchangeName: ExchangeName;
+        exchangeName: ExchangeName$1;
         signalStartTime: number;
         signalStopTime: number;
     }) => Promise<backtest_kit.ICandleData[]>;
     getPointCandles: (dto: {
         symbol: string;
         interval: CandleInterval;
-        exchangeName: ExchangeName;
+        exchangeName: ExchangeName$1;
         currentTime: number;
     }) => Promise<backtest_kit.ICandleData[]>;
 }
@@ -144,6 +144,15 @@ declare class SymbolMetaService {
     }>>;
 }
 
+type ExchangeName = string;
+type StrategyName = string;
+type FrameName = string;
+declare class PriceConnectionService {
+    private readonly loggerService;
+    getSignalPendingPrice: (symbol: string, strategyName: StrategyName, exchangeName: ExchangeName, frameName: FrameName, backtest: boolean) => Promise<number>;
+    protected init: (() => Promise<void>) & functools_kit.ISingleshotClearable;
+}
+
 declare const ioc: {
     notificationViewService: NotificationViewService;
     storageViewService: StorageViewService;
@@ -153,6 +162,7 @@ declare const ioc: {
     exchangeMockService: ExchangeMockService;
     symbolMetaService: SymbolMetaService;
     symbolConnectionService: SymbolConnectionService;
+    priceConnectionService: PriceConnectionService;
     loggerService: LoggerService;
     exchangeService: ExchangeService;
 };

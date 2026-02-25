@@ -15,6 +15,7 @@ import ExchangeViewService from "../services/view/ExchangeViewService";
 import NotificationViewService from "../services/view/NotificationViewService";
 import StorageViewService from "../services/view/StorageViewService";
 import SymbolGlobalService from "../services/global/SymbolGlobalService";
+import PriceGlobalService from "../services/global/PriceGlobalService";
 
 {
     provide(TYPES.errorService, () => new ErrorService());
@@ -26,6 +27,7 @@ import SymbolGlobalService from "../services/global/SymbolGlobalService";
 
 {
     provide(TYPES.symbolGlobalService, () => new SymbolGlobalService());
+    provide(TYPES.priceGlobalService, () => new PriceGlobalService());
 }
 
 {

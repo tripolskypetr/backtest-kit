@@ -8,6 +8,7 @@ const baseServices = {
 
 const globalServices = {
   symbolGlobalService: Symbol("symbolGlobalService"),
+  priceGlobalService: Symbol("priceGlobalService"),
 }
 
 const mockServices = {

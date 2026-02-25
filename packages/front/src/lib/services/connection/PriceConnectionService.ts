@@ -10,17 +10,19 @@ import LoggerService from "../base/LoggerService";
 import { TYPES } from "src/lib/core/types";
 
 type ExchangeName = string;
+type StrategyName = string;
 type FrameName = string;
 
 const PRICE_TIMEOUT = 120_000;
 
 const CREATE_KEY_FN = (
   symbol: string,
+  strategyName: StrategyName,
   exchangeName: ExchangeName,
   frameName: FrameName,
   backtest: boolean,
 ): string => {
-  const parts = [symbol, exchangeName];
+  const parts = [symbol, strategyName, exchangeName];
   if (frameName) parts.push(frameName);
   parts.push(backtest ? "backtest" : "live");
   return parts.join(":");
@@ -29,24 +31,27 @@ const CREATE_KEY_FN = (
 const GET_SUBJECT_FN = memoize<
   (
     symbol: string,
+    strategyName: StrategyName,
     exchangeName: ExchangeName,
     frameName: FrameName,
     backtest: boolean,
   ) => BehaviorSubject<number>
 >(
-  ([symbol, exchangeName, frameName, backtest]) =>
-    CREATE_KEY_FN(symbol, exchangeName, frameName, backtest),
+  ([symbol, strategyName, exchangeName, frameName, backtest]) =>
+    CREATE_KEY_FN(symbol, strategyName, exchangeName, frameName, backtest),
   () => new BehaviorSubject<number>(),
 );
 
 const GET_PRICE_FN = async (
   symbol: string,
+  strategyName: StrategyName,
   exchangeName: ExchangeName,
   frameName: FrameName,
   backtest: boolean,
 ) => {
   const priceSubject = GET_SUBJECT_FN(
     symbol,
+    strategyName,
     exchangeName,
     frameName,
     backtest,
@@ -64,27 +69,30 @@ const GET_PRICE_FN = async (
 export class PriceConnectionService {
   private readonly loggerService = inject<LoggerService>(TYPES.loggerService);
 
-  public getCurrentPrice = async (
+  public getSignalPendingPrice = async (
     symbol: string,
+    strategyName: StrategyName,
     exchangeName: ExchangeName,
     frameName: FrameName,
     backtest: boolean,
   ) => {
-    this.loggerService.log("priceConnectionService getCurrentPrice", {
+    this.loggerService.log("priceConnectionService getSignalPendingPrice", {
       symbol,
+      strategyName,
       exchangeName,
       frameName,
       backtest,
     });
     const currentPrice = await GET_PRICE_FN(
       symbol,
+      strategyName,
       exchangeName,
       frameName,
       backtest,
     );
     if (typeof currentPrice === "symbol") {
       throw new Error(
-        `Price for ${CREATE_KEY_FN(symbol, exchangeName, frameName, backtest)} not received within timeout`,
+        `Price for ${CREATE_KEY_FN(symbol, strategyName, exchangeName, frameName, backtest)} not received within timeout`,
       );
     }
     return currentPrice;
@@ -95,6 +103,7 @@ export class PriceConnectionService {
     listenSignal((event) => {
       const priceSubject = GET_SUBJECT_FN(
         event.symbol,
+        event.strategyName,
         event.exchangeName,
         event.frameName,
         event.backtest,

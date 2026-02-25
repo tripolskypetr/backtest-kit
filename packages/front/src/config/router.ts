@@ -8,6 +8,7 @@ import mock from "../routes/mock";
 import view from "../routes/view";
 import icon from "../routes/icon";
 import dict from "../routes/dict";
+import global from "../routes/global";
 
 import { CC_ENABLE_MOCK, CC_WWWROOT_PATH } from "./params";
 
@@ -35,6 +36,10 @@ router.all("/icon/*", (req, res) => {
 
 router.all("/api/v1/dict/*", (req, res) => {
   return dict(req, res, finalhandler(req, res));
+});
+
+router.all("/api/v1/global/*", (req, res) => {
+  return global(req, res, finalhandler(req, res));
 });
 
 router.get("/*", (req, res) =>

@@ -17,6 +17,7 @@ import NotificationViewService from "./services/view/NotificationViewService";
 import StorageViewService from "./services/view/StorageViewService";
 
 import SymbolGlobalService from "./services/global/SymbolGlobalService";
+import PriceGlobalService from "./services/global/PriceGlobalService";
 
 import TYPES from "./core/TYPES";
 
@@ -30,6 +31,7 @@ const baseServices = {
 
 const globalServices = {
   symbolGlobalService: inject<SymbolGlobalService>(TYPES.symbolGlobalService),
+  priceGlobalService: inject<PriceGlobalService>(TYPES.priceGlobalService),
 }
 
 const mockServices = {
