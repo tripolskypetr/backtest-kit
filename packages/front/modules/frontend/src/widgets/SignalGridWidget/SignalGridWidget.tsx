@@ -33,10 +33,7 @@ import IconWrapper from "../../components/common/IconWrapper";
 import { ISignal } from "../../api/useSignalOffsetPaginator/model/Signal.model";
 import ioc from "../../lib";
 
-const ADMIN_PASS = "88888888";
-
 interface ISignalGridWidgetProps {
-  onUpdate: () => void;
   sx: SxProps;
   mode: "live" | "backtest";
 }
@@ -266,7 +263,6 @@ const row_actions: IGridAction[] = [
 
 export const SignalGridWidget = ({
   sx,
-  onUpdate,
   mode,
 }: ISignalGridWidgetProps) => {
   const paginator = useSignalOffsetPaginator(mode);
