@@ -8,7 +8,7 @@ import { GLOBAL_CONFIG } from "../config/params";
  * - Calculates weighted PNL: Σ(percent_i × pnl_i) for each partial + (remaining% × final_pnl)
  * - Each partial close has its own slippage
  * - Open fee is charged once; close fees are proportional to each partial's size
- * - Total fees = CC_PERCENT_FEE (open) + CC_PERCENT_FEE × 1 (closes sum to 100%) = 2 × CC_PERCENT_FEE
+ * - Total fees = CC_PERCENT_FEE (open) + Σ CC_PERCENT_FEE × (partial% / 100) × (closeWithSlip / openWithSlip)
  *
  * Formula breakdown:
  * 1. Apply slippage to open/close prices (worse execution)
@@ -17,7 +17,7 @@ import { GLOBAL_CONFIG } from "../config/params";
  * 2. Calculate raw PNL percentage
  *    - LONG: ((closePrice - openPrice) / openPrice) * 100
  *    - SHORT: ((openPrice - closePrice) / openPrice) * 100
- * 3. Subtract total fees (0.1% * 2 = 0.2% per transaction)
+ * 3. Subtract total fees: open fee + close fee adjusted for slippage-affected execution price
  *
  * @param signal - Closed signal with position details and optional partial history
  * @param priceClose - Actual close price at final exit
@@ -118,7 +118,7 @@ export const toProfitLossDto = (
     }
 
     // Subtract total fees from weighted PNL
-    // totalFees = CC_PERCENT_FEE (open) + CC_PERCENT_FEE × 1 (all closes sum to 100%) = 2 × CC_PERCENT_FEE
+    // totalFees = CC_PERCENT_FEE (open) + Σ CC_PERCENT_FEE × (partialPercent/100) × (closeWithSlip/openWithSlip)
     const pnlPercentage = totalWeightedPnl - totalFees;
 
     return {
