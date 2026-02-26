@@ -609,7 +609,7 @@ npm start
 
 ## ✅ Tested & Reliable
 
-350+ tests cover validation, recovery, reports, and events.
+365+ tests cover validation, recovery, reports, and events.
 
 ## 🤝 Contribute
 
