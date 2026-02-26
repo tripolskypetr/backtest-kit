@@ -1,6 +1,6 @@
 {
   "name": "@backtest-kit/graph",
-  "version": "3.2.0",
+  "version": "3.3.0",
   "description": "Compose backtest-kit computations as a typed directed acyclic graph. Define source nodes that fetch market data and output nodes that compute derived values — then resolve the whole graph in topological order.",
   "author": {
     "name": "Petr Tripolsky",
@@ -67,11 +67,11 @@
     "ts-morph": "27.0.2",
     "tslib": "2.7.0",
     "typedoc": "0.27.9",
-    "backtest-kit": "3.2.0",
+    "backtest-kit": "3.3.0",
     "worker-testbed": "1.0.12"
   },
   "peerDependencies": {
-    "backtest-kit": "^3.2.0",
+    "backtest-kit": "^3.3.0",
     "typescript": "^5.0.0"
   },
   "dependencies": {

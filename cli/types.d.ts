@@ -1,5 +1,5 @@
 import * as functools_kit from 'functools-kit';
-import { CandleInterval, TrailingTakeCommit, TrailingStopCommit, BreakevenCommit, PartialProfitCommit, PartialLossCommit, IStrategyTickResultScheduled, IStrategyTickResultCancelled, IStrategyTickResultOpened, IStrategyTickResultClosed, RiskContract } from 'backtest-kit';
+import { CandleInterval, TrailingTakeCommit, TrailingStopCommit, BreakevenCommit, PartialProfitCommit, PartialLossCommit, IStrategyTickResultScheduled, IStrategyTickResultCancelled, IStrategyTickResultOpened, IStrategyTickResultClosed, RiskContract, AverageBuyCommit } from 'backtest-kit';
 import { Input } from 'telegraf';
 
 interface ILogger {
@@ -163,6 +163,7 @@ declare class TelegramLogicService {
     private notifyOpened;
     private notifyClosed;
     private notifyRisk;
+    private notifyAverageBuy;
     connect: (() => () => void) & functools_kit.ISingleshotClearable;
 }
 
@@ -179,6 +180,7 @@ declare class TelegramTemplateService {
     getOpenedMarkdown: (event: IStrategyTickResultOpened) => Promise<string>;
     getClosedMarkdown: (event: IStrategyTickResultClosed) => Promise<string>;
     getRiskMarkdown: (event: RiskContract) => Promise<string>;
+    getAverageBuyMarkdown: (event: AverageBuyCommit) => Promise<string>;
 }
 
 interface ILiveModule {
@@ -192,6 +194,7 @@ interface ILiveModule {
     onOpened(event: IStrategyTickResultOpened): Promise<void> | void;
     onClosed(event: IStrategyTickResultClosed): Promise<void> | void;
     onRisk(event: RiskContract): Promise<void> | void;
+    onAverageBuy(event: AverageBuyCommit): Promise<void> | void;
 }
 type LiveModule = Partial<ILiveModule>;
 type BaseModule = LiveModule;
@@ -216,6 +219,7 @@ declare class LiveProviderService {
     private handleOpened;
     private handleClosed;
     private handleRisk;
+    private handleAverageBuy;
     enable: (() => (...args: any[]) => any) & functools_kit.ISingleshotClearable;
     disable: () => void;
     connect: (() => Promise<() => void>) & functools_kit.ISingleshotClearable;

@@ -17,6 +17,7 @@ import {
   RiskContract,
   TrailingStopCommit,
   TrailingTakeCommit,
+  AverageBuyCommit,
 } from "backtest-kit";
 import TelegramTemplateService from "../template/TelegramTemplateService";
 import TelegramWebService from "../web/TelegramWebService";
@@ -155,6 +156,17 @@ export class TelegramLogicService {
     });
   };
 
+  private notifyAverageBuy = async (event: AverageBuyCommit) => {
+    this.loggerService.log("telegramLogicService notifyAverageBuy", {
+      event,
+    });
+    const markdown = await this.telegramTemplateService.getAverageBuyMarkdown(event);
+    await this.telegramWebService.publishNotify({
+      symbol: event.symbol,
+      markdown,
+    });
+  }
+
   public connect = singleshot(() => {
     this.loggerService.log("telegramLogicService connect");
 
@@ -200,6 +212,10 @@ export class TelegramLogicService {
       }
       if (event.action === "partial-loss") {
         await this.notifyPartialLoss(event);
+        return;
+      }
+      if (event.action === "average-buy") {
+        await this.notifyAverageBuy(event);
         return;
       }
     });

@@ -26,13 +26,13 @@ import {
   IStrategyTickResultActive,
   IStrategyTickResultClosed,
   IStrategyTickResultCancelled,
-  IStrategyBacktestResult,
   SignalInterval,
   StrategyName,
   StrategyCancelReason,
   ICommitRow,
 } from "../interfaces/Strategy.interface";
 import toProfitLossDto from "../helpers/toProfitLossDto";
+import { getEffectivePriceOpen as GET_EFFECTIVE_PRICE_OPEN } from "../helpers/getEffectivePriceOpen";
 import { ICandleData } from "../interfaces/Exchange.interface";
 import { PersistSignalAdapter, PersistScheduleAdapter } from "../classes/Persist";
 import backtest, { ExecutionContextService } from "../lib";
@@ -132,6 +132,7 @@ const PROCESS_COMMIT_QUEUE_FN = async (
         percentToClose: commit.percentToClose,
         currentPrice: commit.currentPrice,
         timestamp,
+        totalEntries: publicSignal.totalEntries,
         position: publicSignal.position,
         priceOpen: publicSignal.priceOpen,
         signalId: publicSignal.id,
@@ -139,6 +140,7 @@ const PROCESS_COMMIT_QUEUE_FN = async (
         priceStopLoss: publicSignal.priceStopLoss,
         originalPriceTakeProfit: publicSignal.originalPriceTakeProfit,
         originalPriceStopLoss: publicSignal.originalPriceStopLoss,
+        originalPriceOpen: publicSignal.originalPriceOpen,
         scheduledAt: publicSignal.scheduledAt,
         pendingAt: publicSignal.pendingAt,
       });
@@ -155,6 +157,7 @@ const PROCESS_COMMIT_QUEUE_FN = async (
         percentToClose: commit.percentToClose,
         currentPrice: commit.currentPrice,
         timestamp,
+        totalEntries: publicSignal.totalEntries,
         position: publicSignal.position,
         priceOpen: publicSignal.priceOpen,
         signalId: publicSignal.id,
@@ -162,6 +165,7 @@ const PROCESS_COMMIT_QUEUE_FN = async (
         priceStopLoss: publicSignal.priceStopLoss,
         originalPriceTakeProfit: publicSignal.originalPriceTakeProfit,
         originalPriceStopLoss: publicSignal.originalPriceStopLoss,
+        originalPriceOpen: publicSignal.originalPriceOpen,
         scheduledAt: publicSignal.scheduledAt,
         pendingAt: publicSignal.pendingAt,
       });
@@ -177,6 +181,7 @@ const PROCESS_COMMIT_QUEUE_FN = async (
         backtest: commit.backtest,
         currentPrice: commit.currentPrice,
         timestamp,
+        totalEntries: publicSignal.totalEntries,
         signalId: publicSignal.id,
         position: publicSignal.position,
         priceOpen: publicSignal.priceOpen,
@@ -184,6 +189,7 @@ const PROCESS_COMMIT_QUEUE_FN = async (
         priceStopLoss: publicSignal.priceStopLoss,
         originalPriceTakeProfit: publicSignal.originalPriceTakeProfit,
         originalPriceStopLoss: publicSignal.originalPriceStopLoss,
+        originalPriceOpen: publicSignal.originalPriceOpen,
         scheduledAt: publicSignal.scheduledAt,
         pendingAt: publicSignal.pendingAt,
       });
@@ -200,6 +206,7 @@ const PROCESS_COMMIT_QUEUE_FN = async (
         percentShift: commit.percentShift,
         currentPrice: commit.currentPrice,
         timestamp,
+        totalEntries: publicSignal.totalEntries,
         signalId: publicSignal.id,
         position: publicSignal.position,
         priceOpen: publicSignal.priceOpen,
@@ -207,6 +214,7 @@ const PROCESS_COMMIT_QUEUE_FN = async (
         priceStopLoss: publicSignal.priceStopLoss,
         originalPriceTakeProfit: publicSignal.originalPriceTakeProfit,
         originalPriceStopLoss: publicSignal.originalPriceStopLoss,
+        originalPriceOpen: publicSignal.originalPriceOpen,
         scheduledAt: publicSignal.scheduledAt,
         pendingAt: publicSignal.pendingAt,
       });
@@ -223,6 +231,7 @@ const PROCESS_COMMIT_QUEUE_FN = async (
         percentShift: commit.percentShift,
         currentPrice: commit.currentPrice,
         timestamp,
+        totalEntries: publicSignal.totalEntries,
         signalId: publicSignal.id,
         position: publicSignal.position,
         priceOpen: publicSignal.priceOpen,
@@ -230,6 +239,33 @@ const PROCESS_COMMIT_QUEUE_FN = async (
         priceStopLoss: publicSignal.priceStopLoss,
         originalPriceTakeProfit: publicSignal.originalPriceTakeProfit,
         originalPriceStopLoss: publicSignal.originalPriceStopLoss,
+        originalPriceOpen: publicSignal.originalPriceOpen,
+        scheduledAt: publicSignal.scheduledAt,
+        pendingAt: publicSignal.pendingAt,
+      });
+      continue;
+    }
+    if (commit.action === "average-buy") {
+      const effectivePriceOpen = GET_EFFECTIVE_PRICE_OPEN(self._pendingSignal);
+      await CALL_COMMIT_FN(self, {
+        action: "average-buy",
+        symbol: commit.symbol,
+        strategyName: self.params.strategyName,
+        exchangeName: self.params.exchangeName,
+        frameName: self.params.frameName,
+        backtest: commit.backtest,
+        currentPrice: commit.currentPrice,
+        effectivePriceOpen,
+        timestamp,
+        totalEntries: publicSignal.totalEntries,
+        signalId: publicSignal.id,
+        position: publicSignal.position,
+        priceOpen: publicSignal.priceOpen,
+        priceTakeProfit: publicSignal.priceTakeProfit,
+        priceStopLoss: publicSignal.priceStopLoss,
+        originalPriceTakeProfit: publicSignal.originalPriceTakeProfit,
+        originalPriceStopLoss: publicSignal.originalPriceStopLoss,
+        originalPriceOpen: publicSignal.originalPriceOpen,
         scheduledAt: publicSignal.scheduledAt,
         pendingAt: publicSignal.pendingAt,
       });
@@ -291,14 +327,20 @@ const TO_PUBLIC_SIGNAL = <T extends ISignalDto | ISignalRow | IScheduledSignalRo
   const partialExecuted = ("_partial" in signal && Array.isArray(signal._partial))
     ? signal._partial.reduce((sum, partial) => sum + partial.percent, 0)
     : 0;
-
+  const totalEntries = ("_entry" in signal && Array.isArray(signal._entry))
+    ? signal._entry.length
+    : 1;
+  const effectivePriceOpen = "_entry" in signal ? GET_EFFECTIVE_PRICE_OPEN(signal): signal.priceOpen;
   return {
     ...structuredClone(signal) as ISignalRow | IScheduledSignalRow,
+    priceOpen: effectivePriceOpen,
     priceStopLoss: hasTrailingSL ? signal._trailingPriceStopLoss : signal.priceStopLoss,
     priceTakeProfit: hasTrailingTP ? signal._trailingPriceTakeProfit : signal.priceTakeProfit,
+    originalPriceOpen: signal.priceOpen,
     originalPriceStopLoss: signal.priceStopLoss,
     originalPriceTakeProfit: signal.priceTakeProfit,
     partialExecuted,
+    totalEntries,
   };
 };
 
@@ -755,6 +797,7 @@ const GET_SIGNAL_FN = trycatch(
           scheduledAt: currentTime,
           pendingAt: currentTime, // Для immediate signal оба времени одинаковые
           _isScheduled: false,
+          _entry: [{ price: signal.priceOpen }],
         };
 
         // Валидируем сигнал перед возвратом
@@ -779,6 +822,7 @@ const GET_SIGNAL_FN = trycatch(
         scheduledAt: currentTime,
         pendingAt: SCHEDULED_SIGNAL_PENDING_MOCK, // Временно, обновится при активации
         _isScheduled: true,
+        _entry: [{ price: signal.priceOpen }],
       };
 
       // Валидируем сигнал перед возвратом
@@ -799,6 +843,7 @@ const GET_SIGNAL_FN = trycatch(
       scheduledAt: currentTime,
       pendingAt: currentTime, // Для immediate signal оба времени одинаковые
       _isScheduled: false,
+      _entry: [{ price: currentPrice }],
     };
 
     // Валидируем сигнал перед возвратом
@@ -1028,9 +1073,10 @@ const TRAILING_STOP_LOSS_FN = (
   signal: ISignalRow,
   percentShift: number
 ): boolean => {
+  const effectivePriceOpen = GET_EFFECTIVE_PRICE_OPEN(signal);
   // CRITICAL: Always calculate from ORIGINAL SL, not from current trailing SL
   // This prevents error accumulation on repeated calls
-  const originalSlDistancePercent = Math.abs((signal.priceOpen - signal.priceStopLoss) / signal.priceOpen * 100);
+  const originalSlDistancePercent = Math.abs((effectivePriceOpen - signal.priceStopLoss) / effectivePriceOpen * 100);
 
   // Calculate new stop-loss distance percentage by adding shift to ORIGINAL distance
   // Negative percentShift: reduces distance % (tightens stop, moves SL toward entry or beyond)
@@ -1045,12 +1091,12 @@ const TRAILING_STOP_LOSS_FN = (
     // LONG: SL is below entry (or above entry if in profit zone)
     // Formula: entry * (1 - newDistance%)
     // Example: entry=100, originalSL=90 (10%), shift=-5% → newDistance=5% → 100 * 0.95 = 95 (tighter)
-    newStopLoss = signal.priceOpen * (1 - newSlDistancePercent / 100);
+    newStopLoss = effectivePriceOpen * (1 - newSlDistancePercent / 100);
   } else {
     // SHORT: SL is above entry (or below entry if in profit zone)
     // Formula: entry * (1 + newDistance%)
     // Example: entry=100, originalSL=110 (10%), shift=-5% → newDistance=5% → 100 * 1.05 = 105 (tighter)
-    newStopLoss = signal.priceOpen * (1 + newSlDistancePercent / 100);
+    newStopLoss = effectivePriceOpen * (1 + newSlDistancePercent / 100);
   }
 
   const currentTrailingSL = signal._trailingPriceStopLoss;
@@ -1123,9 +1169,10 @@ const TRAILING_TAKE_PROFIT_FN = (
   signal: ISignalRow,
   percentShift: number
 ): boolean => {
+  const effectivePriceOpen = GET_EFFECTIVE_PRICE_OPEN(signal);
   // CRITICAL: Always calculate from ORIGINAL TP, not from current trailing TP
   // This prevents error accumulation on repeated calls
-  const originalTpDistancePercent = Math.abs((signal.priceTakeProfit - signal.priceOpen) / signal.priceOpen * 100);
+  const originalTpDistancePercent = Math.abs((signal.priceTakeProfit - effectivePriceOpen) / effectivePriceOpen * 100);
 
   // Calculate new take-profit distance percentage by adding shift to ORIGINAL distance
   // Negative percentShift: reduces distance % (brings TP closer to entry)
@@ -1139,12 +1186,12 @@ const TRAILING_TAKE_PROFIT_FN = (
     // LONG: TP is above entry
     // Formula: entry * (1 + newDistance%)
     // Example: entry=100, originalTP=110 (10%), shift=-3% → newDistance=7% → 100 * 1.07 = 107 (closer)
-    newTakeProfit = signal.priceOpen * (1 + newTpDistancePercent / 100);
+    newTakeProfit = effectivePriceOpen * (1 + newTpDistancePercent / 100);
   } else {
     // SHORT: TP is below entry
     // Formula: entry * (1 - newDistance%)
     // Example: entry=100, originalTP=90 (10%), shift=-3% → newDistance=7% → 100 * 0.93 = 93 (closer)
-    newTakeProfit = signal.priceOpen * (1 - newTpDistancePercent / 100);
+    newTakeProfit = effectivePriceOpen * (1 - newTpDistancePercent / 100);
   }
 
   const currentTrailingTP = signal._trailingPriceTakeProfit;
@@ -1215,6 +1262,7 @@ const BREAKEVEN_FN = (
   signal: ISignalRow,
   currentPrice: number
 ): boolean => {
+  const effectivePriceOpen = GET_EFFECTIVE_PRICE_OPEN(signal);
   // Calculate breakeven threshold based on slippage and fees
   // Need to cover: entry slippage + entry fee + exit slippage + exit fee
   // Total: (slippage + fee) * 2 transactions
@@ -1224,11 +1272,11 @@ const BREAKEVEN_FN = (
   // Check if trailing stop is already set
   if (signal._trailingPriceStopLoss !== undefined) {
     const trailingStopLoss = signal._trailingPriceStopLoss;
-    const breakevenPrice = signal.priceOpen;
+    const breakevenPrice = effectivePriceOpen;
 
     if (signal.position === "long") {
       // LONG: trailing SL is positive if it's above entry (in profit zone)
-      const isPositiveTrailing = trailingStopLoss > signal.priceOpen;
+      const isPositiveTrailing = trailingStopLoss > effectivePriceOpen;
 
       if (isPositiveTrailing) {
         // Trailing stop is already protecting profit - consider breakeven achieved
@@ -1244,7 +1292,7 @@ const BREAKEVEN_FN = (
       } else {
         // Trailing stop is negative (below entry)
         // Check if we can upgrade it to breakeven
-        const thresholdPrice = signal.priceOpen * (1 + breakevenThresholdPercent / 100);
+        const thresholdPrice = effectivePriceOpen * (1 + breakevenThresholdPercent / 100);
         const isThresholdReached = currentPrice >= thresholdPrice;
 
         if (isThresholdReached && breakevenPrice > trailingStopLoss) {
@@ -1294,7 +1342,7 @@ const BREAKEVEN_FN = (
       }
     } else {
       // SHORT: trailing SL is positive if it's below entry (in profit zone)
-      const isPositiveTrailing = trailingStopLoss < signal.priceOpen;
+      const isPositiveTrailing = trailingStopLoss < effectivePriceOpen;
 
       if (isPositiveTrailing) {
         // Trailing stop is already protecting profit - consider breakeven achieved
@@ -1310,7 +1358,7 @@ const BREAKEVEN_FN = (
       } else {
         // Trailing stop is negative (above entry)
         // Check if we can upgrade it to breakeven
-        const thresholdPrice = signal.priceOpen * (1 - breakevenThresholdPercent / 100);
+        const thresholdPrice = effectivePriceOpen * (1 - breakevenThresholdPercent / 100);
         const isThresholdReached = currentPrice <= thresholdPrice;
 
         if (isThresholdReached && breakevenPrice < trailingStopLoss) {
@@ -1363,7 +1411,7 @@ const BREAKEVEN_FN = (
 
   // No trailing stop set - proceed with normal breakeven logic
   const currentStopLoss = signal.priceStopLoss;
-  const breakevenPrice = signal.priceOpen;
+  const breakevenPrice = effectivePriceOpen;
 
   // Calculate threshold price
   let thresholdPrice: number;
@@ -1372,14 +1420,14 @@ const BREAKEVEN_FN = (
 
   if (signal.position === "long") {
     // LONG: threshold reached when price goes UP by breakevenThresholdPercent from entry
-    thresholdPrice = signal.priceOpen * (1 + breakevenThresholdPercent / 100);
+    thresholdPrice = effectivePriceOpen * (1 + breakevenThresholdPercent / 100);
     isThresholdReached = currentPrice >= thresholdPrice;
 
     // Can move to breakeven only if threshold reached and SL is below entry
     canMoveToBreakeven = isThresholdReached && currentStopLoss < breakevenPrice;
   } else {
     // SHORT: threshold reached when price goes DOWN by breakevenThresholdPercent from entry
-    thresholdPrice = signal.priceOpen * (1 - breakevenThresholdPercent / 100);
+    thresholdPrice = effectivePriceOpen * (1 - breakevenThresholdPercent / 100);
     isThresholdReached = currentPrice <= thresholdPrice;
 
     // Can move to breakeven only if threshold reached and SL is above entry
@@ -1445,8 +1493,60 @@ const BREAKEVEN_FN = (
     thresholdPrice,
     breakevenThresholdPercent,
     profitDistancePercent: signal.position === "long"
-      ? ((currentPrice - signal.priceOpen) / signal.priceOpen * 100)
-      : ((signal.priceOpen - currentPrice) / signal.priceOpen * 100),
+      ? ((currentPrice - effectivePriceOpen) / effectivePriceOpen * 100)
+      : ((effectivePriceOpen - currentPrice) / effectivePriceOpen * 100),
+  });
+
+  return true;
+};
+
+const AVERAGE_BUY_FN = (
+  self: ClientStrategy,
+  signal: ISignalRow,
+  currentPrice: number
+): boolean => {
+  // Ensure _entry is initialized (handles signals loaded from disk without _entry)
+  if (!signal._entry || signal._entry.length === 0) {
+    signal._entry = [{ price: signal.priceOpen }];
+  }
+
+  const lastEntry = signal._entry[signal._entry.length - 1];
+
+  if (signal.position === "long") {
+    // LONG: averaging down = currentPrice must be strictly lower than last entry
+    if (currentPrice >= lastEntry.price) {
+      self.params.logger.debug("AVERAGE_BUY_FN: rejected — currentPrice >= last entry (LONG)", {
+        signalId: signal.id,
+        position: signal.position,
+        currentPrice,
+        lastEntryPrice: lastEntry.price,
+        reason: "must average down for LONG",
+      });
+      return false;
+    }
+  } else {
+    // SHORT: averaging down = currentPrice must be strictly higher than last entry
+    if (currentPrice <= lastEntry.price) {
+      self.params.logger.debug("AVERAGE_BUY_FN: rejected — currentPrice <= last entry (SHORT)", {
+        signalId: signal.id,
+        position: signal.position,
+        currentPrice,
+        lastEntryPrice: lastEntry.price,
+        reason: "must average down for SHORT",
+      });
+      return false;
+    }
+  }
+
+  signal._entry.push({ price: currentPrice });
+
+  self.params.logger.info("AVERAGE_BUY_FN executed", {
+    signalId: signal.id,
+    position: signal.position,
+    originalPriceOpen: signal.priceOpen,
+    newEntryPrice: currentPrice,
+    newEffectivePrice: GET_EFFECTIVE_PRICE_OPEN(signal),
+    totalEntries: signal._entry.length,
   });
 
   return true;
@@ -2767,9 +2867,10 @@ const RETURN_PENDING_SIGNAL_ACTIVE_FN = async (
 
   // Calculate percentage of path to TP/SL for partial fill/loss callbacks
   {
+    const effectivePriceOpen = GET_EFFECTIVE_PRICE_OPEN(signal);
     if (signal.position === "long") {
       // For long: calculate progress towards TP or SL
-      const currentDistance = currentPrice - signal.priceOpen;
+      const currentDistance = currentPrice - effectivePriceOpen;
 
       if (currentDistance > 0) {
         // Check if breakeven should be triggered
@@ -2786,7 +2887,7 @@ const RETURN_PENDING_SIGNAL_ACTIVE_FN = async (
       if (currentDistance > 0) {
         // Moving towards TP (use trailing TP if set)
         const effectiveTakeProfit = signal._trailingPriceTakeProfit ?? signal.priceTakeProfit;
-        const tpDistance = effectiveTakeProfit - signal.priceOpen;
+        const tpDistance = effectiveTakeProfit - effectivePriceOpen;
         const progressPercent = (currentDistance / tpDistance) * 100;
         percentTp = Math.min(progressPercent, 100);
 
@@ -2802,7 +2903,7 @@ const RETURN_PENDING_SIGNAL_ACTIVE_FN = async (
       } else if (currentDistance < 0) {
         // Moving towards SL (use trailing SL if set)
         const effectiveStopLoss = signal._trailingPriceStopLoss ?? signal.priceStopLoss;
-        const slDistance = signal.priceOpen - effectiveStopLoss;
+        const slDistance = effectivePriceOpen - effectiveStopLoss;
         const progressPercent = (Math.abs(currentDistance) / slDistance) * 100;
         percentSl = Math.min(progressPercent, 100);
         await CALL_PARTIAL_LOSS_CALLBACKS_FN(
@@ -2817,7 +2918,7 @@ const RETURN_PENDING_SIGNAL_ACTIVE_FN = async (
       }
     } else if (signal.position === "short") {
       // For short: calculate progress towards TP or SL
-      const currentDistance = signal.priceOpen - currentPrice;
+      const currentDistance = effectivePriceOpen - currentPrice;
 
       if (currentDistance > 0) {
         // Check if breakeven should be triggered
@@ -2834,7 +2935,7 @@ const RETURN_PENDING_SIGNAL_ACTIVE_FN = async (
       if (currentDistance > 0) {
         // Moving towards TP (use trailing TP if set)
         const effectiveTakeProfit = signal._trailingPriceTakeProfit ?? signal.priceTakeProfit;
-        const tpDistance = signal.priceOpen - effectiveTakeProfit;
+        const tpDistance = effectivePriceOpen - effectiveTakeProfit;
         const progressPercent = (currentDistance / tpDistance) * 100;
         percentTp = Math.min(progressPercent, 100);
         await CALL_PARTIAL_PROFIT_CALLBACKS_FN(
@@ -2851,7 +2952,7 @@ const RETURN_PENDING_SIGNAL_ACTIVE_FN = async (
       if (currentDistance < 0) {
         // Moving towards SL (use trailing SL if set)
         const effectiveStopLoss = signal._trailingPriceStopLoss ?? signal.priceStopLoss;
-        const slDistance = effectiveStopLoss - signal.priceOpen;
+        const slDistance = effectiveStopLoss - effectivePriceOpen;
         const progressPercent = (Math.abs(currentDistance) / slDistance) * 100;
         percentSl = Math.min(progressPercent, 100);
         await CALL_PARTIAL_LOSS_CALLBACKS_FN(
@@ -3288,8 +3389,10 @@ const PROCESS_SCHEDULED_SIGNAL_CANDLES_FN = async (
         priceStopLoss: publicSignalForCommit.priceStopLoss,
         originalPriceTakeProfit: publicSignalForCommit.originalPriceTakeProfit,
         originalPriceStopLoss: publicSignalForCommit.originalPriceStopLoss,
+        originalPriceOpen: publicSignalForCommit.originalPriceOpen,
         scheduledAt: publicSignalForCommit.scheduledAt,
         pendingAt: publicSignalForCommit.pendingAt,
+        totalEntries: publicSignalForCommit.totalEntries,
       });
 
       await CALL_OPEN_CALLBACKS_FN(
@@ -3493,9 +3596,10 @@ const PROCESS_PENDING_SIGNAL_CANDLES_FN = async (
     // Call onPartialProfit/onPartialLoss callbacks during backtest candle processing
     // Calculate percentage of path to TP/SL
     {
+      const effectivePriceOpen = GET_EFFECTIVE_PRICE_OPEN(signal);
       if (signal.position === "long") {
         // For long: calculate progress towards TP or SL
-        const currentDistance = averagePrice - signal.priceOpen;
+        const currentDistance = averagePrice - effectivePriceOpen;
 
         if (currentDistance > 0) {
           // Check if breakeven should be triggered
@@ -3512,7 +3616,7 @@ const PROCESS_PENDING_SIGNAL_CANDLES_FN = async (
         if (currentDistance > 0) {
           // Moving towards TP (use trailing TP if set)
           const effectiveTakeProfit = signal._trailingPriceTakeProfit ?? signal.priceTakeProfit;
-          const tpDistance = effectiveTakeProfit - signal.priceOpen;
+          const tpDistance = effectiveTakeProfit - effectivePriceOpen;
           const progressPercent = (currentDistance / tpDistance) * 100;
           await CALL_PARTIAL_PROFIT_CALLBACKS_FN(
             self,
@@ -3526,7 +3630,7 @@ const PROCESS_PENDING_SIGNAL_CANDLES_FN = async (
         } else if (currentDistance < 0) {
           // Moving towards SL (use trailing SL if set)
           const effectiveStopLoss = signal._trailingPriceStopLoss ?? signal.priceStopLoss;
-          const slDistance = signal.priceOpen - effectiveStopLoss;
+          const slDistance = effectivePriceOpen - effectiveStopLoss;
           const progressPercent = (Math.abs(currentDistance) / slDistance) * 100;
           await CALL_PARTIAL_LOSS_CALLBACKS_FN(
             self,
@@ -3540,7 +3644,7 @@ const PROCESS_PENDING_SIGNAL_CANDLES_FN = async (
         }
       } else if (signal.position === "short") {
         // For short: calculate progress towards TP or SL
-        const currentDistance = signal.priceOpen - averagePrice;
+        const currentDistance = effectivePriceOpen - averagePrice;
 
         if (currentDistance > 0) {
           // Check if breakeven should be triggered
@@ -3557,7 +3661,7 @@ const PROCESS_PENDING_SIGNAL_CANDLES_FN = async (
         if (currentDistance > 0) {
           // Moving towards TP (use trailing TP if set)
           const effectiveTakeProfit = signal._trailingPriceTakeProfit ?? signal.priceTakeProfit;
-          const tpDistance = signal.priceOpen - effectiveTakeProfit;
+          const tpDistance = effectivePriceOpen - effectiveTakeProfit;
           const progressPercent = (currentDistance / tpDistance) * 100;
 
           await CALL_PARTIAL_PROFIT_CALLBACKS_FN(
@@ -3574,7 +3678,7 @@ const PROCESS_PENDING_SIGNAL_CANDLES_FN = async (
         if (currentDistance < 0) {
           // Moving towards SL (use trailing SL if set)
           const effectiveStopLoss = signal._trailingPriceStopLoss ?? signal.priceStopLoss;
-          const slDistance = effectiveStopLoss - signal.priceOpen;
+          const slDistance = effectiveStopLoss - effectivePriceOpen;
           const progressPercent = (Math.abs(currentDistance) / slDistance) * 100;
           await CALL_PARTIAL_LOSS_CALLBACKS_FN(
             self,
@@ -3806,6 +3910,7 @@ export class ClientStrategy implements IStrategy {
     }
 
     const signal = this._pendingSignal;
+    const effectivePriceOpen = GET_EFFECTIVE_PRICE_OPEN(signal);
 
     // Calculate breakeven threshold based on slippage and fees
     // Need to cover: entry slippage + entry fee + exit slippage + exit fee
@@ -3819,7 +3924,7 @@ export class ClientStrategy implements IStrategy {
 
       if (signal.position === "long") {
         // LONG: trailing SL is positive if it's above entry (in profit zone)
-        const isPositiveTrailing = trailingStopLoss > signal.priceOpen;
+        const isPositiveTrailing = trailingStopLoss > effectivePriceOpen;
 
         if (isPositiveTrailing) {
           // Trailing stop is already protecting profit - breakeven achieved
@@ -3828,15 +3933,15 @@ export class ClientStrategy implements IStrategy {
 
         // Trailing stop is negative (below entry)
         // Check if we can upgrade it to breakeven
-        const thresholdPrice = signal.priceOpen * (1 + breakevenThresholdPercent / 100);
+        const thresholdPrice = effectivePriceOpen * (1 + breakevenThresholdPercent / 100);
         const isThresholdReached = currentPrice >= thresholdPrice;
-        const breakevenPrice = signal.priceOpen;
+        const breakevenPrice = effectivePriceOpen;
 
         // Can upgrade to breakeven if threshold reached and breakeven is better than current trailing SL
         return isThresholdReached && breakevenPrice > trailingStopLoss;
       } else {
         // SHORT: trailing SL is positive if it's below entry (in profit zone)
-        const isPositiveTrailing = trailingStopLoss < signal.priceOpen;
+        const isPositiveTrailing = trailingStopLoss < effectivePriceOpen;
 
         if (isPositiveTrailing) {
           // Trailing stop is already protecting profit - breakeven achieved
@@ -3845,9 +3950,9 @@ export class ClientStrategy implements IStrategy {
 
         // Trailing stop is negative (above entry)
         // Check if we can upgrade it to breakeven
-        const thresholdPrice = signal.priceOpen * (1 - breakevenThresholdPercent / 100);
+        const thresholdPrice = effectivePriceOpen * (1 - breakevenThresholdPercent / 100);
         const isThresholdReached = currentPrice <= thresholdPrice;
-        const breakevenPrice = signal.priceOpen;
+        const breakevenPrice = effectivePriceOpen;
 
         // Can upgrade to breakeven if threshold reached and breakeven is better than current trailing SL
         return isThresholdReached && breakevenPrice < trailingStopLoss;
@@ -3856,7 +3961,7 @@ export class ClientStrategy implements IStrategy {
 
     // No trailing stop set - proceed with normal breakeven logic
     const currentStopLoss = signal.priceStopLoss;
-    const breakevenPrice = signal.priceOpen;
+    const breakevenPrice = effectivePriceOpen;
 
     // Calculate threshold price
     let thresholdPrice: number;
@@ -3865,14 +3970,14 @@ export class ClientStrategy implements IStrategy {
 
     if (signal.position === "long") {
       // LONG: threshold reached when price goes UP by breakevenThresholdPercent from entry
-      thresholdPrice = signal.priceOpen * (1 + breakevenThresholdPercent / 100);
+      thresholdPrice = effectivePriceOpen * (1 + breakevenThresholdPercent / 100);
       isThresholdReached = currentPrice >= thresholdPrice;
 
       // Can move to breakeven only if threshold reached and SL is below entry
       canMoveToBreakeven = isThresholdReached && currentStopLoss < breakevenPrice;
     } else {
       // SHORT: threshold reached when price goes DOWN by breakevenThresholdPercent from entry
-      thresholdPrice = signal.priceOpen * (1 - breakevenThresholdPercent / 100);
+      thresholdPrice = effectivePriceOpen * (1 - breakevenThresholdPercent / 100);
       isThresholdReached = currentPrice <= thresholdPrice;
 
       // Can move to breakeven only if threshold reached and SL is above entry
@@ -3967,6 +4072,8 @@ export class ClientStrategy implements IStrategy {
         backtest: this.params.execution.context.backtest,
         cancelId: cancelledSignal.cancelId,
         timestamp: currentTime,
+        totalEntries: cancelledSignal._entry?.length ?? 1,
+        originalPriceOpen: cancelledSignal.priceOpen,
       });
 
       // Call onCancel callback
@@ -4030,6 +4137,8 @@ export class ClientStrategy implements IStrategy {
         backtest: this.params.execution.context.backtest,
         closeId: closedSignal.closeId,
         timestamp: currentTime,
+        totalEntries: closedSignal._entry?.length ?? 1,
+        originalPriceOpen: closedSignal.priceOpen,
       });
 
       // Call onClose callback
@@ -4178,8 +4287,10 @@ export class ClientStrategy implements IStrategy {
         priceStopLoss: publicSignalForCommit.priceStopLoss,
         originalPriceTakeProfit: publicSignalForCommit.originalPriceTakeProfit,
         originalPriceStopLoss: publicSignalForCommit.originalPriceStopLoss,
+        originalPriceOpen: publicSignalForCommit.originalPriceOpen,
         scheduledAt: publicSignalForCommit.scheduledAt,
         pendingAt: publicSignalForCommit.pendingAt,
+        totalEntries: publicSignalForCommit.totalEntries,
       });
 
       // Call onOpen callback
@@ -4389,6 +4500,8 @@ export class ClientStrategy implements IStrategy {
         backtest: true,
         cancelId: cancelledSignal.cancelId,
         timestamp: closeTimestamp,
+        totalEntries: cancelledSignal._entry?.length ?? 1,
+        originalPriceOpen: cancelledSignal.priceOpen,
       });
 
       await CALL_CANCEL_CALLBACKS_FN(
@@ -4448,6 +4561,8 @@ export class ClientStrategy implements IStrategy {
         backtest: true,
         closeId: closedSignal.closeId,
         timestamp: closeTimestamp,
+        totalEntries: closedSignal._entry?.length ?? 1,
+        originalPriceOpen: closedSignal.priceOpen,
       });
 
       await CALL_CLOSE_CALLBACKS_FN(
@@ -5008,19 +5123,22 @@ export class ClientStrategy implements IStrategy {
     }
 
     // Validation: currentPrice must be moving toward TP (profit direction)
-    if (this._pendingSignal.position === "long") {
-      // For LONG: currentPrice must be higher than priceOpen (moving toward TP)
-      if (currentPrice <= this._pendingSignal.priceOpen) {
-        throw new Error(
-          `ClientStrategy partialProfit: For LONG position, currentPrice (${currentPrice}) must be > priceOpen (${this._pendingSignal.priceOpen})`
-        );
-      }
-    } else {
-      // For SHORT: currentPrice must be lower than priceOpen (moving toward TP)
-      if (currentPrice >= this._pendingSignal.priceOpen) {
-        throw new Error(
-          `ClientStrategy partialProfit: For SHORT position, currentPrice (${currentPrice}) must be < priceOpen (${this._pendingSignal.priceOpen})`
-        );
+    {
+      const effectivePriceOpen = GET_EFFECTIVE_PRICE_OPEN(this._pendingSignal);
+      if (this._pendingSignal.position === "long") {
+        // For LONG: currentPrice must be higher than effectivePriceOpen (moving toward TP)
+        if (currentPrice <= effectivePriceOpen) {
+          throw new Error(
+            `ClientStrategy partialProfit: For LONG position, currentPrice (${currentPrice}) must be > effectivePriceOpen (${effectivePriceOpen})`
+          );
+        }
+      } else {
+        // For SHORT: currentPrice must be lower than effectivePriceOpen (moving toward TP)
+        if (currentPrice >= effectivePriceOpen) {
+          throw new Error(
+            `ClientStrategy partialProfit: For SHORT position, currentPrice (${currentPrice}) must be < effectivePriceOpen (${effectivePriceOpen})`
+          );
+        }
       }
     }
 
@@ -5184,19 +5302,22 @@ export class ClientStrategy implements IStrategy {
     }
 
     // Validation: currentPrice must be moving toward SL (loss direction)
-    if (this._pendingSignal.position === "long") {
-      // For LONG: currentPrice must be lower than priceOpen (moving toward SL)
-      if (currentPrice >= this._pendingSignal.priceOpen) {
-        throw new Error(
-          `ClientStrategy partialLoss: For LONG position, currentPrice (${currentPrice}) must be < priceOpen (${this._pendingSignal.priceOpen})`
-        );
-      }
-    } else {
-      // For SHORT: currentPrice must be higher than priceOpen (moving toward SL)
-      if (currentPrice <= this._pendingSignal.priceOpen) {
-        throw new Error(
-          `ClientStrategy partialLoss: For SHORT position, currentPrice (${currentPrice}) must be > priceOpen (${this._pendingSignal.priceOpen})`
-        );
+    {
+      const effectivePriceOpen = GET_EFFECTIVE_PRICE_OPEN(this._pendingSignal);
+      if (this._pendingSignal.position === "long") {
+        // For LONG: currentPrice must be lower than effectivePriceOpen (moving toward SL)
+        if (currentPrice >= effectivePriceOpen) {
+          throw new Error(
+            `ClientStrategy partialLoss: For LONG position, currentPrice (${currentPrice}) must be < effectivePriceOpen (${effectivePriceOpen})`
+          );
+        }
+      } else {
+        // For SHORT: currentPrice must be higher than effectivePriceOpen (moving toward SL)
+        if (currentPrice <= effectivePriceOpen) {
+          throw new Error(
+            `ClientStrategy partialLoss: For SHORT position, currentPrice (${currentPrice}) must be > effectivePriceOpen (${effectivePriceOpen})`
+          );
+        }
       }
     }
 
@@ -5348,7 +5469,7 @@ export class ClientStrategy implements IStrategy {
 
     // Check for conflict with existing trailing take profit
     const signal = this._pendingSignal;
-    const breakevenPrice = signal.priceOpen;
+    const breakevenPrice = GET_EFFECTIVE_PRICE_OPEN(signal);
     const effectiveTakeProfit = signal._trailingPriceTakeProfit ?? signal.priceTakeProfit;
 
     if (signal.position === "long" && breakevenPrice >= effectiveTakeProfit) {
@@ -5540,14 +5661,15 @@ export class ClientStrategy implements IStrategy {
 
     // Calculate what the new stop loss would be
     const signal = this._pendingSignal;
-    const slDistancePercent = Math.abs((signal.priceOpen - signal.priceStopLoss) / signal.priceOpen * 100);
+    const effectivePriceOpen = GET_EFFECTIVE_PRICE_OPEN(signal);
+    const slDistancePercent = Math.abs((effectivePriceOpen - signal.priceStopLoss) / effectivePriceOpen * 100);
     const newSlDistancePercent = slDistancePercent + percentShift;
 
     let newStopLoss: number;
     if (signal.position === "long") {
-      newStopLoss = signal.priceOpen * (1 - newSlDistancePercent / 100);
+      newStopLoss = effectivePriceOpen * (1 - newSlDistancePercent / 100);
     } else {
-      newStopLoss = signal.priceOpen * (1 + newSlDistancePercent / 100);
+      newStopLoss = effectivePriceOpen * (1 + newSlDistancePercent / 100);
     }
 
     // Check for price intrusion before executing trailing logic
@@ -5756,14 +5878,15 @@ export class ClientStrategy implements IStrategy {
 
     // Calculate what the new take profit would be
     const signal = this._pendingSignal;
-    const tpDistancePercent = Math.abs((signal.priceTakeProfit - signal.priceOpen) / signal.priceOpen * 100);
+    const effectivePriceOpen = GET_EFFECTIVE_PRICE_OPEN(signal);
+    const tpDistancePercent = Math.abs((signal.priceTakeProfit - effectivePriceOpen) / effectivePriceOpen * 100);
     const newTpDistancePercent = tpDistancePercent + percentShift;
 
     let newTakeProfit: number;
     if (signal.position === "long") {
-      newTakeProfit = signal.priceOpen * (1 + newTpDistancePercent / 100);
+      newTakeProfit = effectivePriceOpen * (1 + newTpDistancePercent / 100);
     } else {
-      newTakeProfit = signal.priceOpen * (1 - newTpDistancePercent / 100);
+      newTakeProfit = effectivePriceOpen * (1 - newTpDistancePercent / 100);
     }
 
     // Check for price intrusion before executing trailing logic
@@ -5862,6 +5985,98 @@ export class ClientStrategy implements IStrategy {
       backtest,
       percentShift,
       currentPrice,
+    });
+
+    return true;
+  }
+
+  /**
+   * Adds a new averaging entry to an open position (DCA — Dollar Cost Averaging).
+   *
+   * Appends currentPrice to the _entry array. The effective entry price used in all
+   * distance and PNL calculations becomes the simple arithmetic mean of all _entry prices.
+   * Original priceOpen is preserved unchanged for identity/audit purposes.
+   *
+   * Rejection rules (returns false without throwing):
+   * - LONG: currentPrice >= last entry price (must average down, not up or equal)
+   * - SHORT: currentPrice <= last entry price (must average down, not up or equal)
+   *
+   * @param symbol - Trading pair symbol (e.g., "BTCUSDT")
+   * @param currentPrice - New entry price to add to the averaging history
+   * @param backtest - Whether running in backtest mode
+   * @returns Promise<boolean> - true if entry added, false if rejected by direction check
+   */
+  public async averageBuy(
+    symbol: string,
+    currentPrice: number,
+    backtest: boolean
+  ): Promise<boolean> {
+    this.params.logger.debug("ClientStrategy averageBuy", {
+      symbol,
+      currentPrice,
+      hasPendingSignal: this._pendingSignal !== null,
+    });
+
+    // Validation: must have pending signal
+    if (!this._pendingSignal) {
+      throw new Error(
+        `ClientStrategy averageBuy: No pending signal exists for symbol=${symbol}`
+      );
+    }
+
+    // Validation: currentPrice must be valid
+    if (typeof currentPrice !== "number" || !isFinite(currentPrice) || currentPrice <= 0) {
+      throw new Error(
+        `ClientStrategy averageBuy: currentPrice must be a positive finite number, got ${currentPrice}`
+      );
+    }
+
+    // Reject if any partial closes have already been executed
+    if (this._pendingSignal._partial && this._pendingSignal._partial.length > 0) {
+      this.params.logger.debug("ClientStrategy averageBuy: rejected — partial closes already executed", {
+        symbol,
+        partialCount: this._pendingSignal._partial.length,
+      });
+      return false;
+    }
+
+    // Execute averaging logic
+    const result = AVERAGE_BUY_FN(this, this._pendingSignal, currentPrice);
+
+    if (!result) {
+      return false;
+    }
+
+    // Persist updated signal state
+    this.params.logger.debug("ClientStrategy setPendingSignal (inline)", {
+      pendingSignal: this._pendingSignal,
+    });
+
+    // Call onWrite callback for testing persist storage
+    if (this.params.callbacks?.onWrite) {
+      this.params.callbacks.onWrite(
+        this.params.execution.context.symbol,
+        TO_PUBLIC_SIGNAL(this._pendingSignal),
+        backtest
+      );
+    }
+
+    if (!backtest) {
+      await PersistSignalAdapter.writeSignalData(
+        this._pendingSignal,
+        this.params.execution.context.symbol,
+        this.params.strategyName,
+        this.params.exchangeName,
+      );
+    }
+
+    // Queue commit event for processing in tick()/backtest() with proper timestamp
+    this._commitQueue.push({
+      action: "average-buy",
+      symbol,
+      backtest,
+      currentPrice,
+      totalEntries: this._pendingSignal._entry?.length ?? 1,
     });
 
     return true;

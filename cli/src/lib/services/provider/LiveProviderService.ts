@@ -1,5 +1,6 @@
 import { compose, singleshot, trycatch } from "functools-kit";
 import {
+  AverageBuyCommit,
   BreakevenCommit,
   IStrategyTickResultCancelled,
   IStrategyTickResultClosed,
@@ -141,6 +142,16 @@ export class LiveProviderService {
     }
   };
 
+  private handleAverageBuy = async (event: AverageBuyCommit) => {
+    this.loggerService.log("liveProviderService handleAverageBuy", {
+      event,  
+    });
+    const instance = await LOAD_INSTANCE_FN(this);
+    if (instance?.onAverageBuy) {
+      await instance.onAverageBuy(event);
+    } 
+  };
+
   public enable = singleshot(() => {
     this.loggerService.log("liveProviderService enable");
 
@@ -199,6 +210,10 @@ export class LiveProviderService {
       }
       if (event.action === "partial-loss") {
         await this.handlePartialLoss(event);
+        return;
+      }
+      if (event.action === "average-buy") {
+        await this.handleAverageBuy(event);
         return;
       }
     });

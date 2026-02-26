@@ -673,6 +673,34 @@ export class StrategyCoreService implements TStrategy {
     await this.validate(context);
     return await this.strategyConnectionService.activateScheduled(backtest, symbol, context, activateId);
   };
+
+  /**
+   * Adds a new DCA entry to the active pending signal.
+   *
+   * Validates strategy existence and delegates to connection service
+   * to add a new averaging entry to the position.
+   *
+   * @param backtest - Whether running in backtest mode
+   * @param symbol - Trading pair symbol
+   * @param currentPrice - New entry price to add to the averaging history
+   * @param context - Execution context with strategyName, exchangeName, frameName
+   * @returns Promise<boolean> - true if entry added, false if rejected
+   */
+  public averageBuy = async (
+    backtest: boolean,
+    symbol: string,
+    currentPrice: number,
+    context: { strategyName: StrategyName; exchangeName: ExchangeName; frameName: FrameName }
+  ): Promise<boolean> => {
+    this.loggerService.log("strategyCoreService averageBuy", {
+      symbol,
+      currentPrice,
+      context,
+      backtest,
+    });
+    await this.validate(context);
+    return await this.strategyConnectionService.averageBuy(backtest, symbol, currentPrice, context);
+  };
 }
 
 export default StrategyCoreService;

@@ -58,6 +58,8 @@ const getNotificationColor = (item: NotificationModel): string => {
       return "#00BCD4";
     case "activate_scheduled.commit":
       return "#4CAF50";
+    case "average_buy.commit":
+      return "#FF9800";
     case "trailing_stop.commit":
     case "trailing_take.commit":
       return "#673AB7";
@@ -95,6 +97,8 @@ const getNotificationIcon = (item: NotificationModel) => {
       return <SwapVert sx={sx} />;
     case "activate_scheduled.commit":
       return <PlayArrow sx={sx} />;
+    case "average_buy.commit":
+      return <TrendingDown sx={sx} />;
     case "trailing_stop.commit":
     case "trailing_take.commit":
       return <Timeline sx={sx} />;
@@ -134,6 +138,8 @@ const getNotificationTitle = (item: NotificationModel): string => {
       return `${t("Breakeven set")} ${item.symbol}`;
     case "activate_scheduled.commit":
       return `${t("Activated")} ${item.position.toUpperCase()} ${item.symbol}`;
+    case "average_buy.commit":
+      return `${t("Average buy")} ${item.symbol} (${item.totalEntries} ${t("entries")})`;
     case "trailing_stop.commit":
       return `${t("Trailing stop")} ${item.symbol}`;
     case "trailing_take.commit":
@@ -175,6 +181,8 @@ const getNotificationTypeLabel = (item: NotificationModel): string => {
       return t("Breakeven Commit");
     case "activate_scheduled.commit":
       return t("Activated Scheduled");
+    case "average_buy.commit":
+      return t("Average Buy");
     case "trailing_stop.commit":
       return t("Trailing Stop");
     case "trailing_take.commit":
@@ -321,6 +329,28 @@ const hasRejectionNote = (
   return "rejectionNote" in item;
 };
 
+const hasEffectivePriceOpen = (
+  item: NotificationModel
+): item is NotificationModel & { effectivePriceOpen: number } => {
+  return "effectivePriceOpen" in item;
+};
+
+const hasTotalEntries = (
+  item: NotificationModel
+): item is NotificationModel & { totalEntries: number } => {
+  return "totalEntries" in item && (item as any).totalEntries > 1;
+};
+
+const hasOriginalPriceOpen = (
+  item: NotificationModel
+): item is NotificationModel & { originalPriceOpen: number; priceOpen: number } => {
+  return (
+    "originalPriceOpen" in item &&
+    "priceOpen" in item &&
+    (item as any).originalPriceOpen !== (item as any).priceOpen
+  );
+};
+
 export const NotificationCard = forwardRef(
   (
     { item, className, style, sx }: INotificationCardProps,
@@ -435,6 +465,28 @@ export const NotificationCard = forwardRef(
                       label={item.closeReason}
                       variant="outlined"
                       color="info"
+                    />
+                  )}
+                  {hasTotalEntries(item) && (
+                    <Chip
+                      size="small"
+                      label={`${t("Entries")}: ${item.totalEntries}`}
+                      variant="outlined"
+                    />
+                  )}
+                  {hasEffectivePriceOpen(item) && (
+                    <Chip
+                      size="small"
+                      label={`${t("Avg entry")}: ${item.effectivePriceOpen}`}
+                      variant="outlined"
+                      color="warning"
+                    />
+                  )}
+                  {hasOriginalPriceOpen(item) && (
+                    <Chip
+                      size="small"
+                      label={`${t("Orig entry")}: ${item.originalPriceOpen}`}
+                      variant="outlined"
                     />
                   )}
                 </Stack>

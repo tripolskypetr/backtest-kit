@@ -27,6 +27,10 @@ export interface TickEvent {
   originalPriceTakeProfit?: number;
   /** Original stop loss price before modifications (only for scheduled/waiting/opened/active/closed/cancelled) */
   originalPriceStopLoss?: number;
+  /** Original entry price at signal creation (unchanged by DCA averaging) */
+  originalPriceOpen?: number;
+  /** Total number of DCA entries (_entry.length). 1 = no averaging. */
+  totalEntries?: number;
   /** Total executed percentage from partial closes (only for scheduled/waiting/opened/active/closed/cancelled) */
   partialExecuted?: number;
   /** Percentage progress towards take profit (only for active/waiting) */

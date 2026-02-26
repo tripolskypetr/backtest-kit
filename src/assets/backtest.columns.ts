@@ -98,6 +98,18 @@ export const backtest_columns: ColumnModel<IStrategyTickResultClosed>[] = [
     isVisible: () => true,
   },
   {
+    key: "originalPriceOpen",
+    label: "Original Entry",
+    format: (data) => `${data.signal.originalPriceOpen.toFixed(8)} USD`,
+    isVisible: () => true,
+  },
+  {
+    key: "totalEntries",
+    label: "DCA Entries",
+    format: (data) => String(data.signal.totalEntries),
+    isVisible: () => true,
+  },
+  {
     key: "pnl",
     label: "PNL (net)",
     format: (data) => {

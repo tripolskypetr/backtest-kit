@@ -35,6 +35,10 @@ export interface SignalOpenedNotification {
   originalPriceTakeProfit: number;
   /** Original stop loss price before any trailing adjustments */
   originalPriceStopLoss: number;
+  /** Original entry price at signal creation (unchanged by DCA averaging) */
+  originalPriceOpen: number;
+  /** Total number of DCA entries (_entry.length). 1 = no averaging. */
+  totalEntries: number;
   /** Optional human-readable description of signal reason */
   note?: string;
   /** Signal creation timestamp in milliseconds (when signal was first created/scheduled) */
@@ -80,6 +84,10 @@ export interface SignalClosedNotification {
   originalPriceTakeProfit: number;
   /** Original stop loss price before any trailing adjustments */
   originalPriceStopLoss: number;
+  /** Original entry price at signal creation (unchanged by DCA averaging) */
+  originalPriceOpen: number;
+  /** Total number of DCA entries (_entry.length). 1 = no averaging. */
+  totalEntries: number;
   /** Profit/loss as percentage (e.g., 1.5 for +1.5%, -2.3 for -2.3%) */
   pnlPercentage: number;
   /** Why signal closed (time_expired | take_profit | stop_loss | closed) */
@@ -133,6 +141,10 @@ export interface PartialProfitAvailableNotification {
   originalPriceTakeProfit: number;
   /** Original stop loss price before any trailing adjustments */
   originalPriceStopLoss: number;
+  /** Original entry price at signal creation (unchanged by DCA averaging) */
+  originalPriceOpen: number;
+  /** Total number of DCA entries (_entry.length). 1 = no averaging. */
+  totalEntries: number;
   /** Signal creation timestamp in milliseconds (when signal was first created/scheduled) */
   scheduledAt: number;
   /** Pending timestamp in milliseconds (when position became pending/active at priceOpen) */
@@ -178,6 +190,10 @@ export interface PartialLossAvailableNotification {
   originalPriceTakeProfit: number;
   /** Original stop loss price before any trailing adjustments */
   originalPriceStopLoss: number;
+  /** Original entry price at signal creation (unchanged by DCA averaging) */
+  originalPriceOpen: number;
+  /** Total number of DCA entries (_entry.length). 1 = no averaging. */
+  totalEntries: number;
   /** Signal creation timestamp in milliseconds (when signal was first created/scheduled) */
   scheduledAt: number;
   /** Pending timestamp in milliseconds (when position became pending/active at priceOpen) */
@@ -221,6 +237,10 @@ export interface BreakevenAvailableNotification {
   originalPriceTakeProfit: number;
   /** Original stop loss price before any trailing adjustments */
   originalPriceStopLoss: number;
+  /** Original entry price at signal creation (unchanged by DCA averaging) */
+  originalPriceOpen: number;
+  /** Total number of DCA entries (_entry.length). 1 = no averaging. */
+  totalEntries: number;
   /** Signal creation timestamp in milliseconds (when signal was first created/scheduled) */
   scheduledAt: number;
   /** Pending timestamp in milliseconds (when position became pending/active at priceOpen) */
@@ -266,6 +286,10 @@ export interface PartialProfitCommitNotification {
   originalPriceTakeProfit: number;
   /** Original stop loss price before any trailing adjustments */
   originalPriceStopLoss: number;
+  /** Original entry price at signal creation (unchanged by DCA averaging) */
+  originalPriceOpen: number;
+  /** Total number of DCA entries (_entry.length). 1 = no averaging. */
+  totalEntries: number;
   /** Signal creation timestamp in milliseconds (when signal was first created/scheduled) */
   scheduledAt: number;
   /** Pending timestamp in milliseconds (when position became pending/active at priceOpen) */
@@ -311,6 +335,10 @@ export interface PartialLossCommitNotification {
   originalPriceTakeProfit: number;
   /** Original stop loss price before any trailing adjustments */
   originalPriceStopLoss: number;
+  /** Original entry price at signal creation (unchanged by DCA averaging) */
+  originalPriceOpen: number;
+  /** Total number of DCA entries (_entry.length). 1 = no averaging. */
+  totalEntries: number;
   /** Signal creation timestamp in milliseconds (when signal was first created/scheduled) */
   scheduledAt: number;
   /** Pending timestamp in milliseconds (when position became pending/active at priceOpen) */
@@ -354,6 +382,59 @@ export interface BreakevenCommitNotification {
   originalPriceTakeProfit: number;
   /** Original stop loss price before any trailing adjustments */
   originalPriceStopLoss: number;
+  /** Original entry price at signal creation (unchanged by DCA averaging) */
+  originalPriceOpen: number;
+  /** Total number of DCA entries (_entry.length). 1 = no averaging. */
+  totalEntries: number;
+  /** Signal creation timestamp in milliseconds (when signal was first created/scheduled) */
+  scheduledAt: number;
+  /** Pending timestamp in milliseconds (when position became pending/active at priceOpen) */
+  pendingAt: number;
+  /** Unix timestamp in milliseconds when the notification was created */
+  createdAt: number;
+}
+
+/**
+ * Average-buy (DCA) commit notification.
+ * Emitted when a new averaging entry is added to an open position.
+ */
+export interface AverageBuyCommitNotification {
+  /** Discriminator for type-safe union */
+  type: "average_buy.commit";
+  /** Unique notification identifier */
+  id: string;
+  /** Unix timestamp in milliseconds when the averaging entry was executed */
+  timestamp: number;
+  /** Whether this notification is from backtest mode (true) or live mode (false) */
+  backtest: boolean;
+  /** Trading pair symbol (e.g., "BTCUSDT") */
+  symbol: string;
+  /** Strategy name that generated this signal */
+  strategyName: StrategyName;
+  /** Exchange name where signal was executed */
+  exchangeName: ExchangeName;
+  /** Unique signal identifier (UUID v4) */
+  signalId: string;
+  /** Price at which the new averaging entry was executed */
+  currentPrice: number;
+  /** Averaged (effective) entry price after this addition */
+  effectivePriceOpen: number;
+  /** Total number of DCA entries after this addition */
+  totalEntries: number;
+  /** Trade direction: "long" (buy) or "short" (sell) */
+  position: "long" | "short";
+  /** Original entry price (unchanged by averaging) */
+  priceOpen: number;
+  /** Effective take profit price (with trailing if set) */
+  priceTakeProfit: number;
+  /** Effective stop loss price (with trailing if set) */
+  priceStopLoss: number;
+  /** Original take profit price before any trailing adjustments */
+  originalPriceTakeProfit: number;
+  /** Original stop loss price before any trailing adjustments */
+  originalPriceStopLoss: number;
+  /** Original entry price at signal creation (unchanged by DCA averaging) */
+  originalPriceOpen: number;
   /** Signal creation timestamp in milliseconds (when signal was first created/scheduled) */
   scheduledAt: number;
   /** Pending timestamp in milliseconds (when position became pending/active at priceOpen) */
@@ -397,6 +478,10 @@ export interface ActivateScheduledCommitNotification {
   originalPriceTakeProfit: number;
   /** Original stop loss price before any trailing adjustments */
   originalPriceStopLoss: number;
+  /** Original entry price at signal creation (unchanged by DCA averaging) */
+  originalPriceOpen: number;
+  /** Total number of DCA entries (_entry.length). 1 = no averaging. */
+  totalEntries: number;
   /** Signal creation timestamp in milliseconds (when signal was first created/scheduled) */
   scheduledAt: number;
   /** Pending timestamp in milliseconds (when position became pending/active at priceOpen) */
@@ -444,6 +529,10 @@ export interface TrailingStopCommitNotification {
   originalPriceTakeProfit: number;
   /** Original stop loss price before any trailing adjustments */
   originalPriceStopLoss: number;
+  /** Original entry price at signal creation (unchanged by DCA averaging) */
+  originalPriceOpen: number;
+  /** Total number of DCA entries (_entry.length). 1 = no averaging. */
+  totalEntries: number;
   /** Signal creation timestamp in milliseconds (when signal was first created/scheduled) */
   scheduledAt: number;
   /** Pending timestamp in milliseconds (when position became pending/active at priceOpen) */
@@ -489,6 +578,10 @@ export interface TrailingTakeCommitNotification {
   originalPriceTakeProfit: number;
   /** Original stop loss price before any trailing adjustments */
   originalPriceStopLoss: number;
+  /** Original entry price at signal creation (unchanged by DCA averaging) */
+  originalPriceOpen: number;
+  /** Total number of DCA entries (_entry.length). 1 = no averaging. */
+  totalEntries: number;
   /** Signal creation timestamp in milliseconds (when signal was first created/scheduled) */
   scheduledAt: number;
   /** Pending timestamp in milliseconds (when position became pending/active at priceOpen) */
@@ -575,6 +668,10 @@ export interface SignalScheduledNotification {
   originalPriceTakeProfit: number;
   /** Original stop loss price before any trailing adjustments */
   originalPriceStopLoss: number;
+  /** Original entry price at signal creation (unchanged by DCA averaging) */
+  originalPriceOpen: number;
+  /** Total number of DCA entries (_entry.length). 1 = no averaging. */
+  totalEntries: number;
   /** Unix timestamp in milliseconds when signal was scheduled */
   scheduledAt: number;
   /** Current market price when signal was scheduled */
@@ -616,6 +713,10 @@ export interface SignalCancelledNotification {
   originalPriceTakeProfit: number;
   /** Original stop loss price before any trailing adjustments */
   originalPriceStopLoss: number;
+  /** Original entry price at signal creation (unchanged by DCA averaging) */
+  originalPriceOpen: number;
+  /** Total number of DCA entries (_entry.length). 1 = no averaging. */
+  totalEntries: number;
   /** Why signal was cancelled (timeout | price_reject | user) */
   cancelReason: string;
   /** Optional cancellation identifier (provided when user calls cancel()) */
@@ -716,6 +817,7 @@ export type NotificationModel =
   | PartialProfitCommitNotification
   | PartialLossCommitNotification
   | BreakevenCommitNotification
+  | AverageBuyCommitNotification
   | ActivateScheduledCommitNotification
   | TrailingStopCommitNotification
   | TrailingTakeCommitNotification

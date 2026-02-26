@@ -124,6 +124,22 @@ export const live_columns: ColumnModel<TickEvent>[] = [
     isVisible: () => true,
   },
   {
+    key: "originalPriceOpen",
+    label: "Original Entry",
+    format: (data) =>
+      data.originalPriceOpen !== undefined
+        ? `${data.originalPriceOpen.toFixed(8)} USD`
+        : "N/A",
+    isVisible: () => true,
+  },
+  {
+    key: "totalEntries",
+    label: "DCA Entries",
+    format: (data) =>
+      data.totalEntries !== undefined ? String(data.totalEntries) : "N/A",
+    isVisible: () => true,
+  },
+  {
     key: "partialExecuted",
     label: "Partial Executed %",
     format: (data) =>

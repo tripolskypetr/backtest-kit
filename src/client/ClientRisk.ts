@@ -75,11 +75,13 @@ const TO_RISK_SIGNAL = <T extends ISignalRow>(signal: T, currentPrice: number): 
 
   return {
     ...structuredClone(signal) as ISignalRow,
+    totalEntries: 1,
     priceOpen: signal.priceOpen ?? currentPrice,
     priceStopLoss: hasTrailingSL ? signal._trailingPriceStopLoss : signal.priceStopLoss,
     priceTakeProfit: hasTrailingTP ? signal._trailingPriceTakeProfit : signal.priceTakeProfit,
     originalPriceStopLoss: signal.priceStopLoss,
     originalPriceTakeProfit: signal.priceTakeProfit,
+    originalPriceOpen: signal.priceOpen ?? currentPrice,
     partialExecuted,
   };
 };

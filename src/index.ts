@@ -19,6 +19,7 @@ export {
   commitTrailingTake,
   commitBreakeven,
   commitActivateScheduled,
+  commitAverageBuy,
 } from "./function/strategy";
 export { stopStrategy } from "./function/control";
 export {
@@ -262,6 +263,7 @@ export {
   TrailingTakeCommit,
   BreakevenCommit,
   ActivateScheduledCommit,
+  AverageBuyCommit,
 } from "./contract/StrategyCommit.contract";
 
 export { ExecutionContextService } from "./lib/services/context/ExecutionContextService";

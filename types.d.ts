@@ -2117,6 +2117,13 @@ interface SignalCommitBase {
     signalId: string;
     /** Timestamp from execution context (tick's when or backtest candle timestamp) */
     timestamp: number;
+    /**
+     * Total number of DCA entries at the time of this event (_entry.length).
+     * 1 = no averaging done (only initial entry). 2+ = averaged positions.
+     */
+    totalEntries: number;
+    /** Original entry price at signal creation (unchanged by DCA averaging). */
+    originalPriceOpen: number;
 }
 /**
  * Cancel scheduled signal event.
@@ -2270,6 +2277,34 @@ interface BreakevenCommit extends SignalCommitBase {
     pendingAt: number;
 }
 /**
+ * Average-buy (DCA) event.
+ * Emitted when a new averaging entry is added to an open position.
+ */
+interface AverageBuyCommit extends SignalCommitBase {
+    /** Discriminator for average-buy action */
+    action: "average-buy";
+    /** Price at which the new averaging entry was executed */
+    currentPrice: number;
+    /** Effective (averaged) entry price after this addition */
+    effectivePriceOpen: number;
+    /** Trade direction: "long" (buy) or "short" (sell) */
+    position: "long" | "short";
+    /** Original entry price (signal.priceOpen, unchanged by averaging) */
+    priceOpen: number;
+    /** Effective take profit price (may differ from original after trailing) */
+    priceTakeProfit: number;
+    /** Effective stop loss price (may differ from original after trailing) */
+    priceStopLoss: number;
+    /** Original take profit price before any trailing adjustments */
+    originalPriceTakeProfit: number;
+    /** Original stop loss price before any trailing adjustments */
+    originalPriceStopLoss: number;
+    /** Signal creation timestamp in milliseconds */
+    scheduledAt: number;
+    /** Position activation timestamp in milliseconds (when price reached priceOpen) */
+    pendingAt: number;
+}
+/**
  * Activate scheduled signal event.
  */
 interface ActivateScheduledCommit extends SignalCommitBase {
@@ -2309,7 +2344,7 @@ interface ActivateScheduledCommit extends SignalCommitBase {
  * Consumers must retrieve signal data from StrategyCoreService using
  * getPendingSignal() or getScheduledSignal() methods.
  */
-type StrategyCommitContract = CancelScheduledCommit | ClosePendingCommit | PartialProfitCommit | PartialLossCommit | TrailingStopCommit | TrailingTakeCommit | BreakevenCommit | ActivateScheduledCommit;
+type StrategyCommitContract = CancelScheduledCommit | ClosePendingCommit | PartialProfitCommit | PartialLossCommit | TrailingStopCommit | TrailingTakeCommit | BreakevenCommit | AverageBuyCommit | ActivateScheduledCommit;
 
 /**
  * Signal generation interval for throttling.
@@ -2387,6 +2422,17 @@ interface ISignalRow extends ISignalDto {
      */
     _trailingPriceStopLoss?: number;
     /**
+     * DCA (Dollar Cost Averaging) entry history.
+     * First element is always the original priceOpen at signal creation.
+     * Each subsequent element is a new averaging entry added by averageBuy().
+     * Effective entry price = simple arithmetic mean of all price values.
+     * Original priceOpen is preserved unchanged for identity/audit purposes.
+     */
+    _entry?: Array<{
+        /** Price at which this entry was executed */
+        price: number;
+    }>;
+    /**
      * Trailing take-profit price that overrides priceTakeProfit when set.
      * Created and managed by trailingTake() method for dynamic TP adjustment.
      * Allows moving TP further from or closer to current price based on strategy.
@@ -2437,6 +2483,16 @@ interface IPublicSignalRow extends ISignalRow {
      * Range: 0-100. Value of 0 means no partial closes, 100 means position fully closed through partials.
      */
     partialExecuted: number;
+    /**
+     * Total number of entries in the DCA _entry history (_entry.length).
+     * 1 = no averaging done (only initial entry). 2+ = averaged positions.
+     */
+    totalEntries: number;
+    /**
+     * Original entry price set at signal creation (unchanged by averaging).
+     * Mirrors signal.priceOpen which is preserved for identity/audit purposes.
+     */
+    originalPriceOpen: number;
 }
 /**
  * Base storage signal row fields shared by all status variants.
@@ -2555,6 +2611,17 @@ interface IBreakevenCommitRow extends ICommitRowBase {
     currentPrice: number;
 }
 /**
+ * Queued average-buy (DCA) commit.
+ */
+interface IAverageBuyCommitRow extends ICommitRowBase {
+    /** Discriminator */
+    action: "average-buy";
+    /** Price at which the new averaging entry was executed */
+    currentPrice: number;
+    /** Total number of entries in _entry after this addition */
+    totalEntries: number;
+}
+/**
  * Queued trailing stop commit.
  */
 interface ITrailingStopCommitRow extends ICommitRowBase {
@@ -2591,7 +2658,7 @@ interface IActivateScheduledCommitRow extends ICommitRowBase {
  * Discriminated union of all queued commit events.
  * These are stored in _commitQueue and processed in tick()/backtest().
  */
-type ICommitRow = IPartialProfitCommitRow | IPartialLossCommitRow | IBreakevenCommitRow | ITrailingStopCommitRow | ITrailingTakeCommitRow | IActivateScheduledCommitRow;
+type ICommitRow = IPartialProfitCommitRow | IPartialLossCommitRow | IBreakevenCommitRow | IAverageBuyCommitRow | ITrailingStopCommitRow | ITrailingTakeCommitRow | IActivateScheduledCommitRow;
 /**
  * Optional lifecycle callbacks for signal events.
  * Called when signals are opened, active, idle, closed, scheduled, or cancelled.
@@ -3288,6 +3355,27 @@ interface IStrategy {
      * ```
      */
     breakeven: (symbol: string, currentPrice: number, backtest: boolean) => Promise<boolean>;
+    /**
+     * Adds a new averaging entry to an open position (DCA — Dollar Cost Averaging).
+     *
+     * Appends currentPrice to the _entry array. The effective entry price used in all
+     * distance and PNL calculations becomes the simple arithmetic mean of all _entry prices.
+     * Original priceOpen is preserved unchanged for identity/audit purposes.
+     *
+     * Rejection rules (returns false without throwing):
+     * - LONG: currentPrice >= last entry price (must average down, not up or equal)
+     * - SHORT: currentPrice <= last entry price (must average down, not up or equal)
+     *
+     * Validations (throws):
+     * - No pending signal exists
+     * - currentPrice is not a positive finite number
+     *
+     * @param symbol - Trading pair symbol (e.g., "BTCUSDT")
+     * @param currentPrice - New entry price to add to the averaging history
+     * @param backtest - Whether running in backtest mode
+     * @returns Promise<boolean> - true if entry added, false if rejected by direction check
+     */
+    averageBuy: (symbol: string, currentPrice: number, backtest: boolean) => Promise<boolean>;
     /**
      * Disposes the strategy instance and cleans up resources.
      *
@@ -4005,6 +4093,31 @@ declare function commitBreakeven(symbol: string): Promise<boolean>;
  * ```
  */
 declare function commitActivateScheduled(symbol: string, activateId?: string): Promise<void>;
+/**
+ * Adds a new DCA entry to the active pending signal.
+ *
+ * Adds a new averaging entry at the current market price to the position's
+ * entry history. Updates effectivePriceOpen (mean of all entries) and emits
+ * an average-buy commit event.
+ *
+ * Automatically detects backtest/live mode from execution context.
+ * Automatically fetches current price via getAveragePrice.
+ *
+ * @param symbol - Trading pair symbol
+ * @returns Promise<boolean> - true if entry added, false if rejected
+ *
+ * @example
+ * ```typescript
+ * import { commitAverageBuy } from "backtest-kit";
+ *
+ * // Add DCA entry at current market price
+ * const success = await commitAverageBuy("BTCUSDT");
+ * if (success) {
+ *   console.log("DCA entry added");
+ * }
+ * ```
+ */
+declare function commitAverageBuy(symbol: string): Promise<boolean>;
 
 /**
  * Stops the strategy from generating new signals.
@@ -4056,6 +4169,10 @@ interface BreakevenEvent {
     originalPriceTakeProfit?: number;
     /** Original stop loss price set at signal creation */
     originalPriceStopLoss?: number;
+    /** Total number of DCA entries (present when averageBuy was applied) */
+    totalEntries?: number;
+    /** Original entry price before DCA averaging (present when averageBuy was applied) */
+    originalPriceOpen?: number;
     /** Total executed percentage from partial closes */
     partialExecuted?: number;
     /** Human-readable description of signal reason */
@@ -6896,6 +7013,10 @@ interface SignalOpenedNotification {
     originalPriceTakeProfit: number;
     /** Original stop loss price before any trailing adjustments */
     originalPriceStopLoss: number;
+    /** Original entry price at signal creation (unchanged by DCA averaging) */
+    originalPriceOpen: number;
+    /** Total number of DCA entries (_entry.length). 1 = no averaging. */
+    totalEntries: number;
     /** Optional human-readable description of signal reason */
     note?: string;
     /** Signal creation timestamp in milliseconds (when signal was first created/scheduled) */
@@ -6940,6 +7061,10 @@ interface SignalClosedNotification {
     originalPriceTakeProfit: number;
     /** Original stop loss price before any trailing adjustments */
     originalPriceStopLoss: number;
+    /** Original entry price at signal creation (unchanged by DCA averaging) */
+    originalPriceOpen: number;
+    /** Total number of DCA entries (_entry.length). 1 = no averaging. */
+    totalEntries: number;
     /** Profit/loss as percentage (e.g., 1.5 for +1.5%, -2.3 for -2.3%) */
     pnlPercentage: number;
     /** Why signal closed (time_expired | take_profit | stop_loss | closed) */
@@ -6992,6 +7117,10 @@ interface PartialProfitAvailableNotification {
     originalPriceTakeProfit: number;
     /** Original stop loss price before any trailing adjustments */
     originalPriceStopLoss: number;
+    /** Original entry price at signal creation (unchanged by DCA averaging) */
+    originalPriceOpen: number;
+    /** Total number of DCA entries (_entry.length). 1 = no averaging. */
+    totalEntries: number;
     /** Signal creation timestamp in milliseconds (when signal was first created/scheduled) */
     scheduledAt: number;
     /** Pending timestamp in milliseconds (when position became pending/active at priceOpen) */
@@ -7036,6 +7165,10 @@ interface PartialLossAvailableNotification {
     originalPriceTakeProfit: number;
     /** Original stop loss price before any trailing adjustments */
     originalPriceStopLoss: number;
+    /** Original entry price at signal creation (unchanged by DCA averaging) */
+    originalPriceOpen: number;
+    /** Total number of DCA entries (_entry.length). 1 = no averaging. */
+    totalEntries: number;
     /** Signal creation timestamp in milliseconds (when signal was first created/scheduled) */
     scheduledAt: number;
     /** Pending timestamp in milliseconds (when position became pending/active at priceOpen) */
@@ -7078,6 +7211,10 @@ interface BreakevenAvailableNotification {
     originalPriceTakeProfit: number;
     /** Original stop loss price before any trailing adjustments */
     originalPriceStopLoss: number;
+    /** Original entry price at signal creation (unchanged by DCA averaging) */
+    originalPriceOpen: number;
+    /** Total number of DCA entries (_entry.length). 1 = no averaging. */
+    totalEntries: number;
     /** Signal creation timestamp in milliseconds (when signal was first created/scheduled) */
     scheduledAt: number;
     /** Pending timestamp in milliseconds (when position became pending/active at priceOpen) */
@@ -7122,6 +7259,10 @@ interface PartialProfitCommitNotification {
     originalPriceTakeProfit: number;
     /** Original stop loss price before any trailing adjustments */
     originalPriceStopLoss: number;
+    /** Original entry price at signal creation (unchanged by DCA averaging) */
+    originalPriceOpen: number;
+    /** Total number of DCA entries (_entry.length). 1 = no averaging. */
+    totalEntries: number;
     /** Signal creation timestamp in milliseconds (when signal was first created/scheduled) */
     scheduledAt: number;
     /** Pending timestamp in milliseconds (when position became pending/active at priceOpen) */
@@ -7166,6 +7307,10 @@ interface PartialLossCommitNotification {
     originalPriceTakeProfit: number;
     /** Original stop loss price before any trailing adjustments */
     originalPriceStopLoss: number;
+    /** Original entry price at signal creation (unchanged by DCA averaging) */
+    originalPriceOpen: number;
+    /** Total number of DCA entries (_entry.length). 1 = no averaging. */
+    totalEntries: number;
     /** Signal creation timestamp in milliseconds (when signal was first created/scheduled) */
     scheduledAt: number;
     /** Pending timestamp in milliseconds (when position became pending/active at priceOpen) */
@@ -7208,6 +7353,58 @@ interface BreakevenCommitNotification {
     originalPriceTakeProfit: number;
     /** Original stop loss price before any trailing adjustments */
     originalPriceStopLoss: number;
+    /** Original entry price at signal creation (unchanged by DCA averaging) */
+    originalPriceOpen: number;
+    /** Total number of DCA entries (_entry.length). 1 = no averaging. */
+    totalEntries: number;
+    /** Signal creation timestamp in milliseconds (when signal was first created/scheduled) */
+    scheduledAt: number;
+    /** Pending timestamp in milliseconds (when position became pending/active at priceOpen) */
+    pendingAt: number;
+    /** Unix timestamp in milliseconds when the notification was created */
+    createdAt: number;
+}
+/**
+ * Average-buy (DCA) commit notification.
+ * Emitted when a new averaging entry is added to an open position.
+ */
+interface AverageBuyCommitNotification {
+    /** Discriminator for type-safe union */
+    type: "average_buy.commit";
+    /** Unique notification identifier */
+    id: string;
+    /** Unix timestamp in milliseconds when the averaging entry was executed */
+    timestamp: number;
+    /** Whether this notification is from backtest mode (true) or live mode (false) */
+    backtest: boolean;
+    /** Trading pair symbol (e.g., "BTCUSDT") */
+    symbol: string;
+    /** Strategy name that generated this signal */
+    strategyName: StrategyName;
+    /** Exchange name where signal was executed */
+    exchangeName: ExchangeName;
+    /** Unique signal identifier (UUID v4) */
+    signalId: string;
+    /** Price at which the new averaging entry was executed */
+    currentPrice: number;
+    /** Averaged (effective) entry price after this addition */
+    effectivePriceOpen: number;
+    /** Total number of DCA entries after this addition */
+    totalEntries: number;
+    /** Trade direction: "long" (buy) or "short" (sell) */
+    position: "long" | "short";
+    /** Original entry price (unchanged by averaging) */
+    priceOpen: number;
+    /** Effective take profit price (with trailing if set) */
+    priceTakeProfit: number;
+    /** Effective stop loss price (with trailing if set) */
+    priceStopLoss: number;
+    /** Original take profit price before any trailing adjustments */
+    originalPriceTakeProfit: number;
+    /** Original stop loss price before any trailing adjustments */
+    originalPriceStopLoss: number;
+    /** Original entry price at signal creation (unchanged by DCA averaging) */
+    originalPriceOpen: number;
     /** Signal creation timestamp in milliseconds (when signal was first created/scheduled) */
     scheduledAt: number;
     /** Pending timestamp in milliseconds (when position became pending/active at priceOpen) */
@@ -7250,6 +7447,10 @@ interface ActivateScheduledCommitNotification {
     originalPriceTakeProfit: number;
     /** Original stop loss price before any trailing adjustments */
     originalPriceStopLoss: number;
+    /** Original entry price at signal creation (unchanged by DCA averaging) */
+    originalPriceOpen: number;
+    /** Total number of DCA entries (_entry.length). 1 = no averaging. */
+    totalEntries: number;
     /** Signal creation timestamp in milliseconds (when signal was first created/scheduled) */
     scheduledAt: number;
     /** Pending timestamp in milliseconds (when position became pending/active at priceOpen) */
@@ -7296,6 +7497,10 @@ interface TrailingStopCommitNotification {
     originalPriceTakeProfit: number;
     /** Original stop loss price before any trailing adjustments */
     originalPriceStopLoss: number;
+    /** Original entry price at signal creation (unchanged by DCA averaging) */
+    originalPriceOpen: number;
+    /** Total number of DCA entries (_entry.length). 1 = no averaging. */
+    totalEntries: number;
     /** Signal creation timestamp in milliseconds (when signal was first created/scheduled) */
     scheduledAt: number;
     /** Pending timestamp in milliseconds (when position became pending/active at priceOpen) */
@@ -7340,6 +7545,10 @@ interface TrailingTakeCommitNotification {
     originalPriceTakeProfit: number;
     /** Original stop loss price before any trailing adjustments */
     originalPriceStopLoss: number;
+    /** Original entry price at signal creation (unchanged by DCA averaging) */
+    originalPriceOpen: number;
+    /** Total number of DCA entries (_entry.length). 1 = no averaging. */
+    totalEntries: number;
     /** Signal creation timestamp in milliseconds (when signal was first created/scheduled) */
     scheduledAt: number;
     /** Pending timestamp in milliseconds (when position became pending/active at priceOpen) */
@@ -7424,6 +7633,10 @@ interface SignalScheduledNotification {
     originalPriceTakeProfit: number;
     /** Original stop loss price before any trailing adjustments */
     originalPriceStopLoss: number;
+    /** Original entry price at signal creation (unchanged by DCA averaging) */
+    originalPriceOpen: number;
+    /** Total number of DCA entries (_entry.length). 1 = no averaging. */
+    totalEntries: number;
     /** Unix timestamp in milliseconds when signal was scheduled */
     scheduledAt: number;
     /** Current market price when signal was scheduled */
@@ -7464,6 +7677,10 @@ interface SignalCancelledNotification {
     originalPriceTakeProfit: number;
     /** Original stop loss price before any trailing adjustments */
     originalPriceStopLoss: number;
+    /** Original entry price at signal creation (unchanged by DCA averaging) */
+    originalPriceOpen: number;
+    /** Total number of DCA entries (_entry.length). 1 = no averaging. */
+    totalEntries: number;
     /** Why signal was cancelled (timeout | price_reject | user) */
     cancelReason: string;
     /** Optional cancellation identifier (provided when user calls cancel()) */
@@ -7551,7 +7768,7 @@ interface ValidationErrorNotification {
  * }
  * ```
  */
-type NotificationModel = SignalOpenedNotification | SignalClosedNotification | PartialProfitAvailableNotification | PartialLossAvailableNotification | BreakevenAvailableNotification | PartialProfitCommitNotification | PartialLossCommitNotification | BreakevenCommitNotification | ActivateScheduledCommitNotification | TrailingStopCommitNotification | TrailingTakeCommitNotification | RiskRejectionNotification | SignalScheduledNotification | SignalCancelledNotification | InfoErrorNotification | CriticalErrorNotification | ValidationErrorNotification;
+type NotificationModel = SignalOpenedNotification | SignalClosedNotification | PartialProfitAvailableNotification | PartialLossAvailableNotification | BreakevenAvailableNotification | PartialProfitCommitNotification | PartialLossCommitNotification | BreakevenCommitNotification | AverageBuyCommitNotification | ActivateScheduledCommitNotification | TrailingStopCommitNotification | TrailingTakeCommitNotification | RiskRejectionNotification | SignalScheduledNotification | SignalCancelledNotification | InfoErrorNotification | CriticalErrorNotification | ValidationErrorNotification;
 
 /**
  * Unified tick event data for report generation.
@@ -7582,6 +7799,10 @@ interface TickEvent {
     originalPriceTakeProfit?: number;
     /** Original stop loss price before modifications (only for scheduled/waiting/opened/active/closed/cancelled) */
     originalPriceStopLoss?: number;
+    /** Original entry price at signal creation (unchanged by DCA averaging) */
+    originalPriceOpen?: number;
+    /** Total number of DCA entries (_entry.length). 1 = no averaging. */
+    totalEntries?: number;
     /** Total executed percentage from partial closes (only for scheduled/waiting/opened/active/closed/cancelled) */
     partialExecuted?: number;
     /** Percentage progress towards take profit (only for active/waiting) */
@@ -7699,6 +7920,10 @@ interface ScheduledEvent {
     originalPriceTakeProfit?: number;
     /** Original stop loss price before modifications */
     originalPriceStopLoss?: number;
+    /** Total number of DCA entries (present when averageBuy was applied) */
+    totalEntries?: number;
+    /** Original entry price before DCA averaging (present when averageBuy was applied) */
+    originalPriceOpen?: number;
     /** Total executed percentage from partial closes */
     partialExecuted?: number;
     /** Close timestamp (only for cancelled) */
@@ -7881,6 +8106,10 @@ interface PartialEvent {
     originalPriceTakeProfit?: number;
     /** Original stop loss price set at signal creation */
     originalPriceStopLoss?: number;
+    /** Total number of DCA entries (present when averageBuy was applied) */
+    totalEntries?: number;
+    /** Original entry price before DCA averaging (present when averageBuy was applied) */
+    originalPriceOpen?: number;
     /** Total executed percentage from partial closes */
     partialExecuted?: number;
     /** Human-readable description of signal reason */
@@ -7973,7 +8202,7 @@ interface RiskStatisticsModel {
  * Action types for strategy events.
  * Represents all possible strategy management actions.
  */
-type StrategyActionType = "cancel-scheduled" | "close-pending" | "partial-profit" | "partial-loss" | "trailing-stop" | "trailing-take" | "breakeven" | "activate-scheduled";
+type StrategyActionType = "cancel-scheduled" | "close-pending" | "partial-profit" | "partial-loss" | "trailing-stop" | "trailing-take" | "breakeven" | "activate-scheduled" | "average-buy";
 /**
  * Unified strategy event data for markdown report generation.
  * Contains all information about strategy management actions.
@@ -8021,10 +8250,16 @@ interface StrategyEvent {
     originalPriceTakeProfit?: number;
     /** Original stop loss price before any trailing adjustments */
     originalPriceStopLoss?: number;
+    /** Original entry price at signal creation (unchanged by DCA averaging) */
+    originalPriceOpen?: number;
     /** Signal creation timestamp in milliseconds (when signal was first created/scheduled) */
     scheduledAt?: number;
     /** Pending timestamp in milliseconds (when position became pending/active at priceOpen) */
     pendingAt?: number;
+    /** Averaged entry price after DCA addition (average-buy action only) */
+    effectivePriceOpen?: number;
+    /** Total number of DCA entries after this addition (average-buy action only) */
+    totalEntries?: number;
 }
 /**
  * Statistical data calculated from strategy events.
@@ -8060,6 +8295,8 @@ interface StrategyStatisticsModel {
     breakevenCount: number;
     /** Count of activate-scheduled events */
     activateScheduledCount: number;
+    /** Count of average-buy (DCA) events */
+    averageBuyCount: number;
 }
 
 declare const BASE_WAIT_FOR_INIT_SYMBOL: unique symbol;
@@ -10125,6 +10362,35 @@ declare class BacktestUtils {
         frameName: FrameName;
     }, activateId?: string) => Promise<void>;
     /**
+     * Adds a new DCA entry to the active pending signal.
+     *
+     * Adds a new averaging entry at currentPrice to the position's entry history.
+     * Updates effectivePriceOpen (mean of all entries) and emits average-buy commit event.
+     *
+     * @param symbol - Trading pair symbol
+     * @param currentPrice - New entry price to add to the averaging history
+     * @param context - Execution context with strategyName, exchangeName, frameName
+     * @returns Promise<boolean> - true if entry added, false if rejected
+     *
+     * @example
+     * ```typescript
+     * // Add DCA entry at current price
+     * const success = await Backtest.commitAverageBuy("BTCUSDT", 42000, {
+     *   strategyName: "my-strategy",
+     *   exchangeName: "binance",
+     *   frameName: "1h"
+     * });
+     * if (success) {
+     *   console.log('DCA entry added');
+     * }
+     * ```
+     */
+    commitAverageBuy: (symbol: string, currentPrice: number, context: {
+        strategyName: StrategyName;
+        exchangeName: ExchangeName;
+        frameName: FrameName;
+    }) => Promise<boolean>;
+    /**
      * Gets statistical data from all closed signals for a symbol-strategy pair.
      *
      * @param symbol - Trading pair symbol
@@ -10876,6 +11142,33 @@ declare class LiveUtils {
         strategyName: StrategyName;
         exchangeName: ExchangeName;
     }, activateId?: string) => Promise<void>;
+    /**
+     * Adds a new DCA entry to the active pending signal.
+     *
+     * Adds a new averaging entry at currentPrice to the position's entry history.
+     * Updates effectivePriceOpen (mean of all entries) and emits average-buy commit event.
+     *
+     * @param symbol - Trading pair symbol
+     * @param currentPrice - New entry price to add to the averaging history
+     * @param context - Execution context with strategyName and exchangeName
+     * @returns Promise<boolean> - true if entry added, false if rejected
+     *
+     * @example
+     * ```typescript
+     * // Add DCA entry at current price
+     * const success = await Live.commitAverageBuy("BTCUSDT", 42000, {
+     *   strategyName: "my-strategy",
+     *   exchangeName: "binance"
+     * });
+     * if (success) {
+     *   console.log('DCA entry added');
+     * }
+     * ```
+     */
+    commitAverageBuy: (symbol: string, currentPrice: number, context: {
+        strategyName: StrategyName;
+        exchangeName: ExchangeName;
+    }) => Promise<boolean>;
     /**
      * Gets statistical data from all live trading events for a symbol-strategy pair.
      *
@@ -14942,6 +15235,23 @@ declare class StrategyCoreService implements TStrategy$1 {
         exchangeName: ExchangeName;
         frameName: FrameName;
     }, activateId?: string) => Promise<void>;
+    /**
+     * Adds a new DCA entry to the active pending signal.
+     *
+     * Validates strategy existence and delegates to connection service
+     * to add a new averaging entry to the position.
+     *
+     * @param backtest - Whether running in backtest mode
+     * @param symbol - Trading pair symbol
+     * @param currentPrice - New entry price to add to the averaging history
+     * @param context - Execution context with strategyName, exchangeName, frameName
+     * @returns Promise<boolean> - true if entry added, false if rejected
+     */
+    averageBuy: (backtest: boolean, symbol: string, currentPrice: number, context: {
+        strategyName: StrategyName;
+        exchangeName: ExchangeName;
+        frameName: FrameName;
+    }) => Promise<boolean>;
 }
 
 /**
@@ -15059,7 +15369,7 @@ declare class StrategyMarkdownService {
         strategyName: StrategyName;
         exchangeName: ExchangeName;
         frameName: FrameName;
-    }, timestamp: number, position: "long" | "short", priceOpen: number, priceTakeProfit: number, priceStopLoss: number, originalPriceTakeProfit: number, originalPriceStopLoss: number, scheduledAt: number, pendingAt: number) => Promise<void>;
+    }, timestamp: number, position: "long" | "short", priceOpen: number, priceTakeProfit: number, priceStopLoss: number, originalPriceTakeProfit: number, originalPriceStopLoss: number, scheduledAt: number, pendingAt: number, totalEntries: number, originalPriceOpen: number) => Promise<void>;
     /**
      * Records a partial-loss event when a portion of the position is closed at loss.
      *
@@ -15082,7 +15392,7 @@ declare class StrategyMarkdownService {
         strategyName: StrategyName;
         exchangeName: ExchangeName;
         frameName: FrameName;
-    }, timestamp: number, position: "long" | "short", priceOpen: number, priceTakeProfit: number, priceStopLoss: number, originalPriceTakeProfit: number, originalPriceStopLoss: number, scheduledAt: number, pendingAt: number) => Promise<void>;
+    }, timestamp: number, position: "long" | "short", priceOpen: number, priceTakeProfit: number, priceStopLoss: number, originalPriceTakeProfit: number, originalPriceStopLoss: number, scheduledAt: number, pendingAt: number, totalEntries: number, originalPriceOpen: number) => Promise<void>;
     /**
      * Records a trailing-stop event when the stop-loss is adjusted.
      *
@@ -15105,7 +15415,7 @@ declare class StrategyMarkdownService {
         strategyName: StrategyName;
         exchangeName: ExchangeName;
         frameName: FrameName;
-    }, timestamp: number, position: "long" | "short", priceOpen: number, priceTakeProfit: number, priceStopLoss: number, originalPriceTakeProfit: number, originalPriceStopLoss: number, scheduledAt: number, pendingAt: number) => Promise<void>;
+    }, timestamp: number, position: "long" | "short", priceOpen: number, priceTakeProfit: number, priceStopLoss: number, originalPriceTakeProfit: number, originalPriceStopLoss: number, scheduledAt: number, pendingAt: number, totalEntries: number, originalPriceOpen: number) => Promise<void>;
     /**
      * Records a trailing-take event when the take-profit is adjusted.
      *
@@ -15128,7 +15438,7 @@ declare class StrategyMarkdownService {
         strategyName: StrategyName;
         exchangeName: ExchangeName;
         frameName: FrameName;
-    }, timestamp: number, position: "long" | "short", priceOpen: number, priceTakeProfit: number, priceStopLoss: number, originalPriceTakeProfit: number, originalPriceStopLoss: number, scheduledAt: number, pendingAt: number) => Promise<void>;
+    }, timestamp: number, position: "long" | "short", priceOpen: number, priceTakeProfit: number, priceStopLoss: number, originalPriceTakeProfit: number, originalPriceStopLoss: number, scheduledAt: number, pendingAt: number, totalEntries: number, originalPriceOpen: number) => Promise<void>;
     /**
      * Records a breakeven event when the stop-loss is moved to entry price.
      *
@@ -15150,7 +15460,7 @@ declare class StrategyMarkdownService {
         strategyName: StrategyName;
         exchangeName: ExchangeName;
         frameName: FrameName;
-    }, timestamp: number, position: "long" | "short", priceOpen: number, priceTakeProfit: number, priceStopLoss: number, originalPriceTakeProfit: number, originalPriceStopLoss: number, scheduledAt: number, pendingAt: number) => Promise<void>;
+    }, timestamp: number, position: "long" | "short", priceOpen: number, priceTakeProfit: number, priceStopLoss: number, originalPriceTakeProfit: number, originalPriceStopLoss: number, scheduledAt: number, pendingAt: number, totalEntries: number, originalPriceOpen: number) => Promise<void>;
     /**
      * Records an activate-scheduled event when a scheduled signal is activated early.
      *
@@ -15173,7 +15483,31 @@ declare class StrategyMarkdownService {
         strategyName: StrategyName;
         exchangeName: ExchangeName;
         frameName: FrameName;
-    }, timestamp: number, position: "long" | "short", priceOpen: number, priceTakeProfit: number, priceStopLoss: number, originalPriceTakeProfit: number, originalPriceStopLoss: number, scheduledAt: number, pendingAt: number, activateId?: string) => Promise<void>;
+    }, timestamp: number, position: "long" | "short", priceOpen: number, priceTakeProfit: number, priceStopLoss: number, originalPriceTakeProfit: number, originalPriceStopLoss: number, scheduledAt: number, pendingAt: number, totalEntries: number, originalPriceOpen: number, activateId?: string) => Promise<void>;
+    /**
+     * Records an average-buy (DCA) event when a new averaging entry is added to an open position.
+     *
+     * @param symbol - Trading pair symbol (e.g., "BTCUSDT")
+     * @param currentPrice - Price at which the new averaging entry was executed
+     * @param effectivePriceOpen - Averaged entry price after this addition
+     * @param totalEntries - Total number of DCA entries after this addition
+     * @param isBacktest - Whether this is a backtest or live trading event
+     * @param context - Strategy context with strategyName, exchangeName, frameName
+     * @param timestamp - Timestamp from StrategyCommitContract (execution context time)
+     * @param position - Trade direction: "long" or "short"
+     * @param priceOpen - Original entry price (unchanged by averaging)
+     * @param priceTakeProfit - Effective take profit price
+     * @param priceStopLoss - Effective stop loss price
+     * @param originalPriceTakeProfit - Original take profit before trailing
+     * @param originalPriceStopLoss - Original stop loss before trailing
+     * @param scheduledAt - Signal creation timestamp in milliseconds
+     * @param pendingAt - Pending timestamp in milliseconds
+     */
+    averageBuy: (symbol: string, currentPrice: number, effectivePriceOpen: number, totalEntries: number, isBacktest: boolean, context: {
+        strategyName: StrategyName;
+        exchangeName: ExchangeName;
+        frameName: FrameName;
+    }, timestamp: number, position: "long" | "short", priceOpen: number, priceTakeProfit: number, priceStopLoss: number, originalPriceTakeProfit: number, originalPriceStopLoss: number, scheduledAt: number, pendingAt: number, originalPriceOpen: number) => Promise<void>;
     /**
      * Retrieves aggregated statistics from accumulated strategy events.
      *
@@ -17722,6 +18056,22 @@ declare class StrategyConnectionService implements TStrategy {
         exchangeName: ExchangeName;
         frameName: FrameName;
     }, activateId?: string) => Promise<void>;
+    /**
+     * Adds a new DCA entry to the active pending signal.
+     *
+     * Delegates to ClientStrategy.averageBuy() with current execution context.
+     *
+     * @param backtest - Whether running in backtest mode
+     * @param symbol - Trading pair symbol
+     * @param currentPrice - New entry price to add to the averaging history
+     * @param context - Execution context with strategyName, exchangeName, frameName
+     * @returns Promise<boolean> - true if entry added, false if rejected
+     */
+    averageBuy: (backtest: boolean, symbol: string, currentPrice: number, context: {
+        strategyName: StrategyName;
+        exchangeName: ExchangeName;
+        frameName: FrameName;
+    }) => Promise<boolean>;
 }
 
 /**
@@ -20678,7 +21028,7 @@ declare class StrategyReportService {
         strategyName: StrategyName;
         exchangeName: ExchangeName;
         frameName: FrameName;
-    }, timestamp: number, position: "long" | "short", priceOpen: number, priceTakeProfit: number, priceStopLoss: number, originalPriceTakeProfit: number, originalPriceStopLoss: number, scheduledAt: number, pendingAt: number) => Promise<void>;
+    }, timestamp: number, position: "long" | "short", priceOpen: number, priceTakeProfit: number, priceStopLoss: number, originalPriceTakeProfit: number, originalPriceStopLoss: number, scheduledAt: number, pendingAt: number, totalEntries: number, originalPriceOpen: number) => Promise<void>;
     /**
      * Logs a partial-loss event when a portion of the position is closed at loss.
      *
@@ -20701,7 +21051,7 @@ declare class StrategyReportService {
         strategyName: StrategyName;
         exchangeName: ExchangeName;
         frameName: FrameName;
-    }, timestamp: number, position: "long" | "short", priceOpen: number, priceTakeProfit: number, priceStopLoss: number, originalPriceTakeProfit: number, originalPriceStopLoss: number, scheduledAt: number, pendingAt: number) => Promise<void>;
+    }, timestamp: number, position: "long" | "short", priceOpen: number, priceTakeProfit: number, priceStopLoss: number, originalPriceTakeProfit: number, originalPriceStopLoss: number, scheduledAt: number, pendingAt: number, totalEntries: number, originalPriceOpen: number) => Promise<void>;
     /**
      * Logs a trailing-stop event when the stop-loss is adjusted.
      *
@@ -20724,7 +21074,7 @@ declare class StrategyReportService {
         strategyName: StrategyName;
         exchangeName: ExchangeName;
         frameName: FrameName;
-    }, timestamp: number, position: "long" | "short", priceOpen: number, priceTakeProfit: number, priceStopLoss: number, originalPriceTakeProfit: number, originalPriceStopLoss: number, scheduledAt: number, pendingAt: number) => Promise<void>;
+    }, timestamp: number, position: "long" | "short", priceOpen: number, priceTakeProfit: number, priceStopLoss: number, originalPriceTakeProfit: number, originalPriceStopLoss: number, scheduledAt: number, pendingAt: number, totalEntries: number, originalPriceOpen: number) => Promise<void>;
     /**
      * Logs a trailing-take event when the take-profit is adjusted.
      *
@@ -20747,7 +21097,7 @@ declare class StrategyReportService {
         strategyName: StrategyName;
         exchangeName: ExchangeName;
         frameName: FrameName;
-    }, timestamp: number, position: "long" | "short", priceOpen: number, priceTakeProfit: number, priceStopLoss: number, originalPriceTakeProfit: number, originalPriceStopLoss: number, scheduledAt: number, pendingAt: number) => Promise<void>;
+    }, timestamp: number, position: "long" | "short", priceOpen: number, priceTakeProfit: number, priceStopLoss: number, originalPriceTakeProfit: number, originalPriceStopLoss: number, scheduledAt: number, pendingAt: number, totalEntries: number, originalPriceOpen: number) => Promise<void>;
     /**
      * Logs a breakeven event when the stop-loss is moved to entry price.
      *
@@ -20769,7 +21119,7 @@ declare class StrategyReportService {
         strategyName: StrategyName;
         exchangeName: ExchangeName;
         frameName: FrameName;
-    }, timestamp: number, position: "long" | "short", priceOpen: number, priceTakeProfit: number, priceStopLoss: number, originalPriceTakeProfit: number, originalPriceStopLoss: number, scheduledAt: number, pendingAt: number) => Promise<void>;
+    }, timestamp: number, position: "long" | "short", priceOpen: number, priceTakeProfit: number, priceStopLoss: number, originalPriceTakeProfit: number, originalPriceStopLoss: number, scheduledAt: number, pendingAt: number, totalEntries: number, originalPriceOpen: number) => Promise<void>;
     /**
      * Logs an activate-scheduled event when a scheduled signal is activated early.
      *
@@ -20792,7 +21142,31 @@ declare class StrategyReportService {
         strategyName: StrategyName;
         exchangeName: ExchangeName;
         frameName: FrameName;
-    }, timestamp: number, position: "long" | "short", priceOpen: number, priceTakeProfit: number, priceStopLoss: number, originalPriceTakeProfit: number, originalPriceStopLoss: number, scheduledAt: number, pendingAt: number, activateId?: string) => Promise<void>;
+    }, timestamp: number, position: "long" | "short", priceOpen: number, priceTakeProfit: number, priceStopLoss: number, originalPriceTakeProfit: number, originalPriceStopLoss: number, scheduledAt: number, pendingAt: number, totalEntries: number, originalPriceOpen: number, activateId?: string) => Promise<void>;
+    /**
+     * Logs an average-buy (DCA) event when a new averaging entry is added to an open position.
+     *
+     * @param symbol - Trading pair symbol (e.g., "BTCUSDT")
+     * @param currentPrice - Price at which the new averaging entry was executed
+     * @param effectivePriceOpen - Averaged entry price after this addition
+     * @param totalEntries - Total number of DCA entries after this addition
+     * @param isBacktest - Whether this is a backtest or live trading event
+     * @param context - Strategy context with strategyName, exchangeName, frameName
+     * @param timestamp - Timestamp from StrategyCommitContract (execution context time)
+     * @param position - Trade direction: "long" or "short"
+     * @param priceOpen - Original entry price (unchanged by averaging)
+     * @param priceTakeProfit - Effective take profit price
+     * @param priceStopLoss - Effective stop loss price
+     * @param originalPriceTakeProfit - Original take profit before trailing
+     * @param originalPriceStopLoss - Original stop loss before trailing
+     * @param scheduledAt - Signal creation timestamp in milliseconds
+     * @param pendingAt - Pending timestamp in milliseconds
+     */
+    averageBuy: (symbol: string, currentPrice: number, effectivePriceOpen: number, totalEntries: number, isBacktest: boolean, context: {
+        strategyName: StrategyName;
+        exchangeName: ExchangeName;
+        frameName: FrameName;
+    }, timestamp: number, position: "long" | "short", priceOpen: number, priceTakeProfit: number, priceStopLoss: number, originalPriceTakeProfit: number, originalPriceStopLoss: number, scheduledAt: number, pendingAt: number, originalPriceOpen: number) => Promise<void>;
     /**
      * Initializes the service for event logging.
      *
@@ -20881,4 +21255,4 @@ declare const backtest: {
     loggerService: LoggerService;
 };
 
-export { ActionBase, type ActivateScheduledCommit, type ActivateScheduledCommitNotification, type ActivePingContract, Backtest, type BacktestStatisticsModel, Breakeven, type BreakevenAvailableNotification, type BreakevenCommit, type BreakevenCommitNotification, type BreakevenContract, type BreakevenData, Cache, type CancelScheduledCommit, type CandleData, type CandleInterval, type ClosePendingCommit, type ColumnConfig, type ColumnModel, Constant, type CriticalErrorNotification, type DoneContract, type EntityId, Exchange, ExecutionContextService, type FrameInterval, type GlobalConfig, Heat, type HeatmapStatisticsModel, type IActionSchema, type IActivateScheduledCommitRow, type IBidData, type IBreakevenCommitRow, type ICandleData, type ICommitRow, type IExchangeSchema, type IFrameSchema, type IHeatmapRow, type IMarkdownDumpOptions, type INotificationUtils, type IOrderBookData, type IPartialLossCommitRow, type IPartialProfitCommitRow, type IPersistBase, type IPositionSizeATRParams, type IPositionSizeFixedPercentageParams, type IPositionSizeKellyParams, type IPublicAction, type IPublicSignalRow, type IReportDumpOptions, type IRiskActivePosition, type IRiskCheckArgs, type IRiskSchema, type IRiskSignalRow, type IRiskValidation, type IRiskValidationFn, type IRiskValidationPayload, type IScheduledSignalCancelRow, type IScheduledSignalRow, type ISignalDto, type ISignalRow, type ISizingCalculateParams, type ISizingCalculateParamsATR, type ISizingCalculateParamsFixedPercentage, type ISizingCalculateParamsKelly, type ISizingParams, type ISizingParamsATR, type ISizingParamsFixedPercentage, type ISizingParamsKelly, type ISizingSchema, type ISizingSchemaATR, type ISizingSchemaFixedPercentage, type ISizingSchemaKelly, type IStorageSignalRow, type IStorageUtils, type IStrategyPnL, type IStrategyResult, type IStrategySchema, type IStrategyTickResult, type IStrategyTickResultActive, type IStrategyTickResultCancelled, type IStrategyTickResultClosed, type IStrategyTickResultIdle, type IStrategyTickResultOpened, type IStrategyTickResultScheduled, type IStrategyTickResultWaiting, type ITrailingStopCommitRow, type ITrailingTakeCommitRow, type IWalkerResults, type IWalkerSchema, type IWalkerStrategyResult, type InfoErrorNotification, Live, type LiveStatisticsModel, Markdown, MarkdownFileBase, MarkdownFolderBase, type MarkdownName, MethodContextService, type MetricStats, Notification, NotificationBacktest, type NotificationData, NotificationLive, type NotificationModel, Partial$1 as Partial, type PartialData, type PartialEvent, type PartialLossAvailableNotification, type PartialLossCommit, type PartialLossCommitNotification, type PartialLossContract, type PartialProfitAvailableNotification, type PartialProfitCommit, type PartialProfitCommitNotification, type PartialProfitContract, type PartialStatisticsModel, Performance, type PerformanceContract, type PerformanceMetricType, type PerformanceStatisticsModel, PersistBase, PersistBreakevenAdapter, PersistCandleAdapter, PersistNotificationAdapter, PersistPartialAdapter, PersistRiskAdapter, PersistScheduleAdapter, PersistSignalAdapter, PersistStorageAdapter, PositionSize, type ProgressBacktestContract, type ProgressWalkerContract, Report, ReportBase, type ReportName, Risk, type RiskContract, type RiskData, type RiskEvent, type RiskRejectionNotification, type RiskStatisticsModel, Schedule, type ScheduleData, type SchedulePingContract, type ScheduleStatisticsModel, type ScheduledEvent, type SignalCancelledNotification, type SignalClosedNotification, type SignalData, type SignalInterval, type SignalOpenedNotification, type SignalScheduledNotification, Storage, StorageBacktest, type StorageData, StorageLive, Strategy, type StrategyActionType, type StrategyCancelReason, type StrategyCloseReason, type StrategyCommitContract, type StrategyEvent, type StrategyStatisticsModel, type TMarkdownBase, type TNotificationUtilsCtor, type TPersistBase, type TPersistBaseCtor, type TReportBase, type TStorageUtilsCtor, type TickEvent, type TrailingStopCommit, type TrailingStopCommitNotification, type TrailingTakeCommit, type TrailingTakeCommitNotification, type ValidationErrorNotification, Walker, type WalkerCompleteContract, type WalkerContract, type WalkerMetric, type SignalData$1 as WalkerSignalData, type WalkerStatisticsModel, addActionSchema, addExchangeSchema, addFrameSchema, addRiskSchema, addSizingSchema, addStrategySchema, addWalkerSchema, alignToInterval, checkCandles, commitActivateScheduled, commitBreakeven, commitCancelScheduled, commitClosePending, commitPartialLoss, commitPartialProfit, commitTrailingStop, commitTrailingTake, dumpMessages, emitters, formatPrice, formatQuantity, get, getActionSchema, getAveragePrice, getBacktestTimeframe, getCandles, getColumns, getConfig, getContext, getDate, getDefaultColumns, getDefaultConfig, getExchangeSchema, getFrameSchema, getMode, getNextCandles, getOrderBook, getRawCandles, getRiskSchema, getSizingSchema, getStrategySchema, getSymbol, getWalkerSchema, hasTradeContext, backtest as lib, listExchangeSchema, listFrameSchema, listRiskSchema, listSizingSchema, listStrategySchema, listWalkerSchema, listenActivePing, listenActivePingOnce, listenBacktestProgress, listenBreakevenAvailable, listenBreakevenAvailableOnce, listenDoneBacktest, listenDoneBacktestOnce, listenDoneLive, listenDoneLiveOnce, listenDoneWalker, listenDoneWalkerOnce, listenError, listenExit, listenPartialLossAvailable, listenPartialLossAvailableOnce, listenPartialProfitAvailable, listenPartialProfitAvailableOnce, listenPerformance, listenRisk, listenRiskOnce, listenSchedulePing, listenSchedulePingOnce, listenSignal, listenSignalBacktest, listenSignalBacktestOnce, listenSignalLive, listenSignalLiveOnce, listenSignalOnce, listenStrategyCommit, listenStrategyCommitOnce, listenValidation, listenWalker, listenWalkerComplete, listenWalkerOnce, listenWalkerProgress, overrideActionSchema, overrideExchangeSchema, overrideFrameSchema, overrideRiskSchema, overrideSizingSchema, overrideStrategySchema, overrideWalkerSchema, parseArgs, roundTicks, set, setColumns, setConfig, setLogger, stopStrategy, validate, waitForCandle, warmCandles };
+export { ActionBase, type ActivateScheduledCommit, type ActivateScheduledCommitNotification, type ActivePingContract, type AverageBuyCommit, Backtest, type BacktestStatisticsModel, Breakeven, type BreakevenAvailableNotification, type BreakevenCommit, type BreakevenCommitNotification, type BreakevenContract, type BreakevenData, Cache, type CancelScheduledCommit, type CandleData, type CandleInterval, type ClosePendingCommit, type ColumnConfig, type ColumnModel, Constant, type CriticalErrorNotification, type DoneContract, type EntityId, Exchange, ExecutionContextService, type FrameInterval, type GlobalConfig, Heat, type HeatmapStatisticsModel, type IActionSchema, type IActivateScheduledCommitRow, type IBidData, type IBreakevenCommitRow, type ICandleData, type ICommitRow, type IExchangeSchema, type IFrameSchema, type IHeatmapRow, type IMarkdownDumpOptions, type INotificationUtils, type IOrderBookData, type IPartialLossCommitRow, type IPartialProfitCommitRow, type IPersistBase, type IPositionSizeATRParams, type IPositionSizeFixedPercentageParams, type IPositionSizeKellyParams, type IPublicAction, type IPublicSignalRow, type IReportDumpOptions, type IRiskActivePosition, type IRiskCheckArgs, type IRiskSchema, type IRiskSignalRow, type IRiskValidation, type IRiskValidationFn, type IRiskValidationPayload, type IScheduledSignalCancelRow, type IScheduledSignalRow, type ISignalDto, type ISignalRow, type ISizingCalculateParams, type ISizingCalculateParamsATR, type ISizingCalculateParamsFixedPercentage, type ISizingCalculateParamsKelly, type ISizingParams, type ISizingParamsATR, type ISizingParamsFixedPercentage, type ISizingParamsKelly, type ISizingSchema, type ISizingSchemaATR, type ISizingSchemaFixedPercentage, type ISizingSchemaKelly, type IStorageSignalRow, type IStorageUtils, type IStrategyPnL, type IStrategyResult, type IStrategySchema, type IStrategyTickResult, type IStrategyTickResultActive, type IStrategyTickResultCancelled, type IStrategyTickResultClosed, type IStrategyTickResultIdle, type IStrategyTickResultOpened, type IStrategyTickResultScheduled, type IStrategyTickResultWaiting, type ITrailingStopCommitRow, type ITrailingTakeCommitRow, type IWalkerResults, type IWalkerSchema, type IWalkerStrategyResult, type InfoErrorNotification, Live, type LiveStatisticsModel, Markdown, MarkdownFileBase, MarkdownFolderBase, type MarkdownName, MethodContextService, type MetricStats, Notification, NotificationBacktest, type NotificationData, NotificationLive, type NotificationModel, Partial$1 as Partial, type PartialData, type PartialEvent, type PartialLossAvailableNotification, type PartialLossCommit, type PartialLossCommitNotification, type PartialLossContract, type PartialProfitAvailableNotification, type PartialProfitCommit, type PartialProfitCommitNotification, type PartialProfitContract, type PartialStatisticsModel, Performance, type PerformanceContract, type PerformanceMetricType, type PerformanceStatisticsModel, PersistBase, PersistBreakevenAdapter, PersistCandleAdapter, PersistNotificationAdapter, PersistPartialAdapter, PersistRiskAdapter, PersistScheduleAdapter, PersistSignalAdapter, PersistStorageAdapter, PositionSize, type ProgressBacktestContract, type ProgressWalkerContract, Report, ReportBase, type ReportName, Risk, type RiskContract, type RiskData, type RiskEvent, type RiskRejectionNotification, type RiskStatisticsModel, Schedule, type ScheduleData, type SchedulePingContract, type ScheduleStatisticsModel, type ScheduledEvent, type SignalCancelledNotification, type SignalClosedNotification, type SignalData, type SignalInterval, type SignalOpenedNotification, type SignalScheduledNotification, Storage, StorageBacktest, type StorageData, StorageLive, Strategy, type StrategyActionType, type StrategyCancelReason, type StrategyCloseReason, type StrategyCommitContract, type StrategyEvent, type StrategyStatisticsModel, type TMarkdownBase, type TNotificationUtilsCtor, type TPersistBase, type TPersistBaseCtor, type TReportBase, type TStorageUtilsCtor, type TickEvent, type TrailingStopCommit, type TrailingStopCommitNotification, type TrailingTakeCommit, type TrailingTakeCommitNotification, type ValidationErrorNotification, Walker, type WalkerCompleteContract, type WalkerContract, type WalkerMetric, type SignalData$1 as WalkerSignalData, type WalkerStatisticsModel, addActionSchema, addExchangeSchema, addFrameSchema, addRiskSchema, addSizingSchema, addStrategySchema, addWalkerSchema, alignToInterval, checkCandles, commitActivateScheduled, commitAverageBuy, commitBreakeven, commitCancelScheduled, commitClosePending, commitPartialLoss, commitPartialProfit, commitTrailingStop, commitTrailingTake, dumpMessages, emitters, formatPrice, formatQuantity, get, getActionSchema, getAveragePrice, getBacktestTimeframe, getCandles, getColumns, getConfig, getContext, getDate, getDefaultColumns, getDefaultConfig, getExchangeSchema, getFrameSchema, getMode, getNextCandles, getOrderBook, getRawCandles, getRiskSchema, getSizingSchema, getStrategySchema, getSymbol, getWalkerSchema, hasTradeContext, backtest as lib, listExchangeSchema, listFrameSchema, listRiskSchema, listSizingSchema, listStrategySchema, listWalkerSchema, listenActivePing, listenActivePingOnce, listenBacktestProgress, listenBreakevenAvailable, listenBreakevenAvailableOnce, listenDoneBacktest, listenDoneBacktestOnce, listenDoneLive, listenDoneLiveOnce, listenDoneWalker, listenDoneWalkerOnce, listenError, listenExit, listenPartialLossAvailable, listenPartialLossAvailableOnce, listenPartialProfitAvailable, listenPartialProfitAvailableOnce, listenPerformance, listenRisk, listenRiskOnce, listenSchedulePing, listenSchedulePingOnce, listenSignal, listenSignalBacktest, listenSignalBacktestOnce, listenSignalLive, listenSignalLiveOnce, listenSignalOnce, listenStrategyCommit, listenStrategyCommitOnce, listenValidation, listenWalker, listenWalkerComplete, listenWalkerOnce, listenWalkerProgress, overrideActionSchema, overrideExchangeSchema, overrideFrameSchema, overrideRiskSchema, overrideSizingSchema, overrideStrategySchema, overrideWalkerSchema, parseArgs, roundTicks, set, setColumns, setConfig, setLogger, stopStrategy, validate, waitForCandle, warmCandles };

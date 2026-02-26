@@ -99,6 +99,18 @@ export const breakeven_columns: ColumnModel<BreakevenEvent>[] = [
     isVisible: () => true,
   },
   {
+    key: "originalPriceOpen",
+    label: "Original Entry",
+    format: (data) => (data.originalPriceOpen ? `${data.originalPriceOpen.toFixed(8)} USD` : "N/A"),
+    isVisible: () => true,
+  },
+  {
+    key: "totalEntries",
+    label: "DCA Entries",
+    format: (data) => (data.totalEntries !== undefined ? String(data.totalEntries) : "N/A"),
+    isVisible: () => true,
+  },
+  {
     key: "partialExecuted",
     label: "Partial Executed %",
     format: (data) => (data.partialExecuted !== undefined ? `${data.partialExecuted.toFixed(2)}%` : "N/A"),

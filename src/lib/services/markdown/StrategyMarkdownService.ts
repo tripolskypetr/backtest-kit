@@ -16,6 +16,7 @@ import { COLUMN_CONFIG } from "../../../config/columns";
 import { strategyCommitSubject } from "../../../config/emitters";
 import {
   ActivateScheduledCommit,
+  AverageBuyCommit,
   BreakevenCommit,
   CancelScheduledCommit,
   ClosePendingCommit,
@@ -157,6 +158,7 @@ class ReportStorage {
         trailingTakeCount: 0,
         breakevenCount: 0,
         activateScheduledCount: 0,
+        averageBuyCount: 0,
       };
     }
 
@@ -171,6 +173,7 @@ class ReportStorage {
       trailingTakeCount: this._eventList.filter(e => e.action === "trailing-take").length,
       breakevenCount: this._eventList.filter(e => e.action === "breakeven").length,
       activateScheduledCount: this._eventList.filter(e => e.action === "activate-scheduled").length,
+      averageBuyCount: this._eventList.filter(e => e.action === "average-buy").length,
     };
   }
 
@@ -233,6 +236,7 @@ class ReportStorage {
       `- Trailing take: ${stats.trailingTakeCount}`,
       `- Breakeven: ${stats.breakevenCount}`,
       `- Activate scheduled: ${stats.activateScheduledCount}`,
+      `- Average buy: ${stats.averageBuyCount}`,
     ].join("\n");
   }
 
@@ -470,6 +474,8 @@ export class StrategyMarkdownService {
     originalPriceStopLoss: number,
     scheduledAt: number,
     pendingAt: number,
+    totalEntries: number,
+    originalPriceOpen: number,
   ) => {
     this.loggerService.log("strategyMarkdownService partialProfit", {
       symbol,
@@ -512,6 +518,8 @@ export class StrategyMarkdownService {
       priceStopLoss,
       originalPriceTakeProfit,
       originalPriceStopLoss,
+      originalPriceOpen,
+      totalEntries,
       scheduledAt,
       pendingAt,
     });
@@ -550,6 +558,8 @@ export class StrategyMarkdownService {
     originalPriceStopLoss: number,
     scheduledAt: number,
     pendingAt: number,
+    totalEntries: number,
+    originalPriceOpen: number,
   ) => {
     this.loggerService.log("strategyMarkdownService partialLoss", {
       symbol,
@@ -592,6 +602,8 @@ export class StrategyMarkdownService {
       priceStopLoss,
       originalPriceTakeProfit,
       originalPriceStopLoss,
+      originalPriceOpen,
+      totalEntries,
       scheduledAt,
       pendingAt,
     });
@@ -630,6 +642,8 @@ export class StrategyMarkdownService {
     originalPriceStopLoss: number,
     scheduledAt: number,
     pendingAt: number,
+    totalEntries: number,
+    originalPriceOpen: number,
   ) => {
     this.loggerService.log("strategyMarkdownService trailingStop", {
       symbol,
@@ -672,6 +686,8 @@ export class StrategyMarkdownService {
       priceStopLoss,
       originalPriceTakeProfit,
       originalPriceStopLoss,
+      originalPriceOpen,
+      totalEntries,
       scheduledAt,
       pendingAt,
     });
@@ -710,6 +726,8 @@ export class StrategyMarkdownService {
     originalPriceStopLoss: number,
     scheduledAt: number,
     pendingAt: number,
+    totalEntries: number,
+    originalPriceOpen: number,
   ) => {
     this.loggerService.log("strategyMarkdownService trailingTake", {
       symbol,
@@ -752,6 +770,8 @@ export class StrategyMarkdownService {
       priceStopLoss,
       originalPriceTakeProfit,
       originalPriceStopLoss,
+      originalPriceOpen,
+      totalEntries,
       scheduledAt,
       pendingAt,
     });
@@ -788,6 +808,8 @@ export class StrategyMarkdownService {
     originalPriceStopLoss: number,
     scheduledAt: number,
     pendingAt: number,
+    totalEntries: number,
+    originalPriceOpen: number,
   ) => {
     this.loggerService.log("strategyMarkdownService breakeven", {
       symbol,
@@ -828,6 +850,8 @@ export class StrategyMarkdownService {
       priceStopLoss,
       originalPriceTakeProfit,
       originalPriceStopLoss,
+      originalPriceOpen,
+      totalEntries,
       scheduledAt,
       pendingAt,
     });
@@ -865,6 +889,8 @@ export class StrategyMarkdownService {
     originalPriceStopLoss: number,
     scheduledAt: number,
     pendingAt: number,
+    totalEntries: number,
+    originalPriceOpen: number,
     activateId?: string,
   ) => {
     this.loggerService.log("strategyMarkdownService activateScheduled", {
@@ -908,6 +934,94 @@ export class StrategyMarkdownService {
       priceStopLoss,
       originalPriceTakeProfit,
       originalPriceStopLoss,
+      originalPriceOpen,
+      totalEntries,
+      scheduledAt,
+      pendingAt,
+    });
+  };
+
+  /**
+   * Records an average-buy (DCA) event when a new averaging entry is added to an open position.
+   *
+   * @param symbol - Trading pair symbol (e.g., "BTCUSDT")
+   * @param currentPrice - Price at which the new averaging entry was executed
+   * @param effectivePriceOpen - Averaged entry price after this addition
+   * @param totalEntries - Total number of DCA entries after this addition
+   * @param isBacktest - Whether this is a backtest or live trading event
+   * @param context - Strategy context with strategyName, exchangeName, frameName
+   * @param timestamp - Timestamp from StrategyCommitContract (execution context time)
+   * @param position - Trade direction: "long" or "short"
+   * @param priceOpen - Original entry price (unchanged by averaging)
+   * @param priceTakeProfit - Effective take profit price
+   * @param priceStopLoss - Effective stop loss price
+   * @param originalPriceTakeProfit - Original take profit before trailing
+   * @param originalPriceStopLoss - Original stop loss before trailing
+   * @param scheduledAt - Signal creation timestamp in milliseconds
+   * @param pendingAt - Pending timestamp in milliseconds
+   */
+  public averageBuy = async (
+    symbol: string,
+    currentPrice: number,
+    effectivePriceOpen: number,
+    totalEntries: number,
+    isBacktest: boolean,
+    context: { strategyName: StrategyName; exchangeName: ExchangeName; frameName: FrameName },
+    timestamp: number,
+    position: "long" | "short",
+    priceOpen: number,
+    priceTakeProfit: number,
+    priceStopLoss: number,
+    originalPriceTakeProfit: number,
+    originalPriceStopLoss: number,
+    scheduledAt: number,
+    pendingAt: number,
+    originalPriceOpen: number,
+  ) => {
+    this.loggerService.log("strategyMarkdownService averageBuy", {
+      symbol,
+      currentPrice,
+      effectivePriceOpen,
+      totalEntries,
+      isBacktest,
+    });
+    if (!this.subscribe.hasValue()) {
+      return;
+    }
+    const pendingRow = await this.strategyCoreService.getPendingSignal(
+      isBacktest,
+      symbol,
+      {
+        exchangeName: context.exchangeName,
+        strategyName: context.strategyName,
+        frameName: context.frameName,
+      },
+    );
+    if (!pendingRow) {
+      return;
+    }
+    const createdAt = new Date(timestamp).toISOString();
+    const storage = this.getStorage(symbol, context.strategyName, context.exchangeName, context.frameName, isBacktest);
+    storage.addEvent({
+      timestamp,
+      symbol,
+      strategyName: context.strategyName,
+      exchangeName: context.exchangeName,
+      frameName: context.frameName,
+      signalId: pendingRow.id,
+      action: "average-buy",
+      currentPrice,
+      effectivePriceOpen,
+      totalEntries,
+      createdAt,
+      backtest: isBacktest,
+      position,
+      priceOpen,
+      priceTakeProfit,
+      priceStopLoss,
+      originalPriceTakeProfit,
+      originalPriceStopLoss,
+      originalPriceOpen,
       scheduledAt,
       pendingAt,
     });
@@ -1122,6 +1236,8 @@ export class StrategyMarkdownService {
           event.originalPriceStopLoss,
           event.scheduledAt,
           event.pendingAt,
+          event.totalEntries,
+          event.originalPriceOpen,
         )
       );
 
@@ -1147,6 +1263,8 @@ export class StrategyMarkdownService {
           event.originalPriceStopLoss,
           event.scheduledAt,
           event.pendingAt,
+          event.totalEntries,
+          event.originalPriceOpen,
         )
       );
 
@@ -1172,6 +1290,8 @@ export class StrategyMarkdownService {
           event.originalPriceStopLoss,
           event.scheduledAt,
           event.pendingAt,
+          event.totalEntries,
+          event.originalPriceOpen,
         )
       );
 
@@ -1197,6 +1317,8 @@ export class StrategyMarkdownService {
           event.originalPriceStopLoss,
           event.scheduledAt,
           event.pendingAt,
+          event.totalEntries,
+          event.originalPriceOpen,
         )
       );
 
@@ -1221,6 +1343,8 @@ export class StrategyMarkdownService {
           event.originalPriceStopLoss,
           event.scheduledAt,
           event.pendingAt,
+          event.totalEntries,
+          event.originalPriceOpen,
         )
       );
 
@@ -1245,7 +1369,36 @@ export class StrategyMarkdownService {
           event.originalPriceStopLoss,
           event.scheduledAt,
           event.pendingAt,
+          event.totalEntries,
+          event.originalPriceOpen,
           event.activateId,
+        )
+      );
+
+    const unAverageBuy = strategyCommitSubject
+      .filter(({ action }) => action === "average-buy")
+      .connect(async (event: AverageBuyCommit) =>
+        await this.averageBuy(
+          event.symbol,
+          event.currentPrice,
+          event.effectivePriceOpen,
+          event.totalEntries,
+          event.backtest,
+          {
+            exchangeName: event.exchangeName,
+            frameName: event.frameName,
+            strategyName: event.strategyName,
+          },
+          event.timestamp,
+          event.position,
+          event.priceOpen,
+          event.priceTakeProfit,
+          event.priceStopLoss,
+          event.originalPriceTakeProfit,
+          event.originalPriceStopLoss,
+          event.scheduledAt,
+          event.pendingAt,
+          event.originalPriceOpen,
         )
       );
 
@@ -1258,6 +1411,7 @@ export class StrategyMarkdownService {
       () => unTrailingTake(),
       () => unBreakeven(),
       () => unActivateScheduled(),
+      () => unAverageBuy(),
     );
 
     return () => {

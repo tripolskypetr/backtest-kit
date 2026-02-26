@@ -1,4 +1,5 @@
 import {
+  AverageBuyCommit,
   BreakevenCommit,
   IStrategyTickResultCancelled,
   IStrategyTickResultClosed,
@@ -35,6 +36,8 @@ export interface ILiveModule {
   onClosed(event: IStrategyTickResultClosed): Promise<void> | void;
 
   onRisk(event: RiskContract): Promise<void> | void;
+
+  onAverageBuy(event: AverageBuyCommit): Promise<void> | void;
 }
 
 export type LiveModule = Partial<ILiveModule>;

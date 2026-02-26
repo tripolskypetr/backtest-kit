@@ -8,6 +8,8 @@ export interface ISignal {
     stopLossPrice: number;
     originalStopLossPrice: number;
     buyPrice: number;
+    originalBuyPrice: number;
+    totalEntries: number;
     quantity: number;
     date: string;
     status: "finished" | "pending";

@@ -216,6 +216,36 @@ export const trailing_stop_fields: TypedField[] = [
                                 ? `${obj.originalPriceTakeProfit.toFixed(6)}$`
                                 : "Not specified",
                     },
+                    {
+                        type: FieldType.Text,
+                        outlined: false,
+                        desktopColumns: "4",
+                        tabletColumns: "4",
+                        phoneColumns: "12",
+                        name: "originalPriceOpen",
+                        title: "Original Entry",
+                        readonly: true,
+                        isVisible: (obj) => obj.originalPriceOpen != null && obj.originalPriceOpen !== obj.priceOpen,
+                        compute: (obj) =>
+                            obj.originalPriceOpen != null
+                                ? `${obj.originalPriceOpen.toFixed(6)}$`
+                                : "Not specified",
+                    },
+                    {
+                        type: FieldType.Text,
+                        outlined: false,
+                        desktopColumns: "4",
+                        tabletColumns: "4",
+                        phoneColumns: "12",
+                        name: "totalEntries",
+                        title: "DCA Entries",
+                        readonly: true,
+                        isVisible: (obj) => obj.totalEntries != null && obj.totalEntries > 1,
+                        compute: (obj) =>
+                            obj.totalEntries != null
+                                ? String(obj.totalEntries)
+                                : "Not specified",
+                    },
                 ],
             },
             {

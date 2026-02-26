@@ -112,6 +112,12 @@ const columns: IGridColumn<GridItem>[] = [
     format: ({ buyPrice }) => `${formatAmount(buyPrice)}$`,
   },
   {
+    field: "totalEntries",
+    label: "DCA",
+    minWidth: 80,
+    width: () => 80,
+  },
+  {
     field: "profitLossPercentage",
     label: "%",
     minWidth: 80,
@@ -236,6 +242,32 @@ const signal_fields: TypedField[] = [
     readonly: true,
     compute: (obj) =>
       obj.stopLossPrice ? `${formatAmount(obj.stopLossPrice)}$` : "N/A",
+  },
+  {
+    type: FieldType.Text,
+    outlined: false,
+    desktopColumns: "12",
+    tabletColumns: "12",
+    phoneColumns: "12",
+    name: "originalBuyPrice",
+    title: "Original Entry",
+    readonly: true,
+    isVisible: (obj) => obj.originalBuyPrice != null && obj.originalBuyPrice !== obj.buyPrice,
+    compute: (obj) =>
+      obj.originalBuyPrice ? `${formatAmount(obj.originalBuyPrice)}$` : "N/A",
+  },
+  {
+    type: FieldType.Text,
+    outlined: false,
+    desktopColumns: "12",
+    tabletColumns: "12",
+    phoneColumns: "12",
+    name: "totalEntries",
+    title: "DCA Entries",
+    readonly: true,
+    isVisible: (obj) => obj.totalEntries != null && obj.totalEntries > 1,
+    compute: (obj) =>
+      obj.totalEntries != null ? String(obj.totalEntries) : "N/A",
   },
   {
     type: FieldType.Component,

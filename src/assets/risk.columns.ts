@@ -124,6 +124,24 @@ export const risk_columns: ColumnModel<RiskEvent>[] = [
     isVisible: () => true,
   },
   {
+    key: "originalPriceOpen",
+    label: "Original Entry",
+    format: (data) =>
+      data.currentSignal.originalPriceOpen !== undefined
+        ? `${data.currentSignal.originalPriceOpen.toFixed(8)} USD`
+        : "N/A",
+    isVisible: () => true,
+  },
+  {
+    key: "totalEntries",
+    label: "DCA Entries",
+    format: (data) =>
+      data.currentSignal.totalEntries !== undefined
+        ? String(data.currentSignal.totalEntries)
+        : "N/A",
+    isVisible: () => true,
+  },
+  {
     key: "partialExecuted",
     label: "Partial Executed %",
     format: (data) =>

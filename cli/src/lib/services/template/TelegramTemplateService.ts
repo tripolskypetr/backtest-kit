@@ -3,6 +3,7 @@ import LoggerService from "../base/LoggerService";
 import TYPES from "../../../lib/core/types";
 import Mustache from "mustache";
 import {
+  AverageBuyCommit,
   BreakevenCommit,
   IStrategyTickResultCancelled,
   IStrategyTickResultClosed,
@@ -30,6 +31,7 @@ type Data =
   | PartialProfitCommit
   | TrailingStopCommit
   | TrailingTakeCommit
+  | AverageBuyCommit
   | RiskContract;
 
 const READ_TEMPLATE_FN = memoize(
@@ -135,6 +137,13 @@ export class TelegramTemplateService {
       event,
     });
     return await RENDER_TEMPLATE_FN("risk.mustache", event, this);
+  };
+
+  public getAverageBuyMarkdown = async (event: AverageBuyCommit) => {
+    this.loggerService.log("telegramTemplateService getAverageBuyMarkdown", {
+      event,
+    });
+    return await RENDER_TEMPLATE_FN("average-buy.mustache", event, this);
   };
 }
 

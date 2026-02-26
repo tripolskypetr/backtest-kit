@@ -107,6 +107,8 @@ const getNotificationColor = (item: NotificationModel): string | undefined => {
       return "#00BCD4";
     case "activate_scheduled.commit":
       return "#4CAF50";
+    case "average_buy.commit":
+      return "#FF9800";
     case "trailing_stop.commit":
     case "trailing_take.commit":
       return "#673AB7";
@@ -144,6 +146,8 @@ const getNotificationIcon = (item: NotificationModel) => {
       return <SwapVert sx={sx} />;
     case "activate_scheduled.commit":
       return <PlayArrow sx={sx} />;
+    case "average_buy.commit":
+      return <TrendingDown sx={sx} />;
     case "trailing_stop.commit":
     case "trailing_take.commit":
       return <Timeline sx={sx} />;
@@ -183,6 +187,8 @@ const getNotificationTitle = (item: NotificationModel): string => {
       return `${t("Breakeven set")} ${item.symbol}`;
     case "activate_scheduled.commit":
       return `${t("Activated")} ${item.position.toUpperCase()} ${item.symbol}`;
+    case "average_buy.commit":
+      return `${t("Average buy")} ${item.symbol} (${item.totalEntries} ${t("entries")})`;
     case "trailing_stop.commit":
       return `${t("Trailing stop")} ${item.symbol}`;
     case "trailing_take.commit":
