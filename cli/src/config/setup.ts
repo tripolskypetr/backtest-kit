@@ -7,6 +7,7 @@ import {
   StorageBacktest,
   NotificationLive,
   NotificationBacktest,
+  setConfig,
 } from "backtest-kit";
 
 {
@@ -28,3 +29,8 @@ import {
   NotificationLive.usePersist();
   NotificationBacktest.useMemory();
 }
+
+setConfig({
+  CC_MAX_NOTIFICATIONS: 5_000,
+  CC_MAX_SIGNALS: 750,
+})
