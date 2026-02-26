@@ -1,3 +1,50 @@
+# DCA / Average-Buy Support (v3.3.0, 26/02/2026)
+
+> Github [release link](https://github.com/tripolskypetr/backtest-kit/releases/tag/3.3.0)
+
+## 🪓 Dollar Cost Averaging (DCA) Engine
+
+Full DCA support added across the entire stack: engine logic, report generation, Telegram notifications, CLI live module interface, and E2E tests.
+
+### `commitAverageBuy` — new public function
+
+```typescript
+import { commitAverageBuy } from "backtest-kit";
+
+const added = await commitAverageBuy("BTCUSDT");
+// returns false if price moved in wrong direction (rejection, not error)
+```
+
+Context-aware public API function that works in both backtest and live modes. Automatically reads `currentPrice`, `exchangeName`, `frameName`, and `strategyName` from the active execution context. Delegates to `averageBuy()` on the strategy engine.
+
+**Averaging rules:**
+- **LONG** — new entry price must be **below** the last recorded entry (averaging down)
+- **SHORT** — new entry price must be **above** the last recorded entry (averaging up)
+
+Returns `false` (without throwing) when the price condition is not satisfied. Throws if called outside an execution context.
+
+### `Backtest.commitAverageBuy` and `Live.commitAverageBuy`
+
+Both static utility classes expose `commitAverageBuy(symbol, currentPrice, context)` for use outside strategy callbacks (e.g., test scripts or external automation).
+
+### `StrategyCommitContract` — `AverageBuyCommit` added
+
+New `AverageBuyCommit` variant in the discriminated union emitted on `strategyCommitSubject`:
+
+```typescript
+interface AverageBuyCommit extends SignalCommitBase {
+  action: "average-buy";
+  currentPrice: number;
+  effectivePriceOpen: number;  // arithmetic mean of all _entry prices
+  totalEntries: number;
+  originalPriceOpen: number;
+  // + full signal snapshot fields
+}
+```
+
+
+
+
 # Analytics Dashboard (v3.2.0, 25/02/2026)
 
 > Github [release link](https://github.com/tripolskypetr/backtest-kit/releases/tag/3.2.0)
