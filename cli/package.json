@@ -1,6 +1,6 @@
 {
   "name": "@backtest-kit/cli",
-  "version": "3.3.2",
+  "version": "3.3.4",
   "description": "Zero-boilerplate CLI runner for backtest-kit strategies. Run backtests, paper trading, and live bots with candle cache warming, web dashboard, and Telegram notifications — no setup code required.",
   "author": {
     "name": "Petr Tripolsky",
@@ -75,13 +75,15 @@
     "ts-morph": "27.0.2",
     "tslib": "2.7.0",
     "typedoc": "0.27.9",
+    "tsx": "4.19.3",
     "worker-testbed": "1.0.12"
   },
   "peerDependencies": {
     "typescript": "^5.0.0",
     "@backtest-kit/ui": "^3.3.2",
     "backtest-kit": "^3.3.2",
-    "markdown-it": "^14.1.1"
+    "markdown-it": "^14.1.1",
+    "tsx": "^4.19.3"
   },
   "dependencies": {
     "ccxt": "4.5.39",

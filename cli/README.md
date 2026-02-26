@@ -360,6 +360,57 @@ export default class MyModule implements ILiveModule {
 }
 ```
 
+## 📦 Supported Entry Point Formats
+
+`@backtest-kit/cli` automatically detects the format of your strategy file and loads it with the appropriate runtime — no flags or configuration required.
+
+| Format | Extension | Runtime | Use Case |
+|--------|-----------|---------|----------|
+| **TypeScript** | `.ts` | [`tsx`](https://tsx.is/) via `tsImport()` | TypeScript strategies with cross-imports (ESM ↔ CJS) |
+| **ES Module** | `.mjs` | Native `import()` | Modern JavaScript with top-level `await` and ESM syntax |
+| **CommonJS** | `.cjs` | Native `require()` | Legacy or dual-package strategies |
+
+### TypeScript (`.ts`)
+
+Run TypeScript strategy files directly — no `tsc` compilation step needed. Powered by `tsx`, which handles cross-format imports transparently:
+
+```json
+{
+  "scripts": {
+    "backtest": "npx @backtest-kit/cli --backtest ./src/index.ts"
+  },
+  "dependencies": {
+    "@backtest-kit/cli": "latest",
+    "backtest-kit": "latest",
+    "tsx": "latest"
+  }
+}
+```
+
+### ES Module (`.mjs`)
+
+Standard ESM format. Supports top-level `await`, named exports, and `import` syntax:
+
+```json
+{
+  "scripts": {
+    "backtest": "npx @backtest-kit/cli --backtest ./src/index.mjs"
+  }
+}
+```
+
+### CommonJS (`.cjs`)
+
+For projects that compile to or use CommonJS. Loaded via `require()`:
+
+```json
+{
+  "scripts": {
+    "backtest": "npx @backtest-kit/cli --backtest ./dist/index.cjs"
+  }
+}
+```
+
 ## 🌍 Environment Variables
 
 Create a `.env` file in your project root:
