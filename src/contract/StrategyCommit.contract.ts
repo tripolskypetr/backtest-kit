@@ -20,6 +20,11 @@ interface SignalCommitBase {
   signalId: string;
   /** Timestamp from execution context (tick's when or backtest candle timestamp) */
   timestamp: number;
+  /**
+   * Total number of DCA entries at the time of this event (_entry.length).
+   * 1 = no averaging done (only initial entry). 2+ = averaged positions.
+   */
+  totalEntries: number;
 }
 
 /**
@@ -181,6 +186,35 @@ export interface BreakevenCommit extends SignalCommitBase {
 }
 
 /**
+ * Average-buy (DCA) event.
+ * Emitted when a new averaging entry is added to an open position.
+ */
+export interface AverageBuyCommit extends SignalCommitBase {
+  /** Discriminator for average-buy action */
+  action: "average-buy";
+  /** Price at which the new averaging entry was executed */
+  currentPrice: number;
+  /** Effective (averaged) entry price after this addition */
+  effectivePriceOpen: number;
+  /** Trade direction: "long" (buy) or "short" (sell) */
+  position: "long" | "short";
+  /** Original entry price (signal.priceOpen, unchanged by averaging) */
+  priceOpen: number;
+  /** Effective take profit price (may differ from original after trailing) */
+  priceTakeProfit: number;
+  /** Effective stop loss price (may differ from original after trailing) */
+  priceStopLoss: number;
+  /** Original take profit price before any trailing adjustments */
+  originalPriceTakeProfit: number;
+  /** Original stop loss price before any trailing adjustments */
+  originalPriceStopLoss: number;
+  /** Signal creation timestamp in milliseconds */
+  scheduledAt: number;
+  /** Position activation timestamp in milliseconds (when price reached priceOpen) */
+  pendingAt: number;
+}
+
+/**
  * Activate scheduled signal event.
  */
 export interface ActivateScheduledCommit extends SignalCommitBase {
@@ -229,6 +263,7 @@ export type StrategyCommitContract =
   | TrailingStopCommit
   | TrailingTakeCommit
   | BreakevenCommit
+  | AverageBuyCommit
   | ActivateScheduledCommit;
 
 export default StrategyCommitContract;

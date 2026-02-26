@@ -93,6 +93,17 @@ export interface ISignalRow extends ISignalDto {
    */
   _trailingPriceStopLoss?: number;
   /**
+   * DCA (Dollar Cost Averaging) entry history.
+   * First element is always the original priceOpen at signal creation.
+   * Each subsequent element is a new averaging entry added by averageBuy().
+   * Effective entry price = simple arithmetic mean of all price values.
+   * Original priceOpen is preserved unchanged for identity/audit purposes.
+   */
+  _entry?: Array<{
+    /** Price at which this entry was executed */
+    price: number;
+  }>;
+  /**
    * Trailing take-profit price that overrides priceTakeProfit when set.
    * Created and managed by trailingTake() method for dynamic TP adjustment.
    * Allows moving TP further from or closer to current price based on strategy.
@@ -145,6 +156,16 @@ export interface IPublicSignalRow extends ISignalRow {
    * Range: 0-100. Value of 0 means no partial closes, 100 means position fully closed through partials.
    */
   partialExecuted: number;
+  /**
+   * Total number of entries in the DCA _entry history (_entry.length).
+   * 1 = no averaging done (only initial entry). 2+ = averaged positions.
+   */
+  totalEntries: number;
+  /**
+   * Original entry price set at signal creation (unchanged by averaging).
+   * Mirrors signal.priceOpen which is preserved for identity/audit purposes.
+   */
+  originalPriceOpen: number;
 }
 
 /**
@@ -298,6 +319,18 @@ export interface IBreakevenCommitRow extends ICommitRowBase {
 }
 
 /**
+ * Queued average-buy (DCA) commit.
+ */
+export interface IAverageBuyCommitRow extends ICommitRowBase {
+  /** Discriminator */
+  action: "average-buy";
+  /** Price at which the new averaging entry was executed */
+  currentPrice: number;
+  /** Total number of entries in _entry after this addition */
+  totalEntries: number;
+}
+
+/**
  * Queued trailing stop commit.
  */
 export interface ITrailingStopCommitRow extends ICommitRowBase {
@@ -341,6 +374,7 @@ export type ICommitRow =
   | IPartialProfitCommitRow
   | IPartialLossCommitRow
   | IBreakevenCommitRow
+  | IAverageBuyCommitRow
   | ITrailingStopCommitRow
   | ITrailingTakeCommitRow
   | IActivateScheduledCommitRow;
@@ -1120,6 +1154,28 @@ export interface IStrategy {
    * ```
    */
   breakeven: (symbol: string, currentPrice: number, backtest: boolean) => Promise<boolean>;
+
+  /**
+   * Adds a new averaging entry to an open position (DCA — Dollar Cost Averaging).
+   *
+   * Appends currentPrice to the _entry array. The effective entry price used in all
+   * distance and PNL calculations becomes the simple arithmetic mean of all _entry prices.
+   * Original priceOpen is preserved unchanged for identity/audit purposes.
+   *
+   * Rejection rules (returns false without throwing):
+   * - LONG: currentPrice >= last entry price (must average down, not up or equal)
+   * - SHORT: currentPrice <= last entry price (must average down, not up or equal)
+   *
+   * Validations (throws):
+   * - No pending signal exists
+   * - currentPrice is not a positive finite number
+   *
+   * @param symbol - Trading pair symbol (e.g., "BTCUSDT")
+   * @param currentPrice - New entry price to add to the averaging history
+   * @param backtest - Whether running in backtest mode
+   * @returns Promise<boolean> - true if entry added, false if rejected by direction check
+   */
+  averageBuy: (symbol: string, currentPrice: number, backtest: boolean) => Promise<boolean>;
 
   /**
    * Disposes the strategy instance and cleans up resources.

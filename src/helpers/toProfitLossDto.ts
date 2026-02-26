@@ -1,5 +1,6 @@
 import { ISignalRow, IStrategyPnL } from "../interfaces/Strategy.interface";
 import { GLOBAL_CONFIG } from "../config/params";
+import { getEffectivePriceOpen } from "./getEffectivePriceOpen";
 
 /**
  * Calculates profit/loss for a closed signal with slippage and fees.
@@ -54,7 +55,7 @@ export const toProfitLossDto = (
   signal: ISignalRow,
   priceClose: number
 ): IStrategyPnL => {
-  const priceOpen = signal.priceOpen;
+  const priceOpen = getEffectivePriceOpen(signal);
 
   // Calculate weighted PNL with partial closes
   if (signal._partial && signal._partial.length > 0) {
