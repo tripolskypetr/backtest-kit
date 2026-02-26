@@ -12,6 +12,7 @@ const TRAILING_STOP_METHOD_NAME = "strategy.commitTrailingStop";
 const TRAILING_PROFIT_METHOD_NAME = "strategy.commitTrailingTake";
 const BREAKEVEN_METHOD_NAME = "strategy.commitBreakeven";
 const ACTIVATE_SCHEDULED_METHOD_NAME = "strategy.commitActivateScheduled";
+const AVERAGE_BUY_METHOD_NAME = "strategy.commitAverageBuy";
 
 /**
  * Cancels the scheduled signal without stopping the strategy.
@@ -436,5 +437,51 @@ export async function commitActivateScheduled(symbol: string, activateId?: strin
     symbol,
     { exchangeName, frameName, strategyName },
     activateId
+  );
+}
+
+/**
+ * Adds a new DCA entry to the active pending signal.
+ *
+ * Adds a new averaging entry at the current market price to the position's
+ * entry history. Updates effectivePriceOpen (mean of all entries) and emits
+ * an average-buy commit event.
+ *
+ * Automatically detects backtest/live mode from execution context.
+ * Automatically fetches current price via getAveragePrice.
+ *
+ * @param symbol - Trading pair symbol
+ * @returns Promise<boolean> - true if entry added, false if rejected
+ *
+ * @example
+ * ```typescript
+ * import { commitAverageBuy } from "backtest-kit";
+ *
+ * // Add DCA entry at current market price
+ * const success = await commitAverageBuy("BTCUSDT");
+ * if (success) {
+ *   console.log("DCA entry added");
+ * }
+ * ```
+ */
+export async function commitAverageBuy(symbol: string): Promise<boolean> {
+  backtest.loggerService.info(AVERAGE_BUY_METHOD_NAME, {
+    symbol,
+  });
+  if (!ExecutionContextService.hasContext()) {
+    throw new Error("commitAverageBuy requires an execution context");
+  }
+  if (!MethodContextService.hasContext()) {
+    throw new Error("commitAverageBuy requires a method context");
+  }
+  const currentPrice = await getAveragePrice(symbol);
+  const { backtest: isBacktest } = backtest.executionContextService.context;
+  const { exchangeName, frameName, strategyName } =
+    backtest.methodContextService.context;
+  return await backtest.strategyCoreService.averageBuy(
+    isBacktest,
+    symbol,
+    currentPrice,
+    { exchangeName, frameName, strategyName }
   );
 }

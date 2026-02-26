@@ -28,6 +28,7 @@ const LIVE_METHOD_NAME_PARTIAL_LOSS = "LiveUtils.commitPartialLoss";
 const LIVE_METHOD_NAME_TRAILING_STOP = "LiveUtils.commitTrailingStop";
 const LIVE_METHOD_NAME_TRAILING_PROFIT = "LiveUtils.commitTrailingTake";
 const LIVE_METHOD_NAME_ACTIVATE_SCHEDULED = "Live.commitActivateScheduled";
+const LIVE_METHOD_NAME_AVERAGE_BUY = "Live.commitAverageBuy";
 
 /**
  * Internal task function that runs live trading and handles completion.
@@ -1063,6 +1064,59 @@ export class LiveUtils {
       exchangeName: context.exchangeName,
       frameName: "",
     }, activateId);
+  };
+
+  /**
+   * Adds a new DCA entry to the active pending signal.
+   *
+   * Adds a new averaging entry at currentPrice to the position's entry history.
+   * Updates effectivePriceOpen (mean of all entries) and emits average-buy commit event.
+   *
+   * @param symbol - Trading pair symbol
+   * @param currentPrice - New entry price to add to the averaging history
+   * @param context - Execution context with strategyName and exchangeName
+   * @returns Promise<boolean> - true if entry added, false if rejected
+   *
+   * @example
+   * ```typescript
+   * // Add DCA entry at current price
+   * const success = await Live.commitAverageBuy("BTCUSDT", 42000, {
+   *   strategyName: "my-strategy",
+   *   exchangeName: "binance"
+   * });
+   * if (success) {
+   *   console.log('DCA entry added');
+   * }
+   * ```
+   */
+  public commitAverageBuy = async (
+    symbol: string,
+    currentPrice: number,
+    context: {
+      strategyName: StrategyName;
+      exchangeName: ExchangeName;
+    }
+  ): Promise<boolean> => {
+    backtest.loggerService.info(LIVE_METHOD_NAME_AVERAGE_BUY, {
+      symbol,
+      currentPrice,
+      context,
+    });
+    backtest.strategyValidationService.validate(context.strategyName, LIVE_METHOD_NAME_AVERAGE_BUY);
+    backtest.exchangeValidationService.validate(context.exchangeName, LIVE_METHOD_NAME_AVERAGE_BUY);
+
+    {
+      const { riskName, riskList, actions } = backtest.strategySchemaService.get(context.strategyName);
+      riskName && backtest.riskValidationService.validate(riskName, LIVE_METHOD_NAME_AVERAGE_BUY);
+      riskList && riskList.forEach((riskName) => backtest.riskValidationService.validate(riskName, LIVE_METHOD_NAME_AVERAGE_BUY));
+      actions && actions.forEach((actionName) => backtest.actionValidationService.validate(actionName, LIVE_METHOD_NAME_AVERAGE_BUY));
+    }
+
+    return await backtest.strategyCoreService.averageBuy(false, symbol, currentPrice, {
+      strategyName: context.strategyName,
+      exchangeName: context.exchangeName,
+      frameName: "",
+    });
   };
 
   /**

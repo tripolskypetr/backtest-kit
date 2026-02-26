@@ -131,6 +131,8 @@ class ReportStorage {
       priceStopLoss: data.priceStopLoss,
       originalPriceTakeProfit: data.originalPriceTakeProfit,
       originalPriceStopLoss: data.originalPriceStopLoss,
+      totalEntries: data.totalEntries,
+      originalPriceOpen: data.originalPriceOpen,
       partialExecuted: data.partialExecuted,
       note: data.note,
       pendingAt: data.pendingAt,

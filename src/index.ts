@@ -19,6 +19,7 @@ export {
   commitTrailingTake,
   commitBreakeven,
   commitActivateScheduled,
+  commitAverageBuy,
 } from "./function/strategy";
 export { stopStrategy } from "./function/control";
 export {

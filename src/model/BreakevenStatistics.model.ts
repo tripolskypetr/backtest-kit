@@ -27,6 +27,10 @@ export interface BreakevenEvent {
   originalPriceTakeProfit?: number;
   /** Original stop loss price set at signal creation */
   originalPriceStopLoss?: number;
+  /** Total number of DCA entries (present when averageBuy was applied) */
+  totalEntries?: number;
+  /** Original entry price before DCA averaging (present when averageBuy was applied) */
+  originalPriceOpen?: number;
   /** Total executed percentage from partial closes */
   partialExecuted?: number;
   /** Human-readable description of signal reason */
