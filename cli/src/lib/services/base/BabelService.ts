@@ -2,6 +2,11 @@ import { transform, registerPlugin } from "@babel/standalone";
 import pluginUMD from "@babel/plugin-transform-modules-umd";
 import LoggerService from "../base/LoggerService";
 import * as BacktestKit from "backtest-kit";
+import * as BacktestKitUi from "@backtest-kit/ui";
+import * as BacktestKitGraph from "@backtest-kit/graph";
+import * as BacktestKitOllama from "@backtest-kit/ollama";
+import * as BacktestKitPinets from "@backtest-kit/pinets";
+import * as BacktestKitSignals from "@backtest-kit/signals";
 import { inject } from "../../../lib/core/di";
 import TYPES from "../../../lib/core/types";
 import { createRequire } from "module";
@@ -19,6 +24,11 @@ const require = new Proxy(baseRequire, {
     const id = args[0];
     if (id === "backtest-kit") return globalThis.BacktestKit;
     if (id === "@backtest-kit/cli") return globalThis.BacktestKitCli;
+    if (id === "@backtest-kit/ui") return globalThis.BacktestKitUi;
+    if (id === "@backtest-kit/graph") return globalThis.BacktestKitGraph;
+    if (id === "@backtest-kit/ollama") return globalThis.BacktestKitOllama;
+    if (id === "@backtest-kit/pinets") return globalThis.BacktestKitPinets;
+    if (id === "@backtest-kit/signals") return globalThis.BacktestKitSignals;
     return baseRequire(id);
   },
 });
@@ -35,7 +45,12 @@ const BacktestKitCli = new Proxy({}, {
 declare global {
   interface Window {
     BacktestKit: typeof BacktestKit;
-    BacktestKitCli: typeof BacktestKitCli
+    BacktestKitCli: typeof BacktestKitCli;
+    BacktestKitUi: typeof BacktestKitUi;
+    BacktestKitGraph: typeof BacktestKitGraph;
+    BacktestKitOllama: typeof BacktestKitOllama;
+    BacktestKitPinets: typeof BacktestKitPinets;
+    BacktestKitSignals: typeof BacktestKitSignals;
   }
 }
 
@@ -54,6 +69,11 @@ export class BabelService {
           {
             globals: {
               "backtest-kit": "BacktestKit",
+              "@backtest-kit/ui": "BacktestKitUi",
+              "@backtest-kit/graph": "BacktestKitGraph",
+              "@backtest-kit/ollama": "BacktestKitOllama",
+              "@backtest-kit/pinets": "BacktestKitPinets",
+              "@backtest-kit/signals": "BacktestKitSignals",
             },
             moduleId: "Executor",
           },
@@ -89,5 +109,10 @@ export class BabelService {
 
 globalThis.BacktestKit = BacktestKit;
 globalThis.BacktestKitCli = BacktestKitCli;
+globalThis.BacktestKitUi = BacktestKitUi;
+globalThis.BacktestKitGraph = BacktestKitGraph;
+globalThis.BacktestKitOllama = BacktestKitOllama;
+globalThis.BacktestKitPinets = BacktestKitPinets;
+globalThis.BacktestKitSignals = BacktestKitSignals;
 
 export default BabelService;

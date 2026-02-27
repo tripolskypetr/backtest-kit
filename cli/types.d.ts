@@ -1,6 +1,11 @@
 import * as functools_kit from 'functools-kit';
 import * as BacktestKit from 'backtest-kit';
 import { CandleInterval, TrailingTakeCommit, TrailingStopCommit, BreakevenCommit, PartialProfitCommit, PartialLossCommit, IStrategyTickResultScheduled, IStrategyTickResultCancelled, IStrategyTickResultOpened, IStrategyTickResultClosed, RiskContract, AverageBuyCommit } from 'backtest-kit';
+import * as BacktestKitUi from '@backtest-kit/ui';
+import * as BacktestKitGraph from '@backtest-kit/graph';
+import * as BacktestKitOllama from '@backtest-kit/ollama';
+import * as BacktestKitPinets from '@backtest-kit/pinets';
+import * as BacktestKitSignals from '@backtest-kit/signals';
 import { Input } from 'telegraf';
 
 interface ILogger {
@@ -91,6 +96,11 @@ declare global {
     interface Window {
         BacktestKit: typeof BacktestKit;
         BacktestKitCli: typeof BacktestKitCli;
+        BacktestKitUi: typeof BacktestKitUi;
+        BacktestKitGraph: typeof BacktestKitGraph;
+        BacktestKitOllama: typeof BacktestKitOllama;
+        BacktestKitPinets: typeof BacktestKitPinets;
+        BacktestKitSignals: typeof BacktestKitSignals;
     }
 }
 declare class BabelService {
