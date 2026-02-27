@@ -1,3 +1,32 @@
+# TypeScript Support for CLI (v3.4.0, 27/02/2026)
+
+> Github [release link](https://github.com/tripolskypetr/backtest-kit/releases/tag/3.4.0)
+
+## Native TypeScript Strategy Files
+
+`@backtest-kit/cli` now runs `.ts` strategy files directly — no compilation step required. Pass your TypeScript file to the CLI just like any `.js` file.
+
+### How it works
+
+Under the hood, the CLI uses `@babel/standalone` with the `env` + `typescript` presets to transpile code on the fly into UMD format, then executes it in the current Node.js process. All `backtest-kit` and `@backtest-kit/*` packages are pre-registered as UMD globals, so imports resolve correctly without bundling.
+
+The loader tries three strategies in order:
+1. `require()` — for pre-compiled CJS files
+2. `import()` — for native ESM files
+3. **Babel transpile + eval** — for `.ts`, `.tsx`, and plain `.js` sources
+
+This means existing workflows continue to work unchanged, and TypeScript becomes a first-class option.
+
+### `--debug` flag
+
+Pass `--debug` to write the transpiled output to `./debug.js` for inspection:
+
+```bash
+npx backtest-kit run strategy.ts --debug
+```
+
+
+
 # DCA / Average-Buy Support (v3.3.0, 26/02/2026)
 
 > Github [release link](https://github.com/tripolskypetr/backtest-kit/releases/tag/3.3.0)
