@@ -33,6 +33,10 @@ export const getArgs = singleshot(() => {
         type: "boolean",
         default: false,
       },
+      debug: {
+        type: "boolean",
+        default: false,
+      },
       ui: {
         type: "boolean",
         default: false,

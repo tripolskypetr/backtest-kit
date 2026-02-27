@@ -95,9 +95,10 @@ declare global {
 }
 declare class BabelService {
     readonly loggerService: LoggerService;
+    readonly _require: NodeRequire;
     transpile: (code: string) => any;
     transpileAndRun: (code: string) => {
-        require: NodeRequire;
+        require: (id: string) => any;
         __filename: string;
         __dirname: string;
         exports: Record<string, unknown>;

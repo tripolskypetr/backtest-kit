@@ -7,10 +7,11 @@ import TYPES from "../../../lib/core/types";
 import { createRequire } from "module";
 import { fileURLToPath } from "url";
 import path from "path";
+import fs from "fs";
+import { getArgs } from "../../../helpers/getArgs";
 
 registerPlugin("plugin-transform-modules-umd", pluginUMD);
 
-const require = createRequire(import.meta.url);
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
@@ -31,8 +32,11 @@ declare global {
 export class BabelService {
   readonly loggerService = inject<LoggerService>(TYPES.loggerService);
 
+  readonly _require = createRequire(import.meta.url);
+
   public transpile = (code: string) => {
     this.loggerService.log("babelService transpile", { codeLen: code.length });
+    const { values } = getArgs();
     const result = transform(code, {
       filename: "index.ts",
       presets: ["env", "typescript"],
@@ -42,7 +46,6 @@ export class BabelService {
           {
             globals: {
               "backtest-kit": "BacktestKit",
-              "@backtest-kit/cli": "BacktestKitCli",
             },
             moduleId: "Executor",
           },
@@ -53,6 +56,9 @@ export class BabelService {
     if (!result.code) {
       throw new Error("BabelService transpile failed");
     }
+    if (values.debug) {
+      fs.writeFileSync("./debug.js", result.code);
+    }
     return result.code;
   };
 
@@ -62,6 +68,15 @@ export class BabelService {
     });
     const module = { exports: {} as Record<string, unknown> };
     const exports = module.exports;
+    const require = (id: string) => {
+      if (id === "backtest-kit") {
+        return globalThis.BacktestKit;
+      }
+      if (id === "@backtest-kit/cli") {
+        return globalThis.BacktestKitCli;
+      }
+      return this._require(id);
+    };
     eval(this.transpile(code));
     return {
         require,
