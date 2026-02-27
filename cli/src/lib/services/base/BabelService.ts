@@ -12,6 +12,17 @@ import { getArgs } from "../../../helpers/getArgs";
 
 registerPlugin("plugin-transform-modules-umd", pluginUMD);
 
+const baseRequire = createRequire(import.meta.url);
+
+const require = new Proxy(baseRequire, {
+  apply(_target, _this, args) {
+    const id = args[0];
+    if (id === "backtest-kit") return globalThis.BacktestKit;
+    if (id === "@backtest-kit/cli") return globalThis.BacktestKitCli;
+    return baseRequire(id);
+  },
+});
+
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
@@ -20,7 +31,6 @@ const BacktestKitCli = new Proxy({}, {
     throw new Error(`@backtest-kit/cli is not available in this context (accessed: ${String(prop)})`);
   },
 });
-
 
 declare global {
   interface Window {
@@ -31,8 +41,6 @@ declare global {
 
 export class BabelService {
   readonly loggerService = inject<LoggerService>(TYPES.loggerService);
-
-  readonly _require = createRequire(import.meta.url);
 
   public transpile = (code: string) => {
     this.loggerService.log("babelService transpile", { codeLen: code.length });
@@ -68,15 +76,6 @@ export class BabelService {
     });
     const module = { exports: {} as Record<string, unknown> };
     const exports = module.exports;
-    const require = (id: string) => {
-      if (id === "backtest-kit") {
-        return globalThis.BacktestKit;
-      }
-      if (id === "@backtest-kit/cli") {
-        return globalThis.BacktestKitCli;
-      }
-      return this._require(id);
-    };
     eval(this.transpile(code));
     return {
         require,
