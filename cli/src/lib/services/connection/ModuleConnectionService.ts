@@ -1,4 +1,4 @@
-import { memoize } from "functools-kit";
+import { getErrorMessage, memoize } from "functools-kit";
 import { createRequire } from "module";
 import { pathToFileURL } from "url";
 import { inject } from "../../../lib/core/di";
@@ -63,9 +63,10 @@ const BABEL_MODULE_FACTORY = async (
   for (const variant of getExtVariants(fileName)) {
     try {
       const code = await fs.readFile(variant, "utf-8");
-      const exports = self.babelService.transpileAndRun(code);
+      const { exports } = self.babelService.transpileAndRun(code);
       return (exports as Record<string, unknown>).default as TBaseModuleCtor | BaseModule ?? exports as unknown as TBaseModuleCtor | BaseModule;
-    } catch {
+    } catch (error) {
+      console.log(getErrorMessage(error));
       continue;
     }
   }

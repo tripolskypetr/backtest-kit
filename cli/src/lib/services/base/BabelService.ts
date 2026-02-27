@@ -60,14 +60,16 @@ export class BabelService {
     this.loggerService.log("babelService transpileAndRun", {
       codeLen: code.length,
     });
-    void require;
-    void __filename;
-    void __dirname;
     const module = { exports: {} as Record<string, unknown> };
     const exports = module.exports;
     eval(this.transpile(code));
-    void exports;
-    return module.exports;
+    return {
+        require,
+        __filename,
+        __dirname,
+        exports,
+        module,
+    }
   };
 }
 

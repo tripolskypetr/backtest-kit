@@ -10,6 +10,7 @@ import TYPES from '../../../lib/core/types';
 import { entrySubject } from '../../../config/emitters';
 import BabelService from './BabelService';
 import fs from "fs/promises";
+import { getErrorMessage } from 'functools-kit';
 
 declare const __IS_ESM__: boolean;
 
@@ -47,7 +48,8 @@ const BABEL_ENTRY_FACTORY = async (filePath: string, self: ResolveService): Prom
     try {
         await self.babelService.transpileAndRun(code);
         return true;
-    } catch {
+    } catch (error) {
+        console.log(getErrorMessage(error));
         return false;
     }
 };
