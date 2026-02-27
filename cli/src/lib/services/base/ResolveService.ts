@@ -8,6 +8,8 @@ import { inject } from '../../../lib/core/di';
 import LoggerService from './LoggerService';
 import TYPES from '../../../lib/core/types';
 import { entrySubject } from '../../../config/emitters';
+import BabelService from './BabelService';
+import fs from "fs/promises";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -23,30 +25,44 @@ const REQUIRE_ENTRY_FACTORY = (filePath: string): boolean => {
     }
 };
 
-const IMPORT_ENTRY_FACTORY = async (filePath: string): Promise<void> => {
-    await import(pathToFileURL(filePath).href);
+const IMPORT_ENTRY_FACTORY = async (filePath: string): Promise<boolean> => {
+    try {
+        await import(pathToFileURL(filePath).href);
+        return true;
+    } catch {
+        return false;
+    }
 };
 
-const TSX_ENTRY_FACTORY = async (filePath: string): Promise<void> => {
-    const { tsImport } = await import('tsx/esm/api');
-    await tsImport(pathToFileURL(filePath).href, pathToFileURL(filePath).href);
+const BABEL_ENTRY_FACTORY = async (filePath: string, self: ResolveService): Promise<boolean> => {
+    const code = await fs.readFile(filePath, "utf-8");
+    try {
+        await self.babelService.transpileAndRun(code);
+        return true;
+    } catch {
+        return false;
+    }
 };
 
-const LOAD_ENTRY_FN = async (filePath: string): Promise<void> => {
-    if (filePath.endsWith('.ts') || filePath.endsWith('.tsx')) {
-        await TSX_ENTRY_FACTORY(filePath);
+const LOAD_ENTRY_FN = async (filePath: string, self: ResolveService): Promise<void> => {
+    if (REQUIRE_ENTRY_FACTORY(filePath)) {
         return;
     }
-    if (!REQUIRE_ENTRY_FACTORY(filePath)) {
-        await IMPORT_ENTRY_FACTORY(filePath);
+    if (await IMPORT_ENTRY_FACTORY(filePath)) {
+        return;
     }
+    if (await BABEL_ENTRY_FACTORY(filePath, self)) {
+        return;
+    }
+    throw new Error(`Failed to load entry point: ${filePath}`);
 };
 
 let _is_launched = false;
 
 export class ResolveService {
 
-    private readonly loggerService = inject<LoggerService>(TYPES.loggerService);
+    readonly loggerService = inject<LoggerService>(TYPES.loggerService);
+    readonly babelService = inject<BabelService>(TYPES.babelService);
 
     public readonly DEFAULT_TEMPLATE_DIR = path.resolve(__dirname, '..', 'template');
     public readonly OVERRIDE_TEMPLATE_DIR = path.resolve(process.cwd(), 'template');
@@ -65,7 +81,7 @@ export class ResolveService {
             process.chdir(moduleRoot);
             dotenv.config({ path: path.join(cwd, '.env'), override: true, quiet: true });
             dotenv.config({ path: path.join(moduleRoot, '.env'), override: true, quiet: true });
-            await LOAD_ENTRY_FN(absolutePath);
+            await LOAD_ENTRY_FN(absolutePath, this);
             await entrySubject.next(absolutePath);
         }
         _is_launched = true;
