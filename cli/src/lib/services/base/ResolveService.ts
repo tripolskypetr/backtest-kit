@@ -29,7 +29,7 @@ const IMPORT_ENTRY_FACTORY = async (filePath: string): Promise<void> => {
 
 const TSX_ENTRY_FACTORY = async (filePath: string): Promise<void> => {
     const { tsImport } = await import('tsx/esm/api');
-    await tsImport(pathToFileURL(filePath).href, import.meta.url);
+    await tsImport(pathToFileURL(filePath).href, pathToFileURL(filePath).href);
 };
 
 const LOAD_ENTRY_FN = async (filePath: string): Promise<void> => {
