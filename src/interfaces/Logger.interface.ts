@@ -6,6 +6,10 @@ export interface ILogEntry {
   id: string;
   /** Log level */
   type: "log" | "debug" | "info" | "warn";
+  /** Unix timestamp in milliseconds when the entry was created */
+  timestamp: number;
+  /** Date taken from backtest context to improve user experience */
+  createdAt: string;
   /** Log topic / method name */
   topic: string;
   /** Additional arguments passed to the log call */

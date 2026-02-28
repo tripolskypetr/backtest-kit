@@ -1,7 +1,7 @@
 import { randomString, singleshot } from "functools-kit";
 import { ILogEntry, ILogger } from "../interfaces/Logger.interface";
 import { PersistLogAdapter } from "./Persist";
-import backtest from "../lib";
+import backtest, { ExecutionContextService } from "../lib";
 import { GLOBAL_CONFIG } from "../config/params";
 
 const LOG_PERSIST_METHOD_NAME_WAIT_FOR_INIT = "LogPersistUtils.waitForInit";
@@ -21,6 +21,18 @@ const LOG_ADAPTER_METHOD_NAME_USE_LOGGER = "LogAdapter.useLogger";
 const LOG_ADAPTER_METHOD_NAME_USE_PERSIST = "LogAdapter.usePersist";
 const LOG_ADAPTER_METHOD_NAME_USE_MEMORY = "LogAdapter.useMemory";
 const LOG_ADAPTER_METHOD_NAME_USE_DUMMY = "LogAdapter.useDummy";
+
+/**
+ * Backtest execution time retrieval function.
+ * Returns the 'when' timestamp from the execution context if available, otherwise returns the current time.
+ * This allows log entries to be timestamped according to the backtest timeline rather than real-world time, improving log relevance and user experience during backtest analysis.
+ */
+const GET_DATE_FN = async () => {
+  if (ExecutionContextService.hasContext()) {
+    return new Date(backtest.executionContextService.context.when);
+  }
+  return new Date();
+};
 
 /**
  * Extended logger interface with log history access.
@@ -61,6 +73,7 @@ export class LogPersistUtils implements ILog {
   private waitForInit = singleshot(async () => {
     backtest.loggerService.info(LOG_PERSIST_METHOD_NAME_WAIT_FOR_INIT);
     const list = await PersistLogAdapter.readLogData();
+    list.sort((a, b) => a.timestamp - b.timestamp);
     this._entries = list.slice(-GLOBAL_CONFIG.CC_MAX_LOG_LINES);
   });
 
@@ -85,7 +98,15 @@ export class LogPersistUtils implements ILog {
   public log = async (topic: string, ...args: any[]): Promise<void> => {
     backtest.loggerService.info(LOG_PERSIST_METHOD_NAME_LOG, { topic });
     await this.waitForInit();
-    this._entries.push({ id: randomString(), type: "log", topic, args });
+    const date = await GET_DATE_FN();
+    this._entries.push({
+      id: randomString(),
+      type: "log",
+      timestamp: Date.now(),
+      createdAt: date.toISOString(),
+      topic,
+      args,
+    });
     this._enforceLimit();
     await PersistLogAdapter.writeLogData(this._entries);
   };
@@ -99,7 +120,15 @@ export class LogPersistUtils implements ILog {
   public debug = async (topic: string, ...args: any[]): Promise<void> => {
     backtest.loggerService.info(LOG_PERSIST_METHOD_NAME_DEBUG, { topic });
     await this.waitForInit();
-    this._entries.push({ id: randomString(), type: "debug", topic, args });
+    const date = await GET_DATE_FN();
+    this._entries.push({
+      id: randomString(),
+      type: "debug",
+      timestamp: Date.now(),
+      createdAt: date.toISOString(),
+      topic,
+      args,
+    });
     this._enforceLimit();
     await PersistLogAdapter.writeLogData(this._entries);
   };
@@ -113,7 +142,15 @@ export class LogPersistUtils implements ILog {
   public info = async (topic: string, ...args: any[]): Promise<void> => {
     backtest.loggerService.info(LOG_PERSIST_METHOD_NAME_INFO, { topic });
     await this.waitForInit();
-    this._entries.push({ id: randomString(), type: "info", topic, args });
+    const date = await GET_DATE_FN();
+    this._entries.push({
+      id: randomString(),
+      type: "info",
+      timestamp: Date.now(),
+      createdAt: date.toISOString(),
+      topic,
+      args,
+    });
     this._enforceLimit();
     await PersistLogAdapter.writeLogData(this._entries);
   };
@@ -127,7 +164,15 @@ export class LogPersistUtils implements ILog {
   public warn = async (topic: string, ...args: any[]): Promise<void> => {
     backtest.loggerService.info(LOG_PERSIST_METHOD_NAME_WARN, { topic });
     await this.waitForInit();
-    this._entries.push({ id: randomString(), type: "warn", topic, args });
+    const date = await GET_DATE_FN();
+    this._entries.push({
+      id: randomString(),
+      type: "warn",
+      timestamp: Date.now(),
+      createdAt: date.toISOString(),
+      topic,
+      args,
+    });
     this._enforceLimit();
     await PersistLogAdapter.writeLogData(this._entries);
   };
@@ -176,9 +221,17 @@ export class LogMemoryUtils implements ILog {
    * @param topic - The log topic / method name
    * @param args - Additional arguments
    */
-  public log = (topic: string, ...args: any[]): void => {
+  public log = async (topic: string, ...args: any[]): Promise<void> => {
     backtest.loggerService.info(LOG_MEMORY_METHOD_NAME_LOG, { topic });
-    this._entries.push({ id: randomString(), type: "log", topic, args });
+    const date = await GET_DATE_FN();
+    this._entries.push({
+      id: randomString(),
+      type: "log",
+      timestamp: Date.now(),
+      createdAt: date.toISOString(),
+      topic,
+      args,
+    });
     this._enforceLimit();
   };
 
@@ -188,9 +241,17 @@ export class LogMemoryUtils implements ILog {
    * @param topic - The log topic / method name
    * @param args - Additional arguments
    */
-  public debug = (topic: string, ...args: any[]): void => {
+  public debug = async (topic: string, ...args: any[]): Promise<void> => {
     backtest.loggerService.info(LOG_MEMORY_METHOD_NAME_DEBUG, { topic });
-    this._entries.push({ id: randomString(), type: "debug", topic, args });
+    const date = await GET_DATE_FN();
+    this._entries.push({
+      id: randomString(),
+      type: "debug",
+      timestamp: Date.now(),
+      createdAt: date.toISOString(),
+      topic,
+      args,
+    });
     this._enforceLimit();
   };
 
@@ -200,9 +261,17 @@ export class LogMemoryUtils implements ILog {
    * @param topic - The log topic / method name
    * @param args - Additional arguments
    */
-  public info = (topic: string, ...args: any[]): void => {
+  public info = async (topic: string, ...args: any[]): Promise<void> => {
     backtest.loggerService.info(LOG_MEMORY_METHOD_NAME_INFO, { topic });
-    this._entries.push({ id: randomString(), type: "info", topic, args });
+    const date = await GET_DATE_FN();
+    this._entries.push({
+      id: randomString(),
+      type: "info",
+      timestamp: Date.now(),
+      createdAt: date.toISOString(),
+      topic,
+      args,
+    });
     this._enforceLimit();
   };
 
@@ -212,9 +281,17 @@ export class LogMemoryUtils implements ILog {
    * @param topic - The log topic / method name
    * @param args - Additional arguments
    */
-  public warn = (topic: string, ...args: any[]): void => {
+  public warn = async (topic: string, ...args: any[]): Promise<void> => {
     backtest.loggerService.info(LOG_MEMORY_METHOD_NAME_WARN, { topic });
-    this._entries.push({ id: randomString(), type: "warn", topic, args });
+    const date = await GET_DATE_FN();
+    this._entries.push({
+      id: randomString(),
+      type: "warn",
+      timestamp: Date.now(),
+      createdAt: date.toISOString(),
+      topic,
+      args,
+    });
     this._enforceLimit();
   };
 
