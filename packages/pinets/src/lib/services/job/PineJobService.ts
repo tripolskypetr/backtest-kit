@@ -10,6 +10,7 @@ import LoggerService from "../base/LoggerService";
 import PineConnectionService from "../connection/PineConnectionService";
 import { CandleInterval } from "backtest-kit";
 import { Code } from "../../../classes/Code";
+import { PlotModel, PlotRecord } from "../../../model/Plot.model";
 
 const CREATE_PROVIDER_FN = singleshot(
   (self: PineJobService): IProvider => ({
@@ -75,7 +76,7 @@ export class PineJobService {
     tickerId: string,
     timeframe: CandleInterval = "1m",
     limit: number = 100,
-  ) => {
+  ): Promise<PlotRecord> => {
     this.loggerService.log("pineJobService run", {
       script: code.source,
       tickerId,
@@ -85,7 +86,19 @@ export class PineJobService {
 
     const runner = await CREATE_RUNNER_FN(this, tickerId, timeframe, limit);
 
-    return await runner.run(code.source);
+    const result = await runner.run(code.source);
+
+    const plots = Object.entries(result.plots).reduce<PlotModel>((acm, [key, value]) => {
+      if (key === "undefined") {
+        return acm;
+      }
+      return {
+        ...acm,
+        [key]: value,
+      };
+    }, {});
+
+    return { plots };
   };
 }
 
