@@ -115,6 +115,7 @@ export {
 export {
   CandleInterval,
   ICandleData,
+  IPublicCandleData,
   IBidData,
   IOrderBookData,
   IExchangeSchema,

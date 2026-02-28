@@ -16,6 +16,24 @@ export type CandleInterval =
   | "6h"
   | "8h";
 
+/** Numeric type that can be undefined (used for optional numeric values) */
+export type Num = number | undefined; 
+
+export interface IPublicCandleData {
+  /** Unix timestamp in milliseconds when candle opened */
+  timestamp: Num;
+  /** Opening price at candle start */
+  open: Num;
+  /** Highest price during candle period */
+  high: Num;
+  /** Lowest price during candle period */
+  low: Num;
+  /** Closing price at candle end */
+  close: Num;
+  /** Trading volume during candle period */
+  volume: Num;
+}
+
 /**
  * Single OHLCV candle data point.
  * Used for VWAP calculation and backtesting.
@@ -116,7 +134,7 @@ export interface IExchangeSchema {
     since: Date,
     limit: number,
     backtest: boolean
-  ) => Promise<ICandleData[]>;
+  ) => Promise<IPublicCandleData[]>;
   /**
    * Format quantity according to exchange precision rules.
    *

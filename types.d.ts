@@ -89,6 +89,22 @@ interface ILogger {
  * Candle time interval for fetching historical data.
  */
 type CandleInterval = "1m" | "3m" | "5m" | "15m" | "30m" | "1h" | "2h" | "4h" | "6h" | "8h";
+/** Numeric type that can be undefined (used for optional numeric values) */
+type Num = number | undefined;
+interface IPublicCandleData {
+    /** Unix timestamp in milliseconds when candle opened */
+    timestamp: Num;
+    /** Opening price at candle start */
+    open: Num;
+    /** Highest price during candle period */
+    high: Num;
+    /** Lowest price during candle period */
+    low: Num;
+    /** Closing price at candle end */
+    close: Num;
+    /** Trading volume during candle period */
+    volume: Num;
+}
 /**
  * Single OHLCV candle data point.
  * Used for VWAP calculation and backtesting.
@@ -172,7 +188,7 @@ interface IExchangeSchema {
      * @param backtest - Whether running in backtest mode
      * @returns Promise resolving to array of OHLCV candle data
      */
-    getCandles: (symbol: string, interval: CandleInterval, since: Date, limit: number, backtest: boolean) => Promise<ICandleData[]>;
+    getCandles: (symbol: string, interval: CandleInterval, since: Date, limit: number, backtest: boolean) => Promise<IPublicCandleData[]>;
     /**
      * Format quantity according to exchange precision rules.
      *
