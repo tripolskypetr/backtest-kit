@@ -9,6 +9,7 @@ import PineMarkdownService from "../services/markdown/PineMarkdownService";
 import { provide } from "./di";
 import { TYPES } from "./types";
 import ExchangeContextService from "../services/context/ExchangeContextService";
+import IndicatorConnectionService from "../services/connection/IndicatorConnectionService";
 
 {
     provide(TYPES.loggerService, () => new LoggerService());
@@ -37,6 +38,7 @@ import ExchangeContextService from "../services/context/ExchangeContextService";
 
 {
     provide(TYPES.pineConnectionService, () => new PineConnectionService());
+    provide(TYPES.indicatorConnectionService, () => new IndicatorConnectionService());
 }
 
 {

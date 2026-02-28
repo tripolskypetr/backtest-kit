@@ -25,6 +25,7 @@ const cacheServices = {
 
 const connectionServices = {
     pineConnectionService: Symbol("pineConnectionService"),
+    indicatorConnectionService: Symbol("indicatorConnectionService"),
 }
 
 const markdownServices = {

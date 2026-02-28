@@ -24,6 +24,7 @@ interface IParams {
   symbol: string;
   timeframe: CandleInterval;
   limit: number;
+  inputs?: Record<string, any>;
 }
 
 const SIGNAL_SCHEMA = {
@@ -39,7 +40,7 @@ const SIGNAL_SCHEMA = {
 
 export async function getSignal(
   source: File | Code,
-  { symbol, timeframe, limit }: IParams,
+  { symbol, timeframe, limit, inputs = {} }: IParams,
 ): Promise<ISignalDto | null> {
   lib.loggerService.info(METHOD_NAME_RUN, {
     source,
@@ -53,6 +54,7 @@ export async function getSignal(
     symbol,
     timeframe,
     limit,
+    inputs,
   );
 
   const resultId = randomString();

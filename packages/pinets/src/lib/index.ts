@@ -12,6 +12,7 @@ import PineCacheService from "./services/cache/PineCacheService";
 import PineConnectionService from "./services/connection/PineConnectionService";
 import PineMarkdownService from "./services/markdown/PineMarkdownService";
 import { TExchangeContextService } from "./services/context/ExchangeContextService";
+import IndicatorConnectionService from "./services/connection/IndicatorConnectionService";
 
 const baseServices = {
   loggerService: inject<LoggerService>(TYPES.loggerService),
@@ -40,6 +41,7 @@ const cacheServices = {
 
 const connectionServices = {
   pineConnectionService: inject<PineConnectionService>(TYPES.pineConnectionService),
+  indicatorConnectionService: inject<IndicatorConnectionService>(TYPES.indicatorConnectionService),
 };
 
 const markdownServices = {

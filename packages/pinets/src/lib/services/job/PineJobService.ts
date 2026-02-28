@@ -11,6 +11,8 @@ import PineConnectionService from "../connection/PineConnectionService";
 import { CandleInterval } from "backtest-kit";
 import { Code } from "../../../classes/Code";
 import { PlotModel, PlotRecord } from "../../../model/Plot.model";
+import { PineTS } from "pinets";
+import IndicatorConnectionService from "../connection/IndicatorConnectionService";
 
 const CREATE_PROVIDER_FN = singleshot(
   (self: PineJobService): IProvider => ({
@@ -70,12 +72,16 @@ export class PineJobService {
   readonly pineConnectionService = inject<PineConnectionService>(
     TYPES.pineConnectionService,
   );
+  readonly indicatorConnectionService = inject<IndicatorConnectionService>(
+    TYPES.indicatorConnectionService,
+  );
 
   public run = async (
     code: Code,
     tickerId: string,
     timeframe: CandleInterval = "1m",
     limit: number = 100,
+    inputs: Record<string, any> = {}
   ): Promise<PlotRecord> => {
     this.loggerService.log("pineJobService run", {
       script: code.source,
@@ -85,8 +91,9 @@ export class PineJobService {
     });
 
     const runner = await CREATE_RUNNER_FN(this, tickerId, timeframe, limit);
+    const indicator = await this.indicatorConnectionService.getInstance(code.source, inputs);
 
-    const result = await runner.run(code.source);
+    const result = await runner.run(indicator);
 
     const plots = Object.entries(result.plots).reduce<PlotModel>((acm, [key, value]) => {
       if (key === "undefined") {

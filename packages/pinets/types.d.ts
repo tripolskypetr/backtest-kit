@@ -29,6 +29,12 @@ type PlotRecord = {
     plots: PlotModel;
 };
 
+type TIndicatorCtor = (source: string, inputs?: Record<string, any>) => IIndicator;
+interface IIndicator {
+    source: string;
+    inputs: Record<string, any>;
+}
+
 interface IProvider {
     getMarketData(tickerId: string, timeframe: string, limit?: number, sDate?: number, eDate?: number): Promise<any>;
     getSymbolInfo(tickerId: string): Promise<any>;
@@ -37,10 +43,12 @@ interface IProvider {
 type TPineCtor = (source: IProvider, tickerId: string, timeframe: string, limit: number) => IPine;
 interface IPine {
     ready(): Promise<void>;
-    run(code: string): Promise<PlotRecord>;
+    run(code: string | IIndicator): Promise<PlotRecord>;
 }
 
 declare function usePine<T = TPineCtor>(ctor: T): void;
+
+declare function useIndicator<T = TIndicatorCtor>(ctor: T): void;
 
 type ExchangeName = string;
 interface IExchangeContext {
@@ -51,8 +59,9 @@ interface IRunParams$1 {
     symbol: string;
     timeframe: CandleInterval;
     limit: number;
+    inputs?: Record<string, any>;
 }
-declare function run(source: File | Code, { symbol, timeframe, limit }: IRunParams$1, exchangeName?: ExchangeName, when?: Date): Promise<PlotModel>;
+declare function run(source: File | Code, { symbol, timeframe, limit, inputs }: IRunParams$1, exchangeName?: ExchangeName, when?: Date): Promise<PlotModel>;
 
 type PlotExtractConfig<T = number> = {
     plot: string;
@@ -85,8 +94,9 @@ interface IParams {
     symbol: string;
     timeframe: CandleInterval;
     limit: number;
+    inputs?: Record<string, any>;
 }
-declare function getSignal(source: File | Code, { symbol, timeframe, limit }: IParams): Promise<ISignalDto | null>;
+declare function getSignal(source: File | Code, { symbol, timeframe, limit, inputs }: IParams): Promise<ISignalDto | null>;
 
 type ResultId$3 = string | number;
 declare function dumpPlotData<M extends PlotMapping>(signalId: ResultId$3, plots: PlotModel, mapping: M, taName: string, outputDir?: string): Promise<void>;
@@ -96,9 +106,10 @@ interface IRunParams {
     symbol: string;
     timeframe: CandleInterval;
     limit: number;
+    inputs?: Record<string, any>;
 }
 declare function toMarkdown<M extends PlotMapping>(signalId: ResultId$2, plots: PlotModel, mapping: M, limit?: number): Promise<string>;
-declare function markdown<M extends PlotMapping>(signalId: ResultId$2, source: File | Code, { symbol, timeframe, limit }: IRunParams, mapping: M, exchangeName?: ExchangeName, when?: Date): Promise<string>;
+declare function markdown<M extends PlotMapping>(signalId: ResultId$2, source: File | Code, { symbol, timeframe, limit, inputs }: IRunParams, mapping: M, exchangeName?: ExchangeName, when?: Date): Promise<string>;
 
 type ResultId$1 = string | number;
 interface SignalData {
@@ -165,12 +176,21 @@ declare class PineConnectionService {
     clear: () => void;
 }
 
+declare class IndicatorConnectionService {
+    private readonly loggerService;
+    private IndicatorFactory;
+    getInstance: (...args: Parameters<TIndicatorCtor>) => Promise<IIndicator>;
+    useIndicator: (ctor: TIndicatorCtor) => void;
+    clear: () => void;
+}
+
 declare class PineJobService {
     readonly loggerService: LoggerService;
     readonly axisProviderService: AxisProviderService;
     readonly candleProviderService: CandleProviderService;
     readonly pineConnectionService: PineConnectionService;
-    run: (code: Code, tickerId: string, timeframe?: CandleInterval, limit?: number) => Promise<PlotRecord>;
+    readonly indicatorConnectionService: IndicatorConnectionService;
+    run: (code: Code, tickerId: string, timeframe?: CandleInterval, limit?: number, inputs?: Record<string, any>) => Promise<PlotRecord>;
 }
 
 declare class PineCacheService {
@@ -194,6 +214,7 @@ declare class PineMarkdownService {
 declare const pine: {
     pineMarkdownService: PineMarkdownService;
     pineConnectionService: PineConnectionService;
+    indicatorConnectionService: IndicatorConnectionService;
     pineCacheService: PineCacheService;
     pineDataService: PineDataService;
     pineJobService: PineJobService;
@@ -205,4 +226,4 @@ declare const pine: {
     };
 };
 
-export { AXIS_SYMBOL, type CandleModel, Code, File, type ILogger, type IPine, type IProvider, type PlotExtractConfig, type PlotMapping, type PlotModel, type PlotRecord, type SymbolInfoModel, type TPineCtor, dumpPlotData, extract, getSignal, pine as lib, markdown, run, setLogger, toMarkdown, toSignalDto, usePine };
+export { AXIS_SYMBOL, type CandleModel, Code, File, type ILogger, type IPine, type IProvider, type PlotExtractConfig, type PlotMapping, type PlotModel, type PlotRecord, type SymbolInfoModel, type TPineCtor, dumpPlotData, extract, getSignal, pine as lib, markdown, run, setLogger, toMarkdown, toSignalDto, useIndicator, usePine };

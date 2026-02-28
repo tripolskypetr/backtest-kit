@@ -2,6 +2,7 @@ export { Code } from "./classes/Code";
 export { File } from "./classes/File";
 
 export { usePine } from "./function/pine.function";
+export { useIndicator } from "./function/indicator.function";
 export { run } from "./function/run.function";
 export { extract } from "./function/extract.function";
 export { setLogger } from "./function/setup.function";
@@ -20,6 +21,7 @@ export { SymbolInfoModel } from "./model/SymbolInfo.model";
 
 export { ILogger } from "./interface/Logger.interface";
 export { IPine, TPineCtor } from "./interface/Pine.interface";
+export { IIndicator, TIndicatorCtor } from "./interface/Indicator.interface";
 export { IProvider} from "./interface/Provider.interface";
 
 export { AXIS_SYMBOL } from "./lib/services/provider/AxisProviderService";
