@@ -93,7 +93,7 @@ export class PineJobService {
     const runner = await CREATE_RUNNER_FN(this, tickerId, timeframe, limit);
     const indicator = await this.indicatorConnectionService.getInstance(code.source, inputs);
 
-    const result = await runner.run(indicator);
+    const result = await runner.run(Object.keys(inputs).length ? indicator : code.source);
 
     const plots = Object.entries(result.plots).reduce<PlotModel>((acm, [key, value]) => {
       if (key === "undefined") {
