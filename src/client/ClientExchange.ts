@@ -1,5 +1,6 @@
 import {
   CandleInterval,
+  IAggregatedTradeData,
   ICandleData,
   IExchange,
   IExchangeParams,
@@ -1024,6 +1025,78 @@ export class ClientExchange implements IExchange {
       to,
       this.params.execution.context.backtest,
     );
+  }
+
+  /**
+   * Fetches aggregated trades backwards from execution context time.
+   *
+   * Algorithm:
+   * 1. Align when down to the nearest minute boundary (1-minute granularity)
+   * 2. If limit is not specified: fetch one window of CC_AGGREGATED_TRADES_MAX_MINUTES
+   * 3. If limit is specified: paginate backwards in CC_AGGREGATED_TRADES_MAX_MINUTES
+   *    chunks until at least limit trades are collected, then slice to limit
+   *
+   * Look-ahead bias prevention:
+   * - `to` is always aligned down to the minute (never exceeds current when)
+   * - Each pagination window goes strictly backwards from alignedWhen
+   *
+   * @param symbol - Trading pair symbol (e.g., "BTCUSDT")
+   * @param limit - Optional maximum number of trades to return. If not specified,
+   *                returns all trades within the last CC_AGGREGATED_TRADES_MAX_MINUTES window.
+   * @returns Promise resolving to array of aggregated trade data
+   */
+  public async getAggregatedTrades(
+    symbol: string,
+    limit?: number,
+  ): Promise<IAggregatedTradeData[]> {
+    this.params.logger.debug("ClientExchange getAggregatedTrades", {
+      symbol,
+      limit,
+    });
+
+    const whenTimestamp = this.params.execution.context.when.getTime();
+    // Align to 1-minute boundary to prevent look-ahead bias
+    const alignedTo = ALIGN_TO_INTERVAL_FN(whenTimestamp, 1);
+    const windowMs =
+      GLOBAL_CONFIG.CC_AGGREGATED_TRADES_MAX_MINUTES * MS_PER_MINUTE - MS_PER_MINUTE;
+
+    // No limit: fetch a single window and return as-is
+    if (limit === undefined) {
+      const to = new Date(alignedTo);
+      const from = new Date(alignedTo - windowMs);
+      return await this.params.getAggregatedTrades(
+        symbol,
+        from,
+        to,
+        this.params.execution.context.backtest,
+      );
+    }
+
+    // With limit: paginate backwards until we have enough trades
+    const result: IAggregatedTradeData[] = [];
+    let windowEnd = alignedTo;
+
+    while (result.length < limit) {
+      const windowStart = windowEnd - windowMs;
+      const to = new Date(windowEnd);
+      const from = new Date(windowStart);
+
+      const chunk = await this.params.getAggregatedTrades(
+        symbol,
+        from,
+        to,
+        this.params.execution.context.backtest,
+      );
+
+      // Prepend chunk (older data goes first)
+      result.unshift(...chunk);
+
+      // Move window backwards
+      windowEnd = windowStart;
+    }
+
+    // Slice to requested limit (most recent trades)
+    return result.slice(-limit);
   }
 }
 

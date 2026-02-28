@@ -99,6 +99,7 @@ export {
   getRawCandles,
   getNextCandles,
   getAveragePrice,
+  getAggregatedTrades,
   getOrderBook,
   getDate,
   getMode,
@@ -119,6 +120,7 @@ export {
   IBidData,
   IOrderBookData,
   IExchangeSchema,
+  IAggregatedTradeData,
 } from "./interfaces/Exchange.interface";
 
 export {

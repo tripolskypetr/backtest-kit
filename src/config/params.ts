@@ -146,6 +146,14 @@ export const GLOBAL_CONFIG = {
    * Default: 20 levels
    */
   CC_ORDER_BOOK_MAX_DEPTH_LEVELS: 1_000,
+
+  /**
+   * Maximum minutes of aggregated trades to fetch when no limit is provided.
+   * If limit is not specified, the system will fetch aggregated trades for this many minutes starting from the current time minus the offset.
+   * Binance requirement
+   */
+  CC_AGGREGATED_TRADES_MAX_MINUTES: 60,
+
   /**
    * Maximum number of notifications to keep in storage.
    * Older notifications are removed when this limit is exceeded.

@@ -76,6 +76,25 @@ export interface IOrderBookData {
 }
 
 /**
+ * Aggregated trade data point.
+ * Represents a single trade that has occurred, used for detailed analysis and backtesting.
+ * Includes price, quantity, timestamp, and whether the buyer is the market maker (which can indicate trade direction).
+ * 
+ */
+export interface IAggregatedTradeData {
+  /** Unique identifier for the aggregated trade */
+  id: string;
+  /** Price at which the trade occurred */
+  price: number;
+  /** Quantity traded */
+  qty: number;
+  /** Unix timestamp in milliseconds when the trade occurred */
+  timestamp: number;
+  /** Whether the buyer is the market maker (true if buyer is maker, false if seller is maker) */
+  isBuyerMaker: boolean;
+}
+
+/**
  * Exchange parameters passed to ClientExchange constructor.
  * Combines schema with runtime dependencies.
  * Note: All exchange methods are required in params (defaults are applied during initialization).
@@ -93,6 +112,8 @@ export interface IExchangeParams extends IExchangeSchema {
   formatPrice: (symbol: string, price: number, backtest: boolean) => Promise<string>;
   /** Fetch order book for a trading pair (required, defaults applied) */
   getOrderBook: (symbol: string, depth: number, from: Date, to: Date, backtest: boolean) => Promise<IOrderBookData>;
+  /** Fetch aggregated trades for a trading pair (required, defaults applied) */
+  getAggregatedTrades: (symbol: string, from: Date, to: Date, backtest: boolean) => Promise<IAggregatedTradeData[]>;
 }
 
 /**
@@ -186,6 +207,33 @@ export interface IExchangeSchema {
    * ```
    */
   getOrderBook?: (symbol: string, depth: number, from: Date, to: Date, backtest: boolean) => Promise<IOrderBookData>;
+  
+  /**
+   * Fetch aggregated trades for a trading pair.
+   * Optional. If not provided, throws an error when called.
+   * @param symbol - Trading pair symbol (e.g., "BTCUSDT")
+   * @param from - Start of time range (used in backtest for historical data, can be ignored in live)
+   * @param to - End of time range (used in backtest for historical data, can be ignored in live)
+   * @param backtest - Whether running in backtest mode
+   * @return Promise resolving to array of aggregated trade data
+   * @example
+   * ```typescript
+   * // Backtest implementation: returns historical aggregated trades for the time range
+   * const backtestAggregatedTrades = async (symbol: string, from: Date, to: Date, backtest: boolean) => {
+   *   if (backtest) {
+   *     return await database.getAggregatedTrades(symbol, from, to);
+   *   }
+   *   return await exchange.fetchAggregatedTrades(symbol);
+   * };
+   *
+   * // Live implementation: ignores from/to when not in backtest mode
+   * const liveAggregatedTrades = async (symbol: string, _from: Date, _to: Date, backtest: boolean) => {
+   *   return await exchange.fetchAggregatedTrades(symbol);
+   * };
+   * ```
+   */
+  getAggregatedTrades?: (symbol: string, from: Date, to: Date, backtest: boolean) => Promise<IAggregatedTradeData[]>;
+  
   /** Optional lifecycle event callbacks (onCandleData) */
   callbacks?: Partial<IExchangeCallbacks>;
 }
@@ -260,6 +308,15 @@ export interface IExchange {
    * @returns Promise resolving to order book data
    */
   getOrderBook: (symbol: string, depth?: number) => Promise<IOrderBookData>;
+
+  /**
+   * Fetch aggregated trades for a trading pair.
+   *
+   * @param symbol - Trading pair symbol (e.g., "BTCUSDT")
+   * @param limit - Optional maximum number of aggregated trades to fetch. If empty returns one hour of data.
+   * @returns Promise resolving to array of aggregated trade data
+   */
+  getAggregatedTrades: (symbol: string, limit?: number) => Promise<IAggregatedTradeData[]>;
 
   /**
    * Fetch raw candles with flexible date/limit parameters.
