@@ -108,6 +108,9 @@ export const LogPage = () => {
   }
 
   const handleAction = async (action: string) => {
+    if (action === "back-action") {
+      ioc.routerService.push("/");
+    }
     if (action === "download-action") {
       handleDownload();
     }
