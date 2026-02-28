@@ -162,6 +162,15 @@ export const GLOBAL_CONFIG = {
   CC_MAX_SIGNALS: 50,
 
   /**
+   * Maximum number of log lines to keep in storage.
+   * Older log lines are removed when this limit is exceeded.
+   * This helps prevent unbounded log growth which can consume memory and degrade performance over time.
+   *
+   * Default: 1000 log lines
+   */
+  CC_MAX_LOG_LINES: 1_000,
+
+  /**
    * Enables mutex locking for candle fetching to prevent concurrent fetches of the same candles.
    * This can help avoid redundant API calls and ensure data consistency when multiple processes/threads attempt to fetch candles simultaneously.
    *

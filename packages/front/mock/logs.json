@@ -1,0 +1,122 @@
+[
+  {
+    "id": "a1b2c3d4-0001-4000-a000-000000000001",
+    "type": "info",
+    "timestamp": 1708876200000,
+    "createdAt": "2024-02-25T10:30:00.000Z",
+    "topic": "SignalService.createSignal",
+    "args": [{ "symbol": "BTCUSDT", "strategyName": "main_strategy" }]
+  },
+  {
+    "id": "a1b2c3d4-0002-4000-a000-000000000002",
+    "type": "log",
+    "timestamp": 1708876260000,
+    "createdAt": "2024-02-25T10:31:00.000Z",
+    "topic": "BacktestService.runBacktest",
+    "args": [{ "symbol": "BTCUSDT", "from": 1708800000000, "to": 1708876260000 }]
+  },
+  {
+    "id": "a1b2c3d4-0003-4000-a000-000000000003",
+    "type": "debug",
+    "timestamp": 1708876320000,
+    "createdAt": "2024-02-25T10:32:00.000Z",
+    "topic": "CandleService.getCandles",
+    "args": [{ "symbol": "BTCUSDT", "interval": "1m", "limit": 1000 }]
+  },
+  {
+    "id": "a1b2c3d4-0004-4000-a000-000000000004",
+    "type": "info",
+    "timestamp": 1708876380000,
+    "createdAt": "2024-02-25T10:33:00.000Z",
+    "topic": "SignalService.activateSignal",
+    "args": [{ "signalId": "s-001", "symbol": "BTCUSDT", "position": "long", "priceOpen": 51900 }]
+  },
+  {
+    "id": "a1b2c3d4-0005-4000-a000-000000000005",
+    "type": "warn",
+    "timestamp": 1708876440000,
+    "createdAt": "2024-02-25T10:34:00.000Z",
+    "topic": "RiskService.checkRiskLimits",
+    "args": [{ "symbol": "ETHUSDT", "reason": "position limit reached" }]
+  },
+  {
+    "id": "a1b2c3d4-0006-4000-a000-000000000006",
+    "type": "debug",
+    "timestamp": 1708876500000,
+    "createdAt": "2024-02-25T10:35:00.000Z",
+    "topic": "CandleService.getCandles",
+    "args": [{ "symbol": "ETHUSDT", "interval": "1m", "limit": 500 }]
+  },
+  {
+    "id": "a1b2c3d4-0007-4000-a000-000000000007",
+    "type": "log",
+    "timestamp": 1708876560000,
+    "createdAt": "2024-02-25T10:36:00.000Z",
+    "topic": "ScheduleService.scheduleSignal",
+    "args": [{ "signalId": "s-002", "symbol": "ETHUSDT", "scheduledAt": 1708876560000 }]
+  },
+  {
+    "id": "a1b2c3d4-0008-4000-a000-000000000008",
+    "type": "info",
+    "timestamp": 1708876620000,
+    "createdAt": "2024-02-25T10:37:00.000Z",
+    "topic": "SignalService.closeSignal",
+    "args": [{ "signalId": "s-001", "symbol": "BTCUSDT", "closeReason": "takeProfit", "pnl": 1.57 }]
+  },
+  {
+    "id": "a1b2c3d4-0009-4000-a000-000000000009",
+    "type": "warn",
+    "timestamp": 1708876680000,
+    "createdAt": "2024-02-25T10:38:00.000Z",
+    "topic": "PersistService.writeValue",
+    "args": [{ "key": "signal-s-003", "error": "disk write retry" }]
+  },
+  {
+    "id": "a1b2c3d4-000a-4000-a000-00000000000a",
+    "type": "debug",
+    "timestamp": 1708876740000,
+    "createdAt": "2024-02-25T10:39:00.000Z",
+    "topic": "OrderBookService.fetchOrderBook",
+    "args": [{ "symbol": "BTCUSDT", "depth": 20 }]
+  },
+  {
+    "id": "a1b2c3d4-000b-4000-a000-00000000000b",
+    "type": "log",
+    "timestamp": 1708876800000,
+    "createdAt": "2024-02-25T10:40:00.000Z",
+    "topic": "BacktestService.runBacktest",
+    "args": [{ "symbol": "SOLUSDT", "from": 1708800000000, "to": 1708876800000 }]
+  },
+  {
+    "id": "a1b2c3d4-000c-4000-a000-00000000000c",
+    "type": "info",
+    "timestamp": 1708876860000,
+    "createdAt": "2024-02-25T10:41:00.000Z",
+    "topic": "SignalService.createSignal",
+    "args": [{ "symbol": "SOLUSDT", "strategyName": "main_strategy" }]
+  },
+  {
+    "id": "a1b2c3d4-000d-4000-a000-00000000000d",
+    "type": "debug",
+    "timestamp": 1708876920000,
+    "createdAt": "2024-02-25T10:42:00.000Z",
+    "topic": "VwapService.calculateVwap",
+    "args": [{ "symbol": "SOLUSDT", "candles": 5 }]
+  },
+  {
+    "id": "a1b2c3d4-000e-4000-a000-00000000000e",
+    "type": "warn",
+    "timestamp": 1708876980000,
+    "createdAt": "2024-02-25T10:43:00.000Z",
+    "topic": "SignalService.validateSignal",
+    "args": [{ "signalId": "s-004", "reason": "takeProfit distance below minimum" }]
+  },
+  {
+    "id": "a1b2c3d4-000f-4000-a000-00000000000f",
+    "type": "info",
+    "timestamp": 1708877040000,
+    "createdAt": "2024-02-25T10:44:00.000Z",
+    "topic": "SignalService.activateSignal",
+    "args": [{ "signalId": "s-005", "symbol": "SOLUSDT", "position": "short", "priceOpen": 102.5 }]
+  }
+]

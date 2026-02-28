@@ -1,4 +1,22 @@
 /**
+ * Single log entry stored in the log history.
+ */
+export interface ILogEntry {
+  /** Unique entry identifier generated via randomString */
+  id: string;
+  /** Log level */
+  type: "log" | "debug" | "info" | "warn";
+  /** Unix timestamp in milliseconds when the entry was created */
+  timestamp: number;
+  /** Date taken from backtest context to improve user experience */
+  createdAt: string;
+  /** Log topic / method name */
+  topic: string;
+  /** Additional arguments passed to the log call */
+  args: unknown[];
+}
+
+/**
  * Interface representing a logging mechanism for the swarm system.
  * Provides methods to record messages at different severity levels, used across components like agents, sessions, states, storage, swarms, history, embeddings, completions, and policies.
  * Logs are utilized to track lifecycle events (e.g., initialization, disposal), operational details (e.g., tool calls, message emissions), validation outcomes (e.g., policy checks), and errors (e.g., persistence failures), aiding in debugging, monitoring, and auditing.

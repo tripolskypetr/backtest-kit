@@ -127,6 +127,11 @@ export {
 } from "./interfaces/Action.interface";
 
 export {
+  ILogEntry,
+  ILogger,
+} from "./interfaces/Logger.interface";
+
+export {
   SignalInterval,
   ISignalDto,
   ISignalRow,
@@ -292,6 +297,8 @@ export {
   PersistStorageAdapter,
   NotificationData,
   PersistNotificationAdapter,
+  LogData,
+  PersistLogAdapter,
 } from "./classes/Persist";
 
 export {
@@ -310,6 +317,12 @@ export {
   TMarkdownBase,
   IMarkdownDumpOptions,
 } from "./classes/Markdown";
+
+export {
+  Log,
+  ILog,
+  TLogCtor,
+} from "./classes/Log";
 
 export { Backtest } from "./classes/Backtest";
 export { Live } from "./classes/Live";

@@ -58,6 +58,23 @@ declare const ExecutionContextService: (new () => {
 type TExecutionContextService = InstanceType<typeof ExecutionContextService>;
 
 /**
+ * Single log entry stored in the log history.
+ */
+interface ILogEntry {
+    /** Unique entry identifier generated via randomString */
+    id: string;
+    /** Log level */
+    type: "log" | "debug" | "info" | "warn";
+    /** Unix timestamp in milliseconds when the entry was created */
+    timestamp: number;
+    /** Date taken from backtest context to improve user experience */
+    createdAt: string;
+    /** Log topic / method name */
+    topic: string;
+    /** Additional arguments passed to the log call */
+    args: unknown[];
+}
+/**
  * Interface representing a logging mechanism for the swarm system.
  * Provides methods to record messages at different severity levels, used across components like agents, sessions, states, storage, swarms, history, embeddings, completions, and policies.
  * Logs are utilized to track lifecycle events (e.g., initialization, disposal), operational details (e.g., tool calls, message emissions), validation outcomes (e.g., policy checks), and errors (e.g., persistence failures), aiding in debugging, monitoring, and auditing.
@@ -4380,6 +4397,14 @@ declare const GLOBAL_CONFIG: {
      */
     CC_MAX_SIGNALS: number;
     /**
+     * Maximum number of log lines to keep in storage.
+     * Older log lines are removed when this limit is exceeded.
+     * This helps prevent unbounded log growth which can consume memory and degrade performance over time.
+     *
+     * Default: 1000 log lines
+     */
+    CC_MAX_LOG_LINES: number;
+    /**
      * Enables mutex locking for candle fetching to prevent concurrent fetches of the same candles.
      * This can help avoid redundant API calls and ensure data consistency when multiple processes/threads attempt to fetch candles simultaneously.
      *
@@ -4494,6 +4519,7 @@ declare function getConfig(): {
     CC_ORDER_BOOK_MAX_DEPTH_LEVELS: number;
     CC_MAX_NOTIFICATIONS: number;
     CC_MAX_SIGNALS: number;
+    CC_MAX_LOG_LINES: number;
     CC_ENABLE_CANDLE_FETCH_MUTEX: boolean;
 };
 /**
@@ -4531,6 +4557,7 @@ declare function getDefaultConfig(): Readonly<{
     CC_ORDER_BOOK_MAX_DEPTH_LEVELS: number;
     CC_MAX_NOTIFICATIONS: number;
     CC_MAX_SIGNALS: number;
+    CC_MAX_LOG_LINES: number;
     CC_ENABLE_CANDLE_FETCH_MUTEX: boolean;
 }>;
 /**
@@ -9128,6 +9155,71 @@ declare class PersistNotificationUtils {
  */
 declare const PersistNotificationAdapter: PersistNotificationUtils;
 
+/**
+ * Type for persisted log data.
+ * Each log entry is stored as a separate file keyed by its id.
+ */
+type LogData = ILogEntry[];
+/**
+ * Utility class for managing log entry persistence.
+ *
+ * Features:
+ * - Memoized storage instance
+ * - Custom adapter support
+ * - Atomic read/write operations for LogData
+ * - Each log entry stored as separate file keyed by id
+ * - Crash-safe log state management
+ *
+ * Used by LogPersistUtils for log entry persistence.
+ */
+declare class PersistLogUtils {
+    private PersistLogFactory;
+    private _logStorage;
+    private getLogStorage;
+    /**
+     * Registers a custom persistence adapter.
+     *
+     * @param Ctor - Custom PersistBase constructor
+     */
+    usePersistLogAdapter(Ctor: TPersistBaseCtor<string, ILogEntry>): void;
+    /**
+     * Reads persisted log entries.
+     *
+     * Called by LogPersistUtils.waitForInit() to restore state.
+     * Uses keys() from PersistBase to iterate over all stored entries.
+     * Returns empty array if no entries exist.
+     *
+     * @returns Promise resolving to array of log entries
+     */
+    readLogData: () => Promise<LogData>;
+    /**
+     * Writes log entries to disk with atomic file writes.
+     *
+     * Called by LogPersistUtils after each log call to persist state.
+     * Uses entry.id as the storage key for individual file storage.
+     * Uses atomic writes to prevent corruption on crashes.
+     *
+     * @param logData - Log entries to persist
+     * @returns Promise that resolves when write is complete
+     */
+    writeLogData: (logData: LogData) => Promise<void>;
+    /**
+     * Switches to the default JSON persist adapter.
+     * All future persistence writes will use JSON storage.
+     */
+    useJson(): void;
+    /**
+     * Switches to a dummy persist adapter that discards all writes.
+     * All future persistence writes will be no-ops.
+     */
+    useDummy(): void;
+}
+/**
+ * Global singleton instance of PersistLogUtils.
+ * Used by LogPersistUtils for log entry persistence.
+ */
+declare const PersistLogAdapter: PersistLogUtils;
+
 declare const WAIT_FOR_INIT_SYMBOL$1: unique symbol;
 declare const WRITE_SAFE_SYMBOL$1: unique symbol;
 /**
@@ -9736,6 +9828,95 @@ declare class MarkdownAdapter extends MarkdownUtils {
  * Provides markdown report generation with pluggable storage backends.
  */
 declare const Markdown: MarkdownAdapter;
+
+/**
+ * Extended logger interface with log history access.
+ */
+interface ILog extends ILogger {
+    /**
+     * Returns all stored log entries.
+     * @returns Array of all log entries
+     */
+    getList(): Promise<ILogEntry[]>;
+}
+/**
+ * Constructor type for log adapters.
+ * Used for custom log implementations.
+ */
+type TLogCtor = new () => Partial<ILog>;
+/**
+ * Log adapter with pluggable storage backend.
+ *
+ * Features:
+ * - Adapter pattern for swappable log implementations
+ * - Default adapter: LogMemoryUtils (in-memory storage)
+ * - Alternative adapters: LogPersistUtils, LogDummyUtils
+ * - Convenience methods: usePersist(), useMemory(), useDummy()
+ */
+declare class LogAdapter implements ILog {
+    /** Internal log utils instance */
+    private _log;
+    /**
+     * Lists all stored log entries.
+     * Proxies call to the underlying log adapter.
+     * @returns Array of all log entries
+     */
+    getList: () => Promise<ILogEntry[]>;
+    /**
+     * Logs a general-purpose message.
+     * Proxies call to the underlying log adapter.
+     * @param topic - The log topic / method name
+     * @param args - Additional arguments
+     */
+    log: (topic: string, ...args: any[]) => void;
+    /**
+     * Logs a debug-level message.
+     * Proxies call to the underlying log adapter.
+     * @param topic - The log topic / method name
+     * @param args - Additional arguments
+     */
+    debug: (topic: string, ...args: any[]) => void;
+    /**
+     * Logs an info-level message.
+     * Proxies call to the underlying log adapter.
+     * @param topic - The log topic / method name
+     * @param args - Additional arguments
+     */
+    info: (topic: string, ...args: any[]) => void;
+    /**
+     * Logs a warning-level message.
+     * Proxies call to the underlying log adapter.
+     * @param topic - The log topic / method name
+     * @param args - Additional arguments
+     */
+    warn: (topic: string, ...args: any[]) => void;
+    /**
+     * Sets the log adapter constructor.
+     * All future log operations will use this adapter.
+     * @param Ctor - Constructor for log adapter
+     */
+    useLogger: (Ctor: TLogCtor) => void;
+    /**
+     * Switches to persistent log adapter.
+     * Log entries will be persisted to disk.
+     */
+    usePersist: () => void;
+    /**
+     * Switches to in-memory log adapter (default).
+     * Log entries will be stored in memory only.
+     */
+    useMemory: () => void;
+    /**
+     * Switches to dummy log adapter.
+     * All future log writes will be no-ops.
+     */
+    useDummy: () => void;
+}
+/**
+ * Global singleton instance of LogAdapter.
+ * Provides unified log management with pluggable backends.
+ */
+declare const Log: LogAdapter;
 
 /**
  * Type alias for column configuration used in backtest markdown reports.
@@ -21271,4 +21452,4 @@ declare const backtest: {
     loggerService: LoggerService;
 };
 
-export { ActionBase, type ActivateScheduledCommit, type ActivateScheduledCommitNotification, type ActivePingContract, type AverageBuyCommit, Backtest, type BacktestStatisticsModel, Breakeven, type BreakevenAvailableNotification, type BreakevenCommit, type BreakevenCommitNotification, type BreakevenContract, type BreakevenData, Cache, type CancelScheduledCommit, type CandleData, type CandleInterval, type ClosePendingCommit, type ColumnConfig, type ColumnModel, Constant, type CriticalErrorNotification, type DoneContract, type EntityId, Exchange, ExecutionContextService, type FrameInterval, type GlobalConfig, Heat, type HeatmapStatisticsModel, type IActionSchema, type IActivateScheduledCommitRow, type IBidData, type IBreakevenCommitRow, type ICandleData, type ICommitRow, type IExchangeSchema, type IFrameSchema, type IHeatmapRow, type IMarkdownDumpOptions, type INotificationUtils, type IOrderBookData, type IPartialLossCommitRow, type IPartialProfitCommitRow, type IPersistBase, type IPositionSizeATRParams, type IPositionSizeFixedPercentageParams, type IPositionSizeKellyParams, type IPublicAction, type IPublicSignalRow, type IReportDumpOptions, type IRiskActivePosition, type IRiskCheckArgs, type IRiskSchema, type IRiskSignalRow, type IRiskValidation, type IRiskValidationFn, type IRiskValidationPayload, type IScheduledSignalCancelRow, type IScheduledSignalRow, type ISignalDto, type ISignalRow, type ISizingCalculateParams, type ISizingCalculateParamsATR, type ISizingCalculateParamsFixedPercentage, type ISizingCalculateParamsKelly, type ISizingParams, type ISizingParamsATR, type ISizingParamsFixedPercentage, type ISizingParamsKelly, type ISizingSchema, type ISizingSchemaATR, type ISizingSchemaFixedPercentage, type ISizingSchemaKelly, type IStorageSignalRow, type IStorageUtils, type IStrategyPnL, type IStrategyResult, type IStrategySchema, type IStrategyTickResult, type IStrategyTickResultActive, type IStrategyTickResultCancelled, type IStrategyTickResultClosed, type IStrategyTickResultIdle, type IStrategyTickResultOpened, type IStrategyTickResultScheduled, type IStrategyTickResultWaiting, type ITrailingStopCommitRow, type ITrailingTakeCommitRow, type IWalkerResults, type IWalkerSchema, type IWalkerStrategyResult, type InfoErrorNotification, Live, type LiveStatisticsModel, Markdown, MarkdownFileBase, MarkdownFolderBase, type MarkdownName, MethodContextService, type MetricStats, Notification, NotificationBacktest, type NotificationData, NotificationLive, type NotificationModel, Partial$1 as Partial, type PartialData, type PartialEvent, type PartialLossAvailableNotification, type PartialLossCommit, type PartialLossCommitNotification, type PartialLossContract, type PartialProfitAvailableNotification, type PartialProfitCommit, type PartialProfitCommitNotification, type PartialProfitContract, type PartialStatisticsModel, Performance, type PerformanceContract, type PerformanceMetricType, type PerformanceStatisticsModel, PersistBase, PersistBreakevenAdapter, PersistCandleAdapter, PersistNotificationAdapter, PersistPartialAdapter, PersistRiskAdapter, PersistScheduleAdapter, PersistSignalAdapter, PersistStorageAdapter, PositionSize, type ProgressBacktestContract, type ProgressWalkerContract, Report, ReportBase, type ReportName, Risk, type RiskContract, type RiskData, type RiskEvent, type RiskRejectionNotification, type RiskStatisticsModel, Schedule, type ScheduleData, type SchedulePingContract, type ScheduleStatisticsModel, type ScheduledEvent, type SignalCancelledNotification, type SignalClosedNotification, type SignalData, type SignalInterval, type SignalOpenedNotification, type SignalScheduledNotification, Storage, StorageBacktest, type StorageData, StorageLive, Strategy, type StrategyActionType, type StrategyCancelReason, type StrategyCloseReason, type StrategyCommitContract, type StrategyEvent, type StrategyStatisticsModel, type TMarkdownBase, type TNotificationUtilsCtor, type TPersistBase, type TPersistBaseCtor, type TReportBase, type TStorageUtilsCtor, type TickEvent, type TrailingStopCommit, type TrailingStopCommitNotification, type TrailingTakeCommit, type TrailingTakeCommitNotification, type ValidationErrorNotification, Walker, type WalkerCompleteContract, type WalkerContract, type WalkerMetric, type SignalData$1 as WalkerSignalData, type WalkerStatisticsModel, addActionSchema, addExchangeSchema, addFrameSchema, addRiskSchema, addSizingSchema, addStrategySchema, addWalkerSchema, alignToInterval, checkCandles, commitActivateScheduled, commitAverageBuy, commitBreakeven, commitCancelScheduled, commitClosePending, commitPartialLoss, commitPartialProfit, commitTrailingStop, commitTrailingTake, dumpMessages, emitters, formatPrice, formatQuantity, get, getActionSchema, getAveragePrice, getBacktestTimeframe, getCandles, getColumns, getConfig, getContext, getDate, getDefaultColumns, getDefaultConfig, getExchangeSchema, getFrameSchema, getMode, getNextCandles, getOrderBook, getRawCandles, getRiskSchema, getSizingSchema, getStrategySchema, getSymbol, getWalkerSchema, hasTradeContext, backtest as lib, listExchangeSchema, listFrameSchema, listRiskSchema, listSizingSchema, listStrategySchema, listWalkerSchema, listenActivePing, listenActivePingOnce, listenBacktestProgress, listenBreakevenAvailable, listenBreakevenAvailableOnce, listenDoneBacktest, listenDoneBacktestOnce, listenDoneLive, listenDoneLiveOnce, listenDoneWalker, listenDoneWalkerOnce, listenError, listenExit, listenPartialLossAvailable, listenPartialLossAvailableOnce, listenPartialProfitAvailable, listenPartialProfitAvailableOnce, listenPerformance, listenRisk, listenRiskOnce, listenSchedulePing, listenSchedulePingOnce, listenSignal, listenSignalBacktest, listenSignalBacktestOnce, listenSignalLive, listenSignalLiveOnce, listenSignalOnce, listenStrategyCommit, listenStrategyCommitOnce, listenValidation, listenWalker, listenWalkerComplete, listenWalkerOnce, listenWalkerProgress, overrideActionSchema, overrideExchangeSchema, overrideFrameSchema, overrideRiskSchema, overrideSizingSchema, overrideStrategySchema, overrideWalkerSchema, parseArgs, roundTicks, set, setColumns, setConfig, setLogger, stopStrategy, validate, waitForCandle, warmCandles };
+export { ActionBase, type ActivateScheduledCommit, type ActivateScheduledCommitNotification, type ActivePingContract, type AverageBuyCommit, Backtest, type BacktestStatisticsModel, Breakeven, type BreakevenAvailableNotification, type BreakevenCommit, type BreakevenCommitNotification, type BreakevenContract, type BreakevenData, Cache, type CancelScheduledCommit, type CandleData, type CandleInterval, type ClosePendingCommit, type ColumnConfig, type ColumnModel, Constant, type CriticalErrorNotification, type DoneContract, type EntityId, Exchange, ExecutionContextService, type FrameInterval, type GlobalConfig, Heat, type HeatmapStatisticsModel, type IActionSchema, type IActivateScheduledCommitRow, type IBidData, type IBreakevenCommitRow, type ICandleData, type ICommitRow, type IExchangeSchema, type IFrameSchema, type IHeatmapRow, type ILog, type ILogEntry, type ILogger, type IMarkdownDumpOptions, type INotificationUtils, type IOrderBookData, type IPartialLossCommitRow, type IPartialProfitCommitRow, type IPersistBase, type IPositionSizeATRParams, type IPositionSizeFixedPercentageParams, type IPositionSizeKellyParams, type IPublicAction, type IPublicCandleData, type IPublicSignalRow, type IReportDumpOptions, type IRiskActivePosition, type IRiskCheckArgs, type IRiskSchema, type IRiskSignalRow, type IRiskValidation, type IRiskValidationFn, type IRiskValidationPayload, type IScheduledSignalCancelRow, type IScheduledSignalRow, type ISignalDto, type ISignalRow, type ISizingCalculateParams, type ISizingCalculateParamsATR, type ISizingCalculateParamsFixedPercentage, type ISizingCalculateParamsKelly, type ISizingParams, type ISizingParamsATR, type ISizingParamsFixedPercentage, type ISizingParamsKelly, type ISizingSchema, type ISizingSchemaATR, type ISizingSchemaFixedPercentage, type ISizingSchemaKelly, type IStorageSignalRow, type IStorageUtils, type IStrategyPnL, type IStrategyResult, type IStrategySchema, type IStrategyTickResult, type IStrategyTickResultActive, type IStrategyTickResultCancelled, type IStrategyTickResultClosed, type IStrategyTickResultIdle, type IStrategyTickResultOpened, type IStrategyTickResultScheduled, type IStrategyTickResultWaiting, type ITrailingStopCommitRow, type ITrailingTakeCommitRow, type IWalkerResults, type IWalkerSchema, type IWalkerStrategyResult, type InfoErrorNotification, Live, type LiveStatisticsModel, Log, type LogData, Markdown, MarkdownFileBase, MarkdownFolderBase, type MarkdownName, MethodContextService, type MetricStats, Notification, NotificationBacktest, type NotificationData, NotificationLive, type NotificationModel, Partial$1 as Partial, type PartialData, type PartialEvent, type PartialLossAvailableNotification, type PartialLossCommit, type PartialLossCommitNotification, type PartialLossContract, type PartialProfitAvailableNotification, type PartialProfitCommit, type PartialProfitCommitNotification, type PartialProfitContract, type PartialStatisticsModel, Performance, type PerformanceContract, type PerformanceMetricType, type PerformanceStatisticsModel, PersistBase, PersistBreakevenAdapter, PersistCandleAdapter, PersistLogAdapter, PersistNotificationAdapter, PersistPartialAdapter, PersistRiskAdapter, PersistScheduleAdapter, PersistSignalAdapter, PersistStorageAdapter, PositionSize, type ProgressBacktestContract, type ProgressWalkerContract, Report, ReportBase, type ReportName, Risk, type RiskContract, type RiskData, type RiskEvent, type RiskRejectionNotification, type RiskStatisticsModel, Schedule, type ScheduleData, type SchedulePingContract, type ScheduleStatisticsModel, type ScheduledEvent, type SignalCancelledNotification, type SignalClosedNotification, type SignalData, type SignalInterval, type SignalOpenedNotification, type SignalScheduledNotification, Storage, StorageBacktest, type StorageData, StorageLive, Strategy, type StrategyActionType, type StrategyCancelReason, type StrategyCloseReason, type StrategyCommitContract, type StrategyEvent, type StrategyStatisticsModel, type TLogCtor, type TMarkdownBase, type TNotificationUtilsCtor, type TPersistBase, type TPersistBaseCtor, type TReportBase, type TStorageUtilsCtor, type TickEvent, type TrailingStopCommit, type TrailingStopCommitNotification, type TrailingTakeCommit, type TrailingTakeCommitNotification, type ValidationErrorNotification, Walker, type WalkerCompleteContract, type WalkerContract, type WalkerMetric, type SignalData$1 as WalkerSignalData, type WalkerStatisticsModel, addActionSchema, addExchangeSchema, addFrameSchema, addRiskSchema, addSizingSchema, addStrategySchema, addWalkerSchema, alignToInterval, checkCandles, commitActivateScheduled, commitAverageBuy, commitBreakeven, commitCancelScheduled, commitClosePending, commitPartialLoss, commitPartialProfit, commitTrailingStop, commitTrailingTake, dumpMessages, emitters, formatPrice, formatQuantity, get, getActionSchema, getAveragePrice, getBacktestTimeframe, getCandles, getColumns, getConfig, getContext, getDate, getDefaultColumns, getDefaultConfig, getExchangeSchema, getFrameSchema, getMode, getNextCandles, getOrderBook, getRawCandles, getRiskSchema, getSizingSchema, getStrategySchema, getSymbol, getWalkerSchema, hasTradeContext, backtest as lib, listExchangeSchema, listFrameSchema, listRiskSchema, listSizingSchema, listStrategySchema, listWalkerSchema, listenActivePing, listenActivePingOnce, listenBacktestProgress, listenBreakevenAvailable, listenBreakevenAvailableOnce, listenDoneBacktest, listenDoneBacktestOnce, listenDoneLive, listenDoneLiveOnce, listenDoneWalker, listenDoneWalkerOnce, listenError, listenExit, listenPartialLossAvailable, listenPartialLossAvailableOnce, listenPartialProfitAvailable, listenPartialProfitAvailableOnce, listenPerformance, listenRisk, listenRiskOnce, listenSchedulePing, listenSchedulePingOnce, listenSignal, listenSignalBacktest, listenSignalBacktestOnce, listenSignalLive, listenSignalLiveOnce, listenSignalOnce, listenStrategyCommit, listenStrategyCommitOnce, listenValidation, listenWalker, listenWalkerComplete, listenWalkerOnce, listenWalkerProgress, overrideActionSchema, overrideExchangeSchema, overrideFrameSchema, overrideRiskSchema, overrideSizingSchema, overrideStrategySchema, overrideWalkerSchema, parseArgs, roundTicks, set, setColumns, setConfig, setLogger, stopStrategy, validate, waitForCandle, warmCandles };

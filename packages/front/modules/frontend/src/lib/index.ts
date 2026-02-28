@@ -11,10 +11,12 @@ import AlertService from "./services/base/AlertService";
 import ExchangeMockService from "./services/mock/ExchangeMockService";
 import NotificationMockService from "./services/mock/NotificationMockService";
 import StorageMockService from "./services/mock/StorageMockService";
+import LogMockService from "./services/mock/LogMockService";
 
 import ExchangeViewService from "./services/view/ExchangeViewService";
 import NotificationViewService from "./services/view/NotificationViewService";
 import StorageViewService from "./services/view/StorageViewService";
+import LogViewService from "./services/view/LogViewService";
 
 import SymbolGlobalService from "./services/global/SymbolGlobalService";
 import PriceGlobalService from "./services/global/PriceGlobalService";
@@ -38,12 +40,14 @@ const mockServices = {
   exchangeMockService: inject<ExchangeMockService>(TYPES.exchangeMockService),
   notificationMockService: inject<NotificationMockService>(TYPES.notificationMockService),
   storageMockService: inject<StorageMockService>(TYPES.storageMockService),
+  logMockService: inject<LogMockService>(TYPES.logMockService),
 };
 
 const viewServices = {
   exchangeViewService: inject<ExchangeViewService>(TYPES.exchangeViewService),
   notificationViewService: inject<NotificationViewService>(TYPES.notificationViewService),
   storageViewService: inject<StorageViewService>(TYPES.storageViewService),
+  logViewService: inject<LogViewService>(TYPES.logViewService),
 };
 
 export const ioc = {

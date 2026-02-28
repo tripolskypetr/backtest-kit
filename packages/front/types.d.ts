@@ -1,6 +1,6 @@
 import http from 'http';
 import * as backtest_kit from 'backtest-kit';
-import { CandleInterval, NotificationModel, IStorageSignalRow } from 'backtest-kit';
+import { CandleInterval, NotificationModel, IStorageSignalRow, ILogEntry } from 'backtest-kit';
 import * as functools_kit from 'functools-kit';
 
 declare function serve(host?: string, port?: number): () => void;
@@ -77,6 +77,13 @@ declare class ExchangeMockService {
     getSignalCandles: (signalId: string, interval: CandleInterval) => Promise<backtest_kit.ICandleData[]>;
 }
 
+declare class LogMockService {
+    private readonly loggerService;
+    findByFilter: <T extends object = Record<string, string>>(filterData: T, limit?: number, offset?: number) => Promise<ILogEntry[]>;
+    getList: () => Promise<ILogEntry[]>;
+    getOne: (id: string) => Promise<ILogEntry>;
+}
+
 declare class NotificationViewService {
     private readonly loggerService;
     private readonly notificationMockService;
@@ -101,6 +108,15 @@ declare class ExchangeViewService {
     private readonly exchangeService;
     private readonly exchangeMockService;
     getSignalCandles: (signalId: string, interval: CandleInterval) => Promise<backtest_kit.ICandleData[]>;
+}
+
+declare class LogViewService {
+    private readonly loggerService;
+    private readonly logMockService;
+    findByFilter: <T extends object = Record<string, string>>(filterData: T, limit?: number, offset?: number) => Promise<ILogEntry[]>;
+    getList: () => Promise<ILogEntry[]>;
+    getOne: (id: string) => Promise<ILogEntry>;
+    protected init: (() => Promise<void>) & functools_kit.ISingleshotClearable;
 }
 
 declare class SymbolConnectionService {
@@ -157,9 +173,11 @@ declare const ioc: {
     notificationViewService: NotificationViewService;
     storageViewService: StorageViewService;
     exchangeViewService: ExchangeViewService;
+    logViewService: LogViewService;
     notificationMockService: NotificationMockService;
     storageMockService: StorageMockService;
     exchangeMockService: ExchangeMockService;
+    logMockService: LogMockService;
     symbolMetaService: SymbolMetaService;
     symbolConnectionService: SymbolConnectionService;
     priceConnectionService: PriceConnectionService;

@@ -100,6 +100,9 @@ export const ListView = ({
             if (action === "dashboard-action") {
                 ioc.routerService.push(`/dashboard/${type$.current}`);
             }
+            if (action === "logs-action") {
+                ioc.routerService.push(`/logs`);
+            }
         }),
     );
 

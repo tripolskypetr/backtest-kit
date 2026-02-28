@@ -10,10 +10,12 @@ import AlertService from "../services/base/AlertService";
 import ExchangeMockService from "../services/mock/ExchangeMockService";
 import NotificationMockService from "../services/mock/NotificationMockService";
 import StorageMockService from "../services/mock/StorageMockService";
+import LogMockService from "../services/mock/LogMockService";
 
 import ExchangeViewService from "../services/view/ExchangeViewService";
 import NotificationViewService from "../services/view/NotificationViewService";
 import StorageViewService from "../services/view/StorageViewService";
+import LogViewService from "../services/view/LogViewService";
 import SymbolGlobalService from "../services/global/SymbolGlobalService";
 import PriceGlobalService from "../services/global/PriceGlobalService";
 
@@ -34,10 +36,12 @@ import PriceGlobalService from "../services/global/PriceGlobalService";
     provide(TYPES.exchangeMockService, () => new ExchangeMockService());
     provide(TYPES.notificationMockService, () => new NotificationMockService());
     provide(TYPES.storageMockService, () => new StorageMockService());
+    provide(TYPES.logMockService, () => new LogMockService());
 }
 
 {
     provide(TYPES.exchangeViewService, () => new ExchangeViewService());
     provide(TYPES.notificationViewService, () => new NotificationViewService());
     provide(TYPES.storageViewService, () => new StorageViewService());
+    provide(TYPES.logViewService, () => new LogViewService());
 }

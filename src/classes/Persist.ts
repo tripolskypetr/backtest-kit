@@ -24,6 +24,7 @@ import { IBreakevenData } from "../interfaces/Breakeven.interface";
 import { ExchangeName, CandleInterval, ICandleData } from "../interfaces/Exchange.interface";
 import { IStorageSignalRow } from "../interfaces/Strategy.interface";
 import { NotificationModel } from "../model/Notification.model";
+import { ILogEntry } from "../interfaces/Logger.interface";
 
 
 const BASE_WAIT_FOR_INIT_SYMBOL = Symbol("wait-for-init");
@@ -124,6 +125,17 @@ const PERSIST_NOTIFICATION_UTILS_METHOD_NAME_USE_DUMMY =
   "PersistNotificationUtils.useDummy";
 const PERSIST_NOTIFICATION_UTILS_METHOD_NAME_USE_PERSIST_NOTIFICATION_ADAPTER =
   "PersistNotificationUtils.usePersistNotificationAdapter";
+
+const PERSIST_LOG_UTILS_METHOD_NAME_READ_DATA =
+  "PersistLogUtils.readLogData";
+const PERSIST_LOG_UTILS_METHOD_NAME_WRITE_DATA =
+  "PersistLogUtils.writeLogData";
+const PERSIST_LOG_UTILS_METHOD_NAME_USE_JSON =
+  "PersistLogUtils.useJson";
+const PERSIST_LOG_UTILS_METHOD_NAME_USE_DUMMY =
+  "PersistLogUtils.useDummy";
+const PERSIST_LOG_UTILS_METHOD_NAME_USE_PERSIST_LOG_ADAPTER =
+  "PersistLogUtils.usePersistLogAdapter";
 
 const BASE_WAIT_FOR_INIT_FN_METHOD_NAME = "PersistBase.waitForInitFn";
 
@@ -1783,3 +1795,126 @@ export class PersistNotificationUtils {
 export const PersistNotificationAdapter = new PersistNotificationUtils();
 
 export { PersistBase }
+
+/**
+ * Type for persisted log data.
+ * Each log entry is stored as a separate file keyed by its id.
+ */
+export type LogData = ILogEntry[];
+
+/**
+ * Utility class for managing log entry persistence.
+ *
+ * Features:
+ * - Memoized storage instance
+ * - Custom adapter support
+ * - Atomic read/write operations for LogData
+ * - Each log entry stored as separate file keyed by id
+ * - Crash-safe log state management
+ *
+ * Used by LogPersistUtils for log entry persistence.
+ */
+export class PersistLogUtils {
+  private PersistLogFactory: TPersistBaseCtor<string, ILogEntry> = PersistBase;
+
+  private _logStorage: IPersistBase<ILogEntry> | null = null;
+
+  private getLogStorage(): IPersistBase<ILogEntry> {
+    if (!this._logStorage) {
+      this._logStorage = Reflect.construct(this.PersistLogFactory, [
+        `log`,
+        `./dump/data/log/`,
+      ]);
+    }
+    return this._logStorage!;
+  }
+
+  /**
+   * Registers a custom persistence adapter.
+   *
+   * @param Ctor - Custom PersistBase constructor
+   */
+  public usePersistLogAdapter(
+    Ctor: TPersistBaseCtor<string, ILogEntry>
+  ): void {
+    swarm.loggerService.info(
+      PERSIST_LOG_UTILS_METHOD_NAME_USE_PERSIST_LOG_ADAPTER
+    );
+    this.PersistLogFactory = Ctor;
+  }
+
+  /**
+   * Reads persisted log entries.
+   *
+   * Called by LogPersistUtils.waitForInit() to restore state.
+   * Uses keys() from PersistBase to iterate over all stored entries.
+   * Returns empty array if no entries exist.
+   *
+   * @returns Promise resolving to array of log entries
+   */
+  public readLogData = async (): Promise<LogData> => {
+    swarm.loggerService.info(PERSIST_LOG_UTILS_METHOD_NAME_READ_DATA);
+
+    const isInitial = !this._logStorage;
+    const stateStorage = this.getLogStorage();
+    await stateStorage.waitForInit(isInitial);
+
+    const entries: ILogEntry[] = [];
+
+    for await (const entryId of stateStorage.keys()) {
+      const entry = await stateStorage.readValue(entryId);
+      entries.push(entry);
+    }
+
+    return entries;
+  };
+
+  /**
+   * Writes log entries to disk with atomic file writes.
+   *
+   * Called by LogPersistUtils after each log call to persist state.
+   * Uses entry.id as the storage key for individual file storage.
+   * Uses atomic writes to prevent corruption on crashes.
+   *
+   * @param logData - Log entries to persist
+   * @returns Promise that resolves when write is complete
+   */
+  public writeLogData = async (logData: LogData): Promise<void> => {
+    swarm.loggerService.info(PERSIST_LOG_UTILS_METHOD_NAME_WRITE_DATA);
+
+    const isInitial = !this._logStorage;
+    const stateStorage = this.getLogStorage();
+    await stateStorage.waitForInit(isInitial);
+
+    for (const entry of logData) {
+      if (await stateStorage.hasValue(entry.id)) {
+        continue;
+      }
+      await stateStorage.writeValue(entry.id, entry);
+    }
+  };
+
+  /**
+   * Switches to the default JSON persist adapter.
+   * All future persistence writes will use JSON storage.
+   */
+  public useJson() {
+    swarm.loggerService.log(PERSIST_LOG_UTILS_METHOD_NAME_USE_JSON);
+    this.usePersistLogAdapter(PersistBase);
+  }
+
+  /**
+   * Switches to a dummy persist adapter that discards all writes.
+   * All future persistence writes will be no-ops.
+   */
+  public useDummy() {
+    swarm.loggerService.log(PERSIST_LOG_UTILS_METHOD_NAME_USE_DUMMY);
+    this.usePersistLogAdapter(PersistDummy);
+  }
+}
+
+/**
+ * Global singleton instance of PersistLogUtils.
+ * Used by LogPersistUtils for log entry persistence.
+ */
+export const PersistLogAdapter = new PersistLogUtils();
