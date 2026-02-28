@@ -487,6 +487,28 @@ npm install @backtest-kit/pinets pinets backtest-kit
 ```
 
 
+### @backtest-kit/graph
+
+> **[Explore on NPM](https://www.npmjs.com/package/@backtest-kit/graph)** 🔗
+
+The **@backtest-kit/graph** package lets you compose backtest-kit computations as a typed directed acyclic graph (DAG). Define source nodes that fetch market data and output nodes that compute derived values — then resolve the whole graph in topological order with automatic parallelism.
+
+#### Key Features
+- 🔌 **DAG Execution**: Nodes are resolved bottom-up in topological order with `Promise.all` parallelism
+- 🔒 **Type-Safe Values**: TypeScript infers the return type of every node through the graph via generics
+- 🧱 **Two APIs**: Low-level `INode` for runtime/storage, high-level `sourceNode` + `outputNode` builders for authoring
+- 💾 **DB-Ready Serialization**: `serialize` / `deserialize` convert the graph to a flat `IFlatNode[]` list with `id` / `nodeIds`
+- 🌐 **Context-Aware Fetch**: `sourceNode` receives `(symbol, when, exchangeName)` from the execution context automatically
+
+#### Use Case
+Perfect for multi-timeframe strategies where multiple Pine Script or indicator computations must be combined. Instead of manually chaining async calls, define each computation as a node and let the graph resolve dependencies in parallel. Adding a new filter or timeframe requires no changes to the existing wiring.
+
+#### Get Started
+```bash
+npm install @backtest-kit/graph backtest-kit
+```
+
+
 ### @backtest-kit/ui
 
 > **[Explore on NPM](https://www.npmjs.com/package/@backtest-kit/ui)** 📊
@@ -554,28 +576,6 @@ Perfect for injecting comprehensive market context into your LLM-powered strateg
 npm install @backtest-kit/signals backtest-kit
 ```
 
-
-
-### @backtest-kit/graph
-
-> **[Explore on NPM](https://www.npmjs.com/package/@backtest-kit/graph)** 🔗
-
-The **@backtest-kit/graph** package lets you compose backtest-kit computations as a typed directed acyclic graph (DAG). Define source nodes that fetch market data and output nodes that compute derived values — then resolve the whole graph in topological order with automatic parallelism.
-
-#### Key Features
-- 🔌 **DAG Execution**: Nodes are resolved bottom-up in topological order with `Promise.all` parallelism
-- 🔒 **Type-Safe Values**: TypeScript infers the return type of every node through the graph via generics
-- 🧱 **Two APIs**: Low-level `INode` for runtime/storage, high-level `sourceNode` + `outputNode` builders for authoring
-- 💾 **DB-Ready Serialization**: `serialize` / `deserialize` convert the graph to a flat `IFlatNode[]` list with `id` / `nodeIds`
-- 🌐 **Context-Aware Fetch**: `sourceNode` receives `(symbol, when, exchangeName)` from the execution context automatically
-
-#### Use Case
-Perfect for multi-timeframe strategies where multiple Pine Script or indicator computations must be combined. Instead of manually chaining async calls, define each computation as a node and let the graph resolve dependencies in parallel. Adding a new filter or timeframe requires no changes to the existing wiring.
-
-#### Get Started
-```bash
-npm install @backtest-kit/graph backtest-kit
-```
 
 
 ### @backtest-kit/sidekick
