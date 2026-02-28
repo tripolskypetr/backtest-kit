@@ -5,6 +5,7 @@ import ExecutionContextService from "../context/ExecutionContextService";
 import {
   CandleInterval,
   ExchangeName,
+  IAggregatedTradeData,
   ICandleData,
   IExchange,
   IOrderBookData,
@@ -305,6 +306,43 @@ export class ExchangeCoreService implements TExchange {
     return await ExecutionContextService.runInContext(
       async () => {
         return await this.exchangeConnectionService.getOrderBook(symbol, depth);
+      },
+      {
+        symbol,
+        when,
+        backtest,
+      }
+    );
+  };
+
+  /**
+   * Fetches aggregated trades with execution context.
+   *
+   * @param symbol - Trading pair symbol
+   * @param when - Timestamp for context (used in backtest mode)
+   * @param backtest - Whether running in backtest mode
+   * @param limit - Optional maximum number of trades to fetch
+   * @returns Promise resolving to array of aggregated trade data
+   */
+  public getAggregatedTrades = async (
+    symbol: string,
+    when: Date,
+    backtest: boolean,
+    limit?: number
+  ): Promise<IAggregatedTradeData[]> => {
+    this.loggerService.log("exchangeCoreService getAggregatedTrades", {
+      symbol,
+      when,
+      backtest,
+      limit,
+    });
+    if (!MethodContextService.hasContext()) {
+      throw new Error("exchangeCoreService getAggregatedTrades requires a method context");
+    }
+    await this.validate(this.methodContextService.context.exchangeName);
+    return await ExecutionContextService.runInContext(
+      async () => {
+        return await this.exchangeConnectionService.getAggregatedTrades(symbol, limit);
       },
       {
         symbol,

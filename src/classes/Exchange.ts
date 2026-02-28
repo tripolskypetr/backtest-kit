@@ -1,5 +1,5 @@
 import backtest, { ExecutionContextService } from "../lib";
-import { CandleInterval, ExchangeName, ICandleData, IExchange, IExchangeSchema, IOrderBookData } from "../interfaces/Exchange.interface";
+import { CandleInterval, ExchangeName, IAggregatedTradeData, ICandleData, IExchange, IExchangeSchema, IOrderBookData } from "../interfaces/Exchange.interface";
 import { errorData, getErrorMessage, memoize, queued, trycatch } from "functools-kit";
 import { GLOBAL_CONFIG } from "../config/params";
 import { PersistCandleAdapter } from "./Persist";
@@ -12,6 +12,7 @@ const EXCHANGE_METHOD_NAME_FORMAT_QUANTITY = "ExchangeUtils.formatQuantity";
 const EXCHANGE_METHOD_NAME_FORMAT_PRICE = "ExchangeUtils.formatPrice";
 const EXCHANGE_METHOD_NAME_GET_ORDER_BOOK = "ExchangeUtils.getOrderBook";
 const EXCHANGE_METHOD_NAME_GET_RAW_CANDLES = "ExchangeUtils.getRawCandles";
+const EXCHANGE_METHOD_NAME_GET_AGGREGATED_TRADES = "ExchangeUtils.getAggregatedTrades";
 
 const MS_PER_MINUTE = 60_000;
 
@@ -75,6 +76,19 @@ const DEFAULT_GET_ORDER_BOOK_FN = async (_symbol: string, _depth: number, _from:
   throw new Error(`getOrderBook is not implemented for this exchange`);
 };
 
+/**
+ * Default implementation for getAggregatedTrades.
+ * Throws an error indicating the method is not implemented.
+ *
+ * @param _symbol - Trading pair symbol (unused)
+ * @param _from - Start of time range (unused - can be ignored in live implementations)
+ * @param _to - End of time range (unused - can be ignored in live implementations)
+ * @param _backtest - Whether running in backtest mode (unused)
+ */
+const DEFAULT_GET_AGGREGATED_TRADES_FN = async (_symbol: string, _from: Date, _to: Date, _backtest: boolean): Promise<IAggregatedTradeData[]> => {
+  throw new Error(`getAggregatedTrades is not implemented for this exchange`);
+};
+
 const INTERVAL_MINUTES: Record<CandleInterval, number> = {
   "1m": 1,
   "3m": 3,
@@ -127,7 +141,10 @@ type TExchange = Required<Omit<IExchangeSchema, keyof {
   exchangeName: never;
   note: never;
   callbacks: never;
-}>>;
+  getAggregatedTrades: never;
+}>> & {
+  getAggregatedTrades: (symbol: string, from: Date, to: Date, backtest: boolean) => Promise<IAggregatedTradeData[]>;
+};
 
 /**
  * Creates exchange instance with methods resolved once during construction.
@@ -141,12 +158,14 @@ const CREATE_EXCHANGE_INSTANCE_FN = (schema: IExchangeSchema): TExchange => {
   const formatQuantity = schema.formatQuantity ?? DEFAULT_FORMAT_QUANTITY_FN;
   const formatPrice = schema.formatPrice ?? DEFAULT_FORMAT_PRICE_FN;
   const getOrderBook = schema.getOrderBook ?? DEFAULT_GET_ORDER_BOOK_FN;
+  const getAggregatedTrades = schema.getAggregatedTrades ?? DEFAULT_GET_AGGREGATED_TRADES_FN;
 
   return {
     getCandles,
     formatQuantity,
     formatPrice,
     getOrderBook,
+    getAggregatedTrades,
   };
 };
 
@@ -588,6 +607,67 @@ export class ExchangeInstance {
   };
 
   /**
+   * Fetch aggregated trades for a trading pair.
+   *
+   * Calculates time range backwards from current timestamp (or execution context when).
+   * Aligns `to` to 1-minute boundary to prevent look-ahead bias.
+   * If limit is not specified, returns all trades within one CC_AGGREGATED_TRADES_MAX_MINUTES window.
+   * If limit is specified, paginates backwards until at least limit trades are collected.
+   *
+   * @param symbol - Trading pair symbol (e.g., "BTCUSDT")
+   * @param limit - Optional maximum number of trades to return
+   * @returns Promise resolving to array of aggregated trade data
+   *
+   * @example
+   * ```typescript
+   * const instance = new ExchangeInstance("binance");
+   * const trades = await instance.getAggregatedTrades("BTCUSDT");
+   * const lastN = await instance.getAggregatedTrades("BTCUSDT", 500);
+   * ```
+   */
+  public getAggregatedTrades = async (symbol: string, limit?: number): Promise<IAggregatedTradeData[]> => {
+    backtest.loggerService.info(EXCHANGE_METHOD_NAME_GET_AGGREGATED_TRADES, {
+      exchangeName: this.exchangeName,
+      symbol,
+      limit,
+    });
+
+    const when = await GET_TIMESTAMP_FN();
+    // Align to 1-minute boundary to prevent look-ahead bias
+    const alignedTo = ALIGN_TO_INTERVAL_FN(when.getTime(), 1);
+    const windowMs = GLOBAL_CONFIG.CC_AGGREGATED_TRADES_MAX_MINUTES * MS_PER_MINUTE - MS_PER_MINUTE;
+    const isBacktest = await GET_BACKTEST_FN();
+
+    // No limit: fetch a single window and return as-is
+    if (limit === undefined) {
+      const to = new Date(alignedTo);
+      const from = new Date(alignedTo - windowMs);
+      return await this._methods.getAggregatedTrades(symbol, from, to, isBacktest);
+    }
+
+    // With limit: paginate backwards until we have enough trades
+    const result: IAggregatedTradeData[] = [];
+    let windowEnd = alignedTo;
+
+    while (result.length < limit) {
+      const windowStart = windowEnd - windowMs;
+      const to = new Date(windowEnd);
+      const from = new Date(windowStart);
+
+      const chunk = await this._methods.getAggregatedTrades(symbol, from, to, isBacktest);
+
+      // Prepend chunk (older data goes first)
+      result.unshift(...chunk);
+
+      // Move window backwards
+      windowEnd = windowStart;
+    }
+
+    // Slice to requested limit (most recent trades)
+    return result.slice(-limit);
+  };
+
+  /**
    * Fetches raw candles with flexible date/limit parameters.
    *
    * Uses Date.now() instead of execution context when for look-ahead bias protection.
@@ -963,6 +1043,27 @@ export class ExchangeUtils {
 
     const instance = this._getInstance(context.exchangeName);
     return await instance.getOrderBook(symbol, depth);
+  };
+
+  /**
+   * Fetch aggregated trades for a trading pair.
+   *
+   * @param symbol - Trading pair symbol
+   * @param context - Execution context with exchange name
+   * @param limit - Optional maximum number of trades to return
+   * @returns Promise resolving to array of aggregated trade data
+   */
+  public getAggregatedTrades = async (
+    symbol: string,
+    context: {
+      exchangeName: ExchangeName;
+    },
+    limit?: number
+  ): Promise<IAggregatedTradeData[]> => {
+    backtest.exchangeValidationService.validate(context.exchangeName, EXCHANGE_METHOD_NAME_GET_AGGREGATED_TRADES);
+
+    const instance = this._getInstance(context.exchangeName);
+    return await instance.getAggregatedTrades(symbol, limit);
   };
 
   /**

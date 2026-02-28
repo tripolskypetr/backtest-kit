@@ -5,6 +5,7 @@ import { TExecutionContextService } from "../context/ExecutionContextService";
 import {
   CandleInterval,
   ExchangeName,
+  IAggregatedTradeData,
   ICandleData,
   IExchange,
   IOrderBookData,
@@ -50,6 +51,19 @@ const DEFAULT_FORMAT_PRICE_FN = async (_symbol: string, price: number, _backtest
  */
 const DEFAULT_GET_ORDER_BOOK_FN = async (_symbol: string, _depth: number, _from: Date, _to: Date, _backtest: boolean): Promise<IOrderBookData> => {
   throw new Error(`getOrderBook is not implemented for this exchange`);
+};
+
+/**
+ * Default implementation for getAggregatedTrades.
+ * Throws an error indicating the method is not implemented.
+ *
+ * @param _symbol - Trading pair symbol (unused)
+ * @param _from - Start of time range (unused - can be ignored in live implementations)
+ * @param _to - End of time range (unused - can be ignored in live implementations)
+ * @param _backtest - Whether running in backtest mode (unused)
+ */
+const DEFAULT_GET_AGGREGATED_TRADES_FN = async (_symbol: string, _from: Date, _to: Date, _backtest: boolean): Promise<IAggregatedTradeData[]> => {
+  throw new Error(`getAggregatedTrades is not implemented for this exchange`);
 };
 
 /**
@@ -103,6 +117,7 @@ export class ExchangeConnectionService implements IExchange {
         formatPrice = DEFAULT_FORMAT_PRICE_FN,
         formatQuantity = DEFAULT_FORMAT_QUANTITY_FN,
         getOrderBook = DEFAULT_GET_ORDER_BOOK_FN,
+        getAggregatedTrades = DEFAULT_GET_AGGREGATED_TRADES_FN,
         callbacks
       } = this.exchangeSchemaService.get(exchangeName);
       return new ClientExchange({
@@ -113,6 +128,7 @@ export class ExchangeConnectionService implements IExchange {
         formatPrice,
         formatQuantity,
         getOrderBook,
+        getAggregatedTrades,
         callbacks,
       });
     }
@@ -244,6 +260,25 @@ export class ExchangeConnectionService implements IExchange {
     return await this.getExchange(
       this.methodContextService.context.exchangeName
     ).getOrderBook(symbol, depth);
+  };
+
+  /**
+   * Fetches aggregated trades for a trading pair using configured exchange.
+   *
+   * Routes to exchange determined by methodContextService.context.exchangeName.
+   *
+   * @param symbol - Trading pair symbol (e.g., "BTCUSDT")
+   * @param limit - Optional maximum number of trades to fetch. If empty returns one window of data.
+   * @returns Promise resolving to array of aggregated trade data
+   */
+  public getAggregatedTrades = async (symbol: string, limit?: number): Promise<IAggregatedTradeData[]> => {
+    this.loggerService.log("exchangeConnectionService getAggregatedTrades", {
+      symbol,
+      limit,
+    });
+    return await this.getExchange(
+      this.methodContextService.context.exchangeName
+    ).getAggregatedTrades(symbol, limit);
   };
 
   /**

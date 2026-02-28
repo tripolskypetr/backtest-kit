@@ -161,6 +161,24 @@ interface IOrderBookData {
     asks: IBidData[];
 }
 /**
+ * Aggregated trade data point.
+ * Represents a single trade that has occurred, used for detailed analysis and backtesting.
+ * Includes price, quantity, timestamp, and whether the buyer is the market maker (which can indicate trade direction).
+ *
+ */
+interface IAggregatedTradeData {
+    /** Unique identifier for the aggregated trade */
+    id: string;
+    /** Price at which the trade occurred */
+    price: number;
+    /** Quantity traded */
+    qty: number;
+    /** Unix timestamp in milliseconds when the trade occurred */
+    timestamp: number;
+    /** Whether the buyer is the market maker (true if buyer is maker, false if seller is maker) */
+    isBuyerMaker: boolean;
+}
+/**
  * Exchange parameters passed to ClientExchange constructor.
  * Combines schema with runtime dependencies.
  * Note: All exchange methods are required in params (defaults are applied during initialization).
@@ -178,6 +196,8 @@ interface IExchangeParams extends IExchangeSchema {
     formatPrice: (symbol: string, price: number, backtest: boolean) => Promise<string>;
     /** Fetch order book for a trading pair (required, defaults applied) */
     getOrderBook: (symbol: string, depth: number, from: Date, to: Date, backtest: boolean) => Promise<IOrderBookData>;
+    /** Fetch aggregated trades for a trading pair (required, defaults applied) */
+    getAggregatedTrades: (symbol: string, from: Date, to: Date, backtest: boolean) => Promise<IAggregatedTradeData[]>;
 }
 /**
  * Optional callbacks for exchange data events.
@@ -257,6 +277,31 @@ interface IExchangeSchema {
      * ```
      */
     getOrderBook?: (symbol: string, depth: number, from: Date, to: Date, backtest: boolean) => Promise<IOrderBookData>;
+    /**
+     * Fetch aggregated trades for a trading pair.
+     * Optional. If not provided, throws an error when called.
+     * @param symbol - Trading pair symbol (e.g., "BTCUSDT")
+     * @param from - Start of time range (used in backtest for historical data, can be ignored in live)
+     * @param to - End of time range (used in backtest for historical data, can be ignored in live)
+     * @param backtest - Whether running in backtest mode
+     * @return Promise resolving to array of aggregated trade data
+     * @example
+     * ```typescript
+     * // Backtest implementation: returns historical aggregated trades for the time range
+     * const backtestAggregatedTrades = async (symbol: string, from: Date, to: Date, backtest: boolean) => {
+     *   if (backtest) {
+     *     return await database.getAggregatedTrades(symbol, from, to);
+     *   }
+     *   return await exchange.fetchAggregatedTrades(symbol);
+     * };
+     *
+     * // Live implementation: ignores from/to when not in backtest mode
+     * const liveAggregatedTrades = async (symbol: string, _from: Date, _to: Date, backtest: boolean) => {
+     *   return await exchange.fetchAggregatedTrades(symbol);
+     * };
+     * ```
+     */
+    getAggregatedTrades?: (symbol: string, from: Date, to: Date, backtest: boolean) => Promise<IAggregatedTradeData[]>;
     /** Optional lifecycle event callbacks (onCandleData) */
     callbacks?: Partial<IExchangeCallbacks>;
 }
@@ -317,6 +362,14 @@ interface IExchange {
      * @returns Promise resolving to order book data
      */
     getOrderBook: (symbol: string, depth?: number) => Promise<IOrderBookData>;
+    /**
+     * Fetch aggregated trades for a trading pair.
+     *
+     * @param symbol - Trading pair symbol (e.g., "BTCUSDT")
+     * @param limit - Optional maximum number of aggregated trades to fetch. If empty returns one hour of data.
+     * @returns Promise resolving to array of aggregated trade data
+     */
+    getAggregatedTrades: (symbol: string, limit?: number) => Promise<IAggregatedTradeData[]>;
     /**
      * Fetch raw candles with flexible date/limit parameters.
      *
@@ -4383,6 +4436,12 @@ declare const GLOBAL_CONFIG: {
      */
     CC_ORDER_BOOK_MAX_DEPTH_LEVELS: number;
     /**
+     * Maximum minutes of aggregated trades to fetch when no limit is provided.
+     * If limit is not specified, the system will fetch aggregated trades for this many minutes starting from the current time minus the offset.
+     * Binance requirement
+     */
+    CC_AGGREGATED_TRADES_MAX_MINUTES: number;
+    /**
      * Maximum number of notifications to keep in storage.
      * Older notifications are removed when this limit is exceeded.
      *
@@ -4517,6 +4576,7 @@ declare function getConfig(): {
     CC_BREAKEVEN_THRESHOLD: number;
     CC_ORDER_BOOK_TIME_OFFSET_MINUTES: number;
     CC_ORDER_BOOK_MAX_DEPTH_LEVELS: number;
+    CC_AGGREGATED_TRADES_MAX_MINUTES: number;
     CC_MAX_NOTIFICATIONS: number;
     CC_MAX_SIGNALS: number;
     CC_MAX_LOG_LINES: number;
@@ -4555,6 +4615,7 @@ declare function getDefaultConfig(): Readonly<{
     CC_BREAKEVEN_THRESHOLD: number;
     CC_ORDER_BOOK_TIME_OFFSET_MINUTES: number;
     CC_ORDER_BOOK_MAX_DEPTH_LEVELS: number;
+    CC_AGGREGATED_TRADES_MAX_MINUTES: number;
     CC_MAX_NOTIFICATIONS: number;
     CC_MAX_SIGNALS: number;
     CC_MAX_LOG_LINES: number;
@@ -6898,6 +6959,29 @@ declare function getRawCandles(symbol: string, interval: CandleInterval, limit?:
  * @returns Promise resolving to array of candle data
  */
 declare function getNextCandles(symbol: string, interval: CandleInterval, limit: number): Promise<ICandleData[]>;
+/**
+ * Fetches aggregated trades for a trading pair from the registered exchange.
+ *
+ * Trades are fetched backwards from the current execution context time.
+ * If limit is not specified, returns all trades within one CC_AGGREGATED_TRADES_MAX_MINUTES window.
+ * If limit is specified, paginates backwards until at least limit trades are collected.
+ *
+ * @param symbol - Trading pair symbol (e.g., "BTCUSDT")
+ * @param limit - Optional maximum number of trades to fetch
+ * @returns Promise resolving to array of aggregated trade data
+ * @throws Error if execution or method context is missing
+ *
+ * @example
+ * ```typescript
+ * // Fetch last hour of trades
+ * const trades = await getAggregatedTrades("BTCUSDT");
+ *
+ * // Fetch last 500 trades
+ * const lastTrades = await getAggregatedTrades("BTCUSDT", 500);
+ * console.log(lastTrades[0]); // { id, price, qty, timestamp, isBuyerMaker }
+ * ```
+ */
+declare function getAggregatedTrades(symbol: string, limit?: number): Promise<IAggregatedTradeData[]>;
 
 /** Unique identifier for a dump result. Can be a string or numeric ID. */
 type ResultId = string | number;
@@ -14394,6 +14478,17 @@ declare class ExchangeUtils {
         exchangeName: ExchangeName;
     }, depth?: number) => Promise<IOrderBookData>;
     /**
+     * Fetch aggregated trades for a trading pair.
+     *
+     * @param symbol - Trading pair symbol
+     * @param context - Execution context with exchange name
+     * @param limit - Optional maximum number of trades to return
+     * @returns Promise resolving to array of aggregated trade data
+     */
+    getAggregatedTrades: (symbol: string, context: {
+        exchangeName: ExchangeName;
+    }, limit?: number) => Promise<IAggregatedTradeData[]>;
+    /**
      * Fetches raw candles with flexible date/limit parameters.
      *
      * Uses Date.now() instead of execution context when for look-ahead bias protection.
@@ -17010,6 +17105,25 @@ declare class ClientExchange implements IExchange {
      * @throws Error if getOrderBook is not implemented
      */
     getOrderBook(symbol: string, depth?: number): Promise<IOrderBookData>;
+    /**
+     * Fetches aggregated trades backwards from execution context time.
+     *
+     * Algorithm:
+     * 1. Align when down to the nearest minute boundary (1-minute granularity)
+     * 2. If limit is not specified: fetch one window of CC_AGGREGATED_TRADES_MAX_MINUTES
+     * 3. If limit is specified: paginate backwards in CC_AGGREGATED_TRADES_MAX_MINUTES
+     *    chunks until at least limit trades are collected, then slice to limit
+     *
+     * Look-ahead bias prevention:
+     * - `to` is always aligned down to the minute (never exceeds current when)
+     * - Each pagination window goes strictly backwards from alignedWhen
+     *
+     * @param symbol - Trading pair symbol (e.g., "BTCUSDT")
+     * @param limit - Optional maximum number of trades to return. If not specified,
+     *                returns all trades within the last CC_AGGREGATED_TRADES_MAX_MINUTES window.
+     * @returns Promise resolving to array of aggregated trade data
+     */
+    getAggregatedTrades(symbol: string, limit?: number): Promise<IAggregatedTradeData[]>;
 }
 
 /**
@@ -17114,6 +17228,16 @@ declare class ExchangeConnectionService implements IExchange {
      * @returns Promise resolving to order book data
      */
     getOrderBook: (symbol: string, depth?: number) => Promise<IOrderBookData>;
+    /**
+     * Fetches aggregated trades for a trading pair using configured exchange.
+     *
+     * Routes to exchange determined by methodContextService.context.exchangeName.
+     *
+     * @param symbol - Trading pair symbol (e.g., "BTCUSDT")
+     * @param limit - Optional maximum number of trades to fetch. If empty returns one window of data.
+     * @returns Promise resolving to array of aggregated trade data
+     */
+    getAggregatedTrades: (symbol: string, limit?: number) => Promise<IAggregatedTradeData[]>;
     /**
      * Fetches raw candles with flexible date/limit parameters.
      *
@@ -18850,6 +18974,16 @@ declare class ExchangeCoreService implements TExchange {
      * @returns Promise resolving to order book data
      */
     getOrderBook: (symbol: string, when: Date, backtest: boolean, depth?: number) => Promise<IOrderBookData>;
+    /**
+     * Fetches aggregated trades with execution context.
+     *
+     * @param symbol - Trading pair symbol
+     * @param when - Timestamp for context (used in backtest mode)
+     * @param backtest - Whether running in backtest mode
+     * @param limit - Optional maximum number of trades to fetch
+     * @returns Promise resolving to array of aggregated trade data
+     */
+    getAggregatedTrades: (symbol: string, when: Date, backtest: boolean, limit?: number) => Promise<IAggregatedTradeData[]>;
     /**
      * Fetches raw candles with flexible date/limit parameters and execution context.
      *
@@ -21452,4 +21586,4 @@ declare const backtest: {
     loggerService: LoggerService;
 };
 
-export { ActionBase, type ActivateScheduledCommit, type ActivateScheduledCommitNotification, type ActivePingContract, type AverageBuyCommit, Backtest, type BacktestStatisticsModel, Breakeven, type BreakevenAvailableNotification, type BreakevenCommit, type BreakevenCommitNotification, type BreakevenContract, type BreakevenData, Cache, type CancelScheduledCommit, type CandleData, type CandleInterval, type ClosePendingCommit, type ColumnConfig, type ColumnModel, Constant, type CriticalErrorNotification, type DoneContract, type EntityId, Exchange, ExecutionContextService, type FrameInterval, type GlobalConfig, Heat, type HeatmapStatisticsModel, type IActionSchema, type IActivateScheduledCommitRow, type IBidData, type IBreakevenCommitRow, type ICandleData, type ICommitRow, type IExchangeSchema, type IFrameSchema, type IHeatmapRow, type ILog, type ILogEntry, type ILogger, type IMarkdownDumpOptions, type INotificationUtils, type IOrderBookData, type IPartialLossCommitRow, type IPartialProfitCommitRow, type IPersistBase, type IPositionSizeATRParams, type IPositionSizeFixedPercentageParams, type IPositionSizeKellyParams, type IPublicAction, type IPublicCandleData, type IPublicSignalRow, type IReportDumpOptions, type IRiskActivePosition, type IRiskCheckArgs, type IRiskSchema, type IRiskSignalRow, type IRiskValidation, type IRiskValidationFn, type IRiskValidationPayload, type IScheduledSignalCancelRow, type IScheduledSignalRow, type ISignalDto, type ISignalRow, type ISizingCalculateParams, type ISizingCalculateParamsATR, type ISizingCalculateParamsFixedPercentage, type ISizingCalculateParamsKelly, type ISizingParams, type ISizingParamsATR, type ISizingParamsFixedPercentage, type ISizingParamsKelly, type ISizingSchema, type ISizingSchemaATR, type ISizingSchemaFixedPercentage, type ISizingSchemaKelly, type IStorageSignalRow, type IStorageUtils, type IStrategyPnL, type IStrategyResult, type IStrategySchema, type IStrategyTickResult, type IStrategyTickResultActive, type IStrategyTickResultCancelled, type IStrategyTickResultClosed, type IStrategyTickResultIdle, type IStrategyTickResultOpened, type IStrategyTickResultScheduled, type IStrategyTickResultWaiting, type ITrailingStopCommitRow, type ITrailingTakeCommitRow, type IWalkerResults, type IWalkerSchema, type IWalkerStrategyResult, type InfoErrorNotification, Live, type LiveStatisticsModel, Log, type LogData, Markdown, MarkdownFileBase, MarkdownFolderBase, type MarkdownName, MethodContextService, type MetricStats, Notification, NotificationBacktest, type NotificationData, NotificationLive, type NotificationModel, Partial$1 as Partial, type PartialData, type PartialEvent, type PartialLossAvailableNotification, type PartialLossCommit, type PartialLossCommitNotification, type PartialLossContract, type PartialProfitAvailableNotification, type PartialProfitCommit, type PartialProfitCommitNotification, type PartialProfitContract, type PartialStatisticsModel, Performance, type PerformanceContract, type PerformanceMetricType, type PerformanceStatisticsModel, PersistBase, PersistBreakevenAdapter, PersistCandleAdapter, PersistLogAdapter, PersistNotificationAdapter, PersistPartialAdapter, PersistRiskAdapter, PersistScheduleAdapter, PersistSignalAdapter, PersistStorageAdapter, PositionSize, type ProgressBacktestContract, type ProgressWalkerContract, Report, ReportBase, type ReportName, Risk, type RiskContract, type RiskData, type RiskEvent, type RiskRejectionNotification, type RiskStatisticsModel, Schedule, type ScheduleData, type SchedulePingContract, type ScheduleStatisticsModel, type ScheduledEvent, type SignalCancelledNotification, type SignalClosedNotification, type SignalData, type SignalInterval, type SignalOpenedNotification, type SignalScheduledNotification, Storage, StorageBacktest, type StorageData, StorageLive, Strategy, type StrategyActionType, type StrategyCancelReason, type StrategyCloseReason, type StrategyCommitContract, type StrategyEvent, type StrategyStatisticsModel, type TLogCtor, type TMarkdownBase, type TNotificationUtilsCtor, type TPersistBase, type TPersistBaseCtor, type TReportBase, type TStorageUtilsCtor, type TickEvent, type TrailingStopCommit, type TrailingStopCommitNotification, type TrailingTakeCommit, type TrailingTakeCommitNotification, type ValidationErrorNotification, Walker, type WalkerCompleteContract, type WalkerContract, type WalkerMetric, type SignalData$1 as WalkerSignalData, type WalkerStatisticsModel, addActionSchema, addExchangeSchema, addFrameSchema, addRiskSchema, addSizingSchema, addStrategySchema, addWalkerSchema, alignToInterval, checkCandles, commitActivateScheduled, commitAverageBuy, commitBreakeven, commitCancelScheduled, commitClosePending, commitPartialLoss, commitPartialProfit, commitTrailingStop, commitTrailingTake, dumpMessages, emitters, formatPrice, formatQuantity, get, getActionSchema, getAveragePrice, getBacktestTimeframe, getCandles, getColumns, getConfig, getContext, getDate, getDefaultColumns, getDefaultConfig, getExchangeSchema, getFrameSchema, getMode, getNextCandles, getOrderBook, getRawCandles, getRiskSchema, getSizingSchema, getStrategySchema, getSymbol, getWalkerSchema, hasTradeContext, backtest as lib, listExchangeSchema, listFrameSchema, listRiskSchema, listSizingSchema, listStrategySchema, listWalkerSchema, listenActivePing, listenActivePingOnce, listenBacktestProgress, listenBreakevenAvailable, listenBreakevenAvailableOnce, listenDoneBacktest, listenDoneBacktestOnce, listenDoneLive, listenDoneLiveOnce, listenDoneWalker, listenDoneWalkerOnce, listenError, listenExit, listenPartialLossAvailable, listenPartialLossAvailableOnce, listenPartialProfitAvailable, listenPartialProfitAvailableOnce, listenPerformance, listenRisk, listenRiskOnce, listenSchedulePing, listenSchedulePingOnce, listenSignal, listenSignalBacktest, listenSignalBacktestOnce, listenSignalLive, listenSignalLiveOnce, listenSignalOnce, listenStrategyCommit, listenStrategyCommitOnce, listenValidation, listenWalker, listenWalkerComplete, listenWalkerOnce, listenWalkerProgress, overrideActionSchema, overrideExchangeSchema, overrideFrameSchema, overrideRiskSchema, overrideSizingSchema, overrideStrategySchema, overrideWalkerSchema, parseArgs, roundTicks, set, setColumns, setConfig, setLogger, stopStrategy, validate, waitForCandle, warmCandles };
+export { ActionBase, type ActivateScheduledCommit, type ActivateScheduledCommitNotification, type ActivePingContract, type AverageBuyCommit, Backtest, type BacktestStatisticsModel, Breakeven, type BreakevenAvailableNotification, type BreakevenCommit, type BreakevenCommitNotification, type BreakevenContract, type BreakevenData, Cache, type CancelScheduledCommit, type CandleData, type CandleInterval, type ClosePendingCommit, type ColumnConfig, type ColumnModel, Constant, type CriticalErrorNotification, type DoneContract, type EntityId, Exchange, ExecutionContextService, type FrameInterval, type GlobalConfig, Heat, type HeatmapStatisticsModel, type IActionSchema, type IActivateScheduledCommitRow, type IAggregatedTradeData, type IBidData, type IBreakevenCommitRow, type ICandleData, type ICommitRow, type IExchangeSchema, type IFrameSchema, type IHeatmapRow, type ILog, type ILogEntry, type ILogger, type IMarkdownDumpOptions, type INotificationUtils, type IOrderBookData, type IPartialLossCommitRow, type IPartialProfitCommitRow, type IPersistBase, type IPositionSizeATRParams, type IPositionSizeFixedPercentageParams, type IPositionSizeKellyParams, type IPublicAction, type IPublicCandleData, type IPublicSignalRow, type IReportDumpOptions, type IRiskActivePosition, type IRiskCheckArgs, type IRiskSchema, type IRiskSignalRow, type IRiskValidation, type IRiskValidationFn, type IRiskValidationPayload, type IScheduledSignalCancelRow, type IScheduledSignalRow, type ISignalDto, type ISignalRow, type ISizingCalculateParams, type ISizingCalculateParamsATR, type ISizingCalculateParamsFixedPercentage, type ISizingCalculateParamsKelly, type ISizingParams, type ISizingParamsATR, type ISizingParamsFixedPercentage, type ISizingParamsKelly, type ISizingSchema, type ISizingSchemaATR, type ISizingSchemaFixedPercentage, type ISizingSchemaKelly, type IStorageSignalRow, type IStorageUtils, type IStrategyPnL, type IStrategyResult, type IStrategySchema, type IStrategyTickResult, type IStrategyTickResultActive, type IStrategyTickResultCancelled, type IStrategyTickResultClosed, type IStrategyTickResultIdle, type IStrategyTickResultOpened, type IStrategyTickResultScheduled, type IStrategyTickResultWaiting, type ITrailingStopCommitRow, type ITrailingTakeCommitRow, type IWalkerResults, type IWalkerSchema, type IWalkerStrategyResult, type InfoErrorNotification, Live, type LiveStatisticsModel, Log, type LogData, Markdown, MarkdownFileBase, MarkdownFolderBase, type MarkdownName, MethodContextService, type MetricStats, Notification, NotificationBacktest, type NotificationData, NotificationLive, type NotificationModel, Partial$1 as Partial, type PartialData, type PartialEvent, type PartialLossAvailableNotification, type PartialLossCommit, type PartialLossCommitNotification, type PartialLossContract, type PartialProfitAvailableNotification, type PartialProfitCommit, type PartialProfitCommitNotification, type PartialProfitContract, type PartialStatisticsModel, Performance, type PerformanceContract, type PerformanceMetricType, type PerformanceStatisticsModel, PersistBase, PersistBreakevenAdapter, PersistCandleAdapter, PersistLogAdapter, PersistNotificationAdapter, PersistPartialAdapter, PersistRiskAdapter, PersistScheduleAdapter, PersistSignalAdapter, PersistStorageAdapter, PositionSize, type ProgressBacktestContract, type ProgressWalkerContract, Report, ReportBase, type ReportName, Risk, type RiskContract, type RiskData, type RiskEvent, type RiskRejectionNotification, type RiskStatisticsModel, Schedule, type ScheduleData, type SchedulePingContract, type ScheduleStatisticsModel, type ScheduledEvent, type SignalCancelledNotification, type SignalClosedNotification, type SignalData, type SignalInterval, type SignalOpenedNotification, type SignalScheduledNotification, Storage, StorageBacktest, type StorageData, StorageLive, Strategy, type StrategyActionType, type StrategyCancelReason, type StrategyCloseReason, type StrategyCommitContract, type StrategyEvent, type StrategyStatisticsModel, type TLogCtor, type TMarkdownBase, type TNotificationUtilsCtor, type TPersistBase, type TPersistBaseCtor, type TReportBase, type TStorageUtilsCtor, type TickEvent, type TrailingStopCommit, type TrailingStopCommitNotification, type TrailingTakeCommit, type TrailingTakeCommitNotification, type ValidationErrorNotification, Walker, type WalkerCompleteContract, type WalkerContract, type WalkerMetric, type SignalData$1 as WalkerSignalData, type WalkerStatisticsModel, addActionSchema, addExchangeSchema, addFrameSchema, addRiskSchema, addSizingSchema, addStrategySchema, addWalkerSchema, alignToInterval, checkCandles, commitActivateScheduled, commitAverageBuy, commitBreakeven, commitCancelScheduled, commitClosePending, commitPartialLoss, commitPartialProfit, commitTrailingStop, commitTrailingTake, dumpMessages, emitters, formatPrice, formatQuantity, get, getActionSchema, getAggregatedTrades, getAveragePrice, getBacktestTimeframe, getCandles, getColumns, getConfig, getContext, getDate, getDefaultColumns, getDefaultConfig, getExchangeSchema, getFrameSchema, getMode, getNextCandles, getOrderBook, getRawCandles, getRiskSchema, getSizingSchema, getStrategySchema, getSymbol, getWalkerSchema, hasTradeContext, backtest as lib, listExchangeSchema, listFrameSchema, listRiskSchema, listSizingSchema, listStrategySchema, listWalkerSchema, listenActivePing, listenActivePingOnce, listenBacktestProgress, listenBreakevenAvailable, listenBreakevenAvailableOnce, listenDoneBacktest, listenDoneBacktestOnce, listenDoneLive, listenDoneLiveOnce, listenDoneWalker, listenDoneWalkerOnce, listenError, listenExit, listenPartialLossAvailable, listenPartialLossAvailableOnce, listenPartialProfitAvailable, listenPartialProfitAvailableOnce, listenPerformance, listenRisk, listenRiskOnce, listenSchedulePing, listenSchedulePingOnce, listenSignal, listenSignalBacktest, listenSignalBacktestOnce, listenSignalLive, listenSignalLiveOnce, listenSignalOnce, listenStrategyCommit, listenStrategyCommitOnce, listenValidation, listenWalker, listenWalkerComplete, listenWalkerOnce, listenWalkerProgress, overrideActionSchema, overrideExchangeSchema, overrideFrameSchema, overrideRiskSchema, overrideSizingSchema, overrideStrategySchema, overrideWalkerSchema, parseArgs, roundTicks, set, setColumns, setConfig, setLogger, stopStrategy, validate, waitForCandle, warmCandles };

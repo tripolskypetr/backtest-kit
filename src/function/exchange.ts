@@ -2,7 +2,7 @@ import backtest, {
   ExecutionContextService,
   MethodContextService,
 } from "../lib";
-import { CandleInterval, ICandleData, IOrderBookData } from "../interfaces/Exchange.interface";
+import { CandleInterval, IAggregatedTradeData, ICandleData, IOrderBookData } from "../interfaces/Exchange.interface";
 
 const GET_CANDLES_METHOD_NAME = "exchange.getCandles";
 const GET_AVERAGE_PRICE_METHOD_NAME = "exchange.getAveragePrice";
@@ -16,6 +16,7 @@ const HAS_TRADE_CONTEXT_METHOD_NAME = "exchange.hasTradeContext";
 const GET_ORDER_BOOK_METHOD_NAME = "exchange.getOrderBook";
 const GET_RAW_CANDLES_METHOD_NAME = "exchange.getRawCandles";
 const GET_NEXT_CANDLES_METHOD_NAME = "exchange.getNextCandles";
+const GET_AGGREGATED_TRADES_METHOD_NAME = "exchange.getAggregatedTrades";
 
 /**
  * Checks if trade context is active (execution and method contexts).
@@ -392,4 +393,43 @@ export async function getNextCandles(
     interval,
     limit,
   );
+}
+
+/**
+ * Fetches aggregated trades for a trading pair from the registered exchange.
+ *
+ * Trades are fetched backwards from the current execution context time.
+ * If limit is not specified, returns all trades within one CC_AGGREGATED_TRADES_MAX_MINUTES window.
+ * If limit is specified, paginates backwards until at least limit trades are collected.
+ *
+ * @param symbol - Trading pair symbol (e.g., "BTCUSDT")
+ * @param limit - Optional maximum number of trades to fetch
+ * @returns Promise resolving to array of aggregated trade data
+ * @throws Error if execution or method context is missing
+ *
+ * @example
+ * ```typescript
+ * // Fetch last hour of trades
+ * const trades = await getAggregatedTrades("BTCUSDT");
+ *
+ * // Fetch last 500 trades
+ * const lastTrades = await getAggregatedTrades("BTCUSDT", 500);
+ * console.log(lastTrades[0]); // { id, price, qty, timestamp, isBuyerMaker }
+ * ```
+ */
+export async function getAggregatedTrades(
+  symbol: string,
+  limit?: number,
+): Promise<IAggregatedTradeData[]> {
+  backtest.loggerService.info(GET_AGGREGATED_TRADES_METHOD_NAME, {
+    symbol,
+    limit,
+  });
+  if (!ExecutionContextService.hasContext()) {
+    throw new Error("getAggregatedTrades requires an execution context");
+  }
+  if (!MethodContextService.hasContext()) {
+    throw new Error("getAggregatedTrades requires a method context");
+  }
+  return await backtest.exchangeConnectionService.getAggregatedTrades(symbol, limit);
 }
