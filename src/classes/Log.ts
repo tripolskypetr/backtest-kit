@@ -4,7 +4,7 @@ import { join } from "path";
 import { randomString, singleshot, timeout, TIMEOUT_SYMBOL, getErrorMessage } from "functools-kit";
 import { ILogEntry, ILogger } from "../interfaces/Logger.interface";
 import { PersistLogAdapter } from "./Persist";
-import backtest, { ExecutionContextService } from "../lib";
+import backtest, { ExecutionContextService, MethodContextService } from "../lib";
 import { GLOBAL_CONFIG } from "../config/params";
 import { exitEmitter } from "../config/emitters";
 
@@ -41,12 +41,36 @@ const WRITE_SAFE_SYMBOL = Symbol("write-safe");
  * Returns the 'when' timestamp from the execution context if available, otherwise returns the current time.
  * This allows log entries to be timestamped according to the backtest timeline rather than real-world time, improving log relevance and user experience during backtest analysis.
  */
-const GET_DATE_FN = async () => {
+const GET_DATE_FN = () => {
   if (ExecutionContextService.hasContext()) {
     return new Date(backtest.executionContextService.context.when);
   }
   return new Date();
 };
+
+/**
+ * Method context retrieval function.
+ * Returns the current method context from MethodContextService if available, otherwise returns null.
+ * This allows log entries to include contextual information about the strategy, exchange, and frame associated with the log event, enhancing the ability to trace and analyze logs in relation to specific execution contexts within the backtest framework.
+ */
+const GET_METHOD_CONTEXT_FN = () => {
+  if (MethodContextService.hasContext()) {
+    return backtest.methodContextService.context;
+  }
+  return null;
+}
+
+/**
+ * Execution context retrieval function.
+ * Returns the current execution context from ExecutionContextService if available, otherwise returns null.
+ * This allows log entries to include contextual information about the symbol, timestamp, and backtest mode associated with the log event, providing additional insights into the execution environment when analyzing logs.
+ */
+const GET_EXECUTION_CONTEXT_FN = () => {
+  if (ExecutionContextService.hasContext()) {
+    return backtest.executionContextService.context;
+  }
+  return null;
+}
 
 /**
  * Extended logger interface with log history access.
@@ -112,12 +136,14 @@ export class LogPersistUtils implements ILog {
   public log = async (topic: string, ...args: any[]): Promise<void> => {
     backtest.loggerService.info(LOG_PERSIST_METHOD_NAME_LOG, { topic });
     await this.waitForInit();
-    const date = await GET_DATE_FN();
+    const date = GET_DATE_FN();
     this._entries.push({
       id: randomString(),
       type: "log",
       timestamp: Date.now(),
       createdAt: date.toISOString(),
+      methodContext: GET_METHOD_CONTEXT_FN(),
+      executionContext: GET_EXECUTION_CONTEXT_FN(),
       topic,
       args,
     });
@@ -134,12 +160,14 @@ export class LogPersistUtils implements ILog {
   public debug = async (topic: string, ...args: any[]): Promise<void> => {
     backtest.loggerService.info(LOG_PERSIST_METHOD_NAME_DEBUG, { topic });
     await this.waitForInit();
-    const date = await GET_DATE_FN();
+    const date = GET_DATE_FN();
     this._entries.push({
       id: randomString(),
       type: "debug",
       timestamp: Date.now(),
       createdAt: date.toISOString(),
+      methodContext: GET_METHOD_CONTEXT_FN(),
+      executionContext: GET_EXECUTION_CONTEXT_FN(),
       topic,
       args,
     });
@@ -156,12 +184,14 @@ export class LogPersistUtils implements ILog {
   public info = async (topic: string, ...args: any[]): Promise<void> => {
     backtest.loggerService.info(LOG_PERSIST_METHOD_NAME_INFO, { topic });
     await this.waitForInit();
-    const date = await GET_DATE_FN();
+    const date = GET_DATE_FN();
     this._entries.push({
       id: randomString(),
       type: "info",
       timestamp: Date.now(),
       createdAt: date.toISOString(),
+      methodContext: GET_METHOD_CONTEXT_FN(),
+      executionContext: GET_EXECUTION_CONTEXT_FN(),
       topic,
       args,
     });
@@ -178,12 +208,14 @@ export class LogPersistUtils implements ILog {
   public warn = async (topic: string, ...args: any[]): Promise<void> => {
     backtest.loggerService.info(LOG_PERSIST_METHOD_NAME_WARN, { topic });
     await this.waitForInit();
-    const date = await GET_DATE_FN();
+    const date = GET_DATE_FN();
     this._entries.push({
       id: randomString(),
       type: "warn",
       timestamp: Date.now(),
       createdAt: date.toISOString(),
+      methodContext: GET_METHOD_CONTEXT_FN(),
+      executionContext: GET_EXECUTION_CONTEXT_FN(),
       topic,
       args,
     });
@@ -237,12 +269,14 @@ export class LogMemoryUtils implements ILog {
    */
   public log = async (topic: string, ...args: any[]): Promise<void> => {
     backtest.loggerService.info(LOG_MEMORY_METHOD_NAME_LOG, { topic });
-    const date = await GET_DATE_FN();
+    const date = GET_DATE_FN();
     this._entries.push({
       id: randomString(),
       type: "log",
       timestamp: Date.now(),
       createdAt: date.toISOString(),
+      methodContext: GET_METHOD_CONTEXT_FN(),
+      executionContext: GET_EXECUTION_CONTEXT_FN(),
       topic,
       args,
     });
@@ -257,12 +291,14 @@ export class LogMemoryUtils implements ILog {
    */
   public debug = async (topic: string, ...args: any[]): Promise<void> => {
     backtest.loggerService.info(LOG_MEMORY_METHOD_NAME_DEBUG, { topic });
-    const date = await GET_DATE_FN();
+    const date = GET_DATE_FN();
     this._entries.push({
       id: randomString(),
       type: "debug",
       timestamp: Date.now(),
       createdAt: date.toISOString(),
+      methodContext: GET_METHOD_CONTEXT_FN(),
+      executionContext: GET_EXECUTION_CONTEXT_FN(),
       topic,
       args,
     });
@@ -277,12 +313,14 @@ export class LogMemoryUtils implements ILog {
    */
   public info = async (topic: string, ...args: any[]): Promise<void> => {
     backtest.loggerService.info(LOG_MEMORY_METHOD_NAME_INFO, { topic });
-    const date = await GET_DATE_FN();
+    const date = GET_DATE_FN();
     this._entries.push({
       id: randomString(),
       type: "info",
       timestamp: Date.now(),
       createdAt: date.toISOString(),
+      methodContext: GET_METHOD_CONTEXT_FN(),
+      executionContext: GET_EXECUTION_CONTEXT_FN(),
       topic,
       args,
     });
@@ -297,12 +335,14 @@ export class LogMemoryUtils implements ILog {
    */
   public warn = async (topic: string, ...args: any[]): Promise<void> => {
     backtest.loggerService.info(LOG_MEMORY_METHOD_NAME_WARN, { topic });
-    const date = await GET_DATE_FN();
+    const date = GET_DATE_FN();
     this._entries.push({
       id: randomString(),
       type: "warn",
       timestamp: Date.now(),
       createdAt: date.toISOString(),
+      methodContext: GET_METHOD_CONTEXT_FN(),
+      executionContext: GET_EXECUTION_CONTEXT_FN(),
       topic,
       args,
     });
@@ -401,12 +441,14 @@ export class LogJsonlUtils implements ILog {
    */
   public log = async (topic: string, ...args: any[]): Promise<void> => {
     backtest.loggerService.info(LOG_JSONL_METHOD_NAME_LOG, { topic });
-    const date = await GET_DATE_FN();
+    const date = GET_DATE_FN();
     await this._append({
       id: randomString(),
       type: "log",
       timestamp: Date.now(),
       createdAt: date.toISOString(),
+      methodContext: GET_METHOD_CONTEXT_FN(),
+      executionContext: GET_EXECUTION_CONTEXT_FN(),
       topic,
       args,
     });
@@ -419,12 +461,14 @@ export class LogJsonlUtils implements ILog {
    */
   public debug = async (topic: string, ...args: any[]): Promise<void> => {
     backtest.loggerService.info(LOG_JSONL_METHOD_NAME_DEBUG, { topic });
-    const date = await GET_DATE_FN();
+    const date = GET_DATE_FN();
     await this._append({
       id: randomString(),
       type: "debug",
       timestamp: Date.now(),
       createdAt: date.toISOString(),
+      methodContext: GET_METHOD_CONTEXT_FN(),
+      executionContext: GET_EXECUTION_CONTEXT_FN(),
       topic,
       args,
     });
@@ -437,12 +481,14 @@ export class LogJsonlUtils implements ILog {
    */
   public info = async (topic: string, ...args: any[]): Promise<void> => {
     backtest.loggerService.info(LOG_JSONL_METHOD_NAME_INFO, { topic });
-    const date = await GET_DATE_FN();
+    const date = GET_DATE_FN();
     await this._append({
       id: randomString(),
       type: "info",
       timestamp: Date.now(),
       createdAt: date.toISOString(),
+      methodContext: GET_METHOD_CONTEXT_FN(),
+      executionContext: GET_EXECUTION_CONTEXT_FN(),
       topic,
       args,
     });
@@ -455,12 +501,14 @@ export class LogJsonlUtils implements ILog {
    */
   public warn = async (topic: string, ...args: any[]): Promise<void> => {
     backtest.loggerService.info(LOG_JSONL_METHOD_NAME_WARN, { topic });
-    const date = await GET_DATE_FN();
+    const date = GET_DATE_FN();
     await this._append({
       id: randomString(),
       type: "warn",
       timestamp: Date.now(),
       createdAt: date.toISOString(),
+      methodContext: GET_METHOD_CONTEXT_FN(),
+      executionContext: GET_EXECUTION_CONTEXT_FN(),
       topic,
       args,
     });

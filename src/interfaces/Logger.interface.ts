@@ -1,3 +1,6 @@
+import { IExecutionContext } from "../lib/services/context/ExecutionContextService";
+import { IMethodContext } from "../lib/services/context/MethodContextService";
+
 /**
  * Single log entry stored in the log history.
  */
@@ -10,6 +13,10 @@ export interface ILogEntry {
   timestamp: number;
   /** Date taken from backtest context to improve user experience */
   createdAt: string;
+  /** Optional method context associated with the log entry, providing additional details about the execution environment or state when the log was recorded */
+  methodContext: IMethodContext | null;
+  /** Optional execution context associated with the log entry, providing additional details about the execution environment or state when the log was recorded */
+  executionContext: IExecutionContext | null;
   /** Log topic / method name */
   topic: string;
   /** Additional arguments passed to the log call */

@@ -4,6 +4,7 @@ import path from "path";
 import { access } from "fs/promises";
 import { constants } from "fs";
 import dotenv from "dotenv";
+import { Log } from "backtest-kit";
 import { inject } from '../../../lib/core/di';
 import LoggerService from './LoggerService';
 import TYPES from '../../../lib/core/types';
@@ -89,6 +90,7 @@ export class ResolveService {
         {
             const cwd = process.cwd();
             process.chdir(moduleRoot);
+            cwd !== moduleRoot && Log.useJsonl();
             dotenv.config({ path: path.join(cwd, '.env'), override: true, quiet: true });
             dotenv.config({ path: path.join(moduleRoot, '.env'), override: true, quiet: true });
             await LOAD_ENTRY_FN(absolutePath, this);

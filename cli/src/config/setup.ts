@@ -7,6 +7,7 @@ import {
   StorageBacktest,
   NotificationLive,
   NotificationBacktest,
+  Log,
   setConfig,
 } from "backtest-kit";
 
@@ -34,3 +35,5 @@ setConfig({
   CC_MAX_NOTIFICATIONS: 5_000,
   CC_MAX_SIGNALS: 750,
 })
+
+Log.useJsonl();

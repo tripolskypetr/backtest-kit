@@ -58,502 +58,6 @@ declare const ExecutionContextService: (new () => {
 type TExecutionContextService = InstanceType<typeof ExecutionContextService>;
 
 /**
- * Single log entry stored in the log history.
- */
-interface ILogEntry {
-    /** Unique entry identifier generated via randomString */
-    id: string;
-    /** Log level */
-    type: "log" | "debug" | "info" | "warn";
-    /** Unix timestamp in milliseconds when the entry was created */
-    timestamp: number;
-    /** Date taken from backtest context to improve user experience */
-    createdAt: string;
-    /** Log topic / method name */
-    topic: string;
-    /** Additional arguments passed to the log call */
-    args: unknown[];
-}
-/**
- * Interface representing a logging mechanism for the swarm system.
- * Provides methods to record messages at different severity levels, used across components like agents, sessions, states, storage, swarms, history, embeddings, completions, and policies.
- * Logs are utilized to track lifecycle events (e.g., initialization, disposal), operational details (e.g., tool calls, message emissions), validation outcomes (e.g., policy checks), and errors (e.g., persistence failures), aiding in debugging, monitoring, and auditing.
-*/
-interface ILogger {
-    /**
-     * Logs a general-purpose message.
-     * Used throughout the swarm system to record significant events or state changes, such as agent execution, session connections, or storage updates.
-     */
-    log(topic: string, ...args: any[]): void;
-    /**
-     * Logs a debug-level message.
-     * Employed for detailed diagnostic information, such as intermediate states during agent tool calls, swarm navigation changes, or embedding creation processes, typically enabled in development or troubleshooting scenarios.
-     */
-    debug(topic: string, ...args: any[]): void;
-    /**
-     * Logs an info-level message.
-     * Used to record informational updates, such as successful completions, policy validations, or history commits, providing a high-level overview of system activity without excessive detail.
-     */
-    info(topic: string, ...args: any[]): void;
-    /**
-     * Logs a warning-level message.
-     * Used to record potentially problematic situations that don't prevent execution but may require attention, such as missing data, unexpected conditions, or deprecated usage.
-     */
-    warn(topic: string, ...args: any[]): void;
-}
-
-/**
- * Candle time interval for fetching historical data.
- */
-type CandleInterval = "1m" | "3m" | "5m" | "15m" | "30m" | "1h" | "2h" | "4h" | "6h" | "8h";
-/** Numeric type that can be undefined (used for optional numeric values) */
-type Num = number | undefined;
-interface IPublicCandleData {
-    /** Unix timestamp in milliseconds when candle opened */
-    timestamp: Num;
-    /** Opening price at candle start */
-    open: Num;
-    /** Highest price during candle period */
-    high: Num;
-    /** Lowest price during candle period */
-    low: Num;
-    /** Closing price at candle end */
-    close: Num;
-    /** Trading volume during candle period */
-    volume: Num;
-}
-/**
- * Single OHLCV candle data point.
- * Used for VWAP calculation and backtesting.
- */
-interface ICandleData {
-    /** Unix timestamp in milliseconds when candle opened */
-    timestamp: number;
-    /** Opening price at candle start */
-    open: number;
-    /** Highest price during candle period */
-    high: number;
-    /** Lowest price during candle period */
-    low: number;
-    /** Closing price at candle end */
-    close: number;
-    /** Trading volume during candle period */
-    volume: number;
-}
-/**
- * Single bid or ask in order book.
- */
-interface IBidData {
-    /** Price level as string */
-    price: string;
-    /** Quantity at this price level as string */
-    quantity: string;
-}
-/**
- * Order book data containing bids and asks.
- */
-interface IOrderBookData {
-    /** Trading pair symbol */
-    symbol: string;
-    /** Array of bid orders (buy orders) */
-    bids: IBidData[];
-    /** Array of ask orders (sell orders) */
-    asks: IBidData[];
-}
-/**
- * Aggregated trade data point.
- * Represents a single trade that has occurred, used for detailed analysis and backtesting.
- * Includes price, quantity, timestamp, and whether the buyer is the market maker (which can indicate trade direction).
- *
- */
-interface IAggregatedTradeData {
-    /** Unique identifier for the aggregated trade */
-    id: string;
-    /** Price at which the trade occurred */
-    price: number;
-    /** Quantity traded */
-    qty: number;
-    /** Unix timestamp in milliseconds when the trade occurred */
-    timestamp: number;
-    /** Whether the buyer is the market maker (true if buyer is maker, false if seller is maker) */
-    isBuyerMaker: boolean;
-}
-/**
- * Exchange parameters passed to ClientExchange constructor.
- * Combines schema with runtime dependencies.
- * Note: All exchange methods are required in params (defaults are applied during initialization).
- */
-interface IExchangeParams extends IExchangeSchema {
-    /** Logger service for debug output */
-    logger: ILogger;
-    /** Execution context service (symbol, when, backtest flag) */
-    execution: TExecutionContextService;
-    /** Fetch candles from data source (required, defaults applied) */
-    getCandles: (symbol: string, interval: CandleInterval, since: Date, limit: number, backtest: boolean) => Promise<ICandleData[]>;
-    /** Format quantity according to exchange precision rules (required, defaults applied) */
-    formatQuantity: (symbol: string, quantity: number, backtest: boolean) => Promise<string>;
-    /** Format price according to exchange precision rules (required, defaults applied) */
-    formatPrice: (symbol: string, price: number, backtest: boolean) => Promise<string>;
-    /** Fetch order book for a trading pair (required, defaults applied) */
-    getOrderBook: (symbol: string, depth: number, from: Date, to: Date, backtest: boolean) => Promise<IOrderBookData>;
-    /** Fetch aggregated trades for a trading pair (required, defaults applied) */
-    getAggregatedTrades: (symbol: string, from: Date, to: Date, backtest: boolean) => Promise<IAggregatedTradeData[]>;
-}
-/**
- * Optional callbacks for exchange data events.
- */
-interface IExchangeCallbacks {
-    /** Called when candle data is fetched */
-    onCandleData: (symbol: string, interval: CandleInterval, since: Date, limit: number, data: ICandleData[]) => void | Promise<void>;
-}
-/**
- * Exchange schema registered via addExchange().
- * Defines candle data source and formatting logic.
- */
-interface IExchangeSchema {
-    /** Unique exchange identifier for registration */
-    exchangeName: ExchangeName;
-    /** Optional developer note for documentation */
-    note?: string;
-    /**
-     * Fetch candles from data source (API or database).
-     *
-     * @param symbol - Trading pair symbol (e.g., "BTCUSDT")
-     * @param interval - Candle time interval (e.g., "1m", "1h")
-     * @param since - Start date for candle fetching
-     * @param limit - Maximum number of candles to fetch
-     * @param backtest - Whether running in backtest mode
-     * @returns Promise resolving to array of OHLCV candle data
-     */
-    getCandles: (symbol: string, interval: CandleInterval, since: Date, limit: number, backtest: boolean) => Promise<IPublicCandleData[]>;
-    /**
-     * Format quantity according to exchange precision rules.
-     *
-     * Optional. If not provided, defaults to Bitcoin precision on Binance (8 decimal places).
-     *
-     * @param symbol - Trading pair symbol
-     * @param quantity - Raw quantity value
-     * @param backtest - Whether running in backtest mode
-     * @returns Promise resolving to formatted quantity string
-     */
-    formatQuantity?: (symbol: string, quantity: number, backtest: boolean) => Promise<string>;
-    /**
-     * Format price according to exchange precision rules.
-     *
-     * Optional. If not provided, defaults to Bitcoin precision on Binance (2 decimal places).
-     *
-     * @param symbol - Trading pair symbol
-     * @param price - Raw price value
-     * @param backtest - Whether running in backtest mode
-     * @returns Promise resolving to formatted price string
-     */
-    formatPrice?: (symbol: string, price: number, backtest: boolean) => Promise<string>;
-    /**
-     * Fetch order book for a trading pair.
-     *
-     * Optional. If not provided, throws an error when called.
-     *
-     * @param symbol - Trading pair symbol (e.g., "BTCUSDT")
-     * @param depth - Maximum depth levels for both bids and asks (default: CC_ORDER_BOOK_MAX_DEPTH_LEVELS)
-     * @param from - Start of time range (used in backtest for historical data, can be ignored in live)
-     * @param to - End of time range (used in backtest for historical data, can be ignored in live)
-     * @param backtest - Whether running in backtest mode
-     * @returns Promise resolving to order book data
-     *
-     * @example
-     * ```typescript
-     * // Backtest implementation: returns historical order book for the time range
-     * const backtestOrderBook = async (symbol: string, depth: number, from: Date, to: Date, backtest: boolean) => {
-     *   if (backtest) {
-     *     return await database.getOrderBookSnapshot(symbol, depth, from, to);
-     *   }
-     *   return await exchange.fetchOrderBook(symbol, depth);
-     * };
-     *
-     * // Live implementation: ignores from/to when not in backtest mode
-     * const liveOrderBook = async (symbol: string, depth: number, _from: Date, _to: Date, backtest: boolean) => {
-     *   return await exchange.fetchOrderBook(symbol, depth);
-     * };
-     * ```
-     */
-    getOrderBook?: (symbol: string, depth: number, from: Date, to: Date, backtest: boolean) => Promise<IOrderBookData>;
-    /**
-     * Fetch aggregated trades for a trading pair.
-     * Optional. If not provided, throws an error when called.
-     * @param symbol - Trading pair symbol (e.g., "BTCUSDT")
-     * @param from - Start of time range (used in backtest for historical data, can be ignored in live)
-     * @param to - End of time range (used in backtest for historical data, can be ignored in live)
-     * @param backtest - Whether running in backtest mode
-     * @return Promise resolving to array of aggregated trade data
-     * @example
-     * ```typescript
-     * // Backtest implementation: returns historical aggregated trades for the time range
-     * const backtestAggregatedTrades = async (symbol: string, from: Date, to: Date, backtest: boolean) => {
-     *   if (backtest) {
-     *     return await database.getAggregatedTrades(symbol, from, to);
-     *   }
-     *   return await exchange.fetchAggregatedTrades(symbol);
-     * };
-     *
-     * // Live implementation: ignores from/to when not in backtest mode
-     * const liveAggregatedTrades = async (symbol: string, _from: Date, _to: Date, backtest: boolean) => {
-     *   return await exchange.fetchAggregatedTrades(symbol);
-     * };
-     * ```
-     */
-    getAggregatedTrades?: (symbol: string, from: Date, to: Date, backtest: boolean) => Promise<IAggregatedTradeData[]>;
-    /** Optional lifecycle event callbacks (onCandleData) */
-    callbacks?: Partial<IExchangeCallbacks>;
-}
-/**
- * Exchange interface implemented by ClientExchange.
- * Provides candle data access and VWAP calculation.
- */
-interface IExchange {
-    /**
-     * Fetch historical candles backwards from execution context time.
-     *
-     * @param symbol - Trading pair symbol (e.g., "BTCUSDT")
-     * @param interval - Candle time interval (e.g., "1m", "1h")
-     * @param limit - Maximum number of candles to fetch
-     * @returns Promise resolving to array of candle data
-     */
-    getCandles: (symbol: string, interval: CandleInterval, limit: number) => Promise<ICandleData[]>;
-    /**
-     * Fetch future candles forward from execution context time (for backtest).
-     *
-     * @param symbol - Trading pair symbol (e.g., "BTCUSDT")
-     * @param interval - Candle time interval (e.g., "1m", "1h")
-     * @param limit - Maximum number of candles to fetch
-     * @returns Promise resolving to array of candle data
-     */
-    getNextCandles: (symbol: string, interval: CandleInterval, limit: number) => Promise<ICandleData[]>;
-    /**
-     * Format quantity for exchange precision.
-     *
-     * @param symbol - Trading pair symbol
-     * @param quantity - Raw quantity value
-     * @returns Promise resolving to formatted quantity string
-     */
-    formatQuantity: (symbol: string, quantity: number) => Promise<string>;
-    /**
-     * Format price for exchange precision.
-     *
-     * @param symbol - Trading pair symbol
-     * @param price - Raw price value
-     * @returns Promise resolving to formatted price string
-     */
-    formatPrice: (symbol: string, price: number) => Promise<string>;
-    /**
-     * Calculate VWAP from last 5 1-minute candles.
-     *
-     * Formula: VWAP = Σ(Typical Price × Volume) / Σ(Volume)
-     * where Typical Price = (High + Low + Close) / 3
-     *
-     * @param symbol - Trading pair symbol
-     * @returns Promise resolving to volume-weighted average price
-     */
-    getAveragePrice: (symbol: string) => Promise<number>;
-    /**
-     * Fetch order book for a trading pair.
-     *
-     * @param symbol - Trading pair symbol (e.g., "BTCUSDT")
-     * @param depth - Maximum depth levels (default: CC_ORDER_BOOK_MAX_DEPTH_LEVELS)
-     * @returns Promise resolving to order book data
-     */
-    getOrderBook: (symbol: string, depth?: number) => Promise<IOrderBookData>;
-    /**
-     * Fetch aggregated trades for a trading pair.
-     *
-     * @param symbol - Trading pair symbol (e.g., "BTCUSDT")
-     * @param limit - Optional maximum number of aggregated trades to fetch. If empty returns one hour of data.
-     * @returns Promise resolving to array of aggregated trade data
-     */
-    getAggregatedTrades: (symbol: string, limit?: number) => Promise<IAggregatedTradeData[]>;
-    /**
-     * Fetch raw candles with flexible date/limit parameters.
-     *
-     * All modes respect execution context and prevent look-ahead bias.
-     *
-     * Parameter combinations:
-     * 1. sDate + eDate + limit: fetches with explicit parameters, validates eDate <= when
-     * 2. sDate + eDate: calculates limit from date range, validates eDate <= when
-     * 3. eDate + limit: calculates sDate backward, validates eDate <= when
-     * 4. sDate + limit: fetches forward, validates calculated endTimestamp <= when
-     * 5. Only limit: uses execution.context.when as reference (backward)
-     *
-     * @param symbol - Trading pair symbol (e.g., "BTCUSDT")
-     * @param interval - Candle interval (e.g., "1m", "1h")
-     * @param limit - Optional number of candles to fetch
-     * @param sDate - Optional start date in milliseconds
-     * @param eDate - Optional end date in milliseconds
-     * @returns Promise resolving to array of candles
-     */
-    getRawCandles: (symbol: string, interval: CandleInterval, limit?: number, sDate?: number, eDate?: number) => Promise<ICandleData[]>;
-}
-/**
- * Unique exchange identifier.
- */
-type ExchangeName = string;
-
-/**
- * Parameters for pre-caching candles into persist storage.
- * Used to download historical candle data before running a backtest.
- */
-interface ICacheCandlesParams {
-    /** Trading pair symbol (e.g., "BTCUSDT") */
-    symbol: string;
-    /** Name of the registered exchange schema */
-    exchangeName: ExchangeName;
-    /** Candle time interval (e.g., "1m", "4h") */
-    interval: CandleInterval;
-    /** Start date of the caching range (inclusive) */
-    from: Date;
-    /** End date of the caching range (inclusive) */
-    to: Date;
-}
-/**
- * Parameters for validating cached candle timestamps.
- * Reads JSON files directly from persist storage directory.
- */
-interface ICheckCandlesParams {
-    /** Trading pair symbol (e.g., "BTCUSDT") */
-    symbol: string;
-    /** Name of the registered exchange schema */
-    exchangeName: ExchangeName;
-    /** Candle time interval (e.g., "1m", "4h") */
-    interval: CandleInterval;
-    /** Start date of the validation range (inclusive) */
-    from: Date;
-    /** End date of the validation range (inclusive) */
-    to: Date;
-    /** Base directory of candle persist storage (default: "./dump/data/candle") */
-    baseDir?: string;
-}
-/**
- * Checks cached candle timestamps for correct interval alignment.
- * Reads JSON files directly from persist storage without using abstractions.
- *
- * @param params - Validation parameters
- */
-declare function checkCandles(params: ICheckCandlesParams): Promise<void>;
-/**
- * Pre-caches candles for a date range into persist storage.
- * Downloads all candles matching the interval from `from` to `to`.
- *
- * @param params - Cache parameters
- */
-declare function warmCandles(params: ICacheCandlesParams): Promise<void>;
-
-/**
- * Type alias for enum objects with string key-value pairs
- */
-type Enum = Record<string, string>;
-/**
- * Type alias for ValidateArgs with any enum type
- */
-type Args = ValidateArgs<any>;
-/**
- * Interface defining validation arguments for all entity types.
- *
- * Each property accepts an enum object where values will be validated
- * against registered entities in their respective validation services.
- *
- * @template T - Enum type extending Record<string, string>
- */
-interface ValidateArgs<T = Enum> {
-    /**
-     * Exchange name enum to validate
-     * @example { BINANCE: "binance", BYBIT: "bybit" }
-     */
-    ExchangeName?: T;
-    /**
-     * Frame (timeframe) name enum to validate
-     * @example { Q1_2024: "2024-Q1", Q2_2024: "2024-Q2" }
-     */
-    FrameName?: T;
-    /**
-     * Strategy name enum to validate
-     * @example { MOMENTUM_BTC: "momentum-btc" }
-     */
-    StrategyName?: T;
-    /**
-     * Risk profile name enum to validate
-     * @example { CONSERVATIVE: "conservative", AGGRESSIVE: "aggressive" }
-     */
-    RiskName?: T;
-    /**
-     * Action handler name enum to validate
-     * @example { TELEGRAM_NOTIFIER: "telegram-notifier" }
-     */
-    ActionName?: T;
-    /**
-     * Sizing strategy name enum to validate
-     * @example { FIXED_1000: "fixed-1000" }
-     */
-    SizingName?: T;
-    /**
-     * Walker (parameter sweep) name enum to validate
-     * @example { RSI_SWEEP: "rsi-sweep" }
-     */
-    WalkerName?: T;
-}
-/**
- * Validates the existence of all provided entity names across validation services.
- *
- * This function accepts enum objects for various entity types (exchanges, frames,
- * strategies, risks, sizings, walkers) and validates that each entity
- * name exists in its respective registry. Validation results are memoized for performance.
- *
- * If no arguments are provided (or specific entity types are omitted), the function
- * automatically fetches and validates ALL registered entities from their respective
- * validation services. This is useful for comprehensive validation of the entire setup.
- *
- * Use this before running backtests or optimizations to ensure all referenced
- * entities are properly registered and configured.
- *
- * @public
- * @param args - Partial validation arguments containing entity name enums to validate.
- *                If empty or omitted, validates all registered entities.
- * @throws {Error} If any entity name is not found in its validation service
- *
- * @example
- * ```typescript
- * // Validate ALL registered entities (exchanges, frames, strategies, etc.)
- * await validate({});
- * ```
- *
- * @example
- * ```typescript
- * // Define your entity name enums
- * enum ExchangeName {
- *   BINANCE = "binance",
- *   BYBIT = "bybit"
- * }
- *
- * enum StrategyName {
- *   MOMENTUM_BTC = "momentum-btc"
- * }
- *
- * // Validate specific entities before running backtest
- * await validate({
- *   ExchangeName,
- *   StrategyName,
- * });
- * ```
- *
- * @example
- * ```typescript
- * // Validate specific entity types
- * await validate({
- *   RiskName: { CONSERVATIVE: "conservative" },
- *   SizingName: { FIXED_1000: "fixed-1000" },
- * });
- * ```
- */
-declare function validate(args?: Partial<Args>): Promise<void>;
-
-/**
  * Timeframe interval for backtest period generation.
  * Determines the granularity of timestamps in the generated timeframe array.
  *
@@ -637,48 +141,6 @@ interface IFrame {
  * Used to retrieve frame instances via dependency injection.
  */
 type FrameName = string;
-
-/**
- * Method context containing schema names for operation routing.
- *
- * Propagated through MethodContextService to provide implicit context
- * for retrieving correct strategy/exchange/frame instances.
- */
-interface IMethodContext {
-    /** Name of exchange schema to use */
-    exchangeName: ExchangeName;
-    /** Name of strategy schema to use */
-    strategyName: StrategyName;
-    /** Name of frame schema to use (empty string for live mode) */
-    frameName: FrameName;
-}
-/**
- * Scoped service for method context propagation.
- *
- * Uses di-scoped for implicit context passing without explicit parameters.
- * Context includes strategyName, exchangeName, and frameName.
- *
- * Used by PublicServices to inject schema names into ConnectionServices.
- *
- * @example
- * ```typescript
- * MethodContextService.runAsyncIterator(
- *   backtestGenerator,
- *   {
- *     strategyName: "my-strategy",
- *     exchangeName: "my-exchange",
- *     frameName: "1d-backtest"
- *   }
- * );
- * ```
- */
-declare const MethodContextService: (new () => {
-    readonly context: IMethodContext;
-}) & Omit<{
-    new (context: IMethodContext): {
-        readonly context: IMethodContext;
-    };
-}, "prototype"> & di_scoped.IScopedClassRun<[context: IMethodContext]>;
 
 /**
  * Risk rejection result type.
@@ -3476,6 +2938,548 @@ interface IStrategy {
  * Unique strategy identifier.
  */
 type StrategyName = string;
+
+/**
+ * Method context containing schema names for operation routing.
+ *
+ * Propagated through MethodContextService to provide implicit context
+ * for retrieving correct strategy/exchange/frame instances.
+ */
+interface IMethodContext {
+    /** Name of exchange schema to use */
+    exchangeName: ExchangeName;
+    /** Name of strategy schema to use */
+    strategyName: StrategyName;
+    /** Name of frame schema to use (empty string for live mode) */
+    frameName: FrameName;
+}
+/**
+ * Scoped service for method context propagation.
+ *
+ * Uses di-scoped for implicit context passing without explicit parameters.
+ * Context includes strategyName, exchangeName, and frameName.
+ *
+ * Used by PublicServices to inject schema names into ConnectionServices.
+ *
+ * @example
+ * ```typescript
+ * MethodContextService.runAsyncIterator(
+ *   backtestGenerator,
+ *   {
+ *     strategyName: "my-strategy",
+ *     exchangeName: "my-exchange",
+ *     frameName: "1d-backtest"
+ *   }
+ * );
+ * ```
+ */
+declare const MethodContextService: (new () => {
+    readonly context: IMethodContext;
+}) & Omit<{
+    new (context: IMethodContext): {
+        readonly context: IMethodContext;
+    };
+}, "prototype"> & di_scoped.IScopedClassRun<[context: IMethodContext]>;
+
+/**
+ * Single log entry stored in the log history.
+ */
+interface ILogEntry {
+    /** Unique entry identifier generated via randomString */
+    id: string;
+    /** Log level */
+    type: "log" | "debug" | "info" | "warn";
+    /** Unix timestamp in milliseconds when the entry was created */
+    timestamp: number;
+    /** Date taken from backtest context to improve user experience */
+    createdAt: string;
+    /** Optional method context associated with the log entry, providing additional details about the execution environment or state when the log was recorded */
+    methodContext: IMethodContext | null;
+    /** Optional execution context associated with the log entry, providing additional details about the execution environment or state when the log was recorded */
+    executionContext: IExecutionContext | null;
+    /** Log topic / method name */
+    topic: string;
+    /** Additional arguments passed to the log call */
+    args: unknown[];
+}
+/**
+ * Interface representing a logging mechanism for the swarm system.
+ * Provides methods to record messages at different severity levels, used across components like agents, sessions, states, storage, swarms, history, embeddings, completions, and policies.
+ * Logs are utilized to track lifecycle events (e.g., initialization, disposal), operational details (e.g., tool calls, message emissions), validation outcomes (e.g., policy checks), and errors (e.g., persistence failures), aiding in debugging, monitoring, and auditing.
+*/
+interface ILogger {
+    /**
+     * Logs a general-purpose message.
+     * Used throughout the swarm system to record significant events or state changes, such as agent execution, session connections, or storage updates.
+     */
+    log(topic: string, ...args: any[]): void;
+    /**
+     * Logs a debug-level message.
+     * Employed for detailed diagnostic information, such as intermediate states during agent tool calls, swarm navigation changes, or embedding creation processes, typically enabled in development or troubleshooting scenarios.
+     */
+    debug(topic: string, ...args: any[]): void;
+    /**
+     * Logs an info-level message.
+     * Used to record informational updates, such as successful completions, policy validations, or history commits, providing a high-level overview of system activity without excessive detail.
+     */
+    info(topic: string, ...args: any[]): void;
+    /**
+     * Logs a warning-level message.
+     * Used to record potentially problematic situations that don't prevent execution but may require attention, such as missing data, unexpected conditions, or deprecated usage.
+     */
+    warn(topic: string, ...args: any[]): void;
+}
+
+/**
+ * Candle time interval for fetching historical data.
+ */
+type CandleInterval = "1m" | "3m" | "5m" | "15m" | "30m" | "1h" | "2h" | "4h" | "6h" | "8h";
+/** Numeric type that can be undefined (used for optional numeric values) */
+type Num = number | undefined;
+interface IPublicCandleData {
+    /** Unix timestamp in milliseconds when candle opened */
+    timestamp: Num;
+    /** Opening price at candle start */
+    open: Num;
+    /** Highest price during candle period */
+    high: Num;
+    /** Lowest price during candle period */
+    low: Num;
+    /** Closing price at candle end */
+    close: Num;
+    /** Trading volume during candle period */
+    volume: Num;
+}
+/**
+ * Single OHLCV candle data point.
+ * Used for VWAP calculation and backtesting.
+ */
+interface ICandleData {
+    /** Unix timestamp in milliseconds when candle opened */
+    timestamp: number;
+    /** Opening price at candle start */
+    open: number;
+    /** Highest price during candle period */
+    high: number;
+    /** Lowest price during candle period */
+    low: number;
+    /** Closing price at candle end */
+    close: number;
+    /** Trading volume during candle period */
+    volume: number;
+}
+/**
+ * Single bid or ask in order book.
+ */
+interface IBidData {
+    /** Price level as string */
+    price: string;
+    /** Quantity at this price level as string */
+    quantity: string;
+}
+/**
+ * Order book data containing bids and asks.
+ */
+interface IOrderBookData {
+    /** Trading pair symbol */
+    symbol: string;
+    /** Array of bid orders (buy orders) */
+    bids: IBidData[];
+    /** Array of ask orders (sell orders) */
+    asks: IBidData[];
+}
+/**
+ * Aggregated trade data point.
+ * Represents a single trade that has occurred, used for detailed analysis and backtesting.
+ * Includes price, quantity, timestamp, and whether the buyer is the market maker (which can indicate trade direction).
+ *
+ */
+interface IAggregatedTradeData {
+    /** Unique identifier for the aggregated trade */
+    id: string;
+    /** Price at which the trade occurred */
+    price: number;
+    /** Quantity traded */
+    qty: number;
+    /** Unix timestamp in milliseconds when the trade occurred */
+    timestamp: number;
+    /** Whether the buyer is the market maker (true if buyer is maker, false if seller is maker) */
+    isBuyerMaker: boolean;
+}
+/**
+ * Exchange parameters passed to ClientExchange constructor.
+ * Combines schema with runtime dependencies.
+ * Note: All exchange methods are required in params (defaults are applied during initialization).
+ */
+interface IExchangeParams extends IExchangeSchema {
+    /** Logger service for debug output */
+    logger: ILogger;
+    /** Execution context service (symbol, when, backtest flag) */
+    execution: TExecutionContextService;
+    /** Fetch candles from data source (required, defaults applied) */
+    getCandles: (symbol: string, interval: CandleInterval, since: Date, limit: number, backtest: boolean) => Promise<ICandleData[]>;
+    /** Format quantity according to exchange precision rules (required, defaults applied) */
+    formatQuantity: (symbol: string, quantity: number, backtest: boolean) => Promise<string>;
+    /** Format price according to exchange precision rules (required, defaults applied) */
+    formatPrice: (symbol: string, price: number, backtest: boolean) => Promise<string>;
+    /** Fetch order book for a trading pair (required, defaults applied) */
+    getOrderBook: (symbol: string, depth: number, from: Date, to: Date, backtest: boolean) => Promise<IOrderBookData>;
+    /** Fetch aggregated trades for a trading pair (required, defaults applied) */
+    getAggregatedTrades: (symbol: string, from: Date, to: Date, backtest: boolean) => Promise<IAggregatedTradeData[]>;
+}
+/**
+ * Optional callbacks for exchange data events.
+ */
+interface IExchangeCallbacks {
+    /** Called when candle data is fetched */
+    onCandleData: (symbol: string, interval: CandleInterval, since: Date, limit: number, data: ICandleData[]) => void | Promise<void>;
+}
+/**
+ * Exchange schema registered via addExchange().
+ * Defines candle data source and formatting logic.
+ */
+interface IExchangeSchema {
+    /** Unique exchange identifier for registration */
+    exchangeName: ExchangeName;
+    /** Optional developer note for documentation */
+    note?: string;
+    /**
+     * Fetch candles from data source (API or database).
+     *
+     * @param symbol - Trading pair symbol (e.g., "BTCUSDT")
+     * @param interval - Candle time interval (e.g., "1m", "1h")
+     * @param since - Start date for candle fetching
+     * @param limit - Maximum number of candles to fetch
+     * @param backtest - Whether running in backtest mode
+     * @returns Promise resolving to array of OHLCV candle data
+     */
+    getCandles: (symbol: string, interval: CandleInterval, since: Date, limit: number, backtest: boolean) => Promise<IPublicCandleData[]>;
+    /**
+     * Format quantity according to exchange precision rules.
+     *
+     * Optional. If not provided, defaults to Bitcoin precision on Binance (8 decimal places).
+     *
+     * @param symbol - Trading pair symbol
+     * @param quantity - Raw quantity value
+     * @param backtest - Whether running in backtest mode
+     * @returns Promise resolving to formatted quantity string
+     */
+    formatQuantity?: (symbol: string, quantity: number, backtest: boolean) => Promise<string>;
+    /**
+     * Format price according to exchange precision rules.
+     *
+     * Optional. If not provided, defaults to Bitcoin precision on Binance (2 decimal places).
+     *
+     * @param symbol - Trading pair symbol
+     * @param price - Raw price value
+     * @param backtest - Whether running in backtest mode
+     * @returns Promise resolving to formatted price string
+     */
+    formatPrice?: (symbol: string, price: number, backtest: boolean) => Promise<string>;
+    /**
+     * Fetch order book for a trading pair.
+     *
+     * Optional. If not provided, throws an error when called.
+     *
+     * @param symbol - Trading pair symbol (e.g., "BTCUSDT")
+     * @param depth - Maximum depth levels for both bids and asks (default: CC_ORDER_BOOK_MAX_DEPTH_LEVELS)
+     * @param from - Start of time range (used in backtest for historical data, can be ignored in live)
+     * @param to - End of time range (used in backtest for historical data, can be ignored in live)
+     * @param backtest - Whether running in backtest mode
+     * @returns Promise resolving to order book data
+     *
+     * @example
+     * ```typescript
+     * // Backtest implementation: returns historical order book for the time range
+     * const backtestOrderBook = async (symbol: string, depth: number, from: Date, to: Date, backtest: boolean) => {
+     *   if (backtest) {
+     *     return await database.getOrderBookSnapshot(symbol, depth, from, to);
+     *   }
+     *   return await exchange.fetchOrderBook(symbol, depth);
+     * };
+     *
+     * // Live implementation: ignores from/to when not in backtest mode
+     * const liveOrderBook = async (symbol: string, depth: number, _from: Date, _to: Date, backtest: boolean) => {
+     *   return await exchange.fetchOrderBook(symbol, depth);
+     * };
+     * ```
+     */
+    getOrderBook?: (symbol: string, depth: number, from: Date, to: Date, backtest: boolean) => Promise<IOrderBookData>;
+    /**
+     * Fetch aggregated trades for a trading pair.
+     * Optional. If not provided, throws an error when called.
+     * @param symbol - Trading pair symbol (e.g., "BTCUSDT")
+     * @param from - Start of time range (used in backtest for historical data, can be ignored in live)
+     * @param to - End of time range (used in backtest for historical data, can be ignored in live)
+     * @param backtest - Whether running in backtest mode
+     * @return Promise resolving to array of aggregated trade data
+     * @example
+     * ```typescript
+     * // Backtest implementation: returns historical aggregated trades for the time range
+     * const backtestAggregatedTrades = async (symbol: string, from: Date, to: Date, backtest: boolean) => {
+     *   if (backtest) {
+     *     return await database.getAggregatedTrades(symbol, from, to);
+     *   }
+     *   return await exchange.fetchAggregatedTrades(symbol);
+     * };
+     *
+     * // Live implementation: ignores from/to when not in backtest mode
+     * const liveAggregatedTrades = async (symbol: string, _from: Date, _to: Date, backtest: boolean) => {
+     *   return await exchange.fetchAggregatedTrades(symbol);
+     * };
+     * ```
+     */
+    getAggregatedTrades?: (symbol: string, from: Date, to: Date, backtest: boolean) => Promise<IAggregatedTradeData[]>;
+    /** Optional lifecycle event callbacks (onCandleData) */
+    callbacks?: Partial<IExchangeCallbacks>;
+}
+/**
+ * Exchange interface implemented by ClientExchange.
+ * Provides candle data access and VWAP calculation.
+ */
+interface IExchange {
+    /**
+     * Fetch historical candles backwards from execution context time.
+     *
+     * @param symbol - Trading pair symbol (e.g., "BTCUSDT")
+     * @param interval - Candle time interval (e.g., "1m", "1h")
+     * @param limit - Maximum number of candles to fetch
+     * @returns Promise resolving to array of candle data
+     */
+    getCandles: (symbol: string, interval: CandleInterval, limit: number) => Promise<ICandleData[]>;
+    /**
+     * Fetch future candles forward from execution context time (for backtest).
+     *
+     * @param symbol - Trading pair symbol (e.g., "BTCUSDT")
+     * @param interval - Candle time interval (e.g., "1m", "1h")
+     * @param limit - Maximum number of candles to fetch
+     * @returns Promise resolving to array of candle data
+     */
+    getNextCandles: (symbol: string, interval: CandleInterval, limit: number) => Promise<ICandleData[]>;
+    /**
+     * Format quantity for exchange precision.
+     *
+     * @param symbol - Trading pair symbol
+     * @param quantity - Raw quantity value
+     * @returns Promise resolving to formatted quantity string
+     */
+    formatQuantity: (symbol: string, quantity: number) => Promise<string>;
+    /**
+     * Format price for exchange precision.
+     *
+     * @param symbol - Trading pair symbol
+     * @param price - Raw price value
+     * @returns Promise resolving to formatted price string
+     */
+    formatPrice: (symbol: string, price: number) => Promise<string>;
+    /**
+     * Calculate VWAP from last 5 1-minute candles.
+     *
+     * Formula: VWAP = Σ(Typical Price × Volume) / Σ(Volume)
+     * where Typical Price = (High + Low + Close) / 3
+     *
+     * @param symbol - Trading pair symbol
+     * @returns Promise resolving to volume-weighted average price
+     */
+    getAveragePrice: (symbol: string) => Promise<number>;
+    /**
+     * Fetch order book for a trading pair.
+     *
+     * @param symbol - Trading pair symbol (e.g., "BTCUSDT")
+     * @param depth - Maximum depth levels (default: CC_ORDER_BOOK_MAX_DEPTH_LEVELS)
+     * @returns Promise resolving to order book data
+     */
+    getOrderBook: (symbol: string, depth?: number) => Promise<IOrderBookData>;
+    /**
+     * Fetch aggregated trades for a trading pair.
+     *
+     * @param symbol - Trading pair symbol (e.g., "BTCUSDT")
+     * @param limit - Optional maximum number of aggregated trades to fetch. If empty returns one hour of data.
+     * @returns Promise resolving to array of aggregated trade data
+     */
+    getAggregatedTrades: (symbol: string, limit?: number) => Promise<IAggregatedTradeData[]>;
+    /**
+     * Fetch raw candles with flexible date/limit parameters.
+     *
+     * All modes respect execution context and prevent look-ahead bias.
+     *
+     * Parameter combinations:
+     * 1. sDate + eDate + limit: fetches with explicit parameters, validates eDate <= when
+     * 2. sDate + eDate: calculates limit from date range, validates eDate <= when
+     * 3. eDate + limit: calculates sDate backward, validates eDate <= when
+     * 4. sDate + limit: fetches forward, validates calculated endTimestamp <= when
+     * 5. Only limit: uses execution.context.when as reference (backward)
+     *
+     * @param symbol - Trading pair symbol (e.g., "BTCUSDT")
+     * @param interval - Candle interval (e.g., "1m", "1h")
+     * @param limit - Optional number of candles to fetch
+     * @param sDate - Optional start date in milliseconds
+     * @param eDate - Optional end date in milliseconds
+     * @returns Promise resolving to array of candles
+     */
+    getRawCandles: (symbol: string, interval: CandleInterval, limit?: number, sDate?: number, eDate?: number) => Promise<ICandleData[]>;
+}
+/**
+ * Unique exchange identifier.
+ */
+type ExchangeName = string;
+
+/**
+ * Parameters for pre-caching candles into persist storage.
+ * Used to download historical candle data before running a backtest.
+ */
+interface ICacheCandlesParams {
+    /** Trading pair symbol (e.g., "BTCUSDT") */
+    symbol: string;
+    /** Name of the registered exchange schema */
+    exchangeName: ExchangeName;
+    /** Candle time interval (e.g., "1m", "4h") */
+    interval: CandleInterval;
+    /** Start date of the caching range (inclusive) */
+    from: Date;
+    /** End date of the caching range (inclusive) */
+    to: Date;
+}
+/**
+ * Parameters for validating cached candle timestamps.
+ * Reads JSON files directly from persist storage directory.
+ */
+interface ICheckCandlesParams {
+    /** Trading pair symbol (e.g., "BTCUSDT") */
+    symbol: string;
+    /** Name of the registered exchange schema */
+    exchangeName: ExchangeName;
+    /** Candle time interval (e.g., "1m", "4h") */
+    interval: CandleInterval;
+    /** Start date of the validation range (inclusive) */
+    from: Date;
+    /** End date of the validation range (inclusive) */
+    to: Date;
+    /** Base directory of candle persist storage (default: "./dump/data/candle") */
+    baseDir?: string;
+}
+/**
+ * Checks cached candle timestamps for correct interval alignment.
+ * Reads JSON files directly from persist storage without using abstractions.
+ *
+ * @param params - Validation parameters
+ */
+declare function checkCandles(params: ICheckCandlesParams): Promise<void>;
+/**
+ * Pre-caches candles for a date range into persist storage.
+ * Downloads all candles matching the interval from `from` to `to`.
+ *
+ * @param params - Cache parameters
+ */
+declare function warmCandles(params: ICacheCandlesParams): Promise<void>;
+
+/**
+ * Type alias for enum objects with string key-value pairs
+ */
+type Enum = Record<string, string>;
+/**
+ * Type alias for ValidateArgs with any enum type
+ */
+type Args = ValidateArgs<any>;
+/**
+ * Interface defining validation arguments for all entity types.
+ *
+ * Each property accepts an enum object where values will be validated
+ * against registered entities in their respective validation services.
+ *
+ * @template T - Enum type extending Record<string, string>
+ */
+interface ValidateArgs<T = Enum> {
+    /**
+     * Exchange name enum to validate
+     * @example { BINANCE: "binance", BYBIT: "bybit" }
+     */
+    ExchangeName?: T;
+    /**
+     * Frame (timeframe) name enum to validate
+     * @example { Q1_2024: "2024-Q1", Q2_2024: "2024-Q2" }
+     */
+    FrameName?: T;
+    /**
+     * Strategy name enum to validate
+     * @example { MOMENTUM_BTC: "momentum-btc" }
+     */
+    StrategyName?: T;
+    /**
+     * Risk profile name enum to validate
+     * @example { CONSERVATIVE: "conservative", AGGRESSIVE: "aggressive" }
+     */
+    RiskName?: T;
+    /**
+     * Action handler name enum to validate
+     * @example { TELEGRAM_NOTIFIER: "telegram-notifier" }
+     */
+    ActionName?: T;
+    /**
+     * Sizing strategy name enum to validate
+     * @example { FIXED_1000: "fixed-1000" }
+     */
+    SizingName?: T;
+    /**
+     * Walker (parameter sweep) name enum to validate
+     * @example { RSI_SWEEP: "rsi-sweep" }
+     */
+    WalkerName?: T;
+}
+/**
+ * Validates the existence of all provided entity names across validation services.
+ *
+ * This function accepts enum objects for various entity types (exchanges, frames,
+ * strategies, risks, sizings, walkers) and validates that each entity
+ * name exists in its respective registry. Validation results are memoized for performance.
+ *
+ * If no arguments are provided (or specific entity types are omitted), the function
+ * automatically fetches and validates ALL registered entities from their respective
+ * validation services. This is useful for comprehensive validation of the entire setup.
+ *
+ * Use this before running backtests or optimizations to ensure all referenced
+ * entities are properly registered and configured.
+ *
+ * @public
+ * @param args - Partial validation arguments containing entity name enums to validate.
+ *                If empty or omitted, validates all registered entities.
+ * @throws {Error} If any entity name is not found in its validation service
+ *
+ * @example
+ * ```typescript
+ * // Validate ALL registered entities (exchanges, frames, strategies, etc.)
+ * await validate({});
+ * ```
+ *
+ * @example
+ * ```typescript
+ * // Define your entity name enums
+ * enum ExchangeName {
+ *   BINANCE = "binance",
+ *   BYBIT = "bybit"
+ * }
+ *
+ * enum StrategyName {
+ *   MOMENTUM_BTC = "momentum-btc"
+ * }
+ *
+ * // Validate specific entities before running backtest
+ * await validate({
+ *   ExchangeName,
+ *   StrategyName,
+ * });
+ * ```
+ *
+ * @example
+ * ```typescript
+ * // Validate specific entity types
+ * await validate({
+ *   RiskName: { CONSERVATIVE: "conservative" },
+ *   SizingName: { FIXED_1000: "fixed-1000" },
+ * });
+ * ```
+ */
+declare function validate(args?: Partial<Args>): Promise<void>;
 
 /**
  * Statistical data calculated from backtest results.
@@ -9995,6 +9999,15 @@ declare class LogAdapter implements ILog {
      * All future log writes will be no-ops.
      */
     useDummy: () => void;
+    /**
+     * Switches to JSONL file log adapter.
+     * Log entries will be appended to {dirName}/{fileName}.jsonl.
+     * Reads are performed by parsing all lines from the file.
+     *
+     * @param fileName - Base file name without extension (default: "log")
+     * @param dirName - Directory for the JSONL file (default: ./dump/log)
+     */
+    useJsonl: (fileName?: string, dirName?: string) => void;
 }
 /**
  * Global singleton instance of LogAdapter.
