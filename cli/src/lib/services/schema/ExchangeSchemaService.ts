@@ -71,6 +71,21 @@ const ADD_EXCHANGE_FN = (self: ExchangeSchemaService) => {
         })),
       };
     },
+    getAggregatedTrades: async (symbol: string, from: Date, to: Date) => {
+      const exchange = await getExchange();
+      const response = await exchange.publicGetAggTrades({
+        symbol,
+        startTime: from.getTime(),
+        endTime: to.getTime(),
+      });
+      return response.map((t: any) => ({
+        id: String(t.a),
+        price: parseFloat(t.p),
+        qty: parseFloat(t.q),
+        timestamp: t.T,
+        isBuyerMaker: t.m,
+      }));
+    }
   });
 };
 
