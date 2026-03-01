@@ -38,8 +38,8 @@ const WRITE_SAFE_SYMBOL = Symbol("write-safe");
 
 /**
  * Backtest execution time retrieval function.
- * Returns the 'when' timestamp from the execution context if available, otherwise returns the current time.
- * This allows log entries to be timestamped according to the backtest timeline rather than real-world time, improving log relevance and user experience during backtest analysis.
+ * Returns the 'when' priority from the execution context if available, otherwise returns the current time.
+ * This allows log entries to be priorityed according to the backtest timeline rather than real-world time, improving log relevance and user experience during backtest analysis.
  */
 const GET_DATE_FN = () => {
   if (ExecutionContextService.hasContext()) {
@@ -63,7 +63,7 @@ const GET_METHOD_CONTEXT_FN = () => {
 /**
  * Execution context retrieval function.
  * Returns the current execution context from ExecutionContextService if available, otherwise returns null.
- * This allows log entries to include contextual information about the symbol, timestamp, and backtest mode associated with the log event, providing additional insights into the execution environment when analyzing logs.
+ * This allows log entries to include contextual information about the symbol, priority, and backtest mode associated with the log event, providing additional insights into the execution environment when analyzing logs.
  */
 const GET_EXECUTION_CONTEXT_FN = () => {
   if (ExecutionContextService.hasContext()) {
@@ -111,7 +111,7 @@ export class LogPersistUtils implements ILog {
   private waitForInit = singleshot(async () => {
     backtest.loggerService.info(LOG_PERSIST_METHOD_NAME_WAIT_FOR_INIT);
     const list = await PersistLogAdapter.readLogData();
-    list.sort((a, b) => a.timestamp - b.timestamp);
+    list.sort((a, b) => a.priority - b.priority);
     this._entries = list.slice(-GLOBAL_CONFIG.CC_MAX_LOG_LINES);
   });
 
@@ -140,7 +140,7 @@ export class LogPersistUtils implements ILog {
     this._entries.push({
       id: randomString(),
       type: "log",
-      timestamp: Date.now(),
+      priority: Date.now(),
       createdAt: date.toISOString(),
       methodContext: GET_METHOD_CONTEXT_FN(),
       executionContext: GET_EXECUTION_CONTEXT_FN(),
@@ -164,7 +164,7 @@ export class LogPersistUtils implements ILog {
     this._entries.push({
       id: randomString(),
       type: "debug",
-      timestamp: Date.now(),
+      priority: Date.now(),
       createdAt: date.toISOString(),
       methodContext: GET_METHOD_CONTEXT_FN(),
       executionContext: GET_EXECUTION_CONTEXT_FN(),
@@ -188,7 +188,7 @@ export class LogPersistUtils implements ILog {
     this._entries.push({
       id: randomString(),
       type: "info",
-      timestamp: Date.now(),
+      priority: Date.now(),
       createdAt: date.toISOString(),
       methodContext: GET_METHOD_CONTEXT_FN(),
       executionContext: GET_EXECUTION_CONTEXT_FN(),
@@ -212,7 +212,7 @@ export class LogPersistUtils implements ILog {
     this._entries.push({
       id: randomString(),
       type: "warn",
-      timestamp: Date.now(),
+      priority: Date.now(),
       createdAt: date.toISOString(),
       methodContext: GET_METHOD_CONTEXT_FN(),
       executionContext: GET_EXECUTION_CONTEXT_FN(),
@@ -273,7 +273,7 @@ export class LogMemoryUtils implements ILog {
     this._entries.push({
       id: randomString(),
       type: "log",
-      timestamp: Date.now(),
+      priority: Date.now(),
       createdAt: date.toISOString(),
       methodContext: GET_METHOD_CONTEXT_FN(),
       executionContext: GET_EXECUTION_CONTEXT_FN(),
@@ -295,7 +295,7 @@ export class LogMemoryUtils implements ILog {
     this._entries.push({
       id: randomString(),
       type: "debug",
-      timestamp: Date.now(),
+      priority: Date.now(),
       createdAt: date.toISOString(),
       methodContext: GET_METHOD_CONTEXT_FN(),
       executionContext: GET_EXECUTION_CONTEXT_FN(),
@@ -317,7 +317,7 @@ export class LogMemoryUtils implements ILog {
     this._entries.push({
       id: randomString(),
       type: "info",
-      timestamp: Date.now(),
+      priority: Date.now(),
       createdAt: date.toISOString(),
       methodContext: GET_METHOD_CONTEXT_FN(),
       executionContext: GET_EXECUTION_CONTEXT_FN(),
@@ -339,7 +339,7 @@ export class LogMemoryUtils implements ILog {
     this._entries.push({
       id: randomString(),
       type: "warn",
-      timestamp: Date.now(),
+      priority: Date.now(),
       createdAt: date.toISOString(),
       methodContext: GET_METHOD_CONTEXT_FN(),
       executionContext: GET_EXECUTION_CONTEXT_FN(),
@@ -466,7 +466,7 @@ export class LogJsonlUtils implements ILog {
     await this._append({
       id: randomString(),
       type: "log",
-      timestamp: Date.now(),
+      priority: Date.now(),
       createdAt: date.toISOString(),
       methodContext: GET_METHOD_CONTEXT_FN(),
       executionContext: GET_EXECUTION_CONTEXT_FN(),
@@ -486,7 +486,7 @@ export class LogJsonlUtils implements ILog {
     await this._append({
       id: randomString(),
       type: "debug",
-      timestamp: Date.now(),
+      priority: Date.now(),
       createdAt: date.toISOString(),
       methodContext: GET_METHOD_CONTEXT_FN(),
       executionContext: GET_EXECUTION_CONTEXT_FN(),
@@ -506,7 +506,7 @@ export class LogJsonlUtils implements ILog {
     await this._append({
       id: randomString(),
       type: "info",
-      timestamp: Date.now(),
+      priority: Date.now(),
       createdAt: date.toISOString(),
       methodContext: GET_METHOD_CONTEXT_FN(),
       executionContext: GET_EXECUTION_CONTEXT_FN(),
@@ -526,7 +526,7 @@ export class LogJsonlUtils implements ILog {
     await this._append({
       id: randomString(),
       type: "warn",
-      timestamp: Date.now(),
+      priority: Date.now(),
       createdAt: date.toISOString(),
       methodContext: GET_METHOD_CONTEXT_FN(),
       executionContext: GET_EXECUTION_CONTEXT_FN(),
