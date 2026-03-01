@@ -366,12 +366,14 @@ export class CacheFileInstance<T extends CacheFileFunction = CacheFileFunction> 
    *
    * @param fn - Async function to cache
    * @param interval - Candle interval for cache invalidation
+   * @param name - Human-readable bucket name used as the directory key (replaces symbol in bucket path)
    * @param key - Dynamic key generator; receives all args, must return a string.
-   *              Default: `([symbol, interval]) => \`${symbol}_${interval}\``
+   *              Default: `([symbol, alignMs]) => \`${symbol}_${alignMs}\``
    */
   constructor(
     readonly fn: T,
     readonly interval: CandleInterval,
+    readonly name: string,
     readonly key: (args: CacheFileKeyArgs<T>) => string = ([symbol, alignMs]) => `${symbol}_${alignMs}`
   ) {
     this.index = CacheFileInstance.createIndex();
@@ -415,7 +417,7 @@ export class CacheFileInstance<T extends CacheFileFunction = CacheFileFunction> 
 
     const { when } = backtest.executionContextService.context;
     const alignedTs = align(when.getTime(), this.interval);
-    const bucket = `${symbol}_${this.interval}_${this.index}`;
+    const bucket = `${this.name}_${this.interval}_${this.index}`;
 
     const entityKey = this.key([symbol, alignedTs, ...rest as DropFirst<T>]);
 
@@ -468,8 +470,9 @@ export class CacheUtils {
     <T extends CacheFileFunction>(
       run: T,
       interval: CandleInterval,
+      name: string,
       key?: (args: CacheFileKeyArgs<T>) => string
-    ) => new CacheFileInstance(run, interval, key)
+    ) => new CacheFileInstance(run, interval, name, key)
   );
 
   /**
@@ -560,13 +563,14 @@ export class CacheUtils {
     run: T,
     context: {
       interval: CandleInterval;
+      name: string;
       key?: (args:  CacheFileKeyArgs<T>) => string;
     }
   ): T => {
     backtest.loggerService.info(CACHE_METHOD_NAME_FILE, { context });
 
     const wrappedFn = (...args: Parameters<T>): ReturnType<T> => {
-      const instance = this._getFileInstance(run, context.interval, context.key);
+      const instance = this._getFileInstance(run, context.interval, context.name, context.key);
       return instance.run(...args) as ReturnType<T>;
     };
 
