@@ -8459,6 +8459,10 @@ declare const BASE_WAIT_FOR_INIT_SYMBOL: unique symbol;
  */
 type SignalData = ISignalRow | null;
 /**
+ * Cache.file data type stored in persistence layer.
+ */
+type MeasureData = unknown;
+/**
  * Type helper for PersistBase instance.
  */
 type TPersistBase = InstanceType<typeof PersistBase>;
@@ -9329,6 +9333,57 @@ declare class PersistLogUtils {
  * Used by LogPersistUtils for log entry persistence.
  */
 declare const PersistLogAdapter: PersistLogUtils;
+/**
+ * Utility class for managing external API response cache persistence.
+ *
+ * Features:
+ * - Memoized storage instances per cache bucket (aligned timestamp + symbol)
+ * - Custom adapter support
+ * - Atomic read/write operations
+ * - Crash-safe cache state management
+ *
+ * Used by Cache.file for persistent caching of external API responses.
+ */
+declare class PersistMeasureUtils {
+    private PersistMeasureFactory;
+    private getMeasureStorage;
+    /**
+     * Registers a custom persistence adapter.
+     *
+     * @param Ctor - Custom PersistBase constructor
+     */
+    usePersistMeasureAdapter(Ctor: TPersistBaseCtor<string, unknown>): void;
+    /**
+     * Reads cached measure data for a given bucket and key.
+     *
+     * @param bucket - Storage bucket (e.g. aligned timestamp + symbol)
+     * @param key - Dynamic cache key within the bucket
+     * @returns Promise resolving to cached value or null if not found
+     */
+    readMeasureData: (bucket: string, key: string) => Promise<MeasureData | null>;
+    /**
+     * Writes measure data to disk with atomic file writes.
+     *
+     * @param data - Data to cache
+     * @param bucket - Storage bucket (e.g. aligned timestamp + symbol)
+     * @param key - Dynamic cache key within the bucket
+     * @returns Promise that resolves when write is complete
+     */
+    writeMeasureData: (data: MeasureData, bucket: string, key: string) => Promise<void>;
+    /**
+     * Switches to the default JSON persist adapter.
+     */
+    useJson(): void;
+    /**
+     * Switches to a dummy persist adapter that discards all writes.
+     */
+    useDummy(): void;
+}
+/**
+ * Global singleton instance of PersistMeasureUtils.
+ * Used by Cache.file for persistent caching of external API responses.
+ */
+declare const PersistMeasureAdapter: PersistMeasureUtils;
 
 declare const WAIT_FOR_INIT_SYMBOL$1: unique symbol;
 declare const WRITE_SAFE_SYMBOL$1: unique symbol;
@@ -14575,6 +14630,11 @@ declare const Exchange: ExchangeUtils;
  */
 type Function = (...args: any[]) => any;
 /**
+ * Async function type for file-cached functions.
+ * First argument is always `symbol: string`, followed by optional spread args.
+ */
+type CacheFileFunction = (symbol: string, ...args: any[]) => Promise<any>;
+/**
  * Utility class for function caching with timeframe-based invalidation.
  *
  * Provides simplified API for wrapping functions with automatic caching.
@@ -14595,6 +14655,11 @@ declare class CacheUtils {
      * Each function gets its own isolated cache instance.
      */
     private _getInstance;
+    /**
+     * Memoized function to get or create CacheFileInstance for an async function.
+     * Each function gets its own isolated file-cache instance.
+     */
+    private _getFileInstance;
     /**
      * Wrap a function with caching based on timeframe intervals.
      *
@@ -14629,6 +14694,42 @@ declare class CacheUtils {
      * ```
      */
     fn: <T extends Function, K = symbol>(run: T, context: {
+        interval: CandleInterval;
+        key?: (args: Parameters<T>) => K;
+    }) => T;
+    /**
+     * Wrap an async function with persistent file-based caching.
+     *
+     * Returns a wrapped version of the function that reads from disk on cache hit
+     * and writes the result to disk on cache miss. Cache is keyed by the aligned
+     * candle timestamp + symbol from execution context + dynamic key from args.
+     *
+     * @template T - Async function type to cache
+     * @template K - Dynamic key type
+     * @param run - Async function to wrap with file caching
+     * @param context.interval - Candle interval for cache invalidation
+     * @param context.key - Optional key generator; receives all args, first arg is symbol.
+     *                      Default: `([symbol]) => symbol`
+     * @returns Wrapped async function with automatic persistent caching
+     *
+     * @example
+     * ```typescript
+     * const fetchData = async (symbol: string, period: number) => {
+     *   return await externalApi.fetch(symbol, period);
+     * };
+     *
+     * // Default key — cache per symbol
+     * const cachedFetch = Cache.file(fetchData, { interval: "1h" });
+     *
+     * // Custom key — cache per symbol + period
+     * const cachedFetch = Cache.file(fetchData, {
+     *   interval: "1h",
+     *   key: ([symbol, period]) => `${symbol}_${period}`,
+     * });
+     * const result = await cachedFetch("BTCUSDT", 14);
+     * ```
+     */
+    file: <T extends CacheFileFunction, K = string>(run: T, context: {
         interval: CandleInterval;
         key?: (args: Parameters<T>) => K;
     }) => T;
@@ -21627,4 +21728,4 @@ declare const backtest: {
     loggerService: LoggerService;
 };
 
-export { ActionBase, type ActivateScheduledCommit, type ActivateScheduledCommitNotification, type ActivePingContract, type AverageBuyCommit, Backtest, type BacktestStatisticsModel, Breakeven, type BreakevenAvailableNotification, type BreakevenCommit, type BreakevenCommitNotification, type BreakevenContract, type BreakevenData, Cache, type CancelScheduledCommit, type CandleData, type CandleInterval, type ClosePendingCommit, type ColumnConfig, type ColumnModel, Constant, type CriticalErrorNotification, type DoneContract, type EntityId, Exchange, ExecutionContextService, type FrameInterval, type GlobalConfig, Heat, type HeatmapStatisticsModel, type IActionSchema, type IActivateScheduledCommitRow, type IAggregatedTradeData, type IBidData, type IBreakevenCommitRow, type ICandleData, type ICommitRow, type IExchangeSchema, type IFrameSchema, type IHeatmapRow, type ILog, type ILogEntry, type ILogger, type IMarkdownDumpOptions, type INotificationUtils, type IOrderBookData, type IPartialLossCommitRow, type IPartialProfitCommitRow, type IPersistBase, type IPositionSizeATRParams, type IPositionSizeFixedPercentageParams, type IPositionSizeKellyParams, type IPublicAction, type IPublicCandleData, type IPublicSignalRow, type IReportDumpOptions, type IRiskActivePosition, type IRiskCheckArgs, type IRiskSchema, type IRiskSignalRow, type IRiskValidation, type IRiskValidationFn, type IRiskValidationPayload, type IScheduledSignalCancelRow, type IScheduledSignalRow, type ISignalDto, type ISignalRow, type ISizingCalculateParams, type ISizingCalculateParamsATR, type ISizingCalculateParamsFixedPercentage, type ISizingCalculateParamsKelly, type ISizingParams, type ISizingParamsATR, type ISizingParamsFixedPercentage, type ISizingParamsKelly, type ISizingSchema, type ISizingSchemaATR, type ISizingSchemaFixedPercentage, type ISizingSchemaKelly, type IStorageSignalRow, type IStorageUtils, type IStrategyPnL, type IStrategyResult, type IStrategySchema, type IStrategyTickResult, type IStrategyTickResultActive, type IStrategyTickResultCancelled, type IStrategyTickResultClosed, type IStrategyTickResultIdle, type IStrategyTickResultOpened, type IStrategyTickResultScheduled, type IStrategyTickResultWaiting, type ITrailingStopCommitRow, type ITrailingTakeCommitRow, type IWalkerResults, type IWalkerSchema, type IWalkerStrategyResult, type InfoErrorNotification, Live, type LiveStatisticsModel, Log, type LogData, Markdown, MarkdownFileBase, MarkdownFolderBase, type MarkdownName, MethodContextService, type MetricStats, Notification, NotificationBacktest, type NotificationData, NotificationLive, type NotificationModel, Partial$1 as Partial, type PartialData, type PartialEvent, type PartialLossAvailableNotification, type PartialLossCommit, type PartialLossCommitNotification, type PartialLossContract, type PartialProfitAvailableNotification, type PartialProfitCommit, type PartialProfitCommitNotification, type PartialProfitContract, type PartialStatisticsModel, Performance, type PerformanceContract, type PerformanceMetricType, type PerformanceStatisticsModel, PersistBase, PersistBreakevenAdapter, PersistCandleAdapter, PersistLogAdapter, PersistNotificationAdapter, PersistPartialAdapter, PersistRiskAdapter, PersistScheduleAdapter, PersistSignalAdapter, PersistStorageAdapter, PositionSize, type ProgressBacktestContract, type ProgressWalkerContract, Report, ReportBase, type ReportName, Risk, type RiskContract, type RiskData, type RiskEvent, type RiskRejectionNotification, type RiskStatisticsModel, Schedule, type ScheduleData, type SchedulePingContract, type ScheduleStatisticsModel, type ScheduledEvent, type SignalCancelledNotification, type SignalClosedNotification, type SignalData, type SignalInterval, type SignalOpenedNotification, type SignalScheduledNotification, Storage, StorageBacktest, type StorageData, StorageLive, Strategy, type StrategyActionType, type StrategyCancelReason, type StrategyCloseReason, type StrategyCommitContract, type StrategyEvent, type StrategyStatisticsModel, type TLogCtor, type TMarkdownBase, type TNotificationUtilsCtor, type TPersistBase, type TPersistBaseCtor, type TReportBase, type TStorageUtilsCtor, type TickEvent, type TrailingStopCommit, type TrailingStopCommitNotification, type TrailingTakeCommit, type TrailingTakeCommitNotification, type ValidationErrorNotification, Walker, type WalkerCompleteContract, type WalkerContract, type WalkerMetric, type SignalData$1 as WalkerSignalData, type WalkerStatisticsModel, addActionSchema, addExchangeSchema, addFrameSchema, addRiskSchema, addSizingSchema, addStrategySchema, addWalkerSchema, alignToInterval, checkCandles, commitActivateScheduled, commitAverageBuy, commitBreakeven, commitCancelScheduled, commitClosePending, commitPartialLoss, commitPartialProfit, commitTrailingStop, commitTrailingTake, dumpMessages, emitters, formatPrice, formatQuantity, get, getActionSchema, getAggregatedTrades, getAveragePrice, getBacktestTimeframe, getCandles, getColumns, getConfig, getContext, getDate, getDefaultColumns, getDefaultConfig, getExchangeSchema, getFrameSchema, getMode, getNextCandles, getOrderBook, getRawCandles, getRiskSchema, getSizingSchema, getStrategySchema, getSymbol, getTimestamp, getWalkerSchema, hasTradeContext, backtest as lib, listExchangeSchema, listFrameSchema, listRiskSchema, listSizingSchema, listStrategySchema, listWalkerSchema, listenActivePing, listenActivePingOnce, listenBacktestProgress, listenBreakevenAvailable, listenBreakevenAvailableOnce, listenDoneBacktest, listenDoneBacktestOnce, listenDoneLive, listenDoneLiveOnce, listenDoneWalker, listenDoneWalkerOnce, listenError, listenExit, listenPartialLossAvailable, listenPartialLossAvailableOnce, listenPartialProfitAvailable, listenPartialProfitAvailableOnce, listenPerformance, listenRisk, listenRiskOnce, listenSchedulePing, listenSchedulePingOnce, listenSignal, listenSignalBacktest, listenSignalBacktestOnce, listenSignalLive, listenSignalLiveOnce, listenSignalOnce, listenStrategyCommit, listenStrategyCommitOnce, listenValidation, listenWalker, listenWalkerComplete, listenWalkerOnce, listenWalkerProgress, overrideActionSchema, overrideExchangeSchema, overrideFrameSchema, overrideRiskSchema, overrideSizingSchema, overrideStrategySchema, overrideWalkerSchema, parseArgs, roundTicks, set, setColumns, setConfig, setLogger, shutdown, stopStrategy, validate, waitForCandle, warmCandles };
+export { ActionBase, type ActivateScheduledCommit, type ActivateScheduledCommitNotification, type ActivePingContract, type AverageBuyCommit, Backtest, type BacktestStatisticsModel, Breakeven, type BreakevenAvailableNotification, type BreakevenCommit, type BreakevenCommitNotification, type BreakevenContract, type BreakevenData, Cache, type CancelScheduledCommit, type CandleData, type CandleInterval, type ClosePendingCommit, type ColumnConfig, type ColumnModel, Constant, type CriticalErrorNotification, type DoneContract, type EntityId, Exchange, ExecutionContextService, type FrameInterval, type GlobalConfig, Heat, type HeatmapStatisticsModel, type IActionSchema, type IActivateScheduledCommitRow, type IAggregatedTradeData, type IBidData, type IBreakevenCommitRow, type ICandleData, type ICommitRow, type IExchangeSchema, type IFrameSchema, type IHeatmapRow, type ILog, type ILogEntry, type ILogger, type IMarkdownDumpOptions, type INotificationUtils, type IOrderBookData, type IPartialLossCommitRow, type IPartialProfitCommitRow, type IPersistBase, type IPositionSizeATRParams, type IPositionSizeFixedPercentageParams, type IPositionSizeKellyParams, type IPublicAction, type IPublicCandleData, type IPublicSignalRow, type IReportDumpOptions, type IRiskActivePosition, type IRiskCheckArgs, type IRiskSchema, type IRiskSignalRow, type IRiskValidation, type IRiskValidationFn, type IRiskValidationPayload, type IScheduledSignalCancelRow, type IScheduledSignalRow, type ISignalDto, type ISignalRow, type ISizingCalculateParams, type ISizingCalculateParamsATR, type ISizingCalculateParamsFixedPercentage, type ISizingCalculateParamsKelly, type ISizingParams, type ISizingParamsATR, type ISizingParamsFixedPercentage, type ISizingParamsKelly, type ISizingSchema, type ISizingSchemaATR, type ISizingSchemaFixedPercentage, type ISizingSchemaKelly, type IStorageSignalRow, type IStorageUtils, type IStrategyPnL, type IStrategyResult, type IStrategySchema, type IStrategyTickResult, type IStrategyTickResultActive, type IStrategyTickResultCancelled, type IStrategyTickResultClosed, type IStrategyTickResultIdle, type IStrategyTickResultOpened, type IStrategyTickResultScheduled, type IStrategyTickResultWaiting, type ITrailingStopCommitRow, type ITrailingTakeCommitRow, type IWalkerResults, type IWalkerSchema, type IWalkerStrategyResult, type InfoErrorNotification, Live, type LiveStatisticsModel, Log, type LogData, Markdown, MarkdownFileBase, MarkdownFolderBase, type MarkdownName, type MeasureData, MethodContextService, type MetricStats, Notification, NotificationBacktest, type NotificationData, NotificationLive, type NotificationModel, Partial$1 as Partial, type PartialData, type PartialEvent, type PartialLossAvailableNotification, type PartialLossCommit, type PartialLossCommitNotification, type PartialLossContract, type PartialProfitAvailableNotification, type PartialProfitCommit, type PartialProfitCommitNotification, type PartialProfitContract, type PartialStatisticsModel, Performance, type PerformanceContract, type PerformanceMetricType, type PerformanceStatisticsModel, PersistBase, PersistBreakevenAdapter, PersistCandleAdapter, PersistLogAdapter, PersistMeasureAdapter, PersistNotificationAdapter, PersistPartialAdapter, PersistRiskAdapter, PersistScheduleAdapter, PersistSignalAdapter, PersistStorageAdapter, PositionSize, type ProgressBacktestContract, type ProgressWalkerContract, Report, ReportBase, type ReportName, Risk, type RiskContract, type RiskData, type RiskEvent, type RiskRejectionNotification, type RiskStatisticsModel, Schedule, type ScheduleData, type SchedulePingContract, type ScheduleStatisticsModel, type ScheduledEvent, type SignalCancelledNotification, type SignalClosedNotification, type SignalData, type SignalInterval, type SignalOpenedNotification, type SignalScheduledNotification, Storage, StorageBacktest, type StorageData, StorageLive, Strategy, type StrategyActionType, type StrategyCancelReason, type StrategyCloseReason, type StrategyCommitContract, type StrategyEvent, type StrategyStatisticsModel, type TLogCtor, type TMarkdownBase, type TNotificationUtilsCtor, type TPersistBase, type TPersistBaseCtor, type TReportBase, type TStorageUtilsCtor, type TickEvent, type TrailingStopCommit, type TrailingStopCommitNotification, type TrailingTakeCommit, type TrailingTakeCommitNotification, type ValidationErrorNotification, Walker, type WalkerCompleteContract, type WalkerContract, type WalkerMetric, type SignalData$1 as WalkerSignalData, type WalkerStatisticsModel, addActionSchema, addExchangeSchema, addFrameSchema, addRiskSchema, addSizingSchema, addStrategySchema, addWalkerSchema, alignToInterval, checkCandles, commitActivateScheduled, commitAverageBuy, commitBreakeven, commitCancelScheduled, commitClosePending, commitPartialLoss, commitPartialProfit, commitTrailingStop, commitTrailingTake, dumpMessages, emitters, formatPrice, formatQuantity, get, getActionSchema, getAggregatedTrades, getAveragePrice, getBacktestTimeframe, getCandles, getColumns, getConfig, getContext, getDate, getDefaultColumns, getDefaultConfig, getExchangeSchema, getFrameSchema, getMode, getNextCandles, getOrderBook, getRawCandles, getRiskSchema, getSizingSchema, getStrategySchema, getSymbol, getTimestamp, getWalkerSchema, hasTradeContext, backtest as lib, listExchangeSchema, listFrameSchema, listRiskSchema, listSizingSchema, listStrategySchema, listWalkerSchema, listenActivePing, listenActivePingOnce, listenBacktestProgress, listenBreakevenAvailable, listenBreakevenAvailableOnce, listenDoneBacktest, listenDoneBacktestOnce, listenDoneLive, listenDoneLiveOnce, listenDoneWalker, listenDoneWalkerOnce, listenError, listenExit, listenPartialLossAvailable, listenPartialLossAvailableOnce, listenPartialProfitAvailable, listenPartialProfitAvailableOnce, listenPerformance, listenRisk, listenRiskOnce, listenSchedulePing, listenSchedulePingOnce, listenSignal, listenSignalBacktest, listenSignalBacktestOnce, listenSignalLive, listenSignalLiveOnce, listenSignalOnce, listenStrategyCommit, listenStrategyCommitOnce, listenValidation, listenWalker, listenWalkerComplete, listenWalkerOnce, listenWalkerProgress, overrideActionSchema, overrideExchangeSchema, overrideFrameSchema, overrideRiskSchema, overrideSizingSchema, overrideStrategySchema, overrideWalkerSchema, parseArgs, roundTicks, set, setColumns, setConfig, setLogger, shutdown, stopStrategy, validate, waitForCandle, warmCandles };

@@ -137,6 +137,17 @@ const PERSIST_LOG_UTILS_METHOD_NAME_USE_DUMMY =
 const PERSIST_LOG_UTILS_METHOD_NAME_USE_PERSIST_LOG_ADAPTER =
   "PersistLogUtils.usePersistLogAdapter";
 
+const PERSIST_MEASURE_UTILS_METHOD_NAME_READ_DATA =
+  "PersistMeasureUtils.readMeasureData";
+const PERSIST_MEASURE_UTILS_METHOD_NAME_WRITE_DATA =
+  "PersistMeasureUtils.writeMeasureData";
+const PERSIST_MEASURE_UTILS_METHOD_NAME_USE_JSON =
+  "PersistMeasureUtils.useJson";
+const PERSIST_MEASURE_UTILS_METHOD_NAME_USE_DUMMY =
+  "PersistMeasureUtils.useDummy";
+const PERSIST_MEASURE_UTILS_METHOD_NAME_USE_PERSIST_MEASURE_ADAPTER =
+  "PersistMeasureUtils.usePersistMeasureAdapter";
+
 const BASE_WAIT_FOR_INIT_FN_METHOD_NAME = "PersistBase.waitForInitFn";
 
 const BASE_UNLINK_RETRY_COUNT = 5;
@@ -147,6 +158,11 @@ const BASE_UNLINK_RETRY_DELAY = 1_000;
  * Contains nullable signal for atomic updates.
  */
 export type SignalData = ISignalRow | null;
+
+/**
+ * Cache.file data type stored in persistence layer.
+ */
+export type MeasureData = unknown;
 
 /**
  * Type helper for PersistBase instance.
@@ -1918,3 +1934,115 @@ export class PersistLogUtils {
  * Used by LogPersistUtils for log entry persistence.
  */
 export const PersistLogAdapter = new PersistLogUtils();
+
+/**
+ * Utility class for managing external API response cache persistence.
+ *
+ * Features:
+ * - Memoized storage instances per cache bucket (aligned timestamp + symbol)
+ * - Custom adapter support
+ * - Atomic read/write operations
+ * - Crash-safe cache state management
+ *
+ * Used by Cache.file for persistent caching of external API responses.
+ */
+export class PersistMeasureUtils {
+  private PersistMeasureFactory: TPersistBaseCtor<string, unknown> = PersistBase;
+
+  private getMeasureStorage = memoize(
+    ([bucket]: [string]): string => bucket,
+    (bucket: string): IPersistBase<unknown> =>
+      Reflect.construct(this.PersistMeasureFactory, [
+        bucket,
+        `./dump/data/measure/`,
+      ])
+  );
+
+  /**
+   * Registers a custom persistence adapter.
+   *
+   * @param Ctor - Custom PersistBase constructor
+   */
+  public usePersistMeasureAdapter(
+    Ctor: TPersistBaseCtor<string, unknown>
+  ): void {
+    swarm.loggerService.info(
+      PERSIST_MEASURE_UTILS_METHOD_NAME_USE_PERSIST_MEASURE_ADAPTER
+    );
+    this.PersistMeasureFactory = Ctor;
+  }
+
+  /**
+   * Reads cached measure data for a given bucket and key.
+   *
+   * @param bucket - Storage bucket (e.g. aligned timestamp + symbol)
+   * @param key - Dynamic cache key within the bucket
+   * @returns Promise resolving to cached value or null if not found
+   */
+  public readMeasureData = async (
+    bucket: string,
+    key: string
+  ): Promise<MeasureData | null> => {
+    swarm.loggerService.info(PERSIST_MEASURE_UTILS_METHOD_NAME_READ_DATA, {
+      bucket,
+      key,
+    });
+
+    const isInitial = !this.getMeasureStorage.has(bucket);
+    const stateStorage = this.getMeasureStorage(bucket);
+    await stateStorage.waitForInit(isInitial);
+
+    if (await stateStorage.hasValue(key)) {
+      return await stateStorage.readValue(key);
+    }
+
+    return null;
+  };
+
+  /**
+   * Writes measure data to disk with atomic file writes.
+   *
+   * @param data - Data to cache
+   * @param bucket - Storage bucket (e.g. aligned timestamp + symbol)
+   * @param key - Dynamic cache key within the bucket
+   * @returns Promise that resolves when write is complete
+   */
+  public writeMeasureData = async (
+    data: MeasureData,
+    bucket: string,
+    key: string
+  ): Promise<void> => {
+    swarm.loggerService.info(PERSIST_MEASURE_UTILS_METHOD_NAME_WRITE_DATA, {
+      bucket,
+      key,
+    });
+
+    const isInitial = !this.getMeasureStorage.has(bucket);
+    const stateStorage = this.getMeasureStorage(bucket);
+    await stateStorage.waitForInit(isInitial);
+
+    await stateStorage.writeValue(key, data);
+  };
+
+  /**
+   * Switches to the default JSON persist adapter.
+   */
+  public useJson() {
+    swarm.loggerService.log(PERSIST_MEASURE_UTILS_METHOD_NAME_USE_JSON);
+    this.usePersistMeasureAdapter(PersistBase);
+  }
+
+  /**
+   * Switches to a dummy persist adapter that discards all writes.
+   */
+  public useDummy() {
+    swarm.loggerService.log(PERSIST_MEASURE_UTILS_METHOD_NAME_USE_DUMMY);
+    this.usePersistMeasureAdapter(PersistDummy);
+  }
+}
+
+/**
+ * Global singleton instance of PersistMeasureUtils.
+ * Used by Cache.file for persistent caching of external API responses.
+ */
+export const PersistMeasureAdapter = new PersistMeasureUtils();

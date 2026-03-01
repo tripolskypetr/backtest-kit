@@ -6,12 +6,15 @@ import backtest, {
   MethodContextService,
 } from "../lib";
 import { FrameName } from "../interfaces/Frame.interface";
+import { PersistMeasureAdapter } from "./Persist";
 
 const CACHE_METHOD_NAME_FLUSH = "CacheUtils.flush";
 const CACHE_METHOD_NAME_CLEAR = "CacheInstance.clear";
 const CACHE_METHOD_NAME_RUN = "CacheInstance.run";
 const CACHE_METHOD_NAME_GC = "CacheInstance.gc";
 const CACHE_METHOD_NAME_FN = "CacheUtils.fn";
+const CACHE_METHOD_NAME_FILE = "CacheUtils.file";
+const CACHE_FILE_INSTANCE_METHOD_NAME_RUN = "CacheFileInstance.run";
 
 const MS_PER_MINUTE = 60_000;
 
@@ -298,6 +301,93 @@ export class CacheInstance<T extends Function = Function, K = string> {
 }
 
 /**
+ * Async function type for file-cached functions.
+ * First argument is always `symbol: string`, followed by optional spread args.
+ */
+type CacheFileFunction = (symbol: string, ...args: any[]) => Promise<any>;
+
+/**
+ * Instance class for caching async function results in persistent file storage.
+ *
+ * Provides automatic cache invalidation based on candle intervals.
+ * Cache key = `${alignedTimestamp}_${symbol}` (bucket) + dynamic key (file within bucket).
+ * On cache hit reads from disk, on miss calls the function and writes the result.
+ *
+ * @template T - Async function type to cache
+ * @template K - Dynamic key type
+ *
+ * @example
+ * ```typescript
+ * const instance = new CacheFileInstance(fetchFromApi, "1h");
+ * const result = await instance.run("BTCUSDT", extraArg);
+ * ```
+ */
+export class CacheFileInstance<T extends CacheFileFunction = CacheFileFunction, K = string> {
+  /**
+   * Creates a new CacheFileInstance.
+   *
+   * @param fn - Async function to cache
+   * @param interval - Candle interval for cache invalidation
+   * @param key - Dynamic key generator; receives all args, must return a string.
+   *              Default: `([symbol]) => symbol`
+   */
+  constructor(
+    readonly fn: T,
+    readonly interval: CandleInterval,
+    readonly key: (args: Parameters<T>) => K = ([symbol]) => symbol as K
+  ) {}
+
+  /**
+   * Execute async function with persistent file caching.
+   *
+   * Algorithm:
+   * 1. Build bucket = `${alignedTimestamp}_${symbol}` using execution context
+   * 2. Build dynamic key from the key generator
+   * 3. Try to read from PersistMeasureAdapter
+   * 4. On hit — return cached value
+   * 5. On miss — call fn, write result to disk, return result
+   *
+   * Requires active execution context (symbol, when) and method context.
+   *
+   * @param args - Arguments forwarded to the wrapped function
+   * @returns Cached or freshly computed result
+   */
+  public run = async (...args: Parameters<T>): Promise<Awaited<ReturnType<T>>> => {
+    backtest.loggerService.debug(CACHE_FILE_INSTANCE_METHOD_NAME_RUN, { args });
+
+    const step = INTERVAL_MINUTES[this.interval];
+
+    {
+      if (!MethodContextService.hasContext()) {
+        throw new Error("CacheFileInstance run requires method context");
+      }
+      if (!ExecutionContextService.hasContext()) {
+        throw new Error("CacheFileInstance run requires execution context");
+      }
+      if (!step) {
+        throw new Error(
+          `CacheFileInstance unknown cache ttl interval=${this.interval}`
+        );
+      }
+    }
+
+    const { symbol, when } = backtest.executionContextService.context;
+    const alignedTs = align(when.getTime(), this.interval);
+    const bucket = `${alignedTs}_${symbol}`;
+    const dynamicKey = String(this.key(args));
+
+    const cached = await PersistMeasureAdapter.readMeasureData(bucket, dynamicKey);
+    if (cached !== null) {
+      return cached as Awaited<ReturnType<T>>;
+    }
+
+    const result = await this.fn.call(null, ...args);
+    await PersistMeasureAdapter.writeMeasureData(result, bucket, dynamicKey);
+    return result;
+  };
+}
+
+/**
  * Utility class for function caching with timeframe-based invalidation.
  *
  * Provides simplified API for wrapping functions with automatic caching.
@@ -324,6 +414,19 @@ export class CacheUtils {
       interval: CandleInterval,
       key?: (args: Parameters<T>) => K
     ) => new CacheInstance(run, interval, key)
+  );
+
+  /**
+   * Memoized function to get or create CacheFileInstance for an async function.
+   * Each function gets its own isolated file-cache instance.
+   */
+  private _getFileInstance = memoize(
+    ([run]) => run,
+    <T extends CacheFileFunction, K>(
+      run: T,
+      interval: CandleInterval,
+      key?: (args: Parameters<T>) => K
+    ) => new CacheFileInstance(run, interval, key)
   );
 
   /**
@@ -376,6 +479,55 @@ export class CacheUtils {
     };
 
     return wrappedFn as T;
+  };
+
+  /**
+   * Wrap an async function with persistent file-based caching.
+   *
+   * Returns a wrapped version of the function that reads from disk on cache hit
+   * and writes the result to disk on cache miss. Cache is keyed by the aligned
+   * candle timestamp + symbol from execution context + dynamic key from args.
+   *
+   * @template T - Async function type to cache
+   * @template K - Dynamic key type
+   * @param run - Async function to wrap with file caching
+   * @param context.interval - Candle interval for cache invalidation
+   * @param context.key - Optional key generator; receives all args, first arg is symbol.
+   *                      Default: `([symbol]) => symbol`
+   * @returns Wrapped async function with automatic persistent caching
+   *
+   * @example
+   * ```typescript
+   * const fetchData = async (symbol: string, period: number) => {
+   *   return await externalApi.fetch(symbol, period);
+   * };
+   *
+   * // Default key — cache per symbol
+   * const cachedFetch = Cache.file(fetchData, { interval: "1h" });
+   *
+   * // Custom key — cache per symbol + period
+   * const cachedFetch = Cache.file(fetchData, {
+   *   interval: "1h",
+   *   key: ([symbol, period]) => `${symbol}_${period}`,
+   * });
+   * const result = await cachedFetch("BTCUSDT", 14);
+   * ```
+   */
+  public file = <T extends CacheFileFunction, K = string>(
+    run: T,
+    context: {
+      interval: CandleInterval;
+      key?: (args: Parameters<T>) => K;
+    }
+  ): T => {
+    backtest.loggerService.info(CACHE_METHOD_NAME_FILE, { context });
+
+    const wrappedFn = (...args: Parameters<T>): ReturnType<T> => {
+      const instance = this._getFileInstance(run, context.interval, context.key);
+      return instance.run(...args) as ReturnType<T>;
+    };
+
+    return wrappedFn as unknown as T;
   };
 
   /**

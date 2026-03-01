@@ -303,6 +303,8 @@ export {
   PersistNotificationAdapter,
   LogData,
   PersistLogAdapter,
+  MeasureData,
+  PersistMeasureAdapter,
 } from "./classes/Persist";
 
 export {
