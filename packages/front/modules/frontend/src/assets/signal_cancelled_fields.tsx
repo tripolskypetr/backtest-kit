@@ -253,9 +253,9 @@ export const signal_cancelled_fields: TypedField[] = [
                         name: "originalPriceOpen",
                         title: "Original Entry",
                         readonly: true,
-                        isVisible: (obj) => obj.originalPriceOpen != null && obj.originalPriceOpen !== obj.priceOpen,
+                        isVisible: (obj) => !!obj.originalPriceOpen && obj.originalPriceOpen !== obj.priceOpen,
                         compute: (obj) =>
-                            obj.originalPriceOpen != null
+                            !!obj.originalPriceOpen
                                 ? `${obj.originalPriceOpen.toFixed(6)}$`
                                 : "Not specified",
                     },
