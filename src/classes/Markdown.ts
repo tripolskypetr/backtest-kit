@@ -12,6 +12,7 @@ import { createWriteStream, WriteStream } from "fs";
 import * as fs from "fs/promises";
 import { join, dirname } from "path";
 import { exitEmitter } from "../config/emitters";
+import { getContextTimestamp } from "../helpers/getContextTimestamp";
 
 const MARKDOWN_METHOD_NAME_ENABLE = "MarkdownUtils.enable";
 const MARKDOWN_METHOD_NAME_DISABLE = "MarkdownUtils.disable";
@@ -260,7 +261,7 @@ class MarkdownFileBase implements TMarkdownBase {
         markdownName: this.markdownName,
         data,
         ...searchFlags,
-        timestamp: Date.now(),
+        timestamp: getContextTimestamp(),
       }) + "\n";
 
     const status = await this[WRITE_SAFE_SYMBOL](line);

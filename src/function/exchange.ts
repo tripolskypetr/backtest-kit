@@ -3,7 +3,7 @@ import backtest, {
   MethodContextService,
 } from "../lib";
 import { CandleInterval, IAggregatedTradeData, ICandleData, IOrderBookData } from "../interfaces/Exchange.interface";
-import { getContextTimestamp } from "src/helpers/getContextTimestamp";
+import { getContextTimestamp } from "../helpers/getContextTimestamp";
 
 const GET_CANDLES_METHOD_NAME = "exchange.getCandles";
 const GET_AVERAGE_PRICE_METHOD_NAME = "exchange.getAveragePrice";

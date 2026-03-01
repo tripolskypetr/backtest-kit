@@ -5,6 +5,7 @@ import TYPES from "../../../lib/core/types";
 import { singleshot } from "functools-kit";
 import { signalBacktestEmitter } from "../../../config/emitters";
 import { Report } from "../../../classes/Report";
+import { getContextTimestamp } from "../../../helpers/getContextTimestamp";
 
 const BACKTEST_REPORT_METHOD_NAME_SUBSCRIBE = "BacktestReportService.subscribe";
 const BACKTEST_REPORT_METHOD_NAME_UNSUBSCRIBE = "BacktestReportService.unsubscribe";
@@ -54,7 +55,7 @@ export class BacktestReportService {
     this.loggerService.log(BACKTEST_REPORT_METHOD_NAME_TICK, { data });
 
     const baseEvent = {
-      timestamp: Date.now(),
+      timestamp: getContextTimestamp(),
       action: data.action,
       symbol: data.symbol,
       strategyName: data.strategyName,

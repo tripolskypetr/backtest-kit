@@ -899,7 +899,7 @@ class ActionBase implements IPublicAction {
    * @example
    * ```typescript
    * pingScheduled(event: SchedulePingContract) {
-   *   const waitTime = Date.now() - event.data.timestampScheduled;
+   *   const waitTime = getTimestamp() - event.data.timestampScheduled;
    *   const waitMinutes = Math.floor(waitTime / 60000);
    *   console.log(`Scheduled signal waiting ${waitMinutes} minutes`);
    * }
@@ -932,7 +932,7 @@ class ActionBase implements IPublicAction {
    * @example
    * ```typescript
    * pingActive(event: ActivePingContract) {
-   *   const holdTime = Date.now() - event.data.pendingAt;
+   *   const holdTime = getTimestamp() - event.data.pendingAt;
    *   const holdMinutes = Math.floor(holdTime / 60000);
    *   console.log(`Active signal holding ${holdMinutes} minutes`);
    * }

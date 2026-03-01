@@ -25,6 +25,7 @@ import {
   TrailingStopCommit,
   TrailingTakeCommit,
 } from "../../../contract/StrategyCommit.contract";
+import { getContextTimestamp } from "../../../helpers/getContextTimestamp";
 
 /**
  * Type alias for column configuration used in strategy markdown reports.
@@ -258,7 +259,7 @@ class ReportStorage {
     columns: Columns[] = COLUMN_CONFIG.strategy_columns
   ): Promise<void> {
     const markdown = await this.getReport(symbol, strategyName, columns);
-    const timestamp = Date.now();
+    const timestamp = getContextTimestamp();
     const filename = CREATE_FILE_NAME_FN(this.symbol, strategyName, this.exchangeName, this.frameName, timestamp);
     await Markdown.writeData("strategy", markdown, {
       path,

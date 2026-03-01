@@ -5,6 +5,7 @@ import TYPES from "../../../lib/core/types";
 import { singleshot } from "functools-kit";
 import { signalEmitter } from "../../../config/emitters";
 import { Report } from "../../../classes/Report";
+import { getContextTimestamp } from "../../../helpers/getContextTimestamp";
 
 const HEAT_REPORT_METHOD_NAME_SUBSCRIBE = "HeatReportService.subscribe";
 const HEAT_REPORT_METHOD_NAME_UNSUBSCRIBE = "HeatReportService.unsubscribe";
@@ -58,7 +59,7 @@ export class HeatReportService {
     }
 
     await Report.writeData("heat", {
-      timestamp: Date.now(),
+      timestamp: getContextTimestamp(),
       action: data.action,
       symbol: data.symbol,
       strategyName: data.strategyName,

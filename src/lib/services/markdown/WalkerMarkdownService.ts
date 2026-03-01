@@ -21,6 +21,7 @@ import { ColumnModel } from "../../../model/Column.model";
 import { COLUMN_CONFIG } from "../../../config/columns";
 import { ExchangeName } from "../../../interfaces/Exchange.interface";
 import { FrameName } from "../../../interfaces/Frame.interface";
+import { getContextTimestamp } from "../../../helpers/getContextTimestamp";
 
 /**
  * Type alias for column configuration used in walker strategy markdown reports.
@@ -383,7 +384,7 @@ class ReportStorage {
     pnlColumns: PnlColumn[] = COLUMN_CONFIG.walker_pnl_columns
   ): Promise<void> {
     const markdown = await this.getReport(symbol, metric, context, strategyColumns, pnlColumns);
-    const timestamp = Date.now();
+    const timestamp = getContextTimestamp();
     const filename = CREATE_FILE_NAME_FN(this.walkerName, timestamp);
     await Markdown.writeData("walker", markdown, {
       path,

@@ -290,7 +290,7 @@ class ReportStorage {
     columns: Columns[] = COLUMN_CONFIG.backtest_columns
   ): Promise<void> {
     const markdown = await this.getReport(strategyName, columns);
-    const timestamp = Date.now();
+    const timestamp = getContextTimestamp();
     const filename = CREATE_FILE_NAME_FN(this.symbol, strategyName, this.exchangeName, this.frameName, timestamp);
     await Markdown.writeData("backtest", markdown, {
       path,

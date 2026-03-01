@@ -16,6 +16,7 @@ import { ColumnModel } from "../../../model/Column.model";
 import { COLUMN_CONFIG } from "../../../config/columns";
 import { ExchangeName } from "../../../interfaces/Exchange.interface";
 import { FrameName } from "../../../interfaces/Frame.interface";
+import { getContextTimestamp } from "../../../helpers/getContextTimestamp";
 
 /**
  * Type alias for column configuration used in scheduled events markdown reports.
@@ -359,7 +360,7 @@ class ReportStorage {
     columns: Columns[] = COLUMN_CONFIG.schedule_columns
   ): Promise<void> {
     const markdown = await this.getReport(strategyName, columns);
-    const timestamp = Date.now();
+    const timestamp = getContextTimestamp();
     const filename = CREATE_FILE_NAME_FN(this.symbol, strategyName, this.exchangeName, this.frameName, timestamp);
     await Markdown.writeData("schedule", markdown, {
       path,

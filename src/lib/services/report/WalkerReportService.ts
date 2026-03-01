@@ -5,6 +5,7 @@ import TYPES from "../../../lib/core/types";
 import { singleshot } from "functools-kit";
 import { walkerEmitter } from "../../../config/emitters";
 import { Report } from "../../../classes/Report";
+import { getContextTimestamp } from "../../../helpers/getContextTimestamp";
 
 const WALKER_REPORT_METHOD_NAME_SUBSCRIBE = "WalkerReportService.subscribe";
 const WALKER_REPORT_METHOD_NAME_UNSUBSCRIBE = "WalkerReportService.unsubscribe";
@@ -54,7 +55,7 @@ export class WalkerReportService {
     this.loggerService.log(WALKER_REPORT_METHOD_NAME_TICK, { data });
 
     await Report.writeData("walker", {
-      timestamp: Date.now(),
+      timestamp: getContextTimestamp(),
       walkerName: data.walkerName,
       symbol: data.symbol,
       exchangeName: data.exchangeName,

@@ -5,6 +5,7 @@ import TYPES from "../../../lib/core/types";
 import { singleshot } from "functools-kit";
 import { signalLiveEmitter } from "../../../config/emitters";
 import { Report } from "../../../classes/Report";
+import { getContextTimestamp } from "../../../helpers/getContextTimestamp";
 
 const LIVE_REPORT_METHOD_NAME_SUBSCRIBE = "LiveReportService.subscribe";
 const LIVE_REPORT_METHOD_NAME_UNSUBSCRIBE = "LiveReportService.unsubscribe";
@@ -54,7 +55,7 @@ export class LiveReportService {
     this.loggerService.log(LIVE_REPORT_METHOD_NAME_TICK, { data });
 
     const baseEvent = {
-      timestamp: Date.now(),
+      timestamp: getContextTimestamp(),
       action: data.action,
       symbol: data.symbol,
       strategyName: data.strategyName,

@@ -19,6 +19,7 @@ import { ColumnModel } from "../../../model/Column.model";
 import { COLUMN_CONFIG } from "../../../config/columns";
 import { ExchangeName } from "../../../interfaces/Exchange.interface";
 import { FrameName } from "../../../interfaces/Frame.interface";
+import { getContextTimestamp } from "../../../helpers/getContextTimestamp";
 
 /**
  * Type alias for column configuration used in live trading markdown reports.
@@ -144,7 +145,7 @@ class ReportStorage {
    */
   public addIdleEvent(currentPrice: number) {
     const newEvent: TickEvent = {
-      timestamp: Date.now(),
+      timestamp: getContextTimestamp(),
       action: "idle",
       currentPrice,
     };
@@ -209,7 +210,7 @@ class ReportStorage {
    */
   public addActiveEvent(data: IStrategyTickResultActive) {
     const newEvent: TickEvent = {
-      timestamp: Date.now(),
+      timestamp: getContextTimestamp(),
       action: "active",
       symbol: data.signal.symbol,
       signalId: data.signal.id,
@@ -324,7 +325,7 @@ class ReportStorage {
    */
   public addWaitingEvent(data: IStrategyTickResultWaiting) {
     const newEvent: TickEvent = {
-      timestamp: Date.now(),
+      timestamp: getContextTimestamp(),
       action: "waiting",
       symbol: data.signal.symbol,
       signalId: data.signal.id,
@@ -553,7 +554,7 @@ class ReportStorage {
     columns: Columns[] = COLUMN_CONFIG.live_columns
   ): Promise<void> {
     const markdown = await this.getReport(strategyName, columns);
-    const timestamp = Date.now();
+    const timestamp = getContextTimestamp();
     const filename = CREATE_FILE_NAME_FN(this.symbol, strategyName, this.exchangeName, this.frameName, timestamp);
     await Markdown.writeData("live", markdown, {
       path,

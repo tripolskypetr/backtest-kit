@@ -40,7 +40,6 @@ const ADD_ACTION_METHOD_NAME = "add.addActionSchema";
  *     priceTakeProfit: 51000,
  *     priceStopLoss: 49000,
  *     minuteEstimatedTime: 60,
- *     timestamp: Date.now(),
  *   }),
  *   callbacks: {
  *     onOpen: (symbol, signal, currentPrice, backtest) => console.log("Signal opened"),

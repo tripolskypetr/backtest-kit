@@ -12,6 +12,7 @@ import {
   TIMEOUT_SYMBOL,
 } from "functools-kit";
 import { exitEmitter, shutdownEmitter } from "../config/emitters";
+import { getContextTimestamp } from "../helpers/getContextTimestamp";
 
 const REPORT_BASE_METHOD_NAME_CTOR = "ReportBase.CTOR";
 const REPORT_BASE_METHOD_NAME_WAIT_FOR_INIT = "ReportBase.waitForInit";
@@ -259,7 +260,7 @@ class ReportBase implements TReportBase {
         reportName: this.reportName,
         data,
         ...searchFlags,
-        timestamp: Date.now(),
+        timestamp: getContextTimestamp(),
       }) + "\n";
 
     const status = await this[WRITE_SAFE_SYMBOL](line);

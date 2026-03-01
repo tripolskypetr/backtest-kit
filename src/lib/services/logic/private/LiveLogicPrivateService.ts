@@ -12,6 +12,7 @@ import {
   IStrategyTickResultOpened,
   IStrategyTickResultCancelled,
 } from "../../../../interfaces/Strategy.interface";
+import { getContextTimestamp } from "../../../../helpers/getContextTimestamp";
 
 
 /**
@@ -106,7 +107,7 @@ export class LiveLogicPrivateService {
 
       // Track tick duration
       const tickEndTime = performance.now();
-      const currentTimestamp = Date.now();
+      const currentTimestamp = getContextTimestamp();
       await performanceEmitter.next({
         timestamp: currentTimestamp,
         previousTimestamp: previousEventTimestamp,
