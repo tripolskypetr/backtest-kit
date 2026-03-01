@@ -65,6 +65,28 @@ setLogger({
 });
 ```
 
+## 📐 Dashboard Revenue Math
+
+The **Revenue** metrics on the dashboard are calculated in **dollar terms**, assuming a fixed position size of **$100 per DCA entry**.
+
+### Dollar PnL formula
+
+```
+dollar_pnl = pnlPercentage × totalEntries
+```
+
+| `totalEntries` | Effective position | Dollar PnL (example: +5%) |
+|:--------------:|-------------------:|-------------------------:|
+| 1 | $100 | +$5.00 |
+| 2 | $200 | +$10.00 |
+| 3 | $300 | +$15.00 |
+
+- **`pnlPercentage`** — percentage PnL as stored in the signal (e.g. `5` = 5 %). It does **not** change with DCA averaging.
+- **`totalEntries`** — number of DCA buy entries that were executed for the signal (`IPublicSignalRow.totalEntries`). A regular (non-DCA) signal has `totalEntries = 1`, so the formula degrades to the plain percentage.
+- **Fallback** — if `totalEntries` is `0` or absent (legacy data), the raw `pnlPercentage` is used as-is.
+
+This scaling is applied to all time-window revenue fields: *today*, *yesterday*, *7 days*, and *31 days*.
+
 ## 🖥️ Dashboard Views
 
 The frontend provides specialized views for different trading events:
