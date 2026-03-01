@@ -1,4 +1,4 @@
-# File Cache & Synchronized Timestamps (v3.7, 02/03/2026)
+# Measure Cache & Synchronized Timestamps (v3.7, 02/03/2026)
 
 > Github [release link](https://github.com/tripolskypetr/backtest-kit/releases/tag/3.7)
 
