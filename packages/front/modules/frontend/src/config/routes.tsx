@@ -20,7 +20,7 @@ export const baseRoutes: IRouteItem[] = [
 const dashboardRoutes: IRouteItem[] = [
     {
         path: "/main",
-        element: () => <p>123</p>
+        element: heavy(() => import("../pages/view/MainPage")),
     },
     {
         path: "/overview",
