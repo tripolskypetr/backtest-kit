@@ -3,12 +3,14 @@ import backtest, {
   MethodContextService,
 } from "../lib";
 import { CandleInterval, IAggregatedTradeData, ICandleData, IOrderBookData } from "../interfaces/Exchange.interface";
+import { getContextTimestamp } from "src/helpers/getContextTimestamp";
 
 const GET_CANDLES_METHOD_NAME = "exchange.getCandles";
 const GET_AVERAGE_PRICE_METHOD_NAME = "exchange.getAveragePrice";
 const FORMAT_PRICE_METHOD_NAME = "exchange.formatPrice";
 const FORMAT_QUANTITY_METHOD_NAME = "exchange.formatQuantity";
 const GET_DATE_METHOD_NAME = "exchange.getDate";
+const GET_TIMESTAMP_METHOD_NAME = "exchange.getTimestamp";
 const GET_MODE_METHOD_NAME = "exchange.getMode";
 const GET_SYMBOL_METHOD_NAME = "exchange.getSymbol";
 const GET_CONTEXT_METHOD_NAME = "exchange.getContext";
@@ -197,6 +199,27 @@ export async function getDate() {
   const { when } = backtest.executionContextService.context;
   return new Date(when.getTime());
 }
+
+/**
+ * Gets the current timestamp from execution context.
+ *
+ * In backtest mode: returns the current timeframe timestamp being processed
+ * In live mode: returns current real-time timestamp
+ *
+ * @returns Promise resolving to current execution context timestamp in milliseconds
+ * @example
+ * ```typescript
+ * const timestamp = await getTimestamp();
+ * console.log(timestamp); // 1700000000000
+ * ```
+ */
+export async function getTimestamp() {
+  backtest.loggerService.info(GET_TIMESTAMP_METHOD_NAME);
+  if (!ExecutionContextService.hasContext()) {
+    throw new Error("getTimestamp requires an execution context");
+  }
+  return getContextTimestamp();
+};
 
 /**
  * Gets the current execution mode.

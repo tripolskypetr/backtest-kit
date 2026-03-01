@@ -103,6 +103,7 @@ export {
   getAggregatedTrades,
   getOrderBook,
   getDate,
+  getTimestamp,
   getMode,
   getContext,
   getSymbol,
