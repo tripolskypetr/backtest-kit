@@ -703,6 +703,42 @@ test("toProfitLossDto: SB entry-DCA-partial-DCA-partial-DCA-partial, cnt=[2,3,4]
   pass(`SB pnl = ${pnlPercentage.toFixed(9)}%`);
 });
 
+// SD: entry@1000 → partial(30%@1150,cnt=1) → DCA@950 → DCA@880
+//     → partial(20%@860,cnt=3) → DCA@920 → partial(40%@1050,cnt=4) → DCA@980 → close@1200
+//   totalInvested=500
+//   p1(cnt=1,pct=30): cb=100,  dv=30,   w=30/500=0.06;   after=70
+//   p2(cnt=3,pct=20): cb=270,  dv=54,   w=54/500=0.108;  after=216
+//   p3(cnt=4,pct=40): cb=316,  dv=126.4,w=126.4/500=0.2528; after=189.6
+//   closedDollar=210.4, remWeight=289.6/500=0.5792
+//
+//   snap2=getEff([1000,950,880],[p1]): replay i=0:cb=100(last); rem=70; oldCoins=70/1000; newCoins=100/950+100/880
+//         = 270/(0.07+100/950+100/880) = 934.580987082
+//   snap3=getEff([1000,950,880,920],[p1,p2]): replay: i=0:cb=100→70; i=1:+200=270(last)
+//         rem=216; oldCoins=216/snap2; newCoins=100/920
+//         = 316/(216/snap2+100/920) = 929.917012143
+test("toProfitLossDto: SD profit→DCA→DCA→loss→DCA→profit→DCA→close, cnt=[1,3,4] (LONG)", ({ pass, fail }) => {
+  const snap1 = 1000;
+  // snap2: p1 sold 30% of cb=100 → rem=70; then DCAs@950,@880 added
+  // oldCoins=70/1000=0.07, newCoins=100/950+100/880
+  const snap2 = (70 + 200) / (0.07 + 100 / 950 + 100 / 880); // 934.580987082
+  // snap3: replay p1+p2: i=0:cb=100→70; i=1:+200=270(last); rem=270*0.8=216
+  // oldCoins=216/snap2, newCoins=100/920
+  const snap3 = (216 + 100) / (216 / snap2 + 100 / 920); // 929.917012143
+  const signal = {
+    position: "long",
+    priceOpen: 1000,
+    _entry: [{ price: 1000 }, { price: 950 }, { price: 880 }, { price: 920 }, { price: 980 }],
+    _partial: [
+      { type: "profit", percent: 30, price: 1150, effectivePrice: snap1, entryCountAtClose: 1 },
+      { type: "loss",   percent: 20, price: 860,  effectivePrice: snap2, entryCountAtClose: 3 },
+      { type: "profit", percent: 40, price: 1050, effectivePrice: snap3, entryCountAtClose: 4 },
+    ],
+  };
+  const { pnlPercentage } = toProfitLossDto(signal, 1200);
+  if (!approxEqual(pnlPercentage, 18.349878168)) { fail(`Expected 18.349878168, got ${pnlPercentage}`); return; }
+  pass(`SD pnl = ${pnlPercentage.toFixed(9)}%`);
+});
+
 // SC SHORT: entry@100 → DCA@110 → partial(30%@85,cnt=2) → DCA@120 → partial(25%@80,cnt=3)
 //           → DCA@130 → partial(20%@75,cnt=4) → close@70 (SHORT, averaging up)
 //   totalInvested=400

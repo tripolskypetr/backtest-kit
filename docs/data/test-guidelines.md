@@ -3,7 +3,7 @@ title: data/test-guidelines
 group: data
 ---
 
-# backtest-kit
+# Test Guidelines
 
 ## Key files
 - `src/helpers/getEffectivePriceOpen.ts` — cost-basis replay algorithm (DO NOT MODIFY)

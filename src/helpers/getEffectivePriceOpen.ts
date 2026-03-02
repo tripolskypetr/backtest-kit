@@ -1,5 +1,7 @@
 import { ISignalRow } from "../interfaces/Strategy.interface";
 
+const COST_BASIS_PER_ENTRY = 100;
+
 /**
  * Returns the effective entry price for price calculations.
  *
@@ -35,7 +37,7 @@ export const getEffectivePriceOpen = (signal: ISignalRow): number => {
   for (let i = 0; i < partials.length; i++) {
     const prevCount = i === 0 ? 0 : partials[i - 1].entryCountAtClose;
     const newEntryCount = partials[i].entryCountAtClose - prevCount;
-    costBasis += newEntryCount * 100;
+    costBasis += newEntryCount * COST_BASIS_PER_ENTRY;
     // costBasis is now positionCostBasisAtClose for partials[i]
     if (i < partials.length - 1) {
       costBasis *= 1 - partials[i].percent / 100;

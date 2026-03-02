@@ -2,6 +2,8 @@ import { ISignalRow, IStrategyPnL } from "../interfaces/Strategy.interface";
 import { GLOBAL_CONFIG } from "../config/params";
 import { getEffectivePriceOpen } from "./getEffectivePriceOpen";
 
+const COST_BASIS_PER_ENTRY = 100;
+
 /**
  * Calculates profit/loss for a closed signal with slippage and fees.
  *
@@ -53,7 +55,7 @@ export const toProfitLossDto = (
       // Add DCA entries that existed at this partial but not at the previous one
       const prevCount = i === 0 ? 0 : signal._partial[i - 1].entryCountAtClose;
       const newEntryCount = partial.entryCountAtClose - prevCount;
-      costBasis += newEntryCount * 100;
+      costBasis += newEntryCount * COST_BASIS_PER_ENTRY;
 
       // Real dollar value sold in this partial
       const partialDollarValue = (partial.percent / 100) * costBasis;
