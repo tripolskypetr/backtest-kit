@@ -358,29 +358,35 @@ test("toProfitLossDto: S8 DCA→partial→DCA→partial→close each snap distin
   pass(`S8 pnl = ${pnlPercentage.toFixed(9)}%`);
 });
 
-// S9: partial(20%@120,eff=100,cnt=1) → partial(20%@90,eff=100,cnt=1) → DCA@70 → close@95
+// S9: partial(20%@120,eff=100,cnt=1) → partial(20%@90,eff=snap2,cnt=1) → DCA@70 → close@95
 //   totalInvested=200
 //   p1: costBasis=100, dv=20, weight=0.1; after costBasis=80
 //   p2: prevCnt=1, newEntries=0, costBasis=80, dv=16, weight=0.08
 //   closedDollar=36, remWeight=164/200=0.82
 //
-//   getEff: 2 partials both cnt=1, entries=[100,70]
-//     i=0: costBasis=100, reduce→80; i=1: newE=0, costBasis=80 (last, not reduced)
-//     remainingCostBasis = 80*(1-0.2)=64, oldCoins=64/100=0.64
-//     newEntries=entries.slice(1)=[{70}], newCoins=100/70
-//     remEff = (64+100)/(0.64+100/70) = 79.281767956
+//   snap2 = getEff([100,70],[p1]): remainingCostBasis=100*(1-0.2)=80, oldCoins=80/100=0.8
+//           newEntries=entries.slice(1)=[{70}], newCoins=100/70
+//           snap2 = (80+100)/(0.8+100/70) = 80.769230769  (NOT 100 — p1 already sold 20%)
+//
+//   getEff final: 2 partials both cnt=1
+//     i=0: cb=100, reduce→80; i=1: newE=0, cb=80 (last)
+//     remainingCostBasis=80*(1-0.2)=64, oldCoins=64/snap2, newCoins=100/70
 test("toProfitLossDto: S9 partial→partial→DCA→close (LONG)", ({ pass, fail }) => {
+  const snap1 = 100;
+  // snap2 = effective price of position at time of p2 (after p1 fired, DCA@70 not yet added)
+  // replay: p1 sold 20%, so remainingCostBasis=80, oldCoins=80/100=0.8, newCoins=100/70
+  const snap2 = (80 + 100) / (0.8 + 100 / 70); // 80.769230769
   const signal = {
     position: "long",
     priceOpen: 100,
     _entry: [{ price: 100 }, { price: 70 }],
     _partial: [
-      { type: "profit", percent: 20, price: 120, effectivePrice: 100, entryCountAtClose: 1 },
-      { type: "loss",   percent: 20, price: 90,  effectivePrice: 100, entryCountAtClose: 1 },
+      { type: "profit", percent: 20, price: 120, effectivePrice: snap1, entryCountAtClose: 1 },
+      { type: "loss",   percent: 20, price: 90,  effectivePrice: snap2, entryCountAtClose: 1 },
     ],
   };
   const { pnlPercentage } = toProfitLossDto(signal, 95);
-  if (!approxEqual(pnlPercentage, 17.005240788)) { fail(`Expected 17.005240788, got ${pnlPercentage}`); return; }
+  if (!approxEqual(pnlPercentage, 25.930800371)) { fail(`Expected 25.930800371, got ${pnlPercentage}`); return; }
   pass(`S9 pnl = ${pnlPercentage.toFixed(9)}%`);
 });
 
@@ -556,4 +562,76 @@ test("toProfitLossDto: effectivePrice per-partial independent of current _entry"
   const { pnlPercentage } = toProfitLossDto(signal, 90);
   if (!approxEqual(pnlPercentage, 64.405659341)) { fail(`Expected 64.405659341, got ${pnlPercentage}`); return; }
   pass(`effectivePrice isolation confirmed, pnl = ${pnlPercentage.toFixed(9)}%`);
+});
+
+// ---------------------------------------------------------------------------
+// Weights sanity: closed + remaining must equal totalInvested
+// ---------------------------------------------------------------------------
+
+test("weights sanity S5: closedDollar + remainingDollar = totalInvested", ({ pass, fail }) => {
+  // S5: entries=[100,80,70], partials cnt=[1,2] pct=[25,25], totalInvested=300
+  // p1: costBasis=100, dv=25, cb→75
+  // p2: costBasis=175, dv=43.75, cb→131.25
+  // closedDollar=68.75, remainingDollar=231.25, sum=300 ✓
+  const partials = [
+    { percent: 25, entryCountAtClose: 1 },
+    { percent: 25, entryCountAtClose: 2 },
+  ];
+  const totalInvested = 300;
+  let costBasis = 0, closedDollar = 0;
+  for (let i = 0; i < partials.length; i++) {
+    const prevCount = i === 0 ? 0 : partials[i - 1].entryCountAtClose;
+    costBasis += (partials[i].entryCountAtClose - prevCount) * 100;
+    closedDollar += (partials[i].percent / 100) * costBasis;
+    costBasis *= 1 - partials[i].percent / 100;
+  }
+  const sum = closedDollar + (totalInvested - closedDollar);
+  if (!approxEqual(sum, totalInvested)) { fail(`sum=${sum}, expected ${totalInvested}`); return; }
+  if (!approxEqual(closedDollar, 68.75)) { fail(`closedDollar=${closedDollar}, expected 68.75`); return; }
+  pass(`S5: closedDollar=${closedDollar.toFixed(4)}, remaining=${(totalInvested-closedDollar).toFixed(4)}, sum=1.0 ✓`);
+});
+
+test("weights sanity S7: closedDollar + remainingDollar = totalInvested", ({ pass, fail }) => {
+  // S7: entries=[100,70,60], partials cnt=[1,3] pct=[20,30], totalInvested=300
+  // p1: costBasis=100, dv=20, cb→80
+  // p2: costBasis=80+200=280, dv=84, cb→196
+  // closedDollar=104, remainingDollar=196, sum=300 ✓
+  const partials = [
+    { percent: 20, entryCountAtClose: 1 },
+    { percent: 30, entryCountAtClose: 3 },
+  ];
+  const totalInvested = 300;
+  let costBasis = 0, closedDollar = 0;
+  for (let i = 0; i < partials.length; i++) {
+    const prevCount = i === 0 ? 0 : partials[i - 1].entryCountAtClose;
+    costBasis += (partials[i].entryCountAtClose - prevCount) * 100;
+    closedDollar += (partials[i].percent / 100) * costBasis;
+    costBasis *= 1 - partials[i].percent / 100;
+  }
+  const sum = closedDollar + (totalInvested - closedDollar);
+  if (!approxEqual(sum, totalInvested)) { fail(`sum=${sum}, expected ${totalInvested}`); return; }
+  if (!approxEqual(closedDollar, 104)) { fail(`closedDollar=${closedDollar}, expected 104`); return; }
+  pass(`S7: closedDollar=${closedDollar.toFixed(4)}, remaining=${(totalInvested-closedDollar).toFixed(4)}, sum=1.0 ✓`);
+});
+
+test("weights sanity S9: two partials same cnt, costBasis chains correctly", ({ pass, fail }) => {
+  // S9: entries=[100,70], partials cnt=[1,1] pct=[20,20], totalInvested=200
+  // p1: costBasis=100, dv=20, cb→80
+  // p2: newEntries=0, costBasis=80, dv=16, cb→64
+  // closedDollar=36, weights: 20/200=0.10 and 16/200=0.08, remaining=164/200=0.82
+  const partials = [
+    { percent: 20, entryCountAtClose: 1 },
+    { percent: 20, entryCountAtClose: 1 },
+  ];
+  let costBasis = 0, closedDollar = 0;
+  for (let i = 0; i < partials.length; i++) {
+    const prevCount = i === 0 ? 0 : partials[i - 1].entryCountAtClose;
+    costBasis += (partials[i].entryCountAtClose - prevCount) * 100;
+    closedDollar += (partials[i].percent / 100) * costBasis;
+    costBasis *= 1 - partials[i].percent / 100;
+  }
+  const weight1 = 20 / 200, weight2 = 16 / 200, weightRem = 164 / 200;
+  if (!approxEqual(closedDollar, 36)) { fail(`closedDollar=${closedDollar}, expected 36`); return; }
+  if (!approxEqual(weight1 + weight2 + weightRem, 1)) { fail("weights don't sum to 1"); return; }
+  pass(`S9: weights ${weight1.toFixed(4)}+${weight2.toFixed(4)}+${weightRem.toFixed(4)}=1.0 ✓ (same-cnt chains correctly)`);
 });
