@@ -381,3 +381,6 @@ export { type GlobalConfig } from "./config/params";
 export { type ColumnConfig } from "./config/columns";
 
 export { backtest as lib } from "./lib";
+
+export { toProfitLossDto } from "./helpers/toProfitLossDto";
+export { getEffectivePriceOpen } from "./helpers/getEffectivePriceOpen";

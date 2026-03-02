@@ -64,15 +64,17 @@ export const toProfitLossDto = (
     // Open fee is paid once for the whole position
     let totalFees = GLOBAL_CONFIG.CC_PERCENT_FEE;
 
-    // priceOpenWithSlippage is the same for all partials — compute once
-    const priceOpenWithSlippage =
-      signal.position === "long"
-        ? priceOpen * (1 + GLOBAL_CONFIG.CC_PERCENT_SLIPPAGE / 100)
-        : priceOpen * (1 - GLOBAL_CONFIG.CC_PERCENT_SLIPPAGE / 100);
-
     // Calculate PNL for each partial close
     for (const partial of signal._partial) {
       const partialPercent = partial.percent;
+
+      // Use the effective entry price snapshot captured at the time of this partial close.
+      // This correctly handles DCA averaging that occurred before this partial exit,
+      // even if more averaging happened after.
+      const priceOpenWithSlippage =
+        signal.position === "long"
+          ? partial.effectivePrice * (1 + GLOBAL_CONFIG.CC_PERCENT_SLIPPAGE / 100)
+          : partial.effectivePrice * (1 - GLOBAL_CONFIG.CC_PERCENT_SLIPPAGE / 100);
 
       const priceCloseWithSlippage =
         signal.position === "long"
@@ -100,6 +102,13 @@ export const toProfitLossDto = (
     }
     const remainingPercent = 100 - totalClosed;
     if (remainingPercent > 0) {
+      // For the remaining position use the current effective price — this reflects all DCA
+      // entries including any that were added after the last partial close.
+      const remainingOpenWithSlippage =
+        signal.position === "long"
+          ? priceOpen * (1 + GLOBAL_CONFIG.CC_PERCENT_SLIPPAGE / 100)
+          : priceOpen * (1 - GLOBAL_CONFIG.CC_PERCENT_SLIPPAGE / 100);
+
       const priceCloseWithSlippage =
         signal.position === "long"
           ? priceClose * (1 - GLOBAL_CONFIG.CC_PERCENT_SLIPPAGE / 100)
@@ -108,14 +117,14 @@ export const toProfitLossDto = (
       // Calculate PNL for remaining
       const remainingPnl =
         signal.position === "long"
-          ? ((priceCloseWithSlippage - priceOpenWithSlippage) / priceOpenWithSlippage) * 100
-          : ((priceOpenWithSlippage - priceCloseWithSlippage) / priceOpenWithSlippage) * 100;
+          ? ((priceCloseWithSlippage - remainingOpenWithSlippage) / remainingOpenWithSlippage) * 100
+          : ((remainingOpenWithSlippage - priceCloseWithSlippage) / remainingOpenWithSlippage) * 100;
 
       // Weight by remaining percentage
       totalWeightedPnl += (remainingPercent / 100) * remainingPnl;
 
       // Close fee is proportional to the remaining size and adjusted for slippage
-      totalFees += GLOBAL_CONFIG.CC_PERCENT_FEE * (remainingPercent / 100) * (priceCloseWithSlippage / priceOpenWithSlippage);
+      totalFees += GLOBAL_CONFIG.CC_PERCENT_FEE * (remainingPercent / 100) * (priceCloseWithSlippage / remainingOpenWithSlippage);
     }
 
     // Subtract total fees from weighted PNL

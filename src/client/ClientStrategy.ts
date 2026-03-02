@@ -999,11 +999,17 @@ const PARTIAL_PROFIT_FN = (
     return false;
   }
 
+  // Capture effective entry price at the moment of partial close (for DCA-aware PNL)
+  const effectivePrice = GET_EFFECTIVE_PRICE_OPEN(signal);
+  const entryCountAtClose = signal._entry ? signal._entry.length : 1;
+
   // Add new partial close entry
   signal._partial.push({
     type: "profit",
     percent: percentToClose,
+    entryCountAtClose,
     price: currentPrice,
+    effectivePrice,
   });
 
   self.params.logger.info("PARTIAL_PROFIT_FN executed", {
@@ -1050,11 +1056,17 @@ const PARTIAL_LOSS_FN = (
     return false;
   }
 
+  // Capture effective entry price at the moment of partial close (for DCA-aware PNL)
+  const effectivePrice = GET_EFFECTIVE_PRICE_OPEN(signal);
+  const entryCountAtClose = signal._entry ? signal._entry.length : 1;
+
   // Add new partial close entry
   signal._partial.push({
     type: "loss",
     percent: percentToClose,
     price: currentPrice,
+    entryCountAtClose,
+    effectivePrice,
   });
 
   self.params.logger.warn("PARTIAL_LOSS_FN executed", {
@@ -6029,15 +6041,6 @@ export class ClientStrategy implements IStrategy {
       throw new Error(
         `ClientStrategy averageBuy: currentPrice must be a positive finite number, got ${currentPrice}`
       );
-    }
-
-    // Reject if any partial closes have already been executed
-    if (this._pendingSignal._partial && this._pendingSignal._partial.length > 0) {
-      this.params.logger.debug("ClientStrategy averageBuy: rejected — partial closes already executed", {
-        symbol,
-        partialCount: this._pendingSignal._partial.length,
-      });
-      return false;
     }
 
     // Execute averaging logic

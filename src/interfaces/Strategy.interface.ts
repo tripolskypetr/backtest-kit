@@ -82,6 +82,21 @@ export interface ISignalRow extends ISignalDto {
     percent: number;
     /** Price at which this partial was executed */
     price: number;
+    /**
+     * Effective entry price (DCA average) at the moment this partial close was executed.
+     * Captured from GET_EFFECTIVE_PRICE_OPEN at partial close time.
+     * Used in PNL calculation when averageBuy() is called after partial closes,
+     * so each partial's profit is calculated against the correct entry price at that moment.
+     */
+    effectivePrice: number;
+    /**
+     * Entry count (number of entries in _entry history) at the moment this partial close was executed.
+     * Used to determine which entries are included in the effective price calculation for this partial close.
+     * When averageBuy() is called after partial closes, new entries are added to _entry, but they should not affect the effective price used for already executed partial closes.
+     * By capturing entryCountAtClose, we can slice the _entry array to include only the entries that were part of the position at the time of this partial close when calculating the effective price for PNL.
+     * This ensures that each partial close's PNL is calculated against the correct average entry price, even if more averaging happens after the partial close.
+     */
+    entryCountAtClose: number;
   }>;
   /**
    * Trailing stop-loss price that overrides priceStopLoss when set.
