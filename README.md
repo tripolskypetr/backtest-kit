@@ -212,7 +212,6 @@ These three functions work together to manage a position dynamically. To reduce 
 - **`commitPartialProfit`** — closes X% of the position at a profit. Locks in gains while keeping exposure.
 - **`commitPartialLoss`** — closes X% of the position at a loss. Cuts exposure before the stop-loss is hit.
 
-**`priceOpen`** is the harmonic mean of all accepted DCA entries. After each partial close (`commitPartialProfit` or `commitPartialLoss`), the remaining cost basis is carried forward into the harmonic mean calculation for subsequent entries — so `priceOpen` shifts after every partial, which in turn changes whether the next `commitAverageBuy` call will be accepted.
 
 <details>
   <summary>
@@ -317,67 +316,69 @@ These three functions work together to manage a position dynamically. To reduce 
 backtest-kit uses Node.js `AsyncLocalStorage` to automatically provide
 temporal time context to your strategies.
 
-  <details>
-    <summary>
-      The Math
-    </summary>
+<details>
+  <summary>
+    The Math
+  </summary>
 
-    For a candle with:
-    - `timestamp` = candle open time (openTime)
-    - `stepMs` = interval duration (e.g., 60000ms for "1m")
-    - Candle close time = `timestamp + stepMs`
+  For a candle with:
+  - `timestamp` = candle open time (openTime)
+  - `stepMs` = interval duration (e.g., 60000ms for "1m")
+  - Candle close time = `timestamp + stepMs`
 
-    **Alignment:** All timestamps are aligned down to interval boundary.
-    For example, for 15m interval: 00:17 → 00:15, 00:44 → 00:30
+  **Alignment:** All timestamps are aligned down to interval boundary.
+  For example, for 15m interval: 00:17 → 00:15, 00:44 → 00:30
 
-    **Adapter contract:**
-    - First candle.timestamp must equal aligned `since`
-    - Adapter must return exactly `limit` candles
-    - Sequential timestamps: `since + i * stepMs` for i = 0..limit-1
+  **Adapter contract:**
+  - First candle.timestamp must equal aligned `since`
+  - Adapter must return exactly `limit` candles
+  - Sequential timestamps: `since + i * stepMs` for i = 0..limit-1
 
-    **How `since` is calculated from `when`:**
-    - `when` = current execution context time (from AsyncLocalStorage)
-    - `alignedWhen` = `Math.floor(when / stepMs) * stepMs` (aligned down to interval boundary)
-    - `since` = `alignedWhen - limit * stepMs` (go back `limit` candles from aligned when)
+  **How `since` is calculated from `when`:**
+  - `when` = current execution context time (from AsyncLocalStorage)
+  - `alignedWhen` = `Math.floor(when / stepMs) * stepMs` (aligned down to interval boundary)
+  - `since` = `alignedWhen - limit * stepMs` (go back `limit` candles from aligned when)
 
-    **Boundary semantics (inclusive/exclusive):**
-    - `since` is always **inclusive** — first candle has `timestamp === since`
-    - Exactly `limit` candles are returned
-    - Last candle has `timestamp === since + (limit - 1) * stepMs` — **inclusive**
-    - For `getCandles`: `alignedWhen` is **exclusive** — candle at that timestamp is NOT included (it's a pending/incomplete candle)
-    - For `getRawCandles`: `eDate` is **exclusive** — candle at that timestamp is NOT included (it's a pending/incomplete candle)
-    - For `getNextCandles`: `alignedWhen` is **inclusive** — first candle starts at `alignedWhen` (it's the current candle for backtest, already closed in historical data)
+  **Boundary semantics (inclusive/exclusive):**
+  - `since` is always **inclusive** — first candle has `timestamp === since`
+  - Exactly `limit` candles are returned
+  - Last candle has `timestamp === since + (limit - 1) * stepMs` — **inclusive**
+  - For `getCandles`: `alignedWhen` is **exclusive** — candle at that timestamp is NOT included (it's a pending/incomplete candle)
+  - For `getRawCandles`: `eDate` is **exclusive** — candle at that timestamp is NOT included (it's a pending/incomplete candle)
+  - For `getNextCandles`: `alignedWhen` is **inclusive** — first candle starts at `alignedWhen` (it's the current candle for backtest, already closed in historical data)
 
-    - `getCandles(symbol, interval, limit)` - Returns exactly `limit` candles
-      - Aligns `when` down to interval boundary
-      - Calculates `since = alignedWhen - limit * stepMs`
-      - **since — inclusive**, first candle.timestamp === since
-      - **alignedWhen — exclusive**, candle at alignedWhen is NOT returned
-      - Range: `[since, alignedWhen)` — half-open interval
-      - Example: `getCandles("BTCUSDT", "1m", 100)` returns 100 candles ending before aligned when
+  - `getCandles(symbol, interval, limit)` - Returns exactly `limit` candles
+    - Aligns `when` down to interval boundary
+    - Calculates `since = alignedWhen - limit * stepMs`
+    - **since — inclusive**, first candle.timestamp === since
+    - **alignedWhen — exclusive**, candle at alignedWhen is NOT returned
+    - Range: `[since, alignedWhen)` — half-open interval
+    - Example: `getCandles("BTCUSDT", "1m", 100)` returns 100 candles ending before aligned when
 
-    - `getNextCandles(symbol, interval, limit)` - Returns exactly `limit` candles (backtest only)
-      - Aligns `when` down to interval boundary
-      - `since = alignedWhen` (starts from aligned when, going forward)
-      - **since — inclusive**, first candle.timestamp === since
-      - Range: `[alignedWhen, alignedWhen + limit * stepMs)` — half-open interval
-      - Throws error in live mode to prevent look-ahead bias
-      - Example: `getNextCandles("BTCUSDT", "1m", 10)` returns next 10 candles starting from aligned when
+  - `getNextCandles(symbol, interval, limit)` - Returns exactly `limit` candles (backtest only)
+    - Aligns `when` down to interval boundary
+    - `since = alignedWhen` (starts from aligned when, going forward)
+    - **since — inclusive**, first candle.timestamp === since
+    - Range: `[alignedWhen, alignedWhen + limit * stepMs)` — half-open interval
+    - Throws error in live mode to prevent look-ahead bias
+    - Example: `getNextCandles("BTCUSDT", "1m", 10)` returns next 10 candles starting from aligned when
 
-    - `getRawCandles(symbol, interval, limit?, sDate?, eDate?)` - Flexible parameter combinations:
-      - `(limit)` - since = alignedWhen - limit * stepMs, range `[since, alignedWhen)`
-      - `(limit, sDate)` - since = align(sDate), returns `limit` candles forward, range `[since, since + limit * stepMs)`
-      - `(limit, undefined, eDate)` - since = align(eDate) - limit * stepMs, **eDate — exclusive**, range `[since, eDate)`
-      - `(undefined, sDate, eDate)` - since = align(sDate), limit calculated from range, **sDate — inclusive, eDate — exclusive**, range `[sDate, eDate)`
-      - `(limit, sDate, eDate)` - since = align(sDate), returns `limit` candles, **sDate — inclusive**
-      - All combinations respect look-ahead bias protection (eDate/endTime <= when)
+  - `getRawCandles(symbol, interval, limit?, sDate?, eDate?)` - Flexible parameter combinations:
+    - `(limit)` - since = alignedWhen - limit * stepMs, range `[since, alignedWhen)`
+    - `(limit, sDate)` - since = align(sDate), returns `limit` candles forward, range `[since, since + limit * stepMs)`
+    - `(limit, undefined, eDate)` - since = align(eDate) - limit * stepMs, **eDate — exclusive**, range `[since, eDate)`
+    - `(undefined, sDate, eDate)` - since = align(sDate), limit calculated from range, **sDate — inclusive, eDate — exclusive**, range `[sDate, eDate)`
+    - `(limit, sDate, eDate)` - since = align(sDate), returns `limit` candles, **sDate — inclusive**
+    - All combinations respect look-ahead bias protection (eDate/endTime <= when)
 
-    **Persistent Cache:**
-    - Cache lookup calculates expected timestamps: `since + i * stepMs` for i = 0..limit-1
-    - Returns all candles if found, null if any missing (cache miss)
-    - Cache and runtime use identical timestamp calculation logic
+  **Persistent Cache:**
+  - Cache lookup calculates expected timestamps: `since + i * stepMs` for i = 0..limit-1
+  - Returns all candles if found, null if any missing (cache miss)
+  - Cache and runtime use identical timestamp calculation logic
 
-  </details>
+</details>
+
+**`priceOpen`** is the harmonic mean of all accepted DCA entries. After each partial close (`commitPartialProfit` or `commitPartialLoss`), the remaining cost basis is carried forward into the harmonic mean calculation for subsequent entries — so `priceOpen` shifts after every partial, which in turn changes whether the next `commitAverageBuy` call will be accepted.
 
 #### Candle Timestamp Convention:
 
