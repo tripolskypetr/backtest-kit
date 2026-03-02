@@ -14,7 +14,9 @@ export {
   commitCancelScheduled,
   commitClosePending,
   commitPartialLoss,
+  commitPartialLossCost,
   commitPartialProfit,
+  commitPartialProfitCost,
   commitTrailingStop,
   commitTrailingTake,
   commitBreakeven,
@@ -389,6 +391,7 @@ export { set } from "./utils/set";
 
 export { percentDiff } from "./utils/percentDiff";
 export { percentValue } from "./utils/percentValue";
+export { investedCostToPercent } from "./utils/investedCostToPercent";
 
 export { type GlobalConfig } from "./config/params";
 export { type ColumnConfig } from "./config/columns";

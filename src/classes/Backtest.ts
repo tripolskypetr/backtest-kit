@@ -42,6 +42,8 @@ const BACKTEST_METHOD_NAME_CANCEL_SCHEDULED = "Backtest.commitCancelScheduled";
 const BACKTEST_METHOD_NAME_CLOSE_PENDING = "Backtest.commitClosePending";
 const BACKTEST_METHOD_NAME_PARTIAL_PROFIT = "BacktestUtils.commitPartialProfit";
 const BACKTEST_METHOD_NAME_PARTIAL_LOSS = "BacktestUtils.commitPartialLoss";
+const BACKTEST_METHOD_NAME_PARTIAL_PROFIT_COST = "BacktestUtils.commitPartialProfitCost";
+const BACKTEST_METHOD_NAME_PARTIAL_LOSS_COST = "BacktestUtils.commitPartialLossCost";
 const BACKTEST_METHOD_NAME_TRAILING_STOP = "BacktestUtils.commitTrailingStop";
 const BACKTEST_METHOD_NAME_TRAILING_PROFIT = "BacktestUtils.commitTrailingTake";
 const BACKTEST_METHOD_NAME_ACTIVATE_SCHEDULED = "Backtest.commitActivateScheduled";
@@ -1551,6 +1553,178 @@ export class BacktestUtils {
         );
     }
 
+    return await backtest.strategyCoreService.partialLoss(
+      true,
+      symbol,
+      percentToClose,
+      currentPrice,
+      context
+    );
+  };
+
+  /**
+   * Executes partial close at profit level by absolute dollar amount (moving toward TP).
+   *
+   * Convenience wrapper around commitPartialProfit that converts a dollar amount
+   * to a percentage of the invested position cost automatically.
+   * Price must be moving toward take profit (in profit direction).
+   *
+   * @param symbol - Trading pair symbol
+   * @param dollarAmount - Dollar value of position to close (e.g. 150 closes $150 worth)
+   * @param currentPrice - Current market price for this partial close
+   * @param context - Execution context with strategyName, exchangeName, and frameName
+   * @returns Promise<boolean> - true if partial close executed, false if skipped or no position
+   *
+   * @throws Error if currentPrice is not in profit direction:
+   *   - LONG: currentPrice must be > priceOpen
+   *   - SHORT: currentPrice must be < priceOpen
+   *
+   * @example
+   * ```typescript
+   * // Close $150 of a $300 position (50%) at profit
+   * const success = await Backtest.commitPartialProfitCost("BTCUSDT", 150, 45000, {
+   *   exchangeName: "binance",
+   *   frameName: "frame1",
+   *   strategyName: "my-strategy"
+   * });
+   * if (success) {
+   *   console.log('Partial profit executed');
+   * }
+   * ```
+   */
+  public commitPartialProfitCost = async (
+    symbol: string,
+    dollarAmount: number,
+    currentPrice: number,
+    context: {
+      strategyName: StrategyName;
+      exchangeName: ExchangeName;
+      frameName: FrameName;
+    }
+  ): Promise<boolean> => {
+    backtest.loggerService.info(BACKTEST_METHOD_NAME_PARTIAL_PROFIT_COST, {
+      symbol,
+      dollarAmount,
+      currentPrice,
+      context,
+    });
+    backtest.strategyValidationService.validate(
+      context.strategyName,
+      BACKTEST_METHOD_NAME_PARTIAL_PROFIT_COST
+    );
+    backtest.exchangeValidationService.validate(
+      context.exchangeName,
+      BACKTEST_METHOD_NAME_PARTIAL_PROFIT_COST
+    );
+
+    {
+      const { riskName, riskList, actions } =
+        backtest.strategySchemaService.get(context.strategyName);
+      riskName &&
+        backtest.riskValidationService.validate(riskName, BACKTEST_METHOD_NAME_PARTIAL_PROFIT_COST);
+      riskList &&
+        riskList.forEach((riskName) =>
+          backtest.riskValidationService.validate(riskName, BACKTEST_METHOD_NAME_PARTIAL_PROFIT_COST)
+        );
+      actions &&
+        actions.forEach((actionName) =>
+          backtest.actionValidationService.validate(actionName, BACKTEST_METHOD_NAME_PARTIAL_PROFIT_COST)
+        );
+    }
+
+    const investedCost = await backtest.strategyCoreService.getPositionInvestedCost(
+      true,
+      symbol,
+      context
+    );
+    if (investedCost === null) return false;
+    const percentToClose = (dollarAmount / investedCost) * 100;
+    return await backtest.strategyCoreService.partialProfit(
+      true,
+      symbol,
+      percentToClose,
+      currentPrice,
+      context
+    );
+  };
+
+  /**
+   * Executes partial close at loss level by absolute dollar amount (moving toward SL).
+   *
+   * Convenience wrapper around commitPartialLoss that converts a dollar amount
+   * to a percentage of the invested position cost automatically.
+   * Price must be moving toward stop loss (in loss direction).
+   *
+   * @param symbol - Trading pair symbol
+   * @param dollarAmount - Dollar value of position to close (e.g. 100 closes $100 worth)
+   * @param currentPrice - Current market price for this partial close
+   * @param context - Execution context with strategyName, exchangeName, and frameName
+   * @returns Promise<boolean> - true if partial close executed, false if skipped or no position
+   *
+   * @throws Error if currentPrice is not in loss direction:
+   *   - LONG: currentPrice must be < priceOpen
+   *   - SHORT: currentPrice must be > priceOpen
+   *
+   * @example
+   * ```typescript
+   * // Close $100 of a $300 position (~33%) at loss
+   * const success = await Backtest.commitPartialLossCost("BTCUSDT", 100, 38000, {
+   *   exchangeName: "binance",
+   *   frameName: "frame1",
+   *   strategyName: "my-strategy"
+   * });
+   * if (success) {
+   *   console.log('Partial loss executed');
+   * }
+   * ```
+   */
+  public commitPartialLossCost = async (
+    symbol: string,
+    dollarAmount: number,
+    currentPrice: number,
+    context: {
+      strategyName: StrategyName;
+      exchangeName: ExchangeName;
+      frameName: FrameName;
+    }
+  ): Promise<boolean> => {
+    backtest.loggerService.info(BACKTEST_METHOD_NAME_PARTIAL_LOSS_COST, {
+      symbol,
+      dollarAmount,
+      currentPrice,
+      context,
+    });
+    backtest.strategyValidationService.validate(
+      context.strategyName,
+      BACKTEST_METHOD_NAME_PARTIAL_LOSS_COST
+    );
+    backtest.exchangeValidationService.validate(
+      context.exchangeName,
+      BACKTEST_METHOD_NAME_PARTIAL_LOSS_COST
+    );
+
+    {
+      const { riskName, riskList, actions } =
+        backtest.strategySchemaService.get(context.strategyName);
+      riskName &&
+        backtest.riskValidationService.validate(riskName, BACKTEST_METHOD_NAME_PARTIAL_LOSS_COST);
+      riskList &&
+        riskList.forEach((riskName) =>
+          backtest.riskValidationService.validate(riskName, BACKTEST_METHOD_NAME_PARTIAL_LOSS_COST)
+        );
+      actions &&
+        actions.forEach((actionName) =>
+          backtest.actionValidationService.validate(actionName, BACKTEST_METHOD_NAME_PARTIAL_LOSS_COST)
+        );
+    }
+
+    const investedCost = await backtest.strategyCoreService.getPositionInvestedCost(
+      true,
+      symbol,
+      context
+    );
+    if (investedCost === null) return false;
+    const percentToClose = (dollarAmount / investedCost) * 100;
     return await backtest.strategyCoreService.partialLoss(
       true,
       symbol,

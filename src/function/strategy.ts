@@ -3,11 +3,14 @@ import backtest, {
   MethodContextService,
 } from "../lib";
 import { getAveragePrice } from "./exchange";
+import { investedCostToPercent } from "../utils/investedCostToPercent";
 
 const CANCEL_SCHEDULED_METHOD_NAME = "strategy.commitCancelScheduled";
 const CLOSE_PENDING_METHOD_NAME = "strategy.commitClosePending";
 const PARTIAL_PROFIT_METHOD_NAME = "strategy.commitPartialProfit";
 const PARTIAL_LOSS_METHOD_NAME = "strategy.commitPartialLoss";
+const PARTIAL_PROFIT_COST_METHOD_NAME = "strategy.commitPartialProfitCost";
+const PARTIAL_LOSS_COST_METHOD_NAME = "strategy.commitPartialLossCost";
 const TRAILING_STOP_METHOD_NAME = "strategy.commitTrailingStop";
 const TRAILING_PROFIT_METHOD_NAME = "strategy.commitTrailingTake";
 const BREAKEVEN_METHOD_NAME = "strategy.commitBreakeven";
@@ -759,6 +762,118 @@ export async function getPositionPnlPercent(symbol: string): Promise<number | nu
   return await backtest.strategyCoreService.getPositionPnlPercent(
     isBacktest,
     symbol,
+    currentPrice,
+    { exchangeName, frameName, strategyName }
+  );
+}
+
+/**
+ * Executes partial close at profit level by absolute dollar amount (moving toward TP).
+ *
+ * Convenience wrapper around commitPartialProfit that converts a dollar amount
+ * to a percentage of the invested position cost automatically.
+ * Price must be moving toward take profit (in profit direction).
+ *
+ * Automatically detects backtest/live mode from execution context.
+ * Automatically fetches current price via getAveragePrice.
+ *
+ * @param symbol - Trading pair symbol
+ * @param dollarAmount - Dollar value of position to close (e.g. 150 closes $150 worth)
+ * @returns Promise<boolean> - true if partial close executed, false if skipped or no position
+ *
+ * @throws Error if currentPrice is not in profit direction:
+ *   - LONG: currentPrice must be > priceOpen
+ *   - SHORT: currentPrice must be < priceOpen
+ *
+ * @example
+ * ```typescript
+ * import { commitPartialProfitCost } from "backtest-kit";
+ *
+ * // Close $150 of a $300 position (50%) at profit
+ * const success = await commitPartialProfitCost("BTCUSDT", 150);
+ * if (success) {
+ *   console.log('Partial profit executed');
+ * }
+ * ```
+ */
+export async function commitPartialProfitCost(symbol: string, dollarAmount: number): Promise<boolean> {
+  backtest.loggerService.info(PARTIAL_PROFIT_COST_METHOD_NAME, { symbol, dollarAmount });
+  if (!ExecutionContextService.hasContext()) {
+    throw new Error("commitPartialProfitCost requires an execution context");
+  }
+  if (!MethodContextService.hasContext()) {
+    throw new Error("commitPartialProfitCost requires a method context");
+  }
+  const currentPrice = await getAveragePrice(symbol);
+  const { backtest: isBacktest } = backtest.executionContextService.context;
+  const { exchangeName, frameName, strategyName } = backtest.methodContextService.context;
+  const investedCost = await backtest.strategyCoreService.getPositionInvestedCost(
+    isBacktest,
+    symbol,
+    { exchangeName, frameName, strategyName }
+  );
+  if (investedCost === null) return false;
+  const percentToClose = investedCostToPercent(dollarAmount, investedCost);
+  return await backtest.strategyCoreService.partialProfit(
+    isBacktest,
+    symbol,
+    percentToClose,
+    currentPrice,
+    { exchangeName, frameName, strategyName }
+  );
+}
+
+/**
+ * Executes partial close at loss level by absolute dollar amount (moving toward SL).
+ *
+ * Convenience wrapper around commitPartialLoss that converts a dollar amount
+ * to a percentage of the invested position cost automatically.
+ * Price must be moving toward stop loss (in loss direction).
+ *
+ * Automatically detects backtest/live mode from execution context.
+ * Automatically fetches current price via getAveragePrice.
+ *
+ * @param symbol - Trading pair symbol
+ * @param dollarAmount - Dollar value of position to close (e.g. 100 closes $100 worth)
+ * @returns Promise<boolean> - true if partial close executed, false if skipped or no position
+ *
+ * @throws Error if currentPrice is not in loss direction:
+ *   - LONG: currentPrice must be < priceOpen
+ *   - SHORT: currentPrice must be > priceOpen
+ *
+ * @example
+ * ```typescript
+ * import { commitPartialLossCost } from "backtest-kit";
+ *
+ * // Close $100 of a $300 position (~33%) at loss
+ * const success = await commitPartialLossCost("BTCUSDT", 100);
+ * if (success) {
+ *   console.log('Partial loss executed');
+ * }
+ * ```
+ */
+export async function commitPartialLossCost(symbol: string, dollarAmount: number): Promise<boolean> {
+  backtest.loggerService.info(PARTIAL_LOSS_COST_METHOD_NAME, { symbol, dollarAmount });
+  if (!ExecutionContextService.hasContext()) {
+    throw new Error("commitPartialLossCost requires an execution context");
+  }
+  if (!MethodContextService.hasContext()) {
+    throw new Error("commitPartialLossCost requires a method context");
+  }
+  const currentPrice = await getAveragePrice(symbol);
+  const { backtest: isBacktest } = backtest.executionContextService.context;
+  const { exchangeName, frameName, strategyName } = backtest.methodContextService.context;
+  const investedCost = await backtest.strategyCoreService.getPositionInvestedCost(
+    isBacktest,
+    symbol,
+    { exchangeName, frameName, strategyName }
+  );
+  if (investedCost === null) return false;
+  const percentToClose = investedCostToPercent(dollarAmount, investedCost);
+  return await backtest.strategyCoreService.partialLoss(
+    isBacktest,
+    symbol,
+    percentToClose,
     currentPrice,
     { exchangeName, frameName, strategyName }
   );
