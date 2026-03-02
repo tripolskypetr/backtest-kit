@@ -40,20 +40,13 @@ const alignTimestamp = (timestampMs, intervalMinutes) => {
 /**
  * TRAILING STOP ТЕСТ #8: Move SL to breakeven using getPendingSignal
  *
- * Проверяем что:
- * - Можно использовать Backtest.getPendingSignal() для получения текущей позиции
- * - На основе данных позиции можно вычислить нужный percentShift для безубытка
- * - Trailing stop корректно устанавливает SL на уровень входа (breakeven)
- * - Позиция закрывается с PNL=0% при откате к entry
- *
  * Сценарий:
- * 1. LONG позиция: entry=100k, originalSL=98k (distance=2%)
- * 2. Цена растет до +10% (110k)
- * 3. Используем getPendingSignal() для получения данных позиции
- * 4. Вычисляем percentShift для безубытка: shift = -2% (distance 2% → 0%)
- * 5. ПрименяемcommitTrailingStop(-2) → newSL=100k (breakeven)
- * 6. Цена откатывает к 100k
- * 7. Позиция закрывается с PNL=0%
+ * 1. LONG позиция: entry=100k, originalSL=98k (distance=2%), TP=120k (+20%)
+ * 2. Цена растет до 110k (+10%)
+ * 3. onPartialProfit срабатывает при revenuePercent >= 50%
+ * 4. Используем getPendingSignal() → вычисляем percentShift для безубытка
+ * 5. commitTrailingStop(-2%) → newSL=100k (breakeven)
+ * 6. Цена откатывает к 100k → SL пробивается → closeReason=stop_loss
  */
 test("TRAILING STOP: Move to breakeven using getPendingSignal", async ({ pass, fail }) => {
   const startTime = new Date("2024-01-01T00:00:00Z").getTime();
@@ -66,13 +59,14 @@ test("TRAILING STOP: Move to breakeven using getPendingSignal", async ({ pass, f
   let signalGenerated = false;
   let breakevenApplied = false;
 
-  for (let i = 0; i < 6; i++) {
+  // Буферные свечи ВЫШЕ priceOpen (чтобы scheduled не активировался раньше startTime)
+  for (let i = 0; i < bufferMinutes; i++) {
     allCandles.push({
       timestamp: bufferStartTime + i * intervalMs,
-      open: basePrice,
-      high: basePrice + 100,
-      low: basePrice - 50,
-      close: basePrice,
+      open: basePrice + 200,
+      high: basePrice + 300,
+      low: basePrice + 100,
+      close: basePrice + 200,
       volume: 100,
     });
   }
@@ -81,7 +75,6 @@ test("TRAILING STOP: Move to breakeven using getPendingSignal", async ({ pass, f
     exchangeName: "binance-trailing-breakeven",
     getCandles: async (_symbol, _interval, since, limit) => {
       const alignedSince = alignTimestamp(since.getTime(), 1);
-      console.log(`[getCandles] since=${new Date(alignedSince).toISOString()} limit=${limit} allCandles.length=${allCandles.length}`);
       const result = [];
       for (let i = 0; i < limit; i++) {
         const timestamp = alignedSince + i * intervalMs;
@@ -91,15 +84,14 @@ test("TRAILING STOP: Move to breakeven using getPendingSignal", async ({ pass, f
         } else {
           result.push({
             timestamp,
-            open: basePrice,
-            high: basePrice + 100,
-            low: basePrice - 50,
-            close: basePrice,
+            open: basePrice + 200,
+            high: basePrice + 300,
+            low: basePrice + 100,
+            close: basePrice + 200,
             volume: 100,
           });
         }
       }
-      console.log(`[getCandles] returning ${result.length} candles: first=${new Date(result[0]?.timestamp).toISOString()} last=${new Date(result[result.length-1]?.timestamp).toISOString()}`);
       return result;
     },
     formatPrice: async (_symbol, p) => p.toFixed(8),
@@ -115,33 +107,46 @@ test("TRAILING STOP: Move to breakeven using getPendingSignal", async ({ pass, f
 
       allCandles = [];
 
+      // Буфер: выше priceOpen, чтобы scheduled не активировался до фазы активации
       for (let i = 0; i < bufferMinutes; i++) {
         allCandles.push({
           timestamp: bufferStartTime + i * intervalMs,
-          open: basePrice,
-          high: basePrice + 50,
-          low: basePrice - 50,
-          close: basePrice,
+          open: basePrice + 200,
+          high: basePrice + 300,
+          low: basePrice + 100,
+          close: basePrice + 200,
           volume: 100,
         });
       }
 
-      for (let i = 0; i < 50; i++) {
+      // minuteEstimatedTime=30, фрейм=30 минут
+      for (let i = 0; i < 30; i++) {
         const timestamp = startTime + i * intervalMs;
 
-        // Фаза 1 (0-4): Активация
+        // Фаза 1 (0-4): выше priceOpen — ждём
         if (i < 5) {
+          allCandles.push({
+            timestamp,
+            open: basePrice + 200,
+            high: basePrice + 300,
+            low: basePrice + 100,
+            close: basePrice + 200,
+            volume: 100,
+          });
+        }
+        // Фаза 2 (5-9): Активация — low <= priceOpen
+        else if (i < 10) {
           allCandles.push({
             timestamp,
             open: basePrice,
             high: basePrice + 100,
             low: basePrice - 100,
             close: basePrice,
-            volume: 100
+            volume: 100,
           });
         }
-        // Фаза 2 (5-14): Рост до +10% (110k)
-        else if (i >= 5 && i < 15) {
+        // Фаза 3 (10-19): Рост до +10% (110k) — onPartialProfit должен сработать
+        else if (i < 20) {
           const price = basePrice + 10000;
           allCandles.push({
             timestamp,
@@ -149,30 +154,19 @@ test("TRAILING STOP: Move to breakeven using getPendingSignal", async ({ pass, f
             high: price + 100,
             low: price - 100,
             close: price,
-            volume: 100
+            volume: 100,
           });
         }
-        // Фаза 3 (15-24): Откат к breakeven (100k)
-        else if (i >= 15 && i < 25) {
+        // Фаза 4 (20-29): Откат к breakeven (100k) — пробьёт новый SL=100k
+        else {
           const price = basePrice;
           allCandles.push({
             timestamp,
             open: price,
             high: price + 100,
-            low: price - 100,  // low=99900, пробивает breakeven SL=100000
+            low: price - 200,  // low=99800, пробивает SL=100k
             close: price,
-            volume: 100
-          });
-        }
-        // Остальное: не должно достигаться
-        else {
-          allCandles.push({
-            timestamp,
-            open: basePrice,
-            high: basePrice + 100,
-            low: basePrice - 100,
-            close: basePrice,
-            volume: 100
+            volume: 100,
           });
         }
       }
@@ -182,45 +176,26 @@ test("TRAILING STOP: Move to breakeven using getPendingSignal", async ({ pass, f
         priceOpen: basePrice,              // 100000
         priceTakeProfit: basePrice + 20000, // 120000 (+20%)
         priceStopLoss: basePrice - 2000,    // 98000 (-2%)
-        minuteEstimatedTime: 120,
+        minuteEstimatedTime: 30,
       };
     },
     callbacks: {
-      onActivePing: async (symbol, signal, when, _backtest) => {
-        console.log(`[onActivePing] symbol=${symbol} when=${new Date(when).toISOString()} priceOpen=${signal.priceOpen} priceStopLoss=${signal.priceStopLoss}`);
-      },
-      onPartialProfit: async (symbol, _signal, _currentPrice, revenuePercent, _backtest) => {
-        console.log(`[onPartialProfit] symbol=${symbol} revenuePercent=${revenuePercent.toFixed(2)}% currentPrice=${_currentPrice} breakevenApplied=${breakevenApplied}`);
-        // Применяем breakeven при достижении 10% profit
-        if (!breakevenApplied && revenuePercent >= 10) {
-          console.log(`[onPartialProfit] Profit reached ${revenuePercent.toFixed(2)}%, moving SL to breakeven`);
-
-          // Получаем текущую позицию через getPendingSignal
-          const pendingSignal = await Backtest.getPendingSignal(symbol, {
+      onPartialProfit: async (_symbol, _signal, _currentPrice, revenuePercent, _backtest) => {
+        // Применяем breakeven при достижении 50% пути к TP
+        if (!breakevenApplied && revenuePercent >= 50) {
+          const pendingSignal = await Backtest.getPendingSignal("BTCUSDT", {
             strategyName: "test-trailing-breakeven",
             exchangeName: "binance-trailing-breakeven",
-            frameName: "50m-trailing-breakeven",
+            frameName: "30m-trailing-breakeven",
           });
 
-          console.log(`[getPendingSignal] result:`, pendingSignal ? `priceOpen=${pendingSignal.priceOpen} priceStopLoss=${pendingSignal.priceStopLoss}` : "null");
+          if (!pendingSignal) return;
 
-          if (!pendingSignal) {
-            console.error(`[onPartialProfit] No pending signal found!`);
-            return;
-          }
-
-          // Вычисляем текущее расстояние SL от entry в процентах
           const currentSlDistance = Math.abs((pendingSignal.priceOpen - pendingSignal.priceStopLoss) / pendingSignal.priceOpen * 100);
-          console.log(`[Calculate] Current SL distance: ${currentSlDistance.toFixed(2)}%`);
-
-          // Для breakeven нужно: newDistance = 0%
-          // percentShift = newDistance - currentDistance = 0% - 2% = -2%
+          // percentShift = 0% - 2% = -2% → SL переедет на entry (breakeven)
           const percentShift = -currentSlDistance;
-          console.log(`[Calculate] percentShift for breakeven: ${percentShift.toFixed(2)}%`);
 
-          // Применяем trailing stop для безубытка
-          const tsResult = await commitTrailingStop(symbol, percentShift, _currentPrice);
-          console.log(`[trailingStop] result=${tsResult} shift=${percentShift.toFixed(2)}% SL should now be at ${pendingSignal.priceOpen}`);
+          await commitTrailingStop("BTCUSDT", percentShift, _currentPrice);
           breakevenApplied = true;
         }
       },
@@ -228,16 +203,15 @@ test("TRAILING STOP: Move to breakeven using getPendingSignal", async ({ pass, f
   });
 
   addFrameSchema({
-    frameName: "50m-trailing-breakeven",
+    frameName: "30m-trailing-breakeven",
     interval: "1m",
     startDate: new Date("2024-01-01T00:00:00Z"),
-    endDate: new Date("2024-01-01T00:50:00Z"),
+    endDate: new Date("2024-01-01T00:30:00Z"),
   });
 
   const signalResults = [];
   const unsubscribeSignal = listenSignalBacktest((result) => {
     signalResults.push(result);
-    // console.log(`[listenSignalBacktest] action=${result.action}, closeReason=${result.closeReason || 'N/A'}`);
   });
 
   const awaitSubject = new Subject();
@@ -252,7 +226,7 @@ test("TRAILING STOP: Move to breakeven using getPendingSignal", async ({ pass, f
   Backtest.background("BTCUSDT", {
     strategyName: "test-trailing-breakeven",
     exchangeName: "binance-trailing-breakeven",
-    frameName: "50m-trailing-breakeven",
+    frameName: "30m-trailing-breakeven",
   });
 
   await awaitSubject.toPromise();
@@ -275,24 +249,17 @@ test("TRAILING STOP: Move to breakeven using getPendingSignal", async ({ pass, f
     return;
   }
 
-  // Проверяем что закрылось по stop_loss
   if (closedResult.closeReason !== "stop_loss") {
     fail(`Expected closeReason="stop_loss", got "${closedResult.closeReason}"`);
     return;
   }
 
-  // console.log(`[TEST] Signal closed by ${closedResult.closeReason}, PNL: ${closedResult.pnl.pnlPercentage.toFixed(2)}%`);
-
-  // Проверяем PNL: должен быть близок к 0% (breakeven с учетом fees и slippage)
-  // Фактическое закрытие происходит когда low пробивает SL=100k
-  // PNL включает fees и slippage, поэтому допускаем отклонение до -0.5%
-  // Главное - PNL НЕ должен быть -2% (original SL без breakeven)
   if (closedResult.pnl.pnlPercentage < -0.5 || closedResult.pnl.pnlPercentage > 0.2) {
     fail(`PNL should be close to 0% (breakeven with fees), got ${closedResult.pnl.pnlPercentage.toFixed(2)}%`);
     return;
   }
 
-  pass(`TRAILING STOP BREAKEVEN WORKS: Used getPendingSignal to calculate shift, moved SL to entry, closed with PNL ${closedResult.pnl.pnlPercentage.toFixed(2)}% (including fees/slippage)`);
+  pass(`TRAILING STOP BREAKEVEN WORKS: SL moved to entry, closed by stop_loss with PNL ${closedResult.pnl.pnlPercentage.toFixed(2)}%`);
 });
 
 
@@ -310,13 +277,14 @@ test("PARTIAL FUNCTION: partialLoss() closes 40% of LONG position", async ({ pas
   let signalGenerated = false;
   let partialCalled = false;
 
-  for (let i = 0; i < 6; i++) {
+  // Буферные свечи ВЫШЕ priceOpen
+  for (let i = 0; i < bufferMinutes; i++) {
     allCandles.push({
       timestamp: bufferStartTime + i * intervalMs,
-      open: basePrice,
-      high: basePrice + 100,
-      low: basePrice - 50,
-      close: basePrice,
+      open: basePrice + 200,
+      high: basePrice + 300,
+      low: basePrice + 100,
+      close: basePrice + 200,
       volume: 100,
     });
   }
@@ -334,10 +302,10 @@ test("PARTIAL FUNCTION: partialLoss() closes 40% of LONG position", async ({ pas
         } else {
           result.push({
             timestamp,
-            open: basePrice,
-            high: basePrice + 100,
-            low: basePrice - 50,
-            close: basePrice,
+            open: basePrice + 200,
+            high: basePrice + 300,
+            low: basePrice + 100,
+            close: basePrice + 200,
             volume: 100,
           });
         }
@@ -357,21 +325,38 @@ test("PARTIAL FUNCTION: partialLoss() closes 40% of LONG position", async ({ pas
 
       allCandles = [];
 
+      // Буфер: выше priceOpen
       for (let i = 0; i < bufferMinutes; i++) {
         allCandles.push({
           timestamp: bufferStartTime + i * intervalMs,
-          open: basePrice,
-          high: basePrice + 50,
-          low: basePrice - 50,
-          close: basePrice,
+          open: basePrice + 200,
+          high: basePrice + 300,
+          low: basePrice + 100,
+          close: basePrice + 200,
           volume: 100,
         });
       }
 
-      for (let i = 0; i < 130; i++) {
+      // minuteEstimatedTime=60, фрейм=60 минут
+      // SL = basePrice - 15000 (15% от entry — в пределах CC_MAX_STOPLOSS_DISTANCE_PERCENT=20)
+      // TP = basePrice + 40000 (+40%)
+      // Цена падает до ~88k → это 80% пути к SL=85k → revenuePercent >= 20 → вызываем partialLoss(40%)
+      for (let i = 0; i < 60; i++) {
         const timestamp = startTime + i * intervalMs;
 
+        // Фаза 1 (0-4): выше priceOpen — ждём активации
         if (i < 5) {
+          allCandles.push({
+            timestamp,
+            open: basePrice + 200,
+            high: basePrice + 300,
+            low: basePrice + 100,
+            close: basePrice + 200,
+            volume: 100,
+          });
+        }
+        // Фаза 2 (5-9): Активация — low <= priceOpen
+        else if (i < 10) {
           allCandles.push({
             timestamp,
             open: basePrice,
@@ -380,8 +365,10 @@ test("PARTIAL FUNCTION: partialLoss() closes 40% of LONG position", async ({ pas
             close: basePrice,
             volume: 100,
           });
-        } else if (i >= 5 && i < 20) {
-          const price = basePrice - 10000;
+        }
+        // Фаза 3 (10-24): Падение до 88k → ~80% пути к SL=85k
+        else if (i < 25) {
+          const price = basePrice - 12000; // 88000
           allCandles.push({
             timestamp,
             open: price,
@@ -390,13 +377,16 @@ test("PARTIAL FUNCTION: partialLoss() closes 40% of LONG position", async ({ pas
             close: price,
             volume: 100,
           });
-        } else {
+        }
+        // Фаза 4 (25-59): Нейтраль около 90k (выше SL=85k, ниже entry=100k)
+        else {
+          const price = basePrice - 10000; // 90000
           allCandles.push({
             timestamp,
-            open: basePrice - 5000,
-            high: basePrice - 4900,
-            low: basePrice - 5100,
-            close: basePrice - 5000,
+            open: price,
+            high: price + 100,
+            low: price - 100,
+            close: price,
             volume: 100,
           });
         }
@@ -404,40 +394,27 @@ test("PARTIAL FUNCTION: partialLoss() closes 40% of LONG position", async ({ pas
 
       return {
         position: "long",
-        priceOpen: basePrice,
-        priceTakeProfit: basePrice + 60000,
-        priceStopLoss: basePrice - 50000,
-        minuteEstimatedTime: 120,
+        priceOpen: basePrice,              // 100000
+        priceTakeProfit: basePrice + 40000, // 140000 (+40%)
+        priceStopLoss: basePrice - 15000,   // 85000 (-15%)
+        minuteEstimatedTime: 60,
       };
     },
     callbacks: {
       onPartialLoss: async (_symbol, _data, _currentPrice, revenuePercent, _backtest) => {
-        console.log(`[onPartialLoss] revenuePercent=${revenuePercent.toFixed(2)}% currentPrice=${_currentPrice} partialCalled=${partialCalled}`);
-        // Вызываем partialLoss при достижении 20% к SL
         if (!partialCalled && revenuePercent >= 20) {
           partialCalled = true;
-          try {
-            await commitPartialLoss("BTCUSDT", 40); // Закрываем 40%
-            console.log("[TEST] partialLoss called: 40% at level " + revenuePercent.toFixed(2) + "%");
-          } catch (err) {
-            console.error("[TEST] partialLoss error:", err.message);
-          }
+          await commitPartialLoss("BTCUSDT", 40);
         }
-      },
-      onOpen: (_symbol, data, currentPrice) => {
-        console.log(`[onOpen] priceOpen=${data.priceOpen} priceStopLoss=${data.priceStopLoss} priceTakeProfit=${data.priceTakeProfit} currentPrice=${currentPrice}`);
-      },
-      onActivePing: async (_symbol, data, _when, _backtest) => {
-        console.log(`[onActivePing] effectivePriceOpen=${data.priceOpen} priceStopLoss=${data.priceStopLoss}`);
       },
     },
   });
 
   addFrameSchema({
-    frameName: "130m-function-partial-loss",
+    frameName: "60m-function-partial-loss",
     interval: "1m",
     startDate: new Date("2024-01-01T00:00:00Z"),
-    endDate: new Date("2024-01-01T02:10:00Z"),
+    endDate: new Date("2024-01-01T01:00:00Z"),
   });
 
   const awaitSubject = new Subject();
@@ -452,7 +429,7 @@ test("PARTIAL FUNCTION: partialLoss() closes 40% of LONG position", async ({ pas
   Backtest.background("BTCUSDT", {
     strategyName: "test-function-partial-loss",
     exchangeName: "binance-function-partial-loss",
-    frameName: "130m-function-partial-loss",
+    frameName: "60m-function-partial-loss",
   });
 
   await awaitSubject.toPromise();
@@ -468,14 +445,11 @@ test("PARTIAL FUNCTION: partialLoss() closes 40% of LONG position", async ({ pas
     return;
   }
 
-  // Проверяем наличие поля _partial в сигнале
   const data = await Backtest.getData("BTCUSDT", {
     strategyName: "test-function-partial-loss",
     exchangeName: "binance-function-partial-loss",
-    frameName: "130m-function-partial-loss",
+    frameName: "60m-function-partial-loss",
   });
-
-  // console.log("[TEST #12] getData result:", JSON.stringify(data, null, 2));
 
   if (!data.signalList || data.signalList.length === 0) {
     fail("No signals found in backtest data");
@@ -483,14 +457,11 @@ test("PARTIAL FUNCTION: partialLoss() closes 40% of LONG position", async ({ pas
   }
 
   const signal = data.signalList[0].signal;
-  // console.log("[TEST #12] signal:", JSON.stringify(signal, null, 2));
 
   if (!signal._partial) {
     fail("Field _partial is missing in signal");
     return;
   }
-
-  // console.log("[TEST #12] signal._partial:", JSON.stringify(signal._partial, null, 2));
 
   if (!Array.isArray(signal._partial)) {
     fail("Field _partial is not an array");
@@ -503,7 +474,6 @@ test("PARTIAL FUNCTION: partialLoss() closes 40% of LONG position", async ({ pas
   }
 
   const partial = signal._partial[0];
-  // console.log("[TEST #12] partial[0]:", JSON.stringify(partial, null, 2));
 
   if (partial.type !== "loss") {
     fail(`Expected type 'loss', got '${partial.type}'`);
