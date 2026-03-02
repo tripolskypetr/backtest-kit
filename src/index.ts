@@ -384,3 +384,4 @@ export { backtest as lib } from "./lib";
 
 export { toProfitLossDto } from "./helpers/toProfitLossDto";
 export { getEffectivePriceOpen } from "./helpers/getEffectivePriceOpen";
+export { getTotalClosed } from "./helpers/getTotalClosed";

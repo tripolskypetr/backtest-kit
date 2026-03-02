@@ -39,6 +39,7 @@ import backtest, { ExecutionContextService } from "../lib";
 import { errorEmitter, backtestScheduleOpenSubject } from "../config/emitters";
 import { GLOBAL_CONFIG } from "../config/params";
 import toPlainString from "../helpers/toPlainString";
+import { getTotalClosed } from "../helpers/getTotalClosed";
 import beginTime from "../utils/beginTime";
 import { StrategyCommitContract } from "../contract/StrategyCommit.contract";
 import { getDebugTimestamp } from "../helpers/getDebugTimestamp";
@@ -51,6 +52,8 @@ const INTERVAL_MINUTES: Record<SignalInterval, number> = {
   "30m": 30,
   "1h": 60,
 };
+
+const COST_BASIS_PER_ENTRY = 100;
 
 /**
  * Mock value for scheduled signal pendingAt timestamp.
@@ -976,25 +979,22 @@ const PARTIAL_PROFIT_FN = (
   // Initialize partial array if not present
   if (!signal._partial) signal._partial = [];
 
-  // Calculate current totals (computed values)
-  const tpClosed = signal._partial
-    .filter((p) => p.type === "profit")
-    .reduce((sum, p) => sum + p.percent, 0);
-  const slClosed = signal._partial
-    .filter((p) => p.type === "loss")
-    .reduce((sum, p) => sum + p.percent, 0);
-  const totalClosed = tpClosed + slClosed;
+  // Check if would exceed 100% total closed (dollar-basis, DCA-aware)
+  const { totalClosedPercent, remainingCostBasis } = getTotalClosed(signal);
+  const totalInvested = (signal._entry?.length ?? 1) * COST_BASIS_PER_ENTRY;
+  const newPartialDollar = (percentToClose / 100) * remainingCostBasis;
+  const newTotalClosedDollar = (totalClosedPercent / 100) * totalInvested + newPartialDollar;
 
-  // Check if would exceed 100% total closed
-  const newTotalClosed = totalClosed + percentToClose;
-  if (newTotalClosed > 100) {
+  if (newTotalClosedDollar > totalInvested) {
     self.params.logger.warn(
-      "PARTIAL_PROFIT_FN: would exceed 100% closed, skipping",
+      "PARTIAL_PROFIT_FN: would exceed 100% closed (dollar basis), skipping",
       {
         signalId: signal.id,
-        currentTotalClosed: totalClosed,
+        totalClosedPercent,
+        remainingCostBasis,
         percentToClose,
-        newTotalClosed,
+        newPartialDollar,
+        totalInvested,
       }
     );
     return false;
@@ -1017,9 +1017,8 @@ const PARTIAL_PROFIT_FN = (
   self.params.logger.info("PARTIAL_PROFIT_FN executed", {
     signalId: signal.id,
     percentClosed: percentToClose,
-    totalClosed: newTotalClosed,
+    totalClosedPercent: totalClosedPercent + (newPartialDollar / totalInvested) * 100,
     currentPrice,
-    tpClosed: tpClosed + percentToClose,
   });
 
   return true;
@@ -1034,25 +1033,22 @@ const PARTIAL_LOSS_FN = (
   // Initialize partial array if not present
   if (!signal._partial) signal._partial = [];
 
-  // Calculate current totals (computed values)
-  const tpClosed = signal._partial
-    .filter((p) => p.type === "profit")
-    .reduce((sum, p) => sum + p.percent, 0);
-  const slClosed = signal._partial
-    .filter((p) => p.type === "loss")
-    .reduce((sum, p) => sum + p.percent, 0);
-  const totalClosed = tpClosed + slClosed;
+  // Check if would exceed 100% total closed (dollar-basis, DCA-aware)
+  const { totalClosedPercent, remainingCostBasis } = getTotalClosed(signal);
+  const totalInvested = (signal._entry?.length ?? 1) * COST_BASIS_PER_ENTRY;
+  const newPartialDollar = (percentToClose / 100) * remainingCostBasis;
+  const newTotalClosedDollar = (totalClosedPercent / 100) * totalInvested + newPartialDollar;
 
-  // Check if would exceed 100% total closed
-  const newTotalClosed = totalClosed + percentToClose;
-  if (newTotalClosed > 100) {
+  if (newTotalClosedDollar > totalInvested) {
     self.params.logger.warn(
-      "PARTIAL_LOSS_FN: would exceed 100% closed, skipping",
+      "PARTIAL_LOSS_FN: would exceed 100% closed (dollar basis), skipping",
       {
         signalId: signal.id,
-        currentTotalClosed: totalClosed,
+        totalClosedPercent,
+        remainingCostBasis,
         percentToClose,
-        newTotalClosed,
+        newPartialDollar,
+        totalInvested,
       }
     );
     return false;
@@ -1075,9 +1071,8 @@ const PARTIAL_LOSS_FN = (
   self.params.logger.warn("PARTIAL_LOSS_FN executed", {
     signalId: signal.id,
     percentClosed: percentToClose,
-    totalClosed: newTotalClosed,
+    totalClosedPercent: totalClosedPercent + (newPartialDollar / totalInvested) * 100,
     currentPrice,
-    slClosed: slClosed + percentToClose,
   });
 
   return true;

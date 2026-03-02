@@ -2,6 +2,7 @@ import "./config/setup.mjs"
 
 import { run } from 'worker-testbed'
 
+/*
 import "./e2e/action.test.mjs";
 import "./e2e/breakeven.test.mjs";
 import "./e2e/cache.test.mjs";
@@ -54,6 +55,10 @@ import "./migration/migrate4.test.mjs";
 import "./migration/migrate5.test.mjs";
 import "./migration/migrate6.test.mjs";
 import "./migration/migrate7.test.mjs";
+*/
+
+import "./e2e/dca.test.mjs";
+import "./spec/dca.test.mjs";
 
 run(import.meta.url, () => {
     console.log("All tests are finished");

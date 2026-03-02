@@ -739,6 +739,157 @@ test("toProfitLossDto: SD profit→DCA→DCA→loss→DCA→profit→DCA→close
   pass(`SD pnl = ${pnlPercentage.toFixed(9)}%`);
 });
 
+// ---------------------------------------------------------------------------
+// getTotalClosed — unit tests
+// Algorithm: cost-basis replay through _partial[], then add post-partial entries
+//   for each i: costBasis += (cnt[i]-cnt[i-1])*100
+//               closedDollar += (percent[i]/100) * costBasis
+//               costBasis *= 1 - percent[i]/100
+//   after loop: costBasis += (currentEntryCount - lastCnt) * 100
+//   totalClosedPercent = closedDollar / totalInvested * 100
+// ---------------------------------------------------------------------------
+
+import { getTotalClosed } from "../../build/index.mjs";
+
+test("getTotalClosed: no partials, no _entry → 0% closed, remainingCostBasis=100", ({ pass, fail }) => {
+  // fallback: currentEntryCount=1, totalInvested=100
+  const { totalClosedPercent, remainingCostBasis } = getTotalClosed({ priceOpen: 100 });
+  if (totalClosedPercent !== 0) { fail(`totalClosedPercent expected 0, got ${totalClosedPercent}`); return; }
+  if (remainingCostBasis !== 100) { fail(`remainingCostBasis expected 100, got ${remainingCostBasis}`); return; }
+  pass("no partials: 0% closed, $100 remaining");
+});
+
+test("getTotalClosed: no partials, 3 entries → 0% closed, remainingCostBasis=300", ({ pass, fail }) => {
+  // totalInvested = 3 * 100 = 300
+  const { totalClosedPercent, remainingCostBasis } = getTotalClosed({
+    priceOpen: 100,
+    _entry: [{ price: 100 }, { price: 80 }, { price: 70 }],
+  });
+  if (totalClosedPercent !== 0) { fail(`totalClosedPercent expected 0, got ${totalClosedPercent}`); return; }
+  if (remainingCostBasis !== 300) { fail(`remainingCostBasis expected 300, got ${remainingCostBasis}`); return; }
+  pass("no partials, 3 entries: 0% closed, $300 remaining");
+});
+
+test("getTotalClosed: single partial 30% of cnt=1 → 30% closed, remainingCostBasis=70", ({ pass, fail }) => {
+  // p1: cb=100, dv=30, after=70; currentEntryCount=1=lastCnt → no post-partial entries
+  // totalInvested=100, totalClosedPercent=30%, remainingCostBasis=70
+  const { totalClosedPercent, remainingCostBasis } = getTotalClosed({
+    priceOpen: 100,
+    _entry: [{ price: 100 }],
+    _partial: [{ type: "profit", percent: 30, price: 120, effectivePrice: 100, entryCountAtClose: 1 }],
+  });
+  if (!approxEqual(totalClosedPercent, 30)) { fail(`totalClosedPercent expected 30, got ${totalClosedPercent}`); return; }
+  if (!approxEqual(remainingCostBasis, 70)) { fail(`remainingCostBasis expected 70, got ${remainingCostBasis}`); return; }
+  pass(`30% closed, $70 remaining`);
+});
+
+test("getTotalClosed: single partial 40% of cnt=2 (both entries in position) → 40% closed, remainingCostBasis=120", ({ pass, fail }) => {
+  // p1: cb=200 (2 entries), dv=80, after=120; currentEntryCount=2=lastCnt
+  // totalInvested=200, totalClosedPercent=40%, remainingCostBasis=120
+  const { totalClosedPercent, remainingCostBasis } = getTotalClosed({
+    priceOpen: 100,
+    _entry: [{ price: 100 }, { price: 80 }],
+    _partial: [{ type: "profit", percent: 40, price: 110, effectivePrice: 90, entryCountAtClose: 2 }],
+  });
+  if (!approxEqual(totalClosedPercent, 40)) { fail(`totalClosedPercent expected 40, got ${totalClosedPercent}`); return; }
+  if (!approxEqual(remainingCostBasis, 120)) { fail(`remainingCostBasis expected 120, got ${remainingCostBasis}`); return; }
+  pass(`40% closed, $120 remaining`);
+});
+
+test("getTotalClosed: two partials same cnt=1 (sequential closes, no DCA between) → 18% closed, remainingCostBasis=164", ({ pass, fail }) => {
+  // entries=[100,70], currentEntryCount=2, lastCnt=1
+  // p1: cb=100, dv=20, after=80
+  // p2: newE=0, cb=80, dv=16, after=64
+  // post-partial: cb += (2-1)*100=100 → remainingCostBasis=164
+  // totalInvested=200, closedDollar=36, totalClosedPercent=18%
+  const { totalClosedPercent, remainingCostBasis } = getTotalClosed({
+    priceOpen: 100,
+    _entry: [{ price: 100 }, { price: 70 }],
+    _partial: [
+      { type: "profit", percent: 20, price: 120, effectivePrice: 100, entryCountAtClose: 1 },
+      { type: "profit", percent: 20, price: 115, effectivePrice: 100, entryCountAtClose: 1 },
+    ],
+  });
+  if (!approxEqual(totalClosedPercent, 18)) { fail(`totalClosedPercent expected 18, got ${totalClosedPercent}`); return; }
+  if (!approxEqual(remainingCostBasis, 164)) { fail(`remainingCostBasis expected 164, got ${remainingCostBasis}`); return; }
+  pass(`same-cnt chaining: 18% closed ($36/$200), $164 remaining`);
+});
+
+test("getTotalClosed: two partials different cnt (DCA between) → 34.666% closed, remainingCostBasis=196", ({ pass, fail }) => {
+  // S7-style: entries=[100,70,60], currentEntryCount=3
+  // p1(cnt=1,20%): cb=100, dv=20, after=80
+  // p2(cnt=3,30%): newE=2, cb=280, dv=84, after=196; lastCnt=3=currentEntryCount
+  // totalInvested=300, closedDollar=104, totalClosedPercent=104/300*100=34.666...%
+  const { totalClosedPercent, remainingCostBasis } = getTotalClosed({
+    priceOpen: 100,
+    _entry: [{ price: 100 }, { price: 70 }, { price: 60 }],
+    _partial: [
+      { type: "loss",   percent: 20, price: 85, effectivePrice: 100, entryCountAtClose: 1 },
+      { type: "profit", percent: 30, price: 95, effectivePrice: 100, entryCountAtClose: 3 },
+    ],
+  });
+  const expectedPct = 104 / 300 * 100; // 34.666...
+  if (!approxEqual(totalClosedPercent, expectedPct)) { fail(`totalClosedPercent expected ${expectedPct.toFixed(9)}, got ${totalClosedPercent}`); return; }
+  if (!approxEqual(remainingCostBasis, 196)) { fail(`remainingCostBasis expected 196, got ${remainingCostBasis}`); return; }
+  pass(`DCA-between partials: ${totalClosedPercent.toFixed(6)}% closed, $196 remaining`);
+});
+
+test("getTotalClosed: post-partial DCA entries added after last partial → 15% closed, remainingCostBasis=340", ({ pass, fail }) => {
+  // entries=[100,80,70,60], currentEntryCount=4
+  // p1(cnt=2,30%): cb=200, dv=60, after=140; lastCnt=2
+  // post-partial: cb += (4-2)*100=200 → remainingCostBasis=340
+  // totalInvested=400, closedDollar=60, totalClosedPercent=15%
+  const { totalClosedPercent, remainingCostBasis } = getTotalClosed({
+    priceOpen: 100,
+    _entry: [{ price: 100 }, { price: 80 }, { price: 70 }, { price: 60 }],
+    _partial: [
+      { type: "profit", percent: 30, price: 120, effectivePrice: 90, entryCountAtClose: 2 },
+    ],
+  });
+  if (!approxEqual(totalClosedPercent, 15)) { fail(`totalClosedPercent expected 15, got ${totalClosedPercent}`); return; }
+  if (!approxEqual(remainingCostBasis, 340)) { fail(`remainingCostBasis expected 340, got ${remainingCostBasis}`); return; }
+  pass(`post-partial DCA: 15% closed ($60/$400), $340 remaining (includes 2 new entries)`);
+});
+
+test("getTotalClosed: 100% closed via chained partials (60% then 100% of remainder) → 100% closed, remainingCostBasis=0", ({ pass, fail }) => {
+  // entry=[100], p1=60%@cnt=1, p2=100%@cnt=1
+  // p1: cb=100, dv=60, after=40; p2: cb=40, dv=40, after=0
+  // totalInvested=100, closedDollar=100, totalClosedPercent=100%, remainingCostBasis=0
+  const { totalClosedPercent, remainingCostBasis } = getTotalClosed({
+    priceOpen: 100,
+    _entry: [{ price: 100 }],
+    _partial: [
+      { type: "profit", percent: 60,  price: 110, effectivePrice: 100, entryCountAtClose: 1 },
+      { type: "profit", percent: 100, price: 115, effectivePrice: 100, entryCountAtClose: 1 },
+    ],
+  });
+  if (!approxEqual(totalClosedPercent, 100)) { fail(`totalClosedPercent expected 100, got ${totalClosedPercent}`); return; }
+  if (!approxEqual(remainingCostBasis, 0)) { fail(`remainingCostBasis expected 0, got ${remainingCostBasis}`); return; }
+  pass(`100% closed via chained partials, $0 remaining`);
+});
+
+test("getTotalClosed: S13 four partials three DCA rounds → 40.96% closed, remainingCostBasis=236.16", ({ pass, fail }) => {
+  // entries=[100,80,72,65], totalInvested=400
+  // p1(cnt=1,20%): cb=100,  dv=20,   after=80
+  // p2(cnt=2,20%): cb=180,  dv=36,   after=144
+  // p3(cnt=3,20%): cb=244,  dv=48.8, after=195.2
+  // p4(cnt=4,20%): cb=295.2,dv=59.04,after=236.16
+  // closedDollar=163.84, totalClosedPercent=40.96%, remainingCostBasis=236.16
+  const { totalClosedPercent, remainingCostBasis } = getTotalClosed({
+    priceOpen: 100,
+    _entry: [{ price: 100 }, { price: 80 }, { price: 72 }, { price: 65 }],
+    _partial: [
+      { type: "profit", percent: 20, price: 115, effectivePrice: 100, entryCountAtClose: 1 },
+      { type: "profit", percent: 20, price: 108, effectivePrice: 100, entryCountAtClose: 2 },
+      { type: "loss",   percent: 20, price: 83,  effectivePrice: 100, entryCountAtClose: 3 },
+      { type: "profit", percent: 20, price: 100, effectivePrice: 100, entryCountAtClose: 4 },
+    ],
+  });
+  if (!approxEqual(totalClosedPercent, 40.96)) { fail(`totalClosedPercent expected 40.96, got ${totalClosedPercent}`); return; }
+  if (!approxEqual(remainingCostBasis, 236.16)) { fail(`remainingCostBasis expected 236.16, got ${remainingCostBasis}`); return; }
+  pass(`S13: ${totalClosedPercent.toFixed(4)}% closed, $${remainingCostBasis.toFixed(4)} remaining`);
+});
+
 // SC SHORT: entry@100 → DCA@110 → partial(30%@85,cnt=2) → DCA@120 → partial(25%@80,cnt=3)
 //           → DCA@130 → partial(20%@75,cnt=4) → close@70 (SHORT, averaging up)
 //   totalInvested=400
