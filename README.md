@@ -220,11 +220,10 @@ These three functions work together to manage a position dynamically. To reduce 
   </summary>
 
   **Scenario:** LONG entry @ 1000, 4 DCA attempts (1 rejected), 3 partials, closed at TP.
-  `totalInvested = $500` (5 × $100, including the rejected attempt).
+  `totalInvested = $400` (4 × $100, rejected attempt not counted).
 
   **Entries**
-
-  ```
+```
   entry#1 @ 1000  → 0.10000 coins
     commitPartialProfit(30%) @ 1150          ← cnt=1
   entry#2 @ 950   → 0.10526 coins
@@ -232,94 +231,85 @@ These three functions work together to manage a position dynamically. To reduce 
     commitPartialLoss(20%)   @ 860           ← cnt=3
   entry#4 @ 920   → 0.10870 coins
     commitPartialProfit(40%) @ 1050          ← cnt=4
-  entry#5 @ 980   → 0.10204 coins  ✗ REJECTED (980 > effectivePriceOpen≈946.95)
-  totalInvested = $500
-  ```
+  entry#5 @ 980   ✗ REJECTED (980 > ep3≈929.90)
+  totalInvested = $400
+```
 
   **Partial#1 — commitPartialProfit @ 1150, 30%, cnt=1**
-
-  ```
+```
   effectivePrice = hm(1000) = 1000
   costBasis = $100
-  partialDollarValue = 30% × 100 = $30  → weight = 30/500 = 0.060
+  partialDollarValue = 30% × 100 = $30  → weight = 30/400 = 0.075
   pnl = (1150−1000)/1000 × 100 = +15.00%
   costBasis → $70
   coins sold: 0.03000 × 1150 = $34.50
   remaining:  0.07000
-  ```
+```
 
   **DCA after Partial#1**
-
-  ```
+```
   entry#2 @ 950  (950 < ep1=1000 ✓ accepted)
   entry#3 @ 880  (880 < ep1=1000 ✓ accepted)
   coins: 0.07000 + 0.10526 + 0.11364 = 0.28890
-  ```
+```
 
   **Partial#2 — commitPartialLoss @ 860, 20%, cnt=3**
-
-  ```
+```
   costBasis = 70 + 100 + 100 = $270
   ep2 = 270 / 0.28890 ≈ 934.93
-  partialDollarValue = 20% × 270 = $54  → weight = 54/500 = 0.108
+  partialDollarValue = 20% × 270 = $54  → weight = 54/400 = 0.135
   pnl = (860−934.93)/934.93 × 100 ≈ −8.01%
   costBasis → $216
   coins sold: 0.05778 × 860 = $49.69
   remaining:  0.23112
-  ```
+```
 
   **DCA after Partial#2**
-
-  ```
+```
   entry#4 @ 920  (920 < ep2=934.93 ✓ accepted)
   coins: 0.23112 + 0.10870 = 0.33982
-  ```
+```
 
   **Partial#3 — commitPartialProfit @ 1050, 40%, cnt=4**
-
-  ```
+```
   costBasis = 216 + 100 = $316
   ep3 = 316 / 0.33982 ≈ 929.90
-  partialDollarValue = 40% × 316 = $126.4  → weight = 126.4/500 = 0.2528
+  partialDollarValue = 40% × 316 = $126.4  → weight = 126.4/400 = 0.316
   pnl = (1050−929.90)/929.90 × 100 ≈ +12.92%
   costBasis → $189.6
   coins sold: 0.13593 × 1050 = $142.72
   remaining:  0.20389
-  ```
+```
 
   **DCA after Partial#3 — rejected**
-
-  ```
-  entry#5 @ 980  (980 > ep_final≈946.95 ✗ REJECTED)
-  ```
+```
+  entry#5 @ 980  (980 > ep3≈929.90 ✗ REJECTED)
+```
 
   **Close at TP @ 1200**
+```
+  ep_final = ep3 ≈ 929.90  (новых entries нет)
+  coins: 0.20389
 
-  ```
-  oldCoins = 189.6 / 929.90 = 0.20389
-  newCoins = 100 / 980      = 0.10204   (rejected — ep_final is computed without entry#5)
-  ep_final = 289.6 / 0.30593 ≈ 946.95
-
-  remainingDollarValue = 500 − 30 − 54 − 126.4 = $289.6
-  weight = 289.6/500 = 0.5792
-  pnl = (1200−946.95)/946.95 × 100 ≈ +26.72%
-  coins sold: 0.30593 × 1200 = $367.12
-  ```
+  remainingDollarValue = 400 − 30 − 54 − 126.4 = $189.6
+  weight = 189.6/400 = 0.474
+  pnl = (1200−929.90)/929.90 × 100 ≈ +29.05%
+  coins sold: 0.20389 × 1200 = $244.67
+```
 
   **Result (toProfitLossDto)**
-
-  ```
-  0.060  × (+15.00) = +0.900
-  0.108  × (−8.01)  = −0.865
-  0.2528 × (+12.92) = +3.267
-  0.5792 × (+26.72) = +15.477
+```
+  0.075 × (+15.00) = +1.125
+  0.135 × (−8.01)  = −1.081
+  0.316 × (+12.92) = +4.083
+  0.474 × (+29.05) = +13.770
   ─────────────────────────────
-                    ≈ +18.78%
+                   ≈ +17.90%
 
   Cross-check (coins):
-  34.50 + 49.69 + 142.72 + 367.12 = $594.03
-  (594.03 − 500) / 500 × 100      = +18.81%  ✓
-  ```
+  34.50 + 49.69 + 142.72 + 244.67 = $471.58
+  (471.58 − 400) / 400 × 100      = +17.90%  ✓
+```
 </details>
 
 ### 🔍 How getCandles Works
