@@ -246,15 +246,20 @@ test("toProfitLossDto: S4 partialLoss→averageBuy (LONG)", ({ pass, fail }) => 
 // For all these: NEW formula uses running costBasis, NOT entryCountAtClose*$100
 // ---------------------------------------------------------------------------
 
-// S5: partial(25%@115,eff=100,cnt=1) → DCA@80 → partial(25%@112,eff=hm[100,80],cnt=2)
+// S5: partial(25%@115,eff=100,cnt=1) → DCA@80 → partial(25%@112,eff=snap2,cnt=2)
 //     → DCA@70 → close@105
 //   totalInvested=300
 //   p1: costBasis=100, dv=25, weight=25/300=0.0833; after costBasis=75
 //   p2: prevCnt=1, newEntries=1, costBasis=175, dv=43.75, weight=43.75/300=0.14583
 //   closedDollar=68.75, remWeight=231.25/300=0.7708
+//
+//   snap2 = getEff([100,80],[p1]): remainingCostBasis=75, oldCoins=75/100=0.75, newCoins=100/80
+//         = 175/(0.75+100/80) = 87.500000000  (NOT hm(100,80)=88.89 — ignores p1's sell)
 test("toProfitLossDto: S5 partial→DCA→partial→DCA→close (LONG)", ({ pass, fail }) => {
   const snap1 = 100;
-  const snap2 = hm(100, 80);
+  // snap2 = effective price after p1 sold 25% and DCA@80 added:
+  // remainingCostBasis=100*(1-0.25)=75, oldCoins=75/100=0.75, newCoins=100/80
+  const snap2 = (75 + 100) / (0.75 + 100 / 80); // 87.500000000
   const signal = {
     position: "long",
     priceOpen: 100,
@@ -265,19 +270,24 @@ test("toProfitLossDto: S5 partial→DCA→partial→DCA→close (LONG)", ({ pass
     ],
   };
   const { pnlPercentage } = toProfitLossDto(signal, 105);
-  if (!approxEqual(pnlPercentage, 29.149624805)) { fail(`Expected 29.149624805, got ${pnlPercentage}`); return; }
+  if (!approxEqual(pnlPercentage, 30.258272478)) { fail(`Expected 30.258272478, got ${pnlPercentage}`); return; }
   pass(`S5 pnl = ${pnlPercentage.toFixed(9)}%`);
 });
 
 // S6: DCA@85 → partial(30%@110,eff=hm[100,85],cnt=2) → DCA@75
-//     → partial(20%@88,eff=hm[100,85,75],cnt=3) → close@95
+//     → partial(20%@88,eff=getEff([100,85,75],[p1]),cnt=3) → close@95
 //   totalInvested=300
 //   p1: costBasis=200, dv=60, weight=0.2; after costBasis=140
 //   p2: prevCnt=2, newEntries=1, costBasis=240, dv=48, weight=0.16
 //   closedDollar=108, remWeight=192/300=0.64
+//
+//   snap2 = getEff([100,85,75],[p1]): remainingCostBasis=140, oldCoins=140/snap1, newCoins=100/75
+//         = 240/(140/snap1+100/75) = 84.008236102  (NOT hm(100,85,75)=81.55 — that ignores p1's sell)
 test("toProfitLossDto: S6 DCA→partial→DCA→partial→close (LONG)", ({ pass, fail }) => {
   const snap1 = hm(100, 85);
-  const snap2 = hm(100, 85, 75);
+  // snap2 = effective price of position just before second partial (after p1 sold 30% and DCA@75 added)
+  // remainingCostBasis after p1 = 200*(1-0.3)=140, oldCoins=140/snap1, newCoins=100/75
+  const snap2 = (140 + 100) / (140 / snap1 + 100 / 75); // 84.008236102
   const signal = {
     position: "long",
     priceOpen: 100,
@@ -288,18 +298,23 @@ test("toProfitLossDto: S6 DCA→partial→DCA→partial→close (LONG)", ({ pass
     ],
   };
   const { pnlPercentage } = toProfitLossDto(signal, 95);
-  if (!approxEqual(pnlPercentage, 11.111690444)) { fail(`Expected 11.111690444, got ${pnlPercentage}`); return; }
+  if (!approxEqual(pnlPercentage, 12.636520085)) { fail(`Expected 12.636520085, got ${pnlPercentage}`); return; }
   pass(`S6 pnl = ${pnlPercentage.toFixed(9)}%`);
 });
 
 // S7: partial(20%@85,eff=100,cnt=1) → DCA@70 → DCA@60
-//     → partial(30%@95,eff=hm[100,70,60],cnt=3) → close@80
+//     → partial(30%@95,eff=getEff([100,70,60],[p1]),cnt=3) → close@80
 //   totalInvested=300
 //   p1: costBasis=100, dv=20, weight=0.0667; after costBasis=80
 //   p2: prevCnt=1, newEntries=2, costBasis=280, dv=84, weight=0.28
 //   closedDollar=104, remWeight=196/300=0.6533
+//
+//   snap2 = getEff([100,70,60],[p1]): remainingCostBasis=80, oldCoins=80/100=0.8, newCoins=100/70+100/60
+//         = 280/(0.8+100/70+100/60) = 71.882640587  (NOT hm(100,70,60)=73.26 — that ignores p1's sell)
 test("toProfitLossDto: S7 partial→DCA→DCA→partial→close (LONG)", ({ pass, fail }) => {
-  const snap2 = hm(100, 70, 60);
+  // snap2 = effective price of position just before second partial (after p1 sold 20% and DCAs@70,@60 added)
+  // remainingCostBasis after p1 = 100*(1-0.2)=80, oldCoins=80/100=0.8, newCoins=100/70+100/60
+  const snap2 = (80 + 100 + 100) / (0.8 + 100 / 70 + 100 / 60); // 71.882640587
   const signal = {
     position: "long",
     priceOpen: 100,
@@ -310,7 +325,7 @@ test("toProfitLossDto: S7 partial→DCA→DCA→partial→close (LONG)", ({ pass
     ],
   };
   const { pnlPercentage } = toProfitLossDto(signal, 80);
-  if (!approxEqual(pnlPercentage, 12.886400999)) { fail(`Expected 12.886400999, got ${pnlPercentage}`); return; }
+  if (!approxEqual(pnlPercentage, 14.936853133)) { fail(`Expected 14.936853133, got ${pnlPercentage}`); return; }
   pass(`S7 pnl = ${pnlPercentage.toFixed(9)}%`);
 });
 
@@ -441,7 +456,7 @@ test("toProfitLossDto: SHORT S3 partialProfit→averageBuy (SHORT)", ({ pass, fa
 });
 
 // ---------------------------------------------------------------------------
-// S13: 4 partials, 3 DCA rounds, 50% remaining open (LONG)
+// S13: 4 partials, 3 DCA rounds (LONG)
 //   entries=[100,80,72,65], totalInvested=400
 //   p1(cnt=1,20%): costBasis=100, dv=20, weight=0.05;  after=80
 //   p2(cnt=2,20%): costBasis=180, dv=36, weight=0.09;  after=144
@@ -449,19 +464,22 @@ test("toProfitLossDto: SHORT S3 partialProfit→averageBuy (SHORT)", ({ pass, fa
 //   p4(cnt=4,20%): costBasis=295.2, dv=59.04, weight=0.1476; after=236.16
 //   closedDollar=163.84, remWeight=(400-163.84)/400=0.5904
 //
+//   snap2 = getEff([100,80],[p1]):    remainingCostBasis=80, oldCoins=80/100=0.8, newCoins=100/80
+//         = 180/(0.8+100/80) = 87.804878049  (NOT hm(100,80)=88.89 — ignores p1's sell)
 //   snap3 = getEff([100,80,72],[p1,p2]):  last=p2(cnt=2,pct=20)
-//     replay: i=0:cb=100,reduce→80; i=1:newE=1,cb=180 (last, no reduce)
+//     replay: i=0:cb=100,red→80; i=1:newE=1,cb=180 (last)
 //     remainingCostBasis=180*(1-0.2)=144, oldCoins=144/snap2, newCoins=100/72
 //   snap4 = getEff([100,80,72,65],[p1,p2,p3]):  last=p3(cnt=3,pct=20)
-//     replay: i=0:cb=100,red→80; i=1:cb=180,red→144; i=2:newE=1,cb=244 (last, no reduce)
+//     replay: i=0:cb=100,red→80; i=1:cb=180,red→144; i=2:newE=1,cb=244 (last)
 //     remainingCostBasis=244*(1-0.2)=195.2, oldCoins=195.2/snap3, newCoins=100/65
 test("toProfitLossDto: S13 four partials three DCA rounds (LONG)", ({ pass, fail }) => {
   const snap1 = 100;
-  const snap2 = hm(100, 80);
-  // snap3: remainingCostBasis=144, oldCoins=144/snap2, newCoins=100/72
-  const snap3 = (144 + 100) / (144 / snap2 + 100 / 72);
-  // snap4: remainingCostBasis=195.2, oldCoins=195.2/snap3, newCoins=100/65
-  const snap4 = (195.2 + 100) / (195.2 / snap3 + 100 / 65);
+  // snap2 = getEff after p1 sold 20% then DCA@80: remainingCostBasis=80, oldCoins=80/100, newCoins=100/80
+  const snap2 = (80 + 100) / (80 / 100 + 100 / 80); // 87.804878049
+  // snap3: replay cb: 100→80 (p1 reduce), +100=180 (p2, last); rem=180*0.8=144; oldCoins=144/snap2, newCoins=100/72
+  const snap3 = (144 + 100) / (144 / snap2 + 100 / 72); // 80.557593544
+  // snap4: replay: 100→80, +100=180→144 (p2 reduce), +100=244 (p3, last); rem=244*0.8=195.2; oldCoins=195.2/snap3, newCoins=100/65
+  const snap4 = (195.2 + 100) / (195.2 / snap3 + 100 / 65); // 74.515861783
   const signal = {
     position: "long",
     priceOpen: 100,
@@ -474,7 +492,7 @@ test("toProfitLossDto: S13 four partials three DCA rounds (LONG)", ({ pass, fail
     ],
   };
   const { pnlPercentage } = toProfitLossDto(signal, 100);
-  if (!approxEqual(pnlPercentage, 27.328282247)) { fail(`Expected 27.328282247, got ${pnlPercentage}`); return; }
+  if (!approxEqual(pnlPercentage, 27.944430716)) { fail(`Expected 27.944430716, got ${pnlPercentage}`); return; }
   pass(`S13 pnl = ${pnlPercentage.toFixed(9)}% (4 partials, 3 DCA, ~59% remaining)`);
 });
 
