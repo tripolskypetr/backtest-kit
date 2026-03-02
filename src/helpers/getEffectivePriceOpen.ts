@@ -5,15 +5,16 @@ import { ISignalRow } from "../interfaces/Strategy.interface";
  *
  * Uses harmonic mean (correct for fixed-dollar DCA: $100 per entry).
  *
- * When partial closes exist, uses the last partial's snapshot:
- *   - effectivePrice: harmonic average at that moment
- *   - positionCostBasisAtClose: total dollar cost basis of position BEFORE that partial
- *   - entryCountAtClose: how many _entry records existed at that moment (for slicing new entries)
+ * When partial closes exist, replays the partial sequence to reconstruct
+ * the running cost basis at each partial — no extra stored fields needed.
  *
- * Remaining cost basis after last partial:
- *   remainingCostBasis = positionCostBasisAtClose × (1 - percent / 100)
- *
- * Then new DCA entries after the last partial are added on top.
+ * Cost basis replay:
+ *   costBasis starts at 0
+ *   for each partial[i]:
+ *     newEntries = entryCountAtClose[i] - entryCountAtClose[i-1]  (or entryCountAtClose[0] for i=0)
+ *     costBasis += newEntries × $100          ← add DCA entries up to this partial
+ *     positionCostBasisAtClose[i] = costBasis ← snapshot BEFORE close
+ *     costBasis × = (1 - percent[i] / 100)    ← reduce after close
  *
  * @param signal - Signal row
  * @returns Effective entry price for PNL calculations
@@ -29,17 +30,22 @@ export const getEffectivePriceOpen = (signal: ISignalRow): number => {
     return harmonicMean(entries.map((e) => e.price));
   }
 
-  // Use the last partial snapshot
+  // Replay cost basis through all partials to get snapshot at the last one
+  let costBasis = 0;
+  for (let i = 0; i < partials.length; i++) {
+    const prevCount = i === 0 ? 0 : partials[i - 1].entryCountAtClose;
+    const newEntryCount = partials[i].entryCountAtClose - prevCount;
+    costBasis += newEntryCount * 100;
+    // costBasis is now positionCostBasisAtClose for partials[i]
+    if (i < partials.length - 1) {
+      costBasis *= 1 - partials[i].percent / 100;
+    }
+  }
+
   const lastPartial = partials[partials.length - 1];
 
-  const positionCostBasisAtClose = lastPartial.entryCountAtClose * 100;
-      
-  const partialDollarValue =
-    (lastPartial.percent / 100) * positionCostBasisAtClose;
-
-  // Dollar cost basis of position remaining after the last partial close
-  const remainingCostBasis =
-    partialDollarValue * (1 - lastPartial.percent / 100);
+  // Dollar cost basis remaining after the last partial close
+  const remainingCostBasis = costBasis * (1 - lastPartial.percent / 100);
 
   // Coins remaining from the old position
   const oldCoins = remainingCostBasis / lastPartial.effectivePrice;

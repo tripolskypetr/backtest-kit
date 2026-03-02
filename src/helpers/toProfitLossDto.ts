@@ -7,16 +7,15 @@ import { getEffectivePriceOpen } from "./getEffectivePriceOpen";
  *
  * For signals with partial closes:
  * - Weights are calculated by ACTUAL DOLLAR VALUE of each partial relative to total invested.
- *   This correctly handles DCA entries that occur after partial closes.
+ *   This correctly handles DCA entries that occur before or after partial closes.
  *
- * Weight formula per partial:
- *   partialDollarValue = (partial.percent / 100) × partial.positionCostBasisAtClose
- *   weight = partialDollarValue / totalInvested
- *   totalInvested = _entry.length × $100
- *
- * Remaining weight:
- *   closedDollarValue = Σ partialDollarValue_i
- *   remainingWeight = (totalInvested - closedDollarValue) / totalInvested
+ * Cost basis is reconstructed by replaying the partial sequence via entryCountAtClose + percent:
+ *   costBasis = 0
+ *   for each partial[i]:
+ *     costBasis += (entryCountAtClose[i] - entryCountAtClose[i-1]) × $100
+ *     partialDollarValue[i] = (percent[i] / 100) × costBasis
+ *     weight[i]             = partialDollarValue[i] / totalInvested
+ *     costBasis            *= (1 - percent[i] / 100)
  *
  * Fee structure:
  *   - Open fee:  CC_PERCENT_FEE (charged once)
@@ -44,19 +43,28 @@ export const toProfitLossDto = (
 
     let closedDollarValue = 0;
 
+    // Running cost basis — replayed from entryCountAtClose + percent
+    let costBasis = 0;
+
     // Calculate PNL for each partial close
-    for (const partial of signal._partial) {
+    for (let i = 0; i < signal._partial.length; i++) {
+      const partial = signal._partial[i];
+
+      // Add DCA entries that existed at this partial but not at the previous one
+      const prevCount = i === 0 ? 0 : signal._partial[i - 1].entryCountAtClose;
+      const newEntryCount = partial.entryCountAtClose - prevCount;
+      costBasis += newEntryCount * 100;
+
       // Real dollar value sold in this partial
-      // positionCostBasisAtClose = cost basis of position BEFORE this partial
-      const positionCostBasisAtClose = partial.entryCountAtClose * 100;
-      
-      const partialDollarValue =
-        (partial.percent / 100) * positionCostBasisAtClose;
+      const partialDollarValue = (partial.percent / 100) * costBasis;
 
       // Weight relative to total invested capital
       const weight = partialDollarValue / totalInvested;
 
       closedDollarValue += partialDollarValue;
+
+      // Reduce cost basis after close
+      costBasis *= 1 - partial.percent / 100;
 
       // Use the effective entry price snapshot captured at the time of this partial close
       const priceOpenWithSlippage =
