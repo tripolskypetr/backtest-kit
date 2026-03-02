@@ -830,6 +830,32 @@ export interface IStrategy {
   getStopped: (symbol: string) => Promise<boolean>;
 
   /**
+   * Returns how much of the position is still held, as a percentage of totalInvested.
+   *
+   * Uses dollar-basis cost-basis replay (DCA-aware).
+   * 100% means nothing was closed yet. Decreases with each partial close.
+   *
+   * Returns 100 if no pending signal or no partial closes.
+   *
+   * @param symbol - Trading pair symbol
+   * @returns Promise resolving to held percentage (0–100)
+   */
+  getTotalPercentClosed: (symbol: string) => Promise<number | null>;
+
+  /**
+   * Returns how many dollars of cost basis are still held (not yet closed by partials).
+   *
+   * Full position open: equals totalInvested (entries × $100).
+   * Decreases with each partial close, increases with each averageBuy().
+   *
+   * Returns totalInvested if no pending signal or no partial closes.
+   *
+   * @param symbol - Trading pair symbol
+   * @returns Promise resolving to held cost basis in dollars
+   */
+  getTotalCostClosed: (symbol: string) => Promise<number | null>;
+
+  /**
    * Fast backtest using historical candles.
    * Iterates through candles, calculates VWAP, checks TP/SL on each candle.
    *

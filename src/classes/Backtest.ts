@@ -20,6 +20,10 @@ const BACKTEST_METHOD_NAME_TASK = "BacktestUtils.task";
 const BACKTEST_METHOD_NAME_GET_STATUS = "BacktestUtils.getStatus";
 const BACKTEST_METHOD_NAME_GET_PENDING_SIGNAL =
   "BacktestUtils.getPendingSignal";
+const BACKTEST_METHOD_NAME_GET_TOTAL_PERCENT_CLOSED =
+  "BacktestUtils.getTotalPercentClosed";
+const BACKTEST_METHOD_NAME_GET_TOTAL_COST_CLOSED =
+  "BacktestUtils.getTotalCostClosed";
 const BACKTEST_METHOD_NAME_GET_SCHEDULED_SIGNAL =
   "BacktestUtils.getScheduledSignal";
 const BACKTEST_METHOD_NAME_GET_BREAKEVEN = "BacktestUtils.getBreakeven";
@@ -595,6 +599,139 @@ export class BacktestUtils {
     }
 
     return await backtest.strategyCoreService.getPendingSignal(
+      true,
+      symbol,
+      context
+    );
+  };
+
+  /**
+   * Returns the percentage of the position currently held (not closed).
+   * 100 = nothing has been closed (full position), 0 = fully closed.
+   * Correctly accounts for DCA entries between partial closes.
+   *
+   * @param symbol - Trading pair symbol
+   * @param context - Context with strategyName, exchangeName, frameName
+   * @returns Promise<number> - held percentage (0–100)
+   *
+   * @example
+   * ```typescript
+   * const heldPct = await Backtest.getTotalPercentClosed("BTCUSDT", { strategyName, exchangeName, frameName });
+   * console.log(`Holding ${heldPct}% of position`);
+   * ```
+   */
+  public getTotalPercentClosed = async (
+    symbol: string,
+    context: {
+      strategyName: StrategyName;
+      exchangeName: ExchangeName;
+      frameName: FrameName;
+    }
+  ) => {
+    backtest.loggerService.info(BACKTEST_METHOD_NAME_GET_TOTAL_PERCENT_CLOSED, {
+      symbol,
+      context,
+    });
+    backtest.strategyValidationService.validate(
+      context.strategyName,
+      BACKTEST_METHOD_NAME_GET_TOTAL_PERCENT_CLOSED
+    );
+    backtest.exchangeValidationService.validate(
+      context.exchangeName,
+      BACKTEST_METHOD_NAME_GET_TOTAL_PERCENT_CLOSED
+    );
+
+    {
+      const { riskName, riskList, actions } =
+        backtest.strategySchemaService.get(context.strategyName);
+      riskName &&
+        backtest.riskValidationService.validate(
+          riskName,
+          BACKTEST_METHOD_NAME_GET_TOTAL_PERCENT_CLOSED
+        );
+      riskList &&
+        riskList.forEach((riskName) =>
+          backtest.riskValidationService.validate(
+            riskName,
+            BACKTEST_METHOD_NAME_GET_TOTAL_PERCENT_CLOSED
+          )
+        );
+      actions &&
+        actions.forEach((actionName) =>
+          backtest.actionValidationService.validate(
+            actionName,
+            BACKTEST_METHOD_NAME_GET_TOTAL_PERCENT_CLOSED
+          )
+        );
+    }
+
+    return await backtest.strategyCoreService.getTotalPercentClosed(
+      true,
+      symbol,
+      context
+    );
+  };
+
+  /**
+   * Returns the cost basis in dollars of the position currently held (not closed).
+   * Correctly accounts for DCA entries between partial closes.
+   *
+   * @param symbol - Trading pair symbol
+   * @param context - Context with strategyName, exchangeName, frameName
+   * @returns Promise<number> - held cost basis in dollars
+   *
+   * @example
+   * ```typescript
+   * const heldCost = await Backtest.getTotalCostClosed("BTCUSDT", { strategyName, exchangeName, frameName });
+   * console.log(`Holding $${heldCost} of position`);
+   * ```
+   */
+  public getTotalCostClosed = async (
+    symbol: string,
+    context: {
+      strategyName: StrategyName;
+      exchangeName: ExchangeName;
+      frameName: FrameName;
+    }
+  ) => {
+    backtest.loggerService.info(BACKTEST_METHOD_NAME_GET_TOTAL_COST_CLOSED, {
+      symbol,
+      context,
+    });
+    backtest.strategyValidationService.validate(
+      context.strategyName,
+      BACKTEST_METHOD_NAME_GET_TOTAL_COST_CLOSED
+    );
+    backtest.exchangeValidationService.validate(
+      context.exchangeName,
+      BACKTEST_METHOD_NAME_GET_TOTAL_COST_CLOSED
+    );
+
+    {
+      const { riskName, riskList, actions } =
+        backtest.strategySchemaService.get(context.strategyName);
+      riskName &&
+        backtest.riskValidationService.validate(
+          riskName,
+          BACKTEST_METHOD_NAME_GET_TOTAL_COST_CLOSED
+        );
+      riskList &&
+        riskList.forEach((riskName) =>
+          backtest.riskValidationService.validate(
+            riskName,
+            BACKTEST_METHOD_NAME_GET_TOTAL_COST_CLOSED
+          )
+        );
+      actions &&
+        actions.forEach((actionName) =>
+          backtest.actionValidationService.validate(
+            actionName,
+            BACKTEST_METHOD_NAME_GET_TOTAL_COST_CLOSED
+          )
+        );
+    }
+
+    return await backtest.strategyCoreService.getTotalCostClosed(
       true,
       symbol,
       context

@@ -4015,6 +4015,54 @@ export class ClientStrategy implements IStrategy {
   }
 
   /**
+   * Returns how much of the position is still held, as a percentage of totalInvested.
+   *
+   * Uses dollar-basis cost-basis replay (DCA-aware).
+   * 100% means nothing was closed yet. Decreases with each partial close.
+   *
+   * Example: 1 entry $100, partialProfit(30%) → returns 70
+   * Example: 2 entries $200, partialProfit(50%) → returns 50
+   *
+   * Returns 100 if no pending signal or no partial closes.
+   *
+   * @param symbol - Trading pair symbol
+   * @returns Promise resolving to held percentage (0–100)
+   */
+  public async getTotalPercentClosed(symbol: string): Promise<number | null> {
+    this.params.logger.debug("ClientStrategy getTotalPercentClosed", { symbol });
+    if (!this._pendingSignal) {
+      return null;
+    }
+    const { totalClosedPercent } = getTotalClosed(this._pendingSignal);
+    return 100 - totalClosedPercent;
+  }
+
+  /**
+   * Returns how many dollars of cost basis are still held (not yet closed by partials).
+   *
+   * Equal to remainingCostBasis from getTotalClosed.
+   * Full position open: equals totalInvested (entries × $100).
+   * Decreases with each partial close, increases with each averageBuy().
+   *
+   * Example: 1 entry $100, no partials → returns 100
+   * Example: 1 entry $100, partialProfit(30%) → returns 70
+   * Example: 2 entries $200, partialProfit(50%) → returns 100
+   *
+   * Returns totalInvested if no pending signal or no partial closes.
+   *
+   * @param symbol - Trading pair symbol
+   * @returns Promise resolving to held cost basis in dollars
+   */
+  public async getTotalCostClosed(symbol: string): Promise<number | null> {
+    this.params.logger.debug("ClientStrategy getTotalCostClosed", { symbol });
+    if (!this._pendingSignal) {
+      return null;
+    }
+    const { remainingCostBasis } = getTotalClosed(this._pendingSignal);
+    return remainingCostBasis;
+  }
+
+  /**
    * Performs a single tick of strategy execution.
    *
    * Flow (LIVE mode):

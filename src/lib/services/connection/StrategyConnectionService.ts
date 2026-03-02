@@ -500,6 +500,53 @@ export class StrategyConnectionService implements TStrategy {
   };
 
   /**
+   * Returns the percentage of the position currently held (not closed).
+   * 100 = nothing has been closed (full position), 0 = fully closed.
+   * Correctly accounts for DCA entries between partial closes.
+   *
+   * @param backtest - Whether running in backtest mode
+   * @param symbol - Trading pair symbol
+   * @param context - Execution context with strategyName, exchangeName, frameName
+   * @returns Promise<number> - held percentage (0–100)
+   */
+  public getTotalPercentClosed = async (
+    backtest: boolean,
+    symbol: string,
+    context: { strategyName: StrategyName; exchangeName: ExchangeName; frameName: FrameName }
+  ): Promise<number | null> => {
+    this.loggerService.log("strategyConnectionService getTotalPercentClosed", {
+      symbol,
+      context,
+      backtest,
+    });
+    const strategy = this.getStrategy(symbol, context.strategyName, context.exchangeName, context.frameName, backtest);
+    return await strategy.getTotalPercentClosed(symbol);
+  };
+
+  /**
+   * Returns the cost basis in dollars of the position currently held (not closed).
+   * Correctly accounts for DCA entries between partial closes.
+   *
+   * @param backtest - Whether running in backtest mode
+   * @param symbol - Trading pair symbol
+   * @param context - Execution context with strategyName, exchangeName, frameName
+   * @returns Promise<number> - held cost basis in dollars
+   */
+  public getTotalCostClosed = async (
+    backtest: boolean,
+    symbol: string,
+    context: { strategyName: StrategyName; exchangeName: ExchangeName; frameName: FrameName }
+  ): Promise<number | null> => {
+    this.loggerService.log("strategyConnectionService getTotalCostClosed", {
+      symbol,
+      context,
+      backtest,
+    });
+    const strategy = this.getStrategy(symbol, context.strategyName, context.exchangeName, context.frameName, backtest);
+    return await strategy.getTotalCostClosed(symbol);
+  };
+
+  /**
    * Retrieves the currently active scheduled signal for the strategy.
    * If no scheduled signal exists, returns null.
    * Used internally for monitoring scheduled signal activation.

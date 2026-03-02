@@ -18,6 +18,8 @@ const LIVE_METHOD_NAME_DUMP = "LiveUtils.dump";
 const LIVE_METHOD_NAME_TASK = "LiveUtils.task";
 const LIVE_METHOD_NAME_GET_STATUS = "LiveUtils.getStatus";
 const LIVE_METHOD_NAME_GET_PENDING_SIGNAL = "LiveUtils.getPendingSignal";
+const LIVE_METHOD_NAME_GET_TOTAL_PERCENT_CLOSED = "LiveUtils.getTotalPercentClosed";
+const LIVE_METHOD_NAME_GET_TOTAL_COST_CLOSED = "LiveUtils.getTotalCostClosed";
 const LIVE_METHOD_NAME_GET_SCHEDULED_SIGNAL = "LiveUtils.getScheduledSignal";
 const LIVE_METHOD_NAME_GET_BREAKEVEN = "LiveUtils.getBreakeven";
 const LIVE_METHOD_NAME_BREAKEVEN = "Live.commitBreakeven";
@@ -452,6 +454,79 @@ export class LiveUtils {
     }
 
     return await backtest.strategyCoreService.getPendingSignal(false, symbol, {
+      strategyName: context.strategyName,
+      exchangeName: context.exchangeName,
+      frameName: "",
+    });
+  };
+
+  /**
+   * Returns the percentage of the position currently held (not closed).
+   * 100 = nothing has been closed (full position), 0 = fully closed.
+   * Correctly accounts for DCA entries between partial closes.
+   *
+   * @param symbol - Trading pair symbol
+   * @param context - Context with strategyName and exchangeName
+   * @returns Promise<number> - held percentage (0–100)
+   *
+   * @example
+   * ```typescript
+   * const heldPct = await Live.getTotalPercentClosed("BTCUSDT", { strategyName, exchangeName });
+   * console.log(`Holding ${heldPct}% of position`);
+   * ```
+   */
+  public getTotalPercentClosed = async (symbol: string, context: { strategyName: StrategyName; exchangeName: ExchangeName; }) => {
+    backtest.loggerService.info(LIVE_METHOD_NAME_GET_TOTAL_PERCENT_CLOSED, {
+      symbol,
+      context,
+    });
+    backtest.strategyValidationService.validate(context.strategyName, LIVE_METHOD_NAME_GET_TOTAL_PERCENT_CLOSED);
+    backtest.exchangeValidationService.validate(context.exchangeName, LIVE_METHOD_NAME_GET_TOTAL_PERCENT_CLOSED);
+
+    {
+      const { riskName, riskList, actions } = backtest.strategySchemaService.get(context.strategyName);
+      riskName && backtest.riskValidationService.validate(riskName, LIVE_METHOD_NAME_GET_TOTAL_PERCENT_CLOSED);
+      riskList && riskList.forEach((riskName) => backtest.riskValidationService.validate(riskName, LIVE_METHOD_NAME_GET_TOTAL_PERCENT_CLOSED));
+      actions && actions.forEach((actionName) => backtest.actionValidationService.validate(actionName, LIVE_METHOD_NAME_GET_TOTAL_PERCENT_CLOSED));
+    }
+
+    return await backtest.strategyCoreService.getTotalPercentClosed(false, symbol, {
+      strategyName: context.strategyName,
+      exchangeName: context.exchangeName,
+      frameName: "",
+    });
+  };
+
+  /**
+   * Returns the cost basis in dollars of the position currently held (not closed).
+   * Correctly accounts for DCA entries between partial closes.
+   *
+   * @param symbol - Trading pair symbol
+   * @param context - Context with strategyName and exchangeName
+   * @returns Promise<number> - held cost basis in dollars
+   *
+   * @example
+   * ```typescript
+   * const heldCost = await Live.getTotalCostClosed("BTCUSDT", { strategyName, exchangeName });
+   * console.log(`Holding $${heldCost} of position`);
+   * ```
+   */
+  public getTotalCostClosed = async (symbol: string, context: { strategyName: StrategyName; exchangeName: ExchangeName; }) => {
+    backtest.loggerService.info(LIVE_METHOD_NAME_GET_TOTAL_COST_CLOSED, {
+      symbol,
+      context,
+    });
+    backtest.strategyValidationService.validate(context.strategyName, LIVE_METHOD_NAME_GET_TOTAL_COST_CLOSED);
+    backtest.exchangeValidationService.validate(context.exchangeName, LIVE_METHOD_NAME_GET_TOTAL_COST_CLOSED);
+
+    {
+      const { riskName, riskList, actions } = backtest.strategySchemaService.get(context.strategyName);
+      riskName && backtest.riskValidationService.validate(riskName, LIVE_METHOD_NAME_GET_TOTAL_COST_CLOSED);
+      riskList && riskList.forEach((riskName) => backtest.riskValidationService.validate(riskName, LIVE_METHOD_NAME_GET_TOTAL_COST_CLOSED));
+      actions && actions.forEach((actionName) => backtest.actionValidationService.validate(actionName, LIVE_METHOD_NAME_GET_TOTAL_COST_CLOSED));
+    }
+
+    return await backtest.strategyCoreService.getTotalCostClosed(false, symbol, {
       strategyName: context.strategyName,
       exchangeName: context.exchangeName,
       frameName: "",
