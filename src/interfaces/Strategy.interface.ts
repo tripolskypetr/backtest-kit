@@ -81,7 +81,7 @@ export interface ISignalRow extends ISignalDto {
     /** Percentage of position closed (0-100) */
     percent: number;
     /** Price at which this partial was executed */
-    price: number;
+    currentPrice: number;
     /** Debug only timestamp in milliseconds */
     debugTimestamp?: number;
     /**

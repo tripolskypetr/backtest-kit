@@ -56,6 +56,19 @@ const INTERVAL_MINUTES: Record<SignalInterval, number> = {
 const COST_BASIS_PER_ENTRY = 100;
 
 /**
+ * Type for partial profit/loss events queued in ClientStrategy._commitQueue.
+ * These events are emitted to onCommit callback with proper execution context timestamp.
+ */
+type Partials = Array<{ 
+  type: "profit" | "loss"; 
+  percent: number; 
+  currentPrice: number; 
+  effectivePrice: number; 
+  entryCountAtClose: number; 
+  debugTimestamp?: number; 
+}>;
+
+/**
  * Mock value for scheduled signal pendingAt timestamp.
  * Used to indicate that the actual pendingAt will be set upon activation.
  */
@@ -1009,7 +1022,7 @@ const PARTIAL_PROFIT_FN = (
     type: "profit",
     percent: percentToClose,
     entryCountAtClose,
-    price: currentPrice,
+    currentPrice,
     debugTimestamp: getDebugTimestamp(),
     effectivePrice,
   });
@@ -1062,7 +1075,7 @@ const PARTIAL_LOSS_FN = (
   signal._partial.push({
     type: "loss",
     percent: percentToClose,
-    price: currentPrice,
+    currentPrice,
     entryCountAtClose,
     effectivePrice,
     debugTimestamp: getDebugTimestamp(),
@@ -4192,7 +4205,7 @@ export class ClientStrategy implements IStrategy {
     return entries.map((e) => e.price);
   }
 
-  public async getPositionPartials(symbol: string): Promise<Array<{ type: "profit" | "loss"; percent: number; price: number; effectivePrice: number; entryCountAtClose: number; debugTimestamp?: number; }> | null> {
+  public async getPositionPartials(symbol: string): Promise<Partials> | null {
     this.params.logger.debug("ClientStrategy getPositionPartials", { symbol });
     if (!this._pendingSignal) {
       return null;

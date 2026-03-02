@@ -76,8 +76,8 @@ export const toProfitLossDto = (
 
       const priceCloseWithSlippage =
         signal.position === "long"
-          ? partial.price * (1 - GLOBAL_CONFIG.CC_PERCENT_SLIPPAGE / 100)
-          : partial.price * (1 + GLOBAL_CONFIG.CC_PERCENT_SLIPPAGE / 100);
+          ? partial.currentPrice * (1 - GLOBAL_CONFIG.CC_PERCENT_SLIPPAGE / 100)
+          : partial.currentPrice * (1 + GLOBAL_CONFIG.CC_PERCENT_SLIPPAGE / 100);
 
       const partialPnl =
         signal.position === "long"

@@ -1958,7 +1958,7 @@ interface ISignalRow extends ISignalDto {
         /** Percentage of position closed (0-100) */
         percent: number;
         /** Price at which this partial was executed */
-        price: number;
+        currentPrice: number;
         /** Debug only timestamp in milliseconds */
         debugTimestamp?: number;
         /**
@@ -4471,7 +4471,7 @@ declare function getPositionLevels(symbol: string): Promise<number[] | null>;
 declare function getPositionPartials(symbol: string): Promise<{
     type: "profit" | "loss";
     percent: number;
-    price: number;
+    currentPrice: number;
     effectivePrice: number;
     entryCountAtClose: number;
     debugTimestamp?: number;
@@ -10784,7 +10784,7 @@ declare class BacktestUtils {
     }) => Promise<{
         type: "profit" | "loss";
         percent: number;
-        price: number;
+        currentPrice: number;
         effectivePrice: number;
         entryCountAtClose: number;
         debugTimestamp?: number;
@@ -11727,7 +11727,7 @@ declare class LiveUtils {
     }) => Promise<{
         type: "profit" | "loss";
         percent: number;
-        price: number;
+        currentPrice: number;
         effectivePrice: number;
         entryCountAtClose: number;
         debugTimestamp?: number;
@@ -15948,7 +15948,7 @@ declare class StrategyCoreService implements TStrategy$1 {
     }) => Promise<{
         type: "profit" | "loss";
         percent: number;
-        price: number;
+        currentPrice: number;
         effectivePrice: number;
         entryCountAtClose: number;
         debugTimestamp?: number;
@@ -18902,7 +18902,7 @@ declare class StrategyConnectionService implements TStrategy {
     }) => Promise<{
         type: "profit" | "loss";
         percent: number;
-        price: number;
+        currentPrice: number;
         effectivePrice: number;
         entryCountAtClose: number;
         debugTimestamp?: number;
