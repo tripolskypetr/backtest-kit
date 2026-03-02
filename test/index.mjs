@@ -2,7 +2,6 @@ import "./config/setup.mjs"
 
 import { run } from 'worker-testbed'
 
-
 import "./e2e/action.test.mjs";
 import "./e2e/breakeven.test.mjs";
 import "./e2e/cache.test.mjs";
@@ -10,6 +9,7 @@ import "./e2e/shutdown.test.mjs";
 import "./e2e/markdown.test.mjs";
 import "./e2e/partial.test.mjs"
 import "./e2e/average.test.mjs"
+import "./e2e/dca.test.mjs";
 import "./e2e/levels.test.mjs";
 import "./e2e/restore.test.mjs";
 import "./e2e/persist.test.mjs"
@@ -42,6 +42,7 @@ import "./spec/event.test.mjs";
 import "./spec/validation.test.mjs";
 import "./spec/backtest.test.mjs";
 import "./spec/pnl.test.mjs";
+import "./spec/dca.test.mjs";
 import "./spec/config.test.mjs"
 import "./spec/columns.test.mjs"
 import "./spec/lookahead.test.mjs";
