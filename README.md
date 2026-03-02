@@ -436,6 +436,59 @@ Unlike candles, most exchanges (e.g. Binance `GET /api/v3/depth`) only expose th
 - `depth` defaults to `CC_ORDER_BOOK_MAX_DEPTH_LEVELS`
 - Adapter receives `(symbol, depth, from, to, backtest)` — may ignore `from`/`to` in live mode
 
+### 🔍 How getAggregatedTrades Works
+
+Aggregated trades fetching uses the same look-ahead bias protection as candles - `to` is always aligned down to the nearest minute boundary so future trades are never visible to the strategy.
+
+  <details>
+    <summary>
+      The Math
+    </summary>
+
+    **Time range calculation:**
+    - `when` = current execution context time (from AsyncLocalStorage)
+    - `alignedTo` = `Math.floor(when / 60000) * 60000` (aligned down to 1-minute boundary)
+    - `windowMs` = `CC_AGGREGATED_TRADES_MAX_MINUTES * 60000 − 60000`
+    - `to` = `alignedTo`, `from` = `alignedTo − windowMs`
+
+    **Without `limit`:** fetches a single window and returns it as-is.
+
+    **With `limit`:** paginates backwards in `CC_AGGREGATED_TRADES_MAX_MINUTES` chunks until at least `limit` trades are collected, then slices to the most recent `limit` trades.
+
+    **Example with CC_AGGREGATED_TRADES_MAX_MINUTES = 60, limit = 200:**
+    ```
+    when       = 1704067920000   // 2024-01-01 00:12:00 UTC
+    alignedTo  = 1704067800000   // 2024-01-01 00:12:00 → aligned to 00:12:00
+    windowMs   = 59 * 60000      // 3540000ms = 59 minutes
+
+    Window 1:  from = 00:12:00 − 59m = 23:13:00
+               to   = 00:12:00
+    → got 120 trades — not enough
+
+    Window 2:  from = 23:13:00 − 59m = 22:14:00
+               to   = 23:13:00
+    → got 100 more → total 220 trades
+
+    result = last 200 of 220 (most recent)
+    ```
+
+    **Adapter contract:**
+    - `getAggregatedTrades(symbol, from, to, backtest)` is called on the exchange schema
+    - `from`/`to` are `Date` objects
+    - Schema implementation may use the time range (backtest) or ignore it (live trading)
+
+  </details>
+
+> **Compatible with:** [garch](https://www.npmjs.com/package/garch) for volatility modelling and [volume-anomaly](https://www.npmjs.com/package/volume-anomaly) for detecting abnormal trade volume — both accept the same `from`/`to` time range format that `getAggregatedTrades` produces.
+
+#### Aggregated Trades Convention:
+
+**Key principles:**
+- `to` is always aligned down to the 1-minute boundary — prevents look-ahead bias
+- Without `limit`: returns one full window (`CC_AGGREGATED_TRADES_MAX_MINUTES`)
+- With `limit`: paginates backwards until collected, then slices to most recent `limit`
+- Adapter receives `(symbol, from, to, backtest)` — may ignore `from`/`to` in live mode
+
 ### 🔬 Technical Details: Timestamp Alignment
 
 **Why align timestamps to interval boundaries?**
