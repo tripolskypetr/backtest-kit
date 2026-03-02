@@ -310,7 +310,7 @@ These three functions work together to manage a position dynamically. To reduce 
   ```
 </details>
 
-**Note:** backtest-kit internally verifies PNL both ways — weighted per partial and by total coin proceeds — and they always match. The coin cross-check in the example above is how the engine validates its own output.
+**`priceOpen`** is the harmonic mean of all accepted DCA entries. After each partial close (`commitPartialProfit` or `commitPartialLoss`), the remaining cost basis is carried forward into the harmonic mean calculation for subsequent entries — so `priceOpen` shifts after every partial, which in turn changes whether the next `commitAverageBuy` call will be accepted.
 
 ### 🔍 How getCandles Works
 
@@ -378,8 +378,6 @@ temporal time context to your strategies.
   - Cache and runtime use identical timestamp calculation logic
 
 </details>
-
-**`priceOpen`** is the harmonic mean of all accepted DCA entries. After each partial close (`commitPartialProfit` or `commitPartialLoss`), the remaining cost basis is carried forward into the harmonic mean calculation for subsequent entries — so `priceOpen` shifts after every partial, which in turn changes whether the next `commitAverageBuy` call will be accepted.
 
 #### Candle Timestamp Convention:
 
