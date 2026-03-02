@@ -21773,17 +21773,20 @@ declare const backtest: {
  * Calculates profit/loss for a closed signal with slippage and fees.
  *
  * For signals with partial closes:
- * - Weights are calculated by ACTUAL DOLLAR VALUE of each partial relative to total invested,
- *   not by raw percent. This correctly handles DCA entries that occur after partial closes.
+ * - Weights are calculated by ACTUAL DOLLAR VALUE of each partial relative to total invested.
+ *   This correctly handles DCA entries that occur before or after partial closes.
  *
- * Weight formula:
- *   partialDollarValue = (partial.percent / 100) * (partial.entryCountAtClose * $100)
- *   weight = partialDollarValue / totalInvested
- *   totalInvested = _entry.length * $100
+ * Cost basis is reconstructed by replaying the partial sequence via entryCountAtClose + percent:
+ *   costBasis = 0
+ *   for each partial[i]:
+ *     costBasis += (entryCountAtClose[i] - entryCountAtClose[i-1]) × $100
+ *     partialDollarValue[i] = (percent[i] / 100) × costBasis
+ *     weight[i]             = partialDollarValue[i] / totalInvested
+ *     costBasis            *= (1 - percent[i] / 100)
  *
  * Fee structure:
- *   - Open fee: CC_PERCENT_FEE (charged once)
- *   - Close fee per partial: CC_PERCENT_FEE × weight × (closeWithSlip / openWithSlip)
+ *   - Open fee:  CC_PERCENT_FEE (charged once)
+ *   - Close fee: CC_PERCENT_FEE × weight × (closeWithSlip / openWithSlip) per partial/remaining
  *
  * @param signal - Closed signal with position details and optional partial history
  * @param priceClose - Actual close price at final exit
@@ -21795,8 +21798,17 @@ declare const toProfitLossDto: (signal: ISignalRow, priceClose: number) => IStra
  * Returns the effective entry price for price calculations.
  *
  * Uses harmonic mean (correct for fixed-dollar DCA: $100 per entry).
- * When partial closes exist, uses the last partial's effectivePrice snapshot
- * + any new DCA entries added after that partial, weighted by actual coin quantities.
+ *
+ * When partial closes exist, replays the partial sequence to reconstruct
+ * the running cost basis at each partial — no extra stored fields needed.
+ *
+ * Cost basis replay:
+ *   costBasis starts at 0
+ *   for each partial[i]:
+ *     newEntries = entryCountAtClose[i] - entryCountAtClose[i-1]  (or entryCountAtClose[0] for i=0)
+ *     costBasis += newEntries × $100          ← add DCA entries up to this partial
+ *     positionCostBasisAtClose[i] = costBasis ← snapshot BEFORE close
+ *     costBasis × = (1 - percent[i] / 100)    ← reduce after close
  *
  * @param signal - Signal row
  * @returns Effective entry price for PNL calculations
