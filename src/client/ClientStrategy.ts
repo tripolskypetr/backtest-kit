@@ -4164,6 +4164,35 @@ export class ClientStrategy implements IStrategy {
   }
 
   /**
+   * Returns the list of DCA entry prices for the current pending signal.
+   *
+   * The first element is always the original priceOpen (initial entry).
+   * Each subsequent element is a price added by commitAverageBuy().
+   *
+   * Returns null if no pending signal exists.
+   * Returns a single-element array [priceOpen] if no DCA entries were made.
+   *
+   * @param symbol - Trading pair symbol
+   * @returns Promise resolving to array of entry prices or null
+   *
+   * @example
+   * // No DCA: [43000]
+   * // One DCA: [43000, 42000]
+   * // Two DCA: [43000, 42000, 41500]
+   */
+  public async getPositionLevels(symbol: string): Promise<number[] | null> {
+    this.params.logger.debug("ClientStrategy getPositionLevels", { symbol });
+    if (!this._pendingSignal) {
+      return null;
+    }
+    const entries = this._pendingSignal._entry;
+    if (!entries || entries.length === 0) {
+      return [this._pendingSignal.priceOpen];
+    }
+    return entries.map((e) => e.price);
+  }
+
+  /**
    * Performs a single tick of strategy execution.
    *
    * Flow (LIVE mode):

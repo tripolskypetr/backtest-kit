@@ -32,6 +32,7 @@ export {
   getPositionInvestedCost,
   getPositionPnlPercent,
   getPositionPnlCost,
+  getPositionLevels,
 } from "./function/strategy";
 export { stopStrategy } from "./function/control";
 export { shutdown } from "./function/shutdown.function";

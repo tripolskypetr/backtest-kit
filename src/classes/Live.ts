@@ -27,6 +27,7 @@ const LIVE_METHOD_NAME_GET_POSITION_INVESTED_COUNT = "LiveUtils.getPositionInves
 const LIVE_METHOD_NAME_GET_POSITION_INVESTED_COST = "LiveUtils.getPositionInvestedCost";
 const LIVE_METHOD_NAME_GET_POSITION_PNL_PERCENT = "LiveUtils.getPositionPnlPercent";
 const LIVE_METHOD_NAME_GET_POSITION_PNL_COST = "LiveUtils.getPositionPnlCost";
+const LIVE_METHOD_NAME_GET_POSITION_LEVELS = "LiveUtils.getPositionLevels";
 const LIVE_METHOD_NAME_BREAKEVEN = "Live.commitBreakeven";
 const LIVE_METHOD_NAME_CANCEL_SCHEDULED = "Live.cancelScheduled";
 const LIVE_METHOD_NAME_CLOSE_PENDING = "Live.closePending";
@@ -734,6 +735,28 @@ export class LiveUtils {
     }
 
     return await backtest.strategyCoreService.getPositionPnlCost(false, symbol, currentPrice, {
+      strategyName: context.strategyName,
+      exchangeName: context.exchangeName,
+      frameName: "",
+    });
+  };
+
+  public getPositionLevels = async (
+    symbol: string,
+    context: { strategyName: StrategyName; exchangeName: ExchangeName; }
+  ): Promise<number[] | null> => {
+    backtest.loggerService.info(LIVE_METHOD_NAME_GET_POSITION_LEVELS, { symbol, context });
+    backtest.strategyValidationService.validate(context.strategyName, LIVE_METHOD_NAME_GET_POSITION_LEVELS);
+    backtest.exchangeValidationService.validate(context.exchangeName, LIVE_METHOD_NAME_GET_POSITION_LEVELS);
+
+    {
+      const { riskName, riskList, actions } = backtest.strategySchemaService.get(context.strategyName);
+      riskName && backtest.riskValidationService.validate(riskName, LIVE_METHOD_NAME_GET_POSITION_LEVELS);
+      riskList && riskList.forEach((riskName) => backtest.riskValidationService.validate(riskName, LIVE_METHOD_NAME_GET_POSITION_LEVELS));
+      actions && actions.forEach((actionName) => backtest.actionValidationService.validate(actionName, LIVE_METHOD_NAME_GET_POSITION_LEVELS));
+    }
+
+    return await backtest.strategyCoreService.getPositionLevels(false, symbol, {
       strategyName: context.strategyName,
       exchangeName: context.exchangeName,
       frameName: "",

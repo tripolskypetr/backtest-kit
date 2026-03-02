@@ -26,6 +26,7 @@ const GET_POSITION_INVESTED_COUNT_METHOD_NAME = "strategy.getPositionInvestedCou
 const GET_POSITION_INVESTED_COST_METHOD_NAME = "strategy.getPositionInvestedCost";
 const GET_POSITION_PNL_PERCENT_METHOD_NAME = "strategy.getPositionPnlPercent";
 const GET_POSITION_PNL_COST_METHOD_NAME = "strategy.getPositionPnlCost";
+const GET_POSITION_LEVELS_METHOD_NAME = "strategy.getPositionLevels";
 
 /**
  * Cancels the scheduled signal without stopping the strategy.
@@ -894,6 +895,44 @@ export async function getPositionPnlCost(symbol: string): Promise<number | null>
     isBacktest,
     symbol,
     currentPrice,
+    { exchangeName, frameName, strategyName }
+  );
+}
+
+/**
+ * Returns the list of DCA entry prices for the current pending signal.
+ *
+ * The first element is always the original priceOpen (initial entry).
+ * Each subsequent element is a price added by commitAverageBuy().
+ *
+ * Returns null if no pending signal exists.
+ * Returns a single-element array [priceOpen] if no DCA entries were made.
+ *
+ * @param symbol - Trading pair symbol
+ * @returns Promise resolving to array of entry prices or null
+ *
+ * @example
+ * ```typescript
+ * import { getPositionLevels } from "backtest-kit";
+ *
+ * const levels = await getPositionLevels("BTCUSDT");
+ * // No DCA: [43000]
+ * // One DCA: [43000, 42000]
+ * ```
+ */
+export async function getPositionLevels(symbol: string): Promise<number[] | null> {
+  backtest.loggerService.info(GET_POSITION_LEVELS_METHOD_NAME, { symbol });
+  if (!ExecutionContextService.hasContext()) {
+    throw new Error("getPositionLevels requires an execution context");
+  }
+  if (!MethodContextService.hasContext()) {
+    throw new Error("getPositionLevels requires a method context");
+  }
+  const { backtest: isBacktest } = backtest.executionContextService.context;
+  const { exchangeName, frameName, strategyName } = backtest.methodContextService.context;
+  return await backtest.strategyCoreService.getPositionLevels(
+    isBacktest,
+    symbol,
     { exchangeName, frameName, strategyName }
   );
 }
