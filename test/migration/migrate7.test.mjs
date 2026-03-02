@@ -485,8 +485,8 @@ test("PARTIAL FUNCTION: partialLoss() closes 40% of LONG position", async ({ pas
     return;
   }
 
-  if (typeof partial.price !== "number") {
-    fail(`Expected price to be a number, got ${typeof partial.price}`);
+  if (typeof partial.currentPrice !== "number") {
+    fail(`Expected price to be a number, got ${typeof partial.currentPrice}`);
     return;
   }
 

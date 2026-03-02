@@ -2237,8 +2237,8 @@ test("PARTIAL FUNCTION: partialProfit() closes 30% of LONG position", async ({ p
     return;
   }
 
-  if (typeof partial.price !== "number") {
-    fail(`Expected price to be a number, got ${typeof partial.price}`);
+  if (typeof partial.currentPrice !== "number") {
+    fail(`Expected price to be a number, got ${typeof partial.currentPrice}`);
     return;
   }
 

@@ -450,8 +450,8 @@ test("PARTIAL FUNCTION: Multiple partialProfit calls (30% + 40%)", async ({ pass
     return;
   }
 
-  if (typeof partial1.price !== "number") {
-    fail(`Expected first price to be a number, got ${typeof partial1.price}`);
+  if (typeof partial1.currentPrice !== "number") {
+    fail(`Expected first price to be a number, got ${typeof partial1.currentPrice}`);
     return;
   }
 
@@ -468,8 +468,8 @@ test("PARTIAL FUNCTION: Multiple partialProfit calls (30% + 40%)", async ({ pass
     return;
   }
 
-  if (typeof partial2.price !== "number") {
-    fail(`Expected second price to be a number, got ${typeof partial2.price}`);
+  if (typeof partial2.currentPrice !== "number") {
+    fail(`Expected second price to be a number, got ${typeof partial2.currentPrice}`);
     return;
   }
 
