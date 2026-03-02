@@ -34,6 +34,9 @@ import useTrailingTakeView from "../hooks/useTrailingTakeView";
 // Activate scheduled hook
 import useActivateScheduledView from "../hooks/useActivateScheduledView";
 
+// Average buy hook
+import useAverageBuyCommitView from "../hooks/useAverageBuyCommitView";
+
 interface ILayoutModalProviderProps {
     children: React.ReactNode;
 }
@@ -101,6 +104,9 @@ export const LayoutModalProvider = ({
     // Activate scheduled hook
     const pickActivateScheduled = useActivateScheduledView();
 
+    // Average buy hook
+    const pickAverageBuyCommit = useAverageBuyCommitView();
+
     useOnce(() =>
         ioc.layoutService.promptOutgoing.subscribe(async ({ title, value }) => {
             const result = await pickPrompt({ title, value }).toPromise();
@@ -150,6 +156,9 @@ export const LayoutModalProvider = ({
 
     // Activate scheduled subscription
     useOnce(() => ioc.layoutService.pickActivateScheduledSubject.subscribe(pickActivateScheduled));
+
+    // Average buy subscription
+    useOnce(() => ioc.layoutService.pickAverageBuyCommitSubject.subscribe(pickAverageBuyCommit));
 
     return (
         <>

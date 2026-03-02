@@ -244,6 +244,9 @@ const handleNotificationClick = (item: NotificationModel) => {
     case "activate_scheduled.commit":
       ioc.layoutService.pickActivateScheduled(item.id);
       break;
+    case "average_buy.commit":
+      ioc.layoutService.pickAverageBuyCommit(item.id);
+      break;
   }
 };
 
