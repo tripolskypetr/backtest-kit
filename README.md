@@ -230,7 +230,7 @@ These three functions work together to manage a position dynamically. To reduce 
       commitPartialLoss(20%)   @ 860           ← cnt=3
     entry#4 @ 920   → 0.10870 coins
       commitPartialProfit(40%) @ 1050          ← cnt=4
-    entry#5 @ 980   ✗ REJECTED (980 > ep3≈929.90)
+    entry#5 @ 980   ✗ REJECTED (980 > ep3≈929.92)
     totalInvested = $400
   ```
 
@@ -255,9 +255,9 @@ These three functions work together to manage a position dynamically. To reduce 
   **Partial#2 — commitPartialLoss @ 860, 20%, cnt=3**
   ```
     costBasis = 70 + 100 + 100 = $270
-    ep2 = 270 / 0.28890 ≈ 934.93
+    ep2 = 270 / 0.28890 ≈ 934.58
     partialDollarValue = 20% × 270 = $54  → weight = 54/400 = 0.135
-    pnl = (860−934.93)/934.93 × 100 ≈ −8.01%
+    pnl = (860−934.58)/934.58 × 100 ≈ −7.98%
     costBasis → $216
     coins sold: 0.05778 × 860 = $49.69
     remaining:  0.23112
@@ -265,16 +265,16 @@ These three functions work together to manage a position dynamically. To reduce 
 
   **DCA after Partial#2**
   ```
-    entry#4 @ 920  (920 < ep2=934.93 ✓ accepted)
+    entry#4 @ 920  (920 < ep2=934.58 ✓ accepted)
     coins: 0.23112 + 0.10870 = 0.33982
   ```
 
   **Partial#3 — commitPartialProfit @ 1050, 40%, cnt=4**
   ```
     costBasis = 216 + 100 = $316
-    ep3 = 316 / 0.33982 ≈ 929.90
+    ep3 = 316 / 0.33982 ≈ 929.92
     partialDollarValue = 40% × 316 = $126.4  → weight = 126.4/400 = 0.316
-    pnl = (1050−929.90)/929.90 × 100 ≈ +12.92%
+    pnl = (1050−929.92)/929.92 × 100 ≈ +12.91%
     costBasis → $189.6
     coins sold: 0.13593 × 1050 = $142.72
     remaining:  0.20389
@@ -282,28 +282,28 @@ These three functions work together to manage a position dynamically. To reduce 
 
   **DCA after Partial#3 — rejected**
   ```
-    entry#5 @ 980  (980 > ep3≈929.90 ✗ REJECTED)
+    entry#5 @ 980  (980 > ep3≈929.92 ✗ REJECTED)
   ```
 
   **Close at TP @ 1200**
   ```
-    ep_final = ep3 ≈ 929.90  (no new entries)
+    ep_final = ep3 ≈ 929.92  (no new entries)
     coins: 0.20389
 
     remainingDollarValue = 400 − 30 − 54 − 126.4 = $189.6
     weight = 189.6/400 = 0.474
-    pnl = (1200−929.90)/929.90 × 100 ≈ +29.05%
+    pnl = (1200−929.92)/929.92 × 100 ≈ +29.04%
     coins sold: 0.20389 × 1200 = $244.67
   ```
 
   **Result (toProfitLossDto)**
   ```
     0.075 × (+15.00) = +1.125
-    0.135 × (−8.01)  = −1.081
-    0.316 × (+12.92) = +4.083
-    0.474 × (+29.05) = +13.770
+    0.135 × (−7.98)  = −1.077
+    0.316 × (+12.91) = +4.080
+    0.474 × (+29.04) = +13.765
     ─────────────────────────────
-                    ≈ +17.90%
+                    ≈ +17.89%
 
     Cross-check (coins):
     34.50 + 49.69 + 142.72 + 244.67 = $471.58
