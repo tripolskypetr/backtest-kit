@@ -275,11 +275,10 @@ const CALL_SIGNAL_SYNC_CALLBACK_FN = async (
   strategyName: StrategyName,
   frameName: FrameName,
   isBacktest: boolean
-): Promise<boolean> => {
+): Promise<void> => {
   if (self.params.callbacks?.onSignalSync) {
-    return await self.params.callbacks.onSignalSync(event, self.params.actionName, strategyName, frameName, isBacktest);
+    await self.params.callbacks.onSignalSync(event, self.params.actionName, strategyName, frameName, isBacktest);
   }
-  return true;
 };
 
 /** Wrapper to call onInit callback with error handling */
@@ -740,7 +739,7 @@ export class ClientAction implements IAction {
    * Gate for position open/close via limit order.
    * NOT wrapped in trycatch — exceptions propagate to CREATE_SYNC_FN.
    */
-  public async signalSync(event: SignalSyncContract): Promise<boolean> {
+  public async signalSync(event: SignalSyncContract): Promise<void> {
     this.params.logger.debug("ClientAction signalSync", {
       actionName: this.params.actionName,
       strategyName: this.params.strategyName,
@@ -752,15 +751,10 @@ export class ClientAction implements IAction {
     }
 
     // Call handler method if defined — exceptions propagate
-    if (this._handlerInstance?.signalSync) {
-      const handlerResult = await this._handlerInstance.signalSync(event);
-      if (!handlerResult) {
-        return false;
-      }
-    }
+    await this._handlerInstance?.signalSync(event);
 
     // Call callback if defined — exceptions propagate
-    return await CALL_SIGNAL_SYNC_CALLBACK_FN(
+    await CALL_SIGNAL_SYNC_CALLBACK_FN(
       this,
       event,
       this.params.strategyName,

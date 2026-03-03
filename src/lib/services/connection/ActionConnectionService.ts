@@ -327,13 +327,13 @@ export class ActionConnectionService implements TAction {
     event: SignalSyncContract,
     backtest: boolean,
     context: { actionName: ActionName; strategyName: StrategyName; exchangeName: ExchangeName; frameName: FrameName }
-  ): Promise<boolean> => {
+  ): Promise<void> => {
     this.loggerService.log("actionConnectionService signalSync", {
       backtest,
       context,
     });
     const action = this.getAction(context.actionName, context.strategyName, context.exchangeName, context.frameName, backtest);
-    return await action.signalSync(event);
+    await action.signalSync(event);
   };
 
   /**

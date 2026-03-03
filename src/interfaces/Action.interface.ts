@@ -271,6 +271,7 @@ export interface IActionCallbacks {
    *
    * NOTE: Unlike other callbacks, exceptions from this method are NOT swallowed.
    * They propagate up to CREATE_SYNC_FN which catches them and returns false.
+   * Throw to reject the operation — framework will retry on next tick.
    *
    * @param event - Sync event with action "signal-open" or "signal-close"
    * @param actionName - Action identifier
@@ -278,7 +279,7 @@ export interface IActionCallbacks {
    * @param frameName - Timeframe identifier
    * @param backtest - True for backtest mode, false for live trading
    */
-  onSignalSync(event: SignalSyncContract, actionName: ActionName, strategyName: StrategyName, frameName: FrameName, backtest: boolean): boolean | Promise<boolean>;
+  onSignalSync(event: SignalSyncContract, actionName: ActionName, strategyName: StrategyName, frameName: FrameName, backtest: boolean): void | Promise<void>;
 }
 
 /**
@@ -541,13 +542,13 @@ export interface IAction {
 
   /**
    * Called when framework attempts to open or close a position via limit order.
-   * Return false (or throw) to reject — framework will retry on next tick.
+   * Throw to reject — framework will retry on next tick.
    *
    * NOTE: Exceptions are NOT swallowed here — they propagate to CREATE_SYNC_FN.
    *
    * @param event - Sync event with action "signal-open" or "signal-close"
    */
-  signalSync(event: SignalSyncContract): boolean | Promise<boolean>;
+  signalSync(event: SignalSyncContract): void | Promise<void>;
 
   /**
    * Cleans up resources and subscriptions when action handler is no longer needed.

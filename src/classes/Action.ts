@@ -493,13 +493,11 @@ class ActionProxy implements IPublicAction {
    * NOT wrapped in trycatch — exceptions propagate to CREATE_SYNC_FN.
    *
    * @param event - Sync event with action "signal-open" or "signal-close"
-   * @returns true to allow, false to reject (retry next tick)
    */
-  public async signalSync(event: SignalSyncContract): Promise<boolean> {
+  public async signalSync(event: SignalSyncContract): Promise<void> {
     if (this._target.signalSync) {
-      return await this._target.signalSync(event);
+      await this._target.signalSync(event);
     }
-    return true;
   }
 
   /**
@@ -1002,7 +1000,7 @@ class ActionBase implements IPublicAction {
 
   /**
    * Gate for position open/close via limit order. Default allows all.
-   * Override and return false (or throw) to reject — framework retries next tick.
+   * Throw to reject — framework retries next tick.
    *
    * NOTE: Exceptions are NOT swallowed — they propagate to CREATE_SYNC_FN.
    *
@@ -1011,11 +1009,10 @@ class ActionBase implements IPublicAction {
   public signalSync(
     _event: SignalSyncContract,
     source = DEFAULT_SOURCE,
-  ): boolean | Promise<boolean> {
+  ): void | Promise<void> {
     backtest.loggerService.info(METHOD_NAME_SIGNAL_SYNC, {
       source,
     });
-    return true;
   }
 
   /**

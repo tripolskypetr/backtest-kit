@@ -53,8 +53,12 @@ const CREATE_SYNC_FN = (
   backtest: boolean
 ) => trycatch(
   async (event: SignalSyncContract) => {
+    if (event.backtest) {
+      return;
+    }
     await syncSubject.next(event);
-    return await self.actionCoreService.signalSync(backtest, event, { strategyName, exchangeName, frameName });
+    await self.actionCoreService.signalSync(backtest, event, { strategyName, exchangeName, frameName });
+    return true;
   }, {
     defaultValue: false,
   }

@@ -419,7 +419,7 @@ export class ActionCoreService implements TAction {
     backtest: boolean,
     event: SignalSyncContract,
     context: { strategyName: StrategyName; exchangeName: ExchangeName; frameName: FrameName }
-  ): Promise<boolean> => {
+  ): Promise<void> => {
     this.loggerService.log("actionCoreService signalSync", {
       context,
     });
@@ -429,13 +429,8 @@ export class ActionCoreService implements TAction {
     const { actions = [] } = this.strategySchemaService.get(context.strategyName);
 
     for (const actionName of actions) {
-      const result = await this.actionConnectionService.signalSync(event, backtest, { actionName, ...context });
-      if (!result) {
-        return false;
-      }
+      await this.actionConnectionService.signalSync(event, backtest, { actionName, ...context });
     }
-
-    return true;
   };
 
   /**
