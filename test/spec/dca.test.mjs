@@ -93,12 +93,11 @@ test("getEffectivePriceOpen: 100% closed single partial → returns lastPartial.
   pass("ok");
 });
 
-test("getEffectivePriceOpen: two partials with same entryCountAtClose — cost basis chains correctly", ({ pass, fail }) => {
-  // entry[100], p1=30%@110(cnt=1,eff=100), p2=50%@120(cnt=1,eff=70)
-  // Replay: i=0: costBasis=100, reduce→70; i=1: prevCnt=1, newEntries=0, costBasis=70 (NOT reduced, last)
-  // remainingCostBasis = 70*(1-0.50) = 35
-  // oldCoins = 35/70 = 0.5, newEntries=[] (entries.slice(1)=empty), newCoins=0
-  // totalCost = 35, result = 35/0.5 = 70
+test("getEffectivePriceOpen: two partials with same entryCountAtClose — effective price unchanged", ({ pass, fail }) => {
+  // entry[100], p1=30%@110(cnt=1,eff=100), p2=50%@120(cnt=1)
+  // No new DCA between or after partials — single entry bought at 100.
+  // Effective price of the remaining position is 100 (physical cost basis unchanged by sells).
+  // remainingCostBasis = 100*(1-0.3)=70 → *(1-0.5)=35, oldCoins=35/100=0.35, result=35/0.35=100
   const signal = {
     priceOpen: 100,
     _entry: [{ price: 100, cost: 100 }],
@@ -108,8 +107,8 @@ test("getEffectivePriceOpen: two partials with same entryCountAtClose — cost b
     ],
   };
   const result = getEffectivePriceOpen(signal);
-  if (!approxEqual(result, 70)) { fail(`Expected 70.000000000, got ${result}`); return; }
-  pass(`getEff multi-partial chains: ${result.toFixed(9)}`);
+  if (!approxEqual(result, 100)) { fail(`Expected 100.000000000, got ${result}`); return; }
+  pass(`getEff multi-partial same-cnt: ${result.toFixed(9)}`);
 });
 
 // ---------------------------------------------------------------------------
@@ -341,19 +340,17 @@ test("toProfitLossDto: S8 DCA→partial→DCA→partial→close each snap distin
   pass(`S8 pnl = ${pnlPercentage.toFixed(9)}%`);
 });
 
-// S9: partial(20%@120,eff=100,cnt=1) → partial(20%@90,eff=snap2,cnt=1) → DCA@70 → close@95
+// S9: partial(20%@120,eff=100,cnt=1) → partial(20%@90,eff=100,cnt=1) → DCA@70 → close@95
 //   totalInvested=200
 //   p1: costBasis=100, dv=20, weight=0.1; after costBasis=80
 //   p2: prevCnt=1, newEntries=0, costBasis=80, dv=16, weight=0.08
 //   closedDollar=36, remWeight=164/200=0.82
 //
-//   snap2 = getEff([100,70],[p1]): remainingCostBasis=100*(1-0.2)=80, oldCoins=80/100=0.8
-//           newEntries=entries.slice(1)=[{70}], newCoins=100/70
-//           snap2 = (80+100)/(0.8+100/70) = 80.769230769  (NOT 100 — p1 already sold 20%)
-//
-//   getEff final: 2 partials both cnt=1
-//     i=0: cb=100, reduce→80; i=1: newE=0, cb=80 (last)
-//     remainingCostBasis=80*(1-0.2)=64, oldCoins=64/snap2, newCoins=100/70
+//   Both partials closed with eff=100 (single entry@100, no DCA before them).
+//   getEff final: last=p2(cnt=1), effAtLast=100
+//     remainingCostBasis=80*(1-0.2)=64, oldCoins=64/100=0.64
+//     newEntries=entries.slice(1)=[{70,100}], newCoins=100/70
+//     priceOpen = (64+100)/(0.64+100/70) = 164/2.068... = 79.282...
 test("toProfitLossDto: S9 partial→partial→DCA→close (LONG)", ({ pass, fail }) => {
   const signal = {
     position: "long",
@@ -365,7 +362,7 @@ test("toProfitLossDto: S9 partial→partial→DCA→close (LONG)", ({ pass, fail
     ],
   };
   const { pnlPercentage } = toProfitLossDto(signal, 95);
-  if (!approxEqual(pnlPercentage, 25.930800371)) { fail(`Expected 25.930800371, got ${pnlPercentage}`); return; }
+  if (!approxEqual(pnlPercentage, 17.005240788)) { fail(`Expected 17.005240788, got ${pnlPercentage}`); return; }
   pass(`S9 pnl = ${pnlPercentage.toFixed(9)}%`);
 });
 

@@ -1,6 +1,6 @@
 import { ISignalRow, IStrategyPnL } from "../interfaces/Strategy.interface";
 import { GLOBAL_CONFIG } from "../config/params";
-import { getEffectivePriceOpen } from "./getEffectivePriceOpen";
+import { getEffectivePriceOpen, computeEffectivePriceAtPartial } from "./getEffectivePriceOpen";
 
 /**
  * Calculates profit/loss for a closed signal with slippage and fees.
@@ -41,7 +41,9 @@ export const toProfitLossDto = (
     let closedDollarValue = 0;
 
     // Calculate PNL for each partial close
-    for (const partial of signal._partial) {
+    for (let i = 0; i < signal._partial.length; i++) {
+      const partial = signal._partial[i];
+
       // Real dollar value sold in this partial
       const partialDollarValue = (partial.percent / 100) * partial.costBasisAtClose;
 
@@ -50,10 +52,11 @@ export const toProfitLossDto = (
 
       closedDollarValue += partialDollarValue;
 
-      // Effective entry price at this partial: costBasisAtClose / Σ(cost/price for entries[0..entryCountAtClose])
-      const entriesAtPartial = entries.slice(0, partial.entryCountAtClose);
-      const coinsAtPartial = entriesAtPartial.reduce((s, e) => s + e.cost / e.price, 0);
-      const effectivePrice = coinsAtPartial === 0 ? signal.priceOpen : partial.costBasisAtClose / coinsAtPartial;
+      // Effective entry price at this partial — computed using the snapshot approach:
+      // same as getEffectivePriceOpen but limited to partials[0..i-1] and entries[0..entryCountAtClose]
+      const effectivePrice = computeEffectivePriceAtPartial(
+        entries, signal._partial!, i, signal.priceOpen
+      );
 
       const priceOpenWithSlippage =
         signal.position === "long"

@@ -22537,13 +22537,13 @@ declare const toProfitLossDto: (signal: ISignalRow, priceClose: number) => IStra
  * This is the correct formula for fixed-dollar DCA positions where each entry
  * has its own cost (e.g. $100, $200, etc.).
  *
- * When partial closes exist, uses the costBasisAtClose snapshot from the last partial
- * to avoid replaying the full entry history:
- *   1. Compute effectivePrice AT last partial = costBasisAtClose / Σ(cost/price for entries[0..entryCountAtClose])
- *   2. remainingCostBasis = costBasisAtClose * (1 - lastPartial.percent / 100)
- *   3. oldCoins = remainingCostBasis / effectivePriceAtPartial
- *   4. newCoins = Σ(cost/price) for entries added AFTER last partial
- *   5. effectivePrice = (remainingCostBasis + newCost) / (oldCoins + newCoins)
+ * When partial closes exist, iterates through all partials to maintain a running
+ * effective price, then blends with any new DCA entries after the last partial:
+ *   - partial[0]: effectivePrice = costBasisAtClose[0] / Σ(cost/price for entries[0..cnt[0]])
+ *   - partial[j>0]: remainingCB = prev.costBasisAtClose * (1 - prev.percent/100)
+ *                   oldCoins = remainingCB / prevEffPrice
+ *                   blend with new entries between prev and curr partial
+ *   - final: blend remaining position with entries added after last partial
  *
  * @param signal - Signal row with _entry and optional _partial
  * @returns Effective entry price for PNL calculations
