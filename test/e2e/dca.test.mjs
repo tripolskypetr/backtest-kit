@@ -14,7 +14,7 @@ import {
   toProfitLossDto,
 } from "../../build/index.mjs";
 
-import { Subject } from "functools-kit";
+import { Subject, sleep } from "functools-kit";
 
 const alignTimestamp = (timestampMs, intervalMinutes) => {
   const intervalMs = intervalMinutes * 60 * 1000;
@@ -4411,4 +4411,468 @@ test("DCA BACKTEST: SHORT DCA→PP→DCA→PL→DCA→PP→PP→SL (4 парти
   }
 
   pass(`DCA-24 SHORT: DCA→PP→DCA→PL→DCA→PP→PP→SL, partials=${ce.partialLen}, entries=${ce.totalEntries}, pnlEntries=${pnl.pnlEntries}, pnlPercentage=${pnl.pnlPercentage.toFixed(4)}%, identity ✓`);
+});
+
+
+/**
+ * DCA ТЕСТ #25: LONG — PP→PP→DCA→DCA→PL→PL→PP→TP
+ *
+ * Подряд два PP, затем два DCA на новых минимумах, затем два PL ниже ep,
+ * затем финальный PP и TP.
+ *
+ * ep после двух DCA (entries=[1000,850,700], cost=100 каждый):
+ *   ep = 300 / (1/1000+1/850+1/700) ≈ 832 → PL при цене < 832 ✓ (810 и 790)
+ *
+ * Проверяем: totalEntries=3, _partial.length=6, pnlEntries=300, pnlPercentage>0, identity ✓
+ */
+test("DCA BACKTEST: LONG PP→PP→DCA→DCA→PL→PL→PP→TP (6 партиалов, 2 DCA)", async ({ pass, fail }) => {
+  const closeEvents = [];
+  const startTime = new Date("2024-01-01T00:00:00Z").getTime();
+  const intervalMs = 60000;
+  const basePrice = 1000;
+  const bufferStartTime = startTime - 5 * intervalMs;
+  let allCandles = [];
+  let signalGenerated = false;
+  let pp1Done=false, pp2Done=false, dca1Done=false, dca2Done=false;
+  let pl1Done=false, pl2Done=false, pp3Done=false;
+
+  for (let i = 0; i < 5; i++) {
+    allCandles.push({ timestamp: bufferStartTime + i*intervalMs, open:1200, high:1300, low:1100, close:1200, volume:100 });
+  }
+
+  addExchangeSchema({
+    exchangeName: "binance-dca-25",
+    getCandles: async (_symbol, _interval, since, limit) => {
+      const alignedSince = alignTimestamp(since.getTime(), 1);
+      return Array.from({ length: limit }, (_, i) => {
+        const timestamp = alignedSince + i * intervalMs;
+        return allCandles.find((c) => c.timestamp === timestamp)
+          ?? { timestamp, open:1200, high:1300, low:1100, close:1200, volume:100 };
+      });
+    },
+    formatPrice: async (_symbol, p) => p.toFixed(8),
+    formatQuantity: async (_symbol, qty) => qty.toFixed(8),
+  });
+
+  addStrategySchema({
+    strategyName: "test-dca-25",
+    interval: "1m",
+    getSignal: async () => {
+      if (signalGenerated) return null;
+      signalGenerated = true;
+      const phases = [
+        { count:5,  price:1200 },
+        { count:5,  price:1000 },   // activation
+        { count:5,  price:1080 },   // PP#1
+        { count:5,  price:1120 },   // PP#2
+        { count:5,  price:850  },   // DCA#1
+        { count:5,  price:700  },   // DCA#2
+        { count:5,  price:1020 },   // bounce (выходим из 700-зоны перед PL)
+        { count:5,  price:810  },   // PL#1 (< ep≈832 ✓)
+        { count:5,  price:790  },   // PL#2 (< ep≈832 ✓)
+        { count:5,  price:1050 },   // PP#3
+        { count:55, price:1500 },   // TP
+      ];
+      let idx = 0;
+      for (const { count, price } of phases) {
+        for (let j = 0; j < count; j++, idx++) {
+          allCandles.push({ timestamp: startTime+idx*intervalMs, open:price, high:price+30, low:price-30, close:price, volume:100 });
+        }
+      }
+      return { position:"long", priceOpen:1000, priceTakeProfit:1500, priceStopLoss:400, minuteEstimatedTime:200 };
+    },
+    callbacks: {
+      onActivePing: async (symbol, _d, _w, _b) => {
+        const p = await getAveragePrice(symbol);
+        if (!pp1Done && p>=1060) { pp1Done=true; await commitPartialProfit(symbol,15); }
+        else if (pp1Done&&!pp2Done && p>=1100) { pp2Done=true; await commitPartialProfit(symbol,20); }
+        else if (pp2Done&&!dca1Done && p<=870) { dca1Done=true; await commitAverageBuy(symbol); }  // 850<1000 ✓
+        else if (dca1Done&&!dca2Done && p<=720) { dca2Done=true; await commitAverageBuy(symbol); } // 700<850 ✓
+        else if (dca2Done&&!pl1Done && p<=825&&p>=780) { pl1Done=true; await commitPartialLoss(symbol,10); } // 810-phase ✓, skips 700-zone
+        else if (pl1Done&&!pl2Done && p<=800) { pl2Done=true; await commitPartialLoss(symbol,12); }         // 790-phase ✓
+        else if (pl2Done&&!pp3Done && p>=1030) { pp3Done=true; await commitPartialProfit(symbol,30); }
+      },
+      onClose: (_symbol, data, priceClose) => {
+        closeEvents.push({ priceClose, priceTakeProfit:data.priceTakeProfit, totalEntries:data.totalEntries, partialLen:data._partial?.length??0, pnl:toProfitLossDto(data,priceClose) });
+      },
+      onCancel: (symbol,_d,p) => console.log("[DCA-25 cancel]",{symbol,p}),
+    },
+  });
+
+  addFrameSchema({ frameName:"105m-dca-25", interval:"1m", startDate:new Date("2024-01-01T00:00:00Z"), endDate:new Date("2024-01-01T01:45:00Z") });
+
+  const awaitSubject = new Subject();
+  listenDoneBacktest(() => awaitSubject.next());
+  let errorCaught=null;
+  const unsubscribeError = listenError((e) => { errorCaught=e; awaitSubject.next(); });
+  Backtest.background("BTCUSDT", { strategyName:"test-dca-25", exchangeName:"binance-dca-25", frameName:"105m-dca-25" });
+  await awaitSubject.toPromise();
+  unsubscribeError();
+  await sleep(100);
+
+  if (errorCaught) { fail(`Error: ${errorCaught.message||errorCaught}`); return; }
+  for (const [done,label] of [[pp1Done,"PP#1"],[pp2Done,"PP#2"],[dca1Done,"DCA#1"],[dca2Done,"DCA#2"],[pl1Done,"PL#1"],[pl2Done,"PL#2"],[pp3Done,"PP#3"]]) {
+    if (!done) { fail(`${label} never executed`); return; }
+  }
+  if (closeEvents.length===0) { fail("Position never closed"); return; }
+
+  const ce = closeEvents[0];
+  if (ce.totalEntries!==3) { fail(`Expected totalEntries=3, got ${ce.totalEntries}`); return; }
+  if (ce.partialLen!==5) { fail(`Expected _partial.length=5, got ${ce.partialLen}`); return; }
+  const {pnl} = ce;
+  if (Math.abs(pnl.pnlEntries-300)>0.01) { fail(`Expected pnlEntries=300, got ${pnl.pnlEntries}`); return; }
+  if (pnl.pnlPercentage<=0) { fail(`Expected pnlPercentage>0 (TP), got ${pnl.pnlPercentage}`); return; }
+  const diff = Math.abs(pnl.pnlCost - pnl.pnlPercentage/100*pnl.pnlEntries);
+  if (diff>0.0001) { fail(`pnlCost identity failed: diff=${diff}`); return; }
+
+  pass(`DCA-25 LONG: PP→PP→DCA→DCA→PL→PL→PP→TP, partials=${ce.partialLen}, entries=${ce.totalEntries}, pnlEntries=${pnl.pnlEntries}, pnlPercentage=${pnl.pnlPercentage.toFixed(4)}%, identity ✓`);
+});
+
+
+/**
+ * DCA ТЕСТ #26: SHORT — PP→PP→DCA→PL→PL→DCA→DCA→PP→SL
+ *
+ * Два PP подряд (SHORT профит), DCA на новом максимуме,
+ * два PL подряд (цена > ep≈1091), два DCA ещё выше, финальный PP, SL.
+ *
+ * ep после DCA@1200: entries=[1000,1200], ep = 200/(1/1000+1/1200) ≈ 1090.9
+ * → PL при цене > 1090.9 ✓ (1120 и 1150)
+ *
+ * Проверяем: totalEntries=4, _partial.length=6, pnlEntries=400, pnlPercentage<0 (SL), identity ✓
+ */
+test("DCA BACKTEST: SHORT PP→PP→DCA→PL→PL→DCA→DCA→PP→SL (6 партиалов, 3 DCA)", async ({ pass, fail }) => {
+  const closeEvents = [];
+  const startTime = new Date("2024-01-01T00:00:00Z").getTime();
+  const intervalMs = 60000;
+  const basePrice = 1000;
+  const bufferStartTime = startTime - 5 * intervalMs;
+  let allCandles = [];
+  let signalGenerated = false;
+  let pp1Done=false, pp2Done=false, dca1Done=false, pl1Done=false, pl2Done=false;
+  let dca2Done=false, dca3Done=false, pp3Done=false;
+
+  for (let i = 0; i < 5; i++) {
+    allCandles.push({ timestamp: bufferStartTime + i*intervalMs, open:800, high:850, low:750, close:800, volume:100 });
+  }
+
+  addExchangeSchema({
+    exchangeName: "binance-dca-26",
+    getCandles: async (_symbol, _interval, since, limit) => {
+      const alignedSince = alignTimestamp(since.getTime(), 1);
+      return Array.from({ length: limit }, (_, i) => {
+        const timestamp = alignedSince + i * intervalMs;
+        return allCandles.find((c) => c.timestamp === timestamp)
+          ?? { timestamp, open:800, high:850, low:750, close:800, volume:100 };
+      });
+    },
+    formatPrice: async (_symbol, p) => p.toFixed(8),
+    formatQuantity: async (_symbol, qty) => qty.toFixed(8),
+  });
+
+  addStrategySchema({
+    strategyName: "test-dca-26",
+    interval: "1m",
+    getSignal: async () => {
+      if (signalGenerated) return null;
+      signalGenerated = true;
+      const phases = [
+        { count:5,  price:800  },
+        { count:5,  price:1000 },   // activation
+        { count:5,  price:800  },   // PP#1
+        { count:5,  price:650  },   // PP#2
+        { count:5,  price:1200 },   // DCA#1 (>max=1000 ✓)
+        { count:5,  price:1050 },   // dip (avg снижается ниже 1140 перед PL)
+        { count:5,  price:1120 },   // PL#1 (>ep≈1091 ✓, avg≈1100-1120)
+        { count:5,  price:1150 },   // PL#2 (>ep≈1091 ✓)
+        { count:5,  price:1300 },   // DCA#2 (>max=1200 ✓)
+        { count:5,  price:1450 },   // DCA#3 (>max=1300 ✓)
+        { count:5,  price:700  },   // PP#3
+        { count:60, price:1999 },   // SL
+      ];
+      let idx = 0;
+      for (const { count, price } of phases) {
+        for (let j = 0; j < count; j++, idx++) {
+          allCandles.push({ timestamp: startTime+idx*intervalMs, open:price, high:price+30, low:price-30, close:price, volume:100 });
+        }
+      }
+      return { position:"short", priceOpen:1000, priceTakeProfit:300, priceStopLoss:2000, minuteEstimatedTime:200 };
+    },
+    callbacks: {
+      onActivePing: async (symbol, _d, _w, _b) => {
+        const p = await getAveragePrice(symbol);
+        if (!pp1Done && p<=820) { pp1Done=true; await commitPartialProfit(symbol,15); }
+        else if (pp1Done&&!pp2Done && p<=670) { pp2Done=true; await commitPartialProfit(symbol,20); }
+        else if (pp2Done&&!dca1Done && p>=1180) { dca1Done=true; await commitAverageBuy(symbol); }              // 1200>max=1000 ✓
+        else if (dca1Done&&!pl1Done && p>=1100&&p<=1140) { pl1Done=true; await commitPartialLoss(symbol,10); } // 1120-phase ✓
+        else if (pl1Done&&!pl2Done && p>=1135&&p<=1165) { pl2Done=true; await commitPartialLoss(symbol,12); } // 1150-phase ✓
+        else if (pl2Done&&!dca2Done && p>=1280) { dca2Done=true; await commitAverageBuy(symbol); }              // 1300>max=1200 ✓
+        else if (dca2Done&&!dca3Done && p>=1430) { dca3Done=true; await commitAverageBuy(symbol); }             // 1450>max=1300 ✓
+        else if (dca3Done&&!pp3Done && p<=720) { pp3Done=true; await commitPartialProfit(symbol,25); }
+      },
+      onClose: (_symbol, data, priceClose) => {
+        closeEvents.push({ priceClose, priceStopLoss:data.priceStopLoss, totalEntries:data.totalEntries, partialLen:data._partial?.length??0, pnl:toProfitLossDto(data,priceClose) });
+      },
+      onCancel: (symbol,_d,p) => console.log("[DCA-26 cancel]",{symbol,p}),
+    },
+  });
+
+  addFrameSchema({ frameName:"115m-dca-26", interval:"1m", startDate:new Date("2024-01-01T00:00:00Z"), endDate:new Date("2024-01-01T01:55:00Z") });
+
+  const awaitSubject = new Subject();
+  listenDoneBacktest(() => awaitSubject.next());
+  let errorCaught=null;
+  const unsubscribeError = listenError((e) => { errorCaught=e; awaitSubject.next(); });
+  Backtest.background("BTCUSDT", { strategyName:"test-dca-26", exchangeName:"binance-dca-26", frameName:"115m-dca-26" });
+  await awaitSubject.toPromise();
+  unsubscribeError();
+  await sleep(100);
+
+  if (errorCaught) { fail(`Error: ${errorCaught.message||errorCaught}`); return; }
+  for (const [done,label] of [[pp1Done,"PP#1"],[pp2Done,"PP#2"],[dca1Done,"DCA#1"],[pl1Done,"PL#1"],[pl2Done,"PL#2"],[dca2Done,"DCA#2"],[dca3Done,"DCA#3"],[pp3Done,"PP#3"]]) {
+    if (!done) { fail(`${label} never executed`); return; }
+  }
+  if (closeEvents.length===0) { fail("Position never closed"); return; }
+
+  const ce = closeEvents[0];
+  if (ce.totalEntries!==4) { fail(`Expected totalEntries=4, got ${ce.totalEntries}`); return; }
+  if (ce.partialLen!==5) { fail(`Expected _partial.length=5, got ${ce.partialLen}`); return; }
+  const {pnl} = ce;
+  if (Math.abs(pnl.pnlEntries-400)>0.01) { fail(`Expected pnlEntries=400, got ${pnl.pnlEntries}`); return; }
+  const diff = Math.abs(pnl.pnlCost - pnl.pnlPercentage/100*pnl.pnlEntries);
+  if (diff>0.0001) { fail(`pnlCost identity failed: diff=${diff}`); return; }
+
+  pass(`DCA-26 SHORT: PP→PP→DCA→PL→PL→DCA→DCA→PP→close, partials=${ce.partialLen}, entries=${ce.totalEntries}, pnlEntries=${pnl.pnlEntries}, pnlPercentage=${pnl.pnlPercentage.toFixed(4)}%, identity ✓`);
+});
+
+
+/**
+ * DCA ТЕСТ #27: LONG — DCA→DCA→DCA→PP→PP→PP→PL→PP→TP
+ *
+ * Три DCA подряд (все новые минимумы), три PP, один PL ниже ep, финальный PP и TP.
+ *
+ * ep после трёх DCA (entries=[1000,900,800,700], cost=100 каждый):
+ *   ep = 400/(1/1000+1/900+1/800+1/700) ≈ 834.9 → PL при 830 < 834.9 ✓
+ *
+ * Проверяем: totalEntries=4, _partial.length=5, pnlEntries=400, pnlPercentage>0, identity ✓
+ */
+test("DCA BACKTEST: LONG DCA→DCA→DCA→PP→PP→PP→PL→PP→TP (5 партиалов, 3 DCA)", async ({ pass, fail }) => {
+  const closeEvents = [];
+  const startTime = new Date("2024-01-01T00:00:00Z").getTime();
+  const intervalMs = 60000;
+  const basePrice = 1000;
+  const bufferStartTime = startTime - 5 * intervalMs;
+  let allCandles = [];
+  let signalGenerated = false;
+  let dca1Done=false, dca2Done=false, dca3Done=false;
+  let pp1Done=false, pp2Done=false, pp3Done=false, pl1Done=false, pp4Done=false;
+
+  for (let i = 0; i < 5; i++) {
+    allCandles.push({ timestamp: bufferStartTime + i*intervalMs, open:1200, high:1300, low:1100, close:1200, volume:100 });
+  }
+
+  addExchangeSchema({
+    exchangeName: "binance-dca-27",
+    getCandles: async (_symbol, _interval, since, limit) => {
+      const alignedSince = alignTimestamp(since.getTime(), 1);
+      return Array.from({ length: limit }, (_, i) => {
+        const timestamp = alignedSince + i * intervalMs;
+        return allCandles.find((c) => c.timestamp === timestamp)
+          ?? { timestamp, open:1200, high:1300, low:1100, close:1200, volume:100 };
+      });
+    },
+    formatPrice: async (_symbol, p) => p.toFixed(8),
+    formatQuantity: async (_symbol, qty) => qty.toFixed(8),
+  });
+
+  addStrategySchema({
+    strategyName: "test-dca-27",
+    interval: "1m",
+    getSignal: async () => {
+      if (signalGenerated) return null;
+      signalGenerated = true;
+      const phases = [
+        { count:5,  price:1200 },
+        { count:5,  price:1000 },   // activation
+        { count:5,  price:900  },   // DCA#1
+        { count:5,  price:800  },   // DCA#2
+        { count:5,  price:700  },   // DCA#3
+        { count:5,  price:880  },   // PP#1
+        { count:5,  price:920  },   // PP#2
+        { count:5,  price:960  },   // PP#3
+        { count:5,  price:830  },   // PL#1 (< ep≈834.9 ✓)
+        { count:5,  price:1100 },   // PP#4
+        { count:60, price:1500 },   // TP
+      ];
+      let idx = 0;
+      for (const { count, price } of phases) {
+        for (let j = 0; j < count; j++, idx++) {
+          allCandles.push({ timestamp: startTime+idx*intervalMs, open:price, high:price+30, low:price-30, close:price, volume:100 });
+        }
+      }
+      return { position:"long", priceOpen:1000, priceTakeProfit:1500, priceStopLoss:400, minuteEstimatedTime:200 };
+    },
+    callbacks: {
+      onActivePing: async (symbol, _d, _w, _b) => {
+        const p = await getAveragePrice(symbol);
+        if (!dca1Done && p<=920) { dca1Done=true; await commitAverageBuy(symbol); }              // 900<1000 ✓
+        else if (dca1Done&&!dca2Done && p<=820) { dca2Done=true; await commitAverageBuy(symbol); } // 800<900 ✓
+        else if (dca2Done&&!dca3Done && p<=720) { dca3Done=true; await commitAverageBuy(symbol); } // 700<800 ✓
+        else if (dca3Done&&!pp1Done && p>=860&&p<=900) { pp1Done=true; await commitPartialProfit(symbol,10); }
+        else if (pp1Done&&!pp2Done && p>=900&&p<=940) { pp2Done=true; await commitPartialProfit(symbol,10); }
+        else if (pp2Done&&!pp3Done && p>=940&&p<=980) { pp3Done=true; await commitPartialProfit(symbol,10); }
+        else if (pp3Done&&!pl1Done && p>=820&&p<=845) { pl1Done=true; await commitPartialLoss(symbol,5); }   // <ep≈834.9 ✓
+        else if (pl1Done&&!pp4Done && p>=1080) { pp4Done=true; await commitPartialProfit(symbol,20); }
+      },
+      onClose: (_symbol, data, priceClose) => {
+        closeEvents.push({ priceClose, priceTakeProfit:data.priceTakeProfit, totalEntries:data.totalEntries, partialLen:data._partial?.length??0, pnl:toProfitLossDto(data,priceClose) });
+      },
+      onCancel: (symbol,_d,p) => console.log("[DCA-27 cancel]",{symbol,p}),
+    },
+  });
+
+  addFrameSchema({ frameName:"110m-dca-27", interval:"1m", startDate:new Date("2024-01-01T00:00:00Z"), endDate:new Date("2024-01-01T01:50:00Z") });
+
+  const awaitSubject = new Subject();
+  listenDoneBacktest(() => awaitSubject.next());
+  let errorCaught=null;
+  const unsubscribeError = listenError((e) => { errorCaught=e; awaitSubject.next(); });
+  Backtest.background("BTCUSDT", { strategyName:"test-dca-27", exchangeName:"binance-dca-27", frameName:"110m-dca-27" });
+  await awaitSubject.toPromise();
+  unsubscribeError();
+  await sleep(100);
+
+  if (errorCaught) { fail(`Error: ${errorCaught.message||errorCaught}`); return; }
+  for (const [done,label] of [[dca1Done,"DCA#1"],[dca2Done,"DCA#2"],[dca3Done,"DCA#3"],[pp1Done,"PP#1"],[pp2Done,"PP#2"],[pp3Done,"PP#3"],[pl1Done,"PL#1"],[pp4Done,"PP#4"]]) {
+    if (!done) { fail(`${label} never executed`); return; }
+  }
+  if (closeEvents.length===0) { fail("Position never closed"); return; }
+
+  const ce = closeEvents[0];
+  if (ce.totalEntries!==4) { fail(`Expected totalEntries=4, got ${ce.totalEntries}`); return; }
+  if (ce.partialLen!==5) { fail(`Expected _partial.length=5, got ${ce.partialLen}`); return; }
+  const {pnl} = ce;
+  if (Math.abs(pnl.pnlEntries-400)>0.01) { fail(`Expected pnlEntries=400, got ${pnl.pnlEntries}`); return; }
+  if (pnl.pnlPercentage<=0) { fail(`Expected pnlPercentage>0 (TP), got ${pnl.pnlPercentage}`); return; }
+  const diff = Math.abs(pnl.pnlCost - pnl.pnlPercentage/100*pnl.pnlEntries);
+  if (diff>0.0001) { fail(`pnlCost identity failed: diff=${diff}`); return; }
+
+  pass(`DCA-27 LONG: DCA→DCA→DCA→PP→PP→PP→PL→PP→TP, partials=${ce.partialLen}, entries=${ce.totalEntries}, pnlEntries=${pnl.pnlEntries}, pnlPercentage=${pnl.pnlPercentage.toFixed(4)}%, identity ✓`);
+});
+
+
+/**
+ * DCA ТЕСТ #28: SHORT — DCA→DCA→PP→PL→PL→DCA→PP→PP→PL→TP
+ *
+ * Наиболее хаотичная последовательность: два DCA, PP, два PL, ещё DCA, два PP, PL, TP.
+ *
+ * ep после двух DCA@1100,1250 (entries=[1000,1100,1250]):
+ *   ep = 300/(1/1000+1/1100+1/1250) ≈ 1067.6 → PL при 1350,1400 > 1068 ✓
+ * После DCA@1500 ep блендится выше ~1170 → PL при 1550 > 1170 ✓
+ *
+ * Проверяем: totalEntries=4, _partial.length=6, pnlEntries=400, pnlPercentage>0 (TP), identity ✓
+ */
+test("DCA BACKTEST: SHORT DCA→DCA→PP→PL→PL→DCA→PP→PP→PL→TP (6 партиалов, 3 DCA)", async ({ pass, fail }) => {
+  const closeEvents = [];
+  const startTime = new Date("2024-01-01T00:00:00Z").getTime();
+  const intervalMs = 60000;
+  const basePrice = 1000;
+  const bufferStartTime = startTime - 5 * intervalMs;
+  let allCandles = [];
+  let signalGenerated = false;
+  let dca1Done=false, dca2Done=false, pp1Done=false, pl1Done=false, pl2Done=false;
+  let dca3Done=false, pp2Done=false, pp3Done=false, pl3Done=false;
+
+  for (let i = 0; i < 5; i++) {
+    allCandles.push({ timestamp: bufferStartTime + i*intervalMs, open:800, high:850, low:750, close:800, volume:100 });
+  }
+
+  addExchangeSchema({
+    exchangeName: "binance-dca-28",
+    getCandles: async (_symbol, _interval, since, limit) => {
+      const alignedSince = alignTimestamp(since.getTime(), 1);
+      return Array.from({ length: limit }, (_, i) => {
+        const timestamp = alignedSince + i * intervalMs;
+        return allCandles.find((c) => c.timestamp === timestamp)
+          ?? { timestamp, open:800, high:850, low:750, close:800, volume:100 };
+      });
+    },
+    formatPrice: async (_symbol, p) => p.toFixed(8),
+    formatQuantity: async (_symbol, qty) => qty.toFixed(8),
+  });
+
+  addStrategySchema({
+    strategyName: "test-dca-28",
+    interval: "1m",
+    getSignal: async () => {
+      if (signalGenerated) return null;
+      signalGenerated = true;
+      const phases = [
+        { count:5,  price:800  },
+        { count:5,  price:1000 },   // activation
+        { count:5,  price:1100 },   // DCA#1 (>max=1000 ✓)
+        { count:5,  price:1250 },   // DCA#2 (>max=1100 ✓)
+        { count:5,  price:800  },   // PP#1 (SHORT профит)
+        { count:5,  price:1350 },   // PL#1 (>ep≈1068 ✓)
+        { count:5,  price:1400 },   // PL#2 (>ep≈1068 ✓)
+        { count:5,  price:1500 },   // DCA#3 (>max=1250 ✓)
+        { count:5,  price:750  },   // PP#2 (SHORT профит)
+        { count:5,  price:600  },   // PP#3 (SHORT профит)
+        { count:5,  price:1550 },   // PL#3 (>ep after DCA3≈1170 ✓)
+        { count:65, price:400  },   // TP
+      ];
+      let idx = 0;
+      for (const { count, price } of phases) {
+        for (let j = 0; j < count; j++, idx++) {
+          allCandles.push({ timestamp: startTime+idx*intervalMs, open:price, high:price+30, low:price-30, close:price, volume:100 });
+        }
+      }
+      return { position:"short", priceOpen:1000, priceTakeProfit:400, priceStopLoss:1999, minuteEstimatedTime:200 };
+    },
+    callbacks: {
+      onActivePing: async (symbol, _d, _w, _b) => {
+        const p = await getAveragePrice(symbol);
+        if (!dca1Done && p>=1080) { dca1Done=true; await commitAverageBuy(symbol); }               // 1100>max=1000 ✓
+        else if (dca1Done&&!dca2Done && p>=1230) { dca2Done=true; await commitAverageBuy(symbol); } // 1250>max=1100 ✓
+        else if (dca2Done&&!pp1Done && p<=820) { pp1Done=true; await commitPartialProfit(symbol,15); }
+        else if (pp1Done&&!pl1Done && p>=1330&&p<=1370) { pl1Done=true; await commitPartialLoss(symbol,8); }   // >ep≈1068 ✓
+        else if (pl1Done&&!pl2Done && p>=1380&&p<=1420) { pl2Done=true; await commitPartialLoss(symbol,10); }  // >ep≈1068 ✓
+        else if (pl2Done&&!dca3Done && p>=1480) { dca3Done=true; await commitAverageBuy(symbol); }  // 1500>max=1250 ✓
+        else if (dca3Done&&!pp2Done && p<=770) { pp2Done=true; await commitPartialProfit(symbol,20); }
+        else if (pp2Done&&!pp3Done && p<=620) { pp3Done=true; await commitPartialProfit(symbol,25); }
+        else if (pp3Done&&!pl3Done && p>=1530) { pl3Done=true; await commitPartialLoss(symbol,5); }  // >ep≈1170 ✓
+      },
+      onClose: (_symbol, data, priceClose) => {
+        closeEvents.push({ priceClose, priceTakeProfit:data.priceTakeProfit, totalEntries:data.totalEntries, partialLen:data._partial?.length??0, pnl:toProfitLossDto(data,priceClose) });
+      },
+      onCancel: (symbol,_d,p) => console.log("[DCA-28 cancel]",{symbol,p}),
+    },
+  });
+
+  addFrameSchema({ frameName:"115m-dca-28", interval:"1m", startDate:new Date("2024-01-01T00:00:00Z"), endDate:new Date("2024-01-01T01:55:00Z") });
+
+  const awaitSubject = new Subject();
+  listenDoneBacktest(() => awaitSubject.next());
+  let errorCaught=null;
+  const unsubscribeError = listenError((e) => { errorCaught=e; awaitSubject.next(); });
+  Backtest.background("BTCUSDT", { strategyName:"test-dca-28", exchangeName:"binance-dca-28", frameName:"115m-dca-28" });
+  await awaitSubject.toPromise();
+  unsubscribeError();
+  await sleep(100);
+
+  if (errorCaught) { fail(`Error: ${errorCaught.message||errorCaught}`); return; }
+  for (const [done,label] of [[dca1Done,"DCA#1"],[dca2Done,"DCA#2"],[pp1Done,"PP#1"],[pl1Done,"PL#1"],[pl2Done,"PL#2"],[dca3Done,"DCA#3"],[pp2Done,"PP#2"],[pp3Done,"PP#3"],[pl3Done,"PL#3"]]) {
+    if (!done) { fail(`${label} never executed`); return; }
+  }
+  if (closeEvents.length===0) { fail("Position never closed"); return; }
+
+  const ce = closeEvents[0];
+  if (ce.totalEntries!==4) { fail(`Expected totalEntries=4, got ${ce.totalEntries}`); return; }
+  if (ce.partialLen!==6) { fail(`Expected _partial.length=6, got ${ce.partialLen}`); return; }
+  const {pnl} = ce;
+  if (Math.abs(pnl.pnlEntries-400)>0.01) { fail(`Expected pnlEntries=400, got ${pnl.pnlEntries}`); return; }
+  if (pnl.pnlPercentage<=0) { fail(`Expected pnlPercentage>0 (TP), got ${pnl.pnlPercentage}`); return; }
+  const diff = Math.abs(pnl.pnlCost - pnl.pnlPercentage/100*pnl.pnlEntries);
+  if (diff>0.0001) { fail(`pnlCost identity failed: diff=${diff}`); return; }
+
+  pass(`DCA-28 SHORT: DCA→DCA→PP→PL→PL→DCA→PP→PP→PL→TP, partials=${ce.partialLen}, entries=${ce.totalEntries}, pnlEntries=${pnl.pnlEntries}, pnlPercentage=${pnl.pnlPercentage.toFixed(4)}%, identity ✓`);
 });
