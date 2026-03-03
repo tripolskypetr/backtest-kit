@@ -59,7 +59,7 @@ npm install backtest-kit ccxt ollama uuid
 - Partial profit/loss levels
 - Trailing stop-loss
 - Breakeven protection
-- Stop limit entries
+- Stop limit entries (before OCO)
 - Dollar cost averaging
 
 ## 📚 Code Samples
