@@ -209,7 +209,7 @@ Backtest Kit is **not a data-processing library** - it is a **time execution eng
 These three functions work together to manage a position dynamically. To reduce position linearity, the framework treats every DCA entry as a fixed **$100 unit** regardless of price — this flattens the effective entry curve and makes PNL weighting independent of position size.
 
 **Public API:**
-- **`commitAverageBuy`** — adds a new DCA entry. For LONG, **only accepted when current price is below a new low**. Silently rejected otherwise. This prevents averaging up.
+- **`commitAverageBuy`** — adds a new DCA entry. For LONG, **only accepted when current price is below a new low**. Silently rejected otherwise. This prevents averaging up. Can be overridden using `setConfig`
 - **`commitPartialProfit`** — closes X% of the position at a profit. Locks in gains while keeping exposure.
 - **`commitPartialLoss`** — closes X% of the position at a loss. Cuts exposure before the stop-loss is hit.
 
@@ -769,7 +769,7 @@ npm start
 
 ## ✅ Tested & Reliable
 
-365+ tests cover validation, recovery, reports, and events.
+425+ tests cover validation, recovery, reports, and events.
 
 ## 🤝 Contribute
 
