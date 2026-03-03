@@ -51,6 +51,8 @@ npm install backtest-kit ccxt ollama uuid
 
 ## 📋 Supported Order Types
 
+> With the calculation of PnL
+
 - Market/Limit entries
 - TP/SL/OCO exits
 - Grid with auto-cancel on unmet conditions
