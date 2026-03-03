@@ -39,6 +39,8 @@ export interface SignalOpenedNotification {
   originalPriceOpen: number;
   /** Total number of DCA entries (_entry.length). 1 = no averaging. */
   totalEntries: number;
+  /** Cost of the initial position entry in USD (from signal.cost) */
+  cost: number;
   /** Optional human-readable description of signal reason */
   note?: string;
   /** Signal creation timestamp in milliseconds (when signal was first created/scheduled) */
@@ -417,6 +419,8 @@ export interface AverageBuyCommitNotification {
   signalId: string;
   /** Price at which the new averaging entry was executed */
   currentPrice: number;
+  /** Cost of this averaging entry in USD */
+  cost: number;
   /** Averaged (effective) entry price after this addition */
   effectivePriceOpen: number;
   /** Total number of DCA entries after this addition */
@@ -672,6 +676,8 @@ export interface SignalScheduledNotification {
   originalPriceOpen: number;
   /** Total number of DCA entries (_entry.length). 1 = no averaging. */
   totalEntries: number;
+  /** Cost of the initial position entry in USD (from signal.cost) */
+  cost: number;
   /** Unix timestamp in milliseconds when signal was scheduled */
   scheduledAt: number;
   /** Current market price when signal was scheduled */

@@ -51,6 +51,8 @@ export interface ISignalDto {
 export interface ISignalRow extends ISignalDto {
   /** Unique signal identifier (UUID v4 auto-generated) */
   id: string;
+  /** Cost of this entry in USD (e.g. 100 for $100 position) */
+  cost: number;
   /** Entry price for the position */
   priceOpen: number;
   /** Unique exchange identifier for execution */

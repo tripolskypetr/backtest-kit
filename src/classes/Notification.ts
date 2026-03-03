@@ -53,6 +53,7 @@ const CREATE_SIGNAL_NOTIFICATION_FN = (data: IStrategyTickResult): NotificationM
       originalPriceStopLoss: data.signal.originalPriceStopLoss,
       originalPriceOpen: data.signal.originalPriceOpen,
       totalEntries: data.signal.totalEntries,
+      cost: data.signal.cost,
       note: data.signal.note,
       scheduledAt: data.signal.scheduledAt,
       pendingAt: data.signal.pendingAt,
@@ -108,11 +109,12 @@ const CREATE_SIGNAL_NOTIFICATION_FN = (data: IStrategyTickResult): NotificationM
       originalPriceStopLoss: data.signal.originalPriceStopLoss,
       originalPriceOpen: data.signal.originalPriceOpen,
       totalEntries: data.signal.totalEntries,
+      cost: data.signal.cost,
       scheduledAt: data.signal.scheduledAt,
       currentPrice: data.currentPrice,
       createdAt: data.createdAt,
     };
-  } 
+  }
   if (data.action === "cancelled") {
     const durationMs = data.closeTimestamp - data.signal.scheduledAt;
     const durationMin = Math.round(durationMs / 60000);
@@ -399,6 +401,7 @@ const CREATE_STRATEGY_COMMIT_NOTIFICATION_FN = (data: StrategyCommitContract): N
       exchangeName: data.exchangeName,
       signalId: data.signalId,
       currentPrice: data.currentPrice,
+      cost: data.cost,
       effectivePriceOpen: data.effectivePriceOpen,
       totalEntries: data.totalEntries,
       position: data.position,

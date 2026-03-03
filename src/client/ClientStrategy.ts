@@ -800,6 +800,7 @@ const GET_SIGNAL_FN = trycatch(
         // Создаем активный сигнал напрямую (БЕЗ scheduled фазы)
         const signalRow: ISignalRow = {
           id: signal.id || randomString(),
+          cost: signal.cost || GLOBAL_CONFIG.CC_POSITION_ENTRY_COST,
           priceOpen: signal.priceOpen, // Используем priceOpen из сигнала
           position: signal.position,
           note: toPlainString(signal.note),
@@ -826,6 +827,7 @@ const GET_SIGNAL_FN = trycatch(
       // ОЖИДАНИЕ АКТИВАЦИИ: создаем scheduled signal (risk check при активации)
       const scheduledSignalRow: IScheduledSignalRow = {
         id: signal.id || randomString(),
+        cost: signal.cost || GLOBAL_CONFIG.CC_POSITION_ENTRY_COST,
         priceOpen: signal.priceOpen,
         position: signal.position,
         note: toPlainString(signal.note),
@@ -851,6 +853,7 @@ const GET_SIGNAL_FN = trycatch(
 
     const signalRow: ISignalRow = {
       id: signal.id || randomString(),
+      cost: signal.cost || GLOBAL_CONFIG.CC_POSITION_ENTRY_COST,
       priceOpen: currentPrice,
       ...structuredClone(signal),
       note: toPlainString(signal.note),
