@@ -246,6 +246,9 @@ export {
   SignalOpenedNotification,
   SignalScheduledNotification,
   ValidationErrorNotification,
+  AverageBuyCommitNotification,
+  SignalSyncCloseNotification,
+  SignalSyncOpenNotification,
 } from "./model/Notification.model";
 
 export { BacktestStatisticsModel } from "./model/BacktestStatistics.model";
@@ -291,6 +294,12 @@ export {
   ActivateScheduledCommit,
   AverageBuyCommit,
 } from "./contract/StrategyCommit.contract";
+
+export {
+  SignalCloseContract,
+  SignalOpenContract,
+  SignalSyncContract
+} from "./contract/SignalSync.contract";
 
 export { ExecutionContextService } from "./lib/services/context/ExecutionContextService";
 export { MethodContextService } from "./lib/services/context/MethodContextService";
