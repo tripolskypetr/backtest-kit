@@ -76,6 +76,13 @@ export class RiskReportService {
       pendingAt: data.currentSignal?.pendingAt,
       scheduledAt: data.currentSignal?.scheduledAt,
       minuteEstimatedTime: data.currentSignal?.minuteEstimatedTime,
+      totalPartials: data.currentSignal?.totalPartials,
+      cost: data.currentSignal?.cost,
+      pnlPercentage: data.currentSignal?.pnl?.pnlPercentage,
+      pnlCost: data.currentSignal?.pnl?.pnlCost,
+      pnlEntries: data.currentSignal?.pnl?.pnlEntries,
+      pnlPriceOpen: data.currentSignal?.pnl?.priceOpen,
+      pnlPriceClose: data.currentSignal?.pnl?.priceClose,
     }, {
       symbol: data.symbol,
       strategyName: data.strategyName,

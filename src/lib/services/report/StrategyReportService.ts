@@ -1,12 +1,11 @@
 import { inject } from "../../core/di";
 import LoggerService from "../base/LoggerService";
 import TYPES from "../../core/types";
-import StrategyCoreService from "../core/StrategyCoreService";
 import { Report } from "../../../classes/Report";
 import { compose, singleshot } from "functools-kit";
 import { FrameName } from "../../../interfaces/Frame.interface";
 import { ExchangeName } from "../../../interfaces/Exchange.interface";
-import { StrategyName } from "../../../interfaces/Strategy.interface";
+import { IStrategyPnL, StrategyName } from "../../../interfaces/Strategy.interface";
 import { strategyCommitSubject } from "../../../config/emitters";
 import {
   ActivateScheduledCommit,
@@ -40,18 +39,9 @@ import {
  */
 export class StrategyReportService {
   readonly loggerService = inject<LoggerService>(TYPES.loggerService);
-  readonly strategyCoreService = inject<StrategyCoreService>(
-    TYPES.strategyCoreService,
-  );
 
   /**
    * Logs a cancel-scheduled event when a scheduled signal is cancelled.
-   *
-   * @param symbol - Trading pair symbol (e.g., "BTCUSDT")
-   * @param isBacktest - Whether this is a backtest or live trading event
-   * @param context - Strategy context with strategyName, exchangeName, frameName
-   * @param timestamp - Timestamp from StrategyCommitContract (execution context time)
-   * @param cancelId - Optional identifier for the cancellation reason
    */
   public cancelScheduled = async (
     symbol: string,
@@ -62,6 +52,9 @@ export class StrategyReportService {
       frameName: FrameName;
     },
     timestamp: number,
+    signalId: string,
+    pnl: IStrategyPnL,
+    totalPartials: number,
     cancelId?: string,
   ) => {
     this.loggerService.log("strategyReportService cancelScheduled", {
@@ -70,18 +63,6 @@ export class StrategyReportService {
       cancelId,
     });
     if (!this.subscribe.hasValue()) {
-      return;
-    }
-    const scheduledRow = await this.strategyCoreService.getScheduledSignal(
-      isBacktest,
-      symbol,
-      {
-        exchangeName: context.exchangeName,
-        strategyName: context.strategyName,
-        frameName: context.frameName,
-      },
-    );
-    if (!scheduledRow) {
       return;
     }
     const createdAt = new Date(timestamp).toISOString();
@@ -93,9 +74,15 @@ export class StrategyReportService {
         symbol,
         timestamp,
         createdAt,
+        pnlPercentage: pnl.pnlPercentage,
+        pnlCost: pnl.pnlCost,
+        pnlEntries: pnl.pnlEntries,
+        pnlPriceOpen: pnl.priceOpen,
+        pnlPriceClose: pnl.priceClose,
+        totalPartials,
       },
       {
-        signalId: scheduledRow.id,
+        signalId,
         exchangeName: context.exchangeName,
         frameName: context.frameName,
         strategyName: context.strategyName,
@@ -107,12 +94,6 @@ export class StrategyReportService {
 
   /**
    * Logs a close-pending event when a pending signal is closed.
-   *
-   * @param symbol - Trading pair symbol (e.g., "BTCUSDT")
-   * @param isBacktest - Whether this is a backtest or live trading event
-   * @param context - Strategy context with strategyName, exchangeName, frameName
-   * @param timestamp - Timestamp from StrategyCommitContract (execution context time)
-   * @param closeId - Optional identifier for the close reason
    */
   public closePending = async (
     symbol: string,
@@ -123,6 +104,9 @@ export class StrategyReportService {
       frameName: FrameName;
     },
     timestamp: number,
+    signalId: string,
+    pnl: IStrategyPnL,
+    totalPartials: number,
     closeId?: string,
   ) => {
     this.loggerService.log("strategyReportService closePending", {
@@ -131,18 +115,6 @@ export class StrategyReportService {
       closeId,
     });
     if (!this.subscribe.hasValue()) {
-      return;
-    }
-    const pendingRow = await this.strategyCoreService.getPendingSignal(
-      isBacktest,
-      symbol,
-      {
-        exchangeName: context.exchangeName,
-        strategyName: context.strategyName,
-        frameName: context.frameName,
-      },
-    );
-    if (!pendingRow) {
       return;
     }
     const createdAt = new Date(timestamp).toISOString();
@@ -154,9 +126,15 @@ export class StrategyReportService {
         symbol,
         timestamp,
         createdAt,
+        pnlPercentage: pnl.pnlPercentage,
+        pnlCost: pnl.pnlCost,
+        pnlEntries: pnl.pnlEntries,
+        pnlPriceOpen: pnl.priceOpen,
+        pnlPriceClose: pnl.priceClose,
+        totalPartials,
       },
       {
-        signalId: pendingRow.id,
+        signalId,
         exchangeName: context.exchangeName,
         frameName: context.frameName,
         strategyName: context.strategyName,
@@ -168,21 +146,6 @@ export class StrategyReportService {
 
   /**
    * Logs a partial-profit event when a portion of the position is closed at profit.
-   *
-   * @param symbol - Trading pair symbol (e.g., "BTCUSDT")
-   * @param percentToClose - Percentage of position to close (0-100)
-   * @param currentPrice - Current market price at time of partial close
-   * @param isBacktest - Whether this is a backtest or live trading event
-   * @param context - Strategy context with strategyName, exchangeName, frameName
-   * @param timestamp - Timestamp from StrategyCommitContract (execution context time)
-   * @param position - Trade direction: "long" or "short"
-   * @param priceOpen - Entry price for the position
-   * @param priceTakeProfit - Effective take profit price
-   * @param priceStopLoss - Effective stop loss price
-   * @param originalPriceTakeProfit - Original take profit before trailing
-   * @param originalPriceStopLoss - Original stop loss before trailing
-   * @param scheduledAt - Signal creation timestamp in milliseconds
-   * @param pendingAt - Pending timestamp in milliseconds
    */
   public partialProfit = async (
     symbol: string,
@@ -195,6 +158,9 @@ export class StrategyReportService {
       frameName: FrameName;
     },
     timestamp: number,
+    signalId: string,
+    pnl: IStrategyPnL,
+    totalPartials: number,
     position: "long" | "short",
     priceOpen: number,
     priceTakeProfit: number,
@@ -213,18 +179,6 @@ export class StrategyReportService {
       isBacktest,
     });
     if (!this.subscribe.hasValue()) {
-      return;
-    }
-    const pendingRow = await this.strategyCoreService.getPendingSignal(
-      isBacktest,
-      symbol,
-      {
-        exchangeName: context.exchangeName,
-        strategyName: context.strategyName,
-        frameName: context.frameName,
-      },
-    );
-    if (!pendingRow) {
       return;
     }
     const createdAt = new Date(timestamp).toISOString();
@@ -247,9 +201,15 @@ export class StrategyReportService {
         totalEntries,
         scheduledAt,
         pendingAt,
+        pnlPercentage: pnl.pnlPercentage,
+        pnlCost: pnl.pnlCost,
+        pnlEntries: pnl.pnlEntries,
+        pnlPriceOpen: pnl.priceOpen,
+        pnlPriceClose: pnl.priceClose,
+        totalPartials,
       },
       {
-        signalId: pendingRow.id,
+        signalId,
         exchangeName: context.exchangeName,
         frameName: context.frameName,
         strategyName: context.strategyName,
@@ -261,21 +221,6 @@ export class StrategyReportService {
 
   /**
    * Logs a partial-loss event when a portion of the position is closed at loss.
-   *
-   * @param symbol - Trading pair symbol (e.g., "BTCUSDT")
-   * @param percentToClose - Percentage of position to close (0-100)
-   * @param currentPrice - Current market price at time of partial close
-   * @param isBacktest - Whether this is a backtest or live trading event
-   * @param context - Strategy context with strategyName, exchangeName, frameName
-   * @param timestamp - Timestamp from StrategyCommitContract (execution context time)
-   * @param position - Trade direction: "long" or "short"
-   * @param priceOpen - Entry price for the position
-   * @param priceTakeProfit - Effective take profit price
-   * @param priceStopLoss - Effective stop loss price
-   * @param originalPriceTakeProfit - Original take profit before trailing
-   * @param originalPriceStopLoss - Original stop loss before trailing
-   * @param scheduledAt - Signal creation timestamp in milliseconds
-   * @param pendingAt - Pending timestamp in milliseconds
    */
   public partialLoss = async (
     symbol: string,
@@ -288,6 +233,9 @@ export class StrategyReportService {
       frameName: FrameName;
     },
     timestamp: number,
+    signalId: string,
+    pnl: IStrategyPnL,
+    totalPartials: number,
     position: "long" | "short",
     priceOpen: number,
     priceTakeProfit: number,
@@ -306,18 +254,6 @@ export class StrategyReportService {
       isBacktest,
     });
     if (!this.subscribe.hasValue()) {
-      return;
-    }
-    const pendingRow = await this.strategyCoreService.getPendingSignal(
-      isBacktest,
-      symbol,
-      {
-        exchangeName: context.exchangeName,
-        strategyName: context.strategyName,
-        frameName: context.frameName,
-      },
-    );
-    if (!pendingRow) {
       return;
     }
     const createdAt = new Date(timestamp).toISOString();
@@ -340,9 +276,15 @@ export class StrategyReportService {
         totalEntries,
         scheduledAt,
         pendingAt,
+        pnlPercentage: pnl.pnlPercentage,
+        pnlCost: pnl.pnlCost,
+        pnlEntries: pnl.pnlEntries,
+        pnlPriceOpen: pnl.priceOpen,
+        pnlPriceClose: pnl.priceClose,
+        totalPartials,
       },
       {
-        signalId: pendingRow.id,
+        signalId,
         exchangeName: context.exchangeName,
         frameName: context.frameName,
         strategyName: context.strategyName,
@@ -354,21 +296,6 @@ export class StrategyReportService {
 
   /**
    * Logs a trailing-stop event when the stop-loss is adjusted.
-   *
-   * @param symbol - Trading pair symbol (e.g., "BTCUSDT")
-   * @param percentShift - Percentage the stop-loss was shifted
-   * @param currentPrice - Current market price at time of adjustment
-   * @param isBacktest - Whether this is a backtest or live trading event
-   * @param context - Strategy context with strategyName, exchangeName, frameName
-   * @param timestamp - Timestamp from StrategyCommitContract (execution context time)
-   * @param position - Trade direction: "long" or "short"
-   * @param priceOpen - Entry price for the position
-   * @param priceTakeProfit - Effective take profit price
-   * @param priceStopLoss - Effective stop loss price
-   * @param originalPriceTakeProfit - Original take profit before trailing
-   * @param originalPriceStopLoss - Original stop loss before trailing
-   * @param scheduledAt - Signal creation timestamp in milliseconds
-   * @param pendingAt - Pending timestamp in milliseconds
    */
   public trailingStop = async (
     symbol: string,
@@ -381,6 +308,9 @@ export class StrategyReportService {
       frameName: FrameName;
     },
     timestamp: number,
+    signalId: string,
+    pnl: IStrategyPnL,
+    totalPartials: number,
     position: "long" | "short",
     priceOpen: number,
     priceTakeProfit: number,
@@ -399,18 +329,6 @@ export class StrategyReportService {
       isBacktest,
     });
     if (!this.subscribe.hasValue()) {
-      return;
-    }
-    const pendingRow = await this.strategyCoreService.getPendingSignal(
-      isBacktest,
-      symbol,
-      {
-        exchangeName: context.exchangeName,
-        strategyName: context.strategyName,
-        frameName: context.frameName,
-      },
-    );
-    if (!pendingRow) {
       return;
     }
     const createdAt = new Date(timestamp).toISOString();
@@ -433,9 +351,15 @@ export class StrategyReportService {
         totalEntries,
         scheduledAt,
         pendingAt,
+        pnlPercentage: pnl.pnlPercentage,
+        pnlCost: pnl.pnlCost,
+        pnlEntries: pnl.pnlEntries,
+        pnlPriceOpen: pnl.priceOpen,
+        pnlPriceClose: pnl.priceClose,
+        totalPartials,
       },
       {
-        signalId: pendingRow.id,
+        signalId,
         exchangeName: context.exchangeName,
         frameName: context.frameName,
         strategyName: context.strategyName,
@@ -447,21 +371,6 @@ export class StrategyReportService {
 
   /**
    * Logs a trailing-take event when the take-profit is adjusted.
-   *
-   * @param symbol - Trading pair symbol (e.g., "BTCUSDT")
-   * @param percentShift - Percentage the take-profit was shifted
-   * @param currentPrice - Current market price at time of adjustment
-   * @param isBacktest - Whether this is a backtest or live trading event
-   * @param context - Strategy context with strategyName, exchangeName, frameName
-   * @param timestamp - Timestamp from StrategyCommitContract (execution context time)
-   * @param position - Trade direction: "long" or "short"
-   * @param priceOpen - Entry price for the position
-   * @param priceTakeProfit - Effective take profit price
-   * @param priceStopLoss - Effective stop loss price
-   * @param originalPriceTakeProfit - Original take profit before trailing
-   * @param originalPriceStopLoss - Original stop loss before trailing
-   * @param scheduledAt - Signal creation timestamp in milliseconds
-   * @param pendingAt - Pending timestamp in milliseconds
    */
   public trailingTake = async (
     symbol: string,
@@ -474,6 +383,9 @@ export class StrategyReportService {
       frameName: FrameName;
     },
     timestamp: number,
+    signalId: string,
+    pnl: IStrategyPnL,
+    totalPartials: number,
     position: "long" | "short",
     priceOpen: number,
     priceTakeProfit: number,
@@ -492,18 +404,6 @@ export class StrategyReportService {
       isBacktest,
     });
     if (!this.subscribe.hasValue()) {
-      return;
-    }
-    const pendingRow = await this.strategyCoreService.getPendingSignal(
-      isBacktest,
-      symbol,
-      {
-        exchangeName: context.exchangeName,
-        strategyName: context.strategyName,
-        frameName: context.frameName,
-      },
-    );
-    if (!pendingRow) {
       return;
     }
     const createdAt = new Date(timestamp).toISOString();
@@ -526,9 +426,15 @@ export class StrategyReportService {
         totalEntries,
         scheduledAt,
         pendingAt,
+        pnlPercentage: pnl.pnlPercentage,
+        pnlCost: pnl.pnlCost,
+        pnlEntries: pnl.pnlEntries,
+        pnlPriceOpen: pnl.priceOpen,
+        pnlPriceClose: pnl.priceClose,
+        totalPartials,
       },
       {
-        signalId: pendingRow.id,
+        signalId,
         exchangeName: context.exchangeName,
         frameName: context.frameName,
         strategyName: context.strategyName,
@@ -540,20 +446,6 @@ export class StrategyReportService {
 
   /**
    * Logs a breakeven event when the stop-loss is moved to entry price.
-   *
-   * @param symbol - Trading pair symbol (e.g., "BTCUSDT")
-   * @param currentPrice - Current market price at time of breakeven activation
-   * @param isBacktest - Whether this is a backtest or live trading event
-   * @param context - Strategy context with strategyName, exchangeName, frameName
-   * @param timestamp - Timestamp from StrategyCommitContract (execution context time)
-   * @param position - Trade direction: "long" or "short"
-   * @param priceOpen - Entry price for the position
-   * @param priceTakeProfit - Effective take profit price
-   * @param priceStopLoss - Effective stop loss price
-   * @param originalPriceTakeProfit - Original take profit before trailing
-   * @param originalPriceStopLoss - Original stop loss before trailing
-   * @param scheduledAt - Signal creation timestamp in milliseconds
-   * @param pendingAt - Pending timestamp in milliseconds
    */
   public breakeven = async (
     symbol: string,
@@ -565,6 +457,9 @@ export class StrategyReportService {
       frameName: FrameName;
     },
     timestamp: number,
+    signalId: string,
+    pnl: IStrategyPnL,
+    totalPartials: number,
     position: "long" | "short",
     priceOpen: number,
     priceTakeProfit: number,
@@ -582,18 +477,6 @@ export class StrategyReportService {
       isBacktest,
     });
     if (!this.subscribe.hasValue()) {
-      return;
-    }
-    const pendingRow = await this.strategyCoreService.getPendingSignal(
-      isBacktest,
-      symbol,
-      {
-        exchangeName: context.exchangeName,
-        strategyName: context.strategyName,
-        frameName: context.frameName,
-      },
-    );
-    if (!pendingRow) {
       return;
     }
     const createdAt = new Date(timestamp).toISOString();
@@ -615,9 +498,15 @@ export class StrategyReportService {
         totalEntries,
         scheduledAt,
         pendingAt,
+        pnlPercentage: pnl.pnlPercentage,
+        pnlCost: pnl.pnlCost,
+        pnlEntries: pnl.pnlEntries,
+        pnlPriceOpen: pnl.priceOpen,
+        pnlPriceClose: pnl.priceClose,
+        totalPartials,
       },
       {
-        signalId: pendingRow.id,
+        signalId,
         exchangeName: context.exchangeName,
         frameName: context.frameName,
         strategyName: context.strategyName,
@@ -629,21 +518,6 @@ export class StrategyReportService {
 
   /**
    * Logs an activate-scheduled event when a scheduled signal is activated early.
-   *
-   * @param symbol - Trading pair symbol (e.g., "BTCUSDT")
-   * @param currentPrice - Current market price at time of activation
-   * @param isBacktest - Whether this is a backtest or live trading event
-   * @param context - Strategy context with strategyName, exchangeName, frameName
-   * @param timestamp - Timestamp from StrategyCommitContract (execution context time)
-   * @param position - Trade direction: "long" or "short"
-   * @param priceOpen - Entry price for the position
-   * @param priceTakeProfit - Effective take profit price
-   * @param priceStopLoss - Effective stop loss price
-   * @param originalPriceTakeProfit - Original take profit before trailing
-   * @param originalPriceStopLoss - Original stop loss before trailing
-   * @param scheduledAt - Signal creation timestamp in milliseconds
-   * @param pendingAt - Pending timestamp in milliseconds
-   * @param activateId - Optional identifier for the activation reason
    */
   public activateScheduled = async (
     symbol: string,
@@ -655,6 +529,9 @@ export class StrategyReportService {
       frameName: FrameName;
     },
     timestamp: number,
+    signalId: string,
+    pnl: IStrategyPnL,
+    totalPartials: number,
     position: "long" | "short",
     priceOpen: number,
     priceTakeProfit: number,
@@ -674,18 +551,6 @@ export class StrategyReportService {
       activateId,
     });
     if (!this.subscribe.hasValue()) {
-      return;
-    }
-    const scheduledRow = await this.strategyCoreService.getScheduledSignal(
-      isBacktest,
-      symbol,
-      {
-        exchangeName: context.exchangeName,
-        strategyName: context.strategyName,
-        frameName: context.frameName,
-      },
-    );
-    if (!scheduledRow) {
       return;
     }
     const createdAt = new Date(timestamp).toISOString();
@@ -708,9 +573,15 @@ export class StrategyReportService {
         totalEntries,
         scheduledAt,
         pendingAt,
+        pnlPercentage: pnl.pnlPercentage,
+        pnlCost: pnl.pnlCost,
+        pnlEntries: pnl.pnlEntries,
+        pnlPriceOpen: pnl.priceOpen,
+        pnlPriceClose: pnl.priceClose,
+        totalPartials,
       },
       {
-        signalId: scheduledRow.id,
+        signalId,
         exchangeName: context.exchangeName,
         frameName: context.frameName,
         strategyName: context.strategyName,
@@ -722,22 +593,6 @@ export class StrategyReportService {
 
   /**
    * Logs an average-buy (DCA) event when a new averaging entry is added to an open position.
-   *
-   * @param symbol - Trading pair symbol (e.g., "BTCUSDT")
-   * @param currentPrice - Price at which the new averaging entry was executed
-   * @param effectivePriceOpen - Averaged entry price after this addition
-   * @param totalEntries - Total number of DCA entries after this addition
-   * @param isBacktest - Whether this is a backtest or live trading event
-   * @param context - Strategy context with strategyName, exchangeName, frameName
-   * @param timestamp - Timestamp from StrategyCommitContract (execution context time)
-   * @param position - Trade direction: "long" or "short"
-   * @param priceOpen - Original entry price (unchanged by averaging)
-   * @param priceTakeProfit - Effective take profit price
-   * @param priceStopLoss - Effective stop loss price
-   * @param originalPriceTakeProfit - Original take profit before trailing
-   * @param originalPriceStopLoss - Original stop loss before trailing
-   * @param scheduledAt - Signal creation timestamp in milliseconds
-   * @param pendingAt - Pending timestamp in milliseconds
    */
   public averageBuy = async (
     symbol: string,
@@ -751,6 +606,10 @@ export class StrategyReportService {
       frameName: FrameName;
     },
     timestamp: number,
+    signalId: string,
+    pnl: IStrategyPnL,
+    totalPartials: number,
+    cost: number,
     position: "long" | "short",
     priceOpen: number,
     priceTakeProfit: number,
@@ -769,18 +628,6 @@ export class StrategyReportService {
       isBacktest,
     });
     if (!this.subscribe.hasValue()) {
-      return;
-    }
-    const pendingRow = await this.strategyCoreService.getPendingSignal(
-      isBacktest,
-      symbol,
-      {
-        exchangeName: context.exchangeName,
-        strategyName: context.strategyName,
-        frameName: context.frameName,
-      },
-    );
-    if (!pendingRow) {
       return;
     }
     const createdAt = new Date(timestamp).toISOString();
@@ -803,9 +650,16 @@ export class StrategyReportService {
         originalPriceOpen,
         scheduledAt,
         pendingAt,
+        pnlPercentage: pnl.pnlPercentage,
+        pnlCost: pnl.pnlCost,
+        pnlEntries: pnl.pnlEntries,
+        pnlPriceOpen: pnl.priceOpen,
+        pnlPriceClose: pnl.priceClose,
+        totalPartials,
+        cost,
       },
       {
-        signalId: pendingRow.id,
+        signalId,
         exchangeName: context.exchangeName,
         frameName: context.frameName,
         strategyName: context.strategyName,
@@ -838,6 +692,9 @@ export class StrategyReportService {
             strategyName: event.strategyName,
           },
           event.timestamp,
+          event.signalId,
+          event.pnl,
+          event.totalPartials,
           event.cancelId,
         )
       );
@@ -854,6 +711,9 @@ export class StrategyReportService {
             strategyName: event.strategyName,
           },
           event.timestamp,
+          event.signalId,
+          event.pnl,
+          event.totalPartials,
           event.closeId,
         )
       );
@@ -872,6 +732,9 @@ export class StrategyReportService {
             strategyName: event.strategyName,
           },
           event.timestamp,
+          event.signalId,
+          event.pnl,
+          event.totalPartials,
           event.position,
           event.priceOpen,
           event.priceTakeProfit,
@@ -899,6 +762,9 @@ export class StrategyReportService {
             strategyName: event.strategyName,
           },
           event.timestamp,
+          event.signalId,
+          event.pnl,
+          event.totalPartials,
           event.position,
           event.priceOpen,
           event.priceTakeProfit,
@@ -926,6 +792,9 @@ export class StrategyReportService {
             strategyName: event.strategyName,
           },
           event.timestamp,
+          event.signalId,
+          event.pnl,
+          event.totalPartials,
           event.position,
           event.priceOpen,
           event.priceTakeProfit,
@@ -953,6 +822,9 @@ export class StrategyReportService {
             strategyName: event.strategyName,
           },
           event.timestamp,
+          event.signalId,
+          event.pnl,
+          event.totalPartials,
           event.position,
           event.priceOpen,
           event.priceTakeProfit,
@@ -979,6 +851,9 @@ export class StrategyReportService {
             strategyName: event.strategyName,
           },
           event.timestamp,
+          event.signalId,
+          event.pnl,
+          event.totalPartials,
           event.position,
           event.priceOpen,
           event.priceTakeProfit,
@@ -1005,6 +880,9 @@ export class StrategyReportService {
             strategyName: event.strategyName,
           },
           event.timestamp,
+          event.signalId,
+          event.pnl,
+          event.totalPartials,
           event.position,
           event.priceOpen,
           event.priceTakeProfit,
@@ -1034,6 +912,10 @@ export class StrategyReportService {
             strategyName: event.strategyName,
           },
           event.timestamp,
+          event.signalId,
+          event.pnl,
+          event.totalPartials,
+          event.cost,
           event.position,
           event.priceOpen,
           event.priceTakeProfit,

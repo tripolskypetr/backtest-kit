@@ -85,6 +85,13 @@ export class BreakevenReportService {
       pendingAt: data.data.pendingAt,
       scheduledAt: data.data.scheduledAt,
       minuteEstimatedTime: data.data.minuteEstimatedTime,
+      totalPartials: data.data.totalPartials,
+      cost: data.data.cost,
+      pnlPercentage: data.data.pnl.pnlPercentage,
+      pnlCost: data.data.pnl.pnlCost,
+      pnlEntries: data.data.pnl.pnlEntries,
+      pnlPriceOpen: data.data.pnl.priceOpen,
+      pnlPriceClose: data.data.pnl.priceClose,
     }, {
       symbol: data.symbol,
       strategyName: data.data.strategyName,

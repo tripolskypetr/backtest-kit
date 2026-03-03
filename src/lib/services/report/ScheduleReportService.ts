@@ -90,6 +90,13 @@ export class ScheduleReportService {
         partialExecuted: data.signal?.partialExecuted,
         pendingAt: data.signal?.pendingAt,
         minuteEstimatedTime: data.signal?.minuteEstimatedTime,
+        totalPartials: data.signal?.totalPartials,
+        cost: data.signal?.cost,
+        pnlPercentage: data.signal?.pnl?.pnlPercentage,
+        pnlCost: data.signal?.pnl?.pnlCost,
+        pnlEntries: data.signal?.pnl?.pnlEntries,
+        pnlPriceOpen: data.signal?.pnl?.priceOpen,
+        pnlPriceClose: data.signal?.pnl?.priceClose,
       }, searchOptions);
     } else if (data.action === "opened") {
       if (data.signal?.scheduledAt !== data.signal?.pendingAt) {
@@ -113,6 +120,13 @@ export class ScheduleReportService {
           pendingAt: data.signal?.pendingAt,
           minuteEstimatedTime: data.signal?.minuteEstimatedTime,
           duration: durationMin,
+          totalPartials: data.signal?.totalPartials,
+          cost: data.signal?.cost,
+          pnlPercentage: data.signal?.pnl?.pnlPercentage,
+          pnlCost: data.signal?.pnl?.pnlCost,
+          pnlEntries: data.signal?.pnl?.pnlEntries,
+          pnlPriceOpen: data.signal?.pnl?.priceOpen,
+          pnlPriceClose: data.signal?.pnl?.priceClose,
         }, searchOptions);
       }
     } else if (data.action === "cancelled") {
@@ -141,6 +155,13 @@ export class ScheduleReportService {
         duration: durationMin,
         cancelReason: data.reason,
         cancelId: data.cancelId,
+        totalPartials: data.signal?.totalPartials,
+        cost: data.signal?.cost,
+        pnlPercentage: data.signal?.pnl?.pnlPercentage,
+        pnlCost: data.signal?.pnl?.pnlCost,
+        pnlEntries: data.signal?.pnl?.pnlEntries,
+        pnlPriceOpen: data.signal?.pnl?.priceOpen,
+        pnlPriceClose: data.signal?.pnl?.priceClose,
       }, searchOptions);
     }
   };

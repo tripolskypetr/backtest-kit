@@ -88,6 +88,8 @@ export class LiveReportService {
         originalPriceTakeProfit: data.signal?.originalPriceTakeProfit,
         originalPriceStopLoss: data.signal?.originalPriceStopLoss,
         partialExecuted: data.signal?.partialExecuted,
+        totalPartials: data.signal?.totalPartials,
+        cost: data.signal?.cost,
         scheduledAt: data.signal?.scheduledAt,
         minuteEstimatedTime: data.signal?.minuteEstimatedTime,
       }, { ...searchOptions, signalId: data.signal?.id });
@@ -108,8 +110,12 @@ export class LiveReportService {
         percentTp: data.percentTp,
         percentSl: data.percentSl,
         pnl: data.pnl.pnlPercentage,
+        pnlCost: data.pnl.pnlCost,
+        pnlEntries: data.pnl.pnlEntries,
         pnlPriceOpen: data.pnl.priceOpen,
         pnlPriceClose: data.pnl.priceClose,
+        totalPartials: data.signal?.totalPartials,
+        cost: data.signal?.cost,
       }, { ...searchOptions, signalId: data.signal?.id });
     } else if (data.action === "opened") {
       await Report.writeData("live", {
@@ -123,6 +129,8 @@ export class LiveReportService {
         originalPriceTakeProfit: data.signal?.originalPriceTakeProfit,
         originalPriceStopLoss: data.signal?.originalPriceStopLoss,
         partialExecuted: data.signal?.partialExecuted,
+        totalPartials: data.signal?.totalPartials,
+        cost: data.signal?.cost,
         openTime: data.signal?.pendingAt,
         scheduledAt: data.signal?.scheduledAt,
         minuteEstimatedTime: data.signal?.minuteEstimatedTime,
@@ -146,8 +154,12 @@ export class LiveReportService {
         percentTp: data.percentTp,
         percentSl: data.percentSl,
         pnl: data.pnl.pnlPercentage,
+        pnlCost: data.pnl.pnlCost,
+        pnlEntries: data.pnl.pnlEntries,
         pnlPriceOpen: data.pnl.priceOpen,
         pnlPriceClose: data.pnl.priceClose,
+        totalPartials: data.signal?.totalPartials,
+        cost: data.signal?.cost,
       }, { ...searchOptions, signalId: data.signal?.id });
     } else if (data.action === "closed") {
       const durationMs = data.closeTimestamp - data.signal?.pendingAt;
@@ -169,8 +181,12 @@ export class LiveReportService {
         scheduledAt: data.signal?.scheduledAt,
         minuteEstimatedTime: data.signal?.minuteEstimatedTime,
         pnl: data.pnl.pnlPercentage,
+        pnlCost: data.pnl.pnlCost,
+        pnlEntries: data.pnl.pnlEntries,
         pnlPriceOpen: data.pnl.priceOpen,
         pnlPriceClose: data.pnl.priceClose,
+        totalPartials: data.signal?.totalPartials,
+        cost: data.signal?.cost,
         closeReason: data.closeReason,
         duration: durationMin,
         closeTime: data.closeTimestamp,
@@ -187,6 +203,8 @@ export class LiveReportService {
         originalPriceTakeProfit: data.signal?.originalPriceTakeProfit,
         originalPriceStopLoss: data.signal?.originalPriceStopLoss,
         partialExecuted: data.signal?.partialExecuted,
+        totalPartials: data.signal?.totalPartials,
+        cost: data.signal?.cost,
         scheduledAt: data.signal?.scheduledAt,
         minuteEstimatedTime: data.signal?.minuteEstimatedTime,
         cancelReason: data.reason,
