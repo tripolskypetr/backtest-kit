@@ -115,6 +115,8 @@ export class ScheduleReportService {
           priceStopLoss: data.signal?.priceStopLoss,
           originalPriceTakeProfit: data.signal?.originalPriceTakeProfit,
           originalPriceStopLoss: data.signal?.originalPriceStopLoss,
+          totalEntries: data.signal?.totalEntries,
+          originalPriceOpen: data.signal?.originalPriceOpen,
           partialExecuted: data.signal?.partialExecuted,
           scheduledAt: data.signal?.scheduledAt,
           pendingAt: data.signal?.pendingAt,
