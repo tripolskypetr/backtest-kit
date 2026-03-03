@@ -865,3 +865,233 @@ test("toProfitLossDto: SC SHORT DCA-partial-DCA-partial-DCA-partial, cnt=[2,3,4]
   if (!approxEqual(pnlPercentage, 34.146190424)) { fail(`Expected 34.146190424, got ${pnlPercentage}`); return; }
   pass(`SC SHORT pnl = ${pnlPercentage.toFixed(9)}%`);
 });
+
+// ---------------------------------------------------------------------------
+// weightedHarmonicMean — different entry costs (via getEffectivePriceOpen, no partials)
+// Formula: Σcost / Σ(cost/price)
+// ---------------------------------------------------------------------------
+
+test("getEffectivePriceOpen: different costs [$100@100, $200@80] → 300/3.5 = 85.714", ({ pass, fail }) => {
+  // Σcost=300, Σ(c/p)=100/100+200/80=1+2.5=3.5, result=300/3.5=85.714285714...
+  // Interpretation: bought 1 coin @100 and 2.5 coins @80 = 3.5 coins for $300 → avg $85.71
+  const result = getEffectivePriceOpen({ priceOpen: 100, _entry: [{ price: 100, cost: 100 }, { price: 80, cost: 200 }] });
+  if (!approxEqual(result, 85.714285714)) { fail(`Expected 85.714285714, got ${result}`); return; }
+  pass(`weightedHM [$100@100, $200@80] = ${result.toFixed(9)}`);
+});
+
+test("getEffectivePriceOpen: different costs [$200@100, $100@80] → 300/3.25 = 92.307", ({ pass, fail }) => {
+  // Σcost=300, Σ(c/p)=200/100+100/80=2+1.25=3.25, result=300/3.25=92.307692308...
+  // Interpretation: heavier weight on higher price → result closer to 100
+  const result = getEffectivePriceOpen({ priceOpen: 100, _entry: [{ price: 100, cost: 200 }, { price: 80, cost: 100 }] });
+  if (!approxEqual(result, 92.307692308)) { fail(`Expected 92.307692308, got ${result}`); return; }
+  pass(`weightedHM [$200@100, $100@80] = ${result.toFixed(9)}`);
+});
+
+test("getEffectivePriceOpen: three equal-cost entries [100,80,60] → 300/3.917 = 76.595", ({ pass, fail }) => {
+  // Σcost=300, Σ(c/p)=1+1.25+100/60=3.91666..., result=300/3.91666...=76.595744681
+  const result = getEffectivePriceOpen({ priceOpen: 100, _entry: [{ price: 100, cost: 100 }, { price: 80, cost: 100 }, { price: 60, cost: 100 }] });
+  if (!approxEqual(result, 76.595744681)) { fail(`Expected 76.595744681, got ${result}`); return; }
+  pass(`weightedHM [100,80,60] equal costs = ${result.toFixed(9)}`);
+});
+
+// ---------------------------------------------------------------------------
+// getEffectivePriceOpen with partial — user description scenarios
+// ---------------------------------------------------------------------------
+
+test("getEffectivePriceOpen: partial@cnt=2 no new DCA → effective price unchanged (hm of 2 entries)", ({ pass, fail }) => {
+  // entries=[{100,$100},{80,$100}], p1(30%@cnt=2,cb=200), no new entries after
+  // effAtP1=200/2.25=88.888; remCB=140; oldCoins=140/88.888=1.575; result=140/1.575=88.888... (unchanged)
+  const snap = 200 / (100/100 + 100/80); // 88.888...
+  const signal = {
+    priceOpen: 100,
+    _entry: [{ price: 100, cost: 100 }, { price: 80, cost: 100 }],
+    _partial: [{ percent: 30, currentPrice: 110, costBasisAtClose: 200, entryCountAtClose: 2 }],
+  };
+  const result = getEffectivePriceOpen(signal);
+  if (!approxEqual(result, snap)) { fail(`Expected ${snap.toFixed(9)}, got ${result}`); return; }
+  pass(`partial then no DCA: eff unchanged = ${result.toFixed(9)}`);
+});
+
+test("getEffectivePriceOpen: partial@cnt=1 then DCA@60 → blended effective price 71.830", ({ pass, fail }) => {
+  // entries=[{100,$100},{60,$100}], p1(30%@cnt=1,cb=100)
+  // effAtP1=100/1=100; remCB=70; oldCoins=70/100=0.7; newEntries=[{60,$100}], nc=100/60, nv=100
+  // result=(70+100)/(0.7+100/60)=170/2.36666...=71.830985915
+  const signal = {
+    priceOpen: 100,
+    _entry: [{ price: 100, cost: 100 }, { price: 60, cost: 100 }],
+    _partial: [{ percent: 30, currentPrice: 110, costBasisAtClose: 100, entryCountAtClose: 1 }],
+  };
+  const result = getEffectivePriceOpen(signal);
+  if (!approxEqual(result, 71.830985915)) { fail(`Expected 71.830985915, got ${result}`); return; }
+  pass(`partial@1 then DCA@60: eff = ${result.toFixed(9)}`);
+});
+
+test("getEffectivePriceOpen: partial@cnt=2 then DCA@60 → blended effective price 74.035", ({ pass, fail }) => {
+  // entries=[{100,$100},{80,$100},{60,$100}], p1(30%@cnt=2,cb=200)
+  // effAtP1=200/2.25=88.888; remCB=140; oldCoins=140/88.888=1.575
+  // newEntries=[{60,$100}], nc=100/60=1.6666, nv=100
+  // result=(140+100)/(1.575+1.6666)=240/3.2416...=74.035989717
+  const signal = {
+    priceOpen: 100,
+    _entry: [{ price: 100, cost: 100 }, { price: 80, cost: 100 }, { price: 60, cost: 100 }],
+    _partial: [{ percent: 30, currentPrice: 110, costBasisAtClose: 200, entryCountAtClose: 2 }],
+  };
+  const result = getEffectivePriceOpen(signal);
+  if (!approxEqual(result, 74.035989717)) { fail(`Expected 74.035989717, got ${result}`); return; }
+  pass(`partial@2 then DCA@60: eff = ${result.toFixed(9)}`);
+});
+
+test("getEffectivePriceOpen: different costs partial@cnt=2 no new DCA → eff unchanged", ({ pass, fail }) => {
+  // entries=[{100,$100},{80,$200}], p1(40%@cnt=2,cb=300), no new entries
+  // effAtP1=300/3.5=85.714; remCB=180; oldCoins=180/85.714=2.1; result=180/2.1=85.714 (unchanged)
+  const snap = 300 / (100/100 + 200/80); // 85.714...
+  const signal = {
+    priceOpen: 100,
+    _entry: [{ price: 100, cost: 100 }, { price: 80, cost: 200 }],
+    _partial: [{ percent: 40, currentPrice: 110, costBasisAtClose: 300, entryCountAtClose: 2 }],
+  };
+  const result = getEffectivePriceOpen(signal);
+  if (!approxEqual(result, snap)) { fail(`Expected ${snap.toFixed(9)}, got ${result}`); return; }
+  pass(`different costs partial then no DCA: eff unchanged = ${result.toFixed(9)}`);
+});
+
+// ---------------------------------------------------------------------------
+// getTotalClosed — additional mathematical scenarios
+// ---------------------------------------------------------------------------
+
+test("getTotalClosed: two sequential partials 30%→40% (no DCA) → 58% closed, remainingCostBasis=42", ({ pass, fail }) => {
+  // p1: cb=100, dv=30, after=70; p2: cb=70, dv=28, after=42
+  // totalInvested=100, closedDollar=58, totalClosedPercent=58%
+  const { totalClosedPercent, remainingCostBasis } = getTotalClosed({
+    priceOpen: 100,
+    _entry: [{ price: 100, cost: 100 }],
+    _partial: [
+      { percent: 30, currentPrice: 110, costBasisAtClose: 100, entryCountAtClose: 1 },
+      { percent: 40, currentPrice: 105, costBasisAtClose: 70,  entryCountAtClose: 1 },
+    ],
+  });
+  if (!approxEqual(totalClosedPercent, 58)) { fail(`totalClosedPercent expected 58, got ${totalClosedPercent}`); return; }
+  if (!approxEqual(remainingCostBasis, 42)) { fail(`remainingCostBasis expected 42, got ${remainingCostBasis}`); return; }
+  pass(`sequential 30%→40%: 58% closed, $42 remaining`);
+});
+
+test("getTotalClosed: 60%→DCA($200)→80% → 84% closed, remainingCostBasis=48", ({ pass, fail }) => {
+  // entry[$100], entry2(post-p1)[$200]
+  // p1: cb=100, dv=60, after=40
+  // p2: cb=40+200=240, dv=192, after=48; no post-partial entries
+  // totalInvested=300, closedDollar=252, totalClosedPercent=84%
+  const { totalClosedPercent, remainingCostBasis } = getTotalClosed({
+    priceOpen: 100,
+    _entry: [{ price: 100, cost: 100 }, { price: 80, cost: 200 }],
+    _partial: [
+      { percent: 60, currentPrice: 110, costBasisAtClose: 100, entryCountAtClose: 1 },
+      { percent: 80, currentPrice: 105, costBasisAtClose: 240, entryCountAtClose: 2 },
+    ],
+  });
+  if (!approxEqual(totalClosedPercent, 84)) { fail(`totalClosedPercent expected 84, got ${totalClosedPercent}`); return; }
+  if (!approxEqual(remainingCostBasis, 48)) { fail(`remainingCostBasis expected 48, got ${remainingCostBasis}`); return; }
+  pass(`60%→DCA($200)→80%: 84% closed, $48 remaining`);
+});
+
+test("getTotalClosed: single 100% partial → 100% closed, remainingCostBasis=0", ({ pass, fail }) => {
+  // p1: cb=100, dv=100, after=0; totalInvested=100, 100% closed
+  const { totalClosedPercent, remainingCostBasis } = getTotalClosed({
+    priceOpen: 100,
+    _entry: [{ price: 100, cost: 100 }],
+    _partial: [{ percent: 100, currentPrice: 120, costBasisAtClose: 100, entryCountAtClose: 1 }],
+  });
+  if (!approxEqual(totalClosedPercent, 100)) { fail(`totalClosedPercent expected 100, got ${totalClosedPercent}`); return; }
+  if (!approxEqual(remainingCostBasis, 0)) { fail(`remainingCostBasis expected 0, got ${remainingCostBasis}`); return; }
+  pass(`100% partial: 100% closed, $0 remaining`);
+});
+
+test("getTotalClosed: partial@cnt=1 then post-partial DCA $200 → 10% closed, remainingCostBasis=270", ({ pass, fail }) => {
+  // p1(30%,cb=100): closedDollar=30, after=70; post-partial DCA $200 → remainingCostBasis=70+200=270
+  // totalInvested=300, totalClosedPercent=30/300*100=10%
+  const { totalClosedPercent, remainingCostBasis } = getTotalClosed({
+    priceOpen: 100,
+    _entry: [{ price: 100, cost: 100 }, { price: 80, cost: 200 }],
+    _partial: [{ percent: 30, currentPrice: 110, costBasisAtClose: 100, entryCountAtClose: 1 }],
+  });
+  if (!approxEqual(totalClosedPercent, 10)) { fail(`totalClosedPercent expected 10, got ${totalClosedPercent}`); return; }
+  if (!approxEqual(remainingCostBasis, 270)) { fail(`remainingCostBasis expected 270, got ${remainingCostBasis}`); return; }
+  pass(`30% of $100, then DCA $200 post-partial: 10% of $300 closed, $270 remaining`);
+});
+
+// ---------------------------------------------------------------------------
+// remainingDollarValue identity: toProfitLossDto(totalInvested - closedDollarValue) = getTotalClosed.remainingCostBasis
+// Verifies the mathematical equivalence between the two implementations.
+// ---------------------------------------------------------------------------
+
+test("identity: toProfitLossDto remainingDollarValue == getTotalClosed.remainingCostBasis (single partial+DCA)", ({ pass, fail }) => {
+  // entry[$100] → p1(30%@cnt=1) → DCA[$100] → close
+  // closedDollarValue = (30/100)*100 = 30; remainingDollarValue = 200-30 = 170
+  // getTotalClosed.remainingCostBasis = 100*0.7 + 100 = 170 ✓
+  const signal = {
+    position: "long",
+    priceOpen: 100,
+    _entry: [{ price: 100, cost: 100 }, { price: 80, cost: 100 }],
+    _partial: [{ percent: 30, currentPrice: 110, costBasisAtClose: 100, entryCountAtClose: 1 }],
+  };
+  const { remainingCostBasis } = getTotalClosed(signal);
+  const totalInvested = signal._entry.reduce((s, e) => s + e.cost, 0);
+  const closedDollarValue = signal._partial.reduce((s, p) => s + (p.percent / 100) * p.costBasisAtClose, 0);
+  const remainingDollarValue = totalInvested - closedDollarValue;
+  if (!approxEqual(remainingDollarValue, remainingCostBasis)) {
+    fail(`remainingDollarValue=${remainingDollarValue} ≠ remainingCostBasis=${remainingCostBasis}`); return;
+  }
+  pass(`remainingDollarValue=${remainingDollarValue} == remainingCostBasis=${remainingCostBasis} ✓`);
+});
+
+test("identity: toProfitLossDto remainingDollarValue == getTotalClosed.remainingCostBasis (two partials+DCA)", ({ pass, fail }) => {
+  // S5-style: entry[$100]→p1(25%@cb=100)→DCA[$100]→p2(25%@cb=175)→DCA[$100]
+  // closedDollarValue=25+43.75=68.75; remainingDollarValue=300-68.75=231.25
+  // getTotalClosed.remainingCostBasis=175*0.75+100=231.25 ✓
+  const signal = {
+    position: "long",
+    priceOpen: 100,
+    _entry: [{ price: 100, cost: 100 }, { price: 80, cost: 100 }, { price: 70, cost: 100 }],
+    _partial: [
+      { percent: 25, currentPrice: 115, costBasisAtClose: 100, entryCountAtClose: 1 },
+      { percent: 25, currentPrice: 112, costBasisAtClose: 175, entryCountAtClose: 2 },
+    ],
+  };
+  const { remainingCostBasis } = getTotalClosed(signal);
+  const totalInvested = signal._entry.reduce((s, e) => s + e.cost, 0);
+  const closedDollarValue = signal._partial.reduce((s, p) => s + (p.percent / 100) * p.costBasisAtClose, 0);
+  const remainingDollarValue = totalInvested - closedDollarValue;
+  if (!approxEqual(remainingDollarValue, remainingCostBasis)) {
+    fail(`remainingDollarValue=${remainingDollarValue} ≠ remainingCostBasis=${remainingCostBasis}`); return;
+  }
+  pass(`S5 remainingDollarValue=${remainingDollarValue} == remainingCostBasis=${remainingCostBasis} ✓`);
+});
+
+// ---------------------------------------------------------------------------
+// toProfitLossDto — different entry costs
+// ---------------------------------------------------------------------------
+
+test("toProfitLossDto: different costs [$100@100, $200@80] no partials close@95 (LONG)", ({ pass, fail }) => {
+  // eff=300/3.5=85.714; totalInvested=300; pnlCost = pnlPct/100 * 300
+  const signal = { position: "long", priceOpen: 100, _entry: [{ price: 100, cost: 100 }, { price: 80, cost: 200 }] };
+  const { pnlPercentage, pnlCost, pnlEntries } = toProfitLossDto(signal, 95);
+  if (!approxEqual(pnlPercentage, 10.401276224)) { fail(`Expected 10.401276224, got ${pnlPercentage}`); return; }
+  if (!approxEqual(pnlEntries, 300)) { fail(`Expected pnlEntries=300, got ${pnlEntries}`); return; }
+  if (!approxEqual(pnlCost, pnlPercentage / 100 * 300)) { fail(`pnlCost mismatch`); return; }
+  pass(`diff costs close@95: pnl=${pnlPercentage.toFixed(9)}%, pnlCost=${pnlCost.toFixed(4)}`);
+});
+
+test("toProfitLossDto: different costs [$100@100, $200@80] partial(40%@95,cb=300) close@110 (LONG)", ({ pass, fail }) => {
+  // weight=120/300=0.4, remWeight=0.6; eff at p1=85.714; final eff=85.714 (no new DCA)
+  // pnlEntries=300, pnlCost=pnlPct/100*300
+  const signal = {
+    position: "long",
+    priceOpen: 100,
+    _entry: [{ price: 100, cost: 100 }, { price: 80, cost: 200 }],
+    _partial: [{ percent: 40, currentPrice: 95, costBasisAtClose: 300, entryCountAtClose: 2 }],
+  };
+  const { pnlPercentage, pnlCost, pnlEntries } = toProfitLossDto(signal, 110);
+  if (!approxEqual(pnlPercentage, 20.869818182)) { fail(`Expected 20.869818182, got ${pnlPercentage}`); return; }
+  if (!approxEqual(pnlEntries, 300)) { fail(`Expected pnlEntries=300, got ${pnlEntries}`); return; }
+  if (!approxEqual(pnlCost, pnlPercentage / 100 * 300)) { fail(`pnlCost mismatch`); return; }
+  pass(`diff costs partial(40%@95)+close@110: pnl=${pnlPercentage.toFixed(9)}%`);
+});
