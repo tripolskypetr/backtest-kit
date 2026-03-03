@@ -761,6 +761,132 @@ export interface TrailingTakeCommitNotification {
 }
 
 /**
+ * Signal sync open notification.
+ * Emitted when a scheduled (limit order) signal is activated and the position is opened.
+ */
+export interface SignalSyncOpenNotification {
+  /** Discriminator for type-safe union */
+  type: "signal_sync.open";
+  /** Unique notification identifier */
+  id: string;
+  /** Unix timestamp in milliseconds when signal was opened */
+  timestamp: number;
+  /** Whether this notification is from backtest mode (true) or live mode (false) */
+  backtest: boolean;
+  /** Trading pair symbol (e.g., "BTCUSDT") */
+  symbol: string;
+  /** Strategy name that generated this signal */
+  strategyName: StrategyName;
+  /** Exchange name where signal was executed */
+  exchangeName: ExchangeName;
+  /** Unique signal identifier (UUID v4) */
+  signalId: string;
+  /** Current market price at activation */
+  currentPrice: number;
+  /** PNL at the moment of opening */
+  pnl: IStrategyPnL;
+  /** Profit/loss as percentage */
+  pnlPercentage: number;
+  /** Entry price from PNL calculation */
+  pnlPriceOpen: number;
+  /** Exit price from PNL calculation */
+  pnlPriceClose: number;
+  /** Absolute profit/loss in USD */
+  pnlCost: number;
+  /** Total invested capital in USD */
+  pnlEntries: number;
+  /** Cost of the position entry in USD */
+  cost: number;
+  /** Trade direction: "long" (buy) or "short" (sell) */
+  position: "long" | "short";
+  /** Entry price at which the limit order was filled */
+  priceOpen: number;
+  /** Effective take profit price at activation */
+  priceTakeProfit: number;
+  /** Effective stop loss price at activation */
+  priceStopLoss: number;
+  /** Original take profit price before any trailing adjustments */
+  originalPriceTakeProfit: number;
+  /** Original stop loss price before any trailing adjustments */
+  originalPriceStopLoss: number;
+  /** Original entry price before any DCA averaging */
+  originalPriceOpen: number;
+  /** Total number of DCA entries (_entry.length). 1 = no averaging. */
+  totalEntries: number;
+  /** Total number of partial closes executed (_partial.length). 0 = no partial closes done. */
+  totalPartials: number;
+  /** Signal creation timestamp in milliseconds */
+  scheduledAt: number;
+  /** Position activation timestamp in milliseconds */
+  pendingAt: number;
+  /** Unix timestamp in milliseconds when the notification was created */
+  createdAt: number;
+}
+
+/**
+ * Signal sync close notification.
+ * Emitted when an active pending signal is closed (TP/SL hit, time expired, or user-initiated).
+ */
+export interface SignalSyncCloseNotification {
+  /** Discriminator for type-safe union */
+  type: "signal_sync.close";
+  /** Unique notification identifier */
+  id: string;
+  /** Unix timestamp in milliseconds when signal was closed */
+  timestamp: number;
+  /** Whether this notification is from backtest mode (true) or live mode (false) */
+  backtest: boolean;
+  /** Trading pair symbol (e.g., "BTCUSDT") */
+  symbol: string;
+  /** Strategy name that generated this signal */
+  strategyName: StrategyName;
+  /** Exchange name where signal was executed */
+  exchangeName: ExchangeName;
+  /** Unique signal identifier (UUID v4) */
+  signalId: string;
+  /** Current market price at close */
+  currentPrice: number;
+  /** Final PNL at signal close */
+  pnl: IStrategyPnL;
+  /** Profit/loss as percentage */
+  pnlPercentage: number;
+  /** Entry price from PNL calculation */
+  pnlPriceOpen: number;
+  /** Exit price from PNL calculation */
+  pnlPriceClose: number;
+  /** Absolute profit/loss in USD */
+  pnlCost: number;
+  /** Total invested capital in USD */
+  pnlEntries: number;
+  /** Trade direction: "long" (buy) or "short" (sell) */
+  position: "long" | "short";
+  /** Effective entry price at close */
+  priceOpen: number;
+  /** Effective take profit price at close */
+  priceTakeProfit: number;
+  /** Effective stop loss price at close */
+  priceStopLoss: number;
+  /** Original take profit price before any trailing adjustments */
+  originalPriceTakeProfit: number;
+  /** Original stop loss price before any trailing adjustments */
+  originalPriceStopLoss: number;
+  /** Original entry price before any DCA averaging */
+  originalPriceOpen: number;
+  /** Total number of DCA entries (_entry.length). 1 = no averaging. */
+  totalEntries: number;
+  /** Total number of partial closes executed (_partial.length). 0 = no partial closes done. */
+  totalPartials: number;
+  /** Signal creation timestamp in milliseconds */
+  scheduledAt: number;
+  /** Position activation timestamp in milliseconds */
+  pendingAt: number;
+  /** Why the signal was closed (take_profit | stop_loss | time_expired | closed) */
+  closeReason: string;
+  /** Unix timestamp in milliseconds when the notification was created */
+  createdAt: number;
+}
+
+/**
  * Risk rejection notification.
  * Emitted when a signal is rejected due to risk management rules.
  */
@@ -1009,6 +1135,8 @@ export type NotificationModel =
   | ActivateScheduledCommitNotification
   | TrailingStopCommitNotification
   | TrailingTakeCommitNotification
+  | SignalSyncOpenNotification
+  | SignalSyncCloseNotification
   | RiskRejectionNotification
   | SignalScheduledNotification
   | SignalCancelledNotification

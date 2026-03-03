@@ -10,6 +10,7 @@ import {
   exitEmitter,
   validationSubject,
   strategyCommitSubject,
+  syncSubject,
 } from "../config/emitters";
 import { NotificationModel } from "../model/Notification.model";
 import { IStrategyTickResult } from "../interfaces/Strategy.interface";
@@ -18,9 +19,11 @@ import { PartialLossContract } from "../contract/PartialLoss.contract";
 import { BreakevenContract } from "../contract/Breakeven.contract";
 import { RiskContract } from "../contract/Risk.contract";
 import { StrategyCommitContract } from "../contract/StrategyCommit.contract";
+import { SignalSyncContract } from "../contract/SignalSync.contract";
 import backtest from "../lib";
 import { PersistNotificationAdapter } from "./Persist";
 import { GLOBAL_CONFIG } from "../config/params";
+import get from "src/utils/get";
 
 /**
  * Generates a unique key for notification identification.
@@ -507,7 +510,81 @@ const CREATE_STRATEGY_COMMIT_NOTIFICATION_FN = (data: StrategyCommitContract): N
       createdAt: data.timestamp,
     };
   }
-  return null;
+  throw new Error(`Unrecognized strategy commit action: ${get(data, "action")}`);
+};
+
+/**
+ * Creates a notification model for signal sync events.
+ * Handles signal-open (limit order filled) and signal-close (position exited) actions.
+ * @param data - The signal sync contract data
+ * @returns NotificationModel for signal sync event
+ */
+const CREATE_SIGNAL_SYNC_NOTIFICATION_FN = (data: SignalSyncContract): NotificationModel => {
+  if (data.action === "signal-open") {
+    return {
+      type: "signal_sync.open",
+      id: CREATE_KEY_FN(),
+      timestamp: data.timestamp,
+      backtest: data.backtest,
+      symbol: data.symbol,
+      strategyName: data.strategyName,
+      exchangeName: data.exchangeName,
+      signalId: data.signalId,
+      currentPrice: data.currentPrice,
+      pnl: data.pnl,
+      pnlPercentage: data.pnl.pnlPercentage,
+      pnlPriceOpen: data.pnl.priceOpen,
+      pnlPriceClose: data.pnl.priceClose,
+      pnlCost: data.pnl.pnlCost,
+      pnlEntries: data.pnl.pnlEntries,
+      cost: data.cost,
+      position: data.position,
+      priceOpen: data.priceOpen,
+      priceTakeProfit: data.priceTakeProfit,
+      priceStopLoss: data.priceStopLoss,
+      originalPriceTakeProfit: data.originalPriceTakeProfit,
+      originalPriceStopLoss: data.originalPriceStopLoss,
+      originalPriceOpen: data.originalPriceOpen,
+      totalEntries: data.totalEntries,
+      totalPartials: data.totalPartials,
+      scheduledAt: data.scheduledAt,
+      pendingAt: data.pendingAt,
+      createdAt: data.timestamp,
+    };
+  }
+  if (data.action === "signal-close") {
+    return {
+      type: "signal_sync.close",
+      id: CREATE_KEY_FN(),
+      timestamp: data.timestamp,
+      backtest: data.backtest,
+      symbol: data.symbol,
+      strategyName: data.strategyName,
+      exchangeName: data.exchangeName,
+      signalId: data.signalId,
+      currentPrice: data.currentPrice,
+      pnl: data.pnl,
+      pnlPercentage: data.pnl.pnlPercentage,
+      pnlPriceOpen: data.pnl.priceOpen,
+      pnlPriceClose: data.pnl.priceClose,
+      pnlCost: data.pnl.pnlCost,
+      pnlEntries: data.pnl.pnlEntries,
+      position: data.position,
+      priceOpen: data.priceOpen,
+      priceTakeProfit: data.priceTakeProfit,
+      priceStopLoss: data.priceStopLoss,
+      originalPriceTakeProfit: data.originalPriceTakeProfit,
+      originalPriceStopLoss: data.originalPriceStopLoss,
+      originalPriceOpen: data.originalPriceOpen,
+      totalEntries: data.totalEntries,
+      totalPartials: data.totalPartials,
+      scheduledAt: data.scheduledAt,
+      pendingAt: data.pendingAt,
+      closeReason: data.closeReason,
+      createdAt: data.timestamp,
+    };
+  }
+  throw new Error(`Unrecognized signal sync action: ${get(data, "action")}`);
 };
 
 /**
@@ -581,6 +658,7 @@ const NOTIFICATION_MEMORY_BACKTEST_METHOD_NAME_HANDLE_PARTIAL_PROFIT = "Notifica
 const NOTIFICATION_MEMORY_BACKTEST_METHOD_NAME_HANDLE_PARTIAL_LOSS = "NotificationMemoryBacktestUtils.handlePartialLoss";
 const NOTIFICATION_MEMORY_BACKTEST_METHOD_NAME_HANDLE_BREAKEVEN = "NotificationMemoryBacktestUtils.handleBreakeven";
 const NOTIFICATION_MEMORY_BACKTEST_METHOD_NAME_HANDLE_STRATEGY_COMMIT = "NotificationMemoryBacktestUtils.handleStrategyCommit";
+const NOTIFICATION_MEMORY_BACKTEST_METHOD_NAME_HANDLE_SYNC = "NotificationMemoryBacktestUtils.handleSync";
 const NOTIFICATION_MEMORY_BACKTEST_METHOD_NAME_HANDLE_RISK = "NotificationMemoryBacktestUtils.handleRisk";
 const NOTIFICATION_MEMORY_BACKTEST_METHOD_NAME_HANDLE_ERROR = "NotificationMemoryBacktestUtils.handleError";
 const NOTIFICATION_MEMORY_BACKTEST_METHOD_NAME_HANDLE_CRITICAL_ERROR = "NotificationMemoryBacktestUtils.handleCriticalError";
@@ -593,6 +671,7 @@ const NOTIFICATION_MEMORY_LIVE_METHOD_NAME_HANDLE_PARTIAL_PROFIT = "Notification
 const NOTIFICATION_MEMORY_LIVE_METHOD_NAME_HANDLE_PARTIAL_LOSS = "NotificationMemoryLiveUtils.handlePartialLoss";
 const NOTIFICATION_MEMORY_LIVE_METHOD_NAME_HANDLE_BREAKEVEN = "NotificationMemoryLiveUtils.handleBreakeven";
 const NOTIFICATION_MEMORY_LIVE_METHOD_NAME_HANDLE_STRATEGY_COMMIT = "NotificationMemoryLiveUtils.handleStrategyCommit";
+const NOTIFICATION_MEMORY_LIVE_METHOD_NAME_HANDLE_SYNC = "NotificationMemoryLiveUtils.handleSync";
 const NOTIFICATION_MEMORY_LIVE_METHOD_NAME_HANDLE_RISK = "NotificationMemoryLiveUtils.handleRisk";
 const NOTIFICATION_MEMORY_LIVE_METHOD_NAME_HANDLE_ERROR = "NotificationMemoryLiveUtils.handleError";
 const NOTIFICATION_MEMORY_LIVE_METHOD_NAME_HANDLE_CRITICAL_ERROR = "NotificationMemoryLiveUtils.handleCriticalError";
@@ -624,6 +703,7 @@ const NOTIFICATION_PERSIST_BACKTEST_METHOD_NAME_HANDLE_PARTIAL_PROFIT = "Notific
 const NOTIFICATION_PERSIST_BACKTEST_METHOD_NAME_HANDLE_PARTIAL_LOSS = "NotificationPersistBacktestUtils.handlePartialLoss";
 const NOTIFICATION_PERSIST_BACKTEST_METHOD_NAME_HANDLE_BREAKEVEN = "NotificationPersistBacktestUtils.handleBreakeven";
 const NOTIFICATION_PERSIST_BACKTEST_METHOD_NAME_HANDLE_STRATEGY_COMMIT = "NotificationPersistBacktestUtils.handleStrategyCommit";
+const NOTIFICATION_PERSIST_BACKTEST_METHOD_NAME_HANDLE_SYNC = "NotificationPersistBacktestUtils.handleSync";
 const NOTIFICATION_PERSIST_BACKTEST_METHOD_NAME_HANDLE_RISK = "NotificationPersistBacktestUtils.handleRisk";
 const NOTIFICATION_PERSIST_BACKTEST_METHOD_NAME_HANDLE_ERROR = "NotificationPersistBacktestUtils.handleError";
 const NOTIFICATION_PERSIST_BACKTEST_METHOD_NAME_HANDLE_CRITICAL_ERROR = "NotificationPersistBacktestUtils.handleCriticalError";
@@ -638,6 +718,7 @@ const NOTIFICATION_PERSIST_LIVE_METHOD_NAME_HANDLE_PARTIAL_PROFIT = "Notificatio
 const NOTIFICATION_PERSIST_LIVE_METHOD_NAME_HANDLE_PARTIAL_LOSS = "NotificationPersistLiveUtils.handlePartialLoss";
 const NOTIFICATION_PERSIST_LIVE_METHOD_NAME_HANDLE_BREAKEVEN = "NotificationPersistLiveUtils.handleBreakeven";
 const NOTIFICATION_PERSIST_LIVE_METHOD_NAME_HANDLE_STRATEGY_COMMIT = "NotificationPersistLiveUtils.handleStrategyCommit";
+const NOTIFICATION_PERSIST_LIVE_METHOD_NAME_HANDLE_SYNC = "NotificationPersistLiveUtils.handleSync";
 const NOTIFICATION_PERSIST_LIVE_METHOD_NAME_HANDLE_RISK = "NotificationPersistLiveUtils.handleRisk";
 const NOTIFICATION_PERSIST_LIVE_METHOD_NAME_HANDLE_ERROR = "NotificationPersistLiveUtils.handleError";
 const NOTIFICATION_PERSIST_LIVE_METHOD_NAME_HANDLE_CRITICAL_ERROR = "NotificationPersistLiveUtils.handleCriticalError";
@@ -675,6 +756,11 @@ export interface INotificationUtils {
    * @param data - The strategy commit contract data
    */
   handleStrategyCommit(data: StrategyCommitContract): Promise<void>;
+  /**
+   * Handles signal sync event (signal-open, signal-close).
+   * @param data - The signal sync contract data
+   */
+  handleSync(data: SignalSyncContract): Promise<void>;
   /**
    * Handles risk rejection event.
    * @param data - The risk contract data
@@ -807,6 +893,18 @@ export class NotificationMemoryBacktestUtils implements INotificationUtils {
   };
 
   /**
+   * Handles signal sync events (signal-open, signal-close).
+   * @param data - The signal sync contract data
+   */
+  public handleSync = async (data: SignalSyncContract): Promise<void> => {
+    backtest.loggerService.info(NOTIFICATION_MEMORY_BACKTEST_METHOD_NAME_HANDLE_SYNC, {
+      signalId: data.signalId,
+      action: data.action,
+    });
+    this._addNotification(CREATE_SIGNAL_SYNC_NOTIFICATION_FN(data));
+  };
+
+  /**
    * Handles risk rejection event.
    * @param data - The risk contract data
    */
@@ -911,6 +1009,13 @@ export class NotificationDummyBacktestUtils implements INotificationUtils {
    * No-op handler for strategy commit event.
    */
   public handleStrategyCommit = async (): Promise<void> => {
+    void 0;
+  };
+
+  /**
+   * No-op handler for signal sync event.
+   */
+  public handleSync = async (): Promise<void> => {
     void 0;
   };
 
@@ -1108,6 +1213,20 @@ export class NotificationPersistBacktestUtils implements INotificationUtils {
   };
 
   /**
+   * Handles signal sync events (signal-open, signal-close).
+   * @param data - The signal sync contract data
+   */
+  public handleSync = async (data: SignalSyncContract): Promise<void> => {
+    backtest.loggerService.info(NOTIFICATION_PERSIST_BACKTEST_METHOD_NAME_HANDLE_SYNC, {
+      signalId: data.signalId,
+      action: data.action,
+    });
+    await this.waitForInit();
+    this._addNotification(CREATE_SIGNAL_SYNC_NOTIFICATION_FN(data));
+    await this._updateNotifications();
+  };
+
+  /**
    * Handles risk rejection event.
    * @param data - The risk contract data
    */
@@ -1276,6 +1395,18 @@ export class NotificationMemoryLiveUtils implements INotificationUtils {
   };
 
   /**
+   * Handles signal sync events (signal-open, signal-close).
+   * @param data - The signal sync contract data
+   */
+  public handleSync = async (data: SignalSyncContract): Promise<void> => {
+    backtest.loggerService.info(NOTIFICATION_MEMORY_LIVE_METHOD_NAME_HANDLE_SYNC, {
+      signalId: data.signalId,
+      action: data.action,
+    });
+    this._addNotification(CREATE_SIGNAL_SYNC_NOTIFICATION_FN(data));
+  };
+
+  /**
    * Handles risk rejection event.
    * @param data - The risk contract data
    */
@@ -1380,6 +1511,13 @@ export class NotificationDummyLiveUtils implements INotificationUtils {
    * No-op handler for strategy commit event.
    */
   public handleStrategyCommit = async (): Promise<void> => {
+    void 0;
+  };
+
+  /**
+   * No-op handler for signal sync event.
+   */
+  public handleSync = async (): Promise<void> => {
     void 0;
   };
 
@@ -1580,6 +1718,20 @@ export class NotificationPersistLiveUtils implements INotificationUtils {
   };
 
   /**
+   * Handles signal sync events (signal-open, signal-close).
+   * @param data - The signal sync contract data
+   */
+  public handleSync = async (data: SignalSyncContract): Promise<void> => {
+    backtest.loggerService.info(NOTIFICATION_PERSIST_LIVE_METHOD_NAME_HANDLE_SYNC, {
+      signalId: data.signalId,
+      action: data.action,
+    });
+    await this.waitForInit();
+    this._addNotification(CREATE_SIGNAL_SYNC_NOTIFICATION_FN(data));
+    await this._updateNotifications();
+  };
+
+  /**
    * Handles risk rejection event.
    * @param data - The risk contract data
    */
@@ -1709,6 +1861,15 @@ export class NotificationBacktestAdapter implements INotificationUtils {
    */
   handleStrategyCommit = async (data: StrategyCommitContract): Promise<void> => {
     return await this._notificationBacktestUtils.handleStrategyCommit(data);
+  };
+
+  /**
+   * Handles signal sync events (signal-open, signal-close).
+   * Proxies call to the underlying notification adapter.
+   * @param data - The signal sync contract data
+   */
+  handleSync = async (data: SignalSyncContract): Promise<void> => {
+    return await this._notificationBacktestUtils.handleSync(data);
   };
 
   /**
@@ -1862,6 +2023,15 @@ export class NotificationLiveAdapter implements INotificationUtils {
   };
 
   /**
+   * Handles signal sync events (signal-open, signal-close).
+   * Proxies call to the underlying notification adapter.
+   * @param data - The signal sync contract data
+   */
+  handleSync = async (data: SignalSyncContract): Promise<void> => {
+    return await this._notificationLiveUtils.handleSync(data);
+  };
+
+  /**
    * Handles risk rejection event.
    * Proxies call to the underlying notification adapter.
    * @param data - The risk contract data
@@ -2003,6 +2173,12 @@ export class NotificationAdapter {
           NotificationBacktest.handleStrategyCommit(data),
         );
 
+      const unBacktestSync = syncSubject
+        .filter(({ backtest }) => backtest)
+        .connect((data: SignalSyncContract) =>
+          NotificationBacktest.handleSync(data),
+        );
+
       const unBacktestRisk = riskSubject
         .filter(({ backtest }) => backtest)
         .connect((data: RiskContract) =>
@@ -2027,6 +2203,7 @@ export class NotificationAdapter {
         () => unBacktestPartialLoss(),
         () => unBacktestBreakeven(),
         () => unBacktestStrategyCommit(),
+        () => unBacktestSync(),
         () => unBacktestRisk(),
         () => unBacktestError(),
         () => unBacktestExit(),
@@ -2063,6 +2240,12 @@ export class NotificationAdapter {
           NotificationLive.handleStrategyCommit(data),
         );
 
+      const unLiveSync = syncSubject
+        .filter(({ backtest }) => !backtest)
+        .connect((data: SignalSyncContract) =>
+          NotificationLive.handleSync(data),
+        );
+
       const unLiveRisk = riskSubject
         .filter(({ backtest }) => !backtest)
         .connect((data: RiskContract) =>
@@ -2087,6 +2270,7 @@ export class NotificationAdapter {
         () => unLivePartialLoss(),
         () => unLiveBreakeven(),
         () => unLiveStrategyCommit(),
+        () => unLiveSync(),
         () => unLiveRisk(),
         () => unLiveError(),
         () => unLiveExit(),
