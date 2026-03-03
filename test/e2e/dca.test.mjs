@@ -3257,3 +3257,344 @@ test("DCA BACKTEST: SHORT partialProfit → partialLoss → partialProfit → TP
 
   pass(`DCA-18 SHORT: pp1=${pp1Executed}, pl=${plExecuted}, pp2=${pp2Executed}, partials=3, pnlPercentage=${pnl.pnlPercentage.toFixed(4)}%, pnlCost=${pnl.pnlCost.toFixed(4)}, identity ✓`);
 });
+
+
+/**
+ * DCA ТЕСТ #19: commitPartialProfit(100%) закрывает всю позицию через partial
+ *
+ * Разнообразие: 100% partial close без TP/SL — полное закрытие через commitPartialProfit.
+ * DCA перед partial (два входа), затем закрытие 100%.
+ *
+ * Последовательность:
+ * - Вход LONG @1000
+ * - Падение до 800 → DCA (entry#2, < min=1000 ✓)
+ * - Рост до 1100 → commitPartialProfit(100%) — закрываем всю позицию
+ * - Позиция должна закрыться с _partial.length=1, totalEntries=2
+ *
+ * Проверяем:
+ * - DCA выполнен
+ * - partial выполнен
+ * - _partial.length = 1, totalEntries = 2
+ * - pnlEntries = 200 ($100 × 2)
+ * - pnlCost identity выполняется
+ */
+test("DCA BACKTEST: DCA → commitPartialProfit(100%) closes entire position (LONG)", async ({ pass, fail }) => {
+  const closeEvents = [];
+
+  const startTime = new Date("2024-01-01T00:00:00Z").getTime();
+  const intervalMs = 60000;
+  const basePrice = 1000;
+  const bufferMinutes = 5;
+  const bufferStartTime = startTime - bufferMinutes * intervalMs;
+
+  let allCandles = [];
+  let signalGenerated = false;
+  let avgExecuted = false;
+  let ppExecuted = false;
+
+  for (let i = 0; i < bufferMinutes; i++) {
+    allCandles.push({
+      timestamp: bufferStartTime + i * intervalMs,
+      open: basePrice + 100, high: basePrice + 200, low: basePrice + 50, close: basePrice + 100, volume: 100,
+    });
+  }
+
+  addExchangeSchema({
+    exchangeName: "binance-dca-19",
+    getCandles: async (_symbol, _interval, since, limit) => {
+      const alignedSince = alignTimestamp(since.getTime(), 1);
+      const result = [];
+      for (let i = 0; i < limit; i++) {
+        const timestamp = alignedSince + i * intervalMs;
+        const existing = allCandles.find((c) => c.timestamp === timestamp);
+        result.push(existing ?? { timestamp, open: basePrice + 100, high: basePrice + 200, low: basePrice + 50, close: basePrice + 100, volume: 100 });
+      }
+      return result;
+    },
+    formatPrice: async (_symbol, p) => p.toFixed(8),
+    formatQuantity: async (_symbol, qty) => qty.toFixed(8),
+  });
+
+  addStrategySchema({
+    strategyName: "test-dca-19",
+    interval: "1m",
+    getSignal: async () => {
+      if (signalGenerated) return null;
+      signalGenerated = true;
+
+      // i=0..4:   Выше priceOpen — ожидание
+      // i=5..9:   Активация LONG
+      // i=10..14: Падение до 800 — DCA (< min=1000 ✓)
+      // i=15..29: Рост до 1100 — commitPartialProfit(100%) — закрываем полностью
+      // i=30..44: нейтраль (после полного закрытия TP/SL не нужны)
+      for (let i = 0; i < 45; i++) {
+        const timestamp = startTime + i * intervalMs;
+        if (i < 5) {
+          allCandles.push({ timestamp, open: basePrice + 100, high: basePrice + 200, low: basePrice + 50, close: basePrice + 100, volume: 100 });
+        } else if (i < 10) {
+          allCandles.push({ timestamp, open: basePrice, high: basePrice + 100, low: basePrice - 50, close: basePrice, volume: 100 });
+        } else if (i < 15) {
+          const p = 800;
+          allCandles.push({ timestamp, open: p, high: p + 30, low: p - 30, close: p, volume: 100 });
+        } else if (i < 30) {
+          const p = 1100;
+          allCandles.push({ timestamp, open: p, high: p + 50, low: p - 30, close: p, volume: 100 });
+        } else {
+          allCandles.push({ timestamp, open: basePrice + 100, high: basePrice + 200, low: basePrice + 50, close: basePrice + 100, volume: 100 });
+        }
+      }
+
+      return {
+        position: "long",
+        priceOpen: basePrice,
+        priceTakeProfit: basePrice + 500, // высоко — не достигнем
+        priceStopLoss: basePrice - 400,   // 600
+        minuteEstimatedTime: 120,
+      };
+    },
+    callbacks: {
+      onActivePing: async (symbol, _data, _when, _backtest) => {
+        const currentPrice = await getAveragePrice(symbol);
+
+        if (!avgExecuted && currentPrice <= 820) {
+          avgExecuted = true;
+          await commitAverageBuy(symbol);
+          console.log("[DCA-19 avg]", currentPrice);
+        } else if (avgExecuted && !ppExecuted && currentPrice >= 1080) {
+          ppExecuted = true;
+          await commitPartialProfit(symbol, 100);
+          console.log("[DCA-19 pp(100%)]", currentPrice);
+        }
+      },
+      onClose: (_symbol, data, priceClose) => {
+        console.log("[DCA-19 onClose]", { priceClose, totalEntries: data.totalEntries, partials: data._partial?.length });
+        const pnl = toProfitLossDto(data, priceClose);
+        closeEvents.push({ priceClose, pnl, totalEntries: data.totalEntries, partialLen: data._partial?.length ?? 0 });
+      },
+      onCancel: (symbol, _data, currentPrice) => {
+        console.log("[DCA-19 onCancel]", { symbol, currentPrice });
+      },
+    },
+  });
+
+  addFrameSchema({
+    frameName: "45m-dca-19",
+    interval: "1m",
+    startDate: new Date("2024-01-01T00:00:00Z"),
+    endDate: new Date("2024-01-01T00:45:00Z"),
+  });
+
+  const awaitSubject = new Subject();
+  listenDoneBacktest(() => awaitSubject.next());
+  let errorCaught = null;
+  const unsubscribeError = listenError((error) => { errorCaught = error; awaitSubject.next(); });
+
+  Backtest.background("BTCUSDT", { strategyName: "test-dca-19", exchangeName: "binance-dca-19", frameName: "45m-dca-19" });
+
+  await awaitSubject.toPromise();
+  unsubscribeError();
+
+  if (errorCaught) { fail(`Error: ${errorCaught.message || errorCaught}`); return; }
+  if (!avgExecuted) { fail("commitAverageBuy never executed"); return; }
+  if (!ppExecuted)  { fail("commitPartialProfit(100%) never executed"); return; }
+  if (closeEvents.length === 0) { fail("Position never closed"); return; }
+
+  const ce = closeEvents[0];
+  if (ce.totalEntries < 2) { fail(`Expected totalEntries >= 2, got ${ce.totalEntries}`); return; }
+  if (ce.partialLen !== 1) { fail(`Expected _partial.length=1, got ${ce.partialLen}`); return; }
+
+  const { pnl } = ce;
+  if (Math.abs(pnl.pnlEntries - 200) > 0.01) {
+    fail(`Expected pnlEntries=200 (2×$100), got ${pnl.pnlEntries}`);
+    return;
+  }
+
+  const expectedPnlCost = pnl.pnlPercentage / 100 * pnl.pnlEntries;
+  const diff = Math.abs(pnl.pnlCost - expectedPnlCost);
+  if (diff > 0.0001) {
+    fail(`pnlCost identity: pnlCost=${pnl.pnlCost}, expected=${expectedPnlCost.toFixed(6)}, diff=${diff}`);
+    return;
+  }
+
+  pass(`DCA-19: avg=${avgExecuted}, pp(100%)=${ppExecuted}, totalEntries=${ce.totalEntries}, partials=${ce.partialLen}, pnlEntries=${pnl.pnlEntries}, pnlPercentage=${pnl.pnlPercentage.toFixed(4)}%, identity ✓`);
+});
+
+
+/**
+ * DCA ТЕСТ #20: SHORT антирекорд — DCA принимается только при новом максимуме
+ *
+ * SHORT-версия теста DCA-17. Усреднение для SHORT идёт вверх,
+ * каждый новый вход должен быть строго выше предыдущего максимума.
+ *
+ * Последовательность:
+ * - SHORT на 1000 (SL=1600, TP=500)
+ * - Рост до 1100 → DCA #1 (1100 > max=1000 ✓)
+ * - Падение до 1050 → DCA #2 попытка (1050 <= max=1100 ✗ → отклонён)
+ * - Рост до 1200 → DCA #3 (1200 > max=1100 ✓)
+ * - TP на 500 → закрытие
+ *
+ * Проверяем:
+ * - DCA #1 и #3 приняты, DCA #2 отклонён
+ * - totalEntries = 3 (не 4)
+ * - effectivePriceOpen > originalPriceOpen (SHORT DCA вверх повышает среднюю)
+ */
+test("DCA BACKTEST: SHORT DCA принимается только при новом антирекорде (максимуме)", async ({ pass, fail }) => {
+  const closeEvents = [];
+
+  const startTime = new Date("2024-01-01T00:00:00Z").getTime();
+  const intervalMs = 60000;
+  const basePrice = 1000;
+  const bufferMinutes = 5;
+  const bufferStartTime = startTime - bufferMinutes * intervalMs;
+
+  let allCandles = [];
+  let signalGenerated = false;
+  let dca1Executed = false;
+  let dca2Attempted = false;
+  let dca3Executed = false;
+
+  // Буферные свечи НИЖЕ priceOpen (SHORT: ждём роста)
+  for (let i = 0; i < bufferMinutes; i++) {
+    allCandles.push({
+      timestamp: bufferStartTime + i * intervalMs,
+      open: basePrice - 100, high: basePrice - 50, low: basePrice - 200, close: basePrice - 100, volume: 100,
+    });
+  }
+
+  addExchangeSchema({
+    exchangeName: "binance-dca-20",
+    getCandles: async (_symbol, _interval, since, limit) => {
+      const alignedSince = alignTimestamp(since.getTime(), 1);
+      const result = [];
+      for (let i = 0; i < limit; i++) {
+        const timestamp = alignedSince + i * intervalMs;
+        const existing = allCandles.find((c) => c.timestamp === timestamp);
+        result.push(existing ?? { timestamp, open: basePrice - 100, high: basePrice - 50, low: basePrice - 200, close: basePrice - 100, volume: 100 });
+      }
+      return result;
+    },
+    formatPrice: async (_symbol, p) => p.toFixed(8),
+    formatQuantity: async (_symbol, qty) => qty.toFixed(8),
+  });
+
+  addStrategySchema({
+    strategyName: "test-dca-20",
+    interval: "1m",
+    getSignal: async () => {
+      if (signalGenerated) return null;
+      signalGenerated = true;
+
+      // i=0..4:   Ниже priceOpen — ожидание
+      // i=5..9:   Активация SHORT: high >= basePrice=1000
+      // i=10..14: Рост до 1100 — DCA #1 (> max=1000 ✓)
+      // i=15..19: Откат до 1050 — DCA #2 попытка (<= max=1100 → отклонён)
+      // i=20..24: Рост до 1200 — DCA #3 (> max=1100 ✓)
+      // i=25..44: TP = 500
+      for (let i = 0; i < 45; i++) {
+        const timestamp = startTime + i * intervalMs;
+        if (i < 5) {
+          allCandles.push({ timestamp, open: basePrice - 100, high: basePrice - 50, low: basePrice - 200, close: basePrice - 100, volume: 100 });
+        } else if (i < 10) {
+          allCandles.push({ timestamp, open: basePrice, high: basePrice + 50, low: basePrice - 50, close: basePrice, volume: 100 });
+        } else if (i < 15) {
+          const p = 1100;
+          allCandles.push({ timestamp, open: p, high: p + 50, low: p - 30, close: p, volume: 100 });
+        } else if (i < 20) {
+          const p = 1050;
+          allCandles.push({ timestamp, open: p, high: p + 30, low: p - 30, close: p, volume: 100 });
+        } else if (i < 25) {
+          const p = 1200;
+          allCandles.push({ timestamp, open: p, high: p + 50, low: p - 30, close: p, volume: 100 });
+        } else {
+          // TP для SHORT = 500
+          const p = 500;
+          allCandles.push({ timestamp, open: p, high: p + 30, low: p - 50, close: p, volume: 100 });
+        }
+      }
+
+      return {
+        position: "short",
+        priceOpen: basePrice,           // 1000
+        priceTakeProfit: basePrice - 500, // 500
+        priceStopLoss: basePrice + 600,   // 1600
+        minuteEstimatedTime: 120,
+      };
+    },
+    callbacks: {
+      onActivePing: async (symbol, _data, _when, _backtest) => {
+        const currentPrice = await getAveragePrice(symbol);
+
+        // DCA #1: рост до ~1100 (> max=1000 ✓)
+        if (!dca1Executed && currentPrice >= 1080) {
+          dca1Executed = true;
+          await commitAverageBuy(symbol);
+          console.log("[DCA-20 dca#1 accepted]", currentPrice);
+        }
+        // DCA #2: откат до ~1050 (<= max=1100 → отклонён)
+        else if (dca1Executed && !dca2Attempted && currentPrice >= 1030 && currentPrice <= 1070) {
+          dca2Attempted = true;
+          const result = await commitAverageBuy(symbol); // ожидаем false
+          console.log("[DCA-20 dca#2 attempted]", { result, currentPrice });
+        }
+        // DCA #3: рост до ~1200 (> max=1100 ✓)
+        else if (dca2Attempted && !dca3Executed && currentPrice >= 1180) {
+          dca3Executed = true;
+          await commitAverageBuy(symbol);
+          console.log("[DCA-20 dca#3 accepted]", currentPrice);
+        }
+      },
+      onClose: (_symbol, data, priceClose) => {
+        console.log("[DCA-20 onClose]", { priceClose, totalEntries: data.totalEntries });
+        closeEvents.push({ priceClose, priceTakeProfit: data.priceTakeProfit, totalEntries: data.totalEntries, priceOpen: data.priceOpen, originalPriceOpen: data.originalPriceOpen });
+      },
+      onCancel: (symbol, _data, currentPrice) => {
+        console.log("[DCA-20 onCancel]", { symbol, currentPrice });
+      },
+    },
+  });
+
+  addFrameSchema({
+    frameName: "45m-dca-20",
+    interval: "1m",
+    startDate: new Date("2024-01-01T00:00:00Z"),
+    endDate: new Date("2024-01-01T00:45:00Z"),
+  });
+
+  const awaitSubject = new Subject();
+  listenDoneBacktest(() => awaitSubject.next());
+  let errorCaught = null;
+  const unsubscribeError = listenError((error) => { errorCaught = error; awaitSubject.next(); });
+
+  Backtest.background("BTCUSDT", { strategyName: "test-dca-20", exchangeName: "binance-dca-20", frameName: "45m-dca-20" });
+
+  await awaitSubject.toPromise();
+  unsubscribeError();
+
+  if (errorCaught) { fail(`Error: ${errorCaught.message || errorCaught}`); return; }
+  if (!dca1Executed) { fail("DCA #1 never executed"); return; }
+  if (!dca2Attempted) { fail("DCA #2 was never attempted"); return; }
+  if (!dca3Executed) { fail("DCA #3 never executed"); return; }
+  if (closeEvents.length === 0) { fail("Position never closed"); return; }
+
+  const ce = closeEvents[0];
+
+  // DCA #2 отклонён: totalEntries = 3 (не 4)
+  if (ce.totalEntries !== 3) {
+    fail(`Expected totalEntries=3 (dca#2 rejected — 1050 not a new all-time high above 1100), got ${ce.totalEntries}`);
+    return;
+  }
+
+  // SHORT DCA вверх: effectivePriceOpen > originalPriceOpen
+  if (ce.priceOpen <= ce.originalPriceOpen) {
+    fail(`Expected effectivePriceOpen (${ce.priceOpen?.toFixed(2)}) > originalPriceOpen (${ce.originalPriceOpen}) for SHORT DCA up`);
+    return;
+  }
+
+  // TP close для SHORT: priceClose <= priceTakeProfit
+  if (ce.priceClose > ce.priceTakeProfit) {
+    fail(`Expected TP close (priceClose=${ce.priceClose} <= priceTakeProfit=${ce.priceTakeProfit})`);
+    return;
+  }
+
+  pass(`DCA-20 SHORT: dca#1=accepted, dca#2=rejected(1050<=max1100), dca#3=accepted, totalEntries=${ce.totalEntries}, effectivePriceOpen=${ce.priceOpen?.toFixed(2)}`);
+});
