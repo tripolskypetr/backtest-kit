@@ -7,6 +7,7 @@ import { performance_columns } from "../assets/performance.columns";
 import { risk_columns } from "../assets/risk.columns";
 import { schedule_columns } from "../assets/schedule.columns";
 import { strategy_columns } from "../assets/strategy.columns";
+import { sync_columns } from "../assets/sync.columns";
 import {
   walker_pnl_columns,
   walker_strategy_columns,
@@ -38,6 +39,8 @@ export const COLUMN_CONFIG = {
   schedule_columns,
   /** Columns for strategy management events */
   strategy_columns,
+  /** Columns for signal sync lifecycle events (signal-open, signal-close) */
+  sync_columns,
   /** Walker: PnL summary columns */
   walker_pnl_columns,
   /** Walker: strategy-level summary columns */

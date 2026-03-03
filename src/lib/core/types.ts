@@ -72,6 +72,7 @@ const markdownServices = {
     outlineMarkdownService: Symbol('outlineMarkdownService'),
     riskMarkdownService: Symbol('riskMarkdownService'),
     strategyMarkdownService: Symbol('strategyMarkdownService'),
+    syncMarkdownService: Symbol('syncMarkdownService'),
 }
 
 const reportServices = {

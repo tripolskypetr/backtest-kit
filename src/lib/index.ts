@@ -70,6 +70,7 @@ import RiskReportService from "./services/report/RiskReportService";
 import StrategyReportService from "./services/report/StrategyReportService";
 import SyncReportService from "./services/report/SyncReportService";
 import StrategyMarkdownService from "./services/markdown/StrategyMarkdownService";
+import SyncMarkdownService from "./services/markdown/SyncMarkdownService";
 
 const baseServices = {
   loggerService: inject<LoggerService>(TYPES.loggerService),
@@ -200,6 +201,7 @@ const markdownServices = {
   ),
   riskMarkdownService: inject<RiskMarkdownService>(TYPES.riskMarkdownService),
   strategyMarkdownService: inject<StrategyMarkdownService>(TYPES.strategyMarkdownService),
+  syncMarkdownService: inject<SyncMarkdownService>(TYPES.syncMarkdownService),
 };
 
 const reportServices = {

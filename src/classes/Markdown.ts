@@ -49,6 +49,8 @@ interface IMarkdownTarget {
   live: boolean;
   /** Enable backtest markdown reports (main strategy results with full trade history) */
   backtest: boolean;
+  /** Enable signal sync lifecycle reports (signal-open and signal-close events) */
+  sync: boolean;
 }
 
 const WAIT_FOR_INIT_SYMBOL = Symbol("wait-for-init");
@@ -69,6 +71,7 @@ const WILDCARD_TARGET: IMarkdownTarget = {
   strategy: true,
   schedule: true,
   walker: true,
+  sync: true,
 };
 
 /**
@@ -402,6 +405,7 @@ export class MarkdownUtils {
     risk = false,
     schedule = false,
     walker = false,
+    sync = false,
   }: Partial<IMarkdownTarget> = WILDCARD_TARGET) => {
     backtest.loggerService.debug(MARKDOWN_METHOD_NAME_ENABLE, {
       backtest: bt,
@@ -414,6 +418,7 @@ export class MarkdownUtils {
       strategy,
       schedule,
       walker,
+      sync,
     });
     const unList: Function[] = [];
     if (bt) {
@@ -445,6 +450,9 @@ export class MarkdownUtils {
     }
     if (walker) {
       unList.push(backtest.walkerMarkdownService.subscribe());
+    }
+    if (sync) {
+      unList.push(backtest.syncMarkdownService.subscribe());
     }
     return compose(...unList.map((un) => () => void un()));
   };
@@ -497,6 +505,7 @@ export class MarkdownUtils {
     strategy = false,
     schedule = false,
     walker = false,
+    sync = false,
   }: Partial<IMarkdownTarget> = WILDCARD_TARGET) => {
     backtest.loggerService.debug(MARKDOWN_METHOD_NAME_DISABLE, {
       backtest: bt,
@@ -509,6 +518,7 @@ export class MarkdownUtils {
       strategy,
       schedule,
       walker,
+      sync,
     });
     if (bt) {
       backtest.backtestMarkdownService.unsubscribe();
@@ -539,6 +549,9 @@ export class MarkdownUtils {
     }
     if (walker) {
       backtest.walkerMarkdownService.unsubscribe();
+    }
+    if (sync) {
+      backtest.syncMarkdownService.unsubscribe();
     }
   };
 }
