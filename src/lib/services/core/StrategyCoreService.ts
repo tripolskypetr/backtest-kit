@@ -558,6 +558,35 @@ export class StrategyCoreService implements TStrategy {
   };
 
   /**
+   * Checks whether `partialProfit` would succeed without executing it.
+   * Validates context, then delegates to StrategyConnectionService.validatePartialProfit().
+   *
+   * @param backtest - Whether running in backtest mode
+   * @param symbol - Trading pair symbol
+   * @param percentToClose - Percentage of position to check (0-100]
+   * @param currentPrice - Current market price to validate against
+   * @param context - Execution context with strategyName, exchangeName, frameName
+   * @returns Promise<boolean> - true if `partialProfit` would execute, false otherwise
+   */
+  public validatePartialProfit = async (
+    backtest: boolean,
+    symbol: string,
+    percentToClose: number,
+    currentPrice: number,
+    context: { strategyName: StrategyName; exchangeName: ExchangeName; frameName: FrameName }
+  ): Promise<boolean> => {
+    this.loggerService.log("strategyCoreService validatePartialProfit", {
+      symbol,
+      percentToClose,
+      currentPrice,
+      context,
+      backtest,
+    });
+    await this.validate(context);
+    return await this.strategyConnectionService.validatePartialProfit(backtest, symbol, percentToClose, currentPrice, context);
+  };
+
+  /**
    * Executes partial close at profit level (moving toward TP).
    *
    * Validates strategy existence and delegates to connection service
@@ -603,6 +632,35 @@ export class StrategyCoreService implements TStrategy {
     });
     await this.validate(context);
     return await this.strategyConnectionService.partialProfit(backtest, symbol, percentToClose, currentPrice, context);
+  };
+
+  /**
+   * Checks whether `partialLoss` would succeed without executing it.
+   * Validates context, then delegates to StrategyConnectionService.validatePartialLoss().
+   *
+   * @param backtest - Whether running in backtest mode
+   * @param symbol - Trading pair symbol
+   * @param percentToClose - Percentage of position to check (0-100]
+   * @param currentPrice - Current market price to validate against
+   * @param context - Execution context with strategyName, exchangeName, frameName
+   * @returns Promise<boolean> - true if `partialLoss` would execute, false otherwise
+   */
+  public validatePartialLoss = async (
+    backtest: boolean,
+    symbol: string,
+    percentToClose: number,
+    currentPrice: number,
+    context: { strategyName: StrategyName; exchangeName: ExchangeName; frameName: FrameName }
+  ): Promise<boolean> => {
+    this.loggerService.log("strategyCoreService validatePartialLoss", {
+      symbol,
+      percentToClose,
+      currentPrice,
+      context,
+      backtest,
+    });
+    await this.validate(context);
+    return await this.strategyConnectionService.validatePartialLoss(backtest, symbol, percentToClose, currentPrice, context);
   };
 
   /**
@@ -681,6 +739,35 @@ export class StrategyCoreService implements TStrategy {
    * );
    * ```
    */
+  public validateTrailingStop = async (
+    backtest: boolean,
+    symbol: string,
+    percentShift: number,
+    currentPrice: number,
+    context: { strategyName: StrategyName; exchangeName: ExchangeName; frameName: FrameName }
+  ): Promise<boolean> => {
+    this.loggerService.log("strategyCoreService validateTrailingStop", {
+      symbol,
+      percentShift,
+      currentPrice,
+      context,
+      backtest,
+    });
+    await this.validate(context);
+    return await this.strategyConnectionService.validateTrailingStop(backtest, symbol, percentShift, currentPrice, context);
+  };
+
+  /**
+   * Checks whether `trailingStop` would succeed without executing it.
+   * Validates context, then delegates to StrategyConnectionService.validateTrailingStop().
+   *
+   * @param backtest - Whether running in backtest mode
+   * @param symbol - Trading pair symbol
+   * @param percentShift - Percentage shift of ORIGINAL SL distance [-100, 100], excluding 0
+   * @param currentPrice - Current market price to validate against
+   * @param context - Execution context with strategyName, exchangeName, frameName
+   * @returns Promise<boolean> - true if `trailingStop` would execute, false otherwise
+   */
   public trailingStop = async (
     backtest: boolean,
     symbol: string,
@@ -723,6 +810,35 @@ export class StrategyCoreService implements TStrategy {
    * );
    * ```
    */
+  public validateTrailingTake = async (
+    backtest: boolean,
+    symbol: string,
+    percentShift: number,
+    currentPrice: number,
+    context: { strategyName: StrategyName; exchangeName: ExchangeName; frameName: FrameName }
+  ): Promise<boolean> => {
+    this.loggerService.log("strategyCoreService validateTrailingTake", {
+      symbol,
+      percentShift,
+      currentPrice,
+      context,
+      backtest,
+    });
+    await this.validate(context);
+    return await this.strategyConnectionService.validateTrailingTake(backtest, symbol, percentShift, currentPrice, context);
+  };
+
+  /**
+   * Checks whether `trailingTake` would succeed without executing it.
+   * Validates context, then delegates to StrategyConnectionService.validateTrailingTake().
+   *
+   * @param backtest - Whether running in backtest mode
+   * @param symbol - Trading pair symbol
+   * @param percentShift - Percentage adjustment to ORIGINAL TP distance [-100, 100], excluding 0
+   * @param currentPrice - Current market price to validate against
+   * @param context - Execution context with strategyName, exchangeName, frameName
+   * @returns Promise<boolean> - true if `trailingTake` would execute, false otherwise
+   */
   public trailingTake = async (
     backtest: boolean,
     symbol: string,
@@ -760,6 +876,32 @@ export class StrategyCoreService implements TStrategy {
    *   { strategyName: "my-strategy", exchangeName: "binance", frameName: "" }
    * );
    * ```
+   */
+  public validateBreakeven = async (
+    backtest: boolean,
+    symbol: string,
+    currentPrice: number,
+    context: { strategyName: StrategyName; exchangeName: ExchangeName; frameName: FrameName }
+  ): Promise<boolean> => {
+    this.loggerService.log("strategyCoreService validateBreakeven", {
+      symbol,
+      currentPrice,
+      context,
+      backtest,
+    });
+    await this.validate(context);
+    return await this.strategyConnectionService.validateBreakeven(backtest, symbol, currentPrice, context);
+  };
+
+  /**
+   * Checks whether `breakeven` would succeed without executing it.
+   * Validates context, then delegates to StrategyConnectionService.validateBreakeven().
+   *
+   * @param backtest - Whether running in backtest mode
+   * @param symbol - Trading pair symbol
+   * @param currentPrice - Current market price to validate against
+   * @param context - Execution context with strategyName, exchangeName, frameName
+   * @returns Promise<boolean> - true if `breakeven` would execute, false otherwise
    */
   public breakeven = async (
     backtest: boolean,
@@ -827,6 +969,32 @@ export class StrategyCoreService implements TStrategy {
    * @param currentPrice - New entry price to add to the averaging history
    * @param context - Execution context with strategyName, exchangeName, frameName
    * @returns Promise<boolean> - true if entry added, false if rejected
+   */
+  public validateAverageBuy = async (
+    backtest: boolean,
+    symbol: string,
+    currentPrice: number,
+    context: { strategyName: StrategyName; exchangeName: ExchangeName; frameName: FrameName }
+  ): Promise<boolean> => {
+    this.loggerService.log("strategyCoreService validateAverageBuy", {
+      symbol,
+      currentPrice,
+      context,
+      backtest,
+    });
+    await this.validate(context);
+    return await this.strategyConnectionService.validateAverageBuy(backtest, symbol, currentPrice, context);
+  };
+
+  /**
+   * Checks whether `averageBuy` would succeed without executing it.
+   * Validates context, then delegates to StrategyConnectionService.validateAverageBuy().
+   *
+   * @param backtest - Whether running in backtest mode
+   * @param symbol - Trading pair symbol
+   * @param currentPrice - New entry price to validate
+   * @param context - Execution context with strategyName, exchangeName, frameName
+   * @returns Promise<boolean> - true if `averageBuy` would execute, false otherwise
    */
   public averageBuy = async (
     backtest: boolean,

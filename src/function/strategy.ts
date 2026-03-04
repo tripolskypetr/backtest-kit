@@ -3,10 +3,17 @@ import backtest, {
   MethodContextService,
 } from "../lib";
 import { getAveragePrice } from "./exchange";
-import { investedCostToPercent } from "../utils/investedCostToPercent";
-import { slPriceToPercentShift } from "../utils/slPriceToPercentShift";
-import { tpPriceToPercentShift } from "../utils/tpPriceToPercentShift";
+import { investedCostToPercent } from "../math/investedCostToPercent";
+import { slPriceToPercentShift } from "../math/slPriceToPercentShift";
+import { tpPriceToPercentShift } from "../math/tpPriceToPercentShift";
+import { slPercentShiftToPrice } from "../math/slPercentShiftToPrice";
+import { tpPercentShiftToPrice } from "../math/tpPercentShiftToPrice";
+import { percentToCloseCost } from "../math/percentToCloseCost";
+import { breakevenNewStopLossPrice } from "../math/breakevenNewStopLossPrice";
+import { breakevenNewTakeProfitPrice } from "../math/breakevenNewTakeProfitPrice";
+import { Broker } from "../classes/Broker";
 import { GLOBAL_CONFIG } from "../config/params";
+import { not } from "functools-kit";
 
 const CANCEL_SCHEDULED_METHOD_NAME = "strategy.commitCancelScheduled";
 const CLOSE_PENDING_METHOD_NAME = "strategy.commitClosePending";
@@ -26,9 +33,12 @@ const GET_TOTAL_COST_CLOSED_METHOD_NAME = "strategy.getTotalCostClosed";
 const GET_PENDING_SIGNAL_METHOD_NAME = "strategy.getPendingSignal";
 const GET_SCHEDULED_SIGNAL_METHOD_NAME = "strategy.getScheduledSignal";
 const GET_BREAKEVEN_METHOD_NAME = "strategy.getBreakeven";
-const GET_POSITION_AVERAGE_PRICE_METHOD_NAME = "strategy.getPositionAveragePrice";
-const GET_POSITION_INVESTED_COUNT_METHOD_NAME = "strategy.getPositionInvestedCount";
-const GET_POSITION_INVESTED_COST_METHOD_NAME = "strategy.getPositionInvestedCost";
+const GET_POSITION_AVERAGE_PRICE_METHOD_NAME =
+  "strategy.getPositionAveragePrice";
+const GET_POSITION_INVESTED_COUNT_METHOD_NAME =
+  "strategy.getPositionInvestedCount";
+const GET_POSITION_INVESTED_COST_METHOD_NAME =
+  "strategy.getPositionInvestedCost";
 const GET_POSITION_PNL_PERCENT_METHOD_NAME = "strategy.getPositionPnlPercent";
 const GET_POSITION_PNL_COST_METHOD_NAME = "strategy.getPositionPnlCost";
 const GET_POSITION_LEVELS_METHOD_NAME = "strategy.getPositionLevels";
@@ -56,7 +66,10 @@ const GET_POSITION_PARTIALS_METHOD_NAME = "strategy.getPositionPartials";
  * await commitCancelScheduled("BTCUSDT", "manual-cancel-001");
  * ```
  */
-export async function commitCancelScheduled(symbol: string, cancelId?: string): Promise<void> {
+export async function commitCancelScheduled(
+  symbol: string,
+  cancelId?: string,
+): Promise<void> {
   backtest.loggerService.info(CANCEL_SCHEDULED_METHOD_NAME, {
     symbol,
     cancelId,
@@ -74,7 +87,7 @@ export async function commitCancelScheduled(symbol: string, cancelId?: string): 
     isBacktest,
     symbol,
     { exchangeName, frameName, strategyName },
-    cancelId
+    cancelId,
   );
 }
 
@@ -99,7 +112,10 @@ export async function commitCancelScheduled(symbol: string, cancelId?: string): 
  * await commitClosePending("BTCUSDT", "manual-close-001");
  * ```
  */
-export async function commitClosePending(symbol: string, closeId?: string): Promise<void> {
+export async function commitClosePending(
+  symbol: string,
+  closeId?: string,
+): Promise<void> {
   backtest.loggerService.info(CLOSE_PENDING_METHOD_NAME, {
     symbol,
     closeId,
@@ -113,11 +129,12 @@ export async function commitClosePending(symbol: string, closeId?: string): Prom
   const { backtest: isBacktest } = backtest.executionContextService.context;
   const { exchangeName, frameName, strategyName } =
     backtest.methodContextService.context;
+
   await backtest.strategyCoreService.closePending(
     isBacktest,
     symbol,
     { exchangeName, frameName, strategyName },
-    closeId
+    closeId,
   );
 }
 
@@ -166,12 +183,42 @@ export async function commitPartialProfit(
   const { backtest: isBacktest } = backtest.executionContextService.context;
   const { exchangeName, frameName, strategyName } =
     backtest.methodContextService.context;
+  const investedCostForProfit =
+    await backtest.strategyCoreService.getPositionInvestedCost(
+      isBacktest,
+      symbol,
+      { exchangeName, frameName, strategyName },
+    );
+  if (investedCostForProfit === null) {
+    return false;
+  }
+  if (
+    await not(
+      backtest.strategyCoreService.validatePartialProfit(
+        isBacktest,
+        symbol,
+        percentToClose,
+        currentPrice,
+        { exchangeName, frameName, strategyName },
+      ),
+    )
+  ) {
+    return false;
+  }
+  await Broker.commitPartialProfit({
+    symbol,
+    percentToClose,
+    cost: percentToCloseCost(percentToClose, investedCostForProfit),
+    currentPrice,
+    context: { exchangeName, frameName, strategyName },
+    backtest: isBacktest,
+  });
   return await backtest.strategyCoreService.partialProfit(
     isBacktest,
     symbol,
     percentToClose,
     currentPrice,
-    { exchangeName, frameName, strategyName }
+    { exchangeName, frameName, strategyName },
   );
 }
 
@@ -220,12 +267,42 @@ export async function commitPartialLoss(
   const { backtest: isBacktest } = backtest.executionContextService.context;
   const { exchangeName, frameName, strategyName } =
     backtest.methodContextService.context;
+  const investedCostForLoss =
+    await backtest.strategyCoreService.getPositionInvestedCost(
+      isBacktest,
+      symbol,
+      { exchangeName, frameName, strategyName },
+    );
+  if (investedCostForLoss === null) {
+    return false;
+  }
+  if (
+    await not(
+      backtest.strategyCoreService.validatePartialLoss(
+        isBacktest,
+        symbol,
+        percentToClose,
+        currentPrice,
+        { exchangeName, frameName, strategyName },
+      ),
+    )
+  ) {
+    return false;
+  }
+  await Broker.commitPartialLoss({
+    symbol,
+    percentToClose,
+    cost: percentToCloseCost(percentToClose, investedCostForLoss),
+    currentPrice,
+    context: { exchangeName, frameName, strategyName },
+    backtest: isBacktest,
+  });
   return await backtest.strategyCoreService.partialLoss(
     isBacktest,
     symbol,
     percentToClose,
     currentPrice,
-    { exchangeName, frameName, strategyName }
+    { exchangeName, frameName, strategyName },
   );
 }
 
@@ -291,12 +368,56 @@ export async function commitTrailingStop(
   const { backtest: isBacktest } = backtest.executionContextService.context;
   const { exchangeName, frameName, strategyName } =
     backtest.methodContextService.context;
+  const signal = await backtest.strategyCoreService.getPendingSignal(
+    isBacktest,
+    symbol,
+    currentPrice,
+    { exchangeName, frameName, strategyName },
+  );
+  if (!signal) {
+    return false;
+  }
+  const effectivePriceOpen =
+    await backtest.strategyCoreService.getPositionAveragePrice(
+      isBacktest,
+      symbol,
+      { exchangeName, frameName, strategyName },
+    );
+  if (effectivePriceOpen === null) {
+    return false;
+  }
+  if (
+    await not(
+      backtest.strategyCoreService.validateTrailingStop(
+        isBacktest,
+        symbol,
+        percentShift,
+        currentPrice,
+        { exchangeName, frameName, strategyName },
+      ),
+    )
+  ) {
+    return false;
+  }
+  await Broker.commitTrailingStop({
+    symbol,
+    percentShift,
+    currentPrice,
+    newStopLossPrice: slPercentShiftToPrice(
+      percentShift,
+      signal.priceStopLoss,
+      effectivePriceOpen,
+      signal.position,
+    ),
+    context: { exchangeName, frameName, strategyName },
+    backtest: isBacktest,
+  });
   return await backtest.strategyCoreService.trailingStop(
     isBacktest,
     symbol,
     percentShift,
     currentPrice,
-    { exchangeName, frameName, strategyName }
+    { exchangeName, frameName, strategyName },
   );
 }
 
@@ -362,12 +483,56 @@ export async function commitTrailingTake(
   const { backtest: isBacktest } = backtest.executionContextService.context;
   const { exchangeName, frameName, strategyName } =
     backtest.methodContextService.context;
+  const signal = await backtest.strategyCoreService.getPendingSignal(
+    isBacktest,
+    symbol,
+    currentPrice,
+    { exchangeName, frameName, strategyName },
+  );
+  if (!signal) {
+    return false;
+  }
+  const effectivePriceOpen =
+    await backtest.strategyCoreService.getPositionAveragePrice(
+      isBacktest,
+      symbol,
+      { exchangeName, frameName, strategyName },
+    );
+  if (effectivePriceOpen === null) {
+    return false;
+  }
+  if (
+    await not(
+      backtest.strategyCoreService.validateTrailingTake(
+        isBacktest,
+        symbol,
+        percentShift,
+        currentPrice,
+        { exchangeName, frameName, strategyName },
+      ),
+    )
+  ) {
+    return false;
+  }
+  await Broker.commitTrailingTake({
+    symbol,
+    percentShift,
+    currentPrice,
+    newTakeProfitPrice: tpPercentShiftToPrice(
+      percentShift,
+      signal.priceTakeProfit,
+      effectivePriceOpen,
+      signal.position,
+    ),
+    context: { exchangeName, frameName, strategyName },
+    backtest: isBacktest,
+  });
   return await backtest.strategyCoreService.trailingTake(
     isBacktest,
     symbol,
     percentShift,
     currentPrice,
-    { exchangeName, frameName, strategyName }
+    { exchangeName, frameName, strategyName },
   );
 }
 
@@ -400,13 +565,59 @@ export async function commitTrailingStopCost(
   }
   const currentPrice = await getAveragePrice(symbol);
   const { backtest: isBacktest } = backtest.executionContextService.context;
-  const { exchangeName, frameName, strategyName } = backtest.methodContextService.context;
-  const signal = await backtest.strategyCoreService.getPendingSignal(isBacktest, symbol, currentPrice, { exchangeName, frameName, strategyName });
-  if (!signal) return false;
-  const effectivePriceOpen = await backtest.strategyCoreService.getPositionAveragePrice(isBacktest, symbol, { exchangeName, frameName, strategyName });
-  if (effectivePriceOpen === null) return false;
-  const percentShift = slPriceToPercentShift(newStopLossPrice, signal.priceStopLoss, effectivePriceOpen);
-  return await backtest.strategyCoreService.trailingStop(isBacktest, symbol, percentShift, currentPrice, { exchangeName, frameName, strategyName });
+  const { exchangeName, frameName, strategyName } =
+    backtest.methodContextService.context;
+  const signal = await backtest.strategyCoreService.getPendingSignal(
+    isBacktest,
+    symbol,
+    currentPrice,
+    { exchangeName, frameName, strategyName },
+  );
+  if (!signal) {
+    return false;
+  }
+  const effectivePriceOpen =
+    await backtest.strategyCoreService.getPositionAveragePrice(
+      isBacktest,
+      symbol,
+      { exchangeName, frameName, strategyName },
+    );
+  if (effectivePriceOpen === null) {
+    return false;
+  }
+  const percentShift = slPriceToPercentShift(
+    newStopLossPrice,
+    signal.priceStopLoss,
+    effectivePriceOpen,
+  );
+  if (
+    await not(
+      backtest.strategyCoreService.validateTrailingStop(
+        isBacktest,
+        symbol,
+        percentShift,
+        currentPrice,
+        { exchangeName, frameName, strategyName },
+      ),
+    )
+  ) {
+    return false;
+  }
+  await Broker.commitTrailingStop({
+    symbol,
+    percentShift,
+    currentPrice,
+    newStopLossPrice,
+    context: { exchangeName, frameName, strategyName },
+    backtest: isBacktest,
+  });
+  return await backtest.strategyCoreService.trailingStop(
+    isBacktest,
+    symbol,
+    percentShift,
+    currentPrice,
+    { exchangeName, frameName, strategyName },
+  );
 }
 
 /**
@@ -438,13 +649,59 @@ export async function commitTrailingTakeCost(
   }
   const currentPrice = await getAveragePrice(symbol);
   const { backtest: isBacktest } = backtest.executionContextService.context;
-  const { exchangeName, frameName, strategyName } = backtest.methodContextService.context;
-  const signal = await backtest.strategyCoreService.getPendingSignal(isBacktest, symbol, currentPrice, { exchangeName, frameName, strategyName });
-  if (!signal) return false;
-  const effectivePriceOpen = await backtest.strategyCoreService.getPositionAveragePrice(isBacktest, symbol, { exchangeName, frameName, strategyName });
-  if (effectivePriceOpen === null) return false;
-  const percentShift = tpPriceToPercentShift(newTakeProfitPrice, signal.priceTakeProfit, effectivePriceOpen);
-  return await backtest.strategyCoreService.trailingTake(isBacktest, symbol, percentShift, currentPrice, { exchangeName, frameName, strategyName });
+  const { exchangeName, frameName, strategyName } =
+    backtest.methodContextService.context;
+  const signal = await backtest.strategyCoreService.getPendingSignal(
+    isBacktest,
+    symbol,
+    currentPrice,
+    { exchangeName, frameName, strategyName },
+  );
+  if (!signal) {
+    return false;
+  }
+  const effectivePriceOpen =
+    await backtest.strategyCoreService.getPositionAveragePrice(
+      isBacktest,
+      symbol,
+      { exchangeName, frameName, strategyName },
+    );
+  if (effectivePriceOpen === null) {
+    return false;
+  }
+  const percentShift = tpPriceToPercentShift(
+    newTakeProfitPrice,
+    signal.priceTakeProfit,
+    effectivePriceOpen,
+  );
+  if (
+    await not(
+      backtest.strategyCoreService.validateTrailingTake(
+        isBacktest,
+        symbol,
+        percentShift,
+        currentPrice,
+        { exchangeName, frameName, strategyName },
+      ),
+    )
+  ) {
+    return false;
+  }
+  await Broker.commitTrailingTake({
+    symbol,
+    percentShift,
+    currentPrice,
+    newTakeProfitPrice,
+    context: { exchangeName, frameName, strategyName },
+    backtest: isBacktest,
+  });
+  return await backtest.strategyCoreService.trailingTake(
+    isBacktest,
+    symbol,
+    percentShift,
+    currentPrice,
+    { exchangeName, frameName, strategyName },
+  );
 }
 
 /**
@@ -486,11 +743,48 @@ export async function commitBreakeven(symbol: string): Promise<boolean> {
   const { backtest: isBacktest } = backtest.executionContextService.context;
   const { exchangeName, frameName, strategyName } =
     backtest.methodContextService.context;
+  const signal = await backtest.strategyCoreService.getPendingSignal(
+    isBacktest,
+    symbol,
+    currentPrice,
+    { exchangeName, frameName, strategyName },
+  );
+  if (!signal) {
+    return false;
+  }
+  const effectivePriceOpen = await backtest.strategyCoreService.getPositionAveragePrice(
+    isBacktest,
+    symbol,
+    { exchangeName, frameName, strategyName },
+  );
+  if (effectivePriceOpen === null) {
+    return false;
+  }
+  if (
+    await not(
+      backtest.strategyCoreService.validateBreakeven(
+        isBacktest,
+        symbol,
+        currentPrice,
+        { exchangeName, frameName, strategyName },
+      ),
+    )
+  ) {
+    return false;
+  }
+  await Broker.commitBreakeven({
+    symbol,
+    currentPrice,
+    newStopLossPrice: breakevenNewStopLossPrice(effectivePriceOpen),
+    newTakeProfitPrice: breakevenNewTakeProfitPrice(signal.priceTakeProfit, signal._trailingPriceTakeProfit),
+    context: { exchangeName, frameName, strategyName },
+    backtest: isBacktest,
+  });
   return await backtest.strategyCoreService.breakeven(
     isBacktest,
     symbol,
     currentPrice,
-    { exchangeName, frameName, strategyName }
+    { exchangeName, frameName, strategyName },
   );
 }
 
@@ -514,7 +808,10 @@ export async function commitBreakeven(symbol: string): Promise<boolean> {
  * await commitActivateScheduled("BTCUSDT", "manual-activate-001");
  * ```
  */
-export async function commitActivateScheduled(symbol: string, activateId?: string): Promise<void> {
+export async function commitActivateScheduled(
+  symbol: string,
+  activateId?: string,
+): Promise<void> {
   backtest.loggerService.info(ACTIVATE_SCHEDULED_METHOD_NAME, {
     symbol,
     activateId,
@@ -532,7 +829,7 @@ export async function commitActivateScheduled(symbol: string, activateId?: strin
     isBacktest,
     symbol,
     { exchangeName, frameName, strategyName },
-    activateId
+    activateId,
   );
 }
 
@@ -560,7 +857,10 @@ export async function commitActivateScheduled(symbol: string, activateId?: strin
  * }
  * ```
  */
-export async function commitAverageBuy(symbol: string, cost: number = GLOBAL_CONFIG.CC_POSITION_ENTRY_COST): Promise<boolean> {
+export async function commitAverageBuy(
+  symbol: string,
+  cost: number = GLOBAL_CONFIG.CC_POSITION_ENTRY_COST,
+): Promise<boolean> {
   backtest.loggerService.info(AVERAGE_BUY_METHOD_NAME, {
     symbol,
   });
@@ -574,12 +874,31 @@ export async function commitAverageBuy(symbol: string, cost: number = GLOBAL_CON
   const { backtest: isBacktest } = backtest.executionContextService.context;
   const { exchangeName, frameName, strategyName } =
     backtest.methodContextService.context;
+  if (
+    await not(
+      backtest.strategyCoreService.validateAverageBuy(
+        isBacktest,
+        symbol,
+        currentPrice,
+        { exchangeName, frameName, strategyName },
+      ),
+    )
+  ) {
+    return false;
+  }
+  await Broker.commitAverageBuy({
+    symbol,
+    currentPrice,
+    cost,
+    context: { exchangeName, frameName, strategyName },
+    backtest: isBacktest,
+  });
   return await backtest.strategyCoreService.averageBuy(
     isBacktest,
     symbol,
     currentPrice,
     { exchangeName, frameName, strategyName },
-    cost
+    cost,
   );
 }
 
@@ -617,7 +936,7 @@ export async function getTotalPercentClosed(symbol: string): Promise<number> {
   return await backtest.strategyCoreService.getTotalPercentClosed(
     isBacktest,
     symbol,
-    { exchangeName, frameName, strategyName }
+    { exchangeName, frameName, strategyName },
   );
 }
 
@@ -654,7 +973,7 @@ export async function getTotalCostClosed(symbol: string): Promise<number> {
   return await backtest.strategyCoreService.getTotalCostClosed(
     isBacktest,
     symbol,
-    { exchangeName, frameName, strategyName }
+    { exchangeName, frameName, strategyName },
   );
 }
 
@@ -690,12 +1009,13 @@ export async function getPendingSignal(symbol: string) {
   const { backtest: isBacktest } = backtest.executionContextService.context;
   const { exchangeName, frameName, strategyName } =
     backtest.methodContextService.context;
-  const currentPrice = await backtest.exchangeConnectionService.getAveragePrice(symbol);
+  const currentPrice =
+    await backtest.exchangeConnectionService.getAveragePrice(symbol);
   return await backtest.strategyCoreService.getPendingSignal(
     isBacktest,
     symbol,
     currentPrice,
-    { exchangeName, frameName, strategyName }
+    { exchangeName, frameName, strategyName },
   );
 }
 
@@ -728,7 +1048,8 @@ export async function getScheduledSignal(symbol: string) {
   if (!MethodContextService.hasContext()) {
     throw new Error("getScheduledSignal requires a method context");
   }
-  const currentPrice = await backtest.exchangeConnectionService.getAveragePrice(symbol);
+  const currentPrice =
+    await backtest.exchangeConnectionService.getAveragePrice(symbol);
   const { backtest: isBacktest } = backtest.executionContextService.context;
   const { exchangeName, frameName, strategyName } =
     backtest.methodContextService.context;
@@ -736,7 +1057,7 @@ export async function getScheduledSignal(symbol: string) {
     isBacktest,
     symbol,
     currentPrice,
-    { exchangeName, frameName, strategyName }
+    { exchangeName, frameName, strategyName },
   );
 }
 
@@ -763,7 +1084,10 @@ export async function getScheduledSignal(symbol: string) {
  * }
  * ```
  */
-export async function getBreakeven(symbol: string, currentPrice: number): Promise<boolean> {
+export async function getBreakeven(
+  symbol: string,
+  currentPrice: number,
+): Promise<boolean> {
   backtest.loggerService.info(GET_BREAKEVEN_METHOD_NAME, {
     symbol,
     currentPrice,
@@ -781,12 +1105,16 @@ export async function getBreakeven(symbol: string, currentPrice: number): Promis
     isBacktest,
     symbol,
     currentPrice,
-    { exchangeName, frameName, strategyName }
+    { exchangeName, frameName, strategyName },
   );
 }
 
-export async function getPositionAveragePrice(symbol: string): Promise<number | null> {
-  backtest.loggerService.info(GET_POSITION_AVERAGE_PRICE_METHOD_NAME, { symbol });
+export async function getPositionAveragePrice(
+  symbol: string,
+): Promise<number | null> {
+  backtest.loggerService.info(GET_POSITION_AVERAGE_PRICE_METHOD_NAME, {
+    symbol,
+  });
   if (!ExecutionContextService.hasContext()) {
     throw new Error("getPositionAveragePrice requires an execution context");
   }
@@ -794,16 +1122,21 @@ export async function getPositionAveragePrice(symbol: string): Promise<number | 
     throw new Error("getPositionAveragePrice requires a method context");
   }
   const { backtest: isBacktest } = backtest.executionContextService.context;
-  const { exchangeName, frameName, strategyName } = backtest.methodContextService.context;
+  const { exchangeName, frameName, strategyName } =
+    backtest.methodContextService.context;
   return await backtest.strategyCoreService.getPositionAveragePrice(
     isBacktest,
     symbol,
-    { exchangeName, frameName, strategyName }
+    { exchangeName, frameName, strategyName },
   );
 }
 
-export async function getPositionInvestedCount(symbol: string): Promise<number | null> {
-  backtest.loggerService.info(GET_POSITION_INVESTED_COUNT_METHOD_NAME, { symbol });
+export async function getPositionInvestedCount(
+  symbol: string,
+): Promise<number | null> {
+  backtest.loggerService.info(GET_POSITION_INVESTED_COUNT_METHOD_NAME, {
+    symbol,
+  });
   if (!ExecutionContextService.hasContext()) {
     throw new Error("getPositionInvestedCount requires an execution context");
   }
@@ -811,16 +1144,21 @@ export async function getPositionInvestedCount(symbol: string): Promise<number |
     throw new Error("getPositionInvestedCount requires a method context");
   }
   const { backtest: isBacktest } = backtest.executionContextService.context;
-  const { exchangeName, frameName, strategyName } = backtest.methodContextService.context;
+  const { exchangeName, frameName, strategyName } =
+    backtest.methodContextService.context;
   return await backtest.strategyCoreService.getPositionInvestedCount(
     isBacktest,
     symbol,
-    { exchangeName, frameName, strategyName }
+    { exchangeName, frameName, strategyName },
   );
 }
 
-export async function getPositionInvestedCost(symbol: string): Promise<number | null> {
-  backtest.loggerService.info(GET_POSITION_INVESTED_COST_METHOD_NAME, { symbol });
+export async function getPositionInvestedCost(
+  symbol: string,
+): Promise<number | null> {
+  backtest.loggerService.info(GET_POSITION_INVESTED_COST_METHOD_NAME, {
+    symbol,
+  });
   if (!ExecutionContextService.hasContext()) {
     throw new Error("getPositionInvestedCost requires an execution context");
   }
@@ -828,15 +1166,18 @@ export async function getPositionInvestedCost(symbol: string): Promise<number | 
     throw new Error("getPositionInvestedCost requires a method context");
   }
   const { backtest: isBacktest } = backtest.executionContextService.context;
-  const { exchangeName, frameName, strategyName } = backtest.methodContextService.context;
+  const { exchangeName, frameName, strategyName } =
+    backtest.methodContextService.context;
   return await backtest.strategyCoreService.getPositionInvestedCost(
     isBacktest,
     symbol,
-    { exchangeName, frameName, strategyName }
+    { exchangeName, frameName, strategyName },
   );
 }
 
-export async function getPositionPnlPercent(symbol: string): Promise<number | null> {
+export async function getPositionPnlPercent(
+  symbol: string,
+): Promise<number | null> {
   backtest.loggerService.info(GET_POSITION_PNL_PERCENT_METHOD_NAME, { symbol });
   if (!ExecutionContextService.hasContext()) {
     throw new Error("getPositionPnlPercent requires an execution context");
@@ -846,12 +1187,13 @@ export async function getPositionPnlPercent(symbol: string): Promise<number | nu
   }
   const currentPrice = await getAveragePrice(symbol);
   const { backtest: isBacktest } = backtest.executionContextService.context;
-  const { exchangeName, frameName, strategyName } = backtest.methodContextService.context;
+  const { exchangeName, frameName, strategyName } =
+    backtest.methodContextService.context;
   return await backtest.strategyCoreService.getPositionPnlPercent(
     isBacktest,
     symbol,
     currentPrice,
-    { exchangeName, frameName, strategyName }
+    { exchangeName, frameName, strategyName },
   );
 }
 
@@ -884,8 +1226,14 @@ export async function getPositionPnlPercent(symbol: string): Promise<number | nu
  * }
  * ```
  */
-export async function commitPartialProfitCost(symbol: string, dollarAmount: number): Promise<boolean> {
-  backtest.loggerService.info(PARTIAL_PROFIT_COST_METHOD_NAME, { symbol, dollarAmount });
+export async function commitPartialProfitCost(
+  symbol: string,
+  dollarAmount: number,
+): Promise<boolean> {
+  backtest.loggerService.info(PARTIAL_PROFIT_COST_METHOD_NAME, {
+    symbol,
+    dollarAmount,
+  });
   if (!ExecutionContextService.hasContext()) {
     throw new Error("commitPartialProfitCost requires an execution context");
   }
@@ -894,20 +1242,45 @@ export async function commitPartialProfitCost(symbol: string, dollarAmount: numb
   }
   const currentPrice = await getAveragePrice(symbol);
   const { backtest: isBacktest } = backtest.executionContextService.context;
-  const { exchangeName, frameName, strategyName } = backtest.methodContextService.context;
-  const investedCost = await backtest.strategyCoreService.getPositionInvestedCost(
-    isBacktest,
-    symbol,
-    { exchangeName, frameName, strategyName }
-  );
-  if (investedCost === null) return false;
+  const { exchangeName, frameName, strategyName } =
+    backtest.methodContextService.context;
+  const investedCost =
+    await backtest.strategyCoreService.getPositionInvestedCost(
+      isBacktest,
+      symbol,
+      { exchangeName, frameName, strategyName },
+    );
+  if (investedCost === null) {
+    return false;
+  }
   const percentToClose = investedCostToPercent(dollarAmount, investedCost);
+  if (
+    await not(
+      backtest.strategyCoreService.validatePartialProfit(
+        isBacktest,
+        symbol,
+        percentToClose,
+        currentPrice,
+        { exchangeName, frameName, strategyName },
+      ),
+    )
+  ) {
+    return false;
+  }
+  await Broker.commitPartialProfit({
+    symbol,
+    percentToClose,
+    cost: dollarAmount,
+    currentPrice,
+    context: { exchangeName, frameName, strategyName },
+    backtest: isBacktest,
+  });
   return await backtest.strategyCoreService.partialProfit(
     isBacktest,
     symbol,
     percentToClose,
     currentPrice,
-    { exchangeName, frameName, strategyName }
+    { exchangeName, frameName, strategyName },
   );
 }
 
@@ -940,8 +1313,14 @@ export async function commitPartialProfitCost(symbol: string, dollarAmount: numb
  * }
  * ```
  */
-export async function commitPartialLossCost(symbol: string, dollarAmount: number): Promise<boolean> {
-  backtest.loggerService.info(PARTIAL_LOSS_COST_METHOD_NAME, { symbol, dollarAmount });
+export async function commitPartialLossCost(
+  symbol: string,
+  dollarAmount: number,
+): Promise<boolean> {
+  backtest.loggerService.info(PARTIAL_LOSS_COST_METHOD_NAME, {
+    symbol,
+    dollarAmount,
+  });
   if (!ExecutionContextService.hasContext()) {
     throw new Error("commitPartialLossCost requires an execution context");
   }
@@ -950,24 +1329,51 @@ export async function commitPartialLossCost(symbol: string, dollarAmount: number
   }
   const currentPrice = await getAveragePrice(symbol);
   const { backtest: isBacktest } = backtest.executionContextService.context;
-  const { exchangeName, frameName, strategyName } = backtest.methodContextService.context;
-  const investedCost = await backtest.strategyCoreService.getPositionInvestedCost(
-    isBacktest,
-    symbol,
-    { exchangeName, frameName, strategyName }
-  );
-  if (investedCost === null) return false;
+  const { exchangeName, frameName, strategyName } =
+    backtest.methodContextService.context;
+  const investedCost =
+    await backtest.strategyCoreService.getPositionInvestedCost(
+      isBacktest,
+      symbol,
+      { exchangeName, frameName, strategyName },
+    );
+  if (investedCost === null) {
+    return false;
+  }
   const percentToClose = investedCostToPercent(dollarAmount, investedCost);
+  if (
+    await not(
+      backtest.strategyCoreService.validatePartialLoss(
+        isBacktest,
+        symbol,
+        percentToClose,
+        currentPrice,
+        { exchangeName, frameName, strategyName },
+      ),
+    )
+  ) {
+    return false;
+  }
+  await Broker.commitPartialLoss({
+    symbol,
+    percentToClose,
+    cost: dollarAmount,
+    currentPrice,
+    context: { exchangeName, frameName, strategyName },
+    backtest: isBacktest,
+  });
   return await backtest.strategyCoreService.partialLoss(
     isBacktest,
     symbol,
     percentToClose,
     currentPrice,
-    { exchangeName, frameName, strategyName }
+    { exchangeName, frameName, strategyName },
   );
 }
 
-export async function getPositionPnlCost(symbol: string): Promise<number | null> {
+export async function getPositionPnlCost(
+  symbol: string,
+): Promise<number | null> {
   backtest.loggerService.info(GET_POSITION_PNL_COST_METHOD_NAME, { symbol });
   if (!ExecutionContextService.hasContext()) {
     throw new Error("getPositionPnlCost requires an execution context");
@@ -977,12 +1383,13 @@ export async function getPositionPnlCost(symbol: string): Promise<number | null>
   }
   const currentPrice = await getAveragePrice(symbol);
   const { backtest: isBacktest } = backtest.executionContextService.context;
-  const { exchangeName, frameName, strategyName } = backtest.methodContextService.context;
+  const { exchangeName, frameName, strategyName } =
+    backtest.methodContextService.context;
   return await backtest.strategyCoreService.getPositionPnlCost(
     isBacktest,
     symbol,
     currentPrice,
-    { exchangeName, frameName, strategyName }
+    { exchangeName, frameName, strategyName },
   );
 }
 
@@ -1007,7 +1414,9 @@ export async function getPositionPnlCost(symbol: string): Promise<number | null>
  * // One DCA: [43000, 42000]
  * ```
  */
-export async function getPositionLevels(symbol: string): Promise<number[] | null> {
+export async function getPositionLevels(
+  symbol: string,
+): Promise<number[] | null> {
   backtest.loggerService.info(GET_POSITION_LEVELS_METHOD_NAME, { symbol });
   if (!ExecutionContextService.hasContext()) {
     throw new Error("getPositionLevels requires an execution context");
@@ -1016,11 +1425,12 @@ export async function getPositionLevels(symbol: string): Promise<number[] | null
     throw new Error("getPositionLevels requires a method context");
   }
   const { backtest: isBacktest } = backtest.executionContextService.context;
-  const { exchangeName, frameName, strategyName } = backtest.methodContextService.context;
+  const { exchangeName, frameName, strategyName } =
+    backtest.methodContextService.context;
   return await backtest.strategyCoreService.getPositionLevels(
     isBacktest,
     symbol,
-    { exchangeName, frameName, strategyName }
+    { exchangeName, frameName, strategyName },
   );
 }
 
@@ -1061,10 +1471,11 @@ export async function getPositionPartials(symbol: string) {
     throw new Error("getPositionPartials requires a method context");
   }
   const { backtest: isBacktest } = backtest.executionContextService.context;
-  const { exchangeName, frameName, strategyName } = backtest.methodContextService.context;
+  const { exchangeName, frameName, strategyName } =
+    backtest.methodContextService.context;
   return await backtest.strategyCoreService.getPositionPartials(
     isBacktest,
     symbol,
-    { exchangeName, frameName, strategyName }
+    { exchangeName, frameName, strategyName },
   );
 }

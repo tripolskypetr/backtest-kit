@@ -1058,6 +1058,26 @@ export interface IStrategy {
   partialProfit: (symbol: string, percentToClose: number, currentPrice: number, backtest: boolean) => Promise<boolean>;
 
   /**
+   * Checks whether `partialProfit` would succeed without executing it.
+   *
+   * Returns `true` if all preconditions for a profitable partial close are met:
+   * - Active pending signal exists
+   * - `percentToClose` is a finite number in range (0, 100]
+   * - `currentPrice` is a positive finite number
+   * - Price is moving toward TP (not toward SL) relative to effective entry
+   * - Price has not already crossed the TP level
+   * - Closing the given percentage would not exceed 100% total closed
+   *
+   * Never throws. Safe to call at any time as a pre-flight check.
+   *
+   * @param symbol - Trading pair symbol (e.g., "BTCUSDT")
+   * @param percentToClose - Percentage of position to check (0-100]
+   * @param currentPrice - Current market price to validate against
+   * @returns `true` if `partialProfit` would execute, `false` otherwise
+   */
+  validatePartialProfit: (symbol: string, percentToClose: number, currentPrice: number) => Promise<boolean>;
+
+  /**
    * Executes partial close at loss level (moving toward SL).
    *
    * Closes specified percentage of position at current price.
@@ -1093,6 +1113,26 @@ export interface IStrategy {
    * ```
    */
   partialLoss: (symbol: string, percentToClose: number, currentPrice: number, backtest: boolean) => Promise<boolean>;
+
+  /**
+   * Checks whether `partialLoss` would succeed without executing it.
+   *
+   * Returns `true` if all preconditions for a loss-side partial close are met:
+   * - Active pending signal exists
+   * - `percentToClose` is a finite number in range (0, 100]
+   * - `currentPrice` is a positive finite number
+   * - Price is moving toward SL (not toward TP) relative to effective entry
+   * - Price has not already crossed the SL level
+   * - Closing the given percentage would not exceed 100% total closed
+   *
+   * Never throws. Safe to call at any time as a pre-flight check.
+   *
+   * @param symbol - Trading pair symbol (e.g., "BTCUSDT")
+   * @param percentToClose - Percentage of position to check (0-100]
+   * @param currentPrice - Current market price to validate against
+   * @returns `true` if `partialLoss` would execute, `false` otherwise
+   */
+  validatePartialLoss: (symbol: string, percentToClose: number, currentPrice: number) => Promise<boolean>;
 
   /**
    * Adjusts trailing stop-loss by shifting distance between entry and original SL.
@@ -1161,6 +1201,26 @@ export interface IStrategy {
   trailingStop: (symbol: string, percentShift: number, currentPrice: number, backtest: boolean) => Promise<boolean>;
 
   /**
+   * Checks whether `trailingStop` would succeed without executing it.
+   *
+   * Returns `true` if all preconditions for a trailing SL update are met:
+   * - Active pending signal exists
+   * - `percentShift` is a finite number in [-100, 100], non-zero
+   * - `currentPrice` is a positive finite number
+   * - Computed new SL does not intrude current price (price hasn't crossed it)
+   * - New SL does not conflict with effective TP (SL must remain on the safe side)
+   * - If a trailing SL already exists, new SL offers better protection (absorption rule)
+   *
+   * Never throws. Safe to call at any time as a pre-flight check.
+   *
+   * @param symbol - Trading pair symbol (e.g., "BTCUSDT")
+   * @param percentShift - Percentage shift of ORIGINAL SL distance [-100, 100], excluding 0
+   * @param currentPrice - Current market price to validate against
+   * @returns `true` if `trailingStop` would execute, `false` otherwise
+   */
+  validateTrailingStop: (symbol: string, percentShift: number, currentPrice: number) => Promise<boolean>;
+
+  /**
    * Adjusts the trailing take-profit distance for an active pending signal.
    *
    * CRITICAL: Always calculates from ORIGINAL TP, not from current trailing TP.
@@ -1209,6 +1269,27 @@ export interface IStrategy {
    * ```
    */
   trailingTake: (symbol: string, percentShift: number, currentPrice: number, backtest: boolean) => Promise<boolean>;
+
+  /**
+   * Checks whether `trailingTake` would succeed without executing it.
+   *
+   * Returns `true` if all preconditions for a trailing TP update are met:
+   * - Active pending signal exists
+   * - `percentShift` is a finite number in [-100, 100], non-zero
+   * - `currentPrice` is a positive finite number
+   * - Computed new TP does not intrude current price (price hasn't crossed it)
+   * - New TP does not conflict with effective SL (TP must remain on the profit side)
+   * - If a trailing TP already exists, new TP is more conservative (absorption rule:
+   *   LONG accepts only lower TP, SHORT accepts only higher TP)
+   *
+   * Never throws. Safe to call at any time as a pre-flight check.
+   *
+   * @param symbol - Trading pair symbol (e.g., "BTCUSDT")
+   * @param percentShift - Percentage adjustment to ORIGINAL TP distance [-100, 100], excluding 0
+   * @param currentPrice - Current market price to validate against
+   * @returns `true` if `trailingTake` would execute, `false` otherwise
+   */
+  validateTrailingTake: (symbol: string, percentShift: number, currentPrice: number) => Promise<boolean>;
 
   /**
    * Moves stop-loss to breakeven (entry price) when price reaches threshold.
@@ -1262,6 +1343,25 @@ export interface IStrategy {
   breakeven: (symbol: string, currentPrice: number, backtest: boolean) => Promise<boolean>;
 
   /**
+   * Checks whether `breakeven` would succeed without executing it.
+   *
+   * Returns `true` if all preconditions for moving SL to breakeven are met:
+   * - Active pending signal exists
+   * - `currentPrice` is a positive finite number
+   * - Price has moved far enough in profit direction to cover costs
+   *   (threshold: `(CC_PERCENT_SLIPPAGE + CC_PERCENT_FEE) * 2`)
+   * - Breakeven SL would not conflict with effective TP
+   * - Breakeven has not already been set (idempotent — returns `false` on repeat)
+   *
+   * Never throws. Safe to call at any time as a pre-flight check.
+   *
+   * @param symbol - Trading pair symbol (e.g., "BTCUSDT")
+   * @param currentPrice - Current market price to validate against
+   * @returns `true` if `breakeven` would execute, `false` otherwise
+   */
+  validateBreakeven: (symbol: string, currentPrice: number) => Promise<boolean>;
+
+  /**
    * Adds a new averaging entry to an open position (DCA — Dollar Cost Averaging).
    *
    * Appends currentPrice to the _entry array. The effective entry price used in all
@@ -1282,6 +1382,25 @@ export interface IStrategy {
    * @returns Promise<boolean> - true if entry added, false if rejected by direction check
    */
   averageBuy: (symbol: string, currentPrice: number, backtest: boolean) => Promise<boolean>;
+
+  /**
+   * Checks whether `averageBuy` would succeed without executing it.
+   *
+   * Returns `true` if all preconditions for a DCA entry are met:
+   * - Active pending signal exists
+   * - `currentPrice` is a positive finite number
+   * - LONG: `currentPrice` is below the all-time lowest entry price
+   *   (or `CC_ENABLE_DCA_EVERYWHERE` is set)
+   * - SHORT: `currentPrice` is above the all-time highest entry price
+   *   (or `CC_ENABLE_DCA_EVERYWHERE` is set)
+   *
+   * Never throws. Safe to call at any time as a pre-flight check.
+   *
+   * @param symbol - Trading pair symbol (e.g., "BTCUSDT")
+   * @param currentPrice - New entry price to validate
+   * @returns `true` if `averageBuy` would execute, `false` otherwise
+   */
+  validateAverageBuy: (symbol: string, currentPrice: number) => Promise<boolean>;
 
   /**
    * Checks if there is an active pending signal for the symbol.

@@ -5615,6 +5615,52 @@ export class ClientStrategy implements IStrategy {
   }
 
   /**
+   * Validates preconditions for partialProfit without mutating state.
+   *
+   * Returns false (never throws) when any condition would cause partialProfit to fail or skip.
+   * Use this to pre-check before calling partialProfit to avoid needing to handle exceptions.
+   *
+   * @param symbol - Trading pair symbol
+   * @param percentToClose - Percentage of position to close (0-100)
+   * @param currentPrice - Current market price (must be in profit direction)
+   * @returns boolean - true if partialProfit would execute, false otherwise
+   */
+  public async validatePartialProfit(
+    symbol: string,
+    percentToClose: number,
+    currentPrice: number
+  ): Promise<boolean> {
+    this.params.logger.debug("ClientStrategy validatePartialProfit", {
+      symbol,
+      percentToClose,
+      currentPrice,
+      hasPendingSignal: this._pendingSignal !== null,
+    });
+
+    if (!this._pendingSignal) return false;
+    if (typeof percentToClose !== "number" || !isFinite(percentToClose)) return false;
+    if (percentToClose <= 0) return false;
+    if (percentToClose > 100) return false;
+    if (typeof currentPrice !== "number" || !isFinite(currentPrice) || currentPrice <= 0) return false;
+
+    const effectivePriceOpen = GET_EFFECTIVE_PRICE_OPEN(this._pendingSignal);
+    if (this._pendingSignal.position === "long" && currentPrice <= effectivePriceOpen) return false;
+    if (this._pendingSignal.position === "short" && currentPrice >= effectivePriceOpen) return false;
+
+    const effectiveTakeProfit = this._pendingSignal._trailingPriceTakeProfit ?? this._pendingSignal.priceTakeProfit;
+    if (this._pendingSignal.position === "long" && currentPrice >= effectiveTakeProfit) return false;
+    if (this._pendingSignal.position === "short" && currentPrice <= effectiveTakeProfit) return false;
+
+    const { totalClosedPercent, remainingCostBasis } = getTotalClosed(this._pendingSignal);
+    const totalInvested = (this._pendingSignal._entry ?? []).reduce((s, e) => s + e.cost, 0) || GLOBAL_CONFIG.CC_POSITION_ENTRY_COST;
+    const newPartialDollar = (percentToClose / 100) * remainingCostBasis;
+    const newTotalClosedDollar = (totalClosedPercent / 100) * totalInvested + newPartialDollar;
+    if (newTotalClosedDollar > totalInvested) return false;
+
+    return true;
+  }
+
+  /**
    * Executes partial close at profit level (moving toward TP).
    *
    * Closes a percentage of the pending position at the current price, recording it as a "profit" type partial.
@@ -5793,6 +5839,53 @@ export class ClientStrategy implements IStrategy {
     return true;
   }
 
+  /**
+   * Validates preconditions for partialLoss without mutating state.
+   *
+   * Returns false (never throws) when any condition would cause partialLoss to fail or skip.
+   * Use this to pre-check before calling partialLoss to avoid needing to handle exceptions.
+   *
+   * @param symbol - Trading pair symbol
+   * @param percentToClose - Percentage of position to close (0-100)
+   * @param currentPrice - Current market price (must be in loss direction)
+   * @returns boolean - true if partialLoss would execute, false otherwise
+   */
+  public async validatePartialLoss(
+    symbol: string,
+    percentToClose: number,
+    currentPrice: number
+  ): Promise<boolean> {
+    this.params.logger.debug("ClientStrategy validatePartialLoss", {
+      symbol,
+      percentToClose,
+      currentPrice,
+      hasPendingSignal: this._pendingSignal !== null,
+    });
+
+    if (!this._pendingSignal) return false;
+    if (typeof percentToClose !== "number" || !isFinite(percentToClose)) return false;
+    if (percentToClose <= 0) return false;
+    if (percentToClose > 100) return false;
+    if (typeof currentPrice !== "number" || !isFinite(currentPrice) || currentPrice <= 0) return false;
+
+    const effectivePriceOpen = GET_EFFECTIVE_PRICE_OPEN(this._pendingSignal);
+    if (this._pendingSignal.position === "long" && currentPrice >= effectivePriceOpen) return false;
+    if (this._pendingSignal.position === "short" && currentPrice <= effectivePriceOpen) return false;
+
+    const effectiveStopLoss = this._pendingSignal._trailingPriceStopLoss ?? this._pendingSignal.priceStopLoss;
+    if (this._pendingSignal.position === "long" && currentPrice <= effectiveStopLoss) return false;
+    if (this._pendingSignal.position === "short" && currentPrice >= effectiveStopLoss) return false;
+
+    const { totalClosedPercent, remainingCostBasis } = getTotalClosed(this._pendingSignal);
+    const totalInvested = (this._pendingSignal._entry ?? []).reduce((s, e) => s + e.cost, 0) || GLOBAL_CONFIG.CC_POSITION_ENTRY_COST;
+    const newPartialDollar = (percentToClose / 100) * remainingCostBasis;
+    const newTotalClosedDollar = (totalClosedPercent / 100) * totalInvested + newPartialDollar;
+    if (newTotalClosedDollar > totalInvested) return false;
+
+    return true;
+  }
+
+  
   /**
    * Executes partial close at loss level (moving toward SL).
    *
@@ -5973,6 +6066,77 @@ export class ClientStrategy implements IStrategy {
   }
 
   /**
+   * Validates preconditions for breakeven without mutating state.
+   *
+   * Returns false (never throws) when any condition would cause breakeven to fail or skip.
+   * Mirrors the full BREAKEVEN_FN condition logic including threshold, trailing state and intrusion checks.
+   *
+   * @param symbol - Trading pair symbol
+   * @param currentPrice - Current market price to check threshold
+   * @returns boolean - true if breakeven would execute, false otherwise
+   */
+  public async validateBreakeven(
+    symbol: string,
+    currentPrice: number
+  ): Promise<boolean> {
+    this.params.logger.debug("ClientStrategy validateBreakeven", {
+      symbol,
+      currentPrice,
+      hasPendingSignal: this._pendingSignal !== null,
+    });
+    if (!this._pendingSignal) return false;
+    if (typeof currentPrice !== "number" || !isFinite(currentPrice) || currentPrice <= 0) return false;
+
+    const signal = this._pendingSignal;
+    const breakevenPrice = GET_EFFECTIVE_PRICE_OPEN(signal);
+
+    const effectiveTakeProfit = signal._trailingPriceTakeProfit ?? signal.priceTakeProfit;
+    if (signal.position === "long" && breakevenPrice >= effectiveTakeProfit) return false;
+    if (signal.position === "short" && breakevenPrice <= effectiveTakeProfit) return false;
+
+    const breakevenThresholdPercent = (GLOBAL_CONFIG.CC_PERCENT_SLIPPAGE + GLOBAL_CONFIG.CC_PERCENT_FEE) * 2;
+
+    if (signal._trailingPriceStopLoss !== undefined) {
+      const trailingStopLoss = signal._trailingPriceStopLoss;
+      if (signal.position === "long") {
+        const isPositiveTrailing = trailingStopLoss > breakevenPrice;
+        if (isPositiveTrailing) return true; // already protecting profit
+        const thresholdPrice = breakevenPrice * (1 + breakevenThresholdPercent / 100);
+        const isThresholdReached = currentPrice >= thresholdPrice;
+        if (!isThresholdReached || breakevenPrice <= trailingStopLoss) return false;
+        if (currentPrice < breakevenPrice) return false; // price intrusion
+        return true;
+      } else {
+        const isPositiveTrailing = trailingStopLoss < breakevenPrice;
+        if (isPositiveTrailing) return true; // already protecting profit
+        const thresholdPrice = breakevenPrice * (1 - breakevenThresholdPercent / 100);
+        const isThresholdReached = currentPrice <= thresholdPrice;
+        if (!isThresholdReached || breakevenPrice >= trailingStopLoss) return false;
+        if (currentPrice > breakevenPrice) return false; // price intrusion
+        return true;
+      }
+    }
+
+    const currentStopLoss = signal.priceStopLoss;
+    if (signal.position === "long") {
+      const thresholdPrice = breakevenPrice * (1 + breakevenThresholdPercent / 100);
+      const isThresholdReached = currentPrice >= thresholdPrice;
+      const canMove = isThresholdReached && currentStopLoss < breakevenPrice;
+      if (!canMove) return false;
+      if (currentPrice < breakevenPrice) return false;
+    } else {
+      const thresholdPrice = breakevenPrice * (1 - breakevenThresholdPercent / 100);
+      const isThresholdReached = currentPrice <= thresholdPrice;
+      const canMove = isThresholdReached && currentStopLoss > breakevenPrice;
+      if (!canMove) return false;
+      if (currentPrice > breakevenPrice) return false;
+    }
+
+    return true;
+  }
+
+  
+  /**
    * Moves stop-loss to breakeven (entry price) when price reaches threshold.
    *
    * Moves SL to entry price (zero-risk position) when current price has moved
@@ -6120,6 +6284,65 @@ export class ClientStrategy implements IStrategy {
       backtest,
       currentPrice,
     });
+
+    return true;
+  }
+
+  /**
+   * Validates preconditions for trailingStop without mutating state.
+   *
+   * Returns false (never throws) when any condition would cause trailingStop to fail or skip.
+   * Includes absorption check: returns false if new SL would not improve on the current trailing SL.
+   *
+   * @param symbol - Trading pair symbol
+   * @param percentShift - Percentage shift of ORIGINAL SL distance [-100, 100], excluding 0
+   * @param currentPrice - Current market price to check for intrusion
+   * @returns boolean - true if trailingStop would execute, false otherwise
+   */
+  public async validateTrailingStop(
+    symbol: string,
+    percentShift: number,
+    currentPrice: number
+  ): Promise<boolean> {
+    this.params.logger.debug("ClientStrategy validateTrailingStop", {
+      symbol,
+      percentShift,
+      currentPrice,
+      hasPendingSignal: this._pendingSignal !== null,
+    });
+
+    if (!this._pendingSignal) return false;
+    if (typeof percentShift !== "number" || !isFinite(percentShift)) return false;
+    if (percentShift < -100 || percentShift > 100) return false;
+    if (percentShift === 0) return false;
+    if (typeof currentPrice !== "number" || !isFinite(currentPrice) || currentPrice <= 0) return false;
+
+    const signal = this._pendingSignal;
+    const effectivePriceOpen = GET_EFFECTIVE_PRICE_OPEN(signal);
+    const slDistancePercent = Math.abs((effectivePriceOpen - signal.priceStopLoss) / effectivePriceOpen * 100);
+    const newSlDistancePercent = slDistancePercent + percentShift;
+
+    let newStopLoss: number;
+    if (signal.position === "long") {
+      newStopLoss = effectivePriceOpen * (1 - newSlDistancePercent / 100);
+    } else {
+      newStopLoss = effectivePriceOpen * (1 + newSlDistancePercent / 100);
+    }
+
+    // Intrusion check (mirrors trailingStop method: applied before TRAILING_STOP_LOSS_FN, for all calls)
+    if (signal.position === "long" && currentPrice < newStopLoss) return false;
+    if (signal.position === "short" && currentPrice > newStopLoss) return false;
+
+    const effectiveTakeProfit = signal._trailingPriceTakeProfit ?? signal.priceTakeProfit;
+    if (signal.position === "long" && newStopLoss >= effectiveTakeProfit) return false;
+    if (signal.position === "short" && newStopLoss <= effectiveTakeProfit) return false;
+
+    // Absorption check (mirrors TRAILING_STOP_LOSS_FN: first call is unconditional)
+    const currentTrailingSL = signal._trailingPriceStopLoss;
+    if (currentTrailingSL !== undefined) {
+      if (signal.position === "long" && newStopLoss <= currentTrailingSL) return false;
+      if (signal.position === "short" && newStopLoss >= currentTrailingSL) return false;
+    }
 
     return true;
   }
@@ -6356,6 +6579,65 @@ export class ClientStrategy implements IStrategy {
   }
 
   /**
+   * Validates preconditions for trailingTake without mutating state.
+   *
+   * Returns false (never throws) when any condition would cause trailingTake to fail or skip.
+   * Includes absorption check: returns false if new TP would not improve on the current trailing TP.
+   *
+   * @param symbol - Trading pair symbol
+   * @param percentShift - Percentage adjustment to ORIGINAL TP distance (-100 to 100)
+   * @param currentPrice - Current market price to check for intrusion
+   * @returns boolean - true if trailingTake would execute, false otherwise
+   */
+  public async validateTrailingTake(
+    symbol: string,
+    percentShift: number,
+    currentPrice: number
+  ): Promise<boolean> {
+    this.params.logger.debug("ClientStrategy validateTrailingTake", {
+      symbol,
+      percentShift,
+      currentPrice,
+      hasPendingSignal: this._pendingSignal !== null,
+    });
+    if (!this._pendingSignal) return false;
+    if (typeof percentShift !== "number" || !isFinite(percentShift)) return false;
+    if (percentShift < -100 || percentShift > 100) return false;
+    if (percentShift === 0) return false;
+    if (typeof currentPrice !== "number" || !isFinite(currentPrice) || currentPrice <= 0) return false;
+
+    const signal = this._pendingSignal;
+    const effectivePriceOpen = GET_EFFECTIVE_PRICE_OPEN(signal);
+    const tpDistancePercent = Math.abs((signal.priceTakeProfit - effectivePriceOpen) / effectivePriceOpen * 100);
+    const newTpDistancePercent = tpDistancePercent + percentShift;
+
+    let newTakeProfit: number;
+    if (signal.position === "long") {
+      newTakeProfit = effectivePriceOpen * (1 + newTpDistancePercent / 100);
+    } else {
+      newTakeProfit = effectivePriceOpen * (1 - newTpDistancePercent / 100);
+    }
+
+    // Intrusion check (mirrors trailingTake method: applied before TRAILING_TAKE_PROFIT_FN, for all calls)
+    if (signal.position === "long" && currentPrice > newTakeProfit) return false;
+    if (signal.position === "short" && currentPrice < newTakeProfit) return false;
+
+    const effectiveStopLoss = signal._trailingPriceStopLoss ?? signal.priceStopLoss;
+    if (signal.position === "long" && newTakeProfit <= effectiveStopLoss) return false;
+    if (signal.position === "short" && newTakeProfit >= effectiveStopLoss) return false;
+
+    // Absorption check (mirrors TRAILING_TAKE_PROFIT_FN: first call is unconditional)
+    const currentTrailingTP = signal._trailingPriceTakeProfit;
+    if (currentTrailingTP !== undefined) {
+      if (signal.position === "long" && newTakeProfit >= currentTrailingTP) return false;
+      if (signal.position === "short" && newTakeProfit <= currentTrailingTP) return false;
+    }
+
+    return true;
+  }
+
+  
+  /**
    * Adjusts the trailing take-profit distance for an active pending signal.
    *
    * CRITICAL: Always calculates from ORIGINAL TP, not from current trailing TP.
@@ -6568,6 +6850,44 @@ export class ClientStrategy implements IStrategy {
       percentShift,
       currentPrice,
     });
+
+    return true;
+  }
+
+  /**
+   * Validates preconditions for averageBuy without mutating state.
+   *
+   * Returns false (never throws) when any condition would cause averageBuy to fail or skip.
+   *
+   * @param symbol - Trading pair symbol
+   * @param currentPrice - New entry price to add
+   * @returns boolean - true if averageBuy would execute, false otherwise
+   */
+  public async validateAverageBuy(
+    symbol: string,
+    currentPrice: number
+  ): Promise<boolean> {
+    this.params.logger.debug("ClientStrategy validateAverageBuy", {
+      symbol,
+      currentPrice,
+      hasPendingSignal: this._pendingSignal !== null,
+    });
+
+    if (!this._pendingSignal) return false;
+    if (typeof currentPrice !== "number" || !isFinite(currentPrice) || currentPrice <= 0) return false;
+
+    const signal = this._pendingSignal;
+    const entries = (!signal._entry || signal._entry.length === 0)
+      ? [{ price: signal.priceOpen, cost: GLOBAL_CONFIG.CC_POSITION_ENTRY_COST }]
+      : signal._entry;
+
+    if (signal.position === "long") {
+      const minEntryPrice = Math.min(...entries.map((e) => e.price));
+      if (!GLOBAL_CONFIG.CC_ENABLE_DCA_EVERYWHERE && currentPrice >= minEntryPrice) return false;
+    } else {
+      const maxEntryPrice = Math.max(...entries.map((e) => e.price));
+      if (!GLOBAL_CONFIG.CC_ENABLE_DCA_EVERYWHERE && currentPrice <= maxEntryPrice) return false;
+    }
 
     return true;
   }

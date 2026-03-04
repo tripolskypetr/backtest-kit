@@ -60,6 +60,16 @@ const CREATE_SYNC_FN = (
     await self.actionCoreService.signalSync(backtest, event, { strategyName, exchangeName, frameName });
     return true;
   }, {
+    fallback: (error) => {
+      const message = "StrategyConnectionService CREATE_SYNC_FN thrown. Broker rejected order request";
+      const payload = {
+        error: errorData(error),
+        message: getErrorMessage(error),
+      };
+      self.loggerService.warn(message, payload);
+      console.error(message, payload);
+      errorEmitter.next(error);
+    },
     defaultValue: false,
   }
 );
@@ -1003,6 +1013,28 @@ export class StrategyConnectionService implements TStrategy {
   };
 
   /**
+   * Checks whether `partialProfit` would succeed without executing it.
+   * Delegates to `ClientStrategy.validatePartialProfit()` — no throws, pure boolean result.
+   *
+   * @param backtest - Whether running in backtest mode
+   * @param symbol - Trading pair symbol
+   * @param percentToClose - Percentage of position to check (0-100]
+   * @param currentPrice - Current market price to validate against
+   * @param context - Execution context with strategyName, exchangeName, frameName
+   * @returns Promise<boolean> - true if `partialProfit` would execute, false otherwise
+   */
+  public validatePartialProfit = (
+    backtest: boolean,
+    symbol: string,
+    percentToClose: number,
+    currentPrice: number,
+    context: { strategyName: StrategyName; exchangeName: ExchangeName; frameName: FrameName },
+  ): Promise<boolean> => {
+    const strategy = this.getStrategy(symbol, context.strategyName, context.exchangeName, context.frameName, backtest);
+    return Promise.resolve(strategy.validatePartialProfit(symbol, percentToClose, currentPrice));
+  };
+
+  /**
    * Executes partial close at profit level (moving toward TP).
    *
    * Closes a percentage of the pending position at the current price, recording it as a "profit" type partial.
@@ -1048,6 +1080,28 @@ export class StrategyConnectionService implements TStrategy {
     });
     const strategy = this.getStrategy(symbol, context.strategyName, context.exchangeName, context.frameName, backtest);
     return await strategy.partialProfit(symbol, percentToClose, currentPrice, backtest);
+  };
+
+  /**
+   * Checks whether `partialLoss` would succeed without executing it.
+   * Delegates to `ClientStrategy.validatePartialLoss()` — no throws, pure boolean result.
+   *
+   * @param backtest - Whether running in backtest mode
+   * @param symbol - Trading pair symbol
+   * @param percentToClose - Percentage of position to check (0-100]
+   * @param currentPrice - Current market price to validate against
+   * @param context - Execution context with strategyName, exchangeName, frameName
+   * @returns Promise<boolean> - true if `partialLoss` would execute, false otherwise
+   */
+  public validatePartialLoss = (
+    backtest: boolean,
+    symbol: string,
+    percentToClose: number,
+    currentPrice: number,
+    context: { strategyName: StrategyName; exchangeName: ExchangeName; frameName: FrameName },
+  ): Promise<boolean> => {
+    const strategy = this.getStrategy(symbol, context.strategyName, context.exchangeName, context.frameName, backtest);
+    return Promise.resolve(strategy.validatePartialLoss(symbol, percentToClose, currentPrice));
   };
 
   /**
@@ -1099,6 +1153,28 @@ export class StrategyConnectionService implements TStrategy {
   };
 
   /**
+   * Checks whether `trailingStop` would succeed without executing it.
+   * Delegates to `ClientStrategy.validateTrailingStop()` — no throws, pure boolean result.
+   *
+   * @param backtest - Whether running in backtest mode
+   * @param symbol - Trading pair symbol
+   * @param percentShift - Percentage shift of ORIGINAL SL distance [-100, 100], excluding 0
+   * @param currentPrice - Current market price to validate against
+   * @param context - Execution context with strategyName, exchangeName, frameName
+   * @returns Promise<boolean> - true if `trailingStop` would execute, false otherwise
+   */
+  public validateTrailingStop = (
+    backtest: boolean,
+    symbol: string,
+    percentShift: number,
+    currentPrice: number,
+    context: { strategyName: StrategyName; exchangeName: ExchangeName; frameName: FrameName },
+  ): Promise<boolean> => {
+    const strategy = this.getStrategy(symbol, context.strategyName, context.exchangeName, context.frameName, backtest);
+    return Promise.resolve(strategy.validateTrailingStop(symbol, percentShift, currentPrice));
+  };
+
+  /**
    * Adjusts the trailing stop-loss distance for an active pending signal.
    *
    * Updates the stop-loss distance by a percentage adjustment relative to the original SL distance.
@@ -1145,6 +1221,28 @@ export class StrategyConnectionService implements TStrategy {
   };
 
   /**
+   * Checks whether `trailingTake` would succeed without executing it.
+   * Delegates to `ClientStrategy.validateTrailingTake()` — no throws, pure boolean result.
+   *
+   * @param backtest - Whether running in backtest mode
+   * @param symbol - Trading pair symbol
+   * @param percentShift - Percentage adjustment to ORIGINAL TP distance [-100, 100], excluding 0
+   * @param currentPrice - Current market price to validate against
+   * @param context - Execution context with strategyName, exchangeName, frameName
+   * @returns Promise<boolean> - true if `trailingTake` would execute, false otherwise
+   */
+  public validateTrailingTake = (
+    backtest: boolean,
+    symbol: string,
+    percentShift: number,
+    currentPrice: number,
+    context: { strategyName: StrategyName; exchangeName: ExchangeName; frameName: FrameName },
+  ): Promise<boolean> => {
+    const strategy = this.getStrategy(symbol, context.strategyName, context.exchangeName, context.frameName, backtest);
+    return Promise.resolve(strategy.validateTrailingTake(symbol, percentShift, currentPrice));
+  };
+
+  /**
    * Adjusts the trailing take-profit distance for an active pending signal.
    *
    * Updates the take-profit distance by a percentage adjustment relative to the original TP distance.
@@ -1188,6 +1286,26 @@ export class StrategyConnectionService implements TStrategy {
     });
     const strategy = this.getStrategy(symbol, context.strategyName, context.exchangeName, context.frameName, backtest);
     return await strategy.trailingTake(symbol, percentShift, currentPrice, backtest);
+  };
+
+  /**
+   * Checks whether `breakeven` would succeed without executing it.
+   * Delegates to `ClientStrategy.validateBreakeven()` — no throws, pure boolean result.
+   *
+   * @param backtest - Whether running in backtest mode
+   * @param symbol - Trading pair symbol
+   * @param currentPrice - Current market price to validate against
+   * @param context - Execution context with strategyName, exchangeName, frameName
+   * @returns Promise<boolean> - true if `breakeven` would execute, false otherwise
+   */
+  public validateBreakeven = (
+    backtest: boolean,
+    symbol: string,
+    currentPrice: number,
+    context: { strategyName: StrategyName; exchangeName: ExchangeName; frameName: FrameName },
+  ): Promise<boolean> => {
+    const strategy = this.getStrategy(symbol, context.strategyName, context.exchangeName, context.frameName, backtest);
+    return Promise.resolve(strategy.validateBreakeven(symbol, currentPrice));
   };
 
   /**
@@ -1265,6 +1383,26 @@ export class StrategyConnectionService implements TStrategy {
     });
     const strategy = this.getStrategy(symbol, context.strategyName, context.exchangeName, context.frameName, backtest);
     return await strategy.activateScheduled(symbol, backtest, activateId);
+  };
+
+  /**
+   * Checks whether `averageBuy` would succeed without executing it.
+   * Delegates to `ClientStrategy.validateAverageBuy()` — no throws, pure boolean result.
+   *
+   * @param backtest - Whether running in backtest mode
+   * @param symbol - Trading pair symbol
+   * @param currentPrice - New entry price to validate
+   * @param context - Execution context with strategyName, exchangeName, frameName
+   * @returns Promise<boolean> - true if `averageBuy` would execute, false otherwise
+   */
+  public validateAverageBuy = (
+    backtest: boolean,
+    symbol: string,
+    currentPrice: number,
+    context: { strategyName: StrategyName; exchangeName: ExchangeName; frameName: FrameName },
+  ): Promise<boolean> => {
+    const strategy = this.getStrategy(symbol, context.strategyName, context.exchangeName, context.frameName, backtest);
+    return Promise.resolve(strategy.validateAverageBuy(symbol, currentPrice));
   };
 
   /**
