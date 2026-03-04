@@ -956,9 +956,10 @@ Broker.useBrokerAdapter(
       const qty      = truncateQty(exchange, symbol, await fetchContractsQty(exchange, symbol, position));
       const exitSide = position === "long" ? "sell" : "buy";
 
-      // Position already closed by SL/TP on exchange — nothing to do, commit succeeds
+      // Position already closed by SL/TP on exchange — throw so backtest-kit can reconcile
+      // the close price via its own mechanism rather than assuming a successful manual close
       if (qty === 0) {
-        return;
+        throw new Error(`SignalClose skipped: no open position for ${symbol} on exchange — SL/TP may have already been filled`);
       }
 
       const closePrice = parseFloat(exchange.priceToPrecision(symbol, currentPrice));
@@ -1083,9 +1084,11 @@ Broker.useBrokerAdapter(
         throw new Error(`TrailingStop skipped: no open position for ${symbol} on exchange — SL/TP may have already been filled`);
       }
 
-      const slPrice = parseFloat(exchange.priceToPrecision(symbol, newStopLossPrice));
+      const slPrice      = parseFloat(exchange.priceToPrecision(symbol, newStopLossPrice));
+      const positionSide = toPositionSide(position);
 
-      await exchange.createOrder(symbol, "stop_market", exitSide, qty, undefined, { stopPrice: slPrice, reduceOnly: true });
+      // positionSide required in hedge mode (-4061 without it); ignored in one-way mode
+      await exchange.createOrder(symbol, "stop_market", exitSide, qty, undefined, { stopPrice: slPrice, reduceOnly: true, positionSide });
     }
 
     async onTrailingTakeCommit(payload: BrokerTrailingTakePayload): Promise<void> {
@@ -1111,9 +1114,11 @@ Broker.useBrokerAdapter(
         throw new Error(`TrailingTake skipped: no open position for ${symbol} on exchange — SL/TP may have already been filled`);
       }
 
-      const tpPrice = parseFloat(exchange.priceToPrecision(symbol, newTakeProfitPrice));
+      const tpPrice      = parseFloat(exchange.priceToPrecision(symbol, newTakeProfitPrice));
+      const positionSide = toPositionSide(position);
 
-      await exchange.createOrder(symbol, "limit", exitSide, qty, tpPrice, { reduceOnly: true });
+      // positionSide required in hedge mode (-4061 without it); ignored in one-way mode
+      await exchange.createOrder(symbol, "limit", exitSide, qty, tpPrice, { reduceOnly: true, positionSide });
     }
 
     async onBreakevenCommit(payload: BrokerBreakevenPayload): Promise<void> {
@@ -1139,9 +1144,11 @@ Broker.useBrokerAdapter(
         throw new Error(`Breakeven skipped: no open position for ${symbol} on exchange — SL/TP may have already been filled`);
       }
 
-      const slPrice = parseFloat(exchange.priceToPrecision(symbol, newStopLossPrice));
+      const slPrice      = parseFloat(exchange.priceToPrecision(symbol, newStopLossPrice));
+      const positionSide = toPositionSide(position);
 
-      await exchange.createOrder(symbol, "stop_market", exitSide, qty, undefined, { stopPrice: slPrice, reduceOnly: true });
+      // positionSide required in hedge mode (-4061 without it); ignored in one-way mode
+      await exchange.createOrder(symbol, "stop_market", exitSide, qty, undefined, { stopPrice: slPrice, reduceOnly: true, positionSide });
     }
 
     async onAverageBuyCommit(payload: BrokerAverageBuyPayload): Promise<void> {
