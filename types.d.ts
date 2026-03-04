@@ -18211,106 +18211,318 @@ declare class ActionBase implements IPublicAction {
     dispose(source?: string): void | Promise<void>;
 }
 
+/**
+ * Payload for the signal-open broker event.
+ *
+ * Emitted automatically via syncSubject when a new pending signal is activated.
+ * Forwarded to the registered IBroker adapter via `onSignalOpenCommit`.
+ *
+ * @example
+ * ```typescript
+ * const payload: BrokerSignalOpenPayload = {
+ *   symbol: "BTCUSDT",
+ *   cost: 100,
+ *   position: "long",
+ *   priceOpen: 50000,
+ *   priceTakeProfit: 55000,
+ *   priceStopLoss: 48000,
+ *   context: { strategyName: "my-strategy", exchangeName: "binance", frameName: "1h" },
+ *   backtest: false,
+ * };
+ * ```
+ */
 type BrokerSignalOpenPayload = {
+    /** Trading pair symbol, e.g. "BTCUSDT" */
     symbol: string;
+    /** Dollar cost of the position entry (CC_POSITION_ENTRY_COST) */
     cost: number;
+    /** Position direction */
     position: "long" | "short";
+    /** Activation price — the price at which the signal became active */
     priceOpen: number;
+    /** Original take-profit price from the signal */
     priceTakeProfit: number;
+    /** Original stop-loss price from the signal */
     priceStopLoss: number;
+    /** Strategy/exchange/frame routing context */
     context: {
         strategyName: StrategyName;
         exchangeName: ExchangeName;
         frameName?: FrameName;
     };
+    /** true when called during a backtest run — adapter should skip exchange calls */
     backtest: boolean;
 };
+/**
+ * Payload for the signal-close broker event.
+ *
+ * Emitted automatically via syncSubject when a pending signal is closed (SL/TP hit or manual close).
+ * Forwarded to the registered IBroker adapter via `onSignalCloseCommit`.
+ *
+ * @example
+ * ```typescript
+ * const payload: BrokerSignalClosePayload = {
+ *   symbol: "BTCUSDT",
+ *   cost: 100,
+ *   position: "long",
+ *   currentPrice: 54000,
+ *   priceTakeProfit: 55000,
+ *   priceStopLoss: 48000,
+ *   totalEntries: 2,
+ *   totalPartials: 1,
+ *   pnl: { profit: 80, loss: 0, volume: 100 },
+ *   context: { strategyName: "my-strategy", exchangeName: "binance", frameName: "1h" },
+ *   backtest: false,
+ * };
+ * ```
+ */
 type BrokerSignalClosePayload = {
+    /** Trading pair symbol, e.g. "BTCUSDT" */
     symbol: string;
+    /** Total dollar cost basis of the position at close */
     cost: number;
+    /** Position direction */
     position: "long" | "short";
+    /** Market price at the moment of close */
     currentPrice: number;
+    /** Original take-profit price from the signal */
     priceTakeProfit: number;
+    /** Original stop-loss price from the signal */
     priceStopLoss: number;
+    /** Total number of DCA entries (including initial open) */
     totalEntries: number;
+    /** Total number of partial closes executed before final close */
     totalPartials: number;
+    /** Realized PnL breakdown for the closed position */
     pnl: IStrategyPnL;
+    /** Strategy/exchange/frame routing context */
     context: {
         strategyName: StrategyName;
         exchangeName: ExchangeName;
         frameName?: FrameName;
     };
+    /** true when called during a backtest run — adapter should skip exchange calls */
     backtest: boolean;
 };
+/**
+ * Payload for a partial-profit close broker event.
+ *
+ * Forwarded to the registered IBroker adapter via `onPartialProfitCommit`.
+ * Called explicitly after all validations pass, before `strategyCoreService.partialProfit()`.
+ *
+ * @example
+ * ```typescript
+ * const payload: BrokerPartialProfitPayload = {
+ *   symbol: "BTCUSDT",
+ *   percentToClose: 30,
+ *   cost: 30,
+ *   currentPrice: 52000,
+ *   context: { strategyName: "my-strategy", exchangeName: "binance", frameName: "1h" },
+ *   backtest: false,
+ * };
+ * ```
+ */
 type BrokerPartialProfitPayload = {
+    /** Trading pair symbol, e.g. "BTCUSDT" */
     symbol: string;
+    /** Percentage of the position to close (0–100) */
     percentToClose: number;
+    /** Dollar value of the portion being closed */
     cost: number;
+    /** Current market price at which the partial close executes */
     currentPrice: number;
+    /** Strategy/exchange/frame routing context */
     context: {
         strategyName: StrategyName;
         exchangeName: ExchangeName;
         frameName?: FrameName;
     };
+    /** true when called during a backtest run — adapter should skip exchange calls */
     backtest: boolean;
 };
+/**
+ * Payload for a partial-loss close broker event.
+ *
+ * Forwarded to the registered IBroker adapter via `onPartialLossCommit`.
+ * Called explicitly after all validations pass, before `strategyCoreService.partialLoss()`.
+ *
+ * @example
+ * ```typescript
+ * const payload: BrokerPartialLossPayload = {
+ *   symbol: "BTCUSDT",
+ *   percentToClose: 40,
+ *   cost: 40,
+ *   currentPrice: 48500,
+ *   context: { strategyName: "my-strategy", exchangeName: "binance", frameName: "1h" },
+ *   backtest: false,
+ * };
+ * ```
+ */
 type BrokerPartialLossPayload = {
+    /** Trading pair symbol, e.g. "BTCUSDT" */
     symbol: string;
+    /** Percentage of the position to close (0–100) */
     percentToClose: number;
+    /** Dollar value of the portion being closed */
     cost: number;
+    /** Current market price at which the partial close executes */
     currentPrice: number;
+    /** Strategy/exchange/frame routing context */
     context: {
         strategyName: StrategyName;
         exchangeName: ExchangeName;
         frameName?: FrameName;
     };
+    /** true when called during a backtest run — adapter should skip exchange calls */
     backtest: boolean;
 };
+/**
+ * Payload for a trailing stop-loss update broker event.
+ *
+ * Forwarded to the registered IBroker adapter via `onTrailingStopCommit`.
+ * Called explicitly after all validations pass, before `strategyCoreService.trailingStop()`.
+ * `newStopLossPrice` is the absolute SL price computed from percentShift + original SL + effectivePriceOpen.
+ *
+ * @example
+ * ```typescript
+ * // LONG: entry=100, originalSL=90, percentShift=-5 → newSL=95
+ * const payload: BrokerTrailingStopPayload = {
+ *   symbol: "BTCUSDT",
+ *   percentShift: -5,
+ *   currentPrice: 102,
+ *   newStopLossPrice: 95,
+ *   context: { strategyName: "my-strategy", exchangeName: "binance", frameName: "1h" },
+ *   backtest: false,
+ * };
+ * ```
+ */
 type BrokerTrailingStopPayload = {
+    /** Trading pair symbol, e.g. "BTCUSDT" */
     symbol: string;
+    /** Percentage shift applied to the ORIGINAL SL distance (-100 to 100) */
     percentShift: number;
+    /** Current market price used for intrusion validation */
     currentPrice: number;
+    /** Absolute stop-loss price after applying percentShift */
     newStopLossPrice: number;
+    /** Strategy/exchange/frame routing context */
     context: {
         strategyName: StrategyName;
         exchangeName: ExchangeName;
         frameName?: FrameName;
     };
+    /** true when called during a backtest run — adapter should skip exchange calls */
     backtest: boolean;
 };
+/**
+ * Payload for a trailing take-profit update broker event.
+ *
+ * Forwarded to the registered IBroker adapter via `onTrailingTakeCommit`.
+ * Called explicitly after all validations pass, before `strategyCoreService.trailingTake()`.
+ * `newTakeProfitPrice` is the absolute TP price computed from percentShift + original TP + effectivePriceOpen.
+ *
+ * @example
+ * ```typescript
+ * // LONG: entry=100, originalTP=110, percentShift=-3 → newTP=107
+ * const payload: BrokerTrailingTakePayload = {
+ *   symbol: "BTCUSDT",
+ *   percentShift: -3,
+ *   currentPrice: 102,
+ *   newTakeProfitPrice: 107,
+ *   context: { strategyName: "my-strategy", exchangeName: "binance", frameName: "1h" },
+ *   backtest: false,
+ * };
+ * ```
+ */
 type BrokerTrailingTakePayload = {
+    /** Trading pair symbol, e.g. "BTCUSDT" */
     symbol: string;
+    /** Percentage shift applied to the ORIGINAL TP distance (-100 to 100) */
     percentShift: number;
+    /** Current market price used for intrusion validation */
     currentPrice: number;
+    /** Absolute take-profit price after applying percentShift */
     newTakeProfitPrice: number;
+    /** Strategy/exchange/frame routing context */
     context: {
         strategyName: StrategyName;
         exchangeName: ExchangeName;
         frameName?: FrameName;
     };
+    /** true when called during a backtest run — adapter should skip exchange calls */
     backtest: boolean;
 };
+/**
+ * Payload for a breakeven operation broker event.
+ *
+ * Forwarded to the registered IBroker adapter via `onBreakevenCommit`.
+ * Called explicitly after all validations pass, before `strategyCoreService.breakeven()`.
+ * `newStopLossPrice` equals `effectivePriceOpen` (entry price).
+ * `newTakeProfitPrice` equals `_trailingPriceTakeProfit ?? priceTakeProfit` (TP is unchanged).
+ *
+ * @example
+ * ```typescript
+ * // LONG: entry=100, currentPrice=100.5, newSL=100 (entry), newTP=110 (unchanged)
+ * const payload: BrokerBreakevenPayload = {
+ *   symbol: "BTCUSDT",
+ *   currentPrice: 100.5,
+ *   newStopLossPrice: 100,
+ *   newTakeProfitPrice: 110,
+ *   context: { strategyName: "my-strategy", exchangeName: "binance", frameName: "1h" },
+ *   backtest: false,
+ * };
+ * ```
+ */
 type BrokerBreakevenPayload = {
+    /** Trading pair symbol, e.g. "BTCUSDT" */
     symbol: string;
+    /** Current market price at the moment breakeven is triggered */
     currentPrice: number;
+    /** New stop-loss price = effectivePriceOpen (the position's effective entry price) */
     newStopLossPrice: number;
+    /** Effective take-profit price = _trailingPriceTakeProfit ?? priceTakeProfit (unchanged by breakeven) */
     newTakeProfitPrice: number;
+    /** Strategy/exchange/frame routing context */
     context: {
         strategyName: StrategyName;
         exchangeName: ExchangeName;
         frameName?: FrameName;
     };
+    /** true when called during a backtest run — adapter should skip exchange calls */
     backtest: boolean;
 };
+/**
+ * Payload for a DCA average-buy entry broker event.
+ *
+ * Forwarded to the registered IBroker adapter via `onAverageBuyCommit`.
+ * Called explicitly after all validations pass, before `strategyCoreService.averageBuy()`.
+ * `currentPrice` is the market price at which the new DCA entry is added.
+ *
+ * @example
+ * ```typescript
+ * const payload: BrokerAverageBuyPayload = {
+ *   symbol: "BTCUSDT",
+ *   currentPrice: 42000,
+ *   cost: 100,
+ *   context: { strategyName: "my-strategy", exchangeName: "binance", frameName: "1h" },
+ *   backtest: false,
+ * };
+ * ```
+ */
 type BrokerAverageBuyPayload = {
+    /** Trading pair symbol, e.g. "BTCUSDT" */
     symbol: string;
+    /** Market price at which the DCA entry is placed */
     currentPrice: number;
+    /** Dollar amount of the new DCA entry (default: CC_POSITION_ENTRY_COST) */
     cost: number;
+    /** Strategy/exchange/frame routing context */
     context: {
         strategyName: StrategyName;
         exchangeName: ExchangeName;
         frameName?: FrameName;
     };
+    /** true when called during a backtest run — adapter should skip exchange calls */
     backtest: boolean;
 };
 interface IBroker {
@@ -18325,20 +18537,590 @@ interface IBroker {
     onAverageBuyCommit(payload: BrokerAverageBuyPayload): Promise<void>;
 }
 type TBrokerCtor = new () => Partial<IBroker>;
+/**
+ * Facade for broker integration — intercepts all commit* operations before DI-core mutations.
+ *
+ * Acts as a transaction control point: if any commit* method throws, the DI-core mutation
+ * is never reached and the state remains unchanged.
+ *
+ * In backtest mode all commit* calls are silently skipped (payload.backtest === true).
+ * In live mode the call is forwarded to the registered IBroker adapter via BrokerProxy.
+ *
+ * signal-open and signal-close events are routed automatically via syncSubject subscription
+ * (activated on `enable()`). All other commit* methods are called explicitly from
+ * Live.ts / Backtest.ts / strategy.ts before the corresponding strategyCoreService call.
+ *
+ * @example
+ * ```typescript
+ * import { Broker } from "backtest-kit";
+ *
+ * // Register a custom broker adapter
+ * Broker.useBrokerAdapter(MyBrokerAdapter);
+ *
+ * // Activate syncSubject subscription (signal-open / signal-close routing)
+ * const dispose = Broker.enable();
+ *
+ * // ... run strategy ...
+ *
+ * // Deactivate when done
+ * Broker.disable();
+ * ```
+ */
 declare class BrokerAdapter {
     private _brokerInstance;
+    /**
+     * Forwards a signal-open event to the registered broker adapter.
+     *
+     * Called automatically via syncSubject when `enable()` is active.
+     * Skipped silently in backtest mode or when no adapter is registered.
+     *
+     * @param payload - Signal open details: symbol, cost, position, prices, context, backtest flag
+     *
+     * @example
+     * ```typescript
+     * await Broker.commitSignalOpen({
+     *   symbol: "BTCUSDT",
+     *   cost: 100,
+     *   position: "long",
+     *   priceOpen: 50000,
+     *   priceTakeProfit: 55000,
+     *   priceStopLoss: 48000,
+     *   context: { strategyName: "my-strategy", exchangeName: "binance", frameName: "1h" },
+     *   backtest: false,
+     * });
+     * ```
+     */
     commitSignalOpen: (payload: BrokerSignalOpenPayload) => Promise<void>;
+    /**
+     * Forwards a signal-close event to the registered broker adapter.
+     *
+     * Called automatically via syncSubject when `enable()` is active.
+     * Skipped silently in backtest mode or when no adapter is registered.
+     *
+     * @param payload - Signal close details: symbol, cost, position, currentPrice, pnl, context, backtest flag
+     *
+     * @example
+     * ```typescript
+     * await Broker.commitSignalClose({
+     *   symbol: "BTCUSDT",
+     *   cost: 100,
+     *   position: "long",
+     *   currentPrice: 54000,
+     *   priceTakeProfit: 55000,
+     *   priceStopLoss: 48000,
+     *   totalEntries: 2,
+     *   totalPartials: 1,
+     *   pnl: { profit: 80, loss: 0, volume: 100 },
+     *   context: { strategyName: "my-strategy", exchangeName: "binance", frameName: "1h" },
+     *   backtest: false,
+     * });
+     * ```
+     */
     commitSignalClose: (payload: BrokerSignalClosePayload) => Promise<void>;
+    /**
+     * Intercepts a partial-profit close before DI-core mutation.
+     *
+     * Called explicitly from Live.ts / Backtest.ts / strategy.ts after all validations pass,
+     * but before `strategyCoreService.partialProfit()`. If this method throws, the DI mutation
+     * is skipped and state remains unchanged.
+     *
+     * Skipped silently in backtest mode or when no adapter is registered.
+     *
+     * @param payload - Partial profit details: symbol, percentToClose, cost (dollar value), currentPrice, context, backtest flag
+     *
+     * @example
+     * ```typescript
+     * await Broker.commitPartialProfit({
+     *   symbol: "BTCUSDT",
+     *   percentToClose: 30,
+     *   cost: 30,
+     *   currentPrice: 52000,
+     *   context: { strategyName: "my-strategy", exchangeName: "binance", frameName: "1h" },
+     *   backtest: false,
+     * });
+     * ```
+     */
     commitPartialProfit: (payload: BrokerPartialProfitPayload) => Promise<void>;
+    /**
+     * Intercepts a partial-loss close before DI-core mutation.
+     *
+     * Called explicitly from Live.ts / Backtest.ts / strategy.ts after all validations pass,
+     * but before `strategyCoreService.partialLoss()`. If this method throws, the DI mutation
+     * is skipped and state remains unchanged.
+     *
+     * Skipped silently in backtest mode or when no adapter is registered.
+     *
+     * @param payload - Partial loss details: symbol, percentToClose, cost (dollar value), currentPrice, context, backtest flag
+     *
+     * @example
+     * ```typescript
+     * await Broker.commitPartialLoss({
+     *   symbol: "BTCUSDT",
+     *   percentToClose: 40,
+     *   cost: 40,
+     *   currentPrice: 48500,
+     *   context: { strategyName: "my-strategy", exchangeName: "binance", frameName: "1h" },
+     *   backtest: false,
+     * });
+     * ```
+     */
     commitPartialLoss: (payload: BrokerPartialLossPayload) => Promise<void>;
+    /**
+     * Intercepts a trailing stop-loss update before DI-core mutation.
+     *
+     * Called explicitly after all validations pass, but before `strategyCoreService.trailingStop()`.
+     * `newStopLossPrice` is the absolute price computed from percentShift + original SL + effectivePriceOpen.
+     *
+     * Skipped silently in backtest mode or when no adapter is registered.
+     *
+     * @param payload - Trailing stop details: symbol, percentShift, currentPrice, newStopLossPrice, context, backtest flag
+     *
+     * @example
+     * ```typescript
+     * // LONG: entry=100, originalSL=90, percentShift=-5 → newSL=95
+     * await Broker.commitTrailingStop({
+     *   symbol: "BTCUSDT",
+     *   percentShift: -5,
+     *   currentPrice: 102,
+     *   newStopLossPrice: 95,
+     *   context: { strategyName: "my-strategy", exchangeName: "binance", frameName: "1h" },
+     *   backtest: false,
+     * });
+     * ```
+     */
     commitTrailingStop: (payload: BrokerTrailingStopPayload) => Promise<void>;
+    /**
+     * Intercepts a trailing take-profit update before DI-core mutation.
+     *
+     * Called explicitly after all validations pass, but before `strategyCoreService.trailingTake()`.
+     * `newTakeProfitPrice` is the absolute price computed from percentShift + original TP + effectivePriceOpen.
+     *
+     * Skipped silently in backtest mode or when no adapter is registered.
+     *
+     * @param payload - Trailing take details: symbol, percentShift, currentPrice, newTakeProfitPrice, context, backtest flag
+     *
+     * @example
+     * ```typescript
+     * // LONG: entry=100, originalTP=110, percentShift=-3 → newTP=107
+     * await Broker.commitTrailingTake({
+     *   symbol: "BTCUSDT",
+     *   percentShift: -3,
+     *   currentPrice: 102,
+     *   newTakeProfitPrice: 107,
+     *   context: { strategyName: "my-strategy", exchangeName: "binance", frameName: "1h" },
+     *   backtest: false,
+     * });
+     * ```
+     */
     commitTrailingTake: (payload: BrokerTrailingTakePayload) => Promise<void>;
+    /**
+     * Intercepts a breakeven operation before DI-core mutation.
+     *
+     * Called explicitly after all validations pass, but before `strategyCoreService.breakeven()`.
+     * `newStopLossPrice` equals effectivePriceOpen (entry price).
+     * `newTakeProfitPrice` equals `_trailingPriceTakeProfit ?? priceTakeProfit` (TP is unchanged by breakeven).
+     *
+     * Skipped silently in backtest mode or when no adapter is registered.
+     *
+     * @param payload - Breakeven details: symbol, currentPrice, newStopLossPrice, newTakeProfitPrice, context, backtest flag
+     *
+     * @example
+     * ```typescript
+     * // LONG: entry=100, currentPrice=100.5, newSL=100 (entry), newTP=110 (unchanged)
+     * await Broker.commitBreakeven({
+     *   symbol: "BTCUSDT",
+     *   currentPrice: 100.5,
+     *   newStopLossPrice: 100,
+     *   newTakeProfitPrice: 110,
+     *   context: { strategyName: "my-strategy", exchangeName: "binance", frameName: "1h" },
+     *   backtest: false,
+     * });
+     * ```
+     */
     commitBreakeven: (payload: BrokerBreakevenPayload) => Promise<void>;
+    /**
+     * Intercepts a DCA average-buy entry before DI-core mutation.
+     *
+     * Called explicitly after all validations pass, but before `strategyCoreService.averageBuy()`.
+     * `currentPrice` is the market price at which the new DCA entry is added.
+     * `cost` is the dollar amount of the new entry (default: CC_POSITION_ENTRY_COST).
+     *
+     * Skipped silently in backtest mode or when no adapter is registered.
+     *
+     * @param payload - Average buy details: symbol, currentPrice, cost, context, backtest flag
+     *
+     * @example
+     * ```typescript
+     * // Add DCA entry at current market price
+     * await Broker.commitAverageBuy({
+     *   symbol: "BTCUSDT",
+     *   currentPrice: 42000,
+     *   cost: 100,
+     *   context: { strategyName: "my-strategy", exchangeName: "binance", frameName: "1h" },
+     *   backtest: false,
+     * });
+     * ```
+     */
     commitAverageBuy: (payload: BrokerAverageBuyPayload) => Promise<void>;
+    /**
+     * Registers a broker adapter instance or constructor to receive commit* callbacks.
+     *
+     * Must be called before `enable()`. Accepts either a class constructor (called with `new`)
+     * or an already-instantiated object implementing `Partial<IBroker>`.
+     *
+     * @param broker - IBroker constructor or instance
+     *
+     * @example
+     * ```typescript
+     * import { Broker } from "backtest-kit";
+     *
+     * // Register via constructor
+     * Broker.useBrokerAdapter(MyBrokerAdapter);
+     *
+     * // Register via instance
+     * Broker.useBrokerAdapter(new MyBrokerAdapter());
+     * ```
+     */
     useBrokerAdapter: (broker: TBrokerCtor | Partial<IBroker>) => void;
+    /**
+     * Activates the broker: subscribes to syncSubject for signal-open / signal-close routing.
+     *
+     * Must be called after `useBrokerAdapter()`. Returns a dispose function that unsubscribes
+     * from syncSubject (equivalent to calling `disable()`).
+     *
+     * Calling `enable()` without a registered adapter throws immediately.
+     * Calling `enable()` more than once is idempotent (singleshot guard).
+     *
+     * @returns Dispose function — call it to deactivate the broker subscription
+     *
+     * @example
+     * ```typescript
+     * import { Broker } from "backtest-kit";
+     *
+     * Broker.useBrokerAdapter(MyBrokerAdapter);
+     * const dispose = Broker.enable();
+     *
+     * // ... run backtest or live session ...
+     *
+     * dispose(); // or Broker.disable()
+     * ```
+     */
     enable: (() => () => void) & functools_kit.ISingleshotClearable;
+    /**
+     * Deactivates the broker: unsubscribes from syncSubject and resets the singleshot guard.
+     *
+     * Idempotent — safe to call even if `enable()` was never called.
+     * After `disable()`, `enable()` can be called again to reactivate.
+     *
+     * @example
+     * ```typescript
+     * import { Broker } from "backtest-kit";
+     *
+     * Broker.useBrokerAdapter(MyBrokerAdapter);
+     * Broker.enable();
+     *
+     * // Stop receiving events
+     * Broker.disable();
+     * ```
+     */
     disable: () => void;
 }
+/**
+ * Base class for custom broker adapter implementations.
+ *
+ * Provides default no-op implementations for all IBroker methods that log events.
+ * Extend this class to implement a real exchange adapter for:
+ * - Placing and canceling limit/market orders
+ * - Updating stop-loss and take-profit levels on exchange
+ * - Tracking position state in an external system
+ * - Sending trade notifications (Telegram, Discord, Email)
+ * - Recording trades to a database or analytics service
+ *
+ * Key features:
+ * - All methods have default implementations (no need to override unused methods)
+ * - Automatic logging of all events via bt.loggerService
+ * - Implements the full IBroker interface
+ * - `makeExtendable` applied for correct subclass instantiation
+ *
+ * Lifecycle:
+ * 1. Constructor called (no arguments)
+ * 2. `waitForInit()` called once for async initialization (e.g. exchange login)
+ * 3. Event methods called as strategy executes
+ * 4. No explicit dispose — clean up in `waitForInit` teardown or externally
+ *
+ * Event flow (called only in live mode, skipped in backtest):
+ * - `onSignalOpenCommit` — new position opened
+ * - `onSignalCloseCommit` — position closed (SL/TP hit or manual close)
+ * - `onPartialProfitCommit` — partial close at profit executed
+ * - `onPartialLossCommit` — partial close at loss executed
+ * - `onTrailingStopCommit` — trailing stop-loss updated
+ * - `onTrailingTakeCommit` — trailing take-profit updated
+ * - `onBreakevenCommit` — stop-loss moved to entry price
+ * - `onAverageBuyCommit` — new DCA entry added to position
+ *
+ * @example
+ * ```typescript
+ * import { BrokerBase, Broker } from "backtest-kit";
+ *
+ * // Extend BrokerBase and override only needed methods
+ * class BinanceBroker extends BrokerBase {
+ *   private client: BinanceClient | null = null;
+ *
+ *   async waitForInit() {
+ *     super.waitForInit(); // Call parent for logging
+ *     this.client = new BinanceClient(process.env.API_KEY, process.env.SECRET);
+ *     await this.client.connect();
+ *   }
+ *
+ *   async onSignalOpenCommit(payload: BrokerSignalOpenPayload) {
+ *     super.onSignalOpenCommit(payload); // Call parent for logging
+ *     await this.client!.placeOrder({
+ *       symbol: payload.symbol,
+ *       side: payload.position === "long" ? "BUY" : "SELL",
+ *       quantity: payload.cost / payload.priceOpen,
+ *     });
+ *   }
+ *
+ *   async onSignalCloseCommit(payload: BrokerSignalClosePayload) {
+ *     super.onSignalCloseCommit(payload); // Call parent for logging
+ *     await this.client!.closePosition(payload.symbol);
+ *   }
+ * }
+ *
+ * // Register the adapter
+ * Broker.useBrokerAdapter(BinanceBroker);
+ * Broker.enable();
+ * ```
+ *
+ * @example
+ * ```typescript
+ * // Minimal implementation — only handle opens and closes
+ * class NotifyBroker extends BrokerBase {
+ *   async onSignalOpenCommit(payload: BrokerSignalOpenPayload) {
+ *     await sendTelegram(`Opened ${payload.position} on ${payload.symbol}`);
+ *   }
+ *
+ *   async onSignalCloseCommit(payload: BrokerSignalClosePayload) {
+ *     const pnl = payload.pnl.profit - payload.pnl.loss;
+ *     await sendTelegram(`Closed ${payload.symbol}: PnL $${pnl.toFixed(2)}`);
+ *   }
+ * }
+ * ```
+ */
+declare class BrokerBase implements IBroker {
+    /**
+     * Performs async initialization before the broker starts receiving events.
+     *
+     * Called once by BrokerProxy via `waitForInit()` (singleshot) before the first event.
+     * Override to establish exchange connections, authenticate API clients, load configuration.
+     *
+     * Default implementation: Logs initialization event.
+     *
+     * @example
+     * ```typescript
+     * async waitForInit() {
+     *   super.waitForInit(); // Keep parent logging
+     *   this.exchange = new ExchangeClient(process.env.API_KEY);
+     *   await this.exchange.authenticate();
+     * }
+     * ```
+     */
+    waitForInit(): Promise<void>;
+    /**
+     * Called when a new position is opened (signal activated).
+     *
+     * Triggered automatically via syncSubject when a scheduled signal's priceOpen is hit.
+     * Use to place the actual entry order on the exchange.
+     *
+     * Default implementation: Logs signal-open event.
+     *
+     * @param payload - Signal open details: symbol, cost, position, priceOpen, priceTakeProfit, priceStopLoss, context, backtest
+     *
+     * @example
+     * ```typescript
+     * async onSignalOpenCommit(payload: BrokerSignalOpenPayload) {
+     *   super.onSignalOpenCommit(payload); // Keep parent logging
+     *   await this.exchange.placeMarketOrder({
+     *     symbol: payload.symbol,
+     *     side: payload.position === "long" ? "BUY" : "SELL",
+     *     quantity: payload.cost / payload.priceOpen,
+     *   });
+     * }
+     * ```
+     */
+    onSignalOpenCommit(payload: BrokerSignalOpenPayload): Promise<void>;
+    /**
+     * Called when a position is fully closed (SL/TP hit or manual close).
+     *
+     * Triggered automatically via syncSubject when a pending signal is closed.
+     * Use to place the exit order and record final PnL.
+     *
+     * Default implementation: Logs signal-close event.
+     *
+     * @param payload - Signal close details: symbol, cost, position, currentPrice, pnl, totalEntries, totalPartials, context, backtest
+     *
+     * @example
+     * ```typescript
+     * async onSignalCloseCommit(payload: BrokerSignalClosePayload) {
+     *   super.onSignalCloseCommit(payload); // Keep parent logging
+     *   await this.exchange.closePosition(payload.symbol);
+     *   await this.db.recordTrade({ symbol: payload.symbol, pnl: payload.pnl });
+     * }
+     * ```
+     */
+    onSignalCloseCommit(payload: BrokerSignalClosePayload): Promise<void>;
+    /**
+     * Called when a partial close at profit is executed.
+     *
+     * Triggered explicitly from strategy.ts / Live.ts / Backtest.ts after all validations pass,
+     * before `strategyCoreService.partialProfit()`. If this method throws, the DI mutation is skipped.
+     * Use to partially close the position on the exchange at the profit level.
+     *
+     * Default implementation: Logs partial profit event.
+     *
+     * @param payload - Partial profit details: symbol, percentToClose, cost (dollar value), currentPrice, context, backtest
+     *
+     * @example
+     * ```typescript
+     * async onPartialProfitCommit(payload: BrokerPartialProfitPayload) {
+     *   super.onPartialProfitCommit(payload); // Keep parent logging
+     *   await this.exchange.reducePosition({
+     *     symbol: payload.symbol,
+     *     dollarAmount: payload.cost,
+     *     price: payload.currentPrice,
+     *   });
+     * }
+     * ```
+     */
+    onPartialProfitCommit(payload: BrokerPartialProfitPayload): Promise<void>;
+    /**
+     * Called when a partial close at loss is executed.
+     *
+     * Triggered explicitly from strategy.ts / Live.ts / Backtest.ts after all validations pass,
+     * before `strategyCoreService.partialLoss()`. If this method throws, the DI mutation is skipped.
+     * Use to partially close the position on the exchange at the loss level.
+     *
+     * Default implementation: Logs partial loss event.
+     *
+     * @param payload - Partial loss details: symbol, percentToClose, cost (dollar value), currentPrice, context, backtest
+     *
+     * @example
+     * ```typescript
+     * async onPartialLossCommit(payload: BrokerPartialLossPayload) {
+     *   super.onPartialLossCommit(payload); // Keep parent logging
+     *   await this.exchange.reducePosition({
+     *     symbol: payload.symbol,
+     *     dollarAmount: payload.cost,
+     *     price: payload.currentPrice,
+     *   });
+     * }
+     * ```
+     */
+    onPartialLossCommit(payload: BrokerPartialLossPayload): Promise<void>;
+    /**
+     * Called when the trailing stop-loss level is updated.
+     *
+     * Triggered explicitly after all validations pass, before `strategyCoreService.trailingStop()`.
+     * `newStopLossPrice` is the absolute SL price — use it to update the exchange order directly.
+     *
+     * Default implementation: Logs trailing stop event.
+     *
+     * @param payload - Trailing stop details: symbol, percentShift, currentPrice, newStopLossPrice, context, backtest
+     *
+     * @example
+     * ```typescript
+     * async onTrailingStopCommit(payload: BrokerTrailingStopPayload) {
+     *   super.onTrailingStopCommit(payload); // Keep parent logging
+     *   await this.exchange.updateStopLoss({
+     *     symbol: payload.symbol,
+     *     price: payload.newStopLossPrice,
+     *   });
+     * }
+     * ```
+     */
+    onTrailingStopCommit(payload: BrokerTrailingStopPayload): Promise<void>;
+    /**
+     * Called when the trailing take-profit level is updated.
+     *
+     * Triggered explicitly after all validations pass, before `strategyCoreService.trailingTake()`.
+     * `newTakeProfitPrice` is the absolute TP price — use it to update the exchange order directly.
+     *
+     * Default implementation: Logs trailing take event.
+     *
+     * @param payload - Trailing take details: symbol, percentShift, currentPrice, newTakeProfitPrice, context, backtest
+     *
+     * @example
+     * ```typescript
+     * async onTrailingTakeCommit(payload: BrokerTrailingTakePayload) {
+     *   super.onTrailingTakeCommit(payload); // Keep parent logging
+     *   await this.exchange.updateTakeProfit({
+     *     symbol: payload.symbol,
+     *     price: payload.newTakeProfitPrice,
+     *   });
+     * }
+     * ```
+     */
+    onTrailingTakeCommit(payload: BrokerTrailingTakePayload): Promise<void>;
+    /**
+     * Called when the stop-loss is moved to breakeven (entry price).
+     *
+     * Triggered explicitly after all validations pass, before `strategyCoreService.breakeven()`.
+     * `newStopLossPrice` equals `effectivePriceOpen` — the position's effective entry price.
+     * `newTakeProfitPrice` is unchanged by breakeven.
+     *
+     * Default implementation: Logs breakeven event.
+     *
+     * @param payload - Breakeven details: symbol, currentPrice, newStopLossPrice, newTakeProfitPrice, context, backtest
+     *
+     * @example
+     * ```typescript
+     * async onBreakevenCommit(payload: BrokerBreakevenPayload) {
+     *   super.onBreakevenCommit(payload); // Keep parent logging
+     *   await this.exchange.updateStopLoss({
+     *     symbol: payload.symbol,
+     *     price: payload.newStopLossPrice, // = entry price
+     *   });
+     * }
+     * ```
+     */
+    onBreakevenCommit(payload: BrokerBreakevenPayload): Promise<void>;
+    /**
+     * Called when a new DCA entry is added to the active position.
+     *
+     * Triggered explicitly after all validations pass, before `strategyCoreService.averageBuy()`.
+     * `currentPrice` is the market price at which the new averaging entry is placed.
+     * `cost` is the dollar amount of the new DCA entry.
+     *
+     * Default implementation: Logs average buy event.
+     *
+     * @param payload - Average buy details: symbol, currentPrice, cost, context, backtest
+     *
+     * @example
+     * ```typescript
+     * async onAverageBuyCommit(payload: BrokerAverageBuyPayload) {
+     *   super.onAverageBuyCommit(payload); // Keep parent logging
+     *   await this.exchange.placeMarketOrder({
+     *     symbol: payload.symbol,
+     *     side: "BUY",
+     *     quantity: payload.cost / payload.currentPrice,
+     *   });
+     * }
+     * ```
+     */
+    onAverageBuyCommit(payload: BrokerAverageBuyPayload): Promise<void>;
+}
+/**
+ * Global singleton instance of BrokerAdapter.
+ * Provides static-like access to all broker commit methods and lifecycle controls.
+ *
+ * @example
+ * ```typescript
+ * import { Broker } from "backtest-kit";
+ *
+ * Broker.useBrokerAdapter(MyBrokerAdapter);
+ * const dispose = Broker.enable();
+ * ```
+ */
 declare const Broker: BrokerAdapter;
 
 /**
@@ -24284,4 +25066,4 @@ declare const getTotalClosed: (signal: Signal) => {
     remainingCostBasis: number;
 };
 
-export { ActionBase, type ActivateScheduledCommit, type ActivateScheduledCommitNotification, type ActivePingContract, type AverageBuyCommit, type AverageBuyCommitNotification, Backtest, type BacktestStatisticsModel, Breakeven, type BreakevenAvailableNotification, type BreakevenCommit, type BreakevenCommitNotification, type BreakevenContract, type BreakevenData, Broker, type BrokerAverageBuyPayload, type BrokerBreakevenPayload, type BrokerPartialLossPayload, type BrokerPartialProfitPayload, type BrokerSignalClosePayload, type BrokerSignalOpenPayload, type BrokerTrailingStopPayload, type BrokerTrailingTakePayload, Cache, type CancelScheduledCommit, type CandleData, type CandleInterval, type ClosePendingCommit, type ColumnConfig, type ColumnModel, Constant, type CriticalErrorNotification, type DoneContract, type EntityId, Exchange, ExecutionContextService, type FrameInterval, type GlobalConfig, Heat, type HeatmapStatisticsModel, type IActionSchema, type IActivateScheduledCommitRow, type IAggregatedTradeData, type IBidData, type IBreakevenCommitRow, type ICandleData, type ICommitRow, type IExchangeSchema, type IFrameSchema, type IHeatmapRow, type ILog, type ILogEntry, type ILogger, type IMarkdownDumpOptions, type INotificationUtils, type IOrderBookData, type IPartialLossCommitRow, type IPartialProfitCommitRow, type IPersistBase, type IPositionSizeATRParams, type IPositionSizeFixedPercentageParams, type IPositionSizeKellyParams, type IPublicAction, type IPublicCandleData, type IPublicSignalRow, type IReportDumpOptions, type IRiskActivePosition, type IRiskCheckArgs, type IRiskSchema, type IRiskSignalRow, type IRiskValidation, type IRiskValidationFn, type IRiskValidationPayload, type IScheduledSignalCancelRow, type IScheduledSignalRow, type ISignalDto, type ISignalRow, type ISizingCalculateParams, type ISizingCalculateParamsATR, type ISizingCalculateParamsFixedPercentage, type ISizingCalculateParamsKelly, type ISizingParams, type ISizingParamsATR, type ISizingParamsFixedPercentage, type ISizingParamsKelly, type ISizingSchema, type ISizingSchemaATR, type ISizingSchemaFixedPercentage, type ISizingSchemaKelly, type IStorageSignalRow, type IStorageUtils, type IStrategyPnL, type IStrategyResult, type IStrategySchema, type IStrategyTickResult, type IStrategyTickResultActive, type IStrategyTickResultCancelled, type IStrategyTickResultClosed, type IStrategyTickResultIdle, type IStrategyTickResultOpened, type IStrategyTickResultScheduled, type IStrategyTickResultWaiting, type ITrailingStopCommitRow, type ITrailingTakeCommitRow, type IWalkerResults, type IWalkerSchema, type IWalkerStrategyResult, type InfoErrorNotification, Live, type LiveStatisticsModel, Log, type LogData, Markdown, MarkdownFileBase, MarkdownFolderBase, type MarkdownName, type MeasureData, MethodContextService, type MetricStats, Notification, NotificationBacktest, type NotificationData, NotificationLive, type NotificationModel, Partial$1 as Partial, type PartialData, type PartialEvent, type PartialLossAvailableNotification, type PartialLossCommit, type PartialLossCommitNotification, type PartialLossContract, type PartialProfitAvailableNotification, type PartialProfitCommit, type PartialProfitCommitNotification, type PartialProfitContract, type PartialStatisticsModel, Performance, type PerformanceContract, type PerformanceMetricType, type PerformanceStatisticsModel, PersistBase, PersistBreakevenAdapter, PersistCandleAdapter, PersistLogAdapter, PersistMeasureAdapter, PersistNotificationAdapter, PersistPartialAdapter, PersistRiskAdapter, PersistScheduleAdapter, PersistSignalAdapter, PersistStorageAdapter, PositionSize, type ProgressBacktestContract, type ProgressWalkerContract, Report, ReportBase, type ReportName, Risk, type RiskContract, type RiskData, type RiskEvent, type RiskRejectionNotification, type RiskStatisticsModel, Schedule, type ScheduleData, type SchedulePingContract, type ScheduleStatisticsModel, type ScheduledEvent, type SignalCancelledNotification, type SignalCloseContract, type SignalClosedNotification, type SignalData, type SignalInterval, type SignalOpenContract, type SignalOpenedNotification, type SignalScheduledNotification, type SignalSyncCloseNotification, type SignalSyncContract, type SignalSyncOpenNotification, Storage, StorageBacktest, type StorageData, StorageLive, Strategy, type StrategyActionType, type StrategyCancelReason, type StrategyCloseReason, type StrategyCommitContract, type StrategyEvent, type StrategyStatisticsModel, Sync, type SyncEvent, type SyncStatisticsModel, type TLogCtor, type TMarkdownBase, type TNotificationUtilsCtor, type TPersistBase, type TPersistBaseCtor, type TReportBase, type TStorageUtilsCtor, type TickEvent, type TrailingStopCommit, type TrailingStopCommitNotification, type TrailingTakeCommit, type TrailingTakeCommitNotification, type ValidationErrorNotification, Walker, type WalkerCompleteContract, type WalkerContract, type WalkerMetric, type SignalData$1 as WalkerSignalData, type WalkerStatisticsModel, addActionSchema, addExchangeSchema, addFrameSchema, addRiskSchema, addSizingSchema, addStrategySchema, addWalkerSchema, alignToInterval, checkCandles, commitActivateScheduled, commitAverageBuy, commitBreakeven, commitCancelScheduled, commitClosePending, commitPartialLoss, commitPartialLossCost, commitPartialProfit, commitPartialProfitCost, commitTrailingStop, commitTrailingStopCost, commitTrailingTake, commitTrailingTakeCost, dumpMessages, emitters, formatPrice, formatQuantity, get, getActionSchema, getAggregatedTrades, getAveragePrice, getBacktestTimeframe, getBreakeven, getCandles, getColumns, getConfig, getContext, getDate, getDefaultColumns, getDefaultConfig, getEffectivePriceOpen, getExchangeSchema, getFrameSchema, getMode, getNextCandles, getOrderBook, getPendingSignal, getPositionAveragePrice, getPositionInvestedCost, getPositionInvestedCount, getPositionLevels, getPositionPartials, getPositionPnlCost, getPositionPnlPercent, getRawCandles, getRiskSchema, getScheduledSignal, getSizingSchema, getStrategySchema, getSymbol, getTimestamp, getTotalClosed, getTotalCostClosed, getTotalPercentClosed, getWalkerSchema, hasTradeContext, investedCostToPercent, backtest as lib, listExchangeSchema, listFrameSchema, listRiskSchema, listSizingSchema, listStrategySchema, listWalkerSchema, listenActivePing, listenActivePingOnce, listenBacktestProgress, listenBreakevenAvailable, listenBreakevenAvailableOnce, listenDoneBacktest, listenDoneBacktestOnce, listenDoneLive, listenDoneLiveOnce, listenDoneWalker, listenDoneWalkerOnce, listenError, listenExit, listenPartialLossAvailable, listenPartialLossAvailableOnce, listenPartialProfitAvailable, listenPartialProfitAvailableOnce, listenPerformance, listenRisk, listenRiskOnce, listenSchedulePing, listenSchedulePingOnce, listenSignal, listenSignalBacktest, listenSignalBacktestOnce, listenSignalLive, listenSignalLiveOnce, listenSignalOnce, listenStrategyCommit, listenStrategyCommitOnce, listenSync, listenSyncOnce, listenValidation, listenWalker, listenWalkerComplete, listenWalkerOnce, listenWalkerProgress, overrideActionSchema, overrideExchangeSchema, overrideFrameSchema, overrideRiskSchema, overrideSizingSchema, overrideStrategySchema, overrideWalkerSchema, parseArgs, percentDiff, percentToCloseCost, percentValue, roundTicks, set, setColumns, setConfig, setLogger, shutdown, slPercentShiftToPrice, slPriceToPercentShift, stopStrategy, toProfitLossDto, tpPercentShiftToPrice, tpPriceToPercentShift, validate, waitForCandle, warmCandles };
+export { ActionBase, type ActivateScheduledCommit, type ActivateScheduledCommitNotification, type ActivePingContract, type AverageBuyCommit, type AverageBuyCommitNotification, Backtest, type BacktestStatisticsModel, Breakeven, type BreakevenAvailableNotification, type BreakevenCommit, type BreakevenCommitNotification, type BreakevenContract, type BreakevenData, Broker, type BrokerAverageBuyPayload, BrokerBase, type BrokerBreakevenPayload, type BrokerPartialLossPayload, type BrokerPartialProfitPayload, type BrokerSignalClosePayload, type BrokerSignalOpenPayload, type BrokerTrailingStopPayload, type BrokerTrailingTakePayload, Cache, type CancelScheduledCommit, type CandleData, type CandleInterval, type ClosePendingCommit, type ColumnConfig, type ColumnModel, Constant, type CriticalErrorNotification, type DoneContract, type EntityId, Exchange, ExecutionContextService, type FrameInterval, type GlobalConfig, Heat, type HeatmapStatisticsModel, type IActionSchema, type IActivateScheduledCommitRow, type IAggregatedTradeData, type IBidData, type IBreakevenCommitRow, type IBroker, type ICandleData, type ICommitRow, type IExchangeSchema, type IFrameSchema, type IHeatmapRow, type ILog, type ILogEntry, type ILogger, type IMarkdownDumpOptions, type INotificationUtils, type IOrderBookData, type IPartialLossCommitRow, type IPartialProfitCommitRow, type IPersistBase, type IPositionSizeATRParams, type IPositionSizeFixedPercentageParams, type IPositionSizeKellyParams, type IPublicAction, type IPublicCandleData, type IPublicSignalRow, type IReportDumpOptions, type IRiskActivePosition, type IRiskCheckArgs, type IRiskSchema, type IRiskSignalRow, type IRiskValidation, type IRiskValidationFn, type IRiskValidationPayload, type IScheduledSignalCancelRow, type IScheduledSignalRow, type ISignalDto, type ISignalRow, type ISizingCalculateParams, type ISizingCalculateParamsATR, type ISizingCalculateParamsFixedPercentage, type ISizingCalculateParamsKelly, type ISizingParams, type ISizingParamsATR, type ISizingParamsFixedPercentage, type ISizingParamsKelly, type ISizingSchema, type ISizingSchemaATR, type ISizingSchemaFixedPercentage, type ISizingSchemaKelly, type IStorageSignalRow, type IStorageUtils, type IStrategyPnL, type IStrategyResult, type IStrategySchema, type IStrategyTickResult, type IStrategyTickResultActive, type IStrategyTickResultCancelled, type IStrategyTickResultClosed, type IStrategyTickResultIdle, type IStrategyTickResultOpened, type IStrategyTickResultScheduled, type IStrategyTickResultWaiting, type ITrailingStopCommitRow, type ITrailingTakeCommitRow, type IWalkerResults, type IWalkerSchema, type IWalkerStrategyResult, type InfoErrorNotification, Live, type LiveStatisticsModel, Log, type LogData, Markdown, MarkdownFileBase, MarkdownFolderBase, type MarkdownName, type MeasureData, MethodContextService, type MetricStats, Notification, NotificationBacktest, type NotificationData, NotificationLive, type NotificationModel, Partial$1 as Partial, type PartialData, type PartialEvent, type PartialLossAvailableNotification, type PartialLossCommit, type PartialLossCommitNotification, type PartialLossContract, type PartialProfitAvailableNotification, type PartialProfitCommit, type PartialProfitCommitNotification, type PartialProfitContract, type PartialStatisticsModel, Performance, type PerformanceContract, type PerformanceMetricType, type PerformanceStatisticsModel, PersistBase, PersistBreakevenAdapter, PersistCandleAdapter, PersistLogAdapter, PersistMeasureAdapter, PersistNotificationAdapter, PersistPartialAdapter, PersistRiskAdapter, PersistScheduleAdapter, PersistSignalAdapter, PersistStorageAdapter, PositionSize, type ProgressBacktestContract, type ProgressWalkerContract, Report, ReportBase, type ReportName, Risk, type RiskContract, type RiskData, type RiskEvent, type RiskRejectionNotification, type RiskStatisticsModel, Schedule, type ScheduleData, type SchedulePingContract, type ScheduleStatisticsModel, type ScheduledEvent, type SignalCancelledNotification, type SignalCloseContract, type SignalClosedNotification, type SignalData, type SignalInterval, type SignalOpenContract, type SignalOpenedNotification, type SignalScheduledNotification, type SignalSyncCloseNotification, type SignalSyncContract, type SignalSyncOpenNotification, Storage, StorageBacktest, type StorageData, StorageLive, Strategy, type StrategyActionType, type StrategyCancelReason, type StrategyCloseReason, type StrategyCommitContract, type StrategyEvent, type StrategyStatisticsModel, Sync, type SyncEvent, type SyncStatisticsModel, type TBrokerCtor, type TLogCtor, type TMarkdownBase, type TNotificationUtilsCtor, type TPersistBase, type TPersistBaseCtor, type TReportBase, type TStorageUtilsCtor, type TickEvent, type TrailingStopCommit, type TrailingStopCommitNotification, type TrailingTakeCommit, type TrailingTakeCommitNotification, type ValidationErrorNotification, Walker, type WalkerCompleteContract, type WalkerContract, type WalkerMetric, type SignalData$1 as WalkerSignalData, type WalkerStatisticsModel, addActionSchema, addExchangeSchema, addFrameSchema, addRiskSchema, addSizingSchema, addStrategySchema, addWalkerSchema, alignToInterval, checkCandles, commitActivateScheduled, commitAverageBuy, commitBreakeven, commitCancelScheduled, commitClosePending, commitPartialLoss, commitPartialLossCost, commitPartialProfit, commitPartialProfitCost, commitTrailingStop, commitTrailingStopCost, commitTrailingTake, commitTrailingTakeCost, dumpMessages, emitters, formatPrice, formatQuantity, get, getActionSchema, getAggregatedTrades, getAveragePrice, getBacktestTimeframe, getBreakeven, getCandles, getColumns, getConfig, getContext, getDate, getDefaultColumns, getDefaultConfig, getEffectivePriceOpen, getExchangeSchema, getFrameSchema, getMode, getNextCandles, getOrderBook, getPendingSignal, getPositionAveragePrice, getPositionInvestedCost, getPositionInvestedCount, getPositionLevels, getPositionPartials, getPositionPnlCost, getPositionPnlPercent, getRawCandles, getRiskSchema, getScheduledSignal, getSizingSchema, getStrategySchema, getSymbol, getTimestamp, getTotalClosed, getTotalCostClosed, getTotalPercentClosed, getWalkerSchema, hasTradeContext, investedCostToPercent, backtest as lib, listExchangeSchema, listFrameSchema, listRiskSchema, listSizingSchema, listStrategySchema, listWalkerSchema, listenActivePing, listenActivePingOnce, listenBacktestProgress, listenBreakevenAvailable, listenBreakevenAvailableOnce, listenDoneBacktest, listenDoneBacktestOnce, listenDoneLive, listenDoneLiveOnce, listenDoneWalker, listenDoneWalkerOnce, listenError, listenExit, listenPartialLossAvailable, listenPartialLossAvailableOnce, listenPartialProfitAvailable, listenPartialProfitAvailableOnce, listenPerformance, listenRisk, listenRiskOnce, listenSchedulePing, listenSchedulePingOnce, listenSignal, listenSignalBacktest, listenSignalBacktestOnce, listenSignalLive, listenSignalLiveOnce, listenSignalOnce, listenStrategyCommit, listenStrategyCommitOnce, listenSync, listenSyncOnce, listenValidation, listenWalker, listenWalkerComplete, listenWalkerOnce, listenWalkerProgress, overrideActionSchema, overrideExchangeSchema, overrideFrameSchema, overrideRiskSchema, overrideSizingSchema, overrideStrategySchema, overrideWalkerSchema, parseArgs, percentDiff, percentToCloseCost, percentValue, roundTicks, set, setColumns, setConfig, setLogger, shutdown, slPercentShiftToPrice, slPriceToPercentShift, stopStrategy, toProfitLossDto, tpPercentShiftToPrice, tpPriceToPercentShift, validate, waitForCandle, warmCandles };

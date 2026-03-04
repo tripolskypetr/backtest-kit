@@ -1,4 +1,4 @@
-import { compose, singleshot } from "functools-kit";
+import { compose, makeExtendable, singleshot } from "functools-kit";
 import { ExchangeName } from "../interfaces/Exchange.interface";
 import { FrameName } from "../interfaces/Frame.interface";
 import { IStrategyPnL, StrategyName } from "../interfaces/Strategy.interface";
@@ -16,6 +16,16 @@ const BROKER_METHOD_NAME_COMMIT_AVERAGE_BUY = "BrokerAdapter.commitAverageBuy";
 const BROKER_METHOD_NAME_USE_BROKER_ADAPTER = "BrokerAdapter.useBrokerAdapter";
 const BROKER_METHOD_NAME_ENABLE = "BrokerAdapter.enable";
 const BROKER_METHOD_NAME_DISABLE = "BrokerAdapter.disable";
+
+const BROKER_BASE_METHOD_NAME_WAIT_FOR_INIT = "BrokerBase.waitForInit";
+const BROKER_BASE_METHOD_NAME_ON_SIGNAL_OPEN = "BrokerBase.onSignalOpenCommit";
+const BROKER_BASE_METHOD_NAME_ON_SIGNAL_CLOSE = "BrokerBase.onSignalCloseCommit";
+const BROKER_BASE_METHOD_NAME_ON_PARTIAL_PROFIT = "BrokerBase.onPartialProfitCommit";
+const BROKER_BASE_METHOD_NAME_ON_PARTIAL_LOSS = "BrokerBase.onPartialLossCommit";
+const BROKER_BASE_METHOD_NAME_ON_TRAILING_STOP = "BrokerBase.onTrailingStopCommit";
+const BROKER_BASE_METHOD_NAME_ON_TRAILING_TAKE = "BrokerBase.onTrailingTakeCommit";
+const BROKER_BASE_METHOD_NAME_ON_BREAKEVEN = "BrokerBase.onBreakevenCommit";
+const BROKER_BASE_METHOD_NAME_ON_AVERAGE_BUY = "BrokerBase.onAverageBuyCommit";
 
 /**
  * Payload for the signal-open broker event.
@@ -896,6 +906,344 @@ export class BrokerAdapter {
 }
 
 /**
+ * Base class for custom broker adapter implementations.
+ *
+ * Provides default no-op implementations for all IBroker methods that log events.
+ * Extend this class to implement a real exchange adapter for:
+ * - Placing and canceling limit/market orders
+ * - Updating stop-loss and take-profit levels on exchange
+ * - Tracking position state in an external system
+ * - Sending trade notifications (Telegram, Discord, Email)
+ * - Recording trades to a database or analytics service
+ *
+ * Key features:
+ * - All methods have default implementations (no need to override unused methods)
+ * - Automatic logging of all events via bt.loggerService
+ * - Implements the full IBroker interface
+ * - `makeExtendable` applied for correct subclass instantiation
+ *
+ * Lifecycle:
+ * 1. Constructor called (no arguments)
+ * 2. `waitForInit()` called once for async initialization (e.g. exchange login)
+ * 3. Event methods called as strategy executes
+ * 4. No explicit dispose — clean up in `waitForInit` teardown or externally
+ *
+ * Event flow (called only in live mode, skipped in backtest):
+ * - `onSignalOpenCommit` — new position opened
+ * - `onSignalCloseCommit` — position closed (SL/TP hit or manual close)
+ * - `onPartialProfitCommit` — partial close at profit executed
+ * - `onPartialLossCommit` — partial close at loss executed
+ * - `onTrailingStopCommit` — trailing stop-loss updated
+ * - `onTrailingTakeCommit` — trailing take-profit updated
+ * - `onBreakevenCommit` — stop-loss moved to entry price
+ * - `onAverageBuyCommit` — new DCA entry added to position
+ *
+ * @example
+ * ```typescript
+ * import { BrokerBase, Broker } from "backtest-kit";
+ *
+ * // Extend BrokerBase and override only needed methods
+ * class BinanceBroker extends BrokerBase {
+ *   private client: BinanceClient | null = null;
+ *
+ *   async waitForInit() {
+ *     super.waitForInit(); // Call parent for logging
+ *     this.client = new BinanceClient(process.env.API_KEY, process.env.SECRET);
+ *     await this.client.connect();
+ *   }
+ *
+ *   async onSignalOpenCommit(payload: BrokerSignalOpenPayload) {
+ *     super.onSignalOpenCommit(payload); // Call parent for logging
+ *     await this.client!.placeOrder({
+ *       symbol: payload.symbol,
+ *       side: payload.position === "long" ? "BUY" : "SELL",
+ *       quantity: payload.cost / payload.priceOpen,
+ *     });
+ *   }
+ *
+ *   async onSignalCloseCommit(payload: BrokerSignalClosePayload) {
+ *     super.onSignalCloseCommit(payload); // Call parent for logging
+ *     await this.client!.closePosition(payload.symbol);
+ *   }
+ * }
+ *
+ * // Register the adapter
+ * Broker.useBrokerAdapter(BinanceBroker);
+ * Broker.enable();
+ * ```
+ *
+ * @example
+ * ```typescript
+ * // Minimal implementation — only handle opens and closes
+ * class NotifyBroker extends BrokerBase {
+ *   async onSignalOpenCommit(payload: BrokerSignalOpenPayload) {
+ *     await sendTelegram(`Opened ${payload.position} on ${payload.symbol}`);
+ *   }
+ *
+ *   async onSignalCloseCommit(payload: BrokerSignalClosePayload) {
+ *     const pnl = payload.pnl.profit - payload.pnl.loss;
+ *     await sendTelegram(`Closed ${payload.symbol}: PnL $${pnl.toFixed(2)}`);
+ *   }
+ * }
+ * ```
+ */
+class BrokerBase implements IBroker {
+  /**
+   * Performs async initialization before the broker starts receiving events.
+   *
+   * Called once by BrokerProxy via `waitForInit()` (singleshot) before the first event.
+   * Override to establish exchange connections, authenticate API clients, load configuration.
+   *
+   * Default implementation: Logs initialization event.
+   *
+   * @example
+   * ```typescript
+   * async waitForInit() {
+   *   super.waitForInit(); // Keep parent logging
+   *   this.exchange = new ExchangeClient(process.env.API_KEY);
+   *   await this.exchange.authenticate();
+   * }
+   * ```
+   */
+  public async waitForInit(): Promise<void> {
+    bt.loggerService.info(BROKER_BASE_METHOD_NAME_WAIT_FOR_INIT, {});
+  }
+
+  /**
+   * Called when a new position is opened (signal activated).
+   *
+   * Triggered automatically via syncSubject when a scheduled signal's priceOpen is hit.
+   * Use to place the actual entry order on the exchange.
+   *
+   * Default implementation: Logs signal-open event.
+   *
+   * @param payload - Signal open details: symbol, cost, position, priceOpen, priceTakeProfit, priceStopLoss, context, backtest
+   *
+   * @example
+   * ```typescript
+   * async onSignalOpenCommit(payload: BrokerSignalOpenPayload) {
+   *   super.onSignalOpenCommit(payload); // Keep parent logging
+   *   await this.exchange.placeMarketOrder({
+   *     symbol: payload.symbol,
+   *     side: payload.position === "long" ? "BUY" : "SELL",
+   *     quantity: payload.cost / payload.priceOpen,
+   *   });
+   * }
+   * ```
+   */
+  public async onSignalOpenCommit(payload: BrokerSignalOpenPayload): Promise<void> {
+    bt.loggerService.info(BROKER_BASE_METHOD_NAME_ON_SIGNAL_OPEN, {
+      symbol: payload.symbol,
+      context: payload.context,
+    });
+  }
+
+  /**
+   * Called when a position is fully closed (SL/TP hit or manual close).
+   *
+   * Triggered automatically via syncSubject when a pending signal is closed.
+   * Use to place the exit order and record final PnL.
+   *
+   * Default implementation: Logs signal-close event.
+   *
+   * @param payload - Signal close details: symbol, cost, position, currentPrice, pnl, totalEntries, totalPartials, context, backtest
+   *
+   * @example
+   * ```typescript
+   * async onSignalCloseCommit(payload: BrokerSignalClosePayload) {
+   *   super.onSignalCloseCommit(payload); // Keep parent logging
+   *   await this.exchange.closePosition(payload.symbol);
+   *   await this.db.recordTrade({ symbol: payload.symbol, pnl: payload.pnl });
+   * }
+   * ```
+   */
+  public async onSignalCloseCommit(payload: BrokerSignalClosePayload): Promise<void> {
+    bt.loggerService.info(BROKER_BASE_METHOD_NAME_ON_SIGNAL_CLOSE, {
+      symbol: payload.symbol,
+      context: payload.context,
+    });
+  }
+
+  /**
+   * Called when a partial close at profit is executed.
+   *
+   * Triggered explicitly from strategy.ts / Live.ts / Backtest.ts after all validations pass,
+   * before `strategyCoreService.partialProfit()`. If this method throws, the DI mutation is skipped.
+   * Use to partially close the position on the exchange at the profit level.
+   *
+   * Default implementation: Logs partial profit event.
+   *
+   * @param payload - Partial profit details: symbol, percentToClose, cost (dollar value), currentPrice, context, backtest
+   *
+   * @example
+   * ```typescript
+   * async onPartialProfitCommit(payload: BrokerPartialProfitPayload) {
+   *   super.onPartialProfitCommit(payload); // Keep parent logging
+   *   await this.exchange.reducePosition({
+   *     symbol: payload.symbol,
+   *     dollarAmount: payload.cost,
+   *     price: payload.currentPrice,
+   *   });
+   * }
+   * ```
+   */
+  public async onPartialProfitCommit(payload: BrokerPartialProfitPayload): Promise<void> {
+    bt.loggerService.info(BROKER_BASE_METHOD_NAME_ON_PARTIAL_PROFIT, {
+      symbol: payload.symbol,
+      context: payload.context,
+    });
+  }
+
+  /**
+   * Called when a partial close at loss is executed.
+   *
+   * Triggered explicitly from strategy.ts / Live.ts / Backtest.ts after all validations pass,
+   * before `strategyCoreService.partialLoss()`. If this method throws, the DI mutation is skipped.
+   * Use to partially close the position on the exchange at the loss level.
+   *
+   * Default implementation: Logs partial loss event.
+   *
+   * @param payload - Partial loss details: symbol, percentToClose, cost (dollar value), currentPrice, context, backtest
+   *
+   * @example
+   * ```typescript
+   * async onPartialLossCommit(payload: BrokerPartialLossPayload) {
+   *   super.onPartialLossCommit(payload); // Keep parent logging
+   *   await this.exchange.reducePosition({
+   *     symbol: payload.symbol,
+   *     dollarAmount: payload.cost,
+   *     price: payload.currentPrice,
+   *   });
+   * }
+   * ```
+   */
+  public async onPartialLossCommit(payload: BrokerPartialLossPayload): Promise<void> {
+    bt.loggerService.info(BROKER_BASE_METHOD_NAME_ON_PARTIAL_LOSS, {
+      symbol: payload.symbol,
+      context: payload.context,
+    });
+  }
+
+  /**
+   * Called when the trailing stop-loss level is updated.
+   *
+   * Triggered explicitly after all validations pass, before `strategyCoreService.trailingStop()`.
+   * `newStopLossPrice` is the absolute SL price — use it to update the exchange order directly.
+   *
+   * Default implementation: Logs trailing stop event.
+   *
+   * @param payload - Trailing stop details: symbol, percentShift, currentPrice, newStopLossPrice, context, backtest
+   *
+   * @example
+   * ```typescript
+   * async onTrailingStopCommit(payload: BrokerTrailingStopPayload) {
+   *   super.onTrailingStopCommit(payload); // Keep parent logging
+   *   await this.exchange.updateStopLoss({
+   *     symbol: payload.symbol,
+   *     price: payload.newStopLossPrice,
+   *   });
+   * }
+   * ```
+   */
+  public async onTrailingStopCommit(payload: BrokerTrailingStopPayload): Promise<void> {
+    bt.loggerService.info(BROKER_BASE_METHOD_NAME_ON_TRAILING_STOP, {
+      symbol: payload.symbol,
+      context: payload.context,
+    });
+  }
+
+  /**
+   * Called when the trailing take-profit level is updated.
+   *
+   * Triggered explicitly after all validations pass, before `strategyCoreService.trailingTake()`.
+   * `newTakeProfitPrice` is the absolute TP price — use it to update the exchange order directly.
+   *
+   * Default implementation: Logs trailing take event.
+   *
+   * @param payload - Trailing take details: symbol, percentShift, currentPrice, newTakeProfitPrice, context, backtest
+   *
+   * @example
+   * ```typescript
+   * async onTrailingTakeCommit(payload: BrokerTrailingTakePayload) {
+   *   super.onTrailingTakeCommit(payload); // Keep parent logging
+   *   await this.exchange.updateTakeProfit({
+   *     symbol: payload.symbol,
+   *     price: payload.newTakeProfitPrice,
+   *   });
+   * }
+   * ```
+   */
+  public async onTrailingTakeCommit(payload: BrokerTrailingTakePayload): Promise<void> {
+    bt.loggerService.info(BROKER_BASE_METHOD_NAME_ON_TRAILING_TAKE, {
+      symbol: payload.symbol,
+      context: payload.context,
+    });
+  }
+
+  /**
+   * Called when the stop-loss is moved to breakeven (entry price).
+   *
+   * Triggered explicitly after all validations pass, before `strategyCoreService.breakeven()`.
+   * `newStopLossPrice` equals `effectivePriceOpen` — the position's effective entry price.
+   * `newTakeProfitPrice` is unchanged by breakeven.
+   *
+   * Default implementation: Logs breakeven event.
+   *
+   * @param payload - Breakeven details: symbol, currentPrice, newStopLossPrice, newTakeProfitPrice, context, backtest
+   *
+   * @example
+   * ```typescript
+   * async onBreakevenCommit(payload: BrokerBreakevenPayload) {
+   *   super.onBreakevenCommit(payload); // Keep parent logging
+   *   await this.exchange.updateStopLoss({
+   *     symbol: payload.symbol,
+   *     price: payload.newStopLossPrice, // = entry price
+   *   });
+   * }
+   * ```
+   */
+  public async onBreakevenCommit(payload: BrokerBreakevenPayload): Promise<void> {
+    bt.loggerService.info(BROKER_BASE_METHOD_NAME_ON_BREAKEVEN, {
+      symbol: payload.symbol,
+      context: payload.context,
+    });
+  }
+
+  /**
+   * Called when a new DCA entry is added to the active position.
+   *
+   * Triggered explicitly after all validations pass, before `strategyCoreService.averageBuy()`.
+   * `currentPrice` is the market price at which the new averaging entry is placed.
+   * `cost` is the dollar amount of the new DCA entry.
+   *
+   * Default implementation: Logs average buy event.
+   *
+   * @param payload - Average buy details: symbol, currentPrice, cost, context, backtest
+   *
+   * @example
+   * ```typescript
+   * async onAverageBuyCommit(payload: BrokerAverageBuyPayload) {
+   *   super.onAverageBuyCommit(payload); // Keep parent logging
+   *   await this.exchange.placeMarketOrder({
+   *     symbol: payload.symbol,
+   *     side: "BUY",
+   *     quantity: payload.cost / payload.currentPrice,
+   *   });
+   * }
+   * ```
+   */
+  public async onAverageBuyCommit(payload: BrokerAverageBuyPayload): Promise<void> {
+    bt.loggerService.info(BROKER_BASE_METHOD_NAME_ON_AVERAGE_BUY, {
+      symbol: payload.symbol,
+      context: payload.context,
+    });
+  }
+}
+
+// @ts-ignore
+BrokerBase = makeExtendable(BrokerBase);
+
+/**
  * Global singleton instance of BrokerAdapter.
  * Provides static-like access to all broker commit methods and lifecycle controls.
  *
@@ -908,3 +1256,5 @@ export class BrokerAdapter {
  * ```
  */
 export const Broker = new BrokerAdapter();
+
+export { BrokerBase };

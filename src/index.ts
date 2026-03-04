@@ -392,6 +392,7 @@ export {
   Broker,
   IBroker,
   TBrokerCtor,
+  BrokerBase,
   BrokerAverageBuyPayload,
   BrokerBreakevenPayload,
   BrokerPartialLossPayload,
