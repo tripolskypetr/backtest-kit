@@ -320,7 +320,7 @@ These three functions work together to manage a position dynamically. To reduce 
 
 ### 🔍 How Broker Transactional Integrity Works
 
-`Broker.useBrokerAdapter` connects a live exchange (ccxt, Binance, etc.) to the framework with transaction-like safety — every commit method fires **before** the internal position state mutates. If the exchange rejects the order, the fill times out, or the network fails, the adapter throws, the mutation is skipped, and backtest-kit retries automatically on the next tick.
+`Broker.useBrokerAdapter` connects a live exchange (ccxt, Binance, etc.) to the framework with transaction safety. Every commit method fires **before** the internal position state mutates. If the exchange rejects the order, the fill times out, or the network fails, the adapter throws, the mutation is skipped, and backtest-kit retries automatically on the next tick.
 
 <details>
   <summary>
