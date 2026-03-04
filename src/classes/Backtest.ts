@@ -11,6 +11,8 @@ import {
 import { Columns } from "../lib/services/markdown/BacktestMarkdownService";
 import { ExchangeName } from "../interfaces/Exchange.interface";
 import { FrameName } from "../interfaces/Frame.interface";
+import { slPriceToPercentShift } from "../utils/slPriceToPercentShift";
+import { tpPriceToPercentShift } from "../utils/tpPriceToPercentShift";
 
 const BACKTEST_METHOD_NAME_RUN = "BacktestUtils.run";
 const BACKTEST_METHOD_NAME_BACKGROUND = "BacktestUtils.background";
@@ -51,6 +53,8 @@ const BACKTEST_METHOD_NAME_PARTIAL_PROFIT_COST = "BacktestUtils.commitPartialPro
 const BACKTEST_METHOD_NAME_PARTIAL_LOSS_COST = "BacktestUtils.commitPartialLossCost";
 const BACKTEST_METHOD_NAME_TRAILING_STOP = "BacktestUtils.commitTrailingStop";
 const BACKTEST_METHOD_NAME_TRAILING_PROFIT = "BacktestUtils.commitTrailingTake";
+const BACKTEST_METHOD_NAME_TRAILING_STOP_COST = "BacktestUtils.commitTrailingStopCost";
+const BACKTEST_METHOD_NAME_TRAILING_PROFIT_COST = "BacktestUtils.commitTrailingTakeCost";
 const BACKTEST_METHOD_NAME_ACTIVATE_SCHEDULED = "Backtest.commitActivateScheduled";
 const BACKTEST_METHOD_NAME_AVERAGE_BUY = "Backtest.commitAverageBuy";
 const BACKTEST_METHOD_NAME_GET_DATA = "BacktestUtils.getData";
@@ -906,6 +910,16 @@ export class BacktestUtils {
     );
   };
 
+  /**
+   * Returns the effective (weighted average) entry price for the current pending signal.
+   *
+   * Accounts for all DCA entries via commitAverageBuy.
+   * Returns null if no pending signal exists.
+   *
+   * @param symbol - Trading pair symbol
+   * @param context - Execution context with strategyName, exchangeName, and frameName
+   * @returns Effective entry price, or null if no active position
+   */
   public getPositionAveragePrice = async (
     symbol: string,
     context: {
@@ -958,6 +972,15 @@ export class BacktestUtils {
     );
   };
 
+  /**
+   * Returns the total number of base-asset units currently held in the position.
+   *
+   * Includes units from all DCA entries. Returns null if no pending signal exists.
+   *
+   * @param symbol - Trading pair symbol
+   * @param context - Execution context with strategyName, exchangeName, and frameName
+   * @returns Total units held, or null if no active position
+   */
   public getPositionInvestedCount = async (
     symbol: string,
     context: {
@@ -1010,6 +1033,15 @@ export class BacktestUtils {
     );
   };
 
+  /**
+   * Returns the total dollar cost invested in the current position.
+   *
+   * Sum of all entry costs across DCA entries. Returns null if no pending signal exists.
+   *
+   * @param symbol - Trading pair symbol
+   * @param context - Execution context with strategyName, exchangeName, and frameName
+   * @returns Total invested cost in quote currency, or null if no active position
+   */
   public getPositionInvestedCost = async (
     symbol: string,
     context: {
@@ -1062,6 +1094,17 @@ export class BacktestUtils {
     );
   };
 
+  /**
+   * Returns the current unrealized PnL as a percentage of the invested cost.
+   *
+   * Calculated relative to the effective (weighted average) entry price.
+   * Positive for profit, negative for loss. Returns null if no pending signal exists.
+   *
+   * @param symbol - Trading pair symbol
+   * @param currentPrice - Current market price
+   * @param context - Execution context with strategyName, exchangeName, and frameName
+   * @returns PnL percentage, or null if no active position
+   */
   public getPositionPnlPercent = async (
     symbol: string,
     currentPrice: number,
@@ -1117,6 +1160,17 @@ export class BacktestUtils {
     );
   };
 
+  /**
+   * Returns the current unrealized PnL in quote currency (dollar amount).
+   *
+   * Calculated as (currentPrice - effectiveEntry) * units for LONG,
+   * reversed for SHORT. Returns null if no pending signal exists.
+   *
+   * @param symbol - Trading pair symbol
+   * @param currentPrice - Current market price
+   * @param context - Execution context with strategyName, exchangeName, and frameName
+   * @returns PnL in quote currency, or null if no active position
+   */
   public getPositionPnlCost = async (
     symbol: string,
     currentPrice: number,
@@ -1172,6 +1226,18 @@ export class BacktestUtils {
     );
   };
 
+  /**
+   * Returns the list of DCA entry prices for the current pending signal.
+   *
+   * The first element is always the original priceOpen (initial entry).
+   * Each subsequent element is a price added by commitAverageBuy().
+   * Returns null if no pending signal exists.
+   * Returns a single-element array [priceOpen] if no DCA entries were made.
+   *
+   * @param symbol - Trading pair symbol
+   * @param context - Execution context with strategyName, exchangeName, and frameName
+   * @returns Array of entry prices, or null if no active position
+   */
   public getPositionLevels = async (
     symbol: string,
     context: {
@@ -1224,6 +1290,25 @@ export class BacktestUtils {
     );
   };
 
+  /**
+   * Returns the list of partial close events for the current pending signal.
+   *
+   * Each element represents a partial profit or loss close executed via
+   * commitPartialProfit / commitPartialLoss (or their Cost variants).
+   * Returns null if no pending signal exists.
+   * Returns an empty array if no partials were executed yet.
+   *
+   * Each entry contains:
+   * - `type` — "profit" or "loss"
+   * - `percent` — percentage of position closed at this partial
+   * - `currentPrice` — execution price of the partial close
+   * - `costBasisAtClose` — accounting cost basis at the moment of this partial
+   * - `entryCountAtClose` — number of DCA entries accumulated at this partial
+   *
+   * @param symbol - Trading pair symbol
+   * @param context - Execution context with strategyName, exchangeName, and frameName
+   * @returns Array of partial close records, or null if no active position
+   */
   public getPositionPartials = async (
     symbol: string,
     context: {
@@ -2049,6 +2134,126 @@ export class BacktestUtils {
       currentPrice,
       context
     );
+  };
+
+  /**
+   * Adjusts the trailing stop-loss to an absolute price level.
+   *
+   * Convenience wrapper around commitTrailingStop that converts an absolute
+   * stop-loss price to a percentShift relative to the ORIGINAL SL distance.
+   *
+   * @param symbol - Trading pair symbol
+   * @param newStopLossPrice - Desired absolute stop-loss price
+   * @param currentPrice - Current market price to check for intrusion
+   * @param context - Execution context with strategyName, exchangeName, and frameName
+   * @returns Promise<boolean> - true if trailing SL was set/updated, false if rejected
+   */
+  public commitTrailingStopCost = async (
+    symbol: string,
+    newStopLossPrice: number,
+    currentPrice: number,
+    context: {
+      strategyName: StrategyName;
+      exchangeName: ExchangeName;
+      frameName: FrameName;
+    }
+  ): Promise<boolean> => {
+    backtest.loggerService.info(BACKTEST_METHOD_NAME_TRAILING_STOP_COST, {
+      symbol,
+      newStopLossPrice,
+      currentPrice,
+      context,
+    });
+    backtest.strategyValidationService.validate(
+      context.strategyName,
+      BACKTEST_METHOD_NAME_TRAILING_STOP_COST
+    );
+    backtest.exchangeValidationService.validate(
+      context.exchangeName,
+      BACKTEST_METHOD_NAME_TRAILING_STOP_COST
+    );
+
+    {
+      const { riskName, riskList, actions } =
+        backtest.strategySchemaService.get(context.strategyName);
+      riskName &&
+        backtest.riskValidationService.validate(riskName, BACKTEST_METHOD_NAME_TRAILING_STOP_COST);
+      riskList &&
+        riskList.forEach((riskName) =>
+          backtest.riskValidationService.validate(riskName, BACKTEST_METHOD_NAME_TRAILING_STOP_COST)
+        );
+      actions &&
+        actions.forEach((actionName) =>
+          backtest.actionValidationService.validate(actionName, BACKTEST_METHOD_NAME_TRAILING_STOP_COST)
+        );
+    }
+
+    const signal = await backtest.strategyCoreService.getPendingSignal(true, symbol, currentPrice, context);
+    if (!signal) return false;
+    const effectivePriceOpen = await backtest.strategyCoreService.getPositionAveragePrice(true, symbol, context);
+    if (effectivePriceOpen === null) return false;
+    const percentShift = slPriceToPercentShift(newStopLossPrice, signal.priceStopLoss, effectivePriceOpen);
+    return await backtest.strategyCoreService.trailingStop(true, symbol, percentShift, currentPrice, context);
+  };
+
+  /**
+   * Adjusts the trailing take-profit to an absolute price level.
+   *
+   * Convenience wrapper around commitTrailingTake that converts an absolute
+   * take-profit price to a percentShift relative to the ORIGINAL TP distance.
+   *
+   * @param symbol - Trading pair symbol
+   * @param newTakeProfitPrice - Desired absolute take-profit price
+   * @param currentPrice - Current market price to check for intrusion
+   * @param context - Execution context with strategyName, exchangeName, and frameName
+   * @returns Promise<boolean> - true if trailing TP was set/updated, false if rejected
+   */
+  public commitTrailingTakeCost = async (
+    symbol: string,
+    newTakeProfitPrice: number,
+    currentPrice: number,
+    context: {
+      strategyName: StrategyName;
+      exchangeName: ExchangeName;
+      frameName: FrameName;
+    }
+  ): Promise<boolean> => {
+    backtest.loggerService.info(BACKTEST_METHOD_NAME_TRAILING_PROFIT_COST, {
+      symbol,
+      newTakeProfitPrice,
+      currentPrice,
+      context,
+    });
+    backtest.strategyValidationService.validate(
+      context.strategyName,
+      BACKTEST_METHOD_NAME_TRAILING_PROFIT_COST
+    );
+    backtest.exchangeValidationService.validate(
+      context.exchangeName,
+      BACKTEST_METHOD_NAME_TRAILING_PROFIT_COST
+    );
+
+    {
+      const { riskName, riskList, actions } =
+        backtest.strategySchemaService.get(context.strategyName);
+      riskName &&
+        backtest.riskValidationService.validate(riskName, BACKTEST_METHOD_NAME_TRAILING_PROFIT_COST);
+      riskList &&
+        riskList.forEach((riskName) =>
+          backtest.riskValidationService.validate(riskName, BACKTEST_METHOD_NAME_TRAILING_PROFIT_COST)
+        );
+      actions &&
+        actions.forEach((actionName) =>
+          backtest.actionValidationService.validate(actionName, BACKTEST_METHOD_NAME_TRAILING_PROFIT_COST)
+        );
+    }
+
+    const signal = await backtest.strategyCoreService.getPendingSignal(true, symbol, currentPrice, context);
+    if (!signal) return false;
+    const effectivePriceOpen = await backtest.strategyCoreService.getPositionAveragePrice(true, symbol, context);
+    if (effectivePriceOpen === null) return false;
+    const percentShift = tpPriceToPercentShift(newTakeProfitPrice, signal.priceTakeProfit, effectivePriceOpen);
+    return await backtest.strategyCoreService.trailingTake(true, symbol, percentShift, currentPrice, context);
   };
 
   /**

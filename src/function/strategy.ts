@@ -4,6 +4,8 @@ import backtest, {
 } from "../lib";
 import { getAveragePrice } from "./exchange";
 import { investedCostToPercent } from "../utils/investedCostToPercent";
+import { slPriceToPercentShift } from "../utils/slPriceToPercentShift";
+import { tpPriceToPercentShift } from "../utils/tpPriceToPercentShift";
 import { GLOBAL_CONFIG } from "../config/params";
 
 const CANCEL_SCHEDULED_METHOD_NAME = "strategy.commitCancelScheduled";
@@ -14,6 +16,8 @@ const PARTIAL_PROFIT_COST_METHOD_NAME = "strategy.commitPartialProfitCost";
 const PARTIAL_LOSS_COST_METHOD_NAME = "strategy.commitPartialLossCost";
 const TRAILING_STOP_METHOD_NAME = "strategy.commitTrailingStop";
 const TRAILING_PROFIT_METHOD_NAME = "strategy.commitTrailingTake";
+const TRAILING_STOP_COST_METHOD_NAME = "strategy.commitTrailingStopCost";
+const TRAILING_PROFIT_COST_METHOD_NAME = "strategy.commitTrailingTakeCost";
 const BREAKEVEN_METHOD_NAME = "strategy.commitBreakeven";
 const ACTIVATE_SCHEDULED_METHOD_NAME = "strategy.commitActivateScheduled";
 const AVERAGE_BUY_METHOD_NAME = "strategy.commitAverageBuy";
@@ -365,6 +369,82 @@ export async function commitTrailingTake(
     currentPrice,
     { exchangeName, frameName, strategyName }
   );
+}
+
+/**
+ * Adjusts the trailing stop-loss to an absolute price level.
+ *
+ * Convenience wrapper around commitTrailingStop that converts an absolute
+ * stop-loss price to a percentShift relative to the ORIGINAL SL distance.
+ *
+ * Automatically detects backtest/live mode from execution context.
+ * Automatically fetches current price via getAveragePrice.
+ *
+ * @param symbol - Trading pair symbol
+ * @param newStopLossPrice - Desired absolute stop-loss price
+ * @returns Promise<boolean> - true if trailing SL was set/updated, false if rejected
+ */
+export async function commitTrailingStopCost(
+  symbol: string,
+  newStopLossPrice: number,
+): Promise<boolean> {
+  backtest.loggerService.info(TRAILING_STOP_COST_METHOD_NAME, {
+    symbol,
+    newStopLossPrice,
+  });
+  if (!ExecutionContextService.hasContext()) {
+    throw new Error("commitTrailingStopCost requires an execution context");
+  }
+  if (!MethodContextService.hasContext()) {
+    throw new Error("commitTrailingStopCost requires a method context");
+  }
+  const currentPrice = await getAveragePrice(symbol);
+  const { backtest: isBacktest } = backtest.executionContextService.context;
+  const { exchangeName, frameName, strategyName } = backtest.methodContextService.context;
+  const signal = await backtest.strategyCoreService.getPendingSignal(isBacktest, symbol, currentPrice, { exchangeName, frameName, strategyName });
+  if (!signal) return false;
+  const effectivePriceOpen = await backtest.strategyCoreService.getPositionAveragePrice(isBacktest, symbol, { exchangeName, frameName, strategyName });
+  if (effectivePriceOpen === null) return false;
+  const percentShift = slPriceToPercentShift(newStopLossPrice, signal.priceStopLoss, effectivePriceOpen);
+  return await backtest.strategyCoreService.trailingStop(isBacktest, symbol, percentShift, currentPrice, { exchangeName, frameName, strategyName });
+}
+
+/**
+ * Adjusts the trailing take-profit to an absolute price level.
+ *
+ * Convenience wrapper around commitTrailingTake that converts an absolute
+ * take-profit price to a percentShift relative to the ORIGINAL TP distance.
+ *
+ * Automatically detects backtest/live mode from execution context.
+ * Automatically fetches current price via getAveragePrice.
+ *
+ * @param symbol - Trading pair symbol
+ * @param newTakeProfitPrice - Desired absolute take-profit price
+ * @returns Promise<boolean> - true if trailing TP was set/updated, false if rejected
+ */
+export async function commitTrailingTakeCost(
+  symbol: string,
+  newTakeProfitPrice: number,
+): Promise<boolean> {
+  backtest.loggerService.info(TRAILING_PROFIT_COST_METHOD_NAME, {
+    symbol,
+    newTakeProfitPrice,
+  });
+  if (!ExecutionContextService.hasContext()) {
+    throw new Error("commitTrailingTakeCost requires an execution context");
+  }
+  if (!MethodContextService.hasContext()) {
+    throw new Error("commitTrailingTakeCost requires a method context");
+  }
+  const currentPrice = await getAveragePrice(symbol);
+  const { backtest: isBacktest } = backtest.executionContextService.context;
+  const { exchangeName, frameName, strategyName } = backtest.methodContextService.context;
+  const signal = await backtest.strategyCoreService.getPendingSignal(isBacktest, symbol, currentPrice, { exchangeName, frameName, strategyName });
+  if (!signal) return false;
+  const effectivePriceOpen = await backtest.strategyCoreService.getPositionAveragePrice(isBacktest, symbol, { exchangeName, frameName, strategyName });
+  if (effectivePriceOpen === null) return false;
+  const percentShift = tpPriceToPercentShift(newTakeProfitPrice, signal.priceTakeProfit, effectivePriceOpen);
+  return await backtest.strategyCoreService.trailingTake(isBacktest, symbol, percentShift, currentPrice, { exchangeName, frameName, strategyName });
 }
 
 /**
@@ -944,6 +1024,34 @@ export async function getPositionLevels(symbol: string): Promise<number[] | null
   );
 }
 
+/**
+ * Returns the list of partial close events for the current pending signal.
+ *
+ * Each element represents a partial profit or loss close executed via
+ * commitPartialProfit / commitPartialLoss (or their Cost variants).
+ *
+ * Returns null if no pending signal exists.
+ * Returns an empty array if no partials were executed yet.
+ *
+ * Each entry contains:
+ * - `type` — "profit" or "loss"
+ * - `percent` — percentage of position closed at this partial
+ * - `currentPrice` — execution price of the partial close
+ * - `costBasisAtClose` — accounting cost basis at the moment of this partial
+ * - `entryCountAtClose` — number of DCA entries accumulated at this partial
+ *
+ * @param symbol - Trading pair symbol
+ * @returns Promise resolving to array of partial close records or null
+ *
+ * @example
+ * ```typescript
+ * import { getPositionPartials } from "backtest-kit";
+ *
+ * const partials = await getPositionPartials("BTCUSDT");
+ * // No partials yet: []
+ * // After one partial profit: [{ type: "profit", percent: 50, currentPrice: 45000, ... }]
+ * ```
+ */
 export async function getPositionPartials(symbol: string) {
   backtest.loggerService.info(GET_POSITION_PARTIALS_METHOD_NAME, { symbol });
   if (!ExecutionContextService.hasContext()) {

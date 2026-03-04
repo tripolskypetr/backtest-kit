@@ -19,6 +19,8 @@ export {
   commitPartialProfitCost,
   commitTrailingStop,
   commitTrailingTake,
+  commitTrailingStopCost,
+  commitTrailingTakeCost,
   commitBreakeven,
   commitActivateScheduled,
   commitAverageBuy,
@@ -407,6 +409,8 @@ export { set } from "./utils/set";
 export { percentDiff } from "./utils/percentDiff";
 export { percentValue } from "./utils/percentValue";
 export { investedCostToPercent } from "./utils/investedCostToPercent";
+export { slPriceToPercentShift } from "./utils/slPriceToPercentShift";
+export { tpPriceToPercentShift } from "./utils/tpPriceToPercentShift";
 
 export { type GlobalConfig } from "./config/params";
 export { type ColumnConfig } from "./config/columns";
