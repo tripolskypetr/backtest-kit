@@ -18293,6 +18293,8 @@ type BrokerTrailingTakePayload = {
 type BrokerBreakevenPayload = {
     symbol: string;
     currentPrice: number;
+    newStopLossPrice: number;
+    newTakeProfitPrice: number;
     context: {
         strategyName: StrategyName;
         exchangeName: ExchangeName;
@@ -18311,7 +18313,20 @@ type BrokerAverageBuyPayload = {
     };
     backtest: boolean;
 };
+interface IBroker {
+    waitForInit(): Promise<void>;
+    onSignalCloseCommit(payload: BrokerSignalClosePayload): Promise<void>;
+    onSignalOpenCommit(payload: BrokerSignalOpenPayload): Promise<void>;
+    onPartialProfitCommit(payload: BrokerPartialProfitPayload): Promise<void>;
+    onPartialLossCommit(payload: BrokerPartialLossPayload): Promise<void>;
+    onTrailingStopCommit(payload: BrokerTrailingStopPayload): Promise<void>;
+    onTrailingTakeCommit(payload: BrokerTrailingTakePayload): Promise<void>;
+    onBreakevenCommit(payload: BrokerBreakevenPayload): Promise<void>;
+    onAverageBuyCommit(payload: BrokerAverageBuyPayload): Promise<void>;
+}
+type TBrokerCtor = new () => Partial<IBroker>;
 declare class BrokerAdapter {
+    private _brokerInstance;
     commitSignalOpen: (payload: BrokerSignalOpenPayload) => Promise<void>;
     commitSignalClose: (payload: BrokerSignalClosePayload) => Promise<void>;
     commitPartialProfit: (payload: BrokerPartialProfitPayload) => Promise<void>;
@@ -18320,6 +18335,7 @@ declare class BrokerAdapter {
     commitTrailingTake: (payload: BrokerTrailingTakePayload) => Promise<void>;
     commitBreakeven: (payload: BrokerBreakevenPayload) => Promise<void>;
     commitAverageBuy: (payload: BrokerAverageBuyPayload) => Promise<void>;
+    useBrokerAdapter: (broker: TBrokerCtor | Partial<IBroker>) => void;
     enable: (() => () => void) & functools_kit.ISingleshotClearable;
     disable: () => void;
 }

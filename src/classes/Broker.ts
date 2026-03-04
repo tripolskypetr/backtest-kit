@@ -98,6 +98,8 @@ export type BrokerTrailingTakePayload = {
 export type BrokerBreakevenPayload = {
   symbol: string;
   currentPrice: number;
+  newStopLossPrice: number;
+  newTakeProfitPrice: number;
   context: {
     strategyName: StrategyName;
     exchangeName: ExchangeName;

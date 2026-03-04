@@ -9,6 +9,8 @@ import { tpPriceToPercentShift } from "../math/tpPriceToPercentShift";
 import { slPercentShiftToPrice } from "../math/slPercentShiftToPrice";
 import { tpPercentShiftToPrice } from "../math/tpPercentShiftToPrice";
 import { percentToCloseCost } from "../math/percentToCloseCost";
+import { breakevenNewStopLossPrice } from "../math/breakevenNewStopLossPrice";
+import { breakevenNewTakeProfitPrice } from "../math/breakevenNewTakeProfitPrice";
 import { Broker } from "../classes/Broker";
 import { GLOBAL_CONFIG } from "../config/params";
 import { not } from "functools-kit";
@@ -741,6 +743,23 @@ export async function commitBreakeven(symbol: string): Promise<boolean> {
   const { backtest: isBacktest } = backtest.executionContextService.context;
   const { exchangeName, frameName, strategyName } =
     backtest.methodContextService.context;
+  const signal = await backtest.strategyCoreService.getPendingSignal(
+    isBacktest,
+    symbol,
+    currentPrice,
+    { exchangeName, frameName, strategyName },
+  );
+  if (!signal) {
+    return false;
+  }
+  const effectivePriceOpen = await backtest.strategyCoreService.getPositionAveragePrice(
+    isBacktest,
+    symbol,
+    { exchangeName, frameName, strategyName },
+  );
+  if (effectivePriceOpen === null) {
+    return false;
+  }
   if (
     await not(
       backtest.strategyCoreService.validateBreakeven(
@@ -756,6 +775,8 @@ export async function commitBreakeven(symbol: string): Promise<boolean> {
   await Broker.commitBreakeven({
     symbol,
     currentPrice,
+    newStopLossPrice: breakevenNewStopLossPrice(effectivePriceOpen),
+    newTakeProfitPrice: breakevenNewTakeProfitPrice(signal.priceTakeProfit, signal._trailingPriceTakeProfit),
     context: { exchangeName, frameName, strategyName },
     backtest: isBacktest,
   });

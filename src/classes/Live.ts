@@ -20,6 +20,8 @@ import { tpPriceToPercentShift } from "../math/tpPriceToPercentShift";
 import { slPercentShiftToPrice } from "../math/slPercentShiftToPrice";
 import { tpPercentShiftToPrice } from "../math/tpPercentShiftToPrice";
 import { percentToCloseCost } from "../math/percentToCloseCost";
+import { breakevenNewStopLossPrice } from "../math/breakevenNewStopLossPrice";
+import { breakevenNewTakeProfitPrice } from "../math/breakevenNewTakeProfitPrice";
 import { Broker } from "./Broker";
 
 const LIVE_METHOD_NAME_RUN = "LiveUtils.run";
@@ -2744,6 +2746,32 @@ export class LiveUtils {
         );
     }
 
+    const signal = await backtest.strategyCoreService.getPendingSignal(
+      false,
+      symbol,
+      currentPrice,
+      {
+        strategyName: context.strategyName,
+        exchangeName: context.exchangeName,
+        frameName: "",
+      },
+    );
+    if (!signal) {
+      return false;
+    }
+    const effectivePriceOpen =
+      await backtest.strategyCoreService.getPositionAveragePrice(
+        false,
+        symbol,
+        {
+          strategyName: context.strategyName,
+          exchangeName: context.exchangeName,
+          frameName: "",
+        },
+      );
+    if (effectivePriceOpen === null) {
+      return false;
+    }
     if (
       await not(
         backtest.strategyCoreService.validateBreakeven(
@@ -2763,6 +2791,8 @@ export class LiveUtils {
     await Broker.commitBreakeven({
       symbol,
       currentPrice,
+      newStopLossPrice: breakevenNewStopLossPrice(effectivePriceOpen),
+      newTakeProfitPrice: breakevenNewTakeProfitPrice(signal.priceTakeProfit, signal._trailingPriceTakeProfit),
       context: {
         strategyName: context.strategyName,
         exchangeName: context.exchangeName,

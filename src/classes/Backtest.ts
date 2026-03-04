@@ -17,6 +17,8 @@ import { tpPriceToPercentShift } from "../math/tpPriceToPercentShift";
 import { slPercentShiftToPrice } from "../math/slPercentShiftToPrice";
 import { tpPercentShiftToPrice } from "../math/tpPercentShiftToPrice";
 import { percentToCloseCost } from "../math/percentToCloseCost";
+import { breakevenNewStopLossPrice } from "../math/breakevenNewStopLossPrice";
+import { breakevenNewTakeProfitPrice } from "../math/breakevenNewTakeProfitPrice";
 import { Broker } from "./Broker";
 
 const BACKTEST_METHOD_NAME_RUN = "BacktestUtils.run";
@@ -2662,6 +2664,24 @@ export class BacktestUtils {
         );
     }
 
+    const signal = await backtest.strategyCoreService.getPendingSignal(
+      true,
+      symbol,
+      currentPrice,
+      context,
+    );
+    if (!signal) {
+      return false;
+    }
+    const effectivePriceOpen =
+      await backtest.strategyCoreService.getPositionAveragePrice(
+        true,
+        symbol,
+        context,
+      );
+    if (effectivePriceOpen === null) {
+      return false;
+    }
     if (
       await not(
         backtest.strategyCoreService.validateBreakeven(
@@ -2677,6 +2697,8 @@ export class BacktestUtils {
     await Broker.commitBreakeven({
       symbol,
       currentPrice,
+      newStopLossPrice: breakevenNewStopLossPrice(effectivePriceOpen),
+      newTakeProfitPrice: breakevenNewTakeProfitPrice(signal.priceTakeProfit, signal._trailingPriceTakeProfit),
       context,
       backtest: true,
     });
