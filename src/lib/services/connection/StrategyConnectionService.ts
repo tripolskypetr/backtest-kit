@@ -54,7 +54,7 @@ const CREATE_SYNC_FN = (
 ) => trycatch(
   async (event: SignalSyncContract) => {
     if (event.backtest) {
-      return;
+      return true;
     }
     await syncSubject.next(event);
     await self.actionCoreService.signalSync(backtest, event, { strategyName, exchangeName, frameName });
