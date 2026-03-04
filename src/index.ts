@@ -390,6 +390,8 @@ export { ActionBase } from "./classes/Action";
 
 export { 
   Broker,
+  IBroker,
+  TBrokerCtor,
   BrokerAverageBuyPayload,
   BrokerBreakevenPayload,
   BrokerPartialLossPayload,
