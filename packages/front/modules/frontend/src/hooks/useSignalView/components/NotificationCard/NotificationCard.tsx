@@ -63,6 +63,10 @@ const getNotificationColor = (item: NotificationModel): string => {
     case "trailing_stop.commit":
     case "trailing_take.commit":
       return "#673AB7";
+    case "signal_sync.open":
+      return "#4CAF50";
+    case "signal_sync.close":
+      return "#2196F3";
     case "risk.rejection":
       return "#F44336";
     case "error.info":
@@ -102,6 +106,10 @@ const getNotificationIcon = (item: NotificationModel) => {
     case "trailing_stop.commit":
     case "trailing_take.commit":
       return <Timeline sx={sx} />;
+    case "signal_sync.open":
+      return <PlayArrow sx={sx} />;
+    case "signal_sync.close":
+      return <Close sx={sx} />;
     case "risk.rejection":
       return <ReportProblem sx={sx} />;
     case "error.info":
@@ -144,6 +152,10 @@ const getNotificationTitle = (item: NotificationModel): string => {
       return `${t("Trailing stop")} ${item.symbol}`;
     case "trailing_take.commit":
       return `${t("Trailing take")} ${item.symbol}`;
+    case "signal_sync.open":
+      return `${t("Sync Open")} ${item.position.toUpperCase()} ${item.symbol}`;
+    case "signal_sync.close":
+      return `${t("Sync Close")} ${item.symbol} (${item.pnlPercentage > 0 ? "+" : ""}${item.pnlPercentage.toFixed(2)}%)`;
     case "risk.rejection":
       return `${t("Rejected")} ${item.position.toUpperCase()} ${item.symbol}`;
     case "error.info":
@@ -187,6 +199,10 @@ const getNotificationTypeLabel = (item: NotificationModel): string => {
       return t("Trailing Stop");
     case "trailing_take.commit":
       return t("Trailing Take");
+    case "signal_sync.open":
+      return t("Signal Sync Open");
+    case "signal_sync.close":
+      return t("Signal Sync Close");
     case "risk.rejection":
       return t("Risk Rejection");
     case "error.info":
@@ -246,6 +262,12 @@ const handleNotificationClick = (item: NotificationModel) => {
       break;
     case "average_buy.commit":
       ioc.layoutService.pickAverageBuyCommit(item.id);
+      break;
+    case "signal_sync.open":
+      ioc.layoutService.pickSignalOpened(item.id);
+      break;
+    case "signal_sync.close":
+      ioc.layoutService.pickSignalClosed(item.id);
       break;
   }
 };
@@ -314,6 +336,24 @@ const hasCloseReason = (
   return "closeReason" in item;
 };
 
+const hasCancelReason = (
+  item: NotificationModel
+): item is NotificationModel & { cancelReason: string } => {
+  return "cancelReason" in item;
+};
+
+const hasPriceClose = (
+  item: NotificationModel
+): item is NotificationModel & { priceClose: number } => {
+  return "priceClose" in item;
+};
+
+const hasPercentShift = (
+  item: NotificationModel
+): item is NotificationModel & { percentShift: number } => {
+  return "percentShift" in item;
+};
+
 const hasNote = (
   item: NotificationModel
 ): item is NotificationModel & { note: string } => {
@@ -332,6 +372,18 @@ const hasRejectionNote = (
   return "rejectionNote" in item;
 };
 
+const hasActivePositionCount = (
+  item: NotificationModel
+): item is NotificationModel & { activePositionCount: number } => {
+  return "activePositionCount" in item;
+};
+
+const hasMinuteEstimatedTime = (
+  item: NotificationModel
+): item is NotificationModel & { minuteEstimatedTime: number } => {
+  return "minuteEstimatedTime" in item;
+};
+
 const hasEffectivePriceOpen = (
   item: NotificationModel
 ): item is NotificationModel & { effectivePriceOpen: number } => {
@@ -341,7 +393,7 @@ const hasEffectivePriceOpen = (
 const hasTotalEntries = (
   item: NotificationModel
 ): item is NotificationModel & { totalEntries: number } => {
-  return "totalEntries" in item && (item as any).totalEntries > 1;
+  return "totalEntries" in item && item.totalEntries > 1;
 };
 
 const hasOriginalPriceOpen = (
@@ -350,8 +402,31 @@ const hasOriginalPriceOpen = (
   return (
     "originalPriceOpen" in item &&
     "priceOpen" in item &&
-    (item as any).originalPriceOpen !== (item as any).priceOpen
+    item.originalPriceOpen !== item.priceOpen
   );
+};
+
+const hasTotalPartials = (
+  item: NotificationModel
+): item is NotificationModel & { totalPartials: number } => {
+  return "totalPartials" in item && item.totalPartials > 0;
+};
+
+const hasCost = (
+  item: NotificationModel
+): item is NotificationModel & { cost: number } => {
+  return "cost" in item;
+};
+
+const hasPnlDetails = (
+  item: NotificationModel
+): item is NotificationModel & {
+  pnlPriceOpen: number;
+  pnlPriceClose: number;
+  pnlCost: number;
+  pnlEntries: number;
+} => {
+  return "pnlPriceOpen" in item && "pnlPriceClose" in item && "pnlCost" in item && "pnlEntries" in item;
 };
 
 export const NotificationCard = forwardRef(
@@ -470,10 +545,53 @@ export const NotificationCard = forwardRef(
                       color="info"
                     />
                   )}
+                  {hasCancelReason(item) && (
+                    <Chip
+                      size="small"
+                      label={item.cancelReason}
+                      variant="outlined"
+                      color="info"
+                    />
+                  )}
+                  {hasPercentShift(item) && (
+                    <Chip
+                      size="small"
+                      label={`${t("Shift")}: ${item.percentShift > 0 ? "+" : ""}${item.percentShift}%`}
+                      variant="outlined"
+                    />
+                  )}
+                  {hasActivePositionCount(item) && (
+                    <Chip
+                      size="small"
+                      label={`${t("Active")}: ${item.activePositionCount}`}
+                      variant="outlined"
+                    />
+                  )}
+                  {hasMinuteEstimatedTime(item) && (
+                    <Chip
+                      size="small"
+                      label={`${t("Est.")}: ${item.minuteEstimatedTime} ${t("min")}`}
+                      variant="outlined"
+                    />
+                  )}
                   {hasTotalEntries(item) && (
                     <Chip
                       size="small"
                       label={`${t("Entries")}: ${item.totalEntries}`}
+                      variant="outlined"
+                    />
+                  )}
+                  {hasTotalPartials(item) && (
+                    <Chip
+                      size="small"
+                      label={`${t("Partials")}: ${item.totalPartials}`}
+                      variant="outlined"
+                    />
+                  )}
+                  {hasCost(item) && (
+                    <Chip
+                      size="small"
+                      label={`${t("Cost")}: ${item.cost.toFixed(2)}$`}
                       variant="outlined"
                     />
                   )}
@@ -504,6 +622,14 @@ export const NotificationCard = forwardRef(
                         </Typography>
                         {item.priceOpen}
                       </Typography>
+                      {hasPriceClose(item) && (
+                        <Typography variant="body2">
+                          <Typography component="span" color="text.secondary">
+                            {t("Close")}:{" "}
+                          </Typography>
+                          {item.priceClose}
+                        </Typography>
+                      )}
                       {hasCurrentPrice(item) && (
                         <Typography variant="body2">
                           <Typography component="span" color="text.secondary">
@@ -523,6 +649,43 @@ export const NotificationCard = forwardRef(
                           {t("Stop Loss")}:{" "}
                         </Typography>
                         {item.priceStopLoss}
+                      </Typography>
+                    </Stack>
+                  </>
+                )}
+                {hasPnlDetails(item) && (
+                  <>
+                    <Divider sx={{ my: 1 }} />
+                    <Stack direction="row" spacing={3} flexWrap="wrap">
+                      <Typography variant="body2">
+                        <Typography component="span" color="text.secondary">
+                          {t("PnL Entry")}:{" "}
+                        </Typography>
+                        {item.pnlPriceOpen}
+                      </Typography>
+                      <Typography variant="body2">
+                        <Typography component="span" color="text.secondary">
+                          {t("PnL Exit")}:{" "}
+                        </Typography>
+                        {item.pnlPriceClose}
+                      </Typography>
+                      <Typography variant="body2">
+                        <Typography component="span" color="text.secondary">
+                          {t("PnL")}:{" "}
+                        </Typography>
+                        <Typography
+                          component="span"
+                          color={item.pnlCost >= 0 ? "success.main" : "error.main"}
+                        >
+                          {item.pnlCost >= 0 ? "+" : ""}
+                          {item.pnlCost.toFixed(2)}$
+                        </Typography>
+                      </Typography>
+                      <Typography variant="body2">
+                        <Typography component="span" color="text.secondary">
+                          {t("Invested")}:{" "}
+                        </Typography>
+                        {item.pnlEntries.toFixed(2)}$
                       </Typography>
                     </Stack>
                   </>

@@ -4730,87 +4730,6 @@ declare function stopStrategy(symbol: string): Promise<void>;
 declare function shutdown(): void;
 
 /**
- * Sync action type — discriminates between signal-open and signal-close events.
- */
-type SyncActionType = "signal-open" | "signal-close";
-/**
- * Unified sync event data for markdown report generation.
- * Contains all information about signal lifecycle sync events.
- */
-interface SyncEvent {
-    /** Event timestamp in milliseconds */
-    timestamp: number;
-    /** Trading pair symbol */
-    symbol: string;
-    /** Strategy name */
-    strategyName: StrategyName;
-    /** Exchange name */
-    exchangeName: ExchangeName;
-    /** Frame name (empty for live) */
-    frameName: FrameName;
-    /** Signal unique identifier */
-    signalId: string;
-    /** Sync action type */
-    action: SyncActionType;
-    /** Market price at the moment of this event */
-    currentPrice: number;
-    /** Trade direction: "long" (buy) or "short" (sell) */
-    position: "long" | "short";
-    /** Entry price at which the limit order was filled */
-    priceOpen: number;
-    /** Effective take profit price */
-    priceTakeProfit: number;
-    /** Effective stop loss price */
-    priceStopLoss: number;
-    /** Original take profit price before any trailing adjustments */
-    originalPriceTakeProfit: number;
-    /** Original stop loss price before any trailing adjustments */
-    originalPriceStopLoss: number;
-    /** Original entry price before any DCA averaging */
-    originalPriceOpen: number;
-    /** Signal creation timestamp in milliseconds */
-    scheduledAt: number;
-    /** Position activation timestamp in milliseconds */
-    pendingAt: number;
-    /** Total number of DCA entries */
-    totalEntries: number;
-    /** Total number of partial closes executed */
-    totalPartials: number;
-    /** PNL at the moment of this event */
-    pnl: IStrategyPnL;
-    /** Why the signal was closed (signal-close only) */
-    closeReason?: StrategyCloseReason;
-    /** Whether this event is from backtest mode */
-    backtest: boolean;
-    /** ISO timestamp string when event was created */
-    createdAt: string;
-}
-/**
- * Statistical data calculated from sync events.
- *
- * Provides metrics for signal sync lifecycle tracking.
- *
- * @example
- * ```typescript
- * const stats = await Sync.getData("BTCUSDT", "my-strategy");
- *
- * console.log(`Total events: ${stats.totalEvents}`);
- * console.log(`Opens: ${stats.openCount}`);
- * console.log(`Closes: ${stats.closeCount}`);
- * ```
- */
-interface SyncStatisticsModel {
-    /** Array of all sync events with full details */
-    eventList: SyncEvent[];
-    /** Total number of sync events */
-    totalEvents: number;
-    /** Count of signal-open events */
-    openCount: number;
-    /** Count of signal-close events */
-    closeCount: number;
-}
-
-/**
  * Unified breakeven event data for report generation.
  * Contains all information about when signals reached breakeven.
  */
@@ -15148,6 +15067,260 @@ declare class RiskUtils {
 declare const Risk: RiskUtils;
 
 /**
+ * Sync action type — discriminates between signal-open and signal-close events.
+ */
+type SyncActionType = "signal-open" | "signal-close";
+/**
+ * Unified sync event data for markdown report generation.
+ * Contains all information about signal lifecycle sync events.
+ */
+interface SyncEvent {
+    /** Event timestamp in milliseconds */
+    timestamp: number;
+    /** Trading pair symbol */
+    symbol: string;
+    /** Strategy name */
+    strategyName: StrategyName;
+    /** Exchange name */
+    exchangeName: ExchangeName;
+    /** Frame name (empty for live) */
+    frameName: FrameName;
+    /** Signal unique identifier */
+    signalId: string;
+    /** Sync action type */
+    action: SyncActionType;
+    /** Market price at the moment of this event */
+    currentPrice: number;
+    /** Trade direction: "long" (buy) or "short" (sell) */
+    position: "long" | "short";
+    /** Entry price at which the limit order was filled */
+    priceOpen: number;
+    /** Effective take profit price */
+    priceTakeProfit: number;
+    /** Effective stop loss price */
+    priceStopLoss: number;
+    /** Original take profit price before any trailing adjustments */
+    originalPriceTakeProfit: number;
+    /** Original stop loss price before any trailing adjustments */
+    originalPriceStopLoss: number;
+    /** Original entry price before any DCA averaging */
+    originalPriceOpen: number;
+    /** Signal creation timestamp in milliseconds */
+    scheduledAt: number;
+    /** Position activation timestamp in milliseconds */
+    pendingAt: number;
+    /** Total number of DCA entries */
+    totalEntries: number;
+    /** Total number of partial closes executed */
+    totalPartials: number;
+    /** PNL at the moment of this event */
+    pnl: IStrategyPnL;
+    /** Why the signal was closed (signal-close only) */
+    closeReason?: StrategyCloseReason;
+    /** Whether this event is from backtest mode */
+    backtest: boolean;
+    /** ISO timestamp string when event was created */
+    createdAt: string;
+}
+/**
+ * Statistical data calculated from sync events.
+ *
+ * Provides metrics for signal sync lifecycle tracking.
+ *
+ * @example
+ * ```typescript
+ * const stats = await Sync.getData("BTCUSDT", "my-strategy");
+ *
+ * console.log(`Total events: ${stats.totalEvents}`);
+ * console.log(`Opens: ${stats.openCount}`);
+ * console.log(`Closes: ${stats.closeCount}`);
+ * ```
+ */
+interface SyncStatisticsModel {
+    /** Array of all sync events with full details */
+    eventList: SyncEvent[];
+    /** Total number of sync events */
+    totalEvents: number;
+    /** Count of signal-open events */
+    openCount: number;
+    /** Count of signal-close events */
+    closeCount: number;
+}
+
+/**
+ * Type alias for column configuration used in sync markdown reports.
+ *
+ * @see ColumnModel for the base interface
+ * @see SyncEvent for the event data structure
+ */
+type Columns$2 = ColumnModel<SyncEvent>;
+/**
+ * Service for generating and saving signal sync markdown reports.
+ *
+ * Features:
+ * - Listens to signal sync events via syncSubject (signal-open and signal-close)
+ * - Accumulates all sync events per symbol-strategy-exchange-frame-backtest combination
+ * - Generates markdown tables with detailed signal lifecycle information
+ * - Provides statistics (total events, opens, closes)
+ * - Saves reports to disk in dump/sync/
+ *
+ * @example
+ * ```typescript
+ * import { Markdown } from "backtest-kit";
+ *
+ * const unsubscribe = Markdown.enable({ sync: true });
+ * // ... later
+ * unsubscribe();
+ * ```
+ */
+declare class SyncMarkdownService {
+    private readonly loggerService;
+    private getStorage;
+    subscribe: (() => () => void) & functools_kit.ISingleshotClearable;
+    unsubscribe: () => Promise<void>;
+    private tick;
+    getData: (symbol: string, strategyName: StrategyName, exchangeName: ExchangeName, frameName: FrameName, backtest: boolean) => Promise<SyncStatisticsModel>;
+    getReport: (symbol: string, strategyName: StrategyName, exchangeName: ExchangeName, frameName: FrameName, backtest: boolean, columns?: Columns$2[]) => Promise<string>;
+    dump: (symbol: string, strategyName: StrategyName, exchangeName: ExchangeName, frameName: FrameName, backtest: boolean, path?: string, columns?: Columns$2[]) => Promise<void>;
+    clear: (payload?: {
+        symbol: string;
+        strategyName: StrategyName;
+        exchangeName: ExchangeName;
+        frameName: FrameName;
+        backtest: boolean;
+    }) => Promise<void>;
+}
+
+/**
+ * Utility class for accessing signal sync lifecycle reports and statistics.
+ *
+ * Provides methods to retrieve data accumulated by SyncMarkdownService
+ * from signal-open and signal-close events emitted via syncSubject.
+ *
+ * Features:
+ * - Statistical data extraction (total events, opens, closes)
+ * - Markdown report generation with event tables
+ * - File export to disk
+ *
+ * Data source:
+ * - SyncMarkdownService listens to syncSubject
+ * - Accumulates sync events in ReportStorage (max 250 events per combination)
+ * - Events include: signal-open (limit order filled) and signal-close (position exited)
+ *
+ * @example
+ * ```typescript
+ * import { Sync } from "backtest-kit";
+ *
+ * // Get statistical data
+ * const stats = await Sync.getData("BTCUSDT", {
+ *   strategyName: "my-strategy",
+ *   exchangeName: "binance",
+ *   frameName: "1h",
+ * });
+ * console.log(`Total sync events: ${stats.totalEvents}`);
+ * console.log(`Opens: ${stats.openCount}`);
+ * console.log(`Closes: ${stats.closeCount}`);
+ *
+ * // Generate markdown report
+ * const markdown = await Sync.getReport("BTCUSDT", {
+ *   strategyName: "my-strategy",
+ *   exchangeName: "binance",
+ *   frameName: "1h",
+ * });
+ * console.log(markdown);
+ *
+ * // Export report to file
+ * await Sync.dump("BTCUSDT", {
+ *   strategyName: "my-strategy",
+ *   exchangeName: "binance",
+ *   frameName: "1h",
+ * });
+ * ```
+ */
+declare class SyncUtils {
+    /**
+     * Retrieves statistical data from accumulated signal sync events.
+     *
+     * Delegates to SyncMarkdownService.getData() which reads from ReportStorage.
+     * Returns aggregated metrics calculated from all sync events.
+     *
+     * @param symbol - Trading pair symbol (e.g., "BTCUSDT")
+     * @param context - Context with strategyName, exchangeName, frameName
+     * @param backtest - Whether to query backtest data (default: false = live)
+     * @returns Promise resolving to SyncStatisticsModel with event list and counts
+     */
+    getData: (symbol: string, context: {
+        strategyName: StrategyName;
+        exchangeName: ExchangeName;
+        frameName: FrameName;
+    }, backtest?: boolean) => Promise<SyncStatisticsModel>;
+    /**
+     * Generates markdown report with all signal sync events for a symbol-strategy pair.
+     *
+     * Creates formatted table containing:
+     * - Symbol, strategy, signal ID
+     * - Action (signal-open / signal-close)
+     * - Position direction, current price, entry price
+     * - Take profit and stop loss levels
+     * - DCA entry count, partial close count
+     * - PNL percentage, close reason (for signal-close)
+     * - Timestamp and mode (backtest/live)
+     *
+     * @param symbol - Trading pair symbol (e.g., "BTCUSDT")
+     * @param context - Context with strategyName, exchangeName, frameName
+     * @param backtest - Whether to query backtest data (default: false = live)
+     * @param columns - Optional column configuration for the report table
+     * @returns Promise resolving to markdown formatted report string
+     */
+    getReport: (symbol: string, context: {
+        strategyName: StrategyName;
+        exchangeName: ExchangeName;
+        frameName: FrameName;
+    }, backtest?: boolean, columns?: Columns$2[]) => Promise<string>;
+    /**
+     * Generates and saves markdown report to file.
+     *
+     * Creates directory if it doesn't exist.
+     * Filename format: {symbol}_{strategyName}_{exchangeName}[_{frameName}_backtest|_live]-{timestamp}.md
+     *
+     * @param symbol - Trading pair symbol (e.g., "BTCUSDT")
+     * @param context - Context with strategyName, exchangeName, frameName
+     * @param backtest - Whether to query backtest data (default: false = live)
+     * @param path - Output directory path (default: "./dump/sync")
+     * @param columns - Optional column configuration for the report table
+     * @returns Promise that resolves when file is written
+     *
+     * @example
+     * ```typescript
+     * // Save to default path: ./dump/sync/
+     * await Sync.dump("BTCUSDT", { strategyName: "my-strategy", exchangeName: "binance", frameName: "1h" });
+     *
+     * // Save to custom path
+     * await Sync.dump("BTCUSDT", { strategyName: "my-strategy", exchangeName: "binance", frameName: "1h" }, false, "./reports/sync");
+     * ```
+     */
+    dump: (symbol: string, context: {
+        strategyName: StrategyName;
+        exchangeName: ExchangeName;
+        frameName: FrameName;
+    }, backtest?: boolean, path?: string, columns?: Columns$2[]) => Promise<void>;
+}
+/**
+ * Global singleton instance of SyncUtils.
+ * Provides static-like access to signal sync reporting methods.
+ *
+ * @example
+ * ```typescript
+ * import { Sync } from "backtest-kit";
+ *
+ * const stats = await Sync.getData("BTCUSDT", { strategyName: "my-strategy", exchangeName: "binance", frameName: "1h" });
+ * const report = await Sync.getReport("BTCUSDT", { strategyName: "my-strategy", exchangeName: "binance", frameName: "1h" });
+ * await Sync.dump("BTCUSDT", { strategyName: "my-strategy", exchangeName: "binance", frameName: "1h" });
+ * ```
+ */
+declare const Sync: SyncUtils;
+
+/**
  * Type alias for signal storage row identifier.
  * Extracted from IStorageSignalRow for type safety and reusability.
  */
@@ -16146,7 +16319,7 @@ declare const Cache: CacheUtils;
  * @see ColumnModel for the base interface
  * @see BreakevenEvent for the event data structure
  */
-type Columns$2 = ColumnModel<BreakevenEvent>;
+type Columns$1 = ColumnModel<BreakevenEvent>;
 /**
  * Service for generating and saving breakeven markdown reports.
  *
@@ -16255,7 +16428,7 @@ declare class BreakevenMarkdownService {
      * console.log(markdown);
      * ```
      */
-    getReport: (symbol: string, strategyName: StrategyName, exchangeName: ExchangeName, frameName: FrameName, backtest: boolean, columns?: Columns$2[]) => Promise<string>;
+    getReport: (symbol: string, strategyName: StrategyName, exchangeName: ExchangeName, frameName: FrameName, backtest: boolean, columns?: Columns$1[]) => Promise<string>;
     /**
      * Saves symbol-strategy report to disk.
      * Creates directory if it doesn't exist.
@@ -16280,7 +16453,7 @@ declare class BreakevenMarkdownService {
      * await service.dump("BTCUSDT", "my-strategy", "binance", "1h", false, "./custom/path");
      * ```
      */
-    dump: (symbol: string, strategyName: StrategyName, exchangeName: ExchangeName, frameName: FrameName, backtest: boolean, path?: string, columns?: Columns$2[]) => Promise<void>;
+    dump: (symbol: string, strategyName: StrategyName, exchangeName: ExchangeName, frameName: FrameName, backtest: boolean, path?: string, columns?: Columns$1[]) => Promise<void>;
     /**
      * Clears accumulated event data from storage.
      * If payload is provided, clears only that specific symbol-strategy-exchange-frame-backtest combination's data.
@@ -16408,7 +16581,7 @@ declare class BreakevenUtils {
         strategyName: StrategyName;
         exchangeName: ExchangeName;
         frameName: FrameName;
-    }, backtest?: boolean, columns?: Columns$2[]) => Promise<string>;
+    }, backtest?: boolean, columns?: Columns$1[]) => Promise<string>;
     /**
      * Generates and saves markdown report to file.
      *
@@ -16445,7 +16618,7 @@ declare class BreakevenUtils {
         strategyName: StrategyName;
         exchangeName: ExchangeName;
         frameName: FrameName;
-    }, backtest?: boolean, path?: string, columns?: Columns$2[]) => Promise<void>;
+    }, backtest?: boolean, path?: string, columns?: Columns$1[]) => Promise<void>;
 }
 /**
  * Global singleton instance of BreakevenUtils.
@@ -16530,7 +16703,7 @@ declare class LoggerService implements ILogger {
  * @see ColumnModel for the base interface
  * @see StrategyEvent for the event data structure
  */
-type Columns$1 = ColumnModel<StrategyEvent>;
+type Columns = ColumnModel<StrategyEvent>;
 /**
  * Service for accumulating strategy management events and generating markdown reports.
  *
@@ -16809,7 +16982,7 @@ declare class StrategyMarkdownService {
      * @returns Promise resolving to formatted markdown string
      * @throws Error if service not initialized (subscribe() not called)
      */
-    getReport: (symbol: string, strategyName: StrategyName, exchangeName: ExchangeName, frameName: FrameName, backtest: boolean, columns?: Columns$1[]) => Promise<string>;
+    getReport: (symbol: string, strategyName: StrategyName, exchangeName: ExchangeName, frameName: FrameName, backtest: boolean, columns?: Columns[]) => Promise<string>;
     /**
      * Generates and saves a markdown report to disk.
      *
@@ -16828,7 +17001,7 @@ declare class StrategyMarkdownService {
      * @returns Promise that resolves when file is written
      * @throws Error if service not initialized (subscribe() not called)
      */
-    dump: (symbol: string, strategyName: StrategyName, exchangeName: ExchangeName, frameName: FrameName, backtest: boolean, path?: string, columns?: Columns$1[]) => Promise<void>;
+    dump: (symbol: string, strategyName: StrategyName, exchangeName: ExchangeName, frameName: FrameName, backtest: boolean, path?: string, columns?: Columns[]) => Promise<void>;
     /**
      * Clears accumulated events from storage.
      *
@@ -16977,7 +17150,7 @@ declare class StrategyUtils {
         strategyName: StrategyName;
         exchangeName: ExchangeName;
         frameName: FrameName;
-    }, backtest?: boolean, columns?: Columns$1[]) => Promise<string>;
+    }, backtest?: boolean, columns?: Columns[]) => Promise<string>;
     /**
      * Generates and saves markdown report to file.
      *
@@ -17015,7 +17188,7 @@ declare class StrategyUtils {
         strategyName: StrategyName;
         exchangeName: ExchangeName;
         frameName: FrameName;
-    }, backtest?: boolean, path?: string, columns?: Columns$1[]) => Promise<void>;
+    }, backtest?: boolean, path?: string, columns?: Columns[]) => Promise<void>;
 }
 /**
  * Global singleton instance of StrategyUtils.
@@ -23155,50 +23328,6 @@ declare class SyncReportService {
     unsubscribe: () => Promise<void>;
 }
 
-/**
- * Type alias for column configuration used in sync markdown reports.
- *
- * @see ColumnModel for the base interface
- * @see SyncEvent for the event data structure
- */
-type Columns = ColumnModel<SyncEvent>;
-/**
- * Service for generating and saving signal sync markdown reports.
- *
- * Features:
- * - Listens to signal sync events via syncSubject (signal-open and signal-close)
- * - Accumulates all sync events per symbol-strategy-exchange-frame-backtest combination
- * - Generates markdown tables with detailed signal lifecycle information
- * - Provides statistics (total events, opens, closes)
- * - Saves reports to disk in dump/sync/
- *
- * @example
- * ```typescript
- * import { Markdown } from "backtest-kit";
- *
- * const unsubscribe = Markdown.enable({ sync: true });
- * // ... later
- * unsubscribe();
- * ```
- */
-declare class SyncMarkdownService {
-    private readonly loggerService;
-    private getStorage;
-    subscribe: (() => () => void) & functools_kit.ISingleshotClearable;
-    unsubscribe: () => Promise<void>;
-    private tick;
-    getData: (symbol: string, strategyName: StrategyName, exchangeName: ExchangeName, frameName: FrameName, backtest: boolean) => Promise<SyncStatisticsModel>;
-    getReport: (symbol: string, strategyName: StrategyName, exchangeName: ExchangeName, frameName: FrameName, backtest: boolean, columns?: Columns[]) => Promise<string>;
-    dump: (symbol: string, strategyName: StrategyName, exchangeName: ExchangeName, frameName: FrameName, backtest: boolean, path?: string, columns?: Columns[]) => Promise<void>;
-    clear: (payload?: {
-        symbol: string;
-        strategyName: StrategyName;
-        exchangeName: ExchangeName;
-        frameName: FrameName;
-        backtest: boolean;
-    }) => Promise<void>;
-}
-
 declare const backtest: {
     exchangeValidationService: ExchangeValidationService;
     strategyValidationService: StrategyValidationService;
@@ -23348,4 +23477,4 @@ declare const getTotalClosed: (signal: Signal) => {
     remainingCostBasis: number;
 };
 
-export { ActionBase, type ActivateScheduledCommit, type ActivateScheduledCommitNotification, type ActivePingContract, type AverageBuyCommit, type AverageBuyCommitNotification, Backtest, type BacktestStatisticsModel, Breakeven, type BreakevenAvailableNotification, type BreakevenCommit, type BreakevenCommitNotification, type BreakevenContract, type BreakevenData, Cache, type CancelScheduledCommit, type CandleData, type CandleInterval, type ClosePendingCommit, type ColumnConfig, type ColumnModel, Constant, type CriticalErrorNotification, type DoneContract, type EntityId, Exchange, ExecutionContextService, type FrameInterval, type GlobalConfig, Heat, type HeatmapStatisticsModel, type IActionSchema, type IActivateScheduledCommitRow, type IAggregatedTradeData, type IBidData, type IBreakevenCommitRow, type ICandleData, type ICommitRow, type IExchangeSchema, type IFrameSchema, type IHeatmapRow, type ILog, type ILogEntry, type ILogger, type IMarkdownDumpOptions, type INotificationUtils, type IOrderBookData, type IPartialLossCommitRow, type IPartialProfitCommitRow, type IPersistBase, type IPositionSizeATRParams, type IPositionSizeFixedPercentageParams, type IPositionSizeKellyParams, type IPublicAction, type IPublicCandleData, type IPublicSignalRow, type IReportDumpOptions, type IRiskActivePosition, type IRiskCheckArgs, type IRiskSchema, type IRiskSignalRow, type IRiskValidation, type IRiskValidationFn, type IRiskValidationPayload, type IScheduledSignalCancelRow, type IScheduledSignalRow, type ISignalDto, type ISignalRow, type ISizingCalculateParams, type ISizingCalculateParamsATR, type ISizingCalculateParamsFixedPercentage, type ISizingCalculateParamsKelly, type ISizingParams, type ISizingParamsATR, type ISizingParamsFixedPercentage, type ISizingParamsKelly, type ISizingSchema, type ISizingSchemaATR, type ISizingSchemaFixedPercentage, type ISizingSchemaKelly, type IStorageSignalRow, type IStorageUtils, type IStrategyPnL, type IStrategyResult, type IStrategySchema, type IStrategyTickResult, type IStrategyTickResultActive, type IStrategyTickResultCancelled, type IStrategyTickResultClosed, type IStrategyTickResultIdle, type IStrategyTickResultOpened, type IStrategyTickResultScheduled, type IStrategyTickResultWaiting, type ITrailingStopCommitRow, type ITrailingTakeCommitRow, type IWalkerResults, type IWalkerSchema, type IWalkerStrategyResult, type InfoErrorNotification, Live, type LiveStatisticsModel, Log, type LogData, Markdown, MarkdownFileBase, MarkdownFolderBase, type MarkdownName, type MeasureData, MethodContextService, type MetricStats, Notification, NotificationBacktest, type NotificationData, NotificationLive, type NotificationModel, Partial$1 as Partial, type PartialData, type PartialEvent, type PartialLossAvailableNotification, type PartialLossCommit, type PartialLossCommitNotification, type PartialLossContract, type PartialProfitAvailableNotification, type PartialProfitCommit, type PartialProfitCommitNotification, type PartialProfitContract, type PartialStatisticsModel, Performance, type PerformanceContract, type PerformanceMetricType, type PerformanceStatisticsModel, PersistBase, PersistBreakevenAdapter, PersistCandleAdapter, PersistLogAdapter, PersistMeasureAdapter, PersistNotificationAdapter, PersistPartialAdapter, PersistRiskAdapter, PersistScheduleAdapter, PersistSignalAdapter, PersistStorageAdapter, PositionSize, type ProgressBacktestContract, type ProgressWalkerContract, Report, ReportBase, type ReportName, Risk, type RiskContract, type RiskData, type RiskEvent, type RiskRejectionNotification, type RiskStatisticsModel, Schedule, type ScheduleData, type SchedulePingContract, type ScheduleStatisticsModel, type ScheduledEvent, type SignalCancelledNotification, type SignalCloseContract, type SignalClosedNotification, type SignalData, type SignalInterval, type SignalOpenContract, type SignalOpenedNotification, type SignalScheduledNotification, type SignalSyncCloseNotification, type SignalSyncContract, type SignalSyncOpenNotification, Storage, StorageBacktest, type StorageData, StorageLive, Strategy, type StrategyActionType, type StrategyCancelReason, type StrategyCloseReason, type StrategyCommitContract, type StrategyEvent, type StrategyStatisticsModel, type TLogCtor, type TMarkdownBase, type TNotificationUtilsCtor, type TPersistBase, type TPersistBaseCtor, type TReportBase, type TStorageUtilsCtor, type TickEvent, type TrailingStopCommit, type TrailingStopCommitNotification, type TrailingTakeCommit, type TrailingTakeCommitNotification, type ValidationErrorNotification, Walker, type WalkerCompleteContract, type WalkerContract, type WalkerMetric, type SignalData$1 as WalkerSignalData, type WalkerStatisticsModel, addActionSchema, addExchangeSchema, addFrameSchema, addRiskSchema, addSizingSchema, addStrategySchema, addWalkerSchema, alignToInterval, checkCandles, commitActivateScheduled, commitAverageBuy, commitBreakeven, commitCancelScheduled, commitClosePending, commitPartialLoss, commitPartialLossCost, commitPartialProfit, commitPartialProfitCost, commitTrailingStop, commitTrailingTake, dumpMessages, emitters, formatPrice, formatQuantity, get, getActionSchema, getAggregatedTrades, getAveragePrice, getBacktestTimeframe, getBreakeven, getCandles, getColumns, getConfig, getContext, getDate, getDefaultColumns, getDefaultConfig, getEffectivePriceOpen, getExchangeSchema, getFrameSchema, getMode, getNextCandles, getOrderBook, getPendingSignal, getPositionAveragePrice, getPositionInvestedCost, getPositionInvestedCount, getPositionLevels, getPositionPartials, getPositionPnlCost, getPositionPnlPercent, getRawCandles, getRiskSchema, getScheduledSignal, getSizingSchema, getStrategySchema, getSymbol, getTimestamp, getTotalClosed, getTotalCostClosed, getTotalPercentClosed, getWalkerSchema, hasTradeContext, investedCostToPercent, backtest as lib, listExchangeSchema, listFrameSchema, listRiskSchema, listSizingSchema, listStrategySchema, listWalkerSchema, listenActivePing, listenActivePingOnce, listenBacktestProgress, listenBreakevenAvailable, listenBreakevenAvailableOnce, listenDoneBacktest, listenDoneBacktestOnce, listenDoneLive, listenDoneLiveOnce, listenDoneWalker, listenDoneWalkerOnce, listenError, listenExit, listenPartialLossAvailable, listenPartialLossAvailableOnce, listenPartialProfitAvailable, listenPartialProfitAvailableOnce, listenPerformance, listenRisk, listenRiskOnce, listenSchedulePing, listenSchedulePingOnce, listenSignal, listenSignalBacktest, listenSignalBacktestOnce, listenSignalLive, listenSignalLiveOnce, listenSignalOnce, listenStrategyCommit, listenStrategyCommitOnce, listenSync, listenSyncOnce, listenValidation, listenWalker, listenWalkerComplete, listenWalkerOnce, listenWalkerProgress, overrideActionSchema, overrideExchangeSchema, overrideFrameSchema, overrideRiskSchema, overrideSizingSchema, overrideStrategySchema, overrideWalkerSchema, parseArgs, percentDiff, percentValue, roundTicks, set, setColumns, setConfig, setLogger, shutdown, stopStrategy, toProfitLossDto, validate, waitForCandle, warmCandles };
+export { ActionBase, type ActivateScheduledCommit, type ActivateScheduledCommitNotification, type ActivePingContract, type AverageBuyCommit, type AverageBuyCommitNotification, Backtest, type BacktestStatisticsModel, Breakeven, type BreakevenAvailableNotification, type BreakevenCommit, type BreakevenCommitNotification, type BreakevenContract, type BreakevenData, Cache, type CancelScheduledCommit, type CandleData, type CandleInterval, type ClosePendingCommit, type ColumnConfig, type ColumnModel, Constant, type CriticalErrorNotification, type DoneContract, type EntityId, Exchange, ExecutionContextService, type FrameInterval, type GlobalConfig, Heat, type HeatmapStatisticsModel, type IActionSchema, type IActivateScheduledCommitRow, type IAggregatedTradeData, type IBidData, type IBreakevenCommitRow, type ICandleData, type ICommitRow, type IExchangeSchema, type IFrameSchema, type IHeatmapRow, type ILog, type ILogEntry, type ILogger, type IMarkdownDumpOptions, type INotificationUtils, type IOrderBookData, type IPartialLossCommitRow, type IPartialProfitCommitRow, type IPersistBase, type IPositionSizeATRParams, type IPositionSizeFixedPercentageParams, type IPositionSizeKellyParams, type IPublicAction, type IPublicCandleData, type IPublicSignalRow, type IReportDumpOptions, type IRiskActivePosition, type IRiskCheckArgs, type IRiskSchema, type IRiskSignalRow, type IRiskValidation, type IRiskValidationFn, type IRiskValidationPayload, type IScheduledSignalCancelRow, type IScheduledSignalRow, type ISignalDto, type ISignalRow, type ISizingCalculateParams, type ISizingCalculateParamsATR, type ISizingCalculateParamsFixedPercentage, type ISizingCalculateParamsKelly, type ISizingParams, type ISizingParamsATR, type ISizingParamsFixedPercentage, type ISizingParamsKelly, type ISizingSchema, type ISizingSchemaATR, type ISizingSchemaFixedPercentage, type ISizingSchemaKelly, type IStorageSignalRow, type IStorageUtils, type IStrategyPnL, type IStrategyResult, type IStrategySchema, type IStrategyTickResult, type IStrategyTickResultActive, type IStrategyTickResultCancelled, type IStrategyTickResultClosed, type IStrategyTickResultIdle, type IStrategyTickResultOpened, type IStrategyTickResultScheduled, type IStrategyTickResultWaiting, type ITrailingStopCommitRow, type ITrailingTakeCommitRow, type IWalkerResults, type IWalkerSchema, type IWalkerStrategyResult, type InfoErrorNotification, Live, type LiveStatisticsModel, Log, type LogData, Markdown, MarkdownFileBase, MarkdownFolderBase, type MarkdownName, type MeasureData, MethodContextService, type MetricStats, Notification, NotificationBacktest, type NotificationData, NotificationLive, type NotificationModel, Partial$1 as Partial, type PartialData, type PartialEvent, type PartialLossAvailableNotification, type PartialLossCommit, type PartialLossCommitNotification, type PartialLossContract, type PartialProfitAvailableNotification, type PartialProfitCommit, type PartialProfitCommitNotification, type PartialProfitContract, type PartialStatisticsModel, Performance, type PerformanceContract, type PerformanceMetricType, type PerformanceStatisticsModel, PersistBase, PersistBreakevenAdapter, PersistCandleAdapter, PersistLogAdapter, PersistMeasureAdapter, PersistNotificationAdapter, PersistPartialAdapter, PersistRiskAdapter, PersistScheduleAdapter, PersistSignalAdapter, PersistStorageAdapter, PositionSize, type ProgressBacktestContract, type ProgressWalkerContract, Report, ReportBase, type ReportName, Risk, type RiskContract, type RiskData, type RiskEvent, type RiskRejectionNotification, type RiskStatisticsModel, Schedule, type ScheduleData, type SchedulePingContract, type ScheduleStatisticsModel, type ScheduledEvent, type SignalCancelledNotification, type SignalCloseContract, type SignalClosedNotification, type SignalData, type SignalInterval, type SignalOpenContract, type SignalOpenedNotification, type SignalScheduledNotification, type SignalSyncCloseNotification, type SignalSyncContract, type SignalSyncOpenNotification, Storage, StorageBacktest, type StorageData, StorageLive, Strategy, type StrategyActionType, type StrategyCancelReason, type StrategyCloseReason, type StrategyCommitContract, type StrategyEvent, type StrategyStatisticsModel, Sync, type SyncEvent, type SyncStatisticsModel, type TLogCtor, type TMarkdownBase, type TNotificationUtilsCtor, type TPersistBase, type TPersistBaseCtor, type TReportBase, type TStorageUtilsCtor, type TickEvent, type TrailingStopCommit, type TrailingStopCommitNotification, type TrailingTakeCommit, type TrailingTakeCommitNotification, type ValidationErrorNotification, Walker, type WalkerCompleteContract, type WalkerContract, type WalkerMetric, type SignalData$1 as WalkerSignalData, type WalkerStatisticsModel, addActionSchema, addExchangeSchema, addFrameSchema, addRiskSchema, addSizingSchema, addStrategySchema, addWalkerSchema, alignToInterval, checkCandles, commitActivateScheduled, commitAverageBuy, commitBreakeven, commitCancelScheduled, commitClosePending, commitPartialLoss, commitPartialLossCost, commitPartialProfit, commitPartialProfitCost, commitTrailingStop, commitTrailingTake, dumpMessages, emitters, formatPrice, formatQuantity, get, getActionSchema, getAggregatedTrades, getAveragePrice, getBacktestTimeframe, getBreakeven, getCandles, getColumns, getConfig, getContext, getDate, getDefaultColumns, getDefaultConfig, getEffectivePriceOpen, getExchangeSchema, getFrameSchema, getMode, getNextCandles, getOrderBook, getPendingSignal, getPositionAveragePrice, getPositionInvestedCost, getPositionInvestedCount, getPositionLevels, getPositionPartials, getPositionPnlCost, getPositionPnlPercent, getRawCandles, getRiskSchema, getScheduledSignal, getSizingSchema, getStrategySchema, getSymbol, getTimestamp, getTotalClosed, getTotalCostClosed, getTotalPercentClosed, getWalkerSchema, hasTradeContext, investedCostToPercent, backtest as lib, listExchangeSchema, listFrameSchema, listRiskSchema, listSizingSchema, listStrategySchema, listWalkerSchema, listenActivePing, listenActivePingOnce, listenBacktestProgress, listenBreakevenAvailable, listenBreakevenAvailableOnce, listenDoneBacktest, listenDoneBacktestOnce, listenDoneLive, listenDoneLiveOnce, listenDoneWalker, listenDoneWalkerOnce, listenError, listenExit, listenPartialLossAvailable, listenPartialLossAvailableOnce, listenPartialProfitAvailable, listenPartialProfitAvailableOnce, listenPerformance, listenRisk, listenRiskOnce, listenSchedulePing, listenSchedulePingOnce, listenSignal, listenSignalBacktest, listenSignalBacktestOnce, listenSignalLive, listenSignalLiveOnce, listenSignalOnce, listenStrategyCommit, listenStrategyCommitOnce, listenSync, listenSyncOnce, listenValidation, listenWalker, listenWalkerComplete, listenWalkerOnce, listenWalkerProgress, overrideActionSchema, overrideExchangeSchema, overrideFrameSchema, overrideRiskSchema, overrideSizingSchema, overrideStrategySchema, overrideWalkerSchema, parseArgs, percentDiff, percentValue, roundTicks, set, setColumns, setConfig, setLogger, shutdown, stopStrategy, toProfitLossDto, validate, waitForCandle, warmCandles };

@@ -112,6 +112,10 @@ const getNotificationColor = (item: NotificationModel): string | undefined => {
     case "trailing_stop.commit":
     case "trailing_take.commit":
       return "#673AB7";
+    case "signal_sync.open":
+      return "#4CAF50";
+    case "signal_sync.close":
+      return "#2196F3";
     case "risk.rejection":
       return "#F44336";
     case "error.info":
@@ -151,6 +155,10 @@ const getNotificationIcon = (item: NotificationModel) => {
     case "trailing_stop.commit":
     case "trailing_take.commit":
       return <Timeline sx={sx} />;
+    case "signal_sync.open":
+      return <PlayArrow sx={sx} />;
+    case "signal_sync.close":
+      return <Close sx={sx} />;
     case "risk.rejection":
       return <ReportProblem sx={sx} />;
     case "error.info":
@@ -193,6 +201,10 @@ const getNotificationTitle = (item: NotificationModel): string => {
       return `${t("Trailing stop")} ${item.symbol}`;
     case "trailing_take.commit":
       return `${t("Trailing take")} ${item.symbol}`;
+    case "signal_sync.open":
+      return `${t("Sync Open")} ${item.position.toUpperCase()} ${item.symbol}`;
+    case "signal_sync.close":
+      return `${t("Sync Close")} ${item.symbol} (${item.pnlPercentage > 0 ? "+" : ""}${item.pnlPercentage.toFixed(2)}%)`;
     case "risk.rejection":
       return `${t("Rejected")} ${item.position.toUpperCase()} ${item.symbol}`;
     case "error.info":
@@ -252,6 +264,12 @@ const handleNotificationClick = (item: NotificationModel) => {
       break;
     case "average_buy.commit":
       ioc.layoutService.pickAverageBuyCommit(item.id);
+      break;
+    case "signal_sync.open":
+      ioc.layoutService.pickSignalOpened(item.id);
+      break;
+    case "signal_sync.close":
+      ioc.layoutService.pickSignalClosed(item.id);
       break;
   }
 };
@@ -397,7 +415,7 @@ export const NotificationView = () => {
                 {async () => {
                   const rawItems = await ioc.notificationViewService.getList();
                   const items = rawItems.filter((item) =>
-                    item.type.startsWith("signal.")
+                    item.type.startsWith("signal.") || item.type.startsWith("signal_sync.")
                   );
                   return (
                     <VirtualView
