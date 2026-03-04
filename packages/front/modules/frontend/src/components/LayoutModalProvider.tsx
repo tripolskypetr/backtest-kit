@@ -37,6 +37,10 @@ import useActivateScheduledView from "../hooks/useActivateScheduledView";
 // Average buy hook
 import useAverageBuyCommitView from "../hooks/useAverageBuyCommitView";
 
+// Signal sync hooks (2 types)
+import useSignalSyncOpenView from "../hooks/useSignalSyncOpenView";
+import useSignalSyncCloseView from "../hooks/useSignalSyncCloseView";
+
 interface ILayoutModalProviderProps {
     children: React.ReactNode;
 }
@@ -107,6 +111,10 @@ export const LayoutModalProvider = ({
     // Average buy hook
     const pickAverageBuyCommit = useAverageBuyCommitView();
 
+    // Signal sync hooks (2 types)
+    const pickSignalSyncOpen = useSignalSyncOpenView();
+    const pickSignalSyncClose = useSignalSyncCloseView();
+
     useOnce(() =>
         ioc.layoutService.promptOutgoing.subscribe(async ({ title, value }) => {
             const result = await pickPrompt({ title, value }).toPromise();
@@ -159,6 +167,10 @@ export const LayoutModalProvider = ({
 
     // Average buy subscription
     useOnce(() => ioc.layoutService.pickAverageBuyCommitSubject.subscribe(pickAverageBuyCommit));
+
+    // Signal sync subscriptions (2 types)
+    useOnce(() => ioc.layoutService.pickSignalSyncOpenSubject.subscribe(pickSignalSyncOpen));
+    useOnce(() => ioc.layoutService.pickSignalSyncCloseSubject.subscribe(pickSignalSyncClose));
 
     return (
         <>

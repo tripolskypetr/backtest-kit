@@ -264,10 +264,10 @@ const handleNotificationClick = (item: NotificationModel) => {
       ioc.layoutService.pickAverageBuyCommit(item.id);
       break;
     case "signal_sync.open":
-      ioc.layoutService.pickSignalOpened(item.id);
+      ioc.layoutService.pickSignalSyncOpen(item.id);
       break;
     case "signal_sync.close":
-      ioc.layoutService.pickSignalClosed(item.id);
+      ioc.layoutService.pickSignalSyncClose(item.id);
       break;
   }
 };
@@ -376,12 +376,6 @@ const hasActivePositionCount = (
   item: NotificationModel
 ): item is NotificationModel & { activePositionCount: number } => {
   return "activePositionCount" in item;
-};
-
-const hasMinuteEstimatedTime = (
-  item: NotificationModel
-): item is NotificationModel & { minuteEstimatedTime: number } => {
-  return "minuteEstimatedTime" in item;
 };
 
 const hasEffectivePriceOpen = (
@@ -564,13 +558,6 @@ export const NotificationCard = forwardRef(
                     <Chip
                       size="small"
                       label={`${t("Active")}: ${item.activePositionCount}`}
-                      variant="outlined"
-                    />
-                  )}
-                  {hasMinuteEstimatedTime(item) && (
-                    <Chip
-                      size="small"
-                      label={`${t("Est.")}: ${item.minuteEstimatedTime} ${t("min")}`}
                       variant="outlined"
                     />
                   )}

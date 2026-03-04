@@ -266,10 +266,10 @@ const handleNotificationClick = (item: NotificationModel) => {
       ioc.layoutService.pickAverageBuyCommit(item.id);
       break;
     case "signal_sync.open":
-      ioc.layoutService.pickSignalOpened(item.id);
+      ioc.layoutService.pickSignalSyncOpen(item.id);
       break;
     case "signal_sync.close":
-      ioc.layoutService.pickSignalClosed(item.id);
+      ioc.layoutService.pickSignalSyncClose(item.id);
       break;
   }
 };
