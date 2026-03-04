@@ -423,6 +423,7 @@ export { slPriceToPercentShift } from "./utils/slPriceToPercentShift";
 export { tpPriceToPercentShift } from "./utils/tpPriceToPercentShift";
 export { slPercentShiftToPrice } from "./utils/slPercentShiftToPrice";
 export { tpPercentShiftToPrice } from "./utils/tpPercentShiftToPrice"
+export { percentToCloseCost } from "./utils/percentToCloseCost";
 
 export { type GlobalConfig } from "./config/params";
 export { type ColumnConfig } from "./config/columns";

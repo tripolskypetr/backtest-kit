@@ -15,6 +15,7 @@ import { slPriceToPercentShift } from "../utils/slPriceToPercentShift";
 import { tpPriceToPercentShift } from "../utils/tpPriceToPercentShift";
 import { slPercentShiftToPrice } from "../utils/slPercentShiftToPrice";
 import { tpPercentShiftToPrice } from "../utils/tpPercentShiftToPrice";
+import { percentToCloseCost } from "../utils/percentToCloseCost";
 import { Broker } from "./Broker";
 
 const BACKTEST_METHOD_NAME_RUN = "BacktestUtils.run";
@@ -1667,7 +1668,11 @@ export class BacktestUtils {
         );
     }
 
-    await Broker.commitPartialProfit({ symbol, percentToClose, currentPrice, context });
+    const investedCostForProfit = await backtest.strategyCoreService.getPositionInvestedCost(true, symbol, context);
+    if (investedCostForProfit === null) {
+      return false;
+    }
+    await Broker.commitPartialProfit({ symbol, percentToClose, cost: percentToCloseCost(percentToClose, investedCostForProfit), currentPrice, context });
     return await backtest.strategyCoreService.partialProfit(
       true,
       symbol,
@@ -1755,7 +1760,11 @@ export class BacktestUtils {
         );
     }
 
-    await Broker.commitPartialLoss({ symbol, percentToClose, currentPrice, context });
+    const investedCostForLoss = await backtest.strategyCoreService.getPositionInvestedCost(true, symbol, context);
+    if (investedCostForLoss === null) {
+      return false;
+    }
+    await Broker.commitPartialLoss({ symbol, percentToClose, cost: percentToCloseCost(percentToClose, investedCostForLoss), currentPrice, context });
     return await backtest.strategyCoreService.partialLoss(
       true,
       symbol,
@@ -1840,9 +1849,11 @@ export class BacktestUtils {
       symbol,
       context
     );
-    if (investedCost === null) return false;
+    if (investedCost === null) {
+      return false;
+    }
     const percentToClose = (dollarAmount / investedCost) * 100;
-    await Broker.commitPartialProfit({ symbol, percentToClose, currentPrice, context });
+    await Broker.commitPartialProfit({ symbol, percentToClose, cost: dollarAmount, currentPrice, context });
     return await backtest.strategyCoreService.partialProfit(
       true,
       symbol,
@@ -1927,9 +1938,11 @@ export class BacktestUtils {
       symbol,
       context
     );
-    if (investedCost === null) return false;
+    if (investedCost === null) {
+      return false;
+    }
     const percentToClose = (dollarAmount / investedCost) * 100;
-    await Broker.commitPartialLoss({ symbol, percentToClose, currentPrice, context });
+    await Broker.commitPartialLoss({ symbol, percentToClose, cost: dollarAmount, currentPrice, context });
     return await backtest.strategyCoreService.partialLoss(
       true,
       symbol,

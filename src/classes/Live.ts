@@ -13,6 +13,7 @@ import { slPriceToPercentShift } from "../utils/slPriceToPercentShift";
 import { tpPriceToPercentShift } from "../utils/tpPriceToPercentShift";
 import { slPercentShiftToPrice } from "../utils/slPercentShiftToPrice";
 import { tpPercentShiftToPrice } from "../utils/tpPercentShiftToPrice";
+import { percentToCloseCost } from "../utils/percentToCloseCost";
 import { Broker } from "./Broker";
 
 const LIVE_METHOD_NAME_RUN = "LiveUtils.run";
@@ -1077,12 +1078,12 @@ export class LiveUtils {
       actions && actions.forEach((actionName) => backtest.actionValidationService.validate(actionName, LIVE_METHOD_NAME_PARTIAL_PROFIT));
     }
 
-    await Broker.commitPartialProfit({ symbol, percentToClose, currentPrice, context: { strategyName: context.strategyName, exchangeName: context.exchangeName, frameName: "" } });
-    return await backtest.strategyCoreService.partialProfit(false, symbol, percentToClose, currentPrice, {
-      strategyName: context.strategyName,
-      exchangeName: context.exchangeName,
-      frameName: "",
-    });
+    const investedCost = await backtest.strategyCoreService.getPositionInvestedCost(false, symbol, { strategyName: context.strategyName, exchangeName: context.exchangeName, frameName: "" });
+    if (investedCost === null) {
+      return false;
+    }
+    await Broker.commitPartialProfit({ symbol, percentToClose, cost: percentToCloseCost(percentToClose, investedCost), currentPrice, context: { strategyName: context.strategyName, exchangeName: context.exchangeName, frameName: "" } });
+    return await backtest.strategyCoreService.partialProfit(false, symbol, percentToClose, currentPrice, { strategyName: context.strategyName, exchangeName: context.exchangeName, frameName: "" });
   };
 
   /**
@@ -1138,12 +1139,12 @@ export class LiveUtils {
       actions && actions.forEach((actionName) => backtest.actionValidationService.validate(actionName, LIVE_METHOD_NAME_PARTIAL_LOSS));
     }
 
-    await Broker.commitPartialLoss({ symbol, percentToClose, currentPrice, context: { strategyName: context.strategyName, exchangeName: context.exchangeName, frameName: "" } });
-    return await backtest.strategyCoreService.partialLoss(false, symbol, percentToClose, currentPrice, {
-      strategyName: context.strategyName,
-      exchangeName: context.exchangeName,
-      frameName: "",
-    });
+    const investedCost = await backtest.strategyCoreService.getPositionInvestedCost(false, symbol, { strategyName: context.strategyName, exchangeName: context.exchangeName, frameName: "" });
+    if (investedCost === null) {
+      return false;
+    }
+    await Broker.commitPartialLoss({ symbol, percentToClose, cost: percentToCloseCost(percentToClose, investedCost), currentPrice, context: { strategyName: context.strategyName, exchangeName: context.exchangeName, frameName: "" } });
+    return await backtest.strategyCoreService.partialLoss(false, symbol, percentToClose, currentPrice, { strategyName: context.strategyName, exchangeName: context.exchangeName, frameName: "" });
   };
 
   /**
@@ -1197,14 +1198,12 @@ export class LiveUtils {
       exchangeName: context.exchangeName,
       frameName: "",
     });
-    if (investedCost === null) return false;
+    if (investedCost === null) {
+      return false;
+    }
     const percentToClose = (dollarAmount / investedCost) * 100;
-    await Broker.commitPartialProfit({ symbol, percentToClose, currentPrice, context: { strategyName: context.strategyName, exchangeName: context.exchangeName, frameName: "" } });
-    return await backtest.strategyCoreService.partialProfit(false, symbol, percentToClose, currentPrice, {
-      strategyName: context.strategyName,
-      exchangeName: context.exchangeName,
-      frameName: "",
-    });
+    await Broker.commitPartialProfit({ symbol, percentToClose, cost: dollarAmount, currentPrice, context: { strategyName: context.strategyName, exchangeName: context.exchangeName, frameName: "" } });
+    return await backtest.strategyCoreService.partialProfit(false, symbol, percentToClose, currentPrice, { strategyName: context.strategyName, exchangeName: context.exchangeName, frameName: "" });
   };
 
   /**
@@ -1258,14 +1257,12 @@ export class LiveUtils {
       exchangeName: context.exchangeName,
       frameName: "",
     });
-    if (investedCost === null) return false;
+    if (investedCost === null) {
+      return false;
+    }
     const percentToClose = (dollarAmount / investedCost) * 100;
-    await Broker.commitPartialLoss({ symbol, percentToClose, currentPrice, context: { strategyName: context.strategyName, exchangeName: context.exchangeName, frameName: "" } });
-    return await backtest.strategyCoreService.partialLoss(false, symbol, percentToClose, currentPrice, {
-      strategyName: context.strategyName,
-      exchangeName: context.exchangeName,
-      frameName: "",
-    });
+    await Broker.commitPartialLoss({ symbol, percentToClose, cost: dollarAmount, currentPrice, context: { strategyName: context.strategyName, exchangeName: context.exchangeName, frameName: "" } });
+    return await backtest.strategyCoreService.partialLoss(false, symbol, percentToClose, currentPrice, { strategyName: context.strategyName, exchangeName: context.exchangeName, frameName: "" });
   };
 
   /**

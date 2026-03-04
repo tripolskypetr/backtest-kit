@@ -11,6 +11,7 @@ import { StrategyName } from "../interfaces/Strategy.interface";
 export type BrokerPartialProfitPayload = {
   symbol: string;
   percentToClose: number;
+  cost: number;
   currentPrice: number;
   context: {
     strategyName: StrategyName;
@@ -22,6 +23,7 @@ export type BrokerPartialProfitPayload = {
 export type BrokerPartialLossPayload = {
   symbol: string;
   percentToClose: number;
+  cost: number;
   currentPrice: number;
   context: {
     strategyName: StrategyName;
