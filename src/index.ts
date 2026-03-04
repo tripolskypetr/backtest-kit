@@ -396,6 +396,8 @@ export {
   BrokerPartialProfitPayload,
   BrokerTrailingStopPayload,
   BrokerTrailingTakePayload,
+  BrokerSignalOpenPayload,
+  BrokerSignalClosePayload,
 } from "./classes/Broker";
 
 export { type TickEvent } from "./model/LiveStatistics.model";
