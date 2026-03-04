@@ -8,82 +8,95 @@ import { StrategyName } from "../interfaces/Strategy.interface";
 
 // Should listen syncSubject automatically cause the new signal is triggered by backtest-kit not the user
 
+export type BrokerClosePendingPayload = {
+  symbol: string;
+  closeId?: string;
+  context: {
+    strategyName: StrategyName;
+    exchangeName: ExchangeName;
+    frameName: FrameName;
+  };
+};
+
+export type BrokerPartialProfitPayload = {
+  symbol: string;
+  percentToClose: number;
+  currentPrice: number;
+  context: {
+    strategyName: StrategyName;
+    exchangeName: ExchangeName;
+    frameName: FrameName;
+  };
+};
+
+export type BrokerPartialLossPayload = {
+  symbol: string;
+  percentToClose: number;
+  currentPrice: number;
+  context: {
+    strategyName: StrategyName;
+    exchangeName: ExchangeName;
+    frameName: FrameName;
+  };
+};
+
+export type BrokerTrailingStopPayload = {
+  symbol: string;
+  percentShift: number;
+  currentPrice: number;
+  context: {
+    strategyName: StrategyName;
+    exchangeName: ExchangeName;
+    frameName: FrameName;
+  };
+};
+
+export type BrokerTrailingTakePayload = {
+  symbol: string;
+  percentShift: number;
+  currentPrice: number;
+  context: {
+    strategyName: StrategyName;
+    exchangeName: ExchangeName;
+    frameName: FrameName;
+  };
+};
+
+export type BrokerBreakevenPayload = {
+  symbol: string;
+  currentPrice: number;
+  context: {
+    strategyName: StrategyName;
+    exchangeName: ExchangeName;
+    frameName: FrameName;
+  };
+};
+
+export type BrokerAverageBuyPayload = {
+  symbol: string;
+  currentPrice: number;
+  cost: number;
+  context: {
+    strategyName: StrategyName;
+    exchangeName: ExchangeName;
+    frameName: FrameName;
+  };
+};
+
 export class BrokerAdapter {
+  public commitClosePending = async (payload: BrokerClosePendingPayload) => {};
 
-  public commitClosePending = async (_payload: {
-    symbol: string;
-    closeId?: string;
-    context: {
-      strategyName: StrategyName;
-      exchangeName: ExchangeName;
-      frameName: FrameName;
-    };
-  }) => {};
+  public commitPartialProfit = async (payload: BrokerPartialProfitPayload) => {};
 
-  public commitPartialProfit = async (_payload: {
-    symbol: string;
-    percentToClose: number;
-    currentPrice: number;
-    context: {
-      strategyName: StrategyName;
-      exchangeName: ExchangeName;
-      frameName: FrameName;
-    };
-  }) => {};
+  public commitPartialLoss = async (payload: BrokerPartialLossPayload) => {};
 
-  public commitPartialLoss = async (_payload: {
-    symbol: string;
-    percentToClose: number;
-    currentPrice: number;
-    context: {
-      strategyName: StrategyName;
-      exchangeName: ExchangeName;
-      frameName: FrameName;
-    };
-  }) => {};
+  public commitTrailingStop = async (payload: BrokerTrailingStopPayload) => {};
 
-  public commitTrailingStop = async (_payload: {
-    symbol: string;
-    percentShift: number;
-    currentPrice: number;
-    context: {
-      strategyName: StrategyName;
-      exchangeName: ExchangeName;
-      frameName: FrameName;
-    };
-  }) => {};
+  public commitTrailingTake = async (payload: BrokerTrailingTakePayload) => {};
 
-  public commitTrailingTake = async (_payload: {
-    symbol: string;
-    percentShift: number;
-    currentPrice: number;
-    context: {
-      strategyName: StrategyName;
-      exchangeName: ExchangeName;
-      frameName: FrameName;
-    };
-  }) => {};
+  public commitBreakeven = async (_payload: BrokerBreakevenPayload) => {};
 
-  public commitBreakeven = async (_payload: {
-    symbol: string;
-    currentPrice: number;
-    context: {
-      strategyName: StrategyName;
-      exchangeName: ExchangeName;
-      frameName: FrameName;
-    };
-  }) => {};
-
-  public commitAverageBuy = async (_payload: {
-    symbol: string;
-    currentPrice: number;
-    cost: number;
-    context: {
-      strategyName: StrategyName;
-      exchangeName: ExchangeName;
-      frameName: FrameName;
-    };
-  }) => {};
+  public commitAverageBuy = async (_payload: BrokerAverageBuyPayload) => {};
 }
 
 export const Broker = new BrokerAdapter();
