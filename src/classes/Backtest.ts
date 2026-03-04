@@ -5,6 +5,7 @@ import { GLOBAL_CONFIG } from "../config/params";
 import {
   getErrorMessage,
   memoize,
+  not,
   randomString,
   singlerun,
 } from "functools-kit";
@@ -1672,6 +1673,9 @@ export class BacktestUtils {
     if (investedCostForProfit === null) {
       return false;
     }
+    if (await not(backtest.strategyCoreService.validatePartialProfit(true, symbol, percentToClose, currentPrice, context))) {
+      return false;
+    }
     await Broker.commitPartialProfit({ symbol, percentToClose, cost: percentToCloseCost(percentToClose, investedCostForProfit), currentPrice, context });
     return await backtest.strategyCoreService.partialProfit(
       true,
@@ -1764,6 +1768,9 @@ export class BacktestUtils {
     if (investedCostForLoss === null) {
       return false;
     }
+    if (await not(backtest.strategyCoreService.validatePartialLoss(true, symbol, percentToClose, currentPrice, context))) {
+      return false;
+    }
     await Broker.commitPartialLoss({ symbol, percentToClose, cost: percentToCloseCost(percentToClose, investedCostForLoss), currentPrice, context });
     return await backtest.strategyCoreService.partialLoss(
       true,
@@ -1853,6 +1860,9 @@ export class BacktestUtils {
       return false;
     }
     const percentToClose = (dollarAmount / investedCost) * 100;
+    if (await not(backtest.strategyCoreService.validatePartialProfit(true, symbol, percentToClose, currentPrice, context))) {
+      return false;
+    }
     await Broker.commitPartialProfit({ symbol, percentToClose, cost: dollarAmount, currentPrice, context });
     return await backtest.strategyCoreService.partialProfit(
       true,
@@ -1942,6 +1952,9 @@ export class BacktestUtils {
       return false;
     }
     const percentToClose = (dollarAmount / investedCost) * 100;
+    if (await not(backtest.strategyCoreService.validatePartialLoss(true, symbol, percentToClose, currentPrice, context))) {
+      return false;
+    }
     await Broker.commitPartialLoss({ symbol, percentToClose, cost: dollarAmount, currentPrice, context });
     return await backtest.strategyCoreService.partialLoss(
       true,
@@ -2051,6 +2064,9 @@ export class BacktestUtils {
     }
     const effectivePriceOpen = await backtest.strategyCoreService.getPositionAveragePrice(true, symbol, context);
     if (effectivePriceOpen === null) {
+      return false;
+    }
+    if (await not(backtest.strategyCoreService.validateTrailingStop(true, symbol, percentShift, currentPrice, context))) {
       return false;
     }
     await Broker.commitTrailingStop({ symbol, percentShift, currentPrice, newStopLossPrice: slPercentShiftToPrice(percentShift, signal.priceStopLoss, effectivePriceOpen, signal.position), context });
@@ -2164,6 +2180,9 @@ export class BacktestUtils {
     if (effectivePriceOpen === null) {
       return false;
     }
+    if (await not(backtest.strategyCoreService.validateTrailingTake(true, symbol, percentShift, currentPrice, context))) {
+      return false;
+    }
     await Broker.commitTrailingTake({ symbol, percentShift, currentPrice, newTakeProfitPrice: tpPercentShiftToPrice(percentShift, signal.priceTakeProfit, effectivePriceOpen, signal.position), context });
     return await backtest.strategyCoreService.trailingTake(
       true,
@@ -2235,6 +2254,9 @@ export class BacktestUtils {
       return false;
     }
     const percentShift = slPriceToPercentShift(newStopLossPrice, signal.priceStopLoss, effectivePriceOpen);
+    if (await not(backtest.strategyCoreService.validateTrailingStop(true, symbol, percentShift, currentPrice, context))) {
+      return false;
+    }
     await Broker.commitTrailingStop({ symbol, percentShift, currentPrice, newStopLossPrice, context });
     return await backtest.strategyCoreService.trailingStop(true, symbol, percentShift, currentPrice, context);
   };
@@ -2300,6 +2322,9 @@ export class BacktestUtils {
       return false;
     }
     const percentShift = tpPriceToPercentShift(newTakeProfitPrice, signal.priceTakeProfit, effectivePriceOpen);
+    if (await not(backtest.strategyCoreService.validateTrailingTake(true, symbol, percentShift, currentPrice, context))) {
+      return false;
+    }
     await Broker.commitTrailingTake({ symbol, percentShift, currentPrice, newTakeProfitPrice, context });
     return await backtest.strategyCoreService.trailingTake(true, symbol, percentShift, currentPrice, context);
   };
@@ -2372,6 +2397,9 @@ export class BacktestUtils {
         );
     }
 
+    if (await not(backtest.strategyCoreService.validateBreakeven(true, symbol, currentPrice, context))) {
+      return false;
+    }
     await Broker.commitBreakeven({ symbol, currentPrice, context });
     return await backtest.strategyCoreService.breakeven(
       true,
@@ -2529,6 +2557,9 @@ export class BacktestUtils {
         );
     }
 
+    if (await not(backtest.strategyCoreService.validateAverageBuy(true, symbol, currentPrice, context))) {
+      return false;
+    }
     await Broker.commitAverageBuy({ symbol, currentPrice, cost, context });
     return await backtest.strategyCoreService.averageBuy(
       true,

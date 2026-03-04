@@ -60,6 +60,16 @@ const CREATE_SYNC_FN = (
     await self.actionCoreService.signalSync(backtest, event, { strategyName, exchangeName, frameName });
     return true;
   }, {
+    fallback: (error) => {
+      const message = "StrategyConnectionService CREATE_SYNC_FN thrown. Broker rejected order request";
+      const payload = {
+        error: errorData(error),
+        message: getErrorMessage(error),
+      };
+      self.loggerService.warn(message, payload);
+      console.error(message, payload);
+      errorEmitter.next(error);
+    },
     defaultValue: false,
   }
 );

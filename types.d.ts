@@ -2986,6 +2986,25 @@ interface IStrategy {
      */
     partialProfit: (symbol: string, percentToClose: number, currentPrice: number, backtest: boolean) => Promise<boolean>;
     /**
+     * Checks whether `partialProfit` would succeed without executing it.
+     *
+     * Returns `true` if all preconditions for a profitable partial close are met:
+     * - Active pending signal exists
+     * - `percentToClose` is a finite number in range (0, 100]
+     * - `currentPrice` is a positive finite number
+     * - Price is moving toward TP (not toward SL) relative to effective entry
+     * - Price has not already crossed the TP level
+     * - Closing the given percentage would not exceed 100% total closed
+     *
+     * Never throws. Safe to call at any time as a pre-flight check.
+     *
+     * @param symbol - Trading pair symbol (e.g., "BTCUSDT")
+     * @param percentToClose - Percentage of position to check (0-100]
+     * @param currentPrice - Current market price to validate against
+     * @returns `true` if `partialProfit` would execute, `false` otherwise
+     */
+    validatePartialProfit: (symbol: string, percentToClose: number, currentPrice: number) => Promise<boolean>;
+    /**
      * Executes partial close at loss level (moving toward SL).
      *
      * Closes specified percentage of position at current price.
@@ -3021,6 +3040,25 @@ interface IStrategy {
      * ```
      */
     partialLoss: (symbol: string, percentToClose: number, currentPrice: number, backtest: boolean) => Promise<boolean>;
+    /**
+     * Checks whether `partialLoss` would succeed without executing it.
+     *
+     * Returns `true` if all preconditions for a loss-side partial close are met:
+     * - Active pending signal exists
+     * - `percentToClose` is a finite number in range (0, 100]
+     * - `currentPrice` is a positive finite number
+     * - Price is moving toward SL (not toward TP) relative to effective entry
+     * - Price has not already crossed the SL level
+     * - Closing the given percentage would not exceed 100% total closed
+     *
+     * Never throws. Safe to call at any time as a pre-flight check.
+     *
+     * @param symbol - Trading pair symbol (e.g., "BTCUSDT")
+     * @param percentToClose - Percentage of position to check (0-100]
+     * @param currentPrice - Current market price to validate against
+     * @returns `true` if `partialLoss` would execute, `false` otherwise
+     */
+    validatePartialLoss: (symbol: string, percentToClose: number, currentPrice: number) => Promise<boolean>;
     /**
      * Adjusts trailing stop-loss by shifting distance between entry and original SL.
      *
@@ -3087,6 +3125,25 @@ interface IStrategy {
      */
     trailingStop: (symbol: string, percentShift: number, currentPrice: number, backtest: boolean) => Promise<boolean>;
     /**
+     * Checks whether `trailingStop` would succeed without executing it.
+     *
+     * Returns `true` if all preconditions for a trailing SL update are met:
+     * - Active pending signal exists
+     * - `percentShift` is a finite number in [-100, 100], non-zero
+     * - `currentPrice` is a positive finite number
+     * - Computed new SL does not intrude current price (price hasn't crossed it)
+     * - New SL does not conflict with effective TP (SL must remain on the safe side)
+     * - If a trailing SL already exists, new SL offers better protection (absorption rule)
+     *
+     * Never throws. Safe to call at any time as a pre-flight check.
+     *
+     * @param symbol - Trading pair symbol (e.g., "BTCUSDT")
+     * @param percentShift - Percentage shift of ORIGINAL SL distance [-100, 100], excluding 0
+     * @param currentPrice - Current market price to validate against
+     * @returns `true` if `trailingStop` would execute, `false` otherwise
+     */
+    validateTrailingStop: (symbol: string, percentShift: number, currentPrice: number) => Promise<boolean>;
+    /**
      * Adjusts the trailing take-profit distance for an active pending signal.
      *
      * CRITICAL: Always calculates from ORIGINAL TP, not from current trailing TP.
@@ -3135,6 +3192,26 @@ interface IStrategy {
      * ```
      */
     trailingTake: (symbol: string, percentShift: number, currentPrice: number, backtest: boolean) => Promise<boolean>;
+    /**
+     * Checks whether `trailingTake` would succeed without executing it.
+     *
+     * Returns `true` if all preconditions for a trailing TP update are met:
+     * - Active pending signal exists
+     * - `percentShift` is a finite number in [-100, 100], non-zero
+     * - `currentPrice` is a positive finite number
+     * - Computed new TP does not intrude current price (price hasn't crossed it)
+     * - New TP does not conflict with effective SL (TP must remain on the profit side)
+     * - If a trailing TP already exists, new TP is more conservative (absorption rule:
+     *   LONG accepts only lower TP, SHORT accepts only higher TP)
+     *
+     * Never throws. Safe to call at any time as a pre-flight check.
+     *
+     * @param symbol - Trading pair symbol (e.g., "BTCUSDT")
+     * @param percentShift - Percentage adjustment to ORIGINAL TP distance [-100, 100], excluding 0
+     * @param currentPrice - Current market price to validate against
+     * @returns `true` if `trailingTake` would execute, `false` otherwise
+     */
+    validateTrailingTake: (symbol: string, percentShift: number, currentPrice: number) => Promise<boolean>;
     /**
      * Moves stop-loss to breakeven (entry price) when price reaches threshold.
      *
@@ -3186,6 +3263,24 @@ interface IStrategy {
      */
     breakeven: (symbol: string, currentPrice: number, backtest: boolean) => Promise<boolean>;
     /**
+     * Checks whether `breakeven` would succeed without executing it.
+     *
+     * Returns `true` if all preconditions for moving SL to breakeven are met:
+     * - Active pending signal exists
+     * - `currentPrice` is a positive finite number
+     * - Price has moved far enough in profit direction to cover costs
+     *   (threshold: `(CC_PERCENT_SLIPPAGE + CC_PERCENT_FEE) * 2`)
+     * - Breakeven SL would not conflict with effective TP
+     * - Breakeven has not already been set (idempotent — returns `false` on repeat)
+     *
+     * Never throws. Safe to call at any time as a pre-flight check.
+     *
+     * @param symbol - Trading pair symbol (e.g., "BTCUSDT")
+     * @param currentPrice - Current market price to validate against
+     * @returns `true` if `breakeven` would execute, `false` otherwise
+     */
+    validateBreakeven: (symbol: string, currentPrice: number) => Promise<boolean>;
+    /**
      * Adds a new averaging entry to an open position (DCA — Dollar Cost Averaging).
      *
      * Appends currentPrice to the _entry array. The effective entry price used in all
@@ -3206,6 +3301,24 @@ interface IStrategy {
      * @returns Promise<boolean> - true if entry added, false if rejected by direction check
      */
     averageBuy: (symbol: string, currentPrice: number, backtest: boolean) => Promise<boolean>;
+    /**
+     * Checks whether `averageBuy` would succeed without executing it.
+     *
+     * Returns `true` if all preconditions for a DCA entry are met:
+     * - Active pending signal exists
+     * - `currentPrice` is a positive finite number
+     * - LONG: `currentPrice` is below the all-time lowest entry price
+     *   (or `CC_ENABLE_DCA_EVERYWHERE` is set)
+     * - SHORT: `currentPrice` is above the all-time highest entry price
+     *   (or `CC_ENABLE_DCA_EVERYWHERE` is set)
+     *
+     * Never throws. Safe to call at any time as a pre-flight check.
+     *
+     * @param symbol - Trading pair symbol (e.g., "BTCUSDT")
+     * @param currentPrice - New entry price to validate
+     * @returns `true` if `averageBuy` would execute, `false` otherwise
+     */
+    validateAverageBuy: (symbol: string, currentPrice: number) => Promise<boolean>;
     /**
      * Checks if there is an active pending signal for the symbol.
      *
@@ -19947,6 +20060,22 @@ declare class StrategyConnectionService implements TStrategy$1 {
         frameName: FrameName;
     }, closeId?: string) => Promise<void>;
     /**
+     * Checks whether `partialProfit` would succeed without executing it.
+     * Delegates to `ClientStrategy.validatePartialProfit()` — no throws, pure boolean result.
+     *
+     * @param backtest - Whether running in backtest mode
+     * @param symbol - Trading pair symbol
+     * @param percentToClose - Percentage of position to check (0-100]
+     * @param currentPrice - Current market price to validate against
+     * @param context - Execution context with strategyName, exchangeName, frameName
+     * @returns Promise<boolean> - true if `partialProfit` would execute, false otherwise
+     */
+    validatePartialProfit: (backtest: boolean, symbol: string, percentToClose: number, currentPrice: number, context: {
+        strategyName: StrategyName;
+        exchangeName: ExchangeName;
+        frameName: FrameName;
+    }) => Promise<boolean>;
+    /**
      * Executes partial close at profit level (moving toward TP).
      *
      * Closes a percentage of the pending position at the current price, recording it as a "profit" type partial.
@@ -19977,6 +20106,22 @@ declare class StrategyConnectionService implements TStrategy$1 {
      * ```
      */
     partialProfit: (backtest: boolean, symbol: string, percentToClose: number, currentPrice: number, context: {
+        strategyName: StrategyName;
+        exchangeName: ExchangeName;
+        frameName: FrameName;
+    }) => Promise<boolean>;
+    /**
+     * Checks whether `partialLoss` would succeed without executing it.
+     * Delegates to `ClientStrategy.validatePartialLoss()` — no throws, pure boolean result.
+     *
+     * @param backtest - Whether running in backtest mode
+     * @param symbol - Trading pair symbol
+     * @param percentToClose - Percentage of position to check (0-100]
+     * @param currentPrice - Current market price to validate against
+     * @param context - Execution context with strategyName, exchangeName, frameName
+     * @returns Promise<boolean> - true if `partialLoss` would execute, false otherwise
+     */
+    validatePartialLoss: (backtest: boolean, symbol: string, percentToClose: number, currentPrice: number, context: {
         strategyName: StrategyName;
         exchangeName: ExchangeName;
         frameName: FrameName;
@@ -20017,6 +20162,22 @@ declare class StrategyConnectionService implements TStrategy$1 {
         frameName: FrameName;
     }) => Promise<boolean>;
     /**
+     * Checks whether `trailingStop` would succeed without executing it.
+     * Delegates to `ClientStrategy.validateTrailingStop()` — no throws, pure boolean result.
+     *
+     * @param backtest - Whether running in backtest mode
+     * @param symbol - Trading pair symbol
+     * @param percentShift - Percentage shift of ORIGINAL SL distance [-100, 100], excluding 0
+     * @param currentPrice - Current market price to validate against
+     * @param context - Execution context with strategyName, exchangeName, frameName
+     * @returns Promise<boolean> - true if `trailingStop` would execute, false otherwise
+     */
+    validateTrailingStop: (backtest: boolean, symbol: string, percentShift: number, currentPrice: number, context: {
+        strategyName: StrategyName;
+        exchangeName: ExchangeName;
+        frameName: FrameName;
+    }) => Promise<boolean>;
+    /**
      * Adjusts the trailing stop-loss distance for an active pending signal.
      *
      * Updates the stop-loss distance by a percentage adjustment relative to the original SL distance.
@@ -20050,6 +20211,22 @@ declare class StrategyConnectionService implements TStrategy$1 {
         frameName: FrameName;
     }) => Promise<boolean>;
     /**
+     * Checks whether `trailingTake` would succeed without executing it.
+     * Delegates to `ClientStrategy.validateTrailingTake()` — no throws, pure boolean result.
+     *
+     * @param backtest - Whether running in backtest mode
+     * @param symbol - Trading pair symbol
+     * @param percentShift - Percentage adjustment to ORIGINAL TP distance [-100, 100], excluding 0
+     * @param currentPrice - Current market price to validate against
+     * @param context - Execution context with strategyName, exchangeName, frameName
+     * @returns Promise<boolean> - true if `trailingTake` would execute, false otherwise
+     */
+    validateTrailingTake: (backtest: boolean, symbol: string, percentShift: number, currentPrice: number, context: {
+        strategyName: StrategyName;
+        exchangeName: ExchangeName;
+        frameName: FrameName;
+    }) => Promise<boolean>;
+    /**
      * Adjusts the trailing take-profit distance for an active pending signal.
      *
      * Updates the take-profit distance by a percentage adjustment relative to the original TP distance.
@@ -20078,6 +20255,21 @@ declare class StrategyConnectionService implements TStrategy$1 {
      * ```
      */
     trailingTake: (backtest: boolean, symbol: string, percentShift: number, currentPrice: number, context: {
+        strategyName: StrategyName;
+        exchangeName: ExchangeName;
+        frameName: FrameName;
+    }) => Promise<boolean>;
+    /**
+     * Checks whether `breakeven` would succeed without executing it.
+     * Delegates to `ClientStrategy.validateBreakeven()` — no throws, pure boolean result.
+     *
+     * @param backtest - Whether running in backtest mode
+     * @param symbol - Trading pair symbol
+     * @param currentPrice - Current market price to validate against
+     * @param context - Execution context with strategyName, exchangeName, frameName
+     * @returns Promise<boolean> - true if `breakeven` would execute, false otherwise
+     */
+    validateBreakeven: (backtest: boolean, symbol: string, currentPrice: number, context: {
         strategyName: StrategyName;
         exchangeName: ExchangeName;
         frameName: FrameName;
@@ -20137,6 +20329,21 @@ declare class StrategyConnectionService implements TStrategy$1 {
         exchangeName: ExchangeName;
         frameName: FrameName;
     }, activateId?: string) => Promise<void>;
+    /**
+     * Checks whether `averageBuy` would succeed without executing it.
+     * Delegates to `ClientStrategy.validateAverageBuy()` — no throws, pure boolean result.
+     *
+     * @param backtest - Whether running in backtest mode
+     * @param symbol - Trading pair symbol
+     * @param currentPrice - New entry price to validate
+     * @param context - Execution context with strategyName, exchangeName, frameName
+     * @returns Promise<boolean> - true if `averageBuy` would execute, false otherwise
+     */
+    validateAverageBuy: (backtest: boolean, symbol: string, currentPrice: number, context: {
+        strategyName: StrategyName;
+        exchangeName: ExchangeName;
+        frameName: FrameName;
+    }) => Promise<boolean>;
     /**
      * Adds a new DCA entry to the active pending signal.
      *
@@ -21087,6 +21294,22 @@ declare class StrategyCoreService implements TStrategy {
         backtest: boolean;
     }) => Promise<void>;
     /**
+     * Checks whether `partialProfit` would succeed without executing it.
+     * Validates context, then delegates to StrategyConnectionService.validatePartialProfit().
+     *
+     * @param backtest - Whether running in backtest mode
+     * @param symbol - Trading pair symbol
+     * @param percentToClose - Percentage of position to check (0-100]
+     * @param currentPrice - Current market price to validate against
+     * @param context - Execution context with strategyName, exchangeName, frameName
+     * @returns Promise<boolean> - true if `partialProfit` would execute, false otherwise
+     */
+    validatePartialProfit: (backtest: boolean, symbol: string, percentToClose: number, currentPrice: number, context: {
+        strategyName: StrategyName;
+        exchangeName: ExchangeName;
+        frameName: FrameName;
+    }) => Promise<boolean>;
+    /**
      * Executes partial close at profit level (moving toward TP).
      *
      * Validates strategy existence and delegates to connection service
@@ -21117,6 +21340,22 @@ declare class StrategyCoreService implements TStrategy {
      * ```
      */
     partialProfit: (backtest: boolean, symbol: string, percentToClose: number, currentPrice: number, context: {
+        strategyName: StrategyName;
+        exchangeName: ExchangeName;
+        frameName: FrameName;
+    }) => Promise<boolean>;
+    /**
+     * Checks whether `partialLoss` would succeed without executing it.
+     * Validates context, then delegates to StrategyConnectionService.validatePartialLoss().
+     *
+     * @param backtest - Whether running in backtest mode
+     * @param symbol - Trading pair symbol
+     * @param percentToClose - Percentage of position to check (0-100]
+     * @param currentPrice - Current market price to validate against
+     * @param context - Execution context with strategyName, exchangeName, frameName
+     * @returns Promise<boolean> - true if `partialLoss` would execute, false otherwise
+     */
+    validatePartialLoss: (backtest: boolean, symbol: string, percentToClose: number, currentPrice: number, context: {
         strategyName: StrategyName;
         exchangeName: ExchangeName;
         frameName: FrameName;
@@ -21184,6 +21423,22 @@ declare class StrategyCoreService implements TStrategy {
      * );
      * ```
      */
+    validateTrailingStop: (backtest: boolean, symbol: string, percentShift: number, currentPrice: number, context: {
+        strategyName: StrategyName;
+        exchangeName: ExchangeName;
+        frameName: FrameName;
+    }) => Promise<boolean>;
+    /**
+     * Checks whether `trailingStop` would succeed without executing it.
+     * Validates context, then delegates to StrategyConnectionService.validateTrailingStop().
+     *
+     * @param backtest - Whether running in backtest mode
+     * @param symbol - Trading pair symbol
+     * @param percentShift - Percentage shift of ORIGINAL SL distance [-100, 100], excluding 0
+     * @param currentPrice - Current market price to validate against
+     * @param context - Execution context with strategyName, exchangeName, frameName
+     * @returns Promise<boolean> - true if `trailingStop` would execute, false otherwise
+     */
     trailingStop: (backtest: boolean, symbol: string, percentShift: number, currentPrice: number, context: {
         strategyName: StrategyName;
         exchangeName: ExchangeName;
@@ -21213,6 +21468,22 @@ declare class StrategyCoreService implements TStrategy {
      * );
      * ```
      */
+    validateTrailingTake: (backtest: boolean, symbol: string, percentShift: number, currentPrice: number, context: {
+        strategyName: StrategyName;
+        exchangeName: ExchangeName;
+        frameName: FrameName;
+    }) => Promise<boolean>;
+    /**
+     * Checks whether `trailingTake` would succeed without executing it.
+     * Validates context, then delegates to StrategyConnectionService.validateTrailingTake().
+     *
+     * @param backtest - Whether running in backtest mode
+     * @param symbol - Trading pair symbol
+     * @param percentShift - Percentage adjustment to ORIGINAL TP distance [-100, 100], excluding 0
+     * @param currentPrice - Current market price to validate against
+     * @param context - Execution context with strategyName, exchangeName, frameName
+     * @returns Promise<boolean> - true if `trailingTake` would execute, false otherwise
+     */
     trailingTake: (backtest: boolean, symbol: string, percentShift: number, currentPrice: number, context: {
         strategyName: StrategyName;
         exchangeName: ExchangeName;
@@ -21237,6 +21508,21 @@ declare class StrategyCoreService implements TStrategy {
      *   { strategyName: "my-strategy", exchangeName: "binance", frameName: "" }
      * );
      * ```
+     */
+    validateBreakeven: (backtest: boolean, symbol: string, currentPrice: number, context: {
+        strategyName: StrategyName;
+        exchangeName: ExchangeName;
+        frameName: FrameName;
+    }) => Promise<boolean>;
+    /**
+     * Checks whether `breakeven` would succeed without executing it.
+     * Validates context, then delegates to StrategyConnectionService.validateBreakeven().
+     *
+     * @param backtest - Whether running in backtest mode
+     * @param symbol - Trading pair symbol
+     * @param currentPrice - Current market price to validate against
+     * @param context - Execution context with strategyName, exchangeName, frameName
+     * @returns Promise<boolean> - true if `breakeven` would execute, false otherwise
      */
     breakeven: (backtest: boolean, symbol: string, currentPrice: number, context: {
         strategyName: StrategyName;
@@ -21282,6 +21568,21 @@ declare class StrategyCoreService implements TStrategy {
      * @param currentPrice - New entry price to add to the averaging history
      * @param context - Execution context with strategyName, exchangeName, frameName
      * @returns Promise<boolean> - true if entry added, false if rejected
+     */
+    validateAverageBuy: (backtest: boolean, symbol: string, currentPrice: number, context: {
+        strategyName: StrategyName;
+        exchangeName: ExchangeName;
+        frameName: FrameName;
+    }) => Promise<boolean>;
+    /**
+     * Checks whether `averageBuy` would succeed without executing it.
+     * Validates context, then delegates to StrategyConnectionService.validateAverageBuy().
+     *
+     * @param backtest - Whether running in backtest mode
+     * @param symbol - Trading pair symbol
+     * @param currentPrice - New entry price to validate
+     * @param context - Execution context with strategyName, exchangeName, frameName
+     * @returns Promise<boolean> - true if `averageBuy` would execute, false otherwise
      */
     averageBuy: (backtest: boolean, symbol: string, currentPrice: number, context: {
         strategyName: StrategyName;
