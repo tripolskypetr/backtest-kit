@@ -160,48 +160,72 @@ export class BrokerUtils {
 
 export class BrokerAdapter {
   public commitSignalOpen = async (payload: BrokerSignalOpenPayload) => {
+    if (!this.enable.hasValue()) {
+        return;
+    }
     if (payload.backtest) {
       return;
     }
   };
 
   public commitSignalClose = async (payload: BrokerSignalClosePayload) => {
+    if (!this.enable.hasValue()) {
+        return;
+    }
     if (payload.backtest) {
       return;
     }
   };
 
   public commitPartialProfit = async (payload: BrokerPartialProfitPayload) => {
+    if (!this.enable.hasValue()) {
+        return;
+    }
     if (payload.backtest) {
       return;
     }
   };
 
   public commitPartialLoss = async (payload: BrokerPartialLossPayload) => {
+    if (!this.enable.hasValue()) {
+        return;
+    }
     if (payload.backtest) {
       return;
     }
   };
 
   public commitTrailingStop = async (payload: BrokerTrailingStopPayload) => {
+    if (!this.enable.hasValue()) {
+        return;
+    }
     if (payload.backtest) {
       return;
     }
   };
 
   public commitTrailingTake = async (payload: BrokerTrailingTakePayload) => {
+    if (!this.enable.hasValue()) {
+        return;
+    }
     if (payload.backtest) {
       return;
     }
   };
 
   public commitBreakeven = async (payload: BrokerBreakevenPayload) => {
+    if (!this.enable.hasValue()) {
+        return;
+    }
     if (payload.backtest) {
       return;
     }
   };
 
   public commitAverageBuy = async (payload: BrokerAverageBuyPayload) => {
+    if (!this.enable.hasValue()) {
+        return;
+    }
     if (payload.backtest) {
       return;
     }
