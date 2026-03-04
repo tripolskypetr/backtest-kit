@@ -3,11 +3,16 @@
 **Symbol:** `{{symbol}}` ({{signal.position}})
 
 **Reason:** `{{closeReason}}`
+**Current:** `{{currentPrice}}`
 **Entry:** `{{pnl.priceOpen}}`
 **Exit:** `{{pnl.priceClose}}`
-**PnL:** {{pnl.pnlPercentage}}%
+**PnL:** {{pnl.pnlPercentage}}% ({{pnl.pnlCost}} / {{pnl.pnlEntries}})
 **Orig Entry:** `{{signal.originalPriceOpen}}`
+**Orig TP:** `{{signal.originalPriceTakeProfit}}`
+**Orig SL:** `{{signal.originalPriceStopLoss}}`
 **DCA Entries:** `{{signal.totalEntries}}`
+**Partials Done:** `{{signal.totalPartials}}`
+**Partial Executed:** {{signal.partialExecuted}}%
 **Signal ID:** `{{signal.id}}`
 {{#closeId}}**Close ID:** `{{closeId}}`
 {{/closeId}}**Time:** `{{createdAt}}`
