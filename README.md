@@ -364,6 +364,21 @@ const getSpotExchange = singleshot(async () => {
 });
 
 /**
+ * Resolve base currency from market metadata — safe for all quote currencies (USDT, USDC, FDUSD, etc.)
+ */
+function getBase(exchange: ccxt.binance, symbol: string): string {
+  return exchange.markets[symbol].base;
+}
+
+/**
+ * Truncate qty to exchange precision, always rounding down.
+ * Prevents over-selling due to floating point drift from fetchBalance/fetchPositions.
+ */
+function truncateQty(exchange: ccxt.binance, symbol: string, qty: number): number {
+  return parseFloat(exchange.amountToPrecision(symbol, qty, exchange.TRUNCATE));
+}
+
+/**
  * Place a limit order and poll until filled (status === "closed").
  * On timeout: cancel the order, sell any partial fill via market to rollback cleanly,
  * then throw — backtest-kit will retry the commit against a clean exchange state.
@@ -389,7 +404,7 @@ async function createLimitOrderAndWait(
   await exchange.cancelOrder(order.id, symbol);
 
   // Check how much was partially filled
-  const final = await exchange.fetchOrder(order.id, symbol);
+  const final     = await exchange.fetchOrder(order.id, symbol);
   const filledQty = final.filled ?? 0;
 
   if (filledQty > 0) {
@@ -418,7 +433,8 @@ Broker.useBrokerAdapter(
 
       const exchange = await getSpotExchange();
 
-      const qty       = parseFloat(exchange.amountToPrecision(symbol, cost / priceOpen));
+      // Entry qty computed from cost — truncate to never exceed intended notional
+      const qty       = truncateQty(exchange, symbol, cost / priceOpen);
       const openPrice = parseFloat(exchange.priceToPrecision(symbol, priceOpen));
       const tpPrice   = parseFloat(exchange.priceToPrecision(symbol, priceTakeProfit));
       const slPrice   = parseFloat(exchange.priceToPrecision(symbol, priceStopLoss));
@@ -443,9 +459,10 @@ Broker.useBrokerAdapter(
         await exchange.cancelOrder(order.id, symbol);
       }
 
-      const balance = await exchange.fetchBalance();
-      const base    = symbol.replace(/USDT|BUSD|BTC|ETH$/, "");
-      const qty     = parseFloat(String(balance?.free?.[base] ?? 0));
+      const balance  = await exchange.fetchBalance();
+      const base     = getBase(exchange, symbol);
+      // Truncate to avoid selling more than actually held due to floating point drift
+      const qty      = truncateQty(exchange, symbol, parseFloat(String(balance?.free?.[base] ?? 0)));
 
       if (qty > 0) {
         const closePrice = parseFloat(exchange.priceToPrecision(symbol, currentPrice));
@@ -464,9 +481,8 @@ Broker.useBrokerAdapter(
         await exchange.cancelOrder(order.id, symbol);
       }
 
-      // Derive qty from real exchange balance using percentToClose to avoid precision mismatch
       const balance  = await exchange.fetchBalance();
-      const base     = symbol.replace(/USDT|BUSD|BTC|ETH$/, "");
+      const base     = getBase(exchange, symbol);
       const totalQty = parseFloat(String(balance?.free?.[base] ?? 0));
 
       // Position may have already been closed by SL/TP on exchange — skip gracefully
@@ -474,7 +490,8 @@ Broker.useBrokerAdapter(
         throw new Error(`PartialProfit skipped: no open position for ${symbol} on exchange — SL/TP may have already been filled`);
       }
 
-      const qty        = parseFloat(exchange.amountToPrecision(symbol, totalQty * (percentToClose / 100)));
+      // Truncate to never sell more than held — floors the percent slice down to valid precision
+      const qty        = truncateQty(exchange, symbol, totalQty * (percentToClose / 100));
       const closePrice = parseFloat(exchange.priceToPrecision(symbol, currentPrice));
 
       // Partial close: limit sell, waits for fill — partial fill rolled back on timeout, backtest-kit retries
@@ -491,9 +508,8 @@ Broker.useBrokerAdapter(
         await exchange.cancelOrder(order.id, symbol);
       }
 
-      // Derive qty from real exchange balance using percentToClose to avoid precision mismatch
       const balance  = await exchange.fetchBalance();
-      const base     = symbol.replace(/USDT|BUSD|BTC|ETH$/, "");
+      const base     = getBase(exchange, symbol);
       const totalQty = parseFloat(String(balance?.free?.[base] ?? 0));
 
       // Position may have already been closed by SL/TP on exchange — skip gracefully
@@ -501,7 +517,8 @@ Broker.useBrokerAdapter(
         throw new Error(`PartialLoss skipped: no open position for ${symbol} on exchange — SL/TP may have already been filled`);
       }
 
-      const qty        = parseFloat(exchange.amountToPrecision(symbol, totalQty * (percentToClose / 100)));
+      // Truncate to never sell more than held — floors the percent slice down to valid precision
+      const qty        = truncateQty(exchange, symbol, totalQty * (percentToClose / 100));
       const closePrice = parseFloat(exchange.priceToPrecision(symbol, currentPrice));
 
       // Partial close: limit sell, waits for fill — partial fill rolled back on timeout, backtest-kit retries
@@ -520,8 +537,9 @@ Broker.useBrokerAdapter(
       }
 
       const balance  = await exchange.fetchBalance();
-      const base     = symbol.replace(/USDT|BUSD|BTC|ETH$/, "");
-      const qty      = parseFloat(String(balance?.free?.[base] ?? 0));
+      const base     = getBase(exchange, symbol);
+      // Truncate to avoid placing SL for more than actually held
+      const qty      = truncateQty(exchange, symbol, parseFloat(String(balance?.free?.[base] ?? 0)));
 
       // Position may have already been closed by SL/TP on exchange — skip gracefully
       if (qty === 0) {
@@ -546,8 +564,9 @@ Broker.useBrokerAdapter(
       }
 
       const balance  = await exchange.fetchBalance();
-      const base     = symbol.replace(/USDT|BUSD|BTC|ETH$/, "");
-      const qty      = parseFloat(String(balance?.free?.[base] ?? 0));
+      const base     = getBase(exchange, symbol);
+      // Truncate to avoid placing TP for more than actually held
+      const qty      = truncateQty(exchange, symbol, parseFloat(String(balance?.free?.[base] ?? 0)));
 
       // Position may have already been closed by SL/TP on exchange — skip gracefully
       if (qty === 0) {
@@ -572,8 +591,9 @@ Broker.useBrokerAdapter(
       }
 
       const balance  = await exchange.fetchBalance();
-      const base     = symbol.replace(/USDT|BUSD|BTC|ETH$/, "");
-      const qty      = parseFloat(String(balance?.free?.[base] ?? 0));
+      const base     = getBase(exchange, symbol);
+      // Truncate to avoid placing SL for more than actually held
+      const qty      = truncateQty(exchange, symbol, parseFloat(String(balance?.free?.[base] ?? 0)));
 
       // Position may have already been closed by SL/TP on exchange — skip gracefully
       if (qty === 0) {
@@ -590,7 +610,17 @@ Broker.useBrokerAdapter(
       const { symbol, currentPrice, cost } = payload;
       const exchange = await getSpotExchange();
 
-      const qty        = parseFloat(exchange.amountToPrecision(symbol, cost / currentPrice));
+      // Guard against DCA into a ghost position — SL/TP may have already closed it on exchange
+      const balance  = await exchange.fetchBalance();
+      const base     = getBase(exchange, symbol);
+      const existing = parseFloat(String(balance?.free?.[base] ?? 0));
+
+      if (existing === 0) {
+        throw new Error(`AverageBuy skipped: no open position for ${symbol} on exchange — SL/TP may have already been filled`);
+      }
+
+      // Entry qty computed from cost — truncate to never exceed intended notional
+      const qty        = truncateQty(exchange, symbol, cost / currentPrice);
       const entryPrice = parseFloat(exchange.priceToPrecision(symbol, currentPrice));
 
       // DCA entry: limit buy, waits for fill — partial fill rolled back on timeout, backtest-kit retries
@@ -623,6 +653,13 @@ import {
 const FILL_POLL_INTERVAL_MS = 10_000;
 const FILL_POLL_ATTEMPTS = 10;
 
+/**
+ * 3x leverage — conservative choice for $1000 total fiat.
+ * Enough to matter, not enough to liquidate on normal volatility.
+ * Applied per-symbol on first open via setLeverage.
+ */
+const FUTURES_LEVERAGE = 3;
+
 const getFuturesExchange = singleshot(async () => {
   const exchange = new ccxt.binance({
     apiKey: process.env.BINANCE_API_KEY,
@@ -637,6 +674,27 @@ const getFuturesExchange = singleshot(async () => {
   await exchange.loadMarkets();
   return exchange;
 });
+
+/**
+ * Truncate qty to exchange precision, always rounding down.
+ * Prevents over-selling due to floating point drift from fetchPositions.
+ */
+function truncateQty(exchange: ccxt.binance, symbol: string, qty: number): number {
+  return parseFloat(exchange.amountToPrecision(symbol, qty, exchange.TRUNCATE));
+}
+
+/**
+ * Resolve position for symbol filtered by side — safe in both one-way and hedge mode.
+ */
+function findPosition(positions: ccxt.Position[], symbol: string, side: "long" | "short") {
+  // Hedge mode: positions have explicit side field
+  const hedged = positions.find((p) => p.symbol === symbol && p.side === side);
+  if (hedged) {
+    return hedged;
+  }
+  // One-way mode: single position per symbol, side field may be undefined
+  return positions.find((p) => p.symbol === symbol) ?? null;
+}
 
 /**
  * Place a limit order and poll until filled (status === "closed").
@@ -664,7 +722,7 @@ async function createLimitOrderAndWait(
   await exchange.cancelOrder(order.id, symbol);
 
   // Check how much was partially filled
-  const final = await exchange.fetchOrder(order.id, symbol);
+  const final     = await exchange.fetchOrder(order.id, symbol);
   const filledQty = final.filled ?? 0;
 
   if (filledQty > 0) {
@@ -687,7 +745,11 @@ Broker.useBrokerAdapter(
       const { symbol, cost, priceOpen, priceTakeProfit, priceStopLoss, position } = payload;
       const exchange = await getFuturesExchange();
 
-      const qty       = parseFloat(exchange.amountToPrecision(symbol, cost / priceOpen));
+      // Set leverage before entry — ensures consistent leverage regardless of previous session state
+      await exchange.setLeverage(FUTURES_LEVERAGE, symbol);
+
+      // Entry qty computed from cost — truncate to never exceed intended notional
+      const qty       = truncateQty(exchange, symbol, cost / priceOpen);
       const openPrice = parseFloat(exchange.priceToPrecision(symbol, priceOpen));
       const tpPrice   = parseFloat(exchange.priceToPrecision(symbol, priceTakeProfit));
       const slPrice   = parseFloat(exchange.priceToPrecision(symbol, priceStopLoss));
@@ -716,13 +778,14 @@ Broker.useBrokerAdapter(
       }
 
       const positions = await exchange.fetchPositions([symbol]);
-      const pos       = positions.find((p) => p.symbol === symbol);
-      const qty       = Math.abs(parseFloat(String(pos?.contracts ?? 0)));
+      const pos       = findPosition(positions, symbol, position);
+      // Truncate to avoid closing more than actually held due to floating point drift
+      const qty       = truncateQty(exchange, symbol, Math.abs(parseFloat(String(pos?.contracts ?? 0))));
       const exitSide  = position === "long" ? "sell" : "buy";
 
       if (qty > 0) {
         const closePrice = parseFloat(exchange.priceToPrecision(symbol, currentPrice));
-        // Close: limit order on exit side, waits for fill — partial fill rolled back on timeout, backtest-kit retries
+        // Close: limit order on exit side with reduceOnly — prevents accidental reversal, waits for fill
         await createLimitOrderAndWait(exchange, symbol, exitSide, qty, closePrice);
       }
     }
@@ -737,9 +800,8 @@ Broker.useBrokerAdapter(
         await exchange.cancelOrder(order.id, symbol);
       }
 
-      // Derive qty from real exchange position using percentToClose to avoid precision mismatch
       const positions = await exchange.fetchPositions([symbol]);
-      const pos       = positions.find((p) => p.symbol === symbol);
+      const pos       = findPosition(positions, symbol, position);
       const totalQty  = Math.abs(parseFloat(String(pos?.contracts ?? 0)));
 
       // Position may have already been closed by SL/TP on exchange — skip gracefully
@@ -747,7 +809,8 @@ Broker.useBrokerAdapter(
         throw new Error(`PartialProfit skipped: no open position for ${symbol} on exchange — SL/TP may have already been filled`);
       }
 
-      const qty        = parseFloat(exchange.amountToPrecision(symbol, totalQty * (percentToClose / 100)));
+      // Truncate to never close more than held — floors the percent slice down to valid precision
+      const qty        = truncateQty(exchange, symbol, totalQty * (percentToClose / 100));
       const closePrice = parseFloat(exchange.priceToPrecision(symbol, currentPrice));
       const exitSide   = position === "long" ? "sell" : "buy";
 
@@ -765,9 +828,8 @@ Broker.useBrokerAdapter(
         await exchange.cancelOrder(order.id, symbol);
       }
 
-      // Derive qty from real exchange position using percentToClose to avoid precision mismatch
       const positions = await exchange.fetchPositions([symbol]);
-      const pos       = positions.find((p) => p.symbol === symbol);
+      const pos       = findPosition(positions, symbol, position);
       const totalQty  = Math.abs(parseFloat(String(pos?.contracts ?? 0)));
 
       // Position may have already been closed by SL/TP on exchange — skip gracefully
@@ -775,7 +837,8 @@ Broker.useBrokerAdapter(
         throw new Error(`PartialLoss skipped: no open position for ${symbol} on exchange — SL/TP may have already been filled`);
       }
 
-      const qty        = parseFloat(exchange.amountToPrecision(symbol, totalQty * (percentToClose / 100)));
+      // Truncate to never close more than held — floors the percent slice down to valid precision
+      const qty        = truncateQty(exchange, symbol, totalQty * (percentToClose / 100));
       const closePrice = parseFloat(exchange.priceToPrecision(symbol, currentPrice));
       const exitSide   = position === "long" ? "sell" : "buy";
 
@@ -795,8 +858,9 @@ Broker.useBrokerAdapter(
       }
 
       const positions = await exchange.fetchPositions([symbol]);
-      const pos       = positions.find((p) => p.symbol === symbol);
-      const qty       = Math.abs(parseFloat(String(pos?.contracts ?? 0)));
+      const pos       = findPosition(positions, symbol, position);
+      // Truncate to avoid placing SL for more than actually held
+      const qty       = truncateQty(exchange, symbol, Math.abs(parseFloat(String(pos?.contracts ?? 0))));
 
       // Position may have already been closed by SL/TP on exchange — skip gracefully
       if (qty === 0) {
@@ -822,8 +886,9 @@ Broker.useBrokerAdapter(
       }
 
       const positions = await exchange.fetchPositions([symbol]);
-      const pos       = positions.find((p) => p.symbol === symbol);
-      const qty       = Math.abs(parseFloat(String(pos?.contracts ?? 0)));
+      const pos       = findPosition(positions, symbol, position);
+      // Truncate to avoid placing TP for more than actually held
+      const qty       = truncateQty(exchange, symbol, Math.abs(parseFloat(String(pos?.contracts ?? 0))));
 
       // Position may have already been closed by SL/TP on exchange — skip gracefully
       if (qty === 0) {
@@ -849,8 +914,9 @@ Broker.useBrokerAdapter(
       }
 
       const positions = await exchange.fetchPositions([symbol]);
-      const pos       = positions.find((p) => p.symbol === symbol);
-      const qty       = Math.abs(parseFloat(String(pos?.contracts ?? 0)));
+      const pos       = findPosition(positions, symbol, position);
+      // Truncate to avoid placing SL for more than actually held
+      const qty       = truncateQty(exchange, symbol, Math.abs(parseFloat(String(pos?.contracts ?? 0))));
 
       // Position may have already been closed by SL/TP on exchange — skip gracefully
       if (qty === 0) {
@@ -868,7 +934,17 @@ Broker.useBrokerAdapter(
       const { symbol, currentPrice, cost, position } = payload;
       const exchange = await getFuturesExchange();
 
-      const qty        = parseFloat(exchange.amountToPrecision(symbol, cost / currentPrice));
+      // Guard against DCA into a ghost position — SL/TP may have already closed it on exchange
+      const positions = await exchange.fetchPositions([symbol]);
+      const pos       = findPosition(positions, symbol, position);
+      const existing  = Math.abs(parseFloat(String(pos?.contracts ?? 0)));
+
+      if (existing === 0) {
+        throw new Error(`AverageBuy skipped: no open position for ${symbol} on exchange — SL/TP may have already been filled`);
+      }
+
+      // Entry qty computed from cost — truncate to never exceed intended notional
+      const qty        = truncateQty(exchange, symbol, cost / currentPrice);
       const entryPrice = parseFloat(exchange.priceToPrecision(symbol, currentPrice));
       const entrySide  = position === "long" ? "buy" : "sell";
 
