@@ -274,6 +274,18 @@ export const signal_cancelled_fields: TypedField[] = [
                                 ? String(obj.totalEntries)
                                 : "Not specified",
                     },
+                    {
+                        type: FieldType.Text,
+                        outlined: false,
+                        desktopColumns: "4",
+                        tabletColumns: "4",
+                        phoneColumns: "12",
+                        name: "totalPartials",
+                        title: "Partial Closes",
+                        readonly: true,
+                        isVisible: (obj) => obj.totalPartials != null && obj.totalPartials > 0,
+                        compute: (obj) => String(obj.totalPartials),
+                    },
                 ],
             },
             {
