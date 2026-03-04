@@ -71,7 +71,6 @@ export async function commitCancelScheduled(symbol: string, cancelId?: string): 
   const { backtest: isBacktest } = backtest.executionContextService.context;
   const { exchangeName, frameName, strategyName } =
     backtest.methodContextService.context;
-  await Broker.commitCancelScheduled({ symbol, cancelId, context: { exchangeName, frameName, strategyName } });
   await backtest.strategyCoreService.cancelScheduled(
     isBacktest,
     symbol,
@@ -538,7 +537,6 @@ export async function commitActivateScheduled(symbol: string, activateId?: strin
   const { backtest: isBacktest } = backtest.executionContextService.context;
   const { exchangeName, frameName, strategyName } =
     backtest.methodContextService.context;
-  await Broker.commitActivateScheduled({ symbol, activateId, context: { exchangeName, frameName, strategyName } });
   await backtest.strategyCoreService.activateScheduled(
     isBacktest,
     symbol,

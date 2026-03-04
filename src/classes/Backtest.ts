@@ -1502,7 +1502,6 @@ export class BacktestUtils {
         );
     }
 
-    await Broker.commitCancelScheduled({ symbol, cancelId, context });
     await backtest.strategyCoreService.cancelScheduled(
       true,
       symbol,
@@ -2412,7 +2411,6 @@ export class BacktestUtils {
         );
     }
 
-    await Broker.commitActivateScheduled({ symbol, activateId, context });
     await backtest.strategyCoreService.activateScheduled(
       true,
       symbol,

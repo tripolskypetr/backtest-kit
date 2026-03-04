@@ -964,7 +964,6 @@ export class LiveUtils {
       actions && actions.forEach((actionName) => backtest.actionValidationService.validate(actionName, LIVE_METHOD_NAME_CANCEL_SCHEDULED));
     }
 
-    await Broker.commitCancelScheduled({ symbol, cancelId, context: { strategyName: context.strategyName, exchangeName: context.exchangeName, frameName: "" } });
     await backtest.strategyCoreService.cancelScheduled(false, symbol, {
       strategyName: context.strategyName,
       exchangeName: context.exchangeName,
@@ -1631,7 +1630,6 @@ export class LiveUtils {
       actions && actions.forEach((actionName) => backtest.actionValidationService.validate(actionName, LIVE_METHOD_NAME_ACTIVATE_SCHEDULED));
     }
 
-    await Broker.commitActivateScheduled({ symbol, activateId, context: { strategyName: context.strategyName, exchangeName: context.exchangeName, frameName: "" } });
     await backtest.strategyCoreService.activateScheduled(false, symbol, {
       strategyName: context.strategyName,
       exchangeName: context.exchangeName,

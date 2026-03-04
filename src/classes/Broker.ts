@@ -10,16 +10,6 @@ import { StrategyName } from "../interfaces/Strategy.interface";
 
 export class BrokerAdapter {
 
-  public commitCancelScheduled = async (_payload: {
-    symbol: string;
-    cancelId?: string;
-    context: {
-      strategyName: StrategyName;
-      exchangeName: ExchangeName;
-      frameName: FrameName;
-    };
-  }) => {};
-
   public commitClosePending = async (_payload: {
     symbol: string;
     closeId?: string;
@@ -77,16 +67,6 @@ export class BrokerAdapter {
   public commitBreakeven = async (_payload: {
     symbol: string;
     currentPrice: number;
-    context: {
-      strategyName: StrategyName;
-      exchangeName: ExchangeName;
-      frameName: FrameName;
-    };
-  }) => {};
-
-  public commitActivateScheduled = async (_payload: {
-    symbol: string;
-    activateId?: string;
     context: {
       strategyName: StrategyName;
       exchangeName: ExchangeName;
