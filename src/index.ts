@@ -422,6 +422,8 @@ export { percentValue } from "./utils/percentValue";
 export { investedCostToPercent } from "./utils/investedCostToPercent";
 export { slPriceToPercentShift } from "./utils/slPriceToPercentShift";
 export { tpPriceToPercentShift } from "./utils/tpPriceToPercentShift";
+export { slPercentShiftToPrice } from "./utils/slPercentShiftToPrice";
+export { tpPercentShiftToPrice } from "./utils/tpPercentShiftToPrice"
 
 export { type GlobalConfig } from "./config/params";
 export { type ColumnConfig } from "./config/columns";

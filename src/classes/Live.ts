@@ -11,6 +11,8 @@ import { Columns } from "../lib/services/markdown/LiveMarkdownService";
 import { ExchangeName } from "../interfaces/Exchange.interface";
 import { slPriceToPercentShift } from "../utils/slPriceToPercentShift";
 import { tpPriceToPercentShift } from "../utils/tpPriceToPercentShift";
+import { slPercentShiftToPrice } from "../utils/slPercentShiftToPrice";
+import { tpPercentShiftToPrice } from "../utils/tpPercentShiftToPrice";
 import { Broker } from "./Broker";
 
 const LIVE_METHOD_NAME_RUN = "LiveUtils.run";
@@ -1335,12 +1337,16 @@ export class LiveUtils {
       actions && actions.forEach((actionName) => backtest.actionValidationService.validate(actionName, LIVE_METHOD_NAME_TRAILING_STOP));
     }
 
-    await Broker.commitTrailingStop({ symbol, percentShift, currentPrice, context: { strategyName: context.strategyName, exchangeName: context.exchangeName, frameName: "" } });
-    return await backtest.strategyCoreService.trailingStop(false, symbol, percentShift, currentPrice, {
-      strategyName: context.strategyName,
-      exchangeName: context.exchangeName,
-      frameName: "",
-    });
+    const signal = await backtest.strategyCoreService.getPendingSignal(false, symbol, currentPrice, { strategyName: context.strategyName, exchangeName: context.exchangeName, frameName: "" });
+    if (!signal) {
+      return false;
+    }
+    const effectivePriceOpen = await backtest.strategyCoreService.getPositionAveragePrice(false, symbol, { strategyName: context.strategyName, exchangeName: context.exchangeName, frameName: "" });
+    if (effectivePriceOpen === null) {
+      return false;
+    }
+    await Broker.commitTrailingStop({ symbol, percentShift, currentPrice, newStopLossPrice: slPercentShiftToPrice(percentShift, signal.priceStopLoss, effectivePriceOpen, signal.position), context });
+    return await backtest.strategyCoreService.trailingStop(false, symbol, percentShift, currentPrice, { strategyName: context.strategyName, exchangeName: context.exchangeName, frameName: "" });
   };
 
   /**
@@ -1411,12 +1417,16 @@ export class LiveUtils {
       actions && actions.forEach((actionName) => backtest.actionValidationService.validate(actionName, LIVE_METHOD_NAME_TRAILING_PROFIT));
     }
 
-    await Broker.commitTrailingTake({ symbol, percentShift, currentPrice, context: { strategyName: context.strategyName, exchangeName: context.exchangeName, frameName: "" } });
-    return await backtest.strategyCoreService.trailingTake(false, symbol, percentShift, currentPrice, {
-      strategyName: context.strategyName,
-      exchangeName: context.exchangeName,
-      frameName: "",
-    });
+    const signal = await backtest.strategyCoreService.getPendingSignal(false, symbol, currentPrice, { strategyName: context.strategyName, exchangeName: context.exchangeName, frameName: "" });
+    if (!signal) {
+      return false;
+    }
+    const effectivePriceOpen = await backtest.strategyCoreService.getPositionAveragePrice(false, symbol, { strategyName: context.strategyName, exchangeName: context.exchangeName, frameName: "" });
+    if (effectivePriceOpen === null) {
+      return false;
+    }
+    await Broker.commitTrailingTake({ symbol, percentShift, currentPrice, newTakeProfitPrice: tpPercentShiftToPrice(percentShift, signal.priceTakeProfit, effectivePriceOpen, signal.position), context });
+    return await backtest.strategyCoreService.trailingTake(false, symbol, percentShift, currentPrice, { strategyName: context.strategyName, exchangeName: context.exchangeName, frameName: "" });
   };
 
   /**
@@ -1461,20 +1471,20 @@ export class LiveUtils {
       exchangeName: context.exchangeName,
       frameName: "",
     });
-    if (!signal) return false;
+    if (!signal) {
+      return false;
+    }
     const effectivePriceOpen = await backtest.strategyCoreService.getPositionAveragePrice(false, symbol, {
       strategyName: context.strategyName,
       exchangeName: context.exchangeName,
       frameName: "",
     });
-    if (effectivePriceOpen === null) return false;
+    if (effectivePriceOpen === null) {
+      return false;
+    }
     const percentShift = slPriceToPercentShift(newStopLossPrice, signal.priceStopLoss, effectivePriceOpen);
-    await Broker.commitTrailingStop({ symbol, percentShift, currentPrice, context: { strategyName: context.strategyName, exchangeName: context.exchangeName, frameName: "" } });
-    return await backtest.strategyCoreService.trailingStop(false, symbol, percentShift, currentPrice, {
-      strategyName: context.strategyName,
-      exchangeName: context.exchangeName,
-      frameName: "",
-    });
+    await Broker.commitTrailingStop({ symbol, percentShift, currentPrice, newStopLossPrice, context });
+    return await backtest.strategyCoreService.trailingStop(false, symbol, percentShift, currentPrice, { strategyName: context.strategyName, exchangeName: context.exchangeName, frameName: "" });
   };
 
   /**
@@ -1519,20 +1529,20 @@ export class LiveUtils {
       exchangeName: context.exchangeName,
       frameName: "",
     });
-    if (!signal) return false;
+    if (!signal) {
+      return false;
+    }
     const effectivePriceOpen = await backtest.strategyCoreService.getPositionAveragePrice(false, symbol, {
       strategyName: context.strategyName,
       exchangeName: context.exchangeName,
       frameName: "",
     });
-    if (effectivePriceOpen === null) return false;
+    if (effectivePriceOpen === null) {
+      return false;
+    }
     const percentShift = tpPriceToPercentShift(newTakeProfitPrice, signal.priceTakeProfit, effectivePriceOpen);
-    await Broker.commitTrailingTake({ symbol, percentShift, currentPrice, context: { strategyName: context.strategyName, exchangeName: context.exchangeName, frameName: "" } });
-    return await backtest.strategyCoreService.trailingTake(false, symbol, percentShift, currentPrice, {
-      strategyName: context.strategyName,
-      exchangeName: context.exchangeName,
-      frameName: "",
-    });
+    await Broker.commitTrailingTake({ symbol, percentShift, currentPrice, newTakeProfitPrice, context });
+    return await backtest.strategyCoreService.trailingTake(false, symbol, percentShift, currentPrice, { strategyName: context.strategyName, exchangeName: context.exchangeName, frameName: "" });
   };
 
   /**

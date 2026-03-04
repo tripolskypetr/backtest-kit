@@ -14,7 +14,7 @@ export type BrokerClosePendingPayload = {
   context: {
     strategyName: StrategyName;
     exchangeName: ExchangeName;
-    frameName: FrameName;
+    frameName?: FrameName;
   };
 };
 
@@ -25,7 +25,7 @@ export type BrokerPartialProfitPayload = {
   context: {
     strategyName: StrategyName;
     exchangeName: ExchangeName;
-    frameName: FrameName;
+    frameName?: FrameName;
   };
 };
 
@@ -36,7 +36,7 @@ export type BrokerPartialLossPayload = {
   context: {
     strategyName: StrategyName;
     exchangeName: ExchangeName;
-    frameName: FrameName;
+    frameName?: FrameName;
   };
 };
 
@@ -44,10 +44,11 @@ export type BrokerTrailingStopPayload = {
   symbol: string;
   percentShift: number;
   currentPrice: number;
+  newStopLossPrice: number;
   context: {
     strategyName: StrategyName;
     exchangeName: ExchangeName;
-    frameName: FrameName;
+    frameName?: FrameName;
   };
 };
 
@@ -55,10 +56,11 @@ export type BrokerTrailingTakePayload = {
   symbol: string;
   percentShift: number;
   currentPrice: number;
+  newTakeProfitPrice: number;
   context: {
     strategyName: StrategyName;
     exchangeName: ExchangeName;
-    frameName: FrameName;
+    frameName?: FrameName;
   };
 };
 
@@ -68,7 +70,7 @@ export type BrokerBreakevenPayload = {
   context: {
     strategyName: StrategyName;
     exchangeName: ExchangeName;
-    frameName: FrameName;
+    frameName?: FrameName;
   };
 };
 
@@ -79,7 +81,7 @@ export type BrokerAverageBuyPayload = {
   context: {
     strategyName: StrategyName;
     exchangeName: ExchangeName;
-    frameName: FrameName;
+    frameName?: FrameName;
   };
 };
 

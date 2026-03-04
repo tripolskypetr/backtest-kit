@@ -13,6 +13,8 @@ import { ExchangeName } from "../interfaces/Exchange.interface";
 import { FrameName } from "../interfaces/Frame.interface";
 import { slPriceToPercentShift } from "../utils/slPriceToPercentShift";
 import { tpPriceToPercentShift } from "../utils/tpPriceToPercentShift";
+import { slPercentShiftToPrice } from "../utils/slPercentShiftToPrice";
+import { tpPercentShiftToPrice } from "../utils/tpPercentShiftToPrice";
 import { Broker } from "./Broker";
 
 const BACKTEST_METHOD_NAME_RUN = "BacktestUtils.run";
@@ -2031,7 +2033,15 @@ export class BacktestUtils {
         );
     }
 
-    await Broker.commitTrailingStop({ symbol, percentShift, currentPrice, context });
+    const signal = await backtest.strategyCoreService.getPendingSignal(true, symbol, currentPrice, context);
+    if (!signal) {
+      return false;
+    }
+    const effectivePriceOpen = await backtest.strategyCoreService.getPositionAveragePrice(true, symbol, context);
+    if (effectivePriceOpen === null) {
+      return false;
+    }
+    await Broker.commitTrailingStop({ symbol, percentShift, currentPrice, newStopLossPrice: slPercentShiftToPrice(percentShift, signal.priceStopLoss, effectivePriceOpen, signal.position), context });
     return await backtest.strategyCoreService.trailingStop(
       true,
       symbol,
@@ -2134,7 +2144,15 @@ export class BacktestUtils {
         );
     }
 
-    await Broker.commitTrailingTake({ symbol, percentShift, currentPrice, context });
+    const signal = await backtest.strategyCoreService.getPendingSignal(true, symbol, currentPrice, context);
+    if (!signal) {
+      return false;
+    }
+    const effectivePriceOpen = await backtest.strategyCoreService.getPositionAveragePrice(true, symbol, context);
+    if (effectivePriceOpen === null) {
+      return false;
+    }
+    await Broker.commitTrailingTake({ symbol, percentShift, currentPrice, newTakeProfitPrice: tpPercentShiftToPrice(percentShift, signal.priceTakeProfit, effectivePriceOpen, signal.position), context });
     return await backtest.strategyCoreService.trailingTake(
       true,
       symbol,
@@ -2197,11 +2215,15 @@ export class BacktestUtils {
     }
 
     const signal = await backtest.strategyCoreService.getPendingSignal(true, symbol, currentPrice, context);
-    if (!signal) return false;
+    if (!signal) {
+      return false;
+    }
     const effectivePriceOpen = await backtest.strategyCoreService.getPositionAveragePrice(true, symbol, context);
-    if (effectivePriceOpen === null) return false;
+    if (effectivePriceOpen === null) {
+      return false;
+    }
     const percentShift = slPriceToPercentShift(newStopLossPrice, signal.priceStopLoss, effectivePriceOpen);
-    await Broker.commitTrailingStop({ symbol, percentShift, currentPrice, context });
+    await Broker.commitTrailingStop({ symbol, percentShift, currentPrice, newStopLossPrice, context });
     return await backtest.strategyCoreService.trailingStop(true, symbol, percentShift, currentPrice, context);
   };
 
@@ -2258,11 +2280,15 @@ export class BacktestUtils {
     }
 
     const signal = await backtest.strategyCoreService.getPendingSignal(true, symbol, currentPrice, context);
-    if (!signal) return false;
+    if (!signal) {
+      return false;
+    }
     const effectivePriceOpen = await backtest.strategyCoreService.getPositionAveragePrice(true, symbol, context);
-    if (effectivePriceOpen === null) return false;
+    if (effectivePriceOpen === null) {
+      return false;
+    }
     const percentShift = tpPriceToPercentShift(newTakeProfitPrice, signal.priceTakeProfit, effectivePriceOpen);
-    await Broker.commitTrailingTake({ symbol, percentShift, currentPrice, context });
+    await Broker.commitTrailingTake({ symbol, percentShift, currentPrice, newTakeProfitPrice, context });
     return await backtest.strategyCoreService.trailingTake(true, symbol, percentShift, currentPrice, context);
   };
 

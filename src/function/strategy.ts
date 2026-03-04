@@ -6,6 +6,8 @@ import { getAveragePrice } from "./exchange";
 import { investedCostToPercent } from "../utils/investedCostToPercent";
 import { slPriceToPercentShift } from "../utils/slPriceToPercentShift";
 import { tpPriceToPercentShift } from "../utils/tpPriceToPercentShift";
+import { slPercentShiftToPrice } from "../utils/slPercentShiftToPrice";
+import { tpPercentShiftToPrice } from "../utils/tpPercentShiftToPrice";
 import { Broker } from "../classes/Broker";
 import { GLOBAL_CONFIG } from "../config/params";
 
@@ -295,7 +297,15 @@ export async function commitTrailingStop(
   const { backtest: isBacktest } = backtest.executionContextService.context;
   const { exchangeName, frameName, strategyName } =
     backtest.methodContextService.context;
-  await Broker.commitTrailingStop({ symbol, percentShift, currentPrice, context: { exchangeName, frameName, strategyName } });
+  const signal = await backtest.strategyCoreService.getPendingSignal(isBacktest, symbol, currentPrice, { exchangeName, frameName, strategyName });
+  if (!signal) {
+    return false;
+  }
+  const effectivePriceOpen = await backtest.strategyCoreService.getPositionAveragePrice(isBacktest, symbol, { exchangeName, frameName, strategyName });
+  if (effectivePriceOpen === null) {
+    return false;
+  }
+  await Broker.commitTrailingStop({ symbol, percentShift, currentPrice, newStopLossPrice: slPercentShiftToPrice(percentShift, signal.priceStopLoss, effectivePriceOpen, signal.position), context: { exchangeName, frameName, strategyName } });
   return await backtest.strategyCoreService.trailingStop(
     isBacktest,
     symbol,
@@ -367,7 +377,15 @@ export async function commitTrailingTake(
   const { backtest: isBacktest } = backtest.executionContextService.context;
   const { exchangeName, frameName, strategyName } =
     backtest.methodContextService.context;
-  await Broker.commitTrailingTake({ symbol, percentShift, currentPrice, context: { exchangeName, frameName, strategyName } });
+  const signal = await backtest.strategyCoreService.getPendingSignal(isBacktest, symbol, currentPrice, { exchangeName, frameName, strategyName });
+  if (!signal) {
+    return false;
+  }
+  const effectivePriceOpen = await backtest.strategyCoreService.getPositionAveragePrice(isBacktest, symbol, { exchangeName, frameName, strategyName });
+  if (effectivePriceOpen === null) {
+    return false;
+  }
+  await Broker.commitTrailingTake({ symbol, percentShift, currentPrice, newTakeProfitPrice: tpPercentShiftToPrice(percentShift, signal.priceTakeProfit, effectivePriceOpen, signal.position), context: { exchangeName, frameName, strategyName } });
   return await backtest.strategyCoreService.trailingTake(
     isBacktest,
     symbol,
@@ -408,11 +426,15 @@ export async function commitTrailingStopCost(
   const { backtest: isBacktest } = backtest.executionContextService.context;
   const { exchangeName, frameName, strategyName } = backtest.methodContextService.context;
   const signal = await backtest.strategyCoreService.getPendingSignal(isBacktest, symbol, currentPrice, { exchangeName, frameName, strategyName });
-  if (!signal) return false;
+  if (!signal) {
+    return false;
+  }
   const effectivePriceOpen = await backtest.strategyCoreService.getPositionAveragePrice(isBacktest, symbol, { exchangeName, frameName, strategyName });
-  if (effectivePriceOpen === null) return false;
+  if (effectivePriceOpen === null) {
+    return false;
+  }
   const percentShift = slPriceToPercentShift(newStopLossPrice, signal.priceStopLoss, effectivePriceOpen);
-  await Broker.commitTrailingStop({ symbol, percentShift, currentPrice, context: { exchangeName, frameName, strategyName } });
+  await Broker.commitTrailingStop({ symbol, percentShift, currentPrice, newStopLossPrice, context: { exchangeName, frameName, strategyName } });
   return await backtest.strategyCoreService.trailingStop(isBacktest, symbol, percentShift, currentPrice, { exchangeName, frameName, strategyName });
 }
 
@@ -447,11 +469,15 @@ export async function commitTrailingTakeCost(
   const { backtest: isBacktest } = backtest.executionContextService.context;
   const { exchangeName, frameName, strategyName } = backtest.methodContextService.context;
   const signal = await backtest.strategyCoreService.getPendingSignal(isBacktest, symbol, currentPrice, { exchangeName, frameName, strategyName });
-  if (!signal) return false;
+  if (!signal) {
+    return false;
+  }
   const effectivePriceOpen = await backtest.strategyCoreService.getPositionAveragePrice(isBacktest, symbol, { exchangeName, frameName, strategyName });
-  if (effectivePriceOpen === null) return false;
+  if (effectivePriceOpen === null) {
+    return false;
+  }
   const percentShift = tpPriceToPercentShift(newTakeProfitPrice, signal.priceTakeProfit, effectivePriceOpen);
-  await Broker.commitTrailingTake({ symbol, percentShift, currentPrice, context: { exchangeName, frameName, strategyName } });
+  await Broker.commitTrailingTake({ symbol, percentShift, currentPrice, newTakeProfitPrice, context: { exchangeName, frameName, strategyName } });
   return await backtest.strategyCoreService.trailingTake(isBacktest, symbol, percentShift, currentPrice, { exchangeName, frameName, strategyName });
 }
 
