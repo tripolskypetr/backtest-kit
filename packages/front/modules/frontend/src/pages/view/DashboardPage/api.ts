@@ -70,13 +70,13 @@ export const fetchSuccessRateMeasure = async (
     const TOLERANCE = 0.005;
 
     const isAtTP = (s: ClosedSignal): boolean =>
-        Math.abs(s.pnl.priceClose - s.originalPriceTakeProfit) /
-            s.originalPriceTakeProfit <
+        Math.abs(s.pnl.priceClose - s.priceTakeProfit) /
+            s.priceTakeProfit <
         TOLERANCE;
 
     const isAtSL = (s: ClosedSignal): boolean =>
-        Math.abs(s.pnl.priceClose - s.originalPriceStopLoss) /
-            s.originalPriceStopLoss <
+        Math.abs(s.pnl.priceClose - s.priceStopLoss) /
+            s.priceStopLoss <
         TOLERANCE;
 
     return {
