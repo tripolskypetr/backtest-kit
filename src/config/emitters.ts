@@ -14,7 +14,7 @@ import { RiskContract } from "../contract/Risk.contract";
 import { SchedulePingContract } from "../contract/SchedulePing.contract";
 import { ActivePingContract } from "../contract/ActivePing.contract";
 import { StrategyCommitContract } from "../contract/StrategyCommit.contract";
-import SignalSyncContract from "src/contract/SignalSync.contract";
+import SignalSyncContract from "../contract/SignalSync.contract";
 
 /**
  * Exchange signal synchronization emitter.

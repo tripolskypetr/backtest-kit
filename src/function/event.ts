@@ -15,7 +15,7 @@ import { SchedulePingContract } from "../contract/SchedulePing.contract";
 import { ActivePingContract } from "../contract/ActivePing.contract";
 import { StrategyCommitContract } from "../contract/StrategyCommit.contract";
 import { queued } from "functools-kit";
-import SignalSyncContract from "src/contract/SignalSync.contract";
+import SignalSyncContract from "../contract/SignalSync.contract";
 
 const LISTEN_SIGNAL_METHOD_NAME = "event.listenSignal";
 const LISTEN_SIGNAL_ONCE_METHOD_NAME = "event.listenSignalOnce";

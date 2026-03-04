@@ -1,5 +1,4 @@
 import * as di_scoped from 'di-scoped';
-import SignalSyncContract$1 from 'src/contract/SignalSync.contract';
 import * as functools_kit from 'functools-kit';
 import { Subject } from 'functools-kit';
 import { WriteStream } from 'fs';
@@ -4431,6 +4430,34 @@ declare function commitTrailingStop(symbol: string, percentShift: number, curren
  */
 declare function commitTrailingTake(symbol: string, percentShift: number, currentPrice: number): Promise<boolean>;
 /**
+ * Adjusts the trailing stop-loss to an absolute price level.
+ *
+ * Convenience wrapper around commitTrailingStop that converts an absolute
+ * stop-loss price to a percentShift relative to the ORIGINAL SL distance.
+ *
+ * Automatically detects backtest/live mode from execution context.
+ * Automatically fetches current price via getAveragePrice.
+ *
+ * @param symbol - Trading pair symbol
+ * @param newStopLossPrice - Desired absolute stop-loss price
+ * @returns Promise<boolean> - true if trailing SL was set/updated, false if rejected
+ */
+declare function commitTrailingStopCost(symbol: string, newStopLossPrice: number): Promise<boolean>;
+/**
+ * Adjusts the trailing take-profit to an absolute price level.
+ *
+ * Convenience wrapper around commitTrailingTake that converts an absolute
+ * take-profit price to a percentShift relative to the ORIGINAL TP distance.
+ *
+ * Automatically detects backtest/live mode from execution context.
+ * Automatically fetches current price via getAveragePrice.
+ *
+ * @param symbol - Trading pair symbol
+ * @param newTakeProfitPrice - Desired absolute take-profit price
+ * @returns Promise<boolean> - true if trailing TP was set/updated, false if rejected
+ */
+declare function commitTrailingTakeCost(symbol: string, newTakeProfitPrice: number): Promise<boolean>;
+/**
  * Moves stop-loss to breakeven when price reaches threshold.
  *
  * Moves SL to entry price (zero-risk position) when current price has moved
@@ -4690,6 +4717,34 @@ declare function getPositionPnlCost(symbol: string): Promise<number | null>;
  * ```
  */
 declare function getPositionLevels(symbol: string): Promise<number[] | null>;
+/**
+ * Returns the list of partial close events for the current pending signal.
+ *
+ * Each element represents a partial profit or loss close executed via
+ * commitPartialProfit / commitPartialLoss (or their Cost variants).
+ *
+ * Returns null if no pending signal exists.
+ * Returns an empty array if no partials were executed yet.
+ *
+ * Each entry contains:
+ * - `type` — "profit" or "loss"
+ * - `percent` — percentage of position closed at this partial
+ * - `currentPrice` — execution price of the partial close
+ * - `costBasisAtClose` — accounting cost basis at the moment of this partial
+ * - `entryCountAtClose` — number of DCA entries accumulated at this partial
+ *
+ * @param symbol - Trading pair symbol
+ * @returns Promise resolving to array of partial close records or null
+ *
+ * @example
+ * ```typescript
+ * import { getPositionPartials } from "backtest-kit";
+ *
+ * const partials = await getPositionPartials("BTCUSDT");
+ * // No partials yet: []
+ * // After one partial profit: [{ type: "profit", percent: 50, currentPrice: 45000, ... }]
+ * ```
+ */
 declare function getPositionPartials(symbol: string): Promise<{
     type: "profit" | "loss";
     percent: number;
@@ -7277,7 +7332,7 @@ declare function listenStrategyCommitOnce(filterFn: (event: StrategyCommitContra
  * @param fn - Callback function to handle sync events. If the function returns a promise, signal processing will wait until it resolves.
  * @returns Unsubscribe function to stop listening
  */
-declare function listenSync(fn: (event: SignalSyncContract$1) => void): () => void;
+declare function listenSync(fn: (event: SignalSyncContract) => void): () => void;
 /**
  * Subscribes to filtered signal synchronization events with one-time execution.
  * If throws position is not being opened/closed until the async function completes. Useful for synchronizing with external systems.
@@ -7286,7 +7341,7 @@ declare function listenSync(fn: (event: SignalSyncContract$1) => void): () => vo
  * @param fn - Callback function to handle the filtered event (called only once). If the function returns a promise, signal processing will wait until it resolves.
  * @returns Unsubscribe function to cancel the listener before it fires
  */
-declare function listenSyncOnce(filterFn: (event: SignalSyncContract$1) => boolean, fn: (event: SignalSyncContract$1) => void): () => void;
+declare function listenSyncOnce(filterFn: (event: SignalSyncContract) => boolean, fn: (event: SignalSyncContract) => void): () => void;
 
 /**
  * Checks if trade context is active (execution and method contexts).
@@ -11340,36 +11395,117 @@ declare class BacktestUtils {
         exchangeName: ExchangeName;
         frameName: FrameName;
     }) => Promise<boolean>;
+    /**
+     * Returns the effective (weighted average) entry price for the current pending signal.
+     *
+     * Accounts for all DCA entries via commitAverageBuy.
+     * Returns null if no pending signal exists.
+     *
+     * @param symbol - Trading pair symbol
+     * @param context - Execution context with strategyName, exchangeName, and frameName
+     * @returns Effective entry price, or null if no active position
+     */
     getPositionAveragePrice: (symbol: string, context: {
         strategyName: StrategyName;
         exchangeName: ExchangeName;
         frameName: FrameName;
     }) => Promise<number | null>;
+    /**
+     * Returns the total number of base-asset units currently held in the position.
+     *
+     * Includes units from all DCA entries. Returns null if no pending signal exists.
+     *
+     * @param symbol - Trading pair symbol
+     * @param context - Execution context with strategyName, exchangeName, and frameName
+     * @returns Total units held, or null if no active position
+     */
     getPositionInvestedCount: (symbol: string, context: {
         strategyName: StrategyName;
         exchangeName: ExchangeName;
         frameName: FrameName;
     }) => Promise<number | null>;
+    /**
+     * Returns the total dollar cost invested in the current position.
+     *
+     * Sum of all entry costs across DCA entries. Returns null if no pending signal exists.
+     *
+     * @param symbol - Trading pair symbol
+     * @param context - Execution context with strategyName, exchangeName, and frameName
+     * @returns Total invested cost in quote currency, or null if no active position
+     */
     getPositionInvestedCost: (symbol: string, context: {
         strategyName: StrategyName;
         exchangeName: ExchangeName;
         frameName: FrameName;
     }) => Promise<number | null>;
+    /**
+     * Returns the current unrealized PnL as a percentage of the invested cost.
+     *
+     * Calculated relative to the effective (weighted average) entry price.
+     * Positive for profit, negative for loss. Returns null if no pending signal exists.
+     *
+     * @param symbol - Trading pair symbol
+     * @param currentPrice - Current market price
+     * @param context - Execution context with strategyName, exchangeName, and frameName
+     * @returns PnL percentage, or null if no active position
+     */
     getPositionPnlPercent: (symbol: string, currentPrice: number, context: {
         strategyName: StrategyName;
         exchangeName: ExchangeName;
         frameName: FrameName;
     }) => Promise<number | null>;
+    /**
+     * Returns the current unrealized PnL in quote currency (dollar amount).
+     *
+     * Calculated as (currentPrice - effectiveEntry) * units for LONG,
+     * reversed for SHORT. Returns null if no pending signal exists.
+     *
+     * @param symbol - Trading pair symbol
+     * @param currentPrice - Current market price
+     * @param context - Execution context with strategyName, exchangeName, and frameName
+     * @returns PnL in quote currency, or null if no active position
+     */
     getPositionPnlCost: (symbol: string, currentPrice: number, context: {
         strategyName: StrategyName;
         exchangeName: ExchangeName;
         frameName: FrameName;
     }) => Promise<number | null>;
+    /**
+     * Returns the list of DCA entry prices for the current pending signal.
+     *
+     * The first element is always the original priceOpen (initial entry).
+     * Each subsequent element is a price added by commitAverageBuy().
+     * Returns null if no pending signal exists.
+     * Returns a single-element array [priceOpen] if no DCA entries were made.
+     *
+     * @param symbol - Trading pair symbol
+     * @param context - Execution context with strategyName, exchangeName, and frameName
+     * @returns Array of entry prices, or null if no active position
+     */
     getPositionLevels: (symbol: string, context: {
         strategyName: StrategyName;
         exchangeName: ExchangeName;
         frameName: FrameName;
     }) => Promise<number[] | null>;
+    /**
+     * Returns the list of partial close events for the current pending signal.
+     *
+     * Each element represents a partial profit or loss close executed via
+     * commitPartialProfit / commitPartialLoss (or their Cost variants).
+     * Returns null if no pending signal exists.
+     * Returns an empty array if no partials were executed yet.
+     *
+     * Each entry contains:
+     * - `type` — "profit" or "loss"
+     * - `percent` — percentage of position closed at this partial
+     * - `currentPrice` — execution price of the partial close
+     * - `costBasisAtClose` — accounting cost basis at the moment of this partial
+     * - `entryCountAtClose` — number of DCA entries accumulated at this partial
+     *
+     * @param symbol - Trading pair symbol
+     * @param context - Execution context with strategyName, exchangeName, and frameName
+     * @returns Array of partial close records, or null if no active position
+     */
     getPositionPartials: (symbol: string, context: {
         strategyName: StrategyName;
         exchangeName: ExchangeName;
@@ -11696,6 +11832,40 @@ declare class BacktestUtils {
      * ```
      */
     commitTrailingTake: (symbol: string, percentShift: number, currentPrice: number, context: {
+        strategyName: StrategyName;
+        exchangeName: ExchangeName;
+        frameName: FrameName;
+    }) => Promise<boolean>;
+    /**
+     * Adjusts the trailing stop-loss to an absolute price level.
+     *
+     * Convenience wrapper around commitTrailingStop that converts an absolute
+     * stop-loss price to a percentShift relative to the ORIGINAL SL distance.
+     *
+     * @param symbol - Trading pair symbol
+     * @param newStopLossPrice - Desired absolute stop-loss price
+     * @param currentPrice - Current market price to check for intrusion
+     * @param context - Execution context with strategyName, exchangeName, and frameName
+     * @returns Promise<boolean> - true if trailing SL was set/updated, false if rejected
+     */
+    commitTrailingStopCost: (symbol: string, newStopLossPrice: number, currentPrice: number, context: {
+        strategyName: StrategyName;
+        exchangeName: ExchangeName;
+        frameName: FrameName;
+    }) => Promise<boolean>;
+    /**
+     * Adjusts the trailing take-profit to an absolute price level.
+     *
+     * Convenience wrapper around commitTrailingTake that converts an absolute
+     * take-profit price to a percentShift relative to the ORIGINAL TP distance.
+     *
+     * @param symbol - Trading pair symbol
+     * @param newTakeProfitPrice - Desired absolute take-profit price
+     * @param currentPrice - Current market price to check for intrusion
+     * @param context - Execution context with strategyName, exchangeName, and frameName
+     * @returns Promise<boolean> - true if trailing TP was set/updated, false if rejected
+     */
+    commitTrailingTakeCost: (symbol: string, newTakeProfitPrice: number, currentPrice: number, context: {
         strategyName: StrategyName;
         exchangeName: ExchangeName;
         frameName: FrameName;
@@ -12290,30 +12460,111 @@ declare class LiveUtils {
         strategyName: StrategyName;
         exchangeName: ExchangeName;
     }) => Promise<boolean>;
+    /**
+     * Returns the effective (weighted average) entry price for the current pending signal.
+     *
+     * Accounts for all DCA entries via commitAverageBuy.
+     * Returns null if no pending signal exists.
+     *
+     * @param symbol - Trading pair symbol
+     * @param context - Execution context with strategyName and exchangeName
+     * @returns Effective entry price, or null if no active position
+     */
     getPositionAveragePrice: (symbol: string, context: {
         strategyName: StrategyName;
         exchangeName: ExchangeName;
     }) => Promise<number | null>;
+    /**
+     * Returns the total number of base-asset units currently held in the position.
+     *
+     * Includes units from all DCA entries. Returns null if no pending signal exists.
+     *
+     * @param symbol - Trading pair symbol
+     * @param context - Execution context with strategyName and exchangeName
+     * @returns Total units held, or null if no active position
+     */
     getPositionInvestedCount: (symbol: string, context: {
         strategyName: StrategyName;
         exchangeName: ExchangeName;
     }) => Promise<number | null>;
+    /**
+     * Returns the total dollar cost invested in the current position.
+     *
+     * Sum of all entry costs across DCA entries. Returns null if no pending signal exists.
+     *
+     * @param symbol - Trading pair symbol
+     * @param context - Execution context with strategyName and exchangeName
+     * @returns Total invested cost in quote currency, or null if no active position
+     */
     getPositionInvestedCost: (symbol: string, context: {
         strategyName: StrategyName;
         exchangeName: ExchangeName;
     }) => Promise<number | null>;
+    /**
+     * Returns the current unrealized PnL as a percentage of the invested cost.
+     *
+     * Calculated relative to the effective (weighted average) entry price.
+     * Positive for profit, negative for loss. Returns null if no pending signal exists.
+     *
+     * @param symbol - Trading pair symbol
+     * @param currentPrice - Current market price
+     * @param context - Execution context with strategyName and exchangeName
+     * @returns PnL percentage, or null if no active position
+     */
     getPositionPnlPercent: (symbol: string, currentPrice: number, context: {
         strategyName: StrategyName;
         exchangeName: ExchangeName;
     }) => Promise<number | null>;
+    /**
+     * Returns the current unrealized PnL in quote currency (dollar amount).
+     *
+     * Calculated as (currentPrice - effectiveEntry) * units for LONG,
+     * reversed for SHORT. Returns null if no pending signal exists.
+     *
+     * @param symbol - Trading pair symbol
+     * @param currentPrice - Current market price
+     * @param context - Execution context with strategyName and exchangeName
+     * @returns PnL in quote currency, or null if no active position
+     */
     getPositionPnlCost: (symbol: string, currentPrice: number, context: {
         strategyName: StrategyName;
         exchangeName: ExchangeName;
     }) => Promise<number | null>;
+    /**
+     * Returns the list of DCA entry prices for the current pending signal.
+     *
+     * The first element is always the original priceOpen (initial entry).
+     * Each subsequent element is a price added by commitAverageBuy().
+     * Returns null if no pending signal exists.
+     * Returns a single-element array [priceOpen] if no DCA entries were made.
+     *
+     * @param symbol - Trading pair symbol
+     * @param context - Execution context with strategyName and exchangeName
+     * @returns Array of entry prices, or null if no active position
+     */
     getPositionLevels: (symbol: string, context: {
         strategyName: StrategyName;
         exchangeName: ExchangeName;
     }) => Promise<number[] | null>;
+    /**
+     * Returns the list of partial close events for the current pending signal.
+     *
+     * Each element represents a partial profit or loss close executed via
+     * commitPartialProfit / commitPartialLoss (or their Cost variants).
+     * Returns null if no pending signal exists.
+     * Returns an empty array if no partials were executed yet.
+     *
+     * Each entry contains:
+     * - `type` — "profit" or "loss"
+     * - `percent` — percentage of position closed at this partial
+     * - `currentPrice` — execution price of the partial close
+     * - `costBasisAtClose` — accounting cost basis at the moment of this partial
+     * - `entryCountAtClose` — number of DCA entries accumulated at this partial
+     *
+     * @param symbol - Trading pair symbol
+     * @param context - Execution context with strategyName and exchangeName
+     * @returns Array of partial close records, or null if no active position
+     */
     getPositionPartials: (symbol: string, context: {
         strategyName: StrategyName;
         exchangeName: ExchangeName;
@@ -12619,6 +12870,38 @@ declare class LiveUtils {
      * ```
      */
     commitTrailingTake: (symbol: string, percentShift: number, currentPrice: number, context: {
+        strategyName: StrategyName;
+        exchangeName: ExchangeName;
+    }) => Promise<boolean>;
+    /**
+     * Adjusts the trailing stop-loss to an absolute price level.
+     *
+     * Convenience wrapper around commitTrailingStop that converts an absolute
+     * stop-loss price to a percentShift relative to the ORIGINAL SL distance.
+     *
+     * @param symbol - Trading pair symbol
+     * @param newStopLossPrice - Desired absolute stop-loss price
+     * @param currentPrice - Current market price to check for intrusion
+     * @param context - Execution context with strategyName and exchangeName
+     * @returns Promise<boolean> - true if trailing SL was set/updated, false if rejected
+     */
+    commitTrailingStopCost: (symbol: string, newStopLossPrice: number, currentPrice: number, context: {
+        strategyName: StrategyName;
+        exchangeName: ExchangeName;
+    }) => Promise<boolean>;
+    /**
+     * Adjusts the trailing take-profit to an absolute price level.
+     *
+     * Convenience wrapper around commitTrailingTake that converts an absolute
+     * take-profit price to a percentShift relative to the ORIGINAL TP distance.
+     *
+     * @param symbol - Trading pair symbol
+     * @param newTakeProfitPrice - Desired absolute take-profit price
+     * @param currentPrice - Current market price to check for intrusion
+     * @param context - Execution context with strategyName and exchangeName
+     * @returns Promise<boolean> - true if trailing TP was set/updated, false if rejected
+     */
+    commitTrailingTakeCost: (symbol: string, newTakeProfitPrice: number, currentPrice: number, context: {
         strategyName: StrategyName;
         exchangeName: ExchangeName;
     }) => Promise<boolean>;
@@ -17853,7 +18136,7 @@ interface WalkerStopContract {
  * This ensures that the framework's internal state remains consistent with the exchange's state.
  * Consumers should implement retry logic in their listeners to handle transient synchronization failures.
  */
-declare const syncSubject: Subject<SignalSyncContract$1>;
+declare const syncSubject: Subject<SignalSyncContract>;
 /**
  * Global signal emitter for all trading events (live + backtest).
  * Emits all signal events regardless of execution mode.
@@ -18175,6 +18458,42 @@ declare const percentValue: (yesterdayValue: number, todayValue: number) => numb
  * await commitPartialProfit("BTCUSDT", percent);
  */
 declare const investedCostToPercent: (dollarAmount: number, investedCost: number) => number;
+
+/**
+ * Convert an absolute stop-loss price to a percentShift for `commitTrailingStop`.
+ *
+ * percentShift = newSlDistancePercent - originalSlDistancePercent
+ * where distance = Math.abs((effectivePriceOpen - slPrice) / effectivePriceOpen * 100)
+ *
+ * @param newStopLossPrice - Desired absolute stop-loss price
+ * @param originalStopLossPrice - Original stop-loss price from the pending signal
+ * @param effectivePriceOpen - Effective entry price (from `getPositionAveragePrice`)
+ * @returns percentShift to pass to `commitTrailingStop`
+ *
+ * @example
+ * // LONG: entry=100, originalSL=90, desired newSL=95
+ * const shift = slPriceToPercentShift(95, 90, 100); // -5
+ * await commitTrailingStop("BTCUSDT", shift, currentPrice);
+ */
+declare const slPriceToPercentShift: (newStopLossPrice: number, originalStopLossPrice: number, effectivePriceOpen: number) => number;
+
+/**
+ * Convert an absolute take-profit price to a percentShift for `commitTrailingTake`.
+ *
+ * percentShift = newTpDistancePercent - originalTpDistancePercent
+ * where distance = Math.abs((tpPrice - effectivePriceOpen) / effectivePriceOpen * 100)
+ *
+ * @param newTakeProfitPrice - Desired absolute take-profit price
+ * @param originalTakeProfitPrice - Original take-profit price from the pending signal
+ * @param effectivePriceOpen - Effective entry price (from `getPositionAveragePrice`)
+ * @returns percentShift to pass to `commitTrailingTake`
+ *
+ * @example
+ * // LONG: entry=100, originalTP=110, desired newTP=107
+ * const shift = tpPriceToPercentShift(107, 110, 100); // -3
+ * await commitTrailingTake("BTCUSDT", shift, currentPrice);
+ */
+declare const tpPriceToPercentShift: (newTakeProfitPrice: number, originalTakeProfitPrice: number, effectivePriceOpen: number) => number;
 
 /**
  * Client implementation for exchange data access.
@@ -23477,4 +23796,4 @@ declare const getTotalClosed: (signal: Signal) => {
     remainingCostBasis: number;
 };
 
-export { ActionBase, type ActivateScheduledCommit, type ActivateScheduledCommitNotification, type ActivePingContract, type AverageBuyCommit, type AverageBuyCommitNotification, Backtest, type BacktestStatisticsModel, Breakeven, type BreakevenAvailableNotification, type BreakevenCommit, type BreakevenCommitNotification, type BreakevenContract, type BreakevenData, Cache, type CancelScheduledCommit, type CandleData, type CandleInterval, type ClosePendingCommit, type ColumnConfig, type ColumnModel, Constant, type CriticalErrorNotification, type DoneContract, type EntityId, Exchange, ExecutionContextService, type FrameInterval, type GlobalConfig, Heat, type HeatmapStatisticsModel, type IActionSchema, type IActivateScheduledCommitRow, type IAggregatedTradeData, type IBidData, type IBreakevenCommitRow, type ICandleData, type ICommitRow, type IExchangeSchema, type IFrameSchema, type IHeatmapRow, type ILog, type ILogEntry, type ILogger, type IMarkdownDumpOptions, type INotificationUtils, type IOrderBookData, type IPartialLossCommitRow, type IPartialProfitCommitRow, type IPersistBase, type IPositionSizeATRParams, type IPositionSizeFixedPercentageParams, type IPositionSizeKellyParams, type IPublicAction, type IPublicCandleData, type IPublicSignalRow, type IReportDumpOptions, type IRiskActivePosition, type IRiskCheckArgs, type IRiskSchema, type IRiskSignalRow, type IRiskValidation, type IRiskValidationFn, type IRiskValidationPayload, type IScheduledSignalCancelRow, type IScheduledSignalRow, type ISignalDto, type ISignalRow, type ISizingCalculateParams, type ISizingCalculateParamsATR, type ISizingCalculateParamsFixedPercentage, type ISizingCalculateParamsKelly, type ISizingParams, type ISizingParamsATR, type ISizingParamsFixedPercentage, type ISizingParamsKelly, type ISizingSchema, type ISizingSchemaATR, type ISizingSchemaFixedPercentage, type ISizingSchemaKelly, type IStorageSignalRow, type IStorageUtils, type IStrategyPnL, type IStrategyResult, type IStrategySchema, type IStrategyTickResult, type IStrategyTickResultActive, type IStrategyTickResultCancelled, type IStrategyTickResultClosed, type IStrategyTickResultIdle, type IStrategyTickResultOpened, type IStrategyTickResultScheduled, type IStrategyTickResultWaiting, type ITrailingStopCommitRow, type ITrailingTakeCommitRow, type IWalkerResults, type IWalkerSchema, type IWalkerStrategyResult, type InfoErrorNotification, Live, type LiveStatisticsModel, Log, type LogData, Markdown, MarkdownFileBase, MarkdownFolderBase, type MarkdownName, type MeasureData, MethodContextService, type MetricStats, Notification, NotificationBacktest, type NotificationData, NotificationLive, type NotificationModel, Partial$1 as Partial, type PartialData, type PartialEvent, type PartialLossAvailableNotification, type PartialLossCommit, type PartialLossCommitNotification, type PartialLossContract, type PartialProfitAvailableNotification, type PartialProfitCommit, type PartialProfitCommitNotification, type PartialProfitContract, type PartialStatisticsModel, Performance, type PerformanceContract, type PerformanceMetricType, type PerformanceStatisticsModel, PersistBase, PersistBreakevenAdapter, PersistCandleAdapter, PersistLogAdapter, PersistMeasureAdapter, PersistNotificationAdapter, PersistPartialAdapter, PersistRiskAdapter, PersistScheduleAdapter, PersistSignalAdapter, PersistStorageAdapter, PositionSize, type ProgressBacktestContract, type ProgressWalkerContract, Report, ReportBase, type ReportName, Risk, type RiskContract, type RiskData, type RiskEvent, type RiskRejectionNotification, type RiskStatisticsModel, Schedule, type ScheduleData, type SchedulePingContract, type ScheduleStatisticsModel, type ScheduledEvent, type SignalCancelledNotification, type SignalCloseContract, type SignalClosedNotification, type SignalData, type SignalInterval, type SignalOpenContract, type SignalOpenedNotification, type SignalScheduledNotification, type SignalSyncCloseNotification, type SignalSyncContract, type SignalSyncOpenNotification, Storage, StorageBacktest, type StorageData, StorageLive, Strategy, type StrategyActionType, type StrategyCancelReason, type StrategyCloseReason, type StrategyCommitContract, type StrategyEvent, type StrategyStatisticsModel, Sync, type SyncEvent, type SyncStatisticsModel, type TLogCtor, type TMarkdownBase, type TNotificationUtilsCtor, type TPersistBase, type TPersistBaseCtor, type TReportBase, type TStorageUtilsCtor, type TickEvent, type TrailingStopCommit, type TrailingStopCommitNotification, type TrailingTakeCommit, type TrailingTakeCommitNotification, type ValidationErrorNotification, Walker, type WalkerCompleteContract, type WalkerContract, type WalkerMetric, type SignalData$1 as WalkerSignalData, type WalkerStatisticsModel, addActionSchema, addExchangeSchema, addFrameSchema, addRiskSchema, addSizingSchema, addStrategySchema, addWalkerSchema, alignToInterval, checkCandles, commitActivateScheduled, commitAverageBuy, commitBreakeven, commitCancelScheduled, commitClosePending, commitPartialLoss, commitPartialLossCost, commitPartialProfit, commitPartialProfitCost, commitTrailingStop, commitTrailingTake, dumpMessages, emitters, formatPrice, formatQuantity, get, getActionSchema, getAggregatedTrades, getAveragePrice, getBacktestTimeframe, getBreakeven, getCandles, getColumns, getConfig, getContext, getDate, getDefaultColumns, getDefaultConfig, getEffectivePriceOpen, getExchangeSchema, getFrameSchema, getMode, getNextCandles, getOrderBook, getPendingSignal, getPositionAveragePrice, getPositionInvestedCost, getPositionInvestedCount, getPositionLevels, getPositionPartials, getPositionPnlCost, getPositionPnlPercent, getRawCandles, getRiskSchema, getScheduledSignal, getSizingSchema, getStrategySchema, getSymbol, getTimestamp, getTotalClosed, getTotalCostClosed, getTotalPercentClosed, getWalkerSchema, hasTradeContext, investedCostToPercent, backtest as lib, listExchangeSchema, listFrameSchema, listRiskSchema, listSizingSchema, listStrategySchema, listWalkerSchema, listenActivePing, listenActivePingOnce, listenBacktestProgress, listenBreakevenAvailable, listenBreakevenAvailableOnce, listenDoneBacktest, listenDoneBacktestOnce, listenDoneLive, listenDoneLiveOnce, listenDoneWalker, listenDoneWalkerOnce, listenError, listenExit, listenPartialLossAvailable, listenPartialLossAvailableOnce, listenPartialProfitAvailable, listenPartialProfitAvailableOnce, listenPerformance, listenRisk, listenRiskOnce, listenSchedulePing, listenSchedulePingOnce, listenSignal, listenSignalBacktest, listenSignalBacktestOnce, listenSignalLive, listenSignalLiveOnce, listenSignalOnce, listenStrategyCommit, listenStrategyCommitOnce, listenSync, listenSyncOnce, listenValidation, listenWalker, listenWalkerComplete, listenWalkerOnce, listenWalkerProgress, overrideActionSchema, overrideExchangeSchema, overrideFrameSchema, overrideRiskSchema, overrideSizingSchema, overrideStrategySchema, overrideWalkerSchema, parseArgs, percentDiff, percentValue, roundTicks, set, setColumns, setConfig, setLogger, shutdown, stopStrategy, toProfitLossDto, validate, waitForCandle, warmCandles };
+export { ActionBase, type ActivateScheduledCommit, type ActivateScheduledCommitNotification, type ActivePingContract, type AverageBuyCommit, type AverageBuyCommitNotification, Backtest, type BacktestStatisticsModel, Breakeven, type BreakevenAvailableNotification, type BreakevenCommit, type BreakevenCommitNotification, type BreakevenContract, type BreakevenData, Cache, type CancelScheduledCommit, type CandleData, type CandleInterval, type ClosePendingCommit, type ColumnConfig, type ColumnModel, Constant, type CriticalErrorNotification, type DoneContract, type EntityId, Exchange, ExecutionContextService, type FrameInterval, type GlobalConfig, Heat, type HeatmapStatisticsModel, type IActionSchema, type IActivateScheduledCommitRow, type IAggregatedTradeData, type IBidData, type IBreakevenCommitRow, type ICandleData, type ICommitRow, type IExchangeSchema, type IFrameSchema, type IHeatmapRow, type ILog, type ILogEntry, type ILogger, type IMarkdownDumpOptions, type INotificationUtils, type IOrderBookData, type IPartialLossCommitRow, type IPartialProfitCommitRow, type IPersistBase, type IPositionSizeATRParams, type IPositionSizeFixedPercentageParams, type IPositionSizeKellyParams, type IPublicAction, type IPublicCandleData, type IPublicSignalRow, type IReportDumpOptions, type IRiskActivePosition, type IRiskCheckArgs, type IRiskSchema, type IRiskSignalRow, type IRiskValidation, type IRiskValidationFn, type IRiskValidationPayload, type IScheduledSignalCancelRow, type IScheduledSignalRow, type ISignalDto, type ISignalRow, type ISizingCalculateParams, type ISizingCalculateParamsATR, type ISizingCalculateParamsFixedPercentage, type ISizingCalculateParamsKelly, type ISizingParams, type ISizingParamsATR, type ISizingParamsFixedPercentage, type ISizingParamsKelly, type ISizingSchema, type ISizingSchemaATR, type ISizingSchemaFixedPercentage, type ISizingSchemaKelly, type IStorageSignalRow, type IStorageUtils, type IStrategyPnL, type IStrategyResult, type IStrategySchema, type IStrategyTickResult, type IStrategyTickResultActive, type IStrategyTickResultCancelled, type IStrategyTickResultClosed, type IStrategyTickResultIdle, type IStrategyTickResultOpened, type IStrategyTickResultScheduled, type IStrategyTickResultWaiting, type ITrailingStopCommitRow, type ITrailingTakeCommitRow, type IWalkerResults, type IWalkerSchema, type IWalkerStrategyResult, type InfoErrorNotification, Live, type LiveStatisticsModel, Log, type LogData, Markdown, MarkdownFileBase, MarkdownFolderBase, type MarkdownName, type MeasureData, MethodContextService, type MetricStats, Notification, NotificationBacktest, type NotificationData, NotificationLive, type NotificationModel, Partial$1 as Partial, type PartialData, type PartialEvent, type PartialLossAvailableNotification, type PartialLossCommit, type PartialLossCommitNotification, type PartialLossContract, type PartialProfitAvailableNotification, type PartialProfitCommit, type PartialProfitCommitNotification, type PartialProfitContract, type PartialStatisticsModel, Performance, type PerformanceContract, type PerformanceMetricType, type PerformanceStatisticsModel, PersistBase, PersistBreakevenAdapter, PersistCandleAdapter, PersistLogAdapter, PersistMeasureAdapter, PersistNotificationAdapter, PersistPartialAdapter, PersistRiskAdapter, PersistScheduleAdapter, PersistSignalAdapter, PersistStorageAdapter, PositionSize, type ProgressBacktestContract, type ProgressWalkerContract, Report, ReportBase, type ReportName, Risk, type RiskContract, type RiskData, type RiskEvent, type RiskRejectionNotification, type RiskStatisticsModel, Schedule, type ScheduleData, type SchedulePingContract, type ScheduleStatisticsModel, type ScheduledEvent, type SignalCancelledNotification, type SignalCloseContract, type SignalClosedNotification, type SignalData, type SignalInterval, type SignalOpenContract, type SignalOpenedNotification, type SignalScheduledNotification, type SignalSyncCloseNotification, type SignalSyncContract, type SignalSyncOpenNotification, Storage, StorageBacktest, type StorageData, StorageLive, Strategy, type StrategyActionType, type StrategyCancelReason, type StrategyCloseReason, type StrategyCommitContract, type StrategyEvent, type StrategyStatisticsModel, Sync, type SyncEvent, type SyncStatisticsModel, type TLogCtor, type TMarkdownBase, type TNotificationUtilsCtor, type TPersistBase, type TPersistBaseCtor, type TReportBase, type TStorageUtilsCtor, type TickEvent, type TrailingStopCommit, type TrailingStopCommitNotification, type TrailingTakeCommit, type TrailingTakeCommitNotification, type ValidationErrorNotification, Walker, type WalkerCompleteContract, type WalkerContract, type WalkerMetric, type SignalData$1 as WalkerSignalData, type WalkerStatisticsModel, addActionSchema, addExchangeSchema, addFrameSchema, addRiskSchema, addSizingSchema, addStrategySchema, addWalkerSchema, alignToInterval, checkCandles, commitActivateScheduled, commitAverageBuy, commitBreakeven, commitCancelScheduled, commitClosePending, commitPartialLoss, commitPartialLossCost, commitPartialProfit, commitPartialProfitCost, commitTrailingStop, commitTrailingStopCost, commitTrailingTake, commitTrailingTakeCost, dumpMessages, emitters, formatPrice, formatQuantity, get, getActionSchema, getAggregatedTrades, getAveragePrice, getBacktestTimeframe, getBreakeven, getCandles, getColumns, getConfig, getContext, getDate, getDefaultColumns, getDefaultConfig, getEffectivePriceOpen, getExchangeSchema, getFrameSchema, getMode, getNextCandles, getOrderBook, getPendingSignal, getPositionAveragePrice, getPositionInvestedCost, getPositionInvestedCount, getPositionLevels, getPositionPartials, getPositionPnlCost, getPositionPnlPercent, getRawCandles, getRiskSchema, getScheduledSignal, getSizingSchema, getStrategySchema, getSymbol, getTimestamp, getTotalClosed, getTotalCostClosed, getTotalPercentClosed, getWalkerSchema, hasTradeContext, investedCostToPercent, backtest as lib, listExchangeSchema, listFrameSchema, listRiskSchema, listSizingSchema, listStrategySchema, listWalkerSchema, listenActivePing, listenActivePingOnce, listenBacktestProgress, listenBreakevenAvailable, listenBreakevenAvailableOnce, listenDoneBacktest, listenDoneBacktestOnce, listenDoneLive, listenDoneLiveOnce, listenDoneWalker, listenDoneWalkerOnce, listenError, listenExit, listenPartialLossAvailable, listenPartialLossAvailableOnce, listenPartialProfitAvailable, listenPartialProfitAvailableOnce, listenPerformance, listenRisk, listenRiskOnce, listenSchedulePing, listenSchedulePingOnce, listenSignal, listenSignalBacktest, listenSignalBacktestOnce, listenSignalLive, listenSignalLiveOnce, listenSignalOnce, listenStrategyCommit, listenStrategyCommitOnce, listenSync, listenSyncOnce, listenValidation, listenWalker, listenWalkerComplete, listenWalkerOnce, listenWalkerProgress, overrideActionSchema, overrideExchangeSchema, overrideFrameSchema, overrideRiskSchema, overrideSizingSchema, overrideStrategySchema, overrideWalkerSchema, parseArgs, percentDiff, percentValue, roundTicks, set, setColumns, setConfig, setLogger, shutdown, slPriceToPercentShift, stopStrategy, toProfitLossDto, tpPriceToPercentShift, validate, waitForCandle, warmCandles };

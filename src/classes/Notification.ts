@@ -23,7 +23,7 @@ import { SignalSyncContract } from "../contract/SignalSync.contract";
 import backtest from "../lib";
 import { PersistNotificationAdapter } from "./Persist";
 import { GLOBAL_CONFIG } from "../config/params";
-import get from "src/utils/get";
+import get from "../utils/get";
 
 /**
  * Generates a unique key for notification identification.

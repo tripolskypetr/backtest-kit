@@ -38,7 +38,7 @@ import { FrameName } from "../../../interfaces/Frame.interface";
 import ActionCoreService from "../core/ActionCoreService";
 import backtest from "../../../lib";
 import beginTime from "../../../utils/beginTime";
-import SignalSyncContract from "src/contract/SignalSync.contract";
+import SignalSyncContract from "../../../contract/SignalSync.contract";
 
 /**
  * If syncSubject listener or any registered action throws, it means the signal was not properly synchronized

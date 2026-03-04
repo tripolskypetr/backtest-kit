@@ -25,7 +25,7 @@ import { FrameName } from "../interfaces/Frame.interface";
 import { IRiskSignalRow, ISignalDto, ISignalRow, StrategyName } from "../interfaces/Strategy.interface";
 import { GLOBAL_CONFIG } from "../config/params";
 import toProfitLossDto from "../helpers/toProfitLossDto";
-import { getContextTimestamp } from "src/helpers/getContextTimestamp";
+import { getContextTimestamp } from "../helpers/getContextTimestamp";
 
 /** Type for active position map */
 type RiskMap = Map<string, IRiskActivePosition>;
