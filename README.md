@@ -937,10 +937,10 @@ Broker.useBrokerAdapter(
 
       // Post-fill: if TP/SL placement fails, position is open and unprotected — close via market
       try {
-        await exchange.createOrder(symbol, "limit", exitSide, qty, tpPrice, { reduceOnly: true });
-        await exchange.createOrder(symbol, "stop_market", exitSide, qty, undefined, { stopPrice: slPrice, reduceOnly: true });
+        await exchange.createOrder(symbol, "limit", exitSide, qty, tpPrice, { reduceOnly: true, positionSide });
+        await exchange.createOrder(symbol, "stop_market", exitSide, qty, undefined, { stopPrice: slPrice, reduceOnly: true, positionSide });
       } catch (err) {
-        await exchange.createOrder(symbol, "market", exitSide, qty, undefined, { reduceOnly: true });
+        await exchange.createOrder(symbol, "market", exitSide, qty, undefined, { reduceOnly: true, positionSide });
         throw err;
       }
     }
@@ -996,6 +996,7 @@ Broker.useBrokerAdapter(
       const tpPrice      = parseFloat(exchange.priceToPrecision(symbol, priceTakeProfit));
       const slPrice      = parseFloat(exchange.priceToPrecision(symbol, priceStopLoss));
       const exitSide     = position === "long" ? "sell" : "buy";
+      const positionSide = toPositionSide(position);
 
       // reduceOnly: prevents accidental reversal if qty has drift vs real position
       // Restore SL/TP on remaining qty if partial close times out so position is not left unprotected
@@ -1008,11 +1009,11 @@ Broker.useBrokerAdapter(
       // Restore SL/TP on remaining qty after successful partial close
       if (remainingQty > 0) {
         try {
-          await exchange.createOrder(symbol, "limit", exitSide, remainingQty, tpPrice, { reduceOnly: true });
-          await exchange.createOrder(symbol, "stop_market", exitSide, remainingQty, undefined, { stopPrice: slPrice, reduceOnly: true });
+          await exchange.createOrder(symbol, "limit", exitSide, remainingQty, tpPrice, { reduceOnly: true, positionSide });
+          await exchange.createOrder(symbol, "stop_market", exitSide, remainingQty, undefined, { stopPrice: slPrice, reduceOnly: true, positionSide });
         } catch (err) {
           // Remaining position is unprotected — close via market
-          await exchange.createOrder(symbol, "market", exitSide, remainingQty, undefined, { reduceOnly: true });
+          await exchange.createOrder(symbol, "market", exitSide, remainingQty, undefined, { reduceOnly: true, positionSide });
           throw err;
         }
       }
@@ -1039,6 +1040,7 @@ Broker.useBrokerAdapter(
       const tpPrice      = parseFloat(exchange.priceToPrecision(symbol, priceTakeProfit));
       const slPrice      = parseFloat(exchange.priceToPrecision(symbol, priceStopLoss));
       const exitSide     = position === "long" ? "sell" : "buy";
+      const positionSide = toPositionSide(position);
 
       // reduceOnly: prevents accidental reversal if qty has drift vs real position
       // Restore SL/TP on remaining qty if partial close times out so position is not left unprotected
@@ -1051,11 +1053,11 @@ Broker.useBrokerAdapter(
       // Restore SL/TP on remaining qty after successful partial close
       if (remainingQty > 0) {
         try {
-          await exchange.createOrder(symbol, "limit", exitSide, remainingQty, tpPrice, { reduceOnly: true });
-          await exchange.createOrder(symbol, "stop_market", exitSide, remainingQty, undefined, { stopPrice: slPrice, reduceOnly: true });
+          await exchange.createOrder(symbol, "limit", exitSide, remainingQty, tpPrice, { reduceOnly: true, positionSide });
+          await exchange.createOrder(symbol, "stop_market", exitSide, remainingQty, undefined, { stopPrice: slPrice, reduceOnly: true, positionSide });
         } catch (err) {
           // Remaining position is unprotected — close via market
-          await exchange.createOrder(symbol, "market", exitSide, remainingQty, undefined, { reduceOnly: true });
+          await exchange.createOrder(symbol, "market", exitSide, remainingQty, undefined, { reduceOnly: true, positionSide });
           throw err;
         }
       }
@@ -1198,11 +1200,11 @@ Broker.useBrokerAdapter(
 
       // Recreate SL/TP on fresh total qty after successful fill
       try {
-        await exchange.createOrder(symbol, "limit", exitSide, totalQty, tpPrice, { reduceOnly: true });
-        await exchange.createOrder(symbol, "stop_market", exitSide, totalQty, undefined, { stopPrice: slPrice, reduceOnly: true });
+        await exchange.createOrder(symbol, "limit", exitSide, totalQty, tpPrice, { reduceOnly: true, positionSide });
+        await exchange.createOrder(symbol, "stop_market", exitSide, totalQty, undefined, { stopPrice: slPrice, reduceOnly: true, positionSide });
       } catch (err) {
         // Total position is unprotected — close via market
-        await exchange.createOrder(symbol, "market", exitSide, totalQty, undefined, { reduceOnly: true });
+        await exchange.createOrder(symbol, "market", exitSide, totalQty, undefined, { reduceOnly: true, positionSide });
         throw err;
       }
     }
