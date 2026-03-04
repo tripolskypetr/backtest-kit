@@ -1,3 +1,110 @@
+# Signal Sync & Custom Entry Cost (v3.9, 04/03/2026)
+
+> Github [release link](https://github.com/tripolskypetr/backtest-kit/releases/tag/3.9)
+
+## Signal Sync API
+
+A new synchronization hook lets external order-management systems confirm every limit-order fill before the framework mutates internal state. If the callback returns `false` or throws, the position open/close is skipped and retried on the next tick.
+
+### New exports
+
+| Export | Kind | Description |
+|---|---|---|
+| `Sync` | class | Utility for querying signal-sync statistics and generating markdown reports |
+| `listenSync(fn)` | function | Subscribe to all `signal-open` / `signal-close` sync events |
+| `listenSyncOnce(filterFn, fn)` | function | One-shot filtered sync listener |
+| `SignalSyncContract` | type | Discriminated union (`SignalOpenContract \| SignalCloseContract`) |
+| `SignalOpenContract` | type | Emitted when a scheduled limit order is filled (position activated) |
+| `SignalCloseContract` | type | Emitted when a pending position is closed for any reason |
+| `SyncStatisticsModel` | type | Data returned by `Sync.getData()` |
+| `SyncEvent` | type | Individual event row in sync statistics |
+
+### `onSignalSync` callback
+
+`IAction` and `IActionCallbacks` now expose `onSignalSync(event, ...)`. Throw inside to block the transition — framework will retry on the next tick. Exceptions are **not** swallowed here.
+
+```typescript
+addActionSchema({
+  actionName: "my-action",
+  callbacks: {
+    async onSignalSync(event, actionName, strategyName, frameName, backtest) {
+      if (event.action === "signal-open") {
+        const ok = await exchange.confirmFill(event.signalId);
+        if (!ok) throw new Error("Fill not confirmed");
+      }
+      if (event.action === "signal-close") {
+        await exchange.cancelOco(event.signalId);
+      }
+    }
+  }
+});
+```
+
+### `Sync` report utility
+
+```typescript
+import { Sync } from "backtest-kit";
+
+const stats = await Sync.getData("BTCUSDT", { strategyName, exchangeName, frameName });
+// { totalEvents: 14, openCount: 7, closeCount: 7, events: [...] }
+
+const md = await Sync.getReport("BTCUSDT", { strategyName, exchangeName, frameName });
+await Sync.dump("BTCUSDT", { strategyName, exchangeName, frameName }, false, "./dump/sync");
+```
+
+## Custom Entry Cost
+
+Each DCA entry now carries its own `cost` field (USD invested for that entry). Previously, all entries assumed a fixed `$100`. The default is controlled by the new `CC_POSITION_ENTRY_COST` config parameter (still `100` by default).
+
+### Breaking change: `_partial.effectivePrice` → `_partial.costBasisAtClose`
+
+Partial close records no longer store a pre-computed `effectivePrice`. Instead they store `costBasisAtClose` — the running dollar cost-basis snapshot **before** the partial fires. Effective price is now computed on-the-fly:
+
+```
+effectivePrice = costBasisAtClose / Σ(entry.cost / entry.price  for entries[0..entryCountAtClose])
+```
+
+This removes a stale-value risk and makes the accounting fully replay-correct. Migrate any persisted state or custom serialization that referenced `_partial[i].effectivePrice`.
+
+### `getEffectivePriceOpen` / `computeEffectivePriceAtPartial`
+
+`getEffectivePriceOpen` now uses a **cost-weighted harmonic mean** (`Σcost / Σ(cost/price)`) instead of a simple harmonic mean. The exported helper `computeEffectivePriceAtPartial` is used internally by both `getEffectivePriceOpen` and `toProfitLossDto`.
+
+## Enhanced PNL (`IStrategyPnL`)
+
+`toProfitLossDto` now returns two additional fields:
+
+| Field | Description |
+|---|---|
+| `pnlCost` | Absolute P&L in USD: `pnlPercentage / 100 × pnlEntries` |
+| `pnlEntries` | Total invested capital in USD (sum of all entry costs) |
+
+All commit-event contracts (`StrategyCommit.contract`) now include a `pnl: IStrategyPnL` field — available on cancel, close, partial profit/loss, trailing stop/take, breakeven, average-buy, and activate events. A `totalPartials` field is also added to every commit event.
+
+## API changes
+
+| Change | Detail |
+|---|---|
+| `getPendingSignal(symbol, currentPrice)` | Now requires `currentPrice` (used for live PNL snapshot) |
+| `getScheduledSignal(symbol, currentPrice)` | Same — `currentPrice` added |
+| `hasPendingSignal(symbol)` | New — returns `true` if an active pending signal exists |
+| `IPublicSignalRow` | Gains `cost`, `totalPartials`, `pnl`, `timestamp` fields |
+| `ISignalEntry` | Gains `cost: number` field |
+
+## Telegram notifications
+
+Two new Mustache templates are added to the CLI:
+
+- `signal-open.mustache` — "📬 Order Filled (Open)" — sent when a limit buy/sell is confirmed
+- `signal-close.mustache` — "📭 Order Filled (Close)" — sent when a position exits
+
+Both templates include symbol, direction, prices, DCA entry count, partial count, PNL, and signal ID.
+
+---
+
+
+
+
 # DCA-Aware Position Inspection (v3.8, 03/03/2026)
 
 > Github [release link](https://github.com/tripolskypetr/backtest-kit/releases/tag/3.8)
