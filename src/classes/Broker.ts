@@ -118,165 +118,258 @@ export type BrokerAverageBuyPayload = {
   backtest: boolean;
 };
 
-export class BrokerUtils {
-  public commitSignalClose = async () => {};
+export interface IBroker {
+  waitForInit(): Promise<void>;
 
-  public commitPartialProfit = async (payload: BrokerPartialProfitPayload) => {
-    if (payload.backtest) {
-      return;
-    }
-  };
+  onSignalCloseCommit(payload: BrokerSignalClosePayload): Promise<void>;
 
-  public commitPartialLoss = async (payload: BrokerPartialLossPayload) => {
-    if (payload.backtest) {
-      return;
-    }
-  };
+  onSignalOpenCommit(payload: BrokerSignalOpenPayload): Promise<void>;
 
-  public commitTrailingStop = async (payload: BrokerTrailingStopPayload) => {
-    if (payload.backtest) {
-      return;
-    }
-  };
+  onPartialProfitCommit(payload: BrokerPartialProfitPayload): Promise<void>;
 
-  public commitTrailingTake = async (payload: BrokerTrailingTakePayload) => {
-    if (payload.backtest) {
-      return;
-    }
-  };
+  onPartialLossCommit(payload: BrokerPartialLossPayload): Promise<void>;
 
-  public commitBreakeven = async (payload: BrokerBreakevenPayload) => {
-    if (payload.backtest) {
-      return;
-    }
-  };
+  onTrailingStopCommit(payload: BrokerTrailingStopPayload): Promise<void>;
 
-  public commitAverageBuy = async (payload: BrokerAverageBuyPayload) => {
-    if (payload.backtest) {
-      return;
+  onTrailingTakeCommit(payload: BrokerTrailingTakePayload): Promise<void>;
+
+  onBreakevenCommit(payload: BrokerBreakevenPayload): Promise<void>;
+
+  onAverageBuyCommit(payload: BrokerAverageBuyPayload): Promise<void>;
+}
+
+export type TBrokerCtor = new () => Partial<IBroker>;
+
+export class BrokerProxy implements IBroker {
+  constructor(readonly _instance: Partial<IBroker>) {}
+  public waitForInit = singleshot(async (): Promise<void> => {
+    if (this._instance.waitForInit) {
+      await this._instance.waitForInit();
     }
-  };
+  });
+  public async onSignalOpenCommit(
+    payload: BrokerSignalOpenPayload,
+  ): Promise<void> {
+    if (this._instance.onSignalOpenCommit) {
+      await this._instance.onSignalOpenCommit(payload);
+    }
+  }
+  public async onSignalCloseCommit(
+    payload: BrokerSignalClosePayload,
+  ): Promise<void> {
+    if (this._instance.onSignalCloseCommit) {
+      await this._instance.onSignalCloseCommit(payload);
+    }
+  }
+  public async onPartialProfitCommit(
+    payload: BrokerPartialProfitPayload,
+  ): Promise<void> {
+    if (this._instance.onPartialProfitCommit) {
+      await this._instance.onPartialProfitCommit(payload);
+    }
+  }
+  public async onPartialLossCommit(
+    payload: BrokerPartialLossPayload,
+  ): Promise<void> {
+    if (this._instance.onPartialLossCommit) {
+      await this._instance.onPartialLossCommit(payload);
+    }
+  }
+  public async onTrailingStopCommit(
+    payload: BrokerTrailingStopPayload,
+  ): Promise<void> {
+    if (this._instance.onTrailingStopCommit) {
+      await this._instance.onTrailingStopCommit(payload);
+    }
+  }
+  public async onTrailingTakeCommit(
+    payload: BrokerTrailingTakePayload,
+  ): Promise<void> {
+    if (this._instance.onTrailingTakeCommit) {
+      await this._instance.onTrailingTakeCommit(payload);
+    }
+  }
+  public async onBreakevenCommit(
+    payload: BrokerBreakevenPayload,
+  ): Promise<void> {
+    if (this._instance.onBreakevenCommit) {
+      await this._instance.onBreakevenCommit(payload);
+    }
+  }
+  public async onAverageBuyCommit(
+    payload: BrokerAverageBuyPayload,
+  ): Promise<void> {
+    if (this._instance.onAverageBuyCommit) {
+      await this._instance.onAverageBuyCommit(payload);
+    }
+  }
 }
 
 export class BrokerAdapter {
+  private _brokerInstance: BrokerProxy | null = null;
+
   public commitSignalOpen = async (payload: BrokerSignalOpenPayload) => {
     if (!this.enable.hasValue()) {
-        return;
+      return;
     }
     if (payload.backtest) {
       return;
     }
+    await this._brokerInstance?.onSignalOpenCommit(payload);
   };
 
   public commitSignalClose = async (payload: BrokerSignalClosePayload) => {
     if (!this.enable.hasValue()) {
-        return;
+      return;
     }
     if (payload.backtest) {
       return;
     }
+    if (!this._brokerInstance) {
+      return;
+    }
+    await this._brokerInstance.onSignalCloseCommit(payload);
   };
 
   public commitPartialProfit = async (payload: BrokerPartialProfitPayload) => {
     if (!this.enable.hasValue()) {
-        return;
+      return;
     }
     if (payload.backtest) {
       return;
     }
+    if (!this._brokerInstance) {
+      return;
+    }
+    await this._brokerInstance.onPartialProfitCommit(payload);
   };
 
   public commitPartialLoss = async (payload: BrokerPartialLossPayload) => {
     if (!this.enable.hasValue()) {
-        return;
+      return;
     }
     if (payload.backtest) {
       return;
     }
+    if (!this._brokerInstance) {
+      return;
+    }
+    await this._brokerInstance.onPartialLossCommit(payload);
   };
 
   public commitTrailingStop = async (payload: BrokerTrailingStopPayload) => {
     if (!this.enable.hasValue()) {
-        return;
+      return;
     }
     if (payload.backtest) {
       return;
     }
+    if (!this._brokerInstance) {
+      return;
+    }
+    await this._brokerInstance.onTrailingStopCommit(payload);
   };
 
   public commitTrailingTake = async (payload: BrokerTrailingTakePayload) => {
     if (!this.enable.hasValue()) {
-        return;
+      return;
     }
     if (payload.backtest) {
       return;
     }
+    if (!this._brokerInstance) {
+      return;
+    }
+    await this._brokerInstance.onTrailingTakeCommit(payload);
   };
 
   public commitBreakeven = async (payload: BrokerBreakevenPayload) => {
     if (!this.enable.hasValue()) {
-        return;
+      return;
     }
     if (payload.backtest) {
       return;
     }
+    if (!this._brokerInstance) {
+      return;
+    }
+    await this._brokerInstance.onBreakevenCommit(payload);
   };
 
   public commitAverageBuy = async (payload: BrokerAverageBuyPayload) => {
     if (!this.enable.hasValue()) {
-        return;
+      return;
     }
     if (payload.backtest) {
       return;
     }
+    if (!this._brokerInstance) {
+      return;
+    }
+    await this._brokerInstance.onAverageBuyCommit(payload);
+  };
+
+  public useBrokerAdapter = (broker: TBrokerCtor | Partial<IBroker>) => {
+    if (typeof broker === "function") {
+      const instance = Reflect.construct(broker, []);
+      this._brokerInstance = new BrokerProxy(instance);
+      return;
+    }
+    this._brokerInstance = new BrokerProxy(broker);
   };
 
   public enable = singleshot(() => {
+    if (!this._brokerInstance) {
+      this.enable.clear();
+      throw new Error("No broker instance provided");
+    }
 
-    const unSignalOpen = syncSubject
-      .filter(({ action }) => action === "signal-open")
-      .connect((event) => {
-        this.commitSignalOpen({
-            position: event.signal.position,
-            cost: event.signal.cost,
-            symbol: event.symbol,
-            priceTakeProfit: event.signal.priceTakeProfit,
-            priceStopLoss: event.signal.priceStopLoss,
-            priceOpen: event.signal.priceOpen,
-            context: {
-                strategyName: event.strategyName,
-                exchangeName: event.exchangeName,
-                frameName: event.frameName,
-            },
-            backtest: event.backtest,
-        })
+    const unSignalOpen = syncSubject.subscribe(async (event) => {
+      if (event.action !== "signal-open") {
+        return;
+      }
+      await this.commitSignalOpen({
+        position: event.signal.position,
+        cost: event.signal.cost,
+        symbol: event.symbol,
+        priceTakeProfit: event.signal.priceTakeProfit,
+        priceStopLoss: event.signal.priceStopLoss,
+        priceOpen: event.signal.priceOpen,
+        context: {
+          strategyName: event.strategyName,
+          exchangeName: event.exchangeName,
+          frameName: event.frameName,
+        },
+        backtest: event.backtest,
       });
+    });
 
-    const unSignalClose = syncSubject
-      .filter(({ action }) => action === "signal-close")
-      .connect((event) => {
-        this.commitSignalClose({
-            position: event.signal.position,
-            currentPrice: event.currentPrice,
-            cost: event.signal.cost,
-            symbol: event.symbol,
-            pnl: event.pnl,
-            totalEntries: event.totalEntries,
-            totalPartials: event.totalPartials,
-            priceStopLoss: event.signal.priceStopLoss,
-            priceTakeProfit: event.signal.priceTakeProfit,
-            context: {
-                strategyName: event.strategyName,
-                exchangeName: event.exchangeName,
-                frameName: event.frameName,
-            },
-            backtest: event.backtest,
-        })
+    const unSignalClose = syncSubject.subscribe(async (event) => {
+      if (event.action !== "signal-close") {
+        return;
+      }
+      await this.commitSignalClose({
+        position: event.signal.position,
+        currentPrice: event.currentPrice,
+        cost: event.signal.cost,
+        symbol: event.symbol,
+        pnl: event.pnl,
+        totalEntries: event.totalEntries,
+        totalPartials: event.totalPartials,
+        priceStopLoss: event.signal.priceStopLoss,
+        priceTakeProfit: event.signal.priceTakeProfit,
+        context: {
+          strategyName: event.strategyName,
+          exchangeName: event.exchangeName,
+          frameName: event.frameName,
+        },
+        backtest: event.backtest,
       });
+    });
 
     const disposeFn = compose(
-        () => unSignalOpen(),
-        () => unSignalClose(),
+      () => unSignalOpen(),
+      () => unSignalClose(),
     );
 
     return () => {
