@@ -31,6 +31,10 @@ const dashboardRoutes: IRouteItem[] = [
         element: heavy(() => import("../pages/view/DashboardPage")),
     },
     {
+        path: "/notifications",
+        element: heavy(() => import("../pages/view/NotificationPage")),
+    },
+    {
         path: "/dashboard/:mode",
         element: heavy(() => import("../pages/view/DashboardPage")),
     },

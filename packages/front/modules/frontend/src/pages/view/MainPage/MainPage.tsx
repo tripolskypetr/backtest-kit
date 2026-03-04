@@ -28,6 +28,7 @@ import {
     Dashboard,
     InsertChartTwoTone,
     KeyboardArrowLeft,
+    NotificationsActive,
     Quickreply,
     Refresh,
     TerminalTwoTone,
@@ -79,6 +80,14 @@ const options: IBreadcrumbs2Option[] = [
 ];
 
 const actions: IBreadcrumbs2Action[] = [
+    {
+        action: "notification-action",
+        label: "Notifications",
+        icon: () => <IconWrapper icon={NotificationsActive} color="#4caf50" />,
+    },
+    {
+        divider: true,
+    },
     {
         action: "update-now",
         label: "Refresh",
@@ -211,7 +220,11 @@ const fields: TypedField[] = [
 export const MainPage = () => {
     const { classes } = useStyles();
 
-    const handleAction = async (action: string) => {};
+    const handleAction = async (action: string) => {
+        if (action === "notification-action") {
+            ioc.routerService.push("/notifications");
+        }
+    };
 
     return (
         <Container>
