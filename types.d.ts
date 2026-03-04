@@ -17528,26 +17528,6 @@ declare class BrokerAdapter {
             frameName: FrameName;
         };
     }) => Promise<void>;
-    commitPartialProfitCost: (_payload: {
-        symbol: string;
-        dollarAmount: number;
-        currentPrice: number;
-        context: {
-            strategyName: StrategyName;
-            exchangeName: ExchangeName;
-            frameName: FrameName;
-        };
-    }) => Promise<void>;
-    commitPartialLossCost: (_payload: {
-        symbol: string;
-        dollarAmount: number;
-        currentPrice: number;
-        context: {
-            strategyName: StrategyName;
-            exchangeName: ExchangeName;
-            frameName: FrameName;
-        };
-    }) => Promise<void>;
     commitTrailingStop: (_payload: {
         symbol: string;
         percentShift: number;
@@ -17561,26 +17541,6 @@ declare class BrokerAdapter {
     commitTrailingTake: (_payload: {
         symbol: string;
         percentShift: number;
-        currentPrice: number;
-        context: {
-            strategyName: StrategyName;
-            exchangeName: ExchangeName;
-            frameName: FrameName;
-        };
-    }) => Promise<void>;
-    commitTrailingStopCost: (_payload: {
-        symbol: string;
-        newStopLossPrice: number;
-        currentPrice: number;
-        context: {
-            strategyName: StrategyName;
-            exchangeName: ExchangeName;
-            frameName: FrameName;
-        };
-    }) => Promise<void>;
-    commitTrailingTakeCost: (_payload: {
-        symbol: string;
-        newTakeProfitPrice: number;
         currentPrice: number;
         context: {
             strategyName: StrategyName;

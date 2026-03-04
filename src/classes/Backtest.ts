@@ -1842,7 +1842,7 @@ export class BacktestUtils {
     );
     if (investedCost === null) return false;
     const percentToClose = (dollarAmount / investedCost) * 100;
-    await Broker.commitPartialProfitCost({ symbol, dollarAmount, currentPrice, context });
+    await Broker.commitPartialProfit({ symbol, percentToClose, currentPrice, context });
     return await backtest.strategyCoreService.partialProfit(
       true,
       symbol,
@@ -1929,7 +1929,7 @@ export class BacktestUtils {
     );
     if (investedCost === null) return false;
     const percentToClose = (dollarAmount / investedCost) * 100;
-    await Broker.commitPartialLossCost({ symbol, dollarAmount, currentPrice, context });
+    await Broker.commitPartialLoss({ symbol, percentToClose, currentPrice, context });
     return await backtest.strategyCoreService.partialLoss(
       true,
       symbol,
@@ -2202,7 +2202,7 @@ export class BacktestUtils {
     const effectivePriceOpen = await backtest.strategyCoreService.getPositionAveragePrice(true, symbol, context);
     if (effectivePriceOpen === null) return false;
     const percentShift = slPriceToPercentShift(newStopLossPrice, signal.priceStopLoss, effectivePriceOpen);
-    await Broker.commitTrailingStopCost({ symbol, newStopLossPrice, currentPrice, context });
+    await Broker.commitTrailingStop({ symbol, percentShift, currentPrice, context });
     return await backtest.strategyCoreService.trailingStop(true, symbol, percentShift, currentPrice, context);
   };
 
@@ -2263,7 +2263,7 @@ export class BacktestUtils {
     const effectivePriceOpen = await backtest.strategyCoreService.getPositionAveragePrice(true, symbol, context);
     if (effectivePriceOpen === null) return false;
     const percentShift = tpPriceToPercentShift(newTakeProfitPrice, signal.priceTakeProfit, effectivePriceOpen);
-    await Broker.commitTrailingTakeCost({ symbol, newTakeProfitPrice, currentPrice, context });
+    await Broker.commitTrailingTake({ symbol, percentShift, currentPrice, context });
     return await backtest.strategyCoreService.trailingTake(true, symbol, percentShift, currentPrice, context);
   };
 

@@ -52,28 +52,6 @@ export class BrokerAdapter {
     };
   }) => {};
 
-  public commitPartialProfitCost = async (_payload: {
-    symbol: string;
-    dollarAmount: number;
-    currentPrice: number;
-    context: {
-      strategyName: StrategyName;
-      exchangeName: ExchangeName;
-      frameName: FrameName;
-    };
-  }) => {};
-
-  public commitPartialLossCost = async (_payload: {
-    symbol: string;
-    dollarAmount: number;
-    currentPrice: number;
-    context: {
-      strategyName: StrategyName;
-      exchangeName: ExchangeName;
-      frameName: FrameName;
-    };
-  }) => {};
-
   public commitTrailingStop = async (_payload: {
     symbol: string;
     percentShift: number;
@@ -88,28 +66,6 @@ export class BrokerAdapter {
   public commitTrailingTake = async (_payload: {
     symbol: string;
     percentShift: number;
-    currentPrice: number;
-    context: {
-      strategyName: StrategyName;
-      exchangeName: ExchangeName;
-      frameName: FrameName;
-    };
-  }) => {};
-
-  public commitTrailingStopCost = async (_payload: {
-    symbol: string;
-    newStopLossPrice: number;
-    currentPrice: number;
-    context: {
-      strategyName: StrategyName;
-      exchangeName: ExchangeName;
-      frameName: FrameName;
-    };
-  }) => {};
-
-  public commitTrailingTakeCost = async (_payload: {
-    symbol: string;
-    newTakeProfitPrice: number;
     currentPrice: number;
     context: {
       strategyName: StrategyName;

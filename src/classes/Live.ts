@@ -1199,7 +1199,7 @@ export class LiveUtils {
     });
     if (investedCost === null) return false;
     const percentToClose = (dollarAmount / investedCost) * 100;
-    await Broker.commitPartialProfitCost({ symbol, dollarAmount, currentPrice, context: { strategyName: context.strategyName, exchangeName: context.exchangeName, frameName: "" } });
+    await Broker.commitPartialProfit({ symbol, percentToClose, currentPrice, context: { strategyName: context.strategyName, exchangeName: context.exchangeName, frameName: "" } });
     return await backtest.strategyCoreService.partialProfit(false, symbol, percentToClose, currentPrice, {
       strategyName: context.strategyName,
       exchangeName: context.exchangeName,
@@ -1260,7 +1260,7 @@ export class LiveUtils {
     });
     if (investedCost === null) return false;
     const percentToClose = (dollarAmount / investedCost) * 100;
-    await Broker.commitPartialLossCost({ symbol, dollarAmount, currentPrice, context: { strategyName: context.strategyName, exchangeName: context.exchangeName, frameName: "" } });
+    await Broker.commitPartialLoss({ symbol, percentToClose, currentPrice, context: { strategyName: context.strategyName, exchangeName: context.exchangeName, frameName: "" } });
     return await backtest.strategyCoreService.partialLoss(false, symbol, percentToClose, currentPrice, {
       strategyName: context.strategyName,
       exchangeName: context.exchangeName,
@@ -1470,7 +1470,7 @@ export class LiveUtils {
     });
     if (effectivePriceOpen === null) return false;
     const percentShift = slPriceToPercentShift(newStopLossPrice, signal.priceStopLoss, effectivePriceOpen);
-    await Broker.commitTrailingStopCost({ symbol, newStopLossPrice, currentPrice, context: { strategyName: context.strategyName, exchangeName: context.exchangeName, frameName: "" } });
+    await Broker.commitTrailingStop({ symbol, percentShift, currentPrice, context: { strategyName: context.strategyName, exchangeName: context.exchangeName, frameName: "" } });
     return await backtest.strategyCoreService.trailingStop(false, symbol, percentShift, currentPrice, {
       strategyName: context.strategyName,
       exchangeName: context.exchangeName,
@@ -1528,7 +1528,7 @@ export class LiveUtils {
     });
     if (effectivePriceOpen === null) return false;
     const percentShift = tpPriceToPercentShift(newTakeProfitPrice, signal.priceTakeProfit, effectivePriceOpen);
-    await Broker.commitTrailingTakeCost({ symbol, newTakeProfitPrice, currentPrice, context: { strategyName: context.strategyName, exchangeName: context.exchangeName, frameName: "" } });
+    await Broker.commitTrailingTake({ symbol, percentShift, currentPrice, context: { strategyName: context.strategyName, exchangeName: context.exchangeName, frameName: "" } });
     return await backtest.strategyCoreService.trailingTake(false, symbol, percentShift, currentPrice, {
       strategyName: context.strategyName,
       exchangeName: context.exchangeName,
