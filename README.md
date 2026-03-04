@@ -211,7 +211,7 @@ Backtest Kit is **not a data-processing library** - it is a **time execution eng
 
 ### 🔍 How PNL Works
 
-These three functions work together to manage a position dynamically. To reduce position linearity, the framework treats every DCA entry as a fixed **$100 unit** regardless of price — this flattens the effective entry curve and makes PNL weighting independent of position size.
+These three functions work together to dynamically manage the position. To reduce position linearity, by default, each DCA entry is formatted as a fixed **unit of $100**. This can be changed. No mathematical knowledge is required.
 
 **Public API:**
 - **`commitAverageBuy`** — adds a new DCA entry. For LONG, **only accepted when current price is below a new low**. Silently rejected otherwise. This prevents averaging up. Can be overridden using `setConfig`
