@@ -1719,6 +1719,8 @@ export class BacktestUtils {
       cost: percentToCloseCost(percentToClose, investedCostForProfit),
       currentPrice,
       position: signalForProfit.position,
+      priceTakeProfit: signalForProfit.priceTakeProfit,
+      priceStopLoss: signalForProfit.priceStopLoss,
       context,
       backtest: true,
     });
@@ -1846,6 +1848,8 @@ export class BacktestUtils {
       cost: percentToCloseCost(percentToClose, investedCostForLoss),
       currentPrice,
       position: signalForLoss.position,
+      priceTakeProfit: signalForLoss.priceTakeProfit,
+      priceStopLoss: signalForLoss.priceStopLoss,
       context,
       backtest: true,
     });
@@ -1975,6 +1979,8 @@ export class BacktestUtils {
       cost: dollarAmount,
       currentPrice,
       position: signalForProfitCost.position,
+      priceTakeProfit: signalForProfitCost.priceTakeProfit,
+      priceStopLoss: signalForProfitCost.priceStopLoss,
       context,
       backtest: true,
     });
@@ -2104,6 +2110,8 @@ export class BacktestUtils {
       cost: dollarAmount,
       currentPrice,
       position: signalForLossCost.position,
+      priceTakeProfit: signalForLossCost.priceTakeProfit,
+      priceStopLoss: signalForLossCost.priceStopLoss,
       context,
       backtest: true,
     });

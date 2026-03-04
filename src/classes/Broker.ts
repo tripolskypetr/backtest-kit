@@ -151,6 +151,10 @@ export type BrokerPartialProfitPayload = {
   currentPrice: number;
   /** Position direction */
   position: "long" | "short";
+  /** Active take profit price at the time of the partial close */
+  priceTakeProfit: number;
+  /** Active stop loss price at the time of the partial close */
+  priceStopLoss: number;
   /** Strategy/exchange/frame routing context */
   context: {
     strategyName: StrategyName;
@@ -190,6 +194,10 @@ export type BrokerPartialLossPayload = {
   currentPrice: number;
   /** Position direction */
   position: "long" | "short";
+  /** Active take profit price at the time of the partial close */
+  priceTakeProfit: number;
+  /** Active stop loss price at the time of the partial close */
+  priceStopLoss: number;
   /** Strategy/exchange/frame routing context */
   context: {
     strategyName: StrategyName;

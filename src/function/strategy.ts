@@ -220,6 +220,8 @@ export async function commitPartialProfit(
     cost: percentToCloseCost(percentToClose, investedCostForProfit),
     currentPrice,
     position: signalForProfit.position,
+    priceTakeProfit: signalForProfit.priceTakeProfit,
+    priceStopLoss: signalForProfit.priceStopLoss,
     context: { exchangeName, frameName, strategyName },
     backtest: isBacktest,
   });
@@ -314,6 +316,8 @@ export async function commitPartialLoss(
     cost: percentToCloseCost(percentToClose, investedCostForLoss),
     currentPrice,
     position: signalForLoss.position,
+    priceTakeProfit: signalForLoss.priceTakeProfit,
+    priceStopLoss: signalForLoss.priceStopLoss,
     context: { exchangeName, frameName, strategyName },
     backtest: isBacktest,
   });
@@ -1317,6 +1321,8 @@ export async function commitPartialProfitCost(
     cost: dollarAmount,
     currentPrice,
     position: signalForProfitCost.position,
+    priceTakeProfit: signalForProfitCost.priceTakeProfit,
+    priceStopLoss: signalForProfitCost.priceStopLoss,
     context: { exchangeName, frameName, strategyName },
     backtest: isBacktest,
   });
@@ -1414,6 +1420,8 @@ export async function commitPartialLossCost(
     cost: dollarAmount,
     currentPrice,
     position: signalForLossCost.position,
+    priceTakeProfit: signalForLossCost.priceTakeProfit,
+    priceStopLoss: signalForLossCost.priceStopLoss,
     context: { exchangeName, frameName, strategyName },
     backtest: isBacktest,
   });

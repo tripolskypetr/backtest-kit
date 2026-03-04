@@ -1704,6 +1704,8 @@ export class LiveUtils {
       cost: percentToCloseCost(percentToClose, investedCost),
       currentPrice,
       position: signalForProfit.position,
+      priceTakeProfit: signalForProfit.priceTakeProfit,
+      priceStopLoss: signalForProfit.priceStopLoss,
       context: {
         strategyName: context.strategyName,
         exchangeName: context.exchangeName,
@@ -1849,6 +1851,8 @@ export class LiveUtils {
       cost: percentToCloseCost(percentToClose, investedCost),
       currentPrice,
       position: signalForLoss.position,
+      priceTakeProfit: signalForLoss.priceTakeProfit,
+      priceStopLoss: signalForLoss.priceStopLoss,
       context: {
         strategyName: context.strategyName,
         exchangeName: context.exchangeName,
@@ -1993,6 +1997,8 @@ export class LiveUtils {
       cost: dollarAmount,
       currentPrice,
       position: signalForProfitCost.position,
+      priceTakeProfit: signalForProfitCost.priceTakeProfit,
+      priceStopLoss: signalForProfitCost.priceStopLoss,
       context: {
         strategyName: context.strategyName,
         exchangeName: context.exchangeName,
@@ -2137,6 +2143,8 @@ export class LiveUtils {
       cost: dollarAmount,
       currentPrice,
       position: signalForLossCost.position,
+      priceTakeProfit: signalForLossCost.priceTakeProfit,
+      priceStopLoss: signalForLossCost.priceStopLoss,
       context: {
         strategyName: context.strategyName,
         exchangeName: context.exchangeName,
