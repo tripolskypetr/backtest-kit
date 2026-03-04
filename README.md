@@ -582,7 +582,7 @@ Broker.enable();
 
 </details>
 
-Signal open/close events are routed automatically via an internal event bus once `Broker.enable()` is called — no manual wiring needed. All other operations (`partialProfit`, `trailingStop`, `breakeven`, `averageBuy`) are intercepted explicitly before the corresponding state mutation. In backtest mode the `backtest: true` flag short-circuits all adapter calls before any exchange code is reached.
+Signal open/close events are routed automatically via an internal event bus once `Broker.enable()` is called. No manual wiring needed. All other operations (`partialProfit`, `trailingStop`, `breakeven`, `averageBuy`) are intercepted explicitly before the corresponding state mutation. In backtest mode the `backtest: true` flag short-circuits all adapter calls before any exchange code is reached.
 
 ### 🔍 How getCandles Works
 
