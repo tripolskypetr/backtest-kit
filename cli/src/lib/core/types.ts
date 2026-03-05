@@ -34,7 +34,6 @@ const schemaServices = {
 const providerServices = {
     frontendProviderService: Symbol('frontendProviderService'),
     telegramProviderService: Symbol('telegramProviderService'),
-    liveProviderService: Symbol('liveProviderService'),
 }
 
 const webServices = {

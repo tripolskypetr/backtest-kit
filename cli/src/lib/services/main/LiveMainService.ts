@@ -15,9 +15,9 @@ import FrontendProviderService from "../provider/FrontendProviderService";
 import TelegramProviderService from "../provider/TelegramProviderService";
 import notifyFinish from "../../../utils/notifyFinish";
 import SymbolSchemaService from "../schema/SymbolSchemaService";
-import LiveProviderService from "../provider/LiveProviderService";
 import getEntry from "../../../helpers/getEntry";
 import notifyVerbose from "../../../utils/notifyVerbose";
+import ModuleConnectionService from "../connection/ModuleConnectionService";
 
 export class LiveMainService {
   private loggerService = inject<LoggerService>(TYPES.loggerService);
@@ -36,8 +36,8 @@ export class LiveMainService {
   private telegramProviderService = inject<TelegramProviderService>(
     TYPES.telegramProviderService,
   );
-  private liveProviderService = inject<LiveProviderService>(
-    TYPES.liveProviderService,
+  private moduleConnectionService = inject<ModuleConnectionService>(
+    TYPES.moduleConnectionService,
   );
 
   public run = singleshot(async (payload: {
@@ -54,7 +54,6 @@ export class LiveMainService {
     {
       this.frontendProviderService.connect();
       this.telegramProviderService.connect();
-      this.liveProviderService.connect();
     }
 
     await this.resolveService.attachEntryPoint(payload.entryPoint);
@@ -94,6 +93,8 @@ export class LiveMainService {
       });
       notifyVerbose();
     }
+
+    await this.moduleConnectionService.loadModule("./live.module")
 
     Live.background(symbol, {
       strategyName,

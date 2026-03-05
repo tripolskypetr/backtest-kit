@@ -1,4 +1,4 @@
-import { getErrorMessage, memoize } from "functools-kit";
+import { getErrorMessage } from "functools-kit";
 import { createRequire } from "module";
 import { pathToFileURL } from "url";
 import { inject } from "../../../lib/core/di";
@@ -9,10 +9,6 @@ import BabelService from "../base/BabelService";
 import fs from "fs/promises";
 import { constants } from "fs";
 import path from "path";
-import {
-  BaseModule,
-  TBaseModuleCtor,
-} from "../../../interfaces/Module.interface";
 
 declare const __IS_ESM__: boolean;
 
@@ -31,63 +27,57 @@ const getExtVariants = (fileName: string): string[] => {
   ];
 };
 
-const REQUIRE_MODULE_FACTORY = (
-  fileName: string,
-): TBaseModuleCtor | BaseModule | null => {
+const REQUIRE_MODULE_FACTORY = (fileName: string): boolean => {
   if (__IS_ESM__) {
-    return null;
+    return false;
   }
   for (const variant of getExtVariants(fileName)) {
     try {
-      return require(variant);
+      require(variant);
+      return true;
     } catch {
       continue;
     }
   }
-  return null;
+  return false;
 };
 
-const IMPORT_MODULE_FACTORY = async (
-  fileName: string,
-): Promise<TBaseModuleCtor | BaseModule | null> => {
+const IMPORT_MODULE_FACTORY = async (fileName: string): Promise<boolean> => {
   if (!__IS_ESM__) {
-    return null;
+    return false;
   }
   for (const variant of getExtVariants(fileName)) {
     try {
-      return await import(pathToFileURL(variant).href);
+      await import(pathToFileURL(variant).href);
+      return true;
     } catch {
       continue;
     }
   }
-  return null;
+  return false;
 };
 
 const BABEL_MODULE_FACTORY = async (
   fileName: string,
   self: ModuleConnectionService,
-): Promise<TBaseModuleCtor | BaseModule | null> => {
+): Promise<boolean> => {
   for (const variant of getExtVariants(fileName)) {
     try {
       const code = await fs.readFile(variant, "utf-8");
-      const { exports } = self.babelService.transpileAndRun(code);
-      if (exports.default) {
-        return <TBaseModuleCtor | BaseModule>exports.default;
-      }
-      return <TBaseModuleCtor | BaseModule>exports;
+      self.babelService.transpileAndRun(code);
+      return true;
     } catch (error) {
       console.log(getErrorMessage(error));
       continue;
     }
   }
-  return null;
+  return false;
 };
 
 const LOAD_MODULE_MODULE_FN = async (
   fileName: string,
   self: ModuleConnectionService,
-): Promise<BaseModule> => {
-  let Ctor: TBaseModuleCtor | BaseModule | null = null;
+): Promise<boolean> => {
   const overridePath = path.join(
     self.resolveService.OVERRIDE_MODULES_DIR,
     fileName,
@@ -98,16 +88,17 @@ const LOAD_MODULE_MODULE_FN = async (
     .then(() => true)
     .catch(() => false);
   const resolvedFile = hasOverride ? overridePath : targetPath;
-  if ((Ctor = REQUIRE_MODULE_FACTORY(resolvedFile))) {
-    return typeof Ctor === "function" ? new Ctor() : Ctor;
+  if (REQUIRE_MODULE_FACTORY(resolvedFile)) {
+    return true;
   }
-  if ((Ctor = await IMPORT_MODULE_FACTORY(resolvedFile))) {
-    return typeof Ctor === "function" ? new Ctor() : Ctor;
+  if (await IMPORT_MODULE_FACTORY(resolvedFile)) {
+    return true;
   }
-  if ((Ctor = await BABEL_MODULE_FACTORY(resolvedFile, self))) {
-    return typeof Ctor === "function" ? new Ctor() : Ctor;
+  if (await BABEL_MODULE_FACTORY(resolvedFile, self)) {
+    return true;
   }
-  throw new Error(`Module module import failed for file: ${resolvedFile}`);
+  console.warn(`Module module import failed for file: ${resolvedFile}`);
+  return false;
 };
 
 export class ModuleConnectionService {
@@ -115,15 +106,12 @@ export class ModuleConnectionService {
   readonly resolveService = inject<ResolveService>(TYPES.resolveService);
   readonly babelService = inject<BabelService>(TYPES.babelService);
 
-  public getInstance = memoize(
-    ([fileName]) => `${fileName}`,
-    async (fileName: string): Promise<BaseModule> => {
-      this.loggerService.log("moduleConnectionService getInstance", {
-        fileName,
-      });
-      return await LOAD_MODULE_MODULE_FN(fileName, this);
-    },
-  );
+  public loadModule = async (fileName: string) => {
+    this.loggerService.log("moduleConnectionService getInstance", {
+      fileName,
+    });
+    return await LOAD_MODULE_MODULE_FN(fileName, this);
+  };
 }
 
 export default ModuleConnectionService;

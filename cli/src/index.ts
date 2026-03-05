@@ -9,7 +9,6 @@ import "./main/live";
 import "./main/frontend";
 import "./main/telegram";
 
-export type { BaseModule, ILiveModule, LiveModule, TBaseModuleCtor } from "./interfaces/Module.interface";
 export type { ILogger } from "./interfaces/Logger.interface";
 
 export { type ExchangeName } from "./enum/ExchangeName";

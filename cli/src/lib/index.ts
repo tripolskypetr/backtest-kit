@@ -19,7 +19,6 @@ import TelegramWebService from "./services/web/TelegramWebService";
 import TelegramLogicService from "./services/logic/TelegramLogicService";
 import TelegramTemplateService from "./services/template/TelegramTemplateService";
 import ModuleConnectionService from "./services/connection/ModuleConnectionService";
-import LiveProviderService from "./services/provider/LiveProviderService";
 import BabelService from "./services/base/BabelService";
 
 const apiServices = {
@@ -58,7 +57,6 @@ const schemaServices = {
 const providerServices = {
   frontendProviderService: inject<FrontendProviderService>(TYPES.frontendProviderService),
   telegramProviderService: inject<TelegramProviderService>(TYPES.telegramProviderService),
-  liveProviderService: inject<LiveProviderService>(TYPES.liveProviderService),
 }
 
 const webServices = {

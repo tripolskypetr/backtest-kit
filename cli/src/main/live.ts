@@ -26,8 +26,6 @@ const BEFORE_EXIT_FN = singleshot(async () => {
     exchangeName,
     strategyName,
   });
-
-  listenDoneLive(cli.liveProviderService.disable);
 });
 
 export const listenGracefulShutdown = singleshot(() => {

@@ -17,6 +17,7 @@ import notifyFinish from "../../../utils/notifyFinish";
 import SymbolSchemaService from "../schema/SymbolSchemaService";
 import getEntry from "../../../helpers/getEntry";
 import notifyVerbose from "../../../utils/notifyVerbose";
+import ModuleConnectionService from "../connection/ModuleConnectionService";
 
 export class PaperMainService {
   private loggerService = inject<LoggerService>(TYPES.loggerService);
@@ -34,6 +35,10 @@ export class PaperMainService {
   );
   private telegramProviderService = inject<TelegramProviderService>(
     TYPES.telegramProviderService,
+  );
+
+  private moduleConnectionService = inject<ModuleConnectionService>(
+    TYPES.moduleConnectionService,
   );
 
   public run = singleshot(
@@ -90,6 +95,8 @@ export class PaperMainService {
         });
         notifyVerbose();
       }
+
+      await this.moduleConnectionService.loadModule("./paper.module")
 
       Live.background(symbol, {
         strategyName,

@@ -1,6 +1,6 @@
 import * as functools_kit from 'functools-kit';
 import * as BacktestKit from 'backtest-kit';
-import { CandleInterval, TrailingTakeCommit, TrailingStopCommit, BreakevenCommit, PartialProfitCommit, PartialLossCommit, IStrategyTickResultScheduled, IStrategyTickResultCancelled, IStrategyTickResultOpened, IStrategyTickResultClosed, RiskContract, AverageBuyCommit } from 'backtest-kit';
+import { CandleInterval, TrailingTakeCommit, TrailingStopCommit, BreakevenCommit, PartialProfitCommit, PartialLossCommit, IStrategyTickResultScheduled, IStrategyTickResultCancelled, IStrategyTickResultOpened, IStrategyTickResultClosed, RiskContract, AverageBuyCommit, SignalOpenContract, SignalCloseContract } from 'backtest-kit';
 import * as BacktestKitUi from '@backtest-kit/ui';
 import * as BacktestKitGraph from '@backtest-kit/graph';
 import * as BacktestKitOllama from '@backtest-kit/ollama';
@@ -31,6 +31,7 @@ declare class PaperMainService {
     private symbolSchemaService;
     private frontendProviderService;
     private telegramProviderService;
+    private moduleConnectionService;
     run: ((payload: {
         entryPoint: string;
         symbol: string;
@@ -48,7 +49,7 @@ declare class LiveMainService {
     private symbolSchemaService;
     private frontendProviderService;
     private telegramProviderService;
-    private liveProviderService;
+    private moduleConnectionService;
     run: ((payload: {
         entryPoint: string;
         symbol: string;
@@ -68,6 +69,7 @@ declare class BacktestMainService {
     private cacheLogicService;
     private frontendProviderService;
     private telegramProviderService;
+    private moduleConnectionService;
     run: ((payload: {
         entryPoint: string;
         symbol: string;
@@ -197,6 +199,8 @@ declare class TelegramLogicService {
     private notifyClosed;
     private notifyRisk;
     private notifyAverageBuy;
+    private notifySignalOpen;
+    private notifySignalClose;
     connect: (() => () => void) & functools_kit.ISingleshotClearable;
 }
 
@@ -214,49 +218,15 @@ declare class TelegramTemplateService {
     getClosedMarkdown: (event: IStrategyTickResultClosed) => Promise<string>;
     getRiskMarkdown: (event: RiskContract) => Promise<string>;
     getAverageBuyMarkdown: (event: AverageBuyCommit) => Promise<string>;
+    getSignalOpenMarkdown: (event: SignalOpenContract) => Promise<string>;
+    getSignalCloseMarkdown: (event: SignalCloseContract) => Promise<string>;
 }
-
-interface ILiveModule {
-    onTrailingTake(event: TrailingTakeCommit): Promise<void> | void;
-    onTrailingStop(event: TrailingStopCommit): Promise<void> | void;
-    onBreakeven(event: BreakevenCommit): Promise<void> | void;
-    onPartialProfit(event: PartialProfitCommit): Promise<void> | void;
-    onPartialLoss(event: PartialLossCommit): Promise<void> | void;
-    onScheduled(event: IStrategyTickResultScheduled): Promise<void> | void;
-    onCancelled(event: IStrategyTickResultCancelled): Promise<void> | void;
-    onOpened(event: IStrategyTickResultOpened): Promise<void> | void;
-    onClosed(event: IStrategyTickResultClosed): Promise<void> | void;
-    onRisk(event: RiskContract): Promise<void> | void;
-    onAverageBuy(event: AverageBuyCommit): Promise<void> | void;
-}
-type LiveModule = Partial<ILiveModule>;
-type BaseModule = LiveModule;
-type TBaseModuleCtor = new () => BaseModule;
 
 declare class ModuleConnectionService {
     readonly loggerService: LoggerService;
     readonly resolveService: ResolveService;
     readonly babelService: BabelService;
-    getInstance: ((fileName: string) => Promise<BaseModule>) & functools_kit.IClearableMemoize<string> & functools_kit.IControlMemoize<string, Promise<Partial<ILiveModule>>>;
-}
-
-declare class LiveProviderService {
-    readonly loggerService: LoggerService;
-    readonly moduleConnectionService: ModuleConnectionService;
-    private handleTrailingTake;
-    private handleTrailingStop;
-    private handleBreakeven;
-    private handlePartialProfit;
-    private handlePartialLoss;
-    private handleScheduled;
-    private handleCancelled;
-    private handleOpened;
-    private handleClosed;
-    private handleRisk;
-    private handleAverageBuy;
-    enable: (() => (...args: any[]) => any) & functools_kit.ISingleshotClearable;
-    disable: () => void;
-    connect: (() => Promise<() => void>) & functools_kit.ISingleshotClearable;
+    loadModule: (fileName: string) => Promise<boolean>;
 }
 
 declare const cli: {
@@ -264,7 +234,6 @@ declare const cli: {
     telegramWebService: TelegramWebService;
     frontendProviderService: FrontendProviderService;
     telegramProviderService: TelegramProviderService;
-    liveProviderService: LiveProviderService;
     exchangeSchemaService: ExchangeSchemaService;
     symbolSchemaService: SymbolSchemaService;
     frameSchemaService: FrameSchemaService;
@@ -299,4 +268,4 @@ type Mode = "backtest" | "live" | "paper";
 type Args = Partial<PayloadBacktest> | Partial<PayloadPaper> | Partial<PayloadLive>;
 declare function run(mode: Mode, args: Args): Promise<void>;
 
-export { type BaseModule, ExchangeName, FrameName, type ILiveModule, type ILogger, type LiveModule, type TBaseModuleCtor, cli, run, setLogger };
+export { ExchangeName, FrameName, type ILogger, cli, run, setLogger };

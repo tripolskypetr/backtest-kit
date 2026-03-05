@@ -22,7 +22,8 @@ Point the CLI at your strategy file, choose a mode, and it handles exchange conn
 - 🌐 **Web Dashboard**: Launch `@backtest-kit/ui` with a single `--ui` flag
 - 📬 **Telegram Alerts**: Send formatted trade notifications with charts via `--telegram`
 - 🔌 **Default Binance**: CCXT Binance exchange schema registered automatically when none is provided
-- 🧩 **Module Hooks**: Drop a `modules/live.module.mjs` file to handle every position lifecycle event
+- 🧩 **Module Hooks**: Drop a `live.module.mjs`, `paper.module.mjs`, or `backtest.module.mjs` to register a `Broker` adapter. No manual wiring needed.
+- 🗃️ **Transactional Live Orders**: Broker adapter intercepts every trade mutation before internal state changes — exchange rejection rolls back the operation atomically.
 - 🔑 **Pluggable Logger**: Override the built-in logger with `setLogger()` from your strategy module
 - 🛑 **Graceful Shutdown**: SIGINT stops the active run and cleans up all subscriptions safely
 
@@ -230,11 +231,14 @@ monorepo/
 ├── .env                      # shared API keys (exchange, Telegram, etc.)
 └── strategies/
     ├── oct_2025/
-    │   ├── index.mjs         # entry point — registers exchange/frame/strategy schemas
-    │   ├── .env              # overrides root .env for this strategy (optional)
-    │   ├── modules/          # live.module.mjs specific to this strategy
-    │   ├── template/         # custom Mustache templates (optional)
-    │   └── dump/             # auto-created: candle cache + backtest reports
+    │   ├── index.mjs             # entry point — registers exchange/frame/strategy schemas
+    │   ├── .env                  # overrides root .env for this strategy 
+    │   ├── modules (optional)
+    │   |    ├── live.module.mjs       # broker adapter for --live mode (optional)
+    │   |    ├── paper.module.mjs      # broker adapter for --paper mode (optional)
+    │   |    ├── backtest.module.mjs   # broker adapter for --backtest mode (optional)
+    │   ├── template/             # custom Mustache templates (optional)
+    │   └── dump/                 # auto-created: candle cache + backtest reports
     └── dec_2025/
         ├── index.mjs
         ├── .env
@@ -264,13 +268,15 @@ npm run backtest:dec
 
 ### Isolated Resources Per Strategy
 
-| Resource            | Path (relative to strategy dir)   | Isolated         |
-|---------------------|-----------------------------------|------------------|
-| Candle cache        | `./dump/data/candle/`             | ✅ per-strategy  |
-| Backtest reports    | `./dump/`                         | ✅ per-strategy  |
-| Live module         | `./modules/live.module.mjs`       | ✅ per-strategy  |
-| Telegram templates  | `./template/*.mustache`           | ✅ per-strategy  |
-| Environment variables | `./.env` (overrides root)       | ✅ per-strategy  |
+| Resource                 | Path (relative to strategy dir)   | Isolated         |
+|--------------------------|-----------------------------------|------------------|
+| Candle cache             | `./dump/data/candle/`             | ✅ per-strategy  |
+| Backtest reports         | `./dump/`                         | ✅ per-strategy  |
+| Broker module (live)     | `./modules/live.module.mjs`       | ✅ per-strategy  |
+| Broker module (paper)    | `./modules/paper.module.mjs`      | ✅ per-strategy  |
+| Broker module (backtest) | `./modules/backtest.module.mjs`   | ✅ per-strategy  |
+| Telegram templates       | `./template/*.mustache`           | ✅ per-strategy  |
+| Environment variables    | `./.env` (overrides root)         | ✅ per-strategy  |
 
 Each strategy run produces its own `dump/` directory, making it straightforward to compare results across time periods — both by inspection and by pointing an AI agent at a specific strategy folder.
 
@@ -292,72 +298,91 @@ Sends formatted HTML messages with 1m / 15m / 1h price charts to your Telegram c
 
 Requires `CC_TELEGRAM_TOKEN` and `CC_TELEGRAM_CHANNEL` in your environment.
 
-## 🧩 Live Module Hooks
+## 🧩 Module Hooks (Broker Adapter)
 
-Create a `modules/live.module.mjs` file in your **project root** to receive lifecycle callbacks for every trading event:
+The CLI supports **mode-specific module files** that are loaded as side-effect imports before the strategy starts. Each file is expected to call `Broker.useBrokerAdapter()` from `backtest-kit` to register a broker adapter.
+
+| Mode          | Module file                     | Loaded before               |
+|---------------|---------------------------------|-----------------------------|
+| `--live`      | `./modules/live.module.mjs`     | `Live.background()`         |
+| `--paper`     | `./modules/paper.module.mjs`    | `Live.background()` (paper) |
+| `--backtest`  | `./modules/backtest.module.mjs` | `Backtest.background()`     |
+
+> File is resolved relative to `cwd` (the strategy directory). All of `.mjs`, `.cjs`, `.ts` extensions are tried automatically. Missing module is a soft warning — not an error.
+
+### How It Works
+
+The module file is a side-effect import. When the CLI loads it, your code runs and registers the adapter. From that point on, `backtest-kit` intercepts every trade-mutating call through the adapter **before** updating internal state — if the adapter throws, the position state is never changed.
 
 ```javascript
-// modules/live.module.mjs
+// live.module.mjs
+import { Broker } from 'backtest-kit';
+import { myExchange } from './exchange.mjs';
 
-export default class {
-
-  onOpened(event) {
-    console.log('Position opened', event.symbol, event.priceOpen);
+class MyBroker {
+  async onSignalOpenCommit({ symbol, priceOpen, direction }) {
+    await myExchange.openPosition(symbol, direction, priceOpen);
   }
 
-  onClosed(event) {
-    console.log('Position closed', event.symbol, event.priceClosed);
+  async onSignalCloseCommit({ symbol, priceClosed }) {
+    await myExchange.closePosition(symbol, priceClosed);
   }
 
-  onScheduled(event) {
-    console.log('Signal scheduled', event.id);
+  async onPartialProfitCommit({ symbol, cost, currentPrice }) {
+    await myExchange.createOrder({
+      symbol,
+      side: 'sell',
+      quantity: cost / currentPrice,
+    });
   }
 
-  onCancelled(event) {
-    console.log('Signal cancelled', event.id);
-  }
-
-  onRisk(event) {
-    console.warn('Risk rejection', event.reason);
-  }
-
-  onPartialProfit(event) {
-    console.log('Partial profit taken', event.symbol);
-  }
-
-  onPartialLoss(event) {
-    console.log('Partial loss taken', event.symbol);
-  }
-
-  onTrailingTake(event) {
-    console.log('Trailing take adjusted', event.symbol);
-  }
-
-  onTrailingStop(event) {
-    console.log('Trailing stop adjusted', event.symbol);
-  }
-
-  onBreakeven(event) {
-    console.log('Breakeven triggered', event.symbol);
-  }
-
-  onAverageBuy(event) {
-    console.log('Cost averaging (DCA)', event.symbol);
+  async onAverageBuyCommit({ symbol, cost, currentPrice }) {
+    await myExchange.createOrder({
+      symbol,
+      side: 'buy',
+      quantity: cost / currentPrice,
+    });
   }
 }
+
+Broker.useBrokerAdapter(MyBroker);
+
+Broker.enable();
 ```
 
-All methods are optional — implement only the events you care about. The module is loaded dynamically from `{cwd}/modules/live.module.mjs` (supports `.cjs` and `.mjs` extensions).
+### Available Broker Hooks
 
-### TypeScript Interface
+| Method                   | Payload type                 | Triggered on              |
+|--------------------------|------------------------------|---------------------------|
+| `onSignalOpenCommit`     | `BrokerSignalOpenPayload`    | Position activation       |
+| `onSignalCloseCommit`    | `BrokerSignalClosePayload`   | SL / TP / manual close    |
+| `onPartialProfitCommit`  | `BrokerPartialProfitPayload` | PP                        |
+| `onPartialLossCommit`    | `BrokerPartialLossPayload`   | PL                        |
+| `onTrailingStopCommit`   | `BrokerTrailingStopPayload`  | SL adjustment             |
+| `onTrailingTakeCommit`   | `BrokerTrailingTakePayload`  | TP adjustment             |
+| `onBreakevenCommit`      | `BrokerBreakevenPayload`     | SL moved to entry         |
+| `onAverageBuyCommit`     | `BrokerAverageBuyPayload`    | DCA entry                 |
+
+All methods are optional. Unimplemented hooks are silently skipped. In backtest mode all broker calls are skipped automatically — no adapter code runs during backtests.
+
+### TypeScript
 
 ```typescript
-import type { ILiveModule } from '@backtest-kit/cli';
+import { Broker, IBroker, BrokerSignalOpenPayload, BrokerSignalClosePayload } from 'backtest-kit';
 
-export default class MyModule implements ILiveModule {
-  onOpened(event) { /* ... */ }
-  onClosed(event) { /* ... */ }
+class MyBroker implements Partial<IBroker> {
+  async onSignalOpenCommit(payload: BrokerSignalOpenPayload) {
+    // place open order on exchange
+  }
+
+  async onSignalCloseCommit(payload: BrokerSignalClosePayload) {
+    // place close order on exchange
+  }
 }
+
+Broker.useBrokerAdapter(MyBroker);
+
+Broker.enable();
 ```
 
 ## 📦 Supported Entry Point Formats
@@ -576,7 +601,7 @@ npm run backtest
 - 📬 Telegram notifications with price charts — no chart code needed
 - 🛑 Graceful shutdown on SIGINT — no hanging processes
 - 🔌 Works with any `backtest-kit` strategy file as-is
-- 🧩 Module hooks for custom logic without touching the CLI internals
+- 🧩 Broker adapter hooks via side-effect module files — no CLI internals to touch
 
 ## 🤝 Contribute
 

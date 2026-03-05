@@ -21,6 +21,7 @@ import notifyFinish from "../../../utils/notifyFinish";
 import SymbolSchemaService from "../schema/SymbolSchemaService";
 import getEntry from "../../../helpers/getEntry";
 import notifyVerbose from "../../../utils/notifyVerbose";
+import ModuleConnectionService from "../connection/ModuleConnectionService";
 
 const DEFAULT_CACHE_LIST: CandleInterval[] = ["1m", "15m", "30m", "1h", "4h"];
 
@@ -57,6 +58,10 @@ export class BacktestMainService {
   );
   private telegramProviderService = inject<TelegramProviderService>(
     TYPES.telegramProviderService,
+  );
+
+  private moduleConnectionService = inject<ModuleConnectionService>(
+    TYPES.moduleConnectionService,
   );
 
   public run = singleshot(
@@ -137,6 +142,8 @@ export class BacktestMainService {
         });
         notifyVerbose();
       }
+
+      await this.moduleConnectionService.loadModule("./backtest.module")
 
       Backtest.background(symbol, {
         strategyName,
