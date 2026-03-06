@@ -93,6 +93,20 @@ interface LogOneRequest {
   requestId: string;
 }
 
+interface StatusListRequest {
+  clientId: string;
+  serviceName: string;
+  userId: string;
+  requestId: string;
+}
+
+interface StatusOneRequest {
+  clientId: string;
+  serviceName: string;
+  userId: string;
+  requestId: string;
+}
+
 // ExchangeViewService endpoints
 router.post("/api/v1/view/candles_signal", async (req, res) => {
   try {
@@ -404,6 +418,64 @@ router.post("/api/v1/view/log_filter", async (req, res) => {
     return await micro.send(res, 200, result);
   } catch (error) {
     ioc.loggerService.log("/api/v1/view/log_filter error", {
+      error: errorData(error),
+    });
+    return await micro.send(res, 200, {
+      status: "error",
+      error: getErrorMessage(error),
+    });
+  }
+});
+
+// StatusViewService endpoints
+router.post("/api/v1/view/status_list", async (req, res) => {
+  try {
+    const request = <StatusListRequest>await micro.json(req);
+    const { requestId, serviceName } = request;
+    const data = await ioc.statusViewService.getStatusList();
+    const result = {
+      data,
+      status: "ok",
+      error: "",
+      requestId,
+      serviceName,
+    };
+    ioc.loggerService.log("/api/v1/view/status_list ok", {
+      request,
+      result: omit(result, "data"),
+    });
+    return await micro.send(res, 200, result);
+  } catch (error) {
+    ioc.loggerService.log("/api/v1/view/status_list error", {
+      error: errorData(error),
+    });
+    return await micro.send(res, 200, {
+      status: "error",
+      error: getErrorMessage(error),
+    });
+  }
+});
+
+router.post("/api/v1/view/status_one/:id", async (req, res) => {
+  try {
+    const request = <StatusOneRequest>await micro.json(req);
+    const { requestId, serviceName } = request;
+    const id = req.params.id;
+    const data = await ioc.statusViewService.getStatusOne(id);
+    const result = {
+      data,
+      status: "ok",
+      error: "",
+      requestId,
+      serviceName,
+    };
+    ioc.loggerService.log("/api/v1/view/status_one/:id ok", {
+      request,
+      result: omit(result, "data"),
+    });
+    return await micro.send(res, 200, result);
+  } catch (error) {
+    ioc.loggerService.log("/api/v1/view/status_one/:id error", {
       error: errorData(error),
     });
     return await micro.send(res, 200, {

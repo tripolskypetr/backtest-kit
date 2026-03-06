@@ -93,6 +93,20 @@ interface LogOneRequest {
   requestId: string;
 }
 
+interface StatusListRequest {
+  clientId: string;
+  serviceName: string;
+  userId: string;
+  requestId: string;
+}
+
+interface StatusOneRequest {
+  clientId: string;
+  serviceName: string;
+  userId: string;
+  requestId: string;
+}
+
 // ExchangeMockService endpoints
 router.post("/api/v1/mock/candles_signal", async (req, res) => {
   try {
@@ -405,6 +419,64 @@ router.post("/api/v1/mock/log_filter", async (req, res) => {
     return await micro.send(res, 200, result);
   } catch (error) {
     ioc.loggerService.log("/api/v1/mock/log_filter error", {
+      error: errorData(error),
+    });
+    return await micro.send(res, 200, {
+      status: "error",
+      error: getErrorMessage(error),
+    });
+  }
+});
+
+// StatusMockService endpoints
+router.post("/api/v1/mock/status_list", async (req, res) => {
+  try {
+    const request = <StatusListRequest>await micro.json(req);
+    const { requestId, serviceName } = request;
+    const data = await ioc.statusMockService.getStatusList();
+    const result = {
+      data,
+      status: "ok",
+      error: "",
+      requestId,
+      serviceName,
+    };
+    ioc.loggerService.log("/api/v1/mock/status_list ok", {
+      request,
+      result: omit(result, "data"),
+    });
+    return await micro.send(res, 200, result);
+  } catch (error) {
+    ioc.loggerService.log("/api/v1/mock/status_list error", {
+      error: errorData(error),
+    });
+    return await micro.send(res, 200, {
+      status: "error",
+      error: getErrorMessage(error),
+    });
+  }
+});
+
+router.post("/api/v1/mock/status_one/:id", async (req, res) => {
+  try {
+    const request = <StatusOneRequest>await micro.json(req);
+    const { requestId, serviceName } = request;
+    const id = req.params.id;
+    const data = await ioc.statusMockService.getStatusOne(id);
+    const result = {
+      data,
+      status: "ok",
+      error: "",
+      requestId,
+      serviceName,
+    };
+    ioc.loggerService.log("/api/v1/mock/status_one/:id ok", {
+      request,
+      result: omit(result, "data"),
+    });
+    return await micro.send(res, 200, result);
+  } catch (error) {
+    ioc.loggerService.log("/api/v1/mock/status_one/:id error", {
       error: errorData(error),
     });
     return await micro.send(res, 200, {

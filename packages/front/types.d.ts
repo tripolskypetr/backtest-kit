@@ -84,6 +84,41 @@ declare class LogMockService {
     getOne: (id: string) => Promise<ILogEntry>;
 }
 
+declare class StatusMockService {
+    private readonly loggerService;
+    getStatusList: () => Promise<{
+        id: string;
+        symbol: string;
+        strategyName: string;
+        exchangeName: string;
+        status: "pending";
+    }[]>;
+    getStatusMap: () => Promise<{}>;
+    getStatusOne: (id: string) => Promise<{
+        position: "long" | "short";
+        totalEntries: number;
+        totalPartials: number;
+        originalPriceStopLoss: number;
+        originalPriceTakeProfit: number;
+        originalPriceOpen: number;
+        priceOpen: number;
+        priceTakeProfit: number;
+        priceStopLoss: number;
+        pnlPercentage: number;
+        pnlCost: number;
+        pnlEntries: number;
+        positionLevels: number[];
+        positionPartials: {
+            type: "profit" | "loss";
+            percent: number;
+            currentPrice: number;
+            costBasisAtClose: number;
+            entryCountAtClose: number;
+            debugTimestamp?: number;
+        }[];
+    }>;
+}
+
 declare class NotificationViewService {
     private readonly loggerService;
     private readonly notificationMockService;
@@ -91,6 +126,42 @@ declare class NotificationViewService {
     getList: () => Promise<NotificationModel[]>;
     getOne: (id: string) => Promise<NotificationModel>;
     protected init: (() => Promise<void>) & functools_kit.ISingleshotClearable;
+}
+
+declare class StatusViewService {
+    private readonly loggerService;
+    private readonly statusMockService;
+    getStatusList: () => Promise<{
+        id: string;
+        symbol: string;
+        strategyName: string;
+        exchangeName: string;
+        status: "pending" | "fulfilled" | "rejected" | "ready";
+    }[]>;
+    getStatusMap: () => Promise<{}>;
+    getStatusOne: (id: string) => Promise<{
+        position: "long" | "short";
+        totalEntries: number;
+        totalPartials: number;
+        originalPriceStopLoss: number;
+        originalPriceTakeProfit: number;
+        originalPriceOpen: number;
+        priceOpen: number;
+        priceTakeProfit: number;
+        priceStopLoss: number;
+        pnlPercentage: number;
+        pnlCost: number;
+        pnlEntries: number;
+        positionLevels: number[];
+        positionPartials: {
+            type: "profit" | "loss";
+            percent: number;
+            currentPrice: number;
+            costBasisAtClose: number;
+            entryCountAtClose: number;
+            debugTimestamp?: number;
+        }[];
+    }>;
 }
 
 declare class StorageViewService {
@@ -174,10 +245,12 @@ declare const ioc: {
     storageViewService: StorageViewService;
     exchangeViewService: ExchangeViewService;
     logViewService: LogViewService;
+    statusViewService: StatusViewService;
     notificationMockService: NotificationMockService;
     storageMockService: StorageMockService;
     exchangeMockService: ExchangeMockService;
     logMockService: LogMockService;
+    statusMockService: StatusMockService;
     symbolMetaService: SymbolMetaService;
     symbolConnectionService: SymbolConnectionService;
     priceConnectionService: PriceConnectionService;

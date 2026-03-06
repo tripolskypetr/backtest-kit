@@ -1,0 +1,79 @@
+[
+  {
+    "id": "live-0001-0000-4000-a000-000000000001",
+    "symbol": "BTCUSDT",
+    "strategyName": "main_strategy",
+    "exchangeName": "binance_exchange",
+    "frameName": "feb_2024_frame",
+    "status": "pending",
+    "position": "long",
+    "cost": 100,
+    "priceOpen": 51900,
+    "priceTakeProfit": 53457,
+    "priceStopLoss": 50862,
+    "originalPriceOpen": 51900,
+    "originalPriceTakeProfit": 53457,
+    "originalPriceStopLoss": 50862,
+    "totalEntries": 1,
+    "totalPartials": 0,
+    "partialExecuted": 0,
+    "pnl": {
+      "pnlPercentage": 1.25,
+      "priceOpen": 51900,
+      "priceClose": 52548.75,
+      "pnlCost": 1.25,
+      "pnlEntries": 100
+    },
+    "scheduledAt": 1708876700000,
+    "pendingAt": 1708876800000,
+    "timestamp": 1708876800000,
+    "_isScheduled": false,
+    "_entry": [
+      { "price": 51900, "cost": 100 }
+    ],
+    "_partial": []
+  },
+  {
+    "id": "live-0002-0000-4000-a000-000000000002",
+    "symbol": "ETHUSDT",
+    "strategyName": "main_strategy",
+    "exchangeName": "binance_exchange",
+    "frameName": "feb_2024_frame",
+    "status": "pending",
+    "position": "short",
+    "cost": 100,
+    "priceOpen": 2850,
+    "priceTakeProfit": 2707.5,
+    "priceStopLoss": 2907,
+    "originalPriceOpen": 2850,
+    "originalPriceTakeProfit": 2707.5,
+    "originalPriceStopLoss": 2907,
+    "totalEntries": 2,
+    "totalPartials": 1,
+    "partialExecuted": 50,
+    "pnl": {
+      "pnlPercentage": -0.75,
+      "priceOpen": 2850,
+      "priceClose": 2871.38,
+      "pnlCost": -0.75,
+      "pnlEntries": 200
+    },
+    "scheduledAt": 1708900000000,
+    "pendingAt": 1708900100000,
+    "timestamp": 1708900100000,
+    "_isScheduled": false,
+    "_entry": [
+      { "price": 2850, "cost": 100 },
+      { "price": 2870, "cost": 100 }
+    ],
+    "_partial": [
+      {
+        "type": "profit",
+        "percent": 50,
+        "currentPrice": 2800,
+        "costBasisAtClose": 200,
+        "entryCountAtClose": 2
+      }
+    ]
+  }
+]

@@ -8,7 +8,9 @@ import NotificationMockService from "./services/mock/NotificationMockService";
 import StorageMockService from "./services/mock/StorageMockService";
 import ExchangeMockService from "./services/mock/ExchangeMockService";
 import LogMockService from "./services/mock/LogMockService";
+import StatusMockService from "./services/mock/StatusMockService";
 import NotificationViewService from "./services/view/NotificationViewService";
+import StatusViewService from "./services/view/StatusViewService";
 import StorageViewService from "./services/view/StorageViewService";
 import ExchangeViewService from "./services/view/ExchangeViewService";
 import LogViewService from "./services/view/LogViewService";
@@ -35,6 +37,7 @@ const mockServices = {
   storageMockService: inject<StorageMockService>(TYPES.storageMockService),
   exchangeMockService: inject<ExchangeMockService>(TYPES.exchangeMockService),
   logMockService: inject<LogMockService>(TYPES.logMockService),
+  statusMockService: inject<StatusMockService>(TYPES.statusMockService),
 };
 
 const viewServices = {
@@ -42,6 +45,7 @@ const viewServices = {
   storageViewService: inject<StorageViewService>(TYPES.storageViewService),
   exchangeViewService: inject<ExchangeViewService>(TYPES.exchangeViewService),
   logViewService: inject<LogViewService>(TYPES.logViewService),
+  statusViewService: inject<StatusViewService>(TYPES.statusViewService),
 };
 
 const ioc = {
