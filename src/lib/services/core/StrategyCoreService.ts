@@ -11,6 +11,7 @@ import {
   IStrategy,
   IStrategyTickResultClosed,
   IStrategyTickResultCancelled,
+  IPublicSignalRow,
 } from "../../../interfaces/Strategy.interface";
 import StrategyConnectionService from "../connection/StrategyConnectionService";
 import { ExchangeName, ICandleData } from "../../../interfaces/Exchange.interface";
@@ -117,7 +118,7 @@ export class StrategyCoreService implements TStrategy {
     symbol: string,
     currentPrice: number,
     context: { strategyName: StrategyName; exchangeName: ExchangeName; frameName: FrameName }
-  ): Promise<ISignalRow | null> => {
+  ): Promise<IPublicSignalRow | null> => {
     this.loggerService.log("strategyCoreService getPendingSignal", {
       symbol,
       context,
