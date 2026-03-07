@@ -215,7 +215,7 @@ export const signal_sync_open_fields: TypedField[] = [
                         tabletColumns: "4",
                         phoneColumns: "12",
                         name: "totalEntries",
-                        title: "DCA Entries",
+                        title: "Total Entries",
                         readonly: true,
                         isVisible: (obj) => obj.totalEntries != null && obj.totalEntries > 1,
                         compute: (obj) =>
@@ -230,7 +230,7 @@ export const signal_sync_open_fields: TypedField[] = [
                         tabletColumns: "4",
                         phoneColumns: "12",
                         name: "totalPartials",
-                        title: "Partial Closes",
+                        title: "Total Closes",
                         readonly: true,
                         isVisible: (obj) => obj.totalPartials != null && obj.totalPartials > 0,
                         compute: (obj) => String(obj.totalPartials),

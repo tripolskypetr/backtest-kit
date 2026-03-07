@@ -118,7 +118,7 @@ export const status_fields: TypedField[] = [
                     element: ({ totalEntries }) => (
                         <IndicatorValueWidget
                             color={COLOR_ORANGE}
-                            label="DCA Entries"
+                            label="Total Entries"
                             value={totalEntries}
                             icon={Layers}
                         />
@@ -208,7 +208,7 @@ export const status_fields: TypedField[] = [
                             element: ({ totalPartials, pnlPercentage }) => (
                                 <IndicatorValueWidget
                                     color={totalPartials > 0 ? pnlColor(pnlPercentage) : COLOR_PURPLE}
-                                    label="Partial Exits"
+                                    label="Total Closes"
                                     value={totalPartials}
                                     icon={PieChart}
                                 />

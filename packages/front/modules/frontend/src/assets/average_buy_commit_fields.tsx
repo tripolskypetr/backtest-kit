@@ -122,7 +122,7 @@ export const average_buy_commit_fields: TypedField[] = [
                         tabletColumns: "4",
                         phoneColumns: "12",
                         name: "totalEntries",
-                        title: "DCA Entries",
+                        title: "Total Entries",
                         readonly: true,
                         compute: (obj) =>
                             obj.totalEntries != null
@@ -254,7 +254,7 @@ export const average_buy_commit_fields: TypedField[] = [
                         tabletColumns: "4",
                         phoneColumns: "12",
                         name: "totalPartials",
-                        title: "Partial Closes",
+                        title: "Total Closes",
                         readonly: true,
                         isVisible: (obj) => obj.totalPartials != null && obj.totalPartials > 0,
                         compute: (obj) => String(obj.totalPartials),
