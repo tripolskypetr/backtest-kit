@@ -53,16 +53,16 @@
     "originalPriceOpen": 45181.99,
     "originalPriceTakeProfit": 46537.4497,
     "originalPriceStopLoss": 44278.3502,
-    "totalEntries": 1,
-    "totalPartials": 0,
-    "partialExecuted": 0,
+    "totalEntries": 2,
+    "totalPartials": 2,
+    "partialExecuted": 40,
     "minuteEstimatedTime": 60,
     "pnl": {
       "pnlPercentage": -1.2,
       "priceOpen": 45181.99,
       "priceClose": 44637.88,
       "pnlCost": -1.2,
-      "pnlEntries": 100
+      "pnlEntries": 200
     },
     "scheduledAt": 1707400980000,
     "pendingAt": 1707400980000,
@@ -71,9 +71,13 @@
     "timestamp": 1707400980000,
     "_isScheduled": false,
     "_entry": [
-      { "price": 45181.99, "cost": 100 }
+      { "price": 45181.99, "cost": 100 },
+      { "price": 44500.00, "cost": 100 }
     ],
-    "_partial": []
+    "_partial": [
+      { "type": "profit", "percent": 25, "currentPrice": 45800.00, "costBasisAtClose": 100, "entryCountAtClose": 1 },
+      { "type": "loss",   "percent": 15, "currentPrice": 44700.00, "costBasisAtClose": 200, "entryCountAtClose": 2 }
+    ]
   },
   {
     "id": "a1f00001-0000-4000-8000-000000000003",

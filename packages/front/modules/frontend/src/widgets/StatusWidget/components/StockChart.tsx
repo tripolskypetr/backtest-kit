@@ -7,7 +7,7 @@ import {
     ChartOptions,
     LineStyleOptions,
     SeriesOptionsCommon,
-    UTCTimestamp,
+    SeriesMarker,
     LineStyle,
     Time,
     CrosshairMode,
@@ -26,6 +26,12 @@ const alignToInterval = (timestamp: number): number => {
     return Math.floor(timestamp / MS_PER_MINUTE) * MS_PER_MINUTE;
 };
 
+type PositionPartial = {
+    type: "profit" | "loss";
+    percent: number;
+    currentPrice: number;
+};
+
 interface IChartProps {
     height: number;
     width: number;
@@ -38,6 +44,8 @@ interface IChartProps {
     originalPriceOpen: number;
     originalPriceStopLoss: number;
     originalPriceTakeProfit: number;
+    positionLevels: number[];
+    positionPartials: PositionPartial[];
 }
 
 const useStyles = makeStyles()({
@@ -103,6 +111,13 @@ const seriesOptions: DeepPartial<LineStyleOptions & SeriesOptionsCommon> = {
     priceLineVisible: false,
 };
 
+const findCandleByPrice = (items: ICandleData[], pendingAt: number, targetPrice: number): ICandleData | null => {
+    if (!items.length) return null;
+    return items.filter(({ timestamp }) => timestamp > pendingAt).reduce((best, c) =>
+        Math.abs(parseFloat(c.close) - targetPrice) < Math.abs(parseFloat(best.close) - targetPrice) ? c : best
+    );
+};
+
 type Ref = React.MutableRefObject<HTMLDivElement>;
 
 export const StockChart = ({
@@ -117,6 +132,8 @@ export const StockChart = ({
     originalPriceOpen,
     originalPriceStopLoss,
     originalPriceTakeProfit,
+    positionLevels,
+    positionPartials,
 }: IChartProps) => {
     const { classes } = useStyles();
     const elementRef: Ref = useRef<HTMLDivElement>(undefined as never);
@@ -238,23 +255,50 @@ export const StockChart = ({
             title: "TP",
         });
 
-        // Entry marker
+        const markers: SeriesMarker<Time>[] = [];
+
         if (pendingAt) {
-            const entryTime = pendingAt as UTCTimestamp;
-            series.setMarkers([
-                {
-                    time: alignToInterval(entryTime) as Time,
-                    position: position === "short" ? "aboveBar" : "belowBar",
-                    color: positionColor,
-                    shape: position === "short" ? "arrowDown" : "arrowUp",
-                    size: 1,
-                    text: "Entry",
-                },
-            ]);
+            markers.push({
+                time: alignToInterval(pendingAt) as Time,
+                position: position === "short" ? "aboveBar" : "belowBar",
+                color: positionColor,
+                shape: position === "short" ? "arrowDown" : "arrowUp",
+                size: 1,
+                text: "Entry",
+            });
         }
 
+        for (let i = 1; i < positionLevels.length; i++) {
+            const candle = findCandleByPrice(items, pendingAt, positionLevels[i]);
+            if (!candle) continue;
+            markers.push({
+                time: Math.floor(candle.timestamp) as Time,
+                position: "belowBar",
+                color: colors.amber[400],
+                shape: "circle",
+                size: 1,
+                text: `DCA ${i}`,
+            });
+        }
+
+        for (const partial of positionPartials) {
+            const candle = findCandleByPrice(items, pendingAt, partial.currentPrice);
+            if (!candle) continue;
+            const isProfit = partial.type === "profit";
+            markers.push({
+                time: Math.floor(candle.timestamp) as Time,
+                position: isProfit ? "aboveBar" : "belowBar",
+                color: isProfit ? colors.green[400] : colors.red[400],
+                shape: "square",
+                size: 1,
+                text: `${isProfit ? "PP" : "PL"} ${partial.percent}%`,
+            });
+        }
+
+        markers.sort((a, b) => Number(a.time) - Number(b.time));
+        series.setMarkers(markers);
+
         chart.subscribeCrosshairMove((param) => {
-            console.log(param.time);
             if (param.time) {
                 const data = items.find(
                     (d) => d.timestamp === Number(param.time),
@@ -290,6 +334,8 @@ export const StockChart = ({
         originalPriceOpen,
         originalPriceStopLoss,
         originalPriceTakeProfit,
+        positionLevels,
+        positionPartials,
     ]);
 
     return (
