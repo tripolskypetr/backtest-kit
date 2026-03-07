@@ -34,7 +34,7 @@ export class ExchangeMockService {
     interval: CandleInterval;
     symbol: string;
     exchangeName: string;
-  }): Promise<ICandleData> => {
+  }): Promise<ICandleData[]> => {
     this.loggerService.log("exchangeMockService getPointCandles", {
       dto,
     });

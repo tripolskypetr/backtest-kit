@@ -52,7 +52,7 @@ export class ExchangeViewService {
         interval: CandleInterval;
         symbol: string;
         exchangeName: string;
-    }): Promise<ICandleData> => {
+    }): Promise<ICandleData[]> => {
         this.loggerService.log("exchangeViewService getPointCandles", {
             dto,
         });

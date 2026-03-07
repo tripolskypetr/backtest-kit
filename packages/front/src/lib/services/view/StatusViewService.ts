@@ -75,6 +75,9 @@ export class StatusViewService {
     return {
       signalId: pendingSignal.id,
       position: pendingSignal.position,
+      symbol: pendingSignal.symbol,
+      exchangeName: pendingSignal.exchangeName,
+      strategyName: pendingSignal.strategyName,
       totalEntries: pendingSignal.totalEntries,
       totalPartials: pendingSignal.totalPartials,
       originalPriceStopLoss: pendingSignal.originalPriceStopLoss,

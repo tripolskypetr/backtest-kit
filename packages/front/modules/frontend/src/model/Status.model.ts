@@ -12,6 +12,8 @@ type Level = number;
 
 export interface StatusModel {
     position: "short" | "long";
+    exchangeName: string;
+    symbol: string;
     signalId: string;
     totalEntries: number;
     totalPartials: number;

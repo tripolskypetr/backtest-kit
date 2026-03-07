@@ -97,6 +97,9 @@ declare class StatusMockService {
     getStatusOne: (id: string) => Promise<{
         signalId: string;
         position: "long" | "short";
+        symbol: string;
+        exchangeName: string;
+        strategyName: string;
         totalEntries: number;
         totalPartials: number;
         originalPriceStopLoss: number;
@@ -145,6 +148,9 @@ declare class StatusViewService {
     getStatusOne: (id: string) => Promise<{
         signalId: string;
         position: "long" | "short";
+        symbol: string;
+        exchangeName: string;
+        strategyName: string;
         totalEntries: number;
         totalPartials: number;
         originalPriceStopLoss: number;

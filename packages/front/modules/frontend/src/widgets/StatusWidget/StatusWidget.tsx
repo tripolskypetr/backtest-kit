@@ -81,10 +81,12 @@ export const StatusWidget = ({
 
     const [candles, { loading }] = useAsyncValue(
         async () => {
-            return await ioc.exchangeViewService.getSignalCandles(
-                data.signalId,
-                "1m",
-            );
+            return await ioc.exchangeViewService.getPointCandles({
+                currentTime: new Date(data.pendingAt).getTime(),
+                exchangeName: data.exchangeName,
+                interval: "1m",
+                symbol: data.symbol,
+            });
         },
         {
             onLoadStart: () => ioc.layoutService.setAppbarLoader(true),
@@ -101,7 +103,6 @@ export const StatusWidget = ({
                 {({ height, width }) => (
                     <StockChart
                         items={candles}
-                        source="1m"
                         height={height}
                         width={width}
                         position={data.position}

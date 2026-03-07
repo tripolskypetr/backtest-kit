@@ -1,23 +1,34 @@
 import * as React from "react";
-import { useRef, useState, useLayoutEffect } from "react";
-import { ICandleData } from "backtest-kit"
+import { useRef, useLayoutEffect, useState } from "react";
+import { ICandleData } from "backtest-kit";
+
 import {
   DeepPartial,
   ChartOptions,
-  CrosshairMode,
-  Time,
+  LineStyleOptions,
+  SeriesOptionsCommon,
+  UTCTimestamp,
   LineStyle,
-  SeriesMarker,
+  Time,
 } from "lightweight-charts";
+
 import { createChart } from "lightweight-charts";
 import { makeStyles } from "../../../styles";
-import { dayjs, fromMomentStamp, getMomentStamp } from "react-declarative";
 import { colors } from "@mui/material";
+import { dayjs, formatAmount } from "react-declarative";
 
 declare function parseFloat(value: unknown): number;
 
+const MS_PER_MINUTE = 60_000;
+
+const alignToInterval = (
+  timestamp: number,
+): number => {
+  return Math.floor(timestamp / MS_PER_MINUTE) * MS_PER_MINUTE;
+};
+
+
 interface IChartProps {
-  source: "1m" | "15m" | "1h";
   height: number;
   width: number;
   items: ICandleData[];
@@ -30,43 +41,6 @@ interface IChartProps {
   originalPriceStopLoss: number;
   originalPriceTakeProfit: number;
 }
-
-
-const COLOR_LIST = [
-  colors.purple[900],
-  colors.red[900],
-  colors.purple[300],
-  colors.yellow[900],
-  colors.blue[500],
-  colors.blue[900],
-  colors.yellow[500],
-  colors.orange[900],
-  colors.cyan[500],
-  colors.red[200],
-];
-
-const getColorByIndex = (index: number) => {
-  return COLOR_LIST[index % COLOR_LIST.length];
-};
-
-/**
- * Получить цвет для позиции на основе типа
- * @param position - тип позиции (long/short)
- * @param index - индекс для fallback цвета
- */
-const getPositionColor = (position: "long" | "short", index: number): string => {
-  if (position === "long") return colors.blue[700];  // 🔵 LONG - синий
-  if (position === "short") return colors.orange[700]; // 🟠 SHORT - оранжевый
-  return getColorByIndex(index); // Fallback
-};
-
-const formatAmount = (value: number | string, scale = 2, separator = ",") => {
-  const num = typeof value === "string" ? Number(value) : value;
-  const str = num.toFixed(scale);
-  const formatted =
-    num < 10000 ? str : str.replace(/(\d)(?=(\d{3})+(\.|$))/g, `$1 `);
-  return formatted.replace(/.00$/, "").replace(".", separator);
-};
 
 const useStyles = makeStyles()({
   root: {
@@ -124,16 +98,16 @@ const chartOptions: DeepPartial<ChartOptions> = {
   },
 };
 
-// Базовая дата в UTC для MOMENT_STAMP_OFFSET
-const MOMENT_STAMP_OFFSET = getMomentStamp(
-  dayjs("2025-07-26T00:00:00Z"),
-  "minute"
-);
+const seriesOptions: DeepPartial<LineStyleOptions & SeriesOptionsCommon> = {
+  lineWidth: 2,
+  crosshairMarkerVisible: false,
+  lastValueVisible: false,
+  priceLineVisible: false,
+};
 
 type Ref = React.MutableRefObject<HTMLDivElement>;
 
 export const StockChart = ({
-  source,
   height,
   width,
   items,
@@ -146,137 +120,40 @@ export const StockChart = ({
   originalPriceStopLoss,
   originalPriceTakeProfit,
 }: IChartProps) => {
-
-  debugger
-
   const { classes } = useStyles();
   const elementRef: Ref = useRef<HTMLDivElement>(undefined as never);
   const [tooltipDate, setTooltipDate] = useState<string | null>(null);
 
+
   useLayoutEffect(() => {
     const { current: chartElement } = elementRef;
 
-    // Map items to chart data
-    const candles = items
-      .map(({ close, timestamp }, idx) => {
-        let momentStamp: number;
-        let time: Time;
-        let date: dayjs.Dayjs;
-        let formattedOriginalTime: string;
-
-        // Проверяем timestamp (Unix timestamp в миллисекундах)
-        if (timestamp && dayjs(timestamp).isValid()) {
-          date = dayjs(timestamp);
-          formattedOriginalTime = date.format("YYYY-MM-DD HH:mm:ss");
-        } else {
-          // Если timestamp невалидно, используем fromMomentStamp
-          if (source === "1m") {
-            momentStamp = MOMENT_STAMP_OFFSET + idx;
-            date = fromMomentStamp(momentStamp, "minute");
-          } else if (source === "15m") {
-            momentStamp = MOMENT_STAMP_OFFSET + idx;
-            date = fromMomentStamp(momentStamp, "minute");
-            const minute = Math.floor(date.minute() / 15) * 15;
-            date = date.startOf("hour").add(minute, "minute");
-          } else if (source === "1h") {
-            momentStamp = MOMENT_STAMP_OFFSET + Math.floor(idx / 60); // 1 час = 60 минут
-            date = fromMomentStamp(momentStamp, "hour");
-            date = date.startOf("hour");
-          }
-          formattedOriginalTime = date.format("YYYY-MM-DD HH:mm:ss");
-          console.warn(
-            `Invalid timestamp at index ${idx}: ${timestamp}, using fromMomentStamp: ${formattedOriginalTime}`
-          );
-        }
-
-        // Формируем momentStamp для валидной даты
-        if (source === "1m") {
-          momentStamp = getMomentStamp(date, "minute");
-          time = momentStamp as Time;
-        } else if (source === "15m") {
-          const minute = Math.floor(date.minute() / 15) * 15;
-          const alignedDate = date.startOf("hour").add(minute, "minute");
-          momentStamp = getMomentStamp(alignedDate, "minute");
-          time = momentStamp as Time;
-        } else if (source === "1h") {
-          const alignedDate = date.startOf("hour");
-          momentStamp = getMomentStamp(alignedDate, "hour");
-          time = momentStamp as Time;
-        }
-
-        if (!date.isValid()) {
-          console.warn(
-            `Invalid date at index ${idx}: momentStamp: ${momentStamp}`
-          );
-          return null;
-        }
-
-        // Отладочный вывод
-        console.debug(
-          `Index: ${idx}, timestamp: ${timestamp}, momentStamp: ${momentStamp}, time: ${time}, date: ${date.format("YYYY-MM-DD HH:mm:ss")}`
-        );
-
-        return {
-          time,
-          originalTime: formattedOriginalTime,
-          momentStamp,
-          value: parseFloat(close),
-        };
-      })
-      .filter((item): item is NonNullable<typeof item> => !!item);
-
-    if (candles.length === 0) {
-      console.warn("No valid data points for chart");
-      return;
-    }
-
     const chart = createChart(chartElement, {
       ...chartOptions,
-      width,
       height,
-      crosshair: {
-        mode: CrosshairMode.Normal,
-        vertLine: { labelVisible: false },
-        horzLine: { visible: false, labelVisible: false },
-      },
-      timeScale: {
-        timeVisible: true,
-        secondsVisible: source === "1m",
-        tickMarkFormatter: (time: Time) => {
-          // Поиск свечи по momentStamp
-          const candle =
-            candles.find((c) => c.momentStamp === Number(time)) || candles[0];
-          if (!candle || !candle.originalTime) {
-            return "Invalid date";
-          }
-          const date = dayjs(candle.originalTime);
-          if (!date.isValid()) {
-            return "Invalid date";
-          }
-          if (source === "1m") {
-            return date.format("HH:mm:ss");
-          } else if (source === "15m") {
-            return date.format("HH:mm");
-          } else {
-            return date.format("DD/MM HH:mm");
-          }
-        },
-      },
+      width,
     });
 
-    const lineSeries = chart.addLineSeries({
-      lastValueVisible: false,
+    const series = chart.addLineSeries({
+      ...seriesOptions,
+      color: position === "long" ? colors.blue[400] : colors.orange[400],
     });
 
-    lineSeries.setData(candles);
+    const data = items
+      .filter((c) => c.timestamp != null)
+      .map((c) => ({
+        time: Math.floor(c.timestamp) as Time,
+        value: parseFloat(c.close),
+      }));
 
-    // Price lines for position
+    series.setData(data);
+
     const positionLabel = position === "long" ? "LONG" : "SHORT";
-    const positionColor = getPositionColor(position, 0);
+    const positionColor = position === "long" ? colors.blue[700] : colors.orange[700];
 
-    // Original Entry price line (dashed, if DCA shifted the average)
+    // Original Entry (dashed) — только если DCA сдвинул цену
     if (originalPriceOpen !== priceOpen) {
-      lineSeries.createPriceLine({
+      series.createPriceLine({
         price: originalPriceOpen,
         color: positionColor,
         lineWidth: 1,
@@ -286,8 +163,8 @@ export const StockChart = ({
       });
     }
 
-    // Current Entry price line (solid)
-    lineSeries.createPriceLine({
+    // Current Entry (solid)
+    series.createPriceLine({
       price: priceOpen,
       color: positionColor,
       lineWidth: 2,
@@ -296,9 +173,9 @@ export const StockChart = ({
       title: `${positionLabel} Entry`,
     });
 
-    // Original Stop Loss line (dashed)
+    // Original SL (dashed)
     if (originalPriceStopLoss !== priceStopLoss) {
-      lineSeries.createPriceLine({
+      series.createPriceLine({
         price: originalPriceStopLoss,
         color: colors.red[500],
         lineWidth: 1,
@@ -308,8 +185,8 @@ export const StockChart = ({
       });
     }
 
-    // Current Stop Loss line (solid)
-    lineSeries.createPriceLine({
+    // Current SL (solid)
+    series.createPriceLine({
       price: priceStopLoss,
       color: colors.red[500],
       lineWidth: 2,
@@ -318,9 +195,9 @@ export const StockChart = ({
       title: "SL",
     });
 
-    // Original Take Profit line (dashed)
+    // Original TP (dashed)
     if (originalPriceTakeProfit !== priceTakeProfit) {
-      lineSeries.createPriceLine({
+      series.createPriceLine({
         price: originalPriceTakeProfit,
         color: colors.green[500],
         lineWidth: 1,
@@ -330,8 +207,8 @@ export const StockChart = ({
       });
     }
 
-    // Current Take Profit line (solid)
-    lineSeries.createPriceLine({
+    // Current TP (solid)
+    series.createPriceLine({
       price: priceTakeProfit,
       color: colors.green[500],
       lineWidth: 2,
@@ -340,46 +217,29 @@ export const StockChart = ({
       title: "TP",
     });
 
-    // Markers for entry and exit points
-    const markers: SeriesMarker<Time>[] = [];
-
-    // Entry marker (pendingAt)
-    const entryDate = dayjs(pendingAt);
-    if (entryDate.isValid()) {
-      let entryTime: Time;
-      if (source === "1m") {
-        entryTime = getMomentStamp(entryDate, "minute") as Time;
-      } else if (source === "15m") {
-        const minute = Math.floor(entryDate.minute() / 15) * 15;
-        const alignedDate = entryDate.startOf("hour").add(minute, "minute");
-        entryTime = getMomentStamp(alignedDate, "minute") as Time;
-      } else {
-        const alignedDate = entryDate.startOf("hour");
-        entryTime = getMomentStamp(alignedDate, "hour") as Time;
-      }
-
-      markers.push({
-        time: entryTime,
-        position: position === "short" ? "aboveBar" : "belowBar",
-        color: positionColor,
-        shape: position === "short" ? "arrowDown" : "arrowUp",
-        size: 1,
-        text: "Entry",
-      });
+    // Entry marker
+    if (pendingAt) {
+      const entryTime = pendingAt as UTCTimestamp;
+      series.setMarkers([
+        {
+          time: alignToInterval(entryTime) as Time,
+          position: position === "short" ? "aboveBar" : "belowBar",
+          color: positionColor,
+          shape: position === "short" ? "arrowDown" : "arrowUp",
+          size: 1,
+          text: "Entry",
+        },
+      ]);
     }
 
-    // Markers must be sorted by time for lightweight-charts
-    markers.sort((a, b) => Number(a.time) - Number(b.time));
-    lineSeries.setMarkers(markers);
-
+    
     chart.subscribeCrosshairMove((param) => {
+      console.log(param.time)
       if (param.time) {
-        const data = candles.find((d) => d.momentStamp === Number(param.time));
+        const data = items.find((d) => d.timestamp === Number(param.time));
         if (data) {
-          const dateFormat =
-            source === "1m" ? "DD/MM/YYYY HH:mm:ss" : "DD/MM/YYYY HH:mm";
-          const dateTime = dayjs(data.originalTime).format(dateFormat);
-          const price = formatAmount(data.value.toFixed(6));
+          const dateTime = dayjs(data.timestamp).format("DD/MM/YYYY HH:mm:ss");
+          const price = formatAmount(data.close.toFixed(6));
           setTooltipDate(`${dateTime}: ${price}`);
         } else {
           setTooltipDate(null);
@@ -394,7 +254,7 @@ export const StockChart = ({
     return () => {
       chart.remove();
     };
-  }, [source, height, width, items, position, pendingAt, priceOpen, priceStopLoss, priceTakeProfit, originalPriceOpen, originalPriceStopLoss, originalPriceTakeProfit]);
+  }, [height, width, items, position, pendingAt, priceOpen, priceStopLoss, priceTakeProfit, originalPriceOpen, originalPriceStopLoss, originalPriceTakeProfit]);
 
   return (
     <div ref={elementRef} className={classes.root}>

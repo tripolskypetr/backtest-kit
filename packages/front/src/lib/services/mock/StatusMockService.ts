@@ -47,6 +47,9 @@ export class StatusMockService {
     return {
       signalId: signal.id,
       position: signal.position,
+      symbol: signal.symbol,
+      exchangeName: signal.exchangeName,
+      strategyName: signal.strategyName,
       totalEntries: signal.totalEntries,
       totalPartials: signal.totalPartials,
       originalPriceStopLoss: signal.originalPriceStopLoss,
