@@ -3,9 +3,8 @@ import { TypedField, FieldType } from "react-declarative";
 import {
     AccountBalance,
     AttachMoney,
-    CallMade,
-    CallReceived,
     DonutLarge,
+    ShowChart,
     Layers,
     PieChart,
     TrendingDown,
@@ -146,91 +145,7 @@ export const status_fields: TypedField[] = [
                 bottom: CC_CELL_PADDING,
                 child: {
                     type: FieldType.Component,
-                    element: ({
-                        position,
-                        priceOpen,
-                        priceTakeProfit,
-                        priceStopLoss,
-                        originalPriceOpen,
-                        originalPriceTakeProfit,
-                        originalPriceStopLoss,
-                        pnlPercentage,
-                    }) => (
-                        <Paper
-                            sx={{
-                                position: "relative",
-                                height: "100%",
-                                width: "100%",
-                                overflow: "hidden",
-                            }}
-                        >
-                            <Stack
-                                sx={{
-                                    position: "absolute",
-                                    top: 0,
-                                    left: 0,
-                                    right: 0,
-                                    bottom: 0,
-                                    p: 3,
-                                }}
-                                direction="column"
-                                spacing={2}
-                            >
-                                <Stack direction="row" alignItems="center" justifyContent="space-between">
-                                    <Typography variant="subtitle1" fontWeight={600}>
-                                        Price Levels
-                                    </Typography>
-                                    <Chip
-                                        label={position === "long" ? "Long" : "Short"}
-                                        size="small"
-                                        sx={{
-                                            background: position === "long" ? COLOR_GREEN : COLOR_RED,
-                                            color: "#fff",
-                                            fontWeight: 600,
-                                        }}
-                                    />
-                                </Stack>
-                                <Divider />
-                                {[
-                                    {
-                                        label: "Entry",
-                                        current: priceOpen,
-                                        original: originalPriceOpen,
-                                        color: pnlColor(pnlPercentage),
-                                    },
-                                    {
-                                        label: "Take Profit",
-                                        current: priceTakeProfit,
-                                        original: originalPriceTakeProfit,
-                                        color: COLOR_GREEN,
-                                    },
-                                    {
-                                        label: "Stop Loss",
-                                        current: priceStopLoss,
-                                        original: originalPriceStopLoss,
-                                        color: COLOR_RED,
-                                    },
-                                ].map(({ label, current, original, color }) => (
-                                    <Stack key={label} direction="column" spacing={0.5}>
-                                        <Typography variant="caption" sx={{ opacity: 0.6, textTransform: "uppercase", letterSpacing: 1 }}>
-                                            {label}
-                                        </Typography>
-                                        <Stack direction="row" alignItems="baseline" spacing={1.5}>
-                                            <Typography variant="h6" fontWeight={700} color={color}>
-                                                {current.toLocaleString()}
-                                            </Typography>
-                                            {current !== original && (
-                                                <Typography variant="caption" sx={{ opacity: 0.45, textDecoration: "line-through" }}>
-                                                    {original.toLocaleString()}
-                                                </Typography>
-                                            )}
-                                        </Stack>
-                                        <Divider />
-                                    </Stack>
-                                ))}
-                            </Stack>
-                        </Paper>
-                    ),
+                    element: () => <Paper sx={{ height: "100%", width: "100%" }} />,
                 },
             },
 
@@ -245,76 +160,7 @@ export const status_fields: TypedField[] = [
                 bottom: CC_CELL_PADDING,
                 child: {
                     type: FieldType.Component,
-                    element: ({ positionPartials }) => (
-                        <Paper
-                            sx={{
-                                position: "relative",
-                                height: "100%",
-                                width: "100%",
-                                overflow: "hidden",
-                            }}
-                        >
-                            <Stack
-                                sx={{
-                                    position: "absolute",
-                                    top: 0,
-                                    left: 0,
-                                    right: 0,
-                                    bottom: 0,
-                                    p: 3,
-                                    overflowY: "auto",
-                                }}
-                                direction="column"
-                                spacing={2}
-                            >
-                                <Typography variant="subtitle1" fontWeight={600}>
-                                    Position Partials
-                                </Typography>
-                                <Divider />
-                                {positionPartials.length === 0 ? (
-                                    <Typography variant="body2" sx={{ opacity: 0.45 }}>
-                                        No partials executed
-                                    </Typography>
-                                ) : (
-                                    positionPartials.map((partial, idx) => (
-                                        <Stack key={idx} direction="column" spacing={0.5}>
-                                            <Stack direction="row" alignItems="center" justifyContent="space-between">
-                                                <Chip
-                                                    label={partial.type === "profit" ? "Profit" : "Loss"}
-                                                    size="small"
-                                                    sx={{
-                                                        background: partial.type === "profit" ? COLOR_GREEN : COLOR_RED,
-                                                        color: "#fff",
-                                                        fontWeight: 600,
-                                                    }}
-                                                />
-                                                <Typography variant="body2" sx={{ opacity: 0.6 }}>
-                                                    #{idx + 1}
-                                                </Typography>
-                                            </Stack>
-                                            <Stack direction="row" justifyContent="space-between">
-                                                <Typography variant="caption" sx={{ opacity: 0.6 }}>
-                                                    Close %
-                                                </Typography>
-                                                <Typography variant="body2" fontWeight={600}>
-                                                    {partial.percent}%
-                                                </Typography>
-                                            </Stack>
-                                            <Stack direction="row" justifyContent="space-between">
-                                                <Typography variant="caption" sx={{ opacity: 0.6 }}>
-                                                    Price at close
-                                                </Typography>
-                                                <Typography variant="body2" fontWeight={600}>
-                                                    {partial.currentPrice.toLocaleString()}
-                                                </Typography>
-                                            </Stack>
-                                            <Divider />
-                                        </Stack>
-                                    ))
-                                )}
-                            </Stack>
-                        </Paper>
-                    ),
+                    element: () => <Paper sx={{ height: "100%", width: "100%" }} />,
                 },
             },
         ],
@@ -338,56 +184,7 @@ export const status_fields: TypedField[] = [
                 bottom: CC_CELL_PADDING,
                 child: {
                     type: FieldType.Component,
-                    element: ({ positionLevels }) => (
-                        <Paper
-                            sx={{
-                                position: "relative",
-                                height: "100%",
-                                width: "100%",
-                                overflow: "hidden",
-                            }}
-                        >
-                            <Stack
-                                sx={{
-                                    position: "absolute",
-                                    top: 0,
-                                    left: 0,
-                                    right: 0,
-                                    bottom: 0,
-                                    p: 3,
-                                    overflowY: "auto",
-                                }}
-                                direction="column"
-                                spacing={2}
-                            >
-                                <Typography variant="subtitle1" fontWeight={600}>
-                                    DCA Levels
-                                </Typography>
-                                <Divider />
-                                {positionLevels.map((price, idx) => (
-                                    <Stack key={idx} direction="row" alignItems="center" justifyContent="space-between">
-                                        <Stack direction="row" alignItems="center" spacing={1.5}>
-                                            <Box
-                                                sx={{
-                                                    width: 8,
-                                                    height: 8,
-                                                    borderRadius: "50%",
-                                                    background: COLOR_ORANGE,
-                                                    flexShrink: 0,
-                                                }}
-                                            />
-                                            <Typography variant="caption" sx={{ opacity: 0.6 }}>
-                                                Entry #{idx + 1}
-                                            </Typography>
-                                        </Stack>
-                                        <Typography variant="body2" fontWeight={600}>
-                                            {price.toLocaleString()}
-                                        </Typography>
-                                    </Stack>
-                                ))}
-                            </Stack>
-                        </Paper>
-                    ),
+                    element: () => <Paper sx={{ height: "100%", width: "100%" }} />,
                 },
             },
 
@@ -411,7 +208,7 @@ export const status_fields: TypedField[] = [
                             element: ({ totalPartials, pnlPercentage }) => (
                                 <IndicatorValueWidget
                                     color={totalPartials > 0 ? pnlColor(pnlPercentage) : COLOR_PURPLE}
-                                    label="Partials Done"
+                                    label="Partial Exits"
                                     value={totalPartials}
                                     icon={PieChart}
                                 />
@@ -432,7 +229,7 @@ export const status_fields: TypedField[] = [
                             element: ({ partialExecuted, pnlPercentage }) => (
                                 <IndicatorValueWidget
                                     color={partialExecuted > 0 ? pnlColor(pnlPercentage) : COLOR_BLUE}
-                                    label="Closed %"
+                                    label="Partial Closed %"
                                     value={`${partialExecuted}%`}
                                     icon={DonutLarge}
                                 />
@@ -450,12 +247,12 @@ export const status_fields: TypedField[] = [
                         minHeight: "calc(465px / 2)",
                         child: {
                             type: FieldType.Component,
-                            element: ({ position }) => (
+                            element: ({ priceOpen, pnlPercentage }) => (
                                 <IndicatorValueWidget
-                                    color={position === "long" ? COLOR_GREEN : COLOR_RED}
-                                    label="Position"
-                                    value={position === "long" ? "Long" : "Short"}
-                                    icon={position === "long" ? CallMade : CallReceived}
+                                    color={pnlColor(pnlPercentage)}
+                                    label="Average Price"
+                                    value={priceOpen.toLocaleString()}
+                                    icon={ShowChart}
                                 />
                             ),
                         },
