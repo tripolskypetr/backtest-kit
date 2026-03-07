@@ -1,6 +1,16 @@
 import { type IPublicSignalRow } from "backtest-kit";
 
-export interface IStatusOne {
+type Partial = {
+    type: "profit" | "loss";
+    percent: number;
+    currentPrice: number;
+    costBasisAtClose: number;
+    entryCountAtClose: number;
+};
+
+type Level = number;
+
+export interface StatusModel {
     position: IPublicSignalRow["position"];
     totalEntries: number;
     totalPartials: number;
@@ -13,8 +23,8 @@ export interface IStatusOne {
     pnlPercentage: number;
     pnlCost: number;
     pnlEntries: number;
-    positionLevels: number[];
-    positionPartials: IPublicSignalRow["_partial"];
+    positionLevels: Level[];
+    positionPartials: Partial[];
 }
 
-export default IStatusOne;
+export default StatusModel;

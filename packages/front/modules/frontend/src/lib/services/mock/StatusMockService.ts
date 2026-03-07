@@ -2,7 +2,7 @@ import LoggerService from "../base/LoggerService";
 import { fetchApi, inject, randomString } from "react-declarative";
 import TYPES from "../../core/TYPES";
 import { CC_CLIENT_ID, CC_SERVICE_NAME, CC_USER_ID } from "../../../config/params";
-import IStatusOne from "../../../model/Status.model";
+import StatusModel from "../../../model/Status.model";
 
 export class StatusMockService {
   private readonly loggerService = inject<LoggerService>(TYPES.loggerService);
@@ -33,7 +33,7 @@ export class StatusMockService {
     );
   };
 
-  public getStatusOne = async (id: string): Promise<IStatusOne | null> => {
+  public getStatusOne = async (id: string): Promise<StatusModel | null> => {
     this.loggerService.log("statusMockService getStatusOne", { id });
     const { data, error } = await fetchApi(`/api/v1/mock/status_one/${id}`, {
       method: "POST",

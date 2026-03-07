@@ -1,11 +1,15 @@
-import { Container } from "@mui/material";
+import { Box, Container, Typography } from "@mui/material";
 import {
     Breadcrumbs2,
     Breadcrumbs2Type,
+    Center,
     IBreadcrumbs2Action,
     IBreadcrumbs2Option,
     IOutletProps,
     One,
+    Subject,
+    useAsyncValue,
+    useOnce,
 } from "react-declarative";
 import { status_fields } from "../../../../assets/status_fields";
 import { KeyboardArrowLeft, Refresh } from "@mui/icons-material";
@@ -39,7 +43,21 @@ const actions: IBreadcrumbs2Action[] = [
     },
 ];
 
+const reloadSubject = new Subject<void>();
+
 export const StatusView = ({ params }: IOutletProps) => {
+    const [data, { loading, execute }] = useAsyncValue(
+        async () => {
+            return await ioc.statusViewService.getStatusOne(params.id);
+        },
+        {
+            onLoadStart: () => ioc.layoutService.setAppbarLoader(true),
+            onLoadEnd: () => ioc.layoutService.setAppbarLoader(false),
+        },
+    );
+
+    useOnce(() => reloadSubject.subscribe(execute));
+
     const handleBack = async () => {
         const statusList = await ioc.statusViewService.getStatusList();
         if (statusList.length === 1) {
@@ -49,11 +67,56 @@ export const StatusView = ({ params }: IOutletProps) => {
         ioc.routerService.push("/status");
     };
 
-    const handleAction = (action: string) => {
+    const handleAction = async (action: string) => {
         if (action === "back-action") {
             handleBack();
             ioc.routerService.push("/");
         }
+        if (action === "update-now") {
+            await reloadSubject.next();
+        }
+    };
+
+    const renderInner = () => {
+        if (loading) {
+            return (
+                <Center>
+                    <Typography variant="h6" sx={{ opacity: 0.5 }}>
+                        Loading...
+                    </Typography>
+                </Center>
+            );
+        }
+
+        if (!data) {
+            return (
+                <Center>
+                    <Typography variant="h6" sx={{ opacity: 0.5 }}>
+                        No pending signal
+                    </Typography>
+                </Center>
+            );
+        }
+
+        return (
+            <>
+                <One
+                    handler={() => ({
+                        indicatorValues: {
+                            newChats: 21,
+                            newSales: 5,
+                            hoursWorked: 10,
+                            lateArrivals: 9,
+                            abscenceHours: 17,
+                            overtime: 30,
+                            downTime: 13,
+                        },
+                    })}
+                    fields={status_fields}
+                />
+                <Box paddingBottom="24px" />
+            </>
+        );
     };
 
     return (
@@ -63,20 +126,7 @@ export const StatusView = ({ params }: IOutletProps) => {
                 actions={actions}
                 onAction={handleAction}
             />
-            <One
-                handler={() => ({
-                    indicatorValues: {
-                        newChats: 21,
-                        newSales: 5,
-                        hoursWorked: 10,
-                        lateArrivals: 9,
-                        abscenceHours: 17,
-                        overtime: 30,
-                        downTime: 13,
-                    },
-                })}
-                fields={status_fields}
-            />
+            {renderInner()}
             <Background />
         </Container>
     );
