@@ -112,8 +112,9 @@ const seriesOptions: DeepPartial<LineStyleOptions & SeriesOptionsCommon> = {
 };
 
 const findCandleByPrice = (items: ICandleData[], pendingAt: number, targetPrice: number): ICandleData | null => {
-    if (!items.length) return null;
-    return items.filter(({ timestamp }) => timestamp > pendingAt).reduce((best, c) =>
+    const filtered = items.filter(({ timestamp }) => timestamp > pendingAt);
+    if (!filtered.length) return null;
+    return filtered.reduce((best, c) =>
         Math.abs(parseFloat(c.close) - targetPrice) < Math.abs(parseFloat(best.close) - targetPrice) ? c : best
     );
 };

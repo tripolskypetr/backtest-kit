@@ -25,11 +25,13 @@ import {
 import { makeStyles } from "../../../styles";
 import {
     AccountBalanceWalletTwoTone,
+    CircleNotificationsTwoTone,
     Dashboard,
     InsertChartTwoTone,
     KeyboardArrowLeft,
     NotificationsActive,
     PlayCircle,
+    PlayCircleFilledWhiteTwoTone,
     PlayCircleOutline,
     Quickreply,
     Refresh,
@@ -224,8 +226,24 @@ const application_routes: IRoute[] = [
     },
 ];
 
+const live_routes: IRoute[] = [
+    {
+        label: "Notifications",
+        to: `/notifications`,
+        color: "#F7931A",
+        icon: CircleNotificationsTwoTone,
+    },
+    {
+        label: "Pending Status",
+        to: `/status`,
+        color: "#6F42C1",
+        icon: PlayCircleFilledWhiteTwoTone,
+    },
+];
+
 const fields: TypedField[] = [
-    createGroup("Application", application_routes)
+    createGroup("Application", application_routes),
+    createGroup("Live", live_routes),
 ];
 
 export const MainPage = () => {
