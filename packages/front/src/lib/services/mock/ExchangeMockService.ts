@@ -52,14 +52,14 @@ export class ExchangeMockService {
     const {
       pendingAt,
       scheduledAt,
-      createdAt = pendingAt || scheduledAt,
       minuteEstimatedTime,
     } = signal;
+    const eventAt = pendingAt || scheduledAt;
     return await this.exchangeService.getRangeCandles({
       symbol: signal.symbol,
       exchangeName: signal.exchangeName,
-      signalStartTime: createdAt,
-      signalStopTime: createdAt + minuteEstimatedTime * MS_PER_MINUTE,
+      signalStartTime: eventAt,
+      signalStopTime: eventAt + minuteEstimatedTime * MS_PER_MINUTE,
       interval,
     });
   };
