@@ -85,6 +85,7 @@ export class StatusViewService {
       pnlPercentage: pendingSignal.pnl.pnlPercentage,
       pnlCost: pendingSignal.pnl.pnlCost,
       pnlEntries: pendingSignal.pnl.pnlEntries,
+      partialExecuted: pendingSignal.partialExecuted,
       positionLevels,
       positionPartials,
     };

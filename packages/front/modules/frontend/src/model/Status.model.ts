@@ -23,6 +23,7 @@ export interface StatusModel {
     pnlPercentage: number;
     pnlCost: number;
     pnlEntries: number;
+    partialExecuted: number;
     positionLevels: Level[];
     positionPartials: Partial[];
 }

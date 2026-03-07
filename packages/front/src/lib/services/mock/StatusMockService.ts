@@ -57,6 +57,7 @@ export class StatusMockService {
       pnlPercentage: signal.pnl.pnlPercentage,
       pnlCost: signal.pnl.pnlCost,
       pnlEntries: signal.pnl.pnlEntries,
+      partialExecuted: signal.partialExecuted,
       positionLevels,
       positionPartials,
     };

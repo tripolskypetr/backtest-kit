@@ -101,17 +101,7 @@ export const StatusView = ({ params }: IOutletProps) => {
         return (
             <>
                 <One
-                    handler={() => ({
-                        indicatorValues: {
-                            newChats: 21,
-                            newSales: 5,
-                            hoursWorked: 10,
-                            lateArrivals: 9,
-                            abscenceHours: 17,
-                            overtime: 30,
-                            downTime: 13,
-                        },
-                    })}
+                    handler={data}
                     fields={status_fields}
                 />
                 <Box paddingBottom="24px" />
