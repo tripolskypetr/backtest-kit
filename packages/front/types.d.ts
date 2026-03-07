@@ -109,6 +109,7 @@ declare class StatusMockService {
         pnlCost: number;
         pnlEntries: number;
         partialExecuted: number;
+        pendingAt: number;
         positionLevels: number[];
         positionPartials: {
             type: "profit" | "loss";
@@ -156,6 +157,7 @@ declare class StatusViewService {
         pnlCost: number;
         pnlEntries: number;
         partialExecuted: number;
+        pendingAt: number;
         positionLevels: number[];
         positionPartials: {
             type: "profit" | "loss";

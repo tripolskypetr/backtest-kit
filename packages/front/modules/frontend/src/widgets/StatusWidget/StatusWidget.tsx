@@ -104,6 +104,14 @@ export const StatusWidget = ({
                         source="1m"
                         height={height}
                         width={width}
+                        position={data.position}
+                        pendingAt={data.pendingAt}
+                        priceOpen={data.priceOpen}
+                        priceStopLoss={data.priceStopLoss}
+                        priceTakeProfit={data.priceTakeProfit}
+                        originalPriceOpen={data.originalPriceOpen}
+                        originalPriceStopLoss={data.originalPriceStopLoss}
+                        originalPriceTakeProfit={data.originalPriceTakeProfit}
                     />
                 )}
             </AutoSizer>

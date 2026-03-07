@@ -22,14 +22,13 @@ interface IChartProps {
   width: number;
   items: ICandleData[];
   position: "long" | "short";
-  pendingAt: string;
-  closedAt: string;
+  pendingAt: number;
   priceOpen: number;
   priceStopLoss: number;
   priceTakeProfit: number;
-  originalPriceStopLoss?: number;
-  originalPriceTakeProfit?: number;
-  status: "opened" | "closed" | "scheduled" | "cancelled";
+  originalPriceOpen: number;
+  originalPriceStopLoss: number;
+  originalPriceTakeProfit: number;
 }
 
 
@@ -140,14 +139,16 @@ export const StockChart = ({
   items,
   position,
   pendingAt,
-  closedAt,
   priceOpen,
   priceStopLoss,
   priceTakeProfit,
+  originalPriceOpen,
   originalPriceStopLoss,
   originalPriceTakeProfit,
-  status,
 }: IChartProps) => {
+
+  debugger
+
   const { classes } = useStyles();
   const elementRef: Ref = useRef<HTMLDivElement>(undefined as never);
   const [tooltipDate, setTooltipDate] = useState<string | null>(null);
@@ -273,7 +274,19 @@ export const StockChart = ({
     const positionLabel = position === "long" ? "LONG" : "SHORT";
     const positionColor = getPositionColor(position, 0);
 
-    // Entry price line
+    // Original Entry price line (dashed, if DCA shifted the average)
+    if (originalPriceOpen !== priceOpen) {
+      lineSeries.createPriceLine({
+        price: originalPriceOpen,
+        color: positionColor,
+        lineWidth: 1,
+        lineStyle: LineStyle.Dashed,
+        axisLabelVisible: true,
+        title: `${positionLabel} Original Entry`,
+      });
+    }
+
+    // Current Entry price line (solid)
     lineSeries.createPriceLine({
       price: priceOpen,
       color: positionColor,
@@ -283,18 +296,8 @@ export const StockChart = ({
       title: `${positionLabel} Entry`,
     });
 
-    // Stop Loss line (current/trailing)
-    lineSeries.createPriceLine({
-      price: priceStopLoss,
-      color: colors.red[500],
-      lineWidth: 2,
-      lineStyle: LineStyle.Solid,
-      axisLabelVisible: true,
-      title: "SL",
-    });
-
-    // Original Stop Loss line (if trailing changed it)
-    if (originalPriceStopLoss != null && originalPriceStopLoss !== priceStopLoss) {
+    // Original Stop Loss line (dashed)
+    if (originalPriceStopLoss !== priceStopLoss) {
       lineSeries.createPriceLine({
         price: originalPriceStopLoss,
         color: colors.red[500],
@@ -305,18 +308,18 @@ export const StockChart = ({
       });
     }
 
-    // Take Profit line (current/trailing)
+    // Current Stop Loss line (solid)
     lineSeries.createPriceLine({
-      price: priceTakeProfit,
-      color: colors.green[500],
+      price: priceStopLoss,
+      color: colors.red[500],
       lineWidth: 2,
       lineStyle: LineStyle.Solid,
       axisLabelVisible: true,
-      title: "TP",
+      title: "SL",
     });
 
-    // Original Take Profit line (if trailing changed it)
-    if (originalPriceTakeProfit != null && originalPriceTakeProfit !== priceTakeProfit) {
+    // Original Take Profit line (dashed)
+    if (originalPriceTakeProfit !== priceTakeProfit) {
       lineSeries.createPriceLine({
         price: originalPriceTakeProfit,
         color: colors.green[500],
@@ -326,6 +329,16 @@ export const StockChart = ({
         title: "Original TP",
       });
     }
+
+    // Current Take Profit line (solid)
+    lineSeries.createPriceLine({
+      price: priceTakeProfit,
+      color: colors.green[500],
+      lineWidth: 2,
+      lineStyle: LineStyle.Solid,
+      axisLabelVisible: true,
+      title: "TP",
+    });
 
     // Markers for entry and exit points
     const markers: SeriesMarker<Time>[] = [];
@@ -355,33 +368,6 @@ export const StockChart = ({
       });
     }
 
-    // Exit marker (closedAt) - only for closed positions
-    if (status === "closed") {
-      const exitDate = dayjs(closedAt);
-      if (exitDate.isValid()) {
-        let exitTime: Time;
-        if (source === "1m") {
-          exitTime = getMomentStamp(exitDate, "minute") as Time;
-        } else if (source === "15m") {
-          const minute = Math.floor(exitDate.minute() / 15) * 15;
-          const alignedDate = exitDate.startOf("hour").add(minute, "minute");
-          exitTime = getMomentStamp(alignedDate, "minute") as Time;
-        } else {
-          const alignedDate = exitDate.startOf("hour");
-          exitTime = getMomentStamp(alignedDate, "hour") as Time;
-        }
-
-        markers.push({
-          time: exitTime,
-          position: position === "short" ? "belowBar" : "aboveBar",
-          color: colors.grey[500],
-          shape: "circle",
-          size: 1,
-          text: "Exit",
-        });
-      }
-    }
-
     // Markers must be sorted by time for lightweight-charts
     markers.sort((a, b) => Number(a.time) - Number(b.time));
     lineSeries.setMarkers(markers);
@@ -408,7 +394,7 @@ export const StockChart = ({
     return () => {
       chart.remove();
     };
-  }, [source, height, width, items, position, pendingAt, closedAt, priceOpen, priceStopLoss, priceTakeProfit, originalPriceStopLoss, originalPriceTakeProfit, status]);
+  }, [source, height, width, items, position, pendingAt, priceOpen, priceStopLoss, priceTakeProfit, originalPriceOpen, originalPriceStopLoss, originalPriceTakeProfit]);
 
   return (
     <div ref={elementRef} className={classes.root}>

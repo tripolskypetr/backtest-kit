@@ -25,6 +25,7 @@ export interface StatusModel {
     pnlCost: number;
     pnlEntries: number;
     partialExecuted: number;
+    pendingAt: number;
     positionLevels: Level[];
     positionPartials: Partial[];
 }
