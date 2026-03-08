@@ -71,12 +71,12 @@
     "timestamp": 1707400980000,
     "_isScheduled": false,
     "_entry": [
-      { "price": 45181.99, "cost": 100 },
-      { "price": 44500.00, "cost": 100 }
+      { "price": 44950, "cost": 100 },
+      { "price": 45120, "cost": 100 }
     ],
     "_partial": [
       { "type": "loss",   "percent": 15, "currentPrice": 44700.00, "costBasisAtClose": 100, "entryCountAtClose": 1 },
-      { "type": "profit",  "percent": 25, "currentPrice": 45800.00, "costBasisAtClose": 200, "entryCountAtClose": 2 }
+      { "type": "profit",  "percent": 25, "currentPrice": 45120.00, "costBasisAtClose": 200, "entryCountAtClose": 2 }
     ]
   },
   {

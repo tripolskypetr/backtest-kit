@@ -108,6 +108,7 @@ export const StatusWidget = ({
                         originalPriceOpen={data.originalPriceOpen}
                         originalPriceStopLoss={data.originalPriceStopLoss}
                         originalPriceTakeProfit={data.originalPriceTakeProfit}
+                        minuteEstimatedTime={data.minuteEstimatedTime}
                         positionLevels={data.positionLevels}
                         positionPartials={data.positionPartials}
                     />

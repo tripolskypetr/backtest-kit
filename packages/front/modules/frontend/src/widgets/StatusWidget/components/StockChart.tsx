@@ -44,6 +44,7 @@ interface IChartProps {
     originalPriceOpen: number;
     originalPriceStopLoss: number;
     originalPriceTakeProfit: number;
+    minuteEstimatedTime: number;
     positionLevels: number[];
     positionPartials: PositionPartial[];
 }
@@ -139,6 +140,7 @@ export const StockChart = ({
     originalPriceOpen,
     originalPriceStopLoss,
     originalPriceTakeProfit,
+    minuteEstimatedTime,
     positionLevels,
     positionPartials,
 }: IChartProps) => {
@@ -273,6 +275,19 @@ export const StockChart = ({
                 size: 1,
                 text: "Entry",
             });
+
+            const exitAt = pendingAt + minuteEstimatedTime * MS_PER_MINUTE;
+            const lastTimestamp = items[items.length - 1]?.timestamp ?? 0;
+            if (lastTimestamp >= exitAt) {
+                markers.push({
+                    time: alignToInterval(exitAt) as Time,
+                    position: position === "short" ? "belowBar" : "aboveBar",
+                    color: positionColor,
+                    shape: position === "short" ? "arrowUp" : "arrowDown",
+                    size: 1,
+                    text: "Exit",
+                });
+            }
         }
 
         const entryIndex = items.findIndex(({ timestamp }) => timestamp > pendingAt);
@@ -348,6 +363,7 @@ export const StockChart = ({
         originalPriceOpen,
         originalPriceStopLoss,
         originalPriceTakeProfit,
+        minuteEstimatedTime,
         positionLevels,
         positionPartials,
     ]);
