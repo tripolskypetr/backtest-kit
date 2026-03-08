@@ -11,6 +11,8 @@ type BrokerTrailingStopPayload = {
     percentShift: number;
     currentPrice: number;
     newStopLossPrice: number;
+    takeProfitPrice: number;
+    position: "long" | "short";
     context: {
         strategyName: StrategyName;
         exchangeName: ExchangeName;

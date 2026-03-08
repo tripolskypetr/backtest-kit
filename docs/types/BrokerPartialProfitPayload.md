@@ -11,6 +11,9 @@ type BrokerPartialProfitPayload = {
     percentToClose: number;
     cost: number;
     currentPrice: number;
+    position: "long" | "short";
+    priceTakeProfit: number;
+    priceStopLoss: number;
     context: {
         strategyName: StrategyName;
         exchangeName: ExchangeName;

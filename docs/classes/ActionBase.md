@@ -243,17 +243,6 @@ Frequency: Only when signal fails risk validation
 
 Default implementation: Logs risk rejection event.
 
-### signalSync
-
-```ts
-signalSync(_event: SignalSyncContract, source?: string): void | Promise<void>;
-```
-
-Gate for position open/close via limit order. Default allows all.
-Throw to reject — framework retries next tick.
-
-NOTE: Exceptions are NOT swallowed — they propagate to CREATE_SYNC_FN.
-
 ### dispose
 
 ```ts

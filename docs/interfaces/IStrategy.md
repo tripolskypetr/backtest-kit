@@ -148,6 +148,21 @@ Returns the unrealized PNL in dollars at currentPrice.
 Calculated as: pnlPercentage / 100 × totalInvestedCost.
 Returns null if no pending signal exists.
 
+### getPositionEntries
+
+```ts
+getPositionEntries: (symbol: string) => Promise<{ price: number; cost: number; }[]>
+```
+
+Returns the list of DCA entry prices and costs for the current pending signal.
+
+Each entry records the price and cost of a single position entry.
+The first element is always the original priceOpen (initial entry).
+Each subsequent element is an entry added by averageBuy().
+
+Returns null if no pending signal exists.
+Returns a single-element array [{ price: priceOpen, cost }] if no DCA entries were made.
+
 ### backtest
 
 ```ts

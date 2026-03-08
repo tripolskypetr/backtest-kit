@@ -49,7 +49,7 @@ Useful for running backtests for side effects only (callbacks, logging).
 ### getPendingSignal
 
 ```ts
-getPendingSignal: (symbol: string, currentPrice: number, context: { strategyName: string; exchangeName: string; frameName: string; }) => Promise<ISignalRow>
+getPendingSignal: (symbol: string, currentPrice: number, context: { strategyName: string; exchangeName: string; frameName: string; }) => Promise<IPublicSignalRow>
 ```
 
 Retrieves the currently active pending signal for the strategy.
@@ -179,6 +179,50 @@ Each entry contains:
 - `currentPrice` — execution price of the partial close
 - `costBasisAtClose` — accounting cost basis at the moment of this partial
 - `entryCountAtClose` — number of DCA entries accumulated at this partial
+
+### getPositionEntries
+
+```ts
+getPositionEntries: (symbol: string, context: { strategyName: string; exchangeName: string; frameName: string; }) => Promise<{ price: number; cost: number; }[]>
+```
+
+Returns the list of DCA entry prices and costs for the current pending signal.
+
+Each element represents a single position entry — the initial open or a subsequent
+DCA entry added via commitAverageBuy.
+
+Returns null if no pending signal exists.
+Returns a single-element array if no DCA entries were made.
+
+Each entry contains:
+- `price` — execution price of this entry
+- `cost` — dollar cost allocated to this entry (e.g. 100 for $100)
+
+### getPositionEntryOverlap
+
+```ts
+getPositionEntryOverlap: (symbol: string, currentPrice: number, context: { strategyName: string; exchangeName: string; frameName: string; }, ladder?: IPositionOverlapLadder) => Promise<boolean>
+```
+
+Checks whether the current price falls within the tolerance zone of any existing DCA entry level.
+Use this to prevent duplicate DCA entries at the same price area.
+
+Returns true if currentPrice is within [level - lowerStep, level + upperStep] for any level,
+where step = level * percent / 100.
+Returns false if no pending signal exists.
+
+### getPositionPartialOverlap
+
+```ts
+getPositionPartialOverlap: (symbol: string, currentPrice: number, context: { strategyName: string; exchangeName: string; frameName: string; }, ladder?: IPositionOverlapLadder) => Promise<boolean>
+```
+
+Checks whether the current price falls within the tolerance zone of any existing partial close price.
+Use this to prevent duplicate partial closes at the same price area.
+
+Returns true if currentPrice is within [partial.currentPrice - lowerStep, partial.currentPrice + upperStep]
+for any partial, where step = partial.currentPrice * percent / 100.
+Returns false if no pending signal exists or no partials have been executed yet.
 
 ### stop
 

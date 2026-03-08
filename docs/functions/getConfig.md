@@ -31,6 +31,7 @@ declare function getConfig(): {
     CC_MAX_LOG_LINES: number;
     CC_ENABLE_CANDLE_FETCH_MUTEX: boolean;
     CC_ENABLE_DCA_EVERYWHERE: boolean;
+    CC_ENABLE_PPPL_EVERYWHERE: boolean;
     CC_POSITION_ENTRY_COST: number;
 };
 ```

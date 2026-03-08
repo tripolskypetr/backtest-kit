@@ -2493,6 +2493,7 @@ export class BacktestUtils {
         effectivePriceOpen,
         signal.position,
       ),
+      takeProfitPrice: signal.priceTakeProfit,
       position: signal.position,
       context,
       backtest: true,
@@ -2640,6 +2641,7 @@ export class BacktestUtils {
         effectivePriceOpen,
         signal.position,
       ),
+      takeProfitPrice: signal.priceTakeProfit,
       position: signal.position,
       context,
       backtest: true,
@@ -2756,6 +2758,7 @@ export class BacktestUtils {
       currentPrice,
       newStopLossPrice,
       position: signal.position,
+      takeProfitPrice: signal.priceTakeProfit,
       context,
       backtest: true,
     });
@@ -2871,6 +2874,7 @@ export class BacktestUtils {
       currentPrice,
       newTakeProfitPrice,
       position: signal.position,
+      takeProfitPrice: signal.priceTakeProfit,
       context,
       backtest: true,
     });

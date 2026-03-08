@@ -237,6 +237,8 @@ export type BrokerTrailingStopPayload = {
   currentPrice: number;
   /** Absolute stop-loss price after applying percentShift */
   newStopLossPrice: number;
+  /** Active take profit price at the time of the trailing update */
+  takeProfitPrice: number;
   /** Position direction */
   position: "long" | "short";
   /** Strategy/exchange/frame routing context */
@@ -278,6 +280,8 @@ export type BrokerTrailingTakePayload = {
   currentPrice: number;
   /** Absolute take-profit price after applying percentShift */
   newTakeProfitPrice: number;
+  /** Active take profit price at the time of the trailing update */
+  takeProfitPrice: number;
   /** Position direction */
   position: "long" | "short";
   /** Strategy/exchange/frame routing context */

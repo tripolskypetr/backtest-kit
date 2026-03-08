@@ -78,7 +78,7 @@ Logs validation activity.
 ### getPendingSignal
 
 ```ts
-getPendingSignal: (backtest: boolean, symbol: string, currentPrice: number, context: { strategyName: string; exchangeName: string; frameName: string; }) => Promise<ISignalRow>
+getPendingSignal: (backtest: boolean, symbol: string, currentPrice: number, context: { strategyName: string; exchangeName: string; frameName: string; }) => Promise<IPublicSignalRow>
 ```
 
 Retrieves the currently active pending signal for the symbol.
@@ -162,6 +162,21 @@ getPositionLevels: (backtest: boolean, symbol: string, context: { strategyName: 
 ```ts
 getPositionPartials: (backtest: boolean, symbol: string, context: { strategyName: string; exchangeName: string; frameName: string; }) => Promise<{ type: "profit" | "loss"; percent: number; currentPrice: number; costBasisAtClose: number; entryCountAtClose: number; debugTimestamp?: number; }[]>
 ```
+
+### getPositionEntries
+
+```ts
+getPositionEntries: (backtest: boolean, symbol: string, context: { strategyName: string; exchangeName: string; frameName: string; }) => Promise<{ price: number; cost: number; }[]>
+```
+
+Returns the list of DCA entry prices and costs for the current pending signal.
+
+Each entry records the price and cost of a single position entry.
+The first element is always the original priceOpen (initial entry).
+Each subsequent element is an entry added by averageBuy().
+
+Returns null if no pending signal exists.
+Returns a single-element array [{ price: priceOpen, cost }] if no DCA entries were made.
 
 ### getScheduledSignal
 

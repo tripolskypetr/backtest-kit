@@ -11,6 +11,7 @@ type BrokerBreakevenPayload = {
     currentPrice: number;
     newStopLossPrice: number;
     newTakeProfitPrice: number;
+    position: "long" | "short";
     context: {
         strategyName: StrategyName;
         exchangeName: ExchangeName;

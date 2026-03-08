@@ -6,7 +6,7 @@ group: docs
 # getPendingSignal
 
 ```ts
-declare function getPendingSignal(symbol: string): Promise<ISignalRow>;
+declare function getPendingSignal(symbol: string): Promise<IPublicSignalRow>;
 ```
 
 Returns the currently active pending signal for the strategy.

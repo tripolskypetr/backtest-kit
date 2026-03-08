@@ -10,6 +10,9 @@ type BrokerAverageBuyPayload = {
     symbol: string;
     currentPrice: number;
     cost: number;
+    position: "long" | "short";
+    priceTakeProfit: number;
+    priceStopLoss: number;
     context: {
         strategyName: StrategyName;
         exchangeName: ExchangeName;
