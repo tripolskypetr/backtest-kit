@@ -5687,8 +5687,10 @@ export class ClientStrategy implements IStrategy {
     if (typeof currentPrice !== "number" || !isFinite(currentPrice) || currentPrice <= 0) return false;
 
     const effectivePriceOpen = GET_EFFECTIVE_PRICE_OPEN(this._pendingSignal);
-    if (this._pendingSignal.position === "long" && currentPrice <= effectivePriceOpen) return false;
-    if (this._pendingSignal.position === "short" && currentPrice >= effectivePriceOpen) return false;
+    if (!GLOBAL_CONFIG.CC_ENABLE_PPPL_EVERYWHERE) {
+      if (this._pendingSignal.position === "long" && currentPrice <= effectivePriceOpen) return false;
+      if (this._pendingSignal.position === "short" && currentPrice >= effectivePriceOpen) return false;
+    }
 
     const effectiveTakeProfit = this._pendingSignal._trailingPriceTakeProfit ?? this._pendingSignal.priceTakeProfit;
     if (this._pendingSignal.position === "long" && currentPrice >= effectiveTakeProfit) return false;
@@ -5794,7 +5796,7 @@ export class ClientStrategy implements IStrategy {
     }
 
     // Validation: currentPrice must be moving toward TP (profit direction)
-    {
+    if (!GLOBAL_CONFIG.CC_ENABLE_PPPL_EVERYWHERE) {
       const effectivePriceOpen = GET_EFFECTIVE_PRICE_OPEN(this._pendingSignal);
       if (this._pendingSignal.position === "long") {
         // For LONG: currentPrice must be higher than effectivePriceOpen (moving toward TP)
@@ -5912,8 +5914,10 @@ export class ClientStrategy implements IStrategy {
     if (typeof currentPrice !== "number" || !isFinite(currentPrice) || currentPrice <= 0) return false;
 
     const effectivePriceOpen = GET_EFFECTIVE_PRICE_OPEN(this._pendingSignal);
-    if (this._pendingSignal.position === "long" && currentPrice >= effectivePriceOpen) return false;
-    if (this._pendingSignal.position === "short" && currentPrice <= effectivePriceOpen) return false;
+    if (!GLOBAL_CONFIG.CC_ENABLE_PPPL_EVERYWHERE) {
+      if (this._pendingSignal.position === "long" && currentPrice >= effectivePriceOpen) return false;
+      if (this._pendingSignal.position === "short" && currentPrice <= effectivePriceOpen) return false;
+    }
 
     const effectiveStopLoss = this._pendingSignal._trailingPriceStopLoss ?? this._pendingSignal.priceStopLoss;
     if (this._pendingSignal.position === "long" && currentPrice <= effectiveStopLoss) return false;
@@ -6020,7 +6024,7 @@ export class ClientStrategy implements IStrategy {
     }
 
     // Validation: currentPrice must be moving toward SL (loss direction)
-    {
+    if (!GLOBAL_CONFIG.CC_ENABLE_PPPL_EVERYWHERE) {
       const effectivePriceOpen = GET_EFFECTIVE_PRICE_OPEN(this._pendingSignal);
       if (this._pendingSignal.position === "long") {
         // For LONG: currentPrice must be lower than effectivePriceOpen (moving toward SL)

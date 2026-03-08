@@ -5169,6 +5169,14 @@ declare const GLOBAL_CONFIG: {
      */
     CC_ENABLE_DCA_EVERYWHERE: boolean;
     /**
+     * Enables PPPL (Partial Profit, Partial Loss) logic even if this breaks a direction of exits
+     * Allows to take partial profit or loss on a position even if it results in a mix of profit and loss exits
+     * This can help lock in profits or cut losses on part of the position without waiting for a perfect exit scenario.
+     *
+     * Default: false (PPPL logic is only applied when it does not break the direction of exits, ensuring clearer profit/loss outcomes)
+     */
+    CC_ENABLE_PPPL_EVERYWHERE: boolean;
+    /**
      * Cost of entering a position (in USD).
      * This is used as a default value for calculating position size and risk management when cost data is not provided by the strategy
      * Default: $100 per position
@@ -5288,6 +5296,7 @@ declare function getConfig(): {
     CC_MAX_LOG_LINES: number;
     CC_ENABLE_CANDLE_FETCH_MUTEX: boolean;
     CC_ENABLE_DCA_EVERYWHERE: boolean;
+    CC_ENABLE_PPPL_EVERYWHERE: boolean;
     CC_POSITION_ENTRY_COST: number;
 };
 /**
@@ -5329,6 +5338,7 @@ declare function getDefaultConfig(): Readonly<{
     CC_MAX_LOG_LINES: number;
     CC_ENABLE_CANDLE_FETCH_MUTEX: boolean;
     CC_ENABLE_DCA_EVERYWHERE: boolean;
+    CC_ENABLE_PPPL_EVERYWHERE: boolean;
     CC_POSITION_ENTRY_COST: number;
 }>;
 /**

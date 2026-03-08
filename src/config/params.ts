@@ -191,9 +191,18 @@ export const GLOBAL_CONFIG = {
    * Allows to commitAverageBuy if currentPrice is not the lowest price since entry, but still lower than priceOpen.
    * This can help improve average entry price in cases where price has rebounded after entry but is still below priceOpen, without waiting for a new lower price.
    *
-   * Default: true (DCA logic enabled everywhere, not just when antirecord is broken)
+   * Default: false (DCA logic enabled only when antirecord is broken)
    */
   CC_ENABLE_DCA_EVERYWHERE: false,
+
+  /**
+   * Enables PPPL (Partial Profit, Partial Loss) logic even if this breaks a direction of exits
+   * Allows to take partial profit or loss on a position even if it results in a mix of profit and loss exits
+   * This can help lock in profits or cut losses on part of the position without waiting for a perfect exit scenario.
+   *
+   * Default: false (PPPL logic is only applied when it does not break the direction of exits, ensuring clearer profit/loss outcomes)
+   */
+  CC_ENABLE_PPPL_EVERYWHERE: false,
 
   /**
    * Cost of entering a position (in USD).
