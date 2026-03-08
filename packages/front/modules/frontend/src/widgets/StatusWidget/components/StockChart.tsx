@@ -111,12 +111,18 @@ const seriesOptions: DeepPartial<LineStyleOptions & SeriesOptionsCommon> = {
     priceLineVisible: false,
 };
 
-const findCandleByPrice = (items: ICandleData[], pendingAt: number, targetPrice: number): ICandleData | null => {
-    const filtered = items.filter(({ timestamp }) => timestamp > pendingAt);
-    if (!filtered.length) return null;
-    return filtered.reduce((best, c) =>
-        Math.abs(parseFloat(c.close) - targetPrice) < Math.abs(parseFloat(best.close) - targetPrice) ? c : best
-    );
+const findCandleByPrice = (items: ICandleData[], fromIndex: number, targetPrice: number): { candle: ICandleData; index: number } | null => {
+    if (fromIndex >= items.length) return null;
+    let bestIndex = fromIndex;
+    let bestDiff = Math.abs(parseFloat(items[fromIndex].close) - targetPrice);
+    for (let i = fromIndex + 1; i < items.length; i++) {
+        const diff = Math.abs(parseFloat(items[i].close) - targetPrice);
+        if (diff < bestDiff) {
+            bestDiff = diff;
+            bestIndex = i;
+        }
+    }
+    return { candle: items[bestIndex], index: bestIndex };
 };
 
 type Ref = React.MutableRefObject<HTMLDivElement>;
@@ -269,11 +275,16 @@ export const StockChart = ({
             });
         }
 
+        const entryIndex = items.findIndex(({ timestamp }) => timestamp > pendingAt);
+        const startIndex = entryIndex === -1 ? 0 : entryIndex;
+
+        let dcaIndex = startIndex;
         for (let i = 1; i < positionLevels.length; i++) {
-            const candle = findCandleByPrice(items, pendingAt, positionLevels[i]);
-            if (!candle) continue;
+            const result = findCandleByPrice(items, dcaIndex, positionLevels[i]);
+            if (!result) continue;
+            if (result.index > dcaIndex) dcaIndex = result.index;
             markers.push({
-                time: Math.floor(candle.timestamp) as Time,
+                time: Math.floor(result.candle.timestamp) as Time,
                 position: "belowBar",
                 color: colors.amber[400],
                 shape: "circle",
@@ -282,12 +293,14 @@ export const StockChart = ({
             });
         }
 
+        let partialIndex = startIndex;
         for (const partial of positionPartials) {
-            const candle = findCandleByPrice(items, pendingAt, partial.currentPrice);
-            if (!candle) continue;
+            const result = findCandleByPrice(items, partialIndex, partial.currentPrice);
+            if (!result) continue;
+            if (result.index > partialIndex) partialIndex = result.index;
             const isProfit = partial.type === "profit";
             markers.push({
-                time: Math.floor(candle.timestamp) as Time,
+                time: Math.floor(result.candle.timestamp) as Time,
                 position: isProfit ? "aboveBar" : "belowBar",
                 color: isProfit ? colors.green[400] : colors.red[400],
                 shape: "square",

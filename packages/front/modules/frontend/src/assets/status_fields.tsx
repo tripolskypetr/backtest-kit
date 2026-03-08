@@ -1,14 +1,11 @@
 import { TypedField, FieldType } from "react-declarative";
 
 import {
-    AccountBalance,
-    AttachMoney,
-    DonutLarge,
-    ShowChart,
-    Layers,
-    PieChart,
-    TrendingDown,
-    TrendingUp,
+    AccountBalanceTwoTone as AccountBalance,
+    AnalyticsTwoTone as Analytics,
+    DonutSmallTwoTone as DonutSmall,
+    RequestQuoteTwoTone as RequestQuote,
+    LayersTwoTone as Layers,
 } from "@mui/icons-material";
 
 import Box from "@mui/material/Box";
@@ -57,7 +54,7 @@ export const status_fields: TypedField[] = [
                             color={pnlColor(pnlPercentage)}
                             label="PNL %"
                             value={`${pnlPercentage >= 0 ? "+" : ""}${pnlPercentage.toFixed(2)}%`}
-                            icon={pnlPercentage >= 0 ? TrendingUp : TrendingDown}
+                            icon={Analytics}
                         />
                     ),
                 },
@@ -78,7 +75,7 @@ export const status_fields: TypedField[] = [
                             color={pnlColor(pnlCost)}
                             label="PNL $"
                             value={`${pnlCost >= 0 ? "+" : ""}$${Math.abs(pnlCost).toFixed(2)}`}
-                            icon={AttachMoney}
+                            icon={Analytics}
                         />
                     ),
                 },
@@ -210,7 +207,7 @@ export const status_fields: TypedField[] = [
                                     color={totalPartials > 0 ? pnlColor(pnlPercentage) : COLOR_PURPLE}
                                     label="Total Closes"
                                     value={totalPartials}
-                                    icon={PieChart}
+                                    icon={DonutSmall}
                                 />
                             ),
                         },
@@ -229,9 +226,9 @@ export const status_fields: TypedField[] = [
                             element: ({ partialExecuted, pnlPercentage }) => (
                                 <IndicatorValueWidget
                                     color={partialExecuted > 0 ? pnlColor(pnlPercentage) : COLOR_BLUE}
-                                    label="Partial Closed %"
+                                    label="Total Closed %"
                                     value={`${partialExecuted}%`}
-                                    icon={DonutLarge}
+                                    icon={DonutSmall}
                                 />
                             ),
                         },
@@ -252,7 +249,7 @@ export const status_fields: TypedField[] = [
                                     color={pnlColor(pnlPercentage)}
                                     label="Average Price"
                                     value={priceOpen.toLocaleString()}
-                                    icon={ShowChart}
+                                    icon={RequestQuote}
                                 />
                             ),
                         },

@@ -75,8 +75,8 @@
       { "price": 44500.00, "cost": 100 }
     ],
     "_partial": [
-      { "type": "profit", "percent": 25, "currentPrice": 45800.00, "costBasisAtClose": 100, "entryCountAtClose": 1 },
-      { "type": "loss",   "percent": 15, "currentPrice": 44700.00, "costBasisAtClose": 200, "entryCountAtClose": 2 }
+      { "type": "loss",   "percent": 15, "currentPrice": 44700.00, "costBasisAtClose": 100, "entryCountAtClose": 1 },
+      { "type": "profit",  "percent": 25, "currentPrice": 45800.00, "costBasisAtClose": 200, "entryCountAtClose": 2 }
     ]
   },
   {
