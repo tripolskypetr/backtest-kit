@@ -107,6 +107,7 @@ declare class StatusMockService {
         pnlCost: any;
         pnlEntries: any;
         partialExecuted: any;
+        minuteEstimatedTime: any;
         pendingAt: any;
         positionLevels: any;
         positionPartials: any;
@@ -145,6 +146,7 @@ declare class StatusViewService {
         pnlCost: any;
         pnlEntries: any;
         partialExecuted: any;
+        minuteEstimatedTime: any;
         pendingAt: any;
         positionLevels: any;
         positionPartials: any;

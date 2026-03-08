@@ -28,6 +28,7 @@ export interface StatusModel {
     pnlEntries: number;
     partialExecuted: number;
     pendingAt: number;
+    minuteEstimatedTime: number;
     positionLevels: Level[];
     positionPartials: Partial[];
 }
