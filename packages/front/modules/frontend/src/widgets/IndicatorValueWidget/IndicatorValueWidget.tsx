@@ -7,6 +7,7 @@ import Chip from "@mui/material/Chip";
 import Paper from "@mui/material/Paper";
 import Stack from "@mui/material/Stack";
 import Typography from "@mui/material/Typography";
+import { PaperView } from "react-declarative";
 
 const useStyles = makeStyles()({
     root: {
@@ -30,6 +31,7 @@ function isLightColor(hex: string) {
 }
 
 interface IIndicatorValueWidgetProps {
+    outlinePaper: boolean;
     color: string;
     value: number | string;
     label: string;
@@ -40,11 +42,12 @@ export const IndicatorValueWidget = ({
     color,
     value,
     label,
+    outlinePaper,
     icon: Icon = () => <></>,
 }: IIndicatorValueWidgetProps) => {
     const { classes } = useStyles();
     return (
-        <Paper className={classes.root}>
+        <PaperView outlinePaper={outlinePaper} className={classes.root}>
             <Stack
                 className={classes.container}
                 direction="column"
@@ -109,7 +112,7 @@ export const IndicatorValueWidget = ({
                     </Typography>
                 </Stack>
             </Stack>
-        </Paper>
+        </PaperView>
     );
 };
 

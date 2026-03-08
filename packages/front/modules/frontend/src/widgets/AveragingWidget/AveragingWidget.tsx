@@ -1,7 +1,7 @@
 import { Box, Chip, Paper, SxProps, Typography } from "@mui/material";
 import StatusModel from "../../model/Status.model";
 import { makeStyles } from "../../styles";
-import { AutoSizer, formatAmount } from "react-declarative";
+import { AutoSizer, formatAmount, PaperView } from "react-declarative";
 import { Chart } from "react-chartjs-2";
 
 const HEADER_HEIGHT = "35px";
@@ -68,6 +68,7 @@ const useStyles = makeStyles()((theme) => ({
 }));
 
 interface IAveragingWidgetProps {
+    outlinePaper: boolean;
     className?: string;
     style?: React.CSSProperties;
     sx?: SxProps;
@@ -75,6 +76,7 @@ interface IAveragingWidgetProps {
 }
 
 export const AveragingWidget = ({
+    outlinePaper,
     className,
     style,
     sx,
@@ -244,7 +246,7 @@ export const AveragingWidget = ({
     };
 
     return (
-        <Paper className={cx(classes.root, className)} style={style} sx={sx}>
+        <PaperView outlinePaper={outlinePaper} className={cx(classes.root, className)} style={style} sx={sx}>
             <div className={classes.header}>
                 <div className={classes.title}>
                     <Typography className={classes.text} variant="body1">
@@ -261,7 +263,7 @@ export const AveragingWidget = ({
             <div className={classes.container}>
                 <div className={classes.content}>{renderInner()}</div>
             </div>
-        </Paper>
+        </PaperView>
     );
 };
 

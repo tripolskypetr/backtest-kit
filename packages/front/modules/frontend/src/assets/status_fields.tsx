@@ -51,8 +51,9 @@ export const status_fields: TypedField[] = [
                 right: CC_CELL_PADDING,
                 child: {
                     type: FieldType.Component,
-                    element: ({ pnlPercentage }) => (
+                    element: ({ pnlPercentage, payload }) => (
                         <IndicatorValueWidget
+                            outlinePaper={payload.outlinePaper}
                             color={pnlColor(pnlPercentage)}
                             label="PNL %"
                             value={`${pnlPercentage >= 0 ? "+" : ""}${pnlPercentage.toFixed(2)}%`}
@@ -72,8 +73,9 @@ export const status_fields: TypedField[] = [
                 right: CC_CELL_PADDING,
                 child: {
                     type: FieldType.Component,
-                    element: ({ pnlCost }) => (
+                    element: ({ pnlCost, payload }) => (
                         <IndicatorValueWidget
+                            outlinePaper={payload.outlinePaper}
                             color={pnlColor(pnlCost)}
                             label="PNL $"
                             value={`${pnlCost >= 0 ? "+" : ""}$${Math.abs(pnlCost).toFixed(2)}`}
@@ -93,8 +95,9 @@ export const status_fields: TypedField[] = [
                 right: CC_CELL_PADDING,
                 child: {
                     type: FieldType.Component,
-                    element: ({ pnlEntries }) => (
+                    element: ({ pnlEntries, payload }) => (
                         <IndicatorValueWidget
+                            outlinePaper={payload.outlinePaper}
                             color={COLOR_BLUE}
                             label="Invested $"
                             value={`$${pnlEntries.toFixed(2)}`}
@@ -114,8 +117,9 @@ export const status_fields: TypedField[] = [
                 right: CC_CELL_PADDING,
                 child: {
                     type: FieldType.Component,
-                    element: ({ totalEntries }) => (
+                    element: ({ totalEntries, payload }) => (
                         <IndicatorValueWidget
+                            outlinePaper={payload.outlinePaper}
                             color={COLOR_ORANGE}
                             label="Total Entries"
                             value={totalEntries}
@@ -144,7 +148,13 @@ export const status_fields: TypedField[] = [
                 bottom: CC_CELL_PADDING,
                 child: {
                     type: FieldType.Component,
-                    element: (data) => <StatusWidget data={data} sx={{ height: "100%", width: "100%" }} />,
+                    element: (data) => (
+                        <StatusWidget
+                            data={data}
+                            outlinePaper={data.payload.outlinePaper}
+                            sx={{ height: "100%", width: "100%" }}
+                        />
+                    ),
                 },
             },
 
@@ -159,7 +169,13 @@ export const status_fields: TypedField[] = [
                 bottom: CC_CELL_PADDING,
                 child: {
                     type: FieldType.Component,
-                    element: (data) => <AveragingWidget data={data} sx={{ height: "100%", width: "100%" }} />,
+                    element: (data) => (
+                        <AveragingWidget
+                            outlinePaper={data.payload.outlinePaper}
+                            data={data}
+                            sx={{ height: "100%", width: "100%" }}
+                        />
+                    ),
                 },
             },
         ],
@@ -183,7 +199,13 @@ export const status_fields: TypedField[] = [
                 bottom: CC_CELL_PADDING,
                 child: {
                     type: FieldType.Component,
-                    element: (data) => <PartialWidget data={data} sx={{ height: "100%", width: "100%" }} />,
+                    element: (data) => (
+                        <PartialWidget
+                            data={data}
+                            outlinePaper={data.payload.outlinePaper}
+                            sx={{ height: "100%", width: "100%" }}
+                        />
+                    ),
                 },
             },
 
@@ -204,9 +226,18 @@ export const status_fields: TypedField[] = [
                         minHeight: "calc(465px / 2)",
                         child: {
                             type: FieldType.Component,
-                            element: ({ totalPartials, pnlPercentage }) => (
+                            element: ({
+                                totalPartials,
+                                pnlPercentage,
+                                payload,
+                            }) => (
                                 <IndicatorValueWidget
-                                    color={totalPartials > 0 ? pnlColor(pnlPercentage) : COLOR_PURPLE}
+                                    color={
+                                        totalPartials > 0
+                                            ? pnlColor(pnlPercentage)
+                                            : COLOR_PURPLE
+                                    }
+                                    outlinePaper={payload.outlinePaper}
                                     label="Total Closes"
                                     value={totalPartials}
                                     icon={DonutSmall}
@@ -225,9 +256,18 @@ export const status_fields: TypedField[] = [
                         minHeight: "calc(465px / 2)",
                         child: {
                             type: FieldType.Component,
-                            element: ({ partialExecuted, pnlPercentage }) => (
+                            element: ({
+                                partialExecuted,
+                                pnlPercentage,
+                                payload,
+                            }) => (
                                 <IndicatorValueWidget
-                                    color={partialExecuted > 0 ? pnlColor(pnlPercentage) : COLOR_BLUE}
+                                    color={
+                                        partialExecuted > 0
+                                            ? pnlColor(pnlPercentage)
+                                            : COLOR_BLUE
+                                    }
+                                    outlinePaper={payload.outlinePaper}
                                     label="Total Closed %"
                                     value={`${partialExecuted}%`}
                                     icon={DonutSmall}
@@ -246,9 +286,14 @@ export const status_fields: TypedField[] = [
                         minHeight: "calc(465px / 2)",
                         child: {
                             type: FieldType.Component,
-                            element: ({ priceOpen, pnlPercentage }) => (
+                            element: ({
+                                priceOpen,
+                                pnlPercentage,
+                                payload,
+                            }) => (
                                 <IndicatorValueWidget
                                     color={pnlColor(pnlPercentage)}
+                                    outlinePaper={payload.outlinePaper}
                                     label="Average Price"
                                     value={priceOpen.toLocaleString()}
                                     icon={RequestQuote}

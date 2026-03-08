@@ -4,9 +4,10 @@ import { makeStyles } from "../../styles";
 import { Info } from "@mui/icons-material";
 import ioc from "../../lib";
 import StockChart from "./components/StockChart";
-import { AutoSizer, LoaderView, useAsyncValue } from "react-declarative";
+import { AutoSizer, LoaderView, PaperView, useAsyncValue } from "react-declarative";
 
 interface IStatusWidgetProps {
+    outlinePaper: boolean;
     data: StatusModel;
     className?: string;
     style?: React.CSSProperties;
@@ -79,6 +80,7 @@ const useStyles = makeStyles()((theme) => ({
 }));
 
 export const StatusWidget = ({
+    outlinePaper,
     className,
     style,
     sx,
@@ -152,7 +154,7 @@ export const StatusWidget = ({
     };
 
     return (
-        <Paper className={cx(classes.root, className)} style={style} sx={sx}>
+        <PaperView outlinePaper={outlinePaper} className={cx(classes.root, className)} style={style} sx={sx}>
             <div className={classes.header}>
                 <div className={classes.title}>
                     <Typography className={classes.text} variant="body1">
@@ -162,6 +164,7 @@ export const StatusWidget = ({
                 </div>
                 <IconButton
                     className={classes.icon}
+                    disabled={outlinePaper}
                     size="small"
                     onClick={() => ioc.layoutService.pickSignal(data.signalId)}
                 >
@@ -171,7 +174,7 @@ export const StatusWidget = ({
             <div className={classes.container}>
                 <div className={classes.content}>{renderInner()}</div>
             </div>
-        </Paper>
+        </PaperView>
     );
 };
 
