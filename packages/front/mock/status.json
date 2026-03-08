@@ -47,10 +47,10 @@
     "status": "closed",
     "position": "long",
     "cost": 100,
-    "priceOpen": 45181.99,
+    "priceOpen": 44950.99,
     "priceTakeProfit": 46537.4497,
     "priceStopLoss": 44278.3502,
-    "originalPriceOpen": 45181.99,
+    "originalPriceOpen": 44950.99,
     "originalPriceTakeProfit": 46537.4497,
     "originalPriceStopLoss": 44278.3502,
     "totalEntries": 2,
@@ -72,7 +72,7 @@
     "_isScheduled": false,
     "_entry": [
       { "price": 44950, "cost": 100 },
-      { "price": 45120, "cost": 100 }
+      { "price": 44700, "cost": 100 }
     ],
     "_partial": [
       { "type": "loss",   "percent": 15, "currentPrice": 44700.00, "costBasisAtClose": 100, "entryCountAtClose": 1 },

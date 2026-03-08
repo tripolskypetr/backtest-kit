@@ -67,18 +67,18 @@ const useStyles = makeStyles()((theme) => ({
     },
 }));
 
-interface IAveragingWidgetProps {
+interface IPartialWidgetProps {
     className?: string;
     style?: React.CSSProperties;
     sx?: SxProps;
     data: StatusModel;
 }
 
-export const AveragingWidget = ({
+export const PartialWidget = ({
     className,
     style,
     sx,
-}: IAveragingWidgetProps) => {
+}: IPartialWidgetProps) => {
     const { classes, cx } = useStyles();
 
     const renderInner = () => {
@@ -90,13 +90,13 @@ export const AveragingWidget = ({
             <div className={classes.header}>
                 <div className={classes.title}>
                     <Typography className={classes.text} variant="body1">
-                        Dollar Cost Averaging
+                        Partial Exits
                     </Typography>
                     <Chip
                         size="small"
                         variant="outlined"
                         color="info"
-                        label="DCA"
+                        label="PP/PL"
                     />
                 </div>
             </div>
@@ -107,4 +107,4 @@ export const AveragingWidget = ({
     );
 };
 
-export default AveragingWidget;
+export default PartialWidget;
