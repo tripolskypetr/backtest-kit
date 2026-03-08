@@ -105,13 +105,6 @@ const chartOptions: DeepPartial<ChartOptions> = {
     },
 };
 
-const seriesOptions: DeepPartial<LineStyleOptions & SeriesOptionsCommon> = {
-    lineWidth: 2,
-    crosshairMarkerVisible: false,
-    lastValueVisible: false,
-    priceLineVisible: false,
-};
-
 const findCandleByPrice = (items: ICandleData[], fromIndex: number, targetPrice: number): { candle: ICandleData; index: number } | null => {
     if (fromIndex >= items.length) return null;
     let bestIndex = fromIndex;
@@ -187,7 +180,7 @@ export const StockChart = ({
 
         const series = chart.addLineSeries({
             lastValueVisible: false,
-            color: position === "long" ? colors.blue[400] : colors.orange[400],
+            color: colors.blue[400],
         });
 
         const data = visibleItems.map((c) => ({
@@ -198,8 +191,7 @@ export const StockChart = ({
         series.setData(data);
 
         const positionLabel = position === "long" ? "LONG" : "SHORT";
-        const positionColor =
-            position === "long" ? colors.blue[700] : colors.orange[700];
+        const positionColor = colors.blue[700];
 
         // Original Entry (dashed) — только если DCA сдвинул цену
         if (originalPriceOpen !== priceOpen) {
