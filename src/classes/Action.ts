@@ -496,9 +496,11 @@ class ActionProxy implements IPublicAction {
    */
   public async signalSync(event: SignalSyncContract): Promise<void> {
     if (this._target.signalSync) {
-      console.error("Action::signalSync is unwanted cause it should be implemented in Broker.useBrokerAdapter as an infrastructure domain layer");
+      console.error("Action::signalSync is unwanted cause exchange integration should be implemented in Broker.useBrokerAdapter as an infrastructure domain layer");
       console.error("If you need to implement custom logic on signal open/close, please use signal(), signalBacktest(), signalLive()");
       console.error("If Action::signalSync throws the exchange will not execute the order!");
+      console.error("");
+      console.error("You have been warned!");
       await this._target.signalSync(event);
     }
   }
