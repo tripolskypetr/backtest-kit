@@ -101,10 +101,11 @@ export const PartialWidget = ({
                     ? ((partial.currentPrice - effectiveEntry) / effectiveEntry) * 100
                     : ((effectiveEntry - partial.currentPrice) / effectiveEntry) * 100;
             const closedDollar = (partial.percent / 100) * partial.costBasisAtClose;
-            return { partial, effectiveEntry, pnlPct, closedDollar };
+            const pnlDollar = (pnlPct / 100) * partial.costBasisAtClose;
+            return { partial, effectiveEntry, pnlPct, pnlDollar, closedDollar };
         });
 
-        const totalClosed = partialData.reduce((s, d) => s + d.closedDollar, 0);
+        const totalPnlDollar = partialData.reduce((s, d) => s + d.pnlDollar, 0);
         const ppCount = data.positionPartials.filter((p) => p.type === "profit").length;
         const plCount = data.positionPartials.filter((p) => p.type === "loss").length;
 
@@ -120,8 +121,8 @@ export const PartialWidget = ({
             labels,
             datasets: [
                 {
-                    label: "PNL %",
-                    data: partialData.map(({ pnlPct }) => pnlPct),
+                    label: "P&L ($)",
+                    data: partialData.map(({ pnlDollar }) => pnlDollar),
                     backgroundColor: pnlColors.map((c) => c.replace(", 1)", ", 0.5)")),
                     borderColor: pnlColors,
                     borderWidth: 1,
@@ -139,8 +140,9 @@ export const PartialWidget = ({
                 tooltip: {
                     callbacks: {
                         label: (ctx: { dataIndex: number }) => {
-                            const { pnlPct } = partialData[ctx.dataIndex];
-                            return `PNL: ${pnlPct >= 0 ? "+" : ""}${pnlPct.toFixed(2)}%`;
+                            const { pnlDollar, pnlPct } = partialData[ctx.dataIndex];
+                            const sign = pnlDollar >= 0 ? "+" : "";
+                            return `P&L: ${sign}${formatAmount(pnlDollar)}$ (${sign}${pnlPct.toFixed(2)}%)`;
                         },
                         afterBody: (items: { dataIndex: number }[]) => {
                             const idx = items[0].dataIndex;
@@ -158,7 +160,7 @@ export const PartialWidget = ({
             scales: {
                 y: {
                     type: "linear" as const,
-                    title: { display: true, text: "PNL %" },
+                    title: { display: true, text: "P&L ($)" },
                 },
             },
         };
@@ -196,8 +198,12 @@ export const PartialWidget = ({
                     <Typography variant="caption" color="text.secondary">
                         Total
                     </Typography>
-                    <Typography variant="body2" fontWeight="medium">
-                        {formatAmount(totalClosed)}$
+                    <Typography
+                        variant="body2"
+                        fontWeight="medium"
+                        sx={{ color: totalPnlDollar >= 0 ? "success.main" : "error.main" }}
+                    >
+                        {totalPnlDollar >= 0 ? "+" : ""}{formatAmount(totalPnlDollar)}$
                     </Typography>
                     <Typography variant="caption" color="text.secondary">
                         PP
