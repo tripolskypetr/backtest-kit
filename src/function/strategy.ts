@@ -1155,10 +1155,12 @@ export async function getBreakeven(
 }
 
 /**
- * Returns the effective (DCA-averaged) entry price for the current pending signal.
+ * Returns the effective (DCA-weighted) entry price for the current pending signal.
  *
- * This is the harmonic mean of all _entry prices, which is the correct
- * cost-basis price used in all PNL calculations.
+ * Uses cost-weighted harmonic mean: Σcost / Σ(cost/price).
+ * When partial closes exist, the price is computed iteratively using
+ * costBasisAtClose snapshots from each partial, then blended with any
+ * DCA entries added after the last partial.
  * With no DCA entries, equals the original priceOpen.
  *
  * Returns null if no pending signal exists.
@@ -1246,8 +1248,8 @@ export async function getPositionInvestedCount(
 /**
  * Returns the total invested cost basis in dollars for the current pending signal.
  *
- * Equal to the sum of all _entry costs.
- * 1 entry = $100, 2 entries = $200, etc. (assuming default COST_BASIS_PER_ENTRY).
+ * Equal to the sum of all _entry costs (Σ entry.cost).
+ * Each entry cost is set at the time of commitAverageBuy (defaults to CC_POSITION_ENTRY_COST).
  *
  * Returns null if no pending signal exists.
  *
@@ -1261,8 +1263,8 @@ export async function getPositionInvestedCount(
  * import { getPositionInvestedCost } from "backtest-kit";
  *
  * const cost = await getPositionInvestedCost("BTCUSDT");
- * // No DCA: cost === 100
- * // After one DCA: cost === 200
+ * // No DCA, default cost: cost === 100
+ * // After one DCA with default cost: cost === 200
  * ```
  */
 export async function getPositionInvestedCost(
