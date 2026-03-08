@@ -151,6 +151,11 @@ export const StockChart = ({
     useLayoutEffect(() => {
         const { current: chartElement } = elementRef;
 
+        const exitAt = pendingAt + minuteEstimatedTime * MS_PER_MINUTE;
+        const visibleItems = items.filter(
+            (c) => c.timestamp >= pendingAt && c.timestamp <= exitAt,
+        );
+
         const chart = createChart(chartElement, {
             ...chartOptions,
             width,
@@ -166,8 +171,8 @@ export const StockChart = ({
                 tickMarkFormatter: (time: Time) => {
                     // Поиск свечи по momentStamp
                     const candle =
-                        items.find((c) => c.timestamp === Number(time)) ||
-                        items[0];
+                        visibleItems.find((c) => c.timestamp === Number(time)) ||
+                        visibleItems[0];
                     if (!candle || !candle.timestamp) {
                         return "Invalid date";
                     }
@@ -185,12 +190,10 @@ export const StockChart = ({
             color: position === "long" ? colors.blue[400] : colors.orange[400],
         });
 
-        const data = items
-            .filter((c) => c.timestamp != null)
-            .map((c) => ({
-                time: Math.floor(c.timestamp) as Time,
-                value: parseFloat(c.close),
-            }));
+        const data = visibleItems.map((c) => ({
+            time: Math.floor(c.timestamp) as Time,
+            value: parseFloat(c.close),
+        }));
 
         series.setData(data);
 
@@ -276,8 +279,7 @@ export const StockChart = ({
                 text: "Entry",
             });
 
-            const exitAt = pendingAt + minuteEstimatedTime * MS_PER_MINUTE;
-            const lastTimestamp = items[items.length - 1]?.timestamp ?? 0;
+            const lastTimestamp = visibleItems[visibleItems.length - 1]?.timestamp ?? 0;
             if (lastTimestamp >= exitAt) {
                 markers.push({
                     time: alignToInterval(exitAt) as Time,
@@ -290,12 +292,12 @@ export const StockChart = ({
             }
         }
 
-        const entryIndex = items.findIndex(({ timestamp }) => timestamp > pendingAt);
+        const entryIndex = visibleItems.findIndex(({ timestamp }) => timestamp > pendingAt);
         const startIndex = entryIndex === -1 ? 0 : entryIndex;
 
         let dcaIndex = startIndex;
         for (let i = 1; i < positionLevels.length; i++) {
-            const result = findCandleByPrice(items, dcaIndex, positionLevels[i]);
+            const result = findCandleByPrice(visibleItems, dcaIndex, positionLevels[i]);
             if (!result) continue;
             if (result.index > dcaIndex) dcaIndex = result.index;
             markers.push({
@@ -310,7 +312,7 @@ export const StockChart = ({
 
         let partialIndex = startIndex;
         for (const partial of positionPartials) {
-            const result = findCandleByPrice(items, partialIndex, partial.currentPrice);
+            const result = findCandleByPrice(visibleItems, partialIndex, partial.currentPrice);
             if (!result) continue;
             if (result.index > partialIndex) partialIndex = result.index;
             const isProfit = partial.type === "profit";
@@ -329,7 +331,7 @@ export const StockChart = ({
 
         chart.subscribeCrosshairMove((param) => {
             if (param.time) {
-                const data = items.find(
+                const data = visibleItems.find(
                     (d) => d.timestamp === Number(param.time),
                 );
                 if (data) {
