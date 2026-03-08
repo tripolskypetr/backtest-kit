@@ -8,6 +8,11 @@ type Partial = {
     entryCountAtClose: number;
 };
 
+type Entry = {
+    price: number;
+    cost: number;
+};
+
 type Level = number;
 
 export interface StatusModel {
@@ -30,6 +35,7 @@ export interface StatusModel {
     pendingAt: number;
     minuteEstimatedTime: number;
     positionLevels: Level[];
+    positionEntries: Entry[];
     positionPartials: Partial[];
 }
 

@@ -42,7 +42,8 @@ export class StatusMockService {
     if (!signal) {
       return null;
     }
-    const positionLevels = (signal._entry ?? []).map((e) => e.price);
+    const positionEntries = signal._entry ?? [];
+    const positionLevels = positionEntries.map((e) => e.price);
     const positionPartials = signal._partial ?? [];
     return {
       signalId: signal.signalId,
@@ -65,6 +66,7 @@ export class StatusMockService {
       minuteEstimatedTime: signal.minuteEstimatedTime,
       pendingAt: signal.pendingAt,
       positionLevels,
+      positionEntries,
       positionPartials,
     };
   };

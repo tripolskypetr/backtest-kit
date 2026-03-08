@@ -118,7 +118,7 @@ export const StatusWidget = ({
                         originalPriceStopLoss={data.originalPriceStopLoss}
                         originalPriceTakeProfit={data.originalPriceTakeProfit}
                         minuteEstimatedTime={data.minuteEstimatedTime}
-                        positionLevels={data.positionLevels}
+                        positionLevels={data.positionEntries.map((e) => e.price)}
                         positionPartials={data.positionPartials}
                     />
                 )}

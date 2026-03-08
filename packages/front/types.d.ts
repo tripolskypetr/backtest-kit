@@ -110,6 +110,7 @@ declare class StatusMockService {
         minuteEstimatedTime: any;
         pendingAt: any;
         positionLevels: any;
+        positionEntries: any;
         positionPartials: any;
     }>;
 }
@@ -149,6 +150,7 @@ declare class StatusViewService {
         minuteEstimatedTime: any;
         pendingAt: any;
         positionLevels: any;
+        positionEntries: any;
         positionPartials: any;
     }>;
 }

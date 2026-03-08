@@ -65,6 +65,13 @@ export class StatusViewService {
     if (!positionLevels) {
       return null;
     }
+    const positionEntries = await Live.getPositionEntries(symbol, {
+      strategyName,
+      exchangeName,
+    });
+    if (!positionEntries) {
+      return null;
+    }
     const positionPartials = await Live.getPositionPartials(symbol, {
       strategyName,
       exchangeName,
@@ -92,6 +99,7 @@ export class StatusViewService {
       partialExecuted: pendingSignal.partialExecuted,
       pendingAt: pendingSignal.pendingAt,
       minuteEstimatedTime: pendingSignal.minuteEstimatedTime,
+      positionEntries,
       positionLevels,
       positionPartials,
     };
