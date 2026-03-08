@@ -78,7 +78,7 @@ export const status_fields: TypedField[] = [
                             outlinePaper={payload.outlinePaper}
                             color={pnlColor(pnlCost)}
                             label="PNL $"
-                            value={`${pnlCost >= 0 ? "+" : ""}$${Math.abs(pnlCost).toFixed(2)}`}
+                            value={`${pnlCost >= 0 ? "+" : "-"}${Math.abs(pnlCost).toFixed(2)}$`}
                             icon={Analytics}
                         />
                     ),

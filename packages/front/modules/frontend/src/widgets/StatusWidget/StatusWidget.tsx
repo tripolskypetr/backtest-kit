@@ -4,7 +4,12 @@ import { makeStyles } from "../../styles";
 import { Info } from "@mui/icons-material";
 import ioc from "../../lib";
 import StockChart from "./components/StockChart";
-import { AutoSizer, LoaderView, PaperView, useAsyncValue } from "react-declarative";
+import {
+    AutoSizer,
+    LoaderView,
+    PaperView,
+    useAsyncValue,
+} from "react-declarative";
 
 interface IStatusWidgetProps {
     outlinePaper: boolean;
@@ -121,7 +126,9 @@ export const StatusWidget = ({
                         originalPriceStopLoss={data.originalPriceStopLoss}
                         originalPriceTakeProfit={data.originalPriceTakeProfit}
                         minuteEstimatedTime={data.minuteEstimatedTime}
-                        positionLevels={data.positionEntries.map((e) => e.price)}
+                        positionLevels={data.positionEntries.map(
+                            (e) => e.price,
+                        )}
                         positionPartials={data.positionPartials}
                     />
                 )}
@@ -153,14 +160,34 @@ export const StatusWidget = ({
         return null;
     };
 
+    const renderStatus = () => {
+        if (data.status) {
+            return (
+                <Chip
+                    variant="outlined"
+                    size="small"
+                    color="info"
+                    label={String(data.status).toUpperCase()}
+                />
+            );
+        }
+        return null;
+    };
+
     return (
-        <PaperView outlinePaper={outlinePaper} className={cx(classes.root, className)} style={style} sx={sx}>
+        <PaperView
+            outlinePaper={outlinePaper}
+            className={cx(classes.root, className)}
+            style={style}
+            sx={sx}
+        >
             <div className={classes.header}>
                 <div className={classes.title}>
                     <Typography className={classes.text} variant="body1">
                         Current Status
                     </Typography>
                     {renderChip()}
+                    {renderStatus()}
                 </div>
                 <IconButton
                     className={classes.icon}
