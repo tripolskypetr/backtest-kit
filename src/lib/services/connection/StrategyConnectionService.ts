@@ -1046,7 +1046,7 @@ export class StrategyConnectionService implements TStrategy {
    * @param context - Execution context with strategyName, exchangeName, frameName
    * @returns Promise<boolean> - true if `partialProfit` would execute, false otherwise
    */
-  public validatePartialProfit = (
+  public validatePartialProfit = async (
     backtest: boolean,
     symbol: string,
     percentToClose: number,
@@ -1054,7 +1054,7 @@ export class StrategyConnectionService implements TStrategy {
     context: { strategyName: StrategyName; exchangeName: ExchangeName; frameName: FrameName },
   ): Promise<boolean> => {
     const strategy = this.getStrategy(symbol, context.strategyName, context.exchangeName, context.frameName, backtest);
-    return Promise.resolve(strategy.validatePartialProfit(symbol, percentToClose, currentPrice));
+    return await strategy.validatePartialProfit(symbol, percentToClose, currentPrice);
   };
 
   /**
@@ -1117,7 +1117,7 @@ export class StrategyConnectionService implements TStrategy {
    * @param context - Execution context with strategyName, exchangeName, frameName
    * @returns Promise<boolean> - true if `partialLoss` would execute, false otherwise
    */
-  public validatePartialLoss = (
+  public validatePartialLoss = async (
     backtest: boolean,
     symbol: string,
     percentToClose: number,
@@ -1125,7 +1125,7 @@ export class StrategyConnectionService implements TStrategy {
     context: { strategyName: StrategyName; exchangeName: ExchangeName; frameName: FrameName },
   ): Promise<boolean> => {
     const strategy = this.getStrategy(symbol, context.strategyName, context.exchangeName, context.frameName, backtest);
-    return Promise.resolve(strategy.validatePartialLoss(symbol, percentToClose, currentPrice));
+    return await strategy.validatePartialLoss(symbol, percentToClose, currentPrice);
   };
 
   /**
@@ -1188,7 +1188,7 @@ export class StrategyConnectionService implements TStrategy {
    * @param context - Execution context with strategyName, exchangeName, frameName
    * @returns Promise<boolean> - true if `trailingStop` would execute, false otherwise
    */
-  public validateTrailingStop = (
+  public validateTrailingStop = async (
     backtest: boolean,
     symbol: string,
     percentShift: number,
@@ -1196,7 +1196,7 @@ export class StrategyConnectionService implements TStrategy {
     context: { strategyName: StrategyName; exchangeName: ExchangeName; frameName: FrameName },
   ): Promise<boolean> => {
     const strategy = this.getStrategy(symbol, context.strategyName, context.exchangeName, context.frameName, backtest);
-    return Promise.resolve(strategy.validateTrailingStop(symbol, percentShift, currentPrice));
+    return await strategy.validateTrailingStop(symbol, percentShift, currentPrice);
   };
 
   /**
@@ -1256,7 +1256,7 @@ export class StrategyConnectionService implements TStrategy {
    * @param context - Execution context with strategyName, exchangeName, frameName
    * @returns Promise<boolean> - true if `trailingTake` would execute, false otherwise
    */
-  public validateTrailingTake = (
+  public validateTrailingTake = async (
     backtest: boolean,
     symbol: string,
     percentShift: number,
@@ -1264,7 +1264,7 @@ export class StrategyConnectionService implements TStrategy {
     context: { strategyName: StrategyName; exchangeName: ExchangeName; frameName: FrameName },
   ): Promise<boolean> => {
     const strategy = this.getStrategy(symbol, context.strategyName, context.exchangeName, context.frameName, backtest);
-    return Promise.resolve(strategy.validateTrailingTake(symbol, percentShift, currentPrice));
+    return await strategy.validateTrailingTake(symbol, percentShift, currentPrice);
   };
 
   /**
@@ -1323,14 +1323,14 @@ export class StrategyConnectionService implements TStrategy {
    * @param context - Execution context with strategyName, exchangeName, frameName
    * @returns Promise<boolean> - true if `breakeven` would execute, false otherwise
    */
-  public validateBreakeven = (
+  public validateBreakeven = async (
     backtest: boolean,
     symbol: string,
     currentPrice: number,
     context: { strategyName: StrategyName; exchangeName: ExchangeName; frameName: FrameName },
   ): Promise<boolean> => {
     const strategy = this.getStrategy(symbol, context.strategyName, context.exchangeName, context.frameName, backtest);
-    return Promise.resolve(strategy.validateBreakeven(symbol, currentPrice));
+    return await strategy.validateBreakeven(symbol, currentPrice);
   };
 
   /**
@@ -1420,14 +1420,14 @@ export class StrategyConnectionService implements TStrategy {
    * @param context - Execution context with strategyName, exchangeName, frameName
    * @returns Promise<boolean> - true if `averageBuy` would execute, false otherwise
    */
-  public validateAverageBuy = (
+  public validateAverageBuy = async (
     backtest: boolean,
     symbol: string,
     currentPrice: number,
     context: { strategyName: StrategyName; exchangeName: ExchangeName; frameName: FrameName },
   ): Promise<boolean> => {
     const strategy = this.getStrategy(symbol, context.strategyName, context.exchangeName, context.frameName, backtest);
-    return Promise.resolve(strategy.validateAverageBuy(symbol, currentPrice));
+    return await strategy.validateAverageBuy(symbol, currentPrice);
   };
 
   /**
