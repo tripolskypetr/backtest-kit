@@ -3541,6 +3541,114 @@ const CLOSE_PENDING_SIGNAL_IN_BACKTEST_FN = async (
   return result;
 };
 
+const CLOSE_USER_PENDING_SIGNAL_IN_BACKTEST_FN = async (
+  self: ClientStrategy,
+  closedSignal: ISignalCloseRow,
+  averagePrice: number,
+  closeTimestamp: number
+): Promise<IStrategyTickResultClosed> => {
+  const syncCloseAllowed = await CALL_SIGNAL_SYNC_CLOSE_FN(
+    closeTimestamp,
+    averagePrice,
+    "closed",
+    closedSignal,
+    self
+  );
+
+  if (!syncCloseAllowed) {
+    self.params.logger.info("ClientStrategy backtest: user-closed signal rejected by sync, will retry", {
+      symbol: self.params.execution.context.symbol,
+      signalId: closedSignal.id,
+    });
+    self._closedSignal = null;
+    self._pendingSignal = closedSignal;
+    throw new Error(
+      `ClientStrategy backtest: signal close rejected by sync (signalId=${closedSignal.id}). ` +
+      `Retry backtest() with new candle data.`
+    );
+  }
+
+  self._closedSignal = null;
+
+  await CALL_COMMIT_FN(self, {
+    action: "close-pending",
+    symbol: self.params.execution.context.symbol,
+    strategyName: self.params.strategyName,
+    exchangeName: self.params.exchangeName,
+    frameName: self.params.frameName,
+    signalId: closedSignal.id,
+    backtest: true,
+    closeId: closedSignal.closeId,
+    timestamp: closeTimestamp,
+    totalEntries: closedSignal._entry?.length ?? 1,
+    totalPartials: closedSignal._partial?.length ?? 0,
+    originalPriceOpen: closedSignal.priceOpen,
+    pnl: toProfitLossDto(closedSignal, averagePrice),
+  });
+
+  await CALL_CLOSE_CALLBACKS_FN(
+    self,
+    self.params.execution.context.symbol,
+    closedSignal,
+    averagePrice,
+    closeTimestamp,
+    self.params.execution.context.backtest
+  );
+
+  await CALL_PARTIAL_CLEAR_FN(
+    self,
+    self.params.execution.context.symbol,
+    closedSignal,
+    averagePrice,
+    closeTimestamp,
+    self.params.execution.context.backtest
+  );
+
+  await CALL_BREAKEVEN_CLEAR_FN(
+    self,
+    self.params.execution.context.symbol,
+    closedSignal,
+    averagePrice,
+    closeTimestamp,
+    self.params.execution.context.backtest
+  );
+
+  await CALL_RISK_REMOVE_SIGNAL_FN(
+    self,
+    self.params.execution.context.symbol,
+    closeTimestamp,
+    self.params.execution.context.backtest
+  );
+
+  const pnl = toProfitLossDto(closedSignal, averagePrice);
+
+  const result: IStrategyTickResultClosed = {
+    action: "closed",
+    signal: TO_PUBLIC_SIGNAL(closedSignal, averagePrice),
+    currentPrice: averagePrice,
+    closeReason: "closed",
+    closeTimestamp,
+    pnl,
+    strategyName: self.params.method.context.strategyName,
+    exchangeName: self.params.method.context.exchangeName,
+    frameName: self.params.method.context.frameName,
+    symbol: self.params.execution.context.symbol,
+    backtest: self.params.execution.context.backtest,
+    closeId: closedSignal.closeId,
+    createdAt: closeTimestamp,
+  };
+
+  await CALL_TICK_CALLBACKS_FN(
+    self,
+    self.params.execution.context.symbol,
+    result,
+    closeTimestamp,
+    self.params.execution.context.backtest
+  );
+
+  return result;
+};
+
 const PROCESS_SCHEDULED_SIGNAL_CANDLES_FN = async (
   self: ClientStrategy,
   scheduled: IScheduledSignalRow,
@@ -3807,7 +3915,7 @@ const PROCESS_PENDING_SIGNAL_CANDLES_FN = async (
   self: ClientStrategy,
   signal: ISignalRow,
   candles: ICandleData[]
-): Promise<IStrategyTickResultClosed | null> => {
+): Promise<IStrategyTickResultClosed> => {
   const candlesCount = GLOBAL_CONFIG.CC_AVG_PRICE_CANDLES_COUNT;
   const bufferCandlesCount = candlesCount - 1;
 
@@ -3827,6 +3935,11 @@ const PROCESS_PENDING_SIGNAL_CANDLES_FN = async (
     const startIndex = Math.max(0, i - (candlesCount - 1));
     const recentCandles = candles.slice(startIndex, i + 1);
     const averagePrice = GET_AVG_PRICE_FN(recentCandles);
+
+    // КРИТИЧНО: Проверяем был ли сигнал закрыт пользователем через closePending()
+    if (self._closedSignal) {
+      return await CLOSE_USER_PENDING_SIGNAL_IN_BACKTEST_FN(self, self._closedSignal, averagePrice, currentCandleTimestamp);
+    }
 
     await CALL_ACTIVE_PING_CALLBACKS_FN(self, self.params.execution.context.symbol, signal, currentCandleTimestamp, true, averagePrice);
 
@@ -3995,7 +4108,49 @@ const PROCESS_PENDING_SIGNAL_CANDLES_FN = async (
     await PROCESS_COMMIT_QUEUE_FN(self, averagePrice, currentCandleTimestamp);
   }
 
-  return null;
+  // Loop exhausted without closing — check if we have enough data
+  const lastCandles = candles.slice(-GLOBAL_CONFIG.CC_AVG_PRICE_CANDLES_COUNT);
+  const lastPrice = GET_AVG_PRICE_FN(lastCandles);
+  const closeTimestamp = lastCandles[lastCandles.length - 1].timestamp;
+
+  const signalTime = signal.pendingAt;
+  const maxTimeToWait = signal.minuteEstimatedTime * 60 * 1000;
+  const elapsedTime = closeTimestamp - signalTime;
+
+  if (elapsedTime < maxTimeToWait) {
+    const bufferCandlesCount = GLOBAL_CONFIG.CC_AVG_PRICE_CANDLES_COUNT - 1;
+    const requiredCandlesCount = signal.minuteEstimatedTime + bufferCandlesCount + 1;
+    throw new Error(
+      str.newline(
+        `ClientStrategy backtest: Insufficient candle data for pending signal. ` +
+        `Signal opened at ${new Date(signal.pendingAt).toISOString()}, ` +
+        `last candle at ${new Date(closeTimestamp).toISOString()}. ` +
+        `Elapsed: ${Math.floor(elapsedTime / 60000)}min of ${signal.minuteEstimatedTime}min required. ` +
+        `Provided ${candles.length} candles, but need at least ${requiredCandlesCount} candles. ` +
+        `\nBreakdown: ${signal.minuteEstimatedTime} candles for signal lifetime + ${bufferCandlesCount} buffer candles. ` +
+        `\nBuffer explanation: VWAP calculation requires ${GLOBAL_CONFIG.CC_AVG_PRICE_CANDLES_COUNT} candles, ` +
+        `so first ${bufferCandlesCount} candles are skipped to ensure accurate price averaging. ` +
+        `Provide complete candle range: [pendingAt - ${bufferCandlesCount}min, pendingAt + ${signal.minuteEstimatedTime}min].`
+      )
+    );
+  }
+
+  const timeExpiredResult = await CLOSE_PENDING_SIGNAL_IN_BACKTEST_FN(
+    self,
+    signal,
+    lastPrice,
+    "time_expired",
+    closeTimestamp
+  );
+
+  if (!timeExpiredResult) {
+    throw new Error(
+      `ClientStrategy backtest: time_expired close rejected by sync (signalId=${signal.id}). ` +
+      `Retry backtest() with new candle data.`
+    );
+  }
+
+  return timeExpiredResult;
 };
 
 /**
@@ -5378,63 +5533,11 @@ export class ClientStrategy implements IStrategy {
       );
     }
 
-    const closedResult = await PROCESS_PENDING_SIGNAL_CANDLES_FN(
+    return await PROCESS_PENDING_SIGNAL_CANDLES_FN(
       this,
       signal,
       candles
     );
-
-    if (closedResult) {
-      return closedResult;
-    }
-
-    // Signal didn't close during candle processing - check if we have enough data
-    const lastCandles = candles.slice(-GLOBAL_CONFIG.CC_AVG_PRICE_CANDLES_COUNT);
-    const lastPrice = GET_AVG_PRICE_FN(lastCandles);
-    const closeTimestamp = lastCandles[lastCandles.length - 1].timestamp;
-
-    const signalTime = signal.pendingAt;
-    const maxTimeToWait = signal.minuteEstimatedTime * 60 * 1000;
-    const elapsedTime = closeTimestamp - signalTime;
-
-    // Check if we actually reached time expiration or just ran out of candles
-    if (elapsedTime < maxTimeToWait) {
-      // EDGE CASE: backtest() called with insufficient candle data
-      const bufferCandlesCount = GLOBAL_CONFIG.CC_AVG_PRICE_CANDLES_COUNT - 1;
-      const requiredCandlesCount = signal.minuteEstimatedTime + bufferCandlesCount + 1;
-      throw new Error(
-        str.newline(
-          `ClientStrategy backtest: Insufficient candle data for pending signal. ` +
-          `Signal opened at ${new Date(signal.pendingAt).toISOString()}, ` +
-          `last candle at ${new Date(closeTimestamp).toISOString()}. ` +
-          `Elapsed: ${Math.floor(elapsedTime / 60000)}min of ${signal.minuteEstimatedTime}min required. ` +
-          `Provided ${candles.length} candles, but need at least ${requiredCandlesCount} candles. ` +
-          `\nBreakdown: ${signal.minuteEstimatedTime} candles for signal lifetime + ${bufferCandlesCount} buffer candles. ` +
-          `\nBuffer explanation: VWAP calculation requires ${GLOBAL_CONFIG.CC_AVG_PRICE_CANDLES_COUNT} candles, ` +
-          `so first ${bufferCandlesCount} candles are skipped to ensure accurate price averaging. ` +
-          `Provide complete candle range: [pendingAt - ${bufferCandlesCount}min, pendingAt + ${signal.minuteEstimatedTime}min].`
-        )
-      );
-    }
-
-    // Time actually expired - close with time_expired
-    const timeExpiredResult = await CLOSE_PENDING_SIGNAL_IN_BACKTEST_FN(
-      this,
-      signal,
-      lastPrice,
-      "time_expired",
-      closeTimestamp
-    );
-
-    if (!timeExpiredResult) {
-      // Sync rejected the close — signal remains in _pendingSignal, caller must retry
-      throw new Error(
-        `ClientStrategy backtest: time_expired close rejected by sync (signalId=${signal.id}). ` +
-        `Retry backtest() with new candle data.`
-      );
-    }
-
-    return timeExpiredResult;
   }
 
   /**
