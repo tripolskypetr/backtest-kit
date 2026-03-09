@@ -33,7 +33,11 @@
     "timestamp": 1708388340000,
     "_isScheduled": false,
     "_entry": [
-      { "price": 51800, "cost": 100 }
+      {
+        "price": 51800,
+        "cost": 100,
+        "timestamp": 1708388340000
+      }
     ],
     "_partial": []
   },
@@ -71,12 +75,34 @@
     "timestamp": 1707400980000,
     "_isScheduled": false,
     "_entry": [
-      { "price": 44950, "cost": 100 },
-      { "price": 44700, "cost": 100 }
+      {
+        "price": 44950,
+        "cost": 100,
+        "timestamp": 1707400980000
+      },
+      {
+        "price": 44700,
+        "cost": 100,
+        "timestamp": 1707400980000
+      }
     ],
     "_partial": [
-      { "type": "loss",   "percent": 15, "currentPrice": 44700.00, "costBasisAtClose": 100, "entryCountAtClose": 1 },
-      { "type": "profit",  "percent": 25, "currentPrice": 45120.00, "costBasisAtClose": 200, "entryCountAtClose": 2 }
+      {
+        "type": "loss",
+        "percent": 15,
+        "currentPrice": 44700,
+        "costBasisAtClose": 100,
+        "entryCountAtClose": 1,
+        "timestamp": 1707404580000
+      },
+      {
+        "type": "profit",
+        "percent": 25,
+        "currentPrice": 45120,
+        "costBasisAtClose": 200,
+        "entryCountAtClose": 2,
+        "timestamp": 1707404580000
+      }
     ]
   },
   {
@@ -113,7 +139,11 @@
     "timestamp": 1707494640000,
     "_isScheduled": false,
     "_entry": [
-      { "price": 47378.01, "cost": 100 }
+      {
+        "price": 47378.01,
+        "cost": 100,
+        "timestamp": 1707494640000
+      }
     ],
     "_partial": []
   },
@@ -151,7 +181,11 @@
     "timestamp": 1707304440000,
     "_isScheduled": false,
     "_entry": [
-      { "price": 42969.86, "cost": 100 }
+      {
+        "price": 42969.86,
+        "cost": 100,
+        "timestamp": 1707304440000
+      }
     ],
     "_partial": []
   },
@@ -189,7 +223,11 @@
     "timestamp": 1708784040000,
     "_isScheduled": false,
     "_entry": [
-      { "price": 51088, "cost": 100 }
+      {
+        "price": 51088,
+        "cost": 100,
+        "timestamp": 1708784040000
+      }
     ],
     "_partial": []
   },
@@ -227,7 +265,11 @@
     "timestamp": 1707379260000,
     "_isScheduled": false,
     "_entry": [
-      { "price": 44614.48, "cost": 100 }
+      {
+        "price": 44614.48,
+        "cost": 100,
+        "timestamp": 1707379260000
+      }
     ],
     "_partial": []
   },
@@ -265,7 +307,11 @@
     "timestamp": 1707699000000,
     "_isScheduled": false,
     "_entry": [
-      { "price": 48604, "cost": 100 }
+      {
+        "price": 48604,
+        "cost": 100,
+        "timestamp": 1707699000000
+      }
     ],
     "_partial": []
   },
@@ -303,7 +349,11 @@
     "timestamp": 1708549140000,
     "_isScheduled": false,
     "_entry": [
-      { "price": 50957.94, "cost": 100 }
+      {
+        "price": 50957.94,
+        "cost": 100,
+        "timestamp": 1708549140000
+      }
     ],
     "_partial": []
   }
