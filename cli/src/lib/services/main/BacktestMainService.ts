@@ -143,7 +143,7 @@ export class BacktestMainService {
         notifyVerbose();
       }
 
-      await this.moduleConnectionService.loadModule("./backtest.module")
+      await this.moduleConnectionService.loadModule("./backtest")
 
       Backtest.background(symbol, {
         strategyName,
