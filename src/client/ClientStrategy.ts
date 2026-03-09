@@ -1983,7 +1983,7 @@ const CALL_SCHEDULE_PING_CALLBACKS_FN = trycatch(
     scheduled: IScheduledSignalRow,
     timestamp: number,
     backtest: boolean,
-    currentPrice?: number,
+    currentPrice: number,
   ): Promise<void> => {
     await ExecutionContextService.runInContext(async () => {
       const publicSignal = TO_PUBLIC_SIGNAL(scheduled, currentPrice);
@@ -1994,6 +1994,7 @@ const CALL_SCHEDULE_PING_CALLBACKS_FN = trycatch(
         self.params.method.context.strategyName,
         self.params.method.context.exchangeName,
         publicSignal,
+        currentPrice,
         self.params.execution.context.backtest,
         timestamp
       );
@@ -2034,7 +2035,7 @@ const CALL_ACTIVE_PING_CALLBACKS_FN = trycatch(
     pending: ISignalRow,
     timestamp: number,
     backtest: boolean,
-    currentPrice?: number,
+    currentPrice: number,
   ): Promise<void> => {
     await ExecutionContextService.runInContext(async () => {
       const publicSignal = TO_PUBLIC_SIGNAL(pending, currentPrice);
@@ -2045,6 +2046,7 @@ const CALL_ACTIVE_PING_CALLBACKS_FN = trycatch(
         self.params.method.context.strategyName,
         self.params.method.context.exchangeName,
         publicSignal,
+        currentPrice,
         self.params.execution.context.backtest,
         timestamp
       );

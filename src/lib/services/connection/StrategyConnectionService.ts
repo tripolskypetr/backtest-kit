@@ -230,6 +230,7 @@ const CREATE_COMMIT_SCHEDULE_PING_FN = (self: StrategyConnectionService) => tryc
     strategyName: StrategyName,
     exchangeName: ExchangeName,
     data: IScheduledSignalRow,
+    currentPrice: number,
     backtest: boolean,
     timestamp: number
   ): Promise<void> => {
@@ -237,6 +238,7 @@ const CREATE_COMMIT_SCHEDULE_PING_FN = (self: StrategyConnectionService) => tryc
       symbol,
       strategyName,
       exchangeName,
+      currentPrice,
       data,
       backtest,
       timestamp,
@@ -274,6 +276,7 @@ const CREATE_COMMIT_ACTIVE_PING_FN = (self: StrategyConnectionService) => trycat
     strategyName: StrategyName,
     exchangeName: ExchangeName,
     data: ISignalRow,
+    currentPrice: number,
     backtest: boolean,
     timestamp: number
   ): Promise<void> => {
@@ -281,6 +284,7 @@ const CREATE_COMMIT_ACTIVE_PING_FN = (self: StrategyConnectionService) => trycat
       symbol,
       strategyName,
       exchangeName,
+      currentPrice,
       data,
       backtest,
       timestamp,

@@ -451,9 +451,9 @@ export interface IStrategyParams extends IStrategySchema {
   /** System callback for init events (emits to initSubject) */
   onInit: (symbol: string, strategyName: StrategyName, exchangeName: ExchangeName, frameName: FrameName, backtest: boolean) => Promise<void>;
   /** System callback for schedule ping events (emits to pingSubject) */
-  onSchedulePing: (symbol: string, strategyName: StrategyName, exchangeName: ExchangeName, data: IPublicSignalRow, backtest: boolean, timestamp: number) => Promise<void>;
+  onSchedulePing: (symbol: string, strategyName: StrategyName, exchangeName: ExchangeName, data: IPublicSignalRow, currentPrice: number, backtest: boolean, timestamp: number) => Promise<void>;
   /** System callback for active ping events (emits to activePingSubject) */
-  onActivePing: (symbol: string, strategyName: StrategyName, exchangeName: ExchangeName, data: IPublicSignalRow, backtest: boolean, timestamp: number) => Promise<void>;
+  onActivePing: (symbol: string, strategyName: StrategyName, exchangeName: ExchangeName, data: IPublicSignalRow, currentPrice: number, backtest: boolean, timestamp: number) => Promise<void>;
   /** System callback for dispose events (emits to disposeSubject) */
   onDispose: (symbol: string, strategyName: StrategyName, exchangeName: ExchangeName, frameName: FrameName, backtest: boolean) => Promise<void>;
   /** System callback for commit events (emits to strategyCommitSubject) */
