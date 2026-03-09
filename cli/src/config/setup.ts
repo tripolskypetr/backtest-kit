@@ -36,4 +36,9 @@ setConfig({
   CC_MAX_SIGNALS: 750,
 })
 
+setConfig({
+  CC_ENABLE_DCA_EVERYWHERE: true,
+  CC_ENABLE_PPPL_EVERYWHERE: true,
+})
+
 Log.useJsonl();
