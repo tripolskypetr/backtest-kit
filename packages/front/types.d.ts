@@ -229,7 +229,6 @@ type FrameName = string;
 declare class PriceConnectionService {
     private readonly loggerService;
     getSignalPendingPrice: (symbol: string, strategyName: StrategyName, exchangeName: ExchangeName, frameName: FrameName, backtest: boolean) => Promise<number>;
-    protected init: (() => Promise<void>) & functools_kit.ISingleshotClearable;
 }
 
 declare const ioc: {
