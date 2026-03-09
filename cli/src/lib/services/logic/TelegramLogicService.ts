@@ -5,6 +5,8 @@ import { compose, singleshot, trycatch } from "functools-kit";
 import { getTelegram } from "../../../config/telegram";
 import {
   BreakevenCommit,
+  CancelScheduledCommit,
+  ClosePendingCommit,
   IStrategyTickResultCancelled,
   IStrategyTickResultClosed,
   IStrategyTickResultOpened,
@@ -192,6 +194,28 @@ export class TelegramLogicService {
     });
   });
 
+  private notifyCancelScheduled = async (event: CancelScheduledCommit) => {
+    this.loggerService.log("telegramLogicService notifyCancelScheduled", {
+      event,
+    });
+    const markdown = await this.telegramTemplateService.getCancelScheduledMarkdown(event);
+    await this.telegramWebService.publishNotify({
+      symbol: event.symbol,
+      markdown,
+    });
+  };
+
+  private notifyClosePending = async (event: ClosePendingCommit) => {
+    this.loggerService.log("telegramLogicService notifyClosePending", {
+      event,
+    });
+    const markdown = await this.telegramTemplateService.getClosePendingMarkdown(event);
+    await this.telegramWebService.publishNotify({
+      symbol: event.symbol,
+      markdown,
+    });
+  };
+
   public connect = singleshot(() => {
     this.loggerService.log("telegramLogicService connect");
 
@@ -241,6 +265,14 @@ export class TelegramLogicService {
       }
       if (event.action === "average-buy") {
         await this.notifyAverageBuy(event);
+        return;
+      }
+      if (event.action === "cancel-scheduled") {
+        await this.notifyCancelScheduled(event);
+        return;
+      }
+      if (event.action === "close-pending") {
+        await this.notifyClosePending(event);
         return;
       }
     });

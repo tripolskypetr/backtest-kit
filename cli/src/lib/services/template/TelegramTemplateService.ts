@@ -5,6 +5,8 @@ import Mustache from "mustache";
 import {
   AverageBuyCommit,
   BreakevenCommit,
+  CancelScheduledCommit,
+  ClosePendingCommit,
   IStrategyTickResultCancelled,
   IStrategyTickResultClosed,
   IStrategyTickResultOpened,
@@ -25,6 +27,8 @@ import path from "path";
 
 type Data =
   | BreakevenCommit
+  | CancelScheduledCommit
+  | ClosePendingCommit
   | IStrategyTickResultCancelled
   | IStrategyTickResultClosed
   | IStrategyTickResultOpened
@@ -162,6 +166,20 @@ export class TelegramTemplateService {
       event,
     });
     return await RENDER_TEMPLATE_FN("signal-close.mustache", event, this);
+  };
+
+  public getCancelScheduledMarkdown = async (event: CancelScheduledCommit) => {
+    this.loggerService.log("telegramTemplateService getCancelScheduledMarkdown", {
+      event,
+    });
+    return await RENDER_TEMPLATE_FN("cancel-scheduled.mustache", event, this);
+  };
+
+  public getClosePendingMarkdown = async (event: ClosePendingCommit) => {
+    this.loggerService.log("telegramTemplateService getClosePendingMarkdown", {
+      event,
+    });
+    return await RENDER_TEMPLATE_FN("close-pending.mustache", event, this);
   };
 }
 

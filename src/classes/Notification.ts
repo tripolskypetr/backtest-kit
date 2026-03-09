@@ -510,6 +510,52 @@ const CREATE_STRATEGY_COMMIT_NOTIFICATION_FN = (data: StrategyCommitContract): N
       createdAt: data.timestamp,
     };
   }
+  if (data.action === "cancel-scheduled") {
+    return {
+      type: "cancel_scheduled.commit",
+      id: CREATE_KEY_FN(),
+      timestamp: data.timestamp,
+      backtest: data.backtest,
+      symbol: data.symbol,
+      strategyName: data.strategyName,
+      exchangeName: data.exchangeName,
+      signalId: data.signalId,
+      cancelId: data.cancelId,
+      totalEntries: data.totalEntries,
+      totalPartials: data.totalPartials,
+      originalPriceOpen: data.originalPriceOpen,
+      pnl: data.pnl,
+      pnlPercentage: data.pnl.pnlPercentage,
+      pnlPriceOpen: data.pnl.priceOpen,
+      pnlPriceClose: data.pnl.priceClose,
+      pnlCost: data.pnl.pnlCost,
+      pnlEntries: data.pnl.pnlEntries,
+      createdAt: data.timestamp,
+    };
+  }
+  if (data.action === "close-pending") {
+    return {
+      type: "close_pending.commit",
+      id: CREATE_KEY_FN(),
+      timestamp: data.timestamp,
+      backtest: data.backtest,
+      symbol: data.symbol,
+      strategyName: data.strategyName,
+      exchangeName: data.exchangeName,
+      signalId: data.signalId,
+      closeId: data.closeId,
+      totalEntries: data.totalEntries,
+      totalPartials: data.totalPartials,
+      originalPriceOpen: data.originalPriceOpen,
+      pnl: data.pnl,
+      pnlPercentage: data.pnl.pnlPercentage,
+      pnlPriceOpen: data.pnl.priceOpen,
+      pnlPriceClose: data.pnl.priceClose,
+      pnlCost: data.pnl.pnlCost,
+      pnlEntries: data.pnl.pnlEntries,
+      createdAt: data.timestamp,
+    };
+  }
   throw new Error(`Unrecognized strategy commit action: ${get(data, "action")}`);
 };
 
