@@ -6,11 +6,13 @@ type Partial = {
     currentPrice: number;
     costBasisAtClose: number;
     entryCountAtClose: number;
+    timestamp: number;
 };
 
 type Entry = {
     price: number;
     cost: number;
+    timestamp: number
 };
 
 type Level = number;

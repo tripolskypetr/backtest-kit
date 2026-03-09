@@ -30,7 +30,14 @@ type PositionPartial = {
     type: "profit" | "loss";
     percent: number;
     currentPrice: number;
+    timestamp: number;
 };
+
+type PositionEntry = {
+    price: number;
+    cost: number;
+    timestamp: number
+}
 
 interface IChartProps {
     height: number;
@@ -45,8 +52,8 @@ interface IChartProps {
     originalPriceStopLoss: number;
     originalPriceTakeProfit: number;
     minuteEstimatedTime: number;
-    positionLevels: number[];
     positionPartials: PositionPartial[];
+    positionEntries: PositionEntry[];
 }
 
 const useStyles = makeStyles()({
@@ -105,20 +112,6 @@ const chartOptions: DeepPartial<ChartOptions> = {
     },
 };
 
-const findCandleByPrice = (items: ICandleData[], fromIndex: number, targetPrice: number): { candle: ICandleData; index: number } | null => {
-    if (fromIndex >= items.length) return null;
-    let bestIndex = fromIndex;
-    let bestDiff = Math.abs(parseFloat(items[fromIndex].close) - targetPrice);
-    for (let i = fromIndex + 1; i < items.length; i++) {
-        const diff = Math.abs(parseFloat(items[i].close) - targetPrice);
-        if (diff < bestDiff) {
-            bestDiff = diff;
-            bestIndex = i;
-        }
-    }
-    return { candle: items[bestIndex], index: bestIndex };
-};
-
 type Ref = React.MutableRefObject<HTMLDivElement>;
 
 export const StockChart = ({
@@ -134,7 +127,7 @@ export const StockChart = ({
     originalPriceStopLoss,
     originalPriceTakeProfit,
     minuteEstimatedTime,
-    positionLevels,
+    positionEntries,
     positionPartials,
 }: IChartProps) => {
     const { classes } = useStyles();
@@ -287,29 +280,24 @@ export const StockChart = ({
         const entryIndex = visibleItems.findIndex(({ timestamp }) => timestamp > pendingAt);
         const startIndex = entryIndex === -1 ? 0 : entryIndex;
 
-        let dcaIndex = startIndex;
-        for (let i = 1; i < positionLevels.length; i++) {
-            const result = findCandleByPrice(visibleItems, dcaIndex, positionLevels[i]);
-            if (!result) continue;
-            if (result.index > dcaIndex) dcaIndex = result.index;
+        for (const [idx, entry] of positionEntries.entries()) {
+            if (idx === 0) {
+                continue;
+            }
             markers.push({
-                time: Math.floor(result.candle.timestamp) as Time,
+                time: alignToInterval(entry.timestamp) as Time,
                 position: "belowBar",
                 color: colors.amber[400],
                 shape: "circle",
                 size: 1,
-                text: `DCA ${i}`,
+                text: `DCA ${idx}`,
             });
         }
 
-        let partialIndex = startIndex;
         for (const partial of positionPartials) {
-            const result = findCandleByPrice(visibleItems, partialIndex, partial.currentPrice);
-            if (!result) continue;
-            if (result.index > partialIndex) partialIndex = result.index;
             const isProfit = partial.type === "profit";
             markers.push({
-                time: Math.floor(result.candle.timestamp) as Time,
+                time: alignToInterval(partial.timestamp) as Time,
                 position: isProfit ? "aboveBar" : "belowBar",
                 color: isProfit ? colors.green[400] : colors.red[400],
                 shape: "square",
@@ -358,7 +346,7 @@ export const StockChart = ({
         originalPriceStopLoss,
         originalPriceTakeProfit,
         minuteEstimatedTime,
-        positionLevels,
+        positionEntries,
         positionPartials,
     ]);
 

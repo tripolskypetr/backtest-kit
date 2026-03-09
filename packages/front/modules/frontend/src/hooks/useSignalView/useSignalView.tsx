@@ -27,7 +27,6 @@ const fetchData = ttl(async (id: string) => {
   const signal = await ioc.storageViewService.findSignalById(id) as IStorageSignalRow;
 
   const positionEntries = signal._entry ?? [];
-  const positionLevels = positionEntries.map((e) => e.price);
   const positionPartials = signal._partial ?? [];
 
   const status = {
@@ -37,7 +36,6 @@ const fetchData = ttl(async (id: string) => {
     pnlCost: signal.pnl.pnlCost,
     pnlEntries: signal.pnl.pnlEntries,
     positionEntries,
-    positionLevels,
     positionPartials,
   };
 
