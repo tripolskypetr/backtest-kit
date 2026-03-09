@@ -14,23 +14,25 @@ import { fileURLToPath } from "url";
 import path from "path";
 import fs from "fs";
 import { getArgs } from "../../../helpers/getArgs";
+import { singleshot } from "functools-kit";
 
 registerPlugin("plugin-transform-modules-umd", pluginUMD);
 
-const baseRequire = createRequire(import.meta.url);
-
-const require = new Proxy(baseRequire, {
-  apply(_target, _this, args) {
-    const id = args[0];
-    if (id === "backtest-kit") return globalThis.BacktestKit;
-    if (id === "@backtest-kit/cli") return globalThis.BacktestKitCli;
-    if (id === "@backtest-kit/ui") return globalThis.BacktestKitUi;
-    if (id === "@backtest-kit/graph") return globalThis.BacktestKitGraph;
-    if (id === "@backtest-kit/ollama") return globalThis.BacktestKitOllama;
-    if (id === "@backtest-kit/pinets") return globalThis.BacktestKitPinets;
-    if (id === "@backtest-kit/signals") return globalThis.BacktestKitSignals;
-    return baseRequire(id);
-  },
+const getBaseRequire = singleshot(() => {
+  const baseRequire = createRequire(path.join(process.cwd(), "index.cjs"));
+  return new Proxy(baseRequire, {
+    apply(_target, _this, args) {
+      const id = args[0];
+      if (id === "backtest-kit") return globalThis.BacktestKit;
+      if (id === "@backtest-kit/cli") return globalThis.BacktestKitCli;
+      if (id === "@backtest-kit/ui") return globalThis.BacktestKitUi;
+      if (id === "@backtest-kit/graph") return globalThis.BacktestKitGraph;
+      if (id === "@backtest-kit/ollama") return globalThis.BacktestKitOllama;
+      if (id === "@backtest-kit/pinets") return globalThis.BacktestKitPinets;
+      if (id === "@backtest-kit/signals") return globalThis.BacktestKitSignals;
+      return baseRequire(id);
+    },
+  });
 });
 
 const __filename = fileURLToPath(import.meta.url);
@@ -94,6 +96,7 @@ export class BabelService {
     this.loggerService.log("babelService transpileAndRun", {
       codeLen: code.length,
     });
+    const require = getBaseRequire();
     const module = { exports: {} as Record<string, unknown> };
     const exports = module.exports;
     eval(this.transpile(code));
