@@ -65,7 +65,7 @@ type Partials = Array<{
   timestamp: number;
 }>;
 
-type Entries = Array<{ price: number; cost: number }>;
+type Entries = Array<{ price: number; cost: number; timestamp: number }>;
 
 /**
  * Mock value for scheduled signal pendingAt timestamp.
@@ -4527,16 +4527,16 @@ export class ClientStrategy implements IStrategy {
    * // No DCA: [{ price: 43000, cost: 100 }]
    * // One DCA: [{ price: 43000, cost: 100 }, { price: 42000, cost: 100 }]
    */
-  public async getPositionEntries(symbol: string): Promise<Entries> | null {
+  public async getPositionEntries(symbol: string, timestamp: number): Promise<Entries> | null {
     this.params.logger.debug("ClientStrategy getPositionEntries", { symbol });
     if (!this._pendingSignal) {
       return null;
     }
     const entries = this._pendingSignal._entry;
     if (!entries || entries.length === 0) {
-      return [{ price: this._pendingSignal.priceOpen, cost: GLOBAL_CONFIG.CC_POSITION_ENTRY_COST }];
+      return [{ price: this._pendingSignal.priceOpen, cost: GLOBAL_CONFIG.CC_POSITION_ENTRY_COST, timestamp }];
     }
-    return entries.map(({ price, cost }) => ({ price, cost }));
+    return entries.map(({ price, cost, timestamp }) => ({ price, cost, timestamp }));
   }
 
   /**

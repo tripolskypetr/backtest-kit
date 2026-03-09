@@ -702,7 +702,8 @@ export class StrategyConnectionService implements TStrategy {
       backtest,
     });
     const strategy = this.getStrategy(symbol, context.strategyName, context.exchangeName, context.frameName, backtest);
-    return await strategy.getPositionEntries(symbol);
+    const timestamp = await this.timeMetaService.getTimestamp(symbol, context, backtest);
+    return await strategy.getPositionEntries(symbol, timestamp);
   };
 
   /**

@@ -2866,9 +2866,29 @@ interface IStrategy {
      * @param symbol - Trading pair symbol
      * @returns Promise resolving to array of entry records or null
      */
-    getPositionEntries: (symbol: string) => Promise<Array<{
+    getPositionEntries: (symbol: string, timestamp: number) => Promise<Array<{
         price: number;
         cost: number;
+        timestamp: number;
+    }> | null>;
+    /**
+     * Returns the history of partial closes for the current pending signal.
+     *
+     * Each record includes the type (profit or loss), percentage closed, price, cost basis at close, and timestamp.
+     * Used for tracking how the position was partially closed over time.
+     *
+     * Returns null if no pending signal exists or no partial closes were executed.
+     *
+     * @param symbol - Trading pair symbol
+     * @returns Promise resolving to array of partial close records or null
+     */
+    getPositionPartials: (symbol: string) => Promise<Array<{
+        type: "profit" | "loss";
+        percent: number;
+        currentPrice: number;
+        costBasisAtClose: number;
+        entryCountAtClose: number;
+        timestamp: number;
     }> | null>;
     /**
      * Fast backtest using historical candles.
@@ -11867,6 +11887,7 @@ declare class BacktestUtils {
     }) => Promise<{
         price: number;
         cost: number;
+        timestamp: number;
     }[]>;
     /**
      * Checks whether the current price falls within the tolerance zone of any existing DCA entry level.
@@ -12987,6 +13008,7 @@ declare class LiveUtils {
     }) => Promise<{
         price: number;
         cost: number;
+        timestamp: number;
     }[]>;
     /**
      * Checks whether the current price falls within the tolerance zone of any existing DCA entry level.
@@ -21241,6 +21263,7 @@ declare class StrategyConnectionService implements TStrategy$1 {
     }) => Promise<{
         price: number;
         cost: number;
+        timestamp: number;
     }[]>;
     /**
      * Retrieves the currently active scheduled signal for the strategy.
@@ -22494,6 +22517,7 @@ declare class StrategyCoreService implements TStrategy {
     }) => Promise<{
         price: number;
         cost: number;
+        timestamp: number;
     }[]>;
     /**
      * Retrieves the currently active scheduled signal for the symbol.
