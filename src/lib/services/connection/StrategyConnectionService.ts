@@ -1102,7 +1102,8 @@ export class StrategyConnectionService implements TStrategy {
       backtest,
     });
     const strategy = this.getStrategy(symbol, context.strategyName, context.exchangeName, context.frameName, backtest);
-    return await strategy.partialProfit(symbol, percentToClose, currentPrice, backtest);
+    const timestamp = await this.timeMetaService.getTimestamp(symbol, context, backtest);
+    return await strategy.partialProfit(symbol, percentToClose, currentPrice, backtest, timestamp);
   };
 
   /**
@@ -1172,7 +1173,8 @@ export class StrategyConnectionService implements TStrategy {
       backtest,
     });
     const strategy = this.getStrategy(symbol, context.strategyName, context.exchangeName, context.frameName, backtest);
-    return await strategy.partialLoss(symbol, percentToClose, currentPrice, backtest);
+    const timestamp = await this.timeMetaService.getTimestamp(symbol, context, backtest);
+    return await strategy.partialLoss(symbol, percentToClose, currentPrice, backtest, timestamp);
   };
 
   /**
@@ -1453,7 +1455,8 @@ export class StrategyConnectionService implements TStrategy {
       backtest,
     });
     const strategy = this.getStrategy(symbol, context.strategyName, context.exchangeName, context.frameName, backtest);
-    return await strategy.averageBuy(symbol, currentPrice, backtest, cost);
+    const timestamp = await this.timeMetaService.getTimestamp(symbol, context, backtest);
+    return await strategy.averageBuy(symbol, currentPrice, backtest, timestamp, cost);
   };
 }
 

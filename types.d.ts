@@ -2164,8 +2164,8 @@ interface ISignalRow extends ISignalDto {
          * Used to slice _entry to only entries that existed at this partial.
          */
         entryCountAtClose: number;
-        /** Debug only timestamp in milliseconds */
-        debugTimestamp?: number;
+        /** Unix timestamp in milliseconds when this partial close was executed */
+        timestamp: number;
     }>;
     /**
      * Trailing stop-loss price that overrides priceStopLoss when set.
@@ -2188,8 +2188,8 @@ interface ISignalRow extends ISignalDto {
         price: number;
         /** Cost of this entry in USD (e.g. 100 for $100 position) */
         cost: number;
-        /** Debug only timestamp in milliseconds */
-        debugTimestamp?: number;
+        /** Unix timestamp in milliseconds when this entry was executed */
+        timestamp: number;
     }>;
     /**
      * Trailing take-profit price that overrides priceTakeProfit when set.
@@ -2988,14 +2988,15 @@ interface IStrategy {
      * @param percentToClose - Absolute percentage of position to close (0-100)
      * @param currentPrice - Current market price for partial close
      * @param backtest - Whether running in backtest mode
+     * @param timestamp - Unix timestamp (ms) of the candle that triggered this partial close
      * @returns Promise<boolean> - true if partial close executed, false if skipped
      *
      * @example
      * ```typescript
      * callbacks: {
-     *   onPartialProfit: async (symbol, signal, currentPrice, percentTp, backtest) => {
+     *   onPartialProfit: async (symbol, signal, currentPrice, percentTp, backtest, timestamp) => {
      *     if (percentTp >= 50) {
-     *       const success = await strategy.partialProfit(symbol, 25, currentPrice, backtest);
+     *       const success = await strategy.partialProfit(symbol, 25, currentPrice, backtest, timestamp);
      *       if (success) {
      *         console.log('Partial profit executed');
      *       }
@@ -3004,7 +3005,7 @@ interface IStrategy {
      * }
      * ```
      */
-    partialProfit: (symbol: string, percentToClose: number, currentPrice: number, backtest: boolean) => Promise<boolean>;
+    partialProfit: (symbol: string, percentToClose: number, currentPrice: number, backtest: boolean, timestamp: number) => Promise<boolean>;
     /**
      * Checks whether `partialProfit` would succeed without executing it.
      *
@@ -3043,14 +3044,15 @@ interface IStrategy {
      * @param percentToClose - Absolute percentage of position to close (0-100)
      * @param currentPrice - Current market price for partial close
      * @param backtest - Whether running in backtest mode
+     * @param timestamp - Unix timestamp (ms) of the candle that triggered this partial close
      * @returns Promise<boolean> - true if partial close executed, false if skipped
      *
      * @example
      * ```typescript
      * callbacks: {
-     *   onPartialLoss: async (symbol, signal, currentPrice, percentSl, backtest) => {
+     *   onPartialLoss: async (symbol, signal, currentPrice, percentSl, backtest, timestamp) => {
      *     if (percentSl >= 80) {
-     *       const success = await strategy.partialLoss(symbol, 50, currentPrice, backtest);
+     *       const success = await strategy.partialLoss(symbol, 50, currentPrice, backtest, timestamp);
      *       if (success) {
      *         console.log('Partial loss executed');
      *       }
@@ -3059,7 +3061,7 @@ interface IStrategy {
      * }
      * ```
      */
-    partialLoss: (symbol: string, percentToClose: number, currentPrice: number, backtest: boolean) => Promise<boolean>;
+    partialLoss: (symbol: string, percentToClose: number, currentPrice: number, backtest: boolean, timestamp: number) => Promise<boolean>;
     /**
      * Checks whether `partialLoss` would succeed without executing it.
      *
@@ -3318,9 +3320,11 @@ interface IStrategy {
      * @param symbol - Trading pair symbol (e.g., "BTCUSDT")
      * @param currentPrice - New entry price to add to the averaging history
      * @param backtest - Whether running in backtest mode
+     * @param timestamp - Unix timestamp (ms) of the candle that triggered this DCA entry
+     * @param cost - Optional cost of the new entry (defaults to $100 if not provided)
      * @returns Promise<boolean> - true if entry added, false if rejected by direction check
      */
-    averageBuy: (symbol: string, currentPrice: number, backtest: boolean) => Promise<boolean>;
+    averageBuy: (symbol: string, currentPrice: number, backtest: boolean, timestamp: number, cost?: number) => Promise<boolean>;
     /**
      * Checks whether `averageBuy` would succeed without executing it.
      *
@@ -5010,7 +5014,7 @@ declare function getPositionPartials(symbol: string): Promise<{
     currentPrice: number;
     costBasisAtClose: number;
     entryCountAtClose: number;
-    debugTimestamp?: number;
+    timestamp: number;
 }[]>;
 /**
  * Checks whether the current price falls within the tolerance zone of any existing DCA entry level.
@@ -11837,7 +11841,7 @@ declare class BacktestUtils {
         currentPrice: number;
         costBasisAtClose: number;
         entryCountAtClose: number;
-        debugTimestamp?: number;
+        timestamp: number;
     }[]>;
     /**
      * Returns the list of DCA entry prices and costs for the current pending signal.
@@ -12958,7 +12962,7 @@ declare class LiveUtils {
         currentPrice: number;
         costBasisAtClose: number;
         entryCountAtClose: number;
-        debugTimestamp?: number;
+        timestamp: number;
     }[]>;
     /**
      * Returns the list of DCA entry prices and costs for the current pending signal.
@@ -21228,7 +21232,7 @@ declare class StrategyConnectionService implements TStrategy$1 {
         currentPrice: number;
         costBasisAtClose: number;
         entryCountAtClose: number;
-        debugTimestamp?: number;
+        timestamp: number;
     }[]>;
     getPositionEntries: (backtest: boolean, symbol: string, context: {
         strategyName: StrategyName;
@@ -22481,7 +22485,7 @@ declare class StrategyCoreService implements TStrategy {
         currentPrice: number;
         costBasisAtClose: number;
         entryCountAtClose: number;
-        debugTimestamp?: number;
+        timestamp: number;
     }[]>;
     getPositionEntries: (backtest: boolean, symbol: string, context: {
         strategyName: StrategyName;

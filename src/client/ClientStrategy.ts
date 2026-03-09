@@ -42,7 +42,6 @@ import toPlainString from "../helpers/toPlainString";
 import { getTotalClosed } from "../helpers/getTotalClosed";
 import beginTime from "../utils/beginTime";
 import { StrategyCommitContract } from "../contract/StrategyCommit.contract";
-import { getDebugTimestamp } from "../helpers/getDebugTimestamp";
 
 const INTERVAL_MINUTES: Record<SignalInterval, number> = {
   "1m": 1,
@@ -63,7 +62,7 @@ type Partials = Array<{
   currentPrice: number;
   costBasisAtClose: number;
   entryCountAtClose: number;
-  debugTimestamp?: number;
+  timestamp: number;
 }>;
 
 type Entries = Array<{ price: number; cost: number }>;
@@ -932,7 +931,7 @@ const GET_SIGNAL_FN = trycatch(
           pendingAt: currentTime, // Для immediate signal оба времени одинаковые
           timestamp: currentTime,
           _isScheduled: false,
-          _entry: [{ price: signal.priceOpen, cost: signal.cost ?? GLOBAL_CONFIG.CC_POSITION_ENTRY_COST, debugTimestamp: currentTime }],
+          _entry: [{ price: signal.priceOpen, cost: signal.cost ?? GLOBAL_CONFIG.CC_POSITION_ENTRY_COST, timestamp: currentTime }],
         };
 
         // Валидируем сигнал перед возвратом
@@ -959,7 +958,7 @@ const GET_SIGNAL_FN = trycatch(
         pendingAt: SCHEDULED_SIGNAL_PENDING_MOCK, // Временно, обновится при активации
         timestamp: currentTime,
         _isScheduled: true,
-        _entry: [{ price: signal.priceOpen, cost: signal.cost ?? GLOBAL_CONFIG.CC_POSITION_ENTRY_COST, debugTimestamp: currentTime }],
+        _entry: [{ price: signal.priceOpen, cost: signal.cost ?? GLOBAL_CONFIG.CC_POSITION_ENTRY_COST, timestamp: currentTime }],
       };
 
       // Валидируем сигнал перед возвратом
@@ -982,7 +981,7 @@ const GET_SIGNAL_FN = trycatch(
       pendingAt: currentTime, // Для immediate signal оба времени одинаковые
       timestamp: currentTime,
       _isScheduled: false,
-      _entry: [{ price: currentPrice, cost: signal.cost ?? GLOBAL_CONFIG.CC_POSITION_ENTRY_COST, debugTimestamp: currentTime }],
+      _entry: [{ price: currentPrice, cost: signal.cost ?? GLOBAL_CONFIG.CC_POSITION_ENTRY_COST, timestamp: currentTime }],
     };
 
     // Валидируем сигнал перед возвратом
@@ -1109,7 +1108,8 @@ const PARTIAL_PROFIT_FN = (
   self: ClientStrategy,
   signal: ISignalRow,
   percentToClose: number,
-  currentPrice: number
+  currentPrice: number,
+  timestamp: number
 ): boolean => {
   // Initialize partial array if not present
   if (!signal._partial) signal._partial = [];
@@ -1145,7 +1145,7 @@ const PARTIAL_PROFIT_FN = (
     entryCountAtClose,
     currentPrice,
     costBasisAtClose: remainingCostBasis,
-    debugTimestamp: getDebugTimestamp(),
+    timestamp,
   });
 
   self.params.logger.info("PARTIAL_PROFIT_FN executed", {
@@ -1162,7 +1162,8 @@ const PARTIAL_LOSS_FN = (
   self: ClientStrategy,
   signal: ISignalRow,
   percentToClose: number,
-  currentPrice: number
+  currentPrice: number,
+  timestamp: number
 ): boolean => {
   // Initialize partial array if not present
   if (!signal._partial) signal._partial = [];
@@ -1197,7 +1198,7 @@ const PARTIAL_LOSS_FN = (
     currentPrice,
     entryCountAtClose,
     costBasisAtClose: remainingCostBasis,
-    debugTimestamp: getDebugTimestamp(),
+    timestamp,
   });
 
   self.params.logger.warn("PARTIAL_LOSS_FN executed", {
@@ -1646,11 +1647,12 @@ const AVERAGE_BUY_FN = (
   self: ClientStrategy,
   signal: ISignalRow,
   currentPrice: number,
+  timestamp: number,
   cost: number = GLOBAL_CONFIG.CC_POSITION_ENTRY_COST
 ): boolean => {
   // Ensure _entry is initialized (handles signals loaded from disk without _entry)
   if (!signal._entry || signal._entry.length === 0) {
-    signal._entry = [{ price: signal.priceOpen, cost: GLOBAL_CONFIG.CC_POSITION_ENTRY_COST, debugTimestamp: getDebugTimestamp() }];
+    signal._entry = [{ price: signal.priceOpen, cost: GLOBAL_CONFIG.CC_POSITION_ENTRY_COST, timestamp }];
   }
 
   if (signal.position === "long") {
@@ -1681,7 +1683,7 @@ const AVERAGE_BUY_FN = (
     }
   }
 
-  signal._entry.push({ price: currentPrice, cost, debugTimestamp: getDebugTimestamp() });
+  signal._entry.push({ price: currentPrice, cost, timestamp });
 
   self.params.logger.info("AVERAGE_BUY_FN executed", {
     signalId: signal.id,
@@ -5753,7 +5755,8 @@ export class ClientStrategy implements IStrategy {
     symbol: string,
     percentToClose: number,
     currentPrice: number,
-    backtest: boolean
+    backtest: boolean,
+    timestamp: number
   ): Promise<boolean> {
     this.params.logger.debug("ClientStrategy partialProfit", {
       symbol,
@@ -5841,7 +5844,7 @@ export class ClientStrategy implements IStrategy {
     }
 
     // Execute partial close logic
-    const wasExecuted = PARTIAL_PROFIT_FN(this, this._pendingSignal, percentToClose, currentPrice);
+    const wasExecuted = PARTIAL_PROFIT_FN(this, this._pendingSignal, percentToClose, currentPrice, timestamp);
 
     // If partial was not executed (exceeded 100%), return false without persistence
     if (!wasExecuted) {
@@ -5981,7 +5984,8 @@ export class ClientStrategy implements IStrategy {
     symbol: string,
     percentToClose: number,
     currentPrice: number,
-    backtest: boolean
+    backtest: boolean,
+    timestamp: number
   ): Promise<boolean> {
     this.params.logger.debug("ClientStrategy partialLoss", {
       symbol,
@@ -6069,7 +6073,7 @@ export class ClientStrategy implements IStrategy {
     }
 
     // Execute partial close logic
-    const wasExecuted = PARTIAL_LOSS_FN(this, this._pendingSignal, percentToClose, currentPrice);
+    const wasExecuted = PARTIAL_LOSS_FN(this, this._pendingSignal, percentToClose, currentPrice, timestamp);
 
     // If partial was not executed (exceeded 100%), return false without persistence
     if (!wasExecuted) {
@@ -6959,6 +6963,7 @@ export class ClientStrategy implements IStrategy {
     symbol: string,
     currentPrice: number,
     backtest: boolean,
+    timestamp: number,
     cost: number = GLOBAL_CONFIG.CC_POSITION_ENTRY_COST
   ): Promise<boolean> {
     this.params.logger.debug("ClientStrategy averageBuy", {
@@ -6982,7 +6987,7 @@ export class ClientStrategy implements IStrategy {
     }
 
     // Execute averaging logic
-    const result = AVERAGE_BUY_FN(this, this._pendingSignal, currentPrice, cost);
+    const result = AVERAGE_BUY_FN(this, this._pendingSignal, currentPrice, timestamp, cost);
 
     if (!result) {
       return false;

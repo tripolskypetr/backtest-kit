@@ -4,6 +4,7 @@
     "baseUrl": "./",
     "lib": [
       "esnext",
+      "dom"
     ],
     "moduleDetection": "force",
     "target": "ES2020",
