@@ -2,7 +2,7 @@ import { inject } from "../../../lib/core/di";
 import BabelService from "./BabelService";
 import TYPES from "../../../lib/core/types";
 import LoggerService from "./LoggerService";
-import ClientLoader from "src/client/ClientLoader";
+import ClientLoader from "../../../client/ClientLoader";
 import { memoize } from "functools-kit";
 
 export class LoaderService {
