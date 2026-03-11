@@ -9,4 +9,5 @@ export interface ILoaderParams {
 
 export interface ILoader {
     import(filePath: string): any;
+    check(filePath: string): boolean;
 }

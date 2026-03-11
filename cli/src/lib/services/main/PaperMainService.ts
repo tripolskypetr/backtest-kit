@@ -96,7 +96,7 @@ export class PaperMainService {
         notifyVerbose();
       }
 
-      await this.moduleConnectionService.loadModule("./paper")
+      await this.moduleConnectionService.loadModule("./paper.module")
 
       Live.background(symbol, {
         strategyName,

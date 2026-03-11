@@ -94,7 +94,7 @@ export class LiveMainService {
       notifyVerbose();
     }
 
-    await this.moduleConnectionService.loadModule("./live")
+    await this.moduleConnectionService.loadModule("./live.module")
 
     Live.background(symbol, {
       strategyName,

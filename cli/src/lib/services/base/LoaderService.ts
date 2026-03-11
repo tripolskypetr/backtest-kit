@@ -19,12 +19,22 @@ export class LoaderService {
       }),
   );
 
-  public import = async (filePath: string, basePath = process.cwd()) => {
+  public import = (filePath: string, basePath = process.cwd()) => {
     this.loggerService.log("loaderService import", {
       filePath,
+      basePath,
     });
     const instance = this.getInstance(basePath);
     return instance.import(filePath);
+  };
+
+  public check = async (filePath: string, basePath = process.cwd()) => {
+    this.loggerService.log("loaderService check", {
+      filePath,
+      basePath,
+    });
+    const instance = this.getInstance(basePath);
+    return instance.check(filePath);
   };
 }
 

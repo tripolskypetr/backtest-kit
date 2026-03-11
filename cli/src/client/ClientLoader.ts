@@ -196,6 +196,20 @@ export class ClientLoader implements ILoader {
     });
     return ENTRY_FACTORY(filePath, this);
   }
+
+  public check(filePath: string) {
+    this.params.logger.log("ClientLoader check", {
+      filePath,
+      basePath: this.params.path,
+    });
+    const resolved = path.resolve(this.__dirname, filePath);
+    for (const variantPath of  GET_EXT_VARIANTS_FN(resolved)) {
+      if (fs.existsSync(variantPath)) {
+        return true;
+      }
+    }
+    return false;
+  }
 }
 
 globalThis.BacktestKit = BacktestKit;

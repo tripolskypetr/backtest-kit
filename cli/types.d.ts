@@ -91,7 +91,8 @@ declare class LoaderService {
     private readonly babelService;
     private readonly loggerService;
     private getInstance;
-    import: (filePath: string, basePath?: string) => Promise<any>;
+    import: (filePath: string, basePath?: string) => any;
+    check: (filePath: string, basePath?: string) => Promise<boolean>;
 }
 
 declare class ResolveService {
@@ -242,6 +243,7 @@ declare const cli: {
 
 interface ILoader {
     import(filePath: string): any;
+    check(filePath: string): boolean;
 }
 
 declare enum ExchangeName {

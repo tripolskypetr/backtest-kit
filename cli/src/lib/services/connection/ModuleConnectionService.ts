@@ -22,9 +22,11 @@ const LOAD_MODULE_MODULE_FN = async (
     .catch(() => false);
   const resolvedFile = hasOverride ? overridePath : targetPath;
   try {
-    await fs.access(resolvedFile, constants.F_OK | constants.R_OK)
-    self.loaderService.import(resolvedFile);
-    return true;
+    if (self.loaderService.check(resolvedFile)) {
+      self.loaderService.import(resolvedFile);
+      return true;
+    }    
+    return false;
   } catch {
     console.warn(`Module module import failed for file: ${resolvedFile}`);
     return false;
