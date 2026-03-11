@@ -1,3 +1,4 @@
+import { alignToInterval } from "../utils/alignToInterval";
 import backtest, { ExecutionContextService } from "../lib"
 
 /**
@@ -11,5 +12,5 @@ export const getContextTimestamp = () => {
     if (ExecutionContextService.hasContext()) {
         return backtest.executionContextService.context.when.getTime();
     }
-    return Date.now();
+    return alignToInterval(new Date(), "1m").getTime();
 }
