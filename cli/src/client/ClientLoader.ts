@@ -1,6 +1,6 @@
 import path from "path";
 import { createRequire } from "module";
-import { singleshot } from "functools-kit";
+import { getErrorMessage, singleshot } from "functools-kit";
 import fs from "fs";
 
 import { ILoader, ILoaderParams } from "../interfaces/Loader.interface";
@@ -20,7 +20,14 @@ const TRANSPILE_FN = (code: string, self: ClientLoader) => {
   const __dirname = self.__dirname;
   const module = { exports: {} as Record<string, unknown> };
   const exports = module.exports;
-  eval(self.params.babel.transpile(code));
+  try {
+    eval(self.params.babel.transpile(code));
+  } catch (error) {
+    console.log(
+      `Error during transpilation error=\`${getErrorMessage(error)}\` __filename=\`${__filename}\` __dirname=\`${__dirname}\``,
+    );
+    process.exit(-1);
+  }
   return {
     require,
     __filename,
@@ -43,7 +50,7 @@ const REQUIRE_ENTRY_FACTORY = (filePath: string, self: ClientLoader) => {
 };
 
 const BABEL_ENTRY_FACTORY = (filePath: string, self: ClientLoader) => {
-  try {  
+  try {
     const resolvedPath = path.resolve(self.__dirname, filePath);
     const code = fs.readFileSync(resolvedPath, "utf-8");
     const child = self.fork(path.dirname(resolvedPath));
@@ -56,16 +63,58 @@ const BABEL_ENTRY_FACTORY = (filePath: string, self: ClientLoader) => {
   }
 };
 
+const GET_EXT_VARIANTS_FN = (fileName: string): string[] => {
+  const ext = path.extname(fileName);
+  const base = ext ? fileName.slice(0, -ext.length) : fileName;
+  const result: string[] = [];
+
+  {
+    result.push(`${base}`)
+    result.push(`${base}.cjs`)
+    result.push(`${base}.mjs`)
+    result.push(`${base}.ts`)
+    result.push(`${base}.tsx`)
+    result.push(`${base}.js`)
+    result.push(`${base}.json`)
+  }
+
+  {
+    result.push(`${fileName}`)
+    result.push(`${fileName}.cjs`)
+    result.push(`${fileName}.mjs`)
+    result.push(`${fileName}.ts`)
+    result.push(`${fileName}.tsx`)
+    result.push(`${fileName}.js`)
+    result.push(`${fileName}.json`)
+  }
+
+  return result;
+};
+
+const GET_RESOLVED_EXT_FN = (filePath: string) => {
+  for (const variant of GET_EXT_VARIANTS_FN(filePath)) {
+    if (fs.existsSync(variant)) {
+      return variant;
+    }
+  }
+  return filePath;
+};
+
 const ENTRY_FACTORY = (filePath: string, self: ClientLoader) => {
+  filePath = GET_RESOLVED_EXT_FN(filePath);
+  {
     let result: any = null;
-    if (result = REQUIRE_ENTRY_FACTORY(filePath, self)) {
-        return result;
+    if ((result = REQUIRE_ENTRY_FACTORY(filePath, self))) {
+      return result;
     }
-    if (result = BABEL_ENTRY_FACTORY(filePath, self)) {
-        return result;
+    if ((result = BABEL_ENTRY_FACTORY(filePath, self))) {
+      return result;
     }
-    throw new Error(`Failed to load module at ${filePath} (basepath: ${self.params.path})`);
-}
+  }
+  throw new Error(
+    `Failed to load module at ${filePath} (basepath: ${self.params.path})`,
+  );
+};
 
 const CREATE_BASE_REQUIRE_FN = (self: ClientLoader) => {
   const baseRequire = createRequire(self.__filename);
@@ -133,10 +182,10 @@ export class ClientLoader implements ILoader {
       basePath: this.params.path,
       path: basePath,
     });
-    return new ClientLoader({ 
-        path: basePath,
-        babel: this.params.babel,
-        logger: this.params.logger,
+    return new ClientLoader({
+      path: basePath,
+      babel: this.params.babel,
+      logger: this.params.logger,
     });
   }
 
