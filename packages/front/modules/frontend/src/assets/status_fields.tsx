@@ -269,7 +269,7 @@ export const status_fields: TypedField[] = [
                                     }
                                     outlinePaper={payload.outlinePaper}
                                     label="Total Closed %"
-                                    value={`${partialExecuted}%`}
+                                    value={`${partialExecuted.toFixed(2)}%`}
                                     icon={DonutSmall}
                                 />
                             ),
@@ -295,7 +295,7 @@ export const status_fields: TypedField[] = [
                                     color={pnlColor(pnlPercentage)}
                                     outlinePaper={payload.outlinePaper}
                                     label="Average Price"
-                                    value={priceOpen.toLocaleString()}
+                                    value={priceOpen.toFixed(2)}
                                     icon={RequestQuote}
                                 />
                             ),
