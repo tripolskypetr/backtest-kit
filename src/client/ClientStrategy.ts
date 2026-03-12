@@ -3290,7 +3290,8 @@ const CANCEL_SCHEDULED_SIGNAL_IN_BACKTEST_FN = async (
   scheduled: IScheduledSignalRow,
   averagePrice: number,
   closeTimestamp: number,
-  reason: StrategyCancelReason
+  reason: StrategyCancelReason,
+  cancelId?: string
 ): Promise<IStrategyTickResultCancelled> => {
   self.params.logger.info(
     "ClientStrategy backtest scheduled signal cancelled",
@@ -3305,6 +3306,24 @@ const CANCEL_SCHEDULED_SIGNAL_IN_BACKTEST_FN = async (
   );
 
   await self.setScheduledSignal(null);
+
+  if (reason === "user") {
+    await CALL_COMMIT_FN(self, {
+      action: "cancel-scheduled",
+      symbol: self.params.execution.context.symbol,
+      strategyName: self.params.strategyName,
+      exchangeName: self.params.exchangeName,
+      frameName: self.params.frameName,
+      signalId: scheduled.id,
+      backtest: true,
+      cancelId,
+      timestamp: closeTimestamp,
+      totalEntries: scheduled._entry?.length ?? 1,
+      totalPartials: scheduled._partial?.length ?? 0,
+      originalPriceOpen: scheduled.priceOpen,
+      pnl: toProfitLossDto(scheduled, averagePrice),
+    });
+  }
 
   await CALL_CANCEL_CALLBACKS_FN(
     self,
@@ -3326,6 +3345,7 @@ const CANCEL_SCHEDULED_SIGNAL_IN_BACKTEST_FN = async (
     symbol: self.params.execution.context.symbol,
     backtest: self.params.execution.context.backtest,
     reason,
+    cancelId,
     createdAt: closeTimestamp,
   };
 
@@ -3715,12 +3735,14 @@ const PROCESS_SCHEDULED_SIGNAL_CANDLES_FN = async (
     // КРИТИЧНО: Проверяем был ли сигнал отменен пользователем через cancel()
     if (self._cancelledSignal) {
       // Сигнал был отменен через cancel() в onSchedulePing
+      const cancelId = self._cancelledSignal.cancelId;
       const result = await CANCEL_SCHEDULED_SIGNAL_IN_BACKTEST_FN(
         self,
         scheduled,
         averagePrice,
         candle.timestamp,
-        "user"
+        "user",
+        cancelId
       );
       return { outcome: "cancelled", result };
     }
