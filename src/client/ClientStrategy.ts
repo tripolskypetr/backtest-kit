@@ -3069,7 +3069,8 @@ const CLOSE_PENDING_SIGNAL_FN = async (
 const RETURN_PENDING_SIGNAL_ACTIVE_FN = async (
   self: ClientStrategy,
   signal: ISignalRow,
-  currentPrice: number
+  currentPrice: number,
+  backtest: boolean
 ): Promise<IStrategyTickResultActive> => {
   let percentTp = 0;
   let percentSl = 0;
@@ -3113,6 +3114,12 @@ const RETURN_PENDING_SIGNAL_ACTIVE_FN = async (
 
         if (currentPrice > signal._highestProfitPrice.price) {
           signal._highestProfitPrice = { price: currentPrice, timestamp: currentTime };
+          !backtest && await PersistSignalAdapter.writeSignalData(
+            signal,
+            self.params.execution.context.symbol,
+            self.params.strategyName,
+            self.params.exchangeName,
+          );
         }
 
         await CALL_PARTIAL_PROFIT_CALLBACKS_FN(
@@ -3165,6 +3172,12 @@ const RETURN_PENDING_SIGNAL_ACTIVE_FN = async (
 
         if (currentPrice < signal._highestProfitPrice.price) {
           signal._highestProfitPrice = { price: currentPrice, timestamp: currentTime };
+          !backtest && await PersistSignalAdapter.writeSignalData(
+            signal,
+            self.params.execution.context.symbol,
+            self.params.strategyName,
+            self.params.exchangeName,
+          );
         }
 
         await CALL_PARTIAL_PROFIT_CALLBACKS_FN(
@@ -5276,7 +5289,8 @@ export class ClientStrategy implements IStrategy {
     return await RETURN_PENDING_SIGNAL_ACTIVE_FN(
       this,
       this._pendingSignal,
-      averagePrice
+      averagePrice,
+      false
     );
   }
 
