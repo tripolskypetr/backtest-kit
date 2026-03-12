@@ -69,6 +69,7 @@ import BreakevenReportService from "./services/report/BreakevenReportService";
 import RiskReportService from "./services/report/RiskReportService";
 import StrategyReportService from "./services/report/StrategyReportService";
 import SyncReportService from "./services/report/SyncReportService";
+import HighestProfitReportService from "./services/report/HighestProfitReportService";
 import StrategyMarkdownService from "./services/markdown/StrategyMarkdownService";
 import SyncMarkdownService from "./services/markdown/SyncMarkdownService";
 import HighestProfitMarkdownService from "./services/markdown/HighestProfitMarkdownService";
@@ -237,6 +238,7 @@ const reportServices = {
   riskReportService: inject<RiskReportService>(TYPES.riskReportService),
   strategyReportService: inject<StrategyReportService>(TYPES.strategyReportService),
   syncReportService: inject<SyncReportService>(TYPES.syncReportService),
+  highestProfitReportService: inject<HighestProfitReportService>(TYPES.highestProfitReportService),
 };
 
 const validationServices = {

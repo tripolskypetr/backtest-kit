@@ -932,7 +932,7 @@ const GET_SIGNAL_FN = trycatch(
           timestamp: currentTime,
           _isScheduled: false,
           _entry: [{ price: signal.priceOpen, cost: signal.cost ?? GLOBAL_CONFIG.CC_POSITION_ENTRY_COST, timestamp: currentTime }],
-          _highestProfitPrice: { price: signal.priceOpen, timestamp: currentTime },
+          _peak: { price: signal.priceOpen, timestamp: currentTime },
         };
 
         // Валидируем сигнал перед возвратом
@@ -960,7 +960,7 @@ const GET_SIGNAL_FN = trycatch(
         timestamp: currentTime,
         _isScheduled: true,
         _entry: [{ price: signal.priceOpen, cost: signal.cost ?? GLOBAL_CONFIG.CC_POSITION_ENTRY_COST, timestamp: currentTime }],
-        _highestProfitPrice: { price: signal.priceOpen, timestamp: currentTime },
+        _peak: { price: signal.priceOpen, timestamp: currentTime },
       };
 
       // Валидируем сигнал перед возвратом
@@ -984,7 +984,7 @@ const GET_SIGNAL_FN = trycatch(
       timestamp: currentTime,
       _isScheduled: false,
       _entry: [{ price: currentPrice, cost: signal.cost ?? GLOBAL_CONFIG.CC_POSITION_ENTRY_COST, timestamp: currentTime }],
-      _highestProfitPrice: { price: currentPrice, timestamp: currentTime },
+      _peak: { price: currentPrice, timestamp: currentTime },
     };
 
     // Валидируем сигнал перед возвратом
@@ -1902,7 +1902,7 @@ const ACTIVATE_SCHEDULED_SIGNAL_FN = async (
     ...scheduled,
     pendingAt: activationTime,
     _isScheduled: false,
-    _highestProfitPrice: { price: scheduled.priceOpen, timestamp: activationTime },
+    _peak: { price: scheduled.priceOpen, timestamp: activationTime },
   };
 
   // Sync open: if external system rejects — cancel scheduled signal instead of opening
@@ -3112,8 +3112,8 @@ const RETURN_PENDING_SIGNAL_ACTIVE_FN = async (
         const progressPercent = (currentDistance / tpDistance) * 100;
         percentTp = Math.min(progressPercent, 100);
 
-        if (currentPrice > signal._highestProfitPrice.price) {
-          signal._highestProfitPrice = { price: currentPrice, timestamp: currentTime };
+        if (currentPrice > signal._peak.price) {
+          signal._peak = { price: currentPrice, timestamp: currentTime };
           !backtest && await PersistSignalAdapter.writeSignalData(
             signal,
             self.params.execution.context.symbol,
@@ -3175,8 +3175,8 @@ const RETURN_PENDING_SIGNAL_ACTIVE_FN = async (
         const progressPercent = (currentDistance / tpDistance) * 100;
         percentTp = Math.min(progressPercent, 100);
 
-        if (currentPrice < signal._highestProfitPrice.price) {
-          signal._highestProfitPrice = { price: currentPrice, timestamp: currentTime };
+        if (currentPrice < signal._peak.price) {
+          signal._peak = { price: currentPrice, timestamp: currentTime };
           !backtest && await PersistSignalAdapter.writeSignalData(
             signal,
             self.params.execution.context.symbol,
@@ -3391,7 +3391,7 @@ const ACTIVATE_SCHEDULED_SIGNAL_IN_BACKTEST_FN = async (
     ...scheduled,
     pendingAt: activationTime,
     _isScheduled: false,
-    _highestProfitPrice: { price: scheduled.priceOpen, timestamp: activationTime },
+    _peak: { price: scheduled.priceOpen, timestamp: activationTime },
   };
 
   // Sync open: if external system rejects — cancel scheduled signal instead of opening
@@ -3761,7 +3761,7 @@ const PROCESS_SCHEDULED_SIGNAL_CANDLES_FN = async (
         ...activatedSignal,
         pendingAt: candle.timestamp,
         _isScheduled: false,
-        _highestProfitPrice: { price: activatedSignal.priceOpen, timestamp: candle.timestamp },
+        _peak: { price: activatedSignal.priceOpen, timestamp: candle.timestamp },
       };
 
       // Sync open: if external system rejects — cancel scheduled signal instead of opening
@@ -4048,8 +4048,8 @@ const PROCESS_PENDING_SIGNAL_CANDLES_FN = async (
           const tpDistance = effectiveTakeProfit - effectivePriceOpen;
           const progressPercent = (currentDistance / tpDistance) * 100;
 
-          if (averagePrice > signal._highestProfitPrice.price) {
-            signal._highestProfitPrice = { price: averagePrice, timestamp: currentCandleTimestamp };
+          if (averagePrice > signal._peak.price) {
+            signal._peak = { price: averagePrice, timestamp: currentCandleTimestamp };
             await self.params.onHighestProfit(
               TO_PUBLIC_SIGNAL(signal, averagePrice),
               averagePrice,
@@ -4103,8 +4103,8 @@ const PROCESS_PENDING_SIGNAL_CANDLES_FN = async (
           const tpDistance = effectivePriceOpen - effectiveTakeProfit;
           const progressPercent = (currentDistance / tpDistance) * 100;
 
-          if (averagePrice < signal._highestProfitPrice.price) {
-            signal._highestProfitPrice = { price: averagePrice, timestamp: currentCandleTimestamp };
+          if (averagePrice < signal._peak.price) {
+            signal._peak = { price: averagePrice, timestamp: currentCandleTimestamp };
             await self.params.onHighestProfit(
               TO_PUBLIC_SIGNAL(signal, averagePrice),
               averagePrice,
@@ -4792,7 +4792,7 @@ export class ClientStrategy implements IStrategy {
     if (!this._pendingSignal) {
       return null;
     }
-    return this._pendingSignal._highestProfitPrice.price;
+    return this._pendingSignal._peak.price;
   }
 
   /**
@@ -4808,7 +4808,7 @@ export class ClientStrategy implements IStrategy {
     if (!this._pendingSignal) {
       return null;
     }
-    return this._pendingSignal._highestProfitPrice.timestamp;
+    return this._pendingSignal._peak.timestamp;
   }
 
   /**
@@ -4831,7 +4831,7 @@ export class ClientStrategy implements IStrategy {
     }
     const signal = this._pendingSignal;
     const effectivePriceOpen = GET_EFFECTIVE_PRICE_OPEN(signal);
-    const peakPrice = signal._highestProfitPrice.price;
+    const peakPrice = signal._peak.price;
     const breakevenThresholdPercent =
       (GLOBAL_CONFIG.CC_PERCENT_SLIPPAGE + GLOBAL_CONFIG.CC_PERCENT_FEE) * 2 + GLOBAL_CONFIG.CC_BREAKEVEN_THRESHOLD;
     if (signal.position === "long") {
@@ -4858,7 +4858,7 @@ export class ClientStrategy implements IStrategy {
     if (!this._pendingSignal) {
       return null;
     }
-    return Math.floor((timestamp - this._pendingSignal._highestProfitPrice.timestamp) / 60000);
+    return Math.floor((timestamp - this._pendingSignal._peak.timestamp) / 60000);
   }
 
   /**
@@ -5132,7 +5132,7 @@ export class ClientStrategy implements IStrategy {
         ...activatedSignal,
         pendingAt: currentTime,
         _isScheduled: false,
-        _highestProfitPrice: { price: activatedSignal.priceOpen, timestamp: currentTime },
+        _peak: { price: activatedSignal.priceOpen, timestamp: currentTime },
       };
 
       const syncOpenAllowed = await CALL_SIGNAL_SYNC_OPEN_FN(currentTime, currentPrice, pendingSignal, this);

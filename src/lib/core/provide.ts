@@ -64,6 +64,7 @@ import BreakevenReportService from "../services/report/BreakevenReportService";
 import RiskReportService from "../services/report/RiskReportService";
 import StrategyReportService from "../services/report/StrategyReportService";
 import SyncReportService from "../services/report/SyncReportService";
+import HighestProfitReportService from "../services/report/HighestProfitReportService";
 import StrategyMarkdownService from "../services/markdown/StrategyMarkdownService";
 import SyncMarkdownService from "../services/markdown/SyncMarkdownService";
 import HighestProfitMarkdownService from "../services/markdown/HighestProfitMarkdownService";
@@ -164,6 +165,7 @@ import TimeMetaService from "../services/meta/TimeMetaService";
     provide(TYPES.riskReportService, () => new RiskReportService());
     provide(TYPES.strategyReportService, () => new StrategyReportService());
     provide(TYPES.syncReportService, () => new SyncReportService());
+    provide(TYPES.highestProfitReportService, () => new HighestProfitReportService());
 }
 
 {

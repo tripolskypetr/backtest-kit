@@ -144,7 +144,7 @@ export interface ISignalRow extends ISignalDto {
    * - For LONG: maximum VWAP price seen above effective entry
    * - For SHORT: minimum VWAP price seen below effective entry
    */
-  _highestProfitPrice: { price: number; timestamp: number };
+  _peak: { price: number; timestamp: number };
   /** Unix timestamp in milliseconds when this signal was created/scheduled in backtest context or when getSignal was called in live context (before validation) */
   timestamp: number;
 }

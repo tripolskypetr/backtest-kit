@@ -93,6 +93,7 @@ const reportServices = {
     riskReportService: Symbol('riskReportService'),
     strategyReportService: Symbol('strategyReportService'),
     syncReportService: Symbol('syncReportService'),
+    highestProfitReportService: Symbol('highestProfitReportService'),
 }
 
 const validationServices = {
