@@ -8,6 +8,7 @@ import { risk_columns } from "../assets/risk.columns";
 import { schedule_columns } from "../assets/schedule.columns";
 import { strategy_columns } from "../assets/strategy.columns";
 import { sync_columns } from "../assets/sync.columns";
+import { highest_profit_columns } from "../assets/highest_profit.columns";
 import {
   walker_pnl_columns,
   walker_strategy_columns,
@@ -41,6 +42,8 @@ export const COLUMN_CONFIG = {
   strategy_columns,
   /** Columns for signal sync lifecycle events (signal-open, signal-close) */
   sync_columns,
+  /** Columns for highest profit milestone tracking events */
+  highest_profit_columns,
   /** Walker: PnL summary columns */
   walker_pnl_columns,
   /** Walker: strategy-level summary columns */

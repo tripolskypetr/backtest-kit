@@ -15,7 +15,7 @@ import { SchedulePingContract } from "../contract/SchedulePing.contract";
 import { ActivePingContract } from "../contract/ActivePing.contract";
 import { StrategyCommitContract } from "../contract/StrategyCommit.contract";
 import SignalSyncContract from "../contract/SignalSync.contract";
-import { HighestProfitContract } from "src/contract/HighestProfit.contract";
+import { HighestProfitContract } from "../contract/HighestProfit.contract";
 
 /**
  * Exchange signal synchronization emitter.

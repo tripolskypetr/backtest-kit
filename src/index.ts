@@ -120,6 +120,8 @@ export {
   listenStrategyCommitOnce,
   listenSync,
   listenSyncOnce,
+  listenHighestProfit,
+  listenHighestProfitOnce,
 } from "./function/event";
 export {
   getCandles,
@@ -270,6 +272,7 @@ export { ScheduleStatisticsModel } from "./model/ScheduleStatistics.model";
 export { PerformanceStatisticsModel } from "./model/PerformanceStatistics.model";
 export { WalkerStatisticsModel } from "./model/WalkerStatistics.model";
 export { PartialStatisticsModel } from "./model/PartialStatistics.model";
+export { HighestProfitStatisticsModel } from "./model/HighestProfitStatistics.model";
 export { RiskStatisticsModel } from "./model/RiskStatistics.model";
 export {
   StrategyStatisticsModel,
@@ -287,6 +290,7 @@ export { RiskContract } from "./contract/Risk.contract";
 export { ProgressBacktestContract } from "./contract/ProgressBacktest.contract";
 export { SchedulePingContract } from "./contract/SchedulePing.contract";
 export { ActivePingContract } from "./contract/ActivePing.contract";
+export { HighestProfitContract } from "./contract/HighestProfit.contract";
 export { BreakevenContract } from "./contract/Breakeven.contract";
 
 export {
@@ -375,6 +379,7 @@ export { Walker } from "./classes/Walker";
 export { Heat } from "./classes/Heat";
 export { PositionSize } from "./classes/PositionSize";
 export { Partial } from "./classes/Partial";
+export { HighestProfit } from "./classes/HighestProfit";
 export { Constant } from "./classes/Constant";
 export { Risk } from "./classes/Risk";
 export { Sync } from "./classes/Sync";
@@ -415,6 +420,7 @@ export {
 
 export { type TickEvent } from "./model/LiveStatistics.model";
 export { type PartialEvent } from "./model/PartialStatistics.model";
+export { type HighestProfitEvent } from "./model/HighestProfitStatistics.model";
 export { type MetricStats } from "./model/PerformanceStatistics.model";
 export { type RiskEvent } from "./model/RiskStatistics.model";
 export { type SyncEvent, type SyncStatisticsModel } from "./model/SyncStatistics.model";

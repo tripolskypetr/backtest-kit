@@ -78,6 +78,7 @@ const markdownServices = {
     riskMarkdownService: Symbol('riskMarkdownService'),
     strategyMarkdownService: Symbol('strategyMarkdownService'),
     syncMarkdownService: Symbol('syncMarkdownService'),
+    highestProfitMarkdownService: Symbol('highestProfitMarkdownService'),
 }
 
 const reportServices = {

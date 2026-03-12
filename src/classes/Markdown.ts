@@ -51,6 +51,8 @@ interface IMarkdownTarget {
   backtest: boolean;
   /** Enable signal sync lifecycle reports (signal-open and signal-close events) */
   sync: boolean;
+  /** Enable highest profit milestone tracking reports */
+  highest_profit: boolean;
 }
 
 const WAIT_FOR_INIT_SYMBOL = Symbol("wait-for-init");
@@ -72,6 +74,7 @@ const WILDCARD_TARGET: IMarkdownTarget = {
   schedule: true,
   walker: true,
   sync: true,
+  highest_profit: true,
 };
 
 /**
@@ -406,6 +409,7 @@ export class MarkdownUtils {
     schedule = false,
     walker = false,
     sync = false,
+    highest_profit = false,
   }: Partial<IMarkdownTarget> = WILDCARD_TARGET) => {
     backtest.loggerService.debug(MARKDOWN_METHOD_NAME_ENABLE, {
       backtest: bt,
@@ -419,6 +423,7 @@ export class MarkdownUtils {
       schedule,
       walker,
       sync,
+      highest_profit,
     });
     const unList: Function[] = [];
     if (bt) {
@@ -453,6 +458,9 @@ export class MarkdownUtils {
     }
     if (sync) {
       unList.push(backtest.syncMarkdownService.subscribe());
+    }
+    if (highest_profit) {
+      unList.push(backtest.highestProfitMarkdownService.subscribe());
     }
     return compose(...unList.map((un) => () => void un()));
   };
@@ -506,6 +514,7 @@ export class MarkdownUtils {
     schedule = false,
     walker = false,
     sync = false,
+    highest_profit = false,
   }: Partial<IMarkdownTarget> = WILDCARD_TARGET) => {
     backtest.loggerService.debug(MARKDOWN_METHOD_NAME_DISABLE, {
       backtest: bt,
@@ -519,6 +528,7 @@ export class MarkdownUtils {
       schedule,
       walker,
       sync,
+      highest_profit,
     });
     if (bt) {
       backtest.backtestMarkdownService.unsubscribe();
@@ -552,6 +562,9 @@ export class MarkdownUtils {
     }
     if (sync) {
       backtest.syncMarkdownService.unsubscribe();
+    }
+    if (highest_profit) {
+      backtest.highestProfitMarkdownService.unsubscribe();
     }
   };
 }

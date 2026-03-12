@@ -71,6 +71,7 @@ import StrategyReportService from "./services/report/StrategyReportService";
 import SyncReportService from "./services/report/SyncReportService";
 import StrategyMarkdownService from "./services/markdown/StrategyMarkdownService";
 import SyncMarkdownService from "./services/markdown/SyncMarkdownService";
+import HighestProfitMarkdownService from "./services/markdown/HighestProfitMarkdownService";
 import TimeMetaService from "./services/meta/TimeMetaService";
 import PriceMetaService from "./services/meta/PriceMetaService";
 
@@ -209,6 +210,7 @@ const markdownServices = {
   riskMarkdownService: inject<RiskMarkdownService>(TYPES.riskMarkdownService),
   strategyMarkdownService: inject<StrategyMarkdownService>(TYPES.strategyMarkdownService),
   syncMarkdownService: inject<SyncMarkdownService>(TYPES.syncMarkdownService),
+  highestProfitMarkdownService: inject<HighestProfitMarkdownService>(TYPES.highestProfitMarkdownService),
 };
 
 const reportServices = {
