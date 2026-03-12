@@ -932,6 +932,7 @@ const GET_SIGNAL_FN = trycatch(
           timestamp: currentTime,
           _isScheduled: false,
           _entry: [{ price: signal.priceOpen, cost: signal.cost ?? GLOBAL_CONFIG.CC_POSITION_ENTRY_COST, timestamp: currentTime }],
+          _highestProfitPrice: { price: signal.priceOpen, timestamp: currentTime },
         };
 
         // Валидируем сигнал перед возвратом
@@ -959,6 +960,7 @@ const GET_SIGNAL_FN = trycatch(
         timestamp: currentTime,
         _isScheduled: true,
         _entry: [{ price: signal.priceOpen, cost: signal.cost ?? GLOBAL_CONFIG.CC_POSITION_ENTRY_COST, timestamp: currentTime }],
+        _highestProfitPrice: { price: signal.priceOpen, timestamp: currentTime },
       };
 
       // Валидируем сигнал перед возвратом
@@ -982,6 +984,7 @@ const GET_SIGNAL_FN = trycatch(
       timestamp: currentTime,
       _isScheduled: false,
       _entry: [{ price: currentPrice, cost: signal.cost ?? GLOBAL_CONFIG.CC_POSITION_ENTRY_COST, timestamp: currentTime }],
+      _highestProfitPrice: { price: currentPrice, timestamp: currentTime },
     };
 
     // Валидируем сигнал перед возвратом
@@ -1899,6 +1902,7 @@ const ACTIVATE_SCHEDULED_SIGNAL_FN = async (
     ...scheduled,
     pendingAt: activationTime,
     _isScheduled: false,
+    _highestProfitPrice: { price: scheduled.priceOpen, timestamp: activationTime },
   };
 
   // Sync open: if external system rejects — cancel scheduled signal instead of opening
@@ -3107,6 +3111,10 @@ const RETURN_PENDING_SIGNAL_ACTIVE_FN = async (
         const progressPercent = (currentDistance / tpDistance) * 100;
         percentTp = Math.min(progressPercent, 100);
 
+        if (currentPrice > signal._highestProfitPrice.price) {
+          signal._highestProfitPrice = { price: currentPrice, timestamp: currentTime };
+        }
+
         await CALL_PARTIAL_PROFIT_CALLBACKS_FN(
           self,
           self.params.execution.context.symbol,
@@ -3154,6 +3162,11 @@ const RETURN_PENDING_SIGNAL_ACTIVE_FN = async (
         const tpDistance = effectivePriceOpen - effectiveTakeProfit;
         const progressPercent = (currentDistance / tpDistance) * 100;
         percentTp = Math.min(progressPercent, 100);
+
+        if (currentPrice < signal._highestProfitPrice.price) {
+          signal._highestProfitPrice = { price: currentPrice, timestamp: currentTime };
+        }
+
         await CALL_PARTIAL_PROFIT_CALLBACKS_FN(
           self,
           self.params.execution.context.symbol,
@@ -3360,6 +3373,7 @@ const ACTIVATE_SCHEDULED_SIGNAL_IN_BACKTEST_FN = async (
     ...scheduled,
     pendingAt: activationTime,
     _isScheduled: false,
+    _highestProfitPrice: { price: scheduled.priceOpen, timestamp: activationTime },
   };
 
   // Sync open: if external system rejects — cancel scheduled signal instead of opening
@@ -3729,6 +3743,7 @@ const PROCESS_SCHEDULED_SIGNAL_CANDLES_FN = async (
         ...activatedSignal,
         pendingAt: candle.timestamp,
         _isScheduled: false,
+        _highestProfitPrice: { price: activatedSignal.priceOpen, timestamp: candle.timestamp },
       };
 
       // Sync open: if external system rejects — cancel scheduled signal instead of opening
@@ -4014,6 +4029,11 @@ const PROCESS_PENDING_SIGNAL_CANDLES_FN = async (
           const effectiveTakeProfit = signal._trailingPriceTakeProfit ?? signal.priceTakeProfit;
           const tpDistance = effectiveTakeProfit - effectivePriceOpen;
           const progressPercent = (currentDistance / tpDistance) * 100;
+
+          if (averagePrice > signal._highestProfitPrice.price) {
+            signal._highestProfitPrice = { price: averagePrice, timestamp: currentCandleTimestamp };
+          }
+
           await CALL_PARTIAL_PROFIT_CALLBACKS_FN(
             self,
             self.params.execution.context.symbol,
@@ -4059,6 +4079,10 @@ const PROCESS_PENDING_SIGNAL_CANDLES_FN = async (
           const effectiveTakeProfit = signal._trailingPriceTakeProfit ?? signal.priceTakeProfit;
           const tpDistance = effectivePriceOpen - effectiveTakeProfit;
           const progressPercent = (currentDistance / tpDistance) * 100;
+
+          if (averagePrice < signal._highestProfitPrice.price) {
+            signal._highestProfitPrice = { price: averagePrice, timestamp: currentCandleTimestamp };
+          }
 
           await CALL_PARTIAL_PROFIT_CALLBACKS_FN(
             self,
@@ -4681,6 +4705,39 @@ export class ClientStrategy implements IStrategy {
     return entries.map(({ price, cost, timestamp }) => ({ price, cost, timestamp }));
   }
 
+  public async getPositionEstimateMinutes(symbol: string): Promise<number | null> {
+    this.params.logger.debug("ClientStrategy getPositionEstimateMinutes", { symbol });
+    if (!this._pendingSignal) {
+      return null;
+    }
+    return this._pendingSignal.minuteEstimatedTime;
+  }
+
+  public async getPositionCountdownMinutes(symbol: string, timestamp: number): Promise<number | null> {
+    this.params.logger.debug("ClientStrategy getPositionCountdownMinutes", { symbol });
+    if (!this._pendingSignal) {
+      return null;
+    }
+    const elapsed = Math.floor((timestamp - this._pendingSignal.pendingAt) / 60000);
+    return Math.max(0, this._pendingSignal.minuteEstimatedTime - elapsed);
+  }
+
+  public async getPositionHighestProfitPrice(symbol: string): Promise<{ price: number; timestamp: number } | null> {
+    this.params.logger.debug("ClientStrategy getPositionHighestProfitPrice", { symbol });
+    if (!this._pendingSignal) {
+      return null;
+    }
+    return this._pendingSignal._highestProfitPrice;
+  }
+
+  public async getPositionDrawdownMinutes(symbol: string, timestamp: number): Promise<number | null> {
+    this.params.logger.debug("ClientStrategy getPositionDrawdownMinutes", { symbol });
+    if (!this._pendingSignal) {
+      return null;
+    }
+    return Math.floor((timestamp - this._pendingSignal._highestProfitPrice.timestamp) / 60000);
+  }
+
   /**
    * Performs a single tick of strategy execution.
    *
@@ -4952,6 +5009,7 @@ export class ClientStrategy implements IStrategy {
         ...activatedSignal,
         pendingAt: currentTime,
         _isScheduled: false,
+        _highestProfitPrice: { price: activatedSignal.priceOpen, timestamp: currentTime },
       };
 
       const syncOpenAllowed = await CALL_SIGNAL_SYNC_OPEN_FN(currentTime, currentPrice, pendingSignal, this);

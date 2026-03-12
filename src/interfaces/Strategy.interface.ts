@@ -137,6 +137,14 @@ export interface ISignalRow extends ISignalDto {
    * Original priceTakeProfit is preserved in persistence but ignored during execution.
    */
   _trailingPriceTakeProfit?: number;
+  /**
+   * Best price seen in profit direction during the life of this position.
+   * Initialized at position open with priceOpen/pendingAt.
+   * Updated on every tick/candle when price moves toward TP (currentDistance > 0).
+   * - For LONG: maximum VWAP price seen above effective entry
+   * - For SHORT: minimum VWAP price seen below effective entry
+   */
+  _highestProfitPrice: { price: number; timestamp: number };
   /** Unix timestamp in milliseconds when this signal was created/scheduled in backtest context or when getSignal was called in live context (before validation) */
   timestamp: number;
 }
