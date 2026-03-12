@@ -36,11 +36,16 @@ export {
   getPositionPnlCost,
   getPositionLevels,
   getPositionPartials,
+  getPositionEntries,
+  getPositionEstimateMinutes,
+  getPositionCountdownMinutes,
+  getPositionHighestProfitPrice,
+  getPositionDrawdownMinutes,
   getPositionEntryOverlap,
   getPositionPartialOverlap,
 } from "./function/strategy";
 export { stopStrategy } from "./function/control";
-export { shutdown } from "./function/shutdown.function";
+export { shutdown } from "./function/shutdown";
 export {
   setLogger,
   setConfig,

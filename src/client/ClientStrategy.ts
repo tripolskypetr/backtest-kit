@@ -4705,6 +4705,17 @@ export class ClientStrategy implements IStrategy {
     return entries.map(({ price, cost, timestamp }) => ({ price, cost, timestamp }));
   }
 
+  /**
+   * Returns the original estimated duration for the current pending signal.
+   *
+   * Reflects `minuteEstimatedTime` as set in the signal DTO — the maximum
+   * number of minutes the position is expected to be active before `time_expired`.
+   *
+   * Returns null if no pending signal exists.
+   *
+   * @param symbol - Trading pair symbol
+   * @returns Promise resolving to estimated duration in minutes or null
+   */
   public async getPositionEstimateMinutes(symbol: string): Promise<number | null> {
     this.params.logger.debug("ClientStrategy getPositionEstimateMinutes", { symbol });
     if (!this._pendingSignal) {
@@ -4713,6 +4724,18 @@ export class ClientStrategy implements IStrategy {
     return this._pendingSignal.minuteEstimatedTime;
   }
 
+  /**
+   * Returns the remaining time before the position expires, clamped to zero.
+   *
+   * Computes elapsed minutes since `pendingAt` and subtracts from `minuteEstimatedTime`.
+   * Returns 0 once the estimate is exceeded (never negative).
+   *
+   * Returns null if no pending signal exists.
+   *
+   * @param symbol - Trading pair symbol
+   * @param timestamp - Current Unix timestamp in milliseconds
+   * @returns Promise resolving to remaining minutes (≥ 0) or null
+   */
   public async getPositionCountdownMinutes(symbol: string, timestamp: number): Promise<number | null> {
     this.params.logger.debug("ClientStrategy getPositionCountdownMinutes", { symbol });
     if (!this._pendingSignal) {
@@ -4722,6 +4745,20 @@ export class ClientStrategy implements IStrategy {
     return Math.max(0, this._pendingSignal.minuteEstimatedTime - elapsed);
   }
 
+  /**
+   * Returns the best price reached in the profit direction during this position's life.
+   *
+   * Initialized at position open with the entry price and timestamp.
+   * Updated on every tick/candle when VWAP moves beyond the previous record toward TP:
+   * - LONG: tracks the highest price seen above effective entry
+   * - SHORT: tracks the lowest price seen below effective entry
+   *
+   * Returns null if no pending signal exists.
+   * Never returns null when a signal is active — always contains at least the entry price.
+   *
+   * @param symbol - Trading pair symbol
+   * @returns Promise resolving to `{ price, timestamp }` record or null
+   */
   public async getPositionHighestProfitPrice(symbol: string): Promise<{ price: number; timestamp: number } | null> {
     this.params.logger.debug("ClientStrategy getPositionHighestProfitPrice", { symbol });
     if (!this._pendingSignal) {
@@ -4730,6 +4767,19 @@ export class ClientStrategy implements IStrategy {
     return this._pendingSignal._highestProfitPrice;
   }
 
+  /**
+   * Returns the number of minutes elapsed since the highest profit price was recorded.
+   *
+   * Measures how long the position has been pulling back from its peak profit level.
+   * Zero when called at the exact moment the peak was set.
+   * Grows continuously as price moves away from the peak without setting a new record.
+   *
+   * Returns null if no pending signal exists.
+   *
+   * @param symbol - Trading pair symbol
+   * @param timestamp - Current Unix timestamp in milliseconds
+   * @returns Promise resolving to drawdown duration in minutes or null
+   */
   public async getPositionDrawdownMinutes(symbol: string, timestamp: number): Promise<number | null> {
     this.params.logger.debug("ClientStrategy getPositionDrawdownMinutes", { symbol });
     if (!this._pendingSignal) {

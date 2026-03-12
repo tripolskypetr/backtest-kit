@@ -54,6 +54,10 @@ const LIVE_METHOD_NAME_GET_POSITION_PNL_COST = "LiveUtils.getPositionPnlCost";
 const LIVE_METHOD_NAME_GET_POSITION_LEVELS = "LiveUtils.getPositionLevels";
 const LIVE_METHOD_NAME_GET_POSITION_PARTIALS = "LiveUtils.getPositionPartials";
 const LIVE_METHOD_NAME_GET_POSITION_ENTRIES = "LiveUtils.getPositionEntries";
+const LIVE_METHOD_NAME_GET_POSITION_ESTIMATE_MINUTES = "LiveUtils.getPositionEstimateMinutes";
+const LIVE_METHOD_NAME_GET_POSITION_COUNTDOWN_MINUTES = "LiveUtils.getPositionCountdownMinutes";
+const LIVE_METHOD_NAME_GET_POSITION_HIGHEST_PROFIT_PRICE = "LiveUtils.getPositionHighestProfitPrice";
+const LIVE_METHOD_NAME_GET_POSITION_DRAWDOWN_MINUTES = "LiveUtils.getPositionDrawdownMinutes";
 const LIVE_METHOD_NAME_GET_POSITION_ENTRY_OVERLAP = "LiveUtils.getPositionEntryOverlap";
 const LIVE_METHOD_NAME_GET_POSITION_PARTIAL_OVERLAP = "LiveUtils.getPositionPartialOverlap";
 const LIVE_METHOD_NAME_BREAKEVEN = "Live.commitBreakeven";
@@ -1431,6 +1435,266 @@ export class LiveUtils {
     }
 
     return await backtest.strategyCoreService.getPositionEntries(
+      false,
+      symbol,
+      {
+        strategyName: context.strategyName,
+        exchangeName: context.exchangeName,
+        frameName: "",
+      },
+    );
+  };
+
+  /**
+   * Returns the original estimated duration for the current pending signal.
+   *
+   * Reflects `minuteEstimatedTime` as set in the signal DTO — the maximum
+   * number of minutes the position is expected to be active before `time_expired`.
+   *
+   * Returns null if no pending signal exists.
+   *
+   * @param symbol - Trading pair symbol
+   * @param context - Execution context with strategyName and exchangeName
+   * @returns Estimated duration in minutes, or null if no active position
+   */
+  public getPositionEstimateMinutes = async (
+    symbol: string,
+    context: { strategyName: StrategyName; exchangeName: ExchangeName },
+  ) => {
+    backtest.loggerService.info(LIVE_METHOD_NAME_GET_POSITION_ESTIMATE_MINUTES, {
+      symbol,
+      context,
+    });
+    backtest.strategyValidationService.validate(
+      context.strategyName,
+      LIVE_METHOD_NAME_GET_POSITION_ESTIMATE_MINUTES,
+    );
+    backtest.exchangeValidationService.validate(
+      context.exchangeName,
+      LIVE_METHOD_NAME_GET_POSITION_ESTIMATE_MINUTES,
+    );
+
+    {
+      const { riskName, riskList, actions } =
+        backtest.strategySchemaService.get(context.strategyName);
+      riskName &&
+        backtest.riskValidationService.validate(
+          riskName,
+          LIVE_METHOD_NAME_GET_POSITION_ESTIMATE_MINUTES,
+        );
+      riskList &&
+        riskList.forEach((riskName) =>
+          backtest.riskValidationService.validate(
+            riskName,
+            LIVE_METHOD_NAME_GET_POSITION_ESTIMATE_MINUTES,
+          ),
+        );
+      actions &&
+        actions.forEach((actionName) =>
+          backtest.actionValidationService.validate(
+            actionName,
+            LIVE_METHOD_NAME_GET_POSITION_ESTIMATE_MINUTES,
+          ),
+        );
+    }
+
+    return await backtest.strategyCoreService.getPositionEstimateMinutes(
+      false,
+      symbol,
+      {
+        strategyName: context.strategyName,
+        exchangeName: context.exchangeName,
+        frameName: "",
+      },
+    );
+  };
+
+  /**
+   * Returns the remaining time before the position expires, clamped to zero.
+   *
+   * Computes elapsed minutes since `pendingAt` and subtracts from `minuteEstimatedTime`.
+   * Returns 0 once the estimate is exceeded (never negative).
+   *
+   * Returns null if no pending signal exists.
+   *
+   * @param symbol - Trading pair symbol
+   * @param context - Execution context with strategyName and exchangeName
+   * @returns Remaining minutes (≥ 0), or null if no active position
+   */
+  public getPositionCountdownMinutes = async (
+    symbol: string,
+    context: { strategyName: StrategyName; exchangeName: ExchangeName },
+  ) => {
+    backtest.loggerService.info(LIVE_METHOD_NAME_GET_POSITION_COUNTDOWN_MINUTES, {
+      symbol,
+      context,
+    });
+    backtest.strategyValidationService.validate(
+      context.strategyName,
+      LIVE_METHOD_NAME_GET_POSITION_COUNTDOWN_MINUTES,
+    );
+    backtest.exchangeValidationService.validate(
+      context.exchangeName,
+      LIVE_METHOD_NAME_GET_POSITION_COUNTDOWN_MINUTES,
+    );
+
+    {
+      const { riskName, riskList, actions } =
+        backtest.strategySchemaService.get(context.strategyName);
+      riskName &&
+        backtest.riskValidationService.validate(
+          riskName,
+          LIVE_METHOD_NAME_GET_POSITION_COUNTDOWN_MINUTES,
+        );
+      riskList &&
+        riskList.forEach((riskName) =>
+          backtest.riskValidationService.validate(
+            riskName,
+            LIVE_METHOD_NAME_GET_POSITION_COUNTDOWN_MINUTES,
+          ),
+        );
+      actions &&
+        actions.forEach((actionName) =>
+          backtest.actionValidationService.validate(
+            actionName,
+            LIVE_METHOD_NAME_GET_POSITION_COUNTDOWN_MINUTES,
+          ),
+        );
+    }
+
+    return await backtest.strategyCoreService.getPositionCountdownMinutes(
+      false,
+      symbol,
+      {
+        strategyName: context.strategyName,
+        exchangeName: context.exchangeName,
+        frameName: "",
+      },
+    );
+  };
+
+  /**
+   * Returns the best price reached in the profit direction during this position's life.
+   *
+   * Initialized at position open with the entry price and timestamp.
+   * Updated on every tick when VWAP moves beyond the previous record toward TP:
+   * - LONG: tracks the highest price seen above effective entry
+   * - SHORT: tracks the lowest price seen below effective entry
+   *
+   * Returns null if no pending signal exists.
+   * Never returns null when a signal is active — always contains at least the entry price.
+   *
+   * @param symbol - Trading pair symbol
+   * @param context - Execution context with strategyName and exchangeName
+   * @returns `{ price, timestamp }` record, or null if no active position
+   */
+  public getPositionHighestProfitPrice = async (
+    symbol: string,
+    context: { strategyName: StrategyName; exchangeName: ExchangeName },
+  ) => {
+    backtest.loggerService.info(LIVE_METHOD_NAME_GET_POSITION_HIGHEST_PROFIT_PRICE, {
+      symbol,
+      context,
+    });
+    backtest.strategyValidationService.validate(
+      context.strategyName,
+      LIVE_METHOD_NAME_GET_POSITION_HIGHEST_PROFIT_PRICE,
+    );
+    backtest.exchangeValidationService.validate(
+      context.exchangeName,
+      LIVE_METHOD_NAME_GET_POSITION_HIGHEST_PROFIT_PRICE,
+    );
+
+    {
+      const { riskName, riskList, actions } =
+        backtest.strategySchemaService.get(context.strategyName);
+      riskName &&
+        backtest.riskValidationService.validate(
+          riskName,
+          LIVE_METHOD_NAME_GET_POSITION_HIGHEST_PROFIT_PRICE,
+        );
+      riskList &&
+        riskList.forEach((riskName) =>
+          backtest.riskValidationService.validate(
+            riskName,
+            LIVE_METHOD_NAME_GET_POSITION_HIGHEST_PROFIT_PRICE,
+          ),
+        );
+      actions &&
+        actions.forEach((actionName) =>
+          backtest.actionValidationService.validate(
+            actionName,
+            LIVE_METHOD_NAME_GET_POSITION_HIGHEST_PROFIT_PRICE,
+          ),
+        );
+    }
+
+    return await backtest.strategyCoreService.getPositionHighestProfitPrice(
+      false,
+      symbol,
+      {
+        strategyName: context.strategyName,
+        exchangeName: context.exchangeName,
+        frameName: "",
+      },
+    );
+  };
+
+  /**
+   * Returns the number of minutes elapsed since the highest profit price was recorded.
+   *
+   * Measures how long the position has been pulling back from its peak profit level.
+   * Zero when called at the exact moment the peak was set.
+   * Grows continuously as price moves away from the peak without setting a new record.
+   *
+   * Returns null if no pending signal exists.
+   *
+   * @param symbol - Trading pair symbol
+   * @param context - Execution context with strategyName and exchangeName
+   * @returns Drawdown duration in minutes, or null if no active position
+   */
+  public getPositionDrawdownMinutes = async (
+    symbol: string,
+    context: { strategyName: StrategyName; exchangeName: ExchangeName },
+  ) => {
+    backtest.loggerService.info(LIVE_METHOD_NAME_GET_POSITION_DRAWDOWN_MINUTES, {
+      symbol,
+      context,
+    });
+    backtest.strategyValidationService.validate(
+      context.strategyName,
+      LIVE_METHOD_NAME_GET_POSITION_DRAWDOWN_MINUTES,
+    );
+    backtest.exchangeValidationService.validate(
+      context.exchangeName,
+      LIVE_METHOD_NAME_GET_POSITION_DRAWDOWN_MINUTES,
+    );
+
+    {
+      const { riskName, riskList, actions } =
+        backtest.strategySchemaService.get(context.strategyName);
+      riskName &&
+        backtest.riskValidationService.validate(
+          riskName,
+          LIVE_METHOD_NAME_GET_POSITION_DRAWDOWN_MINUTES,
+        );
+      riskList &&
+        riskList.forEach((riskName) =>
+          backtest.riskValidationService.validate(
+            riskName,
+            LIVE_METHOD_NAME_GET_POSITION_DRAWDOWN_MINUTES,
+          ),
+        );
+      actions &&
+        actions.forEach((actionName) =>
+          backtest.actionValidationService.validate(
+            actionName,
+            LIVE_METHOD_NAME_GET_POSITION_DRAWDOWN_MINUTES,
+          ),
+        );
+    }
+
+    return await backtest.strategyCoreService.getPositionDrawdownMinutes(
       false,
       symbol,
       {

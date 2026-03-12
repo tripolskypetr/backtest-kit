@@ -1043,6 +1043,107 @@ export class StrategyConnectionService implements TStrategy {
   }
 
   /**
+   * Returns the original estimated duration for the current pending signal.
+   *
+   * Delegates to ClientStrategy.getPositionEstimateMinutes().
+   * Returns null if no pending signal exists.
+   *
+   * @param backtest - Whether running in backtest mode
+   * @param symbol - Trading pair symbol
+   * @param context - Execution context with strategyName, exchangeName, frameName
+   * @returns Promise resolving to estimated duration in minutes or null
+   */
+  public getPositionEstimateMinutes = async (
+    backtest: boolean,
+    symbol: string,
+    context: { strategyName: StrategyName; exchangeName: ExchangeName; frameName: FrameName }
+  ): Promise<number | null> => {
+    this.loggerService.log("strategyConnectionService getPositionEstimateMinutes", {
+      symbol,
+      context,
+    });
+    const strategy = this.getStrategy(symbol, context.strategyName, context.exchangeName, context.frameName, backtest);
+    return await strategy.getPositionEstimateMinutes(symbol);
+  };
+
+  /**
+   * Returns the remaining time before the position expires, clamped to zero.
+   *
+   * Resolves current timestamp via timeMetaService and delegates to
+   * ClientStrategy.getPositionCountdownMinutes().
+   * Returns null if no pending signal exists.
+   *
+   * @param backtest - Whether running in backtest mode
+   * @param symbol - Trading pair symbol
+   * @param context - Execution context with strategyName, exchangeName, frameName
+   * @returns Promise resolving to remaining minutes (≥ 0) or null
+   */
+  public getPositionCountdownMinutes = async (
+    backtest: boolean,
+    symbol: string,
+    context: { strategyName: StrategyName; exchangeName: ExchangeName; frameName: FrameName }
+  ): Promise<number | null> => {
+    this.loggerService.log("strategyConnectionService getPositionCountdownMinutes", {
+      symbol,
+      context,
+    });
+    const strategy = this.getStrategy(symbol, context.strategyName, context.exchangeName, context.frameName, backtest);
+    const timestamp = await this.timeMetaService.getTimestamp(symbol, context, backtest);
+    return await strategy.getPositionCountdownMinutes(symbol, timestamp);
+  };
+
+  /**
+   * Returns the best price reached in the profit direction during this position's life.
+   *
+   * Delegates to ClientStrategy.getPositionHighestProfitPrice().
+   * Returns null if no pending signal exists.
+   * Never returns null when a signal is active.
+   *
+   * @param backtest - Whether running in backtest mode
+   * @param symbol - Trading pair symbol
+   * @param context - Execution context with strategyName, exchangeName, frameName
+   * @returns Promise resolving to `{ price, timestamp }` record or null
+   */
+  public getPositionHighestProfitPrice = async (
+    backtest: boolean,
+    symbol: string,
+    context: { strategyName: StrategyName; exchangeName: ExchangeName; frameName: FrameName }
+  ): Promise<{ price: number; timestamp: number } | null> => {
+    this.loggerService.log("strategyConnectionService getPositionHighestProfitPrice", {
+      symbol,
+      context,
+    });
+    const strategy = this.getStrategy(symbol, context.strategyName, context.exchangeName, context.frameName, backtest);
+    return await strategy.getPositionHighestProfitPrice(symbol);
+  };
+
+  /**
+   * Returns the number of minutes elapsed since the highest profit price was recorded.
+   *
+   * Resolves current timestamp via timeMetaService and delegates to
+   * ClientStrategy.getPositionDrawdownMinutes().
+   * Returns null if no pending signal exists.
+   *
+   * @param backtest - Whether running in backtest mode
+   * @param symbol - Trading pair symbol
+   * @param context - Execution context with strategyName, exchangeName, frameName
+   * @returns Promise resolving to drawdown duration in minutes or null
+   */
+  public getPositionDrawdownMinutes = async (
+    backtest: boolean,
+    symbol: string,
+    context: { strategyName: StrategyName; exchangeName: ExchangeName; frameName: FrameName }
+  ): Promise<number | null> => {
+    this.loggerService.log("strategyConnectionService getPositionDrawdownMinutes", {
+      symbol,
+      context,
+    });
+    const strategy = this.getStrategy(symbol, context.strategyName, context.exchangeName, context.frameName, backtest);
+    const timestamp = await this.timeMetaService.getTimestamp(symbol, context, backtest);
+    return await strategy.getPositionDrawdownMinutes(symbol, timestamp);
+  };
+
+  /**
    * Disposes the ClientStrategy instance for the given context.
    *
    * Calls dispose callback, then removes strategy from cache.

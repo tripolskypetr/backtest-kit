@@ -1049,6 +1049,102 @@ export class StrategyCoreService implements TStrategy {
     await this.validate(context);
     return await this.strategyConnectionService.hasPendingSignal(backtest, symbol, context);
   }
+
+  /**
+   * Returns the original estimated duration for the current pending signal.
+   *
+   * Validates strategy existence and delegates to connection service.
+   * Returns null if no pending signal exists.
+   *
+   * @param backtest - Whether running in backtest mode
+   * @param symbol - Trading pair symbol
+   * @param context - Execution context with strategyName, exchangeName, frameName
+   * @returns Promise resolving to estimated duration in minutes or null
+   */
+  public getPositionEstimateMinutes = async (
+    backtest: boolean,
+    symbol: string,
+    context: { strategyName: StrategyName; exchangeName: ExchangeName; frameName: FrameName }
+  ): Promise<number | null> => {
+    this.loggerService.log("strategyCoreService getPositionEstimateMinutes", {
+      symbol,
+      context,
+    });
+    await this.validate(context);
+    return await this.strategyConnectionService.getPositionEstimateMinutes(backtest, symbol, context);
+  };
+
+  /**
+   * Returns the remaining time before the position expires, clamped to zero.
+   *
+   * Validates strategy existence and delegates to connection service.
+   * Returns null if no pending signal exists.
+   *
+   * @param backtest - Whether running in backtest mode
+   * @param symbol - Trading pair symbol
+   * @param context - Execution context with strategyName, exchangeName, frameName
+   * @returns Promise resolving to remaining minutes (≥ 0) or null
+   */
+  public getPositionCountdownMinutes = async (
+    backtest: boolean,
+    symbol: string,
+    context: { strategyName: StrategyName; exchangeName: ExchangeName; frameName: FrameName }
+  ): Promise<number | null> => {
+    this.loggerService.log("strategyCoreService getPositionCountdownMinutes", {
+      symbol,
+      context,
+    });
+    await this.validate(context);
+    return await this.strategyConnectionService.getPositionCountdownMinutes(backtest, symbol, context);
+  };
+
+  /**
+   * Returns the best price reached in the profit direction during this position's life.
+   *
+   * Validates strategy existence and delegates to connection service.
+   * Returns null if no pending signal exists. Never returns null when signal is active.
+   *
+   * @param backtest - Whether running in backtest mode
+   * @param symbol - Trading pair symbol
+   * @param context - Execution context with strategyName, exchangeName, frameName
+   * @returns Promise resolving to `{ price, timestamp }` record or null
+   */
+  public getPositionHighestProfitPrice = async (
+    backtest: boolean,
+    symbol: string,
+    context: { strategyName: StrategyName; exchangeName: ExchangeName; frameName: FrameName }
+  ): Promise<{ price: number; timestamp: number } | null> => {
+    this.loggerService.log("strategyCoreService getPositionHighestProfitPrice", {
+      symbol,
+      context,
+    });
+    await this.validate(context);
+    return await this.strategyConnectionService.getPositionHighestProfitPrice(backtest, symbol, context);
+  };
+
+  /**
+   * Returns the number of minutes elapsed since the highest profit price was recorded.
+   *
+   * Validates strategy existence and delegates to connection service.
+   * Returns null if no pending signal exists.
+   *
+   * @param backtest - Whether running in backtest mode
+   * @param symbol - Trading pair symbol
+   * @param context - Execution context with strategyName, exchangeName, frameName
+   * @returns Promise resolving to drawdown duration in minutes or null
+   */
+  public getPositionDrawdownMinutes = async (
+    backtest: boolean,
+    symbol: string,
+    context: { strategyName: StrategyName; exchangeName: ExchangeName; frameName: FrameName }
+  ): Promise<number | null> => {
+    this.loggerService.log("strategyCoreService getPositionDrawdownMinutes", {
+      symbol,
+      context,
+    });
+    await this.validate(context);
+    return await this.strategyConnectionService.getPositionDrawdownMinutes(backtest, symbol, context);
+  };
 }
 
 export default StrategyCoreService;

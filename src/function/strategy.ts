@@ -45,6 +45,10 @@ const GET_POSITION_PNL_COST_METHOD_NAME = "strategy.getPositionPnlCost";
 const GET_POSITION_LEVELS_METHOD_NAME = "strategy.getPositionLevels";
 const GET_POSITION_PARTIALS_METHOD_NAME = "strategy.getPositionPartials";
 const GET_POSITION_ENTRIES_METHOD_NAME = "strategy.getPositionEntries";
+const GET_POSITION_ESTIMATE_MINUTES_METHOD_NAME = "strategy.getPositionEstimateMinutes";
+const GET_POSITION_COUNTDOWN_MINUTES_METHOD_NAME = "strategy.getPositionCountdownMinutes";
+const GET_POSITION_HIGHEST_PROFIT_PRICE_METHOD_NAME = "strategy.getPositionHighestProfitPrice";
+const GET_POSITION_DRAWDOWN_MINUTES_METHOD_NAME = "strategy.getPositionDrawdownMinutes";
 const GET_POSITION_ENTRY_OVERLAP_METHOD_NAME = "strategy.getPositionEntryOverlap";
 const GET_POSITION_PARTIAL_OVERLAP_METHOD_NAME = "strategy.getPositionPartialOverlap";
 
@@ -1705,6 +1709,155 @@ export async function getPositionEntries(symbol: string) {
   const { exchangeName, frameName, strategyName } =
     backtest.methodContextService.context;
   return await backtest.strategyCoreService.getPositionEntries(
+    isBacktest,
+    symbol,
+    { exchangeName, frameName, strategyName },
+  );
+}
+
+/**
+ * Returns the original estimated duration for the current pending signal.
+ *
+ * Reflects `minuteEstimatedTime` as set in the signal DTO — the maximum
+ * number of minutes the position is expected to be active before `time_expired`.
+ *
+ * Returns null if no pending signal exists.
+ *
+ * @param symbol - Trading pair symbol
+ * @returns Promise resolving to estimated duration in minutes or null
+ *
+ * @example
+ * ```typescript
+ * import { getPositionEstimateMinutes } from "backtest-kit";
+ *
+ * const estimate = await getPositionEstimateMinutes("BTCUSDT");
+ * // e.g. 120 (2 hours)
+ * ```
+ */
+export async function getPositionEstimateMinutes(symbol: string) {
+  backtest.loggerService.info(GET_POSITION_ESTIMATE_MINUTES_METHOD_NAME, { symbol });
+  if (!ExecutionContextService.hasContext()) {
+    throw new Error("getPositionEstimateMinutes requires an execution context");
+  }
+  if (!MethodContextService.hasContext()) {
+    throw new Error("getPositionEstimateMinutes requires a method context");
+  }
+  const { backtest: isBacktest } = backtest.executionContextService.context;
+  const { exchangeName, frameName, strategyName } = backtest.methodContextService.context;
+  return await backtest.strategyCoreService.getPositionEstimateMinutes(
+    isBacktest,
+    symbol,
+    { exchangeName, frameName, strategyName },
+  );
+}
+
+/**
+ * Returns the remaining time before the position expires, clamped to zero.
+ *
+ * Computes elapsed minutes since `pendingAt` and subtracts from `minuteEstimatedTime`.
+ * Returns 0 once the estimate is exceeded (never negative).
+ *
+ * Returns null if no pending signal exists.
+ *
+ * @param symbol - Trading pair symbol
+ * @returns Promise resolving to remaining minutes (≥ 0) or null
+ *
+ * @example
+ * ```typescript
+ * import { getPositionCountdownMinutes } from "backtest-kit";
+ *
+ * const remaining = await getPositionCountdownMinutes("BTCUSDT");
+ * // e.g. 45 (45 minutes left)
+ * // 0 when expired
+ * ```
+ */
+export async function getPositionCountdownMinutes(symbol: string) {
+  backtest.loggerService.info(GET_POSITION_COUNTDOWN_MINUTES_METHOD_NAME, { symbol });
+  if (!ExecutionContextService.hasContext()) {
+    throw new Error("getPositionCountdownMinutes requires an execution context");
+  }
+  if (!MethodContextService.hasContext()) {
+    throw new Error("getPositionCountdownMinutes requires a method context");
+  }
+  const { backtest: isBacktest } = backtest.executionContextService.context;
+  const { exchangeName, frameName, strategyName } = backtest.methodContextService.context;
+  return await backtest.strategyCoreService.getPositionCountdownMinutes(
+    isBacktest,
+    symbol,
+    { exchangeName, frameName, strategyName },
+  );
+}
+
+/**
+ * Returns the best price reached in the profit direction during this position's life.
+ *
+ * Initialized at position open with the entry price and timestamp.
+ * Updated on every tick/candle when VWAP moves beyond the previous record toward TP:
+ * - LONG: tracks the highest price seen above effective entry
+ * - SHORT: tracks the lowest price seen below effective entry
+ *
+ * Returns null if no pending signal exists.
+ * Never returns null when a signal is active — always contains at least the entry price.
+ *
+ * @param symbol - Trading pair symbol
+ * @returns Promise resolving to `{ price, timestamp }` record or null
+ *
+ * @example
+ * ```typescript
+ * import { getPositionHighestProfitPrice } from "backtest-kit";
+ *
+ * const peak = await getPositionHighestProfitPrice("BTCUSDT");
+ * // e.g. { price: 44500, timestamp: 1700000000000 }
+ * ```
+ */
+export async function getPositionHighestProfitPrice(symbol: string) {
+  backtest.loggerService.info(GET_POSITION_HIGHEST_PROFIT_PRICE_METHOD_NAME, { symbol });
+  if (!ExecutionContextService.hasContext()) {
+    throw new Error("getPositionHighestProfitPrice requires an execution context");
+  }
+  if (!MethodContextService.hasContext()) {
+    throw new Error("getPositionHighestProfitPrice requires a method context");
+  }
+  const { backtest: isBacktest } = backtest.executionContextService.context;
+  const { exchangeName, frameName, strategyName } = backtest.methodContextService.context;
+  return await backtest.strategyCoreService.getPositionHighestProfitPrice(
+    isBacktest,
+    symbol,
+    { exchangeName, frameName, strategyName },
+  );
+}
+
+/**
+ * Returns the number of minutes elapsed since the highest profit price was recorded.
+ *
+ * Measures how long the position has been pulling back from its peak profit level.
+ * Zero when called at the exact moment the peak was set.
+ * Grows continuously as price moves away from the peak without setting a new record.
+ *
+ * Returns null if no pending signal exists.
+ *
+ * @param symbol - Trading pair symbol
+ * @returns Promise resolving to drawdown duration in minutes or null
+ *
+ * @example
+ * ```typescript
+ * import { getPositionDrawdownMinutes } from "backtest-kit";
+ *
+ * const drawdown = await getPositionDrawdownMinutes("BTCUSDT");
+ * // e.g. 30 (30 minutes since the highest profit price)
+ * ```
+ */
+export async function getPositionDrawdownMinutes(symbol: string) {
+  backtest.loggerService.info(GET_POSITION_DRAWDOWN_MINUTES_METHOD_NAME, { symbol });
+  if (!ExecutionContextService.hasContext()) {
+    throw new Error("getPositionDrawdownMinutes requires an execution context");
+  }
+  if (!MethodContextService.hasContext()) {
+    throw new Error("getPositionDrawdownMinutes requires a method context");
+  }
+  const { backtest: isBacktest } = backtest.executionContextService.context;
+  const { exchangeName, frameName, strategyName } = backtest.methodContextService.context;
+  return await backtest.strategyCoreService.getPositionDrawdownMinutes(
     isBacktest,
     symbol,
     { exchangeName, frameName, strategyName },
