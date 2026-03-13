@@ -3114,6 +3114,13 @@ const RETURN_PENDING_SIGNAL_ACTIVE_FN = async (
 
         if (currentPrice > signal._peak.price) {
           signal._peak = { price: currentPrice, timestamp: currentTime };
+          if (self.params.callbacks?.onWrite) {
+            self.params.callbacks.onWrite(
+              signal.symbol,
+              signal,
+              backtest
+            );
+          }
           !backtest && await PersistSignalAdapter.writeSignalData(
             signal,
             self.params.execution.context.symbol,
@@ -3177,6 +3184,13 @@ const RETURN_PENDING_SIGNAL_ACTIVE_FN = async (
 
         if (currentPrice < signal._peak.price) {
           signal._peak = { price: currentPrice, timestamp: currentTime };
+          if (self.params.callbacks?.onWrite) {
+            self.params.callbacks.onWrite(
+              signal.symbol,
+              signal,
+              backtest
+            );
+          }
           !backtest && await PersistSignalAdapter.writeSignalData(
             signal,
             self.params.execution.context.symbol,
