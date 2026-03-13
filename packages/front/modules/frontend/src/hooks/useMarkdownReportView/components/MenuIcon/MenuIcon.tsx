@@ -1,6 +1,8 @@
+import React from "react";
 import { SxProps } from "@mui/material";
 import { DataObject, Description, PictureAsPdf } from "@mui/icons-material";
 import { ActionMenu, IOption, useActualCallback } from "react-declarative";
+import IconWrapper from "../../../../components/common/IconWrapper";
 
 interface IMenuIconProps {
     disabled?: boolean;
@@ -16,17 +18,17 @@ const options: IOption[] = [
     {
         action: "json",
         label: "Download JSON",
-        icon: DataObject,
+        icon: () => <IconWrapper icon={DataObject} color="#4caf50" />,
     },
     {
         action: "markdown",
         label: "Download Markdown",
-        icon: Description,
+        icon: () => <IconWrapper icon={Description} color="#4caf50" />,
     },
     {
         action: "pdf",
         label: "Download PDF",
-        icon: PictureAsPdf,
+        icon: () => <IconWrapper icon={PictureAsPdf} color="#4caf50" />,
     },
 ];
 
@@ -48,6 +50,7 @@ export const MenuIcon = ({
     return (
         <ActionMenu
             transparent
+            keepMounted
             className={className}
             style={style}
             sx={sx}
