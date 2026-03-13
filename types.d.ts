@@ -2226,6 +2226,8 @@ interface ISignalRow extends ISignalDto {
     _peak: {
         price: number;
         timestamp: number;
+        pnlPercentage: number;
+        pnlCost: number;
     };
     /** Unix timestamp in milliseconds when this signal was created/scheduled in backtest context or when getSignal was called in live context (before validation) */
     timestamp: number;

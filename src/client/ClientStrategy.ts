@@ -3113,8 +3113,8 @@ const RETURN_PENDING_SIGNAL_ACTIVE_FN = async (
         percentTp = Math.min(progressPercent, 100);
 
         if (currentPrice > signal._peak.price) {
-          const publicSignal = TO_PUBLIC_SIGNAL(signal, currentPrice);
-          signal._peak = { price: currentPrice, timestamp: currentTime, pnlCost: publicSignal.pnl.pnlCost, pnlPercentage: publicSignal.pnl.pnlPercentage };
+          const { pnl } = TO_PUBLIC_SIGNAL(signal, currentPrice);
+          signal._peak = { price: currentPrice, timestamp: currentTime, pnlCost: pnl.pnlCost, pnlPercentage: pnl.pnlPercentage };
           if (self.params.callbacks?.onWrite) {
             self.params.callbacks.onWrite(
               signal.symbol,
@@ -3129,7 +3129,7 @@ const RETURN_PENDING_SIGNAL_ACTIVE_FN = async (
             self.params.exchangeName,
           );
           await self.params.onHighestProfit(
-            publicSignal,
+            TO_PUBLIC_SIGNAL(signal, currentPrice),
             currentPrice,
             currentTime,
           )
@@ -3184,8 +3184,8 @@ const RETURN_PENDING_SIGNAL_ACTIVE_FN = async (
         percentTp = Math.min(progressPercent, 100);
 
         if (currentPrice < signal._peak.price) {
-          const publicSignal = TO_PUBLIC_SIGNAL(signal, currentPrice);
-          signal._peak = { price: currentPrice, timestamp: currentTime, pnlCost: publicSignal.pnl.pnlCost, pnlPercentage: publicSignal.pnl.pnlPercentage };
+          const { pnl } = TO_PUBLIC_SIGNAL(signal, currentPrice);
+          signal._peak = { price: currentPrice, timestamp: currentTime, pnlCost: pnl.pnlCost, pnlPercentage: pnl.pnlPercentage };
           if (self.params.callbacks?.onWrite) {
             self.params.callbacks.onWrite(
               signal.symbol,
@@ -3200,7 +3200,7 @@ const RETURN_PENDING_SIGNAL_ACTIVE_FN = async (
             self.params.exchangeName,
           );
           await self.params.onHighestProfit(
-            publicSignal,
+            TO_PUBLIC_SIGNAL(signal, currentPrice),
             currentPrice,
             currentTime,
           )
@@ -4092,8 +4092,8 @@ const PROCESS_PENDING_SIGNAL_CANDLES_FN = async (
           const progressPercent = (currentDistance / tpDistance) * 100;
 
           if (averagePrice > signal._peak.price) {
-            const publicSignal = TO_PUBLIC_SIGNAL(signal, averagePrice);
-            signal._peak = { price: averagePrice, timestamp: currentCandleTimestamp, pnlCost: publicSignal.pnl.pnlCost, pnlPercentage: publicSignal.pnl.pnlPercentage };
+            const { pnl } = TO_PUBLIC_SIGNAL(signal, averagePrice);
+            signal._peak = { price: averagePrice, timestamp: currentCandleTimestamp, pnlCost: pnl.pnlCost, pnlPercentage: pnl.pnlPercentage };
             if (self.params.callbacks?.onWrite) {
               self.params.callbacks.onWrite(
                 signal.symbol,
@@ -4102,7 +4102,7 @@ const PROCESS_PENDING_SIGNAL_CANDLES_FN = async (
               );
             }
             await self.params.onHighestProfit(
-              publicSignal,
+              TO_PUBLIC_SIGNAL(signal, averagePrice),
               averagePrice,
               currentCandleTimestamp
             );
@@ -4155,8 +4155,8 @@ const PROCESS_PENDING_SIGNAL_CANDLES_FN = async (
           const progressPercent = (currentDistance / tpDistance) * 100;
 
           if (averagePrice < signal._peak.price) {
-            const publicSignal = TO_PUBLIC_SIGNAL(signal, averagePrice);
-            signal._peak = { price: averagePrice, timestamp: currentCandleTimestamp, pnlCost: publicSignal.pnl.pnlCost, pnlPercentage: publicSignal.pnl.pnlPercentage };
+            const { pnl } = TO_PUBLIC_SIGNAL(signal, averagePrice);
+            signal._peak = { price: averagePrice, timestamp: currentCandleTimestamp, pnlCost: pnl.pnlCost, pnlPercentage: pnl.pnlPercentage };
             if (self.params.callbacks?.onWrite) {
               self.params.callbacks.onWrite(
                 signal.symbol,
@@ -4165,7 +4165,7 @@ const PROCESS_PENDING_SIGNAL_CANDLES_FN = async (
               );
             }
             await self.params.onHighestProfit(
-              publicSignal,
+              TO_PUBLIC_SIGNAL(signal, averagePrice),
               averagePrice,
               currentCandleTimestamp
             );
