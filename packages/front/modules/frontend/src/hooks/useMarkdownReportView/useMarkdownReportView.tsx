@@ -7,7 +7,7 @@ import {
     ActionIcon,
     ttl,
 } from "react-declarative";
-import { ArrowBack, Close, Download, Print } from "@mui/icons-material";
+import { ArrowBack, Close, Print } from "@mui/icons-material";
 import { createMemoryHistory } from "history";
 import routes from "./routes";
 import { CC_FULLSCREEN_SIZE_REQUEST } from "../../config/params";
@@ -16,6 +16,7 @@ import { Box, Stack } from "@mui/material";
 import ioc from "../../lib";
 import downloadMarkdown from "../../utils/downloadMarkdown";
 import CopyIcon from "./components/CopyIcon";
+import MenuIcon from "./components/MenuIcon";
 
 const CACHE_TTL = 45_000;
 
@@ -344,7 +345,7 @@ export const useMarkdownReportView = () => {
         }
     };
 
-    const handleDownload = async () => {
+    const handleDownloadMarkdown = async () => {
         const data = await fetchData(id$.current, type$.current);
         const tab = pathname$.current.replace(
             "/markdown_report/",
@@ -355,6 +356,52 @@ export const useMarkdownReportView = () => {
             const blob = new Blob([content], { type: "text/plain" });
             const url = URL.createObjectURL(blob);
             ioc.layoutService.downloadFile(url, `${tab}_${type$.current}_${Date.now()}.md`);
+        }
+    };
+
+    const handleDownloadJson = async () => {
+        const list =
+            type$.current === "backtest"
+                ? await ioc.backtestGlobalService.list()
+                : await ioc.liveGlobalService.list();
+
+        const item = list.find((entry) => entry.id === id$.current);
+
+        if (!item) {
+            throw new Error(`Item not found: ${id$.current}`);
+        }
+
+        const { symbol, strategyName, exchangeName, frameName } = item;
+        const tab = pathname$.current.replace("/markdown_report/", "");
+        const backtest = type$.current === "backtest";
+
+        let jsonData: unknown;
+        if (tab === "backtest") {
+            jsonData = await ioc.markdownViewService.getBacktestData(symbol, strategyName, exchangeName, frameName);
+        } else if (tab === "live") {
+            jsonData = await ioc.markdownViewService.getLiveData(symbol, strategyName, exchangeName);
+        } else if (tab === "breakeven") {
+            jsonData = await ioc.markdownViewService.getBreakevenData(symbol, strategyName, exchangeName, frameName, backtest);
+        } else if (tab === "risk") {
+            jsonData = await ioc.markdownViewService.getRiskData(symbol, strategyName, exchangeName, frameName, backtest);
+        } else if (tab === "partial") {
+            jsonData = await ioc.markdownViewService.getPartialData(symbol, strategyName, exchangeName, frameName, backtest);
+        } else if (tab === "highest_profit") {
+            jsonData = await ioc.markdownViewService.getHighestProfitData(symbol, strategyName, exchangeName, frameName, backtest);
+        } else if (tab === "schedule") {
+            jsonData = await ioc.markdownViewService.getScheduleData(symbol, strategyName, exchangeName, frameName, backtest);
+        } else if (tab === "performance") {
+            jsonData = await ioc.markdownViewService.getPerformanceData(symbol, strategyName, exchangeName, frameName, backtest);
+        } else if (tab === "sync") {
+            jsonData = await ioc.markdownViewService.getSyncData(symbol, strategyName, exchangeName, frameName, backtest);
+        } else if (tab === "heat") {
+            jsonData = await ioc.markdownViewService.getHeatData(strategyName, exchangeName, frameName, backtest);
+        }
+
+        if (jsonData !== undefined) {
+            const blob = new Blob([JSON.stringify(jsonData, null, 2)], { type: "application/json" });
+            const url = URL.createObjectURL(blob);
+            ioc.layoutService.downloadFile(url, `${tab}_${type$.current}_${Date.now()}.json`);
         }
     };
 
@@ -401,9 +448,12 @@ export const useMarkdownReportView = () => {
                     }}
                     sx={{ mr: "10px", mt: "2.5px" }}
                 />
-                <ActionIcon onClick={() => handleDownload()}>
-                    <Download />
-                </ActionIcon>
+                <MenuIcon
+                    sx={{ mr: "10px", mt: "2.5px" }}
+                    onDownloadJson={handleDownloadJson}
+                    onDownloadMarkdown={handleDownloadMarkdown}
+                    onDownloadPdf={handlePrint}
+                />
                 <ActionIcon onClick={onClose}>
                     <Close />
                 </ActionIcon>
