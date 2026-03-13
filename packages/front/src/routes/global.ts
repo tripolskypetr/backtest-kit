@@ -56,4 +56,39 @@ router.post("/api/v1/global/signal_pending_price", async (req, res) => {
   }
 });
 
+interface BaseRequest {
+  clientId: string;
+  serviceName: string;
+  userId: string;
+  requestId: string;
+}
+
+router.post("/api/v1/global/backtest_list", async (req, res) => {
+  try {
+    const request = <BaseRequest>await micro.json(req);
+    const { requestId, serviceName } = request;
+    const data = await ioc.backtestMetaService.list();
+    const result = { data, status: "ok", error: "", requestId, serviceName };
+    ioc.loggerService.log("/api/v1/global/backtest_list ok", { request, result: omit(result, "data") });
+    return await micro.send(res, 200, result);
+  } catch (error) {
+    ioc.loggerService.log("/api/v1/global/backtest_list error", { error: errorData(error) });
+    return await micro.send(res, 200, { status: "error", error: getErrorMessage(error) });
+  }
+});
+
+router.post("/api/v1/global/live_list", async (req, res) => {
+  try {
+    const request = <BaseRequest>await micro.json(req);
+    const { requestId, serviceName } = request;
+    const data = await ioc.liveMetaService.list();
+    const result = { data, status: "ok", error: "", requestId, serviceName };
+    ioc.loggerService.log("/api/v1/global/live_list ok", { request, result: omit(result, "data") });
+    return await micro.send(res, 200, result);
+  } catch (error) {
+    ioc.loggerService.log("/api/v1/global/live_list error", { error: errorData(error) });
+    return await micro.send(res, 200, { status: "error", error: getErrorMessage(error) });
+  }
+});
+
 export default router;

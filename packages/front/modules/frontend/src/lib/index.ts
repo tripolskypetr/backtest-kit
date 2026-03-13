@@ -24,6 +24,8 @@ import MarkdownViewService from "./services/view/MarkdownViewService";
 
 import SymbolGlobalService from "./services/global/SymbolGlobalService";
 import PriceGlobalService from "./services/global/PriceGlobalService";
+import BacktestGlobalService from "./services/global/BacktestGlobalService";
+import LiveGlobalService from "./services/global/LiveGlobalService";
 
 import TYPES from "./core/TYPES";
 
@@ -38,6 +40,8 @@ const baseServices = {
 const globalServices = {
   symbolGlobalService: inject<SymbolGlobalService>(TYPES.symbolGlobalService),
   priceGlobalService: inject<PriceGlobalService>(TYPES.priceGlobalService),
+  backtestGlobalService: inject<BacktestGlobalService>(TYPES.backtestGlobalService),
+  liveGlobalService: inject<LiveGlobalService>(TYPES.liveGlobalService),
 }
 
 const mockServices = {

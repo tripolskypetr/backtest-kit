@@ -9,6 +9,8 @@ const baseServices = {
 const globalServices = {
   symbolGlobalService: Symbol("symbolGlobalService"),
   priceGlobalService: Symbol("priceGlobalService"),
+  backtestGlobalService: Symbol("backtestGlobalService"),
+  liveGlobalService: Symbol("liveGlobalService"),
 }
 
 const mockServices = {

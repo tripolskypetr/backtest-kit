@@ -22,6 +22,8 @@ import StatusViewService from "../services/view/StatusViewService";
 import MarkdownViewService from "../services/view/MarkdownViewService";
 import SymbolGlobalService from "../services/global/SymbolGlobalService";
 import PriceGlobalService from "../services/global/PriceGlobalService";
+import BacktestGlobalService from "../services/global/BacktestGlobalService";
+import LiveGlobalService from "../services/global/LiveGlobalService";
 
 {
     provide(TYPES.errorService, () => new ErrorService());
@@ -34,6 +36,8 @@ import PriceGlobalService from "../services/global/PriceGlobalService";
 {
     provide(TYPES.symbolGlobalService, () => new SymbolGlobalService());
     provide(TYPES.priceGlobalService, () => new PriceGlobalService());
+    provide(TYPES.backtestGlobalService, () => new BacktestGlobalService());
+    provide(TYPES.liveGlobalService, () => new LiveGlobalService());
 }
 
 {
