@@ -449,7 +449,7 @@ export const useMarkdownReportView = () => {
                     sx={{ mr: "10px", mt: "2.5px" }}
                 />
                 <MenuIcon
-                    sx={{ mr: "10px", mt: "2.5px" }}
+                    sx={{ mr: "10px", mt: "0.5px" }}
                     onDownloadJson={handleDownloadJson}
                     onDownloadMarkdown={handleDownloadMarkdown}
                     onDownloadPdf={handlePrint}

@@ -1,7 +1,6 @@
-import * as React from "react";
-import { SxProps, Menu, MenuItem, ListItemIcon, ListItemText } from "@mui/material";
-import { MoreVert, DataObject, Description, PictureAsPdf } from "@mui/icons-material";
-import { ActionIcon } from "react-declarative";
+import { SxProps } from "@mui/material";
+import { DataObject, Description, PictureAsPdf } from "@mui/icons-material";
+import { ActionMenu, IOption, useActualCallback } from "react-declarative";
 
 interface IMenuIconProps {
     disabled?: boolean;
@@ -13,6 +12,24 @@ interface IMenuIconProps {
     onDownloadPdf: () => void | Promise<void>;
 }
 
+const options: IOption[] = [
+    {
+        action: "json",
+        label: "Download JSON",
+        icon: DataObject,
+    },
+    {
+        action: "markdown",
+        label: "Download Markdown",
+        icon: Description,
+    },
+    {
+        action: "pdf",
+        label: "Download PDF",
+        icon: PictureAsPdf,
+    },
+];
+
 export const MenuIcon = ({
     disabled,
     className,
@@ -22,62 +39,22 @@ export const MenuIcon = ({
     onDownloadMarkdown,
     onDownloadPdf,
 }: IMenuIconProps) => {
-    const [anchorEl, setAnchorEl] = React.useState<HTMLButtonElement | null>(null);
-
-    const handleOpen = (e: React.MouseEvent<HTMLButtonElement>) => {
-        e.preventDefault();
-        e.stopPropagation();
-        setAnchorEl(e.currentTarget);
-    };
-
-    const handleClose = () => setAnchorEl(null);
+    const handleAction = useActualCallback(async (action: string) => {
+        if (action === "json") await onDownloadJson();
+        else if (action === "markdown") await onDownloadMarkdown();
+        else if (action === "pdf") await onDownloadPdf();
+    });
 
     return (
-        <>
-            <ActionIcon
-                className={className}
-                style={style}
-                sx={sx}
-                disabled={disabled}
-                size={36}
-                onClick={handleOpen}
-            >
-                <MoreVert />
-            </ActionIcon>
-            <Menu
-                anchorEl={anchorEl}
-                open={Boolean(anchorEl)}
-                onClose={handleClose}
-            >
-                <MenuItem
-                    onClick={async () => {
-                        handleClose();
-                        await onDownloadJson();
-                    }}
-                >
-                    <ListItemIcon><DataObject fontSize="small" /></ListItemIcon>
-                    <ListItemText>Download JSON</ListItemText>
-                </MenuItem>
-                <MenuItem
-                    onClick={async () => {
-                        handleClose();
-                        await onDownloadMarkdown();
-                    }}
-                >
-                    <ListItemIcon><Description fontSize="small" /></ListItemIcon>
-                    <ListItemText>Download Markdown</ListItemText>
-                </MenuItem>
-                <MenuItem
-                    onClick={async () => {
-                        handleClose();
-                        await onDownloadPdf();
-                    }}
-                >
-                    <ListItemIcon><PictureAsPdf fontSize="small" /></ListItemIcon>
-                    <ListItemText>Download PDF</ListItemText>
-                </MenuItem>
-            </Menu>
-        </>
+        <ActionMenu
+            transparent
+            className={className}
+            style={style}
+            sx={sx}
+            disabled={disabled}
+            options={options}
+            onAction={handleAction}
+        />
     );
 };
 
