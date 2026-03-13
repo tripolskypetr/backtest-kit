@@ -1,0 +1,259 @@
+import {
+    useActualState,
+    useModalManager,
+    useTabsModal,
+    History,
+    useActualRef,
+    ActionIcon,
+    ttl,
+} from "react-declarative";
+import { ArrowBack, Close, Download } from "@mui/icons-material";
+import { createMemoryHistory } from "history";
+import routes from "./routes";
+import { CC_FULLSCREEN_SIZE_REQUEST } from "../../config/params";
+import tabs from "./tabs";
+import { Box, Stack } from "@mui/material";
+import ioc from "../../lib";
+import downloadMarkdown from "../../utils/downloadMarkdown";
+
+const CACHE_TTL = 45_000;
+
+const history = createMemoryHistory();
+
+const fetchData = ttl(
+    async (id: string, type: "backtest" | "live") => {
+        const list =
+            type === "backtest"
+                ? await ioc.backtestGlobalService.list()
+                : await ioc.liveGlobalService.list();
+
+        const item = list.find((entry) => entry.id === id);
+
+        if (!item) {
+            throw new Error(`Item not found: ${id}`);
+        }
+
+        const { symbol, strategyName, exchangeName, frameName } = item;
+
+        const [
+            backtest,
+            live,
+            breakeven,
+            risk,
+            partial,
+            highest_profit,
+            schedule,
+            performance,
+            sync,
+            heat,
+        ] = await Promise.all([
+            type === "backtest"
+                ? ioc.markdownViewService.getBacktestReport(
+                      symbol,
+                      strategyName,
+                      exchangeName,
+                      frameName,
+                  )
+                : Promise.resolve(""),
+            type === "live"
+                ? ioc.markdownViewService.getLiveReport(
+                      symbol,
+                      strategyName,
+                      exchangeName,
+                  )
+                : Promise.resolve(""),
+            ioc.markdownViewService.getBreakevenReport(
+                symbol,
+                strategyName,
+                exchangeName,
+                frameName,
+                type === "backtest",
+            ),
+            ioc.markdownViewService.getRiskReport(
+                symbol,
+                strategyName,
+                exchangeName,
+                frameName,
+                type === "backtest",
+            ),
+            ioc.markdownViewService.getPartialReport(
+                symbol,
+                strategyName,
+                exchangeName,
+                frameName,
+                type === "backtest",
+            ),
+            ioc.markdownViewService.getHighestProfitReport(
+                symbol,
+                strategyName,
+                exchangeName,
+                frameName,
+                type === "backtest",
+            ),
+            ioc.markdownViewService.getScheduleReport(
+                symbol,
+                strategyName,
+                exchangeName,
+                frameName,
+                type === "backtest",
+            ),
+            ioc.markdownViewService.getPerformanceReport(
+                symbol,
+                strategyName,
+                exchangeName,
+                frameName,
+                type === "backtest",
+            ),
+            ioc.markdownViewService.getSyncReport(
+                symbol,
+                strategyName,
+                exchangeName,
+                frameName,
+                type === "backtest",
+            ),
+            ioc.markdownViewService.getHeatReport(
+                strategyName,
+                exchangeName,
+                frameName,
+                type === "backtest",
+            ),
+        ]);
+
+        return {
+            type,
+            backtest,
+            live,
+            breakeven,
+            risk,
+            partial,
+            highest_profit,
+            schedule,
+            performance,
+            sync,
+            heat,
+        };
+    },
+    {
+        timeout: CACHE_TTL,
+        key: ([id, type]) => `${id}_${type}`,
+    },
+);
+
+export const useMarkdownReportView = () => {
+    const [id$, setId] = useActualState("");
+    const [type$, setType] = useActualState<"backtest" | "live">("backtest");
+    const ctx = useModalManager();
+    const { push, pop } = ctx;
+
+    const [pathname$, setPathname] = useActualRef(history.location.pathname);
+
+    const handleTabChange = (id: string, history: History) => {
+        const path = `/markdown_report/${id}`;
+        history.replace(path);
+        setPathname(path);
+    };
+
+    const handleDownload = async () => {
+        const data = await fetchData(id$.current, type$.current);
+        const tab = pathname$.current.replace(
+            "/markdown_report/",
+            "",
+        ) as keyof typeof data;
+        const content = data[tab];
+        if (typeof content === "string") {
+            await downloadMarkdown(content);
+        }
+    };
+
+    const { pickData, render } = useTabsModal({
+        tabs,
+        withStaticAction: true,
+        onTabChange: handleTabChange,
+        animation: "none",
+        title: "Markdown Report",
+        sizeRequest: CC_FULLSCREEN_SIZE_REQUEST,
+        history,
+        routes,
+        BeforeTitle: ({ onClose }) => {
+            const { total } = useModalManager();
+            return (
+                <Box
+                    sx={{
+                        mr: 1,
+                        display: total === 1 ? "none" : "flex",
+                    }}
+                >
+                    <ActionIcon onClick={onClose}>
+                        <ArrowBack />
+                    </ActionIcon>
+                </Box>
+            );
+        },
+        AfterTitle: ({ onClose }) => (
+            <Stack direction="row" gap={1}>
+                <ActionIcon onClick={() => handleDownload()}>
+                    <Download />
+                </ActionIcon>
+                <ActionIcon onClick={onClose}>
+                    <Close />
+                </ActionIcon>
+            </Stack>
+        ),
+        fetchState: async () => await fetchData(id$.current, type$.current),
+        mapInitialData: ([
+            {
+                type,
+                backtest,
+                live,
+                breakeven,
+                risk,
+                partial,
+                highest_profit,
+                schedule,
+                performance,
+                sync,
+                heat,
+            },
+        ]) => ({
+            backtest,
+            live,
+            breakeven,
+            risk,
+            partial,
+            highest_profit,
+            schedule,
+            performance,
+            sync,
+            heat,
+            type,
+        }),
+        mapPayload: ([{ type }]) => ({ type }),
+        onLoadStart: () => ioc.layoutService.setAppbarLoader(true),
+        onLoadEnd: () => ioc.layoutService.setAppbarLoader(false),
+        onClose: () => {
+            pop();
+        },
+    });
+
+    return (id: string, type: "backtest" | "live") => {
+        push({
+            id: "markdown_report_modal",
+            render,
+            onInit: () => {
+                const initialPath =
+                    type === "live"
+                        ? "/markdown_report/live"
+                        : "/markdown_report/backtest";
+                history.push(initialPath);
+                setPathname(initialPath);
+            },
+            onMount: () => {
+                setId(id);
+                setType(type);
+                pickData();
+            },
+        });
+    };
+};
+
+export default useMarkdownReportView;

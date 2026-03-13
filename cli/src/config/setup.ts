@@ -17,7 +17,7 @@ import {
 }
 
 {
-  Markdown.disable();
+  Markdown.enable();
   Report.enable();
 }
 
@@ -29,6 +29,10 @@ import {
 {
   NotificationLive.usePersist();
   NotificationBacktest.useMemory();
+}
+
+{
+  Markdown.useDummy();
 }
 
 setConfig({

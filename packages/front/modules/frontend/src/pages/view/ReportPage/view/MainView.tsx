@@ -30,6 +30,7 @@ import { KeyboardArrowLeft, Refresh } from "@mui/icons-material";
 import ioc from "../../../../lib";
 import IconPhoto from "../../../../components/common/IconPhoto";
 import IconWrapper from "../../../../components/common/IconWrapper";
+import useMarkdownReportView from "../../../../hooks/useMarkdownReportView";
 
 const GROUP_HEADER = "trade-gpt__groupHeader";
 const GROUP_ROOT = "trade-gpt__groupRoot";
@@ -292,8 +293,10 @@ export const MainView = () => {
         }
     };
 
-    const handleOpen = async (id: string, type: "backtest" | "live") => {
-        alert(JSON.stringify({ id, type }));
+    const openMarkdownReport = useMarkdownReportView();
+
+    const handleOpen = (id: string, type: "backtest" | "live") => {
+        openMarkdownReport(id, type);
     };
 
     const renderInner = () => {
