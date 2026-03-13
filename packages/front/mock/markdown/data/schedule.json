@@ -1,0 +1,51 @@
+{
+  "eventList": [
+    {
+      "timestamp": 1705306800000,
+      "action": "scheduled",
+      "symbol": "BTCUSDT",
+      "signalId": "abc123",
+      "position": "long",
+      "currentPrice": 50200,
+      "priceOpen": 50000,
+      "priceTakeProfit": 55000,
+      "priceStopLoss": 47500,
+      "originalPriceTakeProfit": 55000,
+      "originalPriceStopLoss": 47500,
+      "originalPriceOpen": 50000,
+      "totalEntries": 1,
+      "totalPartials": 0,
+      "partialExecuted": 0,
+      "pendingAt": 1705305000000,
+      "scheduledAt": 1705306800000
+    },
+    {
+      "timestamp": 1705309200000,
+      "action": "opened",
+      "symbol": "BTCUSDT",
+      "signalId": "abc123",
+      "position": "long",
+      "currentPrice": 50000,
+      "priceOpen": 50000,
+      "priceTakeProfit": 55000,
+      "priceStopLoss": 47500,
+      "originalPriceTakeProfit": 55000,
+      "originalPriceStopLoss": 47500,
+      "originalPriceOpen": 50000,
+      "totalEntries": 1,
+      "totalPartials": 0,
+      "partialExecuted": 0,
+      "duration": 2400000,
+      "pendingAt": 1705305000000,
+      "scheduledAt": 1705306800000
+    }
+  ],
+  "totalEvents": 2,
+  "totalScheduled": 1,
+  "totalOpened": 1,
+  "totalCancelled": 0,
+  "cancellationRate": 0.0,
+  "activationRate": 100.0,
+  "avgWaitTime": 40.0,
+  "avgActivationTime": 40.0
+}

@@ -1,0 +1,24 @@
+{
+  "eventList": [
+    {
+      "timestamp": 1705311000000,
+      "symbol": "BTCUSDT",
+      "strategyName": "mock-strategy",
+      "signalId": "abc123",
+      "position": "long",
+      "currentPrice": 50100,
+      "priceOpen": 50000,
+      "priceTakeProfit": 55000,
+      "priceStopLoss": 50100,
+      "originalPriceTakeProfit": 55000,
+      "originalPriceStopLoss": 47500,
+      "originalPriceOpen": 50000,
+      "totalEntries": 1,
+      "totalPartials": 0,
+      "partialExecuted": 0,
+      "pendingAt": 1705309200000,
+      "backtest": true
+    }
+  ],
+  "totalEvents": 1
+}

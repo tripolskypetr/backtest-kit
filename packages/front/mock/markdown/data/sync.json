@@ -1,0 +1,64 @@
+{
+  "eventList": [
+    {
+      "timestamp": 1705309200000,
+      "symbol": "BTCUSDT",
+      "strategyName": "mock-strategy",
+      "exchangeName": "binance",
+      "frameName": "1m",
+      "signalId": "abc123",
+      "action": "signal-open",
+      "currentPrice": 50000,
+      "position": "long",
+      "priceOpen": 50000,
+      "priceTakeProfit": 55000,
+      "priceStopLoss": 47500,
+      "originalPriceTakeProfit": 55000,
+      "originalPriceStopLoss": 47500,
+      "originalPriceOpen": 50000,
+      "scheduledAt": 1705306800000,
+      "pendingAt": 1705305000000,
+      "totalEntries": 1,
+      "totalPartials": 0,
+      "pnl": {
+        "percentage": 0.0,
+        "cost": 0.0,
+        "entries": 1
+      },
+      "backtest": true,
+      "createdAt": "2024-01-15T10:00:00.000Z"
+    },
+    {
+      "timestamp": 1705316400000,
+      "symbol": "BTCUSDT",
+      "strategyName": "mock-strategy",
+      "exchangeName": "binance",
+      "frameName": "1m",
+      "signalId": "abc123",
+      "action": "signal-close",
+      "currentPrice": 52500,
+      "position": "long",
+      "priceOpen": 50000,
+      "priceTakeProfit": 55000,
+      "priceStopLoss": 47500,
+      "originalPriceTakeProfit": 55000,
+      "originalPriceStopLoss": 47500,
+      "originalPriceOpen": 50000,
+      "scheduledAt": 1705306800000,
+      "pendingAt": 1705305000000,
+      "totalEntries": 1,
+      "totalPartials": 0,
+      "pnl": {
+        "percentage": 5.0,
+        "cost": 250.0,
+        "entries": 1
+      },
+      "closeReason": "take_profit",
+      "backtest": true,
+      "createdAt": "2024-01-15T12:00:00.000Z"
+    }
+  ],
+  "totalEvents": 2,
+  "openCount": 1,
+  "closeCount": 1
+}

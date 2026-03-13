@@ -1,0 +1,45 @@
+{
+  "signalList": [
+    {
+      "action": "closed",
+      "symbol": "BTCUSDT",
+      "strategyName": "mock-strategy",
+      "exchangeName": "binance",
+      "frameName": "1m",
+      "currentPrice": 52500,
+      "closeReason": "take_profit",
+      "closeTimestamp": 1705316400000,
+      "pnl": {
+        "percentage": 5.0,
+        "cost": 250.0,
+        "entries": 1
+      },
+      "signal": {
+        "signalId": "abc123",
+        "symbol": "BTCUSDT",
+        "position": "long",
+        "priceOpen": 50000,
+        "priceTakeProfit": 55000,
+        "priceStopLoss": 47500,
+        "originalPriceTakeProfit": 55000,
+        "originalPriceStopLoss": 47500,
+        "originalPriceOpen": 50000,
+        "totalEntries": 1,
+        "totalPartials": 0,
+        "partialExecuted": 0,
+        "pendingAt": 1705309200000
+      }
+    }
+  ],
+  "totalSignals": 1,
+  "winCount": 1,
+  "lossCount": 0,
+  "winRate": 100.0,
+  "avgPnl": 5.0,
+  "totalPnl": 5.0,
+  "stdDev": 0.0,
+  "sharpeRatio": 1.85,
+  "annualizedSharpeRatio": 29.39,
+  "certaintyRatio": 0.95,
+  "expectedYearlyReturns": 4.75
+}

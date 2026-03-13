@@ -18,6 +18,7 @@ const mockServices = {
     exchangeMockService: Symbol("exchangeMockService"),
     logMockService: Symbol("logMockService"),
     statusMockService: Symbol("statusMockService"),
+    markdownMockService: Symbol("markdownMockService"),
 }
 
 const viewServices = {
@@ -26,6 +27,7 @@ const viewServices = {
     exchangeViewService: Symbol("exchangeViewService"),
     logViewService: Symbol("logViewService"),
     statusViewService: Symbol("statusViewService"),
+    markdownViewService: Symbol("markdownViewService"),
 }
 
 export const TYPES = {

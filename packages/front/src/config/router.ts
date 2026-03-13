@@ -8,6 +8,8 @@ import mock from "../routes/mock";
 import view from "../routes/view";
 import icon from "../routes/icon";
 import dict from "../routes/dict";
+import markdown_mock from "../routes/markdown_mock";
+import markdown_view from "../routes/markdown_view";
 import global from "../routes/global";
 
 import { CC_ENABLE_MOCK, CC_WWWROOT_PATH } from "./params";
@@ -28,6 +30,14 @@ router.all("/api/v1/mock/*", (req, res) => {
 
 router.all("/api/v1/view/*", (req, res) => {
   return view(req, res, finalhandler(req, res));
+});
+
+router.all("/api/v1/markdown_mock/*", (req, res) => {
+  return markdown_mock(req, res, finalhandler(req, res));
+});
+
+router.all("/api/v1/markdown_view/*", (req, res) => {
+  return markdown_view(req, res, finalhandler(req, res));
 });
 
 router.all("/icon/*", (req, res) => {

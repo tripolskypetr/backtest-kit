@@ -1,0 +1,29 @@
+{
+  "symbols": [
+    {
+      "symbol": "BTCUSDT",
+      "totalPnl": 5.5,
+      "sharpeRatio": 2.1,
+      "maxDrawdown": -2.5,
+      "totalTrades": 20
+    },
+    {
+      "symbol": "ETHUSDT",
+      "totalPnl": 4.3,
+      "sharpeRatio": 1.85,
+      "maxDrawdown": -3.1,
+      "totalTrades": 15
+    },
+    {
+      "symbol": "BNBUSDT",
+      "totalPnl": 2.7,
+      "sharpeRatio": 1.3,
+      "maxDrawdown": -4.0,
+      "totalTrades": 10
+    }
+  ],
+  "totalSymbols": 3,
+  "portfolioTotalPnl": 12.5,
+  "portfolioSharpeRatio": 1.75,
+  "portfolioTotalTrades": 45
+}

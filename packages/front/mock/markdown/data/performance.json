@@ -1,0 +1,38 @@
+{
+  "strategyName": "mock-strategy",
+  "totalEvents": 1464,
+  "totalDuration": 3000.0,
+  "metricStats": {
+    "getSignal": {
+      "metricType": "getSignal",
+      "count": 1440,
+      "totalDuration": 2880.0,
+      "avgDuration": 2.0,
+      "minDuration": 0.5,
+      "maxDuration": 45.0,
+      "stdDev": 3.2,
+      "median": 1.5,
+      "p95": 8.5,
+      "p99": 22.0,
+      "avgWaitTime": 0.1,
+      "minWaitTime": 0.0,
+      "maxWaitTime": 1.5
+    },
+    "onActivePing": {
+      "metricType": "onActivePing",
+      "count": 24,
+      "totalDuration": 120.0,
+      "avgDuration": 5.0,
+      "minDuration": 1.0,
+      "maxDuration": 35.0,
+      "stdDev": 6.1,
+      "median": 3.5,
+      "p95": 18.0,
+      "p99": 30.0,
+      "avgWaitTime": 0.2,
+      "minWaitTime": 0.0,
+      "maxWaitTime": 2.0
+    }
+  },
+  "events": []
+}

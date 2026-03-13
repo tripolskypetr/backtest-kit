@@ -9,11 +9,13 @@ import StorageMockService from "./services/mock/StorageMockService";
 import ExchangeMockService from "./services/mock/ExchangeMockService";
 import LogMockService from "./services/mock/LogMockService";
 import StatusMockService from "./services/mock/StatusMockService";
+import MarkdownMockService from "./services/mock/MarkdownMockService";
 import NotificationViewService from "./services/view/NotificationViewService";
 import StatusViewService from "./services/view/StatusViewService";
 import StorageViewService from "./services/view/StorageViewService";
 import ExchangeViewService from "./services/view/ExchangeViewService";
 import LogViewService from "./services/view/LogViewService";
+import MarkdownViewService from "./services/view/MarkdownViewService";
 import SymbolConnectionService from "./services/connection/SymbolConnectionService";
 import SymbolMetaService from "./services/meta/SymbolMetaService";
 import PriceConnectionService from "./services/connection/PriceConnectionService";
@@ -38,6 +40,7 @@ const mockServices = {
   exchangeMockService: inject<ExchangeMockService>(TYPES.exchangeMockService),
   logMockService: inject<LogMockService>(TYPES.logMockService),
   statusMockService: inject<StatusMockService>(TYPES.statusMockService),
+  markdownMockService: inject<MarkdownMockService>(TYPES.markdownMockService),
 };
 
 const viewServices = {
@@ -46,6 +49,7 @@ const viewServices = {
   exchangeViewService: inject<ExchangeViewService>(TYPES.exchangeViewService),
   logViewService: inject<LogViewService>(TYPES.logViewService),
   statusViewService: inject<StatusViewService>(TYPES.statusViewService),
+  markdownViewService: inject<MarkdownViewService>(TYPES.markdownViewService),
 };
 
 const ioc = {

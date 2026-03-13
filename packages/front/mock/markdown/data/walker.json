@@ -1,0 +1,80 @@
+{
+  "walkerName": "mock-walker",
+  "symbol": "BTCUSDT",
+  "exchangeName": "binance",
+  "frameName": "1m",
+  "metric": "sharpeRatio",
+  "totalStrategies": 3,
+  "bestStrategy": "mock-strategy-v2",
+  "bestMetric": 2.35,
+  "bestStats": {
+    "signalList": [],
+    "totalSignals": 40,
+    "winCount": 26,
+    "lossCount": 14,
+    "winRate": 65.0,
+    "avgPnl": 2.05,
+    "totalPnl": 8.2,
+    "stdDev": 3.1,
+    "sharpeRatio": 2.35,
+    "annualizedSharpeRatio": 37.3,
+    "certaintyRatio": 0.92,
+    "expectedYearlyReturns": 7.54
+  },
+  "strategyResults": [
+    {
+      "strategyName": "mock-strategy-v2",
+      "metricValue": 2.35,
+      "stats": {
+        "signalList": [],
+        "totalSignals": 40,
+        "winCount": 26,
+        "lossCount": 14,
+        "winRate": 65.0,
+        "avgPnl": 2.05,
+        "totalPnl": 8.2,
+        "stdDev": 3.1,
+        "sharpeRatio": 2.35,
+        "annualizedSharpeRatio": 37.3,
+        "certaintyRatio": 0.92,
+        "expectedYearlyReturns": 7.54
+      }
+    },
+    {
+      "strategyName": "mock-strategy-v1",
+      "metricValue": 1.85,
+      "stats": {
+        "signalList": [],
+        "totalSignals": 38,
+        "winCount": 23,
+        "lossCount": 15,
+        "winRate": 60.53,
+        "avgPnl": 1.45,
+        "totalPnl": 5.5,
+        "stdDev": 2.8,
+        "sharpeRatio": 1.85,
+        "annualizedSharpeRatio": 29.39,
+        "certaintyRatio": 0.88,
+        "expectedYearlyReturns": 5.06
+      }
+    },
+    {
+      "strategyName": "mock-strategy-v3",
+      "metricValue": 1.4,
+      "stats": {
+        "signalList": [],
+        "totalSignals": 35,
+        "winCount": 19,
+        "lossCount": 16,
+        "winRate": 54.29,
+        "avgPnl": 0.89,
+        "totalPnl": 3.1,
+        "stdDev": 2.5,
+        "sharpeRatio": 1.4,
+        "annualizedSharpeRatio": 22.22,
+        "certaintyRatio": 0.81,
+        "expectedYearlyReturns": 2.51
+      }
+    }
+  ]
+}

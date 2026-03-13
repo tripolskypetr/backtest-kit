@@ -1,0 +1,31 @@
+{
+  "eventList": [
+    {
+      "timestamp": 1705311000000,
+      "symbol": "BTCUSDT",
+      "strategyName": "mock-strategy",
+      "exchangeName": "binance",
+      "frameName": "1m",
+      "currentPrice": 50000,
+      "activePositionCount": 3,
+      "rejectionId": "risk-001",
+      "rejectionNote": "Max 3 positions allowed",
+      "currentSignal": {
+        "signalId": "xyz789",
+        "symbol": "BTCUSDT",
+        "position": "long",
+        "priceOpen": 50000,
+        "priceTakeProfit": 55000,
+        "priceStopLoss": 47500
+      },
+      "backtest": true
+    }
+  ],
+  "totalRejections": 1,
+  "bySymbol": {
+    "BTCUSDT": 1
+  },
+  "byStrategy": {
+    "mock-strategy": 1
+  }
+}

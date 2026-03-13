@@ -1,0 +1,59 @@
+{
+  "eventList": [
+    {
+      "timestamp": 1705311000000,
+      "action": "profit",
+      "symbol": "BTCUSDT",
+      "strategyName": "mock-strategy",
+      "signalId": "abc123",
+      "position": "long",
+      "currentPrice": 51500,
+      "level": 10,
+      "priceOpen": 50000,
+      "priceTakeProfit": 55000,
+      "priceStopLoss": 47500,
+      "originalPriceTakeProfit": 55000,
+      "originalPriceStopLoss": 47500,
+      "originalPriceOpen": 50000,
+      "totalEntries": 1,
+      "totalPartials": 1,
+      "partialExecuted": 1,
+      "pnl": {
+        "percentage": 3.0,
+        "cost": 150.0,
+        "entries": 1
+      },
+      "pendingAt": 1705309200000,
+      "backtest": true
+    },
+    {
+      "timestamp": 1705313400000,
+      "action": "loss",
+      "symbol": "BTCUSDT",
+      "strategyName": "mock-strategy",
+      "signalId": "abc123",
+      "position": "long",
+      "currentPrice": 49000,
+      "level": -10,
+      "priceOpen": 50000,
+      "priceTakeProfit": 55000,
+      "priceStopLoss": 47500,
+      "originalPriceTakeProfit": 55000,
+      "originalPriceStopLoss": 47500,
+      "originalPriceOpen": 50000,
+      "totalEntries": 1,
+      "totalPartials": 1,
+      "partialExecuted": 1,
+      "pnl": {
+        "percentage": -2.0,
+        "cost": -100.0,
+        "entries": 1
+      },
+      "pendingAt": 1705309200000,
+      "backtest": true
+    }
+  ],
+  "totalEvents": 2,
+  "totalProfit": 1,
+  "totalLoss": 1
+}
