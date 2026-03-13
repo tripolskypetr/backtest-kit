@@ -73,7 +73,7 @@ const options: IBreadcrumbs2Option[] = [
     {
         type: Breadcrumbs2Type.Link,
         action: "back-action",
-        label: "Markdown",
+        label: "Markdown Report",
     },
 ];
 

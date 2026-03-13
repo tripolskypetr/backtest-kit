@@ -1,17 +1,10 @@
-import { IOutlet, IOutletProps, OutletView } from "react-declarative";
+import { IOutlet, OutletView } from "react-declarative";
 import hasRouteMatch from "../../../utils/hasRouteMatch";
 
 import MainView from "./view/MainView";
 import ioc from "../../../lib";
-import StatusView from "./view/StatusView";
 
 const routes: IOutlet[] = [
-    {
-        id: "status",
-        element: StatusView,
-        isActive: (pathname) => hasRouteMatch(["/status/:id"], pathname),
-        isAvailable: () => false,
-    },
     {
         id: "main",
         element: MainView,

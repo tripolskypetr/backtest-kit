@@ -7,7 +7,7 @@ import {
     ActionIcon,
     ttl,
 } from "react-declarative";
-import { ArrowBack, Close, Download } from "@mui/icons-material";
+import { ArrowBack, Close, Download, Print } from "@mui/icons-material";
 import { createMemoryHistory } from "history";
 import routes from "./routes";
 import { CC_FULLSCREEN_SIZE_REQUEST } from "../../config/params";
@@ -140,8 +140,12 @@ const fetchData = ttl(
     },
 );
 
-
-const handleCopy = async (pathname: string, id: string, type: "backtest" | "live", onCopy: (content: string) => void) => {
+const handleCopy = async (
+    pathname: string,
+    id: string,
+    type: "backtest" | "live",
+    onCopy: (content: string) => void,
+) => {
     const list =
         type === "backtest"
             ? await ioc.backtestGlobalService.list()
@@ -157,43 +161,159 @@ const handleCopy = async (pathname: string, id: string, type: "backtest" | "live
     const backtest = type === "backtest";
 
     if (pathname.includes("/markdown_report/backtest")) {
-        onCopy(JSON.stringify(await ioc.markdownViewService.getBacktestData(symbol, strategyName, exchangeName, frameName), null, 2));
+        onCopy(
+            JSON.stringify(
+                await ioc.markdownViewService.getBacktestData(
+                    symbol,
+                    strategyName,
+                    exchangeName,
+                    frameName,
+                ),
+                null,
+                2,
+            ),
+        );
         return;
     }
     if (pathname.includes("/markdown_report/live")) {
-        onCopy(JSON.stringify(await ioc.markdownViewService.getLiveData(symbol, strategyName, exchangeName), null, 2));
+        onCopy(
+            JSON.stringify(
+                await ioc.markdownViewService.getLiveData(
+                    symbol,
+                    strategyName,
+                    exchangeName,
+                ),
+                null,
+                2,
+            ),
+        );
         return;
     }
     if (pathname.includes("/markdown_report/breakeven")) {
-        onCopy(JSON.stringify(await ioc.markdownViewService.getBreakevenData(symbol, strategyName, exchangeName, frameName, backtest), null, 2));
+        onCopy(
+            JSON.stringify(
+                await ioc.markdownViewService.getBreakevenData(
+                    symbol,
+                    strategyName,
+                    exchangeName,
+                    frameName,
+                    backtest,
+                ),
+                null,
+                2,
+            ),
+        );
         return;
     }
     if (pathname.includes("/markdown_report/risk")) {
-        onCopy(JSON.stringify(await ioc.markdownViewService.getRiskData(symbol, strategyName, exchangeName, frameName, backtest), null, 2));
+        onCopy(
+            JSON.stringify(
+                await ioc.markdownViewService.getRiskData(
+                    symbol,
+                    strategyName,
+                    exchangeName,
+                    frameName,
+                    backtest,
+                ),
+                null,
+                2,
+            ),
+        );
         return;
     }
     if (pathname.includes("/markdown_report/partial")) {
-        onCopy(JSON.stringify(await ioc.markdownViewService.getPartialData(symbol, strategyName, exchangeName, frameName, backtest), null, 2));
+        onCopy(
+            JSON.stringify(
+                await ioc.markdownViewService.getPartialData(
+                    symbol,
+                    strategyName,
+                    exchangeName,
+                    frameName,
+                    backtest,
+                ),
+                null,
+                2,
+            ),
+        );
         return;
     }
     if (pathname.includes("/markdown_report/highest_profit")) {
-        onCopy(JSON.stringify(await ioc.markdownViewService.getHighestProfitData(symbol, strategyName, exchangeName, frameName, backtest), null, 2));
+        onCopy(
+            JSON.stringify(
+                await ioc.markdownViewService.getHighestProfitData(
+                    symbol,
+                    strategyName,
+                    exchangeName,
+                    frameName,
+                    backtest,
+                ),
+                null,
+                2,
+            ),
+        );
         return;
     }
     if (pathname.includes("/markdown_report/schedule")) {
-        onCopy(JSON.stringify(await ioc.markdownViewService.getScheduleData(symbol, strategyName, exchangeName, frameName, backtest), null, 2));
+        onCopy(
+            JSON.stringify(
+                await ioc.markdownViewService.getScheduleData(
+                    symbol,
+                    strategyName,
+                    exchangeName,
+                    frameName,
+                    backtest,
+                ),
+                null,
+                2,
+            ),
+        );
         return;
     }
     if (pathname.includes("/markdown_report/performance")) {
-        onCopy(JSON.stringify(await ioc.markdownViewService.getPerformanceData(symbol, strategyName, exchangeName, frameName, backtest), null, 2));
+        onCopy(
+            JSON.stringify(
+                await ioc.markdownViewService.getPerformanceData(
+                    symbol,
+                    strategyName,
+                    exchangeName,
+                    frameName,
+                    backtest,
+                ),
+                null,
+                2,
+            ),
+        );
         return;
     }
     if (pathname.includes("/markdown_report/sync")) {
-        onCopy(JSON.stringify(await ioc.markdownViewService.getSyncData(symbol, strategyName, exchangeName, frameName, backtest), null, 2));
+        onCopy(
+            JSON.stringify(
+                await ioc.markdownViewService.getSyncData(
+                    symbol,
+                    strategyName,
+                    exchangeName,
+                    frameName,
+                    backtest,
+                ),
+                null,
+                2,
+            ),
+        );
         return;
     }
     if (pathname.includes("/markdown_report/heat")) {
-        onCopy(JSON.stringify(await ioc.markdownViewService.getHeatData(strategyName, exchangeName, frameName, backtest), null, 2));
+        onCopy(
+            JSON.stringify(
+                await ioc.markdownViewService.getHeatData(
+                    strategyName,
+                    exchangeName,
+                    frameName,
+                    backtest,
+                ),
+                null,
+                2,
+            ),
+        );
         return;
     }
 };
@@ -212,7 +332,7 @@ export const useMarkdownReportView = () => {
         setPathname(path);
     };
 
-    const handleDownload = async () => {
+    const handlePrint = async () => {
         const data = await fetchData(id$.current, type$.current);
         const tab = pathname$.current.replace(
             "/markdown_report/",
@@ -250,6 +370,12 @@ export const useMarkdownReportView = () => {
         },
         AfterTitle: ({ onClose }) => (
             <Stack direction="row" gap={1}>
+                <ActionIcon
+                    sx={{ mr: "10px" }}
+                    onClick={() => handlePrint()}
+                >
+                    <Print />
+                </ActionIcon>
                 <CopyIcon
                     onClick={async (_, onCopy) => {
                         await handleCopy(
@@ -261,7 +387,7 @@ export const useMarkdownReportView = () => {
                     }}
                     sx={{ mr: "10px", mt: "2.5px" }}
                 />
-                <ActionIcon onClick={() => handleDownload()}>
+                <ActionIcon onClick={() => handlePrint()}>
                     <Download />
                 </ActionIcon>
                 <ActionIcon onClick={onClose}>
